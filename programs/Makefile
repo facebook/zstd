@@ -127,11 +127,17 @@ test-zstd32: zstd32 datagen
 	./datagen -g256MB | ./zstd32 -v  | ./zstd32 -d > $(VOID)
 	./datagen -g6GB   | ./zstd32 -vq | ./zstd32 -d > $(VOID)
 
-test-fullbench: fullbench
+test-fullbench: fullbench datagen
 	./fullbench -i1
+	./datagen -P0 -g516K > tmp
+	./fullbench -i1 tmp
+	@rm tmp
 
-test-fullbench32: fullbench32
+test-fullbench32: fullbench32 datagen
 	./fullbench32 -i1
+	./datagen -P0 -g516K > tmp
+	./fullbench32 -i1 tmp
+	@rm tmp
 
 test-fuzzer: fuzzer
 	./fuzzer

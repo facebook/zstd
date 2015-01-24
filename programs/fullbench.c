@@ -383,7 +383,7 @@ size_t benchMem(void* src, size_t srcSize, U32 benchNb)
     }
 
     /* Allocation */
-    dstBuffSize = srcSize + 512;
+    dstBuffSize = ZSTD_compressBound(srcSize);
     dstBuff = malloc(dstBuffSize);
     buff2 = malloc(dstBuffSize);
     if ((!dstBuff) || (!buff2))
@@ -545,7 +545,7 @@ int benchFiles(char** fileNamesTable, int nbFiles, U32 benchNb)
             DISPLAY("Not enough memory for '%s' full size; testing %i MB only...\n", inFileName, (int)(benchedSize>>20));
         }
 
-        // Alloc
+        /* Alloc */
         origBuff = (char*) malloc((size_t)benchedSize);
         if(!origBuff)
         {
@@ -554,7 +554,7 @@ int benchFiles(char** fileNamesTable, int nbFiles, U32 benchNb)
             return 12;
         }
 
-        // Fill input buffer
+        /* Fill input buffer */
         DISPLAY("Loading %s...       \r", inFileName);
         readSize = fread(origBuff, 1, benchedSize, inFile);
         fclose(inFile);
@@ -566,7 +566,7 @@ int benchFiles(char** fileNamesTable, int nbFiles, U32 benchNb)
             return 13;
         }
 
-        // bench
+        /* bench */
         DISPLAY("\r%79s\r", "");
         DISPLAY(" %s : \n", inFileName);
         if (benchNb)

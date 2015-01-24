@@ -32,7 +32,7 @@
 # ################################################################
 
 # Version number
-export VERSION=0
+export VERSION=0.0.1
 export RELEASE=r$(VERSION)
 
 DESTDIR?=
@@ -88,6 +88,6 @@ test:
 test-travis: $(TRAVIS_TARGET)
 
 prg-travis:
-	@cd $(PRGDIR); $(MAKE) -e $(TRAVIS_TARGET)
+	@cd $(PRGDIR); $(MAKE) -e $(ZSTD_TRAVIS_CI_ENV)
 
 endif

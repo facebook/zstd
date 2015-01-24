@@ -383,7 +383,7 @@ size_t benchMem(void* src, size_t srcSize, U32 benchNb)
     }
 
     /* Allocation */
-    dstBuffSize = srcSize + 512;
+    dstBuffSize = ZSTD_compressBound(srcSize);
     dstBuff = malloc(dstBuffSize);
     buff2 = malloc(dstBuffSize);
     if ((!dstBuff) || (!buff2))
@@ -403,6 +403,14 @@ size_t benchMem(void* src, size_t srcSize, U32 benchNb)
         {
             blockProperties_t bp;
             ZSTD_compress(dstBuff, dstBuffSize, src, srcSize);
+            ZSTD_getcBlockSize(dstBuff+4, dstBuffSize, &bp);   // Get first block compressed size
+            if (bp.blockType != bt_compressed)
+            {
+                DISPLAY("ZSTD_decodeLiteralsBlock : impossible to test on this sample (not compressible)\n");
+                free(dstBuff);
+                free(buff2);
+                return 0;
+            }
             g_cSize = ZSTD_getcBlockSize(dstBuff+7, dstBuffSize, &bp) + 3;
             memcpy(buff2, dstBuff+7, g_cSize);
             //srcSize = benchFunction(dstBuff, dstBuffSize, buff2, src, srcSize);   // real speed
@@ -418,6 +426,13 @@ size_t benchMem(void* src, size_t srcSize, U32 benchNb)
             ZSTD_compress(dstBuff, dstBuffSize, src, srcSize);
             ip += 4;   // Jump magic Number
             blockSize = ZSTD_getcBlockSize(ip, dstBuffSize, &bp);   // Get first block compressed size
+            if (bp.blockType != bt_compressed)
+            {
+                DISPLAY("ZSTD_decodeSeqHeaders : impossible to test on this sample (not compressible)\n");
+                free(dstBuff);
+                free(buff2);
+                return 0;
+            }
             iend = ip + 3 + blockSize;   // Get end of first block
             ip += 3;   // jump first block header
             ip += ZSTD_getcBlockSize(ip, iend - ip, &bp) + 3;   // jump literal sub block and its header
@@ -450,6 +465,8 @@ size_t benchMem(void* src, size_t srcSize, U32 benchNb)
     default : ;
     }
 
+    { size_t i; for (i=0; i<dstBuffSize; i++) dstBuff[i]=(BYTE)i; }     /* warming up memory */
+
     for (loopNb = 1; loopNb <= nbIterations; loopNb++)
     {
         double averageTime;
@@ -457,7 +474,6 @@ size_t benchMem(void* src, size_t srcSize, U32 benchNb)
         U32 nbRounds=0;
 
         DISPLAY("%2i- %-30.30s : \r", loopNb, benchName);
-        { size_t i; for (i=0; i<dstBuffSize; i++) dstBuff[i]=(BYTE)i; }     /* warming up memory */
 
         milliTime = BMK_GetMilliStart();
         while(BMK_GetMilliStart() == milliTime);
@@ -545,7 +561,7 @@ int benchFiles(char** fileNamesTable, int nbFiles, U32 benchNb)
             DISPLAY("Not enough memory for '%s' full size; testing %i MB only...\n", inFileName, (int)(benchedSize>>20));
         }
 
-        // Alloc
+        /* Alloc */
         origBuff = (char*) malloc((size_t)benchedSize);
         if(!origBuff)
         {
@@ -554,7 +570,7 @@ int benchFiles(char** fileNamesTable, int nbFiles, U32 benchNb)
             return 12;
         }
 
-        // Fill input buffer
+        /* Fill input buffer */
         DISPLAY("Loading %s...       \r", inFileName);
         readSize = fread(origBuff, 1, benchedSize, inFile);
         fclose(inFile);
@@ -566,7 +582,7 @@ int benchFiles(char** fileNamesTable, int nbFiles, U32 benchNb)
             return 13;
         }
 
-        // bench
+        /* bench */
         DISPLAY("\r%79s\r", "");
         DISPLAY(" %s : \n", inFileName);
         if (benchNb)

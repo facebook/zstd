@@ -12,14 +12,14 @@ For a taste of its performance, here are a few benchmark numbers, completed on a
 |Name           | Ratio | C.speed | D.speed |
 |---------------|-------|---------|---------|
 |               |       |   MB/s  |  MB/s   |
-| zlib 1.2.8 -6 | 3.099 |    18   |  275    |
+| [zlib 1.2.8 -6](http://www.zlib.net/)| 3.099 |    18   |  275    |
 | **ZSTD**      |**2.872**|**201**|**498**  |
-| zlib 1.2.8 -1 | 2.730 |    58   |   250   |
-| LZ4 HC r127   | 2.720 |   26    |  1720   |
+| [zlib 1.2.8 -1](http://www.zlib.net/)| 2.730 |    58   |   250   |
+| [LZ4 HC r127](https://github.com/Cyan4973/lz4)| 2.720 |   26    |  1720   |
 | QuickLZ 1.5.1b6|2.237 |  323    |  373    |
 | LZO 2.06      | 2.106 |  351    |  510    |
 | Snappy 1.1.0  | 2.091 |  238    |  964    |
-| LZ4 r127      | 2.084 |  370    | 1590    |
+| [LZ4 r127](https://github.com/Cyan4973/lz4)| 2.084 |  370    | 1590    |
 | LZF 3.6       | 2.077 |  220    |  502    |
 
 An interesting feature of ZSTD is that it can qualify as both a reasonably strong compressor and a fast one.
@@ -29,13 +29,15 @@ Obviously, your exact mileage will vary depending on your target system.
 
 ZSTD compression speed, on the other hand, can be configured to fit different situations.
 The first, fast, derivative offers ~200 MB/s per core, which is suitable for a few real-time scenarios.
-But similar to LZ4, ZSTD can offer derivatives trading compression time for compression ratio, while keeping decompression properties intact. "Offline compression", where compression time is of little importance because the content is only compressed once and decompressed many times, is therefore within the scope.
+But similar to [LZ4](https://github.com/Cyan4973/lz4), ZSTD can offer derivatives trading compression time for compression ratio, while keeping decompression properties intact. "Offline compression", where compression time is of little importance because the content is only compressed once and decompressed many times, is therefore within the scope.
 
 Note that high compression derivatives still have to be developed.
 It's a complex area which will certainly benefit the contributions from a few experts.
 
 
 Another property ZSTD is developed for is configurable memory requirement, with the objective to fit into low-memory configurations, or servers handling many connections in parallel.
+
+ZSTD entropy stage is provided by [FSE (Finite State Entropy)](https://github.com/Cyan4973/FiniteStateEntropy).
 
 ZSTD development is starting. So consider current results merely as early ones. The implementation will gradually evolve and improve overtime, especially during this first year. This is a phase which will depend a lot on user feedback, since these feedback will be key in deciding next priorities or features to add.
 

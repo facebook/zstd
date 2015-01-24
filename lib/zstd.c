@@ -1004,9 +1004,9 @@ size_t ZSTD_compressContinue(ZSTD_cctx_t cctx, void* dst, size_t maxDstSize, con
     //U32 limit = 4 * BLOCKSIZE;
     //const U32 updateRate = 2 * BLOCKSIZE;
 
-    // Init
+    /*  Init */
     if (ctx->base==NULL) ctx->base = src, ctx->current=0;
-    if (src != ctx->base + ctx->current)   // not contiguous
+    if (src != ctx->base + ctx->current)   /* not contiguous */
     {
             ZSTD_resetCCtx(ctx);
             ctx->base = src;
@@ -1035,12 +1035,12 @@ size_t ZSTD_compressContinue(ZSTD_cctx_t cctx, void* dst, size_t maxDstSize, con
         }
         */
 
-        // compress
+        /* compress */
         if (maxDstSize < ZSTD_blockHeaderSize) return (size_t)-ZSTD_ERROR_maxDstSize_tooSmall;
         cSize = ZSTD_compressBlock(ctx, op+ZSTD_blockHeaderSize, maxDstSize-ZSTD_blockHeaderSize, ip, blockSize);
         if (cSize == 0)
         {
-            cSize = ZSTD_noCompressBlock(op, maxDstSize, ip, blockSize);
+            cSize = ZSTD_noCompressBlock(op, maxDstSize, ip, blockSize);   /* block is not compressible */
             if (ZSTD_isError(cSize)) return cSize;
         }
         else
@@ -1084,7 +1084,7 @@ static size_t ZSTD_compressCCtx(void* ctx, void* dst, size_t maxDstSize, const v
     BYTE* const ostart = dst;
     BYTE* op = ostart;
 
-    // Header
+    /* Header */
     {
         size_t headerSize = ZSTD_compressBegin(ctx, dst, maxDstSize);
         if(ZSTD_isError(headerSize)) return headerSize;
@@ -1092,7 +1092,7 @@ static size_t ZSTD_compressCCtx(void* ctx, void* dst, size_t maxDstSize, const v
         maxDstSize -= headerSize;
     }
 
-    // Compression
+    /* Compression */
     {
         size_t cSize = ZSTD_compressContinue(ctx, op, maxDstSize, src, srcSize);
         if (ZSTD_isError(cSize)) return cSize;
@@ -1100,7 +1100,7 @@ static size_t ZSTD_compressCCtx(void* ctx, void* dst, size_t maxDstSize, const v
         maxDstSize -= cSize;
     }
 
-    // Close frame
+    /* Close frame */
     {
         size_t endSize = ZSTD_compressEnd(ctx, op, maxDstSize);
         if(ZSTD_isError(endSize)) return endSize;

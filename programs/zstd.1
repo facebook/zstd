@@ -1,0 +1,69 @@
+\"
+\" zstd.1: This is a manual page for 'zstd' program. This file is part of the
+\" zstd <https://github.com/Cyan4973/zstd> project.
+\"
+
+\" No hyphenation
+.hy 0
+.nr HY 0
+
+.TH zstd "1" "2015-01-22" "zstd" "User Commands"
+.SH NAME
+\fBzstd\fR - standard compression algorithm
+
+.SH SYNOPSIS
+.TP 5
+\fBzstd\fR [\fBOPTIONS\fR] [-|INPUT-FILE] <OUTPUT-FILE>
+
+.SH DESCRIPTION
+.PP
+\fBzstd\fR is a fast lossless compression algorithm
+with highly parametrable compression strength and memory usage.
+It is based on the \fBLZ77\fR family, coupled with FSE entropy stage.
+zstd offers compression speed of 200 MB/s per core.
+It also features a fast decoder, with speed > 500 MB/s per core.
+\fBzstd\fR supports the following options :
+
+.SH OPTIONS
+.TP
+.B \-1
+ fast compression (default)
+.TP
+.B \-d
+ decompression
+.TP
+.B \-f
+ overwrite output without prompting
+.TP
+.B \-h/\-H
+ display help/long help and exit
+.TP
+.B \-V
+ display Version number and exit
+.TP
+.B \-v
+ verbose mode
+.TP
+.B \-q
+ suppress warnings; specify twice to suppress errors too
+.TP
+.B \-c
+ force write to standard output, even if it is the console
+.TP
+.B \-t
+ test compressed file integrity
+.TP
+.B \-z
+ force compression
+.TP
+.B \-b
+ benchmark file(s)
+.TP
+.B \-i#
+ iteration loops [1-9](default : 3), benchmark mode only
+
+.SH BUGS
+Report bugs at:- https://github.com/Cyan4973/zstd
+
+.SH AUTHOR
+Yann Collet

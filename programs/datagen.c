@@ -70,6 +70,7 @@
 #define CDG_SIZE_DEFAULT (64 KB)
 #define CDG_SEED_DEFAULT 0
 #define CDG_COMPRESSIBILITY_DEFAULT 50
+#define CDG_LITDENSITY_DEFAULT 12
 #define PRIME1   2654435761U
 #define PRIME2   2246822519U
 
@@ -85,7 +86,6 @@
 *  Local Parameters
 **************************************/
 static unsigned no_prompt = 0;
-static char*    programName;
 static unsigned displayLevel = 2;
 
 
@@ -137,7 +137,7 @@ static char CDG_genChar(U32* seed, const void* ltctx)
 #define CDG_RAND15BITS  ((CDG_rand(seed) >> 3) & 32767)
 #define CDG_RANDLENGTH  ( ((CDG_rand(seed) >> 7) & 7) ? (CDG_rand(seed) & 15) : (CDG_rand(seed) & 511) + 15)
 #define CDG_DICTSIZE    (32 KB)
-static void CDG_generate(U64 size, U32* seed, double matchProba)
+static void CDG_generate(U64 size, U32* seed, double matchProba, double litProba)
 {
     BYTE fullbuff[CDG_DICTSIZE + 128 KB + 1];
     BYTE* buff = fullbuff + CDG_DICTSIZE;
@@ -145,8 +145,7 @@ static void CDG_generate(U64 size, U32* seed, double matchProba)
     U32 P32 = (U32)(32768 * matchProba);
     U32 pos=1;
     U32 genBlockSize = 128 KB;
-    double literalDistrib = 0.13;
-    void* ldctx = CDG_createLiteralDistrib(literalDistrib);
+    void* ldctx = CDG_createLiteralDistrib(litProba);
 
     /* Build initial prefix */
     fullbuff[0] = CDG_genChar(seed, ldctx);
@@ -221,7 +220,7 @@ static void CDG_generate(U64 size, U32* seed, double matchProba)
 /*********************************************************
 *  Command line
 *********************************************************/
-static int CDG_usage(void)
+static int CDG_usage(char* programName)
 {
     DISPLAY( "Compressible data generator\n");
     DISPLAY( "Usage :\n");
@@ -239,9 +238,11 @@ static int CDG_usage(void)
 int main(int argc, char** argv)
 {
     int argNb;
-    int proba = CDG_COMPRESSIBILITY_DEFAULT;
+    U32 proba = CDG_COMPRESSIBILITY_DEFAULT;
+    U32 litProba = CDG_LITDENSITY_DEFAULT;
     U64 size = CDG_SIZE_DEFAULT;
     U32 seed = CDG_SEED_DEFAULT;
+    char* programName;
 
     /* Check command line */
     programName = argv[0];
@@ -262,7 +263,7 @@ int main(int argc, char** argv)
                 switch(*argument)
                 {
                 case 'h':
-                    return CDG_usage();
+                    return CDG_usage(programName);
                 case 'g':
                     argument++;
                     size=0;
@@ -287,7 +288,7 @@ int main(int argc, char** argv)
                         argument++;
                     }
                     break;
-                case 'p':
+                case 'P':
                     argument++;
                     proba=0;
                     while ((*argument>='0') && (*argument<='9'))
@@ -296,14 +297,25 @@ int main(int argc, char** argv)
                         proba += *argument - '0';
                         argument++;
                     }
-                    if (proba<0) proba=0;
                     if (proba>100) proba=100;
+                    break;
+                case 'L':
+                    argument++;
+                    litProba=0;
+                    while ((*argument>='0') && (*argument<='9'))
+                    {
+                        litProba *= 10;
+                        litProba += *argument - '0';
+                        argument++;
+                    }
+                    if (litProba>100) litProba=100;
                     break;
                 case 'v':
                     displayLevel = 4;
                     argument++;
                     break;
-                default: ;
+                default:
+                    return CDG_usage(programName);
                 }
             }
 
@@ -314,7 +326,7 @@ int main(int argc, char** argv)
     DISPLAYLEVEL(3, "Seed = %u \n", seed);
     if (proba!=CDG_COMPRESSIBILITY_DEFAULT) DISPLAYLEVEL(3, "Compressibility : %i%%\n", proba);
 
-    CDG_generate(size, &seed, ((double)proba) / 100);
+    CDG_generate(size, &seed, ((double)proba) / 100, ((double)litProba) / 100);
 
     return 0;
 }

@@ -57,6 +57,24 @@
 
 
 /**************************************
+*  OS-specific Includes
+**************************************/
+#if defined(MSDOS) || defined(OS2) || defined(WIN32) || defined(_WIN32) || defined(__CYGWIN__)
+#  include <fcntl.h>   /* _O_BINARY */
+#  include <io.h>      /* _setmode, _isatty */
+#  ifdef __MINGW32__
+   int _fileno(FILE *stream);   /* MINGW somehow forgets to include this windows declaration into <stdio.h> */
+#  endif
+#  define SET_BINARY_MODE(file) _setmode(_fileno(file), _O_BINARY)
+#  define IS_CONSOLE(stdStream) _isatty(_fileno(stdStream))
+#else
+#  include <unistd.h>  /* isatty */
+#  define SET_BINARY_MODE(file)
+#  define IS_CONSOLE(stdStream) isatty(fileno(stdStream))
+#endif
+
+
+/**************************************
 *  Constants
 **************************************/
 #ifndef ZSTD_VERSION
@@ -70,7 +88,6 @@
 #define CDG_SIZE_DEFAULT (64 KB)
 #define CDG_SEED_DEFAULT 0
 #define CDG_COMPRESSIBILITY_DEFAULT 50
-#define CDG_LITDENSITY_DEFAULT 12
 #define PRIME1   2654435761U
 #define PRIME2   2246822519U
 
@@ -97,7 +114,7 @@ static unsigned int CDG_rand(U32* src)
 {
     U32 rand32 = *src;
     rand32 *= PRIME1;
-    rand32 += PRIME2;
+    rand32 ^= PRIME2;
     rand32  = CDG_rotl32(rand32, 13);
     *src = rand32;
     return rand32;
@@ -106,14 +123,20 @@ static unsigned int CDG_rand(U32* src)
 
 #define LTSIZE 8192
 #define LTMASK (LTSIZE-1)
-static const char firstChar = '(';
-static const char lastChar = '}';
 static void* CDG_createLiteralDistrib(double ld)
 {
-    char* lt = malloc(LTSIZE);
+    BYTE* lt = malloc(LTSIZE);
     U32 i = 0;
-    char character = '0';
+    BYTE character = '0';
+    BYTE firstChar = '(';
+    BYTE lastChar = '}';
 
+    if (ld==0.0)
+    {
+        character = 0;
+        firstChar = 0;
+        lastChar =255;
+    }
     while (i<LTSIZE)
     {
         U32 weight = (U32)((double)(LTSIZE - i) * ld) + 1;
@@ -146,8 +169,10 @@ static void CDG_generate(U64 size, U32* seed, double matchProba, double litProba
     U32 pos=1;
     U32 genBlockSize = 128 KB;
     void* ldctx = CDG_createLiteralDistrib(litProba);
+    FILE* fout = stdout;
 
-    /* Build initial prefix */
+    /* init */
+    SET_BINARY_MODE(stdout);
     fullbuff[0] = CDG_genChar(seed, ldctx);
     while (pos<32 KB)
     {
@@ -206,11 +231,8 @@ static void CDG_generate(U64 size, U32* seed, double matchProba, double litProba
             }
         }
 
-        /* output datagen */
-        pos=0;
-        for (;pos+512<=genBlockSize;pos+=512)
-            printf("%512.512s", buff+pos);
-        for (;pos<genBlockSize;pos++) printf("%c", buff[pos]);
+        /* output generated data */
+        fwrite(buff, 1, genBlockSize, fout);
         /* Regenerate prefix */
         memcpy(fullbuff, buff + 96 KB, 32 KB);
     }
@@ -238,8 +260,8 @@ static int CDG_usage(char* programName)
 int main(int argc, char** argv)
 {
     int argNb;
-    U32 proba = CDG_COMPRESSIBILITY_DEFAULT;
-    U32 litProba = CDG_LITDENSITY_DEFAULT;
+    double proba = (double)CDG_COMPRESSIBILITY_DEFAULT / 100;
+    double litProba = proba / 3.6;
     U64 size = CDG_SIZE_DEFAULT;
     U32 seed = CDG_SEED_DEFAULT;
     char* programName;
@@ -290,25 +312,28 @@ int main(int argc, char** argv)
                     break;
                 case 'P':
                     argument++;
-                    proba=0;
+                    proba=0.0;
                     while ((*argument>='0') && (*argument<='9'))
                     {
                         proba *= 10;
                         proba += *argument - '0';
                         argument++;
                     }
-                    if (proba>100) proba=100;
+                    if (proba>100.) proba=100.;
+                    proba /= 100.;
+                    litProba = proba / 4.;
                     break;
                 case 'L':
                     argument++;
-                    litProba=0;
+                    litProba=0.;
                     while ((*argument>='0') && (*argument<='9'))
                     {
                         litProba *= 10;
                         litProba += *argument - '0';
                         argument++;
                     }
-                    if (litProba>100) litProba=100;
+                    if (litProba>100.) litProba=100.;
+                    litProba /= 100.;
                     break;
                 case 'v':
                     displayLevel = 4;
@@ -324,9 +349,9 @@ int main(int argc, char** argv)
 
     DISPLAYLEVEL(4, "Data Generator %s \n", ZSTD_VERSION);
     DISPLAYLEVEL(3, "Seed = %u \n", seed);
-    if (proba!=CDG_COMPRESSIBILITY_DEFAULT) DISPLAYLEVEL(3, "Compressibility : %i%%\n", proba);
+    if (proba!=CDG_COMPRESSIBILITY_DEFAULT) DISPLAYLEVEL(3, "Compressibility : %i%%\n", (U32)(proba*100));
 
-    CDG_generate(size, &seed, ((double)proba) / 100, ((double)litProba) / 100);
+    CDG_generate(size, &seed, proba, litProba);
 
     return 0;
 }

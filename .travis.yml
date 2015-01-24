@@ -1,0 +1,14 @@
+language: c
+compiler: gcc
+script: make test-travis
+before_install:
+  - sudo apt-get update  -qq
+  - sudo apt-get install -qq gcc-multilib
+  - sudo apt-get install -qq valgrind
+
+env:
+  - ZSTD_TRAVIS_CI_ENV=travis-install
+  - ZSTD_TRAVIS_CI_ENV=test-all  
+
+matrix:
+  fast_finish: true

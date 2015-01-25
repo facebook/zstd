@@ -382,7 +382,8 @@ static unsigned ZSTD_NbCommonBytes (register size_t val)
             return (__builtin_clzll(val) >> 3);
 #       else
             unsigned r;
-            if (!(val>>32)) { r=4; } else { r=0; val>>=32; }
+            const unsigned n32 = sizeof(size_t)*4;   /* calculate this way due to compiler complaining in 32-bits mode */
+            if (!(val>>n32)) { r=4; } else { r=0; val>>=n32; }
             if (!(val>>16)) { r+=2; val>>=8; } else { val>>=24; }
             r += (!val);
             return r;

@@ -195,9 +195,9 @@ static void FSE_writeLE64(void* memPtr, U64 val64)
 static size_t FSE_readLEST(const void* memPtr)
 {
     if (sizeof(size_t)==4)
-        return FSE_readLE32(memPtr);
+        return (size_t)FSE_readLE32(memPtr);
     else
-        return FSE_readLE64(memPtr);
+        return (size_t)FSE_readLE64(memPtr);
 }
 
 static void FSE_writeLEST(void* memPtr, size_t val)

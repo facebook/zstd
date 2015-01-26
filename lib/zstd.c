@@ -202,15 +202,15 @@ static void   ZSTD_copy8(void* dst, const void* src) { memcpy(dst, src, 8); }
 
 static void ZSTD_wildcopy(void* dst, const void* src, size_t length)
 {
-    const BYTE* ip = src;
-    BYTE* op = dst;
+    const BYTE* ip = (const BYTE*)src;
+    BYTE* op = (BYTE*)dst;
     BYTE* const oend = op + length;
     while (op < oend) COPY8(op, ip);
 }
 
 static size_t ZSTD_writeProgressive(void* ptr, size_t value)
 {
-    BYTE* const bStart = ptr;
+    BYTE* const bStart = (BYTE* const)ptr;
     BYTE* byte = bStart;
 
     do
@@ -227,7 +227,7 @@ static size_t ZSTD_writeProgressive(void* ptr, size_t value)
 
 static size_t ZSTD_readProgressive(size_t* result, const void* ptr)
 {
-    const BYTE* const bStart = ptr;
+    const BYTE* const bStart = (const BYTE* const)ptr;
     const BYTE* byte = bStart;
     size_t r = 0;
     U32 shift = 0;
@@ -276,7 +276,7 @@ ZSTD_cctx_t ZSTD_createCCtx(void)
 
 void ZSTD_resetCCtx(ZSTD_cctx_t ctx)
 {
-    refTables_t* srt = ctx;
+    refTables_t* srt = (refTables_t*)ctx;
     srt->base = NULL;
     memset(srt->hashTable, 0, HASH_TABLESIZE*4);
 }
@@ -437,7 +437,7 @@ size_t ZSTD_compressBound(size_t srcSize)   /* maximum compressed size */
 
 static size_t ZSTD_compressRle (void* dst, size_t maxDstSize, const void* src, size_t srcSize)
 {
-    BYTE* const ostart = dst;
+    BYTE* const ostart = (BYTE* const)dst;
 
     /* at this stage : dstSize >= FSE_compressBound(srcSize) > (ZSTD_blockHeaderSize+1) (checked by ZSTD_compressLiterals()) */
     (void)maxDstSize;
@@ -458,7 +458,7 @@ static size_t ZSTD_compressRle (void* dst, size_t maxDstSize, const void* src, s
 
 static size_t ZSTD_noCompressBlock (void* dst, size_t maxDstSize, const void* src, size_t srcSize)
 {
-    BYTE* const ostart = dst;
+    BYTE* const ostart = (BYTE* const)dst;
 
     if (srcSize + ZSTD_blockHeaderSize > maxDstSize) return (size_t)-ZSTD_ERROR_maxDstSize_tooSmall;
     memcpy(ostart + ZSTD_blockHeaderSize, src, srcSize);
@@ -480,7 +480,7 @@ static size_t ZSTD_compressLiterals_usingCTable(void* dst, size_t dstSize,
                                           const void* src, size_t srcSize,
                                           const void* CTable)
 {
-    const BYTE* const istart = (const BYTE*) src;
+    const BYTE* const istart = (const BYTE*)src;
     const BYTE* ip = istart;
     const BYTE* const iend = istart + srcSize;
     FSE_CStream_t bitC;
@@ -949,7 +949,7 @@ static size_t ZSTD_compressBlock(void* ctx, void* dst, size_t maxDstSize, const 
     op_l += lastLLSize;
 
     /* Finale compression stage */
-    return ZSTD_compressEntropy(dst, maxDstSize,
+    return ZSTD_compressEntropy((BYTE*)dst, maxDstSize,
         op_l_start, op_l, op_rl_start, op_rl, op_ml_start, op_offset_start, op_dumps_start, op_dumps,
         srcSize, lastLLSize);
 }
@@ -998,19 +998,19 @@ size_t ZSTD_compressBegin(ZSTD_cctx_t ctx, void* dst, size_t maxDstSize)
 size_t ZSTD_compressContinue(ZSTD_cctx_t cctx, void* dst, size_t maxDstSize, const void* src, size_t srcSize)
 {
     refTables_t* ctx = (refTables_t*) cctx;
-    const BYTE* const istart = src;
+    const BYTE* const istart = (const BYTE* const)src;
     const BYTE* ip = istart;
-    BYTE* const ostart = dst;
+    BYTE* const ostart = (BYTE* const)dst;
     BYTE* op = ostart;
     //U32 limit = 4 * BLOCKSIZE;
     //const U32 updateRate = 2 * BLOCKSIZE;
 
     /*  Init */
-    if (ctx->base==NULL) ctx->base = src, ctx->current=0;
+    if (ctx->base==NULL) ctx->base = (const BYTE*)src, ctx->current=0;
     if (src != ctx->base + ctx->current)   /* not contiguous */
     {
             ZSTD_resetCCtx(ctx);
-            ctx->base = src;
+            ctx->base = (const BYTE*)src;
             ctx->current = 0;
     }
     ctx->current += (U32)srcSize;
@@ -1065,7 +1065,7 @@ size_t ZSTD_compressContinue(ZSTD_cctx_t cctx, void* dst, size_t maxDstSize, con
 
 size_t ZSTD_compressEnd(ZSTD_cctx_t ctx, void* dst, size_t maxDstSize)
 {
-    BYTE* op = dst;
+    BYTE* op = (BYTE*)dst;
 
     // Sanity check
     (void)ctx;
@@ -1082,7 +1082,7 @@ size_t ZSTD_compressEnd(ZSTD_cctx_t ctx, void* dst, size_t maxDstSize)
 
 static size_t ZSTD_compressCCtx(void* ctx, void* dst, size_t maxDstSize, const void* src, size_t srcSize)
 {
-    BYTE* const ostart = dst;
+    BYTE* const ostart = (BYTE* const)dst;
     BYTE* op = ostart;
 
     /* Header */
@@ -1130,7 +1130,7 @@ size_t ZSTD_compress(void* dst, size_t maxDstSize, const void* src, size_t srcSi
 
 size_t ZSTD_getcBlockSize(const void* src, size_t srcSize, blockProperties_t* bpPtr)
 {
-    const BYTE* const in = src;
+    const BYTE* const in = (const BYTE* const)src;
     BYTE headerFlags;
     U32 cSize;
 
@@ -1139,7 +1139,7 @@ size_t ZSTD_getcBlockSize(const void* src, size_t srcSize, blockProperties_t* bp
     headerFlags = *in;
     cSize = in[2] + (in[1]<<8) + ((in[0] & 7)<<16);
 
-    bpPtr->blockType = headerFlags >> 6;
+    bpPtr->blockType = (blockType_t)(headerFlags >> 6);
     bpPtr->origSize = (bpPtr->blockType == bt_rle) ? cSize : 0;
 
     if (bpPtr->blockType == bt_end) return 0;
@@ -1230,7 +1230,7 @@ static size_t ZSTD_decompressLiterals(void* ctx, void* dst, size_t maxDstSize,
                                 const void* src, size_t srcSize)
 {
     /* assumed : blockType == blockCompressed */
-    const BYTE* ip = src;
+    const BYTE* ip = (const BYTE*)src;
     short norm[256];
     void* DTable = ctx;
     U32 maxSymbolValue = 255;
@@ -1258,9 +1258,9 @@ size_t ZSTD_decodeLiteralsBlock(void* ctx,
                           const BYTE** litPtr,
                           const void* src, size_t srcSize)
 {
-    const BYTE* const istart = src;
+    const BYTE* const istart = (const BYTE* const)src;
     const BYTE* ip = istart;
-    BYTE* const ostart = dst;
+    BYTE* const ostart = (BYTE* const)dst;
     BYTE* const oend = ostart + maxDstSize;
     blockProperties_t litbp;
 
@@ -1300,7 +1300,7 @@ size_t ZSTD_decodeSeqHeaders(size_t* lastLLPtr, const BYTE** dumpsPtr,
                                void* DTableLL, void* DTableML, void* DTableOffb,
                          const void* src, size_t srcSize)
 {
-    const BYTE* const istart = src;
+    const BYTE* const istart = (const BYTE* const)src;
     const BYTE* ip = istart;
     const BYTE* const iend = istart + srcSize;
     U32 LLtype, Offtype, MLtype;
@@ -1394,9 +1394,9 @@ size_t ZSTD_decodeSeqHeaders(size_t* lastLLPtr, const BYTE** dumpsPtr,
 FORCE_INLINE size_t ZSTD_decompressBlock(void* ctx, void* dst, size_t maxDstSize,
                              const void* src, size_t srcSize)
 {
-    const BYTE* ip = src;
+    const BYTE* ip = (const BYTE*)src;
     const BYTE* const iend = ip + srcSize;
-    BYTE* const ostart = dst;
+    BYTE* const ostart = (BYTE* const)dst;
     BYTE* op = ostart;
     BYTE* const oend = ostart + maxDstSize;
     size_t errorCode;
@@ -1558,9 +1558,9 @@ _another_round:
 
 static size_t ZSTD_decompressDCtx(void* ctx, void* dst, size_t maxDstSize, const void* src, size_t srcSize)
 {
-    const BYTE* ip = src;
+    const BYTE* ip = (const BYTE*)src;
     const BYTE* iend = ip + srcSize;
-    BYTE* const ostart = dst;
+    BYTE* const ostart = (BYTE* const)dst;
     BYTE* op = ostart;
     BYTE* const oend = ostart + maxDstSize;
     size_t remainingSize = srcSize;
@@ -1637,7 +1637,7 @@ typedef struct
 
 ZSTD_dctx_t ZSTD_createDCtx(void)
 {
-    dctx_t* dctx = malloc(sizeof(dctx_t));
+    dctx_t* dctx = (dctx_t*)malloc(sizeof(dctx_t));
     dctx->expected = 4 + ZSTD_blockHeaderSize;   // Frame Header + Block Header
     dctx->started = 0;
     return (ZSTD_dctx_t)dctx;
@@ -1695,7 +1695,7 @@ size_t ZSTD_decompressContinue(ZSTD_dctx_t dctx, void* dst, size_t maxDstSize, c
 
     // Prepare next block
     {
-        const BYTE* header = src;
+        const BYTE* header = (const BYTE*)src;
         blockProperties_t bp;
         size_t blockSize;
         header += cSize;

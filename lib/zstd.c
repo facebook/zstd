@@ -66,10 +66,9 @@
 #include <stdlib.h>      /* calloc */
 #include <string.h>      /* memcpy, memmove */
 #include <stdio.h>       /* debug : printf */
-#include <immintrin.h>   /* AVX2 intrinsics */
 #include "zstd_static.h"
 #if defined(__clang__) || defined(__GNUC__)
-#  include "fse.c"        /* unfortunately due GCC/Clang inlining limitations, this include runs noticeably faster */
+#  include "fse.c"        /* due to GCC/Clang inlining limitations, including *.c runs noticeably faster */
 #else
 #  include "fse_static.h"
 #endif
@@ -78,6 +77,10 @@
 /********************************************************
 *  Compiler specifics
 *********************************************************/
+#if (!(defined(_MSC_VER) && (_MSC_VER<=1400)))   /* exclude Visual 2005 and below */
+#  include <immintrin.h>   /* AVX2 intrinsics */
+#endif
+
 #ifdef _MSC_VER    /* Visual Studio */
 #  define FORCE_INLINE static __forceinline
 #  include <intrin.h>                    /* For Visual 2005 */

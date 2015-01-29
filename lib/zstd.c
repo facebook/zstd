@@ -77,7 +77,7 @@
 /********************************************************
 *  Compiler specifics
 *********************************************************/
-#if (!(defined(_MSC_VER) && (_MSC_VER<=1400)))   /* exclude Visual 2005 and below */
+#if (!(defined(_MSC_VER) && (_MSC_VER<=1500)))   /* exclude Visual 2008 and below */
 #  include <immintrin.h>   /* AVX2 intrinsics */
 #endif
 
@@ -140,7 +140,7 @@ static const U32 ZSTD_magicNumber = 0xFD2FB51C;
 #define MB *(1<<20)
 
 #define BLOCKSIZE (128 KB)                 // define, for static allocation
-static const size_t g_maxBlockSize = 128 KB;   //((size_t)1 << 22) - 1;
+static const size_t g_maxBlockSize = 128 KB;
 static const U32 g_maxDistance = 512 KB;
 static const U32 g_searchStrength = 8;
 

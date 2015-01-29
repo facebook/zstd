@@ -150,7 +150,7 @@ test-mem: zstd datagen fuzzer fullbench
 	valgrind --leak-check=yes ./zstd -vf tmp /dev/null
 	./datagen -g128MB > tmp
 	valgrind --leak-check=yes ./zstd -vf tmp /dev/null
-	rm tmp
+	@rm tmp
 	valgrind --leak-check=yes ./fuzzer -i128 -t1
 	valgrind --leak-check=yes ./fullbench -i1
 

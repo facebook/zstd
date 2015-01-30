@@ -533,70 +533,6 @@ void  FSE_freeCTable (void* CTable)
     free(CTable);
 }
 
-/* Emergency distribution strategy (fallback); compression will suffer a lot ; consider increasing table size */
-static void FSE_emergencyDistrib(short* normalizedCounter, int maxSymbolValue, short points)
-{
-    int s=0;
-    while (points)
-    {
-        if (normalizedCounter[s] > 1)
-        {
-            normalizedCounter[s]--;
-            points--;
-        }
-        s++;
-        if (s>maxSymbolValue) s=0;
-    }
-}
-
-/* fallback distribution (corner case); compression will suffer a bit ; consider increasing table size */
-void FSE_distribNpts(short* normalizedCounter, int maxSymbolValue, short points)
-{
-    int s;
-    int rank[5] = {0};
-    int fallback=0;
-
-    /* Sort 4 largest (they'll absorb normalization rounding) */
-    for (s=1; s<=maxSymbolValue; s++)
-    {
-        int i, b=3;
-        if (b>=s) b=s-1;
-        while ((b>=0) && (normalizedCounter[s]>normalizedCounter[rank[b]])) b--;
-        for (i=3; i>b; i--) rank[i+1] = rank[i];
-        rank[b+1]=s;
-    }
-
-    /* Distribute points */
-    s = 0;
-    while (points)
-    {
-        short limit = normalizedCounter[rank[s+1]]+1;
-        if (normalizedCounter[rank[s]] >= limit + points )
-        {
-            normalizedCounter[rank[s]] -= points;
-            break;
-        }
-        points -= normalizedCounter[rank[s]] - limit;
-        normalizedCounter[rank[s]] = limit;
-        s++;
-        if (s==3)
-        {
-            short reduction = points>>2;
-            if (fallback)
-            {
-                FSE_emergencyDistrib(normalizedCounter, maxSymbolValue, points);    /* Fallback mode */
-                return;
-            }
-            if (reduction < 1) reduction=1;
-            if (reduction >= normalizedCounter[rank[3]]) reduction=normalizedCounter[rank[3]]-1;
-            fallback = (reduction==0);
-            normalizedCounter[rank[3]]-=reduction;
-            points-=reduction;
-            s=0;
-        }
-    }
-}
-
 
 unsigned FSE_optimalTableLog(unsigned maxTableLog, size_t srcSize, unsigned maxSymbolValue)
 {
@@ -624,6 +560,7 @@ int FSE_compareRankT(const void* r1, const void* r2)
     return 2 * (R1->count < R2->count) - 1;
 }
 
+#if 0
 static void FSE_adjustNormSlow(short* norm, int pointsToRemove, const unsigned* count, U32 maxSymbolValue)
 {
     rank_t rank[FSE_MAX_SYMBOL_VALUE+1];
@@ -656,6 +593,48 @@ static void FSE_adjustNormSlow(short* norm, int pointsToRemove, const unsigned* 
         pointsToRemove--;
     }
 }
+
+#else
+
+static size_t FSE_adjustNormSlow(short* norm, int pointsToRemove, const unsigned* count, U32 maxSymbolValue)
+{
+    rank_t rank[FSE_MAX_SYMBOL_VALUE+1];
+    U32 s;
+
+    /* Init */
+    for (s=0; s<=maxSymbolValue; s++)
+    {
+        rank[s].id = s;
+        rank[s].count = count[s];
+        if (norm[s] <= 1) rank[s].count = 0;
+    }
+
+    /* Sort according to count */
+    qsort(rank, maxSymbolValue+1, sizeof(rank_t), FSE_compareRankT);
+
+    while(pointsToRemove)
+    {
+        int newRank = 1;
+        rank_t savedR;
+        if (norm[rank[0].id] == 1)
+            return (size_t)-FSE_ERROR_GENERIC;
+        norm[rank[0].id]--;
+        pointsToRemove--;
+        rank[0].count -= (rank[0].count + 6) >> 3;
+        if (norm[rank[0].id] == 1)
+            rank[0].count=0;
+        savedR = rank[0];
+        while (rank[newRank].count > savedR.count)
+        {
+            rank[newRank-1] = rank[newRank];
+            newRank++;
+        }
+        rank[newRank-1] = savedR;
+    }
+
+    return 0;
+}
+#endif
 
 
 size_t FSE_normalizeCount (short* normalizedCounter, unsigned tableLog,
@@ -710,21 +689,27 @@ size_t FSE_normalizeCount (short* normalizedCounter, unsigned tableLog,
                 stillToDistribute -= proba;
             }
         }
-        //if ((int)normalizedCounter[largest] <= -stillToDistribute+8)
         if (-stillToDistribute >= (normalizedCounter[largest] >> 1))
         {
-            /* largest cant accommodate that amount */
-            FSE_adjustNormSlow(normalizedCounter, -stillToDistribute, count, maxSymbolValue);
-            //FSE_distribNpts(normalizedCounter, maxSymbolValue, (short)(-stillToDistribute));   /* Fallback */
+            size_t errorCode;
+            /* corner case, need to converge towards normalization with caution */
+            errorCode = FSE_adjustNormSlow(normalizedCounter, -stillToDistribute, count, maxSymbolValue);
+            if (FSE_isError(errorCode)) return errorCode;
+            //FSE_adjustNormSlow(normalizedCounter, -stillToDistribute, count, maxSymbolValue);
         }
         else normalizedCounter[largest] += (short)stillToDistribute;
     }
 
 #if 0
     {   /* Print Table (debug) */
-        int s;
+        U32 s;
+        U32 nTotal = 0;
         for (s=0; s<=maxSymbolValue; s++)
             printf("%3i: %4i \n", s, normalizedCounter[s]);
+        for (s=0; s<=maxSymbolValue; s++)
+            nTotal += abs(normalizedCounter[s]);
+        if (nTotal != (1U<<tableLog))
+            printf("Warning !!! Total == %u != %u !!!", nTotal, 1U<<tableLog);
         getchar();
     }
 #endif
@@ -1005,7 +990,7 @@ size_t FSE_decompressRLE(void* dst, size_t originalSize,
 
 size_t FSE_buildDTable_rle (void* DTable, BYTE symbolValue)
 {
-    U32* const base32 = (U32* const)DTable;
+    U32* const base32 = (U32*)DTable;
     FSE_decode_t* const cell = (FSE_decode_t*)(base32 + 1);
 
     /* Sanity check */
@@ -1023,7 +1008,7 @@ size_t FSE_buildDTable_rle (void* DTable, BYTE symbolValue)
 
 size_t FSE_buildDTable_raw (void* DTable, unsigned nbBits)
 {
-    U32* const base32 = (U32* const)DTable;
+    U32* const base32 = (U32*)DTable;
     FSE_decode_t* dinfo = (FSE_decode_t*)(base32 + 1);
     const unsigned tableSize = 1 << nbBits;
     const unsigned tableMask = tableSize - 1;
@@ -1142,7 +1127,7 @@ unsigned FSE_reloadDStream(FSE_DStream_t* bitD)
 
 void FSE_initDState(FSE_DState_t* DStatePtr, FSE_DStream_t* bitD, const void* DTable)
 {
-    const U32* const base32 = (const U32* const)DTable;
+    const U32* const base32 = (const U32*)DTable;
     DStatePtr->state = FSE_readBits(bitD, base32[0]);
     FSE_reloadDStream(bitD);
     DStatePtr->table = base32 + 1;
@@ -1511,7 +1496,7 @@ void FSE_FUNCTION_NAME(FSE_freeDTable, FSE_FUNCTION_EXTENSION) (void* DTable)
 size_t FSE_FUNCTION_NAME(FSE_buildDTable, FSE_FUNCTION_EXTENSION)
 (void* DTable, const short* const normalizedCounter, unsigned maxSymbolValue, unsigned tableLog)
 {
-    U32* const base32 = (U32* const)DTable;
+    U32* const base32 = (U32*)DTable;
     FSE_DECODE_TYPE* const tableDecode = (FSE_DECODE_TYPE*) (base32+1);
     const U32 tableSize = 1 << tableLog;
     const U32 tableMask = tableSize-1;

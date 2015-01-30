@@ -66,10 +66,9 @@
 #include <stdlib.h>      /* calloc */
 #include <string.h>      /* memcpy, memmove */
 #include <stdio.h>       /* debug : printf */
-#include <immintrin.h>   /* AVX2 intrinsics */
 #include "zstd_static.h"
 #if defined(__clang__) || defined(__GNUC__)
-#  include "fse.c"        /* unfortunately due GCC/Clang inlining limitations, this include runs noticeably faster */
+#  include "fse.c"        /* due to GCC/Clang inlining limitations, including *.c runs noticeably faster */
 #else
 #  include "fse_static.h"
 #endif
@@ -78,6 +77,10 @@
 /********************************************************
 *  Compiler specifics
 *********************************************************/
+#if (!(defined(_MSC_VER) && (_MSC_VER<=1500)))   /* exclude Visual 2008 and below */
+#  include <immintrin.h>   /* AVX2 intrinsics */
+#endif
+
 #ifdef _MSC_VER    /* Visual Studio */
 #  define FORCE_INLINE static __forceinline
 #  include <intrin.h>                    /* For Visual 2005 */
@@ -137,7 +140,7 @@ static const U32 ZSTD_magicNumber = 0xFD2FB51C;
 #define MB *(1<<20)
 
 #define BLOCKSIZE (128 KB)                 // define, for static allocation
-static const size_t g_maxBlockSize = 128 KB;   //((size_t)1 << 22) - 1;
+static const size_t g_maxBlockSize = 128 KB;
 static const U32 g_maxDistance = 512 KB;
 static const U32 g_searchStrength = 8;
 

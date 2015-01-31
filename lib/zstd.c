@@ -136,12 +136,14 @@ static const U32 ZSTD_magicNumber = 0xFD2FB51C;
 #define BIT5  32
 #define BIT4  16
 
-#define KB *(1<<10)
-#define MB *(1<<20)
+#define KB *(1 <<10)
+#define MB *(1 <<20)
+#define GB *(1U<<20)
 
 #define BLOCKSIZE (128 KB)                 // define, for static allocation
-static const size_t g_maxBlockSize = 128 KB;
+static const size_t g_maxBlockSize = BLOCKSIZE;
 static const U32 g_maxDistance = 512 KB;
+static const U32 g_maxLimit = 1 GB;
 static const U32 g_searchStrength = 8;
 
 #define WORKPLACESIZE (BLOCKSIZE*11/4)
@@ -261,17 +263,18 @@ typedef struct
 {
     const BYTE* base;
     U32 current;
+    U32 nextUpdate;
     BYTE* workplace;
 #ifdef _INCLUDED_IMM
     __m256i justToBeAligned;
 #endif
     U32   hashTable[HASH_TABLESIZE];
-} refTables_t;
+} cctxi_t;
 
 
 ZSTD_cctx_t ZSTD_createCCtx(void)
 {
-    refTables_t* srt = (refTables_t *) malloc( sizeof(refTables_t) );
+    cctxi_t* srt = (cctxi_t *) malloc( sizeof(cctxi_t) );
     srt->workplace = (BYTE*) malloc(WORKPLACESIZE);
     return (ZSTD_cctx_t)srt;
 }
@@ -279,7 +282,7 @@ ZSTD_cctx_t ZSTD_createCCtx(void)
 
 void ZSTD_resetCCtx(ZSTD_cctx_t ctx)
 {
-    refTables_t* srt = (refTables_t*)ctx;
+    cctxi_t* srt = (cctxi_t*)ctx;
     srt->base = NULL;
     memset(srt->hashTable, 0, HASH_TABLESIZE*4);
 }
@@ -287,7 +290,7 @@ void ZSTD_resetCCtx(ZSTD_cctx_t ctx)
 
 size_t ZSTD_freeCCtx(ZSTD_cctx_t ctx)
 {
-    refTables_t *srt = (refTables_t *) (ctx);
+    cctxi_t *srt = (cctxi_t *) (ctx);
     free(srt->workplace);
     free(srt);
     return 0;
@@ -713,16 +716,8 @@ static size_t ZSTD_compressEntropy(BYTE* dst, size_t maxDstSize,
         max = MaxOff;
         for (i=0; i<nbSeq; i++)
         {
-#if 1
             offsetBits_start[i] = (BYTE)ZSTD_highbit(op_offset_start[i]) + 1;
             if (op_offset_start[i]==0) offsetBits_start[i]=0;
-#else
-            U32 offset = op_offset_start[i];
-            U32 r;
-            r = ZSTD_highbit(offset) + 1;
-            if (offset==0) r = 0;
-            offsetBits_start[i] = (BYTE)r;
-#endif
         }
         offsetBitsPtr += nbSeq;
         mostFrequent = FSE_countFast(count, offsetBits_start, nbSeq, &max);
@@ -772,7 +767,7 @@ static size_t ZSTD_compressEntropy(BYTE* dst, size_t maxDstSize,
 
     seqHead[0] += (BYTE)((LLtype<<6) + (Offtype<<4) + (MLtype<<2));
 
-    // Encoding
+    /* Encoding */
     {
         FSE_CState_t stateMatchLength;
         FSE_CState_t stateOffsetBits;
@@ -813,7 +808,7 @@ static size_t ZSTD_compressEntropy(BYTE* dst, size_t maxDstSize,
 }
 
 
-static size_t ZSTD_encode(BYTE* op_lit, BYTE* op_ll, U32* op_offset, BYTE* op_ml, BYTE* op_dumps,
+static size_t ZSTD_storeSeq(BYTE* op_lit, BYTE* op_ll, U32* op_offset, BYTE* op_ml, BYTE* op_dumps,
                          size_t litLength, const BYTE* srcLit, size_t offset, size_t matchLength)
 {
     const BYTE* const dumpStart = op_dumps;
@@ -896,7 +891,7 @@ static int ZSTD_checkMatch(const BYTE* match, const BYTE* ip)
 static size_t ZSTD_compressBlock(void* ctx, void* dst, size_t maxDstSize, const void* src, size_t srcSize)
 {
     // Local Variables
-    refTables_t* srt = (refTables_t*) ctx;
+    cctxi_t* srt = (cctxi_t*) ctx;
     U32*  HashTable = srt->hashTable;
     BYTE* workplace = srt->workplace;
     const BYTE* const base = srt->base;
@@ -935,7 +930,7 @@ static size_t ZSTD_compressBlock(void* ctx, void* dst, size_t maxDstSize, const 
             if (offsetCode == prevOffset) offsetCode = 0;
             prevOffset = offset;
             offset = ip-match;
-            op_dumps += ZSTD_encode(op_l, op_rl++, op_offset++, op_ml++, op_dumps, litLength, anchor, offsetCode, matchLength);
+            op_dumps += ZSTD_storeSeq(op_l, op_rl++, op_offset++, op_ml++, op_dumps, litLength, anchor, offsetCode, matchLength);
             op_l += litLength;
 
             /* Fill Table */
@@ -958,14 +953,66 @@ static size_t ZSTD_compressBlock(void* ctx, void* dst, size_t maxDstSize, const 
 }
 
 
-/* this should be auto-vectorized by compiler */
-void ZSTD_limitCtx(void* ctx, const U32 limit)
+size_t ZSTD_compressBegin(ZSTD_cctx_t ctx, void* dst, size_t maxDstSize)
 {
-    refTables_t* srt = (refTables_t*) ctx;
+    /* Sanity check */
+    if (maxDstSize < ZSTD_frameHeaderSize) return (size_t)-ZSTD_ERROR_maxDstSize_tooSmall;
+
+    /* Init */
+    ZSTD_resetCCtx(ctx);
+
+    /* Write Header */
+    ZSTD_writeBE32(dst, ZSTD_magicNumber);
+
+    return ZSTD_frameHeaderSize;
+}
+
+
+/* this should be auto-vectorized by compiler */
+static void ZSTD_scaleDownCtx(void* ctx, const U32 limit)
+{
+    cctxi_t* srt = (cctxi_t*) ctx;
     U32* h = srt->hashTable;
     int i;
 
-#ifdef _INCLUDED_IMM   /* <immintrin.h> */
+#if defined(_INCLUDED_IMM) || defined(__AVX2__)   /* <immintrin.h> */
+    /* AVX2 version */
+    const __m256i limit8 = _mm256_set1_epi32(limit);
+    for (i=0; i<HASH_TABLESIZE; i+=8)
+    {
+        __m256i src =_mm256_loadu_si256((const __m256i*)(h+i));
+  const __m256i dec = _mm256_min_epu32(src, limit8);
+                src = _mm256_sub_epi32(src, dec);
+        _mm256_storeu_si256((__m256i*)(h+i), src);
+    }
+#else
+    for (i=0; i<HASH_TABLESIZE; ++i)
+    {
+        U32 dec;
+        if (h[i] > limit) dec = limit; else dec = h[i];
+        h[i] -= dec;
+    }
+#endif
+}
+
+
+/* this should be auto-vectorized by compiler */
+static void ZSTD_limitCtx(void* cctx, const U32 limit)
+{
+    cctxi_t* ctx = (cctxi_t*) cctx;
+    U32* h = ctx->hashTable;
+    int i;
+
+    if (limit > g_maxLimit)
+    {
+        ZSTD_scaleDownCtx(cctx, limit);
+        ctx->base += limit;
+        ctx->current -= limit;
+        ctx->nextUpdate -= limit;
+        return;
+    }
+
+#if defined(_INCLUDED_IMM) || defined(__AVX2__)   /* <immintrin.h> */
     /* AVX2 version */
     const __m256i limit8 = _mm256_set1_epi32(limit);
     for (i=0; i<HASH_TABLESIZE; i+=8)
@@ -977,39 +1024,24 @@ void ZSTD_limitCtx(void* ctx, const U32 limit)
 #else
     for (i=0; i<HASH_TABLESIZE; ++i)
     {
-        h[i] = h[i] > limit ? h[i] : limit;
+        if (h[i] < limit) h[i] = limit;
     }
 #endif
 }
 
 
-size_t ZSTD_compressBegin(ZSTD_cctx_t ctx, void* dst, size_t maxDstSize)
-{
-    // Sanity check
-    if (maxDstSize < 4) return (size_t)-ZSTD_ERROR_maxDstSize_tooSmall;
-
-    // Init
-    ZSTD_resetCCtx(ctx);
-
-    // Header
-    ZSTD_writeBE32(dst, ZSTD_magicNumber);
-
-    return 4;
-}
-
-
 size_t ZSTD_compressContinue(ZSTD_cctx_t cctx, void* dst, size_t maxDstSize, const void* src, size_t srcSize)
 {
-    refTables_t* ctx = (refTables_t*) cctx;
+    cctxi_t* ctx = (cctxi_t*) cctx;
     const BYTE* const istart = (const BYTE* const)src;
     const BYTE* ip = istart;
     BYTE* const ostart = (BYTE* const)dst;
     BYTE* op = ostart;
-    //U32 limit = 4 * BLOCKSIZE;
-    //const U32 updateRate = 2 * BLOCKSIZE;
+    const U32 updateRate = 2 * BLOCKSIZE;
 
     /*  Init */
-    if (ctx->base==NULL) ctx->base = (const BYTE*)src, ctx->current=0;
+    if (ctx->base==NULL)
+        ctx->base = (const BYTE*)src, ctx->current=0, ctx->nextUpdate = g_maxDistance;
     if (src != ctx->base + ctx->current)   /* not contiguous */
     {
             ZSTD_resetCCtx(ctx);
@@ -1024,20 +1056,18 @@ size_t ZSTD_compressContinue(ZSTD_cctx_t cctx, void* dst, size_t maxDstSize, con
         size_t blockSize = BLOCKSIZE;
         if (blockSize > srcSize) blockSize = srcSize;
 
-        /*
-        // update hash table
-        if (g_maxDistance <= BLOCKSIZE)   // static test
+        /* update hash table */
+        if (g_maxDistance <= BLOCKSIZE)   /* static test => all blocks are independent */
         {
             ZSTD_resetCCtx(ctx);
             ctx->base = ip;
             ctx->current=0;
         }
-        else if (ip >= istart + limit)
+        else if (ip >= ctx->base + ctx->nextUpdate)
         {
-            limit += updateRate;
-            ZSTD_limitCtx(ctx, limit - g_maxDistance);
+            ctx->nextUpdate += updateRate;
+            ZSTD_limitCtx(ctx, ctx->nextUpdate - g_maxDistance);
         }
-        */
 
         /* compress */
         if (maxDstSize < ZSTD_blockHeaderSize) return (size_t)-ZSTD_ERROR_maxDstSize_tooSmall;
@@ -1070,11 +1100,11 @@ size_t ZSTD_compressEnd(ZSTD_cctx_t ctx, void* dst, size_t maxDstSize)
 {
     BYTE* op = (BYTE*)dst;
 
-    // Sanity check
+    /* Sanity check */
     (void)ctx;
     if (maxDstSize < ZSTD_blockHeaderSize) return (size_t)-ZSTD_ERROR_maxDstSize_tooSmall;
 
-    // End of frame
+    /* End of frame */
     op[0] = (BYTE)(bt_end << 6);
     op[1] = 0;
     op[2] = 0;

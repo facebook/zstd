@@ -1014,12 +1014,14 @@ static void ZSTD_limitCtx(void* cctx, const U32 limit)
 
 #if defined(_INCLUDED_IMM) || defined(__AVX2__)   /* <immintrin.h> */
     /* AVX2 version */
-    const __m256i limit8 = _mm256_set1_epi32(limit);
-    for (i=0; i<HASH_TABLESIZE; i+=8)
     {
-        __m256i src =_mm256_loadu_si256((const __m256i*)(h+i));
-                src = _mm256_max_epu32(src, limit8);
-        _mm256_storeu_si256((__m256i*)(h+i), src);
+        const __m256i limit8 = _mm256_set1_epi32(limit);
+        for (i=0; i<HASH_TABLESIZE; i+=8)
+        {
+            __m256i src =_mm256_loadu_si256((const __m256i*)(h+i));
+                    src = _mm256_max_epu32(src, limit8);
+            _mm256_storeu_si256((__m256i*)(h+i), src);
+        }
     }
 #else
     for (i=0; i<HASH_TABLESIZE; ++i)

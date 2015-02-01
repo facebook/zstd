@@ -68,7 +68,8 @@
 #include <stdio.h>       /* debug : printf */
 #include "zstd_static.h"
 #if defined(__clang__) || defined(__GNUC__)
-#  include "fse.c"        /* due to GCC/Clang inlining limitations, including *.c runs noticeably faster */
+#  pragma clang diagnostic ignored "-Wtypedef-redefinition"
+#  include "fse.c"       /* due to GCC/Clang inlining limitations, including *.c runs noticeably faster */
 #else
 #  include "fse_static.h"
 #endif
@@ -77,7 +78,8 @@
 /********************************************************
 *  Compiler specifics
 *********************************************************/
-#if (!(defined(_MSC_VER) && (_MSC_VER<=1500)))   /* exclude Visual 2008 and below */
+//#if (!(defined(_MSC_VER) && (_MSC_VER<=1500)))   /* exclude Visual 2008 and below */
+#ifdef __AVX2__
 #  include <immintrin.h>   /* AVX2 intrinsics */
 #endif
 
@@ -975,7 +977,7 @@ static void ZSTD_scaleDownCtx(void* ctx, const U32 limit)
     U32* h = srt->hashTable;
     int i;
 
-#if defined(_INCLUDED_IMM) || defined(__AVX2__)   /* <immintrin.h> */
+#if defined(__AVX2__)   /* <immintrin.h> */
     /* AVX2 version */
     const __m256i limit8 = _mm256_set1_epi32(limit);
     for (i=0; i<HASH_TABLESIZE; i+=8)
@@ -1012,10 +1014,11 @@ static void ZSTD_limitCtx(void* cctx, const U32 limit)
         return;
     }
 
-#if defined(_INCLUDED_IMM) || defined(__AVX2__)   /* <immintrin.h> */
+#if defined(__AVX2__)   /* <immintrin.h> */
     /* AVX2 version */
     {
         const __m256i limit8 = _mm256_set1_epi32(limit);
+        //printf("test avx2!\n");
         for (i=0; i<HASH_TABLESIZE; i+=8)
         {
             __m256i src =_mm256_loadu_si256((const __m256i*)(h+i));

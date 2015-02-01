@@ -944,7 +944,7 @@ static size_t ZSTD_compressBlock(void* ctx, void* dst, size_t maxDstSize, const 
     const BYTE* const ilimit = iend - 16;
 
     U32  *op_offset = (U32*)(workplace), *op_offset_start = op_offset;
-    BYTE *op_l = workplace + srcSize + 4, *op_l_start = op_l;
+    BYTE *op_l = (BYTE*)workplace + srcSize + 4, *op_l_start = op_l;
     BYTE *op_rl = op_l + srcSize + 4, *op_rl_start = op_rl;
     BYTE *op_ml = op_rl + (srcSize >> 2) + 4, *op_ml_start = op_ml;
     BYTE *op_dumps = op_ml + (srcSize >> 2) + 4, *op_dumps_start = op_dumps;

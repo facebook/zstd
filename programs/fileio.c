@@ -110,8 +110,7 @@ typedef unsigned long long  U64;
 #define BIT6  0x40
 #define BIT7  0x80
 
-static const unsigned FIO_magicNumber = 0x183E2308;
-static const unsigned FIO_maxBlockSizeID = 0xB;   /* => 2MB block */
+//static const unsigned FIO_maxBlockSizeID = 0xB;   /* => 2MB block */
 static const unsigned FIO_blockHeaderSize = 3;
 
 #define FIO_FRAMEHEADERSIZE 5        /* as a define, because needed to allocated table on stack */

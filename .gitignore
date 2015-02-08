@@ -16,3 +16,7 @@
 *.exe
 *.out
 *.app
+
+# Visual solution files
+*.suo
+*.user

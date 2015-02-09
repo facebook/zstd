@@ -30,7 +30,7 @@
 # fullbench32: Same as fullbench, but forced to compile in 32-bits mode
 # ##########################################################################
 
-RELEASE?= r0
+RELEASE?= r1
 
 DESTDIR?=
 PREFIX ?= /usr
@@ -78,7 +78,7 @@ fuzzer  : $(ZSTDDIR)/zstd.c xxhash.c fuzzer.c
 fuzzer32: $(ZSTDDIR)/zstd.c xxhash.c fuzzer.c
 	$(CC) -m32 $(FLAGS) $^ -o $@$(EXT)
 
-datagen : datagen.c
+datagen : datagen.c datagencli.c
 	$(CC)      $(FLAGS) $^ -o $@$(EXT)
 
 clean:

@@ -560,45 +560,9 @@ int FSE_compareRankT(const void* r1, const void* r2)
     return 2 * (R1->count < R2->count) - 1;
 }
 
-#if 0
-static void FSE_adjustNormSlow(short* norm, int pointsToRemove, const unsigned* count, U32 maxSymbolValue)
-{
-    rank_t rank[FSE_MAX_SYMBOL_VALUE+1];
-    U32 s;
-
-    /* Init */
-    for (s=0; s<=maxSymbolValue; s++)
-    {
-        rank[s].id = s;
-        rank[s].count = count[s];
-        if (norm[s] <= 1) rank[s].count = 0;
-    }
-
-    /* Sort according to count */
-    qsort(rank, maxSymbolValue+1, sizeof(rank_t), FSE_compareRankT);
-
-    while(pointsToRemove)
-    {
-        int newRank = 1;
-        norm[rank[0].id]--;
-        rank[0].count = (rank[0].count * 3) >> 2;
-        if (norm[rank[0].id] == 1) rank[0].count = 0;
-        while (rank[newRank].count > rank[newRank-1].count)
-        {
-            rank_t r = rank[newRank-1];
-            rank[newRank-1] = rank[newRank];
-            rank[newRank] = r;
-            newRank++;
-        }
-        pointsToRemove--;
-    }
-}
-
-#else
-
 static size_t FSE_adjustNormSlow(short* norm, int pointsToRemove, const unsigned* count, U32 maxSymbolValue)
 {
-    rank_t rank[FSE_MAX_SYMBOL_VALUE+1];
+    rank_t rank[FSE_MAX_SYMBOL_VALUE+2];
     U32 s;
 
     /* Init */
@@ -608,6 +572,8 @@ static size_t FSE_adjustNormSlow(short* norm, int pointsToRemove, const unsigned
         rank[s].count = count[s];
         if (norm[s] <= 1) rank[s].count = 0;
     }
+    rank[maxSymbolValue+1].id = 0;
+    rank[maxSymbolValue+1].count = 0;   /* ensures comparison ends here in worst case */
 
     /* Sort according to count */
     qsort(rank, maxSymbolValue+1, sizeof(rank_t), FSE_compareRankT);
@@ -634,7 +600,6 @@ static size_t FSE_adjustNormSlow(short* norm, int pointsToRemove, const unsigned
 
     return 0;
 }
-#endif
 
 
 size_t FSE_normalizeCount (short* normalizedCounter, unsigned tableLog,
@@ -676,8 +641,7 @@ size_t FSE_normalizeCount (short* normalizedCounter, unsigned tableLog,
                 short proba = (short)((count[s]*step) >> scale);
                 if (proba<8)
                 {
-                    U64 restToBeat;
-                    restToBeat = vStep * rtbTable[proba];
+                    U64 restToBeat = vStep * rtbTable[proba];
                     proba += (count[s]*step) - ((U64)proba<<scale) > restToBeat;
                 }
                 if (proba > largestP)
@@ -691,9 +655,8 @@ size_t FSE_normalizeCount (short* normalizedCounter, unsigned tableLog,
         }
         if (-stillToDistribute >= (normalizedCounter[largest] >> 1))
         {
-            size_t errorCode;
             /* corner case, need to converge towards normalization with caution */
-            errorCode = FSE_adjustNormSlow(normalizedCounter, -stillToDistribute, count, maxSymbolValue);
+            size_t errorCode = FSE_adjustNormSlow(normalizedCounter, -stillToDistribute, count, maxSymbolValue);
             if (FSE_isError(errorCode)) return errorCode;
             //FSE_adjustNormSlow(normalizedCounter, -stillToDistribute, count, maxSymbolValue);
         }
@@ -1247,7 +1210,7 @@ size_t FSE_decompress(void* dst, size_t maxDstSize, const void* cSrc, size_t cSr
     const BYTE* const istart = (const BYTE*)cSrc;
     const BYTE* ip = istart;
     short counting[FSE_MAX_SYMBOL_VALUE+1];
-    FSE_decode_t DTable[FSE_MAX_TABLESIZE];
+    FSE_decode_t DTable[FSE_DTABLE_SIZE_U32(FSE_MAX_TABLELOG)];
     unsigned maxSymbolValue = FSE_MAX_SYMBOL_VALUE;
     unsigned tableLog;
     size_t errorCode, fastMode;

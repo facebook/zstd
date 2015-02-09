@@ -924,14 +924,12 @@ static const BYTE* ZSTD_updateMatch(U32* table, const BYTE* p, const BYTE* start
 
 static int ZSTD_checkMatch(const BYTE* match, const BYTE* ip)
 {
-    //return *(U32*)match == *(U32*)ip;
     return ZSTD_read32(match) == ZSTD_read32(ip);
 }
 
 
 static size_t ZSTD_compressBlock(void* ctx, void* dst, size_t maxDstSize, const void* src, size_t srcSize)
 {
-    // Local Variables
     cctxi_t* srt = (cctxi_t*) ctx;
     U32*  HashTable = (U32*)(srt->hashTable);
     void* workplace = srt->workplace;

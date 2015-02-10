@@ -96,7 +96,7 @@ int main(int argc, char** argv)
 {
     int argNb;
     double proba = (double)COMPRESSIBILITY_DEFAULT / 100;
-    double litProba = proba / 3.6;
+    double litProba = 0.0;
     U64 size = SIZE_DEFAULT;
     U32 seed = SEED_DEFAULT;
     char* programName;
@@ -154,7 +154,6 @@ int main(int argc, char** argv)
                     }
                     if (proba>100.) proba=100.;
                     proba /= 100.;
-                    litProba = proba / 3.6;
                     break;
                 case 'L':   /* hidden argument : Literal distribution probability */
                     argument++;
@@ -184,7 +183,7 @@ int main(int argc, char** argv)
     DISPLAYLEVEL(3, "Seed = %u \n", seed);
     if (proba!=COMPRESSIBILITY_DEFAULT) DISPLAYLEVEL(3, "Compressibility : %i%%\n", (U32)(proba*100));
 
-    RDG_generate(size, seed, proba, litProba);
+    RDG_genOut(size, proba, litProba, seed);
     DISPLAYLEVEL(1, "\n");
 
     return 0;

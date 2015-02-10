@@ -62,6 +62,7 @@
 
 #include "zstd.h"
 #include "fse_static.h"
+#include "datagen.h"
 
 
 /**************************************
@@ -215,6 +216,7 @@ static U64 BMK_GetFileSize(char* infilename)
 }
 
 
+#if 1
 static U32 BMK_rotl32(unsigned val32, unsigned nbBits) { return((val32 << nbBits) | (val32 >> (32 - nbBits))); }
 
 static U32 BMK_rand(U32* src)
@@ -265,7 +267,7 @@ static void BMK_datagen(void* buffer, size_t bufferSize, double proba, U32 seed)
         }
     }
 }
-
+#endif
 
 /*********************************************************
 *  Benchmark wrappers
@@ -329,8 +331,8 @@ size_t local_conditionalNull(void* dst, size_t dstSize, void* buff2, const void*
         if (b==0) total = 0;   // 825
         //if (!b) total = 0;     // 825
         //total = b ? total : 0; // 622
-        //total *= !!b;          // 465
         //total &= -!b;          // 622
+        //total *= !!b;          // 465
     }
     return total;
 }
@@ -357,7 +359,7 @@ size_t benchMem(void* src, size_t srcSize, U32 benchNb)
     double bestTime = 100000000.;
     size_t errorCode = 0;
 
-    // Declaration
+    /* Selection */
     switch(benchNb)
     {
     case 1:
@@ -399,7 +401,7 @@ size_t benchMem(void* src, size_t srcSize, U32 benchNb)
     case 11:
         g_cSize = ZSTD_compress(buff2, dstBuffSize, src, srcSize);
         break;
-    case 31:  // ZSTD_decodeLiteralsBlock
+    case 31:  /* ZSTD_decodeLiteralsBlock */
         {
             blockProperties_t bp;
             ZSTD_compress(dstBuff, dstBuffSize, src, srcSize);
@@ -417,7 +419,7 @@ size_t benchMem(void* src, size_t srcSize, U32 benchNb)
             srcSize = srcSize > 128 KB ? 128 KB : srcSize;   // relative to block
             break;
         }
-    case 32:   // ZSTD_decodeSeqHeaders
+    case 32:   /* ZSTD_decodeSeqHeaders */
         {
             blockProperties_t bp;
             const BYTE* ip = dstBuff;
@@ -444,15 +446,14 @@ size_t benchMem(void* src, size_t srcSize, U32 benchNb)
 
     /* test functions */
 
-    case 101:   // conditionalNull
+    case 101:   /* conditionalNull */
         {
             size_t i;
-            U32 seed = (U32)srcSize;
             for (i=0; i<srcSize; i++)
-                buff2[i] = (BYTE)(BMK_rand(&seed) & 15);
+                buff2[i] = i & 15;
             break;
         }
-    case 102:   //
+    case 102:   /* local_decodeLiteralsForward */
         {
             blockProperties_t bp;
             ZSTD_compress(dstBuff, dstBuffSize, src, srcSize);
@@ -515,6 +516,7 @@ int benchSample(U32 benchNb)
 
     /* Fill buffer */
     BMK_datagen(origBuff, benchedSize, g_compressibilityDefault, 0);
+    //RDG_generate(benchedSize, 0, g_compressibilityDefault, g_compressibilityDefault / 3.6);
 
     /* bench */
     DISPLAY("\r%79s\r", "");

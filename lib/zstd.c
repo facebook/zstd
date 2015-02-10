@@ -861,13 +861,13 @@ static size_t ZSTD_compressSequences(BYTE* dst, size_t maxDstSize,
 }
 
 
-static void ZSTD_storeSeq(seqStore_t* seqStorePtr, size_t litLength, const BYTE* anchor, size_t offset, size_t matchLength)
+static void ZSTD_storeSeq(seqStore_t* seqStorePtr, size_t litLength, const BYTE* literals, size_t offset, size_t matchLength)
 {
     BYTE* op_lit = seqStorePtr->lit;
     BYTE* const l_end = op_lit + litLength;
 
     /* copy Literals */
-    while (op_lit<l_end) COPY8(op_lit, anchor);
+    while (op_lit<l_end) COPY8(op_lit, literals);
     seqStorePtr->lit += litLength;
 
     /* literal Length */

@@ -172,6 +172,7 @@ void RDG_genBuffer(void* buffer, size_t size, double matchProba, double litProba
     if (litProba==0.0) litProba = matchProba / 3.8;
     ldctx = RDG_createLiteralDistrib(litProba);
     RDG_genBlock(buffer, size, 0, matchProba, ldctx, &seed);
+    free(ldctx);
 }
 
 
@@ -203,4 +204,6 @@ void RDG_genOut(unsigned long long size, double matchProba, double litProba, uns
         /* update dict */
         memcpy(fullbuff, buff + (RDG_BLOCKSIZE - RDG_DICTSIZE), RDG_DICTSIZE);
     }
+
+    free(ldctx);
 }

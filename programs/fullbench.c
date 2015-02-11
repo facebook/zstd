@@ -114,7 +114,7 @@
 #define MAX_MEM    (1984 MB)
 #define DEFAULT_CHUNKSIZE   (4<<20)
 
-static double g_compressibilityDefault = 0.50;
+#define COMPRESSIBILITY_DEFAULT 0.50
 static const size_t sampleSize = 10000000;
 
 
@@ -128,6 +128,7 @@ static const size_t sampleSize = 10000000;
 *  Benchmark Parameters
 **************************************/
 static int nbIterations = NBLOOPS;
+static double g_compressibility = COMPRESSIBILITY_DEFAULT;
 
 void BMK_SetNbIterations(int nbLoops)
 {
@@ -449,7 +450,7 @@ int benchSample(U32 benchNb)
 {
     char* origBuff;
     size_t benchedSize = sampleSize;
-    const char* name = "Sample50";
+    const char* name = "Sample 10MiB";
 
     /* Allocation */
     origBuff = (char*) malloc((size_t)benchedSize);
@@ -460,8 +461,7 @@ int benchSample(U32 benchNb)
     }
 
     /* Fill buffer */
-    //BMK_datagen(origBuff, benchedSize, g_compressibilityDefault, 0);
-    RDG_genBuffer(origBuff, benchedSize, g_compressibilityDefault, 0.0, 0);
+    RDG_genBuffer(origBuff, benchedSize, g_compressibility, 0.0, 0);
 
     /* bench */
     DISPLAY("\r%79s\r", "");
@@ -556,6 +556,7 @@ int usage_advanced(void)
     DISPLAY( "\nAdvanced options :\n");
     DISPLAY( " -b#    : test only function # \n");
     DISPLAY( " -i#    : iteration loops [1-9](default : %i)\n", NBLOOPS);
+    DISPLAY( " -P#    : sample compressibility (default : %.1f%%)\n", COMPRESSIBILITY_DEFAULT * 100);
     return 0;
 }
 
@@ -595,14 +596,14 @@ int main(int argc, char** argv)
 
                 switch(argument[0])
                 {
-                    // Display help on usage
+                    /* Display help on usage */
                 case 'h' :
                 case 'H': usage(exename); usage_advanced(); return 0;
 
-                    // Pause at the end (hidden option)
+                    /* Pause at the end (hidden option) */
                 case 'p': main_pause = 1; break;
 
-                    // Select specific bench algorithm only
+                    /* Select specific algorithm to bench */
                 case 'b':
                     benchNb = 0;
                     while ((argument[1]>= '0') && (argument[1]<= '9'))
@@ -613,7 +614,7 @@ int main(int argc, char** argv)
                     }
                     break;
 
-                    // Modify Nb Iterations
+                    /* Modify Nb Iterations */
                 case 'i':
                     if ((argument[1] >='1') && (argument[1] <='9'))
                     {
@@ -623,14 +624,28 @@ int main(int argc, char** argv)
                     }
                     break;
 
-                    // Unknown command
+                    /* Select specific algorithm to bench */
+                case 'P':
+                    {
+                        U32 proba32 = 0;
+                        while ((argument[1]>= '0') && (argument[1]<= '9'))
+                        {
+                            proba32 *= 10;
+                            proba32 += argument[1] - '0';
+                            argument++;
+                        }
+                        g_compressibility = (double)proba32 / 100.;
+                    }
+                    break;
+
+                    /* Unknown command */
                 default : badusage(exename); return 1;
                 }
             }
             continue;
         }
 
-        // first provided filename is input
+        /* first provided filename is input */
         if (!input_filename) { input_filename=argument; filenamesStart=i; continue; }
     }
 

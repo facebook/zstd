@@ -129,15 +129,11 @@ test-zstd32: zstd32 datagen
 
 test-fullbench: fullbench datagen
 	./fullbench -i1
-	./datagen -P0 -g516K > tmp
-	./fullbench -i1 tmp
-	@rm tmp
+	./fullbench -i1 -P0
 
 test-fullbench32: fullbench32 datagen
 	./fullbench32 -i1
-	./datagen -P0 -g516K > tmp
-	./fullbench32 -i1 tmp
-	@rm tmp
+	./fullbench32 -i1 -P0
 
 test-fuzzer: fuzzer
 	./fuzzer

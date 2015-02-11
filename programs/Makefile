@@ -66,10 +66,10 @@ zstd: $(ZSTDDIR)/zstd.c xxhash.c bench.c fileio.c zstdcli.c
 zstd32: $(ZSTDDIR)/zstd.c xxhash.c bench.c fileio.c zstdcli.c
 	$(CC) -m32 $(FLAGS) $^ -o $@$(EXT)
 
-fullbench  : $(ZSTDDIR)/zstd.c fullbench.c
+fullbench  : $(ZSTDDIR)/zstd.c datagen.c fullbench.c
 	$(CC)      $(FLAGS) $^ -o $@$(EXT)
 
-fullbench32: $(ZSTDDIR)/zstd.c fullbench.c
+fullbench32: $(ZSTDDIR)/zstd.c datagen.c fullbench.c
 	$(CC) -m32 $(FLAGS) $^ -o $@$(EXT)
 
 fuzzer  : $(ZSTDDIR)/zstd.c xxhash.c fuzzer.c

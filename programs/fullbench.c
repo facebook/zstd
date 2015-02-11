@@ -115,8 +115,6 @@
 #define DEFAULT_CHUNKSIZE   (4<<20)
 
 static double g_compressibilityDefault = 0.50;
-static const U32 prime1 = 2654435761U;
-static const U32 prime2 = 2246822519U;
 static const size_t sampleSize = 10000000;
 
 
@@ -215,59 +213,6 @@ static U64 BMK_GetFileSize(char* infilename)
     return (U64)statbuf.st_size;
 }
 
-
-#if 1
-static U32 BMK_rotl32(unsigned val32, unsigned nbBits) { return((val32 << nbBits) | (val32 >> (32 - nbBits))); }
-
-static U32 BMK_rand(U32* src)
-{
-    U32 rand32 = *src;
-    rand32 *= prime1;
-    rand32 += prime2;
-    rand32 = BMK_rotl32(rand32, 13);
-    *src = rand32;
-    return rand32 >> 9;
-}
-
-#define BMK_RAND15BITS  ( BMK_rand(&seed) & 0x7FFF)
-#define BMK_RANDLENGTH  ((BMK_rand(&seed) & 3) ? (BMK_rand(&seed) % 15) : (BMK_rand(&seed) % 510) + 15)
-#define BMK_RANDCHAR    (BYTE)((BMK_rand(&seed) & 63) + '0')
-static void BMK_datagen(void* buffer, size_t bufferSize, double proba, U32 seed)
-{
-    BYTE* BBuffer = (BYTE*)buffer;
-    unsigned pos = 0;
-    U32 P32 = (U32)(32768 * proba);
-
-    /* First Byte */
-    BBuffer[pos++] = BMK_RANDCHAR;
-
-    while (pos < bufferSize)
-    {
-        /* Select : Literal (noise) or copy (within 64K) */
-        if (BMK_RAND15BITS < P32)
-        {
-            /* Match */
-            size_t match, end;
-            unsigned length = BMK_RANDLENGTH + 4;
-            unsigned offset = BMK_RAND15BITS + 1;
-            if (offset > pos) offset = pos;
-            match = pos - offset;
-            end = pos + length;
-            if (end > bufferSize) end = bufferSize;
-            while (pos < end) BBuffer[pos++] = BBuffer[match++];
-        }
-        else
-        {
-            /* Literal */
-            size_t end;
-            unsigned length = BMK_RANDLENGTH;
-            end = pos + length;
-            if (end > bufferSize) end = bufferSize;
-            while (pos < end) BBuffer[pos++] = BMK_RANDCHAR;
-        }
-    }
-}
-#endif
 
 /*********************************************************
 *  Benchmark wrappers
@@ -515,8 +460,8 @@ int benchSample(U32 benchNb)
     }
 
     /* Fill buffer */
-    BMK_datagen(origBuff, benchedSize, g_compressibilityDefault, 0);
-    //RDG_generate(benchedSize, 0, g_compressibilityDefault, g_compressibilityDefault / 3.6);
+    //BMK_datagen(origBuff, benchedSize, g_compressibilityDefault, 0);
+    RDG_genBuffer(origBuff, benchedSize, g_compressibilityDefault, 0.0, 0);
 
     /* bench */
     DISPLAY("\r%79s\r", "");

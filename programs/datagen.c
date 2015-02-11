@@ -169,7 +169,7 @@ void RDG_genBlock(void* buffer, size_t buffSize, size_t prefixSize, double match
 void RDG_genBuffer(void* buffer, size_t size, double matchProba, double litProba, unsigned seed)
 {
     void* ldctx;
-    if (litProba==0.0) litProba = matchProba / 3.6;
+    if (litProba==0.0) litProba = matchProba / 3.8;
     ldctx = RDG_createLiteralDistrib(litProba);
     RDG_genBlock(buffer, size, 0, matchProba, ldctx, &seed);
 }
@@ -185,7 +185,7 @@ void RDG_genOut(unsigned long long size, double matchProba, double litProba, uns
     void* ldctx;
 
     /* init */
-    if (litProba==0.0) litProba = matchProba / 3.6;
+    if (litProba==0.0) litProba = matchProba / 3.8;
     ldctx = RDG_createLiteralDistrib(litProba);
     SET_BINARY_MODE(stdout);
 

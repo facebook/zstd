@@ -1,14 +1,8 @@
 #!/usr/bin/env python
 
-import os
-import sys
 from setuptools import setup, find_packages, Extension
 
 VERSION = (0, 0, 1)
-
-cwd = os.path.dirname(sys.argv[0])
-if not cwd:
-    cwd = '.'
 
 setup(
     name='zstd',

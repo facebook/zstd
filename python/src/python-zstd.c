@@ -84,7 +84,7 @@ static PyObject *py_zstd_uncompress(PyObject *self, PyObject *args) {
     if (!PyArg_ParseTuple(args, "y#", &source, &source_size))
         return NULL;
 #else
-    if (!PyArg_ParseTuple(args, "s#", &source, &source_size)) {
+    if (!PyArg_ParseTuple(args, "s#", &source, &source_size))
         return NULL;
 #endif
 

@@ -39,6 +39,7 @@ static PyObject *py_zstd_compress(PyObject *self, PyObject *args) {
     uint32_t source_size;
     char *dest;
     uint32_t dest_size;
+    uint32_t header_size;
     size_t cSize;
 
 #if PY_MAJOR_VERSION >= 3
@@ -49,23 +50,24 @@ static PyObject *py_zstd_compress(PyObject *self, PyObject *args) {
         return NULL;
 #endif
 
-    dest_size = sizeof(source_size) + ZSTD_compressBound(source_size);
-    result = PyBytes_FromStringAndSize(NULL, dest_size);
+    header_size = sizeof(source_size);
+
+    dest_size = ZSTD_compressBound(source_size);
+    result = PyBytes_FromStringAndSize(NULL, header_size + dest_size);
     if (result == NULL) {
         return NULL;
     }
     dest = PyBytes_AS_STRING(result);
 
-    memcpy(dest, &source_size, sizeof(source_size));
+    memcpy(dest, &source_size, header_size);
 
-    dest += sizeof(source_size);
+    dest += header_size;
 
     if (source_size > 0) {
         cSize = ZSTD_compress(dest, dest_size, source, source_size);
         if (ZSTD_isError(cSize))
             PyErr_Format(PyExc_ValueError, "Compression error: %s", ZSTD_getErrorName(cSize));
-        Py_SIZE(result) = cSize;
-
+        Py_SIZE(result) = cSize + sizeof(source_size);
     }
     return result;
 }
@@ -75,6 +77,7 @@ static PyObject *py_zstd_uncompress(PyObject *self, PyObject *args) {
     const char *source;
     uint32_t source_size;
     uint32_t dest_size;
+    uint32_t header_size;
     size_t cSize;
 
 #if PY_MAJOR_VERSION >= 3
@@ -85,15 +88,17 @@ static PyObject *py_zstd_uncompress(PyObject *self, PyObject *args) {
         return NULL;
 #endif
 
-    memcpy(&dest_size, source, sizeof(dest_size));
+    header_size = sizeof(dest_size);
+
+    memcpy(&dest_size, source, header_size);
     result = PyBytes_FromStringAndSize(NULL, dest_size);
 
-    source += sizeof(dest_size);
+    source += header_size;
 
     if (result != NULL && dest_size > 0) {
         char *dest = PyBytes_AS_STRING(result);
 
-        cSize = ZSTD_decompress(dest, dest_size, source, source_size);
+        cSize = ZSTD_decompress(dest, dest_size, source, source_size - header_size);
         if (ZSTD_isError(cSize))
             PyErr_Format(PyExc_ValueError, "Decompression error: %s", ZSTD_getErrorName(cSize));
     }

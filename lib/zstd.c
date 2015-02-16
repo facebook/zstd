@@ -141,7 +141,7 @@ static const U32 ZSTD_magicNumber = 0xFD2FB51C;   /* Initial (limited) frame for
 
 #define KB *(1 <<10)
 #define MB *(1 <<20)
-#define GB *(1U<<20)
+#define GB *(1U<<30)
 
 #define BLOCKSIZE (128 KB)                 /* define, for static allocation */
 static const U32 g_maxDistance = 512 KB;
@@ -1708,24 +1708,24 @@ size_t ZSTD_decompress(void* dst, size_t maxDstSize, const void* src, size_t src
 }
 
 
-/******************************
+/*******************************
 *  Streaming Decompression API
-******************************/
+*******************************/
 
 typedef struct
 {
     U32 ctx[FSE_DTABLE_SIZE_U32(LLFSELog) + FSE_DTABLE_SIZE_U32(OffFSELog) + FSE_DTABLE_SIZE_U32(MLFSELog)];
     size_t expected;
     blockType_t bType;
-    U32 started;
+    U32 phase;
 } dctx_t;
 
 
 ZSTD_dctx_t ZSTD_createDCtx(void)
 {
     dctx_t* dctx = (dctx_t*)malloc(sizeof(dctx_t));
-    dctx->expected = 4 + ZSTD_blockHeaderSize;   // Frame Header + Block Header
-    dctx->started = 0;
+    dctx->expected = ZSTD_frameHeaderSize;
+    dctx->phase = 0;
     return (ZSTD_dctx_t)dctx;
 }
 
@@ -1736,7 +1736,7 @@ size_t ZSTD_freeDCtx(ZSTD_dctx_t dctx)
 }
 
 
-size_t ZSTD_getNextcBlockSize(ZSTD_dctx_t dctx)
+size_t ZSTD_nextSrcSizeToDecompress(ZSTD_dctx_t dctx)
 {
     return ((dctx_t*)dctx)->expected;
 }
@@ -1744,63 +1744,67 @@ size_t ZSTD_getNextcBlockSize(ZSTD_dctx_t dctx)
 size_t ZSTD_decompressContinue(ZSTD_dctx_t dctx, void* dst, size_t maxDstSize, const void* src, size_t srcSize)
 {
     dctx_t* ctx = (dctx_t*)dctx;
-    size_t cSize = srcSize - ZSTD_blockHeaderSize;
-    size_t rSize;
 
-    // Sanity check
+    /* Sanity check */
     if (srcSize != ctx->expected) return (size_t)-ZSTD_ERROR_wrongSrcSize;
 
-    // Decompress
-    if (!ctx->started)
+    /* Decompress : frame header */
+    if (ctx->phase == 0)
     {
-        // Just check correct magic header
+        /* Check frame magic header */
         U32 magicNumber = ZSTD_readBE32(src);
         if (magicNumber != ZSTD_magicNumber) return (size_t)-ZSTD_ERROR_wrongMagicNumber;
-        rSize = 0;
+        ctx->phase = 1;
+        ctx->expected = ZSTD_blockHeaderSize;
+        return 0;
     }
-    else
+
+    /* Decompress : block header */
+    if (ctx->phase == 1)
     {
+        blockProperties_t bp;
+        size_t blockSize = ZSTD_getcBlockSize(src, ZSTD_blockHeaderSize, &bp);
+        if (ZSTD_isError(blockSize)) return blockSize;
+        if (bp.blockType == bt_end)
+        {
+            ctx->expected = 0;
+            ctx->phase = 0;
+        }
+        else
+        {
+            ctx->expected = blockSize;
+            ctx->bType = bp.blockType;
+            ctx->phase = 2;
+        }
+
+        return 0;
+    }
+
+    /* Decompress : block content */
+    {
+        size_t rSize;
         switch(ctx->bType)
         {
         case bt_compressed:
-            rSize = ZSTD_decompressBlock(ctx, dst, maxDstSize, src, cSize);
+            rSize = ZSTD_decompressBlock(ctx, dst, maxDstSize, src, srcSize);
             break;
         case bt_raw :
-            rSize = ZSTD_copyUncompressedBlock(dst, maxDstSize, src, cSize);
+            rSize = ZSTD_copyUncompressedBlock(dst, maxDstSize, src, srcSize);
             break;
         case bt_rle :
             return (size_t)-ZSTD_ERROR_GENERIC;   /* not yet handled */
             break;
-        case bt_end :
+        case bt_end :   /* should never happen (filtered at phase 1) */
             rSize = 0;
             break;
         default:
             return (size_t)-ZSTD_ERROR_GENERIC;
         }
+        ctx->phase = 1;
+        ctx->expected = ZSTD_blockHeaderSize;
+        return rSize;
     }
 
-    // Prepare next block
-    {
-        const BYTE* header = (const BYTE*)src;
-        blockProperties_t bp;
-        size_t blockSize;
-        header += cSize;
-        blockSize = ZSTD_getcBlockSize(header, ZSTD_blockHeaderSize, &bp);
-        if (ZSTD_isError(blockSize)) return blockSize;
-        if (bp.blockType == bt_end)
-        {
-            ctx->expected = 0;
-            ctx->started = 0;
-        }
-        else
-        {
-            ctx->expected = blockSize + ZSTD_blockHeaderSize;
-            ctx->bType = bp.blockType;
-            ctx->started = 1;
-        }
-    }
-
-    return rSize;
 }
 
 

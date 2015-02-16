@@ -327,10 +327,10 @@ unsigned long long FIO_decompressFilename(const char* output_filename, const cha
     /* Init */
     FIO_getFileHandles(&finput, &foutput, input_filename, output_filename);
     dctx = ZSTD_createDCtx();
-    toRead = ZSTD_getNextcBlockSize(dctx);
-    if (toRead > MAXHEADERSIZE) EXM_THROW(30, "Not enough memory to read header");
 
     /* check header */
+    toRead = ZSTD_nextSrcSizeToDecompress(dctx);
+    if (toRead > MAXHEADERSIZE) EXM_THROW(30, "Not enough memory to read header");
     sizeCheck = fread(header, (size_t)1, toRead, finput);
     if (sizeCheck != toRead) EXM_THROW(31, "Read error : cannot read header");
     sizeCheck = ZSTD_decompressContinue(dctx, NULL, 0, header, toRead);   // Decode frame header
@@ -348,7 +348,7 @@ unsigned long long FIO_decompressFilename(const char* output_filename, const cha
     if (!inBuff || !outBuff) EXM_THROW(33, "Allocation error : not enough memory");
 
     /* Main decompression Loop */
-    toRead = ZSTD_getNextcBlockSize(dctx);
+    toRead = ZSTD_nextSrcSizeToDecompress(dctx);
     while (toRead)
     {
         size_t readSize, decodedSize;
@@ -361,16 +361,19 @@ unsigned long long FIO_decompressFilename(const char* output_filename, const cha
         /* Decode block */
         decodedSize = ZSTD_decompressContinue(dctx, op, oend-op, inBuff, readSize);
 
-        /* Write block */
-        sizeCheck = fwrite(op, 1, decodedSize, foutput);
-        if (sizeCheck != decodedSize) EXM_THROW(35, "Write error : unable to write data block to destination file");
-        filesize += decodedSize;
+        if (decodedSize)   /* not a header */
+        {
+            /* Write block */
+            sizeCheck = fwrite(op, 1, decodedSize, foutput);
+            if (sizeCheck != decodedSize) EXM_THROW(35, "Write error : unable to write data block to destination file");
+            filesize += decodedSize;
+            op += decodedSize;
+            if (op==oend) op = outBuff;
+            DISPLAYUPDATE(2, "\rDecoded : %u MB...     ", (U32)(filesize>>20) );
+        }
 
         /* prepare for next Block */
-        op += decodedSize;
-        if (op==oend) op = outBuff;
-        toRead = ZSTD_getNextcBlockSize(dctx);
-        DISPLAYUPDATE(2, "\rDecoded : %u MB...     ", (U32)(filesize>>20) );
+        toRead = ZSTD_nextSrcSizeToDecompress(dctx);
     }
 
     DISPLAYLEVEL(2, "\r%79s\r", "");

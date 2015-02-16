@@ -57,7 +57,7 @@ typedef void* ZSTD_dctx_t;
 ZSTD_dctx_t ZSTD_createDCtx(void);
 size_t      ZSTD_freeDCtx(ZSTD_dctx_t dctx);
 
-size_t ZSTD_getNextcBlockSize(ZSTD_dctx_t dctx);
+size_t ZSTD_nextSrcSizeToDecompress(ZSTD_dctx_t dctx);
 size_t ZSTD_decompressContinue(ZSTD_dctx_t dctx, void* dst, size_t maxDstSize, const void* src, size_t srcSize);
 
 

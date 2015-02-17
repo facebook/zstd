@@ -129,9 +129,6 @@ static const U32 ZSTD_magicNumber = 0xFD2FB51C;   /* Initial (limited) frame for
 #define HASH_TABLESIZE (1 << HASH_LOG)
 #define HASH_MASK (HASH_TABLESIZE - 1)
 
-#define MAXD_LOG 16
-#define MAX_DISTANCE ((1 << MAXD_LOG) - 1)
-
 #define KNUTH 2654435761
 
 #define BIT7 128
@@ -144,7 +141,7 @@ static const U32 ZSTD_magicNumber = 0xFD2FB51C;   /* Initial (limited) frame for
 #define GB *(1U<<30)
 
 #define BLOCKSIZE (128 KB)                 /* define, for static allocation */
-static const U32 g_maxDistance = 512 KB;
+static const U32 g_maxDistance = 4 * BLOCKSIZE;
 static const U32 g_maxLimit = 1 GB;
 static const U32 g_searchStrength = 8;
 

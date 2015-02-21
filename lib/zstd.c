@@ -613,25 +613,27 @@ static size_t ZSTD_compressLiterals (void* dst, size_t dstSize,
     size_t errorCode;
     const size_t minGain = ZSTD_minGain(srcSize);
 
-    // early out
+    /* early out */
     if (dstSize < FSE_compressBound(srcSize)) return (size_t)-ZSTD_ERROR_maxDstSize_tooSmall;
 
-    // Scan input and build symbol stats
+    /* Scan input and build symbol stats */
     errorCode = FSE_count (count, ip, srcSize, &maxSymbolValue);
     if (FSE_isError(errorCode)) return (size_t)-ZSTD_ERROR_GENERIC;
     if (errorCode == srcSize) return 1;
-    if (errorCode < ((srcSize * 7) >> 10)) return 0;
+    //if (errorCode < ((srcSize * 7) >> 10)) return 0;
+    //if (errorCode < (srcSize >> 7)) return 0;
+    if (errorCode < (srcSize >> 6)) return 0;   /* heuristic : probably not compressible enough */
 
     tableLog = FSE_optimalTableLog(tableLog, srcSize, maxSymbolValue);
     errorCode = (int)FSE_normalizeCount (norm, tableLog, count, srcSize, maxSymbolValue);
     if (FSE_isError(errorCode)) return (size_t)-ZSTD_ERROR_GENERIC;
 
-    // Write table description header
+    /* Write table description header */
     errorCode = FSE_writeHeader (op, FSE_MAX_HEADERSIZE, norm, maxSymbolValue, tableLog);
     if (FSE_isError(errorCode)) return (size_t)-ZSTD_ERROR_GENERIC;
     op += errorCode;
 
-    // Compress
+    /* Compress */
     errorCode = FSE_buildCTable (&CTable, norm, maxSymbolValue, tableLog);
     if (FSE_isError(errorCode)) return (size_t)-ZSTD_ERROR_GENERIC;
     errorCode = ZSTD_compressLiterals_usingCTable(op, oend - op, ip, srcSize, &CTable);

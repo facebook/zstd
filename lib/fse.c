@@ -540,7 +540,6 @@ unsigned FSE_optimalTableLog(unsigned maxTableLog, size_t srcSize, unsigned maxS
     if (tableLog==0) tableLog = FSE_DEFAULT_TABLELOG;
     if ((FSE_highbit32((U32)(srcSize - 1)) - 2) < tableLog) tableLog = FSE_highbit32((U32)(srcSize - 1)) - 2;   /* Accuracy can be reduced */
     if ((FSE_highbit32(maxSymbolValue+1)+1) > tableLog) tableLog = FSE_highbit32(maxSymbolValue+1)+1;   /* Need a minimum to safely represent all symbol values */
-    //if ((FSE_highbit32(maxSymbolValue)+2) > tableLog) tableLog = FSE_highbit32(maxSymbolValue)+2;   /* Need a minimum to safely represent all symbol values */
     if (tableLog < FSE_MIN_TABLELOG) tableLog = FSE_MIN_TABLELOG;
     if (tableLog > FSE_MAX_TABLELOG) tableLog = FSE_MAX_TABLELOG;
     return tableLog;
@@ -561,6 +560,10 @@ int FSE_compareRankT(const void* r1, const void* r2)
     return 2 * (R1->count < R2->count) - 1;
 }
 
+static U32 g_tableLog_test =0;
+static U32 g_total_test = 0;
+
+#if 0
 static size_t FSE_adjustNormSlow(short* norm, int pointsToRemove, const unsigned* count, U32 maxSymbolValue)
 {
     rank_t rank[FSE_MAX_SYMBOL_VALUE+2];
@@ -601,6 +604,99 @@ static size_t FSE_adjustNormSlow(short* norm, int pointsToRemove, const unsigned
 
     return 0;
 }
+
+#else
+
+static size_t FSE_adjustNormSlow(short* norm, int pointsToRemove, const unsigned* count, U32 maxSymbolValue)
+{
+    U32 s;
+    U32 total = g_total_test;
+    U32 tableLog = g_tableLog_test;
+    U32 distributed = 0;
+    U32 ToDistribute;
+
+    /* Init */
+    (void)pointsToRemove;
+    U32 lowThreshold = (U32)(total >> tableLog);
+    U32 lowOne = (U32)((total * 3) >> (tableLog + 1));
+
+    for (s=0; s<=maxSymbolValue; s++)
+    {
+        if (count[s] == 0)
+        {
+            norm[s]=0;
+            continue;
+        }
+        if (count[s] <= lowThreshold)
+        {
+            norm[s] = -1;
+            distributed++;
+            total -= count[s];
+            continue;
+        }
+        if (count[s] <= lowOne)
+        {
+            norm[s] = 1;
+            distributed++;
+            total -= count[s];
+            continue;
+        }
+        norm[s]=-2;
+    }
+    ToDistribute = (1 << tableLog) - distributed;
+
+    if ((total / ToDistribute) > lowOne)
+    {
+        /* risk of rounding to zero */
+        lowOne = (U32)((total * 3) / (ToDistribute * 2));
+        for (s=0; s<=maxSymbolValue; s++)
+        {
+            if ((norm[s] == -2) && (count[s] <= lowOne))
+            {
+                norm[s] = 1;
+                distributed++;
+                total -= count[s];
+                continue;
+            }
+        }
+        ToDistribute = (1 << tableLog) - distributed;
+    }
+
+    if (distributed == maxSymbolValue+1)
+    {
+        /* all values are pretty poor; probably incompressible data (should have already been detected);
+           find max, then give all remaining to max */
+        U32 maxV = 0, maxC =0;
+        for (s=0; s<=maxSymbolValue; s++)
+            if (count[s] > maxC) maxV=s, maxC=count[s];
+        norm[maxV] += ToDistribute;
+        return 0;
+    }
+
+    {
+        U64 const vStepLog = 62 - tableLog;
+        U64 const mid = (1ULL << (vStepLog-1)) - 1;
+        U64 const rStep = ((((U64)1<<vStepLog) * ToDistribute) + mid) / total;   /* scale on remaining */
+        U64 tmpTotal = mid;
+        for (s=0; s<=maxSymbolValue; s++)
+        {
+            if (norm[s]==-2)
+            {
+                U64 end = tmpTotal + (count[s] * rStep);
+                U32 sStart = (U32)(tmpTotal >> vStepLog);
+                U32 sEnd = (U32)(end >> vStepLog);
+                U32 weight = sEnd - sStart;
+                if (weight < 1)
+                    return (size_t)-FSE_ERROR_GENERIC;
+                norm[s] = weight;
+                tmpTotal = end;
+            }
+        }
+    }
+
+    return 0;
+}
+#endif
 
 
 size_t FSE_normalizeCount (short* normalizedCounter, unsigned tableLog,
@@ -654,12 +750,13 @@ size_t FSE_normalizeCount (short* normalizedCounter, unsigned tableLog,
                 stillToDistribute -= proba;
             }
         }
+        g_tableLog_test = tableLog;
+        g_total_test = total;
         if (-stillToDistribute >= (normalizedCounter[largest] >> 1))
         {
             /* corner case, need to converge towards normalization with caution */
             size_t errorCode = FSE_adjustNormSlow(normalizedCounter, -stillToDistribute, count, maxSymbolValue);
             if (FSE_isError(errorCode)) return errorCode;
-            //FSE_adjustNormSlow(normalizedCounter, -stillToDistribute, count, maxSymbolValue);
         }
         else normalizedCounter[largest] += (short)stillToDistribute;
     }
@@ -869,12 +966,6 @@ size_t FSE_compress_usingCTable (void* dst, size_t dstSize,
 }
 
 
-static size_t FSE_compressRLE (BYTE *out, BYTE symbol)
-{
-    *out=symbol;
-    return 1;
-}
-
 size_t FSE_compressBound(size_t size) { return FSE_COMPRESSBOUND(size); }
 
 
@@ -901,8 +992,8 @@ size_t FSE_compress2 (void* dst, size_t dstSize, const void* src, size_t srcSize
     /* Scan input and build symbol stats */
     errorCode = FSE_count (count, ip, srcSize, &maxSymbolValue);
     if (FSE_isError(errorCode)) return errorCode;
-    if (errorCode == srcSize) return FSE_compressRLE (ostart, *istart);
-    if (errorCode < ((srcSize * 7) >> 10)) return 0;   /* Heuristic : not compressible enough */
+    if (errorCode == srcSize) return 1;
+    if (errorCode < (srcSize >> 7)) return 0;   /* Heuristic : not compressible enough */
 
     tableLog = FSE_optimalTableLog(tableLog, srcSize, maxSymbolValue);
     errorCode = FSE_normalizeCount (norm, tableLog, count, srcSize, maxSymbolValue);

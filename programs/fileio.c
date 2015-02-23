@@ -226,17 +226,14 @@ unsigned long long FIO_compressFilename(const char* output_filename, const char*
     U64 filesize = 0;
     U64 compressedfilesize = 0;
     BYTE* inBuff;
-    BYTE* inSlot;
-    BYTE* inEnd;
     BYTE* outBuff;
     size_t blockSize = 128 KB;
     size_t inBuffSize = 4 * blockSize;
-    size_t outBuffSize = ZSTD_compressBound(blockSize);
+    size_t outBuffSize = ZSTD_compressBound(inBuffSize);
     FILE* finput;
     FILE* foutput;
-    size_t sizeCheck, cSize;
+    size_t sizeCheck, cSize, inSize;
     ZSTD_cctx_t ctx;
-
 
     /* Init */
     FIO_getFileHandles(&finput, &foutput, input_filename, output_filename);
@@ -246,8 +243,6 @@ unsigned long long FIO_compressFilename(const char* output_filename, const char*
     inBuff  = malloc(inBuffSize);
     outBuff = malloc(outBuffSize);
     if (!inBuff || !outBuff) EXM_THROW(21, "Allocation error : not enough memory");
-    inSlot = inBuff;
-    inEnd = inBuff + inBuffSize;
 
     /* Write Frame Header */
     cSize = ZSTD_compressBegin(ctx, outBuff, outBuffSize);
@@ -258,19 +253,13 @@ unsigned long long FIO_compressFilename(const char* output_filename, const char*
     compressedfilesize += cSize;
 
     /* Main compression loop */
-    while (1)
+    while ((inSize = fread(inBuff, (size_t)1, inBuffSize, finput)))
     {
-        size_t inSize;
-
-        /* Fill input Buffer */
-        if (inSlot + blockSize > inEnd) inSlot = inBuff;
-        inSize = fread(inSlot, (size_t)1, blockSize, finput);
-        if (inSize==0) break;
         filesize += inSize;
         DISPLAYUPDATE(2, "\rRead : %u MB   ", (U32)(filesize>>20));
 
         /* Compress Block */
-        cSize = ZSTD_compressContinue(ctx, outBuff, outBuffSize, inSlot, inSize);
+        cSize = ZSTD_compressContinue(ctx, outBuff, outBuffSize, inBuff, inSize);
         if (ZSTD_isError(cSize))
             EXM_THROW(24, "Compression error : %s ", ZSTD_getErrorName(cSize));
 
@@ -278,7 +267,6 @@ unsigned long long FIO_compressFilename(const char* output_filename, const char*
         sizeCheck = fwrite(outBuff, 1, cSize, foutput);
         if (sizeCheck!=cSize) EXM_THROW(25, "Write error : cannot write compressed block");
         compressedfilesize += cSize;
-        inSlot += inSize;
 
         DISPLAYUPDATE(2, "\rRead : %u MB  ==> %.2f%%   ", (U32)(filesize>>20), (double)compressedfilesize/filesize*100);
     }

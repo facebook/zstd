@@ -253,7 +253,7 @@ unsigned long long FIO_compressFilename(const char* output_filename, const char*
     compressedfilesize += cSize;
 
     /* Main compression loop */
-    while (inSize = fread(inBuff, (size_t)1, inBuffSize, finput))
+    while ((inSize = fread(inBuff, (size_t)1, inBuffSize, finput)))
     {
         filesize += inSize;
         DISPLAYUPDATE(2, "\rRead : %u MB   ", (U32)(filesize>>20));
@@ -301,9 +301,10 @@ unsigned long long FIO_decompressFilename(const char* output_filename, const cha
     FILE* finput, *foutput;
     BYTE* inBuff;
     size_t inBuffSize;
-    BYTE* outBuff;
+    BYTE* outBuff, *op, *oend;
     size_t outBuffSize;
     U32   blockSize = 128 KB;
+    U32   wNbBlocks = 4;
     U64   filesize = 0;
     BYTE* header[MAXHEADERSIZE];
     ZSTD_cctx_t dctx;
@@ -326,14 +327,17 @@ unsigned long long FIO_decompressFilename(const char* output_filename, const cha
     /* Here later : blockSize determination */
 
     /* Allocate Memory */
-    inBuffSize = ZSTD_compressBound(blockSize);
+    inBuffSize = blockSize + FIO_blockHeaderSize;
     inBuff  = malloc(inBuffSize);
-    outBuffSize = blockSize;
+    outBuffSize = wNbBlocks * blockSize;
     outBuff = malloc(outBuffSize);
+    op = outBuff;
+    oend = outBuff + outBuffSize;
     if (!inBuff || !outBuff) EXM_THROW(33, "Allocation error : not enough memory");
 
     /* Main decompression Loop */
-    while (toRead = ZSTD_nextSrcSizeToDecompress(dctx))
+    toRead = ZSTD_nextSrcSizeToDecompress(dctx);
+    while (toRead)
     {
         size_t readSize, decodedSize;
 
@@ -343,16 +347,21 @@ unsigned long long FIO_decompressFilename(const char* output_filename, const cha
             EXM_THROW(34, "Read error");
 
         /* Decode block */
-        decodedSize = ZSTD_decompressContinue(dctx, outBuff, outBuffSize, inBuff, readSize);
+        decodedSize = ZSTD_decompressContinue(dctx, op, oend-op, inBuff, readSize);
 
-        if (decodedSize > 0)   /* not a header */
+        if (decodedSize)   /* not a header */
         {
             /* Write block */
-            sizeCheck = fwrite(outBuff, 1, decodedSize, foutput);
+            sizeCheck = fwrite(op, 1, decodedSize, foutput);
             if (sizeCheck != decodedSize) EXM_THROW(35, "Write error : unable to write data block to destination file");
             filesize += decodedSize;
+            op += decodedSize;
+            if (op==oend) op = outBuff;
             DISPLAYUPDATE(2, "\rDecoded : %u MB...     ", (U32)(filesize>>20) );
         }
+
+        /* prepare for next Block */
+        toRead = ZSTD_nextSrcSizeToDecompress(dctx);
     }
 
     DISPLAYLEVEL(2, "\r%79s\r", "");

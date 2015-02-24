@@ -560,8 +560,6 @@ int FSE_compareRankT(const void* r1, const void* r2)
     return 2 * (R1->count < R2->count) - 1;
 }
 
-static U32 g_tableLog_test =0;
-static U32 g_total_test = 0;
 
 #if 0
 static size_t FSE_adjustNormSlow(short* norm, int pointsToRemove, const unsigned* count, U32 maxSymbolValue)
@@ -607,16 +605,16 @@ static size_t FSE_adjustNormSlow(short* norm, int pointsToRemove, const unsigned
 
 #else
 
-static size_t FSE_adjustNormSlow(short* norm, int pointsToRemove, const unsigned* count, U32 maxSymbolValue)
+/* Secondary normalization method.
+   To be used when primary method fails. */
+
+static size_t FSE_normalizeM2(short* norm, U32 tableLog, const unsigned* count, size_t total, U32 maxSymbolValue)
 {
     U32 s;
-    U32 total = g_total_test;
-    U32 tableLog = g_tableLog_test;
     U32 distributed = 0;
     U32 ToDistribute;
 
     /* Init */
-    (void)pointsToRemove;
     U32 lowThreshold = (U32)(total >> tableLog);
     U32 lowOne = (U32)((total * 3) >> (tableLog + 1));
 
@@ -664,8 +662,9 @@ static size_t FSE_adjustNormSlow(short* norm, int pointsToRemove, const unsigned
 
     if (distributed == maxSymbolValue+1)
     {
-        /* all values are pretty poor; probably incompressible data (should have already been detected);
-           find max, then give all remaining to max */
+        /* all values are pretty poor;
+           probably incompressible data (should have already been detected);
+           find max, then give all remaining points to max */
         U32 maxV = 0, maxC =0;
         for (s=0; s<=maxSymbolValue; s++)
             if (count[s] > maxC) maxV=s, maxC=count[s];
@@ -750,12 +749,10 @@ size_t FSE_normalizeCount (short* normalizedCounter, unsigned tableLog,
                 stillToDistribute -= proba;
             }
         }
-        g_tableLog_test = tableLog;
-        g_total_test = total;
         if (-stillToDistribute >= (normalizedCounter[largest] >> 1))
         {
-            /* corner case, need to converge towards normalization with caution */
-            size_t errorCode = FSE_adjustNormSlow(normalizedCounter, -stillToDistribute, count, maxSymbolValue);
+            /* corner case, need another normalization method */
+            size_t errorCode = FSE_normalizeM2(normalizedCounter, tableLog, count, total, maxSymbolValue);
             if (FSE_isError(errorCode)) return errorCode;
         }
         else normalizedCounter[largest] += (short)stillToDistribute;

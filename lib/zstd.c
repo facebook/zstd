@@ -68,9 +68,6 @@
 #include <stdio.h>       /* debug : printf */
 #include "zstd_static.h"
 #if defined(__clang__) || defined(__GNUC__)
-#  ifdef __clang__
-#    pragma clang diagnostic ignored "-Wtypedef-redefinition"
-#  endif
 #  include "fse.c"       /* due to GCC/Clang inlining limitations, including *.c runs noticeably faster */
 #else
 #  include "fse_static.h"
@@ -99,6 +96,8 @@
 #endif
 
 
+#ifndef MEM_ACCESS_MODULE
+#define MEM_ACCESS_MODULE
 /********************************************************
 *  Basic Types
 *********************************************************/
@@ -118,6 +117,8 @@ typedef unsigned int        U32;
 typedef   signed int        S32;
 typedef unsigned long long  U64;
 #endif
+
+#endif   /* MEM_ACCESS_MODULE */
 
 
 /********************************************************

@@ -87,6 +87,8 @@
 #include "fse_static.h"
 
 
+#ifndef MEM_ACCESS_MODULE
+#define MEM_ACCESS_MODULE
 /****************************************************************
 *  Basic Types
 *****************************************************************/
@@ -109,6 +111,7 @@ typedef unsigned long long  U64;
 typedef   signed long long  S64;
 #endif
 
+#endif   /* MEM_ACCESS_MODULE */
 
 /****************************************************************
 *  Memory I/O

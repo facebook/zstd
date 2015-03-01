@@ -62,6 +62,7 @@
 
 #include "zstd.h"
 #include "fse_static.h"
+#include "datagen.h"
 
 
 /**************************************
@@ -113,9 +114,7 @@
 #define MAX_MEM    (1984 MB)
 #define DEFAULT_CHUNKSIZE   (4<<20)
 
-static double g_compressibilityDefault = 0.50;
-static const U32 prime1 = 2654435761U;
-static const U32 prime2 = 2246822519U;
+#define COMPRESSIBILITY_DEFAULT 0.50
 static const size_t sampleSize = 10000000;
 
 
@@ -129,6 +128,7 @@ static const size_t sampleSize = 10000000;
 *  Benchmark Parameters
 **************************************/
 static int nbIterations = NBLOOPS;
+static double g_compressibility = COMPRESSIBILITY_DEFAULT;
 
 void BMK_SetNbIterations(int nbLoops)
 {
@@ -215,58 +215,6 @@ static U64 BMK_GetFileSize(char* infilename)
 }
 
 
-static U32 BMK_rotl32(unsigned val32, unsigned nbBits) { return((val32 << nbBits) | (val32 >> (32 - nbBits))); }
-
-static U32 BMK_rand(U32* src)
-{
-    U32 rand32 = *src;
-    rand32 *= prime1;
-    rand32 += prime2;
-    rand32 = BMK_rotl32(rand32, 13);
-    *src = rand32;
-    return rand32 >> 9;
-}
-
-#define BMK_RAND15BITS  ( BMK_rand(&seed) & 0x7FFF)
-#define BMK_RANDLENGTH  ((BMK_rand(&seed) & 3) ? (BMK_rand(&seed) % 15) : (BMK_rand(&seed) % 510) + 15)
-#define BMK_RANDCHAR    (BYTE)((BMK_rand(&seed) & 63) + '0')
-static void BMK_datagen(void* buffer, size_t bufferSize, double proba, U32 seed)
-{
-    BYTE* BBuffer = (BYTE*)buffer;
-    unsigned pos = 0;
-    U32 P32 = (U32)(32768 * proba);
-
-    /* First Byte */
-    BBuffer[pos++] = BMK_RANDCHAR;
-
-    while (pos < bufferSize)
-    {
-        /* Select : Literal (noise) or copy (within 64K) */
-        if (BMK_RAND15BITS < P32)
-        {
-            /* Match */
-            size_t match, end;
-            unsigned length = BMK_RANDLENGTH + 4;
-            unsigned offset = BMK_RAND15BITS + 1;
-            if (offset > pos) offset = pos;
-            match = pos - offset;
-            end = pos + length;
-            if (end > bufferSize) end = bufferSize;
-            while (pos < end) BBuffer[pos++] = BBuffer[match++];
-        }
-        else
-        {
-            /* Literal */
-            size_t end;
-            unsigned length = BMK_RANDLENGTH;
-            end = pos + length;
-            if (end > bufferSize) end = bufferSize;
-            while (pos < end) BBuffer[pos++] = BMK_RANDCHAR;
-        }
-    }
-}
-
-
 /*********************************************************
 *  Benchmark wrappers
 *********************************************************/
@@ -329,8 +277,8 @@ size_t local_conditionalNull(void* dst, size_t dstSize, void* buff2, const void*
         if (b==0) total = 0;   // 825
         //if (!b) total = 0;     // 825
         //total = b ? total : 0; // 622
-        //total *= !!b;          // 465
         //total &= -!b;          // 622
+        //total *= !!b;          // 465
     }
     return total;
 }
@@ -357,7 +305,7 @@ size_t benchMem(void* src, size_t srcSize, U32 benchNb)
     double bestTime = 100000000.;
     size_t errorCode = 0;
 
-    // Declaration
+    /* Selection */
     switch(benchNb)
     {
     case 1:
@@ -399,7 +347,7 @@ size_t benchMem(void* src, size_t srcSize, U32 benchNb)
     case 11:
         g_cSize = ZSTD_compress(buff2, dstBuffSize, src, srcSize);
         break;
-    case 31:  // ZSTD_decodeLiteralsBlock
+    case 31:  /* ZSTD_decodeLiteralsBlock */
         {
             blockProperties_t bp;
             ZSTD_compress(dstBuff, dstBuffSize, src, srcSize);
@@ -417,7 +365,7 @@ size_t benchMem(void* src, size_t srcSize, U32 benchNb)
             srcSize = srcSize > 128 KB ? 128 KB : srcSize;   // relative to block
             break;
         }
-    case 32:   // ZSTD_decodeSeqHeaders
+    case 32:   /* ZSTD_decodeSeqHeaders */
         {
             blockProperties_t bp;
             const BYTE* ip = dstBuff;
@@ -444,15 +392,14 @@ size_t benchMem(void* src, size_t srcSize, U32 benchNb)
 
     /* test functions */
 
-    case 101:   // conditionalNull
+    case 101:   /* conditionalNull */
         {
             size_t i;
-            U32 seed = (U32)srcSize;
             for (i=0; i<srcSize; i++)
-                buff2[i] = (BYTE)(BMK_rand(&seed) & 15);
+                buff2[i] = i & 15;
             break;
         }
-    case 102:   //
+    case 102:   /* local_decodeLiteralsForward */
         {
             blockProperties_t bp;
             ZSTD_compress(dstBuff, dstBuffSize, src, srcSize);
@@ -503,7 +450,7 @@ int benchSample(U32 benchNb)
 {
     char* origBuff;
     size_t benchedSize = sampleSize;
-    const char* name = "Sample50";
+    const char* name = "Sample 10MiB";
 
     /* Allocation */
     origBuff = (char*) malloc((size_t)benchedSize);
@@ -514,7 +461,7 @@ int benchSample(U32 benchNb)
     }
 
     /* Fill buffer */
-    BMK_datagen(origBuff, benchedSize, g_compressibilityDefault, 0);
+    RDG_genBuffer(origBuff, benchedSize, g_compressibility, 0.0, 0);
 
     /* bench */
     DISPLAY("\r%79s\r", "");
@@ -609,6 +556,7 @@ int usage_advanced(void)
     DISPLAY( "\nAdvanced options :\n");
     DISPLAY( " -b#    : test only function # \n");
     DISPLAY( " -i#    : iteration loops [1-9](default : %i)\n", NBLOOPS);
+    DISPLAY( " -P#    : sample compressibility (default : %.1f%%)\n", COMPRESSIBILITY_DEFAULT * 100);
     return 0;
 }
 
@@ -648,14 +596,14 @@ int main(int argc, char** argv)
 
                 switch(argument[0])
                 {
-                    // Display help on usage
+                    /* Display help on usage */
                 case 'h' :
                 case 'H': usage(exename); usage_advanced(); return 0;
 
-                    // Pause at the end (hidden option)
+                    /* Pause at the end (hidden option) */
                 case 'p': main_pause = 1; break;
 
-                    // Select specific bench algorithm only
+                    /* Select specific algorithm to bench */
                 case 'b':
                     benchNb = 0;
                     while ((argument[1]>= '0') && (argument[1]<= '9'))
@@ -666,7 +614,7 @@ int main(int argc, char** argv)
                     }
                     break;
 
-                    // Modify Nb Iterations
+                    /* Modify Nb Iterations */
                 case 'i':
                     if ((argument[1] >='1') && (argument[1] <='9'))
                     {
@@ -676,14 +624,28 @@ int main(int argc, char** argv)
                     }
                     break;
 
-                    // Unknown command
+                    /* Select specific algorithm to bench */
+                case 'P':
+                    {
+                        U32 proba32 = 0;
+                        while ((argument[1]>= '0') && (argument[1]<= '9'))
+                        {
+                            proba32 *= 10;
+                            proba32 += argument[1] - '0';
+                            argument++;
+                        }
+                        g_compressibility = (double)proba32 / 100.;
+                    }
+                    break;
+
+                    /* Unknown command */
                 default : badusage(exename); return 1;
                 }
             }
             continue;
         }
 
-        // first provided filename is input
+        /* first provided filename is input */
         if (!input_filename) { input_filename=argument; filenamesStart=i; continue; }
     }
 

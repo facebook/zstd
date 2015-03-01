@@ -30,7 +30,7 @@
 # fullbench32: Same as fullbench, but forced to compile in 32-bits mode
 # ##########################################################################
 
-RELEASE?= r0
+RELEASE?= r1
 
 DESTDIR?=
 PREFIX ?= /usr
@@ -66,10 +66,10 @@ zstd: $(ZSTDDIR)/zstd.c xxhash.c bench.c fileio.c zstdcli.c
 zstd32: $(ZSTDDIR)/zstd.c xxhash.c bench.c fileio.c zstdcli.c
 	$(CC) -m32 $(FLAGS) $^ -o $@$(EXT)
 
-fullbench  : $(ZSTDDIR)/zstd.c fullbench.c
+fullbench  : $(ZSTDDIR)/zstd.c datagen.c fullbench.c
 	$(CC)      $(FLAGS) $^ -o $@$(EXT)
 
-fullbench32: $(ZSTDDIR)/zstd.c fullbench.c
+fullbench32: $(ZSTDDIR)/zstd.c datagen.c fullbench.c
 	$(CC) -m32 $(FLAGS) $^ -o $@$(EXT)
 
 fuzzer  : $(ZSTDDIR)/zstd.c xxhash.c fuzzer.c
@@ -78,7 +78,7 @@ fuzzer  : $(ZSTDDIR)/zstd.c xxhash.c fuzzer.c
 fuzzer32: $(ZSTDDIR)/zstd.c xxhash.c fuzzer.c
 	$(CC) -m32 $(FLAGS) $^ -o $@$(EXT)
 
-datagen : datagen.c
+datagen : datagen.c datagencli.c
 	$(CC)      $(FLAGS) $^ -o $@$(EXT)
 
 clean:
@@ -129,15 +129,11 @@ test-zstd32: zstd32 datagen
 
 test-fullbench: fullbench datagen
 	./fullbench -i1
-	./datagen -P0 -g516K > tmp
-	./fullbench -i1 tmp
-	@rm tmp
+	./fullbench -i1 -P0
 
 test-fullbench32: fullbench32 datagen
 	./fullbench32 -i1
-	./datagen -P0 -g516K > tmp
-	./fullbench32 -i1 tmp
-	@rm tmp
+	./fullbench32 -i1 -P0
 
 test-fuzzer: fuzzer
 	./fuzzer

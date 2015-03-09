@@ -142,6 +142,7 @@ test-fuzzer32: fuzzer32
 	./fuzzer32
 
 test-mem: zstd datagen fuzzer fullbench
+	valgrind --leak-check=yes ./datagen -g50M > /dev/null
 	./datagen -g16KB > tmp
 	valgrind --leak-check=yes ./zstd -vf tmp /dev/null
 	./datagen -g128MB > tmp

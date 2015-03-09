@@ -127,11 +127,27 @@ static char RDG_genChar(U32* seed, const void* ltctx)
 #define RDG_RANDLENGTH  ( ((RDG_rand(seed) >> 7) & 7) ? (RDG_rand(seed) & 15) : (RDG_rand(seed) & 511) + 15)
 void RDG_genBlock(void* buffer, size_t buffSize, size_t prefixSize, double matchProba, void* litTable, unsigned* seedPtr)
 {
-    BYTE* buffPtr = ((BYTE*)buffer) - prefixSize;
+    BYTE* buffPtr = (BYTE*)buffer;
     const U32 matchProba32 = (U32)(32768 * matchProba);
     size_t pos = prefixSize;
     void* ldctx = litTable;
     U32* seed = seedPtr;
+
+    /* special case */
+    while (matchProba >= 1.0)
+    {
+        size_t size0 = RDG_rand(seed) & 3;
+        size0  = 1U << (16 + size0 * 2);
+        size0 += RDG_rand(seed) & (size0-1);   /* because size0 is power of 2*/
+        if (buffSize < pos + size0)
+        {
+            memset(buffPtr+pos, 0, buffSize-pos);
+            return;
+        }
+        memset(buffPtr+pos, 0, size0);
+        pos += size0;
+        buffPtr[pos-1] = RDG_genChar(seed, ldctx);
+    }
 
     /* init */
     if (pos==0) buffPtr[0] = RDG_genChar(seed, ldctx), pos=1;
@@ -148,18 +164,18 @@ void RDG_genBlock(void* buffer, size_t buffSize, size_t prefixSize, double match
             int length = RDG_RANDLENGTH + 4;
             U32 offset = RDG_RAND15BITS + 1;
             if (offset > pos) offset = pos;
-            if (pos + length > buffSize) length = buffSize - pos;
             match = pos - offset;
             d = pos + length;
+            if (d > buffSize) d = buffSize;
             while (pos < d) buffPtr[pos++] = buffPtr[match++];
         }
         else
         {
             /* Literal (noise) */
-            U32 d;
-            int length = RDG_RANDLENGTH;
-            if (pos + length > buffSize) length = buffSize - pos;
+            size_t d;
+            size_t length = RDG_RANDLENGTH;
             d = pos + length;
+            if (d > buffSize) d = buffSize;
             while (pos < d) buffPtr[pos++] = RDG_genChar(seed, ldctx);
         }
     }
@@ -169,7 +185,7 @@ void RDG_genBlock(void* buffer, size_t buffSize, size_t prefixSize, double match
 void RDG_genBuffer(void* buffer, size_t size, double matchProba, double litProba, unsigned seed)
 {
     void* ldctx;
-    if (litProba==0.0) litProba = matchProba / 3.8;
+    if (litProba==0.0) litProba = matchProba / 4.5;
     ldctx = RDG_createLiteralDistrib(litProba);
     RDG_genBlock(buffer, size, 0, matchProba, ldctx, &seed);
     free(ldctx);
@@ -179,30 +195,28 @@ void RDG_genBuffer(void* buffer, size_t size, double matchProba, double litProba
 #define RDG_BLOCKSIZE (128 KB)
 void RDG_genOut(unsigned long long size, double matchProba, double litProba, unsigned seed)
 {
-    BYTE fullbuff[RDG_DICTSIZE + RDG_BLOCKSIZE + 1];
-    BYTE* buff = fullbuff + RDG_DICTSIZE;
+    BYTE buff[RDG_DICTSIZE + RDG_BLOCKSIZE];
     U64 total = 0;
-    U32 genBlockSize = RDG_BLOCKSIZE;
+    size_t genBlockSize = RDG_BLOCKSIZE;
     void* ldctx;
 
     /* init */
-    if (litProba==0.0) litProba = matchProba / 3.8;
+    if (litProba==0.0) litProba = matchProba / 4.5;
     ldctx = RDG_createLiteralDistrib(litProba);
     SET_BINARY_MODE(stdout);
 
     /* Generate dict */
-    RDG_genBlock(fullbuff, RDG_DICTSIZE, 0, matchProba, ldctx, &seed);
+    RDG_genBlock(buff, RDG_DICTSIZE, 0, matchProba, ldctx, &seed);
 
     /* Generate compressible data */
     while (total < size)
     {
-        RDG_genBlock(buff, RDG_BLOCKSIZE, RDG_DICTSIZE, matchProba, ldctx, &seed);
-        if (size-total < RDG_BLOCKSIZE) genBlockSize = (U32)(size-total);
+        RDG_genBlock(buff, RDG_DICTSIZE+RDG_BLOCKSIZE, RDG_DICTSIZE, matchProba, ldctx, &seed);
+        if (size-total < RDG_BLOCKSIZE) genBlockSize = (size_t)(size-total);
         total += genBlockSize;
-        buff[genBlockSize] = 0;
         fwrite(buff, 1, genBlockSize, stdout);
         /* update dict */
-        memcpy(fullbuff, buff + (RDG_BLOCKSIZE - RDG_DICTSIZE), RDG_DICTSIZE);
+        memcpy(buff, buff + RDG_BLOCKSIZE, RDG_DICTSIZE);
     }
 
     free(ldctx);

@@ -1222,7 +1222,7 @@ size_t ZSTD_getcBlockSize(const void* src, size_t srcSize, blockProperties_t* bp
     if (srcSize < 3) return (size_t)-ZSTD_ERROR_wrongSrcSize;
 
     headerFlags = *in;
-    cSize = in[2] + (in[1]<<8) + ((in[0] & 7)<<16);
+    cSize = in[2] + (in[1]<<8) + ((in[0] & 0x3f)<<16);
 
     bpPtr->blockType = (blockType_t)(headerFlags >> 6);
     bpPtr->origSize = (bpPtr->blockType == bt_rle) ? cSize : 0;

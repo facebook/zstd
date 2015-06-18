@@ -24,19 +24,11 @@
 */
 #pragma once
 
-#if defined (__cplusplus)
-extern "C" {
-#endif
-
 
 /* Main function */
-int BMK_bench(char** fileNamesTable, unsigned nbFiles, unsigned cLevel);
+int BMK_benchFiles(char** fileNamesTable, unsigned nbFiles, unsigned cLevel);
 
 /* Set Parameters */
 void BMK_SetNbIterations(int nbLoops);
 
 
-
-#if defined (__cplusplus)
-}
-#endif

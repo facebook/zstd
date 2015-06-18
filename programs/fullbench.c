@@ -267,7 +267,7 @@ size_t local_conditionalNull(void* dst, size_t dstSize, void* buff2, const void*
 {
     U32 i;
     size_t total = 0;
-    BYTE* data = buff2;
+    BYTE* data = (BYTE*)buff2;
 
     (void)dst; (void)dstSize; (void)src;
     for (i=0; i < srcSize; i++)
@@ -332,8 +332,8 @@ size_t benchMem(void* src, size_t srcSize, U32 benchNb)
 
     /* Allocation */
     dstBuffSize = ZSTD_compressBound(srcSize);
-    dstBuff = malloc(dstBuffSize);
-    buff2 = malloc(dstBuffSize);
+    dstBuff = (BYTE*)malloc(dstBuffSize);
+    buff2 = (BYTE*)malloc(dstBuffSize);
     if ((!dstBuff) || (!buff2))
     {
         DISPLAY("\nError: not enough memory!\n");

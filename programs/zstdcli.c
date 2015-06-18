@@ -271,7 +271,7 @@ int main(int argc, char** argv)
     if (!strcmp(inFileName, stdinmark) && IS_CONSOLE(stdin) ) return badusage(programName);
 
     /* Check if benchmark is selected */
-    if (bench) { BMK_bench(argv+fileNameStart, nbFiles, 0); goto _end; }
+    if (bench) { BMK_benchFiles(argv+fileNameStart, nbFiles, 0); goto _end; }
 
     /* No output filename ==> try to select one automatically (when possible) */
     while (!outFileName)

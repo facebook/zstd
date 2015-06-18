@@ -243,8 +243,8 @@ unsigned long long FIO_compressFilename(const char* output_filename, const char*
     ctx = ZSTD_createCCtx();
 
     /* Allocate Memory */
-    inBuff  = malloc(inBuffSize);
-    outBuff = malloc(outBuffSize);
+    inBuff  = (BYTE*)malloc(inBuffSize);
+    outBuff = (BYTE*)malloc(outBuffSize);
     if (!inBuff || !outBuff) EXM_THROW(21, "Allocation error : not enough memory");
     inSlot = inBuff;
     inEnd = inBuff + inBuffSize;
@@ -265,6 +265,7 @@ unsigned long long FIO_compressFilename(const char* output_filename, const char*
         /* Fill input Buffer */
         if (inSlot + blockSize > inEnd) inSlot = inBuff;
         inSize = fread(inSlot, (size_t)1, blockSize, finput);
+        DISPLAY("Read block of size %u at pos %u \n", (U32)inSize, (U32)(inSlot-inBuff));
         if (inSize==0) break;
         filesize += inSize;
         DISPLAYUPDATE(2, "\rRead : %u MB   ", (U32)(filesize>>20));
@@ -340,9 +341,9 @@ unsigned long long FIO_decompressFilename(const char* output_filename, const cha
 
     /* Allocate Memory */
     inBuffSize = blockSize + FIO_blockHeaderSize;
-    inBuff  = malloc(inBuffSize);
+    inBuff  = (BYTE*)malloc(inBuffSize);
     outBuffSize = wNbBlocks * blockSize;
-    outBuff = malloc(outBuffSize);
+    outBuff = (BYTE*)malloc(outBuffSize);
     op = outBuff;
     oend = outBuff + outBuffSize;
     if (!inBuff || !outBuff) EXM_THROW(33, "Allocation error : not enough memory");
@@ -352,6 +353,7 @@ unsigned long long FIO_decompressFilename(const char* output_filename, const cha
     while (toRead)
     {
         size_t readSize, decodedSize;
+        static U32 nbReads = 0;
 
         /* Fill input buffer */
         readSize = fread(inBuff, 1, toRead, finput);
@@ -359,11 +361,15 @@ unsigned long long FIO_decompressFilename(const char* output_filename, const cha
             EXM_THROW(34, "Read error");
 
         /* Decode block */
+        if (nbReads==55)
+            DISPLAY("!");
         decodedSize = ZSTD_decompressContinue(dctx, op, oend-op, inBuff, readSize);
+        DISPLAY("nbReads : %u \n", nbReads++);
 
         if (decodedSize)   /* not a header */
         {
             /* Write block */
+            DISPLAY("writing %u bytes from pos %u \n", (U32)decodedSize, (U32)(op-outBuff));
             sizeCheck = fwrite(op, 1, decodedSize, foutput);
             if (sizeCheck != decodedSize) EXM_THROW(35, "Write error : unable to write data block to destination file");
             filesize += decodedSize;

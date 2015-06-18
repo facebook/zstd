@@ -32,7 +32,7 @@
 # ################################################################
 
 # Version number
-export VERSION=0.0.1
+export VERSION=0.0.2
 export RELEASE=r$(VERSION)
 
 DESTDIR?=
@@ -50,6 +50,8 @@ else
 TRAVIS_TARGET=$(ZSTD_TRAVIS_CI_ENV)
 endif
 
+
+.PHONY: clean
 
 default: zstdprograms
 
@@ -89,5 +91,12 @@ test-travis: $(TRAVIS_TARGET)
 
 prg-travis:
 	@cd $(PRGDIR); $(MAKE) -e $(ZSTD_TRAVIS_CI_ENV)
+
+clangtest: clean
+	$(MAKE) all CC=clang MOREFLAGS="-Werror -Wconversion -Wno-sign-conversion"
+
+gpptest: clean
+	$(MAKE) all CC=g++ CFLAGS="-O3 -Wall -Wextra -Wundef -Wshadow -Wcast-align -Werror"
+
 
 endif

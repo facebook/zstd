@@ -30,12 +30,12 @@
 # fullbench32: Same as fullbench, but forced to compile in 32-bits mode
 # ##########################################################################
 
-RELEASE?= r1
+RELEASE?= v0.0.2
 
 DESTDIR?=
 PREFIX ?= /usr
 CFLAGS ?= -O3
-CFLAGS += -std=c99 -Wall -Wextra -Wundef -Wshadow -Wcast-align -Wstrict-prototypes -DZSTD_VERSION=\"$(RELEASE)\"
+CFLAGS += -std=c99 -Wall -Wextra -Wundef -Wshadow -Wcast-qual -Wcast-align -Wstrict-prototypes -DZSTD_VERSION=\"$(RELEASE)\"
 FLAGS   = -I../lib $(CPPFLAGS) $(CFLAGS) $(LDFLAGS)
 
 BINDIR=$(PREFIX)/bin
@@ -142,13 +142,14 @@ test-fuzzer32: fuzzer32
 	./fuzzer32
 
 test-mem: zstd datagen fuzzer fullbench
-	valgrind --leak-check=yes ./datagen -g50M > /dev/null
+	@echo "\n ---- valgrind tests : memory analyzer ----"
+	valgrind --leak-check=yes --error-exitcode=1 ./datagen -g50M > /dev/null
 	./datagen -g16KB > tmp
-	valgrind --leak-check=yes ./zstd -vf tmp /dev/null
+	valgrind --leak-check=yes --error-exitcode=1 ./zstd -vf tmp /dev/null
 	./datagen -g128MB > tmp
-	valgrind --leak-check=yes ./zstd -vf tmp /dev/null
+	valgrind --leak-check=yes --error-exitcode=1 ./zstd -vf tmp /dev/null
 	@rm tmp
-	valgrind --leak-check=yes ./fuzzer -i128 -t1
-	valgrind --leak-check=yes ./fullbench -i1
+	valgrind --leak-check=yes --error-exitcode=1 ./fuzzer -i128 -t1
+	valgrind --leak-check=yes --error-exitcode=1 ./fullbench -i1
 
 endif

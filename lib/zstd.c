@@ -178,11 +178,11 @@ static unsigned ZSTD_isLittleEndian(void)
     return one.c[0];
 }
 
-static U16    ZSTD_read16(const void* p) { return *(U16*)p; }
+static U16    ZSTD_read16(const void* p) { return *(const U16*)p; }
 
-static U32    ZSTD_read32(const void* p) { return *(U32*)p; }
+static U32    ZSTD_read32(const void* p) { return *(const U32*)p; }
 
-static size_t ZSTD_read_ARCH(const void* p) { return *(size_t*)p; }
+static size_t ZSTD_read_ARCH(const void* p) { return *(const size_t*)p; }
 
 static void   ZSTD_copy4(void* dst, const void* src) { memcpy(dst, src, 4); }
 
@@ -503,7 +503,7 @@ static size_t ZSTD_compressRle (void* dst, size_t maxDstSize, const void* src, s
     /* at this stage : dstSize >= FSE_compressBound(srcSize) > (ZSTD_blockHeaderSize+1) (checked by ZSTD_compressLiterals()) */
     (void)maxDstSize;
 
-    ostart[ZSTD_blockHeaderSize] = *(BYTE*)src;
+    ostart[ZSTD_blockHeaderSize] = *(const BYTE*)src;
 
     /* Build header */
     ostart[0]  = (BYTE)(srcSize>>16);
@@ -621,9 +621,7 @@ static size_t ZSTD_compressLiterals (void* dst, size_t dstSize,
     errorCode = FSE_count (count, ip, srcSize, &maxSymbolValue);
     if (FSE_isError(errorCode)) return (size_t)-ZSTD_ERROR_GENERIC;
     if (errorCode == srcSize) return 1;
-    //if (errorCode < ((srcSize * 7) >> 10)) return 0;
-    //if (errorCode < (srcSize >> 7)) return 0;
-    if (errorCode < (srcSize >> 6)) return 0;   /* heuristic : probably not compressible enough */
+    if (errorCode < (srcSize >> 6)) return 0;   /* cheap heuristic : probably not compressible enough */
 
     tableLog = FSE_optimalTableLog(tableLog, srcSize, maxSymbolValue);
     errorCode = (int)FSE_normalizeCount (norm, tableLog, count, srcSize, maxSymbolValue);
@@ -915,7 +913,7 @@ static const U64 prime7bytes =    58295818150454627ULL;
 //static U32   ZSTD_hashPtr(const void* p) { return ( ((*(U64*)p & 0xFFFFFFFFFFFFFF) * prime7bytes) >> (64-HASH_LOG)); }
 
 //static U32   ZSTD_hashPtr(const void* p) { return ( (*(U64*)p * prime8bytes) >> (64-HASH_LOG)); }
-static U32   ZSTD_hashPtr(const void* p) { return ( (*(U64*)p * prime7bytes) >> (56-HASH_LOG)) & HASH_MASK; }
+static U32   ZSTD_hashPtr(const void* p) { return ( (*(const U64*)p * prime7bytes) >> (56-HASH_LOG)) & HASH_MASK; }
 //static U32   ZSTD_hashPtr(const void* p) { return ( (*(U64*)p * prime6bytes) >> (48-HASH_LOG)) & HASH_MASK; }
 //static U32   ZSTD_hashPtr(const void* p) { return ( (*(U64*)p * prime5bytes) >> (40-HASH_LOG)) & HASH_MASK; }
 //static U32   ZSTD_hashPtr(const void* p) { return ( (*(U32*)p * KNUTH) >> (32-HASH_LOG)); }
@@ -961,7 +959,7 @@ static size_t ZSTD_compressBlock(void* cctx, void* dst, size_t maxDstSize, const
     /* Main Search Loop */
     while (ip < ilimit)
     {
-        const BYTE* match = (BYTE*) ZSTD_updateMatch(HashTable, ip, base);
+        const BYTE* match = (const BYTE*) ZSTD_updateMatch(HashTable, ip, base);
 
         if (!ZSTD_checkMatch(match,ip)) { ip += ((ip-anchor) >> g_searchStrength) + 1; continue; }
 
@@ -1367,9 +1365,9 @@ size_t ZSTD_decodeLiteralsBlock(void* ctx,
         }
     case bt_compressed:
         {
-            size_t cSize = ZSTD_decompressLiterals(ctx, dst, maxDstSize, ip, litcSize);
-            if (ZSTD_isError(cSize)) return cSize;
-            *litPtr = oend - cSize;
+            size_t litSize = ZSTD_decompressLiterals(ctx, dst, maxDstSize, ip, litcSize);
+            if (ZSTD_isError(litSize)) return litSize;
+            *litPtr = oend - litSize;
             ip += litcSize;
             break;
         }
@@ -1508,7 +1506,7 @@ FORCE_INLINE size_t ZSTD_decompressBlock(void* ctx, void* dst, size_t maxDstSize
                                       ip, iend-ip);
     if (ZSTD_isError(errorCode)) return errorCode;
     /* end pos */
-    if ((litPtr>=ostart) && (litPtr<=oend))
+    if ((litPtr>=ostart) && (litPtr<=oend))   /* decoded literals are into dst buffer */
         litEnd = oend - lastLLSize;
     else
         litEnd = ip - lastLLSize;
@@ -1519,7 +1517,6 @@ FORCE_INLINE size_t ZSTD_decompressBlock(void* ctx, void* dst, size_t maxDstSize
         FSE_DStream_t DStream;
         FSE_DState_t stateLL, stateOffb, stateML;
         size_t prevOffset = 0, offset = 0;
-        size_t qutt=0;
 
         FSE_initDStream(&DStream, ip, iend-ip);
         FSE_initDState(&stateLL, &DStream, DTableLL);
@@ -1545,7 +1542,6 @@ _another_round:
                 if (add < 255) litLength += add;
                 else
                 {
-                    //litLength = (*(U32*)dumps) & 0xFFFFFF;
                     litLength = ZSTD_readLE32(dumps) & 0xFFFFFF;
                     dumps += 3;
                 }
@@ -1578,7 +1574,7 @@ _another_round:
                 if (add < 255) matchLength += add;
                 else
                 {
-                    matchLength = ZSTD_readLE32(dumps) & 0xFFFFFF;
+                    matchLength = ZSTD_readLE32(dumps) & 0xFFFFFF;   /* no pb : dumps is always followed by seq tables > 1 byte */
                     dumps += 3;
                 }
             }
@@ -1587,8 +1583,10 @@ _another_round:
             /* copy Match */
             {
                 BYTE* const endMatch = op + matchLength;
+                size_t qutt=0;
                 U64 saved[2];
 
+                /* save beginning of literal sequence, in case of write overlap */
                 if ((size_t)(litPtr - endMatch) < 12)
                 {
                     qutt = endMatch + 12 - litPtr;
@@ -1624,7 +1622,7 @@ _another_round:
                 op = endMatch;
 
                 if ((size_t)(litPtr - endMatch) < 12)
-                    memcpy((void*)litPtr, saved, qutt);
+                    memcpy(endMatch + (litPtr - endMatch), saved, qutt);  /* required as litPtr is const ptr */
             }
         }
 

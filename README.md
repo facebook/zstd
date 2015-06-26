@@ -22,6 +22,8 @@ For a taste of its performance, here are a few benchmark numbers, completed on a
 | [LZ4 r127](https://github.com/Cyan4973/lz4)| 2.084 |  370    | 1590    |
 | LZF 3.6       | 2.077 |  220    |  502    |
 
+Alternatively, you can view benchmarks using various files and Intel/ARM CPUS by visiting the [Squash Benchmark](https://quixdb.github.io/squash-benchmark/).
+
 An interesting feature of zstd is that it can qualify as both a reasonably strong compressor and a fast one.
 
 Zstd delivers high decompression speed, at around ~500 MB/s per core.

@@ -535,7 +535,7 @@ static size_t ZSTD_noCompressBlock (void* dst, size_t maxDstSize, const void* sr
 /* return : size of CStream in bits */
 static size_t ZSTD_compressLiterals_usingCTable(void* dst, size_t dstSize,
                                           const void* src, size_t srcSize,
-                                          const void* CTable)
+                                          const FSE_CTable* CTable)
 {
     const BYTE* const istart = (const BYTE*)src;
     const BYTE* ip = istart;
@@ -553,32 +553,32 @@ static size_t ZSTD_compressLiterals_usingCTable(void* dst, size_t dstSize,
     // join to mod 2
     if (srcSize & 1)
     {
-        FSE_encodeByte(&bitC, &CState1, *ip++);
+        FSE_encodeSymbol(&bitC, &CState1, *ip++);
         FSE_flushBits(&bitC);
     }
 
     // join to mod 4
     if ((sizeof(size_t)*8 > LitFSELog*4+7 ) && (srcSize & 2))   // test bit 2
     {
-        FSE_encodeByte(&bitC, &CState2, *ip++);
-        FSE_encodeByte(&bitC, &CState1, *ip++);
+        FSE_encodeSymbol(&bitC, &CState2, *ip++);
+        FSE_encodeSymbol(&bitC, &CState1, *ip++);
         FSE_flushBits(&bitC);
     }
 
     // 2 or 4 encoding per loop
     while (ip<iend)
     {
-        FSE_encodeByte(&bitC, &CState2, *ip++);
+        FSE_encodeSymbol(&bitC, &CState2, *ip++);
 
         if (sizeof(size_t)*8 < LitFSELog*2+7 )   // this test must be static
             FSE_flushBits(&bitC);
 
-        FSE_encodeByte(&bitC, &CState1, *ip++);
+        FSE_encodeSymbol(&bitC, &CState1, *ip++);
 
         if (sizeof(size_t)*8 > LitFSELog*4+7 )   // this test must be static
         {
-            FSE_encodeByte(&bitC, &CState2, *ip++);
-            FSE_encodeByte(&bitC, &CState1, *ip++);
+            FSE_encodeSymbol(&bitC, &CState2, *ip++);
+            FSE_encodeSymbol(&bitC, &CState1, *ip++);
         }
 
         FSE_flushBits(&bitC);
@@ -618,7 +618,7 @@ static size_t ZSTD_compressLiterals (void* dst, size_t dstSize,
     if (dstSize < FSE_compressBound(srcSize)) return (size_t)-ZSTD_ERROR_maxDstSize_tooSmall;
 
     /* Scan input and build symbol stats */
-    errorCode = FSE_count (count, ip, srcSize, &maxSymbolValue);
+    errorCode = FSE_count (count, &maxSymbolValue, ip, srcSize);
     if (FSE_isError(errorCode)) return (size_t)-ZSTD_ERROR_GENERIC;
     if (errorCode == srcSize) return 1;
     if (errorCode < (srcSize >> 6)) return 0;   /* cheap heuristic : probably not compressible enough */
@@ -628,14 +628,14 @@ static size_t ZSTD_compressLiterals (void* dst, size_t dstSize,
     if (FSE_isError(errorCode)) return (size_t)-ZSTD_ERROR_GENERIC;
 
     /* Write table description header */
-    errorCode = FSE_writeHeader (op, FSE_MAX_HEADERSIZE, norm, maxSymbolValue, tableLog);
+    errorCode = FSE_writeNCount (op, FSE_MAX_HEADERSIZE, norm, maxSymbolValue, tableLog);
     if (FSE_isError(errorCode)) return (size_t)-ZSTD_ERROR_GENERIC;
     op += errorCode;
 
     /* Compress */
-    errorCode = FSE_buildCTable (&CTable, norm, maxSymbolValue, tableLog);
+    errorCode = FSE_buildCTable (CTable, norm, maxSymbolValue, tableLog);
     if (FSE_isError(errorCode)) return (size_t)-ZSTD_ERROR_GENERIC;
-    errorCode = ZSTD_compressLiterals_usingCTable(op, oend - op, ip, srcSize, &CTable);
+    errorCode = ZSTD_compressLiterals_usingCTable(op, oend - op, ip, srcSize, CTable);
     if (ZSTD_isError(errorCode)) return errorCode;
     op += errorCode;
 
@@ -738,7 +738,7 @@ static size_t ZSTD_compressSequences(BYTE* dst, size_t maxDstSize,
 
     /* Encoding table of Literal Lengths */
     max = MaxLL;
-    mostFrequent = FSE_countFast(count, seqStorePtr->litLengthStart, nbSeq, &max);
+    mostFrequent = FSE_countFast(count, &max, seqStorePtr->litLengthStart, nbSeq);
     if (mostFrequent == nbSeq)
     {
         *op++ = *(seqStorePtr->litLengthStart);
@@ -754,7 +754,7 @@ static size_t ZSTD_compressSequences(BYTE* dst, size_t maxDstSize,
     {
         tableLog = FSE_optimalTableLog(LLFSELog, nbSeq, max);
         FSE_normalizeCount(norm, tableLog, count, nbSeq, max);
-        op += FSE_writeHeader(op, maxDstSize, norm, max, tableLog);
+        op += FSE_writeNCount(op, maxDstSize, norm, max, tableLog);
         FSE_buildCTable(CTable_LitLength, norm, max, tableLog);
         LLtype = bt_compressed;
     }
@@ -771,7 +771,7 @@ static size_t ZSTD_compressSequences(BYTE* dst, size_t maxDstSize,
             if (op_offset_start[i]==0) offsetBits_start[i]=0;
         }
         offsetBitsPtr += nbSeq;
-        mostFrequent = FSE_countFast(count, offsetBits_start, nbSeq, &max);
+        mostFrequent = FSE_countFast(count, &max, offsetBits_start, nbSeq);
     }
     if (mostFrequent == nbSeq)
     {
@@ -788,14 +788,14 @@ static size_t ZSTD_compressSequences(BYTE* dst, size_t maxDstSize,
     {
         tableLog = FSE_optimalTableLog(OffFSELog, nbSeq, max);
         FSE_normalizeCount(norm, tableLog, count, nbSeq, max);
-        op += FSE_writeHeader(op, maxDstSize, norm, max, tableLog);
+        op += FSE_writeNCount(op, maxDstSize, norm, max, tableLog);
         FSE_buildCTable(CTable_OffsetBits, norm, max, tableLog);
         Offtype = bt_compressed;
     }
 
     /* Encoding Table of MatchLengths */
     max = MaxML;
-    mostFrequent = FSE_countFast(count, seqStorePtr->matchLengthStart, nbSeq, &max);
+    mostFrequent = FSE_countFast(count, &max, seqStorePtr->matchLengthStart, nbSeq);
     if (mostFrequent == nbSeq)
     {
         *op++ = *seqStorePtr->matchLengthStart;
@@ -811,7 +811,7 @@ static size_t ZSTD_compressSequences(BYTE* dst, size_t maxDstSize,
     {
         tableLog = FSE_optimalTableLog(MLFSELog, nbSeq, max);
         FSE_normalizeCount(norm, tableLog, count, nbSeq, max);
-        op += FSE_writeHeader(op, maxDstSize, norm, max, tableLog);
+        op += FSE_writeNCount(op, maxDstSize, norm, max, tableLog);
         FSE_buildCTable(CTable_MatchLength, norm, max, tableLog);
         MLtype = bt_compressed;
     }
@@ -836,12 +836,12 @@ static size_t ZSTD_compressSequences(BYTE* dst, size_t maxDstSize,
             BYTE offCode = *(--offsetBitsPtr);                              /* 32b*/  /* 64b*/
             U32 nbBits = (offCode-1) * (!!offCode);
             BYTE litLength = *(--op_litLength);                             /* (7)*/  /* (7)*/
-            FSE_encodeByte(&blockStream, &stateMatchLength, matchLength);   /* 17 */  /* 17 */
+            FSE_encodeSymbol(&blockStream, &stateMatchLength, matchLength); /* 17 */  /* 17 */
             if (ZSTD_32bits()) FSE_flushBits(&blockStream);                 /*  7 */
             FSE_addBits(&blockStream, offset, nbBits);                      /* 32 */  /* 42 */
             if (ZSTD_32bits()) FSE_flushBits(&blockStream);                 /*  7 */
-            FSE_encodeByte(&blockStream, &stateOffsetBits, offCode);        /* 16 */  /* 51 */
-            FSE_encodeByte(&blockStream, &stateLitLength, litLength);       /* 26 */  /* 61 */
+            FSE_encodeSymbol(&blockStream, &stateOffsetBits, offCode);      /* 16 */  /* 51 */
+            FSE_encodeSymbol(&blockStream, &stateLitLength, litLength);     /* 26 */  /* 61 */
             FSE_flushBits(&blockStream);                                    /*  7 */  /*  7 */
         }
 
@@ -1243,7 +1243,7 @@ static size_t ZSTD_copyUncompressedBlock(void* dst, size_t maxDstSize, const voi
 FORCE_INLINE size_t ZSTD_decompressLiterals_usingDTable_generic(
                        void* const dst, size_t maxDstSize,
                  const void* src, size_t srcSize,
-                 const void* DTable, U32 fast)
+                 const FSE_DTable* DTable, U32 fast)
 {
     BYTE* op = (BYTE*) dst;
     BYTE* const olimit = op;
@@ -1303,7 +1303,7 @@ FORCE_INLINE size_t ZSTD_decompressLiterals_usingDTable_generic(
 static size_t ZSTD_decompressLiterals_usingDTable(
                        void* const dst, size_t maxDstSize,
                  const void* src, size_t srcSize,
-                 const void* DTable, U32 fast)
+                 const FSE_DTable* DTable, U32 fast)
 {
     if (fast) return ZSTD_decompressLiterals_usingDTable_generic(dst, maxDstSize, src, srcSize, DTable, 1);
     return ZSTD_decompressLiterals_usingDTable_generic(dst, maxDstSize, src, srcSize, DTable, 0);
@@ -1315,7 +1315,7 @@ static size_t ZSTD_decompressLiterals(void* ctx, void* dst, size_t maxDstSize,
     /* assumed : blockType == blockCompressed */
     const BYTE* ip = (const BYTE*)src;
     short norm[256];
-    void* DTable = ctx;
+    FSE_DTable* DTable = (FSE_DTable*)ctx;
     U32 maxSymbolValue = 255;
     U32 tableLog;
     U32 fastMode;
@@ -1323,7 +1323,7 @@ static size_t ZSTD_decompressLiterals(void* ctx, void* dst, size_t maxDstSize,
 
     if (srcSize < 2) return (size_t)-ZSTD_ERROR_wrongLBlockSize;   /* too small input size */
 
-    errorCode = FSE_readHeader (norm, &maxSymbolValue, &tableLog, ip, srcSize);
+    errorCode = FSE_readNCount (norm, &maxSymbolValue, &tableLog, ip, srcSize);
     if (FSE_isError(errorCode)) return (size_t)-ZSTD_ERROR_GENERIC;
     ip += errorCode;
     srcSize -= errorCode;
@@ -1380,7 +1380,7 @@ size_t ZSTD_decodeLiteralsBlock(void* ctx,
 
 
 size_t ZSTD_decodeSeqHeaders(size_t* lastLLPtr, const BYTE** dumpsPtr,
-                               void* DTableLL, void* DTableML, void* DTableOffb,
+                         FSE_DTable* DTableLL, FSE_DTable* DTableML, FSE_DTable* DTableOffb,
                          const void* src, size_t srcSize)
 {
     const BYTE* const istart = (const BYTE* const)src;
@@ -1427,7 +1427,7 @@ size_t ZSTD_decodeSeqHeaders(size_t* lastLLPtr, const BYTE** dumpsPtr,
             FSE_buildDTable_raw(DTableLL, LLbits); break;
         default :
             max = MaxLL;
-            headerSize = FSE_readHeader(norm, &max, &LLlog, ip, iend-ip);
+            headerSize = FSE_readNCount(norm, &max, &LLlog, ip, iend-ip);
             if (FSE_isError(headerSize)) return (size_t)-ZSTD_ERROR_GENERIC;
             ip += headerSize;
             FSE_buildDTable(DTableLL, norm, max, LLlog);
@@ -1444,7 +1444,7 @@ size_t ZSTD_decodeSeqHeaders(size_t* lastLLPtr, const BYTE** dumpsPtr,
             FSE_buildDTable_raw(DTableOffb, Offbits); break;
         default :
             max = MaxOff;
-            headerSize = FSE_readHeader(norm, &max, &Offlog, ip, iend-ip);
+            headerSize = FSE_readNCount(norm, &max, &Offlog, ip, iend-ip);
             if (FSE_isError(headerSize)) return (size_t)-ZSTD_ERROR_GENERIC;
             ip += headerSize;
             FSE_buildDTable(DTableOffb, norm, max, Offlog);
@@ -1461,7 +1461,7 @@ size_t ZSTD_decodeSeqHeaders(size_t* lastLLPtr, const BYTE** dumpsPtr,
             FSE_buildDTable_raw(DTableML, MLbits); break;
         default :
             max = MaxML;
-            headerSize = FSE_readHeader(norm, &max, &MLlog, ip, iend-ip);
+            headerSize = FSE_readNCount(norm, &max, &MLlog, ip, iend-ip);
             if (FSE_isError(headerSize)) return (size_t)-ZSTD_ERROR_GENERIC;
             ip += headerSize;
             FSE_buildDTable(DTableML, norm, max, MLlog);
@@ -1489,9 +1489,9 @@ FORCE_INLINE size_t ZSTD_decompressBlock(void* ctx, void* dst, size_t maxDstSize
     const BYTE* litEnd;
     const size_t dec32table[] = {4, 1, 2, 1, 4, 4, 4, 4};   /* added */
     const size_t dec64table[] = {8, 8, 8, 7, 8, 9,10,11};   /* substracted */
-    void* DTableML = ctx;
-    void* DTableLL = ((U32*)ctx) + FSE_DTABLE_SIZE_U32(MLFSELog);
-    void* DTableOffb = ((U32*)DTableLL) + FSE_DTABLE_SIZE_U32(LLFSELog);
+    FSE_DTable* DTableML = (FSE_DTable*)ctx;
+    FSE_DTable* DTableLL = DTableML + FSE_DTABLE_SIZE_U32(MLFSELog);
+    FSE_DTable* DTableOffb = DTableLL + FSE_DTABLE_SIZE_U32(LLFSELog);
 
     /* blockType == blockCompressed, srcSize is trusted */
 

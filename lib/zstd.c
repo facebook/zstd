@@ -310,7 +310,7 @@ void ZSTD_resetSeqStore(seqStore_t* ssPtr)
 }
 
 
-typedef struct
+typedef struct ZSTD_Cctx_s
 {
     const BYTE* base;
     U32 current;
@@ -324,7 +324,7 @@ typedef struct
 } cctxi_t;
 
 
-ZSTD_cctx_t ZSTD_createCCtx(void)
+ZSTD_Cctx* ZSTD_createCCtx(void)
 {
     cctxi_t* ctx = (cctxi_t*) malloc( sizeof(cctxi_t) );
     ctx->seqStore.buffer = malloc(WORKPLACESIZE);
@@ -333,17 +333,17 @@ ZSTD_cctx_t ZSTD_createCCtx(void)
     ctx->seqStore.litLengthStart =  ctx->seqStore.litStart + BLOCKSIZE;
     ctx->seqStore.matchLengthStart = ctx->seqStore.litLengthStart + (BLOCKSIZE>>2);
     ctx->seqStore.dumpsStart = ctx->seqStore.matchLengthStart + (BLOCKSIZE>>2);
-    return (ZSTD_cctx_t)ctx;
+    return (ZSTD_Cctx* )ctx;
 }
 
-void ZSTD_resetCCtx(ZSTD_cctx_t cctx)
+void ZSTD_resetCCtx(ZSTD_Cctx*  cctx)
 {
     cctxi_t* ctx = (cctxi_t*)cctx;
     ctx->base = NULL;
     memset(ctx->hashTable, 0, HASH_TABLESIZE*4);
 }
 
-size_t ZSTD_freeCCtx(ZSTD_cctx_t cctx)
+size_t ZSTD_freeCCtx(ZSTD_Cctx*  cctx)
 {
     cctxi_t* ctx = (cctxi_t*) (cctx);
     free(ctx->seqStore.buffer);
@@ -996,7 +996,7 @@ static size_t ZSTD_compressBlock(void* cctx, void* dst, size_t maxDstSize, const
 }
 
 
-size_t ZSTD_compressBegin(ZSTD_cctx_t ctx, void* dst, size_t maxDstSize)
+size_t ZSTD_compressBegin(ZSTD_Cctx*  ctx, void* dst, size_t maxDstSize)
 {
     /* Sanity check */
     if (maxDstSize < ZSTD_frameHeaderSize) return (size_t)-ZSTD_ERROR_maxDstSize_tooSmall;
@@ -1080,7 +1080,7 @@ static void ZSTD_limitCtx(void* cctx, const U32 limit)
 }
 
 
-size_t ZSTD_compressContinue(ZSTD_cctx_t cctx, void* dst, size_t maxDstSize, const void* src, size_t srcSize)
+size_t ZSTD_compressContinue(ZSTD_Cctx*  cctx, void* dst, size_t maxDstSize, const void* src, size_t srcSize)
 {
     cctxi_t* ctx = (cctxi_t*) cctx;
     const BYTE* const istart = (const BYTE* const)src;
@@ -1146,7 +1146,7 @@ size_t ZSTD_compressContinue(ZSTD_cctx_t cctx, void* dst, size_t maxDstSize, con
 }
 
 
-size_t ZSTD_compressEnd(ZSTD_cctx_t ctx, void* dst, size_t maxDstSize)
+size_t ZSTD_compressEnd(ZSTD_Cctx*  ctx, void* dst, size_t maxDstSize)
 {
     BYTE* op = (BYTE*)dst;
 
@@ -1163,7 +1163,7 @@ size_t ZSTD_compressEnd(ZSTD_cctx_t ctx, void* dst, size_t maxDstSize)
 }
 
 
-static size_t ZSTD_compressCCtx(void* ctx, void* dst, size_t maxDstSize, const void* src, size_t srcSize)
+static size_t ZSTD_compressCCtx(ZSTD_Cctx* ctx, void* dst, size_t maxDstSize, const void* src, size_t srcSize)
 {
     BYTE* const ostart = (BYTE* const)dst;
     BYTE* op = ostart;
@@ -1197,7 +1197,7 @@ static size_t ZSTD_compressCCtx(void* ctx, void* dst, size_t maxDstSize, const v
 
 size_t ZSTD_compress(void* dst, size_t maxDstSize, const void* src, size_t srcSize)
 {
-    void* ctx;
+    ZSTD_Cctx* ctx;
     size_t r;
 
     ctx = ZSTD_createCCtx();
@@ -1205,6 +1205,7 @@ size_t ZSTD_compress(void* dst, size_t maxDstSize, const void* src, size_t srcSi
     ZSTD_freeCCtx(ctx);
     return r;
 }
+
 
 
 /**************************************************************
@@ -1710,7 +1711,7 @@ size_t ZSTD_decompress(void* dst, size_t maxDstSize, const void* src, size_t src
 *  Streaming Decompression API
 *******************************/
 
-typedef struct
+typedef struct ZTSD_Dctx_s
 {
     U32 ctx[FSE_DTABLE_SIZE_U32(LLFSELog) + FSE_DTABLE_SIZE_U32(OffFSELog) + FSE_DTABLE_SIZE_U32(MLFSELog)];
     size_t expected;
@@ -1719,27 +1720,27 @@ typedef struct
 } dctx_t;
 
 
-ZSTD_dctx_t ZSTD_createDCtx(void)
+ZSTD_Dctx* ZSTD_createDCtx(void)
 {
     dctx_t* dctx = (dctx_t*)malloc(sizeof(dctx_t));
     dctx->expected = ZSTD_frameHeaderSize;
     dctx->phase = 0;
-    return (ZSTD_dctx_t)dctx;
+    return (ZSTD_Dctx*)dctx;
 }
 
-size_t ZSTD_freeDCtx(ZSTD_dctx_t dctx)
+size_t ZSTD_freeDCtx(ZSTD_Dctx* dctx)
 {
     free(dctx);
     return 0;
 }
 
 
-size_t ZSTD_nextSrcSizeToDecompress(ZSTD_dctx_t dctx)
+size_t ZSTD_nextSrcSizeToDecompress(ZSTD_Dctx* dctx)
 {
     return ((dctx_t*)dctx)->expected;
 }
 
-size_t ZSTD_decompressContinue(ZSTD_dctx_t dctx, void* dst, size_t maxDstSize, const void* src, size_t srcSize)
+size_t ZSTD_decompressContinue(ZSTD_Dctx* dctx, void* dst, size_t maxDstSize, const void* src, size_t srcSize)
 {
     dctx_t* ctx = (dctx_t*)dctx;
 

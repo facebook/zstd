@@ -653,7 +653,7 @@ int main(int argc, char** argv)
         result = benchSample(benchNb);
     else result = benchFiles(argv+filenamesStart, argc-filenamesStart, benchNb);
 
-    if (main_pause) { printf("press enter...\n"); getchar(); }
+    if (main_pause) { int unused; printf("press enter...\n"); unused = getchar(); (void)unused; }
 
     return result;
 }

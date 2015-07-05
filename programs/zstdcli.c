@@ -150,8 +150,10 @@ static int badusage(const char* programName)
 
 static void waitEnter(void)
 {
+    int unused;
     DISPLAY("Press enter to continue...\n");
-    getchar();
+    unused = getchar();
+    (void)unused;
 }
 
 

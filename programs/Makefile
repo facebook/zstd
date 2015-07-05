@@ -99,16 +99,20 @@ install: zstd
 	@install -d -m 755 $(DESTDIR)$(BINDIR)/ $(DESTDIR)$(MANDIR)/
 	@install -m 755 zstd$(EXT) $(DESTDIR)$(BINDIR)/zstd$(EXT)
 	@ln -sf zstd$(EXT) $(DESTDIR)$(BINDIR)/zstdcat
+	@ln -sf zstd$(EXT) $(DESTDIR)$(BINDIR)/unzstd
 	@echo Installing man pages
 	@install -m 644 zstd.1 $(DESTDIR)$(MANDIR)/zstd.1
 	@install -m 644 zstdcat.1 $(DESTDIR)$(MANDIR)/zstdcat.1
+	@install -m 644 unzstd.1 $(DESTDIR)$(MANDIR)/unzstd.1
 	@echo zstd installation completed
 
 uninstall:
 	rm -f $(DESTDIR)$(BINDIR)/zstdcat
+	rm -f $(DESTDIR)$(BINDIR)/unzstd
 	[ -x $(DESTDIR)$(BINDIR)/zstd$(EXT) ] && rm -f $(DESTDIR)$(BINDIR)/zstd$(EXT)
 	[ -f $(DESTDIR)$(MANDIR)/zstd.1 ] && rm -f $(DESTDIR)$(MANDIR)/zstd.1
 	[ -f $(DESTDIR)$(MANDIR)/zstdcat.1 ] && rm -f $(DESTDIR)$(MANDIR)/zstdcat.1
+	[ -f $(DESTDIR)$(MANDIR)/unzstd.1 ] && rm -f $(DESTDIR)$(MANDIR)/unzstd.1
 	@echo zstd programs successfully uninstalled
 
 test: test-zstd test-fullbench test-fuzzer test-mem

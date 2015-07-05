@@ -512,8 +512,10 @@ int main(int argc, char** argv)
         result = fuzzerTests(seed, nbTests, testNb, ((double)proba) / 100);
     if (mainPause)
     {
+        int unused;
         DISPLAY("Press Enter \n");
-        getchar();
+        unused = getchar();
+        (void)unused;
     }
     return result;
 }

@@ -65,7 +65,7 @@
 #  ifdef __MINGW32__
    /* int _fileno(FILE *stream);   // seems no longer useful // MINGW somehow forgets to include this windows declaration into <stdio.h> */
 #  endif
-#  define SET_BINARY_MODE(file) _setmode(_fileno(file), _O_BINARY)
+#  define SET_BINARY_MODE(file) { int unused = _setmode(_fileno(file), _O_BINARY); (void)unused; }
 #  define IS_CONSOLE(stdStream) _isatty(_fileno(stdStream))
 #else
 #  include <unistd.h>   /* isatty */

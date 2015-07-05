@@ -206,6 +206,12 @@ static int basicUnitTests(U32 seed, double compressibility)
     CNBuffer = malloc(COMPRESSIBLE_NOISE_LENGTH);
     compressedBuffer = malloc(ZSTD_compressBound(COMPRESSIBLE_NOISE_LENGTH));
     decodedBuffer = malloc(COMPRESSIBLE_NOISE_LENGTH);
+    if (!CNBuffer || !compressedBuffer || !decodedBuffer)
+    {
+        DISPLAY("Not enough memory, aborting\n");
+        testResult = 1;
+        goto _end;
+    }
     FUZ_generateSynthetic(CNBuffer, COMPRESSIBLE_NOISE_LENGTH, compressibility, &randState);
 
     // Basic tests

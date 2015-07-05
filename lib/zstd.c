@@ -326,26 +326,25 @@ typedef struct ZSTD_Cctx_s
 
 ZSTD_Cctx* ZSTD_createCCtx(void)
 {
-    cctxi_t* ctx = (cctxi_t*) malloc( sizeof(cctxi_t) );
+    ZSTD_Cctx* ctx = (ZSTD_Cctx*) malloc( sizeof(ZSTD_Cctx) );
+    if (ctx==NULL) return NULL;
     ctx->seqStore.buffer = malloc(WORKPLACESIZE);
     ctx->seqStore.offsetStart = (U32*) (ctx->seqStore.buffer);
     ctx->seqStore.litStart = (BYTE*) (ctx->seqStore.offsetStart + (BLOCKSIZE>>2));
     ctx->seqStore.litLengthStart =  ctx->seqStore.litStart + BLOCKSIZE;
     ctx->seqStore.matchLengthStart = ctx->seqStore.litLengthStart + (BLOCKSIZE>>2);
     ctx->seqStore.dumpsStart = ctx->seqStore.matchLengthStart + (BLOCKSIZE>>2);
-    return (ZSTD_Cctx* )ctx;
+    return ctx;
 }
 
-void ZSTD_resetCCtx(ZSTD_Cctx*  cctx)
+void ZSTD_resetCCtx(ZSTD_Cctx* ctx)
 {
-    cctxi_t* ctx = (cctxi_t*)cctx;
     ctx->base = NULL;
     memset(ctx->hashTable, 0, HASH_TABLESIZE*4);
 }
 
-size_t ZSTD_freeCCtx(ZSTD_Cctx*  cctx)
+size_t ZSTD_freeCCtx(ZSTD_Cctx* ctx)
 {
-    cctxi_t* ctx = (cctxi_t*) (cctx);
     free(ctx->seqStore.buffer);
     free(ctx);
     return 0;
@@ -686,7 +685,6 @@ static size_t ZSTD_compressSequences(BYTE* dst, size_t maxDstSize,
     const size_t minSeqSize = 1 /*lastL*/ + 2 /*dHead*/ + 2 /*dumpsIn*/ + 5 /*SeqHead*/ + 3 /*SeqIn*/ + 1 /*margin*/ + ZSTD_blockHeaderSize;
     const size_t maxLSize = maxCSize > minSeqSize ? maxCSize - minSeqSize : 0;
     BYTE* seqHead;
-
 
     /* init */
     op = dst;
@@ -1711,7 +1709,7 @@ size_t ZSTD_decompress(void* dst, size_t maxDstSize, const void* src, size_t src
 *  Streaming Decompression API
 *******************************/
 
-typedef struct ZTSD_Dctx_s
+typedef struct ZSTD_Dctx_s
 {
     U32 ctx[FSE_DTABLE_SIZE_U32(LLFSELog) + FSE_DTABLE_SIZE_U32(OffFSELog) + FSE_DTABLE_SIZE_U32(MLFSELog)];
     size_t expected;
@@ -1722,10 +1720,11 @@ typedef struct ZTSD_Dctx_s
 
 ZSTD_Dctx* ZSTD_createDCtx(void)
 {
-    dctx_t* dctx = (dctx_t*)malloc(sizeof(dctx_t));
+    ZSTD_Dctx* dctx = (ZSTD_Dctx*)malloc(sizeof(ZSTD_Dctx));
+    if (dctx==NULL) return NULL;
     dctx->expected = ZSTD_frameHeaderSize;
     dctx->phase = 0;
-    return (ZSTD_Dctx*)dctx;
+    return dctx;
 }
 
 size_t ZSTD_freeDCtx(ZSTD_Dctx* dctx)

@@ -281,6 +281,7 @@ int main(int argc, char** argv)
         {
             size_t l = strlen(inFileName);
             dynNameSpace = (char*)calloc(1,l+5);
+            if (dynNameSpace==NULL) { DISPLAY("not enough memory\n"); exit(1); }
             strcpy(dynNameSpace, inFileName);
             strcpy(dynNameSpace+l, ZSTD_EXTENSION);
             outFileName = dynNameSpace;
@@ -292,6 +293,7 @@ int main(int argc, char** argv)
             size_t outl;
             size_t inl = strlen(inFileName);
             dynNameSpace = (char*)calloc(1,inl+1);
+            if (dynNameSpace==NULL) { DISPLAY("not enough memory\n"); exit(1); }
             outFileName = dynNameSpace;
             strcpy(dynNameSpace, inFileName);
             outl = inl;

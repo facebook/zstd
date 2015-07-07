@@ -100,9 +100,9 @@ gpptest: clean
 
 armtest: clean
 	cd $(ZSTDDIR); $(MAKE) -e all CC=arm-linux-gnueabi-gcc MOREFLAGS="-Werror"
-	cd $(PRGDIR); $(MAKE) -e CC=arm-linux-gnueabi-gcc CPPFLAGS="-Werror"
+	cd $(PRGDIR); $(MAKE) -e CC=arm-linux-gnueabi-gcc MOREFLAGS="-Werror"
 
 sanitize: clean
-	$(MAKE) test CC=clang CPPFLAGS="-g -fsanitize=undefined" FUZZER_TIME="-T1mn" NB_LOOPS=-i1
+	$(MAKE) test CC=clang MOREFLAGS="-g -fsanitize=undefined"
 
 endif

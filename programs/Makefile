@@ -116,11 +116,11 @@ uninstall:
 	[ -f $(DESTDIR)$(MANDIR)/unzstd.1 ] && rm -f $(DESTDIR)$(MANDIR)/unzstd.1
 	@echo zstd programs successfully uninstalled
 
-test: test-zstd test-fullbench test-fuzzer test-mem
+test: test-zstd test-fullbench test-fuzzer
 
 test32: test-zstd32 test-fullbench32 test-fuzzer32
 
-test-all: test test32
+test-all: test test32 test-mem
 
 test-zstd: zstd datagen
 	./datagen          | ./zstd -v    | ./zstd -d > $(VOID)
@@ -151,7 +151,7 @@ test-mem: zstd datagen fuzzer fullbench
 	valgrind --leak-check=yes --error-exitcode=1 ./datagen -g50M > /dev/null
 	./datagen -g16KB > tmp
 	valgrind --leak-check=yes --error-exitcode=1 ./zstd -vf tmp /dev/null
-	./datagen -g128MB > tmp
+	./datagen -g64MB > tmp
 	valgrind --leak-check=yes --error-exitcode=1 ./zstd -vf tmp /dev/null
 	@rm tmp
 	valgrind --leak-check=yes --error-exitcode=1 ./fuzzer -i128 -t1

@@ -737,7 +737,7 @@ static size_t ZSTD_compressSequences(BYTE* dst, size_t maxDstSize,
     /* Encoding table of Literal Lengths */
     max = MaxLL;
     mostFrequent = FSE_countFast(count, &max, seqStorePtr->litLengthStart, nbSeq);
-    if (mostFrequent == nbSeq)
+    if ((mostFrequent == nbSeq) && (nbSeq > 2))
     {
         *op++ = *(seqStorePtr->litLengthStart);
         FSE_buildCTable_rle(CTable_LitLength, (BYTE)max);
@@ -771,7 +771,7 @@ static size_t ZSTD_compressSequences(BYTE* dst, size_t maxDstSize,
         offsetBitsPtr += nbSeq;
         mostFrequent = FSE_countFast(count, &max, offsetBits_start, nbSeq);
     }
-    if (mostFrequent == nbSeq)
+    if ((mostFrequent == nbSeq) && (nbSeq > 2))
     {
         *op++ = *offsetBits_start;
         FSE_buildCTable_rle(CTable_OffsetBits, (BYTE)max);
@@ -794,7 +794,7 @@ static size_t ZSTD_compressSequences(BYTE* dst, size_t maxDstSize,
     /* Encoding Table of MatchLengths */
     max = MaxML;
     mostFrequent = FSE_countFast(count, &max, seqStorePtr->matchLengthStart, nbSeq);
-    if (mostFrequent == nbSeq)
+    if ((mostFrequent == nbSeq) && (nbSeq > 2))
     {
         *op++ = *seqStorePtr->matchLengthStart;
         FSE_buildCTable_rle(CTable_MatchLength, (BYTE)max);

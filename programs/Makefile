@@ -122,14 +122,14 @@ test32: test-zstd32 test-fullbench32 test-fuzzer32
 test-all: test test32
 
 test-zstd: zstd datagen
-	./datagen         | ./zstd -v    | ./zstd -d > $(VOID)
-	./datagen -g256MB | ./zstd -v    | ./zstd -d > $(VOID)
-	./datagen -g6GB   | ./zstd -vq   | ./zstd -d > $(VOID)
+	./datagen          | ./zstd -v    | ./zstd -d > $(VOID)
+	./datagen -g256MB  | ./zstd -v    | ./zstd -d > $(VOID)
+	./datagen -g6GB -P99 | ./zstd -vq | ./zstd -d > $(VOID)
 
 test-zstd32: zstd32 datagen
-	./datagen         | ./zstd32 -v  | ./zstd32 -d > $(VOID)
-	./datagen -g256MB | ./zstd32 -v  | ./zstd32 -d > $(VOID)
-	./datagen -g6GB   | ./zstd32 -vq | ./zstd32 -d > $(VOID)
+	./datagen          | ./zstd32 -v  | ./zstd32 -d > $(VOID)
+	./datagen -g256MB  | ./zstd32 -v  | ./zstd32 -d > $(VOID)
+	./datagen -g6GB -P99 | ./zstd32 -vq | ./zstd32 -d > $(VOID)
 
 test-fullbench: fullbench datagen
 	./fullbench -i1

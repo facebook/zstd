@@ -182,7 +182,7 @@ static U16    ZSTD_read16(const void* p) { U16 r; memcpy(&r, p, sizeof(r)); retu
 
 static U32    ZSTD_read32(const void* p) { U32 r; memcpy(&r, p, sizeof(r)); return r; }
 
-static U32    ZSTD_read64(const void* p) { U64 r; memcpy(&r, p, sizeof(r)); return r; }
+static U64    ZSTD_read64(const void* p) { U64 r; memcpy(&r, p, sizeof(r)); return r; }
 
 static size_t ZSTD_read_ARCH(const void* p) { size_t r; memcpy(&r, p, sizeof(r)); return r; }
 
@@ -925,7 +925,6 @@ static const BYTE* ZSTD_updateMatch(U32* table, const BYTE* p, const BYTE* start
     U32 h = ZSTD_hashPtr(p);
     const BYTE* r;
     r = table[h] + start;
-    //table[h] = (U32)(p - start);
     ZSTD_addPtr(table, p, start);
     return r;
 }

@@ -178,11 +178,13 @@ static unsigned ZSTD_isLittleEndian(void)
     return one.c[0];
 }
 
-static U16    ZSTD_read16(const void* p) { return *(const U16*)p; }
+static U16    ZSTD_read16(const void* p) { U16 r; memcpy(&r, p, sizeof(r)); return r; }
 
-static U32    ZSTD_read32(const void* p) { return *(const U32*)p; }
+static U32    ZSTD_read32(const void* p) { U32 r; memcpy(&r, p, sizeof(r)); return r; }
 
-static size_t ZSTD_read_ARCH(const void* p) { return *(const size_t*)p; }
+static U32    ZSTD_read64(const void* p) { U64 r; memcpy(&r, p, sizeof(r)); return r; }
+
+static size_t ZSTD_read_ARCH(const void* p) { size_t r; memcpy(&r, p, sizeof(r)); return r; }
 
 static void   ZSTD_copy4(void* dst, const void* src) { memcpy(dst, src, 4); }
 
@@ -911,7 +913,7 @@ static const U64 prime7bytes =    58295818150454627ULL;
 //static U32   ZSTD_hashPtr(const void* p) { return ( ((*(U64*)p & 0xFFFFFFFFFFFFFF) * prime7bytes) >> (64-HASH_LOG)); }
 
 //static U32   ZSTD_hashPtr(const void* p) { return ( (*(U64*)p * prime8bytes) >> (64-HASH_LOG)); }
-static U32   ZSTD_hashPtr(const void* p) { return ( (*(const U64*)p * prime7bytes) >> (56-HASH_LOG)) & HASH_MASK; }
+static U32   ZSTD_hashPtr(const void* p) { return ( (ZSTD_read64(p) * prime7bytes) >> (56-HASH_LOG)) & HASH_MASK; }
 //static U32   ZSTD_hashPtr(const void* p) { return ( (*(U64*)p * prime6bytes) >> (48-HASH_LOG)) & HASH_MASK; }
 //static U32   ZSTD_hashPtr(const void* p) { return ( (*(U64*)p * prime5bytes) >> (40-HASH_LOG)) & HASH_MASK; }
 //static U32   ZSTD_hashPtr(const void* p) { return ( (*(U32*)p * KNUTH) >> (32-HASH_LOG)); }

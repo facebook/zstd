@@ -456,7 +456,7 @@ static unsigned ZSTD_NbCommonBytes (register size_t val)
             _BitScanReverse( &r, (unsigned long)val );
             return (unsigned)(r>>3);
 #       elif defined(__GNUC__) && (GCC_VERSION >= 304) && !defined(LZ4_FORCE_SW_BITCOUNT)
-            return (__builtin_clz(val) >> 3);
+            return (__builtin_clz((U32)val) >> 3);
 #       else
             unsigned r;
             if (!(val>>16)) { r=2; val>>=8; } else { r=0; val>>=24; }

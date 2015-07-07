@@ -174,7 +174,7 @@ int main(int argc, char** argv)
     char extension[] = ZSTD_EXTENSION;
 
     /* Pick out basename component. Don't rely on stdlib because of conflicting behaviour. */
-    for (i = strlen(programName); i > 0; i--)
+    for (i = (int)strlen(programName); i > 0; i--)
     {
         if (programName[i] == '/')
         {

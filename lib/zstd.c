@@ -1089,6 +1089,7 @@ size_t ZSTD_compressContinue(ZSTD_Cctx*  cctx, void* dst, size_t maxDstSize, con
     const U32 updateRate = 2 * BLOCKSIZE;
 
     /*  Init */
+    if (maxDstSize < ZSTD_compressBound(srcSize) - 4 /*header size*/) return (size_t)-ZSTD_ERROR_maxDstSize_tooSmall;
     if (ctx->base==NULL)
         ctx->base = (const BYTE*)src, ctx->current=0, ctx->nextUpdate = g_maxDistance;
     if (src != ctx->base + ctx->current)   /* not contiguous */
@@ -1119,7 +1120,6 @@ size_t ZSTD_compressContinue(ZSTD_Cctx*  cctx, void* dst, size_t maxDstSize, con
         }
 
         /* compress */
-        if (maxDstSize < ZSTD_blockHeaderSize) return (size_t)-ZSTD_ERROR_maxDstSize_tooSmall;
         cSize = ZSTD_compressBlock(ctx, op+ZSTD_blockHeaderSize, maxDstSize-ZSTD_blockHeaderSize, ip, blockSize);
         if (cSize == 0)
         {
@@ -1165,6 +1165,7 @@ size_t ZSTD_compressEnd(ZSTD_Cctx*  ctx, void* dst, size_t maxDstSize)
 static size_t ZSTD_compressCCtx(ZSTD_Cctx* ctx, void* dst, size_t maxDstSize, const void* src, size_t srcSize)
 {
     BYTE* const ostart = (BYTE* const)dst;
+    BYTE* const oend = ostart + maxDstSize;
     BYTE* op = ostart;
 
     /* Header */
@@ -1177,7 +1178,7 @@ static size_t ZSTD_compressCCtx(ZSTD_Cctx* ctx, void* dst, size_t maxDstSize, co
 
     /* Compression */
     {
-        size_t cSize = ZSTD_compressContinue(ctx, op, maxDstSize, src, srcSize);
+        size_t cSize = ZSTD_compressContinue(ctx, op, oend-op, src, srcSize);
         if (ZSTD_isError(cSize)) return cSize;
         op += cSize;
         maxDstSize -= cSize;
@@ -1185,7 +1186,7 @@ static size_t ZSTD_compressCCtx(ZSTD_Cctx* ctx, void* dst, size_t maxDstSize, co
 
     /* Close frame */
     {
-        size_t endSize = ZSTD_compressEnd(ctx, op, maxDstSize);
+        size_t endSize = ZSTD_compressEnd(ctx, op, oend-op);
         if(ZSTD_isError(endSize)) return endSize;
         op += endSize;
     }

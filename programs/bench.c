@@ -72,7 +72,7 @@
 
 
 /**************************************
-* Basic Types
+*  Basic Types
 **************************************/
 #if defined (__STDC_VERSION__) && __STDC_VERSION__ >= 199901L   /* C99 */
 # include <stdint.h>
@@ -471,7 +471,7 @@ static int BMK_syntheticTest(int cLevel, double compressibility)
 }
 
 
-int BMK_bench(char** fileNamesTable, unsigned nbFiles, unsigned cLevel)
+int BMK_benchFiles(char** fileNamesTable, unsigned nbFiles, unsigned cLevel)
 {
     double compressibility = (double)g_compressibilityDefault / 100;
 

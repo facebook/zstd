@@ -30,13 +30,14 @@
 # fullbench32: Same as fullbench, but forced to compile in 32-bits mode
 # ##########################################################################
 
-RELEASE?= r1
+RELEASE?= v0.0.2
 
 DESTDIR?=
 PREFIX ?= /usr
 CFLAGS ?= -O3
-CFLAGS += -std=c99 -Wall -Wextra -Wundef -Wshadow -Wcast-align -Wstrict-prototypes -DZSTD_VERSION=\"$(RELEASE)\"
-FLAGS   = -I../lib $(CPPFLAGS) $(CFLAGS) $(LDFLAGS)
+CFLAGS += -std=c99 -Wall -Wextra -Wundef -Wshadow -Wcast-qual -Wcast-align -Wstrict-prototypes -DZSTD_VERSION=\"$(RELEASE)\"
+LDFLAGS = -I../lib
+FLAGS   = $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) $(MOREFLAGS)
 
 BINDIR=$(PREFIX)/bin
 MANDIR=$(PREFIX)/share/man/man1
@@ -58,7 +59,7 @@ endif
 
 default: zstd
 
-all: zstd zstd32 fullbench fullbench32 fuzzer fuzzer32
+all: zstd zstd32 fullbench fullbench32 fuzzer fuzzer32 datagen
 
 zstd: $(ZSTDDIR)/zstd.c xxhash.c bench.c fileio.c zstdcli.c
 	$(CC)      $(FLAGS) $^ -o $@$(EXT)
@@ -99,33 +100,37 @@ install: zstd
 	@install -d -m 755 $(DESTDIR)$(BINDIR)/ $(DESTDIR)$(MANDIR)/
 	@install -m 755 zstd$(EXT) $(DESTDIR)$(BINDIR)/zstd$(EXT)
 	@ln -sf zstd$(EXT) $(DESTDIR)$(BINDIR)/zstdcat
+	@ln -sf zstd$(EXT) $(DESTDIR)$(BINDIR)/unzstd
 	@echo Installing man pages
 	@install -m 644 zstd.1 $(DESTDIR)$(MANDIR)/zstd.1
 	@install -m 644 zstdcat.1 $(DESTDIR)$(MANDIR)/zstdcat.1
+	@install -m 644 unzstd.1 $(DESTDIR)$(MANDIR)/unzstd.1
 	@echo zstd installation completed
 
 uninstall:
 	rm -f $(DESTDIR)$(BINDIR)/zstdcat
+	rm -f $(DESTDIR)$(BINDIR)/unzstd
 	[ -x $(DESTDIR)$(BINDIR)/zstd$(EXT) ] && rm -f $(DESTDIR)$(BINDIR)/zstd$(EXT)
 	[ -f $(DESTDIR)$(MANDIR)/zstd.1 ] && rm -f $(DESTDIR)$(MANDIR)/zstd.1
 	[ -f $(DESTDIR)$(MANDIR)/zstdcat.1 ] && rm -f $(DESTDIR)$(MANDIR)/zstdcat.1
+	[ -f $(DESTDIR)$(MANDIR)/unzstd.1 ] && rm -f $(DESTDIR)$(MANDIR)/unzstd.1
 	@echo zstd programs successfully uninstalled
 
-test: test-zstd test-fullbench test-fuzzer test-mem
+test: test-zstd test-fullbench test-fuzzer
 
 test32: test-zstd32 test-fullbench32 test-fuzzer32
 
-test-all: test test32
+test-all: test test32 test-mem
 
 test-zstd: zstd datagen
-	./datagen         | ./zstd -v    | ./zstd -d > $(VOID)
-	./datagen -g256MB | ./zstd -v    | ./zstd -d > $(VOID)
-	./datagen -g6GB   | ./zstd -vq   | ./zstd -d > $(VOID)
+	./datagen          | ./zstd -v    | ./zstd -d > $(VOID)
+	./datagen -g256MB  | ./zstd -v    | ./zstd -d > $(VOID)
+	./datagen -g6GB -P99 | ./zstd -vq | ./zstd -d > $(VOID)
 
 test-zstd32: zstd32 datagen
-	./datagen         | ./zstd32 -v  | ./zstd32 -d > $(VOID)
-	./datagen -g256MB | ./zstd32 -v  | ./zstd32 -d > $(VOID)
-	./datagen -g6GB   | ./zstd32 -vq | ./zstd32 -d > $(VOID)
+	./datagen          | ./zstd32 -v  | ./zstd32 -d > $(VOID)
+	./datagen -g256MB  | ./zstd32 -v  | ./zstd32 -d > $(VOID)
+	./datagen -g6GB -P99 | ./zstd32 -vq | ./zstd32 -d > $(VOID)
 
 test-fullbench: fullbench datagen
 	./fullbench -i1
@@ -142,12 +147,14 @@ test-fuzzer32: fuzzer32
 	./fuzzer32
 
 test-mem: zstd datagen fuzzer fullbench
+	@echo "\n ---- valgrind tests : memory analyzer ----"
+	valgrind --leak-check=yes --error-exitcode=1 ./datagen -g50M > /dev/null
 	./datagen -g16KB > tmp
-	valgrind --leak-check=yes ./zstd -vf tmp /dev/null
-	./datagen -g128MB > tmp
-	valgrind --leak-check=yes ./zstd -vf tmp /dev/null
+	valgrind --leak-check=yes --error-exitcode=1 ./zstd -vf tmp /dev/null
+	./datagen -g64MB > tmp
+	valgrind --leak-check=yes --error-exitcode=1 ./zstd -vf tmp /dev/null
 	@rm tmp
-	valgrind --leak-check=yes ./fuzzer -i128 -t1
-	valgrind --leak-check=yes ./fullbench -i1
+	valgrind --leak-check=yes --error-exitcode=1 ./fuzzer -i128 -t1
+	valgrind --leak-check=yes --error-exitcode=1 ./fullbench -i1
 
 endif

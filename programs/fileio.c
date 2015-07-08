@@ -65,7 +65,7 @@
 #  ifdef __MINGW32__
    /* int _fileno(FILE *stream);   // seems no longer useful // MINGW somehow forgets to include this windows declaration into <stdio.h> */
 #  endif
-#  define SET_BINARY_MODE(file) _setmode(_fileno(file), _O_BINARY)
+#  define SET_BINARY_MODE(file) { int unused = _setmode(_fileno(file), _O_BINARY); (void)unused; }
 #  define IS_CONSOLE(stdStream) _isatty(_fileno(stdStream))
 #else
 #  include <unistd.h>   /* isatty */
@@ -235,7 +235,7 @@ unsigned long long FIO_compressFilename(const char* output_filename, const char*
     FILE* finput;
     FILE* foutput;
     size_t sizeCheck, cSize;
-    ZSTD_cctx_t ctx;
+    ZSTD_Cctx* ctx;
 
 
     /* Init */
@@ -243,8 +243,8 @@ unsigned long long FIO_compressFilename(const char* output_filename, const char*
     ctx = ZSTD_createCCtx();
 
     /* Allocate Memory */
-    inBuff  = malloc(inBuffSize);
-    outBuff = malloc(outBuffSize);
+    inBuff  = (BYTE*)malloc(inBuffSize);
+    outBuff = (BYTE*)malloc(outBuffSize);
     if (!inBuff || !outBuff) EXM_THROW(21, "Allocation error : not enough memory");
     inSlot = inBuff;
     inEnd = inBuff + inBuffSize;
@@ -319,7 +319,7 @@ unsigned long long FIO_decompressFilename(const char* output_filename, const cha
     U32   wNbBlocks = 4;
     U64   filesize = 0;
     BYTE* header[MAXHEADERSIZE];
-    ZSTD_cctx_t dctx;
+    ZSTD_Dctx* dctx;
     size_t toRead;
     size_t sizeCheck;
 
@@ -340,9 +340,9 @@ unsigned long long FIO_decompressFilename(const char* output_filename, const cha
 
     /* Allocate Memory */
     inBuffSize = blockSize + FIO_blockHeaderSize;
-    inBuff  = malloc(inBuffSize);
+    inBuff  = (BYTE*)malloc(inBuffSize);
     outBuffSize = wNbBlocks * blockSize;
-    outBuff = malloc(outBuffSize);
+    outBuff = (BYTE*)malloc(outBuffSize);
     op = outBuff;
     oend = outBuff + outBuffSize;
     if (!inBuff || !outBuff) EXM_THROW(33, "Allocation error : not enough memory");

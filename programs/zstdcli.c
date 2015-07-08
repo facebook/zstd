@@ -76,6 +76,7 @@
 #define WELCOME_MESSAGE "*** %s %i-bits %s, by %s (%s) ***\n", COMPRESSOR_NAME, (int)(sizeof(void*)*8), ZSTD_VERSION, AUTHOR, __DATE__
 #define ZSTD_EXTENSION ".zst"
 #define ZSTD_CAT "zstdcat"
+#define ZSTD_UNZSTD "unzstd"
 
 #define KB *(1 <<10)
 #define MB *(1 <<20)
@@ -150,8 +151,10 @@ static int badusage(const char* programName)
 
 static void waitEnter(void)
 {
+    int unused;
     DISPLAY("Press enter to continue...\n");
-    getchar();
+    unused = getchar();
+    (void)unused;
 }
 
 
@@ -170,8 +173,23 @@ int main(int argc, char** argv)
     char* dynNameSpace = NULL;
     char extension[] = ZSTD_EXTENSION;
 
+    /* Pick out basename component. Don't rely on stdlib because of conflicting behaviour. */
+    for (i = (int)strlen(programName); i > 0; i--)
+    {
+        if (programName[i] == '/')
+        {
+            i++;
+            break;
+        }
+    }
+    programName += i;
+
     /* zstdcat behavior */
     if (!strcmp(programName, ZSTD_CAT)) { decode=1; forceStdout=1; displayLevel=1; outFileName=stdoutmark; }
+
+    /* unzstd behavior */
+    if (!strcmp(programName, ZSTD_UNZSTD))
+        decode=1;
 
     // command switches
     for(i=1; i<argc; i++)
@@ -271,7 +289,7 @@ int main(int argc, char** argv)
     if (!strcmp(inFileName, stdinmark) && IS_CONSOLE(stdin) ) return badusage(programName);
 
     /* Check if benchmark is selected */
-    if (bench) { BMK_bench(argv+fileNameStart, nbFiles, 0); goto _end; }
+    if (bench) { BMK_benchFiles(argv+fileNameStart, nbFiles, 0); goto _end; }
 
     /* No output filename ==> try to select one automatically (when possible) */
     while (!outFileName)
@@ -281,6 +299,7 @@ int main(int argc, char** argv)
         {
             size_t l = strlen(inFileName);
             dynNameSpace = (char*)calloc(1,l+5);
+            if (dynNameSpace==NULL) { DISPLAY("not enough memory\n"); exit(1); }
             strcpy(dynNameSpace, inFileName);
             strcpy(dynNameSpace+l, ZSTD_EXTENSION);
             outFileName = dynNameSpace;
@@ -292,6 +311,7 @@ int main(int argc, char** argv)
             size_t outl;
             size_t inl = strlen(inFileName);
             dynNameSpace = (char*)calloc(1,inl+1);
+            if (dynNameSpace==NULL) { DISPLAY("not enough memory\n"); exit(1); }
             outFileName = dynNameSpace;
             strcpy(dynNameSpace, inFileName);
             outl = inl;

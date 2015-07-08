@@ -206,6 +206,12 @@ static int basicUnitTests(U32 seed, double compressibility)
     CNBuffer = malloc(COMPRESSIBLE_NOISE_LENGTH);
     compressedBuffer = malloc(ZSTD_compressBound(COMPRESSIBLE_NOISE_LENGTH));
     decodedBuffer = malloc(COMPRESSIBLE_NOISE_LENGTH);
+    if (!CNBuffer || !compressedBuffer || !decodedBuffer)
+    {
+        DISPLAY("Not enough memory, aborting\n");
+        testResult = 1;
+        goto _end;
+    }
     FUZ_generateSynthetic(CNBuffer, COMPRESSIBLE_NOISE_LENGTH, compressibility, &randState);
 
     // Basic tests
@@ -256,6 +262,25 @@ static int basicUnitTests(U32 seed, double compressibility)
     if (result != (size_t)-ZSTD_ERROR_wrongMagicNumber) goto _output_error;
     DISPLAYLEVEL(4, "OK \n");
 
+    /* long rle test */
+    {
+        size_t sampleSize = 0;
+        DISPLAYLEVEL(4, "test%3i : Long RLE test : ", testNb++);
+        FUZ_generateSynthetic(CNBuffer, sampleSize, compressibility, &randState);
+        memset((char*)CNBuffer+sampleSize, 'B', 256 KB - 1);
+        sampleSize += 256 KB - 1;
+        FUZ_generateSynthetic((char*)CNBuffer+sampleSize, 96 KB, compressibility, &randState);
+        sampleSize += 96 KB;
+        cSize = ZSTD_compress(compressedBuffer, ZSTD_compressBound(sampleSize), CNBuffer, sampleSize);
+        if (ZSTD_isError(cSize)) goto _output_error;
+        result = ZSTD_decompress(decodedBuffer, sampleSize, compressedBuffer, cSize);
+        if (ZSTD_isError(result)) goto _output_error;
+        if (result!=sampleSize) goto _output_error;
+        DISPLAYLEVEL(4, "OK \n");
+    }
+
+
+
 _end:
     free(CNBuffer);
     free(compressedBuffer);
@@ -271,8 +296,8 @@ _output_error:
 
 static size_t findDiff(const void* buf1, const void* buf2, size_t max)
 {
-    const BYTE* b1 = buf1;
-    const BYTE* b2 = buf2;
+    const BYTE* b1 = (const BYTE*)buf1;
+    const BYTE* b2 = (const BYTE*)buf2;
     size_t i;
     for (i=0; i<max; i++)
     {
@@ -301,9 +326,9 @@ int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compressibilit
     (void)startTest; (void)compressibility;
 
     /* allocation */
-    srcBuffer = malloc (srcBufferSize);
-    dstBuffer = malloc (dstBufferSize);
-    cBuffer   = malloc (cBufferSize);
+    srcBuffer = (BYTE*)malloc (srcBufferSize);
+    dstBuffer = (BYTE*)malloc (dstBufferSize);
+    cBuffer   = (BYTE*)malloc (cBufferSize);
     CHECK (!srcBuffer || !dstBuffer || !cBuffer, "Not enough memory, fuzzer tests cancelled");
 
     /* Create initial sample */
@@ -487,8 +512,10 @@ int main(int argc, char** argv)
         result = fuzzerTests(seed, nbTests, testNb, ((double)proba) / 100);
     if (mainPause)
     {
+        int unused;
         DISPLAY("Press Enter \n");
-        getchar();
+        unused = getchar();
+        (void)unused;
     }
     return result;
 }

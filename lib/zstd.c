@@ -146,7 +146,7 @@ static const U32 g_maxDistance = 4 * BLOCKSIZE;
 static const U32 g_maxLimit = 1 GB;
 static const U32 g_searchStrength = 8;
 
-#define WORKPLACESIZE (BLOCKSIZE*11/4)
+#define WORKPLACESIZE (BLOCKSIZE*3)
 #define MINMATCH 4
 #define MLbits   7
 #define LLbits   6
@@ -292,6 +292,8 @@ typedef struct {
     void* buffer;
     U32*  offsetStart;
     U32*  offset;
+    BYTE* offCodeStart;
+    BYTE* offCode;
     BYTE* litStart;
     BYTE* lit;
     BYTE* litLengthStart;
@@ -332,7 +334,8 @@ ZSTD_Cctx* ZSTD_createCCtx(void)
     if (ctx==NULL) return NULL;
     ctx->seqStore.buffer = malloc(WORKPLACESIZE);
     ctx->seqStore.offsetStart = (U32*) (ctx->seqStore.buffer);
-    ctx->seqStore.litStart = (BYTE*) (ctx->seqStore.offsetStart + (BLOCKSIZE>>2));
+    ctx->seqStore.offCodeStart = (BYTE*) (ctx->seqStore.offsetStart + (BLOCKSIZE>>2));
+    ctx->seqStore.litStart = ctx->seqStore.offCodeStart + (BLOCKSIZE>>2);
     ctx->seqStore.litLengthStart =  ctx->seqStore.litStart + BLOCKSIZE;
     ctx->seqStore.matchLengthStart = ctx->seqStore.litLengthStart + (BLOCKSIZE>>2);
     ctx->seqStore.dumpsStart = ctx->seqStore.matchLengthStart + (BLOCKSIZE>>2);
@@ -680,7 +683,7 @@ static size_t ZSTD_compressSequences(BYTE* dst, size_t maxDstSize,
     const BYTE* op_matchLength = seqStorePtr->matchLength;
     const size_t nbSeq = op_litLength - op_litLength_start;
     BYTE* op;
-    BYTE offsetBits_start[BLOCKSIZE / 4];
+    BYTE* offsetBits_start = seqStorePtr->offCodeStart;
     BYTE* offsetBitsPtr = offsetBits_start;
     const size_t minGain = ZSTD_minGain(srcSize);
     const size_t maxCSize = srcSize - minGain;
@@ -1010,13 +1013,12 @@ size_t ZSTD_compressBegin(ZSTD_Cctx*  ctx, void* dst, size_t maxDstSize)
 }
 
 
-/* this should be auto-vectorized by compiler */
 static void ZSTD_scaleDownCtx(void* cctx, const U32 limit)
 {
     cctxi_t* ctx = (cctxi_t*) cctx;
     int i;
 
-#if defined(__AVX2__)   /* <immintrin.h> */
+#if defined(__AVX2__)
     /* AVX2 version */
     __m256i* h = ctx->hashTable;
     const __m256i limit8 = _mm256_set1_epi32(limit);
@@ -1028,6 +1030,7 @@ static void ZSTD_scaleDownCtx(void* cctx, const U32 limit)
         _mm256_storeu_si256((__m256i*)(h+i), src);
     }
 #else
+    /* this should be auto-vectorized by compiler */
     U32* h = ctx->hashTable;
     for (i=0; i<HASH_TABLESIZE; ++i)
     {
@@ -1039,7 +1042,6 @@ static void ZSTD_scaleDownCtx(void* cctx, const U32 limit)
 }
 
 
-/* this should be auto-vectorized by compiler */
 static void ZSTD_limitCtx(void* cctx, const U32 limit)
 {
     cctxi_t* ctx = (cctxi_t*) cctx;
@@ -1054,7 +1056,7 @@ static void ZSTD_limitCtx(void* cctx, const U32 limit)
         return;
     }
 
-#if defined(__AVX2__)   /* <immintrin.h> */
+#if defined(__AVX2__)
     /* AVX2 version */
     {
         __m256i* h = ctx->hashTable;
@@ -1068,6 +1070,7 @@ static void ZSTD_limitCtx(void* cctx, const U32 limit)
         }
     }
 #else
+    /* this should be auto-vectorized by compiler */
     {
         U32* h = (U32*)(ctx->hashTable);
         for (i=0; i<HASH_TABLESIZE; ++i)
@@ -1089,7 +1092,7 @@ size_t ZSTD_compressContinue(ZSTD_Cctx*  cctx, void* dst, size_t maxDstSize, con
     const U32 updateRate = 2 * BLOCKSIZE;
 
     /*  Init */
-    if (maxDstSize < ZSTD_compressBound(srcSize) - 4 /*header size*/) return (size_t)-ZSTD_ERROR_maxDstSize_tooSmall;
+    if (maxDstSize < ZSTD_compressBound(srcSize) - 4 /* frame header size*/) return (size_t)-ZSTD_ERROR_maxDstSize_tooSmall;
     if (ctx->base==NULL)
         ctx->base = (const BYTE*)src, ctx->current=0, ctx->nextUpdate = g_maxDistance;
     if (src != ctx->base + ctx->current)   /* not contiguous */

@@ -130,7 +130,6 @@ static BYTE RDG_genChar(U32* seed, const litDistribTable lt)
 }
 
 
-#define RDG_DICTSIZE    (32 KB)
 #define RDG_RAND15BITS  ((RDG_rand(seed) >> 3) & 32767)
 #define RDG_RANDLENGTH  ( ((RDG_rand(seed) >> 7) & 7) ? (RDG_rand(seed) & 15) : (RDG_rand(seed) & 511) + 15)
 void RDG_genBlock(void* buffer, size_t buffSize, size_t prefixSize, double matchProba, litDistribTable lt, unsigned* seedPtr)
@@ -140,7 +139,7 @@ void RDG_genBlock(void* buffer, size_t buffSize, size_t prefixSize, double match
     size_t pos = prefixSize;
     U32* seed = seedPtr;
 
-    /* special case */
+    /* special case : sparse content */
     while (matchProba >= 1.0)
     {
         size_t size0 = RDG_rand(seed) & 3;
@@ -154,6 +153,7 @@ void RDG_genBlock(void* buffer, size_t buffSize, size_t prefixSize, double match
         memset(buffPtr+pos, 0, size0);
         pos += size0;
         buffPtr[pos-1] = RDG_genChar(seed, lt);
+        return;
     }
 
     /* init */
@@ -198,20 +198,22 @@ void RDG_genBuffer(void* buffer, size_t size, double matchProba, double litProba
 }
 
 
+#define RDG_DICTSIZE  (32 KB)
 #define RDG_BLOCKSIZE (128 KB)
 void RDG_genOut(unsigned long long size, double matchProba, double litProba, unsigned seed)
 {
-    BYTE buff[RDG_DICTSIZE + RDG_BLOCKSIZE];
+    BYTE* buff = (BYTE*)malloc(RDG_DICTSIZE + RDG_BLOCKSIZE);
     U64 total = 0;
     size_t genBlockSize = RDG_BLOCKSIZE;
     litDistribTable lt;
 
     /* init */
+    if (buff==NULL) { fprintf(stdout, "not enough memory\n"); exit(1); }
     if (litProba==0.0) litProba = matchProba / 4.5;
     RDG_fillLiteralDistrib(lt, litProba);
     SET_BINARY_MODE(stdout);
 
-    /* Generate dict */
+    /* Generate initial dict */
     RDG_genBlock(buff, RDG_DICTSIZE, 0, matchProba, lt, &seed);
 
     /* Generate compressible data */
@@ -224,4 +226,7 @@ void RDG_genOut(unsigned long long size, double matchProba, double litProba, uns
         /* update dict */
         memcpy(buff, buff + RDG_BLOCKSIZE, RDG_DICTSIZE);
     }
+
+    // cleanup
+    free(buff);
 }

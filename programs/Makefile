@@ -59,7 +59,7 @@ endif
 
 default: zstd
 
-all: zstd zstd32 fullbench fullbench32 fuzzer fuzzer32
+all: zstd zstd32 fullbench fullbench32 fuzzer fuzzer32 datagen
 
 zstd: $(ZSTDDIR)/zstd.c xxhash.c bench.c fileio.c zstdcli.c
 	$(CC)      $(FLAGS) $^ -o $@$(EXT)

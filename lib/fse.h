@@ -70,7 +70,33 @@ FSE_decompress():
 
     ** Important ** : FSE_decompress() doesn't decompress non-compressible nor RLE data !!!
     Why ? : making this distinction requires a header.
-    FSE library doesn't manage headers, which are intentionally left to the user layer.
+    Header management is intentionally delegated to the user layer, which can better manage special cases.
+*/
+
+
+/******************************************
+*  Huff0 simple functions
+******************************************/
+size_t HUF_compress (void* dst, size_t dstSize, const void* src, size_t srcSize);
+size_t HUF_decompress(void* dst,  size_t maxDstSize,
+                const void* cSrc, size_t cSrcSize);
+/*
+HUF_compress():
+    Compress content of buffer 'src', of size 'srcSize', into destination buffer 'dst'.
+    'dst' buffer must be already allocated, and sized to handle worst case situations.
+    Worst case size evaluation is provided by FSE_compressBound().
+    return : size of compressed data
+    Special values : if return == 0, srcData is not compressible => Nothing is stored within cSrc !!!
+                     if return == 1, srcData is a single byte symbol * srcSize times. Use RLE compression.
+                     if FSE_isError(return), it's an error code.
+
+HUF_decompress():
+    Decompress Huff0 data from buffer 'cSrc', of size 'cSrcSize',
+    into already allocated destination buffer 'dst', of size 'maxDstSize'.
+    return : size of regenerated data (<= maxDstSize)
+             or an error code, which can be tested using FSE_isError()
+
+    ** Important ** : HUF_decompress() doesn't decompress non-compressible nor RLE data !!!
 */
 
 
@@ -97,6 +123,8 @@ FSE_compress2():
                      if FSE_isError(return), it's an error code.
 */
 size_t FSE_compress2 (void* dst, size_t dstSize, const void* src, size_t srcSize, unsigned maxSymbolValue, unsigned tableLog);
+
+size_t HUF_compress2 (void* dst, size_t dstSize, const void* src, size_t srcSize, unsigned maxSymbolValue, unsigned tableLog);
 
 
 /******************************************

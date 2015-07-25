@@ -124,7 +124,7 @@ typedef unsigned long long  U64;
 /********************************************************
 *  Constants
 *********************************************************/
-static const U32 ZSTD_magicNumber = 0xFD2FB51C;   /* Initial (limited) frame format */
+static const U32 ZSTD_magicNumber = 0xFD2FB51D;   /* 2nd magic number (huff0) */
 
 #define HASH_LOG (ZSTD_MEMORY_USAGE - 2)
 #define HASH_TABLESIZE (1 << HASH_LOG)
@@ -512,7 +512,7 @@ static size_t ZSTD_compressRle (void* dst, size_t maxDstSize, const void* src, s
     /* Build header */
     ostart[0]  = (BYTE)(srcSize>>16);
     ostart[1]  = (BYTE)(srcSize>>8);
-    ostart[2]  = (BYTE)srcSize;
+    ostart[2]  = (BYTE) srcSize;
     ostart[0] += (BYTE)(bt_rle<<6);
 
     return ZSTD_blockHeaderSize+1;
@@ -527,9 +527,9 @@ static size_t ZSTD_noCompressBlock (void* dst, size_t maxDstSize, const void* sr
     memcpy(ostart + ZSTD_blockHeaderSize, src, srcSize);
 
     /* Build header */
-    ostart[0] = (BYTE)(srcSize>>16);
-    ostart[1] = (BYTE)(srcSize>>8);
-    ostart[2] = (BYTE)srcSize;
+    ostart[0]  = (BYTE)(srcSize>>16);
+    ostart[1]  = (BYTE)(srcSize>>8);
+    ostart[2]  = (BYTE) srcSize;
     ostart[0] += (BYTE)(bt_raw<<6);   /* is a raw (uncompressed) block */
 
     return ZSTD_blockHeaderSize+srcSize;
@@ -537,7 +537,7 @@ static size_t ZSTD_noCompressBlock (void* dst, size_t maxDstSize, const void* sr
 
 
 /* return : size of CStream in bits */
-static size_t ZSTD_compressLiterals_usingCTable(void* dst, size_t dstSize,
+size_t ZSTD_compressLiterals_usingCTable(void* dst, size_t dstSize,
                                           const void* src, size_t srcSize,
                                           const FSE_CTable* CTable)
 {
@@ -603,6 +603,33 @@ size_t ZSTD_minGain(size_t srcSize)
 static size_t ZSTD_compressLiterals (void* dst, size_t dstSize,
                                      const void* src, size_t srcSize)
 {
+    const size_t minGain = ZSTD_minGain(srcSize);
+
+#if 1
+#define LHSIZE 5
+    BYTE* const ostart = (BYTE*)dst;
+    size_t hsize = HUF_compress(ostart+LHSIZE, dstSize-LHSIZE, src, srcSize);
+    if (hsize<2) return hsize;   /* special cases */
+    if (hsize >= srcSize - minGain) return 0;
+
+    hsize += 2;  /* work around vs fixed 3-bytes header */
+
+    /* Build header */
+    {
+        ostart[0]  = (BYTE)(bt_compressed<<6); /* is a block, is compressed */
+        ostart[0] += (BYTE)(hsize>>16);
+        ostart[1]  = (BYTE)(hsize>>8);
+        ostart[2]  = (BYTE)(hsize>>0);
+        ostart[0] += (BYTE)((srcSize>>16)<<3);
+        ostart[3]  = (BYTE)(srcSize>>8);
+        ostart[4]  = (BYTE)(srcSize>>0);
+    }
+
+    hsize -= 2;
+    return hsize+LHSIZE;
+
+#else
+
     const BYTE* const istart = (const BYTE*) src;
     const BYTE* ip = istart;
 
@@ -616,7 +643,6 @@ static size_t ZSTD_compressLiterals (void* dst, size_t dstSize,
     S16 norm[256];
     U32 CTable[ FSE_CTABLE_SIZE_U32(LitFSELog, 256) ];
     size_t errorCode;
-    const size_t minGain = ZSTD_minGain(srcSize);
 
     /* early out */
     if (dstSize < FSE_compressBound(srcSize)) return (size_t)-ZSTD_ERROR_maxDstSize_tooSmall;
@@ -658,6 +684,8 @@ static size_t ZSTD_compressLiterals (void* dst, size_t dstSize,
     }
 
     return op-ostart;
+
+#endif // 1
 }
 
 
@@ -698,6 +726,7 @@ static size_t ZSTD_compressSequences(BYTE* dst, size_t maxDstSize,
     {
         size_t cSize;
         size_t litSize = op_lit - op_lit_start;
+
         if (litSize <= LITERAL_NOENTROPY) cSize = ZSTD_noCompressBlock (op, maxDstSize, op_lit_start, litSize);
         else
         {
@@ -1304,7 +1333,7 @@ FORCE_INLINE size_t ZSTD_decompressLiterals_usingDTable_generic(
     return (size_t)-ZSTD_ERROR_GENERIC;
 }
 
-static size_t ZSTD_decompressLiterals_usingDTable(
+size_t ZSTD_decompressLiterals_usingDTable(
                        void* const dst, size_t maxDstSize,
                  const void* src, size_t srcSize,
                  const FSE_DTable* DTable, U32 fast)
@@ -1313,9 +1342,27 @@ static size_t ZSTD_decompressLiterals_usingDTable(
     return ZSTD_decompressLiterals_usingDTable_generic(dst, maxDstSize, src, srcSize, DTable, 0);
 }
 
-static size_t ZSTD_decompressLiterals(void* ctx, void* dst, size_t maxDstSize,
+static size_t ZSTD_decompressLiterals(void* ctx,
+                                      void* dst, size_t maxDstSize,
                                 const void* src, size_t srcSize)
 {
+#if 1
+
+    BYTE* op = (BYTE*)dst;
+    BYTE* const oend = op + maxDstSize;
+    const BYTE* ip = (const BYTE*)src;
+    size_t errorCode;
+    size_t litSize = ip[1] + (ip[0]<<8);
+    litSize += ((ip[-3] >> 3) & 7) << 16;   // mmmmh....
+    op = oend - litSize;
+
+    (void)ctx;
+    errorCode = HUF_decompress(op, litSize, ip+2, srcSize-2);
+    if (FSE_isError(errorCode))
+        return errorCode;
+    return litSize;
+
+#else
     /* assumed : blockType == blockCompressed */
     const BYTE* ip = (const BYTE*)src;
     short norm[256];
@@ -1337,6 +1384,7 @@ static size_t ZSTD_decompressLiterals(void* ctx, void* dst, size_t maxDstSize,
     fastMode = (U32)errorCode;
 
     return ZSTD_decompressLiterals_usingDTable (dst, maxDstSize, ip, srcSize, DTable, fastMode);
+#endif // 1
 }
 
 
@@ -1491,8 +1539,8 @@ FORCE_INLINE size_t ZSTD_decompressBlock(void* ctx, void* dst, size_t maxDstSize
     const BYTE* dumps;
     const BYTE* litPtr;
     const BYTE* litEnd;
-    const size_t dec32table[] = {4, 1, 2, 1, 4, 4, 4, 4};   /* added */
-    const size_t dec64table[] = {8, 8, 8, 7, 8, 9,10,11};   /* substracted */
+    const int dec32table[] = {4, 1, 2, 1, 4, 4, 4, 4};   /* added */
+    const int dec64table[] = {8, 8, 8, 7, 8, 9,10,11};   /* substracted */
     FSE_DTable* DTableML = (FSE_DTable*)ctx;
     FSE_DTable* DTableLL = DTableML + FSE_DTABLE_SIZE_U32(MLFSELog);
     FSE_DTable* DTableOffb = DTableLL + FSE_DTABLE_SIZE_U32(LLFSELog);
@@ -1516,7 +1564,7 @@ FORCE_INLINE size_t ZSTD_decompressBlock(void* ctx, void* dst, size_t maxDstSize
         litEnd = ip - lastLLSize;
     ip += errorCode;
 
-    /* decompression */
+    /* LZ decompression */
     {
         FSE_DStream_t DStream;
         FSE_DState_t stateLL, stateOffb, stateML;
@@ -1600,7 +1648,7 @@ _another_round:
 
                 if (offset < 8)
                 {
-                    const size_t dec64 = dec64table[offset];
+                    const int dec64 = dec64table[offset];
                     op[0] = match[0];
                     op[1] = match[1];
                     op[2] = match[2];
@@ -1670,7 +1718,7 @@ static size_t ZSTD_decompressDCtx(void* ctx, void* dst, size_t maxDstSize, const
 
         ip += ZSTD_blockHeaderSize;
         remainingSize -= ZSTD_blockHeaderSize;
-        if (ip+blockSize > iend)
+        if (blockSize > remainingSize)
             return (size_t)-ZSTD_ERROR_wrongSrcSize;
 
         switch(blockProperties.blockType)

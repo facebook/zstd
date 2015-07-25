@@ -50,9 +50,15 @@ extern "C" {
 ******************************************/
 #define FSE_MAX_HEADERSIZE 512
 #define FSE_COMPRESSBOUND(size) (size + (size>>7) + FSE_MAX_HEADERSIZE)   /* Macro can be useful for static allocation */
-/* You can statically allocate a CTable as a table of unsigned using below macro */
+
+/* You can statically allocate CTable/DTable as a table of unsigned using below macro */
 #define FSE_CTABLE_SIZE_U32(maxTableLog, maxSymbolValue)   (1 + (1<<(maxTableLog-1)) + ((maxSymbolValue+1)*2))
 #define FSE_DTABLE_SIZE_U32(maxTableLog)                   (1 + (1<<maxTableLog))
+
+/* You can statically allocate a Huff0 DTable as a table of unsigned char using below macro */
+#define HUF_DTABLE_SIZE_U16(maxTableLog)   (1 + (1<<maxTableLog))
+#define HUF_CREATE_STATIC_DTABLE(DTable, maxTableLog) \
+        unsigned short DTable[HUF_DTABLE_SIZE_U16(maxTableLog)] = { maxTableLog }
 
 
 /******************************************
@@ -194,6 +200,12 @@ unsigned int  FSE_reloadDStream(FSE_DStream_t* bitD);
 unsigned FSE_endOfDStream(const FSE_DStream_t* bitD);
 unsigned FSE_endOfDState(const FSE_DState_t* DStatePtr);
 
+typedef enum { FSE_DStream_unfinished = 0,
+               FSE_DStream_partiallyFilled = 1,
+               FSE_DStream_completed = 2,
+               FSE_DStream_tooFar = 3 } FSE_DStream_status;  /* result of FSE_reloadDStream() */
+               /* 1,2,4,8 would be better for bitmap combinations, but slows down performance a bit ... ?! */
+
 /*
 Let's now decompose FSE_decompress_usingDTable() into its unitary components.
 You will decode FSE-encoded symbols from the bitStream,
@@ -218,23 +230,23 @@ Keep in mind that symbols are decoded in reverse order, like a LIFO stack (last 
     unsigned char symbol = FSE_decodeSymbol(&DState, &DStream);
 
 You can retrieve any bitfield you eventually stored into the bitStream (in reverse order)
-Note : maximum allowed nbBits is 25
-    unsigned int bitField = FSE_readBits(&DStream, nbBits);
+Note : maximum allowed nbBits is 25, for 32-bits compatibility
+    size_t bitField = FSE_readBits(&DStream, nbBits);
 
-All above operations only read from local register (which size is controlled by bitD_t==32 bits).
+All above operations only read from local register (which size depends on size_t).
 Refueling the register from memory is manually performed by the reload method.
     endSignal = FSE_reloadDStream(&DStream);
 
 FSE_reloadDStream() result tells if there is still some more data to read from DStream.
-0 : there is still some data left into the DStream.
-1 : Dstream reached end of buffer, but is not yet fully extracted. It will not load data from memory any more.
-2 : Dstream reached its exact end, corresponding in general to decompression completed.
-3 : Dstream went too far. Decompression result is corrupted.
+FSE_DStream_unfinished : there is still some data left into the DStream.
+FSE_DStream_partiallyFilled : Dstream reached end of buffer. Its container may no longer be completely filled.
+FSE_DStream_completed : Dstream reached its exact end, corresponding in general to decompression completed.
+FSE_DStream_tooFar : Dstream went too far. Decompression result is corrupted.
 
-When reaching end of buffer(1), progress slowly, notably if you decode multiple symbols per loop,
+When reaching end of buffer (FSE_DStream_partiallyFilled), progress slowly, notably if you decode multiple symbols per loop,
 to properly detect the exact end of stream.
 After each decoded symbol, check if DStream is fully consumed using this simple test :
-    FSE_reloadDStream(&DStream) >= 2
+    FSE_reloadDStream(&DStream) >= FSE_DStream_completed
 
 When it's done, verify decompression is fully completed, by checking both DStream and the relevant states.
 Checking if DStream has reached its end is performed by :

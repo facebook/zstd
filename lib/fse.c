@@ -1656,10 +1656,13 @@ size_t FSE_decompress(void* dst, size_t maxDstSize, const void* cSrc, size_t cSr
 /*********************************************************
 *  Huff0 : Huffman block compression
 *********************************************************/
-#define HUF_ABSOLUTEMAX_TABLELOG  16
-#define HUF_MAX_TABLELOG  13
-#define HUF_DEFAULT_TABLELOG  12
 #define HUF_MAX_SYMBOL_VALUE 255
+#define HUF_DEFAULT_TABLELOG  12       /* used by default, when not specified */
+#define HUF_MAX_TABLELOG  12           /* max possible tableLog; for allocation purpose; can be modified */
+#define HUF_ABSOLUTEMAX_TABLELOG  16   /* absolute limit of HUF_MAX_TABLELOG. Beyond that value, code is unsupported */
+#if (HUF_MAX_TABLELOG > HUF_ABSOLUTEMAX_TABLELOG)
+#  error "HUF_MAX_TABLELOG is too large !"
+#endif
 
 typedef struct HUF_CElt_s {
   U16  val;
@@ -2192,26 +2195,33 @@ static size_t HUF_decompress_usingDTable(
     for ( ; (reloadStatus<FSE_DStream_completed) && (op<olimit);  /* D2-3-4 are supposed to be synchronized and finish together */
         op+=16, reloadStatus = FSE_reloadDStream(&bitD2) | FSE_reloadDStream(&bitD3) | FSE_reloadDStream(&bitD4), FSE_reloadDStream(&bitD1))
     {
-#define HUF_DECODE_SYMBOL(n, Dstream) \
+#define HUF_DECODE_SYMBOL_0(n, Dstream) \
+        HUF_decodeSymbol(op+n, &Dstream, dt, dtLog);
+
+#define HUF_DECODE_SYMBOL_1(n, Dstream) \
+        HUF_decodeSymbol(op+n, &Dstream, dt, dtLog); \
+        if (FSE_32bits() && (HUF_MAX_TABLELOG>12)) FSE_reloadDStream(&Dstream)
+
+#define HUF_DECODE_SYMBOL_2(n, Dstream) \
         HUF_decodeSymbol(op+n, &Dstream, dt, dtLog); \
         if (FSE_32bits()) FSE_reloadDStream(&Dstream)
 
-        HUF_DECODE_SYMBOL( 0, bitD1);
-        HUF_DECODE_SYMBOL( 1, bitD2);
-        HUF_DECODE_SYMBOL( 2, bitD3);
-        HUF_DECODE_SYMBOL( 3, bitD4);
-        HUF_DECODE_SYMBOL( 4, bitD1);
-        HUF_DECODE_SYMBOL( 5, bitD2);
-        HUF_DECODE_SYMBOL( 6, bitD3);
-        HUF_DECODE_SYMBOL( 7, bitD4);
-        HUF_DECODE_SYMBOL( 8, bitD1);
-        HUF_DECODE_SYMBOL( 9, bitD2);
-        HUF_DECODE_SYMBOL(10, bitD3);
-        HUF_DECODE_SYMBOL(11, bitD4);
-        HUF_DECODE_SYMBOL(12, bitD1);
-        HUF_DECODE_SYMBOL(13, bitD2);
-        HUF_DECODE_SYMBOL(14, bitD3);
-        HUF_DECODE_SYMBOL(15, bitD4);
+        HUF_DECODE_SYMBOL_1( 0, bitD1);
+        HUF_DECODE_SYMBOL_1( 1, bitD2);
+        HUF_DECODE_SYMBOL_1( 2, bitD3);
+        HUF_DECODE_SYMBOL_1( 3, bitD4);
+        HUF_DECODE_SYMBOL_2( 4, bitD1);
+        HUF_DECODE_SYMBOL_2( 5, bitD2);
+        HUF_DECODE_SYMBOL_2( 6, bitD3);
+        HUF_DECODE_SYMBOL_2( 7, bitD4);
+        HUF_DECODE_SYMBOL_1( 8, bitD1);
+        HUF_DECODE_SYMBOL_1( 9, bitD2);
+        HUF_DECODE_SYMBOL_1(10, bitD3);
+        HUF_DECODE_SYMBOL_1(11, bitD4);
+        HUF_DECODE_SYMBOL_0(12, bitD1);
+        HUF_DECODE_SYMBOL_0(13, bitD2);
+        HUF_DECODE_SYMBOL_0(14, bitD3);
+        HUF_DECODE_SYMBOL_0(15, bitD4);
     }
 
     if (reloadStatus!=FSE_DStream_completed)   /* not complete : some bitStream might be 0 (unfinished) */
@@ -2227,7 +2237,7 @@ static size_t HUF_decompress_usingDTable(
         bitTail.start = start1;
         for ( ; (FSE_reloadDStream(&bitTail) < FSE_DStream_completed) && (op<omax) ; op++)
         {
-            HUF_DECODE_SYMBOL(0, bitTail);
+            HUF_DECODE_SYMBOL_0(0, bitTail);
         }
 
         if (FSE_endOfDStream(&bitTail))

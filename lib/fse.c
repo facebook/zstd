@@ -138,6 +138,38 @@ static unsigned FSE_isLittleEndian(void)
     return one.c[0];
 }
 
+static U16 FSE_read16(const void* memPtr)
+{
+    U16 val;
+    memcpy(&val, memPtr, sizeof(val));
+    return val;
+}
+
+static U16 FSE_readLE16(const void* memPtr)
+{
+    if (FSE_isLittleEndian())
+        return FSE_read16(memPtr);
+    else
+    {
+        const BYTE* p = (const BYTE*)memPtr;
+        return (U16)(p[0] + (p[1]<<8));
+    }
+}
+
+static void FSE_writeLE16(void* memPtr, U16 val)
+{
+    if (FSE_isLittleEndian())
+    {
+        memcpy(memPtr, &val, sizeof(val));
+    }
+    else
+    {
+        BYTE* p = (BYTE*)memPtr;
+        p[0] = (BYTE)val;
+        p[1] = (BYTE)(val>>8);
+    }
+}
+
 static U32 FSE_read32(const void* memPtr)
 {
     U32 val32;
@@ -1958,7 +1990,7 @@ static size_t HUF_compress_usingCTable(void* dst, size_t dstSize, const void* sr
         FSE_flushBits(&bitC);
     }
     streamSize = FSE_closeCStream(&bitC);
-    jumpTable[0] = (U16)streamSize;
+    FSE_writeLE16(jumpTable, (U16)streamSize);
     op += streamSize;
 
     FSE_initCStream(&bitC, op);
@@ -1975,7 +2007,7 @@ static size_t HUF_compress_usingCTable(void* dst, size_t dstSize, const void* sr
         FSE_flushBits(&bitC);
     }
     streamSize = FSE_closeCStream(&bitC);
-    jumpTable[1] = (U16)streamSize;
+    FSE_writeLE16(jumpTable+1, (U16)streamSize);
     op += streamSize;
 
     FSE_initCStream(&bitC, op);
@@ -1992,7 +2024,7 @@ static size_t HUF_compress_usingCTable(void* dst, size_t dstSize, const void* sr
         FSE_flushBits(&bitC);
     }
     streamSize = FSE_closeCStream(&bitC);
-    jumpTable[2] = (U16)streamSize;
+    FSE_writeLE16(jumpTable+2, (U16)streamSize);
     op += streamSize;
 
     FSE_initCStream(&bitC, op);
@@ -2170,9 +2202,9 @@ static size_t HUF_decompress_usingDTable(
     /* Init */
 
     const U16* jumpTable = (const U16*)cSrc;
-    const size_t length1 = jumpTable[0];
-    const size_t length2 = jumpTable[1];
-    const size_t length3 = jumpTable[2];
+    const size_t length1 = FSE_readLE16(jumpTable);
+    const size_t length2 = FSE_readLE16(jumpTable+1);
+    const size_t length3 = FSE_readLE16(jumpTable+2);
     const size_t length4 = cSrcSize - 6 - length1 - length2 - length3;   // check coherency !!
     const char* const start1 = (const char*)(cSrc) + 6;
     const char* const start2 = start1 + length1;

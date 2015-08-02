@@ -123,7 +123,7 @@ typedef struct
 void   FSE_initCStream(FSE_CStream_t* bitC, void* dstBuffer);
 void   FSE_initCState(FSE_CState_t* CStatePtr, const FSE_CTable* ct);
 
-void   FSE_encodeSymbol(FSE_CStream_t* bitC, FSE_CState_t* CStatePtr, unsigned char symbol);
+void   FSE_encodeSymbol(FSE_CStream_t* bitC, FSE_CState_t* CStatePtr, unsigned symbol);
 void   FSE_addBits(FSE_CStream_t* bitC, size_t value, unsigned nbBits);
 void   FSE_flushBits(FSE_CStream_t* bitC);
 

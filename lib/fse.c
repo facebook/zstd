@@ -286,11 +286,9 @@ static void FSE_writeLEST(void* memPtr, size_t val)
 ****************************************************************/
 typedef struct
 {
-    int  deltaFindState;
-    U16  maxState;
-    BYTE minBitsOut;
-    /* one byte padding ; total 8 bytes */
-} FSE_symbolCompressionTransform;
+    int deltaFindState;
+    U32 deltaNbBits;
+} FSE_symbolCompressionTransform; /* total 8 bytes */
 
 typedef U32 CTable_max_t[FSE_CTABLE_SIZE_U32(FSE_MAX_TABLELOG, FSE_MAX_SYMBOL_VALUE)];
 typedef U32 DTable_max_t[FSE_DTABLE_SIZE_U32(FSE_MAX_TABLELOG)];
@@ -509,20 +507,22 @@ size_t FSE_FUNCTION_NAME(FSE_buildCTable, FSE_FUNCTION_EXTENSION)
         {
             switch (normalizedCounter[s])
             {
-            case 0:
+            case  0:
                 break;
             case -1:
-            case 1:
-                symbolTT[s].minBitsOut = (BYTE)tableLog;
+            case  1:
+                symbolTT[s].deltaNbBits = tableLog * (1 << 16);
                 symbolTT[s].deltaFindState = total - 1;
                 total ++;
-                symbolTT[s].maxState = (U16)( (tableSize*2) - 1);   /* ensures state <= maxState */
                 break;
             default :
-                symbolTT[s].minBitsOut = (BYTE)( (tableLog-1) - FSE_highbit32 (normalizedCounter[s]-1) );
-                symbolTT[s].deltaFindState = total - normalizedCounter[s];
-                total +=  normalizedCounter[s];
-                symbolTT[s].maxState = (U16)( (normalizedCounter[s] << (symbolTT[s].minBitsOut+1)) - 1);
+                {
+                    U32 maxBitsOut = tableLog - FSE_highbit32 (normalizedCounter[s]-1);
+                    U32 minStatePlus = normalizedCounter[s] << maxBitsOut;
+                    symbolTT[s].deltaNbBits = (maxBitsOut << 16) - minStatePlus;
+                    symbolTT[s].deltaFindState = total - normalizedCounter[s];
+                    total +=  normalizedCounter[s];
+                }
             }
         }
     }
@@ -914,50 +914,6 @@ int FSE_compareRankT(const void* r1, const void* r2)
 }
 
 
-#if 0
-static size_t FSE_adjustNormSlow(short* norm, int pointsToRemove, const unsigned* count, U32 maxSymbolValue)
-{
-    rank_t rank[FSE_MAX_SYMBOL_VALUE+2];
-    U32 s;
-
-    /* Init */
-    for (s=0; s<=maxSymbolValue; s++)
-    {
-        rank[s].id = s;
-        rank[s].count = count[s];
-        if (norm[s] <= 1) rank[s].count = 0;
-    }
-    rank[maxSymbolValue+1].id = 0;
-    rank[maxSymbolValue+1].count = 0;   /* ensures comparison ends here in worst case */
-
-    /* Sort according to count */
-    qsort(rank, maxSymbolValue+1, sizeof(rank_t), FSE_compareRankT);
-
-    while(pointsToRemove)
-    {
-        int newRank = 1;
-        rank_t savedR;
-        if (norm[rank[0].id] == 1)
-            return (size_t)-FSE_ERROR_GENERIC;
-        norm[rank[0].id]--;
-        pointsToRemove--;
-        rank[0].count -= (rank[0].count + 6) >> 3;
-        if (norm[rank[0].id] == 1)
-            rank[0].count=0;
-        savedR = rank[0];
-        while (rank[newRank].count > savedR.count)
-        {
-            rank[newRank-1] = rank[newRank];
-            newRank++;
-        }
-        rank[newRank-1] = savedR;
-    }
-
-    return 0;
-}
-
-#else
-
 /* Secondary normalization method.
    To be used when primary method fails. */
 
@@ -1048,7 +1004,6 @@ static size_t FSE_normalizeM2(short* norm, U32 tableLog, const unsigned* count, 
 
     return 0;
 }
-#endif
 
 
 size_t FSE_normalizeCount (short* normalizedCounter, unsigned tableLog,
@@ -1153,9 +1108,8 @@ size_t FSE_buildCTable_raw (FSE_CTable* ct, unsigned nbBits)
     /* Build Symbol Transformation Table */
     for (s=0; s<=maxSymbolValue; s++)
     {
-        symbolTT[s].minBitsOut = (BYTE)nbBits;
+        symbolTT[s].deltaNbBits = nbBits << 16;
         symbolTT[s].deltaFindState = s-1;
-        symbolTT[s].maxState = (U16)( (tableSize*2) - 1);   /* ensures state <= maxState */
     }
 
     return 0;
@@ -1165,7 +1119,6 @@ size_t FSE_buildCTable_raw (FSE_CTable* ct, unsigned nbBits)
 /* fake FSE_CTable, for rle (100% always same symbol) input */
 size_t FSE_buildCTable_rle (FSE_CTable* ct, BYTE symbolValue)
 {
-    const unsigned tableSize = 1;
     U16* tableU16 = ( (U16*) ct) + 2;
     FSE_symbolCompressionTransform* symbolTT = (FSE_symbolCompressionTransform*) ((U32*)ct + 2);
 
@@ -1179,9 +1132,8 @@ size_t FSE_buildCTable_rle (FSE_CTable* ct, BYTE symbolValue)
 
     /* Build Symbol Transformation Table */
     {
-        symbolTT[symbolValue].minBitsOut = 0;
+        symbolTT[symbolValue].deltaNbBits = 0;
         symbolTT[symbolValue].deltaFindState = 0;
-        symbolTT[symbolValue].maxState = (U16)(2*tableSize-1);   /* ensures state <= maxState */
     }
 
     return 0;
@@ -1218,12 +1170,11 @@ void FSE_addBits(FSE_CStream_t* bitC, size_t value, unsigned nbBits)
     bitC->bitPos += nbBits;
 }
 
-void FSE_encodeSymbol(FSE_CStream_t* bitC, FSE_CState_t* statePtr, BYTE symbol)
+void FSE_encodeSymbol(FSE_CStream_t* bitC, FSE_CState_t* statePtr, U32 symbol)
 {
     const FSE_symbolCompressionTransform symbolTT = ((const FSE_symbolCompressionTransform*)(statePtr->symbolTT))[symbol];
     const U16* const stateTable = (const U16*)(statePtr->stateTable);
-    int nbBitsOut  = symbolTT.minBitsOut;
-    nbBitsOut -= (int)((symbolTT.maxState - statePtr->value) >> 31);
+    U32 nbBitsOut  = (U32)((statePtr->value + symbolTT.deltaNbBits) >> 16);
     FSE_addBits(bitC, statePtr->value, nbBitsOut);
     statePtr->value = stateTable[ (statePtr->value >> nbBitsOut) + symbolTT.deltaFindState];
 }
@@ -1286,7 +1237,7 @@ size_t FSE_compress_usingCTable (void* dst, size_t dstSize,
     }
 
     /* join to mod 4 */
-    if ((sizeof(size_t)*8 > FSE_MAX_TABLELOG*4+7 ) && (srcSize & 2))   /* test bit 2 */
+    if ((sizeof(bitC.bitContainer)*8 > FSE_MAX_TABLELOG*4+7 ) && (srcSize & 2))   /* test bit 2 */
     {
         FSE_encodeSymbol(&bitC, &CState2, *--ip);
         FSE_encodeSymbol(&bitC, &CState1, *--ip);
@@ -1298,12 +1249,12 @@ size_t FSE_compress_usingCTable (void* dst, size_t dstSize,
     {
         FSE_encodeSymbol(&bitC, &CState2, *--ip);
 
-        if (sizeof(size_t)*8 < FSE_MAX_TABLELOG*2+7 )   /* this test must be static */
+        if (sizeof(bitC.bitContainer)*8 < FSE_MAX_TABLELOG*2+7 )   /* this test must be static */
             FSE_flushBits(&bitC);
 
         FSE_encodeSymbol(&bitC, &CState1, *--ip);
 
-        if (sizeof(size_t)*8 > FSE_MAX_TABLELOG*4+7 )   /* this test must be static */
+        if (sizeof(bitC.bitContainer)*8 > FSE_MAX_TABLELOG*4+7 )   /* this test must be static */
         {
             FSE_encodeSymbol(&bitC, &CState2, *--ip);
             FSE_encodeSymbol(&bitC, &CState1, *--ip);
@@ -1604,22 +1555,27 @@ FORCE_INLINE size_t FSE_decompress_usingDTable_generic(
     FSE_initDState(&state1, &bitD, dt);
     FSE_initDState(&state2, &bitD, dt);
 
+#define FSE_GETSYMBOL(statePtr) fast ? FSE_decodeSymbolFast(statePtr, &bitD) : FSE_decodeSymbol(statePtr, &bitD)
 
-    /* 2 symbols per loop */
-    while ((FSE_reloadDStream(&bitD)==FSE_DStream_unfinished) && (op<olimit))
+    /* 4 symbols per loop */
+    for ( ; (FSE_reloadDStream(&bitD)==FSE_DStream_unfinished) && (op<olimit) ; op+=4)
     {
-        *op++ = fast ? FSE_decodeSymbolFast(&state1, &bitD) : FSE_decodeSymbol(&state1, &bitD);
+        op[0] = FSE_GETSYMBOL(&state1);
 
-        if (FSE_MAX_TABLELOG*2+7 > sizeof(size_t)*8)    /* This test must be static */
+        if (FSE_MAX_TABLELOG*2+7 > sizeof(bitD.bitContainer)*8)    /* This test must be static */
             FSE_reloadDStream(&bitD);
 
-        *op++ = fast ? FSE_decodeSymbolFast(&state2, &bitD) : FSE_decodeSymbol(&state2, &bitD);
+        op[1] = FSE_GETSYMBOL(&state2);
 
-        if (FSE_MAX_TABLELOG*4+7 < sizeof(size_t)*8)    /* This test must be static */
-        {
-            *op++ = fast ? FSE_decodeSymbolFast(&state1, &bitD) : FSE_decodeSymbol(&state1, &bitD);
-            *op++ = fast ? FSE_decodeSymbolFast(&state2, &bitD) : FSE_decodeSymbol(&state2, &bitD);
-        }
+        if (FSE_MAX_TABLELOG*4+7 > sizeof(bitD.bitContainer)*8)    /* This test must be static */
+            { if (FSE_reloadDStream(&bitD) > FSE_DStream_unfinished) { op+=2; break; } }
+
+        op[2] = FSE_GETSYMBOL(&state1);
+
+        if (FSE_MAX_TABLELOG*2+7 > sizeof(bitD.bitContainer)*8)    /* This test must be static */
+            FSE_reloadDStream(&bitD);
+
+        op[3] = FSE_GETSYMBOL(&state2);
     }
 
     /* tail */
@@ -1629,16 +1585,16 @@ FORCE_INLINE size_t FSE_decompress_usingDTable_generic(
         if ( (FSE_reloadDStream(&bitD)>FSE_DStream_completed) || (op==omax) || (FSE_endOfDStream(&bitD) && (fast || FSE_endOfDState(&state1))) )
             break;
 
-        *op++ = fast ? FSE_decodeSymbolFast(&state1, &bitD) : FSE_decodeSymbol(&state1, &bitD);
+        *op++ = FSE_GETSYMBOL(&state1);
 
         if ( (FSE_reloadDStream(&bitD)>FSE_DStream_completed) || (op==omax) || (FSE_endOfDStream(&bitD) && (fast || FSE_endOfDState(&state2))) )
             break;
 
-        *op++ = fast ? FSE_decodeSymbolFast(&state2, &bitD) : FSE_decodeSymbol(&state2, &bitD);
+        *op++ = FSE_GETSYMBOL(&state2);
     }
 
     /* end ? */
-    if (FSE_endOfDStream(&bitD) && FSE_endOfDState(&state1) && FSE_endOfDState(&state2) )
+    if (FSE_endOfDStream(&bitD) && FSE_endOfDState(&state1) && FSE_endOfDState(&state2))
         return op-ostart;
 
     if (op==omax) return (size_t)-FSE_ERROR_dstSize_tooSmall;   /* dst buffer is full, but cSrc unfinished */
@@ -1691,7 +1647,7 @@ size_t FSE_decompress(void* dst, size_t maxDstSize, const void* cSrc, size_t cSr
 #define HUF_MAX_SYMBOL_VALUE 255
 #define HUF_DEFAULT_TABLELOG  12       /* used by default, when not specified */
 #define HUF_MAX_TABLELOG  12           /* max possible tableLog; for allocation purpose; can be modified */
-#define HUF_ABSOLUTEMAX_TABLELOG  16   /* absolute limit of HUF_MAX_TABLELOG. Beyond that value, code is unsupported */
+#define HUF_ABSOLUTEMAX_TABLELOG  16   /* absolute limit of HUF_MAX_TABLELOG. Beyond that value, code does not work */
 #if (HUF_MAX_TABLELOG > HUF_ABSOLUTEMAX_TABLELOG)
 #  error "HUF_MAX_TABLELOG is too large !"
 #endif
@@ -1709,7 +1665,6 @@ typedef struct nodeElt_s {
 } nodeElt;
 
 
-#define HUF_HEADERLOG 8
 size_t HUF_writeCTable (void* dst, size_t maxDstSize, const HUF_CElt* tree, U32 maxSymbolValue, U32 huffLog)
 {
     BYTE huffWeight[HUF_MAX_SYMBOL_VALUE + 1];
@@ -1726,9 +1681,24 @@ size_t HUF_writeCTable (void* dst, size_t maxDstSize, const HUF_CElt* tree, U32 
 
     size = FSE_compress(op+1, maxDstSize-1, huffWeight, maxSymbolValue);   // don't need last symbol stat : implied
     if (FSE_isError(size)) return size;
-    if (size >= 128) return (size_t)-FSE_ERROR_GENERIC;
-    if (size <= 1) return (size_t)-FSE_ERROR_GENERIC;   // special case, not implemented
+    if (size >= 128) return (size_t)-FSE_ERROR_GENERIC;   // should never happen, since maxSymbolValue <= 255
+    if ((size <= 1) || (size >= maxSymbolValue/2))
+    {
+        if (maxSymbolValue > 64) return (size_t)-FSE_ERROR_GENERIC;   // special case, not implemented (not possible)
+        if (size==1)   // RLE
+        {
+            op[0] = (BYTE)(128 /*special case*/ + 64 /* RLE */ + (maxSymbolValue-1));
+            op[1] = huffWeight[0];
+            return 2;
+        }
+        // Not compressible
+        op[0] = (BYTE)(128 /*special case*/ + 0 /* Not Compressible */ + (maxSymbolValue-1));
+        for (n=0; n<maxSymbolValue; n+=2)
+            op[(n/2)+1] = (BYTE)((huffWeight[n] << 4) + huffWeight[n+1]);
+        return ((maxSymbolValue+1)/2) + 1;
+    }
 
+    // normal case
     op[0] = (BYTE)size;
     return size+1;
 }
@@ -1861,7 +1831,8 @@ size_t HUF_buildCTable (HUF_CElt* tree, const U32* count, U32 maxSymbolValue, U3
     U32 nodeRoot;
 
     // check
-    if (maxSymbolValue > 255) return (size_t)-FSE_ERROR_GENERIC;
+    if (maxNbBits == 0) maxNbBits = HUF_DEFAULT_TABLELOG;
+    if (maxSymbolValue > HUF_MAX_SYMBOL_VALUE) return (size_t)-FSE_ERROR_GENERIC;
 	memset(huffNode0, 0, sizeof(huffNode0));
 
     // sort, decreasing order
@@ -1923,6 +1894,16 @@ size_t HUF_buildCTable (HUF_CElt* tree, const U32* count, U32 maxSymbolValue, U3
     return maxNbBits;
 }
 
+static void HUF_encodeSymbol(FSE_CStream_t* bitCPtr, U32 symbol, const HUF_CElt* CTable)
+{
+    FSE_addBitsFast(bitCPtr, CTable[symbol].val, CTable[symbol].nbBits);
+}
+
+#define FSE_FLUSHBITS_1(stream) \
+    if (sizeof((stream)->bitContainer)*8 < HUF_MAX_TABLELOG*2+7) FSE_flushBits(stream)
+
+#define FSE_FLUSHBITS_2(stream) \
+    if (sizeof((stream)->bitContainer)*8 < HUF_MAX_TABLELOG*4+7) FSE_flushBits(stream)
 
 static size_t HUF_compress_usingCTable(void* dst, size_t dstSize, const void* src, size_t srcSize, HUF_CElt* CTable)
 {
@@ -1938,41 +1919,38 @@ static size_t HUF_compress_usingCTable(void* dst, size_t dstSize, const void* sr
     op += 6;   /* jump Table -- could be optimized by delta / deviation */
     FSE_initCStream(&bitC, op);
 
-#define FSE_FLUSHBITS_32(stream) \
-    if (FSE_32bits()) FSE_flushBits(stream)
-
     n = srcSize & ~15;  // mod 16
     switch (srcSize & 15)
     {
-        case 15: FSE_addBitsFast(&bitC, CTable[ip[n+14]].val, CTable[ip[n+14]].nbBits);
-                 FSE_FLUSHBITS_32(&bitC);
-        case 14: FSE_addBitsFast(&bitC, CTable[ip[n+13]].val, CTable[ip[n+13]].nbBits);
-                 FSE_FLUSHBITS_32(&bitC);
-        case 13: FSE_addBitsFast(&bitC, CTable[ip[n+12]].val, CTable[ip[n+12]].nbBits);
-                 FSE_FLUSHBITS_32(&bitC);
-        case 12: FSE_addBitsFast(&bitC, CTable[ip[n+11]].val, CTable[ip[n+11]].nbBits);
+        case 15: HUF_encodeSymbol(&bitC, ip[n+14], CTable);
+                 FSE_FLUSHBITS_1(&bitC);
+        case 14: HUF_encodeSymbol(&bitC, ip[n+13], CTable);
+                 FSE_FLUSHBITS_2(&bitC);
+        case 13: HUF_encodeSymbol(&bitC, ip[n+12], CTable);
+                 FSE_FLUSHBITS_1(&bitC);
+        case 12: HUF_encodeSymbol(&bitC, ip[n+11], CTable);
                  FSE_flushBits(&bitC);
-        case 11: FSE_addBitsFast(&bitC, CTable[ip[n+10]].val, CTable[ip[n+10]].nbBits);
-                 FSE_FLUSHBITS_32(&bitC);
-        case 10: FSE_addBitsFast(&bitC, CTable[ip[n+9]].val, CTable[ip[n+9]].nbBits);
-                 FSE_FLUSHBITS_32(&bitC);
-        case 9 : FSE_addBitsFast(&bitC, CTable[ip[n+8]].val, CTable[ip[n+8]].nbBits);
-                 FSE_FLUSHBITS_32(&bitC);
-        case 8 : FSE_addBitsFast(&bitC, CTable[ip[n+7]].val, CTable[ip[n+7]].nbBits);
+        case 11: HUF_encodeSymbol(&bitC, ip[n+10], CTable);
+                 FSE_FLUSHBITS_1(&bitC);
+        case 10: HUF_encodeSymbol(&bitC, ip[n+ 9], CTable);
+                 FSE_FLUSHBITS_2(&bitC);
+        case 9 : HUF_encodeSymbol(&bitC, ip[n+ 8], CTable);
+                 FSE_FLUSHBITS_1(&bitC);
+        case 8 : HUF_encodeSymbol(&bitC, ip[n+ 7], CTable);
                  FSE_flushBits(&bitC);
-        case 7 : FSE_addBitsFast(&bitC, CTable[ip[n+6]].val, CTable[ip[n+6]].nbBits);
-                 FSE_FLUSHBITS_32(&bitC);
-        case 6 : FSE_addBitsFast(&bitC, CTable[ip[n+5]].val, CTable[ip[n+5]].nbBits);
-                 FSE_FLUSHBITS_32(&bitC);
-        case 5 : FSE_addBitsFast(&bitC, CTable[ip[n+4]].val, CTable[ip[n+4]].nbBits);
-                 FSE_FLUSHBITS_32(&bitC);
-        case 4 : FSE_addBitsFast(&bitC, CTable[ip[n+3]].val, CTable[ip[n+3]].nbBits);
+        case 7 : HUF_encodeSymbol(&bitC, ip[n+ 6], CTable);
+                 FSE_FLUSHBITS_1(&bitC);
+        case 6 : HUF_encodeSymbol(&bitC, ip[n+ 5], CTable);
+                 FSE_FLUSHBITS_2(&bitC);
+        case 5 : HUF_encodeSymbol(&bitC, ip[n+ 4], CTable);
+                 FSE_FLUSHBITS_1(&bitC);
+        case 4 : HUF_encodeSymbol(&bitC, ip[n+ 3], CTable);
                  FSE_flushBits(&bitC);
-        case 3 : FSE_addBitsFast(&bitC, CTable[ip[n+2]].val, CTable[ip[n+2]].nbBits);
-                 FSE_FLUSHBITS_32(&bitC);
-        case 2 : FSE_addBitsFast(&bitC, CTable[ip[n+1]].val, CTable[ip[n+1]].nbBits);
-                 FSE_FLUSHBITS_32(&bitC);
-        case 1 : FSE_addBitsFast(&bitC, CTable[ip[n+0]].val, CTable[ip[n+0]].nbBits);
+        case 3 : HUF_encodeSymbol(&bitC, ip[n+ 2], CTable);
+                 FSE_FLUSHBITS_2(&bitC);
+        case 2 : HUF_encodeSymbol(&bitC, ip[n+ 1], CTable);
+                 FSE_FLUSHBITS_1(&bitC);
+        case 1 : HUF_encodeSymbol(&bitC, ip[n+ 0], CTable);
                  FSE_flushBits(&bitC);
         case 0 :
         default: ;
@@ -1980,13 +1958,13 @@ static size_t HUF_compress_usingCTable(void* dst, size_t dstSize, const void* sr
 
     for (; n>0; n-=16)
     {
-        FSE_addBitsFast(&bitC, CTable[ip[n- 4]].val, CTable[ip[n- 4]].nbBits);
-        FSE_FLUSHBITS_32(&bitC);
-        FSE_addBitsFast(&bitC, CTable[ip[n- 8]].val, CTable[ip[n- 8]].nbBits);
-        FSE_FLUSHBITS_32(&bitC);
-        FSE_addBitsFast(&bitC, CTable[ip[n-12]].val, CTable[ip[n-12]].nbBits);
-        FSE_FLUSHBITS_32(&bitC);
-        FSE_addBitsFast(&bitC, CTable[ip[n-16]].val, CTable[ip[n-16]].nbBits);
+        HUF_encodeSymbol(&bitC, ip[n- 4], CTable);
+        FSE_FLUSHBITS_1(&bitC);
+        HUF_encodeSymbol(&bitC, ip[n- 8], CTable);
+        FSE_FLUSHBITS_2(&bitC);
+        HUF_encodeSymbol(&bitC, ip[n-12], CTable);
+        FSE_FLUSHBITS_1(&bitC);
+        HUF_encodeSymbol(&bitC, ip[n-16], CTable);
         FSE_flushBits(&bitC);
     }
     streamSize = FSE_closeCStream(&bitC);
@@ -1997,13 +1975,13 @@ static size_t HUF_compress_usingCTable(void* dst, size_t dstSize, const void* sr
     n = srcSize & ~15;  // mod 16
     for (; n>0; n-=16)
     {
-        FSE_addBitsFast(&bitC, CTable[ip[n- 3]].val, CTable[ip[n- 3]].nbBits);
-        FSE_FLUSHBITS_32(&bitC);
-        FSE_addBitsFast(&bitC, CTable[ip[n- 7]].val, CTable[ip[n- 7]].nbBits);
-        FSE_FLUSHBITS_32(&bitC);
-        FSE_addBitsFast(&bitC, CTable[ip[n-11]].val, CTable[ip[n-11]].nbBits);
-        FSE_FLUSHBITS_32(&bitC);
-        FSE_addBitsFast(&bitC, CTable[ip[n-15]].val, CTable[ip[n-15]].nbBits);
+        HUF_encodeSymbol(&bitC, ip[n- 3], CTable);
+        FSE_FLUSHBITS_1(&bitC);
+        HUF_encodeSymbol(&bitC, ip[n- 7], CTable);
+        FSE_FLUSHBITS_2(&bitC);
+        HUF_encodeSymbol(&bitC, ip[n-11], CTable);
+        FSE_FLUSHBITS_1(&bitC);
+        HUF_encodeSymbol(&bitC, ip[n-15], CTable);
         FSE_flushBits(&bitC);
     }
     streamSize = FSE_closeCStream(&bitC);
@@ -2014,13 +1992,13 @@ static size_t HUF_compress_usingCTable(void* dst, size_t dstSize, const void* sr
     n = srcSize & ~15;  // mod 16
     for (; n>0; n-=16)
     {
-        FSE_addBitsFast(&bitC, CTable[ip[n- 2]].val, CTable[ip[n- 2]].nbBits);
-        FSE_FLUSHBITS_32(&bitC);
-        FSE_addBitsFast(&bitC, CTable[ip[n- 6]].val, CTable[ip[n- 6]].nbBits);
-        FSE_FLUSHBITS_32(&bitC);
-        FSE_addBitsFast(&bitC, CTable[ip[n-10]].val, CTable[ip[n-10]].nbBits);
-        FSE_FLUSHBITS_32(&bitC);
-        FSE_addBitsFast(&bitC, CTable[ip[n-14]].val, CTable[ip[n-14]].nbBits);
+        HUF_encodeSymbol(&bitC, ip[n- 2], CTable);
+        FSE_FLUSHBITS_1(&bitC);
+        HUF_encodeSymbol(&bitC, ip[n- 6], CTable);
+        FSE_FLUSHBITS_2(&bitC);
+        HUF_encodeSymbol(&bitC, ip[n-10], CTable);
+        FSE_FLUSHBITS_1(&bitC);
+        HUF_encodeSymbol(&bitC, ip[n-14], CTable);
         FSE_flushBits(&bitC);
     }
     streamSize = FSE_closeCStream(&bitC);
@@ -2031,13 +2009,13 @@ static size_t HUF_compress_usingCTable(void* dst, size_t dstSize, const void* sr
     n = srcSize & ~15;  // mod 16
     for (; n>0; n-=16)
     {
-        FSE_addBitsFast(&bitC, CTable[ip[n- 1]].val, CTable[ip[n- 1]].nbBits);
-        FSE_FLUSHBITS_32(&bitC);
-        FSE_addBitsFast(&bitC, CTable[ip[n- 5]].val, CTable[ip[n- 5]].nbBits);
-        FSE_FLUSHBITS_32(&bitC);
-        FSE_addBitsFast(&bitC, CTable[ip[n- 9]].val, CTable[ip[n- 9]].nbBits);
-        FSE_FLUSHBITS_32(&bitC);
-        FSE_addBitsFast(&bitC, CTable[ip[n-13]].val, CTable[ip[n-13]].nbBits);
+        HUF_encodeSymbol(&bitC, ip[n- 1], CTable);
+        FSE_FLUSHBITS_1(&bitC);
+        HUF_encodeSymbol(&bitC, ip[n- 5], CTable);
+        FSE_FLUSHBITS_2(&bitC);
+        HUF_encodeSymbol(&bitC, ip[n- 9], CTable);
+        FSE_FLUSHBITS_1(&bitC);
+        HUF_encodeSymbol(&bitC, ip[n-13], CTable);
         FSE_flushBits(&bitC);
     }
     streamSize = FSE_closeCStream(&bitC);
@@ -2117,11 +2095,35 @@ size_t HUF_readDTable (U16* DTable, const void* src, size_t srcSize)
     HUF_DElt* const dt = (HUF_DElt*)(DTable + 1);
 
     FSE_STATIC_ASSERT(sizeof(HUF_DElt) == sizeof(U16));   // if compilation fails here, assertion is false
-    if (iSize >= 128) return (size_t)-FSE_ERROR_GENERIC;  // special case, not implemented
-    if (iSize+1 > srcSize) return (size_t)-FSE_ERROR_srcSize_wrong;
+    if (iSize >= 128) // special case
+    {
+        if (iSize >= (128+64))   // RLE
+        {
+            if (srcSize < 2) return (size_t)-FSE_ERROR_srcSize_wrong;
+            oSize = (iSize & 63) + 1;
+            memset(huffWeight, ip[1], oSize);
+            iSize = 1;
+        }
+        else   // Incompressible
+        {
+            oSize = (iSize & 63) + 1;
+            iSize = ((oSize+1)/2);
+            if (iSize+1 > srcSize) return (size_t)-FSE_ERROR_srcSize_wrong;
+            ip += 1;
+            for (n=0; n<oSize; n+=2)
+            {
+                huffWeight[n]   = (ip[n/2] >> 4);
+                huffWeight[n+1] = (ip[n/2] & 15);
+            }
+        }
+    }
+    else  // normal case, header compressed with FSE
+    {
+        if (iSize+1 > srcSize) return (size_t)-FSE_ERROR_srcSize_wrong;
+        oSize = FSE_decompress(huffWeight, HUF_MAX_SYMBOL_VALUE, ip+1, iSize);   // max 255 values stored, last is implied
+        if (FSE_isError(oSize)) return oSize;
+    }
 
-    oSize = FSE_decompress(huffWeight, HUF_MAX_SYMBOL_VALUE, ip+1, iSize);   // max 255 values stored, last is implied
-    if (FSE_isError(oSize)) return oSize;
 
     // stats on weights
     for (n=0; n<oSize; n++)
@@ -2167,14 +2169,6 @@ size_t HUF_readDTable (U16* DTable, const void* src, size_t srcSize)
 
     return iSize+1;
 }
-
-/*
-#define HUF_DECODE_SYMBOL(n, Dstream) \
-        val = FSE_lookBitsFast(&Dstream, dtLog); \
-        c = dt[val].byte; \
-        FSE_skipBits(&Dstream, dt[val].nbBits); \
-        op[n] = c;
-*/
 
 static void HUF_decodeSymbol(BYTE* ptr, FSE_DStream_t* Dstream, const HUF_DElt* dt, U32 dtLog)
 {

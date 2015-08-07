@@ -547,7 +547,6 @@ static size_t ZSTD_compressLiterals (void* dst, size_t dstSize,
 {
     const size_t minGain = ZSTD_minGain(srcSize);
 
-#if 1
 #define LHSIZE 5
     BYTE* const ostart = (BYTE*)dst;
     size_t hsize = HUF_compress(ostart+LHSIZE, dstSize-LHSIZE, src, srcSize);
@@ -569,65 +568,6 @@ static size_t ZSTD_compressLiterals (void* dst, size_t dstSize,
 
     hsize -= 2;
     return hsize+LHSIZE;
-
-#else
-
-    const BYTE* const istart = (const BYTE*) src;
-    const BYTE* ip = istart;
-
-    BYTE* const ostart = (BYTE*) dst;
-    BYTE* op = ostart + ZSTD_blockHeaderSize;
-    BYTE* const oend = ostart + dstSize;
-
-    U32 maxSymbolValue = 256;
-    U32 tableLog = LitFSELog;
-    U32 count[256];
-    S16 norm[256];
-    U32 CTable[ FSE_CTABLE_SIZE_U32(LitFSELog, 256) ];
-    size_t errorCode;
-
-    /* early out */
-    if (dstSize < FSE_compressBound(srcSize)) return (size_t)-ZSTD_ERROR_maxDstSize_tooSmall;
-
-    /* Scan input and build symbol stats */
-    errorCode = FSE_count (count, &maxSymbolValue, ip, srcSize);
-    if (FSE_isError(errorCode)) return (size_t)-ZSTD_ERROR_GENERIC;
-    if (errorCode == srcSize) return 1;
-    if (errorCode < (srcSize >> 6)) return 0;   /* cheap heuristic : probably not compressible enough */
-
-    tableLog = FSE_optimalTableLog(tableLog, srcSize, maxSymbolValue);
-    errorCode = (int)FSE_normalizeCount (norm, tableLog, count, srcSize, maxSymbolValue);
-    if (FSE_isError(errorCode)) return (size_t)-ZSTD_ERROR_GENERIC;
-
-    /* Write table description header */
-    errorCode = FSE_writeNCount (op, FSE_MAX_HEADERSIZE, norm, maxSymbolValue, tableLog);
-    if (FSE_isError(errorCode)) return (size_t)-ZSTD_ERROR_GENERIC;
-    op += errorCode;
-
-    /* Compress */
-    errorCode = FSE_buildCTable (CTable, norm, maxSymbolValue, tableLog);
-    if (FSE_isError(errorCode)) return (size_t)-ZSTD_ERROR_GENERIC;
-    errorCode = ZSTD_compressLiterals_usingCTable(op, oend - op, ip, srcSize, CTable);
-    if (ZSTD_isError(errorCode)) return errorCode;
-    op += errorCode;
-
-    /* check compressibility */
-    if ( (size_t)(op-ostart) >= srcSize-minGain)
-        return 0;
-
-    /* Build header */
-    {
-        size_t totalSize;
-        totalSize  = op - ostart - ZSTD_blockHeaderSize;
-        ostart[0]  = (BYTE)(totalSize>>16);
-        ostart[1]  = (BYTE)(totalSize>>8);
-        ostart[2]  = (BYTE)totalSize;
-        ostart[0] += (BYTE)(bt_compressed<<6); /* is a block, is compressed */
-    }
-
-    return op-ostart;
-
-#endif // 1
 }
 
 
@@ -1066,7 +1006,6 @@ size_t ZSTD_compressContinue(ZSTD_Cctx*  cctx, void* dst, size_t maxDstSize, con
     const U32 updateRate = 2 * BLOCKSIZE;
 
     /*  Init */
-    if (maxDstSize < ZSTD_compressBound(srcSize) - 4 /* frame header size*/) return (size_t)-ZSTD_ERROR_maxDstSize_tooSmall;
     if (ctx->base==NULL)
         ctx->base = (const BYTE*)src, ctx->current=0, ctx->nextUpdate = g_maxDistance;
     if (src != ctx->base + ctx->current)   /* not contiguous */

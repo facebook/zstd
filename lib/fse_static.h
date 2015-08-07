@@ -48,14 +48,21 @@ extern "C" {
 /******************************************
 *  Static allocation
 ******************************************/
-#define FSE_MAX_HEADERSIZE 512
-#define FSE_COMPRESSBOUND(size) (size + (size>>7) + FSE_MAX_HEADERSIZE)   /* Macro can be useful for static allocation */
+/* FSE buffer bounds */
+#define FSE_NCOUNTBOUND 512
+#define FSE_BLOCKBOUND(size) (size + (size>>7))
+#define FSE_COMPRESSBOUND(size) (FSE_NCOUNTBOUND + FSE_BLOCKBOUND(size))   /* Macro version, useful for static allocation */
 
-/* You can statically allocate CTable/DTable as a table of unsigned using below macro */
+/* You can statically allocate FSE CTable/DTable as a table of unsigned using below macro */
 #define FSE_CTABLE_SIZE_U32(maxTableLog, maxSymbolValue)   (1 + (1<<(maxTableLog-1)) + ((maxSymbolValue+1)*2))
 #define FSE_DTABLE_SIZE_U32(maxTableLog)                   (1 + (1<<maxTableLog))
 
-/* You can statically allocate a Huff0 DTable as a table of unsigned char using below macro */
+/* Huff0 buffer bounds */
+#define HUF_CTABLEBOUND 129
+#define HUF_BLOCKBOUND(size) (size + (size>>8) + 8)   /* only true if pre-filtered with fast heuristic */
+#define HUF_COMPRESSBOUND(size) (HUF_CTABLEBOUND + HUF_BLOCKBOUND(size))   /* Macro version, useful for static allocation */
+
+/* You can statically allocate Huff0 DTable as a table of unsigned short using below macro */
 #define HUF_DTABLE_SIZE_U16(maxTableLog)   (1 + (1<<maxTableLog))
 #define HUF_CREATE_STATIC_DTABLE(DTable, maxTableLog) \
         unsigned short DTable[HUF_DTABLE_SIZE_U16(maxTableLog)] = { maxTableLog }
@@ -102,6 +109,7 @@ size_t FSE_buildDTable_rle (FSE_DTable* dt, unsigned char symbolValue);
    You will want to enable link-time-optimization to ensure these functions are properly inlined in your binary.
    Visual seems to do it automatically.
    For gcc or clang, you'll need to add -flto flag at compilation and linking stages.
+   If none of these solutions is applicable, include "fse.c" directly.
 */
 
 typedef struct
@@ -110,6 +118,7 @@ typedef struct
     int    bitPos;
     char*  startPtr;
     char*  ptr;
+    char*  endPtr;
 } FSE_CStream_t;
 
 typedef struct
@@ -120,7 +129,7 @@ typedef struct
     unsigned    stateLog;
 } FSE_CState_t;
 
-void   FSE_initCStream(FSE_CStream_t* bitC, void* dstBuffer);
+size_t FSE_initCStream(FSE_CStream_t* bitC, void* dstBuffer, size_t maxDstSize);
 void   FSE_initCState(FSE_CState_t* CStatePtr, const FSE_CTable* ct);
 
 void   FSE_encodeSymbol(FSE_CStream_t* bitC, FSE_CState_t* CStatePtr, unsigned symbol);
@@ -139,17 +148,18 @@ So the first symbol you will encode is the last you will decode, like a LIFO sta
 
 You will need a few variables to track your CStream. They are :
 
-FSE_CTable ct;        // Provided by FSE_buildCTable()
-FSE_CStream_t bitC;   // bitStream tracking structure
-FSE_CState_t state;   // State tracking structure (can have several)
+FSE_CTable    ct;         // Provided by FSE_buildCTable()
+FSE_CStream_t bitStream;  // bitStream tracking structure
+FSE_CState_t  state;      // State tracking structure (can have several)
 
 
 The first thing to do is to init bitStream and state.
-    FSE_initCStream(&bitC, dstBuffer);
+    size_t errorCode = FSE_initCStream(&bitStream, dstBuffer, maxDstSize);
     FSE_initCState(&state, ct);
 
+Note that FSE_initCStream() can produce an error code, so its result should be tested, using FSE_isError();
 You can then encode your input data, byte after byte.
-FSE_encodeByte() outputs a maximum of 'tableLog' bits at a time.
+FSE_encodeSymbol() outputs a maximum of 'tableLog' bits at a time.
 Remember decoding will be done in reverse direction.
     FSE_encodeByte(&bitStream, &state, symbol);
 
@@ -165,8 +175,9 @@ Writing data to memory is a manual operation, performed by the flushBits functio
 Your last FSE encoding operation shall be to flush your last state value(s).
     FSE_flushState(&bitStream, &state);
 
-Finally, you must then close the bitStream.
-The function returns the size in bytes of CStream.
+Finally, you must close the bitStream.
+The function returns the size of CStream in bytes.
+If data couldn't fit into dstBuffer, it will return a 0 ( == not compressible)
 If there is an error, it returns an errorCode (which can be tested using FSE_isError()).
     size_t size = FSE_closeCStream(&bitStream);
 */
@@ -201,7 +212,7 @@ unsigned FSE_endOfDStream(const FSE_DStream_t* bitD);
 unsigned FSE_endOfDState(const FSE_DState_t* DStatePtr);
 
 typedef enum { FSE_DStream_unfinished = 0,
-               FSE_DStream_partiallyFilled = 1,
+               FSE_DStream_endOfBuffer = 1,
                FSE_DStream_completed = 2,
                FSE_DStream_tooFar = 3 } FSE_DStream_status;  /* result of FSE_reloadDStream() */
                /* 1,2,4,8 would be better for bitmap combinations, but slows down performance a bit ... ?! */
@@ -213,16 +224,16 @@ and also any other bitFields you put in, **in reverse order**.
 
 You will need a few variables to track your bitStream. They are :
 
-FSE_DStream_t DStream;  // Stream context
-FSE_DState_t DState;    // State context. Multiple ones are possible
-FSE_DTable dt;          // Decoding table, provided by FSE_buildDTable()
-U32 tableLog;           // Provided by FSE_readHeader()
+FSE_DStream_t DStream;    // Stream context
+FSE_DState_t  DState;     // State context. Multiple ones are possible
+FSE_DTable*   DTablePtr;  // Decoding table, provided by FSE_buildDTable()
 
 The first thing to do is to init the bitStream.
-    errorCode = FSE_initDStream(&DStream, &optionalId, srcBuffer, srcSize);
+    errorCode = FSE_initDStream(&DStream, srcBuffer, srcSize);
 
-You should then retrieve your initial state(s) :
-    errorCode = FSE_initDState(&DState, &DStream, dt, tableLog);
+You should then retrieve your initial state(s)
+(in reverse flushing order if you have several ones) :
+    errorCode = FSE_initDState(&DState, &DStream, DTablePtr);
 
 You can then decode your data, symbol after symbol.
 For information the maximum number of bits read by FSE_decodeSymbol() is 'tableLog'.
@@ -239,11 +250,11 @@ Refueling the register from memory is manually performed by the reload method.
 
 FSE_reloadDStream() result tells if there is still some more data to read from DStream.
 FSE_DStream_unfinished : there is still some data left into the DStream.
-FSE_DStream_partiallyFilled : Dstream reached end of buffer. Its container may no longer be completely filled.
+FSE_DStream_endOfBuffer : Dstream reached end of buffer. Its container may no longer be completely filled.
 FSE_DStream_completed : Dstream reached its exact end, corresponding in general to decompression completed.
 FSE_DStream_tooFar : Dstream went too far. Decompression result is corrupted.
 
-When reaching end of buffer (FSE_DStream_partiallyFilled), progress slowly, notably if you decode multiple symbols per loop,
+When reaching end of buffer (FSE_DStream_endOfBuffer), progress slowly, notably if you decode multiple symbols per loop,
 to properly detect the exact end of stream.
 After each decoded symbol, check if DStream is fully consumed using this simple test :
     FSE_reloadDStream(&DStream) >= FSE_DStream_completed
@@ -251,7 +262,7 @@ After each decoded symbol, check if DStream is fully consumed using this simple 
 When it's done, verify decompression is fully completed, by checking both DStream and the relevant states.
 Checking if DStream has reached its end is performed by :
     FSE_endOfDStream(&DStream);
-Check also the states. There might be some entropy left there, able to decode some high probability (>50%) symbol.
+Check also the states. There might be some symbols left there, if some high probability ones (>50%) are possible.
     FSE_endOfDState(&DState);
 */
 
@@ -263,7 +274,7 @@ size_t FSE_readBitsFast(FSE_DStream_t* bitD, unsigned nbBits);
 /* faster, but works only if nbBits >= 1 (otherwise, result will be corrupted) */
 
 unsigned char FSE_decodeSymbolFast(FSE_DState_t* DStatePtr, FSE_DStream_t* bitD);
-/* faster, but works only if nbBits >= 1 (otherwise, result will be corrupted) */
+/* faster, but works only if allways nbBits >= 1 (otherwise, result will be corrupted) */
 
 
 #if defined (__cplusplus)

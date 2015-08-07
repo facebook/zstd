@@ -323,7 +323,6 @@ int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compressibilit
     U32 result = 0;
     U32 testNb = 0;
     U32 coreSeed = seed, lseed = 0;
-    (void)startTest; (void)compressibility;
 
     /* allocation */
     srcBuffer = (BYTE*)malloc (srcBufferSize);
@@ -332,7 +331,7 @@ int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compressibilit
     CHECK (!srcBuffer || !dstBuffer || !cBuffer, "Not enough memory, fuzzer tests cancelled");
 
     /* Create initial sample */
-    FUZ_generateSynthetic(srcBuffer, srcBufferSize, 0.50, &coreSeed);
+    FUZ_generateSynthetic(srcBuffer, srcBufferSize, compressibility, &coreSeed);
 
     /* catch up testNb */
     for (testNb=0; testNb < startTest; testNb++)
@@ -356,9 +355,19 @@ int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compressibilit
         sampleStart = FUZ_rand(&lseed) % (srcBufferSize - sampleSize);
         crcOrig = XXH64(srcBuffer + sampleStart, sampleSize, 0);
 
-        /* compression tests*/
+        /* compression test */
         cSize = ZSTD_compress(cBuffer, cBufferSize, srcBuffer + sampleStart, sampleSize);
         CHECK(ZSTD_isError(cSize), "ZSTD_compress failed");
+
+        /* compression failure test */
+        {
+            size_t errorCode;
+            void* dBufferTooSmall = malloc(cSize-1);   /* valgrind should catch overflows */
+            if (dBufferTooSmall==NULL) { DISPLAY("not enough memory !"); exit(1); }
+            errorCode = ZSTD_compress(dBufferTooSmall, cSize-1, srcBuffer + sampleStart, sampleSize);
+            CHECK(!ZSTD_isError(errorCode), "ZSTD_compress should have failed ! (buffer too small)");
+            free(dBufferTooSmall);
+        }
 
         /* decompression tests*/
         dSupSize = (FUZ_rand(&lseed) & 1) ? 0 : (FUZ_rand(&lseed) & 31) + 1;
@@ -393,8 +402,9 @@ int FUZ_usage(char* programName)
     DISPLAY( " -i#    : Nb of tests (default:%u) \n", nbTestsDefault);
     DISPLAY( " -s#    : Select seed (default:prompt user)\n");
     DISPLAY( " -t#    : Select starting test number (default:0)\n");
-    DISPLAY( " -p#    : Select compressibility in %% (default:%i%%)\n", FUZ_COMPRESSIBILITY_DEFAULT);
+    DISPLAY( " -P#    : Select compressibility in %% (default:%i%%)\n", FUZ_COMPRESSIBILITY_DEFAULT);
     DISPLAY( " -v     : verbose\n");
+    DISPLAY( " -p     : pause at the end\n");
     DISPLAY( " -h     : display help and exit\n");
     return 0;
 }

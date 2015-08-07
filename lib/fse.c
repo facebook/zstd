@@ -1132,7 +1132,7 @@ size_t FSE_buildCTable_rle (FSE_CTable* ct, BYTE symbolValue)
 
 size_t FSE_initCStream(FSE_CStream_t* bitC, void* start, size_t maxSize)
 {
-    if (maxSize < 8) return (size_t)-FSE_ERROR_dstSize_tooSmall;
+    if (maxSize < sizeof(bitC->ptr)) return (size_t)-FSE_ERROR_dstSize_tooSmall;
     bitC->bitContainer = 0;
     bitC->bitPos = 0;
     bitC->startPtr = (char*)start;
@@ -1186,12 +1186,9 @@ void FSE_flushBits(FSE_CStream_t* bitC)
     size_t nbBytes = bitC->bitPos >> 3;
     FSE_writeLEST(bitC->ptr, bitC->bitContainer);
     bitC->ptr += nbBytes;
-    if (bitC->ptr <= bitC->endPtr)
-    {
-        bitC->bitPos &= 7;
-        bitC->bitContainer >>= nbBytes*8;
-        return;
-    }
+    if (bitC->ptr > bitC->endPtr) bitC->ptr = bitC->endPtr;
+    bitC->bitPos &= 7;
+    bitC->bitContainer >>= nbBytes*8;
 }
 
 void FSE_flushCState(FSE_CStream_t* bitC, const FSE_CState_t* statePtr)
@@ -1208,7 +1205,7 @@ size_t FSE_closeCStream(FSE_CStream_t* bitC)
     FSE_addBitsFast(bitC, 1, 1);
     FSE_flushBits(bitC);
 
-    if (bitC->bitPos > 7)   /* still some data to flush => too close to buffer's end */
+    if (bitC->ptr >= bitC->endPtr)   /* too close to buffer's end */
         return 0;   /* not compressible */
 
     endPtr = bitC->ptr;
@@ -1887,7 +1884,7 @@ size_t HUF_buildCTable (HUF_CElt* tree, const U32* count, U32 maxSymbolValue, U3
     U16 nodeNb = STARTNODE;
     U32 nodeRoot;
 
-    // check
+    /* safety checks */
     if (maxNbBits == 0) maxNbBits = HUF_DEFAULT_TABLELOG;
     if (maxSymbolValue > HUF_MAX_SYMBOL_VALUE) return (size_t)-FSE_ERROR_GENERIC;
 	memset(huffNode0, 0, sizeof(huffNode0));
@@ -1976,7 +1973,7 @@ size_t HUF_compress_usingCTable(void* dst, size_t dstSize, const void* src, size
 
     /* init */
     op += 6;   /* jump Table -- could be optimized by delta / deviation */
-    errorCode = FSE_initCStream(&bitC, op, dstSize);
+    errorCode = FSE_initCStream(&bitC, op, oend-op);
     if (FSE_isError(errorCode)) return 0;
 
     n = srcSize & ~15;  // mod 16
@@ -2124,7 +2121,10 @@ size_t HUF_compress2 (void* dst, size_t dstSize, const void* src, size_t srcSize
     op += errorCode;
 
     /* Compress */
-    op += HUF_compress_usingCTable(op, oend - op, src, srcSize, CTable);
+    errorCode = HUF_compress_usingCTable(op, oend - op, src, srcSize, CTable);
+    if (FSE_isError(errorCode)) return errorCode;
+    if (errorCode==0) return 0;
+    op += errorCode;
 
     /* check compressibility */
     if ((size_t)(op-ostart) >= srcSize-1)

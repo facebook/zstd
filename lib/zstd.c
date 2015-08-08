@@ -1153,82 +1153,10 @@ static size_t ZSTD_copyUncompressedBlock(void* dst, size_t maxDstSize, const voi
 }
 
 
-/* force inline : 'fast' really needs to be evaluated at compile time */
-FORCE_INLINE size_t ZSTD_decompressLiterals_usingDTable_generic(
-                       void* const dst, size_t maxDstSize,
-                 const void* src, size_t srcSize,
-                 const FSE_DTable* DTable, U32 fast)
-{
-    BYTE* op = (BYTE*) dst;
-    BYTE* const olimit = op;
-    BYTE* const oend = op + maxDstSize;
-    FSE_DStream_t bitD;
-    FSE_DState_t state1, state2;
-    size_t errorCode;
-
-    /* Init */
-    errorCode = FSE_initDStream(&bitD, src, srcSize);
-    if (FSE_isError(errorCode)) return (size_t)-ZSTD_ERROR_GENERIC;
-
-    FSE_initDState(&state1, &bitD, DTable);
-    FSE_initDState(&state2, &bitD, DTable);
-    op = oend;
-
-    /* 2-4 symbols per loop */
-    while (!FSE_reloadDStream(&bitD) && (op>olimit+3))
-    {
-        *--op = fast ? FSE_decodeSymbolFast(&state1, &bitD) : FSE_decodeSymbol(&state1, &bitD);
-
-        if (LitFSELog*2+7 > sizeof(size_t)*8)    /* This test must be static */
-            FSE_reloadDStream(&bitD);
-
-        *--op = fast ? FSE_decodeSymbolFast(&state2, &bitD) : FSE_decodeSymbol(&state2, &bitD);
-
-        if (LitFSELog*4+7 < sizeof(size_t)*8)    /* This test must be static */
-        {
-            *--op = fast ? FSE_decodeSymbolFast(&state1, &bitD) : FSE_decodeSymbol(&state1, &bitD);
-            *--op = fast ? FSE_decodeSymbolFast(&state2, &bitD) : FSE_decodeSymbol(&state2, &bitD);
-        }
-    }
-
-    /* tail */
-    while (1)
-    {
-        if ( (FSE_reloadDStream(&bitD)>2) || (op==olimit) || (FSE_endOfDState(&state1) && FSE_endOfDStream(&bitD)) )
-            break;
-
-        *--op = fast ? FSE_decodeSymbolFast(&state1, &bitD) : FSE_decodeSymbol(&state1, &bitD);
-
-        if ( (FSE_reloadDStream(&bitD)>2) || (op==olimit) || (FSE_endOfDState(&state2) && FSE_endOfDStream(&bitD)) )
-            break;
-
-        *--op = fast ? FSE_decodeSymbolFast(&state2, &bitD) : FSE_decodeSymbol(&state2, &bitD);
-    }
-
-    /* end ? */
-    if (FSE_endOfDStream(&bitD) && FSE_endOfDState(&state1) && FSE_endOfDState(&state2) )
-        return oend-op;
-
-    if (op==olimit) return (size_t)-ZSTD_ERROR_maxDstSize_tooSmall;   /* dst buffer is full, but cSrc unfinished */
-
-    return (size_t)-ZSTD_ERROR_GENERIC;
-}
-
-size_t ZSTD_decompressLiterals_usingDTable(
-                       void* const dst, size_t maxDstSize,
-                 const void* src, size_t srcSize,
-                 const FSE_DTable* DTable, U32 fast)
-{
-    if (fast) return ZSTD_decompressLiterals_usingDTable_generic(dst, maxDstSize, src, srcSize, DTable, 1);
-    return ZSTD_decompressLiterals_usingDTable_generic(dst, maxDstSize, src, srcSize, DTable, 0);
-}
-
 static size_t ZSTD_decompressLiterals(void* ctx,
                                       void* dst, size_t maxDstSize,
                                 const void* src, size_t srcSize)
 {
-#if 1
-
     BYTE* op = (BYTE*)dst;
     BYTE* const oend = op + maxDstSize;
     const BYTE* ip = (const BYTE*)src;
@@ -1242,30 +1170,6 @@ static size_t ZSTD_decompressLiterals(void* ctx,
     if (FSE_isError(errorCode))
         return errorCode;
     return litSize;
-
-#else
-    /* assumed : blockType == blockCompressed */
-    const BYTE* ip = (const BYTE*)src;
-    short norm[256];
-    FSE_DTable* DTable = (FSE_DTable*)ctx;
-    U32 maxSymbolValue = 255;
-    U32 tableLog;
-    U32 fastMode;
-    size_t errorCode;
-
-    if (srcSize < 2) return (size_t)-ZSTD_ERROR_wrongLBlockSize;   /* too small input size */
-
-    errorCode = FSE_readNCount (norm, &maxSymbolValue, &tableLog, ip, srcSize);
-    if (FSE_isError(errorCode)) return (size_t)-ZSTD_ERROR_GENERIC;
-    ip += errorCode;
-    srcSize -= errorCode;
-
-    errorCode = FSE_buildDTable (DTable, norm, maxSymbolValue, tableLog);
-    if (FSE_isError(errorCode)) return (size_t)-ZSTD_ERROR_GENERIC;
-    fastMode = (U32)errorCode;
-
-    return ZSTD_decompressLiterals_usingDTable (dst, maxDstSize, ip, srcSize, DTable, fastMode);
-#endif // 1
 }
 
 
@@ -1428,7 +1332,7 @@ FORCE_INLINE size_t ZSTD_decompressBlock(void* ctx, void* dst, size_t maxDstSize
 
     /* blockType == blockCompressed, srcSize is trusted */
 
-    /* literal sub-block */
+    /* Decode literals sub-block */
     errorCode = ZSTD_decodeLiteralsBlock(ctx, dst, maxDstSize, &litPtr, src, srcSize);
     if (ZSTD_isError(errorCode)) return errorCode;
     ip += errorCode;
@@ -1516,15 +1420,15 @@ _another_round:
             /* copy Match */
             {
                 BYTE* const endMatch = op + matchLength;
-                size_t qutt=0;
+                size_t qutt=12;
                 U64 saved[2];
+                const U32 overlapRisk = (((size_t)(litPtr - endMatch)) < 12);
 
                 /* save beginning of literal sequence, in case of write overlap */
-                if ((size_t)(litPtr - endMatch) < 12)
+                if (overlapRisk)
                 {
-                    qutt = endMatch + 12 - litPtr;
-                    if ((litPtr + qutt) > oend) qutt = oend-litPtr;
-                    memcpy(saved, litPtr, qutt);
+                    if ((endMatch + qutt) > oend) qutt = oend-endMatch;
+                    memcpy(saved, endMatch, qutt);
                 }
 
                 if (offset < 8)
@@ -1554,8 +1458,9 @@ _another_round:
 
                 op = endMatch;
 
-                if ((size_t)(litPtr - endMatch) < 12)
-                    memcpy(endMatch + (litPtr - endMatch), saved, qutt);  /* required as litPtr is const ptr */
+                /* restore, in case of overlap */
+                if (overlapRisk)
+                    memcpy(endMatch, saved, qutt);
             }
         }
 
@@ -1611,7 +1516,7 @@ static size_t ZSTD_decompressDCtx(void* ctx, void* dst, size_t maxDstSize, const
             errorCode = ZSTD_copyUncompressedBlock(op, oend-op, ip, blockSize);
             break;
         case bt_rle :
-            return (size_t)-ZSTD_ERROR_GENERIC;   /* not yet handled */
+            return (size_t)-ZSTD_ERROR_GENERIC;   /* not yet supported */
             break;
         case bt_end :
             /* end of frame */

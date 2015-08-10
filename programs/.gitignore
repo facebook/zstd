@@ -1,0 +1,31 @@
+# local binary (Makefile)
+zstd
+zstd32
+fullbench
+fullbench32
+fuzzer
+fuzzer32
+datagen
+
+# Object files
+*.o
+*.ko
+
+# Libraries
+*.lib
+*.a
+
+# Shared objects (inc. Windows DLLs)
+*.dll
+*.so
+*.so.*
+*.dylib
+
+# Executables
+*.exe
+*.out
+*.app
+
+# Visual solution files
+*.suo
+*.user

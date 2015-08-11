@@ -239,27 +239,27 @@ static int basicUnitTests(U32 seed, double compressibility)
     DISPLAYLEVEL(4, "test%3i : decompress with 1 missing byte : ", testNb++);
     result = ZSTD_decompress(decodedBuffer, COMPRESSIBLE_NOISE_LENGTH, compressedBuffer, cSize-1);
     if (!ZSTD_isError(result)) goto _output_error;
-    if (result != (size_t)-ZSTD_ERROR_wrongSrcSize) goto _output_error;
+    if (result != (size_t)-ZSTD_ERROR_SrcSize) goto _output_error;
     DISPLAYLEVEL(4, "OK \n");
 
     DISPLAYLEVEL(4, "test%3i : decompress with 1 too much byte : ", testNb++);
     result = ZSTD_decompress(decodedBuffer, COMPRESSIBLE_NOISE_LENGTH, compressedBuffer, cSize+1);
     if (!ZSTD_isError(result)) goto _output_error;
-    if (result != (size_t)-ZSTD_ERROR_wrongSrcSize) goto _output_error;
+    if (result != (size_t)-ZSTD_ERROR_SrcSize) goto _output_error;
     DISPLAYLEVEL(4, "OK \n");
 
     /* Decompression defense tests */
     DISPLAYLEVEL(4, "test%3i : Check input length for magic number : ", testNb++);
     result = ZSTD_decompress(decodedBuffer, COMPRESSIBLE_NOISE_LENGTH, CNBuffer, 3);
     if (!ZSTD_isError(result)) goto _output_error;
-    if (result != (size_t)-ZSTD_ERROR_wrongSrcSize) goto _output_error;
+    if (result != (size_t)-ZSTD_ERROR_SrcSize) goto _output_error;
     DISPLAYLEVEL(4, "OK \n");
 
     DISPLAYLEVEL(4, "test%3i : Check magic Number : ", testNb++);
     ((char*)(CNBuffer))[0] = 1;
     result = ZSTD_decompress(decodedBuffer, COMPRESSIBLE_NOISE_LENGTH, CNBuffer, 4);
     if (!ZSTD_isError(result)) goto _output_error;
-    if (result != (size_t)-ZSTD_ERROR_wrongMagicNumber) goto _output_error;
+    if (result != (size_t)-ZSTD_ERROR_MagicNumber) goto _output_error;
     DISPLAYLEVEL(4, "OK \n");
 
     /* long rle test */
@@ -334,11 +334,11 @@ int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compressibilit
     FUZ_generateSynthetic(srcBuffer, srcBufferSize, compressibility, &coreSeed);
 
     /* catch up testNb */
-    for (testNb=0; testNb < startTest; testNb++)
+    for (testNb=1; testNb <= startTest; testNb++)
         FUZ_rand(&coreSeed);
 
     /* test loop */
-    for (testNb=startTest; testNb < nbTests; testNb++)
+    for (testNb=startTest; testNb <= nbTests; testNb++)
     {
         size_t sampleSize, sampleStart;
         size_t cSize, dSize, dSupSize;
@@ -350,7 +350,7 @@ int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compressibilit
         FUZ_rand(&coreSeed);
         lseed = coreSeed ^ prime1;
         sampleSizeLog = FUZ_rand(&lseed) % maxSampleLog;
-        sampleSize = (size_t)1<<sampleSizeLog;
+        sampleSize = (size_t)1 << sampleSizeLog;
         sampleSize += FUZ_rand(&lseed) & (sampleSize-1);
         sampleStart = FUZ_rand(&lseed) % (srcBufferSize - sampleSize);
         crcOrig = XXH64(srcBuffer + sampleStart, sampleSize, 0);
@@ -362,9 +362,11 @@ int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compressibilit
         /* compression failure test */
         {
             size_t errorCode;
-            void* dBufferTooSmall = malloc(cSize-1);   /* valgrind should catch overflows */
-            if (dBufferTooSmall==NULL) { DISPLAY("not enough memory !"); exit(1); }
-            errorCode = ZSTD_compress(dBufferTooSmall, cSize-1, srcBuffer + sampleStart, sampleSize);
+            const size_t missing = (FUZ_rand(&lseed) % (cSize-2)) + 1;   /* no problem, as cSize > 4 (frameHeaderSizer) */
+            const size_t tooSmallSize = cSize - missing;
+            void* dBufferTooSmall = malloc(tooSmallSize);   /* valgrind will catch overflows */
+            CHECK(dBufferTooSmall == NULL, "not enough memory !");
+            errorCode = ZSTD_compress(dBufferTooSmall, tooSmallSize, srcBuffer + sampleStart, sampleSize);
             CHECK(!ZSTD_isError(errorCode), "ZSTD_compress should have failed ! (buffer too small)");
             free(dBufferTooSmall);
         }

@@ -93,6 +93,7 @@ prg-travis:
 	@cd $(PRGDIR); $(MAKE) -e $(ZSTD_TRAVIS_CI_ENV)
 
 clangtest: clean
+	clang -v
 	$(MAKE) all CC=clang MOREFLAGS="-Werror -Wconversion -Wno-sign-conversion"
 
 gpptest: clean

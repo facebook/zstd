@@ -124,7 +124,7 @@ typedef unsigned long long  U64;
 /********************************************************
 *  Constants
 *********************************************************/
-static const U32 ZSTD_magicNumber = 0xFD2FB51D;   /* 2nd magic number (huff0) */
+static const U32 ZSTD_magicNumber = 0xFD2FB51E;   /* 3rd version : seqNb header */
 
 #define HASH_LOG (ZSTD_MEMORY_USAGE - 2)
 #define HASH_TABLESIZE (1 << HASH_LOG)
@@ -202,6 +202,27 @@ static void ZSTD_wildcopy(void* dst, const void* src, size_t length)
     while (op < oend) COPY8(op, ip);
 }
 
+static U16 ZSTD_readLE16(const void* memPtr)
+{
+    if (ZSTD_isLittleEndian()) return ZSTD_read16(memPtr);
+    else
+    {
+        const BYTE* p = (const BYTE*)memPtr;
+        return (U16)((U16)p[0] + ((U16)p[1]<<8));
+    }
+}
+
+static void ZSTD_writeLE16(void* memPtr, U16 val)
+{
+    if (ZSTD_isLittleEndian()) memcpy(memPtr, &val, sizeof(val));
+    else
+    {
+        BYTE* p = (BYTE*)memPtr;
+        p[0] = (BYTE)val;
+        p[1] = (BYTE)(val>>8);
+    }
+}
+
 static U32 ZSTD_readLE32(const void* memPtr)
 {
     if (ZSTD_isLittleEndian())
@@ -242,40 +263,6 @@ static void ZSTD_writeBE32(void* memPtr, U32 value)
     p[1] = (BYTE)(value>>16);
     p[2] = (BYTE)(value>>8);
     p[3] = (BYTE)(value>>0);
-}
-
-static size_t ZSTD_writeProgressive(void* ptr, size_t value)
-{
-    BYTE* const bStart = (BYTE* const)ptr;
-    BYTE* byte = bStart;
-
-    do
-    {
-        BYTE l = value & 127;
-        value >>= 7;
-        if (value) l += 128;
-        *byte++ = l;
-    } while (value);
-
-    return byte - bStart;
-}
-
-
-static size_t ZSTD_readProgressive(size_t* result, const void* ptr)
-{
-    const BYTE* const bStart = (const BYTE* const)ptr;
-    const BYTE* byte = bStart;
-    size_t r = 0;
-    U32 shift = 0;
-
-    do
-    {
-        r += (*byte & 127) << shift;
-        shift += 7;
-    } while (*byte++ & 128);
-
-    *result = r;
-    return byte - bStart;
 }
 
 
@@ -548,10 +535,13 @@ static size_t ZSTD_compressLiterals (void* dst, size_t dstSize,
                                      const void* src, size_t srcSize)
 {
     const size_t minGain = ZSTD_minGain(srcSize);
-
-#define LHSIZE 5
     BYTE* const ostart = (BYTE*)dst;
-    size_t hsize = HUF_compress(ostart+LHSIZE, dstSize-LHSIZE, src, srcSize);
+    size_t hsize;
+	static const size_t LHSIZE = 5;
+
+	if (dstSize < LHSIZE+1) return (size_t)-ZSTD_ERROR_maxDstSize_tooSmall;   /* not enough space for compression */
+
+	hsize = HUF_compress(ostart+LHSIZE, dstSize-LHSIZE, src, srcSize);
     if (hsize<2) return hsize;   /* special cases */
     if (hsize >= srcSize - minGain) return 0;
 
@@ -575,10 +565,10 @@ static size_t ZSTD_compressLiterals (void* dst, size_t dstSize,
 
 static size_t ZSTD_compressSequences(BYTE* dst, size_t maxDstSize,
                                      const seqStore_t* seqStorePtr,
-                                     size_t lastLLSize, size_t srcSize)
+                                     size_t srcSize)
 {
-    U32 count[MaxSeq];
-    S16 norm[MaxSeq];
+    U32 count[MaxSeq+1];
+    S16 norm[MaxSeq+1];
     size_t mostFrequent;
     U32 max = 255;
     U32 tableLog = 11;
@@ -624,7 +614,9 @@ static size_t ZSTD_compressSequences(BYTE* dst, size_t maxDstSize,
     }
 
     /* Sequences Header */
-    op += ZSTD_writeProgressive(op, lastLLSize);
+	if ((oend-op) < 2+3+6)  /* nbSeq + dumpsLength + 3*rleCTable*/
+		return (size_t)-ZSTD_ERROR_maxDstSize_tooSmall;
+    ZSTD_writeLE16(op, (U16)nbSeq); op+=2;
     seqHead = op;
 
     /* dumps : contains too large lengths */
@@ -643,6 +635,7 @@ static size_t ZSTD_compressSequences(BYTE* dst, size_t maxDstSize,
             op[2] = (BYTE)(dumpsLength);
             op += 3;
         }
+		if ((size_t)(oend-op) < dumpsLength+6) return (size_t)-ZSTD_ERROR_maxDstSize_tooSmall;
         memcpy(op, seqStorePtr->dumpsStart, dumpsLength);
         op += dumpsLength;
     }
@@ -663,9 +656,12 @@ static size_t ZSTD_compressSequences(BYTE* dst, size_t maxDstSize,
     }
     else
     {
+		size_t NCountSize;
         tableLog = FSE_optimalTableLog(LLFSELog, nbSeq, max);
         FSE_normalizeCount(norm, tableLog, count, nbSeq, max);
-        op += FSE_writeNCount(op, oend-op, norm, max, tableLog);
+		NCountSize = FSE_writeNCount(op, oend-op, norm, max, tableLog);   /* overflow protected */
+		if (FSE_isError(NCountSize)) return (size_t)-ZSTD_ERROR_GENERIC;
+        op += NCountSize;
         FSE_buildCTable(CTable_LitLength, norm, max, tableLog);
         LLtype = bt_compressed;
     }
@@ -695,9 +691,12 @@ static size_t ZSTD_compressSequences(BYTE* dst, size_t maxDstSize,
     }
     else
     {
+		size_t NCountSize;
         tableLog = FSE_optimalTableLog(OffFSELog, nbSeq, max);
         FSE_normalizeCount(norm, tableLog, count, nbSeq, max);
-        op += FSE_writeNCount(op, oend-op, norm, max, tableLog);
+		NCountSize = FSE_writeNCount(op, oend-op, norm, max, tableLog);   /* overflow protected */
+		if (FSE_isError(NCountSize)) return (size_t)-ZSTD_ERROR_GENERIC;
+        op += NCountSize;
         FSE_buildCTable(CTable_OffsetBits, norm, max, tableLog);
         Offtype = bt_compressed;
     }
@@ -718,9 +717,12 @@ static size_t ZSTD_compressSequences(BYTE* dst, size_t maxDstSize,
     }
     else
     {
+		size_t NCountSize;
         tableLog = FSE_optimalTableLog(MLFSELog, nbSeq, max);
         FSE_normalizeCount(norm, tableLog, count, nbSeq, max);
-        op += FSE_writeNCount(op, oend-op, norm, max, tableLog);
+		NCountSize = FSE_writeNCount(op, oend-op, norm, max, tableLog);   /* overflow protected */
+		if (FSE_isError(NCountSize)) return (size_t)-ZSTD_ERROR_GENERIC;
+        op += NCountSize;
         FSE_buildCTable(CTable_MatchLength, norm, max, tableLog);
         MLtype = bt_compressed;
     }
@@ -737,12 +739,12 @@ static size_t ZSTD_compressSequences(BYTE* dst, size_t maxDstSize,
         int i;
 
         errorCode = FSE_initCStream(&blockStream, op, oend-op);
-        if (FSE_isError(errorCode)) return 0;   /* not enough space remaining */
+        if (FSE_isError(errorCode)) return (size_t)-ZSTD_ERROR_maxDstSize_tooSmall;   /* not enough space remaining */
         FSE_initCState(&stateMatchLength, CTable_MatchLength);
         FSE_initCState(&stateOffsetBits, CTable_OffsetBits);
         FSE_initCState(&stateLitLength, CTable_LitLength);
 
-        for (i=nbSeq-1; i>=0; i--)
+        for (i=(int)nbSeq-1; i>=0; i--)
         {
             BYTE matchLength = mlTable[i];
             U32  offset = offsetTable[i];
@@ -763,7 +765,7 @@ static size_t ZSTD_compressSequences(BYTE* dst, size_t maxDstSize,
         FSE_flushCState(&blockStream, &stateLitLength);
 
         streamSize = FSE_closeCStream(&blockStream);
-        if (streamSize==0) return 0;   /* not enough space */
+        if (streamSize==0) return (size_t)-ZSTD_ERROR_maxDstSize_tooSmall;   /* not enough space */
         op += streamSize;
     }
 
@@ -864,7 +866,6 @@ static size_t ZSTD_compressBlock(void* cctx, void* dst, size_t maxDstSize, const
     const BYTE* const ilimit = iend - 16;
 
     size_t prevOffset=0, offset=0;
-    size_t lastLLSize;
 
 
     /* init */
@@ -900,13 +901,15 @@ static size_t ZSTD_compressBlock(void* cctx, void* dst, size_t maxDstSize, const
     }
 
     /* Last Literals */
-    lastLLSize = iend - anchor;
-    memcpy(seqStorePtr->lit, anchor, lastLLSize);
-    seqStorePtr->lit += lastLLSize;
+    {
+        size_t lastLLSize = iend - anchor;
+        memcpy(seqStorePtr->lit, anchor, lastLLSize);
+        seqStorePtr->lit += lastLLSize;
+    }
 
     /* Finale compression stage */
     return ZSTD_compressSequences((BYTE*)dst, maxDstSize,
-                                  seqStorePtr, lastLLSize, srcSize);
+                                  seqStorePtr, srcSize);
 }
 
 
@@ -1008,9 +1011,9 @@ size_t ZSTD_compressContinue(ZSTD_Cctx*  cctx, void* dst, size_t maxDstSize, con
         ctx->base = (const BYTE*)src, ctx->current=0, ctx->nextUpdate = g_maxDistance;
     if (src != ctx->base + ctx->current)   /* not contiguous */
     {
-            ZSTD_resetCCtx(ctx);
-            ctx->base = (const BYTE*)src;
-            ctx->current = 0;
+        ZSTD_resetCCtx(ctx);
+        ctx->base = (const BYTE*)src;
+        ctx->current = 0;
     }
     ctx->current += (U32)srcSize;
 
@@ -1020,8 +1023,11 @@ size_t ZSTD_compressContinue(ZSTD_Cctx*  cctx, void* dst, size_t maxDstSize, con
         size_t blockSize = BLOCKSIZE;
         if (blockSize > srcSize) blockSize = srcSize;
 
+		if (maxDstSize < 2*ZSTD_blockHeaderSize+1)  /* one RLE block + endMark */
+            return (size_t)-ZSTD_ERROR_maxDstSize_tooSmall;
+
         /* update hash table */
-        if (g_maxDistance <= BLOCKSIZE)   /* static test => all blocks are independent */
+        if (g_maxDistance <= BLOCKSIZE)   /* static test ; yes == blocks are independent */
         {
             ZSTD_resetCCtx(ctx);
             ctx->base = ip;
@@ -1120,7 +1126,6 @@ size_t ZSTD_compress(void* dst, size_t maxDstSize, const void* src, size_t srcSi
 }
 
 
-
 /**************************************************************
 *   Decompression code
 **************************************************************/
@@ -1131,7 +1136,7 @@ size_t ZSTD_getcBlockSize(const void* src, size_t srcSize, blockProperties_t* bp
     BYTE headerFlags;
     U32 cSize;
 
-    if (srcSize < 3) return (size_t)-ZSTD_ERROR_wrongSrcSize;
+    if (srcSize < 3) return (size_t)-ZSTD_ERROR_SrcSize;
 
     headerFlags = *in;
     cSize = in[2] + (in[1]<<8) + ((in[0] & 7)<<16);
@@ -1167,15 +1172,14 @@ static size_t ZSTD_decompressLiterals(void* ctx,
 
     (void)ctx;
     errorCode = HUF_decompress(op, litSize, ip+2, srcSize-2);
-    if (FSE_isError(errorCode))
-        return errorCode;
+    if (FSE_isError(errorCode)) return (size_t)-ZSTD_ERROR_GENERIC;
     return litSize;
 }
 
 
 size_t ZSTD_decodeLiteralsBlock(void* ctx,
                                 void* dst, size_t maxDstSize,
-                          const BYTE** litPtr,
+                          const BYTE** litStart, size_t* litSize,
                           const void* src, size_t srcSize)
 {
     const BYTE* const istart = (const BYTE* const)src;
@@ -1186,25 +1190,27 @@ size_t ZSTD_decodeLiteralsBlock(void* ctx,
 
     size_t litcSize = ZSTD_getcBlockSize(src, srcSize, &litbp);
     if (ZSTD_isError(litcSize)) return litcSize;
-    if (litcSize > srcSize - ZSTD_blockHeaderSize) return (size_t)-ZSTD_ERROR_wrongLBlockSize;
+    if (litcSize > srcSize - ZSTD_blockHeaderSize) return (size_t)-ZSTD_ERROR_SrcSize;
     ip += ZSTD_blockHeaderSize;
 
     switch(litbp.blockType)
     {
-    case bt_raw: *litPtr = ip; ip+= litcSize; break;
+    case bt_raw: *litStart = ip; ip += litcSize; *litSize = litcSize; break;
     case bt_rle:
         {
             size_t rleSize = litbp.origSize;
             memset(oend - rleSize, *ip, rleSize);
-            *litPtr = oend - rleSize;
+            *litStart = oend - rleSize;
+            *litSize = rleSize;
             ip++;
             break;
         }
     case bt_compressed:
         {
-            size_t litSize = ZSTD_decompressLiterals(ctx, dst, maxDstSize, ip, litcSize);
-            if (ZSTD_isError(litSize)) return litSize;
-            *litPtr = oend - litSize;
+            size_t decodedLitSize = ZSTD_decompressLiterals(ctx, dst, maxDstSize, ip, litcSize);
+            if (ZSTD_isError(decodedLitSize)) return decodedLitSize;
+            *litStart = oend - decodedLitSize;
+            *litSize = decodedLitSize;
             ip += litcSize;
             break;
         }
@@ -1216,7 +1222,7 @@ size_t ZSTD_decodeLiteralsBlock(void* ctx,
 }
 
 
-size_t ZSTD_decodeSeqHeaders(size_t* lastLLPtr, const BYTE** dumpsPtr,
+size_t ZSTD_decodeSeqHeaders(int* nbSeq, const BYTE** dumpsPtr,
                          FSE_DTable* DTableLL, FSE_DTable* DTableML, FSE_DTable* DTableOffb,
                          const void* src, size_t srcSize)
 {
@@ -1228,7 +1234,7 @@ size_t ZSTD_decodeSeqHeaders(size_t* lastLLPtr, const BYTE** dumpsPtr,
     size_t dumpsLength;
 
     /* SeqHead */
-    ip += ZSTD_readProgressive(lastLLPtr, ip);
+    *nbSeq = ZSTD_readLE16(ip); ip+=2;
     LLtype  = *ip >> 6;
     Offtype = (*ip >> 4) & 3;
     MLtype  = (*ip >> 2) & 3;
@@ -1309,8 +1315,228 @@ size_t ZSTD_decodeSeqHeaders(size_t* lastLLPtr, const BYTE** dumpsPtr,
 }
 
 
-#define ZSTD_prefetch(p) { const BYTE pByte = *(volatile const BYTE*)p; }
+typedef struct {
+    size_t litLength;
+    size_t offset;
+    size_t matchLength;
+} seq_t;
 
+typedef struct {
+    FSE_DStream_t DStream;
+    FSE_DState_t stateLL;
+    FSE_DState_t stateOffb;
+    FSE_DState_t stateML;
+    seq_t seq;
+    size_t prevOffset;
+    const BYTE* dumps;
+} seqState_t;
+
+
+static void ZSTD_decodeSequence(seqState_t* seqState)
+{
+    size_t litLength;
+    size_t prevOffset;
+    size_t offset;
+    size_t matchLength;
+    const BYTE* dumps = seqState->dumps;
+
+    /* Literal length */
+    litLength = FSE_decodeSymbol(&(seqState->stateLL), &(seqState->DStream));
+    prevOffset = litLength ? seqState->seq.offset : seqState->prevOffset;
+    seqState->prevOffset = seqState->seq.offset;
+    if (litLength == MaxLL)
+    {
+        U32 add = *dumps++;
+        if (add < 255) litLength += add;
+        else
+        {
+            litLength = ZSTD_readLE32(dumps) & 0xFFFFFF;
+            dumps += 3;
+        }
+    }
+
+    /* Offset */
+    {
+        U32 offsetCode, nbBits;
+        offsetCode = FSE_decodeSymbol(&(seqState->stateOffb), &(seqState->DStream));
+        if (ZSTD_32bits()) FSE_reloadDStream(&(seqState->DStream));
+        nbBits = offsetCode - 1;
+        if (offsetCode==0) nbBits = 0;   /* cmove */
+        offset = ((size_t)1 << nbBits) + FSE_readBits(&(seqState->DStream), nbBits);
+        if (ZSTD_32bits()) FSE_reloadDStream(&(seqState->DStream));
+        if (offsetCode==0) offset = prevOffset;
+    }
+
+    /* MatchLength */
+    matchLength = FSE_decodeSymbol(&(seqState->stateML), &(seqState->DStream));
+    if (matchLength == MaxML)
+    {
+        U32 add = *dumps++;
+        if (add < 255) matchLength += add;
+        else
+        {
+            matchLength = ZSTD_readLE32(dumps) & 0xFFFFFF;   /* no pb : dumps is always followed by seq tables > 1 byte */
+            dumps += 3;
+        }
+    }
+    matchLength += MINMATCH;
+
+    /* save result */
+    seqState->seq.litLength = litLength;
+    seqState->seq.offset = offset;
+    seqState->seq.matchLength = matchLength;
+    seqState->dumps = dumps;
+}
+
+
+static size_t ZSTD_execSequence(BYTE* op, seq_t sequence, const BYTE** litPtr, BYTE* const oend)
+{
+    static const int dec32table[] = {4, 1, 2, 1, 4, 4, 4, 4};   /* added */
+    static const int dec64table[] = {8, 8, 8, 7, 8, 9,10,11};   /* substracted */
+    const BYTE* const ostart = op;
+
+    /* copy Literals */
+    const BYTE* const litEnd = *litPtr + sequence.litLength;     /* possible overflow at op + litLength ? */
+    if (((size_t)(*litPtr - op) < 8) || ((size_t)(oend-litEnd) < 8))
+        memmove(op, *litPtr, sequence.litLength);   /* overwrite risk */
+    else
+        ZSTD_wildcopy(op, *litPtr, sequence.litLength);
+    op += sequence.litLength;
+    *litPtr = litEnd;
+
+    /* copy Match */
+    {
+        const BYTE* match = op - sequence.offset;            /* possible underflow at op - offset ? */
+        BYTE* const endMatch = op + sequence.matchLength;    /* possible overflow at op + matchLength ? */
+        size_t qutt=12;
+        U64 saved[2];
+        const U32 overlapRisk = (((size_t)(litEnd - endMatch)) < 12);
+
+        /* save beginning of literal sequence, in case of write overlap */
+        if (overlapRisk)
+        {
+            if ((endMatch + qutt) > oend) qutt = oend-endMatch;
+            memcpy(saved, endMatch, qutt);
+        }
+
+        if (sequence.offset < 8)
+        {
+            const int dec64 = dec64table[sequence.offset];
+            op[0] = match[0];
+            op[1] = match[1];
+            op[2] = match[2];
+            op[3] = match[3];
+            match += dec32table[sequence.offset];
+            ZSTD_copy4(op+4, match);
+            match -= dec64;
+        } else { ZSTD_copy8(op, match); }
+
+        if (endMatch > oend-12)
+        {
+            if (op < oend-16)
+            {
+                ZSTD_wildcopy(op+8, match+8, (oend-8) - (op+8));
+                match += (oend-8) - op;
+                op = oend-8;
+            }
+            while (op<endMatch) *op++ = *match++;
+        }
+        else
+            ZSTD_wildcopy(op+8, match+8, sequence.matchLength-8);   /* works even if matchLength < 8 */
+
+        op = endMatch;
+
+        /* restore, in case of overlap */
+        if (overlapRisk) memcpy(endMatch, saved, qutt);
+    }
+
+    return op-ostart;
+}
+
+
+static size_t ZSTD_decompressSequences(
+                               void* ctx,
+                               void* dst, size_t maxDstSize,
+                         const void* seqStart, size_t seqSize,
+                         const BYTE* litStart, size_t litSize)
+{
+    const BYTE* ip = (const BYTE*)seqStart;
+    const BYTE* const iend = ip + seqSize;
+    BYTE* const ostart = (BYTE* const)dst;
+    BYTE* op = ostart;
+    BYTE* const oend = ostart + maxDstSize;
+    size_t errorCode;
+    const BYTE* litPtr = litStart;
+    const BYTE* const litEnd = litStart + litSize;
+    int nbSeq;
+    const BYTE* dumps;
+    FSE_DTable* DTableML = (FSE_DTable*)ctx;
+    FSE_DTable* DTableLL = DTableML + FSE_DTABLE_SIZE_U32(MLFSELog);
+    FSE_DTable* DTableOffb = DTableLL + FSE_DTABLE_SIZE_U32(LLFSELog);
+
+    /* Build Decoding Tables */
+    errorCode = ZSTD_decodeSeqHeaders(&nbSeq, &dumps,
+                                      DTableLL, DTableML, DTableOffb,
+                                      ip, iend-ip);
+    if (ZSTD_isError(errorCode)) return errorCode;
+    ip += errorCode;
+
+    /* Regen sequences */
+    {
+        seqState_t seqState;
+
+        memset(&seqState, 0, sizeof(seqState));
+        seqState.dumps = dumps;
+        FSE_initDStream(&(seqState.DStream), ip, iend-ip);
+        FSE_initDState(&(seqState.stateLL), &(seqState.DStream), DTableLL);
+        FSE_initDState(&(seqState.stateOffb), &(seqState.DStream), DTableOffb);
+        FSE_initDState(&(seqState.stateML), &(seqState.DStream), DTableML);
+
+        for ( ; (FSE_reloadDStream(&(seqState.DStream)) < FSE_DStream_completed) || (nbSeq>0) ; )
+        {
+            nbSeq--;
+            ZSTD_decodeSequence(&seqState);
+            op += ZSTD_execSequence(op, seqState.seq, &litPtr, oend);
+        }
+
+        /* check if reached exact end */
+        if (FSE_reloadDStream(&(seqState.DStream)) > FSE_DStream_completed) return (size_t)-ZSTD_ERROR_corruption;   /* requested too much : data is corrupted */
+        if (nbSeq<0) return (size_t)-ZSTD_ERROR_corruption;   /* requested too many sequences : data is corrupted */
+
+        /* last literal segment */
+        {
+            size_t lastLLSize = litEnd - litPtr;
+            if (op != litPtr) memmove(op, litPtr, lastLLSize);
+            op += lastLLSize;
+        }
+    }
+
+    return op-ostart;
+}
+
+
+static size_t ZSTD_decompressBlock(
+                            void* ctx,
+                            void* dst, size_t maxDstSize,
+                      const void* src, size_t srcSize)
+{
+    /* blockType == blockCompressed, srcSize is trusted */
+    const BYTE* ip = (const BYTE*)src;
+    const BYTE* litPtr;
+    size_t litSize;
+    size_t errorCode;
+
+    /* Decode literals sub-block */
+    errorCode = ZSTD_decodeLiteralsBlock(ctx, dst, maxDstSize, &litPtr, &litSize, src, srcSize);
+    if (ZSTD_isError(errorCode)) return errorCode;
+    ip += errorCode;
+    srcSize -= errorCode;
+
+    return ZSTD_decompressSequences(ctx, dst, maxDstSize, ip, srcSize, litPtr, litSize);
+}
+
+
+#if 0
 FORCE_INLINE size_t ZSTD_decompressBlock(void* ctx, void* dst, size_t maxDstSize,
                              const void* src, size_t srcSize)
 {
@@ -1349,7 +1575,7 @@ FORCE_INLINE size_t ZSTD_decompressBlock(void* ctx, void* dst, size_t maxDstSize
         litEnd = ip - lastLLSize;
     ip += errorCode;
 
-    /* LZ decompression */
+    /* LZ Sequences */
     {
         FSE_DStream_t DStream;
         FSE_DState_t stateLL, stateOffb, stateML;
@@ -1476,6 +1702,7 @@ _another_round:
 
     return op-ostart;
 }
+#endif
 
 
 static size_t ZSTD_decompressDCtx(void* ctx, void* dst, size_t maxDstSize, const void* src, size_t srcSize)
@@ -1490,12 +1717,13 @@ static size_t ZSTD_decompressDCtx(void* ctx, void* dst, size_t maxDstSize, const
     size_t errorCode=0;
     blockProperties_t blockProperties;
 
-    /* Header */
-    if (srcSize < ZSTD_frameHeaderSize) return (size_t)-ZSTD_ERROR_wrongSrcSize;
+    /* Frame Header */
+    if (srcSize < ZSTD_frameHeaderSize) return (size_t)-ZSTD_ERROR_SrcSize;
     magicNumber = ZSTD_readBE32(src);
-    if (magicNumber != ZSTD_magicNumber) return (size_t)-ZSTD_ERROR_wrongMagicNumber;
+    if (magicNumber != ZSTD_magicNumber) return (size_t)-ZSTD_ERROR_MagicNumber;
     ip += ZSTD_frameHeaderSize; remainingSize -= ZSTD_frameHeaderSize;
 
+    /* Loop on each block */
     while (1)
     {
         size_t blockSize = ZSTD_getcBlockSize(ip, iend-ip, &blockProperties);
@@ -1504,8 +1732,7 @@ static size_t ZSTD_decompressDCtx(void* ctx, void* dst, size_t maxDstSize, const
 
         ip += ZSTD_blockHeaderSize;
         remainingSize -= ZSTD_blockHeaderSize;
-        if (blockSize > remainingSize)
-            return (size_t)-ZSTD_ERROR_wrongSrcSize;
+        if (blockSize > remainingSize) return (size_t)-ZSTD_ERROR_SrcSize;
 
         switch(blockProperties.blockType)
         {
@@ -1520,7 +1747,7 @@ static size_t ZSTD_decompressDCtx(void* ctx, void* dst, size_t maxDstSize, const
             break;
         case bt_end :
             /* end of frame */
-            if (remainingSize) return (size_t)-ZSTD_ERROR_wrongSrcSize;
+            if (remainingSize) return (size_t)-ZSTD_ERROR_SrcSize;
             break;
         default:
             return (size_t)-ZSTD_ERROR_GENERIC;
@@ -1583,14 +1810,14 @@ size_t ZSTD_decompressContinue(ZSTD_Dctx* dctx, void* dst, size_t maxDstSize, co
     dctx_t* ctx = (dctx_t*)dctx;
 
     /* Sanity check */
-    if (srcSize != ctx->expected) return (size_t)-ZSTD_ERROR_wrongSrcSize;
+    if (srcSize != ctx->expected) return (size_t)-ZSTD_ERROR_SrcSize;
 
     /* Decompress : frame header */
     if (ctx->phase == 0)
     {
         /* Check frame magic header */
         U32 magicNumber = ZSTD_readBE32(src);
-        if (magicNumber != ZSTD_magicNumber) return (size_t)-ZSTD_ERROR_wrongMagicNumber;
+        if (magicNumber != ZSTD_magicNumber) return (size_t)-ZSTD_ERROR_MagicNumber;
         ctx->phase = 1;
         ctx->expected = ZSTD_blockHeaderSize;
         return 0;

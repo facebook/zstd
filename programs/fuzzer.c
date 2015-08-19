@@ -259,7 +259,6 @@ static int basicUnitTests(U32 seed, double compressibility)
     ((char*)(CNBuffer))[0] = 1;
     result = ZSTD_decompress(decodedBuffer, COMPRESSIBLE_NOISE_LENGTH, CNBuffer, 4);
     if (!ZSTD_isError(result)) goto _output_error;
-    if (result != (size_t)-ZSTD_ERROR_MagicNumber) goto _output_error;
     DISPLAYLEVEL(4, "OK \n");
 
     /* long rle test */
@@ -334,11 +333,11 @@ int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compressibilit
     FUZ_generateSynthetic(srcBuffer, srcBufferSize, compressibility, &coreSeed);
 
     /* catch up testNb */
-    for (testNb=1; testNb <= startTest; testNb++)
+    for (testNb=1; testNb < startTest; testNb++)
         FUZ_rand(&coreSeed);
 
     /* test loop */
-    for (testNb=startTest; testNb <= nbTests; testNb++)
+    for ( ; testNb <= nbTests; testNb++ )
     {
         size_t sampleSize, sampleStart;
         size_t cSize, dSize, dSupSize;
@@ -359,7 +358,7 @@ int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compressibilit
         cSize = ZSTD_compress(cBuffer, cBufferSize, srcBuffer + sampleStart, sampleSize);
         CHECK(ZSTD_isError(cSize), "ZSTD_compress failed");
 
-        /* compression failure test */
+        /* compression failure test : too small dest buffer */
         {
             size_t errorCode;
             const size_t missing = (FUZ_rand(&lseed) % (cSize-2)) + 1;   /* no problem, as cSize > 4 (frameHeaderSizer) */
@@ -371,12 +370,38 @@ int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compressibilit
             free(dBufferTooSmall);
         }
 
-        /* decompression tests*/
+        /* successfull decompression tests*/
         dSupSize = (FUZ_rand(&lseed) & 1) ? 0 : (FUZ_rand(&lseed) & 31) + 1;
         dSize = ZSTD_decompress(dstBuffer, sampleSize + dSupSize, cBuffer, cSize);
         CHECK(dSize != sampleSize, "ZSTD_decompress failed (%s)", ZSTD_getErrorName(dSize));
         crcDest = XXH64(dstBuffer, sampleSize, 0);
         CHECK(crcOrig != crcDest, "dstBuffer corrupted (pos %u / %u)", (U32)findDiff(srcBuffer+sampleStart, dstBuffer, sampleSize), (U32)sampleSize);
+
+        /* truncated src decompression test */
+        {
+            size_t errorCode;
+            const size_t missing = (FUZ_rand(&lseed) % (cSize-2)) + 1;   /* no problem, as cSize > 4 (frameHeaderSizer) */
+            const size_t tooSmallSize = cSize - missing;
+            void* cBufferTooSmall = malloc(tooSmallSize);   /* valgrind will catch overflows */
+            memcpy(cBufferTooSmall, cBuffer, tooSmallSize);
+            CHECK(cBufferTooSmall == NULL, "not enough memory !");
+            errorCode = ZSTD_decompress(dstBuffer, dstBufferSize, cBufferTooSmall, tooSmallSize);
+            CHECK(!ZSTD_isError(errorCode), "ZSTD_decompress should have failed ! (truncated src buffer)");
+            free(cBufferTooSmall);
+        }
+
+        /* too small dst decompression test */
+        if (sampleSize > 3)
+        {
+            size_t errorCode;
+            const size_t missing = (FUZ_rand(&lseed) % (sampleSize-2)) + 1;   /* no problem, as cSize > 4 (frameHeaderSizer) */
+            const size_t tooSmallSize = sampleSize - missing;
+            static const BYTE token = 0xA9;
+            dstBuffer[tooSmallSize] = token;
+            errorCode = ZSTD_decompress(dstBuffer, tooSmallSize, cBuffer, cSize);
+            CHECK(!ZSTD_isError(errorCode), "ZSTD_decompress should have failed : %u > %u (dst buffer too small)", (U32)errorCode, (U32)tooSmallSize);
+            CHECK(dstBuffer[tooSmallSize] != token, "ZSTD_decompress : dst buffer overflow");
+        }
     }
     DISPLAY("\rAll fuzzer tests completed   \n");
 

@@ -127,6 +127,29 @@ typedef   signed long long  S64;
 /****************************************************************
 *  Memory I/O
 *****************************************************************/
+/* FSE_FORCE_MEMORY_ACCESS
+ * By default, access to unaligned memory is controlled by `memcpy()`, which is safe and portable.
+ * Unfortunately, on some target/compiler combinations, the generated assembly is sub-optimal.
+ * The below switch allow to select different access method for improved performance.
+ * Method 0 (default) : use `memcpy()`. Safe and portable.
+ * Method 1 : `__packed` statement. It depends on compiler extension (ie, not portable).
+ *            This method is safe if your compiler supports it, and *generally* as fast or faster than `memcpy`.
+ * Method 2 : direct access. This method is portable but violate C standard.
+ *            It can generate buggy code on targets which generate assembly depending on alignment.
+ *            But in some circumstances, it's the only known way to get the most performance (ie GCC + ARMv6)
+ * See http://fastcompression.blogspot.fr/2015/08/accessing-unaligned-memory.html for details.
+ * Prefer these methods in priority order (0 > 1 > 2)
+ */
+#ifndef FSE_FORCE_MEMORY_ACCESS   /* can be defined externally, on command line for example */
+#  if defined(__GNUC__) && ( defined(__ARM_ARCH_6__) || defined(__ARM_ARCH_6J__) || defined(__ARM_ARCH_6K__) || defined(__ARM_ARCH_6Z__) || defined(__ARM_ARCH_6ZK__) || defined(__ARM_ARCH_6T2__) )
+#    define FSE_FORCE_MEMORY_ACCESS 2
+#  elif defined(__INTEL_COMPILER) || \
+  (defined(__GNUC__) && ( defined(__ARM_ARCH_7__) || defined(__ARM_ARCH_7A__) || defined(__ARM_ARCH_7R__) || defined(__ARM_ARCH_7M__) || defined(__ARM_ARCH_7S__) ))
+#    define FSE_FORCE_MEMORY_ACCESS 1
+#  endif
+#endif
+
+
 static unsigned FSE_32bits(void)
 {
     return sizeof(void*)==4;
@@ -138,12 +161,63 @@ static unsigned FSE_isLittleEndian(void)
     return one.c[0];
 }
 
+#if defined(FSE_FORCE_MEMORY_ACCESS) && (FSE_FORCE_MEMORY_ACCESS==2)
+
+static U16 FSE_read16(const void* memPtr) { return *(const U16*) memPtr; }
+static U32 FSE_read32(const void* memPtr) { return *(const U32*) memPtr; }
+static U64 FSE_read64(const void* memPtr) { return *(const U64*) memPtr; }
+
+static void FSE_write16(void* memPtr, U16 value) { *(U16*)memPtr = value; }
+static void FSE_write32(void* memPtr, U32 value) { *(U32*)memPtr = value; }
+static void FSE_write64(void* memPtr, U64 value) { *(U64*)memPtr = value; }
+
+#elif defined(FSE_FORCE_MEMORY_ACCESS) && (FSE_FORCE_MEMORY_ACCESS==1)
+
+/* __pack instructions are safer, but compiler specific, hence potentially problematic for some compilers */
+/* currently only defined for gcc and icc */
+typedef union { U16 u16; U32 u32; U64 u64; } __attribute__((packed)) unalign;
+
+static U16 FSE_read16(const void* ptr) { return ((const unalign*)ptr)->u16; }
+static U32 FSE_read32(const void* ptr) { return ((const unalign*)ptr)->u32; }
+static U64 FSE_read64(const void* ptr) { return ((const unalign*)ptr)->u64; }
+
+static void FSE_write16(void* memPtr, U16 value) { ((unalign*)memPtr)->u16 = value; }
+static void FSE_write32(void* memPtr, U32 value) { ((unalign*)memPtr)->u32 = value; }
+static void FSE_write64(void* memPtr, U64 value) { ((unalign*)memPtr)->u64 = value; }
+
+#else
+
 static U16 FSE_read16(const void* memPtr)
 {
-    U16 val;
-    memcpy(&val, memPtr, sizeof(val));
-    return val;
+    U16 val; memcpy(&val, memPtr, sizeof(val)); return val;
 }
+
+static U32 FSE_read32(const void* memPtr)
+{
+    U32 val; memcpy(&val, memPtr, sizeof(val)); return val;
+}
+
+static U64 FSE_read64(const void* memPtr)
+{
+    U64 val; memcpy(&val, memPtr, sizeof(val)); return val;
+}
+
+static void FSE_write16(void* memPtr, U16 value)
+{
+    memcpy(memPtr, &value, sizeof(value));
+}
+
+static void FSE_write32(void* memPtr, U32 value)
+{
+    memcpy(memPtr, &value, sizeof(value));
+}
+
+static void FSE_write64(void* memPtr, U64 value)
+{
+    memcpy(memPtr, &value, sizeof(value));
+}
+
+#endif // FSE_FORCE_MEMORY_ACCESS
 
 static U16 FSE_readLE16(const void* memPtr)
 {
@@ -160,7 +234,7 @@ static void FSE_writeLE16(void* memPtr, U16 val)
 {
     if (FSE_isLittleEndian())
     {
-        memcpy(memPtr, &val, sizeof(val));
+        FSE_write16(memPtr, val);
     }
     else
     {
@@ -168,13 +242,6 @@ static void FSE_writeLE16(void* memPtr, U16 val)
         p[0] = (BYTE)val;
         p[1] = (BYTE)(val>>8);
     }
-}
-
-static U32 FSE_read32(const void* memPtr)
-{
-    U32 val32;
-    memcpy(&val32, memPtr, 4);
-    return val32;
 }
 
 static U32 FSE_readLE32(const void* memPtr)
@@ -192,7 +259,7 @@ static void FSE_writeLE32(void* memPtr, U32 val32)
 {
     if (FSE_isLittleEndian())
     {
-        memcpy(memPtr, &val32, 4);
+        FSE_write32(memPtr, val32);
     }
     else
     {
@@ -202,13 +269,6 @@ static void FSE_writeLE32(void* memPtr, U32 val32)
         p[2] = (BYTE)(val32>>16);
         p[3] = (BYTE)(val32>>24);
     }
-}
-
-static U64 FSE_read64(const void* memPtr)
-{
-    U64 val64;
-    memcpy(&val64, memPtr, 8);
-    return val64;
 }
 
 static U64 FSE_readLE64(const void* memPtr)
@@ -227,7 +287,7 @@ static void FSE_writeLE64(void* memPtr, U64 val64)
 {
     if (FSE_isLittleEndian())
     {
-        memcpy(memPtr, &val64, 8);
+        FSE_write64(memPtr, val64);
     }
     else
     {
@@ -643,13 +703,13 @@ static short FSE_abs(short a)
 ****************************************************************/
 size_t FSE_NCountWriteBound(unsigned maxSymbolValue, unsigned tableLog)
 {
-    size_t maxHeaderSize = (((maxSymbolValue+1) * tableLog) >> 3) + 1;
-    return maxSymbolValue ? maxHeaderSize : FSE_NCOUNTBOUND;
+    size_t maxHeaderSize = (((maxSymbolValue+1) * tableLog) >> 3) + 1 + 1;   /* last +1 : written by U16 */
+    return maxSymbolValue ? maxHeaderSize : FSE_NCOUNTBOUND;  /* maxSymbolValue==0 ? use default */
 }
 
 static size_t FSE_writeNCount_generic (void* header, size_t headerBufferSize,
                                        const short* normalizedCounter, unsigned maxSymbolValue, unsigned tableLog,
-                                       unsigned safeWrite)
+                                       unsigned writeIsSafe)
 {
     BYTE* const ostart = (BYTE*) header;
     BYTE* out = ostart;
@@ -684,7 +744,7 @@ static size_t FSE_writeNCount_generic (void* header, size_t headerBufferSize,
             {
                 start+=24;
                 bitStream += 0xFFFFU << bitCount;
-                if ((!safeWrite) && (out > oend-2)) return (size_t)-FSE_ERROR_dstSize_tooSmall;   /* Buffer overflow */
+                if ((!writeIsSafe) && (out > oend-2)) return (size_t)-FSE_ERROR_dstSize_tooSmall;   /* Buffer overflow */
                 out[0] = (BYTE) bitStream;
                 out[1] = (BYTE)(bitStream>>8);
                 out+=2;
@@ -700,7 +760,7 @@ static size_t FSE_writeNCount_generic (void* header, size_t headerBufferSize,
             bitCount += 2;
             if (bitCount>16)
             {
-                if ((!safeWrite) && (out > oend - 2)) return (size_t)-FSE_ERROR_dstSize_tooSmall;   /* Buffer overflow */
+                if ((!writeIsSafe) && (out > oend - 2)) return (size_t)-FSE_ERROR_dstSize_tooSmall;   /* Buffer overflow */
                 out[0] = (BYTE)bitStream;
                 out[1] = (BYTE)(bitStream>>8);
                 out += 2;
@@ -723,7 +783,7 @@ static size_t FSE_writeNCount_generic (void* header, size_t headerBufferSize,
         }
         if (bitCount>16)
         {
-            if ((!safeWrite) && (out > oend - 2)) return (size_t)-FSE_ERROR_dstSize_tooSmall;   /* Buffer overflow */
+            if ((!writeIsSafe) && (out > oend - 2)) return (size_t)-FSE_ERROR_dstSize_tooSmall;   /* Buffer overflow */
             out[0] = (BYTE)bitStream;
             out[1] = (BYTE)(bitStream>>8);
             out += 2;
@@ -733,7 +793,7 @@ static size_t FSE_writeNCount_generic (void* header, size_t headerBufferSize,
     }
 
     /* flush remaining bitStream */
-    if ((!safeWrite) && (out > oend - 2)) return (size_t)-FSE_ERROR_dstSize_tooSmall;   /* Buffer overflow */
+    if ((!writeIsSafe) && (out > oend - 2)) return (size_t)-FSE_ERROR_dstSize_tooSmall;   /* Buffer overflow */
     out[0] = (BYTE)bitStream;
     out[1] = (BYTE)(bitStream>>8);
     out+= (bitCount+7) /8;
@@ -789,8 +849,16 @@ size_t FSE_readNCount (short* normalizedCounter, unsigned* maxSVPtr, unsigned* t
             while ((bitStream & 0xFFFF) == 0xFFFF)
             {
                 n0+=24;
-                ip+=2;
-                bitStream = FSE_readLE32(ip) >> bitCount;
+                if (ip < iend-5)
+                {
+                    ip+=2;
+                    bitStream = FSE_readLE32(ip) >> bitCount;
+                }
+                else
+                {
+                    bitStream >>= 16;
+                    bitCount+=16;
+                }
             }
             while ((bitStream & 3) == 3)
             {
@@ -802,9 +870,14 @@ size_t FSE_readNCount (short* normalizedCounter, unsigned* maxSVPtr, unsigned* t
             bitCount += 2;
             if (n0 > *maxSVPtr) return (size_t)-FSE_ERROR_maxSymbolValue_tooSmall;
             while (charnum < n0) normalizedCounter[charnum++] = 0;
-            ip += bitCount>>3;
-            bitCount &= 7;
-            bitStream = FSE_readLE32(ip) >> bitCount;
+            if ((ip <= iend-7) || (ip + (bitCount>>3) <= iend-4))
+            {
+                ip += bitCount>>3;
+                bitCount &= 7;
+                bitStream = FSE_readLE32(ip) >> bitCount;
+            }
+            else
+                bitStream >>= 2;
         }
         {
             const short max = (short)((2*threshold-1)-remaining);
@@ -833,16 +906,15 @@ size_t FSE_readNCount (short* normalizedCounter, unsigned* maxSVPtr, unsigned* t
             }
 
             {
-                const BYTE* itarget = ip + (bitCount>>3);
-                if (itarget > iend - 4)
+                if ((ip <= iend-7) || (ip + (bitCount>>3) <= iend-4))
                 {
-                    ip = iend - 4;
-                    bitCount -= (int)(8 * (iend - 4 - ip));
+                    ip += bitCount>>3;
+                    bitCount &= 7;
                 }
                 else
                 {
-                    ip = itarget;
-                    bitCount &= 7;
+                    ip = iend - 4;
+                    bitCount -= (int)(8 * (iend - 4 - ip));
                 }
                 bitStream = FSE_readLE32(ip) >> (bitCount & 31);
             }

@@ -2044,6 +2044,7 @@ size_t HUF_compress_usingCTable(void* dst, size_t dstSize, const void* src, size
     FSE_CStream_t bitC;
 
     /* init */
+	if (dstSize < 8) return 0;   /* need a minimum for jumpTable and first symbols */
     op += 6;   /* jump Table -- could be optimized by delta / deviation */
     errorCode = FSE_initCStream(&bitC, op, oend-op);
     if (FSE_isError(errorCode)) return 0;

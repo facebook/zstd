@@ -359,15 +359,18 @@ int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compressibilit
         CHECK(ZSTD_isError(cSize), "ZSTD_compress failed");
 
         /* compression failure test : too small dest buffer */
+         if (cSize > 3)
         {
             size_t errorCode;
             const size_t missing = (FUZ_rand(&lseed) % (cSize-2)) + 1;   /* no problem, as cSize > 4 (frameHeaderSizer) */
             const size_t tooSmallSize = cSize - missing;
-            void* dBufferTooSmall = malloc(tooSmallSize);   /* valgrind will catch overflows */
-            CHECK(dBufferTooSmall == NULL, "not enough memory !");
-            errorCode = ZSTD_compress(dBufferTooSmall, tooSmallSize, srcBuffer + sampleStart, sampleSize);
+            static const U32 endMark = 0x4DC2B1A9;
+            U32 endCheck;
+            memcpy(dstBuffer+tooSmallSize, &endMark, 4);
+            errorCode = ZSTD_compress(dstBuffer, tooSmallSize, srcBuffer + sampleStart, sampleSize);
             CHECK(!ZSTD_isError(errorCode), "ZSTD_compress should have failed ! (buffer too small)");
-            free(dBufferTooSmall);
+            memcpy(&endCheck, dstBuffer+tooSmallSize, 4);
+            CHECK(endCheck != endMark, "ZSTD_compress : dst buffer overflow");
         }
 
         /* successfull decompression tests*/

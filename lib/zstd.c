@@ -1405,7 +1405,7 @@ static size_t ZSTD_execSequence(BYTE* op, seq_t sequence, const BYTE** litPtr, B
     static const int dec32table[] = {4, 1, 2, 1, 4, 4, 4, 4};   /* added */
     static const int dec64table[] = {8, 8, 8, 7, 8, 9,10,11};   /* substracted */
     const BYTE* const ostart = op;
-    size_t litLength = sequence.litLength;
+    const size_t litLength = sequence.litLength;
     BYTE* const endMatch = op + litLength + sequence.matchLength;    /* risk : address space overflow (32-bits) */
     const BYTE* const litEnd = *litPtr + litLength;
 
@@ -1418,14 +1418,17 @@ static size_t ZSTD_execSequence(BYTE* op, seq_t sequence, const BYTE** litPtr, B
     else
         ZSTD_wildcopy(op, *litPtr, litLength);
     op += litLength;
-    *litPtr = litEnd;
+    *litPtr = litEnd;   /* update for next sequence */
 
-    /* copy Match */
+    /* check : last match must be at a minimum distance of 8 from end of dest buffer */
+	if (oend-op < 8) return (size_t)-ZSTD_ERROR_maxDstSize_tooSmall;
+
+	/* copy Match */
     {
-        const BYTE* match = op - sequence.offset;            /* possible underflow at op - offset ? */
-        size_t qutt=12;
-        U64 saved[2];
         const U32 overlapRisk = (((size_t)(litEnd - endMatch)) < 12);
+        const BYTE* match = op - sequence.offset;            /* possible underflow at op - offset ? */
+        size_t qutt = 12;
+        U64 saved[2];
 
         /* save beginning of literal sequence, in case of write overlap */
         if (overlapRisk)
@@ -1445,27 +1448,26 @@ static size_t ZSTD_execSequence(BYTE* op, seq_t sequence, const BYTE** litPtr, B
             ZSTD_copy4(op+4, match);
             match -= dec64;
         } else { ZSTD_copy8(op, match); }
+		op += 8; match += 8;
 
         if (endMatch > oend-12)
         {
-            if (op < oend-16)
+            if (op < oend-8)
             {
-                ZSTD_wildcopy(op+8, match+8, (oend-8) - (op+8));
+                ZSTD_wildcopy(op, match, (oend-8) - op);
                 match += (oend-8) - op;
                 op = oend-8;
             }
             while (op<endMatch) *op++ = *match++;
         }
         else
-            ZSTD_wildcopy(op+8, match+8, sequence.matchLength-8);   /* works even if matchLength < 8 */
-
-        op = endMatch;
+            ZSTD_wildcopy(op, match, sequence.matchLength-8);   /* works even if matchLength < 8 */
 
         /* restore, in case of overlap */
         if (overlapRisk) memcpy(endMatch, saved, qutt);
     }
 
-    return op-ostart;
+    return endMatch-ostart;
 }
 
 

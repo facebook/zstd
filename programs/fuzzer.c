@@ -177,8 +177,7 @@ static void FUZ_generateSynthetic(void* buffer, size_t bufferSize, double proba,
 }
 
 
-/*
-static unsigned FUZ_highbit(U32 v32)
+static unsigned FUZ_highbit32(U32 v32)
 {
     unsigned nbBits = 0;
     if (v32==0) return 0;
@@ -189,7 +188,6 @@ static unsigned FUZ_highbit(U32 v32)
     }
     return nbBits;
 }
-*/
 
 
 static int basicUnitTests(U32 seed, double compressibility)
@@ -404,6 +402,50 @@ int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compressibilit
             errorCode = ZSTD_decompress(dstBuffer, tooSmallSize, cBuffer, cSize);
             CHECK(!ZSTD_isError(errorCode), "ZSTD_decompress should have failed : %u > %u (dst buffer too small)", (U32)errorCode, (U32)tooSmallSize);
             CHECK(dstBuffer[tooSmallSize] != token, "ZSTD_decompress : dst buffer overflow");
+        }
+
+        /* noisy src decompression test */
+        if (cSize > 6)
+        {
+            const U32 maxNbBits = FUZ_highbit32((U32)(cSize-4));
+            size_t pos = 4;   /* preserve magic number (too easy to detect) */
+            U32 nbBits = FUZ_rand(&lseed) % maxNbBits;
+            size_t mask = (1<<nbBits) - 1;
+            size_t skipLength = FUZ_rand(&lseed) & mask;
+            pos += skipLength;
+
+            while (pos < cSize)
+            {
+                /* add noise */
+                size_t noiseStart, noiseLength;
+                nbBits = FUZ_rand(&lseed) % maxNbBits;
+                if (nbBits>0) nbBits--;
+                mask = (1<<nbBits) - 1;
+                noiseLength = (FUZ_rand(&lseed) & mask) + 1;
+                noiseStart = FUZ_rand(&lseed) % (srcBufferSize - noiseLength);
+                memcpy(cBuffer + pos, srcBuffer + noiseStart, noiseLength);
+                pos += noiseLength;
+
+                /* keep some original src */
+                nbBits = FUZ_rand(&lseed) % maxNbBits;
+                mask = (1<<nbBits) - 1;
+                skipLength = FUZ_rand(&lseed) & mask;
+                pos += skipLength;
+            }
+
+            /* decompress noisy source */
+            {
+                const U32 endMark = 0xA9B1C3D6;
+                U32 endCheck;
+                size_t errorCode;
+                memcpy(dstBuffer+sampleSize, &endMark, 4);
+                errorCode = ZSTD_decompress(dstBuffer, sampleSize, cBuffer, cSize);
+                /* result *may* be an unlikely success, but even then, it must strictly respect dest buffer boundaries */
+                CHECK((!ZSTD_isError(errorCode)) && (errorCode>sampleSize),
+                      "ZSTD_decompress on noisy src : result is too large : %u > %u (dst buffer)", (U32)errorCode, (U32)sampleSize);
+                memcpy(&endCheck, dstBuffer+sampleSize, 4);
+                CHECK(endMark!=endCheck, "ZSTD_decompress on noisy src : dst buffer overflow");
+            }
         }
     }
     DISPLAY("\rAll fuzzer tests completed   \n");

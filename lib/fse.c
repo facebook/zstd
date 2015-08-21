@@ -703,7 +703,7 @@ static short FSE_abs(short a)
 ****************************************************************/
 size_t FSE_NCountWriteBound(unsigned maxSymbolValue, unsigned tableLog)
 {
-    size_t maxHeaderSize = (((maxSymbolValue+1) * tableLog) >> 3) + 3; 
+    size_t maxHeaderSize = (((maxSymbolValue+1) * tableLog) >> 3) + 3;
     return maxSymbolValue ? maxHeaderSize : FSE_NCOUNTBOUND;  /* maxSymbolValue==0 ? use default */
 }
 
@@ -964,14 +964,22 @@ void  FSE_freeCTable (FSE_CTable* ct)
 }
 
 
-unsigned FSE_optimalTableLog(unsigned maxTableLog, size_t srcSize, unsigned maxSymbolValue)
+/* provides the minimum logSize to safely represent a distribution */
+static unsigned FSE_minTableLog(size_t srcSize, unsigned maxSymbolValue)
 {
-    U32 tableLog = maxTableLog;
 	U32 minBitsSrc = FSE_highbit32((U32)(srcSize - 1)) + 1;
 	U32 minBitsSymbols = FSE_highbit32(maxSymbolValue) + 2;
 	U32 minBits = minBitsSrc < minBitsSymbols ? minBitsSrc : minBitsSymbols;
+	return minBits;
+}
+
+unsigned FSE_optimalTableLog(unsigned maxTableLog, size_t srcSize, unsigned maxSymbolValue)
+{
+	U32 maxBitsSrc = FSE_highbit32((U32)(srcSize - 1)) - 2;
+    U32 tableLog = maxTableLog;
+	U32 minBits = FSE_minTableLog(srcSize, maxSymbolValue);
     if (tableLog==0) tableLog = FSE_DEFAULT_TABLELOG;
-	if (minBitsSrc < tableLog + 3) tableLog = minBitsSrc-3;   /* Accuracy can be reduced */
+	if (maxBitsSrc < tableLog) tableLog = maxBitsSrc;   /* Accuracy can be reduced */
 	if (minBits > tableLog) tableLog = minBits;   /* Need a minimum to safely represent all symbol values */
     if (tableLog < FSE_MIN_TABLELOG) tableLog = FSE_MIN_TABLELOG;
     if (tableLog > FSE_MAX_TABLELOG) tableLog = FSE_MAX_TABLELOG;
@@ -1079,7 +1087,7 @@ size_t FSE_normalizeCount (short* normalizedCounter, unsigned tableLog,
     if (tableLog==0) tableLog = FSE_DEFAULT_TABLELOG;
     if (tableLog < FSE_MIN_TABLELOG) return (size_t)-FSE_ERROR_GENERIC;   /* Unsupported size */
     if (tableLog > FSE_MAX_TABLELOG) return (size_t)-FSE_ERROR_GENERIC;   /* Unsupported size */
-    //if ((1U<<tableLog) <= maxSymbolValue) return (size_t)-FSE_ERROR_GENERIC;   /* Too small tableLog, compression potentially impossible */
+    if (tableLog < FSE_minTableLog(total, maxSymbolValue)) return (size_t)-FSE_ERROR_GENERIC;   /* Too small tableLog, compression potentially impossible */
 
     {
         U32 const rtbTable[] = {     0, 473195, 504333, 520860, 550000, 700000, 750000, 830000 };

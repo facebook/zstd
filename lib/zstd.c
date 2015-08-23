@@ -1414,7 +1414,7 @@ static size_t ZSTD_execSequence(BYTE* op,
 								const BYTE** litPtr, const BYTE* const litLimit,
 								BYTE* const base, BYTE* const oend)
 {
-    static const int dec32table[] = {4, 1, 2, 1, 4, 4, 4, 4};   /* added */
+    static const int dec32table[] = {0, 1, 2, 1, 4, 4, 4, 4};   /* added */
     static const int dec64table[] = {8, 8, 8, 7, 8, 9,10,11};   /* substracted */
     const BYTE* const ostart = op;
     const size_t litLength = sequence.litLength;
@@ -1422,8 +1422,9 @@ static size_t ZSTD_execSequence(BYTE* op,
     const BYTE* const litEnd = *litPtr + litLength;
 
     /* check */
-    if (endMatch > oend) return (size_t)-ZSTD_ERROR_maxDstSize_tooSmall;
+    if (endMatch > oend) return (size_t)-ZSTD_ERROR_maxDstSize_tooSmall;   /* overwrite beyond dst buffer */
 	if (litEnd > litLimit) return (size_t)-ZSTD_ERROR_corruption;
+    if (sequence.matchLength > (size_t)(*litPtr-op))  return (size_t)-ZSTD_ERROR_maxDstSize_tooSmall;    /* overwrite literal segment */
 
     /* copy Literals */
     if (((size_t)(*litPtr - op) < 8) || ((size_t)(oend-litEnd) < 8) || (op+litLength > oend-8))
@@ -1536,7 +1537,9 @@ static size_t ZSTD_decompressSequences(
 
         memset(&sequence, 0, sizeof(sequence));
         seqState.dumps = dumps;
-        FSE_initDStream(&(seqState.DStream), ip, iend-ip);
+        seqState.prevOffset = 1;
+        errorCode = FSE_initDStream(&(seqState.DStream), ip, iend-ip);
+        if (FSE_isError(errorCode)) return (size_t)-ZSTD_ERROR_corruption;
         FSE_initDState(&(seqState.stateLL), &(seqState.DStream), DTableLL);
         FSE_initDState(&(seqState.stateOffb), &(seqState.DStream), DTableOffb);
         FSE_initDState(&(seqState.stateML), &(seqState.DStream), DTableML);

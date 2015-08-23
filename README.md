@@ -1,4 +1,4 @@
- **Zstd**, short for Zstandard, is a new lossless compression algorithm, which provides both good compression ratio _and_ speed for your standard compression needs. "Standard" translates into everyday situations which neither look for highest possible ratio nor extreme speeds.s
+ **Zstd**, short for Zstandard, is a new lossless compression algorithm, which provides both good compression ratio _and_ speed for your standard compression needs. "Standard" translates into everyday situations which neither look for highest possible ratio nor extreme speed.
 
 It is provided as a BSD-license package, hosted on Github.
 
@@ -40,7 +40,7 @@ It's a complex area which will require time and benefit from contributions.
 
 Another property zstd is developed for is configurable memory requirement, with the objective to fit into low-memory configurations, or servers handling many connections in parallel.
 
-Zstd entropy stage is provided by [Huff0 and FSE, of Finite State Entrop library](https://github.com/Cyan4973/FiniteStateEntropy).
+Zstd entropy stage is provided by [Huff0 and FSE, from Finite State Entrop library](https://github.com/Cyan4973/FiniteStateEntropy).
 
 Zstd is still considered experimental at this stage. Specifically, it doesn't guarantee yet that its current stream/file format will remain supported in future versions of the library. Therefore, only use Zstd in environments where you can control the availability of the decompression library. "Stable" status, including official documented format format and long-term support commitment, is projected sometimes early 2016.
 

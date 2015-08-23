@@ -153,7 +153,7 @@ void RDG_genBlock(void* buffer, size_t buffSize, size_t prefixSize, double match
         memset(buffPtr+pos, 0, size0);
         pos += size0;
         buffPtr[pos-1] = RDG_genChar(seed, lt);
-        return;
+        continue;
     }
 
     /* init */
@@ -200,7 +200,7 @@ void RDG_genBuffer(void* buffer, size_t size, double matchProba, double litProba
 
 #define RDG_DICTSIZE  (32 KB)
 #define RDG_BLOCKSIZE (128 KB)
-void RDG_genOut(unsigned long long size, double matchProba, double litProba, unsigned seed)
+void RDG_genStdout(unsigned long long size, double matchProba, double litProba, unsigned seed)
 {
     BYTE* buff = (BYTE*)malloc(RDG_DICTSIZE + RDG_BLOCKSIZE);
     U64 total = 0;

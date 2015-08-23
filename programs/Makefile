@@ -73,10 +73,10 @@ fullbench  : $(ZSTDDIR)/zstd.c datagen.c fullbench.c
 fullbench32: $(ZSTDDIR)/zstd.c datagen.c fullbench.c
 	$(CC) -m32 $(FLAGS) $^ -o $@$(EXT)
 
-fuzzer  : $(ZSTDDIR)/zstd.c xxhash.c fuzzer.c
+fuzzer  : $(ZSTDDIR)/zstd.c datagen.c xxhash.c fuzzer.c
 	$(CC)      $(FLAGS) $^ -o $@$(EXT)
 
-fuzzer32: $(ZSTDDIR)/zstd.c xxhash.c fuzzer.c
+fuzzer32: $(ZSTDDIR)/zstd.c datagen.c xxhash.c fuzzer.c
 	$(CC) -m32 $(FLAGS) $^ -o $@$(EXT)
 
 datagen : datagen.c datagencli.c

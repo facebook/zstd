@@ -26,15 +26,15 @@
 
 #include <stddef.h>   /* size_t */
 
-void RDG_genOut(unsigned long long size, double matchProba, double litProba, unsigned seed);
+void RDG_genStdout(unsigned long long size, double matchProba, double litProba, unsigned seed);
 void RDG_genBuffer(void* buffer, size_t size, double matchProba, double litProba, unsigned seed);
 /* RDG_genBuffer
    Generate 'size' bytes of compressible data into 'buffer'.
-   Compressibility can be controlled using 'matchProba'.
-   'LitProba' is optional, and affect variability of individual bytes. If litProba==0.0, default value is used.
+   Compressibility can be controlled using 'matchProba', which is floating point value between 0 and 1.
+   'LitProba' is optional, it affect variability of individual bytes. If litProba==0.0, default value will be used.
    Generated data pattern can be modified using different 'seed'.
-   If (matchProba, litProba and seed) are equal, the function always generate the same content.
+   For a triplet (matchProba, litProba, seed), the function always generate the same content.
 
-   RDG_genOut
-   Same as RDG_genBuffer, but generate data towards stdout
+   RDG_genStdout
+   Same as RDG_genBuffer, but generates data into stdout
 */

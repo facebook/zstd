@@ -161,6 +161,7 @@
   <ItemGroup>
     <ClCompile Include="..\..\..\lib\fse.c" />
     <ClCompile Include="..\..\..\lib\zstd.c" />
+    <ClCompile Include="..\..\..\programs\datagen.c" />
     <ClCompile Include="..\..\..\programs\fuzzer.c" />
     <ClCompile Include="..\..\..\programs\xxhash.c" />
   </ItemGroup>
@@ -169,6 +170,7 @@
     <ClInclude Include="..\..\..\lib\fse_static.h" />
     <ClInclude Include="..\..\..\lib\zstd.h" />
     <ClInclude Include="..\..\..\lib\zstd_static.h" />
+    <ClInclude Include="..\..\..\programs\datagen.h" />
     <ClInclude Include="..\..\..\programs\xxhash.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

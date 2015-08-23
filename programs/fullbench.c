@@ -229,9 +229,7 @@ typedef struct
 static size_t g_cSize = 0;
 
 extern size_t ZSTD_getcBlockSize(const void* src, size_t srcSize, blockProperties_t* bpPtr);
-extern size_t ZSTD_decodeLiteralsBlock(void* ctx, void* dst, size_t maxDstSize, const BYTE** litPtr, const void* src, size_t srcSize);
-extern size_t ZSTD_decodeSeqHeaders(size_t* lastLLPtr, const BYTE** dumpsPtr, FSE_DTable* DTableLL, FSE_DTable* DTableML, FSE_DTable* DTableOffb, const void* src, size_t srcSize);
-
+extern size_t ZSTD_decodeSeqHeaders(int* nbSeq, const BYTE** dumpsPtr, FSE_DTable* DTableLL, FSE_DTable* DTableML, FSE_DTable* DTableOffb, const void* src, size_t srcSize);
 
 size_t local_ZSTD_compress(void* dst, size_t dstSize, void* buff2, const void* src, size_t srcSize)
 {
@@ -245,12 +243,14 @@ size_t local_ZSTD_decompress(void* dst, size_t dstSize, void* buff2, const void*
     return ZSTD_decompress(dst, dstSize, buff2, g_cSize);
 }
 
+extern size_t ZSTD_decodeLiteralsBlock(void* ctx, void* dst, size_t maxDstSize, const BYTE** litStart, size_t* litSize, const void* src, size_t srcSize);
 size_t local_ZSTD_decodeLiteralsBlock(void* dst, size_t dstSize, void* buff2, const void* src, size_t srcSize)
 {
     U32 ctx[1<<12];
     const BYTE* ll;
+    size_t llSize;
     (void)src; (void)srcSize;
-    ZSTD_decodeLiteralsBlock(ctx, dst, dstSize, &ll, buff2, g_cSize);
+    ZSTD_decodeLiteralsBlock(ctx, dst, dstSize, &ll, &llSize, buff2, g_cSize);
     return (const BYTE*)dst + dstSize - ll;
 }
 
@@ -258,9 +258,9 @@ size_t local_ZSTD_decodeSeqHeaders(void* dst, size_t dstSize, void* buff2, const
 {
     U32 DTableML[1<<11], DTableLL[1<<10], DTableOffb[1<<9];
     const BYTE* dumps;
-    size_t lastllSize;
+    int nbSeq;
     (void)src; (void)srcSize; (void)dst; (void)dstSize;
-    return ZSTD_decodeSeqHeaders(&lastllSize, &dumps, DTableLL, DTableML, DTableOffb, buff2, g_cSize);
+    return ZSTD_decodeSeqHeaders(&nbSeq, &dumps, DTableLL, DTableML, DTableOffb, buff2, g_cSize);
 }
 
 size_t local_conditionalNull(void* dst, size_t dstSize, void* buff2, const void* src, size_t srcSize)

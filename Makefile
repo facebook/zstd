@@ -32,7 +32,7 @@
 # ################################################################
 
 # Version number
-export VERSION=0.0.2
+export VERSION=0.1.0
 export RELEASE=r$(VERSION)
 
 DESTDIR?=
@@ -93,6 +93,7 @@ prg-travis:
 	@cd $(PRGDIR); $(MAKE) -e $(ZSTD_TRAVIS_CI_ENV)
 
 clangtest: clean
+	clang -v
 	$(MAKE) all CC=clang MOREFLAGS="-Werror -Wconversion -Wno-sign-conversion"
 
 gpptest: clean

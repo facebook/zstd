@@ -30,7 +30,7 @@
 # fullbench32: Same as fullbench, but forced to compile in 32-bits mode
 # ##########################################################################
 
-RELEASE?= v0.0.2
+RELEASE?= v0.1.0
 
 DESTDIR?=
 PREFIX ?= /usr
@@ -61,7 +61,7 @@ default: zstd
 
 all: zstd zstd32 fullbench fullbench32 fuzzer fuzzer32 datagen
 
-zstd: $(ZSTDDIR)/zstd.c xxhash.c bench.c fileio.c zstdcli.c
+zstd  : $(ZSTDDIR)/zstd.c xxhash.c bench.c fileio.c zstdcli.c
 	$(CC)      $(FLAGS) $^ -o $@$(EXT)
 
 zstd32: $(ZSTDDIR)/zstd.c xxhash.c bench.c fileio.c zstdcli.c
@@ -73,10 +73,10 @@ fullbench  : $(ZSTDDIR)/zstd.c datagen.c fullbench.c
 fullbench32: $(ZSTDDIR)/zstd.c datagen.c fullbench.c
 	$(CC) -m32 $(FLAGS) $^ -o $@$(EXT)
 
-fuzzer  : $(ZSTDDIR)/zstd.c xxhash.c fuzzer.c
+fuzzer  : $(ZSTDDIR)/zstd.c datagen.c xxhash.c fuzzer.c
 	$(CC)      $(FLAGS) $^ -o $@$(EXT)
 
-fuzzer32: $(ZSTDDIR)/zstd.c xxhash.c fuzzer.c
+fuzzer32: $(ZSTDDIR)/zstd.c datagen.c xxhash.c fuzzer.c
 	$(CC) -m32 $(FLAGS) $^ -o $@$(EXT)
 
 datagen : datagen.c datagencli.c

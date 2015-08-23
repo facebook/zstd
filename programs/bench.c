@@ -297,34 +297,37 @@ static int BMK_benchMem(void* srcBuffer, size_t srcSize, char* fileName, int cLe
             milliTime = BMK_GetMilliStart();
             while (BMK_GetMilliStart() == milliTime);
             milliTime = BMK_GetMilliStart();
-            while (BMK_GetMilliSpan(milliTime) < TIMELOOP)
+            for ( ; BMK_GetMilliSpan(milliTime) < TIMELOOP; nbLoops++)
             {
-                ZSTD_decompress(resultBuffer, srcSize, compressedBuffer, cSize);
-                nbLoops++;
+                size_t result = ZSTD_decompress(resultBuffer, srcSize, compressedBuffer, cSize);
+                if (ZSTD_isError(result))
+                {
+                    DISPLAY("\n!!! Decompression error !!! %s  !\n", ZSTD_getErrorName(result));
+                    break;
+                }
             }
             milliTime = BMK_GetMilliSpan(milliTime);
 
             if ((double)milliTime < fastestD*nbLoops) fastestD = (double)milliTime / nbLoops;
             DISPLAY("%1i-%-14.14s : %9i -> %9i (%5.2f%%),%7.1f MB/s ,%7.1f MB/s\r", loopNb, fileName, (int)srcSize, (int)cSize, ratio, (double)srcSize / fastestC / 1000., (double)srcSize / fastestD / 1000.);
-#endif
 
             /* CRC Checking */
             crcCheck = XXH64(resultBuffer, srcSize, 0);
             if (crcOrig!=crcCheck)
             {
-                unsigned i = 0;
+                unsigned i;
                 DISPLAY("\n!!! WARNING !!! %14s : Invalid Checksum : %x != %x\n", fileName, (unsigned)crcOrig, (unsigned)crcCheck);
-                while (i<srcSize)
+                for (i=0; i<srcSize; i++)
                 {
                     if (((BYTE*)srcBuffer)[i] != ((BYTE*)resultBuffer)[i])
                     {
                         printf("\nDecoding error at pos %u   \n", i);
                         break;
                     }
-                    i++;
                 }
                 break;
             }
+#endif
         }
 
         if (crcOrig == crcCheck)

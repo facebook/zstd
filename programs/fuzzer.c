@@ -47,6 +47,7 @@
 #include <sys/timeb.h>   /* timeb */
 #include <string.h>      /* strcmp */
 #include "zstd_static.h"
+#include "datagen.h"     /* RDG_genBuffer */
 #include "xxhash.h"      /* XXH64 */
 
 
@@ -138,47 +139,7 @@ unsigned int FUZ_rand(unsigned int* src)
 }
 
 
-#define FUZ_RAND15BITS  (FUZ_rand(seed) & 0x7FFF)
-#define FUZ_RANDLENGTH  ( (FUZ_rand(seed) & 3) ? (FUZ_rand(seed) % 15) : (FUZ_rand(seed) % 510) + 15)
-static void FUZ_generateSynthetic(void* buffer, size_t bufferSize, double proba, U32* seed)
-{
-    BYTE* BBuffer = (BYTE*)buffer;
-    unsigned pos = 0;
-    U32 P32 = (U32)(32768 * proba);
-
-    // First Byte
-    BBuffer[pos++] = (BYTE)((FUZ_rand(seed) & 0x3F) + '0');
-
-    while (pos < bufferSize)
-    {
-        // Select : Literal (noise) or copy (within 64K)
-        if (FUZ_RAND15BITS < P32)
-        {
-            // Copy (within 64K)
-            size_t match, end;
-            size_t length = FUZ_RANDLENGTH + 4;
-            size_t offset = FUZ_RAND15BITS + 1;
-            if (offset > pos) offset = pos;
-            if (pos + length > bufferSize) length = bufferSize - pos;
-            match = pos - offset;
-            end = pos + length;
-            while (pos < end) BBuffer[pos++] = BBuffer[match++];
-        }
-        else
-        {
-            // Literal (noise)
-            size_t end;
-            size_t length = FUZ_RANDLENGTH;
-            if (pos + length > bufferSize) length = bufferSize - pos;
-            end = pos + length;
-            while (pos < end) BBuffer[pos++] = (BYTE)((FUZ_rand(seed) & 0x3F) + '0');
-        }
-    }
-}
-
-
-/*
-static unsigned FUZ_highbit(U32 v32)
+static unsigned FUZ_highbit32(U32 v32)
 {
     unsigned nbBits = 0;
     if (v32==0) return 0;
@@ -189,7 +150,6 @@ static unsigned FUZ_highbit(U32 v32)
     }
     return nbBits;
 }
-*/
 
 
 static int basicUnitTests(U32 seed, double compressibility)
@@ -202,7 +162,7 @@ static int basicUnitTests(U32 seed, double compressibility)
     size_t result, cSize;
     U32 testNb=0;
 
-    // Create compressible test buffer
+    /* Create compressible test buffer */
     CNBuffer = malloc(COMPRESSIBLE_NOISE_LENGTH);
     compressedBuffer = malloc(ZSTD_compressBound(COMPRESSIBLE_NOISE_LENGTH));
     decodedBuffer = malloc(COMPRESSIBLE_NOISE_LENGTH);
@@ -212,9 +172,9 @@ static int basicUnitTests(U32 seed, double compressibility)
         testResult = 1;
         goto _end;
     }
-    FUZ_generateSynthetic(CNBuffer, COMPRESSIBLE_NOISE_LENGTH, compressibility, &randState);
+    RDG_genBuffer(CNBuffer, COMPRESSIBLE_NOISE_LENGTH, compressibility, 0., randState);
 
-    // Basic tests
+    /* Basic tests */
     DISPLAYLEVEL(4, "test%3i : compress %u bytes : ", testNb++, COMPRESSIBLE_NOISE_LENGTH);
     result = ZSTD_compress(compressedBuffer, ZSTD_compressBound(COMPRESSIBLE_NOISE_LENGTH), CNBuffer, COMPRESSIBLE_NOISE_LENGTH);
     if (ZSTD_isError(result)) goto _output_error;
@@ -239,37 +199,36 @@ static int basicUnitTests(U32 seed, double compressibility)
     DISPLAYLEVEL(4, "test%3i : decompress with 1 missing byte : ", testNb++);
     result = ZSTD_decompress(decodedBuffer, COMPRESSIBLE_NOISE_LENGTH, compressedBuffer, cSize-1);
     if (!ZSTD_isError(result)) goto _output_error;
-    if (result != (size_t)-ZSTD_ERROR_wrongSrcSize) goto _output_error;
+    if (result != (size_t)-ZSTD_ERROR_SrcSize) goto _output_error;
     DISPLAYLEVEL(4, "OK \n");
 
     DISPLAYLEVEL(4, "test%3i : decompress with 1 too much byte : ", testNb++);
     result = ZSTD_decompress(decodedBuffer, COMPRESSIBLE_NOISE_LENGTH, compressedBuffer, cSize+1);
     if (!ZSTD_isError(result)) goto _output_error;
-    if (result != (size_t)-ZSTD_ERROR_wrongSrcSize) goto _output_error;
+    if (result != (size_t)-ZSTD_ERROR_SrcSize) goto _output_error;
     DISPLAYLEVEL(4, "OK \n");
 
     /* Decompression defense tests */
     DISPLAYLEVEL(4, "test%3i : Check input length for magic number : ", testNb++);
     result = ZSTD_decompress(decodedBuffer, COMPRESSIBLE_NOISE_LENGTH, CNBuffer, 3);
     if (!ZSTD_isError(result)) goto _output_error;
-    if (result != (size_t)-ZSTD_ERROR_wrongSrcSize) goto _output_error;
+    if (result != (size_t)-ZSTD_ERROR_SrcSize) goto _output_error;
     DISPLAYLEVEL(4, "OK \n");
 
     DISPLAYLEVEL(4, "test%3i : Check magic Number : ", testNb++);
     ((char*)(CNBuffer))[0] = 1;
     result = ZSTD_decompress(decodedBuffer, COMPRESSIBLE_NOISE_LENGTH, CNBuffer, 4);
     if (!ZSTD_isError(result)) goto _output_error;
-    if (result != (size_t)-ZSTD_ERROR_wrongMagicNumber) goto _output_error;
     DISPLAYLEVEL(4, "OK \n");
 
     /* long rle test */
     {
         size_t sampleSize = 0;
         DISPLAYLEVEL(4, "test%3i : Long RLE test : ", testNb++);
-        FUZ_generateSynthetic(CNBuffer, sampleSize, compressibility, &randState);
+        RDG_genBuffer(CNBuffer, sampleSize, compressibility, 0., randState);
         memset((char*)CNBuffer+sampleSize, 'B', 256 KB - 1);
         sampleSize += 256 KB - 1;
-        FUZ_generateSynthetic((char*)CNBuffer+sampleSize, 96 KB, compressibility, &randState);
+        RDG_genBuffer((char*)CNBuffer+sampleSize, 96 KB, compressibility, 0., randState);
         sampleSize += 96 KB;
         cSize = ZSTD_compress(compressedBuffer, ZSTD_compressBound(sampleSize), CNBuffer, sampleSize);
         if (ZSTD_isError(cSize)) goto _output_error;
@@ -314,6 +273,7 @@ static const U32 maxSampleLog = 22;
 
 int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compressibility)
 {
+    BYTE* cNoiseBuffer[5];
     BYTE* srcBuffer;
     BYTE* cBuffer;
     BYTE* dstBuffer;
@@ -323,54 +283,172 @@ int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compressibilit
     U32 result = 0;
     U32 testNb = 0;
     U32 coreSeed = seed, lseed = 0;
-    (void)startTest; (void)compressibility;
 
     /* allocation */
-    srcBuffer = (BYTE*)malloc (srcBufferSize);
+    cNoiseBuffer[0] = (BYTE*)malloc (srcBufferSize);
+    cNoiseBuffer[1] = (BYTE*)malloc (srcBufferSize);
+    cNoiseBuffer[2] = (BYTE*)malloc (srcBufferSize);
+    cNoiseBuffer[3] = (BYTE*)malloc (srcBufferSize);
+    cNoiseBuffer[4] = (BYTE*)malloc (srcBufferSize);
     dstBuffer = (BYTE*)malloc (dstBufferSize);
     cBuffer   = (BYTE*)malloc (cBufferSize);
-    CHECK (!srcBuffer || !dstBuffer || !cBuffer, "Not enough memory, fuzzer tests cancelled");
+    CHECK (!cNoiseBuffer[0] || !cNoiseBuffer[1] || !cNoiseBuffer[2] || !dstBuffer || !cBuffer,
+           "Not enough memory, fuzzer tests cancelled");
 
-    /* Create initial sample */
-    FUZ_generateSynthetic(srcBuffer, srcBufferSize, 0.50, &coreSeed);
+    /* Create initial samples */
+    RDG_genBuffer(cNoiseBuffer[0], srcBufferSize, 0.00, 0., coreSeed);    /* pure noise */
+    RDG_genBuffer(cNoiseBuffer[1], srcBufferSize, 0.05, 0., coreSeed);    /* barely compressible */
+    RDG_genBuffer(cNoiseBuffer[2], srcBufferSize, compressibility, 0., coreSeed);
+    RDG_genBuffer(cNoiseBuffer[3], srcBufferSize, 0.95, 0., coreSeed);    /* highly compressible */
+    RDG_genBuffer(cNoiseBuffer[4], srcBufferSize, 1.00, 0., coreSeed);    /* sparse content */
+    srcBuffer = cNoiseBuffer[2];
 
     /* catch up testNb */
-    for (testNb=0; testNb < startTest; testNb++)
+    for (testNb=1; testNb < startTest; testNb++)
         FUZ_rand(&coreSeed);
 
     /* test loop */
-    for (testNb=startTest; testNb < nbTests; testNb++)
+    for ( ; testNb <= nbTests; testNb++ )
     {
         size_t sampleSize, sampleStart;
         size_t cSize, dSize, dSupSize;
-        U32 sampleSizeLog;
+        U32 sampleSizeLog, buffNb;
         U64 crcOrig, crcDest;
 
         /* init */
         DISPLAYUPDATE(2, "\r%6u/%6u   ", testNb, nbTests);
         FUZ_rand(&coreSeed);
         lseed = coreSeed ^ prime1;
+        buffNb = FUZ_rand(&lseed) & 127;
+        if (buffNb & 7) buffNb=2;
+        else
+        {
+            buffNb >>= 3;
+            if (buffNb & 7)
+            {
+                const U32 tnb[2] = { 1, 3 };
+                buffNb = tnb[buffNb >> 3];
+            }
+            else
+            {
+                const U32 tnb[2] = { 0, 4 };
+                buffNb = tnb[buffNb >> 3];
+            }
+        }
+        srcBuffer = cNoiseBuffer[buffNb];
         sampleSizeLog = FUZ_rand(&lseed) % maxSampleLog;
-        sampleSize = (size_t)1<<sampleSizeLog;
+        sampleSize = (size_t)1 << sampleSizeLog;
         sampleSize += FUZ_rand(&lseed) & (sampleSize-1);
         sampleStart = FUZ_rand(&lseed) % (srcBufferSize - sampleSize);
         crcOrig = XXH64(srcBuffer + sampleStart, sampleSize, 0);
 
-        /* compression tests*/
+        /* compression test */
         cSize = ZSTD_compress(cBuffer, cBufferSize, srcBuffer + sampleStart, sampleSize);
         CHECK(ZSTD_isError(cSize), "ZSTD_compress failed");
 
-        /* decompression tests*/
+        /* compression failure test : too small dest buffer */
+        if (cSize > 3)
+        {
+            size_t errorCode;
+            const size_t missing = (FUZ_rand(&lseed) % (cSize-2)) + 1;   /* no problem, as cSize > 4 (frameHeaderSizer) */
+            const size_t tooSmallSize = cSize - missing;
+            static const U32 endMark = 0x4DC2B1A9;
+            U32 endCheck;
+            memcpy(dstBuffer+tooSmallSize, &endMark, 4);
+            errorCode = ZSTD_compress(dstBuffer, tooSmallSize, srcBuffer + sampleStart, sampleSize);
+            CHECK(!ZSTD_isError(errorCode), "ZSTD_compress should have failed ! (buffer too small)");
+            memcpy(&endCheck, dstBuffer+tooSmallSize, 4);
+            CHECK(endCheck != endMark, "ZSTD_compress : dst buffer overflow");
+        }
+
+        /* successfull decompression tests*/
         dSupSize = (FUZ_rand(&lseed) & 1) ? 0 : (FUZ_rand(&lseed) & 31) + 1;
         dSize = ZSTD_decompress(dstBuffer, sampleSize + dSupSize, cBuffer, cSize);
         CHECK(dSize != sampleSize, "ZSTD_decompress failed (%s)", ZSTD_getErrorName(dSize));
         crcDest = XXH64(dstBuffer, sampleSize, 0);
         CHECK(crcOrig != crcDest, "dstBuffer corrupted (pos %u / %u)", (U32)findDiff(srcBuffer+sampleStart, dstBuffer, sampleSize), (U32)sampleSize);
+
+        /* truncated src decompression test */
+        {
+            size_t errorCode;
+            const size_t missing = (FUZ_rand(&lseed) % (cSize-2)) + 1;   /* no problem, as cSize > 4 (frameHeaderSizer) */
+            const size_t tooSmallSize = cSize - missing;
+            void* cBufferTooSmall = malloc(tooSmallSize);   /* valgrind will catch overflows */
+            CHECK(cBufferTooSmall == NULL, "not enough memory !");
+            memcpy(cBufferTooSmall, cBuffer, tooSmallSize);
+            errorCode = ZSTD_decompress(dstBuffer, dstBufferSize, cBufferTooSmall, tooSmallSize);
+            CHECK(!ZSTD_isError(errorCode), "ZSTD_decompress should have failed ! (truncated src buffer)");
+            free(cBufferTooSmall);
+        }
+
+        /* too small dst decompression test */
+        if (sampleSize > 3)
+        {
+            size_t errorCode;
+            const size_t missing = (FUZ_rand(&lseed) % (sampleSize-2)) + 1;   /* no problem, as cSize > 4 (frameHeaderSizer) */
+            const size_t tooSmallSize = sampleSize - missing;
+            static const BYTE token = 0xA9;
+            dstBuffer[tooSmallSize] = token;
+            errorCode = ZSTD_decompress(dstBuffer, tooSmallSize, cBuffer, cSize);
+            CHECK(!ZSTD_isError(errorCode), "ZSTD_decompress should have failed : %u > %u (dst buffer too small)", (U32)errorCode, (U32)tooSmallSize);
+            CHECK(dstBuffer[tooSmallSize] != token, "ZSTD_decompress : dst buffer overflow");
+        }
+
+        /* noisy src decompression test */
+        if (cSize > 6)
+        {
+            const U32 maxNbBits = FUZ_highbit32((U32)(cSize-4));
+            size_t pos = 4;   /* preserve magic number (too easy to detect) */
+            U32 nbBits = FUZ_rand(&lseed) % maxNbBits;
+            size_t mask = (1<<nbBits) - 1;
+            size_t skipLength = FUZ_rand(&lseed) & mask;
+            pos += skipLength;
+
+            while (pos < cSize)
+            {
+                /* add noise */
+                size_t noiseStart, noiseLength;
+                nbBits = FUZ_rand(&lseed) % maxNbBits;
+                if (nbBits>0) nbBits--;
+                mask = (1<<nbBits) - 1;
+                noiseLength = (FUZ_rand(&lseed) & mask) + 1;
+                if ( pos+noiseLength > cSize ) noiseLength = cSize-pos;
+                noiseStart = FUZ_rand(&lseed) % (srcBufferSize - noiseLength);
+                memcpy(cBuffer + pos, srcBuffer + noiseStart, noiseLength);
+                pos += noiseLength;
+
+                /* keep some original src */
+                nbBits = FUZ_rand(&lseed) % maxNbBits;
+                mask = (1<<nbBits) - 1;
+                skipLength = FUZ_rand(&lseed) & mask;
+                pos += skipLength;
+            }
+
+            /* decompress noisy source */
+            {
+                U32 noiseSrc = FUZ_rand(&lseed) % 5;
+                const U32 endMark = 0xA9B1C3D6;
+                U32 endCheck;
+                size_t errorCode;
+                srcBuffer = cNoiseBuffer[noiseSrc];
+                memcpy(dstBuffer+sampleSize, &endMark, 4);
+                errorCode = ZSTD_decompress(dstBuffer, sampleSize, cBuffer, cSize);
+                /* result *may* be an unlikely success, but even then, it must strictly respect dest buffer boundaries */
+                CHECK((!ZSTD_isError(errorCode)) && (errorCode>sampleSize),
+                      "ZSTD_decompress on noisy src : result is too large : %u > %u (dst buffer)", (U32)errorCode, (U32)sampleSize);
+                memcpy(&endCheck, dstBuffer+sampleSize, 4);
+                CHECK(endMark!=endCheck, "ZSTD_decompress on noisy src : dst buffer overflow");
+            }
+        }
     }
     DISPLAY("\rAll fuzzer tests completed   \n");
 
 _cleanup:
-    free(srcBuffer);
+    free(cNoiseBuffer[0]);
+    free(cNoiseBuffer[1]);
+    free(cNoiseBuffer[2]);
+    free(cNoiseBuffer[3]);
+    free(cNoiseBuffer[4]);
     free(cBuffer);
     free(dstBuffer);
     return result;
@@ -393,8 +471,9 @@ int FUZ_usage(char* programName)
     DISPLAY( " -i#    : Nb of tests (default:%u) \n", nbTestsDefault);
     DISPLAY( " -s#    : Select seed (default:prompt user)\n");
     DISPLAY( " -t#    : Select starting test number (default:0)\n");
-    DISPLAY( " -p#    : Select compressibility in %% (default:%i%%)\n", FUZ_COMPRESSIBILITY_DEFAULT);
+    DISPLAY( " -P#    : Select compressibility in %% (default:%i%%)\n", FUZ_COMPRESSIBILITY_DEFAULT);
     DISPLAY( " -v     : verbose\n");
+    DISPLAY( " -p     : pause at the end\n");
     DISPLAY( " -h     : display help and exit\n");
     return 0;
 }

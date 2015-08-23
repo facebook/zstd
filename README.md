@@ -13,7 +13,7 @@ For a taste of its performance, here are a few benchmark numbers, completed on a
 |----------------|-------|--------:|--------:|
 |                |       |   MB/s  |  MB/s   |
 | [zlib 1.2.8] -6| 3.099 |    21   |   320   |
-| **zstd**       |**2.871**|**255**| **628** |
+| **zstd**       |**2.871**|**255**| **531** |
 | [zlib 1.2.8] -1| 2.730 |    70   |   300   | 
 | [LZ4] HC r131  | 2.720 |    25   |  2100   |
 | QuickLZ 1.5.1b6| 2.237 |   370   |   415   |
@@ -27,12 +27,12 @@ For a taste of its performance, here are a few benchmark numbers, completed on a
 
 An interesting feature of zstd is that it can qualify as both a reasonably strong compressor and a fast one.
 
-Zstd delivers high decompression speed, at more than >600 MB/s per core.
+Zstd delivers high decompression speed, at more than >500 MB/s per core.
 Obviously, your exact mileage will vary depending on your target system.
 
 Zstd compression speed will be configurable to fit different situations.
-The first version offered is the fast one, at ~250 MB/s per core, which is suitable for a few real-time scenarios.
-But similar to [LZ4], zstd can offer derivatives trading compression time for compression ratio, keeping decompression properties intact. "Offline compression", where compression time is of little importance because the content is only compressed once and decompressed many times, is therefore within scope.
+The first available version is the fast one, at ~250 MB/s per core, which is suitable for a few real-time scenarios.
+But similar to [LZ4], zstd can offer derivatives trading compression time for compression ratio, keeping decompression properties intact. "Offline compression", where compression time is of little importance because the content is only compressed once and decompressed many times, will likely prefer this setup.
 
 Note that high compression derivatives still have to be developed.
 It's a complex area which will require time and benefit from contributions.
@@ -42,7 +42,9 @@ Another property zstd is developed for is configurable memory requirement, with 
 
 Zstd entropy stage is provided by [Huff0 and FSE, from Finite State Entrop library](https://github.com/Cyan4973/FiniteStateEntropy).
 
-Zstd is still considered experimental at this stage. Specifically, it doesn't guarantee yet that its current stream/file format will remain supported in future versions of the library. Therefore, only use Zstd in environments where you can control the availability of the decompression library. "Stable" status, including official documented format format and long-term support commitment, is projected sometimes early 2016.
+Zstd has not yet reached "stable" status. Specifically, it doesn't guarantee yet that its current compressed format will remain stable and supported in future versions of the library. However, its current behavior is pretty solid, and able to withstand many hazards situations, including invalid input. Therefore, you can safely test zstd into controlled environments.
+
+"Stable Format" is projected sometimes early 2016.
 
 ### Branch Policy
 The "dev" branch is the one where all contributions will be merged before reaching "master". If you plan to propose a patch, please commit into the "dev" branch or its own feature branch. Direct commit to "master" are not permitted.

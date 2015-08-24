@@ -1172,7 +1172,12 @@ static size_t ZSTD_decompressLiterals(void* ctx,
     BYTE* const oend = op + maxDstSize;
     const BYTE* ip = (const BYTE*)src;
     size_t errorCode;
-    size_t litSize = ip[1] + (ip[0]<<8);
+    size_t litSize;
+
+    /* check : minimum 2, for litSize, +1, for content */
+    if (srcSize <= 3) return (size_t)-ZSTD_ERROR_corruption;
+
+    litSize = ip[1] + (ip[0]<<8);
     litSize += ((ip[-3] >> 3) & 7) << 16;   // mmmmh....
     op = oend - litSize;
 

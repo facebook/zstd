@@ -81,7 +81,7 @@ static int usage(char* programName)
 {
     DISPLAY( "Compressible data generator\n");
     DISPLAY( "Usage :\n");
-    DISPLAY( "      %s [size] [args]\n", programName);
+    DISPLAY( "      %s [args]\n", programName);
     DISPLAY( "\n");
     DISPLAY( "Arguments :\n");
     DISPLAY( " -g#    : generate # data (default:%i)\n", SIZE_DEFAULT);

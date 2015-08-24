@@ -354,18 +354,21 @@ unsigned long long FIO_decompressFilename(const char* output_filename, const cha
         size_t readSize, decodedSize;
 
         /* Fill input buffer */
+        if (toRead > inBuffSize)
+            EXM_THROW(34, "too large block");
         readSize = fread(inBuff, 1, toRead, finput);
         if (readSize != toRead)
-            EXM_THROW(34, "Read error");
+            EXM_THROW(35, "Read error");
 
         /* Decode block */
         decodedSize = ZSTD_decompressContinue(dctx, op, oend-op, inBuff, readSize);
+        if (ZSTD_isError(decodedSize)) EXM_THROW(36, "Decoding error : input corrupted");
 
         if (decodedSize)   /* not a header */
         {
             /* Write block */
             sizeCheck = fwrite(op, 1, decodedSize, foutput);
-            if (sizeCheck != decodedSize) EXM_THROW(35, "Write error : unable to write data block to destination file");
+            if (sizeCheck != decodedSize) EXM_THROW(37, "Write error : unable to write data block to destination file");
             filesize += decodedSize;
             op += decodedSize;
             if (op==oend) op = outBuff;

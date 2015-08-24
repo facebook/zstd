@@ -42,7 +42,7 @@ Another property zstd is developed for is configurable memory requirement, with 
 
 Zstd entropy stage is provided by [Huff0 and FSE, from Finite State Entrop library](https://github.com/Cyan4973/FiniteStateEntropy).
 
-Zstd has not yet reached "stable" status. Specifically, it doesn't guarantee yet that its current compressed format will remain stable and supported in future versions of the library. However, its current behavior is pretty solid, and able to withstand many hazards situations, including invalid input. Therefore, you can safely test zstd into controlled environments.
+Zstd has not yet reached "stable" status. Specifically, it doesn't guarantee yet that its current compressed format will remain stable and supported in future versions. It may still change to adapt further optimizations still being investigated. However, the library starts to be pretty robust, able to withstand hazards situations, including invalid input. The library reliability has been tested using [Fuzz Testing](https://en.wikipedia.org/wiki/Fuzz_testing), using both [internal tools](programs/fuzzer.c) and [external ones](http://lcamtuf.coredump.cx/afl). Therefore, you can now safely test zstd, even within production environments.
 
 "Stable Format" is projected sometimes early 2016.
 

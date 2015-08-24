@@ -360,12 +360,13 @@ unsigned long long FIO_decompressFilename(const char* output_filename, const cha
 
         /* Decode block */
         decodedSize = ZSTD_decompressContinue(dctx, op, oend-op, inBuff, readSize);
+        if (ZSTD_isError(decodedSize)) EXM_THROW(35, "Decoding error : input corrupted");
 
         if (decodedSize)   /* not a header */
         {
             /* Write block */
             sizeCheck = fwrite(op, 1, decodedSize, foutput);
-            if (sizeCheck != decodedSize) EXM_THROW(35, "Write error : unable to write data block to destination file");
+            if (sizeCheck != decodedSize) EXM_THROW(36, "Write error : unable to write data block to destination file");
             filesize += decodedSize;
             op += decodedSize;
             if (op==oend) op = outBuff;

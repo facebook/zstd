@@ -1269,7 +1269,7 @@ size_t ZSTD_decodeSeqHeaders(int* nbSeq, const BYTE** dumpsPtr,
     ip += dumpsLength;
 
 	/* check */
-	if (ip > iend-1) return (size_t)-ZSTD_ERROR_SrcSize;
+	if (ip > iend-3) return (size_t)-ZSTD_ERROR_SrcSize; /* min : all 3 are "raw", hence no header, but at least xxLog bits per type */
 
     /* sequences */
     {
@@ -1300,6 +1300,7 @@ size_t ZSTD_decodeSeqHeaders(int* nbSeq, const BYTE** dumpsPtr,
         U32 max;
         case bt_rle :
             Offlog = 0;
+            if (ip > iend-2) return (size_t)-ZSTD_ERROR_SrcSize; /* min : "raw", hence no header, but at least xxLog bits */
             FSE_buildDTable_rle(DTableOffb, *ip++); break;
         case bt_raw :
             Offlog = Offbits;
@@ -1318,6 +1319,7 @@ size_t ZSTD_decodeSeqHeaders(int* nbSeq, const BYTE** dumpsPtr,
         U32 max;
         case bt_rle :
             MLlog = 0;
+            if (ip > iend-2) return (size_t)-ZSTD_ERROR_SrcSize; /* min : "raw", hence no header, but at least xxLog bits */
             FSE_buildDTable_rle(DTableML, *ip++); break;
         case bt_raw :
             MLlog = MLbits;

@@ -123,6 +123,9 @@ test32: test-zstd32 test-fullbench32 test-fuzzer32
 test-all: test test32 test-mem
 
 test-zstd: zstd datagen
+	@echo "*** zstd cli write error test ***"
+	echo foo | ./zstd > /dev/full; if [ $$? -eq 0 ] ; then echo "write error not detected!"; false; fi
+	@echo "*** zstd round-trip tests *** "
 	./datagen          | ./zstd -v    | ./zstd -d > $(VOID)
 	./datagen -g256MB  | ./zstd -v    | ./zstd -d > $(VOID)
 	./datagen -g6GB -P99 | ./zstd -vq | ./zstd -d > $(VOID)

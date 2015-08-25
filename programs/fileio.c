@@ -52,6 +52,7 @@
 #include <stdlib.h>   /* malloc, free */
 #include <string.h>   /* strcmp, strlen */
 #include <time.h>     /* clock */
+#include <errno.h>    /* errno */
 #include "fileio.h"
 #include "zstd_static.h"
 
@@ -299,9 +300,9 @@ unsigned long long FIO_compressFilename(const char* output_filename, const char*
     /* clean */
     free(inBuff);
     free(outBuff);
-    fclose(finput);
-    fclose(foutput);
     ZSTD_freeCCtx(ctx);
+    fclose(finput);
+    if (fclose(foutput)) EXM_THROW(28, "Write error : cannot properly close output");
 
     return compressedfilesize;
 }

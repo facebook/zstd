@@ -255,7 +255,7 @@ unsigned long long FIO_compressFilename(const char* output_filename, const char*
     if (ZSTD_isError(cSize)) EXM_THROW(22, "Compression error : cannot create frame header");
 
     sizeCheck = fwrite(outBuff, 1, cSize, foutput);
-    if (sizeCheck!=cSize) EXM_THROW(23, "Write error : cannot write header");
+    if (sizeCheck!=cSize) EXM_THROW(23, "Write error : cannot write header into %s", output_filename);
     compressedfilesize += cSize;
 
     /* Main compression loop */
@@ -277,7 +277,7 @@ unsigned long long FIO_compressFilename(const char* output_filename, const char*
 
         /* Write cBlock */
         sizeCheck = fwrite(outBuff, 1, cSize, foutput);
-        if (sizeCheck!=cSize) EXM_THROW(25, "Write error : cannot write compressed block");
+        if (sizeCheck!=cSize) EXM_THROW(25, "Write error : cannot write compressed block into %s", output_filename);
         compressedfilesize += cSize;
         inSlot += inSize;
 
@@ -289,7 +289,7 @@ unsigned long long FIO_compressFilename(const char* output_filename, const char*
     if (ZSTD_isError(cSize)) EXM_THROW(26, "Compression error : cannot create frame end");
 
     sizeCheck = fwrite(outBuff, 1, cSize, foutput);
-    if (sizeCheck!=cSize) EXM_THROW(27, "Write error : cannot write frame end");
+    if (sizeCheck!=cSize) EXM_THROW(27, "Write error : cannot write frame end into %s", output_filename);
     compressedfilesize += cSize;
 
     /* Status */
@@ -302,7 +302,7 @@ unsigned long long FIO_compressFilename(const char* output_filename, const char*
     free(outBuff);
     ZSTD_freeCCtx(ctx);
     fclose(finput);
-    if (fclose(foutput)) EXM_THROW(28, "Write error : cannot properly close output");
+    if (fclose(foutput)) EXM_THROW(28, "Write error : cannot properly close %s", output_filename);
 
     return compressedfilesize;
 }

@@ -86,8 +86,9 @@
 /**************************************
 *  Display Macros
 **************************************/
-#define DISPLAY(...)           fprintf(stderr, __VA_ARGS__)
+#define DISPLAY(...)           fprintf(displayOut, __VA_ARGS__)
 #define DISPLAYLEVEL(l, ...)   if (displayLevel>=l) { DISPLAY(__VA_ARGS__); }
+static FILE* displayOut;
 static unsigned displayLevel = 2;   // 0 : no display  // 1: errors  // 2 : + result + interaction + warnings ;  // 3 : + progression;  // 4 : + information
 
 
@@ -137,7 +138,7 @@ static int usage_advanced(const char* programName)
     //DISPLAY( " -t     : test compressed file integrity\n");
     DISPLAY( "Benchmark arguments :\n");
     DISPLAY( " -b     : benchmark file(s)\n");
-    DISPLAY( " -i#    : iteration loops [1-9](default : 3), benchmark mode only\n");
+    DISPLAY( " -i#    : iteration loops [1-9](default : 3)\n");
     return 0;
 }
 
@@ -173,30 +174,31 @@ int main(int argc, char** argv)
     char* dynNameSpace = NULL;
     char extension[] = ZSTD_EXTENSION;
 
+    displayOut = stderr;
     /* Pick out basename component. Don't rely on stdlib because of conflicting behaviour. */
     for (i = (int)strlen(programName); i > 0; i--)
     {
-        if (programName[i] == '/')
-        {
-            i++;
-            break;
-        }
+        if (programName[i] == '/') { i++; break; }
     }
     programName += i;
 
-    /* zstdcat behavior */
+    /* zstdcat preset behavior */
     if (!strcmp(programName, ZSTD_CAT)) { decode=1; forceStdout=1; displayLevel=1; outFileName=stdoutmark; }
 
-    /* unzstd behavior */
+    /* unzstd preset behavior */
     if (!strcmp(programName, ZSTD_UNZSTD))
         decode=1;
 
-    // command switches
+    /* command switches */
     for(i=1; i<argc; i++)
     {
         char* argument = argv[i];
 
-        if(!argument) continue;   // Protection if argument empty
+        if(!argument) continue;   /* Protection if argument empty */
+
+        /* long commands (--long-word) */
+        if (!strcmp(argument, "--version")) { displayOut=stdout; DISPLAY(WELCOME_MESSAGE); return 0; }
+        if (!strcmp(argument, "--help")) { displayOut=stdout; return usage_advanced(programName); }
 
         /* Decode commands (note : aggregated commands are allowed) */
         if (argument[0]=='-')
@@ -215,9 +217,9 @@ int main(int argc, char** argv)
                 switch(argument[0])
                 {
                     /* Display help */
-                case 'V': DISPLAY(WELCOME_MESSAGE); return 0;   /* Version Only */
+                case 'V': displayOut=stdout; DISPLAY(WELCOME_MESSAGE); return 0;   /* Version Only */
                 case 'H':
-                case 'h': return usage_advanced(programName);
+                case 'h': displayOut=stdout; return usage_advanced(programName);
 
                     // Compression (default)
                 //case 'z': forceCompress = 1; break;

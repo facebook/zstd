@@ -1904,14 +1904,14 @@ static U32 HUF_setMaxHeight(nodeElt* huffNode, U32 lastNonNull, U32 maxNbBits)
                 if (rankLast[nBitsToDecrease-1] == noOne)
                     rankLast[nBitsToDecrease-1] = rankLast[nBitsToDecrease];   // now there is one elt
                 huffNode[rankLast[nBitsToDecrease]].nbBits ++;
-                if (rankLast[nBitsToDecrease] > 0)
+                if (rankLast[nBitsToDecrease] == 0)
+                    rankLast[nBitsToDecrease] = noOne;
+                else
                 {
                     rankLast[nBitsToDecrease]--;
                     if (huffNode[rankLast[nBitsToDecrease]].nbBits != maxNbBits-nBitsToDecrease)
                         rankLast[nBitsToDecrease] = noOne;   // rank list emptied
                 }
-                else
-                     rankLast[nBitsToDecrease] = noOne;   // rank list emptied
             }
 
 			while (totalCost < 0)   /* Sometimes, cost correction overshoot */

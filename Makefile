@@ -32,11 +32,10 @@
 # ################################################################
 
 # Version number
-export VERSION=0.1.0
-export RELEASE=r$(VERSION)
+export VERSION=0.1.1
 
 DESTDIR?=
-PREFIX ?= /usr
+PREFIX ?= /usr/local
 
 LIBDIR ?= $(PREFIX)/lib
 INCLUDEDIR=$(PREFIX)/include

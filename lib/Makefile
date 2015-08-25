@@ -32,14 +32,14 @@
 # ################################################################
 
 # Version numbers
-VERSION?= 0
+VERSION?= 0.1.1
 LIBVER_MAJOR=`sed -n '/define ZSTD_VERSION_MAJOR/s/.*[[:blank:]]\([0-9][0-9]*\).*/\1/p' < zstd.h`
 LIBVER_MINOR=`sed -n '/define ZSTD_VERSION_MINOR/s/.*[[:blank:]]\([0-9][0-9]*\).*/\1/p' < zstd.h`
 LIBVER_PATCH=`sed -n '/define ZSTD_VERSION_RELEASE/s/.*[[:blank:]]\([0-9][0-9]*\).*/\1/p' < zstd.h`
 LIBVER  = $(LIBVER_MAJOR).$(LIBVER_MINOR).$(LIBVER_PATCH)
 
 DESTDIR?=
-PREFIX ?= /usr
+PREFIX ?= /usr/local
 CFLAGS ?= -O3
 CFLAGS += -std=c99 -Wall -Wextra -Wundef -Wshadow -Wcast-align -Wstrict-prototypes
 LDFLAGS = -I.

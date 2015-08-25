@@ -1,6 +1,6 @@
 language: c
 compiler: gcc
-script: make test-travis
+script: make $ZSTD_TRAVIS_CI_ENV
 before_install:
   - sudo apt-get update  -qq
   - sudo apt-get install -qq gcc-arm-linux-gnueabi
@@ -11,11 +11,13 @@ before_install:
 
 env:
   - ZSTD_TRAVIS_CI_ENV=travis-install
-  - ZSTD_TRAVIS_CI_ENV=test-all  
   - ZSTD_TRAVIS_CI_ENV=clangtest  
   - ZSTD_TRAVIS_CI_ENV=gpptest  
   - ZSTD_TRAVIS_CI_ENV=armtest  
+  - ZSTD_TRAVIS_CI_ENV=test  
+  - ZSTD_TRAVIS_CI_ENV="-C programs test32"  
   - ZSTD_TRAVIS_CI_ENV=sanitize
+  - ZSTD_TRAVIS_CI_ENV="-C programs memtest"  
 
 matrix:
   fast_finish: true

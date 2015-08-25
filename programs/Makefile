@@ -30,12 +30,12 @@
 # fullbench32: Same as fullbench, but forced to compile in 32-bits mode
 # ##########################################################################
 
-RELEASE?= v0.1.0
+VERSION?= v0.1.1
 
 DESTDIR?=
 PREFIX ?= /usr
 CFLAGS ?= -O3
-CFLAGS += -std=c99 -Wall -Wextra -Wundef -Wshadow -Wcast-qual -Wcast-align -Wstrict-prototypes -DZSTD_VERSION=\"$(RELEASE)\"
+CFLAGS += -std=c99 -Wall -Wextra -Wundef -Wshadow -Wcast-qual -Wcast-align -Wstrict-prototypes -DZSTD_VERSION=\"$(VERSION)\"
 LDFLAGS = -I../lib
 FLAGS   = $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) $(MOREFLAGS)
 
@@ -43,7 +43,6 @@ BINDIR=$(PREFIX)/bin
 MANDIR=$(PREFIX)/share/man/man1
 ZSTDDIR=../lib
 
-TEST_FILES = COPYING
 TEST_TARGETS=test-native
 
 

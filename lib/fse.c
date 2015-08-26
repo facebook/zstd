@@ -1530,12 +1530,14 @@ size_t FSE_initDStream(FSE_DStream_t* bitD, const void* srcBuffer, size_t srcSiz
  */
 static size_t FSE_lookBits(FSE_DStream_t* bitD, U32 nbBits)
 {
-    return ((bitD->bitContainer << (bitD->bitsConsumed & ((sizeof(bitD->bitContainer)*8)-1))) >> 1) >> (((sizeof(bitD->bitContainer)*8)-1)-nbBits);
+    const U32 bitMask = sizeof(bitD->bitContainer)*8 - 1;
+    return ((bitD->bitContainer << (bitD->bitsConsumed & bitMask)) >> 1) >> ((bitMask-nbBits) & bitMask);
 }
 
 static size_t FSE_lookBitsFast(FSE_DStream_t* bitD, U32 nbBits)   /* only if nbBits >= 1 !! */
 {
-    return (bitD->bitContainer << (bitD->bitsConsumed & ((sizeof(bitD->bitContainer)*8)-1))) >> ((sizeof(bitD->bitContainer)*8)-nbBits);
+    const U32 bitMask = sizeof(bitD->bitContainer)*8 - 1;
+    return (bitD->bitContainer << (bitD->bitsConsumed & bitMask)) >> (-nbBits & bitMask);
 }
 
 static void FSE_skipBits(FSE_DStream_t* bitD, U32 nbBits)

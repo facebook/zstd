@@ -616,7 +616,7 @@ int main(int argc, char** argv)
 
                     /* Modify Nb Iterations */
                 case 'i':
-                    if ((argument[1] >='1') && (argument[1] <='9'))
+                    if ((argument[1] >='0') && (argument[1] <='9'))
                     {
                         int iters = argument[1] - '0';
                         BMK_SetNbIterations(iters);

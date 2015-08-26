@@ -30,21 +30,18 @@
 # fullbench32: Same as fullbench, but forced to compile in 32-bits mode
 # ##########################################################################
 
-RELEASE?= v0.1.0
+VERSION?= v0.1.1
 
 DESTDIR?=
-PREFIX ?= /usr
+PREFIX ?= /usr/local
 CFLAGS ?= -O3
-CFLAGS += -std=c99 -Wall -Wextra -Wundef -Wshadow -Wcast-qual -Wcast-align -Wstrict-prototypes -DZSTD_VERSION=\"$(RELEASE)\"
+CFLAGS += -std=c99 -Wall -Wextra -Wundef -Wshadow -Wcast-qual -Wcast-align -Wstrict-prototypes -DZSTD_VERSION=\"$(VERSION)\"
 LDFLAGS = -I../lib
 FLAGS   = $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) $(MOREFLAGS)
 
-BINDIR=$(PREFIX)/bin
-MANDIR=$(PREFIX)/share/man/man1
-ZSTDDIR=../lib
-
-TEST_FILES = COPYING
-TEST_TARGETS=test-native
+BINDIR  = $(PREFIX)/bin
+MANDIR  = $(PREFIX)/share/man/man1
+ZSTDDIR = ../lib
 
 
 # Define *.exe as extension for Windows systems
@@ -120,9 +117,12 @@ test: test-zstd test-fullbench test-fuzzer
 
 test32: test-zstd32 test-fullbench32 test-fuzzer32
 
-test-all: test test32 test-mem
+test-all: test test32 memtest
 
 test-zstd: zstd datagen
+	@echo "*** zstd cli write error test ***"
+	echo foo | ./zstd > /dev/full; if [ $$? -eq 0 ] ; then echo "write error not detected!"; false; fi
+	@echo "*** zstd round-trip tests *** "
 	./datagen          | ./zstd -v    | ./zstd -d > $(VOID)
 	./datagen -g256MB  | ./zstd -v    | ./zstd -d > $(VOID)
 	./datagen -g6GB -P99 | ./zstd -vq | ./zstd -d > $(VOID)
@@ -146,15 +146,15 @@ test-fuzzer: fuzzer
 test-fuzzer32: fuzzer32
 	./fuzzer32
 
-test-mem: zstd datagen fuzzer fullbench
+memtest: zstd datagen fuzzer fullbench
 	@echo "\n ---- valgrind tests : memory analyzer ----"
-	valgrind --leak-check=yes --error-exitcode=1 ./datagen -g50M > /dev/null
+	valgrind --leak-check=yes --error-exitcode=1 ./datagen -g50M > $(VOID)
 	./datagen -g16KB > tmp
-	valgrind --leak-check=yes --error-exitcode=1 ./zstd -vf tmp /dev/null
+	valgrind --leak-check=yes --error-exitcode=1 ./zstd -vf tmp $(VOID)
 	./datagen -g64MB > tmp
-	valgrind --leak-check=yes --error-exitcode=1 ./zstd -vf tmp /dev/null
+	valgrind --leak-check=yes --error-exitcode=1 ./zstd -vf tmp $(VOID)
 	@rm tmp
-	valgrind --leak-check=yes --error-exitcode=1 ./fuzzer -i128 -t1
+	valgrind --leak-check=yes --error-exitcode=1 ./fuzzer -i1000 -t1
 	valgrind --leak-check=yes --error-exitcode=1 ./fullbench -i1
 
 endif

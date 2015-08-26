@@ -199,6 +199,7 @@ int main(int argc, char** argv)
         /* long commands (--long-word) */
         if (!strcmp(argument, "--version")) { displayOut=stdout; DISPLAY(WELCOME_MESSAGE); return 0; }
         if (!strcmp(argument, "--help")) { displayOut=stdout; return usage_advanced(programName); }
+        if (!strcmp(argument, "--verbose")) { displayLevel=4; continue; }
 
         /* Decode commands (note : aggregated commands are allowed) */
         if (argument[0]=='-')
@@ -208,6 +209,7 @@ int main(int argc, char** argv)
             {
                 if (!inFileName) inFileName=stdinmark;
                 else outFileName=stdoutmark;
+                continue;
             }
 
             argument++;

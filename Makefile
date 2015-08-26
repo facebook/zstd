@@ -32,40 +32,25 @@
 # ################################################################
 
 # Version number
-export VERSION=0.1.0
-export RELEASE=r$(VERSION)
+export VERSION=0.1.1
 
-DESTDIR?=
-PREFIX ?= /usr
-
-LIBDIR ?= $(PREFIX)/lib
-INCLUDEDIR=$(PREFIX)/include
 PRGDIR  = programs
 ZSTDDIR = lib
 
-# Select test target for Travis CI's Build Matrix
-ifneq (,$(filter test-%,$(ZSTD_TRAVIS_CI_ENV)))
-TRAVIS_TARGET=prg-travis
-else
-TRAVIS_TARGET=$(ZSTD_TRAVIS_CI_ENV)
-endif
-
-
 .PHONY: clean
 
-default: zstdprograms
+default: zstdprogram
 
 all: 
-	@cd $(ZSTDDIR); $(MAKE) -e all
-	@cd $(PRGDIR); $(MAKE) -e all
+	$(MAKE) -C $(ZSTDDIR) $@
+	$(MAKE) -C $(PRGDIR) $@
 
-zstdprograms:
-	@cd $(PRGDIR); $(MAKE) -e
+zstdprogram:
+	$(MAKE) -C $(PRGDIR)
 
 clean:
-	@cd $(PRGDIR); $(MAKE) clean
-	@cd $(ZSTDDIR); $(MAKE) clean
-#	@cd examples; $(MAKE) clean
+	$(MAKE) -C $(ZSTDDIR) $@
+	$(MAKE) -C $(PRGDIR) $@
 	@echo Cleaning completed
 
 
@@ -74,23 +59,18 @@ clean:
 ifneq (,$(filter $(shell uname),Linux Darwin GNU/kFreeBSD GNU))
 
 install:
-	@cd $(ZSTDDIR); $(MAKE) -e install
-	@cd $(PRGDIR); $(MAKE) -e install
+	$(MAKE) -C $(ZSTDDIR) $@
+	$(MAKE) -C $(PRGDIR) $@
 
 uninstall:
-	@cd $(ZSTDDIR); $(MAKE) uninstall
-	@cd $(PRGDIR); $(MAKE) uninstall
+	$(MAKE) -C $(ZSTDDIR) $@
+	$(MAKE) -C $(PRGDIR) $@
 
 travis-install:
 	sudo $(MAKE) install
 
 test:
-	@cd $(PRGDIR); $(MAKE) -e test
-
-test-travis: $(TRAVIS_TARGET)
-
-prg-travis:
-	@cd $(PRGDIR); $(MAKE) -e $(ZSTD_TRAVIS_CI_ENV)
+	$(MAKE) -C $(PRGDIR) $@
 
 clangtest: clean
 	clang -v
@@ -100,8 +80,8 @@ gpptest: clean
 	$(MAKE) all CC=g++ CFLAGS="-O3 -Wall -Wextra -Wundef -Wshadow -Wcast-align -Werror"
 
 armtest: clean
-	cd $(ZSTDDIR); $(MAKE) -e all CC=arm-linux-gnueabi-gcc MOREFLAGS="-Werror"
-	cd $(PRGDIR); $(MAKE) -e CC=arm-linux-gnueabi-gcc MOREFLAGS="-Werror"
+	$(MAKE) -C $(ZSTDDIR) -e all CC=arm-linux-gnueabi-gcc MOREFLAGS="-Werror"
+	$(MAKE) -C $(PRGDIR) -e CC=arm-linux-gnueabi-gcc MOREFLAGS="-Werror"
 
 sanitize: clean
 	$(MAKE) test CC=clang MOREFLAGS="-g -fsanitize=undefined"

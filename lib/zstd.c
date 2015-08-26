@@ -1389,7 +1389,7 @@ static void ZSTD_decodeSequence(seq_t* seq, seqState_t* seqState)
         if (ZSTD_32bits()) FSE_reloadDStream(&(seqState->DStream));
         nbBits = offsetCode - 1;
         if (offsetCode==0) nbBits = 0;   /* cmove */
-        offset = ((size_t)1 << nbBits) + FSE_readBits(&(seqState->DStream), nbBits);
+        offset = ((size_t)1 << (nbBits & ((sizeof(offset)*8)-1))) + FSE_readBits(&(seqState->DStream), nbBits);
         if (ZSTD_32bits()) FSE_reloadDStream(&(seqState->DStream));
         if (offsetCode==0) offset = prevOffset;
     }

@@ -1,26 +1,35 @@
 \"
 \" zstd.1: This is a manual page for 'zstd' program. This file is part of the
-\" zstd <https://github.com/Cyan4973/zstd> project.
+\" zstd <http://www.zstd.net/> project.
+\" Author: Yann Collet
 \"
 
 \" No hyphenation
 .hy 0
 .nr HY 0
 
-.TH zstd "1" "2015-01-22" "zstd" "User Commands"
+.TH zstd "1" "2015-08-22" "zstd" "User Commands"
 .SH NAME
-\fBzstd\fR - standard compression algorithm
+\fBzstd, unzstd, zstdcat\fR - Compress or decompress .zst files
 
 .SH SYNOPSIS
 .TP 5
 \fBzstd\fR [\fBOPTIONS\fR] [-|INPUT-FILE] <OUTPUT-FILE>
+.PP
+.B unzstd
+is equivalent to
+.BR "zstd \-d" 
+.br
+.B zstdcat
+is equivalent to
+.BR "zstd \-dc" 
+.br
 
 .SH DESCRIPTION
 .PP
-\fBzstd\fR is a fast lossless compression algorithm
-with highly parametrable compression strength and memory usage.
-It is based on the \fBLZ77\fR family, coupled with FSE entropy stage.
-zstd offers compression speed of 200 MB/s per core.
+\fBzstd\fR is a fast lossless compression algorithm.
+It is based on the \fBLZ77\fR family, with FSE & huff0 entropy stage.
+zstd offers compression speed > 200 MB/s per core.
 It also features a fast decoder, with speed > 500 MB/s per core.
 \fBzstd\fR supports the following options :
 
@@ -35,13 +44,13 @@ It also features a fast decoder, with speed > 500 MB/s per core.
 .B \-f
  overwrite output without prompting
 .TP
-.B \-h/\-H
+.BR \-h/\-H ", " --help
  display help/long help and exit
 .TP
-.B \-V
+.BR \-V ", " --version
  display Version number and exit
 .TP
-.B \-v
+.BR \-v ", " --verbose
  verbose mode
 .TP
 .B \-q
@@ -63,7 +72,7 @@ It also features a fast decoder, with speed > 500 MB/s per core.
  iteration loops [1-9](default : 3), benchmark mode only
 
 .SH BUGS
-Report bugs at:- https://github.com/Cyan4973/zstd
+Report bugs at:- https://github.com/Cyan4973/zstd/issues
 
 .SH AUTHOR
 Yann Collet

@@ -1537,7 +1537,7 @@ static size_t FSE_lookBits(FSE_DStream_t* bitD, U32 nbBits)
 static size_t FSE_lookBitsFast(FSE_DStream_t* bitD, U32 nbBits)   /* only if nbBits >= 1 !! */
 {
     const U32 bitMask = sizeof(bitD->bitContainer)*8 - 1;
-    return (bitD->bitContainer << (bitD->bitsConsumed & bitMask)) >> (-nbBits & bitMask);
+    return (bitD->bitContainer << (bitD->bitsConsumed & bitMask)) >> (((bitMask+1)-nbBits) & bitMask);
 }
 
 static void FSE_skipBits(FSE_DStream_t* bitD, U32 nbBits)

@@ -1,3 +1,9 @@
-r0
-initial release
+v0.1.2
+
+v0.1.1
+fix compression bug
+detects write-flush errors
+
+v0.1.0
+first release
 

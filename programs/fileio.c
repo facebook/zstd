@@ -386,9 +386,9 @@ unsigned long long FIO_decompressFilename(const char* output_filename, const cha
     /* clean */
     free(inBuff);
     free(outBuff);
-    fclose(finput);
-    fclose(foutput);
     ZSTD_freeDCtx(dctx);
+    fclose(finput);
+    if (fclose(foutput)) EXM_THROW(38, "Write error : cannot properly close %s", output_filename);
 
     return filesize;
 }

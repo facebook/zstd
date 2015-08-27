@@ -30,7 +30,7 @@
 # fullbench32: Same as fullbench, but forced to compile in 32-bits mode
 # ##########################################################################
 
-VERSION?= v0.1.1
+VERSION?= v0.1.2
 
 DESTDIR?=
 PREFIX ?= /usr/local
@@ -100,17 +100,17 @@ install: zstd
 	@ln -sf zstd$(EXT) $(DESTDIR)$(BINDIR)/unzstd
 	@echo Installing man pages
 	@install -m 644 zstd.1 $(DESTDIR)$(MANDIR)/zstd.1
-	@install -m 644 zstdcat.1 $(DESTDIR)$(MANDIR)/zstdcat.1
-	@install -m 644 unzstd.1 $(DESTDIR)$(MANDIR)/unzstd.1
+	@ln -sf zstd.1 $(DESTDIR)$(MANDIR)/zstdcat.1
+	@ln -sf zstd.1 $(DESTDIR)$(MANDIR)/unzstd.1
 	@echo zstd installation completed
 
 uninstall:
 	rm -f $(DESTDIR)$(BINDIR)/zstdcat
 	rm -f $(DESTDIR)$(BINDIR)/unzstd
 	[ -x $(DESTDIR)$(BINDIR)/zstd$(EXT) ] && rm -f $(DESTDIR)$(BINDIR)/zstd$(EXT)
+	rm -f $(DESTDIR)$(MANDIR)/zstdcat.1
+	rm -f $(DESTDIR)$(MANDIR)/unzstd.1
 	[ -f $(DESTDIR)$(MANDIR)/zstd.1 ] && rm -f $(DESTDIR)$(MANDIR)/zstd.1
-	[ -f $(DESTDIR)$(MANDIR)/zstdcat.1 ] && rm -f $(DESTDIR)$(MANDIR)/zstdcat.1
-	[ -f $(DESTDIR)$(MANDIR)/unzstd.1 ] && rm -f $(DESTDIR)$(MANDIR)/unzstd.1
 	@echo zstd programs successfully uninstalled
 
 test: test-zstd test-fullbench test-fuzzer
@@ -120,8 +120,9 @@ test32: test-zstd32 test-fullbench32 test-fuzzer32
 test-all: test test32 memtest
 
 test-zstd: zstd datagen
-	@echo "*** zstd cli write error test ***"
+	@echo "*** flush write error test ***"
 	echo foo | ./zstd > /dev/full; if [ $$? -eq 0 ] ; then echo "write error not detected!"; false; fi
+	echo foo | ./zstd | ./zstd -d > /dev/full; if [ $$? -eq 0 ] ; then echo "write error not detected!"; false; fi
 	@echo "*** zstd round-trip tests *** "
 	./datagen          | ./zstd -v    | ./zstd -d > $(VOID)
 	./datagen -g256MB  | ./zstd -v    | ./zstd -d > $(VOID)

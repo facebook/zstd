@@ -56,6 +56,7 @@ size_t ZSTD_compressEnd(ZSTD_Cctx* cctx, void* dst, size_t maxDstSize);
 
 typedef struct ZSTD_Dctx_s ZSTD_Dctx;
 ZSTD_Dctx* ZSTD_createDCtx(void);
+size_t     ZSTD_resetDCtx(ZSTD_Dctx* dctx);
 size_t     ZSTD_freeDCtx(ZSTD_Dctx* dctx);
 
 size_t ZSTD_nextSrcSizeToDecompress(ZSTD_Dctx* dctx);

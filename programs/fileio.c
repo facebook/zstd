@@ -309,44 +309,17 @@ unsigned long long FIO_compressFilename(const char* output_filename, const char*
 
 
 #define MAXHEADERSIZE FIO_FRAMEHEADERSIZE+3
-unsigned long long FIO_decompressFilename(const char* output_filename, const char* input_filename)
+unsigned long long FIO_decompressFrame(FILE* foutput, FILE* finput,
+                                       BYTE* inBuff, size_t inBuffSize,
+                                       BYTE* outBuff, size_t outBuffSize,
+                                       ZSTD_Dctx* dctx)
 {
-    FILE* finput, *foutput;
-    BYTE* inBuff;
-    size_t inBuffSize;
-    BYTE* outBuff, *op, *oend;
-    size_t outBuffSize;
-    U32   blockSize = 128 KB;
-    U32   wNbBlocks = 4;
+    BYTE* op = outBuff;
+    BYTE* const oend = outBuff + outBuffSize;
     U64   filesize = 0;
-    BYTE* header[MAXHEADERSIZE];
-    ZSTD_Dctx* dctx;
     size_t toRead;
     size_t sizeCheck;
 
-
-    /* Init */
-    FIO_getFileHandles(&finput, &foutput, input_filename, output_filename);
-    dctx = ZSTD_createDCtx();
-
-    /* check header */
-    toRead = ZSTD_nextSrcSizeToDecompress(dctx);
-    if (toRead > MAXHEADERSIZE) EXM_THROW(30, "Not enough memory to read header");
-    sizeCheck = fread(header, (size_t)1, toRead, finput);
-    if (sizeCheck != toRead) EXM_THROW(31, "Read error : cannot read header");
-    sizeCheck = ZSTD_decompressContinue(dctx, NULL, 0, header, toRead);   // Decode frame header
-    if (ZSTD_isError(sizeCheck)) EXM_THROW(32, "Error decoding header");
-
-    /* Here later : blockSize determination */
-
-    /* Allocate Memory */
-    inBuffSize = blockSize + FIO_blockHeaderSize;
-    inBuff  = (BYTE*)malloc(inBuffSize);
-    outBuffSize = wNbBlocks * blockSize;
-    outBuff = (BYTE*)malloc(outBuffSize);
-    op = outBuff;
-    oend = outBuff + outBuffSize;
-    if (!inBuff || !outBuff) EXM_THROW(33, "Allocation error : not enough memory");
 
     /* Main decompression Loop */
     toRead = ZSTD_nextSrcSizeToDecompress(dctx);
@@ -378,6 +351,67 @@ unsigned long long FIO_decompressFilename(const char* output_filename, const cha
 
         /* prepare for next Block */
         toRead = ZSTD_nextSrcSizeToDecompress(dctx);
+    }
+
+    return filesize;
+}
+
+
+unsigned long long FIO_decompressFilename(const char* output_filename, const char* input_filename)
+{
+    FILE* finput, *foutput;
+    BYTE* inBuff=NULL;
+    size_t inBuffSize = 0;
+    BYTE* outBuff=NULL;
+    size_t outBuffSize = 0;
+    U32   blockSize = 128 KB;
+    U32   wNbBlocks = 4;
+    U64   filesize = 0;
+    BYTE* header[MAXHEADERSIZE];
+    ZSTD_Dctx* dctx;
+    size_t toRead;
+    size_t sizeCheck;
+
+
+    /* Init */
+    FIO_getFileHandles(&finput, &foutput, input_filename, output_filename);
+    dctx = ZSTD_createDCtx();
+
+    /* for each frame */
+    for ( ; ; )
+    {
+        /* check header */
+        ZSTD_resetDCtx(dctx);
+        toRead = ZSTD_nextSrcSizeToDecompress(dctx);
+        if (toRead > MAXHEADERSIZE) EXM_THROW(30, "Not enough memory to read header");
+        sizeCheck = fread(header, (size_t)1, toRead, finput);
+        if (sizeCheck==0) break;   /* no more input */
+        if (sizeCheck != toRead) EXM_THROW(31, "Read error : cannot read header");
+        sizeCheck = ZSTD_decompressContinue(dctx, NULL, 0, header, toRead);   // Decode frame header
+        if (ZSTD_isError(sizeCheck)) EXM_THROW(32, "Error decoding header");
+
+        /* Here later : blockSize determination */
+
+        /* Allocate Memory (if needed) */
+        {
+            size_t newInBuffSize = blockSize + FIO_blockHeaderSize;
+            size_t newOutBuffSize = wNbBlocks * blockSize;
+            if (newInBuffSize > inBuffSize)
+            {
+                free(inBuff);
+                inBuffSize = newInBuffSize;
+                inBuff  = (BYTE*)malloc(inBuffSize);
+            }
+            if (newOutBuffSize > outBuffSize)
+            {
+                free(outBuff);
+                outBuffSize = newOutBuffSize;
+                outBuff  = (BYTE*)malloc(outBuffSize);
+            }
+        }
+        if (!inBuff || !outBuff) EXM_THROW(33, "Allocation error : not enough memory");
+
+        filesize += FIO_decompressFrame(foutput, finput, inBuff, inBuffSize, outBuff, outBuffSize, dctx);
     }
 
     DISPLAYLEVEL(2, "\r%79s\r", "");

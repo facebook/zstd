@@ -914,8 +914,8 @@ size_t FSE_readNCount (short* normalizedCounter, unsigned* maxSVPtr, unsigned* t
                 else
                 {
                     bitCount -= (int)(8 * (iend - 4 - ip));
-					ip = iend - 4;
-				}
+                    ip = iend - 4;
+                }
                 bitStream = FSE_readLE32(ip) >> (bitCount & 31);
             }
         }
@@ -967,20 +967,20 @@ void  FSE_freeCTable (FSE_CTable* ct)
 /* provides the minimum logSize to safely represent a distribution */
 static unsigned FSE_minTableLog(size_t srcSize, unsigned maxSymbolValue)
 {
-	U32 minBitsSrc = FSE_highbit32((U32)(srcSize - 1)) + 1;
-	U32 minBitsSymbols = FSE_highbit32(maxSymbolValue) + 2;
-	U32 minBits = minBitsSrc < minBitsSymbols ? minBitsSrc : minBitsSymbols;
-	return minBits;
+    U32 minBitsSrc = FSE_highbit32((U32)(srcSize - 1)) + 1;
+    U32 minBitsSymbols = FSE_highbit32(maxSymbolValue) + 2;
+    U32 minBits = minBitsSrc < minBitsSymbols ? minBitsSrc : minBitsSymbols;
+    return minBits;
 }
 
 unsigned FSE_optimalTableLog(unsigned maxTableLog, size_t srcSize, unsigned maxSymbolValue)
 {
-	U32 maxBitsSrc = FSE_highbit32((U32)(srcSize - 1)) - 2;
+    U32 maxBitsSrc = FSE_highbit32((U32)(srcSize - 1)) - 2;
     U32 tableLog = maxTableLog;
-	U32 minBits = FSE_minTableLog(srcSize, maxSymbolValue);
+    U32 minBits = FSE_minTableLog(srcSize, maxSymbolValue);
     if (tableLog==0) tableLog = FSE_DEFAULT_TABLELOG;
-	if (maxBitsSrc < tableLog) tableLog = maxBitsSrc;   /* Accuracy can be reduced */
-	if (minBits > tableLog) tableLog = minBits;   /* Need a minimum to safely represent all symbol values */
+    if (maxBitsSrc < tableLog) tableLog = maxBitsSrc;   /* Accuracy can be reduced */
+    if (minBits > tableLog) tableLog = minBits;   /* Need a minimum to safely represent all symbol values */
     if (tableLog < FSE_MIN_TABLELOG) tableLog = FSE_MIN_TABLELOG;
     if (tableLog > FSE_MAX_TABLELOG) tableLog = FSE_MAX_TABLELOG;
     return tableLog;
@@ -1569,8 +1569,8 @@ size_t FSE_readBitsFast(FSE_DStream_t* bitD, U32 nbBits)   /* only if nbBits >= 
 
 unsigned FSE_reloadDStream(FSE_DStream_t* bitD)
 {
-	if (bitD->bitsConsumed > (sizeof(bitD->bitContainer)*8))  /* should never happen */
-		return FSE_DStream_tooFar;
+    if (bitD->bitsConsumed > (sizeof(bitD->bitContainer)*8))  /* should never happen */
+        return FSE_DStream_tooFar;
 
     if (bitD->ptr >= bitD->start + sizeof(bitD->bitContainer))
     {
@@ -1834,7 +1834,7 @@ size_t HUF_writeCTable (void* dst, size_t maxDstSize, const HUF_CElt* tree, U32 
         if (maxSymbolValue > (241-128)) return (size_t)-FSE_ERROR_GENERIC;   /* not implemented (not possible with current format) */
         if (((maxSymbolValue+1)/2) + 1 > maxDstSize) return (size_t)-FSE_ERROR_dstSize_tooSmall;   /* not enough space within dst buffer */
         op[0] = (BYTE)(128 /*special case*/ + 0 /* Not Compressible */ + (maxSymbolValue-1));
-		huffWeight[maxSymbolValue] = 0;   /* to be sure it doesn't cause issue in final combination */
+        huffWeight[maxSymbolValue] = 0;   /* to be sure it doesn't cause issue in final combination */
         for (n=0; n<maxSymbolValue; n+=2)
             op[(n/2)+1] = (BYTE)((huffWeight[n] << 4) + huffWeight[n+1]);
         return ((maxSymbolValue+1)/2) + 1;
@@ -1878,7 +1878,7 @@ static U32 HUF_setMaxHeight(nodeElt* huffNode, U32 lastNonNull, U32 maxNbBits)
             U32 rankLast[HUF_MAX_TABLELOG];
             U32 currentNbBits = maxNbBits;
             int pos;
-			memset(rankLast, 0xF0, sizeof(rankLast));
+            memset(rankLast, 0xF0, sizeof(rankLast));
             for (pos=n ; pos >= 0; pos--)
             {
                 if (huffNode[pos].nbBits >= currentNbBits) continue;
@@ -1917,20 +1917,20 @@ static U32 HUF_setMaxHeight(nodeElt* huffNode, U32 lastNonNull, U32 maxNbBits)
                 }
             }
 
-			while (totalCost < 0)   /* Sometimes, cost correction overshoot */
-			{
-				if (rankLast[1] == noOne)   /* special case, no weight 1, let's find it back at n */
-				{
-					while (huffNode[n].nbBits == maxNbBits) n--;
-					huffNode[n+1].nbBits--;
-					rankLast[1] = n+1;
-					totalCost++;
-					continue;
-				}
-				huffNode[ rankLast[1] + 1 ].nbBits--;
-				rankLast[1]++;
-				totalCost ++;
-			}
+            while (totalCost < 0)   /* Sometimes, cost correction overshoot */
+            {
+                if (rankLast[1] == noOne)   /* special case, no weight 1, let's find it back at n */
+                {
+                    while (huffNode[n].nbBits == maxNbBits) n--;
+                    huffNode[n+1].nbBits--;
+                    rankLast[1] = n+1;
+                    totalCost++;
+                    continue;
+                }
+                huffNode[ rankLast[1] + 1 ].nbBits--;
+                rankLast[1]++;
+                totalCost ++;
+            }
         }
     }
 
@@ -1981,7 +1981,7 @@ size_t HUF_buildCTable (HUF_CElt* tree, const U32* count, U32 maxSymbolValue, U3
     /* safety checks */
     if (maxNbBits == 0) maxNbBits = HUF_DEFAULT_TABLELOG;
     if (maxSymbolValue > HUF_MAX_SYMBOL_VALUE) return (size_t)-FSE_ERROR_GENERIC;
-	memset(huffNode0, 0, sizeof(huffNode0));
+    memset(huffNode0, 0, sizeof(huffNode0));
 
     // sort, decreasing order
     HUF_sort(huffNode, count, maxSymbolValue);
@@ -2066,7 +2066,7 @@ size_t HUF_compress_usingCTable(void* dst, size_t dstSize, const void* src, size
     FSE_CStream_t bitC;
 
     /* init */
-	if (dstSize < 8) return 0;
+    if (dstSize < 8) return 0;
     op += 6;   /* jump Table -- could be optimized by delta / deviation */
     errorCode = FSE_initCStream(&bitC, op, oend-op);
     if (FSE_isError(errorCode)) return 0;

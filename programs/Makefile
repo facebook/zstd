@@ -120,10 +120,22 @@ test32: test-zstd32 test-fullbench32 test-fuzzer32
 test-all: test test32 memtest
 
 test-zstd: zstd datagen
-	@echo "*** flush write error test ***"
+	@echo "\n**** frame concatenation **** "
+	@echo "hello " > hello.tmp
+	@echo "world!" > world.tmp
+	@cat hello.tmp world.tmp > helloworld.tmp
+	./zstd hello.tmp > hello.zstd
+	./zstd world.tmp > world.zstd
+	@cat hello.zstd world.zstd > helloworld.zstd
+	./zstd -d helloworld.zstd > result.tmp
+	cat result.tmp
+	sdiff helloworld.tmp result.tmp
+	@rm *.tmp *.zstd
+	@echo frame concatenation test completed
+	@echo "**** flush write error test **** "
 	echo foo | ./zstd > /dev/full; if [ $$? -eq 0 ] ; then echo "write error not detected!"; false; fi
 	echo foo | ./zstd | ./zstd -d > /dev/full; if [ $$? -eq 0 ] ; then echo "write error not detected!"; false; fi
-	@echo "*** zstd round-trip tests *** "
+	@echo "**** zstd round-trip tests **** "
 	./datagen          | ./zstd -v    | ./zstd -d > $(VOID)
 	./datagen -g256MB  | ./zstd -v    | ./zstd -d > $(VOID)
 	./datagen -g6GB -P99 | ./zstd -vq | ./zstd -d > $(VOID)

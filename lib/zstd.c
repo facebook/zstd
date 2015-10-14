@@ -1234,7 +1234,7 @@ size_t ZSTD_decodeLiteralsBlock(void* ctx,
 }
 
 
-size_t ZSTD_decodeSeqHeaders(int* nbSeq, const BYTE** dumpsPtr,
+size_t ZSTD_decodeSeqHeaders(int* nbSeq, const BYTE** dumpsPtr, size_t* dumpsLengthPtr,
                          FSE_DTable* DTableLL, FSE_DTable* DTableML, FSE_DTable* DTableOffb,
                          const void* src, size_t srcSize)
 {
@@ -1267,6 +1267,7 @@ size_t ZSTD_decodeSeqHeaders(int* nbSeq, const BYTE** dumpsPtr,
     }
     *dumpsPtr = ip;
     ip += dumpsLength;
+    *dumpsLengthPtr = dumpsLength;
 
     /* check */
     if (ip > iend-3) return (size_t)-ZSTD_ERROR_SrcSize; /* min : all 3 are "raw", hence no header, but at least xxLog bits per type */
@@ -1351,6 +1352,7 @@ typedef struct {
     FSE_DState_t stateML;
     size_t prevOffset;
     const BYTE* dumps;
+    const BYTE* dumpsEnd;
 } seqState_t;
 
 
@@ -1361,6 +1363,7 @@ static void ZSTD_decodeSequence(seq_t* seq, seqState_t* seqState)
     size_t offset;
     size_t matchLength;
     const BYTE* dumps = seqState->dumps;
+    const BYTE* const de = seqState->dumpsEnd;
 
     /* Literal length */
     litLength = FSE_decodeSymbol(&(seqState->stateLL), &(seqState->DStream));
@@ -1368,12 +1371,15 @@ static void ZSTD_decodeSequence(seq_t* seq, seqState_t* seqState)
     seqState->prevOffset = seq->offset;
     if (litLength == MaxLL)
     {
-        U32 add = *dumps++;
+        U32 add = dumps<de ? *dumps++ : 0;
         if (add < 255) litLength += add;
         else
         {
-            litLength = ZSTD_readLE32(dumps) & 0xFFFFFF;
-            dumps += 3;
+            if (dumps<=(de-3))
+            {
+                litLength = ZSTD_readLE32(dumps) & 0xFFFFFF;  /* no pb : dumps is always followed by seq tables > 1 byte */
+                dumps += 3;
+            }
         }
     }
 
@@ -1393,12 +1399,15 @@ static void ZSTD_decodeSequence(seq_t* seq, seqState_t* seqState)
     matchLength = FSE_decodeSymbol(&(seqState->stateML), &(seqState->DStream));
     if (matchLength == MaxML)
     {
-        U32 add = *dumps++;
+        U32 add = dumps<de ? *dumps++ : 0;
         if (add < 255) matchLength += add;
         else
         {
-            matchLength = ZSTD_readLE32(dumps) & 0xFFFFFF;   /* no pb : dumps is always followed by seq tables > 1 byte */
-            dumps += 3;
+            if (dumps<=(de-3))
+            {
+                matchLength = ZSTD_readLE32(dumps) & 0xFFFFFF;  /* no pb : dumps is always followed by seq tables > 1 byte */
+                dumps += 3;
+            }
         }
     }
     matchLength += MINMATCH;
@@ -1515,7 +1524,7 @@ static size_t ZSTD_decompressSequences(
     BYTE* const ostart = (BYTE* const)dst;
     BYTE* op = ostart;
     BYTE* const oend = ostart + maxDstSize;
-    size_t errorCode;
+    size_t errorCode, dumpsLength;
     const BYTE* litPtr = litStart;
     const BYTE* const litEnd = litStart + litSize;
     int nbSeq;
@@ -1526,7 +1535,7 @@ static size_t ZSTD_decompressSequences(
     BYTE* const base = (BYTE*) (dctx->base);
 
     /* Build Decoding Tables */
-    errorCode = ZSTD_decodeSeqHeaders(&nbSeq, &dumps,
+    errorCode = ZSTD_decodeSeqHeaders(&nbSeq, &dumps, &dumpsLength,
                                       DTableLL, DTableML, DTableOffb,
                                       ip, iend-ip);
     if (ZSTD_isError(errorCode)) return errorCode;
@@ -1539,6 +1548,7 @@ static size_t ZSTD_decompressSequences(
 
         memset(&sequence, 0, sizeof(sequence));
         seqState.dumps = dumps;
+        seqState.dumpsEnd = dumps + dumpsLength;
         seqState.prevOffset = 1;
         errorCode = FSE_initDStream(&(seqState.DStream), ip, iend-ip);
         if (FSE_isError(errorCode)) return (size_t)-ZSTD_ERROR_corruption;
@@ -1546,7 +1556,7 @@ static size_t ZSTD_decompressSequences(
         FSE_initDState(&(seqState.stateOffb), &(seqState.DStream), DTableOffb);
         FSE_initDState(&(seqState.stateML), &(seqState.DStream), DTableML);
 
-        for ( ; (FSE_reloadDStream(&(seqState.DStream)) < FSE_DStream_completed) || (nbSeq>0) ; )
+        for ( ; (FSE_reloadDStream(&(seqState.DStream)) <= FSE_DStream_completed) && (nbSeq>0) ; )
         {
             size_t oneSeqSize;
             nbSeq--;
@@ -1557,7 +1567,7 @@ static size_t ZSTD_decompressSequences(
         }
 
         /* check if reached exact end */
-        if (FSE_reloadDStream(&(seqState.DStream)) > FSE_DStream_completed) return (size_t)-ZSTD_ERROR_corruption;   /* requested too much : data is corrupted */
+        if ( !FSE_endOfDStream(&(seqState.DStream)) ) return (size_t)-ZSTD_ERROR_corruption;   /* requested too much : data is corrupted */
         if (nbSeq<0) return (size_t)-ZSTD_ERROR_corruption;   /* requested too many sequences : data is corrupted */
 
         /* last literal segment */

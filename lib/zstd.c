@@ -314,6 +314,7 @@ typedef struct ZSTD_Cctx_s
 #else
     U32 hashTable[HASH_TABLESIZE];
 #endif
+	BYTE buffer[WORKPLACESIZE];
 } cctxi_t;
 
 
@@ -321,12 +322,7 @@ ZSTD_Cctx* ZSTD_createCCtx(void)
 {
     ZSTD_Cctx* ctx = (ZSTD_Cctx*) malloc( sizeof(ZSTD_Cctx) );
     if (ctx==NULL) return NULL;
-    ctx->seqStore.buffer = malloc(WORKPLACESIZE);
-    if (ctx->seqStore.buffer==NULL)
-    {
-        free(ctx);
-        return NULL;
-    }
+	ctx->seqStore.buffer = ctx->buffer;
     ctx->seqStore.offsetStart = (U32*) (ctx->seqStore.buffer);
     ctx->seqStore.offCodeStart = (BYTE*) (ctx->seqStore.offsetStart + (BLOCKSIZE>>2));
     ctx->seqStore.litStart = ctx->seqStore.offCodeStart + (BLOCKSIZE>>2);
@@ -344,7 +340,6 @@ void ZSTD_resetCCtx(ZSTD_Cctx* ctx)
 
 size_t ZSTD_freeCCtx(ZSTD_Cctx* ctx)
 {
-    free(ctx->seqStore.buffer);
     free(ctx);
     return 0;
 }

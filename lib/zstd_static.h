@@ -32,6 +32,11 @@
 */
 #pragma once
 
+/* The objects defined into this file should be considered experimental.
+ * They are not labelled stable, as their prototype may change in the future.
+ * You can use them for tests, provide feedback, or if you can endure risk of future changes.
+ */
+
 #if defined (__cplusplus)
 extern "C" {
 #endif
@@ -63,10 +68,9 @@ size_t ZSTD_nextSrcSizeToDecompress(ZSTD_Dctx* dctx);
 size_t ZSTD_decompressContinue(ZSTD_Dctx* dctx, void* dst, size_t maxDstSize, const void* src, size_t srcSize);
 /*
   Use above functions alternatively.
-  ZSTD_nextSrcSizeToDecompress() tells how much bytes to provide as input to ZSTD_decompressContinue().
-  This value is expected to be provided, precisely, as 'srcSize'.
-  Otherwise, compression will fail (result is an error code, which can be tested using ZSTD_isError() )
-  ZSTD_decompressContinue() result is the number of bytes regenerated within 'dst'.
+  ZSTD_nextSrcSizeToDecompress() tells how much bytes to provide as 'srcSize' to ZSTD_decompressContinue().
+  ZSTD_decompressContinue() will use previous data blocks to improve compresson if they are located prior to current block.
+  Result is the number of bytes regenerated within 'dst'.
   It can be zero, which is not an error; it just means ZSTD_decompressContinue() has decoded some header.
 */
 

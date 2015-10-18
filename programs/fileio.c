@@ -30,6 +30,16 @@
 */
 
 /**************************************
+*  Tuning options
+**************************************/
+#ifndef ZSTD_LEGACY_SUPPORT
+/**LEGACY_SUPPORT :
+*  decompressor can decode older formats (starting from Zstd 0.1+) */
+#  define ZSTD_LEGACY_SUPPORT 1
+#endif // ZSTD_LEGACY_SUPPORT
+
+
+/**************************************
 *  Compiler Options
 **************************************/
 /* Disable some Visual warning messages */
@@ -48,13 +58,18 @@
 /**************************************
 *  Includes
 **************************************/
-#include <stdio.h>    /* fprintf, fopen, fread, _fileno, stdin, stdout */
-#include <stdlib.h>   /* malloc, free */
-#include <string.h>   /* strcmp, strlen */
-#include <time.h>     /* clock */
-#include <errno.h>    /* errno */
+#include <stdio.h>     /* fprintf, fopen, fread, _fileno, stdin, stdout */
+#include <stdlib.h>    /* malloc, free */
+#include <string.h>    /* strcmp, strlen */
+#include <time.h>      /* clock */
+#include <errno.h>     /* errno */
+#include "mem.h"
 #include "fileio.h"
 #include "zstd_static.h"
+
+#if defined(ZSTD_LEGACY_SUPPORT) && (ZSTD_LEGACY_SUPPORT==1)
+#  include "zstd_v01.h"  /* legacy */
+#endif // ZSTD_LEGACY_SUPPORT
 
 
 /**************************************
@@ -72,25 +87,6 @@
 #  include <unistd.h>   /* isatty */
 #  define SET_BINARY_MODE(file)
 #  define IS_CONSOLE(stdStream) isatty(fileno(stdStream))
-#endif
-
-
-/**************************************
-*  Basic Types
-**************************************/
-#if defined (__STDC_VERSION__) && __STDC_VERSION__ >= 199901L   /* C99 */
-# include <stdint.h>
-typedef uint8_t  BYTE;
-typedef uint16_t U16;
-typedef uint32_t U32;
-typedef  int32_t S32;
-typedef uint64_t U64;
-#else
-typedef unsigned char       BYTE;
-typedef unsigned short      U16;
-typedef unsigned int        U32;
-typedef   signed int        S32;
-typedef unsigned long long  U64;
 #endif
 
 
@@ -217,8 +213,8 @@ static void FIO_getFileHandles(FILE** pfinput, FILE** pfoutput, const char* inpu
         *pfoutput = fopen( output_filename, "wb" );
     }
 
-    if ( *pfinput==0 ) EXM_THROW(12, "Pb opening %s", input_filename);
-    if ( *pfoutput==0) EXM_THROW(13, "Pb opening %s", output_filename);
+    if ( *pfinput==0 ) EXM_THROW(12, "Pb opening src : %s", input_filename);
+    if ( *pfoutput==0) EXM_THROW(13, "Pb opening dst : %s", output_filename);
 }
 
 
@@ -308,7 +304,70 @@ unsigned long long FIO_compressFilename(const char* output_filename, const char*
 }
 
 
-#define MAXHEADERSIZE FIO_FRAMEHEADERSIZE+3
+#if defined(ZSTD_LEGACY_SUPPORT) && (ZSTD_LEGACY_SUPPORT==1)
+
+unsigned long long FIOv01_decompressFrame(FILE* foutput, FILE* finput)
+{
+    size_t outBuffSize = 512 KB;
+    BYTE* outBuff = (BYTE*)malloc(outBuffSize);
+    size_t inBuffSize = 128 KB + 8;
+    BYTE inBuff[128 KB + 8];
+    BYTE* op = outBuff;
+    BYTE* const oend = outBuff + outBuffSize;
+    U64   filesize = 0;
+    size_t toRead;
+    size_t sizeCheck;
+    ZSTDv01_Dctx* dctx = ZSTDv01_createDCtx();
+
+
+    /* init */
+    if (outBuff==NULL) EXM_THROW(41, "Error : not enough memory to decode legacy frame");
+
+    /* restore header, already read from input */
+    MEM_writeLE32(inBuff, ZSTDv01_magicNumberLE);
+    sizeCheck = ZSTDv01_decompressContinue(dctx, NULL, 0, inBuff, sizeof(ZSTDv01_magicNumberLE));   /* Decode frame header */
+    if (ZSTDv01_isError(sizeCheck)) EXM_THROW(42, "Error decoding legacy header");
+
+    /* Main decompression Loop */
+    toRead = ZSTDv01_nextSrcSizeToDecompress(dctx);
+    while (toRead)
+    {
+        size_t readSize, decodedSize;
+
+        /* Fill input buffer */
+        if (toRead > inBuffSize)
+            EXM_THROW(43, "too large block");
+        readSize = fread(inBuff, 1, toRead, finput);
+        if (readSize != toRead)
+            EXM_THROW(44, "Read error");
+
+        /* Decode block */
+        decodedSize = ZSTDv01_decompressContinue(dctx, op, oend-op, inBuff, readSize);
+        if (ZSTDv01_isError(decodedSize)) EXM_THROW(45, "Decoding error : input corrupted");
+
+        if (decodedSize)   /* not a header */
+        {
+            /* Write block */
+            sizeCheck = fwrite(op, 1, decodedSize, foutput);
+            if (sizeCheck != decodedSize) EXM_THROW(46, "Write error : unable to write data block to destination file");
+            filesize += decodedSize;
+            op += decodedSize;
+            if (op==oend) op = outBuff;
+            DISPLAYUPDATE(2, "\rDecoded : %u MB...     ", (U32)(filesize>>20) );
+        }
+
+        /* prepare for next Block */
+        toRead = ZSTDv01_nextSrcSizeToDecompress(dctx);
+    }
+
+    /* release resources */
+    free(outBuff);
+    free(dctx);
+    return filesize;
+}
+#endif   /* ZSTD_LEGACY_SUPPORT */
+
+
 unsigned long long FIO_decompressFrame(FILE* foutput, FILE* finput,
                                        BYTE* inBuff, size_t inBuffSize,
                                        BYTE* outBuff, size_t outBuffSize,
@@ -357,6 +416,98 @@ unsigned long long FIO_decompressFrame(FILE* foutput, FILE* finput,
 }
 
 
+#define MAXHEADERSIZE (FIO_FRAMEHEADERSIZE+3)
+unsigned long long FIO_decompressFilename(const char* output_filename, const char* input_filename)
+{
+    FILE* finput, *foutput;
+    BYTE* inBuff=NULL;
+    size_t inBuffSize = 0;
+    BYTE* outBuff=NULL;
+    size_t outBuffSize = 0;
+    U32   blockSize = 128 KB;
+    U32   wNbBlocks = 4;
+    U64   filesize = 0;
+    BYTE* header[MAXHEADERSIZE];
+    size_t toRead;
+    size_t sizeCheck;
+
+
+    /* Init */
+    ZSTD_Dctx* dctx = ZSTD_createDCtx();
+    FIO_getFileHandles(&finput, &foutput, input_filename, output_filename);
+
+    /* for each frame */
+    for ( ; ; )
+    {
+        /* check magic number -> version */
+        U32 magicNumber;
+        toRead = sizeof(ZSTD_magicNumber);;
+        sizeCheck = fread(header, (size_t)1, toRead, finput);
+        if (sizeCheck==0) break;   /* no more input */
+        if (sizeCheck != toRead) EXM_THROW(31, "Read error : cannot read header");
+
+        magicNumber = MEM_readLE32(header);
+        switch(magicNumber)
+        {
+#if defined(ZSTD_LEGACY_SUPPORT) && (ZSTD_LEGACY_SUPPORT==1)
+        case ZSTDv01_magicNumberLE:
+            filesize += FIOv01_decompressFrame(foutput, finput);
+            continue;
+#endif   /* ZSTD_LEGACY_SUPPORT */
+        case ZSTD_magicNumber:
+            break;   /* normal case */
+        default :
+            EXM_THROW(32, "Error : unknown frame prefix");
+        }
+
+        /* prepare frame decompression, by completing header */
+        ZSTD_resetDCtx(dctx);
+        toRead = ZSTD_nextSrcSizeToDecompress(dctx) - sizeof(ZSTD_magicNumber);
+        if (toRead > MAXHEADERSIZE) EXM_THROW(30, "Not enough memory to read header");
+        sizeCheck = fread(header+sizeof(ZSTD_magicNumber), (size_t)1, toRead, finput);
+        if (sizeCheck != toRead) EXM_THROW(31, "Read error : cannot read header");
+        sizeCheck = ZSTD_decompressContinue(dctx, NULL, 0, header, sizeof(ZSTD_magicNumber)+toRead);   // Decode frame header
+        if (ZSTD_isError(sizeCheck)) EXM_THROW(32, "Error decoding header");
+
+        /* Here later : blockSize determination */
+
+        /* Allocate Memory (if needed) */
+        {
+            size_t newInBuffSize = blockSize + FIO_blockHeaderSize;
+            size_t newOutBuffSize = wNbBlocks * blockSize;
+            if (newInBuffSize > inBuffSize)
+            {
+                free(inBuff);
+                inBuffSize = newInBuffSize;
+                inBuff  = (BYTE*)malloc(inBuffSize);
+            }
+            if (newOutBuffSize > outBuffSize)
+            {
+                free(outBuff);
+                outBuffSize = newOutBuffSize;
+                outBuff  = (BYTE*)malloc(outBuffSize);
+            }
+        }
+        if (!inBuff || !outBuff) EXM_THROW(33, "Allocation error : not enough memory");
+
+        filesize += FIO_decompressFrame(foutput, finput, inBuff, inBuffSize, outBuff, outBuffSize, dctx);
+    }
+
+    DISPLAYLEVEL(2, "\r%79s\r", "");
+    DISPLAYLEVEL(2, "Decoded %llu bytes   \n", (long long unsigned)filesize);
+
+    /* clean */
+    free(inBuff);
+    free(outBuff);
+    ZSTD_freeDCtx(dctx);
+    fclose(finput);
+    if (fclose(foutput)) EXM_THROW(38, "Write error : cannot properly close %s", output_filename);
+
+    return filesize;
+}
+
+
+#if 0
 unsigned long long FIO_decompressFilename(const char* output_filename, const char* input_filename)
 {
     FILE* finput, *foutput;
@@ -415,7 +566,7 @@ unsigned long long FIO_decompressFilename(const char* output_filename, const cha
     }
 
     DISPLAYLEVEL(2, "\r%79s\r", "");
-    DISPLAYLEVEL(2,"Decoded %llu bytes   \n", (long long unsigned)filesize);
+    DISPLAYLEVEL(2, "Decoded %llu bytes   \n", (long long unsigned)filesize);
 
     /* clean */
     free(inBuff);
@@ -426,4 +577,4 @@ unsigned long long FIO_decompressFilename(const char* output_filename, const cha
 
     return filesize;
 }
-
+#endif

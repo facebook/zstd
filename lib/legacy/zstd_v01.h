@@ -1,6 +1,6 @@
 /*
     zstd - standard compression library
-    Header File for static linking only
+    Header File
     Copyright (C) 2014-2015, Yann Collet.
 
     BSD 2-Clause License (http://www.opensource.org/licenses/bsd-license.php)
@@ -32,41 +32,55 @@
 */
 #pragma once
 
-/* The objects defined into this file should be considered experimental.
- * They are not labelled stable, as their prototype may change in the future.
- * You can use them for tests, provide feedback, or if you can endure risk of future changes.
- */
-
 #if defined (__cplusplus)
 extern "C" {
 #endif
 
-/**************************************
+/* *************************************
 *  Includes
-**************************************/
-#include "zstd.h"
+***************************************/
+#include <stddef.h>   /* size_t */
 
 
-/**************************************
+/* *************************************
+*  Simple one-step function
+***************************************/
+/**
+ZSTDv01_decompress() : decompress ZSTD frames compliant with v0.1.x format
+    compressedSize : is the exact source size
+    maxOriginalSize : is the size of the 'dst' buffer, which must be already allocated.
+                      It must be equal or larger than originalSize, otherwise decompression will fail.
+    return : the number of bytes decompressed into destination buffer (originalSize)
+             or an errorCode if it fails (which can be tested using ZSTDv01_isError())
+*/
+size_t ZSTDv01_decompress( void* dst, size_t maxOriginalSize,
+                     const void* src, size_t compressedSize);
+
+/**
+ZSTDv01_isError() : tells if the result of ZSTDv01_decompress() is an error
+*/
+unsigned ZSTDv01_isError(size_t code);
+
+
+/* *************************************
+*  Advanced functions
+***************************************/
+typedef struct ZSTDv01_Dctx_s ZSTDv01_Dctx;
+ZSTDv01_Dctx* ZSTDv01_createDCtx(void);
+size_t ZSTDv01_freeDCtx(ZSTDv01_Dctx* dctx);
+
+size_t ZSTDv01_decompressDCtx(void* ctx,
+                              void* dst, size_t maxOriginalSize,
+                        const void* src, size_t compressedSize);
+
+/* *************************************
 *  Streaming functions
-**************************************/
-typedef struct ZSTD_Cctx_s ZSTD_Cctx;
-ZSTD_Cctx* ZSTD_createCCtx(void);
-size_t     ZSTD_freeCCtx(ZSTD_Cctx* cctx);
+***************************************/
+size_t ZSTDv01_resetDCtx(ZSTDv01_Dctx* dctx);
 
-size_t ZSTD_compressBegin(ZSTD_Cctx* cctx, void* dst, size_t maxDstSize);
-size_t ZSTD_compressContinue(ZSTD_Cctx* cctx, void* dst, size_t maxDstSize, const void* src, size_t srcSize);
-size_t ZSTD_compressEnd(ZSTD_Cctx* cctx, void* dst, size_t maxDstSize);
-
-
-typedef struct ZSTD_Dctx_s ZSTD_Dctx;
-ZSTD_Dctx* ZSTD_createDCtx(void);
-size_t     ZSTD_resetDCtx(ZSTD_Dctx* dctx);
-size_t     ZSTD_freeDCtx(ZSTD_Dctx* dctx);
-
-size_t ZSTD_nextSrcSizeToDecompress(ZSTD_Dctx* dctx);
-size_t ZSTD_decompressContinue(ZSTD_Dctx* dctx, void* dst, size_t maxDstSize, const void* src, size_t srcSize);
-/*
+size_t ZSTDv01_nextSrcSizeToDecompress(ZSTDv01_Dctx* dctx);
+size_t ZSTDv01_decompressContinue(ZSTDv01_Dctx* dctx, void* dst, size_t maxDstSize, const void* src, size_t srcSize);
+/**
   Use above functions alternatively.
   ZSTD_nextSrcSizeToDecompress() tells how much bytes to provide as 'srcSize' to ZSTD_decompressContinue().
   ZSTD_decompressContinue() will use previous data blocks to improve compression if they are located prior to current block.
@@ -74,16 +88,11 @@ size_t ZSTD_decompressContinue(ZSTD_Dctx* dctx, void* dst, size_t maxDstSize, co
   It can be zero, which is not an error; it just means ZSTD_decompressContinue() has decoded some header.
 */
 
-/**************************************
+/* *************************************
 *  Prefix - version detection
-**************************************/
-#define ZSTD_magicNumber 0xFD2FB522   /* v0.2 (current)*/
-
-
-/**************************************
-*  Error management
-**************************************/
-#include "error.h"
+***************************************/
+#define ZSTDv01_magicNumber   0xFD2FB51E   /* Big Endian version */
+#define ZSTDv01_magicNumberLE 0x1EB52FFD   /* Little Endian version */
 
 
 #if defined (__cplusplus)

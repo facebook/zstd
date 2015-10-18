@@ -60,6 +60,7 @@
 #  include <sys/time.h>   /* gettimeofday */
 #endif
 
+#include "mem.h"
 #include "zstd.h"
 #include "fse_static.h"
 #include "datagen.h"
@@ -71,25 +72,6 @@
 /* S_ISREG & gettimeofday() are not supported by MSVC */
 #if !defined(S_ISREG)
 #  define S_ISREG(x) (((x) & S_IFMT) == S_IFREG)
-#endif
-
-
-/**************************************
-*  Basic Types
-**************************************/
-#if defined (__STDC_VERSION__) && __STDC_VERSION__ >= 199901L   /* C99 */
-# include <stdint.h>
-  typedef uint8_t  BYTE;
-  typedef uint16_t U16;
-  typedef uint32_t U32;
-  typedef  int32_t S32;
-  typedef uint64_t U64;
-#else
-  typedef unsigned char       BYTE;
-  typedef unsigned short      U16;
-  typedef unsigned int        U32;
-  typedef   signed int        S32;
-  typedef unsigned long long  U64;
 #endif
 
 
@@ -243,15 +225,12 @@ size_t local_ZSTD_decompress(void* dst, size_t dstSize, void* buff2, const void*
     return ZSTD_decompress(dst, dstSize, buff2, g_cSize);
 }
 
-extern size_t ZSTD_decodeLiteralsBlock(void* ctx, void* dst, size_t maxDstSize, const BYTE** litStart, size_t* litSize, const void* src, size_t srcSize);
+extern size_t ZSTD_decodeLiteralsBlock(void* ctx, const void* src, size_t srcSize);
 size_t local_ZSTD_decodeLiteralsBlock(void* dst, size_t dstSize, void* buff2, const void* src, size_t srcSize)
 {
-    U32 ctx[1<<12];
-    const BYTE* ll;
-    size_t llSize;
-    (void)src; (void)srcSize;
-    ZSTD_decodeLiteralsBlock(ctx, dst, dstSize, &ll, &llSize, buff2, g_cSize);
-    return (const BYTE*)dst + dstSize - ll;
+    U32 ctx[40 * 1024];
+    (void)src; (void)srcSize; (void)dst; (void)dstSize;
+    return ZSTD_decodeLiteralsBlock(ctx, buff2, g_cSize);
 }
 
 size_t local_ZSTD_decodeSeqHeaders(void* dst, size_t dstSize, void* buff2, const void* src, size_t srcSize)

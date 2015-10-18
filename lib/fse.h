@@ -74,32 +74,6 @@ FSE_decompress():
 
 
 /******************************************
-*  Huff0 simple functions
-******************************************/
-size_t HUF_compress(void* dst, size_t maxDstSize,
-              const void* src, size_t srcSize);
-size_t HUF_decompress(void* dst,  size_t maxDstSize,
-                const void* cSrc, size_t cSrcSize);
-/*
-HUF_compress():
-    Compress content of buffer 'src', of size 'srcSize', into destination buffer 'dst'.
-    'dst' buffer must be already allocated. Compression runs faster is maxDstSize >= HUF_compressBound(srcSize)
-    return : size of compressed data (<= maxDstSize)
-    Special values : if return == 0, srcData is not compressible => Nothing is stored within dst !!!
-                     if return == 1, srcData is a single byte symbol * srcSize times. Use RLE compression.
-                     if FSE_isError(return), compression failed (more details using FSE_getErrorName())
-
-HUF_decompress():
-    Decompress Huff0 data from buffer 'cSrc', of size 'cSrcSize',
-    into already allocated destination buffer 'dst', of size 'maxDstSize'.
-    return : size of regenerated data (<= maxDstSize)
-             or an error code, which can be tested using FSE_isError()
-
-    ** Important ** : HUF_decompress() doesn't decompress non-compressible nor RLE data !!!
-*/
-
-
-/******************************************
 *  Tool functions
 ******************************************/
 size_t FSE_compressBound(size_t size);       /* maximum compressed size */
@@ -122,8 +96,6 @@ FSE_compress2():
                      if FSE_isError(return), it's an error code.
 */
 size_t FSE_compress2 (void* dst, size_t dstSize, const void* src, size_t srcSize, unsigned maxSymbolValue, unsigned tableLog);
-
-size_t HUF_compress2 (void* dst, size_t dstSize, const void* src, size_t srcSize, unsigned maxSymbolValue, unsigned tableLog);
 
 
 /******************************************

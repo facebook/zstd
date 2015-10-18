@@ -148,21 +148,6 @@ static void ZSTD_wildcopy(void* dst, const void* src, size_t length)
     while (op < oend) COPY8(op, ip);
 }
 
-static U32 ZSTD_readBE32(const void* memPtr)
-{
-    const BYTE* p = (const BYTE*)memPtr;
-    return (U32)(((U32)p[0]<<24) + ((U32)p[1]<<16) + ((U32)p[2]<<8) + ((U32)p[3]<<0));
-}
-
-static void ZSTD_writeBE32(void* memPtr, U32 value)
-{
-    BYTE* const p = (BYTE* const) memPtr;
-    p[0] = (BYTE)(value>>24);
-    p[1] = (BYTE)(value>>16);
-    p[2] = (BYTE)(value>>8);
-    p[3] = (BYTE)(value>>0);
-}
-
 
 /**************************************
 *  Local structures
@@ -808,7 +793,7 @@ size_t ZSTD_compressBegin(ZSTD_Cctx* ctx, void* dst, size_t maxDstSize)
     ZSTD_resetCCtx(ctx);
 
     /* Write Header */
-    ZSTD_writeBE32(dst, ZSTD_magicNumber);
+    MEM_writeLE32(dst, ZSTD_magicNumber);
 
     return ZSTD_frameHeaderSize;
 }
@@ -1016,22 +1001,21 @@ size_t ZSTD_compress(void* dst, size_t maxDstSize, const void* src, size_t srcSi
 /**************************************************************
 *   Decompression code
 **************************************************************/
-typedef struct ZSTD_Dctx_s
+struct ZSTD_Dctx_s
 {
     U32 LLTable[FSE_DTABLE_SIZE_U32(LLFSELog)];
     U32 OffTable[FSE_DTABLE_SIZE_U32(OffFSELog)];
     U32 MLTable[FSE_DTABLE_SIZE_U32(MLFSELog)];
-    BYTE litBuffer[BLOCKSIZE];
-    const BYTE* litPtr;
-    size_t litBufSize;
-    size_t litSize;
     void* previousDstEnd;
     void* base;
     size_t expected;
     blockType_t bType;
     U32 phase;
-} ZSTD_Dctx;
-
+    const BYTE* litPtr;
+    size_t litBufSize;
+    size_t litSize;
+    BYTE litBuffer[BLOCKSIZE];
+};   /* typedef'd to ZSTD_Dctx */
 
 size_t ZSTD_getcBlockSize(const void* src, size_t srcSize, blockProperties_t* bpPtr)
 {
@@ -1493,9 +1477,9 @@ static size_t ZSTD_decompressDCtx(void* ctx, void* dst, size_t maxDstSize, const
 
     /* Frame Header */
     if (srcSize < ZSTD_frameHeaderSize+ZSTD_blockHeaderSize) return ERROR(srcSize_wrong);
-    magicNumber = ZSTD_readBE32(src);
+    magicNumber = MEM_readLE32(src);
 #if defined(ZSTD_LEGACY_SUPPORT) && (ZSTD_LEGACY_SUPPORT==1)
-    if (magicNumber != ZSTDv01_magicNumber) return ZSTDv01_decompressDCtx(ctx, dst, maxDstSize, src, srcSize);
+    if (magicNumber == ZSTDv01_magicNumberLE) return ZSTDv01_decompressDCtx(ctx, dst, maxDstSize, src, srcSize);
 #endif // defined
     if (magicNumber != ZSTD_magicNumber) return ERROR(prefix_unknown);
     ip += ZSTD_frameHeaderSize; remainingSize -= ZSTD_frameHeaderSize;
@@ -1592,7 +1576,7 @@ size_t ZSTD_decompressContinue(ZSTD_Dctx* dctx, void* dst, size_t maxDstSize, co
     if (ctx->phase == 0)
     {
         /* Check frame magic header */
-        U32 magicNumber = ZSTD_readBE32(src);
+        U32 magicNumber = MEM_readLE32(src);
         if (magicNumber != ZSTD_magicNumber) return ERROR(prefix_unknown);
         ctx->phase = 1;
         ctx->expected = ZSTD_blockHeaderSize;

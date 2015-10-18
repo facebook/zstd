@@ -40,8 +40,9 @@ LIBVER  = $(LIBVER_MAJOR).$(LIBVER_MINOR).$(LIBVER_PATCH)
 
 DESTDIR?=
 PREFIX ?= /usr/local
+CPPFLAGS= -I./legacy -DZSTD_LEGACY_SUPPORT=1
 CFLAGS ?= -O3
-CFLAGS += -I. -std=c99 -Wall -Wextra -Wundef -Wshadow -Wcast-align -Wstrict-prototypes
+CFLAGS += -std=c99 -Wall -Wextra -Wundef -Wshadow -Wcast-qual -Wcast-align -Wstrict-prototypes
 FLAGS   = $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) $(MOREFLAGS)
 
 LIBDIR ?= $(PREFIX)/lib
@@ -66,10 +67,10 @@ default: libzstd
 
 all: libzstd
 
-libzstd: zstd.c
+libzstd: zstd.c huff0.c fse.c
 	@echo compiling static library
 	@$(CC) $(FLAGS) -c $^
-	@$(AR) rcs libzstd.a zstd.o
+	@$(AR) rcs libzstd.a zstd.o huff0.o fse.o
 	@echo compiling dynamic library $(LIBVER)
 	@$(CC) $(FLAGS) -shared $^ -fPIC $(SONAME_FLAGS) -o $@.$(SHARED_EXT_VER)
 	@echo creating versioned links

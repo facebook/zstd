@@ -114,7 +114,7 @@ static const U32 g_searchStrength = 8;
 #define Offbits  5
 #define MaxML  ((1<<MLbits )-1)
 #define MaxLL  ((1<<LLbits )-1)
-#define MaxOff   26
+#define MaxOff   31
 #define LitFSELog  11
 #define MLFSELog   10
 #define LLFSELog   10
@@ -1187,8 +1187,9 @@ size_t ZSTD_decodeSeqHeaders(int* nbSeq, const BYTE** dumpsPtr, size_t* dumpsLen
         U32 max;
         case bt_rle :
             Offlog = 0;
-            if (ip > iend-2) return ERROR(srcSize_wrong); /* min : "raw", hence no header, but at least xxLog bits */
-            FSE_buildDTable_rle(DTableOffb, *ip++); break;
+            if (ip > iend-2) return ERROR(srcSize_wrong);   /* min : "raw", hence no header, but at least xxLog bits */
+            FSE_buildDTable_rle(DTableOffb, *ip++ & MaxOff); /* if *ip > MaxOff, data is corrupted */
+            break;
         case bt_raw :
             Offlog = Offbits;
             FSE_buildDTable_raw(DTableOffb, Offbits); break;
@@ -1269,9 +1270,10 @@ static void ZSTD_decodeSequence(seq_t* seq, seqState_t* seqState)
 
     /* Offset */
     {
-        static const size_t offsetPrefix[MaxOff+1] = { 1, 1, 2, 4, 8, 16, 32, 64, 128, 256,
+        static const size_t offsetPrefix[MaxOff+1] = {  /* note : size_t faster than U32 */
+                1 /*fake*/, 1, 2, 4, 8, 16, 32, 64, 128, 256,
                 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536, 131072, 262144,
-                524288, 1048576, 2097152, 4194304, 8388608, 16777216, 33554432 };
+                524288, 1048576, 2097152, 4194304, 8388608, 16777216, 33554432, /*fake*/ 1, 1, 1, 1, 1 };
         U32 offsetCode, nbBits;
         offsetCode = FSE_decodeSymbol(&(seqState->stateOffb), &(seqState->DStream));   /* <= maxOff, by table construction */
         if (MEM_32bits()) BIT_reloadDStream(&(seqState->DStream));

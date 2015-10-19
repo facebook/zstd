@@ -1313,24 +1313,20 @@ static size_t ZSTD_execSequence(BYTE* op,
     static const int dec32table[] = {0, 1, 2, 1, 4, 4, 4, 4};   /* added */
     static const int dec64table[] = {8, 8, 8, 7, 8, 9,10,11};   /* substracted */
     const BYTE* const ostart = op;
-    const size_t litLength = sequence.litLength;   /* for some reason, doing the same with matchLength decreases speed ... */
-    BYTE* const oMatchEnd = op + litLength + sequence.matchLength;   /* risk : address space overflow (32-bits) */
-    const BYTE* const litEnd = *litPtr + litLength;
+    BYTE* const oLitEnd = op + sequence.litLength;
+    BYTE* const oMatchEnd = op + sequence.litLength + sequence.matchLength;   /* risk : address space overflow (32-bits) */
+    BYTE* const oend_8 = oend-8;
+    const BYTE* const litEnd = *litPtr + sequence.litLength;
 
     /* check */
+    if (oLitEnd > oend_8) return ERROR(dstSize_tooSmall);   /* last match must start at a minimum distance of 8 from oend */
     if (oMatchEnd > oend) return ERROR(dstSize_tooSmall);   /* overwrite beyond dst buffer */
-    if (litEnd > litLimit) return ERROR(corruption_detected);
+    if (litEnd > litLimit) return ERROR(corruption_detected);   /* overRead beyond lit buffer */
 
     /* copy Literals */
-    if (op+litLength > oend-8)   /* ZSTD_wildcopy() risks overwrite */
-        memmove(op, *litPtr, litLength);
-    else
-        ZSTD_wildcopy(op, *litPtr, litLength);
-    op += litLength;
+    ZSTD_wildcopy(op, *litPtr, sequence.litLength);   /* note : oLitEnd <= oend-8 : no risk of overwrite beyond oend */
+    op = oLitEnd;
     *litPtr = litEnd;   /* update for next sequence */
-
-    /* check : last match must be at a minimum distance of 8 from end of dst buffer */
-    if (oend-op < 8) return ERROR(dstSize_tooSmall);
 
     /* copy Match */
     {
@@ -1356,11 +1352,11 @@ static size_t ZSTD_execSequence(BYTE* op,
 
         if (oMatchEnd > oend-12)
         {
-            if (op < oend-8)
+            if (op < oend_8)
             {
-                ZSTD_wildcopy(op, match, (oend-8) - op);
-                match += (oend-8) - op;
-                op = oend-8;
+                ZSTD_wildcopy(op, match, oend_8 - op);
+                match += oend_8 - op;
+                op = oend_8;
             }
             while (op < oMatchEnd) *op++ = *match++;
         }

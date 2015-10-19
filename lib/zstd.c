@@ -84,7 +84,7 @@
 #endif
 
 
-/********************************************************
+/* *******************************************************
 *  Constants
 *********************************************************/
 #define HASH_LOG (ZSTD_MEMORY_USAGE - 2)
@@ -129,9 +129,9 @@ static const size_t ZSTD_blockHeaderSize = 3;
 static const size_t ZSTD_frameHeaderSize = 4;
 
 
-/********************************************************
+/* *******************************************************
 *  Memory operations
-*********************************************************/
+**********************************************************/
 static size_t ZSTD_read_ARCH(const void* p) { size_t r; memcpy(&r, p, sizeof(r)); return r; }
 
 static void   ZSTD_copy4(void* dst, const void* src) { memcpy(dst, src, 4); }
@@ -140,18 +140,19 @@ static void   ZSTD_copy8(void* dst, const void* src) { memcpy(dst, src, 8); }
 
 #define COPY8(d,s) { ZSTD_copy8(d,s); d+=8; s+=8; }
 
+/*! ZSTD_wildcopy : custom version of memcpy(), can copy up to 7-8 bytes too many */
 static void ZSTD_wildcopy(void* dst, const void* src, size_t length)
 {
     const BYTE* ip = (const BYTE*)src;
     BYTE* op = (BYTE*)dst;
     BYTE* const oend = op + length;
-    while (op < oend) COPY8(op, ip);
+    do COPY8(op, ip) while (op < oend);
 }
 
 
-/**************************************
+/* **************************************
 *  Local structures
-***************************************/
+****************************************/
 typedef enum { bt_compressed, bt_raw, bt_rle, bt_end } blockType_t;
 
 typedef struct
@@ -228,9 +229,9 @@ size_t ZSTD_freeCCtx(ZSTD_Cctx* ctx)
 }
 
 
-/**************************************
+/* *************************************
 *  Error Management
-**************************************/
+***************************************/
 /*! ZSTD_isError
 *   tells if a return value is an error code */
 unsigned ZSTD_isError(size_t code) { return ERR_isError(code); }
@@ -240,9 +241,9 @@ unsigned ZSTD_isError(size_t code) { return ERR_isError(code); }
 const char* ZSTD_getErrorName(size_t code) { return ERR_getErrorName(code); }
 
 
-/**************************************
+/* *************************************
 *  Tool functions
-**************************************/
+***************************************/
 unsigned ZSTD_versionNumber (void) { return ZSTD_VERSION_NUMBER; }
 
 static unsigned ZSTD_highbit(U32 val)
@@ -354,7 +355,7 @@ static unsigned ZSTD_count(const BYTE* pIn, const BYTE* pMatch, const BYTE* pInL
 }
 
 
-/********************************************************
+/* *******************************************************
 *  Compression
 *********************************************************/
 size_t ZSTD_compressBound(size_t srcSize)   /* maximum compressed size */
@@ -998,9 +999,9 @@ size_t ZSTD_compress(void* dst, size_t maxDstSize, const void* src, size_t srcSi
 }
 
 
-/**************************************************************
-*   Decompression code
-**************************************************************/
+/* *************************************************************
+*   Decompression section
+***************************************************************/
 struct ZSTD_Dctx_s
 {
     U32 LLTable[FSE_DTABLE_SIZE_U32(LLFSELog)];
@@ -1015,7 +1016,7 @@ struct ZSTD_Dctx_s
     size_t litBufSize;
     size_t litSize;
     BYTE litBuffer[BLOCKSIZE];
-};   /* typedef'd to ZSTD_Dctx */
+};   /* typedef'd to ZSTD_Dctx within "zstd_static.h" */
 
 size_t ZSTD_getcBlockSize(const void* src, size_t srcSize, blockProperties_t* bpPtr)
 {
@@ -1256,16 +1257,14 @@ static void ZSTD_decodeSequence(seq_t* seq, seqState_t* seqState)
     seqState->prevOffset = seq->offset;
     if (litLength == MaxLL)
     {
-        U32 add = dumps<de ? *dumps++ : 0;
+        U32 add = *dumps++;
         if (add < 255) litLength += add;
         else
         {
-            if (dumps<=(de-3))
-            {
-                litLength = MEM_readLE32(dumps) & 0xFFFFFF;  /* no pb : dumps is always followed by seq tables > 1 byte */
-                dumps += 3;
-            }
+            litLength = MEM_readLE32(dumps) & 0xFFFFFF;  /* no pb : dumps is always followed by seq tables > 1 byte */
+            dumps += 3;
         }
+        if (dumps >= de) dumps = de-1;   /* late correction, to avoid read overflow (data is now corrupted anyway) */
     }
 
     /* Offset */
@@ -1277,23 +1276,21 @@ static void ZSTD_decodeSequence(seq_t* seq, seqState_t* seqState)
         if (offsetCode==0) nbBits = 0;   /* cmove */
         offset = ((size_t)1 << (nbBits & ((sizeof(offset)*8)-1))) + BIT_readBits(&(seqState->DStream), nbBits);
         if (MEM_32bits()) BIT_reloadDStream(&(seqState->DStream));
-        if (offsetCode==0) offset = prevOffset;
+        if (offsetCode==0) offset = prevOffset;   /* cmove */
     }
 
     /* MatchLength */
     matchLength = FSE_decodeSymbol(&(seqState->stateML), &(seqState->DStream));
     if (matchLength == MaxML)
     {
-        U32 add = dumps<de ? *dumps++ : 0;
+        U32 add = *dumps++;
         if (add < 255) matchLength += add;
         else
         {
-            if (dumps<=(de-3))
-            {
-                matchLength = MEM_readLE32(dumps) & 0xFFFFFF;  /* no pb : dumps is always followed by seq tables > 1 byte */
-                dumps += 3;
-            }
+            matchLength = MEM_readLE32(dumps) & 0xFFFFFF;  /* no pb : dumps is always followed by seq tables > 1 byte */
+            dumps += 3;
         }
+        if (dumps >= de) dumps = de-1;   /* late correction, to avoid read overflow (data is now corrupted anyway) */
     }
     matchLength += MINMATCH;
 
@@ -1313,33 +1310,32 @@ static size_t ZSTD_execSequence(BYTE* op,
     static const int dec32table[] = {0, 1, 2, 1, 4, 4, 4, 4};   /* added */
     static const int dec64table[] = {8, 8, 8, 7, 8, 9,10,11};   /* substracted */
     const BYTE* const ostart = op;
-    const size_t litLength = sequence.litLength;
-    BYTE* const endMatch = op + litLength + sequence.matchLength;    /* risk : address space overflow (32-bits) */
+    const size_t litLength = sequence.litLength;   /* for some reason, doing the same with matchLength decreases speed ... */
+    BYTE* const oMatchEnd = op + litLength + sequence.matchLength;   /* risk : address space overflow (32-bits) */
     const BYTE* const litEnd = *litPtr + litLength;
 
     /* check */
-    if (endMatch > oend) return ERROR(dstSize_tooSmall);   /* overwrite beyond dst buffer */
+    if (oMatchEnd > oend) return ERROR(dstSize_tooSmall);   /* overwrite beyond dst buffer */
     if (litEnd > litLimit) return ERROR(corruption_detected);
-    if (sequence.matchLength > (size_t)(*litPtr-op)) return ERROR(dstSize_tooSmall);    /* overwrite literal segment */
 
     /* copy Literals */
-    if (((size_t)(*litPtr - op) < 8) || ((size_t)(oend-litEnd) < 8) || (op+litLength > oend-8))
-        memmove(op, *litPtr, litLength);   /* overwrite risk */
+    if (op+litLength > oend-8)   /* ZSTD_wildcopy() risks overwrite */
+        memmove(op, *litPtr, litLength);
     else
         ZSTD_wildcopy(op, *litPtr, litLength);
     op += litLength;
     *litPtr = litEnd;   /* update for next sequence */
 
-    /* check : last match must be at a minimum distance of 8 from end of dest buffer */
+    /* check : last match must be at a minimum distance of 8 from end of dst buffer */
     if (oend-op < 8) return ERROR(dstSize_tooSmall);
 
     /* copy Match */
     {
-        const BYTE* match = op - sequence.offset;            /* possible underflow at op - offset ? */
+        const BYTE* match = op - sequence.offset;
 
         /* check */
         if (match < base) return ERROR(corruption_detected);
-        if (sequence.offset > (size_t)base) return ERROR(corruption_detected);
+        if (match > op) return ERROR(corruption_detected);   /* address space overflow test */
 
         /* close range match, overlap */
         if (sequence.offset < 8)
@@ -1355,7 +1351,7 @@ static size_t ZSTD_execSequence(BYTE* op,
         } else { ZSTD_copy8(op, match); }
         op += 8; match += 8;
 
-        if (endMatch > oend-12)
+        if (oMatchEnd > oend-12)
         {
             if (op < oend-8)
             {
@@ -1363,14 +1359,17 @@ static size_t ZSTD_execSequence(BYTE* op,
                 match += (oend-8) - op;
                 op = oend-8;
             }
-            while (op<endMatch) *op++ = *match++;
+            while (op < oMatchEnd) *op++ = *match++;
         }
         else
+        {
             ZSTD_wildcopy(op, match, sequence.matchLength-8);   /* works even if matchLength < 8 */
+        }
     }
 
-    return endMatch-ostart;
+    return oMatchEnd - ostart;
 }
+
 
 static size_t ZSTD_decompressSequences(
                                void* ctx,
@@ -1480,7 +1479,7 @@ static size_t ZSTD_decompressDCtx(void* ctx, void* dst, size_t maxDstSize, const
     magicNumber = MEM_readLE32(src);
 #if defined(ZSTD_LEGACY_SUPPORT) && (ZSTD_LEGACY_SUPPORT==1)
     if (magicNumber == ZSTDv01_magicNumberLE) return ZSTDv01_decompressDCtx(ctx, dst, maxDstSize, src, srcSize);
-#endif // defined
+#endif   /* ZSTD_LEGACY_SUPPORT */
     if (magicNumber != ZSTD_magicNumber) return ERROR(prefix_unknown);
     ip += ZSTD_frameHeaderSize; remainingSize -= ZSTD_frameHeaderSize;
 

@@ -114,7 +114,7 @@ static const U32 g_searchStrength = 8;
 #define Offbits  5
 #define MaxML  ((1<<MLbits )-1)
 #define MaxLL  ((1<<LLbits )-1)
-#define MaxOff ((1<<Offbits)-1)
+#define MaxOff   26
 #define LitFSELog  11
 #define MLFSELog   10
 #define LLFSELog   10
@@ -1269,12 +1269,15 @@ static void ZSTD_decodeSequence(seq_t* seq, seqState_t* seqState)
 
     /* Offset */
     {
+        static const size_t offsetPrefix[MaxOff+1] = { 1, 1, 2, 4, 8, 16, 32, 64, 128, 256,
+                512, 1024, 2048, 4096, 8192, 16384, 32768, 65536, 131072, 262144,
+                524288, 1048576, 2097152, 4194304, 8388608, 16777216, 33554432 };
         U32 offsetCode, nbBits;
-        offsetCode = FSE_decodeSymbol(&(seqState->stateOffb), &(seqState->DStream));
+        offsetCode = FSE_decodeSymbol(&(seqState->stateOffb), &(seqState->DStream));   /* <= maxOff, by table construction */
         if (MEM_32bits()) BIT_reloadDStream(&(seqState->DStream));
         nbBits = offsetCode - 1;
         if (offsetCode==0) nbBits = 0;   /* cmove */
-        offset = ((size_t)1 << (nbBits & ((sizeof(offset)*8)-1))) + BIT_readBits(&(seqState->DStream), nbBits);
+        offset = offsetPrefix[offsetCode] + BIT_readBits(&(seqState->DStream), nbBits);
         if (MEM_32bits()) BIT_reloadDStream(&(seqState->DStream));
         if (offsetCode==0) offset = prevOffset;   /* cmove */
     }

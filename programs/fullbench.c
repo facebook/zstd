@@ -209,6 +209,7 @@ typedef struct
 } blockProperties_t;
 
 static size_t g_cSize = 0;
+static U32 g_litCtx[40 * 1024];
 
 extern size_t ZSTD_getcBlockSize(const void* src, size_t srcSize, blockProperties_t* bpPtr);
 extern size_t ZSTD_decodeSeqHeaders(int* nbSeq, const BYTE** dumpsPtr, size_t* dumpsLengthPtr, FSE_DTable* DTableLL, FSE_DTable* DTableML, FSE_DTable* DTableOffb, const void* src, size_t srcSize);
@@ -228,9 +229,8 @@ size_t local_ZSTD_decompress(void* dst, size_t dstSize, void* buff2, const void*
 extern size_t ZSTD_decodeLiteralsBlock(void* ctx, const void* src, size_t srcSize);
 size_t local_ZSTD_decodeLiteralsBlock(void* dst, size_t dstSize, void* buff2, const void* src, size_t srcSize)
 {
-    U32 ctx[40 * 1024];
     (void)src; (void)srcSize; (void)dst; (void)dstSize;
-    return ZSTD_decodeLiteralsBlock(ctx, buff2, g_cSize);
+    return ZSTD_decodeLiteralsBlock(g_litCtx, buff2, g_cSize);
 }
 
 size_t local_ZSTD_decodeSeqHeaders(void* dst, size_t dstSize, void* buff2, const void* src, size_t srcSize)
@@ -330,8 +330,8 @@ size_t benchMem(void* src, size_t srcSize, U32 benchNb)
     case 31:  /* ZSTD_decodeLiteralsBlock */
         {
             blockProperties_t bp;
-            ZSTD_compress(dstBuff, dstBuffSize, src, srcSize);
-            ZSTD_getcBlockSize(dstBuff+4, dstBuffSize, &bp);   // Get first block compressed size
+            g_cSize = ZSTD_compress(dstBuff, dstBuffSize, src, srcSize);
+            ZSTD_getcBlockSize(dstBuff+4, dstBuffSize, &bp);   // Get first block type
             if (bp.blockType != bt_compressed)
             {
                 DISPLAY("ZSTD_decodeLiteralsBlock : impossible to test on this sample (not compressible)\n");
@@ -339,9 +339,7 @@ size_t benchMem(void* src, size_t srcSize, U32 benchNb)
                 free(buff2);
                 return 0;
             }
-            g_cSize = ZSTD_getcBlockSize(dstBuff+7, dstBuffSize, &bp) + 3;
-            memcpy(buff2, dstBuff+7, g_cSize);
-            //srcSize = benchFunction(dstBuff, dstBuffSize, buff2, src, srcSize);   // real speed
+            memcpy(buff2, dstBuff+7, g_cSize-7);
             srcSize = srcSize > 128 KB ? 128 KB : srcSize;   // relative to block
             break;
         }
@@ -353,7 +351,7 @@ size_t benchMem(void* src, size_t srcSize, U32 benchNb)
             size_t blockSize;
             ZSTD_compress(dstBuff, dstBuffSize, src, srcSize);
             ip += 4;   // Jump magic Number
-            blockSize = ZSTD_getcBlockSize(ip, dstBuffSize, &bp);   // Get first block compressed size
+            blockSize = ZSTD_getcBlockSize(ip, dstBuffSize, &bp);   // Get first block type
             if (bp.blockType != bt_compressed)
             {
                 DISPLAY("ZSTD_decodeSeqHeaders : impossible to test on this sample (not compressible)\n");
@@ -363,7 +361,7 @@ size_t benchMem(void* src, size_t srcSize, U32 benchNb)
             }
             iend = ip + 3 + blockSize;   // Get end of first block
             ip += 3;   // jump first block header
-            ip += ZSTD_getcBlockSize(ip, iend - ip, &bp) + 3;   // jump literal sub block and its header
+            ip += ZSTD_decodeLiteralsBlock(g_litCtx, ip, iend-ip);  // jump literal sub block and its header
             g_cSize = iend-ip;
             memcpy(buff2, ip, g_cSize);   // copy rest of block (starting with SeqHeader)
             srcSize = srcSize > 128 KB ? 128 KB : srcSize;   // speed relative to block

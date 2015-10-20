@@ -1323,8 +1323,9 @@ static size_t ZSTD_execSequence(BYTE* op,
         const BYTE* match = op - sequence.offset;
 
         /* check */
+        if (sequence.offset > (size_t)op) return ERROR(corruption_detected);   /* address space overflow test (this test seems kept by clang optimizer) */
+        //if (match > op) return ERROR(corruption_detected);   /* address space overflow test (is clang optimizer removing this test ?) */
         if (match < base) return ERROR(corruption_detected);
-        if (match > op) return ERROR(corruption_detected);   /* address space overflow test */
 
         /* close range match, overlap */
         if (sequence.offset < 8)
@@ -1337,7 +1338,11 @@ static size_t ZSTD_execSequence(BYTE* op,
             match += dec32table[sequence.offset];
             ZSTD_copy4(op+4, match);
             match -= dec64;
-        } else { ZSTD_copy8(op, match); }
+        }
+        else
+        {
+            ZSTD_copy8(op, match);
+        }
         op += 8; match += 8;
 
         if (oMatchEnd > oend-12)

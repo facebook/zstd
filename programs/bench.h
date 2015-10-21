@@ -30,5 +30,6 @@ int BMK_benchFiles(char** fileNamesTable, unsigned nbFiles, unsigned cLevel);
 
 /* Set Parameters */
 void BMK_SetNbIterations(int nbLoops);
+void BMK_SetBlockSize(size_t blockSize);
 
 

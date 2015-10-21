@@ -238,8 +238,6 @@ static int basicUnitTests(U32 seed, double compressibility)
         DISPLAYLEVEL(4, "OK \n");
     }
 
-
-
 _end:
     free(CNBuffer);
     free(compressedBuffer);

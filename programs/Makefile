@@ -35,7 +35,7 @@ VERSION?= v0.2.0
 DESTDIR?=
 PREFIX ?= /usr/local
 CPPFLAGS= -I../lib -I../lib/legacy -DZSTD_VERSION=\"$(VERSION)\" -DZSTD_LEGACY_SUPPORT=1
-CFLAGS ?= -O3
+CFLAGS ?= -O3  # -falign-loops=32   # not always positive
 CFLAGS += -std=c99 -Wall -Wextra -Wundef -Wshadow -Wcast-qual -Wcast-align -Wstrict-prototypes
 FLAGS   = $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) $(MOREFLAGS)
 

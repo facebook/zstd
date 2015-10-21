@@ -138,6 +138,7 @@ static int usage_advanced(const char* programName)
     //DISPLAY( " -t     : test compressed file integrity\n");
     DISPLAY( "Benchmark arguments :\n");
     DISPLAY( " -b     : benchmark file(s)\n");
+    DISPLAY( " -B#    : cut file into independent blocks of size # (default : no block)\n");
     DISPLAY( " -i#    : iteration loops [1-9](default : 3)\n");
     return 0;
 }
@@ -175,7 +176,7 @@ int main(int argc, char** argv)
     char extension[] = ZSTD_EXTENSION;
 
     displayOut = stderr;
-    /* Pick out basename component. Don't rely on stdlib because of conflicting behaviour. */
+    /* Pick out basename component. Don't rely on stdlib because of conflicting behavior. */
     for (i = (int)strlen(programName); i > 0; i--)
     {
         if (programName[i] == '/') { i++; break; }
@@ -223,13 +224,13 @@ int main(int argc, char** argv)
                 case 'H':
                 case 'h': displayOut=stdout; return usage_advanced(programName);
 
-                    // Compression (default)
+                    /* Compression (default) */
                 //case 'z': forceCompress = 1; break;
 
-                    // Decoding
+                    /* Decoding */
                 case 'd': decode=1; argument++; break;
 
-                    // Force stdout, even if stdout==console
+                    /* Force stdout, even if stdout==console */
                 case 'c': forceStdout=1; outFileName=stdoutmark; displayLevel=1; argument++; break;
 
                     // Test
@@ -261,7 +262,20 @@ int main(int argc, char** argv)
                     }
                     break;
 
-                    /* Pause at the end (hidden option) */
+                    /* cut input into blocks (benchmark only) */
+                case 'B':
+                    {
+                        size_t bSize = 0;
+                        argument++;
+                        while ((*argument >='0') && (*argument <='9'))
+                            bSize *= 10, bSize += *argument++ - '0';
+                        if (*argument=='K') bSize<<=10, argument++;  /* allows using KB notation */
+                        if (*argument=='M') bSize<<=20, argument++;
+                        if (*argument=='B') argument++;
+                        BMK_SetBlockSize(bSize);
+                    }
+                    break;
+                                        /* Pause at the end (hidden option) */
                 case 'p': main_pause=1; argument++; break;
 
                     /* unknown command */

@@ -99,7 +99,7 @@ size_t     ZSTD_freeCCtx(ZSTD_Cctx* cctx);
 ZSTD_compressCCtx() :
     Same as ZSTD_compress(), but requires a ZSTD_Cctx working space already allocated
 */
-//size_t ZSTD_compressCCtx(ZSTD_Cctx* ctx, void* dst, size_t maxDstSize, const void* src, size_t srcSize);
+size_t ZSTD_compressCCtx(ZSTD_Cctx* ctx, void* dst, size_t maxDstSize, const void* src, size_t srcSize);
 
 
 #if defined (__cplusplus)

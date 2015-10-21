@@ -50,10 +50,6 @@ extern "C" {
 /**************************************
 *  Streaming functions
 **************************************/
-typedef struct ZSTD_Cctx_s ZSTD_Cctx;
-ZSTD_Cctx* ZSTD_createCCtx(void);
-size_t     ZSTD_freeCCtx(ZSTD_Cctx* cctx);
-
 size_t ZSTD_compressBegin(ZSTD_Cctx* cctx, void* dst, size_t maxDstSize);
 size_t ZSTD_compressContinue(ZSTD_Cctx* cctx, void* dst, size_t maxDstSize, const void* src, size_t srcSize);
 size_t ZSTD_compressEnd(ZSTD_Cctx* cctx, void* dst, size_t maxDstSize);

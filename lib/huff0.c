@@ -1685,7 +1685,7 @@ size_t HUF_decompress (void* dst, size_t dstSize, const void* cSrc, size_t cSrcS
     if (dstSize == 0) return ERROR(dstSize_tooSmall);
     if (cSrcSize > dstSize) return ERROR(corruption_detected);   /* invalid */
     if (cSrcSize == dstSize) { memcpy(dst, cSrc, dstSize); return dstSize; }   /* not compressed */
-    if (cSrcSize == 1) { memset(dst, ((const BYTE*)cSrc)[0], dstSize); return dstSize; }   /* RLE */
+    if (cSrcSize == 1) { memset(dst, *(const BYTE*)cSrc, dstSize); return dstSize; }   /* RLE */
 
     /* decoder timing evaluation */
     Q = (U32)(cSrcSize * 16 / dstSize);   /* Q < 16 since dstSize > cSrcSize */

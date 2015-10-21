@@ -30,25 +30,39 @@
     - ztsd public forum : https://groups.google.com/forum/#!forum/lz4c
 */
 
-/****************************************************************
+/* ***************************************************************
 *  Tuning parameters
-****************************************************************/
-/**MEMORY_USAGE :
+*****************************************************************/
+/*!
+*  MEMORY_USAGE :
 *  Memory usage formula : N->2^N Bytes (examples : 10 -> 1KB; 12 -> 4KB ; 16 -> 64KB; 20 -> 1MB; etc.)
 *  Increasing memory usage improves compression ratio
-*  Reduced memory usage can improve speed, due to cache effect */
+*  Reduced memory usage can improve speed, due to cache effect
+*/
 #define ZSTD_MEMORY_USAGE 17
 
+/*!
+ * HEAPMODE :
+ * Select how default compression functions will allocate memory for their hash table,
+ * in memory stack (0, fastest), or in memory heap (1, requires malloc())
+ * Note that compression context is fairly large, as a consequence heap memory is recommended.
+ */
+#ifndef ZSTD_HEAPMODE
+#  define ZSTD_HEAPMODE 1
+#endif /* ZSTD_HEAPMODE */
+
+/*!
+*  LEGACY_SUPPORT :
+*  decompressor can decode older formats (starting from Zstd 0.1+)
+*/
 #ifndef ZSTD_LEGACY_SUPPORT
-/**LEGACY_SUPPORT :
-*  decompressor can decode older formats (starting from Zstd 0.1+) */
 #  define ZSTD_LEGACY_SUPPORT 1
-#endif // ZSTD_LEGACY_SUPPORT
+#endif
 
 
-/********************************************************
+/* *******************************************************
 *  Includes
-********************************************************/
+*********************************************************/
 #include <stdlib.h>      /* calloc */
 #include <string.h>      /* memcpy, memmove */
 #include <stdio.h>       /* debug : printf */
@@ -59,12 +73,12 @@
 
 #if defined(ZSTD_LEGACY_SUPPORT) && (ZSTD_LEGACY_SUPPORT==1)
 #  include "zstd_v01.h"
-#endif // defined
+#endif
 
 
-/********************************************************
+/* *******************************************************
 *  Compiler specifics
-********************************************************/
+*********************************************************/
 #ifdef __AVX2__
 #  include <immintrin.h>   /* AVX2 intrinsics */
 #endif
@@ -194,7 +208,7 @@ void ZSTD_resetSeqStore(seqStore_t* ssPtr)
 }
 
 
-typedef struct ZSTD_Cctx_s
+struct ZSTD_Cctx_s
 {
     const BYTE* base;
     U32 current;
@@ -206,13 +220,12 @@ typedef struct ZSTD_Cctx_s
     U32 hashTable[HASH_TABLESIZE];
 #endif
 	BYTE buffer[WORKPLACESIZE];
-} cctxi_t;
+};
 
 
-ZSTD_Cctx* ZSTD_createCCtx(void)
+void ZSTD_resetCCtx(ZSTD_Cctx* ctx)
 {
-    ZSTD_Cctx* ctx = (ZSTD_Cctx*) malloc( sizeof(ZSTD_Cctx) );
-    if (ctx==NULL) return NULL;
+    ctx->base = NULL;
 	ctx->seqStore.buffer = ctx->buffer;
     ctx->seqStore.offsetStart = (U32*) (ctx->seqStore.buffer);
     ctx->seqStore.offCodeStart = (BYTE*) (ctx->seqStore.offsetStart + (BLOCKSIZE>>2));
@@ -220,13 +233,15 @@ ZSTD_Cctx* ZSTD_createCCtx(void)
     ctx->seqStore.litLengthStart =  ctx->seqStore.litStart + BLOCKSIZE;
     ctx->seqStore.matchLengthStart = ctx->seqStore.litLengthStart + (BLOCKSIZE>>2);
     ctx->seqStore.dumpsStart = ctx->seqStore.matchLengthStart + (BLOCKSIZE>>2);
-    return ctx;
+    memset(ctx->hashTable, 0, HASH_TABLESIZE*4);
 }
 
-void ZSTD_resetCCtx(ZSTD_Cctx* ctx)
+ZSTD_Cctx* ZSTD_createCCtx(void)
 {
-    ctx->base = NULL;
-    memset(ctx->hashTable, 0, HASH_TABLESIZE*4);
+    ZSTD_Cctx* ctx = (ZSTD_Cctx*) malloc( sizeof(ZSTD_Cctx) );
+    if (ctx==NULL) return NULL;
+    ZSTD_resetCCtx(ctx);
+    return ctx;
 }
 
 size_t ZSTD_freeCCtx(ZSTD_Cctx* ctx)
@@ -720,9 +735,8 @@ static int ZSTD_checkMatch(const BYTE* match, const BYTE* ip)
 }
 
 
-static size_t ZSTD_compressBlock(void* cctx, void* dst, size_t maxDstSize, const void* src, size_t srcSize)
+static size_t ZSTD_compressBlock(ZSTD_Cctx* ctx, void* dst, size_t maxDstSize, const void* src, size_t srcSize)
 {
-    cctxi_t* ctx = (cctxi_t*) cctx;
     U32*  HashTable = (U32*)(ctx->hashTable);
     seqStore_t* seqStorePtr = &(ctx->seqStore);
     const BYTE* const base = ctx->base;
@@ -745,7 +759,6 @@ static size_t ZSTD_compressBlock(void* cctx, void* dst, size_t maxDstSize, const
         const BYTE* match = (const BYTE*) ZSTD_updateMatch(HashTable, ip, base);
 
         if (!ZSTD_checkMatch(match,ip)) { ip += ((ip-anchor) >> g_searchStrength) + 1; continue; }
-
         /* catch up */
         while ((ip>anchor) && (match>base) && (ip[-1] == match[-1])) { ip--; match--; }
 
@@ -796,9 +809,8 @@ size_t ZSTD_compressBegin(ZSTD_Cctx* ctx, void* dst, size_t maxDstSize)
 }
 
 
-static void ZSTD_scaleDownCtx(void* cctx, const U32 limit)
+static void ZSTD_scaleDownCtx(ZSTD_Cctx* ctx, const U32 limit)
 {
-    cctxi_t* ctx = (cctxi_t*) cctx;
     int i;
 
 #if defined(__AVX2__)
@@ -825,14 +837,13 @@ static void ZSTD_scaleDownCtx(void* cctx, const U32 limit)
 }
 
 
-static void ZSTD_limitCtx(void* cctx, const U32 limit)
+static void ZSTD_limitCtx(ZSTD_Cctx* ctx, const U32 limit)
 {
-    cctxi_t* ctx = (cctxi_t*) cctx;
     int i;
 
     if (limit > g_maxLimit)
     {
-        ZSTD_scaleDownCtx(cctx, limit);
+        ZSTD_scaleDownCtx(ctx, limit);
         ctx->base += limit;
         ctx->current -= limit;
         ctx->nextUpdate -= limit;
@@ -865,9 +876,8 @@ static void ZSTD_limitCtx(void* cctx, const U32 limit)
 }
 
 
-size_t ZSTD_compressContinue(ZSTD_Cctx*  cctx, void* dst, size_t maxDstSize, const void* src, size_t srcSize)
+size_t ZSTD_compressContinue(ZSTD_Cctx* ctx, void* dst, size_t maxDstSize, const void* src, size_t srcSize)
 {
-    cctxi_t* ctx = (cctxi_t*) cctx;
     const BYTE* const istart = (const BYTE* const)src;
     const BYTE* ip = istart;
     BYTE* const ostart = (BYTE* const)dst;
@@ -950,33 +960,28 @@ size_t ZSTD_compressEnd(ZSTD_Cctx*  ctx, void* dst, size_t maxDstSize)
 }
 
 
-static size_t ZSTD_compressCCtx(ZSTD_Cctx* ctx, void* dst, size_t maxDstSize, const void* src, size_t srcSize)
+size_t ZSTD_compressCCtx(ZSTD_Cctx* ctx, void* dst, size_t maxDstSize, const void* src, size_t srcSize)
 {
     BYTE* const ostart = (BYTE* const)dst;
     BYTE* op = ostart;
+    size_t oSize;
 
     /* Header */
-    {
-        size_t headerSize = ZSTD_compressBegin(ctx, dst, maxDstSize);
-        if(ZSTD_isError(headerSize)) return headerSize;
-        op += headerSize;
-        maxDstSize -= headerSize;
-    }
+    oSize = ZSTD_compressBegin(ctx, dst, maxDstSize);
+    if(ZSTD_isError(oSize)) return oSize;
+    op += oSize;
+    maxDstSize -= oSize;
 
     /* Compression */
-    {
-        size_t cSize = ZSTD_compressContinue(ctx, op, maxDstSize, src, srcSize);
-        if (ZSTD_isError(cSize)) return cSize;
-        op += cSize;
-        maxDstSize -= cSize;
-    }
+    oSize = ZSTD_compressContinue(ctx, op, maxDstSize, src, srcSize);
+    if (ZSTD_isError(oSize)) return oSize;
+    op += oSize;
+    maxDstSize -= oSize;
 
     /* Close frame */
-    {
-        size_t endSize = ZSTD_compressEnd(ctx, op, maxDstSize);
-        if(ZSTD_isError(endSize)) return endSize;
-        op += endSize;
-    }
+    oSize = ZSTD_compressEnd(ctx, op, maxDstSize);
+    if(ZSTD_isError(oSize)) return oSize;
+    op += oSize;
 
     return (op - ostart);
 }
@@ -984,13 +989,22 @@ static size_t ZSTD_compressCCtx(ZSTD_Cctx* ctx, void* dst, size_t maxDstSize, co
 
 size_t ZSTD_compress(void* dst, size_t maxDstSize, const void* src, size_t srcSize)
 {
-    ZSTD_Cctx* ctx;
     size_t r;
-
+#if defined(ZSTD_HEAPMODE) && (ZSTD_HEAPMODE==1)
+    ZSTD_Cctx* ctx;
     ctx = ZSTD_createCCtx();
     if (ctx==NULL) return ERROR(GENERIC);
+# else
+    ZSTD_Cctx ctxBody;
+    ZSTD_Cctx* const ctx = &ctxBody;
+# endif
+
     r = ZSTD_compressCCtx(ctx, dst, maxDstSize, src, srcSize);
+
+#if defined(ZSTD_HEAPMODE) && (ZSTD_HEAPMODE==1)
     ZSTD_freeCCtx(ctx);
+#endif
+
     return r;
 }
 
@@ -1363,7 +1377,6 @@ static size_t ZSTD_execSequence(BYTE* op,
 
     return oMatchEnd - ostart;
 }
-
 
 static size_t ZSTD_decompressSequences(
                                void* ctx,

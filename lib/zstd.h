@@ -36,15 +36,15 @@
 extern "C" {
 #endif
 
-/**************************************
+/* *************************************
 *  Includes
-**************************************/
+***************************************/
 #include <stddef.h>   /* size_t */
 
 
-/**************************************
+/* *************************************
 *  Version
-**************************************/
+***************************************/
 #define ZSTD_VERSION_MAJOR    0    /* for breaking interface changes  */
 #define ZSTD_VERSION_MINOR    2    /* for new (non-breaking) interface capabilities */
 #define ZSTD_VERSION_RELEASE  0    /* for tweaks, bug-fixes, or development */
@@ -52,16 +52,16 @@ extern "C" {
 unsigned ZSTD_versionNumber (void);
 
 
-/**************************************
+/* *************************************
 *  Simple functions
-**************************************/
+***************************************/
 size_t ZSTD_compress(   void* dst, size_t maxDstSize,
                   const void* src, size_t srcSize);
 
 size_t ZSTD_decompress( void* dst, size_t maxOriginalSize,
                   const void* src, size_t compressedSize);
 
-/*
+/**
 ZSTD_compress() :
     Compresses 'srcSize' bytes from buffer 'src' into buffer 'dst', of maximum size 'dstSize'.
     Destination buffer must be already allocated.
@@ -73,19 +73,33 @@ ZSTD_decompress() :
     compressedSize : is the exact source size
     maxOriginalSize : is the size of the 'dst' buffer, which must be already allocated.
                       It must be equal or larger than originalSize, otherwise decompression will fail.
-    return : the number of bytes decompressed into destination buffer (originalSize <= maxOriginalSize)
+    return : the number of bytes decompressed into destination buffer (<= maxOriginalSize)
              or an errorCode if it fails (which can be tested using ZSTD_isError())
 */
 
 
-/**************************************
+/* *************************************
 *  Tool functions
-**************************************/
-size_t      ZSTD_compressBound(size_t srcSize);   /* maximum compressed size (worst case scenario) */
+***************************************/
+size_t      ZSTD_compressBound(size_t srcSize);   /** maximum compressed size (worst case scenario) */
 
 /* Error Management */
-unsigned    ZSTD_isError(size_t code);         /* tells if a return value is an error code */
-const char* ZSTD_getErrorName(size_t code);    /* provides error code string */
+unsigned    ZSTD_isError(size_t code);         /** tells if a return value is an error code */
+const char* ZSTD_getErrorName(size_t code);    /** provides error code string */
+
+
+/* *************************************
+*  Advanced functions
+***************************************/
+typedef struct ZSTD_Cctx_s ZSTD_Cctx;   /* incomplete type */
+ZSTD_Cctx* ZSTD_createCCtx(void);
+size_t     ZSTD_freeCCtx(ZSTD_Cctx* cctx);
+
+/**
+ZSTD_compressCCtx() :
+    Same as ZSTD_compress(), but requires a ZSTD_Cctx working space already allocated
+*/
+//size_t ZSTD_compressCCtx(ZSTD_Cctx* ctx, void* dst, size_t maxDstSize, const void* src, size_t srcSize);
 
 
 #if defined (__cplusplus)

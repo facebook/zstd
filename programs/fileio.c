@@ -232,17 +232,16 @@ unsigned long long FIO_compressFilename(const char* output_filename, const char*
     FILE* finput;
     FILE* foutput;
     size_t sizeCheck, cSize;
-    ZSTD_Cctx* ctx;
+    ZSTD_CCtx* ctx = ZSTD_createCCtx();
 
 
     /* Init */
     FIO_getFileHandles(&finput, &foutput, input_filename, output_filename);
-    ctx = ZSTD_createCCtx();
 
     /* Allocate Memory */
     inBuff  = (BYTE*)malloc(inBuffSize);
     outBuff = (BYTE*)malloc(outBuffSize);
-    if (!inBuff || !outBuff) EXM_THROW(21, "Allocation error : not enough memory");
+    if (!inBuff || !outBuff || !ctx) EXM_THROW(21, "Allocation error : not enough memory");
     inSlot = inBuff;
     inEnd = inBuff + inBuffSize;
 
@@ -371,7 +370,7 @@ unsigned long long FIOv01_decompressFrame(FILE* foutput, FILE* finput)
 unsigned long long FIO_decompressFrame(FILE* foutput, FILE* finput,
                                        BYTE* inBuff, size_t inBuffSize,
                                        BYTE* outBuff, size_t outBuffSize,
-                                       ZSTD_Dctx* dctx)
+                                       ZSTD_DCtx* dctx)
 {
     BYTE* op = outBuff;
     BYTE* const oend = outBuff + outBuffSize;
@@ -433,7 +432,7 @@ unsigned long long FIO_decompressFilename(const char* output_filename, const cha
 
 
     /* Init */
-    ZSTD_Dctx* dctx = ZSTD_createDCtx();
+    ZSTD_DCtx* dctx = ZSTD_createDCtx();
     FIO_getFileHandles(&finput, &foutput, input_filename, output_filename);
 
     /* for each frame */

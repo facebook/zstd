@@ -91,15 +91,15 @@ const char* ZSTD_getErrorName(size_t code);    /** provides error code string */
 /* *************************************
 *  Advanced functions
 ***************************************/
-typedef struct ZSTD_Cctx_s ZSTD_Cctx;   /* incomplete type */
-ZSTD_Cctx* ZSTD_createCCtx(void);
-size_t     ZSTD_freeCCtx(ZSTD_Cctx* cctx);
+typedef struct ZSTD_CCtx_s ZSTD_CCtx;   /* incomplete type */
+ZSTD_CCtx* ZSTD_createCCtx(void);
+size_t     ZSTD_freeCCtx(ZSTD_CCtx* cctx);
 
 /**
 ZSTD_compressCCtx() :
-    Same as ZSTD_compress(), but requires a ZSTD_Cctx working space already allocated
+    Same as ZSTD_compress(), but requires a ZSTD_CCtx working space already allocated
 */
-size_t ZSTD_compressCCtx(ZSTD_Cctx* ctx, void* dst, size_t maxDstSize, const void* src, size_t srcSize);
+size_t ZSTD_compressCCtx(ZSTD_CCtx* ctx, void* dst, size_t maxDstSize, const void* src, size_t srcSize);
 
 
 #if defined (__cplusplus)

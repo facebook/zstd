@@ -61,7 +61,7 @@ all: zstd zstd32 fullbench fullbench32 fuzzer fuzzer32 datagen
 zstd  : $(ZSTDDIR)/zstd.c $(ZSTDDIR)/zstdhc.c $(ZSTDDIR)/fse.c $(ZSTDDIR)/huff0.c $(ZSTDDIR)/legacy/zstd_v01.c xxhash.c bench.c fileio.c zstdcli.c
 	$(CC)      $(FLAGS) $^ -o $@$(EXT)
 
-zstd32: $(ZSTDDIR)/zstd.c $(ZSTDDIR)/fse.c $(ZSTDDIR)/huff0.c $(ZSTDDIR)/legacy/zstd_v01.c xxhash.c bench.c fileio.c zstdcli.c
+zstd32: $(ZSTDDIR)/zstd.c  $(ZSTDDIR)/zstdhc.c $(ZSTDDIR)/fse.c $(ZSTDDIR)/huff0.c $(ZSTDDIR)/legacy/zstd_v01.c xxhash.c bench.c fileio.c zstdcli.c
 	$(CC) -m32 $(FLAGS) $^ -o $@$(EXT)
 
 fullbench  : $(ZSTDDIR)/zstd.c $(ZSTDDIR)/fse.c $(ZSTDDIR)/huff0.c $(ZSTDDIR)/legacy/zstd_v01.c datagen.c fullbench.c

@@ -48,15 +48,15 @@
 ***************************************/
 #include <stdlib.h>      /* malloc, free */
 #include <string.h>      /* memset */
-#include <stdio.h>       // fprintf, fopen, ftello64
-#include <sys/types.h>   // stat64
-#include <sys/stat.h>    // stat64
+#include <stdio.h>       /* fprintf, fopen, ftello64 */
+#include <sys/types.h>   /* stat64 */
+#include <sys/stat.h>    /* stat64 */
 
-// Use ftime() if gettimeofday() is not available on your target
+/* Use ftime() if gettimeofday() is not available */
 #if defined(BMK_LEGACY_TIMER)
-#  include <sys/timeb.h>   // timeb, ftime
+#  include <sys/timeb.h>   /* timeb, ftime */
 #else
-#  include <sys/time.h>    // gettimeofday
+#  include <sys/time.h>    /* gettimeofday */
 #endif
 
 #include "mem.h"
@@ -249,12 +249,8 @@ static int BMK_benchMem(void* srcBuffer, size_t srcSize, const char* fileName, i
     const size_t maxCompressedSize = (size_t)nbBlocks * ZSTD_compressBound(blockSize);
     void* const compressedBuffer = malloc(maxCompressedSize);
     void* const resultBuffer = malloc(srcSize);
-    compressor_t compressor;
+    const compressor_t compressor = (cLevel <= 1) ? local_compress_fast : ZSTD_HC_compress;
     U64 crcOrig;
-
-    /* Init */
-    if (cLevel <= 1) compressor = local_compress_fast;
-    else compressor = ZSTD_HC_compress;
 
     /* Memory allocation & restrictions */
     if (!compressedBuffer || !resultBuffer || !blockTable)
@@ -356,7 +352,7 @@ static int BMK_benchMem(void* srcBuffer, size_t srcSize, const char* fileName, i
             if (crcOrig!=crcCheck)
             {
                 unsigned u;
-                unsigned eBlockSize = MIN(65536*2, blockSize);
+                unsigned eBlockSize = (unsigned)(MIN(65536*2, blockSize));
                 DISPLAY("\n!!! WARNING !!! %14s : Invalid Checksum : %x != %x\n", fileName, (unsigned)crcOrig, (unsigned)crcCheck);
                 for (u=0; u<srcSize; u++)
                 {
@@ -465,10 +461,10 @@ static int BMK_benchOneFile(char* inFileName, int cLevel)
         return 13;
     }
 
-    // Bench
+    /* Bench */
     result = BMK_benchMem(srcBuffer, benchedSize, inFileName, cLevel);
 
-    // End
+    /* clean up */
     free(srcBuffer);
     DISPLAY("\n");
     return result;

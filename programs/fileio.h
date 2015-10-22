@@ -29,7 +29,7 @@ extern "C" {
 #endif
 
 
-/**************************************
+/* *************************************
 *  Special i/o constants
 **************************************/
 #define nullString "null"
@@ -42,24 +42,24 @@ extern "C" {
 #endif
 
 
-/**************************************
+/* *************************************
 *  Parameters
-**************************************/
+***************************************/
 void FIO_overwriteMode(void);
 void FIO_setNotificationLevel(unsigned level);
 
 
-/**************************************
+/* *************************************
 *  Stream/File functions
-**************************************/
-unsigned long long FIO_compressFilename (const char* outfilename, const char* infilename);
+***************************************/
+unsigned long long FIO_compressFilename (const char* outfilename, const char* infilename, unsigned cLevel);
 unsigned long long FIO_decompressFilename (const char* outfilename, const char* infilename);
-/*
+/**
 FIO_compressFilename :
-    result : size of compressed file
+    @result : size of compressed file
 
 FIO_decompressFilename :
-    result : size of regenerated file
+    @result : size of regenerated file
 */
 
 

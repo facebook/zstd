@@ -169,6 +169,7 @@ int main(int argc, char** argv)
         main_pause=0;
     unsigned fileNameStart = 0;
     unsigned nbFiles = 0;
+    unsigned cLevel = 0;
     const char* programName = argv[0];
     const char* inFileName = NULL;
     const char* outFileName = NULL;
@@ -217,6 +218,19 @@ int main(int argc, char** argv)
 
             while (argument[0]!=0)
             {
+                /* compression Level */
+                if ((*argument>='0') && (*argument<='9'))
+                {
+                    cLevel = 0;
+                    while ((*argument >= '0') && (*argument <= '9'))
+                    {
+                        cLevel *= 10;
+                        cLevel += *argument - '0';
+                        argument++;
+                    }
+                    continue;
+                }
+
                 switch(argument[0])
                 {
                     /* Display help */
@@ -307,7 +321,7 @@ int main(int argc, char** argv)
     if (!strcmp(inFileName, stdinmark) && IS_CONSOLE(stdin) ) return badusage(programName);
 
     /* Check if benchmark is selected */
-    if (bench) { BMK_benchFiles(argv+fileNameStart, nbFiles, 0); goto _end; }
+    if (bench) { BMK_benchFiles(argv+fileNameStart, nbFiles, cLevel); goto _end; }
 
     /* No output filename ==> try to select one automatically (when possible) */
     while (!outFileName)
@@ -351,7 +365,7 @@ int main(int argc, char** argv)
     if (decode)
         FIO_decompressFilename(outFileName, inFileName);
     else
-        FIO_compressFilename(outFileName, inFileName);
+        FIO_compressFilename(outFileName, inFileName, cLevel);
 
 _end:
     if (main_pause) waitEnter();

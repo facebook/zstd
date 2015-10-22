@@ -23,29 +23,29 @@
     - ztsd public forum : https://groups.google.com/forum/#!forum/lz4c
 */
 
-/***************************************
+/* **************************************
 *  Compiler Options
-***************************************/
+****************************************/
 /* Disable some Visual warning messages */
 #define _CRT_SECURE_NO_WARNINGS                  /* fopen */
 
-// Unix Large Files support (>4GB)
+/* Unix Large Files support (>4GB) */
 #define _FILE_OFFSET_BITS 64
-#if (defined(__sun__) && (!defined(__LP64__)))   // Sun Solaris 32-bits requires specific definitions
+#if (defined(__sun__) && (!defined(__LP64__)))   /* Sun Solaris 32-bits requires specific definitions */
 #  define _LARGEFILE_SOURCE
-#elif ! defined(__LP64__)                        // No point defining Large file for 64 bit
+#elif ! defined(__LP64__)                        /* No point defining Large file for 64 bit */
 #  define _LARGEFILE64_SOURCE
 #endif
 
-// S_ISREG & gettimeofday() are not supported by MSVC
+/* S_ISREG & gettimeofday() are not supported by MSVC */
 #if defined(_MSC_VER) || defined(_WIN32)
 #  define BMK_LEGACY_TIMER 1
 #endif
 
 
-/**************************************
+/* *************************************
 *  Includes
-**************************************/
+***************************************/
 #include <stdlib.h>      /* malloc, free */
 #include <string.h>      /* memset */
 #include <stdio.h>       // fprintf, fopen, ftello64
@@ -59,40 +59,23 @@
 #  include <sys/time.h>    // gettimeofday
 #endif
 
+#include "mem.h"
 #include "zstd.h"
+#include "zstdhc.h"
 #include "xxhash.h"
 
 
-/**************************************
+/* *************************************
 *  Compiler specifics
-**************************************/
+***************************************/
 #if !defined(S_ISREG)
 #  define S_ISREG(x) (((x) & S_IFMT) == S_IFREG)
 #endif
 
 
-/**************************************
-*  Basic Types
-**************************************/
-#if defined (__STDC_VERSION__) && __STDC_VERSION__ >= 199901L   /* C99 */
-# include <stdint.h>
-  typedef uint8_t  BYTE;
-  typedef uint16_t U16;
-  typedef uint32_t U32;
-  typedef  int32_t S32;
-  typedef uint64_t U64;
-#else
-  typedef unsigned char       BYTE;
-  typedef unsigned short      U16;
-  typedef unsigned int        U32;
-  typedef   signed int        S32;
-  typedef unsigned long long  U64;
-#endif
-
-
-/**************************************
+/* *************************************
 *  Constants
-**************************************/
+***************************************/
 #define NBLOOPS    3
 #define TIMELOOP   2500
 
@@ -108,15 +91,15 @@ static U32 prime1 = 2654435761U;
 static U32 prime2 = 2246822519U;
 
 
-/**************************************
+/* *************************************
 *  Macros
-**************************************/
+***************************************/
 #define DISPLAY(...) fprintf(stderr, __VA_ARGS__)
 
 
-/**************************************
+/* *************************************
 *  Benchmark Parameters
-**************************************/
+***************************************/
 static int nbIterations = NBLOOPS;
 static size_t g_blockSize = 0;
 
@@ -133,9 +116,9 @@ void BMK_SetBlockSize(size_t blockSize)
 }
 
 
-/*********************************************************
+/* ********************************************************
 *  Private functions
-*********************************************************/
+**********************************************************/
 
 #if defined(BMK_LEGACY_TIMER)
 
@@ -176,10 +159,9 @@ static int BMK_GetMilliSpan( int nTimeStart )
 }
 
 
-
-/*********************************************************
+/* ********************************************************
 *  Data generator
-*********************************************************/
+**********************************************************/
 /* will hopefully be converted into ROL instruction by compiler */
 static U32 BMK_rotl32(unsigned val32, unsigned nbBits) { return((val32 << nbBits) | (val32 >> (32 - nbBits))); }
 
@@ -234,9 +216,9 @@ static void BMK_datagen(void* buffer, size_t bufferSize, double proba, U32 seed)
 }
 
 
-/*********************************************************
+/* ********************************************************
 *  Bench functions
-*********************************************************/
+**********************************************************/
 typedef struct
 {
     char*  srcPtr;
@@ -249,6 +231,14 @@ typedef struct
 } blockParam_t;
 
 
+typedef size_t (*compressor_t) (void* dst, size_t maxDstSize, const void* src, size_t srcSize, unsigned compressionLevel);
+
+static size_t local_compress_fast (void* dst, size_t maxDstSize, const void* src, size_t srcSize, unsigned compressionLevel)
+{
+    (void)compressionLevel;
+    return ZSTD_compress(dst, maxDstSize, src, srcSize);
+}
+
 #define MIN(a,b) (a<b ? a : b)
 
 static int BMK_benchMem(void* srcBuffer, size_t srcSize, const char* fileName, int cLevel)
@@ -259,10 +249,12 @@ static int BMK_benchMem(void* srcBuffer, size_t srcSize, const char* fileName, i
     const size_t maxCompressedSize = (size_t)nbBlocks * ZSTD_compressBound(blockSize);
     void* const compressedBuffer = malloc(maxCompressedSize);
     void* const resultBuffer = malloc(srcSize);
+    compressor_t compressor;
     U64 crcOrig;
 
     /* Init */
-    (void)cLevel;
+    if (cLevel <= 1) compressor = local_compress_fast;
+    else compressor = ZSTD_HC_compress;
 
     /* Memory allocation & restrictions */
     if (!compressedBuffer || !resultBuffer || !blockTable)
@@ -328,8 +320,7 @@ static int BMK_benchMem(void* srcBuffer, size_t srcSize, const char* fileName, i
             while (BMK_GetMilliSpan(milliTime) < TIMELOOP)
             {
                 for (blockNb=0; blockNb<nbBlocks; blockNb++)
-                    blockTable[blockNb].cSize = ZSTD_compress(blockTable[blockNb].cPtr,  blockTable[blockNb].cRoom,
-                                                              blockTable[blockNb].srcPtr,blockTable[blockNb].srcSize);
+                    blockTable[blockNb].cSize = compressor(blockTable[blockNb].cPtr,  blockTable[blockNb].cRoom, blockTable[blockNb].srcPtr,blockTable[blockNb].srcSize, cLevel);
                 nbLoops++;
             }
             milliTime = BMK_GetMilliSpan(milliTime);
@@ -364,13 +355,14 @@ static int BMK_benchMem(void* srcBuffer, size_t srcSize, const char* fileName, i
             crcCheck = XXH64(resultBuffer, srcSize, 0);
             if (crcOrig!=crcCheck)
             {
-                unsigned i;
+                unsigned u;
+                unsigned eBlockSize = MIN(65536*2, blockSize);
                 DISPLAY("\n!!! WARNING !!! %14s : Invalid Checksum : %x != %x\n", fileName, (unsigned)crcOrig, (unsigned)crcCheck);
-                for (i=0; i<srcSize; i++)
+                for (u=0; u<srcSize; u++)
                 {
-                    if (((BYTE*)srcBuffer)[i] != ((BYTE*)resultBuffer)[i])
+                    if (((BYTE*)srcBuffer)[u] != ((BYTE*)resultBuffer)[u])
                     {
-                        printf("\nDecoding error at pos %u   \n", i);
+                        printf("Decoding error at pos %u (block %u, pos %u) \n", u, u / eBlockSize, u % eBlockSize);
                         break;
                     }
                 }

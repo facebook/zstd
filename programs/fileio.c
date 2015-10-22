@@ -117,12 +117,6 @@ static const unsigned FIO_blockHeaderSize = 3;
 
 
 /**************************************
-*  Complex types
-**************************************/
-typedef enum { bt_compressed, bt_raw, bt_rle, bt_crc } bType_t;
-
-
-/**************************************
 *  Macros
 **************************************/
 #define DISPLAY(...)         fprintf(stderr, __VA_ARGS__)
@@ -218,7 +212,7 @@ static void FIO_getFileHandles(FILE** pfinput, FILE** pfoutput, const char* inpu
 }
 
 
-unsigned long long FIO_compressFilename(const char* output_filename, const char* input_filename)
+unsigned long long FIO_compressFilename(const char* output_filename, const char* input_filename, unsigned cLevel)
 {
     U64 filesize = 0;
     U64 compressedfilesize = 0;
@@ -236,6 +230,7 @@ unsigned long long FIO_compressFilename(const char* output_filename, const char*
 
 
     /* Init */
+    (void)cLevel;
     FIO_getFileHandles(&finput, &foutput, input_filename, output_filename);
 
     /* Allocate Memory */

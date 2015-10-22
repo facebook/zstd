@@ -52,17 +52,18 @@ static const U32 ZSTD_HC_compressionLevel_default = 9;
 *  Local Constants
 ***************************************/
 #define MINMATCH 4
-#define MAX_DISTANCE 65535   /* <=== To be changed (dynamic ?) */
+#define MAXD_LOG 19
+#define MAX_DISTANCE (1 << MAXD_LOG)   /* <=== dynamic ? */
 
-#define DICTIONARY_LOGSIZE 16
-#define MAXD (1<<DICTIONARY_LOGSIZE)
-#define MAXD_MASK (MAXD - 1)
+#define CHAIN_LOG 16
+#define CHAIN_SIZE (1<<CHAIN_LOG)
+#define CHAIN_MASK (CHAIN_SIZE - 1)
 
-#define HASH_LOG (DICTIONARY_LOGSIZE-1)
+#define HASH_LOG (CHAIN_LOG-1)
 #define HASHTABLESIZE (1 << HASH_LOG)
 #define HASH_MASK (HASHTABLESIZE - 1)
 
-static const U32 g_maxCompressionLevel = 19;
+static const U32 g_maxCompressionLevel = MAXD_LOG;
 
 #define KB *1024
 #define MB *1024*1024
@@ -77,16 +78,15 @@ static const U32 g_maxCompressionLevel = 19;
 struct ZSTD_HC_CCtx_s
 {
     U32   hashTable[HASHTABLESIZE];
-    U16   chainTable[MAXD];
+    U16   chainTable[CHAIN_SIZE];
     const BYTE* end;        /* next block here to continue on current prefix */
-    const BYTE* base;       /* All index relative to this position */
-    const BYTE* dictBase;   /* alternate base for extDict */
-    BYTE* inputBuffer;      /* deprecated */
+    const BYTE* base;       /* All regular indexes relative to this position */
+    const BYTE* dictBase;   /* extDict indexes relative to this position */
     U32   dictLimit;        /* below that point, need extDict */
-    U32   lowLimit;         /* below that point, no more dict */
+    U32   lowLimit;         /* below that point, no more data */
     U32   nextToUpdate;     /* index from which to continue dictionary update */
     U32   compressionLevel;
-    seqStore_t seqStore;
+    seqStore_t seqStore;    /* sequences storage ptrs */
 	BYTE buffer[WORKPLACESIZE];
 };
 
@@ -98,18 +98,18 @@ ZSTD_HC_CCtx* ZSTD_HC_createCCtx(void)
 
 size_t ZSTD_HC_freeCCtx(ZSTD_HC_CCtx* cctx) { free(cctx); return 0; }
 
-static void ZSTD_HC_resetCCtx (ZSTD_HC_CCtx* zc, U32 compressionLevel, const BYTE* start)
+static void ZSTD_HC_resetCCtx (ZSTD_HC_CCtx* zc, U32 compressionLevel, const void* start)
 {
     if (compressionLevel==0) compressionLevel = ZSTD_HC_compressionLevel_default;
     if (compressionLevel > g_maxCompressionLevel) compressionLevel = g_maxCompressionLevel;
     memset(zc->hashTable, 0, sizeof(zc->hashTable));
     memset(zc->chainTable, 0xFF, sizeof(zc->chainTable));
-    zc->nextToUpdate = 64 KB;
-    zc->base = start - 64 KB;
-    zc->end = start;
-    zc->dictBase = start - 64 KB;
-    zc->dictLimit = 64 KB;
-    zc->lowLimit = 64 KB;
+    zc->nextToUpdate = MAX_DISTANCE;
+    zc->end = (const BYTE*)start;
+    zc->base = zc->end - MAX_DISTANCE;
+    zc->dictBase = zc->base;
+    zc->dictLimit = MAX_DISTANCE;
+    zc->lowLimit = MAX_DISTANCE;
     zc->compressionLevel = compressionLevel;
 	zc->seqStore.buffer = zc->buffer;
     zc->seqStore.offsetStart = (U32*) (zc->seqStore.buffer);
@@ -124,8 +124,8 @@ static void ZSTD_HC_resetCCtx (ZSTD_HC_CCtx* zc, U32 compressionLevel, const BYT
 *  Local Macros
 ***************************************/
 #define HASH_FUNCTION(u)       (((u) * 2654435761U) >> ((MINMATCH*8)-HASH_LOG))
-//#define DELTANEXTU16(p)        chainTable[(p) & MAXD_MASK]   /* flexible, MAXD dependent */
-#define DELTANEXTU16(p)        chainTable[(U16)(p)]   /* faster */
+//#define DELTANEXTU16(d)        chainTable[(d) & MAXD_MASK]   /* flexible, CHAINSIZE dependent */
+#define DELTANEXTU16(d)        chainTable[(U16)(d)]   /* faster, specific to CHAINLOG==16 */
 
 static U32 ZSTD_HC_hashPtr(const void* ptr) { return HASH_FUNCTION(MEM_read32(ptr)); }
 
@@ -167,7 +167,7 @@ static size_t ZSTD_HC_insertAndFindBestMatch (
     const BYTE* const base = zc->base;
     const BYTE* const dictBase = zc->dictBase;
     const U32 dictLimit = zc->dictLimit;
-    const U32 lowLimit = (zc->lowLimit + 64 KB > (U32)(ip-base)) ? zc->lowLimit : (U32)(ip - base) - (64 KB - 1);
+    const U32 lowLimit = (zc->lowLimit + MAX_DISTANCE > (U32)(ip-base)) ? zc->lowLimit : (U32)(ip - base) - (MAX_DISTANCE - 1);
     U32 matchIndex;
     const BYTE* match;
     int nbAttempts=maxNbAttempts;
@@ -204,6 +204,7 @@ static size_t ZSTD_HC_insertAndFindBestMatch (
                 if (mlt > ml) { ml = mlt; *matchpos = base + matchIndex; }   /* virtual matchpos */
             }
         }
+        if (base + matchIndex <= ip - CHAIN_SIZE) break;
         matchIndex -= DELTANEXTU16(matchIndex);
     }
 
@@ -226,7 +227,7 @@ size_t ZSTD_HC_InsertAndGetWiderMatch (
     const BYTE* const base = zc->base;
     const U32 dictLimit = zc->dictLimit;
     const BYTE* const lowPrefixPtr = base + dictLimit;
-    const U32 lowLimit = (zc->lowLimit + 64 KB > (U32)(ip-base)) ? zc->lowLimit : (U32)(ip - base) - (64 KB - 1);
+    const U32 lowLimit = (zc->lowLimit + MAX_DISTANCE > (U32)(ip-base)) ? zc->lowLimit : (U32)(ip - base) - (MAX_DISTANCE - 1);
     const BYTE* const dictBase = zc->dictBase;
     U32   matchIndex;
     int nbAttempts = maxNbAttempts;
@@ -281,6 +282,8 @@ size_t ZSTD_HC_InsertAndGetWiderMatch (
                 if (mlt > longest) { longest = (int)mlt; *matchpos = base + matchIndex + back; *startpos = ip+back; }
             }
         }
+        if (base + matchIndex <= ip - CHAIN_SIZE)
+            matchIndex -= MAX_DISTANCE;  /* ensures it gets eliminated on next test */
         matchIndex -= DELTANEXTU16(matchIndex);
     }
 
@@ -409,8 +412,8 @@ static void ZSTD_HC_setExternalDict(ZSTD_HC_CCtx* ctxPtr, const void* newBlock)
     ctxPtr->lowLimit  = ctxPtr->dictLimit;
     ctxPtr->dictLimit = (U32)(ctxPtr->end - ctxPtr->base);
     ctxPtr->dictBase  = ctxPtr->base;
-    ctxPtr->base = newBlock - ctxPtr->dictLimit;
-    ctxPtr->end  = newBlock;
+    ctxPtr->base = (const BYTE*)newBlock - ctxPtr->dictLimit;
+    ctxPtr->end  = (const BYTE*)newBlock;
     ctxPtr->nextToUpdate = ctxPtr->dictLimit;   /* match referencing will resume from there */
 }
 
@@ -422,7 +425,7 @@ size_t ZSTD_HC_compress_continue (ZSTD_HC_CCtx* ctxPtr,
     if ((size_t)(ctxPtr->end - ctxPtr->base) > 2 GB)
     {
         size_t dictSize = (size_t)(ctxPtr->end - ctxPtr->base) - ctxPtr->dictLimit;
-        if (dictSize > 64 KB) dictSize = 64 KB;
+        if (dictSize > MAX_DISTANCE) dictSize = MAX_DISTANCE;
 
         ZSTD_HC_loadDict(ctxPtr, ctxPtr->end - dictSize, dictSize);
     }
@@ -498,9 +501,6 @@ size_t ZSTD_HC_compress(void* dst, size_t maxDstSize, const void* src, size_t sr
 /**************************************
 *  Streaming Functions
 **************************************/
-
-
-
 /* dictionary saving */
 
 size_t ZSTD_HC_saveDict (ZSTD_HC_CCtx* ctx, void* safeBuffer, size_t dictSize)

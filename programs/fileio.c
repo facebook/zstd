@@ -29,9 +29,9 @@
   The license of this file is GPLv2.
 */
 
-/**************************************
+/* *************************************
 *  Tuning options
-**************************************/
+***************************************/
 #ifndef ZSTD_LEGACY_SUPPORT
 /**LEGACY_SUPPORT :
 *  decompressor can decode older formats (starting from Zstd 0.1+) */
@@ -39,9 +39,9 @@
 #endif // ZSTD_LEGACY_SUPPORT
 
 
-/**************************************
+/* *************************************
 *  Compiler Options
-**************************************/
+***************************************/
 /* Disable some Visual warning messages */
 #ifdef _MSC_VER
 #  define _CRT_SECURE_NO_WARNINGS
@@ -55,9 +55,9 @@
 #define _POSIX_SOURCE 1        /* enable fileno() within <stdio.h> on unix */
 
 
-/**************************************
+/* *************************************
 *  Includes
-**************************************/
+***************************************/
 #include <stdio.h>     /* fprintf, fopen, fread, _fileno, stdin, stdout */
 #include <stdlib.h>    /* malloc, free */
 #include <string.h>    /* strcmp, strlen */
@@ -69,12 +69,12 @@
 
 #if defined(ZSTD_LEGACY_SUPPORT) && (ZSTD_LEGACY_SUPPORT==1)
 #  include "zstd_v01.h"  /* legacy */
-#endif // ZSTD_LEGACY_SUPPORT
+#endif
 
 
-/**************************************
+/* *************************************
 *  OS-specific Includes
-**************************************/
+***************************************/
 #if defined(MSDOS) || defined(OS2) || defined(WIN32) || defined(_WIN32) || defined(__CYGWIN__)
 #  include <fcntl.h>    /* _O_BINARY */
 #  include <io.h>       /* _setmode, _isatty */
@@ -90,9 +90,9 @@
 #endif
 
 
-/**************************************
+/* *************************************
 *  Constants
-**************************************/
+***************************************/
 #define KB *(1U<<10)
 #define MB *(1U<<20)
 #define GB *(1U<<30)
@@ -116,9 +116,9 @@ static const unsigned FIO_blockHeaderSize = 3;
 #define CACHELINE 64
 
 
-/**************************************
+/* *************************************
 *  Macros
-**************************************/
+***************************************/
 #define DISPLAY(...)         fprintf(stderr, __VA_ARGS__)
 #define DISPLAYLEVEL(l, ...) if (g_displayLevel>=l) { DISPLAY(__VA_ARGS__); }
 static U32 g_displayLevel = 2;   /* 0 : no display;   1: errors;   2 : + result + interaction + warnings;   3 : + progression;   4 : + information */
@@ -131,19 +131,21 @@ static const unsigned refreshRate = 150;
 static clock_t g_time = 0;
 
 
-/**************************************
+/* *************************************
 *  Local Parameters
-**************************************/
+***************************************/
 static U32 g_overwrite = 0;
 
 void FIO_overwriteMode(void) { g_overwrite=1; }
 void FIO_setNotificationLevel(unsigned level) { g_displayLevel=level; }
 
 
-/**************************************
+/* *************************************
 *  Exceptions
-**************************************/
-#define DEBUG 0
+***************************************/
+#ifndef DEBUG
+#  define DEBUG 0
+#endif
 #define DEBUGOUTPUT(...) if (DEBUG) DISPLAY(__VA_ARGS__);
 #define EXM_THROW(error, ...)                                             \
 {                                                                         \
@@ -155,9 +157,9 @@ void FIO_setNotificationLevel(unsigned level) { g_displayLevel=level; }
 }
 
 
-/**************************************
+/* *************************************
 *  Functions
-**************************************/
+***************************************/
 static unsigned FIO_GetMilliSpan(clock_t nPrevious)
 {
     clock_t nCurrent = clock();

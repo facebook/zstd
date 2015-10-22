@@ -30,13 +30,13 @@
 # fullbench32: Same as fullbench, but forced to compile in 32-bits mode
 # ##########################################################################
 
-VERSION?= v0.1.2
+VERSION?= v0.2.0
 
 DESTDIR?=
 PREFIX ?= /usr/local
-CFLAGS ?= -O3
-CFLAGS += -std=c99 -Wall -Wextra -Wundef -Wshadow -Wcast-qual -Wcast-align -Wstrict-prototypes -DZSTD_VERSION=\"$(VERSION)\"
-LDFLAGS = -I../lib
+CPPFLAGS= -I../lib -I../lib/legacy -DZSTD_VERSION=\"$(VERSION)\" -DZSTD_LEGACY_SUPPORT=1
+CFLAGS ?= -O3  # -falign-loops=32   # not always positive
+CFLAGS += -std=c99 -Wall -Wextra -Wundef -Wshadow -Wcast-qual -Wcast-align -Wstrict-prototypes
 FLAGS   = $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) $(MOREFLAGS)
 
 BINDIR  = $(PREFIX)/bin
@@ -58,22 +58,22 @@ default: zstd
 
 all: zstd zstd32 fullbench fullbench32 fuzzer fuzzer32 datagen
 
-zstd  : $(ZSTDDIR)/zstd.c xxhash.c bench.c fileio.c zstdcli.c
+zstd  : $(ZSTDDIR)/zstd.c $(ZSTDDIR)/fse.c $(ZSTDDIR)/huff0.c $(ZSTDDIR)/legacy/zstd_v01.c xxhash.c bench.c fileio.c zstdcli.c
 	$(CC)      $(FLAGS) $^ -o $@$(EXT)
 
-zstd32: $(ZSTDDIR)/zstd.c xxhash.c bench.c fileio.c zstdcli.c
+zstd32: $(ZSTDDIR)/zstd.c $(ZSTDDIR)/fse.c $(ZSTDDIR)/huff0.c $(ZSTDDIR)/legacy/zstd_v01.c xxhash.c bench.c fileio.c zstdcli.c
 	$(CC) -m32 $(FLAGS) $^ -o $@$(EXT)
 
-fullbench  : $(ZSTDDIR)/zstd.c datagen.c fullbench.c
+fullbench  : $(ZSTDDIR)/zstd.c $(ZSTDDIR)/fse.c $(ZSTDDIR)/huff0.c $(ZSTDDIR)/legacy/zstd_v01.c datagen.c fullbench.c
 	$(CC)      $(FLAGS) $^ -o $@$(EXT)
 
-fullbench32: $(ZSTDDIR)/zstd.c datagen.c fullbench.c
+fullbench32: $(ZSTDDIR)/zstd.c $(ZSTDDIR)/fse.c $(ZSTDDIR)/huff0.c $(ZSTDDIR)/legacy/zstd_v01.c datagen.c fullbench.c
 	$(CC) -m32 $(FLAGS) $^ -o $@$(EXT)
 
-fuzzer  : $(ZSTDDIR)/zstd.c datagen.c xxhash.c fuzzer.c
+fuzzer  : $(ZSTDDIR)/zstd.c $(ZSTDDIR)/fse.c $(ZSTDDIR)/huff0.c $(ZSTDDIR)/legacy/zstd_v01.c datagen.c xxhash.c fuzzer.c
 	$(CC)      $(FLAGS) $^ -o $@$(EXT)
 
-fuzzer32: $(ZSTDDIR)/zstd.c datagen.c xxhash.c fuzzer.c
+fuzzer32: $(ZSTDDIR)/zstd.c $(ZSTDDIR)/fse.c $(ZSTDDIR)/huff0.c $(ZSTDDIR)/legacy/zstd_v01.c datagen.c xxhash.c fuzzer.c
 	$(CC) -m32 $(FLAGS) $^ -o $@$(EXT)
 
 datagen : datagen.c datagencli.c

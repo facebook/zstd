@@ -1,4 +1,13 @@
+v0.2.0
+**Breaking format change**
+Faster decompression speed
+Can still decode v0.1 format
+
+v0.1.3
+fix uninitialization warning, reported by Evan Nemerson
+
 v0.1.2
+frame concatenation support
 
 v0.1.1
 fix compression bug

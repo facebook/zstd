@@ -13,7 +13,7 @@ For a taste of its performance, here are a few benchmark numbers, completed on a
 |----------------|-------|--------:|--------:|
 |                |       |   MB/s  |  MB/s   |
 | [zlib 1.2.8] -6| 3.099 |    21   |   320   |
-| **zstd**       |**2.871**|**255**| **531** |
+| **zstd 0.2**   |**2.871**|**255**| **670** |
 | [zlib 1.2.8] -1| 2.730 |    70   |   300   | 
 | [LZ4] HC r131  | 2.720 |    25   |  2100   |
 | QuickLZ 1.5.1b6| 2.237 |   370   |   415   |
@@ -27,7 +27,7 @@ For a taste of its performance, here are a few benchmark numbers, completed on a
 
 An interesting feature of zstd is that it can qualify as both a reasonably strong compressor and a fast one.
 
-Zstd delivers high decompression speed, at more than >500 MB/s per core.
+Zstd delivers very high decompression speed, at more than >600 MB/s per core.
 Obviously, your exact mileage will vary depending on your target system.
 
 Zstd compression speed will be configurable to fit different situations.

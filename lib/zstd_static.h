@@ -41,51 +41,45 @@
 extern "C" {
 #endif
 
-/**************************************
+/* *************************************
 *  Includes
-**************************************/
+***************************************/
 #include "zstd.h"
 
 
-/**************************************
+/* *************************************
 *  Streaming functions
-**************************************/
-typedef struct ZSTD_Cctx_s ZSTD_Cctx;
-ZSTD_Cctx* ZSTD_createCCtx(void);
-size_t     ZSTD_freeCCtx(ZSTD_Cctx* cctx);
-
-size_t ZSTD_compressBegin(ZSTD_Cctx* cctx, void* dst, size_t maxDstSize);
-size_t ZSTD_compressContinue(ZSTD_Cctx* cctx, void* dst, size_t maxDstSize, const void* src, size_t srcSize);
-size_t ZSTD_compressEnd(ZSTD_Cctx* cctx, void* dst, size_t maxDstSize);
+***************************************/
+size_t ZSTD_compressBegin(ZSTD_CCtx* cctx, void* dst, size_t maxDstSize);
+size_t ZSTD_compressContinue(ZSTD_CCtx* cctx, void* dst, size_t maxDstSize, const void* src, size_t srcSize);
+size_t ZSTD_compressEnd(ZSTD_CCtx* cctx, void* dst, size_t maxDstSize);
 
 
-typedef struct ZSTD_Dctx_s ZSTD_Dctx;
-ZSTD_Dctx* ZSTD_createDCtx(void);
-size_t     ZSTD_resetDCtx(ZSTD_Dctx* dctx);
-size_t     ZSTD_freeDCtx(ZSTD_Dctx* dctx);
+typedef struct ZSTD_DCtx_s ZSTD_DCtx;
+ZSTD_DCtx* ZSTD_createDCtx(void);
+size_t     ZSTD_resetDCtx(ZSTD_DCtx* dctx);
+size_t     ZSTD_freeDCtx(ZSTD_DCtx* dctx);
 
-size_t ZSTD_nextSrcSizeToDecompress(ZSTD_Dctx* dctx);
-size_t ZSTD_decompressContinue(ZSTD_Dctx* dctx, void* dst, size_t maxDstSize, const void* src, size_t srcSize);
+size_t ZSTD_nextSrcSizeToDecompress(ZSTD_DCtx* dctx);
+size_t ZSTD_decompressContinue(ZSTD_DCtx* dctx, void* dst, size_t maxDstSize, const void* src, size_t srcSize);
 /*
   Use above functions alternatively.
   ZSTD_nextSrcSizeToDecompress() tells how much bytes to provide as 'srcSize' to ZSTD_decompressContinue().
-  ZSTD_decompressContinue() will use previous data blocks to improve compresson if they are located prior to current block.
+  ZSTD_decompressContinue() will use previous data blocks to improve compression if they are located prior to current block.
   Result is the number of bytes regenerated within 'dst'.
   It can be zero, which is not an error; it just means ZSTD_decompressContinue() has decoded some header.
 */
 
-/**************************************
-*  Error management
-**************************************/
-#define ZSTD_LIST_ERRORS(ITEM) \
-        ITEM(ZSTD_OK_NoError) ITEM(ZSTD_ERROR_GENERIC) \
-        ITEM(ZSTD_ERROR_MagicNumber) \
-        ITEM(ZSTD_ERROR_SrcSize) ITEM(ZSTD_ERROR_maxDstSize_tooSmall) \
-        ITEM(ZSTD_ERROR_corruption) \
-        ITEM(ZSTD_ERROR_maxCode)
+/* *************************************
+*  Prefix - version detection
+***************************************/
+#define ZSTD_magicNumber 0xFD2FB522   /* v0.2 (current)*/
 
-#define ZSTD_GENERATE_ENUM(ENUM) ENUM,
-typedef enum { ZSTD_LIST_ERRORS(ZSTD_GENERATE_ENUM) } ZSTD_errorCodes;   /* exposed list of errors; static linking only */
+
+/* *************************************
+*  Error management
+***************************************/
+#include "error.h"
 
 
 #if defined (__cplusplus)

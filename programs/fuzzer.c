@@ -49,25 +49,7 @@
 #include "zstd_static.h"
 #include "datagen.h"     /* RDG_genBuffer */
 #include "xxhash.h"      /* XXH64 */
-
-
-/**************************************
-*  Basic Types
-**************************************/
-#if defined (__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L)   /* C99 */
-# include <stdint.h>
-typedef  uint8_t BYTE;
-typedef uint16_t U16;
-typedef uint32_t U32;
-typedef  int32_t S32;
-typedef uint64_t U64;
-#else
-typedef unsigned char       BYTE;
-typedef unsigned short      U16;
-typedef unsigned int        U32;
-typedef   signed int        S32;
-typedef unsigned long long  U64;
-#endif
+#include "mem.h"
 
 
 /**************************************
@@ -199,20 +181,20 @@ static int basicUnitTests(U32 seed, double compressibility)
     DISPLAYLEVEL(4, "test%3i : decompress with 1 missing byte : ", testNb++);
     result = ZSTD_decompress(decodedBuffer, COMPRESSIBLE_NOISE_LENGTH, compressedBuffer, cSize-1);
     if (!ZSTD_isError(result)) goto _output_error;
-    if (result != (size_t)-ZSTD_ERROR_SrcSize) goto _output_error;
+    if (result != ERROR(srcSize_wrong)) goto _output_error;
     DISPLAYLEVEL(4, "OK \n");
 
     DISPLAYLEVEL(4, "test%3i : decompress with 1 too much byte : ", testNb++);
     result = ZSTD_decompress(decodedBuffer, COMPRESSIBLE_NOISE_LENGTH, compressedBuffer, cSize+1);
     if (!ZSTD_isError(result)) goto _output_error;
-    if (result != (size_t)-ZSTD_ERROR_SrcSize) goto _output_error;
+    if (result != ERROR(srcSize_wrong)) goto _output_error;
     DISPLAYLEVEL(4, "OK \n");
 
     /* Decompression defense tests */
     DISPLAYLEVEL(4, "test%3i : Check input length for magic number : ", testNb++);
     result = ZSTD_decompress(decodedBuffer, COMPRESSIBLE_NOISE_LENGTH, CNBuffer, 3);
     if (!ZSTD_isError(result)) goto _output_error;
-    if (result != (size_t)-ZSTD_ERROR_SrcSize) goto _output_error;
+    if (result != ERROR(srcSize_wrong)) goto _output_error;
     DISPLAYLEVEL(4, "OK \n");
 
     DISPLAYLEVEL(4, "test%3i : Check magic Number : ", testNb++);
@@ -237,8 +219,6 @@ static int basicUnitTests(U32 seed, double compressibility)
         if (result!=sampleSize) goto _output_error;
         DISPLAYLEVEL(4, "OK \n");
     }
-
-
 
 _end:
     free(CNBuffer);

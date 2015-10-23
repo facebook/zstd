@@ -117,7 +117,7 @@ test: test-zstd test-fullbench test-fuzzer
 
 test32: test-zstd32 test-fullbench32 test-fuzzer32
 
-test-all: test test32 memtest
+test-all: test test32 valgrindTest
 
 test-zstd: zstd datagen
 	@echo "\n**** frame concatenation **** "
@@ -159,7 +159,7 @@ test-fuzzer: fuzzer
 test-fuzzer32: fuzzer32
 	./fuzzer32
 
-memtest: zstd datagen fuzzer fullbench
+valgrindTest: zstd datagen fuzzer fullbench
 	@echo "\n ---- valgrind tests : memory analyzer ----"
 	valgrind --leak-check=yes --error-exitcode=1 ./datagen -g50M > $(VOID)
 	./datagen -g16KB > tmp

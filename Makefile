@@ -32,7 +32,7 @@
 # ################################################################
 
 # Version number
-export VERSION := 0.2.0
+export VERSION := 0.3.0
 
 PRGDIR  = programs
 ZSTDDIR = lib
@@ -83,7 +83,13 @@ armtest: clean
 	$(MAKE) -C $(ZSTDDIR) -e all CC=arm-linux-gnueabi-gcc MOREFLAGS="-Werror"
 	$(MAKE) -C $(PRGDIR) -e CC=arm-linux-gnueabi-gcc MOREFLAGS="-Werror"
 
-sanitize: clean
+usan: clean
 	$(MAKE) test CC=clang MOREFLAGS="-g -fsanitize=undefined"
+
+asan: clean
+	$(MAKE) test CC=clang MOREFLAGS="-g -fsanitize=address"
+
+uasan: clean
+	$(MAKE) test CC=clang MOREFLAGS="-g -fsanitize=address -fsanitize=undefined"
 
 endif

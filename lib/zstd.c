@@ -904,22 +904,23 @@ static size_t ZSTD_decompressLiterals(void* dst, size_t* maxDstSizePtr,
 /** ZSTD_decodeLiteralsBlock
     @return : nb of bytes read from src (< srcSize )*/
 size_t ZSTD_decodeLiteralsBlock(void* ctx,
-                          const void* src, size_t srcSize)
+                          const void* src, size_t srcSize)   /* note : srcSize < BLOCKSIZE */
 {
     ZSTD_DCtx* dctx = (ZSTD_DCtx*)ctx;
-    const BYTE* const istart = (const BYTE* const)src;
+    const BYTE* const istart = (const BYTE*) src;
 
     /* any compressed block with literals segment must be at least this size */
     if (srcSize < MIN_CBLOCK_SIZE) return ERROR(corruption_detected);
 
     switch(*istart & 3)
     {
+    /* compressed */
     case 0:
         {
             size_t litSize = BLOCKSIZE;
             const size_t readSize = ZSTD_decompressLiterals(dctx->litBuffer, &litSize, src, srcSize);
             dctx->litPtr = dctx->litBuffer;
-            dctx->litBufSize = BLOCKSIZE;
+            dctx->litBufSize = BLOCKSIZE+8;
             dctx->litSize = litSize;
             return readSize;   /* works if it's an error too */
         }
@@ -930,7 +931,7 @@ size_t ZSTD_decodeLiteralsBlock(void* ctx,
             {
                 if (litSize > srcSize-3) return ERROR(corruption_detected);
                 memcpy(dctx->litBuffer, istart, litSize);
-                dctx->litBufSize = BLOCKSIZE;
+                dctx->litBufSize = BLOCKSIZE+8;
                 dctx->litSize = litSize;
                 return litSize+3;
             }
@@ -945,7 +946,7 @@ size_t ZSTD_decodeLiteralsBlock(void* ctx,
             if (litSize > BLOCKSIZE) return ERROR(corruption_detected);
             memset(dctx->litBuffer, istart[3], litSize);
             dctx->litPtr = dctx->litBuffer;
-            dctx->litBufSize = BLOCKSIZE;
+            dctx->litBufSize = BLOCKSIZE+8;
             dctx->litSize = litSize;
             return 4;
         }
@@ -1144,7 +1145,7 @@ static void ZSTD_decodeSequence(seq_t* seq, seqState_t* seqState)
 
 static size_t ZSTD_execSequence(BYTE* op,
                                 seq_t sequence,
-                                const BYTE** litPtr, const BYTE* const litLimit,
+                                const BYTE** litPtr, const BYTE* const litLimit_8,
                                 BYTE* const base, BYTE* const oend)
 {
     static const int dec32table[] = {0, 1, 2, 1, 4, 4, 4, 4};   /* added */
@@ -1158,7 +1159,7 @@ static size_t ZSTD_execSequence(BYTE* op,
     /* check */
     if (oLitEnd > oend_8) return ERROR(dstSize_tooSmall);   /* last match must start at a minimum distance of 8 from oend */
     if (oMatchEnd > oend) return ERROR(dstSize_tooSmall);   /* overwrite beyond dst buffer */
-    if (litEnd > litLimit-8) return ERROR(corruption_detected);   /* overRead beyond lit buffer */
+    if (litEnd > litLimit_8) return ERROR(corruption_detected);   /* overRead beyond lit buffer */
 
     /* copy Literals */
     ZSTD_wildcopy(op, *litPtr, sequence.litLength);   /* note : oLitEnd <= oend-8 : no risk of overwrite beyond oend */
@@ -1224,7 +1225,7 @@ static size_t ZSTD_decompressSequences(
     BYTE* const oend = ostart + maxDstSize;
     size_t errorCode, dumpsLength;
     const BYTE* litPtr = dctx->litPtr;
-    const BYTE* const litMax = litPtr + dctx->litBufSize;
+    const BYTE* const litLimit_8 = litPtr + dctx->litBufSize - 8;
     const BYTE* const litEnd = litPtr + dctx->litSize;
     int nbSeq;
     const BYTE* dumps;
@@ -1261,7 +1262,7 @@ static size_t ZSTD_decompressSequences(
             size_t oneSeqSize;
             nbSeq--;
             ZSTD_decodeSequence(&sequence, &seqState);
-            oneSeqSize = ZSTD_execSequence(op, sequence, &litPtr, litMax, base, oend);
+            oneSeqSize = ZSTD_execSequence(op, sequence, &litPtr, litLimit_8, base, oend);
             if (ZSTD_isError(oneSeqSize)) return oneSeqSize;
             op += oneSeqSize;
         }

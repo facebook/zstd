@@ -295,34 +295,52 @@ static size_t ZSTD_HC_compressBlock(ZSTD_HC_CCtx* ctx, void* dst, size_t maxDstS
 {
     seqStore_t* seqStorePtr = &(ctx->seqStore);
     const BYTE* const istart = (const BYTE*)src;
-    const BYTE* ip = istart + 1;
+    const BYTE* ip = istart;
     const BYTE* anchor = istart;
     const BYTE* const iend = istart + srcSize;
     const BYTE* const ilimit = iend - 8;
 
-    size_t offset_2=4, offset_1=4;
+    size_t offset_2=REPCODE_STARTVALUE, offset_1=REPCODE_STARTVALUE;
     const U32 maxSearches = 1 << ctx->compressionLevel;
 
     /* init */
     ZSTD_resetSeqStore(seqStorePtr);
+    if (((ip-ctx->base) - ctx->dictLimit) < REPCODE_STARTVALUE) ip += REPCODE_STARTVALUE;
 
-    /* Main Search Loop */
+    /* Match Loop */
     while (ip < ilimit)
     {
-        const BYTE* match;
-        size_t matchLength = ZSTD_HC_insertAndFindBestMatch(ctx, ip, ilimit, &match, maxSearches);
-        if (!matchLength) { ip++; continue; }
-        /* save match */
+        /* repcode */
+        if (MEM_read32(ip) == MEM_read32(ip - offset_2))
+        /* store sequence */
         {
+            size_t matchLength = ZSTD_count(ip+4, ip+4-offset_2, iend);
             size_t litLength = ip-anchor;
-            size_t offset = ip-match;
-            if (litLength) offset_2 = offset_1;
-            if (offset == offset_2) offset = 0;
+            size_t offset = offset_2;
             offset_2 = offset_1;
-            offset_1 = ip-match;
-            ZSTD_storeSeq(seqStorePtr, litLength, anchor, offset, matchLength-MINMATCH);
-            ip += matchLength;
+            offset_1 = offset;
+            ZSTD_storeSeq(seqStorePtr, litLength, anchor, 0, matchLength);
+            ip += matchLength+MINMATCH;
             anchor = ip;
+            continue;
+        }
+
+        /* search */
+        {
+            const BYTE* match;
+            size_t matchLength = ZSTD_HC_insertAndFindBestMatch(ctx, ip, iend, &match, maxSearches);
+            if (!matchLength) { ip++; offset_2 = offset_1; continue; }
+            /* store sequence */
+            {
+                size_t litLength = ip-anchor;
+                size_t offset = ip-match;
+                if (offset == offset_2) offset = 0;
+                offset_2 = offset_1;
+                offset_1 = ip-match;
+                ZSTD_storeSeq(seqStorePtr, litLength, anchor, offset, matchLength-MINMATCH);
+                ip += matchLength;
+                anchor = ip;
+            }
         }
     }
 

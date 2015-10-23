@@ -18,8 +18,8 @@ For a taste of its performance, here are a few benchmark numbers, completed on a
 | [LZ4] HC r131  | 2.720 |    25   |  2100   |
 | QuickLZ 1.5.1b6| 2.237 |   370   |   415   |
 | LZO 2.06       | 2.106 |   400   |   580   |
-| Snappy 1.1.0   | 2.091 |   330   |  1100   |
 | [LZ4] r131     | 2.101 |   450   |  2100   |
+| Snappy 1.1.0   | 2.091 |   330   |  1100   |
 | LZF 3.6        | 2.077 |   200   |   560   |
 
 [zlib 1.2.8]:http://www.zlib.net/

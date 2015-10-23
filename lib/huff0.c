@@ -602,6 +602,7 @@ static size_t HUF_readStats(BYTE* huffWeight, size_t hwSize, U32* rankStats,
 
     /* get last non-null symbol weight (implied, total must be 2^n) */
     tableLog = BIT_highbit32(weightTotal) + 1;
+    if (tableLog > HUF_ABSOLUTEMAX_TABLELOG) return ERROR(corruption_detected);
     {
         U32 total = 1 << tableLog;
         U32 rest = total - weightTotal;

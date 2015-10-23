@@ -219,6 +219,7 @@ typedef struct {
 
 void ZSTD_resetSeqStore(seqStore_t* ssPtr);
 
+#define REPCODE_STARTVALUE 4
 #define MLbits   7
 #define LLbits   6
 #define Offbits  5

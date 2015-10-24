@@ -52,10 +52,10 @@ static const U32 ZSTD_HC_compressionLevel_default = 9;
 *  Local Constants
 ***************************************/
 #define MINMATCH 4
-#define MAXD_LOG 19
+#define MAXD_LOG 26
 #define MAX_DISTANCE (1 << MAXD_LOG)   /* <=== dynamic ? */
 
-#define CHAIN_LOG 16
+#define CHAIN_LOG 18
 #define CHAIN_SIZE (1<<CHAIN_LOG)
 #define CHAIN_MASK (CHAIN_SIZE - 1)
 
@@ -78,7 +78,7 @@ static const U32 g_maxCompressionLevel = MAXD_LOG;
 struct ZSTD_HC_CCtx_s
 {
     U32   hashTable[HASHTABLESIZE];
-    U16   chainTable[CHAIN_SIZE];
+    U32   chainTable[CHAIN_SIZE];
     const BYTE* end;        /* next block here to continue on current prefix */
     const BYTE* base;       /* All regular indexes relative to this position */
     const BYTE* dictBase;   /* extDict indexes relative to this position */
@@ -124,8 +124,8 @@ static void ZSTD_HC_resetCCtx (ZSTD_HC_CCtx* zc, U32 compressionLevel, const voi
 *  Local Macros
 ***************************************/
 #define HASH_FUNCTION(u)       (((u) * 2654435761U) >> ((MINMATCH*8)-HASH_LOG))
-//#define DELTANEXTU16(d)        chainTable[(d) & MAXD_MASK]   /* flexible, CHAINSIZE dependent */
-#define DELTANEXTU16(d)        chainTable[(U16)(d)]   /* faster, specific to CHAINLOG==16 */
+//#define DELTANEXTU16(d)        chainTable[(U16)(d)]   /* faster, specific to CHAINLOG==16 */
+#define DELTANEXT(d)           chainTable[(d) & CHAIN_MASK]   /* flexible, CHAINSIZE dependent */
 
 static U32 ZSTD_HC_hashPtr(const void* ptr) { return HASH_FUNCTION(MEM_read32(ptr)); }
 
@@ -136,7 +136,7 @@ static U32 ZSTD_HC_hashPtr(const void* ptr) { return HASH_FUNCTION(MEM_read32(pt
 /* Update chains up to ip (excluded) */
 static void ZSTD_HC_insert (ZSTD_HC_CCtx* zc, const BYTE* ip)
 {
-    U16* chainTable = zc->chainTable;
+    U32* chainTable = zc->chainTable;
     U32* HashTable  = zc->hashTable;
     const BYTE* const base = zc->base;
     const U32 target = (U32)(ip - base);
@@ -147,7 +147,7 @@ static void ZSTD_HC_insert (ZSTD_HC_CCtx* zc, const BYTE* ip)
         U32 h = ZSTD_HC_hashPtr(base+idx);
         size_t delta = idx - HashTable[h];
         if (delta>MAX_DISTANCE) delta = MAX_DISTANCE;
-        DELTANEXTU16(idx) = (U16)delta;
+        DELTANEXT(idx) = (U32)delta;
         HashTable[h] = idx;
         idx++;
     }
@@ -162,7 +162,7 @@ static size_t ZSTD_HC_insertAndFindBestMatch (
                         const BYTE** matchpos,
                         const U32 maxNbAttempts)
 {
-    U16* const chainTable = zc->chainTable;
+    U32* const chainTable = zc->chainTable;
     U32* const HashTable = zc->hashTable;
     const BYTE* const base = zc->base;
     const BYTE* const dictBase = zc->dictBase;
@@ -204,8 +204,9 @@ static size_t ZSTD_HC_insertAndFindBestMatch (
                 if (mlt > ml) { ml = mlt; *matchpos = base + matchIndex; }   /* virtual matchpos */
             }
         }
+
         if (base + matchIndex <= ip - CHAIN_SIZE) break;
-        matchIndex -= DELTANEXTU16(matchIndex);
+        matchIndex -= DELTANEXT(matchIndex);
     }
 
     return ml;
@@ -222,7 +223,7 @@ size_t ZSTD_HC_InsertAndGetWiderMatch (
     const BYTE** startpos,
     const int maxNbAttempts)
 {
-    U16* const chainTable = zc->chainTable;
+    U32* const chainTable = zc->chainTable;
     U32* const HashTable = zc->hashTable;
     const BYTE* const base = zc->base;
     const U32 dictLimit = zc->dictLimit;
@@ -284,7 +285,7 @@ size_t ZSTD_HC_InsertAndGetWiderMatch (
         }
         if (base + matchIndex <= ip - CHAIN_SIZE)
             matchIndex -= MAX_DISTANCE;  /* ensures it gets eliminated on next test */
-        matchIndex -= DELTANEXTU16(matchIndex);
+        matchIndex -= DELTANEXT(matchIndex);
     }
 
     return longest;
@@ -510,8 +511,10 @@ size_t ZSTD_HC_compressCCtx (ZSTD_HC_CCtx* ctx, void* dst, size_t maxDstSize, co
 
 size_t ZSTD_HC_compress(void* dst, size_t maxDstSize, const void* src, size_t srcSize, unsigned compressionLevel)
 {
-    ZSTD_HC_CCtx ctxBody;
-    return ZSTD_HC_compressCCtx(&ctxBody, dst, maxDstSize, src, srcSize, compressionLevel);
+    ZSTD_HC_CCtx* ctx = ZSTD_HC_createCCtx();
+    size_t result = ZSTD_HC_compressCCtx(ctx, dst, maxDstSize, src, srcSize, compressionLevel);
+    ZSTD_HC_freeCCtx(ctx);
+    return result;
 }
 
 

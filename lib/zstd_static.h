@@ -73,7 +73,7 @@ size_t ZSTD_decompressContinue(ZSTD_DCtx* dctx, void* dst, size_t maxDstSize, co
 /* *************************************
 *  Prefix - version detection
 ***************************************/
-#define ZSTD_magicNumber 0xFD2FB522   /* v0.2 (current)*/
+#define ZSTD_magicNumber 0xFD2FB523   /* v0.3 (current)*/
 
 
 /* *************************************

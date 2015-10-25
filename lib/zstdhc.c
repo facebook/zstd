@@ -128,7 +128,7 @@ size_t ZSTD_HC_freeCCtx(ZSTD_HC_CCtx* cctx)
 static void ZSTD_HC_resetCCtx_advanced (ZSTD_HC_CCtx* zc,
                                         const ZSTD_HC_parameters params, const void* start)
 {
-    size_t maxDistance = ( 1 << params.searchLog) + 1;
+    U32 maxDistance = ( 1 << params.searchLog) + 1;
 
     if (zc->hashTableLog < params.hashLog)
     {

@@ -87,7 +87,7 @@ clean:
         zstd$(EXT) zstd32$(EXT) \
         fullbench$(EXT) fullbench32$(EXT) \
         fuzzer$(EXT) fuzzer32$(EXT) \
-	datagen$(EXT)
+	datagen$(EXT) paramgrill$(EXT)
 	@echo Cleaning completed
 
 

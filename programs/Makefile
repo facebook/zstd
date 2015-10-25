@@ -56,7 +56,7 @@ endif
 
 default: zstd
 
-all: zstd zstd32 fullbench fullbench32 fuzzer fuzzer32 datagen
+all: zstd zstd32 fullbench fullbench32 fuzzer fuzzer32 paramgrill datagen
 
 zstd  : $(ZSTDDIR)/zstd.c $(ZSTDDIR)/zstdhc.c $(ZSTDDIR)/fse.c $(ZSTDDIR)/huff0.c $(ZSTDDIR)/legacy/zstd_v01.c xxhash.c bench.c fileio.c zstdcli.c
 	$(CC)      $(FLAGS) $^ -o $@$(EXT)
@@ -75,6 +75,9 @@ fuzzer  : $(ZSTDDIR)/zstd.c $(ZSTDDIR)/fse.c $(ZSTDDIR)/huff0.c $(ZSTDDIR)/legac
 
 fuzzer32: $(ZSTDDIR)/zstd.c $(ZSTDDIR)/fse.c $(ZSTDDIR)/huff0.c $(ZSTDDIR)/legacy/zstd_v01.c datagen.c xxhash.c fuzzer.c
 	$(CC) -m32 $(FLAGS) $^ -o $@$(EXT)
+
+paramgrill : $(ZSTDDIR)/zstdhc.c $(ZSTDDIR)/zstd.c $(ZSTDDIR)/fse.c $(ZSTDDIR)/huff0.c $(ZSTDDIR)/legacy/zstd_v01.c datagen.c xxhash.c paramgrill.c
+	$(CC)      $(FLAGS) $^ -o $@$(EXT)
 
 datagen : datagen.c datagencli.c
 	$(CC)      $(FLAGS) $^ -o $@$(EXT)

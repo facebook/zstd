@@ -64,31 +64,6 @@ static const U32 ZSTD_HC_compressionLevel_default = 9;
 #define BLOCKSIZE (128 KB)                 /* define, for static allocation */
 #define WORKPLACESIZE (BLOCKSIZE*3)
 
-#define MAX_CLEVEL 20
-static const ZSTD_HC_parameters ZSTD_HC_defaultParameters[MAX_CLEVEL] = {
-   /*  W,  C,  H,  S */
-    { 19, 18, 17 , 1},
-    { 19, 18, 17 , 1},
-    { 19, 18, 17 , 2},
-    { 19, 18, 17 , 3},
-    { 19, 18, 17 , 4},
-    { 19, 18, 17 , 5},
-    { 19, 18, 17 , 6},
-    { 19, 18, 17 , 7},
-    { 19, 18, 17 , 8},
-    { 19, 18, 17 , 9},
-    { 19, 18, 17 ,10},
-    { 19, 18, 17 ,11},
-    { 19, 18, 17 ,12},
-    { 19, 18, 17 ,13},
-    { 19, 18, 17 ,14},
-    { 19, 18, 17 ,15},
-    { 19, 18, 17 ,16},
-    { 19, 18, 17 ,17},
-    { 19, 18, 17 ,18},
-    { 19, 18, 17 ,19},
-};
-
 struct ZSTD_HC_CCtx_s
 {
     const BYTE* end;        /* next block here to continue on current prefix */
@@ -461,7 +436,7 @@ size_t ZSTD_HC_compressBegin_advanced(ZSTD_HC_CCtx* ctx,
 size_t ZSTD_HC_compressBegin(ZSTD_HC_CCtx* ctx, void* dst, size_t maxDstSize, unsigned compressionLevel, const void* src)
 {
     if (compressionLevel==0) compressionLevel = ZSTD_HC_compressionLevel_default;
-    if (compressionLevel > MAX_CLEVEL) compressionLevel = MAX_CLEVEL;
+    if (compressionLevel > ZSTD_HC_MAX_CLEVEL) compressionLevel = ZSTD_HC_MAX_CLEVEL;
     return ZSTD_HC_compressBegin_advanced(ctx, dst, maxDstSize, ZSTD_HC_defaultParameters[compressionLevel], src);
 }
 
@@ -496,8 +471,8 @@ size_t ZSTD_HC_compress_advanced (ZSTD_HC_CCtx* ctx,
 
 size_t ZSTD_HC_compressCCtx (ZSTD_HC_CCtx* ctx, void* dst, size_t maxDstSize, const void* src, size_t srcSize, unsigned compressionLevel)
 {
-    if (compressionLevel==0) compressionLevel = ZSTD_HC_compressionLevel_default;
-    if (compressionLevel > MAX_CLEVEL) compressionLevel = MAX_CLEVEL;
+    if (compressionLevel==0) return ZSTD_compress(dst, maxDstSize, src, srcSize);   /* fast mode */
+    if (compressionLevel > ZSTD_HC_MAX_CLEVEL) compressionLevel = ZSTD_HC_MAX_CLEVEL;
     return ZSTD_HC_compress_advanced(ctx, dst, maxDstSize, src, srcSize, ZSTD_HC_defaultParameters[compressionLevel]);
 }
 

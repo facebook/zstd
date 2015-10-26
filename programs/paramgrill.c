@@ -90,8 +90,8 @@
 #define KB *(1<<10)
 #define MB *(1<<20)
 
-#define NBLOOPS    3
-#define TIMELOOP   2500
+#define NBLOOPS    2
+#define TIMELOOP   2000
 
 #define KNUTH      2654435761U
 #define MAX_MEM    (1984 MB)
@@ -392,7 +392,11 @@ static void BMK_printWinner(U32 cLevel, BMK_result_t result, ZSTD_HC_parameters 
 }
 
 
-#define CLEVEL_MAX 20
+#define CLEVEL_MAX 21
+static U32 g_cSpeedTarget[CLEVEL_MAX] = { 300000, 200000, 150000, 100000, 70000, 50000, 35000, 25000, 15000, 10000, /* 0 - 9 */
+                                          7000, 5000, 3500, 2500, 1500, 1000, 700, 500, 350, 250, /* 10 - 19 */
+                                          0 }; /* 20 */
+
 typedef struct {
     BMK_result_t result;
     ZSTD_HC_parameters params;
@@ -412,13 +416,12 @@ static void BMK_printWinners(const winnerInfo_t* winners, size_t srcSize)
 #define WINDOWLOG_MIN 17
 #define CHAINLOG_MAX WINDOWLOG_MAX
 #define CHAINLOG_MIN 4
-#define HASHLOG_MAX (CHAINLOG_MAX+4)
+#define HASHLOG_MAX 28
 #define HASHLOG_MIN 4
-#define SEARCHLOG_MAX CHAINLOG_MAX
+#define SEARCHLOG_MAX (CHAINLOG_MAX-1)
 #define SEARCHLOG_MIN 1
 
-U32 g_cSpeedTarget[CLEVEL_MAX] = { 300000, 200000, 150000, 100000, 70000, 50000, 35000, 25000, 15000, 10000, /* 0 - 9 */
-                                   7000, 5000, 3500, 2500, 1500, 1000, 700, 500, 350, 250 }; /* 10 - 19 */
+#define MAX(a,b)   ( (a) > (b) ? (a) : (b) )
 
 static void playAround(winnerInfo_t* winners, ZSTD_HC_parameters params,
                        const void* srcBuffer, size_t srcSize,
@@ -427,6 +430,19 @@ static void playAround(winnerInfo_t* winners, ZSTD_HC_parameters params,
     BMK_result_t testResult;
     int better = 0;
     int cLevel;
+
+    static BYTE g_alreadyTested[WINDOWLOG_MAX+1-WINDOWLOG_MIN]
+                               [CHAINLOG_MAX+1-CHAINLOG_MIN]
+                               [HASHLOG_MAX+1-HASHLOG_MIN]
+                               [SEARCHLOG_MAX+1-SEARCHLOG_MIN] = {};   /* init to zero */
+    static U32 g_rand = 1;
+
+    /* exclude faster already played params */
+    if (FUZ_rand(&g_rand) & ((1 << g_alreadyTested[params.windowLog-WINDOWLOG_MIN]
+                                                  [params.chainLog-CHAINLOG_MIN]
+                                                  [params.hashLog-HASHLOG_MIN]
+                                                  [params.searchLog-SEARCHLOG_MIN]++)-1))
+        return;
 
     BMK_benchParam(&testResult, srcBuffer, srcSize, ctx, params);
 
@@ -467,7 +483,7 @@ static void playAround(winnerInfo_t* winners, ZSTD_HC_parameters params,
         params.chainLog++;
     }
 
-    if (params.windowLog > params.chainLog)
+    if (params.windowLog > MAX(WINDOWLOG_MIN, params.chainLog))
     {
         params.windowLog--;
         playAround(winners, params, srcBuffer, srcSize, ctx);
@@ -513,24 +529,29 @@ static void BMK_benchMem(void* srcBuffer, size_t srcSize)
 
     /* init */
     memset(winners, 0, sizeof(winners));
+
+    /* baseline config for level 9 */
     params.windowLog = 19;
     params.chainLog = 18;
     params.hashLog = 17;
     params.searchLog = 9;
-
-    /* set start config for level 9 */
     BMK_benchParam(&testResult, srcBuffer, srcSize, ctx, params);
 
+    /* establish speed objectives (relative to current platform) */
     {
         int i;
         g_cSpeedTarget[9] = (testResult.cSpeed * 15) >> 4;
         g_cSpeedTarget[1] = g_cSpeedTarget[9] << 4;
         g_cSpeedTarget[0] = (g_cSpeedTarget[1] * 181) >> 7;  /* sqrt2 */
-        for (i=2; i<CLEVEL_MAX; i++)
+        for (i=2; i<(CLEVEL_MAX-1); i++)   /* last level : pure compression */
             g_cSpeedTarget[i] = (g_cSpeedTarget[i-1] * 181) >> 8;
     }
 
-    /* establish speed objectives (relative to current platform) */
+    /* start from fast conf */
+    params.windowLog = WINDOWLOG_MIN;
+    params.chainLog = CHAINLOG_MIN;
+    params.hashLog = 12;
+    params.searchLog = SEARCHLOG_MIN;
     playAround(winners, params, srcBuffer, srcSize, ctx);
 
     /* end summary */

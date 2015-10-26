@@ -103,7 +103,7 @@ size_t ZSTD_HC_freeCCtx(ZSTD_HC_CCtx* cctx)
 static void ZSTD_HC_resetCCtx_advanced (ZSTD_HC_CCtx* zc,
                                         const ZSTD_HC_parameters params, const void* start)
 {
-    U32 maxDistance = ( 1 << params.searchLog) + 1;
+    U32 outOfReach = ( 1 << params.searchLog) + 1;
 
     if (zc->hashTableLog < params.hashLog)
     {
@@ -121,12 +121,12 @@ static void ZSTD_HC_resetCCtx_advanced (ZSTD_HC_CCtx* zc,
     }
     memset(zc->chainTable, 0, (1 << params.chainLog) * sizeof(U32) );
 
-    zc->nextToUpdate = maxDistance;
+    zc->nextToUpdate = outOfReach;
     zc->end = (const BYTE*)start;
-    zc->base = zc->end - maxDistance;
+    zc->base = zc->end - outOfReach;
     zc->dictBase = zc->base;
-    zc->dictLimit = maxDistance;
-    zc->lowLimit = maxDistance;
+    zc->dictLimit = outOfReach;
+    zc->lowLimit = outOfReach;
     zc->params = params;
 	zc->seqStore.buffer = zc->buffer;
     zc->seqStore.offsetStart = (U32*) (zc->seqStore.buffer);
@@ -259,13 +259,25 @@ static size_t ZSTD_HC_compressBlock(ZSTD_HC_CCtx* ctx, void* dst, size_t maxDstS
         if (MEM_read32(ip) == MEM_read32(ip - offset_2))
         /* store sequence */
         {
-            size_t matchLength = ZSTD_count(ip+4, ip+4-offset_2, iend);
+            size_t matchLength = ZSTD_count(ip+MINMATCH, ip+MINMATCH-offset_2, iend);
             size_t litLength = ip-anchor;
             size_t offset = offset_2;
             offset_2 = offset_1;
             offset_1 = offset;
             ZSTD_storeSeq(seqStorePtr, litLength, anchor, 0, matchLength);
             ip += matchLength+MINMATCH;
+            anchor = ip;
+            continue;
+        }
+
+        /* repcode at ip+1 */
+        if (MEM_read32(ip+1) == MEM_read32(ip+1 - offset_1))
+        {
+            size_t matchLength = ZSTD_count(ip+1+MINMATCH, ip+1+MINMATCH-offset_1, iend);
+            size_t litLength = ip+1-anchor;
+            offset_2 = offset_1;
+            ZSTD_storeSeq(seqStorePtr, litLength, anchor, 0, matchLength);
+            ip += 1+matchLength+MINMATCH;
             anchor = ip;
             continue;
         }
@@ -278,11 +290,9 @@ static size_t ZSTD_HC_compressBlock(ZSTD_HC_CCtx* ctx, void* dst, size_t maxDstS
             /* store sequence */
             {
                 size_t litLength = ip-anchor;
-                size_t offset = ip-match;
-                if (offset == offset_2) offset = 0;
                 offset_2 = offset_1;
                 offset_1 = ip-match;
-                ZSTD_storeSeq(seqStorePtr, litLength, anchor, offset, matchLength-MINMATCH);
+                ZSTD_storeSeq(seqStorePtr, litLength, anchor, offset_1, matchLength-MINMATCH);
                 ip += matchLength;
                 anchor = ip;
             }

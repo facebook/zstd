@@ -100,6 +100,10 @@
 #define COMPRESSIBILITY_DEFAULT 0.50
 static const size_t sampleSize = 10000000;
 
+static const int g_grillDuration = 30000000;   /* about 8.5 hours */
+static const int g_maxParamTime = 15000;   /* 15 sec */
+static const int g_maxVariationTime = 60000;   /* 60 sec */
+static const int g_maxNbVariations = 32;
 
 /**************************************
 *  Macros
@@ -113,6 +117,7 @@ static const size_t sampleSize = 10000000;
 static U32 nbIterations = NBLOOPS;
 static double g_compressibility = COMPRESSIBILITY_DEFAULT;
 static U32 g_blockSize = 0;
+static U32 g_rand = 1;
 
 void BMK_SetNbIterations(int nbLoops)
 {
@@ -296,6 +301,7 @@ static size_t BMK_benchParam(BMK_result_t* resultPtr,
         double fastestC = 100000000., fastestD = 100000000.;
         double ratio = 0.;
         U64 crcCheck = 0;
+        const int startTime =BMK_GetMilliStart();
 
         DISPLAY("\r%79s\r", "");
         for (loopNb = 1; loopNb <= nbIterations; loopNb++)
@@ -303,6 +309,10 @@ static size_t BMK_benchParam(BMK_result_t* resultPtr,
             int nbLoops;
             int milliTime;
             U32 blockNb;
+            const int totalTime = BMK_GetMilliSpan(startTime);
+
+            /* early break (slow params) */
+            if (totalTime > g_maxParamTime) break;
 
             /* Compression */
             DISPLAY("%1u-W%02uC%02uH%02uS%02u : %9u ->\r", loopNb, Wlog, Clog, Hlog, Slog, (U32)srcSize);
@@ -316,9 +326,9 @@ static size_t BMK_benchParam(BMK_result_t* resultPtr,
             {
                 for (blockNb=0; blockNb<nbBlocks; blockNb++)
                     blockTable[blockNb].cSize = ZSTD_HC_compress_advanced(ctx,
-                                                                          blockTable[blockNb].cPtr,  blockTable[blockNb].cRoom,
-                                                                          blockTable[blockNb].srcPtr, blockTable[blockNb].srcSize,
-                                                                          params);
+                                                    blockTable[blockNb].cPtr,  blockTable[blockNb].cRoom,
+                                                    blockTable[blockNb].srcPtr, blockTable[blockNb].srcSize,
+                                                    params);
                 nbLoops++;
             }
             milliTime = BMK_GetMilliSpan(milliTime);
@@ -383,33 +393,63 @@ static size_t BMK_benchParam(BMK_result_t* resultPtr,
 }
 
 
-static void BMK_printWinner(U32 cLevel, BMK_result_t result, ZSTD_HC_parameters params, size_t srcSize)
+static void BMK_printWinner(FILE* f, U32 cLevel, BMK_result_t result, ZSTD_HC_parameters params, size_t srcSize)
 {
     DISPLAY("\r%79s\r", "");
-    DISPLAY("level %2u: R:%5.3f at %5.1f MB/s => W%02uC%02uH%02uS%02u \n",
+    fprintf(f,
+            "level %2u: R:%5.3f at %5.1f MB/s => W%02uC%02uH%02uS%02u \n",
             cLevel, (double)srcSize / result.cSize, (double)result.cSpeed / 1000.,
             params.windowLog, params.chainLog, params.hashLog, params.searchLog);
+
 }
 
 
-#define CLEVEL_MAX 21
-static U32 g_cSpeedTarget[CLEVEL_MAX] = { 300000, 200000, 150000, 100000, 70000, 50000, 35000, 25000, 15000, 10000, /* 0 - 9 */
-                                          7000, 5000, 3500, 2500, 1500, 1000, 700, 500, 350, 250, /* 10 - 19 */
-                                          0 }; /* 20 */
+static U32 g_cSpeedTarget[ZSTD_HC_MAX_CLEVEL+1] = {
+    300000, 200000, 150000, 100000, 70000, 50000, 35000, 25000, 15000, 10000, /* 0 - 9 */
+    7000, 5000, 3500, 2500, 1500, 1000, 700, 500, 350, 250, /* 10 - 19 */
+    0 }; /* 20 */
 
 typedef struct {
     BMK_result_t result;
     ZSTD_HC_parameters params;
 } winnerInfo_t;
 
-static void BMK_printWinners(const winnerInfo_t* winners, size_t srcSize)
+static void BMK_printWinners(FILE* f, const winnerInfo_t* winners, size_t srcSize)
 {
     int cLevel;
 
     DISPLAY("\nSelected configurations :\n");
-    for (cLevel=0; cLevel < CLEVEL_MAX; cLevel++)
-        BMK_printWinner(cLevel, winners[cLevel].result, winners[cLevel].params, srcSize);
+    for (cLevel=0; cLevel <= ZSTD_HC_MAX_CLEVEL; cLevel++)
+        BMK_printWinner(stdout, cLevel, winners[cLevel].result, winners[cLevel].params, srcSize);
 
+    fseek(f, 0, SEEK_SET);
+    for (cLevel=0; cLevel <= ZSTD_HC_MAX_CLEVEL; cLevel++)
+        BMK_printWinner(f, cLevel, winners[cLevel].result, winners[cLevel].params, srcSize);
+}
+
+static int BMK_seed(winnerInfo_t* winners, ZSTD_HC_parameters params,
+              const void* srcBuffer, size_t srcSize,
+                    ZSTD_HC_CCtx* ctx)
+{
+    BMK_result_t testResult;
+    int better = 0;
+    int cLevel;
+
+    BMK_benchParam(&testResult, srcBuffer, srcSize, ctx, params);
+
+    for (cLevel = 0; cLevel <= ZSTD_HC_MAX_CLEVEL; cLevel++)
+    {
+        if ( (testResult.cSpeed > g_cSpeedTarget[cLevel])
+            && ((winners[cLevel].result.cSize==0) || (winners[cLevel].result.cSize > testResult.cSize)) )
+        {
+            better = 1;
+            winners[cLevel].result = testResult;
+            winners[cLevel].params = params;
+            BMK_printWinner(stdout, cLevel, testResult, params, srcSize);
+        }
+    }
+
+    return better;
 }
 
 #define WINDOWLOG_MAX 26
@@ -423,141 +463,151 @@ static void BMK_printWinners(const winnerInfo_t* winners, size_t srcSize)
 
 #define MAX(a,b)   ( (a) > (b) ? (a) : (b) )
 
-static void playAround(winnerInfo_t* winners, ZSTD_HC_parameters params,
+static BYTE g_alreadyTested[WINDOWLOG_MAX+1-WINDOWLOG_MIN]
+                           [CHAINLOG_MAX+1-CHAINLOG_MIN]
+                           [HASHLOG_MAX+1-HASHLOG_MIN]
+                           [SEARCHLOG_MAX+1-SEARCHLOG_MIN] = {};   /* init to zero */
+
+#define NB_TESTS_PLAYED(p) \
+    g_alreadyTested[p.windowLog-WINDOWLOG_MIN][p.chainLog-CHAINLOG_MIN][p.hashLog-HASHLOG_MIN][p.searchLog-SEARCHLOG_MIN]
+
+
+static void playAround(FILE* f, winnerInfo_t* winners,
+                       ZSTD_HC_parameters params,
                        const void* srcBuffer, size_t srcSize,
                        ZSTD_HC_CCtx* ctx)
 {
-    BMK_result_t testResult;
-    int better = 0;
-    int cLevel;
-
-    static BYTE g_alreadyTested[WINDOWLOG_MAX+1-WINDOWLOG_MIN]
-                               [CHAINLOG_MAX+1-CHAINLOG_MIN]
-                               [HASHLOG_MAX+1-HASHLOG_MIN]
-                               [SEARCHLOG_MAX+1-SEARCHLOG_MIN] = {};   /* init to zero */
-    static U32 g_rand = 1;
-
-    /* exclude faster already played params */
-    if (FUZ_rand(&g_rand) & ((1 << g_alreadyTested[params.windowLog-WINDOWLOG_MIN]
-                                                  [params.chainLog-CHAINLOG_MIN]
-                                                  [params.hashLog-HASHLOG_MIN]
-                                                  [params.searchLog-SEARCHLOG_MIN]++)-1))
-        return;
-
-    BMK_benchParam(&testResult, srcBuffer, srcSize, ctx, params);
-
-    for (cLevel = 0; cLevel < CLEVEL_MAX; cLevel++)
+    int nbVariations = 0;
+    const int startTime = BMK_GetMilliStart();
+    while (BMK_GetMilliSpan(startTime) < g_maxVariationTime)
     {
-        if ( (testResult.cSpeed > g_cSpeedTarget[cLevel])
-            && ((winners[cLevel].result.cSize==0) || (winners[cLevel].result.cSize > testResult.cSize)) )
+        ZSTD_HC_parameters p = params;
+        U32 nbChanges = (FUZ_rand(&g_rand) & 3) + 1;
+        if (nbVariations++ > g_maxNbVariations) break;
+
+        for (; nbChanges; nbChanges--)
         {
-            better = 1;
-            winners[cLevel].result = testResult;
-            winners[cLevel].params = params;
-            BMK_printWinner(cLevel, testResult, params, srcSize);
+            const U32 changeID = FUZ_rand(&g_rand) & 7;
+            switch(changeID)
+            {
+            case 0:
+                p.chainLog++; break;
+            case 1:
+                p.chainLog--; break;
+            case 2:
+                p.hashLog++; break;
+            case 3:
+                p.hashLog--; break;
+            case 4:
+                p.searchLog++; break;
+            case 5:
+                p.searchLog--; break;
+            case 6:
+                p.windowLog++; break;
+            case 7:
+                p.windowLog--; break;
+            }
         }
-    }
 
-    if (!better) return;
+        /* validate new conf */
+        if (p.windowLog > WINDOWLOG_MAX) continue;
+        if (p.windowLog < MAX(WINDOWLOG_MIN, p.chainLog)) continue;
+        if (p.chainLog > p.windowLog) continue;
+        if (p.chainLog < CHAINLOG_MIN) continue;
+        if (p.hashLog > HASHLOG_MAX) continue;
+        if (p.hashLog < HASHLOG_MIN) continue;
+        if (p.searchLog > p.chainLog) continue;
+        if (p.searchLog < SEARCHLOG_MIN) continue;
 
-    BMK_printWinners(winners, srcSize);
+        /* exclude faster if already played params */
+        if (FUZ_rand(&g_rand) & ((1 << NB_TESTS_PLAYED(p))-1)) continue;
 
-    if (params.searchLog > SEARCHLOG_MIN)
-    {
-        params.searchLog--;
-        playAround(winners, params, srcBuffer, srcSize, ctx);
-        params.searchLog++;
-    }
+        /* test */
+        NB_TESTS_PLAYED(p)++;
+        if (!BMK_seed(winners, p, srcBuffer, srcSize, ctx)) continue;
 
-    if (params.hashLog < HASHLOG_MAX)
-    {
-        params.hashLog++;
-        playAround(winners, params, srcBuffer, srcSize, ctx);
-        params.hashLog--;
-    }
-
-    if (params.chainLog > CHAINLOG_MIN)
-    {
-        params.chainLog--;
-        playAround(winners, params, srcBuffer, srcSize, ctx);
-        params.chainLog++;
-    }
-
-    if (params.windowLog > MAX(WINDOWLOG_MIN, params.chainLog))
-    {
-        params.windowLog--;
-        playAround(winners, params, srcBuffer, srcSize, ctx);
-        params.windowLog++;
-    }
-
-    if (params.windowLog < WINDOWLOG_MAX)
-    {
-        params.windowLog++;
-        playAround(winners, params, srcBuffer, srcSize, ctx);
-        params.windowLog--;
-    }
-
-    if (params.chainLog < params.windowLog)
-    {
-        params.chainLog++;
-        playAround(winners, params, srcBuffer, srcSize, ctx);
-        params.chainLog--;
-    }
-
-    if (params.hashLog > HASHLOG_MIN)
-    {
-        params.hashLog--;
-        playAround(winners, params, srcBuffer, srcSize, ctx);
-        params.hashLog++;
-    }
-
-    if (params.searchLog < params.chainLog)
-    {
-        params.searchLog++;
-        playAround(winners, params, srcBuffer, srcSize, ctx);
-        params.searchLog--;
+        /* improvement found => search more */
+        BMK_printWinners(f, winners, srcSize);
+        playAround(f, winners, p, srcBuffer, srcSize, ctx);
     }
 
 }
+
+
+static void BMK_selectRandomStart(
+                       FILE* f, winnerInfo_t* winners,
+                       const void* srcBuffer, size_t srcSize,
+                       ZSTD_HC_CCtx* ctx)
+{
+    U32 id = FUZ_rand(&g_rand) % (ZSTD_HC_MAX_CLEVEL+1);
+    if (id==0)
+    {
+        /* totally random entry */
+        ZSTD_HC_parameters p;
+        p.chainLog  = FUZ_rand(&g_rand) % (CHAINLOG_MAX+1 - CHAINLOG_MIN) + CHAINLOG_MIN;
+        p.hashLog   = FUZ_rand(&g_rand) % (HASHLOG_MAX+1 - HASHLOG_MIN) + HASHLOG_MIN;
+        p.searchLog = FUZ_rand(&g_rand) % (SEARCHLOG_MAX+1 - SEARCHLOG_MIN) + SEARCHLOG_MIN;
+        p.windowLog = FUZ_rand(&g_rand) % (WINDOWLOG_MAX+1 - WINDOWLOG_MIN) + WINDOWLOG_MIN;
+        playAround(f, winners, p, srcBuffer, srcSize, ctx);
+    }
+    else
+        playAround(f, winners, winners[id].params, srcBuffer, srcSize, ctx);
+}
+
+
+static const ZSTD_HC_parameters* seedParams = ZSTD_HC_defaultParameters;
 
 static void BMK_benchMem(void* srcBuffer, size_t srcSize)
 {
     ZSTD_HC_CCtx* ctx = ZSTD_HC_createCCtx();
     ZSTD_HC_parameters params;
-    winnerInfo_t winners[CLEVEL_MAX];
+    winnerInfo_t winners[ZSTD_HC_MAX_CLEVEL+1];
     BMK_result_t testResult;
+    int i;
+    const char* rfName = "grillResults.txt";
+    FILE* f;
 
     /* init */
     memset(winners, 0, sizeof(winners));
+    f = fopen(rfName, "w");
+    if (f==NULL) { DISPLAY("error opening %s \n", rfName); exit(1); }
 
     /* baseline config for level 9 */
     params.windowLog = 19;
-    params.chainLog = 18;
-    params.hashLog = 17;
+    params.chainLog = 19;
+    params.hashLog = 19;
     params.searchLog = 9;
     BMK_benchParam(&testResult, srcBuffer, srcSize, ctx, params);
 
     /* establish speed objectives (relative to current platform) */
+    g_cSpeedTarget[9] = (testResult.cSpeed * 15) >> 4;
+    g_cSpeedTarget[1] = g_cSpeedTarget[9] << 4;
+    g_cSpeedTarget[0] = (g_cSpeedTarget[1] * 181) >> 7;  /* sqrt2 */
+    for (i=2; i<ZSTD_HC_MAX_CLEVEL; i++)   /* note : last level no speed limit */
+        g_cSpeedTarget[i] = (g_cSpeedTarget[i-1] * 181) >> 8;
+
+    /* populate initial solution */
+    BMK_seed(winners, params, srcBuffer, srcSize, ctx);
+    for (i=1; i<=ZSTD_HC_MAX_CLEVEL; i++)
+        BMK_seed(winners, seedParams[i], srcBuffer, srcSize, ctx);
+    BMK_printWinners(f, winners, srcSize);
+
+    /* start tests */
     {
-        int i;
-        g_cSpeedTarget[9] = (testResult.cSpeed * 15) >> 4;
-        g_cSpeedTarget[1] = g_cSpeedTarget[9] << 4;
-        g_cSpeedTarget[0] = (g_cSpeedTarget[1] * 181) >> 7;  /* sqrt2 */
-        for (i=2; i<(CLEVEL_MAX-1); i++)   /* last level : pure compression */
-            g_cSpeedTarget[i] = (g_cSpeedTarget[i-1] * 181) >> 8;
+        const int milliStart = BMK_GetMilliStart();
+        int mLength;
+        do
+        {
+            BMK_selectRandomStart(f, winners, srcBuffer, srcSize, ctx);
+            mLength = BMK_GetMilliSpan(milliStart);
+        } while (mLength < g_grillDuration);
     }
 
-    /* start from fast conf */
-    params.windowLog = WINDOWLOG_MIN;
-    params.chainLog = CHAINLOG_MIN;
-    params.hashLog = 12;
-    params.searchLog = SEARCHLOG_MIN;
-    playAround(winners, params, srcBuffer, srcSize, ctx);
-
     /* end summary */
-    BMK_printWinners(winners, srcSize);
+    BMK_printWinners(f, winners, srcSize);
 
     /* clean up*/
+    fclose(f);
     ZSTD_HC_freeCCtx(ctx);
 }
 
@@ -612,7 +662,7 @@ int benchFiles(char** fileNamesTable, int nbFiles)
             return 11;
         }
 
-        // Memory allocation & restrictions
+        /* Memory allocation & restrictions */
         inFileSize = BMK_GetFileSize(inFileName);
         benchedSize = (size_t) BMK_findMaxMem(inFileSize*3) / 3;
         if ((U64)benchedSize > inFileSize) benchedSize = (size_t)inFileSize;
@@ -696,7 +746,7 @@ int main(int argc, char** argv)
 
         if(!argument) continue;   // Protection if argument empty
 
-        // Decode command (note : aggregated commands are allowed)
+        /* Decode command (note : aggregated commands are allowed) */
         if (argument[0]=='-')
         {
             while (argument[1]!=0)

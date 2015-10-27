@@ -100,10 +100,10 @@
 #define COMPRESSIBILITY_DEFAULT 0.50
 static const size_t sampleSize = 10000000;
 
-static const int g_grillDuration = 30000000;   /* about 8.5 hours */
+static const int g_grillDuration = 50000000;   /* about 13 hours */
 static const int g_maxParamTime = 15000;   /* 15 sec */
 static const int g_maxVariationTime = 60000;   /* 60 sec */
-static const int g_maxNbVariations = 32;
+static const int g_maxNbVariations = 64;
 
 /**************************************
 *  Macros
@@ -119,6 +119,7 @@ static double g_compressibility = COMPRESSIBILITY_DEFAULT;
 static U32 g_blockSize = 0;
 static U32 g_rand = 1;
 static U32 g_singleRun = 0;
+static U32 g_target = 0;
 static ZSTD_HC_parameters g_params = { 0, 0, 0, 0 };
 
 void BMK_SetNbIterations(int nbLoops)
@@ -462,24 +463,18 @@ static int BMK_seed(winnerInfo_t* winners, ZSTD_HC_parameters params,
     return better;
 }
 
-#define WINDOWLOG_MAX 26
-#define WINDOWLOG_MIN 17
-#define CHAINLOG_MAX WINDOWLOG_MAX
-#define CHAINLOG_MIN 4
-#define HASHLOG_MAX 28
-#define HASHLOG_MIN 4
-#define SEARCHLOG_MAX (CHAINLOG_MAX-1)
-#define SEARCHLOG_MIN 1
-
 #define MAX(a,b)   ( (a) > (b) ? (a) : (b) )
 
-static BYTE g_alreadyTested[WINDOWLOG_MAX+1-WINDOWLOG_MIN]
-                           [CHAINLOG_MAX+1-CHAINLOG_MIN]
-                           [HASHLOG_MAX+1-HASHLOG_MIN]
-                           [SEARCHLOG_MAX+1-SEARCHLOG_MIN] = {};   /* init to zero */
+static BYTE g_alreadyTested[ZSTD_HC_WINDOWLOG_MAX+1-ZSTD_HC_WINDOWLOG_MIN]
+                           [ZSTD_HC_CHAINLOG_MAX+1-ZSTD_HC_CHAINLOG_MIN]
+                           [ZSTD_HC_HASHLOG_MAX+1-ZSTD_HC_HASHLOG_MIN]
+                           [ZSTD_HC_SEARCHLOG_MAX+1-ZSTD_HC_SEARCHLOG_MIN] = {};   /* init to zero */
 
 #define NB_TESTS_PLAYED(p) \
-    g_alreadyTested[p.windowLog-WINDOWLOG_MIN][p.chainLog-CHAINLOG_MIN][p.hashLog-HASHLOG_MIN][p.searchLog-SEARCHLOG_MIN]
+    g_alreadyTested[p.windowLog-ZSTD_HC_WINDOWLOG_MIN] \
+                   [p.chainLog-ZSTD_HC_CHAINLOG_MIN]   \
+                   [p.hashLog-ZSTD_HC_HASHLOG_MIN]     \
+                   [p.searchLog-ZSTD_HC_SEARCHLOG_MIN]
 
 
 static void playAround(FILE* f, winnerInfo_t* winners,
@@ -520,14 +515,14 @@ static void playAround(FILE* f, winnerInfo_t* winners,
         }
 
         /* validate new conf */
-        if (p.windowLog > WINDOWLOG_MAX) continue;
-        if (p.windowLog < MAX(WINDOWLOG_MIN, p.chainLog)) continue;
+        if (p.windowLog > ZSTD_HC_WINDOWLOG_MAX) continue;
+        if (p.windowLog < MAX(ZSTD_HC_WINDOWLOG_MIN, p.chainLog)) continue;
         if (p.chainLog > p.windowLog) continue;
-        if (p.chainLog < CHAINLOG_MIN) continue;
-        if (p.hashLog > HASHLOG_MAX) continue;
-        if (p.hashLog < HASHLOG_MIN) continue;
+        if (p.chainLog < ZSTD_HC_CHAINLOG_MIN) continue;
+        if (p.hashLog > ZSTD_HC_HASHLOG_MAX) continue;
+        if (p.hashLog < ZSTD_HC_HASHLOG_MIN) continue;
         if (p.searchLog > p.chainLog) continue;
-        if (p.searchLog < SEARCHLOG_MIN) continue;
+        if (p.searchLog < ZSTD_HC_SEARCHLOG_MIN) continue;
 
         /* exclude faster if already played params */
         if (FUZ_rand(&g_rand) & ((1 << NB_TESTS_PLAYED(p))-1)) continue;
@@ -554,10 +549,10 @@ static void BMK_selectRandomStart(
     {
         /* totally random entry */
         ZSTD_HC_parameters p;
-        p.chainLog  = FUZ_rand(&g_rand) % (CHAINLOG_MAX+1 - CHAINLOG_MIN) + CHAINLOG_MIN;
-        p.hashLog   = FUZ_rand(&g_rand) % (HASHLOG_MAX+1 - HASHLOG_MIN) + HASHLOG_MIN;
-        p.searchLog = FUZ_rand(&g_rand) % (SEARCHLOG_MAX+1 - SEARCHLOG_MIN) + SEARCHLOG_MIN;
-        p.windowLog = FUZ_rand(&g_rand) % (WINDOWLOG_MAX+1 - WINDOWLOG_MIN) + WINDOWLOG_MIN;
+        p.chainLog  = FUZ_rand(&g_rand) % (ZSTD_HC_CHAINLOG_MAX+1 - ZSTD_HC_CHAINLOG_MIN) + ZSTD_HC_CHAINLOG_MIN;
+        p.hashLog   = FUZ_rand(&g_rand) % (ZSTD_HC_HASHLOG_MAX+1 - ZSTD_HC_HASHLOG_MIN) + ZSTD_HC_HASHLOG_MIN;
+        p.searchLog = FUZ_rand(&g_rand) % (ZSTD_HC_SEARCHLOG_MAX+1 - ZSTD_HC_SEARCHLOG_MIN) + ZSTD_HC_SEARCHLOG_MIN;
+        p.windowLog = FUZ_rand(&g_rand) % (ZSTD_HC_WINDOWLOG_MAX+1 - ZSTD_HC_WINDOWLOG_MIN) + ZSTD_HC_WINDOWLOG_MIN;
         playAround(f, winners, p, srcBuffer, srcSize, ctx);
     }
     else
@@ -589,24 +584,29 @@ static void BMK_benchMem(void* srcBuffer, size_t srcSize)
     f = fopen(rfName, "w");
     if (f==NULL) { DISPLAY("error opening %s \n", rfName); exit(1); }
 
-    /* baseline config for level 9 */
-    params.windowLog = 19;
-    params.chainLog = 19;
-    params.hashLog = 19;
-    params.searchLog = 9;
-    BMK_benchParam(&testResult, srcBuffer, srcSize, ctx, params);
+    if (g_target)
+        g_cSpeedTarget[9] = g_target * 1000;
+    else
+    {
+        /* baseline config for level 9 */
+        params.windowLog = 19;
+        params.chainLog = 19;
+        params.hashLog = 19;
+        params.searchLog = 9;
+        BMK_benchParam(&testResult, srcBuffer, srcSize, ctx, params);
+        g_cSpeedTarget[9] = (testResult.cSpeed * 15) >> 4;
+    }
 
-    /* establish speed objectives (relative to current platform) */
-    g_cSpeedTarget[9] = (testResult.cSpeed * 15) >> 4;
+    /* establish speed objectives (relative to level9) */
     g_cSpeedTarget[1] = g_cSpeedTarget[9] << 4;
     g_cSpeedTarget[0] = (g_cSpeedTarget[1] * 181) >> 7;  /* sqrt2 */
     for (i=2; i<ZSTD_HC_MAX_CLEVEL; i++)   /* note : last level no speed limit */
         g_cSpeedTarget[i] = (g_cSpeedTarget[i-1] * 181) >> 8;
 
     /* populate initial solution */
-    BMK_seed(winners, params, srcBuffer, srcSize, ctx);
     for (i=1; i<=ZSTD_HC_MAX_CLEVEL; i++)
         BMK_seed(winners, seedParams[i], srcBuffer, srcSize, ctx);
+    BMK_seed(winners, params, srcBuffer, srcSize, ctx);
     BMK_printWinners(f, winners, srcSize);
 
     /* start tests */
@@ -622,6 +622,7 @@ static void BMK_benchMem(void* srcBuffer, size_t srcSize)
 
     /* end summary */
     BMK_printWinners(f, winners, srcSize);
+    DISPLAY("grillParams operations completed \n");
 
     /* clean up*/
     fclose(f);
@@ -821,6 +822,31 @@ int main(int argc, char** argv)
                         argument += 13;
                         break;
                     }
+
+                    /* target level9 objective, in MB/s */
+                case 'T':
+                    argument++;
+                    g_target = 0;
+                    while ((*argument >= '0') && (*argument <= '9'))
+                    {
+                        g_target *= 10;
+                        g_target += *argument - '0';
+                        argument++;
+                    }
+                    break;
+
+                    /* cut input into blocks */
+                case 'B':
+                    {
+                        g_blockSize = 0;
+                        argument++;
+                        while ((*argument >='0') && (*argument <='9'))
+                            g_blockSize *= 10, g_blockSize += *argument++ - '0';
+                        if (*argument=='K') g_blockSize<<=10, argument++;  /* allows using KB notation */
+                        if (*argument=='M') g_blockSize<<=20, argument++;
+                        if (*argument=='B') argument++;
+                    }
+                    break;
 
                     /* Unknown command */
                 default : return badusage(exename);

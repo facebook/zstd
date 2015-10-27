@@ -305,7 +305,7 @@ static size_t ZSTD_HC_compressBlock(ZSTD_HC_CCtx* ctx, void* dst, size_t maxDstS
         seqStorePtr->lit += lastLLSize;
     }
 
-    /* Finale compression stage */
+    /* Final compression stage */
     return ZSTD_compressSequences((BYTE*)dst, maxDstSize,
                                   seqStorePtr, srcSize);
 }

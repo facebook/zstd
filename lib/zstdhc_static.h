@@ -53,6 +53,16 @@ typedef struct
     U32 searchLog;    /* nb of searches : larger == more compression, slower*/
 } ZSTD_HC_parameters;
 
+/* parameters boundaries */
+#define ZSTD_HC_WINDOWLOG_MAX 26
+#define ZSTD_HC_WINDOWLOG_MIN 17
+#define ZSTD_HC_CHAINLOG_MAX ZSTD_HC_WINDOWLOG_MAX
+#define ZSTD_HC_CHAINLOG_MIN 4
+#define ZSTD_HC_HASHLOG_MAX 28
+#define ZSTD_HC_HASHLOG_MIN 4
+#define ZSTD_HC_SEARCHLOG_MAX (ZSTD_HC_CHAINLOG_MAX-1)
+#define ZSTD_HC_SEARCHLOG_MIN 1
+
 
 /* *************************************
 *  Functions

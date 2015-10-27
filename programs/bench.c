@@ -175,7 +175,6 @@ static U32 BMK_rand(U32* src)
     return rand32 >> 9;
 }
 
-
 #define BMK_RAND15BITS  ( BMK_rand(&seed) & 0x7FFF)
 #define BMK_RANDLENGTH  ((BMK_rand(&seed) & 3) ? (BMK_rand(&seed) % 15) : (BMK_rand(&seed) % 510) + 15)
 #define BMK_RANDCHAR    (BYTE)((BMK_rand(&seed) & 63) + '0')
@@ -230,7 +229,6 @@ typedef struct
     size_t resSize;
 } blockParam_t;
 
-
 typedef size_t (*compressor_t) (void* dst, size_t maxDstSize, const void* src, size_t srcSize, unsigned compressionLevel);
 
 static size_t local_compress_fast (void* dst, size_t maxDstSize, const void* src, size_t srcSize, unsigned compressionLevel)
@@ -249,7 +247,7 @@ static int BMK_benchMem(void* srcBuffer, size_t srcSize, const char* fileName, i
     const size_t maxCompressedSize = (size_t)nbBlocks * ZSTD_compressBound(blockSize);
     void* const compressedBuffer = malloc(maxCompressedSize);
     void* const resultBuffer = malloc(srcSize);
-    const compressor_t compressor = (cLevel <= 1) ? local_compress_fast : ZSTD_HC_compress;
+    const compressor_t compressor = (cLevel == 0) ? local_compress_fast : ZSTD_HC_compress;
     U64 crcOrig;
 
     /* Memory allocation & restrictions */
@@ -328,7 +326,7 @@ static int BMK_benchMem(void* srcBuffer, size_t srcSize, const char* fileName, i
             ratio = (double)cSize / (double)srcSize*100.;
             DISPLAY("%1i-%-14.14s : %9i -> %9i (%5.2f%%),%7.1f MB/s\r", loopNb, fileName, (int)srcSize, (int)cSize, ratio, (double)srcSize / fastestC / 1000.);
 
-#if 1
+#if 0
             /* Decompression */
             memset(resultBuffer, 0xD6, srcSize);
 

@@ -143,7 +143,7 @@ static void ZSTD_HC_resetCCtx_advanced (ZSTD_HC_CCtx* zc,
 ***************************************/
 #define KNUTH 2654435761U
 static U32 ZSTD_HC_hash(U32 u, U32 h) { return (u * KNUTH) >> (32-h) ; }
-#define DELTANEXT(d)           chainTable[(d) & chainMask]   /* flexible, CHAINSIZE dependent */
+#define NEXT_IN_CHAIN(d)           chainTable[(d) & chainMask]   /* flexible, CHAINSIZE dependent */
 
 static U32 ZSTD_HC_hashPtr(const void* ptr, U32 h) { return ZSTD_HC_hash(MEM_read32(ptr), h); }
 
@@ -165,8 +165,7 @@ static void ZSTD_HC_insert (ZSTD_HC_CCtx* zc, const BYTE* ip)
     while(idx < target)
     {
         U32 h = ZSTD_HC_hashPtr(base+idx, hashLog);
-        size_t delta = idx - hashTable[h];
-        DELTANEXT(idx) = (U32)delta;
+        NEXT_IN_CHAIN(idx) = hashTable[h];
         hashTable[h] = idx;
         idx++;
     }
@@ -229,7 +228,7 @@ static size_t ZSTD_HC_insertAndFindBestMatch (
         }
 
         if (base + matchIndex <= ip - chainSize) break;
-        matchIndex -= DELTANEXT(matchIndex);
+        matchIndex = NEXT_IN_CHAIN(matchIndex);
     }
 
     return ml;

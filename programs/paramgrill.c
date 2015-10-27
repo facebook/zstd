@@ -118,6 +118,8 @@ static U32 nbIterations = NBLOOPS;
 static double g_compressibility = COMPRESSIBILITY_DEFAULT;
 static U32 g_blockSize = 0;
 static U32 g_rand = 1;
+static U32 g_singleRun = 0;
+static ZSTD_HC_parameters g_params = { 0, 0, 0, 0 };
 
 void BMK_SetNbIterations(int nbLoops)
 {
@@ -396,11 +398,10 @@ static size_t BMK_benchParam(BMK_result_t* resultPtr,
 static void BMK_printWinner(FILE* f, U32 cLevel, BMK_result_t result, ZSTD_HC_parameters params, size_t srcSize)
 {
     DISPLAY("\r%79s\r", "");
+    fprintf(f,"    {%3u,%3u,%3u,%3u },   ", params.windowLog, params.chainLog, params.hashLog, params.searchLog);
     fprintf(f,
-            "level %2u: R:%5.3f at %5.1f MB/s => W%02uC%02uH%02uS%02u \n",
-            cLevel, (double)srcSize / result.cSize, (double)result.cSpeed / 1000.,
-            params.windowLog, params.chainLog, params.hashLog, params.searchLog);
-
+            "/* level %2u: R:%5.3f at %5.1f MB/s */ \n",
+            cLevel, (double)srcSize / result.cSize, (double)result.cSpeed / 1000.);
 }
 
 
@@ -414,18 +415,27 @@ typedef struct {
     ZSTD_HC_parameters params;
 } winnerInfo_t;
 
-static void BMK_printWinners(FILE* f, const winnerInfo_t* winners, size_t srcSize)
+static void BMK_printWinners2(FILE* f, const winnerInfo_t* winners, size_t srcSize)
 {
     int cLevel;
 
-    DISPLAY("\nSelected configurations :\n");
-    for (cLevel=0; cLevel <= ZSTD_HC_MAX_CLEVEL; cLevel++)
-        BMK_printWinner(stdout, cLevel, winners[cLevel].result, winners[cLevel].params, srcSize);
+    fprintf(f, "\n /* Selected configurations : */ \n");
+    fprintf(f, "#define ZSTD_HC_MAX_CLEVEL 20 \n");
+    fprintf(f, "static const ZSTD_HC_parameters ZSTD_HC_defaultParameters[ZSTD_HC_MAX_CLEVEL+1] = {\n");
+    fprintf(f, "    /* W,  C,  H,  S */ \n");
 
-    fseek(f, 0, SEEK_SET);
     for (cLevel=0; cLevel <= ZSTD_HC_MAX_CLEVEL; cLevel++)
         BMK_printWinner(f, cLevel, winners[cLevel].result, winners[cLevel].params, srcSize);
 }
+
+
+static void BMK_printWinners(FILE* f, const winnerInfo_t* winners, size_t srcSize)
+{
+    fseek(f, 0, SEEK_SET);
+    BMK_printWinners2(f, winners, srcSize);
+    BMK_printWinners2(stdout, winners, srcSize);
+}
+
 
 static int BMK_seed(winnerInfo_t* winners, ZSTD_HC_parameters params,
               const void* srcBuffer, size_t srcSize,
@@ -566,6 +576,13 @@ static void BMK_benchMem(void* srcBuffer, size_t srcSize)
     int i;
     const char* rfName = "grillResults.txt";
     FILE* f;
+
+    if (g_singleRun)
+    {
+        BMK_benchParam(&testResult, srcBuffer, srcSize, ctx, g_params);
+        DISPLAY("\n");
+        return;
+    }
 
     /* init */
     memset(winners, 0, sizeof(winners));
@@ -723,7 +740,7 @@ int badusage(char* exename)
 {
     DISPLAY("Wrong parameters\n");
     usage(exename);
-    return 0;
+    return 1;
 }
 
 int main(int argc, char** argv)
@@ -749,9 +766,10 @@ int main(int argc, char** argv)
         /* Decode command (note : aggregated commands are allowed) */
         if (argument[0]=='-')
         {
-            while (argument[1]!=0)
+            argument++;
+
+            while (argument[0]!=0)
             {
-                argument ++;
 
                 switch(argument[0])
                 {
@@ -760,13 +778,14 @@ int main(int argc, char** argv)
                 case 'H': usage(exename); usage_advanced(); return 0;
 
                     /* Pause at the end (hidden option) */
-                case 'p': main_pause = 1; break;
+                case 'p': main_pause = 1; argument++; break;
 
                     /* Modify Nb Iterations */
                 case 'i':
-                    if ((argument[1] >='0') && (argument[1] <='9'))
+                    argument++;
+                    if ((argument[0] >='0') && (argument[0] <='9'))
                     {
-                        int iters = argument[1] - '0';
+                        int iters = argument[0] - '0';
                         BMK_SetNbIterations(iters);
                         argument++;
                     }
@@ -774,20 +793,37 @@ int main(int argc, char** argv)
 
                     /* Sample compressibility (when no file provided) */
                 case 'P':
+                    argument++;
                     {
                         U32 proba32 = 0;
-                        while ((argument[1]>= '0') && (argument[1]<= '9'))
+                        while ((argument[0]>= '0') && (argument[0]<= '9'))
                         {
                             proba32 *= 10;
-                            proba32 += argument[1] - '0';
+                            proba32 += argument[0] - '0';
                             argument++;
                         }
                         g_compressibility = (double)proba32 / 100.;
                     }
                     break;
 
+                    /* Run Single conf */
+                case 'S':
+                    {
+                        if (argument[ 1]!='w') return badusage(exename);
+                        if (argument[ 4]!='c') return badusage(exename);
+                        if (argument[ 7]!='h') return badusage(exename);
+                        if (argument[10]!='s') return badusage(exename);
+                        g_singleRun = 1;
+                        g_params.windowLog = (argument[ 2] - '0') * 10 + (argument[ 3] - '0');
+                        g_params.chainLog  = (argument[ 5] - '0') * 10 + (argument[ 6] - '0');
+                        g_params.hashLog   = (argument[ 8] - '0') * 10 + (argument[ 9] - '0');
+                        g_params.searchLog = (argument[11] - '0') * 10 + (argument[12] - '0');
+                        argument += 13;
+                        break;
+                    }
+
                     /* Unknown command */
-                default : badusage(exename); return 1;
+                default : return badusage(exename);
                 }
             }
             continue;

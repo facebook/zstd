@@ -120,6 +120,7 @@ static U32 g_blockSize = 0;
 static U32 g_rand = 1;
 static U32 g_singleRun = 0;
 static U32 g_target = 0;
+static U32 g_noSeed = 0;
 static ZSTD_HC_parameters g_params = { 0, 0, 0, 0 };
 
 void BMK_SetNbIterations(int nbLoops)
@@ -132,6 +133,28 @@ void BMK_SetNbIterations(int nbLoops)
 /*********************************************************
 *  Private functions
 *********************************************************/
+
+static unsigned BMK_highbit(U32 val)
+{
+#   if defined(_MSC_VER)   /* Visual */
+    unsigned long r;
+    _BitScanReverse(&r, val);
+    return (unsigned)r;
+#   elif defined(__GNUC__) && (__GNUC__ >= 3)   /* GCC Intrinsic */
+    return 31 - __builtin_clz(val);
+#   else   /* Software version */
+    static const int DeBruijnClz[32] = { 0, 9, 1, 10, 13, 21, 2, 29, 11, 14, 16, 18, 22, 25, 3, 30, 8, 12, 20, 28, 15, 17, 24, 7, 19, 27, 23, 6, 26, 5, 4, 31 };
+    U32 v = val;
+    int r;
+    v |= v >> 1;
+    v |= v >> 2;
+    v |= v >> 4;
+    v |= v >> 8;
+    v |= v >> 16;
+    r = DeBruijnClz[(U32)(v * 0x07C4ACDDU) >> 27];
+    return r;
+#   endif
+}
 
 #if defined(BMK_LEGACY_TIMER)
 
@@ -242,6 +265,7 @@ typedef struct
 
 
 #define MIN(a,b)  ( (a) < (b) ? (a) : (b) )
+
 static size_t BMK_benchParam(BMK_result_t* resultPtr,
                              const void* srcBuffer, size_t srcSize,
                              ZSTD_HC_CCtx* ctx,
@@ -482,8 +506,10 @@ static void playAround(FILE* f, winnerInfo_t* winners,
                        const void* srcBuffer, size_t srcSize,
                        ZSTD_HC_CCtx* ctx)
 {
+    const U32 srcLog = BMK_highbit((U32)( (g_blockSize ? g_blockSize : srcSize) -1))+1;
     int nbVariations = 0;
     const int startTime = BMK_GetMilliStart();
+
     while (BMK_GetMilliSpan(startTime) < g_maxVariationTime)
     {
         ZSTD_HC_parameters p = params;
@@ -515,6 +541,7 @@ static void playAround(FILE* f, winnerInfo_t* winners,
         }
 
         /* validate new conf */
+        if (p.windowLog > srcLog) continue;
         if (p.windowLog > ZSTD_HC_WINDOWLOG_MAX) continue;
         if (p.windowLog < MAX(ZSTD_HC_WINDOWLOG_MIN, p.chainLog)) continue;
         if (p.chainLog > p.windowLog) continue;
@@ -545,7 +572,7 @@ static void BMK_selectRandomStart(
                        ZSTD_HC_CCtx* ctx)
 {
     U32 id = FUZ_rand(&g_rand) % (ZSTD_HC_MAX_CLEVEL+1);
-    if (id==0)
+    if ((id==0) || (winners[id].params.windowLog==0))
     {
         /* totally random entry */
         ZSTD_HC_parameters p;
@@ -571,6 +598,7 @@ static void BMK_benchMem(void* srcBuffer, size_t srcSize)
     int i;
     const char* rfName = "grillResults.txt";
     FILE* f;
+    const U32 srcLog = BMK_highbit((U32)( (g_blockSize ? g_blockSize : srcSize) -1))+1;
 
     if (g_singleRun)
     {
@@ -589,10 +617,10 @@ static void BMK_benchMem(void* srcBuffer, size_t srcSize)
     else
     {
         /* baseline config for level 9 */
-        params.windowLog = 19;
-        params.chainLog = 19;
+        params.windowLog = MIN(srcLog, 19);
+        params.chainLog = MIN(params.windowLog, 19);
         params.hashLog = 19;
-        params.searchLog = 9;
+        params.searchLog = MIN(params.chainLog, 9);
         BMK_benchParam(&testResult, srcBuffer, srcSize, ctx, params);
         g_cSpeedTarget[9] = (testResult.cSpeed * 15) >> 4;
     }
@@ -604,9 +632,18 @@ static void BMK_benchMem(void* srcBuffer, size_t srcSize)
         g_cSpeedTarget[i] = (g_cSpeedTarget[i-1] * 181) >> 8;
 
     /* populate initial solution */
-    for (i=1; i<=ZSTD_HC_MAX_CLEVEL; i++)
-        BMK_seed(winners, seedParams[i], srcBuffer, srcSize, ctx);
-    BMK_seed(winners, params, srcBuffer, srcSize, ctx);
+    {
+        const int maxSeeds = g_noSeed ? 1 : ZSTD_HC_MAX_CLEVEL;
+        //BMK_seed(winners, params, srcBuffer, srcSize, ctx);
+        for (i=1; i<=maxSeeds; i++)
+        {
+            params = seedParams[i];
+            params.windowLog = MIN(srcLog, params.windowLog);
+            params.chainLog = MIN(params.windowLog, params.chainLog);
+            params.searchLog = MIN(params.chainLog, params.searchLog);
+            BMK_seed(winners, params, srcBuffer, srcSize, ctx);
+        }
+    }
     BMK_printWinners(f, winners, srcSize);
 
     /* start tests */
@@ -762,7 +799,9 @@ int main(int argc, char** argv)
     {
         char* argument = argv[i];
 
-        if(!argument) continue;   // Protection if argument empty
+        if(!argument) continue;   /* Protection if argument empty */
+
+        if(!strcmp(argument,"--no-seed")) { g_noSeed = 1; continue; }
 
         /* Decode command (note : aggregated commands are allowed) */
         if (argument[0]=='-')

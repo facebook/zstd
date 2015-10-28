@@ -52,6 +52,7 @@
 #include <sys/types.h>    /* stat64 */
 #include <sys/stat.h>     /* stat64 */
 #include <string.h>       /* strcmp */
+#include <math.h>         /* log */
 
 /* Use ftime() if gettimeofday() is not available on your target */
 #if defined(BMK_LEGACY_TIMER)
@@ -425,7 +426,7 @@ static void BMK_printWinner(FILE* f, U32 cLevel, BMK_result_t result, ZSTD_HC_pa
     DISPLAY("\r%79s\r", "");
     fprintf(f,"    {%3u,%3u,%3u,%3u },   ", params.windowLog, params.chainLog, params.hashLog, params.searchLog);
     fprintf(f,
-            "/* level %2u: R:%5.3f at %5.1f MB/s */ \n",
+            "/* level %2u */     /* R:%5.3f at %5.1f MB/s */ \n",
             cLevel, (double)srcSize / result.cSize, (double)result.cSpeed / 1000.);
 }
 
@@ -451,6 +452,8 @@ static void BMK_printWinners2(FILE* f, const winnerInfo_t* winners, size_t srcSi
 
     for (cLevel=0; cLevel <= ZSTD_HC_MAX_CLEVEL; cLevel++)
         BMK_printWinner(f, cLevel, winners[cLevel].result, winners[cLevel].params, srcSize);
+
+    fflush(f);
 }
 
 
@@ -474,10 +477,32 @@ static int BMK_seed(winnerInfo_t* winners, ZSTD_HC_parameters params,
 
     for (cLevel = 0; cLevel <= ZSTD_HC_MAX_CLEVEL; cLevel++)
     {
-        if ( (testResult.cSpeed > g_cSpeedTarget[cLevel])
-            && ((winners[cLevel].result.cSize==0) || (winners[cLevel].result.cSize > testResult.cSize)) )
+        if ( (testResult.cSpeed > g_cSpeedTarget[cLevel]) && (winners[cLevel].result.cSize==0) )
+            better = 1;  /* first solution for this cLevel */
+
+        if ( (testResult.cSpeed > g_cSpeedTarget[cLevel]) && (testResult.cSize < winners[cLevel].result.cSize ))
         {
+            /* Validate solution is "good enough" */
+            double W_ratioNote = log ( (double)srcSize / testResult.cSize);
+            double O_ratioNote = log ( (double)srcSize / winners[cLevel].result.cSize);
+            size_t W_DMemUsed = (1 << params.windowLog) + (16 KB);
+            size_t O_DMemUsed = (1 << winners[cLevel].params.windowLog) + (16 KB);
+            double W_DMemUsed_note = W_ratioNote * ( 18 + 2*cLevel) - log((double)W_DMemUsed);
+            double O_DMemUsed_note = O_ratioNote * ( 18 + 2*cLevel) - log((double)O_DMemUsed);
+
+            size_t W_CMemUsed = (1 << params.windowLog) + 4 * (1 << params.hashLog) + 4 * (1 << params.chainLog);
+            size_t O_CMemUsed = (1 << winners[cLevel].params.windowLog) + 4 * (1 << winners[cLevel].params.hashLog) + 4 * (1 << winners[cLevel].params.chainLog);
+            double W_CMemUsed_note = W_ratioNote * ( 35 + 5*cLevel) - log((double)W_CMemUsed);
+            double O_CMemUsed_note = O_ratioNote * ( 35 + 5*cLevel) - log((double)O_CMemUsed);
+
+            if (W_DMemUsed_note < O_DMemUsed_note) continue;   /* uses too much Decompression memory for too little benefit */
+            if (W_CMemUsed_note < O_CMemUsed_note) continue;   /* uses too much memory for compression for too little benefit */
+
             better = 1;
+        }
+
+        if (better)
+        {
             winners[cLevel].result = testResult;
             winners[cLevel].params = params;
             BMK_printWinner(stdout, cLevel, testResult, params, srcSize);
@@ -594,7 +619,6 @@ static void BMK_benchMem(void* srcBuffer, size_t srcSize)
     ZSTD_HC_CCtx* ctx = ZSTD_HC_createCCtx();
     ZSTD_HC_parameters params;
     winnerInfo_t winners[ZSTD_HC_MAX_CLEVEL+1];
-    BMK_result_t testResult;
     int i;
     const char* rfName = "grillResults.txt";
     FILE* f;
@@ -602,6 +626,7 @@ static void BMK_benchMem(void* srcBuffer, size_t srcSize)
 
     if (g_singleRun)
     {
+        BMK_result_t testResult;
         BMK_benchParam(&testResult, srcBuffer, srcSize, ctx, g_params);
         DISPLAY("\n");
         return;
@@ -613,23 +638,22 @@ static void BMK_benchMem(void* srcBuffer, size_t srcSize)
     if (f==NULL) { DISPLAY("error opening %s \n", rfName); exit(1); }
 
     if (g_target)
-        g_cSpeedTarget[9] = g_target * 1000;
+        g_cSpeedTarget[1] = g_target * 1000;
     else
     {
-        /* baseline config for level 9 */
-        params.windowLog = MIN(srcLog, 19);
-        params.chainLog = MIN(params.windowLog, 19);
-        params.hashLog = 19;
-        params.searchLog = MIN(params.chainLog, 9);
+        /* baseline config for level 1 */
+        BMK_result_t testResult;
+        params = seedParams[1];
+        params.windowLog = MIN(srcLog, params.windowLog);
+        params.chainLog = MIN(params.windowLog, params.chainLog);
+        params.searchLog = MIN(params.chainLog, params.searchLog);
         BMK_benchParam(&testResult, srcBuffer, srcSize, ctx, params);
-        g_cSpeedTarget[9] = (testResult.cSpeed * 15) >> 4;
+        g_cSpeedTarget[1] = (testResult.cSpeed * 15) >> 4;
     }
 
-    /* establish speed objectives (relative to level9) */
-    g_cSpeedTarget[1] = g_cSpeedTarget[9] << 4;
-    g_cSpeedTarget[0] = (g_cSpeedTarget[1] * 181) >> 7;  /* sqrt2 */
+    /* establish speed objectives (relative to level 1) */
     for (i=2; i<ZSTD_HC_MAX_CLEVEL; i++)   /* note : last level no speed limit */
-        g_cSpeedTarget[i] = (g_cSpeedTarget[i-1] * 181) >> 8;
+        g_cSpeedTarget[i] = (g_cSpeedTarget[i-1] * 13) >> 4;
 
     /* populate initial solution */
     {

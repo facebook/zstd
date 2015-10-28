@@ -47,7 +47,7 @@ extern "C" {
 ***************************************/
 #define ZSTD_VERSION_MAJOR    0    /* for breaking interface changes  */
 #define ZSTD_VERSION_MINOR    2    /* for new (non-breaking) interface capabilities */
-#define ZSTD_VERSION_RELEASE  0    /* for tweaks, bug-fixes, or development */
+#define ZSTD_VERSION_RELEASE  2    /* for tweaks, bug-fixes, or development */
 #define ZSTD_VERSION_NUMBER  (ZSTD_VERSION_MAJOR *100*100 + ZSTD_VERSION_MINOR *100 + ZSTD_VERSION_RELEASE)
 unsigned ZSTD_versionNumber (void);
 

@@ -497,8 +497,8 @@ static int BMK_seed(winnerInfo_t* winners, const ZSTD_HC_parameters params,
             double O_ratioNote = log (O_ratio);
             size_t W_DMemUsed = (1 << params.windowLog) + (16 KB);
             size_t O_DMemUsed = (1 << winners[cLevel].params.windowLog) + (16 KB);
-            double W_DMemUsed_note = W_ratioNote * ( 25 + 8*cLevel) - log((double)W_DMemUsed);
-            double O_DMemUsed_note = O_ratioNote * ( 25 + 8*cLevel) - log((double)O_DMemUsed);
+            double W_DMemUsed_note = W_ratioNote * ( 40 + 9*cLevel) - log((double)W_DMemUsed);
+            double O_DMemUsed_note = O_ratioNote * ( 40 + 9*cLevel) - log((double)O_DMemUsed);
 
             size_t W_CMemUsed = (1 << params.windowLog) + 4 * (1 << params.hashLog) + 4 * (1 << params.chainLog);
             size_t O_CMemUsed = (1 << winners[cLevel].params.windowLog) + 4 * (1 << winners[cLevel].params.hashLog) + 4 * (1 << winners[cLevel].params.chainLog);
@@ -709,9 +709,7 @@ static void BMK_benchMem(void* srcBuffer, size_t srcSize)
 
     /* populate initial solution */
     {
-        const int maxSeeds = g_noSeed ? 1 : 13;
-        //const int maxSeeds = g_noSeed ? 1 : ZSTD_HC_MAX_CLEVEL;
-        //BMK_seed(winners, params, srcBuffer, srcSize, ctx);
+        const int maxSeeds = g_noSeed ? 1 : ZSTD_HC_MAX_CLEVEL;
         for (i=1; i<=maxSeeds; i++)
         {
             params = seedParams[i];

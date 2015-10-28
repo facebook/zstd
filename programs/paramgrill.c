@@ -464,7 +464,7 @@ static void BMK_printWinners(FILE* f, const winnerInfo_t* winners, size_t srcSiz
 }
 
 
-static int BMK_seed(winnerInfo_t* winners, ZSTD_HC_parameters params,
+static int BMK_seed(winnerInfo_t* winners, const ZSTD_HC_parameters params,
               const void* srcBuffer, size_t srcSize,
                     ZSTD_HC_CCtx* ctx)
 {
@@ -474,47 +474,91 @@ static int BMK_seed(winnerInfo_t* winners, ZSTD_HC_parameters params,
 
     BMK_benchParam(&testResult, srcBuffer, srcSize, ctx, params);
 
-    for (cLevel = 0; cLevel <= ZSTD_HC_MAX_CLEVEL; cLevel++)
+    for (cLevel = 1; cLevel <= ZSTD_HC_MAX_CLEVEL; cLevel++)
     {
-        if ( (testResult.cSpeed > g_cSpeedTarget[cLevel]) && (winners[cLevel].result.cSize==0) )
-            better = 1;  /* first solution for this cLevel */
+        if (testResult.cSpeed < g_cSpeedTarget[cLevel])
+            continue;   /* not fast enough for this level */
+        if (winners[cLevel].result.cSize==0)
+        {
+            /* first solution for this cLevel */
+            winners[cLevel].result = testResult;
+            winners[cLevel].params = params;
+            BMK_printWinner(stdout, cLevel, testResult, params, srcSize);
+            better = 1;
+            continue;
+        }
 
-        if ( (testResult.cSpeed > g_cSpeedTarget[cLevel]) && ((double)testResult.cSize <= (double)winners[cLevel].result.cSize * 1.001 ))
+        if ((double)testResult.cSize <= ((double)winners[cLevel].result.cSize * (1. + (0.01 / cLevel))) )
         {
             /* Validate solution is "good enough" */
-            double W_ratioNote = log ( (double)srcSize / testResult.cSize);
-            double O_ratioNote = log ( (double)srcSize / winners[cLevel].result.cSize);
+            double W_ratio = (double)srcSize / testResult.cSize;
+            double O_ratio = (double)srcSize / winners[cLevel].result.cSize;
+            double W_ratioNote = log (W_ratio);
+            double O_ratioNote = log (O_ratio);
             size_t W_DMemUsed = (1 << params.windowLog) + (16 KB);
             size_t O_DMemUsed = (1 << winners[cLevel].params.windowLog) + (16 KB);
-            double W_DMemUsed_note = W_ratioNote * ( 18 + 2*cLevel) - log((double)W_DMemUsed);
-            double O_DMemUsed_note = O_ratioNote * ( 18 + 2*cLevel) - log((double)O_DMemUsed);
+            double W_DMemUsed_note = W_ratioNote * ( 25 + 8*cLevel) - log((double)W_DMemUsed);
+            double O_DMemUsed_note = O_ratioNote * ( 25 + 8*cLevel) - log((double)O_DMemUsed);
 
             size_t W_CMemUsed = (1 << params.windowLog) + 4 * (1 << params.hashLog) + 4 * (1 << params.chainLog);
             size_t O_CMemUsed = (1 << winners[cLevel].params.windowLog) + 4 * (1 << winners[cLevel].params.hashLog) + 4 * (1 << winners[cLevel].params.chainLog);
-            double W_CMemUsed_note = W_ratioNote * ( 35 + 5*cLevel) - log((double)W_CMemUsed);
-            double O_CMemUsed_note = O_ratioNote * ( 35 + 5*cLevel) - log((double)O_CMemUsed);
+            double W_CMemUsed_note = W_ratioNote * ( 50 + 13*cLevel) - log((double)W_CMemUsed);
+            double O_CMemUsed_note = O_ratioNote * ( 50 + 13*cLevel) - log((double)O_CMemUsed);
 
-            double W_CSpeed_note = W_ratioNote * ( 20 + 3*cLevel) + log((double)testResult.cSpeed);
-            double O_CSpeed_note = O_ratioNote * ( 20 + 3*cLevel) + log((double)winners[cLevel].result.cSpeed);
+            double W_CSpeed_note = W_ratioNote * ( 30 + 8*cLevel) + log((double)testResult.cSpeed);
+            double O_CSpeed_note = O_ratioNote * ( 30 + 8*cLevel) + log((double)winners[cLevel].result.cSpeed);
 
-            double W_DSpeed_note = W_ratioNote * ( 10 + cLevel) + log((double)testResult.dSpeed);
-            double O_DSpeed_note = O_ratioNote * ( 10 + cLevel) + log((double)winners[cLevel].result.dSpeed);
+            double W_DSpeed_note = W_ratioNote * ( 20 + 2*cLevel) + log((double)testResult.dSpeed);
+            double O_DSpeed_note = O_ratioNote * ( 20 + 2*cLevel) + log((double)winners[cLevel].result.dSpeed);
 
 
-            if (W_DMemUsed_note < O_DMemUsed_note) continue;   /* uses too much Decompression memory for too little benefit */
-            if (W_CMemUsed_note < O_CMemUsed_note) continue;   /* uses too much memory for compression for too little benefit */
-            if (W_CSpeed_note   < O_CSpeed_note  ) continue;   /* too large compression speed difference for the compression benefit */
-            if (W_DSpeed_note   < O_DSpeed_note  ) continue;   /* too large decompression speed difference for the compression benefit */
+            if (W_DMemUsed_note < O_DMemUsed_note)
+            {
+                /* uses too much Decompression memory for too little benefit */
+                if (W_ratio > O_ratio)
+                DISPLAY ("Decompression Memory : %5.3f @ %4.1f MB  vs  %5.3f @ %4.1f MB   : not enough for level %i\n",
+                         W_ratio, (double)(W_DMemUsed) / 1024 / 1024,
+                         O_ratio, (double)(O_DMemUsed) / 1024 / 1024,   cLevel);
+                continue;
+            }
+            if (W_CMemUsed_note < O_CMemUsed_note)
+            {
+                /* uses too much memory for compression for too little benefit */
+                if (W_ratio > O_ratio)
+                DISPLAY ("Compression Memory : %5.3f @ %4.1f MB  vs  %5.3f @ %4.1f MB   : not enough for level %i\n",
+                         W_ratio, (double)(W_CMemUsed) / 1024 / 1024,
+                         O_ratio, (double)(O_CMemUsed) / 1024 / 1024,   cLevel);
+                continue;
+            }
+            if (W_CSpeed_note   < O_CSpeed_note  )
+            {
+                /* too large compression speed difference for the compression benefit */
+                if (W_ratio > O_ratio)
+                DISPLAY ("Compression Speed : %5.3f @ %4.1f MB/s  vs  %5.3f @ %4.1f MB/s   : not enough for level %i\n",
+                         W_ratio, (double)(testResult.cSpeed) / 1000.,
+                         O_ratio, (double)(winners[cLevel].result.cSpeed) / 1000.,   cLevel);
+                continue;
+            }
+            if (W_DSpeed_note   < O_DSpeed_note  )
+            {
+                /* too large decompression speed difference for the compression benefit */
+                if (W_ratio > O_ratio)
+                DISPLAY ("Decompression Speed : %5.3f @ %4.1f MB/s  vs  %5.3f @ %4.1f MB/s   : not enough for level %i\n",
+                         W_ratio, (double)(testResult.dSpeed) / 1000.,
+                         O_ratio, (double)(winners[cLevel].result.dSpeed) / 1000.,   cLevel);
+                continue;
+            }
+
+            if (W_ratio < O_ratio)
+                DISPLAY("Solution %4.3f selected over %4.3f at level %i, due to better secondary statistics \n", W_ratio, O_ratio, cLevel);
+
+            winners[cLevel].result = testResult;
+            winners[cLevel].params = params;
+            BMK_printWinner(stdout, cLevel, testResult, params, srcSize);
 
             better = 1;
         }
 
-        if (better)
-        {
-            winners[cLevel].result = testResult;
-            winners[cLevel].params = params;
-            BMK_printWinner(stdout, cLevel, testResult, params, srcSize);
-        }
     }
 
     return better;
@@ -665,7 +709,8 @@ static void BMK_benchMem(void* srcBuffer, size_t srcSize)
 
     /* populate initial solution */
     {
-        const int maxSeeds = g_noSeed ? 1 : ZSTD_HC_MAX_CLEVEL;
+        const int maxSeeds = g_noSeed ? 1 : 13;
+        //const int maxSeeds = g_noSeed ? 1 : ZSTD_HC_MAX_CLEVEL;
         //BMK_seed(winners, params, srcBuffer, srcSize, ctx);
         for (i=1; i<=maxSeeds; i++)
         {

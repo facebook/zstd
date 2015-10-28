@@ -78,7 +78,7 @@ size_t ZSTD_HC_compress_advanced (ZSTD_HC_CCtx* ctx,
 /* *************************************
 *  Pre-defined compression levels
 ***************************************/
-#define ZSTD_HC_MAX_CLEVEL 20
+#define ZSTD_HC_MAX_CLEVEL 25
 static const ZSTD_HC_parameters ZSTD_HC_defaultParameters[ZSTD_HC_MAX_CLEVEL+1] = {
     /* W,  C,  H,  S */
     { 18,  4, 12,  1 },  /* 0 - should never be used */
@@ -101,7 +101,12 @@ static const ZSTD_HC_parameters ZSTD_HC_defaultParameters[ZSTD_HC_MAX_CLEVEL+1] 
     { 24, 24, 23, 11 },  /*17 */
     { 24, 24, 23, 12 },  /*18 */
     { 24, 24, 23, 13 },  /*19 */
-    { 25, 25, 25, 22 },  /*20 - ultra-slow */
+    { 24, 24, 23, 13 },  /*20 */
+    { 24, 24, 23, 13 },  /*21 */
+    { 24, 24, 23, 13 },  /*22 */
+    { 24, 24, 23, 13 },  /*23 */
+    { 24, 24, 23, 13 },  /*24 */
+    { 24, 24, 23, 13 },  /*25 */
 };
 
 

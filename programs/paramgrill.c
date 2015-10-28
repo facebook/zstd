@@ -452,8 +452,6 @@ static void BMK_printWinners2(FILE* f, const winnerInfo_t* winners, size_t srcSi
 
     for (cLevel=0; cLevel <= ZSTD_HC_MAX_CLEVEL; cLevel++)
         BMK_printWinner(f, cLevel, winners[cLevel].result, winners[cLevel].params, srcSize);
-
-    fflush(f);
 }
 
 
@@ -461,6 +459,7 @@ static void BMK_printWinners(FILE* f, const winnerInfo_t* winners, size_t srcSiz
 {
     fseek(f, 0, SEEK_SET);
     BMK_printWinners2(f, winners, srcSize);
+    fflush(f);
     BMK_printWinners2(stdout, winners, srcSize);
 }
 
@@ -480,7 +479,7 @@ static int BMK_seed(winnerInfo_t* winners, ZSTD_HC_parameters params,
         if ( (testResult.cSpeed > g_cSpeedTarget[cLevel]) && (winners[cLevel].result.cSize==0) )
             better = 1;  /* first solution for this cLevel */
 
-        if ( (testResult.cSpeed > g_cSpeedTarget[cLevel]) && (testResult.cSize < winners[cLevel].result.cSize ))
+        if ( (testResult.cSpeed > g_cSpeedTarget[cLevel]) && ((double)testResult.cSize <= (double)winners[cLevel].result.cSize * 1.001 ))
         {
             /* Validate solution is "good enough" */
             double W_ratioNote = log ( (double)srcSize / testResult.cSize);
@@ -495,8 +494,17 @@ static int BMK_seed(winnerInfo_t* winners, ZSTD_HC_parameters params,
             double W_CMemUsed_note = W_ratioNote * ( 35 + 5*cLevel) - log((double)W_CMemUsed);
             double O_CMemUsed_note = O_ratioNote * ( 35 + 5*cLevel) - log((double)O_CMemUsed);
 
+            double W_CSpeed_note = W_ratioNote * ( 20 + 3*cLevel) + log((double)testResult.cSpeed);
+            double O_CSpeed_note = O_ratioNote * ( 20 + 3*cLevel) + log((double)winners[cLevel].result.cSpeed);
+
+            double W_DSpeed_note = W_ratioNote * ( 10 + cLevel) + log((double)testResult.dSpeed);
+            double O_DSpeed_note = O_ratioNote * ( 10 + cLevel) + log((double)winners[cLevel].result.dSpeed);
+
+
             if (W_DMemUsed_note < O_DMemUsed_note) continue;   /* uses too much Decompression memory for too little benefit */
             if (W_CMemUsed_note < O_CMemUsed_note) continue;   /* uses too much memory for compression for too little benefit */
+            if (W_CSpeed_note   < O_CSpeed_note  ) continue;   /* too large compression speed difference for the compression benefit */
+            if (W_DSpeed_note   < O_DSpeed_note  ) continue;   /* too large decompression speed difference for the compression benefit */
 
             better = 1;
         }
@@ -652,7 +660,7 @@ static void BMK_benchMem(void* srcBuffer, size_t srcSize)
     }
 
     /* establish speed objectives (relative to level 1) */
-    for (i=2; i<ZSTD_HC_MAX_CLEVEL; i++)   /* note : last level no speed limit */
+    for (i=2; i<=ZSTD_HC_MAX_CLEVEL; i++)
         g_cSpeedTarget[i] = (g_cSpeedTarget[i-1] * 13) >> 4;
 
     /* populate initial solution */
@@ -886,7 +894,7 @@ int main(int argc, char** argv)
                         break;
                     }
 
-                    /* target level9 objective, in MB/s */
+                    /* target level1 speed objective, in MB/s */
                 case 'T':
                     argument++;
                     g_target = 0;

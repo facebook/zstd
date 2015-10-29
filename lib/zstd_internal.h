@@ -1,5 +1,5 @@
 /*
-    zstd_CCommon - common functions
+    zstd_internal - common functions to include
     Header File for include
     Copyright (C) 2014-2015, Yann Collet.
 
@@ -44,10 +44,32 @@ extern "C" {
 #include "error.h"
 
 
-/* *************************************
-*  Function body to include
-***************************************/
+/* **************************************
+*  Function body to include for inlining
+****************************************/
 static size_t ZSTD_read_ARCH(const void* p) { size_t r; memcpy(&r, p, sizeof(r)); return r; }
+
+static unsigned ZSTD_highbit(U32 val)
+{
+#   if defined(_MSC_VER)   /* Visual */
+    unsigned long r;
+    _BitScanReverse(&r, val);
+    return (unsigned)r;
+#   elif defined(__GNUC__) && (__GNUC__ >= 3)   /* GCC Intrinsic */
+    return 31 - __builtin_clz(val);
+#   else   /* Software version */
+    static const int DeBruijnClz[32] = { 0, 9, 1, 10, 13, 21, 2, 29, 11, 14, 16, 18, 22, 25, 3, 30, 8, 12, 20, 28, 15, 17, 24, 7, 19, 27, 23, 6, 26, 5, 4, 31 };
+    U32 v = val;
+    int r;
+    v |= v >> 1;
+    v |= v >> 2;
+    v |= v >> 4;
+    v |= v >> 8;
+    v |= v >> 16;
+    r = DeBruijnClz[(U32)(v * 0x07C4ACDDU) >> 27];
+    return r;
+#   endif
+}
 
 MEM_STATIC unsigned ZSTD_NbCommonBytes (register size_t val)
 {

@@ -439,6 +439,11 @@ size_t ZSTD_HC_compress_advanced (ZSTD_HC_CCtx* ctx,
     BYTE* const ostart = (BYTE*)dst;
     BYTE* op = ostart;
 
+    /* correct params, to use less memory */
+    U32 srcLog = ZSTD_highbit((U32)srcSize-1) + 1;
+    if (params.windowLog > srcLog) params.windowLog = srcLog;
+    if (params.chainLog > srcLog) params.chainLog = srcLog;
+
     /* Header */
     size_t oSize = ZSTD_HC_compressBegin_advanced(ctx, dst, maxDstSize, params);
     if(ZSTD_isError(oSize)) return oSize;

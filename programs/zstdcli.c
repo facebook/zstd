@@ -139,9 +139,10 @@ static int usage_advanced(const char* programName)
     DISPLAY( " -c     : force write to standard output, even if it is the console\n");
     //DISPLAY( " -t     : test compressed file integrity\n");
     DISPLAY( "Benchmark arguments :\n");
-    DISPLAY( " -b     : benchmark file(s)\n");
+    DISPLAY( " -b#    : benchmark file(s), using # compression level (default : 1) \n");
     DISPLAY( " -B#    : cut file into independent blocks of size # (default : no block)\n");
     DISPLAY( " -i#    : iteration loops [1-9](default : 3)\n");
+    DISPLAY( " -r#    : test all compression levels from 1 to # (default : disabled)\n");
     return 0;
 }
 
@@ -168,7 +169,8 @@ int main(int argc, char** argv)
         bench=0,
         decode=0,
         forceStdout=0,
-        main_pause=0;
+        main_pause=0,
+        rangeBench = 1;
     unsigned fileNameStart = 0;
     unsigned nbFiles = 0;
     unsigned cLevel = 0;
@@ -291,7 +293,14 @@ int main(int argc, char** argv)
                         BMK_SetBlockSize(bSize);
                     }
                     break;
-                                        /* Pause at the end (hidden option) */
+
+                    /* range bench (benchmark only) */
+                case 'r':
+                        rangeBench = -1;
+                        argument++;
+                        break;
+
+                    /* Pause at the end (hidden option) */
                 case 'p': main_pause=1; argument++; break;
 
                     /* unknown command */
@@ -323,7 +332,7 @@ int main(int argc, char** argv)
     if (!strcmp(inFileName, stdinmark) && IS_CONSOLE(stdin) ) return badusage(programName);
 
     /* Check if benchmark is selected */
-    if (bench) { BMK_benchFiles(argv+fileNameStart, nbFiles, cLevel); goto _end; }
+    if (bench) { BMK_benchFiles(argv+fileNameStart, nbFiles, cLevel*rangeBench); goto _end; }
 
     /* No output filename ==> try to select one automatically (when possible) */
     while (!outFileName)

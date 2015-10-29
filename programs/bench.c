@@ -247,8 +247,12 @@ static int BMK_benchMem(void* srcBuffer, size_t srcSize, const char* fileName, i
     const size_t maxCompressedSize = (size_t)nbBlocks * ZSTD_compressBound(blockSize);
     void* const compressedBuffer = malloc(maxCompressedSize);
     void* const resultBuffer = malloc(srcSize);
-    const compressor_t compressor = (cLevel == 0) ? local_compress_fast : ZSTD_HC_compress;
+    const compressor_t compressor = (cLevel <= 1) ? local_compress_fast : ZSTD_HC_compress;
     U64 crcOrig;
+
+    /* init */
+    if (strlen(fileName)>16)
+        fileName += strlen(fileName)-16;
 
     /* Memory allocation & restrictions */
     if (!compressedBuffer || !resultBuffer || !blockTable)
@@ -304,7 +308,7 @@ static int BMK_benchMem(void* srcBuffer, size_t srcSize, const char* fileName, i
             U32 blockNb;
 
             /* Compression */
-            DISPLAY("%1i-%-14.14s : %9u ->\r", loopNb, fileName, (U32)srcSize);
+            DISPLAY("%1i-%-16.16s : %9u ->\r", loopNb, fileName, (U32)srcSize);
             memset(compressedBuffer, 0xE5, maxCompressedSize);
 
             nbLoops = 0;
@@ -324,7 +328,7 @@ static int BMK_benchMem(void* srcBuffer, size_t srcSize, const char* fileName, i
                 cSize += blockTable[blockNb].cSize;
             if ((double)milliTime < fastestC*nbLoops) fastestC = (double)milliTime / nbLoops;
             ratio = (double)srcSize / (double)cSize;
-            DISPLAY("%1i-%-14.14s : %9i -> %9i (%5.3f),%7.1f MB/s\r", loopNb, fileName, (int)srcSize, (int)cSize, ratio, (double)srcSize / fastestC / 1000.);
+            DISPLAY("%1i-%-16.16s : %9i -> %9i (%5.3f),%7.1f MB/s\r", loopNb, fileName, (int)srcSize, (int)cSize, ratio, (double)srcSize / fastestC / 1000.);
 
 #if 1
             /* Decompression */
@@ -343,7 +347,7 @@ static int BMK_benchMem(void* srcBuffer, size_t srcSize, const char* fileName, i
             milliTime = BMK_GetMilliSpan(milliTime);
 
             if ((double)milliTime < fastestD*nbLoops) fastestD = (double)milliTime / nbLoops;
-            DISPLAY("%1i-%-14.14s : %9i -> %9i (%5.3f),%7.1f MB/s ,%7.1f MB/s\r", loopNb, fileName, (int)srcSize, (int)cSize, ratio, (double)srcSize / fastestC / 1000., (double)srcSize / fastestD / 1000.);
+            DISPLAY("%1i-%-16.16s : %9i -> %9i (%5.3f),%7.1f MB/s ,%7.1f MB/s\r", loopNb, fileName, (int)srcSize, (int)cSize, ratio, (double)srcSize / fastestC / 1000., (double)srcSize / fastestD / 1000.);
 
             /* CRC Checking */
             crcCheck = XXH64(resultBuffer, srcSize, 0);
@@ -366,9 +370,7 @@ static int BMK_benchMem(void* srcBuffer, size_t srcSize, const char* fileName, i
         }
 
         if (crcOrig == crcCheck)
-        {
-                DISPLAY("%-16.16s : %9i -> %9i (%5.3f),%7.1f MB/s ,%7.1f MB/s \n", fileName, (int)srcSize, (int)cSize, ratio, (double)srcSize / fastestC / 1000., (double)srcSize / fastestD / 1000.);
-        }
+            DISPLAY("%1i-%-16.16s : %9i -> %9i (%5.3f),%7.1f MB/s ,%7.1f MB/s \n", cLevel, fileName, (int)srcSize, (int)cSize, ratio, (double)srcSize / fastestC / 1000., (double)srcSize / fastestD / 1000.);
     }
 
     /* End cleaning */
@@ -419,9 +421,6 @@ static int BMK_benchOneFile(char* inFileName, int cLevel)
     void* srcBuffer;
     int result;
 
-    /* Init */
-    (void)cLevel;
-
     /* Check file existence */
     inFile = fopen(inFileName, "rb");
     if (inFile == NULL)
@@ -457,7 +456,14 @@ static int BMK_benchOneFile(char* inFileName, int cLevel)
     }
 
     /* Bench */
-    result = BMK_benchMem(srcBuffer, benchedSize, inFileName, cLevel);
+    if (cLevel<0)
+    {
+        int l;
+        for (l=1; l <= -cLevel; l++)
+            result = BMK_benchMem(srcBuffer, benchedSize, inFileName, l);
+    }
+    else
+        result = BMK_benchMem(srcBuffer, benchedSize, inFileName, cLevel);
 
     /* clean up */
     free(srcBuffer);
@@ -472,9 +478,6 @@ static int BMK_syntheticTest(int cLevel, double compressibility)
     void* srcBuffer = malloc(benchedSize);
     int result;
     char name[20] = {0};
-
-    /* Init */
-    (void)cLevel;
 
     /* Memory allocation */
     if (!srcBuffer)
@@ -493,7 +496,15 @@ static int BMK_syntheticTest(int cLevel, double compressibility)
 #else
     snprintf (name, 20, "Synthetic %2u%%", (unsigned)(compressibility*100));
 #endif
-    result = BMK_benchMem(srcBuffer, benchedSize, name, cLevel);
+    /* Bench */
+    if (cLevel<0)
+    {
+        int l;
+        for (l=1; l <= -cLevel; l++)
+            result = BMK_benchMem(srcBuffer, benchedSize, name, l);
+    }
+    else
+        result = BMK_benchMem(srcBuffer, benchedSize, name, cLevel);
 
     /* End */
     free(srcBuffer);

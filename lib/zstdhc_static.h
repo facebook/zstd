@@ -65,7 +65,7 @@ typedef struct
 
 
 /* *************************************
-*  Functions
+*  Advanced function
 ***************************************/
 /** ZSTD_HC_compress_advanced
 *   Same as ZSTD_HC_compressCCtx(), but can fine-tune each compression parameter */
@@ -76,15 +76,24 @@ size_t ZSTD_HC_compress_advanced (ZSTD_HC_CCtx* ctx,
 
 
 /* *************************************
+*  Streaming functions
+***************************************/
+size_t ZSTD_HC_compressBegin(ZSTD_HC_CCtx* ctx, void* dst, size_t maxDstSize, int compressionLevel);
+size_t ZSTD_HC_compressContinue(ZSTD_HC_CCtx* ctx, void* dst, size_t maxDstSize, const void* src, size_t srcSize);
+size_t ZSTD_HC_compressEnd(ZSTD_HC_CCtx* ctx, void* dst, size_t maxDstSize);
+
+
+/* *************************************
 *  Pre-defined compression levels
 ***************************************/
-#define ZSTD_HC_MAX_CLEVEL 25
+#define ZSTD_HC_MAX_CLEVEL 26
 static const ZSTD_HC_parameters ZSTD_HC_defaultParameters[ZSTD_HC_MAX_CLEVEL+1] = {
     /* W,  C,  H,  S */
     { 18, 12, 14,  1 },   /* level  0 - never used */
+    { 18, 12, 14,  1 },   /* real level 1 - all levels below are +1 */
     { 18, 12, 15,  2 },   /* level  1 */
     { 19, 14, 16,  3 },   /* level  2 */
-    { 20, 19, 19,  2 },   /* level  3 */
+    { 20, 18, 18,  3 },   /* level  3 */
     { 20, 19, 19,  3 },   /* level  4 */
     { 20, 19, 19,  4 },   /* level  5 */
     { 20, 20, 19,  4 },   /* level  6 */
@@ -108,8 +117,6 @@ static const ZSTD_HC_parameters ZSTD_HC_defaultParameters[ZSTD_HC_MAX_CLEVEL+1] 
     { 22, 22, 23, 12 },   /* level 24 */
     { 23, 23, 23, 11 },   /* level 25 */
 };
-
-
 
 
 #if defined (__cplusplus)

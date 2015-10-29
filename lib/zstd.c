@@ -68,6 +68,7 @@
 #include <stdio.h>       /* debug : printf */
 #include "mem.h"         /* low level memory routines */
 #include "zstd_static.h"
+#include "zstd_Ccommon.h"
 #include "fse_static.h"
 #include "huff0.h"
 
@@ -527,20 +528,24 @@ size_t ZSTD_compressSequences(BYTE* dst, size_t maxDstSize,
 
 
 //static const U32 hashMask = (1<<HASH_LOG)-1;
-//static const U64 prime5bytes =         889523592379ULL;
-//static const U64 prime6bytes =      227718039650203ULL;
-static const U64 prime7bytes =    58295818150454627ULL;
-//static const U64 prime8bytes = 14923729446516375013ULL;
 
 //static U32   ZSTD_hashPtr(const void* p) { return (U32) _bextr_u64(*(U64*)p * prime7bytes, (56-HASH_LOG), HASH_LOG); }
 //static U32   ZSTD_hashPtr(const void* p) { return ( (*(U64*)p * prime7bytes) << 8 >> (64-HASH_LOG)); }
 //static U32   ZSTD_hashPtr(const void* p) { return ( (*(U64*)p * prime7bytes) >> (56-HASH_LOG)) & ((1<<HASH_LOG)-1); }
 //static U32   ZSTD_hashPtr(const void* p) { return ( ((*(U64*)p & 0xFFFFFFFFFFFFFF) * prime7bytes) >> (64-HASH_LOG)); }
 
+//static const U64 prime8bytes = 14923729446516375013ULL;
 //static U32   ZSTD_hashPtr(const void* p) { return ( (*(U64*)p * prime8bytes) >> (64-HASH_LOG)); }
+
+static const U64 prime7bytes =    58295818150454627ULL;
 static U32   ZSTD_hashPtr(const void* p) { return ( (MEM_read64(p) * prime7bytes) >> (56-HASH_LOG)) & HASH_MASK; }
-//static U32   ZSTD_hashPtr(const void* p) { return ( (*(U64*)p * prime6bytes) >> (48-HASH_LOG)) & HASH_MASK; }
+
+//static const U64 prime6bytes =      227718039650203ULL;
+//static U32   ZSTD_hashPtr(const void* p) { return ( (MEM_read64(p) * prime6bytes) >> (48-HASH_LOG)) & HASH_MASK; }
+
+//static const U64 prime5bytes =         889523592379ULL;
 //static U32   ZSTD_hashPtr(const void* p) { return ( (*(U64*)p * prime5bytes) >> (40-HASH_LOG)) & HASH_MASK; }
+
 //static U32   ZSTD_hashPtr(const void* p) { return ( (*(U32*)p * KNUTH) >> (32-HASH_LOG)); }
 
 static void  ZSTD_addPtr(U32* table, const BYTE* p, const BYTE* start) { table[ZSTD_hashPtr(p)] = (U32)(p-start); }
@@ -572,7 +577,7 @@ static size_t ZSTD_compressBlock(ZSTD_CCtx* ctx, void* dst, size_t maxDstSize, c
     const BYTE* const iend = istart + srcSize;
     const BYTE* const ilimit = iend - 8;
 
-    size_t prevOffset=4, offset=4;
+    size_t offset_2=4, offset_1=4;
 
 
     /* init */
@@ -591,11 +596,11 @@ static size_t ZSTD_compressBlock(ZSTD_CCtx* ctx, void* dst, size_t maxDstSize, c
             size_t litLength = ip-anchor;
             size_t matchLength = ZSTD_count(ip+MINMATCH, match+MINMATCH, iend);
             size_t offsetCode;
-            if (litLength) prevOffset = offset;
+            if (litLength) offset_2 = offset_1;
             offsetCode = ip-match;
-            if (offsetCode == prevOffset) offsetCode = 0;
-            prevOffset = offset;
-            offset = ip-match;
+            if (offsetCode == offset_2) offsetCode = 0;
+            offset_2 = offset_1;
+            offset_1 = ip-match;
             ZSTD_storeSeq(seqStorePtr, litLength, anchor, offsetCode, matchLength);
 
             /* Fill Table */
@@ -1159,7 +1164,7 @@ static size_t ZSTD_execSequence(BYTE* op,
     /* check */
     if (oLitEnd > oend_8) return ERROR(dstSize_tooSmall);   /* last match must start at a minimum distance of 8 from oend */
     if (oMatchEnd > oend) return ERROR(dstSize_tooSmall);   /* overwrite beyond dst buffer */
-    if (litEnd > litLimit_8) return ERROR(corruption_detected);   /* overRead beyond lit buffer */
+    if (litEnd > litLimit_8) return ERROR(corruption_detected);   /* risk read beyond lit buffer */
 
     /* copy Literals */
     ZSTD_wildcopy(op, *litPtr, sequence.litLength);   /* note : oLitEnd <= oend-8 : no risk of overwrite beyond oend */

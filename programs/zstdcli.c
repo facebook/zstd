@@ -118,6 +118,8 @@ static int usage(const char* programName)
     DISPLAY( "input   : a filename\n");
     DISPLAY( "          with no FILE, or when FILE is - , read standard input\n");
     DISPLAY( "Arguments :\n");
+    DISPLAY( " -1     : Fast compression (default) \n");
+    DISPLAY( " -9     : High compression \n");
     DISPLAY( " -d     : decompression (default for %s extension)\n", ZSTD_EXTENSION);
     //DISPLAY( " -z     : force compression\n");
     DISPLAY( " -f     : overwrite output without prompting \n");

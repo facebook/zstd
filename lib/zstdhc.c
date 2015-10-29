@@ -39,14 +39,8 @@
 #include <string.h>   /* memset */
 #include "zstdhc_static.h"
 #include "zstd_static.h"
-#include "zstd_Ccommon.h"
+#include "zstd_internal.h"
 #include "mem.h"
-
-
-/* *************************************
-*  Tuning Parameter
-***************************************/
-static const U32 ZSTD_HC_compressionLevel_default = 9;
 
 
 /* *************************************
@@ -451,7 +445,7 @@ size_t ZSTD_HC_compress_advanced (ZSTD_HC_CCtx* ctx,
     maxDstSize -= oSize;
 
     /* body (compression) */
-    ctx->base = src;
+    ctx->base = (const BYTE*)src;
     op += ZSTD_HC_compress_generic (ctx, op,  maxDstSize, src, srcSize);
     if(ZSTD_isError(oSize)) return oSize;
     op += oSize;

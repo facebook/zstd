@@ -68,7 +68,7 @@
 #include <stdio.h>       /* debug : printf */
 #include "mem.h"         /* low level memory routines */
 #include "zstd_static.h"
-#include "zstd_Ccommon.h"
+#include "zstd_internal.h"
 #include "fse_static.h"
 #include "huff0.h"
 

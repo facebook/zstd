@@ -468,7 +468,10 @@ size_t ZSTD_HC_compressCCtx (ZSTD_HC_CCtx* ctx, void* dst, size_t maxDstSize, co
 
 size_t ZSTD_HC_compress(void* dst, size_t maxDstSize, const void* src, size_t srcSize, int compressionLevel)
 {
+    size_t result;
     ZSTD_HC_CCtx ctxBody;
     memset(&ctxBody, 0, sizeof(ctxBody));
-    return ZSTD_HC_compressCCtx(&ctxBody, dst, maxDstSize, src, srcSize, compressionLevel);
+    result = ZSTD_HC_compressCCtx(&ctxBody, dst, maxDstSize, src, srcSize, compressionLevel);
+    free(ctxBody.workSpace);
+    return result;
 }

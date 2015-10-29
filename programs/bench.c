@@ -308,7 +308,7 @@ static int BMK_benchMem(void* srcBuffer, size_t srcSize, const char* fileName, i
             U32 blockNb;
 
             /* Compression */
-            DISPLAY("%1i-%-16.16s : %9u ->\r", loopNb, fileName, (U32)srcSize);
+            DISPLAY("%2i-%-17.17s :%10u ->\r", loopNb, fileName, (U32)srcSize);
             memset(compressedBuffer, 0xE5, maxCompressedSize);
 
             nbLoops = 0;
@@ -328,7 +328,7 @@ static int BMK_benchMem(void* srcBuffer, size_t srcSize, const char* fileName, i
                 cSize += blockTable[blockNb].cSize;
             if ((double)milliTime < fastestC*nbLoops) fastestC = (double)milliTime / nbLoops;
             ratio = (double)srcSize / (double)cSize;
-            DISPLAY("%1i-%-16.16s : %9i -> %9i (%5.3f),%7.1f MB/s\r", loopNb, fileName, (int)srcSize, (int)cSize, ratio, (double)srcSize / fastestC / 1000.);
+            DISPLAY("%2i-%-17.17s :%10i ->%10i (%5.3f),%6.1f MB/s\r", loopNb, fileName, (int)srcSize, (int)cSize, ratio, (double)srcSize / fastestC / 1000.);
 
 #if 1
             /* Decompression */
@@ -347,7 +347,7 @@ static int BMK_benchMem(void* srcBuffer, size_t srcSize, const char* fileName, i
             milliTime = BMK_GetMilliSpan(milliTime);
 
             if ((double)milliTime < fastestD*nbLoops) fastestD = (double)milliTime / nbLoops;
-            DISPLAY("%1i-%-16.16s : %9i -> %9i (%5.3f),%7.1f MB/s ,%7.1f MB/s\r", loopNb, fileName, (int)srcSize, (int)cSize, ratio, (double)srcSize / fastestC / 1000., (double)srcSize / fastestD / 1000.);
+            DISPLAY("%2i-%-17.17s :%10i ->%10i (%5.3f),%6.1f MB/s ,%6.1f MB/s\r", loopNb, fileName, (int)srcSize, (int)cSize, ratio, (double)srcSize / fastestC / 1000., (double)srcSize / fastestD / 1000.);
 
             /* CRC Checking */
             crcCheck = XXH64(resultBuffer, srcSize, 0);
@@ -370,7 +370,7 @@ static int BMK_benchMem(void* srcBuffer, size_t srcSize, const char* fileName, i
         }
 
         if (crcOrig == crcCheck)
-            DISPLAY("%1i-%-16.16s : %9i -> %9i (%5.3f),%7.1f MB/s ,%7.1f MB/s \n", cLevel, fileName, (int)srcSize, (int)cSize, ratio, (double)srcSize / fastestC / 1000., (double)srcSize / fastestD / 1000.);
+            DISPLAY("%2i-%-17.17s :%10i ->%10i (%5.3f),%6.1f MB/s ,%6.1f MB/s \n", cLevel, fileName, (int)srcSize, (int)cSize, ratio, (double)srcSize / fastestC / 1000., (double)srcSize / fastestD / 1000.);
     }
 
     /* End cleaning */

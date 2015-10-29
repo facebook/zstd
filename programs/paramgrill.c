@@ -648,8 +648,8 @@ static void BMK_selectRandomStart(
                        const void* srcBuffer, size_t srcSize,
                        ZSTD_HC_CCtx* ctx)
 {
-    U32 id = FUZ_rand(&g_rand) % (ZSTD_HC_MAX_CLEVEL+1);
-    if ((id==0) || (winners[id].params.windowLog==0))
+    U32 id = (FUZ_rand(&g_rand) % ZSTD_HC_MAX_CLEVEL) + 1;
+    if ((id<2) || (winners[id].params.windowLog==0))
     {
         /* totally random entry */
         ZSTD_HC_parameters p;
@@ -693,24 +693,24 @@ static void BMK_benchMem(void* srcBuffer, size_t srcSize)
         g_cSpeedTarget[1] = g_target * 1000;
     else
     {
-        /* baseline config for level 1 */
+        /* baseline config for level 2 */
         BMK_result_t testResult;
-        params = seedParams[1];
+        params = seedParams[2];
         params.windowLog = MIN(srcLog, params.windowLog);
         params.chainLog = MIN(params.windowLog, params.chainLog);
         params.searchLog = MIN(params.chainLog, params.searchLog);
         BMK_benchParam(&testResult, srcBuffer, srcSize, ctx, params);
-        g_cSpeedTarget[1] = (testResult.cSpeed * 15) >> 4;
+        g_cSpeedTarget[2] = (testResult.cSpeed * 15) >> 4;
     }
 
-    /* establish speed objectives (relative to level 1) */
-    for (i=2; i<=ZSTD_HC_MAX_CLEVEL; i++)
+    /* establish speed objectives (relative to level 2) */
+    for (i=3; i<=ZSTD_HC_MAX_CLEVEL; i++)
         g_cSpeedTarget[i] = (g_cSpeedTarget[i-1] * 13) >> 4;
 
     /* populate initial solution */
     {
-        const int maxSeeds = g_noSeed ? 1 : ZSTD_HC_MAX_CLEVEL;
-        for (i=1; i<=maxSeeds; i++)
+        const int maxSeeds = g_noSeed ? 2 : ZSTD_HC_MAX_CLEVEL;
+        for (i=2; i<=maxSeeds; i++)
         {
             params = seedParams[i];
             params.windowLog = MIN(srcLog, params.windowLog);

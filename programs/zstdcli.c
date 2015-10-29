@@ -173,7 +173,7 @@ int main(int argc, char** argv)
         rangeBench = 1;
     unsigned fileNameStart = 0;
     unsigned nbFiles = 0;
-    unsigned cLevel = 0;
+    unsigned cLevel = 1;
     const char* programName = argv[0];
     const char* inFileName = NULL;
     const char* outFileName = NULL;

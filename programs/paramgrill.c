@@ -446,7 +446,7 @@ static void BMK_printWinners2(FILE* f, const winnerInfo_t* winners, size_t srcSi
     int cLevel;
 
     fprintf(f, "\n /* Selected configurations : */ \n");
-    fprintf(f, "#define ZSTD_HC_MAX_CLEVEL 20 \n");
+    fprintf(f, "#define ZSTD_HC_MAX_CLEVEL %2u \n", ZSTD_HC_MAX_CLEVEL);
     fprintf(f, "static const ZSTD_HC_parameters ZSTD_HC_defaultParameters[ZSTD_HC_MAX_CLEVEL+1] = {\n");
     fprintf(f, "    /* W,  C,  H,  S */ \n");
 

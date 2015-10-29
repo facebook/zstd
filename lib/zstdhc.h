@@ -54,7 +54,7 @@ ZSTD_HC_compress() :
 */
 size_t ZSTD_HC_compress(void* dst, size_t maxDstSize,
                   const void* src, size_t srcSize,
-                  unsigned compressionLevel);
+                  int compressionLevel);
 
 
 /* *************************************
@@ -68,7 +68,7 @@ size_t ZSTD_HC_freeCCtx(ZSTD_HC_CCtx* cctx);
 ZSTD_HC_compressCCtx() :
     Same as ZSTD_compress(), but requires a ZSTD_HC_CCtx working space already allocated
 */
-size_t ZSTD_HC_compressCCtx(ZSTD_HC_CCtx* ctx, void* dst, size_t maxDstSize, const void* src, size_t srcSize, unsigned compressionLevel);
+size_t ZSTD_HC_compressCCtx(ZSTD_HC_CCtx* ctx, void* dst, size_t maxDstSize, const void* src, size_t srcSize, int compressionLevel);
 
 
 #if defined (__cplusplus)

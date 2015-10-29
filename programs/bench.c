@@ -229,9 +229,9 @@ typedef struct
     size_t resSize;
 } blockParam_t;
 
-typedef size_t (*compressor_t) (void* dst, size_t maxDstSize, const void* src, size_t srcSize, unsigned compressionLevel);
+typedef size_t (*compressor_t) (void* dst, size_t maxDstSize, const void* src, size_t srcSize, int compressionLevel);
 
-static size_t local_compress_fast (void* dst, size_t maxDstSize, const void* src, size_t srcSize, unsigned compressionLevel)
+static size_t local_compress_fast (void* dst, size_t maxDstSize, const void* src, size_t srcSize, int compressionLevel)
 {
     (void)compressionLevel;
     return ZSTD_compress(dst, maxDstSize, src, srcSize);
@@ -323,10 +323,10 @@ static int BMK_benchMem(void* srcBuffer, size_t srcSize, const char* fileName, i
             for (blockNb=0; blockNb<nbBlocks; blockNb++)
                 cSize += blockTable[blockNb].cSize;
             if ((double)milliTime < fastestC*nbLoops) fastestC = (double)milliTime / nbLoops;
-            ratio = (double)cSize / (double)srcSize*100.;
-            DISPLAY("%1i-%-14.14s : %9i -> %9i (%5.2f%%),%7.1f MB/s\r", loopNb, fileName, (int)srcSize, (int)cSize, ratio, (double)srcSize / fastestC / 1000.);
+            ratio = (double)srcSize / (double)cSize;
+            DISPLAY("%1i-%-14.14s : %9i -> %9i (%5.3f),%7.1f MB/s\r", loopNb, fileName, (int)srcSize, (int)cSize, ratio, (double)srcSize / fastestC / 1000.);
 
-#if 0
+#if 1
             /* Decompression */
             memset(resultBuffer, 0xD6, srcSize);
 
@@ -343,7 +343,7 @@ static int BMK_benchMem(void* srcBuffer, size_t srcSize, const char* fileName, i
             milliTime = BMK_GetMilliSpan(milliTime);
 
             if ((double)milliTime < fastestD*nbLoops) fastestD = (double)milliTime / nbLoops;
-            DISPLAY("%1i-%-14.14s : %9i -> %9i (%5.2f%%),%7.1f MB/s ,%7.1f MB/s\r", loopNb, fileName, (int)srcSize, (int)cSize, ratio, (double)srcSize / fastestC / 1000., (double)srcSize / fastestD / 1000.);
+            DISPLAY("%1i-%-14.14s : %9i -> %9i (%5.3f),%7.1f MB/s ,%7.1f MB/s\r", loopNb, fileName, (int)srcSize, (int)cSize, ratio, (double)srcSize / fastestC / 1000., (double)srcSize / fastestD / 1000.);
 
             /* CRC Checking */
             crcCheck = XXH64(resultBuffer, srcSize, 0);
@@ -367,10 +367,7 @@ static int BMK_benchMem(void* srcBuffer, size_t srcSize, const char* fileName, i
 
         if (crcOrig == crcCheck)
         {
-            if (ratio<100.)
-                DISPLAY("%-16.16s : %9i -> %9i (%5.2f%%),%7.1f MB/s ,%7.1f MB/s\n", fileName, (int)srcSize, (int)cSize, ratio, (double)srcSize / fastestC / 1000., (double)srcSize / fastestD / 1000.);
-            else
-                DISPLAY("%-16.16s : %9i -> %9i (%5.1f%%),%7.1f MB/s ,%7.1f MB/s \n", fileName, (int)srcSize, (int)cSize, ratio, (double)srcSize / fastestC / 1000., (double)srcSize / fastestD / 1000.);
+                DISPLAY("%-16.16s : %9i -> %9i (%5.3f),%7.1f MB/s ,%7.1f MB/s \n", fileName, (int)srcSize, (int)cSize, ratio, (double)srcSize / fastestC / 1000., (double)srcSize / fastestD / 1000.);
         }
     }
 

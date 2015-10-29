@@ -68,25 +68,23 @@ struct ZSTD_HC_CCtx_s
     U32   lowLimit;         /* below that point, no more data */
     U32   nextToUpdate;     /* index from which to continue dictionary update */
     ZSTD_HC_parameters params;
-    size_t tableSpace;
+    void* workSpace;
+    size_t workSpaceSize;
+
+    seqStore_t seqStore;    /* sequences storage ptrs */
     U32* hashTable;
     U32* chainTable;
-    seqStore_t seqStore;    /* sequences storage ptrs */
-	BYTE buffer[WORKPLACESIZE];
 };
 
 
 ZSTD_HC_CCtx* ZSTD_HC_createCCtx(void)
 {
-    ZSTD_HC_CCtx* ctx = (ZSTD_HC_CCtx*) malloc(sizeof(ZSTD_HC_CCtx));
-    ctx->hashTable = NULL;
-    ctx->tableSpace = 0;
-    return ctx;
+    return (ZSTD_HC_CCtx*) calloc(1, sizeof(ZSTD_HC_CCtx));
 }
 
 size_t ZSTD_HC_freeCCtx(ZSTD_HC_CCtx* cctx)
 {
-    free(cctx->hashTable);
+    free(cctx->workSpace);
     free(cctx);
     return 0;
 }
@@ -106,15 +104,18 @@ static void ZSTD_HC_resetCCtx_advanced (ZSTD_HC_CCtx* zc,
 
     /* reserve table memory */
     {
-        const size_t neededSpace = ((1 << params.chainLog) + (1 << params.hashLog)) * sizeof(U32);
-        if (neededSpace > zc->tableSpace)
+        const size_t tableSpace = ((1 << params.chainLog) + (1 << params.hashLog)) * sizeof(U32);
+        const size_t neededSpace = tableSpace + WORKPLACESIZE;
+        if (zc->workSpaceSize < neededSpace)
         {
-            free(zc->hashTable);
-            zc->tableSpace = neededSpace;
-            zc->hashTable = (U32*) malloc ( neededSpace );
+            free(zc->workSpace);
+            zc->workSpaceSize = neededSpace;
+            zc->workSpace = malloc(neededSpace);
         }
+        zc->hashTable = (U32*)zc->workSpace;
         zc->chainTable = zc->hashTable + (1 << params.hashLog);
-        memset(zc->hashTable, 0, neededSpace );
+        zc->seqStore.buffer = (void*) (zc->chainTable + (1 << params.chainLog));
+        memset(zc->hashTable, 0, tableSpace );
     }
 
     zc->nextToUpdate = 0;
@@ -124,7 +125,6 @@ static void ZSTD_HC_resetCCtx_advanced (ZSTD_HC_CCtx* zc,
     zc->dictLimit = 0;
     zc->lowLimit = 0;
     zc->params = params;
-	zc->seqStore.buffer = zc->buffer;
     zc->seqStore.offsetStart = (U32*) (zc->seqStore.buffer);
     zc->seqStore.offCodeStart = (BYTE*) (zc->seqStore.offsetStart + (BLOCKSIZE>>2));
     zc->seqStore.litStart = zc->seqStore.offCodeStart + (BLOCKSIZE>>2);
@@ -468,8 +468,7 @@ size_t ZSTD_HC_compressCCtx (ZSTD_HC_CCtx* ctx, void* dst, size_t maxDstSize, co
 
 size_t ZSTD_HC_compress(void* dst, size_t maxDstSize, const void* src, size_t srcSize, int compressionLevel)
 {
-    ZSTD_HC_CCtx* ctx = ZSTD_HC_createCCtx();
-    size_t result = ZSTD_HC_compressCCtx(ctx, dst, maxDstSize, src, srcSize, compressionLevel);
-    ZSTD_HC_freeCCtx(ctx);
-    return result;
+    ZSTD_HC_CCtx ctxBody;
+    memset(&ctxBody, 0, sizeof(ctxBody));
+    return ZSTD_HC_compressCCtx(&ctxBody, dst, maxDstSize, src, srcSize, compressionLevel);
 }

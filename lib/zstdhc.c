@@ -213,7 +213,7 @@ static size_t ZSTD_HC_insertAndFindBestMatch (
                 && (MEM_read32(match) == MEM_read32(ip)))
             {
                 const size_t mlt = ZSTD_count(ip+MINMATCH, match+MINMATCH, iLimit) + MINMATCH;
-                if (mlt > ml) { ml = mlt; *matchpos = match; }
+                if (mlt > ml) { ml = mlt; *matchpos = match; if (ip+ml >= iLimit) break; }
             }
         }
         else

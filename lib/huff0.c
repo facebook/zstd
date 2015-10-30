@@ -69,6 +69,18 @@
 
 
 /****************************************************************
+*  Constants
+****************************************************************/
+#define HUF_ABSOLUTEMAX_TABLELOG  16   /* absolute limit of HUF_MAX_TABLELOG. Beyond that value, code does not work */
+#define HUF_MAX_TABLELOG  12           /* max configured tableLog (for static allocation); can be modified up to HUF_ABSOLUTEMAX_TABLELOG */
+#define HUF_DEFAULT_TABLELOG  HUF_MAX_TABLELOG   /* tableLog by default, when not specified */
+#define HUF_MAX_SYMBOL_VALUE 255
+#if (HUF_MAX_TABLELOG > HUF_ABSOLUTEMAX_TABLELOG)
+#  error "HUF_MAX_TABLELOG is too large !"
+#endif
+
+
+/****************************************************************
 *  Error Management
 ****************************************************************/
 #define HUF_STATIC_ASSERT(c) { enum { HUF_static_assert = 1/(int)(!!(c)) }; }   /* use only *after* variable declarations */
@@ -85,14 +97,6 @@ const char* HUF_getErrorName(size_t code) { return ERR_getErrorName(code); }
 /*********************************************************
 *  Huff0 : Huffman block compression
 *********************************************************/
-#define HUF_ABSOLUTEMAX_TABLELOG  16   /* absolute limit of HUF_MAX_TABLELOG. Beyond that value, code does not work */
-#define HUF_MAX_TABLELOG  12           /* max configured tableLog (for static allocation); can be modified up to HUF_ABSOLUTEMAX_TABLELOG */
-#define HUF_DEFAULT_TABLELOG  HUF_MAX_TABLELOG   /* tableLog by default, when not specified */
-#define HUF_MAX_SYMBOL_VALUE 255
-#if (HUF_MAX_TABLELOG > HUF_ABSOLUTEMAX_TABLELOG)
-#  error "HUF_MAX_TABLELOG is too large !"
-#endif
-
 typedef struct HUF_CElt_s {
   U16  val;
   BYTE nbBits;

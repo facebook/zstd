@@ -1,4 +1,4 @@
- **Zstd**, short for Zstandard, is a new lossless compression algorithm, which provides both good compression ratio _and_ speed for your standard compression needs. "Standard" translates into everyday situations which neither look for highest possible ratio nor extreme speed.
+ **Zstd**, short for Zstandard, is a fast lossless compression algorithm, targeting real-time compression scenarios at zlib-level compression ratio.
 
 It is provided as a BSD-license package, hosted on Github.
 
@@ -7,42 +7,40 @@ It is provided as a BSD-license package, hosted on Github.
 |master      | [![Build Status](https://travis-ci.org/Cyan4973/zstd.svg?branch=master)](https://travis-ci.org/Cyan4973/zstd) |
 |dev         | [![Build Status](https://travis-ci.org/Cyan4973/zstd.svg?branch=dev)](https://travis-ci.org/Cyan4973/zstd) |
 
-For a taste of its performance, here are a few benchmark numbers, completed on a Core i7-5600U @ 2.6 GHz, using [fsbench 0.14.3](http://encode.ru/threads/1371-Filesystem-benchmark?p=34029&viewfull=1#post34029), an open-source benchmark program by m^2.
+For a taste of its performance, here are a few benchmark numbers from a number of compression codecs suitable for real-time. The test was completed on a Core i7-5600U @ 2.6 GHz, using [fsbench 0.14.3](http://encode.ru/threads/1371-Filesystem-benchmark?p=34029&viewfull=1#post34029), an open-source benchmark program by m^2.
 
-|Name            | Ratio | C.speed | D.speed |
-|----------------|-------|--------:|--------:|
-|                |       |   MB/s  |  MB/s   |
-| [zlib 1.2.8] -6| 3.099 |    21   |   320   |
-| **zstd 0.2**   |**2.871**|**255**| **670** |
-| [zlib 1.2.8] -1| 2.730 |    70   |   300   | 
-| [LZ4] HC r131  | 2.720 |    25   |  2100   |
-| QuickLZ 1.5.1b6| 2.237 |   370   |   415   |
-| LZO 2.06       | 2.106 |   400   |   580   |
-| Snappy 1.1.0   | 2.091 |   330   |  1100   |
-| [LZ4] r131     | 2.101 |   450   |  2100   |
-| LZF 3.6        | 2.077 |   200   |   560   |
+|Name             | Ratio | C.speed | D.speed |
+|-----------------|-------|--------:|--------:|
+|                 |       |   MB/s  |  MB/s   |
+| **zstd 0.3**    |**2.858**|**280**| **670** |
+| [zlib 1.2.8] -1 | 2.730 |    70   |   300   | 
+| QuickLZ 1.5.1b6 | 2.237 |   370   |   415   |
+| LZO 2.06        | 2.106 |   400   |   580   |
+| [LZ4] r131      | 2.101 |   450   |  2100   |
+| Snappy 1.1.0    | 2.091 |   330   |  1100   |
+| LZF 3.6         | 2.077 |   200   |   560   |
 
 [zlib 1.2.8]:http://www.zlib.net/
 [LZ4]:http://www.lz4.org/
 
-An interesting feature of zstd is that it can qualify as both a reasonably strong compressor and a fast one.
+Zstd can also offer stronger compression ratio at the cost of compression speed, but preserving its decompression speed. In the following test, a few compressors suitable for this scenario are selected (they offer very asymetric performance, useful when compression time has little importance). The test was completed on a Core i7-5600U @ 2.6 GHz, using [benchmark 0.6.1](http://encode.ru/threads/1266-In-memory-benchmark-with-fastest-LZSS-(QuickLZ-Snappy)-compressors?p=45217&viewfull=1#post45217), an open-source benchmark program by inikep.
 
-Zstd delivers very high decompression speed, at more than >600 MB/s per core.
-Obviously, your exact mileage will vary depending on your target system.
+|Name             | Ratio | C.speed | D.speed |
+|-----------------|-------|--------:|--------:|
+|                 |       |   MB/s  |  MB/s   |
+| brotli -9       | 3.729 |     4   |   340   |
+| **zstd 0.3 -9** |**3.447**|**30** | **640** |
+| [zlib 1.2.8] -9 | 3.133 |    10   |   300   | 
+| LZO 2.06 -999   | 2.790 |     1   |   560   |
+| [LZ4] r131 -9   | 2.720 |    25   |  2100   |
 
-Zstd compression speed will be configurable to fit different situations.
-The first available version is the fast one, at ~250 MB/s per core, which is suitable for a few real-time scenarios.
-But similar to [LZ4], zstd can offer derivatives trading compression time for compression ratio, keeping decompression properties intact. "Offline compression", where compression time is of little importance because the content is only compressed once and decompressed many times, will likely prefer this setup.
+[lzma]:http://www.7-zip.org/
 
-Note that high compression derivatives still have to be developed.
-It's a complex area which will require time and benefit from contributions.
-
-
-Another property zstd is developed for is configurable memory requirement, with the objective to fit into low-memory configurations, or servers handling many connections in parallel.
+Zstd compression speed is highly configurable, by small increment, to fit different situations. Its memory requirement can also be configured to fit into low-memory hardware configurations, or servers handling multiple connections/contexts in parallel.
 
 Zstd entropy stage is provided by [Huff0 and FSE, from Finite State Entrop library](https://github.com/Cyan4973/FiniteStateEntropy).
 
-Zstd has not yet reached "stable" status. Specifically, it doesn't guarantee yet that its current compressed format will remain stable and supported in future versions. It may still change to adapt further optimizations still being investigated. However, the library starts to be pretty robust, able to withstand hazards situations, including invalid input. The library reliability has been tested using [Fuzz Testing](https://en.wikipedia.org/wiki/Fuzz_testing), using both [internal tools](programs/fuzzer.c) and [external ones](http://lcamtuf.coredump.cx/afl). Therefore, you can now safely test zstd, even within production environments.
+Zstd has not yet reached "stable" status. Specifically, it doesn't guarantee yet that its current compressed format will remain stable and supported in future versions. It may still change to adapt further optimizations still being investigated. That being said, the library is now pretty robust, able to withstand hazards situations, including invalid input. The library reliability has been tested using [Fuzz Testing](https://en.wikipedia.org/wiki/Fuzz_testing), with both [internal tools](programs/fuzzer.c) and [external ones](http://lcamtuf.coredump.cx/afl). Therefore, it's now safe to test Zstandard even within production environments.
 
 "Stable Format" is projected sometimes early 2016.
 

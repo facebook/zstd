@@ -40,7 +40,7 @@ VERSION?= $(LIBVER)
 
 DESTDIR?=
 PREFIX ?= /usr/local
-CPPFLAGS= -I./legacy -DZSTD_LEGACY_SUPPORT=1
+CPPFLAGS= -I. -I./legacy -DZSTD_LEGACY_SUPPORT=1
 CFLAGS ?= -O3
 CFLAGS += -std=c99 -Wall -Wextra -Wundef -Wshadow -Wcast-qual -Wcast-align -Wstrict-prototypes
 FLAGS   = $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) $(MOREFLAGS)

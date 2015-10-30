@@ -29,9 +29,9 @@
   The license of this file is GPLv2.
 */
 
-/**************************************
+/* *************************************
 *  Tuning options
-**************************************/
+***************************************/
 #ifndef ZSTD_LEGACY_SUPPORT
 /**LEGACY_SUPPORT :
 *  decompressor can decode older formats (starting from Zstd 0.1+) */
@@ -39,9 +39,9 @@
 #endif // ZSTD_LEGACY_SUPPORT
 
 
-/**************************************
+/* *************************************
 *  Compiler Options
-**************************************/
+***************************************/
 /* Disable some Visual warning messages */
 #ifdef _MSC_VER
 #  define _CRT_SECURE_NO_WARNINGS
@@ -55,9 +55,9 @@
 #define _POSIX_SOURCE 1        /* enable fileno() within <stdio.h> on unix */
 
 
-/**************************************
+/* *************************************
 *  Includes
-**************************************/
+***************************************/
 #include <stdio.h>     /* fprintf, fopen, fread, _fileno, stdin, stdout */
 #include <stdlib.h>    /* malloc, free */
 #include <string.h>    /* strcmp, strlen */
@@ -66,15 +66,17 @@
 #include "mem.h"
 #include "fileio.h"
 #include "zstd_static.h"
+#include "zstdhc_static.h"
 
 #if defined(ZSTD_LEGACY_SUPPORT) && (ZSTD_LEGACY_SUPPORT==1)
-#  include "zstd_v01.h"  /* legacy */
-#endif // ZSTD_LEGACY_SUPPORT
+#  include "zstd_legacy.h"  /* legacy */
+#  include "fileio_legacy.h"  /* legacy */
+#endif
 
 
-/**************************************
+/* *************************************
 *  OS-specific Includes
-**************************************/
+***************************************/
 #if defined(MSDOS) || defined(OS2) || defined(WIN32) || defined(_WIN32) || defined(__CYGWIN__)
 #  include <fcntl.h>    /* _O_BINARY */
 #  include <io.h>       /* _setmode, _isatty */
@@ -90,9 +92,9 @@
 #endif
 
 
-/**************************************
+/* *************************************
 *  Constants
-**************************************/
+***************************************/
 #define KB *(1U<<10)
 #define MB *(1U<<20)
 #define GB *(1U<<30)
@@ -116,15 +118,9 @@ static const unsigned FIO_blockHeaderSize = 3;
 #define CACHELINE 64
 
 
-/**************************************
-*  Complex types
-**************************************/
-typedef enum { bt_compressed, bt_raw, bt_rle, bt_crc } bType_t;
-
-
-/**************************************
+/* *************************************
 *  Macros
-**************************************/
+***************************************/
 #define DISPLAY(...)         fprintf(stderr, __VA_ARGS__)
 #define DISPLAYLEVEL(l, ...) if (g_displayLevel>=l) { DISPLAY(__VA_ARGS__); }
 static U32 g_displayLevel = 2;   /* 0 : no display;   1: errors;   2 : + result + interaction + warnings;   3 : + progression;   4 : + information */
@@ -137,19 +133,21 @@ static const unsigned refreshRate = 150;
 static clock_t g_time = 0;
 
 
-/**************************************
+/* *************************************
 *  Local Parameters
-**************************************/
+***************************************/
 static U32 g_overwrite = 0;
 
 void FIO_overwriteMode(void) { g_overwrite=1; }
 void FIO_setNotificationLevel(unsigned level) { g_displayLevel=level; }
 
 
-/**************************************
+/* *************************************
 *  Exceptions
-**************************************/
-#define DEBUG 0
+***************************************/
+#ifndef DEBUG
+#  define DEBUG 0
+#endif
 #define DEBUGOUTPUT(...) if (DEBUG) DISPLAY(__VA_ARGS__);
 #define EXM_THROW(error, ...)                                             \
 {                                                                         \
@@ -161,9 +159,9 @@ void FIO_setNotificationLevel(unsigned level) { g_displayLevel=level; }
 }
 
 
-/**************************************
+/* *************************************
 *  Functions
-**************************************/
+***************************************/
 static unsigned FIO_GetMilliSpan(clock_t nPrevious)
 {
     clock_t nCurrent = clock();
@@ -217,8 +215,47 @@ static void FIO_getFileHandles(FILE** pfinput, FILE** pfoutput, const char* inpu
     if ( *pfoutput==0) EXM_THROW(13, "Pb opening dst : %s", output_filename);
 }
 
+typedef void* (*FIO_createC) (void);
+static void* local_ZSTD_createCCtx(void) { return (void*) ZSTD_createCCtx(); }
+static void* local_ZSTD_HC_createCCtx(void) { return (void*) ZSTD_HC_createCCtx(); }
 
-unsigned long long FIO_compressFilename(const char* output_filename, const char* input_filename)
+typedef size_t (*FIO_initC) (void* ctx, void* dst, size_t maxDstSize, int cLevel);
+static size_t local_ZSTD_compressBegin (void* ctx, void* dst, size_t maxDstSize, int cLevel)
+{
+    (void)cLevel;
+    return ZSTD_compressBegin((ZSTD_CCtx*)ctx, dst, maxDstSize);
+}
+static size_t local_ZSTD_HC_compressBegin (void* ctx, void* dst, size_t maxDstSize, int cLevel)
+{
+    return ZSTD_HC_compressBegin((ZSTD_HC_CCtx*)ctx, dst, maxDstSize, cLevel);
+}
+
+typedef size_t (*FIO_continueC) (void* ctx, void* dst, size_t maxDstSize, const void* src, size_t srcSize);
+static size_t local_ZSTD_compressContinue (void* ctx, void* dst, size_t maxDstSize, const void* src, size_t srcSize)
+{
+    return ZSTD_compressContinue((ZSTD_CCtx*)ctx, dst, maxDstSize, src, srcSize);
+}
+static size_t local_ZSTD_HC_compressContinue (void* ctx, void* dst, size_t maxDstSize, const void* src, size_t srcSize)
+{
+    return ZSTD_HC_compressContinue((ZSTD_HC_CCtx*)ctx, dst, maxDstSize, src, srcSize);
+}
+
+typedef size_t (*FIO_endC) (void* ctx, void* dst, size_t maxDstSize);
+static size_t local_ZSTD_compressEnd (void* ctx, void* dst, size_t maxDstSize)
+{
+    return ZSTD_compressEnd((ZSTD_CCtx*)ctx, dst, maxDstSize);
+}
+static size_t local_ZSTD_HC_compressEnd (void* ctx, void* dst, size_t maxDstSize)
+{
+    return ZSTD_HC_compressEnd((ZSTD_HC_CCtx*)ctx, dst, maxDstSize);
+}
+
+typedef void (*FIO_freeC) (void* ctx);
+static void local_ZSTD_freeCCtx(void* ctx) { ZSTD_freeCCtx((ZSTD_CCtx*)ctx); }
+static void local_ZSTD_HC_freeCCtx(void* ctx) { ZSTD_HC_freeCCtx((ZSTD_HC_CCtx*)ctx); }
+
+
+unsigned long long FIO_compressFilename(const char* output_filename, const char* input_filename, int cLevel)
 {
     U64 filesize = 0;
     U64 compressedfilesize = 0;
@@ -232,13 +269,34 @@ unsigned long long FIO_compressFilename(const char* output_filename, const char*
     FILE* finput;
     FILE* foutput;
     size_t sizeCheck, cSize;
-    ZSTD_CCtx* ctx = ZSTD_createCCtx();
-
+    void* ctx;
+    FIO_createC createC=NULL;
+    FIO_initC initC=NULL;
+    FIO_continueC continueC = NULL;
+    FIO_endC endC = NULL;
+    FIO_freeC freeC = NULL;
 
     /* Init */
+    if (cLevel <= 1)
+    {
+        createC = local_ZSTD_createCCtx;
+        initC = local_ZSTD_compressBegin;
+        continueC = local_ZSTD_compressContinue;
+        endC = local_ZSTD_compressEnd;
+        freeC = local_ZSTD_freeCCtx;
+    }
+    else
+    {
+        createC = local_ZSTD_HC_createCCtx;
+        initC = local_ZSTD_HC_compressBegin;
+        continueC = local_ZSTD_HC_compressContinue;
+        endC = local_ZSTD_HC_compressEnd;
+        freeC = local_ZSTD_HC_freeCCtx;
+    }
     FIO_getFileHandles(&finput, &foutput, input_filename, output_filename);
 
     /* Allocate Memory */
+    ctx = createC();
     inBuff  = (BYTE*)malloc(inBuffSize);
     outBuff = (BYTE*)malloc(outBuffSize);
     if (!inBuff || !outBuff || !ctx) EXM_THROW(21, "Allocation error : not enough memory");
@@ -246,7 +304,7 @@ unsigned long long FIO_compressFilename(const char* output_filename, const char*
     inEnd = inBuff + inBuffSize;
 
     /* Write Frame Header */
-    cSize = ZSTD_compressBegin(ctx, outBuff, outBuffSize);
+    cSize = initC(ctx, outBuff, outBuffSize, cLevel);
     if (ZSTD_isError(cSize)) EXM_THROW(22, "Compression error : cannot create frame header");
 
     sizeCheck = fwrite(outBuff, 1, cSize, foutput);
@@ -266,7 +324,7 @@ unsigned long long FIO_compressFilename(const char* output_filename, const char*
         DISPLAYUPDATE(2, "\rRead : %u MB   ", (U32)(filesize>>20));
 
         /* Compress Block */
-        cSize = ZSTD_compressContinue(ctx, outBuff, outBuffSize, inSlot, inSize);
+        cSize = continueC(ctx, outBuff, outBuffSize, inSlot, inSize);
         if (ZSTD_isError(cSize))
             EXM_THROW(24, "Compression error : %s ", ZSTD_getErrorName(cSize));
 
@@ -280,7 +338,7 @@ unsigned long long FIO_compressFilename(const char* output_filename, const char*
     }
 
     /* End of Frame */
-    cSize = ZSTD_compressEnd(ctx, outBuff, outBuffSize);
+    cSize = endC(ctx, outBuff, outBuffSize);
     if (ZSTD_isError(cSize)) EXM_THROW(26, "Compression error : cannot create frame end");
 
     sizeCheck = fwrite(outBuff, 1, cSize, foutput);
@@ -295,76 +353,12 @@ unsigned long long FIO_compressFilename(const char* output_filename, const char*
     /* clean */
     free(inBuff);
     free(outBuff);
-    ZSTD_freeCCtx(ctx);
+    freeC(ctx);
     fclose(finput);
     if (fclose(foutput)) EXM_THROW(28, "Write error : cannot properly close %s", output_filename);
 
     return compressedfilesize;
 }
-
-
-#if defined(ZSTD_LEGACY_SUPPORT) && (ZSTD_LEGACY_SUPPORT==1)
-
-unsigned long long FIOv01_decompressFrame(FILE* foutput, FILE* finput)
-{
-    size_t outBuffSize = 512 KB;
-    BYTE* outBuff = (BYTE*)malloc(outBuffSize);
-    size_t inBuffSize = 128 KB + 8;
-    BYTE inBuff[128 KB + 8];
-    BYTE* op = outBuff;
-    BYTE* const oend = outBuff + outBuffSize;
-    U64   filesize = 0;
-    size_t toRead;
-    size_t sizeCheck;
-    ZSTDv01_Dctx* dctx = ZSTDv01_createDCtx();
-
-
-    /* init */
-    if (outBuff==NULL) EXM_THROW(41, "Error : not enough memory to decode legacy frame");
-
-    /* restore header, already read from input */
-    MEM_writeLE32(inBuff, ZSTDv01_magicNumberLE);
-    sizeCheck = ZSTDv01_decompressContinue(dctx, NULL, 0, inBuff, sizeof(ZSTDv01_magicNumberLE));   /* Decode frame header */
-    if (ZSTDv01_isError(sizeCheck)) EXM_THROW(42, "Error decoding legacy header");
-
-    /* Main decompression Loop */
-    toRead = ZSTDv01_nextSrcSizeToDecompress(dctx);
-    while (toRead)
-    {
-        size_t readSize, decodedSize;
-
-        /* Fill input buffer */
-        if (toRead > inBuffSize)
-            EXM_THROW(43, "too large block");
-        readSize = fread(inBuff, 1, toRead, finput);
-        if (readSize != toRead)
-            EXM_THROW(44, "Read error");
-
-        /* Decode block */
-        decodedSize = ZSTDv01_decompressContinue(dctx, op, oend-op, inBuff, readSize);
-        if (ZSTDv01_isError(decodedSize)) EXM_THROW(45, "Decoding error : input corrupted");
-
-        if (decodedSize)   /* not a header */
-        {
-            /* Write block */
-            sizeCheck = fwrite(op, 1, decodedSize, foutput);
-            if (sizeCheck != decodedSize) EXM_THROW(46, "Write error : unable to write data block to destination file");
-            filesize += decodedSize;
-            op += decodedSize;
-            if (op==oend) op = outBuff;
-            DISPLAYUPDATE(2, "\rDecoded : %u MB...     ", (U32)(filesize>>20) );
-        }
-
-        /* prepare for next Block */
-        toRead = ZSTDv01_nextSrcSizeToDecompress(dctx);
-    }
-
-    /* release resources */
-    free(outBuff);
-    free(dctx);
-    return filesize;
-}
-#endif   /* ZSTD_LEGACY_SUPPORT */
 
 
 unsigned long long FIO_decompressFrame(FILE* foutput, FILE* finput,
@@ -446,24 +440,20 @@ unsigned long long FIO_decompressFilename(const char* output_filename, const cha
         if (sizeCheck != toRead) EXM_THROW(31, "Read error : cannot read header");
 
         magicNumber = MEM_readLE32(header);
-        switch(magicNumber)
-        {
 #if defined(ZSTD_LEGACY_SUPPORT) && (ZSTD_LEGACY_SUPPORT==1)
-        case ZSTDv01_magicNumberLE:
-            filesize += FIOv01_decompressFrame(foutput, finput);
+        if (ZSTD_isLegacy(magicNumber))
+        {
+            filesize += FIO_decompressLegacyFrame(foutput, finput, magicNumber);
             continue;
-#endif   /* ZSTD_LEGACY_SUPPORT */
-        case ZSTD_magicNumber:
-            break;   /* normal case */
-        default :
-            EXM_THROW(32, "Error : unknown frame prefix");
         }
+#endif   /* ZSTD_LEGACY_SUPPORT */
+        if (magicNumber != ZSTD_magicNumber) EXM_THROW(32, "Error : unknown frame prefix");
 
         /* prepare frame decompression, by completing header */
         ZSTD_resetDCtx(dctx);
         toRead = ZSTD_nextSrcSizeToDecompress(dctx) - sizeof(ZSTD_magicNumber);
         if (toRead > MAXHEADERSIZE) EXM_THROW(30, "Not enough memory to read header");
-        sizeCheck = fread(header+sizeof(ZSTD_magicNumber), (size_t)1, toRead, finput);
+        sizeCheck = fread(&header[sizeof(ZSTD_magicNumber)], 1, toRead, finput);
         if (sizeCheck != toRead) EXM_THROW(31, "Read error : cannot read header");
         sizeCheck = ZSTD_decompressContinue(dctx, NULL, 0, header, sizeof(ZSTD_magicNumber)+toRead);   // Decode frame header
         if (ZSTD_isError(sizeCheck)) EXM_THROW(32, "Error decoding header");

@@ -32,7 +32,8 @@
    - Source repository : https://github.com/Cyan4973/FiniteStateEntropy
    - Public forum : https://groups.google.com/forum/#!forum/lz4c
 ****************************************************************** */
-#pragma once
+#ifndef HUFF0_H
+#define HUFF0_H
 
 #if defined (__cplusplus)
 extern "C" {
@@ -91,3 +92,5 @@ size_t HUF_compress2 (void* dst, size_t dstSize, const void* src, size_t srcSize
 #if defined (__cplusplus)
 }
 #endif
+
+#endif   /* HUFF0_H */

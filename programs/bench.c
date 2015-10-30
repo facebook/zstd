@@ -23,76 +23,59 @@
     - ztsd public forum : https://groups.google.com/forum/#!forum/lz4c
 */
 
-/***************************************
+/* **************************************
 *  Compiler Options
-***************************************/
+****************************************/
 /* Disable some Visual warning messages */
 #define _CRT_SECURE_NO_WARNINGS                  /* fopen */
 
-// Unix Large Files support (>4GB)
+/* Unix Large Files support (>4GB) */
 #define _FILE_OFFSET_BITS 64
-#if (defined(__sun__) && (!defined(__LP64__)))   // Sun Solaris 32-bits requires specific definitions
+#if (defined(__sun__) && (!defined(__LP64__)))   /* Sun Solaris 32-bits requires specific definitions */
 #  define _LARGEFILE_SOURCE
-#elif ! defined(__LP64__)                        // No point defining Large file for 64 bit
+#elif ! defined(__LP64__)                        /* No point defining Large file for 64 bit */
 #  define _LARGEFILE64_SOURCE
 #endif
 
-// S_ISREG & gettimeofday() are not supported by MSVC
+/* S_ISREG & gettimeofday() are not supported by MSVC */
 #if defined(_MSC_VER) || defined(_WIN32)
 #  define BMK_LEGACY_TIMER 1
 #endif
 
 
-/**************************************
+/* *************************************
 *  Includes
-**************************************/
+***************************************/
 #include <stdlib.h>      /* malloc, free */
 #include <string.h>      /* memset */
-#include <stdio.h>       // fprintf, fopen, ftello64
-#include <sys/types.h>   // stat64
-#include <sys/stat.h>    // stat64
+#include <stdio.h>       /* fprintf, fopen, ftello64 */
+#include <sys/types.h>   /* stat64 */
+#include <sys/stat.h>    /* stat64 */
 
-// Use ftime() if gettimeofday() is not available on your target
+/* Use ftime() if gettimeofday() is not available */
 #if defined(BMK_LEGACY_TIMER)
-#  include <sys/timeb.h>   // timeb, ftime
+#  include <sys/timeb.h>   /* timeb, ftime */
 #else
-#  include <sys/time.h>    // gettimeofday
+#  include <sys/time.h>    /* gettimeofday */
 #endif
 
+#include "mem.h"
 #include "zstd.h"
+#include "zstdhc.h"
 #include "xxhash.h"
 
 
-/**************************************
+/* *************************************
 *  Compiler specifics
-**************************************/
+***************************************/
 #if !defined(S_ISREG)
 #  define S_ISREG(x) (((x) & S_IFMT) == S_IFREG)
 #endif
 
 
-/**************************************
-*  Basic Types
-**************************************/
-#if defined (__STDC_VERSION__) && __STDC_VERSION__ >= 199901L   /* C99 */
-# include <stdint.h>
-  typedef uint8_t  BYTE;
-  typedef uint16_t U16;
-  typedef uint32_t U32;
-  typedef  int32_t S32;
-  typedef uint64_t U64;
-#else
-  typedef unsigned char       BYTE;
-  typedef unsigned short      U16;
-  typedef unsigned int        U32;
-  typedef   signed int        S32;
-  typedef unsigned long long  U64;
-#endif
-
-
-/**************************************
+/* *************************************
 *  Constants
-**************************************/
+***************************************/
 #define NBLOOPS    3
 #define TIMELOOP   2500
 
@@ -108,15 +91,15 @@ static U32 prime1 = 2654435761U;
 static U32 prime2 = 2246822519U;
 
 
-/**************************************
+/* *************************************
 *  Macros
-**************************************/
+***************************************/
 #define DISPLAY(...) fprintf(stderr, __VA_ARGS__)
 
 
-/**************************************
+/* *************************************
 *  Benchmark Parameters
-**************************************/
+***************************************/
 static int nbIterations = NBLOOPS;
 static size_t g_blockSize = 0;
 
@@ -133,9 +116,9 @@ void BMK_SetBlockSize(size_t blockSize)
 }
 
 
-/*********************************************************
+/* ********************************************************
 *  Private functions
-*********************************************************/
+**********************************************************/
 
 #if defined(BMK_LEGACY_TIMER)
 
@@ -176,10 +159,9 @@ static int BMK_GetMilliSpan( int nTimeStart )
 }
 
 
-
-/*********************************************************
+/* ********************************************************
 *  Data generator
-*********************************************************/
+**********************************************************/
 /* will hopefully be converted into ROL instruction by compiler */
 static U32 BMK_rotl32(unsigned val32, unsigned nbBits) { return((val32 << nbBits) | (val32 >> (32 - nbBits))); }
 
@@ -192,7 +174,6 @@ static U32 BMK_rand(U32* src)
     *src = rand32;
     return rand32 >> 9;
 }
-
 
 #define BMK_RAND15BITS  ( BMK_rand(&seed) & 0x7FFF)
 #define BMK_RANDLENGTH  ((BMK_rand(&seed) & 3) ? (BMK_rand(&seed) % 15) : (BMK_rand(&seed) % 510) + 15)
@@ -234,9 +215,9 @@ static void BMK_datagen(void* buffer, size_t bufferSize, double proba, U32 seed)
 }
 
 
-/*********************************************************
+/* ********************************************************
 *  Bench functions
-*********************************************************/
+**********************************************************/
 typedef struct
 {
     char*  srcPtr;
@@ -248,6 +229,13 @@ typedef struct
     size_t resSize;
 } blockParam_t;
 
+typedef size_t (*compressor_t) (void* dst, size_t maxDstSize, const void* src, size_t srcSize, int compressionLevel);
+
+static size_t local_compress_fast (void* dst, size_t maxDstSize, const void* src, size_t srcSize, int compressionLevel)
+{
+    (void)compressionLevel;
+    return ZSTD_compress(dst, maxDstSize, src, srcSize);
+}
 
 #define MIN(a,b) (a<b ? a : b)
 
@@ -259,10 +247,12 @@ static int BMK_benchMem(void* srcBuffer, size_t srcSize, const char* fileName, i
     const size_t maxCompressedSize = (size_t)nbBlocks * ZSTD_compressBound(blockSize);
     void* const compressedBuffer = malloc(maxCompressedSize);
     void* const resultBuffer = malloc(srcSize);
+    const compressor_t compressor = (cLevel <= 1) ? local_compress_fast : ZSTD_HC_compress;
     U64 crcOrig;
 
-    /* Init */
-    (void)cLevel;
+    /* init */
+    if (strlen(fileName)>16)
+        fileName += strlen(fileName)-16;
 
     /* Memory allocation & restrictions */
     if (!compressedBuffer || !resultBuffer || !blockTable)
@@ -318,7 +308,7 @@ static int BMK_benchMem(void* srcBuffer, size_t srcSize, const char* fileName, i
             U32 blockNb;
 
             /* Compression */
-            DISPLAY("%1i-%-14.14s : %9u ->\r", loopNb, fileName, (U32)srcSize);
+            DISPLAY("%2i-%-17.17s :%10u ->\r", loopNb, fileName, (U32)srcSize);
             memset(compressedBuffer, 0xE5, maxCompressedSize);
 
             nbLoops = 0;
@@ -328,8 +318,7 @@ static int BMK_benchMem(void* srcBuffer, size_t srcSize, const char* fileName, i
             while (BMK_GetMilliSpan(milliTime) < TIMELOOP)
             {
                 for (blockNb=0; blockNb<nbBlocks; blockNb++)
-                    blockTable[blockNb].cSize = ZSTD_compress(blockTable[blockNb].cPtr,  blockTable[blockNb].cRoom,
-                                                              blockTable[blockNb].srcPtr,blockTable[blockNb].srcSize);
+                    blockTable[blockNb].cSize = compressor(blockTable[blockNb].cPtr,  blockTable[blockNb].cRoom, blockTable[blockNb].srcPtr,blockTable[blockNb].srcSize, cLevel);
                 nbLoops++;
             }
             milliTime = BMK_GetMilliSpan(milliTime);
@@ -338,8 +327,8 @@ static int BMK_benchMem(void* srcBuffer, size_t srcSize, const char* fileName, i
             for (blockNb=0; blockNb<nbBlocks; blockNb++)
                 cSize += blockTable[blockNb].cSize;
             if ((double)milliTime < fastestC*nbLoops) fastestC = (double)milliTime / nbLoops;
-            ratio = (double)cSize / (double)srcSize*100.;
-            DISPLAY("%1i-%-14.14s : %9i -> %9i (%5.2f%%),%7.1f MB/s\r", loopNb, fileName, (int)srcSize, (int)cSize, ratio, (double)srcSize / fastestC / 1000.);
+            ratio = (double)srcSize / (double)cSize;
+            DISPLAY("%2i-%-17.17s :%10i ->%10i (%5.3f),%6.1f MB/s\r", loopNb, fileName, (int)srcSize, (int)cSize, ratio, (double)srcSize / fastestC / 1000.);
 
 #if 1
             /* Decompression */
@@ -358,19 +347,20 @@ static int BMK_benchMem(void* srcBuffer, size_t srcSize, const char* fileName, i
             milliTime = BMK_GetMilliSpan(milliTime);
 
             if ((double)milliTime < fastestD*nbLoops) fastestD = (double)milliTime / nbLoops;
-            DISPLAY("%1i-%-14.14s : %9i -> %9i (%5.2f%%),%7.1f MB/s ,%7.1f MB/s\r", loopNb, fileName, (int)srcSize, (int)cSize, ratio, (double)srcSize / fastestC / 1000., (double)srcSize / fastestD / 1000.);
+            DISPLAY("%2i-%-17.17s :%10i ->%10i (%5.3f),%6.1f MB/s ,%6.1f MB/s\r", loopNb, fileName, (int)srcSize, (int)cSize, ratio, (double)srcSize / fastestC / 1000., (double)srcSize / fastestD / 1000.);
 
             /* CRC Checking */
             crcCheck = XXH64(resultBuffer, srcSize, 0);
             if (crcOrig!=crcCheck)
             {
-                unsigned i;
+                unsigned u;
+                unsigned eBlockSize = (unsigned)(MIN(65536*2, blockSize));
                 DISPLAY("\n!!! WARNING !!! %14s : Invalid Checksum : %x != %x\n", fileName, (unsigned)crcOrig, (unsigned)crcCheck);
-                for (i=0; i<srcSize; i++)
+                for (u=0; u<srcSize; u++)
                 {
-                    if (((BYTE*)srcBuffer)[i] != ((BYTE*)resultBuffer)[i])
+                    if (((BYTE*)srcBuffer)[u] != ((BYTE*)resultBuffer)[u])
                     {
-                        printf("\nDecoding error at pos %u   \n", i);
+                        printf("Decoding error at pos %u (block %u, pos %u) \n", u, u / eBlockSize, u % eBlockSize);
                         break;
                     }
                 }
@@ -380,12 +370,7 @@ static int BMK_benchMem(void* srcBuffer, size_t srcSize, const char* fileName, i
         }
 
         if (crcOrig == crcCheck)
-        {
-            if (ratio<100.)
-                DISPLAY("%-16.16s : %9i -> %9i (%5.2f%%),%7.1f MB/s ,%7.1f MB/s\n", fileName, (int)srcSize, (int)cSize, ratio, (double)srcSize / fastestC / 1000., (double)srcSize / fastestD / 1000.);
-            else
-                DISPLAY("%-16.16s : %9i -> %9i (%5.1f%%),%7.1f MB/s ,%7.1f MB/s \n", fileName, (int)srcSize, (int)cSize, ratio, (double)srcSize / fastestC / 1000., (double)srcSize / fastestD / 1000.);
-        }
+            DISPLAY("%2i-%-17.17s :%10i ->%10i (%5.3f),%6.1f MB/s ,%6.1f MB/s \n", cLevel, fileName, (int)srcSize, (int)cSize, ratio, (double)srcSize / fastestC / 1000., (double)srcSize / fastestD / 1000.);
     }
 
     /* End cleaning */
@@ -434,10 +419,7 @@ static int BMK_benchOneFile(char* inFileName, int cLevel)
     U64    inFileSize;
     size_t benchedSize, readSize;
     void* srcBuffer;
-    int result;
-
-    /* Init */
-    (void)cLevel;
+    int result=0;
 
     /* Check file existence */
     inFile = fopen(inFileName, "rb");
@@ -473,10 +455,17 @@ static int BMK_benchOneFile(char* inFileName, int cLevel)
         return 13;
     }
 
-    // Bench
-    result = BMK_benchMem(srcBuffer, benchedSize, inFileName, cLevel);
+    /* Bench */
+    if (cLevel<0)
+    {
+        int l;
+        for (l=1; l <= -cLevel; l++)
+            result = BMK_benchMem(srcBuffer, benchedSize, inFileName, l);
+    }
+    else
+        result = BMK_benchMem(srcBuffer, benchedSize, inFileName, cLevel);
 
-    // End
+    /* clean up */
     free(srcBuffer);
     DISPLAY("\n");
     return result;
@@ -487,11 +476,8 @@ static int BMK_syntheticTest(int cLevel, double compressibility)
 {
     size_t benchedSize = 10000000;
     void* srcBuffer = malloc(benchedSize);
-    int result;
+    int result=0;
     char name[20] = {0};
-
-    /* Init */
-    (void)cLevel;
 
     /* Memory allocation */
     if (!srcBuffer)
@@ -510,7 +496,15 @@ static int BMK_syntheticTest(int cLevel, double compressibility)
 #else
     snprintf (name, 20, "Synthetic %2u%%", (unsigned)(compressibility*100));
 #endif
-    result = BMK_benchMem(srcBuffer, benchedSize, name, cLevel);
+    /* Bench */
+    if (cLevel<0)
+    {
+        int l;
+        for (l=1; l <= -cLevel; l++)
+            result = BMK_benchMem(srcBuffer, benchedSize, name, l);
+    }
+    else
+        result = BMK_benchMem(srcBuffer, benchedSize, name, cLevel);
 
     /* End */
     free(srcBuffer);

@@ -30,11 +30,11 @@
 # fullbench32: Same as fullbench, but forced to compile in 32-bits mode
 # ##########################################################################
 
-VERSION?= v0.2.0
+VERSION?= 0.3.0
 
 DESTDIR?=
 PREFIX ?= /usr/local
-CPPFLAGS= -I../lib -I../lib/legacy -DZSTD_VERSION=\"$(VERSION)\" -DZSTD_LEGACY_SUPPORT=1
+CPPFLAGS= -I../lib -I../lib/legacy -I./legacy -DZSTD_VERSION=\"$(VERSION)\" -DZSTD_LEGACY_SUPPORT=1
 CFLAGS ?= -O3  # -falign-loops=32   # not always positive
 CFLAGS += -std=c99 -Wall -Wextra -Wundef -Wshadow -Wcast-qual -Wcast-align -Wstrict-prototypes
 FLAGS   = $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) $(MOREFLAGS)
@@ -56,25 +56,42 @@ endif
 
 default: zstd
 
-all: zstd zstd32 fullbench fullbench32 fuzzer fuzzer32 datagen
+all: zstd zstd32 fullbench fullbench32 fuzzer fuzzer32 paramgrill datagen
 
-zstd  : $(ZSTDDIR)/zstd.c $(ZSTDDIR)/fse.c $(ZSTDDIR)/huff0.c $(ZSTDDIR)/legacy/zstd_v01.c xxhash.c bench.c fileio.c zstdcli.c
+zstd: $(ZSTDDIR)/zstd.c $(ZSTDDIR)/zstdhc.c $(ZSTDDIR)/fse.c $(ZSTDDIR)/huff0.c \
+      $(ZSTDDIR)/legacy/zstd_v01.c $(ZSTDDIR)/legacy/zstd_v02.c \
+      xxhash.c bench.c fileio.c zstdcli.c legacy/fileio_legacy.c
 	$(CC)      $(FLAGS) $^ -o $@$(EXT)
 
-zstd32: $(ZSTDDIR)/zstd.c $(ZSTDDIR)/fse.c $(ZSTDDIR)/huff0.c $(ZSTDDIR)/legacy/zstd_v01.c xxhash.c bench.c fileio.c zstdcli.c
+zstd32: $(ZSTDDIR)/zstd.c $(ZSTDDIR)/zstdhc.c $(ZSTDDIR)/fse.c $(ZSTDDIR)/huff0.c \
+      $(ZSTDDIR)/legacy/zstd_v01.c $(ZSTDDIR)/legacy/zstd_v02.c \
+      xxhash.c bench.c fileio.c zstdcli.c legacy/fileio_legacy.c
 	$(CC) -m32 $(FLAGS) $^ -o $@$(EXT)
 
-fullbench  : $(ZSTDDIR)/zstd.c $(ZSTDDIR)/fse.c $(ZSTDDIR)/huff0.c $(ZSTDDIR)/legacy/zstd_v01.c datagen.c fullbench.c
+fullbench  : $(ZSTDDIR)/zstd.c $(ZSTDDIR)/fse.c $(ZSTDDIR)/huff0.c \
+      $(ZSTDDIR)/legacy/zstd_v01.c $(ZSTDDIR)/legacy/zstd_v02.c \
+      datagen.c fullbench.c
 	$(CC)      $(FLAGS) $^ -o $@$(EXT)
 
-fullbench32: $(ZSTDDIR)/zstd.c $(ZSTDDIR)/fse.c $(ZSTDDIR)/huff0.c $(ZSTDDIR)/legacy/zstd_v01.c datagen.c fullbench.c
+fullbench32: $(ZSTDDIR)/zstd.c $(ZSTDDIR)/fse.c $(ZSTDDIR)/huff0.c \
+      $(ZSTDDIR)/legacy/zstd_v01.c $(ZSTDDIR)/legacy/zstd_v02.c \
+      datagen.c fullbench.c
 	$(CC) -m32 $(FLAGS) $^ -o $@$(EXT)
 
-fuzzer  : $(ZSTDDIR)/zstd.c $(ZSTDDIR)/fse.c $(ZSTDDIR)/huff0.c $(ZSTDDIR)/legacy/zstd_v01.c datagen.c xxhash.c fuzzer.c
+fuzzer  : $(ZSTDDIR)/zstd.c $(ZSTDDIR)/zstdhc.c $(ZSTDDIR)/fse.c $(ZSTDDIR)/huff0.c \
+      $(ZSTDDIR)/legacy/zstd_v01.c $(ZSTDDIR)/legacy/zstd_v02.c \
+      datagen.c xxhash.c fuzzer.c
 	$(CC)      $(FLAGS) $^ -o $@$(EXT)
 
-fuzzer32: $(ZSTDDIR)/zstd.c $(ZSTDDIR)/fse.c $(ZSTDDIR)/huff0.c $(ZSTDDIR)/legacy/zstd_v01.c datagen.c xxhash.c fuzzer.c
+fuzzer32: $(ZSTDDIR)/zstd.c $(ZSTDDIR)/zstdhc.c $(ZSTDDIR)/fse.c $(ZSTDDIR)/huff0.c \
+      $(ZSTDDIR)/legacy/zstd_v01.c $(ZSTDDIR)/legacy/zstd_v02.c \
+      datagen.c xxhash.c fuzzer.c
 	$(CC) -m32 $(FLAGS) $^ -o $@$(EXT)
+
+paramgrill : $(ZSTDDIR)/zstdhc.c $(ZSTDDIR)/zstd.c $(ZSTDDIR)/fse.c $(ZSTDDIR)/huff0.c \
+             $(ZSTDDIR)/legacy/zstd_v01.c $(ZSTDDIR)/legacy/zstd_v02.c \
+             datagen.c xxhash.c paramgrill.c
+	$(CC)      $(FLAGS) $^ -lm -o $@$(EXT)
 
 datagen : datagen.c datagencli.c
 	$(CC)      $(FLAGS) $^ -o $@$(EXT)
@@ -84,7 +101,7 @@ clean:
         zstd$(EXT) zstd32$(EXT) \
         fullbench$(EXT) fullbench32$(EXT) \
         fuzzer$(EXT) fuzzer32$(EXT) \
-	datagen$(EXT)
+	datagen$(EXT) paramgrill$(EXT)
 	@echo Cleaning completed
 
 
@@ -117,7 +134,7 @@ test: test-zstd test-fullbench test-fuzzer
 
 test32: test-zstd32 test-fullbench32 test-fuzzer32
 
-test-all: test test32 memtest
+test-all: test test32 valgrindTest
 
 test-zstd: zstd datagen
 	@echo "\n**** frame concatenation **** "
@@ -137,7 +154,9 @@ test-zstd: zstd datagen
 	echo foo | ./zstd | ./zstd -d > /dev/full; if [ $$? -eq 0 ] ; then echo "write error not detected!"; false; fi
 	@echo "**** zstd round-trip tests **** "
 	./datagen          | ./zstd -v    | ./zstd -d > $(VOID)
+	./datagen          | ./zstd -6 -v | ./zstd -d > $(VOID)
 	./datagen -g256MB  | ./zstd -v    | ./zstd -d > $(VOID)
+	./datagen -g256MB  | ./zstd -3 -v | ./zstd -d > $(VOID)
 	./datagen -g6GB -P99 | ./zstd -vq | ./zstd -d > $(VOID)
 
 test-zstd32: zstd32 datagen
@@ -159,11 +178,13 @@ test-fuzzer: fuzzer
 test-fuzzer32: fuzzer32
 	./fuzzer32
 
-memtest: zstd datagen fuzzer fullbench
+valgrindTest: zstd datagen fuzzer fullbench
 	@echo "\n ---- valgrind tests : memory analyzer ----"
 	valgrind --leak-check=yes --error-exitcode=1 ./datagen -g50M > $(VOID)
 	./datagen -g16KB > tmp
 	valgrind --leak-check=yes --error-exitcode=1 ./zstd -vf tmp $(VOID)
+	./datagen -g2930KB > tmp
+	valgrind --leak-check=yes --error-exitcode=1 ./zstd -4 -vf tmp $(VOID)
 	./datagen -g64MB > tmp
 	valgrind --leak-check=yes --error-exitcode=1 ./zstd -vf tmp $(VOID)
 	@rm tmp

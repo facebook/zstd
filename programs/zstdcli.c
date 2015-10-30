@@ -118,6 +118,8 @@ static int usage(const char* programName)
     DISPLAY( "input   : a filename\n");
     DISPLAY( "          with no FILE, or when FILE is - , read standard input\n");
     DISPLAY( "Arguments :\n");
+    DISPLAY( " -1     : Fast compression (default) \n");
+    DISPLAY( " -9     : High compression \n");
     DISPLAY( " -d     : decompression (default for %s extension)\n", ZSTD_EXTENSION);
     //DISPLAY( " -z     : force compression\n");
     DISPLAY( " -f     : overwrite output without prompting \n");
@@ -137,9 +139,10 @@ static int usage_advanced(const char* programName)
     DISPLAY( " -c     : force write to standard output, even if it is the console\n");
     //DISPLAY( " -t     : test compressed file integrity\n");
     DISPLAY( "Benchmark arguments :\n");
-    DISPLAY( " -b     : benchmark file(s)\n");
+    DISPLAY( " -b#    : benchmark file(s), using # compression level (default : 1) \n");
     DISPLAY( " -B#    : cut file into independent blocks of size # (default : no block)\n");
     DISPLAY( " -i#    : iteration loops [1-9](default : 3)\n");
+    DISPLAY( " -r#    : test all compression levels from 1 to # (default : disabled)\n");
     return 0;
 }
 
@@ -166,9 +169,11 @@ int main(int argc, char** argv)
         bench=0,
         decode=0,
         forceStdout=0,
-        main_pause=0;
+        main_pause=0,
+        rangeBench = 1;
     unsigned fileNameStart = 0;
     unsigned nbFiles = 0;
+    unsigned cLevel = 1;
     const char* programName = argv[0];
     const char* inFileName = NULL;
     const char* outFileName = NULL;
@@ -217,6 +222,19 @@ int main(int argc, char** argv)
 
             while (argument[0]!=0)
             {
+                /* compression Level */
+                if ((*argument>='0') && (*argument<='9'))
+                {
+                    cLevel = 0;
+                    while ((*argument >= '0') && (*argument <= '9'))
+                    {
+                        cLevel *= 10;
+                        cLevel += *argument - '0';
+                        argument++;
+                    }
+                    continue;
+                }
+
                 switch(argument[0])
                 {
                     /* Display help */
@@ -275,7 +293,14 @@ int main(int argc, char** argv)
                         BMK_SetBlockSize(bSize);
                     }
                     break;
-                                        /* Pause at the end (hidden option) */
+
+                    /* range bench (benchmark only) */
+                case 'r':
+                        rangeBench = -1;
+                        argument++;
+                        break;
+
+                    /* Pause at the end (hidden option) */
                 case 'p': main_pause=1; argument++; break;
 
                     /* unknown command */
@@ -307,7 +332,7 @@ int main(int argc, char** argv)
     if (!strcmp(inFileName, stdinmark) && IS_CONSOLE(stdin) ) return badusage(programName);
 
     /* Check if benchmark is selected */
-    if (bench) { BMK_benchFiles(argv+fileNameStart, nbFiles, 0); goto _end; }
+    if (bench) { BMK_benchFiles(argv+fileNameStart, nbFiles, cLevel*rangeBench); goto _end; }
 
     /* No output filename ==> try to select one automatically (when possible) */
     while (!outFileName)
@@ -351,7 +376,7 @@ int main(int argc, char** argv)
     if (decode)
         FIO_decompressFilename(outFileName, inFileName);
     else
-        FIO_compressFilename(outFileName, inFileName);
+        FIO_compressFilename(outFileName, inFileName, cLevel);
 
 _end:
     if (main_pause) waitEnter();

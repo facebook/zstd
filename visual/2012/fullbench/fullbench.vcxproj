@@ -83,7 +83,7 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>$(SolutionDir)..\..\lib;$(VCInstallDir)include;$(VCInstallDir)atlmfc\include;$(WindowsSDK_IncludePath);</IncludePath>
+    <IncludePath>$(SolutionDir)..\..\lib\legacy;$(SolutionDir)..\..\lib;$(VCInstallDir)include;$(VCInstallDir)atlmfc\include;$(WindowsSDK_IncludePath);</IncludePath>
     <RunCodeAnalysis>true</RunCodeAnalysis>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
@@ -162,6 +162,7 @@
     <ClCompile Include="..\..\..\lib\fse.c" />
     <ClCompile Include="..\..\..\lib\huff0.c" />
     <ClCompile Include="..\..\..\lib\legacy\zstd_v01.c" />
+    <ClCompile Include="..\..\..\lib\legacy\zstd_v02.c" />
     <ClCompile Include="..\..\..\lib\zstd.c" />
     <ClCompile Include="..\..\..\programs\datagen.c" />
     <ClCompile Include="..\..\..\programs\fullbench.c" />
@@ -171,7 +172,9 @@
     <ClInclude Include="..\..\..\lib\fse_static.h" />
     <ClInclude Include="..\..\..\lib\huff0.h" />
     <ClInclude Include="..\..\..\lib\huff0_static.h" />
+    <ClInclude Include="..\..\..\lib\legacy\zstd_legacy.h" />
     <ClInclude Include="..\..\..\lib\legacy\zstd_v01.h" />
+    <ClInclude Include="..\..\..\lib\legacy\zstd_v02.h" />
     <ClInclude Include="..\..\..\lib\zstd.h" />
     <ClInclude Include="..\..\..\lib\zstd_static.h" />
     <ClInclude Include="..\..\..\programs\datagen.h" />

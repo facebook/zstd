@@ -23,6 +23,7 @@
     <ClCompile Include="..\..\..\lib\huff0.c" />
     <ClCompile Include="..\..\..\lib\legacy\zstd_v01.c" />
     <ClCompile Include="..\..\..\lib\zstd.c" />
+    <ClCompile Include="..\..\..\lib\zstdhc.c" />
     <ClCompile Include="..\..\..\programs\bench.c" />
     <ClCompile Include="..\..\..\programs\fileio.c" />
     <ClCompile Include="..\..\..\programs\xxhash.c" />
@@ -35,6 +36,9 @@
     <ClInclude Include="..\..\..\lib\huff0_static.h" />
     <ClInclude Include="..\..\..\lib\legacy\zstd_v01.h" />
     <ClInclude Include="..\..\..\lib\zstd.h" />
+    <ClInclude Include="..\..\..\lib\zstdhc.h" />
+    <ClInclude Include="..\..\..\lib\zstdhc_static.h" />
+    <ClInclude Include="..\..\..\lib\zstd_internal.h" />
     <ClInclude Include="..\..\..\lib\zstd_static.h" />
     <ClInclude Include="..\..\..\programs\bench.h" />
     <ClInclude Include="..\..\..\programs\fileio.h" />

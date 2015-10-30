@@ -419,7 +419,7 @@ static int BMK_benchOneFile(char* inFileName, int cLevel)
     U64    inFileSize;
     size_t benchedSize, readSize;
     void* srcBuffer;
-    int result;
+    int result=0;
 
     /* Check file existence */
     inFile = fopen(inFileName, "rb");
@@ -476,7 +476,7 @@ static int BMK_syntheticTest(int cLevel, double compressibility)
 {
     size_t benchedSize = 10000000;
     void* srcBuffer = malloc(benchedSize);
-    int result;
+    int result=0;
     char name[20] = {0};
 
     /* Memory allocation */

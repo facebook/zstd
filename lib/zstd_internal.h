@@ -52,7 +52,7 @@ static size_t ZSTD_read_ARCH(const void* p) { size_t r; memcpy(&r, p, sizeof(r))
 static unsigned ZSTD_highbit(U32 val)
 {
 #   if defined(_MSC_VER)   /* Visual */
-    unsigned long r;
+    unsigned long r=0;
     _BitScanReverse(&r, val);
     return (unsigned)r;
 #   elif defined(__GNUC__) && (__GNUC__ >= 3)   /* GCC Intrinsic */
@@ -91,7 +91,7 @@ MEM_STATIC unsigned ZSTD_NbCommonBytes (register size_t val)
         else /* 32 bits */
         {
 #       if defined(_MSC_VER)
-            unsigned long r;
+            unsigned long r=0;
             _BitScanForward( &r, (U32)val );
             return (int)(r>>3);
 #       elif defined(__GNUC__) && (__GNUC__ >= 3)

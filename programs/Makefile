@@ -140,7 +140,9 @@ test-zstd: zstd datagen
 	echo foo | ./zstd | ./zstd -d > /dev/full; if [ $$? -eq 0 ] ; then echo "write error not detected!"; false; fi
 	@echo "**** zstd round-trip tests **** "
 	./datagen          | ./zstd -v    | ./zstd -d > $(VOID)
+	./datagen          | ./zstd -6 -v | ./zstd -d > $(VOID)
 	./datagen -g256MB  | ./zstd -v    | ./zstd -d > $(VOID)
+	./datagen -g256MB  | ./zstd -3 -v | ./zstd -d > $(VOID)
 	./datagen -g6GB -P99 | ./zstd -vq | ./zstd -d > $(VOID)
 
 test-zstd32: zstd32 datagen

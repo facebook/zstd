@@ -115,19 +115,19 @@ static const int g_maxNbVariations = 64;
 /**************************************
 *  Benchmark Parameters
 **************************************/
-static U32 nbIterations = NBLOOPS;
+static U32 g_nbIterations = NBLOOPS;
 static double g_compressibility = COMPRESSIBILITY_DEFAULT;
 static U32 g_blockSize = 0;
 static U32 g_rand = 1;
 static U32 g_singleRun = 0;
 static U32 g_target = 0;
 static U32 g_noSeed = 0;
-static ZSTD_HC_parameters g_params = { 0, 0, 0, 0 };
+static ZSTD_HC_parameters g_params = { 0, 0, 0, 0, 0 };
 
 void BMK_SetNbIterations(int nbLoops)
 {
-    nbIterations = nbLoops;
-    DISPLAY("- %u iterations -\n", nbIterations);
+    g_nbIterations = nbLoops;
+    DISPLAY("- %u iterations -\n", g_nbIterations);
 }
 
 
@@ -282,6 +282,7 @@ static size_t BMK_benchParam(BMK_result_t* resultPtr,
     U32 Clog = params.chainLog;
     U32 Hlog = params.hashLog;
     U32 Slog = params.searchLog;
+    U32 Slength = params.searchLength;
     U64 crcOrig;
 
     /* Memory allocation & restrictions */
@@ -332,7 +333,7 @@ static size_t BMK_benchParam(BMK_result_t* resultPtr,
         const int startTime =BMK_GetMilliStart();
 
         DISPLAY("\r%79s\r", "");
-        for (loopNb = 1; loopNb <= nbIterations; loopNb++)
+        for (loopNb = 1; loopNb <= g_nbIterations; loopNb++)
         {
             int nbLoops;
             int milliTime;
@@ -343,7 +344,7 @@ static size_t BMK_benchParam(BMK_result_t* resultPtr,
             if (totalTime > g_maxParamTime) break;
 
             /* Compression */
-            DISPLAY("%1u-W%02uC%02uH%02uS%02u : %9u ->\r", loopNb, Wlog, Clog, Hlog, Slog, (U32)srcSize);
+            DISPLAY("%1u-W%02uC%02uH%02uS%02uL%02u : %9u ->\r", loopNb, Wlog, Clog, Hlog, Slog, Slength, (U32)srcSize);
             memset(compressedBuffer, 0xE5, maxCompressedSize);
 
             nbLoops = 0;
@@ -366,7 +367,7 @@ static size_t BMK_benchParam(BMK_result_t* resultPtr,
                 cSize += blockTable[blockNb].cSize;
             if ((double)milliTime < fastestC*nbLoops) fastestC = (double)milliTime / nbLoops;
             ratio = (double)srcSize / (double)cSize;
-            DISPLAY("%1u-W%02uC%02uH%02uS%02u : %9u ->", loopNb, Wlog, Clog, Hlog, Slog, (U32)srcSize);
+            DISPLAY("%1u-W%02uC%02uH%02uS%02uL%02u : %9u ->", loopNb, Wlog, Clog, Hlog, Slog, Slength, (U32)srcSize);
             DISPLAY(" %9u (%4.3f),%7.1f MB/s\r", (U32)cSize, ratio, (double)srcSize / fastestC / 1000.);
             resultPtr->cSize = cSize;
             resultPtr->cSpeed = (U32)((double)srcSize / fastestC);
@@ -388,7 +389,7 @@ static size_t BMK_benchParam(BMK_result_t* resultPtr,
             milliTime = BMK_GetMilliSpan(milliTime);
 
             if ((double)milliTime < fastestD*nbLoops) fastestD = (double)milliTime / nbLoops;
-            DISPLAY("%1u-W%02uC%02uH%02uS%02u : %9u -> ", loopNb, Wlog, Clog, Hlog, Slog, (U32)srcSize);
+            DISPLAY("%1u-W%02uC%02uH%02uS%02uL%02u : %9u -> ", loopNb, Wlog, Clog, Hlog, Slog, Slength, (U32)srcSize);
             DISPLAY("%9u (%4.3f),%7.1f MB/s, ", (U32)cSize, ratio, (double)srcSize / fastestC / 1000.);
             DISPLAY("%7.1f MB/s\r", (double)srcSize / fastestD / 1000.);
             resultPtr->dSpeed = (U32)((double)srcSize / fastestD);
@@ -424,17 +425,14 @@ static size_t BMK_benchParam(BMK_result_t* resultPtr,
 static void BMK_printWinner(FILE* f, U32 cLevel, BMK_result_t result, ZSTD_HC_parameters params, size_t srcSize)
 {
     DISPLAY("\r%79s\r", "");
-    fprintf(f,"    {%3u,%3u,%3u,%3u },   ", params.windowLog, params.chainLog, params.hashLog, params.searchLog);
+    fprintf(f,"    {%3u,%3u,%3u,%3u,%3u },   ", params.windowLog, params.chainLog, params.hashLog, params.searchLog, params.searchLength);
     fprintf(f,
-            "/* level %2u */     /* R:%5.3f at %5.1f MB/s */ \n",
-            cLevel, (double)srcSize / result.cSize, (double)result.cSpeed / 1000.);
+            "/* level %2u */     /* R:%5.3f at %5.1f MB/s - %5.1f MB/s */ \n",
+            cLevel, (double)srcSize / result.cSize, (double)result.cSpeed / 1000., (double)result.dSpeed / 1000.);
 }
 
 
-static U32 g_cSpeedTarget[ZSTD_HC_MAX_CLEVEL+1] = {
-    300000, 200000, 150000, 100000, 70000, 50000, 35000, 25000, 15000, 10000, /* 0 - 9 */
-    7000, 5000, 3500, 2500, 1500, 1000, 700, 500, 350, 250, /* 10 - 19 */
-    0 }; /* 20 */
+static U32 g_cSpeedTarget[ZSTD_HC_MAX_CLEVEL+1] = { 0 };
 
 typedef struct {
     BMK_result_t result;
@@ -448,7 +446,7 @@ static void BMK_printWinners2(FILE* f, const winnerInfo_t* winners, size_t srcSi
     fprintf(f, "\n /* Selected configurations : */ \n");
     fprintf(f, "#define ZSTD_HC_MAX_CLEVEL %2u \n", ZSTD_HC_MAX_CLEVEL);
     fprintf(f, "static const ZSTD_HC_parameters ZSTD_HC_defaultParameters[ZSTD_HC_MAX_CLEVEL+1] = {\n");
-    fprintf(f, "    /* W,  C,  H,  S */ \n");
+    fprintf(f, "    /* W,  C,  H,  S,  L */ \n");
 
     for (cLevel=0; cLevel <= ZSTD_HC_MAX_CLEVEL; cLevel++)
         BMK_printWinner(f, cLevel, winners[cLevel].result, winners[cLevel].params, srcSize);
@@ -474,7 +472,7 @@ static int BMK_seed(winnerInfo_t* winners, const ZSTD_HC_parameters params,
 
     BMK_benchParam(&testResult, srcBuffer, srcSize, ctx, params);
 
-    for (cLevel = 1; cLevel <= ZSTD_HC_MAX_CLEVEL; cLevel++)
+    for (cLevel = 2; cLevel <= ZSTD_HC_MAX_CLEVEL; cLevel++)
     {
         if (testResult.cSpeed < g_cSpeedTarget[cLevel])
             continue;   /* not fast enough for this level */
@@ -505,8 +503,8 @@ static int BMK_seed(winnerInfo_t* winners, const ZSTD_HC_parameters params,
             double W_CMemUsed_note = W_ratioNote * ( 50 + 13*cLevel) - log((double)W_CMemUsed);
             double O_CMemUsed_note = O_ratioNote * ( 50 + 13*cLevel) - log((double)O_CMemUsed);
 
-            double W_CSpeed_note = W_ratioNote * ( 30 + 8*cLevel) + log((double)testResult.cSpeed);
-            double O_CSpeed_note = O_ratioNote * ( 30 + 8*cLevel) + log((double)winners[cLevel].result.cSpeed);
+            double W_CSpeed_note = W_ratioNote * ( 30 + 10*cLevel) + log((double)testResult.cSpeed);
+            double O_CSpeed_note = O_ratioNote * ( 30 + 10*cLevel) + log((double)winners[cLevel].result.cSpeed);
 
             double W_DSpeed_note = W_ratioNote * ( 20 + 2*cLevel) + log((double)testResult.dSpeed);
             double O_DSpeed_note = O_ratioNote * ( 20 + 2*cLevel) + log((double)winners[cLevel].result.dSpeed);
@@ -595,7 +593,7 @@ static void playAround(FILE* f, winnerInfo_t* winners,
 
         for (; nbChanges; nbChanges--)
         {
-            const U32 changeID = FUZ_rand(&g_rand) & 7;
+            const U32 changeID = FUZ_rand(&g_rand) % 9;
             switch(changeID)
             {
             case 0:
@@ -614,6 +612,10 @@ static void playAround(FILE* f, winnerInfo_t* winners,
                 p.windowLog++; break;
             case 7:
                 p.windowLog--; break;
+            case 8:
+                p.searchLength++; break;
+            case 9:
+                p.searchLength--; break;
             }
         }
 
@@ -627,6 +629,8 @@ static void playAround(FILE* f, winnerInfo_t* winners,
         if (p.hashLog < ZSTD_HC_HASHLOG_MIN) continue;
         if (p.searchLog > p.chainLog) continue;
         if (p.searchLog < ZSTD_HC_SEARCHLOG_MIN) continue;
+        if (p.searchLength > ZSTD_HC_SEARCHLENGTH_MAX) continue;
+        if (p.searchLength < ZSTD_HC_SEARCHLENGTH_MIN) continue;
 
         /* exclude faster if already played params */
         if (FUZ_rand(&g_rand) & ((1 << NB_TESTS_PLAYED(p))-1)) continue;
@@ -653,10 +657,11 @@ static void BMK_selectRandomStart(
     {
         /* totally random entry */
         ZSTD_HC_parameters p;
-        p.chainLog  = FUZ_rand(&g_rand) % (ZSTD_HC_CHAINLOG_MAX+1 - ZSTD_HC_CHAINLOG_MIN) + ZSTD_HC_CHAINLOG_MIN;
-        p.hashLog   = FUZ_rand(&g_rand) % (ZSTD_HC_HASHLOG_MAX+1 - ZSTD_HC_HASHLOG_MIN) + ZSTD_HC_HASHLOG_MIN;
-        p.searchLog = FUZ_rand(&g_rand) % (ZSTD_HC_SEARCHLOG_MAX+1 - ZSTD_HC_SEARCHLOG_MIN) + ZSTD_HC_SEARCHLOG_MIN;
-        p.windowLog = FUZ_rand(&g_rand) % (ZSTD_HC_WINDOWLOG_MAX+1 - ZSTD_HC_WINDOWLOG_MIN) + ZSTD_HC_WINDOWLOG_MIN;
+        p.chainLog   = FUZ_rand(&g_rand) % (ZSTD_HC_CHAINLOG_MAX+1 - ZSTD_HC_CHAINLOG_MIN) + ZSTD_HC_CHAINLOG_MIN;
+        p.hashLog    = FUZ_rand(&g_rand) % (ZSTD_HC_HASHLOG_MAX+1 - ZSTD_HC_HASHLOG_MIN) + ZSTD_HC_HASHLOG_MIN;
+        p.searchLog  = FUZ_rand(&g_rand) % (ZSTD_HC_SEARCHLOG_MAX+1 - ZSTD_HC_SEARCHLOG_MIN) + ZSTD_HC_SEARCHLOG_MIN;
+        p.windowLog  = FUZ_rand(&g_rand) % (ZSTD_HC_WINDOWLOG_MAX+1 - ZSTD_HC_WINDOWLOG_MIN) + ZSTD_HC_WINDOWLOG_MIN;
+        p.searchLength=FUZ_rand(&g_rand) % (ZSTD_HC_SEARCHLENGTH_MAX+1 - ZSTD_HC_SEARCHLENGTH_MIN) + ZSTD_HC_SEARCHLENGTH_MIN;
         playAround(f, winners, p, srcBuffer, srcSize, ctx);
     }
     else
@@ -664,7 +669,7 @@ static void BMK_selectRandomStart(
 }
 
 
-static const ZSTD_HC_parameters* seedParams = ZSTD_HC_defaultParameters;
+static const ZSTD_HC_parameters* g_seedParams = ZSTD_HC_defaultParameters;
 
 static void BMK_benchMem(void* srcBuffer, size_t srcSize)
 {
@@ -690,12 +695,12 @@ static void BMK_benchMem(void* srcBuffer, size_t srcSize)
     if (f==NULL) { DISPLAY("error opening %s \n", rfName); exit(1); }
 
     if (g_target)
-        g_cSpeedTarget[1] = g_target * 1000;
+        g_cSpeedTarget[2] = g_target * 1000;
     else
     {
         /* baseline config for level 2 */
         BMK_result_t testResult;
-        params = seedParams[2];
+        params = g_seedParams[2];
         params.windowLog = MIN(srcLog, params.windowLog);
         params.chainLog = MIN(params.windowLog, params.chainLog);
         params.searchLog = MIN(params.chainLog, params.searchLog);
@@ -712,7 +717,7 @@ static void BMK_benchMem(void* srcBuffer, size_t srcSize)
         const int maxSeeds = g_noSeed ? 2 : ZSTD_HC_MAX_CLEVEL;
         for (i=2; i<=maxSeeds; i++)
         {
-            params = seedParams[i];
+            params = g_seedParams[i];
             params.windowLog = MIN(srcLog, params.windowLog);
             params.chainLog = MIN(params.windowLog, params.chainLog);
             params.searchLog = MIN(params.chainLog, params.searchLog);
@@ -899,11 +904,7 @@ int main(int argc, char** argv)
                 case 'i':
                     argument++;
                     if ((argument[0] >='0') && (argument[0] <='9'))
-                    {
-                        int iters = argument[0] - '0';
-                        BMK_SetNbIterations(iters);
-                        argument++;
-                    }
+                        g_nbIterations = *argument++ - '0';
                     break;
 
                     /* Sample compressibility (when no file provided) */
@@ -923,21 +924,61 @@ int main(int argc, char** argv)
 
                     /* Run Single conf */
                 case 'S':
+                    g_singleRun = 1;
+                    argument++;
+                    g_params = g_seedParams[2];
+                    for ( ; ; )
                     {
-                        if (argument[ 1]!='w') return badusage(exename);
-                        if (argument[ 4]!='c') return badusage(exename);
-                        if (argument[ 7]!='h') return badusage(exename);
-                        if (argument[10]!='s') return badusage(exename);
-                        g_singleRun = 1;
-                        g_params.windowLog = (argument[ 2] - '0') * 10 + (argument[ 3] - '0');
-                        g_params.chainLog  = (argument[ 5] - '0') * 10 + (argument[ 6] - '0');
-                        g_params.hashLog   = (argument[ 8] - '0') * 10 + (argument[ 9] - '0');
-                        g_params.searchLog = (argument[11] - '0') * 10 + (argument[12] - '0');
-                        argument += 13;
+                        switch(*argument)
+                        {
+                        case 'w':
+                            g_params.windowLog = 0;
+                            argument++;
+                            while ((*argument>= '0') && (*argument<='9'))
+                                g_params.windowLog *= 10, g_params.windowLog += *argument++ - '0';
+                            continue;
+                        case 'c':
+                            g_params.chainLog = 0;
+                            argument++;
+                            while ((*argument>= '0') && (*argument<='9'))
+                                g_params.chainLog *= 10, g_params.chainLog += *argument++ - '0';
+                            continue;
+                        case 'h':
+                            g_params.hashLog = 0;
+                            argument++;
+                            while ((*argument>= '0') && (*argument<='9'))
+                                g_params.hashLog *= 10, g_params.hashLog += *argument++ - '0';
+                            continue;
+                        case 's':
+                            g_params.searchLog = 0;
+                            argument++;
+                            while ((*argument>= '0') && (*argument<='9'))
+                                g_params.searchLog *= 10, g_params.searchLog += *argument++ - '0';
+                            continue;
+                        case 'l':
+                            g_params.searchLength = 0;
+                            argument++;
+                            while ((*argument>= '0') && (*argument<='9'))
+                                g_params.searchLength *= 10, g_params.searchLength += *argument++ - '0';
+                            continue;
+                        case 'L':
+                            {
+                                int cLevel = 0;
+                                argument++;
+                                while ((*argument>= '0') && (*argument<='9'))
+                                    cLevel *= 10, cLevel += *argument++ - '0';
+                                if (cLevel < 2) cLevel = 2;
+                                if (cLevel > ZSTD_HC_MAX_CLEVEL) cLevel = ZSTD_HC_MAX_CLEVEL;
+                                g_params = g_seedParams[cLevel];
+                                continue;
+                            }
+                        default : ;
+                        }
                         break;
                     }
+                    break;
 
-                    /* target level1 speed objective, in MB/s */
+                    /* target level2 speed objective, in MB/s */
                 case 'T':
                     argument++;
                     g_target = 0;

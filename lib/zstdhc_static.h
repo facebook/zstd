@@ -47,10 +47,11 @@ extern "C" {
 ***************************************/
 typedef struct
 {
-    U32 windowLog;    /* largest match distance : impact decompression buffer size */
-    U32 chainLog;     /* full search distance : larger == more compression, slower, more memory*/
-    U32 hashLog;      /* dispatch table : larger == more memory, faster*/
-    U32 searchLog;    /* nb of searches : larger == more compression, slower*/
+    U32 windowLog;     /* largest match distance : impact decompression buffer size */
+    U32 chainLog;      /* full search distance : larger == more compression, slower, more memory*/
+    U32 hashLog;       /* dispatch table : larger == more memory, faster*/
+    U32 searchLog;     /* nb of searches : larger == more compression, slower*/
+    U32 searchLength;  /* size of matches : larger == faster decompression */
 } ZSTD_HC_parameters;
 
 /* parameters boundaries */
@@ -62,6 +63,8 @@ typedef struct
 #define ZSTD_HC_HASHLOG_MIN 4
 #define ZSTD_HC_SEARCHLOG_MAX (ZSTD_HC_CHAINLOG_MAX-1)
 #define ZSTD_HC_SEARCHLOG_MIN 1
+#define ZSTD_HC_SEARCHLENGTH_MAX 6
+#define ZSTD_HC_SEARCHLENGTH_MIN 4
 
 
 /* *************************************
@@ -89,35 +92,34 @@ size_t ZSTD_HC_compressEnd(ZSTD_HC_CCtx* ctx, void* dst, size_t maxDstSize);
 #define ZSTD_HC_MAX_CLEVEL 26
 static const ZSTD_HC_parameters ZSTD_HC_defaultParameters[ZSTD_HC_MAX_CLEVEL+1] = {
     /* W,  C,  H,  S */
-    { 18, 12, 14,  1 },   /* level  0 - never used */
-    { 18, 12, 14,  1 },   /* real level 1 - all levels below are +1 */
-    { 18, 12, 15,  2 },   /* level  1 */
-    { 19, 14, 16,  3 },   /* level  2 */
-    { 20, 18, 18,  3 },   /* level  3 */
-    { 20, 19, 19,  3 },   /* level  4 */
-    { 20, 19, 19,  4 },   /* level  5 */
-    { 20, 20, 19,  4 },   /* level  6 */
-    { 20, 19, 19,  5 },   /* level  7 */
-    { 20, 19, 19,  6 },   /* level  8 */
-    { 20, 20, 20,  6 },   /* level  9 */
-    { 21, 20, 21,  6 },   /* level 10 */
-    { 21, 20, 21,  7 },   /* level 11 */
-    { 21, 20, 22,  7 },   /* level 12 */
-    { 21, 21, 23,  7 },   /* level 13 */
-    { 21, 21, 23,  7 },   /* level 14 */
-    { 21, 21, 23,  8 },   /* level 15 */
-    { 21, 21, 23,  9 },   /* level 16 */
-    { 21, 21, 23,  9 },   /* level 17 */
-    { 21, 21, 23, 10 },   /* level 18 */
-    { 22, 22, 23,  9 },   /* level 19 */
-    { 22, 22, 23,  9 },   /* level 20 */
-    { 22, 22, 23, 10 },   /* level 21 */
-    { 22, 22, 23, 10 },   /* level 22 */
-    { 22, 22, 23, 11 },   /* level 23 */
-    { 22, 22, 23, 12 },   /* level 24 */
-    { 23, 23, 23, 11 },   /* level 25 */
+    { 18, 12, 14,  1,  4 },   /* level  0 - never used */
+    { 18, 12, 14,  1,  4 },   /* level  1 - in fact redirected towards zstd fast */
+    { 18, 12, 15,  2,  4 },   /* level  2 */
+    { 19, 14, 16,  3,  4 },   /* level  3 */
+    { 20, 15, 17,  4,  5 },   /* level  4 */
+    { 20, 17, 19,  4,  5 },   /* level  5 */
+    { 20, 19, 19,  4,  5 },   /* level  6 */
+    { 20, 19, 19,  5,  5 },   /* level  7 */
+    { 20, 20, 20,  5,  5 },   /* level  8 */
+    { 20, 20, 20,  6,  5 },   /* level  9 */
+    { 21, 21, 20,  5,  5 },   /* level 10 */
+    { 22, 21, 22,  6,  5 },   /* level 11 */
+    { 23, 21, 22,  6,  5 },   /* level 12 */
+    { 23, 21, 22,  7,  5 },   /* level 13 */
+    { 22, 22, 23,  7,  5 },   /* level 14 */
+    { 22, 22, 23,  7,  5 },   /* level 15 */
+    { 22, 22, 23,  8,  5 },   /* level 16 */
+    { 22, 22, 23,  8,  5 },   /* level 17 */
+    { 22, 22, 23,  9,  5 },   /* level 18 */
+    { 22, 22, 23,  9,  5 },   /* level 19 */
+    { 23, 23, 23,  9,  5 },   /* level 20 */
+    { 23, 23, 23,  9,  5 },   /* level 21 */
+    { 23, 23, 23, 10,  5 },   /* level 22 */
+    { 23, 23, 23, 10,  5 },   /* level 23 */
+    { 23, 23, 23, 11,  5 },   /* level 24 */
+    { 23, 23, 23, 12,  5 },   /* level 25 */
+    { 23, 23, 23, 13,  5 },   /* level 26 */   /* ZSTD_HC_MAX_CLEVEL */
 };
-
 
 #if defined (__cplusplus)
 }

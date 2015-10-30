@@ -247,6 +247,7 @@ static size_t ZSTD_HC_compressBlock(ZSTD_HC_CCtx* ctx, void* dst, size_t maxDstS
     const BYTE* anchor = istart;
     const BYTE* const iend = istart + srcSize;
     const BYTE* const ilimit = iend - 8;
+    const BYTE* match = istart;
 
     size_t offset_2=REPCODE_STARTVALUE, offset_1=REPCODE_STARTVALUE;
     const U32 maxSearches = 1 << ctx->params.searchLog;
@@ -288,7 +289,6 @@ static size_t ZSTD_HC_compressBlock(ZSTD_HC_CCtx* ctx, void* dst, size_t maxDstS
 
         /* search */
         {
-            const BYTE* match;
             size_t matchLength = ZSTD_HC_insertAndFindBestMatch(ctx, ip, iend, &match, maxSearches);
             if (!matchLength) { ip++; continue; }
             /* store sequence */

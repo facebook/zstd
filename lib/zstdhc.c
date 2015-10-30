@@ -114,8 +114,8 @@ static size_t ZSTD_HC_resetCCtx_advanced (ZSTD_HC_CCtx* zc,
             if (zc->workSpace == NULL) return ERROR(memory_allocation);
         }
         zc->hashTable = (U32*)zc->workSpace;
-        zc->chainTable = zc->hashTable + (1 << params.hashLog);
-        zc->seqStore.buffer = (void*) (zc->chainTable + (1 << params.chainLog));
+        zc->chainTable = zc->hashTable + ((size_t)1 << params.hashLog);
+        zc->seqStore.buffer = (void*) (zc->chainTable + ((size_t)1 << params.chainLog));
         memset(zc->hashTable, 0, tableSpace );
     }
 

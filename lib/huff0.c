@@ -1409,7 +1409,7 @@ size_t HUF_readDTableX6 (U32* DTable, const void* src, size_t srcSize)
     /* fill tables */
     {
         HUF_DDescX6* DDescription = (HUF_DDescX6*)(DTable+1);
-        HUF_DSeqX6* DSequence = (HUF_DSeqX6*)(DTable + 1 + (1<<(memLog-1)));
+        HUF_DSeqX6* DSequence = (HUF_DSeqX6*)(DTable + 1 + ((size_t)1<<(memLog-1)));
         HUF_DSeqX6 DSeq;
         HUF_DDescX6 DDesc;
         DSeq.sequence = 0;
@@ -1469,7 +1469,7 @@ static U32 HUF_decodeLastSymbolsX6(void* op, const U32 maxL, BIT_DStream_t* DStr
 static inline size_t HUF_decodeStreamX6(BYTE* p, BIT_DStream_t* bitDPtr, BYTE* const pEnd, const U32* DTable, const U32 dtLog)
 {
     const HUF_DDescX6* dd = (const HUF_DDescX6*)(DTable+1);
-    const HUF_DSeqX6* ds = (const HUF_DSeqX6*)(DTable + 1 + (1<<(dtLog-1)));
+    const HUF_DSeqX6* ds = (const HUF_DSeqX6*)(DTable + 1 + ((size_t)1<<(dtLog-1)));
     BYTE* const pStart = p;
 
     /* up to 16 symbols at a time */
@@ -1551,7 +1551,7 @@ size_t HUF_decompress4X6_usingDTable(
 
         const U32 dtLog = DTable[0];
         const HUF_DDescX6* dd = (const HUF_DDescX6*)(DTable+1);
-        const HUF_DSeqX6* ds = (const HUF_DSeqX6*)(DTable + 1 + (1<<(dtLog-1)));
+        const HUF_DSeqX6* ds = (const HUF_DSeqX6*)(DTable + 1 + ((size_t)1<<(dtLog-1)));
         size_t errorCode;
 
         /* Init */

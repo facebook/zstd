@@ -32,7 +32,8 @@
    - Source repository : https://github.com/Cyan4973/FiniteStateEntropy
    - Public forum : https://groups.google.com/forum/#!forum/lz4c
 ****************************************************************** */
-#pragma once
+#ifndef FSE_H
+#define FSE_H
 
 #if defined (__cplusplus)
 extern "C" {
@@ -290,3 +291,5 @@ If there is an error, the function will return an error code, which can be teste
 #if defined (__cplusplus)
 }
 #endif
+
+#endif  /* FSE_H */

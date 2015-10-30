@@ -508,8 +508,8 @@ static int BMK_seed(winnerInfo_t* winners, const ZSTD_HC_parameters params,
             double W_CSpeed_note = W_ratioNote * ( 30 + 8*cLevel) + log((double)testResult.cSpeed);
             double O_CSpeed_note = O_ratioNote * ( 30 + 8*cLevel) + log((double)winners[cLevel].result.cSpeed);
 
-            double W_DSpeed_note = W_ratioNote * ( 10 + 2*cLevel) + log((double)testResult.dSpeed);
-            double O_DSpeed_note = O_ratioNote * ( 10 + 2*cLevel) + log((double)winners[cLevel].result.dSpeed);
+            double W_DSpeed_note = W_ratioNote * ( 20 + 2*cLevel) + log((double)testResult.dSpeed);
+            double O_DSpeed_note = O_ratioNote * ( 20 + 2*cLevel) + log((double)winners[cLevel].result.dSpeed);
 
 
             if (W_DMemUsed_note < O_DMemUsed_note)

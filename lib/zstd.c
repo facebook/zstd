@@ -73,7 +73,7 @@
 #include "huff0.h"
 
 #if defined(ZSTD_LEGACY_SUPPORT) && (ZSTD_LEGACY_SUPPORT==1)
-#  include "zstd_v01.h"
+#  include "zstd_legacy.h"
 #endif
 
 
@@ -1307,7 +1307,8 @@ static size_t ZSTD_decompressDCtx(void* ctx, void* dst, size_t maxDstSize, const
     if (srcSize < ZSTD_frameHeaderSize+ZSTD_blockHeaderSize) return ERROR(srcSize_wrong);
     magicNumber = MEM_readLE32(src);
 #if defined(ZSTD_LEGACY_SUPPORT) && (ZSTD_LEGACY_SUPPORT==1)
-    if (magicNumber == ZSTDv01_magicNumberLE) return ZSTDv01_decompressDCtx(ctx, dst, maxDstSize, src, srcSize);
+    if (ZSTD_isLegacy(magicNumber))
+        return ZSTD_decompressLegacy(dst, maxDstSize, src, srcSize, magicNumber);
 #endif
     if (magicNumber != ZSTD_magicNumber) return ERROR(prefix_unknown);
     ip += ZSTD_frameHeaderSize; remainingSize -= ZSTD_frameHeaderSize;

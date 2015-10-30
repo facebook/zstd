@@ -78,7 +78,7 @@
 /**************************************
 *  Constants
 **************************************/
-#define PROGRAM_DESCRIPTION "zStandard speed analyzer"
+#define PROGRAM_DESCRIPTION "Zstandard speed analyzer"
 #ifndef ZSTD_VERSION
 #  define ZSTD_VERSION ""
 #endif

@@ -30,7 +30,8 @@
     - zstd source repository : https://github.com/Cyan4973/zstd
     - ztsd public forum : https://groups.google.com/forum/#!forum/lz4c
 */
-#pragma once
+#ifndef ZSTD_STATIC_H
+#define ZSTD_STATIC_H
 
 /* The objects defined into this file should be considered experimental.
  * They are not labelled stable, as their prototype may change in the future.
@@ -73,7 +74,7 @@ size_t ZSTD_decompressContinue(ZSTD_DCtx* dctx, void* dst, size_t maxDstSize, co
 /* *************************************
 *  Prefix - version detection
 ***************************************/
-#define ZSTD_magicNumber 0xFD2FB522   /* v0.2 (current)*/
+#define ZSTD_magicNumber 0xFD2FB523   /* v0.3 (current)*/
 
 
 /* *************************************
@@ -85,3 +86,5 @@ size_t ZSTD_decompressContinue(ZSTD_DCtx* dctx, void* dst, size_t maxDstSize, co
 #if defined (__cplusplus)
 }
 #endif
+
+#endif  /* ZSTD_STATIC_H */

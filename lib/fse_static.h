@@ -32,7 +32,8 @@
    - Source repository : https://github.com/Cyan4973/FiniteStateEntropy
    - Public forum : https://groups.google.com/forum/#!forum/lz4c
 ****************************************************************** */
-#pragma once
+#ifndef FSE_STATIC_H
+#define FSE_STATIC_H
 
 #if defined (__cplusplus)
 extern "C" {
@@ -305,3 +306,5 @@ MEM_STATIC unsigned FSE_endOfDState(const FSE_DState_t* DStatePtr)
 #if defined (__cplusplus)
 }
 #endif
+
+#endif  /* FSE_STATIC_H */

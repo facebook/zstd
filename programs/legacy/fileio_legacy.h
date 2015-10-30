@@ -30,38 +30,15 @@ extern "C" {
 
 
 /* *************************************
-*  Special i/o constants
-**************************************/
-#define nullString "null"
-#define stdinmark "-"
-#define stdoutmark "-"
-#ifdef _WIN32
-#  define nulmark "nul"
-#else
-#  define nulmark "/dev/null"
-#endif
-
-
-/* *************************************
 *  Parameters
 ***************************************/
-void FIO_overwriteMode(void);
-void FIO_setNotificationLevel(unsigned level);
+void FIO_legacy_setNotificationLevel(unsigned level);
 
 
 /* *************************************
 *  Stream/File functions
 ***************************************/
-unsigned long long FIO_compressFilename (const char* outfilename, const char* infilename, int compressionLevel);
-unsigned long long FIO_decompressFilename (const char* outfilename, const char* infilename);
-/**
-FIO_compressFilename :
-    @result : size of compressed file
-
-FIO_decompressFilename :
-    @result : size of regenerated file
-*/
-
+unsigned long long FIO_decompressLegacyFrame(FILE* foutput, FILE* finput, U32 magicNumberLE);
 
 
 #if defined (__cplusplus)

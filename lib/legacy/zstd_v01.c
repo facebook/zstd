@@ -988,7 +988,7 @@ static size_t HUF_readDTable (U16* DTable, const void* src, size_t srcSize)
         {
             static int l[14] = { 1, 2, 3, 4, 7, 8, 15, 16, 31, 32, 63, 64, 127, 128 };
             oSize = l[iSize-242];
-            memset(huffWeight, 1, oSize);
+            memset(huffWeight, 1, sizeof(huffWeight));
             iSize = 0;
         }
         else   /* Incompressible */

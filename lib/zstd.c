@@ -39,7 +39,7 @@
 *  Increasing memory usage improves compression ratio
 *  Reduced memory usage can improve speed, due to cache effect
 */
-#define ZSTD_MEMORY_USAGE 17
+#define ZSTD_MEMORY_USAGE 16
 
 /*!
  * HEAPMODE :
@@ -533,7 +533,7 @@ static const BYTE* ZSTD_updateMatch(U32* table, const BYTE* p, const BYTE* start
     U32 h = ZSTD_hashPtr(p);
     const BYTE* r;
     r = table[h] + start;
-    ZSTD_addPtr(table, p, start);
+    table[h] = (U32)(p-start);
     return r;
 }
 
@@ -559,23 +559,29 @@ static size_t ZSTD_compressBlock(ZSTD_CCtx* ctx, void* dst, size_t maxDstSize, c
 
 
     /* init */
+    if (ip-base < 4)
+    {
+        ZSTD_addPtr(HashTable, ip+0, base);
+        ZSTD_addPtr(HashTable, ip+1, base);
+        ZSTD_addPtr(HashTable, ip+2, base);
+        ZSTD_addPtr(HashTable, ip+3, base);
+        ip += 4;
+    }
     ZSTD_resetSeqStore(seqStorePtr);
 
     /* Main Search Loop */
-    while (ip < ilimit)
+    while (ip <= ilimit)
     {
-        const BYTE* match = (const BYTE*) ZSTD_updateMatch(HashTable, ip, base);
+        const BYTE* match = ZSTD_updateMatch(HashTable, ip, base);
 
-        if (!ZSTD_checkMatch(match,ip)) { ip += ((ip-anchor) >> g_searchStrength) + 1; continue; }
-        /* catch up */
-        while ((ip>anchor) && (match>base) && (ip[-1] == match[-1])) { ip--; match--; }
+        if (ZSTD_checkMatch(ip-offset_2,ip)) match = ip-offset_2;
+        if (!ZSTD_checkMatch(match,ip)) { ip += ((ip-anchor) >> g_searchStrength) + 1; offset_2 = offset_1; continue; }
+        while ((ip>anchor) && (match>base) && (ip[-1] == match[-1])) { ip--; match--; }  /* catch up */
 
         {
             size_t litLength = ip-anchor;
             size_t matchLength = ZSTD_count(ip+MINMATCH, match+MINMATCH, iend);
-            size_t offsetCode;
-            if (litLength) offset_2 = offset_1;
-            offsetCode = ip-match;
+            size_t offsetCode = ip-match;
             if (offsetCode == offset_2) offsetCode = 0;
             offset_2 = offset_1;
             offset_1 = ip-match;
@@ -584,8 +590,8 @@ static size_t ZSTD_compressBlock(ZSTD_CCtx* ctx, void* dst, size_t maxDstSize, c
             /* Fill Table */
             ZSTD_addPtr(HashTable, ip+1, base);
             ip += matchLength + MINMATCH;
-            if (ip<=iend-8) ZSTD_addPtr(HashTable, ip-2, base);
             anchor = ip;
+            if (ip <= ilimit) ZSTD_addPtr(HashTable, ip-2, base);
         }
     }
 
@@ -1089,7 +1095,7 @@ static void ZSTD_decodeSequence(seq_t* seq, seqState_t* seqState)
 
     /* Offset */
     {
-        static const size_t offsetPrefix[MaxOff+1] = {  /* note : size_t faster than U32 */
+        static const U32 offsetPrefix[MaxOff+1] = {
                 1 /*fake*/, 1, 2, 4, 8, 16, 32, 64, 128, 256,
                 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536, 131072, 262144,
                 524288, 1048576, 2097152, 4194304, 8388608, 16777216, 33554432, /*fake*/ 1, 1, 1, 1, 1 };

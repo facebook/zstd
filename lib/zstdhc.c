@@ -89,8 +89,8 @@ size_t ZSTD_HC_freeCCtx(ZSTD_HC_CCtx* cctx)
     return 0;
 }
 
-static void ZSTD_HC_resetCCtx_advanced (ZSTD_HC_CCtx* zc,
-                                        ZSTD_HC_parameters params)
+static size_t ZSTD_HC_resetCCtx_advanced (ZSTD_HC_CCtx* zc,
+                                          ZSTD_HC_parameters params)
 {
     /* validate params */
     if (params.windowLog > ZSTD_HC_WINDOWLOG_MAX) params.windowLog = ZSTD_HC_WINDOWLOG_MAX;
@@ -111,6 +111,7 @@ static void ZSTD_HC_resetCCtx_advanced (ZSTD_HC_CCtx* zc,
             free(zc->workSpace);
             zc->workSpaceSize = neededSpace;
             zc->workSpace = malloc(neededSpace);
+            if (zc->workSpace == NULL) return ERROR(memory_allocation);
         }
         zc->hashTable = (U32*)zc->workSpace;
         zc->chainTable = zc->hashTable + (1 << params.hashLog);
@@ -132,6 +133,7 @@ static void ZSTD_HC_resetCCtx_advanced (ZSTD_HC_CCtx* zc,
     zc->seqStore.matchLengthStart = zc->seqStore.litLengthStart + (BLOCKSIZE>>2);
     zc->seqStore.dumpsStart = zc->seqStore.matchLengthStart + (BLOCKSIZE>>2);
 
+    return 0;
 }
 
 
@@ -144,7 +146,7 @@ static U32 ZSTD_HC_hash(U32 u, U32 h) { return (u * KNUTH) >> (32-h) ; }
 static U32 ZSTD_HC_hashPtr(const void* ptr, U32 h) { return ZSTD_HC_hash(MEM_read32(ptr), h); }
 
 //static const U64 prime5bytes =         889523592379ULL;
-//static U32   ZSTD_HC_hashPtr(const void* p, U32 h) { return ((MEM_read64(p) * prime5bytes) << (64-40)) >> (64-h); }
+//static U32   ZSTD_HC_hashPtr(const void* p, U32 h) { return (U32)((MEM_read64(p) * prime5bytes) << (64-40)) >> (64-h); }
 
 #define NEXT_IN_CHAIN(d)           chainTable[(d) & chainMask]   /* flexible, CHAINSIZE dependent */
 
@@ -258,8 +260,8 @@ static size_t ZSTD_HC_compressBlock(ZSTD_HC_CCtx* ctx, void* dst, size_t maxDstS
     {
         /* repcode */
         if (MEM_read32(ip) == MEM_read32(ip - offset_2))
-        /* store sequence */
         {
+            /* store sequence */
             size_t matchLength = ZSTD_count(ip+MINMATCH, ip+MINMATCH-offset_2, iend);
             size_t litLength = ip-anchor;
             size_t offset = offset_2;
@@ -271,12 +273,13 @@ static size_t ZSTD_HC_compressBlock(ZSTD_HC_CCtx* ctx, void* dst, size_t maxDstS
             continue;
         }
 
+        offset_2 = offset_1;  /* failed once : necessarily offset_1 now */
+
         /* repcode at ip+1 */
         if (MEM_read32(ip+1) == MEM_read32(ip+1 - offset_1))
         {
             size_t matchLength = ZSTD_count(ip+1+MINMATCH, ip+1+MINMATCH-offset_1, iend);
             size_t litLength = ip+1-anchor;
-            offset_2 = offset_1;
             ZSTD_storeSeq(seqStorePtr, litLength, anchor, 0, matchLength);
             ip += 1+matchLength+MINMATCH;
             anchor = ip;
@@ -287,11 +290,10 @@ static size_t ZSTD_HC_compressBlock(ZSTD_HC_CCtx* ctx, void* dst, size_t maxDstS
         {
             const BYTE* match;
             size_t matchLength = ZSTD_HC_insertAndFindBestMatch(ctx, ip, iend, &match, maxSearches);
-            if (!matchLength) { ip++; offset_2 = offset_1; continue; }
+            if (!matchLength) { ip++; continue; }
             /* store sequence */
             {
                 size_t litLength = ip-anchor;
-                offset_2 = offset_1;
                 offset_1 = ip-match;
                 ZSTD_storeSeq(seqStorePtr, litLength, anchor, offset_1, matchLength-MINMATCH);
                 ip += matchLength;
@@ -381,7 +383,7 @@ size_t ZSTD_HC_compressContinue (ZSTD_HC_CCtx* ctxPtr,
     if (ip != ctxPtr->end)
     {
         if (ctxPtr->end != NULL)
-            ZSTD_HC_resetCCtx_advanced(ctxPtr, ctxPtr->params);   /* reset */
+            ZSTD_HC_resetCCtx_advanced(ctxPtr, ctxPtr->params);   /* just reset, but no need to re-alloc */
         ctxPtr->base = ip;
     }
 
@@ -394,8 +396,10 @@ size_t ZSTD_HC_compressBegin_advanced(ZSTD_HC_CCtx* ctx,
                                       void* dst, size_t maxDstSize,
                                       const ZSTD_HC_parameters params)
 {
+    size_t errorCode;
     if (maxDstSize < 4) return ERROR(dstSize_tooSmall);
-    ZSTD_HC_resetCCtx_advanced(ctx, params);
+    errorCode = ZSTD_HC_resetCCtx_advanced(ctx, params);
+    if (ZSTD_isError(errorCode)) return errorCode;
     MEM_writeLE32(dst, ZSTD_magicNumber); /* Write Header */
     return 4;
 }
@@ -432,6 +436,7 @@ size_t ZSTD_HC_compress_advanced (ZSTD_HC_CCtx* ctx,
 {
     BYTE* const ostart = (BYTE*)dst;
     BYTE* op = ostart;
+    size_t oSize;
 
     /* correct params, to use less memory */
     U32 srcLog = ZSTD_highbit((U32)srcSize-1) + 1;
@@ -439,7 +444,7 @@ size_t ZSTD_HC_compress_advanced (ZSTD_HC_CCtx* ctx,
     if (params.chainLog > srcLog) params.chainLog = srcLog;
 
     /* Header */
-    size_t oSize = ZSTD_HC_compressBegin_advanced(ctx, dst, maxDstSize, params);
+    oSize = ZSTD_HC_compressBegin_advanced(ctx, dst, maxDstSize, params);
     if(ZSTD_isError(oSize)) return oSize;
     op += oSize;
     maxDstSize -= oSize;

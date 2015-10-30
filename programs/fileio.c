@@ -520,7 +520,7 @@ unsigned long long FIO_decompressFilename(const char* output_filename, const cha
         ZSTD_resetDCtx(dctx);
         toRead = ZSTD_nextSrcSizeToDecompress(dctx) - sizeof(ZSTD_magicNumber);
         if (toRead > MAXHEADERSIZE) EXM_THROW(30, "Not enough memory to read header");
-        sizeCheck = fread(header+sizeof(ZSTD_magicNumber), (size_t)1, toRead, finput);
+        sizeCheck = fread(&header[sizeof(ZSTD_magicNumber)], 1, toRead, finput);
         if (sizeCheck != toRead) EXM_THROW(31, "Read error : cannot read header");
         sizeCheck = ZSTD_decompressContinue(dctx, NULL, 0, header, sizeof(ZSTD_magicNumber)+toRead);   // Decode frame header
         if (ZSTD_isError(sizeCheck)) EXM_THROW(32, "Error decoding header");

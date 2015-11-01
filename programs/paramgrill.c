@@ -493,7 +493,7 @@ static int BMK_seed(winnerInfo_t* winners, const ZSTD_HC_parameters params,
             continue;
         }
 
-        if ((double)testResult.cSize <= ((double)winners[cLevel].result.cSize * (1. + (0.01 / cLevel))) )
+        if ((double)testResult.cSize <= ((double)winners[cLevel].result.cSize * (1. + (0.02 / cLevel))) )
         {
             /* Validate solution is "good enough" */
             double W_ratio = (double)srcSize / testResult.cSize;
@@ -574,13 +574,17 @@ static int BMK_seed(winnerInfo_t* winners, const ZSTD_HC_parameters params,
 static BYTE g_alreadyTested[ZSTD_HC_WINDOWLOG_MAX+1-ZSTD_HC_WINDOWLOG_MIN]
                            [ZSTD_HC_CHAINLOG_MAX+1-ZSTD_HC_CHAINLOG_MIN]
                            [ZSTD_HC_HASHLOG_MAX+1-ZSTD_HC_HASHLOG_MIN]
-                           [ZSTD_HC_SEARCHLOG_MAX+1-ZSTD_HC_SEARCHLOG_MIN] = {};   /* init to zero */
+                           [ZSTD_HC_SEARCHLOG_MAX+1-ZSTD_HC_SEARCHLOG_MIN]
+                           [ZSTD_HC_SEARCHLENGTH_MAX+1-ZSTD_HC_SEARCHLENGTH_MIN]
+                           [2 /* strategy */ ] = {};   /* init to zero */
 
 #define NB_TESTS_PLAYED(p) \
     g_alreadyTested[p.windowLog-ZSTD_HC_WINDOWLOG_MIN] \
                    [p.chainLog-ZSTD_HC_CHAINLOG_MIN]   \
                    [p.hashLog-ZSTD_HC_HASHLOG_MIN]     \
-                   [p.searchLog-ZSTD_HC_SEARCHLOG_MIN]
+                   [p.searchLog-ZSTD_HC_SEARCHLOG_MIN] \
+                   [p.searchLength-ZSTD_HC_SEARCHLENGTH_MIN] \
+                   [(U32)p.strategy]
 
 
 static void playAround(FILE* f, winnerInfo_t* winners,
@@ -646,7 +650,8 @@ static void playAround(FILE* f, winnerInfo_t* winners,
         if (p.strategy > ZSTD_HC_lazy) continue;
 
         /* exclude faster if already played params */
-        if (FUZ_rand(&g_rand) & ((1 << NB_TESTS_PLAYED(p))-1)) continue;
+        if (FUZ_rand(&g_rand) & ((1 << NB_TESTS_PLAYED(p))-1))
+            continue;
 
         /* test */
         NB_TESTS_PLAYED(p)++;

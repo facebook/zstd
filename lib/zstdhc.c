@@ -191,7 +191,7 @@ static size_t ZSTD_HC_hashPtr(const void* p, U32 h, U32 mls)
 *  HC Compression
 ***************************************/
 /* Update chains up to ip (excluded) */
-static U32 ZSTD_HC_insertAndFindFirstIndex (ZSTD_HC_CCtx* zc, const BYTE* ip, U32 mls)
+static U32 ZSTD_HC_insertAndFindFirstIndex  (ZSTD_HC_CCtx* zc, const BYTE* ip, U32 mls)
 {
     U32* const hashTable  = zc->hashTable;
     const U32 hashLog = zc->params.hashLog;
@@ -210,7 +210,7 @@ static U32 ZSTD_HC_insertAndFindFirstIndex (ZSTD_HC_CCtx* zc, const BYTE* ip, U3
     }
 
     zc->nextToUpdate = target;
-    return hashTable[ZSTD_HC_hashPtr(ip, hashLog, mls)];
+	return hashTable[ZSTD_HC_hashPtr(ip, hashLog, mls)];
 }
 
 
@@ -235,7 +235,7 @@ size_t ZSTD_HC_insertAndFindBestMatch (
     size_t ml=0;
 
     /* HC4 match finder */
-    matchIndex = ZSTD_HC_insertAndFindFirstIndex(zc, ip, matchLengthSearch);
+    matchIndex = ZSTD_HC_insertAndFindFirstIndex (zc, ip, matchLengthSearch);
 
     while ((matchIndex>=lowLimit) && (nbAttempts))
     {
@@ -273,7 +273,7 @@ size_t ZSTD_HC_insertAndFindBestMatch (
 }
 
 
-static size_t ZSTD_HC_insertAndFindBestMatch_selectMLS (
+FORCE_INLINE size_t ZSTD_HC_insertAndFindBestMatch_selectMLS (
                         ZSTD_HC_CCtx* zc,   /* Index table will be updated */
                         const BYTE* ip, const BYTE* const iLimit,
                         const BYTE** matchpos,
@@ -286,6 +286,107 @@ static size_t ZSTD_HC_insertAndFindBestMatch_selectMLS (
     case 5 : return ZSTD_HC_insertAndFindBestMatch(zc, ip, iLimit, matchpos, maxNbAttempts, 5);
     case 6 : return ZSTD_HC_insertAndFindBestMatch(zc, ip, iLimit, matchpos, maxNbAttempts, 6);
     }
+}
+
+
+size_t ZSTD_HC_compressBlock_lazy(ZSTD_HC_CCtx* ctx, void* dst, size_t maxDstSize, const void* src, size_t srcSize)
+{
+    seqStore_t* seqStorePtr = &(ctx->seqStore);
+    const BYTE* const istart = (const BYTE*)src;
+    const BYTE* ip = istart;
+    const BYTE* anchor = istart;
+    const BYTE* const iend = istart + srcSize;
+    const BYTE* const ilimit = iend - 8;
+    const BYTE* match = istart;
+
+    size_t offset_2=REPCODE_STARTVALUE, offset_1=REPCODE_STARTVALUE;
+    const U32 maxSearches = 1 << ctx->params.searchLog;
+    const U32 mls = ctx->params.searchLength;
+
+    /* init */
+    ZSTD_resetSeqStore(seqStorePtr);
+    if (((ip-ctx->base) - ctx->dictLimit) < REPCODE_STARTVALUE) ip += REPCODE_STARTVALUE;
+
+    /* Match Loop */
+    while (ip <= ilimit)
+    {
+        size_t matchLength;
+        size_t offset;
+        const BYTE* start;
+
+        /* try to find a first match */
+        if (MEM_read32(ip) == MEM_read32(ip - offset_2))
+        {
+            /* repcode : we take it*/
+            size_t offtmp = offset_2;
+            size_t litLength = ip - anchor;
+            matchLength = ZSTD_count(ip+MINMATCH, ip+MINMATCH-offset_2, iend);
+            offset_2 = offset_1;
+            offset_1 = offtmp;
+            ZSTD_storeSeq(seqStorePtr, litLength, anchor, 0, matchLength);
+            ip += matchLength+MINMATCH;
+            anchor = ip;
+            continue;
+        }
+
+        offset_2 = offset_1;
+        matchLength = ZSTD_HC_insertAndFindBestMatch_selectMLS(ctx, ip, iend, &match, maxSearches, mls);
+        if (!matchLength) { ip++; continue; }
+
+        /* let's try to find a better solution */
+        offset = ip - match;
+        start = ip;
+
+        while (ip<ilimit)
+        {
+            ip ++;
+            if (MEM_read32(ip) == MEM_read32(ip - offset_1))
+            {
+                size_t ml2 = ZSTD_count(ip+MINMATCH, ip+MINMATCH-offset_1, iend) + MINMATCH;
+                int gain2 = (int)(ml2 * 4);
+                int gain1 = (int)(matchLength*4 - ZSTD_highbit((U32)offset));
+                if (gain2 > gain1)
+                {
+                    matchLength = ml2, offset = 0, start = ip;
+                    break;
+                }
+            }
+            {
+                size_t ml2 = ZSTD_HC_insertAndFindBestMatch_selectMLS(ctx, ip, iend, &match, maxSearches, mls);
+                size_t offset2 = ip - match;
+                int gain2 = (int)(ml2*5 - ZSTD_highbit((U32)offset2));   /* raw approx */
+                int gain1 = (int)(matchLength*5 - ZSTD_highbit((U32)offset));
+                if (gain2 > gain1)
+                {
+                    matchLength = ml2, offset = offset2, start = ip;
+                    continue;   /* search a better one */
+                }
+            }
+
+            break;  /* nothing found : store previous one */
+        }
+
+        /* store sequence */
+        {
+            size_t litLength = start - anchor;
+            if (offset) offset_1 = offset;
+            ZSTD_storeSeq(seqStorePtr, litLength, anchor, offset, matchLength-MINMATCH);
+            ip = start + matchLength;
+            anchor = ip;
+        }
+
+    }
+
+    /* Last Literals */
+    {
+        size_t lastLLSize = iend - anchor;
+        memcpy(seqStorePtr->lit, anchor, lastLLSize);
+        seqStorePtr->lit += lastLLSize;
+    }
+
+    /* Final compression stage */
+    return ZSTD_compressSequences((BYTE*)dst, maxDstSize,
+                                  seqStorePtr, srcSize);
 }
 
 
@@ -362,114 +463,16 @@ size_t ZSTD_HC_compressBlock_greedy(ZSTD_HC_CCtx* ctx, void* dst, size_t maxDstS
 
     /* Final compression stage */
     return ZSTD_compressSequences((BYTE*)dst, maxDstSize,
-                                  seqStorePtr, srcSize);
-}
 
-size_t ZSTD_HC_compressBlock_lazy(ZSTD_HC_CCtx* ctx, void* dst, size_t maxDstSize, const void* src, size_t srcSize)
-{
-    seqStore_t* seqStorePtr = &(ctx->seqStore);
-    const BYTE* const istart = (const BYTE*)src;
-    const BYTE* ip = istart;
-    const BYTE* anchor = istart;
-    const BYTE* const iend = istart + srcSize;
-    const BYTE* const ilimit = iend - 8;
-    const BYTE* match = istart;
-
-    size_t offset_2=REPCODE_STARTVALUE, offset_1=REPCODE_STARTVALUE;
-    const U32 maxSearches = 1 << ctx->params.searchLog;
-    const U32 mls = ctx->params.searchLength;
-
-    /* init */
-    ZSTD_resetSeqStore(seqStorePtr);
-    if (((ip-ctx->base) - ctx->dictLimit) < REPCODE_STARTVALUE) ip += REPCODE_STARTVALUE;
-
-    /* Match Loop */
-    while (ip <= ilimit)
-    {
-        size_t matchLength;
-        size_t offset;
-        const BYTE* start;
-
-        /* try to find a first match */
-        if (MEM_read32(ip) == MEM_read32(ip - offset_2))
-        {
-            /* repcode : we take it*/
-            size_t offtmp = offset_2;
-            size_t litLength = ip - anchor;
-            matchLength = ZSTD_count(ip+MINMATCH, ip+MINMATCH-offset_2, iend);
-            offset_2 = offset_1;
-            offset_1 = offtmp;
-            ZSTD_storeSeq(seqStorePtr, litLength, anchor, 0, matchLength);
-            ip += matchLength+MINMATCH;
-            anchor = ip;
-            continue;
-        }
-
-        offset_2 = offset_1;
-        matchLength = ZSTD_HC_insertAndFindBestMatch_selectMLS(ctx, ip, iend, &match, maxSearches, mls);
-        if (!matchLength) { ip++; continue; }
-
-        /* let's try to find a better solution */
-        offset = ip - match;
-        start = ip;
-
-        while (ip<ilimit)
-        {
-            ip ++;
-            if (MEM_read32(ip) == MEM_read32(ip - offset_1))
-            {
-                size_t ml2 = ZSTD_count(ip+MINMATCH, ip+MINMATCH-offset_1, iend) + MINMATCH;
-                int gain1 = matchLength - (ZSTD_highbit((U32)offset) / 3);
-                if ((int)ml2 > gain1)
-                {
-                    matchLength = ml2, offset = 0, start = ip;
-                    break;
-                }
-            }
-            {
-                size_t ml2 = ZSTD_HC_insertAndFindBestMatch_selectMLS(ctx, ip, iend, &match, maxSearches, mls);
-                size_t offset2 = ip - match;
-                int gain2 = ml2 - (ZSTD_highbit((U32)offset2) / 4);   /* raw approx */
-                int gain1 = matchLength - (ZSTD_highbit((U32)offset) / 4);
-                if (gain2 > gain1)
-                {
-                    matchLength = ml2, offset = offset2, start = ip;
-                    continue;   /* search a better one */
-                }
-            }
-
-            break;  /* nothing found : store previous one */
-        }
-
-        /* store sequence */
-        {
-            size_t litLength = start - anchor;
-            if (offset) offset_1 = offset;
-            ZSTD_storeSeq(seqStorePtr, litLength, anchor, offset, matchLength-MINMATCH);
-            ip = start + matchLength;
-            anchor = ip;
-        }
-
-    }
-
-    /* Last Literals */
-    {
-        size_t lastLLSize = iend - anchor;
-        memcpy(seqStorePtr->lit, anchor, lastLLSize);
-        seqStorePtr->lit += lastLLSize;
-    }
-
-    /* Final compression stage */
-    return ZSTD_compressSequences((BYTE*)dst, maxDstSize,
                                   seqStorePtr, srcSize);
 }
 
 
 size_t ZSTD_HC_compressBlock(ZSTD_HC_CCtx* ctx, void* dst, size_t maxDstSize, const void* src, size_t srcSize)
 {
-    if (ctx->params.strategy==ZSTD_HC_greedy)
-        return ZSTD_HC_compressBlock_greedy(ctx, dst, maxDstSize, src, srcSize);
-    return ZSTD_HC_compressBlock_lazy(ctx, dst, maxDstSize, src, srcSize);
+	if (ctx->params.strategy == ZSTD_HC_greedy)
+	return ZSTD_HC_compressBlock_greedy(ctx, dst, maxDstSize, src, srcSize);
+	return ZSTD_HC_compressBlock_lazy(ctx, dst, maxDstSize, src, srcSize);
 }
 
 
@@ -483,10 +486,17 @@ static size_t ZSTD_HC_compress_generic (ZSTD_HC_CCtx* ctxPtr,
     BYTE* const ostart = (BYTE*)dst;
     BYTE* op = ostart;
     BYTE* const oend = op + maxDstSize;
+    size_t (*blockCompressor) (ZSTD_HC_CCtx* ctx, void* dst, size_t maxDstSize, const void* src, size_t srcSize);
+
+    if (ctxPtr->params.strategy == ZSTD_HC_greedy)
+		blockCompressor = ZSTD_HC_compressBlock_greedy;
+	else
+		blockCompressor = ZSTD_HC_compressBlock_lazy;
+
 
     while (remaining > blockSize)
     {
-        size_t cSize = ZSTD_HC_compressBlock(ctxPtr, op+3, oend-op, ip, blockSize);
+        size_t cSize = blockCompressor(ctxPtr, op+3, oend-op, ip, blockSize);
 
         if (cSize == 0)
         {
@@ -509,7 +519,7 @@ static size_t ZSTD_HC_compress_generic (ZSTD_HC_CCtx* ctxPtr,
 
     /* last block */
     {
-        size_t cSize = ZSTD_HC_compressBlock(ctxPtr, op+3, oend-op, ip, remaining);
+        size_t cSize = blockCompressor(ctxPtr, op+3, oend-op, ip, remaining);
 
         if (cSize == 0)
         {

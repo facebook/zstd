@@ -122,7 +122,8 @@ static U32 g_rand = 1;
 static U32 g_singleRun = 0;
 static U32 g_target = 0;
 static U32 g_noSeed = 0;
-static ZSTD_HC_parameters g_params = { 0, 0, 0, 0, 0, 0 };
+static const ZSTD_HC_parameters* g_seedParams = ZSTD_HC_defaultParameters;
+static ZSTD_HC_parameters g_params = { 0, 0, 0, 0, 0, ZSTD_HC_greedy };
 
 void BMK_SetNbIterations(int nbLoops)
 {
@@ -623,9 +624,9 @@ static void playAround(FILE* f, winnerInfo_t* winners,
             case 9:
                 p.searchLength--; break;
             case 10:
-                p.strategy++; break;
+                p.strategy = ZSTD_HC_lazy; break;
             case 11:
-                p.strategy--; break;
+                p.strategy = ZSTD_HC_greedy; break;
             }
         }
 
@@ -674,15 +675,13 @@ static void BMK_selectRandomStart(
         p.searchLog  = FUZ_rand(&g_rand) % (ZSTD_HC_SEARCHLOG_MAX+1 - ZSTD_HC_SEARCHLOG_MIN) + ZSTD_HC_SEARCHLOG_MIN;
         p.windowLog  = FUZ_rand(&g_rand) % (ZSTD_HC_WINDOWLOG_MAX+1 - ZSTD_HC_WINDOWLOG_MIN) + ZSTD_HC_WINDOWLOG_MIN;
         p.searchLength=FUZ_rand(&g_rand) % (ZSTD_HC_SEARCHLENGTH_MAX+1 - ZSTD_HC_SEARCHLENGTH_MIN) + ZSTD_HC_SEARCHLENGTH_MIN;
-        p.strategy   = FUZ_rand(&g_rand) & 1;
+        p.strategy   = (ZSTD_HC_strategy) (FUZ_rand(&g_rand) & 1);
         playAround(f, winners, p, srcBuffer, srcSize, ctx);
     }
     else
         playAround(f, winners, winners[id].params, srcBuffer, srcSize, ctx);
 }
 
-
-static const ZSTD_HC_parameters* g_seedParams = ZSTD_HC_defaultParameters;
 
 static void BMK_benchMem(void* srcBuffer, size_t srcSize)
 {
@@ -968,11 +967,19 @@ int main(int argc, char** argv)
                             while ((*argument>= '0') && (*argument<='9'))
                                 g_params.searchLog *= 10, g_params.searchLog += *argument++ - '0';
                             continue;
-                        case 'l':
+                        case 'l':  /* search length */
                             g_params.searchLength = 0;
                             argument++;
                             while ((*argument>= '0') && (*argument<='9'))
                                 g_params.searchLength *= 10, g_params.searchLength += *argument++ - '0';
+                            continue;
+                        case 't':  /* strategy */
+                            g_params.strategy = ZSTD_HC_greedy;
+                            argument++;
+                            while ((*argument>= '0') && (*argument<='9'))
+                            {
+                                if (*argument++) g_params.strategy = ZSTD_HC_lazy;
+                            }
                             continue;
                         case 'L':
                             {

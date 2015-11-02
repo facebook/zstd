@@ -93,34 +93,34 @@ size_t ZSTD_HC_compressEnd(ZSTD_HC_CCtx* ctx, void* dst, size_t maxDstSize);
 ***************************************/
 #define ZSTD_HC_MAX_CLEVEL 26
 static const ZSTD_HC_parameters ZSTD_HC_defaultParameters[ZSTD_HC_MAX_CLEVEL+1] = {
-    /* W,  C,  H,  S */
+    /* W,  C,  H,  S,  L, strat */
     { 18, 12, 14,  1,  4, ZSTD_HC_greedy },   /* level  0 - never used */
     { 18, 12, 14,  1,  4, ZSTD_HC_greedy },   /* level  1 - in fact redirected towards zstd fast */
     { 18, 12, 15,  2,  4, ZSTD_HC_greedy },   /* level  2 */
     { 19, 13, 17,  3,  5, ZSTD_HC_greedy },   /* level  3 */
     { 20, 18, 19,  2,  5, ZSTD_HC_greedy },   /* level  4 */
     { 20, 19, 19,  3,  5, ZSTD_HC_greedy },   /* level  5 */
-    { 20, 19, 19,  4,  5, ZSTD_HC_greedy },   /* level  6 */
-    { 20, 19, 19,  5,  5, ZSTD_HC_greedy },   /* level  7 */
-    { 20, 20, 20,  5,  5, ZSTD_HC_greedy },   /* level  8 */
-    { 20, 20, 20,  6,  5, ZSTD_HC_greedy },   /* level  9 */
-    { 21, 20, 21,  6,  5, ZSTD_HC_greedy },   /* level 10 */
-    { 22, 21, 22,  6,  5, ZSTD_HC_greedy },   /* level 11 */
-    { 23, 21, 22,  6,  5, ZSTD_HC_greedy },   /* level 12 */
-    { 22, 22, 22,  6,  5, ZSTD_HC_greedy },   /* level 13 */
-    { 22, 22, 23,  7,  5, ZSTD_HC_greedy },   /* level 14 */
-    { 22, 22, 23,  7,  5, ZSTD_HC_greedy },   /* level 15 */
-    { 22, 22, 23,  8,  5, ZSTD_HC_greedy },   /* level 16 */
-    { 22, 22, 23,  8,  5, ZSTD_HC_greedy },   /* level 17 */
-    { 22, 22, 23,  9,  5, ZSTD_HC_greedy },   /* level 18 */
-    { 22, 22, 23, 10,  5, ZSTD_HC_greedy },   /* level 19 */
-    { 23, 23, 23,  9,  5, ZSTD_HC_greedy },   /* level 20 */
-    { 23, 23, 23,  9,  5, ZSTD_HC_greedy },   /* level 21 */
-    { 23, 23, 23, 10,  5, ZSTD_HC_greedy },   /* level 22 */
-    { 23, 23, 23, 11,  5, ZSTD_HC_greedy },   /* level 23 */
-    { 23, 23, 23, 11,  5, ZSTD_HC_greedy },   /* level 24 */
-    { 24, 24, 23, 11,  5, ZSTD_HC_greedy },   /* level 25 */
-    { 24, 24, 24, 12,  5, ZSTD_HC_greedy },   /* level 26 */   /* ZSTD_HC_MAX_CLEVEL */
+    { 20, 18, 20,  3,  5, ZSTD_HC_lazy   },   /* level  6 */
+    { 20, 18, 20,  4,  5, ZSTD_HC_lazy   },   /* level  7 */
+    { 21, 19, 20,  4,  5, ZSTD_HC_lazy   },   /* level  8 */
+    { 21, 19, 20,  5,  5, ZSTD_HC_lazy   },   /* level  9 */
+    { 21, 20, 20,  5,  5, ZSTD_HC_lazy   },   /* level 10 */
+    { 21, 20, 20,  5,  5, ZSTD_HC_lazy   },   /* level 11 */
+    { 22, 20, 22,  6,  5, ZSTD_HC_lazy   },   /* level 12 */
+    { 22, 21, 22,  6,  5, ZSTD_HC_lazy   },   /* level 13 */
+    { 23, 21, 22,  6,  5, ZSTD_HC_lazy   },   /* level 14 */
+    { 23, 21, 23,  7,  5, ZSTD_HC_lazy   },   /* level 15 */
+    { 23, 22, 22,  6,  5, ZSTD_HC_lazy   },   /* level 16 */
+    { 23, 22, 22,  7,  5, ZSTD_HC_lazy   },   /* level 17 */
+    { 23, 22, 23,  7,  5, ZSTD_HC_lazy   },   /* level 18 */
+    { 23, 22, 23,  8,  5, ZSTD_HC_lazy   },   /* level 19 */
+    { 23, 23, 23,  8,  5, ZSTD_HC_lazy   },   /* level 20 */
+    { 23, 23, 23,  8,  5, ZSTD_HC_lazy   },   /* level 21 */
+    { 24, 23, 23,  8,  5, ZSTD_HC_lazy   },   /* level 22 */
+    { 24, 23, 23,  9,  5, ZSTD_HC_lazy   },   /* level 23 */
+    { 24, 24, 24,  9,  5, ZSTD_HC_lazy   },   /* level 24 */
+    { 24, 24, 24, 10,  5, ZSTD_HC_lazy   },   /* level 25 */
+    { 24, 24, 24, 10,  5, ZSTD_HC_lazy   },   /* level 26 */     /* ZSTD_HC_MAX_CLEVEL */
 };
 
 #if defined (__cplusplus)

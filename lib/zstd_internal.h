@@ -49,6 +49,8 @@ extern "C" {
 ****************************************/
 static size_t ZSTD_read_ARCH(const void* p) { size_t r; memcpy(&r, p, sizeof(r)); return r; }
 
+#define MIN(a,b) ((a)<(b) ? (a) : (b))
+
 static unsigned ZSTD_highbit(U32 val)
 {
 #   if defined(_MSC_VER)   /* Visual */

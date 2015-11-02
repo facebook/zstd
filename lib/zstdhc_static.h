@@ -105,21 +105,21 @@ static const ZSTD_HC_parameters ZSTD_HC_defaultParameters[ZSTD_HC_MAX_CLEVEL+1] 
     { 21, 19, 20,  4,  5, ZSTD_HC_lazy   },   /* level  8 */
     { 21, 19, 20,  5,  5, ZSTD_HC_lazy   },   /* level  9 */
     { 21, 20, 20,  5,  5, ZSTD_HC_lazy   },   /* level 10 */
-    { 21, 20, 20,  5,  5, ZSTD_HC_lazy   },   /* level 11 */
+    { 21, 21, 20,  5,  5, ZSTD_HC_lazy   },   /* level 11 */
     { 22, 20, 22,  6,  5, ZSTD_HC_lazy   },   /* level 12 */
     { 22, 21, 22,  6,  5, ZSTD_HC_lazy   },   /* level 13 */
     { 23, 21, 22,  6,  5, ZSTD_HC_lazy   },   /* level 14 */
     { 23, 21, 23,  7,  5, ZSTD_HC_lazy   },   /* level 15 */
     { 23, 22, 22,  6,  5, ZSTD_HC_lazy   },   /* level 16 */
     { 23, 22, 22,  7,  5, ZSTD_HC_lazy   },   /* level 17 */
-    { 23, 22, 23,  7,  5, ZSTD_HC_lazy   },   /* level 18 */
+    { 23, 23, 22,  7,  5, ZSTD_HC_lazy   },   /* level 18 */
     { 23, 22, 23,  8,  5, ZSTD_HC_lazy   },   /* level 19 */
     { 23, 23, 23,  8,  5, ZSTD_HC_lazy   },   /* level 20 */
     { 23, 23, 23,  8,  5, ZSTD_HC_lazy   },   /* level 21 */
-    { 24, 23, 23,  8,  5, ZSTD_HC_lazy   },   /* level 22 */
+    { 24, 24, 24,  8,  5, ZSTD_HC_lazy   },   /* level 22 */
     { 24, 23, 23,  9,  5, ZSTD_HC_lazy   },   /* level 23 */
     { 24, 24, 24,  9,  5, ZSTD_HC_lazy   },   /* level 24 */
-    { 24, 24, 24, 10,  5, ZSTD_HC_lazy   },   /* level 25 */
+    { 24, 24, 24,  9,  5, ZSTD_HC_lazy   },   /* level 25 */
     { 24, 24, 24, 10,  5, ZSTD_HC_lazy   },   /* level 26 */     /* ZSTD_HC_MAX_CLEVEL */
 };
 

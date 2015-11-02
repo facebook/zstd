@@ -122,7 +122,8 @@ static U32 g_rand = 1;
 static U32 g_singleRun = 0;
 static U32 g_target = 0;
 static U32 g_noSeed = 0;
-static ZSTD_HC_parameters g_params = { 0, 0, 0, 0, 0 };
+static const ZSTD_HC_parameters* g_seedParams = ZSTD_HC_defaultParameters;
+static ZSTD_HC_parameters g_params = { 0, 0, 0, 0, 0, ZSTD_HC_greedy };
 
 void BMK_SetNbIterations(int nbLoops)
 {
@@ -283,9 +284,12 @@ static size_t BMK_benchParam(BMK_result_t* resultPtr,
     U32 Hlog = params.hashLog;
     U32 Slog = params.searchLog;
     U32 Slength = params.searchLength;
+    ZSTD_HC_strategy strat = params.strategy;
+    char name[30] = { 0 };
     U64 crcOrig;
 
     /* Memory allocation & restrictions */
+    snprintf(name, 30, "W%02uC%02uH%02uS%02uL%1ust%1u", Wlog, Clog, Hlog, Slog, Slength, strat);
     if (!compressedBuffer || !resultBuffer || !blockTable)
     {
         DISPLAY("\nError: not enough memory!\n");
@@ -344,7 +348,7 @@ static size_t BMK_benchParam(BMK_result_t* resultPtr,
             if (totalTime > g_maxParamTime) break;
 
             /* Compression */
-            DISPLAY("%1u-W%02uC%02uH%02uS%02uL%02u : %9u ->\r", loopNb, Wlog, Clog, Hlog, Slog, Slength, (U32)srcSize);
+            DISPLAY("%1u-%s : %9u ->\r", loopNb, name, (U32)srcSize);
             memset(compressedBuffer, 0xE5, maxCompressedSize);
 
             nbLoops = 0;
@@ -367,7 +371,7 @@ static size_t BMK_benchParam(BMK_result_t* resultPtr,
                 cSize += blockTable[blockNb].cSize;
             if ((double)milliTime < fastestC*nbLoops) fastestC = (double)milliTime / nbLoops;
             ratio = (double)srcSize / (double)cSize;
-            DISPLAY("%1u-W%02uC%02uH%02uS%02uL%02u : %9u ->", loopNb, Wlog, Clog, Hlog, Slog, Slength, (U32)srcSize);
+            DISPLAY("%1u-%s : %9u ->", loopNb, name, (U32)srcSize);
             DISPLAY(" %9u (%4.3f),%7.1f MB/s\r", (U32)cSize, ratio, (double)srcSize / fastestC / 1000.);
             resultPtr->cSize = cSize;
             resultPtr->cSpeed = (U32)((double)srcSize / fastestC);
@@ -389,7 +393,7 @@ static size_t BMK_benchParam(BMK_result_t* resultPtr,
             milliTime = BMK_GetMilliSpan(milliTime);
 
             if ((double)milliTime < fastestD*nbLoops) fastestD = (double)milliTime / nbLoops;
-            DISPLAY("%1u-W%02uC%02uH%02uS%02uL%02u : %9u -> ", loopNb, Wlog, Clog, Hlog, Slog, Slength, (U32)srcSize);
+            DISPLAY("%1u-%s : %9u -> ", loopNb, name, (U32)srcSize);
             DISPLAY("%9u (%4.3f),%7.1f MB/s, ", (U32)cSize, ratio, (double)srcSize / fastestC / 1000.);
             DISPLAY("%7.1f MB/s\r", (double)srcSize / fastestD / 1000.);
             resultPtr->dSpeed = (U32)((double)srcSize / fastestD);
@@ -421,11 +425,14 @@ static size_t BMK_benchParam(BMK_result_t* resultPtr,
     return 0;
 }
 
+const char* g_stratName[2] = { "ZSTD_HC_greedy", "ZSTD_HC_lazy  " };
 
 static void BMK_printWinner(FILE* f, U32 cLevel, BMK_result_t result, ZSTD_HC_parameters params, size_t srcSize)
 {
     DISPLAY("\r%79s\r", "");
-    fprintf(f,"    {%3u,%3u,%3u,%3u,%3u },   ", params.windowLog, params.chainLog, params.hashLog, params.searchLog, params.searchLength);
+    fprintf(f,"    {%3u,%3u,%3u,%3u,%3u, %s },   ",
+            params.windowLog, params.chainLog, params.hashLog, params.searchLog, params.searchLength,
+            g_stratName[params.strategy]);
     fprintf(f,
             "/* level %2u */     /* R:%5.3f at %5.1f MB/s - %5.1f MB/s */ \n",
             cLevel, (double)srcSize / result.cSize, (double)result.cSpeed / 1000., (double)result.dSpeed / 1000.);
@@ -446,7 +453,7 @@ static void BMK_printWinners2(FILE* f, const winnerInfo_t* winners, size_t srcSi
     fprintf(f, "\n /* Selected configurations : */ \n");
     fprintf(f, "#define ZSTD_HC_MAX_CLEVEL %2u \n", ZSTD_HC_MAX_CLEVEL);
     fprintf(f, "static const ZSTD_HC_parameters ZSTD_HC_defaultParameters[ZSTD_HC_MAX_CLEVEL+1] = {\n");
-    fprintf(f, "    /* W,  C,  H,  S,  L */ \n");
+    fprintf(f, "    /* W,  C,  H,  S,  L, strat */ \n");
 
     for (cLevel=0; cLevel <= ZSTD_HC_MAX_CLEVEL; cLevel++)
         BMK_printWinner(f, cLevel, winners[cLevel].result, winners[cLevel].params, srcSize);
@@ -486,7 +493,7 @@ static int BMK_seed(winnerInfo_t* winners, const ZSTD_HC_parameters params,
             continue;
         }
 
-        if ((double)testResult.cSize <= ((double)winners[cLevel].result.cSize * (1. + (0.01 / cLevel))) )
+        if ((double)testResult.cSize <= ((double)winners[cLevel].result.cSize * (1. + (0.02 / cLevel))) )
         {
             /* Validate solution is "good enough" */
             double W_ratio = (double)srcSize / testResult.cSize;
@@ -567,13 +574,17 @@ static int BMK_seed(winnerInfo_t* winners, const ZSTD_HC_parameters params,
 static BYTE g_alreadyTested[ZSTD_HC_WINDOWLOG_MAX+1-ZSTD_HC_WINDOWLOG_MIN]
                            [ZSTD_HC_CHAINLOG_MAX+1-ZSTD_HC_CHAINLOG_MIN]
                            [ZSTD_HC_HASHLOG_MAX+1-ZSTD_HC_HASHLOG_MIN]
-                           [ZSTD_HC_SEARCHLOG_MAX+1-ZSTD_HC_SEARCHLOG_MIN] = {};   /* init to zero */
+                           [ZSTD_HC_SEARCHLOG_MAX+1-ZSTD_HC_SEARCHLOG_MIN]
+                           [ZSTD_HC_SEARCHLENGTH_MAX+1-ZSTD_HC_SEARCHLENGTH_MIN]
+                           [2 /* strategy */ ] = {};   /* init to zero */
 
 #define NB_TESTS_PLAYED(p) \
     g_alreadyTested[p.windowLog-ZSTD_HC_WINDOWLOG_MIN] \
                    [p.chainLog-ZSTD_HC_CHAINLOG_MIN]   \
                    [p.hashLog-ZSTD_HC_HASHLOG_MIN]     \
-                   [p.searchLog-ZSTD_HC_SEARCHLOG_MIN]
+                   [p.searchLog-ZSTD_HC_SEARCHLOG_MIN] \
+                   [p.searchLength-ZSTD_HC_SEARCHLENGTH_MIN] \
+                   [(U32)p.strategy]
 
 
 static void playAround(FILE* f, winnerInfo_t* winners,
@@ -593,7 +604,7 @@ static void playAround(FILE* f, winnerInfo_t* winners,
 
         for (; nbChanges; nbChanges--)
         {
-            const U32 changeID = FUZ_rand(&g_rand) % 9;
+            const U32 changeID = FUZ_rand(&g_rand) % 12;
             switch(changeID)
             {
             case 0:
@@ -616,6 +627,10 @@ static void playAround(FILE* f, winnerInfo_t* winners,
                 p.searchLength++; break;
             case 9:
                 p.searchLength--; break;
+            case 10:
+                p.strategy = ZSTD_HC_lazy; break;
+            case 11:
+                p.strategy = ZSTD_HC_greedy; break;
             }
         }
 
@@ -631,9 +646,12 @@ static void playAround(FILE* f, winnerInfo_t* winners,
         if (p.searchLog < ZSTD_HC_SEARCHLOG_MIN) continue;
         if (p.searchLength > ZSTD_HC_SEARCHLENGTH_MAX) continue;
         if (p.searchLength < ZSTD_HC_SEARCHLENGTH_MIN) continue;
+        if (p.strategy < ZSTD_HC_greedy) continue;
+        if (p.strategy > ZSTD_HC_lazy) continue;
 
         /* exclude faster if already played params */
-        if (FUZ_rand(&g_rand) & ((1 << NB_TESTS_PLAYED(p))-1)) continue;
+        if (FUZ_rand(&g_rand) & ((1 << NB_TESTS_PLAYED(p))-1))
+            continue;
 
         /* test */
         NB_TESTS_PLAYED(p)++;
@@ -662,14 +680,13 @@ static void BMK_selectRandomStart(
         p.searchLog  = FUZ_rand(&g_rand) % (ZSTD_HC_SEARCHLOG_MAX+1 - ZSTD_HC_SEARCHLOG_MIN) + ZSTD_HC_SEARCHLOG_MIN;
         p.windowLog  = FUZ_rand(&g_rand) % (ZSTD_HC_WINDOWLOG_MAX+1 - ZSTD_HC_WINDOWLOG_MIN) + ZSTD_HC_WINDOWLOG_MIN;
         p.searchLength=FUZ_rand(&g_rand) % (ZSTD_HC_SEARCHLENGTH_MAX+1 - ZSTD_HC_SEARCHLENGTH_MIN) + ZSTD_HC_SEARCHLENGTH_MIN;
+        p.strategy   = (ZSTD_HC_strategy) (FUZ_rand(&g_rand) & 1);
         playAround(f, winners, p, srcBuffer, srcSize, ctx);
     }
     else
         playAround(f, winners, winners[id].params, srcBuffer, srcSize, ctx);
 }
 
-
-static const ZSTD_HC_parameters* g_seedParams = ZSTD_HC_defaultParameters;
 
 static void BMK_benchMem(void* srcBuffer, size_t srcSize)
 {
@@ -955,11 +972,19 @@ int main(int argc, char** argv)
                             while ((*argument>= '0') && (*argument<='9'))
                                 g_params.searchLog *= 10, g_params.searchLog += *argument++ - '0';
                             continue;
-                        case 'l':
+                        case 'l':  /* search length */
                             g_params.searchLength = 0;
                             argument++;
                             while ((*argument>= '0') && (*argument<='9'))
                                 g_params.searchLength *= 10, g_params.searchLength += *argument++ - '0';
+                            continue;
+                        case 't':  /* strategy */
+                            g_params.strategy = ZSTD_HC_greedy;
+                            argument++;
+                            while ((*argument>= '0') && (*argument<='9'))
+                            {
+                                if (*argument++) g_params.strategy = ZSTD_HC_lazy;
+                            }
                             continue;
                         case 'L':
                             {

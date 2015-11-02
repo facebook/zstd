@@ -237,7 +237,7 @@ static size_t local_compress_fast (void* dst, size_t maxDstSize, const void* src
     return ZSTD_compress(dst, maxDstSize, src, srcSize);
 }
 
-#define MIN(a,b) (a<b ? a : b)
+#define MIN(a,b) ((a)<(b) ? (a) : (b))
 
 static int BMK_benchMem(void* srcBuffer, size_t srcSize, const char* fileName, int cLevel)
 {

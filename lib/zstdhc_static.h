@@ -45,7 +45,7 @@ extern "C" {
 /* *************************************
 *  Types
 ***************************************/
-typedef enum { ZSTD_HC_greedy, ZSTD_HC_lazy } ZSTD_HC_strategy;
+typedef enum { ZSTD_HC_greedy, ZSTD_HC_lazy, ZSTD_HC_lazydeep } ZSTD_HC_strategy;
 typedef struct
 {
     U32 windowLog;     /* largest match distance : impact decompression buffer size */

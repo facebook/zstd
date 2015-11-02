@@ -25,10 +25,11 @@ For a taste of its performance, here are a few benchmark numbers from a number o
 
 Zstd can also offer stronger compression ratio at the cost of compression speed. Compression speed is highly configurable, by small increment, to fit different situations. Note however that decompression speed is preserved and remain roughly the same at all settings, a property shared by most LZ compression algorithms, such as [zlib]. The following test is run on a Core i7-3930K CPU @ 4.5GHz, using [lzbench], an open-source in-memory benchmark by inikep.
 
-![Compression Ratio vs Speed](images/CSpeed.png "Compression Ratio vs Speed")
-![Decompression Speed](images/DSpeed.png "Decompression Speed")
-
 [lzbench]:https://github.com/inikep/lzbench
+Compression Ratio vs Speed | Decompression Speed
+---------------------------|--------------------
+![Compression Ratio vs Speed](images/CSpeed.png "Compression Ratio vs Speed") | ![Decompression Speed](images/DSpeed.png "Decompression Speed")
+
 
 Zstd entropy stage is provided by [Huff0 and FSE, from Finite State Entrop library](https://github.com/Cyan4973/FiniteStateEntropy).
 

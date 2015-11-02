@@ -23,12 +23,13 @@ For a taste of its performance, here are a few benchmark numbers from a number o
 [zlib]:http://www.zlib.net/
 [LZ4]:http://www.lz4.org/
 
-Zstd can also offer stronger compression ratio at the cost of compression speed. Compression speed is highly configurable, by small increment, to fit different situations. Note however that decompression speed is preserved and remain roughly the same at all settings, a property shared by most LZ compression algorithms, such as [zlib]. The following test is run on a Core i7-3930K CPU @ 4.5GHz, using [lzbench], an open-source in-memory benchmark by inikep.
+Zstd can also offer stronger compression ratio at the cost of compression speed. Speed / Ratio trade-off is configurable by small increment, to fit different situations. Note however that decompression speed is preserved and remain roughly the same at all settings, a property shared by most LZ compression algorithms, such as [zlib]. The following test is run on a Core i7-3930K CPU @ 4.5GHz, using [lzbench], an open-source in-memory benchmark by inikep, on the [Silesia compression corpus](http://sun.aei.polsl.pl/~sdeor/index.php?page=silesia)
 
 [lzbench]:https://github.com/inikep/lzbench
-Compression Ratio vs Speed | Decompression Speed
+
+Compression Speed vs Ratio | Decompression Speed
 ---------------------------|--------------------
-![Compression Ratio vs Speed](images/CSpeed.png "Compression Ratio vs Speed") | ![Decompression Speed](images/DSpeed.png "Decompression Speed")
+![Compression Speed vs Ratio](images/CSpeed.png "Compression Speed vs Ratio") | ![Decompression Speed](images/DSpeed.png "Decompression Speed")
 
 
 Zstd entropy stage is provided by [Huff0 and FSE, from Finite State Entrop library](https://github.com/Cyan4973/FiniteStateEntropy).

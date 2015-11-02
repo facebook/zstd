@@ -362,7 +362,7 @@ size_t HUF_buildCTable (HUF_CElt* tree, const U32* count, U32 maxSymbolValue, U3
             U16 min = 0;
             for (n=maxNbBits; n>0; n--)
             {
-                valPerRank[n] = min;      // get starting value within each rank
+                valPerRank[n] = min;      /* get starting value within each rank */
                 min += nbPerRank[n];
                 min >>= 1;
             }
@@ -1027,17 +1027,22 @@ size_t HUF_readDTableX4 (U32* DTable, const void* src, size_t srcSize)
         U32 nextRankVal = 0;
         U32 w, consumed;
         const int rescale = (memLog-tableLog) - 1;   /* tableLog <= memLog */
+        U32* rankVal0 = rankVal[0];
         for (w=1; w<=maxW; w++)
         {
             U32 current = nextRankVal;
             nextRankVal += rankStats[w] << (w+rescale);
-            rankVal[0][w] = current;
+            rankVal0[w] = current;
         }
-        for (consumed=minBits; consumed <= memLog-minBits; consumed++)
-            for (w=1; w<=maxW; w++)
-                rankVal[consumed][w] = rankVal[0][w] >> consumed;
+        for (consumed = minBits; consumed <= memLog - minBits; consumed++)
+        {
+            U32* rankValPtr = rankVal[consumed];
+            for (w = 1; w <= maxW; w++)
+            {
+                rankValPtr[w] = rankVal0[w] >> consumed;
+            }
+        }
     }
-
 
     HUF_fillDTableX4(dt, memLog,
                    sortedSymbol, sizeOfSort,
@@ -1394,17 +1399,22 @@ size_t HUF_readDTableX6 (U32* DTable, const void* src, size_t srcSize)
         U32 nextRankVal = 0;
         U32 w, consumed;
         const int rescale = (memLog-tableLog) - 1;   /* tableLog <= memLog */
+        U32* rankVal0 = rankVal[0];
         for (w=1; w<=maxW; w++)
         {
             U32 current = nextRankVal;
             nextRankVal += rankStats[w] << (w+rescale);
-            rankVal[0][w] = current;
+            rankVal0[w] = current;
         }
-        for (consumed=minBits; consumed <= memLog-minBits; consumed++)
-            for (w=1; w<=maxW; w++)
-                rankVal[consumed][w] = rankVal[0][w] >> consumed;
+        for (consumed = minBits; consumed <= memLog - minBits; consumed++)
+        {
+            U32* rankValPtr = rankVal[consumed];
+            for (w = 1; w <= maxW; w++)
+            {
+                rankValPtr[w] = rankVal0[w] >> consumed;
+            }
+        }
     }
-
 
     /* fill tables */
     {

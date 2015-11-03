@@ -570,7 +570,7 @@ static size_t ZSTD_compressBlock(ZSTD_CCtx* ctx, void* dst, size_t maxDstSize, c
     ZSTD_resetSeqStore(seqStorePtr);
 
     /* Main Search Loop */
-    while (ip <= ilimit)
+    while (ip < ilimit)  /* < instead of <=, because unconditionnal ZSTD_addPtr(ip+1) */
     {
         const BYTE* match = ZSTD_updateMatch(HashTable, ip, base);
 
@@ -591,7 +591,8 @@ static size_t ZSTD_compressBlock(ZSTD_CCtx* ctx, void* dst, size_t maxDstSize, c
             ZSTD_addPtr(HashTable, ip+1, base);
             ip += matchLength + MINMATCH;
             anchor = ip;
-            if (ip <= ilimit) ZSTD_addPtr(HashTable, ip-2, base);
+            if (ip < ilimit) /* same test as loop, for speed */
+                ZSTD_addPtr(HashTable, ip-2, base);
         }
     }
 

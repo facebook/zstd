@@ -1,3 +1,6 @@
+# Directories
+_codelite/
+
 # Object files
 *.o
 *.ko

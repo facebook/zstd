@@ -56,7 +56,7 @@
 *  decompressor can decode older formats (starting from Zstd 0.1+)
 */
 #ifndef ZSTD_LEGACY_SUPPORT
-#  define ZSTD_LEGACY_SUPPORT 0
+#  define ZSTD_LEGACY_SUPPORT 1
 #endif
 
 

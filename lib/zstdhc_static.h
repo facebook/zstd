@@ -53,7 +53,7 @@ typedef struct
     U32 hashLog;       /* dispatch table : larger == more memory, faster*/
     U32 searchLog;     /* nb of searches : larger == more compression, slower*/
     U32 searchLength;  /* size of matches : larger == faster decompression */
-    ZSTD_HC_strategy strategy;   /* greedy, lazy (stronger, slower) */
+    ZSTD_HC_strategy strategy;   /* greedy, lazy, lazydeep */
 } ZSTD_HC_parameters;
 
 /* parameters boundaries */
@@ -73,7 +73,7 @@ typedef struct
 *  Advanced function
 ***************************************/
 /** ZSTD_HC_compress_advanced
-*   Same as ZSTD_HC_compressCCtx(), but can fine-tune each compression parameter */
+*   Same as ZSTD_HC_compressCCtx(), with fine-tune control of each compression parameter */
 size_t ZSTD_HC_compress_advanced (ZSTD_HC_CCtx* ctx,
                                  void* dst, size_t maxDstSize,
                            const void* src, size_t srcSize,
@@ -94,34 +94,35 @@ size_t ZSTD_HC_compressEnd(ZSTD_HC_CCtx* ctx, void* dst, size_t maxDstSize);
 #define ZSTD_HC_MAX_CLEVEL 26
 static const ZSTD_HC_parameters ZSTD_HC_defaultParameters[ZSTD_HC_MAX_CLEVEL+1] = {
     /* W,  C,  H,  S,  L, strat */
-    { 18, 12, 14,  1,  4, ZSTD_HC_greedy },   /* level  0 - never used */
-    { 18, 12, 14,  1,  4, ZSTD_HC_greedy },   /* level  1 - in fact redirected towards zstd fast */
-    { 18, 12, 15,  2,  4, ZSTD_HC_greedy },   /* level  2 */
-    { 19, 13, 17,  3,  5, ZSTD_HC_greedy },   /* level  3 */
-    { 20, 18, 19,  2,  5, ZSTD_HC_greedy },   /* level  4 */
-    { 20, 19, 19,  3,  5, ZSTD_HC_greedy },   /* level  5 */
-    { 20, 18, 20,  3,  5, ZSTD_HC_lazy   },   /* level  6 */
-    { 20, 18, 20,  4,  5, ZSTD_HC_lazy   },   /* level  7 */
-    { 21, 19, 20,  4,  5, ZSTD_HC_lazy   },   /* level  8 */
-    { 21, 19, 20,  5,  5, ZSTD_HC_lazy   },   /* level  9 */
-    { 21, 20, 20,  5,  5, ZSTD_HC_lazy   },   /* level 10 */
-    { 21, 21, 20,  5,  5, ZSTD_HC_lazy   },   /* level 11 */
-    { 22, 20, 22,  6,  5, ZSTD_HC_lazy   },   /* level 12 */
-    { 22, 21, 22,  6,  5, ZSTD_HC_lazy   },   /* level 13 */
-    { 23, 21, 22,  6,  5, ZSTD_HC_lazy   },   /* level 14 */
-    { 23, 21, 23,  7,  5, ZSTD_HC_lazy   },   /* level 15 */
-    { 23, 22, 22,  6,  5, ZSTD_HC_lazy   },   /* level 16 */
-    { 23, 22, 22,  7,  5, ZSTD_HC_lazy   },   /* level 17 */
-    { 23, 23, 22,  7,  5, ZSTD_HC_lazy   },   /* level 18 */
-    { 23, 22, 23,  8,  5, ZSTD_HC_lazy   },   /* level 19 */
-    { 23, 23, 23,  8,  5, ZSTD_HC_lazy   },   /* level 20 */
-    { 23, 23, 23,  8,  5, ZSTD_HC_lazy   },   /* level 21 */
-    { 24, 24, 24,  8,  5, ZSTD_HC_lazy   },   /* level 22 */
-    { 24, 23, 23,  9,  5, ZSTD_HC_lazy   },   /* level 23 */
-    { 24, 24, 24,  9,  5, ZSTD_HC_lazy   },   /* level 24 */
-    { 24, 24, 24,  9,  5, ZSTD_HC_lazy   },   /* level 25 */
-    { 24, 24, 24, 10,  5, ZSTD_HC_lazy   },   /* level 26 */     /* ZSTD_HC_MAX_CLEVEL */
+    { 18, 12, 14,  1,  4, ZSTD_HC_greedy   },  /* level  0 - never used */
+    { 18, 12, 14,  1,  4, ZSTD_HC_greedy   },  /* level  1 - in fact redirected towards zstd fast */
+    { 18, 12, 15,  2,  4, ZSTD_HC_greedy   },  /* level  2 */
+    { 19, 13, 17,  3,  5, ZSTD_HC_greedy   },  /* level  3 */
+    { 20, 18, 19,  2,  5, ZSTD_HC_greedy   },  /* level  4 */
+    { 20, 18, 19,  2,  5, ZSTD_HC_lazy     },  /* level  5 */
+    { 20, 18, 20,  3,  5, ZSTD_HC_lazy     },  /* level  6 */
+    { 20, 18, 20,  4,  5, ZSTD_HC_lazy     },  /* level  7 */
+    { 21, 19, 20,  4,  5, ZSTD_HC_lazy     },  /* level  8 */
+    { 21, 19, 20,  5,  5, ZSTD_HC_lazy     },  /* level  9 */
+    { 21, 20, 20,  5,  5, ZSTD_HC_lazy     },  /* level 10 */
+    { 21, 20, 20,  5,  5, ZSTD_HC_lazydeep },  /* level 11 */
+    { 22, 20, 22,  5,  5, ZSTD_HC_lazydeep },  /* level 12 */
+    { 22, 20, 22,  6,  5, ZSTD_HC_lazydeep },  /* level 13 */
+    { 21, 21, 22,  6,  5, ZSTD_HC_lazydeep },  /* level 14 */
+    { 22, 21, 22,  6,  5, ZSTD_HC_lazydeep },  /* level 15 */
+    { 22, 21, 23,  7,  5, ZSTD_HC_lazydeep },  /* level 16 */
+    { 23, 21, 23,  7,  5, ZSTD_HC_lazydeep },  /* level 17 */
+    { 23, 22, 23,  7,  5, ZSTD_HC_lazydeep },  /* level 18 */
+    { 23, 22, 23,  7,  5, ZSTD_HC_lazydeep },  /* level 19 */
+    { 23, 22, 23,  8,  5, ZSTD_HC_lazydeep },  /* level 20 */
+    { 23, 22, 23,  8,  5, ZSTD_HC_lazydeep },  /* level 21 */
+    { 23, 23, 24,  8,  5, ZSTD_HC_lazydeep },  /* level 22 */
+    { 24, 24, 24,  8,  5, ZSTD_HC_lazydeep },  /* level 23 */
+    { 23, 23, 23,  9,  5, ZSTD_HC_lazydeep },  /* level 24 */
+    { 24, 23, 23,  9,  5, ZSTD_HC_lazydeep },  /* level 25 */
+    { 24, 24, 24,  9,  5, ZSTD_HC_lazydeep },  /* level 26 */
 };
+
 
 #if defined (__cplusplus)
 }

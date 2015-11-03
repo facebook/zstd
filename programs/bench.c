@@ -83,7 +83,7 @@
 #define MB *(1 <<20)
 #define GB *(1U<<30)
 
-#define MAX_MEM             (2 GB - 64 MB)
+static const size_t maxMemory = sizeof(size_t)==4 ? (2 GB - 64 MB) : 8ULL GB;
 #define DEFAULT_CHUNKSIZE   (4 MB)
 
 static U32 g_compressibilityDefault = 50;
@@ -401,7 +401,7 @@ static size_t BMK_findMaxMem(U64 requiredMem)
 
     requiredMem = (((requiredMem >> 26) + 1) << 26);
     requiredMem += 2 * step;
-    if (requiredMem > MAX_MEM) requiredMem = MAX_MEM;
+    if (requiredMem > maxMemory) requiredMem = maxMemory;
 
     while (!testmem)
     {

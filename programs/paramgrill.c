@@ -425,7 +425,7 @@ static size_t BMK_benchParam(BMK_result_t* resultPtr,
     return 0;
 }
 
-const char* g_stratName[] = { "ZSTD_HC_greedy  ", "ZSTD_HC_lazy    ", "ZSTD_HC_lazydeep" };
+const char* g_stratName[] = { "ZSTD_HC_greedy  ", "ZSTD_HC_lazy    ", "ZSTD_HC_lazydeep", "ZSTD_HC_btlazy2 " };
 
 static void BMK_printWinner(FILE* f, U32 cLevel, BMK_result_t result, ZSTD_HC_parameters params, size_t srcSize)
 {
@@ -576,7 +576,7 @@ static BYTE g_alreadyTested[ZSTD_HC_WINDOWLOG_MAX+1-ZSTD_HC_WINDOWLOG_MIN]
                            [ZSTD_HC_HASHLOG_MAX+1-ZSTD_HC_HASHLOG_MIN]
                            [ZSTD_HC_SEARCHLOG_MAX+1-ZSTD_HC_SEARCHLOG_MIN]
                            [ZSTD_HC_SEARCHLENGTH_MAX+1-ZSTD_HC_SEARCHLENGTH_MIN]
-                           [3 /* strategy */ ] = {};   /* init to zero */
+                           [4 /* strategy */ ] = {};   /* init to zero */
 
 #define NB_TESTS_PLAYED(p) \
     g_alreadyTested[p.windowLog-ZSTD_HC_WINDOWLOG_MIN] \
@@ -647,7 +647,7 @@ static void playAround(FILE* f, winnerInfo_t* winners,
         if (p.searchLength > ZSTD_HC_SEARCHLENGTH_MAX) continue;
         if (p.searchLength < ZSTD_HC_SEARCHLENGTH_MIN) continue;
         if (p.strategy < ZSTD_HC_greedy) continue;
-        if (p.strategy > ZSTD_HC_lazydeep) continue;
+        if (p.strategy > ZSTD_HC_btlazy2) continue;
 
         /* exclude faster if already played params */
         if (FUZ_rand(&g_rand) & ((1 << NB_TESTS_PLAYED(p))-1))
@@ -680,7 +680,7 @@ static void BMK_selectRandomStart(
         p.searchLog  = FUZ_rand(&g_rand) % (ZSTD_HC_SEARCHLOG_MAX+1 - ZSTD_HC_SEARCHLOG_MIN) + ZSTD_HC_SEARCHLOG_MIN;
         p.windowLog  = FUZ_rand(&g_rand) % (ZSTD_HC_WINDOWLOG_MAX+1 - ZSTD_HC_WINDOWLOG_MIN) + ZSTD_HC_WINDOWLOG_MIN;
         p.searchLength=FUZ_rand(&g_rand) % (ZSTD_HC_SEARCHLENGTH_MAX+1 - ZSTD_HC_SEARCHLENGTH_MIN) + ZSTD_HC_SEARCHLENGTH_MIN;
-        p.strategy   = (ZSTD_HC_strategy) (FUZ_rand(&g_rand) % 3);
+        p.strategy   = (ZSTD_HC_strategy) (FUZ_rand(&g_rand) % 4);
         playAround(f, winners, p, srcBuffer, srcSize, ctx);
     }
     else

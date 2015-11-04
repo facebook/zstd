@@ -292,7 +292,7 @@ size_t ZSTD_HC_insertBtAndFindBestMatch (
     const U32 windowLow = windowSize >= current ? 0 : current - windowSize;
     U32* smallerPtr = bt + 2*(current&btMask);
     U32* largerPtr  = bt + 2*(current&btMask) + 1;
-    U32 bestLength = 0;
+    size_t bestLength = 0;
     U32 dummy32;   /* to be nullified at the end */
 
     hashTable[h] = (U32)(ip-base);   /* Update Hash Table */
@@ -307,8 +307,8 @@ size_t ZSTD_HC_insertBtAndFindBestMatch (
 
         if (matchLength > bestLength)
         {
-            bestLength = (U32)matchLength;
-            *offsetPtr = current - matchIndex;
+            if ( (4*(int)(matchLength-bestLength)) > (int)(ZSTD_highbit(current-matchIndex+1) - ZSTD_highbit(offsetPtr[0]+1)) )
+                bestLength = matchLength, *offsetPtr = current - matchIndex;
             if (ip+matchLength == iend)   /* equal : no way to know if inf or sup */
                 break;   /* drop, next to null, to guarantee consistency (is there a way to do better ?) */
         }

@@ -696,6 +696,7 @@ static void BMK_benchMem(void* srcBuffer, size_t srcSize)
     if (g_singleRun)
     {
         BMK_result_t testResult;
+        ZSTD_HC_validateParams(&g_params, g_blockSize ? g_blockSize : srcSize);
         BMK_benchParam(&testResult, srcBuffer, srcSize, ctx, g_params);
         DISPLAY("\n");
         return;
@@ -978,7 +979,8 @@ int main(int argc, char** argv)
                             argument++;
                             while ((*argument>= '0') && (*argument<='9'))
                             {
-                                if (*argument++) g_params.strategy = ZSTD_HC_lazy;
+                                g_params.strategy = (ZSTD_HC_strategy)((U32)g_params.strategy *10);
+                                g_params.strategy = (ZSTD_HC_strategy)((U32)g_params.strategy + *argument++ - '0');
                             }
                             continue;
                         case 'L':

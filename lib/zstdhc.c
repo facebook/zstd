@@ -107,20 +107,42 @@ size_t ZSTD_HC_freeCCtx(ZSTD_HC_CCtx* cctx)
     return 0;
 }
 
+
+/** ZSTD_HC_validateParams
+    correct params value to remain within authorized range
+    optimize for srcSize if srcSize > 0 */
+void ZSTD_HC_validateParams(ZSTD_HC_parameters* params, size_t srcSize)
+{
+    const U32 chainplus = (params->strategy == ZSTD_HC_btlazy2);
+
+    /* validate params */
+    if (params->windowLog   > ZSTD_HC_WINDOWLOG_MAX) params->windowLog = ZSTD_HC_WINDOWLOG_MAX;
+    if (params->windowLog   < ZSTD_HC_WINDOWLOG_MIN) params->windowLog = ZSTD_HC_WINDOWLOG_MIN;
+
+    /* correct params, to use less memory */
+    if (srcSize > 0)
+    {
+        U32 srcLog = ZSTD_highbit((U32)srcSize-1) + 1;
+        if (params->windowLog > srcLog) params->windowLog = srcLog;
+    }
+
+    if (params->chainLog    > params->windowLog + chainplus) params->chainLog = params->windowLog+chainplus;   /* <= ZSTD_HC_CHAINLOG_MAX */
+    if (params->chainLog    < ZSTD_HC_CHAINLOG_MIN) params->chainLog = ZSTD_HC_CHAINLOG_MIN;
+    if (params->hashLog     > ZSTD_HC_HASHLOG_MAX) params->hashLog = ZSTD_HC_HASHLOG_MAX;
+    if (params->hashLog     < ZSTD_HC_HASHLOG_MIN) params->hashLog = ZSTD_HC_HASHLOG_MIN;
+    if (params->searchLog   > ZSTD_HC_SEARCHLOG_MAX) params->searchLog = ZSTD_HC_SEARCHLOG_MAX;
+    if (params->searchLog   < ZSTD_HC_SEARCHLOG_MIN) params->searchLog = ZSTD_HC_SEARCHLOG_MIN;
+    if (params->searchLength> ZSTD_HC_SEARCHLENGTH_MAX) params->searchLength = ZSTD_HC_SEARCHLENGTH_MAX;
+    if (params->searchLength< ZSTD_HC_SEARCHLENGTH_MIN) params->searchLength = ZSTD_HC_SEARCHLENGTH_MIN;
+    if ((U32)params->strategy>(U32)ZSTD_HC_btlazy2) params->strategy = ZSTD_HC_btlazy2;
+    if ((int)params->strategy<(int)ZSTD_HC_greedy) params->strategy = ZSTD_HC_greedy;
+}
+
+
 static size_t ZSTD_HC_resetCCtx_advanced (ZSTD_HC_CCtx* zc,
                                           ZSTD_HC_parameters params)
 {
-    /* validate params */
-    if (params.windowLog   > ZSTD_HC_WINDOWLOG_MAX) params.windowLog = ZSTD_HC_WINDOWLOG_MAX;
-    if (params.windowLog   < ZSTD_HC_WINDOWLOG_MIN) params.windowLog = ZSTD_HC_WINDOWLOG_MIN;
-    if (params.chainLog    > params.windowLog) params.chainLog = params.windowLog;   /* <= ZSTD_HC_CHAINLOG_MAX */
-    if (params.chainLog    < ZSTD_HC_CHAINLOG_MIN) params.chainLog = ZSTD_HC_CHAINLOG_MIN;
-    if (params.hashLog     > ZSTD_HC_HASHLOG_MAX) params.hashLog = ZSTD_HC_HASHLOG_MAX;
-    if (params.hashLog     < ZSTD_HC_HASHLOG_MIN) params.hashLog = ZSTD_HC_HASHLOG_MIN;
-    if (params.searchLog   > ZSTD_HC_SEARCHLOG_MAX) params.searchLog = ZSTD_HC_SEARCHLOG_MAX;
-    if (params.searchLog   < ZSTD_HC_SEARCHLOG_MIN) params.searchLog = ZSTD_HC_SEARCHLOG_MIN;
-    if (params.searchLength> ZSTD_HC_SEARCHLENGTH_MAX) params.searchLength = ZSTD_HC_SEARCHLENGTH_MAX;
-    if (params.searchLength< ZSTD_HC_SEARCHLENGTH_MIN) params.searchLength = ZSTD_HC_SEARCHLENGTH_MIN;
+    ZSTD_HC_validateParams(&params, 0);
 
     /* reserve table memory */
     {
@@ -190,8 +212,6 @@ static size_t ZSTD_HC_hashPtr(const void* p, U32 hBits, U32 mls)
 /* *************************************
 *  Binary Tree search
 ***************************************/
-#define BT_SHORTCUT 256
-
 /** ZSTD_HC_insertBt1 : add one ptr to tree
     @ip : assumed <= iend-8 */
 static void ZSTD_HC_insertBt1(ZSTD_HC_CCtx* zc, const BYTE* const ip, const U32 mls, const BYTE* const iend, U32 nbCompares)
@@ -209,7 +229,7 @@ static void ZSTD_HC_insertBt1(ZSTD_HC_CCtx* zc, const BYTE* const ip, const U32 
     const U32 btLow = btMask >= current ? 0 : current - btMask;
     U32* smallerPtr = bt + 2*(current&btMask);
     U32* largerPtr  = bt + 2*(current&btMask) + 1;
-	U32 dummy32;   /* to be nullified at the end */
+    U32 dummy32;   /* to be nullified at the end */
     const U32 windowSize = 1 << zc->params.windowLog;
     const U32 windowLow = windowSize >= current ? 0 : current - windowSize;
 
@@ -223,30 +243,30 @@ static void ZSTD_HC_insertBt1(ZSTD_HC_CCtx* zc, const BYTE* const ip, const U32 
 
         matchLength += ZSTD_count(ip+matchLength, match+matchLength, iend);
 
-		if (ip+matchLength == iend)   /* equal : no way to know if inf or sup */
-			break;   /* just drop , to guarantee consistency (miss a bit of compression; if someone knows better, please tell) */
+        if (ip+matchLength == iend)   /* equal : no way to know if inf or sup */
+            break;   /* just drop , to guarantee consistency (miss a bit of compression; if someone knows better, please tell) */
 
         if (match[matchLength] < ip[matchLength])
-		{
+        {
             /* match is smaller than current */
             *smallerPtr = matchIndex;             /* update smaller idx */
             commonLengthSmaller = matchLength;    /* all smaller will now have at least this guaranteed common length */
-			if (matchIndex <= btLow) { smallerPtr=&dummy32; break; }   /* beyond tree size, stop the search */
+            if (matchIndex <= btLow) { smallerPtr=&dummy32; break; }   /* beyond tree size, stop the search */
             smallerPtr = nextPtr+1;               /* new "smaller" => larger of match */
             matchIndex = nextPtr[1];              /* new matchIndex larger than previous (closer to current) */
-		}
+        }
         else
-		{
+        {
             /* match is larger than current */
             *largerPtr = matchIndex;
             commonLengthLarger = matchLength;
-			if (matchIndex <= btLow) { largerPtr=&dummy32; break; }   /* beyond tree size, stop the search */
+            if (matchIndex <= btLow) { largerPtr=&dummy32; break; }   /* beyond tree size, stop the search */
             largerPtr = nextPtr;
             matchIndex = nextPtr[0];
-		}
+        }
     }
 
-	*smallerPtr = *largerPtr = 0;
+    *smallerPtr = *largerPtr = 0;
 }
 
 
@@ -273,9 +293,9 @@ size_t ZSTD_HC_insertBtAndFindBestMatch (
     U32* smallerPtr = bt + 2*(current&btMask);
     U32* largerPtr  = bt + 2*(current&btMask) + 1;
     U32 bestLength = 0;
-	U32 dummy32;   /* to be nullified at the end */
+    U32 dummy32;   /* to be nullified at the end */
 
-	hashTable[h] = (U32)(ip-base);   /* Update Hash Table */
+    hashTable[h] = (U32)(ip-base);   /* Update Hash Table */
 
     while (nbCompares-- && (matchIndex > windowLow))
     {
@@ -289,34 +309,34 @@ size_t ZSTD_HC_insertBtAndFindBestMatch (
         {
             bestLength = (U32)matchLength;
             *offsetPtr = current - matchIndex;
-			if (ip+matchLength == iend)   /* equal : no way to know if inf or sup */
-				break;   /* drop, next to null, to guarantee consistency (is there a way to do better ?) */
+            if (ip+matchLength == iend)   /* equal : no way to know if inf or sup */
+                break;   /* drop, next to null, to guarantee consistency (is there a way to do better ?) */
         }
 
         if (match[matchLength] < ip[matchLength])
-		{
+        {
             /* match is smaller than current */
             *smallerPtr = matchIndex;             /* update smaller idx */
             commonLengthSmaller = matchLength;    /* all smaller will now have at least this guaranteed common length */
-			if (matchIndex <= btLow) { smallerPtr=&dummy32; break; }   /* beyond tree size, stop the search */
-			smallerPtr = nextPtr+1;               /* new "smaller" => larger of match */
+            if (matchIndex <= btLow) { smallerPtr=&dummy32; break; }   /* beyond tree size, stop the search */
+            smallerPtr = nextPtr+1;               /* new "smaller" => larger of match */
             matchIndex = nextPtr[1];              /* new matchIndex larger than previous (closer to current) */
-		}
+        }
         else
-		{
+        {
             /* match is larger than current */
             *largerPtr = matchIndex;
             commonLengthLarger = matchLength;
-			if (matchIndex <= btLow) { largerPtr=&dummy32; break; }   /* beyond tree size, stop the search */
+            if (matchIndex <= btLow) { largerPtr=&dummy32; break; }   /* beyond tree size, stop the search */
             largerPtr = nextPtr;
             matchIndex = nextPtr[0];
-		}
+        }
     }
 
-	*smallerPtr = *largerPtr = 0;
+    *smallerPtr = *largerPtr = 0;
 
     zc->nextToUpdate = current+1;   /* current has been inserted */
-	if (bestLength < MINMATCH) return 0;
+    if (bestLength < MINMATCH) return 0;
     return bestLength;
 }
 
@@ -326,7 +346,7 @@ static void ZSTD_HC_updateTree(ZSTD_HC_CCtx* zc, const BYTE* const ip, const BYT
     const BYTE* const base = zc->base;
     const U32 target = (U32)(ip - base);
     U32 idx = zc->nextToUpdate;
-	//size_t dummy;
+    //size_t dummy;
 
     for( ; idx < target ; idx++)
         ZSTD_HC_insertBt1(zc, base+idx, mls, iend, nbCompares);
@@ -510,7 +530,7 @@ static U32 ZSTD_HC_insertAndFindFirstIndex  (ZSTD_HC_CCtx* zc, const BYTE* ip, U
     }
 
     zc->nextToUpdate = target;
-	return hashTable[ZSTD_HC_hashPtr(ip, hashLog, mls)];
+    return hashTable[ZSTD_HC_hashPtr(ip, hashLog, mls)];
 }
 
 
@@ -891,21 +911,30 @@ size_t ZSTD_HC_compressBlock_greedy(ZSTD_HC_CCtx* ctx, void* dst, size_t maxDstS
 }
 
 
+typedef size_t (*ZSTD_HC_blockCompressor) (ZSTD_HC_CCtx* ctx, void* dst, size_t maxDstSize, const void* src, size_t srcSize);
+
+
+static ZSTD_HC_blockCompressor ZSTD_HC_selectBlockCompressor(ZSTD_HC_strategy strat)
+{
+    switch(strat)
+    {
+    default :
+    case ZSTD_HC_greedy:
+        return ZSTD_HC_compressBlock_greedy;
+    case ZSTD_HC_lazy:
+        return ZSTD_HC_compressBlock_lazy;
+    case ZSTD_HC_lazydeep:
+        return ZSTD_HC_compressBlock_lazydeep;
+    case ZSTD_HC_btlazy2:
+        return ZSTD_HC_compressBlock_btLazy2;
+    }
+}
+
+
 size_t ZSTD_HC_compressBlock(ZSTD_HC_CCtx* ctx, void* dst, size_t maxDstSize, const void* src, size_t srcSize)
 {
-    switch(ctx->params.strategy)
-    {
-    case ZSTD_HC_greedy:
-        return ZSTD_HC_compressBlock_greedy(ctx, dst, maxDstSize, src, srcSize);
-    case ZSTD_HC_lazy:
-        return ZSTD_HC_compressBlock_lazy(ctx, dst, maxDstSize, src, srcSize);
-    case ZSTD_HC_lazydeep:
-        return ZSTD_HC_compressBlock_lazydeep(ctx, dst, maxDstSize, src, srcSize);
-    case ZSTD_HC_btlazy2:
-        return ZSTD_HC_compressBlock_btLazy2(ctx, dst, maxDstSize, src, srcSize);
-    default :
-        return ERROR(GENERIC);   /* unknown block compressor */
-    }
+    ZSTD_HC_blockCompressor blockCompressor = ZSTD_HC_selectBlockCompressor(ctx->params.strategy);
+    return blockCompressor(ctx, dst, maxDstSize, src, srcSize);
 }
 
 
@@ -919,25 +948,8 @@ static size_t ZSTD_HC_compress_generic (ZSTD_HC_CCtx* ctxPtr,
     BYTE* const ostart = (BYTE*)dst;
     BYTE* op = ostart;
     BYTE* const oend = op + maxDstSize;
-    size_t (*blockCompressor) (ZSTD_HC_CCtx* ctx, void* dst, size_t maxDstSize, const void* src, size_t srcSize);
+    const ZSTD_HC_blockCompressor blockCompressor = ZSTD_HC_selectBlockCompressor(ctxPtr->params.strategy);
 
-    switch(ctxPtr->params.strategy)
-    {
-    case ZSTD_HC_greedy:
-        blockCompressor = ZSTD_HC_compressBlock_greedy;
-        break;
-    case ZSTD_HC_lazy:
-        blockCompressor = ZSTD_HC_compressBlock_lazy;
-        break;
-    case ZSTD_HC_lazydeep:
-        blockCompressor = ZSTD_HC_compressBlock_lazydeep;
-        break;
-    case ZSTD_HC_btlazy2:
-        blockCompressor = ZSTD_HC_compressBlock_btLazy2;
-        break;
-    default :
-        return ERROR(GENERIC);   /* unknown block compressor */
-    }
 
     while (remaining > blockSize)
     {

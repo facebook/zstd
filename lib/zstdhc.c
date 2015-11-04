@@ -307,7 +307,7 @@ size_t ZSTD_HC_insertBtAndFindBestMatch (
 
         if (matchLength > bestLength)
         {
-            if ( (4*(int)(matchLength-bestLength)) > (int)(ZSTD_highbit(current-matchIndex+1) - ZSTD_highbit(offsetPtr[0]+1)) )
+            if ( (4*(int)(matchLength-bestLength)) > (int)(ZSTD_highbit(current-matchIndex+1) - ZSTD_highbit((U32)offsetPtr[0]+1)) )
                 bestLength = matchLength, *offsetPtr = current - matchIndex;
             if (ip+matchLength == iend)   /* equal : no way to know if inf or sup */
                 break;   /* drop, next to null, to guarantee consistency (is there a way to do better ?) */

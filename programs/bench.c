@@ -241,7 +241,7 @@ static size_t local_compress_fast (void* dst, size_t maxDstSize, const void* src
 
 static int BMK_benchMem(void* srcBuffer, size_t srcSize, const char* fileName, int cLevel)
 {
-    const size_t blockSize = g_blockSize ? g_blockSize : srcSize;
+    const size_t blockSize = (g_blockSize ? g_blockSize : srcSize) + (!srcSize);   /* avoid div by 0 */
     const U32 nbBlocks = (U32) ((srcSize + (blockSize-1)) / blockSize);
     blockParam_t* const blockTable = (blockParam_t*) malloc(nbBlocks * sizeof(blockParam_t));
     const size_t maxCompressedSize = (size_t)nbBlocks * ZSTD_compressBound(blockSize);

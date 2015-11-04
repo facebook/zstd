@@ -942,18 +942,22 @@ static size_t ZSTD_HC_compress_generic (ZSTD_HC_CCtx* ctxPtr,
                                         void* dst, size_t maxDstSize,
                                   const void* src, size_t srcSize)
 {
-    static const size_t blockSize = 128 KB;
+    size_t blockSize = BLOCKSIZE;
     size_t remaining = srcSize;
     const BYTE* ip = (const BYTE*)src;
     BYTE* const ostart = (BYTE*)dst;
     BYTE* op = ostart;
-    BYTE* const oend = op + maxDstSize;
     const ZSTD_HC_blockCompressor blockCompressor = ZSTD_HC_selectBlockCompressor(ctxPtr->params.strategy);
 
-
-    while (remaining > blockSize)
+    while (remaining)
     {
-        size_t cSize = blockCompressor(ctxPtr, op+3, oend-op, ip, blockSize);
+        size_t cSize;
+
+        if (maxDstSize < 5) return ERROR(dstSize_tooSmall);   /* not enough space to store compressed block */
+
+        if (remaining < blockSize) blockSize = remaining;
+        cSize = blockCompressor(ctxPtr, op+3, maxDstSize-3, ip, blockSize);
+        if (ZSTD_isError(cSize)) return cSize;
 
         if (cSize == 0)
         {
@@ -969,30 +973,9 @@ static size_t ZSTD_HC_compress_generic (ZSTD_HC_CCtx* ctxPtr,
         }
 
         remaining -= blockSize;
+        maxDstSize -= cSize;
         ip += blockSize;
         op += cSize;
-        if (ZSTD_isError(cSize)) return cSize;
-    }
-
-    /* last block */
-    {
-        size_t cSize = blockCompressor(ctxPtr, op+3, oend-op, ip, remaining);
-
-        if (cSize == 0)
-        {
-            cSize = ZSTD_noCompressBlock(op, maxDstSize, ip, remaining);   /* block is not compressible */
-        }
-        else
-        {
-            op[0] = (BYTE)(cSize>>16);
-            op[1] = (BYTE)(cSize>>8);
-            op[2] = (BYTE)cSize;
-            op[0] += (BYTE)(bt_compressed << 6); /* is a compressed block */
-            cSize += 3;
-        }
-
-        op += cSize;
-        if (ZSTD_isError(cSize)) return cSize;
     }
 
     return op-ostart;
@@ -1077,7 +1060,7 @@ size_t ZSTD_HC_compress_advanced (ZSTD_HC_CCtx* ctx,
 
     /* body (compression) */
     ctx->base = (const BYTE*)src;
-    op += ZSTD_HC_compress_generic (ctx, op,  maxDstSize, src, srcSize);
+    oSize = ZSTD_HC_compress_generic (ctx, op,  maxDstSize, src, srcSize);
     if(ZSTD_isError(oSize)) return oSize;
     op += oSize;
     maxDstSize -= oSize;

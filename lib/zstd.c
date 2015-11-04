@@ -120,8 +120,6 @@
 #define GB *(1U<<30)
 
 #define BLOCKSIZE (128 KB)                 /* define, for static allocation */
-#define MIN_SEQUENCES_SIZE (2 /*seqNb*/ + 2 /*dumps*/ + 3 /*seqTables*/ + 1 /*bitStream*/)
-#define MIN_CBLOCK_SIZE (3 /*litCSize*/ + MIN_SEQUENCES_SIZE)
 #define IS_RAW BIT0
 #define IS_RLE BIT1
 

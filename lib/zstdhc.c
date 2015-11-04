@@ -953,7 +953,7 @@ static size_t ZSTD_HC_compress_generic (ZSTD_HC_CCtx* ctxPtr,
     {
         size_t cSize;
 
-        if (maxDstSize < 5) return ERROR(dstSize_tooSmall);   /* not enough space to store compressed block */
+        if (maxDstSize < 3 + MIN_CBLOCK_SIZE) return ERROR(dstSize_tooSmall);   /* not enough space to store compressed block */
 
         if (remaining < blockSize) blockSize = remaining;
         cSize = blockCompressor(ctxPtr, op+3, maxDstSize-3, ip, blockSize);

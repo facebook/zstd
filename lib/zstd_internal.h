@@ -171,7 +171,9 @@ static void ZSTD_wildcopy(void* dst, const void* src, size_t length)
     const BYTE* ip = (const BYTE*)src;
     BYTE* op = (BYTE*)dst;
     BYTE* const oend = op + length;
-    do COPY8(op, ip) while (op < oend);
+    do
+        COPY8(op, ip)
+    while (op < oend);
 }
 
 

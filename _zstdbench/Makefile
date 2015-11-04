@@ -2,7 +2,6 @@
 BUILD_ARCH = 64-bit
 
 ifeq ($(BUILD_SYSTEM),linux)
-	DEFINES += -DFREEARC_UNIX
 	LDFLAGS = -lrt
 	GCC		= gcc
 	GPP		= g++
@@ -24,7 +23,7 @@ endif
 
 
 #DEFINES		+= -DBENCH_REMOVE_XXX
-DEFINES		+= -I. -DFREEARC_INTEL_BYTE_ORDER -D_UNICODE -DUNICODE
+DEFINES		+= -I.
 CODE_FLAGS  = -Wno-unknown-pragmas -Wno-sign-compare -Wno-conversion
 OPT_FLAGS   = -fomit-frame-pointer -fstrict-aliasing -fforce-addr -ffast-math
 

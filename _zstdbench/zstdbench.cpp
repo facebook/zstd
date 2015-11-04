@@ -332,6 +332,11 @@ void benchmark(FILE* in, int iters, uint32_t chunk_size, int cspeed)
     printf("| Compressor name             | Compression| Decompress.| Compr. size | Ratio |\n");
 	print_stats("memcpy", 0, ctime, dtime, insize, insize, false, 0);
 
+    lzbench_test("zstd_HC v0.3.3 dev -13", 0, lzbench_zstdhc_compress, lzbench_zstdhc_decompress, cspeed, chunk_size, iters, inbuf, insize, compbuf, comprsize, decomp, ticksPerSecond, 13, 0, 0);
+    lzbench_test("zstd_HC v0.3.3 -27 search=4", 0, lzbench_zstdhc_compress, lzbench_zstdhc_decompress, cspeed, chunk_size, iters, inbuf, insize, compbuf, comprsize, decomp, ticksPerSecond, 27, 0, 0);
+    lzbench_test("zstd_HC v0.3.3 -28 search=4", 0, lzbench_zstdhc_compress, lzbench_zstdhc_decompress, cspeed, chunk_size, iters, inbuf, insize, compbuf, comprsize, decomp, ticksPerSecond, 28, 0, 0);
+    goto done;
+
     for (int level=1; level<=9; level+=2)
         lzbench_test("zstd_HC v0.3.3 dev -0", level, lzbench_zstdhc_compress, lzbench_zstdhc_decompress, cspeed, chunk_size, iters, inbuf, insize, compbuf, comprsize, decomp, ticksPerSecond, level, 0, 0);
     for (int level=11; level<=23; level+=2)

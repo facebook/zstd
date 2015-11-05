@@ -70,7 +70,7 @@
 **************************************/
 #define COMPRESSOR_NAME "zstd command line interface"
 #ifndef ZSTD_VERSION
-#  define ZSTD_VERSION "v0.3.0"
+#  define ZSTD_VERSION "v0.3.3"
 #endif
 #define AUTHOR "Yann Collet"
 #define WELCOME_MESSAGE "*** %s %i-bits %s, by %s (%s) ***\n", COMPRESSOR_NAME, (int)(sizeof(void*)*8), ZSTD_VERSION, AUTHOR, __DATE__
@@ -178,7 +178,7 @@ int main(int argc, char** argv)
     const char* inFileName = NULL;
     const char* outFileName = NULL;
     char* dynNameSpace = NULL;
-    char extension[] = ZSTD_EXTENSION;
+    const char extension[] = ZSTD_EXTENSION;
 
     displayOut = stderr;
     /* Pick out basename component. Don't rely on stdlib because of conflicting behavior. */
@@ -351,16 +351,17 @@ int main(int argc, char** argv)
         }
         /* decompression to file (automatic name will work only if input filename has correct format extension) */
         {
-            size_t outl;
-            size_t inl = strlen(inFileName);
-            dynNameSpace = (char*)calloc(1,inl+1);
+            size_t filenameSize = strlen(inFileName);
+            if (strcmp(inFileName + (filenameSize-4), extension))
+            {
+                 DISPLAYLEVEL(1, "unknown suffix - cannot determine destination filename\n");
+                 return badusage(programName);
+            }
+            dynNameSpace = (char*)calloc(1,filenameSize+1);
             if (dynNameSpace==NULL) { DISPLAY("not enough memory\n"); exit(1); }
             outFileName = dynNameSpace;
             strcpy(dynNameSpace, inFileName);
-            outl = inl;
-            if (inl>4)
-                while ((outl >= inl-4) && (inFileName[outl] ==  extension[outl-inl+4])) dynNameSpace[outl--]=0;
-            if (outl != inl-5) { DISPLAYLEVEL(1, "Cannot determine an output filename\n"); return badusage(programName); }
+            dynNameSpace[filenameSize-4]=0;
             DISPLAYLEVEL(2, "Decoding file %s \n", outFileName);
         }
     }

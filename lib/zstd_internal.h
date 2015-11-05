@@ -154,7 +154,7 @@ MEM_STATIC size_t ZSTD_count(const BYTE* pIn, const BYTE* pMatch, const BYTE* pI
         return (size_t)(pIn - pStart);
     }
 
-    if (MEM_32bits()) if ((pIn<(pInLimit-3)) && (MEM_read32(pMatch) == MEM_read32(pIn))) { pIn+=4; pMatch+=4; }
+    if (MEM_64bits()) if ((pIn<(pInLimit-3)) && (MEM_read32(pMatch) == MEM_read32(pIn))) { pIn+=4; pMatch+=4; }
     if ((pIn<(pInLimit-1)) && (MEM_read16(pMatch) == MEM_read16(pIn))) { pIn+=2; pMatch+=2; }
     if ((pIn<pInLimit) && (*pMatch == *pIn)) pIn++;
     return (size_t)(pIn - pStart);
@@ -171,7 +171,9 @@ static void ZSTD_wildcopy(void* dst, const void* src, size_t length)
     const BYTE* ip = (const BYTE*)src;
     BYTE* op = (BYTE*)dst;
     BYTE* const oend = op + length;
-    do COPY8(op, ip) while (op < oend);
+    do
+        COPY8(op, ip)
+    while (op < oend);
 }
 
 
@@ -211,6 +213,10 @@ void ZSTD_resetSeqStore(seqStore_t* ssPtr);
 #define MaxML  ((1<<MLbits) - 1)
 #define MaxLL  ((1<<LLbits) - 1)
 #define MaxOff   31
+
+#define MIN_SEQUENCES_SIZE (2 /*seqNb*/ + 2 /*dumps*/ + 3 /*seqTables*/ + 1 /*bitStream*/)
+#define MIN_CBLOCK_SIZE (3 /*litCSize*/ + MIN_SEQUENCES_SIZE)
+
 
 /** ZSTD_storeSeq
     Store a sequence (literal length, literals, offset code and match length) into seqStore_t

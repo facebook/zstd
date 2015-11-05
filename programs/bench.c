@@ -83,7 +83,7 @@
 #define MB *(1 <<20)
 #define GB *(1U<<30)
 
-#define MAX_MEM             (2 GB - 64 MB)
+static const size_t maxMemory = sizeof(size_t)==4  ?  (2 GB - 64 MB) : (size_t)(1ULL << ((sizeof(size_t)*8)-31));
 #define DEFAULT_CHUNKSIZE   (4 MB)
 
 static U32 g_compressibilityDefault = 50;
@@ -241,7 +241,7 @@ static size_t local_compress_fast (void* dst, size_t maxDstSize, const void* src
 
 static int BMK_benchMem(void* srcBuffer, size_t srcSize, const char* fileName, int cLevel)
 {
-    const size_t blockSize = g_blockSize ? g_blockSize : srcSize;
+    const size_t blockSize = (g_blockSize ? g_blockSize : srcSize) + (!srcSize);   /* avoid div by 0 */
     const U32 nbBlocks = (U32) ((srcSize + (blockSize-1)) / blockSize);
     blockParam_t* const blockTable = (blockParam_t*) malloc(nbBlocks * sizeof(blockParam_t));
     const size_t maxCompressedSize = (size_t)nbBlocks * ZSTD_compressBound(blockSize);
@@ -401,7 +401,7 @@ static size_t BMK_findMaxMem(U64 requiredMem)
 
     requiredMem = (((requiredMem >> 26) + 1) << 26);
     requiredMem += 2 * step;
-    if (requiredMem > MAX_MEM) requiredMem = MAX_MEM;
+    if (requiredMem > maxMemory) requiredMem = maxMemory;
 
     while (!testmem)
     {

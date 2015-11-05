@@ -328,14 +328,15 @@ int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compressibilit
         sampleStart = FUZ_rand(&lseed) % (srcBufferSize - sampleSize);
         crcOrig = XXH64(srcBuffer + sampleStart, sampleSize, 0);
 
-        /* HC compression test */
-        cLevel = (FUZ_rand(&lseed) & 3) + 2;
-        cSize = ZSTD_HC_compressCCtx(hcctx, cBuffer, cBufferSize, srcBuffer + sampleStart, sampleSize, cLevel);
-        CHECK(ZSTD_isError(cSize), "ZSTD_compress failed");
-
         /* compression test */
+        /* covered by HC cLevel 1
         cSize = ZSTD_compressCCtx(ctx, cBuffer, cBufferSize, srcBuffer + sampleStart, sampleSize);
-        CHECK(ZSTD_isError(cSize), "ZSTD_compress failed");
+        CHECK(ZSTD_isError(cSize), "ZSTD_compress failed"); */
+
+        /* HC compression test */
+        cLevel = (FUZ_rand(&lseed) & 3) +1;
+        cSize = ZSTD_HC_compressCCtx(hcctx, cBuffer, cBufferSize, srcBuffer + sampleStart, sampleSize, cLevel);
+        CHECK(ZSTD_isError(cSize), "ZSTD_HC_compressCCtx failed");
 
         /* compression failure test : too small dest buffer */
         if (cSize > 3)
@@ -346,16 +347,16 @@ int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compressibilit
             static const U32 endMark = 0x4DC2B1A9;
             U32 endCheck;
             memcpy(dstBuffer+tooSmallSize, &endMark, 4);
-            errorCode = ZSTD_compressCCtx(ctx, dstBuffer, tooSmallSize, srcBuffer + sampleStart, sampleSize);
-            CHECK(!ZSTD_isError(errorCode), "ZSTD_compress should have failed ! (buffer too small)");
+            errorCode = ZSTD_HC_compressCCtx(hcctx, dstBuffer, tooSmallSize, srcBuffer + sampleStart, sampleSize, cLevel);
+            CHECK(!ZSTD_isError(errorCode), "ZSTD_HC_compressCCtx should have failed ! (buffer too small : %u < %u)", (U32)tooSmallSize, (U32)cSize);
             memcpy(&endCheck, dstBuffer+tooSmallSize, 4);
-            CHECK(endCheck != endMark, "ZSTD_compress : dst buffer overflow");
+            CHECK(endCheck != endMark, "ZSTD_HC_compressCCtx : dst buffer overflow");
         }
 
         /* successfull decompression tests*/
         dSupSize = (FUZ_rand(&lseed) & 1) ? 0 : (FUZ_rand(&lseed) & 31) + 1;
         dSize = ZSTD_decompress(dstBuffer, sampleSize + dSupSize, cBuffer, cSize);
-        CHECK(dSize != sampleSize, "ZSTD_decompress failed (%s)", ZSTD_getErrorName(dSize));
+        CHECK(dSize != sampleSize, "ZSTD_decompress failed (%s) (srcSize : %u ; cSize : %u)", ZSTD_getErrorName(dSize), (U32)sampleSize, (U32)cSize);
         crcDest = XXH64(dstBuffer, sampleSize, 0);
         CHECK(crcOrig != crcDest, "dstBuffer corrupted (pos %u / %u)", (U32)findDiff(srcBuffer+sampleStart, dstBuffer, sampleSize), (U32)sampleSize);
 

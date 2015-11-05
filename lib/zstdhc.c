@@ -225,10 +225,12 @@ size_t ZSTD_HC_compressBlock_fast_generic(ZSTD_HC_CCtx* ctx,
     const U32 hBits = ctx->params.hashLog;
     seqStore_t* seqStorePtr = &(ctx->seqStore);
     const BYTE* const base = ctx->base;
+    const size_t maxDist = ((size_t)1 << ctx->params.windowLog);
 
     const BYTE* const istart = (const BYTE*)src;
     const BYTE* ip = istart + 1;
     const BYTE* anchor = istart;
+    const BYTE* const lowest = (size_t)(istart-base) > maxDist ? istart-maxDist : base;
     const BYTE* const iend = istart + srcSize;
     const BYTE* const ilimit = iend - 8;
 
@@ -253,7 +255,9 @@ size_t ZSTD_HC_compressBlock_fast_generic(ZSTD_HC_CCtx* ctx,
         hashTable[h] = (U32)(ip-base);
 
         if (MEM_read32(ip-offset_2) == MEM_read32(ip)) match = ip-offset_2;
-        if (MEM_read32(match) != MEM_read32(ip)) { ip += ((ip-anchor) >> g_searchStrength) + 1; offset_2 = offset_1; continue; }
+        if ( (match < lowest) ||
+             (MEM_read32(match) != MEM_read32(ip)) )
+        { ip += ((ip-anchor) >> g_searchStrength) + 1; offset_2 = offset_1; continue; }
         while ((ip>anchor) && (match>base) && (ip[-1] == match[-1])) { ip--; match--; }  /* catch up */
 
         {

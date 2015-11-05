@@ -429,7 +429,7 @@ static size_t BMK_benchParam(BMK_result_t* resultPtr,
 }
 
 
-const char* g_stratName[] = { "ZSTD_HC_greedy  ", "ZSTD_HC_lazy    ", "ZSTD_HC_lazydeep", "ZSTD_HC_btlazy2 " };
+const char* g_stratName[] = { "ZSTD_HC_greedy ", "ZSTD_HC_lazy   ", "ZSTD_HC_hclazy2", "ZSTD_HC_btlazy2" };
 
 static void BMK_printWinner(FILE* f, U32 cLevel, BMK_result_t result, ZSTD_HC_parameters params, size_t srcSize)
 {

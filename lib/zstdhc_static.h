@@ -45,7 +45,9 @@ extern "C" {
 /* *************************************
 *  Types
 ***************************************/
-typedef enum { ZSTD_HC_greedy, ZSTD_HC_lazy, ZSTD_HC_lazydeep, ZSTD_HC_btlazy2 } ZSTD_HC_strategy;
+/** from faster to stronger */
+typedef enum { ZSTD_HC_greedy, ZSTD_HC_lazy, ZSTD_HC_hclazy2, ZSTD_HC_btlazy2 } ZSTD_HC_strategy;
+
 typedef struct
 {
     U32 windowLog;     /* largest match distance : impact decompression buffer size */
@@ -53,7 +55,7 @@ typedef struct
     U32 hashLog;       /* dispatch table : larger == more memory, faster*/
     U32 searchLog;     /* nb of searches : larger == more compression, slower*/
     U32 searchLength;  /* size of matches : larger == faster decompression */
-    ZSTD_HC_strategy strategy;   /* faster to stronger : greedy, lazy, lazydeep, btlazy2 */
+    ZSTD_HC_strategy strategy;
 } ZSTD_HC_parameters;
 
 /* parameters boundaries */
@@ -110,11 +112,11 @@ static const ZSTD_HC_parameters ZSTD_HC_defaultParameters[ZSTD_HC_MAX_CLEVEL+1] 
     { 21, 19, 20,  4,  5, ZSTD_HC_lazy     },  /* level  8 */
     { 21, 19, 20,  5,  5, ZSTD_HC_lazy     },  /* level  9 */
     { 21, 20, 20,  5,  5, ZSTD_HC_lazy     },  /* level 10 */
-    { 21, 20, 20,  5,  5, ZSTD_HC_lazydeep },  /* level 11 */
-    { 22, 20, 22,  5,  5, ZSTD_HC_lazydeep },  /* level 12 */
-    { 22, 20, 22,  6,  5, ZSTD_HC_lazydeep },  /* level 13 */
-    { 22, 21, 22,  6,  5, ZSTD_HC_lazydeep },  /* level 14 */
-    { 22, 21, 22,  6,  5, ZSTD_HC_lazydeep },  /* level 15 */
+    { 21, 20, 20,  5,  5, ZSTD_HC_hclazy2  },  /* level 11 */
+    { 22, 20, 22,  5,  5, ZSTD_HC_hclazy2  },  /* level 12 */
+    { 22, 20, 22,  6,  5, ZSTD_HC_hclazy2  },  /* level 13 */
+    { 22, 21, 22,  6,  5, ZSTD_HC_hclazy2  },  /* level 14 */
+    { 22, 21, 22,  6,  5, ZSTD_HC_hclazy2  },  /* level 15 */
     { 22, 21, 22,  4,  5, ZSTD_HC_btlazy2  },  /* level 16 */
     { 23, 23, 23,  4,  5, ZSTD_HC_btlazy2  },  /* level 17 */
     { 23, 23, 23,  5,  5, ZSTD_HC_btlazy2  },  /* level 18 */

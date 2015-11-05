@@ -280,7 +280,7 @@ static size_t BMK_benchParam(BMK_result_t* resultPtr,
     void* const compressedBuffer = malloc(maxCompressedSize);
     void* const resultBuffer = malloc(srcSize);
     U32 Wlog = params.windowLog;
-    U32 Clog = params.chainLog;
+    U32 Clog = params.contentLog;
     U32 Hlog = params.hashLog;
     U32 Slog = params.searchLog;
     U32 Slength = params.searchLength;
@@ -429,7 +429,8 @@ static size_t BMK_benchParam(BMK_result_t* resultPtr,
 }
 
 
-const char* g_stratName[] = { "ZSTD_HC_greedy ",
+const char* g_stratName[] = { "ZSTD_HC_fast   ",
+                              "ZSTD_HC_greedy ",
                               "ZSTD_HC_lazy   ",
                               "ZSTD_HC_lazy2  ",
                               "ZSTD_HC_btlazy2" };
@@ -438,8 +439,8 @@ static void BMK_printWinner(FILE* f, U32 cLevel, BMK_result_t result, ZSTD_HC_pa
 {
     DISPLAY("\r%79s\r", "");
     fprintf(f,"    {%3u,%3u,%3u,%3u,%3u, %s },  ",
-            params.windowLog, params.chainLog, params.hashLog, params.searchLog, params.searchLength,
-            g_stratName[params.strategy]);
+            params.windowLog, params.contentLog, params.hashLog, params.searchLog, params.searchLength,
+            g_stratName[(U32)(params.strategy)]);
     fprintf(f,
             "/* level %2u */   /* R:%5.3f at %5.1f MB/s - %5.1f MB/s */\n",
             cLevel, (double)srcSize / result.cSize, (double)result.cSpeed / 1000., (double)result.dSpeed / 1000.);
@@ -512,8 +513,8 @@ static int BMK_seed(winnerInfo_t* winners, const ZSTD_HC_parameters params,
             double W_DMemUsed_note = W_ratioNote * ( 40 + 9*cLevel) - log((double)W_DMemUsed);
             double O_DMemUsed_note = O_ratioNote * ( 40 + 9*cLevel) - log((double)O_DMemUsed);
 
-            size_t W_CMemUsed = (1 << params.windowLog) + 4 * (1 << params.hashLog) + 4 * (1 << params.chainLog);
-            size_t O_CMemUsed = (1 << winners[cLevel].params.windowLog) + 4 * (1 << winners[cLevel].params.hashLog) + 4 * (1 << winners[cLevel].params.chainLog);
+            size_t W_CMemUsed = (1 << params.windowLog) + 4 * (1 << params.hashLog) + 4 * (1 << params.contentLog);
+            size_t O_CMemUsed = (1 << winners[cLevel].params.windowLog) + 4 * (1 << winners[cLevel].params.hashLog) + 4 * (1 << winners[cLevel].params.contentLog);
             double W_CMemUsed_note = W_ratioNote * ( 50 + 13*cLevel) - log((double)W_CMemUsed);
             double O_CMemUsed_note = O_ratioNote * ( 50 + 13*cLevel) - log((double)O_CMemUsed);
 
@@ -579,15 +580,15 @@ static int BMK_seed(winnerInfo_t* winners, const ZSTD_HC_parameters params,
 #define MAX(a,b)   ( (a) > (b) ? (a) : (b) )
 
 static BYTE g_alreadyTested[ZSTD_HC_WINDOWLOG_MAX+1-ZSTD_HC_WINDOWLOG_MIN]
-                           [ZSTD_HC_CHAINLOG_MAX+1-ZSTD_HC_CHAINLOG_MIN]
+                           [ZSTD_HC_CONTENTLOG_MAX+1-ZSTD_HC_CONTENTLOG_MIN]
                            [ZSTD_HC_HASHLOG_MAX+1-ZSTD_HC_HASHLOG_MIN]
                            [ZSTD_HC_SEARCHLOG_MAX+1-ZSTD_HC_SEARCHLOG_MIN]
                            [ZSTD_HC_SEARCHLENGTH_MAX+1-ZSTD_HC_SEARCHLENGTH_MIN]
-                           [4 /* strategy */ ] = {};   /* init to zero */
+                           [ZSTD_HC_btlazy2+1 /* strategy */ ] = {};   /* init to zero */
 
 #define NB_TESTS_PLAYED(p) \
     g_alreadyTested[p.windowLog-ZSTD_HC_WINDOWLOG_MIN] \
-                   [p.chainLog-ZSTD_HC_CHAINLOG_MIN]   \
+                   [p.contentLog-ZSTD_HC_CONTENTLOG_MIN]   \
                    [p.hashLog-ZSTD_HC_HASHLOG_MIN]     \
                    [p.searchLog-ZSTD_HC_SEARCHLOG_MIN] \
                    [p.searchLength-ZSTD_HC_SEARCHLENGTH_MIN] \
@@ -614,9 +615,9 @@ static void playAround(FILE* f, winnerInfo_t* winners,
             switch(changeID)
             {
             case 0:
-                p.chainLog++; break;
+                p.contentLog++; break;
             case 1:
-                p.chainLog--; break;
+                p.contentLog--; break;
             case 2:
                 p.hashLog++; break;
             case 3:
@@ -673,12 +674,12 @@ static void BMK_selectRandomStart(
     {
         /* totally random entry */
         ZSTD_HC_parameters p;
-        p.chainLog   = FUZ_rand(&g_rand) % (ZSTD_HC_CHAINLOG_MAX+1 - ZSTD_HC_CHAINLOG_MIN) + ZSTD_HC_CHAINLOG_MIN;
+        p.contentLog = FUZ_rand(&g_rand) % (ZSTD_HC_CONTENTLOG_MAX+1 - ZSTD_HC_CONTENTLOG_MIN) + ZSTD_HC_CONTENTLOG_MIN;
         p.hashLog    = FUZ_rand(&g_rand) % (ZSTD_HC_HASHLOG_MAX+1 - ZSTD_HC_HASHLOG_MIN) + ZSTD_HC_HASHLOG_MIN;
         p.searchLog  = FUZ_rand(&g_rand) % (ZSTD_HC_SEARCHLOG_MAX+1 - ZSTD_HC_SEARCHLOG_MIN) + ZSTD_HC_SEARCHLOG_MIN;
         p.windowLog  = FUZ_rand(&g_rand) % (ZSTD_HC_WINDOWLOG_MAX+1 - ZSTD_HC_WINDOWLOG_MIN) + ZSTD_HC_WINDOWLOG_MIN;
         p.searchLength=FUZ_rand(&g_rand) % (ZSTD_HC_SEARCHLENGTH_MAX+1 - ZSTD_HC_SEARCHLENGTH_MIN) + ZSTD_HC_SEARCHLENGTH_MIN;
-        p.strategy   = (ZSTD_HC_strategy) (FUZ_rand(&g_rand) % 4);
+        p.strategy   = (ZSTD_HC_strategy) (FUZ_rand(&g_rand) % (ZSTD_HC_btlazy2+1));
         playAround(f, winners, p, srcBuffer, srcSize, ctx);
     }
     else
@@ -718,8 +719,8 @@ static void BMK_benchMem(void* srcBuffer, size_t srcSize)
         BMK_result_t testResult;
         params = g_seedParams[2];
         params.windowLog = MIN(srcLog, params.windowLog);
-        params.chainLog = MIN(params.windowLog, params.chainLog);
-        params.searchLog = MIN(params.chainLog, params.searchLog);
+        params.contentLog = MIN(params.windowLog, params.contentLog);
+        params.searchLog = MIN(params.contentLog, params.searchLog);
         BMK_benchParam(&testResult, srcBuffer, srcSize, ctx, params);
         g_cSpeedTarget[2] = (testResult.cSpeed * 15) >> 4;
     }
@@ -735,8 +736,8 @@ static void BMK_benchMem(void* srcBuffer, size_t srcSize)
         {
             params = g_seedParams[i];
             params.windowLog = MIN(srcLog, params.windowLog);
-            params.chainLog = MIN(params.windowLog, params.chainLog);
-            params.searchLog = MIN(params.chainLog, params.searchLog);
+            params.contentLog = MIN(params.windowLog, params.contentLog);
+            params.searchLog = MIN(params.contentLog, params.searchLog);
             BMK_seed(winners, params, srcBuffer, srcSize, ctx);
         }
     }
@@ -954,10 +955,10 @@ int main(int argc, char** argv)
                                 g_params.windowLog *= 10, g_params.windowLog += *argument++ - '0';
                             continue;
                         case 'c':
-                            g_params.chainLog = 0;
+                            g_params.contentLog = 0;
                             argument++;
                             while ((*argument>= '0') && (*argument<='9'))
-                                g_params.chainLog *= 10, g_params.chainLog += *argument++ - '0';
+                                g_params.contentLog *= 10, g_params.contentLog += *argument++ - '0';
                             continue;
                         case 'h':
                             g_params.hashLog = 0;
@@ -978,7 +979,7 @@ int main(int argc, char** argv)
                                 g_params.searchLength *= 10, g_params.searchLength += *argument++ - '0';
                             continue;
                         case 't':  /* strategy */
-                            g_params.strategy = ZSTD_HC_greedy;
+                            g_params.strategy = (ZSTD_HC_strategy)0;
                             argument++;
                             while ((*argument>= '0') && (*argument<='9'))
                             {

@@ -91,7 +91,7 @@ struct ZSTD_HC_CCtx_s
 
     seqStore_t seqStore;    /* sequences storage ptrs */
     U32* hashTable;
-    U32* chainTable;
+    U32* contentTable;
 };
 
 
@@ -113,7 +113,7 @@ size_t ZSTD_HC_freeCCtx(ZSTD_HC_CCtx* cctx)
     optimize for srcSize if srcSize > 0 */
 void ZSTD_HC_validateParams(ZSTD_HC_parameters* params, size_t srcSize)
 {
-    const U32 chainplus = (params->strategy == ZSTD_HC_btlazy2);
+    const U32 btPlus = (params->strategy == ZSTD_HC_btlazy2);
 
     /* validate params */
     if (params->windowLog   > ZSTD_HC_WINDOWLOG_MAX) params->windowLog = ZSTD_HC_WINDOWLOG_MAX;
@@ -126,8 +126,8 @@ void ZSTD_HC_validateParams(ZSTD_HC_parameters* params, size_t srcSize)
         if (params->windowLog > srcLog) params->windowLog = srcLog;
     }
 
-    if (params->chainLog    > params->windowLog + chainplus) params->chainLog = params->windowLog+chainplus;   /* <= ZSTD_HC_CHAINLOG_MAX */
-    if (params->chainLog    < ZSTD_HC_CHAINLOG_MIN) params->chainLog = ZSTD_HC_CHAINLOG_MIN;
+    if (params->contentLog  > params->windowLog+btPlus) params->contentLog = params->windowLog+btPlus;   /* <= ZSTD_HC_CONTENTLOG_MAX */
+    if (params->contentLog  < ZSTD_HC_CONTENTLOG_MIN) params->contentLog = ZSTD_HC_CONTENTLOG_MIN;
     if (params->hashLog     > ZSTD_HC_HASHLOG_MAX) params->hashLog = ZSTD_HC_HASHLOG_MAX;
     if (params->hashLog     < ZSTD_HC_HASHLOG_MIN) params->hashLog = ZSTD_HC_HASHLOG_MIN;
     if (params->searchLog   > ZSTD_HC_SEARCHLOG_MAX) params->searchLog = ZSTD_HC_SEARCHLOG_MAX;
@@ -135,7 +135,6 @@ void ZSTD_HC_validateParams(ZSTD_HC_parameters* params, size_t srcSize)
     if (params->searchLength> ZSTD_HC_SEARCHLENGTH_MAX) params->searchLength = ZSTD_HC_SEARCHLENGTH_MAX;
     if (params->searchLength< ZSTD_HC_SEARCHLENGTH_MIN) params->searchLength = ZSTD_HC_SEARCHLENGTH_MIN;
     if ((U32)params->strategy>(U32)ZSTD_HC_btlazy2) params->strategy = ZSTD_HC_btlazy2;
-    if ((int)params->strategy<(int)ZSTD_HC_greedy) params->strategy = ZSTD_HC_greedy;
 }
 
 
@@ -146,7 +145,8 @@ static size_t ZSTD_HC_resetCCtx_advanced (ZSTD_HC_CCtx* zc,
 
     /* reserve table memory */
     {
-        const size_t tableSpace = ((1 << params.chainLog) + (1 << params.hashLog)) * sizeof(U32);
+        const U32 contentLog = params.strategy == ZSTD_HC_fast ? 1 : params.contentLog;
+        const size_t tableSpace = ((1 << contentLog) + (1 << params.hashLog)) * sizeof(U32);
         const size_t neededSpace = tableSpace + WORKPLACESIZE;
         if (zc->workSpaceSize < neededSpace)
         {
@@ -156,8 +156,8 @@ static size_t ZSTD_HC_resetCCtx_advanced (ZSTD_HC_CCtx* zc,
             if (zc->workSpace == NULL) return ERROR(memory_allocation);
         }
         zc->hashTable = (U32*)zc->workSpace;
-        zc->chainTable = zc->hashTable + ((size_t)1 << params.hashLog);
-        zc->seqStore.buffer = (void*) (zc->chainTable + ((size_t)1 << params.chainLog));
+        zc->contentTable = zc->hashTable + ((size_t)1 << params.hashLog);
+        zc->seqStore.buffer = (void*) (zc->contentTable + ((size_t)1 << contentLog));
         memset(zc->hashTable, 0, tableSpace );
     }
 
@@ -195,6 +195,10 @@ static const U64 prime6bytes = 227718039650203ULL;
 static size_t ZSTD_HC_hash6(U64 u, U32 h) { return (size_t)((u * prime6bytes) << (64-48) >> (64-h)) ; }
 static size_t ZSTD_HC_hash6Ptr(const void* p, U32 h) { return ZSTD_HC_hash6(MEM_read64(p), h); }
 
+static const U64 prime7bytes =    58295818150454627ULL;
+static size_t ZSTD_HC_hash7(U64 u, U32 h) { return (size_t)((u * prime7bytes) << (64-56) >> (64-h)) ; }
+static size_t ZSTD_HC_hash7Ptr(const void* p, U32 h) { return ZSTD_HC_hash7(MEM_read64(p), h); }
+
 static size_t ZSTD_HC_hashPtr(const void* p, U32 hBits, U32 mls)
 {
     switch(mls)
@@ -203,10 +207,104 @@ static size_t ZSTD_HC_hashPtr(const void* p, U32 hBits, U32 mls)
     case 4: return ZSTD_HC_hash4Ptr(p, hBits);
     case 5: return ZSTD_HC_hash5Ptr(p, hBits);
     case 6: return ZSTD_HC_hash6Ptr(p, hBits);
+    case 7: return ZSTD_HC_hash7Ptr(p, hBits);
     }
 }
 
-#define NEXT_IN_CHAIN(d, mask)   chainTable[(d) & mask]
+/* *************************************
+*  Fast Scan
+***************************************/
+
+FORCE_INLINE
+size_t ZSTD_HC_compressBlock_fast_generic(ZSTD_HC_CCtx* ctx,
+                                          void* dst, size_t maxDstSize,
+                                    const void* src, size_t srcSize,
+                                    const U32 mls)
+{
+    U32* hashTable = ctx->hashTable;
+    const U32 hBits = ctx->params.hashLog;
+    seqStore_t* seqStorePtr = &(ctx->seqStore);
+    const BYTE* const base = ctx->base;
+
+    const BYTE* const istart = (const BYTE*)src;
+    const BYTE* ip = istart + 1;
+    const BYTE* anchor = istart;
+    const BYTE* const iend = istart + srcSize;
+    const BYTE* const ilimit = iend - 8;
+
+    size_t offset_2=4, offset_1=4;
+
+
+    /* init */
+    if (ip == base)
+    {
+        hashTable[ZSTD_HC_hashPtr(base+1, hBits, mls)] = 1;
+        hashTable[ZSTD_HC_hashPtr(base+2, hBits, mls)] = 2;
+        hashTable[ZSTD_HC_hashPtr(base+3, hBits, mls)] = 3;
+        ip = base+4;
+    }
+    ZSTD_resetSeqStore(seqStorePtr);
+
+    /* Main Search Loop */
+    while (ip < ilimit)  /* < instead of <=, because unconditionnal ZSTD_addPtr(ip+1) */
+    {
+        const size_t h = ZSTD_HC_hashPtr(ip, hBits, mls);
+        const BYTE* match = base + hashTable[h];
+        hashTable[h] = (U32)(ip-base);
+
+        if (MEM_read32(ip-offset_2) == MEM_read32(ip)) match = ip-offset_2;
+        if (MEM_read32(match) != MEM_read32(ip)) { ip += ((ip-anchor) >> g_searchStrength) + 1; offset_2 = offset_1; continue; }
+        while ((ip>anchor) && (match>base) && (ip[-1] == match[-1])) { ip--; match--; }  /* catch up */
+
+        {
+            size_t litLength = ip-anchor;
+            size_t matchLength = ZSTD_count(ip+MINMATCH, match+MINMATCH, iend);
+            size_t offsetCode = ip-match;
+            if (offsetCode == offset_2) offsetCode = 0;
+            offset_2 = offset_1;
+            offset_1 = ip-match;
+            ZSTD_storeSeq(seqStorePtr, litLength, anchor, offsetCode, matchLength);
+
+            /* Fill Table */
+            hashTable[ZSTD_HC_hashPtr(ip+1, hBits, mls)] = (U32)(ip+1-base);
+            ip += matchLength + MINMATCH;
+            anchor = ip;
+            if (ip < ilimit) /* same test as loop, for speed */
+                hashTable[ZSTD_HC_hashPtr(ip-2, hBits, mls)] = (U32)(ip-2-base);
+        }
+    }
+
+    /* Last Literals */
+    {
+        size_t lastLLSize = iend - anchor;
+        memcpy(seqStorePtr->lit, anchor, lastLLSize);
+        seqStorePtr->lit += lastLLSize;
+    }
+
+    /* Finale compression stage */
+    return ZSTD_compressSequences((BYTE*)dst, maxDstSize,
+                                  seqStorePtr, srcSize);
+}
+
+
+size_t ZSTD_HC_compressBlock_fast(ZSTD_HC_CCtx* ctx,
+                               void* dst, size_t maxDstSize,
+                         const void* src, size_t srcSize)
+{
+    const U32 mls = ctx->params.searchLength;
+    switch(mls)
+    {
+    default:
+    case 4 :
+        return ZSTD_HC_compressBlock_fast_generic(ctx, dst, maxDstSize, src, srcSize, 4);
+    case 5 :
+        return ZSTD_HC_compressBlock_fast_generic(ctx, dst, maxDstSize, src, srcSize, 5);
+    case 6 :
+        return ZSTD_HC_compressBlock_fast_generic(ctx, dst, maxDstSize, src, srcSize, 6);
+    case 7 :
+        return ZSTD_HC_compressBlock_fast_generic(ctx, dst, maxDstSize, src, srcSize, 7);
+    }
+}
 
 
 /* *************************************
@@ -219,8 +317,8 @@ static void ZSTD_HC_insertBt1(ZSTD_HC_CCtx* zc, const BYTE* const ip, const U32 
     U32* const hashTable = zc->hashTable;
     const U32 hashLog = zc->params.hashLog;
     const size_t h  = ZSTD_HC_hashPtr(ip, hashLog, mls);
-    U32* const bt   = zc->chainTable;
-    const U32 btLog = zc->params.chainLog - 1;
+    U32* const bt   = zc->contentTable;
+    const U32 btLog = zc->params.contentLog - 1;
     const U32 btMask= (1 << btLog) - 1;
     U32 matchIndex  = hashTable[h];
     size_t commonLengthSmaller=0, commonLengthLarger=0;
@@ -280,8 +378,8 @@ size_t ZSTD_HC_insertBtAndFindBestMatch (
     U32* const hashTable = zc->hashTable;
     const U32 hashLog = zc->params.hashLog;
     const size_t h  = ZSTD_HC_hashPtr(ip, hashLog, mls);
-    U32* const bt   = zc->chainTable;
-    const U32 btLog = zc->params.chainLog - 1;
+    U32* const bt   = zc->contentTable;
+    const U32 btLog = zc->params.contentLog - 1;
     const U32 btMask= (1 << btLog) - 1;
     U32 matchIndex  = hashTable[h];
     size_t commonLengthSmaller=0, commonLengthLarger=0;
@@ -389,13 +487,15 @@ FORCE_INLINE size_t ZSTD_HC_BtFindBestMatch_selectMLS (
 *  Hash Chain
 *************************/
 
+#define NEXT_IN_CHAIN(d, mask)   chainTable[(d) & mask]
+
 /* Update chains up to ip (excluded) */
 static U32 ZSTD_HC_insertAndFindFirstIndex  (ZSTD_HC_CCtx* zc, const BYTE* ip, U32 mls)
 {
     U32* const hashTable  = zc->hashTable;
     const U32 hashLog = zc->params.hashLog;
-    U32* const chainTable = zc->chainTable;
-    const U32 chainMask = (1 << zc->params.chainLog) - 1;
+    U32* const chainTable = zc->contentTable;
+    const U32 chainMask = (1 << zc->params.contentLog) - 1;
     const BYTE* const base = zc->base;
     const U32 target = (U32)(ip - base);
     U32 idx = zc->nextToUpdate;
@@ -414,14 +514,14 @@ static U32 ZSTD_HC_insertAndFindFirstIndex  (ZSTD_HC_CCtx* zc, const BYTE* ip, U
 
 
 FORCE_INLINE /* inlining is important to hardwire a hot branch (template emulation) */
-size_t ZSTD_HC_insertAndFindBestMatch (
+size_t ZSTD_HC_HcFindBestMatch (
                         ZSTD_HC_CCtx* zc,   /* Index table will be updated */
                         const BYTE* const ip, const BYTE* const iLimit,
                         size_t* offsetPtr,
                         const U32 maxNbAttempts, const U32 matchLengthSearch)
 {
-    U32* const chainTable = zc->chainTable;
-    const U32 chainSize = (1 << zc->params.chainLog);
+    U32* const chainTable = zc->contentTable;
+    const U32 chainSize = (1 << zc->params.contentLog);
     const U32 chainMask = chainSize-1;
     const BYTE* const base = zc->base;
     const BYTE* const dictBase = zc->dictBase;
@@ -477,7 +577,7 @@ size_t ZSTD_HC_insertAndFindBestMatch (
 }
 
 
-FORCE_INLINE size_t ZSTD_HC_insertAndFindBestMatch_selectMLS (
+FORCE_INLINE size_t ZSTD_HC_HcFindBestMatch_selectMLS (
                         ZSTD_HC_CCtx* zc,   /* Index table will be updated */
                         const BYTE* ip, const BYTE* const iLimit,
                         size_t* offsetPtr,
@@ -486,9 +586,9 @@ FORCE_INLINE size_t ZSTD_HC_insertAndFindBestMatch_selectMLS (
     switch(matchLengthSearch)
     {
     default :
-    case 4 : return ZSTD_HC_insertAndFindBestMatch(zc, ip, iLimit, offsetPtr, maxNbAttempts, 4);
-    case 5 : return ZSTD_HC_insertAndFindBestMatch(zc, ip, iLimit, offsetPtr, maxNbAttempts, 5);
-    case 6 : return ZSTD_HC_insertAndFindBestMatch(zc, ip, iLimit, offsetPtr, maxNbAttempts, 6);
+    case 4 : return ZSTD_HC_HcFindBestMatch(zc, ip, iLimit, offsetPtr, maxNbAttempts, 4);
+    case 5 : return ZSTD_HC_HcFindBestMatch(zc, ip, iLimit, offsetPtr, maxNbAttempts, 5);
+    case 6 : return ZSTD_HC_HcFindBestMatch(zc, ip, iLimit, offsetPtr, maxNbAttempts, 6);
     }
 }
 
@@ -513,7 +613,7 @@ size_t ZSTD_HC_compressBlock_lazy_generic(ZSTD_HC_CCtx* ctx,
     typedef size_t (*searchMax_f)(ZSTD_HC_CCtx* zc, const BYTE* ip, const BYTE* iLimit,
                         size_t* offsetPtr,
                         U32 maxNbAttempts, U32 matchLengthSearch);
-    searchMax_f searchMax = searchMethod ? ZSTD_HC_BtFindBestMatch_selectMLS : ZSTD_HC_insertAndFindBestMatch_selectMLS;
+    searchMax_f searchMax = searchMethod ? ZSTD_HC_BtFindBestMatch_selectMLS : ZSTD_HC_HcFindBestMatch_selectMLS;
 
     /* init */
     ZSTD_resetSeqStore(seqStorePtr);
@@ -688,7 +788,7 @@ size_t ZSTD_HC_compressBlock_greedy(ZSTD_HC_CCtx* ctx, void* dst, size_t maxDstS
         /* search */
         {
             size_t offset=999999;
-            size_t matchLength = ZSTD_HC_insertAndFindBestMatch_selectMLS(ctx, ip, iend, &offset, maxSearches, mls);
+            size_t matchLength = ZSTD_HC_HcFindBestMatch_selectMLS(ctx, ip, iend, &offset, maxSearches, mls);
             if (!matchLength) { ip++; continue; }
             /* store sequence */
             {
@@ -717,12 +817,13 @@ size_t ZSTD_HC_compressBlock_greedy(ZSTD_HC_CCtx* ctx, void* dst, size_t maxDstS
 
 typedef size_t (*ZSTD_HC_blockCompressor) (ZSTD_HC_CCtx* ctx, void* dst, size_t maxDstSize, const void* src, size_t srcSize);
 
-
 static ZSTD_HC_blockCompressor ZSTD_HC_selectBlockCompressor(ZSTD_HC_strategy strat)
 {
     switch(strat)
     {
     default :
+    case ZSTD_HC_fast:
+        return ZSTD_HC_compressBlock_fast;
     case ZSTD_HC_greedy:
         return ZSTD_HC_compressBlock_greedy;
     case ZSTD_HC_lazy:
@@ -852,9 +953,12 @@ size_t ZSTD_HC_compress_advanced (ZSTD_HC_CCtx* ctx,
     size_t oSize;
 
     /* correct params, to use less memory */
-    U32 srcLog = ZSTD_highbit((U32)srcSize-1) + 1;
-    if (params.windowLog > srcLog) params.windowLog = srcLog;
-    if (params.chainLog > srcLog) params.chainLog = srcLog;
+    {
+        U32 srcLog = ZSTD_highbit((U32)srcSize-1) + 1;
+        U32 contentBtPlus = (ctx->params.strategy == ZSTD_HC_btlazy2);
+        if (params.windowLog > srcLog) params.windowLog = srcLog;
+        if (params.contentLog > srcLog+contentBtPlus) params.contentLog = srcLog+contentBtPlus;
+    }
 
     /* Header */
     oSize = ZSTD_HC_compressBegin_advanced(ctx, dst, maxDstSize, params);

@@ -125,7 +125,6 @@
 
 static const U32 g_maxDistance = 4 * BLOCKSIZE;
 static const U32 g_maxLimit = 1 GB;
-static const U32 g_searchStrength = 8;
 
 #define WORKPLACESIZE (BLOCKSIZE*3)
 #define MINMATCH 4
@@ -524,8 +523,6 @@ static U32   ZSTD_hashPtr(const void* p) { return ( (MEM_read64(p) * prime7bytes
 
 //static U32   ZSTD_hashPtr(const void* p) { return ( (*(U32*)p * KNUTH) >> (32-HASH_LOG)); }
 
-static void  ZSTD_addPtr(U32* table, const BYTE* p, const BYTE* start) { table[ZSTD_hashPtr(p)] = (U32)(p-start); }
-
 static const BYTE* ZSTD_updateMatch(U32* table, const BYTE* p, const BYTE* start)
 {
     U32 h = ZSTD_hashPtr(p);
@@ -539,6 +536,8 @@ static int ZSTD_checkMatch(const BYTE* match, const BYTE* ip)
 {
     return MEM_read32(match) == MEM_read32(ip);
 }
+
+static void  ZSTD_addPtr(U32* table, const BYTE* p, const BYTE* start) { table[ZSTD_hashPtr(p)] = (U32)(p-start); }
 
 
 static size_t ZSTD_compressBlock(ZSTD_CCtx* ctx, void* dst, size_t maxDstSize, const void* src, size_t srcSize)

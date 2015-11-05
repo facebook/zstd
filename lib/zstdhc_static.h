@@ -46,12 +46,12 @@ extern "C" {
 *  Types
 ***************************************/
 /** from faster to stronger */
-typedef enum { ZSTD_HC_greedy, ZSTD_HC_lazy, ZSTD_HC_lazy2, ZSTD_HC_btlazy2 } ZSTD_HC_strategy;
+typedef enum { ZSTD_HC_fast, ZSTD_HC_greedy, ZSTD_HC_lazy, ZSTD_HC_lazy2, ZSTD_HC_btlazy2 } ZSTD_HC_strategy;
 
 typedef struct
 {
     U32 windowLog;     /* largest match distance : impact decompression buffer size */
-    U32 chainLog;      /* full search distance : larger == more compression, slower, more memory*/
+    U32 contentLog;    /* full search segment : larger == more compression, slower, more memory*/
     U32 hashLog;       /* dispatch table : larger == more memory, faster*/
     U32 searchLog;     /* nb of searches : larger == more compression, slower*/
     U32 searchLength;  /* size of matches : larger == faster decompression */
@@ -61,13 +61,13 @@ typedef struct
 /* parameters boundaries */
 #define ZSTD_HC_WINDOWLOG_MAX 26
 #define ZSTD_HC_WINDOWLOG_MIN 18
-#define ZSTD_HC_CHAINLOG_MAX (ZSTD_HC_WINDOWLOG_MAX+1)
-#define ZSTD_HC_CHAINLOG_MIN 4
+#define ZSTD_HC_CONTENTLOG_MAX (ZSTD_HC_WINDOWLOG_MAX+1)
+#define ZSTD_HC_CONTENTLOG_MIN 4
 #define ZSTD_HC_HASHLOG_MAX 28
 #define ZSTD_HC_HASHLOG_MIN 4
-#define ZSTD_HC_SEARCHLOG_MAX (ZSTD_HC_CHAINLOG_MAX-1)
+#define ZSTD_HC_SEARCHLOG_MAX (ZSTD_HC_CONTENTLOG_MAX-1)
 #define ZSTD_HC_SEARCHLOG_MIN 1
-#define ZSTD_HC_SEARCHLENGTH_MAX 6
+#define ZSTD_HC_SEARCHLENGTH_MAX 7
 #define ZSTD_HC_SEARCHLENGTH_MIN 4
 
 

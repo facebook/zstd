@@ -487,7 +487,7 @@ static int BMK_seed(winnerInfo_t* winners, const ZSTD_HC_parameters params,
 
     BMK_benchParam(&testResult, srcBuffer, srcSize, ctx, params);
 
-    for (cLevel = 2; cLevel <= ZSTD_HC_MAX_CLEVEL; cLevel++)
+    for (cLevel = 1; cLevel <= ZSTD_HC_MAX_CLEVEL; cLevel++)
     {
         if (testResult.cSpeed < g_cSpeedTarget[cLevel])
             continue;   /* not fast enough for this level */
@@ -513,8 +513,10 @@ static int BMK_seed(winnerInfo_t* winners, const ZSTD_HC_parameters params,
             double W_DMemUsed_note = W_ratioNote * ( 40 + 9*cLevel) - log((double)W_DMemUsed);
             double O_DMemUsed_note = O_ratioNote * ( 40 + 9*cLevel) - log((double)O_DMemUsed);
 
-            size_t W_CMemUsed = (1 << params.windowLog) + 4 * (1 << params.hashLog) + 4 * (1 << params.contentLog);
-            size_t O_CMemUsed = (1 << winners[cLevel].params.windowLog) + 4 * (1 << winners[cLevel].params.hashLog) + 4 * (1 << winners[cLevel].params.contentLog);
+            size_t W_CMemUsed = (1 << params.windowLog) + 4 * (1 << params.hashLog) +
+                                ((params.strategy==ZSTD_HC_fast) ? 0 : 4 * (1 << params.contentLog));
+            size_t O_CMemUsed = (1 << winners[cLevel].params.windowLog) + 4 * (1 << winners[cLevel].params.hashLog) +
+                                ((winners[cLevel].params.strategy==ZSTD_HC_fast) ? 0 :  4 * (1 << winners[cLevel].params.contentLog));
             double W_CMemUsed_note = W_ratioNote * ( 50 + 13*cLevel) - log((double)W_CMemUsed);
             double O_CMemUsed_note = O_ratioNote * ( 50 + 13*cLevel) - log((double)O_CMemUsed);
 
@@ -669,8 +671,8 @@ static void BMK_selectRandomStart(
                        const void* srcBuffer, size_t srcSize,
                        ZSTD_HC_CCtx* ctx)
 {
-    U32 id = (FUZ_rand(&g_rand) % ZSTD_HC_MAX_CLEVEL) + 1;
-    if ((id<2) || (winners[id].params.windowLog==0))
+    U32 id = (FUZ_rand(&g_rand) % (ZSTD_HC_MAX_CLEVEL+1));
+    if ((id==0) || (winners[id].params.windowLog==0))
     {
         /* totally random entry */
         ZSTD_HC_parameters p;
@@ -712,27 +714,29 @@ static void BMK_benchMem(void* srcBuffer, size_t srcSize)
     if (f==NULL) { DISPLAY("error opening %s \n", rfName); exit(1); }
 
     if (g_target)
-        g_cSpeedTarget[2] = g_target * 1000;
+        g_cSpeedTarget[1] = g_target * 1000;
     else
     {
-        /* baseline config for level 2 */
+        /* baseline config for level 1 */
         BMK_result_t testResult;
-        params = g_seedParams[2];
-        params.windowLog = MIN(srcLog, params.windowLog);
-        params.contentLog = MIN(params.windowLog, params.contentLog);
-        params.searchLog = MIN(params.contentLog, params.searchLog);
+        params.windowLog = MIN(srcLog, 18);
+        params.hashLog = 14;
+        params.contentLog = 1;
+        params.searchLog = 1;
+        params.searchLength = 7;
+        params.strategy = ZSTD_HC_fast;
         BMK_benchParam(&testResult, srcBuffer, srcSize, ctx, params);
-        g_cSpeedTarget[2] = (testResult.cSpeed * 15) >> 4;
+        g_cSpeedTarget[1] = (testResult.cSpeed * 15) >> 4;
     }
 
-    /* establish speed objectives (relative to level 2) */
-    for (i=3; i<=ZSTD_HC_MAX_CLEVEL; i++)
-        g_cSpeedTarget[i] = (g_cSpeedTarget[i-1] * 13) >> 4;
+    /* establish speed objectives (relative to level 1) */
+    for (i=2; i<=ZSTD_HC_MAX_CLEVEL; i++)
+        g_cSpeedTarget[i] = (g_cSpeedTarget[i-1] * 25) >> 5;
 
     /* populate initial solution */
     {
-        const int maxSeeds = g_noSeed ? 2 : ZSTD_HC_MAX_CLEVEL;
-        for (i=2; i<=maxSeeds; i++)
+        const int maxSeeds = g_noSeed ? 1 : ZSTD_HC_MAX_CLEVEL;
+        for (i=1; i<=maxSeeds; i++)
         {
             params = g_seedParams[i];
             params.windowLog = MIN(srcLog, params.windowLog);
@@ -1004,7 +1008,7 @@ int main(int argc, char** argv)
                     }
                     break;
 
-                    /* target level2 speed objective, in MB/s */
+                    /* target level1 speed objective, in MB/s */
                 case 'T':
                     argument++;
                     g_target = 0;

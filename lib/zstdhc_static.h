@@ -51,7 +51,7 @@ typedef enum { ZSTD_HC_fast, ZSTD_HC_greedy, ZSTD_HC_lazy, ZSTD_HC_lazy2, ZSTD_H
 typedef struct
 {
     U32 windowLog;     /* largest match distance : impact decompression buffer size */
-    U32 contentLog;    /* full search segment : larger == more compression, slower, more memory*/
+    U32 contentLog;    /* full search segment : larger == more compression, slower, more memory (useless for fast) */
     U32 hashLog;       /* dispatch table : larger == more memory, faster*/
     U32 searchLog;     /* nb of searches : larger == more compression, slower*/
     U32 searchLength;  /* size of matches : larger == faster decompression */
@@ -98,11 +98,11 @@ size_t ZSTD_HC_compressEnd(ZSTD_HC_CCtx* ctx, void* dst, size_t maxDstSize);
 /* *************************************
 *  Pre-defined compression levels
 ***************************************/
-#define ZSTD_HC_MAX_CLEVEL 22
+#define ZSTD_HC_MAX_CLEVEL 25
 static const ZSTD_HC_parameters ZSTD_HC_defaultParameters[ZSTD_HC_MAX_CLEVEL+1] = {
     /* W,  C,  H,  S,  L, strat */
-    { 18, 12, 14,  1,  4, ZSTD_HC_greedy   },  /* level  0 - never used */
-    { 18, 12, 14,  1,  4, ZSTD_HC_greedy   },  /* level  1 - in fact redirected towards zstd fast */
+    { 18, 12, 14,  1,  4, ZSTD_HC_fast     },  /* level  0 - never used */
+    { 18, 12, 14,  1,  7, ZSTD_HC_fast     },  /* level  1 - in fact redirected towards zstd fast */
     { 18, 12, 15,  2,  4, ZSTD_HC_greedy   },  /* level  2 */
     { 19, 14, 18,  2,  5, ZSTD_HC_greedy   },  /* level  3 */
     { 20, 17, 19,  3,  5, ZSTD_HC_greedy   },  /* level  4 */
@@ -124,6 +124,9 @@ static const ZSTD_HC_parameters ZSTD_HC_defaultParameters[ZSTD_HC_MAX_CLEVEL+1] 
     { 25, 25, 23,  6,  5, ZSTD_HC_btlazy2  },  /* level 20 */
     { 25, 26, 23,  8,  5, ZSTD_HC_btlazy2  },  /* level 21 */
     { 25, 26, 23,  8,  5, ZSTD_HC_btlazy2  },  /* level 22 */
+    { 25, 26, 23,  8,  5, ZSTD_HC_btlazy2  },  /* level 23 */
+    { 25, 26, 23,  8,  5, ZSTD_HC_btlazy2  },  /* level 24 */
+    { 25, 26, 23,  8,  5, ZSTD_HC_btlazy2  },  /* level 25 */
 };
 
 

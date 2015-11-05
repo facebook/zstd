@@ -53,7 +53,7 @@ typedef struct
     U32 hashLog;       /* dispatch table : larger == more memory, faster*/
     U32 searchLog;     /* nb of searches : larger == more compression, slower*/
     U32 searchLength;  /* size of matches : larger == faster decompression */
-    ZSTD_HC_strategy strategy;   /* greedy, lazy, lazydeep */
+    ZSTD_HC_strategy strategy;   /* faster to stronger : greedy, lazy, lazydeep, btlazy2 */
 } ZSTD_HC_parameters;
 
 /* parameters boundaries */
@@ -106,7 +106,7 @@ static const ZSTD_HC_parameters ZSTD_HC_defaultParameters[ZSTD_HC_MAX_CLEVEL+1] 
     { 20, 17, 19,  3,  5, ZSTD_HC_greedy   },  /* level  4 */
     { 20, 18, 19,  2,  5, ZSTD_HC_lazy     },  /* level  5 */
     { 21, 18, 20,  3,  5, ZSTD_HC_lazy     },  /* level  6 */
-    { 21, 20, 20,  3,  5, ZSTD_HC_lazy     },  /* level  7 */
+    { 21, 19, 20,  3,  5, ZSTD_HC_lazy     },  /* level  7 */
     { 21, 19, 20,  4,  5, ZSTD_HC_lazy     },  /* level  8 */
     { 21, 19, 20,  5,  5, ZSTD_HC_lazy     },  /* level  9 */
     { 21, 20, 20,  5,  5, ZSTD_HC_lazy     },  /* level 10 */
@@ -115,15 +115,14 @@ static const ZSTD_HC_parameters ZSTD_HC_defaultParameters[ZSTD_HC_MAX_CLEVEL+1] 
     { 22, 20, 22,  6,  5, ZSTD_HC_lazydeep },  /* level 13 */
     { 22, 21, 22,  6,  5, ZSTD_HC_lazydeep },  /* level 14 */
     { 22, 21, 22,  6,  5, ZSTD_HC_lazydeep },  /* level 15 */
-    { 22, 21, 22,  5,  5, ZSTD_HC_btlazy2  },  /* level 16 */
-    { 22, 22, 23,  5,  5, ZSTD_HC_btlazy2  },  /* level 17 */
+    { 22, 21, 22,  4,  5, ZSTD_HC_btlazy2  },  /* level 16 */
+    { 23, 23, 23,  4,  5, ZSTD_HC_btlazy2  },  /* level 17 */
     { 23, 23, 23,  5,  5, ZSTD_HC_btlazy2  },  /* level 18 */
-    { 25, 25, 22,  5,  5, ZSTD_HC_btlazy2  },  /* level 19 */
-    { 25, 25, 23,  8,  5, ZSTD_HC_btlazy2  },  /* level 20 */
-    { 25, 26, 23,  9,  5, ZSTD_HC_btlazy2  },  /* level 21 */
-    { 25, 26, 23,  9,  5, ZSTD_HC_btlazy2  },  /* level 22 */
+    { 25, 25, 23,  5,  5, ZSTD_HC_btlazy2  },  /* level 19 */
+    { 25, 25, 23,  6,  5, ZSTD_HC_btlazy2  },  /* level 20 */
+    { 25, 26, 23,  8,  5, ZSTD_HC_btlazy2  },  /* level 21 */
+    { 25, 26, 23,  8,  5, ZSTD_HC_btlazy2  },  /* level 22 */
 };
-
 
 
 #if defined (__cplusplus)

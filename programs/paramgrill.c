@@ -348,7 +348,7 @@ static size_t BMK_benchParam(BMK_result_t* resultPtr,
             if (totalTime > g_maxParamTime) break;
 
             /* Compression */
-            DISPLAY("%1u-%s : %9u ->\r", loopNb, name, (U32)srcSize);
+            DISPLAY("\r%1u-%s : %9u ->", loopNb, name, (U32)srcSize);
             memset(compressedBuffer, 0xE5, maxCompressedSize);
 
             nbLoops = 0;
@@ -371,8 +371,9 @@ static size_t BMK_benchParam(BMK_result_t* resultPtr,
                 cSize += blockTable[blockNb].cSize;
             if ((double)milliTime < fastestC*nbLoops) fastestC = (double)milliTime / nbLoops;
             ratio = (double)srcSize / (double)cSize;
+            DISPLAY("\r");
             DISPLAY("%1u-%s : %9u ->", loopNb, name, (U32)srcSize);
-            DISPLAY(" %9u (%4.3f),%7.1f MB/s\r", (U32)cSize, ratio, (double)srcSize / fastestC / 1000.);
+            DISPLAY(" %9u (%4.3f),%7.1f MB/s", (U32)cSize, ratio, (double)srcSize / fastestC / 1000.);
             resultPtr->cSize = cSize;
             resultPtr->cSpeed = (U32)((double)srcSize / fastestC);
 
@@ -393,9 +394,10 @@ static size_t BMK_benchParam(BMK_result_t* resultPtr,
             milliTime = BMK_GetMilliSpan(milliTime);
 
             if ((double)milliTime < fastestD*nbLoops) fastestD = (double)milliTime / nbLoops;
+            DISPLAY("\r");
             DISPLAY("%1u-%s : %9u -> ", loopNb, name, (U32)srcSize);
             DISPLAY("%9u (%4.3f),%7.1f MB/s, ", (U32)cSize, ratio, (double)srcSize / fastestC / 1000.);
-            DISPLAY("%7.1f MB/s\r", (double)srcSize / fastestD / 1000.);
+            DISPLAY("%7.1f MB/s", (double)srcSize / fastestD / 1000.);
             resultPtr->dSpeed = (U32)((double)srcSize / fastestD);
 
             /* CRC Checking */
@@ -420,21 +422,23 @@ static size_t BMK_benchParam(BMK_result_t* resultPtr,
     }
 
     /* End cleaning */
+    DISPLAY("\r");
     free(compressedBuffer);
     free(resultBuffer);
     return 0;
 }
 
-const char* g_stratName[2] = { "ZSTD_HC_greedy", "ZSTD_HC_lazy  " };
+
+const char* g_stratName[] = { "ZSTD_HC_greedy  ", "ZSTD_HC_lazy    ", "ZSTD_HC_lazydeep", "ZSTD_HC_btlazy2 " };
 
 static void BMK_printWinner(FILE* f, U32 cLevel, BMK_result_t result, ZSTD_HC_parameters params, size_t srcSize)
 {
     DISPLAY("\r%79s\r", "");
-    fprintf(f,"    {%3u,%3u,%3u,%3u,%3u, %s },   ",
+    fprintf(f,"    {%3u,%3u,%3u,%3u,%3u, %s },  ",
             params.windowLog, params.chainLog, params.hashLog, params.searchLog, params.searchLength,
             g_stratName[params.strategy]);
     fprintf(f,
-            "/* level %2u */     /* R:%5.3f at %5.1f MB/s - %5.1f MB/s */ \n",
+            "/* level %2u */   /* R:%5.3f at %5.1f MB/s - %5.1f MB/s */\n",
             cLevel, (double)srcSize / result.cSize, (double)result.cSpeed / 1000., (double)result.dSpeed / 1000.);
 }
 
@@ -576,7 +580,7 @@ static BYTE g_alreadyTested[ZSTD_HC_WINDOWLOG_MAX+1-ZSTD_HC_WINDOWLOG_MIN]
                            [ZSTD_HC_HASHLOG_MAX+1-ZSTD_HC_HASHLOG_MIN]
                            [ZSTD_HC_SEARCHLOG_MAX+1-ZSTD_HC_SEARCHLOG_MIN]
                            [ZSTD_HC_SEARCHLENGTH_MAX+1-ZSTD_HC_SEARCHLENGTH_MIN]
-                           [2 /* strategy */ ] = {};   /* init to zero */
+                           [4 /* strategy */ ] = {};   /* init to zero */
 
 #define NB_TESTS_PLAYED(p) \
     g_alreadyTested[p.windowLog-ZSTD_HC_WINDOWLOG_MIN] \
@@ -592,7 +596,6 @@ static void playAround(FILE* f, winnerInfo_t* winners,
                        const void* srcBuffer, size_t srcSize,
                        ZSTD_HC_CCtx* ctx)
 {
-    const U32 srcLog = BMK_highbit((U32)( (g_blockSize ? g_blockSize : srcSize) -1))+1;
     int nbVariations = 0;
     const int startTime = BMK_GetMilliStart();
 
@@ -628,26 +631,18 @@ static void playAround(FILE* f, winnerInfo_t* winners,
             case 9:
                 p.searchLength--; break;
             case 10:
-                p.strategy = ZSTD_HC_lazy; break;
+                p.strategy = (ZSTD_HC_strategy)(((U32)p.strategy)+1); break;
             case 11:
-                p.strategy = ZSTD_HC_greedy; break;
+                p.strategy = (ZSTD_HC_strategy)(((U32)p.strategy)-1); break;
             }
         }
 
         /* validate new conf */
-        if (p.windowLog > srcLog) continue;
-        if (p.windowLog > ZSTD_HC_WINDOWLOG_MAX) continue;
-        if (p.windowLog < MAX(ZSTD_HC_WINDOWLOG_MIN, p.chainLog)) continue;
-        if (p.chainLog > p.windowLog) continue;
-        if (p.chainLog < ZSTD_HC_CHAINLOG_MIN) continue;
-        if (p.hashLog > ZSTD_HC_HASHLOG_MAX) continue;
-        if (p.hashLog < ZSTD_HC_HASHLOG_MIN) continue;
-        if (p.searchLog > p.chainLog) continue;
-        if (p.searchLog < ZSTD_HC_SEARCHLOG_MIN) continue;
-        if (p.searchLength > ZSTD_HC_SEARCHLENGTH_MAX) continue;
-        if (p.searchLength < ZSTD_HC_SEARCHLENGTH_MIN) continue;
-        if (p.strategy < ZSTD_HC_greedy) continue;
-        if (p.strategy > ZSTD_HC_lazy) continue;
+        {
+            ZSTD_HC_parameters saved = p;
+            ZSTD_HC_validateParams(&p, g_blockSize ? g_blockSize : srcSize);
+            if (memcmp(&p, &saved, sizeof(p))) continue;  /* p was invalid */
+        }
 
         /* exclude faster if already played params */
         if (FUZ_rand(&g_rand) & ((1 << NB_TESTS_PLAYED(p))-1))
@@ -680,7 +675,7 @@ static void BMK_selectRandomStart(
         p.searchLog  = FUZ_rand(&g_rand) % (ZSTD_HC_SEARCHLOG_MAX+1 - ZSTD_HC_SEARCHLOG_MIN) + ZSTD_HC_SEARCHLOG_MIN;
         p.windowLog  = FUZ_rand(&g_rand) % (ZSTD_HC_WINDOWLOG_MAX+1 - ZSTD_HC_WINDOWLOG_MIN) + ZSTD_HC_WINDOWLOG_MIN;
         p.searchLength=FUZ_rand(&g_rand) % (ZSTD_HC_SEARCHLENGTH_MAX+1 - ZSTD_HC_SEARCHLENGTH_MIN) + ZSTD_HC_SEARCHLENGTH_MIN;
-        p.strategy   = (ZSTD_HC_strategy) (FUZ_rand(&g_rand) & 1);
+        p.strategy   = (ZSTD_HC_strategy) (FUZ_rand(&g_rand) % 4);
         playAround(f, winners, p, srcBuffer, srcSize, ctx);
     }
     else
@@ -701,6 +696,7 @@ static void BMK_benchMem(void* srcBuffer, size_t srcSize)
     if (g_singleRun)
     {
         BMK_result_t testResult;
+        ZSTD_HC_validateParams(&g_params, g_blockSize ? g_blockSize : srcSize);
         BMK_benchParam(&testResult, srcBuffer, srcSize, ctx, g_params);
         DISPLAY("\n");
         return;
@@ -983,7 +979,8 @@ int main(int argc, char** argv)
                             argument++;
                             while ((*argument>= '0') && (*argument<='9'))
                             {
-                                if (*argument++) g_params.strategy = ZSTD_HC_lazy;
+                                g_params.strategy = (ZSTD_HC_strategy)((U32)g_params.strategy *10);
+                                g_params.strategy = (ZSTD_HC_strategy)((U32)g_params.strategy + *argument++ - '0');
                             }
                             continue;
                         case 'L':

@@ -626,7 +626,7 @@ size_t ZSTD_HC_compressBlock_btlazy2(ZSTD_HC_CCtx* ctx, void* dst, size_t maxDst
     return ZSTD_HC_compressBlock_lazy_generic(ctx, dst, maxDstSize, src, srcSize, 1, 1);
 }
 
-size_t ZSTD_HC_compressBlock_hclazy2(ZSTD_HC_CCtx* ctx, void* dst, size_t maxDstSize, const void* src, size_t srcSize)
+size_t ZSTD_HC_compressBlock_lazy2(ZSTD_HC_CCtx* ctx, void* dst, size_t maxDstSize, const void* src, size_t srcSize)
 {
     return ZSTD_HC_compressBlock_lazy_generic(ctx, dst, maxDstSize, src, srcSize, 0, 1);
 }
@@ -727,8 +727,8 @@ static ZSTD_HC_blockCompressor ZSTD_HC_selectBlockCompressor(ZSTD_HC_strategy st
         return ZSTD_HC_compressBlock_greedy;
     case ZSTD_HC_lazy:
         return ZSTD_HC_compressBlock_lazy;
-    case ZSTD_HC_hclazy2:
-        return ZSTD_HC_compressBlock_hclazy2;
+    case ZSTD_HC_lazy2:
+        return ZSTD_HC_compressBlock_lazy2;
     case ZSTD_HC_btlazy2:
         return ZSTD_HC_compressBlock_btlazy2;
     }

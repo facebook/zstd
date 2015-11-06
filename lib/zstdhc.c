@@ -155,10 +155,10 @@ static size_t ZSTD_HC_resetCCtx_advanced (ZSTD_HC_CCtx* zc,
             zc->workSpace = malloc(neededSpace);
             if (zc->workSpace == NULL) return ERROR(memory_allocation);
         }
-        zc->hashTable = (U32*)zc->workSpace;
+        memset(zc->workSpace, 0, tableSpace );
+        zc->hashTable = (U32*)(zc->workSpace);
         zc->contentTable = zc->hashTable + ((size_t)1 << params.hashLog);
         zc->seqStore.buffer = (void*) (zc->contentTable + ((size_t)1 << contentLog));
-        memset(zc->hashTable, 0, tableSpace );
     }
 
     zc->nextToUpdate = 0;
@@ -228,7 +228,7 @@ size_t ZSTD_HC_compressBlock_fast_generic(ZSTD_HC_CCtx* ctx,
     const size_t maxDist = ((size_t)1 << ctx->params.windowLog);
 
     const BYTE* const istart = (const BYTE*)src;
-    const BYTE* ip = istart + 1;
+    const BYTE* ip = istart;
     const BYTE* anchor = istart;
     const BYTE* const lowest = (size_t)(istart-base) > maxDist ? istart-maxDist : base;
     const BYTE* const iend = istart + srcSize;
@@ -901,7 +901,7 @@ size_t ZSTD_HC_compressContinue (ZSTD_HC_CCtx* ctxPtr,
     if (ip != ctxPtr->end)
     {
         if (ctxPtr->end != NULL)
-            ZSTD_HC_resetCCtx_advanced(ctxPtr, ctxPtr->params);   /* just reset, but no need to re-alloc */
+            ZSTD_HC_resetCCtx_advanced(ctxPtr, ctxPtr->params);
         ctxPtr->base = ip;
     }
 

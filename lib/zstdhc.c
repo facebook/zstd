@@ -794,6 +794,7 @@ size_t ZSTD_HC_compressBlock_greedy(ZSTD_HC_CCtx* ctx, void* dst, size_t maxDstS
             size_t offset=999999;
             size_t matchLength = ZSTD_HC_HcFindBestMatch_selectMLS(ctx, ip, iend, &offset, maxSearches, mls);
             if (!matchLength) { ip++; continue; }
+            while ((ip>anchor) && (ip-offset>ctx->base) && (ip[-1] == ip[-1-offset])) { ip--; }  /* catch up */
             /* store sequence */
             {
                 size_t litLength = ip-anchor;

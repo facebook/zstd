@@ -738,9 +738,10 @@ static void BMK_benchMem(void* srcBuffer, size_t srcSize)
         const int maxSeeds = g_noSeed ? 1 : ZSTD_HC_MAX_CLEVEL;
         for (i=1; i<=maxSeeds; i++)
         {
+            const U32 btPlus = (params.strategy == ZSTD_HC_btlazy2);
             params = g_seedParams[i];
             params.windowLog = MIN(srcLog, params.windowLog);
-            params.contentLog = MIN(params.windowLog, params.contentLog);
+            params.contentLog = MIN(params.windowLog+btPlus, params.contentLog);
             params.searchLog = MIN(params.contentLog, params.searchLog);
             BMK_seed(winners, params, srcBuffer, srcSize, ctx);
         }

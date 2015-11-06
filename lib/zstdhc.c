@@ -346,25 +346,25 @@ static void ZSTD_HC_insertBt1(ZSTD_HC_CCtx* zc, const BYTE* const ip, const U32 
         matchLength += ZSTD_count(ip+matchLength, match+matchLength, iend);
 
         if (ip+matchLength == iend)   /* equal : no way to know if inf or sup */
-            break;   /* just drop , to guarantee consistency (miss a bit of compression; if someone knows better, please tell) */
+            break;   /* just drop, to guarantee consistency (miss a little bit of compression) */
 
         if (match[matchLength] < ip[matchLength])
         {
             /* match is smaller than current */
             *smallerPtr = matchIndex;             /* update smaller idx */
             commonLengthSmaller = matchLength;    /* all smaller will now have at least this guaranteed common length */
-            if (matchIndex <= btLow) { smallerPtr=&dummy32; break; }   /* beyond tree size, stop the search */
             smallerPtr = nextPtr+1;               /* new "smaller" => larger of match */
-            matchIndex = nextPtr[1];              /* new matchIndex larger than previous (closer to current) */
+            if (matchIndex <= btLow) smallerPtr=&dummy32;  /* beyond tree size, stop the search */
+            matchIndex = (matchIndex <= btLow) ? windowLow : nextPtr[1];
         }
         else
         {
             /* match is larger than current */
             *largerPtr = matchIndex;
             commonLengthLarger = matchLength;
-            if (matchIndex <= btLow) { largerPtr=&dummy32; break; }   /* beyond tree size, stop the search */
             largerPtr = nextPtr;
-            matchIndex = nextPtr[0];
+            if (matchIndex <= btLow) largerPtr=&dummy32; /* beyond tree size, stop the search */
+            matchIndex = (matchIndex <= btLow) ? windowLow : nextPtr[0];
         }
     }
 
@@ -412,7 +412,7 @@ size_t ZSTD_HC_insertBtAndFindBestMatch (
             if ( (4*(int)(matchLength-bestLength)) > (int)(ZSTD_highbit(current-matchIndex+1) - ZSTD_highbit((U32)offsetPtr[0]+1)) )
                 bestLength = matchLength, *offsetPtr = current - matchIndex;
             if (ip+matchLength == iend)   /* equal : no way to know if inf or sup */
-                break;   /* drop, next to null, to guarantee consistency (is there a way to do better ?) */
+                break;   /* just drop, to guarantee consistency (miss a little bit of compression) */
         }
 
         if (match[matchLength] < ip[matchLength])
@@ -420,18 +420,18 @@ size_t ZSTD_HC_insertBtAndFindBestMatch (
             /* match is smaller than current */
             *smallerPtr = matchIndex;             /* update smaller idx */
             commonLengthSmaller = matchLength;    /* all smaller will now have at least this guaranteed common length */
-            if (matchIndex <= btLow) { smallerPtr=&dummy32; break; }   /* beyond tree size, stop the search */
             smallerPtr = nextPtr+1;               /* new "smaller" => larger of match */
-            matchIndex = nextPtr[1];              /* new matchIndex larger than previous (closer to current) */
+            if (matchIndex <= btLow) smallerPtr=&dummy32;  /* beyond tree size, stop the search */
+            matchIndex = (matchIndex <= btLow) ? windowLow : nextPtr[1];
         }
         else
         {
             /* match is larger than current */
             *largerPtr = matchIndex;
             commonLengthLarger = matchLength;
-            if (matchIndex <= btLow) { largerPtr=&dummy32; break; }   /* beyond tree size, stop the search */
             largerPtr = nextPtr;
-            matchIndex = nextPtr[0];
+            if (matchIndex <= btLow) largerPtr=&dummy32; /* beyond tree size, stop the search */
+            matchIndex = (matchIndex <= btLow) ? windowLow : nextPtr[0];
         }
     }
 

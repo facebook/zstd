@@ -655,6 +655,7 @@ size_t ZSTD_HC_compressBlock_lazy_generic(ZSTD_HC_CCtx* ctx,
 
         /* let's try to find a better solution */
         start = ip;
+        while ((start>anchor) && (start-offset>ctx->base) && (start[-1] == start[-1-offset])) { start--; matchLength++; }  /* catch up */
 
         while (ip<ilimit)
         {
@@ -670,11 +671,15 @@ size_t ZSTD_HC_compressBlock_lazy_generic(ZSTD_HC_CCtx* ctx,
             {
                 size_t offset2=999999;
                 size_t ml2 = searchMax(ctx, ip, iend, &offset2, maxSearches, mls);
-                int gain2 = (int)(ml2*(3+deep) - ZSTD_highbit((U32)offset2+1));   /* raw approx */
-                int gain1 = (int)(matchLength*(3+deep) - ZSTD_highbit((U32)offset+1) + (3+deep));
+                const BYTE* start2 = ip;
+                int gain1, gain2;
+                if (ml2)
+                    while ((start2>anchor) && (start2-offset2>ctx->base) && (start2[-1] == start2[-1-offset2])) { start2--; ml2++; }  /* catch up */
+                gain2 = (int)(ml2*(3+deep) - ZSTD_highbit((U32)offset2+1));   /* raw approx */
+                gain1 = (int)(matchLength*(3+deep) - ZSTD_highbit((U32)offset+1) + (3+deep));
                 if (gain2 > gain1)
                 {
-                    matchLength = ml2, offset = offset2, start = ip;
+                    matchLength = ml2, offset = offset2, start = start2;
                     continue;   /* search a better one */
                 }
             }
@@ -694,12 +699,16 @@ size_t ZSTD_HC_compressBlock_lazy_generic(ZSTD_HC_CCtx* ctx,
                 {
                     size_t offset2=999999;
                     size_t ml2 = searchMax(ctx, ip, iend, &offset2, maxSearches, mls);
-                    int gain2 = (int)(ml2*4 - ZSTD_highbit((U32)offset2+1));   /* raw approx */
-                    int gain1 = (int)(matchLength*4 - ZSTD_highbit((U32)offset+1) + 7);
+                    const BYTE* start2 = ip;
+                    int gain1, gain2;
+                    if (ml2)
+                        while ((start2>anchor) && (start2-offset2>ctx->base) && (start2[-1] == start2[-1-offset2])) { start2--; ml2++; }  /* catch up */
+                    gain2 = (int)(ml2*(3+deep) - ZSTD_highbit((U32)offset2+1));   /* raw approx */
+                    gain1 = (int)(matchLength*(3+deep) - ZSTD_highbit((U32)offset+1) + (3+deep));
                     if (gain2 > gain1)
                     {
-                        matchLength = ml2, offset = offset2, start = ip;
-                        continue;
+                        matchLength = ml2, offset = offset2, start = start2;
+                        continue;   /* search a better one */
                     }
                 }
             }
@@ -707,8 +716,6 @@ size_t ZSTD_HC_compressBlock_lazy_generic(ZSTD_HC_CCtx* ctx,
         }
 
         /* store sequence */
-        if (offset)
-        while ((start>anchor) && (start-offset>ctx->base) && (start[-1] == start[-1-offset])) { start--; matchLength++; }  /* catch up */
         {
             size_t litLength = start - anchor;
             if (offset) offset_1 = offset;

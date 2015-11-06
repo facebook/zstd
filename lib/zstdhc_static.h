@@ -111,8 +111,8 @@ static const ZSTD_HC_parameters ZSTD_HC_defaultParameters[ZSTD_HC_MAX_CLEVEL+1] 
     { 21, 17, 20,  3,  5, ZSTD_HC_lazy    },  /* level  7 */
     { 21, 19, 20,  3,  5, ZSTD_HC_lazy    },  /* level  8 */
     { 21, 19, 20,  4,  5, ZSTD_HC_lazy    },  /* level  9 */
-    { 21, 19, 20,  5,  5, ZSTD_HC_lazy    },  /* level 10 */
-    { 21, 20, 20,  5,  5, ZSTD_HC_lazy    },  /* level 11 */
+    { 21, 19, 20,  4,  5, ZSTD_HC_lazy2   },  /* level 10 */
+    { 21, 20, 21,  4,  5, ZSTD_HC_lazy2   },  /* level 11 */
     { 22, 20, 22,  5,  5, ZSTD_HC_lazy2   },  /* level 12 */
     { 22, 21, 22,  5,  5, ZSTD_HC_lazy2   },  /* level 13 */
     { 22, 22, 23,  5,  5, ZSTD_HC_lazy2   },  /* level 14 */

@@ -802,7 +802,7 @@ size_t ZSTD_HC_compressBlock_greedy(ZSTD_HC_CCtx* ctx, void* dst, size_t maxDstS
                 ip += ((ip-anchor) >> g_searchStrength) + 1;   /* jump faster over incompressible sections */
                 continue;
             }
-            while ((ip>anchor) && (ip-offset>ctx->base) && (ip[-1] == ip[-1-offset])) { ip--; }  /* catch up */
+            while ((ip>anchor) && (ip-offset>ctx->base) && (ip[-1] == ip[-1-offset])) { ip--; matchLength++; }  /* catch up */
             /* store sequence */
             {
                 size_t litLength = ip-anchor;

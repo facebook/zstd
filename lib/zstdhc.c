@@ -707,6 +707,8 @@ size_t ZSTD_HC_compressBlock_lazy_generic(ZSTD_HC_CCtx* ctx,
         }
 
         /* store sequence */
+        if (offset)
+        while ((start>anchor) && (start-offset>ctx->base) && (start[-1] == start[-1-offset])) { start--; matchLength++; }  /* catch up */
         {
             size_t litLength = start - anchor;
             if (offset) offset_1 = offset;

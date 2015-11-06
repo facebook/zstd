@@ -206,6 +206,8 @@ typedef struct {
 
 void ZSTD_resetSeqStore(seqStore_t* ssPtr);
 
+static const U32 g_searchStrength = 8;
+
 #define REPCODE_STARTVALUE 4
 #define MLbits   7
 #define LLbits   6
@@ -216,7 +218,6 @@ void ZSTD_resetSeqStore(seqStore_t* ssPtr);
 
 #define MIN_SEQUENCES_SIZE (2 /*seqNb*/ + 2 /*dumps*/ + 3 /*seqTables*/ + 1 /*bitStream*/)
 #define MIN_CBLOCK_SIZE (3 /*litCSize*/ + MIN_SEQUENCES_SIZE)
-
 
 /** ZSTD_storeSeq
     Store a sequence (literal length, literals, offset code and match length) into seqStore_t

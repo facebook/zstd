@@ -7,7 +7,7 @@ It is provided as a BSD-license package, hosted on Github.
 |master      | [![Build Status](https://travis-ci.org/Cyan4973/zstd.svg?branch=master)](https://travis-ci.org/Cyan4973/zstd) |
 |dev         | [![Build Status](https://travis-ci.org/Cyan4973/zstd.svg?branch=dev)](https://travis-ci.org/Cyan4973/zstd) |
 
-For a taste of its performance, here are a few benchmark numbers from a number of compression codecs suitable for real-time. The test was completed on a Core i7-5600U @ 2.6 GHz, using [fsbench 0.14.3](http://encode.ru/threads/1371-Filesystem-benchmark?p=34029&viewfull=1#post34029), an open-source benchmark program by m^2.
+For a taste of its performance, here are a few benchmark numbers from a number of compression codecs suitable for real-time. The test was completed on a Core i7-5600U @ 2.6 GHz, using m^2's [fsbench 0.14.3](http://encode.ru/threads/1371-Filesystem-benchmark?p=34029&viewfull=1#post34029) compiled with gcc 4.8.4, on the [Silesia compression corpus](http://sun.aei.polsl.pl/~sdeor/index.php?page=silesia).
 
 |Name             | Ratio | C.speed | D.speed |
 |-----------------|-------|--------:|--------:|
@@ -23,7 +23,7 @@ For a taste of its performance, here are a few benchmark numbers from a number o
 [zlib]:http://www.zlib.net/
 [LZ4]:http://www.lz4.org/
 
-Zstd can also offer stronger compression ratio at the cost of compression speed. Speed / Ratio trade-off is configurable by small increment, to fit different situations. Note however that decompression speed is preserved and remain roughly the same at all settings, a property shared by most LZ compression algorithms, such as [zlib]. The following test is run on a Core i7-3930K CPU @ 4.5GHz, using [lzbench], an open-source in-memory benchmark by inikep, on the [Silesia compression corpus](http://sun.aei.polsl.pl/~sdeor/index.php?page=silesia)
+Zstd can also offer stronger compression ratio at the cost of compression speed. Speed / Ratio trade-off is configurable by small increment, to fit different situations. Note however that decompression speed is preserved and remain roughly the same at all settings, a property shared by most LZ compression algorithms, such as [zlib]. The following test is run on a Core i7-3930K CPU @ 4.5GHz, using [lzbench], an open-source in-memory benchmark by inikep compiled with gcc 5.2.1, on the [Silesia compression corpus](http://sun.aei.polsl.pl/~sdeor/index.php?page=silesia).
 
 [lzbench]:https://github.com/inikep/lzbench
 
@@ -32,9 +32,9 @@ Compression Speed vs Ratio | Decompression Speed
 ![Compression Speed vs Ratio](images/CSpeed.png "Compression Speed vs Ratio") | ![Decompression Speed](images/DSpeed.png "Decompression Speed")
 
 
-Zstd entropy stage is provided by [Huff0 and FSE, from Finite State Entrop library](https://github.com/Cyan4973/FiniteStateEntropy).
+Zstd entropy stage is provided by [Huff0 and FSE, from Finite State Entropy library](https://github.com/Cyan4973/FiniteStateEntropy).
 
-Its memory requirement can also be configured to fit into low-memory hardware configurations, or servers handling multiple connections/contexts in parallel.
+Its memory requirement can be configured to fit into low-memory hardware configurations, or servers handling multiple connections/contexts in parallel.
 
 Zstd has not yet reached "stable format" status. It doesn't guarantee yet that its current compressed format will remain stable and supported in future versions. During this period, it can still change to adapt new optimizations still being investigated. "Stable Format" is projected sometimes early 2016. 
 

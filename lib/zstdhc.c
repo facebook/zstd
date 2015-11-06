@@ -647,7 +647,11 @@ size_t ZSTD_HC_compressBlock_lazy_generic(ZSTD_HC_CCtx* ctx,
 
         offset_2 = offset_1;
         matchLength = searchMax(ctx, ip, iend, &offset, maxSearches, mls);
-        if (!matchLength) { ip++; continue; }
+        if (!matchLength)
+        {
+            ip += ((ip-anchor) >> g_searchStrength) + 1;   /* jump faster over incompressible sections */
+            continue;
+        }
 
         /* let's try to find a better solution */
         start = ip;
@@ -793,7 +797,11 @@ size_t ZSTD_HC_compressBlock_greedy(ZSTD_HC_CCtx* ctx, void* dst, size_t maxDstS
         {
             size_t offset=999999;
             size_t matchLength = ZSTD_HC_HcFindBestMatch_selectMLS(ctx, ip, iend, &offset, maxSearches, mls);
-            if (!matchLength) { ip++; continue; }
+            if (!matchLength)
+            {
+                ip += ((ip-anchor) >> g_searchStrength) + 1;   /* jump faster over incompressible sections */
+                continue;
+            }
             while ((ip>anchor) && (ip-offset>ctx->base) && (ip[-1] == ip[-1-offset])) { ip--; }  /* catch up */
             /* store sequence */
             {

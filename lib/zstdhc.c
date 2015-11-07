@@ -161,7 +161,7 @@ static size_t ZSTD_HC_resetCCtx_advanced (ZSTD_HC_CCtx* zc,
         zc->seqStore.buffer = (void*) (zc->contentTable + ((size_t)1 << contentLog));
     }
 
-    zc->nextToUpdate = 0;
+    zc->nextToUpdate = 1;
     zc->end = NULL;
     zc->base = NULL;
     zc->dictBase = NULL;
@@ -316,7 +316,7 @@ size_t ZSTD_HC_compressBlock_fast(ZSTD_HC_CCtx* ctx,
 ***************************************/
 /** ZSTD_HC_insertBt1 : add one ptr to tree
     @ip : assumed <= iend-8 */
-static void ZSTD_HC_insertBt1(ZSTD_HC_CCtx* zc, const BYTE* const ip, const U32 mls, const BYTE* const iend, U32 nbCompares)
+static U32 ZSTD_HC_insertBt1(ZSTD_HC_CCtx* zc, const BYTE* ip, const U32 mls, const BYTE* const iend, U32 nbCompares)
 {
     U32* const hashTable = zc->hashTable;
     const U32 hashLog = zc->params.hashLog;
@@ -327,48 +327,61 @@ static void ZSTD_HC_insertBt1(ZSTD_HC_CCtx* zc, const BYTE* const ip, const U32 
     U32 matchIndex  = hashTable[h];
     size_t commonLengthSmaller=0, commonLengthLarger=0;
     const BYTE* const base = zc->base;
-    const U32 current = (U32)(ip-base);
+    const BYTE* match = base + matchIndex;
+    U32 current = (U32)(ip-base);
     const U32 btLow = btMask >= current ? 0 : current - btMask;
     U32* smallerPtr = bt + 2*(current&btMask);
     U32* largerPtr  = bt + 2*(current&btMask) + 1;
     U32 dummy32;   /* to be nullified at the end */
     const U32 windowSize = 1 << zc->params.windowLog;
     const U32 windowLow = windowSize >= current ? 0 : current - windowSize;
+    U32 skip = 0;
 
-    hashTable[h] = (U32)(ip-base);   /* Update Hash Table */
+    if ( (current-matchIndex == 1)   /* RLE */
+        && ZSTD_read_ARCH(match) == ZSTD_read_ARCH(ip))
+    {
+        size_t cyclicLength = ZSTD_count(ip+sizeof(size_t), match+sizeof(size_t), iend) + sizeof(size_t);
+        skip = (U32)(cyclicLength - mls);    /* > 1 */
+        ip += skip;   /* last of segment */
+        smallerPtr += 2*skip;
+        largerPtr += 2*skip;
+    }
+
+    hashTable[h] = (U32)(ip - base);   /* Update Hash Table */
 
     while (nbCompares-- && (matchIndex > windowLow))
     {
         U32* nextPtr = bt + 2*(matchIndex & btMask);
-        const BYTE* match = base + matchIndex;
         size_t matchLength = MIN(commonLengthSmaller, commonLengthLarger);   /* guaranteed minimum nb of common bytes */
 
+        match = base + matchIndex;
         matchLength += ZSTD_count(ip+matchLength, match+matchLength, iend);
 
         if (ip+matchLength == iend)   /* equal : no way to know if inf or sup */
-            break;   /* just drop, to guarantee consistency (miss a little bit of compression) */
+            break;   /* just drop , to guarantee consistency (miss a bit of compression; if someone knows better, please tell) */
 
         if (match[matchLength] < ip[matchLength])
         {
             /* match is smaller than current */
             *smallerPtr = matchIndex;             /* update smaller idx */
             commonLengthSmaller = matchLength;    /* all smaller will now have at least this guaranteed common length */
+            if (matchIndex <= btLow) { smallerPtr=&dummy32; break; }   /* beyond tree size, stop the search */
             smallerPtr = nextPtr+1;               /* new "smaller" => larger of match */
-            if (matchIndex <= btLow) smallerPtr=&dummy32;  /* beyond tree size, stop the search */
-            matchIndex = (matchIndex <= btLow) ? windowLow : nextPtr[1];
+            matchIndex = nextPtr[1];              /* new matchIndex larger than previous (closer to current) */
         }
         else
         {
             /* match is larger than current */
             *largerPtr = matchIndex;
             commonLengthLarger = matchLength;
+            if (matchIndex <= btLow) { largerPtr=&dummy32; break; }   /* beyond tree size, stop the search */
             largerPtr = nextPtr;
-            if (matchIndex <= btLow) largerPtr=&dummy32; /* beyond tree size, stop the search */
-            matchIndex = (matchIndex <= btLow) ? windowLow : nextPtr[0];
+            matchIndex = nextPtr[0];
         }
     }
 
     *smallerPtr = *largerPtr = 0;
+    return skip+1;
 }
 
 
@@ -443,18 +456,19 @@ size_t ZSTD_HC_insertBtAndFindBestMatch (
 }
 
 
-static void ZSTD_HC_updateTree(ZSTD_HC_CCtx* zc, const BYTE* const ip, const BYTE* const iend, const U32 nbCompares, const U32 mls)
+static const BYTE* ZSTD_HC_updateTree(ZSTD_HC_CCtx* zc, const BYTE* const ip, const BYTE* const iend, const U32 nbCompares, const U32 mls)
 {
     const BYTE* const base = zc->base;
     const U32 target = (U32)(ip - base);
     U32 idx = zc->nextToUpdate;
     //size_t dummy;
 
-    for( ; idx < target ; idx++)
-        ZSTD_HC_insertBt1(zc, base+idx, mls, iend, nbCompares);
+    for( ; idx < target ; )
+        idx += ZSTD_HC_insertBt1(zc, base+idx, mls, iend, nbCompares);
         //ZSTD_HC_insertBtAndFindBestMatch(zc, base+idx, iend, &dummy, nbCompares, mls);
 
-    zc->nextToUpdate = target;
+    zc->nextToUpdate = idx;
+    return base + idx;
 }
 
 
@@ -466,7 +480,13 @@ size_t ZSTD_HC_BtFindBestMatch (
                         size_t* offsetPtr,
                         const U32 maxNbAttempts, const U32 mls)
 {
-    ZSTD_HC_updateTree(zc, ip, iLimit, maxNbAttempts, mls);
+    const BYTE* nextToUpdate = ZSTD_HC_updateTree(zc, ip, iLimit, maxNbAttempts, mls);
+    if (nextToUpdate > ip)
+    {
+        /* RLE data */
+        *offsetPtr = 1;
+        return ZSTD_count(ip, ip-1, iLimit);
+    }
     return ZSTD_HC_insertBtAndFindBestMatch(zc, ip, iLimit, offsetPtr, maxNbAttempts, mls);
 }
 

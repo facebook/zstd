@@ -289,7 +289,7 @@ static size_t BMK_benchParam(BMK_result_t* resultPtr,
     U64 crcOrig;
 
     /* Memory allocation & restrictions */
-    snprintf(name, 30, "W%02uC%02uH%02uS%02uL%1ust%1u", Wlog, Clog, Hlog, Slog, Slength, strat);
+    snprintf(name, 30, "Sw%02uc%02uh%02us%02ul%1ut%1u", Wlog, Clog, Hlog, Slog, Slength, strat);
     if (!compressedBuffer || !resultBuffer || !blockTable)
     {
         DISPLAY("\nError: not enough memory!\n");

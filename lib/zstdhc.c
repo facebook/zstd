@@ -316,7 +316,7 @@ size_t ZSTD_HC_compressBlock_fast(ZSTD_HC_CCtx* ctx,
 ***************************************/
 /** ZSTD_HC_insertBt1 : add one ptr to tree
     @ip : assumed <= iend-8 */
-static U32 ZSTD_HC_insertBt1(ZSTD_HC_CCtx* zc, const BYTE* ip, const U32 mls, const BYTE* const iend, U32 nbCompares)
+static U32 ZSTD_HC_insertBt1(ZSTD_HC_CCtx* zc, const BYTE* const ip, const U32 mls, const BYTE* const iend, U32 nbCompares)
 {
     U32* const hashTable = zc->hashTable;
     const U32 hashLog = zc->params.hashLog;
@@ -329,23 +329,18 @@ static U32 ZSTD_HC_insertBt1(ZSTD_HC_CCtx* zc, const BYTE* ip, const U32 mls, co
     const BYTE* const base = zc->base;
     const BYTE* match = base + matchIndex;
     U32 current = (U32)(ip-base);
-    U32 btLow = btMask >= current ? 0 : current - btMask;
+    const U32 btLow = btMask >= current ? 0 : current - btMask;
     U32* smallerPtr = bt + 2*(current&btMask);
     U32* largerPtr  = bt + 2*(current&btMask) + 1;
     U32 dummy32;   /* to be nullified at the end */
     const U32 windowSize = 1 << zc->params.windowLog;
     const U32 windowLow = windowSize >= current ? 0 : current - windowSize;
-    U32 skip = 0;
 
-    if ( (current-matchIndex == 1)   /* RLE */
+    if ((current-matchIndex == 1)   /* RLE */
         && ZSTD_read_ARCH(match) == ZSTD_read_ARCH(ip))
     {
-        size_t cyclicLength = ZSTD_count(ip+sizeof(size_t), match+sizeof(size_t), iend) + sizeof(size_t);
-        skip = (U32)(cyclicLength - mls);    /* > 1 */
-        ip += skip;   /* last of segment */
-        smallerPtr = bt + 2*((current+skip) & btMask);
-        largerPtr  = bt + 2*((current+skip) & btMask) + 1;
-        btLow += skip;
+        size_t rleLength = ZSTD_count(ip+sizeof(size_t), match+sizeof(size_t), iend) + sizeof(size_t);
+        return (U32)(rleLength - mls);
     }
 
     hashTable[h] = (U32)(ip - base);   /* Update Hash Table */
@@ -382,7 +377,7 @@ static U32 ZSTD_HC_insertBt1(ZSTD_HC_CCtx* zc, const BYTE* ip, const U32 mls, co
     }
 
     *smallerPtr = *largerPtr = 0;
-    return skip+1;
+    return 1;
 }
 
 

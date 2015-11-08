@@ -337,7 +337,7 @@ static U32 ZSTD_HC_insertBt1(ZSTD_HC_CCtx* zc, const BYTE* const ip, const U32 m
     const U32 windowLow = windowSize >= current ? 0 : current - windowSize;
 
     if ((current-matchIndex == 1)   /* RLE */
-        && ZSTD_read_ARCH(match) == ZSTD_read_ARCH(ip))
+        && MEM_read64(match) == MEM_read64(ip))
     {
         size_t rleLength = ZSTD_count(ip+sizeof(size_t), match+sizeof(size_t), iend) + sizeof(size_t);
         return (U32)(rleLength - mls);

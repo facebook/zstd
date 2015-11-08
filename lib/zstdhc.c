@@ -329,7 +329,7 @@ static U32 ZSTD_HC_insertBt1(ZSTD_HC_CCtx* zc, const BYTE* ip, const U32 mls, co
     const BYTE* const base = zc->base;
     const BYTE* match = base + matchIndex;
     U32 current = (U32)(ip-base);
-    const U32 btLow = btMask >= current ? 0 : current - btMask;
+    U32 btLow = btMask >= current ? 0 : current - btMask;
     U32* smallerPtr = bt + 2*(current&btMask);
     U32* largerPtr  = bt + 2*(current&btMask) + 1;
     U32 dummy32;   /* to be nullified at the end */
@@ -343,8 +343,9 @@ static U32 ZSTD_HC_insertBt1(ZSTD_HC_CCtx* zc, const BYTE* ip, const U32 mls, co
         size_t cyclicLength = ZSTD_count(ip+sizeof(size_t), match+sizeof(size_t), iend) + sizeof(size_t);
         skip = (U32)(cyclicLength - mls);    /* > 1 */
         ip += skip;   /* last of segment */
-        smallerPtr += 2*skip;
-        largerPtr += 2*skip;
+        smallerPtr = bt + 2*((current+skip) & btMask);
+        largerPtr  = bt + 2*((current+skip) & btMask) + 1;
+        btLow += skip;
     }
 
     hashTable[h] = (U32)(ip - base);   /* Update Hash Table */

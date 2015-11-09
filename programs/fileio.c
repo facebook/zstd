@@ -93,6 +93,10 @@
 #  define IS_CONSOLE(stdStream) isatty(fileno(stdStream))
 #endif
 
+#if !defined(S_ISREG)
+#  define S_ISREG(x) (((x) & S_IFMT) == S_IFREG)
+#endif
+
 
 /* *************************************
 *  Constants

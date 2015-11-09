@@ -122,7 +122,7 @@ static U32 g_rand = 1;
 static U32 g_singleRun = 0;
 static U32 g_target = 0;
 static U32 g_noSeed = 0;
-static const ZSTD_HC_parameters* g_seedParams = ZSTD_HC_defaultParameters;
+static const ZSTD_HC_parameters* g_seedParams = ZSTD_HC_defaultParameters[0];
 static ZSTD_HC_parameters g_params = { 0, 0, 0, 0, 0, ZSTD_HC_greedy };
 
 void BMK_SetNbIterations(int nbLoops)
@@ -703,12 +703,13 @@ static void BMK_benchMem(void* srcBuffer, size_t srcSize)
     int i;
     const char* rfName = "grillResults.txt";
     FILE* f;
-    const U32 srcLog = BMK_highbit((U32)( (g_blockSize ? g_blockSize : srcSize) -1))+1;
+    const size_t blockSize = g_blockSize ? g_blockSize : srcSize;
+    const U32 srcLog = BMK_highbit((U32)(blockSize-1))+1;
 
     if (g_singleRun)
     {
         BMK_result_t testResult;
-        ZSTD_HC_validateParams(&g_params, g_blockSize ? g_blockSize : srcSize);
+        ZSTD_HC_validateParams(&g_params, blockSize);
         BMK_benchParam(&testResult, srcBuffer, srcSize, ctx, g_params);
         DISPLAY("\n");
         return;
@@ -725,12 +726,13 @@ static void BMK_benchMem(void* srcBuffer, size_t srcSize)
     {
         /* baseline config for level 1 */
         BMK_result_t testResult;
-        params.windowLog = MIN(srcLog, 18);
+        params.windowLog = 18;
         params.hashLog = 14;
         params.contentLog = 1;
         params.searchLog = 1;
         params.searchLength = 7;
         params.strategy = ZSTD_HC_fast;
+        ZSTD_HC_validateParams(&params, blockSize);
         BMK_benchParam(&testResult, srcBuffer, srcSize, ctx, params);
         g_cSpeedTarget[1] = (testResult.cSpeed * 15) >> 4;
     }
@@ -741,7 +743,9 @@ static void BMK_benchMem(void* srcBuffer, size_t srcSize)
 
     /* populate initial solution */
     {
+        const int tableID = (blockSize > 128 KB);
         const int maxSeeds = g_noSeed ? 1 : ZSTD_HC_MAX_CLEVEL;
+        g_seedParams = ZSTD_HC_defaultParameters[tableID];
         for (i=1; i<=maxSeeds; i++)
         {
             const U32 btPlus = (params.strategy == ZSTD_HC_btlazy2);

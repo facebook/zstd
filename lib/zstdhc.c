@@ -954,9 +954,10 @@ size_t ZSTD_HC_compressBegin_advanced(ZSTD_HC_CCtx* ctx,
 
 size_t ZSTD_HC_compressBegin(ZSTD_HC_CCtx* ctx, void* dst, size_t maxDstSize, int compressionLevel)
 {
+    int tableID = 1;
     if (compressionLevel<=0) compressionLevel = 1;
     if (compressionLevel > ZSTD_HC_MAX_CLEVEL) compressionLevel = ZSTD_HC_MAX_CLEVEL;
-    return ZSTD_HC_compressBegin_advanced(ctx, dst, maxDstSize, ZSTD_HC_defaultParameters[compressionLevel]);
+    return ZSTD_HC_compressBegin_advanced(ctx, dst, maxDstSize, ZSTD_HC_defaultParameters[tableID][compressionLevel]);
 }
 
 
@@ -1016,9 +1017,10 @@ size_t ZSTD_HC_compress_advanced (ZSTD_HC_CCtx* ctx,
 
 size_t ZSTD_HC_compressCCtx (ZSTD_HC_CCtx* ctx, void* dst, size_t maxDstSize, const void* src, size_t srcSize, int compressionLevel)
 {
+    const int tableID = (srcSize > 128 KB);
     if (compressionLevel<=1) return ZSTD_compress(dst, maxDstSize, src, srcSize);   /* fast mode */
     if (compressionLevel > ZSTD_HC_MAX_CLEVEL) compressionLevel = ZSTD_HC_MAX_CLEVEL;
-    return ZSTD_HC_compress_advanced(ctx, dst, maxDstSize, src, srcSize, ZSTD_HC_defaultParameters[compressionLevel]);
+    return ZSTD_HC_compress_advanced(ctx, dst, maxDstSize, src, srcSize, ZSTD_HC_defaultParameters[tableID][compressionLevel]);
 }
 
 size_t ZSTD_HC_compress(void* dst, size_t maxDstSize, const void* src, size_t srcSize, int compressionLevel)

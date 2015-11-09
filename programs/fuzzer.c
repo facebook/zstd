@@ -355,7 +355,7 @@ int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compressibilit
         dSize = ZSTD_decompress(dstBuffer, sampleSize + dSupSize, cBuffer, cSize);
         CHECK(dSize != sampleSize, "ZSTD_decompress failed (%s) (srcSize : %u ; cSize : %u)", ZSTD_getErrorName(dSize), (U32)sampleSize, (U32)cSize);
         crcDest = XXH64(dstBuffer, sampleSize, 0);
-        CHECK(crcOrig != crcDest, "dstBuffer corrupted (pos %u / %u)", (U32)findDiff(srcBuffer+sampleStart, dstBuffer, sampleSize), (U32)sampleSize);
+        CHECK(crcOrig != crcDest, "decompression result corrupted (pos %u / %u)", (U32)findDiff(srcBuffer+sampleStart, dstBuffer, sampleSize), (U32)sampleSize);
 
         /* truncated src decompression test */
         {

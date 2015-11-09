@@ -83,14 +83,14 @@ size_t ZSTD_HC_compress_advanced (ZSTD_HC_CCtx* ctx,
 
 /** ZSTD_HC_validateParams
     correct params value to remain within authorized range
-    optimize for srcSize if srcSize > 0 */
-void ZSTD_HC_validateParams(ZSTD_HC_parameters* params, size_t srcSize);
+    srcSizeHint value is optional, select 0 if not known */
+void ZSTD_HC_validateParams(ZSTD_HC_parameters* params, U64 srcSizeHint);
 
 
 /* *************************************
 *  Streaming functions
 ***************************************/
-size_t ZSTD_HC_compressBegin(ZSTD_HC_CCtx* ctx, void* dst, size_t maxDstSize, int compressionLevel);
+size_t ZSTD_HC_compressBegin(ZSTD_HC_CCtx* ctx, void* dst, size_t maxDstSize, int compressionLevel, U64 srcSizeHint);
 size_t ZSTD_HC_compressContinue(ZSTD_HC_CCtx* ctx, void* dst, size_t maxDstSize, const void* src, size_t srcSize);
 size_t ZSTD_HC_compressEnd(ZSTD_HC_CCtx* ctx, void* dst, size_t maxDstSize);
 

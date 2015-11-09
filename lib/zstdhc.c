@@ -111,7 +111,7 @@ size_t ZSTD_HC_freeCCtx(ZSTD_HC_CCtx* cctx)
 /** ZSTD_HC_validateParams
     correct params value to remain within authorized range
     optimize for srcSize if srcSize > 0 */
-void ZSTD_HC_validateParams(ZSTD_HC_parameters* params, size_t srcSize)
+void ZSTD_HC_validateParams(ZSTD_HC_parameters* params, U64 srcSizeHint)
 {
     const U32 btPlus = (params->strategy == ZSTD_HC_btlazy2);
 
@@ -120,9 +120,9 @@ void ZSTD_HC_validateParams(ZSTD_HC_parameters* params, size_t srcSize)
     if (params->windowLog   < ZSTD_HC_WINDOWLOG_MIN) params->windowLog = ZSTD_HC_WINDOWLOG_MIN;
 
     /* correct params, to use less memory */
-    if (srcSize > 0)
+    if ((srcSizeHint > 0) && (srcSizeHint < (1<<ZSTD_HC_WINDOWLOG_MAX)))
     {
-        U32 srcLog = ZSTD_highbit((U32)srcSize-1) + 1;
+        U32 srcLog = ZSTD_highbit((U32)srcSizeHint-1) + 1;
         if (params->windowLog > srcLog) params->windowLog = srcLog;
     }
 
@@ -139,9 +139,10 @@ void ZSTD_HC_validateParams(ZSTD_HC_parameters* params, size_t srcSize)
 
 
 static size_t ZSTD_HC_resetCCtx_advanced (ZSTD_HC_CCtx* zc,
-                                          ZSTD_HC_parameters params)
+                                          ZSTD_HC_parameters params,
+                                          U64 srcSizeHint)
 {
-    ZSTD_HC_validateParams(&params, 0);
+    ZSTD_HC_validateParams(&params, srcSizeHint);
 
     /* reserve table memory */
     {
@@ -930,7 +931,7 @@ size_t ZSTD_HC_compressContinue (ZSTD_HC_CCtx* ctxPtr,
     if (ip != ctxPtr->end)
     {
         if (ctxPtr->end != NULL)
-            ZSTD_HC_resetCCtx_advanced(ctxPtr, ctxPtr->params);
+            ZSTD_HC_resetCCtx_advanced(ctxPtr, ctxPtr->params, srcSize);
         ctxPtr->base = ip;
     }
 
@@ -941,23 +942,24 @@ size_t ZSTD_HC_compressContinue (ZSTD_HC_CCtx* ctxPtr,
 
 size_t ZSTD_HC_compressBegin_advanced(ZSTD_HC_CCtx* ctx,
                                       void* dst, size_t maxDstSize,
-                                      const ZSTD_HC_parameters params)
+                                      const ZSTD_HC_parameters params,
+                                      U64 srcSizeHint)
 {
     size_t errorCode;
     if (maxDstSize < 4) return ERROR(dstSize_tooSmall);
-    errorCode = ZSTD_HC_resetCCtx_advanced(ctx, params);
+    errorCode = ZSTD_HC_resetCCtx_advanced(ctx, params, srcSizeHint);
     if (ZSTD_isError(errorCode)) return errorCode;
     MEM_writeLE32(dst, ZSTD_magicNumber); /* Write Header */
     return 4;
 }
 
 
-size_t ZSTD_HC_compressBegin(ZSTD_HC_CCtx* ctx, void* dst, size_t maxDstSize, int compressionLevel)
+size_t ZSTD_HC_compressBegin(ZSTD_HC_CCtx* ctx, void* dst, size_t maxDstSize, int compressionLevel, U64 srcSizeHint)
 {
-    int tableID = 1;
+    int tableID = ((srcSizeHint-1) > 128 KB);   /* intentional underflow for 0 */
     if (compressionLevel<=0) compressionLevel = 1;
     if (compressionLevel > ZSTD_HC_MAX_CLEVEL) compressionLevel = ZSTD_HC_MAX_CLEVEL;
-    return ZSTD_HC_compressBegin_advanced(ctx, dst, maxDstSize, ZSTD_HC_defaultParameters[tableID][compressionLevel]);
+    return ZSTD_HC_compressBegin_advanced(ctx, dst, maxDstSize, ZSTD_HC_defaultParameters[tableID][compressionLevel], srcSizeHint);
 }
 
 
@@ -995,7 +997,7 @@ size_t ZSTD_HC_compress_advanced (ZSTD_HC_CCtx* ctx,
     }
 
     /* Header */
-    oSize = ZSTD_HC_compressBegin_advanced(ctx, dst, maxDstSize, params);
+    oSize = ZSTD_HC_compressBegin_advanced(ctx, dst, maxDstSize, params, srcSize);
     if(ZSTD_isError(oSize)) return oSize;
     op += oSize;
     maxDstSize -= oSize;

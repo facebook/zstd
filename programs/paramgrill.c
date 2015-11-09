@@ -580,13 +580,25 @@ static int BMK_seed(winnerInfo_t* winners, const ZSTD_HC_parameters params,
 }
 
 
+/* nullified useless params, to ensure count stats */
+static ZSTD_HC_parameters* sanitizeParams(ZSTD_HC_parameters params)
+{
+    g_params = params;
+    if (params.strategy == ZSTD_HC_fast)
+    {
+        g_params.contentLog = 0;
+        g_params.searchLog = 0;
+    }
+    return &g_params;
+}
+
 #define PARAMTABLELOG   25
 #define PARAMTABLESIZE (1<<PARAMTABLELOG)
 #define PARAMTABLEMASK (PARAMTABLESIZE-1)
 static BYTE g_alreadyTested[PARAMTABLESIZE] = {0};   /* init to zero */
 
 #define NB_TESTS_PLAYED(p) \
-    g_alreadyTested[(XXH64(&p, sizeof(p), 0) >> 3) & PARAMTABLEMASK]
+    g_alreadyTested[(XXH64(sanitizeParams(p), sizeof(p), 0) >> 3) & PARAMTABLEMASK]
 
 
 #define MAX(a,b)   ( (a) > (b) ? (a) : (b) )
@@ -1025,6 +1037,7 @@ int main(int argc, char** argv)
                         if (*argument=='K') g_blockSize<<=10, argument++;  /* allows using KB notation */
                         if (*argument=='M') g_blockSize<<=20, argument++;
                         if (*argument=='B') argument++;
+                        DISPLAY("using %u KB block size \n", g_blockSize>>10);
                     }
                     break;
 

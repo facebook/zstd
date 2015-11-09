@@ -447,7 +447,6 @@ size_t ZSTD_HC_insertBtAndFindBestMatch (
     *smallerPtr = *largerPtr = 0;
 
     zc->nextToUpdate = current+1;   /* current has been inserted */
-    if (bestLength < MINMATCH) return 0;
     return bestLength;
 }
 
@@ -562,22 +561,21 @@ size_t ZSTD_HC_HcFindBestMatch (
         if (matchIndex >= dictLimit)
         {
             match = base + matchIndex;
-            if ( (match[ml] == ip[ml])
-              && (MEM_read32(match) == MEM_read32(ip)) )   /* ensures minimum match of 4 */
+            if (match[ml] == ip[ml])   /* potentially better */
             {
-                const size_t mlt = ZSTD_count(ip+MINMATCH, match+MINMATCH, iLimit) + MINMATCH;
+                const size_t mlt = ZSTD_count(ip, match, iLimit);
                 if (mlt > ml)
                 //if (((int)(4*mlt) - (int)ZSTD_highbit((U32)(ip-match)+1)) > ((int)(4*ml) - (int)ZSTD_highbit((U32)((*offsetPtr)+1))))
                 {
                     ml = mlt; *offsetPtr = ip-match;
-                    if (ip+ml >= iLimit) break;
+                    if (ip+mlt >= iLimit) break;
                 }
             }
         }
         else
         {
             match = dictBase + matchIndex;
-            if (MEM_read32(match) == MEM_read32(ip))
+            if (MEM_read32(match) == MEM_read32(ip))   /* beware of end of dict */
             {
                 size_t mlt;
                 const BYTE* vLimit = ip + (dictLimit - matchIndex);
@@ -663,7 +661,7 @@ size_t ZSTD_HC_compressBlock_lazy_generic(ZSTD_HC_CCtx* ctx,
 
         offset_2 = offset_1;
         matchLength = searchMax(ctx, ip, iend, &offset, maxSearches, mls);
-        if (!matchLength)
+        if (matchLength < MINMATCH)
         {
             ip += ((ip-anchor) >> g_searchStrength) + 1;   /* jump faster over incompressible sections */
             continue;
@@ -680,7 +678,7 @@ size_t ZSTD_HC_compressBlock_lazy_generic(ZSTD_HC_CCtx* ctx,
                 size_t ml2 = ZSTD_count(ip+MINMATCH, ip+MINMATCH-offset_1, iend) + MINMATCH;
                 int gain2 = (int)(ml2 * 3);
                 int gain1 = (int)(matchLength*3 - ZSTD_highbit((U32)offset+1) + 1);
-                if (gain2 > gain1)
+                if ((ml2 >= MINMATCH) && (gain2 > gain1))
                     matchLength = ml2, offset = 0, start = ip;
             }
             {
@@ -688,7 +686,7 @@ size_t ZSTD_HC_compressBlock_lazy_generic(ZSTD_HC_CCtx* ctx,
                 size_t ml2 = searchMax(ctx, ip, iend, &offset2, maxSearches, mls);
                 int gain2 = (int)(ml2*(3+deep) - ZSTD_highbit((U32)offset2+1));   /* raw approx */
                 int gain1 = (int)(matchLength*(3+deep) - ZSTD_highbit((U32)offset+1) + (3+deep));
-                if (gain2 > gain1)
+                if ((ml2 >= MINMATCH) && (gain2 > gain1))
                 {
                     matchLength = ml2, offset = offset2, start = ip;
                     continue;   /* search a better one */
@@ -704,7 +702,7 @@ size_t ZSTD_HC_compressBlock_lazy_generic(ZSTD_HC_CCtx* ctx,
                     size_t ml2 = ZSTD_count(ip+MINMATCH, ip+MINMATCH-offset_1, iend) + MINMATCH;
                     int gain2 = (int)(ml2 * 4);
                     int gain1 = (int)(matchLength*4 - ZSTD_highbit((U32)offset+1) + 1);
-                    if (gain2 > gain1)
+                    if ((ml2 >= MINMATCH) && (gain2 > gain1))
                         matchLength = ml2, offset = 0, start = ip;
                 }
                 {
@@ -712,7 +710,7 @@ size_t ZSTD_HC_compressBlock_lazy_generic(ZSTD_HC_CCtx* ctx,
                     size_t ml2 = searchMax(ctx, ip, iend, &offset2, maxSearches, mls);
                     int gain2 = (int)(ml2*4 - ZSTD_highbit((U32)offset2+1));   /* raw approx */
                     int gain1 = (int)(matchLength*4 - ZSTD_highbit((U32)offset+1) + 7);
-                    if (gain2 > gain1)
+                    if ((ml2 >= MINMATCH) && (gain2 > gain1))
                     {
                         matchLength = ml2, offset = offset2, start = ip;
                         continue;
@@ -722,15 +720,19 @@ size_t ZSTD_HC_compressBlock_lazy_generic(ZSTD_HC_CCtx* ctx,
             break;  /* nothing found : store previous solution */
         }
 
-        /* store sequence */
+        /* catch up */
         if (offset)
-        while ((start>anchor) && (start-offset>ctx->base) && (start[-1] == start[-1-offset])) { start--; matchLength++; }  /* catch up */
+        {
+            while ((start>anchor) && (start>ctx->base+offset) && (start[-1] == start[-1-offset]))
+                { start--; matchLength++; }
+        }
+
+        /* store sequence */
         {
             size_t litLength = start - anchor;
             if (offset) offset_1 = offset;
             ZSTD_storeSeq(seqStorePtr, litLength, anchor, offset, matchLength-MINMATCH);
-            ip = start + matchLength;
-            anchor = ip;
+            anchor = ip = start + matchLength;
         }
 
     }
@@ -815,7 +817,7 @@ size_t ZSTD_HC_compressBlock_greedy(ZSTD_HC_CCtx* ctx, void* dst, size_t maxDstS
         {
             size_t offset=999999;
             size_t matchLength = ZSTD_HC_HcFindBestMatch_selectMLS(ctx, ip, iend, &offset, maxSearches, mls);
-            if (!matchLength)
+            if (matchLength < MINMATCH)
             {
                 ip += ((ip-anchor) >> g_searchStrength) + 1;   /* jump faster over incompressible sections */
                 continue;

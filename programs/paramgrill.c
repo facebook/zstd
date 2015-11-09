@@ -289,7 +289,7 @@ static size_t BMK_benchParam(BMK_result_t* resultPtr,
     U64 crcOrig;
 
     /* Memory allocation & restrictions */
-    snprintf(name, 30, "W%02uC%02uH%02uS%02uL%1ust%1u", Wlog, Clog, Hlog, Slog, Slength, strat);
+    snprintf(name, 30, "Sw%02uc%02uh%02us%02ul%1ut%1u", Wlog, Clog, Hlog, Slog, Slength, strat);
     if (!compressedBuffer || !resultBuffer || !blockTable)
     {
         DISPLAY("\nError: not enough memory!\n");
@@ -579,23 +579,29 @@ static int BMK_seed(winnerInfo_t* winners, const ZSTD_HC_parameters params,
     return better;
 }
 
-#define MAX(a,b)   ( (a) > (b) ? (a) : (b) )
 
-static BYTE g_alreadyTested[ZSTD_HC_WINDOWLOG_MAX+1-ZSTD_HC_WINDOWLOG_MIN]
-                           [ZSTD_HC_CONTENTLOG_MAX+1-ZSTD_HC_CONTENTLOG_MIN]
-                           [ZSTD_HC_HASHLOG_MAX+1-ZSTD_HC_HASHLOG_MIN]
-                           [ZSTD_HC_SEARCHLOG_MAX+1-ZSTD_HC_SEARCHLOG_MIN]
-                           [ZSTD_HC_SEARCHLENGTH_MAX+1-ZSTD_HC_SEARCHLENGTH_MIN]
-                           [ZSTD_HC_btlazy2+1 /* strategy */ ] = {};   /* init to zero */
+/* nullified useless params, to ensure count stats */
+static ZSTD_HC_parameters* sanitizeParams(ZSTD_HC_parameters params)
+{
+    g_params = params;
+    if (params.strategy == ZSTD_HC_fast)
+    {
+        g_params.contentLog = 0;
+        g_params.searchLog = 0;
+    }
+    return &g_params;
+}
+
+#define PARAMTABLELOG   25
+#define PARAMTABLESIZE (1<<PARAMTABLELOG)
+#define PARAMTABLEMASK (PARAMTABLESIZE-1)
+static BYTE g_alreadyTested[PARAMTABLESIZE] = {0};   /* init to zero */
 
 #define NB_TESTS_PLAYED(p) \
-    g_alreadyTested[p.windowLog-ZSTD_HC_WINDOWLOG_MIN] \
-                   [p.contentLog-ZSTD_HC_CONTENTLOG_MIN]   \
-                   [p.hashLog-ZSTD_HC_HASHLOG_MIN]     \
-                   [p.searchLog-ZSTD_HC_SEARCHLOG_MIN] \
-                   [p.searchLength-ZSTD_HC_SEARCHLENGTH_MIN] \
-                   [(U32)p.strategy]
+    g_alreadyTested[(XXH64(sanitizeParams(p), sizeof(p), 0) >> 3) & PARAMTABLEMASK]
 
+
+#define MAX(a,b)   ( (a) > (b) ? (a) : (b) )
 
 static void playAround(FILE* f, winnerInfo_t* winners,
                        ZSTD_HC_parameters params,
@@ -1031,6 +1037,7 @@ int main(int argc, char** argv)
                         if (*argument=='K') g_blockSize<<=10, argument++;  /* allows using KB notation */
                         if (*argument=='M') g_blockSize<<=20, argument++;
                         if (*argument=='B') argument++;
+                        DISPLAY("using %u KB block size \n", g_blockSize>>10);
                     }
                     break;
 

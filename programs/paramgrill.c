@@ -579,23 +579,17 @@ static int BMK_seed(winnerInfo_t* winners, const ZSTD_HC_parameters params,
     return better;
 }
 
-#define MAX(a,b)   ( (a) > (b) ? (a) : (b) )
 
-static BYTE g_alreadyTested[ZSTD_HC_WINDOWLOG_MAX+1-ZSTD_HC_WINDOWLOG_MIN]
-                           [ZSTD_HC_CONTENTLOG_MAX+1-ZSTD_HC_CONTENTLOG_MIN]
-                           [ZSTD_HC_HASHLOG_MAX+1-ZSTD_HC_HASHLOG_MIN]
-                           [ZSTD_HC_SEARCHLOG_MAX+1-ZSTD_HC_SEARCHLOG_MIN]
-                           [ZSTD_HC_SEARCHLENGTH_MAX+1-ZSTD_HC_SEARCHLENGTH_MIN]
-                           [ZSTD_HC_btlazy2+1 /* strategy */ ] = {};   /* init to zero */
+#define PARAMTABLELOG   25
+#define PARAMTABLESIZE (1<<PARAMTABLELOG)
+#define PARAMTABLEMASK (PARAMTABLESIZE-1)
+static BYTE g_alreadyTested[PARAMTABLESIZE] = {0};   /* init to zero */
 
 #define NB_TESTS_PLAYED(p) \
-    g_alreadyTested[p.windowLog-ZSTD_HC_WINDOWLOG_MIN] \
-                   [p.contentLog-ZSTD_HC_CONTENTLOG_MIN]   \
-                   [p.hashLog-ZSTD_HC_HASHLOG_MIN]     \
-                   [p.searchLog-ZSTD_HC_SEARCHLOG_MIN] \
-                   [p.searchLength-ZSTD_HC_SEARCHLENGTH_MIN] \
-                   [(U32)p.strategy]
+    g_alreadyTested[(XXH64(&p, sizeof(p), 0) >> 3) & PARAMTABLEMASK]
 
+
+#define MAX(a,b)   ( (a) > (b) ? (a) : (b) )
 
 static void playAround(FILE* f, winnerInfo_t* winners,
                        ZSTD_HC_parameters params,

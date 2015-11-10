@@ -226,6 +226,14 @@ static const U32 g_searchStrength = 8;
 */
 MEM_STATIC void ZSTD_storeSeq(seqStore_t* seqStorePtr, size_t litLength, const BYTE* literals, size_t offsetCode, size_t matchCode)
 {
+#if 0
+    static const BYTE* g_start = NULL;
+    if (g_start==NULL) g_start = literals;
+    if (literals - g_start == 8695)
+    printf("pos %6u : %3u literals & match %3u bytes at distance %6u \n",
+           (U32)(literals - g_start), (U32)litLength, (U32)matchCode+4, (U32)offsetCode);
+#endif
+
     /* copy Literals */
     ZSTD_wildcopy(seqStorePtr->lit, literals, litLength);
     seqStorePtr->lit += litLength;

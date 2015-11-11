@@ -67,10 +67,10 @@ default: libzstd
 
 all: libzstd
 
-libzstd: zstd.c huff0.c fse.c
+libzstd: zstd_compress.c zstd_decompress.c huff0.c fse.c
 	@echo compiling static library
 	@$(CC) $(FLAGS) -c $^
-	@$(AR) rcs libzstd.a zstd.o huff0.o fse.o
+	@$(AR) rcs libzstd.a zstd_compress.o zstd_decompress.o huff0.o fse.o
 	@echo compiling dynamic library $(LIBVER)
 	@$(CC) $(FLAGS) -shared $^ -fPIC $(SONAME_FLAGS) -o $@.$(SHARED_EXT_VER)
 	@echo creating versioned links

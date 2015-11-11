@@ -57,7 +57,8 @@ unsigned ZSTD_versionNumber (void);
 *  Simple functions
 ***************************************/
 size_t ZSTD_compress(   void* dst, size_t maxDstSize,
-                  const void* src, size_t srcSize);
+                  const void* src, size_t srcSize,
+                         int  compressionLevel);
 
 size_t ZSTD_decompress( void* dst, size_t maxOriginalSize,
                   const void* src, size_t compressedSize);
@@ -100,7 +101,7 @@ size_t     ZSTD_freeCCtx(ZSTD_CCtx* cctx);
 ZSTD_compressCCtx() :
     Same as ZSTD_compress(), but requires a ZSTD_CCtx working space already allocated
 */
-size_t ZSTD_compressCCtx(ZSTD_CCtx* ctx, void* dst, size_t maxDstSize, const void* src, size_t srcSize);
+size_t ZSTD_compressCCtx(ZSTD_CCtx* ctx, void* dst, size_t maxDstSize, const void* src, size_t srcSize, int compressionLevel);
 
 
 #if defined (__cplusplus)

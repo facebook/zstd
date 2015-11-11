@@ -47,7 +47,6 @@
 #include <sys/timeb.h>   /* timeb */
 #include <string.h>      /* strcmp */
 #include "zstd_static.h"
-#include "zstdhc_static.h"
 #include "datagen.h"     /* RDG_genBuffer */
 #include "xxhash.h"      /* XXH64 */
 #include "mem.h"
@@ -159,7 +158,7 @@ static int basicUnitTests(U32 seed, double compressibility)
 
     /* Basic tests */
     DISPLAYLEVEL(4, "test%3i : compress %u bytes : ", testNb++, COMPRESSIBLE_NOISE_LENGTH);
-    result = ZSTD_compress(compressedBuffer, ZSTD_compressBound(COMPRESSIBLE_NOISE_LENGTH), CNBuffer, COMPRESSIBLE_NOISE_LENGTH);
+    result = ZSTD_compress(compressedBuffer, ZSTD_compressBound(COMPRESSIBLE_NOISE_LENGTH), CNBuffer, COMPRESSIBLE_NOISE_LENGTH, 1);
     if (ZSTD_isError(result)) goto _output_error;
     cSize = result;
     DISPLAYLEVEL(4, "OK (%u bytes : %.2f%%)\n", (U32)cSize, (double)cSize/COMPRESSIBLE_NOISE_LENGTH*100);
@@ -213,7 +212,7 @@ static int basicUnitTests(U32 seed, double compressibility)
         sampleSize += 256 KB - 1;
         RDG_genBuffer((char*)CNBuffer+sampleSize, 96 KB, compressibility, 0., randState);
         sampleSize += 96 KB;
-        cSize = ZSTD_compress(compressedBuffer, ZSTD_compressBound(sampleSize), CNBuffer, sampleSize);
+        cSize = ZSTD_compress(compressedBuffer, ZSTD_compressBound(sampleSize), CNBuffer, sampleSize, 1);
         if (ZSTD_isError(cSize)) goto _output_error;
         result = ZSTD_decompress(decodedBuffer, sampleSize, compressedBuffer, cSize);
         if (ZSTD_isError(result)) goto _output_error;
@@ -265,11 +264,11 @@ int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compressibilit
     U32 testNb = 0;
     U32 coreSeed = seed, lseed = 0;
     ZSTD_CCtx* ctx;
-    ZSTD_HC_CCtx* hcctx;
+    ZSTD_CCtx* hcctx;
 
     /* allocation */
     ctx = ZSTD_createCCtx();
-    hcctx = ZSTD_HC_createCCtx();
+    hcctx = ZSTD_createCCtx();
     cNoiseBuffer[0] = (BYTE*)malloc (srcBufferSize);
     cNoiseBuffer[1] = (BYTE*)malloc (srcBufferSize);
     cNoiseBuffer[2] = (BYTE*)malloc (srcBufferSize);
@@ -332,8 +331,8 @@ int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compressibilit
 #define MAX(a,b) ((a)>(b)?(a):(b))
         cLevelMod = MAX(1, 38 - (int)(MAX(9, sampleSizeLog) * 2));   /* use high compression levels with small samples, for speed */
         cLevel = (FUZ_rand(&lseed) % cLevelMod) +1;
-        cSize = ZSTD_HC_compressCCtx(hcctx, cBuffer, cBufferSize, srcBuffer + sampleStart, sampleSize, cLevel);
-        CHECK(ZSTD_isError(cSize), "ZSTD_HC_compressCCtx failed");
+        cSize = ZSTD_compressCCtx(hcctx, cBuffer, cBufferSize, srcBuffer + sampleStart, sampleSize, cLevel);
+        CHECK(ZSTD_isError(cSize), "ZSTD_compressCCtx failed");
 
         /* compression failure test : too small dest buffer */
         if (cSize > 3)
@@ -344,10 +343,10 @@ int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compressibilit
             static const U32 endMark = 0x4DC2B1A9;
             U32 endCheck;
             memcpy(dstBuffer+tooSmallSize, &endMark, 4);
-            errorCode = ZSTD_HC_compressCCtx(hcctx, dstBuffer, tooSmallSize, srcBuffer + sampleStart, sampleSize, cLevel);
-            CHECK(!ZSTD_isError(errorCode), "ZSTD_HC_compressCCtx should have failed ! (buffer too small : %u < %u)", (U32)tooSmallSize, (U32)cSize);
+            errorCode = ZSTD_compressCCtx(hcctx, dstBuffer, tooSmallSize, srcBuffer + sampleStart, sampleSize, cLevel);
+            CHECK(!ZSTD_isError(errorCode), "ZSTD_compressCCtx should have failed ! (buffer too small : %u < %u)", (U32)tooSmallSize, (U32)cSize);
             memcpy(&endCheck, dstBuffer+tooSmallSize, 4);
-            CHECK(endCheck != endMark, "ZSTD_HC_compressCCtx : dst buffer overflow");
+            CHECK(endCheck != endMark, "ZSTD_compressCCtx : dst buffer overflow");
         }
 
         /* successfull decompression tests*/
@@ -434,7 +433,7 @@ int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compressibilit
 
 _cleanup:
     ZSTD_freeCCtx(ctx);
-    ZSTD_HC_freeCCtx(hcctx);
+    ZSTD_freeCCtx(hcctx);
     free(cNoiseBuffer[0]);
     free(cNoiseBuffer[1]);
     free(cNoiseBuffer[2]);

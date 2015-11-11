@@ -217,7 +217,7 @@ extern size_t ZSTD_decodeSeqHeaders(int* nbSeq, const BYTE** dumpsPtr, size_t* d
 size_t local_ZSTD_compress(void* dst, size_t dstSize, void* buff2, const void* src, size_t srcSize)
 {
     (void)buff2;
-    return ZSTD_compress(dst, dstSize, src, srcSize);
+    return ZSTD_compress(dst, dstSize, src, srcSize, 1);
 }
 
 size_t local_ZSTD_decompress(void* dst, size_t dstSize, void* buff2, const void* src, size_t srcSize)
@@ -325,12 +325,12 @@ size_t benchMem(void* src, size_t srcSize, U32 benchNb)
     switch(benchNb)
     {
     case 11:
-        g_cSize = ZSTD_compress(buff2, dstBuffSize, src, srcSize);
+        g_cSize = ZSTD_compress(buff2, dstBuffSize, src, srcSize, 1);
         break;
     case 31:  /* ZSTD_decodeLiteralsBlock */
         {
             blockProperties_t bp;
-            g_cSize = ZSTD_compress(dstBuff, dstBuffSize, src, srcSize);
+            g_cSize = ZSTD_compress(dstBuff, dstBuffSize, src, srcSize, 1);
             ZSTD_getcBlockSize(dstBuff+4, dstBuffSize, &bp);   // Get first block type
             if (bp.blockType != bt_compressed)
             {
@@ -349,7 +349,7 @@ size_t benchMem(void* src, size_t srcSize, U32 benchNb)
             const BYTE* ip = dstBuff;
             const BYTE* iend;
             size_t blockSize;
-            ZSTD_compress(dstBuff, dstBuffSize, src, srcSize);
+            ZSTD_compress(dstBuff, dstBuffSize, src, srcSize, 1);
             ip += 4;   // Jump magic Number
             blockSize = ZSTD_getcBlockSize(ip, dstBuffSize, &bp);   // Get first block type
             if (bp.blockType != bt_compressed)
@@ -380,7 +380,7 @@ size_t benchMem(void* src, size_t srcSize, U32 benchNb)
     case 102:   /* local_decodeLiteralsForward */
         {
             blockProperties_t bp;
-            ZSTD_compress(dstBuff, dstBuffSize, src, srcSize);
+            ZSTD_compress(dstBuff, dstBuffSize, src, srcSize, 1);
             g_cSize = ZSTD_getcBlockSize(dstBuff+7, dstBuffSize, &bp);
             memcpy(buff2, dstBuff+10, g_cSize);
             //srcSize = benchFunction(dstBuff, dstBuffSize, buff2, src, srcSize);   // real speed

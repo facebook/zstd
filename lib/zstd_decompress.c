@@ -123,10 +123,6 @@
 #define IS_RAW BIT0
 #define IS_RLE BIT1
 
-static const U32 g_maxDistance = 4 * BLOCKSIZE;
-static const U32 g_maxLimit = 1 GB;
-
-#define WORKPLACESIZE (BLOCKSIZE*3)
 #define MINMATCH 4
 #define LitFSELog  11
 #define MLFSELog   10

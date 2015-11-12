@@ -1,5 +1,6 @@
 v0.4.0
 Removed zstdhc => merged into zstd
+Rolling buffer support
 
 v0.3.6
 small blocks params

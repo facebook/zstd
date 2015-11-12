@@ -360,8 +360,8 @@ size_t benchMem(void* src, size_t srcSize, U32 benchNb)
                 free(buff2);
                 return 0;
             }
-            iend = ip + 3 + blockSize;   // Get end of first block
-            ip += 3;   // jump first block header
+            iend = ip + 3 + blockSize;   /* End of first block */
+            ip += 3;                     /* skip block header */
             ip += ZSTD_decodeLiteralsBlock(g_dctxPtr, ip, iend-ip);  // jump literal sub block and its header
             g_cSize = iend-ip;
             memcpy(buff2, ip, g_cSize);   // copy rest of block (starting with SeqHeader)

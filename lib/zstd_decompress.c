@@ -187,7 +187,7 @@ size_t ZSTD_getcBlockSize(const void* src, size_t srcSize, blockProperties_t* bp
     return cSize;
 }
 
-static size_t ZSTD_copyUncompressedBlock(void* dst, size_t maxDstSize, const void* src, size_t srcSize)
+static size_t ZSTD_copyRawBlock(void* dst, size_t maxDstSize, const void* src, size_t srcSize)
 {
     if (srcSize > maxDstSize) return ERROR(dstSize_tooSmall);
     memcpy(dst, src, srcSize);
@@ -486,10 +486,10 @@ FORCE_INLINE size_t ZSTD_execSequence(BYTE* op,
         const BYTE* match = op - sequence.offset;
 
         /* check */
-        //if (match > op) return ERROR(corruption_detected);   /* address space overflow test (is clang optimizer removing this test ?) */
+        //if (match > op) return ERROR(corruption_detected);   /* address space overflow test (is clang optimizer wrongly removing this test ?) */
         if (sequence.offset > (size_t)op) return ERROR(corruption_detected);   /* address space overflow test (this test seems kept by clang optimizer) */
         if (match < vBase) return ERROR(corruption_detected);
-        
+
         if (match < base) match = dictEnd - (base-match);   /* only works if match + matchLength <= dictEnd */
 
         /* close range match, overlap */
@@ -663,7 +663,7 @@ size_t ZSTD_decompressDCtx(ZSTD_DCtx* ctx, void* dst, size_t maxDstSize, const v
             decodedSize = ZSTD_decompressBlock(ctx, op, oend-op, ip, cBlockSize);
             break;
         case bt_raw :
-            decodedSize = ZSTD_copyUncompressedBlock(op, oend-op, ip, cBlockSize);
+            decodedSize = ZSTD_copyRawBlock(op, oend-op, ip, cBlockSize);
             break;
         case bt_rle :
             return ERROR(GENERIC);   /* not yet supported */
@@ -744,6 +744,7 @@ size_t ZSTD_decompressContinue(ZSTD_DCtx* ctx, void* dst, size_t maxDstSize, con
             ctx->phase = 2;
         }
 
+        ctx->previousDstEnd = dst;
         return 0;
     }
 
@@ -756,7 +757,7 @@ size_t ZSTD_decompressContinue(ZSTD_DCtx* ctx, void* dst, size_t maxDstSize, con
             rSize = ZSTD_decompressBlock(ctx, dst, maxDstSize, src, srcSize);
             break;
         case bt_raw :
-            rSize = ZSTD_copyUncompressedBlock(dst, maxDstSize, src, srcSize);
+            rSize = ZSTD_copyRawBlock(dst, maxDstSize, src, srcSize);
             break;
         case bt_rle :
             return ERROR(GENERIC);   /* not yet handled */

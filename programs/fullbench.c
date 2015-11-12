@@ -61,7 +61,7 @@
 #endif
 
 #include "mem.h"
-#include "zstd.h"
+#include "zstd_static.h"
 #include "fse_static.h"
 #include "datagen.h"
 
@@ -209,7 +209,7 @@ typedef struct
 } blockProperties_t;
 
 static size_t g_cSize = 0;
-static U32 g_litCtx[40 * 1024];
+static ZSTD_DCtx* g_dctxPtr = NULL;
 
 extern size_t ZSTD_getcBlockSize(const void* src, size_t srcSize, blockProperties_t* bpPtr);
 extern size_t ZSTD_decodeSeqHeaders(int* nbSeq, const BYTE** dumpsPtr, size_t* dumpsLengthPtr, FSE_DTable* DTableLL, FSE_DTable* DTableML, FSE_DTable* DTableOffb, const void* src, size_t srcSize);
@@ -226,11 +226,11 @@ size_t local_ZSTD_decompress(void* dst, size_t dstSize, void* buff2, const void*
     return ZSTD_decompress(dst, dstSize, buff2, g_cSize);
 }
 
-extern size_t ZSTD_decodeLiteralsBlock(void* ctx, const void* src, size_t srcSize);
+extern size_t ZSTD_decodeLiteralsBlock(ZSTD_DCtx* ctx, const void* src, size_t srcSize);
 size_t local_ZSTD_decodeLiteralsBlock(void* dst, size_t dstSize, void* buff2, const void* src, size_t srcSize)
 {
     (void)src; (void)srcSize; (void)dst; (void)dstSize;
-    return ZSTD_decodeLiteralsBlock(g_litCtx, buff2, g_cSize);
+    return ZSTD_decodeLiteralsBlock((ZSTD_DCtx*)g_dctxPtr, buff2, g_cSize);
 }
 
 size_t local_ZSTD_decodeSeqHeaders(void* dst, size_t dstSize, void* buff2, const void* src, size_t srcSize)
@@ -314,6 +314,7 @@ size_t benchMem(void* src, size_t srcSize, U32 benchNb)
     dstBuffSize = ZSTD_compressBound(srcSize);
     dstBuff = (BYTE*)malloc(dstBuffSize);
     buff2 = (BYTE*)malloc(dstBuffSize);
+    g_dctxPtr = ZSTD_createDCtx();
     if ((!dstBuff) || (!buff2))
     {
         DISPLAY("\nError: not enough memory!\n");
@@ -361,7 +362,7 @@ size_t benchMem(void* src, size_t srcSize, U32 benchNb)
             }
             iend = ip + 3 + blockSize;   // Get end of first block
             ip += 3;   // jump first block header
-            ip += ZSTD_decodeLiteralsBlock(g_litCtx, ip, iend-ip);  // jump literal sub block and its header
+            ip += ZSTD_decodeLiteralsBlock(g_dctxPtr, ip, iend-ip);  // jump literal sub block and its header
             g_cSize = iend-ip;
             memcpy(buff2, ip, g_cSize);   // copy rest of block (starting with SeqHeader)
             srcSize = srcSize > 128 KB ? 128 KB : srcSize;   // speed relative to block
@@ -420,6 +421,7 @@ size_t benchMem(void* src, size_t srcSize, U32 benchNb)
 
     free(dstBuff);
     free(buff2);
+    ZSTD_freeDCtx(g_dctxPtr);
     return 0;
 }
 

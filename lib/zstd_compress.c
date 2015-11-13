@@ -751,7 +751,7 @@ size_t ZSTD_compressBlock_fast_generic(ZSTD_CCtx* ctx,
         if ( (match < lowest) ||
              (MEM_read32(match) != MEM_read32(ip)) )
         { ip += ((ip-anchor) >> g_searchStrength) + 1; offset_2 = offset_1; continue; }
-        while ((ip>anchor) && (match>base) && (ip[-1] == match[-1])) { ip--; match--; }  /* catch up */
+        while ((ip>anchor) && (match>lowest) && (ip[-1] == match[-1])) { ip--; match--; }  /* catch up */
 
         {
             size_t litLength = ip-anchor;
@@ -804,7 +804,7 @@ size_t ZSTD_compressBlock_fast(ZSTD_CCtx* ctx,
 }
 
 
-FORCE_INLINE
+//FORCE_INLINE
 size_t ZSTD_compressBlock_fast_extDict_generic(ZSTD_CCtx* ctx,
                                           void* dst, size_t maxDstSize,
                                     const void* src, size_t srcSize,

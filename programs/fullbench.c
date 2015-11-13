@@ -336,9 +336,7 @@ size_t benchMem(void* src, size_t srcSize, U32 benchNb)
             if (bp.blockType != bt_compressed)
             {
                 DISPLAY("ZSTD_decodeLiteralsBlock : impossible to test on this sample (not compressible)\n");
-                free(dstBuff);
-                free(buff2);
-                return 0;
+                goto _cleanOut;
             }
             memcpy(buff2, dstBuff+7, g_cSize-7);
             srcSize = srcSize > 128 KB ? 128 KB : srcSize;   // relative to block
@@ -356,9 +354,7 @@ size_t benchMem(void* src, size_t srcSize, U32 benchNb)
             if (bp.blockType != bt_compressed)
             {
                 DISPLAY("ZSTD_decodeSeqHeaders : impossible to test on this sample (not compressible)\n");
-                free(dstBuff);
-                free(buff2);
-                return 0;
+                goto _cleanOut;
             }
             iend = ip + 3 + blockSize;   /* End of first block */
             ip += 3;                     /* skip block header */
@@ -419,6 +415,7 @@ size_t benchMem(void* src, size_t srcSize, U32 benchNb)
 
     DISPLAY("%2u- %-30.30s : %7.1f MB/s  (%9u)\n", benchNb, benchName, (double)srcSize / bestTime / 1000., (U32)errorCode);
 
+_cleanOut:
     free(dstBuff);
     free(buff2);
     ZSTD_freeDCtx(g_dctxPtr);

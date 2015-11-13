@@ -488,45 +488,72 @@ FORCE_INLINE size_t ZSTD_execSequence(BYTE* op,
         /* check */
         //if (match > op) return ERROR(corruption_detected);   /* address space overflow test (is clang optimizer wrongly removing this test ?) */
         if (sequence.offset > (size_t)op) return ERROR(corruption_detected);   /* address space overflow test (this test seems kept by clang optimizer) */
-        if (match < vBase) return ERROR(corruption_detected);
 
-        if (match < base) match = dictEnd - (base-match);   /* only works if match + matchLength <= dictEnd */
+		if (match < base)
+        {
+			/* offset beyond prefix */
+			if (match < vBase) return ERROR(corruption_detected);
+			match = dictEnd - (base-match);
+			if (match + sequence.matchLength <= dictEnd - 8)
+			{
+				ZSTD_wildcopy(op, match, sequence.matchLength-8);   /* works even if matchLength < 8 */
+				return oMatchEnd - ostart;
+			}
+			if (match + sequence.matchLength <= dictEnd)
+			{
+				memcpy(op, match, sequence.matchLength);
+				return oMatchEnd - ostart;
+			}
+			/* span extDict & currentPrefixSegment */
+			{
+				size_t length1 = dictEnd - match;
+				size_t length2 = sequence.matchLength - length1;
+				memcpy(op, match, length1);
+				op += length1;
+				memcpy(op, base, length2);   /* will fail in case of overlapping match */
+				return oMatchEnd - ostart;
+			}				
+		}
 
-        /* close range match, overlap */
-        if (sequence.offset < 8)
-        {
-            const int dec64 = dec64table[sequence.offset];
-            op[0] = match[0];
-            op[1] = match[1];
-            op[2] = match[2];
-            op[3] = match[3];
-            match += dec32table[sequence.offset];
-            ZSTD_copy4(op+4, match);
-            match -= dec64;
-        }
-        else
-        {
-            ZSTD_copy8(op, match);
-        }
-        op += 8; match += 8;
+		{
+			/* match within prefix */			
+			if (sequence.offset < 8)
+			{
+				/* close range match, overlap */
+				const int dec64 = dec64table[sequence.offset];
+				op[0] = match[0];
+				op[1] = match[1];
+				op[2] = match[2];
+				op[3] = match[3];
+				match += dec32table[sequence.offset];
+				ZSTD_copy4(op+4, match);
+				match -= dec64;
+			}
+			else
+			{
+				ZSTD_copy8(op, match);
+			}
+			op += 8; match += 8;
 
-        if (oMatchEnd > oend-12)
-        {
-            if (op < oend_8)
-            {
-                ZSTD_wildcopy(op, match, oend_8 - op);
-                match += oend_8 - op;
-                op = oend_8;
-            }
-            while (op < oMatchEnd) *op++ = *match++;
-        }
-        else
-        {
-            ZSTD_wildcopy(op, match, sequence.matchLength-8);   /* works even if matchLength < 8 */
-        }
+			if (oMatchEnd > oend-12)
+			{
+				if (op < oend_8)
+				{
+					ZSTD_wildcopy(op, match, oend_8 - op);
+					match += oend_8 - op;
+					op = oend_8;
+				}
+				while (op < oMatchEnd) *op++ = *match++;
+			}
+			else
+			{
+				ZSTD_wildcopy(op, match, sequence.matchLength-8);   /* works even if matchLength < 8 */
+			}
+			return oMatchEnd - ostart;
+		}
+
     }
 
-    return oMatchEnd - ostart;
 }
 
 static size_t ZSTD_decompressSequences(

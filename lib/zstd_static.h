@@ -154,7 +154,7 @@ static const ZSTD_parameters ZSTD_defaultParameters[2][ZSTD_MAX_CLEVEL+1] = {
 {   /* for > 128 KB */
     /* W,  C,  H,  S,  L, strat */
     { 18, 12, 12,  1,  4, ZSTD_fast    },  /* level  0 - never used */
-    { 18, 14, 14,  1,  7, ZSTD_fast    },  /* level  1 - in fact redirected towards zstd fast */
+    { 19, 13, 14,  1,  7, ZSTD_fast    },  /* level  1 - in fact redirected towards zstd fast */
     { 19, 15, 16,  1,  6, ZSTD_fast    },  /* level  2 */
     { 20, 18, 20,  1,  6, ZSTD_fast    },  /* level  3 */
     { 21, 19, 21,  1,  6, ZSTD_fast    },  /* level  4 */

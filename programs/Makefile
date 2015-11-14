@@ -97,7 +97,7 @@ datagen : datagen.c datagencli.c
 	$(CC)      $(FLAGS) $^ -o $@$(EXT)
 
 clean:
-	@rm -f core *.o tmp \
+	@rm -f core *.o tmp* \
         zstd$(EXT) zstd32$(EXT) \
         fullbench$(EXT) fullbench32$(EXT) \
         fuzzer$(EXT) fuzzer32$(EXT) \
@@ -153,11 +153,19 @@ test-zstd: zstd datagen
 	echo foo | ./zstd > /dev/full; if [ $$? -eq 0 ] ; then echo "write error not detected!"; false; fi
 	echo foo | ./zstd | ./zstd -d > /dev/full; if [ $$? -eq 0 ] ; then echo "write error not detected!"; false; fi
 	@echo "**** zstd round-trip tests **** "
-	./datagen          | ./zstd -v    | ./zstd -d > $(VOID)
-	./datagen          | ./zstd -6 -v | ./zstd -d > $(VOID)
-	./datagen -g256MB  | ./zstd -v    | ./zstd -d > $(VOID)
-	./datagen -g256MB  | ./zstd -3 -v | ./zstd -d > $(VOID)
-	./datagen -g6GB -P99 | ./zstd -vq | ./zstd -d > $(VOID)
+	./datagen          | md5sum > tmp1
+	./datagen          | ./zstd -v    | ./zstd -d  | md5sum > tmp2
+	diff tmp1 tmp2   # check potential differences
+	./datagen          | ./zstd -6 -v | ./zstd -d  | md5sum > tmp2
+	diff tmp1 tmp2   # check potential differences
+	./datagen -g256MB  | md5sum > tmp1
+	./datagen -g256MB  | ./zstd -v    | ./zstd -d  | md5sum > tmp2
+	#diff tmp1 tmp2   # check potential differences
+	./datagen -g256MB  | ./zstd -3 -v | ./zstd -d  | md5sum > tmp2
+	#diff tmp1 tmp2   # check potential differences
+	./datagen -g6GB -P99 | md5sum > tmp1
+	./datagen -g6GB -P99 | ./zstd -vq | ./zstd -d  | md5sum > tmp2
+	#diff tmp1 tmp2   # check potential differences
 
 test-zstd32: zstd32 datagen
 	./datagen          | ./zstd32 -v  | ./zstd32 -d > $(VOID)

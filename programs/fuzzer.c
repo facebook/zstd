@@ -297,7 +297,7 @@ int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compressibilit
     {
         size_t sampleSize, sampleStart;
         size_t cSize, dSize, dSupSize;
-        U32 sampleSizeLog, buffNb;
+        U32 sampleSizeLog, buffNb, cLevelMod;
         U64 crcOrig, crcDest;
         int cLevel;
 
@@ -328,13 +328,10 @@ int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compressibilit
         sampleStart = FUZ_rand(&lseed) % (srcBufferSize - sampleSize);
         crcOrig = XXH64(srcBuffer + sampleStart, sampleSize, 0);
 
-        /* compression test */
-        /* covered by HC cLevel 1
-        cSize = ZSTD_compressCCtx(ctx, cBuffer, cBufferSize, srcBuffer + sampleStart, sampleSize);
-        CHECK(ZSTD_isError(cSize), "ZSTD_compress failed"); */
-
         /* HC compression test */
-        cLevel = (FUZ_rand(&lseed) & 3) +1;
+#define MAX(a,b) ((a)>(b)?(a):(b))
+        cLevelMod = MAX(1, 38 - (int)(MAX(9, sampleSizeLog) * 2));   /* use high compression levels with small samples, for speed */
+        cLevel = (FUZ_rand(&lseed) % cLevelMod) +1;
         cSize = ZSTD_HC_compressCCtx(hcctx, cBuffer, cBufferSize, srcBuffer + sampleStart, sampleSize, cLevel);
         CHECK(ZSTD_isError(cSize), "ZSTD_HC_compressCCtx failed");
 
@@ -358,7 +355,7 @@ int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compressibilit
         dSize = ZSTD_decompress(dstBuffer, sampleSize + dSupSize, cBuffer, cSize);
         CHECK(dSize != sampleSize, "ZSTD_decompress failed (%s) (srcSize : %u ; cSize : %u)", ZSTD_getErrorName(dSize), (U32)sampleSize, (U32)cSize);
         crcDest = XXH64(dstBuffer, sampleSize, 0);
-        CHECK(crcOrig != crcDest, "dstBuffer corrupted (pos %u / %u)", (U32)findDiff(srcBuffer+sampleStart, dstBuffer, sampleSize), (U32)sampleSize);
+        CHECK(crcOrig != crcDest, "decompression result corrupted (pos %u / %u)", (U32)findDiff(srcBuffer+sampleStart, dstBuffer, sampleSize), (U32)sampleSize);
 
         /* truncated src decompression test */
         {

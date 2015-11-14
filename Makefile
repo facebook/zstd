@@ -32,7 +32,7 @@
 # ################################################################
 
 # Version number
-export VERSION := 0.3.4
+export VERSION := 0.3.6
 
 PRGDIR  = programs
 ZSTDDIR = lib

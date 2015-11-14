@@ -380,7 +380,7 @@ static int BMK_benchMem(void* srcBuffer, size_t srcSize, const char* fileName, i
 }
 
 
-static U64 BMK_GetFileSize(char* infilename)
+static U64 BMK_GetFileSize(const char* infilename)
 {
     int r;
 #if defined(_MSC_VER)

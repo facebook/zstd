@@ -122,7 +122,7 @@ static U32 g_rand = 1;
 static U32 g_singleRun = 0;
 static U32 g_target = 0;
 static U32 g_noSeed = 0;
-static const ZSTD_HC_parameters* g_seedParams = ZSTD_HC_defaultParameters;
+static const ZSTD_HC_parameters* g_seedParams = ZSTD_HC_defaultParameters[0];
 static ZSTD_HC_parameters g_params = { 0, 0, 0, 0, 0, ZSTD_HC_greedy };
 
 void BMK_SetNbIterations(int nbLoops)
@@ -289,7 +289,7 @@ static size_t BMK_benchParam(BMK_result_t* resultPtr,
     U64 crcOrig;
 
     /* Memory allocation & restrictions */
-    snprintf(name, 30, "W%02uC%02uH%02uS%02uL%1ust%1u", Wlog, Clog, Hlog, Slog, Slength, strat);
+    snprintf(name, 30, "Sw%02uc%02uh%02us%02ul%1ut%1u", Wlog, Clog, Hlog, Slog, Slength, strat);
     if (!compressedBuffer || !resultBuffer || !blockTable)
     {
         DISPLAY("\nError: not enough memory!\n");
@@ -579,23 +579,29 @@ static int BMK_seed(winnerInfo_t* winners, const ZSTD_HC_parameters params,
     return better;
 }
 
-#define MAX(a,b)   ( (a) > (b) ? (a) : (b) )
 
-static BYTE g_alreadyTested[ZSTD_HC_WINDOWLOG_MAX+1-ZSTD_HC_WINDOWLOG_MIN]
-                           [ZSTD_HC_CONTENTLOG_MAX+1-ZSTD_HC_CONTENTLOG_MIN]
-                           [ZSTD_HC_HASHLOG_MAX+1-ZSTD_HC_HASHLOG_MIN]
-                           [ZSTD_HC_SEARCHLOG_MAX+1-ZSTD_HC_SEARCHLOG_MIN]
-                           [ZSTD_HC_SEARCHLENGTH_MAX+1-ZSTD_HC_SEARCHLENGTH_MIN]
-                           [ZSTD_HC_btlazy2+1 /* strategy */ ] = {};   /* init to zero */
+/* nullified useless params, to ensure count stats */
+static ZSTD_HC_parameters* sanitizeParams(ZSTD_HC_parameters params)
+{
+    g_params = params;
+    if (params.strategy == ZSTD_HC_fast)
+    {
+        g_params.contentLog = 0;
+        g_params.searchLog = 0;
+    }
+    return &g_params;
+}
+
+#define PARAMTABLELOG   25
+#define PARAMTABLESIZE (1<<PARAMTABLELOG)
+#define PARAMTABLEMASK (PARAMTABLESIZE-1)
+static BYTE g_alreadyTested[PARAMTABLESIZE] = {0};   /* init to zero */
 
 #define NB_TESTS_PLAYED(p) \
-    g_alreadyTested[p.windowLog-ZSTD_HC_WINDOWLOG_MIN] \
-                   [p.contentLog-ZSTD_HC_CONTENTLOG_MIN]   \
-                   [p.hashLog-ZSTD_HC_HASHLOG_MIN]     \
-                   [p.searchLog-ZSTD_HC_SEARCHLOG_MIN] \
-                   [p.searchLength-ZSTD_HC_SEARCHLENGTH_MIN] \
-                   [(U32)p.strategy]
+    g_alreadyTested[(XXH64(sanitizeParams(p), sizeof(p), 0) >> 3) & PARAMTABLEMASK]
 
+
+#define MAX(a,b)   ( (a) > (b) ? (a) : (b) )
 
 static void playAround(FILE* f, winnerInfo_t* winners,
                        ZSTD_HC_parameters params,
@@ -697,12 +703,13 @@ static void BMK_benchMem(void* srcBuffer, size_t srcSize)
     int i;
     const char* rfName = "grillResults.txt";
     FILE* f;
-    const U32 srcLog = BMK_highbit((U32)( (g_blockSize ? g_blockSize : srcSize) -1))+1;
+    const size_t blockSize = g_blockSize ? g_blockSize : srcSize;
+    const U32 srcLog = BMK_highbit((U32)(blockSize-1))+1;
 
     if (g_singleRun)
     {
         BMK_result_t testResult;
-        ZSTD_HC_validateParams(&g_params, g_blockSize ? g_blockSize : srcSize);
+        ZSTD_HC_validateParams(&g_params, blockSize);
         BMK_benchParam(&testResult, srcBuffer, srcSize, ctx, g_params);
         DISPLAY("\n");
         return;
@@ -719,12 +726,13 @@ static void BMK_benchMem(void* srcBuffer, size_t srcSize)
     {
         /* baseline config for level 1 */
         BMK_result_t testResult;
-        params.windowLog = MIN(srcLog, 18);
+        params.windowLog = 18;
         params.hashLog = 14;
         params.contentLog = 1;
         params.searchLog = 1;
         params.searchLength = 7;
         params.strategy = ZSTD_HC_fast;
+        ZSTD_HC_validateParams(&params, blockSize);
         BMK_benchParam(&testResult, srcBuffer, srcSize, ctx, params);
         g_cSpeedTarget[1] = (testResult.cSpeed * 15) >> 4;
     }
@@ -735,7 +743,9 @@ static void BMK_benchMem(void* srcBuffer, size_t srcSize)
 
     /* populate initial solution */
     {
+        const int tableID = (blockSize > 128 KB);
         const int maxSeeds = g_noSeed ? 1 : ZSTD_HC_MAX_CLEVEL;
+        g_seedParams = ZSTD_HC_defaultParameters[tableID];
         for (i=1; i<=maxSeeds; i++)
         {
             const U32 btPlus = (params.strategy == ZSTD_HC_btlazy2);
@@ -1031,6 +1041,7 @@ int main(int argc, char** argv)
                         if (*argument=='K') g_blockSize<<=10, argument++;  /* allows using KB notation */
                         if (*argument=='M') g_blockSize<<=20, argument++;
                         if (*argument=='B') argument++;
+                        DISPLAY("using %u KB block size \n", g_blockSize>>10);
                     }
                     break;
 

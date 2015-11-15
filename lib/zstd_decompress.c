@@ -496,7 +496,7 @@ FORCE_INLINE size_t ZSTD_execSequence(BYTE* op,
 			match = dictEnd - (base-match);
 			if (match + sequence.matchLength <= dictEnd - 8)
 			{
-				ZSTD_wildcopy(op, match, sequence.matchLength-8);   /* works even if matchLength < 8 */
+				ZSTD_wildcopy(op, match, sequence.matchLength);   /* works even if matchLength < 8 */
 				return oMatchEnd - ostart;
 			}
 			if (match + sequence.matchLength <= dictEnd)

@@ -310,7 +310,7 @@ size_t ZSTD_decodeSeqHeaders(int* nbSeq, const BYTE** dumpsPtr, size_t* dumpsLen
 
     /* sequences */
     {
-        S16 norm[MaxML+1];    /* assumption : MaxML >= MaxLL and MaxOff */
+        S16 norm[MaxML+1];    /* assumption : MaxML >= MaxLL >= MaxOff */
         size_t headerSize;
 
         /* Build DTables */

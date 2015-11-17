@@ -823,7 +823,7 @@ size_t ZSTD_compressBlock_fast_extDict_generic(ZSTD_CCtx* ctx,
     const BYTE* const iend = istart + srcSize;
     const BYTE* const ilimit = iend - 8;
 
-    size_t offset_2=REPCODE_STARTVALUE, offset_1=REPCODE_STARTVALUE;
+    U32 offset_2=REPCODE_STARTVALUE, offset_1=REPCODE_STARTVALUE;
 
 
     /* init */
@@ -846,7 +846,7 @@ size_t ZSTD_compressBlock_fast_extDict_generic(ZSTD_CCtx* ctx,
         const BYTE* lowMatchPtr = matchIndex < dictLimit ? dictBase + lowLimit : base + dictLimit;
         const BYTE* match = matchBase + matchIndex;
         const U32 current = (U32)(ip-base);
-        const U32 repIndex = current - (U32)offset_2;
+        const U32 repIndex = current - offset_2;
         const BYTE* repBase = repIndex < dictLimit ? dictBase : base;
         const BYTE* repMatch = repBase + repIndex;
         hashTable[h] = current;   /* update hash table */
@@ -863,10 +863,12 @@ size_t ZSTD_compressBlock_fast_extDict_generic(ZSTD_CCtx* ctx,
 
         {
             size_t litLength = ip-anchor;
-            size_t maxLength = matchIndex < dictLimit ?  MIN((size_t)(iend-ip-MINMATCH), (size_t)(dictLimit - matchIndex))  :  (size_t)(iend-ip-MINMATCH);
-            const BYTE* const iEndCount = ip + maxLength;
+            const BYTE* matchEnd = matchIndex < dictLimit ? dictBase + dictLimit : iend;
+            const BYTE* iEndCount = (matchEnd - match < iend - ip) ? ip + (matchEnd - match) : iend;
             size_t matchLength = ZSTD_count(ip+MINMATCH, match+MINMATCH, iEndCount);
             size_t offsetCode = current-matchIndex;
+            if (matchIndex + matchLength + MINMATCH == dictLimit)
+                matchLength += ZSTD_count(ip + matchLength + MINMATCH, base + dictLimit, iend);
             if (offsetCode == offset_2) offsetCode = 0;
             offset_2 = offset_1;
             offset_1 = current-matchIndex;

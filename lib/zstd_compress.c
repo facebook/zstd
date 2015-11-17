@@ -867,7 +867,7 @@ size_t ZSTD_compressBlock_fast_extDict_generic(ZSTD_CCtx* ctx,
             const BYTE* iEndCount = (matchEnd - match < iend - ip) ? ip + (matchEnd - match) : iend;
             size_t matchLength = ZSTD_count(ip+MINMATCH, match+MINMATCH, iEndCount);
             size_t offsetCode = current-matchIndex;
-            if (matchIndex + matchLength + MINMATCH == dictLimit)
+            if (match + matchLength + MINMATCH == matchEnd)
                 matchLength += ZSTD_count(ip + matchLength + MINMATCH, base + dictLimit, iend);
             if (offsetCode == offset_2) offsetCode = 0;
             offset_2 = offset_1;

@@ -155,17 +155,17 @@ test-zstd: zstd datagen
 	@echo "**** zstd round-trip tests **** "
 	./datagen          | md5sum > tmp1
 	./datagen          | ./zstd -v    | ./zstd -d  | md5sum > tmp2
-	diff tmp1 tmp2   # check potential differences
+	diff tmp1 tmp2   
 	./datagen          | ./zstd -6 -v | ./zstd -d  | md5sum > tmp2
-	diff tmp1 tmp2   # check potential differences
+	diff tmp1 tmp2   
 	./datagen -g256MB  | md5sum > tmp1
 	./datagen -g256MB  | ./zstd -v    | ./zstd -d  | md5sum > tmp2
-	#diff tmp1 tmp2   # check potential differences
+	diff tmp1 tmp2   
 	./datagen -g256MB  | ./zstd -3 -v | ./zstd -d  | md5sum > tmp2
-	#diff tmp1 tmp2   # check potential differences
+	diff tmp1 tmp2   
 	./datagen -g6GB -P99 | md5sum > tmp1
 	./datagen -g6GB -P99 | ./zstd -vq | ./zstd -d  | md5sum > tmp2
-	#diff tmp1 tmp2   # check potential differences
+	diff tmp1 tmp2   
 
 test-zstd32: zstd32 datagen
 	./datagen          | ./zstd32 -v  | ./zstd32 -d > $(VOID)

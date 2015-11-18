@@ -489,68 +489,62 @@ FORCE_INLINE size_t ZSTD_execSequence(BYTE* op,
         //if (match > op) return ERROR(corruption_detected);   /* address space overflow test (is clang optimizer wrongly removing this test ?) */
         if (sequence.offset > (size_t)op) return ERROR(corruption_detected);   /* address space overflow test (this test seems kept by clang optimizer) */
 
-		if (match < base)
+        if (match < base)
         {
-			/* offset beyond prefix */
-			if (match < vBase) return ERROR(corruption_detected);
-			match = dictEnd - (base-match);
-			if (match + sequence.matchLength <= dictEnd - 8)
-			{
-				ZSTD_wildcopy(op, match, sequence.matchLength);   /* works even if matchLength < 8 */
-				return oMatchEnd - ostart;
-			}
-			if (match + sequence.matchLength <= dictEnd)
-			{
-				memcpy(op, match, sequence.matchLength);
-				return oMatchEnd - ostart;
-			}
-			/* span extDict & currentPrefixSegment */
-			{
-				size_t length1 = dictEnd - match;
-				size_t length2 = sequence.matchLength - length1;
-				memcpy(op, match, length1);
-				op += length1;
-				memcpy(op, base, length2);   /* will fail in case of overlapping match */
-				return oMatchEnd - ostart;
-			}				
-		}
+            /* offset beyond prefix */
+            if (match < vBase) return ERROR(corruption_detected);
+            match = dictEnd - (base-match);
+            if (match + sequence.matchLength <= dictEnd)
+            {
+                memcpy(op, match, sequence.matchLength);
+                return oMatchEnd - ostart;
+            }
+            /* span extDict & currentPrefixSegment */
+            {
+                size_t length1 = dictEnd - match;
+                memcpy(op, match, length1);
+                op += length1;
+                sequence.matchLength -= length1;
+                match = base;
+            }
+        }
 
-		{
-			/* match within prefix */			
-			if (sequence.offset < 8)
-			{
-				/* close range match, overlap */
-				const int dec64 = dec64table[sequence.offset];
-				op[0] = match[0];
-				op[1] = match[1];
-				op[2] = match[2];
-				op[3] = match[3];
-				match += dec32table[sequence.offset];
-				ZSTD_copy4(op+4, match);
-				match -= dec64;
-			}
-			else
-			{
-				ZSTD_copy8(op, match);
-			}
-			op += 8; match += 8;
+        {
+            /* match within prefix */
+            if (sequence.offset < 8)
+            {
+                /* close range match, overlap */
+                const int dec64 = dec64table[sequence.offset];
+                op[0] = match[0];
+                op[1] = match[1];
+                op[2] = match[2];
+                op[3] = match[3];
+                match += dec32table[sequence.offset];
+                ZSTD_copy4(op+4, match);
+                match -= dec64;
+            }
+            else
+            {
+                ZSTD_copy8(op, match);
+            }
+            op += 8; match += 8;
 
-			if (oMatchEnd > oend-12)
-			{
-				if (op < oend_8)
-				{
-					ZSTD_wildcopy(op, match, oend_8 - op);
-					match += oend_8 - op;
-					op = oend_8;
-				}
-				while (op < oMatchEnd) *op++ = *match++;
-			}
-			else
-			{
-				ZSTD_wildcopy(op, match, sequence.matchLength-8);   /* works even if matchLength < 8 */
-			}
-			return oMatchEnd - ostart;
-		}
+            if (oMatchEnd > oend-12)
+            {
+                if (op < oend_8)
+                {
+                    ZSTD_wildcopy(op, match, oend_8 - op);
+                    match += oend_8 - op;
+                    op = oend_8;
+                }
+                while (op < oMatchEnd) *op++ = *match++;
+            }
+            else
+            {
+                ZSTD_wildcopy(op, match, sequence.matchLength-8);   /* works even if matchLength < 8 */
+            }
+            return oMatchEnd - ostart;
+        }
 
     }
 
@@ -660,8 +654,8 @@ size_t ZSTD_decompressDCtx(ZSTD_DCtx* ctx, void* dst, size_t maxDstSize, const v
     blockProperties_t blockProperties;
 
 
-	/* init */
-	ctx->base = ctx->vBase = ctx->dictEnd = dst;
+    /* init */
+    ctx->base = ctx->vBase = ctx->dictEnd = dst;
 
     /* Frame Header */
     if (srcSize < ZSTD_frameHeaderSize+ZSTD_blockHeaderSize) return ERROR(srcSize_wrong);
@@ -735,12 +729,12 @@ size_t ZSTD_decompressContinue(ZSTD_DCtx* ctx, void* dst, size_t maxDstSize, con
     if (srcSize != ctx->expected) return ERROR(srcSize_wrong);
     if (dst != ctx->previousDstEnd)  /* not contiguous */
     {
-		ctx->dictEnd = ctx->previousDstEnd;
-		if ((dst > ctx->base) && (dst < ctx->previousDstEnd))   /* rolling buffer : new segment right into tracked memory */
-			ctx->base = (char*)dst + maxDstSize;   /* temporary affectation, for vBase calculation */
-		ctx->vBase = (char*)dst - ((char*)(ctx->dictEnd) - (char*)(ctx->base));
-		ctx->base = dst;
-	}
+        ctx->dictEnd = ctx->previousDstEnd;
+        if ((dst > ctx->base) && (dst < ctx->previousDstEnd))   /* rolling buffer : new segment right into tracked memory */
+            ctx->base = (char*)dst + maxDstSize;   /* temporary affectation, for vBase calculation */
+        ctx->vBase = (char*)dst - ((char*)(ctx->dictEnd) - (char*)(ctx->base));
+        ctx->base = dst;
+    }
 
     /* Decompress : frame header */
     if (ctx->phase == 0)

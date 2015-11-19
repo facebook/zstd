@@ -27,8 +27,8 @@
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 # 
 # You can contact the author at :
+#  - ZSTD homepage : http://www.zstd.net
 #  - ZSTD source repository : https://github.com/Cyan4973/zstd
-#  - Public forum : https://groups.google.com/forum/#!forum/lz4c
 # ################################################################
 
 # Version numbers
@@ -63,14 +63,17 @@ else
 	SHARED_EXT_VER = $(SHARED_EXT).$(LIBVER)
 endif
 
-default: libzstd
 
-all: libzstd
+.PHONY: default all clean install uninstall
 
-libzstd: zstd_compress.c zstd_decompress.c huff0.c fse.c
+default: clean libzstd
+
+all: clean libzstd
+
+libzstd: zstd_compress.c zstd_decompress.c huff0.c fse.c legacy/zstd_v01.c legacy/zstd_v02.c
 	@echo compiling static library
 	@$(CC) $(FLAGS) -c $^
-	@$(AR) rcs libzstd.a zstd_compress.o zstd_decompress.o huff0.o fse.o
+	@$(AR) rcs libzstd.a *.o
 	@echo compiling dynamic library $(LIBVER)
 	@$(CC) $(FLAGS) -shared $^ -fPIC $(SONAME_FLAGS) -o $@.$(SHARED_EXT_VER)
 	@echo creating versioned links

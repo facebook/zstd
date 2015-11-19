@@ -35,9 +35,8 @@
 *****************************************************************/
 /*!
  * HEAPMODE :
- * Select how default compression functions will allocate memory for their hash table,
+ * Select how default functions will allocate memory for their context,
  * in memory stack (0, fastest), or in memory heap (1, requires malloc())
- * Note that compression context is fairly large, as a consequence heap memory is recommended.
  */
 #ifndef ZSTD_HEAPMODE
 #  define ZSTD_HEAPMODE 1
@@ -393,6 +392,10 @@ typedef struct {
 } seqState_t;
 
 
+/** ZSTD_decodeSequence
+*   Decode the next sequence, defined as nbLiterals, PtrToLiterals, nbMatches, Offset
+*   @seq : store sequence into this seq_t
+*/
 static void ZSTD_decodeSequence(seq_t* seq, seqState_t* seqState)
 {
     size_t litLength;

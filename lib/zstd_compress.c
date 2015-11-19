@@ -1218,8 +1218,8 @@ FORCE_INLINE size_t ZSTD_HcFindBestMatch_selectMLS (
 /* common lazy function, to be inlined */
 FORCE_INLINE
 size_t ZSTD_compressBlock_lazy_generic(ZSTD_CCtx* ctx,
-                                     void* dst, size_t maxDstSize, const void* src, size_t srcSize,
-                                     const U32 searchMethod, const U32 deep)   /* 0 : hc; 1 : bt */
+                                       void* dst, size_t maxDstSize, const void* src, size_t srcSize,
+                                 const U32 searchMethod, const U32 deep)   /* searchMethod : 0 = hc; 1 = bt */
 {
     seqStore_t* seqStorePtr = &(ctx->seqStore);
     const BYTE* const istart = (const BYTE*)src;
@@ -1496,6 +1496,7 @@ static ZSTD_blockCompressor ZSTD_selectBlockCompressor(ZSTD_strategy strat, int 
 size_t ZSTD_compressBlock(ZSTD_CCtx* ctx, void* dst, size_t maxDstSize, const void* src, size_t srcSize)
 {
     ZSTD_blockCompressor blockCompressor = ZSTD_selectBlockCompressor(ctx->params.strategy, ctx->lowLimit < ctx->dictLimit);
+    if (srcSize < MIN_CBLOCK_SIZE+3) return 0;   /* don't even attempt compression below a certain srcSize */
     return blockCompressor(ctx, dst, maxDstSize, src, srcSize);
 }
 
@@ -1536,7 +1537,7 @@ static size_t ZSTD_compress_generic (ZSTD_CCtx* ctxPtr,
             op[0] = (BYTE)(cSize>>16);
             op[1] = (BYTE)(cSize>>8);
             op[2] = (BYTE)cSize;
-            op[0] += (BYTE)(bt_compressed << 6); /* is a compressed block */
+            op[0] += (BYTE)(bt_compressed << 6);   /* is a compressed block */
             cSize += 3;
         }
 

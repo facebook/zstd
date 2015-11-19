@@ -1500,6 +1500,7 @@ static ZSTD_blockCompressor ZSTD_selectBlockCompressor(ZSTD_strategy strat, int 
 size_t ZSTD_compressBlock(ZSTD_CCtx* ctx, void* dst, size_t maxDstSize, const void* src, size_t srcSize)
 {
     ZSTD_blockCompressor blockCompressor = ZSTD_selectBlockCompressor(ctx->params.strategy, ctx->lowLimit < ctx->dictLimit);
+    if (srcSize < MIN_CBLOCK_SIZE+3) return 0;   /* don't even attempt compression below a certain srcSize */
     return blockCompressor(ctx, dst, maxDstSize, src, srcSize);
 }
 

@@ -138,6 +138,7 @@ void RDG_genBlock(void* buffer, size_t buffSize, size_t prefixSize, double match
     const U32 matchProba32 = (U32)(32768 * matchProba);
     size_t pos = prefixSize;
     U32* seed = seedPtr;
+    U32 prevOffset = 1;
 
     /* special case : sparse content */
     while (matchProba >= 1.0)
@@ -167,14 +168,16 @@ void RDG_genBlock(void* buffer, size_t buffSize, size_t prefixSize, double match
         {
             /* Copy (within 32K) */
             size_t match;
-            size_t d;
-            int length = RDG_RANDLENGTH + 4;
+            size_t length = RDG_RANDLENGTH + 4;
             U32 offset = RDG_RAND15BITS + 1;
+            U32 repeatOffset = (RDG_rand(seed) & 15) == 2;
+            if (repeatOffset) offset = prevOffset;
             if (offset > pos) offset = (U32)pos;
             match = pos - offset;
-            d = pos + length;
-            if (d > buffSize) d = buffSize;
-            while (pos < d) buffPtr[pos++] = buffPtr[match++];
+            if (length > buffSize-pos) length = buffSize-pos;
+            memcpy(buffPtr+pos, buffPtr+match, length);
+            pos += length;
+            prevOffset = offset;
         }
         else
         {

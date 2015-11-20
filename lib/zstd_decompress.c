@@ -404,8 +404,7 @@ static void ZSTD_decodeSequence(seq_t* seq, seqState_t* seqState)
 
     /* Literal length */
     litLength = FSE_decodeSymbol(&(seqState->stateLL), &(seqState->DStream));
-    prevOffset = litLength ? seq->offset : seqState->prevOffset;
-    seqState->prevOffset = seq->offset;
+    prevOffset = litLength ? seq->offset : seqState->prevOffset;    
     if (litLength == MaxLL)
     {
         U32 add = *dumps++;
@@ -432,6 +431,7 @@ static void ZSTD_decodeSequence(seq_t* seq, seqState_t* seqState)
         offset = offsetPrefix[offsetCode] + BIT_readBits(&(seqState->DStream), nbBits);
         if (MEM_32bits()) BIT_reloadDStream(&(seqState->DStream));
         if (offsetCode==0) offset = prevOffset;   /* cmove */
+        if (offsetCode | !litLength) seqState->prevOffset = seq->offset;   /* cmove */
     }
 
     /* MatchLength */

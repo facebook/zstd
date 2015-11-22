@@ -1537,6 +1537,7 @@ size_t ZSTD_compressBlock_lazy_extDict_generic(ZSTD_CCtx* ctx,
                 const U32 repIndex = (U32)(current - offset_1);
                 const BYTE* const repBase = repIndex < dictLimit ? dictBase : base;
                 const BYTE* const repMatch = repBase + repIndex;
+                if ((repIndex <= dictLimit-4) || (repIndex >= dictLimit))
                 if (MEM_read32(ip) == MEM_read32(repMatch))            
                 {
                     /* repcode detected */
@@ -1675,6 +1676,10 @@ size_t ZSTD_compressBlock_greedy_extDict(ZSTD_CCtx* ctx, void* dst, size_t maxDs
     return ZSTD_compressBlock_lazy_extDict_generic(ctx, dst, maxDstSize, src, srcSize, 0, 0);
 }
 
+size_t ZSTD_compressBlock_lazy_extDict(ZSTD_CCtx* ctx, void* dst, size_t maxDstSize, const void* src, size_t srcSize)
+{
+    return ZSTD_compressBlock_lazy_extDict_generic(ctx, dst, maxDstSize, src, srcSize, 0, 1);
+}
 
 
 typedef size_t (*ZSTD_blockCompressor) (ZSTD_CCtx* ctx, void* dst, size_t maxDstSize, const void* src, size_t srcSize);
@@ -1691,7 +1696,7 @@ static ZSTD_blockCompressor ZSTD_selectBlockCompressor(ZSTD_strategy strat, int 
         case ZSTD_greedy:
             return ZSTD_compressBlock_greedy_extDict;
         case ZSTD_lazy:
-            return ZSTD_compressBlock_lazy;
+            return ZSTD_compressBlock_lazy_extDict;
         case ZSTD_lazy2:
             return ZSTD_compressBlock_lazy2;
         case ZSTD_btlazy2:

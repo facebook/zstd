@@ -1007,8 +1007,6 @@ int main(int argc, char** argv)
                                 argument++;
                                 while ((*argument>= '0') && (*argument<='9'))
                                     cLevel *= 10, cLevel += *argument++ - '0';
-                                if (cLevel < 1) cLevel = 1;
-                                if (cLevel > ZSTD_MAX_CLEVEL) cLevel = ZSTD_MAX_CLEVEL;
                                 g_params = g_seedParams[cLevel];
                                 continue;
                             }

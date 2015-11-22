@@ -1282,7 +1282,7 @@ FORCE_INLINE size_t ZSTD_HcFindBestMatch_selectMLS (
 FORCE_INLINE
 size_t ZSTD_compressBlock_lazy_generic(ZSTD_CCtx* ctx,
                                      void* dst, size_t maxDstSize, const void* src, size_t srcSize,
-                                     const U32 searchMethod, const U32 deep)   /* 0 : hc; 1 : bt */
+                                     const U32 searchMethod, const U32 depth)
 {
     seqStore_t* seqStorePtr = &(ctx->seqStore);
     const BYTE* const istart = (const BYTE*)src;
@@ -1316,7 +1316,7 @@ size_t ZSTD_compressBlock_lazy_generic(ZSTD_CCtx* ctx,
         {
             /* repcode : we take it */
             matchLength = ZSTD_count(ip+1+MINMATCH, ip+1+MINMATCH-offset_1, iend) + MINMATCH;
-            if (deep==0) goto _storeSequence;
+            if (depth==0) goto _storeSequence;
         }
 
         {
@@ -1333,22 +1333,23 @@ size_t ZSTD_compressBlock_lazy_generic(ZSTD_CCtx* ctx,
 		}
 
         /* let's try to find a better solution */
-        while ((deep>=1) && (ip<ilimit))
+        if (depth>=1)
+        while (ip<ilimit)
         {
             ip ++;
             if ((offset) && (MEM_read32(ip) == MEM_read32(ip - offset_1)))
             {
-                size_t ml2 = ZSTD_count(ip+MINMATCH, ip+MINMATCH-offset_1, iend) + MINMATCH;
-                int gain2 = (int)(ml2 * 3);
+                size_t mlRep = ZSTD_count(ip+MINMATCH, ip+MINMATCH-offset_1, iend) + MINMATCH;
+                int gain2 = (int)(mlRep * 3);
                 int gain1 = (int)(matchLength*3 - ZSTD_highbit((U32)offset+1) + 1);
-                if ((ml2 >= MINMATCH) && (gain2 > gain1))
-                    matchLength = ml2, offset = 0, start = ip;
+                if ((mlRep >= MINMATCH) && (gain2 > gain1))
+                    matchLength = mlRep, offset = 0, start = ip;
             }
             {
                 size_t offset2=999999;
                 size_t ml2 = searchMax(ctx, ip, iend, &offset2, maxSearches, mls);
-                int gain2 = (int)(ml2*(3+deep) - ZSTD_highbit((U32)offset2+1));   /* raw approx */
-                int gain1 = (int)(matchLength*(3+deep) - ZSTD_highbit((U32)offset+1) + (3+deep));
+                int gain2 = (int)(ml2*4 - ZSTD_highbit((U32)offset2+1));   /* raw approx */
+                int gain1 = (int)(matchLength*4 - ZSTD_highbit((U32)offset+1) + 4);
                 if ((ml2 >= MINMATCH) && (gain2 > gain1))
                 {
                     matchLength = ml2, offset = offset2, start = ip;
@@ -1357,7 +1358,7 @@ size_t ZSTD_compressBlock_lazy_generic(ZSTD_CCtx* ctx,
             }
 
             /* let's find an even better one */
-            if ((deep==2) && (ip<ilimit))
+            if ((depth==2) && (ip<ilimit))
             {
                 ip ++;
                 if ((offset) && (MEM_read32(ip) == MEM_read32(ip - offset_1)))

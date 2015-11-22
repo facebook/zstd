@@ -68,7 +68,6 @@
 #include "mem.h"
 #include "fileio.h"
 #include "zstd_static.h"
-#include "zstdhc_static.h"
 
 #if defined(ZSTD_LEGACY_SUPPORT) && (ZSTD_LEGACY_SUPPORT==1)
 #  include "zstd_legacy.h"  /* legacy */
@@ -237,46 +236,6 @@ static U64 FIO_getFileSize(const char* infilename)
 }
 
 
-typedef void* (*FIO_createC) (void);
-static void* local_ZSTD_createCCtx(void) { return (void*) ZSTD_createCCtx(); }
-static void* local_ZSTD_HC_createCCtx(void) { return (void*) ZSTD_HC_createCCtx(); }
-
-typedef size_t (*FIO_initC) (void* ctx, void* dst, size_t maxDstSize, int cLevel, U64 srcSizeHint);
-static size_t local_ZSTD_compressBegin (void* ctx, void* dst, size_t maxDstSize, int cLevel, U64 srcSizeHint)
-{
-    (void)cLevel; (void)srcSizeHint;
-    return ZSTD_compressBegin((ZSTD_CCtx*)ctx, dst, maxDstSize);
-}
-static size_t local_ZSTD_HC_compressBegin (void* ctx, void* dst, size_t maxDstSize, int cLevel, U64 srcSizeHint)
-{
-    return ZSTD_HC_compressBegin((ZSTD_HC_CCtx*)ctx, dst, maxDstSize, cLevel, srcSizeHint);
-}
-
-typedef size_t (*FIO_continueC) (void* ctx, void* dst, size_t maxDstSize, const void* src, size_t srcSize);
-static size_t local_ZSTD_compressContinue (void* ctx, void* dst, size_t maxDstSize, const void* src, size_t srcSize)
-{
-    return ZSTD_compressContinue((ZSTD_CCtx*)ctx, dst, maxDstSize, src, srcSize);
-}
-static size_t local_ZSTD_HC_compressContinue (void* ctx, void* dst, size_t maxDstSize, const void* src, size_t srcSize)
-{
-    return ZSTD_HC_compressContinue((ZSTD_HC_CCtx*)ctx, dst, maxDstSize, src, srcSize);
-}
-
-typedef size_t (*FIO_endC) (void* ctx, void* dst, size_t maxDstSize);
-static size_t local_ZSTD_compressEnd (void* ctx, void* dst, size_t maxDstSize)
-{
-    return ZSTD_compressEnd((ZSTD_CCtx*)ctx, dst, maxDstSize);
-}
-static size_t local_ZSTD_HC_compressEnd (void* ctx, void* dst, size_t maxDstSize)
-{
-    return ZSTD_HC_compressEnd((ZSTD_HC_CCtx*)ctx, dst, maxDstSize);
-}
-
-typedef void (*FIO_freeC) (void* ctx);
-static void local_ZSTD_freeCCtx(void* ctx) { ZSTD_freeCCtx((ZSTD_CCtx*)ctx); }
-static void local_ZSTD_HC_freeCCtx(void* ctx) { ZSTD_HC_freeCCtx((ZSTD_HC_CCtx*)ctx); }
-
-
 unsigned long long FIO_compressFilename(const char* output_filename, const char* input_filename, int cLevel)
 {
     U64 filesize = 0;
@@ -291,35 +250,14 @@ unsigned long long FIO_compressFilename(const char* output_filename, const char*
     FILE* finput;
     FILE* foutput;
     size_t sizeCheck, cSize;
-    void* ctx;
-    FIO_createC createC=NULL;
-    FIO_initC initC=NULL;
-    FIO_continueC continueC = NULL;
-    FIO_endC endC = NULL;
-    FIO_freeC freeC = NULL;
+    ZSTD_CCtx* ctx;
 
-    /* Init */
-    if (cLevel <= 1)
-    {
-        createC = local_ZSTD_createCCtx;
-        initC = local_ZSTD_compressBegin;
-        continueC = local_ZSTD_compressContinue;
-        endC = local_ZSTD_compressEnd;
-        freeC = local_ZSTD_freeCCtx;
-    }
-    else
-    {
-        createC = local_ZSTD_HC_createCCtx;
-        initC = local_ZSTD_HC_compressBegin;
-        continueC = local_ZSTD_HC_compressContinue;
-        endC = local_ZSTD_HC_compressEnd;
-        freeC = local_ZSTD_HC_freeCCtx;
-    }
+    /* init */
     FIO_getFileHandles(&finput, &foutput, input_filename, output_filename);
     filesize = FIO_getFileSize(input_filename);
 
     /* Allocate Memory */
-    ctx = createC();
+    ctx = ZSTD_createCCtx();
     inBuff  = (BYTE*)malloc(inBuffSize);
     outBuff = (BYTE*)malloc(outBuffSize);
     if (!inBuff || !outBuff || !ctx) EXM_THROW(21, "Allocation error : not enough memory");
@@ -327,7 +265,7 @@ unsigned long long FIO_compressFilename(const char* output_filename, const char*
     inEnd = inBuff + inBuffSize;
 
     /* Write Frame Header */
-    cSize = initC(ctx, outBuff, outBuffSize, cLevel, filesize);
+    cSize = ZSTD_compressBegin(ctx, outBuff, outBuffSize, cLevel, filesize);
     if (ZSTD_isError(cSize)) EXM_THROW(22, "Compression error : cannot create frame header");
 
     sizeCheck = fwrite(outBuff, 1, cSize, foutput);
@@ -345,10 +283,10 @@ unsigned long long FIO_compressFilename(const char* output_filename, const char*
         inSize = fread(inSlot, (size_t)1, blockSize, finput);
         if (inSize==0) break;
         filesize += inSize;
-        DISPLAYUPDATE(2, "\rRead : %u MB   ", (U32)(filesize>>20));
+        DISPLAYUPDATE(2, "\rRead : %u MB  ", (U32)(filesize>>20));
 
         /* Compress Block */
-        cSize = continueC(ctx, outBuff, outBuffSize, inSlot, inSize);
+        cSize = ZSTD_compressContinue(ctx, outBuff, outBuffSize, inSlot, inSize);
         if (ZSTD_isError(cSize))
             EXM_THROW(24, "Compression error : %s ", ZSTD_getErrorName(cSize));
 
@@ -362,7 +300,7 @@ unsigned long long FIO_compressFilename(const char* output_filename, const char*
     }
 
     /* End of Frame */
-    cSize = endC(ctx, outBuff, outBuffSize);
+    cSize = ZSTD_compressEnd(ctx, outBuff, outBuffSize);
     if (ZSTD_isError(cSize)) EXM_THROW(26, "Compression error : cannot create frame end");
 
     sizeCheck = fwrite(outBuff, 1, cSize, foutput);
@@ -377,7 +315,7 @@ unsigned long long FIO_compressFilename(const char* output_filename, const char*
     /* clean */
     free(inBuff);
     free(outBuff);
-    freeC(ctx);
+    ZSTD_freeCCtx(ctx);
     fclose(finput);
     if (fclose(foutput)) EXM_THROW(28, "Write error : cannot properly close %s", output_filename);
 

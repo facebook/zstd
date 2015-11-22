@@ -47,7 +47,6 @@
 #include <sys/timeb.h>   /* timeb */
 #include <string.h>      /* strcmp */
 #include "zstd_static.h"
-#include "zstdhc_static.h"
 #include "datagen.h"     /* RDG_genBuffer */
 #include "xxhash.h"      /* XXH64 */
 #include "mem.h"
@@ -64,7 +63,7 @@
 #define MB *(1U<<20)
 #define GB *(1U<<30)
 
-static const U32 nbTestsDefault = 32 KB;
+static const U32 nbTestsDefault = 30000;
 #define COMPRESSIBLE_NOISE_LENGTH (10 MB)
 #define FUZ_COMPRESSIBILITY_DEFAULT 50
 static const U32 prime1 = 2654435761U;
@@ -90,6 +89,8 @@ static U32 g_time = 0;
 /*********************************************************
 *  Fuzzer functions
 *********************************************************/
+#define MAX(a,b) ((a)>(b)?(a):(b))
+
 static U32 FUZ_GetMilliStart(void)
 {
     struct timeb tb;
@@ -159,7 +160,7 @@ static int basicUnitTests(U32 seed, double compressibility)
 
     /* Basic tests */
     DISPLAYLEVEL(4, "test%3i : compress %u bytes : ", testNb++, COMPRESSIBLE_NOISE_LENGTH);
-    result = ZSTD_compress(compressedBuffer, ZSTD_compressBound(COMPRESSIBLE_NOISE_LENGTH), CNBuffer, COMPRESSIBLE_NOISE_LENGTH);
+    result = ZSTD_compress(compressedBuffer, ZSTD_compressBound(COMPRESSIBLE_NOISE_LENGTH), CNBuffer, COMPRESSIBLE_NOISE_LENGTH, 1);
     if (ZSTD_isError(result)) goto _output_error;
     cSize = result;
     DISPLAYLEVEL(4, "OK (%u bytes : %.2f%%)\n", (U32)cSize, (double)cSize/COMPRESSIBLE_NOISE_LENGTH*100);
@@ -213,7 +214,7 @@ static int basicUnitTests(U32 seed, double compressibility)
         sampleSize += 256 KB - 1;
         RDG_genBuffer((char*)CNBuffer+sampleSize, 96 KB, compressibility, 0., randState);
         sampleSize += 96 KB;
-        cSize = ZSTD_compress(compressedBuffer, ZSTD_compressBound(sampleSize), CNBuffer, sampleSize);
+        cSize = ZSTD_compress(compressedBuffer, ZSTD_compressBound(sampleSize), CNBuffer, sampleSize, 1);
         if (ZSTD_isError(cSize)) goto _output_error;
         result = ZSTD_decompress(decodedBuffer, sampleSize, compressedBuffer, cSize);
         if (ZSTD_isError(result)) goto _output_error;
@@ -265,11 +266,9 @@ int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compressibilit
     U32 testNb = 0;
     U32 coreSeed = seed, lseed = 0;
     ZSTD_CCtx* ctx;
-    ZSTD_HC_CCtx* hcctx;
 
     /* allocation */
     ctx = ZSTD_createCCtx();
-    hcctx = ZSTD_HC_createCCtx();
     cNoiseBuffer[0] = (BYTE*)malloc (srcBufferSize);
     cNoiseBuffer[1] = (BYTE*)malloc (srcBufferSize);
     cNoiseBuffer[2] = (BYTE*)malloc (srcBufferSize);
@@ -277,7 +276,7 @@ int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compressibilit
     cNoiseBuffer[4] = (BYTE*)malloc (srcBufferSize);
     dstBuffer = (BYTE*)malloc (dstBufferSize);
     cBuffer   = (BYTE*)malloc (cBufferSize);
-    CHECK (!cNoiseBuffer[0] || !cNoiseBuffer[1] || !cNoiseBuffer[2] || !dstBuffer || !cBuffer || !ctx || !hcctx,
+    CHECK (!cNoiseBuffer[0] || !cNoiseBuffer[1] || !cNoiseBuffer[2] || !dstBuffer || !cBuffer || !ctx,
            "Not enough memory, fuzzer tests cancelled");
 
     /* Create initial samples */
@@ -300,6 +299,7 @@ int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compressibilit
         U32 sampleSizeLog, buffNb, cLevelMod;
         U64 crcOrig, crcDest;
         int cLevel;
+        BYTE* sampleBuffer;
 
         /* init */
         DISPLAYUPDATE(2, "\r%6u/%6u   ", testNb, nbTests);
@@ -326,14 +326,18 @@ int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compressibilit
         sampleSize = (size_t)1 << sampleSizeLog;
         sampleSize += FUZ_rand(&lseed) & (sampleSize-1);
         sampleStart = FUZ_rand(&lseed) % (srcBufferSize - sampleSize);
-        crcOrig = XXH64(srcBuffer + sampleStart, sampleSize, 0);
 
-        /* HC compression test */
-#define MAX(a,b) ((a)>(b)?(a):(b))
+        /* create sample buffer (to catch read error with valgrind & sanitizers)  */
+        sampleBuffer = (BYTE*)malloc(sampleSize);
+        CHECK (sampleBuffer==NULL, "not enough memory for sample buffer");
+        memcpy(sampleBuffer, srcBuffer + sampleStart, sampleSize);
+        crcOrig = XXH64(sampleBuffer, sampleSize, 0);
+
+        /* compression test */
         cLevelMod = MAX(1, 38 - (int)(MAX(9, sampleSizeLog) * 2));   /* use high compression levels with small samples, for speed */
         cLevel = (FUZ_rand(&lseed) % cLevelMod) +1;
-        cSize = ZSTD_HC_compressCCtx(hcctx, cBuffer, cBufferSize, srcBuffer + sampleStart, sampleSize, cLevel);
-        CHECK(ZSTD_isError(cSize), "ZSTD_HC_compressCCtx failed");
+        cSize = ZSTD_compressCCtx(ctx, cBuffer, cBufferSize, sampleBuffer, sampleSize, cLevel);
+        CHECK(ZSTD_isError(cSize), "ZSTD_compressCCtx failed");
 
         /* compression failure test : too small dest buffer */
         if (cSize > 3)
@@ -344,10 +348,10 @@ int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compressibilit
             static const U32 endMark = 0x4DC2B1A9;
             U32 endCheck;
             memcpy(dstBuffer+tooSmallSize, &endMark, 4);
-            errorCode = ZSTD_HC_compressCCtx(hcctx, dstBuffer, tooSmallSize, srcBuffer + sampleStart, sampleSize, cLevel);
-            CHECK(!ZSTD_isError(errorCode), "ZSTD_HC_compressCCtx should have failed ! (buffer too small : %u < %u)", (U32)tooSmallSize, (U32)cSize);
+            errorCode = ZSTD_compressCCtx(ctx, dstBuffer, tooSmallSize, sampleBuffer, sampleSize, cLevel);
+            CHECK(!ZSTD_isError(errorCode), "ZSTD_compressCCtx should have failed ! (buffer too small : %u < %u)", (U32)tooSmallSize, (U32)cSize);
             memcpy(&endCheck, dstBuffer+tooSmallSize, 4);
-            CHECK(endCheck != endMark, "ZSTD_HC_compressCCtx : dst buffer overflow");
+            CHECK(endCheck != endMark, "ZSTD_compressCCtx : dst buffer overflow");
         }
 
         /* successfull decompression tests*/
@@ -355,7 +359,9 @@ int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compressibilit
         dSize = ZSTD_decompress(dstBuffer, sampleSize + dSupSize, cBuffer, cSize);
         CHECK(dSize != sampleSize, "ZSTD_decompress failed (%s) (srcSize : %u ; cSize : %u)", ZSTD_getErrorName(dSize), (U32)sampleSize, (U32)cSize);
         crcDest = XXH64(dstBuffer, sampleSize, 0);
-        CHECK(crcOrig != crcDest, "decompression result corrupted (pos %u / %u)", (U32)findDiff(srcBuffer+sampleStart, dstBuffer, sampleSize), (U32)sampleSize);
+        CHECK(crcOrig != crcDest, "decompression result corrupted (pos %u / %u)", (U32)findDiff(sampleBuffer, dstBuffer, sampleSize), (U32)sampleSize);
+
+        free(sampleBuffer);   /* no longer useful after this point */
 
         /* truncated src decompression test */
         {
@@ -434,7 +440,6 @@ int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compressibilit
 
 _cleanup:
     ZSTD_freeCCtx(ctx);
-    ZSTD_HC_freeCCtx(hcctx);
     free(cNoiseBuffer[0]);
     free(cNoiseBuffer[1]);
     free(cNoiseBuffer[2]);

@@ -58,37 +58,37 @@ default: zstd
 
 all: zstd zstd32 fullbench fullbench32 fuzzer fuzzer32 paramgrill datagen
 
-zstd: $(ZSTDDIR)/zstd.c $(ZSTDDIR)/zstdhc.c $(ZSTDDIR)/fse.c $(ZSTDDIR)/huff0.c \
+zstd: $(ZSTDDIR)/zstd_compress.c $(ZSTDDIR)/zstd_decompress.c $(ZSTDDIR)/fse.c $(ZSTDDIR)/huff0.c \
       $(ZSTDDIR)/legacy/zstd_v01.c $(ZSTDDIR)/legacy/zstd_v02.c \
       xxhash.c bench.c fileio.c zstdcli.c legacy/fileio_legacy.c
 	$(CC)      $(FLAGS) $^ -o $@$(EXT)
 
-zstd32: $(ZSTDDIR)/zstd.c $(ZSTDDIR)/zstdhc.c $(ZSTDDIR)/fse.c $(ZSTDDIR)/huff0.c \
+zstd32: $(ZSTDDIR)/zstd_compress.c $(ZSTDDIR)/zstd_decompress.c $(ZSTDDIR)/fse.c $(ZSTDDIR)/huff0.c \
       $(ZSTDDIR)/legacy/zstd_v01.c $(ZSTDDIR)/legacy/zstd_v02.c \
       xxhash.c bench.c fileio.c zstdcli.c legacy/fileio_legacy.c
 	$(CC) -m32 $(FLAGS) $^ -o $@$(EXT)
 
-fullbench  : $(ZSTDDIR)/zstd.c $(ZSTDDIR)/fse.c $(ZSTDDIR)/huff0.c \
+fullbench  : $(ZSTDDIR)/zstd_compress.c $(ZSTDDIR)/zstd_decompress.c $(ZSTDDIR)/fse.c $(ZSTDDIR)/huff0.c \
       $(ZSTDDIR)/legacy/zstd_v01.c $(ZSTDDIR)/legacy/zstd_v02.c \
       datagen.c fullbench.c
 	$(CC)      $(FLAGS) $^ -o $@$(EXT)
 
-fullbench32: $(ZSTDDIR)/zstd.c $(ZSTDDIR)/fse.c $(ZSTDDIR)/huff0.c \
+fullbench32: $(ZSTDDIR)/zstd_compress.c $(ZSTDDIR)/zstd_decompress.c $(ZSTDDIR)/fse.c $(ZSTDDIR)/huff0.c \
       $(ZSTDDIR)/legacy/zstd_v01.c $(ZSTDDIR)/legacy/zstd_v02.c \
       datagen.c fullbench.c
 	$(CC) -m32 $(FLAGS) $^ -o $@$(EXT)
 
-fuzzer  : $(ZSTDDIR)/zstd.c $(ZSTDDIR)/zstdhc.c $(ZSTDDIR)/fse.c $(ZSTDDIR)/huff0.c \
+fuzzer  : $(ZSTDDIR)/zstd_compress.c $(ZSTDDIR)/zstd_decompress.c $(ZSTDDIR)/fse.c $(ZSTDDIR)/huff0.c \
       $(ZSTDDIR)/legacy/zstd_v01.c $(ZSTDDIR)/legacy/zstd_v02.c \
       datagen.c xxhash.c fuzzer.c
 	$(CC)      $(FLAGS) $^ -o $@$(EXT)
 
-fuzzer32: $(ZSTDDIR)/zstd.c $(ZSTDDIR)/zstdhc.c $(ZSTDDIR)/fse.c $(ZSTDDIR)/huff0.c \
+fuzzer32: $(ZSTDDIR)/zstd_compress.c $(ZSTDDIR)/zstd_decompress.c $(ZSTDDIR)/fse.c $(ZSTDDIR)/huff0.c \
       $(ZSTDDIR)/legacy/zstd_v01.c $(ZSTDDIR)/legacy/zstd_v02.c \
       datagen.c xxhash.c fuzzer.c
 	$(CC) -m32 $(FLAGS) $^ -o $@$(EXT)
 
-paramgrill : $(ZSTDDIR)/zstdhc.c $(ZSTDDIR)/zstd.c $(ZSTDDIR)/fse.c $(ZSTDDIR)/huff0.c \
+paramgrill : $(ZSTDDIR)/zstd_compress.c $(ZSTDDIR)/zstd_decompress.c $(ZSTDDIR)/fse.c $(ZSTDDIR)/huff0.c \
              $(ZSTDDIR)/legacy/zstd_v01.c $(ZSTDDIR)/legacy/zstd_v02.c \
              datagen.c xxhash.c paramgrill.c
 	$(CC)      $(FLAGS) $^ -lm -o $@$(EXT)
@@ -97,7 +97,7 @@ datagen : datagen.c datagencli.c
 	$(CC)      $(FLAGS) $^ -o $@$(EXT)
 
 clean:
-	@rm -f core *.o tmp \
+	@rm -f core *.o tmp* \
         zstd$(EXT) zstd32$(EXT) \
         fullbench$(EXT) fullbench32$(EXT) \
         fuzzer$(EXT) fuzzer32$(EXT) \
@@ -153,11 +153,49 @@ test-zstd: zstd datagen
 	echo foo | ./zstd > /dev/full; if [ $$? -eq 0 ] ; then echo "write error not detected!"; false; fi
 	echo foo | ./zstd | ./zstd -d > /dev/full; if [ $$? -eq 0 ] ; then echo "write error not detected!"; false; fi
 	@echo "**** zstd round-trip tests **** "
-	./datagen          | ./zstd -v    | ./zstd -d > $(VOID)
-	./datagen          | ./zstd -6 -v | ./zstd -d > $(VOID)
-	./datagen -g256MB  | ./zstd -v    | ./zstd -d > $(VOID)
-	./datagen -g256MB  | ./zstd -3 -v | ./zstd -d > $(VOID)
-	./datagen -g6GB -P99 | ./zstd -vq | ./zstd -d > $(VOID)
+	@./datagen             | md5sum > tmp1
+	./datagen              | ./zstd -v    | ./zstd -d  | md5sum > tmp2
+	@diff tmp1 tmp2   
+	./datagen              | ./zstd -6 -v | ./zstd -d  | md5sum > tmp2
+	@diff tmp1 tmp2   
+	@./datagen -g256MB     | md5sum > tmp1
+	./datagen -g256MB      | ./zstd -v    | ./zstd -d  | md5sum > tmp2
+	@diff tmp1 tmp2   
+	./datagen -g256MB      | ./zstd -v2   | ./zstd -d  | md5sum > tmp2
+	@diff tmp1 tmp2   
+	./datagen -g256MB      | ./zstd -v3   | ./zstd -d  | md5sum > tmp2
+	@diff tmp1 tmp2   
+	@./datagen -g128MB -P60| md5sum > tmp1
+	./datagen -g128MB -P60 | ./zstd -v4   | ./zstd -d  | md5sum > tmp2
+	@diff tmp1 tmp2   
+	./datagen -g128MB -P60 | ./zstd -v5   | ./zstd -d  | md5sum > tmp2
+	@diff tmp1 tmp2   
+	./datagen -g128MB -P60 | ./zstd -v6   | ./zstd -d  | md5sum > tmp2
+	@diff tmp1 tmp2   
+	@./datagen -g64MB -P70 | md5sum > tmp1
+	./datagen -g64MB -P70  | ./zstd -v7   | ./zstd -d  | md5sum > tmp2
+	@diff tmp1 tmp2   
+	./datagen -g64MB -P70  | ./zstd -v8   | ./zstd -d  | md5sum > tmp2
+	@diff tmp1 tmp2   
+	./datagen -g64MB -P70  | ./zstd -v9   | ./zstd -d  | md5sum > tmp2
+	@diff tmp1 tmp2   
+	@./datagen -g32MB -P75 | md5sum > tmp1
+	./datagen -g32MB -P75  | ./zstd -v10  | ./zstd -d  | md5sum > tmp2
+	@diff tmp1 tmp2   
+	./datagen -g32MB -P75  | ./zstd -v11  | ./zstd -d  | md5sum > tmp2
+	@diff tmp1 tmp2   
+	./datagen -g32MB -P75  | ./zstd -v12  | ./zstd -d  | md5sum > tmp2
+	@diff tmp1 tmp2   
+	@./datagen -g16MB -P80 | md5sum > tmp1
+	./datagen -g16MB -P80  | ./zstd -v13  | ./zstd -d  | md5sum > tmp2
+	@diff tmp1 tmp2   
+	./datagen -g16MB -P80  | ./zstd -v14  | ./zstd -d  | md5sum > tmp2
+	@diff tmp1 tmp2   
+	./datagen -g16MB -P80  | ./zstd -v15  | ./zstd -d  | md5sum > tmp2
+	@diff tmp1 tmp2   
+	./datagen -g6GB -P99   | md5sum > tmp1
+	./datagen -g6GB -P99   | ./zstd -vq   | ./zstd -d  | md5sum > tmp2
+	@diff tmp1 tmp2   
 
 test-zstd32: zstd32 datagen
 	./datagen          | ./zstd32 -v  | ./zstd32 -d > $(VOID)

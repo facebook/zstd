@@ -1558,7 +1558,7 @@ size_t ZSTD_compressBlock_lazy_extDict_generic(ZSTD_CCtx* ctx,
             const BYTE* const repBase = repIndex < dictLimit ? dictBase : base;
             const BYTE* const repMatch = repBase + repIndex;
             if ((repIndex <= dictLimit-4) || (repIndex >= dictLimit))
-            if (MEM_read32(ip+1) == MEM_read32(repMatch))            
+            if (MEM_read32(ip+1) == MEM_read32(repMatch))
             {
                 /* repcode detected we should take it */
                 const BYTE* const repEnd = repIndex < dictLimit ? dictEnd : iend;
@@ -1598,7 +1598,7 @@ size_t ZSTD_compressBlock_lazy_extDict_generic(ZSTD_CCtx* ctx,
                 const BYTE* const repBase = repIndex < dictLimit ? dictBase : base;
                 const BYTE* const repMatch = repBase + repIndex;
                 if ((repIndex <= dictLimit-4) || (repIndex >= dictLimit))
-                if (MEM_read32(ip) == MEM_read32(repMatch))            
+                if (MEM_read32(ip) == MEM_read32(repMatch))
                 {
                     /* repcode detected */
                     size_t repLength;
@@ -1642,7 +1642,7 @@ size_t ZSTD_compressBlock_lazy_extDict_generic(ZSTD_CCtx* ctx,
                     const BYTE* const repBase = repIndex < dictLimit ? dictBase : base;
                     const BYTE* const repMatch = repBase + repIndex;
                     if ((repIndex <= dictLimit-4) || (repIndex >= dictLimit))
-                    if (MEM_read32(ip) == MEM_read32(repMatch))            
+                    if (MEM_read32(ip) == MEM_read32(repMatch))
                     {
                         /* repcode detected */
                         size_t repLength;
@@ -1699,7 +1699,7 @@ _storeSequence:
             const U32 repIndex = (U32)((ip-base) - offset_2);
             const BYTE* const repBase = repIndex < dictLimit ? dictBase : base;
             const BYTE* const repMatch = repBase + repIndex;
-            if (MEM_read32(ip) == MEM_read32(repMatch))            
+            if (MEM_read32(ip) == MEM_read32(repMatch))
             {
                 /* repcode detected we should take it */
                 const BYTE* const repEnd = repIndex < dictLimit ? dictEnd : iend;
@@ -1874,6 +1874,7 @@ size_t ZSTD_compressContinue (ZSTD_CCtx* ctxPtr,
         ctxPtr->dictLimit = (U32)(ctxPtr->nextSrc - ctxPtr->base);
         ctxPtr->dictBase = ctxPtr->base;
         ctxPtr->base += ip - ctxPtr->nextSrc;
+        ctxPtr->nextToUpdate = ctxPtr->dictLimit;
     }
 
     /* input-dictionary overlap */

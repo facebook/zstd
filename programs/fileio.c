@@ -283,7 +283,7 @@ unsigned long long FIO_compressFilename(const char* output_filename, const char*
         inSize = fread(inSlot, (size_t)1, blockSize, finput);
         if (inSize==0) break;
         filesize += inSize;
-        DISPLAYUPDATE(2, "\rRead : %u MB   ", (U32)(filesize>>20));
+        DISPLAYUPDATE(2, "\rRead : %u MB  ", (U32)(filesize>>20));
 
         /* Compress Block */
         cSize = ZSTD_compressContinue(ctx, outBuff, outBuffSize, inSlot, inSize);

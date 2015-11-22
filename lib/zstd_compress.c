@@ -1497,6 +1497,7 @@ size_t ZSTD_compressBlock_lazy_extDict_generic(ZSTD_CCtx* ctx,
             const U32 repIndex = (U32)(current+1 - offset_1);
             const BYTE* const repBase = repIndex < dictLimit ? dictBase : base;
             const BYTE* const repMatch = repBase + repIndex;
+            if ((repIndex <= dictLimit-4) || (repIndex >= dictLimit))
             if (MEM_read32(ip+1) == MEM_read32(repMatch))            
             {
                 /* repcode detected we should take it */

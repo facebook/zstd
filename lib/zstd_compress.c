@@ -1222,6 +1222,8 @@ static U32 ZSTD_insertBt1_extDict(ZSTD_CCtx* zc, const BYTE* const ip, const U32
         {
             match = dictBase + matchIndex;
             matchLength += ZSTD_count_2segments(ip+matchLength, match+matchLength, iend, dictEnd, prefixStart);
+            if (matchIndex+matchLength >= dictLimit)
+				match = base + matchIndex;   /* to prepare for next usage of match[matchLength] */
         }
 
         if (ip+matchLength == iend)   /* equal : no way to know if inf or sup */
@@ -1312,6 +1314,8 @@ size_t ZSTD_insertBtAndFindBestMatch_extDict (
         {
             match = dictBase + matchIndex;
             matchLength += ZSTD_count_2segments(ip+matchLength, match+matchLength, iend, dictEnd, prefixStart);
+            if (matchIndex+matchLength >= dictLimit)
+				match = base + matchIndex;   /* to prepare for next usage of match[matchLength] */
         }
 
         if (matchLength > bestLength)

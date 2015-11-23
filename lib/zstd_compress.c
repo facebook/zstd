@@ -1206,78 +1206,11 @@ static U32 ZSTD_insertAndFindFirstIndex (ZSTD_CCtx* zc, const BYTE* ip, U32 mls)
 
 
 FORCE_INLINE /* inlining is important to hardwire a hot branch (template emulation) */
-size_t ZSTD_HcFindBestMatch (
+size_t ZSTD_HcFindBestMatch_generic (
                         ZSTD_CCtx* zc,   /* Index table will be updated */
                         const BYTE* const ip, const BYTE* const iLimit,
                         size_t* offsetPtr,
-                        const U32 maxNbAttempts, const U32 matchLengthSearch)
-{
-    const BYTE* const base = zc->base;
-    const U32 current = (U32)(ip-base);
-    U32* const chainTable = zc->contentTable;
-    const U32 chainSize = (1 << zc->params.contentLog);
-    const U32 minChain = current > chainSize ? current - chainSize : 0;
-    const U32 chainMask = chainSize-1;
-    const U32 lowLimit = zc->dictLimit;  /* should be == zc->lowLimit, but safer to use this one if they are not, since dictLimit >= lowLimit */
-    U32 matchIndex;
-    const BYTE* match;
-    int nbAttempts=maxNbAttempts;
-    size_t ml=0;
-
-    /* HC4 match finder */
-    matchIndex = ZSTD_insertAndFindFirstIndex (zc, ip, matchLengthSearch);
-
-    while ((matchIndex>lowLimit) && (nbAttempts))
-    {
-        nbAttempts--;
-		match = base + matchIndex;
-		if (match[ml] == ip[ml])   /* potentially better */
-		{
-			const size_t mlt = ZSTD_count(ip, match, iLimit);
-			if (mlt > ml)
-			//if ( (4*(int)(mlt-ml)) > (int)(ZSTD_highbit(current-matchIndex+1) - ZSTD_highbit((U32)(*offsetPtr) + 1)) )   /* stronger but slower */
-			{
-				ml = mlt; *offsetPtr = ip-match;
-				if (ip+mlt >= iLimit) break;   /* max ml possible; avoid risk of reading too far when testing ip[ml] */
-			}
-		}
-
-        if (matchIndex <= minChain) break;
-        matchIndex = NEXT_IN_CHAIN(matchIndex, chainMask);
-    }
-
-    return ml;
-}
-
-FORCE_INLINE /* inlining is important to hardwire a hot branch (template emulation) */
-size_t ZSTD_HcFindBestMatch_extDict (
-                        ZSTD_CCtx* zc,   /* Index table will be updated */
-                        const BYTE* const ip, const BYTE* const iLimit,
-                        size_t* offsetPtr,
-                        const U32 maxNbAttempts, const U32 matchLengthSearch);
-
-FORCE_INLINE size_t ZSTD_HcFindBestMatch_selectMLS (
-                        ZSTD_CCtx* zc,   /* Index table will be updated */
-                        const BYTE* ip, const BYTE* const iLimit,
-                        size_t* offsetPtr,
-                        const U32 maxNbAttempts, const U32 matchLengthSearch)
-{
-    switch(matchLengthSearch)
-    {
-    default :
-    case 4 : return ZSTD_HcFindBestMatch(zc, ip, iLimit, offsetPtr, maxNbAttempts, 4);
-    case 5 : return ZSTD_HcFindBestMatch(zc, ip, iLimit, offsetPtr, maxNbAttempts, 5);
-    case 6 : return ZSTD_HcFindBestMatch(zc, ip, iLimit, offsetPtr, maxNbAttempts, 6);
-    }
-}
-
-
-FORCE_INLINE /* inlining is important to hardwire a hot branch (template emulation) */
-size_t ZSTD_HcFindBestMatch_extDict (
-                        ZSTD_CCtx* zc,   /* Index table will be updated */
-                        const BYTE* const ip, const BYTE* const iLimit,
-                        size_t* offsetPtr,
-                        const U32 maxNbAttempts, const U32 matchLengthSearch)
+                        const U32 maxNbAttempts, const U32 mls, const U32 extDict)
 {
     U32* const chainTable = zc->contentTable;
     const U32 chainSize = (1 << zc->params.contentLog);
@@ -1296,13 +1229,13 @@ size_t ZSTD_HcFindBestMatch_extDict (
     size_t ml=MINMATCH-1;
 
     /* HC4 match finder */
-    matchIndex = ZSTD_insertAndFindFirstIndex (zc, ip, matchLengthSearch);
+    matchIndex = ZSTD_insertAndFindFirstIndex (zc, ip, mls);
 
     while ((matchIndex>lowLimit) && (nbAttempts))
     {
         size_t currentMl=0;
         nbAttempts--;
-        if (matchIndex >= dictLimit)
+        if ((!extDict) || matchIndex >= dictLimit)
         {
             match = base + matchIndex;
             if (match[ml] == ip[ml])   /* potentially better */
@@ -1326,8 +1259,8 @@ size_t ZSTD_HcFindBestMatch_extDict (
 }
 
 
-FORCE_INLINE size_t ZSTD_HcFindBestMatch_extDict_selectMLS (
-                        ZSTD_CCtx* zc,   /* Index table will be updated */
+FORCE_INLINE size_t ZSTD_HcFindBestMatch_selectMLS (
+                        ZSTD_CCtx* zc,
                         const BYTE* ip, const BYTE* const iLimit,
                         size_t* offsetPtr,
                         const U32 maxNbAttempts, const U32 matchLengthSearch)
@@ -1335,9 +1268,25 @@ FORCE_INLINE size_t ZSTD_HcFindBestMatch_extDict_selectMLS (
     switch(matchLengthSearch)
     {
     default :
-    case 4 : return ZSTD_HcFindBestMatch_extDict(zc, ip, iLimit, offsetPtr, maxNbAttempts, 4);
-    case 5 : return ZSTD_HcFindBestMatch_extDict(zc, ip, iLimit, offsetPtr, maxNbAttempts, 5);
-    case 6 : return ZSTD_HcFindBestMatch_extDict(zc, ip, iLimit, offsetPtr, maxNbAttempts, 6);
+    case 4 : return ZSTD_HcFindBestMatch_generic(zc, ip, iLimit, offsetPtr, maxNbAttempts, 4, 0);
+    case 5 : return ZSTD_HcFindBestMatch_generic(zc, ip, iLimit, offsetPtr, maxNbAttempts, 5, 0);
+    case 6 : return ZSTD_HcFindBestMatch_generic(zc, ip, iLimit, offsetPtr, maxNbAttempts, 6, 0);
+    }
+}
+
+
+FORCE_INLINE size_t ZSTD_HcFindBestMatch_extDict_selectMLS (
+                        ZSTD_CCtx* zc,
+                        const BYTE* ip, const BYTE* const iLimit,
+                        size_t* offsetPtr,
+                        const U32 maxNbAttempts, const U32 matchLengthSearch)
+{
+    switch(matchLengthSearch)
+    {
+    default :
+    case 4 : return ZSTD_HcFindBestMatch_generic(zc, ip, iLimit, offsetPtr, maxNbAttempts, 4, 1);
+    case 5 : return ZSTD_HcFindBestMatch_generic(zc, ip, iLimit, offsetPtr, maxNbAttempts, 5, 1);
+    case 6 : return ZSTD_HcFindBestMatch_generic(zc, ip, iLimit, offsetPtr, maxNbAttempts, 6, 1);
     }
 }
 

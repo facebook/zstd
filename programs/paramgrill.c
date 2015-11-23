@@ -43,6 +43,10 @@
 #  define BMK_LEGACY_TIMER 1
 #endif
 
+#if defined(_MSC_VER)
+#  define snprintf _snprintf    /* snprintf unsupported by Visual <= 2012 */
+#endif
+ 
 
 /**************************************
 *  Includes
@@ -873,6 +877,7 @@ int usage(char* exename)
     DISPLAY( "Usage :\n");
     DISPLAY( "      %s [arg] file\n", exename);
     DISPLAY( "Arguments :\n");
+    DISPLAY( " file : path to the file used as reference (if none, generates a compressible sample)\n");
     DISPLAY( " -H/-h  : Help (this text + advanced options)\n");
     return 0;
 }
@@ -881,7 +886,8 @@ int usage_advanced(void)
 {
     DISPLAY( "\nAdvanced options :\n");
     DISPLAY( " -i#    : iteration loops [1-9](default : %i)\n", NBLOOPS);
-    DISPLAY( " -P#    : sample compressibility (default : %.1f%%)\n", COMPRESSIBILITY_DEFAULT * 100);
+    DISPLAY( " -B#    : cut input into blocks of size # (default : single block)\n");
+    DISPLAY( " -P#    : generated sample compressibility (default : %.1f%%)\n", COMPRESSIBILITY_DEFAULT * 100);
     return 0;
 }
 

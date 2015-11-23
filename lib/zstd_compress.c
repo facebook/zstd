@@ -787,14 +787,14 @@ size_t ZSTD_compressBlock_fast_generic(ZSTD_CCtx* ctx,
         }
 
         /* match found */
-        ZSTD_storeSeq(seqStorePtr, ip-anchor, anchor, offset, mlCode);
-        hashTable[ZSTD_hashPtr(ip+2, hBits, mls)] = (U32)(ip+2-base);   /* can't use current : ip may have changed */
+        ZSTD_storeSeq(seqStorePtr, ip-anchor, anchor, offset, mlCode);        
         ip += mlCode + MINMATCH;
         anchor = ip;
 
         if (ip <= ilimit)
         {
             /* Fill Table */
+            hashTable[ZSTD_hashPtr(ip-(mlCode+MINMATCH)+2, hBits, mls)] = (U32)(ip-(mlCode+MINMATCH)+2-base);  /* here because ip-(mlCode+MINMATCH)+2 could be > iend-8 without ip <= ilimit check*/ 
             hashTable[ZSTD_hashPtr(ip-2, hBits, mls)] = (U32)(ip-2-base);
             /* check immediate repcode */
             while ( (ip <= ilimit)
@@ -922,13 +922,13 @@ size_t ZSTD_compressBlock_fast_extDict_generic(ZSTD_CCtx* ctx,
 
         /* found a match : store it */
         ZSTD_storeSeq(seqStorePtr, ip-anchor, anchor, offset, mlCode);
-        hashTable[ZSTD_hashPtr(ip+2, hBits, mls)] = (U32)(ip+2-base);   /* can't use current : ip may have changed */
         ip += mlCode + MINMATCH;
         anchor = ip;
 
         if (ip <= ilimit)
         {
             /* Fill Table */            
+			hashTable[ZSTD_hashPtr(base+current+2, hBits, mls)] = current+2;
             hashTable[ZSTD_hashPtr(ip-2, hBits, mls)] = (U32)(ip-2-base);
             /* check immediate repcode */
             while (ip <= ilimit)
@@ -1442,6 +1442,7 @@ size_t ZSTD_HcFindBestMatch_generic (
         nbAttempts--;
         if ((!extDict) || matchIndex >= dictLimit)
         {
+            //printf("current : %6u ;  matchIndex : %6u ;  dictLimit : %6u ;  ml : %3u  \n", current, matchIndex, dictLimit, (U32)ml);
             match = base + matchIndex;
             if (match[ml] == ip[ml])   /* potentially better */
                 currentMl = ZSTD_count(ip, match, iLimit);
@@ -1454,7 +1455,7 @@ size_t ZSTD_HcFindBestMatch_generic (
         }
 
         /* save best solution */
-        if (currentMl > ml) { ml = currentMl; *offsetPtr = current - matchIndex; }
+        if (currentMl > ml) { ml = currentMl; *offsetPtr = current - matchIndex; if (ip+currentMl == iLimit) break; /* best possible, and avoid read overflow*/ }
 
         if (matchIndex <= minChain) break;
         matchIndex = NEXT_IN_CHAIN(matchIndex, chainMask);
@@ -1540,18 +1541,18 @@ size_t ZSTD_compressBlock_lazy_generic(ZSTD_CCtx* ctx,
         }
 
         {
-			/* first search (depth 0) */
-			size_t offsetFound = 99999999;
-			size_t ml2 = searchMax(ctx, ip, iend, &offsetFound, maxSearches, mls);
-			if (ml2 > matchLength)
-			    matchLength = ml2, start = ip, offset=offsetFound;
-		}
+            /* first search (depth 0) */
+            size_t offsetFound = 99999999;
+            size_t ml2 = searchMax(ctx, ip, iend, &offsetFound, maxSearches, mls);
+            if (ml2 > matchLength)
+                matchLength = ml2, start = ip, offset=offsetFound;
+        }
 
- 		if (matchLength < MINMATCH)
-		{
-			ip += ((ip-anchor) >> g_searchStrength) + 1;   /* jump faster over incompressible sections */
-			continue;
-		}
+         if (matchLength < MINMATCH)
+        {
+            ip += ((ip-anchor) >> g_searchStrength) + 1;   /* jump faster over incompressible sections */
+            continue;
+        }
 
         /* let's try to find a better solution */
         if (depth>=1)
@@ -1724,18 +1725,18 @@ size_t ZSTD_compressBlock_lazy_extDict_generic(ZSTD_CCtx* ctx,
         }
 
         {
-			/* first search (depth 0) */
-			size_t offsetFound = 99999999;
-			size_t ml2 = searchMax(ctx, ip, iend, &offsetFound, maxSearches, mls);
-			if (ml2 > matchLength)
-			    matchLength = ml2, start = ip, offset=offsetFound;
-		}
+            /* first search (depth 0) */
+            size_t offsetFound = 99999999;
+            size_t ml2 = searchMax(ctx, ip, iend, &offsetFound, maxSearches, mls);
+            if (ml2 > matchLength)
+                matchLength = ml2, start = ip, offset=offsetFound;
+        }
 
- 		if (matchLength < MINMATCH)
-		{
-			ip += ((ip-anchor) >> g_searchStrength) + 1;   /* jump faster over incompressible sections */
-			continue;
-		}
+         if (matchLength < MINMATCH)
+        {
+            ip += ((ip-anchor) >> g_searchStrength) + 1;   /* jump faster over incompressible sections */
+            continue;
+        }
 
         /* let's try to find a better solution */
         if (depth>=1)
@@ -1837,6 +1838,7 @@ _storeSequence:
             const U32 repIndex = (U32)((ip-base) - offset_2);
             const BYTE* const repBase = repIndex < dictLimit ? dictBase : base;
             const BYTE* const repMatch = repBase + repIndex;
+            if ((U32)((dictLimit-1) - repIndex) >= 3)   /* intentional overflow */
             if (MEM_read32(ip) == MEM_read32(repMatch))
             {
                 /* repcode detected we should take it */

@@ -727,19 +727,19 @@ static size_t ZSTD_hashPtr(const void* p, U32 hBits, U32 mls)
 ***************************************/
 
 FORCE_INLINE
-size_t ZSTD_compressBlock_fast_generic(ZSTD_CCtx* ctx,
+size_t ZSTD_compressBlock_fast_generic(ZSTD_CCtx* zc,
                                        void* dst, size_t maxDstSize,
                                  const void* src, size_t srcSize,
                                  const U32 mls)
 {
-    U32* hashTable = ctx->hashTable;
-    const U32 hBits = ctx->params.hashLog;
-    seqStore_t* seqStorePtr = &(ctx->seqStore);
-    const BYTE* const base = ctx->base;
+    U32* hashTable = zc->hashTable;
+    const U32 hBits = zc->params.hashLog;
+    seqStore_t* seqStorePtr = &(zc->seqStore);
+    const BYTE* const base = zc->base;
     const BYTE* const istart = (const BYTE*)src;
     const BYTE* ip = istart;
     const BYTE* anchor = istart;
-    const BYTE* const lowest = base + ctx->dictLimit;
+    const BYTE* const lowest = base + zc->dictLimit;
     const BYTE* const iend = istart + srcSize;
     const BYTE* const ilimit = iend - 8;
 
@@ -1446,7 +1446,6 @@ size_t ZSTD_HcFindBestMatch_generic (
         nbAttempts--;
         if ((!extDict) || matchIndex >= dictLimit)
         {
-            //printf("current : %6u ;  matchIndex : %6u ;  dictLimit : %6u ;  ml : %3u  \n", current, matchIndex, dictLimit, (U32)ml);
             match = base + matchIndex;
             if (match[ml] == ip[ml])   /* potentially better */
                 currentMl = ZSTD_count(ip, match, iLimit);
@@ -1691,6 +1690,7 @@ size_t ZSTD_compressBlock_lazy_extDict_generic(ZSTD_CCtx* ctx,
     const BYTE* const prefixStart = base + dictLimit;
     const BYTE* const dictBase = ctx->dictBase;
     const BYTE* const dictEnd  = dictBase + dictLimit;
+    const BYTE* const dictStart  = dictBase + ctx->lowLimit;
 
     size_t offset_2=REPCODE_STARTVALUE, offset_1=REPCODE_STARTVALUE;
     const U32 maxSearches = 1 << ctx->params.searchLog;
@@ -1823,8 +1823,10 @@ size_t ZSTD_compressBlock_lazy_extDict_generic(ZSTD_CCtx* ctx,
         /* catch up */
         if (offset)
         {
-            while ((start>anchor) && (start>prefixStart+offset) && (start[-1] == start[-1-offset]))   /* only search for offset within prefix */
-                { start--; matchLength++; }
+            U32 matchIndex = (U32)((start-base) - offset);
+            const BYTE* match = (matchIndex < dictLimit) ? dictBase + matchIndex : base + matchIndex;
+            const BYTE* const mStart = (matchIndex < dictLimit) ? dictStart : prefixStart;
+            while ((start>anchor) && (match>mStart) && (start[-1] == match[-1])) { start--; match--; matchLength++; }  /* catch up */
             offset_2 = offset_1; offset_1 = offset;
         }
 
@@ -1960,8 +1962,11 @@ static size_t ZSTD_compress_generic (ZSTD_CCtx* ctxPtr,
         if (remaining < blockSize) blockSize = remaining;
 
         if ((U32)(ip+blockSize - (ctxPtr->base + ctxPtr->lowLimit)) > maxDist)
+        {
             /* respect windowLog contract */
-            ctxPtr->dictLimit = ctxPtr->lowLimit = (U32)(ip+blockSize - ctxPtr->base) - maxDist;
+            ctxPtr->lowLimit = (U32)(ip+blockSize - ctxPtr->base) - maxDist;
+            if (ctxPtr->dictLimit < ctxPtr->lowLimit) ctxPtr->dictLimit = ctxPtr->lowLimit;
+        }
 
         //cSize = blockCompressor(ctxPtr, op+3, maxDstSize-3, ip, blockSize);
         cSize = ZSTD_compressBlock(ctxPtr, op+3, maxDstSize-3, ip, blockSize);
@@ -1990,46 +1995,46 @@ static size_t ZSTD_compress_generic (ZSTD_CCtx* ctxPtr,
 }
 
 
-size_t ZSTD_compressContinue (ZSTD_CCtx* ctxPtr,
+size_t ZSTD_compressContinue (ZSTD_CCtx* zc,
                                  void* dst, size_t dstSize,
                            const void* src, size_t srcSize)
 {
     const BYTE* const ip = (const BYTE*) src;
 
     /* preemptive overflow correction */
-    if (ctxPtr->lowLimit > (1<<30) )
+    if (zc->lowLimit > (1<<30) )
     {
-        U32 correction = ctxPtr->lowLimit;
-        ZSTD_reduceIndex(ctxPtr, correction);
-        ctxPtr->base += correction;
-        ctxPtr->dictBase += correction;
-        ctxPtr->lowLimit -= correction;
-        ctxPtr->dictLimit -= correction;
-        if (ctxPtr->nextToUpdate < correction) ctxPtr->nextToUpdate = 0;
-        else ctxPtr->nextToUpdate -= correction;
+        U32 correction = zc->lowLimit;
+        ZSTD_reduceIndex(zc, correction);
+        zc->base += correction;
+        zc->dictBase += correction;
+        zc->lowLimit -= correction;
+        zc->dictLimit -= correction;
+        if (zc->nextToUpdate < correction) zc->nextToUpdate = 0;
+        else zc->nextToUpdate -= correction;
     }
 
     /* Check if blocks follow each other */
-    if (src != ctxPtr->nextSrc)
+    if (src != zc->nextSrc)
     {
         /* not contiguous */
-        ctxPtr->lowLimit = ctxPtr->dictLimit;
-        ctxPtr->dictLimit = (U32)(ctxPtr->nextSrc - ctxPtr->base);
-        ctxPtr->dictBase = ctxPtr->base;
-        ctxPtr->base += ip - ctxPtr->nextSrc;
-        ctxPtr->nextToUpdate = ctxPtr->dictLimit;
+        zc->lowLimit = zc->dictLimit;
+        zc->dictLimit = (U32)(zc->nextSrc - zc->base);
+        zc->dictBase = zc->base;
+        zc->base += ip - zc->nextSrc;
+        zc->nextToUpdate = zc->dictLimit;
     }
 
     /* input-dictionary overlap */
-    if ((ip+srcSize > ctxPtr->dictBase + ctxPtr->lowLimit) && (ip < ctxPtr->dictBase + ctxPtr->dictLimit))
+    if ((ip+srcSize > zc->dictBase + zc->lowLimit) && (ip < zc->dictBase + zc->dictLimit))
     {
-        ctxPtr->lowLimit = (U32)(ip + srcSize - ctxPtr->dictBase);
-        if (ctxPtr->lowLimit > ctxPtr->dictLimit) ctxPtr->lowLimit = ctxPtr->dictLimit;
+        zc->lowLimit = (U32)(ip + srcSize - zc->dictBase);
+        if (zc->lowLimit > zc->dictLimit) zc->lowLimit = zc->dictLimit;
     }
 
-    ctxPtr->nextSrc = ip + srcSize;
+    zc->nextSrc = ip + srcSize;
 
-    return ZSTD_compress_generic (ctxPtr, dst, dstSize, src, srcSize);
+    return ZSTD_compress_generic (zc, dst, dstSize, src, srcSize);
 }
 
 

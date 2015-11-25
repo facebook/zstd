@@ -37,7 +37,14 @@ export VERSION := 0.4.0
 PRGDIR  = programs
 ZSTDDIR = lib
 
-.PHONY: clean
+# Define nul output
+ifneq (,$(filter Windows%,$(OS)))
+VOID = nul
+else
+VOID = /dev/null
+endif
+
+.PHONY: default all zstdprogram clean install uninstall travis-install test clangtest gpptest armtest usan asan uasan
 
 default: zstdprogram
 
@@ -49,8 +56,8 @@ zstdprogram:
 	$(MAKE) -C $(PRGDIR)
 
 clean:
-	$(MAKE) -C $(ZSTDDIR) $@
-	$(MAKE) -C $(PRGDIR) $@
+	@$(MAKE) -C $(ZSTDDIR) $@ > $(VOID)
+	@$(MAKE) -C $(PRGDIR) $@ > $(VOID)
 	@echo Cleaning completed
 
 

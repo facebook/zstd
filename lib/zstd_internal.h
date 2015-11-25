@@ -54,6 +54,8 @@ extern "C" {
 /* *************************************
 *  Common constants
 ***************************************/
+#define ZSTD_MAGICNUMBER 0xFD2FB524   /* v0.4 */
+
 #define KB *(1 <<10)
 #define MB *(1 <<20)
 #define GB *(1U<<30)
@@ -61,7 +63,8 @@ extern "C" {
 #define BLOCKSIZE (128 KB)                 /* define, for static allocation */
 
 static const size_t ZSTD_blockHeaderSize = 3;
-static const size_t ZSTD_frameHeaderSize = 4;
+static const size_t ZSTD_frameHeaderSize_min = 5;
+#define ZSTD_frameHeaderSize_max 5         /* define, for static allocation */
 
 #define BIT7 128
 #define BIT6  64

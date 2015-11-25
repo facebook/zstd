@@ -138,7 +138,7 @@ static unsigned ZSTD_highbit(U32 val);
 /** ZSTD_validateParams
     correct params value to remain within authorized range
     optimize for srcSize if srcSize > 0 */
-void ZSTD_validateParams(ZSTD_parameters* params, U64 srcSizeHint)
+void ZSTD_validateParams(ZSTD_parameters* params)
 {
     const U32 btPlus = (params->strategy == ZSTD_btlazy2);
 
@@ -147,12 +147,13 @@ void ZSTD_validateParams(ZSTD_parameters* params, U64 srcSizeHint)
     if (params->windowLog   < ZSTD_WINDOWLOG_MIN) params->windowLog = ZSTD_WINDOWLOG_MIN;
 
     /* correct params, to use less memory */
-    if ((srcSizeHint > 0) && (srcSizeHint < (1<<ZSTD_WINDOWLOG_MAX)))
+    if ((params->srcSize > 0) && (params->srcSize < (1<<ZSTD_WINDOWLOG_MAX)))
     {
-        U32 srcLog = ZSTD_highbit((U32)srcSizeHint-1) + 1;
+        U32 srcLog = ZSTD_highbit((U32)(params->srcSize)-1) + 1;
         if (params->windowLog > srcLog) params->windowLog = srcLog;
     }
 
+    if (params->windowLog < ZSTD_WINDOWLOG_ABSOLUTEMIN) params->windowLog = ZSTD_WINDOWLOG_ABSOLUTEMIN;  /* required for frame header */
     if (params->contentLog  > params->windowLog+btPlus) params->contentLog = params->windowLog+btPlus;   /* <= ZSTD_CONTENTLOG_MAX */
     if (params->contentLog  < ZSTD_CONTENTLOG_MIN) params->contentLog = ZSTD_CONTENTLOG_MIN;
     if (params->hashLog     > ZSTD_HASHLOG_MAX) params->hashLog = ZSTD_HASHLOG_MAX;
@@ -166,11 +167,8 @@ void ZSTD_validateParams(ZSTD_parameters* params, U64 srcSizeHint)
 
 
 static size_t ZSTD_resetCCtx_advanced (ZSTD_CCtx* zc,
-                                       ZSTD_parameters params,
-                                       U64 srcSizeHint)
+                                       ZSTD_parameters params)
 {
-    ZSTD_validateParams(&params, srcSizeHint);
-
     /* reserve table memory */
     {
         const U32 contentLog = (params.strategy == ZSTD_fast) ? 1 : params.contentLog;
@@ -207,10 +205,12 @@ static size_t ZSTD_resetCCtx_advanced (ZSTD_CCtx* zc,
 }
 
 
+/** ZSTD_reduceIndex
+*   rescale indexes to avoid future overflow (indexes are U32) */
 static void ZSTD_reduceIndex (ZSTD_CCtx* zc,
                         const U32 reducerValue)
 {
-    const U32 contentLog = zc->params.strategy == ZSTD_fast ? 1 : zc->params.contentLog;
+    const U32 contentLog = (zc->params.strategy == ZSTD_fast) ? 1 : zc->params.contentLog;
     const U32 tableSpaceU32 = (1 << contentLog) + (1 << zc->params.hashLog);
     U32* table32 = zc->hashTable;
     U32 index;
@@ -2038,30 +2038,51 @@ size_t ZSTD_compressContinue (ZSTD_CCtx* zc,
 }
 
 
+/** ZSTD_compressBegin_advanced
+*   Write frame header, according to params
+*   @return : nb of bytes written */
 size_t ZSTD_compressBegin_advanced(ZSTD_CCtx* ctx,
                                    void* dst, size_t maxDstSize,
-                             const ZSTD_parameters params,
-                             const U64 srcSizeHint)
+                                   ZSTD_parameters params)
 {
     size_t errorCode;
-    if (maxDstSize < 4) return ERROR(dstSize_tooSmall);
-    errorCode = ZSTD_resetCCtx_advanced(ctx, params, srcSizeHint);
+
+    ZSTD_validateParams(&params);
+
+    if (maxDstSize < ZSTD_frameHeaderSize_max) return ERROR(dstSize_tooSmall);
+    errorCode = ZSTD_resetCCtx_advanced(ctx, params);
     if (ZSTD_isError(errorCode)) return errorCode;
 
-    MEM_writeLE32(dst, ZSTD_magicNumber); /* Write Header */
-    return 4;
+    MEM_writeLE32(dst, ZSTD_MAGICNUMBER); /* Write Header */
+    ((BYTE*)dst)[4] = (BYTE)(params.windowLog - ZSTD_WINDOWLOG_ABSOLUTEMIN);
+    return ZSTD_frameHeaderSize_min;
+}
+
+
+/** ZSTD_getParams
+*   return ZSTD_parameters structure for a selected compression level and srcSize.
+*   srcSizeHint value is optional, select 0 if not known */
+ZSTD_parameters ZSTD_getParams(int compressionLevel, U64 srcSizeHint)
+{
+    ZSTD_parameters result;
+    int tableID = ((srcSizeHint-1) <= 128 KB);   /* intentional underflow for srcSizeHint == 0 */
+    if (compressionLevel<=0) compressionLevel = 1;
+    if (compressionLevel > ZSTD_MAX_CLEVEL) compressionLevel = ZSTD_MAX_CLEVEL;
+    result = ZSTD_defaultParameters[tableID][compressionLevel];
+    result.srcSize = srcSizeHint;
+    return result;
 }
 
 
 size_t ZSTD_compressBegin(ZSTD_CCtx* ctx, void* dst, size_t maxDstSize, int compressionLevel, U64 srcSizeHint)
 {
-    int tableID = ((srcSizeHint-1) > 128 KB);   /* intentional underflow for srcSizeHint == 0 */
-    if (compressionLevel<=0) compressionLevel = 1;
-    if (compressionLevel > ZSTD_MAX_CLEVEL) compressionLevel = ZSTD_MAX_CLEVEL;
-    return ZSTD_compressBegin_advanced(ctx, dst, maxDstSize, ZSTD_defaultParameters[tableID][compressionLevel], srcSizeHint);
+    return ZSTD_compressBegin_advanced(ctx, dst, maxDstSize, ZSTD_getParams(compressionLevel, srcSizeHint));
 }
 
 
+/** ZSTD_compressEnd
+*   Write frame epilogue
+*   @return : nb of bytes written into dst (or an error code) */
 size_t ZSTD_compressEnd(ZSTD_CCtx* ctx, void* dst, size_t maxDstSize)
 {
     BYTE* op = (BYTE*)dst;
@@ -2079,16 +2100,16 @@ size_t ZSTD_compressEnd(ZSTD_CCtx* ctx, void* dst, size_t maxDstSize)
 }
 
 size_t ZSTD_compress_advanced (ZSTD_CCtx* ctx,
-                                 void* dst, size_t maxDstSize,
-                                 const void* src, size_t srcSize,
-                                 ZSTD_parameters params)
+                               void* dst, size_t maxDstSize,
+                         const void* src, size_t srcSize,
+                               ZSTD_parameters params)
 {
     BYTE* const ostart = (BYTE*)dst;
     BYTE* op = ostart;
     size_t oSize;
 
     /* Header */
-    oSize = ZSTD_compressBegin_advanced(ctx, dst, maxDstSize, params, srcSize);
+    oSize = ZSTD_compressBegin_advanced(ctx, dst, maxDstSize, params);
     if(ZSTD_isError(oSize)) return oSize;
     op += oSize;
     maxDstSize -= oSize;
@@ -2110,10 +2131,7 @@ size_t ZSTD_compress_advanced (ZSTD_CCtx* ctx,
 
 size_t ZSTD_compressCCtx (ZSTD_CCtx* ctx, void* dst, size_t maxDstSize, const void* src, size_t srcSize, int compressionLevel)
 {
-    const int tableID = (srcSize > 128 KB);
-    if (compressionLevel < 1) compressionLevel = 1;
-    if (compressionLevel > ZSTD_MAX_CLEVEL) compressionLevel = ZSTD_MAX_CLEVEL;
-    return ZSTD_compress_advanced(ctx, dst, maxDstSize, src, srcSize, ZSTD_defaultParameters[tableID][compressionLevel]);
+    return ZSTD_compress_advanced(ctx, dst, maxDstSize, src, srcSize, ZSTD_getParams(compressionLevel, srcSize));
 }
 
 size_t ZSTD_compress(void* dst, size_t maxDstSize, const void* src, size_t srcSize, int compressionLevel)

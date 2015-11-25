@@ -46,7 +46,7 @@
 #if defined(_MSC_VER)
 #  define snprintf _snprintf    /* snprintf unsupported by Visual <= 2012 */
 #endif
- 
+
 
 /**************************************
 *  Includes
@@ -125,8 +125,7 @@ static U32 g_rand = 1;
 static U32 g_singleRun = 0;
 static U32 g_target = 0;
 static U32 g_noSeed = 0;
-static const ZSTD_parameters* g_seedParams = ZSTD_defaultParameters[0];
-static ZSTD_parameters g_params = { 0, 0, 0, 0, 0, ZSTD_greedy };
+static ZSTD_parameters g_params = { 0, 0, 0, 0, 0, 0, ZSTD_greedy };
 
 void BMK_SetNbIterations(int nbLoops)
 {
@@ -138,28 +137,6 @@ void BMK_SetNbIterations(int nbLoops)
 /*********************************************************
 *  Private functions
 *********************************************************/
-
-static unsigned BMK_highbit(U32 val)
-{
-#   if defined(_MSC_VER)   /* Visual */
-    unsigned long r;
-    _BitScanReverse(&r, val);
-    return (unsigned)r;
-#   elif defined(__GNUC__) && (__GNUC__ >= 3)   /* GCC Intrinsic */
-    return 31 - __builtin_clz(val);
-#   else   /* Software version */
-    static const int DeBruijnClz[32] = { 0, 9, 1, 10, 13, 21, 2, 29, 11, 14, 16, 18, 22, 25, 3, 30, 8, 12, 20, 28, 15, 17, 24, 7, 19, 27, 23, 6, 26, 5, 4, 31 };
-    U32 v = val;
-    int r;
-    v |= v >> 1;
-    v |= v >> 2;
-    v |= v >> 4;
-    v |= v >> 8;
-    v |= v >> 16;
-    r = DeBruijnClz[(U32)(v * 0x07C4ACDDU) >> 27];
-    return r;
-#   endif
-}
 
 #if defined(BMK_LEGACY_TIMER)
 
@@ -655,7 +632,7 @@ static void playAround(FILE* f, winnerInfo_t* winners,
         /* validate new conf */
         {
             ZSTD_parameters saved = p;
-            ZSTD_validateParams(&p, g_blockSize ? g_blockSize : srcSize);
+            ZSTD_validateParams(&p);
             if (memcmp(&p, &saved, sizeof(p))) continue;  /* p was invalid */
         }
 
@@ -707,12 +684,12 @@ static void BMK_benchMem(void* srcBuffer, size_t srcSize)
     const char* rfName = "grillResults.txt";
     FILE* f;
     const size_t blockSize = g_blockSize ? g_blockSize : srcSize;
-    const U32 srcLog = BMK_highbit((U32)(blockSize-1))+1;
 
     if (g_singleRun)
     {
         BMK_result_t testResult;
-        ZSTD_validateParams(&g_params, blockSize);
+        g_params.srcSize = blockSize;
+        ZSTD_validateParams(&g_params);
         BMK_benchParam(&testResult, srcBuffer, srcSize, ctx, g_params);
         DISPLAY("\n");
         return;
@@ -735,9 +712,10 @@ static void BMK_benchMem(void* srcBuffer, size_t srcSize)
         params.searchLog = 1;
         params.searchLength = 7;
         params.strategy = ZSTD_fast;
-        ZSTD_validateParams(&params, blockSize);
+        params.srcSize = blockSize;
+        ZSTD_validateParams(&params);
         BMK_benchParam(&testResult, srcBuffer, srcSize, ctx, params);
-        g_cSpeedTarget[1] = (testResult.cSpeed * 15) >> 4;
+        g_cSpeedTarget[1] = (testResult.cSpeed * 31) >> 5;
     }
 
     /* establish speed objectives (relative to level 1) */
@@ -746,16 +724,10 @@ static void BMK_benchMem(void* srcBuffer, size_t srcSize)
 
     /* populate initial solution */
     {
-        const int tableID = (blockSize > 128 KB);
         const int maxSeeds = g_noSeed ? 1 : ZSTD_MAX_CLEVEL;
-        g_seedParams = ZSTD_defaultParameters[tableID];
         for (i=1; i<=maxSeeds; i++)
         {
-            const U32 btPlus = (params.strategy == ZSTD_btlazy2);
-            params = g_seedParams[i];
-            params.windowLog = MIN(srcLog, params.windowLog);
-            params.contentLog = MIN(params.windowLog+btPlus, params.contentLog);
-            params.searchLog = MIN(params.contentLog, params.searchLog);
+            params = ZSTD_getParams(i, blockSize);
             BMK_seed(winners, params, srcBuffer, srcSize, ctx);
         }
     }
@@ -963,7 +935,7 @@ int main(int argc, char** argv)
                 case 'S':
                     g_singleRun = 1;
                     argument++;
-                    g_params = g_seedParams[2];
+                    g_params = ZSTD_getParams(2, g_blockSize);
                     for ( ; ; )
                     {
                         switch(*argument)
@@ -1013,7 +985,7 @@ int main(int argc, char** argv)
                                 argument++;
                                 while ((*argument>= '0') && (*argument<='9'))
                                     cLevel *= 10, cLevel += *argument++ - '0';
-                                g_params = g_seedParams[cLevel];
+                                g_params = ZSTD_getParams(cLevel, g_blockSize);
                                 continue;
                             }
                         default : ;

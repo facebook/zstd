@@ -331,6 +331,7 @@ struct ZBUFF_DCtx_s {
 ZBUFF_DCtx* ZBUFF_createDCtx(void)
 {
     ZBUFF_DCtx* zbc = (ZBUFF_DCtx*)malloc(sizeof(ZBUFF_DCtx));
+    if (zbc==NULL) return NULL;
     memset(zbc, 0, sizeof(*zbc));
     zbc->zc = ZSTD_createDCtx();
     zbc->stage = ZBUFFds_init;

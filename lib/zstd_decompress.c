@@ -68,7 +68,6 @@
 #  include "zstd_legacy.h"
 #endif
 
-
 /* *******************************************************
 *  Compiler specifics
 *********************************************************/
@@ -120,7 +119,7 @@ const char* ZSTD_getErrorName(size_t code) { return ERR_getErrorName(code); }
 /* *************************************************************
 *   Context management
 ***************************************************************/
-typedef enum { ZSTDds_getFrameHeaderSize, ZSTDds_decodeFrameHeader, 
+typedef enum { ZSTDds_getFrameHeaderSize, ZSTDds_decodeFrameHeader,
                ZSTDds_decodeBlockHeader, ZSTDds_decompressBlock } ZSTD_dStage;
 
 struct ZSTD_DCtx_s
@@ -449,7 +448,7 @@ static void ZSTD_decodeSequence(seq_t* seq, seqState_t* seqState)
 
     /* Literal length */
     litLength = FSE_decodeSymbol(&(seqState->stateLL), &(seqState->DStream));
-    prevOffset = litLength ? seq->offset : seqState->prevOffset;    
+    prevOffset = litLength ? seq->offset : seqState->prevOffset;
     if (litLength == MaxLL)
     {
         U32 add = *dumps++;
@@ -801,7 +800,7 @@ size_t ZSTD_decompressContinue(ZSTD_DCtx* ctx, void* dst, size_t maxDstSize, con
             /* get frame header size */
             if (srcSize != ZSTD_frameHeaderSize_min) return ERROR(srcSize_wrong);   /* impossible */
             ctx->headerSize = ZSTD_decodeFrameHeader_Part1(ctx, src, ZSTD_frameHeaderSize_min);
-            if (ZSTD_isError(ctx->headerSize)) return ctx->headerSize;            
+            if (ZSTD_isError(ctx->headerSize)) return ctx->headerSize;
             memcpy(ctx->headerBuffer, src, ZSTD_frameHeaderSize_min);
             if (ctx->headerSize > ZSTD_frameHeaderSize_min)
             {

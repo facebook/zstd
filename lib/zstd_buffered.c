@@ -98,6 +98,7 @@ struct ZBUFF_CCtx_s {
 ZBUFF_CCtx* ZBUFF_createCCtx(void)
 {
     ZBUFF_CCtx* zbc = (ZBUFF_CCtx*)malloc(sizeof(ZBUFF_CCtx));
+    if (zbc==NULL) return NULL;
     memset(zbc, 0, sizeof(*zbc));
     zbc->zc = ZSTD_createCCtx();
     return zbc;

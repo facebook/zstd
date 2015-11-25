@@ -193,17 +193,17 @@ test-zstd: zstd datagen
 	@diff tmp1 tmp2   
 	./datagen -g17MB -P80  | ./zstd -v15  | ./zstd -d  | md5sum > tmp2
 	@diff tmp1 tmp2   
-	@./datagen -g9MB -P85 | md5sum > tmp1
-	./datagen -g9MB -P85  | ./zstd -v16  | ./zstd -d  | md5sum > tmp2
+	./datagen -g17MB -P80  | ./zstd -v16  | ./zstd -d  | md5sum > tmp2
 	@diff tmp1 tmp2   
-	./datagen -g9MB -P85  | ./zstd -v17  | ./zstd -d  | md5sum > tmp2
+	./datagen -g17MB -P80  | ./zstd -v17  | ./zstd -d  | md5sum > tmp2
 	@diff tmp1 tmp2   
-	./datagen -g9MB -P85  | ./zstd -v18  | ./zstd -d  | md5sum > tmp2
+	@./datagen -g49MB -P93 | md5sum > tmp1
+	./datagen -g49MB -P93  | ./zstd -v18  | ./zstd -d  | md5sum > tmp2
 	@diff tmp1 tmp2   
-	@./datagen -g5MB -P89 | md5sum > tmp1
-	./datagen -g5MB -P89  | ./zstd -v19  | ./zstd -d  | md5sum > tmp2
+	./datagen -g49MB -P93  | ./zstd -v19  | ./zstd -d  | md5sum > tmp2
 	@diff tmp1 tmp2   
-	./datagen -g5MB -P89  | ./zstd -v20  | ./zstd -d  | md5sum > tmp2
+	@./datagen -g97MB -P99 | md5sum > tmp1
+	./datagen -g97MB -P99  | ./zstd -v20  | ./zstd -d  | md5sum > tmp2
 	@diff tmp1 tmp2   
 	./datagen -g6GB -P99   | md5sum > tmp1
 	./datagen -g6GB -P99   | ./zstd -vq   | ./zstd -d  | md5sum > tmp2

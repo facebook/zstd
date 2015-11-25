@@ -439,11 +439,16 @@ size_t ZBUFF_decompressContinue(ZBUFF_DCtx* zbc, void* dst, size_t* maxDstSizePt
                         if (zbc->outBuff == NULL) return ERROR(memory_allocation);
                     }
                 }
-                memcpy(zbc->inBuff, zbc->headerBuffer, zbc->hPos);
-                zbc->inPos = zbc->hPos;
-                zbc->hPos = 0;
-                zbc->stage = ZBUFFds_load;
-                break;   /* useless : stage follows */
+                if (zbc->hPos)
+                {
+                    /* some data already loaded into headerBuffer : transfer into inBuff */
+                    memcpy(zbc->inBuff, zbc->headerBuffer, zbc->hPos);
+                    zbc->inPos = zbc->hPos;
+                    zbc->hPos = 0;
+                    zbc->stage = ZBUFFds_load;
+                    break;
+                }
+                zbc->stage = ZBUFFds_read;
 
         case ZBUFFds_read:
             {

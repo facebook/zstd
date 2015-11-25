@@ -108,6 +108,8 @@ size_t ZBUFF_freeCCtx(ZBUFF_CCtx* zbc)
 {
     if (zbc==NULL) return 0;   /* support free on NULL */
     ZSTD_freeCCtx(zbc->zc);
+    free(zbc->inBuff);
+    free(zbc->outBuff);
     free(zbc);
     return 0;
 }

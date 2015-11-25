@@ -234,7 +234,7 @@ valgrindTest: zstd datagen fuzzer fullbench
 	./datagen -g16KB > tmp
 	valgrind --leak-check=yes --error-exitcode=1 ./zstd -vf tmp $(VOID)
 	./datagen -g2930KB > tmp
-	valgrind --leak-check=yes --error-exitcode=1 ./zstd -4 -vf tmp $(VOID)
+	valgrind --leak-check=yes --error-exitcode=1 ./zstd -5 -vf tmp $(VOID)
 	./datagen -g64MB > tmp
 	valgrind --leak-check=yes --error-exitcode=1 ./zstd -vf tmp $(VOID)
 	@rm tmp

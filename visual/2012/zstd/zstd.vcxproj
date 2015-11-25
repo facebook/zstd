@@ -23,6 +23,7 @@
     <ClCompile Include="..\..\..\lib\huff0.c" />
     <ClCompile Include="..\..\..\lib\legacy\zstd_v01.c" />
     <ClCompile Include="..\..\..\lib\legacy\zstd_v02.c" />
+    <ClCompile Include="..\..\..\lib\zstd_buffered.c" />
     <ClCompile Include="..\..\..\lib\zstd_compress.c" />
     <ClCompile Include="..\..\..\lib\zstd_decompress.c" />
     <ClCompile Include="..\..\..\programs\bench.c" />
@@ -40,6 +41,8 @@
     <ClInclude Include="..\..\..\lib\legacy\zstd_v01.h" />
     <ClInclude Include="..\..\..\lib\legacy\zstd_v02.h" />
     <ClInclude Include="..\..\..\lib\zstd.h" />
+    <ClInclude Include="..\..\..\lib\zstd_buffered.h" />
+    <ClInclude Include="..\..\..\lib\zstd_buffered_static.h" />
     <ClInclude Include="..\..\..\lib\zstd_internal.h" />
     <ClInclude Include="..\..\..\lib\zstd_static.h" />
     <ClInclude Include="..\..\..\programs\bench.h" />

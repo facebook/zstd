@@ -186,19 +186,6 @@ static size_t ZSTD_decodeFrameHeader_Part1(ZSTD_DCtx* zc, const void* src, size_
     return zc->headerSize;
 }
 
-/** ZSTD_decodeFrameHeader_Part2
-*   decode the full Frame Header
-*   srcSize must be the size provided by ZSTD_decodeFrameHeader_Part1
-*   @return : 0, or an error code, which can be tested using ZSTD_isError() */
-static size_t ZSTD_decodeFrameHeader_Part2(ZSTD_DCtx* zc, const void* src, size_t srcSize)
-{
-    const BYTE* ip = (const BYTE*)src;
-    if (srcSize != zc->headerSize) return ERROR(srcSize_wrong);
-    memset(&(zc->params), 0, sizeof(zc->params));
-    zc->params.windowLog = ip[4] + ZSTD_WINDOWLOG_ABSOLUTEMIN;
-    return 0;
-}
-
 
 size_t ZSTD_getFrameParams(ZSTD_parameters* params, const void* src, size_t srcSize)
 {
@@ -207,8 +194,18 @@ size_t ZSTD_getFrameParams(ZSTD_parameters* params, const void* src, size_t srcS
     magicNumber = MEM_readLE32(src);
     if (magicNumber != ZSTD_MAGICNUMBER) return ERROR(prefix_unknown);
     memset(params, 0, sizeof(*params));
-    params->windowLog = ((const BYTE*)src)[4] + ZSTD_WINDOWLOG_ABSOLUTEMIN;
+    params->windowLog = (((const BYTE*)src)[4] & 15) + ZSTD_WINDOWLOG_ABSOLUTEMIN;
     return 0;
+}
+
+/** ZSTD_decodeFrameHeader_Part2
+*   decode the full Frame Header
+*   srcSize must be the size provided by ZSTD_decodeFrameHeader_Part1
+*   @return : 0, or an error code, which can be tested using ZSTD_isError() */
+static size_t ZSTD_decodeFrameHeader_Part2(ZSTD_DCtx* zc, const void* src, size_t srcSize)
+{
+    if (srcSize != zc->headerSize) return ERROR(srcSize_wrong);
+    return ZSTD_getFrameParams(&(zc->params), src, srcSize);
 }
 
 

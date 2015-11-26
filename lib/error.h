@@ -68,6 +68,7 @@ extern "C" {
 
 #define ERROR_LIST(ITEM) \
         ITEM(PREFIX(No_Error)) ITEM(PREFIX(GENERIC)) \
+        ITEM(PREFIX(mode_unsupported)) ITEM(PREFIX(init_missing))\
         ITEM(PREFIX(memory_allocation)) \
         ITEM(PREFIX(dstSize_tooSmall)) ITEM(PREFIX(srcSize_wrong)) \
         ITEM(PREFIX(prefix_unknown)) ITEM(PREFIX(corruption_detected)) \

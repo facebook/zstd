@@ -1,6 +1,6 @@
 /*
-    zstdhc - high compression variant
-    Header File
+    zstd - buffered version of compression library
+    experimental complementary API, for static linking only
     Copyright (C) 2015, Yann Collet.
 
     BSD 2-Clause License (http://www.opensource.org/licenses/bsd-license.php)
@@ -27,9 +27,16 @@
     OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
     You can contact the author at :
-    - zstd source repository : http://www.zstd.net
+    - zstd source repository : https://github.com/Cyan4973/zstd
+    - ztsd public forum : https://groups.google.com/forum/#!forum/lz4c
 */
-#pragma once
+#ifndef ZSTD_BUFFERED_STATIC_H
+#define ZSTD_BUFFERED_STATIC_H
+
+/* The objects defined into this file should be considered experimental.
+ * They are not labelled stable, as their prototype may change in the future.
+ * You can use them for tests, provide feedback, or if you can endure risk of future changes.
+ */
 
 #if defined (__cplusplus)
 extern "C" {
@@ -38,39 +45,18 @@ extern "C" {
 /* *************************************
 *  Includes
 ***************************************/
-#include <stddef.h>   /* size_t */
+#include "zstd_static.h"
+#include "zstd_buffered.h"
 
 
 /* *************************************
-*  Simple function
+*  Advanced Streaming functions
 ***************************************/
-/**
-ZSTD_HC_compress() :
-    Compresses 'srcSize' bytes from buffer 'src' into buffer 'dst', of maximum size 'dstSize'.
-    Destination buffer must be already allocated.
-    Compression runs faster if maxDstSize >=  ZSTD_compressBound(srcSize).
-    @return : the number of bytes written into buffer 'dst'
-              or an error code if it fails (which can be tested using ZSTD_isError())
-*/
-size_t ZSTD_HC_compress(void* dst, size_t maxDstSize,
-                  const void* src, size_t srcSize,
-                  int compressionLevel);
-
-
-/* *************************************
-*  Advanced functions
-***************************************/
-typedef struct ZSTD_HC_CCtx_s ZSTD_HC_CCtx;   /* incomplete type */
-ZSTD_HC_CCtx* ZSTD_HC_createCCtx(void);
-size_t ZSTD_HC_freeCCtx(ZSTD_HC_CCtx* cctx);
-
-/**
-ZSTD_HC_compressCCtx() :
-    Same as ZSTD_compress(), but requires a ZSTD_HC_CCtx working space already allocated
-*/
-size_t ZSTD_HC_compressCCtx(ZSTD_HC_CCtx* ctx, void* dst, size_t maxDstSize, const void* src, size_t srcSize, int compressionLevel);
+size_t ZBUFF_compressInit_advanced(ZBUFF_CCtx* cctx, ZSTD_parameters params);
 
 
 #if defined (__cplusplus)
 }
 #endif
+
+#endif  /* ZSTD_BUFFERED_STATIC_H */

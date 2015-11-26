@@ -70,7 +70,7 @@
 **************************************/
 #define COMPRESSOR_NAME "zstd command line interface"
 #ifndef ZSTD_VERSION
-#  define ZSTD_VERSION "v0.3.6"
+#  define ZSTD_VERSION "v0.4.0"
 #endif
 #define AUTHOR "Yann Collet"
 #define WELCOME_MESSAGE "*** %s %i-bits %s, by %s (%s) ***\n", COMPRESSOR_NAME, (int)(sizeof(void*)*8), ZSTD_VERSION, AUTHOR, __DATE__
@@ -163,7 +163,7 @@ static void waitEnter(void)
 }
 
 
-int main(int argc, char** argv)
+int main(int argCount, const char** argv)
 {
     int i,
         bench=0,
@@ -196,9 +196,9 @@ int main(int argc, char** argv)
         decode=1;
 
     /* command switches */
-    for(i=1; i<argc; i++)
+    for(i=1; i<argCount; i++)
     {
-        char* argument = argv[i];
+        const char* argument = argv[i];
 
         if(!argument) continue;   /* Protection if argument empty */
 
@@ -311,7 +311,7 @@ int main(int argc, char** argv)
         }
 
         /* first provided filename is input */
-        if (!inFileName) { inFileName = argument; fileNameStart = i; nbFiles = argc-i; continue; }
+        if (!inFileName) { inFileName = argument; fileNameStart = i; nbFiles = argCount-i; continue; }
 
         /* second provided filename is output */
         if (!outFileName)

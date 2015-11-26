@@ -260,7 +260,7 @@ size_t ZBUFF_compressContinue(ZBUFF_CCtx* zbc,
 size_t ZBUFF_compressFlush(ZBUFF_CCtx* zbc, void* dst, size_t* maxDstSizePtr)
 {
     size_t srcSize = 0;
-    ZBUFF_compressContinue_generic(zbc, dst, maxDstSizePtr, &srcSize, &srcSize, 1);
+    ZBUFF_compressContinue_generic(zbc, dst, maxDstSizePtr, &srcSize, &srcSize, 1);  /* use a valid src address instead of NULL, as some sanitizer don't like it */
     return zbc->outBuffContentSize - zbc->outBuffFlushedSize;
 }
 
@@ -511,7 +511,10 @@ size_t ZBUFF_decompressContinue(ZBUFF_DCtx* zbc, void* dst, size_t* maxDstSizePt
                     zbc->stage = ZBUFFds_read;
                     if (zbc->outStart + BLOCKSIZE > zbc->outBuffSize)
                         zbc->outStart = zbc->outEnd = 0;
+                    break;
                 }
+                /* cannot flush everything */
+                notDone = 0;
                 break;
             }
         }

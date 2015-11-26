@@ -53,6 +53,8 @@ EXT =
 VOID = /dev/null
 endif
 
+ZBUFFTEST = -T2mn
+
 .PHONY: default all clean install uninstall test test32 test-all
 
 default: zstd
@@ -240,10 +242,10 @@ test-fuzzer32: fuzzer32
 	./fuzzer32
 
 test-zbuff: zbufftest
-	./zbufftest
+	./zbufftest $(ZBUFFTEST)
 
 test-zbuff32: zbufftest32
-	./zbufftest32
+	./zbufftest32 $(ZBUFFTEST)
 
 valgrindTest: zstd datagen fuzzer fullbench
 	@echo "\n ---- valgrind tests : memory analyzer ----"

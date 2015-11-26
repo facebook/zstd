@@ -80,11 +80,13 @@ static const U32 prime2 = 2246822519U;
 static U32 g_displayLevel = 2;
 
 #define DISPLAYUPDATE(l, ...) if (g_displayLevel>=l) { \
-            if ((FUZ_GetMilliSpan(g_time) > g_refreshRate) || (g_displayLevel>=4)) \
-            { g_time = FUZ_GetMilliStart(); DISPLAY(__VA_ARGS__); \
+            if ((FUZ_GetMilliSpan(g_displayTime) > g_refreshRate) || (g_displayLevel>=4)) \
+            { g_displayTime = FUZ_GetMilliStart(); DISPLAY(__VA_ARGS__); \
             if (g_displayLevel>=4) fflush(stdout); } }
 static const U32 g_refreshRate = 150;
-static U32 g_time = 0;
+static U32 g_displayTime = 0;
+
+static U32 g_testTime = 0;
 
 
 /*********************************************************
@@ -170,7 +172,7 @@ static int basicUnitTests(U32 seed, double compressibility)
     if (readSize != CNBufferSize) goto _output_error;   /* entire input should be consumed */
     cSize = genSize;
     genSize = compressedBufferSize - cSize;
-    result = ZBUFF_compressEnd(zc, compressedBuffer+cSize, &genSize);
+    result = ZBUFF_compressEnd(zc, ((char*)compressedBuffer)+cSize, &genSize);
     if (result != 0) goto _output_error;   /* error, or some data not flushed */
     cSize += genSize;
     DISPLAYLEVEL(4, "OK (%u bytes : %.2f%%)\n", (U32)cSize, (double)cSize/COMPRESSIBLE_NOISE_LENGTH*100);
@@ -247,6 +249,7 @@ int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compressibilit
     ZBUFF_CCtx* zc;
     ZBUFF_DCtx* zd;
     XXH64_state_t crc64;
+    U32 startTime = FUZ_GetMilliStart();
 
     /* allocation */
     zc = ZBUFF_createCCtx();
@@ -276,7 +279,7 @@ int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compressibilit
         FUZ_rand(&coreSeed);
 
     /* test loop */
-    for ( ; testNb <= nbTests; testNb++ )
+    for ( ; (testNb <= nbTests) || (FUZ_GetMilliSpan(startTime) < g_testTime); testNb++ )
     {
         size_t sampleSize, sampleStart;
         size_t cSize;
@@ -369,7 +372,7 @@ int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compressibilit
         /* noisy/erroneous src decompression test */
         /* TBD later */
     }
-    DISPLAY("\rAll fuzzer tests completed   \n");
+    DISPLAY("\r%u fuzzer tests completed   \n", testNb);
 
 _cleanup:
     ZBUFF_freeCCtx(zc);
@@ -456,13 +459,27 @@ int main(int argc, char** argv)
 
                 case 'i':
                     argument++;
-                    nbTests=0;
+                    nbTests=0; g_testTime=0;
                     while ((*argument>='0') && (*argument<='9'))
                     {
                         nbTests *= 10;
                         nbTests += *argument - '0';
                         argument++;
                     }
+                    break;
+
+                case 'T':
+                    argument++;
+                    nbTests=0; g_testTime=0;
+                    while ((*argument>='0') && (*argument<='9'))
+                    {
+                        g_testTime *= 10;
+                        g_testTime += *argument - '0';
+                        argument++;
+                    }
+                    if (*argument=='m') g_testTime *=60, argument++;
+                    if (*argument=='n') argument++;
+                    g_testTime *= 1000;
                     break;
 
                 case 's':

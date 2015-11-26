@@ -2074,9 +2074,9 @@ ZSTD_parameters ZSTD_getParams(int compressionLevel, U64 srcSizeHint)
 }
 
 
-size_t ZSTD_compressBegin(ZSTD_CCtx* ctx, void* dst, size_t maxDstSize, int compressionLevel, U64 srcSizeHint)
+size_t ZSTD_compressBegin(ZSTD_CCtx* ctx, void* dst, size_t maxDstSize, int compressionLevel)
 {
-    return ZSTD_compressBegin_advanced(ctx, dst, maxDstSize, ZSTD_getParams(compressionLevel, srcSizeHint));
+    return ZSTD_compressBegin_advanced(ctx, dst, maxDstSize, ZSTD_getParams(compressionLevel, 0));
 }
 
 
@@ -2140,6 +2140,6 @@ size_t ZSTD_compress(void* dst, size_t maxDstSize, const void* src, size_t srcSi
     ZSTD_CCtx ctxBody;
     memset(&ctxBody, 0, sizeof(ctxBody));
     result = ZSTD_compressCCtx(&ctxBody, dst, maxDstSize, src, srcSize, compressionLevel);
-    free(ctxBody.workSpace);   /* can't free ctxBody, since it's on stack; take care of heap content */
+    free(ctxBody.workSpace);   /* can't free ctxBody, since it's on stack; free heap content */
     return result;
 }

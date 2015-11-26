@@ -43,6 +43,10 @@
 #  define BMK_LEGACY_TIMER 1
 #endif
 
+#if defined(_MSC_VER)
+#  define snprintf _snprintf    /* snprintf unsupported by Visual <= 2012 */
+#endif
+
 
 /**************************************
 *  Includes
@@ -62,8 +66,7 @@
 #endif
 
 #include "mem.h"
-#include "zstdhc_static.h"
-#include "zstd.h"
+#include "zstd_static.h"
 #include "datagen.h"
 #include "xxhash.h"
 
@@ -122,8 +125,7 @@ static U32 g_rand = 1;
 static U32 g_singleRun = 0;
 static U32 g_target = 0;
 static U32 g_noSeed = 0;
-static const ZSTD_HC_parameters* g_seedParams = ZSTD_HC_defaultParameters[0];
-static ZSTD_HC_parameters g_params = { 0, 0, 0, 0, 0, ZSTD_HC_greedy };
+static ZSTD_parameters g_params = { 0, 0, 0, 0, 0, 0, ZSTD_greedy };
 
 void BMK_SetNbIterations(int nbLoops)
 {
@@ -135,28 +137,6 @@ void BMK_SetNbIterations(int nbLoops)
 /*********************************************************
 *  Private functions
 *********************************************************/
-
-static unsigned BMK_highbit(U32 val)
-{
-#   if defined(_MSC_VER)   /* Visual */
-    unsigned long r;
-    _BitScanReverse(&r, val);
-    return (unsigned)r;
-#   elif defined(__GNUC__) && (__GNUC__ >= 3)   /* GCC Intrinsic */
-    return 31 - __builtin_clz(val);
-#   else   /* Software version */
-    static const int DeBruijnClz[32] = { 0, 9, 1, 10, 13, 21, 2, 29, 11, 14, 16, 18, 22, 25, 3, 30, 8, 12, 20, 28, 15, 17, 24, 7, 19, 27, 23, 6, 26, 5, 4, 31 };
-    U32 v = val;
-    int r;
-    v |= v >> 1;
-    v |= v >> 2;
-    v |= v >> 4;
-    v |= v >> 8;
-    v |= v >> 16;
-    r = DeBruijnClz[(U32)(v * 0x07C4ACDDU) >> 27];
-    return r;
-#   endif
-}
 
 #if defined(BMK_LEGACY_TIMER)
 
@@ -270,8 +250,8 @@ typedef struct
 
 static size_t BMK_benchParam(BMK_result_t* resultPtr,
                              const void* srcBuffer, size_t srcSize,
-                             ZSTD_HC_CCtx* ctx,
-                             const ZSTD_HC_parameters params)
+                             ZSTD_CCtx* ctx,
+                             const ZSTD_parameters params)
 {
     const size_t blockSize = g_blockSize ? g_blockSize : srcSize;
     const U32 nbBlocks = (U32) ((srcSize + (blockSize-1)) / blockSize);
@@ -284,7 +264,7 @@ static size_t BMK_benchParam(BMK_result_t* resultPtr,
     U32 Hlog = params.hashLog;
     U32 Slog = params.searchLog;
     U32 Slength = params.searchLength;
-    ZSTD_HC_strategy strat = params.strategy;
+    ZSTD_strategy strat = params.strategy;
     char name[30] = { 0 };
     U64 crcOrig;
 
@@ -358,7 +338,7 @@ static size_t BMK_benchParam(BMK_result_t* resultPtr,
             while (BMK_GetMilliSpan(milliTime) < TIMELOOP)
             {
                 for (blockNb=0; blockNb<nbBlocks; blockNb++)
-                    blockTable[blockNb].cSize = ZSTD_HC_compress_advanced(ctx,
+                    blockTable[blockNb].cSize = ZSTD_compress_advanced(ctx,
                                                     blockTable[blockNb].cPtr,  blockTable[blockNb].cRoom,
                                                     blockTable[blockNb].srcPtr, blockTable[blockNb].srcSize,
                                                     params);
@@ -429,13 +409,13 @@ static size_t BMK_benchParam(BMK_result_t* resultPtr,
 }
 
 
-const char* g_stratName[] = { "ZSTD_HC_fast   ",
-                              "ZSTD_HC_greedy ",
-                              "ZSTD_HC_lazy   ",
-                              "ZSTD_HC_lazy2  ",
-                              "ZSTD_HC_btlazy2" };
+const char* g_stratName[] = { "ZSTD_fast   ",
+                              "ZSTD_greedy ",
+                              "ZSTD_lazy   ",
+                              "ZSTD_lazy2  ",
+                              "ZSTD_btlazy2" };
 
-static void BMK_printWinner(FILE* f, U32 cLevel, BMK_result_t result, ZSTD_HC_parameters params, size_t srcSize)
+static void BMK_printWinner(FILE* f, U32 cLevel, BMK_result_t result, ZSTD_parameters params, size_t srcSize)
 {
     DISPLAY("\r%79s\r", "");
     fprintf(f,"    {%3u,%3u,%3u,%3u,%3u, %s },  ",
@@ -447,11 +427,11 @@ static void BMK_printWinner(FILE* f, U32 cLevel, BMK_result_t result, ZSTD_HC_pa
 }
 
 
-static U32 g_cSpeedTarget[ZSTD_HC_MAX_CLEVEL+1] = { 0 };
+static U32 g_cSpeedTarget[ZSTD_MAX_CLEVEL+1] = { 0 };
 
 typedef struct {
     BMK_result_t result;
-    ZSTD_HC_parameters params;
+    ZSTD_parameters params;
 } winnerInfo_t;
 
 static void BMK_printWinners2(FILE* f, const winnerInfo_t* winners, size_t srcSize)
@@ -459,11 +439,11 @@ static void BMK_printWinners2(FILE* f, const winnerInfo_t* winners, size_t srcSi
     int cLevel;
 
     fprintf(f, "\n /* Selected configurations : */ \n");
-    fprintf(f, "#define ZSTD_HC_MAX_CLEVEL %2u \n", ZSTD_HC_MAX_CLEVEL);
-    fprintf(f, "static const ZSTD_HC_parameters ZSTD_HC_defaultParameters[ZSTD_HC_MAX_CLEVEL+1] = {\n");
+    fprintf(f, "#define ZSTD_MAX_CLEVEL %2u \n", ZSTD_MAX_CLEVEL);
+    fprintf(f, "static const ZSTD_parameters ZSTD_defaultParameters[ZSTD_MAX_CLEVEL+1] = {\n");
     fprintf(f, "    /* W,  C,  H,  S,  L, strat */ \n");
 
-    for (cLevel=0; cLevel <= ZSTD_HC_MAX_CLEVEL; cLevel++)
+    for (cLevel=0; cLevel <= ZSTD_MAX_CLEVEL; cLevel++)
         BMK_printWinner(f, cLevel, winners[cLevel].result, winners[cLevel].params, srcSize);
 }
 
@@ -477,9 +457,9 @@ static void BMK_printWinners(FILE* f, const winnerInfo_t* winners, size_t srcSiz
 }
 
 
-static int BMK_seed(winnerInfo_t* winners, const ZSTD_HC_parameters params,
+static int BMK_seed(winnerInfo_t* winners, const ZSTD_parameters params,
               const void* srcBuffer, size_t srcSize,
-                    ZSTD_HC_CCtx* ctx)
+                    ZSTD_CCtx* ctx)
 {
     BMK_result_t testResult;
     int better = 0;
@@ -487,7 +467,7 @@ static int BMK_seed(winnerInfo_t* winners, const ZSTD_HC_parameters params,
 
     BMK_benchParam(&testResult, srcBuffer, srcSize, ctx, params);
 
-    for (cLevel = 1; cLevel <= ZSTD_HC_MAX_CLEVEL; cLevel++)
+    for (cLevel = 1; cLevel <= ZSTD_MAX_CLEVEL; cLevel++)
     {
         if (testResult.cSpeed < g_cSpeedTarget[cLevel])
             continue;   /* not fast enough for this level */
@@ -514,9 +494,9 @@ static int BMK_seed(winnerInfo_t* winners, const ZSTD_HC_parameters params,
             double O_DMemUsed_note = O_ratioNote * ( 40 + 9*cLevel) - log((double)O_DMemUsed);
 
             size_t W_CMemUsed = (1 << params.windowLog) + 4 * (1 << params.hashLog) +
-                                ((params.strategy==ZSTD_HC_fast) ? 0 : 4 * (1 << params.contentLog));
+                                ((params.strategy==ZSTD_fast) ? 0 : 4 * (1 << params.contentLog));
             size_t O_CMemUsed = (1 << winners[cLevel].params.windowLog) + 4 * (1 << winners[cLevel].params.hashLog) +
-                                ((winners[cLevel].params.strategy==ZSTD_HC_fast) ? 0 :  4 * (1 << winners[cLevel].params.contentLog));
+                                ((winners[cLevel].params.strategy==ZSTD_fast) ? 0 :  4 * (1 << winners[cLevel].params.contentLog));
             double W_CMemUsed_note = W_ratioNote * ( 50 + 13*cLevel) - log((double)W_CMemUsed);
             double O_CMemUsed_note = O_ratioNote * ( 50 + 13*cLevel) - log((double)O_CMemUsed);
 
@@ -581,10 +561,10 @@ static int BMK_seed(winnerInfo_t* winners, const ZSTD_HC_parameters params,
 
 
 /* nullified useless params, to ensure count stats */
-static ZSTD_HC_parameters* sanitizeParams(ZSTD_HC_parameters params)
+static ZSTD_parameters* sanitizeParams(ZSTD_parameters params)
 {
     g_params = params;
-    if (params.strategy == ZSTD_HC_fast)
+    if (params.strategy == ZSTD_fast)
     {
         g_params.contentLog = 0;
         g_params.searchLog = 0;
@@ -604,16 +584,16 @@ static BYTE g_alreadyTested[PARAMTABLESIZE] = {0};   /* init to zero */
 #define MAX(a,b)   ( (a) > (b) ? (a) : (b) )
 
 static void playAround(FILE* f, winnerInfo_t* winners,
-                       ZSTD_HC_parameters params,
+                       ZSTD_parameters params,
                        const void* srcBuffer, size_t srcSize,
-                       ZSTD_HC_CCtx* ctx)
+                       ZSTD_CCtx* ctx)
 {
     int nbVariations = 0;
     const int startTime = BMK_GetMilliStart();
 
     while (BMK_GetMilliSpan(startTime) < g_maxVariationTime)
     {
-        ZSTD_HC_parameters p = params;
+        ZSTD_parameters p = params;
         U32 nbChanges = (FUZ_rand(&g_rand) & 3) + 1;
         if (nbVariations++ > g_maxNbVariations) break;
 
@@ -643,16 +623,16 @@ static void playAround(FILE* f, winnerInfo_t* winners,
             case 9:
                 p.searchLength--; break;
             case 10:
-                p.strategy = (ZSTD_HC_strategy)(((U32)p.strategy)+1); break;
+                p.strategy = (ZSTD_strategy)(((U32)p.strategy)+1); break;
             case 11:
-                p.strategy = (ZSTD_HC_strategy)(((U32)p.strategy)-1); break;
+                p.strategy = (ZSTD_strategy)(((U32)p.strategy)-1); break;
             }
         }
 
         /* validate new conf */
         {
-            ZSTD_HC_parameters saved = p;
-            ZSTD_HC_validateParams(&p, g_blockSize ? g_blockSize : srcSize);
+            ZSTD_parameters saved = p;
+            ZSTD_validateParams(&p);
             if (memcmp(&p, &saved, sizeof(p))) continue;  /* p was invalid */
         }
 
@@ -675,19 +655,19 @@ static void playAround(FILE* f, winnerInfo_t* winners,
 static void BMK_selectRandomStart(
                        FILE* f, winnerInfo_t* winners,
                        const void* srcBuffer, size_t srcSize,
-                       ZSTD_HC_CCtx* ctx)
+                       ZSTD_CCtx* ctx)
 {
-    U32 id = (FUZ_rand(&g_rand) % (ZSTD_HC_MAX_CLEVEL+1));
+    U32 id = (FUZ_rand(&g_rand) % (ZSTD_MAX_CLEVEL+1));
     if ((id==0) || (winners[id].params.windowLog==0))
     {
         /* totally random entry */
-        ZSTD_HC_parameters p;
-        p.contentLog = FUZ_rand(&g_rand) % (ZSTD_HC_CONTENTLOG_MAX+1 - ZSTD_HC_CONTENTLOG_MIN) + ZSTD_HC_CONTENTLOG_MIN;
-        p.hashLog    = FUZ_rand(&g_rand) % (ZSTD_HC_HASHLOG_MAX+1 - ZSTD_HC_HASHLOG_MIN) + ZSTD_HC_HASHLOG_MIN;
-        p.searchLog  = FUZ_rand(&g_rand) % (ZSTD_HC_SEARCHLOG_MAX+1 - ZSTD_HC_SEARCHLOG_MIN) + ZSTD_HC_SEARCHLOG_MIN;
-        p.windowLog  = FUZ_rand(&g_rand) % (ZSTD_HC_WINDOWLOG_MAX+1 - ZSTD_HC_WINDOWLOG_MIN) + ZSTD_HC_WINDOWLOG_MIN;
-        p.searchLength=FUZ_rand(&g_rand) % (ZSTD_HC_SEARCHLENGTH_MAX+1 - ZSTD_HC_SEARCHLENGTH_MIN) + ZSTD_HC_SEARCHLENGTH_MIN;
-        p.strategy   = (ZSTD_HC_strategy) (FUZ_rand(&g_rand) % (ZSTD_HC_btlazy2+1));
+        ZSTD_parameters p;
+        p.contentLog = FUZ_rand(&g_rand) % (ZSTD_CONTENTLOG_MAX+1 - ZSTD_CONTENTLOG_MIN) + ZSTD_CONTENTLOG_MIN;
+        p.hashLog    = FUZ_rand(&g_rand) % (ZSTD_HASHLOG_MAX+1 - ZSTD_HASHLOG_MIN) + ZSTD_HASHLOG_MIN;
+        p.searchLog  = FUZ_rand(&g_rand) % (ZSTD_SEARCHLOG_MAX+1 - ZSTD_SEARCHLOG_MIN) + ZSTD_SEARCHLOG_MIN;
+        p.windowLog  = FUZ_rand(&g_rand) % (ZSTD_WINDOWLOG_MAX+1 - ZSTD_WINDOWLOG_MIN) + ZSTD_WINDOWLOG_MIN;
+        p.searchLength=FUZ_rand(&g_rand) % (ZSTD_SEARCHLENGTH_MAX+1 - ZSTD_SEARCHLENGTH_MIN) + ZSTD_SEARCHLENGTH_MIN;
+        p.strategy   = (ZSTD_strategy) (FUZ_rand(&g_rand) % (ZSTD_btlazy2+1));
         playAround(f, winners, p, srcBuffer, srcSize, ctx);
     }
     else
@@ -697,19 +677,19 @@ static void BMK_selectRandomStart(
 
 static void BMK_benchMem(void* srcBuffer, size_t srcSize)
 {
-    ZSTD_HC_CCtx* ctx = ZSTD_HC_createCCtx();
-    ZSTD_HC_parameters params;
-    winnerInfo_t winners[ZSTD_HC_MAX_CLEVEL+1];
+    ZSTD_CCtx* ctx = ZSTD_createCCtx();
+    ZSTD_parameters params;
+    winnerInfo_t winners[ZSTD_MAX_CLEVEL+1];
     int i;
     const char* rfName = "grillResults.txt";
     FILE* f;
     const size_t blockSize = g_blockSize ? g_blockSize : srcSize;
-    const U32 srcLog = BMK_highbit((U32)(blockSize-1))+1;
 
     if (g_singleRun)
     {
         BMK_result_t testResult;
-        ZSTD_HC_validateParams(&g_params, blockSize);
+        g_params.srcSize = blockSize;
+        ZSTD_validateParams(&g_params);
         BMK_benchParam(&testResult, srcBuffer, srcSize, ctx, g_params);
         DISPLAY("\n");
         return;
@@ -731,28 +711,23 @@ static void BMK_benchMem(void* srcBuffer, size_t srcSize)
         params.contentLog = 1;
         params.searchLog = 1;
         params.searchLength = 7;
-        params.strategy = ZSTD_HC_fast;
-        ZSTD_HC_validateParams(&params, blockSize);
+        params.strategy = ZSTD_fast;
+        params.srcSize = blockSize;
+        ZSTD_validateParams(&params);
         BMK_benchParam(&testResult, srcBuffer, srcSize, ctx, params);
-        g_cSpeedTarget[1] = (testResult.cSpeed * 15) >> 4;
+        g_cSpeedTarget[1] = (testResult.cSpeed * 31) >> 5;
     }
 
     /* establish speed objectives (relative to level 1) */
-    for (i=2; i<=ZSTD_HC_MAX_CLEVEL; i++)
+    for (i=2; i<=ZSTD_MAX_CLEVEL; i++)
         g_cSpeedTarget[i] = (g_cSpeedTarget[i-1] * 25) >> 5;
 
     /* populate initial solution */
     {
-        const int tableID = (blockSize > 128 KB);
-        const int maxSeeds = g_noSeed ? 1 : ZSTD_HC_MAX_CLEVEL;
-        g_seedParams = ZSTD_HC_defaultParameters[tableID];
+        const int maxSeeds = g_noSeed ? 1 : ZSTD_MAX_CLEVEL;
         for (i=1; i<=maxSeeds; i++)
         {
-            const U32 btPlus = (params.strategy == ZSTD_HC_btlazy2);
-            params = g_seedParams[i];
-            params.windowLog = MIN(srcLog, params.windowLog);
-            params.contentLog = MIN(params.windowLog+btPlus, params.contentLog);
-            params.searchLog = MIN(params.contentLog, params.searchLog);
+            params = ZSTD_getParams(i, blockSize);
             BMK_seed(winners, params, srcBuffer, srcSize, ctx);
         }
     }
@@ -775,7 +750,7 @@ static void BMK_benchMem(void* srcBuffer, size_t srcSize)
 
     /* clean up*/
     fclose(f);
-    ZSTD_HC_freeCCtx(ctx);
+    ZSTD_freeCCtx(ctx);
 }
 
 
@@ -874,6 +849,7 @@ int usage(char* exename)
     DISPLAY( "Usage :\n");
     DISPLAY( "      %s [arg] file\n", exename);
     DISPLAY( "Arguments :\n");
+    DISPLAY( " file : path to the file used as reference (if none, generates a compressible sample)\n");
     DISPLAY( " -H/-h  : Help (this text + advanced options)\n");
     return 0;
 }
@@ -882,7 +858,8 @@ int usage_advanced(void)
 {
     DISPLAY( "\nAdvanced options :\n");
     DISPLAY( " -i#    : iteration loops [1-9](default : %i)\n", NBLOOPS);
-    DISPLAY( " -P#    : sample compressibility (default : %.1f%%)\n", COMPRESSIBILITY_DEFAULT * 100);
+    DISPLAY( " -B#    : cut input into blocks of size # (default : single block)\n");
+    DISPLAY( " -P#    : generated sample compressibility (default : %.1f%%)\n", COMPRESSIBILITY_DEFAULT * 100);
     return 0;
 }
 
@@ -958,7 +935,7 @@ int main(int argc, char** argv)
                 case 'S':
                     g_singleRun = 1;
                     argument++;
-                    g_params = g_seedParams[2];
+                    g_params = ZSTD_getParams(2, g_blockSize);
                     for ( ; ; )
                     {
                         switch(*argument)
@@ -994,12 +971,12 @@ int main(int argc, char** argv)
                                 g_params.searchLength *= 10, g_params.searchLength += *argument++ - '0';
                             continue;
                         case 't':  /* strategy */
-                            g_params.strategy = (ZSTD_HC_strategy)0;
+                            g_params.strategy = (ZSTD_strategy)0;
                             argument++;
                             while ((*argument>= '0') && (*argument<='9'))
                             {
-                                g_params.strategy = (ZSTD_HC_strategy)((U32)g_params.strategy *10);
-                                g_params.strategy = (ZSTD_HC_strategy)((U32)g_params.strategy + *argument++ - '0');
+                                g_params.strategy = (ZSTD_strategy)((U32)g_params.strategy *10);
+                                g_params.strategy = (ZSTD_strategy)((U32)g_params.strategy + *argument++ - '0');
                             }
                             continue;
                         case 'L':
@@ -1008,9 +985,7 @@ int main(int argc, char** argv)
                                 argument++;
                                 while ((*argument>= '0') && (*argument<='9'))
                                     cLevel *= 10, cLevel += *argument++ - '0';
-                                if (cLevel < 1) cLevel = 1;
-                                if (cLevel > ZSTD_HC_MAX_CLEVEL) cLevel = ZSTD_HC_MAX_CLEVEL;
-                                g_params = g_seedParams[cLevel];
+                                g_params = ZSTD_getParams(cLevel, g_blockSize);
                                 continue;
                             }
                         default : ;

@@ -47,8 +47,8 @@ extern "C" {
 *  Version
 ***************************************/
 #define ZSTD_VERSION_MAJOR    0    /* for breaking interface changes  */
-#define ZSTD_VERSION_MINOR    3    /* for new (non-breaking) interface capabilities */
-#define ZSTD_VERSION_RELEASE  6    /* for tweaks, bug-fixes, or development */
+#define ZSTD_VERSION_MINOR    4    /* for new (non-breaking) interface capabilities */
+#define ZSTD_VERSION_RELEASE  0    /* for tweaks, bug-fixes, or development */
 #define ZSTD_VERSION_NUMBER  (ZSTD_VERSION_MAJOR *100*100 + ZSTD_VERSION_MINOR *100 + ZSTD_VERSION_RELEASE)
 unsigned ZSTD_versionNumber (void);
 
@@ -57,7 +57,8 @@ unsigned ZSTD_versionNumber (void);
 *  Simple functions
 ***************************************/
 size_t ZSTD_compress(   void* dst, size_t maxDstSize,
-                  const void* src, size_t srcSize);
+                  const void* src, size_t srcSize,
+                         int  compressionLevel);
 
 size_t ZSTD_decompress( void* dst, size_t maxOriginalSize,
                   const void* src, size_t compressedSize);
@@ -100,7 +101,7 @@ size_t     ZSTD_freeCCtx(ZSTD_CCtx* cctx);
 ZSTD_compressCCtx() :
     Same as ZSTD_compress(), but requires a ZSTD_CCtx working space already allocated
 */
-size_t ZSTD_compressCCtx(ZSTD_CCtx* ctx, void* dst, size_t maxDstSize, const void* src, size_t srcSize);
+size_t ZSTD_compressCCtx(ZSTD_CCtx* ctx, void* dst, size_t maxDstSize, const void* src, size_t srcSize, int compressionLevel);
 
 
 #if defined (__cplusplus)

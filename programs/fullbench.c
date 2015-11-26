@@ -61,7 +61,7 @@
 #endif
 
 #include "mem.h"
-#include "zstd.h"
+#include "zstd_static.h"
 #include "fse_static.h"
 #include "datagen.h"
 
@@ -209,7 +209,7 @@ typedef struct
 } blockProperties_t;
 
 static size_t g_cSize = 0;
-static U32 g_litCtx[40 * 1024];
+static ZSTD_DCtx* g_dctxPtr = NULL;
 
 extern size_t ZSTD_getcBlockSize(const void* src, size_t srcSize, blockProperties_t* bpPtr);
 extern size_t ZSTD_decodeSeqHeaders(int* nbSeq, const BYTE** dumpsPtr, size_t* dumpsLengthPtr, FSE_DTable* DTableLL, FSE_DTable* DTableML, FSE_DTable* DTableOffb, const void* src, size_t srcSize);
@@ -217,7 +217,7 @@ extern size_t ZSTD_decodeSeqHeaders(int* nbSeq, const BYTE** dumpsPtr, size_t* d
 size_t local_ZSTD_compress(void* dst, size_t dstSize, void* buff2, const void* src, size_t srcSize)
 {
     (void)buff2;
-    return ZSTD_compress(dst, dstSize, src, srcSize);
+    return ZSTD_compress(dst, dstSize, src, srcSize, 1);
 }
 
 size_t local_ZSTD_decompress(void* dst, size_t dstSize, void* buff2, const void* src, size_t srcSize)
@@ -226,11 +226,11 @@ size_t local_ZSTD_decompress(void* dst, size_t dstSize, void* buff2, const void*
     return ZSTD_decompress(dst, dstSize, buff2, g_cSize);
 }
 
-extern size_t ZSTD_decodeLiteralsBlock(void* ctx, const void* src, size_t srcSize);
+extern size_t ZSTD_decodeLiteralsBlock(ZSTD_DCtx* ctx, const void* src, size_t srcSize);
 size_t local_ZSTD_decodeLiteralsBlock(void* dst, size_t dstSize, void* buff2, const void* src, size_t srcSize)
 {
     (void)src; (void)srcSize; (void)dst; (void)dstSize;
-    return ZSTD_decodeLiteralsBlock(g_litCtx, buff2, g_cSize);
+    return ZSTD_decodeLiteralsBlock((ZSTD_DCtx*)g_dctxPtr, buff2, g_cSize);
 }
 
 size_t local_ZSTD_decodeSeqHeaders(void* dst, size_t dstSize, void* buff2, const void* src, size_t srcSize)
@@ -243,31 +243,6 @@ size_t local_ZSTD_decodeSeqHeaders(void* dst, size_t dstSize, void* buff2, const
     return ZSTD_decodeSeqHeaders(&nbSeq, &dumps, &length, DTableLL, DTableML, DTableOffb, buff2, g_cSize);
 }
 
-size_t local_conditionalNull(void* dst, size_t dstSize, void* buff2, const void* src, size_t srcSize)
-{
-    U32 i;
-    size_t total = 0;
-    BYTE* data = (BYTE*)buff2;
-
-    (void)dst; (void)dstSize; (void)src;
-    for (i=0; i < srcSize; i++)
-    {
-        U32 b = data[i];
-        total += b;
-        if (b==0) total = 0;   // 825
-        //if (!b) total = 0;     // 825
-        //total = b ? total : 0; // 622
-        //total &= -!b;          // 622
-        //total *= !!b;          // 465
-    }
-    return total;
-}
-
-size_t local_decodeLiteralsForward(void* dst, size_t dstSize, void* buff2, const void* src, size_t srcSize)
-{
-    (void)src; (void)srcSize;
-    return FSE_decompress(dst, dstSize, buff2, g_cSize);
-}
 
 
 
@@ -300,12 +275,6 @@ size_t benchMem(void* src, size_t srcSize, U32 benchNb)
     case 32:
         benchFunction = local_ZSTD_decodeSeqHeaders; benchName = "ZSTD_decodeSeqHeaders";
         break;
-    case 101:
-        benchFunction = local_conditionalNull; benchName = "conditionalNull";
-        break;
-    case 102:
-        benchFunction = local_decodeLiteralsForward; benchName = "ZSTD_decodeLiteralsForward";
-        break;
     default :
         return 0;
     }
@@ -314,6 +283,7 @@ size_t benchMem(void* src, size_t srcSize, U32 benchNb)
     dstBuffSize = ZSTD_compressBound(srcSize);
     dstBuff = (BYTE*)malloc(dstBuffSize);
     buff2 = (BYTE*)malloc(dstBuffSize);
+    g_dctxPtr = ZSTD_createDCtx();
     if ((!dstBuff) || (!buff2))
     {
         DISPLAY("\nError: not enough memory!\n");
@@ -325,22 +295,20 @@ size_t benchMem(void* src, size_t srcSize, U32 benchNb)
     switch(benchNb)
     {
     case 11:
-        g_cSize = ZSTD_compress(buff2, dstBuffSize, src, srcSize);
+        g_cSize = ZSTD_compress(buff2, dstBuffSize, src, srcSize, 1);
         break;
     case 31:  /* ZSTD_decodeLiteralsBlock */
         {
             blockProperties_t bp;
-            g_cSize = ZSTD_compress(dstBuff, dstBuffSize, src, srcSize);
-            ZSTD_getcBlockSize(dstBuff+4, dstBuffSize, &bp);   // Get first block type
+            g_cSize = ZSTD_compress(dstBuff, dstBuffSize, src, srcSize, 1);
+            ZSTD_getcBlockSize(dstBuff+4, dstBuffSize, &bp);  /* Get 1st block type */
             if (bp.blockType != bt_compressed)
             {
                 DISPLAY("ZSTD_decodeLiteralsBlock : impossible to test on this sample (not compressible)\n");
-                free(dstBuff);
-                free(buff2);
-                return 0;
+                goto _cleanOut;
             }
-            memcpy(buff2, dstBuff+7, g_cSize-7);
-            srcSize = srcSize > 128 KB ? 128 KB : srcSize;   // relative to block
+            memcpy(buff2, dstBuff+8, g_cSize-8);
+            srcSize = srcSize > 128 KB ? 128 KB : srcSize;    /* speed relative to block */
             break;
         }
     case 32:   /* ZSTD_decodeSeqHeaders */
@@ -349,44 +317,26 @@ size_t benchMem(void* src, size_t srcSize, U32 benchNb)
             const BYTE* ip = dstBuff;
             const BYTE* iend;
             size_t blockSize;
-            ZSTD_compress(dstBuff, dstBuffSize, src, srcSize);
-            ip += 4;   // Jump magic Number
-            blockSize = ZSTD_getcBlockSize(ip, dstBuffSize, &bp);   // Get first block type
+            ZSTD_compress(dstBuff, dstBuffSize, src, srcSize, 1);   /* it would be better to use direct block compression here */
+            ip += 5;   /* Skip frame Header */
+            blockSize = ZSTD_getcBlockSize(ip, dstBuffSize, &bp);   /* Get 1st block type */
             if (bp.blockType != bt_compressed)
             {
                 DISPLAY("ZSTD_decodeSeqHeaders : impossible to test on this sample (not compressible)\n");
-                free(dstBuff);
-                free(buff2);
-                return 0;
+                goto _cleanOut;
             }
-            iend = ip + 3 + blockSize;   // Get end of first block
-            ip += 3;   // jump first block header
-            ip += ZSTD_decodeLiteralsBlock(g_litCtx, ip, iend-ip);  // jump literal sub block and its header
+            iend = ip + 3 + blockSize;   /* End of first block */
+            ip += 3;                     /* skip block header */
+            ip += ZSTD_decodeLiteralsBlock(g_dctxPtr, ip, iend-ip);  /* skip literal segment */
             g_cSize = iend-ip;
-            memcpy(buff2, ip, g_cSize);   // copy rest of block (starting with SeqHeader)
-            srcSize = srcSize > 128 KB ? 128 KB : srcSize;   // speed relative to block
+            memcpy(buff2, ip, g_cSize);   /* copy rest of block (it starts by SeqHeader) */
+            srcSize = srcSize > 128 KB ? 128 KB : srcSize;   /* speed relative to block */
             break;
         }
 
     /* test functions */
+    /* by convention, test functions can be added > 100 */
 
-    case 101:   /* conditionalNull */
-        {
-            size_t i;
-            for (i=0; i<srcSize; i++)
-                buff2[i] = i & 15;
-            break;
-        }
-    case 102:   /* local_decodeLiteralsForward */
-        {
-            blockProperties_t bp;
-            ZSTD_compress(dstBuff, dstBuffSize, src, srcSize);
-            g_cSize = ZSTD_getcBlockSize(dstBuff+7, dstBuffSize, &bp);
-            memcpy(buff2, dstBuff+10, g_cSize);
-            //srcSize = benchFunction(dstBuff, dstBuffSize, buff2, src, srcSize);   // real speed
-            srcSize = srcSize > 128 KB ? 128 KB : srcSize;   // relative to block
-            break;
-        }
     default : ;
     }
 
@@ -418,8 +368,10 @@ size_t benchMem(void* src, size_t srcSize, U32 benchNb)
 
     DISPLAY("%2u- %-30.30s : %7.1f MB/s  (%9u)\n", benchNb, benchName, (double)srcSize / bestTime / 1000., (U32)errorCode);
 
+_cleanOut:
     free(dstBuff);
     free(buff2);
+    ZSTD_freeDCtx(g_dctxPtr);
     return 0;
 }
 

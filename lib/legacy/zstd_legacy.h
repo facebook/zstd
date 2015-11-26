@@ -1,5 +1,5 @@
 /*
-    zstd_v02 - decoder for 0.2 format
+    zstd_legacy - decoder for legacy format
     Header File
     Copyright (C) 2015, Yann Collet.
 
@@ -44,13 +44,15 @@ extern "C" {
 #include "error.h"      /* ERROR */
 #include "zstd_v01.h"
 #include "zstd_v02.h"
+#include "zstd_v03.h"
 
 MEM_STATIC unsigned ZSTD_isLegacy (U32 magicNumberLE)
 {
 	switch(magicNumberLE)
 	{
 		case ZSTDv01_magicNumberLE :
-		case ZSTDv02_magicNumber : return 1;
+		case ZSTDv02_magicNumber : 
+		case ZSTDv03_magicNumber : return 1;
 		default : return 0;
 	}
 }
@@ -67,6 +69,8 @@ MEM_STATIC size_t ZSTD_decompressLegacy(
 			return ZSTDv01_decompress(dst, maxOriginalSize, src, compressedSize);
 		case ZSTDv02_magicNumber :
 			return ZSTDv02_decompress(dst, maxOriginalSize, src, compressedSize);
+		case ZSTDv03_magicNumber :
+			return ZSTDv03_decompress(dst, maxOriginalSize, src, compressedSize);
 		default :
 		    return ERROR(prefix_unknown);
 	}

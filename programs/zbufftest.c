@@ -229,7 +229,7 @@ static size_t findDiff(const void* buf1, const void* buf2, size_t max)
 #   define CHECK(cond, ...) if (cond) { DISPLAY("Error => "); DISPLAY(__VA_ARGS__); \
                             DISPLAY(" (seed %u, test nb %u)  \n", seed, testNb); goto _output_error; }
 
-static const U32 maxSrcLog = 23;
+static const U32 maxSrcLog = 24;
 static const U32 maxSampleLog = 19;
 
 int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compressibility)
@@ -313,8 +313,8 @@ int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compressibilit
         /* Multi - segments compression test */
         XXH64_reset(&crc64, 0);
         nbChunks = (FUZ_rand(&lseed) & 127) + 2;
-        sampleSizeLog = FUZ_rand(&lseed) % maxSrcLog;
-        maxTestSize = (size_t)1 << sampleSizeLog;
+        maxTestSize = FUZ_rand(&lseed) % maxSrcLog;
+        maxTestSize = (size_t)1 << maxTestSize;
         maxTestSize += FUZ_rand(&lseed) & (maxTestSize-1);
         ZBUFF_compressInit(zc, (FUZ_rand(&lseed) % (20 - (sampleSizeLog/3))) + 1);
         totalTestSize = 0;
@@ -334,9 +334,18 @@ int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compressibilit
             errorCode = ZBUFF_compressContinue(zc, cBuffer+cSize, &genSize, srcBuffer+sampleStart, &readSize);
             CHECK (ZBUFF_isError(errorCode), "compression error : %s", ZBUFF_getErrorName(errorCode));
             CHECK (readSize != sampleSize, "compression test condition not respected : input should be fully consumed")
-
             cSize += genSize;
             totalTestSize += sampleSize;
+
+            if ((FUZ_rand(&lseed) & 15) == 0)
+            {
+                /* add a few random flushes operations, to mess around */
+                genSize = cBufferSize - cSize;
+                errorCode = ZBUFF_compressFlush(zc, cBuffer+cSize, &genSize);
+                CHECK (ZBUFF_isError(errorCode), "flush error : %s", ZBUFF_getErrorName(errorCode));
+                cSize += genSize;
+            }
+
             if (totalTestSize > maxTestSize) break;
         }
         genSize = cBufferSize - cSize;

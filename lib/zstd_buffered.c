@@ -213,7 +213,7 @@ static size_t ZBUFF_compressContinue_generic(ZBUFF_CCtx* zbc,
                 /* prepare next block */
                 zbc->inBuffTarget = zbc->inBuffPos + zbc->blockSize;
                 if (zbc->inBuffTarget > zbc->inBuffSize)
-                    { zbc->inBuffPos = 0; zbc->inBuffTarget = zbc->blockSize; }
+                    { zbc->inBuffPos = 0; zbc->inBuffTarget = zbc->blockSize; }   /* note : inBuffSize >= blockSize */
                 zbc->inToCompress = zbc->inBuffPos;
                 if (cDst == op) { op += cSize; break; }   /* no need to flush */
                 zbc->outBuffContentSize = cSize;

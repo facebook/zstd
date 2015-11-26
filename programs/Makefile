@@ -62,48 +62,48 @@ default: zstd
 all: zstd zstd32 fullbench fullbench32 fuzzer fuzzer32 zbufftest zbufftest32 paramgrill datagen
 
 zstd: $(ZSTDDIR)/zstd_compress.c $(ZSTDDIR)/zstd_decompress.c $(ZSTDDIR)/fse.c $(ZSTDDIR)/huff0.c $(ZSTDDIR)/zstd_buffered.c \
-      $(ZSTDDIR)/legacy/zstd_v01.c $(ZSTDDIR)/legacy/zstd_v02.c \
+      $(ZSTDDIR)/legacy/zstd_v01.c $(ZSTDDIR)/legacy/zstd_v02.c $(ZSTDDIR)/legacy/zstd_v03.c \
       xxhash.c bench.c fileio.c zstdcli.c legacy/fileio_legacy.c
 	$(CC)      $(FLAGS) $^ -o $@$(EXT)
 
 zstd32: $(ZSTDDIR)/zstd_compress.c $(ZSTDDIR)/zstd_decompress.c $(ZSTDDIR)/fse.c $(ZSTDDIR)/huff0.c $(ZSTDDIR)/zstd_buffered.c \
-      $(ZSTDDIR)/legacy/zstd_v01.c $(ZSTDDIR)/legacy/zstd_v02.c \
+      $(ZSTDDIR)/legacy/zstd_v01.c $(ZSTDDIR)/legacy/zstd_v02.c $(ZSTDDIR)/legacy/zstd_v03.c \
       xxhash.c bench.c fileio.c zstdcli.c legacy/fileio_legacy.c
 	$(CC) -m32 $(FLAGS) $^ -o $@$(EXT)
 
 fullbench  : $(ZSTDDIR)/zstd_compress.c $(ZSTDDIR)/zstd_decompress.c $(ZSTDDIR)/fse.c $(ZSTDDIR)/huff0.c \
-      $(ZSTDDIR)/legacy/zstd_v01.c $(ZSTDDIR)/legacy/zstd_v02.c \
+      $(ZSTDDIR)/legacy/zstd_v01.c $(ZSTDDIR)/legacy/zstd_v02.c $(ZSTDDIR)/legacy/zstd_v03.c \
       datagen.c fullbench.c
 	$(CC)      $(FLAGS) $^ -o $@$(EXT)
 
 fullbench32: $(ZSTDDIR)/zstd_compress.c $(ZSTDDIR)/zstd_decompress.c $(ZSTDDIR)/fse.c $(ZSTDDIR)/huff0.c \
-      $(ZSTDDIR)/legacy/zstd_v01.c $(ZSTDDIR)/legacy/zstd_v02.c \
+      $(ZSTDDIR)/legacy/zstd_v01.c $(ZSTDDIR)/legacy/zstd_v02.c $(ZSTDDIR)/legacy/zstd_v03.c \
       datagen.c fullbench.c
 	$(CC) -m32 $(FLAGS) $^ -o $@$(EXT)
 
 fuzzer  : $(ZSTDDIR)/zstd_compress.c $(ZSTDDIR)/zstd_decompress.c $(ZSTDDIR)/fse.c $(ZSTDDIR)/huff0.c \
-      $(ZSTDDIR)/legacy/zstd_v01.c $(ZSTDDIR)/legacy/zstd_v02.c \
+      $(ZSTDDIR)/legacy/zstd_v01.c $(ZSTDDIR)/legacy/zstd_v02.c $(ZSTDDIR)/legacy/zstd_v03.c \
       datagen.c xxhash.c fuzzer.c
 	$(CC)      $(FLAGS) $^ -o $@$(EXT)
 
 fuzzer32: $(ZSTDDIR)/zstd_compress.c $(ZSTDDIR)/zstd_decompress.c $(ZSTDDIR)/fse.c $(ZSTDDIR)/huff0.c \
-      $(ZSTDDIR)/legacy/zstd_v01.c $(ZSTDDIR)/legacy/zstd_v02.c \
+      $(ZSTDDIR)/legacy/zstd_v01.c $(ZSTDDIR)/legacy/zstd_v02.c $(ZSTDDIR)/legacy/zstd_v03.c \
       datagen.c xxhash.c fuzzer.c
 	$(CC) -m32 $(FLAGS) $^ -o $@$(EXT)
 
 zbufftest  : $(ZSTDDIR)/zstd_compress.c $(ZSTDDIR)/zstd_decompress.c $(ZSTDDIR)/zstd_buffered.c $(ZSTDDIR)/fse.c $(ZSTDDIR)/huff0.c \
-      $(ZSTDDIR)/legacy/zstd_v01.c $(ZSTDDIR)/legacy/zstd_v02.c \
+      $(ZSTDDIR)/legacy/zstd_v01.c $(ZSTDDIR)/legacy/zstd_v02.c $(ZSTDDIR)/legacy/zstd_v03.c \
       datagen.c xxhash.c zbufftest.c
 	$(CC)      $(FLAGS) $^ -o $@$(EXT)
 
 zbufftest32: $(ZSTDDIR)/zstd_compress.c $(ZSTDDIR)/zstd_decompress.c $(ZSTDDIR)/zstd_buffered.c $(ZSTDDIR)/fse.c $(ZSTDDIR)/huff0.c \
-      $(ZSTDDIR)/legacy/zstd_v01.c $(ZSTDDIR)/legacy/zstd_v02.c \
+      $(ZSTDDIR)/legacy/zstd_v01.c $(ZSTDDIR)/legacy/zstd_v02.c $(ZSTDDIR)/legacy/zstd_v03.c \
       datagen.c xxhash.c zbufftest.c
 	$(CC) -m32 $(FLAGS) $^ -o $@$(EXT)
 
 paramgrill : $(ZSTDDIR)/zstd_compress.c $(ZSTDDIR)/zstd_decompress.c $(ZSTDDIR)/fse.c $(ZSTDDIR)/huff0.c \
-             $(ZSTDDIR)/legacy/zstd_v01.c $(ZSTDDIR)/legacy/zstd_v02.c \
-             datagen.c xxhash.c paramgrill.c
+      $(ZSTDDIR)/legacy/zstd_v01.c $(ZSTDDIR)/legacy/zstd_v02.c $(ZSTDDIR)/legacy/zstd_v03.c \
+      datagen.c xxhash.c paramgrill.c
 	$(CC)      $(FLAGS) $^ -lm -o $@$(EXT)
 
 datagen : datagen.c datagencli.c

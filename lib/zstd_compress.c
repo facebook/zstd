@@ -748,7 +748,7 @@ size_t ZSTD_compressBlock_fast_generic(ZSTD_CCtx* zc,
 
     /* init */
     ZSTD_resetSeqStore(seqStorePtr);
-    if (ip == base)
+    if (ip < base+4)
     {
         hashTable[ZSTD_hashPtr(base+1, hBits, mls)] = 1;
         hashTable[ZSTD_hashPtr(base+2, hBits, mls)] = 2;
@@ -787,14 +787,14 @@ size_t ZSTD_compressBlock_fast_generic(ZSTD_CCtx* zc,
         }
 
         /* match found */
-        ZSTD_storeSeq(seqStorePtr, ip-anchor, anchor, offset, mlCode);        
+        ZSTD_storeSeq(seqStorePtr, ip-anchor, anchor, offset, mlCode);
         ip += mlCode + MINMATCH;
         anchor = ip;
 
         if (ip <= ilimit)
         {
             /* Fill Table */
-            hashTable[ZSTD_hashPtr(ip-(mlCode+MINMATCH)+2, hBits, mls)] = (U32)(ip-(mlCode+MINMATCH)+2-base);  /* here because ip-(mlCode+MINMATCH)+2 could be > iend-8 without ip <= ilimit check*/ 
+            hashTable[ZSTD_hashPtr(ip-(mlCode+MINMATCH)+2, hBits, mls)] = (U32)(ip-(mlCode+MINMATCH)+2-base);  /* here because ip-(mlCode+MINMATCH)+2 could be > iend-8 without ip <= ilimit check*/
             hashTable[ZSTD_hashPtr(ip-2, hBits, mls)] = (U32)(ip-2-base);
             /* check immediate repcode */
             while ( (ip <= ilimit)
@@ -887,7 +887,7 @@ size_t ZSTD_compressBlock_fast_extDict_generic(ZSTD_CCtx* ctx,
         const size_t h = ZSTD_hashPtr(ip, hBits, mls);
         const U32 matchIndex = hashTable[h];
         const BYTE* matchBase = matchIndex < dictLimit ? dictBase : base;
-        const BYTE* match = matchBase + matchIndex;        
+        const BYTE* match = matchBase + matchIndex;
         const U32 current = (U32)(ip-base);
         const U32 repIndex = current + 1 - offset_1;
         const BYTE* repBase = repIndex < dictLimit ? dictBase : base;
@@ -927,7 +927,7 @@ size_t ZSTD_compressBlock_fast_extDict_generic(ZSTD_CCtx* ctx,
 
         if (ip <= ilimit)
         {
-            /* Fill Table */            
+            /* Fill Table */
 			hashTable[ZSTD_hashPtr(base+current+2, hBits, mls)] = current+2;
             hashTable[ZSTD_hashPtr(ip-2, hBits, mls)] = (U32)(ip-2-base);
             /* check immediate repcode */
@@ -990,7 +990,7 @@ size_t ZSTD_compressBlock_fast_extDict(ZSTD_CCtx* ctx,
 *  Binary Tree search
 ***************************************/
 /** ZSTD_insertBt1 : add one or multiple positions to tree
-*   @ip : assumed <= iend-8 
+*   @ip : assumed <= iend-8
 *   @return : nb of positions added */
 static U32 ZSTD_insertBt1(ZSTD_CCtx* zc, const BYTE* const ip, const U32 mls, const BYTE* const iend, U32 nbCompares)
 {
@@ -1173,7 +1173,7 @@ FORCE_INLINE size_t ZSTD_BtFindBestMatch_selectMLS (
 
 
 /** ZSTD_insertBt1_extDict : add one or multiple positions to tree
-*   @ip : assumed <= iend-8 
+*   @ip : assumed <= iend-8
 *   @return : nb of positions added */
 static U32 ZSTD_insertBt1_extDict(ZSTD_CCtx* zc, const BYTE* const ip, const U32 mls, const BYTE* const iend, U32 nbCompares)
 {
@@ -1389,7 +1389,7 @@ FORCE_INLINE size_t ZSTD_BtFindBestMatch_selectMLS_extDict (
 
 #define NEXT_IN_CHAIN(d, mask)   chainTable[(d) & mask]
 
-/* Update chains up to ip (excluded) 
+/* Update chains up to ip (excluded)
    Assumption : always within prefix (ie. not within extDict) */
 static U32 ZSTD_insertAndFindFirstIndex (ZSTD_CCtx* zc, const BYTE* ip, U32 mls)
 {

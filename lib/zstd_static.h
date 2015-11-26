@@ -102,7 +102,7 @@ size_t ZSTD_compress_advanced (ZSTD_CCtx* ctx,
 /* **************************************
 *  Streaming functions (bufferless mode)
 ****************************************/
-size_t ZSTD_compressBegin(ZSTD_CCtx* cctx, void* dst, size_t maxDstSize, int compressionLevel, U64 srcSizeHint);
+size_t ZSTD_compressBegin(ZSTD_CCtx* cctx, void* dst, size_t maxDstSize, int compressionLevel);
 size_t ZSTD_compressBegin_advanced(ZSTD_CCtx* ctx, void* dst, size_t maxDstSize, ZSTD_parameters params);
 
 size_t ZSTD_compressContinue(ZSTD_CCtx* cctx, void* dst, size_t maxDstSize, const void* src, size_t srcSize);

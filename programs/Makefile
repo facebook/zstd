@@ -35,7 +35,7 @@ VERSION?= 0.4.0
 DESTDIR?=
 PREFIX ?= /usr/local
 CPPFLAGS= -I../lib -I../lib/legacy -I./legacy -DZSTD_VERSION=\"$(VERSION)\" -DZSTD_LEGACY_SUPPORT=1
-CFLAGS ?= -O3  # -falign-loops=32   # not always positive
+CFLAGS ?= -O3  # -falign-loops=32   # not always beneficial
 CFLAGS += -std=c99 -Wall -Wextra -Wundef -Wshadow -Wcast-qual -Wcast-align -Wstrict-prototypes
 FLAGS   = $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) $(MOREFLAGS)
 
@@ -88,6 +88,11 @@ fuzzer32: $(ZSTDDIR)/zstd_compress.c $(ZSTDDIR)/zstd_decompress.c $(ZSTDDIR)/fse
       datagen.c xxhash.c fuzzer.c
 	$(CC) -m32 $(FLAGS) $^ -o $@$(EXT)
 
+zbufftest  : $(ZSTDDIR)/zstd_compress.c $(ZSTDDIR)/zstd_decompress.c $(ZSTDDIR)/zstd_buffered.c $(ZSTDDIR)/fse.c $(ZSTDDIR)/huff0.c \
+      $(ZSTDDIR)/legacy/zstd_v01.c $(ZSTDDIR)/legacy/zstd_v02.c \
+      datagen.c xxhash.c zbufftest.c
+	$(CC)      $(FLAGS) $^ -o $@$(EXT)
+
 paramgrill : $(ZSTDDIR)/zstd_compress.c $(ZSTDDIR)/zstd_decompress.c $(ZSTDDIR)/fse.c $(ZSTDDIR)/huff0.c \
              $(ZSTDDIR)/legacy/zstd_v01.c $(ZSTDDIR)/legacy/zstd_v02.c \
              datagen.c xxhash.c paramgrill.c
@@ -100,7 +105,7 @@ clean:
 	@rm -f core *.o tmp* \
         zstd$(EXT) zstd32$(EXT) \
         fullbench$(EXT) fullbench32$(EXT) \
-        fuzzer$(EXT) fuzzer32$(EXT) \
+        fuzzer$(EXT) fuzzer32$(EXT) zbufftest$(EXT) \
 	datagen$(EXT) paramgrill$(EXT)
 	@echo Cleaning completed
 

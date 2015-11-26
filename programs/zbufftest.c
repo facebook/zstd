@@ -289,7 +289,8 @@ int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compressibilit
         U64 crcOrig, crcDest;
 
         /* init */
-        DISPLAYUPDATE(2, "\r%6u/%6u   ", testNb, nbTests);
+        DISPLAYUPDATE(2, "\r%6u", testNb);
+        if (nbTests >= testNb) DISPLAYUPDATE(2, "/%6u   ", nbTests);
         FUZ_rand(&coreSeed);
         lseed = coreSeed ^ prime1;
         buffNb = FUZ_rand(&lseed) & 127;
@@ -313,8 +314,8 @@ int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compressibilit
         /* Multi - segments compression test */
         XXH64_reset(&crc64, 0);
         nbChunks = (FUZ_rand(&lseed) & 127) + 2;
-        maxTestSize = FUZ_rand(&lseed) % maxSrcLog;
-        maxTestSize = (size_t)1 << maxTestSize;
+        sampleSizeLog = FUZ_rand(&lseed) % maxSrcLog;
+        maxTestSize = (size_t)1 << sampleSizeLog;
         maxTestSize += FUZ_rand(&lseed) & (maxTestSize-1);
         ZBUFF_compressInit(zc, (FUZ_rand(&lseed) % (20 - (sampleSizeLog/3))) + 1);
         totalTestSize = 0;
@@ -379,7 +380,36 @@ int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compressibilit
         CHECK (crcDest!=crcOrig, "decompressed data corrupted");
 
         /* noisy/erroneous src decompression test */
-        /* TBD later */
+        /* add some noise */
+        nbChunks = (FUZ_rand(&lseed) & 7) + 2;
+        for (n=0; n<nbChunks; n++)
+        {
+            size_t cStart;
+
+            sampleSizeLog = FUZ_rand(&lseed) % maxSampleLog;
+            sampleSize = (size_t)1 << sampleSizeLog;
+            sampleSize += FUZ_rand(&lseed) & (sampleSize-1);
+            if (sampleSize > cSize/3) sampleSize = cSize/3;
+            sampleStart = FUZ_rand(&lseed) % (srcBufferSize - sampleSize);
+            cStart = FUZ_rand(&lseed) % (cSize - sampleSize);
+
+            memcpy(cBuffer+cStart, srcBuffer+sampleStart, sampleSize);
+        }
+
+        /* try decompression on noisy data */
+        ZBUFF_decompressInit(zd);
+        totalCSize = 0;
+        totalGenSize = 0;
+        while (totalCSize < cSize)
+        {
+            sampleSizeLog  = FUZ_rand(&lseed) % maxSampleLog;
+            sampleSize  = (size_t)1 << sampleSizeLog;
+            sampleSize += FUZ_rand(&lseed) & (sampleSize-1);
+            readSize = sampleSize;
+            genSize = dstBufferSize - totalGenSize;
+            errorCode = ZBUFF_decompressContinue(zd, dstBuffer+totalGenSize, &genSize, cBuffer+totalCSize, &readSize);
+            if (ZBUFF_isError(errorCode)) break;   /* error correctly detected */
+        }
     }
     DISPLAY("\r%u fuzzer tests completed   \n", testNb);
 

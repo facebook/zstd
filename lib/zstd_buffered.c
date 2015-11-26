@@ -345,6 +345,8 @@ size_t ZBUFF_freeDCtx(ZBUFF_DCtx* zbc)
 {
     if (zbc==NULL) return 0;   /* support free on null */
     ZSTD_freeDCtx(zbc->zc);
+    free(zbc->inBuff);
+    free(zbc->outBuff);
     free(zbc);
     return 0;
 }

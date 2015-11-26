@@ -53,10 +53,11 @@ EXT =
 VOID = /dev/null
 endif
 
+.PHONY: default all clean install uninstall test test32 test-all
 
 default: zstd
 
-all: zstd zstd32 fullbench fullbench32 fuzzer fuzzer32 paramgrill datagen
+all: zstd zstd32 fullbench fullbench32 fuzzer fuzzer32 zbufftest zbufftest32 paramgrill datagen
 
 zstd: $(ZSTDDIR)/zstd_compress.c $(ZSTDDIR)/zstd_decompress.c $(ZSTDDIR)/fse.c $(ZSTDDIR)/huff0.c $(ZSTDDIR)/zstd_buffered.c \
       $(ZSTDDIR)/legacy/zstd_v01.c $(ZSTDDIR)/legacy/zstd_v02.c \
@@ -93,6 +94,11 @@ zbufftest  : $(ZSTDDIR)/zstd_compress.c $(ZSTDDIR)/zstd_decompress.c $(ZSTDDIR)/
       datagen.c xxhash.c zbufftest.c
 	$(CC)      $(FLAGS) $^ -o $@$(EXT)
 
+zbufftest32: $(ZSTDDIR)/zstd_compress.c $(ZSTDDIR)/zstd_decompress.c $(ZSTDDIR)/zstd_buffered.c $(ZSTDDIR)/fse.c $(ZSTDDIR)/huff0.c \
+      $(ZSTDDIR)/legacy/zstd_v01.c $(ZSTDDIR)/legacy/zstd_v02.c \
+      datagen.c xxhash.c zbufftest.c
+	$(CC) -m32 $(FLAGS) $^ -o $@$(EXT)
+
 paramgrill : $(ZSTDDIR)/zstd_compress.c $(ZSTDDIR)/zstd_decompress.c $(ZSTDDIR)/fse.c $(ZSTDDIR)/huff0.c \
              $(ZSTDDIR)/legacy/zstd_v01.c $(ZSTDDIR)/legacy/zstd_v02.c \
              datagen.c xxhash.c paramgrill.c
@@ -105,7 +111,7 @@ clean:
 	@rm -f core *.o tmp* \
         zstd$(EXT) zstd32$(EXT) \
         fullbench$(EXT) fullbench32$(EXT) \
-        fuzzer$(EXT) fuzzer32$(EXT) zbufftest$(EXT) \
+        fuzzer$(EXT) fuzzer32$(EXT) zbufftest$(EXT) zbufftest32$(EXT) \
 	datagen$(EXT) paramgrill$(EXT)
 	@echo Cleaning completed
 
@@ -135,9 +141,9 @@ uninstall:
 	[ -f $(DESTDIR)$(MANDIR)/zstd.1 ] && rm -f $(DESTDIR)$(MANDIR)/zstd.1
 	@echo zstd programs successfully uninstalled
 
-test: test-zstd test-fullbench test-fuzzer
+test: test-zstd test-fullbench test-fuzzer test-zbuff
 
-test32: test-zstd32 test-fullbench32 test-fuzzer32
+test32: test-zstd32 test-fullbench32 test-fuzzer32 test-zbuff32
 
 test-all: test test32 valgrindTest
 
@@ -232,6 +238,12 @@ test-fuzzer: fuzzer
 
 test-fuzzer32: fuzzer32
 	./fuzzer32
+
+test-zbuff: zbufftest
+	./zbufftest
+
+test-zbuff32: zbufftest32
+	./zbufftest32
 
 valgrindTest: zstd datagen fuzzer fullbench
 	@echo "\n ---- valgrind tests : memory analyzer ----"

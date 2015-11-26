@@ -64,7 +64,7 @@
 #define MB *(1U<<20)
 #define GB *(1U<<30)
 
-static const U32 nbTestsDefault = 30000;
+static const U32 nbTestsDefault = 10000;
 #define COMPRESSIBLE_NOISE_LENGTH (10 MB)
 #define FUZ_COMPRESSIBILITY_DEFAULT 50
 static const U32 prime1 = 2654435761U;
@@ -280,7 +280,7 @@ int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compressibilit
     {
         size_t sampleSize, sampleStart;
         size_t cSize;
-        size_t maxTestSize, totalTestSize, readSize, genSize;
+        size_t maxTestSize, totalTestSize, readSize, totalCSize, genSize, totalGenSize;
         size_t errorCode;
         U32 sampleSizeLog, buffNb, n, nbChunks;
         U64 crcOrig, crcDest;
@@ -330,13 +330,12 @@ int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compressibilit
             genSize = cBufferSize - cSize;
             errorCode = ZBUFF_compressContinue(zc, cBuffer+cSize, &genSize, srcBuffer+sampleStart, &readSize);
             CHECK (ZBUFF_isError(errorCode), "compression error : %s", ZBUFF_getErrorName(errorCode));
-            CHECK (readSize != sampleSize, "test condition not respected : input should be fully consumed")
+            CHECK (readSize != sampleSize, "compression test condition not respected : input should be fully consumed")
 
             cSize += genSize;
             totalTestSize += sampleSize;
             if (totalTestSize > maxTestSize) break;
         }
-
         genSize = cBufferSize - cSize;
         errorCode = ZBUFF_compressEnd(zc, cBuffer+cSize, &genSize);
         CHECK (ZBUFF_isError(errorCode), "compression error : %s", ZBUFF_getErrorName(errorCode));
@@ -346,12 +345,23 @@ int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compressibilit
 
         /* multi - fragments decompression test */
         ZBUFF_decompressInit(zd);
-        genSize = dstBufferSize;
-        readSize = cBufferSize;
-        errorCode = ZBUFF_decompressContinue(zd, dstBuffer, &genSize, cBuffer, &readSize);
-        CHECK (ZBUFF_isError(errorCode), "decompression error : %s", ZBUFF_getErrorName(errorCode));
+        totalCSize = 0;
+        totalGenSize = 0;
+        while (totalCSize < cSize)
+        {
+            sampleSizeLog  = FUZ_rand(&lseed) % maxSampleLog;
+            sampleSize  = (size_t)1 << sampleSizeLog;
+            sampleSize += FUZ_rand(&lseed) & (sampleSize-1);
+            readSize = sampleSize;
+            genSize = dstBufferSize - totalGenSize;
+            errorCode = ZBUFF_decompressContinue(zd, dstBuffer+totalGenSize, &genSize, cBuffer+totalCSize, &readSize);
+            CHECK (ZBUFF_isError(errorCode), "decompression error : %s", ZBUFF_getErrorName(errorCode));
+            totalGenSize += genSize;
+            totalCSize += readSize;
+        }
         CHECK (errorCode != 0, "frame not fully decoded");
-        CHECK (genSize != totalTestSize, "decompressed data : wrong size")
+        CHECK (totalGenSize != totalTestSize, "decompressed data : wrong size")
+        CHECK (totalCSize != cSize, "compressed data should be fully read")
         crcDest = XXH64(dstBuffer, totalTestSize, 0);
         if (crcDest!=crcOrig) findDiff(copyBuffer, dstBuffer, totalTestSize);
         CHECK (crcDest!=crcOrig, "decompressed data corrupted");

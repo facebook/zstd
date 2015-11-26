@@ -260,7 +260,7 @@ size_t ZBUFF_compressContinue(ZBUFF_CCtx* zbc,
 size_t ZBUFF_compressFlush(ZBUFF_CCtx* zbc, void* dst, size_t* maxDstSizePtr)
 {
     size_t srcSize = 0;
-    ZBUFF_compressContinue_generic(zbc, dst, maxDstSizePtr, NULL, &srcSize, 1);
+    ZBUFF_compressContinue_generic(zbc, dst, maxDstSizePtr, &srcSize, &srcSize, 1);
     return zbc->outBuffContentSize - zbc->outBuffFlushedSize;
 }
 

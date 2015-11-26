@@ -32,12 +32,6 @@
 #  pragma warning(disable : 4146)     /* disable: C4146: minus unsigned expression */
 #endif
 
-#define GCC_VERSION (__GNUC__ * 100 + __GNUC_MINOR__)
-#ifdef __GNUC__
-#  pragma GCC diagnostic ignored "-Wmissing-braces"   /* GCC bug 53119 : doesn't accept { 0 } as initializer (https://gcc.gnu.org/bugzilla/show_bug.cgi?id=53119) */
-#  pragma GCC diagnostic ignored "-Wmissing-field-initializers"   /* GCC bug 53119 : doesn't accept { 0 } as initializer (https://gcc.gnu.org/bugzilla/show_bug.cgi?id=53119) */
-#endif
-
 
 /**************************************
 *  Includes
@@ -226,8 +220,10 @@ static size_t findDiff(const void* buf1, const void* buf2, size_t max)
     return i;
 }
 
-#   define CHECK(cond, ...) if (cond) { DISPLAY("Error => "); DISPLAY(__VA_ARGS__); \
-                            DISPLAY(" (seed %u, test nb %u)  \n", seed, testNb); goto _output_error; }
+#define MIN(a,b)   ( (a) < (b) ? (a) : (b) )
+
+#define CHECK(cond, ...) if (cond) { DISPLAY("Error => "); DISPLAY(__VA_ARGS__); \
+                         DISPLAY(" (seed %u, test nb %u)  \n", seed, testNb); goto _output_error; }
 
 static const U32 maxSrcLog = 24;
 static const U32 maxSampleLog = 19;
@@ -273,6 +269,8 @@ int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compressibilit
     RDG_genBuffer(cNoiseBuffer[3], srcBufferSize, 0.95, 0., coreSeed);    /* highly compressible */
     RDG_genBuffer(cNoiseBuffer[4], srcBufferSize, 1.00, 0., coreSeed);    /* sparse content */
     srcBuffer = cNoiseBuffer[2];
+    memset(copyBuffer, 0x65, copyBufferSize);
+    memcpy(copyBuffer, srcBuffer, MIN(copyBufferSize,srcBufferSize));   /* make copyBuffer considered initialized */
 
     /* catch up testNb */
     for (testNb=1; testNb < startTest; testNb++)
@@ -409,6 +407,8 @@ int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compressibilit
             genSize = dstBufferSize - totalGenSize;
             errorCode = ZBUFF_decompressContinue(zd, dstBuffer+totalGenSize, &genSize, cBuffer+totalCSize, &readSize);
             if (ZBUFF_isError(errorCode)) break;   /* error correctly detected */
+            totalGenSize += genSize;
+            totalCSize += readSize;
         }
     }
     DISPLAY("\r%u fuzzer tests completed   \n", testNb);
@@ -565,7 +565,7 @@ int main(int argc, char** argv)
     }
 
     /* Get Seed */
-    DISPLAY("Starting zstd tester (%i-bits, %s)\n", (int)(sizeof(size_t)*8), ZSTD_VERSION);
+    DISPLAY("Starting zstd_buffered tester (%i-bits, %s)\n", (int)(sizeof(size_t)*8), ZSTD_VERSION);
 
     if (!seedset) seed = FUZ_GetMilliStart() % 10000;
     DISPLAY("Seed = %u\n", seed);

@@ -70,7 +70,7 @@ default: clean libzstd
 
 all: clean libzstd
 
-libzstd: zstd_compress.c zstd_decompress.c huff0.c fse.c \ 
+libzstd: zstd_compress.c zstd_decompress.c huff0.c fse.c \
          legacy/zstd_v01.c legacy/zstd_v02.c legacy/zstd_v03.c
 	@echo compiling static library
 	@$(CC) $(FLAGS) -c $^

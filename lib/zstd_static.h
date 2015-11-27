@@ -126,17 +126,17 @@ size_t ZSTD_decompressContinue(ZSTD_DCtx* dctx, void* dst, size_t maxDstSize, co
 
   First operation is to retrieve frame parameters, using ZSTD_getFrameParams().
   This function doesn't consume its input. It needs enough input data to properly decode the frame header.
-  The objective is to retrieve *params.windowlog, to know how much memory is required during decoding.
-  Result : 0 if successfull, it means the ZSTD_parameters structure has been filled.
+  The objective is to retrieve *params.windowlog, to know minimum amount of memory required during decoding.
+  Result : 0 when successful, it means the ZSTD_parameters structure has been filled.
            >0 : means there is not enough data into src. Provides the expected size to successfully decode header.
            errorCode, which can be tested using ZSTD_isError() (For example, if it's not a ZSTD header)
 
   Then it's possible to start decompression.
   Use ZSTD_nextSrcSizeToDecompress() and ZSTD_decompressContinue() alternatively.
   ZSTD_nextSrcSizeToDecompress() tells how much bytes to provide as 'srcSize' to ZSTD_decompressContinue().
-  ZSTD_decompressContinue() will use previous data blocks during decompress.
-  They should be located contiguously prior to current block. Alternatively, a round buffer is possible.
-  Just make sure that the combined of current and accessible past blocks is a minimum of (1 << windowlog).
+  ZSTD_decompressContinue() requires this exact amount of bytes, or just fails.
+  ZSTD_decompressContinue() needs previous data blocks during decompression, up to (1 << windowlog).
+  They should preferably be located contiguously, prior to current block. Alternatively, a round buffer is also possible.
 
   @result of ZSTD_decompressContinue() is the number of bytes regenerated within 'dst'.
   It can be zero, which is not an error; it just means ZSTD_decompressContinue() has decoded some header.

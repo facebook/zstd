@@ -523,7 +523,12 @@ size_t ZBUFF_decompressContinue(ZBUFF_DCtx* zbc, void* dst, size_t* maxDstSizePt
     *srcSizePtr = ip-istart;
     *maxDstSizePtr = op-ostart;
 
-    return ZSTD_nextSrcSizeToDecompress(zbc->zc) - zbc->inPos;
+    {
+        size_t nextSrcSizeHint = ZSTD_nextSrcSizeToDecompress(zbc->zc);
+        if (nextSrcSizeHint > 3) nextSrcSizeHint+= 3;   /* get the next block header while at it */
+        nextSrcSizeHint -= zbc->inPos;   /* already loaded*/
+        return nextSrcSizeHint;
+    }
 }
 
 

@@ -93,12 +93,12 @@
 
 #define KB *(1<<10)
 #define MB *(1<<20)
+#define GB *(1ULL<<30)
 
 #define NBLOOPS    2
 #define TIMELOOP   2000
 
-#define KNUTH      2654435761U
-#define MAX_MEM    (1984 MB)
+static const size_t maxMemory = (sizeof(size_t)==4)  ?  (2 GB - 64 MB) : (size_t)(1ULL << ((sizeof(size_t)*8)-31));
 #define DEFAULT_CHUNKSIZE   (4<<20)
 
 #define COMPRESSIBILITY_DEFAULT 0.50
@@ -184,7 +184,7 @@ static size_t BMK_findMaxMem(U64 requiredMem)
     BYTE* testmem=NULL;
 
     requiredMem = (((requiredMem >> 26) + 1) << 26);
-    if (requiredMem > MAX_MEM) requiredMem = MAX_MEM;
+    if (requiredMem > maxMemory) requiredMem = maxMemory;
 
     requiredMem += 2*step;
     while (!testmem)

@@ -371,7 +371,10 @@ int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compressibilit
             sampleSize  = (size_t)1 << sampleSizeLog;
             sampleSize += FUZ_rand(&lseed) & (sampleSize-1);
             readSize = sampleSize;
-            genSize = dstBufferSize - totalGenSize;
+            sampleSizeLog  = FUZ_rand(&lseed) % maxSampleLog;
+            sampleSize  = (size_t)1 << sampleSizeLog;
+            sampleSize += FUZ_rand(&lseed) & (sampleSize-1);
+            genSize = MIN(sampleSize, dstBufferSize - totalGenSize);
             errorCode = ZBUFF_decompressContinue(zd, dstBuffer+totalGenSize, &genSize, cBuffer+totalCSize, &readSize);
             CHECK (ZBUFF_isError(errorCode), "decompression error : %s", ZBUFF_getErrorName(errorCode));
             totalGenSize += genSize;
@@ -405,13 +408,16 @@ int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compressibilit
         ZBUFF_decompressInit(zd);
         totalCSize = 0;
         totalGenSize = 0;
-        while (totalCSize < cSize)
+        while ( (totalCSize < cSize) && (totalGenSize < dstBufferSize) )
         {
             sampleSizeLog  = FUZ_rand(&lseed) % maxSampleLog;
             sampleSize  = (size_t)1 << sampleSizeLog;
             sampleSize += FUZ_rand(&lseed) & (sampleSize-1);
             readSize = sampleSize;
-            genSize = dstBufferSize - totalGenSize;
+            sampleSizeLog  = FUZ_rand(&lseed) % maxSampleLog;
+            sampleSize  = (size_t)1 << sampleSizeLog;
+            sampleSize += FUZ_rand(&lseed) & (sampleSize-1);
+            genSize = MIN(sampleSize, dstBufferSize - totalGenSize);
             errorCode = ZBUFF_decompressContinue(zd, dstBuffer+totalGenSize, &genSize, cBuffer+totalCSize, &readSize);
             if (ZBUFF_isError(errorCode)) break;   /* error correctly detected */
             totalGenSize += genSize;

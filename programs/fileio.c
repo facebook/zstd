@@ -337,7 +337,6 @@ unsigned long long FIO_decompressFrame(FILE* foutput, FILE* finput,
         size_t inStart=0;
         size_t toRead = ZBUFF_decompressContinue(dctx, outBuff, &decodedSize, inBuff+inStart, &inSize);
         if (ZBUFF_isError(toRead)) EXM_THROW(36, "Decoding error : %s", ZBUFF_getErrorName(toRead));
-        if (toRead==0) break;   /* end of Frame */
         readSize -= inSize;
         inStart += inSize;
 
@@ -347,6 +346,7 @@ unsigned long long FIO_decompressFrame(FILE* foutput, FILE* finput,
         frameSize += decodedSize;
         DISPLAYUPDATE(2, "\rDecoded : %u MB...     ", (U32)(frameSize>>20) );
 
+        if (toRead == 0) break;
         if (readSize) continue;   /* still some data left within inBuff */
 
         /* Fill input buffer */

@@ -204,11 +204,12 @@ static size_t ZBUFF_compressContinue_generic(ZBUFF_CCtx* zbc,
                 void* cDst;
                 size_t cSize;
                 size_t iSize = zbc->inBuffPos - zbc->inToCompress;
-                if ((size_t)(oend-op) > ZSTD_compressBound(iSize))
+                size_t oSize = oend-op;
+                if (oSize >= ZSTD_compressBound(iSize))
                     cDst = op;   /* compress directly into output buffer (avoid flush stage) */
                 else
-                    cDst = zbc->outBuff;
-                cSize = ZSTD_compressContinue(zbc->zc, cDst, oend-op, zbc->inBuff + zbc->inToCompress, iSize);
+                    cDst = zbc->outBuff, oSize = zbc->outBuffSize;
+                cSize = ZSTD_compressContinue(zbc->zc, cDst, oSize, zbc->inBuff + zbc->inToCompress, iSize);
                 if (ZSTD_isError(cSize)) return cSize;
                 /* prepare next block */
                 zbc->inBuffTarget = zbc->inBuffPos + zbc->blockSize;

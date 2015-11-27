@@ -324,22 +324,29 @@ int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compressibilit
             sampleSize = (size_t)1 << sampleSizeLog;
             sampleSize += FUZ_rand(&lseed) & (sampleSize-1);
             sampleStart = FUZ_rand(&lseed) % (srcBufferSize - sampleSize);
-
-            XXH64_update(&crc64, srcBuffer+sampleStart, sampleSize);
-            memcpy(copyBuffer+totalTestSize, srcBuffer+sampleStart, sampleSize);
-
             readSize = sampleSize;
-            genSize = cBufferSize - cSize;
+
+            /* random size output buffer */
+            sampleSizeLog = FUZ_rand(&lseed) % maxSampleLog;
+            sampleSize = (size_t)1 << sampleSizeLog;
+            sampleSize += FUZ_rand(&lseed) & (sampleSize-1);
+            genSize = MIN (cBufferSize - cSize, sampleSize);
+
             errorCode = ZBUFF_compressContinue(zc, cBuffer+cSize, &genSize, srcBuffer+sampleStart, &readSize);
             CHECK (ZBUFF_isError(errorCode), "compression error : %s", ZBUFF_getErrorName(errorCode));
-            CHECK (readSize != sampleSize, "compression test condition not respected : input should be fully consumed")
+
+            XXH64_update(&crc64, srcBuffer+sampleStart, readSize);
+            memcpy(copyBuffer+totalTestSize, srcBuffer+sampleStart, readSize);
             cSize += genSize;
-            totalTestSize += sampleSize;
+            totalTestSize += readSize;
 
             if ((FUZ_rand(&lseed) & 15) == 0)
             {
                 /* add a few random flushes operations, to mess around */
-                genSize = cBufferSize - cSize;
+                sampleSizeLog = FUZ_rand(&lseed) % maxSampleLog;
+                sampleSize = (size_t)1 << sampleSizeLog;
+                sampleSize += FUZ_rand(&lseed) & (sampleSize-1);
+                genSize = MIN (cBufferSize - cSize, sampleSize);
                 errorCode = ZBUFF_compressFlush(zc, cBuffer+cSize, &genSize);
                 CHECK (ZBUFF_isError(errorCode), "flush error : %s", ZBUFF_getErrorName(errorCode));
                 cSize += genSize;

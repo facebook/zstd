@@ -368,7 +368,6 @@ unsigned long long FIO_decompressFilename(const char* output_filename, const cha
     size_t outBuffSize = ZBUFF_recommendedDOutSize();
     U64   filesize = 0;
     size_t toRead;
-    size_t sizeCheck;
 
 
     /* Init */
@@ -383,20 +382,21 @@ unsigned long long FIO_decompressFilename(const char* output_filename, const cha
     /* for each frame */
     for ( ; ; )
     {
-        U32 magicNumber;
         toRead = 0;
 
 #if defined(ZSTD_LEGACY_SUPPORT) && (ZSTD_LEGACY_SUPPORT==1)
-        /* check magic number -> version */
-        toRead = 4;
-        sizeCheck = fread(inBuff, (size_t)1, toRead, finput);
-        if (sizeCheck==0) break;   /* no more input */
-        if (sizeCheck != toRead) EXM_THROW(31, "Read error : cannot read header");
-        magicNumber = MEM_readLE32(inBuff);
-        if (ZSTD_isLegacy(magicNumber))
         {
-            filesize += FIO_decompressLegacyFrame(foutput, finput, magicNumber);
-            continue;
+            size_t sizeCheck;
+            /* check magic number -> version */
+            toRead = 4;
+            sizeCheck = fread(inBuff, (size_t)1, toRead, finput);
+            if (sizeCheck==0) break;   /* no more input */
+            if (sizeCheck != toRead) EXM_THROW(31, "Read error : cannot read header");
+            if (ZSTD_isLegacy(MEM_readLE32(inBuff)))
+            {
+                filesize += FIO_decompressLegacyFrame(foutput, finput, MEM_readLE32(inBuff));
+                continue;
+            }
         }
 #endif   /* ZSTD_LEGACY_SUPPORT */
 

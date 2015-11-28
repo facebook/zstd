@@ -104,9 +104,29 @@ size_t ZSTD_compress_advanced (ZSTD_CCtx* ctx,
 ****************************************/
 size_t ZSTD_compressBegin(ZSTD_CCtx* cctx, void* dst, size_t maxDstSize, int compressionLevel);
 size_t ZSTD_compressBegin_advanced(ZSTD_CCtx* ctx, void* dst, size_t maxDstSize, ZSTD_parameters params);
-
 size_t ZSTD_compressContinue(ZSTD_CCtx* cctx, void* dst, size_t maxDstSize, const void* src, size_t srcSize);
 size_t ZSTD_compressEnd(ZSTD_CCtx* cctx, void* dst, size_t maxDstSize);
+
+/**
+  Streaming compression, bufferless mode
+
+  A ZSTD_CCtx object is required to track streaming operations.
+  Use ZSTD_createCCtx() / ZSTD_freeCCtx() to manage it.
+  A ZSTD_CCtx object can be re-used multiple times.
+
+  First operation is to start a new frame.
+  Use ZSTD_compressBegin().
+  You may also prefer the advanced derivative ZSTD_compressBegin_advanced(), for finer parameter control.
+
+  Then, consume your input using ZSTD_compressContinue().
+  The interface is synchronous, so all input will be consumed.
+  You must ensure there is enough space in destination buffer to store compressed data under worst case scenario.
+  Worst case evaluation is provided by ZSTD_compressBound().
+
+  Finish a frame with ZSTD_compressEnd(), which will write the epilogue.
+  Without it, the frame will be considered incomplete by decoders.
+  You can then re-use ZSTD_CCtx to compress new frames.
+*/
 
 
 typedef struct ZSTD_DCtx_s ZSTD_DCtx;
@@ -172,7 +192,7 @@ static const ZSTD_parameters ZSTD_defaultParameters[2][ZSTD_MAX_CLEVEL+1] = {
     { 0, 23, 24, 23,  4,  5, ZSTD_btlazy2 },  /* level 17 */
     { 0, 25, 24, 23,  5,  5, ZSTD_btlazy2 },  /* level 18 */
     { 0, 25, 26, 23,  5,  5, ZSTD_btlazy2 },  /* level 19 */
-    { 0, 25, 26, 25,  6,  5, ZSTD_btlazy2 },  /* level 20 */
+    { 0, 26, 27, 25,  9,  5, ZSTD_btlazy2 },  /* level 20 */
 },
 {   /* for srcSize <= 128 KB */
     /* W,  C,  H,  S,  L, strat */

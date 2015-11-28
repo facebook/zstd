@@ -195,6 +195,7 @@ size_t ZSTD_getFrameParams(ZSTD_parameters* params, const void* src, size_t srcS
     if (magicNumber != ZSTD_MAGICNUMBER) return ERROR(prefix_unknown);
     memset(params, 0, sizeof(*params));
     params->windowLog = (((const BYTE*)src)[4] & 15) + ZSTD_WINDOWLOG_ABSOLUTEMIN;
+    if ((((const BYTE*)src)[4] >> 4) != 0) return ERROR(frameParameter_unsupported);   /* reserved bits */
     return 0;
 }
 
@@ -785,8 +786,8 @@ size_t ZSTD_decompressContinue(ZSTD_DCtx* ctx, void* dst, size_t maxDstSize, con
     if (srcSize != ctx->expected) return ERROR(srcSize_wrong);
     if (dst != ctx->previousDstEnd)   /* not contiguous */
     {
-        if (((char*)dst + maxDstSize > (char*)ctx->base) && (dst < ctx->previousDstEnd))   /* rolling buffer : new segment into dictionary */
-            ctx->base = (char*)dst + maxDstSize;   /* temporary affectation, for vBase calculation */
+        if ((dst > ctx->base) && (dst < ctx->previousDstEnd))   /* rolling buffer : new segment into dictionary */
+            ctx->base = (char*)dst;   /* temporary affectation, for vBase calculation */
         ctx->dictEnd = ctx->previousDstEnd;
         ctx->vBase = (char*)dst - ((char*)(ctx->previousDstEnd) - (char*)(ctx->base));
         ctx->base = dst;

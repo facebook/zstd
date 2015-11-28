@@ -83,6 +83,7 @@ size_t ZBUFF_compressEnd(ZBUFF_CCtx* cctx, void* dst, size_t* maxDstSizePtr);
 *
 *  ZBUFF_compressEnd() instructs to finish a frame.
 *  It will perform a flush and write frame epilogue.
+*  Note that the epilogue is necessary for decoders to consider a frame completed.
 *  Similar to ZBUFF_compressFlush(), it may not be able to output the entire internal buffer content if *maxDstSizePtr is too small.
 *  In which case, call again ZBUFF_compressFlush() to complete the flush.
 *  @return : nb of bytes still present into internal buffer (0 if it's empty)

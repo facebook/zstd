@@ -204,8 +204,11 @@ size_t ZSTD_getFrameParams(ZSTD_parameters* params, const void* src, size_t srcS
 *   @return : 0, or an error code, which can be tested using ZSTD_isError() */
 static size_t ZSTD_decodeFrameHeader_Part2(ZSTD_DCtx* zc, const void* src, size_t srcSize)
 {
+    size_t result;
     if (srcSize != zc->headerSize) return ERROR(srcSize_wrong);
-    return ZSTD_getFrameParams(&(zc->params), src, srcSize);
+    result = ZSTD_getFrameParams(&(zc->params), src, srcSize);
+    if ((MEM_32bits()) && (zc->params.windowLog > 25)) return ERROR(frameParameter_unsupportedBy32bitsImplementation);
+    return result;
 }
 
 

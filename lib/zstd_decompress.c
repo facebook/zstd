@@ -785,11 +785,12 @@ size_t ZSTD_decompressContinue(ZSTD_DCtx* ctx, void* dst, size_t maxDstSize, con
     if (srcSize != ctx->expected) return ERROR(srcSize_wrong);
     if (dst != ctx->previousDstEnd)   /* not contiguous */
     {
-        ctx->dictEnd = ctx->previousDstEnd;
-        if ((dst > ctx->base) && (dst < ctx->previousDstEnd))   /* rolling buffer : new segment right into tracked memory */
+        if (((char*)dst + maxDstSize > (char*)ctx->base) && (dst < ctx->previousDstEnd))   /* rolling buffer : new segment into dictionary */
             ctx->base = (char*)dst + maxDstSize;   /* temporary affectation, for vBase calculation */
-        ctx->vBase = (char*)dst - ((char*)(ctx->dictEnd) - (char*)(ctx->base));
+        ctx->dictEnd = ctx->previousDstEnd;
+        ctx->vBase = (char*)dst - ((char*)(ctx->previousDstEnd) - (char*)(ctx->base));
         ctx->base = dst;
+        ctx->previousDstEnd = dst;
     }
 
     /* Decompress : frame header; part 1 */
@@ -839,7 +840,6 @@ size_t ZSTD_decompressContinue(ZSTD_DCtx* ctx, void* dst, size_t maxDstSize, con
                 ctx->stage = ZSTDds_decompressBlock;
             }
 
-            ctx->previousDstEnd = dst;
             return 0;
         }
     case 3:

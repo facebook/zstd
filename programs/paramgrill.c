@@ -1161,12 +1161,15 @@ int main(int argc, char** argv)
         if (!input_filename) { input_filename=argument; filenamesStart=i; continue; }
     }
 
-    if (optimizer)
-        result = optimizeForSize(input_filename);
-
     if (filenamesStart==0)
         result = benchSample();
-    else result = benchFiles(argv+filenamesStart, argc-filenamesStart);
+    else 
+    {
+        if (optimizer)
+            result = optimizeForSize(input_filename);
+        else
+            result = benchFiles(argv+filenamesStart, argc-filenamesStart);
+    }
 
     if (main_pause) { int unused; printf("press enter...\n"); unused = getchar(); (void)unused; }
 

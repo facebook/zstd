@@ -143,6 +143,7 @@ void ZSTD_validateParams(ZSTD_parameters* params)
     const U32 btPlus = (params->strategy == ZSTD_btlazy2);
 
     /* validate params */
+    if (MEM_32bits()) if (params->windowLog > 25) params->windowLog = 25;   /* 32 bits mode cannot flush > 24 bits */
     if (params->windowLog   > ZSTD_WINDOWLOG_MAX) params->windowLog = ZSTD_WINDOWLOG_MAX;
     if (params->windowLog   < ZSTD_WINDOWLOG_MIN) params->windowLog = ZSTD_WINDOWLOG_MIN;
 
@@ -153,7 +154,7 @@ void ZSTD_validateParams(ZSTD_parameters* params)
         if (params->windowLog > srcLog) params->windowLog = srcLog;
     }
 
-    if (params->windowLog < ZSTD_WINDOWLOG_ABSOLUTEMIN) params->windowLog = ZSTD_WINDOWLOG_ABSOLUTEMIN;  /* required for frame header */
+    if (params->windowLog   < ZSTD_WINDOWLOG_ABSOLUTEMIN) params->windowLog = ZSTD_WINDOWLOG_ABSOLUTEMIN;  /* required for frame header */
     if (params->contentLog  > params->windowLog+btPlus) params->contentLog = params->windowLog+btPlus;   /* <= ZSTD_CONTENTLOG_MAX */
     if (params->contentLog  < ZSTD_CONTENTLOG_MIN) params->contentLog = ZSTD_CONTENTLOG_MIN;
     if (params->hashLog     > ZSTD_HASHLOG_MAX) params->hashLog = ZSTD_HASHLOG_MAX;

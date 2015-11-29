@@ -68,9 +68,10 @@ extern "C" {
 
 #define ERROR_LIST(ITEM) \
         ITEM(PREFIX(No_Error)) ITEM(PREFIX(GENERIC)) \
-        ITEM(PREFIX(memory_allocation)) \
+        ITEM(PREFIX(prefix_unknown)) ITEM(PREFIX(frameParameter_unsupported)) ITEM(PREFIX(frameParameter_unsupportedBy32bitsImplementation)) \
+        ITEM(PREFIX(init_missing)) ITEM(PREFIX(memory_allocation)) \
         ITEM(PREFIX(dstSize_tooSmall)) ITEM(PREFIX(srcSize_wrong)) \
-        ITEM(PREFIX(prefix_unknown)) ITEM(PREFIX(corruption_detected)) \
+        ITEM(PREFIX(corruption_detected)) \
         ITEM(PREFIX(tableLog_tooLarge)) ITEM(PREFIX(maxSymbolValue_tooLarge)) ITEM(PREFIX(maxSymbolValue_tooSmall)) \
         ITEM(PREFIX(maxCode))
 

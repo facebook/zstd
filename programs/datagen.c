@@ -81,7 +81,6 @@ typedef BYTE litDistribTable[LTSIZE];
 
 
 
-
 /*********************************************************
 *  Local Functions
 *********************************************************/
@@ -130,7 +129,7 @@ static BYTE RDG_genChar(U32* seed, const litDistribTable lt)
 }
 
 
-#define RDG_RAND15BITS  ((RDG_rand(seed) >> 3) & 32767)
+#define RDG_RAND15BITS  ((RDG_rand(seed) >> 3) & 0x7FFF)
 #define RDG_RANDLENGTH  ( ((RDG_rand(seed) >> 7) & 7) ? (RDG_rand(seed) & 15) : (RDG_rand(seed) & 511) + 15)
 void RDG_genBlock(void* buffer, size_t buffSize, size_t prefixSize, double matchProba, litDistribTable lt, unsigned* seedPtr)
 {
@@ -138,6 +137,7 @@ void RDG_genBlock(void* buffer, size_t buffSize, size_t prefixSize, double match
     const U32 matchProba32 = (U32)(32768 * matchProba);
     size_t pos = prefixSize;
     U32* seed = seedPtr;
+    U32 prevOffset = 1;
 
     /* special case : sparse content */
     while (matchProba >= 1.0)
@@ -170,11 +170,13 @@ void RDG_genBlock(void* buffer, size_t buffSize, size_t prefixSize, double match
             size_t d;
             int length = RDG_RANDLENGTH + 4;
             U32 offset = RDG_RAND15BITS + 1;
+            U32 repeatOffset = (RDG_rand(seed) & 15) == 2;
+            if (repeatOffset) offset = prevOffset;
             if (offset > pos) offset = (U32)pos;
             match = pos - offset;
             d = pos + length;
             if (d > buffSize) d = buffSize;
-            while (pos < d) buffPtr[pos++] = buffPtr[match++];
+            while (pos < d) buffPtr[pos++] = buffPtr[match++];   /* correctly manages overlaps */
         }
         else
         {

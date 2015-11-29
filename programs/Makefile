@@ -30,18 +30,29 @@
 # fullbench32: Same as fullbench, but forced to compile in 32-bits mode
 # ##########################################################################
 
-VERSION?= 0.3.6
+VERSION?= 0.4.0
 
 DESTDIR?=
 PREFIX ?= /usr/local
-CPPFLAGS= -I../lib -I../lib/legacy -I./legacy -DZSTD_VERSION=\"$(VERSION)\" -DZSTD_LEGACY_SUPPORT=1
-CFLAGS ?= -O3  # -falign-loops=32   # not always positive
+CPPFLAGS= -I../lib -DZSTD_VERSION=\"$(VERSION)\"
+CFLAGS ?= -O3  # -falign-loops=32   # not always beneficial
 CFLAGS += -std=c99 -Wall -Wextra -Wundef -Wshadow -Wcast-qual -Wcast-align -Wstrict-prototypes
 FLAGS   = $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) $(MOREFLAGS)
 
 BINDIR  = $(PREFIX)/bin
 MANDIR  = $(PREFIX)/share/man/man1
 ZSTDDIR = ../lib
+
+ZSTD_FILES := $(ZSTDDIR)/zstd_compress.c $(ZSTDDIR)/zstd_decompress.c $(ZSTDDIR)/fse.c $(ZSTDDIR)/huff0.c
+ZSTD_LEGACY:= $(ZSTDDIR)/legacy/zstd_v01.c $(ZSTDDIR)/legacy/zstd_v02.c $(ZSTDDIR)/legacy/zstd_v03.c
+
+ifeq ($(ZSTD_LEGACY),disable)
+CPPFLAGS  += -DZSTD_LEGACY_SUPPORT=0
+else
+ZSTD_FILES+= $(ZSTD_LEGACY)
+CPPFLAGS  += -I../lib/legacy -I./legacy -DZSTD_LEGACY_SUPPORT=1
+ZSTD_FILEIO_LEGACY = legacy/fileio_legacy.c
+endif
 
 
 # Define *.exe as extension for Windows systems
@@ -53,54 +64,58 @@ EXT =
 VOID = /dev/null
 endif
 
+ZBUFFTEST = -T2mn
+
+.PHONY: default all clean install uninstall test test32 test-all
 
 default: zstd
 
-all: zstd zstd32 fullbench fullbench32 fuzzer fuzzer32 paramgrill datagen
+all: zstd zstd32 fullbench fullbench32 fuzzer fuzzer32 zbufftest zbufftest32 paramgrill datagen
 
-zstd: $(ZSTDDIR)/zstd.c $(ZSTDDIR)/zstdhc.c $(ZSTDDIR)/fse.c $(ZSTDDIR)/huff0.c \
-      $(ZSTDDIR)/legacy/zstd_v01.c $(ZSTDDIR)/legacy/zstd_v02.c \
-      xxhash.c bench.c fileio.c zstdcli.c legacy/fileio_legacy.c
+zstd  : $(ZSTD_FILES) $(ZSTDDIR)/zstd_buffered.c \
+        xxhash.c bench.c fileio.c zstdcli.c $(ZSTD_FILEIO_LEGACY)
 	$(CC)      $(FLAGS) $^ -o $@$(EXT)
 
-zstd32: $(ZSTDDIR)/zstd.c $(ZSTDDIR)/zstdhc.c $(ZSTDDIR)/fse.c $(ZSTDDIR)/huff0.c \
-      $(ZSTDDIR)/legacy/zstd_v01.c $(ZSTDDIR)/legacy/zstd_v02.c \
-      xxhash.c bench.c fileio.c zstdcli.c legacy/fileio_legacy.c
+zstd32: $(ZSTD_FILES) $(ZSTDDIR)/zstd_buffered.c \
+        xxhash.c bench.c fileio.c zstdcli.c $(ZSTD_FILEIO_LEGACY)
 	$(CC) -m32 $(FLAGS) $^ -o $@$(EXT)
 
-fullbench  : $(ZSTDDIR)/zstd.c $(ZSTDDIR)/fse.c $(ZSTDDIR)/huff0.c \
-      $(ZSTDDIR)/legacy/zstd_v01.c $(ZSTDDIR)/legacy/zstd_v02.c \
-      datagen.c fullbench.c
+fullbench  : $(ZSTD_FILES) \
+        datagen.c fullbench.c
 	$(CC)      $(FLAGS) $^ -o $@$(EXT)
 
-fullbench32: $(ZSTDDIR)/zstd.c $(ZSTDDIR)/fse.c $(ZSTDDIR)/huff0.c \
-      $(ZSTDDIR)/legacy/zstd_v01.c $(ZSTDDIR)/legacy/zstd_v02.c \
+fullbench32: $(ZSTD_FILES) \
       datagen.c fullbench.c
 	$(CC) -m32 $(FLAGS) $^ -o $@$(EXT)
 
-fuzzer  : $(ZSTDDIR)/zstd.c $(ZSTDDIR)/zstdhc.c $(ZSTDDIR)/fse.c $(ZSTDDIR)/huff0.c \
-      $(ZSTDDIR)/legacy/zstd_v01.c $(ZSTDDIR)/legacy/zstd_v02.c \
+fuzzer  : $(ZSTD_FILES) \
       datagen.c xxhash.c fuzzer.c
 	$(CC)      $(FLAGS) $^ -o $@$(EXT)
 
-fuzzer32: $(ZSTDDIR)/zstd.c $(ZSTDDIR)/zstdhc.c $(ZSTDDIR)/fse.c $(ZSTDDIR)/huff0.c \
-      $(ZSTDDIR)/legacy/zstd_v01.c $(ZSTDDIR)/legacy/zstd_v02.c \
+fuzzer32: $(ZSTD_FILES) \
       datagen.c xxhash.c fuzzer.c
 	$(CC) -m32 $(FLAGS) $^ -o $@$(EXT)
 
-paramgrill : $(ZSTDDIR)/zstdhc.c $(ZSTDDIR)/zstd.c $(ZSTDDIR)/fse.c $(ZSTDDIR)/huff0.c \
-             $(ZSTDDIR)/legacy/zstd_v01.c $(ZSTDDIR)/legacy/zstd_v02.c \
-             datagen.c xxhash.c paramgrill.c
+zbufftest  : $(ZSTD_FILES) $(ZSTDDIR)/zstd_buffered.c \
+      datagen.c xxhash.c zbufftest.c
+	$(CC)      $(FLAGS) $^ -o $@$(EXT)
+
+zbufftest32: $(ZSTD_FILES) $(ZSTDDIR)/zstd_buffered.c \
+      datagen.c xxhash.c zbufftest.c
+	$(CC) -m32 $(FLAGS) $^ -o $@$(EXT)
+
+paramgrill : $(ZSTD_FILES) \
+      datagen.c xxhash.c paramgrill.c
 	$(CC)      $(FLAGS) $^ -lm -o $@$(EXT)
 
 datagen : datagen.c datagencli.c
 	$(CC)      $(FLAGS) $^ -o $@$(EXT)
 
 clean:
-	@rm -f core *.o tmp \
+	@rm -f core *.o tmp* \
         zstd$(EXT) zstd32$(EXT) \
         fullbench$(EXT) fullbench32$(EXT) \
-        fuzzer$(EXT) fuzzer32$(EXT) \
+        fuzzer$(EXT) fuzzer32$(EXT) zbufftest$(EXT) zbufftest32$(EXT) \
 	datagen$(EXT) paramgrill$(EXT)
 	@echo Cleaning completed
 
@@ -130,39 +145,90 @@ uninstall:
 	[ -f $(DESTDIR)$(MANDIR)/zstd.1 ] && rm -f $(DESTDIR)$(MANDIR)/zstd.1
 	@echo zstd programs successfully uninstalled
 
-test: test-zstd test-fullbench test-fuzzer
+test: test-zstd test-fullbench test-fuzzer test-zbuff
 
-test32: test-zstd32 test-fullbench32 test-fuzzer32
+test32: test-zstd32 test-fullbench32 test-fuzzer32 test-zbuff32
 
 test-all: test test32 valgrindTest
 
-test-zstd: zstd datagen
+zstd-playTests: datagen
 	@echo "\n**** frame concatenation **** "
 	@echo "hello " > hello.tmp
 	@echo "world!" > world.tmp
 	@cat hello.tmp world.tmp > helloworld.tmp
-	./zstd hello.tmp > hello.zstd
-	./zstd world.tmp > world.zstd
+	$(ZSTD) hello.tmp > hello.zstd
+	$(ZSTD) world.tmp > world.zstd
 	@cat hello.zstd world.zstd > helloworld.zstd
-	./zstd -d helloworld.zstd > result.tmp
+	$(ZSTD) -df helloworld.zstd > result.tmp
 	cat result.tmp
 	sdiff helloworld.tmp result.tmp
 	@rm *.tmp *.zstd
 	@echo frame concatenation test completed
 	@echo "**** flush write error test **** "
-	echo foo | ./zstd > /dev/full; if [ $$? -eq 0 ] ; then echo "write error not detected!"; false; fi
-	echo foo | ./zstd | ./zstd -d > /dev/full; if [ $$? -eq 0 ] ; then echo "write error not detected!"; false; fi
+	echo foo | $(ZSTD) > /dev/full; if [ $$? -eq 0 ] ; then echo "write error not detected!"; false; fi
+	echo foo | $(ZSTD) | $(ZSTD) -d > /dev/full; if [ $$? -eq 0 ] ; then echo "write error not detected!"; false; fi
 	@echo "**** zstd round-trip tests **** "
-	./datagen          | ./zstd -v    | ./zstd -d > $(VOID)
-	./datagen          | ./zstd -6 -v | ./zstd -d > $(VOID)
-	./datagen -g256MB  | ./zstd -v    | ./zstd -d > $(VOID)
-	./datagen -g256MB  | ./zstd -3 -v | ./zstd -d > $(VOID)
-	./datagen -g6GB -P99 | ./zstd -vq | ./zstd -d > $(VOID)
+	@./datagen             | md5sum > tmp1
+	./datagen              | $(ZSTD) -v    | $(ZSTD) -d  | md5sum > tmp2
+	@diff tmp1 tmp2   
+	./datagen              | $(ZSTD) -6 -v | $(ZSTD) -d  | md5sum > tmp2
+	@diff tmp1 tmp2   
+	@./datagen -g270000000 | md5sum > tmp1
+	./datagen -g270000000  | $(ZSTD) -v    | $(ZSTD) -d  | md5sum > tmp2
+	@diff tmp1 tmp2   
+	./datagen -g270000000  | $(ZSTD) -v2   | $(ZSTD) -d  | md5sum > tmp2
+	@diff tmp1 tmp2   
+	./datagen -g270000000  | $(ZSTD) -v3   | $(ZSTD) -d  | md5sum > tmp2
+	@diff tmp1 tmp2   
+	@./datagen -g140000000 -P60| md5sum > tmp1
+	./datagen -g140000000 -P60 | $(ZSTD) -v4   | $(ZSTD) -d  | md5sum > tmp2
+	@diff tmp1 tmp2   
+	./datagen -g140000000 -P60 | $(ZSTD) -v5   | $(ZSTD) -d  | md5sum > tmp2
+	@diff tmp1 tmp2   
+	./datagen -g140000000 -P60 | $(ZSTD) -v6   | $(ZSTD) -d  | md5sum > tmp2
+	@diff tmp1 tmp2   
+	@./datagen -g70000000 -P70 | md5sum > tmp1
+	./datagen -g70000000 -P70  | $(ZSTD) -v7   | $(ZSTD) -d  | md5sum > tmp2
+	@diff tmp1 tmp2   
+	./datagen -g70000000 -P70  | $(ZSTD) -v8   | $(ZSTD) -d  | md5sum > tmp2
+	@diff tmp1 tmp2   
+	./datagen -g70000000 -P70  | $(ZSTD) -v9   | $(ZSTD) -d  | md5sum > tmp2
+	@diff tmp1 tmp2   
+	@./datagen -g35000000 -P75 | md5sum > tmp1
+	./datagen -g35000000 -P75  | $(ZSTD) -v10  | $(ZSTD) -d  | md5sum > tmp2
+	@diff tmp1 tmp2   
+	./datagen -g35000000 -P75  | $(ZSTD) -v11  | $(ZSTD) -d  | md5sum > tmp2
+	@diff tmp1 tmp2   
+	./datagen -g35000000 -P75  | $(ZSTD) -v12  | $(ZSTD) -d  | md5sum > tmp2
+	@diff tmp1 tmp2   
+	@./datagen -g18000000 -P80 | md5sum > tmp1
+	./datagen -g18000000 -P80  | $(ZSTD) -v13  | $(ZSTD) -d  | md5sum > tmp2
+	@diff tmp1 tmp2   
+	./datagen -g18000000 -P80  | $(ZSTD) -v14  | $(ZSTD) -d  | md5sum > tmp2
+	@diff tmp1 tmp2   
+	./datagen -g18000000 -P80  | $(ZSTD) -v15  | $(ZSTD) -d  | md5sum > tmp2
+	@diff tmp1 tmp2   
+	./datagen -g18000000 -P80  | $(ZSTD) -v16  | $(ZSTD) -d  | md5sum > tmp2
+	@diff tmp1 tmp2   
+	./datagen -g18000000 -P80  | $(ZSTD) -v17  | $(ZSTD) -d  | md5sum > tmp2
+	@diff tmp1 tmp2   
+	@./datagen -g50000000 -P94 | md5sum > tmp1
+	./datagen -g50000000 -P94  | $(ZSTD) -v18  | $(ZSTD) -d  | md5sum > tmp2
+	@diff tmp1 tmp2   
+	./datagen -g50000000 -P94  | $(ZSTD) -v19  | $(ZSTD) -d  | md5sum > tmp2
+	@diff tmp1 tmp2   
+	@./datagen -g99000000 -P99 | md5sum > tmp1
+	./datagen -g99000000 -P99  | $(ZSTD) -v20  | $(ZSTD) -d  | md5sum > tmp2
+	@diff tmp1 tmp2   
+	./datagen -g6000000000 -P99| md5sum > tmp1
+	./datagen -g6000000000 -P99| $(ZSTD) -vq   | $(ZSTD) -d  | md5sum > tmp2
+	@diff tmp1 tmp2   
 
-test-zstd32: zstd32 datagen
-	./datagen          | ./zstd32 -v  | ./zstd32 -d > $(VOID)
-	./datagen -g256MB  | ./zstd32 -v  | ./zstd32 -d > $(VOID)
-	./datagen -g6GB -P99 | ./zstd32 -vq | ./zstd32 -d > $(VOID)
+test-zstd: ZSTD = ./zstd
+test-zstd: zstd zstd-playTests
+
+test-zstd32: ZSTD = ./zstd32
+test-zstd32: zstd32 zstd-playTests
 
 test-fullbench: fullbench datagen
 	./fullbench -i1
@@ -178,17 +244,25 @@ test-fuzzer: fuzzer
 test-fuzzer32: fuzzer32
 	./fuzzer32
 
-valgrindTest: zstd datagen fuzzer fullbench
+test-zbuff: zbufftest
+	./zbufftest $(ZBUFFTEST)
+
+test-zbuff32: zbufftest32
+	./zbufftest32 $(ZBUFFTEST)
+
+valgrindTest: zstd datagen fuzzer fullbench zbufftest
 	@echo "\n ---- valgrind tests : memory analyzer ----"
 	valgrind --leak-check=yes --error-exitcode=1 ./datagen -g50M > $(VOID)
 	./datagen -g16KB > tmp
 	valgrind --leak-check=yes --error-exitcode=1 ./zstd -vf tmp $(VOID)
 	./datagen -g2930KB > tmp
-	valgrind --leak-check=yes --error-exitcode=1 ./zstd -4 -vf tmp $(VOID)
+	valgrind --leak-check=yes --error-exitcode=1 ./zstd -5 -vf tmp tmp2
+	valgrind --leak-check=yes --error-exitcode=1 ./zstd -vdf tmp2 $(VOID)
 	./datagen -g64MB > tmp
 	valgrind --leak-check=yes --error-exitcode=1 ./zstd -vf tmp $(VOID)
 	@rm tmp
 	valgrind --leak-check=yes --error-exitcode=1 ./fuzzer -i1000 -t1
 	valgrind --leak-check=yes --error-exitcode=1 ./fullbench -i1
+	valgrind --leak-check=yes --error-exitcode=1 ./zbufftest -T1mn
 
 endif

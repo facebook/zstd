@@ -1898,40 +1898,12 @@ typedef size_t (*ZSTD_blockCompressor) (ZSTD_CCtx* ctx, void* dst, size_t maxDst
 
 static ZSTD_blockCompressor ZSTD_selectBlockCompressor(ZSTD_strategy strat, int extDict)
 {
-    if (extDict)
-    {
-        switch(strat)
-        {
-        default :
-        case ZSTD_fast:
-            return ZSTD_compressBlock_fast_extDict;
-        case ZSTD_greedy:
-            return ZSTD_compressBlock_greedy_extDict;
-        case ZSTD_lazy:
-            return ZSTD_compressBlock_lazy_extDict;
-        case ZSTD_lazy2:
-            return ZSTD_compressBlock_lazy2_extDict;
-        case ZSTD_btlazy2:
-            return ZSTD_compressBlock_btlazy2_extDict;
-        }
-    }
-    else
-    {
-        switch(strat)
-        {
-        default :
-        case ZSTD_fast:
-            return ZSTD_compressBlock_fast;
-        case ZSTD_greedy:
-            return ZSTD_compressBlock_greedy;
-        case ZSTD_lazy:
-            return ZSTD_compressBlock_lazy;
-        case ZSTD_lazy2:
-            return ZSTD_compressBlock_lazy2;
-        case ZSTD_btlazy2:
-            return ZSTD_compressBlock_btlazy2;
-        }
-    }
+    static const ZSTD_blockCompressor blockCompressor[2][5] = {
+        { ZSTD_compressBlock_fast, ZSTD_compressBlock_greedy, ZSTD_compressBlock_lazy,ZSTD_compressBlock_lazy2, ZSTD_compressBlock_btlazy2 },
+        { ZSTD_compressBlock_fast_extDict, ZSTD_compressBlock_greedy_extDict, ZSTD_compressBlock_lazy_extDict,ZSTD_compressBlock_lazy2_extDict, ZSTD_compressBlock_btlazy2_extDict }
+    };
+
+    return blockCompressor[extDict][(U32)strat];
 }
 
 
@@ -1953,7 +1925,6 @@ static size_t ZSTD_compress_generic (ZSTD_CCtx* ctxPtr,
     BYTE* const ostart = (BYTE*)dst;
     BYTE* op = ostart;
     const U32 maxDist = 1 << ctxPtr->params.windowLog;
-    //const ZSTD_blockCompressor blockCompressor = ZSTD_selectBlockCompressor(ctxPtr->params.strategy, ctxPtr->lowLimit < ctxPtr->dictLimit);
 
     while (remaining)
     {
@@ -1969,7 +1940,6 @@ static size_t ZSTD_compress_generic (ZSTD_CCtx* ctxPtr,
             if (ctxPtr->dictLimit < ctxPtr->lowLimit) ctxPtr->dictLimit = ctxPtr->lowLimit;
         }
 
-        //cSize = blockCompressor(ctxPtr, op+3, maxDstSize-3, ip, blockSize);
         cSize = ZSTD_compressBlock(ctxPtr, op+3, maxDstSize-3, ip, blockSize);
         if (ZSTD_isError(cSize)) return cSize;
 
@@ -2003,9 +1973,9 @@ size_t ZSTD_compressContinue (ZSTD_CCtx* zc,
     const BYTE* const ip = (const BYTE*) src;
 
     /* preemptive overflow correction */
-    if (zc->lowLimit > (1<<30) )
+    if ((zc->base > (const BYTE*)dst) || (zc->lowLimit > (1<<30) ))
     {
-        U32 correction = zc->lowLimit;
+        U32 correction = zc->lowLimit-1;
         ZSTD_reduceIndex(zc, correction);
         zc->base += correction;
         zc->dictBase += correction;

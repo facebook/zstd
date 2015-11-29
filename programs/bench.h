@@ -26,7 +26,7 @@
 
 
 /* Main function */
-int BMK_benchFiles(char** fileNamesTable, unsigned nbFiles, unsigned cLevel);
+int BMK_benchFiles(const char** fileNamesTable, unsigned nbFiles, unsigned cLevel);
 
 /* Set Parameters */
 void BMK_SetNbIterations(int nbLoops);

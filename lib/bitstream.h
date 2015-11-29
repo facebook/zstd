@@ -208,7 +208,7 @@ MEM_STATIC void BIT_flushBitsFast(BIT_CStream_t* bitC)
     MEM_writeLEST(bitC->ptr, bitC->bitContainer);
     bitC->ptr += nbBytes;
     bitC->bitPos &= 7;
-    bitC->bitContainer >>= nbBytes*8;
+    bitC->bitContainer >>= nbBytes*8;   /* if bitPos >= sizeof(bitContainer)*8 --> undefined behavior */
 }
 
 MEM_STATIC void BIT_flushBits(BIT_CStream_t* bitC)
@@ -218,7 +218,7 @@ MEM_STATIC void BIT_flushBits(BIT_CStream_t* bitC)
     bitC->ptr += nbBytes;
     if (bitC->ptr > bitC->endPtr) bitC->ptr = bitC->endPtr;
     bitC->bitPos &= 7;
-    bitC->bitContainer >>= nbBytes*8;
+    bitC->bitContainer >>= nbBytes*8;   /* if bitPos >= sizeof(bitContainer)*8 --> undefined behavior */
 }
 
 /*! BIT_closeCStream

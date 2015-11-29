@@ -61,7 +61,6 @@
 
 #include "mem.h"
 #include "zstd.h"
-#include "zstdhc.h"
 #include "xxhash.h"
 
 
@@ -231,12 +230,6 @@ typedef struct
 
 typedef size_t (*compressor_t) (void* dst, size_t maxDstSize, const void* src, size_t srcSize, int compressionLevel);
 
-static size_t local_compress_fast (void* dst, size_t maxDstSize, const void* src, size_t srcSize, int compressionLevel)
-{
-    (void)compressionLevel;
-    return ZSTD_compress(dst, maxDstSize, src, srcSize);
-}
-
 #define MIN(a,b) ((a)<(b) ? (a) : (b))
 
 static int BMK_benchMem(void* srcBuffer, size_t srcSize, const char* fileName, int cLevel)
@@ -247,7 +240,7 @@ static int BMK_benchMem(void* srcBuffer, size_t srcSize, const char* fileName, i
     const size_t maxCompressedSize = (size_t)nbBlocks * ZSTD_compressBound(blockSize);
     void* const compressedBuffer = malloc(maxCompressedSize);
     void* const resultBuffer = malloc(srcSize);
-    const compressor_t compressor = (cLevel <= 1) ? local_compress_fast : ZSTD_HC_compress;
+    const compressor_t compressor = ZSTD_compress;
     U64 crcOrig;
 
     /* init */
@@ -413,7 +406,7 @@ static size_t BMK_findMaxMem(U64 requiredMem)
     return (size_t)(requiredMem - step);
 }
 
-static int BMK_benchOneFile(char* inFileName, int cLevel)
+static int BMK_benchOneFile(const char* inFileName, int cLevel)
 {
     FILE*  inFile;
     U64    inFileSize;
@@ -513,7 +506,7 @@ static int BMK_syntheticTest(int cLevel, double compressibility)
 }
 
 
-int BMK_benchFiles(char** fileNamesTable, unsigned nbFiles, unsigned cLevel)
+int BMK_benchFiles(const char** fileNamesTable, unsigned nbFiles, unsigned cLevel)
 {
     double compressibility = (double)g_compressibilityDefault / 100;
 

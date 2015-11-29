@@ -903,7 +903,7 @@ int optimizeForSize(char* inFileName)
         ZSTD_parameters params;
         winnerInfo_t winner;
         BMK_result_t candidate;
-        const size_t blockSize = g_blockSize ? g_blockSize : inFileSize;
+        const size_t blockSize = g_blockSize ? g_blockSize : benchedSize;
         int i;
 
         /* init */
@@ -916,17 +916,17 @@ int optimizeForSize(char* inFileName)
             for (i=1; i<=maxSeeds; i++)
             {
                 params = ZSTD_getParams(i, blockSize);
-                BMK_benchParam(&candidate, origBuff, inFileSize, ctx, params);
+                BMK_benchParam(&candidate, origBuff, benchedSize, ctx, params);
                 if ( (candidate.cSize < winner.result.cSize)
                    ||((candidate.cSize == winner.result.cSize) && (candidate.cSpeed > winner.result.cSpeed)) )
                 {
                     winner.params = params;
                     winner.result = candidate;
-                    BMK_printWinner(stdout, i, winner.result, winner.params, inFileSize);
+                    BMK_printWinner(stdout, i, winner.result, winner.params, benchedSize);
                 }
             }
         }
-        BMK_printWinner(stdout, 99, winner.result, winner.params, inFileSize);
+        BMK_printWinner(stdout, 99, winner.result, winner.params, benchedSize);
 
         /* start tests */
         {
@@ -942,7 +942,7 @@ int optimizeForSize(char* inFileName)
 
                 /* test */
                 NB_TESTS_PLAYED(params)++;
-                BMK_benchParam(&candidate, origBuff, inFileSize, ctx, params);
+                BMK_benchParam(&candidate, origBuff, benchedSize, ctx, params);
 
                 /* improvement found => new winner */
                 if ( (candidate.cSize < winner.result.cSize)
@@ -950,14 +950,14 @@ int optimizeForSize(char* inFileName)
                 {
                     winner.params = params;
                     winner.result = candidate;
-                    BMK_printWinner(stdout, 99, winner.result, winner.params, inFileSize);
+                    BMK_printWinner(stdout, 99, winner.result, winner.params, benchedSize);
                 }
 
             } while (BMK_GetMilliSpan(milliStart) < g_grillDuration);
         }
 
         /* end summary */
-        BMK_printWinner(stdout, 99, winner.result, winner.params, inFileSize);
+        BMK_printWinner(stdout, 99, winner.result, winner.params, benchedSize);
         DISPLAY("grillParams size - optimizer completed \n");
 
         /* clean up*/
@@ -1163,7 +1163,7 @@ int main(int argc, char** argv)
 
     if (filenamesStart==0)
         result = benchSample();
-    else 
+    else
     {
         if (optimizer)
             result = optimizeForSize(input_filename);

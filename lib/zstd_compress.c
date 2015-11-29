@@ -1973,7 +1973,7 @@ size_t ZSTD_compressContinue (ZSTD_CCtx* zc,
     const BYTE* const ip = (const BYTE*) src;
 
     /* preemptive overflow correction */
-    if ((zc->base > (const BYTE*)dst) || (zc->lowLimit > (1<<30) ))
+    if ((zc->base > (const BYTE*)src) || (zc->lowLimit > (1<<30) ))
     {
         U32 correction = zc->lowLimit-1;
         ZSTD_reduceIndex(zc, correction);

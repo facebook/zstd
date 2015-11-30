@@ -40,13 +40,23 @@ VERSION?= $(LIBVER)
 
 DESTDIR?=
 PREFIX ?= /usr/local
-CPPFLAGS= -I. -I./legacy -DZSTD_LEGACY_SUPPORT=1
+CPPFLAGS= -I.
 CFLAGS ?= -O3
 CFLAGS += -std=c99 -Wall -Wextra -Wundef -Wshadow -Wcast-qual -Wcast-align -Wstrict-prototypes
 FLAGS   = $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) $(MOREFLAGS)
 
 LIBDIR ?= $(PREFIX)/lib
 INCLUDEDIR=$(PREFIX)/include
+
+ZSTD_FILES := zstd_compress.c zstd_decompress.c fse.c huff0.c
+ZSTD_LEGACY:= legacy/zstd_v01.c legacy/zstd_v02.c legacy/zstd_v03.c
+
+ifeq ($(ZSTD_LEGACY),disable)
+CPPFLAGS  += -DZSTD_LEGACY_SUPPORT=0
+else
+ZSTD_FILES+= $(ZSTD_LEGACY)
+CPPFLAGS  += -I./legacy -DZSTD_LEGACY_SUPPORT=1
+endif
 
 
 # OS X linker doesn't support -soname, and use different extension
@@ -70,8 +80,7 @@ default: clean libzstd
 
 all: clean libzstd
 
-libzstd: zstd_compress.c zstd_decompress.c huff0.c fse.c \
-         legacy/zstd_v01.c legacy/zstd_v02.c legacy/zstd_v03.c
+libzstd: $(ZSTD_FILES)
 	@echo compiling static library
 	@$(CC) $(FLAGS) -c $^
 	@$(AR) rcs libzstd.a *.o

@@ -80,6 +80,9 @@ zstd32: $(ZSTD_FILES) $(ZSTDDIR)/zstd_buffered.c \
         xxhash.c bench.c fileio.c zstdcli.c $(ZSTD_FILEIO_LEGACY)
 	$(CC) -m32 $(FLAGS) $^ -o $@$(EXT)
 
+zstd_nolegacy :
+	$(MAKE) zstd ZSTD_LEGACY=disable
+
 fullbench  : $(ZSTD_FILES) \
         datagen.c fullbench.c
 	$(CC)      $(FLAGS) $^ -o $@$(EXT)
@@ -229,6 +232,9 @@ test-zstd: zstd zstd-playTests
 
 test-zstd32: ZSTD = ./zstd32
 test-zstd32: zstd32 zstd-playTests
+
+test-zstd_nolegacy: ZSTD = ./zstd
+test-zstd_nolegacy: zstd_nolegacy zstd-playTests
 
 test-fullbench: fullbench datagen
 	./fullbench -i1

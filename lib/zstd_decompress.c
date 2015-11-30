@@ -527,64 +527,64 @@ FORCE_INLINE size_t ZSTD_execSequence(BYTE* op,
     *litPtr = litEnd;   /* update for next sequence */
 
     /* copy Match */
-	/* check */
-	//if (match > oLitEnd) return ERROR(corruption_detected);   /* address space overflow test (is clang optimizer wrongly removing this test ?) */
-	if (sequence.offset > (size_t)oLitEnd) return ERROR(corruption_detected);   /* address space overflow test (this test seems preserved by clang optimizer) */
+    /* check */
+    //if (match > oLitEnd) return ERROR(corruption_detected);   /* address space overflow test (is clang optimizer wrongly removing this test ?) */
+    if (sequence.offset > (size_t)oLitEnd) return ERROR(corruption_detected);   /* address space overflow test (this test seems preserved by clang optimizer) */
 
-	if (match < base)
-	{
-		/* offset beyond prefix */
-		if (match < vBase) return ERROR(corruption_detected);
-		match = dictEnd - (base-match);
-		if (match + sequence.matchLength <= dictEnd)
-		{
-			memcpy(oLitEnd, match, sequence.matchLength);
-			return sequenceLength;
-		}
-		/* span extDict & currentPrefixSegment */
-		{
-			size_t length1 = dictEnd - match;
-			memcpy(oLitEnd, match, length1);
-			op = oLitEnd + length1;
-			sequence.matchLength -= length1;
-			match = base;
-		}
-	}
+    if (match < base)
+    {
+        /* offset beyond prefix */
+        if (match < vBase) return ERROR(corruption_detected);
+        match = dictEnd - (base-match);
+        if (match + sequence.matchLength <= dictEnd)
+        {
+            memcpy(oLitEnd, match, sequence.matchLength);
+            return sequenceLength;
+        }
+        /* span extDict & currentPrefixSegment */
+        {
+            size_t length1 = dictEnd - match;
+            memcpy(oLitEnd, match, length1);
+            op = oLitEnd + length1;
+            sequence.matchLength -= length1;
+            match = base;
+        }
+    }
 
-	/* match within prefix */
-	if (sequence.offset < 8)
-	{
-		/* close range match, overlap */
-		const int sub2 = dec64table[sequence.offset];
-		op[0] = match[0];
-		op[1] = match[1];
-		op[2] = match[2];
-		op[3] = match[3];
-		match += dec32table[sequence.offset];
-		ZSTD_copy4(op+4, match);
-		match -= sub2;
-	}
-	else
-	{
-		ZSTD_copy8(op, match);
-	}
-	op += 8; match += 8;
+    /* match within prefix */
+    if (sequence.offset < 8)
+    {
+        /* close range match, overlap */
+        const int sub2 = dec64table[sequence.offset];
+        op[0] = match[0];
+        op[1] = match[1];
+        op[2] = match[2];
+        op[3] = match[3];
+        match += dec32table[sequence.offset];
+        ZSTD_copy4(op+4, match);
+        match -= sub2;
+    }
+    else
+    {
+        ZSTD_copy8(op, match);
+    }
+    op += 8; match += 8;
 
-	if (oMatchEnd > oend-12)
-	{
-		if (op < oend_8)
-		{
-			ZSTD_wildcopy(op, match, oend_8 - op);
-			match += oend_8 - op;
-			op = oend_8;
-		}
-		while (op < oMatchEnd) *op++ = *match++;
-	}
-	else
-	{
-		ZSTD_wildcopy(op, match, sequence.matchLength-8);   /* works even if matchLength < 8 */
-	}
-	return sequenceLength;
+    if (oMatchEnd > oend-12)
+    {
+        if (op < oend_8)
+        {
+            ZSTD_wildcopy(op, match, oend_8 - op);
+            match += oend_8 - op;
+            op = oend_8;
+        }
+        while (op < oMatchEnd) *op++ = *match++;
+    }
+    else
+    {
+        ZSTD_wildcopy(op, match, sequence.matchLength-8);   /* works even if matchLength < 8 */
+    }
+    return sequenceLength;
 }
 
 
@@ -634,20 +634,7 @@ static size_t ZSTD_decompressSequences(
         FSE_initDState(&(seqState.stateOffb), &(seqState.DStream), DTableOffb);
         FSE_initDState(&(seqState.stateML), &(seqState.DStream), DTableML);
 
-        for ( ; (BIT_reloadDStream(&(seqState.DStream)) < BIT_DStream_completed) ; )
-        {
-            size_t oneSeqSize;
-            nbSeq--;
-            ZSTD_decodeSequence(&sequence, &seqState);
-            oneSeqSize = ZSTD_execSequence(op, oend, sequence, &litPtr, litLimit_8, base, vBase, dictEnd);
-            if (ZSTD_isError(oneSeqSize)) return oneSeqSize;
-            op += oneSeqSize;
-        }
-
-        if (nbSeq<0) return ERROR(corruption_detected);   /* requested too many sequences : data is corrupted */
-
-		/* now BIT_reloadDStream(&(seqState.DStream)) >= BIT_DStream_completed) */
-        for ( ; (BIT_reloadDStream(&(seqState.DStream)) == BIT_DStream_completed) && nbSeq ; )
+        for ( ; (BIT_reloadDStream(&(seqState.DStream)) <= BIT_DStream_completed) && nbSeq ; )
         {
             size_t oneSeqSize;
             nbSeq--;
@@ -658,7 +645,7 @@ static size_t ZSTD_decompressSequences(
         }
 
         /* check if reached exact end */
-        if ( !BIT_endOfDStream(&(seqState.DStream)) ) return ERROR(corruption_detected);   /* DStream should be entirely and precisely consumed; otherwise data is corrupted */
+        if ( !BIT_endOfDStream(&(seqState.DStream)) ) return ERROR(corruption_detected);   /* DStream should be entirely and exactly consumed; otherwise data is corrupted */
 
         /* last literal segment */
         {

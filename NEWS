@@ -1,5 +1,6 @@
 v0.4.1
 Fixed : ZSTD_LEGACY=disable build mode (reported by Luben)
+removed `zstd.c`
 
 v0.4.0
 Command line utility compatible with high compression levels 

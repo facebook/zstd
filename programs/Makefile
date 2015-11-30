@@ -46,7 +46,7 @@ ZSTDDIR = ../lib
 ZSTD_FILES := $(ZSTDDIR)/zstd_compress.c $(ZSTDDIR)/zstd_decompress.c $(ZSTDDIR)/fse.c $(ZSTDDIR)/huff0.c
 ZSTD_LEGACY:= $(ZSTDDIR)/legacy/zstd_v01.c $(ZSTDDIR)/legacy/zstd_v02.c $(ZSTDDIR)/legacy/zstd_v03.c
 
-ifeq ($(ZSTD_LEGACY),disable)
+ifeq ($(ZSTD_LEGACY_SUPPORT), 0)
 CPPFLAGS  += -DZSTD_LEGACY_SUPPORT=0
 else
 ZSTD_FILES+= $(ZSTD_LEGACY)
@@ -81,7 +81,7 @@ zstd32: $(ZSTD_FILES) $(ZSTDDIR)/zstd_buffered.c \
 	$(CC) -m32 $(FLAGS) $^ -o $@$(EXT)
 
 zstd_nolegacy :
-	$(MAKE) zstd ZSTD_LEGACY=disable
+	$(MAKE) zstd ZSTD_LEGACY_SUPPORT=0
 
 fullbench  : $(ZSTD_FILES) \
         datagen.c fullbench.c

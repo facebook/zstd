@@ -51,7 +51,7 @@ INCLUDEDIR=$(PREFIX)/include
 ZSTD_FILES := zstd_compress.c zstd_decompress.c fse.c huff0.c
 ZSTD_LEGACY:= legacy/zstd_v01.c legacy/zstd_v02.c legacy/zstd_v03.c
 
-ifeq ($(ZSTD_LEGACY),disable)
+ifeq ($(ZSTD_LEGACY_SUPPORT), 0)
 CPPFLAGS  += -DZSTD_LEGACY_SUPPORT=0
 else
 ZSTD_FILES+= $(ZSTD_LEGACY)

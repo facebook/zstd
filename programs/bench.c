@@ -54,14 +54,15 @@
 
 /* Use ftime() if gettimeofday() is not available */
 #if defined(BMK_LEGACY_TIMER)
-#  include <sys/timeb.h>   /* timeb, ftime */
+#  include <sys/timeb.h>  /* timeb, ftime */
 #else
-#  include <sys/time.h>    /* gettimeofday */
+#  include <sys/time.h>   /* gettimeofday */
 #endif
 
 #include "mem.h"
 #include "zstd.h"
 #include "xxhash.h"
+#include "datagen.h"      /* RDG_genBuffer */
 
 
 /* *************************************
@@ -82,12 +83,10 @@
 #define MB *(1 <<20)
 #define GB *(1U<<30)
 
-static const size_t maxMemory = sizeof(size_t)==4  ?  (2 GB - 64 MB) : (size_t)(1ULL << ((sizeof(size_t)*8)-31));
+static const size_t maxMemory = (sizeof(size_t)==4)  ?  (2 GB - 64 MB) : (size_t)(1ULL << ((sizeof(size_t)*8)-31));
 #define DEFAULT_CHUNKSIZE   (4 MB)
 
 static U32 g_compressibilityDefault = 50;
-static U32 prime1 = 2654435761U;
-static U32 prime2 = 2246822519U;
 
 
 /* *************************************
@@ -155,62 +154,6 @@ static int BMK_GetMilliSpan( int nTimeStart )
   if ( nSpan < 0 )
     nSpan += 0x100000 * 1000;
   return nSpan;
-}
-
-
-/* ********************************************************
-*  Data generator
-**********************************************************/
-/* will hopefully be converted into ROL instruction by compiler */
-static U32 BMK_rotl32(unsigned val32, unsigned nbBits) { return((val32 << nbBits) | (val32 >> (32 - nbBits))); }
-
-static U32 BMK_rand(U32* src)
-{
-    U32 rand32 = *src;
-    rand32 *= prime1;
-    rand32 += prime2;
-    rand32 = BMK_rotl32(rand32, 13);
-    *src = rand32;
-    return rand32 >> 9;
-}
-
-#define BMK_RAND15BITS  ( BMK_rand(&seed) & 0x7FFF)
-#define BMK_RANDLENGTH  ((BMK_rand(&seed) & 3) ? (BMK_rand(&seed) % 15) : (BMK_rand(&seed) % 510) + 15)
-#define BMK_RANDCHAR    (BYTE)((BMK_rand(&seed) & 63) + '0')
-static void BMK_datagen(void* buffer, size_t bufferSize, double proba, U32 seed)
-{
-    BYTE* BBuffer = (BYTE*)buffer;
-    unsigned pos = 0;
-    U32 P32 = (U32)(32768 * proba);
-
-    /* First Byte */
-    BBuffer[pos++] = BMK_RANDCHAR;
-
-    while (pos < bufferSize)
-    {
-        /* Select : Literal (noise) or copy (within 64K) */
-        if (BMK_RAND15BITS < P32)
-        {
-            /* Match */
-            size_t match, end;
-            unsigned length = BMK_RANDLENGTH + 4;
-            unsigned offset = BMK_RAND15BITS + 1;
-            if (offset > pos) offset = pos;
-            match = pos - offset;
-            end = pos + length;
-            if (end > bufferSize) end = bufferSize;
-            while (pos < end) BBuffer[pos++] = BBuffer[match++];
-        }
-        else
-        {
-            /* Literal */
-            size_t end;
-            unsigned length = BMK_RANDLENGTH;
-            end = pos + length;
-            if (end > bufferSize) end = bufferSize;
-            while (pos < end) BBuffer[pos++] = BMK_RANDCHAR;
-        }
-    }
 }
 
 
@@ -283,7 +226,7 @@ static int BMK_benchMem(void* srcBuffer, size_t srcSize, const char* fileName, i
     }
 
     /* warmimg up memory */
-    BMK_datagen(compressedBuffer, maxCompressedSize, 0.10, 1);
+    RDG_genBuffer(compressedBuffer, maxCompressedSize, 0.10, 0.50, 1);
 
     /* Bench */
     {
@@ -481,7 +424,7 @@ static int BMK_syntheticTest(int cLevel, double compressibility)
     }
 
     /* Fill input buffer */
-    BMK_datagen(srcBuffer, benchedSize, compressibility, 0);
+    RDG_genBuffer(srcBuffer, benchedSize, compressibility, 0.0, 0);
 
     /* Bench */
 #ifdef _MSC_VER

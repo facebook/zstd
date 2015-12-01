@@ -1,5 +1,9 @@
+v0.4.1
+Fixed : ZSTD_LEGACY_SUPPORT=0 build mode (reported by Luben)
+removed `zstd.c`
+
 v0.4.0
-Command line utility is now compatible with high compression levels 
+Command line utility compatible with high compression levels 
 Removed zstdhc => merged into zstd
 Added : ZBUFF API (see zstd_buffered.h)
 Rolling buffer support

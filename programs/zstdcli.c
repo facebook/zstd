@@ -182,18 +182,12 @@ int main(int argCount, const char** argv)
 
     displayOut = stderr;
     /* Pick out basename component. Don't rely on stdlib because of conflicting behavior. */
-    for (i = (int)strlen(programName); i > 0; i--)
-    {
-        if (programName[i] == '/') { i++; break; }
-    }
+    for (i = (int)strlen(programName); i > 0; i--) { if (programName[i] == '/') { i++; break; } }
     programName += i;
 
-    /* zstdcat preset behavior */
+    /* preset behaviors */
+    if (!strcmp(programName, ZSTD_UNZSTD)) decode=1;
     if (!strcmp(programName, ZSTD_CAT)) { decode=1; forceStdout=1; displayLevel=1; outFileName=stdoutmark; }
-
-    /* unzstd preset behavior */
-    if (!strcmp(programName, ZSTD_UNZSTD))
-        decode=1;
 
     /* command switches */
     for(i=1; i<argCount; i++)
@@ -325,14 +319,14 @@ int main(int argCount, const char** argv)
     /* Welcome message (if verbose) */
     DISPLAYLEVEL(3, WELCOME_MESSAGE);
 
+    /* Check if benchmark is selected */
+    if (bench) { BMK_benchFiles(argv+fileNameStart, nbFiles, cLevel*rangeBench); goto _end; }
+
     /* No input filename ==> use stdin */
     if(!inFileName) { inFileName=stdinmark; }
 
     /* Check if input defined as console; trigger an error in this case */
     if (!strcmp(inFileName, stdinmark) && IS_CONSOLE(stdin) ) return badusage(programName);
-
-    /* Check if benchmark is selected */
-    if (bench) { BMK_benchFiles(argv+fileNameStart, nbFiles, cLevel*rangeBench); goto _end; }
 
     /* No output filename ==> try to select one automatically (when possible) */
     while (!outFileName)

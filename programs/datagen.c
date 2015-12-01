@@ -173,6 +173,7 @@ void RDG_genBlock(void* buffer, size_t buffSize, size_t prefixSize, double match
             U32 repeatOffset = (RDG_rand(seed) & 15) == 2;
             if (repeatOffset) offset = prevOffset;
             if (offset > pos) offset = (U32)pos;
+            prevOffset = offset;
             match = pos - offset;
             d = pos + length;
             if (d > buffSize) d = buffSize;

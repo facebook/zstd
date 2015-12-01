@@ -46,7 +46,7 @@ ZSTDDIR = ../lib
 ZSTD_FILES := $(ZSTDDIR)/zstd_compress.c $(ZSTDDIR)/zstd_decompress.c $(ZSTDDIR)/fse.c $(ZSTDDIR)/huff0.c
 ZSTD_LEGACY:= $(ZSTDDIR)/legacy/zstd_v01.c $(ZSTDDIR)/legacy/zstd_v02.c $(ZSTDDIR)/legacy/zstd_v03.c
 
-ifeq ($(ZSTD_LEGACY),disable)
+ifeq ($(ZSTD_LEGACY_SUPPORT), 0)
 CPPFLAGS  += -DZSTD_LEGACY_SUPPORT=0
 else
 ZSTD_FILES+= $(ZSTD_LEGACY)
@@ -73,12 +73,21 @@ default: zstd
 all: zstd zstd32 fullbench fullbench32 fuzzer fuzzer32 zbufftest zbufftest32 paramgrill datagen
 
 zstd  : $(ZSTD_FILES) $(ZSTDDIR)/zstd_buffered.c \
-        xxhash.c bench.c fileio.c zstdcli.c $(ZSTD_FILEIO_LEGACY)
+        zstdcli.c fileio.c $(ZSTD_FILEIO_LEGACY) bench.c xxhash.c datagen.c 
 	$(CC)      $(FLAGS) $^ -o $@$(EXT)
 
 zstd32: $(ZSTD_FILES) $(ZSTDDIR)/zstd_buffered.c \
-        xxhash.c bench.c fileio.c zstdcli.c $(ZSTD_FILEIO_LEGACY)
+        zstdcli.c fileio.c $(ZSTD_FILEIO_LEGACY) bench.c xxhash.c datagen.c 
 	$(CC) -m32 $(FLAGS) $^ -o $@$(EXT)
+
+zstd_nolegacy :
+	$(MAKE) zstd ZSTD_LEGACY_SUPPORT=0
+
+zstd-pgo : MOREFLAGS = -fprofile-generate
+zstd-pgo : clean zstd
+	./zstd -b $(PROFILE_WITH)
+	rm zstd
+	$(MAKE) zstd MOREFLAGS=-fprofile-use
 
 fullbench  : $(ZSTD_FILES) \
         datagen.c fullbench.c
@@ -112,7 +121,7 @@ datagen : datagen.c datagencli.c
 	$(CC)      $(FLAGS) $^ -o $@$(EXT)
 
 clean:
-	@rm -f core *.o tmp* \
+	@rm -f core *.o tmp* result* *.gcda \
         zstd$(EXT) zstd32$(EXT) \
         fullbench$(EXT) fullbench32$(EXT) \
         fuzzer$(EXT) fuzzer32$(EXT) zbufftest$(EXT) zbufftest32$(EXT) \
@@ -229,6 +238,9 @@ test-zstd: zstd zstd-playTests
 
 test-zstd32: ZSTD = ./zstd32
 test-zstd32: zstd32 zstd-playTests
+
+test-zstd_nolegacy: ZSTD = ./zstd
+test-zstd_nolegacy: zstd_nolegacy zstd-playTests
 
 test-fullbench: fullbench datagen
 	./fullbench -i1

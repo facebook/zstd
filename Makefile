@@ -74,7 +74,7 @@ uninstall:
 	$(MAKE) -C $(PRGDIR) $@
 
 travis-install:
-	sudo $(MAKE) install
+	$(MAKE) install PREFIX=~/install_test_dir
 
 test:
 	$(MAKE) -C $(PRGDIR) $@

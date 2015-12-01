@@ -133,7 +133,7 @@ clean:
 #make install is validated only for Linux, OSX, kFreeBSD and Hurd targets
 ifneq (,$(filter $(shell uname),Linux Darwin GNU/kFreeBSD GNU))
 
-install: zstd-pgo
+install: zstd
 	@echo Installing binaries
 	@install -d -m 755 $(DESTDIR)$(BINDIR)/ $(DESTDIR)$(MANDIR)/
 	@install -m 755 zstd$(EXT) $(DESTDIR)$(BINDIR)/zstd$(EXT)

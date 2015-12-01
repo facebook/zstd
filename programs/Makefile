@@ -73,15 +73,21 @@ default: zstd
 all: zstd zstd32 fullbench fullbench32 fuzzer fuzzer32 zbufftest zbufftest32 paramgrill datagen
 
 zstd  : $(ZSTD_FILES) $(ZSTDDIR)/zstd_buffered.c \
-        xxhash.c bench.c fileio.c zstdcli.c $(ZSTD_FILEIO_LEGACY)
+        zstdcli.c fileio.c $(ZSTD_FILEIO_LEGACY) bench.c xxhash.c datagen.c 
 	$(CC)      $(FLAGS) $^ -o $@$(EXT)
 
 zstd32: $(ZSTD_FILES) $(ZSTDDIR)/zstd_buffered.c \
-        xxhash.c bench.c fileio.c zstdcli.c $(ZSTD_FILEIO_LEGACY)
+        zstdcli.c fileio.c $(ZSTD_FILEIO_LEGACY) bench.c xxhash.c datagen.c 
 	$(CC) -m32 $(FLAGS) $^ -o $@$(EXT)
 
 zstd_nolegacy :
 	$(MAKE) zstd ZSTD_LEGACY_SUPPORT=0
+
+zstd-pgo : MOREFLAGS = -fprofile-generate
+zstd-pgo : clean zstd
+	./zstd -b $(PROFILE_WITH)
+	rm zstd
+	$(MAKE) zstd MOREFLAGS=-fprofile-use
 
 fullbench  : $(ZSTD_FILES) \
         datagen.c fullbench.c
@@ -115,7 +121,7 @@ datagen : datagen.c datagencli.c
 	$(CC)      $(FLAGS) $^ -o $@$(EXT)
 
 clean:
-	@rm -f core *.o tmp* \
+	@rm -f core *.o tmp* result* *.gcda \
         zstd$(EXT) zstd32$(EXT) \
         fullbench$(EXT) fullbench32$(EXT) \
         fuzzer$(EXT) fuzzer32$(EXT) zbufftest$(EXT) zbufftest32$(EXT) \
@@ -127,7 +133,7 @@ clean:
 #make install is validated only for Linux, OSX, kFreeBSD and Hurd targets
 ifneq (,$(filter $(shell uname),Linux Darwin GNU/kFreeBSD GNU))
 
-install: zstd
+install: zstd-pgo
 	@echo Installing binaries
 	@install -d -m 755 $(DESTDIR)$(BINDIR)/ $(DESTDIR)$(MANDIR)/
 	@install -m 755 zstd$(EXT) $(DESTDIR)$(BINDIR)/zstd$(EXT)

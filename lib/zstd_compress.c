@@ -2036,7 +2036,7 @@ size_t ZSTD_compressBegin_advanced(ZSTD_CCtx* ctx,
 ZSTD_parameters ZSTD_getParams(int compressionLevel, U64 srcSizeHint)
 {
     ZSTD_parameters result;
-    int tableID = ((srcSizeHint-1) <= 128 KB);   /* intentional underflow for srcSizeHint == 0 */
+    int tableID = ((srcSizeHint-1) <= 128 KB) + ((srcSizeHint-1) <= 16 KB);   /* intentional underflow for srcSizeHint == 0 */
     if (compressionLevel<=0) compressionLevel = 1;
     if (compressionLevel > ZSTD_MAX_CLEVEL) compressionLevel = ZSTD_MAX_CLEVEL;
     result = ZSTD_defaultParameters[tableID][compressionLevel];

@@ -681,6 +681,8 @@ static void BMK_selectRandomStart(
         /* totally random entry */
         ZSTD_parameters p;
         potentialRandomParams(&p, 1);
+        p.srcSize = srcSize;
+        ZSTD_validateParams(&p);
         playAround(f, winners, p, srcBuffer, srcSize, ctx);
     }
     else
@@ -734,6 +736,7 @@ static void BMK_benchMem(void* srcBuffer, size_t srcSize)
         for (i=1; i<=maxSeeds; i++)
         {
             params = ZSTD_getParams(i, blockSize);
+            ZSTD_validateParams(&params);
             BMK_seed(winners, params, srcBuffer, srcSize, ctx);
         }
     }

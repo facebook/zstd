@@ -100,8 +100,6 @@ static void ZSTD_resetSeqStore(seqStore_t* ssPtr)
 /* *************************************
 *  Context memory management
 ***************************************/
-#define WORKPLACESIZE (BLOCKSIZE*3)
-
 struct ZSTD_CCtx_s
 {
     const BYTE* nextSrc;    /* next block here to continue on current prefix */
@@ -113,6 +111,7 @@ struct ZSTD_CCtx_s
     ZSTD_parameters params;
     void* workSpace;
     size_t workSpaceSize;
+    size_t blockSize;
 
     seqStore_t seqStore;    /* sequences storage ptrs */
     U32* hashTable;
@@ -170,11 +169,14 @@ void ZSTD_validateParams(ZSTD_parameters* params)
 static size_t ZSTD_resetCCtx_advanced (ZSTD_CCtx* zc,
                                        ZSTD_parameters params)
 {
+    /* note : params considered validated here */
+    const size_t blockSize = MIN(BLOCKSIZE, (size_t)1 << params.windowLog);
+
     /* reserve table memory */
     {
         const U32 contentLog = (params.strategy == ZSTD_fast) ? 1 : params.contentLog;
         const size_t tableSpace = ((1 << contentLog) + (1 << params.hashLog)) * sizeof(U32);
-        const size_t neededSpace = tableSpace + WORKPLACESIZE;
+        const size_t neededSpace = tableSpace + (3*blockSize);
         if (zc->workSpaceSize < neededSpace)
         {
             free(zc->workSpace);
@@ -195,12 +197,13 @@ static size_t ZSTD_resetCCtx_advanced (ZSTD_CCtx* zc,
     zc->dictLimit = 0;
     zc->lowLimit = 0;
     zc->params = params;
+    zc->blockSize = blockSize;
     zc->seqStore.offsetStart = (U32*) (zc->seqStore.buffer);
-    zc->seqStore.offCodeStart = (BYTE*) (zc->seqStore.offsetStart + (BLOCKSIZE>>2));
-    zc->seqStore.litStart = zc->seqStore.offCodeStart + (BLOCKSIZE>>2);
-    zc->seqStore.litLengthStart =  zc->seqStore.litStart + BLOCKSIZE;
-    zc->seqStore.matchLengthStart = zc->seqStore.litLengthStart + (BLOCKSIZE>>2);
-    zc->seqStore.dumpsStart = zc->seqStore.matchLengthStart + (BLOCKSIZE>>2);
+    zc->seqStore.offCodeStart = (BYTE*) (zc->seqStore.offsetStart + (blockSize>>2));
+    zc->seqStore.litStart = zc->seqStore.offCodeStart + (blockSize>>2);
+    zc->seqStore.litLengthStart =  zc->seqStore.litStart + blockSize;
+    zc->seqStore.matchLengthStart = zc->seqStore.litLengthStart + (blockSize>>2);
+    zc->seqStore.dumpsStart = zc->seqStore.matchLengthStart + (blockSize>>2);
 
     return 0;
 }
@@ -620,7 +623,7 @@ static unsigned ZSTD_NbCommonBytes (register size_t val)
     }
     else   /* Big Endian CPU */
     {
-        if (MEM_32bits())
+        if (MEM_64bits())
         {
 #       if defined(_MSC_VER) && defined(_WIN64)
             unsigned long r = 0;
@@ -1919,7 +1922,7 @@ static size_t ZSTD_compress_generic (ZSTD_CCtx* ctxPtr,
                                         void* dst, size_t maxDstSize,
                                   const void* src, size_t srcSize)
 {
-    size_t blockSize = BLOCKSIZE;
+    size_t blockSize = ctxPtr->blockSize;
     size_t remaining = srcSize;
     const BYTE* ip = (const BYTE*)src;
     BYTE* const ostart = (BYTE*)dst;
@@ -2036,7 +2039,7 @@ size_t ZSTD_compressBegin_advanced(ZSTD_CCtx* ctx,
 ZSTD_parameters ZSTD_getParams(int compressionLevel, U64 srcSizeHint)
 {
     ZSTD_parameters result;
-    int tableID = ((srcSizeHint-1) <= 128 KB);   /* intentional underflow for srcSizeHint == 0 */
+    int tableID = ((srcSizeHint-1) <= 128 KB) + ((srcSizeHint-1) <= 16 KB);   /* intentional underflow for srcSizeHint == 0 */
     if (compressionLevel<=0) compressionLevel = 1;
     if (compressionLevel > ZSTD_MAX_CLEVEL) compressionLevel = ZSTD_MAX_CLEVEL;
     result = ZSTD_defaultParameters[tableID][compressionLevel];

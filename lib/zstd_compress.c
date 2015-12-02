@@ -620,7 +620,7 @@ static unsigned ZSTD_NbCommonBytes (register size_t val)
     }
     else   /* Big Endian CPU */
     {
-        if (MEM_32bits())
+        if (MEM_64bits())
         {
 #       if defined(_MSC_VER) && defined(_WIN64)
             unsigned long r = 0;

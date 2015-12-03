@@ -1,3 +1,6 @@
+v0.4.3 :
+new : zstd-frugal
+
 v0.4.2 :
 Generic minor improvements for small blocks
 Fixed : big-endian compatibility, by Peter Harris (#85)

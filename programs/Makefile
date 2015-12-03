@@ -30,7 +30,7 @@
 # fullbench32: Same as fullbench, but forced to compile in 32-bits mode
 # ##########################################################################
 
-VERSION?= 0.4.2
+VERSION?= 0.4.3
 
 DESTDIR?=
 PREFIX ?= /usr/local
@@ -88,6 +88,13 @@ zstd-pgo : clean zstd
 	./zstd -b $(PROFILE_WITH)
 	rm zstd
 	$(MAKE) zstd MOREFLAGS=-fprofile-use
+
+zstd-noBench: $(ZSTD_FILES) $(ZSTDDIR)/zstd_buffered.c \
+        zstdcli.c fileio.c $(ZSTD_FILEIO_LEGACY)
+	$(CC)      $(FLAGS) -DZSTD_NOBENCH $^ -o zstd$(EXT)
+
+zstd-frugal: clean
+	CFLAGS=-Os $(MAKE) zstd-noBench ZSTD_LEGACY_SUPPORT=0 
 
 fullbench  : $(ZSTD_FILES) \
         datagen.c fullbench.c

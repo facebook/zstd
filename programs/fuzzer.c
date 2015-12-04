@@ -79,11 +79,13 @@ static const U32 prime2 = 2246822519U;
 static U32 g_displayLevel = 2;
 
 #define DISPLAYUPDATE(l, ...) if (g_displayLevel>=l) { \
-            if ((FUZ_GetMilliSpan(g_time) > g_refreshRate) || (g_displayLevel>=4)) \
-            { g_time = FUZ_GetMilliStart(); DISPLAY(__VA_ARGS__); \
+            if ((FUZ_GetMilliSpan(g_displayTime) > g_refreshRate) || (g_displayLevel>=4)) \
+            { g_displayTime = FUZ_GetMilliStart(); DISPLAY(__VA_ARGS__); \
             if (g_displayLevel>=4) fflush(stdout); } }
 static const U32 g_refreshRate = 150;
-static U32 g_time = 0;
+static U32 g_displayTime = 0;
+
+static U32 g_testTime = 0;
 
 
 /*********************************************************
@@ -266,6 +268,7 @@ int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compressibilit
     U32 testNb = 0;
     U32 coreSeed = seed, lseed = 0;
     ZSTD_CCtx* ctx;
+    U32 startTime = FUZ_GetMilliStart();
 
     /* allocation */
     ctx = ZSTD_createCCtx();
@@ -292,7 +295,7 @@ int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compressibilit
         FUZ_rand(&coreSeed);
 
     /* test loop */
-    for ( ; testNb <= nbTests; testNb++ )
+    for ( ; (testNb <= nbTests) || (FUZ_GetMilliSpan(startTime) < g_testTime); testNb++ )
     {
         size_t sampleSize, sampleStart, maxTestSize, totalTestSize;
         size_t cSize, dSize, dSupSize, errorCode;
@@ -303,7 +306,9 @@ int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compressibilit
         BYTE* sampleBuffer;
 
         /* init */
-        DISPLAYUPDATE(2, "\r%6u/%6u   ", testNb, nbTests);
+        DISPLAYUPDATE(2, "\r%6u", testNb);
+        if (nbTests >= testNb) DISPLAYUPDATE(2, "\r/%6u", nbTests);
+        DISPLAYUPDATE(2, "    ");
         FUZ_rand(&coreSeed);
         lseed = coreSeed ^ prime1;
         buffNb = FUZ_rand(&lseed) & 127;
@@ -466,7 +471,7 @@ int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compressibilit
         cSize += errorCode;
         crcOrig = XXH64_digest(&crc64);
     }
-    DISPLAY("\rAll fuzzer tests completed   \n");
+    DISPLAY("\r%u fuzzer tests completed   \n", testNb);
 
 _cleanup:
     ZSTD_freeCCtx(ctx);
@@ -550,7 +555,7 @@ int main(int argc, char** argv)
                     break;
 
                 case 'i':
-                    argument++;
+                    argument++; g_testTime=0;
                     nbTests=0;
                     while ((*argument>='0') && (*argument<='9'))
                     {
@@ -558,6 +563,20 @@ int main(int argc, char** argv)
                         nbTests += *argument - '0';
                         argument++;
                     }
+                    break;
+
+                case 'T':
+                    argument++;
+                    nbTests=0; g_testTime=0;
+                    while ((*argument>='0') && (*argument<='9'))
+                    {
+                        g_testTime *= 10;
+                        g_testTime += *argument - '0';
+                        argument++;
+                    }
+                    if (*argument=='m') g_testTime *=60, argument++;
+                    if (*argument=='n') argument++;
+                    g_testTime *= 1000;
                     break;
 
                 case 's':

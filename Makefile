@@ -87,8 +87,8 @@ gpptest: clean
 	$(MAKE) all CC=g++ CFLAGS="-O3 -Wall -Wextra -Wundef -Wshadow -Wcast-align -Werror"
 
 armtest: clean
-	$(MAKE) -C $(ZSTDDIR) -e all CC=arm-linux-gnueabi-gcc MOREFLAGS="-Werror"
-	$(MAKE) -C $(PRGDIR) -e CC=arm-linux-gnueabi-gcc MOREFLAGS="-Werror"
+	$(MAKE) -C $(ZSTDDIR) all CC=arm-linux-gnueabi-gcc MOREFLAGS="-Werror"
+	$(MAKE) -C $(PRGDIR) CC=arm-linux-gnueabi-gcc MOREFLAGS="-Werror -static"
 
 usan: clean
 	$(MAKE) test CC=clang MOREFLAGS="-g -fsanitize=undefined"

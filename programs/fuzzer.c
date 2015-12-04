@@ -306,9 +306,10 @@ int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compressibilit
         BYTE* sampleBuffer;
 
         /* init */
-        DISPLAYUPDATE(2, "\r%6u", testNb);
-        if (nbTests >= testNb) DISPLAYUPDATE(2, "\r/%6u", nbTests);
-        DISPLAYUPDATE(2, "    ");
+        if (nbTests >= testNb)
+             { DISPLAYUPDATE(2, "\r%6u/%6u    ", testNb, nbTests); }
+        else { DISPLAYUPDATE(2, "\r%6u      ", testNb); }
+
         FUZ_rand(&coreSeed);
         lseed = coreSeed ^ prime1;
         buffNb = FUZ_rand(&lseed) & 127;
@@ -471,7 +472,7 @@ int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compressibilit
         cSize += errorCode;
         crcOrig = XXH64_digest(&crc64);
     }
-    DISPLAY("\r%u fuzzer tests completed   \n", testNb);
+    DISPLAY("\r%u fuzzer tests completed   \n", testNb-1);
 
 _cleanup:
     ZSTD_freeCCtx(ctx);
@@ -628,8 +629,6 @@ int main(int argc, char** argv)
     if (!seedset) seed = FUZ_GetMilliStart() % 10000;
     DISPLAY("Seed = %u\n", seed);
     if (proba!=FUZ_COMPRESSIBILITY_DEFAULT) DISPLAY("Compressibility : %i%%\n", proba);
-
-    if (nbTests<=0) nbTests=1;
 
     if (testNb==0) result = basicUnitTests(0, ((double)proba) / 100);  /* constant seed for predictability */
     if (!result)

@@ -488,7 +488,7 @@ size_t ZSTD_compressSequences(void* dst, size_t maxDstSize,
             BYTE litLength = llTable[i];                                    /* (7)*/  /* (7)*/
             FSE_encodeSymbol(&blockStream, &stateMatchLength, matchLength); /* 17 */  /* 17 */
             if (MEM_32bits()) BIT_flushBits(&blockStream);                  /*  7 */
-            BIT_addBits(&blockStream, offset, nbBits);                      /* 32 */  /* 42 */
+            BIT_addBits(&blockStream, offset, nbBits);                      /* 31 */  /* 42 */   /* 24 bits max in 32-bits mode */
             if (MEM_32bits()) BIT_flushBits(&blockStream);                  /*  7 */
             FSE_encodeSymbol(&blockStream, &stateOffsetBits, offCode);      /* 16 */  /* 51 */
             FSE_encodeSymbol(&blockStream, &stateLitLength, litLength);     /* 26 */  /* 61 */
@@ -730,13 +730,30 @@ static size_t ZSTD_hashPtr(const void* p, U32 hBits, U32 mls)
 *  Fast Scan
 ***************************************/
 
+#define FILLHASHSTEP 3
+static void ZSTD_fillHashTable (ZSTD_CCtx* zc, const void* end, const U32 mls)
+{
+    U32* const hashTable = zc->hashTable;
+    const U32 hBits = zc->params.hashLog;
+    const BYTE* const base = zc->base;
+    const BYTE* ip = base + zc->nextToUpdate;
+    const BYTE* const iend = (const BYTE*) end;
+
+    while(ip <= iend)
+    {
+        hashTable[ZSTD_hashPtr(ip, hBits, mls)] = (U32)(ip - base);
+        ip += FILLHASHSTEP;
+    }
+}
+
+
 FORCE_INLINE
 size_t ZSTD_compressBlock_fast_generic(ZSTD_CCtx* zc,
                                        void* dst, size_t maxDstSize,
                                  const void* src, size_t srcSize,
                                  const U32 mls)
 {
-    U32* hashTable = zc->hashTable;
+    U32* const hashTable = zc->hashTable;
     const U32 hBits = zc->params.hashLog;
     seqStore_t* seqStorePtr = &(zc->seqStore);
     const BYTE* const base = zc->base;
@@ -1973,10 +1990,24 @@ size_t ZSTD_compressContinue (ZSTD_CCtx* zc,
                                  void* dst, size_t dstSize,
                            const void* src, size_t srcSize)
 {
+    U32 adressOverflow = 0;
     const BYTE* const ip = (const BYTE*) src;
 
+    /* Check if blocks follow each other */
+    if (src != zc->nextSrc)
+    {
+        /* not contiguous */
+        size_t delta = zc->nextSrc - ip;
+        zc->lowLimit = zc->dictLimit;
+        zc->dictLimit = (U32)(zc->nextSrc - zc->base);
+        zc->dictBase = zc->base;
+        if ((size_t)zc->base < delta) adressOverflow = zc->lowLimit;
+        zc->base -= delta;
+        zc->nextToUpdate = zc->dictLimit;
+    }
+
     /* preemptive overflow correction */
-    if ((zc->base > (const BYTE*)src) || (zc->lowLimit > (1<<30) ))
+    if (adressOverflow || (zc->lowLimit > (1<<30) ))
     {
         U32 correction = zc->lowLimit-1;
         ZSTD_reduceIndex(zc, correction);
@@ -1986,17 +2017,6 @@ size_t ZSTD_compressContinue (ZSTD_CCtx* zc,
         zc->dictLimit -= correction;
         if (zc->nextToUpdate < correction) zc->nextToUpdate = 0;
         else zc->nextToUpdate -= correction;
-    }
-
-    /* Check if blocks follow each other */
-    if (src != zc->nextSrc)
-    {
-        /* not contiguous */
-        zc->lowLimit = zc->dictLimit;
-        zc->dictLimit = (U32)(zc->nextSrc - zc->base);
-        zc->dictBase = zc->base;
-        zc->base += ip - zc->nextSrc;
-        zc->nextToUpdate = zc->dictLimit;
     }
 
     /* input-dictionary overlap */
@@ -2011,8 +2031,46 @@ size_t ZSTD_compressContinue (ZSTD_CCtx* zc,
     return ZSTD_compress_generic (zc, dst, dstSize, src, srcSize);
 }
 
+size_t ZSTD_compress_insertDictionary(ZSTD_CCtx* zc, const void* src, size_t srcSize)
+{
+    const BYTE* const ip = (const BYTE*) src;
+    const BYTE* const iend = ip + srcSize;
 
-/** ZSTD_compressBegin_advanced
+    /* input becomes current prefix */
+    zc->lowLimit = zc->dictLimit;
+    zc->dictLimit = (U32)(zc->nextSrc - zc->base);
+    zc->dictBase = zc->base;
+    zc->base += ip - zc->nextSrc;
+    zc->nextToUpdate = zc->dictLimit;
+
+    zc->nextSrc = iend;
+    if (srcSize <= 8) return 0;
+
+    switch(zc->params.strategy)
+    {
+    case ZSTD_fast:
+        ZSTD_fillHashTable (zc, iend-8, zc->params.searchLength);
+        break;
+
+    case ZSTD_greedy:
+    case ZSTD_lazy:
+    case ZSTD_lazy2:
+        ZSTD_insertAndFindFirstIndex (zc, iend-8, zc->params.searchLength);
+        break;
+
+    case ZSTD_btlazy2:
+        ZSTD_updateTree(zc, iend-8, iend, 1 << zc->params.searchLog, zc->params.searchLength);
+        break;
+
+    default:
+        return ERROR(GENERIC);   /* strategy doesn't exist; impossible */
+    }
+
+    return 0;
+}
+
+
+/*! ZSTD_compressBegin_advanced
 *   Write frame header, according to params
 *   @return : nb of bytes written */
 size_t ZSTD_compressBegin_advanced(ZSTD_CCtx* ctx,

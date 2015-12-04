@@ -294,9 +294,10 @@ int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compressibilit
     /* test loop */
     for ( ; testNb <= nbTests; testNb++ )
     {
-        size_t sampleSize, sampleStart;
-        size_t cSize, dSize, dSupSize;
-        U32 sampleSizeLog, buffNb, cLevelMod;
+        size_t sampleSize, sampleStart, maxTestSize, totalTestSize;
+        size_t cSize, dSize, dSupSize, errorCode;
+        U32 sampleSizeLog, buffNb, cLevelMod, nbChunks, n;
+        XXH64_state_t crc64;
         U64 crcOrig, crcDest;
         int cLevel;
         BYTE* sampleBuffer;
@@ -342,7 +343,6 @@ int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compressibilit
         /* compression failure test : too small dest buffer */
         if (cSize > 3)
         {
-            size_t errorCode;
             const size_t missing = (FUZ_rand(&lseed) % (cSize-2)) + 1;   /* no problem, as cSize > 4 (frameHeaderSizer) */
             const size_t tooSmallSize = cSize - missing;
             static const U32 endMark = 0x4DC2B1A9;
@@ -365,7 +365,6 @@ int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compressibilit
 
         /* truncated src decompression test */
         {
-            size_t errorCode;
             const size_t missing = (FUZ_rand(&lseed) % (cSize-2)) + 1;   /* no problem, as cSize > 4 (frameHeaderSizer) */
             const size_t tooSmallSize = cSize - missing;
             void* cBufferTooSmall = malloc(tooSmallSize);   /* valgrind will catch overflows */
@@ -379,7 +378,6 @@ int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compressibilit
         /* too small dst decompression test */
         if (sampleSize > 3)
         {
-            size_t errorCode;
             const size_t missing = (FUZ_rand(&lseed) % (sampleSize-2)) + 1;   /* no problem, as cSize > 4 (frameHeaderSizer) */
             const size_t tooSmallSize = sampleSize - missing;
             static const BYTE token = 0xA9;
@@ -424,7 +422,6 @@ int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compressibilit
                 U32 noiseSrc = FUZ_rand(&lseed) % 5;
                 const U32 endMark = 0xA9B1C3D6;
                 U32 endCheck;
-                size_t errorCode;
                 srcBuffer = cNoiseBuffer[noiseSrc];
                 memcpy(dstBuffer+sampleSize, &endMark, 4);
                 errorCode = ZSTD_decompress(dstBuffer, sampleSize, cBuffer, cSize);
@@ -435,6 +432,39 @@ int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compressibilit
                 CHECK(endMark!=endCheck, "ZSTD_decompress on noisy src : dst buffer overflow");
             }
         }
+
+        /* Multi - segments compression test */
+        XXH64_reset(&crc64, 0);
+        nbChunks = (FUZ_rand(&lseed) & 127) + 2;
+        sampleSizeLog = FUZ_rand(&lseed) % maxSrcLog;
+        maxTestSize = (size_t)1 << sampleSizeLog;
+        maxTestSize += FUZ_rand(&lseed) & (maxTestSize-1);
+        totalTestSize = 0;
+        cSize = ZSTD_compressBegin(ctx, cBuffer, cBufferSize, (FUZ_rand(&lseed) % (20 - (sampleSizeLog/3))) + 1);
+        for (n=0; n<nbChunks; n++)
+        {
+            sampleSizeLog = FUZ_rand(&lseed) % maxSampleLog;
+            sampleSize = (size_t)1 << sampleSizeLog;
+            sampleSize += FUZ_rand(&lseed) & (sampleSize-1);
+            sampleStart = FUZ_rand(&lseed) % (srcBufferSize - sampleSize);
+
+            if (cBufferSize-cSize < ZSTD_compressBound(sampleSize))
+                /* avoid invalid dstBufferTooSmall */
+                break;
+
+            errorCode = ZSTD_compressContinue(ctx, cBuffer+cSize, cBufferSize-cSize, srcBuffer+sampleStart, sampleSize);
+            CHECK (ZSTD_isError(errorCode), "multi-segments compression error : %s", ZSTD_getErrorName(errorCode));
+            cSize += errorCode;
+
+            XXH64_update(&crc64, srcBuffer+sampleStart, sampleSize);
+            totalTestSize += sampleSize;
+
+            if (totalTestSize > maxTestSize) break;
+        }
+        errorCode = ZSTD_compressEnd(ctx, cBuffer+cSize, cBufferSize-cSize);
+        CHECK (ZSTD_isError(errorCode), "multi-segments epilogue error : %s", ZSTD_getErrorName(errorCode));
+        cSize += errorCode;
+        crcOrig = XXH64_digest(&crc64);
     }
     DISPLAY("\rAll fuzzer tests completed   \n");
 

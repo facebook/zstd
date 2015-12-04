@@ -65,6 +65,7 @@ VOID = /dev/null
 endif
 
 ZBUFFTEST = -T2mn
+FUZZERTEST= -T5mn
 
 .PHONY: default all clean install uninstall test test32 test-all
 
@@ -258,10 +259,10 @@ test-fullbench32: fullbench32 datagen
 	./fullbench32 -i1 -P0
 
 test-fuzzer: fuzzer
-	./fuzzer
+	./fuzzer $(FUZZERTEST)
 
 test-fuzzer32: fuzzer32
-	./fuzzer32
+	./fuzzer32 $(FUZZERTEST)
 
 test-zbuff: zbufftest
 	./zbufftest $(ZBUFFTEST)

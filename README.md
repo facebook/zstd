@@ -12,7 +12,7 @@ For a taste of its performance, here are a few benchmark numbers from a number o
 |Name             | Ratio | C.speed | D.speed |
 |-----------------|-------|--------:|--------:|
 |                 |       |   MB/s  |  MB/s   |
-| **zstd 0.3**    |**2.858**|**280**| **670** |
+| **zstd 0.4**    |**2.872**|**280**| **670** |
 | [zlib] 1.2.8 -1 | 2.730 |    70   |   300   | 
 | QuickLZ 1.5.1b6 | 2.237 |   370   |   415   |
 | LZO 2.06        | 2.106 |   400   |   580   |

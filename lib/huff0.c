@@ -1495,10 +1495,7 @@ static inline size_t HUF_decodeStreamX6(BYTE* p, BIT_DStream_t* bitDPtr, BYTE* c
     while ((BIT_reloadDStream(bitDPtr) == BIT_DStream_unfinished) && (p <= pEnd-4))
         HUF_DECODE_SYMBOLX6_0(p, bitDPtr);
 
-    while (p <= pEnd-4)
-        HUF_DECODE_SYMBOLX6_0(p, bitDPtr);   /* no need to reload : reached the end of DStream */
-
-    while (p < pEnd)
+    while ((BIT_reloadDStream(bitDPtr) <= BIT_DStream_endOfBuffer) && (p < pEnd))
         p += HUF_decodeLastSymbolsX6(p, (U32)(pEnd-p), bitDPtr, dd, ds, dtLog);
 
     return p-pStart;

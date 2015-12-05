@@ -39,7 +39,7 @@ extern "C" {
 #endif
 
 #include <stddef.h>    /* size_t, ptrdiff_t */
-#include "zstd_v02.h"
+#include "zstd_v03.h"
 
 /******************************************
 *  Compiler-specific
@@ -1116,7 +1116,7 @@ typedef struct ZSTD_DCtx_s ZSTD_DCtx;
 /* *************************************
 *  Prefix - version detection
 ***************************************/
-#define ZSTD_magicNumber 0xFD2FB522   /* v0.2 (current)*/
+#define ZSTD_magicNumber 0xFD2FB523   /* v0.3 */
 
 
 #if defined (__cplusplus)
@@ -3473,7 +3473,7 @@ static size_t ZSTD_decompressSequences(
         memset(&sequence, 0, sizeof(sequence));
         seqState.dumps = dumps;
         seqState.dumpsEnd = dumps + dumpsLength;
-        seqState.prevOffset = 1;
+        seqState.prevOffset = sequence.offset = 4;
         errorCode = BIT_initDStream(&(seqState.DStream), ip, iend-ip);
         if (ERR_isError(errorCode)) return ERROR(corruption_detected);
         FSE_initDState(&(seqState.stateLL), &(seqState.DStream), DTableLL);
@@ -3693,38 +3693,38 @@ static size_t ZSTD_decompressContinue(ZSTD_DCtx* ctx, void* dst, size_t maxDstSi
 
 /* wrapper layer */
 
-unsigned ZSTDv02_isError(size_t code)
+unsigned ZSTDv03_isError(size_t code)
 {
 	return ZSTD_isError(code);
 }
 
-size_t ZSTDv02_decompress( void* dst, size_t maxOriginalSize,
+size_t ZSTDv03_decompress( void* dst, size_t maxOriginalSize,
                      const void* src, size_t compressedSize)
 {
 	return ZSTD_decompress(dst, maxOriginalSize, src, compressedSize);
 }
 
-ZSTDv02_Dctx* ZSTDv02_createDCtx(void)
+ZSTDv03_Dctx* ZSTDv03_createDCtx(void)
 {
-	return (ZSTDv02_Dctx*)ZSTD_createDCtx();
+	return (ZSTDv03_Dctx*)ZSTD_createDCtx();
 }
 
-size_t ZSTDv02_freeDCtx(ZSTDv02_Dctx* dctx)
+size_t ZSTDv03_freeDCtx(ZSTDv03_Dctx* dctx)
 {
 	return ZSTD_freeDCtx((ZSTD_DCtx*)dctx);
 }
 
-size_t ZSTDv02_resetDCtx(ZSTDv02_Dctx* dctx)
+size_t ZSTDv03_resetDCtx(ZSTDv03_Dctx* dctx)
 {
 	return ZSTD_resetDCtx((ZSTD_DCtx*)dctx);
 }
 
-size_t ZSTDv02_nextSrcSizeToDecompress(ZSTDv02_Dctx* dctx)
+size_t ZSTDv03_nextSrcSizeToDecompress(ZSTDv03_Dctx* dctx)
 {
 	return ZSTD_nextSrcSizeToDecompress((ZSTD_DCtx*)dctx);
 }
 
-size_t ZSTDv02_decompressContinue(ZSTDv02_Dctx* dctx, void* dst, size_t maxDstSize, const void* src, size_t srcSize)
+size_t ZSTDv03_decompressContinue(ZSTDv03_Dctx* dctx, void* dst, size_t maxDstSize, const void* src, size_t srcSize)
 {
 	return ZSTD_decompressContinue((ZSTD_DCtx*)dctx, dst, maxDstSize, src, srcSize);
 }

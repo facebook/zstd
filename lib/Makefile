@@ -27,8 +27,8 @@
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 # 
 # You can contact the author at :
+#  - ZSTD homepage : http://www.zstd.net
 #  - ZSTD source repository : https://github.com/Cyan4973/zstd
-#  - Public forum : https://groups.google.com/forum/#!forum/lz4c
 # ################################################################
 
 # Version numbers
@@ -40,13 +40,23 @@ VERSION?= $(LIBVER)
 
 DESTDIR?=
 PREFIX ?= /usr/local
-CPPFLAGS= -I. -I./legacy -DZSTD_LEGACY_SUPPORT=1
+CPPFLAGS= -I.
 CFLAGS ?= -O3
 CFLAGS += -std=c99 -Wall -Wextra -Wundef -Wshadow -Wcast-qual -Wcast-align -Wstrict-prototypes
 FLAGS   = $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) $(MOREFLAGS)
 
 LIBDIR ?= $(PREFIX)/lib
 INCLUDEDIR=$(PREFIX)/include
+
+ZSTD_FILES := zstd_compress.c zstd_decompress.c fse.c huff0.c
+ZSTD_LEGACY:= legacy/zstd_v01.c legacy/zstd_v02.c legacy/zstd_v03.c
+
+ifeq ($(ZSTD_LEGACY_SUPPORT), 0)
+CPPFLAGS  += -DZSTD_LEGACY_SUPPORT=0
+else
+ZSTD_FILES+= $(ZSTD_LEGACY)
+CPPFLAGS  += -I./legacy -DZSTD_LEGACY_SUPPORT=1
+endif
 
 
 # OS X linker doesn't support -soname, and use different extension
@@ -55,22 +65,25 @@ ifeq ($(shell uname), Darwin)
 	SHARED_EXT = dylib
 	SHARED_EXT_MAJOR = $(LIBVER_MAJOR).$(SHARED_EXT)
 	SHARED_EXT_VER = $(LIBVER).$(SHARED_EXT)
-	SONAME_FLAGS = -install_name $(PREFIX)/lib/libzstd.$(SHARED_EXT_MAJOR) -compatibility_version $(LIBVER_MAJOR) -current_version $(LIBVER)
+	SONAME_FLAGS = -install_name $(PREFIX)/lib/$@.$(SHARED_EXT_MAJOR) -compatibility_version $(LIBVER_MAJOR) -current_version $(LIBVER)
 else
-	SONAME_FLAGS = -Wl,-soname=libzstd.$(SHARED_EXT).$(LIBVER_MAJOR)
+	SONAME_FLAGS = -Wl,-soname=$@.$(SHARED_EXT).$(LIBVER_MAJOR)
 	SHARED_EXT = so
 	SHARED_EXT_MAJOR = $(SHARED_EXT).$(LIBVER_MAJOR)
 	SHARED_EXT_VER = $(SHARED_EXT).$(LIBVER)
 endif
 
-default: libzstd
 
-all: libzstd
+.PHONY: default all clean install uninstall
 
-libzstd: zstd.c huff0.c fse.c
+default: clean libzstd
+
+all: clean libzstd
+
+libzstd: $(ZSTD_FILES)
 	@echo compiling static library
 	@$(CC) $(FLAGS) -c $^
-	@$(AR) rcs libzstd.a zstd.o huff0.o fse.o
+	@$(AR) rcs $@.a *.o
 	@echo compiling dynamic library $(LIBVER)
 	@$(CC) $(FLAGS) -shared $^ -fPIC $(SONAME_FLAGS) -o $@.$(SHARED_EXT_VER)
 	@echo creating versioned links
@@ -78,9 +91,8 @@ libzstd: zstd.c huff0.c fse.c
 	@ln -sf $@.$(SHARED_EXT_VER) $@.$(SHARED_EXT)
 
 clean:
-	@rm -f core *.o *.a *.$(SHARED_EXT) *.$(SHARED_EXT).* libzstd.pc
+	@rm -f core *.o *.a *.gcda *.$(SHARED_EXT) *.$(SHARED_EXT).* libzstd.pc
 	@echo Cleaning library completed
-
 
 #------------------------------------------------------------------------
 #make install is validated only for Linux, OSX, kFreeBSD and Hurd targets

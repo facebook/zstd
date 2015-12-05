@@ -222,7 +222,6 @@ unsigned long long FIOv02_decompressFrame(FILE* foutput, FILE* finput)
     size_t sizeCheck;
     ZSTDv02_Dctx* dctx = ZSTDv02_createDCtx();
 
-
     /* init */
     if (outBuff==NULL) EXM_THROW(41, "Error : not enough memory to decode legacy frame");
 
@@ -246,7 +245,7 @@ unsigned long long FIOv02_decompressFrame(FILE* foutput, FILE* finput)
 
         /* Decode block */
         decodedSize = ZSTDv02_decompressContinue(dctx, op, oend-op, inBuff, readSize);
-        if (ZSTDv01_isError(decodedSize)) EXM_THROW(45, "Decoding error : input corrupted");
+        if (ZSTDv02_isError(decodedSize)) EXM_THROW(45, "Decoding error : input corrupted");
 
         if (decodedSize)   /* not a header */
         {
@@ -270,6 +269,66 @@ unsigned long long FIOv02_decompressFrame(FILE* foutput, FILE* finput)
 }
 
 
+unsigned long long FIOv03_decompressFrame(FILE* foutput, FILE* finput)
+{
+    size_t outBuffSize = 512 KB;
+    BYTE* outBuff = (BYTE*)malloc(outBuffSize);
+    size_t inBuffSize = 128 KB + 8;
+    BYTE inBuff[128 KB + 8];
+    BYTE* op = outBuff;
+    BYTE* const oend = outBuff + outBuffSize;
+    U64   filesize = 0;
+    size_t toRead;
+    size_t sizeCheck;
+    ZSTDv03_Dctx* dctx = ZSTDv03_createDCtx();
+
+    /* init */
+    if (outBuff==NULL) EXM_THROW(41, "Error : not enough memory to decode legacy frame");
+
+    /* restore header, already read from input */
+    MEM_writeLE32(inBuff, ZSTDv03_magicNumber);
+    sizeCheck = ZSTDv03_decompressContinue(dctx, NULL, 0, inBuff, sizeof(ZSTDv03_magicNumber));   /* Decode frame header */
+    if (ZSTDv03_isError(sizeCheck)) EXM_THROW(42, "Error decoding legacy header");
+
+    /* Main decompression Loop */
+    toRead = ZSTDv03_nextSrcSizeToDecompress(dctx);
+    while (toRead)
+    {
+        size_t readSize, decodedSize;
+
+        /* Fill input buffer */
+        if (toRead > inBuffSize)
+            EXM_THROW(43, "too large block");
+        readSize = fread(inBuff, 1, toRead, finput);
+        if (readSize != toRead)
+            EXM_THROW(44, "Read error");
+
+        /* Decode block */
+        decodedSize = ZSTDv03_decompressContinue(dctx, op, oend-op, inBuff, readSize);
+        if (ZSTDv03_isError(decodedSize)) EXM_THROW(45, "Decoding error : input corrupted");
+
+        if (decodedSize)   /* not a header */
+        {
+            /* Write block */
+            sizeCheck = fwrite(op, 1, decodedSize, foutput);
+            if (sizeCheck != decodedSize) EXM_THROW(46, "Write error : unable to write data block to destination file");
+            filesize += decodedSize;
+            op += decodedSize;
+            if (op==oend) op = outBuff;
+            DISPLAYUPDATE(2, "\rDecoded : %u MB...     ", (U32)(filesize>>20) );
+        }
+
+        /* prepare for next Block */
+        toRead = ZSTDv03_nextSrcSizeToDecompress(dctx);
+    }
+
+    /* release resources */
+    free(outBuff);
+    free(dctx);
+    return filesize;
+}
+
+
 unsigned long long FIO_decompressLegacyFrame(FILE* foutput, FILE* finput, U32 magicNumberLE)
 {
 	switch(magicNumberLE)
@@ -278,6 +337,8 @@ unsigned long long FIO_decompressLegacyFrame(FILE* foutput, FILE* finput, U32 ma
 			return FIOv01_decompressFrame(foutput, finput);
 		case ZSTDv02_magicNumber :
 			return FIOv02_decompressFrame(foutput, finput);
+		case ZSTDv03_magicNumber :
+			return FIOv03_decompressFrame(foutput, finput);
 		default :
 		    return ERROR(prefix_unknown);
 	}

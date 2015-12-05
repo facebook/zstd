@@ -23,9 +23,12 @@
     <ClCompile Include="..\..\..\lib\huff0.c" />
     <ClCompile Include="..\..\..\lib\legacy\zstd_v01.c" />
     <ClCompile Include="..\..\..\lib\legacy\zstd_v02.c" />
-    <ClCompile Include="..\..\..\lib\zstd.c" />
-    <ClCompile Include="..\..\..\lib\zstdhc.c" />
+    <ClCompile Include="..\..\..\lib\legacy\zstd_v03.c" />
+    <ClCompile Include="..\..\..\lib\zstd_buffered.c" />
+    <ClCompile Include="..\..\..\lib\zstd_compress.c" />
+    <ClCompile Include="..\..\..\lib\zstd_decompress.c" />
     <ClCompile Include="..\..\..\programs\bench.c" />
+    <ClCompile Include="..\..\..\programs\datagen.c" />
     <ClCompile Include="..\..\..\programs\fileio.c" />
     <ClCompile Include="..\..\..\programs\legacy\fileio_legacy.c" />
     <ClCompile Include="..\..\..\programs\xxhash.c" />
@@ -39,12 +42,14 @@
     <ClInclude Include="..\..\..\lib\legacy\zstd_legacy.h" />
     <ClInclude Include="..\..\..\lib\legacy\zstd_v01.h" />
     <ClInclude Include="..\..\..\lib\legacy\zstd_v02.h" />
+    <ClInclude Include="..\..\..\lib\legacy\zstd_v03.h" />
     <ClInclude Include="..\..\..\lib\zstd.h" />
-    <ClInclude Include="..\..\..\lib\zstdhc.h" />
-    <ClInclude Include="..\..\..\lib\zstdhc_static.h" />
+    <ClInclude Include="..\..\..\lib\zstd_buffered.h" />
+    <ClInclude Include="..\..\..\lib\zstd_buffered_static.h" />
     <ClInclude Include="..\..\..\lib\zstd_internal.h" />
     <ClInclude Include="..\..\..\lib\zstd_static.h" />
     <ClInclude Include="..\..\..\programs\bench.h" />
+    <ClInclude Include="..\..\..\programs\datagen.h" />
     <ClInclude Include="..\..\..\programs\fileio.h" />
     <ClInclude Include="..\..\..\programs\legacy\fileio_legacy.h" />
     <ClInclude Include="..\..\..\programs\xxhash.h" />
@@ -104,7 +109,7 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>$(SolutionDir)..\..\lib;$(VCInstallDir)include;$(VCInstallDir)atlmfc\include;$(WindowsSDK_IncludePath);</IncludePath>
+    <IncludePath>$(SolutionDir)..\..\programs\legacy;$(SolutionDir)..\..\lib\legacy;$(SolutionDir)..\..\lib;$(VCInstallDir)include;$(VCInstallDir)atlmfc\include;$(WindowsSDK_IncludePath);</IncludePath>
     <RunCodeAnalysis>true</RunCodeAnalysis>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -115,7 +120,7 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
     <IncludePath>$(SolutionDir)..\..\programs\legacy;$(SolutionDir)..\..\lib\legacy;$(SolutionDir)..\..\lib;$(VCInstallDir)include;$(VCInstallDir)atlmfc\include;$(WindowsSDK_IncludePath);</IncludePath>
-    <RunCodeAnalysis>true</RunCodeAnalysis>
+    <RunCodeAnalysis>false</RunCodeAnalysis>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -126,7 +131,7 @@
       <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <TreatWarningAsError>true</TreatWarningAsError>
       <EnablePREfast>true</EnablePREfast>
-      <AdditionalOptions>/analyze:stacksize19000 %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>/analyze:stacksize25000 %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -140,7 +145,7 @@
       <WarningLevel>Level4</WarningLevel>
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <TreatWarningAsError>true</TreatWarningAsError>
+      <TreatWarningAsError>false</TreatWarningAsError>
       <EnablePREfast>true</EnablePREfast>
       <AdditionalOptions>/analyze:stacksize19000 %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
@@ -178,9 +183,8 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <TreatWarningAsError>true</TreatWarningAsError>
-      <EnablePREfast>true</EnablePREfast>
-      <AdditionalOptions>/analyze:stacksize19000 %(AdditionalOptions)</AdditionalOptions>
+      <TreatWarningAsError>false</TreatWarningAsError>
+      <EnablePREfast>false</EnablePREfast>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
     </ClCompile>
     <Link>

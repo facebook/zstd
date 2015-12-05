@@ -281,7 +281,7 @@ valgrindTest: zstd datagen fuzzer fullbench zbufftest
 	./datagen -g64MB > tmp
 	valgrind --leak-check=yes --error-exitcode=1 ./zstd -vf tmp $(VOID)
 	@rm tmp
-	valgrind --leak-check=yes --error-exitcode=1 ./fuzzer -i1000 -t1
+	valgrind --leak-check=yes --error-exitcode=1 ./fuzzer -T1mn -t1
 	valgrind --leak-check=yes --error-exitcode=1 ./fullbench -i1
 	valgrind --leak-check=yes --error-exitcode=1 ./zbufftest -T1mn
 

@@ -769,12 +769,12 @@ size_t ZSTD_compressBlock_fast_generic(ZSTD_CCtx* zc,
 
     /* init */
     ZSTD_resetSeqStore(seqStorePtr);
-    if (ip < base+4)
+    if (ip < lowest+4)
     {
-        hashTable[ZSTD_hashPtr(base+1, hBits, mls)] = 1;
-        hashTable[ZSTD_hashPtr(base+2, hBits, mls)] = 2;
-        hashTable[ZSTD_hashPtr(base+3, hBits, mls)] = 3;
-        ip = base+4;
+        hashTable[ZSTD_hashPtr(lowest+1, hBits, mls)] = zc->dictLimit+1;
+        hashTable[ZSTD_hashPtr(lowest+2, hBits, mls)] = zc->dictLimit+2;
+        hashTable[ZSTD_hashPtr(lowest+3, hBits, mls)] = zc->dictLimit+3;
+        ip = lowest+4;
     }
 
     /* Main Search Loop */
@@ -1535,6 +1535,7 @@ size_t ZSTD_compressBlock_lazy_generic(ZSTD_CCtx* ctx,
     const BYTE* anchor = istart;
     const BYTE* const iend = istart + srcSize;
     const BYTE* const ilimit = iend - 8;
+    const BYTE* const base = ctx->base + ctx->dictLimit;
 
     size_t offset_2=REPCODE_STARTVALUE, offset_1=REPCODE_STARTVALUE;
     const U32 maxSearches = 1 << ctx->params.searchLog;
@@ -1547,7 +1548,7 @@ size_t ZSTD_compressBlock_lazy_generic(ZSTD_CCtx* ctx,
 
     /* init */
     ZSTD_resetSeqStore(seqStorePtr);
-    if (((ip-ctx->base) - ctx->dictLimit) < REPCODE_STARTVALUE) ip += REPCODE_STARTVALUE;
+    if ((ip-base) < REPCODE_STARTVALUE) ip = base + REPCODE_STARTVALUE;
 
     /* Match Loop */
     while (ip < ilimit)
@@ -1572,7 +1573,7 @@ size_t ZSTD_compressBlock_lazy_generic(ZSTD_CCtx* ctx,
                 matchLength = ml2, start = ip, offset=offsetFound;
         }
 
-         if (matchLength < MINMATCH)
+        if (matchLength < MINMATCH)
         {
             ip += ((ip-anchor) >> g_searchStrength) + 1;   /* jump faster over incompressible sections */
             continue;
@@ -1633,7 +1634,7 @@ size_t ZSTD_compressBlock_lazy_generic(ZSTD_CCtx* ctx,
         /* catch up */
         if (offset)
         {
-            while ((start>anchor) && (start>ctx->base+offset) && (start[-1] == start[-1-offset]))   /* only search for offset within prefix */
+            while ((start>anchor) && (start>base+offset) && (start[-1] == start[-1-offset]))   /* only search for offset within prefix */
                 { start--; matchLength++; }
             offset_2 = offset_1; offset_1 = offset;
         }
@@ -1990,7 +1991,6 @@ size_t ZSTD_compressContinue (ZSTD_CCtx* zc,
                                  void* dst, size_t dstSize,
                            const void* src, size_t srcSize)
 {
-    U32 adressOverflow = 0;
     const BYTE* const ip = (const BYTE*) src;
 
     /* Check if blocks follow each other */
@@ -2001,13 +2001,13 @@ size_t ZSTD_compressContinue (ZSTD_CCtx* zc,
         zc->lowLimit = zc->dictLimit;
         zc->dictLimit = (U32)(zc->nextSrc - zc->base);
         zc->dictBase = zc->base;
-        if ((size_t)zc->base < delta) adressOverflow = zc->lowLimit;
         zc->base -= delta;
         zc->nextToUpdate = zc->dictLimit;
+        if (zc->dictLimit - zc->lowLimit < 8) zc->lowLimit = zc->dictLimit;   /* too small extDict */
     }
 
     /* preemptive overflow correction */
-    if (adressOverflow || (zc->lowLimit > (1<<30) ))
+    if ((zc->base > ip) || (zc->lowLimit > (1<<30) ))
     {
         U32 correction = zc->lowLimit-1;
         ZSTD_reduceIndex(zc, correction);

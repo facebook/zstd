@@ -309,6 +309,8 @@ int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compressibilit
         U64 crcOrig, crcDest;
         int cLevel;
         BYTE* sampleBuffer;
+        const BYTE* dict;
+        size_t dictSize;
 
         /* init */
         if (nbTests >= testNb)
@@ -451,8 +453,18 @@ int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compressibilit
         maxTestSize = (size_t)1 << sampleSizeLog;
         maxTestSize += FUZ_rand(&lseed) & (maxTestSize-1);
         if (maxTestSize >= dstBufferSize) maxTestSize = dstBufferSize-1;
-        totalTestSize = 0;
+
+        sampleSizeLog = FUZ_rand(&lseed) % maxSampleLog;
+        sampleSize = (size_t)1 << sampleSizeLog;
+        sampleSize += FUZ_rand(&lseed) & (sampleSize-1);
+        sampleStart = FUZ_rand(&lseed) % (srcBufferSize - sampleSize);
+        dict = srcBuffer + sampleStart;
+        dictSize = sampleSize;
+
         cSize = ZSTD_compressBegin(ctx, cBuffer, cBufferSize, (FUZ_rand(&lseed) % (20 - (sampleSizeLog/3))) + 1);
+        errorCode = ZSTD_compress_insertDictionary(ctx, dict, dictSize);
+        CHECK (ZSTD_isError(errorCode), "dictionary insertion error : %s", ZSTD_getErrorName(errorCode));
+        totalTestSize = 0;
         for (n=0; n<nbChunks; n++)
         {
             sampleSizeLog = FUZ_rand(&lseed) % maxSampleLog;
@@ -481,6 +493,7 @@ int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compressibilit
         /* streaming decompression test */
         errorCode = ZSTD_resetDCtx(dctx);
         CHECK (ZSTD_isError(errorCode), "cannot init DCtx : %s", ZSTD_getErrorName(errorCode));
+        ZSTD_decompress_insertDictionary(dctx, dict, dictSize);
         totalCSize = 0;
         totalGenSize = 0;
         while (totalCSize < cSize)

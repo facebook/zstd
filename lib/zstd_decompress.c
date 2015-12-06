@@ -538,13 +538,13 @@ FORCE_INLINE size_t ZSTD_execSequence(BYTE* op,
         match = dictEnd - (base-match);
         if (match + sequence.matchLength <= dictEnd)
         {
-            memcpy(oLitEnd, match, sequence.matchLength);
+            memmove(oLitEnd, match, sequence.matchLength);
             return sequenceLength;
         }
         /* span extDict & currentPrefixSegment */
         {
             size_t length1 = dictEnd - match;
-            memcpy(oLitEnd, match, length1);
+            memmove(oLitEnd, match, length1);
             op = oLitEnd + length1;
             sequence.matchLength -= length1;
             match = base;

@@ -1,6 +1,6 @@
 v0.4.3 :
-new : zstd-frugal
 new : external dictionary API
+new : zstd-frugal
 
 v0.4.2 :
 Generic minor improvements for small blocks

@@ -43,6 +43,24 @@ extern "C" {
 #include <stddef.h>   /* size_t */
 
 
+/* ***************************************************************
+*  Tuning parameters
+*****************************************************************/
+/*!
+*  ZSTD_DLL_EXPORT :
+*  Enable exporting of functions when building a DLL
+*/
+#if defined(ZSTD_DLL_EXPORT) && (ZSTD_DLL_EXPORT==1)
+#  if _WIN32
+#    define ZSTDLIB_API __declspec(dllexport)
+#  else
+#    define ZSTDLIB_API extern
+#  endif
+#else
+#  define ZSTDLIB_API
+#endif
+
+
 /* *************************************
 *  Version
 ***************************************/
@@ -50,18 +68,18 @@ extern "C" {
 #define ZSTD_VERSION_MINOR    4    /* for new (non-breaking) interface capabilities */
 #define ZSTD_VERSION_RELEASE  3    /* for tweaks, bug-fixes, or development */
 #define ZSTD_VERSION_NUMBER  (ZSTD_VERSION_MAJOR *100*100 + ZSTD_VERSION_MINOR *100 + ZSTD_VERSION_RELEASE)
-unsigned ZSTD_versionNumber (void);
+ZSTDLIB_API unsigned ZSTD_versionNumber (void);
 
 
 /* *************************************
 *  Simple functions
 ***************************************/
-size_t ZSTD_compress(   void* dst, size_t maxDstSize,
-                  const void* src, size_t srcSize,
-                         int  compressionLevel);
+ZSTDLIB_API size_t ZSTD_compress(   void* dst, size_t maxDstSize,
+                              const void* src, size_t srcSize,
+                                     int  compressionLevel);
 
-size_t ZSTD_decompress( void* dst, size_t maxOriginalSize,
-                  const void* src, size_t compressedSize);
+ZSTDLIB_API size_t ZSTD_decompress( void* dst, size_t maxOriginalSize,
+                              const void* src, size_t compressedSize);
 
 /**
 ZSTD_compress() :
@@ -83,25 +101,25 @@ ZSTD_decompress() :
 /* *************************************
 *  Tool functions
 ***************************************/
-size_t      ZSTD_compressBound(size_t srcSize);   /** maximum compressed size (worst case scenario) */
+ZSTDLIB_API size_t      ZSTD_compressBound(size_t srcSize);   /** maximum compressed size (worst case scenario) */
 
 /* Error Management */
-unsigned    ZSTD_isError(size_t code);         /** tells if a return value is an error code */
-const char* ZSTD_getErrorName(size_t code);    /** provides error code string */
+ZSTDLIB_API unsigned    ZSTD_isError(size_t code);         /** tells if a return value is an error code */
+ZSTDLIB_API const char* ZSTD_getErrorName(size_t code);    /** provides error code string */
 
 
 /* *************************************
 *  Advanced functions
 ***************************************/
 typedef struct ZSTD_CCtx_s ZSTD_CCtx;   /* incomplete type */
-ZSTD_CCtx* ZSTD_createCCtx(void);
-size_t     ZSTD_freeCCtx(ZSTD_CCtx* cctx);
+ZSTDLIB_API ZSTD_CCtx* ZSTD_createCCtx(void);
+ZSTDLIB_API size_t     ZSTD_freeCCtx(ZSTD_CCtx* cctx);
 
 /**
 ZSTD_compressCCtx() :
     Same as ZSTD_compress(), but requires a ZSTD_CCtx working space already allocated
 */
-size_t ZSTD_compressCCtx(ZSTD_CCtx* ctx, void* dst, size_t maxDstSize, const void* src, size_t srcSize, int compressionLevel);
+ZSTDLIB_API size_t ZSTD_compressCCtx(ZSTD_CCtx* ctx, void* dst, size_t maxDstSize, const void* src, size_t srcSize, int compressionLevel);
 
 
 #if defined (__cplusplus)

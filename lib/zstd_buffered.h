@@ -47,6 +47,24 @@ extern "C" {
 #include <stddef.h>   /* size_t */
 
 
+/* ***************************************************************
+*  Tuning parameters
+*****************************************************************/
+/*!
+*  ZSTD_DLL_EXPORT :
+*  Enable exporting of functions when building a DLL
+*/
+#if defined(ZSTD_DLL_EXPORT) && (ZSTD_DLL_EXPORT==1)
+#  if _WIN32
+#    define ZSTDLIB_API __declspec(dllexport)
+#  else
+#    define ZSTDLIB_API extern
+#  endif
+#else
+#  define ZSTDLIB_API
+#endif
+
+
 /* *************************************
 *  Streaming functions
 ***************************************/

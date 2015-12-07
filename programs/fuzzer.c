@@ -79,11 +79,13 @@ static const U32 prime2 = 2246822519U;
 static U32 g_displayLevel = 2;
 
 #define DISPLAYUPDATE(l, ...) if (g_displayLevel>=l) { \
-            if ((FUZ_GetMilliSpan(g_time) > g_refreshRate) || (g_displayLevel>=4)) \
-            { g_time = FUZ_GetMilliStart(); DISPLAY(__VA_ARGS__); \
+            if ((FUZ_GetMilliSpan(g_displayTime) > g_refreshRate) || (g_displayLevel>=4)) \
+            { g_displayTime = FUZ_GetMilliStart(); DISPLAY(__VA_ARGS__); \
             if (g_displayLevel>=4) fflush(stdout); } }
 static const U32 g_refreshRate = 150;
-static U32 g_time = 0;
+static U32 g_displayTime = 0;
+
+static U32 g_testTime = 0;
 
 
 /*********************************************************
@@ -259,6 +261,7 @@ int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compressibilit
     BYTE* srcBuffer;
     BYTE* cBuffer;
     BYTE* dstBuffer;
+    BYTE* mirrorBuffer;
     size_t srcBufferSize = (size_t)1<<maxSrcLog;
     size_t dstBufferSize = (size_t)1<<maxSampleLog;
     size_t cBufferSize   = ZSTD_compressBound(dstBufferSize);
@@ -266,17 +269,22 @@ int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compressibilit
     U32 testNb = 0;
     U32 coreSeed = seed, lseed = 0;
     ZSTD_CCtx* ctx;
+    ZSTD_DCtx* dctx;
+    U32 startTime = FUZ_GetMilliStart();
 
     /* allocation */
     ctx = ZSTD_createCCtx();
+    dctx= ZSTD_createDCtx();
     cNoiseBuffer[0] = (BYTE*)malloc (srcBufferSize);
     cNoiseBuffer[1] = (BYTE*)malloc (srcBufferSize);
     cNoiseBuffer[2] = (BYTE*)malloc (srcBufferSize);
     cNoiseBuffer[3] = (BYTE*)malloc (srcBufferSize);
     cNoiseBuffer[4] = (BYTE*)malloc (srcBufferSize);
     dstBuffer = (BYTE*)malloc (dstBufferSize);
+    mirrorBuffer = (BYTE*)malloc (dstBufferSize);
     cBuffer   = (BYTE*)malloc (cBufferSize);
-    CHECK (!cNoiseBuffer[0] || !cNoiseBuffer[1] || !cNoiseBuffer[2] || !dstBuffer || !cBuffer || !ctx,
+    CHECK (!cNoiseBuffer[0] || !cNoiseBuffer[1] || !cNoiseBuffer[2] || !cNoiseBuffer[3] || !cNoiseBuffer[4]
+           || !dstBuffer || !mirrorBuffer || !cBuffer || !ctx || !dctx,
            "Not enough memory, fuzzer tests cancelled");
 
     /* Create initial samples */
@@ -292,17 +300,23 @@ int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compressibilit
         FUZ_rand(&coreSeed);
 
     /* test loop */
-    for ( ; testNb <= nbTests; testNb++ )
+    for ( ; (testNb <= nbTests) || (FUZ_GetMilliSpan(startTime) < g_testTime); testNb++ )
     {
-        size_t sampleSize, sampleStart;
-        size_t cSize, dSize, dSupSize;
-        U32 sampleSizeLog, buffNb, cLevelMod;
+        size_t sampleSize, sampleStart, maxTestSize, totalTestSize;
+        size_t cSize, dSize, dSupSize, errorCode, totalCSize, totalGenSize;
+        U32 sampleSizeLog, buffNb, cLevelMod, nbChunks, n;
+        XXH64_state_t crc64;
         U64 crcOrig, crcDest;
         int cLevel;
         BYTE* sampleBuffer;
+        const BYTE* dict;
+        size_t dictSize;
 
         /* init */
-        DISPLAYUPDATE(2, "\r%6u/%6u   ", testNb, nbTests);
+        if (nbTests >= testNb)
+             { DISPLAYUPDATE(2, "\r%6u/%6u    ", testNb, nbTests); }
+        else { DISPLAYUPDATE(2, "\r%6u      ", testNb); }
+
         FUZ_rand(&coreSeed);
         lseed = coreSeed ^ prime1;
         buffNb = FUZ_rand(&lseed) & 127;
@@ -342,7 +356,6 @@ int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compressibilit
         /* compression failure test : too small dest buffer */
         if (cSize > 3)
         {
-            size_t errorCode;
             const size_t missing = (FUZ_rand(&lseed) % (cSize-2)) + 1;   /* no problem, as cSize > 4 (frameHeaderSizer) */
             const size_t tooSmallSize = cSize - missing;
             static const U32 endMark = 0x4DC2B1A9;
@@ -365,7 +378,6 @@ int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compressibilit
 
         /* truncated src decompression test */
         {
-            size_t errorCode;
             const size_t missing = (FUZ_rand(&lseed) % (cSize-2)) + 1;   /* no problem, as cSize > 4 (frameHeaderSizer) */
             const size_t tooSmallSize = cSize - missing;
             void* cBufferTooSmall = malloc(tooSmallSize);   /* valgrind will catch overflows */
@@ -379,7 +391,6 @@ int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compressibilit
         /* too small dst decompression test */
         if (sampleSize > 3)
         {
-            size_t errorCode;
             const size_t missing = (FUZ_rand(&lseed) % (sampleSize-2)) + 1;   /* no problem, as cSize > 4 (frameHeaderSizer) */
             const size_t tooSmallSize = sampleSize - missing;
             static const BYTE token = 0xA9;
@@ -424,7 +435,6 @@ int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compressibilit
                 U32 noiseSrc = FUZ_rand(&lseed) % 5;
                 const U32 endMark = 0xA9B1C3D6;
                 U32 endCheck;
-                size_t errorCode;
                 srcBuffer = cNoiseBuffer[noiseSrc];
                 memcpy(dstBuffer+sampleSize, &endMark, 4);
                 errorCode = ZSTD_decompress(dstBuffer, sampleSize, cBuffer, cSize);
@@ -435,11 +445,80 @@ int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compressibilit
                 CHECK(endMark!=endCheck, "ZSTD_decompress on noisy src : dst buffer overflow");
             }
         }
+
+        /* Streaming compression of scattered segments test */
+        XXH64_reset(&crc64, 0);
+        nbChunks = (FUZ_rand(&lseed) & 127) + 2;
+        sampleSizeLog = FUZ_rand(&lseed) % maxSrcLog;
+        maxTestSize = (size_t)1 << sampleSizeLog;
+        maxTestSize += FUZ_rand(&lseed) & (maxTestSize-1);
+        if (maxTestSize >= dstBufferSize) maxTestSize = dstBufferSize-1;
+
+        sampleSizeLog = FUZ_rand(&lseed) % maxSampleLog;
+        sampleSize = (size_t)1 << sampleSizeLog;
+        sampleSize += FUZ_rand(&lseed) & (sampleSize-1);
+        sampleStart = FUZ_rand(&lseed) % (srcBufferSize - sampleSize);
+        dict = srcBuffer + sampleStart;
+        dictSize = sampleSize;
+
+        cSize = ZSTD_compressBegin(ctx, cBuffer, cBufferSize, (FUZ_rand(&lseed) % (20 - (sampleSizeLog/3))) + 1);
+        errorCode = ZSTD_compress_insertDictionary(ctx, dict, dictSize);
+        CHECK (ZSTD_isError(errorCode), "dictionary insertion error : %s", ZSTD_getErrorName(errorCode));
+        totalTestSize = 0;
+        for (n=0; n<nbChunks; n++)
+        {
+            sampleSizeLog = FUZ_rand(&lseed) % maxSampleLog;
+            sampleSize = (size_t)1 << sampleSizeLog;
+            sampleSize += FUZ_rand(&lseed) & (sampleSize-1);
+            sampleStart = FUZ_rand(&lseed) % (srcBufferSize - sampleSize);
+
+            if (cBufferSize-cSize < ZSTD_compressBound(sampleSize))
+                /* avoid invalid dstBufferTooSmall */
+                break;
+            if (totalTestSize+sampleSize > maxTestSize) break;
+
+            errorCode = ZSTD_compressContinue(ctx, cBuffer+cSize, cBufferSize-cSize, srcBuffer+sampleStart, sampleSize);
+            CHECK (ZSTD_isError(errorCode), "multi-segments compression error : %s", ZSTD_getErrorName(errorCode));
+            cSize += errorCode;
+
+            XXH64_update(&crc64, srcBuffer+sampleStart, sampleSize);
+            memcpy(mirrorBuffer + totalTestSize, srcBuffer+sampleStart, sampleSize);
+            totalTestSize += sampleSize;
+        }
+        errorCode = ZSTD_compressEnd(ctx, cBuffer+cSize, cBufferSize-cSize);
+        CHECK (ZSTD_isError(errorCode), "multi-segments epilogue error : %s", ZSTD_getErrorName(errorCode));
+        cSize += errorCode;
+        crcOrig = XXH64_digest(&crc64);
+
+        /* streaming decompression test */
+        errorCode = ZSTD_resetDCtx(dctx);
+        CHECK (ZSTD_isError(errorCode), "cannot init DCtx : %s", ZSTD_getErrorName(errorCode));
+        ZSTD_decompress_insertDictionary(dctx, dict, dictSize);
+        totalCSize = 0;
+        totalGenSize = 0;
+        while (totalCSize < cSize)
+        {
+            size_t inSize = ZSTD_nextSrcSizeToDecompress(dctx);
+            size_t genSize = ZSTD_decompressContinue(dctx, dstBuffer+totalGenSize, dstBufferSize-totalGenSize, cBuffer+totalCSize, inSize);
+            CHECK (ZSTD_isError(genSize), "streaming decompression error : %s", ZSTD_getErrorName(genSize));
+            totalGenSize += genSize;
+            totalCSize += inSize;
+        }
+        CHECK (ZSTD_nextSrcSizeToDecompress(dctx) != 0, "frame not fully decoded");
+        CHECK (totalGenSize != totalTestSize, "decompressed data : wrong size")
+        CHECK (totalCSize != cSize, "compressed data should be fully read")
+        crcDest = XXH64(dstBuffer, totalTestSize, 0);
+        if (crcDest!=crcOrig)
+            errorCode = findDiff(mirrorBuffer, dstBuffer, totalTestSize);
+        CHECK (crcDest!=crcOrig, "streaming decompressed data corrupted : byte %u / %u  (%02X!=%02X)",
+               (U32)errorCode, (U32)totalTestSize, dstBuffer[errorCode], mirrorBuffer[errorCode]);
+
     }
-    DISPLAY("\rAll fuzzer tests completed   \n");
+    DISPLAY("\r%u fuzzer tests completed   \n", testNb-1);
 
 _cleanup:
     ZSTD_freeCCtx(ctx);
+    ZSTD_freeDCtx(dctx);
     free(cNoiseBuffer[0]);
     free(cNoiseBuffer[1]);
     free(cNoiseBuffer[2]);
@@ -447,6 +526,7 @@ _cleanup:
     free(cNoiseBuffer[4]);
     free(cBuffer);
     free(dstBuffer);
+    free(mirrorBuffer);
     return result;
 
 _output_error:
@@ -520,7 +600,7 @@ int main(int argc, char** argv)
                     break;
 
                 case 'i':
-                    argument++;
+                    argument++; g_testTime=0;
                     nbTests=0;
                     while ((*argument>='0') && (*argument<='9'))
                     {
@@ -528,6 +608,20 @@ int main(int argc, char** argv)
                         nbTests += *argument - '0';
                         argument++;
                     }
+                    break;
+
+                case 'T':
+                    argument++;
+                    nbTests=0; g_testTime=0;
+                    while ((*argument>='0') && (*argument<='9'))
+                    {
+                        g_testTime *= 10;
+                        g_testTime += *argument - '0';
+                        argument++;
+                    }
+                    if (*argument=='m') g_testTime *=60, argument++;
+                    if (*argument=='n') argument++;
+                    g_testTime *= 1000;
                     break;
 
                 case 's':
@@ -579,8 +673,6 @@ int main(int argc, char** argv)
     if (!seedset) seed = FUZ_GetMilliStart() % 10000;
     DISPLAY("Seed = %u\n", seed);
     if (proba!=FUZ_COMPRESSIBILITY_DEFAULT) DISPLAY("Compressibility : %i%%\n", proba);
-
-    if (nbTests<=0) nbTests=1;
 
     if (testNb==0) result = basicUnitTests(0, ((double)proba) / 100);  /* constant seed for predictability */
     if (!result)

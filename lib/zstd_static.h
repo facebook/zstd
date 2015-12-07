@@ -104,6 +104,8 @@ size_t ZSTD_compress_advanced (ZSTD_CCtx* ctx,
 ****************************************/
 size_t ZSTD_compressBegin(ZSTD_CCtx* cctx, void* dst, size_t maxDstSize, int compressionLevel);
 size_t ZSTD_compressBegin_advanced(ZSTD_CCtx* ctx, void* dst, size_t maxDstSize, ZSTD_parameters params);
+size_t ZSTD_compress_insertDictionary(ZSTD_CCtx* ctx, const void* src, size_t srcSize);
+
 size_t ZSTD_compressContinue(ZSTD_CCtx* cctx, void* dst, size_t maxDstSize, const void* src, size_t srcSize);
 size_t ZSTD_compressEnd(ZSTD_CCtx* cctx, void* dst, size_t maxDstSize);
 
@@ -118,6 +120,10 @@ size_t ZSTD_compressEnd(ZSTD_CCtx* cctx, void* dst, size_t maxDstSize);
   Use ZSTD_compressBegin().
   You may also prefer the advanced derivative ZSTD_compressBegin_advanced(), for finer parameter control.
 
+  It's then possible to add a dictionary with ZSTD_compressDictionary()
+  Note that dictionary presence is a "hidden" information,
+  the decoder needs to be aware that it is required for proper decoding, or decoding will fail.
+
   Then, consume your input using ZSTD_compressContinue().
   The interface is synchronous, so all input will be consumed.
   You must ensure there is enough space in destination buffer to store compressed data under worst case scenario.
@@ -131,12 +137,15 @@ size_t ZSTD_compressEnd(ZSTD_CCtx* cctx, void* dst, size_t maxDstSize);
 
 typedef struct ZSTD_DCtx_s ZSTD_DCtx;
 ZSTD_DCtx* ZSTD_createDCtx(void);
-size_t     ZSTD_resetDCtx(ZSTD_DCtx* dctx);
 size_t     ZSTD_freeDCtx(ZSTD_DCtx* dctx);
 
+size_t ZSTD_resetDCtx(ZSTD_DCtx* dctx);
 size_t ZSTD_getFrameParams(ZSTD_parameters* params, const void* src, size_t srcSize);
+void   ZSTD_decompress_insertDictionary(ZSTD_DCtx* ctx, const void* src, size_t srcSize);
+
 size_t ZSTD_nextSrcSizeToDecompress(ZSTD_DCtx* dctx);
 size_t ZSTD_decompressContinue(ZSTD_DCtx* dctx, void* dst, size_t maxDstSize, const void* src, size_t srcSize);
+
 /**
   Streaming decompression, bufferless mode
 
@@ -146,15 +155,17 @@ size_t ZSTD_decompressContinue(ZSTD_DCtx* dctx, void* dst, size_t maxDstSize, co
 
   First operation is to retrieve frame parameters, using ZSTD_getFrameParams().
   This function doesn't consume its input. It needs enough input data to properly decode the frame header.
-  The objective is to retrieve *params.windowlog, to know minimum amount of memory required during decoding.
+  Objective is to retrieve *params.windowlog, to know minimum amount of memory required during decoding.
   Result : 0 when successful, it means the ZSTD_parameters structure has been filled.
            >0 : means there is not enough data into src. Provides the expected size to successfully decode header.
            errorCode, which can be tested using ZSTD_isError() (For example, if it's not a ZSTD header)
 
+  Then, you can optionally insert a dictionary. This operation must mimic the compressor behavior, otherwise decompression will fail or be corrupted.
+
   Then it's possible to start decompression.
   Use ZSTD_nextSrcSizeToDecompress() and ZSTD_decompressContinue() alternatively.
   ZSTD_nextSrcSizeToDecompress() tells how much bytes to provide as 'srcSize' to ZSTD_decompressContinue().
-  ZSTD_decompressContinue() requires this exact amount of bytes, or just fails.
+  ZSTD_decompressContinue() requires this exact amount of bytes, or it will fail.
   ZSTD_decompressContinue() needs previous data blocks during decompression, up to (1 << windowlog).
   They should preferably be located contiguously, prior to current block. Alternatively, a round buffer is also possible.
 

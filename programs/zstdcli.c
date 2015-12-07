@@ -119,7 +119,7 @@ static int usage(const char* programName)
     DISPLAY( "          with no FILE, or when FILE is - , read standard input\n");
     DISPLAY( "Arguments :\n");
     DISPLAY( " -1     : Fast compression (default) \n");
-    DISPLAY( " -9     : High compression \n");
+    DISPLAY( " -19    : High compression \n");
     DISPLAY( " -d     : decompression (default for %s extension)\n", ZSTD_EXTENSION);
     //DISPLAY( " -z     : force compression\n");
     DISPLAY( " -f     : overwrite output without prompting \n");
@@ -138,11 +138,13 @@ static int usage_advanced(const char* programName)
     DISPLAY( " -q     : suppress warnings; specify twice to suppress errors too\n");
     DISPLAY( " -c     : force write to standard output, even if it is the console\n");
     //DISPLAY( " -t     : test compressed file integrity\n");
+#ifndef ZSTD_NOBENCH
     DISPLAY( "Benchmark arguments :\n");
     DISPLAY( " -b#    : benchmark file(s), using # compression level (default : 1) \n");
     DISPLAY( " -B#    : cut file into independent blocks of size # (default : no block)\n");
     DISPLAY( " -i#    : iteration loops [1-9](default : 3)\n");
     DISPLAY( " -r#    : test all compression levels from 1 to # (default : disabled)\n");
+#endif
     return 0;
 }
 
@@ -169,17 +171,19 @@ int main(int argCount, const char** argv)
         bench=0,
         decode=0,
         forceStdout=0,
-        main_pause=0,
-        rangeBench = 1;
-    unsigned fileNameStart = 0;
-    unsigned nbFiles = 0;
+        main_pause=0;
     unsigned cLevel = 1;
     const char* programName = argv[0];
     const char* inFileName = NULL;
     const char* outFileName = NULL;
     char* dynNameSpace = NULL;
     const char extension[] = ZSTD_EXTENSION;
+    unsigned fileNameStart = 0;
+    unsigned nbFiles = 0;
+    int rangeBench = 1;
 
+    /* init */
+    (void)rangeBench; (void)nbFiles; (void)fileNameStart;   /* not used when ZSTD_NOBENCH set */
     displayOut = stderr;
     /* Pick out basename component. Don't rely on stdlib because of conflicting behavior. */
     for (i = (int)strlen(programName); i > 0; i--) { if (programName[i] == '/') { i++; break; } }
@@ -260,6 +264,7 @@ int main(int argCount, const char** argv)
                     /* keep source file (default anyway, so useless; only for xz/lzma compatibility) */
                 case 'k': argument++; break;
 
+#ifndef ZSTD_NOBENCH
                     /* Benchmark */
                 case 'b': bench=1; argument++; break;
 
@@ -293,6 +298,7 @@ int main(int argCount, const char** argv)
                         rangeBench = -1;
                         argument++;
                         break;
+#endif   /* ZSTD_NOBENCH */
 
                     /* Pause at the end (hidden option) */
                 case 'p': main_pause=1; argument++; break;
@@ -320,7 +326,13 @@ int main(int argCount, const char** argv)
     DISPLAYLEVEL(3, WELCOME_MESSAGE);
 
     /* Check if benchmark is selected */
-    if (bench) { BMK_benchFiles(argv+fileNameStart, nbFiles, cLevel*rangeBench); goto _end; }
+    if (bench)
+    {
+#ifndef ZSTD_NOBENCH
+        BMK_benchFiles(argv+fileNameStart, nbFiles, cLevel*rangeBench);
+#endif
+        goto _end;
+    }
 
     /* No input filename ==> use stdin */
     if(!inFileName) { inFileName=stdinmark; }

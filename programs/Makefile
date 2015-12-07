@@ -30,7 +30,7 @@
 # fullbench32: Same as fullbench, but forced to compile in 32-bits mode
 # ##########################################################################
 
-VERSION?= 0.4.2
+VERSION?= 0.4.3
 
 DESTDIR?=
 PREFIX ?= /usr/local
@@ -65,6 +65,7 @@ VOID = /dev/null
 endif
 
 ZBUFFTEST = -T2mn
+FUZZERTEST= -T5mn
 
 .PHONY: default all clean install uninstall test test32 test-all
 
@@ -88,6 +89,13 @@ zstd-pgo : clean zstd
 	./zstd -b $(PROFILE_WITH)
 	rm zstd
 	$(MAKE) zstd MOREFLAGS=-fprofile-use
+
+zstd-noBench: $(ZSTD_FILES) $(ZSTDDIR)/zstd_buffered.c \
+        zstdcli.c fileio.c $(ZSTD_FILEIO_LEGACY)
+	$(CC)      $(FLAGS) -DZSTD_NOBENCH $^ -o zstd$(EXT)
+
+zstd-frugal: clean
+	CFLAGS=-Os $(MAKE) zstd-noBench ZSTD_LEGACY_SUPPORT=0 
 
 fullbench  : $(ZSTD_FILES) \
         datagen.c fullbench.c
@@ -251,10 +259,10 @@ test-fullbench32: fullbench32 datagen
 	./fullbench32 -i1 -P0
 
 test-fuzzer: fuzzer
-	./fuzzer
+	./fuzzer $(FUZZERTEST)
 
 test-fuzzer32: fuzzer32
-	./fuzzer32
+	./fuzzer32 $(FUZZERTEST)
 
 test-zbuff: zbufftest
 	./zbufftest $(ZBUFFTEST)
@@ -273,7 +281,7 @@ valgrindTest: zstd datagen fuzzer fullbench zbufftest
 	./datagen -g64MB > tmp
 	valgrind --leak-check=yes --error-exitcode=1 ./zstd -vf tmp $(VOID)
 	@rm tmp
-	valgrind --leak-check=yes --error-exitcode=1 ./fuzzer -i1000 -t1
+	valgrind --leak-check=yes --error-exitcode=1 ./fuzzer -T1mn -t1
 	valgrind --leak-check=yes --error-exitcode=1 ./fullbench -i1
 	valgrind --leak-check=yes --error-exitcode=1 ./zbufftest -T1mn
 

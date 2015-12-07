@@ -127,10 +127,10 @@ struct ZSTD_DCtx_s
     U32 LLTable[FSE_DTABLE_SIZE_U32(LLFSELog)];
     U32 OffTable[FSE_DTABLE_SIZE_U32(OffFSELog)];
     U32 MLTable[FSE_DTABLE_SIZE_U32(MLFSELog)];
-    void* previousDstEnd;
-    void* base;
-    void* vBase;
-    void* dictEnd;
+    const void* previousDstEnd;
+    const void* base;
+    const void* vBase;
+    const void* dictEnd;
     size_t expected;
     size_t headerSize;
     ZSTD_parameters params;
@@ -141,7 +141,7 @@ struct ZSTD_DCtx_s
     size_t litSize;
     BYTE litBuffer[BLOCKSIZE + 8 /* margin for wildcopy */];
     BYTE headerBuffer[ZSTD_frameHeaderSize_max];
-};   /* typedef'd to ZSTD_Dctx within "zstd_static.h" */
+};  /* typedef'd to ZSTD_DCtx within "zstd_static.h" */
 
 size_t ZSTD_resetDCtx(ZSTD_DCtx* dctx)
 {
@@ -505,7 +505,7 @@ static void ZSTD_decodeSequence(seq_t* seq, seqState_t* seqState)
 FORCE_INLINE size_t ZSTD_execSequence(BYTE* op,
                                 BYTE* const oend, seq_t sequence,
                                 const BYTE** litPtr, const BYTE* const litLimit_8,
-                                BYTE* const base, BYTE* const vBase, BYTE* const dictEnd)
+                                const BYTE* const base, const BYTE* const vBase, const BYTE* const dictEnd)
 {
     static const int dec32table[] = { 0, 1, 2, 1, 4, 4, 4, 4 };   /* added */
     static const int dec64table[] = { 8, 8, 8, 7, 8, 9,10,11 };   /* substracted */
@@ -538,13 +538,13 @@ FORCE_INLINE size_t ZSTD_execSequence(BYTE* op,
         match = dictEnd - (base-match);
         if (match + sequence.matchLength <= dictEnd)
         {
-            memcpy(oLitEnd, match, sequence.matchLength);
+            memmove(oLitEnd, match, sequence.matchLength);
             return sequenceLength;
         }
         /* span extDict & currentPrefixSegment */
         {
             size_t length1 = dictEnd - match;
-            memcpy(oLitEnd, match, length1);
+            memmove(oLitEnd, match, length1);
             op = oLitEnd + length1;
             sequence.matchLength -= length1;
             match = base;
@@ -607,9 +607,9 @@ static size_t ZSTD_decompressSequences(
     U32* DTableLL = dctx->LLTable;
     U32* DTableML = dctx->MLTable;
     U32* DTableOffb = dctx->OffTable;
-    BYTE* const base = (BYTE*) (dctx->base);
-    BYTE* const vBase = (BYTE*) (dctx->vBase);
-    BYTE* const dictEnd = (BYTE*) (dctx->dictEnd);
+    const BYTE* const base = (const BYTE*) (dctx->base);
+    const BYTE* const vBase = (const BYTE*) (dctx->vBase);
+    const BYTE* const dictEnd = (const BYTE*) (dctx->dictEnd);
 
     /* Build Decoding Tables */
     errorCode = ZSTD_decodeSeqHeaders(&nbSeq, &dumps, &dumpsLength,
@@ -691,7 +691,7 @@ size_t ZSTD_decompressDCtx(ZSTD_DCtx* ctx, void* dst, size_t maxDstSize, const v
 
 
     /* init */
-    ctx->base = ctx->vBase = ctx->dictEnd = dst;
+    ctx->vBase = ctx->base = ctx->dictEnd = dst;
 
     /* Frame Header */
     {
@@ -776,7 +776,7 @@ size_t ZSTD_decompressContinue(ZSTD_DCtx* ctx, void* dst, size_t maxDstSize, con
         if ((dst > ctx->base) && (dst < ctx->previousDstEnd))   /* rolling buffer : new segment into dictionary */
             ctx->base = (char*)dst;   /* temporary affectation, for vBase calculation */
         ctx->dictEnd = ctx->previousDstEnd;
-        ctx->vBase = (char*)dst - ((char*)(ctx->previousDstEnd) - (char*)(ctx->base));
+        ctx->vBase = (const char*)dst - ((const char*)(ctx->previousDstEnd) - (const char*)(ctx->base));
         ctx->base = dst;
         ctx->previousDstEnd = dst;
     }
@@ -827,10 +827,9 @@ size_t ZSTD_decompressContinue(ZSTD_DCtx* ctx, void* dst, size_t maxDstSize, con
                 ctx->bType = bp.blockType;
                 ctx->stage = ZSTDds_decompressBlock;
             }
-
             return 0;
         }
-    case 3:
+    case ZSTDds_decompressBlock:
         {
             /* Decompress : block content */
             size_t rSize;
@@ -862,3 +861,10 @@ size_t ZSTD_decompressContinue(ZSTD_DCtx* ctx, void* dst, size_t maxDstSize, con
 }
 
 
+void ZSTD_decompress_insertDictionary(ZSTD_DCtx* ctx, const void* src, size_t srcSize)
+{
+    ctx->dictEnd = ctx->previousDstEnd;
+    ctx->vBase = (const char*)src - ((const char*)(ctx->previousDstEnd) - (const char*)(ctx->base));
+    ctx->base = src;
+    ctx->previousDstEnd = (const char*)src + srcSize;
+}

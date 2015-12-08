@@ -68,3 +68,14 @@ roundTripTest -g35000000 -P75 10
 roundTripTest -g35000000 -P75 11
 roundTripTest -g35000000 -P75 12
 
+roundTripTest -g18000000 -P80 13
+roundTripTest -g18000000 -P80 14
+roundTripTest -g18000000 -P80 15
+roundTripTest -g18000000 -P80 16
+roundTripTest -g18000000 -P80 17
+
+roundTripTest -g50000000 -P94 18
+roundTripTest -g50000000 -P94 19
+
+roundTripTest -g99000000 -P99 20
+roundTripTest -g6000000000 -P99 q

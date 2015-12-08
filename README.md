@@ -31,6 +31,7 @@ Compression Speed vs Ratio | Decompression Speed
 ---------------------------|--------------------
 ![Compression Speed vs Ratio](images/CSpeed.png "Compression Speed vs Ratio") | ![Decompression Speed](images/DSpeed.png "Decompression Speed")
 
+You can also view additional tests using a wide range of machines and datasets at [Squash Compression Benchmark suite](https://quixdb.github.io/squash/).
 
 Zstd entropy stage is provided by [Huff0 and FSE, from Finite State Entropy library](https://github.com/Cyan4973/FiniteStateEntropy).
 

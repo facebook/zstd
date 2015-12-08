@@ -120,7 +120,7 @@ size_t ZSTD_compressEnd(ZSTD_CCtx* cctx, void* dst, size_t maxDstSize);
   Use ZSTD_compressBegin().
   You may also prefer the advanced derivative ZSTD_compressBegin_advanced(), for finer parameter control.
 
-  It's then possible to add a dictionary with ZSTD_compressDictionary()
+  It's then possible to add a dictionary with ZSTD_compress_insertDictionary()
   Note that dictionary presence is a "hidden" information,
   the decoder needs to be aware that it is required for proper decoding, or decoding will fail.
 

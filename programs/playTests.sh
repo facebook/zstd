@@ -47,6 +47,11 @@ echo "**** zstd round-trip tests **** "
 roundTripTest
 roundTripTest '' 6
 
+if [ "$1" != "--test-large-data" ]; then
+    echo "Skipping large data tests"
+    exit 0
+fi
+
 roundTripTest -g270000000 1
 roundTripTest -g270000000 2
 roundTripTest -g270000000 3

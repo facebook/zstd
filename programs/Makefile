@@ -169,7 +169,7 @@ test32: test-zstd32 test-fullbench32 test-fuzzer32 test-zbuff32
 test-all: test test32 valgrindTest
 
 zstd-playTests: datagen
-	ZSTD=$(ZSTD) ./playTests.sh
+	ZSTD=$(ZSTD) ./playTests.sh --test-large-data
 
 test-zstd: ZSTD = ./zstd
 test-zstd: zstd zstd-playTests

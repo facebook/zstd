@@ -48,14 +48,10 @@ extern "C" {
 *****************************************************************/
 /*!
 *  ZSTD_DLL_EXPORT :
-*  Enable exporting of functions when building a DLL
+*  Enable exporting of functions when building a Windows DLL
 */
-#if defined(ZSTD_DLL_EXPORT) && (ZSTD_DLL_EXPORT==1)
-#  if _WIN32
-#    define ZSTDLIB_API __declspec(dllexport)
-#  else
-#    define ZSTDLIB_API extern
-#  endif
+#if defined(_WIN32) && defined(ZSTD_DLL_EXPORT) && (ZSTD_DLL_EXPORT==1)
+#  define ZSTDLIB_API __declspec(dllexport)
 #else
 #  define ZSTDLIB_API
 #endif

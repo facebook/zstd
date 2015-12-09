@@ -180,7 +180,8 @@ size_t ZSTD_decompressContinue(ZSTD_DCtx* dctx, void* dst, size_t maxDstSize, co
 *  Pre-defined compression levels
 ***************************************/
 #define ZSTD_MAX_CLEVEL 20
-static const ZSTD_parameters ZSTD_defaultParameters[3][ZSTD_MAX_CLEVEL+1] = {
+unsigned ZSTD_maxCLevel (void);
+static const ZSTD_parameters ZSTD_defaultParameters[4][ZSTD_MAX_CLEVEL+1] = {
 {   /* "default" */
     /*    W,  C,  H,  S,  L, strat */
     { 0, 18, 12, 12,  1,  4, ZSTD_fast    },  /* level  0 - never used */
@@ -204,6 +205,30 @@ static const ZSTD_parameters ZSTD_defaultParameters[3][ZSTD_MAX_CLEVEL+1] = {
     { 0, 25, 24, 23,  5,  5, ZSTD_btlazy2 },  /* level 18 */
     { 0, 25, 26, 23,  5,  5, ZSTD_btlazy2 },  /* level 19 */
     { 0, 26, 27, 25,  9,  5, ZSTD_btlazy2 },  /* level 20 */
+},
+{   /* for srcSize <= 256 KB */
+    /*    W,  C,  H,  S,  L, strat */
+    {  0,  0,  0,  0,  0,  0, ZSTD_fast    },  /* level  0 - never used */
+    {  0, 18, 16, 15,  1,  7, ZSTD_fast    },  /* level  1 */
+    {  0, 18, 16, 16,  1,  7, ZSTD_fast    },  /* level  2 */
+    {  0, 18, 18, 18,  1,  7, ZSTD_fast    },  /* level  3 */
+    {  0, 18, 14, 15,  4,  6, ZSTD_greedy  },  /* level  4 */
+    {  0, 18, 16, 16,  1,  6, ZSTD_lazy    },  /* level  5 */
+    {  0, 18, 15, 15,  3,  6, ZSTD_lazy    },  /* level  6 */
+    {  0, 18, 15, 15,  4,  6, ZSTD_lazy    },  /* level  7 */
+    {  0, 18, 16, 18,  4,  6, ZSTD_lazy    },  /* level  8 */
+    {  0, 18, 18, 18,  4,  6, ZSTD_lazy    },  /* level  9 */
+    {  0, 18, 18, 18,  5,  6, ZSTD_lazy    },  /* level 10 */
+    {  0, 18, 18, 19,  6,  6, ZSTD_lazy    },  /* level 11 */
+    {  0, 18, 18, 19,  7,  6, ZSTD_lazy    },  /* level 12 */
+    {  0, 18, 19, 15,  7,  5, ZSTD_btlazy2 },  /* level 13 */
+    {  0, 18, 19, 16,  8,  5, ZSTD_btlazy2 },  /* level 14 */
+    {  0, 18, 19, 17,  9,  5, ZSTD_btlazy2 },  /* level 15 */
+    {  0, 18, 19, 17, 10,  5, ZSTD_btlazy2 },  /* level 16 */
+    {  0, 18, 19, 17, 11,  5, ZSTD_btlazy2 },  /* level 17 */
+    {  0, 18, 19, 17, 12,  5, ZSTD_btlazy2 },  /* level 18 */
+    {  0, 18, 19, 17, 13,  5, ZSTD_btlazy2 },  /* level 19 */
+    {  0, 18, 19, 17, 14,  5, ZSTD_btlazy2 },  /* level 20 */
 },
 {   /* for srcSize <= 128 KB */
     /*    W,  C,  H,  S,  L, strat */

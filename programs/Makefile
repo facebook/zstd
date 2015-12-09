@@ -169,77 +169,7 @@ test32: test-zstd32 test-fullbench32 test-fuzzer32 test-zbuff32
 test-all: test test32 valgrindTest
 
 zstd-playTests: datagen
-	@echo "\n**** frame concatenation **** "
-	@echo "hello " > hello.tmp
-	@echo "world!" > world.tmp
-	@cat hello.tmp world.tmp > helloworld.tmp
-	$(ZSTD) hello.tmp > hello.zstd
-	$(ZSTD) world.tmp > world.zstd
-	@cat hello.zstd world.zstd > helloworld.zstd
-	$(ZSTD) -df helloworld.zstd > result.tmp
-	cat result.tmp
-	sdiff helloworld.tmp result.tmp
-	@rm *.tmp *.zstd
-	@echo frame concatenation test completed
-	@echo "**** flush write error test **** "
-	echo foo | $(ZSTD) > /dev/full; if [ $$? -eq 0 ] ; then echo "write error not detected!"; false; fi
-	echo foo | $(ZSTD) | $(ZSTD) -d > /dev/full; if [ $$? -eq 0 ] ; then echo "write error not detected!"; false; fi
-	@echo "**** zstd round-trip tests **** "
-	@./datagen             | md5sum > tmp1
-	./datagen              | $(ZSTD) -v    | $(ZSTD) -d  | md5sum > tmp2
-	@diff tmp1 tmp2   
-	./datagen              | $(ZSTD) -6 -v | $(ZSTD) -d  | md5sum > tmp2
-	@diff tmp1 tmp2   
-	@./datagen -g270000000 | md5sum > tmp1
-	./datagen -g270000000  | $(ZSTD) -v    | $(ZSTD) -d  | md5sum > tmp2
-	@diff tmp1 tmp2   
-	./datagen -g270000000  | $(ZSTD) -v2   | $(ZSTD) -d  | md5sum > tmp2
-	@diff tmp1 tmp2   
-	./datagen -g270000000  | $(ZSTD) -v3   | $(ZSTD) -d  | md5sum > tmp2
-	@diff tmp1 tmp2   
-	@./datagen -g140000000 -P60| md5sum > tmp1
-	./datagen -g140000000 -P60 | $(ZSTD) -v4   | $(ZSTD) -d  | md5sum > tmp2
-	@diff tmp1 tmp2   
-	./datagen -g140000000 -P60 | $(ZSTD) -v5   | $(ZSTD) -d  | md5sum > tmp2
-	@diff tmp1 tmp2   
-	./datagen -g140000000 -P60 | $(ZSTD) -v6   | $(ZSTD) -d  | md5sum > tmp2
-	@diff tmp1 tmp2   
-	@./datagen -g70000000 -P70 | md5sum > tmp1
-	./datagen -g70000000 -P70  | $(ZSTD) -v7   | $(ZSTD) -d  | md5sum > tmp2
-	@diff tmp1 tmp2   
-	./datagen -g70000000 -P70  | $(ZSTD) -v8   | $(ZSTD) -d  | md5sum > tmp2
-	@diff tmp1 tmp2   
-	./datagen -g70000000 -P70  | $(ZSTD) -v9   | $(ZSTD) -d  | md5sum > tmp2
-	@diff tmp1 tmp2   
-	@./datagen -g35000000 -P75 | md5sum > tmp1
-	./datagen -g35000000 -P75  | $(ZSTD) -v10  | $(ZSTD) -d  | md5sum > tmp2
-	@diff tmp1 tmp2   
-	./datagen -g35000000 -P75  | $(ZSTD) -v11  | $(ZSTD) -d  | md5sum > tmp2
-	@diff tmp1 tmp2   
-	./datagen -g35000000 -P75  | $(ZSTD) -v12  | $(ZSTD) -d  | md5sum > tmp2
-	@diff tmp1 tmp2   
-	@./datagen -g18000000 -P80 | md5sum > tmp1
-	./datagen -g18000000 -P80  | $(ZSTD) -v13  | $(ZSTD) -d  | md5sum > tmp2
-	@diff tmp1 tmp2   
-	./datagen -g18000000 -P80  | $(ZSTD) -v14  | $(ZSTD) -d  | md5sum > tmp2
-	@diff tmp1 tmp2   
-	./datagen -g18000000 -P80  | $(ZSTD) -v15  | $(ZSTD) -d  | md5sum > tmp2
-	@diff tmp1 tmp2   
-	./datagen -g18000000 -P80  | $(ZSTD) -v16  | $(ZSTD) -d  | md5sum > tmp2
-	@diff tmp1 tmp2   
-	./datagen -g18000000 -P80  | $(ZSTD) -v17  | $(ZSTD) -d  | md5sum > tmp2
-	@diff tmp1 tmp2   
-	@./datagen -g50000000 -P94 | md5sum > tmp1
-	./datagen -g50000000 -P94  | $(ZSTD) -v18  | $(ZSTD) -d  | md5sum > tmp2
-	@diff tmp1 tmp2   
-	./datagen -g50000000 -P94  | $(ZSTD) -v19  | $(ZSTD) -d  | md5sum > tmp2
-	@diff tmp1 tmp2   
-	@./datagen -g99000000 -P99 | md5sum > tmp1
-	./datagen -g99000000 -P99  | $(ZSTD) -v20  | $(ZSTD) -d  | md5sum > tmp2
-	@diff tmp1 tmp2   
-	./datagen -g6000000000 -P99| md5sum > tmp1
-	./datagen -g6000000000 -P99| $(ZSTD) -vq   | $(ZSTD) -d  | md5sum > tmp2
-	@diff tmp1 tmp2   
+	ZSTD=$(ZSTD) ./playTests.sh --test-large-data
 
 test-zstd: ZSTD = ./zstd
 test-zstd: zstd zstd-playTests

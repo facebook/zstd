@@ -180,7 +180,7 @@ ZSTDLIB_API size_t ZSTD_decompressContinue(ZSTD_DCtx* dctx, void* dst, size_t ma
 *  Pre-defined compression levels
 ***************************************/
 #define ZSTD_MAX_CLEVEL 20
-unsigned ZSTD_maxCLevel (void);
+ZSTDLIB_API unsigned ZSTD_maxCLevel (void);
 static const ZSTD_parameters ZSTD_defaultParameters[4][ZSTD_MAX_CLEVEL+1] = {
 {   /* "default" */
     /*    W,  C,  H,  S,  L, strat */

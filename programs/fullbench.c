@@ -235,14 +235,13 @@ size_t local_ZSTD_decodeLiteralsBlock(void* dst, size_t dstSize, void* buff2, co
 
 size_t local_ZSTD_decodeSeqHeaders(void* dst, size_t dstSize, void* buff2, const void* src, size_t srcSize)
 {
-    U32 DTableML[1<<11], DTableLL[1<<10], DTableOffb[1<<9];
+    U32 DTableML[FSE_DTABLE_SIZE_U32(10)], DTableLL[FSE_DTABLE_SIZE_U32(10)], DTableOffb[FSE_DTABLE_SIZE_U32(9)];   /* MLFSELog, LLFSELog and OffFSELog are not public values */
     const BYTE* dumps;
     size_t length;
     int nbSeq;
     (void)src; (void)srcSize; (void)dst; (void)dstSize;
     return ZSTD_decodeSeqHeaders(&nbSeq, &dumps, &length, DTableLL, DTableML, DTableOffb, buff2, g_cSize);
 }
-
 
 
 
@@ -429,7 +428,7 @@ int benchFiles(char** fileNamesTable, int nbFiles, U32 benchNb)
             return 11;
         }
 
-        // Memory allocation & restrictions
+        /* Memory allocation & restrictions */
         inFileSize = BMK_GetFileSize(inFileName);
         benchedSize = (size_t) BMK_findMaxMem(inFileSize*3) / 3;
         if ((U64)benchedSize > inFileSize) benchedSize = (size_t)inFileSize;

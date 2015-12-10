@@ -527,14 +527,11 @@ FORCE_INLINE size_t ZSTD_execSequence(BYTE* op,
     *litPtr = litEnd;   /* update for next sequence */
 
     /* copy Match */
-    /* check */
-    //if (match > oLitEnd) return ERROR(corruption_detected);   /* address space overflow test (is clang optimizer wrongly removing this test ?) */
-    if (sequence.offset > (size_t)oLitEnd) return ERROR(corruption_detected);   /* address space overflow test (this test seems preserved by clang optimizer) */
-
-    if (match < base)
+    if (sequence.offset > (size_t)(oLitEnd - base))
     {
         /* offset beyond prefix */
-        if (match < vBase) return ERROR(corruption_detected);
+        if (sequence.offset > (size_t)(oLitEnd - vBase))
+            return ERROR(corruption_detected);
         match = dictEnd - (base-match);
         if (match + sequence.matchLength <= dictEnd)
         {
@@ -773,8 +770,6 @@ size_t ZSTD_decompressContinue(ZSTD_DCtx* ctx, void* dst, size_t maxDstSize, con
     if (srcSize != ctx->expected) return ERROR(srcSize_wrong);
     if (dst != ctx->previousDstEnd)   /* not contiguous */
     {
-        if ((dst > ctx->base) && (dst < ctx->previousDstEnd))   /* rolling buffer : new segment into dictionary */
-            ctx->base = (char*)dst;   /* temporary affectation, for vBase calculation */
         ctx->dictEnd = ctx->previousDstEnd;
         ctx->vBase = (const char*)dst - ((const char*)(ctx->previousDstEnd) - (const char*)(ctx->base));
         ctx->base = dst;

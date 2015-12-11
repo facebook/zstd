@@ -32,7 +32,7 @@
 # ################################################################
 
 # Version number
-export VERSION := 0.4.3
+export VERSION := 0.4.4
 
 PRGDIR  = programs
 ZSTDDIR = lib
@@ -95,6 +95,9 @@ usan: clean
 
 asan: clean
 	$(MAKE) test CC=clang MOREFLAGS="-g -fsanitize=address"
+
+asan32: clean
+	$(MAKE) -C $(PRGDIR) test32 CC=clang MOREFLAGS="-g -fsanitize=address"
 
 uasan: clean
 	$(MAKE) test CC=clang MOREFLAGS="-g -fsanitize=address -fsanitize=undefined"

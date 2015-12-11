@@ -1026,7 +1026,7 @@ static U32 ZSTD_insertBt1(ZSTD_CCtx* zc, const BYTE* const ip, const U32 mls, co
     size_t commonLengthSmaller=0, commonLengthLarger=0;
     const BYTE* const base = zc->base;
     const BYTE* match = base + matchIndex;
-    U32 current = (U32)(ip-base);
+    const U32 current = (U32)(ip-base);
     const U32 btLow = btMask >= current ? 0 : current - btMask;
     U32* smallerPtr = bt + 2*(current&btMask);
     U32* largerPtr  = bt + 2*(current&btMask) + 1;
@@ -1040,7 +1040,7 @@ static U32 ZSTD_insertBt1(ZSTD_CCtx* zc, const BYTE* const ip, const U32 mls, co
         return (U32)(rleLength - mls);
     }
 
-    hashTable[h] = (U32)(ip - base);   /* Update Hash Table */
+    hashTable[h] = current;   /* Update Hash Table */
 
     while (nbCompares-- && (matchIndex > windowLow))
     {
@@ -1103,7 +1103,7 @@ size_t ZSTD_insertBtAndFindBestMatch (
     size_t bestLength = 0;
     U32 dummy32;   /* to be nullified at the end */
 
-    hashTable[h] = (U32)(ip-base);   /* Update Hash Table */
+    hashTable[h] = current;   /* Update Hash Table */
 
     while (nbCompares-- && (matchIndex > windowLow))
     {
@@ -1213,7 +1213,7 @@ static U32 ZSTD_insertBt1_extDict(ZSTD_CCtx* zc, const BYTE* const ip, const U32
     const BYTE* const dictEnd = dictBase + dictLimit;
     const BYTE* const prefixStart = base + dictLimit;
     const BYTE* match = base + matchIndex;
-    U32 current = (U32)(ip-base);
+    const U32 current = (U32)(ip-base);
     const U32 btLow = btMask >= current ? 0 : current - btMask;
     U32* smallerPtr = bt + 2*(current&btMask);
     U32* largerPtr  = bt + 2*(current&btMask) + 1;
@@ -1227,7 +1227,7 @@ static U32 ZSTD_insertBt1_extDict(ZSTD_CCtx* zc, const BYTE* const ip, const U32
         return (U32)(rleLength - mls);
     }
 
-    hashTable[h] = (U32)(ip - base);   /* Update Hash Table */
+    hashTable[h] = current;   /* Update Hash Table */
 
     while (nbCompares-- && (matchIndex > windowLow))
     {
@@ -1318,7 +1318,7 @@ size_t ZSTD_insertBtAndFindBestMatch_extDict (
     size_t bestLength = 0;
     U32 dummy32;   /* to be nullified at the end */
 
-    hashTable[h] = (U32)(ip-base);   /* Update Hash Table */
+    hashTable[h] = current;   /* Update Hash Table */
 
     while (nbCompares-- && (matchIndex > windowLow))
     {
@@ -1726,7 +1726,7 @@ size_t ZSTD_compressBlock_lazy_extDict_generic(ZSTD_CCtx* ctx,
 
     /* init */
     ZSTD_resetSeqStore(seqStorePtr);
-    if (((ip-base) - dictLimit) < REPCODE_STARTVALUE) ip += REPCODE_STARTVALUE;
+    if ((ip - prefixStart) < REPCODE_STARTVALUE) ip += REPCODE_STARTVALUE;
 
     /* Match Loop */
     while (ip < ilimit)
@@ -2008,13 +2008,16 @@ size_t ZSTD_compressContinue (ZSTD_CCtx* zc,
     }
 
     /* preemptive overflow correction */
-    if ((zc->base > ip) || (zc->lowLimit > (1<<30) ))
+    if (zc->lowLimit > (1<<30))
     {
-        U32 correction = zc->lowLimit-1;
+        U32 btplus = (zc->params.strategy == ZSTD_btlazy2);
+        U32 contentMask = (1 << (zc->params.contentLog - btplus)) - 1;
+        U32 newLowLimit = zc->lowLimit & contentMask;   /* preserve position % contentSize */
+        U32 correction = zc->lowLimit - newLowLimit;
         ZSTD_reduceIndex(zc, correction);
         zc->base += correction;
         zc->dictBase += correction;
-        zc->lowLimit -= correction;
+        zc->lowLimit = newLowLimit;
         zc->dictLimit -= correction;
         if (zc->nextToUpdate < correction) zc->nextToUpdate = 0;
         else zc->nextToUpdate -= correction;

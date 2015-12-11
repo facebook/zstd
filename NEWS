@@ -1,4 +1,5 @@
 v0.4.4
+Fixed : high compression modes for Windows 32 bits
 new : windows DLL project, thanks to Christophe Chevalier
 
 v0.4.3 :

@@ -1034,6 +1034,7 @@ static U32 ZSTD_insertBt1(ZSTD_CCtx* zc, const BYTE* const ip, const U32 mls, co
     const U32 windowLow = zc->lowLimit;
 
     if ( (current-matchIndex == 1)   /* RLE */
+        && (matchIndex > windowLow)
         && (MEM_read64(match) == MEM_read64(ip)) )
     {
         size_t rleLength = ZSTD_count(ip+8, match+8, iend) + 8;

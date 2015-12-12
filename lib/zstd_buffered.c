@@ -373,7 +373,7 @@ size_t ZBUFF_decompressInit(ZBUFF_DCtx* zbc)
 
 size_t ZBUFF_decompressWithDictionary(ZBUFF_DCtx* zbc, const void* src, size_t srcSize)
 {
-    zbc->dict = src;
+    zbc->dict = (const char*)src;
     zbc->dictSize = srcSize;
     return 0;
 }

@@ -69,6 +69,7 @@ ZSTDLIB_API ZBUFF_CCtx* ZBUFF_createCCtx(void);
 ZSTDLIB_API size_t      ZBUFF_freeCCtx(ZBUFF_CCtx* cctx);
 
 ZSTDLIB_API size_t ZBUFF_compressInit(ZBUFF_CCtx* cctx, int compressionLevel);
+ZSTDLIB_API size_t ZBUFF_compressWithDictionary(ZBUFF_CCtx* cctx, const void* src, size_t srcSize);
 ZSTDLIB_API size_t ZBUFF_compressContinue(ZBUFF_CCtx* cctx, void* dst, size_t* maxDstSizePtr, const void* src, size_t* srcSizePtr);
 ZSTDLIB_API size_t ZBUFF_compressFlush(ZBUFF_CCtx* cctx, void* dst, size_t* maxDstSizePtr);
 ZSTDLIB_API size_t ZBUFF_compressEnd(ZBUFF_CCtx* cctx, void* dst, size_t* maxDstSizePtr);
@@ -80,6 +81,9 @@ ZSTDLIB_API size_t ZBUFF_compressEnd(ZBUFF_CCtx* cctx, void* dst, size_t* maxDst
 *  Use ZBUFF_createCCtx() and ZBUFF_freeCCtx() to create/release resources.
 *  Use ZBUFF_compressInit() to start a new compression operation.
 *  ZBUFF_CCtx objects can be reused multiple times.
+*
+*  Optionally, a reference to a static dictionary can be created with ZBUFF_compressWithDictionary()
+*  Note that the dictionary content must remain accessible during the compression process.
 *
 *  Use ZBUFF_compressContinue() repetitively to consume input stream.
 *  *srcSizePtr and *maxDstSizePtr can be any size.
@@ -115,6 +119,8 @@ ZSTDLIB_API ZBUFF_DCtx* ZBUFF_createDCtx(void);
 ZSTDLIB_API size_t      ZBUFF_freeDCtx(ZBUFF_DCtx* dctx);
 
 ZSTDLIB_API size_t ZBUFF_decompressInit(ZBUFF_DCtx* dctx);
+ZSTDLIB_API size_t ZBUFF_decompressWithDictionary(ZBUFF_DCtx* dctx, const void* src, size_t srcSize);
+
 ZSTDLIB_API size_t ZBUFF_decompressContinue(ZBUFF_DCtx* dctx, void* dst, size_t* maxDstSizePtr, const void* src, size_t* srcSizePtr);
 
 /** ************************************************
@@ -124,6 +130,10 @@ ZSTDLIB_API size_t ZBUFF_decompressContinue(ZBUFF_DCtx* dctx, void* dst, size_t*
 *  Use ZBUFF_createDCtx() and ZBUFF_freeDCtx() to create/release resources.
 *  Use ZBUFF_decompressInit() to start a new decompression operation.
 *  ZBUFF_DCtx objects can be reused multiple times.
+*
+*  Optionally, a reference to a static dictionary can be set, using ZBUFF_decompressWithDictionary()
+*  It must be the same content as the one set during compression phase.
+*  Dictionary content must remain accessible during the decompression process.
 *
 *  Use ZBUFF_decompressContinue() repetitively to consume your input.
 *  *srcSizePtr and *maxDstSizePtr can be any size.

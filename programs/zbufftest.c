@@ -161,6 +161,7 @@ static int basicUnitTests(U32 seed, double compressibility)
     ZBUFF_compressInit(zc, 1);
     readSize = CNBufferSize;
     genSize = compressedBufferSize;
+    ZBUFF_compressWithDictionary(zc, CNBuffer, 128 KB);
     result = ZBUFF_compressContinue(zc, compressedBuffer, &genSize, CNBuffer, &readSize);
     if (ZBUFF_isError(result)) goto _output_error;
     if (readSize != CNBufferSize) goto _output_error;   /* entire input should be consumed */
@@ -174,6 +175,7 @@ static int basicUnitTests(U32 seed, double compressibility)
     /* Basic decompression test */
     DISPLAYLEVEL(4, "test%3i : decompress %u bytes : ", testNb++, COMPRESSIBLE_NOISE_LENGTH);
     ZBUFF_decompressInit(zd);
+    ZBUFF_decompressWithDictionary(zd, CNBuffer, 128 KB);
     readSize = cSize;
     genSize = CNBufferSize;
     result = ZBUFF_decompressContinue(zd, decodedBuffer, &genSize, compressedBuffer, &readSize);
@@ -244,7 +246,6 @@ int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compressibilit
     U32 coreSeed = seed, lseed = 0;
     ZBUFF_CCtx* zc;
     ZBUFF_DCtx* zd;
-    XXH64_state_t crc64;
     U32 startTime = FUZ_GetMilliStart();
 
     /* allocation */
@@ -280,10 +281,12 @@ int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compressibilit
     for ( ; (testNb <= nbTests) || (FUZ_GetMilliSpan(startTime) < g_testTime); testNb++ )
     {
         size_t sampleSize, sampleStart;
-        size_t cSize;
+        const BYTE* dict;
+        size_t cSize, dictSize;
         size_t maxTestSize, totalTestSize, readSize, totalCSize, genSize, totalGenSize;
         size_t errorCode;
         U32 sampleSizeLog, buffNb, n, nbChunks;
+        XXH64_state_t crc64;
         U64 crcOrig, crcDest;
 
         /* init */
@@ -316,6 +319,15 @@ int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compressibilit
         maxTestSize = (size_t)1 << sampleSizeLog;
         maxTestSize += FUZ_rand(&lseed) & (maxTestSize-1);
         ZBUFF_compressInit(zc, (FUZ_rand(&lseed) % (20 - (sampleSizeLog/3))) + 1);
+
+        sampleSizeLog = FUZ_rand(&lseed) % maxSampleLog;
+        sampleSize = (size_t)1 << sampleSizeLog;
+        sampleSize += FUZ_rand(&lseed) & (sampleSize-1);
+        sampleStart = FUZ_rand(&lseed) % (srcBufferSize - sampleSize);
+        dict = srcBuffer + sampleStart;
+        dictSize = sampleSize;
+        ZBUFF_compressWithDictionary(zc, dict, dictSize);
+
         totalTestSize = 0;
         cSize = 0;
         for (n=0; n<nbChunks; n++)
@@ -363,6 +375,7 @@ int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compressibilit
 
         /* multi - fragments decompression test */
         ZBUFF_decompressInit(zd);
+        ZBUFF_decompressWithDictionary(zd, dict, dictSize);
         totalCSize = 0;
         totalGenSize = 0;
         while (totalCSize < cSize)

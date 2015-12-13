@@ -260,7 +260,7 @@ unsigned long long FIO_compressFilename(const char* output_filename, const char*
     if (dictFileName)
     {
         FILE* dictHandle;
-        size_t read;
+        size_t readSize;
         DISPLAYLEVEL(4,"Using %s as dictionary \n", dictFileName);
         dictHandle = fopen(dictFileName, "rb");
         if (dictHandle==0) EXM_THROW(21, "Error opening dictionary file %s", dictFileName);
@@ -276,8 +276,8 @@ unsigned long long FIO_compressFilename(const char* output_filename, const char*
         }
         dictBuff = (BYTE*)malloc((size_t)dictSize);
         if (dictBuff==NULL) EXM_THROW(20, "Allocation error : not enough memory for dictBuff");
-        read = fread(dictBuff, 1, (size_t)dictSize, dictHandle);
-        if (read!=dictSize) EXM_THROW(21, "Error reading dictionary file %s", dictFileName);
+        readSize = fread(dictBuff, 1, (size_t)dictSize, dictHandle);
+        if (readSize!=dictSize) EXM_THROW(21, "Error reading dictionary file %s", dictFileName);
         fclose(dictHandle);
     }
 
@@ -407,7 +407,7 @@ unsigned long long FIO_decompressFilename(const char* output_filename, const cha
     if (dictFileName)
     {
         FILE* dictHandle;
-        size_t read;
+        size_t readSize;
         DISPLAYLEVEL(4,"Using %s as dictionary \n", dictFileName);
         dictHandle = fopen(dictFileName, "rb");
         if (dictHandle==0) EXM_THROW(21, "Error opening dictionary file %s", dictFileName);
@@ -423,8 +423,8 @@ unsigned long long FIO_decompressFilename(const char* output_filename, const cha
         }
         dictBuff = (BYTE*)malloc(dictSize);
         if (dictBuff==NULL) EXM_THROW(20, "Allocation error : not enough memory for dictBuff");
-        read = fread(dictBuff, 1, (size_t)dictSize, dictHandle);
-        if (read!=dictSize) EXM_THROW(21, "Error reading dictionary file %s", dictFileName);
+        readSize = fread(dictBuff, 1, (size_t)dictSize, dictHandle);
+        if (readSize!=dictSize) EXM_THROW(21, "Error reading dictionary file %s", dictFileName);
         fclose(dictHandle);
     }
 

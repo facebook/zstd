@@ -46,7 +46,7 @@ echo "*** dictionary tests *** "
 
 ./datagen > tmpDict
 ./datagen -g1M | md5sum > tmp1
-./datagen -g1M | ./zstd -D tmpDict | ./zstd -D tmpDict -dv | md5sum > tmp2
+./datagen -g1M | $ZSTD -D tmpDict | $ZSTD -D tmpDict -dv | md5sum > tmp2
 diff -q tmp1 tmp2
 
 echo "**** zstd round-trip tests **** "

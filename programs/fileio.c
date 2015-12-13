@@ -270,11 +270,11 @@ unsigned long long FIO_compressFilename(const char* output_filename, const char*
             int seekResult;
             if (dictSize > 1 GB) EXM_THROW(21, "Dictionary file %s is too large", dictFileName);   /* avoid extreme cases */
             DISPLAYLEVEL(2,"Dictionary %s is too large : using last %u bytes only \n", dictFileName, MAX_DICT_SIZE);
-            seekResult = fseek(dictHandle, dictSize-MAX_DICT_SIZE, SEEK_SET);   /* use end of file */
+            seekResult = fseek(dictHandle, (size_t)(dictSize-MAX_DICT_SIZE), SEEK_SET);   /* use end of file */
             if (seekResult != 0) EXM_THROW(21, "Error seeking into dictionary file %s", dictFileName);
             dictSize = MAX_DICT_SIZE;
         }
-        dictBuff = (BYTE*)malloc(dictSize);
+        dictBuff = (BYTE*)malloc((size_t)dictSize);
         if (dictBuff==NULL) EXM_THROW(20, "Allocation error : not enough memory for dictBuff");
         read = fread(dictBuff, 1, (size_t)dictSize, dictHandle);
         if (read!=dictSize) EXM_THROW(21, "Error reading dictionary file %s", dictFileName);
@@ -286,7 +286,7 @@ unsigned long long FIO_compressFilename(const char* output_filename, const char*
     filesize = FIO_getFileSize(input_filename) + dictSize;
     errorCode = ZBUFF_compressInit_advanced(ctx, ZSTD_getParams(cLevel, filesize));
     if (ZBUFF_isError(errorCode)) EXM_THROW(22, "Error initializing compression");
-    errorCode = ZBUFF_compressWithDictionary(ctx, dictBuff, dictSize);
+    errorCode = ZBUFF_compressWithDictionary(ctx, dictBuff, (size_t)dictSize);
     if (ZBUFF_isError(errorCode)) EXM_THROW(22, "Error initializing dictionary");
 
     /* Main compression loop */
@@ -411,7 +411,7 @@ unsigned long long FIO_decompressFilename(const char* output_filename, const cha
         DISPLAYLEVEL(4,"Using %s as dictionary \n", dictFileName);
         dictHandle = fopen(dictFileName, "rb");
         if (dictHandle==0) EXM_THROW(21, "Error opening dictionary file %s", dictFileName);
-        dictSize = FIO_getFileSize(dictFileName);
+        dictSize = (size_t)FIO_getFileSize(dictFileName);
         if (dictSize > MAX_DICT_SIZE)
         {
             int seekResult;

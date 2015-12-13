@@ -94,8 +94,8 @@ zstd-noBench: $(ZSTD_FILES) $(ZSTDDIR)/zstd_buffered.c \
         zstdcli.c fileio.c $(ZSTD_FILEIO_LEGACY)
 	$(CC)      $(FLAGS) -DZSTD_NOBENCH $^ -o zstd$(EXT)
 
-zstd-frugal: clean
-	CFLAGS=-Os $(MAKE) zstd-noBench ZSTD_LEGACY_SUPPORT=0 
+zstd-frugal: clean 
+	$(MAKE) zstd-noBench ZSTD_LEGACY_SUPPORT=0 
 
 fullbench  : $(ZSTD_FILES) \
         datagen.c fullbench.c

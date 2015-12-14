@@ -1,3 +1,8 @@
+v0.4.4
+Fixed : high compression modes for Windows 32 bits
+new : external dictionary API extended to buffered mode and accessible through command line
+new : windows DLL project, thanks to Christophe Chevalier
+
 v0.4.3 :
 new : external dictionary API
 new : zstd-frugal

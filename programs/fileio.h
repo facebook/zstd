@@ -52,8 +52,8 @@ void FIO_setNotificationLevel(unsigned level);
 /* *************************************
 *  Stream/File functions
 ***************************************/
-unsigned long long FIO_compressFilename (const char* outfilename, const char* infilename, int compressionLevel);
-unsigned long long FIO_decompressFilename (const char* outfilename, const char* infilename);
+unsigned long long FIO_compressFilename (const char* outfilename, const char* infilename, const char* dictFileName, int compressionLevel);
+unsigned long long FIO_decompressFilename (const char* outfilename, const char* infilename, const char* dictFileName);
 /**
 FIO_compressFilename :
     @result : size of compressed file

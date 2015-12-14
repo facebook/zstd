@@ -70,7 +70,7 @@
 **************************************/
 #define COMPRESSOR_NAME "zstd command line interface"
 #ifndef ZSTD_VERSION
-#  define ZSTD_VERSION "v0.4.2"
+#  define ZSTD_VERSION "v0.4.4"
 #endif
 #define AUTHOR "Yann Collet"
 #define WELCOME_MESSAGE "*** %s %i-bits %s, by %s (%s) ***\n", COMPRESSOR_NAME, (int)(sizeof(void*)*8), ZSTD_VERSION, AUTHOR, __DATE__
@@ -118,8 +118,7 @@ static int usage(const char* programName)
     DISPLAY( "input   : a filename\n");
     DISPLAY( "          with no FILE, or when FILE is - , read standard input\n");
     DISPLAY( "Arguments :\n");
-    DISPLAY( " -1     : Fast compression (default) \n");
-    DISPLAY( " -19    : High compression \n");
+    DISPLAY( " -#     : # compression level (1-19, default:1) \n");
     DISPLAY( " -d     : decompression (default for %s extension)\n", ZSTD_EXTENSION);
     //DISPLAY( " -z     : force compression\n");
     DISPLAY( " -f     : overwrite output without prompting \n");
@@ -137,6 +136,7 @@ static int usage_advanced(const char* programName)
     DISPLAY( " -v     : verbose mode\n");
     DISPLAY( " -q     : suppress warnings; specify twice to suppress errors too\n");
     DISPLAY( " -c     : force write to standard output, even if it is the console\n");
+    DISPLAY( " -D file: use file content as Dictionary \n");
     //DISPLAY( " -t     : test compressed file integrity\n");
 #ifndef ZSTD_NOBENCH
     DISPLAY( "Benchmark arguments :\n");
@@ -171,11 +171,13 @@ int main(int argCount, const char** argv)
         bench=0,
         decode=0,
         forceStdout=0,
-        main_pause=0;
+        main_pause=0,
+        nextEntryIsDictionary=0;
     unsigned cLevel = 1;
     const char* programName = argv[0];
     const char* inFileName = NULL;
     const char* outFileName = NULL;
+    const char* dictFileName = NULL;
     char* dynNameSpace = NULL;
     const char extension[] = ZSTD_EXTENSION;
     unsigned fileNameStart = 0;
@@ -249,8 +251,11 @@ int main(int argCount, const char** argv)
                     /* Force stdout, even if stdout==console */
                 case 'c': forceStdout=1; outFileName=stdoutmark; displayLevel=1; argument++; break;
 
-                    // Test
-                //case 't': decode=1; LZ4IO_setOverwrite(1); output_filename=nulmark; break;
+                    /* Use file content as dictionary */
+                case 'D': nextEntryIsDictionary = 1; argument++; break;
+
+                    /* Test -- not implemented */
+                /* case 't': decode=1; LZ4IO_setOverwrite(1); output_filename=nulmark; break; */
 
                     /* Overwrite */
                 case 'f': FIO_overwriteMode(); argument++; break;
@@ -261,7 +266,7 @@ int main(int argCount, const char** argv)
                     /* Quiet mode */
                 case 'q': displayLevel--; argument++; break;
 
-                    /* keep source file (default anyway, so useless; only for xz/lzma compatibility) */
+                    /* keep source file (default anyway, so useless; for gzip/xz compatibility) */
                 case 'k': argument++; break;
 
 #ifndef ZSTD_NOBENCH
@@ -307,6 +312,14 @@ int main(int argCount, const char** argv)
                 default : return badusage(programName);
                 }
             }
+            continue;
+        }
+
+        /* dictionary */
+        if (nextEntryIsDictionary)
+        {
+            nextEntryIsDictionary = 0;
+            dictFileName = argument;
             continue;
         }
 
@@ -381,9 +394,9 @@ int main(int argCount, const char** argv)
     /* IO Stream/File */
     FIO_setNotificationLevel(displayLevel);
     if (decode)
-        FIO_decompressFilename(outFileName, inFileName);
+        FIO_decompressFilename(outFileName, inFileName, dictFileName);
     else
-        FIO_compressFilename(outFileName, inFileName, cLevel);
+        FIO_compressFilename(outFileName, inFileName, dictFileName, cLevel);
 
 _end:
     if (main_pause) waitEnter();

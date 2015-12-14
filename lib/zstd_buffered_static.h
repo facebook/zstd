@@ -52,7 +52,7 @@ extern "C" {
 /* *************************************
 *  Advanced Streaming functions
 ***************************************/
-size_t ZBUFF_compressInit_advanced(ZBUFF_CCtx* cctx, ZSTD_parameters params);
+ZSTDLIB_API size_t ZBUFF_compressInit_advanced(ZBUFF_CCtx* cctx, ZSTD_parameters params);
 
 
 #if defined (__cplusplus)

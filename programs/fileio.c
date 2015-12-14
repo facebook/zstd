@@ -121,6 +121,7 @@
 
 #define CACHELINE 64
 
+#define MAX_DICT_SIZE (512 KB)
 
 /* *************************************
 *  Macros
@@ -235,12 +236,13 @@ static U64 FIO_getFileSize(const char* infilename)
 }
 
 
-unsigned long long FIO_compressFilename(const char* output_filename, const char* input_filename, int cLevel)
+unsigned long long FIO_compressFilename(const char* output_filename, const char* input_filename,
+                                        const char* dictFileName, int cLevel)
 {
     U64 filesize = 0;
     U64 compressedfilesize = 0;
-    BYTE* inBuff;
-    BYTE* outBuff;
+    U64 dictSize = 0;
+    BYTE* inBuff, *outBuff, *dictBuff=NULL;
     size_t inBuffSize = ZBUFF_recommendedCInSize();
     size_t outBuffSize = ZBUFF_recommendedCOutSize();
     FILE* finput;
@@ -252,16 +254,43 @@ unsigned long long FIO_compressFilename(const char* output_filename, const char*
     ctx = ZBUFF_createCCtx();
     inBuff  = (BYTE*)malloc(inBuffSize);
     outBuff = (BYTE*)malloc(outBuffSize);
-    if (!inBuff || !outBuff || !ctx) EXM_THROW(21, "Allocation error : not enough memory");
+    if (!inBuff || !outBuff || !ctx) EXM_THROW(20, "Allocation error : not enough memory");
+
+    /* dictionary */
+    if (dictFileName)
+    {
+        FILE* dictHandle;
+        size_t readSize;
+        DISPLAYLEVEL(4,"Using %s as dictionary \n", dictFileName);
+        dictHandle = fopen(dictFileName, "rb");
+        if (dictHandle==0) EXM_THROW(21, "Error opening dictionary file %s", dictFileName);
+        dictSize = FIO_getFileSize(dictFileName);
+        if (dictSize > MAX_DICT_SIZE)
+        {
+            int seekResult;
+            if (dictSize > 1 GB) EXM_THROW(21, "Dictionary file %s is too large", dictFileName);   /* avoid extreme cases */
+            DISPLAYLEVEL(2,"Dictionary %s is too large : using last %u bytes only \n", dictFileName, MAX_DICT_SIZE);
+            seekResult = fseek(dictHandle, (size_t)(dictSize-MAX_DICT_SIZE), SEEK_SET);   /* use end of file */
+            if (seekResult != 0) EXM_THROW(21, "Error seeking into dictionary file %s", dictFileName);
+            dictSize = MAX_DICT_SIZE;
+        }
+        dictBuff = (BYTE*)malloc((size_t)dictSize);
+        if (dictBuff==NULL) EXM_THROW(20, "Allocation error : not enough memory for dictBuff");
+        readSize = fread(dictBuff, 1, (size_t)dictSize, dictHandle);
+        if (readSize!=dictSize) EXM_THROW(21, "Error reading dictionary file %s", dictFileName);
+        fclose(dictHandle);
+    }
 
     /* init */
     FIO_getFileHandles(&finput, &foutput, input_filename, output_filename);
-    filesize = FIO_getFileSize(input_filename);
+    filesize = FIO_getFileSize(input_filename) + dictSize;
     errorCode = ZBUFF_compressInit_advanced(ctx, ZSTD_getParams(cLevel, filesize));
     if (ZBUFF_isError(errorCode)) EXM_THROW(22, "Error initializing compression");
-    filesize = 0;
+    errorCode = ZBUFF_compressWithDictionary(ctx, dictBuff, (size_t)dictSize);
+    if (ZBUFF_isError(errorCode)) EXM_THROW(22, "Error initializing dictionary");
 
     /* Main compression loop */
+    filesize = 0;
     while (1)
     {
         size_t inSize;
@@ -311,6 +340,7 @@ unsigned long long FIO_compressFilename(const char* output_filename, const char*
     /* clean */
     free(inBuff);
     free(outBuff);
+    free(dictBuff);
     ZBUFF_freeCCtx(ctx);
     fclose(finput);
     if (fclose(foutput)) EXM_THROW(28, "Write error : cannot properly close %s", output_filename);
@@ -322,6 +352,7 @@ unsigned long long FIO_compressFilename(const char* output_filename, const char*
 unsigned long long FIO_decompressFrame(FILE* foutput, FILE* finput,
                                        BYTE* inBuff, size_t inBuffSize, size_t alreadyLoaded,
                                        BYTE* outBuff, size_t outBuffSize,
+                                       BYTE* dictBuff, size_t dictSize,
                                        ZBUFF_DCtx* dctx)
 {
     U64    frameSize = 0;
@@ -329,6 +360,7 @@ unsigned long long FIO_decompressFrame(FILE* foutput, FILE* finput,
 
     /* Main decompression Loop */
     ZBUFF_decompressInit(dctx);
+    ZBUFF_decompressWithDictionary(dctx, dictBuff, dictSize);
     while (1)
     {
         /* Decode */
@@ -359,16 +391,42 @@ unsigned long long FIO_decompressFrame(FILE* foutput, FILE* finput,
 }
 
 
-unsigned long long FIO_decompressFilename(const char* output_filename, const char* input_filename)
+unsigned long long FIO_decompressFilename(const char* output_filename, const char* input_filename, const char* dictFileName)
 {
     FILE* finput, *foutput;
     BYTE* inBuff=NULL;
     size_t inBuffSize = ZBUFF_recommendedDInSize();
     BYTE* outBuff=NULL;
     size_t outBuffSize = ZBUFF_recommendedDOutSize();
+    BYTE* dictBuff=NULL;
+    size_t dictSize = 0;
     U64   filesize = 0;
     size_t toRead;
 
+    /* dictionary */
+    if (dictFileName)
+    {
+        FILE* dictHandle;
+        size_t readSize;
+        DISPLAYLEVEL(4,"Using %s as dictionary \n", dictFileName);
+        dictHandle = fopen(dictFileName, "rb");
+        if (dictHandle==0) EXM_THROW(21, "Error opening dictionary file %s", dictFileName);
+        dictSize = (size_t)FIO_getFileSize(dictFileName);
+        if (dictSize > MAX_DICT_SIZE)
+        {
+            int seekResult;
+            if (dictSize > 1 GB) EXM_THROW(21, "Dictionary file %s is too large", dictFileName);   /* avoid extreme cases */
+            DISPLAYLEVEL(2,"Dictionary %s is too large : using last %u bytes only \n", dictFileName, MAX_DICT_SIZE);
+            seekResult = fseek(dictHandle, dictSize-MAX_DICT_SIZE, SEEK_SET);   /* use end of file */
+            if (seekResult != 0) EXM_THROW(21, "Error seeking into dictionary file %s", dictFileName);
+            dictSize = MAX_DICT_SIZE;
+        }
+        dictBuff = (BYTE*)malloc(dictSize);
+        if (dictBuff==NULL) EXM_THROW(20, "Allocation error : not enough memory for dictBuff");
+        readSize = fread(dictBuff, 1, (size_t)dictSize, dictHandle);
+        if (readSize!=dictSize) EXM_THROW(21, "Error reading dictionary file %s", dictFileName);
+        fclose(dictHandle);
+    }
 
     /* Init */
     ZBUFF_DCtx* dctx = ZBUFF_createDCtx();
@@ -396,7 +454,11 @@ unsigned long long FIO_decompressFilename(const char* output_filename, const cha
         }
 #endif   /* ZSTD_LEGACY_SUPPORT */
 
-        filesize += FIO_decompressFrame(foutput, finput, inBuff, inBuffSize, toRead, outBuff, outBuffSize, dctx);
+        filesize += FIO_decompressFrame(foutput, finput,
+                                        inBuff, inBuffSize, toRead,
+                                        outBuff, outBuffSize,
+                                        dictBuff, dictSize,
+                                        dctx);
     }
 
     DISPLAYLEVEL(2, "\r%79s\r", "");
@@ -405,6 +467,7 @@ unsigned long long FIO_decompressFilename(const char* output_filename, const cha
     /* clean */
     free(inBuff);
     free(outBuff);
+    free(dictBuff);
     ZBUFF_freeDCtx(dctx);
     fclose(finput);
     if (fclose(foutput)) EXM_THROW(38, "Write error : cannot properly close %s", output_filename);

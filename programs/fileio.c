@@ -270,7 +270,7 @@ unsigned long long FIO_compressFilename(const char* output_filename, const char*
             int seekResult;
             if (dictSize > 1 GB) EXM_THROW(21, "Dictionary file %s is too large", dictFileName);   /* avoid extreme cases */
             DISPLAYLEVEL(2,"Dictionary %s is too large : using last %u bytes only \n", dictFileName, MAX_DICT_SIZE);
-            seekResult = fseek(dictHandle, (size_t)(dictSize-MAX_DICT_SIZE), SEEK_SET);   /* use end of file */
+            seekResult = fseek(dictHandle, (long int)(dictSize-MAX_DICT_SIZE), SEEK_SET);   /* use end of file */
             if (seekResult != 0) EXM_THROW(21, "Error seeking into dictionary file %s", dictFileName);
             dictSize = MAX_DICT_SIZE;
         }
@@ -417,7 +417,7 @@ unsigned long long FIO_decompressFilename(const char* output_filename, const cha
             int seekResult;
             if (dictSize > 1 GB) EXM_THROW(21, "Dictionary file %s is too large", dictFileName);   /* avoid extreme cases */
             DISPLAYLEVEL(2,"Dictionary %s is too large : using last %u bytes only \n", dictFileName, MAX_DICT_SIZE);
-            seekResult = fseek(dictHandle, dictSize-MAX_DICT_SIZE, SEEK_SET);   /* use end of file */
+            seekResult = fseek(dictHandle, (long int)(dictSize-MAX_DICT_SIZE), SEEK_SET);   /* use end of file */
             if (seekResult != 0) EXM_THROW(21, "Error seeking into dictionary file %s", dictFileName);
             dictSize = MAX_DICT_SIZE;
         }

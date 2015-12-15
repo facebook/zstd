@@ -43,23 +43,25 @@
 #include <stdio.h>    /* fprintf, getchar */
 #include <stdlib.h>   /* exit, calloc, free */
 #include <string.h>   /* strcmp, strlen */
-#include "bench.h"    /* BMK_benchFiles, BMK_SetNbIterations */
 #include "fileio.h"
+#ifndef ZSTD_NOBENCH
+#  include "bench.h"  /* BMK_benchFiles, BMK_SetNbIterations */
+#endif
 
 
 /**************************************
 *  OS-specific Includes
 **************************************/
 #if defined(MSDOS) || defined(OS2) || defined(WIN32) || defined(_WIN32) || defined(__CYGWIN__)
-#  include <fcntl.h>    // _O_BINARY
-#  include <io.h>       // _setmode, _isatty
+#  include <fcntl.h>    /* _O_BINARY */
+#  include <io.h>       /* _setmode, _isatty */
 #  ifdef __MINGW32__
    /* int _fileno(FILE *stream);   // seems no longer useful // MINGW somehow forgets to include this windows declaration into <stdio.h> */
 #  endif
 #  define SET_BINARY_MODE(file) _setmode(_fileno(file), _O_BINARY)
 #  define IS_CONSOLE(stdStream) _isatty(_fileno(stdStream))
 #else
-#  include <unistd.h>   // isatty
+#  include <unistd.h>   /* isatty */
 #  define SET_BINARY_MODE(file)
 #  define IS_CONSOLE(stdStream) isatty(fileno(stdStream))
 #endif

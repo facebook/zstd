@@ -217,7 +217,7 @@ typedef size_t (*compressor_t) (void* dst, size_t maxDstSize, const void* src, s
 
 static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
                         const char* displayName, int cLevel,
-                        const char** fileNames, U32 nbFiles)
+                        const size_t* fileSizes, U32 nbFiles)
 {
     const size_t blockSize = (g_blockSize ? g_blockSize : srcSize) + (!srcSize);   /* avoid div by 0 */
     const U32 maxNbBlocks = (U32) ((srcSize + (blockSize-1)) / blockSize) + nbFiles;
@@ -244,9 +244,8 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
         char* resPtr = (char*)resultBuffer;
         for (fileNb=0; fileNb<nbFiles; fileNb++)
         {
-            U64 fileSize = (nbFiles>=2) ? BMK_getFileSize(fileNames[fileNb]) : srcSize;
-            size_t remaining = (size_t)fileSize;
-            U32 nbBlocksforThisFile = (U32)((fileSize + (blockSize-1)) / blockSize);
+            size_t remaining = fileSizes[fileNb];
+            U32 nbBlocksforThisFile = (U32)((remaining + (blockSize-1)) / blockSize);
             U32 blockEnd = nbBlocks + nbBlocksforThisFile;
             for ( ; nbBlocks<blockEnd; nbBlocks++)
             {
@@ -376,16 +375,16 @@ static size_t BMK_findMaxMem(U64 requiredMem)
 
 static void BMK_benchCLevel(void* srcBuffer, size_t benchedSize,
                             const char* displayName, int cLevel,
-                            const char** fileNamesTable, unsigned nbFiles)
+                            const size_t* fileSizes, unsigned nbFiles)
 {
     if (cLevel < 0)
     {
         int l;
         for (l=1; l <= -cLevel; l++)
-            BMK_benchMem(srcBuffer, benchedSize, displayName, l, fileNamesTable, nbFiles);
+            BMK_benchMem(srcBuffer, benchedSize, displayName, l, fileSizes, nbFiles);
         return;
     }
-    BMK_benchMem(srcBuffer, benchedSize, displayName, cLevel, fileNamesTable, nbFiles);
+    BMK_benchMem(srcBuffer, benchedSize, displayName, cLevel, fileSizes, nbFiles);
 }
 
 static U64 BMK_getTotalFileSize(const char** fileNamesTable, unsigned nbFiles)
@@ -397,7 +396,9 @@ static U64 BMK_getTotalFileSize(const char** fileNamesTable, unsigned nbFiles)
     return total;
 }
 
-static void BMK_loadFiles(void* buffer, size_t bufferSize, const char** fileNamesTable, unsigned nbFiles)
+static void BMK_loadFiles(void* buffer, size_t bufferSize,
+                          size_t* fileSizes,
+                          const char** fileNamesTable, unsigned nbFiles)
 {
     BYTE* buff = (BYTE*)buffer;
     size_t pos = 0;
@@ -414,6 +415,7 @@ static void BMK_loadFiles(void* buffer, size_t bufferSize, const char** fileName
         readSize = fread(buff+pos, 1, (size_t)fileSize, f);
         if (readSize != (size_t)fileSize) EXM_THROW(11, "could not read %s", fileNamesTable[n]);
         pos += readSize;
+        fileSizes[n] = fileSize;
         fclose(f);
     }
 }
@@ -422,6 +424,7 @@ static void BMK_benchFileTable(const char** fileNamesTable, unsigned nbFiles, in
 {
     void* srcBuffer;
     size_t benchedSize;
+    size_t* fileSizes;
     U64 totalSizeToLoad = BMK_getTotalFileSize(fileNamesTable, nbFiles);
     char mfName[20] = {0};
     const char* displayName = NULL;
@@ -432,20 +435,22 @@ static void BMK_benchFileTable(const char** fileNamesTable, unsigned nbFiles, in
     if (benchedSize < totalSizeToLoad)
         DISPLAY("Not enough memory; testing %u MB only...\n", (U32)(benchedSize >> 20));
     srcBuffer = malloc(benchedSize);
+    fileSizes = malloc(nbFiles * sizeof(size_t));
     if (!srcBuffer) EXM_THROW(12, "not enough memory");
 
     /* Load input buffer */
-    BMK_loadFiles(srcBuffer, benchedSize, fileNamesTable, nbFiles);
+    BMK_loadFiles(srcBuffer, benchedSize, fileSizes, fileNamesTable, nbFiles);
 
     /* Bench */
     snprintf (mfName, sizeof(mfName), " %u files", nbFiles);
     if (nbFiles > 1) displayName = mfName;
     else displayName = fileNamesTable[0];
 
-    BMK_benchCLevel(srcBuffer, benchedSize, displayName, cLevel, fileNamesTable, nbFiles);
+    BMK_benchCLevel(srcBuffer, benchedSize, displayName, cLevel, fileSizes, nbFiles);
 
     /* clean up */
     free(srcBuffer);
+    free(fileSizes);
 }
 
 
@@ -463,7 +468,7 @@ static void BMK_syntheticTest(int cLevel, double compressibility)
 
     /* Bench */
     snprintf (name, sizeof(name), "Synthetic %2u%%", (unsigned)(compressibility*100));
-    BMK_benchCLevel(srcBuffer, benchedSize, name, cLevel, NULL, 1);
+    BMK_benchCLevel(srcBuffer, benchedSize, name, cLevel, &benchedSize, 1);
 
     /* clean up */
     free(srcBuffer);

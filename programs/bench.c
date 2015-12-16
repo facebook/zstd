@@ -435,7 +435,7 @@ static void BMK_benchFileTable(const char** fileNamesTable, unsigned nbFiles, in
     if (benchedSize < totalSizeToLoad)
         DISPLAY("Not enough memory; testing %u MB only...\n", (U32)(benchedSize >> 20));
     srcBuffer = malloc(benchedSize);
-    fileSizes = malloc(nbFiles * sizeof(size_t));
+    fileSizes = (size_t*)malloc(nbFiles * sizeof(size_t));
     if (!srcBuffer) EXM_THROW(12, "not enough memory");
 
     /* Load input buffer */

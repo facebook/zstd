@@ -27,7 +27,10 @@
 *  Compiler Options
 ****************************************/
 /* Disable some Visual warning messages */
-#define _CRT_SECURE_NO_WARNINGS                  /* fopen */
+#ifdef _MSC_VER
+#  define _CRT_SECURE_NO_WARNINGS                /* fopen */
+#  pragma warning(disable : 4127)                /* disable: C4127: conditional expression is constant */
+#endif
 
 /* Unix Large Files support (>4GB) */
 #define _FILE_OFFSET_BITS 64

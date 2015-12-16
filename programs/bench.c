@@ -415,7 +415,7 @@ static void BMK_loadFiles(void* buffer, size_t bufferSize,
         readSize = fread(buff+pos, 1, (size_t)fileSize, f);
         if (readSize != (size_t)fileSize) EXM_THROW(11, "could not read %s", fileNamesTable[n]);
         pos += readSize;
-        fileSizes[n] = fileSize;
+        fileSizes[n] = (size_t)fileSize;
         fclose(f);
     }
 }

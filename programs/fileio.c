@@ -204,11 +204,11 @@ static void FIO_getFileHandles(FILE** pfinput, FILE** pfoutput, const char* inpu
             fclose(*pfoutput);
             if (!g_overwrite)
             {
-                char ch;
+                char ch='N';
                 if (g_displayLevel <= 1)   /* No interaction possible */
                     EXM_THROW(11, "Operation aborted : %s already exists", output_filename);
                 DISPLAYLEVEL(2, "Warning : %s already exists\n", output_filename);
-                DISPLAYLEVEL(2, "Overwrite ? (Y/N) : ");
+                DISPLAYLEVEL(2, "Overwrite ? (y/N) : ");
                 ch = (char)getchar();
                 if ((ch!='Y') && (ch!='y')) EXM_THROW(11, "Operation aborted : %s already exists", output_filename);
             }
@@ -236,56 +236,55 @@ static U64 FIO_getFileSize(const char* infilename)
 }
 
 
-static int FIO_getFiles(const char* input_filename, const char* output_filename,
-                        FILE** pfinput, FILE** pfoutput)
+static int FIO_getFiles(FILE** fileOutPtr, FILE** fileInPtr,
+                        const char* dstFileName, const char* srcFileName)
 {
-
-    if (!strcmp (input_filename, stdinmark))
+    if (!strcmp (srcFileName, stdinmark))
     {
         DISPLAYLEVEL(4,"Using stdin for input\n");
-        *pfinput = stdin;
+        *fileInPtr = stdin;
         SET_BINARY_MODE(stdin);
     }
     else
     {
-        *pfinput = fopen(input_filename, "rb");
+        *fileInPtr = fopen(srcFileName, "rb");
     }
 
-    if ( *pfinput==0 )
+    if ( *fileInPtr==0 )
     {
-        DISPLAYLEVEL(1, "Unable to access file for processing: %s\n", input_filename);
+        DISPLAYLEVEL(1, "Unable to access file for processing: %s\n", srcFileName);
         return 1;
     }
 
-    if (!strcmp (output_filename, stdoutmark))
+    if (!strcmp (dstFileName, stdoutmark))
     {
         DISPLAYLEVEL(4,"Using stdout for output\n");
-        *pfoutput = stdout;
+        *fileOutPtr = stdout;
         SET_BINARY_MODE(stdout);
     }
     else
     {
         /* Check if destination file already exists */
-        *pfoutput=0;
-        *pfoutput = fopen( output_filename, "rb" );
-        if (*pfoutput!=0)
+        if (!g_overwrite)
         {
-            fclose(*pfoutput);
-            if (!g_overwrite)
+            *fileOutPtr = fopen( dstFileName, "rb" );
+            if (*fileOutPtr != 0)
             {
-                int ch = 'Y';
-                DISPLAYLEVEL(2, "Warning : %s already exists\n", output_filename);
-                if ((g_displayLevel <= 1) || (*pfinput == stdin))
-                    EXM_THROW(11, "Operation aborted : %s already exists", output_filename);   /* No interaction possible */
-                DISPLAYLEVEL(2, "Overwrite ? (Y/n) : ");
-                while((ch = getchar()) != '\n' && ch != EOF)   /* flush integrated */
-                if ((ch!='Y') && (ch!='y')) EXM_THROW(12, "No. Operation aborted : %s already exists", output_filename);
+                /* prompt for overwrite authorization */
+                int ch = 'N';
+                fclose(*fileOutPtr);
+                DISPLAYLEVEL(2, "Warning : %s already exists\n", dstFileName);
+                if ((g_displayLevel <= 1) || (*fileInPtr == stdin))
+                    EXM_THROW(11, "Operation aborted : %s already exists", dstFileName);   /* No interaction possible */
+                DISPLAYLEVEL(2, "Overwrite ? (y/N) : ");
+                while((ch = getchar()) != '\n' && ch != EOF);   /* flush integrated */
+                if ((ch!='Y') && (ch!='y')) EXM_THROW(12, "No. Operation aborted : %s already exists", dstFileName);
             }
         }
-        *pfoutput = fopen( output_filename, "wb" );
+        *fileOutPtr = fopen( dstFileName, "wb" );
     }
 
-    if (*pfoutput==0) EXM_THROW(13, "Pb opening %s", output_filename);
+    if (*fileOutPtr==0) EXM_THROW(13, "Pb opening %s", dstFileName);
 
     return 0;
 }
@@ -367,7 +366,7 @@ static void FIO_freeCResources(cRess_t ress)
  *          1 : missing or pb opening srcFileName
  */
 static int FIO_compressFilename_extRess(cRess_t ress,
-                                        const char* srcFileName, const char* dstFileName,
+                                        const char* dstFileName, const char* srcFileName,
                                         int cLevel)
 {
     FILE* srcFile;
@@ -378,7 +377,7 @@ static int FIO_compressFilename_extRess(cRess_t ress,
     size_t sizeCheck, errorCode;
 
     /* File check */
-    if (FIO_getFiles(srcFileName, dstFileName, &srcFile, &dstFile)) return 1;
+    if (FIO_getFiles(&dstFile, &srcFile, dstFileName, srcFileName)) return 1;
 
     /* init */
     filesize = FIO_getFileSize(srcFileName) + dictSize;
@@ -443,125 +442,40 @@ static int FIO_compressFilename_extRess(cRess_t ress,
 }
 
 
-unsigned long long FIO_compressFilename(const char* output_filename, const char* input_filename,
-                                        const char* dictFileName, int cLevel)
+int FIO_compressFilename(const char* dstFileName, const char* srcFileName,
+                         const char* dictFileName, int compressionLevel)
 {
-    U64 filesize = 0;
-    U64 compressedfilesize = 0;
-    U64 dictSize = 0;
-    BYTE* inBuff, *outBuff, *dictBuff=NULL;
-    size_t inBuffSize = ZBUFF_recommendedCInSize();
-    size_t outBuffSize = ZBUFF_recommendedCOutSize();
-    FILE* finput;
-    FILE* foutput;
-    size_t sizeCheck, errorCode;
-    ZBUFF_CCtx* ctx;
+    clock_t start, end;
+    cRess_t ress;
+    int issueWithSrcFile = 0;
 
-    /* Allocate Memory */
-    ctx = ZBUFF_createCCtx();
-    inBuff  = (BYTE*)malloc(inBuffSize);
-    outBuff = (BYTE*)malloc(outBuffSize);
-    if (!inBuff || !outBuff || !ctx) EXM_THROW(20, "Allocation error : not enough memory");
+    /* Init */
+    start = clock();
+    ress = FIO_createCResources(dictFileName);
 
-    /* dictionary */
-    if (dictFileName)
+    /* Compress File */
+    issueWithSrcFile += FIO_compressFilename_extRess(ress, dstFileName, srcFileName, compressionLevel);
+
+    /* Free resources */
+    FIO_freeCResources(ress);
+
+    /* Final Status */
+    end = clock();
     {
-        FILE* dictHandle;
-        size_t readSize;
-        DISPLAYLEVEL(4,"Using %s as dictionary \n", dictFileName);
-        dictHandle = fopen(dictFileName, "rb");
-        if (dictHandle==0) EXM_THROW(21, "Error opening dictionary file %s", dictFileName);
-        dictSize = FIO_getFileSize(dictFileName);
-        if (dictSize > MAX_DICT_SIZE)
-        {
-            int seekResult;
-            if (dictSize > 1 GB) EXM_THROW(21, "Dictionary file %s is too large", dictFileName);   /* avoid extreme cases */
-            DISPLAYLEVEL(2,"Dictionary %s is too large : using last %u bytes only \n", dictFileName, MAX_DICT_SIZE);
-            seekResult = fseek(dictHandle, (long int)(dictSize-MAX_DICT_SIZE), SEEK_SET);   /* use end of file */
-            if (seekResult != 0) EXM_THROW(21, "Error seeking into dictionary file %s", dictFileName);
-            dictSize = MAX_DICT_SIZE;
-        }
-        dictBuff = (BYTE*)malloc((size_t)dictSize);
-        if (dictBuff==NULL) EXM_THROW(20, "Allocation error : not enough memory for dictBuff");
-        readSize = fread(dictBuff, 1, (size_t)dictSize, dictHandle);
-        if (readSize!=dictSize) EXM_THROW(21, "Error reading dictionary file %s", dictFileName);
-        fclose(dictHandle);
+        double seconds = (double)(end - start) / CLOCKS_PER_SEC;
+        DISPLAYLEVEL(4, "Completed in %.2f sec \n", seconds);
     }
 
-    /* init */
-    FIO_getFileHandles(&finput, &foutput, input_filename, output_filename);
-    filesize = FIO_getFileSize(input_filename) + dictSize;
-    errorCode = ZBUFF_compressInit_advanced(ctx, ZSTD_getParams(cLevel, filesize));
-    if (ZBUFF_isError(errorCode)) EXM_THROW(22, "Error initializing compression");
-    errorCode = ZBUFF_compressWithDictionary(ctx, dictBuff, (size_t)dictSize);
-    if (ZBUFF_isError(errorCode)) EXM_THROW(22, "Error initializing dictionary");
-
-    /* Main compression loop */
-    filesize = 0;
-    while (1)
-    {
-        size_t inSize;
-
-        /* Fill input Buffer */
-        inSize = fread(inBuff, (size_t)1, inBuffSize, finput);
-        if (inSize==0) break;
-        filesize += inSize;
-        DISPLAYUPDATE(2, "\rRead : %u MB  ", (U32)(filesize>>20));
-
-        {
-            /* Compress (buffered streaming ensures appropriate formatting) */
-            size_t usedInSize = inSize;
-            size_t cSize = outBuffSize;
-            size_t result = ZBUFF_compressContinue(ctx, outBuff, &cSize, inBuff, &usedInSize);
-            if (ZBUFF_isError(result))
-                EXM_THROW(23, "Compression error : %s ", ZBUFF_getErrorName(result));
-            if (inSize != usedInSize)
-                /* inBuff should be entirely consumed since buffer sizes are recommended ones */
-                EXM_THROW(24, "Compression error : input block not fully consumed");
-
-            /* Write cBlock */
-            sizeCheck = fwrite(outBuff, 1, cSize, foutput);
-            if (sizeCheck!=cSize) EXM_THROW(25, "Write error : cannot write compressed block into %s", output_filename);
-            compressedfilesize += cSize;
-        }
-
-        DISPLAYUPDATE(2, "\rRead : %u MB  ==> %.2f%%   ", (U32)(filesize>>20), (double)compressedfilesize/filesize*100);
-    }
-
-    /* End of Frame */
-    {
-        size_t cSize = outBuffSize;
-        size_t result = ZBUFF_compressEnd(ctx, outBuff, &cSize);
-        if (result!=0) EXM_THROW(26, "Compression error : cannot create frame end");
-
-        sizeCheck = fwrite(outBuff, 1, cSize, foutput);
-        if (sizeCheck!=cSize) EXM_THROW(27, "Write error : cannot write frame end into %s", output_filename);
-        compressedfilesize += cSize;
-    }
-
-    /* Status */
-    DISPLAYLEVEL(2, "\r%79s\r", "");
-    DISPLAYLEVEL(2,"Compressed %llu bytes into %llu bytes ==> %.2f%%\n",
-        (unsigned long long) filesize, (unsigned long long) compressedfilesize, (double)compressedfilesize/filesize*100);
-
-    /* clean */
-    free(inBuff);
-    free(outBuff);
-    free(dictBuff);
-    ZBUFF_freeCCtx(ctx);
-    fclose(finput);
-    if (fclose(foutput)) EXM_THROW(28, "Write error : cannot properly close %s", output_filename);
-
-    return compressedfilesize;
+    return issueWithSrcFile;
 }
 
 
 #define FNSPACE 30
-int FIO_compressMultipleFilenames(const char** inFileNamesTable, int ifntSize,
+int FIO_compressMultipleFilenames(const char** inFileNamesTable, unsigned nbFiles,
                                   const char* suffix,
                                   const char* dictFileName, int compressionLevel)
 {
-    int i;
+    unsigned u;
     int missed_files = 0;
     char* dstFileName = (char*)malloc(FNSPACE);
     size_t dfnSize = FNSPACE;
@@ -572,14 +486,14 @@ int FIO_compressMultipleFilenames(const char** inFileNamesTable, int ifntSize,
     ress = FIO_createCResources(dictFileName);
 
     /* loop on each file */
-    for (i=0; i<ifntSize; i++)
+    for (u=0; u<nbFiles; u++)
     {
-        size_t ifnSize = strlen(inFileNamesTable[i]);
+        size_t ifnSize = strlen(inFileNamesTable[u]);
         if (dfnSize <= ifnSize+suffixSize+1) { free(dstFileName); dfnSize = ifnSize + 20; dstFileName = (char*)malloc(dfnSize); }
-        strcpy(dstFileName, inFileNamesTable[i]);
+        strcpy(dstFileName, inFileNamesTable[u]);
         strcat(dstFileName, suffix);
 
-        missed_files += FIO_compressFilename_extRess(ress, inFileNamesTable[i], dstFileName, compressionLevel);
+        missed_files += FIO_compressFilename_extRess(ress, dstFileName, inFileNamesTable[u], compressionLevel);
     }
 
     /* Close & Free */

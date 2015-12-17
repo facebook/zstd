@@ -211,8 +211,6 @@ typedef struct
     size_t resSize;
 } blockParam_t;
 
-typedef size_t (*compressor_t) (void* dst, size_t maxDstSize, const void* src, size_t srcSize, int compressionLevel);
-
 #define MIN(a,b) ((a)<(b) ? (a) : (b))
 
 static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
@@ -225,7 +223,6 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
     const size_t maxCompressedSize = ZSTD_compressBound(srcSize) + (maxNbBlocks * 1024);   /* add some room for safety */
     void* const compressedBuffer = malloc(maxCompressedSize);
     void* const resultBuffer = malloc(srcSize);
-    const compressor_t compressor = ZSTD_compress;
     U64 crcOrig = XXH64(srcBuffer, srcSize, 0);
     U32 nbBlocks = 0;
 
@@ -292,7 +289,7 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
             while (BMK_GetMilliSpan(milliTime) < TIMELOOP)
             {
                 for (blockNb=0; blockNb<nbBlocks; blockNb++)
-                    blockTable[blockNb].cSize = compressor(blockTable[blockNb].cPtr,  blockTable[blockNb].cRoom, blockTable[blockNb].srcPtr,blockTable[blockNb].srcSize, cLevel);
+                    blockTable[blockNb].cSize = ZSTD_compress(blockTable[blockNb].cPtr,  blockTable[blockNb].cRoom, blockTable[blockNb].srcPtr,blockTable[blockNb].srcSize, cLevel);
                 nbLoops++;
             }
             milliTime = BMK_GetMilliSpan(milliTime);
@@ -475,7 +472,7 @@ static void BMK_syntheticTest(int cLevel, double compressibility)
 }
 
 
-int BMK_benchFiles(const char** fileNamesTable, unsigned nbFiles, unsigned cLevel)
+int BMK_benchFiles(const char** fileNamesTable, unsigned nbFiles, int cLevel)
 {
     double compressibility = (double)g_compressibilityDefault / 100;
 

@@ -324,7 +324,8 @@ static cRess_t FIO_createCResources(const char* dictFileName)
     if (dictFileName)
     {
         FILE* dictHandle;
-        size_t readSize, dictSize;
+        size_t readSize;
+        U64 dictSize;
         DISPLAYLEVEL(4,"Using %s as dictionary \n", dictFileName);
         dictHandle = fopen(dictFileName, "rb");
         if (dictHandle==0) EXM_THROW(31, "Error opening dictionary file %s", dictFileName);
@@ -343,7 +344,7 @@ static cRess_t FIO_createCResources(const char* dictFileName)
         readSize = fread(ress.dictBuffer, 1, (size_t)dictSize, dictHandle);
         if (readSize!=dictSize) EXM_THROW(35, "Error reading dictionary file %s", dictFileName);
         fclose(dictHandle);
-        ress.dictBufferSize = dictSize;
+        ress.dictBufferSize = (size_t)dictSize;
     }
 
     return ress;

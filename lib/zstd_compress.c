@@ -2180,3 +2180,41 @@ size_t ZSTD_compress(void* dst, size_t maxDstSize, const void* src, size_t srcSi
     free(ctxBody.workSpace);   /* can't free ctxBody, since it's on stack; free heap content */
     return result;
 }
+
+size_t ZSTD_compress_usingDict(ZSTD_CCtx* ctx,
+                               void* dst, size_t maxDstSize,
+                         const void* src, size_t srcSize,
+                         const void* dict, size_t dictSize,
+                               int compressionLevel)
+{
+    BYTE* const ostart = (BYTE*)dst;
+    BYTE* op = ostart;
+    size_t oSize;
+
+    /* Header */
+    oSize = ZSTD_compressBegin_advanced(ctx, dst, maxDstSize, ZSTD_getParams(compressionLevel, srcSize+dictSize));
+    if (ZSTD_isError(oSize)) return oSize;
+    op += oSize;
+    maxDstSize -= oSize;
+
+    if (dict)
+    {
+        oSize = ZSTD_compress_insertDictionary(ctx, dict, dictSize);
+        if (ZSTD_isError(oSize)) return oSize;
+    }
+
+    /* body (compression) */
+    oSize = ZSTD_compressContinue(ctx, op, maxDstSize, src, srcSize);
+    if (ZSTD_isError(oSize)) return oSize;
+    op += oSize;
+    maxDstSize -= oSize;
+
+    /* Close frame */
+    oSize = ZSTD_compressEnd(ctx, op, maxDstSize);
+    if (ZSTD_isError(oSize)) return oSize;
+    op += oSize;
+
+    return (op - ostart);
+}
+
+

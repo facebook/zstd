@@ -98,9 +98,17 @@ ZSTDLIB_API size_t ZSTD_compress_advanced (ZSTD_CCtx* ctx,
                                      const void* src, size_t srcSize,
                                            ZSTD_parameters params);
 
+/** ZSTD_compress_usingDict
+*   Same as ZSTD_compressCCtx(), using a Dictionary content as prefix */
+ZSTDLIB_API size_t ZSTD_compress_usingDict(ZSTD_CCtx* ctx,
+                                           void* dst, size_t maxDstSize,
+                                     const void* src, size_t srcSize,
+                                     const void* dict,size_t dictSize,
+                                           int compressionLevel);
+
 
 /* **************************************
-*  Streaming functions (bufferless mode)
+*  Streaming functions (direct mode)
 ****************************************/
 ZSTDLIB_API size_t ZSTD_compressBegin(ZSTD_CCtx* cctx, void* dst, size_t maxDstSize, int compressionLevel);
 ZSTDLIB_API size_t ZSTD_compressBegin_advanced(ZSTD_CCtx* ctx, void* dst, size_t maxDstSize, ZSTD_parameters params);

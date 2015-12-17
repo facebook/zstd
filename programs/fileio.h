@@ -50,7 +50,7 @@ void FIO_setNotificationLevel(unsigned level);
 
 
 /* *************************************
-*  Stream/File functions
+*  Single File functions
 ***************************************/
 unsigned long long FIO_compressFilename (const char* outfilename, const char* infilename, const char* dictFileName, int compressionLevel);
 unsigned long long FIO_decompressFilename (const char* outfilename, const char* infilename, const char* dictFileName);
@@ -62,6 +62,17 @@ FIO_decompressFilename :
     @result : size of regenerated file
 */
 
+
+/* *************************************
+*  Multiple File functions
+***************************************/
+int FIO_compressMultipleFilenames(const char** inFileNamesTable, int ifntSize,
+                                  const char* suffix,
+                                  const char* dictFileName, int compressionLevel);
+/**
+FIO_compressMultipleFilenames :
+    @result : nb of missing files
+*/
 
 
 #if defined (__cplusplus)

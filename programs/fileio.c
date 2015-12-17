@@ -175,52 +175,6 @@ static unsigned FIO_GetMilliSpan(clock_t nPrevious)
 }
 
 
-static void FIO_getFileHandles(FILE** pfinput, FILE** pfoutput, const char* input_filename, const char* output_filename)
-{
-    if (!strcmp (input_filename, stdinmark))
-    {
-        DISPLAYLEVEL(4,"Using stdin for input\n");
-        *pfinput = stdin;
-        SET_BINARY_MODE(stdin);
-    }
-    else
-    {
-        *pfinput = fopen(input_filename, "rb");
-    }
-
-    if (!strcmp (output_filename, stdoutmark))
-    {
-        DISPLAYLEVEL(4,"Using stdout for output\n");
-        *pfoutput = stdout;
-        SET_BINARY_MODE(stdout);
-    }
-    else
-    {
-        /* Check if destination file already exists */
-        *pfoutput=0;
-        if (strcmp(output_filename,nulmark)) *pfoutput = fopen( output_filename, "rb" );
-        if (*pfoutput!=0)
-        {
-            fclose(*pfoutput);
-            if (!g_overwrite)
-            {
-                char ch='N';
-                if (g_displayLevel <= 1)   /* No interaction possible */
-                    EXM_THROW(11, "Operation aborted : %s already exists", output_filename);
-                DISPLAYLEVEL(2, "Warning : %s already exists\n", output_filename);
-                DISPLAYLEVEL(2, "Overwrite ? (y/N) : ");
-                ch = (char)getchar();
-                if ((ch!='Y') && (ch!='y')) EXM_THROW(11, "Operation aborted : %s already exists", output_filename);
-            }
-        }
-        *pfoutput = fopen( output_filename, "wb" );
-    }
-
-    if ( *pfinput==0 ) EXM_THROW(12, "Pb opening src : %s", input_filename);
-    if ( *pfoutput==0) EXM_THROW(13, "Pb opening dst : %s", output_filename);
-}
-
-
 static U64 FIO_getFileSize(const char* infilename)
 {
     int r;
@@ -273,12 +227,20 @@ static int FIO_getFiles(FILE** fileOutPtr, FILE** fileInPtr,
                 /* prompt for overwrite authorization */
                 int ch = 'N';
                 fclose(*fileOutPtr);
-                DISPLAYLEVEL(2, "Warning : %s already exists\n", dstFileName);
+                DISPLAY("Warning : %s already exists \n", dstFileName);
                 if ((g_displayLevel <= 1) || (*fileInPtr == stdin))
-                    EXM_THROW(11, "Operation aborted : %s already exists", dstFileName);   /* No interaction possible */
-                DISPLAYLEVEL(2, "Overwrite ? (y/N) : ");
+                {
+                    /* No interaction possible */
+                    DISPLAY("Operation aborted : %s already exists \n", dstFileName);
+                    return 1;
+                }
+                DISPLAY("Overwrite ? (y/N) : ");
                 while((ch = getchar()) != '\n' && ch != EOF);   /* flush integrated */
-                if ((ch!='Y') && (ch!='y')) EXM_THROW(12, "No. Operation aborted : %s already exists", dstFileName);
+                if ((ch!='Y') && (ch!='y'))
+                {
+                    DISPLAY("No. Operation aborted : %s already exists \n", dstFileName);
+                    return 1;
+                }
             }
         }
         *fileOutPtr = fopen( dstFileName, "wb" );
@@ -287,6 +249,42 @@ static int FIO_getFiles(FILE** fileOutPtr, FILE** fileInPtr,
     if (*fileOutPtr==0) EXM_THROW(13, "Pb opening %s", dstFileName);
 
     return 0;
+}
+
+/*!FIO_loadFile
+*  creates a buffer, pointed by *bufferPtr,
+*  loads "filename" content into it
+*  up to MAX_DICT_SIZE bytes
+*/
+static size_t FIO_loadFile(void** bufferPtr, const char* fileName)
+{
+    FILE* fileHandle;
+    size_t readSize;
+    U64 fileSize;
+
+    *bufferPtr = NULL;
+    if (fileName == NULL)
+        return 0;
+
+    DISPLAYLEVEL(4,"Loading %s as dictionary \n", fileName);
+    fileHandle = fopen(fileName, "rb");
+    if (fileHandle==0) EXM_THROW(31, "Error opening file %s", fileName);
+    fileSize = FIO_getFileSize(fileName);
+    if (fileSize > MAX_DICT_SIZE)
+    {
+        int seekResult;
+        if (fileSize > 1 GB) EXM_THROW(32, "Dictionary file %s is too large", fileName);   /* avoid extreme cases */
+        DISPLAYLEVEL(2,"Dictionary %s is too large : using last %u bytes only \n", fileName, MAX_DICT_SIZE);
+        seekResult = fseek(fileHandle, (long int)(fileSize-MAX_DICT_SIZE), SEEK_SET);   /* use end of file */
+        if (seekResult != 0) EXM_THROW(33, "Error seeking into file %s", fileName);
+        fileSize = MAX_DICT_SIZE;
+    }
+    *bufferPtr = (BYTE*)malloc((size_t)fileSize);
+    if (*bufferPtr==NULL) EXM_THROW(34, "Allocation error : not enough memory for dictBuffer");
+    readSize = fread(*bufferPtr, 1, (size_t)fileSize, fileHandle);
+    if (readSize!=fileSize) EXM_THROW(35, "Error reading dictionary file %s", fileName);
+    fclose(fileHandle);
+    return (size_t)fileSize;
 }
 
 
@@ -318,33 +316,7 @@ static cRess_t FIO_createCResources(const char* dictFileName)
     if (!ress.srcBuffer || !ress.dstBuffer) EXM_THROW(31, "Allocation error : not enough memory");
 
     /* dictionary */
-    ress.dictBuffer = NULL;
-    ress.dictBufferSize = 0;
-    if (dictFileName)
-    {
-        FILE* dictHandle;
-        size_t readSize;
-        U64 dictSize;
-        DISPLAYLEVEL(4,"Using %s as dictionary \n", dictFileName);
-        dictHandle = fopen(dictFileName, "rb");
-        if (dictHandle==0) EXM_THROW(31, "Error opening dictionary file %s", dictFileName);
-        dictSize = FIO_getFileSize(dictFileName);
-        if (dictSize > MAX_DICT_SIZE)
-        {
-            int seekResult;
-            if (dictSize > 1 GB) EXM_THROW(32, "Dictionary file %s is too large", dictFileName);   /* avoid extreme cases */
-            DISPLAYLEVEL(2,"Dictionary %s is too large : using last %u bytes only \n", dictFileName, MAX_DICT_SIZE);
-            seekResult = fseek(dictHandle, (long int)(dictSize-MAX_DICT_SIZE), SEEK_SET);   /* use end of file */
-            if (seekResult != 0) EXM_THROW(33, "Error seeking into dictionary file %s", dictFileName);
-            dictSize = MAX_DICT_SIZE;
-        }
-        ress.dictBuffer = (BYTE*)malloc((size_t)dictSize);
-        if (ress.dictBuffer==NULL) EXM_THROW(34, "Allocation error : not enough memory for dictBuffer");
-        readSize = fread(ress.dictBuffer, 1, (size_t)dictSize, dictHandle);
-        if (readSize!=dictSize) EXM_THROW(35, "Error reading dictionary file %s", dictFileName);
-        fclose(dictHandle);
-        ress.dictBufferSize = (size_t)dictSize;
-    }
+    ress.dictBufferSize = FIO_loadFile(&(ress.dictBuffer), dictFileName);
 
     return ress;
 }
@@ -504,48 +476,80 @@ int FIO_compressMultipleFilenames(const char** inFileNamesTable, unsigned nbFile
 }
 
 
-
-
 /* **************************************************************************
 *  Decompression
 ****************************************************************************/
+typedef struct {
+    void*  srcBuffer;
+    size_t srcBufferSize;
+    void*  dstBuffer;
+    size_t dstBufferSize;
+    void*  dictBuffer;
+    size_t dictBufferSize;
+    ZBUFF_DCtx* dctx;
+} dRess_t;
+
+static dRess_t FIO_createDResources(const char* dictFileName)
+{
+    dRess_t ress;
+
+    /* init */
+    ress.dctx = ZBUFF_createDCtx();
+    if (ress.dctx==NULL) EXM_THROW(60, "Can't create ZBUFF decompression context");
+
+    /* Allocate Memory */
+    ress.srcBufferSize = ZBUFF_recommendedDInSize();
+    ress.srcBuffer = malloc(ress.srcBufferSize);
+    ress.dstBufferSize = ZBUFF_recommendedDOutSize();
+    ress.dstBuffer = malloc(ress.dstBufferSize);
+    if (!ress.srcBuffer || !ress.dstBuffer) EXM_THROW(61, "Allocation error : not enough memory");
+
+    /* dictionary */
+    ress.dictBufferSize = FIO_loadFile(&(ress.dictBuffer), dictFileName);
+
+    return ress;
+}
+
+static void FIO_freeDResources(dRess_t ress)
+{
+    size_t errorCode = ZBUFF_freeDCtx(ress.dctx);
+    if (ZBUFF_isError(errorCode)) EXM_THROW(69, "Error : can't free ZBUFF context resource : %s", ZBUFF_getErrorName(errorCode));
+    free(ress.srcBuffer);
+    free(ress.dstBuffer);
+    free(ress.dictBuffer);
+}
 
 
-unsigned long long FIO_decompressFrame(FILE* foutput, FILE* finput,
-                                       BYTE* inBuff, size_t inBuffSize, size_t alreadyLoaded,
-                                       BYTE* outBuff, size_t outBuffSize,
-                                       BYTE* dictBuff, size_t dictSize,
-                                       ZBUFF_DCtx* dctx)
+unsigned long long FIO_decompressFrame(dRess_t ress,
+                                       FILE* foutput, FILE* finput, size_t alreadyLoaded)
 {
     U64    frameSize = 0;
     size_t readSize=alreadyLoaded;
 
     /* Main decompression Loop */
-    ZBUFF_decompressInit(dctx);
-    ZBUFF_decompressWithDictionary(dctx, dictBuff, dictSize);
+    ZBUFF_decompressInit(ress.dctx);
+    ZBUFF_decompressWithDictionary(ress.dctx, ress.dictBuffer, ress.dictBufferSize);
     while (1)
     {
         /* Decode */
         size_t sizeCheck;
-        size_t inSize=readSize, decodedSize=outBuffSize;
-        size_t inStart=0;
-        size_t toRead = ZBUFF_decompressContinue(dctx, outBuff, &decodedSize, inBuff+inStart, &inSize);
+        size_t inSize=readSize, decodedSize=ress.dstBufferSize;
+        size_t toRead = ZBUFF_decompressContinue(ress.dctx, ress.dstBuffer, &decodedSize, ress.srcBuffer, &inSize);
         if (ZBUFF_isError(toRead)) EXM_THROW(36, "Decoding error : %s", ZBUFF_getErrorName(toRead));
         readSize -= inSize;
-        inStart += inSize;
 
         /* Write block */
-        sizeCheck = fwrite(outBuff, 1, decodedSize, foutput);
+        sizeCheck = fwrite(ress.dstBuffer, 1, decodedSize, foutput);
         if (sizeCheck != decodedSize) EXM_THROW(37, "Write error : unable to write data block to destination file");
         frameSize += decodedSize;
         DISPLAYUPDATE(2, "\rDecoded : %u MB...     ", (U32)(frameSize>>20) );
 
         if (toRead == 0) break;
-        if (readSize) continue;   /* still some data left within inBuff */
+        if (readSize) EXM_THROW(38, "Decoding error : should consume entire input");
 
         /* Fill input buffer */
-        if (toRead > inBuffSize) EXM_THROW(34, "too large block");
-        readSize = fread(inBuff, 1, toRead, finput);
+        if (toRead > ress.srcBufferSize) EXM_THROW(34, "too large block");
+        readSize = fread(ress.srcBuffer, 1, toRead, finput);
         if (readSize != toRead) EXM_THROW(35, "Read error");
     }
 
@@ -553,88 +557,96 @@ unsigned long long FIO_decompressFrame(FILE* foutput, FILE* finput,
 }
 
 
-unsigned long long FIO_decompressFilename(const char* output_filename, const char* input_filename, const char* dictFileName)
+static int FIO_decompressFile_extRess(dRess_t ress,
+                                      const char* dstFileName, const char* srcFileName)
 {
-    FILE* finput, *foutput;
-    BYTE* inBuff=NULL;
-    size_t inBuffSize = ZBUFF_recommendedDInSize();
-    BYTE* outBuff=NULL;
-    size_t outBuffSize = ZBUFF_recommendedDOutSize();
-    BYTE* dictBuff=NULL;
-    size_t dictSize = 0;
-    U64   filesize = 0;
-    size_t toRead;
-
-    /* dictionary */
-    if (dictFileName)
-    {
-        FILE* dictHandle;
-        size_t readSize;
-        DISPLAYLEVEL(4,"Using %s as dictionary \n", dictFileName);
-        dictHandle = fopen(dictFileName, "rb");
-        if (dictHandle==0) EXM_THROW(21, "Error opening dictionary file %s", dictFileName);
-        dictSize = (size_t)FIO_getFileSize(dictFileName);
-        if (dictSize > MAX_DICT_SIZE)
-        {
-            int seekResult;
-            if (dictSize > 1 GB) EXM_THROW(21, "Dictionary file %s is too large", dictFileName);   /* avoid extreme cases */
-            DISPLAYLEVEL(2,"Dictionary %s is too large : using last %u bytes only \n", dictFileName, MAX_DICT_SIZE);
-            seekResult = fseek(dictHandle, (long int)(dictSize-MAX_DICT_SIZE), SEEK_SET);   /* use end of file */
-            if (seekResult != 0) EXM_THROW(21, "Error seeking into dictionary file %s", dictFileName);
-            dictSize = MAX_DICT_SIZE;
-        }
-        dictBuff = (BYTE*)malloc(dictSize);
-        if (dictBuff==NULL) EXM_THROW(20, "Allocation error : not enough memory for dictBuff");
-        readSize = fread(dictBuff, 1, (size_t)dictSize, dictHandle);
-        if (readSize!=dictSize) EXM_THROW(21, "Error reading dictionary file %s", dictFileName);
-        fclose(dictHandle);
-    }
+    unsigned long long filesize = 0;
+    FILE* srcFile;
+    FILE* dstFile;
 
     /* Init */
-    ZBUFF_DCtx* dctx = ZBUFF_createDCtx();
-    FIO_getFileHandles(&finput, &foutput, input_filename, output_filename);
-
-    /* Allocate Memory (if needed) */
-    inBuff  = (BYTE*)malloc(inBuffSize);
-    outBuff  = (BYTE*)malloc(outBuffSize);
-    if (!inBuff || !outBuff) EXM_THROW(33, "Allocation error : not enough memory");
+    if (FIO_getFiles(&dstFile, &srcFile, dstFileName, srcFileName)) return 1;
 
     /* for each frame */
     for ( ; ; )
     {
         size_t sizeCheck;
         /* check magic number -> version */
-        toRead = 4;
-        sizeCheck = fread(inBuff, (size_t)1, toRead, finput);
+        size_t toRead = 4;
+        sizeCheck = fread(ress.srcBuffer, (size_t)1, toRead, srcFile);
         if (sizeCheck==0) break;   /* no more input */
         if (sizeCheck != toRead) EXM_THROW(31, "Read error : cannot read header");
 #if defined(ZSTD_LEGACY_SUPPORT) && (ZSTD_LEGACY_SUPPORT==1)
-        if (ZSTD_isLegacy(MEM_readLE32(inBuff)))
+        if (ZSTD_isLegacy(MEM_readLE32(ress.srcBuffer)))
         {
-            filesize += FIO_decompressLegacyFrame(foutput, finput, MEM_readLE32(inBuff));
+            filesize += FIO_decompressLegacyFrame(dstFile, srcFile, MEM_readLE32(ress.srcBuffer));
             continue;
         }
 #endif   /* ZSTD_LEGACY_SUPPORT */
 
-        filesize += FIO_decompressFrame(foutput, finput,
-                                        inBuff, inBuffSize, toRead,
-                                        outBuff, outBuffSize,
-                                        dictBuff, dictSize,
-                                        dctx);
+        filesize += FIO_decompressFrame(ress, dstFile, srcFile, toRead);
     }
 
+    /* Final Status */
     DISPLAYLEVEL(2, "\r%79s\r", "");
-    DISPLAYLEVEL(2, "Decoded %llu bytes   \n", (long long unsigned)filesize);
+    DISPLAYLEVEL(2, "Successfully decoded %llu bytes \n", filesize);
 
-    /* clean */
-    free(inBuff);
-    free(outBuff);
-    free(dictBuff);
-    ZBUFF_freeDCtx(dctx);
-    fclose(finput);
-    if (fclose(foutput)) EXM_THROW(38, "Write error : cannot properly close %s", output_filename);
+    /* Close */
+    fclose(srcFile);
+    if (fclose(dstFile)) EXM_THROW(38, "Write error : cannot properly close %s", dstFileName);
 
-    return filesize;
+    return 0;
 }
 
 
+int FIO_decompressFilename(const char* dstFileName, const char* srcFileName,
+                           const char* dictFileName)
+{
+    int missingFiles = 0;
+    dRess_t ress = FIO_createDResources(dictFileName);
+
+    missingFiles += FIO_decompressFile_extRess(ress, dstFileName, srcFileName);
+
+    FIO_freeDResources(ress);
+    return missingFiles;
+}
+
+
+#define MAXSUFFIXSIZE 8
+int FIO_decompressMultipleFilenames(const char** srcNamesTable, unsigned nbFiles,
+                                    const char* suffix,
+                                    const char* dictFileName)
+{
+    unsigned u;
+    int skippedFiles = 0;
+    int missingFiles = 0;
+    char* dstFileName = (char*)malloc(FNSPACE);
+    size_t dfnSize = FNSPACE;
+    const size_t suffixSize = strlen(suffix);
+    dRess_t ress;
+
+	if (dstFileName==NULL) EXM_THROW(70, "not enough memory for dstFileName");
+    ress = FIO_createDResources(dictFileName);
+
+    for (u=0; u<nbFiles; u++)
+    {
+        const char* srcFileName = srcNamesTable[u];
+        size_t sfnSize = strlen(srcFileName);
+        const char* suffixPtr = srcFileName + sfnSize - suffixSize;
+        if (dfnSize <= sfnSize-suffixSize+1) { free(dstFileName); dfnSize = sfnSize + 20; dstFileName = (char*)malloc(dfnSize); if (dstFileName==NULL) EXM_THROW(71, "not enough memory for dstFileName"); }
+        if (sfnSize <= suffixSize  ||  strcmp(suffixPtr, suffix) != 0)
+        {
+            DISPLAYLEVEL(1, "File extension doesn't match expected extension (%4s); will not process file: %s\n", suffix, srcFileName);
+            skippedFiles++;
+            continue;
+        }
+        memcpy(dstFileName, srcFileName, sfnSize - suffixSize);
+        dstFileName[sfnSize-suffixSize] = '\0';
+
+        missingFiles += FIO_decompressFile_extRess(ress, dstFileName, srcFileName);
+    }
+
+    FIO_freeDResources(ress);
+    free(dstFileName);
+    return missingFiles + skippedFiles;
+}

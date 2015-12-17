@@ -54,12 +54,12 @@ echo "*** multiple files tests *** "
 ./datagen -s1        > tmp1 2> /dev/null
 ./datagen -s2 -g100K > tmp2 2> /dev/null
 ./datagen -s3 -g1M   > tmp3 2> /dev/null
-./zstd -f -m tmp*
+$ZSTD -f -m tmp*
 ls -ls tmp*
 rm tmp1 tmp2 tmp3
-./zstd -df -m *.zst
+$ZSTD -df -m *.zst
 ls -ls tmp*
-./zstd -f -m tmp1 notHere tmp2 && die "missing file not detected!"
+$ZSTD -f -m tmp1 notHere tmp2 && die "missing file not detected!"
 rm tmp*
 
 echo "**** zstd round-trip tests **** "

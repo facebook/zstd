@@ -47,6 +47,7 @@
 #ifndef ZSTD_NOBENCH
 #  include "bench.h"  /* BMK_benchFiles, BMK_SetNbIterations */
 #endif
+#include "zstd.h"     /* ZSTD version numbers */
 
 
 /**************************************
@@ -72,7 +73,9 @@
 **************************************/
 #define COMPRESSOR_NAME "zstd command line interface"
 #ifndef ZSTD_VERSION
-#  define ZSTD_VERSION "v0.4.4"
+#  define QUOTE(str) #str
+#  define EXPAND_AND_QUOTE(str) QUOTE(str)
+#  define ZSTD_VERSION "v" EXPAND_AND_QUOTE(ZSTD_VERSION_MAJOR) "." EXPAND_AND_QUOTE(ZSTD_VERSION_MINOR) "." EXPAND_AND_QUOTE(ZSTD_VERSION_RELEASE)
 #endif
 #define AUTHOR "Yann Collet"
 #define WELCOME_MESSAGE "*** %s %i-bits %s, by %s (%s) ***\n", COMPRESSOR_NAME, (int)(sizeof(void*)*8), ZSTD_VERSION, AUTHOR, __DATE__
@@ -140,7 +143,6 @@ static int usage_advanced(const char* programName)
     DISPLAY( " -m     : multiple input filenames mode");
     DISPLAY( " -c     : force write to standard output, even if it is the console\n");
     DISPLAY( " -D file: use file content as Dictionary \n");
-    //DISPLAY( " -t     : test compressed file integrity\n");
 #ifndef ZSTD_NOBENCH
     DISPLAY( "Benchmark arguments :\n");
     DISPLAY( " -b#    : benchmark file(s), using # compression level (default : 1) \n");
@@ -210,7 +212,9 @@ int main(int argCount, const char** argv)
         /* long commands (--long-word) */
         if (!strcmp(argument, "--version")) { displayOut=stdout; DISPLAY(WELCOME_MESSAGE); return 0; }
         if (!strcmp(argument, "--help")) { displayOut=stdout; return usage_advanced(programName); }
+        if (!strcmp(argument, "--multiple")) { multiple=1; continue; }
         if (!strcmp(argument, "--verbose")) { displayLevel=4; continue; }
+        if (!strcmp(argument, "--quiet")) { displayLevel--; continue; }
 
         /* Decode commands (note : aggregated commands are allowed) */
         if (argument[0]=='-')
@@ -400,16 +404,27 @@ int main(int argCount, const char** argv)
     if (!strcmp(inFileName, stdinmark) && !strcmp(outFileName,stdoutmark) && (displayLevel==2)) displayLevel=1;
     if (multiple && (displayLevel==2)) displayLevel=1;
 
+    if ((!multiple) && (nbFiles>2))
+    {
+        DISPLAY("Too many files on the command line (%u > 2). Do you mean -m ? \n", nbFiles);
+        return nbFiles;
+    }
+
     /* IO Stream/File */
     FIO_setNotificationLevel(displayLevel);
     if (decode)
+    {
+      if (multiple)
+        operationResult = FIO_decompressMultipleFilenames(argv+fileNameStart, nbFiles, ZSTD_EXTENSION, dictFileName);
+      else
         FIO_decompressFilename(outFileName, inFileName, dictFileName);
+    }
     else
     {
         if (multiple)
           operationResult = FIO_compressMultipleFilenames(argv+fileNameStart, nbFiles, ZSTD_EXTENSION, dictFileName, cLevel);
         else
-          FIO_compressFilename(outFileName, inFileName, dictFileName, cLevel);
+          operationResult = FIO_compressFilename(outFileName, inFileName, dictFileName, cLevel);
     }
 
 _end:

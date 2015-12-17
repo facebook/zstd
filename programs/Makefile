@@ -30,7 +30,7 @@
 # fullbench32: Same as fullbench, but forced to compile in 32-bits mode
 # ##########################################################################
 
-VERSION?= 0.4.4
+VERSION?= 0.4.5
 
 DESTDIR?=
 PREFIX ?= /usr/local

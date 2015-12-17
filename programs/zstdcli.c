@@ -137,6 +137,7 @@ static int usage_advanced(const char* programName)
     DISPLAY( " -V     : display Version number and exit\n");
     DISPLAY( " -v     : verbose mode\n");
     DISPLAY( " -q     : suppress warnings; specify twice to suppress errors too\n");
+    DISPLAY( " -m     : multiple input filenames mode");
     DISPLAY( " -c     : force write to standard output, even if it is the console\n");
     DISPLAY( " -D file: use file content as Dictionary \n");
     //DISPLAY( " -t     : test compressed file integrity\n");
@@ -174,7 +175,9 @@ int main(int argCount, const char** argv)
         decode=0,
         forceStdout=0,
         main_pause=0,
-        nextEntryIsDictionary=0;
+        nextEntryIsDictionary=0,
+        multiple=0,
+        operationResult=0;
     unsigned cLevel = 1;
     const char* programName = argv[0];
     const char* inFileName = NULL;
@@ -249,6 +252,9 @@ int main(int argCount, const char** argv)
 
                     /* Decoding */
                 case 'd': decode=1; argument++; break;
+
+                    /* Multiple input files */
+                case 'm': multiple=1; argument++; break;
 
                     /* Force stdout, even if stdout==console */
                 case 'c': forceStdout=1; outFileName=stdoutmark; displayLevel=1; argument++; break;
@@ -390,18 +396,24 @@ int main(int argCount, const char** argv)
     /* Check if output is defined as console; trigger an error in this case */
     if (!strcmp(outFileName,stdoutmark) && IS_CONSOLE(stdout) && !forceStdout) return badusage(programName);
 
-    /* No warning message in pure pipe mode (stdin + stdout) */
+    /* No warning message in pure pipe mode (stdin + stdout) or multiple mode */
     if (!strcmp(inFileName, stdinmark) && !strcmp(outFileName,stdoutmark) && (displayLevel==2)) displayLevel=1;
+    if (multiple && (displayLevel==2)) displayLevel=1;
 
     /* IO Stream/File */
     FIO_setNotificationLevel(displayLevel);
     if (decode)
         FIO_decompressFilename(outFileName, inFileName, dictFileName);
     else
-        FIO_compressFilename(outFileName, inFileName, dictFileName, cLevel);
+    {
+        if (multiple)
+          operationResult = FIO_compressMultipleFilenames(argv+fileNameStart, nbFiles, ZSTD_EXTENSION, dictFileName, cLevel);
+        else
+          FIO_compressFilename(outFileName, inFileName, dictFileName, cLevel);
+    }
 
 _end:
     if (main_pause) waitEnter();
     free(dynNameSpace);
-    return 0;
+    return operationResult;
 }

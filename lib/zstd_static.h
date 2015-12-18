@@ -80,7 +80,7 @@ typedef struct
 
 
 /* *************************************
-*  Advanced function
+*  Advanced functions
 ***************************************/
 /** ZSTD_getParams
 *   return ZSTD_parameters structure for a selected compression level and srcSize.
@@ -91,16 +91,43 @@ ZSTDLIB_API ZSTD_parameters ZSTD_getParams(int compressionLevel, U64 srcSizeHint
 *   correct params value to remain within authorized range */
 ZSTDLIB_API void ZSTD_validateParams(ZSTD_parameters* params);
 
+/** ZSTD_compress_usingDict
+*   Same as ZSTD_compressCCtx(), using a Dictionary content as prefix
+*   Note : dict can be NULL, in which case, it's equivalent to ZSTD_compressCCtx() */
+ZSTDLIB_API size_t ZSTD_compress_usingDict(ZSTD_CCtx* ctx,
+                                           void* dst, size_t maxDstSize,
+                                     const void* src, size_t srcSize,
+                                     const void* dict,size_t dictSize,
+                                           int compressionLevel);
+
 /** ZSTD_compress_advanced
-*   Same as ZSTD_compressCCtx(), with fine-tune control of each compression parameter */
+*   Same as ZSTD_compress_usingDict(), with fine-tune control of each compression parameter */
 ZSTDLIB_API size_t ZSTD_compress_advanced (ZSTD_CCtx* ctx,
                                            void* dst, size_t maxDstSize,
                                      const void* src, size_t srcSize,
+                                     const void* dict,size_t dictSize,
                                            ZSTD_parameters params);
+
+/** Decompression context management */
+typedef struct ZSTD_DCtx_s ZSTD_DCtx;
+ZSTDLIB_API ZSTD_DCtx* ZSTD_createDCtx(void);
+ZSTDLIB_API size_t     ZSTD_freeDCtx(ZSTD_DCtx* dctx);
+
+/** ZSTD_decompressDCtx
+*   Same as ZSTD_decompress, with pre-allocated DCtx structure */
+size_t ZSTD_decompressDCtx(ZSTD_DCtx* ctx, void* dst, size_t maxDstSize, const void* src, size_t srcSize);
+
+/** ZSTD_decompress_usingDict
+*   Same as ZSTD_decompressDCtx, using a Dictionary content as prefix
+*   Note : dict can be NULL, in which case, it's equivalent to ZSTD_decompressDCtx() */
+size_t ZSTD_decompress_usingDict(ZSTD_DCtx* ctx,
+                                 void* dst, size_t maxDstSize,
+                                 const void* src, size_t srcSize,
+                                 const void* dict, size_t dictSize);
 
 
 /* **************************************
-*  Streaming functions (bufferless mode)
+*  Streaming functions (direct mode)
 ****************************************/
 ZSTDLIB_API size_t ZSTD_compressBegin(ZSTD_CCtx* cctx, void* dst, size_t maxDstSize, int compressionLevel);
 ZSTDLIB_API size_t ZSTD_compressBegin_advanced(ZSTD_CCtx* ctx, void* dst, size_t maxDstSize, ZSTD_parameters params);
@@ -110,7 +137,7 @@ ZSTDLIB_API size_t ZSTD_compressContinue(ZSTD_CCtx* cctx, void* dst, size_t maxD
 ZSTDLIB_API size_t ZSTD_compressEnd(ZSTD_CCtx* cctx, void* dst, size_t maxDstSize);
 
 /**
-  Streaming compression, bufferless mode
+  Streaming compression, direct mode (bufferless)
 
   A ZSTD_CCtx object is required to track streaming operations.
   Use ZSTD_createCCtx() / ZSTD_freeCCtx() to manage it.
@@ -131,13 +158,10 @@ ZSTDLIB_API size_t ZSTD_compressEnd(ZSTD_CCtx* cctx, void* dst, size_t maxDstSiz
 
   Finish a frame with ZSTD_compressEnd(), which will write the epilogue.
   Without it, the frame will be considered incomplete by decoders.
-  You can then re-use ZSTD_CCtx to compress new frames.
+
+  You can then reuse ZSTD_CCtx to compress new frames.
 */
 
-
-typedef struct ZSTD_DCtx_s ZSTD_DCtx;
-ZSTDLIB_API ZSTD_DCtx* ZSTD_createDCtx(void);
-ZSTDLIB_API size_t     ZSTD_freeDCtx(ZSTD_DCtx* dctx);
 
 ZSTDLIB_API size_t ZSTD_resetDCtx(ZSTD_DCtx* dctx);
 ZSTDLIB_API size_t ZSTD_getFrameParams(ZSTD_parameters* params, const void* src, size_t srcSize);
@@ -160,7 +184,8 @@ ZSTDLIB_API size_t ZSTD_decompressContinue(ZSTD_DCtx* dctx, void* dst, size_t ma
            >0 : means there is not enough data into src. Provides the expected size to successfully decode header.
            errorCode, which can be tested using ZSTD_isError() (For example, if it's not a ZSTD header)
 
-  Then, you can optionally insert a dictionary. This operation must mimic the compressor behavior, otherwise decompression will fail or be corrupted.
+  Then, you can optionally insert a dictionary.
+  This operation must mimic the compressor behavior, otherwise decompression will fail or be corrupted.
 
   Then it's possible to start decompression.
   Use ZSTD_nextSrcSizeToDecompress() and ZSTD_decompressContinue() alternatively.

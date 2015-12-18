@@ -39,8 +39,11 @@ echo frame concatenation test completed
 
 echo "**** flush write error test **** "
 
+echo "echo foo | $ZSTD > /dev/full"
 echo foo | $ZSTD > /dev/full && die "write error not detected!"
+echo "echo foo | $ZSTD | $ZSTD -d > /dev/full"
 echo foo | $ZSTD | $ZSTD -d > /dev/full && die "write error not detected!"
+
 
 echo "*** dictionary tests *** "
 
@@ -48,6 +51,19 @@ echo "*** dictionary tests *** "
 ./datagen -g1M | md5sum > tmp1
 ./datagen -g1M | $ZSTD -D tmpDict | $ZSTD -D tmpDict -dv | md5sum > tmp2
 diff -q tmp1 tmp2
+
+echo "*** multiple files tests *** "
+
+./datagen -s1        > tmp1 2> /dev/null
+./datagen -s2 -g100K > tmp2 2> /dev/null
+./datagen -s3 -g1M   > tmp3 2> /dev/null
+$ZSTD -f -m tmp*
+ls -ls tmp*
+rm tmp1 tmp2 tmp3
+$ZSTD -df -m *.zst
+ls -ls tmp*
+$ZSTD -f -m tmp1 notHere tmp2 && die "missing file not detected!"
+rm tmp*
 
 echo "**** zstd round-trip tests **** "
 

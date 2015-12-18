@@ -80,7 +80,7 @@ typedef struct
 
 
 /* *************************************
-*  Advanced function
+*  Advanced functions
 ***************************************/
 /** ZSTD_getParams
 *   return ZSTD_parameters structure for a selected compression level and srcSize.
@@ -91,16 +91,43 @@ ZSTDLIB_API ZSTD_parameters ZSTD_getParams(int compressionLevel, U64 srcSizeHint
 *   correct params value to remain within authorized range */
 ZSTDLIB_API void ZSTD_validateParams(ZSTD_parameters* params);
 
+/** ZSTD_compress_usingDict
+*   Same as ZSTD_compressCCtx(), using a Dictionary content as prefix
+*   Note : dict can be NULL, in which case, it's equivalent to ZSTD_compressCCtx() */
+ZSTDLIB_API size_t ZSTD_compress_usingDict(ZSTD_CCtx* ctx,
+                                           void* dst, size_t maxDstSize,
+                                     const void* src, size_t srcSize,
+                                     const void* dict,size_t dictSize,
+                                           int compressionLevel);
+
 /** ZSTD_compress_advanced
-*   Same as ZSTD_compressCCtx(), with fine-tune control of each compression parameter */
+*   Same as ZSTD_compress_usingDict(), with fine-tune control of each compression parameter */
 ZSTDLIB_API size_t ZSTD_compress_advanced (ZSTD_CCtx* ctx,
                                            void* dst, size_t maxDstSize,
                                      const void* src, size_t srcSize,
+                                     const void* dict,size_t dictSize,
                                            ZSTD_parameters params);
+
+/** Decompression context management */
+typedef struct ZSTD_DCtx_s ZSTD_DCtx;
+ZSTDLIB_API ZSTD_DCtx* ZSTD_createDCtx(void);
+ZSTDLIB_API size_t     ZSTD_freeDCtx(ZSTD_DCtx* dctx);
+
+/** ZSTD_decompressDCtx
+*   Same as ZSTD_decompress, with pre-allocated DCtx structure */
+size_t ZSTD_decompressDCtx(ZSTD_DCtx* ctx, void* dst, size_t maxDstSize, const void* src, size_t srcSize);
+
+/** ZSTD_decompress_usingDict
+*   Same as ZSTD_decompressDCtx, using a Dictionary content as prefix
+*   Note : dict can be NULL, in which case, it's equivalent to ZSTD_decompressDCtx() */
+size_t ZSTD_decompress_usingDict(ZSTD_DCtx* ctx,
+                                 void* dst, size_t maxDstSize,
+                                 const void* src, size_t srcSize,
+                                 const void* dict, size_t dictSize);
 
 
 /* **************************************
-*  Streaming functions (bufferless mode)
+*  Streaming functions (direct mode)
 ****************************************/
 ZSTDLIB_API size_t ZSTD_compressBegin(ZSTD_CCtx* cctx, void* dst, size_t maxDstSize, int compressionLevel);
 ZSTDLIB_API size_t ZSTD_compressBegin_advanced(ZSTD_CCtx* ctx, void* dst, size_t maxDstSize, ZSTD_parameters params);
@@ -110,7 +137,7 @@ ZSTDLIB_API size_t ZSTD_compressContinue(ZSTD_CCtx* cctx, void* dst, size_t maxD
 ZSTDLIB_API size_t ZSTD_compressEnd(ZSTD_CCtx* cctx, void* dst, size_t maxDstSize);
 
 /**
-  Streaming compression, bufferless mode
+  Streaming compression, direct mode (bufferless)
 
   A ZSTD_CCtx object is required to track streaming operations.
   Use ZSTD_createCCtx() / ZSTD_freeCCtx() to manage it.
@@ -131,13 +158,10 @@ ZSTDLIB_API size_t ZSTD_compressEnd(ZSTD_CCtx* cctx, void* dst, size_t maxDstSiz
 
   Finish a frame with ZSTD_compressEnd(), which will write the epilogue.
   Without it, the frame will be considered incomplete by decoders.
-  You can then re-use ZSTD_CCtx to compress new frames.
+
+  You can then reuse ZSTD_CCtx to compress new frames.
 */
 
-
-typedef struct ZSTD_DCtx_s ZSTD_DCtx;
-ZSTDLIB_API ZSTD_DCtx* ZSTD_createDCtx(void);
-ZSTDLIB_API size_t     ZSTD_freeDCtx(ZSTD_DCtx* dctx);
 
 ZSTDLIB_API size_t ZSTD_resetDCtx(ZSTD_DCtx* dctx);
 ZSTDLIB_API size_t ZSTD_getFrameParams(ZSTD_parameters* params, const void* src, size_t srcSize);
@@ -160,7 +184,8 @@ ZSTDLIB_API size_t ZSTD_decompressContinue(ZSTD_DCtx* dctx, void* dst, size_t ma
            >0 : means there is not enough data into src. Provides the expected size to successfully decode header.
            errorCode, which can be tested using ZSTD_isError() (For example, if it's not a ZSTD header)
 
-  Then, you can optionally insert a dictionary. This operation must mimic the compressor behavior, otherwise decompression will fail or be corrupted.
+  Then, you can optionally insert a dictionary.
+  This operation must mimic the compressor behavior, otherwise decompression will fail or be corrupted.
 
   Then it's possible to start decompression.
   Use ZSTD_nextSrcSizeToDecompress() and ZSTD_decompressContinue() alternatively.
@@ -207,28 +232,28 @@ static const ZSTD_parameters ZSTD_defaultParameters[4][ZSTD_MAX_CLEVEL+1] = {
     { 0, 26, 27, 25,  9,  5, ZSTD_btlazy2 },  /* level 20 */
 },
 {   /* for srcSize <= 256 KB */
-    /*    W,  C,  H,  S,  L, strat */
-    {  0,  0,  0,  0,  0,  0, ZSTD_fast    },  /* level  0 - never used */
-    {  0, 18, 16, 15,  1,  7, ZSTD_fast    },  /* level  1 */
-    {  0, 18, 16, 16,  1,  7, ZSTD_fast    },  /* level  2 */
-    {  0, 18, 18, 18,  1,  7, ZSTD_fast    },  /* level  3 */
-    {  0, 18, 14, 15,  4,  6, ZSTD_greedy  },  /* level  4 */
-    {  0, 18, 16, 16,  1,  6, ZSTD_lazy    },  /* level  5 */
-    {  0, 18, 15, 15,  3,  6, ZSTD_lazy    },  /* level  6 */
-    {  0, 18, 15, 15,  4,  6, ZSTD_lazy    },  /* level  7 */
-    {  0, 18, 16, 18,  4,  6, ZSTD_lazy    },  /* level  8 */
-    {  0, 18, 18, 18,  4,  6, ZSTD_lazy    },  /* level  9 */
-    {  0, 18, 18, 18,  5,  6, ZSTD_lazy    },  /* level 10 */
-    {  0, 18, 18, 19,  6,  6, ZSTD_lazy    },  /* level 11 */
-    {  0, 18, 18, 19,  7,  6, ZSTD_lazy    },  /* level 12 */
-    {  0, 18, 19, 15,  7,  5, ZSTD_btlazy2 },  /* level 13 */
-    {  0, 18, 19, 16,  8,  5, ZSTD_btlazy2 },  /* level 14 */
-    {  0, 18, 19, 17,  9,  5, ZSTD_btlazy2 },  /* level 15 */
-    {  0, 18, 19, 17, 10,  5, ZSTD_btlazy2 },  /* level 16 */
-    {  0, 18, 19, 17, 11,  5, ZSTD_btlazy2 },  /* level 17 */
-    {  0, 18, 19, 17, 12,  5, ZSTD_btlazy2 },  /* level 18 */
-    {  0, 18, 19, 17, 13,  5, ZSTD_btlazy2 },  /* level 19 */
-    {  0, 18, 19, 17, 14,  5, ZSTD_btlazy2 },  /* level 20 */
+    /*     W,  C,  H,  S,  L, strat */
+    {  0, 18, 13, 14,  1,  7, ZSTD_fast    },  /* level  0 - never used */
+    {  0, 18, 14, 15,  1,  6, ZSTD_fast    },  /* level  1 */
+    {  0, 18, 14, 15,  1,  5, ZSTD_fast    },  /* level  2 */
+    {  0, 18, 12, 15,  3,  7, ZSTD_greedy  },  /* level  3 */
+    {  0, 18, 13, 15,  4,  7, ZSTD_greedy  },  /* level  4 */
+    {  0, 18, 14, 15,  5,  7, ZSTD_greedy  },  /* level  5 */
+    {  0, 18, 13, 15,  4,  7, ZSTD_lazy    },  /* level  6 */
+    {  0, 18, 14, 16,  5,  7, ZSTD_lazy    },  /* level  7 */
+    {  0, 18, 15, 16,  6,  7, ZSTD_lazy    },  /* level  8 */
+    {  0, 18, 15, 15,  7,  7, ZSTD_lazy    },  /* level  9 */
+    {  0, 18, 16, 16,  7,  7, ZSTD_lazy    },  /* level 10 */
+    {  0, 18, 16, 16,  8,  4, ZSTD_lazy    },  /* level 11 */
+    {  0, 18, 17, 16,  8,  4, ZSTD_lazy    },  /* level 12 */
+    {  0, 18, 17, 16,  9,  4, ZSTD_lazy    },  /* level 13 */
+    {  0, 18, 18, 16,  9,  4, ZSTD_lazy    },  /* level 14 */
+    {  0, 18, 17, 17,  9,  4, ZSTD_lazy2   },  /* level 15 */
+    {  0, 18, 18, 18,  9,  4, ZSTD_lazy2   },  /* level 16 */
+    {  0, 18, 18, 18, 10,  4, ZSTD_lazy2   },  /* level 17 */
+    {  0, 18, 18, 18, 11,  4, ZSTD_lazy2   },  /* level 18 */
+    {  0, 18, 18, 18, 12,  4, ZSTD_lazy2   },  /* level 19 */
+    {  0, 18, 18, 18, 13,  4, ZSTD_lazy2   },  /* level 20 */
 },
 {   /* for srcSize <= 128 KB */
     /*    W,  C,  H,  S,  L, strat */

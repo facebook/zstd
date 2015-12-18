@@ -1,3 +1,6 @@
+v0.4.5
+new : -m/--multiple : compress/decompress multiple files
+
 v0.4.4
 Fixed : high compression modes for Windows 32 bits
 new : external dictionary API extended to buffered mode and accessible through command line

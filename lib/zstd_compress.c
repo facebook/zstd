@@ -2117,7 +2117,7 @@ size_t ZSTD_compressBegin(ZSTD_CCtx* ctx, void* dst, size_t maxDstSize, int comp
 }
 
 
-/** ZSTD_compressEnd
+/*! ZSTD_compressEnd
 *   Write frame epilogue
 *   @return : nb of bytes written into dst (or an error code) */
 size_t ZSTD_compressEnd(ZSTD_CCtx* ctx, void* dst, size_t maxDstSize)
@@ -2139,6 +2139,7 @@ size_t ZSTD_compressEnd(ZSTD_CCtx* ctx, void* dst, size_t maxDstSize)
 size_t ZSTD_compress_advanced (ZSTD_CCtx* ctx,
                                void* dst, size_t maxDstSize,
                          const void* src, size_t srcSize,
+                         const void* dict,size_t dictSize,
                                ZSTD_parameters params)
 {
     BYTE* const ostart = (BYTE*)dst;
@@ -2151,9 +2152,15 @@ size_t ZSTD_compress_advanced (ZSTD_CCtx* ctx,
     op += oSize;
     maxDstSize -= oSize;
 
+    /* dictionary */
+    if (dict)
+    {
+        oSize = ZSTD_compress_insertDictionary(ctx, dict, dictSize);
+        if (ZSTD_isError(oSize)) return oSize;
+    }
+
     /* body (compression) */
-    ctx->base = (const BYTE*)src;
-    oSize = ZSTD_compress_generic (ctx, op,  maxDstSize, src, srcSize);
+    oSize = ZSTD_compressContinue (ctx, op,  maxDstSize, src, srcSize);
     if(ZSTD_isError(oSize)) return oSize;
     op += oSize;
     maxDstSize -= oSize;
@@ -2166,9 +2173,14 @@ size_t ZSTD_compress_advanced (ZSTD_CCtx* ctx,
     return (op - ostart);
 }
 
+size_t ZSTD_compress_usingDict(ZSTD_CCtx* ctx, void* dst, size_t maxDstSize, const void* src, size_t srcSize, const void* dict, size_t dictSize, int compressionLevel)
+{
+    return ZSTD_compress_advanced(ctx, dst, maxDstSize, src, srcSize, dict, dictSize, ZSTD_getParams(compressionLevel, srcSize+dictSize));
+}
+
 size_t ZSTD_compressCCtx (ZSTD_CCtx* ctx, void* dst, size_t maxDstSize, const void* src, size_t srcSize, int compressionLevel)
 {
-    return ZSTD_compress_advanced(ctx, dst, maxDstSize, src, srcSize, ZSTD_getParams(compressionLevel, srcSize));
+    return ZSTD_compress_advanced(ctx, dst, maxDstSize, src, srcSize, NULL, 0, ZSTD_getParams(compressionLevel, srcSize));
 }
 
 size_t ZSTD_compress(void* dst, size_t maxDstSize, const void* src, size_t srcSize, int compressionLevel)
@@ -2180,3 +2192,4 @@ size_t ZSTD_compress(void* dst, size_t maxDstSize, const void* src, size_t srcSi
     free(ctxBody.workSpace);   /* can't free ctxBody, since it's on stack; free heap content */
     return result;
 }
+

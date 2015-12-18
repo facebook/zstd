@@ -31,18 +31,35 @@ is equivalent to
 It is based on the \fBLZ77\fR family, with FSE & huff0 entropy stage.
 zstd offers compression speed > 200 MB/s per core.
 It also features a fast decoder, with speed > 500 MB/s per core.
+
+\fBzstd\fR command line is generally similar to gzip, but features the following differences :
+ - Original files are preserved
+ - By default, \fBzstd file1 file2\fR means : compress file1 \fBinto\fR file2.
+     Use \fB-m\fR command if you want : compress file1 into file1.zstd and file2 into file2.zst
+ - By default, when compressing files, \fBzstd\fR displays advancement notification and result summary.
+     Use \fB-q\fR to turn them off
+
+
 \fBzstd\fR supports the following options :
 
 .SH OPTIONS
 .TP
-.B \-1
- fast compression (default)
+.B \-#
+ # compression level [1-19](default:1)
 .TP
 .B \-d
  decompression
 .TP
 .B \-f
  overwrite output without prompting
+.TP
+.BR \-m ", " --multiple
+ multiple files mode
+ In this mode, multiple files on the command line means compression or decompression of each named file
+ Notifications are also turned off by default
+.TP
+.B \-D
+ Use next file as dictionary content for compress / decompression
 .TP
 .BR \-h/\-H ", " --help
  display help/long help and exit
@@ -53,20 +70,17 @@ It also features a fast decoder, with speed > 500 MB/s per core.
 .BR \-v ", " --verbose
  verbose mode
 .TP
-.B \-q
- suppress warnings; specify twice to suppress errors too
+.BR \-q ", " --quiet
+ suppress warnings and notifications; specify twice to suppress errors too
 .TP
-.B \-c
+.B \-c 
  force write to standard output, even if it is the console
-.TP
-.B \-t
- test compressed file integrity
 .TP
 .B \-z
  force compression
 .TP
-.B \-b
- benchmark file(s)
+.B \-b#
+ benchmark file(s) using compression level #
 .TP
 .B \-i#
  iteration loops [1-9](default : 3), benchmark mode only

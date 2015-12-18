@@ -676,7 +676,10 @@ static size_t ZSTD_decompressBlock(
 }
 
 
-size_t ZSTD_decompressDCtx(ZSTD_DCtx* ctx, void* dst, size_t maxDstSize, const void* src, size_t srcSize)
+size_t ZSTD_decompress_usingDict(ZSTD_DCtx* ctx,
+                                 void* dst, size_t maxDstSize,
+                                 const void* src, size_t srcSize,
+                                 const void* dict, size_t dictSize)
 {
     const BYTE* ip = (const BYTE*)src;
     const BYTE* iend = ip + srcSize;
@@ -686,9 +689,19 @@ size_t ZSTD_decompressDCtx(ZSTD_DCtx* ctx, void* dst, size_t maxDstSize, const v
     size_t remainingSize = srcSize;
     blockProperties_t blockProperties;
 
-
     /* init */
-    ctx->vBase = ctx->base = ctx->dictEnd = dst;
+    ZSTD_resetDCtx(ctx);
+    if (dict)
+    {
+        ZSTD_decompress_insertDictionary(ctx, dict, dictSize);
+        ctx->dictEnd = ctx->previousDstEnd;
+        ctx->vBase = (const char*)dst - ((const char*)(ctx->previousDstEnd) - (const char*)(ctx->base));
+        ctx->base = dst;
+    }
+    else
+    {
+        ctx->vBase = ctx->base = ctx->dictEnd = dst;
+    }
 
     /* Frame Header */
     {
@@ -749,10 +762,16 @@ size_t ZSTD_decompressDCtx(ZSTD_DCtx* ctx, void* dst, size_t maxDstSize, const v
     return op-ostart;
 }
 
+
+size_t ZSTD_decompressDCtx(ZSTD_DCtx* dctx, void* dst, size_t maxDstSize, const void* src, size_t srcSize)
+{
+    return ZSTD_decompress_usingDict(dctx, dst, maxDstSize, src, srcSize, NULL, 0);
+}
+
 size_t ZSTD_decompress(void* dst, size_t maxDstSize, const void* src, size_t srcSize)
 {
-    ZSTD_DCtx ctx;
-    return ZSTD_decompressDCtx(&ctx, dst, maxDstSize, src, srcSize);
+    ZSTD_DCtx dctx;
+    return ZSTD_decompressDCtx(&dctx, dst, maxDstSize, src, srcSize);
 }
 
 

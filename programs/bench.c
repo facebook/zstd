@@ -63,7 +63,7 @@
 #endif
 
 #include "mem.h"
-#include "zstd.h"
+#include "zstd_static.h"
 #include "xxhash.h"
 #include "datagen.h"      /* RDG_genBuffer */
 
@@ -215,7 +215,8 @@ typedef struct
 
 static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
                         const char* displayName, int cLevel,
-                        const size_t* fileSizes, U32 nbFiles)
+                        const size_t* fileSizes, U32 nbFiles,
+                        const void* dictBuffer, size_t dictBufferSize)
 {
     const size_t blockSize = (g_blockSize ? g_blockSize : srcSize) + (!srcSize);   /* avoid div by 0 */
     const U32 maxNbBlocks = (U32) ((srcSize + (blockSize-1)) / blockSize) + nbFiles;
@@ -223,6 +224,8 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
     const size_t maxCompressedSize = ZSTD_compressBound(srcSize) + (maxNbBlocks * 1024);   /* add some room for safety */
     void* const compressedBuffer = malloc(maxCompressedSize);
     void* const resultBuffer = malloc(srcSize);
+    ZSTD_CCtx* ctx = ZSTD_createCCtx();
+    ZSTD_DCtx* dctx = ZSTD_createDCtx();
     U64 crcOrig = XXH64(srcBuffer, srcSize, 0);
     U32 nbBlocks = 0;
 
@@ -230,7 +233,7 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
     if (strlen(displayName)>17) displayName += strlen(displayName)-17;   /* can only display 17 characters */
 
     /* Memory allocation & restrictions */
-    if (!compressedBuffer || !resultBuffer || !blockTable)
+    if (!compressedBuffer || !resultBuffer || !blockTable || !ctx || !dctx)
         EXM_THROW(31, "not enough memory");
 
     /* Init blockTable data */
@@ -289,7 +292,11 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
             while (BMK_GetMilliSpan(milliTime) < TIMELOOP)
             {
                 for (blockNb=0; blockNb<nbBlocks; blockNb++)
-                    blockTable[blockNb].cSize = ZSTD_compress(blockTable[blockNb].cPtr,  blockTable[blockNb].cRoom, blockTable[blockNb].srcPtr,blockTable[blockNb].srcSize, cLevel);
+                    blockTable[blockNb].cSize = ZSTD_compress_usingDict(ctx,
+                                                              blockTable[blockNb].cPtr,  blockTable[blockNb].cRoom,
+                                                              blockTable[blockNb].srcPtr,blockTable[blockNb].srcSize,
+                                                              dictBuffer, dictBufferSize,
+                                                              cLevel);
                 nbLoops++;
             }
             milliTime = BMK_GetMilliSpan(milliTime);
@@ -312,8 +319,10 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
             for ( ; BMK_GetMilliSpan(milliTime) < TIMELOOP; nbLoops++)
             {
                 for (blockNb=0; blockNb<nbBlocks; blockNb++)
-                    blockTable[blockNb].resSize = ZSTD_decompress(blockTable[blockNb].resPtr, blockTable[blockNb].srcSize,
-                                                                  blockTable[blockNb].cPtr, blockTable[blockNb].cSize);
+                    blockTable[blockNb].resSize = ZSTD_decompress_usingDict(dctx,
+                                                                blockTable[blockNb].resPtr, blockTable[blockNb].srcSize,
+                                                                blockTable[blockNb].cPtr, blockTable[blockNb].cSize,
+                                                                dictBuffer, dictBufferSize);
             }
             milliTime = BMK_GetMilliSpan(milliTime);
 
@@ -342,11 +351,15 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
 
         if (crcOrig == crcCheck)
             DISPLAY("%2i-%-17.17s :%10i ->%10i (%5.3f),%6.1f MB/s ,%6.1f MB/s \n", cLevel, displayName, (int)srcSize, (int)cSize, ratio, (double)srcSize / fastestC / 1000., (double)srcSize / fastestD / 1000.);
+        else
+            DISPLAY("X \n");
     }
 
     /* clean up */
     free(compressedBuffer);
     free(resultBuffer);
+    ZSTD_freeCCtx(ctx);
+    ZSTD_freeDCtx(dctx);
     return 0;
 }
 
@@ -372,16 +385,23 @@ static size_t BMK_findMaxMem(U64 requiredMem)
 
 static void BMK_benchCLevel(void* srcBuffer, size_t benchedSize,
                             const char* displayName, int cLevel,
-                            const size_t* fileSizes, unsigned nbFiles)
+                            const size_t* fileSizes, unsigned nbFiles,
+                            const void* dictBuffer, size_t dictBufferSize)
 {
     if (cLevel < 0)
     {
         int l;
         for (l=1; l <= -cLevel; l++)
-            BMK_benchMem(srcBuffer, benchedSize, displayName, l, fileSizes, nbFiles);
+            BMK_benchMem(srcBuffer, benchedSize,
+                         displayName, l,
+                         fileSizes, nbFiles,
+                         dictBuffer, dictBufferSize);
         return;
     }
-    BMK_benchMem(srcBuffer, benchedSize, displayName, cLevel, fileSizes, nbFiles);
+    BMK_benchMem(srcBuffer, benchedSize,
+                 displayName, cLevel,
+                 fileSizes, nbFiles,
+                 dictBuffer, dictBufferSize);
 }
 
 static U64 BMK_getTotalFileSize(const char** fileNamesTable, unsigned nbFiles)
@@ -417,14 +437,30 @@ static void BMK_loadFiles(void* buffer, size_t bufferSize,
     }
 }
 
-static void BMK_benchFileTable(const char** fileNamesTable, unsigned nbFiles, int cLevel)
+static void BMK_benchFileTable(const char** fileNamesTable, unsigned nbFiles,
+                               const char* dictFileName, int cLevel)
 {
     void* srcBuffer;
     size_t benchedSize;
-    size_t* fileSizes;
+    void* dictBuffer = NULL;
+    size_t dictBufferSize = 0;
+    size_t* fileSizes = (size_t*)malloc(nbFiles * sizeof(size_t));
     U64 totalSizeToLoad = BMK_getTotalFileSize(fileNamesTable, nbFiles);
     char mfName[20] = {0};
     const char* displayName = NULL;
+
+    if (!fileSizes) EXM_THROW(12, "not enough memory for fileSizes");
+
+    /* Load dictionary */
+    if (dictFileName != NULL)
+    {
+        U64 dictFileSize = BMK_getFileSize(dictFileName);
+        if (dictFileSize > 64 MB) EXM_THROW(10, "dictionary file %s too large", dictFileName);
+        dictBufferSize = (size_t)dictFileSize;
+        dictBuffer = malloc(dictBufferSize);
+        if (dictBuffer==NULL) EXM_THROW(11, "not enough memory for dictionary (%u bytes)", (U32)dictBufferSize);
+        BMK_loadFiles(dictBuffer, dictBufferSize, fileSizes, &dictFileName, 1);
+    }
 
     /* Memory allocation & restrictions */
     benchedSize = BMK_findMaxMem(totalSizeToLoad * 3) / 3;
@@ -432,7 +468,6 @@ static void BMK_benchFileTable(const char** fileNamesTable, unsigned nbFiles, in
     if (benchedSize < totalSizeToLoad)
         DISPLAY("Not enough memory; testing %u MB only...\n", (U32)(benchedSize >> 20));
     srcBuffer = malloc(benchedSize);
-    fileSizes = (size_t*)malloc(nbFiles * sizeof(size_t));
     if (!srcBuffer) EXM_THROW(12, "not enough memory");
 
     /* Load input buffer */
@@ -443,10 +478,14 @@ static void BMK_benchFileTable(const char** fileNamesTable, unsigned nbFiles, in
     if (nbFiles > 1) displayName = mfName;
     else displayName = fileNamesTable[0];
 
-    BMK_benchCLevel(srcBuffer, benchedSize, displayName, cLevel, fileSizes, nbFiles);
+    BMK_benchCLevel(srcBuffer, benchedSize,
+                    displayName, cLevel,
+                    fileSizes, nbFiles,
+                    dictBuffer, dictBufferSize);
 
     /* clean up */
     free(srcBuffer);
+    free(dictBuffer);
     free(fileSizes);
 }
 
@@ -465,21 +504,22 @@ static void BMK_syntheticTest(int cLevel, double compressibility)
 
     /* Bench */
     snprintf (name, sizeof(name), "Synthetic %2u%%", (unsigned)(compressibility*100));
-    BMK_benchCLevel(srcBuffer, benchedSize, name, cLevel, &benchedSize, 1);
+    BMK_benchCLevel(srcBuffer, benchedSize, name, cLevel, &benchedSize, 1, NULL, 0);
 
     /* clean up */
     free(srcBuffer);
 }
 
 
-int BMK_benchFiles(const char** fileNamesTable, unsigned nbFiles, int cLevel)
+int BMK_benchFiles(const char** fileNamesTable, unsigned nbFiles,
+                   const char* dictFileName, int cLevel)
 {
     double compressibility = (double)g_compressibilityDefault / 100;
 
     if (nbFiles == 0)
         BMK_syntheticTest(cLevel, compressibility);
     else
-        BMK_benchFileTable(fileNamesTable, nbFiles, cLevel);
+        BMK_benchFileTable(fileNamesTable, nbFiles, dictFileName, cLevel);
     return 0;
 }
 

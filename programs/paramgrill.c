@@ -342,6 +342,7 @@ static size_t BMK_benchParam(BMK_result_t* resultPtr,
                     blockTable[blockNb].cSize = ZSTD_compress_advanced(ctx,
                                                     blockTable[blockNb].cPtr,  blockTable[blockNb].cRoom,
                                                     blockTable[blockNb].srcPtr, blockTable[blockNb].srcSize,
+                                                    NULL, 0,
                                                     params);
                 nbLoops++;
             }

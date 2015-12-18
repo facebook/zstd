@@ -181,20 +181,22 @@ int main(int argCount, const char** argv)
         multiple=0,
         operationResult=0;
     unsigned cLevel = 1;
+    const char** filenameTable = NULL;
+    unsigned filenameIdx = 0;
     const char* programName = argv[0];
-    const char* inFileName = NULL;
     const char* outFileName = NULL;
     const char* dictFileName = NULL;
     char* dynNameSpace = NULL;
     const char extension[] = ZSTD_EXTENSION;
-    unsigned fileNameStart = 0;
-    unsigned nbFiles = 0;
     int rangeBench = 1;
 
     /* init */
-    (void)rangeBench; (void)nbFiles; (void)fileNameStart;   /* not used when ZSTD_NOBENCH set */
+    (void)rangeBench;   /* not used when ZSTD_NOBENCH set */
+    filenameTable = (const char**)malloc(argCount * sizeof(const char*));
+    if (filenameTable==NULL) { DISPLAY("not enough memory\n"); exit(1); }
+    memset(filenameTable, 0, argCount * sizeof(const char*));
     displayOut = stderr;
-    /* Pick out basename component. Don't rely on stdlib because of conflicting behavior. */
+    /* Pick out program name from path. Don't rely on stdlib because of conflicting behavior */
     for (i = (int)strlen(programName); i > 0; i--) { if (programName[i] == '/') { i++; break; } }
     programName += i;
 
@@ -222,9 +224,8 @@ int main(int argCount, const char** argv)
             /* '-' means stdin/stdout */
             if (argument[1]==0)
             {
-                if (!inFileName) inFileName=stdinmark;
-                else outFileName=stdoutmark;
-                continue;
+                if (!filenameIdx) { filenameIdx=1, filenameTable[0]=stdinmark; continue; }
+                outFileName=stdoutmark; continue;
             }
 
             argument++;
@@ -335,16 +336,8 @@ int main(int argCount, const char** argv)
             continue;
         }
 
-        /* first provided filename is input */
-        if (!inFileName) { inFileName = argument; fileNameStart = i; nbFiles = argCount-i; continue; }
-
-        /* second provided filename is output */
-        if (!outFileName)
-        {
-            outFileName = argument;
-            if (!strcmp (outFileName, nullString)) outFileName = nulmark;
-            continue;
-        }
+        /* add filename to list */
+        filenameTable[filenameIdx++] = argument;
     }
 
     /* Welcome message (if verbose) */
@@ -354,27 +347,28 @@ int main(int argCount, const char** argv)
     if (bench)
     {
 #ifndef ZSTD_NOBENCH
-        BMK_benchFiles(argv+fileNameStart, nbFiles, dictFileName, cLevel*rangeBench);
+        BMK_benchFiles(filenameTable, filenameIdx, dictFileName, cLevel*rangeBench);
 #endif
         goto _end;
     }
 
     /* No input filename ==> use stdin */
-    if(!inFileName) { inFileName=stdinmark; }
+    if(!filenameIdx) filenameIdx=1, filenameTable[0]=stdinmark;
 
     /* Check if input defined as console; trigger an error in this case */
-    if (!strcmp(inFileName, stdinmark) && IS_CONSOLE(stdin) ) return badusage(programName);
+    if (!strcmp(filenameTable[0], stdinmark) && IS_CONSOLE(stdin) ) return badusage(programName);
 
     /* No output filename ==> try to select one automatically (when possible) */
-    while (!outFileName)
+    outFileName = filenameTable[1];
+    while (!outFileName)   /* while : just to allow break statement */
     {
         if (!IS_CONSOLE(stdout)) { outFileName=stdoutmark; break; }   /* Default to stdout whenever possible (i.e. not a console) */
         if (!decode)   /* compression to file */
         {
-            size_t l = strlen(inFileName);
+            size_t l = strlen(filenameTable[0]);
             dynNameSpace = (char*)calloc(1,l+5);
             if (dynNameSpace==NULL) { DISPLAY("not enough memory\n"); exit(1); }
-            strcpy(dynNameSpace, inFileName);
+            strcpy(dynNameSpace, filenameTable[0]);
             strcpy(dynNameSpace+l, ZSTD_EXTENSION);
             outFileName = dynNameSpace;
             DISPLAYLEVEL(2, "Compressed filename will be : %s \n", outFileName);
@@ -382,8 +376,8 @@ int main(int argCount, const char** argv)
         }
         /* decompression to file (automatic name will work only if input filename has correct format extension) */
         {
-            size_t filenameSize = strlen(inFileName);
-            if (strcmp(inFileName + (filenameSize-4), extension))
+            size_t filenameSize = strlen(filenameTable[0]);
+            if (strcmp(filenameTable[0] + (filenameSize-4), extension))
             {
                  DISPLAYLEVEL(1, "unknown suffix - cannot determine destination filename\n");
                  return badusage(programName);
@@ -391,7 +385,7 @@ int main(int argCount, const char** argv)
             dynNameSpace = (char*)calloc(1,filenameSize+1);
             if (dynNameSpace==NULL) { DISPLAY("not enough memory\n"); exit(1); }
             outFileName = dynNameSpace;
-            strcpy(dynNameSpace, inFileName);
+            strcpy(dynNameSpace, filenameTable[0]);
             dynNameSpace[filenameSize-4]=0;
             DISPLAYLEVEL(2, "Decoding file %s \n", outFileName);
         }
@@ -401,13 +395,13 @@ int main(int argCount, const char** argv)
     if (!strcmp(outFileName,stdoutmark) && IS_CONSOLE(stdout) && !forceStdout) return badusage(programName);
 
     /* No warning message in pure pipe mode (stdin + stdout) or multiple mode */
-    if (!strcmp(inFileName, stdinmark) && !strcmp(outFileName,stdoutmark) && (displayLevel==2)) displayLevel=1;
+    if (!strcmp(filenameTable[0], stdinmark) && !strcmp(outFileName,stdoutmark) && (displayLevel==2)) displayLevel=1;
     if (multiple && (displayLevel==2)) displayLevel=1;
 
-    if ((!multiple) && (nbFiles>2))
+    if ((!multiple) && (filenameIdx>2))
     {
-        DISPLAY("Too many files on the command line (%u > 2). Do you mean -m ? \n", nbFiles);
-        return nbFiles;
+        DISPLAY("Too many files on the command line (%u > 2). Do you mean -m ? \n", filenameIdx);
+        return filenameIdx;
     }
 
     /* IO Stream/File */
@@ -415,20 +409,21 @@ int main(int argCount, const char** argv)
     if (decode)
     {
       if (multiple)
-        operationResult = FIO_decompressMultipleFilenames(argv+fileNameStart, nbFiles, ZSTD_EXTENSION, dictFileName);
+        operationResult = FIO_decompressMultipleFilenames(filenameTable, filenameIdx, ZSTD_EXTENSION, dictFileName);
       else
-        FIO_decompressFilename(outFileName, inFileName, dictFileName);
+        operationResult = FIO_decompressFilename(outFileName, filenameTable[0], dictFileName);
     }
     else
     {
         if (multiple)
-          operationResult = FIO_compressMultipleFilenames(argv+fileNameStart, nbFiles, ZSTD_EXTENSION, dictFileName, cLevel);
+          operationResult = FIO_compressMultipleFilenames(filenameTable, filenameIdx, ZSTD_EXTENSION, dictFileName, cLevel);
         else
-          operationResult = FIO_compressFilename(outFileName, inFileName, dictFileName, cLevel);
+          operationResult = FIO_compressFilename(outFileName, filenameTable[0], dictFileName, cLevel);
     }
 
 _end:
     if (main_pause) waitEnter();
     free(dynNameSpace);
+    free(filenameTable);
     return operationResult;
 }

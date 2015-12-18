@@ -39,8 +39,11 @@ echo frame concatenation test completed
 
 echo "**** flush write error test **** "
 
+echo "echo foo | $ZSTD > /dev/full"
 echo foo | $ZSTD > /dev/full && die "write error not detected!"
+echo "echo foo | $ZSTD | $ZSTD -d > /dev/full"
 echo foo | $ZSTD | $ZSTD -d > /dev/full && die "write error not detected!"
+
 
 echo "*** dictionary tests *** "
 

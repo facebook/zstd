@@ -192,7 +192,7 @@ int main(int argCount, const char** argv)
 
     /* init */
     (void)rangeBench;   /* not used when ZSTD_NOBENCH set */
-    filenameTable = (const char**)malloc(argCount * sizeof(const char*));
+    filenameTable = (const char**)malloc(argCount * sizeof(const char*));   /* argCount >= 1 */
     if (filenameTable==NULL) { DISPLAY("not enough memory\n"); exit(1); }
     memset(filenameTable, 0, argCount * sizeof(const char*));
     displayOut = stderr;
@@ -359,7 +359,7 @@ int main(int argCount, const char** argv)
     if (!strcmp(filenameTable[0], stdinmark) && IS_CONSOLE(stdin) ) return badusage(programName);
 
     /* No output filename ==> try to select one automatically (when possible) */
-    outFileName = filenameTable[1];
+    if (filenameIdx>=2) outFileName = filenameTable[1];
     while (!outFileName)   /* while : just to allow break statement */
     {
         if (!IS_CONSOLE(stdout)) { outFileName=stdoutmark; break; }   /* Default to stdout whenever possible (i.e. not a console) */

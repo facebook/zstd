@@ -181,7 +181,7 @@ int main(int argCount, const char** argv)
         multiple=0,
         operationResult=0;
     unsigned cLevel = 1;
-    const char** filenameTable = NULL;
+    const char** filenameTable = (const char**)malloc(argCount * sizeof(const char*));   /* argCount >= 1 */
     unsigned filenameIdx = 0;
     const char* programName = argv[0];
     const char* outFileName = NULL;
@@ -192,9 +192,7 @@ int main(int argCount, const char** argv)
 
     /* init */
     (void)rangeBench;   /* not used when ZSTD_NOBENCH set */
-    filenameTable = (const char**)malloc(argCount * sizeof(const char*));   /* argCount >= 1 */
     if (filenameTable==NULL) { DISPLAY("not enough memory\n"); exit(1); }
-    memset(filenameTable, 0, argCount * sizeof(const char*));
     displayOut = stderr;
     /* Pick out program name from path. Don't rely on stdlib because of conflicting behavior */
     for (i = (int)strlen(programName); i > 0; i--) { if (programName[i] == '/') { i++; break; } }
@@ -424,6 +422,6 @@ int main(int argCount, const char** argv)
 _end:
     if (main_pause) waitEnter();
     free(dynNameSpace);
-    free(filenameTable);
+    free((void*)filenameTable);
     return operationResult;
 }

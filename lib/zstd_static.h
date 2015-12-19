@@ -236,14 +236,14 @@ static const ZSTD_parameters ZSTD_defaultParameters[4][ZSTD_MAX_CLEVEL+1] = {
     {  0, 18, 13, 14,  1,  7, ZSTD_fast    },  /* level  0 - never used */
     {  0, 18, 14, 15,  1,  6, ZSTD_fast    },  /* level  1 */
     {  0, 18, 14, 15,  1,  5, ZSTD_fast    },  /* level  2 */
-    {  0, 18, 12, 15,  3,  7, ZSTD_greedy  },  /* level  3 */
-    {  0, 18, 13, 15,  4,  7, ZSTD_greedy  },  /* level  4 */
-    {  0, 18, 14, 15,  5,  7, ZSTD_greedy  },  /* level  5 */
-    {  0, 18, 13, 15,  4,  7, ZSTD_lazy    },  /* level  6 */
-    {  0, 18, 14, 16,  5,  7, ZSTD_lazy    },  /* level  7 */
-    {  0, 18, 15, 16,  6,  7, ZSTD_lazy    },  /* level  8 */
-    {  0, 18, 15, 15,  7,  7, ZSTD_lazy    },  /* level  9 */
-    {  0, 18, 16, 16,  7,  7, ZSTD_lazy    },  /* level 10 */
+    {  0, 18, 12, 15,  3,  4, ZSTD_greedy  },  /* level  3 */
+    {  0, 18, 13, 15,  4,  4, ZSTD_greedy  },  /* level  4 */
+    {  0, 18, 14, 15,  5,  4, ZSTD_greedy  },  /* level  5 */
+    {  0, 18, 13, 15,  4,  4, ZSTD_lazy    },  /* level  6 */
+    {  0, 18, 14, 16,  5,  4, ZSTD_lazy    },  /* level  7 */
+    {  0, 18, 15, 16,  6,  4, ZSTD_lazy    },  /* level  8 */
+    {  0, 18, 15, 15,  7,  4, ZSTD_lazy    },  /* level  9 */
+    {  0, 18, 16, 16,  7,  4, ZSTD_lazy    },  /* level 10 */
     {  0, 18, 16, 16,  8,  4, ZSTD_lazy    },  /* level 11 */
     {  0, 18, 17, 16,  8,  4, ZSTD_lazy    },  /* level 12 */
     {  0, 18, 17, 16,  9,  4, ZSTD_lazy    },  /* level 13 */

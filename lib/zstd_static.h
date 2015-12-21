@@ -115,15 +115,15 @@ ZSTDLIB_API size_t     ZSTD_freeDCtx(ZSTD_DCtx* dctx);
 
 /** ZSTD_decompressDCtx
 *   Same as ZSTD_decompress, with pre-allocated DCtx structure */
-size_t ZSTD_decompressDCtx(ZSTD_DCtx* ctx, void* dst, size_t maxDstSize, const void* src, size_t srcSize);
+ZSTDLIB_API size_t ZSTD_decompressDCtx(ZSTD_DCtx* ctx, void* dst, size_t maxDstSize, const void* src, size_t srcSize);
 
 /** ZSTD_decompress_usingDict
 *   Same as ZSTD_decompressDCtx, using a Dictionary content as prefix
 *   Note : dict can be NULL, in which case, it's equivalent to ZSTD_decompressDCtx() */
-size_t ZSTD_decompress_usingDict(ZSTD_DCtx* ctx,
-                                 void* dst, size_t maxDstSize,
-                                 const void* src, size_t srcSize,
-                                 const void* dict, size_t dictSize);
+ZSTDLIB_API size_t ZSTD_decompress_usingDict(ZSTD_DCtx* ctx,
+                                             void* dst, size_t maxDstSize,
+                                             const void* src, size_t srcSize,
+                                             const void* dict, size_t dictSize);
 
 
 /* **************************************

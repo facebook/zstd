@@ -1048,7 +1048,7 @@ static U32 ZSTD_insertBt1(ZSTD_CCtx* zc, const BYTE* const ip, const U32 mls, co
             matchLength += ZSTD_count(ip+matchLength+1, match+matchLength+1, iend) +1;
 
         if (matchLength > matchEndIdx - matchIndex)
-            matchEndIdx = matchIndex + matchLength;
+            matchEndIdx = matchIndex + (U32)matchLength;
 
         if (ip+matchLength == iend)   /* equal : no way to know if inf or sup */
             break;   /* drop , to guarantee consistency ; miss a bit of compression, but required to not corrupt the tree */
@@ -1117,7 +1117,7 @@ size_t ZSTD_insertBtAndFindBestMatch (
         if (matchLength > bestLength)
         {
             if (matchLength > matchEndIdx - matchIndex)
-                matchEndIdx = matchIndex + matchLength;
+                matchEndIdx = matchIndex + (U32)matchLength;
             if ( (4*(int)(matchLength-bestLength)) > (int)(ZSTD_highbit(current-matchIndex+1) - ZSTD_highbit((U32)offsetPtr[0]+1)) )
                 bestLength = matchLength, *offsetPtr = current - matchIndex;
             if (ip+matchLength == iend)   /* equal : no way to know if inf or sup */
@@ -1241,7 +1241,7 @@ static U32 ZSTD_insertBt1_extDict(ZSTD_CCtx* zc, const BYTE* const ip, const U32
         }
 
         if (matchLength > matchEndIdx - matchIndex)
-            matchEndIdx = matchIndex + matchLength;
+            matchEndIdx = matchIndex + (U32)matchLength;
 
         if (ip+matchLength == iend)   /* equal : no way to know if inf or sup */
             break;   /* drop , to guarantee consistency ; miss a bit of compression, but other solutions can corrupt the tree */
@@ -1336,7 +1336,7 @@ size_t ZSTD_insertBtAndFindBestMatch_extDict (
         if (matchLength > bestLength)
         {
             if (matchLength > matchEndIdx - matchIndex)
-                matchEndIdx = matchIndex + matchLength;
+                matchEndIdx = matchIndex + (U32)matchLength;
             if ( (4*(int)(matchLength-bestLength)) > (int)(ZSTD_highbit(current-matchIndex+1) - ZSTD_highbit((U32)offsetPtr[0]+1)) )
                 bestLength = matchLength, *offsetPtr = current - matchIndex;
             if (ip+matchLength == iend)   /* equal : no way to know if inf or sup */
@@ -2058,7 +2058,7 @@ size_t ZSTD_compress_insertDictionary(ZSTD_CCtx* zc, const void* src, size_t src
 
     case ZSTD_btlazy2:
         ZSTD_updateTree(zc, iend-8, iend, 1 << zc->params.searchLog, zc->params.searchLength);
-        zc->nextToUpdate = iend - zc->base;
+        zc->nextToUpdate = (U32)(iend - zc->base);
         break;
 
     default:

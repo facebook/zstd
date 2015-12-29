@@ -1013,7 +1013,7 @@ size_t ZSTD_compressBlock_fast_extDict(ZSTD_CCtx* ctx,
 /* *************************************
 *  Binary Tree search
 ***************************************/
-/** ZSTD_insertBt1 : add one or multiple positions to tree
+/*! ZSTD_insertBt1 : add one or multiple positions to tree
 *   @ip : assumed <= iend-8
 *   @return : nb of positions added */
 static U32 ZSTD_insertBt1(ZSTD_CCtx* zc, const BYTE* const ip, const U32 mls, const BYTE* const iend, U32 nbCompares)
@@ -1034,14 +1034,7 @@ static U32 ZSTD_insertBt1(ZSTD_CCtx* zc, const BYTE* const ip, const U32 mls, co
     U32* largerPtr  = bt + 2*(current&btMask) + 1;
     U32 dummy32;   /* to be nullified at the end */
     const U32 windowLow = zc->lowLimit;
-
-    if ( (current-matchIndex == 1)   /* RLE */
-        && (matchIndex > windowLow)
-        && (MEM_read64(match) == MEM_read64(ip)) )
-    {
-        size_t rleLength = ZSTD_count(ip+8, match+8, iend) + 8;
-        return (U32)(rleLength - mls);
-    }
+    U32 matchEndIdx = current;
 
     hashTable[h] = current;   /* Update Hash Table */
 
@@ -1054,8 +1047,11 @@ static U32 ZSTD_insertBt1(ZSTD_CCtx* zc, const BYTE* const ip, const U32 mls, co
         if (match[matchLength] == ip[matchLength])
             matchLength += ZSTD_count(ip+matchLength+1, match+matchLength+1, iend) +1;
 
+        if (matchLength > matchEndIdx - matchIndex)
+            matchEndIdx = matchIndex + matchLength;
+
         if (ip+matchLength == iend)   /* equal : no way to know if inf or sup */
-            break;   /* drop , to guarantee consistency ; miss a bit of compression, but other solutions can corrupt the tree */
+            break;   /* drop , to guarantee consistency ; miss a bit of compression, but required to not corrupt the tree */
 
         if (match[matchLength] < ip[matchLength])
         {
@@ -1078,7 +1074,7 @@ static U32 ZSTD_insertBt1(ZSTD_CCtx* zc, const BYTE* const ip, const U32 mls, co
     }
 
     *smallerPtr = *largerPtr = 0;
-    return 1;
+    return (matchEndIdx > current + zc->params.searchLength) ? matchEndIdx - current - zc->params.searchLength : 1;
 }
 
 
@@ -1104,6 +1100,7 @@ size_t ZSTD_insertBtAndFindBestMatch (
     U32* smallerPtr = bt + 2*(current&btMask);
     U32* largerPtr  = bt + 2*(current&btMask) + 1;
     size_t bestLength = 0;
+    U32 matchEndIdx = current;
     U32 dummy32;   /* to be nullified at the end */
 
     hashTable[h] = current;   /* Update Hash Table */
@@ -1119,6 +1116,8 @@ size_t ZSTD_insertBtAndFindBestMatch (
 
         if (matchLength > bestLength)
         {
+            if (matchLength > matchEndIdx - matchIndex)
+                matchEndIdx = matchIndex + matchLength;
             if ( (4*(int)(matchLength-bestLength)) > (int)(ZSTD_highbit(current-matchIndex+1) - ZSTD_highbit((U32)offsetPtr[0]+1)) )
                 bestLength = matchLength, *offsetPtr = current - matchIndex;
             if (ip+matchLength == iend)   /* equal : no way to know if inf or sup */
@@ -1147,12 +1146,12 @@ size_t ZSTD_insertBtAndFindBestMatch (
 
     *smallerPtr = *largerPtr = 0;
 
-    zc->nextToUpdate = current+1;   /* current has been inserted */
+    zc->nextToUpdate = (matchEndIdx > current + zc->params.searchLength) ? matchEndIdx - zc->params.searchLength : current+1;
     return bestLength;
 }
 
 
-static const BYTE* ZSTD_updateTree(ZSTD_CCtx* zc, const BYTE* const ip, const BYTE* const iend, const U32 nbCompares, const U32 mls)
+static void ZSTD_updateTree(ZSTD_CCtx* zc, const BYTE* const ip, const BYTE* const iend, const U32 nbCompares, const U32 mls)
 {
     const BYTE* const base = zc->base;
     const U32 target = (U32)(ip - base);
@@ -1160,9 +1159,6 @@ static const BYTE* ZSTD_updateTree(ZSTD_CCtx* zc, const BYTE* const ip, const BY
 
     for( ; idx < target ; )
         idx += ZSTD_insertBt1(zc, base+idx, mls, iend, nbCompares);
-
-    zc->nextToUpdate = idx;
-    return base + idx;
 }
 
 
@@ -1174,9 +1170,8 @@ size_t ZSTD_BtFindBestMatch (
                         size_t* offsetPtr,
                         const U32 maxNbAttempts, const U32 mls)
 {
-    const BYTE* nextToUpdate = ZSTD_updateTree(zc, ip, iLimit, maxNbAttempts, mls);
-    if (nextToUpdate > ip) /* RLE data */
-        { *offsetPtr = 1; return ZSTD_count(ip, ip-1, iLimit); }
+    if (ip < zc->base + zc->nextToUpdate) return 0;   /* skipped area */
+    ZSTD_updateTree(zc, ip, iLimit, maxNbAttempts, mls);
     return ZSTD_insertBtAndFindBestMatch(zc, ip, iLimit, offsetPtr, maxNbAttempts, mls);
 }
 
@@ -1222,13 +1217,7 @@ static U32 ZSTD_insertBt1_extDict(ZSTD_CCtx* zc, const BYTE* const ip, const U32
     U32* largerPtr  = bt + 2*(current&btMask) + 1;
     U32 dummy32;   /* to be nullified at the end */
     const U32 windowLow = zc->lowLimit;
-
-    if ( (current-matchIndex == 1)   /* RLE */
-        && (MEM_read64(match) == MEM_read64(ip)) )
-    {
-        size_t rleLength = ZSTD_count(ip+8, match+8, iend) + 8;
-        return (U32)(rleLength - mls);
-    }
+    U32 matchEndIdx = current;
 
     hashTable[h] = current;   /* Update Hash Table */
 
@@ -1250,6 +1239,9 @@ static U32 ZSTD_insertBt1_extDict(ZSTD_CCtx* zc, const BYTE* const ip, const U32
             if (matchIndex+matchLength >= dictLimit)
 				match = base + matchIndex;   /* to prepare for next usage of match[matchLength] */
         }
+
+        if (matchLength > matchEndIdx - matchIndex)
+            matchEndIdx = matchIndex + matchLength;
 
         if (ip+matchLength == iend)   /* equal : no way to know if inf or sup */
             break;   /* drop , to guarantee consistency ; miss a bit of compression, but other solutions can corrupt the tree */
@@ -1275,11 +1267,11 @@ static U32 ZSTD_insertBt1_extDict(ZSTD_CCtx* zc, const BYTE* const ip, const U32
     }
 
     *smallerPtr = *largerPtr = 0;
-    return 1;
+    return (matchEndIdx > current + zc->params.searchLength) ? matchEndIdx - current - zc->params.searchLength : 1;
 }
 
 
-static const BYTE* ZSTD_updateTree_extDict(ZSTD_CCtx* zc, const BYTE* const ip, const BYTE* const iend, const U32 nbCompares, const U32 mls)
+static void ZSTD_updateTree_extDict(ZSTD_CCtx* zc, const BYTE* const ip, const BYTE* const iend, const U32 nbCompares, const U32 mls)
 {
     const BYTE* const base = zc->base;
     const U32 target = (U32)(ip - base);
@@ -1287,9 +1279,6 @@ static const BYTE* ZSTD_updateTree_extDict(ZSTD_CCtx* zc, const BYTE* const ip, 
 
     for( ; idx < target ; )
         idx += ZSTD_insertBt1_extDict(zc, base+idx, mls, iend, nbCompares);
-
-    zc->nextToUpdate = idx;
-    return base + idx;
 }
 
 
@@ -1319,6 +1308,7 @@ size_t ZSTD_insertBtAndFindBestMatch_extDict (
     U32* smallerPtr = bt + 2*(current&btMask);
     U32* largerPtr  = bt + 2*(current&btMask) + 1;
     size_t bestLength = 0;
+    U32 matchEndIdx = current;
     U32 dummy32;   /* to be nullified at the end */
 
     hashTable[h] = current;   /* Update Hash Table */
@@ -1345,6 +1335,8 @@ size_t ZSTD_insertBtAndFindBestMatch_extDict (
 
         if (matchLength > bestLength)
         {
+            if (matchLength > matchEndIdx - matchIndex)
+                matchEndIdx = matchIndex + matchLength;
             if ( (4*(int)(matchLength-bestLength)) > (int)(ZSTD_highbit(current-matchIndex+1) - ZSTD_highbit((U32)offsetPtr[0]+1)) )
                 bestLength = matchLength, *offsetPtr = current - matchIndex;
             if (ip+matchLength == iend)   /* equal : no way to know if inf or sup */
@@ -1373,7 +1365,7 @@ size_t ZSTD_insertBtAndFindBestMatch_extDict (
 
     *smallerPtr = *largerPtr = 0;
 
-    zc->nextToUpdate = current+1;   /* current has been inserted */
+    zc->nextToUpdate = (matchEndIdx > current + zc->params.searchLength) ? matchEndIdx - zc->params.searchLength : current+1;
     return bestLength;
 }
 
@@ -1385,9 +1377,8 @@ size_t ZSTD_BtFindBestMatch_extDict (
                         size_t* offsetPtr,
                         const U32 maxNbAttempts, const U32 mls)
 {
-    const BYTE* nextToUpdate = ZSTD_updateTree_extDict(zc, ip, iLimit, maxNbAttempts, mls);
-    if (nextToUpdate > ip) /* RLE data */
-        { *offsetPtr = 1; return ZSTD_count(ip, ip-1, iLimit); }
+    if (ip < zc->base + zc->nextToUpdate) return 0;   /* skipped area */
+    ZSTD_updateTree_extDict(zc, ip, iLimit, maxNbAttempts, mls);
     return ZSTD_insertBtAndFindBestMatch_extDict(zc, ip, iLimit, offsetPtr, maxNbAttempts, mls);
 }
 
@@ -2067,6 +2058,7 @@ size_t ZSTD_compress_insertDictionary(ZSTD_CCtx* zc, const void* src, size_t src
 
     case ZSTD_btlazy2:
         ZSTD_updateTree(zc, iend-8, iend, 1 << zc->params.searchLog, zc->params.searchLength);
+        zc->nextToUpdate = iend - zc->base;
         break;
 
     default:

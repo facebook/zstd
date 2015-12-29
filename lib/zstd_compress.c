@@ -761,7 +761,8 @@ size_t ZSTD_compressBlock_fast_generic(ZSTD_CCtx* zc,
     const BYTE* const istart = (const BYTE*)src;
     const BYTE* ip = istart;
     const BYTE* anchor = istart;
-    const BYTE* const lowest = base + zc->dictLimit;
+    const U32 lowIndex = zc->dictLimit;
+    const BYTE* const lowest = base + lowIndex;
     const BYTE* const iend = istart + srcSize;
     const BYTE* const ilimit = iend - 8;
 
@@ -772,9 +773,9 @@ size_t ZSTD_compressBlock_fast_generic(ZSTD_CCtx* zc,
     ZSTD_resetSeqStore(seqStorePtr);
     if (ip < lowest+4)
     {
-        hashTable[ZSTD_hashPtr(lowest+1, hBits, mls)] = zc->dictLimit+1;
-        hashTable[ZSTD_hashPtr(lowest+2, hBits, mls)] = zc->dictLimit+2;
-        hashTable[ZSTD_hashPtr(lowest+3, hBits, mls)] = zc->dictLimit+3;
+        hashTable[ZSTD_hashPtr(lowest+1, hBits, mls)] = lowIndex+1;
+        hashTable[ZSTD_hashPtr(lowest+2, hBits, mls)] = lowIndex+2;
+        hashTable[ZSTD_hashPtr(lowest+3, hBits, mls)] = lowIndex+3;
         ip = lowest+4;
     }
 
@@ -784,7 +785,8 @@ size_t ZSTD_compressBlock_fast_generic(ZSTD_CCtx* zc,
         size_t mlCode;
         size_t offset;
         const size_t h = ZSTD_hashPtr(ip, hBits, mls);
-        const BYTE* match = base + hashTable[h];
+        const U32 matchIndex = hashTable[h];
+        const BYTE* match = base + matchIndex;
         hashTable[h] = (U32)(ip-base);
 
         if (MEM_read32(ip+1-offset_1) == MEM_read32(ip+1))   /* note : by construction, offset_1 <= (ip-base) */
@@ -795,7 +797,7 @@ size_t ZSTD_compressBlock_fast_generic(ZSTD_CCtx* zc,
         }
         else
         {
-            if ( (match <= lowest) ||
+            if ( (matchIndex <= lowIndex) ||
                  (MEM_read32(match) != MEM_read32(ip)) )
             {
                 ip += ((ip-anchor) >> g_searchStrength) + 1;

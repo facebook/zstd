@@ -31,8 +31,6 @@
 #  - Public forum : https://groups.google.com/forum/#!forum/lz4c
 # ################################################################
 
-# Version number
-export VERSION := 0.4.5
 
 PRGDIR  = programs
 ZSTDDIR = lib

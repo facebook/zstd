@@ -40,7 +40,7 @@ LIBVER_MAJOR := $(shell echo $(LIBVER_MAJOR_SCRIPT))
 LIBVER_MINOR := $(shell echo $(LIBVER_MINOR_SCRIPT))
 LIBVER_PATCH := $(shell echo $(LIBVER_PATCH_SCRIPT))
 LIBVER := $(shell echo $(LIBVER_SCRIPT))
-VERSION:= $(LIBVER)
+VERSION?= $(LIBVER)
 
 DESTDIR?=
 PREFIX ?= /usr/local

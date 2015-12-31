@@ -31,6 +31,8 @@
 #  - Public forum : https://groups.google.com/forum/#!forum/lz4c
 # ################################################################
 
+# force a version number : uncomment below export (otherwise, default to the one declared into zstd.h)
+#export VERSION := 0.4.6
 
 PRGDIR  = programs
 ZSTDDIR = lib

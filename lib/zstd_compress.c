@@ -1034,7 +1034,7 @@ static U32 ZSTD_insertBt1(ZSTD_CCtx* zc, const BYTE* const ip, const U32 mls, co
     U32* largerPtr  = bt + 2*(current&btMask) + 1;
     U32 dummy32;   /* to be nullified at the end */
     const U32 windowLow = zc->lowLimit;
-    U32 matchEndIdx = current;
+    U32 matchEndIdx = current+8;
 
     hashTable[h] = current;   /* Update Hash Table */
 
@@ -1074,7 +1074,7 @@ static U32 ZSTD_insertBt1(ZSTD_CCtx* zc, const BYTE* const ip, const U32 mls, co
     }
 
     *smallerPtr = *largerPtr = 0;
-    return (matchEndIdx > current + zc->params.searchLength) ? matchEndIdx - current - zc->params.searchLength : 1;
+    return (matchEndIdx > current + 8) ? matchEndIdx - current - 8 : 1;
 }
 
 
@@ -1100,7 +1100,7 @@ size_t ZSTD_insertBtAndFindBestMatch (
     U32* smallerPtr = bt + 2*(current&btMask);
     U32* largerPtr  = bt + 2*(current&btMask) + 1;
     size_t bestLength = 0;
-    U32 matchEndIdx = current;
+    U32 matchEndIdx = current+8;
     U32 dummy32;   /* to be nullified at the end */
 
     hashTable[h] = current;   /* Update Hash Table */
@@ -1146,7 +1146,7 @@ size_t ZSTD_insertBtAndFindBestMatch (
 
     *smallerPtr = *largerPtr = 0;
 
-    zc->nextToUpdate = (matchEndIdx > current + zc->params.searchLength) ? matchEndIdx - zc->params.searchLength : current+1;
+    zc->nextToUpdate = (matchEndIdx > current + 8) ? matchEndIdx - 8 : current+1;
     return bestLength;
 }
 
@@ -1217,7 +1217,7 @@ static U32 ZSTD_insertBt1_extDict(ZSTD_CCtx* zc, const BYTE* const ip, const U32
     U32* largerPtr  = bt + 2*(current&btMask) + 1;
     U32 dummy32;   /* to be nullified at the end */
     const U32 windowLow = zc->lowLimit;
-    U32 matchEndIdx = current;
+    U32 matchEndIdx = current+8;
 
     hashTable[h] = current;   /* Update Hash Table */
 
@@ -1267,7 +1267,7 @@ static U32 ZSTD_insertBt1_extDict(ZSTD_CCtx* zc, const BYTE* const ip, const U32
     }
 
     *smallerPtr = *largerPtr = 0;
-    return (matchEndIdx > current + zc->params.searchLength) ? matchEndIdx - current - zc->params.searchLength : 1;
+    return (matchEndIdx > current + 8) ? matchEndIdx - current - 8 : 1;
 }
 
 
@@ -1308,7 +1308,7 @@ size_t ZSTD_insertBtAndFindBestMatch_extDict (
     U32* smallerPtr = bt + 2*(current&btMask);
     U32* largerPtr  = bt + 2*(current&btMask) + 1;
     size_t bestLength = 0;
-    U32 matchEndIdx = current;
+    U32 matchEndIdx = current+8;
     U32 dummy32;   /* to be nullified at the end */
 
     hashTable[h] = current;   /* Update Hash Table */
@@ -1365,7 +1365,7 @@ size_t ZSTD_insertBtAndFindBestMatch_extDict (
 
     *smallerPtr = *largerPtr = 0;
 
-    zc->nextToUpdate = (matchEndIdx > current + zc->params.searchLength) ? matchEndIdx - zc->params.searchLength : current+1;
+    zc->nextToUpdate = (matchEndIdx > current + 8) ? matchEndIdx - 8 : current+1;
     return bestLength;
 }
 

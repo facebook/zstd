@@ -1013,10 +1013,11 @@ size_t ZSTD_compressBlock_fast_extDict(ZSTD_CCtx* ctx,
 /* *************************************
 *  Binary Tree search
 ***************************************/
-/*! ZSTD_insertBt1 : add one or multiple positions to tree
+/** ZSTD_insertBt1 : add one or multiple positions to tree
 *   @ip : assumed <= iend-8
 *   @return : nb of positions added */
-static U32 ZSTD_insertBt1(ZSTD_CCtx* zc, const BYTE* const ip, const U32 mls, const BYTE* const iend, U32 nbCompares)
+static U32 ZSTD_insertBt1(ZSTD_CCtx* zc, const BYTE* const ip, const U32 mls, const BYTE* const iend, U32 nbCompares,
+                          U32 extDict)
 {
     U32* const hashTable = zc->hashTable;
     const U32 hashLog = zc->params.hashLog;
@@ -1027,6 +1028,10 @@ static U32 ZSTD_insertBt1(ZSTD_CCtx* zc, const BYTE* const ip, const U32 mls, co
     U32 matchIndex  = hashTable[h];
     size_t commonLengthSmaller=0, commonLengthLarger=0;
     const BYTE* const base = zc->base;
+    const BYTE* const dictBase = zc->dictBase;
+    const U32 dictLimit = zc->dictLimit;
+    const BYTE* const dictEnd = dictBase + dictLimit;
+    const BYTE* const prefixStart = base + dictLimit;
     const BYTE* match = base + matchIndex;
     const U32 current = (U32)(ip-base);
     const U32 btLow = btMask >= current ? 0 : current - btMask;
@@ -1043,17 +1048,27 @@ static U32 ZSTD_insertBt1(ZSTD_CCtx* zc, const BYTE* const ip, const U32 mls, co
         U32* nextPtr = bt + 2*(matchIndex & btMask);
         size_t matchLength = MIN(commonLengthSmaller, commonLengthLarger);   /* guaranteed minimum nb of common bytes */
 
-        match = base + matchIndex;
-        if (match[matchLength] == ip[matchLength])
-            matchLength += ZSTD_count(ip+matchLength+1, match+matchLength+1, iend) +1;
+        if ((!extDict) || (matchIndex+matchLength >= dictLimit))
+        {
+            match = base + matchIndex;
+            if (match[matchLength] == ip[matchLength])
+                matchLength += ZSTD_count(ip+matchLength+1, match+matchLength+1, iend) +1;
+        }
+        else
+        {
+            match = dictBase + matchIndex;
+            matchLength += ZSTD_count_2segments(ip+matchLength, match+matchLength, iend, dictEnd, prefixStart);
+            if (matchIndex+matchLength >= dictLimit)
+				match = base + matchIndex;   /* to prepare for next usage of match[matchLength] */
+        }
 
         if (matchLength > matchEndIdx - matchIndex)
             matchEndIdx = matchIndex + (U32)matchLength;
 
         if (ip+matchLength == iend)   /* equal : no way to know if inf or sup */
-            break;   /* drop , to guarantee consistency ; miss a bit of compression, but required to not corrupt the tree */
+            break;   /* drop , to guarantee consistency ; miss a bit of compression, but other solutions can corrupt the tree */
 
-        if (match[matchLength] < ip[matchLength])
+        if (match[matchLength] < ip[matchLength])   /* necessarily within correct buffer */
         {
             /* match is smaller than current */
             *smallerPtr = matchIndex;             /* update smaller idx */
@@ -1158,7 +1173,7 @@ static void ZSTD_updateTree(ZSTD_CCtx* zc, const BYTE* const ip, const BYTE* con
     U32 idx = zc->nextToUpdate;
 
     for( ; idx < target ; )
-        idx += ZSTD_insertBt1(zc, base+idx, mls, iend, nbCompares);
+        idx += ZSTD_insertBt1(zc, base+idx, mls, iend, nbCompares, 0);
 }
 
 
@@ -1192,85 +1207,6 @@ FORCE_INLINE size_t ZSTD_BtFindBestMatch_selectMLS (
 }
 
 
-/** ZSTD_insertBt1_extDict : add one or multiple positions to tree
-*   @ip : assumed <= iend-8
-*   @return : nb of positions added */
-static U32 ZSTD_insertBt1_extDict(ZSTD_CCtx* zc, const BYTE* const ip, const U32 mls, const BYTE* const iend, U32 nbCompares)
-{
-    U32* const hashTable = zc->hashTable;
-    const U32 hashLog = zc->params.hashLog;
-    const size_t h  = ZSTD_hashPtr(ip, hashLog, mls);
-    U32* const bt   = zc->contentTable;
-    const U32 btLog = zc->params.contentLog - 1;
-    const U32 btMask= (1 << btLog) - 1;
-    U32 matchIndex  = hashTable[h];
-    size_t commonLengthSmaller=0, commonLengthLarger=0;
-    const BYTE* const base = zc->base;
-    const BYTE* const dictBase = zc->dictBase;
-    const U32 dictLimit = zc->dictLimit;
-    const BYTE* const dictEnd = dictBase + dictLimit;
-    const BYTE* const prefixStart = base + dictLimit;
-    const BYTE* match = base + matchIndex;
-    const U32 current = (U32)(ip-base);
-    const U32 btLow = btMask >= current ? 0 : current - btMask;
-    U32* smallerPtr = bt + 2*(current&btMask);
-    U32* largerPtr  = bt + 2*(current&btMask) + 1;
-    U32 dummy32;   /* to be nullified at the end */
-    const U32 windowLow = zc->lowLimit;
-    U32 matchEndIdx = current+8;
-
-    hashTable[h] = current;   /* Update Hash Table */
-
-    while (nbCompares-- && (matchIndex > windowLow))
-    {
-        U32* nextPtr = bt + 2*(matchIndex & btMask);
-        size_t matchLength = MIN(commonLengthSmaller, commonLengthLarger);   /* guaranteed minimum nb of common bytes */
-
-        if (matchIndex+matchLength >= dictLimit)
-        {
-            match = base + matchIndex;
-            if (match[matchLength] == ip[matchLength])
-                matchLength += ZSTD_count(ip+matchLength+1, match+matchLength+1, iend) +1;
-        }
-        else
-        {
-            match = dictBase + matchIndex;
-            matchLength += ZSTD_count_2segments(ip+matchLength, match+matchLength, iend, dictEnd, prefixStart);
-            if (matchIndex+matchLength >= dictLimit)
-				match = base + matchIndex;   /* to prepare for next usage of match[matchLength] */
-        }
-
-        if (matchLength > matchEndIdx - matchIndex)
-            matchEndIdx = matchIndex + (U32)matchLength;
-
-        if (ip+matchLength == iend)   /* equal : no way to know if inf or sup */
-            break;   /* drop , to guarantee consistency ; miss a bit of compression, but other solutions can corrupt the tree */
-
-        if (match[matchLength] < ip[matchLength])   /* necessarily within correct buffer */
-        {
-            /* match is smaller than current */
-            *smallerPtr = matchIndex;             /* update smaller idx */
-            commonLengthSmaller = matchLength;    /* all smaller will now have at least this guaranteed common length */
-            if (matchIndex <= btLow) { smallerPtr=&dummy32; break; }   /* beyond tree size, stop the search */
-            smallerPtr = nextPtr+1;               /* new "smaller" => larger of match */
-            matchIndex = nextPtr[1];              /* new matchIndex larger than previous (closer to current) */
-        }
-        else
-        {
-            /* match is larger than current */
-            *largerPtr = matchIndex;
-            commonLengthLarger = matchLength;
-            if (matchIndex <= btLow) { largerPtr=&dummy32; break; }   /* beyond tree size, stop the search */
-            largerPtr = nextPtr;
-            matchIndex = nextPtr[0];
-        }
-    }
-
-    *smallerPtr = *largerPtr = 0;
-    return (matchEndIdx > current + 8) ? matchEndIdx - current - 8 : 1;
-}
-
-
 static void ZSTD_updateTree_extDict(ZSTD_CCtx* zc, const BYTE* const ip, const BYTE* const iend, const U32 nbCompares, const U32 mls)
 {
     const BYTE* const base = zc->base;
@@ -1278,7 +1214,7 @@ static void ZSTD_updateTree_extDict(ZSTD_CCtx* zc, const BYTE* const ip, const B
     U32 idx = zc->nextToUpdate;
 
     for( ; idx < target ; )
-        idx += ZSTD_insertBt1_extDict(zc, base+idx, mls, iend, nbCompares);
+        idx += ZSTD_insertBt1(zc, base+idx, mls, iend, nbCompares, 1);
 }
 
 

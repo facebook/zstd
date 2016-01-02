@@ -787,7 +787,8 @@ size_t ZSTD_compressBlock_fast_generic(ZSTD_CCtx* zc,
         const size_t h = ZSTD_hashPtr(ip, hBits, mls);
         const U32 matchIndex = hashTable[h];
         const BYTE* match = base + matchIndex;
-        hashTable[h] = (U32)(ip-base);
+        const U32 current = (U32)(ip-base);
+        hashTable[h] = current;   /* update hash table */
 
         if (MEM_read32(ip+1-offset_1) == MEM_read32(ip+1))   /* note : by construction, offset_1 <= (ip-base) */
         {
@@ -818,7 +819,7 @@ size_t ZSTD_compressBlock_fast_generic(ZSTD_CCtx* zc,
         if (ip <= ilimit)
         {
             /* Fill Table */
-            hashTable[ZSTD_hashPtr(ip-(mlCode+MINMATCH)+2, hBits, mls)] = (U32)(ip-(mlCode+MINMATCH)+2-base);  /* here because ip-(mlCode+MINMATCH)+2 could be > iend-8 without ip <= ilimit check*/
+            hashTable[ZSTD_hashPtr(base+current+2, hBits, mls)] = current+2;  /* here because current+2 could be > iend-8 without ip <= ilimit check*/
             hashTable[ZSTD_hashPtr(ip-2, hBits, mls)] = (U32)(ip-2-base);
             /* check immediate repcode */
             while ( (ip <= ilimit)

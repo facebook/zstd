@@ -305,7 +305,7 @@ int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compressibilit
         size_t sampleSize, sampleStart, maxTestSize, totalTestSize;
         size_t cSize, dSize, dSupSize, errorCode, totalCSize, totalGenSize;
         U32 sampleSizeLog, buffNb, cLevelMod, nbChunks, n;
-        XXH64_state_t crc64;
+        XXH64_CREATESTATE_STATIC(xxh64);
         U64 crcOrig, crcDest;
         int cLevel;
         BYTE* sampleBuffer;
@@ -447,7 +447,7 @@ int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compressibilit
         }
 
         /* Streaming compression of scattered segments test */
-        XXH64_reset(&crc64, 0);
+        XXH64_reset(xxh64, 0);
         nbChunks = (FUZ_rand(&lseed) & 127) + 2;
         sampleSizeLog = FUZ_rand(&lseed) % maxSrcLog;
         maxTestSize = (size_t)1 << sampleSizeLog;
@@ -481,14 +481,14 @@ int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compressibilit
             CHECK (ZSTD_isError(errorCode), "multi-segments compression error : %s", ZSTD_getErrorName(errorCode));
             cSize += errorCode;
 
-            XXH64_update(&crc64, srcBuffer+sampleStart, sampleSize);
+            XXH64_update(xxh64, srcBuffer+sampleStart, sampleSize);
             memcpy(mirrorBuffer + totalTestSize, srcBuffer+sampleStart, sampleSize);
             totalTestSize += sampleSize;
         }
         errorCode = ZSTD_compressEnd(ctx, cBuffer+cSize, cBufferSize-cSize);
         CHECK (ZSTD_isError(errorCode), "multi-segments epilogue error : %s", ZSTD_getErrorName(errorCode));
         cSize += errorCode;
-        crcOrig = XXH64_digest(&crc64);
+        crcOrig = XXH64_digest(xxh64);
 
         /* streaming decompression test */
         errorCode = ZSTD_resetDCtx(dctx);

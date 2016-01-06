@@ -891,9 +891,9 @@ typedef struct
 
 MEM_STATIC void FSE_initDState(FSE_DState_t* DStatePtr, BIT_DStream_t* bitD, const FSE_DTable* dt)
 {
-    const void* ptr = dt;
-    const FSE_DTableHeader* const DTableH = (const FSE_DTableHeader*)ptr;
-    DStatePtr->state = BIT_readBits(bitD, DTableH->tableLog);
+    FSE_DTableHeader DTableH;
+    memcpy(&DTableH, dt, sizeof(DTableH));
+    DStatePtr->state = BIT_readBits(bitD, DTableH.tableLog);
     BIT_reloadDStream(bitD);
     DStatePtr->table = dt + 1;
 }
@@ -1273,9 +1273,9 @@ static U32 FSE_tableStep(U32 tableSize) { return (tableSize>>1) + (tableSize>>3)
 static size_t FSE_FUNCTION_NAME(FSE_buildDTable, FSE_FUNCTION_EXTENSION)
 (FSE_DTable* dt, const short* normalizedCounter, unsigned maxSymbolValue, unsigned tableLog)
 {
-    void* ptr = dt;
-    FSE_DTableHeader* const DTableH = (FSE_DTableHeader*)ptr;
-    FSE_DECODE_TYPE* const tableDecode = (FSE_DECODE_TYPE*)(ptr) + 1;
+    void* ptr = dt+1;
+    FSE_DECODE_TYPE* const tableDecode = (FSE_DECODE_TYPE*)ptr;
+    FSE_DTableHeader DTableH;
     const U32 tableSize = 1 << tableLog;
     const U32 tableMask = tableSize-1;
     const U32 step = FSE_tableStep(tableSize);
@@ -1291,7 +1291,7 @@ static size_t FSE_FUNCTION_NAME(FSE_buildDTable, FSE_FUNCTION_EXTENSION)
     if (tableLog > FSE_MAX_TABLELOG) return ERROR(tableLog_tooLarge);
 
     /* Init, lay down lowprob symbols */
-    DTableH[0].tableLog = (U16)tableLog;
+    DTableH.tableLog = (U16)tableLog;
     for (s=0; s<=maxSymbolValue; s++)
     {
         if (normalizedCounter[s]==-1)
@@ -1332,7 +1332,8 @@ static size_t FSE_FUNCTION_NAME(FSE_buildDTable, FSE_FUNCTION_EXTENSION)
         }
     }
 
-    DTableH->fastMode = (U16)noLarge;
+    DTableH.fastMode = (U16)noLarge;
+    memcpy(dt, &DTableH, sizeof(DTableH));   /* memcpy(), to avoid strict aliasing warnings */
     return 0;
 }
 
@@ -1585,12 +1586,11 @@ static size_t FSE_decompress_usingDTable(void* dst, size_t originalSize,
                             const void* cSrc, size_t cSrcSize,
                             const FSE_DTable* dt)
 {
-    const void* ptr = dt;
-    const FSE_DTableHeader* DTableH = (const FSE_DTableHeader*)ptr;
-    const U32 fastMode = DTableH->fastMode;
+    FSE_DTableHeader DTableH;
+    memcpy(&DTableH, dt, sizeof(DTableH));
 
     /* select fast mode (static) */
-    if (fastMode) return FSE_decompress_usingDTable_generic(dst, originalSize, cSrc, cSrcSize, dt, 1);
+    if (DTableH.fastMode) return FSE_decompress_usingDTable_generic(dst, originalSize, cSrc, cSrcSize, dt, 1);
     return FSE_decompress_usingDTable_generic(dst, originalSize, cSrc, cSrcSize, dt, 0);
 }
 

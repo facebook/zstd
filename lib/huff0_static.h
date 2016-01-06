@@ -40,13 +40,13 @@ extern "C" {
 #endif
 
 
-/******************************************
+/* ****************************************
 *  Dependency
 ******************************************/
 #include "huff0.h"
 
 
-/******************************************
+/* ****************************************
 *  Static allocation macros
 ******************************************/
 /* Huff0 buffer bounds */
@@ -64,12 +64,55 @@ extern "C" {
         unsigned int DTable[HUF_DTABLE_SIZE(maxTableLog) * 3 / 2] = { maxTableLog }
 
 
-/******************************************
-*  Advanced functions
+/* ****************************************
+*  Advanced decompression functions
 ******************************************/
 size_t HUF_decompress4X2 (void* dst, size_t dstSize, const void* cSrc, size_t cSrcSize);   /* single-symbol decoder */
 size_t HUF_decompress4X4 (void* dst, size_t dstSize, const void* cSrc, size_t cSrcSize);   /* double-symbols decoder */
 size_t HUF_decompress4X6 (void* dst, size_t dstSize, const void* cSrc, size_t cSrcSize);   /* quad-symbols decoder */
+
+
+/* ****************************************
+*  Huff0 detailed API
+******************************************/
+/*!
+HUF_compress() does the following:
+1. count symbol occurrence from source[] into table count[] using FSE_count()
+2. build Huffman table from count using HUF_buildCTable()
+3. save Huffman table to memory buffer using HUF_writeCTable()
+4. encode the data stream using HUF_compress_usingCTable()
+
+The following API allows targeting specific sub-functions for advanced tasks.
+For example, it's possible to compress several blocks using the same 'CTable',
+or to save and regenerate 'CTable' using external methods.
+*/
+
+/* FSE_count() : find it within "fse.h" */
+
+typedef struct HUF_CElt_s HUF_CElt;   /* incomplete type */
+size_t HUF_buildCTable (HUF_CElt* tree, const unsigned* count, unsigned maxSymbolValue, unsigned maxNbBits);
+size_t HUF_writeCTable (void* dst, size_t maxDstSize, const HUF_CElt* tree, unsigned maxSymbolValue, unsigned huffLog);
+size_t HUF_compress_usingCTable(void* dst, size_t dstSize, const void* src, size_t srcSize, const HUF_CElt* CTable);
+
+
+/*!
+HUF_decompress() does the following:
+1. select the decompression algorithm (X2, X4, X6) based on pre-computed heuristics
+2. build Huffman table from save, using HUF_readDTableXn()
+3. decode 1 or 4 segments in parallel using HUF_decompressSXn_usingDTable
+
+*/
+size_t HUF_readDTableX2 (unsigned short* DTable, const void* src, size_t srcSize);
+size_t HUF_readDTableX4 (unsigned* DTable, const void* src, size_t srcSize);
+size_t HUF_readDTableX6 (unsigned* DTable, const void* src, size_t srcSize);
+
+size_t HUF_decompress1X2 (void* dst, size_t dstSize, const void* cSrc, size_t cSrcSize);   /* single-symbol decoder */
+size_t HUF_decompress1X4 (void* dst, size_t dstSize, const void* cSrc, size_t cSrcSize);   /* double-symbol decoder */
+size_t HUF_decompress1X6 (void* dst, size_t dstSize, const void* cSrc, size_t cSrcSize);   /* quad-symbol decoder */
+
+size_t HUF_decompress4X2_usingDTable(void* dst, size_t maxDstSize, const void* cSrc, size_t cSrcSize, const unsigned short* DTable);
+size_t HUF_decompress4X4_usingDTable(void* dst, size_t maxDstSize, const void* cSrc, size_t cSrcSize, const unsigned* DTable);
+size_t HUF_decompress4X6_usingDTable(void* dst, size_t maxDstSize, const void* cSrc, size_t cSrcSize, const unsigned* DTable);
 
 
 #if defined (__cplusplus)

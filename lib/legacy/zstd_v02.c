@@ -891,7 +891,8 @@ typedef struct
 
 MEM_STATIC void FSE_initDState(FSE_DState_t* DStatePtr, BIT_DStream_t* bitD, const FSE_DTable* dt)
 {
-    const FSE_DTableHeader* const DTableH = (const FSE_DTableHeader*)dt;
+    const void* ptr = dt;
+    const FSE_DTableHeader* const DTableH = (const FSE_DTableHeader*)ptr;
     DStatePtr->state = BIT_readBits(bitD, DTableH->tableLog);
     BIT_reloadDStream(bitD);
     DStatePtr->table = dt + 1;
@@ -1272,8 +1273,9 @@ static U32 FSE_tableStep(U32 tableSize) { return (tableSize>>1) + (tableSize>>3)
 static size_t FSE_FUNCTION_NAME(FSE_buildDTable, FSE_FUNCTION_EXTENSION)
 (FSE_DTable* dt, const short* normalizedCounter, unsigned maxSymbolValue, unsigned tableLog)
 {
-    FSE_DTableHeader* const DTableH = (FSE_DTableHeader*)dt;
-    FSE_DECODE_TYPE* const tableDecode = (FSE_DECODE_TYPE*) (dt+1);   /* because dt is unsigned, 32-bits aligned on 32-bits */
+    void* ptr = dt;
+    FSE_DTableHeader* const DTableH = (FSE_DTableHeader*)ptr;
+    FSE_DECODE_TYPE* const tableDecode = (FSE_DECODE_TYPE*)(ptr) + 1;
     const U32 tableSize = 1 << tableLog;
     const U32 tableMask = tableSize-1;
     const U32 step = FSE_tableStep(tableSize);
@@ -1468,8 +1470,9 @@ static size_t FSE_readNCount (short* normalizedCounter, unsigned* maxSVPtr, unsi
 *********************************************************/
 static size_t FSE_buildDTable_rle (FSE_DTable* dt, BYTE symbolValue)
 {
-    FSE_DTableHeader* const DTableH = (FSE_DTableHeader*)dt;
-    FSE_decode_t* const cell = (FSE_decode_t*)(dt + 1);   /* because dt is unsigned */
+    void* ptr = dt;
+    FSE_DTableHeader* const DTableH = (FSE_DTableHeader*)ptr;
+    FSE_decode_t* const cell = (FSE_decode_t*)(ptr) + 1;   /* because dt is unsigned */
 
     DTableH->tableLog = 0;
     DTableH->fastMode = 0;
@@ -1484,8 +1487,9 @@ static size_t FSE_buildDTable_rle (FSE_DTable* dt, BYTE symbolValue)
 
 static size_t FSE_buildDTable_raw (FSE_DTable* dt, unsigned nbBits)
 {
-    FSE_DTableHeader* const DTableH = (FSE_DTableHeader*)dt;
-    FSE_decode_t* const dinfo = (FSE_decode_t*)(dt + 1);   /* because dt is unsigned */
+    void* ptr = dt;
+    FSE_DTableHeader* const DTableH = (FSE_DTableHeader*)ptr;
+    FSE_decode_t* const dinfo = (FSE_decode_t*)(ptr) + 1;   /* because dt is unsigned */
     const unsigned tableSize = 1 << nbBits;
     const unsigned tableMask = tableSize - 1;
     const unsigned maxSymbolValue = tableMask;
@@ -1581,7 +1585,8 @@ static size_t FSE_decompress_usingDTable(void* dst, size_t originalSize,
                             const void* cSrc, size_t cSrcSize,
                             const FSE_DTable* dt)
 {
-    const FSE_DTableHeader* DTableH = (const FSE_DTableHeader*)dt;
+    const void* ptr = dt;
+    const FSE_DTableHeader* DTableH = (const FSE_DTableHeader*)ptr;
     const U32 fastMode = DTableH->fastMode;
 
     /* select fast mode (static) */
@@ -1810,7 +1815,8 @@ static size_t HUF_readDTableX2 (U16* DTable, const void* src, size_t srcSize)
     U32 nbSymbols = 0;
     U32 n;
     U32 nextRankStart;
-    HUF_DEltX2* const dt = (HUF_DEltX2*)(DTable + 1);
+    void* ptr = DTable+1;
+    HUF_DEltX2* const dt = (HUF_DEltX2*)ptr;
 
     HUF_STATIC_ASSERT(sizeof(HUF_DEltX2) == sizeof(U16));   /* if compilation fails here, assertion is false */
     //memset(huffWeight, 0, sizeof(huffWeight));   /* is not necessary, even though some analyzer complain ... */
@@ -1903,7 +1909,8 @@ static size_t HUF_decompress4X2_usingDTable(
         BYTE* const ostart = (BYTE*) dst;
         BYTE* const oend = ostart + dstSize;
 
-        const HUF_DEltX2* const dt = ((const HUF_DEltX2*)DTable) +1;
+        const void* ptr = DTable;
+        const HUF_DEltX2* const dt = ((const HUF_DEltX2*)ptr) +1;
         const U32 dtLog = DTable[0];
         size_t errorCode;
 
@@ -2112,7 +2119,8 @@ static size_t HUF_readDTableX4 (U32* DTable, const void* src, size_t srcSize)
     const U32 memLog = DTable[0];
     const BYTE* ip = (const BYTE*) src;
     size_t iSize = ip[0];
-    HUF_DEltX4* const dt = ((HUF_DEltX4*)DTable) + 1;
+    void* ptr = DTable;
+    HUF_DEltX4* const dt = ((HUF_DEltX4*)ptr) + 1;
 
     HUF_STATIC_ASSERT(sizeof(HUF_DEltX4) == sizeof(U32));   /* if compilation fails here, assertion is false */
     if (memLog > HUF_ABSOLUTEMAX_TABLELOG) return ERROR(tableLog_tooLarge);
@@ -2262,7 +2270,8 @@ static size_t HUF_decompress4X4_usingDTable(
         BYTE* const ostart = (BYTE*) dst;
         BYTE* const oend = ostart + dstSize;
 
-        const HUF_DEltX4* const dt = ((const HUF_DEltX4*)DTable) +1;
+        const void* ptr = DTable;
+        const HUF_DEltX4* const dt = ((const HUF_DEltX4*)ptr) +1;
         const U32 dtLog = DTable[0];
         size_t errorCode;
 
@@ -2510,8 +2519,10 @@ static size_t HUF_readDTableX6 (U32* DTable, const void* src, size_t srcSize)
 
     /* fill tables */
     {
-        HUF_DDescX6* DDescription = (HUF_DDescX6*)(DTable+1);
-        HUF_DSeqX6* DSequence = (HUF_DSeqX6*)(DTable + 1 + ((size_t)1<<(memLog-1)));
+        void* ptr = DTable+1;
+        HUF_DDescX6* DDescription = (HUF_DDescX6*)(ptr);
+        void* dSeqStart = DTable + 1 + ((size_t)1<<(memLog-1));
+        HUF_DSeqX6* DSequence = (HUF_DSeqX6*)(dSeqStart);
         HUF_DSeqX6 DSeq;
         HUF_DDescX6 DDesc;
         DSeq.sequence = 0;
@@ -2570,8 +2581,10 @@ static U32 HUF_decodeLastSymbolsX6(void* op, const U32 maxL, BIT_DStream_t* DStr
 
 static inline size_t HUF_decodeStreamX6(BYTE* p, BIT_DStream_t* bitDPtr, BYTE* const pEnd, const U32* DTable, const U32 dtLog)
 {
-    const HUF_DDescX6* dd = (const HUF_DDescX6*)(DTable+1);
-    const HUF_DSeqX6* ds = (const HUF_DSeqX6*)(DTable + 1 + ((size_t)1<<(dtLog-1)));
+    const void* ddPtr = DTable+1;
+    const HUF_DDescX6* dd = (const HUF_DDescX6*)(ddPtr);
+    const void* dsPtr = DTable + 1 + ((size_t)1<<(dtLog-1));
+    const HUF_DSeqX6* ds = (const HUF_DSeqX6*)(dsPtr);
     BYTE* const pStart = p;
 
     /* up to 16 symbols at a time */
@@ -2611,8 +2624,10 @@ static size_t HUF_decompress4X6_usingDTable(
         BYTE* const oend = ostart + dstSize;
 
         const U32 dtLog = DTable[0];
-        const HUF_DDescX6* dd = (const HUF_DDescX6*)(DTable+1);
-        const HUF_DSeqX6* ds = (const HUF_DSeqX6*)(DTable + 1 + ((size_t)1<<(dtLog-1)));
+        const void* ddPtr = DTable+1;
+        const HUF_DDescX6* dd = (const HUF_DDescX6*)(ddPtr);
+        const void* dsPtr = DTable + 1 + ((size_t)1<<(dtLog-1));
+        const HUF_DSeqX6* ds = (const HUF_DSeqX6*)(dsPtr);
         size_t errorCode;
 
         /* Init */

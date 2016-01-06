@@ -137,9 +137,9 @@ regular symbol name will be automatically translated by this header.
 /* *************************************
 *  Version
 ***************************************/
-#define XXH_VERSION_MAJOR    0    /* for breaking interface changes  */
-#define XXH_VERSION_MINOR    5    /* for new (non-breaking) interface capabilities */
-#define XXH_VERSION_RELEASE  0    /* for tweaks, bug-fixes, or development */
+#define XXH_VERSION_MAJOR    0
+#define XXH_VERSION_MINOR    5
+#define XXH_VERSION_RELEASE  0
 #define XXH_VERSION_NUMBER  (XXH_VERSION_MAJOR *100*100 + XXH_VERSION_MINOR *100 + XXH_VERSION_RELEASE)
 XXH_PUBLIC_API unsigned XXH_versionNumber (void);
 
@@ -201,15 +201,15 @@ XXH_PUBLIC_API XXH_errorcode      XXH64_update (XXH64_state_t* statePtr, const v
 XXH_PUBLIC_API unsigned long long XXH64_digest (const XXH64_state_t* statePtr);
 
 /*!
-These functions calculate the xxHash of an input provided in multiple segments,
+These functions generate the xxHash of an input provided in multiple segments,
 as opposed to provided as a single block.
 
-XXH state space must first be allocated, using either static or dynamic method provided above.
+XXH state must first be allocated, using either static or dynamic method provided above.
 
 Start a new hash by initializing state with a seed, using XXHnn_reset().
 
 Then, feed the hash state by calling XXHnn_update() as many times as necessary.
-Obviously, input must be valid, meaning allocated and read accessible.
+Obviously, input must be valid, hence allocated and read accessible.
 The function returns an error code, with 0 meaning OK, and any other value meaning there is an error.
 
 Finally, a hash value can be produced anytime, by using XXHnn_digest().
@@ -217,7 +217,7 @@ This function returns the nn-bits hash.
 It's nonetheless possible to continue inserting input into the hash state
 and later on generate some new hashes, by calling again XXHnn_digest().
 
-When you are done, don't forget to free XXH state space if it was allocated dynamically.
+When done, free XXH state space if it was allocated dynamically.
 */
 
 

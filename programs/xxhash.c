@@ -84,7 +84,7 @@ You can contact the author at :
 #endif
 
 
-/**************************************
+/* *************************************
 *  Compiler Specific Options
 ***************************************/
 #ifdef _MSC_VER    /* Visual Studio */
@@ -103,7 +103,7 @@ You can contact the author at :
 #endif
 
 
-/**************************************
+/* *************************************
 *  Includes & Memory related functions
 ***************************************/
 /* Modify the local functions below should you wish to use some other memory routines */
@@ -118,7 +118,7 @@ static void* XXH_memcpy(void* dest, const void* src, size_t size) { return memcp
 #include "xxhash.h"
 
 
-/**************************************
+/* *************************************
 *  Basic Types
 ***************************************/
 #ifndef MEM_MODULE
@@ -178,7 +178,7 @@ static U64 XXH_read64(const void* memPtr)
 #endif // XXH_FORCE_DIRECT_MEMORY_ACCESS
 
 
-/******************************************
+/* ****************************************
 *  Compiler-specific Functions and Macros
 ******************************************/
 #define GCC_VERSION (__GNUC__ * 100 + __GNUC_MINOR__)
@@ -220,7 +220,7 @@ static U64 XXH_swap64 (U64 x)
 #endif
 
 
-/***************************************
+/* *************************************
 *  Architecture Macros
 ***************************************/
 typedef enum { XXH_bigEndian=0, XXH_littleEndian=1 } XXH_endianess;
@@ -232,7 +232,7 @@ typedef enum { XXH_bigEndian=0, XXH_littleEndian=1 } XXH_endianess;
 #endif
 
 
-/*****************************
+/* ***************************
 *  Memory reads
 *****************************/
 typedef enum { XXH_aligned, XXH_unaligned } XXH_alignment;
@@ -264,13 +264,13 @@ FORCE_INLINE U64 XXH_readLE64(const void* ptr, XXH_endianess endian)
 }
 
 
-/***************************************
+/* *************************************
 *  Macros
 ***************************************/
 #define XXH_STATIC_ASSERT(c)   { enum { XXH_static_assert = 1/(int)(!!(c)) }; }    /* use only *after* variable declarations */
 
 
-/***************************************
+/* *************************************
 *  Constants
 ***************************************/
 #define PRIME32_1   2654435761U
@@ -288,7 +288,7 @@ FORCE_INLINE U64 XXH_readLE64(const void* ptr, XXH_endianess endian)
 XXH_PUBLIC_API unsigned XXH_versionNumber (void) { return XXH_VERSION_NUMBER; }
 
 
-/*****************************
+/* ***************************
 *  Simple Hash Functions
 *****************************/
 FORCE_INLINE U32 XXH32_endian_align(const void* input, size_t len, U32 seed, XXH_endianess endian, XXH_alignment align)
@@ -591,27 +591,30 @@ XXH_PUBLIC_API XXH_errorcode XXH64_freeState(XXH64_state_t* statePtr)
 
 /*** Hash feed ***/
 
-XXH_PUBLIC_API XXH_errorcode XXH32_reset(XXH32_state_t* state, unsigned int seed)
+XXH_PUBLIC_API XXH_errorcode XXH32_reset(XXH32_state_t* statePtr, unsigned int seed)
 {
-    state->seed = seed;
-    state->v1 = seed + PRIME32_1 + PRIME32_2;
-    state->v2 = seed + PRIME32_2;
-    state->v3 = seed + 0;
-    state->v4 = seed - PRIME32_1;
-    state->total_len = 0;
-    state->memsize = 0;
+    XXH32_state_t state;   /* using a local state to memcpy() in order to avoid strict-aliasing warnings */
+    memset(&state, 0, sizeof(state));
+    state.seed = seed;
+    state.v1 = seed + PRIME32_1 + PRIME32_2;
+    state.v2 = seed + PRIME32_2;
+    state.v3 = seed + 0;
+    state.v4 = seed - PRIME32_1;
+    memcpy(statePtr, &state, sizeof(state));
     return XXH_OK;
 }
 
-XXH_PUBLIC_API XXH_errorcode XXH64_reset(XXH64_state_t* state, unsigned long long seed)
+
+XXH_PUBLIC_API XXH_errorcode XXH64_reset(XXH64_state_t* statePtr, unsigned long long seed)
 {
-    state->seed = seed;
-    state->v1 = seed + PRIME64_1 + PRIME64_2;
-    state->v2 = seed + PRIME64_2;
-    state->v3 = seed + 0;
-    state->v4 = seed - PRIME64_1;
-    state->total_len = 0;
-    state->memsize = 0;
+    XXH64_state_t state;   /* using a local state to memcpy() in order to avoid strict-aliasing warnings */
+    memset(&state, 0, sizeof(state));
+    state.seed = seed;
+    state.v1 = seed + PRIME64_1 + PRIME64_2;
+    state.v2 = seed + PRIME64_2;
+    state.v3 = seed + 0;
+    state.v4 = seed - PRIME64_1;
+    memcpy(statePtr, &state, sizeof(state));
     return XXH_OK;
 }
 

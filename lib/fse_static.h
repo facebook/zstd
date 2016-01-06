@@ -233,7 +233,7 @@ MEM_STATIC void FSE_initCState(FSE_CState_t* statePtr, const FSE_CTable* ct)
 {
     const void* ptr = ct;
     const U16* u16ptr = (const U16*) ptr;
-    const U32 tableLog = *u16ptr;
+    const U32 tableLog = MEM_read16(ptr);
     statePtr->value = (ptrdiff_t)1<<tableLog;
     statePtr->stateTable = u16ptr+2;
     statePtr->symbolTT = ((const U32*)ct + 1 + (tableLog ? (1<<(tableLog-1)) : 1));

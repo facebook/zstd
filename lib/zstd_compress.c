@@ -1963,11 +1963,17 @@ size_t ZSTD_duplicateCCtx(ZSTD_CCtx* dstCCtx, const ZSTD_CCtx* srcCCtx)
 {
     void* dstWorkSpace = dstCCtx->workSpace;
     size_t dstWorkSpaceSize = dstCCtx->workSpaceSize;
+    const U32 contentLog = (srcCCtx->params.strategy == ZSTD_fast) ? 1 : srcCCtx->params.contentLog;
+    const size_t tableSpace = ((1 << contentLog) + (1 << srcCCtx->params.hashLog)) * sizeof(U32);
+    const size_t blockSize = MIN(BLOCKSIZE, (size_t)1 << srcCCtx->params.windowLog);
+    const size_t neededSpace = tableSpace + (3*blockSize);
 
-    if (dstWorkSpaceSize < srcCCtx->workSpaceSize)
+    if (srcCCtx->stage!=0) return ERROR(stage_wrong);
+
+    if (dstWorkSpaceSize < neededSpace)
     {
-        free(dstCCtx->workSpace);
-        dstWorkSpaceSize = srcCCtx->workSpaceSize;
+        free(dstWorkSpace);
+        dstWorkSpaceSize = neededSpace;
         dstWorkSpace = malloc(dstWorkSpaceSize);
         if (dstWorkSpace==NULL) return ERROR(memory_allocation);
     }
@@ -1975,6 +1981,8 @@ size_t ZSTD_duplicateCCtx(ZSTD_CCtx* dstCCtx, const ZSTD_CCtx* srcCCtx)
     memcpy(dstCCtx, srcCCtx, sizeof(*dstCCtx));
     dstCCtx->workSpace = dstWorkSpace;
     dstCCtx->workSpaceSize = dstWorkSpaceSize;
+
+    memcpy(dstWorkSpace, srcCCtx->workSpace, tableSpace);
 
     return 0;
 }

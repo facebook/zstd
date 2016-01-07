@@ -33,9 +33,9 @@
 #ifndef ZSTD_STATIC_H
 #define ZSTD_STATIC_H
 
-/* The objects defined into this file should be considered experimental.
- * They are not labelled stable, as their prototype may change in the future.
- * You can use them for tests, provide feedback, or if you can endure risk of future changes.
+/* The objects defined into this file shall be considered experimental.
+ * They are not considered stable, as their prototype may change in the future.
+ * You can use them for tests, provide feedback, or if you can endure risks of future changes.
  */
 
 #if defined (__cplusplus)
@@ -108,40 +108,33 @@ ZSTDLIB_API size_t ZSTD_compress_advanced (ZSTD_CCtx* ctx,
                                      const void* dict,size_t dictSize,
                                            ZSTD_parameters params);
 
-/** Decompression context management */
-typedef struct ZSTD_DCtx_s ZSTD_DCtx;
-ZSTDLIB_API ZSTD_DCtx* ZSTD_createDCtx(void);
-ZSTDLIB_API size_t     ZSTD_freeDCtx(ZSTD_DCtx* dctx);
-
-/** ZSTD_decompressDCtx
-*   Same as ZSTD_decompress, with pre-allocated DCtx structure */
-ZSTDLIB_API size_t ZSTD_decompressDCtx(ZSTD_DCtx* ctx, void* dst, size_t maxDstSize, const void* src, size_t srcSize);
-
 /** ZSTD_decompress_usingDict
 *   Same as ZSTD_decompressDCtx, using a Dictionary content as prefix
 *   Note : dict can be NULL, in which case, it's equivalent to ZSTD_decompressDCtx() */
 ZSTDLIB_API size_t ZSTD_decompress_usingDict(ZSTD_DCtx* ctx,
                                              void* dst, size_t maxDstSize,
-                                             const void* src, size_t srcSize,
-                                             const void* dict, size_t dictSize);
+                                       const void* src, size_t srcSize,
+                                       const void* dict,size_t dictSize);
 
 
 /* **************************************
 *  Streaming functions (direct mode)
 ****************************************/
-ZSTDLIB_API size_t ZSTD_compressBegin(ZSTD_CCtx* cctx, void* dst, size_t maxDstSize, int compressionLevel);
-ZSTDLIB_API size_t ZSTD_compressBegin_advanced(ZSTD_CCtx* ctx, void* dst, size_t maxDstSize, ZSTD_parameters params);
+ZSTDLIB_API size_t ZSTD_compressBegin(ZSTD_CCtx* cctx, int compressionLevel);
+ZSTDLIB_API size_t ZSTD_compressBegin_advanced(ZSTD_CCtx* ctx, ZSTD_parameters params);
+
 ZSTDLIB_API size_t ZSTD_compress_insertDictionary(ZSTD_CCtx* ctx, const void* src, size_t srcSize);
+ZSTDLIB_API size_t ZSTD_duplicateCCtx(ZSTD_CCtx* dstCCtx, const ZSTD_CCtx* srcCCtx);
 
 ZSTDLIB_API size_t ZSTD_compressContinue(ZSTD_CCtx* cctx, void* dst, size_t maxDstSize, const void* src, size_t srcSize);
 ZSTDLIB_API size_t ZSTD_compressEnd(ZSTD_CCtx* cctx, void* dst, size_t maxDstSize);
 
 /**
-  Streaming compression, direct mode (bufferless)
+  Streaming compression, synchronous mode (bufferless)
 
   A ZSTD_CCtx object is required to track streaming operations.
   Use ZSTD_createCCtx() / ZSTD_freeCCtx() to manage it.
-  A ZSTD_CCtx object can be re-used multiple times.
+  ZSTD_CCtx object can be re-used multiple times within successive compression operations.
 
   First operation is to start a new frame.
   Use ZSTD_compressBegin().
@@ -151,8 +144,13 @@ ZSTDLIB_API size_t ZSTD_compressEnd(ZSTD_CCtx* cctx, void* dst, size_t maxDstSiz
   Note that dictionary presence is a "hidden" information,
   the decoder needs to be aware that it is required for proper decoding, or decoding will fail.
 
+  If you want to compress multiple messages using same dictionary,
+  it can be beneficial to duplicate compression context rather than reloading dictionary each time.
+  In such case, use ZSTD_duplicateCCtx(), which will need an already created ZSTD_CCtx,
+  in order to duplicate compression context into it.
+
   Then, consume your input using ZSTD_compressContinue().
-  The interface is synchronous, so all input will be consumed.
+  The interface is synchronous, so all input will be consumed and produce a compressed output.
   You must ensure there is enough space in destination buffer to store compressed data under worst case scenario.
   Worst case evaluation is provided by ZSTD_compressBound().
 

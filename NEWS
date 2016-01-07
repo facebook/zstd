@@ -1,6 +1,7 @@
 v0.4.6
 fix : fast compression mode on Windows
 Improved : high compression mode on repetitive data
+Added : ZSTD_duplicateCCtx()
 
 v0.4.5
 new : -m/--multiple : compress/decompress multiple files

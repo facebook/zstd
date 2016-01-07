@@ -268,11 +268,13 @@ int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compressibilit
     U32 result = 0;
     U32 testNb = 0;
     U32 coreSeed = seed, lseed = 0;
+    ZSTD_CCtx* refCtx;
     ZSTD_CCtx* ctx;
     ZSTD_DCtx* dctx;
     U32 startTime = FUZ_GetMilliStart();
 
     /* allocation */
+    refCtx = ZSTD_createCCtx();
     ctx = ZSTD_createCCtx();
     dctx= ZSTD_createDCtx();
     cNoiseBuffer[0] = (BYTE*)malloc (srcBufferSize);
@@ -284,7 +286,7 @@ int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compressibilit
     mirrorBuffer = (BYTE*)malloc (dstBufferSize);
     cBuffer   = (BYTE*)malloc (cBufferSize);
     CHECK (!cNoiseBuffer[0] || !cNoiseBuffer[1] || !cNoiseBuffer[2] || !cNoiseBuffer[3] || !cNoiseBuffer[4]
-           || !dstBuffer || !mirrorBuffer || !cBuffer || !ctx || !dctx,
+           || !dstBuffer || !mirrorBuffer || !cBuffer || !refCtx || !ctx || !dctx,
            "Not enough memory, fuzzer tests cancelled");
 
     /* Create initial samples */
@@ -461,10 +463,13 @@ int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compressibilit
         dict = srcBuffer + sampleStart;
         dictSize = sampleSize;
 
-        cSize = ZSTD_compressBegin(ctx, cBuffer, cBufferSize, (FUZ_rand(&lseed) % (20 - (sampleSizeLog/3))) + 1);
-        errorCode = ZSTD_compress_insertDictionary(ctx, dict, dictSize);
+        errorCode = ZSTD_compressBegin(refCtx, (FUZ_rand(&lseed) % (20 - (sampleSizeLog/3))) + 1);
+        CHECK (ZSTD_isError(errorCode), "start streaming error : %s", ZSTD_getErrorName(errorCode));
+        errorCode = ZSTD_compress_insertDictionary(refCtx, dict, dictSize);
         CHECK (ZSTD_isError(errorCode), "dictionary insertion error : %s", ZSTD_getErrorName(errorCode));
-        totalTestSize = 0;
+        errorCode = ZSTD_duplicateCCtx(ctx, refCtx);
+        CHECK (ZSTD_isError(errorCode), "context duplication error : %s", ZSTD_getErrorName(errorCode));
+        totalTestSize = 0; cSize = 0;
         for (n=0; n<nbChunks; n++)
         {
             sampleSizeLog = FUZ_rand(&lseed) % maxSampleLog;
@@ -517,6 +522,7 @@ int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compressibilit
     DISPLAY("\r%u fuzzer tests completed   \n", testNb-1);
 
 _cleanup:
+    ZSTD_freeCCtx(refCtx);
     ZSTD_freeCCtx(ctx);
     ZSTD_freeDCtx(dctx);
     free(cNoiseBuffer[0]);

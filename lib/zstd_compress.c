@@ -67,7 +67,6 @@
 ***************************************/
 ZSTDLIB_API unsigned ZSTD_maxCLevel(void) { return ZSTD_MAX_CLEVEL; }
 static const U32 g_searchStrength = 8;
-static const size_t g_hbSize = (((ZSTD_frameHeaderSize_max+15)/8)*8);
 
 
 /* *************************************

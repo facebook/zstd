@@ -115,8 +115,8 @@ struct ZSTD_CCtx_s
     void* workSpace;
     size_t workSpaceSize;
     size_t blockSize;
-    void* headerBuffer;
     size_t hbSize;
+    char headerBuffer[ZSTD_frameHeaderSize_max];
 
 
     seqStore_t seqStore;    /* sequences storage ptrs */
@@ -210,8 +210,8 @@ static size_t ZSTD_resetCCtx_advanced (ZSTD_CCtx* zc,
     zc->seqStore.litLengthStart =  zc->seqStore.litStart + blockSize;
     zc->seqStore.matchLengthStart = zc->seqStore.litLengthStart + (blockSize>>2);
     zc->seqStore.dumpsStart = zc->seqStore.matchLengthStart + (blockSize>>2);
-    zc->headerBuffer = (char*)zc->workSpace + zc->workSpaceSize - g_hbSize;
     zc->hbSize = 0;
+    zc->stage = 0;
 
     return 0;
 }
@@ -1961,28 +1961,27 @@ size_t ZSTD_compress_insertDictionary(ZSTD_CCtx* zc, const void* src, size_t src
 *   @return : 0, or an error code */
 size_t ZSTD_duplicateCCtx(ZSTD_CCtx* dstCCtx, const ZSTD_CCtx* srcCCtx)
 {
-    void* dstWorkSpace = dstCCtx->workSpace;
-    size_t dstWorkSpaceSize = dstCCtx->workSpaceSize;
     const U32 contentLog = (srcCCtx->params.strategy == ZSTD_fast) ? 1 : srcCCtx->params.contentLog;
     const size_t tableSpace = ((1 << contentLog) + (1 << srcCCtx->params.hashLog)) * sizeof(U32);
-    const size_t blockSize = MIN(BLOCKSIZE, (size_t)1 << srcCCtx->params.windowLog);
-    const size_t neededSpace = tableSpace + (3*blockSize);
 
     if (srcCCtx->stage!=0) return ERROR(stage_wrong);
 
-    if (dstWorkSpaceSize < neededSpace)
-    {
-        free(dstWorkSpace);
-        dstWorkSpaceSize = neededSpace;
-        dstWorkSpace = malloc(dstWorkSpaceSize);
-        if (dstWorkSpace==NULL) return ERROR(memory_allocation);
-    }
+    ZSTD_resetCCtx_advanced(dstCCtx, srcCCtx->params);
 
-    memcpy(dstCCtx, srcCCtx, sizeof(*dstCCtx));
-    dstCCtx->workSpace = dstWorkSpace;
-    dstCCtx->workSpaceSize = dstWorkSpaceSize;
+    /* copy tables */
+    memcpy(dstCCtx->hashTable, srcCCtx->hashTable, tableSpace);
 
-    memcpy(dstWorkSpace, srcCCtx->workSpace, tableSpace);
+    /* copy frame header */
+    dstCCtx->hbSize = srcCCtx->hbSize;
+    memcpy(dstCCtx->headerBuffer , srcCCtx->headerBuffer, srcCCtx->hbSize);
+
+    /* copy dictionary pointers */
+    dstCCtx->nextToUpdate= srcCCtx->nextToUpdate;
+    dstCCtx->nextSrc     = srcCCtx->nextSrc;
+    dstCCtx->base        = srcCCtx->base;
+    dstCCtx->dictBase    = srcCCtx->dictBase;
+    dstCCtx->dictLimit   = srcCCtx->dictLimit;
+    dstCCtx->lowLimit    = srcCCtx->lowLimit;
 
     return 0;
 }

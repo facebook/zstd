@@ -1797,6 +1797,7 @@ static ZSTD_blockCompressor ZSTD_selectBlockCompressor(ZSTD_strategy strat, int 
 static size_t ZSTD_compressBlock_internal(ZSTD_CCtx* zc, void* dst, size_t maxDstSize, const void* src, size_t srcSize)
 {
     ZSTD_blockCompressor blockCompressor = ZSTD_selectBlockCompressor(zc->params.strategy, zc->lowLimit < zc->dictLimit);
+    if (srcSize < MIN_CBLOCK_SIZE+3) return 0;   /* don't even attempt compression below a certain srcSize */
     return blockCompressor(zc, dst, maxDstSize, src, srcSize);
 }
 
@@ -1832,6 +1833,7 @@ static size_t ZSTD_compress_generic (ZSTD_CCtx* ctxPtr,
         if (cSize == 0)
         {
             cSize = ZSTD_noCompressBlock(op, maxDstSize, ip, blockSize);   /* block is not compressible */
+            if (ZSTD_isError(cSize)) return cSize;
         }
         else
         {
@@ -1928,7 +1930,6 @@ size_t ZSTD_compressContinue (ZSTD_CCtx* zc,
 size_t ZSTD_compressBlock(ZSTD_CCtx* zc, void* dst, size_t maxDstSize, const void* src, size_t srcSize)
 {
     if (srcSize > BLOCKSIZE) return ERROR(srcSize_wrong);
-    if (srcSize < MIN_CBLOCK_SIZE+3) return 0;   /* don't even attempt compression below a certain srcSize */
     return ZSTD_compressContinue_internal(zc, dst, maxDstSize, src, srcSize, 0);
 }
 

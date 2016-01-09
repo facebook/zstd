@@ -33,9 +33,9 @@
 #ifndef ZSTD_STATIC_H
 #define ZSTD_STATIC_H
 
-/* The objects defined into this file should be considered experimental.
- * They are not labelled stable, as their prototype may change in the future.
- * You can use them for tests, provide feedback, or if you can endure risk of future changes.
+/* The objects defined into this file shall be considered experimental.
+ * They are not considered stable, as their prototype may change in the future.
+ * You can use them for tests, provide feedback, or if you can endure risks of future changes.
  */
 
 #if defined (__cplusplus)
@@ -108,40 +108,33 @@ ZSTDLIB_API size_t ZSTD_compress_advanced (ZSTD_CCtx* ctx,
                                      const void* dict,size_t dictSize,
                                            ZSTD_parameters params);
 
-/** Decompression context management */
-typedef struct ZSTD_DCtx_s ZSTD_DCtx;
-ZSTDLIB_API ZSTD_DCtx* ZSTD_createDCtx(void);
-ZSTDLIB_API size_t     ZSTD_freeDCtx(ZSTD_DCtx* dctx);
-
-/** ZSTD_decompressDCtx
-*   Same as ZSTD_decompress, with pre-allocated DCtx structure */
-size_t ZSTD_decompressDCtx(ZSTD_DCtx* ctx, void* dst, size_t maxDstSize, const void* src, size_t srcSize);
-
 /** ZSTD_decompress_usingDict
 *   Same as ZSTD_decompressDCtx, using a Dictionary content as prefix
 *   Note : dict can be NULL, in which case, it's equivalent to ZSTD_decompressDCtx() */
-size_t ZSTD_decompress_usingDict(ZSTD_DCtx* ctx,
-                                 void* dst, size_t maxDstSize,
-                                 const void* src, size_t srcSize,
-                                 const void* dict, size_t dictSize);
+ZSTDLIB_API size_t ZSTD_decompress_usingDict(ZSTD_DCtx* ctx,
+                                             void* dst, size_t maxDstSize,
+                                       const void* src, size_t srcSize,
+                                       const void* dict,size_t dictSize);
 
 
 /* **************************************
 *  Streaming functions (direct mode)
 ****************************************/
-ZSTDLIB_API size_t ZSTD_compressBegin(ZSTD_CCtx* cctx, void* dst, size_t maxDstSize, int compressionLevel);
-ZSTDLIB_API size_t ZSTD_compressBegin_advanced(ZSTD_CCtx* ctx, void* dst, size_t maxDstSize, ZSTD_parameters params);
+ZSTDLIB_API size_t ZSTD_compressBegin(ZSTD_CCtx* cctx, int compressionLevel);
+ZSTDLIB_API size_t ZSTD_compressBegin_advanced(ZSTD_CCtx* ctx, ZSTD_parameters params);
+
 ZSTDLIB_API size_t ZSTD_compress_insertDictionary(ZSTD_CCtx* ctx, const void* src, size_t srcSize);
+ZSTDLIB_API size_t ZSTD_duplicateCCtx(ZSTD_CCtx* dstCCtx, const ZSTD_CCtx* srcCCtx);
 
 ZSTDLIB_API size_t ZSTD_compressContinue(ZSTD_CCtx* cctx, void* dst, size_t maxDstSize, const void* src, size_t srcSize);
 ZSTDLIB_API size_t ZSTD_compressEnd(ZSTD_CCtx* cctx, void* dst, size_t maxDstSize);
 
 /**
-  Streaming compression, direct mode (bufferless)
+  Streaming compression, synchronous mode (bufferless)
 
   A ZSTD_CCtx object is required to track streaming operations.
   Use ZSTD_createCCtx() / ZSTD_freeCCtx() to manage it.
-  A ZSTD_CCtx object can be re-used multiple times.
+  ZSTD_CCtx object can be re-used multiple times within successive compression operations.
 
   First operation is to start a new frame.
   Use ZSTD_compressBegin().
@@ -151,15 +144,20 @@ ZSTDLIB_API size_t ZSTD_compressEnd(ZSTD_CCtx* cctx, void* dst, size_t maxDstSiz
   Note that dictionary presence is a "hidden" information,
   the decoder needs to be aware that it is required for proper decoding, or decoding will fail.
 
+  If you want to compress a lot of messages using same dictionary,
+  it can be beneficial to duplicate compression context rather than reloading dictionary each time.
+  In such case, use ZSTD_duplicateCCtx(), which will need an already created ZSTD_CCtx,
+  in order to duplicate compression context into it.
+
   Then, consume your input using ZSTD_compressContinue().
-  The interface is synchronous, so all input will be consumed.
+  The interface is synchronous, so all input will be consumed and produce a compressed output.
   You must ensure there is enough space in destination buffer to store compressed data under worst case scenario.
   Worst case evaluation is provided by ZSTD_compressBound().
 
   Finish a frame with ZSTD_compressEnd(), which will write the epilogue.
   Without it, the frame will be considered incomplete by decoders.
 
-  You can then reuse ZSTD_CCtx to compress new frames.
+  You can then reuse ZSTD_CCtx to compress some new frame.
 */
 
 
@@ -198,7 +196,34 @@ ZSTDLIB_API size_t ZSTD_decompressContinue(ZSTD_DCtx* dctx, void* dst, size_t ma
   It can be zero, which is not an error; it just means ZSTD_decompressContinue() has decoded some header.
 
   A frame is fully decoded when ZSTD_nextSrcSizeToDecompress() returns zero.
+  Context can then be reset to start a new decompression.
 */
+
+
+/* **************************************
+*  Block functions
+****************************************/
+
+/*!Block functions produce and decode raw zstd blocks, without frame metadata.
+   It saves associated header sizes.
+   But user will have to save and regenerate fields required to regenerate data, such as block sizes.
+
+   A few rules to respect :
+   - Uncompressed block size must be <= 128 KB
+   - Compressing or decompressing require a context structure
+     + Use ZSTD_createXCtx() to create them
+   - It is necessary to init context before starting
+     + compression : ZSTD_compressBegin(), which allows selection of compression level or parameters
+     + decompression : ZSTD_resetDCtx()
+     + If you compress multiple blocks without resetting, next blocks will create references to previous ones
+   - Dictionary can optionally be inserted, using ZSTD_de/compress_insertDictionary()
+   - When a block is considered not compressible enough, ZSTD_compressBlock() result will be zero.
+     + User must test for such outcome and be able to deal with uncompressed data
+     + ZSTD_decompressBlock() doesn't accept uncompressed data as input
+*/
+
+size_t ZSTD_compressBlock  (ZSTD_CCtx* cctx, void* dst, size_t maxDstSize, const void* src, size_t srcSize);
+size_t ZSTD_decompressBlock(ZSTD_DCtx* dctx, void* dst, size_t maxDstSize, const void* src, size_t srcSize);
 
 
 /* *************************************
@@ -236,14 +261,14 @@ static const ZSTD_parameters ZSTD_defaultParameters[4][ZSTD_MAX_CLEVEL+1] = {
     {  0, 18, 13, 14,  1,  7, ZSTD_fast    },  /* level  0 - never used */
     {  0, 18, 14, 15,  1,  6, ZSTD_fast    },  /* level  1 */
     {  0, 18, 14, 15,  1,  5, ZSTD_fast    },  /* level  2 */
-    {  0, 18, 12, 15,  3,  7, ZSTD_greedy  },  /* level  3 */
-    {  0, 18, 13, 15,  4,  7, ZSTD_greedy  },  /* level  4 */
-    {  0, 18, 14, 15,  5,  7, ZSTD_greedy  },  /* level  5 */
-    {  0, 18, 13, 15,  4,  7, ZSTD_lazy    },  /* level  6 */
-    {  0, 18, 14, 16,  5,  7, ZSTD_lazy    },  /* level  7 */
-    {  0, 18, 15, 16,  6,  7, ZSTD_lazy    },  /* level  8 */
-    {  0, 18, 15, 15,  7,  7, ZSTD_lazy    },  /* level  9 */
-    {  0, 18, 16, 16,  7,  7, ZSTD_lazy    },  /* level 10 */
+    {  0, 18, 12, 15,  3,  4, ZSTD_greedy  },  /* level  3 */
+    {  0, 18, 13, 15,  4,  4, ZSTD_greedy  },  /* level  4 */
+    {  0, 18, 14, 15,  5,  4, ZSTD_greedy  },  /* level  5 */
+    {  0, 18, 13, 15,  4,  4, ZSTD_lazy    },  /* level  6 */
+    {  0, 18, 14, 16,  5,  4, ZSTD_lazy    },  /* level  7 */
+    {  0, 18, 15, 16,  6,  4, ZSTD_lazy    },  /* level  8 */
+    {  0, 18, 15, 15,  7,  4, ZSTD_lazy    },  /* level  9 */
+    {  0, 18, 16, 16,  7,  4, ZSTD_lazy    },  /* level 10 */
     {  0, 18, 16, 16,  8,  4, ZSTD_lazy    },  /* level 11 */
     {  0, 18, 17, 16,  8,  4, ZSTD_lazy    },  /* level 12 */
     {  0, 18, 17, 16,  9,  4, ZSTD_lazy    },  /* level 13 */

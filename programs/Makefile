@@ -30,13 +30,22 @@
 # fullbench32: Same as fullbench, but forced to compile in 32-bits mode
 # ##########################################################################
 
-VERSION?= 0.4.5
+# Version numbers
+LIBVER_MAJOR_SCRIPT:=`sed -n '/define ZSTD_VERSION_MAJOR/s/.*[[:blank:]]\([0-9][0-9]*\).*/\1/p' < ../lib/zstd.h`
+LIBVER_MINOR_SCRIPT:=`sed -n '/define ZSTD_VERSION_MINOR/s/.*[[:blank:]]\([0-9][0-9]*\).*/\1/p' < ../lib/zstd.h`
+LIBVER_PATCH_SCRIPT:=`sed -n '/define ZSTD_VERSION_RELEASE/s/.*[[:blank:]]\([0-9][0-9]*\).*/\1/p' < ../lib/zstd.h`
+LIBVER_SCRIPT:= $(LIBVER_MAJOR_SCRIPT).$(LIBVER_MINOR_SCRIPT).$(LIBVER_PATCH_SCRIPT)
+LIBVER_MAJOR := $(shell echo $(LIBVER_MAJOR_SCRIPT))
+LIBVER_MINOR := $(shell echo $(LIBVER_MINOR_SCRIPT))
+LIBVER_PATCH := $(shell echo $(LIBVER_PATCH_SCRIPT))
+LIBVER := $(shell echo $(LIBVER_SCRIPT))
+VERSION?= $(LIBVER)
 
 DESTDIR?=
 PREFIX ?= /usr/local
 CPPFLAGS= -I../lib -DZSTD_VERSION=\"$(VERSION)\"
 CFLAGS ?= -O3  # -falign-loops=32   # not always beneficial
-CFLAGS += -std=c99 -Wall -Wextra -Wundef -Wshadow -Wcast-qual -Wcast-align -Wstrict-prototypes
+CFLAGS += -std=c99 -Wall -Wextra -Wundef -Wshadow -Wcast-qual -Wcast-align -Wstrict-prototypes -Wstrict-aliasing=1
 FLAGS   = $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) $(MOREFLAGS)
 
 BINDIR  = $(PREFIX)/bin

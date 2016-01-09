@@ -194,6 +194,67 @@ static int basicUnitTests(U32 seed, double compressibility)
     if (result != ERROR(srcSize_wrong)) goto _output_error;
     DISPLAYLEVEL(4, "OK \n");
 
+    /* Dictionary and Duplication tests */
+    {
+        ZSTD_CCtx* ctxOrig = ZSTD_createCCtx();
+        ZSTD_CCtx* ctxDuplicated = ZSTD_createCCtx();
+        ZSTD_DCtx* dctx = ZSTD_createDCtx();
+        const size_t dictSize = 500;
+        size_t cSizeOrig;
+
+        DISPLAYLEVEL(4, "test%3i : load dictionary into context : ", testNb++);
+        result = ZSTD_compressBegin(ctxOrig, 2);
+        if (ZSTD_isError(result)) goto _output_error;
+        result = ZSTD_compress_insertDictionary(ctxOrig, CNBuffer, dictSize);
+        if (ZSTD_isError(result)) goto _output_error;
+        result = ZSTD_duplicateCCtx(ctxDuplicated, ctxOrig);
+        if (ZSTD_isError(result)) goto _output_error;
+        DISPLAYLEVEL(4, "OK \n");
+
+        DISPLAYLEVEL(4, "test%3i : compress with dictionary : ", testNb++);
+        cSize = 0;
+        result = ZSTD_compressContinue(ctxOrig, compressedBuffer, ZSTD_compressBound(COMPRESSIBLE_NOISE_LENGTH), (const char*)CNBuffer + dictSize, COMPRESSIBLE_NOISE_LENGTH - dictSize);
+        if (ZSTD_isError(result)) goto _output_error;
+        cSize += result;
+        result = ZSTD_compressEnd(ctxOrig, (char*)compressedBuffer+cSize, ZSTD_compressBound(COMPRESSIBLE_NOISE_LENGTH)-cSize);
+        if (ZSTD_isError(result)) goto _output_error;
+        cSize += result;
+        DISPLAYLEVEL(4, "OK (%u bytes : %.2f%%)\n", (U32)cSize, (double)cSize/COMPRESSIBLE_NOISE_LENGTH*100);
+
+        DISPLAYLEVEL(4, "test%3i : frame built with dictionary should be decompressible : ", testNb++);
+        result = ZSTD_decompress_usingDict(dctx,
+                                           decodedBuffer, COMPRESSIBLE_NOISE_LENGTH,
+                                           compressedBuffer, cSize,
+                                           CNBuffer, dictSize);
+        if (ZSTD_isError(result)) goto _output_error;
+        if (result != COMPRESSIBLE_NOISE_LENGTH - dictSize) goto _output_error;
+        ZSTD_freeCCtx(ctxOrig);   /* if ctxOrig is read, will produce segfault */
+        DISPLAYLEVEL(4, "OK \n");
+
+        DISPLAYLEVEL(4, "test%3i : compress with duplicated context : ", testNb++);
+        cSizeOrig = cSize;
+        cSize = 0;
+        result = ZSTD_compressContinue(ctxDuplicated, compressedBuffer, ZSTD_compressBound(COMPRESSIBLE_NOISE_LENGTH), (const char*)CNBuffer + dictSize, COMPRESSIBLE_NOISE_LENGTH - dictSize);
+        if (ZSTD_isError(result)) goto _output_error;
+        cSize += result;
+        result = ZSTD_compressEnd(ctxDuplicated, (char*)compressedBuffer+cSize, ZSTD_compressBound(COMPRESSIBLE_NOISE_LENGTH)-cSize);
+        if (ZSTD_isError(result)) goto _output_error;
+        cSize += result;
+        if (cSize != cSizeOrig) goto _output_error;   /* should be identical == have same size */
+        ZSTD_freeCCtx(ctxDuplicated);
+        DISPLAYLEVEL(4, "OK (%u bytes : %.2f%%)\n", (U32)cSize, (double)cSize/COMPRESSIBLE_NOISE_LENGTH*100);
+
+        DISPLAYLEVEL(4, "test%3i : frame built with duplicated context should be decompressible : ", testNb++);
+        result = ZSTD_decompress_usingDict(dctx,
+                                           decodedBuffer, COMPRESSIBLE_NOISE_LENGTH,
+                                           compressedBuffer, cSize,
+                                           CNBuffer, dictSize);
+        if (ZSTD_isError(result)) goto _output_error;
+        if (result != COMPRESSIBLE_NOISE_LENGTH - dictSize) goto _output_error;
+        ZSTD_freeDCtx(dctx);
+        DISPLAYLEVEL(4, "OK \n");
+    }
+
     /* Decompression defense tests */
     DISPLAYLEVEL(4, "test%3i : Check input length for magic number : ", testNb++);
     result = ZSTD_decompress(decodedBuffer, COMPRESSIBLE_NOISE_LENGTH, CNBuffer, 3);
@@ -206,6 +267,52 @@ static int basicUnitTests(U32 seed, double compressibility)
     result = ZSTD_decompress(decodedBuffer, COMPRESSIBLE_NOISE_LENGTH, CNBuffer, 4);
     if (!ZSTD_isError(result)) goto _output_error;
     DISPLAYLEVEL(4, "OK \n");
+
+    /* block API tests */
+    {
+        ZSTD_CCtx* const cctx = ZSTD_createCCtx();
+        ZSTD_DCtx* const dctx = ZSTD_createDCtx();
+        const size_t blockSize = 100 KB;
+        const size_t dictSize = 16 KB;
+
+        /* basic block compression */
+        DISPLAYLEVEL(4, "test%3i : Block compression test : ", testNb++);
+        result = ZSTD_compressBegin(cctx, 5);
+        if (ZSTD_isError(result)) goto _output_error;
+        cSize = ZSTD_compressBlock(cctx, compressedBuffer, ZSTD_compressBound(blockSize), CNBuffer, blockSize);
+        if (ZSTD_isError(cSize)) goto _output_error;
+        DISPLAYLEVEL(4, "OK \n");
+
+        DISPLAYLEVEL(4, "test%3i : Block decompression test : ", testNb++);
+        result = ZSTD_resetDCtx(dctx);
+        if (ZSTD_isError(result)) goto _output_error;
+        result = ZSTD_decompressBlock(dctx, decodedBuffer, COMPRESSIBLE_NOISE_LENGTH, compressedBuffer, cSize);
+        if (ZSTD_isError(result)) goto _output_error;
+        if (result != blockSize) goto _output_error;
+        DISPLAYLEVEL(4, "OK \n");
+
+        /* dictionary block compression */
+        DISPLAYLEVEL(4, "test%3i : Dictionary Block compression test : ", testNb++);
+        result = ZSTD_compressBegin(cctx, 5);
+        if (ZSTD_isError(result)) goto _output_error;
+        result = ZSTD_compress_insertDictionary(cctx, CNBuffer, dictSize);
+        if (ZSTD_isError(result)) goto _output_error;
+        cSize = ZSTD_compressBlock(cctx, compressedBuffer, ZSTD_compressBound(blockSize), (char*)CNBuffer+dictSize, blockSize);
+        if (ZSTD_isError(cSize)) goto _output_error;
+        DISPLAYLEVEL(4, "OK \n");
+
+        DISPLAYLEVEL(4, "test%3i : Dictionary Block decompression test : ", testNb++);
+        result = ZSTD_resetDCtx(dctx);
+        if (ZSTD_isError(result)) goto _output_error;
+        ZSTD_decompress_insertDictionary(dctx, CNBuffer, dictSize);
+        result = ZSTD_decompressBlock(dctx, decodedBuffer, COMPRESSIBLE_NOISE_LENGTH, compressedBuffer, cSize);
+        if (ZSTD_isError(result)) goto _output_error;
+        if (result != blockSize) goto _output_error;
+        DISPLAYLEVEL(4, "OK \n");
+
+        ZSTD_freeCCtx(cctx);
+        ZSTD_freeDCtx(dctx);
+    }
 
     /* long rle test */
     {
@@ -268,11 +375,13 @@ int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compressibilit
     U32 result = 0;
     U32 testNb = 0;
     U32 coreSeed = seed, lseed = 0;
+    ZSTD_CCtx* refCtx;
     ZSTD_CCtx* ctx;
     ZSTD_DCtx* dctx;
     U32 startTime = FUZ_GetMilliStart();
 
     /* allocation */
+    refCtx = ZSTD_createCCtx();
     ctx = ZSTD_createCCtx();
     dctx= ZSTD_createDCtx();
     cNoiseBuffer[0] = (BYTE*)malloc (srcBufferSize);
@@ -284,7 +393,7 @@ int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compressibilit
     mirrorBuffer = (BYTE*)malloc (dstBufferSize);
     cBuffer   = (BYTE*)malloc (cBufferSize);
     CHECK (!cNoiseBuffer[0] || !cNoiseBuffer[1] || !cNoiseBuffer[2] || !cNoiseBuffer[3] || !cNoiseBuffer[4]
-           || !dstBuffer || !mirrorBuffer || !cBuffer || !ctx || !dctx,
+           || !dstBuffer || !mirrorBuffer || !cBuffer || !refCtx || !ctx || !dctx,
            "Not enough memory, fuzzer tests cancelled");
 
     /* Create initial samples */
@@ -305,7 +414,7 @@ int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compressibilit
         size_t sampleSize, sampleStart, maxTestSize, totalTestSize;
         size_t cSize, dSize, dSupSize, errorCode, totalCSize, totalGenSize;
         U32 sampleSizeLog, buffNb, cLevelMod, nbChunks, n;
-        XXH64_state_t crc64;
+        XXH64_CREATESTATE_STATIC(xxh64);
         U64 crcOrig, crcDest;
         int cLevel;
         BYTE* sampleBuffer;
@@ -447,7 +556,7 @@ int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compressibilit
         }
 
         /* Streaming compression of scattered segments test */
-        XXH64_reset(&crc64, 0);
+        XXH64_reset(xxh64, 0);
         nbChunks = (FUZ_rand(&lseed) & 127) + 2;
         sampleSizeLog = FUZ_rand(&lseed) % maxSrcLog;
         maxTestSize = (size_t)1 << sampleSizeLog;
@@ -461,10 +570,13 @@ int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compressibilit
         dict = srcBuffer + sampleStart;
         dictSize = sampleSize;
 
-        cSize = ZSTD_compressBegin(ctx, cBuffer, cBufferSize, (FUZ_rand(&lseed) % (20 - (sampleSizeLog/3))) + 1);
-        errorCode = ZSTD_compress_insertDictionary(ctx, dict, dictSize);
+        errorCode = ZSTD_compressBegin(refCtx, (FUZ_rand(&lseed) % (20 - (sampleSizeLog/3))) + 1);
+        CHECK (ZSTD_isError(errorCode), "start streaming error : %s", ZSTD_getErrorName(errorCode));
+        errorCode = ZSTD_compress_insertDictionary(refCtx, dict, dictSize);
         CHECK (ZSTD_isError(errorCode), "dictionary insertion error : %s", ZSTD_getErrorName(errorCode));
-        totalTestSize = 0;
+        errorCode = ZSTD_duplicateCCtx(ctx, refCtx);
+        CHECK (ZSTD_isError(errorCode), "context duplication error : %s", ZSTD_getErrorName(errorCode));
+        totalTestSize = 0; cSize = 0;
         for (n=0; n<nbChunks; n++)
         {
             sampleSizeLog = FUZ_rand(&lseed) % maxSampleLog;
@@ -481,14 +593,14 @@ int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compressibilit
             CHECK (ZSTD_isError(errorCode), "multi-segments compression error : %s", ZSTD_getErrorName(errorCode));
             cSize += errorCode;
 
-            XXH64_update(&crc64, srcBuffer+sampleStart, sampleSize);
+            XXH64_update(xxh64, srcBuffer+sampleStart, sampleSize);
             memcpy(mirrorBuffer + totalTestSize, srcBuffer+sampleStart, sampleSize);
             totalTestSize += sampleSize;
         }
         errorCode = ZSTD_compressEnd(ctx, cBuffer+cSize, cBufferSize-cSize);
         CHECK (ZSTD_isError(errorCode), "multi-segments epilogue error : %s", ZSTD_getErrorName(errorCode));
         cSize += errorCode;
-        crcOrig = XXH64_digest(&crc64);
+        crcOrig = XXH64_digest(xxh64);
 
         /* streaming decompression test */
         errorCode = ZSTD_resetDCtx(dctx);
@@ -517,6 +629,7 @@ int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compressibilit
     DISPLAY("\r%u fuzzer tests completed   \n", testNb-1);
 
 _cleanup:
+    ZSTD_freeCCtx(refCtx);
     ZSTD_freeCCtx(ctx);
     ZSTD_freeDCtx(dctx);
     free(cNoiseBuffer[0]);

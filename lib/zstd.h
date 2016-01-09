@@ -62,7 +62,7 @@ extern "C" {
 ***************************************/
 #define ZSTD_VERSION_MAJOR    0    /* for breaking interface changes  */
 #define ZSTD_VERSION_MINOR    4    /* for new (non-breaking) interface capabilities */
-#define ZSTD_VERSION_RELEASE  5    /* for tweaks, bug-fixes, or development */
+#define ZSTD_VERSION_RELEASE  6    /* for tweaks, bug-fixes, or development */
 #define ZSTD_VERSION_NUMBER  (ZSTD_VERSION_MAJOR *100*100 + ZSTD_VERSION_MINOR *100 + ZSTD_VERSION_RELEASE)
 ZSTDLIB_API unsigned ZSTD_versionNumber (void);
 
@@ -107,15 +107,23 @@ ZSTDLIB_API const char* ZSTD_getErrorName(size_t code);    /** provides error co
 /* *************************************
 *  Advanced functions
 ***************************************/
+/** Compression context management */
 typedef struct ZSTD_CCtx_s ZSTD_CCtx;   /* incomplete type */
 ZSTDLIB_API ZSTD_CCtx* ZSTD_createCCtx(void);
 ZSTDLIB_API size_t     ZSTD_freeCCtx(ZSTD_CCtx* cctx);
 
-/**
-ZSTD_compressCCtx() :
-    Same as ZSTD_compress(), but requires a ZSTD_CCtx working space already allocated
-*/
+/** ZSTD_compressCCtx() :
+    Same as ZSTD_compress(), but requires an already allocated ZSTD_CCtx (see ZSTD_createCCtx()) */
 ZSTDLIB_API size_t ZSTD_compressCCtx(ZSTD_CCtx* ctx, void* dst, size_t maxDstSize, const void* src, size_t srcSize, int compressionLevel);
+
+/** Decompression context management */
+typedef struct ZSTD_DCtx_s ZSTD_DCtx;
+ZSTDLIB_API ZSTD_DCtx* ZSTD_createDCtx(void);
+ZSTDLIB_API size_t     ZSTD_freeDCtx(ZSTD_DCtx* dctx);
+
+/** ZSTD_decompressDCtx
+*   Same as ZSTD_decompress(), but requires an already allocated ZSTD_DCtx (see ZSTD_createDCtx()) */
+ZSTDLIB_API size_t ZSTD_decompressDCtx(ZSTD_DCtx* ctx, void* dst, size_t maxDstSize, const void* src, size_t srcSize);
 
 
 #if defined (__cplusplus)

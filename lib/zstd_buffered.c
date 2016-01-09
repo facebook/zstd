@@ -143,7 +143,7 @@ size_t ZBUFF_compressInit_advanced(ZBUFF_CCtx* zbc, ZSTD_parameters params)
         if (zbc->outBuff == NULL) return ERROR(memory_allocation);
     }
 
-    zbc->outBuffContentSize = ZSTD_compressBegin_advanced(zbc->zc, zbc->outBuff, zbc->outBuffSize, params);
+    zbc->outBuffContentSize = ZSTD_compressBegin_advanced(zbc->zc, params);
     if (ZSTD_isError(zbc->outBuffContentSize)) return zbc->outBuffContentSize;
 
     zbc->inToCompress = 0;

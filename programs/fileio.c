@@ -225,7 +225,6 @@ static int FIO_getFiles(FILE** fileOutPtr, FILE** fileInPtr,
             if (*fileOutPtr != 0)
             {
                 /* prompt for overwrite authorization */
-                int ch = 'N';
                 fclose(*fileOutPtr);
                 DISPLAY("Warning : %s already exists \n", dstFileName);
                 if ((g_displayLevel <= 1) || (*fileInPtr == stdin))
@@ -235,11 +234,14 @@ static int FIO_getFiles(FILE** fileOutPtr, FILE** fileInPtr,
                     return 1;
                 }
                 DISPLAY("Overwrite ? (y/N) : ");
-                while((ch = getchar()) != '\n' && ch != EOF);   /* flush integrated */
-                if ((ch!='Y') && (ch!='y'))
                 {
-                    DISPLAY("No. Operation aborted : %s already exists \n", dstFileName);
-                    return 1;
+                    int ch = getchar();
+                    if ((ch!='Y') && (ch!='y'))
+                    {
+                        DISPLAY("No. Operation aborted : %s already exists \n", dstFileName);
+                        return 1;
+                    }
+                    while ((ch!=EOF) && (ch!='\n')) ch = getchar();  /* flush rest of input line */
                 }
             }
         }

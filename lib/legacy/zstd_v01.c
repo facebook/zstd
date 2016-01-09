@@ -418,8 +418,9 @@ typedef struct {
 static size_t FSE_FUNCTION_NAME(FSE_buildDTable, FSE_FUNCTION_EXTENSION)
 (FSE_DTable* dt, const short* normalizedCounter, unsigned maxSymbolValue, unsigned tableLog)
 {
-    FSE_DTableHeader* const DTableH = (FSE_DTableHeader*)dt;
-    FSE_DECODE_TYPE* const tableDecode = (FSE_DECODE_TYPE*) (dt+1);   /* because dt is unsigned, 32-bits aligned on 32-bits */
+    void* ptr = dt;
+    FSE_DTableHeader* const DTableH = (FSE_DTableHeader*)ptr;
+    FSE_DECODE_TYPE* const tableDecode = (FSE_DECODE_TYPE*)(ptr) + 1;   /* because dt is unsigned, 32-bits aligned on 32-bits */
     const U32 tableSize = 1 << tableLog;
     const U32 tableMask = tableSize-1;
     const U32 step = FSE_tableStep(tableSize);
@@ -615,8 +616,9 @@ static size_t FSE_readNCount (short* normalizedCounter, unsigned* maxSVPtr, unsi
 *********************************************************/
 static size_t FSE_buildDTable_rle (FSE_DTable* dt, BYTE symbolValue)
 {
-    FSE_DTableHeader* const DTableH = (FSE_DTableHeader*)dt;
-    FSE_decode_t* const cell = (FSE_decode_t*)(dt + 1);   /* because dt is unsigned */
+    void* ptr = dt;
+    FSE_DTableHeader* const DTableH = (FSE_DTableHeader*)ptr;
+    FSE_decode_t* const cell = (FSE_decode_t*)(ptr) + 1;   /* because dt is unsigned */
 
     DTableH->tableLog = 0;
     DTableH->fastMode = 0;
@@ -631,8 +633,9 @@ static size_t FSE_buildDTable_rle (FSE_DTable* dt, BYTE symbolValue)
 
 static size_t FSE_buildDTable_raw (FSE_DTable* dt, unsigned nbBits)
 {
-    FSE_DTableHeader* const DTableH = (FSE_DTableHeader*)dt;
-    FSE_decode_t* const dinfo = (FSE_decode_t*)(dt + 1);   /* because dt is unsigned */
+    void* ptr = dt;
+    FSE_DTableHeader* const DTableH = (FSE_DTableHeader*)ptr;
+    FSE_decode_t* const dinfo = (FSE_decode_t*)(ptr) + 1;   /* because dt is unsigned */
     const unsigned tableSize = 1 << nbBits;
     const unsigned tableMask = tableSize - 1;
     const unsigned maxSymbolValue = tableMask;
@@ -701,7 +704,7 @@ static size_t FSE_initDStream(FSE_DStream_t* bitD, const void* srcBuffer, size_t
 }
 
 
-/* FSE_lookBits
+/*!FSE_lookBits
  * Provides next n bits from the bitContainer.
  * bitContainer is not modified (bits are still present for next read/look)
  * On 32-bits, maxNbBits==25
@@ -726,7 +729,7 @@ static void FSE_skipBits(FSE_DStream_t* bitD, U32 nbBits)
 }
 
 
-/* FSE_readBits
+/*!FSE_readBits
  * Read next n bits from the bitContainer.
  * On 32-bits, don't read more than maxNbBits==25
  * On 64-bits, don't read more than maxNbBits==57
@@ -782,7 +785,8 @@ static unsigned FSE_reloadDStream(FSE_DStream_t* bitD)
 
 static void FSE_initDState(FSE_DState_t* DStatePtr, FSE_DStream_t* bitD, const FSE_DTable* dt)
 {
-    const FSE_DTableHeader* const DTableH = (const FSE_DTableHeader*)dt;
+    const void* ptr = dt;
+    const FSE_DTableHeader* const DTableH = (const FSE_DTableHeader*)ptr;
     DStatePtr->state = FSE_readBits(bitD, DTableH->tableLog);
     FSE_reloadDStream(bitD);
     DStatePtr->table = dt + 1;
@@ -898,11 +902,11 @@ static size_t FSE_decompress_usingDTable(void* dst, size_t originalSize,
                             const void* cSrc, size_t cSrcSize,
                             const FSE_DTable* dt)
 {
-    const FSE_DTableHeader* DTableH = (const FSE_DTableHeader*)dt;
-    const U32 fastMode = DTableH->fastMode;
+    FSE_DTableHeader DTableH;
+    memcpy(&DTableH, dt, sizeof(DTableH));   /* memcpy() into local variable, to avoid strict aliasing warning */
 
     /* select fast mode (static) */
-    if (fastMode) return FSE_decompress_usingDTable_generic(dst, originalSize, cSrc, cSrcSize, dt, 1);
+    if (DTableH.fastMode) return FSE_decompress_usingDTable_generic(dst, originalSize, cSrc, cSrcSize, dt, 1);
     return FSE_decompress_usingDTable_generic(dst, originalSize, cSrc, cSrcSize, dt, 0);
 }
 
@@ -935,7 +939,7 @@ static size_t FSE_decompress(void* dst, size_t maxDstSize, const void* cSrc, siz
 
 
 
-/*********************************************************
+/* *******************************************************
 *  Huff0 : Huffman block compression
 *********************************************************/
 #define HUF_MAX_SYMBOL_VALUE 255
@@ -959,7 +963,7 @@ typedef struct nodeElt_s {
 } nodeElt;
 
 
-/*********************************************************
+/* *******************************************************
 *  Huff0 : Huffman block decompression
 *********************************************************/
 typedef struct {
@@ -978,7 +982,8 @@ static size_t HUF_readDTable (U16* DTable, const void* src, size_t srcSize)
     size_t oSize;
     U32 n;
     U32 nextRankStart;
-    HUF_DElt* const dt = (HUF_DElt*)(DTable + 1);
+    void* ptr = DTable+1;
+    HUF_DElt* const dt = (HUF_DElt*)ptr;
 
     FSE_STATIC_ASSERT(sizeof(HUF_DElt) == sizeof(U16));   /* if compilation fails here, assertion is false */
     //memset(huffWeight, 0, sizeof(huffWeight));   /* should not be necessary, but some analyzer complain ... */
@@ -1082,7 +1087,8 @@ static size_t HUF_decompress_usingDTable(   /* -3% slower when non static */
     BYTE* const omax = op + maxDstSize;
     BYTE* const olimit = omax-15;
 
-    const HUF_DElt* const dt = (const HUF_DElt*)(DTable+1);
+    const void* ptr = DTable;
+    const HUF_DElt* const dt = (const HUF_DElt*)(ptr)+1;
     const U32 dtLog = DTable[0];
     size_t errorCode;
     U32 reloadStatus;
@@ -1988,8 +1994,8 @@ static size_t ZSTD_decompressBlock(
 {
     /* blockType == blockCompressed, srcSize is trusted */
     const BYTE* ip = (const BYTE*)src;
-    const BYTE* litPtr;
-    size_t litSize;
+    const BYTE* litPtr = NULL;
+    size_t litSize = 0;
     size_t errorCode;
 
     /* Decode literals sub-block */

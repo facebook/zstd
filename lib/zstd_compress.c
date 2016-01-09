@@ -1794,10 +1794,9 @@ static ZSTD_blockCompressor ZSTD_selectBlockCompressor(ZSTD_strategy strat, int 
 }
 
 
-size_t ZSTD_compressBlock(ZSTD_CCtx* zc, void* dst, size_t maxDstSize, const void* src, size_t srcSize)
+static size_t ZSTD_compressBlock_internal(ZSTD_CCtx* zc, void* dst, size_t maxDstSize, const void* src, size_t srcSize)
 {
     ZSTD_blockCompressor blockCompressor = ZSTD_selectBlockCompressor(zc->params.strategy, zc->lowLimit < zc->dictLimit);
-    if (srcSize < MIN_CBLOCK_SIZE+3) return 0;   /* don't even attempt compression below a certain srcSize */
     return blockCompressor(zc, dst, maxDstSize, src, srcSize);
 }
 
@@ -1827,7 +1826,7 @@ static size_t ZSTD_compress_generic (ZSTD_CCtx* ctxPtr,
             if (ctxPtr->dictLimit < ctxPtr->lowLimit) ctxPtr->dictLimit = ctxPtr->lowLimit;
         }
 
-        cSize = ZSTD_compressBlock(ctxPtr, op+3, maxDstSize-3, ip, blockSize);
+        cSize = ZSTD_compressBlock_internal(ctxPtr, op+3, maxDstSize-3, ip, blockSize);
         if (ZSTD_isError(cSize)) return cSize;
 
         if (cSize == 0)
@@ -1853,14 +1852,15 @@ static size_t ZSTD_compress_generic (ZSTD_CCtx* ctxPtr,
 }
 
 
-size_t ZSTD_compressContinue (ZSTD_CCtx* zc,
-                                 void* dst, size_t dstSize,
-                           const void* src, size_t srcSize)
+static size_t ZSTD_compressContinue_internal (ZSTD_CCtx* zc,
+                              void* dst, size_t dstSize,
+                        const void* src, size_t srcSize,
+                               U32 frame)
 {
     const BYTE* const ip = (const BYTE*) src;
     size_t hbSize = 0;
 
-    if (zc->stage==0)
+    if (frame && (zc->stage==0))
     {
         hbSize = zc->hbSize;
         if (dstSize <= hbSize) return ERROR(dstSize_tooSmall);
@@ -1899,7 +1899,7 @@ size_t ZSTD_compressContinue (ZSTD_CCtx* zc,
         else zc->nextToUpdate -= correction;
     }
 
-    /* input-dictionary overlap */
+    /* if input and dictionary overlap : reduce dictionary (presumed modified by input) */
     if ((ip+srcSize > zc->dictBase + zc->lowLimit) && (ip < zc->dictBase + zc->dictLimit))
     {
         zc->lowLimit = (U32)(ip + srcSize - zc->dictBase);
@@ -1908,11 +1908,30 @@ size_t ZSTD_compressContinue (ZSTD_CCtx* zc,
 
     zc->nextSrc = ip + srcSize;
     {
-        size_t cSize = ZSTD_compress_generic (zc, dst, dstSize, src, srcSize);
+        size_t cSize;
+        if (frame) cSize = ZSTD_compress_generic (zc, dst, dstSize, src, srcSize);
+        else cSize = ZSTD_compressBlock_internal (zc, dst, dstSize, src, srcSize);
         if (ZSTD_isError(cSize)) return cSize;
         return cSize + hbSize;
     }
 }
+
+
+size_t ZSTD_compressContinue (ZSTD_CCtx* zc,
+                              void* dst, size_t dstSize,
+                        const void* src, size_t srcSize)
+{
+    return ZSTD_compressContinue_internal(zc, dst, dstSize, src, srcSize, 1);
+}
+
+
+size_t ZSTD_compressBlock(ZSTD_CCtx* zc, void* dst, size_t maxDstSize, const void* src, size_t srcSize)
+{
+    if (srcSize > BLOCKSIZE) return ERROR(srcSize_wrong);
+    if (srcSize < MIN_CBLOCK_SIZE+3) return 0;   /* don't even attempt compression below a certain srcSize */
+    return ZSTD_compressContinue_internal(zc, dst, maxDstSize, src, srcSize, 0);
+}
+
 
 size_t ZSTD_compress_insertDictionary(ZSTD_CCtx* zc, const void* src, size_t srcSize)
 {

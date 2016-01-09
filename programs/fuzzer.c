@@ -227,6 +227,7 @@ static int basicUnitTests(U32 seed, double compressibility)
                                            compressedBuffer, cSize,
                                            CNBuffer, dictSize);
         if (ZSTD_isError(result)) goto _output_error;
+        if (result != COMPRESSIBLE_NOISE_LENGTH - dictSize) goto _output_error;
         ZSTD_freeCCtx(ctxOrig);   /* if ctxOrig is read, will produce segfault */
         DISPLAYLEVEL(4, "OK \n");
 
@@ -249,6 +250,7 @@ static int basicUnitTests(U32 seed, double compressibility)
                                            compressedBuffer, cSize,
                                            CNBuffer, dictSize);
         if (ZSTD_isError(result)) goto _output_error;
+        if (result != COMPRESSIBLE_NOISE_LENGTH - dictSize) goto _output_error;
         ZSTD_freeDCtx(dctx);
         DISPLAYLEVEL(4, "OK \n");
     }
@@ -265,6 +267,32 @@ static int basicUnitTests(U32 seed, double compressibility)
     result = ZSTD_decompress(decodedBuffer, COMPRESSIBLE_NOISE_LENGTH, CNBuffer, 4);
     if (!ZSTD_isError(result)) goto _output_error;
     DISPLAYLEVEL(4, "OK \n");
+
+    /* block API tests */
+    {
+        ZSTD_CCtx* const cctx = ZSTD_createCCtx();
+        ZSTD_DCtx* const dctx = ZSTD_createDCtx();
+        const size_t blockSize = 100 KB;
+
+        /* basic block compression */
+        DISPLAYLEVEL(4, "test%3i : Block compression test : ", testNb++);
+        result = ZSTD_compressBegin(cctx, 5);
+        if (ZSTD_isError(result)) goto _output_error;
+        cSize = ZSTD_compressBlock(cctx, compressedBuffer, ZSTD_compressBound(blockSize), CNBuffer, blockSize);
+        if (ZSTD_isError(cSize)) goto _output_error;
+        DISPLAYLEVEL(4, "OK \n");
+
+        DISPLAYLEVEL(4, "test%3i : Block decompression test : ", testNb++);
+        result = ZSTD_resetDCtx(dctx);
+        if (ZSTD_isError(result)) goto _output_error;
+        result = ZSTD_decompressBlock(dctx, decodedBuffer, COMPRESSIBLE_NOISE_LENGTH, compressedBuffer, cSize);
+        if (ZSTD_isError(result)) goto _output_error;
+        if (result != blockSize) goto _output_error;
+        DISPLAYLEVEL(4, "OK \n");
+
+        ZSTD_freeCCtx(cctx);
+        ZSTD_freeDCtx(dctx);
+    }
 
     /* long rle test */
     {

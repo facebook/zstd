@@ -658,8 +658,7 @@ static size_t ZSTD_decompressSequences(
 }
 
 
-static size_t ZSTD_decompressBlock(
-                            ZSTD_DCtx* dctx,
+size_t ZSTD_decompressBlock(ZSTD_DCtx* dctx,
                             void* dst, size_t maxDstSize,
                       const void* src, size_t srcSize)
 {

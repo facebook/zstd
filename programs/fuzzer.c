@@ -273,6 +273,7 @@ static int basicUnitTests(U32 seed, double compressibility)
         ZSTD_CCtx* const cctx = ZSTD_createCCtx();
         ZSTD_DCtx* const dctx = ZSTD_createDCtx();
         const size_t blockSize = 100 KB;
+        const size_t dictSize = 16 KB;
 
         /* basic block compression */
         DISPLAYLEVEL(4, "test%3i : Block compression test : ", testNb++);
@@ -285,6 +286,25 @@ static int basicUnitTests(U32 seed, double compressibility)
         DISPLAYLEVEL(4, "test%3i : Block decompression test : ", testNb++);
         result = ZSTD_resetDCtx(dctx);
         if (ZSTD_isError(result)) goto _output_error;
+        result = ZSTD_decompressBlock(dctx, decodedBuffer, COMPRESSIBLE_NOISE_LENGTH, compressedBuffer, cSize);
+        if (ZSTD_isError(result)) goto _output_error;
+        if (result != blockSize) goto _output_error;
+        DISPLAYLEVEL(4, "OK \n");
+
+        /* dictionary block compression */
+        DISPLAYLEVEL(4, "test%3i : Dictionary Block compression test : ", testNb++);
+        result = ZSTD_compressBegin(cctx, 5);
+        if (ZSTD_isError(result)) goto _output_error;
+        result = ZSTD_compress_insertDictionary(cctx, CNBuffer, dictSize);
+        if (ZSTD_isError(result)) goto _output_error;
+        cSize = ZSTD_compressBlock(cctx, compressedBuffer, ZSTD_compressBound(blockSize), (char*)CNBuffer+dictSize, blockSize);
+        if (ZSTD_isError(cSize)) goto _output_error;
+        DISPLAYLEVEL(4, "OK \n");
+
+        DISPLAYLEVEL(4, "test%3i : Dictionary Block decompression test : ", testNb++);
+        result = ZSTD_resetDCtx(dctx);
+        if (ZSTD_isError(result)) goto _output_error;
+        ZSTD_decompress_insertDictionary(dctx, CNBuffer, dictSize);
         result = ZSTD_decompressBlock(dctx, decodedBuffer, COMPRESSIBLE_NOISE_LENGTH, compressedBuffer, cSize);
         if (ZSTD_isError(result)) goto _output_error;
         if (result != blockSize) goto _output_error;

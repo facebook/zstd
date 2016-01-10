@@ -67,8 +67,7 @@ IF (UNIX)
     TARGET_LINK_LIBRARIES(zbufftest libzstd_static)
 
     ADD_EXECUTABLE(paramgrill ${PROGRAMS_DIR}/datagen.c ${PROGRAMS_DIR}/xxhash.c ${PROGRAMS_DIR}/paramgrill.c)
-    TARGET_LINK_LIBRARIES(paramgrill libzstd_static)
-    SET_TARGET_PROPERTIES(paramgrill PROPERTIES LINK_FLAGS "-lm")
+    TARGET_LINK_LIBRARIES(paramgrill libzstd_static m) #m is math library
 
     ADD_EXECUTABLE(datagen ${PROGRAMS_DIR}/datagen.c ${PROGRAMS_DIR}/datagencli.c)
     TARGET_LINK_LIBRARIES(datagen libzstd_static)

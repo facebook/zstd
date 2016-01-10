@@ -1,5 +1,6 @@
 v0.4.6
 fix : fast compression mode on Windows
+New : cmake configuration file, thanks to Artyom Dymchenko
 Improved : high compression mode on repetitive data
 New : block-level API
 New : ZSTD_duplicateCCtx()

@@ -30,24 +30,25 @@
 #  - zstd source repository : https://github.com/Cyan4973/zstd
 #  - Public forum : https://groups.google.com/forum/#!forum/lz4c
 # ################################################################
-project(zstd)
-cmake_minimum_required(VERSION 2.8.12)
+
+PROJECT(zstd)
+CMAKE_MINIMUM_REQUIRED(VERSION 2.8.12)
 
 OPTION(ZSTD_LEGACY_SUPPORT "LEGACY SUPPORT" OFF)
 
 IF (ZSTD_LEGACY_SUPPORT)
-    message(STATUS "ZSTD_LEGACY_SUPPORT defined!")
-    add_definitions(-DZSTD_LEGACY_SUPPORT=1)
+    MESSAGE(STATUS "ZSTD_LEGACY_SUPPORT defined!")
+    ADD_DEFINITIONS(-DZSTD_LEGACY_SUPPORT=1)
 ELSE (ZSTD_LEGACY_SUPPORT)
-    message(STATUS "ZSTD_LEGACY_SUPPORT not defined!")
-    add_definitions(-DZSTD_LEGACY_SUPPORT=0)
+    MESSAGE(STATUS "ZSTD_LEGACY_SUPPORT not defined!")
+    ADD_DEFINITIONS(-DZSTD_LEGACY_SUPPORT=0)
 ENDIF (ZSTD_LEGACY_SUPPORT)
 
-add_subdirectory(lib)
-add_subdirectory(programs)
+ADD_SUBDIRECTORY(lib)
+ADD_SUBDIRECTORY(programs)
 
 #-----------------------------------------------------------------------------
 # Add extra compilation flags
 #-----------------------------------------------------------------------------
-include(CMakeModules/AddExtraCompilationFlags.cmake)
+INCLUDE(CMakeModules/AddExtraCompilationFlags.cmake)
 ADD_EXTRA_COMPILATION_FLAGS()

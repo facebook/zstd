@@ -38,3 +38,9 @@ ipch/
 *.opensdf
 *.sdf
 *.cachefile
+
+# IDEA solution files
+*.idea
+
+# Other files
+.directory

@@ -188,6 +188,42 @@ MACRO(ADD_EXTRA_COMPILATION_FLAGS)
         else ()
             MESSAGE("Compiler flag ${WARNING_ALL} not allowed")
         endif (WARNING_ALL_ALLOWED)
+        	
+        set(RTC_FLAG "/RTC1")
+        CHECK_C_COMPILER_FLAG(${RTC_FLAG} RTC_FLAG_ALLOWED)
+        if (RTC_FLAG_ALLOWED)
+            MESSAGE("Compiler flag ${RTC_FLAG} allowed")
+            set(ACTIVATE_RTC_FLAG "ON" CACHE BOOL "activate /RTC1 flag")
+        else ()
+            MESSAGE("Compiler flag ${RTC_FLAG} not allowed")
+        endif (RTC_FLAG_ALLOWED)
+        	
+        set(ZC_FLAG "/Zc:forScope")
+        CHECK_C_COMPILER_FLAG(${ZC_FLAG} ZC_FLAG_ALLOWED)
+        if (ZC_FLAG_ALLOWED)
+            MESSAGE("Compiler flag ${ZC_FLAG} allowed")
+            set(ACTIVATE_ZC_FLAG "ON" CACHE BOOL "activate /Zc:forScope flag")
+        else ()
+            MESSAGE("Compiler flag ${ZC_FLAG} not allowed")
+        endif (ZC_FLAG_ALLOWED)
+        	
+        set(GD_FLAG "/Gd")
+        CHECK_C_COMPILER_FLAG(${GD_FLAG} GD_FLAG_ALLOWED)
+        if (GD_FLAG_ALLOWED)
+            MESSAGE("Compiler flag ${GD_FLAG} allowed")
+            set(ACTIVATE_GD_FLAG "ON" CACHE BOOL "activate /Gd flag")
+        else ()
+            MESSAGE("Compiler flag ${GD_FLAG} not allowed")
+        endif (GD_FLAG_ALLOWED)
+        	
+        set(ANALYZE_FLAG "/analyze:stacksize25000")
+        CHECK_C_COMPILER_FLAG(${ANALYZE_FLAG} ANALYZE_FLAG_ALLOWED)
+        if (ANALYZE_FLAG_ALLOWED)
+            MESSAGE("Compiler flag ${ANALYZE_FLAG} allowed")
+            set(ACTIVATE_ANALYZE_FLAG "ON" CACHE BOOL "activate /ANALYZE flag")
+        else ()
+            MESSAGE("Compiler flag ${ANALYZE_FLAG} not allowed")
+        endif (ANALYZE_FLAG_ALLOWED)
 
         if (ACTIVATE_WARNING_ALL)
             list(APPEND CMAKE_CXX_FLAGS ${WARNING_ALL})
@@ -195,7 +231,41 @@ MACRO(ADD_EXTRA_COMPILATION_FLAGS)
         else ()
             string(REPLACE ${WARNING_ALL} "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
             string(REPLACE ${WARNING_ALL} "" CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
-        endif ()
+        endif (ACTIVATE_WARNING_ALL)
+        	
+        # Only for DEBUG version
+        if (ACTIVATE_RTC_FLAG)
+            list(APPEND CMAKE_CXX_FLAGS_DEBUG ${RTC_FLAG})
+            list(APPEND CMAKE_C_FLAGS_DEBUG ${RTC_FLAG})
+        else ()
+            string(REPLACE ${RTC_FLAG} "" CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG}")
+            string(REPLACE ${RTC_FLAG} "" CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG}")
+        endif (ACTIVATE_RTC_FLAG)
+        	
+        if (ACTIVATE_ZC_FLAG)
+            list(APPEND CMAKE_CXX_FLAGS ${ZC_FLAG})
+            list(APPEND CMAKE_C_FLAGS ${ZC_FLAG})
+        else ()
+            string(REPLACE ${ZC_FLAG} "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+            string(REPLACE ${ZC_FLAG} "" CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
+        endif (ACTIVATE_ZC_FLAG)
+        	
+        if (ACTIVATE_GD_FLAG)
+            list(APPEND CMAKE_CXX_FLAGS ${GD_FLAG})
+            list(APPEND CMAKE_C_FLAGS ${GD_FLAG})
+        else ()
+            string(REPLACE ${GD_FLAG} "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+            string(REPLACE ${GD_FLAG} "" CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
+        endif (ACTIVATE_GD_FLAG)
+        	
+        if (ACTIVATE_ANALYZE_FLAG)
+            list(APPEND CMAKE_CXX_FLAGS ${ANALYZE_FLAG})
+            list(APPEND CMAKE_C_FLAGS ${ANALYZE_FLAG})
+        else ()
+            string(REPLACE ${ANALYZE_FLAG} "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+            string(REPLACE ${ANALYZE_FLAG} "" CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
+        endif (ACTIVATE_ANALYZE_FLAG)
+        	
         if (MSVC80 OR MSVC90 OR MSVC10 OR MSVC11)
             # To avoid compiler warning (level 4) C4571, compile with /EHa if you still want
             # your catch(...) blocks to catch structured exceptions.
@@ -216,30 +286,34 @@ MACRO(ADD_EXTRA_COMPILATION_FLAGS)
 
         #For exceptions
         list(APPEND CMAKE_CXX_FLAGS "/EHsc")
+        list(APPEND CMAKE_C_FLAGS "/EHsc")
+        
+        # UNICODE SUPPORT
+        list(APPEND CMAKE_CXX_FLAGS "/D_UNICODE /DUNICODE")
+        list(APPEND CMAKE_C_FLAGS "/D_UNICODE /DUNICODE")
     endif ()
 
     # Remove duplicates compilation flags
-    separate_arguments(CMAKE_CXX_FLAGS)
-    list(REMOVE_DUPLICATES CMAKE_CXX_FLAGS)
-    string(REPLACE ";" " " CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}" CACHE STRING "common C++ build flags" FORCE)
-
-    separate_arguments(CMAKE_C_FLAGS)
-    list(REMOVE_DUPLICATES CMAKE_C_FLAGS)
-    string(REPLACE ";" " " CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS}" CACHE STRING "common C build flags" FORCE)
+	FOREACH (flag_var CMAKE_C_FLAGS CMAKE_C_FLAGS_DEBUG CMAKE_C_FLAGS_RELEASE
+                CMAKE_C_FLAGS_MINSIZEREL CMAKE_C_FLAGS_RELWITHDEBINFO
+		        CMAKE_CXX_FLAGS CMAKE_CXX_FLAGS_DEBUG CMAKE_CXX_FLAGS_RELEASE
+		                CMAKE_CXX_FLAGS_MINSIZEREL CMAKE_CXX_FLAGS_RELWITHDEBINFO)
+	    separate_arguments(${flag_var})
+	    list(REMOVE_DUPLICATES ${flag_var})
+	    string(REPLACE ";" " " ${flag_var} "${${flag_var}}")
+	    set(${flag_var} "${${flag_var}}" CACHE STRING "common build flags" FORCE)
+    ENDFOREACH (flag_var)  
 
     if (MSVC)
         # Replace /MT to /MD flag
-        FOREACH (flag_var CMAKE_CXX_FLAGS CMAKE_CXX_FLAGS_DEBUG CMAKE_CXX_FLAGS_RELEASE
-                CMAKE_CXX_FLAGS_MINSIZEREL CMAKE_CXX_FLAGS_RELWITHDEBINFO)
-            STRING(REGEX REPLACE "/MT" "/MD" ${flag_var} "${${flag_var}}")
-        ENDFOREACH (flag_var)
-
+    	# Replace /O2 to /O3 flag
         FOREACH (flag_var CMAKE_C_FLAGS CMAKE_C_FLAGS_DEBUG CMAKE_C_FLAGS_RELEASE
-                CMAKE_C_FLAGS_MINSIZEREL CMAKE_C_FLAGS_RELWITHDEBINFO)
+                CMAKE_C_FLAGS_MINSIZEREL CMAKE_C_FLAGS_RELWITHDEBINFO
+		        CMAKE_CXX_FLAGS CMAKE_CXX_FLAGS_DEBUG CMAKE_CXX_FLAGS_RELEASE
+		                CMAKE_CXX_FLAGS_MINSIZEREL CMAKE_CXX_FLAGS_RELWITHDEBINFO)
             STRING(REGEX REPLACE "/MT" "/MD" ${flag_var} "${${flag_var}}")
-        ENDFOREACH (flag_var)
+        	STRING(REGEX REPLACE "/O2" "/Ox" ${flag_var} "${${flag_var}}")
+        ENDFOREACH (flag_var)      
     endif ()
 
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}" CACHE STRING "Updated flags" FORCE)

@@ -11,6 +11,7 @@ before_install:
 
 env:
   - ZSTD_TRAVIS_CI_ENV=travis-install
+  - ZSTD_TRAVIS_CI_ENV=cmaketest
   - ZSTD_TRAVIS_CI_ENV=clangtest  
   - ZSTD_TRAVIS_CI_ENV=gpptest  
   - ZSTD_TRAVIS_CI_ENV=armtest  

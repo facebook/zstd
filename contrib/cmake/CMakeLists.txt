@@ -32,7 +32,7 @@
 # ################################################################
 
 PROJECT(zstd)
-CMAKE_MINIMUM_REQUIRED(VERSION 2.8.12)
+CMAKE_MINIMUM_REQUIRED(VERSION 2.8.7)
 
 OPTION(ZSTD_LEGACY_SUPPORT "LEGACY SUPPORT" OFF)
 

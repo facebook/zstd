@@ -31,9 +31,11 @@
 #  - Public forum : https://groups.google.com/forum/#!forum/lz4c
 # ################################################################
 
-if (POLICY CMP0021)
-    cmake_policy(SET CMP0021 OLD)
-endif ()
+IF (USE_DEPRECATED_CODE_STYLE)
+    IF (POLICY CMP0021)
+        cmake_policy(SET CMP0021 OLD)
+    ENDIF ()
+ENDIF (USE_DEPRECATED_CODE_STYLE)
 
 # Get library version based on information from input content (use regular exp)
 function(GetLibraryVersion _content _outputVar1 _outputVar2 _outputVar3)
@@ -113,20 +115,16 @@ IF (MSVC)
     SET_TARGET_PROPERTIES(libzstd_shared PROPERTIES COMPILE_DEFINITIONS "ZSTD_DLL_EXPORT=1;ZSTD_HEAPMODE=0;_CONSOLE;_CRT_SECURE_NO_WARNINGS")
 ENDIF (MSVC)
 
-IF (${CMAKE_MAJOR_VERSION}.${CMAKE_MINOR_VERSION}.${CMAKE_PATCH_VERSION} LESS 2.8.11)
-    #CMake version less 2.8.11... Use workaround hacks!
-ELSE ()
+IF (NOT USE_DEPRECATED_CODE_STYLE)
     TARGET_INCLUDE_DIRECTORIES(libzstd_static PUBLIC ${LIBRARY_DIR})
     TARGET_INCLUDE_DIRECTORIES(libzstd_shared PUBLIC ${LIBRARY_DIR})
-ENDIF (${CMAKE_MAJOR_VERSION}.${CMAKE_MINOR_VERSION}.${CMAKE_PATCH_VERSION} LESS 2.8.11)
+ENDIF (NOT USE_DEPRECATED_CODE_STYLE)
 
 IF (ZSTD_LEGACY_SUPPORT)
-    IF (${CMAKE_MAJOR_VERSION}.${CMAKE_MINOR_VERSION}.${CMAKE_PATCH_VERSION} LESS 2.8.11)
-        #CMake version less 2.8.11... Use workaround hacks!
-    ELSE ()
+    IF (NOT USE_DEPRECATED_CODE_STYLE)
         TARGET_INCLUDE_DIRECTORIES(libzstd_static PUBLIC ${LIBRARY_LEGACY_DIR})
         TARGET_INCLUDE_DIRECTORIES(libzstd_shared PUBLIC ${LIBRARY_LEGACY_DIR})
-    ENDIF (${CMAKE_MAJOR_VERSION}.${CMAKE_MINOR_VERSION}.${CMAKE_PATCH_VERSION} LESS 2.8.11)
+    ENDIF (NOT USE_DEPRECATED_CODE_STYLE)
 ENDIF (ZSTD_LEGACY_SUPPORT)
 
 # Define library base name

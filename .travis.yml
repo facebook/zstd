@@ -1,7 +1,7 @@
 language: c
 
 before_install:
-  - "wget -q http://cardinot.net/files/cmake-2.8.11.tar.gz"
+  - "wget -q http://ftp.lfs-matrix.net/pub/blfs/conglomeration/cmake/cmake-2.8.11.tar.gz"
   - "tar -xzvf cmake-2.8.11.tar.gz"
   - sudo apt-get update  -qq
   - sudo apt-get install -qq gcc-arm-linux-gnueabi

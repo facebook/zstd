@@ -1,9 +1,8 @@
 language: c
 
 before_install:
-  - "wget https://launchpad.net/ubuntu/+source/cmake/2.8.8-2ubuntu1/+build/3441442/+files/cmake_2.8.8-2ubuntu1_amd64.deb"
-  - "wget https://launchpad.net/ubuntu/+archive/primary/+files/cmake-data_2.8.8-2ubuntu1_all.deb"
-  - "sudo apt-get remove cmake-data cmake"
+  - "wget -q http://cardinot.net/files/cmake-2.8.11.tar.gz"
+  - "tar -xzvf cmake-2.8.11.tar.gz"
   - sudo apt-get update  -qq
   - sudo apt-get install -qq gcc-arm-linux-gnueabi
   - sudo apt-get install -qq clang
@@ -12,7 +11,11 @@ before_install:
   - sudo apt-get install -qq valgrind
 
 install:
-    - "sudo dpkg --install cmake-data_2.8.8-2ubuntu1_all.deb cmake_2.8.8-2ubuntu1_amd64.deb" 
+  - "cd cmake-2.8.11"
+  - "./bootstrap --prefix=/usr --system-libs --mandir=/share/man"
+  - "make -j 16"
+  - "sudo make install -j 16"
+  - "cd .."
 
 env:
   - ZSTD_TRAVIS_CI_ENV=travis-install

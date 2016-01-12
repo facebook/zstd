@@ -35,13 +35,12 @@
 *****************************************************************/
 /*!
  * HEAPMODE :
- * Select how default compression functions will allocate memory for their hash table,
- * in memory stack (0, fastest), or in memory heap (1, requires malloc())
- * Note that compression context is fairly large, as a consequence heap memory is recommended.
+ * Select how default decompression function ZSTD_decompress() will allocate memory,
+ * in memory stack (0), or in memory heap (1, requires malloc())
  */
 #ifndef ZSTD_HEAPMODE
 #  define ZSTD_HEAPMODE 1
-#endif /* ZSTD_HEAPMODE */
+#endif
 
 /*!
 *  LEGACY_SUPPORT :
@@ -790,8 +789,17 @@ size_t ZSTD_decompressDCtx(ZSTD_DCtx* dctx, void* dst, size_t maxDstSize, const 
 
 size_t ZSTD_decompress(void* dst, size_t maxDstSize, const void* src, size_t srcSize)
 {
+#if defined(ZSTD_HEAPMODE) && (ZSTD_HEAPMODE==1)
+    size_t regenSize;
+    ZSTD_DCtx* dctx = ZSTD_createDCtx();
+    if (dctx==NULL) return ERROR(memory_allocation);
+    regenSize = ZSTD_decompressDCtx(dctx, dst, maxDstSize, src, srcSize);
+    ZSTD_freeDCtx(dctx);
+    return regenSize;
+#else
     ZSTD_DCtx dctx;
     return ZSTD_decompressDCtx(&dctx, dst, maxDstSize, src, srcSize);
+#endif // defined
 }
 
 

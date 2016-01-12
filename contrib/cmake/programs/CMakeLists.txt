@@ -38,13 +38,23 @@ SET(CMAKE_INCLUDE_CURRENT_DIR TRUE)
 # Define project root directory
 SET(ROOT_DIR ../../..)
 
-# Define зкщпкфьы directory, where sources and header files are located
+# Define programs directory, where sources and header files are located
 SET(PROGRAMS_DIR ${ROOT_DIR}/programs)
 INCLUDE_DIRECTORIES(${PROGRAMS_DIR})
+
+IF (USE_DEPRECATED_CODE_STYLE)
+    # Define library directory, where sources and header files are located
+    SET(LIBRARY_DIR ${ROOT_DIR}/lib)
+    INCLUDE_DIRECTORIES(${LIBRARY_DIR})
+ENDIF (USE_DEPRECATED_CODE_STYLE)
 
 IF (ZSTD_LEGACY_SUPPORT)
     SET(PROGRAMS_LEGACY_DIR ${PROGRAMS_DIR}/legacy)
     INCLUDE_DIRECTORIES(${PROGRAMS_LEGACY_DIR})
+
+    IF (USE_DEPRECATED_CODE_STYLE)
+        INCLUDE_DIRECTORIES(${LIBRARY_DIR}/legacy)
+    ENDIF (USE_DEPRECATED_CODE_STYLE)
 
     SET(ZSTD_FILEIO_LEGACY ${PROGRAMS_LEGACY_DIR}/fileio_legacy.c)
 ENDIF (ZSTD_LEGACY_SUPPORT)

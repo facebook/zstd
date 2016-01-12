@@ -79,6 +79,9 @@ travis-install:
 test:
 	$(MAKE) -C $(PRGDIR) $@
 
+cmaketest:
+	cd contrib/cmake ; cmake . ; $(MAKE)
+
 clangtest: clean
 	clang -v
 	$(MAKE) all CC=clang MOREFLAGS="-Werror -Wconversion -Wno-sign-conversion"

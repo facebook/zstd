@@ -31,12 +31,6 @@
 #  - Public forum : https://groups.google.com/forum/#!forum/lz4c
 # ################################################################
 
-IF (USE_DEPRECATED_CODE_STYLE)
-    IF (POLICY CMP0021)
-        cmake_policy(SET CMP0021 OLD)
-    ENDIF ()
-ENDIF (USE_DEPRECATED_CODE_STYLE)
-
 # Get library version based on information from input content (use regular exp)
 function(GetLibraryVersion _content _outputVar1 _outputVar2 _outputVar3)
     string(REGEX MATCHALL ".*define ZSTD_VERSION_MAJOR+.* ([0-9]+).*define ZSTD_VERSION_MINOR+.* ([0-9]+).*define ZSTD_VERSION_RELEASE+.* ([0-9]+)" VERSION_REGEX "${_content}")
@@ -115,17 +109,15 @@ IF (MSVC)
     SET_TARGET_PROPERTIES(libzstd_shared PROPERTIES COMPILE_DEFINITIONS "ZSTD_DLL_EXPORT=1;ZSTD_HEAPMODE=0;_CONSOLE;_CRT_SECURE_NO_WARNINGS")
 ENDIF (MSVC)
 
-IF (NOT USE_DEPRECATED_CODE_STYLE)
+# Define include directories
+IF (NOT WORKAROUND_OUTDATED_CODE_STYLE)
     TARGET_INCLUDE_DIRECTORIES(libzstd_static PUBLIC ${LIBRARY_DIR})
     TARGET_INCLUDE_DIRECTORIES(libzstd_shared PUBLIC ${LIBRARY_DIR})
-ENDIF (NOT USE_DEPRECATED_CODE_STYLE)
-
-IF (ZSTD_LEGACY_SUPPORT)
-    IF (NOT USE_DEPRECATED_CODE_STYLE)
+    IF (ZSTD_LEGACY_SUPPORT)
         TARGET_INCLUDE_DIRECTORIES(libzstd_static PUBLIC ${LIBRARY_LEGACY_DIR})
         TARGET_INCLUDE_DIRECTORIES(libzstd_shared PUBLIC ${LIBRARY_LEGACY_DIR})
-    ENDIF (NOT USE_DEPRECATED_CODE_STYLE)
-ENDIF (ZSTD_LEGACY_SUPPORT)
+    ENDIF (ZSTD_LEGACY_SUPPORT)
+ENDIF (NOT WORKAROUND_OUTDATED_CODE_STYLE)
 
 # Define library base name
 IF (UNIX)

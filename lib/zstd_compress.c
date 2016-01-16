@@ -1043,17 +1043,40 @@ static U32 ZSTD_insertBt1(ZSTD_CCtx* zc, const BYTE* const ip, const U32 mls, co
     const U32 current = (U32)(ip-base);
     const U32 btLow = btMask >= current ? 0 : current - btMask;
     U32* smallerPtr = bt + 2*(current&btMask);
-    U32* largerPtr  = bt + 2*(current&btMask) + 1;
+    U32* largerPtr  = smallerPtr + 1;
     U32 dummy32;   /* to be nullified at the end */
     const U32 windowLow = zc->lowLimit;
     U32 matchEndIdx = current+8;
+    U32 predictedSmall = *(bt + 2*((current-1)&btMask) + 0) + 1;
+    U32 predictedLarge = *(bt + 2*((current-1)&btMask) + 1) + 1;
 
     hashTable[h] = current;   /* Update Hash Table */
 
     while (nbCompares-- && (matchIndex > windowLow))
     {
         U32* nextPtr = bt + 2*(matchIndex & btMask);
+        const U32* predictPtr = bt + 2*((matchIndex-1) & btMask);   /* written this way, as bt is a roll buffer */
         size_t matchLength = MIN(commonLengthSmaller, commonLengthLarger);   /* guaranteed minimum nb of common bytes */
+
+        if (matchIndex == predictedSmall)
+        {   /* no need to check length, result known */
+            *smallerPtr = matchIndex;
+            if (matchIndex <= btLow) { smallerPtr=&dummy32; break; }   /* beyond tree size, stop the search */
+            smallerPtr = nextPtr+1;               /* new "smaller" => larger of match */
+            matchIndex = nextPtr[1];              /* new matchIndex larger than previous (closer to current) */
+            predictedSmall = predictPtr[1] + 1;
+            continue;
+        }
+
+        if (matchIndex == predictedLarge)
+        {
+            *largerPtr = matchIndex;
+            if (matchIndex <= btLow) { largerPtr=&dummy32; break; }   /* beyond tree size, stop the search */
+            largerPtr = nextPtr;
+            matchIndex = nextPtr[0];
+            predictedLarge = predictPtr[0] + 1;
+            continue;
+        }
 
         if ((!extDict) || (matchIndex+matchLength >= dictLimit))
         {

@@ -220,6 +220,7 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
 {
     const size_t blockSize = (g_blockSize ? g_blockSize : srcSize) + (!srcSize);   /* avoid div by 0 */
     const U32 maxNbBlocks = (U32) ((srcSize + (blockSize-1)) / blockSize) + nbFiles;
+    size_t largestBlockSize = 0;
     blockParam_t* const blockTable = (blockParam_t*) malloc(maxNbBlocks * sizeof(blockParam_t));
     const size_t maxCompressedSize = ZSTD_compressBound(srcSize) + (maxNbBlocks * 1024);   /* add some room for safety */
     void* const compressedBuffer = malloc(maxCompressedSize);
@@ -260,6 +261,7 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
                 cPtr += blockTable[nbBlocks].cRoom;
                 resPtr += thisBlockSize;
                 remaining -= thisBlockSize;
+                if (thisBlockSize > largestBlockSize) largestBlockSize = thisBlockSize;
             }
         }
     }
@@ -292,7 +294,7 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
             milliTime = BMK_GetMilliStart();
             while (BMK_GetMilliSpan(milliTime) < TIMELOOP)
             {
-                ZSTD_compressBegin_advanced(refCtx, ZSTD_getParams(cLevel, dictBufferSize+blockSize));
+                ZSTD_compressBegin_advanced(refCtx, ZSTD_getParams(cLevel, dictBufferSize+largestBlockSize));
                 ZSTD_compress_insertDictionary(refCtx, dictBuffer, dictBufferSize);
                 for (blockNb=0; blockNb<nbBlocks; blockNb++)
                 {

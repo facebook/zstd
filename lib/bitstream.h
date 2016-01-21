@@ -50,8 +50,8 @@ extern "C" {
 /******************************************
 *  Includes
 ******************************************/
-#include "mem.h"     /* unaligned access routines */
-#include "error.h"   /* error codes and messages */
+#include "mem.h"            /* unaligned access routines */
+#include "error_private.h"  /* error codes and messages */
 
 
 /********************************************

@@ -1,6 +1,6 @@
 /* ******************************************************************
    Error codes and messages
-   Copyright (C) 2013-2015, Yann Collet
+   Copyright (C) 2013-2016, Yann Collet
 
    BSD 2-Clause License (http://www.opensource.org/licenses/bsd-license.php)
 
@@ -28,9 +28,10 @@
    OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
    You can contact the author at :
-   - Source repository : https://github.com/Cyan4973/FiniteStateEntropy
-   - Public forum : https://groups.google.com/forum/#!forum/lz4c
+   - Source repository : https://github.com/Cyan4973/zstd
 ****************************************************************** */
+/* Note : this module is expected to remain private, do not expose it */
+
 #ifndef ERROR_H_MODULE
 #define ERROR_H_MODULE
 
@@ -39,28 +40,29 @@ extern "C" {
 #endif
 
 
-/******************************************
+/* *****************************************
 *  Includes
 ******************************************/
-#include <stddef.h>    /* size_t, ptrdiff_t */
+#include <stddef.h>        /* size_t, ptrdiff_t */
+#include "error_public.h"  /* enum list */
 
 
-/******************************************
+/* *****************************************
 *  Compiler-specific
 ******************************************/
-#if defined (__cplusplus) || (defined (__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L) /* C99 */)
+#if defined(__GNUC__)
+#  define ERR_STATIC static __attribute__((unused))
+#elif defined (__cplusplus) || (defined (__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L) /* C99 */)
 #  define ERR_STATIC static inline
 #elif defined(_MSC_VER)
 #  define ERR_STATIC static __inline
-#elif defined(__GNUC__)
-#  define ERR_STATIC static __attribute__((unused))
 #else
 #  define ERR_STATIC static  /* this version may generate warnings for unused static functions; disable the relevant warning */
 #endif
 
 
-/******************************************
-*  Error Management
+/* *****************************************
+*  Error Codes
 ******************************************/
 #define PREFIX(name) ZSTD_error_##name
 
@@ -69,29 +71,34 @@ extern "C" {
 #endif
 #define ERROR(name) (size_t)-PREFIX(name)
 
-#define ERROR_LIST(ITEM) \
-        ITEM(PREFIX(No_Error)) ITEM(PREFIX(GENERIC)) \
-        ITEM(PREFIX(prefix_unknown)) ITEM(PREFIX(frameParameter_unsupported)) ITEM(PREFIX(frameParameter_unsupportedBy32bitsImplementation)) \
-        ITEM(PREFIX(init_missing)) ITEM(PREFIX(memory_allocation)) ITEM(PREFIX(stage_wrong)) \
-        ITEM(PREFIX(dstSize_tooSmall)) ITEM(PREFIX(srcSize_wrong)) \
-        ITEM(PREFIX(corruption_detected)) \
-        ITEM(PREFIX(tableLog_tooLarge)) ITEM(PREFIX(maxSymbolValue_tooLarge)) ITEM(PREFIX(maxSymbolValue_tooSmall)) \
-        ITEM(PREFIX(maxCode))
-
-#define ERROR_GENERATE_ENUM(ENUM) ENUM,
-typedef enum { ERROR_LIST(ERROR_GENERATE_ENUM) } ERR_codes;  /* enum is exposed, to detect & handle specific errors; compare function result to -enum value */
-
-#define ERROR_CONVERTTOSTRING(STRING) #STRING,
-#define ERROR_GENERATE_STRING(EXPR) ERROR_CONVERTTOSTRING(EXPR)
-static const char* ERR_strings[] = { ERROR_LIST(ERROR_GENERATE_STRING) };
-
 ERR_STATIC unsigned ERR_isError(size_t code) { return (code > ERROR(maxCode)); }
+
+
+/* *****************************************
+*  Error Strings
+******************************************/
 
 ERR_STATIC const char* ERR_getErrorName(size_t code)
 {
     static const char* codeError = "Unspecified error code";
-    if (ERR_isError(code)) return ERR_strings[-(int)(code)];
-    return codeError;
+    switch( (size_t)-code )
+    {
+    case ZSTD_error_No_Error: return "No error detected";
+    case ZSTD_error_GENERIC:  return "Error (generic)";
+    case ZSTD_error_prefix_unknown: return "Unknown frame descriptor";
+    case ZSTD_error_frameParameter_unsupported: return "Unsupported frame parameter";
+    case ZSTD_error_frameParameter_unsupportedBy32bitsImplementation: return "Frame parameter unsupported in 32-bits mode";
+    case ZSTD_error_init_missing: return "Context should be init first";
+    case ZSTD_error_memory_allocation: return "Allocation error : not enough memory";
+    case ZSTD_error_dstSize_tooSmall: return "Destination buffer is too small";
+    case ZSTD_error_srcSize_wrong: return "Src size incorrect";
+    case ZSTD_error_corruption_detected: return "Corrupted block detected";
+    case ZSTD_error_tableLog_tooLarge: return "tableLog requires too much memory";
+    case ZSTD_error_maxSymbolValue_tooLarge: return "Unsupported max possible Symbol Value : too large";
+    case ZSTD_error_maxSymbolValue_tooSmall: return "Specified maxSymbolValue is too small";
+    case ZSTD_error_maxCode:
+    default: return codeError;
+    }
 }
 
 

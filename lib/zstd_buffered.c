@@ -39,7 +39,7 @@
 *  Includes
 ***************************************/
 #include <stdlib.h>
-#include "error.h"
+#include "error_private.h"
 #include "zstd_static.h"
 #include "zstd_buffered_static.h"
 
@@ -243,6 +243,8 @@ static size_t ZBUFF_compressContinue_generic(ZBUFF_CCtx* zbc,
                 zbc->stage = ZBUFFcs_load;
                 break;
             }
+        default:
+            return ERROR(GENERIC);   /* impossible */
         }
     }
 
@@ -534,6 +536,7 @@ size_t ZBUFF_decompressContinue(ZBUFF_DCtx* zbc, void* dst, size_t* maxDstSizePt
                 notDone = 0;
                 break;
             }
+        default: return ERROR(GENERIC);   /* impossible */
         }
     }
 

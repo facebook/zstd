@@ -334,7 +334,7 @@ static const ZSTD_parameters ZSTD_defaultParameters[4][ZSTD_MAX_CLEVEL+1] = {
 /* *************************************
 *  Error management
 ***************************************/
-#include "error.h"
+#include "error_public.h"
 
 
 #if defined (__cplusplus)

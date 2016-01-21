@@ -1630,6 +1630,7 @@ static size_t ZSTD_decodeLiteralsBlock(void* ctx,
             ip += litcSize;
             break;
         }
+    case bt_end:
     default:
         return (size_t)-ZSTD_ERROR_GENERIC;
     }

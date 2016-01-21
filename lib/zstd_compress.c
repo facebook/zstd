@@ -1047,8 +1047,10 @@ static U32 ZSTD_insertBt1(ZSTD_CCtx* zc, const BYTE* const ip, const U32 mls, co
     U32 dummy32;   /* to be nullified at the end */
     const U32 windowLow = zc->lowLimit;
     U32 matchEndIdx = current+8;
-    U32 predictedSmall = *(bt + 2*((current-1)&btMask) + 0) + 1;
-    U32 predictedLarge = *(bt + 2*((current-1)&btMask) + 1) + 1;
+    U32 predictedSmall = *(bt + 2*((current-1)&btMask) + 0);
+    U32 predictedLarge = *(bt + 2*((current-1)&btMask) + 1);
+    predictedSmall += (predictedSmall>0);
+    predictedLarge += (predictedLarge>0);
 
     hashTable[h] = current;   /* Update Hash Table */
 
@@ -1064,7 +1066,7 @@ static U32 ZSTD_insertBt1(ZSTD_CCtx* zc, const BYTE* const ip, const U32 mls, co
             if (matchIndex <= btLow) { smallerPtr=&dummy32; break; }   /* beyond tree size, stop the search */
             smallerPtr = nextPtr+1;               /* new "smaller" => larger of match */
             matchIndex = nextPtr[1];              /* new matchIndex larger than previous (closer to current) */
-            predictedSmall = predictPtr[1] + 1;
+            predictedSmall = predictPtr[1] + (predictPtr[1]>0);
             continue;
         }
 
@@ -1074,7 +1076,7 @@ static U32 ZSTD_insertBt1(ZSTD_CCtx* zc, const BYTE* const ip, const U32 mls, co
             if (matchIndex <= btLow) { largerPtr=&dummy32; break; }   /* beyond tree size, stop the search */
             largerPtr = nextPtr;
             matchIndex = nextPtr[0];
-            predictedLarge = predictPtr[0] + 1;
+            predictedLarge = predictPtr[0] + (predictPtr[0]>0);
             continue;
         }
 

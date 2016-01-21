@@ -351,14 +351,21 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
             crcCheck = XXH64(resultBuffer, srcSize, 0);
             if (crcOrig!=crcCheck)
             {
-                unsigned u;
-                unsigned eBlockSize = (unsigned)(MIN(65536*2, blockSize));
+                size_t u;
                 DISPLAY("\n!!! WARNING !!! %14s : Invalid Checksum : %x != %x\n", displayName, (unsigned)crcOrig, (unsigned)crcCheck);
                 for (u=0; u<srcSize; u++)
                 {
                     if (((const BYTE*)srcBuffer)[u] != ((const BYTE*)resultBuffer)[u])
                     {
-                        printf("Decoding error at pos %u (block %u, pos %u) \n", u, u / eBlockSize, u % eBlockSize);
+                        U32 bn;
+                        size_t bacc = 0;
+                        printf("Decoding error at pos %u ", (U32)u);
+                        for (bn = 0; bn < nbBlocks; bn++)
+                        {
+                            if (bacc + blockTable[bn].srcSize > u) break;
+                            bacc += blockTable[bn].srcSize;
+                        }
+                        printf("(block %u, pos %u) \n", bn, (U32)(u - bacc));
                         break;
                     }
                 }

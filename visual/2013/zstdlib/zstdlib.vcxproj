@@ -27,7 +27,6 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\lib\bitstream.h" />
-    <ClInclude Include="..\..\..\lib\error.h" />
     <ClInclude Include="..\..\..\lib\fse.h" />
     <ClInclude Include="..\..\..\lib\fse_static.h" />
     <ClInclude Include="..\..\..\lib\huff0.h" />

@@ -59,7 +59,8 @@ enum {
   ZSTD_error_maxCode
 };
 
-/* note : functions provide error codes are provided as (size_t)-enum */
+/* note : functions provide error codes in reverse negative order,
+          so compare with (size_t)(0-enum) */
 
 
 #if defined (__cplusplus)

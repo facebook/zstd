@@ -64,6 +64,9 @@ extern "C" {
 ******************************************/
 #define PREFIX(name) ZSTD_error_##name
 
+#ifdef ERROR
+#  undef ERROR   /* reported already defined on VS 2015 by Rich Geldreich */
+#endif
 #define ERROR(name) (size_t)-PREFIX(name)
 
 #define ERROR_LIST(ITEM) \

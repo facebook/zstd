@@ -799,7 +799,7 @@ size_t ZSTD_decompress(void* dst, size_t maxDstSize, const void* src, size_t src
 #else
     ZSTD_DCtx dctx;
     return ZSTD_decompressDCtx(&dctx, dst, maxDstSize, src, srcSize);
-#endif // defined
+#endif
 }
 
 

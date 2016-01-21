@@ -81,7 +81,7 @@ ERR_STATIC unsigned ERR_isError(size_t code) { return (code > ERROR(maxCode)); }
 ERR_STATIC const char* ERR_getErrorName(size_t code)
 {
     static const char* codeError = "Unspecified error code";
-    switch( (size_t)-code )
+    switch( (size_t)(0-code) )
     {
     case ZSTD_error_No_Error: return "No error detected";
     case ZSTD_error_GENERIC:  return "Error (generic)";

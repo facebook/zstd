@@ -44,10 +44,10 @@
 
 /*!
 *  LEGACY_SUPPORT :
-*  ZSTD_decompress() can decode older formats (starting from zstd 0.1+)
+*  ZSTD_decompress() can decode older formats (v0.1+) if set to 1
 */
 #ifndef ZSTD_LEGACY_SUPPORT
-#  define ZSTD_LEGACY_SUPPORT 1
+#  define ZSTD_LEGACY_SUPPORT 0
 #endif
 
 
@@ -799,7 +799,7 @@ size_t ZSTD_decompress(void* dst, size_t maxDstSize, const void* src, size_t src
 #else
     ZSTD_DCtx dctx;
     return ZSTD_decompressDCtx(&dctx, dst, maxDstSize, src, srcSize);
-#endif // defined
+#endif
 }
 
 

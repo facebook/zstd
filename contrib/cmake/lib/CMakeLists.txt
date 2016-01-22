@@ -66,7 +66,8 @@ SET(Sources
 
 SET(Headers
         ${LIBRARY_DIR}/bitstream.h
-        ${LIBRARY_DIR}/error.h
+        ${LIBRARY_DIR}/error_private.h
+        ${LIBRARY_DIR}/error_public.h
         ${LIBRARY_DIR}/fse.h
         ${LIBRARY_DIR}/fse_static.h
         ${LIBRARY_DIR}/huff0.h

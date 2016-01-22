@@ -185,13 +185,13 @@ static int basicUnitTests(U32 seed, double compressibility)
     DISPLAYLEVEL(4, "test%3i : decompress with 1 missing byte : ", testNb++);
     result = ZSTD_decompress(decodedBuffer, COMPRESSIBLE_NOISE_LENGTH, compressedBuffer, cSize-1);
     if (!ZSTD_isError(result)) goto _output_error;
-    if (result != ERROR(srcSize_wrong)) goto _output_error;
+    if (result != (size_t)-ZSTD_error_srcSize_wrong) goto _output_error;
     DISPLAYLEVEL(4, "OK \n");
 
     DISPLAYLEVEL(4, "test%3i : decompress with 1 too much byte : ", testNb++);
     result = ZSTD_decompress(decodedBuffer, COMPRESSIBLE_NOISE_LENGTH, compressedBuffer, cSize+1);
     if (!ZSTD_isError(result)) goto _output_error;
-    if (result != ERROR(srcSize_wrong)) goto _output_error;
+    if (result != (size_t)-ZSTD_error_srcSize_wrong) goto _output_error;
     DISPLAYLEVEL(4, "OK \n");
 
     /* Dictionary and Duplication tests */
@@ -259,7 +259,7 @@ static int basicUnitTests(U32 seed, double compressibility)
     DISPLAYLEVEL(4, "test%3i : Check input length for magic number : ", testNb++);
     result = ZSTD_decompress(decodedBuffer, COMPRESSIBLE_NOISE_LENGTH, CNBuffer, 3);
     if (!ZSTD_isError(result)) goto _output_error;
-    if (result != ERROR(srcSize_wrong)) goto _output_error;
+    if (result != (size_t)-ZSTD_error_srcSize_wrong) goto _output_error;
     DISPLAYLEVEL(4, "OK \n");
 
     DISPLAYLEVEL(4, "test%3i : Check magic Number : ", testNb++);

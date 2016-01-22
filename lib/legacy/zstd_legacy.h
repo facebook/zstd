@@ -40,8 +40,8 @@ extern "C" {
 /* *************************************
 *  Includes
 ***************************************/
-#include "mem.h"        /* MEM_STATIC */
-#include "error.h"      /* ERROR */
+#include "mem.h"            /* MEM_STATIC */
+#include "error_private.h"  /* ERROR */
 #include "zstd_v01.h"
 #include "zstd_v02.h"
 #include "zstd_v03.h"
@@ -51,7 +51,7 @@ MEM_STATIC unsigned ZSTD_isLegacy (U32 magicNumberLE)
 	switch(magicNumberLE)
 	{
 		case ZSTDv01_magicNumberLE :
-		case ZSTDv02_magicNumber : 
+		case ZSTDv02_magicNumber :
 		case ZSTDv03_magicNumber : return 1;
 		default : return 0;
 	}

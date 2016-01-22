@@ -41,7 +41,7 @@ extern "C" {
 *  Includes
 ***************************************/
 #include "mem.h"
-#include "error.h"
+#include "error_private.h"
 
 
 /* *************************************

@@ -284,8 +284,8 @@ static const ZSTD_parameters ZSTD_defaultParameters[4][ZSTD_MAX_CLEVEL+1] = {
     /*    W,  C,  H,  S,  L, strat */
     { 0, 17, 12, 12,  1,  4, ZSTD_fast    },  /* level  0 - never used */
     { 0, 17, 12, 13,  1,  6, ZSTD_fast    },  /* level  1 */
-    { 0, 17, 15, 16,  1,  5, ZSTD_fast    },  /* level  2 */
-    { 0, 17, 16, 17,  1,  5, ZSTD_fast    },  /* level  3 */
+    { 0, 17, 14, 16,  1,  5, ZSTD_fast    },  /* level  2 */
+    { 0, 17, 15, 17,  1,  5, ZSTD_fast    },  /* level  3 */
     { 0, 17, 13, 15,  2,  4, ZSTD_greedy  },  /* level  4 */
     { 0, 17, 15, 17,  3,  4, ZSTD_greedy  },  /* level  5 */
     { 0, 17, 14, 17,  3,  4, ZSTD_lazy    },  /* level  6 */
@@ -308,7 +308,7 @@ static const ZSTD_parameters ZSTD_defaultParameters[4][ZSTD_MAX_CLEVEL+1] = {
     /*     W,  C,  H,  S,  L, strat */
     {  0,  0,  0,  0,  0,  0, ZSTD_fast    },  /* level  0 - never used */
     {  0, 14, 14, 14,  1,  4, ZSTD_fast    },  /* level  1 */
-    {  0, 14, 14, 16,  1,  4, ZSTD_fast    },  /* level  1 */
+    {  0, 14, 14, 16,  1,  4, ZSTD_fast    },  /* level  2 */
     {  0, 14, 14, 14,  5,  4, ZSTD_greedy  },  /* level  3 */
     {  0, 14, 14, 14,  8,  4, ZSTD_greedy  },  /* level  4 */
     {  0, 14, 11, 14,  6,  4, ZSTD_lazy    },  /* level  5 */
@@ -334,7 +334,7 @@ static const ZSTD_parameters ZSTD_defaultParameters[4][ZSTD_MAX_CLEVEL+1] = {
 /* *************************************
 *  Error management
 ***************************************/
-#include "error.h"
+#include "error_public.h"
 
 
 #if defined (__cplusplus)

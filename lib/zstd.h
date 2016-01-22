@@ -44,7 +44,7 @@ extern "C" {
 
 
 /* ***************************************************************
-*  Tuning parameters
+*  Export parameters
 *****************************************************************/
 /*!
 *  ZSTD_DLL_EXPORT :
@@ -62,7 +62,7 @@ extern "C" {
 ***************************************/
 #define ZSTD_VERSION_MAJOR    0    /* for breaking interface changes  */
 #define ZSTD_VERSION_MINOR    4    /* for new (non-breaking) interface capabilities */
-#define ZSTD_VERSION_RELEASE  6    /* for tweaks, bug-fixes, or development */
+#define ZSTD_VERSION_RELEASE  7    /* for tweaks, bug-fixes, or development */
 #define ZSTD_VERSION_NUMBER  (ZSTD_VERSION_MAJOR *100*100 + ZSTD_VERSION_MINOR *100 + ZSTD_VERSION_RELEASE)
 ZSTDLIB_API unsigned ZSTD_versionNumber (void);
 

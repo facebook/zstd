@@ -220,10 +220,12 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
 {
     const size_t blockSize = (g_blockSize ? g_blockSize : srcSize) + (!srcSize);   /* avoid div by 0 */
     const U32 maxNbBlocks = (U32) ((srcSize + (blockSize-1)) / blockSize) + nbFiles;
+    size_t largestBlockSize = 0;
     blockParam_t* const blockTable = (blockParam_t*) malloc(maxNbBlocks * sizeof(blockParam_t));
     const size_t maxCompressedSize = ZSTD_compressBound(srcSize) + (maxNbBlocks * 1024);   /* add some room for safety */
     void* const compressedBuffer = malloc(maxCompressedSize);
     void* const resultBuffer = malloc(srcSize);
+    ZSTD_CCtx* refCtx = ZSTD_createCCtx();
     ZSTD_CCtx* ctx = ZSTD_createCCtx();
     ZSTD_DCtx* dctx = ZSTD_createDCtx();
     U64 crcOrig = XXH64(srcBuffer, srcSize, 0);
@@ -233,7 +235,7 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
     if (strlen(displayName)>17) displayName += strlen(displayName)-17;   /* can only display 17 characters */
 
     /* Memory allocation & restrictions */
-    if (!compressedBuffer || !resultBuffer || !blockTable || !ctx || !dctx)
+    if (!compressedBuffer || !resultBuffer || !blockTable || !refCtx || !ctx || !dctx)
         EXM_THROW(31, "not enough memory");
 
     /* Init blockTable data */
@@ -259,6 +261,7 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
                 cPtr += blockTable[nbBlocks].cRoom;
                 resPtr += thisBlockSize;
                 remaining -= thisBlockSize;
+                if (thisBlockSize > largestBlockSize) largestBlockSize = thisBlockSize;
             }
         }
     }
@@ -291,12 +294,27 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
             milliTime = BMK_GetMilliStart();
             while (BMK_GetMilliSpan(milliTime) < TIMELOOP)
             {
+                ZSTD_compressBegin_advanced(refCtx, ZSTD_getParams(cLevel, dictBufferSize+largestBlockSize));
+                ZSTD_compress_insertDictionary(refCtx, dictBuffer, dictBufferSize);
                 for (blockNb=0; blockNb<nbBlocks; blockNb++)
-                    blockTable[blockNb].cSize = ZSTD_compress_usingDict(ctx,
+                {
+                    ZSTD_duplicateCCtx(ctx, refCtx);
+                    size_t rSize = ZSTD_compressContinue(ctx,
+                                          blockTable[blockNb].cPtr,  blockTable[blockNb].cRoom,
+                                          blockTable[blockNb].srcPtr,blockTable[blockNb].srcSize);
+                    if (ZSTD_isError(rSize)) EXM_THROW(1, "ZSTD_compressContinue() failed : %s", ZSTD_getErrorName(rSize));
+                    blockTable[blockNb].cSize = rSize;
+                    rSize = ZSTD_compressEnd(ctx,
+                                          blockTable[blockNb].cPtr  + rSize,
+                                          blockTable[blockNb].cRoom - rSize);
+                    if (ZSTD_isError(rSize)) EXM_THROW(2, "ZSTD_compressEnd() failed : %s", ZSTD_getErrorName(rSize));
+                    blockTable[blockNb].cSize += rSize;
+                }
+                    /*blockTable[blockNb].cSize = ZSTD_compress_usingDict(ctx,
                                                               blockTable[blockNb].cPtr,  blockTable[blockNb].cRoom,
                                                               blockTable[blockNb].srcPtr,blockTable[blockNb].srcSize,
                                                               dictBuffer, dictBufferSize,
-                                                              cLevel);
+                                                              cLevel);*/
                 nbLoops++;
             }
             milliTime = BMK_GetMilliSpan(milliTime);
@@ -333,14 +351,21 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
             crcCheck = XXH64(resultBuffer, srcSize, 0);
             if (crcOrig!=crcCheck)
             {
-                unsigned u;
-                unsigned eBlockSize = (unsigned)(MIN(65536*2, blockSize));
+                size_t u;
                 DISPLAY("\n!!! WARNING !!! %14s : Invalid Checksum : %x != %x\n", displayName, (unsigned)crcOrig, (unsigned)crcCheck);
                 for (u=0; u<srcSize; u++)
                 {
                     if (((const BYTE*)srcBuffer)[u] != ((const BYTE*)resultBuffer)[u])
                     {
-                        printf("Decoding error at pos %u (block %u, pos %u) \n", u, u / eBlockSize, u % eBlockSize);
+                        U32 bn;
+                        size_t bacc = 0;
+                        printf("Decoding error at pos %u ", (U32)u);
+                        for (bn = 0; bn < nbBlocks; bn++)
+                        {
+                            if (bacc + blockTable[bn].srcSize > u) break;
+                            bacc += blockTable[bn].srcSize;
+                        }
+                        printf("(block %u, pos %u) \n", bn, (U32)(u - bacc));
                         break;
                     }
                 }
@@ -358,6 +383,7 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
     /* clean up */
     free(compressedBuffer);
     free(resultBuffer);
+    ZSTD_freeCCtx(refCtx);
     ZSTD_freeCCtx(ctx);
     ZSTD_freeDCtx(dctx);
     return 0;

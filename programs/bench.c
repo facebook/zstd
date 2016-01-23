@@ -357,15 +357,17 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
                 {
                     if (((const BYTE*)srcBuffer)[u] != ((const BYTE*)resultBuffer)[u])
                     {
-                        U32 bn;
+                        U32 segNb, bNb, pos;
                         size_t bacc = 0;
                         printf("Decoding error at pos %u ", (U32)u);
-                        for (bn = 0; bn < nbBlocks; bn++)
+                        for (segNb = 0; segNb < nbBlocks; segNb++)
                         {
-                            if (bacc + blockTable[bn].srcSize > u) break;
-                            bacc += blockTable[bn].srcSize;
+                            if (bacc + blockTable[segNb].srcSize > u) break;
+                            bacc += blockTable[segNb].srcSize;
                         }
-                        printf("(block %u, pos %u) \n", bn, (U32)(u - bacc));
+                        pos = (U32)(u - bacc);
+                        bNb = pos / (128 KB);
+                        printf("(segment %u, block %u, pos %u) \n", segNb, bNb, pos);
                         break;
                     }
                 }

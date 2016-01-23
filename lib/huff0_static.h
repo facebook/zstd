@@ -1,7 +1,7 @@
 /* ******************************************************************
-   Huff0 : Huffman coder, part of New Generation Entropy library
-   header file for static linking (only)
-   Copyright (C) 2013-2015, Yann Collet
+   Huff0 : Huffman codec, part of New Generation Entropy library
+   header file, for static linking only
+   Copyright (C) 2013-2016, Yann Collet
 
    BSD 2-Clause License (http://www.opensource.org/licenses/bsd-license.php)
 
@@ -30,7 +30,6 @@
 
    You can contact the author at :
    - Source repository : https://github.com/Cyan4973/FiniteStateEntropy
-   - Public forum : https://groups.google.com/forum/#!forum/lz4c
 ****************************************************************** */
 #ifndef HUFF0_STATIC_H
 #define HUFF0_STATIC_H
@@ -47,15 +46,21 @@ extern "C" {
 
 
 /* ****************************************
-*  Static allocation macros
+*  Static allocation
 ******************************************/
 /* Huff0 buffer bounds */
 #define HUF_CTABLEBOUND 129
 #define HUF_BLOCKBOUND(size) (size + (size>>8) + 8)   /* only true if incompressible pre-filtered with fast heuristic */
 #define HUF_COMPRESSBOUND(size) (HUF_CTABLEBOUND + HUF_BLOCKBOUND(size))   /* Macro version, useful for static allocation */
 
+/* static allocation of Huff0's Compression Table */
+#define HUF_CREATE_STATIC_CTABLE(name, maxSymbolValue) \
+    U32 name##hb[maxSymbolValue+1]; \
+    void* name##hv = &(name##hb); \
+    HUF_CElt* name = (HUF_CElt*)(name##hv)   /* no final ; */
+
 /* static allocation of Huff0's DTable */
-#define HUF_DTABLE_SIZE(maxTableLog)   (1 + (1<<maxTableLog))  /* nb Cells; use unsigned short for X2, unsigned int for X4 */
+#define HUF_DTABLE_SIZE(maxTableLog)   (1 + (1<<maxTableLog))
 #define HUF_CREATE_STATIC_DTABLEX2(DTable, maxTableLog) \
         unsigned short DTable[HUF_DTABLE_SIZE(maxTableLog)] = { maxTableLog }
 #define HUF_CREATE_STATIC_DTABLEX4(DTable, maxTableLog) \
@@ -113,6 +118,10 @@ size_t HUF_decompress1X6 (void* dst, size_t dstSize, const void* cSrc, size_t cS
 size_t HUF_decompress4X2_usingDTable(void* dst, size_t maxDstSize, const void* cSrc, size_t cSrcSize, const unsigned short* DTable);
 size_t HUF_decompress4X4_usingDTable(void* dst, size_t maxDstSize, const void* cSrc, size_t cSrcSize, const unsigned* DTable);
 size_t HUF_decompress4X6_usingDTable(void* dst, size_t maxDstSize, const void* cSrc, size_t cSrcSize, const unsigned* DTable);
+
+size_t HUF_decompress1X2_usingDTable(void* dst, size_t maxDstSize, const void* cSrc, size_t cSrcSize, const unsigned short* DTable);
+size_t HUF_decompress1X4_usingDTable(void* dst, size_t maxDstSize, const void* cSrc, size_t cSrcSize, const unsigned* DTable);
+size_t HUF_decompress1X6_usingDTable(void* dst, size_t maxDstSize, const void* cSrc, size_t cSrcSize, const unsigned* DTable);
 
 
 #if defined (__cplusplus)

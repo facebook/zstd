@@ -49,7 +49,6 @@
 #  pragma warning(disable : 4127)        /* disable: C4127: conditional expression is constant */
 #else
 #  ifdef __GNUC__
-#    define GCC_VERSION (__GNUC__ * 100 + __GNUC_MINOR__)
 #    define FORCE_INLINE static inline __attribute__((always_inline))
 #  else
 #    define FORCE_INLINE static inline
@@ -512,7 +511,7 @@ size_t HUF_compress2 (void* dst, size_t dstSize,
     op += errorCode;
 
     /* Compress */
-    //errorCode = HUF_compress_usingCTable(op, oend - op, src, srcSize, CTable);   /* single segment */
+    //if (srcSize < MIN_4STREAMS) errorCode = HUF_compress_usingCTable(op, oend - op, src, srcSize, CTable); else  /* single segment */
     errorCode = HUF_compress_into4Segments(op, oend - op, src, srcSize, CTable);
     if (HUF_isError(errorCode)) return errorCode;
     if (errorCode==0) return 0;
@@ -531,7 +530,7 @@ size_t HUF_compress (void* dst, size_t maxDstSize, const void* src, size_t srcSi
 }
 
 
-/*********************************************************
+/* *******************************************************
 *  Huff0 : Huffman block decompression
 *********************************************************/
 typedef struct { BYTE byte; BYTE nbBits; } HUF_DEltX2;   /* single-symbol decoding */
@@ -621,9 +620,9 @@ static size_t HUF_readStats(BYTE* huffWeight, size_t hwSize, U32* rankStats,
 }
 
 
-/**************************/
+/* ************************/
 /* single-symbol decoding */
-/**************************/
+/* ************************/
 
 size_t HUF_readDTableX2 (U16* DTable, const void* src, size_t srcSize)
 {
@@ -866,9 +865,9 @@ size_t HUF_decompress4X2 (void* dst, size_t dstSize, const void* cSrc, size_t cS
 }
 
 
-/***************************/
+/* *************************/
 /* double-symbols decoding */
-/***************************/
+/* *************************/
 
 static void HUF_fillDTableX4Level2(HUF_DEltX4* DTable, U32 sizeLog, const U32 consumed,
                            const U32* rankValOrigin, const int minWeight,
@@ -1266,9 +1265,9 @@ size_t HUF_decompress4X4 (void* dst, size_t dstSize, const void* cSrc, size_t cS
 }
 
 
-/**********************************/
+/* ********************************/
 /* quad-symbol decoding           */
-/**********************************/
+/* ********************************/
 typedef struct { BYTE nbBits; BYTE nbBytes; } HUF_DDescX6;
 typedef union { BYTE byte[4]; U32 sequence; } HUF_DSeqX6;
 
@@ -1657,9 +1656,9 @@ size_t HUF_decompress4X6 (void* dst, size_t dstSize, const void* cSrc, size_t cS
 }
 
 
-/**********************************/
+/* ********************************/
 /* Generic decompression selector */
-/**********************************/
+/* ********************************/
 
 typedef struct { U32 tableTime; U32 decode256Time; } algo_time_t;
 static const algo_time_t algoTime[16 /* Quantization */][3 /* single, double, quad */] =

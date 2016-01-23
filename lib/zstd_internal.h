@@ -42,6 +42,7 @@ extern "C" {
 ***************************************/
 #include "mem.h"
 #include "error_private.h"
+#include "zstd_static.h"
 
 
 /* *************************************
@@ -73,8 +74,10 @@ static const size_t ZSTD_frameHeaderSize_min = 5;
 #define BIT1   2
 #define BIT0   1
 
-#define IS_RAW BIT0
-#define IS_RLE BIT1
+#define IS_HUF 0
+#define IS_PCH 1
+#define IS_RAW 2
+#define IS_RLE 3
 
 #define MINMATCH 4
 #define REPCODE_STARTVALUE 4
@@ -104,7 +107,7 @@ static void ZSTD_copy8(void* dst, const void* src) { memcpy(dst, src, 8); }
 #define COPY8(d,s) { ZSTD_copy8(d,s); d+=8; s+=8; }
 
 /*! ZSTD_wildcopy : custom version of memcpy(), can copy up to 7-8 bytes too many */
-static void ZSTD_wildcopy(void* dst, const void* src, size_t length)
+MEM_STATIC void ZSTD_wildcopy(void* dst, const void* src, size_t length)
 {
     const BYTE* ip = (const BYTE*)src;
     BYTE* op = (BYTE*)dst;

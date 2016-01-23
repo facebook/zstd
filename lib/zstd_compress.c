@@ -40,7 +40,6 @@
 #  include <intrin.h>                    /* For Visual 2005 */
 #  pragma warning(disable : 4127)        /* disable: C4127: conditional expression is constant */
 #else
-#  define GCC_VERSION (__GNUC__ * 100 + __GNUC_MINOR__)
 #  ifdef __GNUC__
 #    define FORCE_INLINE static inline __attribute__((always_inline))
 #  else
@@ -64,8 +63,15 @@
 /* *************************************
 *  Constants
 ***************************************/
-ZSTDLIB_API unsigned ZSTD_maxCLevel(void) { return ZSTD_MAX_CLEVEL; }
 static const U32 g_searchStrength = 8;
+
+
+/* *************************************
+*  Helper functions
+***************************************/
+unsigned ZSTD_maxCLevel(void) { return ZSTD_MAX_CLEVEL; }
+
+size_t ZSTD_compressBound(size_t srcSize) { return FSE_compressBound(srcSize) + 12; }
 
 
 /* *************************************
@@ -115,7 +121,6 @@ struct ZSTD_CCtx_s
     size_t blockSize;
     size_t hbSize;
     char headerBuffer[ZSTD_frameHeaderSize_max];
-
 
     seqStore_t seqStore;    /* sequences storage ptrs */
     U32* hashTable;
@@ -236,11 +241,64 @@ static void ZSTD_reduceIndex (ZSTD_CCtx* zc,
 /* *******************************************************
 *  Block entropic compression
 *********************************************************/
-size_t ZSTD_compressBound(size_t srcSize)   /* maximum compressed size */
-{
-    return FSE_compressBound(srcSize) + 12;
-}
 
+/* Block format description
+
+   Block = Literal Section - Sequences Section
+   Prerequisite : size of (compressed) block, maximum size of regenerated data
+
+   1) Literal Section
+
+   1.1) Header : 1-5 bytes
+        flags: 2 bits
+            00 compressed by Huff0
+            01 unused
+            10 is Raw (uncompressed)
+            11 is Rle
+            Note : using 01 => Huff0 with precomputed table ?
+            Note : delta map ? => compressed ?
+
+   1.1.1) Huff0-compressed literal block : 3-5 bytes
+            srcSize < 1 KB => 3 bytes (2-2-10-10)
+            srcSize < 17KB => 4 bytes (2-2-14-14)
+            else           => 5 bytes (2-2-18-18)
+            big endian convention
+
+   1.1.2) Raw (uncompressed) literal block header : 1-3 bytes
+        size :  5 bits: (IS_RAW<<6) + (0<<4) + size
+               12 bits: (IS_RAW<<6) + (2<<4) + (size>>8)
+                        size&255
+               20 bits: (IS_RAW<<6) + (3<<4) + (size>>16)
+                        size>>8&255
+                        size&255
+
+   1.1.3) Rle (repeated single byte) literal block header : 1-3 bytes
+        size :  5 bits: (IS_RLE<<6) + (0<<4) + size
+               12 bits: (IS_RLE<<6) + (2<<4) + (size>>8)
+                        size&255
+               20 bits: (IS_RLE<<6) + (3<<4) + (size>>16)
+                        size>>8&255
+                        size&255
+
+   1.1.4) Unused
+        Use Huff0 w/ precalculated DTable ?
+        FSE ? => probably not, not efficient on literals
+
+   1.2) Literal block content
+
+   1.2.1) Huff0 block, using sizes from header
+        See Huff0 format
+
+   1.2.2) Raw content
+
+   1.2.3) single byte
+
+   1.2.4) _usingDTable variant ?
+
+
+   2) Sequences section
+      TO DO
+*/
 
 size_t ZSTD_noCompressBlock (void* dst, size_t maxDstSize, const void* src, size_t srcSize)
 {
@@ -262,23 +320,59 @@ size_t ZSTD_noCompressBlock (void* dst, size_t maxDstSize, const void* src, size
 static size_t ZSTD_noCompressLiterals (void* dst, size_t maxDstSize, const void* src, size_t srcSize)
 {
     BYTE* const ostart = (BYTE* const)dst;
+    const U32 flSize = 1 + (srcSize>31) + (srcSize>4095);
 
-    if (srcSize + 3 > maxDstSize) return ERROR(dstSize_tooSmall);
+    if (srcSize + flSize > maxDstSize) return ERROR(dstSize_tooSmall);
 
-    MEM_writeLE32(dst, ((U32)srcSize << 2) | IS_RAW);
-    memcpy(ostart + 3, src, srcSize);
-    return srcSize + 3;
+    switch(flSize)
+    {
+        case 1: /* 2 - 1 - 5 */
+            ostart[0] = (BYTE)((IS_RAW<<6) + (0<<5) + srcSize);
+            break;
+        case 2: /* 2 - 2 - 12 */
+            ostart[0] = (BYTE)((IS_RAW<<6) + (2<<4) + (srcSize >> 8));
+            ostart[1] = (BYTE)srcSize;
+            break;
+        default:   /*note : should not be necessary : flSize is within {1,2,3} */
+        case 3: /* 2 - 2 - 20 */
+            ostart[0] = (BYTE)((IS_RAW<<6) + (3<<4) + (srcSize >> 16));
+            ostart[1] = (BYTE)(srcSize>>8);
+            ostart[2] = (BYTE)srcSize;
+            break;
+    }
+
+    memcpy(ostart + flSize, src, srcSize);
+    return srcSize + flSize;
 }
 
 static size_t ZSTD_compressRleLiteralsBlock (void* dst, size_t maxDstSize, const void* src, size_t srcSize)
 {
     BYTE* const ostart = (BYTE* const)dst;
+    U32 flSize = 1 + (srcSize>31) + (srcSize>4095);
 
-    (void)maxDstSize;
-    MEM_writeLE32(dst, ((U32)srcSize << 2) | IS_RLE);  /* note : maxDstSize > litHeaderSize > 4 */
-    ostart[3] = *(const BYTE*)src;
-    return 4;
+    (void)maxDstSize;  /* maxDstSize guaranteed to be >=4, hence large enough ? */
+
+    switch(flSize)
+    {
+        case 1: /* 2 - 1 - 5 */
+            ostart[0] = (BYTE)((IS_RLE<<6) + (0<<5) + srcSize);
+            break;
+        case 2: /* 2 - 2 - 12 */
+            ostart[0] = (BYTE)((IS_RLE<<6) + (2<<4) + (srcSize >> 8));
+            ostart[1] = (BYTE)srcSize;
+            break;
+        default:   /*note : should not be necessary : flSize is necessary within {1,2,3} */
+        case 3: /* 2 - 2 - 20 */
+            ostart[0] = (BYTE)((IS_RLE<<6) + (3<<4) + (srcSize >> 16));
+            ostart[1] = (BYTE)(srcSize>>8);
+            ostart[2] = (BYTE)srcSize;
+            break;
+    }
+
+    ostart[flSize] = *(const BYTE*)src;
+    return flSize+1;
 }
+
 
 size_t ZSTD_minGain(size_t srcSize) { return (srcSize >> 6) + 1; }
 
@@ -287,27 +381,41 @@ static size_t ZSTD_compressLiterals (void* dst, size_t maxDstSize,
 {
     const size_t minGain = ZSTD_minGain(srcSize);
     BYTE* const ostart = (BYTE*)dst;
-    size_t hsize;
-    static const size_t litHeaderSize = 5;
+    size_t lhSize = 3 + (srcSize >= 1 KB) + (srcSize >= 16 KB);
+    size_t clitSize;
 
-    if (maxDstSize < litHeaderSize+1) return ERROR(dstSize_tooSmall);   /* not enough space for compression */
+    if (maxDstSize < 4) return ERROR(dstSize_tooSmall);   /* not enough space for compression */
 
-    hsize = HUF_compress(ostart+litHeaderSize, maxDstSize-litHeaderSize, src, srcSize);
+    clitSize = HUF_compress(ostart+lhSize, maxDstSize-lhSize, src, srcSize);
 
-    if ((hsize==0) || (hsize >= srcSize - minGain)) return ZSTD_noCompressLiterals(dst, maxDstSize, src, srcSize);
-    if (hsize==1) return ZSTD_compressRleLiteralsBlock(dst, maxDstSize, src, srcSize);
+    if ((clitSize==0) || (clitSize >= srcSize - minGain)) return ZSTD_noCompressLiterals(dst, maxDstSize, src, srcSize);
+    if (clitSize==1) return ZSTD_compressRleLiteralsBlock(dst, maxDstSize, src, srcSize);
 
     /* Build header */
+    switch(lhSize)
     {
-        ostart[0]  = (BYTE)(srcSize << 2); /* is a block, is compressed */
-        ostart[1]  = (BYTE)(srcSize >> 6);
-        ostart[2]  = (BYTE)(srcSize >>14);
-        ostart[2] += (BYTE)(hsize << 5);
-        ostart[3]  = (BYTE)(hsize >> 3);
-        ostart[4]  = (BYTE)(hsize >>11);
+    case 3: /* 2 - 2 - 10 - 10 */
+        ostart[0] = (BYTE) (srcSize>>6) + (0<< 4);
+        ostart[1] = (BYTE)((srcSize<<2) + (clitSize>>8));
+        ostart[2] = (BYTE)(clitSize);
+        break;
+    case 4: /* 2 - 2 - 14 - 14 */
+        ostart[0] = (BYTE)(srcSize>>10) + (2<<4);
+        ostart[1] = (BYTE)(srcSize>> 2);
+        ostart[2] = (BYTE)((srcSize<<6) + (clitSize>>8));
+        ostart[3] = (BYTE)(clitSize);
+        break;
+    default:   /* should not be necessary, lhSize is {3,4,5} */
+    case 5: /* 2 - 2 - 18 - 18 */
+        ostart[0] = (BYTE)(srcSize>>14) + (3<<4);
+        ostart[1] = (BYTE)(srcSize>>6);
+        ostart[2] = (BYTE)((srcSize<<2) + (clitSize>>16));
+        ostart[3] = (BYTE)(clitSize>>8);
+        ostart[4] = (BYTE)(clitSize);
+        break;
     }
 
-    return hsize+litHeaderSize;
+    return lhSize+clitSize;
 }
 
 
@@ -754,8 +862,7 @@ static void ZSTD_fillHashTable (ZSTD_CCtx* zc, const void* end, const U32 mls)
 
 
 FORCE_INLINE
-size_t ZSTD_compressBlock_fast_generic(ZSTD_CCtx* zc,
-                                       void* dst, size_t maxDstSize,
+void ZSTD_compressBlock_fast_generic(ZSTD_CCtx* zc,
                                  const void* src, size_t srcSize,
                                  const U32 mls)
 {
@@ -848,38 +955,32 @@ size_t ZSTD_compressBlock_fast_generic(ZSTD_CCtx* zc,
         memcpy(seqStorePtr->lit, anchor, lastLLSize);
         seqStorePtr->lit += lastLLSize;
     }
-
-    /* Finale compression stage */
-    return ZSTD_compressSequences(dst, maxDstSize,
-                                  seqStorePtr, srcSize);
 }
 
 
-size_t ZSTD_compressBlock_fast(ZSTD_CCtx* ctx,
-                               void* dst, size_t maxDstSize,
-                         const void* src, size_t srcSize)
+void ZSTD_compressBlock_fast(ZSTD_CCtx* ctx,
+                       const void* src, size_t srcSize)
 {
     const U32 mls = ctx->params.searchLength;
     switch(mls)
     {
     default:
     case 4 :
-        return ZSTD_compressBlock_fast_generic(ctx, dst, maxDstSize, src, srcSize, 4);
+        ZSTD_compressBlock_fast_generic(ctx, src, srcSize, 4); return;
     case 5 :
-        return ZSTD_compressBlock_fast_generic(ctx, dst, maxDstSize, src, srcSize, 5);
+        ZSTD_compressBlock_fast_generic(ctx, src, srcSize, 5); return;
     case 6 :
-        return ZSTD_compressBlock_fast_generic(ctx, dst, maxDstSize, src, srcSize, 6);
+        ZSTD_compressBlock_fast_generic(ctx, src, srcSize, 6); return;
     case 7 :
-        return ZSTD_compressBlock_fast_generic(ctx, dst, maxDstSize, src, srcSize, 7);
+        ZSTD_compressBlock_fast_generic(ctx, src, srcSize, 7); return;
     }
 }
 
 
 //FORCE_INLINE
-size_t ZSTD_compressBlock_fast_extDict_generic(ZSTD_CCtx* ctx,
-                                          void* dst, size_t maxDstSize,
-                                    const void* src, size_t srcSize,
-                                    const U32 mls)
+void ZSTD_compressBlock_fast_extDict_generic(ZSTD_CCtx* ctx,
+                                 const void* src, size_t srcSize,
+                                 const U32 mls)
 {
     U32* hashTable = ctx->hashTable;
     const U32 hBits = ctx->params.hashLog;
@@ -989,15 +1090,10 @@ size_t ZSTD_compressBlock_fast_extDict_generic(ZSTD_CCtx* ctx,
         memcpy(seqStorePtr->lit, anchor, lastLLSize);
         seqStorePtr->lit += lastLLSize;
     }
-
-    /* Finale compression stage */
-    return ZSTD_compressSequences(dst, maxDstSize,
-                                  seqStorePtr, srcSize);
 }
 
 
-size_t ZSTD_compressBlock_fast_extDict(ZSTD_CCtx* ctx,
-                               void* dst, size_t maxDstSize,
+void ZSTD_compressBlock_fast_extDict(ZSTD_CCtx* ctx,
                          const void* src, size_t srcSize)
 {
     const U32 mls = ctx->params.searchLength;
@@ -1005,13 +1101,13 @@ size_t ZSTD_compressBlock_fast_extDict(ZSTD_CCtx* ctx,
     {
     default:
     case 4 :
-        return ZSTD_compressBlock_fast_extDict_generic(ctx, dst, maxDstSize, src, srcSize, 4);
+        return ZSTD_compressBlock_fast_extDict_generic(ctx, src, srcSize, 4);
     case 5 :
-        return ZSTD_compressBlock_fast_extDict_generic(ctx, dst, maxDstSize, src, srcSize, 5);
+        return ZSTD_compressBlock_fast_extDict_generic(ctx, src, srcSize, 5);
     case 6 :
-        return ZSTD_compressBlock_fast_extDict_generic(ctx, dst, maxDstSize, src, srcSize, 6);
+        return ZSTD_compressBlock_fast_extDict_generic(ctx, src, srcSize, 6);
     case 7 :
-        return ZSTD_compressBlock_fast_extDict_generic(ctx, dst, maxDstSize, src, srcSize, 7);
+        return ZSTD_compressBlock_fast_extDict_generic(ctx, src, srcSize, 7);
     }
 }
 
@@ -1415,8 +1511,8 @@ FORCE_INLINE size_t ZSTD_HcFindBestMatch_extDict_selectMLS (
 *  Common parser - lazy strategy
 *********************************/
 FORCE_INLINE
-size_t ZSTD_compressBlock_lazy_generic(ZSTD_CCtx* ctx,
-                                     void* dst, size_t maxDstSize, const void* src, size_t srcSize,
+void ZSTD_compressBlock_lazy_generic(ZSTD_CCtx* ctx,
+                                     const void* src, size_t srcSize,
                                      const U32 searchMethod, const U32 depth)
 {
     seqStore_t* seqStorePtr = &(ctx->seqStore);
@@ -1559,36 +1655,32 @@ _storeSequence:
         memcpy(seqStorePtr->lit, anchor, lastLLSize);
         seqStorePtr->lit += lastLLSize;
     }
-
-    /* Final compression stage */
-    return ZSTD_compressSequences(dst, maxDstSize,
-                                  seqStorePtr, srcSize);
 }
 
-size_t ZSTD_compressBlock_btlazy2(ZSTD_CCtx* ctx, void* dst, size_t maxDstSize, const void* src, size_t srcSize)
+static void ZSTD_compressBlock_btlazy2(ZSTD_CCtx* ctx, const void* src, size_t srcSize)
 {
-    return ZSTD_compressBlock_lazy_generic(ctx, dst, maxDstSize, src, srcSize, 1, 2);
+    return ZSTD_compressBlock_lazy_generic(ctx, src, srcSize, 1, 2);
 }
 
-size_t ZSTD_compressBlock_lazy2(ZSTD_CCtx* ctx, void* dst, size_t maxDstSize, const void* src, size_t srcSize)
+static void ZSTD_compressBlock_lazy2(ZSTD_CCtx* ctx, const void* src, size_t srcSize)
 {
-    return ZSTD_compressBlock_lazy_generic(ctx, dst, maxDstSize, src, srcSize, 0, 2);
+    return ZSTD_compressBlock_lazy_generic(ctx, src, srcSize, 0, 2);
 }
 
-size_t ZSTD_compressBlock_lazy(ZSTD_CCtx* ctx, void* dst, size_t maxDstSize, const void* src, size_t srcSize)
+static void ZSTD_compressBlock_lazy(ZSTD_CCtx* ctx, const void* src, size_t srcSize)
 {
-    return ZSTD_compressBlock_lazy_generic(ctx, dst, maxDstSize, src, srcSize, 0, 1);
+    return ZSTD_compressBlock_lazy_generic(ctx, src, srcSize, 0, 1);
 }
 
-size_t ZSTD_compressBlock_greedy(ZSTD_CCtx* ctx, void* dst, size_t maxDstSize, const void* src, size_t srcSize)
+static void ZSTD_compressBlock_greedy(ZSTD_CCtx* ctx, const void* src, size_t srcSize)
 {
-    return ZSTD_compressBlock_lazy_generic(ctx, dst, maxDstSize, src, srcSize, 0, 0);
+    return ZSTD_compressBlock_lazy_generic(ctx, src, srcSize, 0, 0);
 }
 
 
 FORCE_INLINE
-size_t ZSTD_compressBlock_lazy_extDict_generic(ZSTD_CCtx* ctx,
-                                     void* dst, size_t maxDstSize, const void* src, size_t srcSize,
+void ZSTD_compressBlock_lazy_extDict_generic(ZSTD_CCtx* ctx,
+                                     const void* src, size_t srcSize,
                                      const U32 searchMethod, const U32 depth)
 {
     seqStore_t* seqStorePtr = &(ctx->seqStore);
@@ -1778,36 +1870,32 @@ _storeSequence:
         memcpy(seqStorePtr->lit, anchor, lastLLSize);
         seqStorePtr->lit += lastLLSize;
     }
-
-    /* Final compression stage */
-    return ZSTD_compressSequences(dst, maxDstSize,
-                                  seqStorePtr, srcSize);
 }
 
-size_t ZSTD_compressBlock_greedy_extDict(ZSTD_CCtx* ctx, void* dst, size_t maxDstSize, const void* src, size_t srcSize)
+void ZSTD_compressBlock_greedy_extDict(ZSTD_CCtx* ctx, const void* src, size_t srcSize)
 {
-    return ZSTD_compressBlock_lazy_extDict_generic(ctx, dst, maxDstSize, src, srcSize, 0, 0);
+    return ZSTD_compressBlock_lazy_extDict_generic(ctx, src, srcSize, 0, 0);
 }
 
-size_t ZSTD_compressBlock_lazy_extDict(ZSTD_CCtx* ctx, void* dst, size_t maxDstSize, const void* src, size_t srcSize)
+static void ZSTD_compressBlock_lazy_extDict(ZSTD_CCtx* ctx, const void* src, size_t srcSize)
 {
-    return ZSTD_compressBlock_lazy_extDict_generic(ctx, dst, maxDstSize, src, srcSize, 0, 1);
+    return ZSTD_compressBlock_lazy_extDict_generic(ctx, src, srcSize, 0, 1);
 }
 
-size_t ZSTD_compressBlock_lazy2_extDict(ZSTD_CCtx* ctx, void* dst, size_t maxDstSize, const void* src, size_t srcSize)
+static void ZSTD_compressBlock_lazy2_extDict(ZSTD_CCtx* ctx, const void* src, size_t srcSize)
 {
-    return ZSTD_compressBlock_lazy_extDict_generic(ctx, dst, maxDstSize, src, srcSize, 0, 2);
+    return ZSTD_compressBlock_lazy_extDict_generic(ctx, src, srcSize, 0, 2);
 }
 
-static size_t ZSTD_compressBlock_btlazy2_extDict(ZSTD_CCtx* ctx, void* dst, size_t maxDstSize, const void* src, size_t srcSize)
+static void ZSTD_compressBlock_btlazy2_extDict(ZSTD_CCtx* ctx, const void* src, size_t srcSize)
 {
-    return ZSTD_compressBlock_lazy_extDict_generic(ctx, dst, maxDstSize, src, srcSize, 1, 2);
+    return ZSTD_compressBlock_lazy_extDict_generic(ctx, src, srcSize, 1, 2);
 }
 
 
-typedef size_t (*ZSTD_blockCompressor) (ZSTD_CCtx* ctx, void* dst, size_t maxDstSize, const void* src, size_t srcSize);
+typedef void (*ZSTD_blockCompressor) (ZSTD_CCtx* ctx, const void* src, size_t srcSize);
 
-static ZSTD_blockCompressor ZSTD_selectBlockCompressor(ZSTD_strategy strat, int extDict)
+ZSTD_blockCompressor ZSTD_selectBlockCompressor(ZSTD_strategy strat, int extDict)
 {
     static const ZSTD_blockCompressor blockCompressor[2][5] = {
         { ZSTD_compressBlock_fast, ZSTD_compressBlock_greedy, ZSTD_compressBlock_lazy,ZSTD_compressBlock_lazy2, ZSTD_compressBlock_btlazy2 },
@@ -1822,7 +1910,8 @@ static size_t ZSTD_compressBlock_internal(ZSTD_CCtx* zc, void* dst, size_t maxDs
 {
     ZSTD_blockCompressor blockCompressor = ZSTD_selectBlockCompressor(zc->params.strategy, zc->lowLimit < zc->dictLimit);
     if (srcSize < MIN_CBLOCK_SIZE+3) return 0;   /* don't even attempt compression below a certain srcSize */
-    return blockCompressor(zc, dst, maxDstSize, src, srcSize);
+    blockCompressor(zc, src, srcSize);
+    return ZSTD_compressSequences(dst, maxDstSize, &(zc->seqStore), srcSize);
 }
 
 

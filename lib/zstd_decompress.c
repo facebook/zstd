@@ -171,6 +171,49 @@ size_t ZSTD_freeDCtx(ZSTD_DCtx* dctx)
 /* *************************************************************
 *   Decompression section
 ***************************************************************/
+
+/* Frame format description
+   Frame Header -  [ Block Header - Block ] - Frame End
+   1) Frame Header
+      - 4 bytes - Magic Number : ZSTD_MAGICNUMBER (defined within zstd_internal.h)
+      - 1 byte  - Window Descriptor
+   2) Block Header
+      - 3 bytes, starting with a 2-bits descriptor
+                 Uncompressed, Compressed, Frame End, unused
+   3) Block
+      See Block Format Description
+   4) Frame End
+      - 3 bytes, compatible with Block Header
+*/
+
+/* Block format description
+   Literal Section - Sequences Section
+   1) Literal Section
+   1.1) Header : up to 5 bytes
+        flags:
+            00 compressed by Huff0
+            01 is Raw (uncompressed)
+            10 is Rle
+            11 unused
+            Note : using 11 for Huff0 with precomputed table ?
+            Note : delta map ? => compressed ?
+            Note 2 : 19 bits for sizes, seems a bit larger than necessary
+            Note 3 : RLE blocks ?
+
+   1.2.1) Huff0 block, using sizes from header
+        See Huff0 format
+
+   1.2.2) Huff0 block, using precomputed DTable
+        _usingDTable variants
+
+   1.2.3) uncompressed blocks
+        as the name says (both 2 or 3 bytes variants)
+
+   2) Sequences section
+      TO DO
+*/
+
+
 /** ZSTD_decodeFrameHeader_Part1
 *   decode the 1st part of the Frame Header, which tells Frame Header size.
 *   srcSize must be == ZSTD_frameHeaderSize_min
@@ -231,31 +274,12 @@ size_t ZSTD_getcBlockSize(const void* src, size_t srcSize, blockProperties_t* bp
     return cSize;
 }
 
+
 static size_t ZSTD_copyRawBlock(void* dst, size_t maxDstSize, const void* src, size_t srcSize)
 {
     if (srcSize > maxDstSize) return ERROR(dstSize_tooSmall);
     memcpy(dst, src, srcSize);
     return srcSize;
-}
-
-
-/** ZSTD_decompressLiterals
-    @return : nb of bytes read from src, or an error code*/
-static size_t ZSTD_decompressLiterals(void* dst, size_t* maxDstSizePtr,
-                                const void* src, size_t srcSize)
-{
-    const BYTE* ip = (const BYTE*)src;
-
-    const size_t litSize = (MEM_readLE32(src) & 0x1FFFFF) >> 2;   /* no buffer issue : srcSize >= MIN_CBLOCK_SIZE */
-    const size_t litCSize = (MEM_readLE32(ip+2) & 0xFFFFFF) >> 5;   /* no buffer issue : srcSize >= MIN_CBLOCK_SIZE */
-
-    if (litSize > *maxDstSizePtr) return ERROR(corruption_detected);
-    if (litCSize + 5 > srcSize) return ERROR(corruption_detected);
-
-    if (HUF_isError(HUF_decompress(dst, litSize, ip+5, litCSize))) return ERROR(corruption_detected);
-
-    *maxDstSizePtr = litSize;
-    return litCSize + 5;
 }
 
 
@@ -269,47 +293,101 @@ size_t ZSTD_decodeLiteralsBlock(ZSTD_DCtx* dctx,
     /* any compressed block with literals segment must be at least this size */
     if (srcSize < MIN_CBLOCK_SIZE) return ERROR(corruption_detected);
 
-    switch(*istart & 3)
+    switch(istart[0]>> 6)
     {
-    /* compressed */
-    case 0:
+    case IS_HUF:
         {
-            size_t litSize = BLOCKSIZE;
-            const size_t readSize = ZSTD_decompressLiterals(dctx->litBuffer, &litSize, src, srcSize);
+            size_t litSize, litCSize;
+            U32 lhSize = ((istart[0]) >> 4) & 3;
+            switch(lhSize)
+            {
+            case 0: case 1: default:   /* note : default is impossible, since lhSize into [0..3] */
+                /* 2 - 2 - 10 - 10 */
+                lhSize=3;
+                litSize  = ((istart[0] & 15) << 6) + (istart[1] >> 2);
+                litCSize = ((istart[1] &  3) << 8) + istart[2];
+                break;
+            case 2:
+                /* 2 - 2 - 14 - 14 */
+                lhSize=4;
+                litSize  = ((istart[0] & 15) << 10) + (istart[1] << 2) + (istart[2] >> 6);
+                litCSize = ((istart[2] & 63) <<  8) + istart[3];
+                break;
+            case 3:
+                /* 2 - 2 - 18 - 18 */
+                lhSize=5;
+                litSize  = ((istart[0] & 15) << 14) + (istart[1] << 6) + (istart[2] >> 2);
+                litCSize = ((istart[2] &  3) << 16) + (istart[3] << 8) + istart[4];
+                break;
+            }
+
+            if (HUF_isError( HUF_decompress(dctx->litBuffer, litSize, istart+lhSize, litCSize) ))
+                return ERROR(corruption_detected);
+
             dctx->litPtr = dctx->litBuffer;
             dctx->litBufSize = BLOCKSIZE+8;
             dctx->litSize = litSize;
-            return readSize;   /* works if it's an error too */
+            return litCSize + lhSize;
         }
     case IS_RAW:
         {
-            const size_t litSize = (MEM_readLE32(istart) & 0xFFFFFF) >> 2;   /* no buffer issue : srcSize >= MIN_CBLOCK_SIZE */
-            if (litSize > srcSize-11)   /* risk of reading too far with wildcopy */
+            size_t litSize;
+            U32 lhSize = ((istart[0]) >> 4) & 3;
+            switch(lhSize)
             {
-                if (litSize > srcSize-3) return ERROR(corruption_detected);
-                memcpy(dctx->litBuffer, istart, litSize);
+            case 0: case 1: default:   /* note : default is impossible, since lhSize into [0..3] */
+                lhSize=1;
+                litSize = istart[0] & 31;
+                break;
+            case 2:
+                litSize = ((istart[0] & 15) << 8) + istart[1];
+                break;
+            case 3:
+                litSize = ((istart[0] & 15) << 16) + (istart[1] << 8) + istart[2];
+                break;
+            }
+
+            if (litSize > srcSize-11)   /* risk of reading beyond src buffer with wildcopy */
+            {
+                if (litSize > srcSize-litSize) return ERROR(corruption_detected);
+                memcpy(dctx->litBuffer, istart+lhSize, litSize);
                 dctx->litPtr = dctx->litBuffer;
                 dctx->litBufSize = BLOCKSIZE+8;
                 dctx->litSize = litSize;
-                return litSize+3;
+                return litSize+lhSize;
             }
             /* direct reference into compressed stream */
-            dctx->litPtr = istart+3;
-            dctx->litBufSize = srcSize-3;
+            dctx->litPtr = istart+lhSize;
+            dctx->litBufSize = srcSize-lhSize;
             dctx->litSize = litSize;
-            return litSize+3;        }
+            return lhSize+litSize;
+        }
     case IS_RLE:
         {
-            const size_t litSize = (MEM_readLE32(istart) & 0xFFFFFF) >> 2;   /* no buffer issue : srcSize >= MIN_CBLOCK_SIZE */
+            size_t litSize;
+            U32 lhSize = ((istart[0]) >> 4) & 3;
+            switch(lhSize)
+            {
+            case 0: case 1: default:   /* note : default is impossible, since lhSize into [0..3] */
+                lhSize = 1;
+                litSize = istart[0] & 31;
+                break;
+            case 2:
+                litSize = ((istart[0] & 15) << 8) + istart[1];
+                break;
+            case 3:
+                litSize = ((istart[0] & 15) << 16) + (istart[1] << 8) + istart[2];
+                break;
+            }
             if (litSize > BLOCKSIZE) return ERROR(corruption_detected);
-            memset(dctx->litBuffer, istart[3], litSize);
+            memset(dctx->litBuffer, istart[lhSize], litSize);
             dctx->litPtr = dctx->litBuffer;
             dctx->litBufSize = BLOCKSIZE+8;
             dctx->litSize = litSize;
-            return 4;
+            return lhSize+1;
         }
-    default:
-        return ERROR(corruption_detected);   /* forbidden nominal case */
+    default: /* IS_PCH */
+        return ERROR(corruption_detected);   /* not yet nominal case */
     }
 }
 

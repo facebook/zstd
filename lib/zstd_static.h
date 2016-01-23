@@ -123,7 +123,7 @@ ZSTDLIB_API size_t ZSTD_decompress_usingDict(ZSTD_DCtx* ctx,
 ZSTDLIB_API size_t ZSTD_compressBegin(ZSTD_CCtx* cctx, int compressionLevel);
 ZSTDLIB_API size_t ZSTD_compressBegin_advanced(ZSTD_CCtx* ctx, ZSTD_parameters params);
 
-ZSTDLIB_API size_t ZSTD_compress_insertDictionary(ZSTD_CCtx* ctx, const void* src, size_t srcSize);
+ZSTDLIB_API size_t ZSTD_compress_insertDictionary(ZSTD_CCtx* ctx, const void* dict, size_t dictSize);
 ZSTDLIB_API size_t ZSTD_duplicateCCtx(ZSTD_CCtx* dstCCtx, const ZSTD_CCtx* srcCCtx);
 
 ZSTDLIB_API size_t ZSTD_compressContinue(ZSTD_CCtx* cctx, void* dst, size_t maxDstSize, const void* src, size_t srcSize);
@@ -169,7 +169,7 @@ ZSTDLIB_API size_t ZSTD_nextSrcSizeToDecompress(ZSTD_DCtx* dctx);
 ZSTDLIB_API size_t ZSTD_decompressContinue(ZSTD_DCtx* dctx, void* dst, size_t maxDstSize, const void* src, size_t srcSize);
 
 /**
-  Streaming decompression, bufferless mode
+  Streaming decompression, direct mode (bufferless)
 
   A ZSTD_DCtx object is required to track streaming operations.
   Use ZSTD_createDCtx() / ZSTD_freeDCtx() to manage it.

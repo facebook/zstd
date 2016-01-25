@@ -321,6 +321,7 @@ size_t ZSTD_decodeLiteralsBlock(ZSTD_DCtx* dctx,
                 litCSize = ((istart[2] &  3) << 16) + (istart[3] << 8) + istart[4];
                 break;
             }
+            if (litSize > BLOCKSIZE) return ERROR(corruption_detected);;
 
             if (HUF_isError(singleStream ?
                             HUF_decompress1X2(dctx->litBuffer, litSize, istart+lhSize, litCSize) :
@@ -352,7 +353,7 @@ size_t ZSTD_decodeLiteralsBlock(ZSTD_DCtx* dctx,
 
             if (litSize > srcSize-11)   /* risk of reading beyond src buffer with wildcopy */
             {
-                if (litSize > srcSize-litSize) return ERROR(corruption_detected);
+                if (litSize > srcSize-lhSize) return ERROR(corruption_detected);
                 memcpy(dctx->litBuffer, istart+lhSize, litSize);
                 dctx->litPtr = dctx->litBuffer;
                 dctx->litBufSize = BLOCKSIZE+8;
@@ -776,7 +777,7 @@ size_t ZSTD_decompressBlock(ZSTD_DCtx* dctx,
 }
 
 
-size_t ZSTD_decompress_usingDict(ZSTD_DCtx* ctx,
+size_t ZSTD_decompress_usingDict(ZSTD_DCtx* dctx,
                                  void* dst, size_t maxDstSize,
                                  const void* src, size_t srcSize,
                                  const void* dict, size_t dictSize)
@@ -790,17 +791,17 @@ size_t ZSTD_decompress_usingDict(ZSTD_DCtx* ctx,
     blockProperties_t blockProperties;
 
     /* init */
-    ZSTD_resetDCtx(ctx);
+    ZSTD_resetDCtx(dctx);
     if (dict)
     {
-        ZSTD_decompress_insertDictionary(ctx, dict, dictSize);
-        ctx->dictEnd = ctx->previousDstEnd;
-        ctx->vBase = (const char*)dst - ((const char*)(ctx->previousDstEnd) - (const char*)(ctx->base));
-        ctx->base = dst;
+        ZSTD_decompress_insertDictionary(dctx, dict, dictSize);
+        dctx->dictEnd = dctx->previousDstEnd;
+        dctx->vBase = (const char*)dst - ((const char*)(dctx->previousDstEnd) - (const char*)(dctx->base));
+        dctx->base = dst;
     }
     else
     {
-        ctx->vBase = ctx->base = ctx->dictEnd = dst;
+        dctx->vBase = dctx->base = dctx->dictEnd = dst;
     }
 
     /* Frame Header */
@@ -814,11 +815,11 @@ size_t ZSTD_decompress_usingDict(ZSTD_DCtx* ctx,
                 return ZSTD_decompressLegacy(dst, maxDstSize, src, srcSize, magicNumber);
         }
 #endif
-        frameHeaderSize = ZSTD_decodeFrameHeader_Part1(ctx, src, ZSTD_frameHeaderSize_min);
+        frameHeaderSize = ZSTD_decodeFrameHeader_Part1(dctx, src, ZSTD_frameHeaderSize_min);
         if (ZSTD_isError(frameHeaderSize)) return frameHeaderSize;
         if (srcSize < frameHeaderSize+ZSTD_blockHeaderSize) return ERROR(srcSize_wrong);
         ip += frameHeaderSize; remainingSize -= frameHeaderSize;
-        frameHeaderSize = ZSTD_decodeFrameHeader_Part2(ctx, src, frameHeaderSize);
+        frameHeaderSize = ZSTD_decodeFrameHeader_Part2(dctx, src, frameHeaderSize);
         if (ZSTD_isError(frameHeaderSize)) return frameHeaderSize;
     }
 
@@ -836,7 +837,7 @@ size_t ZSTD_decompress_usingDict(ZSTD_DCtx* ctx,
         switch(blockProperties.blockType)
         {
         case bt_compressed:
-            decodedSize = ZSTD_decompressBlock_internal(ctx, op, oend-op, ip, cBlockSize);
+            decodedSize = ZSTD_decompressBlock_internal(dctx, op, oend-op, ip, cBlockSize);
             break;
         case bt_raw :
             decodedSize = ZSTD_copyRawBlock(op, oend-op, ip, cBlockSize);
@@ -892,39 +893,39 @@ size_t ZSTD_nextSrcSizeToDecompress(ZSTD_DCtx* dctx)
     return dctx->expected;
 }
 
-size_t ZSTD_decompressContinue(ZSTD_DCtx* ctx, void* dst, size_t maxDstSize, const void* src, size_t srcSize)
+size_t ZSTD_decompressContinue(ZSTD_DCtx* dctx, void* dst, size_t maxDstSize, const void* src, size_t srcSize)
 {
     /* Sanity check */
-    if (srcSize != ctx->expected) return ERROR(srcSize_wrong);
-    ZSTD_checkContinuity(ctx, dst);
+    if (srcSize != dctx->expected) return ERROR(srcSize_wrong);
+    ZSTD_checkContinuity(dctx, dst);
 
     /* Decompress : frame header; part 1 */
-    switch (ctx->stage)
+    switch (dctx->stage)
     {
     case ZSTDds_getFrameHeaderSize :
         {
             /* get frame header size */
             if (srcSize != ZSTD_frameHeaderSize_min) return ERROR(srcSize_wrong);   /* impossible */
-            ctx->headerSize = ZSTD_decodeFrameHeader_Part1(ctx, src, ZSTD_frameHeaderSize_min);
-            if (ZSTD_isError(ctx->headerSize)) return ctx->headerSize;
-            memcpy(ctx->headerBuffer, src, ZSTD_frameHeaderSize_min);
-            if (ctx->headerSize > ZSTD_frameHeaderSize_min)
+            dctx->headerSize = ZSTD_decodeFrameHeader_Part1(dctx, src, ZSTD_frameHeaderSize_min);
+            if (ZSTD_isError(dctx->headerSize)) return dctx->headerSize;
+            memcpy(dctx->headerBuffer, src, ZSTD_frameHeaderSize_min);
+            if (dctx->headerSize > ZSTD_frameHeaderSize_min)
             {
-                ctx->expected = ctx->headerSize - ZSTD_frameHeaderSize_min;
-                ctx->stage = ZSTDds_decodeFrameHeader;
+                dctx->expected = dctx->headerSize - ZSTD_frameHeaderSize_min;
+                dctx->stage = ZSTDds_decodeFrameHeader;
                 return 0;
             }
-            ctx->expected = 0;   /* not necessary to copy more */
+            dctx->expected = 0;   /* not necessary to copy more */
         }
     case ZSTDds_decodeFrameHeader:
         {
             /* get frame header */
             size_t result;
-            memcpy(ctx->headerBuffer + ZSTD_frameHeaderSize_min, src, ctx->expected);
-            result = ZSTD_decodeFrameHeader_Part2(ctx, ctx->headerBuffer, ctx->headerSize);
+            memcpy(dctx->headerBuffer + ZSTD_frameHeaderSize_min, src, dctx->expected);
+            result = ZSTD_decodeFrameHeader_Part2(dctx, dctx->headerBuffer, dctx->headerSize);
             if (ZSTD_isError(result)) return result;
-            ctx->expected = ZSTD_blockHeaderSize;
-            ctx->stage = ZSTDds_decodeBlockHeader;
+            dctx->expected = ZSTD_blockHeaderSize;
+            dctx->stage = ZSTDds_decodeBlockHeader;
             return 0;
         }
     case ZSTDds_decodeBlockHeader:
@@ -935,14 +936,14 @@ size_t ZSTD_decompressContinue(ZSTD_DCtx* ctx, void* dst, size_t maxDstSize, con
             if (ZSTD_isError(blockSize)) return blockSize;
             if (bp.blockType == bt_end)
             {
-                ctx->expected = 0;
-                ctx->stage = ZSTDds_getFrameHeaderSize;
+                dctx->expected = 0;
+                dctx->stage = ZSTDds_getFrameHeaderSize;
             }
             else
             {
-                ctx->expected = blockSize;
-                ctx->bType = bp.blockType;
-                ctx->stage = ZSTDds_decompressBlock;
+                dctx->expected = blockSize;
+                dctx->bType = bp.blockType;
+                dctx->stage = ZSTDds_decompressBlock;
             }
             return 0;
         }
@@ -950,10 +951,10 @@ size_t ZSTD_decompressContinue(ZSTD_DCtx* ctx, void* dst, size_t maxDstSize, con
         {
             /* Decompress : block content */
             size_t rSize;
-            switch(ctx->bType)
+            switch(dctx->bType)
             {
             case bt_compressed:
-                rSize = ZSTD_decompressBlock_internal(ctx, dst, maxDstSize, src, srcSize);
+                rSize = ZSTD_decompressBlock_internal(dctx, dst, maxDstSize, src, srcSize);
                 break;
             case bt_raw :
                 rSize = ZSTD_copyRawBlock(dst, maxDstSize, src, srcSize);
@@ -967,9 +968,9 @@ size_t ZSTD_decompressContinue(ZSTD_DCtx* ctx, void* dst, size_t maxDstSize, con
             default:
                 return ERROR(GENERIC);
             }
-            ctx->stage = ZSTDds_decodeBlockHeader;
-            ctx->expected = ZSTD_blockHeaderSize;
-            ctx->previousDstEnd = (char*)dst + rSize;
+            dctx->stage = ZSTDds_decodeBlockHeader;
+            dctx->expected = ZSTD_blockHeaderSize;
+            dctx->previousDstEnd = (char*)dst + rSize;
             return rSize;
         }
     default:
@@ -978,10 +979,10 @@ size_t ZSTD_decompressContinue(ZSTD_DCtx* ctx, void* dst, size_t maxDstSize, con
 }
 
 
-void ZSTD_decompress_insertDictionary(ZSTD_DCtx* ctx, const void* dict, size_t dictSize)
+void ZSTD_decompress_insertDictionary(ZSTD_DCtx* dctx, const void* dict, size_t dictSize)
 {
-    ctx->dictEnd = ctx->previousDstEnd;
-    ctx->vBase = (const char*)dict - ((const char*)(ctx->previousDstEnd) - (const char*)(ctx->base));
-    ctx->base = dict;
-    ctx->previousDstEnd = (const char*)dict + dictSize;
+    dctx->dictEnd = dctx->previousDstEnd;
+    dctx->vBase = (const char*)dict - ((const char*)(dctx->previousDstEnd) - (const char*)(dctx->base));
+    dctx->base = dict;
+    dctx->previousDstEnd = (const char*)dict + dictSize;
 }

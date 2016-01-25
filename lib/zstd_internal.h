@@ -94,7 +94,9 @@ static const size_t ZSTD_frameHeaderSize_min = 5;
 #define MaxSeq MAX(MaxLL, MaxML)
 
 #define MIN_SEQUENCES_SIZE (2 /*seqNb*/ + 2 /*dumps*/ + 3 /*seqTables*/ + 1 /*bitStream*/)
-#define MIN_CBLOCK_SIZE (3 /*litCSize*/ + MIN_SEQUENCES_SIZE)
+#define MIN_CBLOCK_SIZE (1 /*litCSize*/ + MIN_SEQUENCES_SIZE)
+
+#define WILDCOPY_OVERLENGTH 8
 
 typedef enum { bt_compressed, bt_raw, bt_rle, bt_end } blockType_t;
 
@@ -106,7 +108,7 @@ static void ZSTD_copy8(void* dst, const void* src) { memcpy(dst, src, 8); }
 
 #define COPY8(d,s) { ZSTD_copy8(d,s); d+=8; s+=8; }
 
-/*! ZSTD_wildcopy : custom version of memcpy(), can copy up to 7-8 bytes too many */
+/*! ZSTD_wildcopy : custom version of memcpy(), can copy up to 7 bytes too many (8 bytes if length==0) */
 MEM_STATIC void ZSTD_wildcopy(void* dst, const void* src, size_t length)
 {
     const BYTE* ip = (const BYTE*)src;

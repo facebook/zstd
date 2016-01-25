@@ -61,7 +61,7 @@
 #include "zstd_static.h"
 #include "zstd_internal.h"
 #include "fse_static.h"
-#include "huff0.h"
+#include "huff0_static.h"
 
 #if defined(ZSTD_LEGACY_SUPPORT) && (ZSTD_LEGACY_SUPPORT==1)
 #  include "zstd_legacy.h"
@@ -297,13 +297,14 @@ size_t ZSTD_decodeLiteralsBlock(ZSTD_DCtx* dctx,
     {
     case IS_HUF:
         {
-            size_t litSize, litCSize;
+            size_t litSize, litCSize, singleStream=0;
             U32 lhSize = ((istart[0]) >> 4) & 3;
             switch(lhSize)
             {
             case 0: case 1: default:   /* note : default is impossible, since lhSize into [0..3] */
                 /* 2 - 2 - 10 - 10 */
                 lhSize=3;
+                singleStream = istart[0] & 16;
                 litSize  = ((istart[0] & 15) << 6) + (istart[1] >> 2);
                 litCSize = ((istart[1] &  3) << 8) + istart[2];
                 break;
@@ -321,7 +322,9 @@ size_t ZSTD_decodeLiteralsBlock(ZSTD_DCtx* dctx,
                 break;
             }
 
-            if (HUF_isError( HUF_decompress(dctx->litBuffer, litSize, istart+lhSize, litCSize) ))
+            if (HUF_isError(singleStream ?
+                            HUF_decompress1X2(dctx->litBuffer, litSize, istart+lhSize, litCSize) :
+                            HUF_decompress   (dctx->litBuffer, litSize, istart+lhSize, litCSize) ))
                 return ERROR(corruption_detected);
 
             dctx->litPtr = dctx->litBuffer;

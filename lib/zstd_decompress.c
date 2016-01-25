@@ -351,14 +351,14 @@ size_t ZSTD_decodeLiteralsBlock(ZSTD_DCtx* dctx,
                 break;
             }
 
-            if (litSize > srcSize-11)   /* risk of reading beyond src buffer with wildcopy */
+            if (litSize+WILDCOPY_OVERLENGTH > srcSize)   /* risk reading beyond src buffer with wildcopy */
             {
                 if (litSize > srcSize-lhSize) return ERROR(corruption_detected);
                 memcpy(dctx->litBuffer, istart+lhSize, litSize);
                 dctx->litPtr = dctx->litBuffer;
                 dctx->litBufSize = BLOCKSIZE+8;
                 dctx->litSize = litSize;
-                return litSize+lhSize;
+                return lhSize+litSize;
             }
             /* direct reference into compressed stream */
             dctx->litPtr = istart+lhSize;

@@ -55,7 +55,7 @@
 #include <string.h>   /* memset */
 #include "mem.h"
 #include "fse_static.h"
-#include "huff0.h"
+#include "huff0_static.h"
 #include "zstd_static.h"
 #include "zstd_internal.h"
 
@@ -259,10 +259,14 @@ static void ZSTD_reduceIndex (ZSTD_CCtx* zc,
             Note : delta map ? => compressed ?
 
    1.1.1) Huff0-compressed literal block : 3-5 bytes
+            srcSize < 1 KB => 3 bytes (2-2-10-10) => single stream
             srcSize < 1 KB => 3 bytes (2-2-10-10)
             srcSize < 17KB => 4 bytes (2-2-14-14)
             else           => 5 bytes (2-2-18-18)
             big endian convention
+            Note : 1 or 4 streams ? => controlled by zstd => requires 1 bit => reserved to < 1 KB
+                   1 stream : orig size ? (note : not required )
+                              if not : get orig size from decoding, & saves 10 bits
 
    1.1.2) Raw (uncompressed) literal block header : 1-3 bytes
         size :  5 bits: (IS_RAW<<6) + (0<<4) + size
@@ -281,8 +285,9 @@ static void ZSTD_reduceIndex (ZSTD_CCtx* zc,
                         size&255
 
    1.1.4) Unused
-        Use Huff0 w/ precalculated DTable ?
-        FSE ? => probably not, not efficient on literals
+        Use Huff0 w/ precalculated CTable ?
+        Store CTable into workspace : build during dict Loading, use during encoding
+        Same issue about size and Nstreams
 
    1.2) Literal block content
 
@@ -382,11 +387,13 @@ static size_t ZSTD_compressLiterals (void* dst, size_t maxDstSize,
     const size_t minGain = ZSTD_minGain(srcSize);
     BYTE* const ostart = (BYTE*)dst;
     size_t lhSize = 3 + (srcSize >= 1 KB) + (srcSize >= 16 KB);
+    U32 singleStream = srcSize < 256;
     size_t clitSize;
 
     if (maxDstSize < 4) return ERROR(dstSize_tooSmall);   /* not enough space for compression */
 
-    clitSize = HUF_compress(ostart+lhSize, maxDstSize-lhSize, src, srcSize);
+    clitSize = singleStream ? HUF_compress1X(ostart+lhSize, maxDstSize-lhSize, src, srcSize, 255, 12)
+                            : HUF_compress2 (ostart+lhSize, maxDstSize-lhSize, src, srcSize, 255, 12);
 
     if ((clitSize==0) || (clitSize >= srcSize - minGain)) return ZSTD_noCompressLiterals(dst, maxDstSize, src, srcSize);
     if (clitSize==1) return ZSTD_compressRleLiteralsBlock(dst, maxDstSize, src, srcSize);
@@ -395,7 +402,7 @@ static size_t ZSTD_compressLiterals (void* dst, size_t maxDstSize,
     switch(lhSize)
     {
     case 3: /* 2 - 2 - 10 - 10 */
-        ostart[0] = (BYTE) (srcSize>>6) + (0<< 4);
+        ostart[0] = (BYTE) (srcSize>>6) + (singleStream << 4);
         ostart[1] = (BYTE)((srcSize<<2) + (clitSize>>8));
         ostart[2] = (BYTE)(clitSize);
         break;
@@ -419,7 +426,7 @@ static size_t ZSTD_compressLiterals (void* dst, size_t maxDstSize,
 }
 
 
-#define LITERAL_NOENTROPY 63   /* cheap heuristic */
+#define LITERAL_NOENTROPY 63   /* don't even attempt to compress literals below this threshold (cheap heuristic) */
 
 size_t ZSTD_compressSequences(void* dst, size_t maxDstSize,
                         const seqStore_t* seqStorePtr,

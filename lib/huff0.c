@@ -473,10 +473,76 @@ static size_t HUF_compress_into4Segments(void* dst, size_t dstSize, const void* 
 }
 
 
+static size_t HUF_compress_internal (
+                void* dst, size_t dstSize,
+                const void* src, size_t srcSize,
+                unsigned maxSymbolValue, unsigned huffLog,
+                unsigned singleStream)
+{
+    BYTE* const ostart = (BYTE*)dst;
+    BYTE* op = ostart;
+    BYTE* const oend = ostart + dstSize;
+
+    U32 count[HUF_MAX_SYMBOL_VALUE+1];
+    HUF_CElt CTable[HUF_MAX_SYMBOL_VALUE+1];
+    size_t errorCode;
+
+    /* checks & inits */
+    if (srcSize < 2) return 0;  /* Uncompressed */
+    if (dstSize < 1) return 0;  /* not compressible within dst budget */
+    if (srcSize > 128 * 1024) return ERROR(srcSize_wrong);   /* current block size limit */
+    if (huffLog > HUF_MAX_TABLELOG) return ERROR(tableLog_tooLarge);
+    if (!maxSymbolValue) maxSymbolValue = HUF_MAX_SYMBOL_VALUE;
+    if (!huffLog) huffLog = HUF_DEFAULT_TABLELOG;
+
+    /* Scan input and build symbol stats */
+    errorCode = FSE_count (count, &maxSymbolValue, (const BYTE*)src, srcSize);
+    if (HUF_isError(errorCode)) return errorCode;
+    if (errorCode == srcSize) { *ostart = ((const BYTE*)src)[0]; return 1; }
+    if (errorCode <= (srcSize >> 7)+1) return 0;   /* Heuristic : not compressible enough */
+
+    /* Build Huffman Tree */
+    errorCode = HUF_buildCTable (CTable, count, maxSymbolValue, huffLog);
+    if (HUF_isError(errorCode)) return errorCode;
+    huffLog = (U32)errorCode;
+
+    /* Write table description header */
+    errorCode = HUF_writeCTable (op, dstSize, CTable, maxSymbolValue, huffLog);
+    if (HUF_isError(errorCode)) return errorCode;
+    if (errorCode + 12 >= srcSize) return 0;   /* not useful to try compression */
+    op += errorCode;
+
+    /* Compress */
+    if (singleStream)
+        errorCode = HUF_compress_usingCTable(op, oend - op, src, srcSize, CTable);   /* single segment */
+    else
+        errorCode = HUF_compress_into4Segments(op, oend - op, src, srcSize, CTable);
+    if (HUF_isError(errorCode)) return errorCode;
+    if (errorCode==0) return 0;
+    op += errorCode;
+
+    /* check compressibility */
+    if ((size_t)(op-ostart) >= srcSize-1)
+        return 0;
+
+    return op-ostart;
+}
+
+
+size_t HUF_compress1X (void* dst, size_t dstSize,
+                const void* src, size_t srcSize,
+                unsigned maxSymbolValue, unsigned huffLog)
+{
+    return HUF_compress_internal(dst, dstSize, src, srcSize, maxSymbolValue, huffLog, 1);
+}
+
 size_t HUF_compress2 (void* dst, size_t dstSize,
                 const void* src, size_t srcSize,
                 unsigned maxSymbolValue, unsigned huffLog)
 {
+#if 1
+    return HUF_compress_internal(dst, dstSize, src, srcSize, maxSymbolValue, huffLog, 0);
+#else
     BYTE* const ostart = (BYTE*)dst;
     BYTE* op = ostart;
     BYTE* const oend = ostart + dstSize;
@@ -522,7 +588,9 @@ size_t HUF_compress2 (void* dst, size_t dstSize,
         return 0;
 
     return op-ostart;
+#endif
 }
+
 
 size_t HUF_compress (void* dst, size_t maxDstSize, const void* src, size_t srcSize)
 {
@@ -620,9 +688,9 @@ static size_t HUF_readStats(BYTE* huffWeight, size_t hwSize, U32* rankStats,
 }
 
 
-/* ************************/
-/* single-symbol decoding */
-/* ************************/
+/*-***************************/
+/*  single-symbol decoding   */
+/*-***************************/
 
 size_t HUF_readDTableX2 (U16* DTable, const void* src, size_t srcSize)
 {

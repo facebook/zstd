@@ -261,12 +261,9 @@ static void ZSTD_reduceIndex (ZSTD_CCtx* zc,
    1.1.1) Huff0-compressed literal block : 3-5 bytes
             srcSize < 1 KB => 3 bytes (2-2-10-10) => single stream
             srcSize < 1 KB => 3 bytes (2-2-10-10)
-            srcSize < 17KB => 4 bytes (2-2-14-14)
+            srcSize < 16KB => 4 bytes (2-2-14-14)
             else           => 5 bytes (2-2-18-18)
             big endian convention
-            Note : 1 or 4 streams ? => controlled by zstd => requires 1 bit => reserved to < 1 KB
-                   1 stream : orig size ? (note : not required )
-                              if not : get orig size from decoding, & saves 10 bits
 
    1.1.2) Raw (uncompressed) literal block header : 1-3 bytes
         size :  5 bits: (IS_RAW<<6) + (0<<4) + size
@@ -284,10 +281,16 @@ static void ZSTD_reduceIndex (ZSTD_CCtx* zc,
                         size>>8&255
                         size&255
 
-   1.1.4) Unused
-        Use Huff0 w/ precalculated CTable ?
-        Store CTable into workspace : build during dict Loading, use during encoding
-        Same issue about size and Nstreams
+   1.1.4) Huff0-compressed literal block, using precomputed CTables : 3-5 bytes
+            srcSize < 1 KB => 3 bytes (2-2-10-10) => single stream
+            srcSize < 1 KB => 3 bytes (2-2-10-10)
+            srcSize < 16KB => 4 bytes (2-2-14-14)
+            else           => 5 bytes (2-2-18-18)
+            big endian convention
+
+        1- CTable available (stored into workspace ?)
+        2- Small input
+
 
    1.2) Literal block content
 
@@ -402,7 +405,7 @@ static size_t ZSTD_compressLiterals (void* dst, size_t maxDstSize,
     switch(lhSize)
     {
     case 3: /* 2 - 2 - 10 - 10 */
-        ostart[0] = (BYTE) (srcSize>>6) + (singleStream << 4);
+        ostart[0] = (BYTE)((srcSize>>6) + (singleStream << 4));
         ostart[1] = (BYTE)((srcSize<<2) + (clitSize>>8));
         ostart[2] = (BYTE)(clitSize);
         break;
@@ -1108,13 +1111,13 @@ void ZSTD_compressBlock_fast_extDict(ZSTD_CCtx* ctx,
     {
     default:
     case 4 :
-        return ZSTD_compressBlock_fast_extDict_generic(ctx, src, srcSize, 4);
+        ZSTD_compressBlock_fast_extDict_generic(ctx, src, srcSize, 4); return;
     case 5 :
-        return ZSTD_compressBlock_fast_extDict_generic(ctx, src, srcSize, 5);
+        ZSTD_compressBlock_fast_extDict_generic(ctx, src, srcSize, 5); return;
     case 6 :
-        return ZSTD_compressBlock_fast_extDict_generic(ctx, src, srcSize, 6);
+        ZSTD_compressBlock_fast_extDict_generic(ctx, src, srcSize, 6); return;
     case 7 :
-        return ZSTD_compressBlock_fast_extDict_generic(ctx, src, srcSize, 7);
+        ZSTD_compressBlock_fast_extDict_generic(ctx, src, srcSize, 7); return;
     }
 }
 
@@ -1666,22 +1669,22 @@ _storeSequence:
 
 static void ZSTD_compressBlock_btlazy2(ZSTD_CCtx* ctx, const void* src, size_t srcSize)
 {
-    return ZSTD_compressBlock_lazy_generic(ctx, src, srcSize, 1, 2);
+    ZSTD_compressBlock_lazy_generic(ctx, src, srcSize, 1, 2);
 }
 
 static void ZSTD_compressBlock_lazy2(ZSTD_CCtx* ctx, const void* src, size_t srcSize)
 {
-    return ZSTD_compressBlock_lazy_generic(ctx, src, srcSize, 0, 2);
+    ZSTD_compressBlock_lazy_generic(ctx, src, srcSize, 0, 2);
 }
 
 static void ZSTD_compressBlock_lazy(ZSTD_CCtx* ctx, const void* src, size_t srcSize)
 {
-    return ZSTD_compressBlock_lazy_generic(ctx, src, srcSize, 0, 1);
+    ZSTD_compressBlock_lazy_generic(ctx, src, srcSize, 0, 1);
 }
 
 static void ZSTD_compressBlock_greedy(ZSTD_CCtx* ctx, const void* src, size_t srcSize)
 {
-    return ZSTD_compressBlock_lazy_generic(ctx, src, srcSize, 0, 0);
+    ZSTD_compressBlock_lazy_generic(ctx, src, srcSize, 0, 0);
 }
 
 
@@ -1881,22 +1884,22 @@ _storeSequence:
 
 void ZSTD_compressBlock_greedy_extDict(ZSTD_CCtx* ctx, const void* src, size_t srcSize)
 {
-    return ZSTD_compressBlock_lazy_extDict_generic(ctx, src, srcSize, 0, 0);
+    ZSTD_compressBlock_lazy_extDict_generic(ctx, src, srcSize, 0, 0);
 }
 
 static void ZSTD_compressBlock_lazy_extDict(ZSTD_CCtx* ctx, const void* src, size_t srcSize)
 {
-    return ZSTD_compressBlock_lazy_extDict_generic(ctx, src, srcSize, 0, 1);
+    ZSTD_compressBlock_lazy_extDict_generic(ctx, src, srcSize, 0, 1);
 }
 
 static void ZSTD_compressBlock_lazy2_extDict(ZSTD_CCtx* ctx, const void* src, size_t srcSize)
 {
-    return ZSTD_compressBlock_lazy_extDict_generic(ctx, src, srcSize, 0, 2);
+    ZSTD_compressBlock_lazy_extDict_generic(ctx, src, srcSize, 0, 2);
 }
 
 static void ZSTD_compressBlock_btlazy2_extDict(ZSTD_CCtx* ctx, const void* src, size_t srcSize)
 {
-    return ZSTD_compressBlock_lazy_extDict_generic(ctx, src, srcSize, 1, 2);
+    ZSTD_compressBlock_lazy_extDict_generic(ctx, src, srcSize, 1, 2);
 }
 
 

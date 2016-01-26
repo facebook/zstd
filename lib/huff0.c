@@ -106,7 +106,8 @@ typedef struct nodeElt_s {
     @dst : destination buffer
     @CTable : huffman tree to save, using huff0 representation
     @return : size of saved CTable */
-size_t HUF_writeCTable (void* dst, size_t maxDstSize, const HUF_CElt* CTable, U32 maxSymbolValue, U32 huffLog)
+size_t HUF_writeCTable (void* dst, size_t maxDstSize,
+                        const HUF_CElt* CTable, U32 maxSymbolValue, U32 huffLog)
 {
     BYTE bitsToWeight[HUF_MAX_TABLELOG + 1];
     BYTE huffWeight[HUF_MAX_SYMBOL_VALUE + 1];
@@ -169,6 +170,68 @@ size_t HUF_writeCTable (void* dst, size_t maxDstSize, const HUF_CElt* CTable, U3
     /* normal header case */
     op[0] = (BYTE)size;
     return size+1;
+}
+
+
+static size_t HUF_readStats(BYTE* huffWeight, size_t hwSize, U32* rankStats,
+                            U32* nbSymbolsPtr, U32* tableLogPtr,
+                            const void* src, size_t srcSize);
+
+
+size_t HUF_readCTable (HUF_CElt* CTable, U32 maxSymbolValue, const void* src, size_t srcSize)
+{
+    BYTE huffWeight[HUF_MAX_SYMBOL_VALUE + 1];
+    U32 rankVal[HUF_ABSOLUTEMAX_TABLELOG + 1];   /* large enough for values from 0 to 16 */
+    U32 tableLog = 0;
+    size_t iSize;
+    U32 nbSymbols = 0;
+    U32 n;
+    U32 nextRankStart;
+    //memset(huffWeight, 0, sizeof(huffWeight));   /* is not necessary, even though some analyzer complain ... */
+
+    /* get symbol weights */
+    iSize = HUF_readStats(huffWeight, HUF_MAX_SYMBOL_VALUE+1, rankVal, &nbSymbols, &tableLog, src, srcSize);
+    if (HUF_isError(iSize)) return iSize;
+
+    /* check result */
+    if (tableLog > HUF_MAX_TABLELOG) return ERROR(tableLog_tooLarge);
+    if (nbSymbols > maxSymbolValue+1) return ERROR(maxSymbolValue_tooSmall);
+
+    /* Prepare base value per rank */
+    nextRankStart = 0;
+    for (n=1; n<=tableLog; n++) {
+        U32 current = nextRankStart;
+        nextRankStart += (rankVal[n] << (n-1));
+        rankVal[n] = current;
+    }
+
+    /* fill nbBits */
+    for (n=0; n<nbSymbols; n++) {
+        const U32 w = huffWeight[n];
+        CTable[n].nbBits = (BYTE)(tableLog + 1 - w);
+    }
+
+    /* fill val */
+    {
+        U16 nbPerRank[HUF_MAX_TABLELOG+1] = {0};
+        U16 valPerRank[HUF_MAX_TABLELOG+1] = {0};
+        for (n=0; n<nbSymbols; n++)
+            nbPerRank[CTable[n].nbBits]++;
+        {
+            /* determine stating value per rank */
+            U16 min = 0;
+            for (n=HUF_MAX_TABLELOG; n>0; n--)
+            {
+                valPerRank[n] = min;      /* get starting value within each rank */
+                min += nbPerRank[n];
+                min >>= 1;
+            }
+        }
+        for (n=0; n<=maxSymbolValue; n++)
+            CTable[n].val = valPerRank[CTable[n].nbBits]++;   /* assign value within rank, symbol order */
+    }
+
+    return iSize;
 }
 
 
@@ -384,7 +447,7 @@ size_t HUF_compressBound(size_t size) { return HUF_COMPRESSBOUND(size); }
 #define HUF_FLUSHBITS_2(stream) \
     if (sizeof((stream)->bitContainer)*8 < HUF_MAX_TABLELOG*4+7) HUF_FLUSHBITS(stream)
 
-size_t HUF_compress_usingCTable(void* dst, size_t dstSize, const void* src, size_t srcSize, const HUF_CElt* CTable)
+size_t HUF_compress1X_usingCTable(void* dst, size_t dstSize, const void* src, size_t srcSize, const HUF_CElt* CTable)
 {
     const BYTE* ip = (const BYTE*) src;
     BYTE* const ostart = (BYTE*)dst;
@@ -429,7 +492,7 @@ size_t HUF_compress_usingCTable(void* dst, size_t dstSize, const void* src, size
 }
 
 
-static size_t HUF_compress_into4Segments(void* dst, size_t dstSize, const void* src, size_t srcSize, const HUF_CElt* CTable)
+size_t HUF_compress4X_usingCTable(void* dst, size_t dstSize, const void* src, size_t srcSize, const HUF_CElt* CTable)
 {
     size_t segmentSize = (srcSize+3)/4;   /* first 3 segments */
     size_t errorCode;
@@ -443,28 +506,28 @@ static size_t HUF_compress_into4Segments(void* dst, size_t dstSize, const void* 
     if (srcSize < 12) return 0;   /* no saving possible : too small input */
     op += 6;   /* jumpTable */
 
-    errorCode = HUF_compress_usingCTable(op, oend-op, ip, segmentSize, CTable);
+    errorCode = HUF_compress1X_usingCTable(op, oend-op, ip, segmentSize, CTable);
     if (HUF_isError(errorCode)) return errorCode;
     if (errorCode==0) return 0;
     MEM_writeLE16(ostart, (U16)errorCode);
 
     ip += segmentSize;
     op += errorCode;
-    errorCode = HUF_compress_usingCTable(op, oend-op, ip, segmentSize, CTable);
+    errorCode = HUF_compress1X_usingCTable(op, oend-op, ip, segmentSize, CTable);
     if (HUF_isError(errorCode)) return errorCode;
     if (errorCode==0) return 0;
     MEM_writeLE16(ostart+2, (U16)errorCode);
 
     ip += segmentSize;
     op += errorCode;
-    errorCode = HUF_compress_usingCTable(op, oend-op, ip, segmentSize, CTable);
+    errorCode = HUF_compress1X_usingCTable(op, oend-op, ip, segmentSize, CTable);
     if (HUF_isError(errorCode)) return errorCode;
     if (errorCode==0) return 0;
     MEM_writeLE16(ostart+4, (U16)errorCode);
 
     ip += segmentSize;
     op += errorCode;
-    errorCode = HUF_compress_usingCTable(op, oend-op, ip, iend-ip, CTable);
+    errorCode = HUF_compress1X_usingCTable(op, oend-op, ip, iend-ip, CTable);
     if (HUF_isError(errorCode)) return errorCode;
     if (errorCode==0) return 0;
 
@@ -488,7 +551,7 @@ static size_t HUF_compress_internal (
     size_t errorCode;
 
     /* checks & inits */
-    if (srcSize < 2) return 0;  /* Uncompressed */
+    if (srcSize < 1) return 0;  /* Uncompressed - note : 1 means rle, so first byte must be correct */
     if (dstSize < 1) return 0;  /* not compressible within dst budget */
     if (srcSize > 128 * 1024) return ERROR(srcSize_wrong);   /* current block size limit */
     if (huffLog > HUF_MAX_TABLELOG) return ERROR(tableLog_tooLarge);
@@ -514,9 +577,9 @@ static size_t HUF_compress_internal (
 
     /* Compress */
     if (singleStream)
-        errorCode = HUF_compress_usingCTable(op, oend - op, src, srcSize, CTable);   /* single segment */
+        errorCode = HUF_compress1X_usingCTable(op, oend - op, src, srcSize, CTable);   /* single segment */
     else
-        errorCode = HUF_compress_into4Segments(op, oend - op, src, srcSize, CTable);
+        errorCode = HUF_compress4X_usingCTable(op, oend - op, src, srcSize, CTable);
     if (HUF_isError(errorCode)) return errorCode;
     if (errorCode==0) return 0;
     op += errorCode;
@@ -540,55 +603,7 @@ size_t HUF_compress2 (void* dst, size_t dstSize,
                 const void* src, size_t srcSize,
                 unsigned maxSymbolValue, unsigned huffLog)
 {
-#if 1
     return HUF_compress_internal(dst, dstSize, src, srcSize, maxSymbolValue, huffLog, 0);
-#else
-    BYTE* const ostart = (BYTE*)dst;
-    BYTE* op = ostart;
-    BYTE* const oend = ostart + dstSize;
-
-    U32 count[HUF_MAX_SYMBOL_VALUE+1];
-    HUF_CElt CTable[HUF_MAX_SYMBOL_VALUE+1];
-    size_t errorCode;
-
-    /* checks & inits */
-    if (srcSize < 1) return 0;  /* Uncompressed */
-    if (dstSize < 1) return 0;  /* not compressible within dst budget */
-    if (srcSize > 128 * 1024) return ERROR(srcSize_wrong);   /* current block size limit */
-    if (huffLog > HUF_MAX_TABLELOG) return ERROR(tableLog_tooLarge);
-    if (!maxSymbolValue) maxSymbolValue = HUF_MAX_SYMBOL_VALUE;
-    if (!huffLog) huffLog = HUF_DEFAULT_TABLELOG;
-
-    /* Scan input and build symbol stats */
-    errorCode = FSE_count (count, &maxSymbolValue, (const BYTE*)src, srcSize);
-    if (HUF_isError(errorCode)) return errorCode;
-    if (errorCode == srcSize) { *ostart = ((const BYTE*)src)[0]; return 1; }
-    if (errorCode <= (srcSize >> 7)+1) return 0;   /* Heuristic : not compressible enough */
-
-    /* Build Huffman Tree */
-    errorCode = HUF_buildCTable (CTable, count, maxSymbolValue, huffLog);
-    if (HUF_isError(errorCode)) return errorCode;
-    huffLog = (U32)errorCode;
-
-    /* Write table description header */
-    errorCode = HUF_writeCTable (op, dstSize, CTable, maxSymbolValue, huffLog);
-    if (HUF_isError(errorCode)) return errorCode;
-    if (errorCode + 12 >= srcSize) return 0;   /* not useful to try compression */
-    op += errorCode;
-
-    /* Compress */
-    //if (srcSize < MIN_4STREAMS) errorCode = HUF_compress_usingCTable(op, oend - op, src, srcSize, CTable); else  /* single segment */
-    errorCode = HUF_compress_into4Segments(op, oend - op, src, srcSize, CTable);
-    if (HUF_isError(errorCode)) return errorCode;
-    if (errorCode==0) return 0;
-    op += errorCode;
-
-    /* check compressibility */
-    if ((size_t)(op-ostart) >= srcSize-1)
-        return 0;
-
-    return op-ostart;
-#endif
 }
 
 
@@ -625,31 +640,24 @@ static size_t HUF_readStats(BYTE* huffWeight, size_t hwSize, U32* rankStats,
 
     //memset(huffWeight, 0, hwSize);   /* is not necessary, even though some analyzer complain ... */
 
-    if (iSize >= 128)  /* special header */
-    {
-        if (iSize >= (242))   /* RLE */
-        {
+    if (iSize >= 128)  { /* special header */
+        if (iSize >= (242)) {  /* RLE */
             static int l[14] = { 1, 2, 3, 4, 7, 8, 15, 16, 31, 32, 63, 64, 127, 128 };
             oSize = l[iSize-242];
             memset(huffWeight, 1, hwSize);
             iSize = 0;
         }
-        else   /* Incompressible */
-        {
+        else {   /* Incompressible */
             oSize = iSize - 127;
             iSize = ((oSize+1)/2);
             if (iSize+1 > srcSize) return ERROR(srcSize_wrong);
             if (oSize >= hwSize) return ERROR(corruption_detected);
             ip += 1;
-            for (n=0; n<oSize; n+=2)
-            {
+            for (n=0; n<oSize; n+=2) {
                 huffWeight[n]   = ip[n/2] >> 4;
                 huffWeight[n+1] = ip[n/2] & 15;
-            }
-        }
-    }
-    else  /* header compressed with FSE (normal case) */
-    {
+    }   }   }
+    else  {   /* header compressed with FSE (normal case) */
         if (iSize+1 > srcSize) return ERROR(srcSize_wrong);
         oSize = FSE_decompress(huffWeight, hwSize-1, ip+1, iSize);   /* max (hwSize-1) values decoded, as last one is implied */
         if (FSE_isError(oSize)) return oSize;
@@ -712,7 +720,7 @@ size_t HUF_readDTableX2 (U16* DTable, const void* src, size_t srcSize)
 
     /* check result */
     if (tableLog > DTable[0]) return ERROR(tableLog_tooLarge);   /* DTable is too small */
-    DTable[0] = (U16)tableLog;   /* maybe should separate sizeof DTable, as allocated, from used size of DTable, in case of DTable re-use */
+    DTable[0] = (U16)tableLog;   /* maybe should separate sizeof allocated DTable, from used size of DTable, in case of re-use */
 
     /* Prepare ranks */
     nextRankStart = 0;

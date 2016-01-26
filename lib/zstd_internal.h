@@ -55,7 +55,8 @@ extern "C" {
 /* *************************************
 *  Common constants
 ***************************************/
-#define ZSTD_MAGICNUMBER 0xFD2FB524   /* v0.4 */
+#define ZSTD_MAGICNUMBER 0xFD2FB525   /* v0.5 */
+#define ZSTD_DICT_MAGIC  0xEC30A435
 
 #define KB *(1 <<10)
 #define MB *(1 <<20)
@@ -92,6 +93,8 @@ static const size_t ZSTD_frameHeaderSize_min = 5;
 #define LLFSELog   10
 #define OffFSELog   9
 #define MaxSeq MAX(MaxLL, MaxML)
+
+#define HufLog 12
 
 #define MIN_SEQUENCES_SIZE (2 /*seqNb*/ + 2 /*dumps*/ + 3 /*seqTables*/ + 1 /*bitStream*/)
 #define MIN_CBLOCK_SIZE (1 /*litCSize*/ + MIN_SEQUENCES_SIZE)

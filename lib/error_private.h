@@ -96,6 +96,7 @@ ERR_STATIC const char* ERR_getErrorName(size_t code)
     case ZSTD_error_tableLog_tooLarge: return "tableLog requires too much memory";
     case ZSTD_error_maxSymbolValue_tooLarge: return "Unsupported max possible Symbol Value : too large";
     case ZSTD_error_maxSymbolValue_tooSmall: return "Specified maxSymbolValue is too small";
+    case ZSTD_error_dictionary_corrupted: return "Dictionary is corrupted";
     case ZSTD_error_maxCode:
     default: return codeError;
     }

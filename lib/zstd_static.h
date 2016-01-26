@@ -121,6 +121,9 @@ ZSTDLIB_API size_t ZSTD_decompress_usingDict(ZSTD_DCtx* ctx,
 *  Streaming functions (direct mode)
 ****************************************/
 ZSTDLIB_API size_t ZSTD_compressBegin(ZSTD_CCtx* cctx, int compressionLevel);
+ZSTDLIB_API size_t ZSTD_compressBegin_usingDict(ZSTD_CCtx* cctx, const void* dict,size_t dictSize, int compressionLevel);
+//ZSTDLIB_API size_t ZSTD_compressBegin_advanced(ZSTD_CCtx* ctx, const void* dict,size_t dictSize, ZSTD_parameters params);
+
 ZSTDLIB_API size_t ZSTD_compressBegin_advanced(ZSTD_CCtx* ctx, ZSTD_parameters params);
 
 ZSTDLIB_API size_t ZSTD_compress_insertDictionary(ZSTD_CCtx* ctx, const void* dict, size_t dictSize);
@@ -163,7 +166,7 @@ ZSTDLIB_API size_t ZSTD_compressEnd(ZSTD_CCtx* cctx, void* dst, size_t maxDstSiz
 
 ZSTDLIB_API size_t ZSTD_resetDCtx(ZSTD_DCtx* dctx);
 ZSTDLIB_API size_t ZSTD_getFrameParams(ZSTD_parameters* params, const void* src, size_t srcSize);
-ZSTDLIB_API void   ZSTD_decompress_insertDictionary(ZSTD_DCtx* ctx, const void* src, size_t srcSize);
+ZSTDLIB_API size_t ZSTD_decompress_insertDictionary(ZSTD_DCtx* ctx, const void* src, size_t srcSize);
 
 ZSTDLIB_API size_t ZSTD_nextSrcSizeToDecompress(ZSTD_DCtx* dctx);
 ZSTDLIB_API size_t ZSTD_decompressContinue(ZSTD_DCtx* dctx, void* dst, size_t maxDstSize, const void* src, size_t srcSize);

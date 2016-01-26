@@ -48,7 +48,7 @@ extern "C" {
 
 
 /* ***************************************************************
-*  Tuning parameters
+*  Compiler specifics
 *****************************************************************/
 /*!
 *  ZSTD_DLL_EXPORT :
@@ -69,7 +69,7 @@ ZSTDLIB_API ZBUFF_CCtx* ZBUFF_createCCtx(void);
 ZSTDLIB_API size_t      ZBUFF_freeCCtx(ZBUFF_CCtx* cctx);
 
 ZSTDLIB_API size_t ZBUFF_compressInit(ZBUFF_CCtx* cctx, int compressionLevel);
-ZSTDLIB_API size_t ZBUFF_compressWithDictionary(ZBUFF_CCtx* cctx, const void* src, size_t srcSize);
+ZSTDLIB_API size_t ZBUFF_compressWithDictionary(ZBUFF_CCtx* cctx, const void* dict, size_t dictSize);
 ZSTDLIB_API size_t ZBUFF_compressContinue(ZBUFF_CCtx* cctx, void* dst, size_t* maxDstSizePtr, const void* src, size_t* srcSizePtr);
 ZSTDLIB_API size_t ZBUFF_compressFlush(ZBUFF_CCtx* cctx, void* dst, size_t* maxDstSizePtr);
 ZSTDLIB_API size_t ZBUFF_compressEnd(ZBUFF_CCtx* cctx, void* dst, size_t* maxDstSizePtr);
@@ -119,7 +119,7 @@ ZSTDLIB_API ZBUFF_DCtx* ZBUFF_createDCtx(void);
 ZSTDLIB_API size_t      ZBUFF_freeDCtx(ZBUFF_DCtx* dctx);
 
 ZSTDLIB_API size_t ZBUFF_decompressInit(ZBUFF_DCtx* dctx);
-ZSTDLIB_API size_t ZBUFF_decompressWithDictionary(ZBUFF_DCtx* dctx, const void* src, size_t srcSize);
+ZSTDLIB_API size_t ZBUFF_decompressInitDictionary(ZBUFF_DCtx* dctx, const void* dict, size_t dictSize);
 
 ZSTDLIB_API size_t ZBUFF_decompressContinue(ZBUFF_DCtx* dctx, void* dst, size_t* maxDstSizePtr, const void* src, size_t* srcSizePtr);
 
@@ -128,19 +128,16 @@ ZSTDLIB_API size_t ZBUFF_decompressContinue(ZBUFF_DCtx* dctx, void* dst, size_t*
 *
 *  A ZBUFF_DCtx object is required to track streaming operation.
 *  Use ZBUFF_createDCtx() and ZBUFF_freeDCtx() to create/release resources.
-*  Use ZBUFF_decompressInit() to start a new decompression operation.
-*  ZBUFF_DCtx objects can be reused multiple times.
-*
-*  Optionally, a reference to a static dictionary can be set, using ZBUFF_decompressWithDictionary()
-*  It must be the same content as the one set during compression phase.
-*  Dictionary content must remain accessible during the decompression process.
+*  Use ZBUFF_decompressInit() to start a new decompression operation,
+*   or ZBUFF_decompressInitDictionary() if decompression requires a dictionary.
+*  Note that ZBUFF_DCtx objects can be reused multiple times.
 *
 *  Use ZBUFF_decompressContinue() repetitively to consume your input.
 *  *srcSizePtr and *maxDstSizePtr can be any size.
 *  The function will report how many bytes were read or written by modifying *srcSizePtr and *maxDstSizePtr.
 *  Note that it may not consume the entire input, in which case it's up to the caller to present remaining input again.
 *  The content of dst will be overwritten (up to *maxDstSizePtr) at each function call, so save its content if it matters or change dst.
-*  @return : a hint to preferred nb of bytes to use as input for next function call (it's only a hint, to improve latency)
+*  @return : a hint to preferred nb of bytes to use as input for next function call (it's only a hint, to help latency)
 *            or 0 when a frame is completely decoded
 *            or an error code, which can be tested using ZBUFF_isError().
 *
@@ -157,7 +154,7 @@ ZSTDLIB_API unsigned ZBUFF_isError(size_t errorCode);
 ZSTDLIB_API const char* ZBUFF_getErrorName(size_t errorCode);
 
 /** The below functions provide recommended buffer sizes for Compression or Decompression operations.
-*   These sizes are not compulsory, they just tend to offer better latency */
+*   These sizes are just hints, and tend to offer better latency */
 ZSTDLIB_API size_t ZBUFF_recommendedCInSize(void);
 ZSTDLIB_API size_t ZBUFF_recommendedCOutSize(void);
 ZSTDLIB_API size_t ZBUFF_recommendedDInSize(void);

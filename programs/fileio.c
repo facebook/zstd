@@ -529,8 +529,7 @@ unsigned long long FIO_decompressFrame(dRess_t ress,
     size_t readSize=alreadyLoaded;
 
     /* Main decompression Loop */
-    ZBUFF_decompressInit(ress.dctx);
-    ZBUFF_decompressWithDictionary(ress.dctx, ress.dictBuffer, ress.dictBufferSize);
+    ZBUFF_decompressInitDictionary(ress.dctx, ress.dictBuffer, ress.dictBufferSize);
     while (1)
     {
         /* Decode */

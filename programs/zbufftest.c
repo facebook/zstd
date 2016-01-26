@@ -174,8 +174,7 @@ static int basicUnitTests(U32 seed, double compressibility)
 
     /* Basic decompression test */
     DISPLAYLEVEL(4, "test%3i : decompress %u bytes : ", testNb++, COMPRESSIBLE_NOISE_LENGTH);
-    ZBUFF_decompressInit(zd);
-    ZBUFF_decompressWithDictionary(zd, CNBuffer, 128 KB);
+    ZBUFF_decompressInitDictionary(zd, CNBuffer, 128 KB);
     readSize = cSize;
     genSize = CNBufferSize;
     result = ZBUFF_decompressContinue(zd, decodedBuffer, &genSize, compressedBuffer, &readSize);
@@ -374,8 +373,7 @@ int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compressibilit
         crcOrig = XXH64_digest(xxh64);
 
         /* multi - fragments decompression test */
-        ZBUFF_decompressInit(zd);
-        ZBUFF_decompressWithDictionary(zd, dict, dictSize);
+        ZBUFF_decompressInitDictionary(zd, dict, dictSize);
         totalCSize = 0;
         totalGenSize = 0;
         while (totalCSize < cSize)

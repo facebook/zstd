@@ -132,12 +132,8 @@ ZSTDLIB_API size_t ZSTD_decompress_usingPreparedDCtx(
 ****************************************/
 ZSTDLIB_API size_t ZSTD_compressBegin(ZSTD_CCtx* cctx, int compressionLevel);
 ZSTDLIB_API size_t ZSTD_compressBegin_usingDict(ZSTD_CCtx* cctx, const void* dict,size_t dictSize, int compressionLevel);
-//ZSTDLIB_API size_t ZSTD_compressBegin_advanced(ZSTD_CCtx* ctx, const void* dict,size_t dictSize, ZSTD_parameters params);
-
-ZSTDLIB_API size_t ZSTD_compressBegin_advanced(ZSTD_CCtx* ctx, ZSTD_parameters params);
-
-ZSTDLIB_API size_t ZSTD_compress_insertDictionary(ZSTD_CCtx* ctx, const void* dict, size_t dictSize);
-ZSTDLIB_API size_t ZSTD_copyCCtx(ZSTD_CCtx* dstCCtx, const ZSTD_CCtx* srcCCtx);
+ZSTDLIB_API size_t ZSTD_compressBegin_advanced(ZSTD_CCtx* cctx, const void* dict,size_t dictSize, ZSTD_parameters params);
+ZSTDLIB_API size_t ZSTD_copyCCtx(ZSTD_CCtx* cctx, const ZSTD_CCtx* preparedCCtx);
 
 ZSTDLIB_API size_t ZSTD_compressContinue(ZSTD_CCtx* cctx, void* dst, size_t maxDstSize, const void* src, size_t srcSize);
 ZSTDLIB_API size_t ZSTD_compressEnd(ZSTD_CCtx* cctx, void* dst, size_t maxDstSize);
@@ -149,18 +145,10 @@ ZSTDLIB_API size_t ZSTD_compressEnd(ZSTD_CCtx* cctx, void* dst, size_t maxDstSiz
   Use ZSTD_createCCtx() / ZSTD_freeCCtx() to manage it.
   ZSTD_CCtx object can be re-used multiple times within successive compression operations.
 
-  First operation is to start a new frame.
-  Use ZSTD_compressBegin().
-  You may also prefer the advanced derivative ZSTD_compressBegin_advanced(), for finer parameter control.
-
-  It's then possible to add a dictionary with ZSTD_compress_insertDictionary()
-  Note that dictionary presence is a "hidden" information,
-  the decoder needs to be aware that it is required for proper decoding, or decoding will fail.
-
-  If you want to compress a lot of messages using same dictionary,
-  it can be beneficial to duplicate compression context rather than reloading dictionary each time.
-  In such case, use ZSTD_duplicateCCtx(), which will need an already created ZSTD_CCtx,
-  in order to duplicate compression context into it.
+  Start by initializing a context.
+  Use ZSTD_compressBegin(), or ZSTD_compressBegin_usingDict() for dictionary compression,
+  or ZSTD_compressBegin_advanced(), for finer parameter control.
+  It's also possible to duplicate a reference context which has been initialized, using ZSTD_copyCCtx()
 
   Then, consume your input using ZSTD_compressContinue().
   The interface is synchronous, so all input will be consumed and produce a compressed output.
@@ -168,7 +156,7 @@ ZSTDLIB_API size_t ZSTD_compressEnd(ZSTD_CCtx* cctx, void* dst, size_t maxDstSiz
   Worst case evaluation is provided by ZSTD_compressBound().
 
   Finish a frame with ZSTD_compressEnd(), which will write the epilogue.
-  Without it, the frame will be considered incomplete by decoders.
+  Without the epilogue, frames will be considered incomplete by decoder.
 
   You can then reuse ZSTD_CCtx to compress some new frame.
 */
@@ -176,7 +164,7 @@ ZSTDLIB_API size_t ZSTD_compressEnd(ZSTD_CCtx* cctx, void* dst, size_t maxDstSiz
 
 ZSTDLIB_API size_t ZSTD_decompressBegin(ZSTD_DCtx* dctx);
 ZSTDLIB_API size_t ZSTD_decompressBegin_usingDict(ZSTD_DCtx* dctx, const void* dict, size_t dictSize);
-ZSTDLIB_API void   ZSTD_copyDCtx(ZSTD_DCtx* dstDCtx, const ZSTD_DCtx* srcDCtx);
+ZSTDLIB_API void   ZSTD_copyDCtx(ZSTD_DCtx* dctx, const ZSTD_DCtx* preparedDCtx);
 
 ZSTDLIB_API size_t ZSTD_getFrameParams(ZSTD_parameters* params, const void* src, size_t srcSize);
 

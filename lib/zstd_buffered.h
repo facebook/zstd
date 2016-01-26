@@ -69,7 +69,8 @@ ZSTDLIB_API ZBUFF_CCtx* ZBUFF_createCCtx(void);
 ZSTDLIB_API size_t      ZBUFF_freeCCtx(ZBUFF_CCtx* cctx);
 
 ZSTDLIB_API size_t ZBUFF_compressInit(ZBUFF_CCtx* cctx, int compressionLevel);
-ZSTDLIB_API size_t ZBUFF_compressWithDictionary(ZBUFF_CCtx* cctx, const void* dict, size_t dictSize);
+ZSTDLIB_API size_t ZBUFF_compressInitDictionary(ZBUFF_CCtx* cctx, const void* dict, size_t dictSize, int compressionLevel);
+
 ZSTDLIB_API size_t ZBUFF_compressContinue(ZBUFF_CCtx* cctx, void* dst, size_t* maxDstSizePtr, const void* src, size_t* srcSizePtr);
 ZSTDLIB_API size_t ZBUFF_compressFlush(ZBUFF_CCtx* cctx, void* dst, size_t* maxDstSizePtr);
 ZSTDLIB_API size_t ZBUFF_compressEnd(ZBUFF_CCtx* cctx, void* dst, size_t* maxDstSizePtr);
@@ -79,11 +80,11 @@ ZSTDLIB_API size_t ZBUFF_compressEnd(ZBUFF_CCtx* cctx, void* dst, size_t* maxDst
 *
 *  A ZBUFF_CCtx object is required to track streaming operation.
 *  Use ZBUFF_createCCtx() and ZBUFF_freeCCtx() to create/release resources.
-*  Use ZBUFF_compressInit() to start a new compression operation.
 *  ZBUFF_CCtx objects can be reused multiple times.
 *
-*  Optionally, a reference to a static dictionary can be created with ZBUFF_compressWithDictionary()
-*  Note that the dictionary content must remain accessible during the compression process.
+*  Start by initializing ZBUF_CCtx.
+*  Use ZBUFF_compressInit() to start a new compression operation.
+*  Use ZBUFF_compressInitDictionary() for a compression which requires a dictionary.
 *
 *  Use ZBUFF_compressContinue() repetitively to consume input stream.
 *  *srcSizePtr and *maxDstSizePtr can be any size.
@@ -93,9 +94,10 @@ ZSTDLIB_API size_t ZBUFF_compressEnd(ZBUFF_CCtx* cctx, void* dst, size_t* maxDst
 *  @return : a hint to preferred nb of bytes to use as input for next function call (it's only a hint, to improve latency)
 *            or an error code, which can be tested using ZBUFF_isError().
 *
-*  ZBUFF_compressFlush() can be used to instruct ZBUFF to compress and output whatever remains within its buffer.
-*  Note that it will not output more than *maxDstSizePtr.
-*  Therefore, some content might still be left into its internal buffer if dst buffer is too small.
+*  At any moment, it's possible to flush whatever data remains within buffer, using ZBUFF_compressFlush().
+*  The nb of bytes written into `dst` will be reported into *maxDstSizePtr.
+*  Note that the function cannot output more than the size of `dst` buffer (initial value of *maxDstSizePtr).
+*  Therefore, some content might still be left into internal buffer if dst buffer is too small.
 *  @return : nb of bytes still present into internal buffer (0 if it's empty)
 *            or an error code, which can be tested using ZBUFF_isError().
 *
@@ -108,7 +110,7 @@ ZSTDLIB_API size_t ZBUFF_compressEnd(ZBUFF_CCtx* cctx, void* dst, size_t* maxDst
 *            or an error code, which can be tested using ZBUFF_isError().
 *
 *  Hint : recommended buffer sizes (not compulsory) : ZBUFF_recommendedCInSize / ZBUFF_recommendedCOutSize
-*  input : ZBUFF_recommendedCInSize==128 KB block size is the internal unit, it improves latency to use this value.
+*  input : ZBUFF_recommendedCInSize==128 KB block size is the internal unit, it improves latency to use this value (skipped buffering).
 *  output : ZBUFF_recommendedCOutSize==ZSTD_compressBound(128 KB) + 3 + 3 : ensures it's always possible to write/flush/end a full block. Skip some buffering.
 *  By using both, you ensure that input will be entirely consumed, and output will always contain the result.
 * **************************************************/

@@ -119,7 +119,7 @@ size_t ZBUFF_freeCCtx(ZBUFF_CCtx* zbc)
 
 #define MIN(a,b)    ( ((a)<(b)) ? (a) : (b) )
 #define BLOCKSIZE   (128 * 1024)   /* a bit too "magic", should come from reference */
-size_t ZBUFF_compressInit_advanced(ZBUFF_CCtx* zbc, ZSTD_parameters params)
+size_t ZBUFF_compressInit_advanced(ZBUFF_CCtx* zbc, const void* dict, size_t dictSize, ZSTD_parameters params)
 {
     size_t neededInBuffSize;
 
@@ -143,7 +143,7 @@ size_t ZBUFF_compressInit_advanced(ZBUFF_CCtx* zbc, ZSTD_parameters params)
         if (zbc->outBuff == NULL) return ERROR(memory_allocation);
     }
 
-    zbc->outBuffContentSize = ZSTD_compressBegin_advanced(zbc->zc, params);
+    zbc->outBuffContentSize = ZSTD_compressBegin_advanced(zbc->zc, dict, dictSize, params);
     if (ZSTD_isError(zbc->outBuffContentSize)) return zbc->outBuffContentSize;
 
     zbc->inToCompress = 0;
@@ -156,14 +156,13 @@ size_t ZBUFF_compressInit_advanced(ZBUFF_CCtx* zbc, ZSTD_parameters params)
 
 size_t ZBUFF_compressInit(ZBUFF_CCtx* zbc, int compressionLevel)
 {
-    return ZBUFF_compressInit_advanced(zbc, ZSTD_getParams(compressionLevel, 0));
+    return ZBUFF_compressInit_advanced(zbc, NULL, 0, ZSTD_getParams(compressionLevel, 0));
 }
 
 
-ZSTDLIB_API size_t ZBUFF_compressWithDictionary(ZBUFF_CCtx* zbc, const void* src, size_t srcSize)
+ZSTDLIB_API size_t ZBUFF_compressInitDictionary(ZBUFF_CCtx* zbc, const void* dict, size_t dictSize, int compressionLevel)
 {
-    ZSTD_compress_insertDictionary(zbc->zc, src, srcSize);
-    return 0;
+    return ZBUFF_compressInit_advanced(zbc, dict, dictSize, ZSTD_getParams(compressionLevel, 0));
 }
 
 

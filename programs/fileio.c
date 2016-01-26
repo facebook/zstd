@@ -355,19 +355,14 @@ static int FIO_compressFilename_extRess(cRess_t ress,
 
     /* init */
     filesize = FIO_getFileSize(srcFileName) + dictSize;
-    errorCode = ZBUFF_compressInit_advanced(ress.ctx, ZSTD_getParams(cLevel, filesize));
-    if (ZBUFF_isError(errorCode)) EXM_THROW(21, "Error initializing compression");
-    errorCode = ZBUFF_compressWithDictionary(ress.ctx, ress.dictBuffer, ress.dictBufferSize);
-    if (ZBUFF_isError(errorCode)) EXM_THROW(22, "Error initializing dictionary");
+    errorCode = ZBUFF_compressInit_advanced(ress.ctx, ress.dictBuffer, ress.dictBufferSize, ZSTD_getParams(cLevel, filesize));
+    if (ZBUFF_isError(errorCode)) EXM_THROW(21, "Error initializing compression : %s", ZBUFF_getErrorName(errorCode));
 
     /* Main compression loop */
     filesize = 0;
-    while (1)
-    {
-        size_t inSize;
-
+    while (1) {
         /* Fill input Buffer */
-        inSize = fread(ress.srcBuffer, (size_t)1, ress.srcBufferSize, srcFile);
+        size_t inSize = fread(ress.srcBuffer, (size_t)1, ress.srcBufferSize, srcFile);
         if (inSize==0) break;
         filesize += inSize;
         DISPLAYUPDATE(2, "\rRead : %u MB  ", (U32)(filesize>>20));

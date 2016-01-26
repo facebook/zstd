@@ -126,6 +126,7 @@ struct ZSTD_DCtx_s
     U32 LLTable[FSE_DTABLE_SIZE_U32(LLFSELog)];
     U32 OffTable[FSE_DTABLE_SIZE_U32(OffFSELog)];
     U32 MLTable[FSE_DTABLE_SIZE_U32(MLFSELog)];
+    U32 hufTableX4[HUF_DTABLE_SIZE(HufLog)];
     const void* previousDstEnd;
     const void* base;
     const void* vBase;
@@ -138,7 +139,7 @@ struct ZSTD_DCtx_s
     const BYTE* litPtr;
     size_t litBufSize;
     size_t litSize;
-    BYTE litBuffer[BLOCKSIZE + 8 /* margin for wildcopy */];
+    BYTE litBuffer[BLOCKSIZE + WILDCOPY_OVERLENGTH];
     BYTE headerBuffer[ZSTD_frameHeaderSize_max];
 };  /* typedef'd to ZSTD_DCtx within "zstd_static.h" */
 
@@ -150,6 +151,7 @@ size_t ZSTD_resetDCtx(ZSTD_DCtx* dctx)
     dctx->base = NULL;
     dctx->vBase = NULL;
     dctx->dictEnd = NULL;
+    dctx->hufTableX4[0] = HufLog;
     return 0;
 }
 
@@ -333,6 +335,27 @@ size_t ZSTD_decodeLiteralsBlock(ZSTD_DCtx* dctx,
             dctx->litSize = litSize;
             return litCSize + lhSize;
         }
+    case IS_PCH:
+        {
+            size_t errorCode;
+            size_t litSize, litCSize;
+            U32 lhSize = ((istart[0]) >> 4) & 3;
+            if (lhSize != 1)  /* only case supported for now : small litSize, single stream */
+                return ERROR(corruption_detected);
+
+            /* 2 - 2 - 10 - 10 */
+            lhSize=3;
+            litSize  = ((istart[0] & 15) << 6) + (istart[1] >> 2);
+            litCSize = ((istart[1] &  3) << 8) + istart[2];
+
+            errorCode = HUF_decompress1X4_usingDTable(dctx->litBuffer, litSize, istart+lhSize, litCSize, dctx->hufTableX4);
+            if (HUF_isError(errorCode)) return ERROR(corruption_detected);
+
+            dctx->litPtr = dctx->litBuffer;
+            dctx->litBufSize = BLOCKSIZE+WILDCOPY_OVERLENGTH;
+            dctx->litSize = litSize;
+            return litCSize + lhSize;
+        }
     case IS_RAW:
         {
             size_t litSize;
@@ -386,12 +409,12 @@ size_t ZSTD_decodeLiteralsBlock(ZSTD_DCtx* dctx,
             if (litSize > BLOCKSIZE) return ERROR(corruption_detected);
             memset(dctx->litBuffer, istart[lhSize], litSize);
             dctx->litPtr = dctx->litBuffer;
-            dctx->litBufSize = BLOCKSIZE+8;
+            dctx->litBufSize = BLOCKSIZE+WILDCOPY_OVERLENGTH;
             dctx->litSize = litSize;
             return lhSize+1;
         }
-    default: /* IS_PCH */
-        return ERROR(corruption_detected);   /* not yet nominal case */
+    default:
+        return ERROR(corruption_detected);   /* impossible */
     }
 }
 
@@ -794,7 +817,8 @@ size_t ZSTD_decompress_usingDict(ZSTD_DCtx* dctx,
     ZSTD_resetDCtx(dctx);
     if (dict)
     {
-        ZSTD_decompress_insertDictionary(dctx, dict, dictSize);
+        size_t errorCode = ZSTD_decompress_insertDictionary(dctx, dict, dictSize);
+        if (ZSTD_isError(errorCode)) return ERROR(dictionary_corrupted);
         dctx->dictEnd = dctx->previousDstEnd;
         dctx->vBase = (const char*)dst - ((const char*)(dctx->previousDstEnd) - (const char*)(dctx->base));
         dctx->base = dst;
@@ -979,10 +1003,42 @@ size_t ZSTD_decompressContinue(ZSTD_DCtx* dctx, void* dst, size_t maxDstSize, co
 }
 
 
-void ZSTD_decompress_insertDictionary(ZSTD_DCtx* dctx, const void* dict, size_t dictSize)
+static void ZSTD_refDictContent(ZSTD_DCtx* dctx, const void* dict, size_t dictSize)
 {
     dctx->dictEnd = dctx->previousDstEnd;
     dctx->vBase = (const char*)dict - ((const char*)(dctx->previousDstEnd) - (const char*)(dctx->base));
     dctx->base = dict;
     dctx->previousDstEnd = (const char*)dict + dictSize;
 }
+
+
+static size_t ZSTD_loadEntropy(ZSTD_DCtx* dctx, const void* dict, size_t dictSize)
+{
+    size_t hSize = HUF_readDTableX4(dctx->hufTableX4, dict, dictSize);
+    if (HUF_isError(hSize)) return ERROR(dictionary_corrupted);
+    return hSize;
+}
+
+size_t ZSTD_decompress_insertDictionary(ZSTD_DCtx* dctx, const void* dict, size_t dictSize)
+{
+    size_t eSize;
+    U32 magic = MEM_readLE32(dict);
+    if (magic != ZSTD_DICT_MAGIC) {
+        /* pure content mode */
+        ZSTD_refDictContent(dctx, dict, dictSize);
+        return 0;
+    }
+    /* load entropy tables */
+    dict = (const char*)dict + 4;
+    dictSize -= 4;
+    eSize = ZSTD_loadEntropy(dctx, dict, dictSize);
+    if (ZSTD_isError(eSize)) return ERROR(dictionary_corrupted);
+
+    /* reference dictionary content */
+    dict = (const char*)dict + eSize;
+    dictSize -= eSize;
+    ZSTD_refDictContent(dctx, dict, dictSize);
+
+    return 0;
+}
+

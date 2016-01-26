@@ -310,11 +310,6 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
                     if (ZSTD_isError(rSize)) EXM_THROW(2, "ZSTD_compressEnd() failed : %s", ZSTD_getErrorName(rSize));
                     blockTable[blockNb].cSize += rSize;
                 }
-                    /*blockTable[blockNb].cSize = ZSTD_compress_usingDict(ctx,
-                                                              blockTable[blockNb].cPtr,  blockTable[blockNb].cRoom,
-                                                              blockTable[blockNb].srcPtr,blockTable[blockNb].srcSize,
-                                                              dictBuffer, dictBufferSize,
-                                                              cLevel);*/
                 nbLoops++;
             }
             milliTime = BMK_GetMilliSpan(milliTime);
@@ -334,14 +329,15 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
             milliTime = BMK_GetMilliStart();
             while (BMK_GetMilliStart() == milliTime);
             milliTime = BMK_GetMilliStart();
-            for ( ; BMK_GetMilliSpan(milliTime) < TIMELOOP; nbLoops++)
-            {
-                for (blockNb=0; blockNb<nbBlocks; blockNb++)
+            for ( ; BMK_GetMilliSpan(milliTime) < TIMELOOP; nbLoops++) {
+                for (blockNb=0; blockNb<nbBlocks; blockNb++) {
                     blockTable[blockNb].resSize = ZSTD_decompress_usingDict(dctx,
-                                                                blockTable[blockNb].resPtr, blockTable[blockNb].srcSize,
-                                                                blockTable[blockNb].cPtr, blockTable[blockNb].cSize,
-                                                                dictBuffer, dictBufferSize);
-            }
+                        blockTable[blockNb].resPtr, blockTable[blockNb].srcSize,
+                        blockTable[blockNb].cPtr, blockTable[blockNb].cSize,
+                        dictBuffer, dictBufferSize);
+                    if (ZSTD_isError(blockTable[blockNb].resSize))
+                        EXM_THROW(3, "ZSTD_decompress_usingDict() failed : %s", ZSTD_getErrorName(blockTable[blockNb].resSize));
+            }   }
             milliTime = BMK_GetMilliSpan(milliTime);
 
             if ((double)milliTime < fastestD*nbLoops) fastestD = (double)milliTime / nbLoops;

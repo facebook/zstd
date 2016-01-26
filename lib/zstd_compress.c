@@ -125,6 +125,8 @@ struct ZSTD_CCtx_s
     seqStore_t seqStore;    /* sequences storage ptrs */
     U32* hashTable;
     U32* contentTable;
+    HUF_CElt* hufTable;
+    U32 flagHufTable;
 };
 
 
@@ -185,18 +187,21 @@ static size_t ZSTD_resetCCtx_advanced (ZSTD_CCtx* zc,
     {
         const U32 contentLog = (params.strategy == ZSTD_fast) ? 1 : params.contentLog;
         const size_t tableSpace = ((1 << contentLog) + (1 << params.hashLog)) * sizeof(U32);
-        const size_t neededSpace = tableSpace + (3*blockSize);
+        const size_t neededSpace = tableSpace + (256*sizeof(U32)) + (3*blockSize);
         if (zc->workSpaceSize < neededSpace)
         {
             free(zc->workSpace);
-            zc->workSpaceSize = neededSpace;
             zc->workSpace = malloc(neededSpace);
             if (zc->workSpace == NULL) return ERROR(memory_allocation);
+            zc->workSpaceSize = neededSpace;
         }
-        memset(zc->workSpace, 0, tableSpace );
+        memset(zc->workSpace, 0, tableSpace );   /* reset only tables */
         zc->hashTable = (U32*)(zc->workSpace);
         zc->contentTable = zc->hashTable + ((size_t)1 << params.hashLog);
-        zc->seqStore.buffer = (void*) (zc->contentTable + ((size_t)1 << contentLog));
+        zc->seqStore.buffer = zc->contentTable + ((size_t)1 << contentLog);
+        zc->hufTable = (HUF_CElt*)zc->seqStore.buffer;
+        zc->flagHufTable = 0;
+        zc->seqStore.buffer = (U32*)(zc->seqStore.buffer) + 256;
     }
 
     zc->nextToUpdate = 1;
@@ -289,7 +294,7 @@ static void ZSTD_reduceIndex (ZSTD_CCtx* zc,
             big endian convention
 
         1- CTable available (stored into workspace ?)
-        2- Small input
+        2- Small input (fast heuristic ? Full comparison ? depend on clevel ?)
 
 
    1.2) Literal block content
@@ -382,21 +387,32 @@ static size_t ZSTD_compressRleLiteralsBlock (void* dst, size_t maxDstSize, const
 }
 
 
-size_t ZSTD_minGain(size_t srcSize) { return (srcSize >> 6) + 1; }
+size_t ZSTD_minGain(size_t srcSize) { return (srcSize >> 6) + 2; }
 
-static size_t ZSTD_compressLiterals (void* dst, size_t maxDstSize,
+static size_t ZSTD_compressLiterals (ZSTD_CCtx* zc,
+                                     void* dst, size_t maxDstSize,
                                const void* src, size_t srcSize)
 {
     const size_t minGain = ZSTD_minGain(srcSize);
     BYTE* const ostart = (BYTE*)dst;
-    size_t lhSize = 3 + (srcSize >= 1 KB) + (srcSize >= 16 KB);
+    const size_t lhSize = 3 + (srcSize >= 1 KB) + (srcSize >= 16 KB);
     U32 singleStream = srcSize < 256;
+    U32 hType = IS_HUF;
     size_t clitSize;
 
     if (maxDstSize < 4) return ERROR(dstSize_tooSmall);   /* not enough space for compression */
 
-    clitSize = singleStream ? HUF_compress1X(ostart+lhSize, maxDstSize-lhSize, src, srcSize, 255, 12)
-                            : HUF_compress2 (ostart+lhSize, maxDstSize-lhSize, src, srcSize, 255, 12);
+    if (zc->flagHufTable && (lhSize==3))
+    {
+        hType = IS_PCH;
+        singleStream = 1;
+        clitSize = HUF_compress1X_usingCTable(ostart+lhSize, maxDstSize-lhSize, src, srcSize, zc->hufTable);
+    }
+    else
+    {
+        clitSize = singleStream ? HUF_compress1X(ostart+lhSize, maxDstSize-lhSize, src, srcSize, 255, 12)
+                                : HUF_compress2 (ostart+lhSize, maxDstSize-lhSize, src, srcSize, 255, 12);
+    }
 
     if ((clitSize==0) || (clitSize >= srcSize - minGain)) return ZSTD_noCompressLiterals(dst, maxDstSize, src, srcSize);
     if (clitSize==1) return ZSTD_compressRleLiteralsBlock(dst, maxDstSize, src, srcSize);
@@ -405,19 +421,19 @@ static size_t ZSTD_compressLiterals (void* dst, size_t maxDstSize,
     switch(lhSize)
     {
     case 3: /* 2 - 2 - 10 - 10 */
-        ostart[0] = (BYTE)((srcSize>>6) + (singleStream << 4));
+        ostart[0] = (BYTE)((srcSize>>6) + (singleStream << 4) + (hType<<6));
         ostart[1] = (BYTE)((srcSize<<2) + (clitSize>>8));
         ostart[2] = (BYTE)(clitSize);
         break;
     case 4: /* 2 - 2 - 14 - 14 */
-        ostart[0] = (BYTE)(srcSize>>10) + (2<<4);
+        ostart[0] = (BYTE)((srcSize>>10) + (2<<4) +  (hType<<6));
         ostart[1] = (BYTE)(srcSize>> 2);
         ostart[2] = (BYTE)((srcSize<<6) + (clitSize>>8));
         ostart[3] = (BYTE)(clitSize);
         break;
     default:   /* should not be necessary, lhSize is {3,4,5} */
     case 5: /* 2 - 2 - 18 - 18 */
-        ostart[0] = (BYTE)(srcSize>>14) + (3<<4);
+        ostart[0] = (BYTE)((srcSize>>14) + (3<<4) +  (hType<<6));
         ostart[1] = (BYTE)(srcSize>>6);
         ostart[2] = (BYTE)((srcSize<<2) + (clitSize>>16));
         ostart[3] = (BYTE)(clitSize>>8);
@@ -431,10 +447,11 @@ static size_t ZSTD_compressLiterals (void* dst, size_t maxDstSize,
 
 #define LITERAL_NOENTROPY 63   /* don't even attempt to compress literals below this threshold (cheap heuristic) */
 
-size_t ZSTD_compressSequences(void* dst, size_t maxDstSize,
-                        const seqStore_t* seqStorePtr,
+size_t ZSTD_compressSequences(ZSTD_CCtx* zc,
+                              void* dst, size_t maxDstSize,
                               size_t srcSize)
 {
+    const seqStore_t* seqStorePtr = &(zc->seqStore);
     U32 count[MaxSeq+1];
     S16 norm[MaxSeq+1];
     size_t mostFrequent;
@@ -463,11 +480,12 @@ size_t ZSTD_compressSequences(void* dst, size_t maxDstSize,
     {
         size_t cSize;
         size_t litSize = seqStorePtr->lit - op_lit_start;
+        const size_t minLitSize = zc->flagHufTable ? 6 : LITERAL_NOENTROPY;
 
-        if (litSize <= LITERAL_NOENTROPY)
+        if (litSize <= minLitSize)
             cSize = ZSTD_noCompressLiterals(op, maxDstSize, op_lit_start, litSize);
         else
-            cSize = ZSTD_compressLiterals(op, maxDstSize, op_lit_start, litSize);
+            cSize = ZSTD_compressLiterals(zc, op, maxDstSize, op_lit_start, litSize);
         if (ZSTD_isError(cSize)) return cSize;
         op += cSize;
     }
@@ -1905,7 +1923,7 @@ static void ZSTD_compressBlock_btlazy2_extDict(ZSTD_CCtx* ctx, const void* src, 
 
 typedef void (*ZSTD_blockCompressor) (ZSTD_CCtx* ctx, const void* src, size_t srcSize);
 
-ZSTD_blockCompressor ZSTD_selectBlockCompressor(ZSTD_strategy strat, int extDict)
+static ZSTD_blockCompressor ZSTD_selectBlockCompressor(ZSTD_strategy strat, int extDict)
 {
     static const ZSTD_blockCompressor blockCompressor[2][5] = {
         { ZSTD_compressBlock_fast, ZSTD_compressBlock_greedy, ZSTD_compressBlock_lazy,ZSTD_compressBlock_lazy2, ZSTD_compressBlock_btlazy2 },
@@ -1921,7 +1939,7 @@ static size_t ZSTD_compressBlock_internal(ZSTD_CCtx* zc, void* dst, size_t maxDs
     ZSTD_blockCompressor blockCompressor = ZSTD_selectBlockCompressor(zc->params.strategy, zc->lowLimit < zc->dictLimit);
     if (srcSize < MIN_CBLOCK_SIZE+3) return 0;   /* don't even attempt compression below a certain srcSize */
     blockCompressor(zc, src, srcSize);
-    return ZSTD_compressSequences(dst, maxDstSize, &(zc->seqStore), srcSize);
+    return ZSTD_compressSequences(zc, dst, maxDstSize, srcSize);
 }
 
 
@@ -2057,7 +2075,7 @@ size_t ZSTD_compressBlock(ZSTD_CCtx* zc, void* dst, size_t maxDstSize, const voi
 }
 
 
-size_t ZSTD_compress_insertDictionary(ZSTD_CCtx* zc, const void* src, size_t srcSize)
+static size_t ZSTD_loadDictionaryContent(ZSTD_CCtx* zc, const void* src, size_t srcSize)
 {
     const BYTE* const ip = (const BYTE*) src;
     const BYTE* const iend = ip + srcSize;
@@ -2097,6 +2115,35 @@ size_t ZSTD_compress_insertDictionary(ZSTD_CCtx* zc, const void* src, size_t src
 }
 
 
+/* Dictionary format :
+     Magic == ZSTD_DICT_MAGIC (4 bytes)
+     Huff0 CTable (256 * 4 bytes)  => to be changed to read from writeCTable
+     Dictionary content
+*/
+/*! ZSTD_loadDictEntropyStats
+    @return : size read from dictionary */
+static size_t ZSTD_loadDictEntropyStats(ZSTD_CCtx* zc, const void* dict, size_t dictSize)
+{
+    /* note : magic number already checked */
+    const size_t hufHeaderSize = HUF_readCTable(zc->hufTable, 255, dict, dictSize);
+    if (HUF_isError(hufHeaderSize)) return ERROR(dictionary_corrupted);
+    zc->flagHufTable = 1;
+    return hufHeaderSize;
+}
+
+size_t ZSTD_compress_insertDictionary(ZSTD_CCtx* zc, const void* dict, size_t dictSize)
+{
+    U32 magic = MEM_readLE32(dict);
+    U32 eSize;
+    if (magic != ZSTD_DICT_MAGIC)
+        return ZSTD_loadDictionaryContent(zc, dict, dictSize);
+
+    eSize = ZSTD_loadDictEntropyStats(zc, (const char*)dict+4, dictSize-4) + 4;
+    if (ZSTD_isError(eSize)) return eSize;
+    return ZSTD_loadDictionaryContent(zc, (const char*)dict+eSize, dictSize-eSize);
+}
+
+
 /*! ZSTD_duplicateCCtx
 *   Duplicate an existing context @srcCCtx into another one @dstCCtx.
 *   Only works during stage 0 (i.e. before first call to ZSTD_compressContinue())
@@ -2124,6 +2171,10 @@ size_t ZSTD_duplicateCCtx(ZSTD_CCtx* dstCCtx, const ZSTD_CCtx* srcCCtx)
     dstCCtx->dictBase    = srcCCtx->dictBase;
     dstCCtx->dictLimit   = srcCCtx->dictLimit;
     dstCCtx->lowLimit    = srcCCtx->lowLimit;
+
+    dstCCtx->flagHufTable = srcCCtx->flagHufTable;
+    if (dstCCtx->flagHufTable)
+        memcpy(dstCCtx->hufTable, srcCCtx->hufTable, 256*4);
 
     return 0;
 }
@@ -2164,6 +2215,11 @@ ZSTD_parameters ZSTD_getParams(int compressionLevel, U64 srcSizeHint)
     return result;
 }
 
+/* to do
+size_t ZSTD_compressBegin_usingDict(ZSTD_CCtx* cctx, const void* dict,size_t dictSize, int compressionLevel)
+{
+    return 0;
+}*/
 
 size_t ZSTD_compressBegin(ZSTD_CCtx* ctx, int compressionLevel)
 {

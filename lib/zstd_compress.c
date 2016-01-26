@@ -2167,7 +2167,7 @@ static size_t ZSTD_loadDictEntropyStats(ZSTD_CCtx* zc, const void* dict, size_t 
     return hufHeaderSize;
 }
 
-size_t ZSTD_compress_insertDictionary(ZSTD_CCtx* zc, const void* dict, size_t dictSize)
+static size_t ZSTD_compress_insertDictionary(ZSTD_CCtx* zc, const void* dict, size_t dictSize)
 {
     if (dict && dictSize)
     {
@@ -2186,22 +2186,23 @@ size_t ZSTD_compress_insertDictionary(ZSTD_CCtx* zc, const void* dict, size_t di
 
 /*! ZSTD_compressBegin_advanced
 *   @return : 0, or an error code */
-size_t ZSTD_compressBegin_advanced(ZSTD_CCtx* ctx,
+size_t ZSTD_compressBegin_advanced(ZSTD_CCtx* zc,
+                             const void* dict, size_t dictSize,
                                    ZSTD_parameters params)
 {
     size_t errorCode;
 
     ZSTD_validateParams(&params);
 
-    errorCode = ZSTD_resetCCtx_advanced(ctx, params);
+    errorCode = ZSTD_resetCCtx_advanced(zc, params);
     if (ZSTD_isError(errorCode)) return errorCode;
 
-    MEM_writeLE32(ctx->headerBuffer, ZSTD_MAGICNUMBER);   /* Write Header */
-    ((BYTE*)ctx->headerBuffer)[4] = (BYTE)(params.windowLog - ZSTD_WINDOWLOG_ABSOLUTEMIN);
-    ctx->hbSize = ZSTD_frameHeaderSize_min;
-    ctx->stage = 0;
+    MEM_writeLE32(zc->headerBuffer, ZSTD_MAGICNUMBER);   /* Write Header */
+    ((BYTE*)zc->headerBuffer)[4] = (BYTE)(params.windowLog - ZSTD_WINDOWLOG_ABSOLUTEMIN);
+    zc->hbSize = ZSTD_frameHeaderSize_min;
+    zc->stage = 0;
 
-    return 0;
+    return ZSTD_compress_insertDictionary(zc, dict, dictSize);
 }
 
 
@@ -2219,15 +2220,14 @@ ZSTD_parameters ZSTD_getParams(int compressionLevel, U64 srcSizeHint)
     return result;
 }
 
-/* to do
-size_t ZSTD_compressBegin_usingDict(ZSTD_CCtx* cctx, const void* dict,size_t dictSize, int compressionLevel)
+size_t ZSTD_compressBegin_usingDict(ZSTD_CCtx* zc, const void* dict, size_t dictSize, int compressionLevel)
 {
-    return 0;
-}*/
+    return ZSTD_compressBegin_advanced(zc, dict, dictSize, ZSTD_getParams(compressionLevel, 0));
+}
 
-size_t ZSTD_compressBegin(ZSTD_CCtx* ctx, int compressionLevel)
+size_t ZSTD_compressBegin(ZSTD_CCtx* zc, int compressionLevel)
 {
-    return ZSTD_compressBegin_advanced(ctx, ZSTD_getParams(compressionLevel, 0));
+    return ZSTD_compressBegin_advanced(zc, NULL, 0, ZSTD_getParams(compressionLevel, 0));
 }
 
 
@@ -2269,16 +2269,9 @@ size_t ZSTD_compress_advanced (ZSTD_CCtx* ctx,
     BYTE* op = ostart;
     size_t oSize;
 
-    /* Header */
-    oSize = ZSTD_compressBegin_advanced(ctx, params);
+    /* Init */
+    oSize = ZSTD_compressBegin_advanced(ctx, dict, dictSize, params);
     if(ZSTD_isError(oSize)) return oSize;
-
-    /* dictionary */
-    if (dict)
-    {
-        oSize = ZSTD_compress_insertDictionary(ctx, dict, dictSize);
-        if (ZSTD_isError(oSize)) return oSize;
-    }
 
     /* body (compression) */
     oSize = ZSTD_compressContinue (ctx, op,  maxDstSize, src, srcSize);

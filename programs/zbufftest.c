@@ -158,10 +158,9 @@ static int basicUnitTests(U32 seed, double compressibility)
 
     /* Basic compression test */
     DISPLAYLEVEL(4, "test%3i : compress %u bytes : ", testNb++, COMPRESSIBLE_NOISE_LENGTH);
-    ZBUFF_compressInit(zc, 1);
+    ZBUFF_compressInitDictionary(zc, CNBuffer, 128 KB, 1);
     readSize = CNBufferSize;
     genSize = compressedBufferSize;
-    ZBUFF_compressWithDictionary(zc, CNBuffer, 128 KB);
     result = ZBUFF_compressContinue(zc, compressedBuffer, &genSize, CNBuffer, &readSize);
     if (ZBUFF_isError(result)) goto _output_error;
     if (readSize != CNBufferSize) goto _output_error;   /* entire input should be consumed */
@@ -317,7 +316,6 @@ int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compressibilit
         sampleSizeLog = FUZ_rand(&lseed) % maxSrcLog;
         maxTestSize = (size_t)1 << sampleSizeLog;
         maxTestSize += FUZ_rand(&lseed) & (maxTestSize-1);
-        ZBUFF_compressInit(zc, (FUZ_rand(&lseed) % (20 - (sampleSizeLog/3))) + 1);
 
         sampleSizeLog = FUZ_rand(&lseed) % maxSampleLog;
         sampleSize = (size_t)1 << sampleSizeLog;
@@ -325,7 +323,7 @@ int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compressibilit
         sampleStart = FUZ_rand(&lseed) % (srcBufferSize - sampleSize);
         dict = srcBuffer + sampleStart;
         dictSize = sampleSize;
-        ZBUFF_compressWithDictionary(zc, dict, dictSize);
+        ZBUFF_compressInitDictionary(zc, dict, dictSize, (FUZ_rand(&lseed) % (20 - (sampleSizeLog/3))) + 1);
 
         totalTestSize = 0;
         cSize = 0;

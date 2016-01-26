@@ -45,14 +45,14 @@ extern "C" {
 /* *************************************
 *  Includes
 ***************************************/
-#include "zstd_static.h"
+#include "zstd_static.h"     /* ZSTD_parameters */
 #include "zstd_buffered.h"
 
 
 /* *************************************
 *  Advanced Streaming functions
 ***************************************/
-ZSTDLIB_API size_t ZBUFF_compressInit_advanced(ZBUFF_CCtx* cctx, ZSTD_parameters params);
+ZSTDLIB_API size_t ZBUFF_compressInit_advanced(ZBUFF_CCtx* cctx, const void* dict, size_t dictSize, ZSTD_parameters params);
 
 
 #if defined (__cplusplus)

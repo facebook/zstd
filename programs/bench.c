@@ -295,8 +295,7 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
             milliTime = BMK_GetMilliStart();
             while (BMK_GetMilliSpan(milliTime) < TIMELOOP)
             {
-                ZSTD_compressBegin_advanced(refCtx, ZSTD_getParams(cLevel, dictBufferSize+largestBlockSize));
-                ZSTD_compress_insertDictionary(refCtx, dictBuffer, dictBufferSize);
+                ZSTD_compressBegin_advanced(refCtx, dictBuffer, dictBufferSize, ZSTD_getParams(cLevel, dictBufferSize+largestBlockSize));
                 for (blockNb=0; blockNb<nbBlocks; blockNb++)
                 {
                     ZSTD_copyCCtx(ctx, refCtx);

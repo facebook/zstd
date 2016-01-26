@@ -225,6 +225,42 @@ static size_t ZSTD_resetCCtx_advanced (ZSTD_CCtx* zc,
 }
 
 
+/*! ZSTD_copyCCtx
+*   Duplicate an existing context @srcCCtx into another one @dstCCtx.
+*   Only works during stage 0 (i.e. before first call to ZSTD_compressContinue())
+*   @return : 0, or an error code */
+size_t ZSTD_copyCCtx(ZSTD_CCtx* dstCCtx, const ZSTD_CCtx* srcCCtx)
+{
+    const U32 contentLog = (srcCCtx->params.strategy == ZSTD_fast) ? 1 : srcCCtx->params.contentLog;
+    const size_t tableSpace = ((1 << contentLog) + (1 << srcCCtx->params.hashLog)) * sizeof(U32);
+
+    if (srcCCtx->stage!=0) return ERROR(stage_wrong);
+
+    ZSTD_resetCCtx_advanced(dstCCtx, srcCCtx->params);
+
+    /* copy tables */
+    memcpy(dstCCtx->hashTable, srcCCtx->hashTable, tableSpace);
+
+    /* copy frame header */
+    dstCCtx->hbSize = srcCCtx->hbSize;
+    memcpy(dstCCtx->headerBuffer , srcCCtx->headerBuffer, srcCCtx->hbSize);
+
+    /* copy dictionary pointers */
+    dstCCtx->nextToUpdate= srcCCtx->nextToUpdate;
+    dstCCtx->nextSrc     = srcCCtx->nextSrc;
+    dstCCtx->base        = srcCCtx->base;
+    dstCCtx->dictBase    = srcCCtx->dictBase;
+    dstCCtx->dictLimit   = srcCCtx->dictLimit;
+    dstCCtx->lowLimit    = srcCCtx->lowLimit;
+
+    dstCCtx->flagHufTable = srcCCtx->flagHufTable;
+    if (dstCCtx->flagHufTable)
+        memcpy(dstCCtx->hufTable, srcCCtx->hufTable, 256*4);
+
+    return 0;
+}
+
+
 /** ZSTD_reduceIndex
 *   rescale indexes to avoid future overflow (indexes are U32) */
 static void ZSTD_reduceIndex (ZSTD_CCtx* zc,
@@ -2133,49 +2169,17 @@ static size_t ZSTD_loadDictEntropyStats(ZSTD_CCtx* zc, const void* dict, size_t 
 
 size_t ZSTD_compress_insertDictionary(ZSTD_CCtx* zc, const void* dict, size_t dictSize)
 {
-    U32 magic = MEM_readLE32(dict);
-    U32 eSize;
-    if (magic != ZSTD_DICT_MAGIC)
-        return ZSTD_loadDictionaryContent(zc, dict, dictSize);
+    if (dict && dictSize)
+    {
+        U32 magic = MEM_readLE32(dict);
+        size_t eSize;
+        if (magic != ZSTD_DICT_MAGIC)
+            return ZSTD_loadDictionaryContent(zc, dict, dictSize);
 
-    eSize = ZSTD_loadDictEntropyStats(zc, (const char*)dict+4, dictSize-4) + 4;
-    if (ZSTD_isError(eSize)) return eSize;
-    return ZSTD_loadDictionaryContent(zc, (const char*)dict+eSize, dictSize-eSize);
-}
-
-
-/*! ZSTD_duplicateCCtx
-*   Duplicate an existing context @srcCCtx into another one @dstCCtx.
-*   Only works during stage 0 (i.e. before first call to ZSTD_compressContinue())
-*   @return : 0, or an error code */
-size_t ZSTD_duplicateCCtx(ZSTD_CCtx* dstCCtx, const ZSTD_CCtx* srcCCtx)
-{
-    const U32 contentLog = (srcCCtx->params.strategy == ZSTD_fast) ? 1 : srcCCtx->params.contentLog;
-    const size_t tableSpace = ((1 << contentLog) + (1 << srcCCtx->params.hashLog)) * sizeof(U32);
-
-    if (srcCCtx->stage!=0) return ERROR(stage_wrong);
-
-    ZSTD_resetCCtx_advanced(dstCCtx, srcCCtx->params);
-
-    /* copy tables */
-    memcpy(dstCCtx->hashTable, srcCCtx->hashTable, tableSpace);
-
-    /* copy frame header */
-    dstCCtx->hbSize = srcCCtx->hbSize;
-    memcpy(dstCCtx->headerBuffer , srcCCtx->headerBuffer, srcCCtx->hbSize);
-
-    /* copy dictionary pointers */
-    dstCCtx->nextToUpdate= srcCCtx->nextToUpdate;
-    dstCCtx->nextSrc     = srcCCtx->nextSrc;
-    dstCCtx->base        = srcCCtx->base;
-    dstCCtx->dictBase    = srcCCtx->dictBase;
-    dstCCtx->dictLimit   = srcCCtx->dictLimit;
-    dstCCtx->lowLimit    = srcCCtx->lowLimit;
-
-    dstCCtx->flagHufTable = srcCCtx->flagHufTable;
-    if (dstCCtx->flagHufTable)
-        memcpy(dstCCtx->hufTable, srcCCtx->hufTable, 256*4);
-
+        eSize = ZSTD_loadDictEntropyStats(zc, (const char*)dict+4, dictSize-4) + 4;
+        if (ZSTD_isError(eSize)) return eSize;
+        return ZSTD_loadDictionaryContent(zc, (const char*)dict+eSize, dictSize-eSize);
+    }
     return 0;
 }
 

@@ -46,7 +46,7 @@ extern "C" {
 #include <stddef.h>    /* size_t, ptrdiff_t */
 
 
-/* *****************************************
+/*-****************************************
 *  FSE simple functions
 ******************************************/
 size_t FSE_compress(void* dst, size_t maxDstSize,

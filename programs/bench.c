@@ -293,11 +293,10 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
             milliTime = BMK_GetMilliStart();
             while (BMK_GetMilliStart() == milliTime);
             milliTime = BMK_GetMilliStart();
-            while (BMK_GetMilliSpan(milliTime) < TIMELOOP)
-            {
+            while (BMK_GetMilliSpan(milliTime) < TIMELOOP) {
                 ZSTD_compressBegin_advanced(refCtx, dictBuffer, dictBufferSize, ZSTD_getParams(cLevel, dictBufferSize+largestBlockSize));
-                for (blockNb=0; blockNb<nbBlocks; blockNb++)
-                {
+                //ZSTD_compressBegin_advanced(refCtx, dictBuffer, dictBufferSize, ZSTD_getParams(cLevel, 0));
+                for (blockNb=0; blockNb<nbBlocks; blockNb++) {
                     ZSTD_copyCCtx(ctx, refCtx);
                     size_t rSize = ZSTD_compressContinue(ctx,
                                           blockTable[blockNb].cPtr,  blockTable[blockNb].cRoom,
@@ -309,6 +308,10 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
                                           blockTable[blockNb].cRoom - rSize);
                     if (ZSTD_isError(rSize)) EXM_THROW(2, "ZSTD_compressEnd() failed : %s", ZSTD_getErrorName(rSize));
                     blockTable[blockNb].cSize += rSize;
+
+                    if (blockNb==999999999)
+                        printf("%4u : %6u => %6u bytes (%08X) \n",
+                               blockNb, (U32)blockTable[blockNb].srcSize, (U32)blockTable[blockNb].cSize, XXH32(blockTable[blockNb].cPtr, blockTable[blockNb].cSize, 0));
                 }
                 nbLoops++;
             }
@@ -340,7 +343,8 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
                         blockTable[blockNb].cPtr, blockTable[blockNb].cSize);
 
                     if (ZSTD_isError(regenSize))
-                        EXM_THROW(3, "ZSTD_decompress_usingDict() failed : %s", ZSTD_getErrorName(regenSize));
+                        EXM_THROW(3, "ZSTD_decompress_usingPreparedDCtx() failed on block %u : %s",
+                                  blockNb, ZSTD_getErrorName(regenSize));
                     blockTable[blockNb].resSize = regenSize;
             }   }
 
@@ -364,8 +368,11 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
                         }
                         pos = (U32)(u - bacc);
                         bNb = pos / (128 KB);
-                        printf("(segment %u, block %u, pos %u) \n", segNb, bNb, pos);
+                        printf("(block %u, sub %u, pos %u) \n", segNb, bNb, pos);
                         break;
+                    }
+                    if (u==srcSize-1) {  /* should never happen */
+                        printf("no difference detected\n");
                 }   }
                 break;
             }
@@ -375,7 +382,7 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
         if (crcOrig == crcCheck)
             DISPLAY("%2i-%-17.17s :%10i ->%10i (%5.3f),%6.1f MB/s ,%6.1f MB/s \n", cLevel, displayName, (int)srcSize, (int)cSize, ratio, (double)srcSize / fastestC / 1000., (double)srcSize / fastestD / 1000.);
         else
-            DISPLAY("\n");
+            DISPLAY("%2i-\n", cLevel);
     }
 
     /* clean up */

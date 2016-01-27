@@ -223,8 +223,7 @@ static unsigned char FSE_decodeSymbolFast(FSE_DState_t* DStatePtr, BIT_DStream_t
 /* *****************************************
 *  Implementation of inlined functions
 *******************************************/
-typedef struct
-{
+typedef struct {
     int deltaFindState;
     U32 deltaNbBits;
 } FSE_symbolCompressionTransform; /* total 8 bytes */

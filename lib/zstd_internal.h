@@ -94,6 +94,12 @@ static const size_t ZSTD_frameHeaderSize_min = 5;
 #define OffFSELog   9
 #define MaxSeq MAX(MaxLL, MaxML)
 
+#define FSE_ENCODING_RAW     0
+#define FSE_ENCODING_RLE     1
+#define FSE_ENCODING_STATIC  2
+#define FSE_ENCODING_DYNAMIC 3
+
+
 #define HufLog 12
 
 #define MIN_SEQUENCES_SIZE (2 /*seqNb*/ + 2 /*dumps*/ + 3 /*seqTables*/ + 1 /*bitStream*/)
@@ -104,9 +110,9 @@ static const size_t ZSTD_frameHeaderSize_min = 5;
 typedef enum { bt_compressed, bt_raw, bt_rle, bt_end } blockType_t;
 
 
-/* ******************************************
+/*-*******************************************
 *  Shared functions to include for inlining
-********************************************/
+*********************************************/
 static void ZSTD_copy8(void* dst, const void* src) { memcpy(dst, src, 8); }
 
 #define COPY8(d,s) { ZSTD_copy8(d,s); d+=8; s+=8; }

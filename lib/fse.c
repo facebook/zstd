@@ -425,10 +425,7 @@ size_t FSE_NCountWriteBound(unsigned maxSymbolValue, unsigned tableLog)
     return maxSymbolValue ? maxHeaderSize : FSE_NCOUNTBOUND;  /* maxSymbolValue==0 ? use default */
 }
 
-static short FSE_abs(short a)
-{
-    return a<0 ? -a : a;
-}
+static short FSE_abs(short a) { return a<0 ? -a : a; }
 
 static size_t FSE_writeNCount_generic (void* header, size_t headerBufferSize,
                                        const short* normalizedCounter, unsigned maxSymbolValue, unsigned tableLog,
@@ -457,14 +454,11 @@ static size_t FSE_writeNCount_generic (void* header, size_t headerBufferSize,
     threshold = tableSize;
     nbBits = tableLog+1;
 
-    while (remaining>1)   /* stops at 1 */
-    {
-        if (previous0)
-        {
+    while (remaining>1) {  /* stops at 1 */
+        if (previous0) {
             unsigned start = charnum;
             while (!normalizedCounter[charnum]) charnum++;
-            while (charnum >= start+24)
-            {
+            while (charnum >= start+24) {
                 start+=24;
                 bitStream += 0xFFFFU << bitCount;
                 if ((!writeIsSafe) && (out > oend-2)) return ERROR(dstSize_tooSmall);   /* Buffer overflow */
@@ -473,24 +467,21 @@ static size_t FSE_writeNCount_generic (void* header, size_t headerBufferSize,
                 out+=2;
                 bitStream>>=16;
             }
-            while (charnum >= start+3)
-            {
+            while (charnum >= start+3) {
                 start+=3;
                 bitStream += 3 << bitCount;
                 bitCount += 2;
             }
             bitStream += (charnum-start) << bitCount;
             bitCount += 2;
-            if (bitCount>16)
-            {
+            if (bitCount>16) {
                 if ((!writeIsSafe) && (out > oend - 2)) return ERROR(dstSize_tooSmall);   /* Buffer overflow */
                 out[0] = (BYTE)bitStream;
                 out[1] = (BYTE)(bitStream>>8);
                 out += 2;
                 bitStream >>= 16;
                 bitCount -= 16;
-            }
-        }
+        }   }
         {
             short count = normalizedCounter[charnum++];
             const short max = (short)((2*threshold-1)-remaining);
@@ -504,8 +495,7 @@ static size_t FSE_writeNCount_generic (void* header, size_t headerBufferSize,
             previous0 = (count==1);
             while (remaining<threshold) nbBits--, threshold>>=1;
         }
-        if (bitCount>16)
-        {
+        if (bitCount>16) {
             if ((!writeIsSafe) && (out > oend - 2)) return ERROR(dstSize_tooSmall);   /* Buffer overflow */
             out[0] = (BYTE)bitStream;
             out[1] = (BYTE)(bitStream>>8);
@@ -564,27 +554,19 @@ size_t FSE_readNCount (short* normalizedCounter, unsigned* maxSVPtr, unsigned* t
     threshold = 1<<nbBits;
     nbBits++;
 
-    while ((remaining>1) && (charnum<=*maxSVPtr))
-    {
-        if (previous0)
-        {
+    while ((remaining>1) && (charnum<=*maxSVPtr)) {
+        if (previous0) {
             unsigned n0 = charnum;
-            while ((bitStream & 0xFFFF) == 0xFFFF)
-            {
+            while ((bitStream & 0xFFFF) == 0xFFFF) {
                 n0+=24;
-                if (ip < iend-5)
-                {
+                if (ip < iend-5) {
                     ip+=2;
                     bitStream = MEM_readLE32(ip) >> bitCount;
-                }
-                else
-                {
+                } else {
                     bitStream >>= 16;
                     bitCount+=16;
-                }
-            }
-            while ((bitStream & 3) == 3)
-            {
+            }   }
+            while ((bitStream & 3) == 3) {
                 n0+=3;
                 bitStream>>=2;
                 bitCount+=2;
@@ -593,8 +575,7 @@ size_t FSE_readNCount (short* normalizedCounter, unsigned* maxSVPtr, unsigned* t
             bitCount += 2;
             if (n0 > *maxSVPtr) return ERROR(maxSymbolValue_tooSmall);
             while (charnum < n0) normalizedCounter[charnum++] = 0;
-            if ((ip <= iend-7) || (ip + (bitCount>>3) <= iend-4))
-            {
+            if ((ip <= iend-7) || (ip + (bitCount>>3) <= iend-4)) {
                 ip += bitCount>>3;
                 bitCount &= 7;
                 bitStream = MEM_readLE32(ip) >> bitCount;
@@ -606,13 +587,10 @@ size_t FSE_readNCount (short* normalizedCounter, unsigned* maxSVPtr, unsigned* t
             const short max = (short)((2*threshold-1)-remaining);
             short count;
 
-            if ((bitStream & (threshold-1)) < (U32)max)
-            {
+            if ((bitStream & (threshold-1)) < (U32)max) {
                 count = (short)(bitStream & (threshold-1));
                 bitCount   += nbBits-1;
-            }
-            else
-            {
+            } else {
                 count = (short)(bitStream & (2*threshold-1));
                 if (count >= threshold) count -= max;
                 bitCount   += nbBits;
@@ -622,27 +600,20 @@ size_t FSE_readNCount (short* normalizedCounter, unsigned* maxSVPtr, unsigned* t
             remaining -= FSE_abs(count);
             normalizedCounter[charnum++] = count;
             previous0 = !count;
-            while (remaining < threshold)
-            {
+            while (remaining < threshold) {
                 nbBits--;
                 threshold >>= 1;
             }
 
-            {
-                if ((ip <= iend-7) || (ip + (bitCount>>3) <= iend-4))
-                {
-                    ip += bitCount>>3;
-                    bitCount &= 7;
-                }
-                else
-                {
-                    bitCount -= (int)(8 * (iend - 4 - ip));
-					ip = iend - 4;
-				}
-                bitStream = MEM_readLE32(ip) >> (bitCount & 31);
+            if ((ip <= iend-7) || (ip + (bitCount>>3) <= iend-4)) {
+                ip += bitCount>>3;
+                bitCount &= 7;
+            } else {
+                bitCount -= (int)(8 * (iend - 4 - ip));
+                ip = iend - 4;
             }
-        }
-    }
+            bitStream = MEM_readLE32(ip) >> (bitCount & 31);
+    }   }
     if (remaining != 1) return ERROR(GENERIC);
     *maxSVPtr = charnum-1;
 
@@ -723,22 +694,18 @@ static size_t FSE_normalizeM2(short* norm, U32 tableLog, const unsigned* count, 
     U32 lowThreshold = (U32)(total >> tableLog);
     U32 lowOne = (U32)((total * 3) >> (tableLog + 1));
 
-    for (s=0; s<=maxSymbolValue; s++)
-    {
-        if (count[s] == 0)
-        {
+    for (s=0; s<=maxSymbolValue; s++) {
+        if (count[s] == 0) {
             norm[s]=0;
             continue;
         }
-        if (count[s] <= lowThreshold)
-        {
+        if (count[s] <= lowThreshold) {
             norm[s] = -1;
             distributed++;
             total -= count[s];
             continue;
         }
-        if (count[s] <= lowOne)
-        {
+        if (count[s] <= lowOne) {
             norm[s] = 1;
             distributed++;
             total -= count[s];
@@ -748,25 +715,20 @@ static size_t FSE_normalizeM2(short* norm, U32 tableLog, const unsigned* count, 
     }
     ToDistribute = (1 << tableLog) - distributed;
 
-    if ((total / ToDistribute) > lowOne)
-    {
+    if ((total / ToDistribute) > lowOne) {
         /* risk of rounding to zero */
         lowOne = (U32)((total * 3) / (ToDistribute * 2));
-        for (s=0; s<=maxSymbolValue; s++)
-        {
-            if ((norm[s] == -2) && (count[s] <= lowOne))
-            {
+        for (s=0; s<=maxSymbolValue; s++) {
+            if ((norm[s] == -2) && (count[s] <= lowOne)) {
                 norm[s] = 1;
                 distributed++;
                 total -= count[s];
                 continue;
-            }
-        }
+        }   }
         ToDistribute = (1 << tableLog) - distributed;
     }
 
-    if (distributed == maxSymbolValue+1)
-    {
+    if (distributed == maxSymbolValue+1) {
         /* all values are pretty poor;
            probably incompressible data (should have already been detected);
            find max, then give all remaining points to max */
@@ -782,10 +744,8 @@ static size_t FSE_normalizeM2(short* norm, U32 tableLog, const unsigned* count, 
         U64 const mid = (1ULL << (vStepLog-1)) - 1;
         U64 const rStep = ((((U64)1<<vStepLog) * ToDistribute) + mid) / total;   /* scale on remaining */
         U64 tmpTotal = mid;
-        for (s=0; s<=maxSymbolValue; s++)
-        {
-            if (norm[s]==-2)
-            {
+        for (s=0; s<=maxSymbolValue; s++) {
+            if (norm[s]==-2) {
                 U64 end = tmpTotal + (count[s] * rStep);
                 U32 sStart = (U32)(tmpTotal >> vStepLog);
                 U32 sEnd = (U32)(end >> vStepLog);
@@ -794,9 +754,7 @@ static size_t FSE_normalizeM2(short* norm, U32 tableLog, const unsigned* count, 
                     return ERROR(GENERIC);
                 norm[s] = (short)weight;
                 tmpTotal = end;
-            }
-        }
-    }
+    }   }   }
 
     return 0;
 }
@@ -809,7 +767,7 @@ size_t FSE_normalizeCount (short* normalizedCounter, unsigned tableLog,
     /* Sanity checks */
     if (tableLog==0) tableLog = FSE_DEFAULT_TABLELOG;
     if (tableLog < FSE_MIN_TABLELOG) return ERROR(GENERIC);   /* Unsupported size */
-    if (tableLog > FSE_MAX_TABLELOG) return ERROR(GENERIC);   /* Unsupported size */
+    if (tableLog > FSE_MAX_TABLELOG) return ERROR(tableLog_tooLarge);   /* Unsupported size */
     if (tableLog < FSE_minTableLog(total, maxSymbolValue)) return ERROR(GENERIC);   /* Too small tableLog, compression potentially impossible */
 
     {
@@ -823,38 +781,23 @@ size_t FSE_normalizeCount (short* normalizedCounter, unsigned tableLog,
         short largestP=0;
         U32 lowThreshold = (U32)(total >> tableLog);
 
-        for (s=0; s<=maxSymbolValue; s++)
-        {
-            if (count[s] == total) return 0;
-            if (count[s] == 0)
-            {
-                normalizedCounter[s]=0;
-                continue;
-            }
-            if (count[s] <= lowThreshold)
-            {
+        for (s=0; s<=maxSymbolValue; s++) {
+            if (count[s] == total) return 0;   /* rle special case */
+            if (count[s] == 0) { normalizedCounter[s]=0; continue; }
+            if (count[s] <= lowThreshold) {
                 normalizedCounter[s] = -1;
                 stillToDistribute--;
-            }
-            else
-            {
+            } else {
                 short proba = (short)((count[s]*step) >> scale);
-                if (proba<8)
-                {
+                if (proba<8) {
                     U64 restToBeat = vStep * rtbTable[proba];
                     proba += (count[s]*step) - ((U64)proba<<scale) > restToBeat;
                 }
-                if (proba > largestP)
-                {
-                    largestP=proba;
-                    largest=s;
-                }
+                if (proba > largestP) largestP=proba, largest=s;
                 normalizedCounter[s] = proba;
                 stillToDistribute -= proba;
-            }
-        }
-        if (-stillToDistribute >= (normalizedCounter[largest] >> 1))
-        {
+        }   }
+        if (-stillToDistribute >= (normalizedCounter[largest] >> 1)) {
             /* corner case, need another normalization method */
             size_t errorCode = FSE_normalizeM2(normalizedCounter, tableLog, count, total, maxSymbolValue);
             if (FSE_isError(errorCode)) return errorCode;
@@ -904,8 +847,7 @@ size_t FSE_buildCTable_raw (FSE_CTable* ct, unsigned nbBits)
         tableU16[s] = (U16)(tableSize + s);
 
     /* Build Symbol Transformation Table */
-    for (s=0; s<=maxSymbolValue; s++)
-    {
+    for (s=0; s<=maxSymbolValue; s++) {
         symbolTT[s].deltaNbBits = nbBits << 16;
         symbolTT[s].deltaFindState = s-1;
     }

@@ -98,8 +98,8 @@ static const size_t maxMemory = (sizeof(size_t)==4)  ?  (2 GB - 64 MB) : (size_t
 ***************************************/
 #define DISPLAY(...)         fprintf(stderr, __VA_ARGS__)
 #define DISPLAYLEVEL(l, ...) if (g_displayLevel>=l) { DISPLAY(__VA_ARGS__); }
-static unsigned g_displayLevel = 2;   /* 0 : no display;   1: errors;   2: default;  4: full information */
-void DiB_setDisplayLevel(unsigned l) { g_displayLevel=l; }
+static unsigned g_displayLevel = 0;   /* 0 : no display;   1: errors;   2: default;  4: full information */
+void DiB_setNotificationLevel(unsigned l) { g_displayLevel=l; }
 
 #define DISPLAYUPDATE(l, ...) if (g_displayLevel>=l) { \
             if (DiB_GetMilliSpan(g_time) > refreshRate)  \
@@ -833,9 +833,8 @@ static void DiB_saveDict(const char* dictFileName,
 }
 
 
-int DiB_trainFiles(const char* dictFileName, unsigned maxDictSize,
-                   const char** fileNamesTable, unsigned nbFiles,
-                   unsigned shiftRatio)
+int DiB_trainDictionary(const char* dictFileName, unsigned maxDictSize, unsigned shiftRatio,
+                   const char** fileNamesTable, unsigned nbFiles)
 {
     void* srcBuffer;
     size_t benchedSize;

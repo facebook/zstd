@@ -247,8 +247,8 @@ int main(int argCount, const char** argv)
     if (filenameIdx==0) return badusage(programName);
 
     /* building ... */
-    DiB_setDisplayLevel(displayLevel);
-    operationResult = DiB_trainFiles(dictFileName, maxDictSize, filenameTable, filenameIdx, selectionLevel);
+    DiB_setNotificationLevel(displayLevel);
+    operationResult = DiB_trainDictionary(dictFileName, maxDictSize, selectionLevel, filenameTable, filenameIdx);
 
     if (main_pause) waitEnter();
     free((void*)filenameTable);

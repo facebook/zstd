@@ -23,7 +23,10 @@
     - ztsd public forum : https://groups.google.com/forum/#!forum/lz4c
 */
 
-/* *************************************
+/* This library is designed for a single-threaded console application.
+*  It abruptly exits (exit() function) when it encounters an error condition. */
+
+/*-*************************************
 *  Version
 ***************************************/
 #define DiB_VERSION_MAJOR    0    /* for breaking interface changes  */
@@ -33,12 +36,21 @@
 unsigned DiB_versionNumber (void);
 
 
-/* *************************************
+/*-*************************************
 *  Main functions
 ***************************************/
-int DiB_trainFiles(const char* dictFileName, unsigned maxDictSize,
-                   const char** fileNamesTable, unsigned nbFiles,
-                   unsigned selectionLevel);
+/*! DiB_trainDictionary
+    Train a dictionary from a set of files provided by @fileNamesTable
+    Resulting dictionary is written in file @dictFileName
+    @result : 0 if fine
+*/
+int DiB_trainDictionary(const char* dictFileName, unsigned maxDictSize, unsigned selectivityLevel,
+                        const char** fileNamesTable, unsigned nbFiles);
 
 
-void DiB_setDisplayLevel(unsigned l);
+/*! DiB_setNotificationLevel
+    Set amount of notification to be displayed on the console.
+    0 = no console notification (default).
+    Note : not thread-safe (use a global constant)
+*/
+void DiB_setNotificationLevel(unsigned l);

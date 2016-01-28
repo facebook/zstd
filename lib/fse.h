@@ -124,13 +124,13 @@ or to save and provide normalized distribution using external method.
 
 /*!
 FSE_count():
-   Provides the precise count of each symbol within a table 'count'
-   'count' is a table of unsigned int, of minimum size (maxSymbolValuePtr[0]+1).
-   maxSymbolValuePtr[0] will be updated if detected smaller than initially expected
-   return : the count of the most frequent symbol (which is not identified)
-            if return == srcSize, there is only one symbol.
-            if FSE_isError(return), it's an error code. */
-size_t FSE_count(unsigned* count, unsigned* maxSymbolValuePtr, const unsigned char* src, size_t srcSize);
+   Provides the precise count of each byte within a table 'count'
+   'count' is a table of unsigned int, of minimum size (*maxSymbolValuePtr+1).
+   *maxSymbolValuePtr will be updated if detected smaller than initial value.
+   @return : the count of the most frequent symbol (which is not identified)
+             if return == srcSize, there is only one symbol.
+             Can also return an error code, which can be tested with FSE_isError() */
+size_t FSE_count(unsigned* count, unsigned* maxSymbolValuePtr, const void* src, size_t srcSize);
 
 /*!
 FSE_optimalTableLog():

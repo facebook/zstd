@@ -24,6 +24,12 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
+/*- Compiler specifics -*/
+#ifdef __clang__
+#pragma clang diagnostic ignored "-Wshorten-64-to-32"
+#endif
+
+/*- Dependencies -*/
 #include "divsufsort_private.h"
 #ifdef _OPENMP
 # include <omp.h>

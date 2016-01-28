@@ -55,7 +55,9 @@ clean:
         dictBuilder$(EXT)
 	@echo Cleaning completed
 
-test: clean dictBuilder
+test: dictBuilder
+	./dictBuilder *
+	@rm dictionary
 
 clangtest: CC = clang
 clangtest: CFLAGS += -Werror

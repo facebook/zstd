@@ -63,8 +63,8 @@ extern "C" {
 /* *****************************************
 *  FSE advanced API
 *******************************************/
-size_t FSE_countFast(unsigned* count, unsigned* maxSymbolValuePtr, const unsigned char* src, size_t srcSize);
-/* same as FSE_count(), but blindly trust that all values within src are <= *maxSymbolValuePtr  */
+size_t FSE_countFast(unsigned* count, unsigned* maxSymbolValuePtr, const void* src, size_t srcSize);
+/* same as FSE_count(), but blindly trusts that all byte values within src are <= *maxSymbolValuePtr  */
 
 size_t FSE_buildCTable_raw (FSE_CTable* ct, unsigned nbBits);
 /* build a fake FSE_CTable, designed to not compress an input, where each symbol uses nbBits */

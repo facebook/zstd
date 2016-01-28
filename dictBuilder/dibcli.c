@@ -153,7 +153,7 @@ int main(int argCount, const char** argv)
         operationResult=0,
         nextArgumentIsMaxDict=0,
         nextArgumentIsDictFileName=0;
-    size_t maxDictSize = maxDictSizeDefault;
+    unsigned maxDictSize = maxDictSizeDefault;
     unsigned selectionLevel = selectionLevelDefault;
     const char** filenameTable = (const char**)malloc(argCount * sizeof(const char*));   /* argCount >= 1 */
     unsigned filenameIdx = 0;

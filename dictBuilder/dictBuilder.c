@@ -419,7 +419,7 @@ static dictItem DiB_analyzePos(
         /* largest useful length */
         memset(cumulLength, 0, sizeof(cumulLength));
         cumulLength[maxLength-1] = lengthList[maxLength-1];
-        for (i=maxLength-2; i>=0; i--)
+        for (i=(int)(maxLength-2); i>=0; i--)
             cumulLength[i] = cumulLength[i+1] + lengthList[i];
 
         for (i=LLIMIT-1; i>=MINMATCHLENGTH; i--) if (cumulLength[i]>=minRatio) break;
@@ -427,7 +427,7 @@ static dictItem DiB_analyzePos(
 
         /* reduce maxLength in case of final into repetitive data */
         {
-            U32 l = maxLength;
+            U32 l = (U32)maxLength;
             BYTE c = b[pos + maxLength-1];
             while (b[pos+l-2]==c) l--;
             maxLength = l;
@@ -442,8 +442,8 @@ static dictItem DiB_analyzePos(
         DISPLAYLEVEL(4, "Selected ref at position %u, of length %u : saves %u (ratio: %.2f)  \n",
                      (U32)pos, (U32)maxLength, savings[maxLength], (double)savings[maxLength] / maxLength);
 
-        solution.pos = pos;
-        solution.length = maxLength;
+        solution.pos = (U32)pos;
+        solution.length = (U32)maxLength;
         solution.savings = savings[maxLength];
 
         /* mark positions done */
@@ -459,7 +459,7 @@ static dictItem DiB_analyzePos(
                     length = DiB_count(b+pos, b+testedPos);
                     if (length > solution.length) length = solution.length;
                 }
-                pEnd = testedPos + length;
+                pEnd = (U32)(testedPos + length);
                 for (p=testedPos; p<pEnd; p++)
                     doneMarks[p] = 1;
     }   }   }
@@ -522,7 +522,7 @@ static void DiB_removeDictItem(dictItem* table, U32 id)
     U32 max = table->pos;
     U32 u;
     if (!id) return;   /* protection, should never happen */
-    for (u=id; u<max; u++)
+    for (u=id; u<max-1; u++)
         table[u] = table[u+1];
     table->pos--;
 }
@@ -570,7 +570,7 @@ static U32 DiB_dictSize(const dictItem* dictList)
 static void DiB_trainBuffer(dictItem* dictList, U32 dictListSize,
                             const void* const buffer, const size_t bufferSize,   /* buffer must end with noisy guard band */
                             const char* displayName,
-                            const size_t* fileSizes, size_t nbFiles, unsigned maxDictSize,
+                            const size_t* fileSizes, unsigned nbFiles, unsigned maxDictSize,
                             U32 shiftRatio)
 {
     saidx_t* const suffix0 = (saidx_t*)malloc((bufferSize+2)*sizeof(*suffix0));
@@ -590,19 +590,19 @@ static void DiB_trainBuffer(dictItem* dictList, U32 dictListSize,
 
     /* sort */
     DISPLAYLEVEL(2, "sorting %s ...\n", displayName);
-    errorCode = divsufsort((const sauchar_t*)buffer, suffix, bufferSize);
+    errorCode = divsufsort((const sauchar_t*)buffer, suffix, (saidx_t)bufferSize);
     if (errorCode != 0) EXM_THROW(2, "sort failed");
-    suffix[bufferSize] = bufferSize;   /* leads into noise */
-    suffix0[0] = bufferSize;           /* leads into noise */
+    suffix[bufferSize] = (saidx_t)bufferSize;   /* leads into noise */
+    suffix0[0] = (saidx_t)bufferSize;           /* leads into noise */
     {
         /* build reverse suffix sort */
         size_t pos;
         for (pos=0; pos < bufferSize; pos++)
-            reverseSuffix[suffix[pos]] = pos;
+            reverseSuffix[suffix[pos]] = (U32)pos;
         /* build file pos */
         filePos[0] = 0;
         for (pos=1; pos<nbFiles; pos++)
-            filePos[pos] = filePos[pos-1] + fileSizes[pos-1];
+            filePos[pos] = (U32)(filePos[pos-1] + fileSizes[pos-1]);
     }
 
     DISPLAYLEVEL(2, "finding patterns ... \n");

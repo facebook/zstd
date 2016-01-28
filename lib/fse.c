@@ -1052,8 +1052,7 @@ size_t FSE_buildDTable_raw (FSE_DTable* dt, unsigned nbBits)
     /* Build Decoding Table */
     DTableH->tableLog = (U16)nbBits;
     DTableH->fastMode = 1;
-    for (s=0; s<=maxSymbolValue; s++)
-    {
+    for (s=0; s<=maxSymbolValue; s++) {
         dinfo[s].newState = 0;
         dinfo[s].symbol = (BYTE)s;
         dinfo[s].nbBits = (BYTE)nbBits;
@@ -1087,8 +1086,7 @@ FORCE_INLINE size_t FSE_decompress_usingDTable_generic(
 #define FSE_GETSYMBOL(statePtr) fast ? FSE_decodeSymbolFast(statePtr, &bitD) : FSE_decodeSymbol(statePtr, &bitD)
 
     /* 4 symbols per loop */
-    for ( ; (BIT_reloadDStream(&bitD)==BIT_DStream_unfinished) && (op<olimit) ; op+=4)
-    {
+    for ( ; (BIT_reloadDStream(&bitD)==BIT_DStream_unfinished) && (op<olimit) ; op+=4) {
         op[0] = FSE_GETSYMBOL(&state1);
 
         if (FSE_MAX_TABLELOG*2+7 > sizeof(bitD.bitContainer)*8)    /* This test must be static */
@@ -1109,8 +1107,7 @@ FORCE_INLINE size_t FSE_decompress_usingDTable_generic(
 
     /* tail */
     /* note : BIT_reloadDStream(&bitD) >= FSE_DStream_partiallyFilled; Ends at exactly BIT_DStream_completed */
-    while (1)
-    {
+    while (1) {
         if ( (BIT_reloadDStream(&bitD)>BIT_DStream_completed) || (op==omax) || (BIT_endOfDStream(&bitD) && (fast || FSE_endOfDState(&state1))) )
             break;
 

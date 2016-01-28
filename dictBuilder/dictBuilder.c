@@ -1,5 +1,5 @@
 /*
-    dictBuilder.c
+    dictBuilder - dictionary builder for LZ algorithms
     Copyright (C) Yann Collet 2016
 
     GPL v2 License
@@ -20,7 +20,6 @@
 
     You can contact the author at :
     - zstd source repository : https://github.com/Cyan4973/zstd
-    - ztsd public forum : https://groups.google.com/forum/#!forum/lz4c
 */
 
 /* **************************************
@@ -40,13 +39,8 @@
 #  define _LARGEFILE64_SOURCE
 #endif
 
-/* S_ISREG & gettimeofday() are not supported by MSVC */
-#if defined(_MSC_VER) || defined(_WIN32)
-#  define BMK_LEGACY_TIMER 1
-#endif
 
-
-/* *************************************
+/*-*************************************
 *  Includes
 ***************************************/
 #include <stdlib.h>      /* malloc, free */
@@ -75,7 +69,7 @@
 #endif
 
 
-/* *************************************
+/*-*************************************
 *  Constants
 ***************************************/
 #define KB *(1 <<10)
@@ -93,8 +87,8 @@ static const size_t maxMemory = (sizeof(size_t)==4)  ?  (2 GB - 64 MB) : (size_t
 #define MINRATIO 4
 
 
-/* *************************************
-*  console display
+/*-*************************************
+*  Console display
 ***************************************/
 #define DISPLAY(...)         fprintf(stderr, __VA_ARGS__)
 #define DISPLAYLEVEL(l, ...) if (g_displayLevel>=l) { DISPLAY(__VA_ARGS__); }
@@ -121,7 +115,7 @@ void DiB_printHex(U32 dlevel, const void* ptr, size_t length)
 }
 
 
-/* *************************************
+/*-*************************************
 *  Exceptions
 ***************************************/
 #ifndef DEBUG

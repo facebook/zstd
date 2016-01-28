@@ -1,6 +1,6 @@
 /*
     ZSTD HC - High Compression Mode of Zstandard
-    Copyright (C) 2015, Yann Collet.
+    Copyright (C) 2015-2016, Yann Collet.
 
     BSD 2-Clause License (http://www.opensource.org/licenses/bsd-license.php)
 
@@ -181,29 +181,25 @@ void ZSTD_validateParams(ZSTD_parameters* params)
 
 static size_t ZSTD_resetCCtx_advanced (ZSTD_CCtx* zc,
                                        ZSTD_parameters params)
-{
-    /* note : params considered validated here */
+{   /* note : params considered validated here */
     const size_t blockSize = MIN(BLOCKSIZE, (size_t)1 << params.windowLog);
-
     /* reserve table memory */
-    {
-        const U32 contentLog = (params.strategy == ZSTD_fast) ? 1 : params.contentLog;
-        const size_t tableSpace = ((1 << contentLog) + (1 << params.hashLog)) * sizeof(U32);
-        const size_t neededSpace = tableSpace + (256*sizeof(U32)) + (3*blockSize);
-        if (zc->workSpaceSize < neededSpace) {
-            free(zc->workSpace);
-            zc->workSpace = malloc(neededSpace);
-            if (zc->workSpace == NULL) return ERROR(memory_allocation);
-            zc->workSpaceSize = neededSpace;
-        }
-        memset(zc->workSpace, 0, tableSpace );   /* reset only tables */
-        zc->hashTable = (U32*)(zc->workSpace);
-        zc->contentTable = zc->hashTable + ((size_t)1 << params.hashLog);
-        zc->seqStore.buffer = zc->contentTable + ((size_t)1 << contentLog);
-        zc->hufTable = (HUF_CElt*)zc->seqStore.buffer;
-        zc->flagStaticTables = 0;
-        zc->seqStore.buffer = (U32*)(zc->seqStore.buffer) + 256;
+    const U32 contentLog = (params.strategy == ZSTD_fast) ? 1 : params.contentLog;
+    const size_t tableSpace = ((1 << contentLog) + (1 << params.hashLog)) * sizeof(U32);
+    const size_t neededSpace = tableSpace + (256*sizeof(U32)) + (3*blockSize);
+    if (zc->workSpaceSize < neededSpace) {
+        free(zc->workSpace);
+        zc->workSpace = malloc(neededSpace);
+        if (zc->workSpace == NULL) return ERROR(memory_allocation);
+        zc->workSpaceSize = neededSpace;
     }
+    memset(zc->workSpace, 0, tableSpace );   /* reset only tables */
+    zc->hashTable = (U32*)(zc->workSpace);
+    zc->contentTable = zc->hashTable + ((size_t)1 << params.hashLog);
+    zc->seqStore.buffer = zc->contentTable + ((size_t)1 << contentLog);
+    zc->hufTable = (HUF_CElt*)zc->seqStore.buffer;
+    zc->flagStaticTables = 0;
+    zc->seqStore.buffer = (U32*)(zc->seqStore.buffer) + 256;
 
     zc->nextToUpdate = 1;
     zc->nextSrc = NULL;
@@ -256,7 +252,7 @@ size_t ZSTD_copyCCtx(ZSTD_CCtx* dstCCtx, const ZSTD_CCtx* srcCCtx)
 
     /* copy entropy tables */
     dstCCtx->flagStaticTables = srcCCtx->flagStaticTables;
-    if (dstCCtx->flagStaticTables) {
+    if (srcCCtx->flagStaticTables) {
         memcpy(dstCCtx->hufTable, srcCCtx->hufTable, 256*4);
         memcpy(dstCCtx->litlengthCTable, srcCCtx->litlengthCTable, sizeof(dstCCtx->litlengthCTable));
         memcpy(dstCCtx->matchlengthCTable, srcCCtx->matchlengthCTable, sizeof(dstCCtx->matchlengthCTable));
@@ -267,7 +263,7 @@ size_t ZSTD_copyCCtx(ZSTD_CCtx* dstCCtx, const ZSTD_CCtx* srcCCtx)
 }
 
 
-/** ZSTD_reduceIndex
+/*! ZSTD_reduceIndex
 *   rescale indexes to avoid future overflow (indexes are U32) */
 static void ZSTD_reduceIndex (ZSTD_CCtx* zc,
                         const U32 reducerValue)
@@ -284,7 +280,7 @@ static void ZSTD_reduceIndex (ZSTD_CCtx* zc,
 }
 
 
-/* *******************************************************
+/*-*******************************************************
 *  Block entropic compression
 *********************************************************/
 
@@ -553,7 +549,7 @@ size_t ZSTD_compressSequences(ZSTD_CCtx* zc,
     MEM_writeLE16(op, (U16)nbSeq); op+=2;
     seqHead = op;
 
-    /* dumps : contains too large lengths */
+    /* dumps : contains rests of large lengths */
     {
         size_t dumpsLength = seqStorePtr->dumps - seqStorePtr->dumpsStart;
         if (dumpsLength < 512) {
@@ -773,10 +769,8 @@ static unsigned ZSTD_highbit(U32 val)
 
 static unsigned ZSTD_NbCommonBytes (register size_t val)
 {
-    if (MEM_isLittleEndian())
-    {
-        if (MEM_64bits())
-        {
+    if (MEM_isLittleEndian()) {
+        if (MEM_64bits()) {
 #       if defined(_MSC_VER) && defined(_WIN64)
             unsigned long r = 0;
             _BitScanForward64( &r, (U64)val );
@@ -787,9 +781,7 @@ static unsigned ZSTD_NbCommonBytes (register size_t val)
             static const int DeBruijnBytePos[64] = { 0, 0, 0, 0, 0, 1, 1, 2, 0, 3, 1, 3, 1, 4, 2, 7, 0, 2, 3, 6, 1, 5, 3, 5, 1, 3, 4, 4, 2, 5, 6, 7, 7, 0, 1, 2, 3, 3, 4, 6, 2, 6, 5, 5, 3, 4, 5, 6, 7, 1, 2, 4, 6, 4, 4, 5, 7, 2, 6, 5, 7, 6, 7, 7 };
             return DeBruijnBytePos[((U64)((val & -(long long)val) * 0x0218A392CDABBD3FULL)) >> 58];
 #       endif
-        }
-        else /* 32 bits */
-        {
+        } else { /* 32 bits */
 #       if defined(_MSC_VER)
             unsigned long r=0;
             _BitScanForward( &r, (U32)val );
@@ -801,11 +793,8 @@ static unsigned ZSTD_NbCommonBytes (register size_t val)
             return DeBruijnBytePos[((U32)((val & -(S32)val) * 0x077CB531U)) >> 27];
 #       endif
         }
-    }
-    else   /* Big Endian CPU */
-    {
-        if (MEM_64bits())
-        {
+    } else {  /* Big Endian CPU */
+        if (MEM_64bits()) {
 #       if defined(_MSC_VER) && defined(_WIN64)
             unsigned long r = 0;
             _BitScanReverse64( &r, val );
@@ -820,9 +809,7 @@ static unsigned ZSTD_NbCommonBytes (register size_t val)
             r += (!val);
             return r;
 #       endif
-        }
-        else /* 32 bits */
-        {
+        } else { /* 32 bits */
 #       if defined(_MSC_VER)
             unsigned long r = 0;
             _BitScanReverse( &r, (unsigned long)val );
@@ -835,8 +822,7 @@ static unsigned ZSTD_NbCommonBytes (register size_t val)
             r += (!val);
             return r;
 #       endif
-        }
-    }
+    }   }
 }
 
 
@@ -874,24 +860,23 @@ static size_t ZSTD_count_2segments(const BYTE* ip, const BYTE* match, const BYTE
 
 
 
-/* *************************************
+/*-*************************************
 *  Hashes
 ***************************************/
-
 static const U32 prime4bytes = 2654435761U;
-static U32 ZSTD_hash4(U32 u, U32 h) { return (u * prime4bytes) >> (32-h) ; }
+static U32    ZSTD_hash4(U32 u, U32 h) { return (u * prime4bytes) >> (32-h) ; }
 static size_t ZSTD_hash4Ptr(const void* ptr, U32 h) { return ZSTD_hash4(MEM_read32(ptr), h); }
 
 static const U64 prime5bytes = 889523592379ULL;
-static size_t ZSTD_hash5(U64 u, U32 h) { return (size_t)((u * prime5bytes) << (64-40) >> (64-h)) ; }
+static size_t ZSTD_hash5(U64 u, U32 h) { return (size_t)(((u  << (64-40)) * prime5bytes) >> (64-h)) ; }
 static size_t ZSTD_hash5Ptr(const void* p, U32 h) { return ZSTD_hash5(MEM_read64(p), h); }
 
 static const U64 prime6bytes = 227718039650203ULL;
-static size_t ZSTD_hash6(U64 u, U32 h) { return (size_t)((u * prime6bytes) << (64-48) >> (64-h)) ; }
+static size_t ZSTD_hash6(U64 u, U32 h) { return (size_t)(((u  << (64-48)) * prime6bytes) >> (64-h)) ; }
 static size_t ZSTD_hash6Ptr(const void* p, U32 h) { return ZSTD_hash6(MEM_read64(p), h); }
 
 static const U64 prime7bytes = 58295818150454627ULL;
-static size_t ZSTD_hash7(U64 u, U32 h) { return (size_t)((u * prime7bytes) << (64-56) >> (64-h)) ; }
+static size_t ZSTD_hash7(U64 u, U32 h) { return (size_t)(((u  << (64-56)) * prime7bytes) >> (64-h)) ; }
 static size_t ZSTD_hash7Ptr(const void* p, U32 h) { return ZSTD_hash7(MEM_read64(p), h); }
 
 static size_t ZSTD_hashPtr(const void* p, U32 hBits, U32 mls)
@@ -906,10 +891,10 @@ static size_t ZSTD_hashPtr(const void* p, U32 hBits, U32 mls)
     }
 }
 
+
 /* *************************************
 *  Fast Scan
 ***************************************/
-
 #define FILLHASHSTEP 3
 static void ZSTD_fillHashTable (ZSTD_CCtx* zc, const void* end, const U32 mls)
 {

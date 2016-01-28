@@ -1,6 +1,6 @@
 /*
     Buffered version of Zstd compression library
-    Copyright (C) 2015, Yann Collet.
+    Copyright (C) 2015-2016, Yann Collet.
 
     BSD 2-Clause License (http://www.opensource.org/licenses/bsd-license.php)
 
@@ -127,16 +127,14 @@ size_t ZBUFF_compressInit_advanced(ZBUFF_CCtx* zbc, const void* dict, size_t dic
     neededInBuffSize = (size_t)1 << params.windowLog;
 
     /* allocate buffers */
-    if (zbc->inBuffSize < neededInBuffSize)
-    {
+    if (zbc->inBuffSize < neededInBuffSize) {
         zbc->inBuffSize = neededInBuffSize;
         free(zbc->inBuff);   /* should not be necessary */
         zbc->inBuff = (char*)malloc(neededInBuffSize);
         if (zbc->inBuff == NULL) return ERROR(memory_allocation);
     }
     zbc->blockSize = MIN(BLOCKSIZE, zbc->inBuffSize);
-    if (zbc->outBuffSize < ZSTD_compressBound(zbc->blockSize)+1)
-    {
+    if (zbc->outBuffSize < ZSTD_compressBound(zbc->blockSize)+1) {
         zbc->outBuffSize = ZSTD_compressBound(zbc->blockSize)+1;
         free(zbc->outBuff);   /* should not be necessary */
         zbc->outBuff = (char*)malloc(zbc->outBuffSize);
@@ -188,8 +186,7 @@ static size_t ZBUFF_compressContinue_generic(ZBUFF_CCtx* zbc,
     char* op = ostart;
     char* const oend = ostart + *maxDstSizePtr;
 
-    while (notDone)
-    {
+    while (notDone) {
         switch(zbc->stage)
         {
         case ZBUFFcs_init: return ERROR(init_missing);   /* call ZBUFF_compressInit() first ! */
@@ -201,9 +198,9 @@ static size_t ZBUFF_compressContinue_generic(ZBUFF_CCtx* zbc,
                 size_t loaded = ZBUFF_limitCopy(zbc->inBuff + zbc->inBuffPos, toLoad, ip, iend-ip);
                 zbc->inBuffPos += loaded;
                 ip += loaded;
-                if ( (zbc->inBuffPos==zbc->inToCompress) || (!flush && (toLoad != loaded)) )
-                    { notDone = 0; break; }  /* not enough input to get a full block : stop there, wait for more */
-            }
+                if ( (zbc->inBuffPos==zbc->inToCompress) || (!flush && (toLoad != loaded)) ) {
+                    notDone = 0; break;  /* not enough input to get a full block : stop there, wait for more */
+            }   }
             /* compress current block (note : this stage cannot be stopped in the middle) */
             {
                 void* cDst;
@@ -235,8 +232,7 @@ static size_t ZBUFF_compressContinue_generic(ZBUFF_CCtx* zbc,
                 size_t flushed = ZBUFF_limitCopy(op, oend-op, zbc->outBuff + zbc->outBuffFlushedSize, toFlush);
                 op += flushed;
                 zbc->outBuffFlushedSize += flushed;
-                if (toFlush!=flushed)
-                    { notDone = 0; break; } /* not enough space within dst to store compressed block : stop there */
+                if (toFlush!=flushed) { notDone = 0; break; } /* not enough space within dst to store compressed block : stop there */
                 zbc->outBuffContentSize = 0;
                 zbc->outBuffFlushedSize = 0;
                 zbc->stage = ZBUFFcs_load;
@@ -259,7 +255,9 @@ static size_t ZBUFF_compressContinue_generic(ZBUFF_CCtx* zbc,
 size_t ZBUFF_compressContinue(ZBUFF_CCtx* zbc,
                               void* dst, size_t* maxDstSizePtr,
                         const void* src, size_t* srcSizePtr)
-{ return ZBUFF_compressContinue_generic(zbc, dst, maxDstSizePtr, src, srcSizePtr, 0); }
+{
+    return ZBUFF_compressContinue_generic(zbc, dst, maxDstSizePtr, src, srcSizePtr, 0);
+}
 
 
 
@@ -387,11 +385,9 @@ size_t ZBUFF_decompressContinue(ZBUFF_DCtx* zbc, void* dst, size_t* maxDstSizePt
     char* const oend = ostart + *maxDstSizePtr;
     U32 notDone = 1;
 
-    while (notDone)
-    {
+    while (notDone) {
         switch(zbc->stage)
         {
-
         case ZBUFFds_init :
             return ERROR(init_missing);
 
@@ -400,8 +396,7 @@ size_t ZBUFF_decompressContinue(ZBUFF_DCtx* zbc, void* dst, size_t* maxDstSizePt
             {
                 size_t headerSize = ZSTD_getFrameParams(&(zbc->params), src, *srcSizePtr);
                 if (ZSTD_isError(headerSize)) return headerSize;
-                if (headerSize)
-                {
+                if (headerSize) {
                     /* not enough input to decode header : tell how many bytes would be necessary */
                     memcpy(zbc->headerBuffer+zbc->hPos, src, *srcSizePtr);
                     zbc->hPos += *srcSizePtr;
@@ -423,8 +418,7 @@ size_t ZBUFF_decompressContinue(ZBUFF_DCtx* zbc, void* dst, size_t* maxDstSizePt
                 ip += headerSize;
                 headerSize = ZSTD_getFrameParams(&(zbc->params), zbc->headerBuffer, zbc->hPos);
                 if (ZSTD_isError(headerSize)) return headerSize;
-                if (headerSize)
-                {
+                if (headerSize) {
                     /* not enough input to decode header : tell how many bytes would be necessary */
                     *maxDstSizePtr = 0;
                     return headerSize - zbc->hPos;
@@ -437,23 +431,19 @@ size_t ZBUFF_decompressContinue(ZBUFF_DCtx* zbc, void* dst, size_t* maxDstSizePt
                 {
                     size_t neededOutSize = (size_t)1 << zbc->params.windowLog;
                     size_t neededInSize = BLOCKSIZE;   /* a block is never > BLOCKSIZE */
-                    if (zbc->inBuffSize < neededInSize)
-                    {
+                    if (zbc->inBuffSize < neededInSize) {
                         free(zbc->inBuff);
                         zbc->inBuffSize = neededInSize;
                         zbc->inBuff = (char*)malloc(neededInSize);
                         if (zbc->inBuff == NULL) return ERROR(memory_allocation);
                     }
-                    if (zbc->outBuffSize < neededOutSize)
-                    {
+                    if (zbc->outBuffSize < neededOutSize) {
                         free(zbc->outBuff);
                         zbc->outBuffSize = neededOutSize;
                         zbc->outBuff = (char*)malloc(neededOutSize);
                         if (zbc->outBuff == NULL) return ERROR(memory_allocation);
-                    }
-                }
-                if (zbc->hPos)
-                {
+                }   }
+                if (zbc->hPos) {
                     /* some data already loaded into headerBuffer : transfer into inBuff */
                     memcpy(zbc->inBuff, zbc->headerBuffer, zbc->hPos);
                     zbc->inPos = zbc->hPos;
@@ -466,14 +456,12 @@ size_t ZBUFF_decompressContinue(ZBUFF_DCtx* zbc, void* dst, size_t* maxDstSizePt
         case ZBUFFds_read:
             {
                 size_t neededInSize = ZSTD_nextSrcSizeToDecompress(zbc->zc);
-                if (neededInSize==0)   /* end of frame */
-                {
+                if (neededInSize==0) {  /* end of frame */
                     zbc->stage = ZBUFFds_init;
                     notDone = 0;
                     break;
                 }
-                if ((size_t)(iend-ip) >= neededInSize)
-                {
+                if ((size_t)(iend-ip) >= neededInSize) {
                     /* directly decode from src */
                     size_t decodedSize = ZSTD_decompressContinue(zbc->zc,
                         zbc->outBuff + zbc->outStart, zbc->outBuffSize - zbc->outStart,
@@ -509,16 +497,14 @@ size_t ZBUFF_decompressContinue(ZBUFF_DCtx* zbc, void* dst, size_t* maxDstSizePt
                     zbc->outEnd = zbc->outStart +  decodedSize;
                     zbc->stage = ZBUFFds_flush;
                     // break; /* ZBUFFds_flush follows */
-                }
-            }
+            }   }
         case ZBUFFds_flush:
             {
                 size_t toFlushSize = zbc->outEnd - zbc->outStart;
                 size_t flushedSize = ZBUFF_limitCopy(op, oend-op, zbc->outBuff + zbc->outStart, toFlushSize);
                 op += flushedSize;
                 zbc->outStart += flushedSize;
-                if (flushedSize == toFlushSize)
-                {
+                if (flushedSize == toFlushSize) {
                     zbc->stage = ZBUFFds_read;
                     if (zbc->outStart + BLOCKSIZE > zbc->outBuffSize)
                         zbc->outStart = zbc->outEnd = 0;
@@ -529,8 +515,7 @@ size_t ZBUFF_decompressContinue(ZBUFF_DCtx* zbc, void* dst, size_t* maxDstSizePt
                 break;
             }
         default: return ERROR(GENERIC);   /* impossible */
-        }
-    }
+    }   }
 
     *srcSizePtr = ip-istart;
     *maxDstSizePtr = op-ostart;
@@ -542,11 +527,6 @@ size_t ZBUFF_decompressContinue(ZBUFF_DCtx* zbc, void* dst, size_t* maxDstSizePt
         return nextSrcSizeHint;
     }
 }
-
-
-
-
-
 
 
 

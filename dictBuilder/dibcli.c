@@ -228,7 +228,14 @@ int main(int argCount, const char** argv)
     /* Welcome message (if verbose) */
     DISPLAYLEVEL(3, WELCOME_MESSAGE);
 
+    /* check nb files */
     if (filenameIdx==0) return badusage(programName);
+    if (filenameIdx < 100)
+    {
+        DISPLAYLEVEL(2, "Warning : set contains only %u files ... \n", filenameIdx);
+        DISPLAYLEVEL(3, "!! For better results, consider providing > 1.000 samples     !!\n");
+        DISPLAYLEVEL(3, "!! Each sample should preferably be stored as a separate file !!\n");
+    }
 
     /* building ... */
     DiB_setNotificationLevel(g_displayLevel);

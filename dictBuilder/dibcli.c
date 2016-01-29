@@ -20,43 +20,19 @@
 
   You can contact the author at :
   - zstd source repository : https://github.com/Cyan4973/zstd
-  - ztsd public forum : https://groups.google.com/forum/#!forum/lz4c
 */
 
-
-/**************************************
-*  Compiler Options
-**************************************/
-#define _CRT_SECURE_NO_WARNINGS  /* Visual : removes warning from strcpy */
-#define _POSIX_SOURCE 1          /* triggers fileno() within <stdio.h> on unix */
-
-
-/**************************************
+/*-************************************
 *  Includes
 **************************************/
-#include <stdio.h>    /* fprintf, getchar */
 #include <stdlib.h>   /* exit, calloc, free */
 #include <string.h>   /* strcmp, strlen */
+#include <stdio.h>    /* fprintf, getchar */
 
 #include "dictBuilder.h"
 
 
-/**************************************
-*  OS-specific Includes
-**************************************/
-#if defined(MSDOS) || defined(OS2) || defined(WIN32) || defined(_WIN32) || defined(__CYGWIN__)
-#  include <fcntl.h>    /* _O_BINARY */
-#  include <io.h>       /* _setmode, _isatty */
-#  define SET_BINARY_MODE(file) _setmode(_fileno(file), _O_BINARY)
-#  define IS_CONSOLE(stdStream) _isatty(_fileno(stdStream))
-#else
-#  include <unistd.h>   /* isatty */
-#  define SET_BINARY_MODE(file)
-#  define IS_CONSOLE(stdStream) isatty(fileno(stdStream))
-#endif
-
-
-/**************************************
+/*-************************************
 *  Constants
 **************************************/
 #define PROGRAM_DESCRIPTION "Dictionary builder"
@@ -72,21 +48,22 @@
 #define MB *(1 <<20)
 #define GB *(1U<<30)
 
+static const unsigned compressionLevelDefault = 5;
 static const unsigned selectionLevelDefault = 9;     /* determined experimentally */
 static const unsigned maxDictSizeDefault = 110 KB;
 static const char* dictFileNameDefault = "dictionary";
 
 
-/**************************************
+/*-************************************
 *  Display Macros
 **************************************/
-#define DISPLAY(...)           fprintf(displayOut, __VA_ARGS__)
-#define DISPLAYLEVEL(l, ...)   if (displayLevel>=l) { DISPLAY(__VA_ARGS__); }
-static FILE* displayOut;
-static unsigned displayLevel = 2;   // 0 : no display  // 1: errors  // 2 : + result + interaction + warnings ;  // 3 : + progression;  // 4 : + information
+#define DISPLAY(...)           fprintf(g_displayOut, __VA_ARGS__)
+#define DISPLAYLEVEL(l, ...)   if (g_displayLevel>=l) { DISPLAY(__VA_ARGS__); }
+static FILE* g_displayOut;
+static unsigned g_displayLevel = 2;   // 0 : no display  // 1: errors  // 2 : + result + interaction + warnings ;  // 3 : + progression;  // 4 : + information
 
 
-/**************************************
+/*-************************************
 *  Exceptions
 **************************************/
 #define DEBUG 0
@@ -101,7 +78,7 @@ static unsigned displayLevel = 2;   // 0 : no display  // 1: errors  // 2 : + re
 }
 
 
-/**************************************
+/*-************************************
 *  Command Line
 **************************************/
 static int usage(const char* programName)
@@ -110,8 +87,8 @@ static int usage(const char* programName)
     DISPLAY( "      %s [arg] [filenames]\n", programName);
     DISPLAY( "\n");
     DISPLAY( "Arguments :\n");
-    DISPLAY( "--maxdict : limit dictionary to specified size (default : %u) \n", maxDictSizeDefault);
     DISPLAY( " -o       : name of dictionary file (default: %s) \n", dictFileNameDefault);
+    DISPLAY( "--maxdict : limit dictionary to specified size (default : %u) \n", maxDictSizeDefault);
     DISPLAY( " -h/-H    : display help/long help and exit\n");
     return 0;
 }
@@ -122,8 +99,10 @@ static int usage_advanced(const char* programName)
     usage(programName);
     DISPLAY( "\n");
     DISPLAY( "Advanced arguments :\n");
-    DISPLAY( " -#     : selection level # (default :%u)\n", selectionLevelDefault);
     DISPLAY( " -V     : display Version number and exit\n");
+    DISPLAY( "--fast  : fast sampling mode\n");
+    DISPLAY( " -L#    : target compression level (default: %u)\n", compressionLevelDefault);
+    DISPLAY( " -S#    : dictionary selectivity level # (default: %u)\n", selectionLevelDefault);
     DISPLAY( " -v     : verbose mode\n");
     DISPLAY( " -q     : suppress warnings; specify twice to suppress errors too\n");
     return 0;
@@ -132,7 +111,7 @@ static int usage_advanced(const char* programName)
 static int badusage(const char* programName)
 {
     DISPLAYLEVEL(1, "Incorrect parameters\n");
-    if (displayLevel >= 1) usage(programName);
+    if (g_displayLevel >= 1) usage(programName);
     return 1;
 }
 
@@ -153,6 +132,7 @@ int main(int argCount, const char** argv)
         operationResult=0,
         nextArgumentIsMaxDict=0,
         nextArgumentIsDictFileName=0;
+    unsigned cLevel = compressionLevelDefault;
     unsigned maxDictSize = maxDictSizeDefault;
     unsigned selectionLevel = selectionLevelDefault;
     const char** filenameTable = (const char**)malloc(argCount * sizeof(const char*));   /* argCount >= 1 */
@@ -161,7 +141,7 @@ int main(int argCount, const char** argv)
     const char* dictFileName = dictFileNameDefault;
 
     /* init */
-    displayOut = stderr;   /* unfortunately, cannot be set at declaration */
+    g_displayOut = stderr;   /* unfortunately, cannot be set at declaration */
     if (filenameTable==NULL) EXM_THROW(1, "not enough memory\n");
     /* Pick out program name from path. Don't rely on stdlib because of conflicting behavior */
     for (i = (int)strlen(programName); i > 0; i--) { if ((programName[i] == '/') || (programName[i] == '\\')) { i++; break; } }
@@ -190,40 +170,44 @@ int main(int argCount, const char** argv)
         }
 
         /* long commands (--long-word) */
-        if (!strcmp(argument, "--version")) { displayOut=stdout; DISPLAY(WELCOME_MESSAGE); return 0; }
-        if (!strcmp(argument, "--help")) { displayOut=stdout; return usage_advanced(programName); }
-        if (!strcmp(argument, "--verbose")) { displayLevel=4; continue; }
-        if (!strcmp(argument, "--quiet")) { displayLevel--; continue; }
+        if (!strcmp(argument, "--version")) { g_displayOut=stdout; DISPLAY(WELCOME_MESSAGE); return 0; }
+        if (!strcmp(argument, "--help")) { g_displayOut=stdout; return usage_advanced(programName); }
+        if (!strcmp(argument, "--verbose")) { g_displayLevel++; if (g_displayLevel<3) g_displayLevel=3; continue; }
+        if (!strcmp(argument, "--quiet")) { g_displayLevel--; continue; }
         if (!strcmp(argument, "--maxdict")) { nextArgumentIsMaxDict=1; continue; }
+        if (!strcmp(argument, "--fast")) { selectionLevel=0; cLevel=1; continue; }
 
         /* Decode commands (note : aggregated commands are allowed) */
         if (argument[0]=='-') {
             argument++;
 
             while (argument[0]!=0) {
-                /* selection Level */
-                if ((*argument>='0') && (*argument<='9')) {
-                    selectionLevel = 0;
-                    while ((*argument >= '0') && (*argument <= '9')) {
-                        selectionLevel *= 10;
-                        selectionLevel += *argument - '0';
-                        argument++;
-                    }
-                    continue;
-                }
-
                 switch(argument[0])
                 {
                     /* Display help */
-                case 'V': displayOut=stdout; DISPLAY(WELCOME_MESSAGE); return 0;   /* Version Only */
+                case 'V': g_displayOut=stdout; DISPLAY(WELCOME_MESSAGE); return 0;   /* Version Only */
                 case 'H':
-                case 'h': displayOut=stdout; return usage_advanced(programName);
+                case 'h': g_displayOut=stdout; return usage_advanced(programName);
+
+                    /* Selection level */
+                case 'S': argument++;
+                    selectionLevel = 0;
+                    while ((*argument >= '0') && (*argument <= '9'))
+                        selectionLevel *= 10, selectionLevel += *argument++ - '0';
+                    break;
+
+                    /* Selection level */
+                case 'L': argument++;
+                    cLevel = 0;
+                    while ((*argument >= '0') && (*argument <= '9'))
+                        cLevel *= 10, cLevel += *argument++ - '0';
+                    break;
 
                     /* Verbose mode */
-                case 'v': displayLevel++; if (displayLevel<3) displayLevel=3; argument++; break;
+                case 'v': g_displayLevel++; if (g_displayLevel<3) g_displayLevel=3; argument++; break;
 
                     /* Quiet mode */
-                case 'q': displayLevel--; argument++; break;
+                case 'q': g_displayLevel--; argument++; break;
 
                     /* dictionary name */
                 case 'o': nextArgumentIsDictFileName=1; argument++; break;
@@ -247,8 +231,8 @@ int main(int argCount, const char** argv)
     if (filenameIdx==0) return badusage(programName);
 
     /* building ... */
-    DiB_setNotificationLevel(displayLevel);
-    operationResult = DiB_trainDictionary(dictFileName, maxDictSize, selectionLevel, filenameTable, filenameIdx);
+    DiB_setNotificationLevel(g_displayLevel);
+    operationResult = DiB_trainDictionary(dictFileName, maxDictSize, selectionLevel, cLevel, filenameTable, filenameIdx);
 
     if (main_pause) waitEnter();
     free((void*)filenameTable);

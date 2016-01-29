@@ -24,7 +24,7 @@
 */
 
 /* This library is designed for a single-threaded console application.
-*  It abruptly exits (exit() function) when it encounters an error condition. */
+*  It exit() and printf() into stderr when it encounters an error condition. */
 
 /*-*************************************
 *  Version
@@ -37,14 +37,17 @@ unsigned DiB_versionNumber (void);
 
 
 /*-*************************************
-*  Main functions
+*  Public functions
 ***************************************/
 /*! DiB_trainDictionary
     Train a dictionary from a set of files provided by @fileNamesTable
-    Resulting dictionary is written in file @dictFileName
-    @result : 0 if fine
+    Resulting dictionary is written in file @dictFileName.
+    @selectivityLevel change criteria for insertion into the dictionary (more => bigger selection => larger dictionary)
+    @compressionLevel can be used to target a specific compression level of zstd. 0 means "default".
+    @result : 0 == ok
 */
-int DiB_trainDictionary(const char* dictFileName, unsigned maxDictSize, unsigned selectivityLevel,
+int DiB_trainDictionary(const char* dictFileName, unsigned maxDictSize,
+                        unsigned selectivityLevel, unsigned compressionLevel,
                         const char** fileNamesTable, unsigned nbFiles);
 
 

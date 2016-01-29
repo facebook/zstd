@@ -310,7 +310,6 @@ static dictItem DiB_analyzePos(
     U32 end = start;
     dictItem solution;
 
-
     /* init */
     memset(&solution, 0, sizeof(solution));
     doneMarks[pos] = 1;
@@ -385,7 +384,6 @@ static dictItem DiB_analyzePos(
 
             if (selectedCount < minRatio)
                 break;
-            //DISPLAYLEVEL(4, "best char at length %u: %02X  (seen %u times)  (pos %u) \n", searchLength+1, selectedChar, selectedCount, selectedRef);
             refinedStart = selectedID;
             refinedEnd = refinedStart + selectedCount;
         }
@@ -602,34 +600,18 @@ static void DiB_trainBuffer(dictItem* dictList, U32 dictListSize,
     }
 
     DISPLAYLEVEL(2, "finding patterns ... \n");
-    DISPLAYLEVEL(4, "minimum ratio : %u \n", minRatio);
+    DISPLAYLEVEL(3, "minimum ratio : %u \n", minRatio);
 
     {
         U32 cursor; for (cursor=0; cursor < bufferSize; ) {
             dictItem solution;
-
             if (doneMarks[cursor]) { cursor++; continue; }
             solution = DiB_analyzePos(doneMarks, suffix, reverseSuffix[cursor], buffer, minRatio);
             if (solution.length==0) { cursor++; continue; }
             DiB_insertDictItem(dictList, dictListSize, solution);
             cursor += solution.length;
             DISPLAYUPDATE(2, "\r%4.2f %% \r", (double)cursor / bufferSize * 100);
-        }
-
-#if 0
-        /* 2nd scan */
-        for (cursor=0; cursor < bufferSize; cursor++ )
-        {
-            dictItem solution;
-
-            if (doneMarks[cursor]) continue;
-            solution = DiB_analyzePos(doneMarks, suffix, reverseSuffix[cursor], buffer, minRatio);
-            if (solution.length==0) continue;
-            DiB_insertDictItem(dictList, dictListSize, solution);
-            DISPLAYUPDATE(2, "\r%4.2f %% \r", (double)cursor / bufferSize * 100);
-        }
-#endif
-    }
+    }   }
 
     /* limit dictionary size */
     {
@@ -879,7 +861,7 @@ int DiB_trainDictionary(const char* dictFileName, unsigned maxDictSize,
     size_t benchedSize;
     size_t* fileSizes = (size_t*)malloc(nbFiles * sizeof(size_t));
     unsigned long long totalSizeToLoad = DiB_getTotalFileSize(fileNamesTable, nbFiles);
-    const U32 dictListSize = DICTLISTSIZE;
+    const U32 dictListSize = MAX( MAX(DICTLISTSIZE, nbFiles), maxDictSize/16);
     dictItem* dictList = (dictItem*)malloc(dictListSize * sizeof(*dictList));
     char mfName[20] = {0};
     const char* displayName = NULL;
@@ -888,7 +870,7 @@ int DiB_trainDictionary(const char* dictFileName, unsigned maxDictSize,
     benchedSize = DiB_findMaxMem(totalSizeToLoad * MEMMULT) / MEMMULT;
     if ((unsigned long long)benchedSize > totalSizeToLoad) benchedSize = (size_t)totalSizeToLoad;
     if (benchedSize < totalSizeToLoad)
-        DISPLAY("Not enough memory; training on %u MB only...\n", (unsigned)(benchedSize >> 20));
+        DISPLAYLEVEL(1, "Not enough memory; training on %u MB only...\n", (unsigned)(benchedSize >> 20));
 
     /* Memory allocation & restrictions */
     srcBuffer = malloc(benchedSize+NOISELENGTH);                                          /* + noise */
@@ -899,9 +881,9 @@ int DiB_trainDictionary(const char* dictFileName, unsigned maxDictSize,
     DiB_loadFiles(srcBuffer, benchedSize, fileSizes, fileNamesTable, nbFiles);
     DiB_fillNoise((char*)srcBuffer + benchedSize, NOISELENGTH);   /* guard band, for end of buffer condition */
 
+    /* analyze sequences (non-fast mode) */
     if (shiftRatio>0)
     {
-        /* analyze samples */
         snprintf (mfName, sizeof(mfName), " %u files", nbFiles);
         if (nbFiles > 1) displayName = mfName;
         else displayName = fileNamesTable[0];
@@ -953,8 +935,8 @@ int DiB_trainDictionary(const char* dictFileName, unsigned maxDictSize,
             memcpy(ptr, (char*)srcBuffer+dictList[u].pos, l);
         }
 
-        /* fast dict content mode */
-        if (shiftRatio==0) {
+        /* fast mode dict content */
+        if (shiftRatio==0) {  /* note could also be used to complete a dictionary, but not necessarily better */
             addedContentLength = ptr-(BYTE*)dictContent;
             DISPLAYLEVEL(2, "\r%70s\r", "");   /* clean display line */
             DISPLAYLEVEL(2, "Adding %u KB from fast sampling \n", (U32)(addedContentLength>>10));

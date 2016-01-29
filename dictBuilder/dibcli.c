@@ -102,9 +102,9 @@ static int usage_advanced(const char* programName)
     DISPLAY( " -V     : display Version number and exit\n");
     DISPLAY( "--fast  : fast sampling mode\n");
     DISPLAY( " -L#    : target compression level (default: %u)\n", compressionLevelDefault);
-    DISPLAY( " -S#    : dictionary selectivity level # (default: %u)\n", selectionLevelDefault);
+    DISPLAY( " -S#    : dictionary selectivity level (default: %u)\n", selectionLevelDefault);
     DISPLAY( " -v     : verbose mode\n");
-    DISPLAY( " -q     : suppress warnings; specify twice to suppress errors too\n");
+    DISPLAY( " -q     : suppress notifications; specify twice to suppress errors too\n");
     return 0;
 }
 

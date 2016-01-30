@@ -50,7 +50,11 @@ extern "C" {
 # include <stddef.h>
 #endif
 #if HAVE_STRINGS_H
-# include <strings.h>
+# ifdef _WIN32
+#  include <string.h>
+# else
+#  include <strings.h>
+# endif
 #endif
 #if HAVE_INTTYPES_H
 # include <inttypes.h>

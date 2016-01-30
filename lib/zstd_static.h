@@ -65,7 +65,7 @@ extern "C" {
 #define ZSTD_SEARCHLENGTH_MIN 4
 
 /** from faster to stronger */
-typedef enum { ZSTD_fast, ZSTD_greedy, ZSTD_lazy, ZSTD_lazy2, ZSTD_btlazy2 } ZSTD_strategy;
+typedef enum { ZSTD_fast, ZSTD_greedy, ZSTD_lazy, ZSTD_lazy2, ZSTD_btlazy2, ZSTD_opt, ZSTD_opt_bt } ZSTD_strategy;
 
 typedef struct
 {
@@ -243,7 +243,7 @@ size_t ZSTD_decompressBlock(ZSTD_DCtx* dctx, void* dst, size_t maxDstSize, const
 /* *************************************
 *  Pre-defined compression levels
 ***************************************/
-#define ZSTD_MAX_CLEVEL 20
+#define ZSTD_MAX_CLEVEL 24
 ZSTDLIB_API unsigned ZSTD_maxCLevel (void);
 
 

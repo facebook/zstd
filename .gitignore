@@ -44,3 +44,5 @@ ipch/
 
 # Other files
 .directory
+_codelite
+_zstdbench

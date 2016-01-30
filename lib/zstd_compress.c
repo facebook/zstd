@@ -547,9 +547,13 @@ size_t ZSTD_compressSequences(ZSTD_CCtx* zc,
     if ((oend-op) < MIN_SEQUENCES_SIZE)
         return ERROR(dstSize_tooSmall);
     MEM_writeLE16(op, (U16)nbSeq); op+=2;
-    seqHead = op;
+
+    if (nbSeq==0) goto _check_compressibility;
 
     /* dumps : contains rests of large lengths */
+    if ((oend-op) < 3 /* dumps */ + 1 /*seqHead*/)
+        return ERROR(dstSize_tooSmall);
+    seqHead = op;
     {
         size_t dumpsLength = seqStorePtr->dumps - seqStorePtr->dumpsStart;
         if (dumpsLength < 512) {
@@ -572,9 +576,9 @@ size_t ZSTD_compressSequences(ZSTD_CCtx* zc,
 
     /* CTable for Literal Lengths */
     max = MaxLL;
-    mostFrequent = FSE_countFast(count, &max, seqStorePtr->litLengthStart, nbSeq);
+    mostFrequent = FSE_countFast(count, &max, llTable, nbSeq);
     if ((mostFrequent == nbSeq) && (nbSeq > 2)) {
-        *op++ = *(seqStorePtr->litLengthStart);
+        *op++ = llTable[0];
         FSE_buildCTable_rle(CTable_LitLength, (BYTE)max);
         LLtype = FSE_ENCODING_RLE;
     } else if ((zc->flagStaticTables) && (nbSeq < MAX_SEQ_FOR_STATIC_FSE)) {
@@ -584,8 +588,10 @@ size_t ZSTD_compressSequences(ZSTD_CCtx* zc,
         LLtype = FSE_ENCODING_RAW;
     } else {
         size_t NCountSize;
+        size_t nbSeq_1 = nbSeq;
         U32 tableLog = FSE_optimalTableLog(LLFSELog, nbSeq, max);
-        FSE_normalizeCount(norm, tableLog, count, nbSeq, max);
+        if (count[llTable[nbSeq-1]]>1) { count[llTable[nbSeq-1]]--; nbSeq_1--; }
+        FSE_normalizeCount(norm, tableLog, count, nbSeq_1, max);
         NCountSize = FSE_writeNCount(op, oend-op, norm, max, tableLog);   /* overflow protected */
         if (FSE_isError(NCountSize)) return ERROR(GENERIC);
         op += NCountSize;
@@ -603,7 +609,7 @@ size_t ZSTD_compressSequences(ZSTD_CCtx* zc,
     max = MaxOff;
     mostFrequent = FSE_countFast(count, &max, offCodeTable, nbSeq);
     if ((mostFrequent == nbSeq) && (nbSeq > 2)) {
-        *op++ = *offCodeTable;
+        *op++ = offCodeTable[0];
         FSE_buildCTable_rle(CTable_OffsetBits, (BYTE)max);
         Offtype = FSE_ENCODING_RLE;
     } else if ((zc->flagStaticTables) && (nbSeq < MAX_SEQ_FOR_STATIC_FSE)) {
@@ -613,8 +619,10 @@ size_t ZSTD_compressSequences(ZSTD_CCtx* zc,
         Offtype = FSE_ENCODING_RAW;
     } else {
         size_t NCountSize;
+        size_t nbSeq_1 = nbSeq;
         U32 tableLog = FSE_optimalTableLog(OffFSELog, nbSeq, max);
-        FSE_normalizeCount(norm, tableLog, count, nbSeq, max);
+        if (count[offCodeTable[nbSeq-1]]>1) { count[offCodeTable[nbSeq-1]]--; nbSeq_1--; }
+        FSE_normalizeCount(norm, tableLog, count, nbSeq_1, max);
         NCountSize = FSE_writeNCount(op, oend-op, norm, max, tableLog);   /* overflow protected */
         if (FSE_isError(NCountSize)) return ERROR(GENERIC);
         op += NCountSize;
@@ -624,9 +632,9 @@ size_t ZSTD_compressSequences(ZSTD_CCtx* zc,
 
     /* CTable for MatchLengths */
     max = MaxML;
-    mostFrequent = FSE_countFast(count, &max, seqStorePtr->matchLengthStart, nbSeq);
+    mostFrequent = FSE_countFast(count, &max, mlTable, nbSeq);
     if ((mostFrequent == nbSeq) && (nbSeq > 2)) {
-        *op++ = *seqStorePtr->matchLengthStart;
+        *op++ = *mlTable;
         FSE_buildCTable_rle(CTable_MatchLength, (BYTE)max);
         MLtype = FSE_ENCODING_RLE;
     } else if ((zc->flagStaticTables) && (nbSeq < MAX_SEQ_FOR_STATIC_FSE)) {
@@ -659,22 +667,26 @@ size_t ZSTD_compressSequences(ZSTD_CCtx* zc,
 
         errorCode = BIT_initCStream(&blockStream, op, oend-op);
         if (ERR_isError(errorCode)) return ERROR(dstSize_tooSmall);   /* not enough space remaining */
-        FSE_initCState(&stateMatchLength, CTable_MatchLength);
-        FSE_initCState(&stateOffsetBits, CTable_OffsetBits);
-        FSE_initCState(&stateLitLength, CTable_LitLength);
 
-        for (i=(int)nbSeq-1; i>=0; i--) {
+        /* first symbols */
+        FSE_initCState2(&stateMatchLength, CTable_MatchLength, mlTable[nbSeq-1]);
+        FSE_initCState2(&stateOffsetBits,  CTable_OffsetBits,  offCodeTable[nbSeq-1]);
+        FSE_initCState2(&stateLitLength,   CTable_LitLength,   llTable[nbSeq-1]);
+        BIT_addBits(&blockStream, offsetTable[nbSeq-1], offCodeTable[nbSeq-1] ? (offCodeTable[nbSeq-1]-1) : 0);
+        BIT_flushBits(&blockStream);
+
+        for (i=(int)nbSeq-2; i>=0; i--) {
             BYTE mlCode = mlTable[i];
             U32  offset = offsetTable[i];
             BYTE offCode = offCodeTable[i];                                 /* 32b*/  /* 64b*/
-            U32 nbBits = (offCode-1) * (!!offCode);
+            U32 nbBits = (offCode-1) + (!offCode);
             BYTE litLength = llTable[i];                                    /* (7)*/  /* (7)*/
             FSE_encodeSymbol(&blockStream, &stateMatchLength, mlCode);      /* 17 */  /* 17 */
             if (MEM_32bits()) BIT_flushBits(&blockStream);                  /*  7 */
-            BIT_addBits(&blockStream, offset, nbBits);                      /* 31 */  /* 42 */   /* 24 bits max in 32-bits mode */
-            if (MEM_32bits()) BIT_flushBits(&blockStream);                  /*  7 */
-            FSE_encodeSymbol(&blockStream, &stateOffsetBits, offCode);      /* 16 */  /* 51 */
             FSE_encodeSymbol(&blockStream, &stateLitLength, litLength);     /* 26 */  /* 61 */
+            FSE_encodeSymbol(&blockStream, &stateOffsetBits, offCode);      /* 16 */  /* 51 */
+            if (MEM_32bits()) BIT_flushBits(&blockStream);                  /*  7 */
+            BIT_addBits(&blockStream, offset, nbBits);                      /* 31 */  /* 42 */   /* 24 bits max in 32-bits mode */
             BIT_flushBits(&blockStream);                                    /*  7 */  /*  7 */
         }
 
@@ -688,14 +700,15 @@ size_t ZSTD_compressSequences(ZSTD_CCtx* zc,
     }
 
     /* check compressibility */
+_check_compressibility:
     if ((size_t)(op-ostart) >= maxCSize) return 0;
 
     return op - ostart;
 }
 
 
-/** ZSTD_storeSeq
-    Store a sequence (literal length, literals, offset code and match length) into seqStore_t
+/*! ZSTD_storeSeq
+    Store a sequence (literal length, literals, offset code and match length code) into seqStore_t
     @offsetCode : distance to match, or 0 == repCode
     @matchCode : matchLength - MINMATCH
 */

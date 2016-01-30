@@ -205,7 +205,7 @@ size_t FSE_buildCTable(FSE_CTable* ct, const short* normalizedCounter, unsigned 
                 break;
             case -1:
             case  1:
-                symbolTT[s].deltaNbBits = tableLog << 16;
+                symbolTT[s].deltaNbBits = (tableLog << 16) - (1<<tableLog);
                 symbolTT[s].deltaFindState = total - 1;
                 total ++;
                 break;
@@ -216,10 +216,7 @@ size_t FSE_buildCTable(FSE_CTable* ct, const short* normalizedCounter, unsigned 
                     symbolTT[s].deltaNbBits = (maxBitsOut << 16) - minStatePlus;
                     symbolTT[s].deltaFindState = total - normalizedCounter[s];
                     total +=  normalizedCounter[s];
-                }
-            }
-        }
-    }   /* Build Symbol Transformation Table */
+    }   }   }   }
 
     return 0;
 }
@@ -388,8 +385,7 @@ static size_t FSE_writeNCount_generic (void* header, size_t headerBufferSize,
             out += 2;
             bitStream >>= 16;
             bitCount -= 16;
-        }
-    }
+    }   }
 
     /* flush remaining bitStream */
     if ((!writeIsSafe) && (out > oend - 2)) return ERROR(dstSize_tooSmall);   /* Buffer overflow */
@@ -596,8 +592,7 @@ static size_t FSE_count_parallel(unsigned* count, unsigned* maxSymbolValuePtr,
     while (ip<iend) Counting1[*ip++]++;
 
     if (checkMax) {   /* verify stats will fit into destination table */
-        for (s=255; s>maxSymbolValue; s--)
-        {
+        for (s=255; s>maxSymbolValue; s--) {
             Counting1[s] += Counting2[s] + Counting3[s] + Counting4[s];
             if (Counting1[s]) return ERROR(maxSymbolValue_tooSmall);
     }   }
@@ -854,7 +849,7 @@ size_t FSE_buildCTable_raw (FSE_CTable* ct, unsigned nbBits)
 
     /* Build Symbol Transformation Table */
     for (s=0; s<=maxSymbolValue; s++) {
-        symbolTT[s].deltaNbBits = nbBits << 16;
+        symbolTT[s].deltaNbBits = (nbBits << 16) - (1 << nbBits);
         symbolTT[s].deltaFindState = s-1;
     }
 

@@ -426,7 +426,7 @@ size_t ZSTD_decodeLiteralsBlock(ZSTD_DCtx* dctx,
                 break;
             }
 
-            if (litSize+WILDCOPY_OVERLENGTH > srcSize)   /* risk reading beyond src buffer with wildcopy */
+            if (lhSize+litSize+WILDCOPY_OVERLENGTH > srcSize)   /* risk reading beyond src buffer with wildcopy */
             {
                 if (litSize > srcSize-lhSize) return ERROR(corruption_detected);
                 memcpy(dctx->litBuffer, istart+lhSize, litSize);
@@ -483,10 +483,12 @@ size_t ZSTD_decodeSeqHeaders(int* nbSeq, const BYTE** dumpsPtr, size_t* dumpsLen
     size_t dumpsLength;
 
     /* check */
-    if (srcSize < 5) return ERROR(srcSize_wrong);
+    if (srcSize < MIN_SEQUENCES_SIZE) return ERROR(srcSize_wrong);
 
     /* SeqHead */
     *nbSeq = MEM_readLE16(ip); ip+=2;
+    if (*nbSeq==0) return 2;
+
     LLtype  = *ip >> 6;
     Offtype = (*ip >> 4) & 3;
     MLtype  = (*ip >> 2) & 3;
@@ -589,8 +591,8 @@ size_t ZSTD_decodeSeqHeaders(int* nbSeq, const BYTE** dumpsPtr, size_t* dumpsLen
 
 typedef struct {
     size_t litLength;
-    size_t offset;
     size_t matchLength;
+    size_t offset;
 } seq_t;
 
 typedef struct {
@@ -603,7 +605,6 @@ typedef struct {
     const BYTE* dumpsEnd;
 } seqState_t;
 
-
 static void ZSTD_decodeSequence(seq_t* seq, seqState_t* seqState)
 {
     size_t litLength;
@@ -614,7 +615,7 @@ static void ZSTD_decodeSequence(seq_t* seq, seqState_t* seqState)
     const BYTE* const de = seqState->dumpsEnd;
 
     /* Literal length */
-    litLength = FSE_decodeSymbol(&(seqState->stateLL), &(seqState->DStream));
+    litLength = FSE_peakSymbol(&(seqState->stateLL));
     prevOffset = litLength ? seq->offset : seqState->prevOffset;
     if (litLength == MaxLL) {
         U32 add = *dumps++;
@@ -632,16 +633,19 @@ static void ZSTD_decodeSequence(seq_t* seq, seqState_t* seqState)
                 1 /*fake*/, 1, 2, 4, 8, 16, 32, 64, 128, 256,
                 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536, 131072, 262144,
                 524288, 1048576, 2097152, 4194304, 8388608, 16777216, 33554432, /*fake*/ 1, 1, 1, 1, 1 };
-        U32 offsetCode, nbBits;
-        offsetCode = FSE_decodeSymbol(&(seqState->stateOffb), &(seqState->DStream));   /* <= maxOff, by table construction */
-        if (MEM_32bits()) BIT_reloadDStream(&(seqState->DStream));
-        nbBits = offsetCode - 1;
+        U32 offsetCode = FSE_peakSymbol(&(seqState->stateOffb));   /* <= maxOff, by table construction */
+        U32 nbBits = offsetCode - 1;
         if (offsetCode==0) nbBits = 0;   /* cmove */
         offset = offsetPrefix[offsetCode] + BIT_readBits(&(seqState->DStream), nbBits);
         if (MEM_32bits()) BIT_reloadDStream(&(seqState->DStream));
-        if (offsetCode==0) offset = prevOffset;   /* cmove */
+        if (offsetCode==0) offset = prevOffset;   /* repcode, cmove */
         if (offsetCode | !litLength) seqState->prevOffset = seq->offset;   /* cmove */
+        FSE_decodeSymbol(&(seqState->stateOffb), &(seqState->DStream));    /* update */
     }
+
+    /* Literal length update */
+    FSE_decodeSymbol(&(seqState->stateLL), &(seqState->DStream));   /* update */
+    if (MEM_32bits()) BIT_reloadDStream(&(seqState->DStream));
 
     /* MatchLength */
     matchLength = FSE_decodeSymbol(&(seqState->stateML), &(seqState->DStream));
@@ -778,7 +782,7 @@ static size_t ZSTD_decompressSequences(
     ip += errorCode;
 
     /* Regen sequences */
-    {
+    if (nbSeq) {
         seq_t sequence;
         seqState_t seqState;
 
@@ -803,16 +807,18 @@ static size_t ZSTD_decompressSequences(
         }
 
         /* check if reached exact end */
-        if ( !BIT_endOfDStream(&(seqState.DStream)) ) return ERROR(corruption_detected);   /* DStream should be entirely and exactly consumed; otherwise data is corrupted */
+        if (nbSeq)
+            return ERROR(corruption_detected);   /* DStream should be entirely and exactly consumed; otherwise data is corrupted */
+    }
 
-        /* last literal segment */
-        {
-            size_t lastLLSize = litEnd - litPtr;
-            if (litPtr > litEnd) return ERROR(corruption_detected);
-            if (op+lastLLSize > oend) return ERROR(dstSize_tooSmall);
-            if (op != litPtr) memcpy(op, litPtr, lastLLSize);
-            op += lastLLSize;
-    }   }
+    /* last literal segment */
+    {
+        size_t lastLLSize = litEnd - litPtr;
+        if (litPtr > litEnd) return ERROR(corruption_detected);   /* too many literals already used */
+        if (op+lastLLSize > oend) return ERROR(dstSize_tooSmall);
+        memcpy(op, litPtr, lastLLSize);
+        op += lastLLSize;
+    }
 
     return op-ostart;
 }

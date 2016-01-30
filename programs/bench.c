@@ -308,7 +308,7 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
             ratio = (double)srcSize / (double)cSize;
             DISPLAY("%2i-%-17.17s :%10i ->%10i (%5.3f),%6.1f MB/s\r", loopNb, displayName, (int)srcSize, (int)cSize, ratio, (double)srcSize / fastestC / 1000.);
 
-#if 0
+#if 1
             /* Decompression */
             memset(resultBuffer, 0xD6, srcSize);  /* warm result buffer */
 
@@ -317,18 +317,17 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
             while (BMK_GetMilliStart() == milliTime);
             milliTime = BMK_GetMilliStart();
 
-            ZSTD_decompressBegin_usingDict(refDCtx, dictBuffer, dictBufferSize);
             for ( ; BMK_GetMilliSpan(milliTime) < TIMELOOP; nbLoops++) {
+                ZSTD_decompressBegin_usingDict(refDCtx, dictBuffer, dictBufferSize);
                 for (blockNb=0; blockNb<nbBlocks; blockNb++) {
-                    size_t regenSize;
-
-                    regenSize = ZSTD_decompress_usingPreparedDCtx(dctx, refDCtx,
+                    size_t regenSize = ZSTD_decompress_usingPreparedDCtx(dctx, refDCtx,
                         blockTable[blockNb].resPtr, blockTable[blockNb].srcSize,
                         blockTable[blockNb].cPtr, blockTable[blockNb].cSize);
-
-                    if (ZSTD_isError(regenSize))
-                        EXM_THROW(3, "ZSTD_decompress_usingPreparedDCtx() failed on block %u : %s",
+                    if (ZSTD_isError(regenSize)) {
+                        DISPLAY("ZSTD_decompress_usingPreparedDCtx() failed on block %u : %s",
                                   blockNb, ZSTD_getErrorName(regenSize));
+                        goto _findError;
+                    }
                     blockTable[blockNb].resSize = regenSize;
             }   }
 
@@ -337,6 +336,7 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
             DISPLAY("%2i-%-17.17s :%10i ->%10i (%5.3f),%6.1f MB/s ,%6.1f MB/s\r", loopNb, displayName, (int)srcSize, (int)cSize, ratio, (double)srcSize / fastestC / 1000., (double)srcSize / fastestD / 1000.);
 
             /* CRC Checking */
+_findError:
             crcCheck = XXH64(resultBuffer, srcSize, 0);
             if (crcOrig!=crcCheck) {
                 size_t u;

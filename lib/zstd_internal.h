@@ -102,7 +102,7 @@ static const size_t ZSTD_frameHeaderSize_min = 5;
 
 #define HufLog 12
 
-#define MIN_SEQUENCES_SIZE (2 /*seqNb*/ + 2 /*dumps*/ + 3 /*seqTables*/ + 1 /*bitStream*/)
+#define MIN_SEQUENCES_SIZE 2 /*seqNb*/
 #define MIN_CBLOCK_SIZE (1 /*litCSize*/ + MIN_SEQUENCES_SIZE)
 
 #define WILDCOPY_OVERLENGTH 8

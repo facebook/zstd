@@ -1,6 +1,6 @@
 v0.5.0
-Changed streaming & dictionary API
 New : dictionary builder utility
+Changed : streaming & dictionary API
 
 v0.4.7
 Improved : small compression speed improvement in HC mode

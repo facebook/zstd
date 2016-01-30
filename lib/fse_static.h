@@ -239,6 +239,19 @@ MEM_STATIC void FSE_initCState(FSE_CState_t* statePtr, const FSE_CTable* ct)
     statePtr->stateLog = tableLog;
 }
 
+MEM_STATIC void FSE_initCState2(FSE_CState_t* statePtr, const FSE_CTable* ct, U32 symbol)
+{
+    FSE_initCState(statePtr, ct);
+    {
+        const FSE_symbolCompressionTransform symbolTT = ((const FSE_symbolCompressionTransform*)(statePtr->symbolTT))[symbol];
+        const U16* stateTable = (const U16*)(statePtr->stateTable);
+        U32 nbBitsOut  = (U32)((symbolTT.deltaNbBits + (1<<15)) >> 16);
+        statePtr->value = (nbBitsOut << 16) - symbolTT.deltaNbBits;
+        statePtr->value = stateTable[(statePtr->value >> nbBitsOut) + symbolTT.deltaFindState];
+
+    }
+}
+
 MEM_STATIC void FSE_encodeSymbol(BIT_CStream_t* bitC, FSE_CState_t* statePtr, U32 symbol)
 {
     const FSE_symbolCompressionTransform symbolTT = ((const FSE_symbolCompressionTransform*)(statePtr->symbolTT))[symbol];
@@ -275,6 +288,17 @@ MEM_STATIC void FSE_initDState(FSE_DState_t* DStatePtr, BIT_DStream_t* bitD, con
     DStatePtr->state = BIT_readBits(bitD, DTableH->tableLog);
     BIT_reloadDStream(bitD);
     DStatePtr->table = dt + 1;
+}
+
+MEM_STATIC size_t FSE_getStateValue(FSE_DState_t* DStatePtr)
+{
+    return DStatePtr->state;
+}
+
+MEM_STATIC BYTE FSE_peakSymbol(FSE_DState_t* DStatePtr)
+{
+    const FSE_decode_t DInfo = ((const FSE_decode_t*)(DStatePtr->table))[DStatePtr->state];
+    return DInfo.symbol;
 }
 
 MEM_STATIC BYTE FSE_decodeSymbol(FSE_DState_t* DStatePtr, BIT_DStream_t* bitD)

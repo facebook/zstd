@@ -544,10 +544,11 @@ size_t ZSTD_compressSequences(ZSTD_CCtx* zc,
     }
 
     /* Sequences Header */
-    if ((oend-op) < MIN_SEQUENCES_SIZE)
-        return ERROR(dstSize_tooSmall);
-    MEM_writeLE16(op, (U16)nbSeq); op+=2;
-
+    if ((oend-op) < MIN_SEQUENCES_SIZE) return ERROR(dstSize_tooSmall);
+    if (nbSeq < 128) *op++ = (BYTE)nbSeq;
+    else {
+        op[0] = (nbSeq>>8) + 128; op[1] = (BYTE)nbSeq; op+=2;
+    }
     if (nbSeq==0) goto _check_compressibility;
 
     /* dumps : contains rests of large lengths */
@@ -946,12 +947,7 @@ void ZSTD_compressBlock_fast_generic(ZSTD_CCtx* zc,
 
     /* init */
     ZSTD_resetSeqStore(seqStorePtr);
-    if (ip < lowest+4) {
-        hashTable[ZSTD_hashPtr(lowest+1, hBits, mls)] = lowIndex+1;
-        hashTable[ZSTD_hashPtr(lowest+2, hBits, mls)] = lowIndex+2;
-        hashTable[ZSTD_hashPtr(lowest+3, hBits, mls)] = lowIndex+3;
-        ip = lowest+4;
-    }
+    if (ip < lowest+REPCODE_STARTVALUE) ip = lowest+REPCODE_STARTVALUE;
 
     /* Main Search Loop */
     while (ip < ilimit) {  /* < instead of <=, because repcode check at (ip+1) */
@@ -1056,12 +1052,9 @@ void ZSTD_compressBlock_fast_extDict_generic(ZSTD_CCtx* ctx,
 
     /* init */
     ZSTD_resetSeqStore(seqStorePtr);
-    /* skip first 4 positions to avoid read overflow during repcode match check */
+    /* skip first position to avoid read overflow during repcode match check */
     hashTable[ZSTD_hashPtr(ip+0, hBits, mls)] = (U32)(ip-base+0);
-    hashTable[ZSTD_hashPtr(ip+1, hBits, mls)] = (U32)(ip-base+1);
-    hashTable[ZSTD_hashPtr(ip+2, hBits, mls)] = (U32)(ip-base+2);
-    hashTable[ZSTD_hashPtr(ip+3, hBits, mls)] = (U32)(ip-base+3);
-    ip += 4;
+    ip += REPCODE_STARTVALUE;
 
     /* Main Search Loop */
     while (ip < ilimit) {  /* < instead of <=, because (ip+1) */

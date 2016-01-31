@@ -273,7 +273,8 @@ void ZSTD_copyDCtx(ZSTD_DCtx* dstDCtx, const ZSTD_DCtx* srcDCtx)
 static size_t ZSTD_decodeFrameHeader_Part1(ZSTD_DCtx* zc, const void* src, size_t srcSize)
 {
     U32 magicNumber;
-    if (srcSize != ZSTD_frameHeaderSize_min) return ERROR(srcSize_wrong);
+    if (srcSize != ZSTD_frameHeaderSize_min)
+        return ERROR(srcSize_wrong);
     magicNumber = MEM_readLE32(src);
     if (magicNumber != ZSTD_MAGICNUMBER) return ERROR(prefix_unknown);
     zc->headerSize = ZSTD_frameHeaderSize_min;
@@ -300,7 +301,8 @@ size_t ZSTD_getFrameParams(ZSTD_parameters* params, const void* src, size_t srcS
 static size_t ZSTD_decodeFrameHeader_Part2(ZSTD_DCtx* zc, const void* src, size_t srcSize)
 {
     size_t result;
-    if (srcSize != zc->headerSize) return ERROR(srcSize_wrong);
+    if (srcSize != zc->headerSize)
+        return ERROR(srcSize_wrong);
     result = ZSTD_getFrameParams(&(zc->params), src, srcSize);
     if ((MEM_32bits()) && (zc->params.windowLog > 25)) return ERROR(frameParameter_unsupportedBy32bitsImplementation);
     return result;
@@ -313,7 +315,8 @@ size_t ZSTD_getcBlockSize(const void* src, size_t srcSize, blockProperties_t* bp
     BYTE headerFlags;
     U32 cSize;
 
-    if (srcSize < 3) return ERROR(srcSize_wrong);
+    if (srcSize < 3)
+        return ERROR(srcSize_wrong);
 
     headerFlags = *in;
     cSize = in[2] + (in[1]<<8) + ((in[0] & 7)<<16);
@@ -335,7 +338,7 @@ static size_t ZSTD_copyRawBlock(void* dst, size_t maxDstSize, const void* src, s
 }
 
 
-/** ZSTD_decodeLiteralsBlock
+/*! ZSTD_decodeLiteralsBlock
     @return : nb of bytes read from src (< srcSize ) */
 size_t ZSTD_decodeLiteralsBlock(ZSTD_DCtx* dctx,
                           const void* src, size_t srcSize)   /* note : srcSize < BLOCKSIZE */
@@ -426,8 +429,7 @@ size_t ZSTD_decodeLiteralsBlock(ZSTD_DCtx* dctx,
                 break;
             }
 
-            if (lhSize+litSize+WILDCOPY_OVERLENGTH > srcSize)   /* risk reading beyond src buffer with wildcopy */
-            {
+            if (lhSize+litSize+WILDCOPY_OVERLENGTH > srcSize) {  /* risk reading beyond src buffer with wildcopy */
                 if (litSize > srcSize-lhSize) return ERROR(corruption_detected);
                 memcpy(dctx->litBuffer, istart+lhSize, litSize);
                 dctx->litPtr = dctx->litBuffer;
@@ -483,11 +485,14 @@ size_t ZSTD_decodeSeqHeaders(int* nbSeq, const BYTE** dumpsPtr, size_t* dumpsLen
     size_t dumpsLength;
 
     /* check */
-    if (srcSize < MIN_SEQUENCES_SIZE) return ERROR(srcSize_wrong);
+    if (srcSize < MIN_SEQUENCES_SIZE)
+        return ERROR(srcSize_wrong);
 
     /* SeqHead */
-    *nbSeq = MEM_readLE16(ip); ip+=2;
-    if (*nbSeq==0) return 2;
+    *nbSeq = *ip++;
+    if (*nbSeq==0) return 1;
+    if (*nbSeq >= 128)
+        *nbSeq = ((nbSeq[0]-128)<<8) + *ip++;
 
     LLtype  = *ip >> 6;
     Offtype = (*ip >> 4) & 3;
@@ -787,10 +792,10 @@ static size_t ZSTD_decompressSequences(
         seqState_t seqState;
 
         memset(&sequence, 0, sizeof(sequence));
-        sequence.offset = 4;
+        sequence.offset = REPCODE_STARTVALUE;
         seqState.dumps = dumps;
         seqState.dumpsEnd = dumps + dumpsLength;
-        seqState.prevOffset = 4;
+        seqState.prevOffset = REPCODE_STARTVALUE;
         errorCode = BIT_initDStream(&(seqState.DStream), ip, iend-ip);
         if (ERR_isError(errorCode)) return ERROR(corruption_detected);
         FSE_initDState(&(seqState.stateLL), &(seqState.DStream), DTableLL);

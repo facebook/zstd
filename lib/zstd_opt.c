@@ -424,7 +424,7 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
     LZ5HC_match_t matches[LZ5_OPT_NUM+1];
     const uint8_t *inr;
     int res, cur, cur2, cur_min, skip_num = 0;
-    int rep = 1, llen, litlen, price, offset, best_off, match_num, last_pos;
+    int rep = 1, llen, litlen, price, match_num, last_pos;
   
     const int sufficient_len = 128; //ctx->params.sufficientLength;
     const int faster_get_matches = (ctx->params.strategy == ZSTD_opt); 
@@ -437,7 +437,7 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
     while (ip < ilimit) {
         size_t mlen=0;
         size_t best_mlen=0;
-        size_t offset=0;
+        size_t best_off=0;
         const BYTE* start=ip+1;
         memset(opt, 0, sizeof(LZ5HC_optimal_t));
         last_pos = 0;
@@ -472,7 +472,7 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
             /* first search (depth 0) */
             size_t mnum = getAllMatches(ctx, ip, iend, maxSearches, mls, matches); 
             if (mnum > 0 && matches[mnum-1].len > best_mlen)
-                best_mlen = matches[mnum-1].len, start = ip, offset=matches[mnum-1].off;
+                best_mlen = matches[mnum-1].len, start = ip, best_off=matches[mnum-1].off;
         }
 
         if (best_mlen < MINMATCH) {
@@ -485,20 +485,20 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
         if (depth>=1)
         while (ip<ilimit) {
             ip ++;
-            if ((offset) && (MEM_read32(ip) == MEM_read32(ip - rep_1))) {
+            if ((best_off) && (MEM_read32(ip) == MEM_read32(ip - rep_1))) {
                 size_t mlRep = ZSTD_count(ip+MINMATCH, ip+MINMATCH-rep_1, iend) + MINMATCH;
                 int gain2 = (int)(mlRep * 3);
-                int gain1 = (int)(best_mlen*3 - ZSTD_highbit((U32)offset+1) + 1);
+                int gain1 = (int)(best_mlen*3 - ZSTD_highbit((U32)best_off+1) + 1);
                 if ((mlRep >= MINMATCH) && (gain2 > gain1))
-                    best_mlen = mlRep, offset = 0, start = ip;
+                    best_mlen = mlRep, best_off = 0, start = ip;
             }
             {
                 size_t mnum = getAllMatches(ctx, ip, iend, maxSearches, mls, matches); 
                 if (mnum > 0) {
                     int gain2 = (int)(matches[mnum-1].len*4 - ZSTD_highbit((U32)matches[mnum-1].off+1));   /* raw approx */
-                    int gain1 = (int)(best_mlen*4 - ZSTD_highbit((U32)offset+1) + 4);
+                    int gain1 = (int)(best_mlen*4 - ZSTD_highbit((U32)best_off+1) + 4);
                     if ((matches[mnum-1].len >= MINMATCH) && (gain2 > gain1)) {
-                        best_mlen = matches[mnum-1].len, offset = matches[mnum-1].off, start = ip;
+                        best_mlen = matches[mnum-1].len, best_off = matches[mnum-1].off, start = ip;
                         continue;   /* search a better one */
                     }
                 }   
@@ -508,28 +508,72 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
         }
 
         /* catch up */
-        if (offset) {
-            while ((start>anchor) && (start>base+offset) && (start[-1] == start[-1-offset]))   /* only search for offset within prefix */
+        if (best_off) {
+            while ((start>anchor) && (start>base+best_off) && (start[-1] == start[-1-best_off]))   /* only search for offset within prefix */
                 { start--; best_mlen++; }
-            rep_2 = rep_1; rep_1 = offset;
+     //       rep_2 = rep_1; rep_1 = best_off;
         }
 
+        cur = 0; 
+        last_pos = 1;
+
         /* store sequence */
-_storeSequence:
+_storeSequence: // cur, last_pos, best_mlen, best_off have to be set
+        for (int i = 1; i <= last_pos; i++)
+            LZ5_LOG_PARSER("%d: price[%d/%d]=%d off=%d mlen=%d litlen=%d rep=%d\n", (int)((char*)ip-source+i), i, last_pos, opt[i].price, opt[i].off, opt[i].mlen, opt[i].litlen, opt[i].rep); 
+        LZ5_LOG_PARSER("%d: cur=%d/%d best_mlen=%d best_off=%d rep=%d\n", (int)((char*)ip-source+cur), cur, last_pos, best_mlen, best_off, opt[cur].rep); 
+
+        opt[0].mlen = 1;
+        
+        size_t offset;
+        while (cur >= 0)
         {
-            size_t litLength = start - anchor;
-            ZSTD_storeSeq(seqStorePtr, litLength, anchor, offset, best_mlen-MINMATCH);
-            anchor = ip = start + best_mlen;
+            mlen = opt[cur].mlen;
+            offset = opt[cur].off;
+            opt[cur].mlen = best_mlen; 
+            opt[cur].off = best_off;
+            best_mlen = mlen;
+            best_off = offset; 
+            cur -= mlen;
         }
+          
+        for (int i = 0; i <= last_pos;)
+        {
+            LZ5_LOG_PARSER("%d: price2[%d/%d]=%d off=%d mlen=%d litlen=%d rep=%d\n", (int)((char*)ip-source+i), i, last_pos, opt[i].price, opt[i].off, opt[i].mlen, opt[i].litlen, opt[i].rep); 
+            i += opt[i].mlen;
+        }
+
+        cur = 0;
+
+        while (cur < last_pos)
+        {
+            LZ5_LOG_PARSER("%d: price3[%d/%d]=%d off=%d mlen=%d litlen=%d rep=%d\n", (int)((char*)ip-source+cur), cur, last_pos, opt[cur].price, opt[cur].off, opt[cur].mlen, opt[cur].litlen, opt[cur].rep); 
+            mlen = opt[cur].mlen;
+            if (mlen == 1) { ip++; cur++; continue; }
+            offset = opt[cur].off;
+            cur += mlen;
+
+            LZ5_LOG_ENCODE("%d: ENCODE literals=%d off=%d mlen=%d ", (int)((char*)ip-source), (int)(ip-anchor), (int)(offset), mlen);
+            size_t litLength = start - anchor;
+            ZSTD_storeSeq(seqStorePtr, litLength, anchor, offset, mlen-MINMATCH);
+            anchor = ip = start + mlen;
+
+            if (offset)
+                rep_2 = rep_1, rep_1 = offset;
+
+            LZ5_LOG_ENCODE("out=%d\n", (int)((char*)op - dest));
+            LZ5_LOG_PARSER("%d: offset=%d rep=%d\n", (int)((char*)ip-source), offset, rep);
+        }
+
 
        /* check immediate repcode */
         while ( (ip <= ilimit)
              && (MEM_read32(ip) == MEM_read32(ip - rep_2)) ) {
             /* store sequence */
             best_mlen = ZSTD_count(ip+MINMATCH, ip+MINMATCH-rep_2, iend);
-            offset = rep_2;
+            best_off = rep_2;
             rep_2 = rep_1;
-            rep_1 = offset;
+            rep_1 = best_off;
             ZSTD_storeSeq(seqStorePtr, 0, anchor, 0, best_mlen);
             ip += best_mlen+MINMATCH;
             anchor = ip;

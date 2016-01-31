@@ -260,10 +260,10 @@ FORCE_INLINE size_t ZSTD_HcGetAllMatches_selectMLS (
 
 
 /* *******************************
-*  Common parser - lazy strategy
+*  Optimal parser OLD
 *********************************/
 FORCE_INLINE
-void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
+void ZSTD_compressBlock_opt_generic_OLD(ZSTD_CCtx* ctx,
                                      const void* src, size_t srcSize,
                                      const U32 searchMethod, const U32 depth)
 {
@@ -392,6 +392,131 @@ _storeSequence:
         seqStorePtr->lit += lastLLSize;
     }
 }
+
+
+
+
+/* *******************************
+*  Optimal parser
+*********************************/
+FORCE_INLINE
+void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
+                                     const void* src, size_t srcSize,
+                                     const U32 searchMethod, const U32 depth)
+{
+    seqStore_t* seqStorePtr = &(ctx->seqStore);
+    const BYTE* const istart = (const BYTE*)src;
+    const BYTE* ip = istart;
+    const BYTE* anchor = istart;
+    const BYTE* const iend = istart + srcSize;
+    const BYTE* const ilimit = iend - 8;
+    const BYTE* const base = ctx->base + ctx->dictLimit;
+
+    size_t offset_2=REPCODE_STARTVALUE, offset_1=REPCODE_STARTVALUE;
+    const U32 maxSearches = 1 << ctx->params.searchLog;
+    const U32 mls = ctx->params.searchLength;
+
+    typedef size_t (*getAllMatches_f)(ZSTD_CCtx* zc, const BYTE* ip, const BYTE* iLimit,
+                        U32 maxNbAttempts, U32 matchLengthSearch, LZ5HC_match_t* matches);
+    getAllMatches_f getAllMatches = searchMethod ? ZSTD_BtGetAllMatches_selectMLS : ZSTD_HcGetAllMatches_selectMLS;
+
+    LZ5HC_match_t matches[LZ5_OPT_NUM+1];
+    
+    /* init */
+    ZSTD_resetSeqStore(seqStorePtr);
+    if ((ip-base) < REPCODE_STARTVALUE) ip = base + REPCODE_STARTVALUE;
+
+    /* Match Loop */
+    while (ip < ilimit) {
+        size_t matchLength=0;
+        size_t offset=0;
+        const BYTE* start=ip+1;
+
+        /* check repCode */
+        if (MEM_read32(start) == MEM_read32(start - offset_1)) {
+            /* repcode : we take it */
+            matchLength = ZSTD_count(start+MINMATCH, start+MINMATCH-offset_1, iend) + MINMATCH;
+            if (depth==0) goto _storeSequence;
+        }
+
+        {
+            /* first search (depth 0) */
+            size_t mnum = getAllMatches(ctx, ip, iend, maxSearches, mls, matches); 
+            if (mnum > 0 && matches[mnum-1].len > matchLength)
+                matchLength = matches[mnum-1].len, start = ip, offset=matches[mnum-1].off;
+        }
+
+        if (matchLength < MINMATCH) {
+       //     ip += ((ip-anchor) >> g_searchStrength) + 1;   /* jump faster over incompressible sections */
+            ip++;
+            continue;
+        }
+
+        /* let's try to find a better solution */
+        if (depth>=1)
+        while (ip<ilimit) {
+            ip ++;
+            if ((offset) && (MEM_read32(ip) == MEM_read32(ip - offset_1))) {
+                size_t mlRep = ZSTD_count(ip+MINMATCH, ip+MINMATCH-offset_1, iend) + MINMATCH;
+                int gain2 = (int)(mlRep * 3);
+                int gain1 = (int)(matchLength*3 - ZSTD_highbit((U32)offset+1) + 1);
+                if ((mlRep >= MINMATCH) && (gain2 > gain1))
+                    matchLength = mlRep, offset = 0, start = ip;
+            }
+            {
+                size_t mnum = getAllMatches(ctx, ip, iend, maxSearches, mls, matches); 
+                if (mnum > 0) {
+                    int gain2 = (int)(matches[mnum-1].len*4 - ZSTD_highbit((U32)matches[mnum-1].off+1));   /* raw approx */
+                    int gain1 = (int)(matchLength*4 - ZSTD_highbit((U32)offset+1) + 4);
+                    if ((matches[mnum-1].len >= MINMATCH) && (gain2 > gain1)) {
+                        matchLength = matches[mnum-1].len, offset = matches[mnum-1].off, start = ip;
+                        continue;   /* search a better one */
+                    }
+                }   
+            }
+
+            break;  /* nothing found : store previous solution */
+        }
+
+        /* catch up */
+        if (offset) {
+            while ((start>anchor) && (start>base+offset) && (start[-1] == start[-1-offset]))   /* only search for offset within prefix */
+                { start--; matchLength++; }
+            offset_2 = offset_1; offset_1 = offset;
+        }
+
+        /* store sequence */
+_storeSequence:
+        {
+            size_t litLength = start - anchor;
+            ZSTD_storeSeq(seqStorePtr, litLength, anchor, offset, matchLength-MINMATCH);
+            anchor = ip = start + matchLength;
+        }
+
+       /* check immediate repcode */
+        while ( (ip <= ilimit)
+             && (MEM_read32(ip) == MEM_read32(ip - offset_2)) ) {
+            /* store sequence */
+            matchLength = ZSTD_count(ip+MINMATCH, ip+MINMATCH-offset_2, iend);
+            offset = offset_2;
+            offset_2 = offset_1;
+            offset_1 = offset;
+            ZSTD_storeSeq(seqStorePtr, 0, anchor, 0, matchLength);
+            ip += matchLength+MINMATCH;
+            anchor = ip;
+            continue;   /* faster when present ... (?) */
+    }    }
+
+    /* Last Literals */
+    {
+        size_t lastLLSize = iend - anchor;
+        memcpy(seqStorePtr->lit, anchor, lastLLSize);
+        seqStorePtr->lit += lastLLSize;
+    }
+}
+
+
+
 
 #if 0
 /* *******************************

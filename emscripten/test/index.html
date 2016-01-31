@@ -1,0 +1,62 @@
+<!doctype html>
+<html>
+	<head>
+		<title>ZStd test</title>
+	</head>
+	<script async src="../../build/emscripten/zstd.js"></script>
+	<script>
+		var tick = function() {
+			if (window.ZStd) {
+				ZStd = ZStd();
+				testZStd();
+			} else {
+				setTimeout(tick, 10);
+			}
+		};
+		tick();
+
+		function testZStd() {
+			console.log('ZStd loaded OK');
+
+			var rawSize = 500000;
+
+			var compressionLevel = 1;
+
+			var rawPtr = ZStd._malloc(rawSize);
+			var rawU8 = new Uint8Array(ZStd.buffer, rawPtr, rawSize);
+			for (var i=0; i<rawU8.length; i++) {
+				rawU8[i] = (Date.now() & 0xff) + (Math.random()*2);
+			}
+
+			console.time("Compression");
+			var compressedPtr = ZStd._malloc(rawSize);
+			var compressedSize = ZStd._ZStdCompress(compressedPtr, rawSize, rawPtr, rawSize, compressionLevel);
+			console.timeEnd("Compression");
+
+			console.log("Compressed " + rawSize + " bytes to " + compressedSize + " bytes.");
+
+			console.time("Decompression");
+			var decompressedPtr = ZStd._malloc(rawSize);
+			var decompressedSize = ZStd._ZStdDecompress(decompressedPtr, rawSize, compressedPtr, compressedSize);
+			console.timeEnd("Decompression");
+
+			console.log("Decompressed " + compressedSize + " bytes to " + decompressedSize + " bytes.");
+
+			if (decompressedSize !== rawSize) {
+				throw("ERROR: Decompressed size is different from raw size.");
+			}
+
+			var decompressedU8 = new Uint8Array(ZStd.buffer, decompressedPtr, decompressedSize);
+
+			for (var i=0; i<decompressedU8.length; i++) {
+				if (decompressedU8[i] !== rawU8[i]) {
+					throw("ERROR: Decompressed value differs from raw at " + i + ", " + decompressedU8[i] + " !== " + rawU8[i]);
+				}
+			}
+
+			console.log("Compression roundtrip completed successfully.")
+
+		}
+	</script>
+
+</html>

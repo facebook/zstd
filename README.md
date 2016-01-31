@@ -1,4 +1,22 @@
- **Zstd**, short for Zstandard, is a fast lossless compression algorithm, targeting real-time compression scenarios at zlib-level compression ratio.
+# Zstd Emscripten build
+
+Warning: very rough first pass port. Missing all but the most basic functionality.
+
+## To build:
+
+  1. `cd build`
+  2. `emconfigure cmake ../contrib/cmake/`
+  3. `emmake make -j4`
+  4. `cd ..`
+  5. `serve -p 3000`
+  6. `open http://localhost:3000/emscripten/test/index.html`
+
+## To use:
+
+See the [test page](emscripten/test/index.html).
+
+
+**Zstd**, short for Zstandard, is a fast lossless compression algorithm, targeting real-time compression scenarios at zlib-level compression ratio.
 
 It is provided as a BSD-license package, hosted on Github.
 

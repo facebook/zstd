@@ -457,7 +457,7 @@ static size_t ZSTD_compressLiterals (ZSTD_CCtx* zc,
     U32 hType = IS_HUF;
     size_t clitSize;
 
-    if (maxDstSize < 4) return ERROR(dstSize_tooSmall);   /* not enough space for compression */
+    if (maxDstSize < lhSize+1) return ERROR(dstSize_tooSmall);   /* not enough space for compression */
 
     if (zc->flagStaticTables && (lhSize==3)) {
         hType = IS_PCH;
@@ -547,7 +547,7 @@ size_t ZSTD_compressSequences(ZSTD_CCtx* zc,
     if ((oend-op) < MIN_SEQUENCES_SIZE) return ERROR(dstSize_tooSmall);
     if (nbSeq < 128) *op++ = (BYTE)nbSeq;
     else {
-        op[0] = (nbSeq>>8) + 128; op[1] = (BYTE)nbSeq; op+=2;
+        op[0] = (BYTE)((nbSeq>>8) + 128); op[1] = (BYTE)nbSeq; op+=2;
     }
     if (nbSeq==0) goto _check_compressibility;
 

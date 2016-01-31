@@ -812,8 +812,7 @@ static size_t ZSTD_decompressSequences(
         }
 
         /* check if reached exact end */
-        if (nbSeq)
-            return ERROR(corruption_detected);   /* DStream should be entirely and exactly consumed; otherwise data is corrupted */
+        if (nbSeq) return ERROR(corruption_detected);
     }
 
     /* last literal segment */

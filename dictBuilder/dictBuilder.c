@@ -856,7 +856,7 @@ static size_t DiB_trainFromBuffer_internal(
                             const void* samplesBuffer, const size_t* sampleSizes, unsigned nbSamples,
                             DiB_params_t params)
 {
-    const U32 dictListSize = MAX( MAX(DICTLISTSIZE, nbSamples), maxDictSize/16);
+    const U32 dictListSize = MAX( MAX(DICTLISTSIZE, nbSamples), (U32)(maxDictSize/16));
     dictItem* dictList = (dictItem*)malloc(dictListSize * sizeof(*dictList));
     unsigned selectivity = params.selectivityLevel;
     unsigned compressionLevel = params.compressionLevel;
@@ -879,7 +879,7 @@ static size_t DiB_trainFromBuffer_internal(
         DiB_trainBuffer(dictList, dictListSize,
                         samplesBuffer, sBuffSize,
                         sampleSizes, nbSamples,
-                        selectivity, targetDictSize);
+                        selectivity, (U32)targetDictSize);
 
         /* display best matches */
         if (g_displayLevel>= 3) {
@@ -918,7 +918,7 @@ static size_t DiB_trainFromBuffer_internal(
         if (selectivity==1) {  /* note could also be used to complete a dictionary, but not necessarily better */
             DISPLAYLEVEL(3, "\r%70s\r", "");   /* clean display line */
             DISPLAYLEVEL(3, "Adding %u KB with fast sampling \n", (U32)(targetDictSize>>10));
-            dictContentSize = DiB_fastSampling((char*)dictBuffer + g_provision_entropySize,
+            dictContentSize = (U32)DiB_fastSampling((char*)dictBuffer + g_provision_entropySize,
                                                targetDictSize, samplesBuffer, sBuffSize);
         }
 

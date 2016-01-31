@@ -22,6 +22,15 @@
   - zstd source repository : https://github.com/Cyan4973/zstd
 */
 
+/* **************************************
+*  Compiler Specifics
+****************************************/
+/* Disable some Visual warning messages */
+#ifdef _MSC_VER
+#  pragma warning(disable : 4127)                /* disable: C4127: conditional expression is constant */
+#endif
+
+
 /*-************************************
 *  Includes
 **************************************/

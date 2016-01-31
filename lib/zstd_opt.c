@@ -458,7 +458,7 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
                 goto _storeSequence;
             }
 
-            do
+/*            do
             {
                 litlen = 0;
                 price = LZ5HC_get_price(llen, 0, mlen - MINMATCH) - llen;
@@ -466,7 +466,7 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
                     SET_PRICE(mlen + 1, mlen, 0, litlen, price);
                 mlen--;
             }
-            while (mlen >= MINMATCH);
+            while (mlen >= MINMATCH);*/
         }
 
      //  best_mlen = (last_pos) ? last_pos : MINMATCH;
@@ -517,7 +517,7 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
         opt[0].rep = opt[1].rep = rep_1;
         opt[0].mlen = opt[1].mlen = 1;
 
-#if 0
+#if 1
         // check further positions
         for (skip_num = 0, cur = 1; cur <= last_pos; cur++)
         { 
@@ -576,6 +576,7 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
 
             LZ5_LOG_PARSER("%d: CURRENT price[%d/%d]=%d off=%d mlen=%d litlen=%d rep=%d\n", (int)((char*)inr-source), cur, last_pos, opt[cur].price, opt[cur].off, opt[cur].mlen, opt[cur].litlen, opt[cur].rep); 
 
+#if 0
            // check rep
            // best_mlen = 0;
            mlen = ZSTD_count(inr, inr - opt[cur].rep, iend);
@@ -590,7 +591,7 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
                 best_off = 0;
                 LZ5_LOG_PARSER("%d: REP sufficient_len=%d best_mlen=%d best_off=%d last_pos=%d\n", (int)((char*)inr-source), sufficient_len, best_mlen, best_off, last_pos);
                 last_pos = cur + 1;
-                goto encode;
+                goto _storeSequence;
                }
 
                if (opt[cur].mlen == 1)
@@ -629,6 +630,7 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
                 }
                 while (mlen >= MINMATCH);
             }
+#endif
 
             if (faster_get_matches && skip_num > 0)
             {
@@ -650,7 +652,7 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
                 best_mlen = matches[match_num-1].len;
                 best_off = matches[match_num-1].off;
                 last_pos = cur + 1;
-                goto encode;
+                goto _storeSequence;
             }
 
             cur_min = cur;

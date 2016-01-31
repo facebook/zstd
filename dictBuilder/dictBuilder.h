@@ -26,6 +26,9 @@
 /* This library is designed for a single-threaded console application.
 *  It exit() and printf() into stderr when it encounters an error condition. */
 
+#ifndef DICTBUILDER_H_001
+#define DICTBUILDER_H_001
+
 /*-*************************************
 *  Version
 ***************************************/
@@ -37,23 +40,55 @@ unsigned DiB_versionNumber (void);
 
 
 /*-*************************************
+*  Public type
+***************************************/
+typedef struct {
+    unsigned selectivityLevel;   /* 0 means default; larger => bigger selection => larger dictionary */
+    unsigned compressionLevel;   /* 0 means default; target a specific zstd compression level */
+} DiB_params_t;
+
+
+/*-*************************************
 *  Public functions
 ***************************************/
-/*! DiB_trainDictionary
-    Train a dictionary from a set of files provided by @fileNamesTable
-    Resulting dictionary is written in file @dictFileName.
-    @selectivityLevel change criteria for insertion into the dictionary (more => bigger selection => larger dictionary)
-    @compressionLevel can be used to target a specific compression level of zstd. 0 means "default".
-    @result : 0 == ok
+/*! DiB_trainFromBuffer
+    Train a dictionary from a memory buffer @samplesBuffer
+    where @nbSamples samples have been stored concatenated.
+    Each sample size is provided into an orderly table @sampleSizes.
+    Resulting dictionary will be saved into @dictBuffer.
+    @parameters is optional and can be provided with 0 values to mean "default".
+    @result : size of dictionary stored into @dictBuffer (<= @dictBufferSize)
+              or an error code, which can be tested by DiB_isError().
+    note : DiB_trainFromBuffer() will send notifications into stderr if instructed to, using DiB_setNotificationLevel()
 */
-int DiB_trainDictionary(const char* dictFileName, unsigned maxDictSize,
-                        unsigned selectivityLevel, unsigned compressionLevel,
-                        const char** fileNamesTable, unsigned nbFiles);
+size_t DiB_trainFromBuffer(void* dictBuffer, size_t dictBufferSize,
+                           const void* samplesBuffer, const size_t* sampleSizes, unsigned nbSamples,
+                           DiB_params_t parameters);
 
+
+/*! DiB_trainFromFiles
+    Train a dictionary from a set of files provided by @fileNamesTable
+    Resulting dictionary is written into file @dictFileName.
+    @parameters is optional and can be provided with 0 values.
+    @result : 0 == ok. Any other : error.
+*/
+int DiB_trainFromFiles(const char* dictFileName, unsigned maxDictSize,
+                       const char** fileNamesTable, unsigned nbFiles,
+                       DiB_params_t parameters);
+
+
+/*-*************************************
+*  Helper functions
+***************************************/
+unsigned DiB_isError(size_t errorCode);
+const char* DiB_getErrorName(size_t errorCode);
 
 /*! DiB_setNotificationLevel
     Set amount of notification to be displayed on the console.
-    0 = no console notification (default).
+    default initial value : 0 = no console notification.
     Note : not thread-safe (use a global constant)
 */
 void DiB_setNotificationLevel(unsigned l);
+
+
+#endif

@@ -1654,6 +1654,18 @@ _storeSequence:
     }
 }
 
+#include "zstd_opt.c"
+
+static void ZSTD_compressBlock_opt_bt(ZSTD_CCtx* ctx, const void* src, size_t srcSize)
+{
+    ZSTD_compressBlock_opt_generic(ctx, src, srcSize, 1, 2);
+}
+
+static void ZSTD_compressBlock_opt(ZSTD_CCtx* ctx, const void* src, size_t srcSize)
+{
+    ZSTD_compressBlock_opt_generic(ctx, src, srcSize, 0, 2);
+}
+
 static void ZSTD_compressBlock_btlazy2(ZSTD_CCtx* ctx, const void* src, size_t srcSize)
 {
     ZSTD_compressBlock_lazy_generic(ctx, src, srcSize, 1, 2);
@@ -1868,14 +1880,24 @@ static void ZSTD_compressBlock_btlazy2_extDict(ZSTD_CCtx* ctx, const void* src, 
     ZSTD_compressBlock_lazy_extDict_generic(ctx, src, srcSize, 1, 2);
 }
 
+static void ZSTD_compressBlock_opt_extDict(ZSTD_CCtx* ctx, const void* src, size_t srcSize)
+{
+    ZSTD_compressBlock_lazy_extDict_generic(ctx, src, srcSize, 0, 2);
+}
+
+static void ZSTD_compressBlock_opt_bt_extDict(ZSTD_CCtx* ctx, const void* src, size_t srcSize)
+{
+    ZSTD_compressBlock_lazy_extDict_generic(ctx, src, srcSize, 1, 2);
+}
+
 
 typedef void (*ZSTD_blockCompressor) (ZSTD_CCtx* ctx, const void* src, size_t srcSize);
 
 static ZSTD_blockCompressor ZSTD_selectBlockCompressor(ZSTD_strategy strat, int extDict)
 {
-    static const ZSTD_blockCompressor blockCompressor[2][5] = {
-        { ZSTD_compressBlock_fast, ZSTD_compressBlock_greedy, ZSTD_compressBlock_lazy,ZSTD_compressBlock_lazy2, ZSTD_compressBlock_btlazy2 },
-        { ZSTD_compressBlock_fast_extDict, ZSTD_compressBlock_greedy_extDict, ZSTD_compressBlock_lazy_extDict,ZSTD_compressBlock_lazy2_extDict, ZSTD_compressBlock_btlazy2_extDict }
+    static const ZSTD_blockCompressor blockCompressor[2][7] = {
+        { ZSTD_compressBlock_fast, ZSTD_compressBlock_greedy, ZSTD_compressBlock_lazy,ZSTD_compressBlock_lazy2, ZSTD_compressBlock_btlazy2, ZSTD_compressBlock_opt, ZSTD_compressBlock_opt_bt },
+        { ZSTD_compressBlock_fast_extDict, ZSTD_compressBlock_greedy_extDict, ZSTD_compressBlock_lazy_extDict,ZSTD_compressBlock_lazy2_extDict, ZSTD_compressBlock_btlazy2_extDict, ZSTD_compressBlock_opt_extDict, ZSTD_compressBlock_opt_bt_extDict }
     };
 
     return blockCompressor[extDict][(U32)strat];
@@ -2270,20 +2292,20 @@ static const ZSTD_parameters ZSTD_defaultParameters[4][ZSTD_MAX_CLEVEL+1] = {
     { 0, 21, 19, 20,  3,  5, ZSTD_lazy    },  /* level  8 */
     { 0, 21, 20, 20,  3,  5, ZSTD_lazy2   },  /* level  9 */
     { 0, 21, 19, 21,  4,  5, ZSTD_lazy2   },  /* level 10 */
-    { 0, 22, 20, 22,  4,  5, ZSTD_lazy2   },  /* level 11 */
+    { 0, 22, 20, 22,  4,  5, ZSTD_lazy2   },  /* level 11 */ // 42498419
     { 0, 22, 20, 22,  5,  5, ZSTD_lazy2   },  /* level 12 */
     { 0, 22, 21, 22,  5,  5, ZSTD_lazy2   },  /* level 13 */
     { 0, 22, 22, 23,  5,  5, ZSTD_lazy2   },  /* level 14 */
     { 0, 23, 23, 23,  5,  5, ZSTD_lazy2   },  /* level 15 */
-    { 0, 23, 21, 22,  5,  5, ZSTD_btlazy2 },  /* level 16 */
+    { 0, 23, 21, 22,  5,  5, ZSTD_btlazy2 },  /* level 16 */ // 42113689
     { 0, 23, 24, 23,  4,  5, ZSTD_btlazy2 },  /* level 17 */
     { 0, 25, 24, 23,  5,  5, ZSTD_btlazy2 },  /* level 18 */
     { 0, 25, 26, 23,  5,  5, ZSTD_btlazy2 },  /* level 19 */
     { 0, 26, 27, 25,  9,  5, ZSTD_btlazy2 },  /* level 20 */
-    { 0, 23, 21, 22,  5,  5, ZSTD_opt     },  /* level 21 */
-    { 0, 23, 24, 23,  4,  5, ZSTD_opt     },  /* level 22 */
-    { 0, 25, 26, 23,  5,  5, ZSTD_opt     },  /* level 23 */
-    { 0, 26, 27, 25,  9,  5, ZSTD_opt     },  /* level 24 */
+    { 0, 22, 20, 22,  4,  4, ZSTD_lazy2   },  /* level 11 + L=4 */ // 41902762
+    { 0, 23, 21, 22,  5,  4, ZSTD_btlazy2 },  /* level 16 + L=4 */ // 41233150
+    { 0, 23, 21, 22,  5,  4, ZSTD_opt     },  /* level 23 */
+    { 0, 23, 21, 22,  5,  4, ZSTD_opt_bt  },  /* level 23 */
 },
 {   /* for srcSize <= 256 KB */
     /*     W,  C,  H,  S,  L, strat */

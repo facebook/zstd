@@ -848,9 +848,12 @@ size_t FSE_buildCTable_raw (FSE_CTable* ct, unsigned nbBits)
         tableU16[s] = (U16)(tableSize + s);
 
     /* Build Symbol Transformation Table */
-    for (s=0; s<=maxSymbolValue; s++) {
-        symbolTT[s].deltaNbBits = (nbBits << 16) - (1 << nbBits);
-        symbolTT[s].deltaFindState = s-1;
+    {
+        const U32 deltaNbBits = (nbBits << 16) - (1 << nbBits);
+        for (s=0; s<=maxSymbolValue; s++) {
+            symbolTT[s].deltaNbBits = deltaNbBits;
+            symbolTT[s].deltaFindState = s-1;
+        }
     }
 
     return 0;

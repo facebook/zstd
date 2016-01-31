@@ -81,7 +81,7 @@ static const size_t ZSTD_frameHeaderSize_min = 5;
 #define IS_RLE 3
 
 #define MINMATCH 4
-#define REPCODE_STARTVALUE 4
+#define REPCODE_STARTVALUE 1
 
 #define MLbits   7
 #define LLbits   6
@@ -102,7 +102,7 @@ static const size_t ZSTD_frameHeaderSize_min = 5;
 
 #define HufLog 12
 
-#define MIN_SEQUENCES_SIZE 2 /*seqNb*/
+#define MIN_SEQUENCES_SIZE 1 /* seqNb */
 #define MIN_CBLOCK_SIZE (1 /*litCSize*/ + MIN_SEQUENCES_SIZE)
 
 #define WILDCOPY_OVERLENGTH 8

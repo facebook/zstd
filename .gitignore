@@ -46,3 +46,5 @@ ipch/
 .directory
 _codelite
 _zstdbench
+
+lib/zstd_opt_LZ5.c

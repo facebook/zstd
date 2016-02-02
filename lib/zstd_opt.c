@@ -561,8 +561,8 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
 
   //      printf("%d: last_pos=%d\n", (int)(ip - base), (int)last_pos);
 
-    //    opt[0].rep = opt[1].rep = rep_1;
-   //     opt[0].mlen = opt[1].mlen = 1;
+     //   opt[0].rep = opt[1].rep = rep_1;
+    //    opt[0].mlen = opt[1].mlen = 1;
         opt[0].rep = rep_1;
         opt[0].mlen = 1;
 
@@ -606,26 +606,31 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
            if (opt[cur].mlen > 1)
            {
                 mlen = opt[cur].mlen;
-                if (opt[cur].off < 1)
+                best_off = opt[cur].off;
+                if (best_off < 1)
                 {
                     opt[cur].rep = opt[cur-mlen].rep;
                     LZ5_LOG_PARSER("%d: COPYREP1 cur=%d mlen=%d rep=%d\n", (int)(inr-base), cur, mlen, opt[cur-mlen].rep);
                 }
                 else
                 {
-                    opt[cur].rep = 0;
+//                    if (opt[cur].litlen>0)
+                        opt[cur].rep = best_off;
+  //                  else
+    //                    opt[cur].rep = opt[cur-mlen].rep;
                     LZ5_LOG_PARSER("%d: COPYREP2 cur=%d offset=%d rep=%d\n", (int)(inr-base), cur, 0, opt[cur].rep);
                 }
            }
            else
            {
                 opt[cur].rep = opt[cur-1].rep; // copy rep
+                LZ5_LOG_PARSER("%d: COPYREP3 cur=%d rep=%d\n", (int)(inr-base), cur, opt[cur].rep);
            }
 
 
             LZ5_LOG_PARSER("%d: CURRENT price[%d/%d]=%d off=%d mlen=%d litlen=%d rep=%d\n", (int)(inr-base), cur, last_pos, opt[cur].price, opt[cur].off, opt[cur].mlen, opt[cur].litlen, opt[cur].rep); 
 
-#if 0
+#if 1
            // check rep
            // best_mlen = 0;
            mlen = ZSTD_count(inr, inr - opt[cur].rep, iend);
@@ -741,12 +746,15 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
                     }
 
                     LZ5_LOG_PARSER("%d: Found2 pred=%d mlen=%d best_mlen=%d off=%d price=%d litlen=%d price[%d]=%d\n", (int)(inr-base), matches[i].back, mlen, best_mlen, matches[i].off, price, litlen, cur - litlen, opt[cur - litlen].price);
-              //      LZ5_LOG_PRICE("%d: TRY5 price=%d opt[%d].price=%d\n", (int)(inr-base), price, cur2 + mlen, opt[cur2 + mlen].price);
-                    if (cur2 + mlen > last_pos || price < opt[cur2 + mlen].price)
+                    LZ5_LOG_PRICE("%d: TRY5 price=%d opt[%d].price=%d\n", (int)(inr-base), price, cur2 + mlen, opt[cur2 + mlen].price);
+                    if (cur2 + mlen > last_pos || ((matches[i].off != opt[cur2 + mlen].off) && (price < opt[cur2 + mlen].price)))
                     {
                         SET_PRICE(cur2 + mlen, mlen, matches[i].off, litlen, price);
 
-                        opt[cur2 + mlen].rep = matches[i].off; // update reps
+                   //     if (opt[cur2].litlen>0)
+                            opt[cur2 + mlen].rep = matches[i].off; // update reps
+                  //      else
+                  //          opt[cur2 + mlen].rep = opt[cur2].rep;
                         if (cur2 < cur_min) cur_min = cur2;
                     }
 
@@ -847,17 +855,16 @@ _storeSequence: // cur, last_pos, best_mlen, best_off have to be set
             cur += mlen;
 
 #if 1
+            size_t ml2;
             if (offset)
+                ml2 = ZSTD_count(ip, ip-offset, iend);
+            else
+                ml2 = ZSTD_count(ip, ip-rep_1, iend);
+            if (ml2 < mlen && ml2 < MINMATCH)
             {
-                size_t ml2 = ZSTD_count(ip, ip-offset, iend);
-                if (ml2 < mlen && ml2 < MINMATCH)
-                {
-                    printf("ERROR %d: iend=%d mlen=%d offset=%d ml2=%d\n", (int)(ip - base), (int)(iend - ip), (int)mlen, (int)offset, (int)ml2);
-                    exit(0);
-                }
+                printf("ERROR %d: iend=%d mlen=%d offset=%d rep=%d ml2=%d\n", (int)(ip - base), (int)(iend - ip), (int)mlen, (int)offset, (int)rep_1, (int)ml2);
+                exit(0);
             }
-//            else
-//                 printf("ERROR %d: mlen=%d offset=%d\n", (int)(ip - base), (int)mlen, (int)offset);
 
             if (ip < anchor)
             {
@@ -882,13 +889,13 @@ _storeSequence: // cur, last_pos, best_mlen, best_off have to be set
 #endif
 
             size_t litLength = ip - anchor;
-            LZ5_LOG_ENCODE("%d/%d: ENCODE literals=%d off=%d mlen=%d\n", (int)(ip-base), (int)(iend-base), (int)(litLength), (int)(offset), (int)mlen);
+            LZ5_LOG_ENCODE("%d/%d: ENCODE literals=%d mlen=%d off=%d rep=%d\n", (int)(ip-base), (int)(iend-base), (int)(litLength), (int)mlen, (int)(offset), (int)rep_1);
        //     printf("orig="); print_hex_text(ip, mlen, 0);
        //     printf("match="); print_hex_text(ip-offset, mlen, 0);
             ZSTD_storeSeq(seqStorePtr, litLength, anchor, offset, mlen-MINMATCH);
             anchor = ip = ip + mlen;
 
-            if (offset)
+            if (offset && litLength>0)
             {
                 rep_2 = rep_1;
                 rep_1 = offset;

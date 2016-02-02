@@ -626,8 +626,9 @@ static void ZSTD_decodeSequence(seq_t* seq, seqState_t* seqState)
         U32 add = *dumps++;
         if (add < 255) litLength += add;
         else {
-            litLength = MEM_readLE32(dumps) & 0xFFFFFF;  /* no pb : dumps is always followed by seq tables > 1 byte */
-            dumps += 3;
+            litLength = MEM_readLE32(dumps) & 0xFFFFFF;  /* no risk : dumps is always followed by seq tables > 1 byte */
+            if (litLength&1) litLength>>=1, dumps += 3;
+            else litLength = (U16)(litLength)>>1, dumps += 2;
         }
         if (dumps >= de) dumps = de-1;   /* late correction, to avoid read overflow (data is now corrupted anyway) */
     }
@@ -659,7 +660,8 @@ static void ZSTD_decodeSequence(seq_t* seq, seqState_t* seqState)
         if (add < 255) matchLength += add;
         else {
             matchLength = MEM_readLE32(dumps) & 0xFFFFFF;  /* no pb : dumps is always followed by seq tables > 1 byte */
-            dumps += 3;
+            if (matchLength&1) matchLength>>=1, dumps += 3;
+            else matchLength = (U16)(matchLength)>>1, dumps += 2;
         }
         if (dumps >= de) dumps = de-1;   /* late correction, to avoid read overflow (data is now corrupted anyway) */
     }
@@ -671,7 +673,7 @@ static void ZSTD_decodeSequence(seq_t* seq, seqState_t* seqState)
     seq->matchLength = matchLength;
     seqState->dumps = dumps;
 
-#if 0
+#if 0   /* debug */
     {
         static U64 totalDecoded = 0;
         printf("pos %6u : %3u literals & match %3u bytes at distance %6u \n",

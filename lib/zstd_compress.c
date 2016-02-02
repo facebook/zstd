@@ -718,7 +718,7 @@ _check_compressibility:
 */
 MEM_STATIC void ZSTD_storeSeq(seqStore_t* seqStorePtr, size_t litLength, const BYTE* literals, size_t offsetCode, size_t matchCode)
 {
-#if 0
+#if 0  /* for debug */
     static const BYTE* g_start = NULL;
     if (g_start==NULL) g_start = literals;
     //if (literals - g_start == 8695)
@@ -737,7 +737,13 @@ MEM_STATIC void ZSTD_storeSeq(seqStore_t* seqStorePtr, size_t litLength, const B
             *(seqStorePtr->dumps++) = (BYTE)(litLength - MaxLL);
         } else {
             *(seqStorePtr->dumps++) = 255;
-            MEM_writeLE32(seqStorePtr->dumps, (U32)litLength); seqStorePtr->dumps += 3;
+            if (litLength < (1<<15)) {
+                MEM_writeLE16(seqStorePtr->dumps, (U16)(litLength<<1));
+                seqStorePtr->dumps += 2;
+            } else {
+                MEM_writeLE32(seqStorePtr->dumps, (U32)((litLength<<1)+1));
+                seqStorePtr->dumps += 3;
+            }
     }   }
     else *(seqStorePtr->litLength++) = (BYTE)litLength;
 
@@ -751,7 +757,13 @@ MEM_STATIC void ZSTD_storeSeq(seqStore_t* seqStorePtr, size_t litLength, const B
             *(seqStorePtr->dumps++) = (BYTE)(matchCode - MaxML);
         } else {
             *(seqStorePtr->dumps++) = 255;
-            MEM_writeLE32(seqStorePtr->dumps, (U32)matchCode); seqStorePtr->dumps += 3;
+            if (matchCode < (1<<15)) {
+                MEM_writeLE16(seqStorePtr->dumps, (U16)(matchCode<<1));
+                seqStorePtr->dumps += 2;
+            } else {
+                MEM_writeLE32(seqStorePtr->dumps, (U32)((matchCode<<1)+1));
+                seqStorePtr->dumps += 3;
+            }
     }   }
     else *(seqStorePtr->matchLength++) = (BYTE)matchCode;
 }

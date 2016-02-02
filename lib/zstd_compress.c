@@ -2302,8 +2302,8 @@ static const ZSTD_parameters ZSTD_defaultParameters[4][ZSTD_MAX_CLEVEL+1] = {
     { 0, 25, 24, 23,  5,  5, ZSTD_btlazy2 },  /* level 18 */
     { 0, 25, 26, 23,  5,  5, ZSTD_btlazy2 },  /* level 19 */
     { 0, 26, 27, 25,  9,  5, ZSTD_btlazy2 },  /* level 20 */
-    { 0, 22, 20, 22,  4,  4, ZSTD_lazy2   },  /* level 11 + L=4 */ // 41902762
-    { 0, 23, 21, 22,  5,  4, ZSTD_btlazy2 },  /* level 16 + L=4 */ // 41233150
+    { 0, 22, 20, 22,  4,  4, ZSTD_lazy2   },  /* level 11 + L=4 */ // 41902762   42087013
+    { 0, 23, 21, 22,  5,  4, ZSTD_btlazy2 },  /* level 16 + L=4 */ // 41233150   41560211
     { 0, 23, 21, 22,  5,  4, ZSTD_opt     },  /* level 23 */
     { 0, 23, 21, 22,  5,  4, ZSTD_opt_bt  },  /* level 23 */
 },
@@ -2402,6 +2402,7 @@ ZSTD_parameters ZSTD_getParams(int compressionLevel, U64 srcSizeHint)
     int tableID = ((srcSizeHint-1) <= 256 KB) + ((srcSizeHint-1) <= 128 KB) + ((srcSizeHint-1) <= 16 KB);   /* intentional underflow for srcSizeHint == 0 */
     if (compressionLevel<=0) compressionLevel = 1;
     if (compressionLevel > ZSTD_MAX_CLEVEL) compressionLevel = ZSTD_MAX_CLEVEL;
+tableID=0;
     result = ZSTD_defaultParameters[tableID][compressionLevel];
     result.srcSize = srcSizeHint;
     return result;

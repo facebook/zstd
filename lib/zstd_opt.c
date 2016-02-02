@@ -46,18 +46,18 @@ With the following max values:
 When value >= maxValue then use additional 1 byte (if value <
 maxValue+255) or 3 bytes (to encode value up to MaxValue+255+65535).
 
-Am I right? For offsets only the numbers of bits == log2(offset) are
+For offsets only the numbers of bits == log2(offset) are
 entropy encoded and the offset is put into a binary stream.
-This is important to make an estimation.
 */
 
-#define LZ5_LIT_ONLY_COST(len)      (((len)<<3)+8+LLbits)
+#define LZ5_LIT_ONLY_COST(len)      (((len)<<3)+1+0)
+
+#define LZ5_LIT_COST(len) (((len)<<3)+0)
 
 FORCE_INLINE U32 LZ5HC_get_price(U32 litlen, U32 offset, U32 mlen)
 {
-    size_t lit_cost =  (litlen<<3)+LLbits;
- //   size_t match_cost = (mlen<32 ? 0 : (mlen < 255 ? 8 : (mlen-255 < (1<<7) ? 16 : 24))) + ((offset == 0) ? 8 : (offset<(1<<10) ? 16 : (offset<(1<<16) ? 24 : 32))); 
-    size_t match_cost = MLbits + ZSTD_highbit((U32)mlen+1) + Offbits + ZSTD_highbit((U32)offset+1);
+    size_t lit_cost =  (litlen<<3)+0;
+    size_t match_cost = /*MLbits +*/ ZSTD_highbit((U32)mlen+1) + Offbits + ZSTD_highbit((U32)offset+1);
     return lit_cost + match_cost;
 }
 
@@ -490,11 +490,12 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
         llen = ip - anchor;
         inr = ip;
 
-#ifdef ZSTD_USE_REP
+#if 1
+        cur = 1;
         /* check repCode */
-        if (MEM_read32(ip+1) == MEM_read32(ip+1 - rep_1)) {
+        if (MEM_read32(ip+cur) == MEM_read32(ip+cur - rep_1)) {
             /* repcode : we take it */
-            mlen = ZSTD_count(ip+1+MINMATCH, ip+1+MINMATCH-rep_1, iend) + MINMATCH;
+            mlen = ZSTD_count(ip+cur+MINMATCH, ip+cur+MINMATCH-rep_1, iend) + MINMATCH;
             
             LZ5_LOG_PARSER("%d: start try REP rep=%d mlen=%d\n", (int)(ip-base), (int)rep_1, (int)mlen);
             if (depth==0 || mlen > sufficient_len || mlen >= LZ5_OPT_NUM) {
@@ -502,15 +503,15 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
                 goto _storeSequence;
             }
 
-/*            do
+            do
             {
                 litlen = 0;
-                price = LZ5HC_get_price(llen, 0, mlen - MINMATCH) - llen;
-                if (mlen + 1 > last_pos || price < opt[mlen + 1].price)
-                    SET_PRICE(mlen + 1, mlen, 0, litlen, price);
+                price = LZ5HC_get_price(llen, 0, mlen - MINMATCH) - LZ5_LIT_COST(llen);
+                if (mlen + cur > last_pos || price < opt[mlen + cur].price)
+                    SET_PRICE(mlen + cur, mlen, 0, litlen, price);
                 mlen--;
             }
-            while (mlen >= MINMATCH);*/
+            while (mlen >= MINMATCH);
         }
 #endif
 
@@ -545,7 +546,7 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
            while (mlen <= best_mlen)
            {
                 litlen = 0;
-                price = LZ5HC_get_price(llen + litlen, matches[i].off, mlen - MINMATCH) - llen;
+                price = LZ5HC_get_price(llen + litlen, matches[i].off, mlen - MINMATCH) - LZ5_LIT_COST(llen);
                 if (mlen > last_pos || price < opt[mlen].price)
                     SET_PRICE(mlen, mlen, matches[i].off, litlen, price);
                 mlen++;
@@ -652,7 +653,7 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
                     }
                     else
                     {
-                        price = LZ5HC_get_price(llen + litlen, 0, mlen - MINMATCH) - llen;
+                        price = LZ5HC_get_price(llen + litlen, 0, mlen - MINMATCH) - LZ5_LIT_COST(llen);
                         LZ5_LOG_PRICE("%d: TRY2 price=%d cur=%d litlen=%d llen=%d\n", (int)(inr-base), price, cur, litlen, llen);
                     }
                 }
@@ -730,7 +731,7 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
                         if (cur2 != litlen)
                             price = opt[cur2 - litlen].price + LZ5HC_get_price(litlen, matches[i].off, mlen - MINMATCH);
                         else
-                            price = LZ5HC_get_price(llen + litlen, matches[i].off, mlen - MINMATCH) - llen;
+                            price = LZ5HC_get_price(llen + litlen, matches[i].off, mlen - MINMATCH) - LZ5_LIT_COST(llen);
                     }
                     else
                     {
@@ -854,8 +855,8 @@ _storeSequence: // cur, last_pos, best_mlen, best_off have to be set
                     exit(0);
                 }
             }
-            else
-                 printf("ERROR %d: mlen=%d offset=%d\n", (int)(ip - base), (int)mlen, (int)offset);
+//            else
+//                 printf("ERROR %d: mlen=%d offset=%d\n", (int)(ip - base), (int)mlen, (int)offset);
 
             if (ip < anchor)
             {

@@ -903,18 +903,19 @@ _storeSequence: // cur, last_pos, best_mlen, best_off have to be set
         }
 
 
-#if 0
+#if 1
        // check immediate repcode
-        while ( (ip <= ilimit)
-             && (MEM_read32(ip) == MEM_read32(ip - rep_2)) ) {
+        while ( (anchor <= ilimit)
+             && (MEM_read32(anchor) == MEM_read32(anchor - rep_2)) ) {
             /* store sequence */
-            best_mlen = ZSTD_count(ip+MINMATCH, ip+MINMATCH-rep_2, iend);
+            best_mlen = ZSTD_count(anchor+MINMATCH, anchor+MINMATCH-rep_2, iend);
             best_off = rep_2;
             rep_2 = rep_1;
             rep_1 = best_off;
+            LZ5_LOG_ENCODE("%d/%d: ENCODE REP literals=%d off=%d mlen=%d\n", (int)(anchor-base), (int)(iend-base), (int)(0), (int)(rep_1), (int)best_mlen);
             ZSTD_storeSeq(seqStorePtr, 0, anchor, 0, best_mlen);
-            ip += best_mlen+MINMATCH;
-            anchor = ip;
+            anchor += best_mlen+MINMATCH;
+            ip = anchor;
             continue;   // faster when present ... (?)
         }    
 #endif

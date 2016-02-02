@@ -212,6 +212,7 @@ typedef struct
 } blockParam_t;
 
 #define MIN(a,b) ((a)<(b) ? (a) : (b))
+#define MAX(a,b) ((a)>(b) ? (a) : (b))
 
 static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
                         const char* displayName, int cLevel,
@@ -289,7 +290,7 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
             while (BMK_GetMilliStart() == milliTime);
             milliTime = BMK_GetMilliStart();
             while (BMK_GetMilliSpan(milliTime) < TIMELOOP) {
-                ZSTD_compressBegin_advanced(refCtx, dictBuffer, dictBufferSize, ZSTD_getParams(cLevel, dictBufferSize+largestBlockSize));
+                ZSTD_compressBegin_advanced(refCtx, dictBuffer, dictBufferSize, ZSTD_getParams(cLevel, MAX(dictBufferSize, largestBlockSize)));
                 for (blockNb=0; blockNb<nbBlocks; blockNb++) {
                     size_t rSize = ZSTD_compress_usingPreparedCCtx(ctx, refCtx,
                                         blockTable[blockNb].cPtr,  blockTable[blockNb].cRoom,

@@ -251,6 +251,7 @@ size_t ZSTD_copyCCtx(ZSTD_CCtx* dstCCtx, const ZSTD_CCtx* srcCCtx)
     dstCCtx->dictBase    = srcCCtx->dictBase;
     dstCCtx->dictLimit   = srcCCtx->dictLimit;
     dstCCtx->lowLimit    = srcCCtx->lowLimit;
+    dstCCtx->loadedDictEnd = srcCCtx->loadedDictEnd;
 
     /* copy entropy tables */
     dstCCtx->flagStaticTables = srcCCtx->flagStaticTables;
@@ -1911,7 +1912,8 @@ static size_t ZSTD_compress_generic (ZSTD_CCtx* zc,
         if (remaining < blockSize) blockSize = remaining;
 
         if ((U32)(ip+blockSize - zc->base) > zc->loadedDictEnd + maxDist) { /* enforce maxDist */
-            zc->lowLimit = (U32)(ip+blockSize - zc->base) - maxDist;
+            U32 newLowLimit = (U32)(ip+blockSize - zc->base) - maxDist;
+            if (zc->lowLimit < newLowLimit) zc->lowLimit = newLowLimit;
             if (zc->dictLimit < zc->lowLimit) zc->dictLimit = zc->lowLimit;
         }
 

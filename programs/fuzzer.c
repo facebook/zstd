@@ -568,7 +568,7 @@ int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compressibilit
         errorCode = ZSTD_compressBegin_usingDict(refCtx, dict, dictSize, (FUZ_rand(&lseed) % (20 - (sampleSizeLog/3))) + 1);
         CHECK (ZSTD_isError(errorCode), "ZSTD_compressBegin_usingDict error : %s", ZSTD_getErrorName(errorCode));
         errorCode = ZSTD_copyCCtx(ctx, refCtx);
-        CHECK (ZSTD_isError(errorCode), "context duplication error : %s", ZSTD_getErrorName(errorCode));
+        CHECK (ZSTD_isError(errorCode), "ZSTD_copyCCtx error : %s", ZSTD_getErrorName(errorCode));
         totalTestSize = 0; cSize = 0;
         for (n=0; n<nbChunks; n++)
         {

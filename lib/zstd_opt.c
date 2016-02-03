@@ -14,6 +14,7 @@ typedef struct
 	int mlen;
 	int litlen;
    	int rep;
+   	int rep2;
 } LZ5HC_optimal_t; 
 
 #if 1
@@ -25,6 +26,8 @@ typedef struct
     #define LZ5_LOG_PRICE(fmt, args...) printf(fmt, ##args)
     #define LZ5_LOG_ENCODE(fmt, args...) printf(fmt, ##args) 
 #endif
+
+#define LZ5_LOG_TRY_PRICE(fmt, args...) ;//printf(fmt, ##args)
 
 #define LZ5_OPT_NUM   (1<<12)
 
@@ -407,7 +410,7 @@ _storeSequence:
 
         {
             size_t litLength = start - anchor;
-            LZ5_LOG_ENCODE("%d/%d: ENCODE literals=%d off=%d mlen=%d\n", (int)(ip-base), (int)(iend-base), (int)(litLength), (int)(offset), (int)matchLength);
+            LZ5_LOG_ENCODE("%d/%d: ENCODE literals=%d off=%d mlen=%d offset_1=%d offset_2=%d\n", (int)(ip-base), (int)(iend-base), (int)(litLength), (int)(offset), (int)matchLength, (int)offset_1, (int)offset_2);
             ZSTD_storeSeq(seqStorePtr, litLength, anchor, offset, matchLength-MINMATCH);
             anchor = ip = start + matchLength;
         }
@@ -501,6 +504,7 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
             LZ5_LOG_PARSER("%d: start try REP rep=%d mlen=%d\n", (int)(ip-base), (int)rep_1, (int)mlen);
             if (depth==0 || mlen > sufficient_len || mlen >= LZ5_OPT_NUM) {
                 ip+=cur; best_mlen = mlen; best_off = 0; cur = 0; last_pos = 1;
+                opt[0].rep = rep_1;
                 goto _storeSequence;
             }
 
@@ -529,6 +533,11 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
        LZ5_LOG_PARSER("%d: match_num=%d last_pos=%d\n", (int)(ip-base), match_num, last_pos);
        if (!last_pos && !match_num) { ip++; continue; }
 
+     //   opt[0].rep = opt[1].rep = rep_1;
+    //    opt[0].mlen = opt[1].mlen = 1;
+        opt[0].rep = opt[0].rep2 = rep_1;
+        opt[0].mlen = 1;
+        
        if (match_num && matches[match_num-1].len > sufficient_len)
        {
             best_mlen = matches[match_num-1].len;
@@ -561,10 +570,7 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
 
   //      printf("%d: last_pos=%d\n", (int)(ip - base), (int)last_pos);
 
-     //   opt[0].rep = opt[1].rep = rep_1;
-    //    opt[0].mlen = opt[1].mlen = 1;
-        opt[0].rep = rep_1;
-        opt[0].mlen = 1;
+
 
 
         // check further positions
@@ -579,29 +585,27 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
                 if (cur != litlen)
                 {
                     price = opt[cur - litlen].price + LZ5_LIT_ONLY_COST(litlen);
-                    LZ5_LOG_PRICE("%d: TRY1 opt[%d].price=%d price=%d cur=%d litlen=%d\n", (int)(inr-base), cur - litlen, opt[cur - litlen].price, price, cur, litlen);
+                    LZ5_LOG_TRY_PRICE("%d: TRY1 opt[%d].price=%d price=%d cur=%d litlen=%d\n", (int)(inr-base), cur - litlen, opt[cur - litlen].price, price, cur, litlen);
                 }
                 else
                 {
                     price = LZ5_LIT_ONLY_COST(llen + litlen) - llen;
-                    LZ5_LOG_PRICE("%d: TRY2 price=%d cur=%d litlen=%d llen=%d\n", (int)(inr-base), price, cur, litlen, llen);
+                    LZ5_LOG_TRY_PRICE("%d: TRY2 price=%d cur=%d litlen=%d llen=%d\n", (int)(inr-base), price, cur, litlen, llen);
                 }
            }
            else
            {
                 litlen = 1;
                 price = opt[cur - 1].price + LZ5_LIT_ONLY_COST(litlen);                  
-                LZ5_LOG_PRICE("%d: TRY3 price=%d cur=%d litlen=%d litonly=%d\n", (int)(inr-base), price, cur, litlen, LZ5_LIT_ONLY_COST(litlen));
+                LZ5_LOG_TRY_PRICE("%d: TRY3 price=%d cur=%d litlen=%d litonly=%d\n", (int)(inr-base), price, cur, litlen, LZ5_LIT_ONLY_COST(litlen));
            }
            
            mlen = 1;
            best_mlen = 0;
-           LZ5_LOG_PRICE("%d: TRY4 price=%d opt[%d].price=%d\n", (int)(inr-base), price, cur, opt[cur].price);
+           LZ5_LOG_TRY_PRICE("%d: TRY4 price=%d opt[%d].price=%d\n", (int)(inr-base), price, cur, opt[cur].price);
 
            if (cur > last_pos || price <= opt[cur].price) // || ((price == opt[cur].price) && (opt[cur-1].mlen == 1) && (cur != litlen)))
                 SET_PRICE(cur, mlen, best_mlen, litlen, price);
-
-           if (cur == last_pos) break;
 
            if (opt[cur].mlen > 1)
            {
@@ -609,35 +613,44 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
                 best_off = opt[cur].off;
                 if (best_off < 1)
                 {
-                    opt[cur].rep = opt[cur-mlen].rep;
-                    LZ5_LOG_PARSER("%d: COPYREP1 cur=%d mlen=%d rep=%d\n", (int)(inr-base), cur, mlen, opt[cur-mlen].rep);
+                    if (opt[cur].off == 0 && opt[cur].litlen==0)
+                    { 
+                        opt[cur].rep = opt[cur-mlen].rep2;
+                        opt[cur].rep2 = opt[cur-mlen].rep;
+                    }
+                    else
+                    { 
+                        opt[cur].rep = opt[cur-mlen].rep;
+                        opt[cur].rep2 = opt[cur-mlen].rep2;
+                    }
+                    LZ5_LOG_PARSER("%d: COPYREP1 cur=%d mlen=%d rep=%d rep2=%d\n", (int)(inr-base), cur, mlen, opt[cur].rep, opt[cur].rep2);
                 }
                 else
                 {
-//                    if (opt[cur].litlen>0)
-                        opt[cur].rep = best_off;
-  //                  else
-    //                    opt[cur].rep = opt[cur-mlen].rep;
-                    LZ5_LOG_PARSER("%d: COPYREP2 cur=%d offset=%d rep=%d\n", (int)(inr-base), cur, 0, opt[cur].rep);
+                    opt[cur].rep = best_off;
+                    opt[cur].rep2 = opt[cur-mlen].rep;
+                    LZ5_LOG_PARSER("%d: COPYREP2 cur=%d offset=%d rep=%d rep2=%d litlen=%d\n", (int)(inr-base), cur, 0, opt[cur].rep, opt[cur].rep2, litlen);
                 }
            }
            else
            {
                 opt[cur].rep = opt[cur-1].rep; // copy rep
-                LZ5_LOG_PARSER("%d: COPYREP3 cur=%d rep=%d\n", (int)(inr-base), cur, opt[cur].rep);
+                opt[cur].rep2 = opt[cur-1].rep; // copy rep
+                LZ5_LOG_PARSER("%d: COPYREP3 cur=%d rep=%d rep2=%d\n", (int)(inr-base), cur, opt[cur].rep, opt[cur].rep2);
            }
 
+           if (cur == last_pos) break;
 
-            LZ5_LOG_PARSER("%d: CURRENT price[%d/%d]=%d off=%d mlen=%d litlen=%d rep=%d\n", (int)(inr-base), cur, last_pos, opt[cur].price, opt[cur].off, opt[cur].mlen, opt[cur].litlen, opt[cur].rep); 
+           LZ5_LOG_PARSER("%d: CURRENT price[%d/%d]=%d off=%d mlen=%d litlen=%d rep=%d rep2=%d\n", (int)(inr-base), cur, last_pos, opt[cur].price, opt[cur].off, opt[cur].mlen, opt[cur].litlen, opt[cur].rep, opt[cur].rep2); 
 
 #if 1
            // check rep
            // best_mlen = 0;
-           mlen = ZSTD_count(inr, inr - opt[cur].rep, iend);
+           mlen = ZSTD_count(inr, inr - opt[cur].rep2, iend);
            if (mlen >= MINMATCH && mlen > best_mlen)
            {
-              LZ5_LOG_PARSER("%d: try REP rep=%d mlen=%d\n", (int)(inr-base), opt[cur].rep, mlen);   
-              LZ5_LOG_PARSER("%d: Found REP mlen=%d off=%d rep=%d opt[%d].off=%d\n", (int)(inr-base), mlen, 0, opt[cur].rep, cur, opt[cur].off);
+              LZ5_LOG_PARSER("%d: try REP rep=%d mlen=%d\n", (int)(inr-base), opt[cur].rep2, mlen);   
+              LZ5_LOG_PARSER("%d: Found REP mlen=%d off=%d rep=%d opt[%d].off=%d\n", (int)(inr-base), mlen, 0, opt[cur].rep2, cur, opt[cur].off);
 
               if (mlen > sufficient_len || cur + mlen >= LZ5_OPT_NUM)
               {
@@ -655,19 +668,19 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
                     if (cur != litlen)
                     {
                         price = opt[cur - litlen].price + LZ5HC_get_price(litlen, 0, mlen - MINMATCH);
-                        LZ5_LOG_PRICE("%d: TRY1 opt[%d].price=%d price=%d cur=%d litlen=%d\n", (int)(inr-base), cur - litlen, opt[cur - litlen].price, price, cur, litlen);
+                        LZ5_LOG_TRY_PRICE("%d: TRY5 opt[%d].price=%d price=%d cur=%d litlen=%d\n", (int)(inr-base), cur - litlen, opt[cur - litlen].price, price, cur, litlen);
                     }
                     else
                     {
                         price = LZ5HC_get_price(llen + litlen, 0, mlen - MINMATCH) - LZ5_LIT_COST(llen);
-                        LZ5_LOG_PRICE("%d: TRY2 price=%d cur=%d litlen=%d llen=%d\n", (int)(inr-base), price, cur, litlen, llen);
+                        LZ5_LOG_TRY_PRICE("%d: TRY6 price=%d cur=%d litlen=%d llen=%d\n", (int)(inr-base), price, cur, litlen, llen);
                     }
                 }
                 else
                 {
                     litlen = 0;
                     price = opt[cur].price + LZ5HC_get_price(litlen, 0, mlen - MINMATCH);
-                    LZ5_LOG_PRICE("%d: TRY3 price=%d cur=%d litlen=%d getprice=%d\n", (int)(inr-base), price, cur, litlen, LZ5HC_get_price(litlen, 0, mlen - MINMATCH));
+                    LZ5_LOG_TRY_PRICE("%d: TRY7 price=%d cur=%d litlen=%d getprice=%d\n", (int)(inr-base), price, cur, litlen, LZ5HC_get_price(litlen, 0, mlen - MINMATCH));
                 }
 
                 best_mlen = mlen;
@@ -746,16 +759,16 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
                     }
 
                     LZ5_LOG_PARSER("%d: Found2 pred=%d mlen=%d best_mlen=%d off=%d price=%d litlen=%d price[%d]=%d\n", (int)(inr-base), matches[i].back, mlen, best_mlen, matches[i].off, price, litlen, cur - litlen, opt[cur - litlen].price);
-                    LZ5_LOG_PRICE("%d: TRY5 price=%d opt[%d].price=%d\n", (int)(inr-base), price, cur2 + mlen, opt[cur2 + mlen].price);
+                    LZ5_LOG_TRY_PRICE("%d: TRY8 price=%d opt[%d].price=%d\n", (int)(inr-base), price, cur2 + mlen, opt[cur2 + mlen].price);
                     if (cur2 + mlen > last_pos || ((matches[i].off != opt[cur2 + mlen].off) && (price < opt[cur2 + mlen].price)))
                     {
                         SET_PRICE(cur2 + mlen, mlen, matches[i].off, litlen, price);
 
-                   //     if (opt[cur2].litlen>0)
+                      //    if (opt[cur2].litlen>0)
                             opt[cur2 + mlen].rep = matches[i].off; // update reps
-                  //      else
-                  //          opt[cur2 + mlen].rep = opt[cur2].rep;
-                        if (cur2 < cur_min) cur_min = cur2;
+                        //  else
+                      //      opt[cur2 + mlen].rep = opt[cur2].off;
+                      //  if (cur2 < cur_min) cur_min = cur2;
                     }
 
                     mlen++;
@@ -779,24 +792,24 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
                         if (i != litlen)
                         {
                             price = opt[i - litlen].price + LZ5_LIT_ONLY_COST(litlen);
-                        //	LZ5_LOG_PRICE("%d: TRY1 opt[%d].price=%d price=%d cur=%d litlen=%d\n", (int)(inr-base), i - litlen, opt[i - litlen].price, price, i, litlen);
+                        	LZ5_LOG_TRY_PRICE("%d: TRY9 opt[%d].price=%d price=%d cur=%d litlen=%d\n", (int)(inr-base), i - litlen, opt[i - litlen].price, price, i, litlen);
                         }
                         else
                         {
                             price = LZ5_LIT_ONLY_COST(llen + litlen) - llen;
-                        //	LZ5_LOG_PRICE("%d: TRY2 price=%d cur=%d litlen=%d llen=%d\n", (int)(inr-base), price, i, litlen, llen);
+                        	LZ5_LOG_TRY_PRICE("%d: TRY10 price=%d cur=%d litlen=%d llen=%d\n", (int)(inr-base), price, i, litlen, llen);
                         }
                     }
                     else
                     {
                         litlen = 1;
                         price = opt[i - 1].price + LZ5_LIT_ONLY_COST(litlen);                  
-                    //	LZ5_LOG_PRICE("%d: TRY3 price=%d cur=%d litlen=%d\n", (int)(inr-base), price, i, litlen);
+                        LZ5_LOG_TRY_PRICE("%d: TRY11 price=%d cur=%d litlen=%d\n", (int)(inr-base), price, i, litlen);
                     }
 
                     mlen = 1;
                     best_mlen = 0;
-                    LZ5_LOG_PRICE("%d: TRY6 price=%d opt[%d].price=%d\n", (int)(inr-base), price, i + mlen, opt[i + mlen].price);
+                    LZ5_LOG_TRY_PRICE("%d: TRY12 price=%d opt[%d].price=%d\n", (int)(inr-base), price, i + mlen, opt[i + mlen].price);
                     SET_PRICE(i, mlen, best_mlen, litlen, price);
 
                     opt[i].rep = opt[i-1].rep; // copy reps
@@ -821,7 +834,7 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
         /* store sequence */
 _storeSequence: // cur, last_pos, best_mlen, best_off have to be set
         for (int i = 1; i <= last_pos; i++)
-            LZ5_LOG_PARSER("%d: price[%d/%d]=%d off=%d mlen=%d litlen=%d rep=%d\n", (int)(ip-base+i), i, last_pos, opt[i].price, opt[i].off, opt[i].mlen, opt[i].litlen, opt[i].rep); 
+            LZ5_LOG_PARSER("%d: price[%d/%d]=%d off=%d mlen=%d litlen=%d rep=%d rep2=%d\n", (int)(ip-base+i), i, last_pos, opt[i].price, opt[i].off, opt[i].mlen, opt[i].litlen, opt[i].rep, opt[i].rep2); 
         LZ5_LOG_PARSER("%d: cur=%d/%d best_mlen=%d best_off=%d rep=%d\n", (int)(ip-base+cur), (int)cur, (int)last_pos, (int)best_mlen, (int)best_off, opt[cur].rep); 
 
         opt[0].mlen = 1;
@@ -840,7 +853,7 @@ _storeSequence: // cur, last_pos, best_mlen, best_off have to be set
           
         for (int i = 0; i <= last_pos;)
         {
-            LZ5_LOG_PARSER("%d: price2[%d/%d]=%d off=%d mlen=%d litlen=%d rep=%d\n", (int)(ip-base+i), i, last_pos, opt[i].price, opt[i].off, opt[i].mlen, opt[i].litlen, opt[i].rep); 
+            LZ5_LOG_PARSER("%d: price2[%d/%d]=%d off=%d mlen=%d litlen=%d rep=%d rep2=%d\n", (int)(ip-base+i), i, last_pos, opt[i].price, opt[i].off, opt[i].mlen, opt[i].litlen, opt[i].rep, opt[i].rep2); 
             i += opt[i].mlen;
         }
 
@@ -848,65 +861,84 @@ _storeSequence: // cur, last_pos, best_mlen, best_off have to be set
 
         while (cur < last_pos)
         {
-            LZ5_LOG_PARSER("%d: price3[%d/%d]=%d off=%d mlen=%d litlen=%d rep=%d\n", (int)(ip-base+cur), cur, last_pos, opt[cur].price, opt[cur].off, opt[cur].mlen, opt[cur].litlen, opt[cur].rep); 
+            LZ5_LOG_PARSER("%d: price3[%d/%d]=%d off=%d mlen=%d litlen=%d rep=%d rep2=%d\n", (int)(ip-base+cur), cur, last_pos, opt[cur].price, opt[cur].off, opt[cur].mlen, opt[cur].litlen, opt[cur].rep, opt[cur].rep2); 
             mlen = opt[cur].mlen;
             if (mlen == 1) { ip++; cur++; continue; }
             offset = opt[cur].off;
+            int cur_rep = opt[cur].rep;
             cur += mlen;
 
-#if 1
-            size_t ml2;
-            if (offset)
-                ml2 = ZSTD_count(ip, ip-offset, iend);
-            else
-                ml2 = ZSTD_count(ip, ip-rep_1, iend);
-            if (ml2 < mlen && ml2 < MINMATCH)
-            {
-                printf("ERROR %d: iend=%d mlen=%d offset=%d rep=%d ml2=%d\n", (int)(ip - base), (int)(iend - ip), (int)mlen, (int)offset, (int)rep_1, (int)ml2);
-                exit(0);
-            }
-
-            if (ip < anchor)
-            {
-                printf("ERROR %d: ip < anchor iend=%d mlen=%d offset=%d\n", (int)(ip - base), (int)(iend - ip), (int)mlen, (int)offset);
-                exit(0);
-            }
-            if (ip - offset < base)
-            {
-                printf("ERROR %d: ip - offset < base iend=%d mlen=%d offset=%d\n", (int)(ip - base), (int)(iend - ip), (int)mlen, (int)offset);
-                exit(0);
-            }
-            if (mlen < MINMATCH)
-            {
-                printf("ERROR %d: mlen < MINMATCH iend=%d mlen=%d offset=%d\n", (int)(ip - base), (int)(iend - ip), (int)mlen, (int)offset);
-                exit(0);
-            }
-            if (ip + mlen > iend) 
-            {
-                printf("ERROR %d: ip + mlen >= iend iend=%d mlen=%d offset=%d\n", (int)(ip - base), (int)(iend - ip), (int)mlen, (int)offset);
-                exit(0);
-            }
-#endif
 
             size_t litLength = ip - anchor;
-            LZ5_LOG_ENCODE("%d/%d: ENCODE literals=%d mlen=%d off=%d rep=%d\n", (int)(ip-base), (int)(iend-base), (int)(litLength), (int)mlen, (int)(offset), (int)rep_1);
-       //     printf("orig="); print_hex_text(ip, mlen, 0);
-       //     printf("match="); print_hex_text(ip-offset, mlen, 0);
-            ZSTD_storeSeq(seqStorePtr, litLength, anchor, offset, mlen-MINMATCH);
-            anchor = ip = ip + mlen;
 
-            if (offset && litLength>0)
+            LZ5_LOG_ENCODE("%d/%d: BEFORE_ENCODE literals=%d mlen=%d off=%d rep1=%d rep2=%d cur_rep=%d\n", (int)(ip-base), (int)(iend-base), (int)(litLength), (int)mlen, (int)(offset), (int)rep_1, (int)rep_2, cur_rep);
+
+            if (rep_1 != cur_rep)
+            {
+                printf("%d: ERROR rep_1=%d rep_2=%d cur_rep=%d\n", (int)(ip - base), (int)rep_1, (int)rep_2, cur_rep);
+                exit(0);
+            }           
+
+  
+            if (offset)
             {
                 rep_2 = rep_1;
                 rep_1 = offset;
             }
             else
             {
-/*                best_off = rep_2;
-                rep_2 = rep_1;
-                rep_1 = best_off;*/
+                if (litLength == 0) 
+                {
+                    best_off = rep_2;
+                    rep_2 = rep_1;
+                    rep_1 = best_off;
+                }
             }
-            LZ5_LOG_PARSER("%d: offset=%d rep=%d\n", (int)(ip-base), (int)offset, (int)rep_1);
+
+            LZ5_LOG_ENCODE("%d/%d: ENCODE literals=%d mlen=%d off=%d rep1=%d rep2=%d\n", (int)(ip-base), (int)(iend-base), (int)(litLength), (int)mlen, (int)(offset), (int)rep_1, (int)rep_2);
+       //     printf("orig="); print_hex_text(ip, mlen, 0);
+       //     printf("match="); print_hex_text(ip-offset, mlen, 0);
+
+#if 1
+/*            size_t ml2;
+            if (offset)
+                ml2 = ZSTD_count(ip, ip-offset, iend);
+            else
+//            if (litLength>0)
+                ml2 = ZSTD_count(ip, ip-rep_1, iend);
+  //          else
+    //            ml2 = ZSTD_count(ip, ip-rep_2, iend);
+            if (ml2 < mlen && ml2 < MINMATCH)
+            {
+                printf("%d: ERROR iend=%d mlen=%d offset=%d rep=%d ml2=%d\n", (int)(ip - base), (int)(iend - ip), (int)mlen, (int)offset, (int)rep_1, (int)ml2);
+                exit(0);
+            }
+*/
+
+            if (ip < anchor)
+            {
+                printf("%d: ERROR ip < anchor iend=%d mlen=%d offset=%d\n", (int)(ip - base), (int)(iend - ip), (int)mlen, (int)offset);
+                exit(0);
+            }
+            if (ip - offset < base)
+            {
+                printf("%d: ERROR ip - offset < base iend=%d mlen=%d offset=%d\n", (int)(ip - base), (int)(iend - ip), (int)mlen, (int)offset);
+                exit(0);
+            }
+            if (mlen < MINMATCH)
+            {
+                printf("%d: ERROR mlen < MINMATCH iend=%d mlen=%d offset=%d\n", (int)(ip - base), (int)(iend - ip), (int)mlen, (int)offset);
+                exit(0);
+            }
+            if (ip + mlen > iend) 
+            {
+                printf("%d: ERROR ip + mlen >= iend iend=%d mlen=%d offset=%d\n", (int)(ip - base), (int)(iend - ip), (int)mlen, (int)offset);
+                exit(0);
+            }
+#endif
+
+            ZSTD_storeSeq(seqStorePtr, litLength, anchor, offset, mlen-MINMATCH);
+            anchor = ip = ip + mlen;
         }
 
 
@@ -919,7 +951,7 @@ _storeSequence: // cur, last_pos, best_mlen, best_off have to be set
             best_off = rep_2;
             rep_2 = rep_1;
             rep_1 = best_off;
-            LZ5_LOG_ENCODE("%d/%d: ENCODE REP literals=%d off=%d mlen=%d\n", (int)(anchor-base), (int)(iend-base), (int)(0), (int)(rep_1), (int)best_mlen);
+            LZ5_LOG_ENCODE("%d/%d: ENCODE REP literals=%d mlen=%d off=%d rep1=%d rep2=%d\n", (int)(anchor-base), (int)(iend-base), (int)(0), (int)best_mlen, (int)(0), (int)rep_1, (int)rep_2);
             ZSTD_storeSeq(seqStorePtr, 0, anchor, 0, best_mlen);
             anchor += best_mlen+MINMATCH;
             ip = anchor;

@@ -64,7 +64,7 @@ FORCE_INLINE U32 LZ5HC_get_price(U32 litlen, U32 offset, U32 mlen)
     return lit_cost + match_cost;
 }
 
-MEM_STATIC size_t ZSTD_getPrice(seqStore_t* seqStorePtr, size_t litLength, const BYTE* literals, size_t offsetCode, size_t matchCode)
+MEM_STATIC size_t ZSTD_updatePrice(seqStore_t* seqStorePtr, size_t litLength, const BYTE* literals, size_t offsetCode, size_t matchCode)
 {
 #if 0
     static const BYTE* g_start = NULL;
@@ -76,13 +76,14 @@ MEM_STATIC size_t ZSTD_getPrice(seqStore_t* seqStorePtr, size_t litLength, const
     size_t price = 0;
 
     /* literals */
-    seqStorePtr->lit += litLength;
-
+  //  seqStorePtr->lit += litLength;
+    printf("litSum=%d litLengthSum=%d matchLengthSum=%d offCodeSum=%d\n", seqStorePtr->litSum, seqStorePtr->litLengthSum, seqStorePtr->matchLengthSum, seqStorePtr->offCodeSum);
+    
     /* literal Length */
     if (litLength >= MaxLL) {
         *(seqStorePtr->litLength++) = MaxLL;
         if (litLength<255 + MaxLL) price += 8; else price += 32;
-    }   
+    }
     else *(seqStorePtr->litLength++) = (BYTE)litLength;
 
     /* match offset */
@@ -969,6 +970,7 @@ _storeSequence: // cur, last_pos, best_mlen, best_off have to be set
             }
 #endif
 
+            ZSTD_updatePrice(seqStorePtr, litLength, anchor, offset, mlen-MINMATCH);
             ZSTD_storeSeq(seqStorePtr, litLength, anchor, offset, mlen-MINMATCH);
             anchor = ip = ip + mlen;
         }

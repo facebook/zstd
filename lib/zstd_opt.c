@@ -82,7 +82,7 @@ size_t ZSTD_insertBtAndGetAllMatches (
                         ZSTD_CCtx* zc,
                         const BYTE* const ip, const BYTE* const iend,
                         U32 nbCompares, const U32 mls,
-                        U32 extDict, LZ5HC_match_t* matches)
+                        U32 extDict, LZ5HC_match_t* matches, size_t bestLength)
 {
     U32* const hashTable = zc->hashTable;
     const U32 hashLog = zc->params.hashLog;
@@ -102,11 +102,11 @@ size_t ZSTD_insertBtAndGetAllMatches (
     const U32 windowLow = zc->lowLimit;
     U32* smallerPtr = bt + 2*(current&btMask);
     U32* largerPtr  = bt + 2*(current&btMask) + 1;
-    size_t bestLength = 0;
     U32 matchEndIdx = current+8;
     U32 dummy32;   /* to be nullified at the end */
     size_t mnum = 0;
     
+    bestLength = 0;
     hashTable[h] = current;   /* Update Hash Table */
 
     while (nbCompares-- && (matchIndex > windowLow)) {
@@ -175,25 +175,25 @@ FORCE_INLINE /* inlining is important to hardwire a hot branch (template emulati
 size_t ZSTD_BtGetAllMatches (
                         ZSTD_CCtx* zc,
                         const BYTE* const ip, const BYTE* const iLimit,
-                        const U32 maxNbAttempts, const U32 mls, LZ5HC_match_t* matches)
+                        const U32 maxNbAttempts, const U32 mls, LZ5HC_match_t* matches, size_t minml)
 {
     if (ip < zc->base + zc->nextToUpdate) return 0;   /* skipped area */
     ZSTD_updateTree(zc, ip, iLimit, maxNbAttempts, mls);
-    return ZSTD_insertBtAndGetAllMatches(zc, ip, iLimit, maxNbAttempts, mls, 0, matches);
+    return ZSTD_insertBtAndGetAllMatches(zc, ip, iLimit, maxNbAttempts, mls, 0, matches, minml);
 }
 
 
 FORCE_INLINE size_t ZSTD_BtGetAllMatches_selectMLS (
                         ZSTD_CCtx* zc,   /* Index table will be updated */
                         const BYTE* ip, const BYTE* const iLimit,
-                        const U32 maxNbAttempts, const U32 matchLengthSearch, LZ5HC_match_t* matches)
+                        const U32 maxNbAttempts, const U32 matchLengthSearch, LZ5HC_match_t* matches, size_t minml)
 {
     switch(matchLengthSearch)
     {
     default :
-    case 4 : return ZSTD_BtGetAllMatches(zc, ip, iLimit, maxNbAttempts, 4, matches);
-    case 5 : return ZSTD_BtGetAllMatches(zc, ip, iLimit, maxNbAttempts, 5, matches);
-    case 6 : return ZSTD_BtGetAllMatches(zc, ip, iLimit, maxNbAttempts, 6, matches);
+    case 4 : return ZSTD_BtGetAllMatches(zc, ip, iLimit, maxNbAttempts, 4, matches, minml);
+    case 5 : return ZSTD_BtGetAllMatches(zc, ip, iLimit, maxNbAttempts, 5, matches, minml);
+    case 6 : return ZSTD_BtGetAllMatches(zc, ip, iLimit, maxNbAttempts, 6, matches, minml);
     }
 }
 
@@ -202,7 +202,7 @@ FORCE_INLINE /* inlining is important to hardwire a hot branch (template emulati
 size_t ZSTD_HcGetAllMatches_generic (
                         ZSTD_CCtx* zc,   /* Index table will be updated */
                         const BYTE* const ip, const BYTE* const iLimit,
-                        const U32 maxNbAttempts, const U32 mls, const U32 extDict, LZ5HC_match_t* matches)
+                        const U32 maxNbAttempts, const U32 mls, const U32 extDict, LZ5HC_match_t* matches, size_t minml)
 {
     U32* const chainTable = zc->contentTable;
     const U32 chainSize = (1 << zc->params.contentLog);
@@ -218,8 +218,8 @@ size_t ZSTD_HcGetAllMatches_generic (
     U32 matchIndex;
     const BYTE* match;
     int nbAttempts=maxNbAttempts;
-    size_t ml=MINMATCH-1;
     size_t mnum = 0;
+    minml=MINMATCH-1;
 
     /* HC4 match finder */
     matchIndex = ZSTD_insertAndFindFirstIndex (zc, ip, mls);
@@ -229,7 +229,7 @@ size_t ZSTD_HcGetAllMatches_generic (
         nbAttempts--;
         if ((!extDict) || matchIndex >= dictLimit) {
             match = base + matchIndex;
-            if (match[ml] == ip[ml])   /* potentially better */
+            if (match[minml] == ip[minml])   /* potentially better */
                 currentMl = ZSTD_count(ip, match, iLimit);
         } else {
             match = dictBase + matchIndex;
@@ -238,8 +238,8 @@ size_t ZSTD_HcGetAllMatches_generic (
         }
 
         /* save best solution */
-        if (currentMl > ml) { 
-            ml = currentMl; 
+        if (currentMl > minml) { 
+            minml = currentMl; 
             matches[mnum].off = current - matchIndex;
             matches[mnum].len = currentMl;
             matches[mnum].back = 0;
@@ -259,14 +259,14 @@ size_t ZSTD_HcGetAllMatches_generic (
 FORCE_INLINE size_t ZSTD_HcGetAllMatches_selectMLS (
                         ZSTD_CCtx* zc,
                         const BYTE* ip, const BYTE* const iLimit,
-                        const U32 maxNbAttempts, const U32 matchLengthSearch, LZ5HC_match_t* matches)
+                        const U32 maxNbAttempts, const U32 matchLengthSearch, LZ5HC_match_t* matches, size_t minml)
 {
     switch(matchLengthSearch)
     {
     default :
-    case 4 : return ZSTD_HcGetAllMatches_generic(zc, ip, iLimit, maxNbAttempts, 4, 0, matches);
-    case 5 : return ZSTD_HcGetAllMatches_generic(zc, ip, iLimit, maxNbAttempts, 5, 0, matches);
-    case 6 : return ZSTD_HcGetAllMatches_generic(zc, ip, iLimit, maxNbAttempts, 6, 0, matches);
+    case 4 : return ZSTD_HcGetAllMatches_generic(zc, ip, iLimit, maxNbAttempts, 4, 0, matches, minml);
+    case 5 : return ZSTD_HcGetAllMatches_generic(zc, ip, iLimit, maxNbAttempts, 5, 0, matches, minml);
+    case 6 : return ZSTD_HcGetAllMatches_generic(zc, ip, iLimit, maxNbAttempts, 6, 0, matches, minml);
     }
 }
 
@@ -460,7 +460,7 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
     const U32 mls = ctx->params.searchLength;
 
     typedef size_t (*getAllMatches_f)(ZSTD_CCtx* zc, const BYTE* ip, const BYTE* iLimit,
-                        U32 maxNbAttempts, U32 matchLengthSearch, LZ5HC_match_t* matches);
+                        U32 maxNbAttempts, U32 matchLengthSearch, LZ5HC_match_t* matches, size_t minml);
     getAllMatches_f getAllMatches = searchMethod ? ZSTD_BtGetAllMatches_selectMLS : ZSTD_HcGetAllMatches_selectMLS;
 
     LZ5HC_optimal_t opt[LZ5_OPT_NUM+4];
@@ -522,7 +522,7 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
        else
        {
             /* first search (depth 0) */
-           match_num = getAllMatches(ctx, ip, iend, maxSearches, mls, matches); 
+           match_num = getAllMatches(ctx, ip, iend, maxSearches, mls, matches, best_mlen); 
        }
 
        LZ5_LOG_PARSER("%d: match_num=%d last_pos=%d\n", (int)(ip-base), match_num, last_pos);
@@ -699,7 +699,7 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
 
             best_mlen = (best_mlen > MINMATCH) ? best_mlen : MINMATCH;      
 
-            match_num = getAllMatches(ctx, inr, iend, maxSearches, mls, matches); 
+            match_num = getAllMatches(ctx, inr, iend, maxSearches, mls, matches, best_mlen); 
             LZ5_LOG_PARSER("%d: LZ5HC_GetAllMatches match_num=%d\n", (int)(inr-base), match_num);
 
 
@@ -743,6 +743,7 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
                     LZ5_LOG_PARSER("%d: Found2 pred=%d mlen=%d best_mlen=%d off=%d price=%d litlen=%d price[%d]=%d\n", (int)(inr-base), matches[i].back, mlen, best_mlen, matches[i].off, price, litlen, cur - litlen, opt[cur - litlen].price);
                     LZ5_LOG_TRY_PRICE("%d: TRY8 price=%d opt[%d].price=%d\n", (int)(inr-base), price, cur2 + mlen, opt[cur2 + mlen].price);
                     if (cur2 + mlen > last_pos || ((matches[i].off != opt[cur2 + mlen].off) && (price < opt[cur2 + mlen].price)))
+     //               if (cur2 + mlen > last_pos || (price < opt[cur2 + mlen].price))
                     {
                         SET_PRICE(cur2 + mlen, mlen, matches[i].off, litlen, price);
 
@@ -852,11 +853,13 @@ _storeSequence: // cur, last_pos, best_mlen, best_off have to be set
 
             LZ5_LOG_ENCODE("%d/%d: BEFORE_ENCODE literals=%d mlen=%d off=%d rep1=%d rep2=%d cur_rep=%d\n", (int)(ip-base), (int)(iend-base), (int)(litLength), (int)mlen, (int)(offset), (int)rep_1, (int)rep_2, cur_rep);
 
+#if 1
             if (rep_1 != cur_rep)
             {
                 printf("%d: ERROR rep_1=%d rep_2=%d cur_rep=%d\n", (int)(ip - base), (int)rep_1, (int)rep_2, cur_rep);
                 exit(0);
             }           
+#endif
           
             if (offset)
             {

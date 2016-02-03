@@ -49,14 +49,13 @@
 
 
 /* *************************************
-*  Includes
+*  Dependencies
 ***************************************/
 #include <stdlib.h>   /* malloc */
 #include <string.h>   /* memset */
 #include "mem.h"
 #include "fse_static.h"
 #include "huff0_static.h"
-#include "zstd_static.h"
 #include "zstd_internal.h"
 
 
@@ -2260,7 +2259,6 @@ size_t ZSTD_compress(void* dst, size_t maxDstSize, const void* src, size_t srcSi
 
 /*- Pre-defined compression levels -*/
 
-#define ZSTD_MAX_CLEVEL 20
 unsigned ZSTD_maxCLevel(void) { return ZSTD_MAX_CLEVEL; }
 
 static const ZSTD_parameters ZSTD_defaultParameters[4][ZSTD_MAX_CLEVEL+1] = {

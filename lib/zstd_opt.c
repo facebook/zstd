@@ -130,10 +130,8 @@ size_t ZSTD_insertBtAndGetAllMatches (
             if (matchLength > matchEndIdx - matchIndex)
                 matchEndIdx = matchIndex + (U32)matchLength;
 #if 0
-            if ( (4*(int)(matchLength-bestLength)) > (int)(ZSTD_highbit(current-matchIndex+1) - ZSTD_highbit((U32)offsetPtr[0]+1)) )
-                bestLength = matchLength, *offsetPtr = current - matchIndex;
-#else
             if (mnum ==  0 || (4*(int)(matchLength-bestLength)) > (int)(ZSTD_highbit(current-matchIndex+1) - ZSTD_highbit((U32)matches[mnum-1].off+1)) )
+#endif
             {
                 if (matchLength >= MINMATCH)
                 {
@@ -145,7 +143,6 @@ size_t ZSTD_insertBtAndGetAllMatches (
                 }
                 if (matchLength > LZ5_OPT_NUM) break;
             }
-#endif
             if (ip+matchLength == iend)   /* equal : no way to know if inf or sup */
                 break;   /* drop, to guarantee consistency (miss a little bit of compression) */
         }

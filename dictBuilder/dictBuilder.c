@@ -43,14 +43,14 @@
 /*-*************************************
 *  Includes
 ***************************************/
-#include <stdlib.h>      /* malloc, free */
-#include <string.h>      /* memset */
-#include <stdio.h>       /* fprintf, fopen, ftello64 */
-#include <sys/types.h>   /* stat64 */
-#include <sys/stat.h>    /* stat64 */
-#include <time.h>        /* clock */
+#include <stdlib.h>        /* malloc, free */
+#include <string.h>        /* memset */
+#include <stdio.h>         /* fprintf, fopen, ftello64 */
+#include <sys/types.h>     /* stat64 */
+#include <sys/stat.h>      /* stat64 */
+#include <time.h>          /* clock */
 
-#include "mem.h"         /* read */
+#include "mem.h"           /* read */
 #include "error_private.h"
 #include "divsufsort.h"
 #include "dictBuilder.h"
@@ -58,15 +58,11 @@
 #include "huff0_static.h"
 
 
-/* *************************************
+/*-*************************************
 *  Compiler specifics
 ***************************************/
 #if !defined(S_ISREG)
 #  define S_ISREG(x) (((x) & S_IFMT) == S_IFREG)
-#endif
-
-#ifdef _MSC_VER
-#define snprintf sprintf_s
 #endif
 
 
@@ -87,6 +83,9 @@ static const size_t maxMemory = (sizeof(size_t) == 4) ? (2 GB - 64 MB) : ((size_
 
 #define MINRATIO 4
 static const U32 g_compressionLevel_default = 5;
+static const U32 g_selectivity_default = 9;
+static const size_t g_provision_entropySize = 200;
+static const size_t g_min_fast_dictContent = 192;
 
 
 /*-*************************************
@@ -145,6 +144,10 @@ static unsigned DiB_GetMilliSpan(clock_t nPrevious)
     unsigned nSpan = (unsigned)(((nCurrent - nPrevious) * 1000) / CLOCKS_PER_SEC);
     return nSpan;
 }
+
+unsigned DiB_isError(size_t errorCode) { return ERR_isError(errorCode); }
+
+const char* DiB_getErrorName(size_t errorCode) { return ERR_getErrorName(errorCode); }
 
 
 /* ********************************************************
@@ -563,9 +566,8 @@ static U32 DiB_dictSize(const dictItem* dictList)
 
 static void DiB_trainBuffer(dictItem* dictList, U32 dictListSize,
                             const void* const buffer, const size_t bufferSize,   /* buffer must end with noisy guard band */
-                            const char* displayName,
-                            const size_t* fileSizes, unsigned nbFiles, unsigned maxDictSize,
-                            U32 shiftRatio)
+                            const size_t* fileSizes, unsigned nbFiles,
+                            U32 shiftRatio, unsigned maxDictSize)
 {
     saidx_t* const suffix0 = (saidx_t*)malloc((bufferSize+2)*sizeof(*suffix0));
     saidx_t* const suffix = suffix0+1;
@@ -583,7 +585,7 @@ static void DiB_trainBuffer(dictItem* dictList, U32 dictListSize,
     memset(doneMarks, 0, bufferSize+16);
 
     /* sort */
-    DISPLAYLEVEL(2, "sorting %s ...\n", displayName);
+    DISPLAYLEVEL(2, "sorting %u files of total size %u MB ...\n", nbFiles, (U32)(bufferSize>>20));
     errorCode = divsufsort((const sauchar_t*)buffer, suffix, (saidx_t)bufferSize);
     if (errorCode != 0) EXM_THROW(2, "sort failed");
     suffix[bufferSize] = (saidx_t)bufferSize;   /* leads into noise */
@@ -699,7 +701,7 @@ static void DiB_countEStats(EStats_ress_t esr,
 #define OFFCODE_MAX 18
 static size_t DiB_analyzeEntropy(void*  dstBuffer, size_t maxDstSize,
                                  unsigned compressionLevel,
-                           const void*  srcBuffer, size_t* fileSizes, unsigned nbFiles,
+                           const void*  srcBuffer, const size_t* fileSizes, unsigned nbFiles,
                            const void* dictBuffer, size_t  dictBufferSize)
 {
     U32 countLit[256];
@@ -793,8 +795,7 @@ static size_t DiB_analyzeEntropy(void*  dstBuffer, size_t maxDstSize,
 
 
 static void DiB_saveDict(const char* dictFileName,
-                         const void* buff1, size_t buff1Size,
-                         const void* buff2, size_t buff2Size)
+                         const void* buff, size_t buffSize)
 {
     FILE* f;
     size_t n;
@@ -802,11 +803,8 @@ static void DiB_saveDict(const char* dictFileName,
     f = fopen(dictFileName, "wb");
     if (f==NULL) EXM_THROW(3, "cannot open %s ", dictFileName);
 
-    n = fwrite(buff1, 1, buff1Size, f);
-    if (n!=buff1Size) EXM_THROW(4, "%s : write error", dictFileName)
-
-    n = fwrite(buff2, 1, buff2Size, f);
-    if (n!=buff2Size) EXM_THROW(4, "%s : write error", dictFileName)
+    n = fwrite(buff, 1, buffSize, f);
+    if (n!=buffSize) EXM_THROW(4, "%s : write error", dictFileName)
 
     n = (size_t)fclose(f);
     if (n!=0) EXM_THROW(5, "%s : flush error", dictFileName)
@@ -853,46 +851,35 @@ static size_t DiB_fastSampling(void* dictBuffer, size_t dictSize,
 }
 
 
-int DiB_trainDictionary(const char* dictFileName, unsigned maxDictSize,
-                        unsigned shiftRatio, unsigned compressionLevel,
-                        const char** fileNamesTable, unsigned nbFiles)
+static size_t DiB_trainFromBuffer_internal(
+                            void* dictBuffer, size_t maxDictSize,
+                            const void* samplesBuffer, const size_t* sampleSizes, unsigned nbSamples,
+                            DiB_params_t params)
 {
-    void* srcBuffer;
-    size_t benchedSize;
-    size_t* fileSizes = (size_t*)malloc(nbFiles * sizeof(size_t));
-    unsigned long long totalSizeToLoad = DiB_getTotalFileSize(fileNamesTable, nbFiles);
-    const U32 dictListSize = MAX( MAX(DICTLISTSIZE, nbFiles), maxDictSize/16);
+    const U32 dictListSize = MAX( MAX(DICTLISTSIZE, nbSamples), (U32)(maxDictSize/16));
     dictItem* dictList = (dictItem*)malloc(dictListSize * sizeof(*dictList));
-    char mfName[20] = {0};
-    const char* displayName = NULL;
+    unsigned selectivity = params.selectivityLevel;
+    unsigned compressionLevel = params.compressionLevel;
+    size_t targetDictSize = maxDictSize - g_provision_entropySize;
+    size_t sBuffSize;
+    size_t dictSize = 0;
+
+    /* checks */
+    if (maxDictSize <= g_provision_entropySize + g_min_fast_dictContent) return ERROR(dstSize_tooSmall);
 
     /* init */
-    benchedSize = DiB_findMaxMem(totalSizeToLoad * MEMMULT) / MEMMULT;
-    if ((unsigned long long)benchedSize > totalSizeToLoad) benchedSize = (size_t)totalSizeToLoad;
-    if (benchedSize < totalSizeToLoad)
-        DISPLAYLEVEL(1, "Not enough memory; training on %u MB only...\n", (unsigned)(benchedSize >> 20));
-
-    /* Memory allocation & restrictions */
-    srcBuffer = malloc(benchedSize+NOISELENGTH);                                          /* + noise */
-    if ((!fileSizes) || (!srcBuffer) || (!dictList)) EXM_THROW(12, "not enough memory for DiB_trainFiles");  /* should not happen */
+    { unsigned u; for (u=0, sBuffSize=0; u<nbSamples; u++) sBuffSize += sampleSizes[u]; }
+    if (!dictList) { DISPLAYLEVEL(1, "not enough memory for DiB_trainFromBuffer"); return ERROR(memory_allocation); }
     DiB_initDictItem(dictList);
+    if (selectivity==0) selectivity = g_selectivity_default;
+    if (compressionLevel==0) compressionLevel = g_compressionLevel_default;
 
-    /* Load input buffer */
-    DiB_loadFiles(srcBuffer, benchedSize, fileSizes, fileNamesTable, nbFiles);
-    DiB_fillNoise((char*)srcBuffer + benchedSize, NOISELENGTH);   /* guard band, for end of buffer condition */
-
-    /* analyze sequences (non-fast mode) */
-    if (shiftRatio>0)
-    {
-        snprintf (mfName, sizeof(mfName), " %u files", nbFiles);
-        if (nbFiles > 1) displayName = mfName;
-        else displayName = fileNamesTable[0];
-
+    /* select stripes */
+    if (selectivity>1) {
         DiB_trainBuffer(dictList, dictListSize,
-                        srcBuffer, benchedSize,
-                        displayName,
-                        fileSizes, nbFiles, maxDictSize,
-                        shiftRatio);
+                        samplesBuffer, sBuffSize,
+                        sampleSizes, nbSamples,
+                        selectivity, (U32)targetDictSize);
 
         /* display best matches */
         if (g_displayLevel>= 3) {
@@ -907,72 +894,127 @@ int DiB_trainDictionary(const char* dictFileName, unsigned maxDictSize,
                 U32 d = MIN(40, l);
                 DISPLAYLEVEL(3, "%3u:%3u bytes at pos %8u, savings %7u bytes |",
                              u, l, p, dictList[u].savings);
-                DiB_printHex(3, (char*)srcBuffer+p, d);
+                DiB_printHex(3, (const char*)samplesBuffer+p, d);
                 DISPLAYLEVEL(3, "| \n");
     }   }   }
 
     /* create dictionary */
     {
-        void* dictContent;
         U32 dictContentSize = DiB_dictSize(dictList);
-        void* dictHeader;
-        size_t dictHeaderSize, hSize, addedContentLength;
+        size_t hSize;
         BYTE* ptr;
         U32 u;
 
-        /* build dict */
-        #define EBSIZE (2 KB)
-        dictHeaderSize = EBSIZE;
-        dictHeader = malloc(dictHeaderSize);
-        dictContent = malloc(maxDictSize);
-        if (!dictHeader || !dictContent) EXM_THROW(2, "not enough memory");
-
         /* build dict content */
-        ptr = (BYTE*)dictContent + maxDictSize;
+        ptr = (BYTE*)dictBuffer + maxDictSize;
         for (u=1; u<dictList->pos; u++) {
             U32 l = dictList[u].length;
             ptr -= l;
-            memcpy(ptr, (char*)srcBuffer+dictList[u].pos, l);
+            if (ptr<(BYTE*)dictBuffer) return ERROR(GENERIC);   /* should not happen */
+            memcpy(ptr, (const char*)samplesBuffer+dictList[u].pos, l);
         }
 
         /* fast mode dict content */
-        if (shiftRatio==0) {  /* note could also be used to complete a dictionary, but not necessarily better */
-            addedContentLength = ptr-(BYTE*)dictContent;
-            DISPLAYLEVEL(2, "\r%70s\r", "");   /* clean display line */
-            DISPLAYLEVEL(2, "Adding %u KB from fast sampling \n", (U32)(addedContentLength>>10));
-            addedContentLength = DiB_fastSampling(dictContent, addedContentLength, srcBuffer, benchedSize);
-            if (!ERR_isError(addedContentLength))
-                ptr -= addedContentLength, dictContentSize += addedContentLength;
+        if (selectivity==1) {  /* note could also be used to complete a dictionary, but not necessarily better */
+            DISPLAYLEVEL(3, "\r%70s\r", "");   /* clean display line */
+            DISPLAYLEVEL(3, "Adding %u KB with fast sampling \n", (U32)(targetDictSize>>10));
+            dictContentSize = (U32)DiB_fastSampling((char*)dictBuffer + g_provision_entropySize,
+                                               targetDictSize, samplesBuffer, sBuffSize);
         }
 
-        /* dictionary header */
-        MEM_writeLE32(dictHeader, ZSTD_DICT_MAGIC);
+       /* dictionary header */
+        MEM_writeLE32(dictBuffer, ZSTD_DICT_MAGIC);
         hSize = 4;
-        dictHeaderSize -= 4;
 
         /* entropic tables */
+        DISPLAYLEVEL(2, "\r%70s\r", "");   /* clean display line */
         DISPLAYLEVEL(2, "statistics ... \n");
-        hSize += DiB_analyzeEntropy((char*)dictHeader+4, dictHeaderSize,
+        hSize += DiB_analyzeEntropy((char*)dictBuffer+4, maxDictSize-4,
                                     compressionLevel,
-                                    srcBuffer, fileSizes, nbFiles,
-                                    ptr, dictContentSize);
+                                    samplesBuffer, sampleSizes, nbSamples,
+                                    (char*)dictBuffer + maxDictSize - dictContentSize, dictContentSize);
 
-        /* save dict */
-        {
-            size_t dictSize = hSize + dictContentSize;
-            DISPLAYLEVEL(2, "Save dictionary of size %u into file %s \n", (U32)dictSize, dictFileName);
-            DiB_saveDict(dictFileName, dictHeader, hSize, ptr, dictContentSize);
-            //DiB_saveDict(dictFileName, NULL, 0, dictContent, dictContentSize);   // content only
-        }
-        /* clean */
-        free(dictHeader);
-        free(dictContent);
+        if (hSize + dictContentSize < maxDictSize)
+            memmove((char*)dictBuffer + hSize, (char*)dictBuffer + maxDictSize - dictContentSize, dictContentSize);
+        dictSize = MIN(maxDictSize, hSize+dictContentSize);
     }
 
     /* clean up */
-    free(srcBuffer);
-    free(fileSizes);
     free(dictList);
-    return 0;
+    return dictSize;
 }
 
+
+/* issue : samplesBuffer need to be followed by a noisy guard band.
+*  work around : duplicate the buffer, and add the noise ? */
+size_t DiB_trainFromBuffer(void* dictBuffer, size_t maxDictSize,
+                           const void* samplesBuffer, const size_t* sampleSizes, unsigned nbSamples,
+                           DiB_params_t params)
+{
+    size_t sBuffSize;
+    void* newBuff;
+    size_t result;
+
+    { unsigned u; for (u=0, sBuffSize=0; u<nbSamples; u++) sBuffSize += sampleSizes[u]; }
+    newBuff = malloc(sBuffSize + NOISELENGTH);
+    if (!newBuff) return ERROR(memory_allocation);
+
+    memcpy(newBuff, samplesBuffer, sBuffSize);
+    DiB_fillNoise((char*)newBuff + sBuffSize, NOISELENGTH);   /* guard band, for end of buffer condition */
+
+    result = DiB_trainFromBuffer_internal(dictBuffer, maxDictSize,
+                                        newBuff, sampleSizes, nbSamples,
+                                        params);
+    free(newBuff);
+    return result;
+}
+
+
+int DiB_trainFromFiles(const char* dictFileName, unsigned maxDictSize,
+                       const char** fileNamesTable, unsigned nbFiles,
+                       DiB_params_t params)
+{
+    void* srcBuffer;
+    size_t benchedSize;
+    size_t* fileSizes = (size_t*)malloc(nbFiles * sizeof(size_t));
+    unsigned long long totalSizeToLoad = DiB_getTotalFileSize(fileNamesTable, nbFiles);
+    void* dictBuffer = malloc(maxDictSize);
+    size_t dictSize;
+    int result = 0;
+
+    /* init */
+    benchedSize = DiB_findMaxMem(totalSizeToLoad * MEMMULT) / MEMMULT;
+    if ((unsigned long long)benchedSize > totalSizeToLoad) benchedSize = (size_t)totalSizeToLoad;
+    if (benchedSize < totalSizeToLoad)
+        DISPLAYLEVEL(1, "Not enough memory; training on %u MB only...\n", (unsigned)(benchedSize >> 20));
+
+    /* Memory allocation & restrictions */
+    srcBuffer = malloc(benchedSize+NOISELENGTH);     /* + noise */
+    if ((!fileSizes) || (!srcBuffer) || (!dictBuffer)) EXM_THROW(12, "not enough memory for DiB_trainFiles");  /* should not happen */
+
+    /* Load input buffer */
+    DiB_loadFiles(srcBuffer, benchedSize, fileSizes, fileNamesTable, nbFiles);
+    DiB_fillNoise((char*)srcBuffer + benchedSize, NOISELENGTH);   /* guard band, for end of buffer condition */
+
+    /* call buffer version */
+    dictSize = DiB_trainFromBuffer_internal(dictBuffer, maxDictSize,
+                        srcBuffer, fileSizes, nbFiles,
+                        params);
+    if (DiB_isError(dictSize))
+    {
+        DISPLAYLEVEL(1, "dictionary training failed : %s", DiB_getErrorName(dictSize));  /* should not happen */
+        result = 1;
+        goto _cleanup;
+    }
+
+    /* save dict */
+    DISPLAYLEVEL(2, "Save dictionary of size %u into file %s \n", (U32)dictSize, dictFileName);
+    DiB_saveDict(dictFileName, dictBuffer, dictSize);
+
+    /* clean up */
+_cleanup:
+    free(srcBuffer);
+    free(dictBuffer);
+    free(fileSizes);
+    return result;
+}

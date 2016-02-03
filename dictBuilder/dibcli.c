@@ -184,7 +184,7 @@ int main(int argCount, const char** argv)
         if (!strcmp(argument, "--verbose")) { g_displayLevel++; if (g_displayLevel<3) g_displayLevel=3; continue; }
         if (!strcmp(argument, "--quiet")) { g_displayLevel--; continue; }
         if (!strcmp(argument, "--maxdict")) { nextArgumentIsMaxDict=1; continue; }
-        if (!strcmp(argument, "--fast")) { selectionLevel=0; cLevel=1; continue; }
+        if (!strcmp(argument, "--fast")) { selectionLevel=1; cLevel=1; continue; }
 
         /* Decode commands (note : aggregated commands are allowed) */
         if (argument[0]=='-') {
@@ -247,8 +247,15 @@ int main(int argCount, const char** argv)
     }
 
     /* building ... */
-    DiB_setNotificationLevel(g_displayLevel);
-    operationResult = DiB_trainDictionary(dictFileName, maxDictSize, selectionLevel, cLevel, filenameTable, filenameIdx);
+    {
+        DiB_params_t param;
+        param.selectivityLevel = selectionLevel;
+        param.compressionLevel = cLevel;
+        DiB_setNotificationLevel(g_displayLevel);
+        operationResult = DiB_trainFromFiles(dictFileName, maxDictSize,
+                                             filenameTable, filenameIdx,
+                                             param);
+    }
 
     if (main_pause) waitEnter();
     free((void*)filenameTable);

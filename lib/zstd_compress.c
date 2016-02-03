@@ -88,6 +88,14 @@ typedef struct {
     BYTE* matchLength;
     BYTE* dumpsStart;
     BYTE* dumps;
+    BYTE* matchLengthFreq;
+    BYTE* litLengthFreq;
+    BYTE* litFreq;
+    BYTE* offCodeFreq;
+    U32 matchLengthSum;
+    U32 litLengthSum;
+    U32 litSum;
+    U32 offCodeSum;
 } seqStore_t;
 
 static void ZSTD_resetSeqStore(seqStore_t* ssPtr)
@@ -97,6 +105,16 @@ static void ZSTD_resetSeqStore(seqStore_t* ssPtr)
     ssPtr->litLength = ssPtr->litLengthStart;
     ssPtr->matchLength = ssPtr->matchLengthStart;
     ssPtr->dumps = ssPtr->dumpsStart;
+
+    ssPtr->matchLengthSum = (1<<MLbits);
+    ssPtr->litLengthSum = (1<<LLbits);
+    ssPtr->litSum = (1<<Litbits);
+    ssPtr->offCodeSum = (1<<Offbits);
+
+    memset(ssPtr->litFreq, 1, (1<<Litbits));
+    memset(ssPtr->litLengthFreq, 1, (1<<LLbits));
+    memset(ssPtr->matchLengthFreq, 1, (1<<MLbits));
+    memset(ssPtr->offCodeFreq, 1, (1<<Offbits));
 }
 
 
@@ -184,7 +202,7 @@ static size_t ZSTD_resetCCtx_advanced (ZSTD_CCtx* zc,
     /* reserve table memory */
     const U32 contentLog = (params.strategy == ZSTD_fast) ? 1 : params.contentLog;
     const size_t tableSpace = ((1 << contentLog) + (1 << params.hashLog)) * sizeof(U32);
-    const size_t neededSpace = tableSpace + (256*sizeof(U32)) + (3*blockSize);
+    const size_t neededSpace = tableSpace + (256*sizeof(U32)) + (3*blockSize) + (1<<MLbits) + (1<<LLbits) + (1<<Offbits) + (1<<Litbits);
     if (zc->workSpaceSize < neededSpace) {
         free(zc->workSpace);
         zc->workSpace = malloc(neededSpace);
@@ -213,6 +231,12 @@ static size_t ZSTD_resetCCtx_advanced (ZSTD_CCtx* zc,
     zc->seqStore.litLengthStart =  zc->seqStore.litStart + blockSize;
     zc->seqStore.matchLengthStart = zc->seqStore.litLengthStart + (blockSize>>2);
     zc->seqStore.dumpsStart = zc->seqStore.matchLengthStart + (blockSize>>2);
+    zc->seqStore.litFreq = zc->seqStore.dumpsStart + (blockSize>>2);
+    zc->seqStore.litLengthFreq = zc->seqStore.litFreq + (1<<Litbits);
+    zc->seqStore.matchLengthFreq = zc->seqStore.litLengthFreq + (1<<LLbits);
+    zc->seqStore.offCodeFreq = zc->seqStore.matchLengthFreq + (1<<MLbits);
+ //   zc->seqStore.XXX = zc->seqStore.offCodeFreq + (1<<Offbits);
+
     zc->hbSize = 0;
     zc->stage = 0;
     zc->loadedDictEnd = 0;

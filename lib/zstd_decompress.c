@@ -1,6 +1,6 @@
 /*
     zstd - standard compression library
-    Copyright (C) 2014-2015, Yann Collet.
+    Copyright (C) 2014-2016, Yann Collet.
 
     BSD 2-Clause License (http://www.opensource.org/licenses/bsd-license.php)
 
@@ -27,7 +27,6 @@
 
     You can contact the author at :
     - zstd source repository : https://github.com/Cyan4973/zstd
-    - ztsd public forum : https://groups.google.com/forum/#!forum/lz4c
 */
 
 /* ***************************************************************
@@ -44,7 +43,7 @@
 
 /*!
 *  LEGACY_SUPPORT :
-*  ZSTD_decompress() can decode older formats (v0.1+) if set to 1
+*  if set to 1, ZSTD_decompress() can decode older formats (v0.1+)
 */
 #ifndef ZSTD_LEGACY_SUPPORT
 #  define ZSTD_LEGACY_SUPPORT 0
@@ -58,7 +57,6 @@
 #include <string.h>      /* memcpy, memmove */
 #include <stdio.h>       /* debug : printf */
 #include "mem.h"         /* low level memory routines */
-#include "zstd_static.h"
 #include "zstd_internal.h"
 #include "fse_static.h"
 #include "huff0_static.h"
@@ -110,6 +108,10 @@ unsigned ZSTD_versionNumber (void) { return ZSTD_VERSION_NUMBER; }
 /*! ZSTD_isError
 *   tells if a return value is an error code */
 unsigned ZSTD_isError(size_t code) { return ERR_isError(code); }
+
+/*! ZSTD_getError
+*   convert a `size_t` function result into a proper ZSTD_errorCode enum */
+ZSTD_errorCode ZSTD_getError(size_t code) { return ERR_getError(code); }
 
 /*! ZSTD_getErrorName
 *   provides error code string (useful for debugging) */
@@ -304,7 +306,7 @@ static size_t ZSTD_decodeFrameHeader_Part2(ZSTD_DCtx* zc, const void* src, size_
     if (srcSize != zc->headerSize)
         return ERROR(srcSize_wrong);
     result = ZSTD_getFrameParams(&(zc->params), src, srcSize);
-    if ((MEM_32bits()) && (zc->params.windowLog > 25)) return ERROR(frameParameter_unsupportedBy32bitsImplementation);
+    if ((MEM_32bits()) && (zc->params.windowLog > 25)) return ERROR(frameParameter_unsupportedBy32bits);
     return result;
 }
 
@@ -430,7 +432,7 @@ size_t ZSTD_decodeLiteralsBlock(ZSTD_DCtx* dctx,
             }
 
             if (lhSize+litSize+WILDCOPY_OVERLENGTH > srcSize) {  /* risk reading beyond src buffer with wildcopy */
-                if (litSize > srcSize-lhSize) return ERROR(corruption_detected);
+                if (litSize+lhSize > srcSize) return ERROR(corruption_detected);
                 memcpy(dctx->litBuffer, istart+lhSize, litSize);
                 dctx->litPtr = dctx->litBuffer;
                 dctx->litBufSize = BLOCKSIZE+8;
@@ -628,8 +630,9 @@ static void ZSTD_decodeSequence(seq_t* seq, seqState_t* seqState)
         U32 add = *dumps++;
         if (add < 255) litLength += add;
         else {
-            litLength = MEM_readLE32(dumps) & 0xFFFFFF;  /* no pb : dumps is always followed by seq tables > 1 byte */
-            dumps += 3;
+            litLength = MEM_readLE32(dumps) & 0xFFFFFF;  /* no risk : dumps is always followed by seq tables > 1 byte */
+            if (litLength&1) litLength>>=1, dumps += 3;
+            else litLength = (U16)(litLength)>>1, dumps += 2;
         }
         if (dumps >= de) dumps = de-1;   /* late correction, to avoid read overflow (data is now corrupted anyway) */
     }
@@ -666,7 +669,8 @@ static void ZSTD_decodeSequence(seq_t* seq, seqState_t* seqState)
         if (add < 255) matchLength += add;
         else {
             matchLength = MEM_readLE32(dumps) & 0xFFFFFF;  /* no pb : dumps is always followed by seq tables > 1 byte */
-            dumps += 3;
+            if (matchLength&1) matchLength>>=1, dumps += 3;
+            else matchLength = (U16)(matchLength)>>1, dumps += 2;
         }
         if (dumps >= de) dumps = de-1;   /* late correction, to avoid read overflow (data is now corrupted anyway) */
     }
@@ -678,7 +682,7 @@ static void ZSTD_decodeSequence(seq_t* seq, seqState_t* seqState)
     seq->matchLength = matchLength;
     seqState->dumps = dumps;
 
-#if 0
+#if 0   /* debug */
     {
         static U64 totalDecoded = 0;
         printf("pos %6u : %3u literals & match %3u bytes at distance %6u \n",
@@ -847,28 +851,30 @@ static void ZSTD_checkContinuity(ZSTD_DCtx* dctx, const void* dst)
 
 
 static size_t ZSTD_decompressBlock_internal(ZSTD_DCtx* dctx,
-                            void* dst, size_t maxDstSize,
+                            void* dst, size_t dstCapacity,
                       const void* src, size_t srcSize)
-{
-    /* blockType == blockCompressed */
+{   /* blockType == blockCompressed */
     const BYTE* ip = (const BYTE*)src;
+    size_t litCSize;
+
+    if (srcSize >= BLOCKSIZE) return ERROR(srcSize_wrong);
 
     /* Decode literals sub-block */
-    size_t litCSize = ZSTD_decodeLiteralsBlock(dctx, src, srcSize);
+    litCSize = ZSTD_decodeLiteralsBlock(dctx, src, srcSize);
     if (ZSTD_isError(litCSize)) return litCSize;
     ip += litCSize;
     srcSize -= litCSize;
 
-    return ZSTD_decompressSequences(dctx, dst, maxDstSize, ip, srcSize);
+    return ZSTD_decompressSequences(dctx, dst, dstCapacity, ip, srcSize);
 }
 
 
 size_t ZSTD_decompressBlock(ZSTD_DCtx* dctx,
-                            void* dst, size_t maxDstSize,
+                            void* dst, size_t dstCapacity,
                       const void* src, size_t srcSize)
 {
     ZSTD_checkContinuity(dctx, dst);
-    return ZSTD_decompressBlock_internal(dctx, dst, maxDstSize, src, srcSize);
+    return ZSTD_decompressBlock_internal(dctx, dst, dstCapacity, src, srcSize);
 }
 
 

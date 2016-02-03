@@ -39,15 +39,15 @@
 extern "C" {
 #endif
 
-/******************************************
-*  Includes
+/*-****************************************
+*  Dependencies
 ******************************************/
 #include <stddef.h>    /* size_t, ptrdiff_t */
 #include <string.h>    /* memcpy */
 
 
-/******************************************
-*  Compiler-specific
+/*-****************************************
+*  Compiler specifics
 ******************************************/
 #if defined(__GNUC__)
 #  define MEM_STATIC static __attribute__((unused))
@@ -60,7 +60,7 @@ extern "C" {
 #endif
 
 
-/****************************************************************
+/*-**************************************************************
 *  Basic Types
 *****************************************************************/
 #if defined (__cplusplus) || (defined (__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L) /* C99 */)
@@ -83,10 +83,10 @@ extern "C" {
 #endif
 
 
-/****************************************************************
+/*-**************************************************************
 *  Memory I/O
 *****************************************************************/
-/* MEM_FORCE_MEMORY_ACCESS
+/*!MEM_FORCE_MEMORY_ACCESS
  * By default, access to unaligned memory is controlled by `memcpy()`, which is safe and portable.
  * Unfortunately, on some target/compiler combinations, the generated assembly is sub-optimal.
  * The below switch allow to select different access method for improved performance.
@@ -94,8 +94,8 @@ extern "C" {
  * Method 1 : `__packed` statement. It depends on compiler extension (ie, not portable).
  *            This method is safe if your compiler supports it, and *generally* as fast or faster than `memcpy`.
  * Method 2 : direct access. This method is portable but violate C standard.
- *            It can generate buggy code on targets generating assembly depending on alignment.
- *            But in some circumstances, it's the only known way to get the most performance (ie GCC + ARMv6)
+ *            It can generate buggy code on targets depending on alignment.
+ *            In some circumstances, it's the only known way to get the most performance (ie GCC + ARMv6)
  * See http://fastcompression.blogspot.fr/2015/08/accessing-unaligned-memory.html for details.
  * Prefer these methods in priority order (0 > 1 > 2)
  */
@@ -185,8 +185,7 @@ MEM_STATIC U16 MEM_readLE16(const void* memPtr)
 {
     if (MEM_isLittleEndian())
         return MEM_read16(memPtr);
-    else
-    {
+    else {
         const BYTE* p = (const BYTE*)memPtr;
         return (U16)(p[0] + (p[1]<<8));
     }
@@ -194,12 +193,9 @@ MEM_STATIC U16 MEM_readLE16(const void* memPtr)
 
 MEM_STATIC void MEM_writeLE16(void* memPtr, U16 val)
 {
-    if (MEM_isLittleEndian())
-    {
+    if (MEM_isLittleEndian()) {
         MEM_write16(memPtr, val);
-    }
-    else
-    {
+    } else {
         BYTE* p = (BYTE*)memPtr;
         p[0] = (BYTE)val;
         p[1] = (BYTE)(val>>8);
@@ -210,8 +206,7 @@ MEM_STATIC U32 MEM_readLE32(const void* memPtr)
 {
     if (MEM_isLittleEndian())
         return MEM_read32(memPtr);
-    else
-    {
+    else {
         const BYTE* p = (const BYTE*)memPtr;
         return (U32)((U32)p[0] + ((U32)p[1]<<8) + ((U32)p[2]<<16) + ((U32)p[3]<<24));
     }
@@ -219,12 +214,9 @@ MEM_STATIC U32 MEM_readLE32(const void* memPtr)
 
 MEM_STATIC void MEM_writeLE32(void* memPtr, U32 val32)
 {
-    if (MEM_isLittleEndian())
-    {
+    if (MEM_isLittleEndian()) {
         MEM_write32(memPtr, val32);
-    }
-    else
-    {
+    } else {
         BYTE* p = (BYTE*)memPtr;
         p[0] = (BYTE)val32;
         p[1] = (BYTE)(val32>>8);
@@ -237,8 +229,7 @@ MEM_STATIC U64 MEM_readLE64(const void* memPtr)
 {
     if (MEM_isLittleEndian())
         return MEM_read64(memPtr);
-    else
-    {
+    else {
         const BYTE* p = (const BYTE*)memPtr;
         return (U64)((U64)p[0] + ((U64)p[1]<<8) + ((U64)p[2]<<16) + ((U64)p[3]<<24)
                      + ((U64)p[4]<<32) + ((U64)p[5]<<40) + ((U64)p[6]<<48) + ((U64)p[7]<<56));
@@ -247,12 +238,9 @@ MEM_STATIC U64 MEM_readLE64(const void* memPtr)
 
 MEM_STATIC void MEM_writeLE64(void* memPtr, U64 val64)
 {
-    if (MEM_isLittleEndian())
-    {
+    if (MEM_isLittleEndian()) {
         MEM_write64(memPtr, val64);
-    }
-    else
-    {
+    } else {
         BYTE* p = (BYTE*)memPtr;
         p[0] = (BYTE)val64;
         p[1] = (BYTE)(val64>>8);

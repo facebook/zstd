@@ -170,18 +170,18 @@ void        FSE_freeCTable (FSE_CTable* ct);
 
 /*!
 FSE_buildCTable():
-   Builds 'ct', which must be already allocated, using FSE_createCTable()
+   Builds @ct, which must be already allocated, using FSE_createCTable()
    return : 0
             or an errorCode, which can be tested using FSE_isError() */
 size_t FSE_buildCTable(FSE_CTable* ct, const short* normalizedCounter, unsigned maxSymbolValue, unsigned tableLog);
 
 /*!
 FSE_compress_usingCTable():
-   Compress 'src' using 'ct' into 'dst' which must be already allocated
-   return : size of compressed data (<= maxDstSize)
-            or 0 if compressed data could not fit into 'dst'
+   Compress @src using @ct into @dst which must be already allocated
+   return : size of compressed data (<= @dstCapacity)
+            or 0 if compressed data could not fit into @dst
             or an errorCode, which can be tested using FSE_isError() */
-size_t FSE_compress_usingCTable (void* dst, size_t maxDstSize, const void* src, size_t srcSize, const FSE_CTable* ct);
+size_t FSE_compress_usingCTable (void* dst, size_t dstCapacity, const void* src, size_t srcSize, const FSE_CTable* ct);
 
 /*!
 Tutorial :
@@ -221,7 +221,7 @@ If there is an error, both functions will return an ErrorCode (which can be test
 
 'CTable' can then be used to compress 'src', with FSE_compress_usingCTable().
 Similar to FSE_count(), the convention is that 'src' is assumed to be a table of char of size 'srcSize'
-The function returns the size of compressed data (without header), necessarily <= maxDstSize.
+The function returns the size of compressed data (without header), necessarily <= @dstCapacity.
 If it returns '0', compressed data could not fit into 'dst'.
 If there is an error, the function will return an ErrorCode (which can be tested using FSE_isError()).
 */
@@ -253,11 +253,11 @@ size_t FSE_buildDTable (FSE_DTable* dt, const short* normalizedCounter, unsigned
 
 /*!
 FSE_decompress_usingDTable():
-   Decompress compressed source 'cSrc' of size 'cSrcSize' using 'dt'
-   into 'dst' which must be already allocated.
-   return : size of regenerated data (necessarily <= maxDstSize)
+   Decompress compressed source @cSrc of size @cSrcSize using @dt
+   into @dst which must be already allocated.
+   return : size of regenerated data (necessarily <= @dstCapacity)
             or an errorCode, which can be tested using FSE_isError() */
-size_t FSE_decompress_usingDTable(void* dst, size_t maxDstSize, const void* cSrc, size_t cSrcSize, const FSE_DTable* dt);
+size_t FSE_decompress_usingDTable(void* dst, size_t dstCapacity, const void* cSrc, size_t cSrcSize, const FSE_DTable* dt);
 
 /*!
 Tutorial :

@@ -82,6 +82,7 @@ typedef struct
 /* *************************************
 *  Advanced functions
 ***************************************/
+#define ZSTD_MAX_CLEVEL 20
 ZSTDLIB_API unsigned ZSTD_maxCLevel (void);
 
 /*! ZSTD_getParams

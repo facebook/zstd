@@ -36,13 +36,19 @@
  */
 
 /* *************************************
-*  Includes
+*  Dependencies
 ***************************************/
 #include <stdlib.h>
 #include "error_private.h"
 #include "zstd_static.h"
 #include "zstd_buffered_static.h"
 
+
+/* *************************************
+*  Constants
+***************************************/
+static size_t ZBUFF_blockHeaderSize = 3;
+static size_t ZBUFF_endFrameSize = 3;
 
 /** ************************************************
 *  Streaming compression
@@ -522,7 +528,7 @@ size_t ZBUFF_decompressContinue(ZBUFF_DCtx* zbc, void* dst, size_t* maxDstSizePt
 
     {
         size_t nextSrcSizeHint = ZSTD_nextSrcSizeToDecompress(zbc->zc);
-        if (nextSrcSizeHint > 3) nextSrcSizeHint+= 3;   /* get the next block header while at it */
+        if (nextSrcSizeHint > ZBUFF_blockHeaderSize) nextSrcSizeHint+= ZBUFF_blockHeaderSize;   /* get next block header too */
         nextSrcSizeHint -= zbc->inPos;   /* already loaded*/
         return nextSrcSizeHint;
     }
@@ -536,7 +542,7 @@ size_t ZBUFF_decompressContinue(ZBUFF_DCtx* zbc, void* dst, size_t* maxDstSizePt
 unsigned ZBUFF_isError(size_t errorCode) { return ERR_isError(errorCode); }
 const char* ZBUFF_getErrorName(size_t errorCode) { return ERR_getErrorName(errorCode); }
 
-size_t ZBUFF_recommendedCInSize()  { return BLOCKSIZE; }
-size_t ZBUFF_recommendedCOutSize() { return ZSTD_compressBound(BLOCKSIZE) + 6; }
-size_t ZBUFF_recommendedDInSize()  { return BLOCKSIZE + 3; }
-size_t ZBUFF_recommendedDOutSize() { return BLOCKSIZE; }
+size_t ZBUFF_recommendedCInSize(void)  { return BLOCKSIZE; }
+size_t ZBUFF_recommendedCOutSize(void) { return ZSTD_compressBound(BLOCKSIZE) + ZBUFF_blockHeaderSize + ZBUFF_endFrameSize; }
+size_t ZBUFF_recommendedDInSize(void)  { return BLOCKSIZE + ZBUFF_blockHeaderSize /* block header size*/ ; }
+size_t ZBUFF_recommendedDOutSize(void) { return BLOCKSIZE; }

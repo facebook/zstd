@@ -1,6 +1,6 @@
 /*
     zstd - standard compression library
-    Copyright (C) 2014-2015, Yann Collet.
+    Copyright (C) 2014-2016, Yann Collet.
 
     BSD 2-Clause License (http://www.opensource.org/licenses/bsd-license.php)
 
@@ -27,7 +27,6 @@
 
     You can contact the author at :
     - zstd source repository : https://github.com/Cyan4973/zstd
-    - ztsd public forum : https://groups.google.com/forum/#!forum/lz4c
 */
 
 /* ***************************************************************
@@ -44,7 +43,7 @@
 
 /*!
 *  LEGACY_SUPPORT :
-*  ZSTD_decompress() can decode older formats (v0.1+) if set to 1
+*  if set to 1, ZSTD_decompress() can decode older formats (v0.1+)
 */
 #ifndef ZSTD_LEGACY_SUPPORT
 #  define ZSTD_LEGACY_SUPPORT 0
@@ -58,7 +57,6 @@
 #include <string.h>      /* memcpy, memmove */
 #include <stdio.h>       /* debug : printf */
 #include "mem.h"         /* low level memory routines */
-#include "zstd_static.h"
 #include "zstd_internal.h"
 #include "fse_static.h"
 #include "huff0_static.h"

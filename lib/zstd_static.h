@@ -229,6 +229,10 @@ size_t ZSTD_decompressBlock(ZSTD_DCtx* dctx, void* dst, size_t dstCapacity, cons
 *  Error management
 ***************************************/
 #include "error_public.h"
+/*! ZSTD_getErrorCode
+    transform a function result using `size_t` into a `ZSTD_error_code` enum type
+    which can be used to compare directly with enum list within "error_public.h" */
+ZSTD_errorCode ZSTD_getError(size_t code);
 
 
 #if defined (__cplusplus)

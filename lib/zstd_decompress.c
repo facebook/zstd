@@ -109,6 +109,10 @@ unsigned ZSTD_versionNumber (void) { return ZSTD_VERSION_NUMBER; }
 *   tells if a return value is an error code */
 unsigned ZSTD_isError(size_t code) { return ERR_isError(code); }
 
+/*! ZSTD_getError
+*   convert a `size_t` function result into a proper ZSTD_errorCode enum */
+ZSTD_errorCode ZSTD_getError(size_t code) { return ERR_getError(code); }
+
 /*! ZSTD_getErrorName
 *   provides error code string (useful for debugging) */
 const char* ZSTD_getErrorName(size_t code) { return ERR_getErrorName(code); }
@@ -302,7 +306,7 @@ static size_t ZSTD_decodeFrameHeader_Part2(ZSTD_DCtx* zc, const void* src, size_
     if (srcSize != zc->headerSize)
         return ERROR(srcSize_wrong);
     result = ZSTD_getFrameParams(&(zc->params), src, srcSize);
-    if ((MEM_32bits()) && (zc->params.windowLog > 25)) return ERROR(frameParameter_unsupportedBy32bitsImplementation);
+    if ((MEM_32bits()) && (zc->params.windowLog > 25)) return ERROR(frameParameter_unsupportedBy32bits);
     return result;
 }
 

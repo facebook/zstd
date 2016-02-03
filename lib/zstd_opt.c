@@ -64,6 +64,41 @@ FORCE_INLINE U32 LZ5HC_get_price(U32 litlen, U32 offset, U32 mlen)
     return lit_cost + match_cost;
 }
 
+MEM_STATIC size_t ZSTD_getPrice(seqStore_t* seqStorePtr, size_t litLength, const BYTE* literals, size_t offsetCode, size_t matchCode)
+{
+#if 0
+    static const BYTE* g_start = NULL;
+    if (g_start==NULL) g_start = literals;
+    //if (literals - g_start == 8695)
+    printf("pos %6u : %3u literals & match %3u bytes at distance %6u \n",
+           (U32)(literals - g_start), (U32)litLength, (U32)matchCode+4, (U32)offsetCode);
+#endif
+    size_t price = 0;
+
+    /* literals */
+    seqStorePtr->lit += litLength;
+
+    /* literal Length */
+    if (litLength >= MaxLL) {
+        *(seqStorePtr->litLength++) = MaxLL;
+        if (litLength<255 + MaxLL) price += 8; else price += 32;
+    }   
+    else *(seqStorePtr->litLength++) = (BYTE)litLength;
+
+    /* match offset */
+    *(seqStorePtr->offset++) = (U32)offsetCode;
+
+    /* match Length */
+    if (matchCode >= MaxML) {
+        *(seqStorePtr->matchLength++) = MaxML;
+        if (matchCode < 255+MaxML) price += 8; else price += 32;
+    }
+    else *(seqStorePtr->matchLength++) = (BYTE)matchCode;
+    
+    return price;
+}
+
+
 
 #define SET_PRICE(pos, mlen, offset, litlen, price)   \
     {                                                 \

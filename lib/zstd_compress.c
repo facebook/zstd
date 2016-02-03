@@ -69,8 +69,6 @@ static const U32 g_searchStrength = 8;
 /* *************************************
 *  Helper functions
 ***************************************/
-unsigned ZSTD_maxCLevel(void) { return ZSTD_MAX_CLEVEL; }
-
 size_t ZSTD_compressBound(size_t srcSize) { return FSE_compressBound(srcSize) + 12; }
 
 
@@ -2261,6 +2259,9 @@ size_t ZSTD_compress(void* dst, size_t maxDstSize, const void* src, size_t srcSi
 
 
 /*- Pre-defined compression levels -*/
+
+#define ZSTD_MAX_CLEVEL 20
+unsigned ZSTD_maxCLevel(void) { return ZSTD_MAX_CLEVEL; }
 
 static const ZSTD_parameters ZSTD_defaultParameters[4][ZSTD_MAX_CLEVEL+1] = {
 {   /* "default" */

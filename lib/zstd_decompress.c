@@ -432,7 +432,7 @@ size_t ZSTD_decodeLiteralsBlock(ZSTD_DCtx* dctx,
             }
 
             if (lhSize+litSize+WILDCOPY_OVERLENGTH > srcSize) {  /* risk reading beyond src buffer with wildcopy */
-                if (litSize > srcSize-lhSize) return ERROR(corruption_detected);
+                if (litSize+lhSize > srcSize) return ERROR(corruption_detected);
                 memcpy(dctx->litBuffer, istart+lhSize, litSize);
                 dctx->litPtr = dctx->litBuffer;
                 dctx->litBufSize = BLOCKSIZE+8;
@@ -844,28 +844,30 @@ static void ZSTD_checkContinuity(ZSTD_DCtx* dctx, const void* dst)
 
 
 static size_t ZSTD_decompressBlock_internal(ZSTD_DCtx* dctx,
-                            void* dst, size_t maxDstSize,
+                            void* dst, size_t dstCapacity,
                       const void* src, size_t srcSize)
-{
-    /* blockType == blockCompressed */
+{   /* blockType == blockCompressed */
     const BYTE* ip = (const BYTE*)src;
+    size_t litCSize;
+
+    if (srcSize >= BLOCKSIZE) return ERROR(srcSize_wrong);
 
     /* Decode literals sub-block */
-    size_t litCSize = ZSTD_decodeLiteralsBlock(dctx, src, srcSize);
+    litCSize = ZSTD_decodeLiteralsBlock(dctx, src, srcSize);
     if (ZSTD_isError(litCSize)) return litCSize;
     ip += litCSize;
     srcSize -= litCSize;
 
-    return ZSTD_decompressSequences(dctx, dst, maxDstSize, ip, srcSize);
+    return ZSTD_decompressSequences(dctx, dst, dstCapacity, ip, srcSize);
 }
 
 
 size_t ZSTD_decompressBlock(ZSTD_DCtx* dctx,
-                            void* dst, size_t maxDstSize,
+                            void* dst, size_t dstCapacity,
                       const void* src, size_t srcSize)
 {
     ZSTD_checkContinuity(dctx, dst);
-    return ZSTD_decompressBlock_internal(dctx, dst, maxDstSize, src, srcSize);
+    return ZSTD_decompressBlock_internal(dctx, dst, dstCapacity, src, srcSize);
 }
 
 

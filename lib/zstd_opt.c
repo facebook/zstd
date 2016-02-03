@@ -73,7 +73,6 @@ FORCE_INLINE U32 LZ5HC_get_price(U32 litlen, U32 offset, U32 mlen)
         opt[pos].litlen = litlen;                     \
         opt[pos].price = price;                       \
         LZ5_LOG_PARSER("%d: SET price[%d/%d]=%d litlen=%d len=%d off=%d\n", (int)(inr-base), (int)pos, (int)last_pos, opt[pos].price, opt[pos].litlen, opt[pos].mlen, opt[pos].off); \
-        if (mlen > 1 && mlen < MINMATCH) { printf("%d: ERROR SET price[%d/%d]=%d litlen=%d len=%d off=%d\n", (int)(inr-base), (int)pos, (int)last_pos, opt[pos].price, opt[pos].litlen, opt[pos].mlen, opt[pos].off); exit(0); }; \
     }
 
 
@@ -123,7 +122,7 @@ size_t ZSTD_insertBtAndGetAllMatches (
             match = dictBase + matchIndex;
             matchLength += ZSTD_count_2segments(ip+matchLength, match+matchLength, iend, dictEnd, prefixStart);
             if (matchIndex+matchLength >= dictLimit)
-				match = base + matchIndex;   /* to prepare for next usage of match[matchLength] */
+                match = base + matchIndex;   /* to prepare for next usage of match[matchLength] */
         }
 
         if (matchLength > bestLength) {
@@ -491,16 +490,15 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
         llen = ip - anchor;
         inr = ip;
 
-#if 1
-        cur = 1;
+
         /* check repCode */
-        if (MEM_read32(ip+cur) == MEM_read32(ip+cur - rep_1)) {
+        if (MEM_read32(ip+1) == MEM_read32(ip+1 - rep_1)) {
             /* repcode : we take it */
-            mlen = ZSTD_count(ip+cur+MINMATCH, ip+cur+MINMATCH-rep_1, iend) + MINMATCH;
+            mlen = ZSTD_count(ip+1+MINMATCH, ip+1+MINMATCH-rep_1, iend) + MINMATCH;
             
             LZ5_LOG_PARSER("%d: start try REP rep=%d mlen=%d\n", (int)(ip-base), (int)rep_1, (int)mlen);
             if (depth==0 || mlen > sufficient_len || mlen >= LZ5_OPT_NUM) {
-                ip+=cur; best_mlen = mlen; best_off = 0; cur = 0; last_pos = 1;
+                ip+=1; best_mlen = mlen; best_off = 0; cur = 0; last_pos = 1;
                 opt[0].rep = rep_1;
                 goto _storeSequence;
             }
@@ -508,14 +506,14 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
             do
             {
                 litlen = 0;
-                price = LZ5HC_get_price(llen + cur, 0, mlen - MINMATCH) - LZ5_LIT_COST(llen + cur);
-                if (mlen + cur > last_pos || price < opt[mlen + cur].price)
-                    SET_PRICE(mlen + cur, mlen, 0, litlen, price);
+                price = LZ5HC_get_price(llen + 1, 0, mlen - MINMATCH) - LZ5_LIT_COST(llen + 1);
+                if (mlen + 1 > last_pos || price < opt[mlen + 1].price)
+                    SET_PRICE(mlen + 1, mlen, 0, litlen, price);
                 mlen--;
             }
             while (mlen >= MINMATCH);
         }
-#endif
+
 
        best_mlen = (last_pos) ? last_pos : MINMATCH;
         
@@ -564,10 +562,6 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
      //     ip += ((ip-anchor) >> g_searchStrength) + 1;   /* jump faster over incompressible sections */
             ip++; continue; 
         }
-
-  //      printf("%d: last_pos=%d\n", (int)(ip - base), (int)last_pos);
-
-
 
 
         // check further positions
@@ -640,7 +634,7 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
 
            LZ5_LOG_PARSER("%d: CURRENT price[%d/%d]=%d off=%d mlen=%d litlen=%d rep=%d rep2=%d\n", (int)(inr-base), cur, last_pos, opt[cur].price, opt[cur].off, opt[cur].mlen, opt[cur].litlen, opt[cur].rep, opt[cur].rep2); 
 
-#if 1
+
            // check rep
            // best_mlen = 0;
            mlen = ZSTD_count(inr, inr - opt[cur].rep2, iend);
@@ -694,7 +688,7 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
                 }
                 while (mlen >= MINMATCH);
             }
-#endif
+
 
             if (faster_get_matches && skip_num > 0)
             {
@@ -706,7 +700,6 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
             best_mlen = (best_mlen > MINMATCH) ? best_mlen : MINMATCH;      
 
             match_num = getAllMatches(ctx, inr, iend, maxSearches, mls, matches); 
-         //   match_num = LZ5HC_GetAllMatches(ctx, inr, ip, matchlimit, best_mlen, matches);
             LZ5_LOG_PARSER("%d: LZ5HC_GetAllMatches match_num=%d\n", (int)(inr-base), match_num);
 
 
@@ -727,14 +720,6 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
                 mlen = (i>0) ? matches[i-1].len+1 : best_mlen;
                 cur2 = cur - matches[i].back;
                 best_mlen = (cur2 + matches[i].len < LZ5_OPT_NUM) ? matches[i].len : LZ5_OPT_NUM - cur2;
-
-#if 0
-                if (mlen < MINMATCH)
-                {
-                    printf("i=%d match_num=%d matches[i-1].len=%d\n", i, match_num, matches[i-1].len);
-                    printf("%d: ERROR mlen=%d Found1 cur=%d cur2=%d mlen=%d off=%d best_mlen=%d last_pos=%d\n", (int)(inr-base), mlen, cur, cur2, matches[i].len, matches[i].off, best_mlen, last_pos), exit(0);
-                }
-#endif
 
                 LZ5_LOG_PARSER("%d: Found1 cur=%d cur2=%d mlen=%d off=%d best_mlen=%d last_pos=%d\n", (int)(inr-base), cur, cur2, matches[i].len, matches[i].off, best_mlen, last_pos);
 
@@ -932,7 +917,6 @@ _storeSequence: // cur, last_pos, best_mlen, best_off have to be set
         }
 
 
-#if 1
        // check immediate repcode
         while ( (anchor <= ilimit)
              && (MEM_read32(anchor) == MEM_read32(anchor - rep_2)) ) {
@@ -947,8 +931,6 @@ _storeSequence: // cur, last_pos, best_mlen, best_off have to be set
             ip = anchor;
             continue;   // faster when present ... (?)
         }    
-#endif
-
     }
 
     /* Last Literals */

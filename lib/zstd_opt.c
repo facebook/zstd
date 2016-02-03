@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <math.h> // log
 
 typedef struct
 {
@@ -17,7 +18,7 @@ typedef struct
    	int rep2;
 } ZSTD_optimal_t; 
 
-#if 1
+#if 0
     #define ZSTD_LOG_PARSER(fmt, args...) ;// printf(fmt, ##args)
     #define ZSTD_LOG_PRICE(fmt, args...) ;//printf(fmt, ##args)
     #define ZSTD_LOG_ENCODE(fmt, args...) ;//printf(fmt, ##args) 
@@ -35,21 +36,108 @@ typedef struct
 #define ZSTD_LIT_COST(len) 0 //(((len)<<3)+0)
 
 
+#if 0
 FORCE_INLINE size_t ZSTD_getLiteralPrice(seqStore_t* seqStorePtr, size_t litlen, const BYTE* literals)
 {
     size_t lit_cost = (litlen<<3)+1+0;
     return lit_cost;
 }
 
-
-FORCE_INLINE size_t ZSTD_getPrice(seqStore_t* seqStorePtr, size_t litlen, const BYTE* literals, size_t offset, size_t mlen)
+#else
+FORCE_INLINE size_t ZSTD_getLiteralPrice(seqStore_t* seqStorePtr, size_t litLength, const BYTE* literals)
 {
-    size_t lit_cost = (litlen<<3)+0;
-    size_t match_cost = /*MLbits +*/ ZSTD_highbit((U32)mlen+1) + Offbits + ZSTD_highbit((U32)offset+1);
+    size_t freq;
+    size_t price = 0;
+    double litBits, litLenBits;
+  //  printf("litSum=%d litLengthSum=%d matchLengthSum=%d offCodeSum=%d\n", seqStorePtr->litSum, seqStorePtr->litLengthSum, seqStorePtr->matchLengthSum, seqStorePtr->offCodeSum);
+
+    /* literals */
+    litBits = 0.0f;
+    if (litLength > 0) {
+        for (int i=litLength-1; i>=0; i--)
+            litBits += -log2((double)seqStorePtr->litFreq[literals[i]]/(double)seqStorePtr->litSum);
+        
+        /* literal Length */
+        if (litLength >= MaxLL) {
+            freq = seqStorePtr->litLengthFreq[MaxLL];
+            if (litLength<255 + MaxLL) {
+                price += 8;
+            } else {
+                price += 8;
+                if (litLength < (1<<15)) price += 16; else price += 24;
+        }   }
+        else freq = seqStorePtr->litLengthFreq[litLength];
+        litLenBits = -log2((double)freq/(double)seqStorePtr->litLengthSum);
+    }
+    else litLenBits = 0.0f;
+
+    freq = round(litBits + litLenBits + price);
+ //   printf("litLength=%d litBits=%.02f litLenBits=%.02f dumpsPrice=%d sum=%d\n", (int)litLength, litBits, litLenBits, (int)price, (int)freq);
+    return freq;
+}
+#endif
+
+
+FORCE_INLINE size_t ZSTD_getPrice(seqStore_t* seqStorePtr, size_t litLength, const BYTE* literals, size_t offset, size_t matchLength)
+{
+#if 1
+    size_t freq;
+    size_t price = 0;
+    double litBits, litLenBits, offCodeBits, matchBits;
+  //  printf("litSum=%d litLengthSum=%d matchLengthSum=%d offCodeSum=%d\n", seqStorePtr->litSum, seqStorePtr->litLengthSum, seqStorePtr->matchLengthSum, seqStorePtr->offCodeSum);
+
+    /* literals */
+    litBits = 0.0f;
+    if (litLength > 0) {
+        for (int i=litLength-1; i>=0; i--)
+            litBits += -log2((double)seqStorePtr->litFreq[literals[i]]/(double)seqStorePtr->litSum);
+        
+        /* literal Length */
+        if (litLength >= MaxLL) {
+            freq = seqStorePtr->litLengthFreq[MaxLL];
+            if (litLength<255 + MaxLL) {
+                price += 8;
+            } else {
+                price += 8;
+                if (litLength < (1<<15)) price += 16; else price += 24;
+        }   }
+        else freq = seqStorePtr->litLengthFreq[litLength];
+        litLenBits = -log2((double)freq/(double)seqStorePtr->litLengthSum);
+    }
+    else litLenBits = 0.0f;
+
+    /* match offset */
+    BYTE offCode = (BYTE)ZSTD_highbit(offset) + 1;
+    if (offset==0) 
+        offCodeBits = 0.0f;
+    else
+        offCodeBits = -log2((double)seqStorePtr->offCodeFreq[offCode]/(double)seqStorePtr->offCodeSum);
+
+    /* match Length */
+    if (matchLength >= MaxML) {
+        freq = seqStorePtr->matchLengthFreq[MaxML];
+        if (matchLength < 255+MaxML) {
+            price += 8;
+        } else {
+            price += 8;
+            if (matchLength < (1<<15)) price += 16; else price += 24;
+    }   }
+    else freq = seqStorePtr->matchLengthFreq[matchLength];
+    matchBits = -log2((double)freq/(double)seqStorePtr->matchLengthSum);
+
+    freq = round(litBits + litLenBits + offCodeBits + matchBits + price);
+  //  printf("litLength=%d litBits=%.02f litLenBits=%.02f offCodeBits=%.02f matchBits=%.02f dumpsPrice=%d sum=%d\n", (int)litLength, litBits, litLenBits, offCodeBits, matchBits, (int)price, (int)freq);
+    return freq;
+#else
+    size_t lit_cost = (litLength<<3)+0;
+    size_t match_cost = /*MLbits +*/ ZSTD_highbit((U32)matchLength+1) + Offbits + ZSTD_highbit((U32)offset+1);
     return lit_cost + match_cost;
+#endif
 }
 
-MEM_STATIC size_t ZSTD_updatePrice(seqStore_t* seqStorePtr, size_t litLength, const BYTE* literals, size_t offset, size_t matchLength)
+
+
+MEM_STATIC void ZSTD_updatePrice(seqStore_t* seqStorePtr, size_t litLength, const BYTE* literals, size_t offset, size_t matchLength)
 {
 #if 0
     static const BYTE* g_start = NULL;
@@ -58,10 +146,6 @@ MEM_STATIC size_t ZSTD_updatePrice(seqStore_t* seqStorePtr, size_t litLength, co
     printf("pos %6u : %3u literals & match %3u bytes at distance %6u \n",
            (U32)(literals - g_start), (U32)litLength, (U32)matchLength+4, (U32)offset);
 #endif
-    size_t price = 0;
-
-  //  printf("litSum=%d litLengthSum=%d matchLengthSum=%d offCodeSum=%d\n", seqStorePtr->litSum, seqStorePtr->litLengthSum, seqStorePtr->matchLengthSum, seqStorePtr->offCodeSum);
-
     /* literals */
     seqStorePtr->litSum += litLength;
     for (int i=litLength-1; i>=0; i--)
@@ -69,15 +153,10 @@ MEM_STATIC size_t ZSTD_updatePrice(seqStore_t* seqStorePtr, size_t litLength, co
     
     /* literal Length */
     seqStorePtr->litLengthSum++;
-    if (litLength >= MaxLL) {
+    if (litLength >= MaxLL)
         seqStorePtr->litLengthFreq[MaxLL]++;
-        if (litLength<255 + MaxLL) {
-            price += 8;
-        } else {
-            price += 8;
-            if (litLength < (1<<15)) price += 16; else price += 24;
-    }   }
-    else seqStorePtr->litLengthFreq[litLength]++;
+    else 
+        seqStorePtr->litLengthFreq[litLength]++;
 
     /* match offset */
     seqStorePtr->offCodeSum++;
@@ -87,17 +166,10 @@ MEM_STATIC size_t ZSTD_updatePrice(seqStore_t* seqStorePtr, size_t litLength, co
 
     /* match Length */
     seqStorePtr->matchLengthSum++;
-    if (matchLength >= MaxML) {
+    if (matchLength >= MaxML)
         seqStorePtr->matchLengthFreq[MaxML]++;
-        if (matchLength < 255+MaxML) {
-            price += 8;
-        } else {
-            price += 8;
-            if (matchLength < (1<<15)) price += 16; else price += 24;
-    }   }
-    else seqStorePtr->matchLengthFreq[matchLength]++;
-
-    return price;
+    else 
+        seqStorePtr->matchLengthFreq[matchLength]++;
 }
 
 
@@ -585,7 +657,8 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
 
      //   opt[0].rep = opt[1].rep = rep_1;
     //    opt[0].mlen = opt[1].mlen = 1;
-        opt[0].rep = opt[0].rep2 = rep_1;
+        opt[0].rep = rep_1;
+        opt[0].rep2 = rep_1;
         opt[0].mlen = 1;
       //  opt[0].price = ZSTD_getLiteralPrice(seqStorePtr, 1, ip);
  
@@ -936,7 +1009,7 @@ _storeSequence: // cur, last_pos, best_mlen, best_off have to be set
        //     printf("orig="); print_hex_text(ip, mlen, 0);
        //     printf("match="); print_hex_text(ip-offset, mlen, 0);
 
-#if 1
+#if 0
             size_t ml2;
             if (offset)
                 ml2 = ZSTD_count(ip, ip-offset, iend);

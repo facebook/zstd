@@ -764,11 +764,8 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
                     {
                         SET_PRICE(cur2 + mlen, mlen, matches[i].off, litlen, price);
 
-                      //    if (opt[cur2].litlen>0)
-                            opt[cur2 + mlen].rep = matches[i].off; // update reps
-                        //  else
-                      //      opt[cur2 + mlen].rep = opt[cur2].off;
-                      //  if (cur2 < cur_min) cur_min = cur2;
+                        opt[cur2 + mlen].rep = matches[i].off; // update reps
+                        opt[cur2 + mlen].rep2 = opt[cur2].rep;
                     }
 
                     mlen++;
@@ -878,8 +875,7 @@ _storeSequence: // cur, last_pos, best_mlen, best_off have to be set
                 printf("%d: ERROR rep_1=%d rep_2=%d cur_rep=%d\n", (int)(ip - base), (int)rep_1, (int)rep_2, cur_rep);
                 exit(0);
             }           
-
-  
+          
             if (offset)
             {
                 rep_2 = rep_1;
@@ -900,20 +896,17 @@ _storeSequence: // cur, last_pos, best_mlen, best_off have to be set
        //     printf("match="); print_hex_text(ip-offset, mlen, 0);
 
 #if 1
-/*            size_t ml2;
+            size_t ml2;
             if (offset)
                 ml2 = ZSTD_count(ip, ip-offset, iend);
             else
-//            if (litLength>0)
                 ml2 = ZSTD_count(ip, ip-rep_1, iend);
-  //          else
-    //            ml2 = ZSTD_count(ip, ip-rep_2, iend);
+
             if (ml2 < mlen && ml2 < MINMATCH)
             {
-                printf("%d: ERROR iend=%d mlen=%d offset=%d rep=%d ml2=%d\n", (int)(ip - base), (int)(iend - ip), (int)mlen, (int)offset, (int)rep_1, (int)ml2);
+                printf("%d: ERROR iend=%d mlen=%d offset=%d cur_rep=%d ml2=%d\n", (int)(ip - base), (int)(iend - ip), (int)mlen, (int)offset, (int)cur_rep, (int)ml2);
                 exit(0);
             }
-*/
 
             if (ip < anchor)
             {

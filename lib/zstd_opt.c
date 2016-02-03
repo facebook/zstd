@@ -32,32 +32,11 @@ typedef struct
 #define ZSTD_OPT_NUM   (1<<12)
 
 
-/*
-I assume that you are using 4 entropy-coder tables:
-litLength = FSE_decodeSymbol(&(seqState->stateLL), &(seqState->DStream));
-offsetCode = FSE_decodeSymbol(&(seqState->stateOffb), &(seqState->DStream));
-matchLength = FSE_decodeSymbol(&(seqState->stateML), &(seqState->DStream));
-HUF_decompress(dst, litSize, ip+5, litCSize)
-
-With the following max values:
-#define MLbits   7
-#define LLbits   6
-#define Offbits  5
-#define MaxML  ((1<<MLbits) - 1)
-#define MaxLL  ((1<<LLbits) - 1)
-#define MaxOff ((1<<Offbits)- 1)
-When value >= maxValue then use additional 1 byte (if value <
-maxValue+255) or 3 bytes (to encode value up to MaxValue+255+65535).
-
-For offsets only the numbers of bits == log2(offset) are
-entropy encoded and the offset is put into a binary stream.
-*/
-
 #define ZSTD_LIT_ONLY_COST(len)      (((len)<<3)+1+0)
 
 #define ZSTD_LIT_COST(len) (((len)<<3)+0)
 
-FORCE_INLINE size_t ZSTD_get_price(seqStore_t* seqStorePtr, size_t litlen, size_t offset, size_t mlen)
+FORCE_INLINE size_t ZSTD_get_price(seqStore_t* seqStorePtr, size_t litlen, const BYTE* literals, size_t offset, size_t mlen)
 {
     size_t lit_cost =  (litlen<<3)+0;
     size_t match_cost = /*MLbits +*/ ZSTD_highbit((U32)mlen+1) + Offbits + ZSTD_highbit((U32)offset+1);
@@ -576,7 +555,7 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
             do
             {
                 litlen = 0;
-                price = ZSTD_get_price(seqStorePtr, llen + 1, 0, mlen - MINMATCH) - ZSTD_LIT_COST(llen + 1);
+                price = ZSTD_get_price(seqStorePtr, llen + 1, anchor, 0, mlen - MINMATCH) - ZSTD_LIT_COST(llen + 1);
                 if (mlen + 1 > last_pos || price < opt[mlen + 1].price)
                     SET_PRICE(mlen + 1, mlen, 0, litlen, price);
                 mlen--;
@@ -621,7 +600,7 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
            while (mlen <= best_mlen)
            {
                 litlen = 0;
-                price = ZSTD_get_price(seqStorePtr, llen + litlen, matches[i].off, mlen - MINMATCH) - ZSTD_LIT_COST(llen);
+                price = ZSTD_get_price(seqStorePtr, llen + litlen, anchor, matches[i].off, mlen - MINMATCH) - ZSTD_LIT_COST(llen);
                 if (mlen > last_pos || price < opt[mlen].price)
                     SET_PRICE(mlen, mlen, matches[i].off, litlen, price);
                 mlen++;
@@ -728,20 +707,20 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
 
                     if (cur != litlen)
                     {
-                        price = opt[cur - litlen].price + ZSTD_get_price(seqStorePtr, litlen, 0, mlen - MINMATCH);
+                        price = opt[cur - litlen].price + ZSTD_get_price(seqStorePtr, litlen, inr-litlen, 0, mlen - MINMATCH);
                         ZSTD_LOG_TRY_PRICE("%d: TRY5 opt[%d].price=%d price=%d cur=%d litlen=%d\n", (int)(inr-base), cur - litlen, opt[cur - litlen].price, price, cur, litlen);
                     }
                     else
                     {
-                        price = ZSTD_get_price(seqStorePtr, llen + litlen, 0, mlen - MINMATCH) - ZSTD_LIT_COST(llen);
+                        price = ZSTD_get_price(seqStorePtr, llen + litlen, anchor, 0, mlen - MINMATCH) - ZSTD_LIT_COST(llen);
                         ZSTD_LOG_TRY_PRICE("%d: TRY6 price=%d cur=%d litlen=%d llen=%d\n", (int)(inr-base), price, cur, litlen, llen);
                     }
                 }
                 else
                 {
                     litlen = 0;
-                    price = opt[cur].price + ZSTD_get_price(seqStorePtr, litlen, 0, mlen - MINMATCH);
-                    ZSTD_LOG_TRY_PRICE("%d: TRY7 price=%d cur=%d litlen=%d getprice=%d\n", (int)(inr-base), price, cur, litlen, ZSTD_get_price(seqStorePtr, litlen, 0, mlen - MINMATCH));
+                    price = opt[cur].price + ZSTD_get_price(seqStorePtr, 0, NULL, 0, mlen - MINMATCH);
+                    ZSTD_LOG_TRY_PRICE("%d: TRY7 price=%d cur=%d litlen=0 getprice=%d\n", (int)(inr-base), price, cur, ZSTD_get_price(seqStorePtr, 0, NULL, 0, mlen - MINMATCH));
                 }
 
                 best_mlen = mlen;
@@ -800,14 +779,14 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
                         litlen = opt[cur2].litlen;
 
                         if (cur2 != litlen)
-                            price = opt[cur2 - litlen].price + ZSTD_get_price(seqStorePtr, litlen, matches[i].off, mlen - MINMATCH);
+                            price = opt[cur2 - litlen].price + ZSTD_get_price(seqStorePtr, litlen, ip+cur2-litlen, matches[i].off, mlen - MINMATCH);
                         else
-                            price = ZSTD_get_price(seqStorePtr, llen + litlen, matches[i].off, mlen - MINMATCH) - ZSTD_LIT_COST(llen);
+                            price = ZSTD_get_price(seqStorePtr, llen + litlen, anchor, matches[i].off, mlen - MINMATCH) - ZSTD_LIT_COST(llen);
                     }
                     else
                     {
                         litlen = 0;
-                        price = opt[cur2].price + ZSTD_get_price(seqStorePtr, litlen, matches[i].off, mlen - MINMATCH);
+                        price = opt[cur2].price + ZSTD_get_price(seqStorePtr, 0, NULL, matches[i].off, mlen - MINMATCH);
                     }
 
                     ZSTD_LOG_PARSER("%d: Found2 pred=%d mlen=%d best_mlen=%d off=%d price=%d litlen=%d price[%d]=%d\n", (int)(inr-base), matches[i].back, mlen, best_mlen, matches[i].off, price, litlen, cur - litlen, opt[cur - litlen].price);

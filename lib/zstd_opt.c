@@ -106,7 +106,11 @@ size_t ZSTD_insertBtAndGetAllMatches (
     U32 dummy32;   /* to be nullified at the end */
     size_t mnum = 0;
     
+#if 1
     bestLength = 0;
+#else
+    bestLength--;
+#endif
     hashTable[h] = current;   /* Update Hash Table */
 
     while (nbCompares-- && (matchIndex > windowLow)) {
@@ -125,15 +129,12 @@ size_t ZSTD_insertBtAndGetAllMatches (
                 match = base + matchIndex;   /* to prepare for next usage of match[matchLength] */
         }
 
+#if 1
         if (matchLength > bestLength) {
             if (matchLength > matchEndIdx - matchIndex)
                 matchEndIdx = matchIndex + (U32)matchLength;
-#if 0
-            if (mnum ==  0 || (4*(int)(matchLength-bestLength)) > (int)(ZSTD_highbit(current-matchIndex+1) - ZSTD_highbit((U32)matches[mnum-1].off+1)) )
-#endif
             {
-                if (matchLength >= MINMATCH)
-                {
+                if (matchLength >= MINMATCH) {
                     bestLength = matchLength; 
                     matches[mnum].off = current - matchIndex;
                     matches[mnum].len = matchLength;
@@ -145,6 +146,24 @@ size_t ZSTD_insertBtAndGetAllMatches (
             if (ip+matchLength == iend)   /* equal : no way to know if inf or sup */
                 break;   /* drop, to guarantee consistency (miss a little bit of compression) */
         }
+#else
+        if (matchLength > matchEndIdx - matchIndex)
+            matchEndIdx = matchIndex + (U32)matchLength;
+
+        if (matchLength > bestLength) {
+            bestLength = matchLength; 
+            matches[mnum].off = current - matchIndex;
+            matches[mnum].len = matchLength;
+            matches[mnum].back = 0;
+            mnum++;
+
+            if (matchLength > LZ5_OPT_NUM) break;
+        }
+
+        if (ip+matchLength == iend)   /* equal : no way to know if inf or sup */
+            break;   /* drop, to guarantee consistency (miss a little bit of compression) */
+#endif
+
 
         if (match[matchLength] < ip[matchLength]) {
             /* match is smaller than current */
@@ -742,8 +761,8 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
 
                     LZ5_LOG_PARSER("%d: Found2 pred=%d mlen=%d best_mlen=%d off=%d price=%d litlen=%d price[%d]=%d\n", (int)(inr-base), matches[i].back, mlen, best_mlen, matches[i].off, price, litlen, cur - litlen, opt[cur - litlen].price);
                     LZ5_LOG_TRY_PRICE("%d: TRY8 price=%d opt[%d].price=%d\n", (int)(inr-base), price, cur2 + mlen, opt[cur2 + mlen].price);
-                    if (cur2 + mlen > last_pos || ((matches[i].off != opt[cur2 + mlen].off) && (price < opt[cur2 + mlen].price)))
-     //               if (cur2 + mlen > last_pos || (price < opt[cur2 + mlen].price))
+
+                    if (cur2 + mlen > last_pos || (price < opt[cur2 + mlen].price))
                     {
                         SET_PRICE(cur2 + mlen, mlen, matches[i].off, litlen, price);
 

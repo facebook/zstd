@@ -193,42 +193,30 @@ static U64 FIO_getFileSize(const char* infilename)
 static int FIO_getFiles(FILE** fileOutPtr, FILE** fileInPtr,
                         const char* dstFileName, const char* srcFileName)
 {
-    if (!strcmp (srcFileName, stdinmark))
-    {
+    if (!strcmp (srcFileName, stdinmark)) {
         DISPLAYLEVEL(4,"Using stdin for input\n");
         *fileInPtr = stdin;
         SET_BINARY_MODE(stdin);
-    }
-    else
-    {
+    } else {
         *fileInPtr = fopen(srcFileName, "rb");
     }
 
-    if ( *fileInPtr==0 )
-    {
+    if ( *fileInPtr==0 ) {
         DISPLAYLEVEL(1, "Unable to access file for processing: %s\n", srcFileName);
         return 1;
     }
 
-    if (!strcmp (dstFileName, stdoutmark))
-    {
+    if (!strcmp (dstFileName, stdoutmark)) {
         DISPLAYLEVEL(4,"Using stdout for output\n");
         *fileOutPtr = stdout;
         SET_BINARY_MODE(stdout);
-    }
-    else
-    {
-        /* Check if destination file already exists */
-        if (!g_overwrite)
-        {
+    } else {
+        if (!g_overwrite) {  /* Check if destination file already exists */
             *fileOutPtr = fopen( dstFileName, "rb" );
-            if (*fileOutPtr != 0)
-            {
-                /* prompt for overwrite authorization */
+            if (*fileOutPtr != 0) {  /* dest file exists, prompt for overwrite authorization */
                 fclose(*fileOutPtr);
                 DISPLAY("Warning : %s already exists \n", dstFileName);
-                if ((g_displayLevel <= 1) || (*fileInPtr == stdin))
-                {
+                if ((g_displayLevel <= 1) || (*fileInPtr == stdin)) {
                     /* No interaction possible */
                     DISPLAY("Operation aborted : %s already exists \n", dstFileName);
                     return 1;
@@ -236,15 +224,12 @@ static int FIO_getFiles(FILE** fileOutPtr, FILE** fileInPtr,
                 DISPLAY("Overwrite ? (y/N) : ");
                 {
                     int ch = getchar();
-                    if ((ch!='Y') && (ch!='y'))
-                    {
+                    if ((ch!='Y') && (ch!='y')) {
                         DISPLAY("No. Operation aborted : %s already exists \n", dstFileName);
                         return 1;
                     }
                     while ((ch!=EOF) && (ch!='\n')) ch = getchar();  /* flush rest of input line */
-                }
-            }
-        }
+        }   }   }
         *fileOutPtr = fopen( dstFileName, "wb" );
     }
 
@@ -265,15 +250,13 @@ static size_t FIO_loadFile(void** bufferPtr, const char* fileName)
     U64 fileSize;
 
     *bufferPtr = NULL;
-    if (fileName == NULL)
-        return 0;
+    if (fileName == NULL) return 0;
 
     DISPLAYLEVEL(4,"Loading %s as dictionary \n", fileName);
     fileHandle = fopen(fileName, "rb");
     if (fileHandle==0) EXM_THROW(31, "Error opening file %s", fileName);
     fileSize = FIO_getFileSize(fileName);
-    if (fileSize > MAX_DICT_SIZE)
-    {
+    if (fileSize > MAX_DICT_SIZE) {
         int seekResult;
         if (fileSize > 1 GB) EXM_THROW(32, "Dictionary file %s is too large", fileName);   /* avoid extreme cases */
         DISPLAYLEVEL(2,"Dictionary %s is too large : using last %u bytes only \n", fileName, MAX_DICT_SIZE);
@@ -355,19 +338,14 @@ static int FIO_compressFilename_extRess(cRess_t ress,
 
     /* init */
     filesize = FIO_getFileSize(srcFileName) + dictSize;
-    errorCode = ZBUFF_compressInit_advanced(ress.ctx, ZSTD_getParams(cLevel, filesize));
-    if (ZBUFF_isError(errorCode)) EXM_THROW(21, "Error initializing compression");
-    errorCode = ZBUFF_compressWithDictionary(ress.ctx, ress.dictBuffer, ress.dictBufferSize);
-    if (ZBUFF_isError(errorCode)) EXM_THROW(22, "Error initializing dictionary");
+    errorCode = ZBUFF_compressInit_advanced(ress.ctx, ress.dictBuffer, ress.dictBufferSize, ZSTD_getParams(cLevel, filesize));
+    if (ZBUFF_isError(errorCode)) EXM_THROW(21, "Error initializing compression : %s", ZBUFF_getErrorName(errorCode));
 
     /* Main compression loop */
     filesize = 0;
-    while (1)
-    {
-        size_t inSize;
-
+    while (1) {
         /* Fill input Buffer */
-        inSize = fread(ress.srcBuffer, (size_t)1, ress.srcBufferSize, srcFile);
+        size_t inSize = fread(ress.srcBuffer, (size_t)1, ress.srcBufferSize, srcFile);
         if (inSize==0) break;
         filesize += inSize;
         DISPLAYUPDATE(2, "\rRead : %u MB  ", (U32)(filesize>>20));
@@ -460,8 +438,7 @@ int FIO_compressMultipleFilenames(const char** inFileNamesTable, unsigned nbFile
     ress = FIO_createCResources(dictFileName);
 
     /* loop on each file */
-    for (u=0; u<nbFiles; u++)
-    {
+    for (u=0; u<nbFiles; u++) {
         size_t ifnSize = strlen(inFileNamesTable[u]);
         if (dfnSize <= ifnSize+suffixSize+1) { free(dstFileName); dfnSize = ifnSize + 20; dstFileName = (char*)malloc(dfnSize); }
         strcpy(dstFileName, inFileNamesTable[u]);
@@ -529,10 +506,8 @@ unsigned long long FIO_decompressFrame(dRess_t ress,
     size_t readSize=alreadyLoaded;
 
     /* Main decompression Loop */
-    ZBUFF_decompressInit(ress.dctx);
-    ZBUFF_decompressWithDictionary(ress.dctx, ress.dictBuffer, ress.dictBufferSize);
-    while (1)
-    {
+    ZBUFF_decompressInitDictionary(ress.dctx, ress.dictBuffer, ress.dictBufferSize);
+    while (1) {
         /* Decode */
         size_t sizeCheck;
         size_t inSize=readSize, decodedSize=ress.dstBufferSize;
@@ -570,8 +545,7 @@ static int FIO_decompressFile_extRess(dRess_t ress,
     if (FIO_getFiles(&dstFile, &srcFile, dstFileName, srcFileName)) return 1;
 
     /* for each frame */
-    for ( ; ; )
-    {
+    for ( ; ; ) {
         size_t sizeCheck;
         /* check magic number -> version */
         size_t toRead = 4;
@@ -579,8 +553,7 @@ static int FIO_decompressFile_extRess(dRess_t ress,
         if (sizeCheck==0) break;   /* no more input */
         if (sizeCheck != toRead) EXM_THROW(31, "Read error : cannot read header");
 #if defined(ZSTD_LEGACY_SUPPORT) && (ZSTD_LEGACY_SUPPORT==1)
-        if (ZSTD_isLegacy(MEM_readLE32(ress.srcBuffer)))
-        {
+        if (ZSTD_isLegacy(MEM_readLE32(ress.srcBuffer))) {
             filesize += FIO_decompressLegacyFrame(dstFile, srcFile, MEM_readLE32(ress.srcBuffer));
             continue;
         }
@@ -630,14 +603,12 @@ int FIO_decompressMultipleFilenames(const char** srcNamesTable, unsigned nbFiles
 	if (dstFileName==NULL) EXM_THROW(70, "not enough memory for dstFileName");
     ress = FIO_createDResources(dictFileName);
 
-    for (u=0; u<nbFiles; u++)
-    {
+    for (u=0; u<nbFiles; u++) {
         const char* srcFileName = srcNamesTable[u];
         size_t sfnSize = strlen(srcFileName);
         const char* suffixPtr = srcFileName + sfnSize - suffixSize;
         if (dfnSize <= sfnSize-suffixSize+1) { free(dstFileName); dfnSize = sfnSize + 20; dstFileName = (char*)malloc(dfnSize); if (dstFileName==NULL) EXM_THROW(71, "not enough memory for dstFileName"); }
-        if (sfnSize <= suffixSize  ||  strcmp(suffixPtr, suffix) != 0)
-        {
+        if (sfnSize <= suffixSize  ||  strcmp(suffixPtr, suffix) != 0) {
             DISPLAYLEVEL(1, "File extension doesn't match expected extension (%4s); will not process file: %s\n", suffix, srcFileName);
             skippedFiles++;
             continue;

@@ -36,6 +36,7 @@
 
 PRGDIR  = programs
 ZSTDDIR = lib
+DICTDIR = dictBuilder
 
 # Define nul output
 ifneq (,$(filter Windows%,$(OS)))
@@ -51,6 +52,7 @@ default: zstdprogram
 all: 
 	$(MAKE) -C $(ZSTDDIR) $@
 	$(MAKE) -C $(PRGDIR) $@
+	$(MAKE) -C $(DICTDIR) $@
 
 zstdprogram:
 	$(MAKE) -C $(PRGDIR)
@@ -58,6 +60,7 @@ zstdprogram:
 clean:
 	@$(MAKE) -C $(ZSTDDIR) $@ > $(VOID)
 	@$(MAKE) -C $(PRGDIR) $@ > $(VOID)
+	@$(MAKE) -C $(DICTDIR) $@ > $(VOID)
 	@echo Cleaning completed
 
 
@@ -78,6 +81,7 @@ travis-install:
 
 test:
 	$(MAKE) -C $(PRGDIR) $@
+	$(MAKE) -C $(DICTDIR) $@
 
 cmaketest:
 	cd contrib/cmake ; cmake . ; $(MAKE)

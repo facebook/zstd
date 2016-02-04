@@ -39,14 +39,14 @@ extern "C" {
 
 
 /* ****************************************
-*  error list
+*  error codes list
 ******************************************/
-enum {
-  ZSTD_error_No_Error,
+typedef enum {
+  ZSTD_error_no_error,
   ZSTD_error_GENERIC,
   ZSTD_error_prefix_unknown,
   ZSTD_error_frameParameter_unsupported,
-  ZSTD_error_frameParameter_unsupportedBy32bitsImplementation,
+  ZSTD_error_frameParameter_unsupportedBy32bits,
   ZSTD_error_init_missing,
   ZSTD_error_memory_allocation,
   ZSTD_error_stage_wrong,
@@ -56,8 +56,9 @@ enum {
   ZSTD_error_tableLog_tooLarge,
   ZSTD_error_maxSymbolValue_tooLarge,
   ZSTD_error_maxSymbolValue_tooSmall,
+  ZSTD_error_dictionary_corrupted,
   ZSTD_error_maxCode
-};
+} ZSTD_errorCode;
 
 /* note : functions provide error codes in reverse negative order,
           so compare with (size_t)(0-enum) */

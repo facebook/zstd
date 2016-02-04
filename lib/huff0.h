@@ -1,7 +1,7 @@
 /* ******************************************************************
    Huff0 : Huffman coder, part of New Generation Entropy library
    header file
-   Copyright (C) 2013-2015, Yann Collet.
+   Copyright (C) 2013-2016, Yann Collet.
 
    BSD 2-Clause License (http://www.opensource.org/licenses/bsd-license.php)
 
@@ -30,7 +30,6 @@
 
    You can contact the author at :
    - Source repository : https://github.com/Cyan4973/FiniteStateEntropy
-   - Public forum : https://groups.google.com/forum/#!forum/lz4c
 ****************************************************************** */
 #ifndef HUFF0_H
 #define HUFF0_H
@@ -66,8 +65,10 @@ HUF_compress():
 HUF_decompress():
     Decompress Huff0 data from buffer 'cSrc', of size 'cSrcSize',
     into already allocated destination buffer 'dst', of size 'dstSize'.
-    'dstSize' must be the exact size of original (uncompressed) data.
-    Note : in contrast with FSE, HUF_decompress can regenerate RLE (cSrcSize==1) and uncompressed (cSrcSize==dstSize) data, because it knows size to regenerate.
+    @dstSize : must be the **exact** size of original (uncompressed) data.
+    Note : in contrast with FSE, HUF_decompress can regenerate
+           RLE (cSrcSize==1) and uncompressed (cSrcSize==dstSize) data,
+           because it knows size to regenerate.
     @return : size of regenerated data (== dstSize)
               or an error code, which can be tested using HUF_isError()
 */

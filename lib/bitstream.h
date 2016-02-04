@@ -1,8 +1,8 @@
 /* ******************************************************************
    bitstream
-   Part of NewGen Entropy library
+   Part of FSE library
    header file (to include)
-   Copyright (C) 2013-2015, Yann Collet.
+   Copyright (C) 2013-2016, Yann Collet.
 
    BSD 2-Clause License (http://www.opensource.org/licenses/bsd-license.php)
 
@@ -31,7 +31,6 @@
 
    You can contact the author at :
    - Source repository : https://github.com/Cyan4973/FiniteStateEntropy
-   - Public forum : https://groups.google.com/forum/#!forum/lz4c
 ****************************************************************** */
 #ifndef BITSTREAM_H_MODULE
 #define BITSTREAM_H_MODULE
@@ -47,17 +46,17 @@ extern "C" {
 *  these functions are defined into a .h to be included.
 */
 
-/******************************************
-*  Includes
+/*-****************************************
+*  Dependencies
 ******************************************/
 #include "mem.h"            /* unaligned access routines */
 #include "error_private.h"  /* error codes and messages */
 
 
-/********************************************
-*  bitStream compression API (write forward)
+/*-******************************************
+*  bitStream encoding API (write forward)
 ********************************************/
-/*
+/*!
 * bitStream can mix input from multiple sources.
 * A critical property of these streams is that they encode and decode in **reverse** direction.
 * So the first bit sequence you add will be the last to be read, like a LIFO stack.
@@ -71,32 +70,32 @@ typedef struct
     char*  endPtr;
 } BIT_CStream_t;
 
-MEM_STATIC size_t BIT_initCStream(BIT_CStream_t* bitC, void* dstBuffer, size_t maxDstSize);
+MEM_STATIC size_t BIT_initCStream(BIT_CStream_t* bitC, void* dstBuffer, size_t dstCapacity);
 MEM_STATIC void   BIT_addBits(BIT_CStream_t* bitC, size_t value, unsigned nbBits);
 MEM_STATIC void   BIT_flushBits(BIT_CStream_t* bitC);
 MEM_STATIC size_t BIT_closeCStream(BIT_CStream_t* bitC);
 
-/*
-* Start by initCStream, providing the maximum size of write buffer to write into.
+/*!
+* Start by initCStream, providing the size of buffer to write into.
 * bitStream will never write outside of this buffer.
-* buffer must be at least as large as a size_t, otherwise function result will be an error code.
+* @dstCapacity must be >= sizeof(size_t), otherwise @return will be an error code.
 *
 * bits are first added to a local register.
 * Local register is size_t, hence 64-bits on 64-bits systems, or 32-bits on 32-bits systems.
-* Writing data into memory is a manual operation, performed by the flushBits function.
+* Writing data into memory is an explicit operation, performed by the flushBits function.
 * Hence keep track how many bits are potentially stored into local register to avoid register overflow.
 * After a flushBits, a maximum of 7 bits might still be stored into local register.
 *
-* Avoid storing elements of more than 25 bits if you want compatibility with 32-bits bitstream readers.
+* Avoid storing elements of more than 24 bits if you want compatibility with 32-bits bitstream readers.
 *
 * Last operation is to close the bitStream.
 * The function returns the final size of CStream in bytes.
-* If data couldn't fit into dstBuffer, it will return a 0 ( == not storable)
+* If data couldn't fit into @dstBuffer, it will return a 0 ( == not storable)
 */
 
 
-/**********************************************
-*  bitStream decompression API (read backward)
+/*-********************************************
+*  bitStream decoding API (read backward)
 **********************************************/
 typedef struct
 {
@@ -118,19 +117,19 @@ MEM_STATIC BIT_DStream_status BIT_reloadDStream(BIT_DStream_t* bitD);
 MEM_STATIC unsigned BIT_endOfDStream(const BIT_DStream_t* bitD);
 
 
-/*
+/*!
 * Start by invoking BIT_initDStream().
 * A chunk of the bitStream is then stored into a local register.
 * Local register size is 64-bits on 64-bits systems, 32-bits on 32-bits systems (size_t).
 * You can then retrieve bitFields stored into the local register, **in reverse order**.
-* Local register is manually filled from memory by the BIT_reloadDStream() method.
+* Local register is explicitly reloaded from memory by the BIT_reloadDStream() method.
 * A reload guarantee a minimum of ((8*sizeof(size_t))-7) bits when its result is BIT_DStream_unfinished.
 * Otherwise, it can be less than that, so proceed accordingly.
 * Checking if DStream has reached its end can be performed with BIT_endOfDStream()
 */
 
 
-/******************************************
+/*-****************************************
 *  unsafe API
 ******************************************/
 MEM_STATIC void BIT_addBitsFast(BIT_CStream_t* bitC, size_t value, unsigned nbBits);
@@ -144,7 +143,7 @@ MEM_STATIC size_t BIT_readBitsFast(BIT_DStream_t* bitD, unsigned nbBits);
 
 
 
-/****************************************************************
+/*-**************************************************************
 *  Helper functions
 ****************************************************************/
 MEM_STATIC unsigned BIT_highbit32 (register U32 val)
@@ -170,10 +169,9 @@ MEM_STATIC unsigned BIT_highbit32 (register U32 val)
 }
 
 
-/****************************************************************
+/*-**************************************************************
 *  bitStream encoding
 ****************************************************************/
-
 MEM_STATIC size_t BIT_initCStream(BIT_CStream_t* bitC, void* startPtr, size_t maxSize)
 {
     bitC->bitContainer = 0;
@@ -240,10 +238,9 @@ MEM_STATIC size_t BIT_closeCStream(BIT_CStream_t* bitC)
 }
 
 
-/**********************************************************
+/*-********************************************************
 * bitStream decoding
 **********************************************************/
-
 /*!BIT_initDStream
 *  Initialize a BIT_DStream_t.
 *  @bitD : a pointer to an already allocated BIT_DStream_t structure
@@ -255,8 +252,7 @@ MEM_STATIC size_t BIT_initDStream(BIT_DStream_t* bitD, const void* srcBuffer, si
 {
     if (srcSize < 1) { memset(bitD, 0, sizeof(*bitD)); return ERROR(srcSize_wrong); }
 
-    if (srcSize >=  sizeof(size_t))   /* normal case */
-    {
+    if (srcSize >=  sizeof(size_t)) {  /* normal case */
         U32 contain32;
         bitD->start = (const char*)srcBuffer;
         bitD->ptr   = (const char*)srcBuffer + srcSize - sizeof(size_t);
@@ -264,9 +260,7 @@ MEM_STATIC size_t BIT_initDStream(BIT_DStream_t* bitD, const void* srcBuffer, si
         contain32 = ((const BYTE*)srcBuffer)[srcSize-1];
         if (contain32 == 0) return ERROR(GENERIC);   /* endMark not present */
         bitD->bitsConsumed = 8 - BIT_highbit32(contain32);
-    }
-    else
-    {
+    } else {
         U32 contain32;
         bitD->start = (const char*)srcBuffer;
         bitD->ptr   = bitD->start;
@@ -342,23 +336,20 @@ MEM_STATIC BIT_DStream_status BIT_reloadDStream(BIT_DStream_t* bitD)
 	if (bitD->bitsConsumed > (sizeof(bitD->bitContainer)*8))  /* should never happen */
 		return BIT_DStream_overflow;
 
-    if (bitD->ptr >= bitD->start + sizeof(bitD->bitContainer))
-    {
+    if (bitD->ptr >= bitD->start + sizeof(bitD->bitContainer)) {
         bitD->ptr -= bitD->bitsConsumed >> 3;
         bitD->bitsConsumed &= 7;
         bitD->bitContainer = MEM_readLEST(bitD->ptr);
         return BIT_DStream_unfinished;
     }
-    if (bitD->ptr == bitD->start)
-    {
+    if (bitD->ptr == bitD->start) {
         if (bitD->bitsConsumed < sizeof(bitD->bitContainer)*8) return BIT_DStream_endOfBuffer;
         return BIT_DStream_completed;
     }
     {
         U32 nbBytes = bitD->bitsConsumed >> 3;
         BIT_DStream_status result = BIT_DStream_unfinished;
-        if (bitD->ptr - nbBytes < bitD->start)
-        {
+        if (bitD->ptr - nbBytes < bitD->start) {
             nbBytes = (U32)(bitD->ptr - bitD->start);  /* ptr > start */
             result = BIT_DStream_endOfBuffer;
         }

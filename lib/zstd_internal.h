@@ -42,6 +42,7 @@ extern "C" {
 ***************************************/
 #include "mem.h"
 #include "error_private.h"
+#include "zstd_static.h"
 
 
 /* *************************************
@@ -54,7 +55,8 @@ extern "C" {
 /* *************************************
 *  Common constants
 ***************************************/
-#define ZSTD_MAGICNUMBER 0xFD2FB524   /* v0.4 */
+#define ZSTD_MAGICNUMBER 0xFD2FB525   /* v0.5 */
+#define ZSTD_DICT_MAGIC  0xEC30A435
 
 #define KB *(1 <<10)
 #define MB *(1 <<20)
@@ -73,11 +75,13 @@ static const size_t ZSTD_frameHeaderSize_min = 5;
 #define BIT1   2
 #define BIT0   1
 
-#define IS_RAW BIT0
-#define IS_RLE BIT1
+#define IS_HUF 0
+#define IS_PCH 1
+#define IS_RAW 2
+#define IS_RLE 3
 
 #define MINMATCH 4
-#define REPCODE_STARTVALUE 4
+#define REPCODE_STARTVALUE 1
 
 #define MLbits   7
 #define LLbits   6
@@ -90,21 +94,31 @@ static const size_t ZSTD_frameHeaderSize_min = 5;
 #define OffFSELog   9
 #define MaxSeq MAX(MaxLL, MaxML)
 
-#define MIN_SEQUENCES_SIZE (2 /*seqNb*/ + 2 /*dumps*/ + 3 /*seqTables*/ + 1 /*bitStream*/)
-#define MIN_CBLOCK_SIZE (3 /*litCSize*/ + MIN_SEQUENCES_SIZE)
+#define FSE_ENCODING_RAW     0
+#define FSE_ENCODING_RLE     1
+#define FSE_ENCODING_STATIC  2
+#define FSE_ENCODING_DYNAMIC 3
+
+
+#define HufLog 12
+
+#define MIN_SEQUENCES_SIZE 1 /* nbSeq==0 */
+#define MIN_CBLOCK_SIZE (1 /*litCSize*/ + 1 /* RLE or RAW */ + MIN_SEQUENCES_SIZE /* nbSeq==0 */)   /* for a non-null block */
+
+#define WILDCOPY_OVERLENGTH 8
 
 typedef enum { bt_compressed, bt_raw, bt_rle, bt_end } blockType_t;
 
 
-/* ******************************************
+/*-*******************************************
 *  Shared functions to include for inlining
-********************************************/
+*********************************************/
 static void ZSTD_copy8(void* dst, const void* src) { memcpy(dst, src, 8); }
 
 #define COPY8(d,s) { ZSTD_copy8(d,s); d+=8; s+=8; }
 
-/*! ZSTD_wildcopy : custom version of memcpy(), can copy up to 7-8 bytes too many */
-static void ZSTD_wildcopy(void* dst, const void* src, size_t length)
+/*! ZSTD_wildcopy : custom version of memcpy(), can copy up to 7 bytes too many (8 bytes if length==0) */
+MEM_STATIC void ZSTD_wildcopy(void* dst, const void* src, size_t length)
 {
     const BYTE* ip = (const BYTE*)src;
     BYTE* op = (BYTE*)dst;

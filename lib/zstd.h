@@ -61,8 +61,8 @@ extern "C" {
 *  Version
 ***************************************/
 #define ZSTD_VERSION_MAJOR    0    /* for breaking interface changes  */
-#define ZSTD_VERSION_MINOR    4    /* for new (non-breaking) interface capabilities */
-#define ZSTD_VERSION_RELEASE  7    /* for tweaks, bug-fixes, or development */
+#define ZSTD_VERSION_MINOR    5    /* for new (non-breaking) interface capabilities */
+#define ZSTD_VERSION_RELEASE  0    /* for tweaks, bug-fixes, or development */
 #define ZSTD_VERSION_NUMBER  (ZSTD_VERSION_MAJOR *100*100 + ZSTD_VERSION_MINOR *100 + ZSTD_VERSION_RELEASE)
 ZSTDLIB_API unsigned ZSTD_versionNumber (void);
 
@@ -70,27 +70,26 @@ ZSTDLIB_API unsigned ZSTD_versionNumber (void);
 /* *************************************
 *  Simple functions
 ***************************************/
-ZSTDLIB_API size_t ZSTD_compress(   void* dst, size_t maxDstSize,
+ZSTDLIB_API size_t ZSTD_compress(   void* dst, size_t dstCapacity,
                               const void* src, size_t srcSize,
                                      int  compressionLevel);
 
-ZSTDLIB_API size_t ZSTD_decompress( void* dst, size_t maxOriginalSize,
+ZSTDLIB_API size_t ZSTD_decompress( void* dst, size_t dstCapacity,
                               const void* src, size_t compressedSize);
 
 /**
 ZSTD_compress() :
-    Compresses 'srcSize' bytes from buffer 'src' into buffer 'dst', of maximum size 'dstSize'.
+    Compresses @srcSize bytes from buffer @src into buffer @dst of size @dstCapacity.
     Destination buffer must be already allocated.
-    Compression runs faster if maxDstSize >=  ZSTD_compressBound(srcSize).
-    return : the number of bytes written into buffer 'dst'
-             or an error code if it fails (which can be tested using ZSTD_isError())
+    Compression runs faster if @dstCapacity >=  ZSTD_compressBound(srcSize).
+    @return : the number of bytes written into @dst
+              or an error code if it fails (which can be tested using ZSTD_isError())
 
 ZSTD_decompress() :
-    compressedSize : is the exact source size
-    maxOriginalSize : is the size of the 'dst' buffer, which must be already allocated.
-                      It must be equal or larger than originalSize, otherwise decompression will fail.
-    return : the number of bytes decompressed into destination buffer (<= maxOriginalSize)
-             or an errorCode if it fails (which can be tested using ZSTD_isError())
+    @compressedSize : is the _exact_ size of the compressed blob (or decompression will fail)
+    @dst must be large enough, equal or larger than originalSize.
+    @return : the number of bytes decompressed into @dst (<= @dstCapacity)
+              or an errorCode if it fails (which can be tested using ZSTD_isError())
 */
 
 
@@ -105,7 +104,7 @@ ZSTDLIB_API const char* ZSTD_getErrorName(size_t code);    /** provides error co
 
 
 /* *************************************
-*  Advanced functions
+*  Explicit memory management
 ***************************************/
 /** Compression context management */
 typedef struct ZSTD_CCtx_s ZSTD_CCtx;   /* incomplete type */
@@ -114,7 +113,7 @@ ZSTDLIB_API size_t     ZSTD_freeCCtx(ZSTD_CCtx* cctx);
 
 /** ZSTD_compressCCtx() :
     Same as ZSTD_compress(), but requires an already allocated ZSTD_CCtx (see ZSTD_createCCtx()) */
-ZSTDLIB_API size_t ZSTD_compressCCtx(ZSTD_CCtx* ctx, void* dst, size_t maxDstSize, const void* src, size_t srcSize, int compressionLevel);
+ZSTDLIB_API size_t ZSTD_compressCCtx(ZSTD_CCtx* ctx, void* dst, size_t dstCapacity, const void* src, size_t srcSize, int compressionLevel);
 
 /** Decompression context management */
 typedef struct ZSTD_DCtx_s ZSTD_DCtx;
@@ -123,7 +122,30 @@ ZSTDLIB_API size_t     ZSTD_freeDCtx(ZSTD_DCtx* dctx);
 
 /** ZSTD_decompressDCtx
 *   Same as ZSTD_decompress(), but requires an already allocated ZSTD_DCtx (see ZSTD_createDCtx()) */
-ZSTDLIB_API size_t ZSTD_decompressDCtx(ZSTD_DCtx* ctx, void* dst, size_t maxDstSize, const void* src, size_t srcSize);
+ZSTDLIB_API size_t ZSTD_decompressDCtx(ZSTD_DCtx* ctx, void* dst, size_t dstCapacity, const void* src, size_t srcSize);
+
+
+/*-***********************
+*  Dictionary API
+*************************/
+
+/*! ZSTD_compress_usingDict
+*   Compression using a pre-defined Dictionary content (see dictBuilder)
+*   Note : dict can be NULL, in which case, it's equivalent to ZSTD_compressCCtx() */
+ZSTDLIB_API size_t ZSTD_compress_usingDict(ZSTD_CCtx* ctx,
+                                           void* dst, size_t dstCapacity,
+                                     const void* src, size_t srcSize,
+                                     const void* dict,size_t dictSize,
+                                           int compressionLevel);
+
+/*! ZSTD_decompress_usingDict
+*   Decompression using a pre-defined Dictionary content (see dictBuilder)
+*   Dictionary must be identical to the one used during compression, otherwise regenerated data will be corrupted
+*   Note : dict can be NULL, in which case, it's equivalent to ZSTD_decompressDCtx() */
+ZSTDLIB_API size_t ZSTD_decompress_usingDict(ZSTD_DCtx* dctx,
+                                             void* dst, size_t dstCapacity,
+                                       const void* src, size_t srcSize,
+                                       const void* dict,size_t dictSize);
 
 
 #if defined (__cplusplus)

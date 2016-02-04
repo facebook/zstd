@@ -40,14 +40,14 @@ extern "C" {
 #endif
 
 
-/* *****************************************
-*  Includes
+/* ****************************************
+*  Dependencies
 ******************************************/
-#include <stddef.h>        /* size_t, ptrdiff_t */
+#include <stddef.h>        /* size_t */
 #include "error_public.h"  /* enum list */
 
 
-/* *****************************************
+/* ****************************************
 *  Compiler-specific
 ******************************************/
 #if defined(__GNUC__)
@@ -61,43 +61,52 @@ extern "C" {
 #endif
 
 
-/* *****************************************
-*  Error Codes
+/*-****************************************
+*  Customization
 ******************************************/
+typedef ZSTD_errorCode ERR_enum;
 #define PREFIX(name) ZSTD_error_##name
 
+
+/*-****************************************
+*  Error codes handling
+******************************************/
 #ifdef ERROR
-#  undef ERROR   /* reported already defined on VS 2015 by Rich Geldreich */
+#  undef ERROR   /* reported already defined on VS 2015 (Rich Geldreich) */
 #endif
 #define ERROR(name) (size_t)-PREFIX(name)
 
 ERR_STATIC unsigned ERR_isError(size_t code) { return (code > ERROR(maxCode)); }
 
+ERR_STATIC ERR_enum ERR_getError(size_t code) { if (!ERR_isError(code)) return (ERR_enum)0; return (ERR_enum) (0-code); }
 
-/* *****************************************
+
+/*-****************************************
 *  Error Strings
 ******************************************/
 
 ERR_STATIC const char* ERR_getErrorName(size_t code)
 {
-    static const char* codeError = "Unspecified error code";
-    switch( (size_t)(0-code) )
+    static const char* notErrorCode = "Unspecified error code";
+    switch( ERR_getError(code) )
     {
-    case ZSTD_error_No_Error: return "No error detected";
-    case ZSTD_error_GENERIC:  return "Error (generic)";
-    case ZSTD_error_prefix_unknown: return "Unknown frame descriptor";
-    case ZSTD_error_frameParameter_unsupported: return "Unsupported frame parameter";
-    case ZSTD_error_frameParameter_unsupportedBy32bitsImplementation: return "Frame parameter unsupported in 32-bits mode";
-    case ZSTD_error_init_missing: return "Context should be init first";
-    case ZSTD_error_memory_allocation: return "Allocation error : not enough memory";
-    case ZSTD_error_dstSize_tooSmall: return "Destination buffer is too small";
-    case ZSTD_error_srcSize_wrong: return "Src size incorrect";
-    case ZSTD_error_corruption_detected: return "Corrupted block detected";
-    case ZSTD_error_tableLog_tooLarge: return "tableLog requires too much memory";
-    case ZSTD_error_maxSymbolValue_tooLarge: return "Unsupported max possible Symbol Value : too large";
-    case ZSTD_error_maxSymbolValue_tooSmall: return "Specified maxSymbolValue is too small";
-    case ZSTD_error_maxCode:
-    default: return codeError;
+    case PREFIX(no_error): return "No error detected";
+    case PREFIX(GENERIC):  return "Error (generic)";
+    case PREFIX(prefix_unknown): return "Unknown frame descriptor";
+    case PREFIX(frameParameter_unsupported): return "Unsupported frame parameter";
+    case PREFIX(frameParameter_unsupportedBy32bits): return "Frame parameter unsupported in 32-bits mode";
+    case PREFIX(init_missing): return "Context should be init first";
+    case PREFIX(memory_allocation): return "Allocation error : not enough memory";
+    case PREFIX(stage_wrong): return "Operation not authorized at current processing stage";
+    case PREFIX(dstSize_tooSmall): return "Destination buffer is too small";
+    case PREFIX(srcSize_wrong): return "Src size incorrect";
+    case PREFIX(corruption_detected): return "Corrupted block detected";
+    case PREFIX(tableLog_tooLarge): return "tableLog requires too much memory";
+    case PREFIX(maxSymbolValue_tooLarge): return "Unsupported max possible Symbol Value : too large";
+    case PREFIX(maxSymbolValue_tooSmall): return "Specified maxSymbolValue is too small";
+    case PREFIX(dictionary_corrupted): return "Dictionary is corrupted";
+    case PREFIX(maxCode):
+    default: return notErrorCode;   /* should be impossible, due to ERR_getError() */
     }
 }
 

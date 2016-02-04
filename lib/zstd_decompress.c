@@ -51,11 +51,11 @@
 
 
 /*-*******************************************************
-*  Includes
+*  Dependencies
 *********************************************************/
 #include <stdlib.h>      /* calloc */
 #include <string.h>      /* memcpy, memmove */
-#include <stdio.h>       /* debug : printf */
+#include <stdio.h>       /* debug only : printf */
 #include "mem.h"         /* low level memory routines */
 #include "zstd_internal.h"
 #include "fse_static.h"
@@ -105,15 +105,15 @@ static void ZSTD_copy4(void* dst, const void* src) { memcpy(dst, src, 4); }
 ***************************************/
 unsigned ZSTD_versionNumber (void) { return ZSTD_VERSION_NUMBER; }
 
-/*! ZSTD_isError
+/*! ZSTD_isError() :
 *   tells if a return value is an error code */
 unsigned ZSTD_isError(size_t code) { return ERR_isError(code); }
 
-/*! ZSTD_getError
+/*! ZSTD_getError() :
 *   convert a `size_t` function result into a proper ZSTD_errorCode enum */
 ZSTD_errorCode ZSTD_getError(size_t code) { return ERR_getError(code); }
 
-/*! ZSTD_getErrorName
+/*! ZSTD_getErrorName() :
 *   provides error code string (useful for debugging) */
 const char* ZSTD_getErrorName(size_t code) { return ERR_getErrorName(code); }
 
@@ -268,9 +268,9 @@ void ZSTD_copyDCtx(ZSTD_DCtx* dstDCtx, const ZSTD_DCtx* srcDCtx)
 */
 
 
-/** ZSTD_decodeFrameHeader_Part1
+/** ZSTD_decodeFrameHeader_Part1() :
 *   decode the 1st part of the Frame Header, which tells Frame Header size.
-*   srcSize must be == ZSTD_frameHeaderSize_min
+*   srcSize must be == ZSTD_frameHeaderSize_min.
 *   @return : the full size of the Frame Header */
 static size_t ZSTD_decodeFrameHeader_Part1(ZSTD_DCtx* zc, const void* src, size_t srcSize)
 {
@@ -296,9 +296,9 @@ size_t ZSTD_getFrameParams(ZSTD_parameters* params, const void* src, size_t srcS
     return 0;
 }
 
-/** ZSTD_decodeFrameHeader_Part2
-*   decode the full Frame Header
-*   srcSize must be the size provided by ZSTD_decodeFrameHeader_Part1
+/** ZSTD_decodeFrameHeader_Part2() :
+*   decode the full Frame Header.
+*   srcSize must be the size provided by ZSTD_decodeFrameHeader_Part1().
 *   @return : 0, or an error code, which can be tested using ZSTD_isError() */
 static size_t ZSTD_decodeFrameHeader_Part2(ZSTD_DCtx* zc, const void* src, size_t srcSize)
 {
@@ -340,7 +340,7 @@ static size_t ZSTD_copyRawBlock(void* dst, size_t maxDstSize, const void* src, s
 }
 
 
-/*! ZSTD_decodeLiteralsBlock
+/*! ZSTD_decodeLiteralsBlock() :
     @return : nb of bytes read from src (< srcSize ) */
 size_t ZSTD_decodeLiteralsBlock(ZSTD_DCtx* dctx,
                           const void* src, size_t srcSize)   /* note : srcSize < BLOCKSIZE */

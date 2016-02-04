@@ -150,7 +150,7 @@ FORCE_INLINE size_t ZSTD_getPrice(seqStore_t* seqStorePtr, size_t litLength, con
     size_t match_cost_old = ZSTD_highbit((U32)matchLength+1) + Offbits + ZSTD_highbit((U32)offset+1);
     size_t match_cost = ZSTD_getMatchPriceReal(seqStorePtr, offset, matchLength);
   //  printf("old=%d new=%d\n", (int)match_cost2, (int)match_cost);
-    return lit_cost + match_cost_old;
+    return lit_cost + match_cost;
 #else
     size_t lit_cost = (litLength<<3);
     size_t match_cost = ZSTD_highbit((U32)matchLength+1) + Offbits + ZSTD_highbit((U32)offset+1);
@@ -653,9 +653,9 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
                 goto _storeSequence;
             }
 
+            litlen = opt[0].litlen + 1;
             do
             {
-                litlen = opt[0].litlen + 1;
                 price = ZSTD_getPrice(seqStorePtr, litlen, anchor, 0, mlen - MINMATCH);
                 if (mlen + 1 > last_pos || price < opt[mlen + 1].price)
                     SET_PRICE(mlen + 1, mlen, 0, litlen, price);
@@ -703,9 +703,9 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
            mlen = (i>0) ? matches[i-1].len+1 : best_mlen;
            best_mlen = (matches[i].len < ZSTD_OPT_NUM) ? matches[i].len : ZSTD_OPT_NUM;
            ZSTD_LOG_PARSER("%d: start Found mlen=%d off=%d best_mlen=%d last_pos=%d\n", (int)(ip-base), matches[i].len, matches[i].off, (int)best_mlen, (int)last_pos);
+           litlen = opt[0].litlen;
            while (mlen <= best_mlen)
            {
-                litlen = opt[0].litlen;
                 price = ZSTD_getPrice(seqStorePtr, litlen, anchor, matches[i].off, mlen - MINMATCH);
                 if (mlen > last_pos || price < opt[mlen].price)
                     SET_PRICE(mlen, mlen, matches[i].off, litlen, price);

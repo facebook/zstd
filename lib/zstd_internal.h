@@ -1,7 +1,7 @@
 /*
     zstd_internal - common functions to include
     Header File for include
-    Copyright (C) 2014-2015, Yann Collet.
+    Copyright (C) 2014-2016, Yann Collet.
 
     BSD 2-Clause License (http://www.opensource.org/licenses/bsd-license.php)
 
@@ -28,7 +28,6 @@
 
     You can contact the author at :
     - zstd source repository : https://github.com/Cyan4973/zstd
-    - ztsd public forum : https://groups.google.com/forum/#!forum/lz4c
 */
 #ifndef ZSTD_CCOMMON_H_MODULE
 #define ZSTD_CCOMMON_H_MODULE
@@ -38,7 +37,7 @@ extern "C" {
 #endif
 
 /* *************************************
-*  Includes
+*  Dependencies
 ***************************************/
 #include "mem.h"
 #include "error_private.h"
@@ -117,7 +116,8 @@ static void ZSTD_copy8(void* dst, const void* src) { memcpy(dst, src, 8); }
 
 #define COPY8(d,s) { ZSTD_copy8(d,s); d+=8; s+=8; }
 
-/*! ZSTD_wildcopy : custom version of memcpy(), can copy up to 7 bytes too many (8 bytes if length==0) */
+/*! ZSTD_wildcopy() :
+*   custom version of memcpy(), can copy up to 7 bytes too many (8 bytes if length==0) */
 MEM_STATIC void ZSTD_wildcopy(void* dst, const void* src, size_t length)
 {
     const BYTE* ip = (const BYTE*)src;

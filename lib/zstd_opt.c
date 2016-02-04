@@ -751,13 +751,14 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
            if (cur == last_pos) break;
 
 
-#if 1
+
             mlen = opt[cur].mlen;
             
             if (opt[cur-mlen].off)
             {
                 opt[cur].rep2 = opt[cur-mlen].rep;
                 opt[cur].rep = opt[cur-mlen].off;
+                ZSTD_LOG_PARSER("%d: COPYREP1 cur=%d mlen=%d rep=%d rep2=%d\n", (int)(inr-base), cur, mlen, opt[cur].rep, opt[cur].rep2);
             }
             else
             {
@@ -773,47 +774,12 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
                 }
             }
 
-#else
-
-           if (opt[cur].mlen > 1)
-           {
-                mlen = opt[cur].mlen;
-                best_off = opt[cur].off;
-                if (best_off < 1)
-                {
-                    if (opt[cur].off == 0 && opt[cur].litlen==0)
-                    { 
-                        opt[cur].rep = opt[cur-mlen].rep2;
-                        opt[cur].rep2 = opt[cur-mlen].rep;
-                    }
-                    else
-                    { 
-                        opt[cur].rep = opt[cur-mlen].rep;
-                        opt[cur].rep2 = opt[cur-mlen].rep2;
-                    }
-                    ZSTD_LOG_PARSER("%d: COPYREP1 cur=%d mlen=%d rep=%d rep2=%d\n", (int)(inr-base), cur, mlen, opt[cur].rep, opt[cur].rep2);
-                }
-                else
-                {
-                    opt[cur].rep = best_off;
-                    opt[cur].rep2 = opt[cur-mlen].rep;
-                    ZSTD_LOG_PARSER("%d: COPYREP2 cur=%d offset=%d rep=%d rep2=%d litlen=%d\n", (int)(inr-base), cur, 0, opt[cur].rep, opt[cur].rep2, litlen);
-                }
-           }
-           else
-           {
-                opt[cur].rep = opt[cur-1].rep; // copy rep
-                opt[cur].rep2 = opt[cur-1].rep; // copy rep
-                ZSTD_LOG_PARSER("%d: COPYREP3 cur=%d rep=%d rep2=%d\n", (int)(inr-base), cur, opt[cur].rep, opt[cur].rep2);
-           }
-#endif
-
            ZSTD_LOG_PARSER("%d: CURRENT price[%d/%d]=%d off=%d mlen=%d litlen=%d rep=%d rep2=%d\n", (int)(inr-base), cur, last_pos, opt[cur].price, opt[cur].off, opt[cur].mlen, opt[cur].litlen, opt[cur].rep, opt[cur].rep2); 
 
 
-           // check rep
+
            // best_mlen = 0;
-           mlen = ZSTD_count(inr, inr - opt[cur].rep, iend);
+           mlen = ZSTD_count(inr, inr - opt[cur].rep, iend); // check rep
            if (mlen >= MINMATCH && mlen > best_mlen)
            {
               ZSTD_LOG_PARSER("%d: try REP rep=%d mlen=%d\n", (int)(inr-base), opt[cur].rep, mlen);   

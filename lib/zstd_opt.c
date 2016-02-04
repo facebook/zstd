@@ -56,16 +56,16 @@ FORCE_INLINE size_t ZSTD_getLiteralPriceReal(seqStore_t* seqStorePtr, size_t lit
 {
     size_t freq;
     size_t price = 0;
-    double litBits, litLenBits;
+    size_t litBits, litLenBits;
   //  printf("litSum=%d litLengthSum=%d matchLengthSum=%d offCodeSum=%d\n", seqStorePtr->litSum, seqStorePtr->litLengthSum, seqStorePtr->matchLengthSum, seqStorePtr->offCodeSum);
 
     /* literals */
     litBits = 0.0f;
     if (litLength > 0) {
         for (int i=litLength-1; i>=0; i--)
-            litBits += -log2((double)seqStorePtr->litFreq[literals[i]]/(double)seqStorePtr->litSum);
-//            litBits += ceil(-log2((double)seqStorePtr->litFreq[literals[i]]/(double)seqStorePtr->litSum));
-        
+//            litBits += -log2((double)seqStorePtr->litFreq[literals[i]]/(double)seqStorePtr->litSum);
+            litBits += log2_32(seqStorePtr->litSum) - log2_32(seqStorePtr->litFreq[literals[i]]);
+
         /* literal Length */
         if (litLength >= MaxLL) {
             freq = seqStorePtr->litLengthFreq[MaxLL];
@@ -76,11 +76,13 @@ FORCE_INLINE size_t ZSTD_getLiteralPriceReal(seqStore_t* seqStorePtr, size_t lit
                 if (litLength < (1<<15)) price += 16; else price += 24;
         }   }
         else freq = seqStorePtr->litLengthFreq[litLength];
-        litLenBits = -log2((double)freq/(double)seqStorePtr->litLengthSum);
+//        litLenBits = -log2((double)freq/(double)seqStorePtr->litLengthSum);
+        litLenBits = log2_32(seqStorePtr->litLengthSum) - log2_32(freq);
     }
     else litLenBits = 0.0f;
 
-    freq = round(1.0f*(litBits + litLenBits + price));
+//    freq = round(1.0f*(litBits + litLenBits + price));
+    freq = litBits + litLenBits + price;
 //        printf("litLength=%d litBits=%.02f litLenBits=%.02f dumpsPrice=%d sum=%d\n", (int)litLength, litBits, litLenBits, (int)price, (int)freq);
 
  //   printf("old=%d new=%d\n", (int)((litLength<<3)+1), (int)freq/8);
@@ -106,7 +108,7 @@ FORCE_INLINE size_t ZSTD_getMatchPriceReal(seqStore_t* seqStorePtr, size_t offse
 {
     size_t freq;
     size_t price = 0;
-    double offCodeBits, matchBits;
+    size_t offCodeBits, matchBits;
   //  printf("litSum=%d litLengthSum=%d matchLengthSum=%d offCodeSum=%d\n", seqStorePtr->litSum, seqStorePtr->litLengthSum, seqStorePtr->matchLengthSum, seqStorePtr->offCodeSum);
 
     /* match offset */
@@ -132,13 +134,14 @@ FORCE_INLINE size_t ZSTD_getMatchPriceReal(seqStore_t* seqStorePtr, size_t offse
 //    matchBits = -log2((double)freq/(double)seqStorePtr->matchLengthSum);
     matchBits = log2_32(seqStorePtr->matchLengthSum) - log2_32(freq);
 
-    freq = round(1.0f*(offCodeBits + matchBits + price));
+//    freq = round(1.0f*(offCodeBits + matchBits + price));
+    freq = offCodeBits + matchBits + price;
 //        printf("offCodeBits=%.02f matchBits=%.02f dumpsPrice=%d sum=%d\n", offCodeBits, matchBits, (int)price, (int)freq);
     return freq;
 }
 
-// zstd v0.5 beta level 23       1.94 MB/s    403 MB/s     40845550  38.95
-// zstd v0.5 beta level 24       1.80 MB/s    458 MB/s     40370570  38.50
+// zstd v0.5 beta level 23       3.05 MB/s    448 MB/s     40868360  38.98
+// zstd v0.5 beta level 24       2.90 MB/s    472 MB/s     40392170  38.52
 // zstd v0.5 beta level 23       1.10 MB/s       ERROR     40584556  38.70
 // zstd v0.5 beta level 24       0.87 MB/s       ERROR     40103205  38.25
 
@@ -149,7 +152,7 @@ FORCE_INLINE size_t ZSTD_getPrice(seqStore_t* seqStorePtr, size_t litLength, con
     size_t match_cost2 = ZSTD_highbit((U32)matchLength+1) + Offbits + ZSTD_highbit((U32)offset+1);
     size_t match_cost = ZSTD_getMatchPriceReal(seqStorePtr, offset, matchLength);
   //  printf("old=%d new=%d\n", (int)match_cost2, (int)match_cost);
-    return lit_cost + match_cost;
+    return lit_cost + match_cost2;
 #else
     size_t lit_cost = (litLength<<3);
     size_t match_cost = ZSTD_highbit((U32)matchLength+1) + Offbits + ZSTD_highbit((U32)offset+1);

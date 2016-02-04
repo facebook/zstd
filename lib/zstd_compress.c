@@ -100,7 +100,7 @@ typedef struct {
 
 static void ZSTD_resetFreqs(seqStore_t* ssPtr)
 {
-    printf("litSum=%d litLengthSum=%d matchLengthSum=%d offCodeSum=%d\n", ssPtr->litSum, ssPtr->litLengthSum, ssPtr->matchLengthSum, ssPtr->offCodeSum);
+ //   printf("litSum=%d litLengthSum=%d matchLengthSum=%d offCodeSum=%d\n", ssPtr->litSum, ssPtr->litLengthSum, ssPtr->matchLengthSum, ssPtr->offCodeSum);
     ssPtr->matchLengthSum = (1<<MLbits);
     ssPtr->litLengthSum = (1<<LLbits);
     ssPtr->litSum = (1<<Litbits);

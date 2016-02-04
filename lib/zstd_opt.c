@@ -198,13 +198,13 @@ MEM_STATIC void ZSTD_updatePrice(seqStore_t* seqStorePtr, size_t litLength, cons
 }
 
 
-#define SET_PRICE(pos, mlen, offset, litlen, price)   \
+#define SET_PRICE(pos, mlen_, offset_, litlen_, price_)   \
     {                                                 \
         while (last_pos < pos)  { opt[last_pos+1].price = 1<<30; last_pos++; } \
-        opt[pos].mlen = mlen;                         \
-        opt[pos].off = offset;                        \
-        opt[pos].litlen = litlen;                     \
-        opt[pos].price = price;                       \
+        opt[pos].mlen = mlen_;                         \
+        opt[pos].off = offset_;                        \
+        opt[pos].litlen = litlen_;                     \
+        opt[pos].price = price_;                       \
         ZSTD_LOG_PARSER("%d: SET price[%d/%d]=%d litlen=%d len=%d off=%d\n", (int)(inr-base), (int)pos, (int)last_pos, opt[pos].price, opt[pos].litlen, opt[pos].mlen, opt[pos].off); \
     }
 
@@ -734,7 +734,7 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
                 }
                 else
                 {
-                    price = ZSTD_getLiteralPrice(seqStorePtr, llen + litlen, inr-(llen+litlen)) - ZSTD_LIT_COST(llen);
+                    price = ZSTD_getLiteralPrice(seqStorePtr, llen + litlen, anchor) - ZSTD_LIT_COST(llen);
                     ZSTD_LOG_TRY_PRICE("%d: TRY2 price=%d cur=%d litlen=%d llen=%d\n", (int)(inr-base), price, cur, litlen, llen);
                 }
            }
@@ -930,7 +930,7 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
                         }
                         else
                         {
-                            price = ZSTD_getLiteralPrice(seqStorePtr, llen + litlen, ip+i-(llen + litlen)) - ZSTD_LIT_COST(llen);
+                            price = ZSTD_getLiteralPrice(seqStorePtr, llen + litlen, anchor) - ZSTD_LIT_COST(llen);
                         	ZSTD_LOG_TRY_PRICE("%d: TRY10 price=%d cur=%d litlen=%d llen=%d\n", (int)(inr-base), price, i, litlen, llen);
                         }
                     }

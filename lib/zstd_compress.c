@@ -98,14 +98,9 @@ typedef struct {
     U32 offCodeSum;
 } seqStore_t;
 
-static void ZSTD_resetSeqStore(seqStore_t* ssPtr)
+static void ZSTD_resetFreqs(seqStore_t* ssPtr)
 {
-    ssPtr->offset = ssPtr->offsetStart;
-    ssPtr->lit = ssPtr->litStart;
-    ssPtr->litLength = ssPtr->litLengthStart;
-    ssPtr->matchLength = ssPtr->matchLengthStart;
-    ssPtr->dumps = ssPtr->dumpsStart;
-
+    printf("litSum=%d litLengthSum=%d matchLengthSum=%d offCodeSum=%d\n", ssPtr->litSum, ssPtr->litLengthSum, ssPtr->matchLengthSum, ssPtr->offCodeSum);
     ssPtr->matchLengthSum = (1<<MLbits);
     ssPtr->litLengthSum = (1<<LLbits);
     ssPtr->litSum = (1<<Litbits);
@@ -119,6 +114,17 @@ static void ZSTD_resetSeqStore(seqStore_t* ssPtr)
         ssPtr->matchLengthFreq[i] = 1;
     for (int i=0; i<=MaxOff; i++)
         ssPtr->offCodeFreq[i] = 1;
+}
+
+static void ZSTD_resetSeqStore(seqStore_t* ssPtr)
+{
+    ssPtr->offset = ssPtr->offsetStart;
+    ssPtr->lit = ssPtr->litStart;
+    ssPtr->litLength = ssPtr->litLengthStart;
+    ssPtr->matchLength = ssPtr->matchLengthStart;
+    ssPtr->dumps = ssPtr->dumpsStart;
+
+    ZSTD_resetFreqs(ssPtr);
 }
 
 
@@ -240,6 +246,7 @@ static size_t ZSTD_resetCCtx_advanced (ZSTD_CCtx* zc,
     zc->seqStore.matchLengthFreq = zc->seqStore.litLengthFreq + (1<<LLbits);
     zc->seqStore.offCodeFreq = zc->seqStore.matchLengthFreq + (1<<MLbits);
  //   zc->seqStore.XXX = zc->seqStore.offCodeFreq + (1<<Offbits)*sizeof(U32);
+    ZSTD_resetFreqs(&zc->seqStore);
 
     zc->hbSize = 0;
     zc->stage = 0;

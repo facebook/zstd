@@ -33,7 +33,23 @@ typedef struct
 #define ZSTD_OPT_NUM   (1<<12)
 
 
-#define ZSTD_LIT_COST(len) 0 //(((len)<<3)+0)
+#define ZSTD_LIT_COST(len) 0 //(((len)<<3))
+
+const int tab32[32] = {
+     0,  9,  1, 10, 13, 21,  2, 29,
+    11, 14, 16, 18, 22, 25,  3, 30,
+     8, 12, 20, 28, 15, 17, 24,  7,
+    19, 27, 23,  6, 26,  5,  4, 31};
+
+int log2_32 (uint32_t value)
+{
+    value |= value >> 1;
+    value |= value >> 2;
+    value |= value >> 4;
+    value |= value >> 8;
+    value |= value >> 16;
+    return tab32[(uint32_t)(value*0x07C4ACDD) >> 27];
+}
 
 
 FORCE_INLINE size_t ZSTD_getLiteralPriceReal(seqStore_t* seqStorePtr, size_t litLength, const BYTE* literals)
@@ -79,14 +95,14 @@ FORCE_INLINE size_t ZSTD_getLiteralPrice(seqStore_t* seqStorePtr, size_t litLeng
 #if 1
     return ZSTD_getLiteralPriceReal(seqStorePtr, litLength, literals);
 #else
-    size_t lit_cost = 1 + (litLength<<3)+0;
+    size_t lit_cost = 1 + (litLength<<3);
     return lit_cost;
 #endif
 }
 
 
 
-FORCE_INLINE size_t ZSTD_getPriceReal(seqStore_t* seqStorePtr, size_t litLength, const BYTE* literals, size_t offset, size_t matchLength)
+FORCE_INLINE size_t ZSTD_getMatchPriceReal(seqStore_t* seqStorePtr, size_t offset, size_t matchLength)
 {
     size_t freq;
     size_t price = 0;
@@ -96,9 +112,12 @@ FORCE_INLINE size_t ZSTD_getPriceReal(seqStore_t* seqStorePtr, size_t litLength,
     /* match offset */
     BYTE offCode = (BYTE)ZSTD_highbit(offset) + 1;
     if (offset==0) 
-        offCodeBits = 0.0f;
-    else
-        offCodeBits = -log2((double)seqStorePtr->offCodeFreq[offCode]/(double)seqStorePtr->offCodeSum);
+        offCode = 0;
+ //   offCodeBits = -log2((double)seqStorePtr->offCodeFreq[offCode]/(double)seqStorePtr->offCodeSum);
+    offCodeBits = log2_32(seqStorePtr->offCodeSum) - log2_32(seqStorePtr->offCodeFreq[offCode]);
+ //   printf("offCodeBits=%.02f matchBits=%.02f dumpsPrice=%d sum=%d\n", offCodeBits, matchBits, (int)price, (int)freq);
+
+    offCodeBits += offCode;
 
     /* match Length */
     if (matchLength >= MaxML) {
@@ -110,24 +129,30 @@ FORCE_INLINE size_t ZSTD_getPriceReal(seqStore_t* seqStorePtr, size_t litLength,
             if (matchLength < (1<<15)) price += 16; else price += 24;
     }   }
     else freq = seqStorePtr->matchLengthFreq[matchLength];
-    matchBits = -log2((double)freq/(double)seqStorePtr->matchLengthSum);
+//    matchBits = -log2((double)freq/(double)seqStorePtr->matchLengthSum);
+    matchBits = log2_32(seqStorePtr->matchLengthSum) - log2_32(freq);
 
     freq = round(1.0f*(offCodeBits + matchBits + price));
-//        printf("litLength=%d litBits=%.02f litLenBits=%.02f offCodeBits=%.02f matchBits=%.02f dumpsPrice=%d sum=%d\n", (int)litLength, litBits, litLenBits, offCodeBits, matchBits, (int)price, (int)freq);
-    if (freq <= 0) return 1;
-
+//        printf("offCodeBits=%.02f matchBits=%.02f dumpsPrice=%d sum=%d\n", offCodeBits, matchBits, (int)price, (int)freq);
     return freq;
 }
+
+// zstd v0.5 beta level 23       1.94 MB/s    403 MB/s     40845550  38.95
+// zstd v0.5 beta level 24       1.80 MB/s    458 MB/s     40370570  38.50
+// zstd v0.5 beta level 23       1.10 MB/s       ERROR     40584556  38.70
+// zstd v0.5 beta level 24       0.87 MB/s       ERROR     40103205  38.25
 
 FORCE_INLINE size_t ZSTD_getPrice(seqStore_t* seqStorePtr, size_t litLength, const BYTE* literals, size_t offset, size_t matchLength)
 {
 #if 1
     size_t lit_cost = ZSTD_getLiteralPriceReal(seqStorePtr, litLength, literals);
-    size_t match_cost = /*MLbits +*/ ZSTD_highbit((U32)matchLength+1) + Offbits + ZSTD_highbit((U32)offset+1);
+    size_t match_cost2 = ZSTD_highbit((U32)matchLength+1) + Offbits + ZSTD_highbit((U32)offset+1);
+    size_t match_cost = ZSTD_getMatchPriceReal(seqStorePtr, offset, matchLength);
+  //  printf("old=%d new=%d\n", (int)match_cost2, (int)match_cost);
     return lit_cost + match_cost;
 #else
-    size_t lit_cost = (litLength<<3)+0;
-    size_t match_cost = /*MLbits +*/ ZSTD_highbit((U32)matchLength+1) + Offbits + ZSTD_highbit((U32)offset+1);
+    size_t lit_cost = (litLength<<3);
+    size_t match_cost = ZSTD_highbit((U32)matchLength+1) + Offbits + ZSTD_highbit((U32)offset+1);
     return lit_cost + match_cost;
 #endif
 }
@@ -979,7 +1004,7 @@ _storeSequence: // cur, last_pos, best_mlen, best_off have to be set
 
             ZSTD_LOG_ENCODE("%d/%d: BEFORE_ENCODE literals=%d mlen=%d off=%d rep1=%d rep2=%d cur_rep=%d\n", (int)(ip-base), (int)(iend-base), (int)(litLength), (int)mlen, (int)(offset), (int)rep_1, (int)rep_2, cur_rep);
 
-#if 1
+#if 0
             if (rep_1 != cur_rep)
             {
                 printf("%d: ERROR rep_1=%d rep_2=%d cur_rep=%d\n", (int)(ip - base), (int)rep_1, (int)rep_2, cur_rep);

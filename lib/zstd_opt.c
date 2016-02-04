@@ -31,7 +31,7 @@ typedef struct
 #define ZSTD_LOG_TRY_PRICE(fmt, args...) ;//printf(fmt, ##args)
 
 #define ZSTD_OPT_NUM   (1<<12)
-
+#define ZSTD_FREQ_THRESHOLD (256)
 
 const int tab32[32] = {
      0,  9,  1, 10, 13, 21,  2, 29,
@@ -52,19 +52,15 @@ int log2_32 (uint32_t value)
 
 FORCE_INLINE size_t ZSTD_getLiteralPriceReal(seqStore_t* seqStorePtr, size_t litLength, const BYTE* literals)
 {
-    size_t freq;
     size_t price = 0;
-    size_t litBits, litLenBits;
-  //  printf("litSum=%d litLengthSum=%d matchLengthSum=%d offCodeSum=%d\n", seqStorePtr->litSum, seqStorePtr->litLengthSum, seqStorePtr->matchLengthSum, seqStorePtr->offCodeSum);
 
-    /* literals */
-    litBits = 0;
     if (litLength > 0) {
+        /* literals */
         for (int i=litLength-1; i>=0; i--)
-//            litBits += -log2((double)seqStorePtr->litFreq[literals[i]]/(double)seqStorePtr->litSum);
-            litBits += log2_32(seqStorePtr->litSum) - log2_32(seqStorePtr->litFreq[literals[i]]);
+            price += log2_32(seqStorePtr->litSum) - log2_32(seqStorePtr->litFreq[literals[i]]);
 
         /* literal Length */
+        size_t freq;
         if (litLength >= MaxLL) {
             freq = seqStorePtr->litLengthFreq[MaxLL];
             if (litLength<255 + MaxLL) {
@@ -73,53 +69,37 @@ FORCE_INLINE size_t ZSTD_getLiteralPriceReal(seqStore_t* seqStorePtr, size_t lit
                 price += 8;
                 if (litLength < (1<<15)) price += 16; else price += 24;
         }   }
-        else freq = seqStorePtr->litLengthFreq[litLength];
-//        litLenBits = -log2((double)freq/(double)seqStorePtr->litLengthSum);
-        litLenBits = log2_32(seqStorePtr->litLengthSum) - log2_32(freq);
+        else 
+            freq = seqStorePtr->litLengthFreq[litLength];
+        price += log2_32(seqStorePtr->litLengthSum) - log2_32(freq);
     }
-    else litLenBits = 0;
 
-//    freq = round(1.0f*(litBits + litLenBits + price));
-    freq = litBits + litLenBits + price;
-//        printf("litLength=%d litBits=%.02f litLenBits=%.02f dumpsPrice=%d sum=%d\n", (int)litLength, litBits, litLenBits, (int)price, (int)freq);
-
- //   printf("old=%d new=%d\n", (int)((litLength<<3)+1), (int)freq/8);
-    if (freq <= 0) freq = 1;
-    return freq;
+    return price + (price <= 0);
 }
 
 
 
 FORCE_INLINE size_t ZSTD_getLiteralPrice(seqStore_t* seqStorePtr, size_t litLength, const BYTE* literals)
 {
-#if 1
-    return ZSTD_getLiteralPriceReal(seqStorePtr, litLength, literals);
-#else
-    size_t lit_cost = 1 + (litLength<<3);
-    return lit_cost;
-#endif
+    if (seqStorePtr->litSum > ZSTD_FREQ_THRESHOLD) 
+        return ZSTD_getLiteralPriceReal(seqStorePtr, litLength, literals);
+
+    return 1 + (litLength<<3);
 }
 
 
 
 FORCE_INLINE size_t ZSTD_getMatchPriceReal(seqStore_t* seqStorePtr, size_t offset, size_t matchLength)
 {
-    size_t freq;
-    size_t price = 0;
-    size_t offCodeBits, matchBits;
-  //  printf("litSum=%d litLengthSum=%d matchLengthSum=%d offCodeSum=%d\n", seqStorePtr->litSum, seqStorePtr->litLengthSum, seqStorePtr->matchLengthSum, seqStorePtr->offCodeSum);
-
     /* match offset */
     BYTE offCode = (BYTE)ZSTD_highbit(offset) + 1;
     if (offset==0) 
         offCode = 0;
- //   offCodeBits = -log2((double)seqStorePtr->offCodeFreq[offCode]/(double)seqStorePtr->offCodeSum);
-    offCodeBits = log2_32(seqStorePtr->offCodeSum) - log2_32(seqStorePtr->offCodeFreq[offCode]);
- //   printf("offCodeBits=%.02f matchBits=%.02f dumpsPrice=%d sum=%d\n", offCodeBits, matchBits, (int)price, (int)freq);
-
-    offCodeBits += offCode;
+    size_t price = log2_32(seqStorePtr->offCodeSum) - log2_32(seqStorePtr->offCodeFreq[offCode]);
+    price += offCode;
 
     /* match Length */
+    size_t freq;
     if (matchLength >= MaxML) {
         freq = seqStorePtr->matchLengthFreq[MaxML];
         if (matchLength < 255+MaxML) {
@@ -129,28 +109,18 @@ FORCE_INLINE size_t ZSTD_getMatchPriceReal(seqStore_t* seqStorePtr, size_t offse
             if (matchLength < (1<<15)) price += 16; else price += 24;
     }   }
     else freq = seqStorePtr->matchLengthFreq[matchLength];
-//    matchBits = -log2((double)freq/(double)seqStorePtr->matchLengthSum);
-    matchBits = log2_32(seqStorePtr->matchLengthSum) - log2_32(freq);
+    price += log2_32(seqStorePtr->matchLengthSum) - log2_32(freq);
 
-//    freq = round(1.0f*(offCodeBits + matchBits + price));
-    freq = offCodeBits + matchBits + price;
-//        printf("offCodeBits=%.02f matchBits=%.02f dumpsPrice=%d sum=%d\n", offCodeBits, matchBits, (int)price, (int)freq);
-    return freq;
+    return price;
 }
 
 
 FORCE_INLINE size_t ZSTD_getPrice(seqStore_t* seqStorePtr, size_t litLength, const BYTE* literals, size_t offset, size_t matchLength)
 {
-#if 1
-    size_t lit_cost = ZSTD_getLiteralPriceReal(seqStorePtr, litLength, literals);
- //   size_t match_cost_old = ZSTD_highbit((U32)matchLength+1) + Offbits + ZSTD_highbit((U32)offset+1);
-    size_t match_cost = ZSTD_getMatchPriceReal(seqStorePtr, offset, matchLength);
-    return lit_cost + match_cost;
-#else
-    size_t lit_cost = (litLength<<3);
-    size_t match_cost = ZSTD_highbit((U32)matchLength+1) + Offbits + ZSTD_highbit((U32)offset+1);
-    return lit_cost + match_cost;
-#endif
+    if (seqStorePtr->litSum > ZSTD_FREQ_THRESHOLD)
+        return ZSTD_getLiteralPriceReal(seqStorePtr, litLength, literals) + ZSTD_getMatchPriceReal(seqStorePtr, offset, matchLength);
+ 
+    return (litLength<<3) + ZSTD_highbit((U32)matchLength+1) + Offbits + ZSTD_highbit((U32)offset+1);
 }
 
 
@@ -232,11 +202,7 @@ size_t ZSTD_insertBtAndGetAllMatches (
     U32 dummy32;   /* to be nullified at the end */
     size_t mnum = 0;
     
-#if 1
     bestLength = 0;
-#else
-    bestLength--;
-#endif
     hashTable[h] = current;   /* Update Hash Table */
 
     while (nbCompares-- && (matchIndex > windowLow)) {
@@ -255,7 +221,6 @@ size_t ZSTD_insertBtAndGetAllMatches (
                 match = base + matchIndex;   /* to prepare for next usage of match[matchLength] */
         }
 
-#if 1
         if (matchLength > bestLength) {
             if (matchLength > matchEndIdx - matchIndex)
                 matchEndIdx = matchIndex + (U32)matchLength;
@@ -272,24 +237,6 @@ size_t ZSTD_insertBtAndGetAllMatches (
             if (ip+matchLength == iend)   /* equal : no way to know if inf or sup */
                 break;   /* drop, to guarantee consistency (miss a little bit of compression) */
         }
-#else
-        if (matchLength > matchEndIdx - matchIndex)
-            matchEndIdx = matchIndex + (U32)matchLength;
-
-        if (matchLength > bestLength) {
-            bestLength = matchLength; 
-            matches[mnum].off = current - matchIndex;
-            matches[mnum].len = matchLength;
-            matches[mnum].back = 0;
-            mnum++;
-
-            if (matchLength > ZSTD_OPT_NUM) break;
-        }
-
-        if (ip+matchLength == iend)   /* equal : no way to know if inf or sup */
-            break;   /* drop, to guarantee consistency (miss a little bit of compression) */
-#endif
-
 
         if (match[matchLength] < ip[matchLength]) {
             /* match is smaller than current */
@@ -447,7 +394,7 @@ void print_hex_text(uint8_t* buf, int bufsize, int endline)
 
 
 /* *******************************
-*  Optimal parser OLD
+*  Old parser
 *********************************/
 FORCE_INLINE
 void ZSTD_compressBlock_opt2_generic(ZSTD_CCtx* ctx,
@@ -644,8 +591,8 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
         last_pos = 0;
         inr = ip;
         opt[0].litlen = ip - anchor;
-      //  opt[0].price = ZSTD_getLiteralPrice(seqStorePtr, opt[0].litlen, anchor);
- 
+
+
         /* check repCode */
         if (MEM_read32(ip+1) == MEM_read32(ip+1 - rep_1)) {
             /* repcode : we take it */
@@ -674,10 +621,7 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
        if (faster_get_matches && last_pos)
            match_num = 0;
        else
-       {
-            /* first search (depth 0) */
-           match_num = getAllMatches(ctx, ip, ip, iend, maxSearches, mls, matches, best_mlen); 
-       }
+           match_num = getAllMatches(ctx, ip, ip, iend, maxSearches, mls, matches, best_mlen); /* first search (depth 0) */
 
        ZSTD_LOG_PARSER("%d: match_num=%d last_pos=%d\n", (int)(ip-base), match_num, last_pos);
        if (!last_pos && !match_num) { ip++; continue; }
@@ -747,7 +691,7 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
 
            if (cur == last_pos) break;
 
-           if (inr > ilimit)
+           if (inr > ilimit) // last match must start at a minimum distance of 8 from oend
                continue;
 
             mlen = opt[cur].mlen;
@@ -778,7 +722,6 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
 
 
 
-#if 1
            if (!opt[cur].off && opt[cur].mlen != 1) {
                 mlen = ZSTD_count(inr, inr - opt[cur].rep2, iend); // check rep2
                 ZSTD_LOG_PARSER("%d: try REP2 rep2=%d mlen=%d\n", (int)(inr-base), opt[cur].rep2, mlen);   
@@ -787,9 +730,6 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
                 mlen = ZSTD_count(inr, inr - opt[cur].rep, iend); // check rep
                 ZSTD_LOG_PARSER("%d: try REP1 rep=%d mlen=%d\n", (int)(inr-base), opt[cur].rep, mlen);   
            }
-#else
-           mlen = ZSTD_count(inr, inr - opt[cur].rep, iend); // check rep
-#endif
 
            best_mlen = 0;
 
@@ -892,11 +832,7 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
                     ZSTD_LOG_TRY_PRICE("%d: TRY8 price=%d opt[%d].price=%d\n", (int)(inr-base), price, cur2 + mlen, opt[cur2 + mlen].price);
 
                     if (cur2 + mlen > last_pos || (price < opt[cur2 + mlen].price))
-                    {
                         SET_PRICE(cur2 + mlen, mlen, matches[i].off, litlen, price);
-                      //  opt[cur2 + mlen].rep = matches[i].off; // update reps
-                     //   opt[cur2 + mlen].rep2 = opt[cur2].rep;
-                    }
 
                     mlen++;
                 }
@@ -969,7 +905,7 @@ _storeSequence: // cur, last_pos, best_mlen, best_off have to be set
        //     printf("orig="); print_hex_text(ip, mlen, 0);
        //     printf("match="); print_hex_text(ip-offset, mlen, 0);
 
-#if 1
+#if 0 // for debugging
             size_t ml2;
             if (offset)
                 ml2 = ZSTD_count(ip, ip-offset, iend);

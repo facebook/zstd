@@ -74,7 +74,7 @@ FORCE_INLINE size_t ZSTD_getLiteralPriceReal(seqStore_t* seqStorePtr, size_t lit
         price += log2_32(seqStorePtr->litLengthSum) - log2_32(freq);
     }
 
-    return price + (price <= 0);
+    return price + (price == 0);
 }
 
 
@@ -568,11 +568,10 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
     ZSTD_optimal_t opt[ZSTD_OPT_NUM+4];
     ZSTD_match_t matches[ZSTD_OPT_NUM+1];
     const uint8_t *inr;
-    int cur, cur2, skip_num = 0;
-    int litlen, price, match_num, last_pos;
+    ssize_t skip_num = 0, cur, cur2, last_pos, litlen, price, match_num;
   
-    const int sufficient_len = 128; //ctx->params.sufficientLength;
-    const int faster_get_matches = (ctx->params.strategy == ZSTD_opt); 
+    const ssize_t sufficient_len = 128; //ctx->params.sufficientLength;
+    const size_t faster_get_matches = (ctx->params.strategy == ZSTD_opt); 
 
 
   //  printf("orig_file="); print_hex_text(ip, srcSize, 0);
@@ -584,9 +583,9 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
 
     /* Match Loop */
     while (ip < ilimit) {
-        int mlen=0;
-        int best_mlen=0;
-        int best_off=0;
+        ssize_t mlen=0;
+        ssize_t best_mlen=0;
+        ssize_t best_off=0;
         memset(opt, 0, sizeof(ZSTD_optimal_t));
         last_pos = 0;
         inr = ip;

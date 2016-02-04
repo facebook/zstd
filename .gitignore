@@ -48,3 +48,5 @@ _codelite
 _zstdbench
 
 lib/zstd_opt_LZ5.c
+lib/zstd_opt_llen.c
+lib/zstd_opt_nollen.c

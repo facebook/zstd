@@ -999,21 +999,13 @@ _storeSequence: // cur, last_pos, best_mlen, best_off have to be set
             mlen = opt[cur].mlen;
             if (mlen == 1) { ip++; cur++; continue; }
             offset = opt[cur].off;
-            int cur_rep = opt[cur].rep;
             cur += mlen;
 
 
             size_t litLength = ip - anchor;
 
-            ZSTD_LOG_ENCODE("%d/%d: BEFORE_ENCODE literals=%d mlen=%d off=%d rep1=%d rep2=%d cur_rep=%d\n", (int)(ip-base), (int)(iend-base), (int)(litLength), (int)mlen, (int)(offset), (int)rep_1, (int)rep_2, cur_rep);
+            ZSTD_LOG_ENCODE("%d/%d: BEFORE_ENCODE literals=%d mlen=%d off=%d rep1=%d rep2=%d\n", (int)(ip-base), (int)(iend-base), (int)(litLength), (int)mlen, (int)(offset), (int)rep_1, (int)rep_2);
 
-#if 1
-            if (rep_1 != cur_rep)
-            {
-                printf("%d: ERROR rep_1=%d rep_2=%d cur_rep=%d\n", (int)(ip - base), (int)rep_1, (int)rep_2, cur_rep);
-                exit(0);
-            }           
-#endif
           
             if (offset)
             {
@@ -1043,7 +1035,7 @@ _storeSequence: // cur, last_pos, best_mlen, best_off have to be set
 
             if (ml2 < mlen && ml2 < MINMATCH)
             {
-                printf("%d: ERROR iend=%d mlen=%d offset=%d cur_rep=%d ml2=%d\n", (int)(ip - base), (int)(iend - ip), (int)mlen, (int)offset, (int)cur_rep, (int)ml2);
+                printf("%d: ERROR iend=%d mlen=%d offset=%d ml2=%d\n", (int)(ip - base), (int)(iend - ip), (int)mlen, (int)offset, (int)ml2);
                 exit(0);
             }
 

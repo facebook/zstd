@@ -678,14 +678,8 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
        ZSTD_LOG_PARSER("%d: match_num=%d last_pos=%d\n", (int)(ip-base), match_num, last_pos);
        if (!last_pos && !match_num) { ip++; continue; }
 
-        if (opt[0].litlen) {
-            opt[0].rep = rep_1;
-            opt[0].rep2 = rep_2;
-        }
-        else {
-            opt[0].rep = rep_2;
-            opt[0].rep2 = rep_1;
-        }
+        opt[0].rep = rep_1;
+        opt[0].rep2 = rep_2;
         opt[0].mlen = 1;
 
        if (match_num && matches[match_num-1].len > sufficient_len)
@@ -763,7 +757,7 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
             }
             else
             {
-                if (opt[cur-mlen].litlen == 0) 
+                if (cur!=mlen && opt[cur-mlen].litlen == 0) 
                 {
                     opt[cur].rep2 = opt[cur-mlen].rep;
                     opt[cur].rep = opt[cur-mlen].rep2;
@@ -780,10 +774,21 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
 
 
            // best_mlen = 0;
+#if 1
+           if (!opt[cur].off && opt[cur].mlen != 1) {
+                mlen = ZSTD_count(inr, inr - opt[cur].rep2, iend); // check rep2
+                ZSTD_LOG_PARSER("%d: try REP2 rep2=%d mlen=%d\n", (int)(inr-base), opt[cur].rep2, mlen);   
+           }
+           else {
+                mlen = ZSTD_count(inr, inr - opt[cur].rep, iend); // check rep
+                ZSTD_LOG_PARSER("%d: try REP1 rep=%d mlen=%d\n", (int)(inr-base), opt[cur].rep, mlen);   
+           }
+#else
            mlen = ZSTD_count(inr, inr - opt[cur].rep, iend); // check rep
+#endif
+
            if (mlen >= MINMATCH && mlen > best_mlen)
            {
-              ZSTD_LOG_PARSER("%d: try REP rep=%d mlen=%d\n", (int)(inr-base), opt[cur].rep, mlen);   
               ZSTD_LOG_PARSER("%d: Found REP mlen=%d off=%d rep=%d opt[%d].off=%d\n", (int)(inr-base), mlen, 0, opt[cur].rep, cur, opt[cur].off);
 
               if (mlen > sufficient_len || cur + mlen >= ZSTD_OPT_NUM)
@@ -879,8 +884,8 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
                         price = opt[cur2].price + ZSTD_getPrice(seqStorePtr, 0, NULL, matches[i].off, mlen - MINMATCH);
                     }
 
-                    ZSTD_LOG_PARSER("%d: Found2 pred=%d mlen=%d best_mlen=%d off=%d price=%d litlen=%d price[%d]=%d\n", (int)(inr-base), matches[i].back, mlen, best_mlen, matches[i].off, price, litlen, cur - litlen, opt[cur - litlen].price);
-                    ZSTD_LOG_TRY_PRICE("%d: TRY8 price=%d opt[%d].price=%d\n", (int)(inr-base), price, cur2 + mlen, opt[cur2 + mlen].price);
+                  //  ZSTD_LOG_PARSER("%d: Found2 pred=%d mlen=%d best_mlen=%d off=%d price=%d litlen=%d price[%d]=%d\n", (int)(inr-base), matches[i].back, mlen, best_mlen, matches[i].off, price, litlen, cur - litlen, opt[cur - litlen].price);
+                  //  ZSTD_LOG_TRY_PRICE("%d: TRY8 price=%d opt[%d].price=%d\n", (int)(inr-base), price, cur2 + mlen, opt[cur2 + mlen].price);
 
                     if (cur2 + mlen > last_pos || (price < opt[cur2 + mlen].price))
                     {
@@ -997,7 +1002,7 @@ _storeSequence: // cur, last_pos, best_mlen, best_off have to be set
                 exit(0);
             }           
 #endif
-          
+
             if (offset)
             {
                 rep_2 = rep_1;

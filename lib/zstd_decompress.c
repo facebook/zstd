@@ -708,7 +708,7 @@ FORCE_INLINE size_t ZSTD_execSequence(BYTE* op,
     const BYTE* match = oLitEnd - sequence.offset;
 
     /* check */
-  //  if (oLitEnd > oend_8) return ERROR(dstSize_tooSmall);   /* last match must start at a minimum distance of 8 from oend */
+    if (oLitEnd > oend_8) return ERROR(dstSize_tooSmall);   /* last match must start at a minimum distance of 8 from oend */
     if (oMatchEnd > oend) return ERROR(dstSize_tooSmall);   /* overwrite beyond dst buffer */
     if (litEnd > litLimit_8) return ERROR(corruption_detected);   /* risk read beyond lit buffer */
 

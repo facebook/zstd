@@ -383,7 +383,7 @@ size_t ZSTD_HcGetAllMatches_generic (
             while ((start > iLowLimit) && (start > base+offset) && (start[-1] == start[-1-offset])) start--; 
             back = ip - start;
 #else
-            while ((match-back > base) && (ip-back > iLowLimit) && (ip[-back-1] == match[-back-1])) back++;
+      //      while ((match-back > base) && (ip-back > iLowLimit) && (ip[-back-1] == match[-back-1])) back++;
 #endif
             currentMl += back;
         } else {
@@ -654,7 +654,6 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
             ZSTD_LOG_PARSER("%d: start try REP rep=%d mlen=%d\n", (int)(ip-base), (int)rep_1, (int)mlen);
             if (depth==0 || mlen > sufficient_len || mlen >= ZSTD_OPT_NUM) {
                 ip+=1; best_mlen = mlen; best_off = 0; cur = 0; last_pos = 1;
-                opt[0].rep = rep_1;
                 goto _storeSequence;
             }
 
@@ -748,7 +747,8 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
 
            if (cur == last_pos) break;
 
-
+           if (inr > ilimit)
+               continue;
 
             mlen = opt[cur].mlen;
             
@@ -912,7 +912,7 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
         /* store sequence */
 _storeSequence: // cur, last_pos, best_mlen, best_off have to be set
         for (int i = 1; i <= last_pos; i++)
-            ZSTD_LOG_PARSER("%d: price[%d/%d]=%d off=%d mlen=%d litlen=%d rep=%d rep2=%d back=%d\n", (int)(ip-base+i), i, last_pos, opt[i].price, opt[i].off, opt[i].mlen, opt[i].litlen, opt[i].rep, opt[i].rep2, opt[i].back);
+            ZSTD_LOG_PARSER("%d: price[%d/%d]=%d off=%d mlen=%d litlen=%d rep=%d rep2=%d\n", (int)(ip-base+i), i, last_pos, opt[i].price, opt[i].off, opt[i].mlen, opt[i].litlen, opt[i].rep, opt[i].rep2);
         ZSTD_LOG_PARSER("%d: cur=%d/%d best_mlen=%d best_off=%d rep=%d\n", (int)(ip-base+cur), (int)cur, (int)last_pos, (int)best_mlen, (int)best_off, opt[cur].rep); 
 
         opt[0].mlen = 1;

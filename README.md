@@ -74,7 +74,7 @@ Then there is enough history to build upon, and the compression algorithm can re
 Zstd has not yet reached "stable format" status. It doesn't guarantee yet that its current compression format will remain stable in future versions. During this period, it can still change to adapt new optimizations still being investigated. "Stable Format" is projected H1 2016, and will be tagged `v1.0`.
 
 That being said, the library is now fairly robust, able to withstand hazards situations, including invalid inputs. It also features legacy support, so that documents compressed with current and previous version of zstd can still be decoded in the future. 
-Library reliability has been tested using [Fuzz Testing](https://en.wikipedia.org/wiki/Fuzz_testing), with both [internal tools](programs/fuzzer.c) and [external ones](http://lcamtuf.coredump.cx/afl). Therefore, Zstandard is not considered safe for testings, even within production environments.
+Library reliability has been tested using [Fuzz Testing](https://en.wikipedia.org/wiki/Fuzz_testing), with both [internal tools](programs/fuzzer.c) and [external ones](http://lcamtuf.coredump.cx/afl). Therefore, Zstandard is considered safe for testings, even within production environments.
 
 ### Branch Policy
 

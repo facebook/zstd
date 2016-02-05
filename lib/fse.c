@@ -141,102 +141,6 @@ typedef U32 DTable_max_t[FSE_DTABLE_SIZE_U32(FSE_MAX_TABLELOG)];
 
 
 /* Function templates */
-size_t FSE_count_generic(unsigned* count, unsigned* maxSymbolValuePtr, const FSE_FUNCTION_TYPE* source, size_t sourceSize, unsigned safe)
-{
-    const FSE_FUNCTION_TYPE* ip = source;
-    const FSE_FUNCTION_TYPE* const iend = ip+sourceSize;
-    unsigned maxSymbolValue = *maxSymbolValuePtr;
-    unsigned max=0;
-    int s;
-
-    U32 Counting1[FSE_MAX_SYMBOL_VALUE+1] = { 0 };
-    U32 Counting2[FSE_MAX_SYMBOL_VALUE+1] = { 0 };
-    U32 Counting3[FSE_MAX_SYMBOL_VALUE+1] = { 0 };
-    U32 Counting4[FSE_MAX_SYMBOL_VALUE+1] = { 0 };
-
-    /* safety checks */
-    if (!sourceSize)
-    {
-        memset(count, 0, (maxSymbolValue + 1) * sizeof(FSE_FUNCTION_TYPE));
-        *maxSymbolValuePtr = 0;
-        return 0;
-    }
-    if (maxSymbolValue > FSE_MAX_SYMBOL_VALUE) return ERROR(GENERIC);   /* maxSymbolValue too large : unsupported */
-    if (!maxSymbolValue) maxSymbolValue = FSE_MAX_SYMBOL_VALUE;            /* 0 == default */
-
-    if ((safe) || (sizeof(FSE_FUNCTION_TYPE)>1))
-    {
-        /* check input values, to avoid count table overflow */
-        while (ip < iend-3)
-        {
-            if (*ip>maxSymbolValue) return ERROR(GENERIC); Counting1[*ip++]++;
-            if (*ip>maxSymbolValue) return ERROR(GENERIC); Counting2[*ip++]++;
-            if (*ip>maxSymbolValue) return ERROR(GENERIC); Counting3[*ip++]++;
-            if (*ip>maxSymbolValue) return ERROR(GENERIC); Counting4[*ip++]++;
-        }
-    }
-    else
-    {
-        U32 cached = MEM_read32(ip); ip += 4;
-        while (ip < iend-15)
-        {
-            U32 c = cached; cached = MEM_read32(ip); ip += 4;
-            Counting1[(BYTE) c     ]++;
-            Counting2[(BYTE)(c>>8) ]++;
-            Counting3[(BYTE)(c>>16)]++;
-            Counting4[       c>>24 ]++;
-            c = cached; cached = MEM_read32(ip); ip += 4;
-            Counting1[(BYTE) c     ]++;
-            Counting2[(BYTE)(c>>8) ]++;
-            Counting3[(BYTE)(c>>16)]++;
-            Counting4[       c>>24 ]++;
-            c = cached; cached = MEM_read32(ip); ip += 4;
-            Counting1[(BYTE) c     ]++;
-            Counting2[(BYTE)(c>>8) ]++;
-            Counting3[(BYTE)(c>>16)]++;
-            Counting4[       c>>24 ]++;
-            c = cached; cached = MEM_read32(ip); ip += 4;
-            Counting1[(BYTE) c     ]++;
-            Counting2[(BYTE)(c>>8) ]++;
-            Counting3[(BYTE)(c>>16)]++;
-            Counting4[       c>>24 ]++;
-        }
-        ip-=4;
-    }
-
-    /* finish last symbols */
-    while (ip<iend) { if ((safe) && (*ip>maxSymbolValue)) return ERROR(GENERIC); Counting1[*ip++]++; }
-
-    for (s=0; s<=(int)maxSymbolValue; s++)
-    {
-        count[s] = Counting1[s] + Counting2[s] + Counting3[s] + Counting4[s];
-        if (count[s] > max) max = count[s];
-    }
-
-    while (!count[maxSymbolValue]) maxSymbolValue--;
-    *maxSymbolValuePtr = maxSymbolValue;
-    return (size_t)max;
-}
-
-/* hidden fast variant (unsafe) */
-size_t FSE_FUNCTION_NAME(FSE_countFast, FSE_FUNCTION_EXTENSION)
-(unsigned* count, unsigned* maxSymbolValuePtr, const FSE_FUNCTION_TYPE* source, size_t sourceSize)
-{
-    return FSE_count_generic(count, maxSymbolValuePtr, source, sourceSize, 0);
-}
-
-size_t FSE_FUNCTION_NAME(FSE_count, FSE_FUNCTION_EXTENSION)
-(unsigned* count, unsigned* maxSymbolValuePtr, const FSE_FUNCTION_TYPE* source, size_t sourceSize)
-{
-    if ((sizeof(FSE_FUNCTION_TYPE)==1) && (*maxSymbolValuePtr >= 255))
-    {
-        *maxSymbolValuePtr = 255;
-        return FSE_count_generic(count, maxSymbolValuePtr, source, sourceSize, 0);
-    }
-    return FSE_count_generic(count, maxSymbolValuePtr, source, sourceSize, 1);
-}
-
-
 static U32 FSE_tableStep(U32 tableSize) { return (tableSize>>1) + (tableSize>>3) + 3; }
 
 size_t FSE_buildCTable(FSE_CTable* ct, const short* normalizedCounter, unsigned maxSymbolValue, unsigned tableLog)
@@ -264,35 +168,28 @@ size_t FSE_buildCTable(FSE_CTable* ct, const short* normalizedCounter, unsigned 
 
     /* symbol start positions */
     cumul[0] = 0;
-    for (i=1; i<=maxSymbolValue+1; i++)
-    {
-        if (normalizedCounter[i-1]==-1)   /* Low proba symbol */
-        {
+    for (i=1; i<=maxSymbolValue+1; i++) {
+        if (normalizedCounter[i-1]==-1) {  /* Low proba symbol */
             cumul[i] = cumul[i-1] + 1;
             tableSymbol[highThreshold--] = (FSE_FUNCTION_TYPE)(i-1);
-        }
-        else
+        } else {
             cumul[i] = cumul[i-1] + normalizedCounter[i-1];
-    }
+    }   }
     cumul[maxSymbolValue+1] = tableSize+1;
 
     /* Spread symbols */
-    for (symbol=0; symbol<=maxSymbolValue; symbol++)
-    {
+    for (symbol=0; symbol<=maxSymbolValue; symbol++) {
         int nbOccurences;
-        for (nbOccurences=0; nbOccurences<normalizedCounter[symbol]; nbOccurences++)
-        {
+        for (nbOccurences=0; nbOccurences<normalizedCounter[symbol]; nbOccurences++) {
             tableSymbol[position] = (FSE_FUNCTION_TYPE)symbol;
             position = (position + step) & tableMask;
             while (position > highThreshold) position = (position + step) & tableMask;   /* Low proba area */
-        }
-    }
+    }   }
 
     if (position!=0) return ERROR(GENERIC);   /* Must have gone through all positions */
 
     /* Build table */
-    for (i=0; i<tableSize; i++)
-    {
+    for (i=0; i<tableSize; i++) {
         FSE_FUNCTION_TYPE s = tableSymbol[i];   /* note : static analyzer may not understand tableSymbol is properly initialized */
         tableU16[cumul[s]++] = (U16) (tableSize+i);   /* TableU16 : sorted by symbol order; gives next state value */
     }
@@ -301,15 +198,14 @@ size_t FSE_buildCTable(FSE_CTable* ct, const short* normalizedCounter, unsigned 
     {
         unsigned s;
         unsigned total = 0;
-        for (s=0; s<=maxSymbolValue; s++)
-        {
+        for (s=0; s<=maxSymbolValue; s++) {
             switch (normalizedCounter[s])
             {
             case  0:
                 break;
             case -1:
             case  1:
-                symbolTT[s].deltaNbBits = tableLog << 16;
+                symbolTT[s].deltaNbBits = (tableLog << 16) - (1<<tableLog);
                 symbolTT[s].deltaFindState = total - 1;
                 total ++;
                 break;
@@ -320,10 +216,7 @@ size_t FSE_buildCTable(FSE_CTable* ct, const short* normalizedCounter, unsigned 
                     symbolTT[s].deltaNbBits = (maxBitsOut << 16) - minStatePlus;
                     symbolTT[s].deltaFindState = total - normalizedCounter[s];
                     total +=  normalizedCounter[s];
-                }
-            }
-        }
-    }
+    }   }   }   }
 
     return 0;
 }
@@ -361,45 +254,35 @@ size_t FSE_buildDTable(FSE_DTable* dt, const short* normalizedCounter, unsigned 
 
     /* Init, lay down lowprob symbols */
     DTableH.tableLog = (U16)tableLog;
-    for (s=0; s<=maxSymbolValue; s++)
-    {
-        if (normalizedCounter[s]==-1)
-        {
+    for (s=0; s<=maxSymbolValue; s++) {
+        if (normalizedCounter[s]==-1) {
             tableDecode[highThreshold--].symbol = (FSE_FUNCTION_TYPE)s;
             symbolNext[s] = 1;
-        }
-        else
-        {
+        } else {
             if (normalizedCounter[s] >= largeLimit) noLarge=0;
             symbolNext[s] = normalizedCounter[s];
-        }
-    }
+    }   }
 
     /* Spread symbols */
-    for (s=0; s<=maxSymbolValue; s++)
-    {
+    for (s=0; s<=maxSymbolValue; s++) {
         int i;
-        for (i=0; i<normalizedCounter[s]; i++)
-        {
+        for (i=0; i<normalizedCounter[s]; i++) {
             tableDecode[position].symbol = (FSE_FUNCTION_TYPE)s;
             position = (position + step) & tableMask;
             while (position > highThreshold) position = (position + step) & tableMask;   /* lowprob area */
-        }
-    }
+    }   }
 
     if (position!=0) return ERROR(GENERIC);   /* position must reach all cells once, otherwise normalizedCounter is incorrect */
 
     /* Build Decoding table */
     {
         U32 i;
-        for (i=0; i<tableSize; i++)
-        {
+        for (i=0; i<tableSize; i++) {
             FSE_FUNCTION_TYPE symbol = (FSE_FUNCTION_TYPE)(tableDecode[i].symbol);
             U16 nextState = symbolNext[symbol]++;
             tableDecode[i].nbBits = (BYTE) (tableLog - BIT_highbit32 ((U32)nextState) );
             tableDecode[i].newState = (U16) ( (nextState << tableDecode[i].nbBits) - tableSize);
-        }
-    }
+    }   }
 
     DTableH.fastMode = (U16)noLarge;
     memcpy(dt, &DTableH, sizeof(DTableH));
@@ -408,7 +291,7 @@ size_t FSE_buildDTable(FSE_DTable* dt, const short* normalizedCounter, unsigned 
 
 
 #ifndef FSE_COMMONDEFS_ONLY
-/******************************************
+/*-****************************************
 *  FSE helper functions
 ******************************************/
 unsigned FSE_isError(size_t code) { return ERR_isError(code); }
@@ -416,7 +299,7 @@ unsigned FSE_isError(size_t code) { return ERR_isError(code); }
 const char* FSE_getErrorName(size_t code) { return ERR_getErrorName(code); }
 
 
-/****************************************************************
+/*-**************************************************************
 *  FSE NCount encoding-decoding
 ****************************************************************/
 size_t FSE_NCountWriteBound(unsigned maxSymbolValue, unsigned tableLog)
@@ -425,10 +308,7 @@ size_t FSE_NCountWriteBound(unsigned maxSymbolValue, unsigned tableLog)
     return maxSymbolValue ? maxHeaderSize : FSE_NCOUNTBOUND;  /* maxSymbolValue==0 ? use default */
 }
 
-static short FSE_abs(short a)
-{
-    return a<0 ? -a : a;
-}
+static short FSE_abs(short a) { return a<0 ? -a : a; }
 
 static size_t FSE_writeNCount_generic (void* header, size_t headerBufferSize,
                                        const short* normalizedCounter, unsigned maxSymbolValue, unsigned tableLog,
@@ -457,14 +337,11 @@ static size_t FSE_writeNCount_generic (void* header, size_t headerBufferSize,
     threshold = tableSize;
     nbBits = tableLog+1;
 
-    while (remaining>1)   /* stops at 1 */
-    {
-        if (previous0)
-        {
+    while (remaining>1) {  /* stops at 1 */
+        if (previous0) {
             unsigned start = charnum;
             while (!normalizedCounter[charnum]) charnum++;
-            while (charnum >= start+24)
-            {
+            while (charnum >= start+24) {
                 start+=24;
                 bitStream += 0xFFFFU << bitCount;
                 if ((!writeIsSafe) && (out > oend-2)) return ERROR(dstSize_tooSmall);   /* Buffer overflow */
@@ -473,24 +350,21 @@ static size_t FSE_writeNCount_generic (void* header, size_t headerBufferSize,
                 out+=2;
                 bitStream>>=16;
             }
-            while (charnum >= start+3)
-            {
+            while (charnum >= start+3) {
                 start+=3;
                 bitStream += 3 << bitCount;
                 bitCount += 2;
             }
             bitStream += (charnum-start) << bitCount;
             bitCount += 2;
-            if (bitCount>16)
-            {
+            if (bitCount>16) {
                 if ((!writeIsSafe) && (out > oend - 2)) return ERROR(dstSize_tooSmall);   /* Buffer overflow */
                 out[0] = (BYTE)bitStream;
                 out[1] = (BYTE)(bitStream>>8);
                 out += 2;
                 bitStream >>= 16;
                 bitCount -= 16;
-            }
-        }
+        }   }
         {
             short count = normalizedCounter[charnum++];
             const short max = (short)((2*threshold-1)-remaining);
@@ -504,16 +378,14 @@ static size_t FSE_writeNCount_generic (void* header, size_t headerBufferSize,
             previous0 = (count==1);
             while (remaining<threshold) nbBits--, threshold>>=1;
         }
-        if (bitCount>16)
-        {
+        if (bitCount>16) {
             if ((!writeIsSafe) && (out > oend - 2)) return ERROR(dstSize_tooSmall);   /* Buffer overflow */
             out[0] = (BYTE)bitStream;
             out[1] = (BYTE)(bitStream>>8);
             out += 2;
             bitStream >>= 16;
             bitCount -= 16;
-        }
-    }
+    }   }
 
     /* flush remaining bitStream */
     if ((!writeIsSafe) && (out > oend - 2)) return ERROR(dstSize_tooSmall);   /* Buffer overflow */
@@ -564,27 +436,19 @@ size_t FSE_readNCount (short* normalizedCounter, unsigned* maxSVPtr, unsigned* t
     threshold = 1<<nbBits;
     nbBits++;
 
-    while ((remaining>1) && (charnum<=*maxSVPtr))
-    {
-        if (previous0)
-        {
+    while ((remaining>1) && (charnum<=*maxSVPtr)) {
+        if (previous0) {
             unsigned n0 = charnum;
-            while ((bitStream & 0xFFFF) == 0xFFFF)
-            {
+            while ((bitStream & 0xFFFF) == 0xFFFF) {
                 n0+=24;
-                if (ip < iend-5)
-                {
+                if (ip < iend-5) {
                     ip+=2;
                     bitStream = MEM_readLE32(ip) >> bitCount;
-                }
-                else
-                {
+                } else {
                     bitStream >>= 16;
                     bitCount+=16;
-                }
-            }
-            while ((bitStream & 3) == 3)
-            {
+            }   }
+            while ((bitStream & 3) == 3) {
                 n0+=3;
                 bitStream>>=2;
                 bitCount+=2;
@@ -593,8 +457,7 @@ size_t FSE_readNCount (short* normalizedCounter, unsigned* maxSVPtr, unsigned* t
             bitCount += 2;
             if (n0 > *maxSVPtr) return ERROR(maxSymbolValue_tooSmall);
             while (charnum < n0) normalizedCounter[charnum++] = 0;
-            if ((ip <= iend-7) || (ip + (bitCount>>3) <= iend-4))
-            {
+            if ((ip <= iend-7) || (ip + (bitCount>>3) <= iend-4)) {
                 ip += bitCount>>3;
                 bitCount &= 7;
                 bitStream = MEM_readLE32(ip) >> bitCount;
@@ -606,13 +469,10 @@ size_t FSE_readNCount (short* normalizedCounter, unsigned* maxSVPtr, unsigned* t
             const short max = (short)((2*threshold-1)-remaining);
             short count;
 
-            if ((bitStream & (threshold-1)) < (U32)max)
-            {
+            if ((bitStream & (threshold-1)) < (U32)max) {
                 count = (short)(bitStream & (threshold-1));
                 bitCount   += nbBits-1;
-            }
-            else
-            {
+            } else {
                 count = (short)(bitStream & (2*threshold-1));
                 if (count >= threshold) count -= max;
                 bitCount   += nbBits;
@@ -622,27 +482,20 @@ size_t FSE_readNCount (short* normalizedCounter, unsigned* maxSVPtr, unsigned* t
             remaining -= FSE_abs(count);
             normalizedCounter[charnum++] = count;
             previous0 = !count;
-            while (remaining < threshold)
-            {
+            while (remaining < threshold) {
                 nbBits--;
                 threshold >>= 1;
             }
 
-            {
-                if ((ip <= iend-7) || (ip + (bitCount>>3) <= iend-4))
-                {
-                    ip += bitCount>>3;
-                    bitCount &= 7;
-                }
-                else
-                {
-                    bitCount -= (int)(8 * (iend - 4 - ip));
-					ip = iend - 4;
-				}
-                bitStream = MEM_readLE32(ip) >> (bitCount & 31);
+            if ((ip <= iend-7) || (ip + (bitCount>>3) <= iend-4)) {
+                ip += bitCount>>3;
+                bitCount &= 7;
+            } else {
+                bitCount -= (int)(8 * (iend - 4 - ip));
+                ip = iend - 4;
             }
-        }
-    }
+            bitStream = MEM_readLE32(ip) >> (bitCount & 31);
+    }   }
     if (remaining != 1) return ERROR(GENERIC);
     *maxSVPtr = charnum-1;
 
@@ -652,10 +505,130 @@ size_t FSE_readNCount (short* normalizedCounter, unsigned* maxSVPtr, unsigned* t
 }
 
 
-/****************************************************************
+/*-**************************************************************
+*  Counting histogram
+****************************************************************/
+/*! FSE_count_simple
+    This function just counts byte values within @src,
+    and store the histogram into @count.
+    This function is unsafe : it doesn't check that all values within @src can fit into @count.
+    For this reason, prefer using a table @count with 256 elements.
+    @return : highest count for a single element
+*/
+static size_t FSE_count_simple(unsigned* count, unsigned* maxSymbolValuePtr,
+                               const void* src, size_t srcSize)
+{
+    const BYTE* ip = (const BYTE*)src;
+    const BYTE* const end = ip + srcSize;
+    unsigned maxSymbolValue = *maxSymbolValuePtr;
+    unsigned max=0;
+    U32 s;
+
+    memset(count, 0, (maxSymbolValue+1)*sizeof(*count));
+    if (srcSize==0) { *maxSymbolValuePtr = 0; return 0; }
+
+    while (ip<end) count[*ip++]++;
+
+    while (!count[maxSymbolValue]) maxSymbolValue--;
+    *maxSymbolValuePtr = maxSymbolValue;
+
+    for (s=0; s<=maxSymbolValue; s++) if (count[s] > max) max = count[s];
+
+    return (size_t)max;
+}
+
+
+static size_t FSE_count_parallel(unsigned* count, unsigned* maxSymbolValuePtr,
+                                const void* source, size_t sourceSize,
+                                unsigned checkMax)
+{
+    const BYTE* ip = (const BYTE*)source;
+    const BYTE* const iend = ip+sourceSize;
+    unsigned maxSymbolValue = *maxSymbolValuePtr;
+    unsigned max=0;
+    U32 s;
+
+    U32 Counting1[256] = { 0 };
+    U32 Counting2[256] = { 0 };
+    U32 Counting3[256] = { 0 };
+    U32 Counting4[256] = { 0 };
+
+    /* safety checks */
+    if (!sourceSize) {
+        memset(count, 0, maxSymbolValue + 1);
+        *maxSymbolValuePtr = 0;
+        return 0;
+    }
+    if (!maxSymbolValue) maxSymbolValue = 255;            /* 0 == default */
+
+    {   /* by stripes of 16 bytes */
+        U32 cached = MEM_read32(ip); ip += 4;
+        while (ip < iend-15) {
+            U32 c = cached; cached = MEM_read32(ip); ip += 4;
+            Counting1[(BYTE) c     ]++;
+            Counting2[(BYTE)(c>>8) ]++;
+            Counting3[(BYTE)(c>>16)]++;
+            Counting4[       c>>24 ]++;
+            c = cached; cached = MEM_read32(ip); ip += 4;
+            Counting1[(BYTE) c     ]++;
+            Counting2[(BYTE)(c>>8) ]++;
+            Counting3[(BYTE)(c>>16)]++;
+            Counting4[       c>>24 ]++;
+            c = cached; cached = MEM_read32(ip); ip += 4;
+            Counting1[(BYTE) c     ]++;
+            Counting2[(BYTE)(c>>8) ]++;
+            Counting3[(BYTE)(c>>16)]++;
+            Counting4[       c>>24 ]++;
+            c = cached; cached = MEM_read32(ip); ip += 4;
+            Counting1[(BYTE) c     ]++;
+            Counting2[(BYTE)(c>>8) ]++;
+            Counting3[(BYTE)(c>>16)]++;
+            Counting4[       c>>24 ]++;
+        }
+        ip-=4;
+    }
+
+    /* finish last symbols */
+    while (ip<iend) Counting1[*ip++]++;
+
+    if (checkMax) {   /* verify stats will fit into destination table */
+        for (s=255; s>maxSymbolValue; s--) {
+            Counting1[s] += Counting2[s] + Counting3[s] + Counting4[s];
+            if (Counting1[s]) return ERROR(maxSymbolValue_tooSmall);
+    }   }
+
+    for (s=0; s<=maxSymbolValue; s++) {
+        count[s] = Counting1[s] + Counting2[s] + Counting3[s] + Counting4[s];
+        if (count[s] > max) max = count[s];
+    }
+
+    while (!count[maxSymbolValue]) maxSymbolValue--;
+    *maxSymbolValuePtr = maxSymbolValue;
+    return (size_t)max;
+}
+
+/* fast variant (unsafe : won't check if src contains values beyond count[] limit) */
+size_t FSE_countFast(unsigned* count, unsigned* maxSymbolValuePtr,
+                     const void* source, size_t sourceSize)
+{
+    if (sourceSize < 1500) return FSE_count_simple(count, maxSymbolValuePtr, source, sourceSize);
+    return FSE_count_parallel(count, maxSymbolValuePtr, source, sourceSize, 0);
+}
+
+size_t FSE_count(unsigned* count, unsigned* maxSymbolValuePtr,
+                 const void* source, size_t sourceSize)
+{
+    if (*maxSymbolValuePtr <255)
+        return FSE_count_parallel(count, maxSymbolValuePtr, source, sourceSize, 1);
+    *maxSymbolValuePtr = 255;
+    return FSE_countFast(count, maxSymbolValuePtr, source, sourceSize);
+}
+
+
+/*-**************************************************************
 *  FSE Compression Code
 ****************************************************************/
-/*
+/*!
 FSE_CTable is a variable size structure which contains :
     U16 tableLog;
     U16 maxSymbolValue;
@@ -685,7 +658,6 @@ void  FSE_freeCTable (FSE_CTable* ct)
 {
     free(ct);
 }
-
 
 /* provides the minimum logSize to safely represent a distribution */
 static unsigned FSE_minTableLog(size_t srcSize, unsigned maxSymbolValue)
@@ -723,22 +695,18 @@ static size_t FSE_normalizeM2(short* norm, U32 tableLog, const unsigned* count, 
     U32 lowThreshold = (U32)(total >> tableLog);
     U32 lowOne = (U32)((total * 3) >> (tableLog + 1));
 
-    for (s=0; s<=maxSymbolValue; s++)
-    {
-        if (count[s] == 0)
-        {
+    for (s=0; s<=maxSymbolValue; s++) {
+        if (count[s] == 0) {
             norm[s]=0;
             continue;
         }
-        if (count[s] <= lowThreshold)
-        {
+        if (count[s] <= lowThreshold) {
             norm[s] = -1;
             distributed++;
             total -= count[s];
             continue;
         }
-        if (count[s] <= lowOne)
-        {
+        if (count[s] <= lowOne) {
             norm[s] = 1;
             distributed++;
             total -= count[s];
@@ -748,25 +716,20 @@ static size_t FSE_normalizeM2(short* norm, U32 tableLog, const unsigned* count, 
     }
     ToDistribute = (1 << tableLog) - distributed;
 
-    if ((total / ToDistribute) > lowOne)
-    {
+    if ((total / ToDistribute) > lowOne) {
         /* risk of rounding to zero */
         lowOne = (U32)((total * 3) / (ToDistribute * 2));
-        for (s=0; s<=maxSymbolValue; s++)
-        {
-            if ((norm[s] == -2) && (count[s] <= lowOne))
-            {
+        for (s=0; s<=maxSymbolValue; s++) {
+            if ((norm[s] == -2) && (count[s] <= lowOne)) {
                 norm[s] = 1;
                 distributed++;
                 total -= count[s];
                 continue;
-            }
-        }
+        }   }
         ToDistribute = (1 << tableLog) - distributed;
     }
 
-    if (distributed == maxSymbolValue+1)
-    {
+    if (distributed == maxSymbolValue+1) {
         /* all values are pretty poor;
            probably incompressible data (should have already been detected);
            find max, then give all remaining points to max */
@@ -782,10 +745,8 @@ static size_t FSE_normalizeM2(short* norm, U32 tableLog, const unsigned* count, 
         U64 const mid = (1ULL << (vStepLog-1)) - 1;
         U64 const rStep = ((((U64)1<<vStepLog) * ToDistribute) + mid) / total;   /* scale on remaining */
         U64 tmpTotal = mid;
-        for (s=0; s<=maxSymbolValue; s++)
-        {
-            if (norm[s]==-2)
-            {
+        for (s=0; s<=maxSymbolValue; s++) {
+            if (norm[s]==-2) {
                 U64 end = tmpTotal + (count[s] * rStep);
                 U32 sStart = (U32)(tmpTotal >> vStepLog);
                 U32 sEnd = (U32)(end >> vStepLog);
@@ -794,9 +755,7 @@ static size_t FSE_normalizeM2(short* norm, U32 tableLog, const unsigned* count, 
                     return ERROR(GENERIC);
                 norm[s] = (short)weight;
                 tmpTotal = end;
-            }
-        }
-    }
+    }   }   }
 
     return 0;
 }
@@ -809,7 +768,7 @@ size_t FSE_normalizeCount (short* normalizedCounter, unsigned tableLog,
     /* Sanity checks */
     if (tableLog==0) tableLog = FSE_DEFAULT_TABLELOG;
     if (tableLog < FSE_MIN_TABLELOG) return ERROR(GENERIC);   /* Unsupported size */
-    if (tableLog > FSE_MAX_TABLELOG) return ERROR(GENERIC);   /* Unsupported size */
+    if (tableLog > FSE_MAX_TABLELOG) return ERROR(tableLog_tooLarge);   /* Unsupported size */
     if (tableLog < FSE_minTableLog(total, maxSymbolValue)) return ERROR(GENERIC);   /* Too small tableLog, compression potentially impossible */
 
     {
@@ -823,38 +782,23 @@ size_t FSE_normalizeCount (short* normalizedCounter, unsigned tableLog,
         short largestP=0;
         U32 lowThreshold = (U32)(total >> tableLog);
 
-        for (s=0; s<=maxSymbolValue; s++)
-        {
-            if (count[s] == total) return 0;
-            if (count[s] == 0)
-            {
-                normalizedCounter[s]=0;
-                continue;
-            }
-            if (count[s] <= lowThreshold)
-            {
+        for (s=0; s<=maxSymbolValue; s++) {
+            if (count[s] == total) return 0;   /* rle special case */
+            if (count[s] == 0) { normalizedCounter[s]=0; continue; }
+            if (count[s] <= lowThreshold) {
                 normalizedCounter[s] = -1;
                 stillToDistribute--;
-            }
-            else
-            {
+            } else {
                 short proba = (short)((count[s]*step) >> scale);
-                if (proba<8)
-                {
+                if (proba<8) {
                     U64 restToBeat = vStep * rtbTable[proba];
                     proba += (count[s]*step) - ((U64)proba<<scale) > restToBeat;
                 }
-                if (proba > largestP)
-                {
-                    largestP=proba;
-                    largest=s;
-                }
+                if (proba > largestP) largestP=proba, largest=s;
                 normalizedCounter[s] = proba;
                 stillToDistribute -= proba;
-            }
-        }
-        if (-stillToDistribute >= (normalizedCounter[largest] >> 1))
-        {
+        }   }
+        if (-stillToDistribute >= (normalizedCounter[largest] >> 1)) {
             /* corner case, need another normalization method */
             size_t errorCode = FSE_normalizeM2(normalizedCounter, tableLog, count, total, maxSymbolValue);
             if (FSE_isError(errorCode)) return errorCode;
@@ -904,10 +848,12 @@ size_t FSE_buildCTable_raw (FSE_CTable* ct, unsigned nbBits)
         tableU16[s] = (U16)(tableSize + s);
 
     /* Build Symbol Transformation Table */
-    for (s=0; s<=maxSymbolValue; s++)
     {
-        symbolTT[s].deltaNbBits = nbBits << 16;
-        symbolTT[s].deltaFindState = s-1;
+        const U32 deltaNbBits = (nbBits << 16) - (1 << nbBits);
+        for (s=0; s<=maxSymbolValue; s++) {
+            symbolTT[s].deltaNbBits = deltaNbBits;
+            symbolTT[s].deltaFindState = s-1;
+        }
     }
 
     return 0;
@@ -930,10 +876,8 @@ size_t FSE_buildCTable_rle (FSE_CTable* ct, BYTE symbolValue)
     tableU16[1] = 0;   /* just in case */
 
     /* Build Symbol Transformation Table */
-    {
-        symbolTT[symbolValue].deltaNbBits = 0;
-        symbolTT[symbolValue].deltaFindState = 0;
-    }
+    symbolTT[symbolValue].deltaNbBits = 0;
+    symbolTT[symbolValue].deltaFindState = 0;
 
     return 0;
 }
@@ -963,15 +907,13 @@ static size_t FSE_compress_usingCTable_generic (void* dst, size_t dstSize,
 #define FSE_FLUSHBITS(s)  (fast ? BIT_flushBitsFast(s) : BIT_flushBits(s))
 
     /* join to even */
-    if (srcSize & 1)
-    {
+    if (srcSize & 1) {
         FSE_encodeSymbol(&bitC, &CState1, *--ip);
         FSE_FLUSHBITS(&bitC);
     }
 
     /* join to mod 4 */
-    if ((sizeof(bitC.bitContainer)*8 > FSE_MAX_TABLELOG*4+7 ) && (srcSize & 2))   /* test bit 2 */
-    {
+    if ((sizeof(bitC.bitContainer)*8 > FSE_MAX_TABLELOG*4+7 ) && (srcSize & 2)) {  /* test bit 2 */
         FSE_encodeSymbol(&bitC, &CState2, *--ip);
         FSE_encodeSymbol(&bitC, &CState1, *--ip);
         FSE_FLUSHBITS(&bitC);
@@ -987,8 +929,7 @@ static size_t FSE_compress_usingCTable_generic (void* dst, size_t dstSize,
 
         FSE_encodeSymbol(&bitC, &CState1, *--ip);
 
-        if (sizeof(bitC.bitContainer)*8 > FSE_MAX_TABLELOG*4+7 )   /* this test must be static */
-        {
+        if (sizeof(bitC.bitContainer)*8 > FSE_MAX_TABLELOG*4+7 ) {  /* this test must be static */
             FSE_encodeSymbol(&bitC, &CState2, *--ip);
             FSE_encodeSymbol(&bitC, &CState1, *--ip);
         }
@@ -1071,7 +1012,7 @@ size_t FSE_compress (void* dst, size_t dstSize, const void* src, size_t srcSize)
 }
 
 
-/*********************************************************
+/*-*******************************************************
 *  Decompression (Byte symbols)
 *********************************************************/
 size_t FSE_buildDTable_rle (FSE_DTable* dt, BYTE symbolValue)
@@ -1109,8 +1050,7 @@ size_t FSE_buildDTable_raw (FSE_DTable* dt, unsigned nbBits)
     /* Build Decoding Table */
     DTableH->tableLog = (U16)nbBits;
     DTableH->fastMode = 1;
-    for (s=0; s<=maxSymbolValue; s++)
-    {
+    for (s=0; s<=maxSymbolValue; s++) {
         dinfo[s].newState = 0;
         dinfo[s].symbol = (BYTE)s;
         dinfo[s].nbBits = (BYTE)nbBits;
@@ -1144,8 +1084,7 @@ FORCE_INLINE size_t FSE_decompress_usingDTable_generic(
 #define FSE_GETSYMBOL(statePtr) fast ? FSE_decodeSymbolFast(statePtr, &bitD) : FSE_decodeSymbol(statePtr, &bitD)
 
     /* 4 symbols per loop */
-    for ( ; (BIT_reloadDStream(&bitD)==BIT_DStream_unfinished) && (op<olimit) ; op+=4)
-    {
+    for ( ; (BIT_reloadDStream(&bitD)==BIT_DStream_unfinished) && (op<olimit) ; op+=4) {
         op[0] = FSE_GETSYMBOL(&state1);
 
         if (FSE_MAX_TABLELOG*2+7 > sizeof(bitD.bitContainer)*8)    /* This test must be static */
@@ -1166,8 +1105,7 @@ FORCE_INLINE size_t FSE_decompress_usingDTable_generic(
 
     /* tail */
     /* note : BIT_reloadDStream(&bitD) >= FSE_DStream_partiallyFilled; Ends at exactly BIT_DStream_completed */
-    while (1)
-    {
+    while (1) {
         if ( (BIT_reloadDStream(&bitD)>BIT_DStream_completed) || (op==omax) || (BIT_endOfDStream(&bitD) && (fast || FSE_endOfDState(&state1))) )
             break;
 

@@ -36,6 +36,8 @@ typedef struct
 #define ZSTD_OPT_NUM   (1<<12)
 #define ZSTD_FREQ_THRESHOLD (256)
 
+
+// log2_32 is from http://stackoverflow.com/questions/11376288/fast-computing-of-log2-for-64-bit-integers
 const int tab32[32] = {
      0,  9,  1, 10, 13, 21,  2, 29,
     11, 14, 16, 18, 22, 25,  3, 30,
@@ -327,15 +329,11 @@ size_t ZSTD_HcGetAllMatches_generic (
             match = base + matchIndex;
             if (match[minml] == ip[minml])   /* potentially better */
                 currentMl = ZSTD_count(ip, match, iHighLimit);
-#if 0
-            const BYTE* start = ip;
-            size_t offset = current - matchIndex;
-            while ((start > iLowLimit) && (start > base+offset) && (start[-1] == start[-1-offset])) start--; 
-            back = ip - start;
-#else
-      //      while ((match-back > base) && (ip-back > iLowLimit) && (ip[-back-1] == match[-back-1])) back++;
-#endif
-            currentMl += back;
+
+            if (currentMl > 0) {
+                while ((match-back > base) && (ip-back > iLowLimit) && (ip[-back-1] == match[-back-1])) back++; /* backward match extension */
+                currentMl += back;
+            }
         } else {
             match = dictBase + matchIndex;
             if (MEM_read32(match) == MEM_read32(ip))   /* assumption : matchIndex <= dictLimit-4 (by table construction) */
@@ -573,7 +571,7 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
     const uint8_t *inr;
     int skip_num = 0, cur, cur2, last_pos, litlen, price, match_num;
   
-    const int sufficient_len = 32; //ctx->params.sufficientLength;
+    const int sufficient_len = ctx->params.sufficientLength;
     const size_t faster_get_matches = (ctx->params.strategy == ZSTD_opt); 
 
 
@@ -805,6 +803,7 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
                 goto _storeSequence;
             }
 
+
             // set prices using matches at position = cur
             for (int i = 0; i < match_num; i++)
             {
@@ -908,7 +907,7 @@ _storeSequence: // cur, last_pos, best_mlen, best_off have to be set
        //     printf("match="); print_hex_text(ip-offset, mlen, 0);
 
 #if ZSTD_OPT_DEBUG >= 5
-            size_t ml2;
+            int ml2;
             if (offset)
                 ml2 = ZSTD_count(ip, ip-offset, iend);
             else

@@ -69,6 +69,7 @@ typedef enum { ZSTD_fast, ZSTD_greedy, ZSTD_lazy, ZSTD_lazy2, ZSTD_btlazy2, ZSTD
 typedef struct
 {
     U64 srcSize;       /* optional : tells how much bytes are present in the frame. Use 0 if not known. */
+    U32 sufficientLength;  /* size of matches which is acceptable (used only by the optimal parser): larger == more compression, slower */ 
     U32 windowLog;     /* largest match distance : larger == more compression, more memory needed during decompression */
     U32 contentLog;    /* full search segment : larger == more compression, slower, more memory (useless for fast) */
     U32 hashLog;       /* dispatch table : larger == more memory, faster */

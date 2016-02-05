@@ -111,7 +111,7 @@ unsigned ZSTD_isError(size_t code) { return ERR_isError(code); }
 
 /*! ZSTD_getError() :
 *   convert a `size_t` function result into a proper ZSTD_errorCode enum */
-ZSTD_errorCode ZSTD_getError(size_t code) { return ERR_getError(code); }
+ZSTD_ErrorCode ZSTD_getError(size_t code) { return ERR_getError(code); }
 
 /*! ZSTD_getErrorName() :
 *   provides error code string (useful for debugging) */
@@ -173,7 +173,7 @@ ZSTD_DCtx* ZSTD_createDCtx(void)
 size_t ZSTD_freeDCtx(ZSTD_DCtx* dctx)
 {
     free(dctx);
-    return 0;
+    return 0;   /* reserved as a potential error code in the future */
 }
 
 void ZSTD_copyDCtx(ZSTD_DCtx* dstDCtx, const ZSTD_DCtx* srcDCtx)

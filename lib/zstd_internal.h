@@ -79,7 +79,7 @@ static const size_t ZSTD_frameHeaderSize_min = 5;
 #define IS_RAW 2
 #define IS_RLE 3
 
-#define MINMATCH 3
+#define MINMATCH 4
 #define REPCODE_STARTVALUE 1
 
 #define Litbits  8

@@ -19,7 +19,7 @@ typedef struct
 } ZSTD_optimal_t; 
 
 
-#define ZSTD_OPT_DEBUG 0     // 5 = check encoded sequences
+#define ZSTD_OPT_DEBUG 0     // 1 = tableID=0;    5 = check encoded sequences
 
 #if 1
     #define ZSTD_LOG_PARSER(fmt, args...) ;// printf(fmt, ##args)

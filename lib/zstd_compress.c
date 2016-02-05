@@ -2442,7 +2442,9 @@ ZSTD_parameters ZSTD_getParams(int compressionLevel, U64 srcSizeHint)
     int tableID = ((srcSizeHint-1) <= 256 KB) + ((srcSizeHint-1) <= 128 KB) + ((srcSizeHint-1) <= 16 KB);   /* intentional underflow for srcSizeHint == 0 */
     if (compressionLevel<=0) compressionLevel = 1;
     if (compressionLevel > ZSTD_MAX_CLEVEL) compressionLevel = ZSTD_MAX_CLEVEL;
-tableID=0;
+#if ZSTD_OPT_DEBUG >= 1
+    tableID=0;
+#endif
     result = ZSTD_defaultParameters[tableID][compressionLevel];
     result.srcSize = srcSizeHint;
     return result;

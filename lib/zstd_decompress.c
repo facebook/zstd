@@ -612,6 +612,8 @@ typedef struct {
     const BYTE* dumpsEnd;
 } seqState_t;
 
+
+
 static void ZSTD_decodeSequence(seq_t* seq, seqState_t* seqState)
 {
     size_t litLength;
@@ -634,6 +636,11 @@ static void ZSTD_decodeSequence(seq_t* seq, seqState_t* seqState)
         }
         if (dumps >= de) dumps = de-1;   /* late correction, to avoid read overflow (data is now corrupted anyway) */
     }
+
+// litLength==0  offsetCode==0   offset = seqState->prevOffset   seqState->prevOffset = seq->offset
+// litLength==0  offsetCode>0    seqState->prevOffset = seq->offset;
+// litLength>0   offsetCode==0
+// litLength>0   offsetCode>0    seqState->prevOffset = seq->offset;
 
     /* Offset */
     {

@@ -571,7 +571,7 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
     const uint8_t *inr;
     int skip_num = 0, cur, cur2, last_pos, litlen, price, match_num;
   
-    const int sufficient_len = 32; //ctx->params.sufficientLength;
+    const int sufficient_len = ctx->params.sufficientLength;
     const size_t faster_get_matches = (ctx->params.strategy == ZSTD_opt); 
 
 

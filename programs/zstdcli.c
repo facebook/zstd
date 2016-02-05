@@ -124,7 +124,8 @@ static int usage(const char* programName)
     DISPLAY( "          with no FILE, or when FILE is - , read standard input\n");
     DISPLAY( "Arguments :\n");
     DISPLAY( " -#     : # compression level (1-19, default:1) \n");
-    DISPLAY( " -d     : decompression (default for %s extension)\n", ZSTD_EXTENSION);
+    DISPLAY( " -d     : decompression \n");
+    DISPLAY( " -D file: use `file` as Dictionary \n");
     //DISPLAY( " -z     : force compression\n");
     DISPLAY( " -f     : overwrite output without prompting \n");
     DISPLAY( " -h/-H  : display help/long help and exit\n");
@@ -142,7 +143,6 @@ static int usage_advanced(const char* programName)
     DISPLAY( " -q     : suppress warnings; specify twice to suppress errors too\n");
     DISPLAY( " -m     : multiple input filenames mode \n");
     DISPLAY( " -c     : force write to standard output, even if it is the console\n");
-    DISPLAY( " -D file: use file content as Dictionary \n");
 #ifndef ZSTD_NOBENCH
     DISPLAY( "Benchmark arguments :\n");
     DISPLAY( " -b#    : benchmark file(s), using # compression level (default : 1) \n");

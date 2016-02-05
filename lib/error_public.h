@@ -58,7 +58,7 @@ typedef enum {
   ZSTD_error_maxSymbolValue_tooSmall,
   ZSTD_error_dictionary_corrupted,
   ZSTD_error_maxCode
-} ZSTD_errorCode;
+} ZSTD_ErrorCode;
 
 /* note : functions provide error codes in reverse negative order,
           so compare with (size_t)(0-enum) */

@@ -140,7 +140,7 @@ size_t ZSTD_freeCCtx(ZSTD_CCtx* cctx)
 {
     free(cctx->workSpace);
     free(cctx);
-    return 0;
+    return 0;   /* reserved as a potential error code in the future */
 }
 
 
@@ -883,7 +883,6 @@ static size_t ZSTD_count_2segments(const BYTE* ip, const BYTE* match, const BYTE
         matchLength += ZSTD_count(ip+matchLength, iStart, iEnd);
     return matchLength;
 }
-
 
 
 /*-*************************************

@@ -64,7 +64,7 @@ extern "C" {
 #define ZSTD_SEARCHLENGTH_MIN 4
 
 /** from faster to stronger */
-typedef enum { ZSTD_fast, ZSTD_greedy, ZSTD_lazy, ZSTD_lazy2, ZSTD_btlazy2 } ZSTD_strategy;
+typedef enum { ZSTD_fast, ZSTD_greedy, ZSTD_lazy, ZSTD_lazy2, ZSTD_btlazy2, ZSTD_opt, ZSTD_opt_bt } ZSTD_strategy;
 
 typedef struct
 {
@@ -81,7 +81,7 @@ typedef struct
 /* *************************************
 *  Advanced functions
 ***************************************/
-#define ZSTD_MAX_CLEVEL 20
+#define ZSTD_MAX_CLEVEL 24
 ZSTDLIB_API unsigned ZSTD_maxCLevel (void);
 
 /*! ZSTD_getParams() :
@@ -219,6 +219,7 @@ ZSTDLIB_API size_t ZSTD_decompressContinue(ZSTD_DCtx* dctx, void* dst, size_t ds
       + User must test for such outcome and deal directly with uncompressed data
       + ZSTD_decompressBlock() doesn't accept uncompressed data as input !!
 */
+
 
 size_t ZSTD_compressBlock  (ZSTD_CCtx* cctx, void* dst, size_t dstCapacity, const void* src, size_t srcSize);
 size_t ZSTD_decompressBlock(ZSTD_DCtx* dctx, void* dst, size_t dstCapacity, const void* src, size_t srcSize);

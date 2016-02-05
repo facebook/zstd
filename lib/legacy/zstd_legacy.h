@@ -45,6 +45,7 @@ extern "C" {
 #include "zstd_v01.h"
 #include "zstd_v02.h"
 #include "zstd_v03.h"
+#include "zstd_v04.h"
 
 MEM_STATIC unsigned ZSTD_isLegacy (U32 magicNumberLE)
 {
@@ -52,7 +53,8 @@ MEM_STATIC unsigned ZSTD_isLegacy (U32 magicNumberLE)
 	{
 		case ZSTDv01_magicNumberLE :
 		case ZSTDv02_magicNumber :
-		case ZSTDv03_magicNumber : return 1;
+		case ZSTDv03_magicNumber : 
+		case ZSTDv04_magicNumber : return 1;
 		default : return 0;
 	}
 }
@@ -71,6 +73,8 @@ MEM_STATIC size_t ZSTD_decompressLegacy(
 			return ZSTDv02_decompress(dst, maxOriginalSize, src, compressedSize);
 		case ZSTDv03_magicNumber :
 			return ZSTDv03_decompress(dst, maxOriginalSize, src, compressedSize);
+		case ZSTDv04_magicNumber :
+			return ZSTDv04_decompress(dst, maxOriginalSize, src, compressedSize);
 		default :
 		    return ERROR(prefix_unknown);
 	}

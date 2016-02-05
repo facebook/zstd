@@ -23,7 +23,7 @@
    - Public forum : https://groups.google.com/forum/#!forum/lz4c
 */
 
-/**************************************
+/*-************************************
 *  Includes
 **************************************/
 #include <stdlib.h>    /* malloc */
@@ -31,7 +31,7 @@
 #include <string.h>    /* memcpy */
 
 
-/**************************************
+/*-************************************
 *  Basic Types
 **************************************/
 #if defined (__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L)   /* C99 */
@@ -50,7 +50,7 @@
 #endif
 
 
-/**************************************
+/*-************************************
 *  OS-specific Includes
 **************************************/
 #if defined(MSDOS) || defined(OS2) || defined(WIN32) || defined(_WIN32) || defined(__CYGWIN__)
@@ -62,7 +62,7 @@
 #endif
 
 
-/**************************************
+/*-************************************
 *  Constants
 **************************************/
 #define KB *(1 <<10)
@@ -71,7 +71,7 @@
 #define PRIME2   2246822519U
 
 
-/**************************************
+/*-************************************
 *  Local types
 **************************************/
 #define LTLOG 13
@@ -81,7 +81,7 @@ typedef BYTE litDistribTable[LTSIZE];
 
 
 
-/*********************************************************
+/*-*******************************************************
 *  Local Functions
 *********************************************************/
 #define RDG_rotl32(x,r) ((x << r) | (x >> (32 - r)))
@@ -103,14 +103,12 @@ static void RDG_fillLiteralDistrib(litDistribTable lt, double ld)
     BYTE firstChar = '(';
     BYTE lastChar = '}';
 
-    if (ld==0.0)
-    {
+    if (ld==0.0) {
         character = 0;
         firstChar = 0;
         lastChar =255;
     }
-    while (i<LTSIZE)
-    {
+    while (i<LTSIZE) {
         U32 weight = (U32)((double)(LTSIZE - i) * ld) + 1;
         U32 end;
         if (weight + i > LTSIZE) weight = LTSIZE-i;
@@ -140,13 +138,11 @@ void RDG_genBlock(void* buffer, size_t buffSize, size_t prefixSize, double match
     U32 prevOffset = 1;
 
     /* special case : sparse content */
-    while (matchProba >= 1.0)
-    {
+    while (matchProba >= 1.0) {
         size_t size0 = RDG_rand(seed) & 3;
         size0  = (size_t)1 << (16 + size0 * 2);
         size0 += RDG_rand(seed) & (size0-1);   /* because size0 is power of 2*/
-        if (buffSize < pos + size0)
-        {
+        if (buffSize < pos + size0) {
             memset(buffPtr+pos, 0, buffSize-pos);
             return;
         }
@@ -160,11 +156,9 @@ void RDG_genBlock(void* buffer, size_t buffSize, size_t prefixSize, double match
     if (pos==0) buffPtr[0] = RDG_genChar(seed, lt), pos=1;
 
     /* Generate compressible data */
-    while (pos < buffSize)
-    {
+    while (pos < buffSize) {
         /* Select : Literal (char) or Match (within 32K) */
-        if (RDG_RAND15BITS < matchProba32)
-        {
+        if (RDG_RAND15BITS < matchProba32) {
             /* Copy (within 32K) */
             size_t match;
             size_t d;
@@ -178,17 +172,14 @@ void RDG_genBlock(void* buffer, size_t buffSize, size_t prefixSize, double match
             d = pos + length;
             if (d > buffSize) d = buffSize;
             while (pos < d) buffPtr[pos++] = buffPtr[match++];   /* correctly manages overlaps */
-        }
-        else
-        {
+        } else {
             /* Literal (noise) */
             size_t d;
             size_t length = RDG_RANDLENGTH;
             d = pos + length;
             if (d > buffSize) d = buffSize;
             while (pos < d) buffPtr[pos++] = RDG_genChar(seed, lt);
-        }
-    }
+    }   }
 }
 
 
@@ -220,8 +211,7 @@ void RDG_genStdout(unsigned long long size, double matchProba, double litProba, 
     RDG_genBlock(buff, RDG_DICTSIZE, 0, matchProba, lt, &seed);
 
     /* Generate compressible data */
-    while (total < size)
-    {
+    while (total < size) {
         RDG_genBlock(buff, RDG_DICTSIZE+RDG_BLOCKSIZE, RDG_DICTSIZE, matchProba, lt, &seed);
         if (size-total < RDG_BLOCKSIZE) genBlockSize = (size_t)(size-total);
         total += genBlockSize;
@@ -230,6 +220,6 @@ void RDG_genStdout(unsigned long long size, double matchProba, double litProba, 
         memcpy(buff, buff + RDG_BLOCKSIZE, RDG_DICTSIZE);
     }
 
-    // cleanup
+    /* cleanup */
     free(buff);
 }

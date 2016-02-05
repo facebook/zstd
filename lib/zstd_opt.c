@@ -18,6 +18,9 @@ typedef struct
     int rep2;
 } ZSTD_optimal_t; 
 
+
+#define ZSTD_OPT_DEBUG 0     // 5 = check encoded sequences
+
 #if 1
     #define ZSTD_LOG_PARSER(fmt, args...) ;// printf(fmt, ##args)
     #define ZSTD_LOG_PRICE(fmt, args...) ;//printf(fmt, ##args)
@@ -568,9 +571,9 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
     ZSTD_optimal_t opt[ZSTD_OPT_NUM+4];
     ZSTD_match_t matches[ZSTD_OPT_NUM+1];
     const uint8_t *inr;
-    ssize_t skip_num = 0, cur, cur2, last_pos, litlen, price, match_num;
+    int skip_num = 0, cur, cur2, last_pos, litlen, price, match_num;
   
-    const ssize_t sufficient_len = 32; //ctx->params.sufficientLength;
+    const int sufficient_len = 32; //ctx->params.sufficientLength;
     const size_t faster_get_matches = (ctx->params.strategy == ZSTD_opt); 
 
 
@@ -583,9 +586,9 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
 
     /* Match Loop */
     while (ip < ilimit) {
-        ssize_t mlen=0;
-        ssize_t best_mlen=0;
-        ssize_t best_off=0;
+        int mlen=0;
+        int best_mlen=0;
+        int best_off=0;
         memset(opt, 0, sizeof(ZSTD_optimal_t));
         last_pos = 0;
         inr = ip;
@@ -904,7 +907,7 @@ _storeSequence: // cur, last_pos, best_mlen, best_off have to be set
        //     printf("orig="); print_hex_text(ip, mlen, 0);
        //     printf("match="); print_hex_text(ip-offset, mlen, 0);
 
-#if 0 // for debugging
+#if ZSTD_OPT_DEBUG >= 5
             size_t ml2;
             if (offset)
                 ml2 = ZSTD_count(ip, ip-offset, iend);

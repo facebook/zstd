@@ -185,20 +185,22 @@ size_t ZSTD_insertBtAndGetAllMatches (
                         U32 nbCompares, const U32 mls,
                         U32 extDict, ZSTD_match_t* matches, size_t bestLength)
 {
-    U32* const hashTable = zc->hashTable;
+    const BYTE* const base = zc->base;
+    const U32 current = (U32)(ip-base);
     const U32 hashLog = zc->params.hashLog;
     const size_t h  = ZSTD_hashPtr(ip, hashLog, mls);
+    U32* const hashTable = zc->hashTable;
+    U32 matchIndex  = hashTable[h];
+    if (matchIndex >= current) return 0;
+
     U32* const bt   = zc->contentTable;
     const U32 btLog = zc->params.contentLog - 1;
     const U32 btMask= (1 << btLog) - 1;
-    U32 matchIndex  = hashTable[h];
     size_t commonLengthSmaller=0, commonLengthLarger=0;
-    const BYTE* const base = zc->base;
     const BYTE* const dictBase = zc->dictBase;
     const U32 dictLimit = zc->dictLimit;
     const BYTE* const dictEnd = dictBase + dictLimit;
     const BYTE* const prefixStart = base + dictLimit;
-    const U32 current = (U32)(ip-base);
     const U32 btLow = btMask >= current ? 0 : current - btMask;
     const U32 windowLow = zc->lowLimit;
     U32* smallerPtr = bt + 2*(current&btMask);
@@ -285,6 +287,8 @@ FORCE_INLINE size_t ZSTD_BtGetAllMatches_selectMLS (
                         const BYTE* ip, const BYTE* const iLowLimit, const BYTE* const iHighLimit,
                         const U32 maxNbAttempts, const U32 matchLengthSearch, ZSTD_match_t* matches, size_t minml)
 {
+    if (iLowLimit) {}; // skip warnings
+
     switch(matchLengthSearch)
     {
     default :
@@ -320,6 +324,7 @@ size_t ZSTD_HcGetAllMatches_generic (
 
     /* HC4 match finder */
     matchIndex = ZSTD_insertAndFindFirstIndex (zc, ip, mls);
+    if (matchIndex >= current) return 0;
 
     while ((matchIndex>lowLimit) && (nbAttempts)) {
         size_t currentMl=0;
@@ -329,7 +334,6 @@ size_t ZSTD_HcGetAllMatches_generic (
             match = base + matchIndex;
             if (match[minml] == ip[minml])   /* potentially better */
                 currentMl = ZSTD_count(ip, match, iHighLimit);
-
             if (currentMl > 0) {
                 while ((match-back > base) && (ip-back > iLowLimit) && (ip[-back-1] == match[-back-1])) back++; /* backward match extension */
                 currentMl += back;
@@ -338,6 +342,10 @@ size_t ZSTD_HcGetAllMatches_generic (
             match = dictBase + matchIndex;
             if (MEM_read32(match) == MEM_read32(ip))   /* assumption : matchIndex <= dictLimit-4 (by table construction) */
                 currentMl = ZSTD_count_2segments(ip+MINMATCH, match+MINMATCH, iHighLimit, dictEnd, prefixStart) + MINMATCH;
+            if (currentMl > 0) {
+                while ((match-back > dictBase) && (ip-back > iLowLimit) && (ip[-back-1] == match[-back-1])) back++; /* backward match extension */
+                currentMl += back;
+            }
         }
 
         /* save best solution */
@@ -391,152 +399,6 @@ void print_hex_text(uint8_t* buf, int bufsize, int endline)
 		printf("\n");
 	}
     if (endline) printf("\n");
-}
-
-
-/* *******************************
-*  Old parser
-*********************************/
-FORCE_INLINE
-void ZSTD_compressBlock_opt2_generic(ZSTD_CCtx* ctx,
-                                     const void* src, size_t srcSize,
-                                     const U32 searchMethod, const U32 depth)
-{
-    seqStore_t* seqStorePtr = &(ctx->seqStore);
-    const BYTE* const istart = (const BYTE*)src;
-    const BYTE* ip = istart;
-    const BYTE* anchor = istart;
-    const BYTE* const iend = istart + srcSize;
-    const BYTE* const ilimit = iend - 8;
-    const BYTE* const base = ctx->base + ctx->dictLimit;
-
-    size_t offset_2=REPCODE_STARTVALUE, offset_1=REPCODE_STARTVALUE;
-    const U32 maxSearches = 1 << ctx->params.searchLog;
-    const U32 mls = ctx->params.searchLength;
-
-    typedef size_t (*searchMax_f)(ZSTD_CCtx* zc, const BYTE* ip, const BYTE* iLimit,
-                        size_t* offsetPtr,
-                        U32 maxNbAttempts, U32 matchLengthSearch);
-    searchMax_f searchMax = searchMethod ? ZSTD_BtFindBestMatch_selectMLS : ZSTD_HcFindBestMatch_selectMLS;
- 
-#if 0
-    typedef size_t (*getAllMatches_f)(ZSTD_CCtx* zc, const BYTE* ip, const BYTE* iLimit,
-                        U32 maxNbAttempts, U32 matchLengthSearch, ZSTD_match_t* matches);
-    getAllMatches_f getAllMatches = searchMethod ? ZSTD_BtGetAllMatches_selectMLS : ZSTD_HcGetAllMatches_selectMLS;
-
-    ZSTD_match_t matches[ZSTD_OPT_NUM+1];
-#endif
-
-    /* init */
-    ZSTD_resetSeqStore(seqStorePtr);
-    if ((ip-base) < REPCODE_STARTVALUE) ip = base + REPCODE_STARTVALUE;
-
-    /* Match Loop */
-    while (ip < ilimit) {
-        size_t matchLength=0;
-        size_t offset=0;
-        const BYTE* start=ip+1;
-
-#define ZSTD_USE_REP
-#ifdef ZSTD_USE_REP
-        /* check repCode */
-        if (MEM_read32(start) == MEM_read32(start - offset_1)) {
-            /* repcode : we take it */
-            matchLength = ZSTD_count(start+MINMATCH, start+MINMATCH-offset_1, iend) + MINMATCH;
-            if (depth==0) goto _storeSequence;
-        }
-#endif
-
-        {
-            /* first search (depth 0) */
-#if 1
-            size_t offsetFound = 99999999;
-            size_t ml2 = searchMax(ctx, ip, iend, &offsetFound, maxSearches, mls);
-            if (ml2 > matchLength)
-                start=ip, matchLength = ml2,  offset=offsetFound;
-#else
-            size_t mnum = getAllMatches(ctx, ip, iend, maxSearches, mls, matches); 
-            if (mnum > 0) {
-                if (matches[mnum-1].len > matchLength)
-                    start=ip, matchLength = matches[mnum-1].len, offset=matches[mnum-1].off;
-            }
-#endif
-        }
-
-        if (matchLength < MINMATCH) {
-       //     ip += ((ip-anchor) >> g_searchStrength) + 1;   /* jump faster over incompressible sections */
-            ip++;
-            continue;
-        }
-
-#if 1
-        /* let's try to find a better solution */
-        if (depth>=1)
-        while (ip<ilimit) {
-            ip ++;
-#ifdef ZSTD_USE_REP
-            if ((offset) && (MEM_read32(ip) == MEM_read32(ip - offset_1))) {
-                size_t mlRep = ZSTD_count(ip+MINMATCH, ip+MINMATCH-offset_1, iend) + MINMATCH;
-                int gain2 = (int)(mlRep * 3);
-                int gain1 = (int)(matchLength*3 - ZSTD_highbit((U32)offset+1) + 1);
-                if ((mlRep >= MINMATCH) && (gain2 > gain1))
-                    matchLength = mlRep, offset = 0, start = ip;
-            }
-#endif
-            {
-                size_t offset2=999999;
-                size_t ml2 = searchMax(ctx, ip, iend, &offset2, maxSearches, mls);
-                int gain2 = (int)(ml2*4 - ZSTD_highbit((U32)offset2+1));   /* raw approx */
-                int gain1 = (int)(matchLength*4 - ZSTD_highbit((U32)offset+1) + 4);
-                if ((ml2 >= MINMATCH) && (gain2 > gain1)) {
-                    matchLength = ml2, offset = offset2, start = ip;
-                    continue;   /* search a better one */
-            }   }
-
-            break;  /* nothing found : store previous solution */
-        }
-#endif
-
-        /* store sequence */
-_storeSequence:
-
-        /* catch up */
-        if (offset) {
-            while ((start>anchor) && (start>base+offset) && (start[-1] == start[-1-offset]))   /* only search for offset within prefix */
-                { start--; matchLength++; }
-            offset_2 = offset_1; offset_1 = offset;
-        }
-
-        {
-            size_t litLength = start - anchor;
-            ZSTD_LOG_ENCODE("%d/%d: ENCODE literals=%d off=%d mlen=%d offset_1=%d offset_2=%d\n", (int)(ip-base), (int)(iend-base), (int)(litLength), (int)(offset), (int)matchLength, (int)offset_1, (int)offset_2);
-            ZSTD_storeSeq(seqStorePtr, litLength, anchor, offset, matchLength-MINMATCH);
-            anchor = ip = start + matchLength;
-        }
-
-#ifdef ZSTD_USE_REP      /* check immediate repcode */
-        while ( (ip <= ilimit)
-             && (MEM_read32(ip) == MEM_read32(ip - offset_2)) ) {
-            /* store sequence */
-            matchLength = ZSTD_count(ip+MINMATCH, ip+MINMATCH-offset_2, iend);
-            offset = offset_2;
-            offset_2 = offset_1;
-            offset_1 = offset;
-            ZSTD_storeSeq(seqStorePtr, 0, anchor, 0, matchLength);
-            ip += matchLength+MINMATCH;
-            anchor = ip;
-            continue;   /* faster when present ... (?) */
-    }
-#endif   
-    }
-
-    /* Last Literals */
-    {
-        size_t lastLLSize = iend - anchor;
-        ZSTD_LOG_ENCODE("%d/%d: ENCODE lastLLSize=%d\n", (int)(ip-base), (int)(iend-base), (int)(lastLLSize));
-        memcpy(seqStorePtr->lit, anchor, lastLLSize);
-        seqStorePtr->lit += lastLLSize;
-    }
 }
 
 
@@ -722,19 +584,22 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
 
 
 
-           if (!opt[cur].off && opt[cur].mlen != 1) {
-                mlen = ZSTD_count(inr, inr - opt[cur].rep2, iend); // check rep2
-                ZSTD_LOG_PARSER("%d: try REP2 rep2=%d mlen=%d\n", (int)(inr-base), opt[cur].rep2, mlen);   
-           }
-           else {
-                mlen = ZSTD_count(inr, inr - opt[cur].rep, iend); // check rep
-                ZSTD_LOG_PARSER("%d: try REP1 rep=%d mlen=%d\n", (int)(inr-base), opt[cur].rep, mlen);   
-           }
-
+           size_t cur_rep;
            best_mlen = 0;
 
-           if (mlen >= MINMATCH)
+           if (!opt[cur].off && opt[cur].mlen != 1) {
+               cur_rep = opt[cur].rep2;
+               ZSTD_LOG_PARSER("%d: try REP2 rep2=%d mlen=%d\n", (int)(inr-base), cur_rep, mlen);   
+           }
+           else {
+               cur_rep = opt[cur].rep;
+               ZSTD_LOG_PARSER("%d: try REP1 rep=%d mlen=%d\n", (int)(inr-base), cur_rep, mlen);   
+           }
+
+
+           if (MEM_read32(inr) == MEM_read32(inr - cur_rep)) // check rep
            {
+              mlen = ZSTD_count(inr+MINMATCH, inr+MINMATCH - cur_rep, iend) + MINMATCH; 
               ZSTD_LOG_PARSER("%d: Found REP mlen=%d off=%d rep=%d opt[%d].off=%d\n", (int)(inr-base), mlen, 0, opt[cur].rep, cur, opt[cur].off);
 
               if (mlen > sufficient_len || cur + mlen >= ZSTD_OPT_NUM)
@@ -812,6 +677,8 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
                 best_mlen = (cur2 + matches[i].len < ZSTD_OPT_NUM) ? matches[i].len : ZSTD_OPT_NUM - cur2;
 
                 ZSTD_LOG_PARSER("%d: Found1 cur=%d cur2=%d mlen=%d off=%d best_mlen=%d last_pos=%d\n", (int)(inr-base), cur, cur2, matches[i].len, matches[i].off, best_mlen, last_pos);
+                if (mlen < matches[i].back + 1)
+                    mlen = matches[i].back + 1;
 
                 while (mlen <= best_mlen)
                 {
@@ -885,7 +752,7 @@ _storeSequence: // cur, last_pos, best_mlen, best_off have to be set
 
 
             size_t litLength = ip - anchor;
-            ZSTD_LOG_ENCODE("%d/%d: BEFORE_ENCODE literals=%d mlen=%d off=%d rep1=%d rep2=%d\n", (int)(ip-base), (int)(iend-base), (int)(litLength), (int)mlen, (int)(offset), (int)rep_1, (int)rep_2);
+            ZSTD_LOG_ENCODE("%d/%d: ENCODE1 literals=%d mlen=%d off=%d rep1=%d rep2=%d\n", (int)(ip-base), (int)(iend-base), (int)(litLength), (int)mlen, (int)(offset), (int)rep_1, (int)rep_2);
 
             if (offset)
             {
@@ -902,7 +769,7 @@ _storeSequence: // cur, last_pos, best_mlen, best_off have to be set
                 }
             }
 
-            ZSTD_LOG_ENCODE("%d/%d: ENCODE literals=%d mlen=%d off=%d rep1=%d rep2=%d\n", (int)(ip-base), (int)(iend-base), (int)(litLength), (int)mlen, (int)(offset), (int)rep_1, (int)rep_2);
+            ZSTD_LOG_ENCODE("%d/%d: ENCODE2 literals=%d mlen=%d off=%d rep1=%d rep2=%d\n", (int)(ip-base), (int)(iend-base), (int)(litLength), (int)mlen, (int)(offset), (int)rep_1, (int)rep_2);
        //     printf("orig="); print_hex_text(ip, mlen, 0);
        //     printf("match="); print_hex_text(ip-offset, mlen, 0);
 
@@ -912,33 +779,18 @@ _storeSequence: // cur, last_pos, best_mlen, best_off have to be set
                 ml2 = ZSTD_count(ip, ip-offset, iend);
             else
                 ml2 = ZSTD_count(ip, ip-rep_1, iend);
-
-            if (ml2 < mlen && ml2 < MINMATCH)
-            {
-                printf("%d: ERROR iend=%d mlen=%d offset=%d ml2=%d\n", (int)(ip - base), (int)(iend - ip), (int)mlen, (int)offset, (int)ml2);
-                exit(0);
-            }
-
-            if (ip < anchor)
-            {
-                printf("%d: ERROR ip < anchor iend=%d mlen=%d offset=%d\n", (int)(ip - base), (int)(iend - ip), (int)mlen, (int)offset);
-                exit(0);
-            }
-            if (ip - offset < base)
-            {
-                printf("%d: ERROR ip - offset < base iend=%d mlen=%d offset=%d\n", (int)(ip - base), (int)(iend - ip), (int)mlen, (int)offset);
-                exit(0);
-            }
-            if (mlen < MINMATCH)
-            {
-                printf("%d: ERROR mlen < MINMATCH iend=%d mlen=%d offset=%d\n", (int)(ip - base), (int)(iend - ip), (int)mlen, (int)offset);
-                exit(0);
-            }
-            if (ip + mlen > iend) 
-            {
-                printf("%d: ERROR ip + mlen >= iend iend=%d mlen=%d offset=%d\n", (int)(ip - base), (int)(iend - ip), (int)mlen, (int)offset);
-                exit(0);
-            }
+            if (ml2 < mlen && ml2 < MINMATCH) {
+                printf("%d: ERROR iend=%d mlen=%d offset=%d ml2=%d\n", (int)(ip - base), (int)(iend - ip), (int)mlen, (int)offset, (int)ml2); exit(0); }
+            if (ip < anchor) {
+                printf("%d: ERROR ip < anchor iend=%d mlen=%d offset=%d\n", (int)(ip - base), (int)(iend - ip), (int)mlen, (int)offset); exit(0); }
+            if (ip - offset < ctx->base) {
+                printf("%d: ERROR ip - offset < base iend=%d mlen=%d offset=%d\n", (int)(ip - base), (int)(iend - ip), (int)mlen, (int)offset); exit(0); }
+            if ((int)offset >= (1 << ctx->params.windowLog)) {
+                printf("%d: offset >= (1 << params.windowLog) iend=%d mlen=%d offset=%d\n", (int)(ip - base), (int)(iend - ip), (int)mlen, (int)offset); exit(0); }
+            if (mlen < MINMATCH) {
+                printf("%d: ERROR mlen < MINMATCH iend=%d mlen=%d offset=%d\n", (int)(ip - base), (int)(iend - ip), (int)mlen, (int)offset); exit(0); }
+            if (ip + mlen > iend) {
+                printf("%d: ERROR ip + mlen >= iend iend=%d mlen=%d offset=%d\n", (int)(ip - base), (int)(iend - ip), (int)mlen, (int)offset); exit(0); }
 #endif
 
             ZSTD_updatePrice(seqStorePtr, litLength, anchor, offset, mlen-MINMATCH);

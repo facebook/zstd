@@ -7,6 +7,9 @@ before_install:
   - sudo apt-get install -qq g++-multilib
   - sudo apt-get install -qq gcc-multilib
   - sudo apt-get install -qq valgrind
+  - sudo apt-get install -qq qemu
+  - sudo apt-get install -qq binfmt-support
+  - sudo apt-get install -qq qemu-user-static
 
 env:
   - ZSTD_TRAVIS_CI_ENV=travis-install

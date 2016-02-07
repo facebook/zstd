@@ -1,6 +1,6 @@
 # ##########################################################################
 # ZSTD programs - Makefile
-# Copyright (C) Yann Collet 2015
+# Copyright (C) Yann Collet 2015-2016
 #
 # GPL v2 License
 #
@@ -19,13 +19,14 @@
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 #
 # You can contact the author at :
-#  - ZSTD source repository : http://code.google.com/p/zstd/
-#  - Public forum : https://groups.google.com/forum/#!forum/lz4c
+#  - zstd homepage : http://www.zstd.net/
 # ##########################################################################
 # zstd : Command Line Utility, supporting gzip-like arguments
 # datagen : Synthetic and parametrable data generator, for tests
 # fuzzer  : Test tool, to check zstd integrity on target platform
 # fuzzer32: Same as fuzzer, but forced to compile in 32-bits mode
+# zbufftest  : Test tool, to check ZBUFF integrity on target platform
+# zbufftest32: Same as zbufftest, but forced to compile in 32-bits mode
 # fullbench  : Precisely measure speed for each zstd inner function
 # fullbench32: Same as fullbench, but forced to compile in 32-bits mode
 # ##########################################################################

@@ -16,7 +16,7 @@ roundTripTest() {
     rm -f tmp1 tmp2
     echo "roundTripTest: ./datagen $1 $p | $ZSTD -v$c | $ZSTD -d"
     ./datagen $1 $p | md5sum > tmp1
-    ./datagen $1 $p | $ZSTD -v$c | $ZSTD -d  | md5sum > tmp2
+    ./datagen $1 $p | $ZSTD -vq$c | $ZSTD -d  | md5sum > tmp2
     diff -q tmp1 tmp2
 }
 

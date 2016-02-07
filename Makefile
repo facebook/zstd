@@ -27,8 +27,7 @@
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 # 
 # You can contact the author at :
-#  - zstd source repository : https://github.com/Cyan4973/zstd
-#  - Public forum : https://groups.google.com/forum/#!forum/lz4c
+#  - zstd homepage : http://www.zstd.net/
 # ################################################################
 
 # force a version number : uncomment below export (otherwise, default to the one declared into zstd.h)

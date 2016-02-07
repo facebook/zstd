@@ -1,6 +1,6 @@
 # ################################################################
 # zstd - Makefile
-# Copyright (C) Yann Collet 2014-2015
+# Copyright (C) Yann Collet 2014-2016
 # All rights reserved.
 # 
 # BSD license
@@ -93,8 +93,9 @@ gpptest: clean
 	$(MAKE) all CC=g++ CFLAGS="-O3 -Wall -Wextra -Wundef -Wshadow -Wcast-align -Werror"
 
 armtest: clean
-	$(MAKE) -C $(ZSTDDIR) all CC=arm-linux-gnueabi-gcc MOREFLAGS="-Werror"
-	$(MAKE) -C $(PRGDIR) CC=arm-linux-gnueabi-gcc MOREFLAGS="-Werror -static"
+#	$(MAKE) -C $(ZSTDDIR) all CC=arm-linux-gnueabi-gcc MOREFLAGS="-Werror"
+	$(MAKE) -C $(PRGDIR) datagen   # use native, faster
+	$(MAKE) -C $(PRGDIR) test CC=arm-linux-gnueabi-gcc MOREFLAGS=-static # MOREFLAGS="-Werror -static"
 
 usan: clean
 	$(MAKE) test CC=clang MOREFLAGS="-g -fsanitize=undefined"

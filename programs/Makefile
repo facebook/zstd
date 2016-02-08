@@ -76,6 +76,7 @@ endif
 
 ZBUFFTEST = -T2mn
 FUZZERTEST= -T5mn
+ZSTDRTTEST= --test-large-data
 
 .PHONY: default all clean install uninstall test test32 test-all
 
@@ -179,7 +180,7 @@ test32: test-zstd32 test-fullbench32 test-fuzzer32 test-zbuff32
 test-all: test test32 valgrindTest
 
 zstd-playTests: datagen
-	ZSTD=$(ZSTD) ./playTests.sh --test-large-data
+	ZSTD=$(ZSTD) ./playTests.sh $(ZSTDRTTEST)
 
 test-zstd: ZSTD = ./zstd
 test-zstd: zstd zstd-playTests

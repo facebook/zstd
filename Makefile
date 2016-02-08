@@ -95,7 +95,31 @@ gpptest: clean
 armtest: clean
 #	$(MAKE) -C $(ZSTDDIR) all CC=arm-linux-gnueabi-gcc MOREFLAGS="-Werror"
 	$(MAKE) -C $(PRGDIR) datagen   # use native, faster
-	$(MAKE) -C $(PRGDIR) test CC=arm-linux-gnueabi-gcc MOREFLAGS=-static # MOREFLAGS="-Werror -static"
+	$(MAKE) -C $(PRGDIR) test CC=arm-linux-gnueabi-gcc ZSTDRTTEST= MOREFLAGS=-static # MOREFLAGS="-Werror -static"
+
+# for Travis CI
+arminstall: clean   
+	sudo apt-get install -q qemu  
+	sudo apt-get install -q binfmt-support
+	sudo apt-get install -q qemu-user-static
+	sudo apt-get install -q gcc-arm-linux-gnueabi
+
+# for Travis CI
+armtest-w-install: clean arminstall armtest
+
+ppctest: clean
+	$(MAKE) -C $(PRGDIR) datagen   # use native, faster
+	$(MAKE) -C $(PRGDIR) test CC=powerpc-linux-gnu-gcc ZSTDRTTEST= MOREFLAGS=-static # MOREFLAGS="-Werror -static" 
+
+# for Travis CI
+ppcinstall: clean   
+	sudo apt-get install -q qemu  
+	sudo apt-get install -q binfmt-support
+	sudo apt-get install -q qemu-user-static
+	sudo apt-get install -q gcc-powerpc-linux-gnu
+
+# for Travis CI
+ppctest-w-install: clean ppcinstall ppctest
 
 usan: clean
 	$(MAKE) test CC=clang MOREFLAGS="-g -fsanitize=undefined"

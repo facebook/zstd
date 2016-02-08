@@ -78,7 +78,7 @@
 #  define ZSTD_VERSION "v" EXPAND_AND_QUOTE(ZSTD_VERSION_MAJOR) "." EXPAND_AND_QUOTE(ZSTD_VERSION_MINOR) "." EXPAND_AND_QUOTE(ZSTD_VERSION_RELEASE)
 #endif
 #define AUTHOR "Yann Collet"
-#define WELCOME_MESSAGE "*** %s %i-bits %s, by %s (%s) ***\n", COMPRESSOR_NAME, (int)(sizeof(void*)*8), ZSTD_VERSION, AUTHOR, __DATE__
+#define WELCOME_MESSAGE "*** %s %i-bits %s, by %s ***\n", COMPRESSOR_NAME, (int)(sizeof(void*)*8), ZSTD_VERSION, AUTHOR
 #define ZSTD_EXTENSION ".zst"
 #define ZSTD_CAT "zstdcat"
 #define ZSTD_UNZSTD "unzstd"

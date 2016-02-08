@@ -116,6 +116,8 @@ ppcinstall: clean
 	sudo apt-get install -q qemu  
 	sudo apt-get install -q binfmt-support
 	sudo apt-get install -q qemu-user-static
+	apt-cache search powerpc
+	sudo apt-get update
 	sudo apt-get install -q gcc-powerpc-linux-gnu
 
 # for Travis CI

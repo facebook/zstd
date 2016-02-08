@@ -116,10 +116,8 @@ ppcinstall: clean
 	sudo apt-get install -q qemu  
 	sudo apt-get install -q binfmt-support
 	sudo apt-get install -q qemu-user-static
-	sudo apt-get update
-	apt-cache search powerpc
-	apt-cache search gcc
-	sudo apt-get install -q gcc-powerpc-linux-gnu
+	sudo apt-get update  -q
+	sudo apt-get install -q gcc-powerpc-linux-gnu   # unfortunately, doesn't work on Travis CI (package not available)
 
 # for Travis CI
 ppctest-w-install: clean ppcinstall ppctest

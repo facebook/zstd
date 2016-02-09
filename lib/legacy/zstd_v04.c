@@ -1342,9 +1342,9 @@ typedef struct
 
 MEM_STATIC void FSE_initDState(FSE_DState_t* DStatePtr, BIT_DStream_t* bitD, const FSE_DTable* dt)
 {
-    const void* ptr = dt;
-    const FSE_DTableHeader* const DTableH = (const FSE_DTableHeader*)ptr;
-    DStatePtr->state = BIT_readBits(bitD, DTableH->tableLog);
+    FSE_DTableHeader DTableH;
+    memcpy(&DTableH, dt, sizeof(DTableH));
+    DStatePtr->state = BIT_readBits(bitD, DTableH.tableLog);
     BIT_reloadDStream(bitD);
     DStatePtr->table = dt + 1;
 }
@@ -1841,9 +1841,11 @@ static size_t FSE_decompress_usingDTable(void* dst, size_t originalSize,
                             const void* cSrc, size_t cSrcSize,
                             const FSE_DTable* dt)
 {
-    const void* ptr = dt;
-    const FSE_DTableHeader* DTableH = (const FSE_DTableHeader*)ptr;
-    const U32 fastMode = DTableH->fastMode;
+    FSE_DTableHeader DTableH;
+    U32 fastMode;
+
+    memcpy(&DTableH, dt, sizeof(DTableH));
+    fastMode = DTableH.fastMode;
 
     /* select fast mode (static) */
     if (fastMode) return FSE_decompress_usingDTable_generic(dst, originalSize, cSrc, cSrcSize, dt, 1);
@@ -2561,7 +2563,8 @@ static size_t HUF_readDTableX4 (U32* DTable, const void* src, size_t srcSize)
     if (tableLog > memLog) return ERROR(tableLog_tooLarge);   /* DTable can't fit code depth */
 
     /* find maxWeight */
-    for (maxW = tableLog; rankStats[maxW]==0; maxW--) {}  /* necessarily finds a solution before 0 */
+    for (maxW = tableLog; rankStats[maxW]==0; maxW--)
+        { if (!maxW) return ERROR(GENERIC); }  /* necessarily finds a solution before maxW==0 */
 
     /* Get start index of each weight */
     {
@@ -2889,7 +2892,8 @@ static size_t HUF_readDTableX6 (U32* DTable, const void* src, size_t srcSize)
     if (tableLog > memLog) return ERROR(tableLog_tooLarge);   /* DTable is too small */
 
     /* find maxWeight */
-    for (maxW = tableLog; rankStats[maxW]==0; maxW--) {}  /* necessarily finds a solution before 0 */
+    for (maxW = tableLog; rankStats[maxW]==0; maxW--)
+        { if (!maxW) return ERROR(GENERIC); }  /* necessarily finds a solution before maxW==0 */
 
     /* Get start index of each weight */
     {

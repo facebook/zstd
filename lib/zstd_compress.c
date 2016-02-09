@@ -1927,12 +1927,12 @@ static void ZSTD_compressBlock_btlazy2_extDict(ZSTD_CCtx* ctx, const void* src, 
 
 static void ZSTD_compressBlock_opt_extDict(ZSTD_CCtx* ctx, const void* src, size_t srcSize)
 {
-    ZSTD_compressBlock_opt_extDict_generic(ctx, src, srcSize, 0, 2);
+    ZSTD_compressBlock_lazy_extDict_generic(ctx, src, srcSize, 0, 2);
 }
 
 static void ZSTD_compressBlock_opt_bt_extDict(ZSTD_CCtx* ctx, const void* src, size_t srcSize)
 {
-    ZSTD_compressBlock_opt_extDict_generic(ctx, src, srcSize, 1, 2);
+    ZSTD_compressBlock_lazy_extDict_generic(ctx, src, srcSize, 1, 2);
 }
 
 
@@ -2106,12 +2106,10 @@ static size_t ZSTD_loadDictionaryContent(ZSTD_CCtx* zc, const void* src, size_t 
     case ZSTD_greedy:
     case ZSTD_lazy:
     case ZSTD_lazy2:
-    case ZSTD_opt:
         ZSTD_insertAndFindFirstIndex (zc, iend-8, zc->params.searchLength);
         break;
 
     case ZSTD_btlazy2:
-    case ZSTD_opt_bt:
         ZSTD_updateTree(zc, iend-8, iend, 1 << zc->params.searchLog, zc->params.searchLength);
         break;
 

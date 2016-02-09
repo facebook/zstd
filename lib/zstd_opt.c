@@ -364,7 +364,7 @@ U32 ZSTD_HcGetAllMatches_generic (
 
     while ((matchIndex>lowLimit) && (nbAttempts)) {
         size_t currentMl=0;
-        U32 back = 0;
+        int back = 0;
         nbAttempts--;
         if ((!extDict) || matchIndex >= dictLimit) {
             match = base + matchIndex;

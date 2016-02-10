@@ -94,7 +94,7 @@ FORCE_INLINE U32 ZSTD_getPrice(seqStore_t* seqStorePtr, U32 litLength, const BYT
 {
     if (seqStorePtr->litSum > ZSTD_FREQ_THRESHOLD)
         return ZSTD_getLiteralPriceReal(seqStorePtr, litLength, literals) + ZSTD_getMatchPriceReal(seqStorePtr, offset, matchLength);
-
+    /* backup eval */
     return (litLength<<3) + ZSTD_highbit((U32)matchLength+1) + Offbits + ZSTD_highbit((U32)offset+1);
 }
 

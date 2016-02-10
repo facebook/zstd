@@ -1697,7 +1697,7 @@ _storeSequence:
     }
 }
 
-#include "zstd_opt.c"
+#include "zstd_opt.h"
 
 static void ZSTD_compressBlock_opt_bt(ZSTD_CCtx* ctx, const void* src, size_t srcSize)
 {

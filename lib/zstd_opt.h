@@ -34,8 +34,7 @@
 /* Note : this file is intended to be included within zstd_compress.c */
 
 /*-  Dependencies  -*/
-#include <stdio.h>
-#include <math.h>   /* log */
+#include <stdio.h>  /* for debug */
 
 
 /*-  Local types  -*/
@@ -356,14 +355,17 @@ U32 ZSTD_HcGetAllMatches_generic (
             match = base + matchIndex;
             if (match[minml] == ip[minml])   /* potentially better */
                 currentMl = ZSTD_count(ip, match, iHighLimit);
-            while ((match-back > base) && (ip-back > iLowLimit) && (ip[-back-1] == match[-back-1])) back++;   /* backward match extension */
-            currentMl += back;
+            if (currentMl>0) {
+                while ((match-back > base) && (ip-back > iLowLimit) && (ip[-back-1] == match[-back-1])) back++;   /* backward match extension */
+                currentMl += back;
+            }
         } else {
             match = dictBase + matchIndex;
-            if (MEM_read32(match) == MEM_read32(ip))   /* assumption : matchIndex <= dictLimit-4 (by table construction) */
+            if (MEM_read32(match) == MEM_read32(ip)) {   /* assumption : matchIndex <= dictLimit-4 (by table construction) */
                 currentMl = ZSTD_count_2segments(ip+MINMATCH, match+MINMATCH, iHighLimit, dictEnd, prefixStart) + MINMATCH;
-            while ((match-back > dictStart) && (ip-back > iLowLimit) && (ip[-back-1] == match[-back-1])) back++;   /* backward match extension */
-            currentMl += back;
+                while ((match-back > dictStart) && (ip-back > iLowLimit) && (ip[-back-1] == match[-back-1])) back++;   /* backward match extension */
+                currentMl += back;
+            }
         }
 
         /* save best solution */
@@ -463,7 +465,6 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
         inr = ip;
         opt[0].litlen = (U32)(ip - anchor);
 
-
         /* check repCode */
         if (MEM_read32(ip+1) == MEM_read32(ip+1 - rep_1)) {
             /* repcode : we take it */
@@ -476,14 +477,12 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
             }
 
             litlen = opt[0].litlen + 1;
-            do
-            {
+            do {
                 price = ZSTD_getPrice(seqStorePtr, litlen, anchor, 0, mlen - MINMATCH);
                 if (mlen + 1 > last_pos || price < opt[mlen + 1].price)
-                    SET_PRICE(mlen + 1, mlen, 0, litlen, price);
+                    SET_PRICE(mlen + 1, mlen, 0, litlen, price);   /* note : macro modifies last_pos */
                 mlen--;
-            }
-            while (mlen >= MINMATCH);
+            } while (mlen >= MINMATCH);
         }
 
 
@@ -515,17 +514,15 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
            best_mlen = (matches[u].len < ZSTD_OPT_NUM) ? matches[u].len : ZSTD_OPT_NUM;
            ZSTD_LOG_PARSER("%d: start Found mlen=%d off=%d best_mlen=%d last_pos=%d\n", (int)(ip-base), matches[u].len, matches[u].off, (int)best_mlen, (int)last_pos);
            litlen = opt[0].litlen;
-           while (mlen <= best_mlen)
-           {
+           while (mlen <= best_mlen) {
                 price = ZSTD_getPrice(seqStorePtr, litlen, anchor, matches[u].off, mlen - MINMATCH);
                 if (mlen > last_pos || price < opt[mlen].price)
                     SET_PRICE(mlen, mlen, matches[u].off, litlen, price);
                 mlen++;
-           }
-        }
+        }  }
 
         if (last_pos < MINMATCH) {
-     //     ip += ((ip-anchor) >> g_searchStrength) + 1;   /* jump faster over incompressible sections */
+            // ip += ((ip-anchor) >> g_searchStrength) + 1;   /* jump faster over incompressible sections */
             ip++; continue;
         }
 

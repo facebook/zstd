@@ -350,8 +350,8 @@ U32 ZSTD_HcGetAllMatches_generic (
         nbAttempts--;
         if ((!extDict) || matchIndex >= dictLimit) {
             match = base + matchIndex;
-            //if (match[minml] == ip[minml]) currentMl = ZSTD_count(ip, match, iHighLimit); if (currentMl>0) {   // faster
-             if (MEM_read32(match) == MEM_read32(ip)) { currentMl = ZSTD_count(ip+MINMATCH, match+MINMATCH, iHighLimit)+MINMATCH;  // stronger
+            if (match[minml] == ip[minml]) currentMl = ZSTD_count(ip, match, iHighLimit); if (currentMl>0) {   // faster
+            //if (MEM_read32(match) == MEM_read32(ip)) { currentMl = ZSTD_count(ip+MINMATCH, match+MINMATCH, iHighLimit)+MINMATCH;  // stronger
                 while ((match-back > base) && (ip-back > iLowLimit) && (ip[-back-1] == match[-back-1])) back++;
                 currentMl += back;
             }

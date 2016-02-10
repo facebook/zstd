@@ -88,31 +88,33 @@ typedef struct {
     BYTE* matchLength;
     BYTE* dumpsStart;
     BYTE* dumps;
+    /* opt */
     U32* matchLengthFreq;
     U32* litLengthFreq;
     U32* litFreq;
     U32* offCodeFreq;
-    U32 matchLengthSum;
-    U32 litLengthSum;
-    U32 litSum;
-    U32 offCodeSum;
+    U32  matchLengthSum;
+    U32  litLengthSum;
+    U32  litSum;
+    U32  offCodeSum;
 } seqStore_t;
 
 static void ZSTD_resetFreqs(seqStore_t* ssPtr)
 {
-    ssPtr->matchLengthSum = (1<<MLbits);
-    ssPtr->litLengthSum = (1<<LLbits);
+    unsigned u;
+    ssPtr->matchLengthSum = 512; // (1<<MLbits);
+    ssPtr->litLengthSum = 256; // (1<<LLbits);
     ssPtr->litSum = (1<<Litbits);
     ssPtr->offCodeSum = (1<<Offbits);
 
-    for (int i=0; i<=MaxLit; i++)
-        ssPtr->litFreq[i] = 1;
-    for (int i=0; i<=MaxLL; i++)
-        ssPtr->litLengthFreq[i] = 1;
-    for (int i=0; i<=MaxML; i++)
-        ssPtr->matchLengthFreq[i] = 1;
-    for (int i=0; i<=MaxOff; i++)
-        ssPtr->offCodeFreq[i] = 1;
+    for (u=0; u<=MaxLit; u++)
+        ssPtr->litFreq[u] = 1;
+    for (u=0; u<=MaxLL; u++)
+        ssPtr->litLengthFreq[u] = 1;
+    for (u=0; u<=MaxML; u++)
+        ssPtr->matchLengthFreq[u] = 1;
+    for (u=0; u<=MaxOff; u++)
+        ssPtr->offCodeFreq[u] = 1;
 }
 
 static void ZSTD_resetSeqStore(seqStore_t* ssPtr)
@@ -173,7 +175,9 @@ size_t ZSTD_freeCCtx(ZSTD_CCtx* cctx)
 
 static unsigned ZSTD_highbit(U32 val);
 
-/** ZSTD_validateParams
+#define CLAMP(val,min,max) { if (val<min) val=min; else if (val>max) val=max; }
+
+/** ZSTD_validateParams()
     correct params value to remain within authorized range
     optimize for srcSize if srcSize > 0 */
 void ZSTD_validateParams(ZSTD_parameters* params)
@@ -182,25 +186,21 @@ void ZSTD_validateParams(ZSTD_parameters* params)
 
     /* validate params */
     if (MEM_32bits()) if (params->windowLog > 25) params->windowLog = 25;   /* 32 bits mode cannot flush > 24 bits */
-    if (params->windowLog   > ZSTD_WINDOWLOG_MAX) params->windowLog = ZSTD_WINDOWLOG_MAX;
-    if (params->windowLog   < ZSTD_WINDOWLOG_MIN) params->windowLog = ZSTD_WINDOWLOG_MIN;
+    CLAMP(params->windowLog, ZSTD_WINDOWLOG_MIN, ZSTD_WINDOWLOG_MAX);
+    CLAMP(params->contentLog, ZSTD_CONTENTLOG_MIN, ZSTD_CONTENTLOG_MAX);
+    CLAMP(params->hashLog, ZSTD_HASHLOG_MIN, ZSTD_HASHLOG_MAX);
+    CLAMP(params->searchLog, ZSTD_SEARCHLOG_MIN, ZSTD_SEARCHLOG_MAX);
+    CLAMP(params->searchLength, ZSTD_SEARCHLENGTH_MIN, ZSTD_SEARCHLENGTH_MAX);
+    CLAMP(params->sufficientLength, ZSTD_TARGETLENGTH_MIN, ZSTD_TARGETLENGTH_MAX);
+    if ((U32)params->strategy>(U32)ZSTD_opt_bt) params->strategy = ZSTD_opt_bt;
 
     /* correct params, to use less memory */
     if ((params->srcSize > 0) && (params->srcSize < (1<<ZSTD_WINDOWLOG_MAX))) {
         U32 srcLog = ZSTD_highbit((U32)(params->srcSize)-1) + 1;
         if (params->windowLog > srcLog) params->windowLog = srcLog;
     }
-
     if (params->windowLog   < ZSTD_WINDOWLOG_ABSOLUTEMIN) params->windowLog = ZSTD_WINDOWLOG_ABSOLUTEMIN;  /* required for frame header */
     if (params->contentLog  > params->windowLog+btPlus) params->contentLog = params->windowLog+btPlus;   /* <= ZSTD_CONTENTLOG_MAX */
-    if (params->contentLog  < ZSTD_CONTENTLOG_MIN) params->contentLog = ZSTD_CONTENTLOG_MIN;
-    if (params->hashLog     > ZSTD_HASHLOG_MAX) params->hashLog = ZSTD_HASHLOG_MAX;
-    if (params->hashLog     < ZSTD_HASHLOG_MIN) params->hashLog = ZSTD_HASHLOG_MIN;
-    if (params->searchLog   > ZSTD_SEARCHLOG_MAX) params->searchLog = ZSTD_SEARCHLOG_MAX;
-    if (params->searchLog   < ZSTD_SEARCHLOG_MIN) params->searchLog = ZSTD_SEARCHLOG_MIN;
-    if (params->searchLength> ZSTD_SEARCHLENGTH_MAX) params->searchLength = ZSTD_SEARCHLENGTH_MAX;
-    if (params->searchLength< ZSTD_SEARCHLENGTH_MIN) params->searchLength = ZSTD_SEARCHLENGTH_MIN;
-    if ((U32)params->strategy>(U32)ZSTD_opt_bt) params->strategy = ZSTD_opt_bt;
 }
 
 
@@ -234,18 +234,19 @@ static size_t ZSTD_resetCCtx_advanced (ZSTD_CCtx* zc,
     zc->lowLimit = 0;
     zc->params = params;
     zc->blockSize = blockSize;
-    zc->seqStore.offsetStart = (U32*) (zc->seqStore.buffer);
+
+    zc->seqStore.litFreq = (U32*) (zc->seqStore.buffer);
+    zc->seqStore.litLengthFreq = zc->seqStore.litFreq + (1<<Litbits);
+    zc->seqStore.matchLengthFreq = zc->seqStore.litLengthFreq + (1<<LLbits);
+    zc->seqStore.offCodeFreq = zc->seqStore.matchLengthFreq + (1<<MLbits);
+
+    zc->seqStore.offsetStart = zc->seqStore.offCodeFreq + (1<<Offbits);
     zc->seqStore.offCodeStart = (BYTE*) (zc->seqStore.offsetStart + (blockSize>>2));
     zc->seqStore.litStart = zc->seqStore.offCodeStart + (blockSize>>2);
     zc->seqStore.litLengthStart =  zc->seqStore.litStart + blockSize;
     zc->seqStore.matchLengthStart = zc->seqStore.litLengthStart + (blockSize>>2);
     zc->seqStore.dumpsStart = zc->seqStore.matchLengthStart + (blockSize>>2);
-    BYTE* dumpsEnd= zc->seqStore.dumpsStart + (blockSize>>2);
-    zc->seqStore.litFreq = (U32*)(dumpsEnd);
-    zc->seqStore.litLengthFreq = zc->seqStore.litFreq + (1<<Litbits);
-    zc->seqStore.matchLengthFreq = zc->seqStore.litLengthFreq + (1<<LLbits);
-    zc->seqStore.offCodeFreq = zc->seqStore.matchLengthFreq + (1<<MLbits);
- //   zc->seqStore.XXX = zc->seqStore.offCodeFreq + (1<<Offbits)*sizeof(U32);
+    // zc->seqStore.XXX = zc->seqStore.dumpsStart + (blockSize>>4);
 
     zc->hbSize = 0;
     zc->stage = 0;
@@ -561,7 +562,6 @@ size_t ZSTD_compressSequences(ZSTD_CCtx* zc,
     const size_t minGain = ZSTD_minGain(srcSize);
     const size_t maxCSize = srcSize - minGain;
     BYTE* seqHead;
-
 
     /* Compress literals */
     {
@@ -1194,8 +1194,8 @@ void ZSTD_compressBlock_fast_extDict(ZSTD_CCtx* ctx,
 /* *************************************
 *  Binary Tree search
 ***************************************/
-/** ZSTD_insertBt1 : add one or multiple positions to tree
-*   @ip : assumed <= iend-8
+/** ZSTD_insertBt1() : add one or multiple positions to tree
+*   ip : assumed <= iend-8
 *   @return : nb of positions added */
 static U32 ZSTD_insertBt1(ZSTD_CCtx* zc, const BYTE* const ip, const U32 mls, const BYTE* const iend, U32 nbCompares,
                           U32 extDict)
@@ -1230,9 +1230,9 @@ static U32 ZSTD_insertBt1(ZSTD_CCtx* zc, const BYTE* const ip, const U32 mls, co
 
     while (nbCompares-- && (matchIndex > windowLow)) {
         U32* nextPtr = bt + 2*(matchIndex & btMask);
-        const U32* predictPtr = bt + 2*((matchIndex-1) & btMask);   /* written this way, as bt is a roll buffer */
         size_t matchLength = MIN(commonLengthSmaller, commonLengthLarger);   /* guaranteed minimum nb of common bytes */
 
+        const U32* predictPtr = bt + 2*((matchIndex-1) & btMask);   /* written this way, as bt is a roll buffer */
         if (matchIndex == predictedSmall) {
             /* no need to check length, result known */
             *smallerPtr = matchIndex;
@@ -1242,7 +1242,6 @@ static U32 ZSTD_insertBt1(ZSTD_CCtx* zc, const BYTE* const ip, const U32 mls, co
             predictedSmall = predictPtr[1] + (predictPtr[1]>0);
             continue;
         }
-
         if (matchIndex == predictedLarge) {
             *largerPtr = matchIndex;
             if (matchIndex <= btLow) { largerPtr=&dummy32; break; }   /* beyond tree size, stop the search */
@@ -2314,8 +2313,9 @@ size_t ZSTD_compress(void* dst, size_t maxDstSize, const void* src, size_t srcSi
 }
 
 
-/*- Pre-defined compression levels -*/
+/*-=====  Pre-defined compression levels  =====-*/
 
+#define ZSTD_MAX_CLEVEL 25
 unsigned ZSTD_maxCLevel(void) { return ZSTD_MAX_CLEVEL; }
 
 static const ZSTD_parameters ZSTD_defaultParameters[4][ZSTD_MAX_CLEVEL+1] = {
@@ -2345,7 +2345,8 @@ static const ZSTD_parameters ZSTD_defaultParameters[4][ZSTD_MAX_CLEVEL+1] = {
     { 0,  0, 22, 20, 22,  4,  4, ZSTD_lazy2   },  /* level 21 = 11 + L=4 */ // 41902762   lazy1=42087013     norep1=42911693
     { 0,  0, 23, 21, 22,  5,  4, ZSTD_btlazy2 },  /* level 22 = 16 + L=4 */ // 41233150   btlazy1=41560211   norep1=42322286
     { 0, 32, 23, 21, 22,  5,  4, ZSTD_opt     },  /* level 23 */
-    { 0, 32, 23, 21, 22,  5,  4, ZSTD_opt_bt  },  /* level 24 */
+    { 0, 32, 23, 21, 22,  5,  4, ZSTD_opt_bt  },  /* level 24 = 16 + btopt */
+    { 0, 64, 26, 27, 25, 10,  4, ZSTD_opt_bt  },  /* level 25 = 20 + btopt */
 },
 {   /* for srcSize <= 256 KB */
     /*    SL,  W,  C,  H,  S,  L, strat */

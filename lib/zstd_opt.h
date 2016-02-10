@@ -92,7 +92,6 @@ FORCE_INLINE U32 ZSTD_getLiteralPriceReal(seqStore_t* seqStorePtr, U32 litLength
 }
 
 
-
 FORCE_INLINE U32 ZSTD_getLiteralPrice(seqStore_t* seqStorePtr, U32 litLength, const BYTE* literals)
 {
     if (seqStorePtr->litSum > ZSTD_FREQ_THRESHOLD)
@@ -100,7 +99,6 @@ FORCE_INLINE U32 ZSTD_getLiteralPrice(seqStore_t* seqStorePtr, U32 litLength, co
     /* backup eval */
     return 1 + (litLength<<3);
 }
-
 
 
 FORCE_INLINE U32 ZSTD_getMatchPriceReal(seqStore_t* seqStorePtr, U32 offset, U32 matchLength)
@@ -304,8 +302,7 @@ FORCE_INLINE U32 ZSTD_BtGetAllMatches_selectMLS_extDict (
                         const BYTE* ip, const BYTE* const iLowLimit, const BYTE* const iHighLimit,
                         const U32 maxNbAttempts, const U32 matchLengthSearch, ZSTD_match_t* matches, U32 minml)
 {
-    if (iLowLimit) {}; // skip warnings
-
+    (void)iLowLimit;
     switch(matchLengthSearch)
     {
     default :
@@ -353,10 +350,9 @@ U32 ZSTD_HcGetAllMatches_generic (
         nbAttempts--;
         if ((!extDict) || matchIndex >= dictLimit) {
             match = base + matchIndex;
-            if (match[minml] == ip[minml])   /* potentially better */
-                currentMl = ZSTD_count(ip, match, iHighLimit);
-            if (currentMl>0) {
-                while ((match-back > base) && (ip-back > iLowLimit) && (ip[-back-1] == match[-back-1])) back++;   /* backward match extension */
+            //if (match[minml] == ip[minml]) currentMl = ZSTD_count(ip, match, iHighLimit); if (currentMl>0) {   // faster
+             if (MEM_read32(match) == MEM_read32(ip)) { currentMl = ZSTD_count(ip+MINMATCH, match+MINMATCH, iHighLimit)+MINMATCH;  // stronger
+                while ((match-back > base) && (ip-back > iLowLimit) && (ip[-back-1] == match[-back-1])) back++;
                 currentMl += back;
             }
         } else {
@@ -365,8 +361,7 @@ U32 ZSTD_HcGetAllMatches_generic (
                 currentMl = ZSTD_count_2segments(ip+MINMATCH, match+MINMATCH, iHighLimit, dictEnd, prefixStart) + MINMATCH;
                 while ((match-back > dictStart) && (ip-back > iLowLimit) && (ip[-back-1] == match[-back-1])) back++;   /* backward match extension */
                 currentMl += back;
-            }
-        }
+        }   }
 
         /* save best solution */
         if (currentMl > minml) {

@@ -1370,8 +1370,7 @@ size_t ZSTD_insertBtAndFindBestMatch (
             if (matchIndex <= btLow) { largerPtr=&dummy32; break; }   /* beyond tree size, stop the search */
             largerPtr = nextPtr;
             matchIndex = nextPtr[0];
-        }
-    }
+    }   }
 
     *smallerPtr = *largerPtr = 0;
 
@@ -1394,7 +1393,7 @@ size_t ZSTD_BtFindBestMatch (
 }
 
 
-FORCE_INLINE size_t ZSTD_BtFindBestMatch_selectMLS (
+static size_t ZSTD_BtFindBestMatch_selectMLS (
                         ZSTD_CCtx* zc,   /* Index table will be updated */
                         const BYTE* ip, const BYTE* const iLimit,
                         size_t* offsetPtr,
@@ -1661,7 +1660,7 @@ void ZSTD_compressBlock_lazy_generic(ZSTD_CCtx* ctx,
             break;  /* nothing found : store previous solution */
         }
 
-        /* catch up */
+       /* catch up */
         if (offset) {
             while ((start>anchor) && (start>base+offset) && (start[-1] == start[-1-offset]))   /* only search for offset within prefix */
                 { start--; matchLength++; }

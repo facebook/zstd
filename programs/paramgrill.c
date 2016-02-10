@@ -421,7 +421,7 @@ static void BMK_printWinner(FILE* f, U32 cLevel, BMK_result_t result, ZSTD_param
 }
 
 
-static U32 g_cSpeedTarget[NB_LEVELS_TRACKED] = { 0 };   /* NB_LEVELS_TRACKED : to check */
+static U32 g_cSpeedTarget[NB_LEVELS_TRACKED] = { 0 };   /* NB_LEVELS_TRACKED : checked at main() */
 
 typedef struct {
     BMK_result_t result;
@@ -559,7 +559,7 @@ static void paramVariation(ZSTD_parameters* p)
 {
     U32 nbChanges = (FUZ_rand(&g_rand) & 3) + 1;
     for (; nbChanges; nbChanges--) {
-        const U32 changeID = FUZ_rand(&g_rand) % 12;
+        const U32 changeID = FUZ_rand(&g_rand) % 14;
         switch(changeID)
         {
         case 0:

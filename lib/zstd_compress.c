@@ -2341,8 +2341,8 @@ static const ZSTD_parameters ZSTD_defaultParameters[4][ZSTD_MAX_CLEVEL+1] = {
     { 0,  0, 25, 24, 23,  5,  5, ZSTD_btlazy2 },  /* level 18 */
     { 0,  0, 25, 26, 23,  5,  5, ZSTD_btlazy2 },  /* level 19 */
     { 0,  0, 26, 27, 25,  9,  5, ZSTD_btlazy2 },  /* level 20 */
-    { 0,  0, 22, 20, 22,  4,  4, ZSTD_lazy2   },  /* level 21 = 11 + L=4 */ // 41902762   lazy1=42087013     norep1=42911693
-    { 0,  0, 23, 21, 22,  5,  4, ZSTD_btlazy2 },  /* level 22 = 16 + L=4 */ // 41233150   btlazy1=41560211   norep1=42322286
+    { 0,  0, 23, 21, 22,  5,  4, ZSTD_btlazy2 },  /* level 21 = 16 + L=4 */ // 41233150   btlazy1=41560211   norep1=42322286
+    { 0, 12, 23, 21, 22,  5,  4, ZSTD_opt     },  /* level 22 */
     { 0, 32, 23, 21, 22,  5,  4, ZSTD_opt     },  /* level 23 */
     { 0, 32, 23, 21, 22,  5,  4, ZSTD_opt_bt  },  /* level 24 = 16 + btopt */
     { 0, 64, 26, 27, 25, 10,  4, ZSTD_opt_bt  },  /* level 25 = 20 + btopt */

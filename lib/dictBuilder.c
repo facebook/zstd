@@ -1,28 +1,37 @@
 /*
-    dictBuilder - dictionary builder for LZ algorithms
+    dictBuilder - dictionary builder for zstd
     Copyright (C) Yann Collet 2016
 
-    GPL v2 License
+    BSD 2-Clause License (http://www.opensource.org/licenses/bsd-license.php)
 
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
+    Redistribution and use in source and binary forms, with or without
+    modification, are permitted provided that the following conditions are
+    met:
 
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
+    * Redistributions of source code must retain the above copyright
+    notice, this list of conditions and the following disclaimer.
+    * Redistributions in binary form must reproduce the above
+    copyright notice, this list of conditions and the following disclaimer
+    in the documentation and/or other materials provided with the
+    distribution.
 
-    You should have received a copy of the GNU General Public License along
-    with this program; if not, write to the Free Software Foundation, Inc.,
-    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+    "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+    LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+    A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+    OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+    SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+    LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+    DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+    THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+    OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
     You can contact the author at :
-    - zstd source repository : https://github.com/Cyan4973/zstd
+       - Zstd source repository : https://www.zstd.net
 */
 
-/* **************************************
+/*-**************************************
 *  Compiler Options
 ****************************************/
 /* Disable some Visual warning messages */
@@ -41,7 +50,7 @@
 
 
 /*-*************************************
-*  Includes
+*  Dependencies
 ***************************************/
 #include <stdlib.h>        /* malloc, free */
 #include <string.h>        /* memset */
@@ -53,9 +62,10 @@
 #include "mem.h"           /* read */
 #include "error_private.h"
 #include "divsufsort.h"
-#include "dictBuilder.h"
-#include "zstd_compress.c"
+#include "dictBuilder_static.h"
+#include "fse.h"
 #include "huff0_static.h"
+#include "zstd_internal.h"
 
 
 /*-*************************************
@@ -94,16 +104,16 @@ static const size_t g_min_fast_dictContent = 192;
 #define DISPLAY(...)         fprintf(stderr, __VA_ARGS__)
 #define DISPLAYLEVEL(l, ...) if (g_displayLevel>=l) { DISPLAY(__VA_ARGS__); }
 static unsigned g_displayLevel = 0;   /* 0 : no display;   1: errors;   2: default;  4: full information */
-void DiB_setNotificationLevel(unsigned l) { g_displayLevel=l; }
+void ZDICT_setNotificationLevel(unsigned l) { g_displayLevel=l; }
 
 #define DISPLAYUPDATE(l, ...) if (g_displayLevel>=l) { \
-            if (DiB_GetMilliSpan(g_time) > refreshRate)  \
+            if (ZDICT_GetMilliSpan(g_time) > refreshRate)  \
             { g_time = clock(); DISPLAY(__VA_ARGS__); \
             if (g_displayLevel>=4) fflush(stdout); } }
 static const unsigned refreshRate = 300;
 static clock_t g_time = 0;
 
-void DiB_printHex(U32 dlevel, const void* ptr, size_t length)
+void ZDICT_printHex(U32 dlevel, const void* ptr, size_t length)
 {
     const BYTE* const b = (const BYTE*)ptr;
     size_t u;
@@ -133,81 +143,25 @@ void DiB_printHex(U32 dlevel, const void* ptr, size_t length)
 }
 
 
-/* ********************************************************
+/*-********************************************************
 *  Helper functions
 **********************************************************/
-unsigned DiB_versionNumber (void) { return DiB_VERSION_NUMBER; }
-
-static unsigned DiB_GetMilliSpan(clock_t nPrevious)
+static unsigned ZDICT_GetMilliSpan(clock_t nPrevious)
 {
     clock_t nCurrent = clock();
     unsigned nSpan = (unsigned)(((nCurrent - nPrevious) * 1000) / CLOCKS_PER_SEC);
     return nSpan;
 }
 
-unsigned DiB_isError(size_t errorCode) { return ERR_isError(errorCode); }
+unsigned ZDICT_isError(size_t errorCode) { return ERR_isError(errorCode); }
 
-const char* DiB_getErrorName(size_t errorCode) { return ERR_getErrorName(errorCode); }
-
-
-/* ********************************************************
-*  File related operations
-**********************************************************/
-static unsigned long long DiB_getFileSize(const char* infilename)
-{
-    int r;
-#if defined(_MSC_VER)
-    struct _stat64 statbuf;
-    r = _stat64(infilename, &statbuf);
-#else
-    struct stat statbuf;
-    r = stat(infilename, &statbuf);
-#endif
-    if (r || !S_ISREG(statbuf.st_mode)) return 0;   /* No good... */
-    return (unsigned long long)statbuf.st_size;
-}
-
-
-static unsigned long long DiB_getTotalFileSize(const char** fileNamesTable, unsigned nbFiles)
-{
-    unsigned long long total = 0;
-    unsigned n;
-    for (n=0; n<nbFiles; n++)
-        total += DiB_getFileSize(fileNamesTable[n]);
-    return total;
-}
-
-
-static void DiB_loadFiles(void* buffer, size_t bufferSize,
-                          size_t* fileSizes,
-                          const char** fileNamesTable, unsigned nbFiles)
-{
-    char* buff = (char*)buffer;
-    size_t pos = 0;
-    unsigned n;
-
-    for (n=0; n<nbFiles; n++) {
-        size_t readSize;
-        unsigned long long fileSize = DiB_getFileSize(fileNamesTable[n]);
-        FILE* f = fopen(fileNamesTable[n], "rb");
-        if (f==NULL) EXM_THROW(10, "impossible to open file %s", fileNamesTable[n]);
-        DISPLAYLEVEL(2, "Loading %s...       \r", fileNamesTable[n]);
-        if (fileSize > bufferSize-pos) fileSize = 0;  /* stop there, not enough memory to load all files */
-        readSize = fread(buff+pos, 1, (size_t)fileSize, f);
-        if (readSize != (size_t)fileSize) EXM_THROW(11, "could not read %s", fileNamesTable[n]);
-        pos += readSize;
-        fileSizes[n] = (size_t)fileSize;
-        fclose(f);
-    }
-}
+const char* ZDICT_getErrorName(size_t errorCode) { return ERR_getErrorName(errorCode); }
 
 
 /*-********************************************************
 *  Dictionary training functions
 **********************************************************/
-static size_t DiB_read_ARCH(const void* p) { size_t r; memcpy(&r, p, sizeof(r)); return r; }
-
-static unsigned DiB_NbCommonBytes (register size_t val)
+static unsigned ZDICT_NbCommonBytes (register size_t val)
 {
     if (MEM_isLittleEndian()) {
         if (MEM_64bits()) {
@@ -266,17 +220,17 @@ static unsigned DiB_NbCommonBytes (register size_t val)
 }
 
 
-/*! DiB_count() :
+/*! ZDICT_count() :
     Count the nb of common bytes between 2 pointers.
     Note : this function presumes end of buffer followed by noisy guard band.
 */
-static size_t DiB_count(const void* pIn, const void* pMatch)
+static size_t ZDICT_count(const void* pIn, const void* pMatch)
 {
     const char* const pStart = (const char*)pIn;
     for (;;) {
-        size_t diff = DiB_read_ARCH(pMatch) ^ DiB_read_ARCH(pIn);
+        size_t diff = MEM_readST(pMatch) ^ MEM_readST(pIn);
         if (!diff) { pIn = (const char*)pIn+sizeof(size_t); pMatch = (const char*)pMatch+sizeof(size_t); continue; }
-        pIn = (const char*)pIn+DiB_NbCommonBytes(diff);
+        pIn = (const char*)pIn+ZDICT_NbCommonBytes(diff);
         return (size_t)((const char*)pIn - pStart);
     }
 }
@@ -288,7 +242,7 @@ typedef struct {
     U32 savings;
 } dictItem;
 
-void DiB_initDictItem(dictItem* d)
+static void ZDICT_initDictItem(dictItem* d)
 {
     d->pos = 1;
     d->length = 0;
@@ -298,9 +252,9 @@ void DiB_initDictItem(dictItem* d)
 
 #define LLIMIT 64          /* heuristic determined experimentally */
 #define MINMATCHLENGTH 7   /* heuristic determined experimentally */
-static dictItem DiB_analyzePos(
+static dictItem ZDICT_analyzePos(
                        BYTE* doneMarks,
-                       const saidx_t* suffix, U32 start,
+                       const int* suffix, U32 start,
                        const void* buffer, U32 minRatio)
 {
     U32 lengthList[LLIMIT] = {0};
@@ -334,12 +288,12 @@ static dictItem DiB_analyzePos(
     /* look forward */
     do {
         end++;
-        length = DiB_count(b + pos, b + suffix[end]);
+        length = ZDICT_count(b + pos, b + suffix[end]);
     } while (length >=MINMATCHLENGTH);
 
     /* look backward */
     do {
-        length = DiB_count(b + pos, b + *(suffix+start-1));
+        length = ZDICT_count(b + pos, b + *(suffix+start-1));
         if (length >=MINMATCHLENGTH) start--;
     } while(length >= MINMATCHLENGTH);
 
@@ -400,14 +354,14 @@ static dictItem DiB_analyzePos(
         /* look forward */
         do {
             end++;
-            length = DiB_count(b + pos, b + suffix[end]);
+            length = ZDICT_count(b + pos, b + suffix[end]);
             if (length >= LLIMIT) length = LLIMIT-1;
             lengthList[length]++;
         } while (length >=MINMATCHLENGTH);
 
         /* look backward */
         do {
-            length = DiB_count(b + pos, b + suffix[start-1]);
+            length = ZDICT_count(b + pos, b + suffix[start-1]);
             if (length >= LLIMIT) length = LLIMIT-1;
             lengthList[length]++;
             if (length >=MINMATCHLENGTH) start--;
@@ -453,7 +407,7 @@ static dictItem DiB_analyzePos(
                 if (testedPos == pos)
                     length = solution.length;
                 else {
-                    length = DiB_count(b+pos, b+testedPos);
+                    length = ZDICT_count(b+pos, b+testedPos);
                     if (length > solution.length) length = solution.length;
                 }
                 pEnd = (U32)(testedPos + length);
@@ -465,11 +419,11 @@ static dictItem DiB_analyzePos(
 }
 
 
-/*! DiB_checkMerge
+/*! ZDICT_checkMerge
     check if dictItem can be merged, do it if possible
     @return : id of destination elt, 0 if not merged
 */
-static U32 DiB_checkMerge(dictItem* table, dictItem elt, U32 eltNbToSkip)
+static U32 ZDICT_checkMerge(dictItem* table, dictItem elt, U32 eltNbToSkip)
 {
     const U32 tableSize = table->pos;
     const U32 max = elt.pos + (elt.length-1);
@@ -513,7 +467,7 @@ static U32 DiB_checkMerge(dictItem* table, dictItem elt, U32 eltNbToSkip)
 }
 
 
-static void DiB_removeDictItem(dictItem* table, U32 id)
+static void ZDICT_removeDictItem(dictItem* table, U32 id)
 {
     /* convention : first element is nb of elts */
     U32 max = table->pos;
@@ -525,15 +479,15 @@ static void DiB_removeDictItem(dictItem* table, U32 id)
 }
 
 
-static void DiB_insertDictItem(dictItem* table, U32 maxSize, dictItem elt)
+static void ZDICT_insertDictItem(dictItem* table, U32 maxSize, dictItem elt)
 {
     /* merge if possible */
-    U32 mergeId = DiB_checkMerge(table, elt, 0);
+    U32 mergeId = ZDICT_checkMerge(table, elt, 0);
     if (mergeId) {
         U32 newMerge = 1;
         while (newMerge) {
-            newMerge = DiB_checkMerge(table, table[mergeId], mergeId);
-            if (newMerge) DiB_removeDictItem(table, mergeId);
+            newMerge = ZDICT_checkMerge(table, table[mergeId], mergeId);
+            if (newMerge) ZDICT_removeDictItem(table, mergeId);
             mergeId = newMerge;
         }
         return;
@@ -555,7 +509,7 @@ static void DiB_insertDictItem(dictItem* table, U32 maxSize, dictItem elt)
 }
 
 
-static U32 DiB_dictSize(const dictItem* dictList)
+static U32 ZDICT_dictSize(const dictItem* dictList)
 {
     U32 u, dictSize = 0;
     for (u=1; u<dictList[0].pos; u++)
@@ -564,32 +518,32 @@ static U32 DiB_dictSize(const dictItem* dictList)
 }
 
 
-static void DiB_trainBuffer(dictItem* dictList, U32 dictListSize,
+static void ZDICT_trainBuffer(dictItem* dictList, U32 dictListSize,
                             const void* const buffer, const size_t bufferSize,   /* buffer must end with noisy guard band */
                             const size_t* fileSizes, unsigned nbFiles,
                             U32 shiftRatio, unsigned maxDictSize)
 {
-    saidx_t* const suffix0 = (saidx_t*)malloc((bufferSize+2)*sizeof(*suffix0));
-    saidx_t* const suffix = suffix0+1;
+    int* const suffix0 = (int*)malloc((bufferSize+2)*sizeof(*suffix0));
+    int* const suffix = suffix0+1;
     U32* reverseSuffix = (U32*)malloc((bufferSize)*sizeof(*reverseSuffix));
     BYTE* doneMarks = (BYTE*)malloc((bufferSize+16)*sizeof(*doneMarks));   /* +16 for overflow security */
     U32* filePos = (U32*)malloc(nbFiles * sizeof(*filePos));
     U32 minRatio = nbFiles >> shiftRatio;
-    saint_t errorCode;
+    int divSuftSortResult;
 
     /* init */
     DISPLAYLEVEL(2, "\r%70s\r", "");   /* clean display line */
     if (!suffix0 || !reverseSuffix || !doneMarks || !filePos)
-        EXM_THROW(1, "not enough memory for DiB_trainBuffer");
+        EXM_THROW(1, "not enough memory for ZDICT_trainBuffer");
     if (minRatio < MINRATIO) minRatio = MINRATIO;
     memset(doneMarks, 0, bufferSize+16);
 
     /* sort */
     DISPLAYLEVEL(2, "sorting %u files of total size %u MB ...\n", nbFiles, (U32)(bufferSize>>20));
-    errorCode = divsufsort((const sauchar_t*)buffer, suffix, (saidx_t)bufferSize);
-    if (errorCode != 0) EXM_THROW(2, "sort failed");
-    suffix[bufferSize] = (saidx_t)bufferSize;   /* leads into noise */
-    suffix0[0] = (saidx_t)bufferSize;           /* leads into noise */
+    divSuftSortResult = divsufsort((const unsigned char*)buffer, suffix, (int)bufferSize, 0);
+    if (divSuftSortResult != 0) EXM_THROW(2, "sort failed");
+    suffix[bufferSize] = (int)bufferSize;   /* leads into noise */
+    suffix0[0] = (int)bufferSize;           /* leads into noise */
     {
         /* build reverse suffix sort */
         size_t pos;
@@ -608,9 +562,9 @@ static void DiB_trainBuffer(dictItem* dictList, U32 dictListSize,
         U32 cursor; for (cursor=0; cursor < bufferSize; ) {
             dictItem solution;
             if (doneMarks[cursor]) { cursor++; continue; }
-            solution = DiB_analyzePos(doneMarks, suffix, reverseSuffix[cursor], buffer, minRatio);
+            solution = ZDICT_analyzePos(doneMarks, suffix, reverseSuffix[cursor], buffer, minRatio);
             if (solution.length==0) { cursor++; continue; }
-            DiB_insertDictItem(dictList, dictListSize, solution);
+            ZDICT_insertDictItem(dictList, dictListSize, solution);
             cursor += solution.length;
             DISPLAYUPDATE(2, "\r%4.2f %% \r", (double)cursor / bufferSize * 100);
     }   }
@@ -633,26 +587,7 @@ static void DiB_trainBuffer(dictItem* dictList, U32 dictListSize,
 }
 
 
-static size_t DiB_findMaxMem(unsigned long long requiredMem)
-{
-    size_t step = 8 MB;
-    void* testmem = NULL;
-
-    requiredMem = (((requiredMem >> 23) + 1) << 23);
-    requiredMem += 2 * step;
-    if (requiredMem > maxMemory) requiredMem = maxMemory;
-
-    while (!testmem) {
-        requiredMem -= step;
-        testmem = malloc((size_t)requiredMem);
-    }
-
-    free(testmem);
-    return (size_t)(requiredMem - step);
-}
-
-
-static void DiB_fillNoise(void* buffer, size_t length)
+static void ZDICT_fillNoise(void* buffer, size_t length)
 {
     unsigned acc = PRIME1;
     size_t p=0;;
@@ -672,34 +607,36 @@ typedef struct
 } EStats_ress_t;
 
 
-static void DiB_countEStats(EStats_ress_t esr,
+static void ZDICT_countEStats(EStats_ress_t esr,
                             U32* countLit, U32* offsetcodeCount, U32* matchlengthCount, U32* litlengthCount,
                             const void* src, size_t srcSize)
 {
     const BYTE* bytePtr;
     const U32* u32Ptr;
+    seqStore_t seqStore;
 
     if (srcSize > BLOCKSIZE) srcSize = BLOCKSIZE;   /* protection vs large samples */
     ZSTD_copyCCtx(esr.zc, esr.ref);
     ZSTD_compressBlock(esr.zc, esr.workPlace, BLOCKSIZE, src, srcSize);
+    seqStore = ZSTD_copySeqStore(esr.zc);
 
     /* count stats */
-    for(bytePtr = esr.zc->seqStore.litStart; bytePtr < esr.zc->seqStore.lit; bytePtr++)
+    for(bytePtr = seqStore.litStart; bytePtr < seqStore.lit; bytePtr++)
         countLit[*bytePtr]++;
-    for(u32Ptr = esr.zc->seqStore.offsetStart; u32Ptr < esr.zc->seqStore.offset; u32Ptr++) {
+    for(u32Ptr = seqStore.offsetStart; u32Ptr < seqStore.offset; u32Ptr++) {
         BYTE offcode = (BYTE)ZSTD_highbit(*u32Ptr) + 1;
         if (*u32Ptr==0) offcode=0;
         offsetcodeCount[offcode]++;
     }
-    for(bytePtr = esr.zc->seqStore.matchLengthStart; bytePtr < esr.zc->seqStore.matchLength; bytePtr++)
+    for(bytePtr = seqStore.matchLengthStart; bytePtr < seqStore.matchLength; bytePtr++)
         matchlengthCount[*bytePtr]++;
-    for(bytePtr = esr.zc->seqStore.litLengthStart; bytePtr < esr.zc->seqStore.litLength; bytePtr++)
+    for(bytePtr = seqStore.litLengthStart; bytePtr < seqStore.litLength; bytePtr++)
         litlengthCount[*bytePtr]++;
 }
 
 
-#define OFFCODE_MAX 18
-static size_t DiB_analyzeEntropy(void*  dstBuffer, size_t maxDstSize,
+#define OFFCODE_MAX 18  /* only applicable to first block */
+static size_t ZDICT_analyzeEntropy(void*  dstBuffer, size_t maxDstSize,
                                  unsigned compressionLevel,
                            const void*  srcBuffer, const size_t* fileSizes, unsigned nbFiles,
                            const void* dictBuffer, size_t  dictBufferSize)
@@ -734,7 +671,7 @@ static size_t DiB_analyzeEntropy(void*  dstBuffer, size_t maxDstSize,
 
     /* collect stats on all files */
     for (u=0; u<nbFiles; u++) {
-        DiB_countEStats(esr,
+        ZDICT_countEStats(esr,
                         countLit, offcodeCount, matchLengthCount, litlengthCount,
            (const char*)srcBuffer + pos, fileSizes[u]);
         pos += fileSizes[u];
@@ -794,33 +731,16 @@ static size_t DiB_analyzeEntropy(void*  dstBuffer, size_t maxDstSize,
 }
 
 
-static void DiB_saveDict(const char* dictFileName,
-                         const void* buff, size_t buffSize)
-{
-    FILE* f;
-    size_t n;
-
-    f = fopen(dictFileName, "wb");
-    if (f==NULL) EXM_THROW(3, "cannot open %s ", dictFileName);
-
-    n = fwrite(buff, 1, buffSize, f);
-    if (n!=buffSize) EXM_THROW(4, "%s : write error", dictFileName)
-
-    n = (size_t)fclose(f);
-    if (n!=0) EXM_THROW(5, "%s : flush error", dictFileName)
-}
-
-
 #define DIB_FASTSEGMENTSIZE 64
-/*! DiB_fastSampling (based on an idea by Giuseppe Ottaviano)
-    Fill @dictBuffer with stripes of size DIB_FASTSEGMENTSIZE from @samplesBuffer
-    up to @dictSize.
-    Filling starts from the end of @dictBuffer, down to maximum possible.
-    if @dictSize is not a multiply of DIB_FASTSEGMENTSIZE, some bytes at beginning of @dictBuffer won't be used.
-    @return : amount of data written into @dictBuffer
-              or an error Code (if @dictSize or @samplesSize too small)
+/*! ZDICT_fastSampling (based on an idea by Giuseppe Ottaviano)
+    Fill `dictBuffer` with stripes of size DIB_FASTSEGMENTSIZE from `samplesBuffer`
+    up to `dictSize`.
+    Filling starts from the end of `dictBuffer`, down to maximum possible.
+    if `dictSize` is not a multiply of DIB_FASTSEGMENTSIZE, some bytes at beginning of `dictBuffer` won't be used.
+    @return : amount of data written into `dictBuffer`
+              or an error code
 */
-static size_t DiB_fastSampling(void* dictBuffer, size_t dictSize,
+static size_t ZDICT_fastSampling(void* dictBuffer, size_t dictSize,
                          const void* samplesBuffer, size_t samplesSize)
 {
     char* dstPtr = (char*)dictBuffer + dictSize;
@@ -851,10 +771,10 @@ static size_t DiB_fastSampling(void* dictBuffer, size_t dictSize,
 }
 
 
-static size_t DiB_trainFromBuffer_internal(
+size_t ZDICT_trainFromBuffer_unsafe(
                             void* dictBuffer, size_t maxDictSize,
                             const void* samplesBuffer, const size_t* sampleSizes, unsigned nbSamples,
-                            DiB_params_t params)
+                            ZDICT_params_t params)
 {
     const U32 dictListSize = MAX( MAX(DICTLISTSIZE, nbSamples), (U32)(maxDictSize/16));
     dictItem* dictList = (dictItem*)malloc(dictListSize * sizeof(*dictList));
@@ -869,14 +789,14 @@ static size_t DiB_trainFromBuffer_internal(
 
     /* init */
     { unsigned u; for (u=0, sBuffSize=0; u<nbSamples; u++) sBuffSize += sampleSizes[u]; }
-    if (!dictList) { DISPLAYLEVEL(1, "not enough memory for DiB_trainFromBuffer"); return ERROR(memory_allocation); }
-    DiB_initDictItem(dictList);
+    if (!dictList) return ERROR(memory_allocation);
+    ZDICT_initDictItem(dictList);
     if (selectivity==0) selectivity = g_selectivity_default;
     if (compressionLevel==0) compressionLevel = g_compressionLevel_default;
 
-    /* select stripes */
-    if (selectivity>1) {
-        DiB_trainBuffer(dictList, dictListSize,
+    /* build dictionary */
+    if (selectivity>1) {  /* selectivity == 1 => fast mode */
+        ZDICT_trainBuffer(dictList, dictListSize,
                         samplesBuffer, sBuffSize,
                         sampleSizes, nbSamples,
                         selectivity, (U32)targetDictSize);
@@ -885,7 +805,7 @@ static size_t DiB_trainFromBuffer_internal(
         if (g_displayLevel>= 3) {
             const U32 nb = 25;
             U32 u;
-            U32 dictContentSize = DiB_dictSize(dictList);
+            U32 dictContentSize = ZDICT_dictSize(dictList);
             DISPLAYLEVEL(3, "\n %u segments found, of total size %u \n", dictList[0].pos, dictContentSize);
             DISPLAYLEVEL(3, "list %u best segments \n", nb);
             for (u=1; u<=nb; u++) {
@@ -894,13 +814,13 @@ static size_t DiB_trainFromBuffer_internal(
                 U32 d = MIN(40, l);
                 DISPLAYLEVEL(3, "%3u:%3u bytes at pos %8u, savings %7u bytes |",
                              u, l, p, dictList[u].savings);
-                DiB_printHex(3, (const char*)samplesBuffer+p, d);
+                ZDICT_printHex(3, (const char*)samplesBuffer+p, d);
                 DISPLAYLEVEL(3, "| \n");
     }   }   }
 
     /* create dictionary */
     {
-        U32 dictContentSize = DiB_dictSize(dictList);
+        U32 dictContentSize = ZDICT_dictSize(dictList);
         size_t hSize;
         BYTE* ptr;
         U32 u;
@@ -918,7 +838,7 @@ static size_t DiB_trainFromBuffer_internal(
         if (selectivity==1) {  /* note could also be used to complete a dictionary, but not necessarily better */
             DISPLAYLEVEL(3, "\r%70s\r", "");   /* clean display line */
             DISPLAYLEVEL(3, "Adding %u KB with fast sampling \n", (U32)(targetDictSize>>10));
-            dictContentSize = (U32)DiB_fastSampling((char*)dictBuffer + g_provision_entropySize,
+            dictContentSize = (U32)ZDICT_fastSampling((char*)dictBuffer + g_provision_entropySize,
                                                targetDictSize, samplesBuffer, sBuffSize);
         }
 
@@ -929,7 +849,7 @@ static size_t DiB_trainFromBuffer_internal(
         /* entropic tables */
         DISPLAYLEVEL(2, "\r%70s\r", "");   /* clean display line */
         DISPLAYLEVEL(2, "statistics ... \n");
-        hSize += DiB_analyzeEntropy((char*)dictBuffer+4, maxDictSize-4,
+        hSize += ZDICT_analyzeEntropy((char*)dictBuffer+4, maxDictSize-4,
                                     compressionLevel,
                                     samplesBuffer, sampleSizes, nbSamples,
                                     (char*)dictBuffer + maxDictSize - dictContentSize, dictContentSize);
@@ -945,76 +865,38 @@ static size_t DiB_trainFromBuffer_internal(
 }
 
 
-/* issue : samplesBuffer need to be followed by a noisy guard band.
-*  work around : duplicate the buffer, and add the noise ? */
-size_t DiB_trainFromBuffer(void* dictBuffer, size_t maxDictSize,
-                           const void* samplesBuffer, const size_t* sampleSizes, unsigned nbSamples,
-                           DiB_params_t params)
+size_t ZDICT_trainFromBuffer_advanced(void* dictBuffer, size_t dictBufferCapacity,
+                           const void* samplesBuffer, const size_t* samplesSizes, unsigned nbSamples,
+                           ZDICT_params_t params)
 {
     size_t sBuffSize;
     void* newBuff;
     size_t result;
 
-    { unsigned u; for (u=0, sBuffSize=0; u<nbSamples; u++) sBuffSize += sampleSizes[u]; }
+    { unsigned u; for (u=0, sBuffSize=0; u<nbSamples; u++) sBuffSize += samplesSizes[u]; }
     newBuff = malloc(sBuffSize + NOISELENGTH);
     if (!newBuff) return ERROR(memory_allocation);
 
     memcpy(newBuff, samplesBuffer, sBuffSize);
-    DiB_fillNoise((char*)newBuff + sBuffSize, NOISELENGTH);   /* guard band, for end of buffer condition */
+    ZDICT_fillNoise((char*)newBuff + sBuffSize, NOISELENGTH);   /* guard band, for end of buffer condition */
 
-    result = DiB_trainFromBuffer_internal(dictBuffer, maxDictSize,
-                                        newBuff, sampleSizes, nbSamples,
+    result = ZDICT_trainFromBuffer_unsafe(dictBuffer, dictBufferCapacity,
+                                        newBuff, samplesSizes, nbSamples,
                                         params);
     free(newBuff);
     return result;
 }
 
 
-int DiB_trainFromFiles(const char* dictFileName, unsigned maxDictSize,
-                       const char** fileNamesTable, unsigned nbFiles,
-                       DiB_params_t params)
+/* issue : samplesBuffer need to be followed by a noisy guard band.
+*  work around : duplicate the buffer, and add the noise ? */
+size_t ZDICT_trainFromBuffer(void* dictBuffer, size_t dictBufferCapacity,
+                             const void* samplesBuffer, const size_t* samplesSizes, unsigned nbSamples)
 {
-    void* srcBuffer;
-    size_t benchedSize;
-    size_t* fileSizes = (size_t*)malloc(nbFiles * sizeof(size_t));
-    unsigned long long totalSizeToLoad = DiB_getTotalFileSize(fileNamesTable, nbFiles);
-    void* dictBuffer = malloc(maxDictSize);
-    size_t dictSize;
-    int result = 0;
-
-    /* init */
-    benchedSize = DiB_findMaxMem(totalSizeToLoad * MEMMULT) / MEMMULT;
-    if ((unsigned long long)benchedSize > totalSizeToLoad) benchedSize = (size_t)totalSizeToLoad;
-    if (benchedSize < totalSizeToLoad)
-        DISPLAYLEVEL(1, "Not enough memory; training on %u MB only...\n", (unsigned)(benchedSize >> 20));
-
-    /* Memory allocation & restrictions */
-    srcBuffer = malloc(benchedSize+NOISELENGTH);     /* + noise */
-    if ((!fileSizes) || (!srcBuffer) || (!dictBuffer)) EXM_THROW(12, "not enough memory for DiB_trainFiles");  /* should not happen */
-
-    /* Load input buffer */
-    DiB_loadFiles(srcBuffer, benchedSize, fileSizes, fileNamesTable, nbFiles);
-    DiB_fillNoise((char*)srcBuffer + benchedSize, NOISELENGTH);   /* guard band, for end of buffer condition */
-
-    /* call buffer version */
-    dictSize = DiB_trainFromBuffer_internal(dictBuffer, maxDictSize,
-                        srcBuffer, fileSizes, nbFiles,
-                        params);
-    if (DiB_isError(dictSize))
-    {
-        DISPLAYLEVEL(1, "dictionary training failed : %s", DiB_getErrorName(dictSize));  /* should not happen */
-        result = 1;
-        goto _cleanup;
-    }
-
-    /* save dict */
-    DISPLAYLEVEL(2, "Save dictionary of size %u into file %s \n", (U32)dictSize, dictFileName);
-    DiB_saveDict(dictFileName, dictBuffer, dictSize);
-
-    /* clean up */
-_cleanup:
-    free(srcBuffer);
-    free(dictBuffer);
-    free(fileSizes);
-    return result;
+    ZDICT_params_t params;
+    memset(&params, 0, sizeof(params));
+    return ZDICT_trainFromBuffer_advanced(dictBuffer, dictBufferCapacity,
+                                          samplesBuffer, samplesSizes, nbSamples,
+                                          params);
 }
+

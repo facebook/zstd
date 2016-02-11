@@ -48,7 +48,7 @@
 #endif
 
 
-/* *************************************
+/*-*************************************
 *  Dependencies
 ***************************************/
 #include <stdlib.h>   /* malloc */
@@ -59,46 +59,21 @@
 #include "zstd_internal.h"
 
 
-/* *************************************
+/*-*************************************
 *  Constants
 ***************************************/
 static const U32 g_searchStrength = 8;
 
 
-/* *************************************
+/*-*************************************
 *  Helper functions
 ***************************************/
 size_t ZSTD_compressBound(size_t srcSize) { return FSE_compressBound(srcSize) + 12; }
 
 
-/* *************************************
+/*-*************************************
 *  Sequence storage
 ***************************************/
-typedef struct {
-    void* buffer;
-    U32*  offsetStart;
-    U32*  offset;
-    BYTE* offCodeStart;
-    BYTE* offCode;
-    BYTE* litStart;
-    BYTE* lit;
-    BYTE* litLengthStart;
-    BYTE* litLength;
-    BYTE* matchLengthStart;
-    BYTE* matchLength;
-    BYTE* dumpsStart;
-    BYTE* dumps;
-    /* opt */
-    U32* matchLengthFreq;
-    U32* litLengthFreq;
-    U32* litFreq;
-    U32* offCodeFreq;
-    U32  matchLengthSum;
-    U32  litLengthSum;
-    U32  litSum;
-    U32  offCodeSum;
-} seqStore_t;
-
 static void ZSTD_resetFreqs(seqStore_t* ssPtr)
 {
     unsigned u;
@@ -129,7 +104,7 @@ static void ZSTD_resetSeqStore(seqStore_t* ssPtr)
 }
 
 
-/* *************************************
+/*-*************************************
 *  Context memory management
 ***************************************/
 struct ZSTD_CCtx_s
@@ -159,7 +134,6 @@ struct ZSTD_CCtx_s
     FSE_CTable litlengthCTable   [FSE_CTABLE_SIZE_U32(LLFSELog, MaxLL)];
 };
 
-
 ZSTD_CCtx* ZSTD_createCCtx(void)
 {
     return (ZSTD_CCtx*) calloc(1, sizeof(ZSTD_CCtx));
@@ -172,14 +146,19 @@ size_t ZSTD_freeCCtx(ZSTD_CCtx* cctx)
     return 0;   /* reserved as a potential error code in the future */
 }
 
+seqStore_t ZSTD_copySeqStore(const ZSTD_CCtx* ctx)
+{
+    return ctx->seqStore;
+}
+
 
 static unsigned ZSTD_highbit(U32 val);
 
 #define CLAMP(val,min,max) { if (val<min) val=min; else if (val>max) val=max; }
 
-/** ZSTD_validateParams()
-    correct params value to remain within authorized range
-    optimize for srcSize if srcSize > 0 */
+/** ZSTD_validateParams() :
+    correct params value to remain within authorized range,
+    optimize for `srcSize` if srcSize > 0 */
 void ZSTD_validateParams(ZSTD_parameters* params)
 {
     const U32 btPlus = (params->strategy == ZSTD_btlazy2) || (params->strategy == ZSTD_opt_bt);
@@ -800,33 +779,9 @@ MEM_STATIC void ZSTD_storeSeq(seqStore_t* seqStorePtr, size_t litLength, const B
 }
 
 
-/* *************************************
+/*-*************************************
 *  Match length counter
 ***************************************/
-static size_t ZSTD_read_ARCH(const void* p) { size_t r; memcpy(&r, p, sizeof(r)); return r; }
-
-static unsigned ZSTD_highbit(U32 val)
-{
-#   if defined(_MSC_VER)   /* Visual */
-    unsigned long r=0;
-    _BitScanReverse(&r, val);
-    return (unsigned)r;
-#   elif defined(__GNUC__) && (__GNUC__ >= 3)   /* GCC Intrinsic */
-    return 31 - __builtin_clz(val);
-#   else   /* Software version */
-    static const int DeBruijnClz[32] = { 0, 9, 1, 10, 13, 21, 2, 29, 11, 14, 16, 18, 22, 25, 3, 30, 8, 12, 20, 28, 15, 17, 24, 7, 19, 27, 23, 6, 26, 5, 4, 31 };
-    U32 v = val;
-    int r;
-    v |= v >> 1;
-    v |= v >> 2;
-    v |= v >> 4;
-    v |= v >> 8;
-    v |= v >> 16;
-    r = DeBruijnClz[(U32)(v * 0x07C4ACDDU) >> 27];
-    return r;
-#   endif
-}
-
 static unsigned ZSTD_NbCommonBytes (register size_t val)
 {
     if (MEM_isLittleEndian()) {
@@ -891,12 +846,11 @@ static size_t ZSTD_count(const BYTE* pIn, const BYTE* pMatch, const BYTE* pInLim
     const BYTE* const pStart = pIn;
 
     while ((pIn<pInLimit-(sizeof(size_t)-1))) {
-        size_t diff = ZSTD_read_ARCH(pMatch) ^ ZSTD_read_ARCH(pIn);
+        size_t diff = MEM_readST(pMatch) ^ MEM_readST(pIn);
         if (!diff) { pIn+=sizeof(size_t); pMatch+=sizeof(size_t); continue; }
         pIn += ZSTD_NbCommonBytes(diff);
         return (size_t)(pIn - pStart);
     }
-
     if (MEM_64bits()) if ((pIn<(pInLimit-3)) && (MEM_read32(pMatch) == MEM_read32(pIn))) { pIn+=4; pMatch+=4; }
     if ((pIn<(pInLimit-1)) && (MEM_read16(pMatch) == MEM_read16(pIn))) { pIn+=2; pMatch+=2; }
     if ((pIn<pInLimit) && (*pMatch == *pIn)) pIn++;
@@ -904,7 +858,7 @@ static size_t ZSTD_count(const BYTE* pIn, const BYTE* pMatch, const BYTE* pInLim
 }
 
 /** ZSTD_count_2segments() :
-*   can count match length with ip & match in potentially 2 different segments.
+*   can count match length with `ip` & `match` in 2 different segments.
 *   convention : on reaching mEnd, match count continue starting from iStart
 */
 static size_t ZSTD_count_2segments(const BYTE* ip, const BYTE* match, const BYTE* iEnd, const BYTE* mEnd, const BYTE* iStart)

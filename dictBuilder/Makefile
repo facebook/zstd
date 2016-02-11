@@ -1,6 +1,6 @@
 # ##########################################################################
 # Dict Builder - Makefile
-# Copyright (C) Yann Collet 2015
+# Copyright (C) Yann Collet 2016
 #
 # GPL v2 License
 #
@@ -19,8 +19,7 @@
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 #
 # You can contact the author at :
-#  - ZSTD source repository : http://code.google.com/p/zstd/
-#  - Public forum : https://groups.google.com/forum/#!forum/lz4c
+#  - ZSTD homepage : http://www.zstd.net/
 # ##########################################################################
 
 CPPFLAGS= -I../lib
@@ -47,7 +46,7 @@ default: dictBuilder
 
 all: dictBuilder
 
-dictBuilder: dictBuilder.c dibcli.c divsufsort.c sssort.c trsort.c $(ZSTDDIR)/huff0.c $(ZSTDDIR)/fse.c $(ZSTDDIR)/zstd_decompress.c
+dictBuilder: dibio.c dibcli.c $(ZSTDDIR)/dictBuilder.c $(ZSTDDIR)/huff0.c $(ZSTDDIR)/fse.c $(ZSTDDIR)/zstd_decompress.c $(ZSTDDIR)/zstd_compress.c $(ZSTDDIR)/divsufsort.c
 	$(CC)      $(FLAGS) $^ -o $@$(EXT)
 
 clean:

@@ -37,8 +37,8 @@
 #include <stdlib.h>   /* exit, calloc, free */
 #include <string.h>   /* strcmp, strlen */
 #include <stdio.h>    /* fprintf, getchar */
-
-#include "dictBuilder.h"
+#include "dibio.h"
+#include "zstd.h"     /* version numbers */
 
 
 /*-************************************
@@ -48,7 +48,7 @@
 #ifndef PROGRAM_VERSION
 #  define QUOTE(str) #str
 #  define EXP_Q(str) QUOTE(str)
-#  define PROGRAM_VERSION "v" EXP_Q(DiB_VERSION_MAJOR) "." EXP_Q(DiB_VERSION_MINOR) "." EXP_Q(DiB_VERSION_RELEASE)
+#  define PROGRAM_VERSION "v" EXP_Q(ZSTD_VERSION_MAJOR) "." EXP_Q(ZSTD_VERSION_MINOR) "." EXP_Q(ZSTD_VERSION_RELEASE)
 #endif
 #define AUTHOR "Yann Collet"
 #define WELCOME_MESSAGE "*** %s %s %i-bits, by %s ***\n", PROGRAM_DESCRIPTION, PROGRAM_VERSION, (int)(sizeof(void*)*8), AUTHOR
@@ -248,7 +248,7 @@ int main(int argCount, const char** argv)
 
     /* building ... */
     {
-        DiB_params_t param;
+        ZDICT_params_t param;
         param.selectivityLevel = selectionLevel;
         param.compressionLevel = cLevel;
         DiB_setNotificationLevel(g_displayLevel);

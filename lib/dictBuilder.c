@@ -84,8 +84,6 @@
 #define GB *(1U<<30)
 
 #define DICTLISTSIZE 10000
-#define MEMMULT 11
-static const size_t maxMemory = (sizeof(size_t) == 4) ? (2 GB - 64 MB) : ((size_t)(512 MB) << sizeof(size_t));
 
 #define NOISELENGTH 32
 #define PRIME1   2654435761U

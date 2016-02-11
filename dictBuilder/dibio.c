@@ -77,12 +77,6 @@ static const size_t maxMemory = (sizeof(size_t) == 4) ? (2 GB - 64 MB) : ((size_
 #define PRIME1   2654435761U
 #define PRIME2   2246822519U
 
-#define MINRATIO 4
-static const U32 g_compressionLevel_default = 5;
-static const U32 g_selectivity_default = 9;
-static const size_t g_provision_entropySize = 200;
-static const size_t g_min_fast_dictContent = 192;
-
 
 /*-*************************************
 *  Console display

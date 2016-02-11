@@ -205,7 +205,7 @@ ZSTDLIB_API size_t ZSTD_decompressContinue(ZSTD_DCtx* dctx, void* dst, size_t ds
 *  Block functions
 ****************************************/
 /*! Block functions produce and decode raw zstd blocks, without frame metadata.
-    User will have to save and regenerate necessary information to regenerate data, such as block sizes.
+    User will have to take in charge required information to regenerate data, such as block sizes.
 
     A few rules to respect :
     - Uncompressed block size must be <= 128 KB
@@ -222,18 +222,17 @@ ZSTDLIB_API size_t ZSTD_decompressContinue(ZSTD_DCtx* dctx, void* dst, size_t ds
       + ZSTD_decompressBlock() doesn't accept uncompressed data as input !!
 */
 
-
 size_t ZSTD_compressBlock  (ZSTD_CCtx* cctx, void* dst, size_t dstCapacity, const void* src, size_t srcSize);
 size_t ZSTD_decompressBlock(ZSTD_DCtx* dctx, void* dst, size_t dstCapacity, const void* src, size_t srcSize);
 
 
-/* *************************************
+/*-*************************************
 *  Error management
 ***************************************/
 #include "error_public.h"
 /*! ZSTD_getErrorCode() :
     convert a `size_t` function result into a `ZSTD_error_code` enum type,
-    which can be used to compare directly with enum list within "error_public.h" */
+    which can be used to compare directly with enum list published into "error_public.h" */
 ZSTD_ErrorCode ZSTD_getError(size_t code);
 
 

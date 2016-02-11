@@ -1465,7 +1465,7 @@ MEM_STATIC unsigned FSE_endOfDState(const FSE_DState_t* DStatePtr)
 
 
 /* **************************************************************
-*  Includes
+*  Dependencies
 ****************************************************************/
 #include <stdlib.h>     /* malloc, free, qsort */
 #include <string.h>     /* memcpy, memset */
@@ -1499,7 +1499,7 @@ MEM_STATIC unsigned FSE_endOfDState(const FSE_DState_t* DStatePtr)
 typedef U32 DTable_max_t[FSE_DTABLE_SIZE_U32(FSE_MAX_TABLELOG)];
 
 
-/* **************************************************************
+/*-**************************************************************
 *  Templates
 ****************************************************************/
 /*
@@ -4249,39 +4249,32 @@ static size_t ZBUFF_decompressContinue(ZBUFF_DCtx* zbc, void* dst, size_t* maxDs
                 ip += headerSize;
                 headerSize = ZSTD_getFrameParams(&(zbc->params), zbc->headerBuffer, zbc->hPos);
                 if (ZSTD_isError(headerSize)) return headerSize;
-                if (headerSize)
-                {
+                if (headerSize) {
                     /* not enough input to decode header : tell how many bytes would be necessary */
                     *maxDstSizePtr = 0;
                     return headerSize - zbc->hPos;
-                }
-                // zbc->stage = ZBUFFds_decodeHeader; break;   /* useless : stage follows */
-            }
+            }   }
 
         case ZBUFFds_decodeHeader:
                 /* apply header to create / resize buffers */
                 {
                     size_t neededOutSize = (size_t)1 << zbc->params.windowLog;
                     size_t neededInSize = BLOCKSIZE;   /* a block is never > BLOCKSIZE */
-                    if (zbc->inBuffSize < neededInSize)
-                    {
+                    if (zbc->inBuffSize < neededInSize) {
                         free(zbc->inBuff);
                         zbc->inBuffSize = neededInSize;
                         zbc->inBuff = (char*)malloc(neededInSize);
                         if (zbc->inBuff == NULL) return ERROR(memory_allocation);
                     }
-                    if (zbc->outBuffSize < neededOutSize)
-                    {
+                    if (zbc->outBuffSize < neededOutSize) {
                         free(zbc->outBuff);
                         zbc->outBuffSize = neededOutSize;
                         zbc->outBuff = (char*)malloc(neededOutSize);
                         if (zbc->outBuff == NULL) return ERROR(memory_allocation);
-                    }
-                }
+                }   }
                 if (zbc->dictSize)
                     ZSTD_decompress_insertDictionary(zbc->zc, zbc->dict, zbc->dictSize);
-                if (zbc->hPos)
-                {
+                if (zbc->hPos) {
                     /* some data already loaded into headerBuffer : transfer into inBuff */
                     memcpy(zbc->inBuff, zbc->headerBuffer, zbc->hPos);
                     zbc->inPos = zbc->hPos;

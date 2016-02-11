@@ -1,6 +1,6 @@
 /*
-  fileio.c - File i/o handler
-  Copyright (C) Yann Collet 2013-2015
+  fileio.c - File i/o handler for zstd
+  Copyright (C) Yann Collet 2013-2016
 
   GPL v2 License
 
@@ -19,8 +19,7 @@
   51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
   You can contact the author at :
-  - zstd source repository : https://github.com/Cyan4973/zstd
-  - Public forum : https://groups.google.com/forum/#!forum/lz4c
+  - zstd homepage : http://www.zstd.net
 */
 /*
   Note : this is stand-alone program.
@@ -33,7 +32,7 @@
 *  Tuning options
 ***************************************/
 #ifndef ZSTD_LEGACY_SUPPORT
-/**LEGACY_SUPPORT :
+/* LEGACY_SUPPORT :
 *  decompressor can decode older formats (starting from Zstd 0.1+) */
 #  define ZSTD_LEGACY_SUPPORT 1
 #endif
@@ -80,9 +79,6 @@
 #if defined(MSDOS) || defined(OS2) || defined(WIN32) || defined(_WIN32) || defined(__CYGWIN__)
 #  include <fcntl.h>    /* _O_BINARY */
 #  include <io.h>       /* _setmode, _isatty */
-#  ifdef __MINGW32__
-   // int _fileno(FILE *stream);   /* seems no longer useful /* MINGW somehow forgets to include this windows declaration into <stdio.h> */
-#  endif
 #  define SET_BINARY_MODE(file) { int unused = _setmode(_fileno(file), _O_BINARY); (void)unused; }
 #  define IS_CONSOLE(stdStream) _isatty(_fileno(stdStream))
 #else
@@ -317,10 +313,10 @@ static void FIO_freeCResources(cRess_t ress)
 }
 
 
-/*
- * FIO_compressFilename_extRess()
- * result : 0 : compression completed correctly
- *          1 : missing or pb opening srcFileName
+/*!
+ * FIO_compressFilename_extRess() :
+ * @result : 0 : compression completed correctly,
+ *           1 : missing or pb opening srcFileName
  */
 static int FIO_compressFilename_extRess(cRess_t ress,
                                         const char* dstFileName, const char* srcFileName,

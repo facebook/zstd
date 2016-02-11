@@ -1051,7 +1051,7 @@ void ZSTD_compressBlock_fast_generic(ZSTD_CCtx* zc,
 }
 
 
-void ZSTD_compressBlock_fast(ZSTD_CCtx* ctx,
+static void ZSTD_compressBlock_fast(ZSTD_CCtx* ctx,
                        const void* src, size_t srcSize)
 {
     const U32 mls = ctx->params.searchLength;
@@ -1070,8 +1070,7 @@ void ZSTD_compressBlock_fast(ZSTD_CCtx* ctx,
 }
 
 
-//FORCE_INLINE
-void ZSTD_compressBlock_fast_extDict_generic(ZSTD_CCtx* ctx,
+static void ZSTD_compressBlock_fast_extDict_generic(ZSTD_CCtx* ctx,
                                  const void* src, size_t srcSize,
                                  const U32 mls)
 {
@@ -1171,7 +1170,7 @@ void ZSTD_compressBlock_fast_extDict_generic(ZSTD_CCtx* ctx,
 }
 
 
-void ZSTD_compressBlock_fast_extDict(ZSTD_CCtx* ctx,
+static void ZSTD_compressBlock_fast_extDict(ZSTD_CCtx* ctx,
                          const void* src, size_t srcSize)
 {
     const U32 mls = ctx->params.searchLength;
@@ -1288,18 +1287,7 @@ static U32 ZSTD_insertBt1(ZSTD_CCtx* zc, const BYTE* const ip, const U32 mls, co
 }
 
 
-static void ZSTD_updateTree(ZSTD_CCtx* zc, const BYTE* const ip, const BYTE* const iend, const U32 nbCompares, const U32 mls)
-{
-    const BYTE* const base = zc->base;
-    const U32 target = (U32)(ip - base);
-    U32 idx = zc->nextToUpdate;
-
-    for( ; idx < target ; )
-        idx += ZSTD_insertBt1(zc, base+idx, mls, iend, nbCompares, 0);
-}
-
-FORCE_INLINE /* inlining is important to hardwire a hot branch (template emulation) */
-size_t ZSTD_insertBtAndFindBestMatch (
+static size_t ZSTD_insertBtAndFindBestMatch (
                         ZSTD_CCtx* zc,
                         const BYTE* const ip, const BYTE* const iend,
                         size_t* offsetPtr,
@@ -1378,9 +1366,17 @@ size_t ZSTD_insertBtAndFindBestMatch (
 }
 
 
+static void ZSTD_updateTree(ZSTD_CCtx* zc, const BYTE* const ip, const BYTE* const iend, const U32 nbCompares, const U32 mls)
+{
+    const BYTE* const base = zc->base;
+    const U32 target = (U32)(ip - base);
+    U32 idx = zc->nextToUpdate;
+
+    while(idx < target) idx += ZSTD_insertBt1(zc, base+idx, mls, iend, nbCompares, 0);
+}
+
 /** Tree updater, providing best match */
-FORCE_INLINE /* inlining is important to hardwire a hot branch (template emulation) */
-size_t ZSTD_BtFindBestMatch (
+static size_t ZSTD_BtFindBestMatch (
                         ZSTD_CCtx* zc,
                         const BYTE* const ip, const BYTE* const iLimit,
                         size_t* offsetPtr,
@@ -1414,14 +1410,12 @@ static void ZSTD_updateTree_extDict(ZSTD_CCtx* zc, const BYTE* const ip, const B
     const U32 target = (U32)(ip - base);
     U32 idx = zc->nextToUpdate;
 
-    for( ; idx < target ; )
-        idx += ZSTD_insertBt1(zc, base+idx, mls, iend, nbCompares, 1);
+    while (idx < target) idx += ZSTD_insertBt1(zc, base+idx, mls, iend, nbCompares, 1);
 }
 
 
 /** Tree updater, providing best match */
-FORCE_INLINE /* inlining is important to hardwire a hot branch (template emulation) */
-size_t ZSTD_BtFindBestMatch_extDict (
+static size_t ZSTD_BtFindBestMatch_extDict (
                         ZSTD_CCtx* zc,
                         const BYTE* const ip, const BYTE* const iLimit,
                         size_t* offsetPtr,
@@ -1433,7 +1427,7 @@ size_t ZSTD_BtFindBestMatch_extDict (
 }
 
 
-FORCE_INLINE size_t ZSTD_BtFindBestMatch_selectMLS_extDict (
+static size_t ZSTD_BtFindBestMatch_selectMLS_extDict (
                         ZSTD_CCtx* zc,   /* Index table will be updated */
                         const BYTE* ip, const BYTE* const iLimit,
                         size_t* offsetPtr,

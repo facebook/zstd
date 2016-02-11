@@ -265,7 +265,7 @@ static size_t BMK_benchParam(BMK_result_t* resultPtr,
     U32 Hlog = params.hashLog;
     U32 Slog = params.searchLog;
     U32 Slength = params.searchLength;
-    U32 Tlength = params.sufficientLength;
+    U32 Tlength = params.targetLength;
     ZSTD_strategy strat = params.strategy;
     char name[30] = { 0 };
     U64 crcOrig;
@@ -414,7 +414,7 @@ static void BMK_printWinner(FILE* f, U32 cLevel, BMK_result_t result, ZSTD_param
     DISPLAY("\r%79s\r", "");
     fprintf(f,"    {%3u,%3u,%3u,%3u,%3u,%3u,%3u, %s },  ",
             0, params.windowLog, params.contentLog, params.hashLog, params.searchLog, params.searchLength,
-            params.sufficientLength, g_stratName[(U32)(params.strategy)]);
+            params.targetLength, g_stratName[(U32)(params.strategy)]);
     fprintf(f,
             "/* level %2u */   /* R:%5.3f at %5.1f MB/s - %5.1f MB/s */\n",
             cLevel, (double)srcSize / result.cSize, (double)result.cSpeed / 1000., (double)result.dSpeed / 1000.);
@@ -550,7 +550,7 @@ static ZSTD_parameters* sanitizeParams(ZSTD_parameters params)
     if (params.strategy == ZSTD_fast)
         g_params.contentLog = 0, g_params.searchLog = 0;
     if ((params.strategy != ZSTD_opt) && (params.strategy != ZSTD_opt_bt))
-        g_params.sufficientLength = 0;
+        g_params.targetLength = 0;
     return &g_params;
 }
 
@@ -587,9 +587,9 @@ static void paramVariation(ZSTD_parameters* p)
         case 11:
             p->strategy = (ZSTD_strategy)(((U32)p->strategy)-1); break;
         case 12:
-            p->sufficientLength *= 1 + ((double)(FUZ_rand(&g_rand)&255)) / 256.; break;
+            p->targetLength *= 1 + ((double)(FUZ_rand(&g_rand)&255)) / 256.; break;
         case 13:
-            p->sufficientLength /= 1 + ((double)(FUZ_rand(&g_rand)&255)) / 256.; break;
+            p->targetLength /= 1 + ((double)(FUZ_rand(&g_rand)&255)) / 256.; break;
         }
     }
     ZSTD_validateParams(p);
@@ -647,7 +647,7 @@ static void potentialRandomParams(ZSTD_parameters* p, U32 inverseChance)
         p->searchLog  = FUZ_rand(&g_rand) % (ZSTD_SEARCHLOG_MAX+1 - ZSTD_SEARCHLOG_MIN) + ZSTD_SEARCHLOG_MIN;
         p->windowLog  = FUZ_rand(&g_rand) % (ZSTD_WINDOWLOG_MAX+1 - ZSTD_WINDOWLOG_MIN) + ZSTD_WINDOWLOG_MIN;
         p->searchLength=FUZ_rand(&g_rand) % (ZSTD_SEARCHLENGTH_MAX+1 - ZSTD_SEARCHLENGTH_MIN) + ZSTD_SEARCHLENGTH_MIN;
-        p->sufficientLength=FUZ_rand(&g_rand) % (ZSTD_TARGETLENGTH_MAX+1 - ZSTD_TARGETLENGTH_MIN) + ZSTD_TARGETLENGTH_MIN;
+        p->targetLength=FUZ_rand(&g_rand) % (ZSTD_TARGETLENGTH_MAX+1 - ZSTD_TARGETLENGTH_MIN) + ZSTD_TARGETLENGTH_MIN;
         p->strategy   = (ZSTD_strategy) (FUZ_rand(&g_rand) % (ZSTD_opt_bt+1));
         ZSTD_validateParams(p);
     }

@@ -440,7 +440,7 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
     const BYTE* inr;
     U32 skip_num, cur, cur2, match_num, last_pos, litlen, price;
 
-    const U32 sufficient_len = ctx->params.sufficientLength;
+    const U32 sufficient_len = ctx->params.targetLength;
     const U32 faster_get_matches = (ctx->params.strategy == ZSTD_opt);
 
 
@@ -800,7 +800,7 @@ void ZSTD_compressBlock_opt_extDict_generic(ZSTD_CCtx* ctx,
     const BYTE* inr;
     U32 skip_num, cur, cur2, match_num, last_pos, litlen, price;
 
-    const U32 sufficient_len = ctx->params.sufficientLength;
+    const U32 sufficient_len = ctx->params.targetLength;
     const U32 faster_get_matches = (ctx->params.strategy == ZSTD_opt);
 
 

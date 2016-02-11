@@ -1043,8 +1043,7 @@ void ZSTD_compressBlock_fast_generic(ZSTD_CCtx* zc,
                 continue;   /* faster when present ... (?) */
     }   }   }
 
-    /* Last Literals */
-    {
+    {   /* Last Literals */
         size_t lastLLSize = iend - anchor;
         memcpy(seqStorePtr->lit, anchor, lastLLSize);
         seqStorePtr->lit += lastLLSize;

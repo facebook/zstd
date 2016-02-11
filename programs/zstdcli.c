@@ -1,6 +1,6 @@
 /*
   zstdcli - Command Line Interface (cli) for zstd
-  Copyright (C) Yann Collet 2014-2015
+  Copyright (C) Yann Collet 2014-2016
 
   GPL v2 License
 
@@ -19,8 +19,7 @@
   51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
   You can contact the author at :
-  - zstd source repository : https://github.com/Cyan4973/zstd
-  - ztsd public forum : https://groups.google.com/forum/#!forum/lz4c
+  - zstd homepage : http://www.zstd.net/
 */
 /*
   Note : this is user program.
@@ -30,14 +29,14 @@
 */
 
 
-/**************************************
+/*-************************************
 *  Compiler Options
 **************************************/
 #define _CRT_SECURE_NO_WARNINGS  /* Visual : removes warning from strcpy */
 #define _POSIX_SOURCE 1          /* triggers fileno() within <stdio.h> on unix */
 
 
-/**************************************
+/*-************************************
 *  Includes
 **************************************/
 #include <stdio.h>    /* fprintf, getchar */
@@ -50,7 +49,7 @@
 #include "zstd.h"     /* ZSTD version numbers */
 
 
-/**************************************
+/*-************************************
 *  OS-specific Includes
 **************************************/
 #if defined(MSDOS) || defined(OS2) || defined(WIN32) || defined(_WIN32) || defined(__CYGWIN__)
@@ -68,7 +67,7 @@
 #endif
 
 
-/**************************************
+/*-************************************
 *  Constants
 **************************************/
 #define COMPRESSOR_NAME "zstd command line interface"
@@ -88,16 +87,16 @@
 #define GB *(1U<<30)
 
 
-/**************************************
+/*-************************************
 *  Display Macros
 **************************************/
 #define DISPLAY(...)           fprintf(displayOut, __VA_ARGS__)
 #define DISPLAYLEVEL(l, ...)   if (displayLevel>=l) { DISPLAY(__VA_ARGS__); }
 static FILE* displayOut;
-static unsigned displayLevel = 2;   // 0 : no display  // 1: errors  // 2 : + result + interaction + warnings ;  // 3 : + progression;  // 4 : + information
+static unsigned displayLevel = 2;   /* 0 : no display,  1: errors,  2 : + result + interaction + warnings,  3 : + progression,  4 : + information */
 
 
-/**************************************
+/*-************************************
 *  Exceptions
 **************************************/
 #define DEBUG 0
@@ -112,7 +111,7 @@ static unsigned displayLevel = 2;   // 0 : no display  // 1: errors  // 2 : + re
 }
 
 
-/**************************************
+/*-************************************
 *  Command Line
 **************************************/
 static int usage(const char* programName)
@@ -126,7 +125,6 @@ static int usage(const char* programName)
     DISPLAY( " -#     : # compression level (1-19, default:1) \n");
     DISPLAY( " -d     : decompression \n");
     DISPLAY( " -D file: use `file` as Dictionary \n");
-    //DISPLAY( " -z     : force compression\n");
     DISPLAY( " -f     : overwrite output without prompting \n");
     DISPLAY( " -h/-H  : display help/long help and exit\n");
     return 0;
@@ -203,10 +201,8 @@ int main(int argCount, const char** argv)
     if (!strcmp(programName, ZSTD_CAT)) { decode=1; forceStdout=1; displayLevel=1; outFileName=stdoutmark; }
 
     /* command switches */
-    for(i=1; i<argCount; i++)
-    {
+    for(i=1; i<argCount; i++) {
         const char* argument = argv[i];
-
         if(!argument) continue;   /* Protection if argument empty */
 
         /* long commands (--long-word) */
@@ -217,11 +213,9 @@ int main(int argCount, const char** argv)
         if (!strcmp(argument, "--quiet")) { displayLevel--; continue; }
 
         /* Decode commands (note : aggregated commands are allowed) */
-        if (argument[0]=='-')
-        {
+        if (argument[0]=='-') {
             /* '-' means stdin/stdout */
-            if (argument[1]==0)
-            {
+            if (argument[1]==0) {
                 if (!filenameIdx) { filenameIdx=1, filenameTable[0]=stdinmark; continue; }
                 outFileName=stdoutmark; continue;
             }
@@ -250,10 +244,7 @@ int main(int argCount, const char** argv)
                 case 'H':
                 case 'h': displayOut=stdout; return usage_advanced(programName);
 
-                    /* Compression (default) */
-                //case 'z': forceCompress = 1; break;
-
-                    /* Decoding */
+                     /* Decoding */
                 case 'd': decode=1; argument++; break;
 
                     /* Multiple input files */
@@ -264,9 +255,6 @@ int main(int argCount, const char** argv)
 
                     /* Use file content as dictionary */
                 case 'D': nextEntryIsDictionary = 1; argument++; break;
-
-                    /* Test -- not implemented */
-                /* case 't': decode=1; LZ4IO_setOverwrite(1); output_filename=nulmark; break; */
 
                     /* Overwrite */
                 case 'f': FIO_overwriteMode(); argument++; break;
@@ -327,8 +315,7 @@ int main(int argCount, const char** argv)
         }
 
         /* dictionary */
-        if (nextEntryIsDictionary)
-        {
+        if (nextEntryIsDictionary) {
             nextEntryIsDictionary = 0;
             dictFileName = argument;
             continue;
@@ -342,8 +329,7 @@ int main(int argCount, const char** argv)
     DISPLAYLEVEL(3, WELCOME_MESSAGE);
 
     /* Check if benchmark is selected */
-    if (bench)
-    {
+    if (bench) {
 #ifndef ZSTD_NOBENCH
         BMK_benchFiles(filenameTable, filenameIdx, dictFileName, cLevel*rangeBench);
 #endif
@@ -358,11 +344,9 @@ int main(int argCount, const char** argv)
 
     /* No output filename ==> try to select one automatically (when possible) */
     if (filenameIdx>=2) outFileName = filenameTable[1];
-    while (!outFileName)   /* while : just to allow break statement */
-    {
+    while (!outFileName) {   /* while : just to allow break statement */
         if (!IS_CONSOLE(stdout)) { outFileName=stdoutmark; break; }   /* Default to stdout whenever possible (i.e. not a console) */
-        if (!decode)   /* compression to file */
-        {
+        if (!decode) {  /* compression to file */
             size_t l = strlen(filenameTable[0]);
             dynNameSpace = (char*)calloc(1,l+5);
             if (dynNameSpace==NULL) { DISPLAY("not enough memory\n"); exit(1); }
@@ -375,8 +359,7 @@ int main(int argCount, const char** argv)
         /* decompression to file (automatic name will work only if input filename has correct format extension) */
         {
             size_t filenameSize = strlen(filenameTable[0]);
-            if (strcmp(filenameTable[0] + (filenameSize-4), extension))
-            {
+            if (strcmp(filenameTable[0] + (filenameSize-4), extension)) {
                  DISPLAYLEVEL(1, "unknown suffix - cannot determine destination filename\n");
                  return badusage(programName);
             }
@@ -386,8 +369,7 @@ int main(int argCount, const char** argv)
             strcpy(dynNameSpace, filenameTable[0]);
             dynNameSpace[filenameSize-4]=0;
             DISPLAYLEVEL(2, "Decoding file %s \n", outFileName);
-        }
-    }
+    }   }
 
     /* Check if output is defined as console; trigger an error in this case */
     if (!strcmp(outFileName,stdoutmark) && IS_CONSOLE(stdout) && !forceStdout) return badusage(programName);
@@ -396,23 +378,19 @@ int main(int argCount, const char** argv)
     if (!strcmp(filenameTable[0], stdinmark) && !strcmp(outFileName,stdoutmark) && (displayLevel==2)) displayLevel=1;
     if (multiple && (displayLevel==2)) displayLevel=1;
 
-    if ((!multiple) && (filenameIdx>2))
-    {
+    if ((!multiple) && (filenameIdx>2)) {
         DISPLAY("Too many files on the command line (%u > 2). Do you mean -m ? \n", filenameIdx);
         return filenameIdx;
     }
 
     /* IO Stream/File */
     FIO_setNotificationLevel(displayLevel);
-    if (decode)
-    {
+    if (decode) {
       if (multiple)
         operationResult = FIO_decompressMultipleFilenames(filenameTable, filenameIdx, ZSTD_EXTENSION, dictFileName);
       else
         operationResult = FIO_decompressFilename(outFileName, filenameTable[0], dictFileName);
-    }
-    else
-    {
+    } else {  /* compression */
         if (multiple)
           operationResult = FIO_compressMultipleFilenames(filenameTable, filenameIdx, ZSTD_EXTENSION, dictFileName, cLevel);
         else

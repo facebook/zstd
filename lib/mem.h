@@ -86,7 +86,7 @@ extern "C" {
 /*-**************************************************************
 *  Memory I/O
 *****************************************************************/
-/*!MEM_FORCE_MEMORY_ACCESS
+/* MEM_FORCE_MEMORY_ACCESS :
  * By default, access to unaligned memory is controlled by `memcpy()`, which is safe and portable.
  * Unfortunately, on some target/compiler combinations, the generated assembly is sub-optimal.
  * The below switch allow to select different access method for improved performance.
@@ -178,7 +178,7 @@ MEM_STATIC void MEM_write64(void* memPtr, U64 value)
     memcpy(memPtr, &value, sizeof(value));
 }
 
-#endif // MEM_FORCE_MEMORY_ACCESS
+#endif /* MEM_FORCE_MEMORY_ACCESS */
 
 
 MEM_STATIC U16 MEM_readLE16(const void* memPtr)

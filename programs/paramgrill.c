@@ -930,7 +930,7 @@ int optimizeForSize(char* inFileName)
 }
 
 
-int usage(char* exename)
+static int usage(char* exename)
 {
     DISPLAY( "Usage :\n");
     DISPLAY( "      %s [arg] file\n", exename);
@@ -940,16 +940,17 @@ int usage(char* exename)
     return 0;
 }
 
-int usage_advanced(void)
+static int usage_advanced(void)
 {
     DISPLAY( "\nAdvanced options :\n");
     DISPLAY( " -i#    : iteration loops [1-9](default : %i)\n", NBLOOPS);
     DISPLAY( " -B#    : cut input into blocks of size # (default : single block)\n");
     DISPLAY( " -P#    : generated sample compressibility (default : %.1f%%)\n", COMPRESSIBILITY_DEFAULT * 100);
+    DISPLAY( " -S     : Single run\n");
     return 0;
 }
 
-int badusage(char* exename)
+static int badusage(char* exename)
 {
     DISPLAY("Wrong parameters\n");
     usage(exename);
@@ -1064,13 +1065,16 @@ int main(int argc, char** argv)
                             while ((*argument>= '0') && (*argument<='9'))
                                 g_params.searchLength *= 10, g_params.searchLength += *argument++ - '0';
                             continue;
-                        case 't':  /* strategy */
-                            g_params.strategy = (ZSTD_strategy)0;
+                        case 't':  /* target length */
+                            g_params.targetLength = 0;
                             argument++;
-                            while ((*argument>= '0') && (*argument<='9')) {
-                                g_params.strategy = (ZSTD_strategy)((U32)g_params.strategy *10);
-                                g_params.strategy = (ZSTD_strategy)((U32)g_params.strategy + *argument++ - '0');
-                            }
+                            while ((*argument>= '0') && (*argument<='9'))
+                                g_params.targetLength *= 10, g_params.targetLength += *argument++ - '0';
+                            continue;
+                        case 'S':  /* strategy */
+                            argument++;
+                            while ((*argument>= '0') && (*argument<='9'))
+                                g_params.strategy = (ZSTD_strategy)(*argument++ - '0');
                             continue;
                         case 'L':
                             {

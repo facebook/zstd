@@ -903,7 +903,7 @@ static size_t ZSTD_count(const BYTE* pIn, const BYTE* pMatch, const BYTE* pInLim
     return (size_t)(pIn - pStart);
 }
 
-/** ZSTD_count_2segments
+/** ZSTD_count_2segments() :
 *   can count match length with ip & match in potentially 2 different segments.
 *   convention : on reaching mEnd, match count continue starting from iStart
 */
@@ -1190,11 +1190,11 @@ void ZSTD_compressBlock_fast_extDict(ZSTD_CCtx* ctx,
 }
 
 
-/* *************************************
+/*-*************************************
 *  Binary Tree search
 ***************************************/
-/** ZSTD_insertBt1() : add one or multiple positions to tree
-*   ip : assumed <= iend-8
+/** ZSTD_insertBt1() : add one or multiple positions to tree.
+*   ip : assumed <= iend-8 .
 *   @return : nb of positions added */
 static U32 ZSTD_insertBt1(ZSTD_CCtx* zc, const BYTE* const ip, const U32 mls, const BYTE* const iend, U32 nbCompares,
                           U32 extDict)
@@ -1230,7 +1230,7 @@ static U32 ZSTD_insertBt1(ZSTD_CCtx* zc, const BYTE* const ip, const U32 mls, co
     while (nbCompares-- && (matchIndex > windowLow)) {
         U32* nextPtr = bt + 2*(matchIndex & btMask);
         size_t matchLength = MIN(commonLengthSmaller, commonLengthLarger);   /* guaranteed minimum nb of common bytes */
-
+#if 1   /* note : can create issues when hlog small <= 11 */
         const U32* predictPtr = bt + 2*((matchIndex-1) & btMask);   /* written this way, as bt is a roll buffer */
         if (matchIndex == predictedSmall) {
             /* no need to check length, result known */
@@ -1249,7 +1249,7 @@ static U32 ZSTD_insertBt1(ZSTD_CCtx* zc, const BYTE* const ip, const U32 mls, co
             predictedLarge = predictPtr[0] + (predictPtr[0]>0);
             continue;
         }
-
+#endif
         if ((!extDict) || (matchIndex+matchLength >= dictLimit)) {
             match = base + matchIndex;
             if (match[matchLength] == ip[matchLength])
@@ -1284,7 +1284,7 @@ static U32 ZSTD_insertBt1(ZSTD_CCtx* zc, const BYTE* const ip, const U32 mls, co
     }   }
 
     *smallerPtr = *largerPtr = 0;
-    return (matchEndIdx > current + 8) ? matchEndIdx - current - 8 : 1;
+    return (matchEndIdx > current + 8) ? (matchEndIdx - current) - 8 : 1;
 }
 
 
@@ -2339,12 +2339,12 @@ static const ZSTD_parameters ZSTD_defaultParameters[4][ZSTD_MAX_CLEVEL+1] = {
     { 0,  0, 23, 24, 23,  4,  5, ZSTD_btlazy2 },  /* level 17 */
     { 0,  0, 25, 24, 23,  5,  5, ZSTD_btlazy2 },  /* level 18 */
     { 0,  0, 25, 26, 23,  5,  5, ZSTD_btlazy2 },  /* level 19 */
-    { 0,  0, 26, 27, 25,  9,  5, ZSTD_btlazy2 },  /* level 20 */
-    { 0,  0, 23, 21, 22,  5,  4, ZSTD_btlazy2 },  /* level 21 = 16 + L=4 */ // 41233150   btlazy1=41560211   norep1=42322286
-    { 0, 12, 23, 21, 22,  5,  4, ZSTD_opt     },  /* level 22 */
-    { 0, 32, 23, 21, 22,  5,  4, ZSTD_opt     },  /* level 23 */
-    { 0, 32, 23, 21, 22,  5,  4, ZSTD_opt_bt  },  /* level 24 = 16 + btopt */
-    { 0, 64, 26, 27, 25, 10,  4, ZSTD_opt_bt  },  /* level 25 = 20 + btopt */
+    { 0, 12, 22, 20, 21,  3,  5, ZSTD_opt     },  /* level 20 */
+    { 0, 16, 23, 21, 22,  4,  4, ZSTD_opt     },  /* level 21 */
+    { 0, 32, 25, 25, 24,  5,  4, ZSTD_opt_bt  },  /* level 22 */
+    { 0, 64, 25, 26, 24,  6,  4, ZSTD_opt_bt  },  /* level 23 */
+    { 0,128, 26, 26, 25,  8,  4, ZSTD_opt_bt  },  /* level 24 */
+    { 0,256, 26, 27, 25, 10,  4, ZSTD_opt_bt  },  /* level 25 */
 },
 {   /* for srcSize <= 256 KB */
     /*    SL,  W,  C,  H,  S,  L, strat */

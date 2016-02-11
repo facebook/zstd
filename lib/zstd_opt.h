@@ -269,7 +269,7 @@ U32 ZSTD_BtGetAllMatches (
 }
 
 
-FORCE_INLINE U32 ZSTD_BtGetAllMatches_selectMLS (
+static U32 ZSTD_BtGetAllMatches_selectMLS (
                         ZSTD_CCtx* zc,   /* Index table will be updated */
                         const BYTE* ip, const BYTE* const iLowLimit, const BYTE* const iHighLimit,
                         const U32 maxNbAttempts, const U32 matchLengthSearch, ZSTD_match_t* matches, U32 minml)
@@ -297,7 +297,7 @@ U32 ZSTD_BtGetAllMatches_extDict (
 }
 
 
-FORCE_INLINE U32 ZSTD_BtGetAllMatches_selectMLS_extDict (
+static U32 ZSTD_BtGetAllMatches_selectMLS_extDict (
                         ZSTD_CCtx* zc,   /* Index table will be updated */
                         const BYTE* ip, const BYTE* const iLowLimit, const BYTE* const iHighLimit,
                         const U32 maxNbAttempts, const U32 matchLengthSearch, ZSTD_match_t* matches, U32 minml)
@@ -382,7 +382,7 @@ U32 ZSTD_HcGetAllMatches_generic (
 }
 
 
-FORCE_INLINE U32 ZSTD_HcGetAllMatches_selectMLS (
+static U32 ZSTD_HcGetAllMatches_selectMLS (
                         ZSTD_CCtx* zc,
                         const BYTE* ip, const BYTE* const iLowLimit, const BYTE* const iHighLimit,
                         const U32 maxNbAttempts, const U32 matchLengthSearch, ZSTD_match_t* matches, U32 minml)
@@ -396,7 +396,7 @@ FORCE_INLINE U32 ZSTD_HcGetAllMatches_selectMLS (
     }
 }
 
-FORCE_INLINE U32 ZSTD_HcGetAllMatches_selectMLS_extDict (
+static U32 ZSTD_HcGetAllMatches_selectMLS_extDict (
                         ZSTD_CCtx* zc,
                         const BYTE* ip, const BYTE* const iLowLimit, const BYTE* const iHighLimit,
                         const U32 maxNbAttempts, const U32 matchLengthSearch, ZSTD_match_t* matches, U32 minml)
@@ -769,7 +769,6 @@ _storeSequence: // cur, last_pos, best_mlen, best_off have to be set
 }
 
 
-
 FORCE_INLINE
 void ZSTD_compressBlock_opt_extDict_generic(ZSTD_CCtx* ctx,
                                      const void* src, size_t srcSize,
@@ -802,7 +801,6 @@ void ZSTD_compressBlock_opt_extDict_generic(ZSTD_CCtx* ctx,
 
     const U32 sufficient_len = ctx->params.targetLength;
     const U32 faster_get_matches = (ctx->params.strategy == ZSTD_opt);
-
 
     /* init */
     ZSTD_resetSeqStore(seqStorePtr);
@@ -1055,14 +1053,12 @@ _storeSequence: // cur, last_pos, best_mlen, best_off have to be set
             cur -= mlen;
         }
 
-        for (u = 0; u <= last_pos;) {
+        for (u = 0; u <= last_pos; ) {
             ZSTD_LOG_PARSER("%d: price2[%d/%d]=%d off=%d mlen=%d litlen=%d rep=%d rep2=%d\n", (int)(ip-base+u), u, last_pos, opt[u].price, opt[u].off, opt[u].mlen, opt[u].litlen, opt[u].rep, opt[u].rep2);
             u += opt[u].mlen;
         }
 
-        cur = 0;
-
-        while (cur < last_pos) {
+        for (cur=0; cur < last_pos; ) {
             U32 litLength;
             ZSTD_LOG_PARSER("%d: price3[%d/%d]=%d off=%d mlen=%d litlen=%d rep=%d rep2=%d\n", (int)(ip-base+cur), cur, last_pos, opt[cur].price, opt[cur].off, opt[cur].mlen, opt[cur].litlen, opt[cur].rep, opt[cur].rep2);
             mlen = opt[cur].mlen;

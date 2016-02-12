@@ -30,7 +30,8 @@
 #endif
 
 #if defined(_MSC_VER)
-  #pragma warning(disable : 4244)
+#  pragma warning(disable : 4244)
+#  pragma warning(disable : 4127)    /* C4127 : Condition expression is constant */
 #endif
 
 

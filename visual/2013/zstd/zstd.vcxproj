@@ -19,23 +19,27 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\..\..\lib\divsufsort.c" />
     <ClCompile Include="..\..\..\lib\fse.c" />
     <ClCompile Include="..\..\..\lib\huff0.c" />
     <ClCompile Include="..\..\..\lib\legacy\zstd_v01.c" />
     <ClCompile Include="..\..\..\lib\legacy\zstd_v02.c" />
     <ClCompile Include="..\..\..\lib\legacy\zstd_v03.c" />
     <ClCompile Include="..\..\..\lib\legacy\zstd_v04.c" />
-    <ClCompile Include="..\..\..\lib\zstd_buffered.c" />
+    <ClCompile Include="..\..\..\lib\zbuff.c" />
+    <ClCompile Include="..\..\..\lib\zdict.c" />
     <ClCompile Include="..\..\..\lib\zstd_compress.c" />
     <ClCompile Include="..\..\..\lib\zstd_decompress.c" />
     <ClCompile Include="..\..\..\programs\bench.c" />
     <ClCompile Include="..\..\..\programs\datagen.c" />
+    <ClCompile Include="..\..\..\programs\dibio.c" />
     <ClCompile Include="..\..\..\programs\fileio.c" />
     <ClCompile Include="..\..\..\programs\legacy\fileio_legacy.c" />
     <ClCompile Include="..\..\..\programs\xxhash.c" />
     <ClCompile Include="..\..\..\programs\zstdcli.c" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\..\..\lib\divsufsort.h" />
     <ClInclude Include="..\..\..\lib\fse.h" />
     <ClInclude Include="..\..\..\lib\fse_static.h" />
     <ClInclude Include="..\..\..\lib\huff0.h" />
@@ -45,6 +49,10 @@
     <ClInclude Include="..\..\..\lib\legacy\zstd_v02.h" />
     <ClInclude Include="..\..\..\lib\legacy\zstd_v03.h" />
     <ClInclude Include="..\..\..\lib\legacy\zstd_v04.h" />
+    <ClInclude Include="..\..\..\lib\zbuff.h" />
+    <ClInclude Include="..\..\..\lib\zbuff_static.h" />
+    <ClInclude Include="..\..\..\lib\zdict.h" />
+    <ClInclude Include="..\..\..\lib\zdict_static.h" />
     <ClInclude Include="..\..\..\lib\zstd.h" />
     <ClInclude Include="..\..\..\lib\zstd_buffered.h" />
     <ClInclude Include="..\..\..\lib\zstd_buffered_static.h" />
@@ -52,6 +60,7 @@
     <ClInclude Include="..\..\..\lib\zstd_static.h" />
     <ClInclude Include="..\..\..\programs\bench.h" />
     <ClInclude Include="..\..\..\programs\datagen.h" />
+    <ClInclude Include="..\..\..\programs\dibio.h" />
     <ClInclude Include="..\..\..\programs\fileio.h" />
     <ClInclude Include="..\..\..\programs\legacy\fileio_legacy.h" />
     <ClInclude Include="..\..\..\programs\xxhash.h" />

@@ -1,6 +1,6 @@
 # ################################################################
 # zstd - Makefile
-# Copyright (C) Yann Collet 2014-2015
+# Copyright (C) Yann Collet 2014-2016
 # All rights reserved.
 # 
 # BSD license

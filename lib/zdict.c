@@ -61,11 +61,11 @@
 
 #include "mem.h"           /* read */
 #include "error_private.h"
-#include "divsufsort.h"
-#include "dictBuilder_static.h"
 #include "fse.h"
 #include "huff0_static.h"
 #include "zstd_internal.h"
+#include "divsufsort.h"
+#include "zdict_static.h"
 
 
 /*-*************************************

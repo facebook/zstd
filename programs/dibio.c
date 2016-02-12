@@ -52,7 +52,8 @@
 
 #include "mem.h"            /* read */
 #include "error_private.h"
-#include "dictBuilder_static.h"
+#include "zdict_static.h"
+
 
 /*-*************************************
 *  Compiler specifics
@@ -85,17 +86,6 @@ static const size_t maxMemory = (sizeof(size_t) == 4) ? (2 GB - 64 MB) : ((size_
 #define DISPLAYLEVEL(l, ...) if (g_displayLevel>=l) { DISPLAY(__VA_ARGS__); }
 static unsigned g_displayLevel = 0;   /* 0 : no display;   1: errors;   2: default;  4: full information */
 void DiB_setNotificationLevel(unsigned l) { g_displayLevel=l; ZDICT_setNotificationLevel(l); }
-
-void DiB_printHex(U32 dlevel, const void* ptr, size_t length)
-{
-    const BYTE* const b = (const BYTE*)ptr;
-    size_t u;
-    for (u=0; u<length; u++) {
-        BYTE c = b[u];
-        if (c<32 || c>126) c = '.';   /* non-printable char */
-        DISPLAYLEVEL(dlevel, "%c", c);
-    }
-}
 
 
 /*-*************************************

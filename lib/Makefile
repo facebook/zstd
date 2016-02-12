@@ -51,7 +51,7 @@ FLAGS   = $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) $(MOREFLAGS)
 LIBDIR ?= $(PREFIX)/lib
 INCLUDEDIR=$(PREFIX)/include
 
-ZSTD_FILES := zstd_compress.c zstd_decompress.c fse.c huff0.c dictBuilder.c divsufsort.c
+ZSTD_FILES := zstd_compress.c zstd_decompress.c fse.c huff0.c zdict.c divsufsort.c
 ZSTD_LEGACY:= legacy/zstd_v01.c legacy/zstd_v02.c legacy/zstd_v03.c legacy/zstd_v04.c
 
 ifeq ($(ZSTD_LEGACY_SUPPORT), 0)
@@ -119,6 +119,7 @@ install: libzstd libzstd.pc
 	@install -m 644 libzstd.a $(DESTDIR)$(LIBDIR)/libzstd.a
 	@install -m 644 zstd.h $(DESTDIR)$(INCLUDEDIR)/zstd.h
 	@install -m 644 zstd.h $(DESTDIR)$(INCLUDEDIR)/zstd_buffered.h
+	@install -m 644 zstd.h $(DESTDIR)$(INCLUDEDIR)/zdict.h
 	@echo zstd static and shared library installed
 
 uninstall:
@@ -128,6 +129,8 @@ uninstall:
 	@[ -x $(DESTDIR)$(LIBDIR)/libzstd.$(SHARED_EXT_VER) ] && rm -f $(DESTDIR)$(LIBDIR)/libzstd.$(SHARED_EXT_VER)
 	@[ -f $(DESTDIR)$(LIBDIR)/libzstd.a ] && rm -f $(DESTDIR)$(LIBDIR)/libzstd.a
 	@[ -f $(DESTDIR)$(INCLUDEDIR)/zstd.h ] && rm -f $(DESTDIR)$(INCLUDEDIR)/zstd.h
+	@[ -f $(DESTDIR)$(INCLUDEDIR)/zstd.h ] && rm -f $(DESTDIR)$(INCLUDEDIR)/zstd_buffered.h
+	@[ -f $(DESTDIR)$(INCLUDEDIR)/zstd.h ] && rm -f $(DESTDIR)$(INCLUDEDIR)/zdict.h
 	@echo zstd libraries successfully uninstalled
 
 endif

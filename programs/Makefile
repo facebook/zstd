@@ -84,11 +84,11 @@ default: zstd
 
 all: zstd zstd32 fullbench fullbench32 fuzzer fuzzer32 zbufftest zbufftest32 paramgrill datagen
 
-zstd  : $(ZSTD_FILES) $(ZSTD_FILES_LEGACY) $(ZSTDDIR)/zstd_buffered.c $(ZSTDDIR)/dictBuilder.c $(ZSTDDIR)/divsufsort.c \
+zstd  : $(ZSTD_FILES) $(ZSTD_FILES_LEGACY) $(ZSTDDIR)/zstd_buffered.c $(ZSTDDIR)/zdict.c $(ZSTDDIR)/divsufsort.c \
         zstdcli.c fileio.c bench.c xxhash.c datagen.c dibio.c
 	$(CC)      $(FLAGS) -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT) $^ -o $@$(EXT)
 
-zstd32: $(ZSTD_FILES) $(ZSTD_FILES_LEGACY) $(ZSTDDIR)/zstd_buffered.c $(ZSTDDIR)/dictBuilder.c $(ZSTDDIR)/divsufsort.c \
+zstd32: $(ZSTD_FILES) $(ZSTD_FILES_LEGACY) $(ZSTDDIR)/zstd_buffered.c $(ZSTDDIR)/zdict.c $(ZSTDDIR)/divsufsort.c \
         zstdcli.c fileio.c bench.c xxhash.c datagen.c dibio.c 
 	$(CC) -m32 $(FLAGS) -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT) $^ -o $@$(EXT)
 

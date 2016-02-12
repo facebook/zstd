@@ -186,53 +186,72 @@ static U64 FIO_getFileSize(const char* infilename)
 }
 
 
+static FILE* FIO_openSrcFile(const char* srcFileName)
+{
+    FILE* f;
+
+    if (!strcmp (srcFileName, stdinmark)) {
+        DISPLAYLEVEL(4,"Using stdin for input\n");
+        f = stdin;
+        SET_BINARY_MODE(stdin);
+    } else {
+        f = fopen(srcFileName, "rb");
+    }
+
+    if ( f==NULL ) DISPLAYLEVEL(1, "zstd: %s: No such file\n", srcFileName);
+
+    return f;
+}
+
+
+static FILE* FIO_openDstFile(const char* dstFileName)
+{
+    FILE* f;
+
+    if (!strcmp (dstFileName, stdoutmark)) {
+        DISPLAYLEVEL(4,"Using stdout for output\n");
+        f = stdout;
+        SET_BINARY_MODE(stdout);
+    } else {
+        if (!g_overwrite) {  /* Check if destination file already exists */
+            f = fopen( dstFileName, "rb" );
+            if (f != 0) {  /* dest file exists, prompt for overwrite authorization */
+                fclose(f);
+                if (g_displayLevel <= 1) {
+                    /* No interaction possible */
+                    DISPLAY("zstd: %s already exists; not overwritten  \n", dstFileName);
+                    return 0;
+                }
+                DISPLAY("zstd: %s already exists; do you wish to overwrite (y/N) ? ", dstFileName);
+                {
+                    int ch = getchar();
+                    if ((ch!='Y') && (ch!='y')) {
+                        DISPLAY("    not overwritten  \n");
+                        return 0;
+                    }
+                    while ((ch!=EOF) && (ch!='\n')) ch = getchar();  /* flush rest of input line */
+        }   }   }
+        f = fopen( dstFileName, "wb" );
+    }
+    return f;
+}
+
+
 static int FIO_getFiles(FILE** fileOutPtr, FILE** fileInPtr,
                         const char* dstFileName, const char* srcFileName)
 {
-    if (!strcmp (srcFileName, stdinmark)) {
-        DISPLAYLEVEL(4,"Using stdin for input\n");
-        *fileInPtr = stdin;
-        SET_BINARY_MODE(stdin);
-    } else {
-        *fileInPtr = fopen(srcFileName, "rb");
-    }
-
+    *fileInPtr = FIO_openSrcFile(srcFileName);
     if ( *fileInPtr==0 ) {
         DISPLAYLEVEL(1, "Unable to access file for processing: %s\n", srcFileName);
         return 1;
     }
 
-    if (!strcmp (dstFileName, stdoutmark)) {
-        DISPLAYLEVEL(4,"Using stdout for output\n");
-        *fileOutPtr = stdout;
-        SET_BINARY_MODE(stdout);
-    } else {
-        if (!g_overwrite) {  /* Check if destination file already exists */
-            *fileOutPtr = fopen( dstFileName, "rb" );
-            if (*fileOutPtr != 0) {  /* dest file exists, prompt for overwrite authorization */
-                fclose(*fileOutPtr);
-                DISPLAY("Warning : %s already exists \n", dstFileName);
-                if ((g_displayLevel <= 1) || (*fileInPtr == stdin)) {
-                    /* No interaction possible */
-                    DISPLAY("Operation aborted : %s already exists \n", dstFileName);
-                    return 1;
-                }
-                DISPLAY("Overwrite ? (y/N) : ");
-                {
-                    int ch = getchar();
-                    if ((ch!='Y') && (ch!='y')) {
-                        DISPLAY("No. Operation aborted : %s already exists \n", dstFileName);
-                        return 1;
-                    }
-                    while ((ch!=EOF) && (ch!='\n')) ch = getchar();  /* flush rest of input line */
-        }   }   }
-        *fileOutPtr = fopen( dstFileName, "wb" );
-    }
-
-    if (*fileOutPtr==0) EXM_THROW(13, "Pb opening %s", dstFileName);
+    *fileOutPtr = FIO_openDstFile(dstFileName);
+    if (*fileOutPtr==0) return 1;
 
     return 0;
 }
+
 
 /*!FIO_loadFile
 *  creates a buffer, pointed by *bufferPtr,
@@ -280,6 +299,7 @@ typedef struct {
     void*  dictBuffer;
     size_t dictBufferSize;
     ZBUFF_CCtx* ctx;
+    FILE* dstFile;
 } cRess_t;
 
 static cRess_t FIO_createCResources(const char* dictFileName)
@@ -313,24 +333,25 @@ static void FIO_freeCResources(cRess_t ress)
 }
 
 
-/*!
- * FIO_compressFilename_extRess() :
- * @result : 0 : compression completed correctly,
- *           1 : missing or pb opening srcFileName
+/*! FIO_compressFilename_internal() :
+ *  same as FIO_compressFilename_extRess(), with ress.desFile already opened
+ *  @return : 0 : compression completed correctly,
+ *            1 : missing or pb opening srcFileName
  */
-static int FIO_compressFilename_extRess(cRess_t ress,
-                                        const char* dstFileName, const char* srcFileName,
-                                        int cLevel)
+static int FIO_compressFilename_internal(cRess_t ress,
+                                         const char* dstFileName, const char* srcFileName,
+                                         int cLevel)
 {
     FILE* srcFile;
-    FILE* dstFile;
+    FILE* dstFile = ress.dstFile;
     U64 filesize = 0;
     U64 compressedfilesize = 0;
     size_t dictSize = ress.dictBufferSize;
     size_t sizeCheck, errorCode;
 
     /* File check */
-    if (FIO_getFiles(&dstFile, &srcFile, dstFileName, srcFileName)) return 1;
+    srcFile = FIO_openSrcFile(srcFileName);
+    if (!srcFile) return 1;   /* srcFile could not be opened */
 
     /* init */
     filesize = FIO_getFileSize(srcFileName) + dictSize;
@@ -346,8 +367,7 @@ static int FIO_compressFilename_extRess(cRess_t ress,
         filesize += inSize;
         DISPLAYUPDATE(2, "\rRead : %u MB  ", (U32)(filesize>>20));
 
-        {
-            /* Compress (buffered streaming ensures appropriate formatting) */
+        {   /* Compress using buffered streaming */
             size_t usedInSize = inSize;
             size_t cSize = ress.dstBufferSize;
             size_t result = ZBUFF_compressContinue(ress.ctx, ress.dstBuffer, &cSize, ress.srcBuffer, &usedInSize);
@@ -362,7 +382,6 @@ static int FIO_compressFilename_extRess(cRess_t ress,
             if (sizeCheck!=cSize) EXM_THROW(25, "Write error : cannot write compressed block into %s", dstFileName);
             compressedfilesize += cSize;
         }
-
         DISPLAYUPDATE(2, "\rRead : %u MB  ==> %.2f%%   ", (U32)(filesize>>20), (double)compressedfilesize/filesize*100);
     }
 
@@ -384,9 +403,28 @@ static int FIO_compressFilename_extRess(cRess_t ress,
 
     /* clean */
     fclose(srcFile);
-    if (fclose(dstFile)) EXM_THROW(28, "Write error : cannot properly close %s", dstFileName);
 
     return 0;
+}
+
+
+/*! FIO_compressFilename_extRess() :
+ *  @return : 0 : compression completed correctly,
+ *            1 : missing or pb opening srcFileName
+ */
+static int FIO_compressFilename_extRess(cRess_t ress,
+                                        const char* dstFileName, const char* srcFileName,
+                                        int cLevel)
+{
+    int result;
+
+    ress.dstFile = FIO_openDstFile(dstFileName);
+    if (ress.dstFile==0) return 1;
+
+    result = FIO_compressFilename_internal(ress, dstFileName, srcFileName, cLevel);
+
+    if (fclose(ress.dstFile)) EXM_THROW(28, "Write error : cannot properly close %s", dstFileName);
+    return result;
 }
 
 
@@ -427,20 +465,28 @@ int FIO_compressMultipleFilenames(const char** inFileNamesTable, unsigned nbFile
     int missed_files = 0;
     char* dstFileName = (char*)malloc(FNSPACE);
     size_t dfnSize = FNSPACE;
-    const size_t suffixSize = strlen(suffix);
+    const size_t suffixSize = suffix ? strlen(suffix) : 0;
     cRess_t ress;
 
     /* init */
     ress = FIO_createCResources(dictFileName);
 
     /* loop on each file */
-    for (u=0; u<nbFiles; u++) {
-        size_t ifnSize = strlen(inFileNamesTable[u]);
-        if (dfnSize <= ifnSize+suffixSize+1) { free(dstFileName); dfnSize = ifnSize + 20; dstFileName = (char*)malloc(dfnSize); }
-        strcpy(dstFileName, inFileNamesTable[u]);
-        strcat(dstFileName, suffix);
-
-        missed_files += FIO_compressFilename_extRess(ress, dstFileName, inFileNamesTable[u], compressionLevel);
+    if (suffix) {
+        for (u=0; u<nbFiles; u++) {
+            size_t ifnSize = strlen(inFileNamesTable[u]);
+            if (dfnSize <= ifnSize+suffixSize+1) { free(dstFileName); dfnSize = ifnSize + 20; dstFileName = (char*)malloc(dfnSize); }
+            strcpy(dstFileName, inFileNamesTable[u]);
+            strcat(dstFileName, suffix);
+            missed_files += FIO_compressFilename_extRess(ress, dstFileName,
+                                                         inFileNamesTable[u], compressionLevel);
+        }
+    } else {
+        ress.dstFile = stdout;
+        for (u=0; u<nbFiles; u++)
+            missed_files += FIO_compressFilename_internal(ress, stdoutmark,
+                                                          inFileNamesTable[u], compressionLevel);
+        if (fclose(ress.dstFile)) EXM_THROW(29, "Write error : cannot properly close %s", stdoutmark);
     }
 
     /* Close & Free */

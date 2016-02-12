@@ -214,12 +214,12 @@ valgrindTest: zstd datagen fuzzer fullbench zbufftest
 	@echo "\n ---- valgrind tests : memory analyzer ----"
 	valgrind --leak-check=yes --error-exitcode=1 ./datagen -g50M > $(VOID)
 	./datagen -g16KB > tmp
-	valgrind --leak-check=yes --error-exitcode=1 ./zstd -vf tmp $(VOID)
+	valgrind --leak-check=yes --error-exitcode=1 ./zstd -vf tmp -o $(VOID)
 	./datagen -g2930KB > tmp
-	valgrind --leak-check=yes --error-exitcode=1 ./zstd -5 -vf tmp tmp2
-	valgrind --leak-check=yes --error-exitcode=1 ./zstd -vdf tmp2 $(VOID)
+	valgrind --leak-check=yes --error-exitcode=1 ./zstd -5 -vf tmp -o tmp2
+	valgrind --leak-check=yes --error-exitcode=1 ./zstd -vdf tmp2 -o $(VOID)
 	./datagen -g64MB > tmp
-	valgrind --leak-check=yes --error-exitcode=1 ./zstd -vf tmp $(VOID)
+	valgrind --leak-check=yes --error-exitcode=1 ./zstd -vf tmp -o $(VOID)
 	@rm tmp
 	valgrind --leak-check=yes --error-exitcode=1 ./fuzzer -T1mn -t1
 	valgrind --leak-check=yes --error-exitcode=1 ./fullbench -i1

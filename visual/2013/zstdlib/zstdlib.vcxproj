@@ -21,7 +21,7 @@
   <ItemGroup>
     <ClCompile Include="..\..\..\lib\fse.c" />
     <ClCompile Include="..\..\..\lib\huff0.c" />
-    <ClCompile Include="..\..\..\lib\zstd_buffered.c" />
+    <ClCompile Include="..\..\..\lib\zbuff.c" />
     <ClCompile Include="..\..\..\lib\zstd_compress.c" />
     <ClCompile Include="..\..\..\lib\zstd_decompress.c" />
   </ItemGroup>
@@ -34,9 +34,9 @@
     <ClInclude Include="..\..\..\lib\huff0.h" />
     <ClInclude Include="..\..\..\lib\huff0_static.h" />
     <ClInclude Include="..\..\..\lib\mem.h" />
+    <ClInclude Include="..\..\..\lib\zbuff.h" />
+    <ClInclude Include="..\..\..\lib\zbuff_static.h" />
     <ClInclude Include="..\..\..\lib\zstd.h" />
-    <ClInclude Include="..\..\..\lib\zstd_buffered.h" />
-    <ClInclude Include="..\..\..\lib\zstd_buffered_static.h" />
     <ClInclude Include="..\..\..\lib\zstd_internal.h" />
     <ClInclude Include="..\..\..\lib\zstd_static.h" />
     <ClInclude Include="resource.h" />

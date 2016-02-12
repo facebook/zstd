@@ -416,8 +416,8 @@ static U32 ZSTD_HcGetAllMatches_selectMLS_extDict (
 *********************************/
 FORCE_INLINE
 void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
-                                     const void* src, size_t srcSize,
-                                     const U32 searchMethod, const U32 depth)
+                                    const void* src, size_t srcSize,
+                                    const U32 searchMethod, const U32 depth)
 {
     seqStore_t* seqStorePtr = &(ctx->seqStore);
     const BYTE* const istart = (const BYTE*)src;

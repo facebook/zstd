@@ -36,7 +36,6 @@
 ****************************************/
 /* Disable some Visual warning messages */
 #ifdef _MSC_VER
-#  define _CRT_SECURE_NO_WARNINGS                /* fopen */
 #  pragma warning(disable : 4127)                /* disable: C4127: conditional expression is constant */
 #endif
 

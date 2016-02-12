@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 14
-VisualStudioVersion = 14.0.24720.0
+# Visual Studio 2013
+VisualStudioVersion = 12.0.40629.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "zstd", "zstd\zstd.vcxproj", "{4E52A41A-F33B-4C7A-8C36-A1A6B4F4277C}"
 EndProject
@@ -10,8 +10,6 @@ EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "fullbench", "fullbench\fullbench.vcxproj", "{61ABD629-1CC8-4FD7-9281-6B8DBB9D3DF8}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "zstdlib", "zstdlib\zstdlib.vcxproj", "{8BFD8150-94D5-4BF9-8A50-7BD9929A0850}"
-EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "dictBuilder", "dictBuilder\dictBuilder.vcxproj", "{D4C01A3D-F609-4DA6-B53F-88D063CCE993}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -53,14 +51,6 @@ Global
 		{8BFD8150-94D5-4BF9-8A50-7BD9929A0850}.Release|Win32.Build.0 = Release|Win32
 		{8BFD8150-94D5-4BF9-8A50-7BD9929A0850}.Release|x64.ActiveCfg = Release|x64
 		{8BFD8150-94D5-4BF9-8A50-7BD9929A0850}.Release|x64.Build.0 = Release|x64
-		{D4C01A3D-F609-4DA6-B53F-88D063CCE993}.Debug|Win32.ActiveCfg = Debug|Win32
-		{D4C01A3D-F609-4DA6-B53F-88D063CCE993}.Debug|Win32.Build.0 = Debug|Win32
-		{D4C01A3D-F609-4DA6-B53F-88D063CCE993}.Debug|x64.ActiveCfg = Debug|x64
-		{D4C01A3D-F609-4DA6-B53F-88D063CCE993}.Debug|x64.Build.0 = Debug|x64
-		{D4C01A3D-F609-4DA6-B53F-88D063CCE993}.Release|Win32.ActiveCfg = Release|Win32
-		{D4C01A3D-F609-4DA6-B53F-88D063CCE993}.Release|Win32.Build.0 = Release|Win32
-		{D4C01A3D-F609-4DA6-B53F-88D063CCE993}.Release|x64.ActiveCfg = Release|x64
-		{D4C01A3D-F609-4DA6-B53F-88D063CCE993}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

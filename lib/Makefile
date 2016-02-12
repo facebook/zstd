@@ -118,7 +118,7 @@ install: libzstd libzstd.pc
 	@cp -a libzstd.pc $(DESTDIR)$(LIBDIR)/pkgconfig/
 	@install -m 644 libzstd.a $(DESTDIR)$(LIBDIR)/libzstd.a
 	@install -m 644 zstd.h $(DESTDIR)$(INCLUDEDIR)/zstd.h
-	@install -m 644 zstd.h $(DESTDIR)$(INCLUDEDIR)/zstd_buffered.h
+	@install -m 644 zstd.h $(DESTDIR)$(INCLUDEDIR)/zbuff.h
 	@install -m 644 zstd.h $(DESTDIR)$(INCLUDEDIR)/zdict.h
 	@echo zstd static and shared library installed
 
@@ -129,7 +129,7 @@ uninstall:
 	@[ -x $(DESTDIR)$(LIBDIR)/libzstd.$(SHARED_EXT_VER) ] && rm -f $(DESTDIR)$(LIBDIR)/libzstd.$(SHARED_EXT_VER)
 	@[ -f $(DESTDIR)$(LIBDIR)/libzstd.a ] && rm -f $(DESTDIR)$(LIBDIR)/libzstd.a
 	@[ -f $(DESTDIR)$(INCLUDEDIR)/zstd.h ] && rm -f $(DESTDIR)$(INCLUDEDIR)/zstd.h
-	@[ -f $(DESTDIR)$(INCLUDEDIR)/zstd.h ] && rm -f $(DESTDIR)$(INCLUDEDIR)/zstd_buffered.h
+	@[ -f $(DESTDIR)$(INCLUDEDIR)/zstd.h ] && rm -f $(DESTDIR)$(INCLUDEDIR)/zbuff.h
 	@[ -f $(DESTDIR)$(INCLUDEDIR)/zstd.h ] && rm -f $(DESTDIR)$(INCLUDEDIR)/zdict.h
 	@echo zstd libraries successfully uninstalled
 

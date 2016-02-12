@@ -1,7 +1,7 @@
 /*
     zstd - buffered version of compression library
     experimental complementary API, for static linking only
-    Copyright (C) 2015, Yann Collet.
+    Copyright (C) 2015-2016, Yann Collet.
 
     BSD 2-Clause License (http://www.opensource.org/licenses/bsd-license.php)
 
@@ -27,8 +27,7 @@
     OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
     You can contact the author at :
-    - zstd source repository : https://github.com/Cyan4973/zstd
-    - ztsd public forum : https://groups.google.com/forum/#!forum/lz4c
+    - zstd homepage : http://www.zstd.net
 */
 #ifndef ZSTD_BUFFERED_STATIC_H
 #define ZSTD_BUFFERED_STATIC_H

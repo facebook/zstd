@@ -64,13 +64,14 @@ int FIO_decompressFilename (const char* outfilename, const char* infilename, con
 *  Multiple File functions
 ***************************************/
 /** FIO_compressMultipleFilenames() :
+    if `suffix == NULL`, output is stdout.
     @return : nb of missing files */
 int FIO_compressMultipleFilenames(const char** srcNamesTable, unsigned nbFiles,
                                   const char* suffix,
                                   const char* dictFileName, int compressionLevel);
 
 /** FIO_decompressMultipleFilenames() :
-    @result : nb of missing or skipped files */
+    @return : nb of missing or skipped files */
 int FIO_decompressMultipleFilenames(const char** srcNamesTable, unsigned nbFiles,
                                     const char* suffix,
                                     const char* dictFileName);

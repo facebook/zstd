@@ -379,28 +379,28 @@ int main(int argCount, const char** argv)
     if (!strcmp(filenameTable[0], stdinmark) && IS_CONSOLE(stdin) ) return badusage(programName);
     if (outFileName && !strcmp(outFileName, stdoutmark) && IS_CONSOLE(stdout) && !forceStdout) return badusage(programName);
 
-    /* No warning message in pipe mode (stdin + stdout) or multiple mode */
-    if (!strcmp(filenameTable[0], stdinmark) && !strcmp(outFileName,stdoutmark) && (displayLevel==2)) displayLevel=1;
-    if ((filenameIdx>1) && (displayLevel==2)) displayLevel=1;
-
-    /* user-selected output filename only possible with a single file */
-    if ((outFileName) && (filenameIdx>1)) {
+    /* user-selected output filename, only possible with a single file */
+    if (outFileName && strcmp(outFileName,stdoutmark) && (filenameIdx>1)) {
         DISPLAY("Too many files (%u) on the command line. \n", filenameIdx);
         return filenameIdx;
     }
 
+    /* No warning message in pipe mode (stdin + stdout) or multiple mode */
+    if (!strcmp(filenameTable[0], stdinmark) && !strcmp(outFileName,stdoutmark) && (displayLevel==2)) displayLevel=1;
+    if ((filenameIdx>1) && (displayLevel==2)) displayLevel=1;
+
     /* IO Stream/File */
     FIO_setNotificationLevel(displayLevel);
     if (decode) {
-      if (outFileName)
+      if (filenameIdx==1)
         operationResult = FIO_decompressFilename(outFileName, filenameTable[0], dictFileName);
       else
         operationResult = FIO_decompressMultipleFilenames(filenameTable, filenameIdx, ZSTD_EXTENSION, dictFileName);
     } else {  /* compression */
-        if (outFileName)
+        if (filenameIdx==1)
           operationResult = FIO_compressFilename(outFileName, filenameTable[0], dictFileName, cLevel);
         else
-          operationResult = FIO_compressMultipleFilenames(filenameTable, filenameIdx, ZSTD_EXTENSION, dictFileName, cLevel);
+          operationResult = FIO_compressMultipleFilenames(filenameTable, filenameIdx, forceStdout ? NULL : ZSTD_EXTENSION, dictFileName, cLevel);
     }
 
 _end:

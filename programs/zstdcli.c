@@ -395,7 +395,7 @@ int main(int argCount, const char** argv)
       if (filenameIdx==1)
         operationResult = FIO_decompressFilename(outFileName, filenameTable[0], dictFileName);
       else
-        operationResult = FIO_decompressMultipleFilenames(filenameTable, filenameIdx, ZSTD_EXTENSION, dictFileName);
+        operationResult = FIO_decompressMultipleFilenames(filenameTable, filenameIdx, forceStdout ? NULL : ZSTD_EXTENSION, dictFileName);
     } else {  /* compression */
         if (filenameIdx==1)
           operationResult = FIO_compressFilename(outFileName, filenameTable[0], dictFileName, cLevel);

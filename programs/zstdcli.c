@@ -133,7 +133,7 @@ static int usage_advanced(const char* programName)
     DISPLAY( " -c     : force write to standard output, even if it is the console\n");
 #ifndef ZSTD_NODICT
     DISPLAY( "Dictionary builder :\n");
-    DISPLAY( "--train : Create a dictionary from a set of files \n");
+    DISPLAY( "--train : create a dictionary from a training set of files \n");
     DISPLAY( " -o file: `file` is dictionary name (default: %s) \n", g_defaultDictName);
     DISPLAY( "--maxdict:limit dictionary to specified size (default : %u) \n", g_defaultMaxDictSize);
     DISPLAY( " -s#    : dictionary selectivity level (default: %u)\n", g_defaultSelectivityLevel);
@@ -366,7 +366,7 @@ int main(int argCount, const char** argv)
         ZDICT_params_t dictParams;
         dictParams.compressionLevel = dictCLevel;
         dictParams.selectivityLevel = dictSelect;
-        DiB_setNotificationLevel(displayLevel);
+        dictParams.notificationLevel = displayLevel;
         DiB_trainFromFiles(outFileName, maxDictSize, filenameTable, filenameIdx, dictParams);
 #endif
         goto _end;

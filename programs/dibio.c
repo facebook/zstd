@@ -85,7 +85,6 @@ static const size_t maxMemory = (sizeof(size_t) == 4) ? (2 GB - 64 MB) : ((size_
 #define DISPLAY(...)         fprintf(stderr, __VA_ARGS__)
 #define DISPLAYLEVEL(l, ...) if (g_displayLevel>=l) { DISPLAY(__VA_ARGS__); }
 static unsigned g_displayLevel = 0;   /* 0 : no display;   1: errors;   2: default;  4: full information */
-void DiB_setNotificationLevel(unsigned l) { g_displayLevel=l; ZDICT_setNotificationLevel(l); }
 
 
 /*-*************************************
@@ -216,6 +215,18 @@ static void DiB_saveDict(const char* dictFileName,
 }
 
 
+/*! ZDICT_trainFromBuffer_unsafe() :
+    Strictly Internal use only !!
+    Same as ZDICT_trainFromBuffer_advanced(), but does not control `samplesBuffer`.
+    `samplesBuffer` must be followed by noisy guard band to avoid out-of-buffer reads.
+    @return : size of dictionary stored into `dictBuffer` (<= `dictBufferCapacity`)
+              or an error code.
+*/
+size_t ZDICT_trainFromBuffer_unsafe(void* dictBuffer, size_t dictBufferCapacity,
+                              const void* samplesBuffer, const size_t* samplesSizes, unsigned nbSamples,
+                              ZDICT_params_t parameters);
+
+
 int DiB_trainFromFiles(const char* dictFileName, unsigned maxDictSize,
                        const char** fileNamesTable, unsigned nbFiles,
                        ZDICT_params_t params)
@@ -229,6 +240,7 @@ int DiB_trainFromFiles(const char* dictFileName, unsigned maxDictSize,
     int result = 0;
 
     /* init */
+    g_displayLevel = params.notificationLevel;
     benchedSize = DiB_findMaxMem(totalSizeToLoad * MEMMULT) / MEMMULT;
     if ((unsigned long long)benchedSize > totalSizeToLoad) benchedSize = (size_t)totalSizeToLoad;
     if (benchedSize < totalSizeToLoad)

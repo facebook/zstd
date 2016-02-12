@@ -49,15 +49,4 @@ int DiB_trainFromFiles(const char* dictFileName, unsigned maxDictSize,
                        ZDICT_params_t parameters);
 
 
-/*-*************************************
-*  Helper functions
-***************************************/
-/*! DiB_setNotificationLevel
-    Set amount of notification to be displayed on the console.
-    default initial value : 0 = no console notification.
-    Note : not thread-safe (use a global constant)
-*/
-void DiB_setNotificationLevel(unsigned l);
-
-
 #endif

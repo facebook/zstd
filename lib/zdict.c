@@ -102,7 +102,6 @@ static const size_t g_min_fast_dictContent = 192;
 #define DISPLAY(...)         fprintf(stderr, __VA_ARGS__)
 #define DISPLAYLEVEL(l, ...) if (g_displayLevel>=l) { DISPLAY(__VA_ARGS__); }
 static unsigned g_displayLevel = 0;   /* 0 : no display;   1: errors;   2: default;  4: full information */
-void ZDICT_setNotificationLevel(unsigned l) { g_displayLevel=l; }
 
 #define DISPLAYUPDATE(l, ...) if (g_displayLevel>=l) { \
             if (ZDICT_GetMilliSpan(g_time) > refreshRate)  \
@@ -111,7 +110,7 @@ void ZDICT_setNotificationLevel(unsigned l) { g_displayLevel=l; }
 static const unsigned refreshRate = 300;
 static clock_t g_time = 0;
 
-void ZDICT_printHex(U32 dlevel, const void* ptr, size_t length)
+static void ZDICT_printHex(U32 dlevel, const void* ptr, size_t length)
 {
     const BYTE* const b = (const BYTE*)ptr;
     size_t u;
@@ -813,6 +812,7 @@ size_t ZDICT_trainFromBuffer_unsafe(
     { unsigned u; for (u=0, sBuffSize=0; u<nbSamples; u++) sBuffSize += sampleSizes[u]; }
     if (!dictList) return ERROR(memory_allocation);
     ZDICT_initDictItem(dictList);
+    g_displayLevel = params.notificationLevel;
     if (selectivity==0) selectivity = g_selectivity_default;
     if (compressionLevel==0) compressionLevel = g_compressionLevel_default;
 

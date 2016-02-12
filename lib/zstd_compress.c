@@ -88,31 +88,33 @@ typedef struct {
     BYTE* matchLength;
     BYTE* dumpsStart;
     BYTE* dumps;
+    /* opt */
     U32* matchLengthFreq;
     U32* litLengthFreq;
     U32* litFreq;
     U32* offCodeFreq;
-    U32 matchLengthSum;
-    U32 litLengthSum;
-    U32 litSum;
-    U32 offCodeSum;
+    U32  matchLengthSum;
+    U32  litLengthSum;
+    U32  litSum;
+    U32  offCodeSum;
 } seqStore_t;
 
 static void ZSTD_resetFreqs(seqStore_t* ssPtr)
 {
-    ssPtr->matchLengthSum = (1<<MLbits);
-    ssPtr->litLengthSum = (1<<LLbits);
+    unsigned u;
+    ssPtr->matchLengthSum = 512; // (1<<MLbits);
+    ssPtr->litLengthSum = 256; // (1<<LLbits);
     ssPtr->litSum = (1<<Litbits);
     ssPtr->offCodeSum = (1<<Offbits);
 
-    for (int i=0; i<=MaxLit; i++)
-        ssPtr->litFreq[i] = 1;
-    for (int i=0; i<=MaxLL; i++)
-        ssPtr->litLengthFreq[i] = 1;
-    for (int i=0; i<=MaxML; i++)
-        ssPtr->matchLengthFreq[i] = 1;
-    for (int i=0; i<=MaxOff; i++)
-        ssPtr->offCodeFreq[i] = 1;
+    for (u=0; u<=MaxLit; u++)
+        ssPtr->litFreq[u] = 1;
+    for (u=0; u<=MaxLL; u++)
+        ssPtr->litLengthFreq[u] = 1;
+    for (u=0; u<=MaxML; u++)
+        ssPtr->matchLengthFreq[u] = 1;
+    for (u=0; u<=MaxOff; u++)
+        ssPtr->offCodeFreq[u] = 1;
 }
 
 static void ZSTD_resetSeqStore(seqStore_t* ssPtr)
@@ -173,7 +175,9 @@ size_t ZSTD_freeCCtx(ZSTD_CCtx* cctx)
 
 static unsigned ZSTD_highbit(U32 val);
 
-/** ZSTD_validateParams
+#define CLAMP(val,min,max) { if (val<min) val=min; else if (val>max) val=max; }
+
+/** ZSTD_validateParams()
     correct params value to remain within authorized range
     optimize for srcSize if srcSize > 0 */
 void ZSTD_validateParams(ZSTD_parameters* params)
@@ -182,25 +186,21 @@ void ZSTD_validateParams(ZSTD_parameters* params)
 
     /* validate params */
     if (MEM_32bits()) if (params->windowLog > 25) params->windowLog = 25;   /* 32 bits mode cannot flush > 24 bits */
-    if (params->windowLog   > ZSTD_WINDOWLOG_MAX) params->windowLog = ZSTD_WINDOWLOG_MAX;
-    if (params->windowLog   < ZSTD_WINDOWLOG_MIN) params->windowLog = ZSTD_WINDOWLOG_MIN;
+    CLAMP(params->windowLog, ZSTD_WINDOWLOG_MIN, ZSTD_WINDOWLOG_MAX);
+    CLAMP(params->contentLog, ZSTD_CONTENTLOG_MIN, ZSTD_CONTENTLOG_MAX);
+    CLAMP(params->hashLog, ZSTD_HASHLOG_MIN, ZSTD_HASHLOG_MAX);
+    CLAMP(params->searchLog, ZSTD_SEARCHLOG_MIN, ZSTD_SEARCHLOG_MAX);
+    CLAMP(params->searchLength, ZSTD_SEARCHLENGTH_MIN, ZSTD_SEARCHLENGTH_MAX);
+    CLAMP(params->targetLength, ZSTD_TARGETLENGTH_MIN, ZSTD_TARGETLENGTH_MAX);
+    if ((U32)params->strategy>(U32)ZSTD_opt_bt) params->strategy = ZSTD_opt_bt;
 
     /* correct params, to use less memory */
     if ((params->srcSize > 0) && (params->srcSize < (1<<ZSTD_WINDOWLOG_MAX))) {
         U32 srcLog = ZSTD_highbit((U32)(params->srcSize)-1) + 1;
         if (params->windowLog > srcLog) params->windowLog = srcLog;
     }
-
     if (params->windowLog   < ZSTD_WINDOWLOG_ABSOLUTEMIN) params->windowLog = ZSTD_WINDOWLOG_ABSOLUTEMIN;  /* required for frame header */
     if (params->contentLog  > params->windowLog+btPlus) params->contentLog = params->windowLog+btPlus;   /* <= ZSTD_CONTENTLOG_MAX */
-    if (params->contentLog  < ZSTD_CONTENTLOG_MIN) params->contentLog = ZSTD_CONTENTLOG_MIN;
-    if (params->hashLog     > ZSTD_HASHLOG_MAX) params->hashLog = ZSTD_HASHLOG_MAX;
-    if (params->hashLog     < ZSTD_HASHLOG_MIN) params->hashLog = ZSTD_HASHLOG_MIN;
-    if (params->searchLog   > ZSTD_SEARCHLOG_MAX) params->searchLog = ZSTD_SEARCHLOG_MAX;
-    if (params->searchLog   < ZSTD_SEARCHLOG_MIN) params->searchLog = ZSTD_SEARCHLOG_MIN;
-    if (params->searchLength> ZSTD_SEARCHLENGTH_MAX) params->searchLength = ZSTD_SEARCHLENGTH_MAX;
-    if (params->searchLength< ZSTD_SEARCHLENGTH_MIN) params->searchLength = ZSTD_SEARCHLENGTH_MIN;
-    if ((U32)params->strategy>(U32)ZSTD_opt_bt) params->strategy = ZSTD_opt_bt;
 }
 
 
@@ -234,18 +234,19 @@ static size_t ZSTD_resetCCtx_advanced (ZSTD_CCtx* zc,
     zc->lowLimit = 0;
     zc->params = params;
     zc->blockSize = blockSize;
-    zc->seqStore.offsetStart = (U32*) (zc->seqStore.buffer);
+
+    zc->seqStore.litFreq = (U32*) (zc->seqStore.buffer);
+    zc->seqStore.litLengthFreq = zc->seqStore.litFreq + (1<<Litbits);
+    zc->seqStore.matchLengthFreq = zc->seqStore.litLengthFreq + (1<<LLbits);
+    zc->seqStore.offCodeFreq = zc->seqStore.matchLengthFreq + (1<<MLbits);
+
+    zc->seqStore.offsetStart = zc->seqStore.offCodeFreq + (1<<Offbits);
     zc->seqStore.offCodeStart = (BYTE*) (zc->seqStore.offsetStart + (blockSize>>2));
     zc->seqStore.litStart = zc->seqStore.offCodeStart + (blockSize>>2);
     zc->seqStore.litLengthStart =  zc->seqStore.litStart + blockSize;
     zc->seqStore.matchLengthStart = zc->seqStore.litLengthStart + (blockSize>>2);
     zc->seqStore.dumpsStart = zc->seqStore.matchLengthStart + (blockSize>>2);
-    BYTE* dumpsEnd= zc->seqStore.dumpsStart + (blockSize>>2);
-    zc->seqStore.litFreq = (U32*)(dumpsEnd);
-    zc->seqStore.litLengthFreq = zc->seqStore.litFreq + (1<<Litbits);
-    zc->seqStore.matchLengthFreq = zc->seqStore.litLengthFreq + (1<<LLbits);
-    zc->seqStore.offCodeFreq = zc->seqStore.matchLengthFreq + (1<<MLbits);
- //   zc->seqStore.XXX = zc->seqStore.offCodeFreq + (1<<Offbits)*sizeof(U32);
+    // zc->seqStore.XXX = zc->seqStore.dumpsStart + (blockSize>>4);
 
     zc->hbSize = 0;
     zc->stage = 0;
@@ -561,7 +562,6 @@ size_t ZSTD_compressSequences(ZSTD_CCtx* zc,
     const size_t minGain = ZSTD_minGain(srcSize);
     const size_t maxCSize = srcSize - minGain;
     BYTE* seqHead;
-
 
     /* Compress literals */
     {
@@ -903,7 +903,7 @@ static size_t ZSTD_count(const BYTE* pIn, const BYTE* pMatch, const BYTE* pInLim
     return (size_t)(pIn - pStart);
 }
 
-/** ZSTD_count_2segments
+/** ZSTD_count_2segments() :
 *   can count match length with ip & match in potentially 2 different segments.
 *   convention : on reaching mEnd, match count continue starting from iStart
 */
@@ -928,15 +928,15 @@ static size_t ZSTD_hash4Ptr(const void* ptr, U32 h) { return ZSTD_hash4(MEM_read
 
 static const U64 prime5bytes = 889523592379ULL;
 static size_t ZSTD_hash5(U64 u, U32 h) { return (size_t)(((u  << (64-40)) * prime5bytes) >> (64-h)) ; }
-static size_t ZSTD_hash5Ptr(const void* p, U32 h) { return ZSTD_hash5(MEM_read64(p), h); }
+static size_t ZSTD_hash5Ptr(const void* p, U32 h) { return ZSTD_hash5(MEM_readLE64(p), h); }
 
 static const U64 prime6bytes = 227718039650203ULL;
 static size_t ZSTD_hash6(U64 u, U32 h) { return (size_t)(((u  << (64-48)) * prime6bytes) >> (64-h)) ; }
-static size_t ZSTD_hash6Ptr(const void* p, U32 h) { return ZSTD_hash6(MEM_read64(p), h); }
+static size_t ZSTD_hash6Ptr(const void* p, U32 h) { return ZSTD_hash6(MEM_readLE64(p), h); }
 
 static const U64 prime7bytes = 58295818150454627ULL;
 static size_t ZSTD_hash7(U64 u, U32 h) { return (size_t)(((u  << (64-56)) * prime7bytes) >> (64-h)) ; }
-static size_t ZSTD_hash7Ptr(const void* p, U32 h) { return ZSTD_hash7(MEM_read64(p), h); }
+static size_t ZSTD_hash7Ptr(const void* p, U32 h) { return ZSTD_hash7(MEM_readLE64(p), h); }
 
 static size_t ZSTD_hashPtr(const void* p, U32 hBits, U32 mls)
 {
@@ -1043,8 +1043,7 @@ void ZSTD_compressBlock_fast_generic(ZSTD_CCtx* zc,
                 continue;   /* faster when present ... (?) */
     }   }   }
 
-    /* Last Literals */
-    {
+    {   /* Last Literals */
         size_t lastLLSize = iend - anchor;
         memcpy(seqStorePtr->lit, anchor, lastLLSize);
         seqStorePtr->lit += lastLLSize;
@@ -1052,7 +1051,7 @@ void ZSTD_compressBlock_fast_generic(ZSTD_CCtx* zc,
 }
 
 
-void ZSTD_compressBlock_fast(ZSTD_CCtx* ctx,
+static void ZSTD_compressBlock_fast(ZSTD_CCtx* ctx,
                        const void* src, size_t srcSize)
 {
     const U32 mls = ctx->params.searchLength;
@@ -1071,8 +1070,7 @@ void ZSTD_compressBlock_fast(ZSTD_CCtx* ctx,
 }
 
 
-//FORCE_INLINE
-void ZSTD_compressBlock_fast_extDict_generic(ZSTD_CCtx* ctx,
+static void ZSTD_compressBlock_fast_extDict_generic(ZSTD_CCtx* ctx,
                                  const void* src, size_t srcSize,
                                  const U32 mls)
 {
@@ -1172,7 +1170,7 @@ void ZSTD_compressBlock_fast_extDict_generic(ZSTD_CCtx* ctx,
 }
 
 
-void ZSTD_compressBlock_fast_extDict(ZSTD_CCtx* ctx,
+static void ZSTD_compressBlock_fast_extDict(ZSTD_CCtx* ctx,
                          const void* src, size_t srcSize)
 {
     const U32 mls = ctx->params.searchLength;
@@ -1191,11 +1189,11 @@ void ZSTD_compressBlock_fast_extDict(ZSTD_CCtx* ctx,
 }
 
 
-/* *************************************
+/*-*************************************
 *  Binary Tree search
 ***************************************/
-/** ZSTD_insertBt1 : add one or multiple positions to tree
-*   @ip : assumed <= iend-8
+/** ZSTD_insertBt1() : add one or multiple positions to tree.
+*   ip : assumed <= iend-8 .
 *   @return : nb of positions added */
 static U32 ZSTD_insertBt1(ZSTD_CCtx* zc, const BYTE* const ip, const U32 mls, const BYTE* const iend, U32 nbCompares,
                           U32 extDict)
@@ -1230,9 +1228,9 @@ static U32 ZSTD_insertBt1(ZSTD_CCtx* zc, const BYTE* const ip, const U32 mls, co
 
     while (nbCompares-- && (matchIndex > windowLow)) {
         U32* nextPtr = bt + 2*(matchIndex & btMask);
-        const U32* predictPtr = bt + 2*((matchIndex-1) & btMask);   /* written this way, as bt is a roll buffer */
         size_t matchLength = MIN(commonLengthSmaller, commonLengthLarger);   /* guaranteed minimum nb of common bytes */
-
+#if 1   /* note : can create issues when hlog small <= 11 */
+        const U32* predictPtr = bt + 2*((matchIndex-1) & btMask);   /* written this way, as bt is a roll buffer */
         if (matchIndex == predictedSmall) {
             /* no need to check length, result known */
             *smallerPtr = matchIndex;
@@ -1242,7 +1240,6 @@ static U32 ZSTD_insertBt1(ZSTD_CCtx* zc, const BYTE* const ip, const U32 mls, co
             predictedSmall = predictPtr[1] + (predictPtr[1]>0);
             continue;
         }
-
         if (matchIndex == predictedLarge) {
             *largerPtr = matchIndex;
             if (matchIndex <= btLow) { largerPtr=&dummy32; break; }   /* beyond tree size, stop the search */
@@ -1251,7 +1248,7 @@ static U32 ZSTD_insertBt1(ZSTD_CCtx* zc, const BYTE* const ip, const U32 mls, co
             predictedLarge = predictPtr[0] + (predictPtr[0]>0);
             continue;
         }
-
+#endif
         if ((!extDict) || (matchIndex+matchLength >= dictLimit)) {
             match = base + matchIndex;
             if (match[matchLength] == ip[matchLength])
@@ -1286,22 +1283,11 @@ static U32 ZSTD_insertBt1(ZSTD_CCtx* zc, const BYTE* const ip, const U32 mls, co
     }   }
 
     *smallerPtr = *largerPtr = 0;
-    return (matchEndIdx > current + 8) ? matchEndIdx - current - 8 : 1;
+    return (matchEndIdx > current + 8) ? (matchEndIdx - current) - 8 : 1;
 }
 
 
-static void ZSTD_updateTree(ZSTD_CCtx* zc, const BYTE* const ip, const BYTE* const iend, const U32 nbCompares, const U32 mls)
-{
-    const BYTE* const base = zc->base;
-    const U32 target = (U32)(ip - base);
-    U32 idx = zc->nextToUpdate;
-
-    for( ; idx < target ; )
-        idx += ZSTD_insertBt1(zc, base+idx, mls, iend, nbCompares, 0);
-}
-
-FORCE_INLINE /* inlining is important to hardwire a hot branch (template emulation) */
-size_t ZSTD_insertBtAndFindBestMatch (
+static size_t ZSTD_insertBtAndFindBestMatch (
                         ZSTD_CCtx* zc,
                         const BYTE* const ip, const BYTE* const iend,
                         size_t* offsetPtr,
@@ -1371,8 +1357,7 @@ size_t ZSTD_insertBtAndFindBestMatch (
             if (matchIndex <= btLow) { largerPtr=&dummy32; break; }   /* beyond tree size, stop the search */
             largerPtr = nextPtr;
             matchIndex = nextPtr[0];
-        }
-    }
+    }   }
 
     *smallerPtr = *largerPtr = 0;
 
@@ -1381,9 +1366,17 @@ size_t ZSTD_insertBtAndFindBestMatch (
 }
 
 
+static void ZSTD_updateTree(ZSTD_CCtx* zc, const BYTE* const ip, const BYTE* const iend, const U32 nbCompares, const U32 mls)
+{
+    const BYTE* const base = zc->base;
+    const U32 target = (U32)(ip - base);
+    U32 idx = zc->nextToUpdate;
+
+    while(idx < target) idx += ZSTD_insertBt1(zc, base+idx, mls, iend, nbCompares, 0);
+}
+
 /** Tree updater, providing best match */
-FORCE_INLINE /* inlining is important to hardwire a hot branch (template emulation) */
-size_t ZSTD_BtFindBestMatch (
+static size_t ZSTD_BtFindBestMatch (
                         ZSTD_CCtx* zc,
                         const BYTE* const ip, const BYTE* const iLimit,
                         size_t* offsetPtr,
@@ -1395,7 +1388,7 @@ size_t ZSTD_BtFindBestMatch (
 }
 
 
-FORCE_INLINE size_t ZSTD_BtFindBestMatch_selectMLS (
+static size_t ZSTD_BtFindBestMatch_selectMLS (
                         ZSTD_CCtx* zc,   /* Index table will be updated */
                         const BYTE* ip, const BYTE* const iLimit,
                         size_t* offsetPtr,
@@ -1417,14 +1410,12 @@ static void ZSTD_updateTree_extDict(ZSTD_CCtx* zc, const BYTE* const ip, const B
     const U32 target = (U32)(ip - base);
     U32 idx = zc->nextToUpdate;
 
-    for( ; idx < target ; )
-        idx += ZSTD_insertBt1(zc, base+idx, mls, iend, nbCompares, 1);
+    while (idx < target) idx += ZSTD_insertBt1(zc, base+idx, mls, iend, nbCompares, 1);
 }
 
 
 /** Tree updater, providing best match */
-FORCE_INLINE /* inlining is important to hardwire a hot branch (template emulation) */
-size_t ZSTD_BtFindBestMatch_extDict (
+static size_t ZSTD_BtFindBestMatch_extDict (
                         ZSTD_CCtx* zc,
                         const BYTE* const ip, const BYTE* const iLimit,
                         size_t* offsetPtr,
@@ -1436,7 +1427,7 @@ size_t ZSTD_BtFindBestMatch_extDict (
 }
 
 
-FORCE_INLINE size_t ZSTD_BtFindBestMatch_selectMLS_extDict (
+static size_t ZSTD_BtFindBestMatch_selectMLS_extDict (
                         ZSTD_CCtx* zc,   /* Index table will be updated */
                         const BYTE* ip, const BYTE* const iLimit,
                         size_t* offsetPtr,
@@ -1662,7 +1653,7 @@ void ZSTD_compressBlock_lazy_generic(ZSTD_CCtx* ctx,
             break;  /* nothing found : store previous solution */
         }
 
-        /* catch up */
+       /* catch up */
         if (offset) {
             while ((start>anchor) && (start>base+offset) && (start[-1] == start[-1-offset]))   /* only search for offset within prefix */
                 { start--; matchLength++; }
@@ -1699,7 +1690,7 @@ _storeSequence:
     }
 }
 
-#include "zstd_opt.c"
+#include "zstd_opt.h"
 
 static void ZSTD_compressBlock_opt_bt(ZSTD_CCtx* ctx, const void* src, size_t srcSize)
 {
@@ -2314,8 +2305,9 @@ size_t ZSTD_compress(void* dst, size_t maxDstSize, const void* src, size_t srcSi
 }
 
 
-/*- Pre-defined compression levels -*/
+/*-=====  Pre-defined compression levels  =====-*/
 
+#define ZSTD_MAX_CLEVEL 25
 unsigned ZSTD_maxCLevel(void) { return ZSTD_MAX_CLEVEL; }
 
 static const ZSTD_parameters ZSTD_defaultParameters[4][ZSTD_MAX_CLEVEL+1] = {
@@ -2341,11 +2333,12 @@ static const ZSTD_parameters ZSTD_defaultParameters[4][ZSTD_MAX_CLEVEL+1] = {
     { 0,  0, 23, 24, 23,  4,  5, ZSTD_btlazy2 },  /* level 17 */
     { 0,  0, 25, 24, 23,  5,  5, ZSTD_btlazy2 },  /* level 18 */
     { 0,  0, 25, 26, 23,  5,  5, ZSTD_btlazy2 },  /* level 19 */
-    { 0,  0, 26, 27, 25,  9,  5, ZSTD_btlazy2 },  /* level 20 */
-    { 0,  0, 22, 20, 22,  4,  4, ZSTD_lazy2   },  /* level 21 = 11 + L=4 */ // 41902762   lazy1=42087013     norep1=42911693
-    { 0,  0, 23, 21, 22,  5,  4, ZSTD_btlazy2 },  /* level 22 = 16 + L=4 */ // 41233150   btlazy1=41560211   norep1=42322286
-    { 0, 32, 23, 21, 22,  5,  4, ZSTD_opt     },  /* level 23 */
-    { 0, 32, 23, 21, 22,  5,  4, ZSTD_opt_bt  },  /* level 24 */
+    { 0, 12, 22, 20, 21,  3,  5, ZSTD_opt     },  /* level 20 */
+    { 0, 16, 23, 21, 22,  4,  4, ZSTD_opt     },  /* level 21 */
+    { 0, 32, 25, 25, 24,  5,  4, ZSTD_opt_bt  },  /* level 22 */
+    { 0, 64, 25, 26, 24,  6,  4, ZSTD_opt_bt  },  /* level 23 */
+    { 0,128, 26, 26, 25,  8,  4, ZSTD_opt_bt  },  /* level 24 */
+    { 0,256, 26, 27, 25, 10,  4, ZSTD_opt_bt  },  /* level 25 */
 },
 {   /* for srcSize <= 256 KB */
     /*    SL,  W,  C,  H,  S,  L, strat */

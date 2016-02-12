@@ -1,6 +1,6 @@
 # ################################################################
 # zstd - Makefile
-# Copyright (C) Yann Collet 2014-2015
+# Copyright (C) Yann Collet 2014-2016
 # All rights reserved.
 # 
 # BSD license
@@ -27,12 +27,11 @@
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 # 
 # You can contact the author at :
-#  - zstd source repository : https://github.com/Cyan4973/zstd
-#  - Public forum : https://groups.google.com/forum/#!forum/lz4c
+#  - zstd homepage : http://www.zstd.net/
 # ################################################################
 
 # force a version number : uncomment below export (otherwise, default to the one declared into zstd.h)
-#export VERSION := 0.4.6
+#export VERSION := 0.5.1
 
 PRGDIR  = programs
 ZSTDDIR = lib
@@ -94,8 +93,34 @@ gpptest: clean
 	$(MAKE) all CC=g++ CFLAGS="-O3 -Wall -Wextra -Wundef -Wshadow -Wcast-align -Werror"
 
 armtest: clean
-	$(MAKE) -C $(ZSTDDIR) all CC=arm-linux-gnueabi-gcc MOREFLAGS="-Werror"
-	$(MAKE) -C $(PRGDIR) CC=arm-linux-gnueabi-gcc MOREFLAGS="-Werror -static"
+#	$(MAKE) -C $(ZSTDDIR) all CC=arm-linux-gnueabi-gcc MOREFLAGS="-Werror"
+	$(MAKE) -C $(PRGDIR) datagen   # use native, faster
+	$(MAKE) -C $(PRGDIR) test CC=arm-linux-gnueabi-gcc ZSTDRTTEST= MOREFLAGS=-static # MOREFLAGS="-Werror -static"
+
+# for Travis CI
+arminstall: clean   
+	sudo apt-get install -q qemu  
+	sudo apt-get install -q binfmt-support
+	sudo apt-get install -q qemu-user-static
+	sudo apt-get install -q gcc-arm-linux-gnueabi
+
+# for Travis CI
+armtest-w-install: clean arminstall armtest
+
+ppctest: clean
+	$(MAKE) -C $(PRGDIR) datagen   # use native, faster
+	$(MAKE) -C $(PRGDIR) test CC=powerpc-linux-gnu-gcc ZSTDRTTEST= MOREFLAGS=-static # MOREFLAGS="-Werror -static" 
+
+# for Travis CI
+ppcinstall: clean   
+	sudo apt-get install -q qemu  
+	sudo apt-get install -q binfmt-support
+	sudo apt-get install -q qemu-user-static
+	sudo apt-get update  -q
+	sudo apt-get install -q gcc-powerpc-linux-gnu   # unfortunately, doesn't work on Travis CI (package not available)
+
+# for Travis CI
+ppctest-w-install: clean ppcinstall ppctest
 
 usan: clean
 	$(MAKE) test CC=clang MOREFLAGS="-g -fsanitize=undefined"

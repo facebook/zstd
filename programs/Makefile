@@ -1,6 +1,6 @@
 # ##########################################################################
 # ZSTD programs - Makefile
-# Copyright (C) Yann Collet 2015
+# Copyright (C) Yann Collet 2015-2016
 #
 # GPL v2 License
 #
@@ -19,13 +19,14 @@
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 #
 # You can contact the author at :
-#  - ZSTD source repository : http://code.google.com/p/zstd/
-#  - Public forum : https://groups.google.com/forum/#!forum/lz4c
+#  - zstd homepage : http://www.zstd.net/
 # ##########################################################################
 # zstd : Command Line Utility, supporting gzip-like arguments
 # datagen : Synthetic and parametrable data generator, for tests
 # fuzzer  : Test tool, to check zstd integrity on target platform
 # fuzzer32: Same as fuzzer, but forced to compile in 32-bits mode
+# zbufftest  : Test tool, to check ZBUFF integrity on target platform
+# zbufftest32: Same as zbufftest, but forced to compile in 32-bits mode
 # fullbench  : Precisely measure speed for each zstd inner function
 # fullbench32: Same as fullbench, but forced to compile in 32-bits mode
 # ##########################################################################
@@ -75,6 +76,7 @@ endif
 
 ZBUFFTEST = -T2mn
 FUZZERTEST= -T5mn
+ZSTDRTTEST= --test-large-data
 
 .PHONY: default all clean install uninstall test test32 test-all
 
@@ -178,7 +180,7 @@ test32: test-zstd32 test-fullbench32 test-fuzzer32 test-zbuff32
 test-all: test test32 valgrindTest
 
 zstd-playTests: datagen
-	ZSTD=$(ZSTD) ./playTests.sh --test-large-data
+	ZSTD=$(ZSTD) ./playTests.sh $(ZSTDRTTEST)
 
 test-zstd: ZSTD = ./zstd
 test-zstd: zstd zstd-playTests

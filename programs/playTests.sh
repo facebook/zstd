@@ -66,8 +66,12 @@ rm tmp1 tmp2 tmp3
 echo "decompress tmp* : "
 $ZSTD -df *.zst
 ls -ls tmp*
-echo "compress tmp* into stdout : "
+echo "compress tmp* into stdout > tmpall : "
 $ZSTD -c tmp1 tmp2 tmp3 > tmpall
+ls -ls tmp*
+echo "decompress tmpall* into stdout > tmpdec : "
+cp tmpall tmpall2
+$ZSTD -dc tmpall* > tmpdec
 ls -ls tmp*
 $ZSTD -f tmp1 notHere tmp2 && die "missing file not detected!"
 rm tmp*

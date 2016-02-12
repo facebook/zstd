@@ -57,17 +57,17 @@ GetLibraryVersion("${HEADER_CONTENT}" LIBVER_MAJOR LIBVER_MINOR LIBVER_RELEASE)
 MESSAGE("ZSTD VERSION ${LIBVER_MAJOR}.${LIBVER_MINOR}.${LIBVER_RELEASE}")
 
 SET(Sources
-        ${LIBRARY_DIR}/dictBuilder.c
         ${LIBRARY_DIR}/divsufsort.c
         ${LIBRARY_DIR}/fse.c
         ${LIBRARY_DIR}/huff0.c
+        ${LIBRARY_DIR}/zdict.c
         ${LIBRARY_DIR}/zstd_buffered.c
         ${LIBRARY_DIR}/zstd_compress.c
         ${LIBRARY_DIR}/zstd_decompress.c)
 
 SET(Headers
         ${LIBRARY_DIR}/bitstream.h
-        ${LIBRARY_DIR}/dictBuilder.h
+        ${LIBRARY_DIR}/zdict.h
         ${LIBRARY_DIR}/error_private.h
         ${LIBRARY_DIR}/error_public.h
         ${LIBRARY_DIR}/fse.h

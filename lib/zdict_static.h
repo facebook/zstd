@@ -53,6 +53,8 @@ extern "C" {
 typedef struct {
     unsigned selectivityLevel;   /* 0 means default; larger => bigger selection => larger dictionary */
     unsigned compressionLevel;   /* 0 means default; target a specific zstd compression level */
+    unsigned notificationLevel;  /* Write to stderr; 0 = none (default); 1 = errors; 2 = progression; 3 = details; 4 = debug; */
+    unsigned reserved[3];        /* space for future parameters */
 } ZDICT_params_t;
 
 
@@ -69,32 +71,6 @@ typedef struct {
 size_t ZDICT_trainFromBuffer_advanced(void* dictBuffer, size_t dictBufferCapacity,
                              const void* samplesBuffer, const size_t* samplesSizes, unsigned nbSamples,
                              ZDICT_params_t parameters);
-
-
-/*-*************************************
-*  Helper functions
-***************************************/
-/*! ZDICT_setNotificationLevel() :
-    Set amount of notification to be displayed on the console.
-    default : 0 = no console notification.
-    1 = errors; 2 = notifications; 3 = details; 4 = debug;
-    Note : not thread-safe (uses a global constant)
-*/
-void ZDICT_setNotificationLevel(unsigned l);
-
-
-/*-*************************************
-*  Private functions
-***************************************/
-/*! ZDICT_trainFromBuffer_unsafe() :
-    Same as ZDICT_trainFromBuffer_advanced(), but does not control `samplesBuffer`.
-    note : `samplesBuffer` must be followed by noisy guard band to avoid out-of-buffer reads.
-    @return : size of dictionary stored into `dictBuffer` (<= `dictBufferCapacity`)
-              or an error code.
-*/
-size_t ZDICT_trainFromBuffer_unsafe(void* dictBuffer, size_t dictBufferCapacity,
-                              const void* samplesBuffer, const size_t* samplesSizes, unsigned nbSamples,
-                              ZDICT_params_t parameters);
 
 
 #if defined (__cplusplus)

@@ -52,7 +52,7 @@
 #define _POSIX_SOURCE 1        /* enable fileno() within <stdio.h> on unix */
 
 
-/* *************************************
+/*-*************************************
 *  Includes
 ***************************************/
 #include <stdio.h>      /* fprintf, fopen, fread, _fileno, stdin, stdout */
@@ -68,12 +68,12 @@
 #include "zbuff_static.h"
 
 #if defined(ZSTD_LEGACY_SUPPORT) && (ZSTD_LEGACY_SUPPORT==1)
-#  include "zstd_legacy.h"    /* legacy */
-#  include "fileio_legacy.h"  /* legacy */
+#  include "zstd_legacy.h"    /* ZSTD_isLegacy */
+#  include "fileio_legacy.h"  /* FIO_decompressLegacyFrame */
 #endif
 
 
-/* *************************************
+/*-*************************************
 *  OS-specific Includes
 ***************************************/
 #if defined(MSDOS) || defined(OS2) || defined(WIN32) || defined(_WIN32) || defined(__CYGWIN__)
@@ -92,7 +92,7 @@
 #endif
 
 
-/* *************************************
+/*-*************************************
 *  Constants
 ***************************************/
 #define KB *(1U<<10)
@@ -112,12 +112,13 @@
 #define BLOCKSIZE      (128 KB)
 #define ROLLBUFFERSIZE (BLOCKSIZE*8*64)
 
-#define FIO_FRAMEHEADERSIZE 5        /* as a define, because needed to allocated table on stack */
-#define FSE_CHECKSUM_SEED        0
+#define FIO_FRAMEHEADERSIZE  5        /* as a define, because needed to allocated table on stack */
+#define FSE_CHECKSUM_SEED    0
 
 #define CACHELINE 64
 
-#define MAX_DICT_SIZE (512 KB)
+#define MAX_DICT_SIZE (1 MB)   /* protection against large input (attack scenario) ; can be changed */
+
 
 /* *************************************
 *  Macros
@@ -138,7 +139,6 @@ static clock_t g_time = 0;
 *  Local Parameters
 ***************************************/
 static U32 g_overwrite = 0;
-
 void FIO_overwriteMode(void) { g_overwrite=1; }
 void FIO_setNotificationLevel(unsigned level) { g_displayLevel=level; }
 

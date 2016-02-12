@@ -372,8 +372,8 @@ int main(int argCount, const char** argv)
         goto _end;
     }
 
-    /* No input filename ==> use stdin */
-    if(!filenameIdx) filenameIdx=1, filenameTable[0]=stdinmark;
+    /* No input filename ==> use stdin and stdout */
+    if(!filenameIdx) filenameIdx=1, filenameTable[0]=stdinmark, outFileName=stdoutmark;
 
     /* Check if input/output defined as console; trigger an error in this case */
     if (!strcmp(filenameTable[0], stdinmark) && IS_CONSOLE(stdin) ) return badusage(programName);

@@ -177,7 +177,7 @@ U32 ZSTD_insertBtAndGetAllMatches (
                         ZSTD_CCtx* zc,
                         const BYTE* const ip, const BYTE* const iend,
                         U32 nbCompares, const U32 mls,
-                        U32 extDict, ZSTD_match_t* matches, size_t bestLength)
+                        U32 extDict, ZSTD_match_t* matches)
 {
     const BYTE* const base = zc->base;
     const U32 current = (U32)(ip-base);
@@ -201,7 +201,7 @@ U32 ZSTD_insertBtAndGetAllMatches (
     U32 dummy32;   /* to be nullified at the end */
     U32 mnum = 0;
 
-    bestLength = MINMATCH-1;
+    size_t bestLength = MINMATCH-1;
     hashTable[h] = current;   /* Update Hash Table */
 
     while (nbCompares-- && (matchIndex > windowLow)) {
@@ -265,26 +265,26 @@ FORCE_INLINE /* inlining is important to hardwire a hot branch (template emulati
 U32 ZSTD_BtGetAllMatches (
                         ZSTD_CCtx* zc,
                         const BYTE* const ip, const BYTE* const iLimit,
-                        const U32 maxNbAttempts, const U32 mls, ZSTD_match_t* matches, U32 minml)
+                        const U32 maxNbAttempts, const U32 mls, ZSTD_match_t* matches)
 {
     if (ip < zc->base + zc->nextToUpdate) return 0;   /* skipped area */
     ZSTD_updateTree(zc, ip, iLimit, maxNbAttempts, mls);
-    return ZSTD_insertBtAndGetAllMatches(zc, ip, iLimit, maxNbAttempts, mls, 0, matches, minml);
+    return ZSTD_insertBtAndGetAllMatches(zc, ip, iLimit, maxNbAttempts, mls, 0, matches);
 }
 
 
 static U32 ZSTD_BtGetAllMatches_selectMLS (
                         ZSTD_CCtx* zc,   /* Index table will be updated */
                         const BYTE* ip, const BYTE* const iLowLimit, const BYTE* const iHighLimit,
-                        const U32 maxNbAttempts, const U32 matchLengthSearch, ZSTD_match_t* matches, U32 minml)
+                        const U32 maxNbAttempts, const U32 matchLengthSearch, ZSTD_match_t* matches)
 {
     (void)iLowLimit;  /* unused */
     switch(matchLengthSearch)
     {
     default :
-    case 4 : return ZSTD_BtGetAllMatches(zc, ip, iHighLimit, maxNbAttempts, 4, matches, minml);
-    case 5 : return ZSTD_BtGetAllMatches(zc, ip, iHighLimit, maxNbAttempts, 5, matches, minml);
-    case 6 : return ZSTD_BtGetAllMatches(zc, ip, iHighLimit, maxNbAttempts, 6, matches, minml);
+    case 4 : return ZSTD_BtGetAllMatches(zc, ip, iHighLimit, maxNbAttempts, 4, matches);
+    case 5 : return ZSTD_BtGetAllMatches(zc, ip, iHighLimit, maxNbAttempts, 5, matches);
+    case 6 : return ZSTD_BtGetAllMatches(zc, ip, iHighLimit, maxNbAttempts, 6, matches);
     }
 }
 
@@ -293,26 +293,26 @@ FORCE_INLINE /* inlining is important to hardwire a hot branch (template emulati
 U32 ZSTD_BtGetAllMatches_extDict (
                         ZSTD_CCtx* zc,
                         const BYTE* const ip, const BYTE* const iLimit,
-                        const U32 maxNbAttempts, const U32 mls, ZSTD_match_t* matches, U32 minml)
+                        const U32 maxNbAttempts, const U32 mls, ZSTD_match_t* matches)
 {
     if (ip < zc->base + zc->nextToUpdate) return 0;   /* skipped area */
     ZSTD_updateTree_extDict(zc, ip, iLimit, maxNbAttempts, mls);
-    return ZSTD_insertBtAndGetAllMatches(zc, ip, iLimit, maxNbAttempts, mls, 1, matches, minml);
+    return ZSTD_insertBtAndGetAllMatches(zc, ip, iLimit, maxNbAttempts, mls, 1, matches);
 }
 
 
 static U32 ZSTD_BtGetAllMatches_selectMLS_extDict (
                         ZSTD_CCtx* zc,   /* Index table will be updated */
                         const BYTE* ip, const BYTE* const iLowLimit, const BYTE* const iHighLimit,
-                        const U32 maxNbAttempts, const U32 matchLengthSearch, ZSTD_match_t* matches, U32 minml)
+                        const U32 maxNbAttempts, const U32 matchLengthSearch, ZSTD_match_t* matches)
 {
     (void)iLowLimit;
     switch(matchLengthSearch)
     {
     default :
-    case 4 : return ZSTD_BtGetAllMatches_extDict(zc, ip, iHighLimit, maxNbAttempts, 4, matches, minml);
-    case 5 : return ZSTD_BtGetAllMatches_extDict(zc, ip, iHighLimit, maxNbAttempts, 5, matches, minml);
-    case 6 : return ZSTD_BtGetAllMatches_extDict(zc, ip, iHighLimit, maxNbAttempts, 6, matches, minml);
+    case 4 : return ZSTD_BtGetAllMatches_extDict(zc, ip, iHighLimit, maxNbAttempts, 4, matches);
+    case 5 : return ZSTD_BtGetAllMatches_extDict(zc, ip, iHighLimit, maxNbAttempts, 5, matches);
+    case 6 : return ZSTD_BtGetAllMatches_extDict(zc, ip, iHighLimit, maxNbAttempts, 6, matches);
     }
 }
 
@@ -324,7 +324,7 @@ FORCE_INLINE /* inlining is important to hardwire a hot branch (template emulati
 U32 ZSTD_HcGetAllMatches_generic (
                         ZSTD_CCtx* zc,   /* Index table will be updated */
                         const BYTE* const ip, const BYTE* const iLowLimit, const BYTE* const iHighLimit,
-                        const U32 maxNbAttempts, const U32 mls, const U32 extDict, ZSTD_match_t* matches, size_t minml)
+                        const U32 maxNbAttempts, const U32 mls, const U32 extDict, ZSTD_match_t* matches)
 {
     U32* const chainTable = zc->contentTable;
     const U32 chainSize = (1U << zc->params.contentLog);
@@ -342,7 +342,7 @@ U32 ZSTD_HcGetAllMatches_generic (
     U32 mnum = 0;
     const BYTE* match;
     U32 nbAttempts=maxNbAttempts;
-    minml=MINMATCH-1;
+    size_t minml=MINMATCH-1;
 
     /* HC4 match finder */
     matchIndex = ZSTD_insertAndFindFirstIndex (zc, ip, mls);
@@ -388,28 +388,28 @@ U32 ZSTD_HcGetAllMatches_generic (
 static U32 ZSTD_HcGetAllMatches_selectMLS (
                         ZSTD_CCtx* zc,
                         const BYTE* ip, const BYTE* const iLowLimit, const BYTE* const iHighLimit,
-                        const U32 maxNbAttempts, const U32 matchLengthSearch, ZSTD_match_t* matches, U32 minml)
+                        const U32 maxNbAttempts, const U32 matchLengthSearch, ZSTD_match_t* matches)
 {
     switch(matchLengthSearch)
     {
     default :
-    case 4 : return ZSTD_HcGetAllMatches_generic(zc, ip, iLowLimit, iHighLimit, maxNbAttempts, 4, 0, matches, minml);
-    case 5 : return ZSTD_HcGetAllMatches_generic(zc, ip, iLowLimit, iHighLimit, maxNbAttempts, 5, 0, matches, minml);
-    case 6 : return ZSTD_HcGetAllMatches_generic(zc, ip, iLowLimit, iHighLimit, maxNbAttempts, 6, 0, matches, minml);
+    case 4 : return ZSTD_HcGetAllMatches_generic(zc, ip, iLowLimit, iHighLimit, maxNbAttempts, 4, 0, matches);
+    case 5 : return ZSTD_HcGetAllMatches_generic(zc, ip, iLowLimit, iHighLimit, maxNbAttempts, 5, 0, matches);
+    case 6 : return ZSTD_HcGetAllMatches_generic(zc, ip, iLowLimit, iHighLimit, maxNbAttempts, 6, 0, matches);
     }
 }
 
 static U32 ZSTD_HcGetAllMatches_selectMLS_extDict (
                         ZSTD_CCtx* zc,
                         const BYTE* ip, const BYTE* const iLowLimit, const BYTE* const iHighLimit,
-                        const U32 maxNbAttempts, const U32 matchLengthSearch, ZSTD_match_t* matches, U32 minml)
+                        const U32 maxNbAttempts, const U32 matchLengthSearch, ZSTD_match_t* matches)
 {
     switch(matchLengthSearch)
     {
     default :
-    case 4 : return ZSTD_HcGetAllMatches_generic(zc, ip, iLowLimit, iHighLimit, maxNbAttempts, 4, 1, matches, minml);
-    case 5 : return ZSTD_HcGetAllMatches_generic(zc, ip, iLowLimit, iHighLimit, maxNbAttempts, 5, 1, matches, minml);
-    case 6 : return ZSTD_HcGetAllMatches_generic(zc, ip, iLowLimit, iHighLimit, maxNbAttempts, 6, 1, matches, minml);
+    case 4 : return ZSTD_HcGetAllMatches_generic(zc, ip, iLowLimit, iHighLimit, maxNbAttempts, 4, 1, matches);
+    case 5 : return ZSTD_HcGetAllMatches_generic(zc, ip, iLowLimit, iHighLimit, maxNbAttempts, 5, 1, matches);
+    case 6 : return ZSTD_HcGetAllMatches_generic(zc, ip, iLowLimit, iHighLimit, maxNbAttempts, 6, 1, matches);
     }
 }
 
@@ -435,7 +435,7 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
     const U32 mls = ctx->params.searchLength;
 
     typedef U32 (*getAllMatches_f)(ZSTD_CCtx* zc, const BYTE* ip, const BYTE* iLowLimit, const BYTE* iHighLimit,
-                        U32 maxNbAttempts, U32 matchLengthSearch, ZSTD_match_t* matches, U32 minml);
+                        U32 maxNbAttempts, U32 matchLengthSearch, ZSTD_match_t* matches);
     getAllMatches_f getAllMatches = searchMethod ? ZSTD_BtGetAllMatches_selectMLS : ZSTD_HcGetAllMatches_selectMLS;
 
     ZSTD_optimal_t opt[ZSTD_OPT_NUM+4];
@@ -487,7 +487,7 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
         if (faster_get_matches && last_pos)
            match_num = 0;
         else
-           match_num = getAllMatches(ctx, ip, ip, iend, maxSearches, mls, matches, best_mlen); /* first search (depth 0) */
+           match_num = getAllMatches(ctx, ip, ip, iend, maxSearches, mls, matches); /* first search (depth 0) */
 
         ZSTD_LOG_PARSER("%d: match_num=%d last_pos=%d\n", (int)(ip-base), match_num, last_pos);
         if (!last_pos && !match_num) { ip++; continue; }
@@ -620,7 +620,7 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
 
             best_mlen = (best_mlen > MINMATCH) ? best_mlen : MINMATCH;
 
-            match_num = getAllMatches(ctx, inr, ip, iend, maxSearches, mls, matches, best_mlen);
+            match_num = getAllMatches(ctx, inr, ip, iend, maxSearches, mls, matches);
             ZSTD_LOG_PARSER("%d: ZSTD_GetAllMatches match_num=%d\n", (int)(inr-base), match_num);
 
             if (match_num > 0 && matches[match_num-1].len > sufficient_len) {
@@ -791,7 +791,7 @@ void ZSTD_compressBlock_opt_extDict_generic(ZSTD_CCtx* ctx,
     const U32 mls = ctx->params.searchLength;
 
     typedef U32 (*getAllMatches_f)(ZSTD_CCtx* zc, const BYTE* ip, const BYTE* iLowLimit, const BYTE* iHighLimit,
-                        U32 maxNbAttempts, U32 matchLengthSearch, ZSTD_match_t* matches, U32 minml);
+                        U32 maxNbAttempts, U32 matchLengthSearch, ZSTD_match_t* matches);
     getAllMatches_f getAllMatches = searchMethod ? ZSTD_BtGetAllMatches_selectMLS_extDict : ZSTD_HcGetAllMatches_selectMLS_extDict;
 
     ZSTD_optimal_t opt[ZSTD_OPT_NUM+4];
@@ -847,7 +847,7 @@ void ZSTD_compressBlock_opt_extDict_generic(ZSTD_CCtx* ctx,
        if (faster_get_matches && last_pos)
            match_num = 0;
        else
-           match_num = getAllMatches(ctx, ip, ip, iend, maxSearches, mls, matches, best_mlen);  /* first search (depth 0) */
+           match_num = getAllMatches(ctx, ip, ip, iend, maxSearches, mls, matches);  /* first search (depth 0) */
 
        ZSTD_LOG_PARSER("%d: match_num=%d last_pos=%d\n", (int)(ip-base), match_num, last_pos);
        if (!last_pos && !match_num) { ip++; continue; }
@@ -986,7 +986,7 @@ void ZSTD_compressBlock_opt_extDict_generic(ZSTD_CCtx* ctx,
 
             best_mlen = (best_mlen > MINMATCH) ? best_mlen : MINMATCH;
 
-            match_num = getAllMatches(ctx, inr, ip, iend, maxSearches, mls, matches, best_mlen);
+            match_num = getAllMatches(ctx, inr, ip, iend, maxSearches, mls, matches);
             ZSTD_LOG_PARSER("%d: ZSTD_GetAllMatches match_num=%d\n", (int)(inr-base), match_num);
 
             if (match_num > 0 && matches[match_num-1].len > sufficient_len) {

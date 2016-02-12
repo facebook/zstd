@@ -53,7 +53,7 @@ BINDIR  = $(PREFIX)/bin
 MANDIR  = $(PREFIX)/share/man/man1
 ZSTDDIR = ../lib
 
-ZSTD_FILES := $(ZSTDDIR)/zstd_compress.c $(ZSTDDIR)/zstd_decompress.c $(ZSTDDIR)/fse.c $(ZSTDDIR)/huff0.c
+ZSTD_FILES := $(ZSTDDIR)/zstd_compress.c $(ZSTDDIR)/zstd_decompress.c $(ZSTDDIR)/fse.c $(ZSTDDIR)/huff0.c 
 ZSTD_LEGACY:= $(ZSTDDIR)/legacy/zstd_v01.c $(ZSTDDIR)/legacy/zstd_v02.c $(ZSTDDIR)/legacy/zstd_v03.c $(ZSTDDIR)/legacy/zstd_v04.c
 
 ifeq ($(ZSTD_LEGACY_SUPPORT), 0)
@@ -84,12 +84,12 @@ default: zstd
 
 all: zstd zstd32 fullbench fullbench32 fuzzer fuzzer32 zbufftest zbufftest32 paramgrill datagen
 
-zstd  : $(ZSTD_FILES) $(ZSTDDIR)/zstd_buffered.c \
-        zstdcli.c fileio.c $(ZSTD_FILEIO_LEGACY) bench.c xxhash.c datagen.c 
+zstd  : $(ZSTD_FILES) $(ZSTDDIR)/zstd_buffered.c $(ZSTDDIR)/dictBuilder.c $(ZSTDDIR)/divsufsort.c \
+        zstdcli.c fileio.c $(ZSTD_FILEIO_LEGACY) bench.c xxhash.c datagen.c dibio.c
 	$(CC)      $(FLAGS) $^ -o $@$(EXT)
 
-zstd32: $(ZSTD_FILES) $(ZSTDDIR)/zstd_buffered.c \
-        zstdcli.c fileio.c $(ZSTD_FILEIO_LEGACY) bench.c xxhash.c datagen.c 
+zstd32: $(ZSTD_FILES) $(ZSTDDIR)/zstd_buffered.c $(ZSTDDIR)/dictBuilder.c $(ZSTDDIR)/divsufsort.c \
+        zstdcli.c fileio.c $(ZSTD_FILEIO_LEGACY) bench.c xxhash.c datagen.c dibio.c 
 	$(CC) -m32 $(FLAGS) $^ -o $@$(EXT)
 
 zstd_nolegacy :
@@ -101,12 +101,12 @@ zstd-pgo : clean zstd
 	rm zstd
 	$(MAKE) zstd MOREFLAGS=-fprofile-use
 
-zstd-noBench: $(ZSTD_FILES) $(ZSTDDIR)/zstd_buffered.c \
+zstd-frugal: $(ZSTD_FILES) $(ZSTDDIR)/zstd_buffered.c \
         zstdcli.c fileio.c $(ZSTD_FILEIO_LEGACY)
-	$(CC)      $(FLAGS) -DZSTD_NOBENCH $^ -o zstd$(EXT)
+	$(CC)      $(FLAGS) -DZSTD_NOBENCH -DZSTD_NODICT $^ -o zstd$(EXT)
 
-zstd-frugal: clean 
-	$(MAKE) zstd-noBench ZSTD_LEGACY_SUPPORT=0 
+zstd-small: clean 
+	CFLAGS=-Os $(MAKE) zstd-frugal ZSTD_LEGACY_SUPPORT=0 
 
 fullbench  : $(ZSTD_FILES) \
         datagen.c fullbench.c
@@ -140,7 +140,7 @@ datagen : datagen.c datagencli.c
 	$(CC)      $(FLAGS) $^ -o $@$(EXT)
 
 clean:
-	@rm -f core *.o tmp* result* *.gcda \
+	@rm -f core *.o tmp* result* *.gcda dictionary *.zst \
         zstd$(EXT) zstd32$(EXT) \
         fullbench$(EXT) fullbench32$(EXT) \
         fuzzer$(EXT) fuzzer32$(EXT) zbufftest$(EXT) zbufftest32$(EXT) \

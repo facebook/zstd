@@ -33,8 +33,8 @@ extern "C" {
 *  Special i/o constants
 **************************************/
 #define nullString "null"
-#define stdinmark "-"
-#define stdoutmark "-"
+#define stdinmark "stdin"
+#define stdoutmark "stdout"
 #ifdef _WIN32
 #  define nulmark "nul"
 #else

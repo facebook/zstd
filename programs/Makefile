@@ -54,14 +54,14 @@ MANDIR  = $(PREFIX)/share/man/man1
 ZSTDDIR = ../lib
 
 ZSTD_FILES := $(ZSTDDIR)/zstd_compress.c $(ZSTDDIR)/zstd_decompress.c $(ZSTDDIR)/fse.c $(ZSTDDIR)/huff0.c 
-ZSTD_LEGACY:= $(ZSTDDIR)/legacy/zstd_v01.c $(ZSTDDIR)/legacy/zstd_v02.c $(ZSTDDIR)/legacy/zstd_v03.c $(ZSTDDIR)/legacy/zstd_v04.c
 
 ifeq ($(ZSTD_LEGACY_SUPPORT), 0)
 CPPFLAGS  += -DZSTD_LEGACY_SUPPORT=0
+ZSTD_FILES_LEGACY:=
 else
-ZSTD_FILES+= $(ZSTD_LEGACY)
-CPPFLAGS  += -I../lib/legacy -I./legacy -DZSTD_LEGACY_SUPPORT=1
-ZSTD_FILEIO_LEGACY = legacy/fileio_legacy.c
+ZSTD_LEGACY_SUPPORT:=1
+CPPFLAGS  += -I../lib/legacy -I./legacy
+ZSTD_FILES_LEGACY:= $(ZSTDDIR)/legacy/zstd_v01.c $(ZSTDDIR)/legacy/zstd_v02.c $(ZSTDDIR)/legacy/zstd_v03.c $(ZSTDDIR)/legacy/zstd_v04.c legacy/fileio_legacy.c
 endif
 
 
@@ -84,13 +84,13 @@ default: zstd
 
 all: zstd zstd32 fullbench fullbench32 fuzzer fuzzer32 zbufftest zbufftest32 paramgrill datagen
 
-zstd  : $(ZSTD_FILES) $(ZSTDDIR)/zstd_buffered.c $(ZSTDDIR)/dictBuilder.c $(ZSTDDIR)/divsufsort.c \
-        zstdcli.c fileio.c $(ZSTD_FILEIO_LEGACY) bench.c xxhash.c datagen.c dibio.c
-	$(CC)      $(FLAGS) $^ -o $@$(EXT)
+zstd  : $(ZSTD_FILES) $(ZSTD_FILES_LEGACY) $(ZSTDDIR)/zstd_buffered.c $(ZSTDDIR)/dictBuilder.c $(ZSTDDIR)/divsufsort.c \
+        zstdcli.c fileio.c bench.c xxhash.c datagen.c dibio.c
+	$(CC)      $(FLAGS) -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT) $^ -o $@$(EXT)
 
-zstd32: $(ZSTD_FILES) $(ZSTDDIR)/zstd_buffered.c $(ZSTDDIR)/dictBuilder.c $(ZSTDDIR)/divsufsort.c \
-        zstdcli.c fileio.c $(ZSTD_FILEIO_LEGACY) bench.c xxhash.c datagen.c dibio.c 
-	$(CC) -m32 $(FLAGS) $^ -o $@$(EXT)
+zstd32: $(ZSTD_FILES) $(ZSTD_FILES_LEGACY) $(ZSTDDIR)/zstd_buffered.c $(ZSTDDIR)/dictBuilder.c $(ZSTDDIR)/divsufsort.c \
+        zstdcli.c fileio.c bench.c xxhash.c datagen.c dibio.c 
+	$(CC) -m32 $(FLAGS) -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT) $^ -o $@$(EXT)
 
 zstd_nolegacy :
 	$(MAKE) zstd ZSTD_LEGACY_SUPPORT=0
@@ -101,12 +101,11 @@ zstd-pgo : clean zstd
 	rm zstd
 	$(MAKE) zstd MOREFLAGS=-fprofile-use
 
-zstd-frugal: $(ZSTD_FILES) $(ZSTDDIR)/zstd_buffered.c \
-        zstdcli.c fileio.c $(ZSTD_FILEIO_LEGACY)
-	$(CC)      $(FLAGS) -DZSTD_NOBENCH -DZSTD_NODICT $^ -o zstd$(EXT)
+zstd-frugal: $(ZSTD_FILES) $(ZSTDDIR)/zstd_buffered.c zstdcli.c fileio.c
+	$(CC)      $(FLAGS) -DZSTD_NOBENCH -DZSTD_NODICT -DZSTD_LEGACY_SUPPORT=0 $^ -o zstd$(EXT)
 
 zstd-small: clean 
-	CFLAGS=-Os $(MAKE) zstd-frugal ZSTD_LEGACY_SUPPORT=0 
+	CFLAGS=-Os $(MAKE) zstd-frugal 
 
 fullbench  : $(ZSTD_FILES) \
         datagen.c fullbench.c

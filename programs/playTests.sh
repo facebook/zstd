@@ -27,10 +27,10 @@ printf "\n**** frame concatenation **** "
 echo "hello " > hello.tmp
 echo "world!" > world.tmp
 cat hello.tmp world.tmp > helloworld.tmp
-$ZSTD hello.tmp > hello.zstd
-$ZSTD world.tmp > world.zstd
+$ZSTD -c hello.tmp > hello.zstd
+$ZSTD -c world.tmp > world.zstd
 cat hello.zstd world.zstd > helloworld.zstd
-$ZSTD -df helloworld.zstd > result.tmp
+$ZSTD -dc helloworld.zstd > result.tmp
 cat result.tmp
 sdiff helloworld.tmp result.tmp
 rm ./*.tmp ./*.zstd
@@ -57,12 +57,12 @@ echo "*** multiple files tests *** "
 ./datagen -s1        > tmp1 2> /dev/null
 ./datagen -s2 -g100K > tmp2 2> /dev/null
 ./datagen -s3 -g1M   > tmp3 2> /dev/null
-$ZSTD -f -m tmp*
+$ZSTD -f tmp*
 ls -ls tmp*
 rm tmp1 tmp2 tmp3
-$ZSTD -df -m *.zst
+$ZSTD -df *.zst
 ls -ls tmp*
-$ZSTD -f -m tmp1 notHere tmp2 && die "missing file not detected!"
+$ZSTD -f tmp1 notHere tmp2 && die "missing file not detected!"
 rm tmp*
 
 echo "**** zstd round-trip tests **** "

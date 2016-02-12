@@ -1,6 +1,6 @@
 /*
   fileio.h - file i/o handler
-  Copyright (C) Yann Collet 2013-2015
+  Copyright (C) Yann Collet 2013-2016
 
   GPL v2 License
 
@@ -19,8 +19,7 @@
   51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
   You can contact the author at :
-  - ZSTD source repository : https://github.com/Cyan4973/zstd
-  - Public forum : https://groups.google.com/forum/#!forum/lz4c
+  - ZSTD homepage : http://www.zstd.net/
 */
 #pragma once
 
@@ -52,32 +51,29 @@ void FIO_setNotificationLevel(unsigned level);
 /* *************************************
 *  Single File functions
 ***************************************/
+/** FIO_compressFilename() :
+    @return : 0 == ok;  1 == pb with src file. */
 int FIO_compressFilename (const char* outfilename, const char* infilename, const char* dictFileName, int compressionLevel);
-int FIO_decompressFilename (const char* outfilename, const char* infilename, const char* dictFileName);
-/**
-FIO_compressFilename :
-    @result : 0 == ok;  1 == pb with src file.
 
-FIO_decompressFilename :
-    @result : 0 == ok;  1 == pb with src file.
-*/
+/** FIO_decompressFilename() :
+    @return : 0 == ok;  1 == pb with src file. */
+int FIO_decompressFilename (const char* outfilename, const char* infilename, const char* dictFileName);
 
 
 /* *************************************
 *  Multiple File functions
 ***************************************/
+/** FIO_compressMultipleFilenames() :
+    @return : nb of missing files */
 int FIO_compressMultipleFilenames(const char** srcNamesTable, unsigned nbFiles,
                                   const char* suffix,
                                   const char* dictFileName, int compressionLevel);
+
+/** FIO_decompressMultipleFilenames() :
+    @result : nb of missing or skipped files */
 int FIO_decompressMultipleFilenames(const char** srcNamesTable, unsigned nbFiles,
                                     const char* suffix,
                                     const char* dictFileName);
-/**
-FIO_compressMultipleFilenames :
-    @result : nb of missing files
-FIO_decompressMultipleFilenames :
-    @result : nb of missing or skipped files
-*/
 
 
 #if defined (__cplusplus)

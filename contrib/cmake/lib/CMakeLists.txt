@@ -60,14 +60,13 @@ SET(Sources
         ${LIBRARY_DIR}/divsufsort.c
         ${LIBRARY_DIR}/fse.c
         ${LIBRARY_DIR}/huff0.c
+        ${LIBRARY_DIR}/zbuff.c
         ${LIBRARY_DIR}/zdict.c
-        ${LIBRARY_DIR}/zstd_buffered.c
         ${LIBRARY_DIR}/zstd_compress.c
         ${LIBRARY_DIR}/zstd_decompress.c)
 
 SET(Headers
         ${LIBRARY_DIR}/bitstream.h
-        ${LIBRARY_DIR}/zdict.h
         ${LIBRARY_DIR}/error_private.h
         ${LIBRARY_DIR}/error_public.h
         ${LIBRARY_DIR}/fse.h
@@ -75,8 +74,10 @@ SET(Headers
         ${LIBRARY_DIR}/huff0.h
         ${LIBRARY_DIR}/huff0_static.h
         ${LIBRARY_DIR}/mem.h
-        ${LIBRARY_DIR}/zstd_buffered_static.h
-        ${LIBRARY_DIR}/zstd_buffered.h
+        ${LIBRARY_DIR}/zbuff.h
+        ${LIBRARY_DIR}/zbuff_static.h
+        ${LIBRARY_DIR}/zdict.h
+        ${LIBRARY_DIR}/zdict_static.h
         ${LIBRARY_DIR}/zstd_internal.h
         ${LIBRARY_DIR}/zstd_static.h
         ${LIBRARY_DIR}/zstd.h)

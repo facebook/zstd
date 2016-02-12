@@ -28,7 +28,7 @@
     OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
     You can contact the author at :
-       - Zstd source repository : https://www.zstd.net
+    - Zstd homepage : https://www.zstd.net
 */
 
 /*-**************************************
@@ -121,23 +121,6 @@ void ZDICT_printHex(U32 dlevel, const void* ptr, size_t length)
         if (c<32 || c>126) c = '.';   /* non-printable char */
         DISPLAYLEVEL(dlevel, "%c", c);
     }
-}
-
-
-/*-*************************************
-*  Exceptions
-***************************************/
-#ifndef DEBUG
-#  define DEBUG 0
-#endif
-#define DEBUGOUTPUT(...) if (DEBUG) DISPLAY(__VA_ARGS__);
-#define EXM_THROW(error, ...)                                             \
-{                                                                         \
-    DEBUGOUTPUT("Error defined at %s, line %i : \n", __FILE__, __LINE__); \
-    DISPLAYLEVEL(1, "Error %i : ", error);                                \
-    DISPLAYLEVEL(1, __VA_ARGS__);                                         \
-    DISPLAYLEVEL(1, "\n");                                                \
-    exit(error);                                                          \
 }
 
 
@@ -516,7 +499,7 @@ static U32 ZDICT_dictSize(const dictItem* dictList)
 }
 
 
-static void ZDICT_trainBuffer(dictItem* dictList, U32 dictListSize,
+static size_t ZDICT_trainBuffer(dictItem* dictList, U32 dictListSize,
                             const void* const buffer, const size_t bufferSize,   /* buffer must end with noisy guard band */
                             const size_t* fileSizes, unsigned nbFiles,
                             U32 shiftRatio, unsigned maxDictSize)
@@ -528,18 +511,21 @@ static void ZDICT_trainBuffer(dictItem* dictList, U32 dictListSize,
     U32* filePos = (U32*)malloc(nbFiles * sizeof(*filePos));
     U32 minRatio = nbFiles >> shiftRatio;
     int divSuftSortResult;
+    size_t result = 0;
 
     /* init */
     DISPLAYLEVEL(2, "\r%70s\r", "");   /* clean display line */
-    if (!suffix0 || !reverseSuffix || !doneMarks || !filePos)
-        EXM_THROW(1, "not enough memory for ZDICT_trainBuffer");
+    if (!suffix0 || !reverseSuffix || !doneMarks || !filePos) {
+        result = ERROR(memory_allocation);
+        goto _cleanup;
+    }
     if (minRatio < MINRATIO) minRatio = MINRATIO;
     memset(doneMarks, 0, bufferSize+16);
 
     /* sort */
     DISPLAYLEVEL(2, "sorting %u files of total size %u MB ...\n", nbFiles, (U32)(bufferSize>>20));
     divSuftSortResult = divsufsort((const unsigned char*)buffer, suffix, (int)bufferSize, 0);
-    if (divSuftSortResult != 0) EXM_THROW(2, "sort failed");
+    if (divSuftSortResult != 0) { result = ERROR(GENERIC); goto _cleanup; }
     suffix[bufferSize] = (int)bufferSize;   /* leads into noise */
     suffix0[0] = (int)bufferSize;           /* leads into noise */
     {
@@ -578,10 +564,12 @@ static void ZDICT_trainBuffer(dictItem* dictList, U32 dictListSize,
         dictList->pos = n;
     }
 
+_cleanup:
     free(suffix0);
     free(reverseSuffix);
     free(doneMarks);
     free(filePos);
+    return result;
 }
 
 
@@ -661,7 +649,11 @@ static size_t ZDICT_analyzeEntropy(void*  dstBuffer, size_t maxDstSize,
     esr.ref = ZSTD_createCCtx();
     esr.zc = ZSTD_createCCtx();
     esr.workPlace = malloc(BLOCKSIZE);
-    if (!esr.ref || !esr.zc || !esr.workPlace) EXM_THROW(30, "Not enough memory");
+    if (!esr.ref || !esr.zc || !esr.workPlace) {
+            eSize = ERROR(memory_allocation);
+            DISPLAYLEVEL(1, "Not enough memory");
+            goto _cleanup;
+    }
     if (compressionLevel==0) compressionLevel=g_compressionLevel_default;
     params = ZSTD_getParams(compressionLevel, dictBufferSize + 15 KB);
     params.strategy = ZSTD_greedy;
@@ -677,50 +669,82 @@ static size_t ZDICT_analyzeEntropy(void*  dstBuffer, size_t maxDstSize,
 
     /* analyze */
     errorCode = HUF_buildCTable (hufTable, countLit, 255, huffLog);
-    if (HUF_isError(errorCode)) EXM_THROW(31, "HUF_buildCTable error");
+    if (HUF_isError(errorCode)) {
+        eSize = ERROR(GENERIC);
+        DISPLAYLEVEL(1, "HUF_buildCTable error");
+        goto _cleanup;
+    }
     huffLog = (U32)errorCode;
 
     total=0; for (u=0; u<=OFFCODE_MAX; u++) total+=offcodeCount[u];
     errorCode = FSE_normalizeCount(offcodeNCount, Offlog, offcodeCount, total, OFFCODE_MAX);
-    if (FSE_isError(errorCode)) EXM_THROW(32, "FSE_normalizeCount error with offcodeCount");
+    if (FSE_isError(errorCode)) {
+        eSize = ERROR(GENERIC);
+        DISPLAYLEVEL(1, "FSE_normalizeCount error with offcodeCount");
+        goto _cleanup;
+    }
     Offlog = (U32)errorCode;
 
     total=0; for (u=0; u<=MaxML; u++) total+=matchLengthCount[u];
     errorCode = FSE_normalizeCount(matchLengthNCount, mlLog, matchLengthCount, total, MaxML);
-    if (FSE_isError(errorCode)) EXM_THROW(33, "FSE_normalizeCount error with matchLengthCount");
+    if (FSE_isError(errorCode)) {
+        eSize = ERROR(GENERIC);
+        DISPLAYLEVEL(1, "FSE_normalizeCount error with matchLengthCount");
+        goto _cleanup;
+    }
     mlLog = (U32)errorCode;
 
     total=0; for (u=0; u<=MaxLL; u++) total+=litlengthCount[u];
     errorCode = FSE_normalizeCount(litlengthNCount, llLog, litlengthCount, total, MaxLL);
-    if (FSE_isError(errorCode)) EXM_THROW(34, "FSE_normalizeCount error with litlengthCount");
+    if (FSE_isError(errorCode)) {
+        eSize = ERROR(GENERIC);
+        DISPLAYLEVEL(1, "FSE_normalizeCount error with litlengthCount");
+        goto _cleanup;
+    }
     llLog = (U32)errorCode;
 
     /* write result to buffer */
     errorCode = HUF_writeCTable(dstBuffer, maxDstSize, hufTable, 255, huffLog);
-    if (HUF_isError(errorCode)) EXM_THROW(41, "HUF_writeCTable error");
+    if (HUF_isError(errorCode)) {
+        eSize = ERROR(GENERIC);
+        DISPLAYLEVEL(1, "HUF_writeCTable error");
+        goto _cleanup;
+    }
     dstBuffer = (char*)dstBuffer + errorCode;
     maxDstSize -= errorCode;
     eSize += errorCode;
 
     errorCode = FSE_writeNCount(dstBuffer, maxDstSize, offcodeNCount, OFFCODE_MAX, Offlog);
-    if (FSE_isError(errorCode)) EXM_THROW(42, "FSE_writeNCount error with offcodeNCount");
+    if (FSE_isError(errorCode)) {
+        eSize = ERROR(GENERIC);
+        DISPLAYLEVEL(1, "FSE_writeNCount error with offcodeNCount");
+        goto _cleanup;
+    }
     dstBuffer = (char*)dstBuffer + errorCode;
     maxDstSize -= errorCode;
     eSize += errorCode;
 
     errorCode = FSE_writeNCount(dstBuffer, maxDstSize, matchLengthNCount, MaxML, mlLog);
-    if (FSE_isError(errorCode)) EXM_THROW(43, "FSE_writeNCount error with matchLengthNCount");
+    if (FSE_isError(errorCode)) {
+        eSize = ERROR(GENERIC);
+        DISPLAYLEVEL(1, "FSE_writeNCount error with matchLengthNCount");
+        goto _cleanup;
+    }
     dstBuffer = (char*)dstBuffer + errorCode;
     maxDstSize -= errorCode;
     eSize += errorCode;
 
     errorCode = FSE_writeNCount(dstBuffer, maxDstSize, litlengthNCount, MaxLL, llLog);
-    if (FSE_isError(errorCode)) EXM_THROW(43, "FSE_writeNCount error with litlengthNCount");
+    if (FSE_isError(errorCode)) {
+        eSize = ERROR(GENERIC);
+        DISPLAYLEVEL(1, "FSE_writeNCount error with litlengthNCount");
+        goto _cleanup;
+    }
     dstBuffer = (char*)dstBuffer + errorCode;
     maxDstSize -= errorCode;
     eSize += errorCode;
 
-    /* clean */
+_cleanup:
     ZSTD_freeCCtx(esr.ref);
     ZSTD_freeCCtx(esr.zc);
     free(esr.workPlace);
@@ -730,12 +754,12 @@ static size_t ZDICT_analyzeEntropy(void*  dstBuffer, size_t maxDstSize,
 
 
 #define DIB_FASTSEGMENTSIZE 64
-/*! ZDICT_fastSampling (based on an idea by Giuseppe Ottaviano)
-    Fill `dictBuffer` with stripes of size DIB_FASTSEGMENTSIZE from `samplesBuffer`
+/*! ZDICT_fastSampling()  (based on an idea proposed by Giuseppe Ottaviano) :
+    Fill `dictBuffer` with stripes of size DIB_FASTSEGMENTSIZE from `samplesBuffer`,
     up to `dictSize`.
     Filling starts from the end of `dictBuffer`, down to maximum possible.
     if `dictSize` is not a multiply of DIB_FASTSEGMENTSIZE, some bytes at beginning of `dictBuffer` won't be used.
-    @return : amount of data written into `dictBuffer`
+    @return : amount of data written into `dictBuffer`,
               or an error code
 */
 static size_t ZDICT_fastSampling(void* dictBuffer, size_t dictSize,

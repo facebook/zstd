@@ -45,7 +45,7 @@ extern "C" {
 *  Includes
 ***************************************/
 #include "zstd_static.h"     /* ZSTD_parameters */
-#include "zstd_buffered.h"
+#include "zbuff.h"
 
 
 /* *************************************

@@ -79,8 +79,9 @@ FORCE_INLINE U32 ZSTD_getLiteralPriceReal(seqStore_t* seqStorePtr, U32 litLength
     if (!litLength) return 1;   /* special case */
 
     /* literals */
-    for (u=0, price=0; u < litLength; u++)
-        price += ZSTD_highbit(seqStorePtr->litSum) - ZSTD_highbit(seqStorePtr->litFreq[literals[u]]);
+    price = litLength * ZSTD_highbit(seqStorePtr->litSum);
+    for (u=0; u < litLength; u++)
+        price -= ZSTD_highbit(seqStorePtr->litFreq[literals[u]]);
 
     /* literal Length */
     price += ((litLength >= MaxLL)*8) + ((litLength >= 255+MaxLL)*16) + ((litLength>=(1<<15))*8);
@@ -101,28 +102,23 @@ FORCE_INLINE U32 ZSTD_getLiteralPrice(seqStore_t* seqStorePtr, U32 litLength, co
 }
 
 
-FORCE_INLINE U32 ZSTD_getMatchPriceReal(seqStore_t* seqStorePtr, U32 offset, U32 matchLength)
+FORCE_INLINE U32 ZSTD_getPrice(seqStore_t* seqStorePtr, U32 litLength, const BYTE* literals, U32 offset, U32 matchLength)
 {
+    if (seqStorePtr->litSum <= ZSTD_FREQ_THRESHOLD) /* backup eval */
+        return (litLength<<3) + ZSTD_highbit((U32)matchLength+1 - MINMATCH) + Offbits + ZSTD_highbit((U32)offset+1);
+
     /* offset */
     BYTE offCode = offset ? (BYTE)ZSTD_highbit(offset) + 1 : 0;
     U32 price = ZSTD_highbit(seqStorePtr->offCodeSum) - ZSTD_highbit(seqStorePtr->offCodeFreq[offCode]);
     price += offCode;
 
     /* match Length */
+    matchLength -= MINMATCH;
     price += ((matchLength >= MaxML)*8) + ((matchLength >= 255+MaxML)*16) + ((matchLength>=(1<<15))*8);
     if (matchLength >= MaxML) matchLength = MaxML;
     price += ZSTD_highbit(seqStorePtr->matchLengthSum) - ZSTD_highbit(seqStorePtr->matchLengthFreq[matchLength]);
 
-    return price;
-}
-
-
-FORCE_INLINE U32 ZSTD_getPrice(seqStore_t* seqStorePtr, U32 litLength, const BYTE* literals, U32 offset, U32 matchLength)
-{
-    if (seqStorePtr->litSum > ZSTD_FREQ_THRESHOLD)
-        return ZSTD_getLiteralPriceReal(seqStorePtr, litLength, literals) + ZSTD_getMatchPriceReal(seqStorePtr, offset, matchLength - MINMATCH);
-    /* backup eval */
-    return (litLength<<3) + ZSTD_highbit((U32)matchLength+1 - MINMATCH) + Offbits + ZSTD_highbit((U32)offset+1);
+    return price + ZSTD_getLiteralPriceReal(seqStorePtr, litLength, literals);
 }
 
 

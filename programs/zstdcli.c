@@ -392,12 +392,12 @@ int main(int argCount, const char** argv)
     /* IO Stream/File */
     FIO_setNotificationLevel(displayLevel);
     if (decode) {
-      if (filenameIdx==1)
+      if (filenameIdx==1 && outFileName)
         operationResult = FIO_decompressFilename(outFileName, filenameTable[0], dictFileName);
       else
         operationResult = FIO_decompressMultipleFilenames(filenameTable, filenameIdx, forceStdout ? NULL : ZSTD_EXTENSION, dictFileName);
     } else {  /* compression */
-        if (filenameIdx==1)
+        if (filenameIdx==1 && outFileName)
           operationResult = FIO_compressFilename(outFileName, filenameTable[0], dictFileName, cLevel);
         else
           operationResult = FIO_compressMultipleFilenames(filenameTable, filenameIdx, forceStdout ? NULL : ZSTD_EXTENSION, dictFileName, cLevel);

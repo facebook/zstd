@@ -433,7 +433,7 @@ static void BMK_printWinners2(FILE* f, const winnerInfo_t* winners, size_t srcSi
     unsigned cLevel;
 
     fprintf(f, "\n /* Proposed configurations : */ \n");
-    fprintf(f, "    /* l,  W,  C,  H,  S,  L, strat */ \n");
+    fprintf(f, "    /* l,  W,  C,  H,  S,  L,  T, strat */ \n");
 
     for (cLevel=0; cLevel <= ZSTD_maxCLevel(); cLevel++)
         BMK_printWinner(f, cLevel, winners[cLevel].result, winners[cLevel].params, srcSize);

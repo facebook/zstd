@@ -23,6 +23,10 @@ roundTripTest() {
 [ -n "$ZSTD" ] || die "ZSTD variable must be defined!"
 
 
+echo "\n**** simple test **** "
+./datagen > tmp
+$ZSTD tmp
+
 echo "\n**** frame concatenation **** "
 
 echo "hello " > hello.tmp

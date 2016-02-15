@@ -264,7 +264,7 @@ U32 ZSTD_BtGetAllMatches (
                         const U32 maxNbAttempts, const U32 mls, ZSTD_match_t* matches, U32 minml)
 {
     if (ip < zc->base + zc->nextToUpdate) return 0;   /* skipped area */
-    ZSTD_updateTree(zc, ip, iLimit, maxNbAttempts, mls);
+    ZSTD_updateTree(zc, ip, iLimit, maxNbAttempts, mls, 0, 0);
     return ZSTD_insertBtAndGetAllMatches(zc, ip, iLimit, maxNbAttempts, mls, 0, matches, minml);
 }
 
@@ -292,7 +292,7 @@ U32 ZSTD_BtGetAllMatches_extDict (
                         const U32 maxNbAttempts, const U32 mls, ZSTD_match_t* matches, U32 minml)
 {
     if (ip < zc->base + zc->nextToUpdate) return 0;   /* skipped area */
-    ZSTD_updateTree_extDict(zc, ip, iLimit, maxNbAttempts, mls);
+    ZSTD_updateTree(zc, ip, iLimit, maxNbAttempts, mls, 1, 0);
     return ZSTD_insertBtAndGetAllMatches(zc, ip, iLimit, maxNbAttempts, mls, 1, matches, minml);
 }
 

@@ -161,9 +161,6 @@
   <ItemGroup>
     <ClCompile Include="..\..\..\lib\fse.c" />
     <ClCompile Include="..\..\..\lib\huff0.c" />
-    <ClCompile Include="..\..\..\lib\legacy\zstd_v01.c" />
-    <ClCompile Include="..\..\..\lib\legacy\zstd_v02.c" />
-    <ClCompile Include="..\..\..\lib\legacy\zstd_v03.c" />
     <ClCompile Include="..\..\..\lib\zstd_compress.c" />
     <ClCompile Include="..\..\..\lib\zstd_decompress.c" />
     <ClCompile Include="..\..\..\programs\datagen.c" />

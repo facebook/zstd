@@ -32,9 +32,9 @@
 #ifndef ZSTD_STATIC_H
 #define ZSTD_STATIC_H
 
-/* The objects defined into this file shall be considered experimental.
- * They are not considered stable, as their prototype may change in the future.
- * You can use them for tests, provide feedback, or if you can endure risks of future changes.
+/* The prototypes defined within this file are considered experimental.
+ * They should not be used in the context DLL as they may change in the future.
+ * Prefer static linking if you need them, to control breaking version changes issues.
  */
 
 #if defined (__cplusplus)
@@ -54,34 +54,34 @@ extern "C" {
 #define ZSTD_WINDOWLOG_MAX 26
 #define ZSTD_WINDOWLOG_MIN 18
 #define ZSTD_WINDOWLOG_ABSOLUTEMIN 11
-#define ZSTD_TARGETLENGTH_MIN 4
-#define ZSTD_TARGETLENGTH_MAX 999
 #define ZSTD_CONTENTLOG_MAX (ZSTD_WINDOWLOG_MAX+1)
 #define ZSTD_CONTENTLOG_MIN 4
 #define ZSTD_HASHLOG_MAX 28
-#define ZSTD_HASHLOG_MIN 4
+#define ZSTD_HASHLOG_MIN 12
 #define ZSTD_SEARCHLOG_MAX (ZSTD_CONTENTLOG_MAX-1)
 #define ZSTD_SEARCHLOG_MIN 1
 #define ZSTD_SEARCHLENGTH_MAX 7
 #define ZSTD_SEARCHLENGTH_MIN 4
+#define ZSTD_TARGETLENGTH_MIN 4
+#define ZSTD_TARGETLENGTH_MAX 999
 
 /* from faster to stronger */
-typedef enum { ZSTD_fast, ZSTD_greedy, ZSTD_lazy, ZSTD_lazy2, ZSTD_btlazy2, ZSTD_opt, ZSTD_opt_bt } ZSTD_strategy;
+typedef enum { ZSTD_fast, ZSTD_greedy, ZSTD_lazy, ZSTD_lazy2, ZSTD_btlazy2, ZSTD_opt, ZSTD_btopt } ZSTD_strategy;
 
 typedef struct
 {
     U64 srcSize;       /* optional : tells how much bytes are present in the frame. Use 0 if not known. */
-    U32 targetLength;  /* acceptable match size for optimal parser (only) : larger == more compression, slower */
     U32 windowLog;     /* largest match distance : larger == more compression, more memory needed during decompression */
     U32 contentLog;    /* full search segment : larger == more compression, slower, more memory (useless for fast) */
     U32 hashLog;       /* dispatch table : larger == faster, more memory */
     U32 searchLog;     /* nb of searches : larger == more compression, slower */
-    U32 searchLength;  /* size of matches : larger == faster decompression, sometimes less compression */
+    U32 searchLength;  /* match length searched : larger == faster decompression, sometimes less compression */
+    U32 targetLength;  /* acceptable match size for optimal parser (only) : larger == more compression, slower */
     ZSTD_strategy strategy;
 } ZSTD_parameters;
 
 
-/* *************************************
+/*-*************************************
 *  Advanced functions
 ***************************************/
 ZSTDLIB_API unsigned ZSTD_maxCLevel (void);
@@ -205,7 +205,7 @@ ZSTDLIB_API size_t ZSTD_decompressContinue(ZSTD_DCtx* dctx, void* dst, size_t ds
 *  Block functions
 ****************************************/
 /*! Block functions produce and decode raw zstd blocks, without frame metadata.
-    User will have to save and regenerate necessary information to regenerate data, such as block sizes.
+    User will have to take in charge required information to regenerate data, such as block sizes.
 
     A few rules to respect :
     - Uncompressed block size must be <= 128 KB
@@ -222,18 +222,17 @@ ZSTDLIB_API size_t ZSTD_decompressContinue(ZSTD_DCtx* dctx, void* dst, size_t ds
       + ZSTD_decompressBlock() doesn't accept uncompressed data as input !!
 */
 
-
 size_t ZSTD_compressBlock  (ZSTD_CCtx* cctx, void* dst, size_t dstCapacity, const void* src, size_t srcSize);
 size_t ZSTD_decompressBlock(ZSTD_DCtx* dctx, void* dst, size_t dstCapacity, const void* src, size_t srcSize);
 
 
-/* *************************************
+/*-*************************************
 *  Error management
 ***************************************/
 #include "error_public.h"
 /*! ZSTD_getErrorCode() :
     convert a `size_t` function result into a `ZSTD_error_code` enum type,
-    which can be used to compare directly with enum list within "error_public.h" */
+    which can be used to compare directly with enum list published into "error_public.h" */
 ZSTD_ErrorCode ZSTD_getError(size_t code);
 
 

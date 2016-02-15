@@ -407,7 +407,7 @@ const char* g_stratName[] = { "ZSTD_fast   ",
                               "ZSTD_lazy2  ",
                               "ZSTD_btlazy2",
                               "ZSTD_opt    ",
-                              "ZSTD_opt_bt " };
+                              "ZSTD_btopt  " };
 
 static void BMK_printWinner(FILE* f, U32 cLevel, BMK_result_t result, ZSTD_parameters params, size_t srcSize)
 {
@@ -433,7 +433,7 @@ static void BMK_printWinners2(FILE* f, const winnerInfo_t* winners, size_t srcSi
     unsigned cLevel;
 
     fprintf(f, "\n /* Proposed configurations : */ \n");
-    fprintf(f, "    /* l,  W,  C,  H,  S,  L, strat */ \n");
+    fprintf(f, "    /* l,  W,  C,  H,  S,  L,  T, strat */ \n");
 
     for (cLevel=0; cLevel <= ZSTD_maxCLevel(); cLevel++)
         BMK_printWinner(f, cLevel, winners[cLevel].result, winners[cLevel].params, srcSize);
@@ -549,7 +549,7 @@ static ZSTD_parameters* sanitizeParams(ZSTD_parameters params)
     g_params = params;
     if (params.strategy == ZSTD_fast)
         g_params.contentLog = 0, g_params.searchLog = 0;
-    if ((params.strategy != ZSTD_opt) && (params.strategy != ZSTD_opt_bt))
+    if ((params.strategy != ZSTD_opt) && (params.strategy != ZSTD_btopt ))
         g_params.targetLength = 0;
     return &g_params;
 }
@@ -648,7 +648,7 @@ static void potentialRandomParams(ZSTD_parameters* p, U32 inverseChance)
         p->windowLog  = FUZ_rand(&g_rand) % (ZSTD_WINDOWLOG_MAX+1 - ZSTD_WINDOWLOG_MIN) + ZSTD_WINDOWLOG_MIN;
         p->searchLength=FUZ_rand(&g_rand) % (ZSTD_SEARCHLENGTH_MAX+1 - ZSTD_SEARCHLENGTH_MIN) + ZSTD_SEARCHLENGTH_MIN;
         p->targetLength=FUZ_rand(&g_rand) % (ZSTD_TARGETLENGTH_MAX+1 - ZSTD_TARGETLENGTH_MIN) + ZSTD_TARGETLENGTH_MIN;
-        p->strategy   = (ZSTD_strategy) (FUZ_rand(&g_rand) % (ZSTD_opt_bt+1));
+        p->strategy   = (ZSTD_strategy) (FUZ_rand(&g_rand) % (ZSTD_btopt +1));
         ZSTD_validateParams(p);
     }
 }

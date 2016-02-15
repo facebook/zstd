@@ -22,22 +22,28 @@ roundTripTest() {
 
 [ -n "$ZSTD" ] || die "ZSTD variable must be defined!"
 
-printf "\n**** frame concatenation **** "
+
+echo "\n**** simple test **** "
+./datagen > tmp
+$ZSTD tmp
+
+echo "\n**** frame concatenation **** "
 
 echo "hello " > hello.tmp
 echo "world!" > world.tmp
 cat hello.tmp world.tmp > helloworld.tmp
-$ZSTD hello.tmp > hello.zstd
-$ZSTD world.tmp > world.zstd
+$ZSTD -c hello.tmp > hello.zstd
+$ZSTD -c world.tmp > world.zstd
 cat hello.zstd world.zstd > helloworld.zstd
-$ZSTD -df helloworld.zstd > result.tmp
+$ZSTD -dc helloworld.zstd > result.tmp
 cat result.tmp
 sdiff helloworld.tmp result.tmp
 rm ./*.tmp ./*.zstd
 
 echo frame concatenation test completed
 
-echo "**** flush write error test **** "
+
+echo "\n**** flush write error test **** "
 
 echo "echo foo | $ZSTD > /dev/full"
 echo foo | $ZSTD > /dev/full && die "write error not detected!"
@@ -45,27 +51,36 @@ echo "echo foo | $ZSTD | $ZSTD -d > /dev/full"
 echo foo | $ZSTD | $ZSTD -d > /dev/full && die "write error not detected!"
 
 
-echo "*** dictionary tests *** "
+echo "\n**** dictionary tests **** "
 
 ./datagen > tmpDict
 ./datagen -g1M | md5sum > tmp1
-./datagen -g1M | $ZSTD -D tmpDict | $ZSTD -D tmpDict -dv | md5sum > tmp2
+./datagen -g1M | $ZSTD -D tmpDict | $ZSTD -D tmpDict -dvq | md5sum > tmp2
 diff -q tmp1 tmp2
 
-echo "*** multiple files tests *** "
+echo "\n**** multiple files tests **** "
 
 ./datagen -s1        > tmp1 2> /dev/null
 ./datagen -s2 -g100K > tmp2 2> /dev/null
 ./datagen -s3 -g1M   > tmp3 2> /dev/null
-$ZSTD -f -m tmp*
+$ZSTD -f tmp*
+echo "compress tmp* : "
 ls -ls tmp*
 rm tmp1 tmp2 tmp3
-$ZSTD -df -m *.zst
+echo "decompress tmp* : "
+$ZSTD -df *.zst
 ls -ls tmp*
-$ZSTD -f -m tmp1 notHere tmp2 && die "missing file not detected!"
+echo "compress tmp* into stdout > tmpall : "
+$ZSTD -c tmp1 tmp2 tmp3 > tmpall
+ls -ls tmp*
+echo "decompress tmpall* into stdout > tmpdec : "
+cp tmpall tmpall2
+$ZSTD -dc tmpall* > tmpdec
+ls -ls tmp*
+$ZSTD -f tmp1 notHere tmp2 && die "missing file not detected!"
 rm tmp*
 
-echo "**** zstd round-trip tests **** "
+echo "\n**** zstd round-trip tests **** "
 
 roundTripTest
 roundTripTest '' 6

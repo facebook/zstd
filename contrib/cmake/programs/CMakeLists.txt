@@ -1,6 +1,6 @@
 # ################################################################
 # zstd - Makefile
-# Copyright (C) Yann Collet 2014-2015
+# Copyright (C) Yann Collet 2014-2016
 # All rights reserved.
 #
 # BSD license
@@ -27,8 +27,7 @@
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 # You can contact the author at :
-#  - zstd source repository : https://github.com/Cyan4973/zstd
-#  - Public forum : https://groups.google.com/forum/#!forum/lz4c
+#  - zstd homepage : http://www.zstd.net/
 # ################################################################
 
 PROJECT(programs)
@@ -59,7 +58,7 @@ IF (ZSTD_LEGACY_SUPPORT)
     SET(ZSTD_FILEIO_LEGACY ${PROGRAMS_LEGACY_DIR}/fileio_legacy.c)
 ENDIF (ZSTD_LEGACY_SUPPORT)
 
-ADD_EXECUTABLE(zstd ${PROGRAMS_DIR}/zstdcli.c ${PROGRAMS_DIR}/fileio.c ${PROGRAMS_DIR}/bench.c ${PROGRAMS_DIR}/xxhash.c ${PROGRAMS_DIR}/datagen.c ${ZSTD_FILEIO_LEGACY})
+ADD_EXECUTABLE(zstd ${PROGRAMS_DIR}/zstdcli.c ${PROGRAMS_DIR}/fileio.c ${PROGRAMS_DIR}/bench.c ${PROGRAMS_DIR}/xxhash.c ${PROGRAMS_DIR}/datagen.c ${PROGRAMS_DIR}/dibio.c ${ZSTD_FILEIO_LEGACY})
 TARGET_LINK_LIBRARIES(zstd libzstd_static)
 
 ADD_EXECUTABLE(fullbench ${PROGRAMS_DIR}/datagen.c ${PROGRAMS_DIR}/fullbench.c)
@@ -69,9 +68,9 @@ ADD_EXECUTABLE(fuzzer ${PROGRAMS_DIR}/datagen.c ${PROGRAMS_DIR}/xxhash.c ${PROGR
 TARGET_LINK_LIBRARIES(fuzzer libzstd_static)
 
 IF (UNIX)
-    ADD_EXECUTABLE(zstd-noBench ${PROGRAMS_DIR}/zstdcli.c ${PROGRAMS_DIR}/fileio.c ${ZSTD_FILEIO_LEGACY})
-    TARGET_LINK_LIBRARIES(zstd-noBench libzstd_static)
-    SET_TARGET_PROPERTIES(zstd-noBench PROPERTIES COMPILE_DEFINITIONS "ZSTD_NOBENCH")
+    ADD_EXECUTABLE(zstd-frugal ${PROGRAMS_DIR}/zstdcli.c ${PROGRAMS_DIR}/fileio.c)
+    TARGET_LINK_LIBRARIES(zstd-frugal libzstd_static)
+    SET_TARGET_PROPERTIES(zstd-frugal PROPERTIES COMPILE_DEFINITIONS "ZSTD_NOBENCH;ZSTD_NODICT")
 
     ADD_EXECUTABLE(zbufftest ${PROGRAMS_DIR}/datagen.c ${PROGRAMS_DIR}/xxhash.c ${PROGRAMS_DIR}/zbufftest.c)
     TARGET_LINK_LIBRARIES(zbufftest libzstd_static)

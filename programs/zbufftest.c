@@ -41,7 +41,7 @@
 #include <sys/timeb.h>   /* timeb */
 #include <string.h>      /* strcmp */
 #include "mem.h"
-#include "zstd_buffered.h"
+#include "zbuff.h"
 #include "zstd.h"        /* ZSTD_compressBound() */
 #include "datagen.h"     /* RDG_genBuffer */
 #include "xxhash.h"      /* XXH64 */

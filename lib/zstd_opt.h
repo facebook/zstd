@@ -79,8 +79,9 @@ FORCE_INLINE U32 ZSTD_getLiteralPriceReal(seqStore_t* seqStorePtr, U32 litLength
     if (!litLength) return 1;   /* special case */
 
     /* literals */
-    for (u=0, price=0; u < litLength; u++)
-        price += ZSTD_highbit(seqStorePtr->litSum) - ZSTD_highbit(seqStorePtr->litFreq[literals[u]]);
+    price = litLength * ZSTD_highbit(seqStorePtr->litSum);
+    for (u=0; u < litLength; u++)
+        price -= ZSTD_highbit(seqStorePtr->litFreq[literals[u]]);
 
     /* literal Length */
     price += ((litLength >= MaxLL)*8) + ((litLength >= 255+MaxLL)*16) + ((litLength>=(1<<15))*8);

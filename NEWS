@@ -1,5 +1,7 @@
 v0.5.1
 New : Optimal parsing => Very high compression modes, thanks to Przemyslaw Skibinski
+Changed : Dictionary builder integrated into libzstd and zstd cli
+Fix : high compression modes for big-endian platforms
 
 v0.5.0
 New : dictionary builder utility

@@ -172,8 +172,7 @@ MEM_STATIC void ZSTD_updatePrice(seqStore_t* seqStorePtr, U32 litLength, const B
 /*-*************************************
 *  Binary Tree search
 ***************************************/
-FORCE_INLINE /* inlining is important to hardwire a hot branch (template emulation) */
-U32 ZSTD_insertBtAndGetAllMatches (
+static U32 ZSTD_insertBtAndGetAllMatches (
                         ZSTD_CCtx* zc,
                         const BYTE* const ip, const BYTE* const iend,
                         U32 nbCompares, const U32 mls,
@@ -201,7 +200,6 @@ U32 ZSTD_insertBtAndGetAllMatches (
     U32 dummy32;   /* to be nullified at the end */
     U32 mnum = 0;
 
-    if (matchIndex >= current) return 0;
     bestLength = MINMATCH-1;
     hashTable[h] = current;   /* Update Hash Table */
 
@@ -257,8 +255,7 @@ U32 ZSTD_insertBtAndGetAllMatches (
 
 
 /** Tree updater, providing best match */
-FORCE_INLINE /* inlining is important to hardwire a hot branch (template emulation) */
-U32 ZSTD_BtGetAllMatches (
+static U32 ZSTD_BtGetAllMatches (
                         ZSTD_CCtx* zc,
                         const BYTE* const ip, const BYTE* const iLimit,
                         const U32 maxNbAttempts, const U32 mls, ZSTD_match_t* matches, U32 minml)
@@ -285,8 +282,7 @@ static U32 ZSTD_BtGetAllMatches_selectMLS (
 }
 
 /** Tree updater, providing best match */
-FORCE_INLINE /* inlining is important to hardwire a hot branch (template emulation) */
-U32 ZSTD_BtGetAllMatches_extDict (
+static U32 ZSTD_BtGetAllMatches_extDict (
                         ZSTD_CCtx* zc,
                         const BYTE* const ip, const BYTE* const iLimit,
                         const U32 maxNbAttempts, const U32 mls, ZSTD_match_t* matches, U32 minml)
@@ -342,7 +338,6 @@ U32 ZSTD_HcGetAllMatches_generic (
 
     /* HC4 match finder */
     matchIndex = ZSTD_insertAndFindFirstIndex (zc, ip, mls);
-    if (matchIndex >= current) return 0;
 
     while ((matchIndex>lowLimit) && (nbAttempts)) {
         size_t currentMl=0;
@@ -746,9 +741,10 @@ _storeSequence:   /* cur, last_pos, best_mlen, best_off have to be set */
             ZSTD_updatePrice(seqStorePtr, 0, anchor, 0, best_mlen);
             ZSTD_storeSeq(seqStorePtr, 0, anchor, 0, best_mlen);
             anchor += best_mlen+MINMATCH;
-            ip = anchor;
             continue;   /* faster when present ... (?) */
-    }   }
+        }
+        if (anchor > ip) ip = anchor;
+    }
 
     {   /* Last Literals */
         size_t lastLLSize = iend - anchor;
@@ -1112,11 +1108,12 @@ _storeSequence: // cur, last_pos, best_mlen, best_off have to be set
                 ZSTD_updatePrice(seqStorePtr, 0, anchor, 0, mlen-MINMATCH);
                 ZSTD_storeSeq(seqStorePtr, 0, anchor, 0, mlen-MINMATCH);
                 anchor += mlen;
-                ip = anchor;
                 continue;   /* faster when present ... (?) */
             }
             break;
-    }   }
+        }
+        if (anchor > ip) ip = anchor;
+    }
 
     {   /* Last Literals */
         size_t lastLLSize = iend - anchor;

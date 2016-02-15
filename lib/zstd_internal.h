@@ -50,7 +50,6 @@
 /*-*************************************
 *  Common constants
 ***************************************/
-#define ZSTD_MAGICNUMBER 0xFD2FB525   /* v0.5 */
 #define ZSTD_DICT_MAGIC  0xEC30A435
 
 #define KB *(1 <<10)

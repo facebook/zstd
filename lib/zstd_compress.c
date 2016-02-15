@@ -160,7 +160,7 @@ static unsigned ZSTD_highbit(U32 val);
     optimize for `srcSize` if srcSize > 0 */
 void ZSTD_validateParams(ZSTD_parameters* params)
 {
-    const U32 btPlus = (params->strategy == ZSTD_btlazy2) || (params->strategy == ZSTD_opt_bt);
+    const U32 btPlus = (params->strategy == ZSTD_btlazy2) || (params->strategy == ZSTD_btopt);
 
     /* validate params */
     if (MEM_32bits()) if (params->windowLog > 25) params->windowLog = 25;   /* 32 bits mode cannot flush > 24 bits */
@@ -170,7 +170,7 @@ void ZSTD_validateParams(ZSTD_parameters* params)
     CLAMP(params->searchLog, ZSTD_SEARCHLOG_MIN, ZSTD_SEARCHLOG_MAX);
     CLAMP(params->searchLength, ZSTD_SEARCHLENGTH_MIN, ZSTD_SEARCHLENGTH_MAX);
     CLAMP(params->targetLength, ZSTD_TARGETLENGTH_MIN, ZSTD_TARGETLENGTH_MAX);
-    if ((U32)params->strategy>(U32)ZSTD_opt_bt) params->strategy = ZSTD_opt_bt;
+    if ((U32)params->strategy>(U32)ZSTD_btopt) params->strategy = ZSTD_btopt;
 
     /* correct params, to use less memory */
     if ((params->srcSize > 0) && (params->srcSize < (1<<ZSTD_WINDOWLOG_MAX))) {
@@ -1980,7 +1980,7 @@ static size_t ZSTD_compressContinue_internal (ZSTD_CCtx* zc,
 
     /* preemptive overflow correction */
     if (zc->lowLimit > (1<<30)) {
-        U32 btplus = (zc->params.strategy == ZSTD_btlazy2) || (zc->params.strategy == ZSTD_opt_bt);
+        U32 btplus = (zc->params.strategy == ZSTD_btlazy2) || (zc->params.strategy == ZSTD_btopt);
         U32 contentMask = (1 << (zc->params.contentLog - btplus)) - 1;
         U32 newLowLimit = zc->lowLimit & contentMask;   /* preserve position % contentSize */
         U32 correction = zc->lowLimit - newLowLimit;
@@ -2055,7 +2055,7 @@ static size_t ZSTD_loadDictionaryContent(ZSTD_CCtx* zc, const void* src, size_t 
         break;
 
     case ZSTD_btlazy2:
-    case ZSTD_opt_bt:
+    case ZSTD_btopt:
         ZSTD_updateTree(zc, iend-8, iend, 1 << zc->params.searchLog, zc->params.searchLength);
         break;
 
@@ -2284,10 +2284,10 @@ static const ZSTD_parameters ZSTD_defaultParameters[4][ZSTD_MAX_CLEVEL+1] = {
     {  0, 23, 23, 23,  5,  5,  4, ZSTD_lazy2   },  /* level 15 */
     {  0, 23, 22, 22,  5,  5,  4, ZSTD_btlazy2 },  /* level 16 */
     {  0, 24, 24, 23,  4,  5,  4, ZSTD_btlazy2 },  /* level 17 */
-    {  0, 24, 25, 24,  4,  4, 24, ZSTD_opt_bt  },  /* level 18 */
-    {  0, 25, 25, 24,  5,  4, 40, ZSTD_opt_bt  },  /* level 19 */
-    {  0, 26, 26, 25,  8,  4,256, ZSTD_opt_bt  },  /* level 20 */
-    {  0, 26, 27, 25, 10,  4,256, ZSTD_opt_bt  },  /* level 21 */
+    {  0, 24, 25, 24,  4,  4, 24, ZSTD_btopt   },  /* level 18 */
+    {  0, 25, 25, 24,  5,  4, 40, ZSTD_btopt   },  /* level 19 */
+    {  0, 26, 26, 25,  8,  4,256, ZSTD_btopt   },  /* level 20 */
+    {  0, 26, 27, 25, 10,  4,256, ZSTD_btopt   },  /* level 21 */
 },
 {   /* for srcSize <= 256 KB */
     /* l,  W,  C,  H,  S,  L,  T, strat */
@@ -2305,14 +2305,14 @@ static const ZSTD_parameters ZSTD_defaultParameters[4][ZSTD_MAX_CLEVEL+1] = {
     {  0, 18, 17, 17,  7,  4,  4, ZSTD_lazy2   },  /* level 11 */
     {  0, 18, 18, 17,  4,  4,  4, ZSTD_btlazy2 },  /* level 12 */
     {  0, 18, 19, 17,  7,  4,  4, ZSTD_btlazy2 },  /* level 13.*/
-    {  0, 18, 17, 19,  8,  4, 24, ZSTD_opt_bt  },  /* level 14.*/
-    {  0, 18, 19, 19,  8,  4, 48, ZSTD_opt_bt  },  /* level 15.*/
-    {  0, 18, 19, 18,  9,  4,128, ZSTD_opt_bt  },  /* level 16.*/
-    {  0, 18, 19, 18,  9,  4,192, ZSTD_opt_bt  },  /* level 17.*/
-    {  0, 18, 19, 18,  9,  4,256, ZSTD_opt_bt  },  /* level 18.*/
-    {  0, 18, 19, 18, 10,  4,256, ZSTD_opt_bt  },  /* level 19.*/
-    {  0, 18, 19, 18, 11,  4,256, ZSTD_opt_bt  },  /* level 20.*/
-    {  0, 18, 19, 18, 12,  4,256, ZSTD_opt_bt  },  /* level 21.*/
+    {  0, 18, 17, 19,  8,  4, 24, ZSTD_btopt   },  /* level 14.*/
+    {  0, 18, 19, 19,  8,  4, 48, ZSTD_btopt   },  /* level 15.*/
+    {  0, 18, 19, 18,  9,  4,128, ZSTD_btopt   },  /* level 16.*/
+    {  0, 18, 19, 18,  9,  4,192, ZSTD_btopt   },  /* level 17.*/
+    {  0, 18, 19, 18,  9,  4,256, ZSTD_btopt   },  /* level 18.*/
+    {  0, 18, 19, 18, 10,  4,256, ZSTD_btopt   },  /* level 19.*/
+    {  0, 18, 19, 18, 11,  4,256, ZSTD_btopt   },  /* level 20.*/
+    {  0, 18, 19, 18, 12,  4,256, ZSTD_btopt   },  /* level 21.*/
 },
 {   /* for srcSize <= 128 KB */
     /* l,  W,  C,  H,  S,  L,  T, strat */
@@ -2330,14 +2330,14 @@ static const ZSTD_parameters ZSTD_defaultParameters[4][ZSTD_MAX_CLEVEL+1] = {
     {  0, 17, 17, 17,  7,  4,  4, ZSTD_lazy2   },  /* level 11 */
     {  0, 17, 17, 17,  8,  4,  4, ZSTD_lazy2   },  /* level 12 */
     {  0, 17, 17, 17,  9,  4,  4, ZSTD_lazy2   },  /* level 13 */
-    {  0, 17, 18, 16,  5,  4, 20, ZSTD_opt_bt  },  /* level 14 */
-    {  0, 17, 18, 16,  9,  4, 48, ZSTD_opt_bt  },  /* level 15 */
-    {  0, 17, 18, 17,  7,  4,128, ZSTD_opt_bt  },  /* level 16 */
-    {  0, 17, 18, 17,  8,  4,128, ZSTD_opt_bt  },  /* level 17 */
-    {  0, 17, 18, 17,  8,  4,256, ZSTD_opt_bt  },  /* level 18 */
-    {  0, 17, 18, 17,  9,  4,256, ZSTD_opt_bt  },  /* level 19 */
-    {  0, 17, 18, 17, 10,  4,512, ZSTD_opt_bt  },  /* level 20 */
-    {  0, 17, 18, 17, 11,  4,512, ZSTD_opt_bt  },  /* level 21 */
+    {  0, 17, 18, 16,  5,  4, 20, ZSTD_btopt   },  /* level 14 */
+    {  0, 17, 18, 16,  9,  4, 48, ZSTD_btopt   },  /* level 15 */
+    {  0, 17, 18, 17,  7,  4,128, ZSTD_btopt   },  /* level 16 */
+    {  0, 17, 18, 17,  8,  4,128, ZSTD_btopt   },  /* level 17 */
+    {  0, 17, 18, 17,  8,  4,256, ZSTD_btopt   },  /* level 18 */
+    {  0, 17, 18, 17,  9,  4,256, ZSTD_btopt   },  /* level 19 */
+    {  0, 17, 18, 17, 10,  4,512, ZSTD_btopt   },  /* level 20 */
+    {  0, 17, 18, 17, 11,  4,512, ZSTD_btopt   },  /* level 21 */
 
 },
 {   /* for srcSize <= 16 KB */
@@ -2354,16 +2354,16 @@ static const ZSTD_parameters ZSTD_defaultParameters[4][ZSTD_MAX_CLEVEL+1] = {
     {  0, 14, 14, 14,  9,  4,  4, ZSTD_lazy2   },  /* level  9 */
     {  0, 14, 14, 14, 10,  4,  4, ZSTD_lazy2   },  /* level 10 */
     {  0, 14, 14, 14, 11,  4,  4, ZSTD_lazy2   },  /* level 11 */
-    {  0, 14, 15, 15, 12,  4, 32, ZSTD_opt_bt  },  /* level 12 */
-    {  0, 14, 15, 15, 12,  4, 64, ZSTD_opt_bt  },  /* level 13 */
-    {  0, 14, 15, 15, 12,  4, 96, ZSTD_opt_bt  },  /* level 14 */
-    {  0, 14, 15, 15, 12,  4,128, ZSTD_opt_bt  },  /* level 15 */
-    {  0, 14, 15, 15, 12,  4,256, ZSTD_opt_bt  },  /* level 16 */
-    {  0, 14, 15, 15, 13,  4,256, ZSTD_opt_bt  },  /* level 17 */
-    {  0, 14, 15, 15, 14,  4,256, ZSTD_opt_bt  },  /* level 18 */
-    {  0, 14, 15, 15, 15,  4,256, ZSTD_opt_bt  },  /* level 19 */
-    {  0, 14, 15, 15, 16,  4,256, ZSTD_opt_bt  },  /* level 20 */
-    {  0, 14, 15, 15, 17,  4,256, ZSTD_opt_bt  },  /* level 21 */
+    {  0, 14, 15, 15, 12,  4, 32, ZSTD_btopt   },  /* level 12 */
+    {  0, 14, 15, 15, 12,  4, 64, ZSTD_btopt   },  /* level 13 */
+    {  0, 14, 15, 15, 12,  4, 96, ZSTD_btopt   },  /* level 14 */
+    {  0, 14, 15, 15, 12,  4,128, ZSTD_btopt   },  /* level 15 */
+    {  0, 14, 15, 15, 12,  4,256, ZSTD_btopt   },  /* level 16 */
+    {  0, 14, 15, 15, 13,  4,256, ZSTD_btopt   },  /* level 17 */
+    {  0, 14, 15, 15, 14,  4,256, ZSTD_btopt   },  /* level 18 */
+    {  0, 14, 15, 15, 15,  4,256, ZSTD_btopt   },  /* level 19 */
+    {  0, 14, 15, 15, 16,  4,256, ZSTD_btopt   },  /* level 20 */
+    {  0, 14, 15, 15, 17,  4,256, ZSTD_btopt   },  /* level 21 */
 },
 };
 

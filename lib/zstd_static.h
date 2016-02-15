@@ -32,9 +32,9 @@
 #ifndef ZSTD_STATIC_H
 #define ZSTD_STATIC_H
 
-/* The objects defined into this file shall be considered experimental.
- * They are not considered stable, as their prototype may change in the future.
- * You can use them for tests, provide feedback, or if you can endure risks of future changes.
+/* The prototypes defined within this file are considered experimental.
+ * They should not be used in the context DLL as they may change in the future.
+ * Prefer static linking if you need them, to control breaking version changes issues.
  */
 
 #if defined (__cplusplus)
@@ -54,8 +54,6 @@ extern "C" {
 #define ZSTD_WINDOWLOG_MAX 26
 #define ZSTD_WINDOWLOG_MIN 18
 #define ZSTD_WINDOWLOG_ABSOLUTEMIN 11
-#define ZSTD_TARGETLENGTH_MIN 4
-#define ZSTD_TARGETLENGTH_MAX 999
 #define ZSTD_CONTENTLOG_MAX (ZSTD_WINDOWLOG_MAX+1)
 #define ZSTD_CONTENTLOG_MIN 4
 #define ZSTD_HASHLOG_MAX 28
@@ -64,9 +62,11 @@ extern "C" {
 #define ZSTD_SEARCHLOG_MIN 1
 #define ZSTD_SEARCHLENGTH_MAX 7
 #define ZSTD_SEARCHLENGTH_MIN 4
+#define ZSTD_TARGETLENGTH_MIN 4
+#define ZSTD_TARGETLENGTH_MAX 999
 
 /* from faster to stronger */
-typedef enum { ZSTD_fast, ZSTD_greedy, ZSTD_lazy, ZSTD_lazy2, ZSTD_btlazy2, ZSTD_opt, ZSTD_opt_bt } ZSTD_strategy;
+typedef enum { ZSTD_fast, ZSTD_greedy, ZSTD_lazy, ZSTD_lazy2, ZSTD_btlazy2, ZSTD_opt, ZSTD_btopt } ZSTD_strategy;
 
 typedef struct
 {
@@ -81,7 +81,7 @@ typedef struct
 } ZSTD_parameters;
 
 
-/* *************************************
+/*-*************************************
 *  Advanced functions
 ***************************************/
 ZSTDLIB_API unsigned ZSTD_maxCLevel (void);

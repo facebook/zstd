@@ -115,7 +115,7 @@ static int usage(const char* programName)
     DISPLAY( " -#     : # compression level (1-%u, default:1) \n", ZSTD_maxCLevel());
     DISPLAY( " -d     : decompression \n");
     DISPLAY( " -D file: use `file` as Dictionary \n");
-    DISPLAY( " -o file: result stored into `file` (only possible if 1 input file) \n");
+    DISPLAY( " -o file: result stored into `file` (only if 1 input file) \n");
     DISPLAY( " -f     : overwrite output without prompting \n");
     DISPLAY( " -h/-H  : display help/long help and exit\n");
     return 0;
@@ -128,6 +128,7 @@ static int usage_advanced(const char* programName)
     DISPLAY( "\n");
     DISPLAY( "Advanced arguments :\n");
     DISPLAY( " -V     : display Version number and exit\n");
+    DISPLAY( " -t     : test compressed file integrity \n");
     DISPLAY( " -v     : verbose mode\n");
     DISPLAY( " -q     : suppress warnings; specify twice to suppress errors too\n");
     DISPLAY( " -c     : force write to standard output, even if it is the console\n");
@@ -266,6 +267,9 @@ int main(int argCount, const char** argv)
                     /* keep source file (default anyway, so useless; for gzip/xz compatibility) */
                 case 'k': argument++; break;
 
+                    /* test compressed file */
+                case 't': decode=1; outFileName=nulmark; FIO_overwriteMode(); argument++; break;
+
                     /* dictionary name */
                 case 'o': nextArgumentIsOutFileName=1; argument++; break;
 
@@ -380,7 +384,7 @@ int main(int argCount, const char** argv)
     if (outFileName && !strcmp(outFileName, stdoutmark) && IS_CONSOLE(stdout) && !forceStdout) return badusage(programName);
 
     /* user-selected output filename, only possible with a single file */
-    if (outFileName && strcmp(outFileName,stdoutmark) && (filenameIdx>1)) {
+    if (outFileName && strcmp(outFileName,stdoutmark) && strcmp(outFileName,nulmark) && (filenameIdx>1)) {
         DISPLAY("Too many files (%u) on the command line. \n", filenameIdx);
         return filenameIdx;
     }
@@ -395,12 +399,12 @@ int main(int argCount, const char** argv)
       if (filenameIdx==1 && outFileName)
         operationResult = FIO_decompressFilename(outFileName, filenameTable[0], dictFileName);
       else
-        operationResult = FIO_decompressMultipleFilenames(filenameTable, filenameIdx, forceStdout ? NULL : ZSTD_EXTENSION, dictFileName);
+        operationResult = FIO_decompressMultipleFilenames(filenameTable, filenameIdx, outFileName ? outFileName : ZSTD_EXTENSION, dictFileName);
     } else {  /* compression */
         if (filenameIdx==1 && outFileName)
           operationResult = FIO_compressFilename(outFileName, filenameTable[0], dictFileName, cLevel);
         else
-          operationResult = FIO_compressMultipleFilenames(filenameTable, filenameIdx, forceStdout ? NULL : ZSTD_EXTENSION, dictFileName, cLevel);
+          operationResult = FIO_compressMultipleFilenames(filenameTable, filenameIdx, outFileName ? outFileName : ZSTD_EXTENSION, dictFileName, cLevel);
     }
 
 _end:

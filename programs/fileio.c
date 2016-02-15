@@ -120,7 +120,7 @@
 #define MAX_DICT_SIZE (1 MB)   /* protection against large input (attack scenario) ; can be changed */
 
 
-/* *************************************
+/*-*************************************
 *  Macros
 ***************************************/
 #define DISPLAY(...)         fprintf(stderr, __VA_ARGS__)
@@ -134,8 +134,10 @@ static U32 g_displayLevel = 2;   /* 0 : no display;   1: errors;   2 : + result 
 static const unsigned refreshRate = 150;
 static clock_t g_time = 0;
 
+#define MAX(a,b)   ((a)>(b)?(a):(b))
 
-/* *************************************
+
+/*-*************************************
 *  Local Parameters
 ***************************************/
 static U32 g_overwrite = 0;
@@ -143,7 +145,7 @@ void FIO_overwriteMode(void) { g_overwrite=1; }
 void FIO_setNotificationLevel(unsigned level) { g_displayLevel=level; }
 
 
-/* *************************************
+/*-*************************************
 *  Exceptions
 ***************************************/
 #ifndef DEBUG
@@ -160,7 +162,7 @@ void FIO_setNotificationLevel(unsigned level) { g_displayLevel=level; }
 }
 
 
-/* *************************************
+/*-*************************************
 *  Functions
 ***************************************/
 static unsigned FIO_GetMilliSpan(clock_t nPrevious)
@@ -284,6 +286,7 @@ typedef struct {
     size_t dictBufferSize;
     ZBUFF_CCtx* ctx;
     FILE* dstFile;
+    FILE* srcFile;
 } cRess_t;
 
 static cRess_t FIO_createCResources(const char* dictFileName)
@@ -326,19 +329,15 @@ static int FIO_compressFilename_internal(cRess_t ress,
                                          const char* dstFileName, const char* srcFileName,
                                          int cLevel)
 {
-    FILE* srcFile;
+    FILE* srcFile = ress.srcFile;
     FILE* dstFile = ress.dstFile;
     U64 filesize = 0;
     U64 compressedfilesize = 0;
     size_t dictSize = ress.dictBufferSize;
     size_t sizeCheck, errorCode;
 
-    /* File check */
-    srcFile = FIO_openSrcFile(srcFileName);
-    if (!srcFile) return 1;   /* srcFile could not be opened */
-
     /* init */
-    filesize = FIO_getFileSize(srcFileName) + dictSize;
+    filesize = MAX(FIO_getFileSize(srcFileName),dictSize);
     errorCode = ZBUFF_compressInit_advanced(ress.ctx, ress.dictBuffer, ress.dictBufferSize, ZSTD_getParams(cLevel, filesize));
     if (ZBUFF_isError(errorCode)) EXM_THROW(21, "Error initializing compression : %s", ZBUFF_getErrorName(errorCode));
 
@@ -385,10 +384,30 @@ static int FIO_compressFilename_internal(cRess_t ress,
     DISPLAYLEVEL(2,"Compressed %llu bytes into %llu bytes ==> %.2f%%\n",
         (unsigned long long) filesize, (unsigned long long) compressedfilesize, (double)compressedfilesize/filesize*100);
 
-    /* clean */
-    fclose(srcFile);
-
     return 0;
+}
+
+
+/*! FIO_compressFilename_internal() :
+ *  same as FIO_compressFilename_extRess(), with ress.desFile already opened
+ *  @return : 0 : compression completed correctly,
+ *            1 : missing or pb opening srcFileName
+ */
+static int FIO_compressFilename_srcFile(cRess_t ress,
+                                        const char* dstFileName, const char* srcFileName,
+                                        int cLevel)
+{
+    int result;
+
+    /* File check */
+    ress.srcFile = FIO_openSrcFile(srcFileName);
+    if (!ress.srcFile) return 1;   /* srcFile could not be opened */
+
+    result = FIO_compressFilename_internal(ress, dstFileName, srcFileName, cLevel);
+
+    /* clean */
+    fclose(ress.srcFile);
+    return result;
 }
 
 
@@ -402,11 +421,14 @@ static int FIO_compressFilename_extRess(cRess_t ress,
 {
     int result;
 
+    ress.srcFile = FIO_openSrcFile(srcFileName);
+    if (ress.srcFile==0) return 1;
     ress.dstFile = FIO_openDstFile(dstFileName);
-    if (ress.dstFile==0) return 1;
+    if (ress.dstFile==0) { fclose(ress.srcFile); return 1; }
 
     result = FIO_compressFilename_internal(ress, dstFileName, srcFileName, cLevel);
 
+    fclose(ress.srcFile);   /* no pb to expect : only reading */
     if (fclose(ress.dstFile)) EXM_THROW(28, "Write error : cannot properly close %s", dstFileName);
     return result;
 }
@@ -456,7 +478,13 @@ int FIO_compressMultipleFilenames(const char** inFileNamesTable, unsigned nbFile
     ress = FIO_createCResources(dictFileName);
 
     /* loop on each file */
-    if (suffix) {
+    if (!strcmp(suffix, stdoutmark)) {
+        ress.dstFile = stdout;
+        for (u=0; u<nbFiles; u++)
+            missed_files += FIO_compressFilename_srcFile(ress, stdoutmark,
+                                                          inFileNamesTable[u], compressionLevel);
+        if (fclose(ress.dstFile)) EXM_THROW(29, "Write error : cannot properly close %s", stdoutmark);
+    } else {
         for (u=0; u<nbFiles; u++) {
             size_t ifnSize = strlen(inFileNamesTable[u]);
             if (dfnSize <= ifnSize+suffixSize+1) { free(dstFileName); dfnSize = ifnSize + 20; dstFileName = (char*)malloc(dfnSize); }
@@ -464,14 +492,7 @@ int FIO_compressMultipleFilenames(const char** inFileNamesTable, unsigned nbFile
             strcat(dstFileName, suffix);
             missed_files += FIO_compressFilename_extRess(ress, dstFileName,
                                                          inFileNamesTable[u], compressionLevel);
-        }
-    } else {
-        ress.dstFile = stdout;
-        for (u=0; u<nbFiles; u++)
-            missed_files += FIO_compressFilename_internal(ress, stdoutmark,
-                                                          inFileNamesTable[u], compressionLevel);
-        if (fclose(ress.dstFile)) EXM_THROW(29, "Write error : cannot properly close %s", stdoutmark);
-    }
+    }   }
 
     /* Close & Free */
     FIO_freeCResources(ress);

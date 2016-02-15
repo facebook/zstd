@@ -77,14 +77,25 @@ echo "decompress tmpall* into stdout > tmpdec : "
 cp tmpall tmpall2
 $ZSTD -dc tmpall* > tmpdec
 ls -ls tmp*
+echo "compress multiple files including a missing one (notHere) : "
 $ZSTD -f tmp1 notHere tmp2 && die "missing file not detected!"
-rm tmp*
+
+echo "\n**** integrity tests **** "
+echo "test one file (tmp1.zst) "
+$ZSTD -t tmp1.zst
+echo "test multiple files (*.zst) "
+$ZSTD -t *.zst
+echo "test good and bad files (*) "
+$ZSTD -t * && die "bad files not detected !"
 
 echo "\n**** zstd round-trip tests **** "
 
 roundTripTest
-roundTripTest '' 6
-roundTripTest '' 16
+roundTripTest -g512K 6    # greedy, hash chain
+roundTripTest -g512K 16   # btlazy2 
+roundTripTest -g512K 19   # btopt
+
+rm tmp*
 
 if [ "$1" != "--test-large-data" ]; then
     echo "Skipping large data tests"
@@ -118,3 +129,6 @@ roundTripTest -g50000000 -P94 19
 
 roundTripTest -g99000000 -P99 20
 roundTripTest -g6000000000 -P99 q
+
+rm tmp*
+

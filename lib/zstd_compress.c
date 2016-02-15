@@ -1172,6 +1172,7 @@ static U32 ZSTD_insertBt1(ZSTD_CCtx* zc, const BYTE* const ip, const U32 mls, co
     U32 dummy32;   /* to be nullified at the end */
     const U32 windowLow = zc->lowLimit;
     U32 matchEndIdx = current+8;
+    size_t bestLength = 8;
     U32 predictedSmall = *(bt + 2*((current-1)&btMask) + 0);
     U32 predictedLarge = *(bt + 2*((current-1)&btMask) + 1);
     predictedSmall += (predictedSmall>0);
@@ -1213,8 +1214,11 @@ static U32 ZSTD_insertBt1(ZSTD_CCtx* zc, const BYTE* const ip, const U32 mls, co
 				match = base + matchIndex;   /* to prepare for next usage of match[matchLength] */
         }
 
-        if (matchLength > matchEndIdx - matchIndex)
-            matchEndIdx = matchIndex + (U32)matchLength;
+        if (matchLength > bestLength) {
+            bestLength = matchLength;
+            if (matchLength > matchEndIdx - matchIndex)
+                matchEndIdx = matchIndex + (U32)matchLength;
+        }
 
         if (ip+matchLength == iend)   /* equal : no way to know if inf or sup */
             break;   /* drop , to guarantee consistency ; miss a bit of compression, but other solutions can corrupt the tree */
@@ -1236,7 +1240,9 @@ static U32 ZSTD_insertBt1(ZSTD_CCtx* zc, const BYTE* const ip, const U32 mls, co
     }   }
 
     *smallerPtr = *largerPtr = 0;
-    return (matchEndIdx > current + 8) ? (matchEndIdx - current) - 8 : 1;
+    if (bestLength > 384) return MIN(192, (U32)(bestLength - 384));
+    if (matchEndIdx > current + 8) return matchEndIdx - current - 8;
+    return 1;
 }
 
 
@@ -1319,20 +1325,14 @@ static size_t ZSTD_insertBtAndFindBestMatch (
 }
 
 
-#define BT_MAXREF_1  16
-#define BT_MAXREF_2 128
-#define BT_MAXREF  (BT_MAXREF_1 + BT_MAXREF_2)
-static void ZSTD_updateTree(ZSTD_CCtx* zc, const BYTE* const ip, const BYTE* const iend, const U32 nbCompares, const U32 mls, U32 extDict, U32 noSkip)
+static void ZSTD_updateTree(ZSTD_CCtx* zc, const BYTE* const ip, const BYTE* const iend, const U32 nbCompares, const U32 mls)
 {
     const BYTE* const base = zc->base;
     const U32 target = (U32)(ip - base);
     U32 idx = zc->nextToUpdate;
-    if ((!noSkip) && (idx + BT_MAXREF < target)) {
-        U32 t2 = idx + BT_MAXREF_1;
-        while(idx < t2) idx += ZSTD_insertBt1(zc, base+idx, mls, iend, nbCompares, extDict);
-        idx = target - BT_MAXREF_2;
-    }
-    while(idx < target) idx += ZSTD_insertBt1(zc, base+idx, mls, iend, nbCompares, extDict);
+
+    while(idx < target)
+        idx += ZSTD_insertBt1(zc, base+idx, mls, iend, nbCompares, 0);
 }
 
 /** Tree updater, providing best match */
@@ -1343,7 +1343,7 @@ static size_t ZSTD_BtFindBestMatch (
                         const U32 maxNbAttempts, const U32 mls)
 {
     if (ip < zc->base + zc->nextToUpdate) return 0;   /* skipped area */
-    ZSTD_updateTree(zc, ip, iLimit, maxNbAttempts, mls, 0, 0);
+    ZSTD_updateTree(zc, ip, iLimit, maxNbAttempts, mls);
     return ZSTD_insertBtAndFindBestMatch(zc, ip, iLimit, offsetPtr, maxNbAttempts, mls, 0);
 }
 
@@ -1364,6 +1364,15 @@ static size_t ZSTD_BtFindBestMatch_selectMLS (
 }
 
 
+static void ZSTD_updateTree_extDict(ZSTD_CCtx* zc, const BYTE* const ip, const BYTE* const iend, const U32 nbCompares, const U32 mls)
+{
+    const BYTE* const base = zc->base;
+    const U32 target = (U32)(ip - base);
+    U32 idx = zc->nextToUpdate;
+
+    while (idx < target) idx += ZSTD_insertBt1(zc, base+idx, mls, iend, nbCompares, 1);
+}
+
 
 /** Tree updater, providing best match */
 static size_t ZSTD_BtFindBestMatch_extDict (
@@ -1373,7 +1382,7 @@ static size_t ZSTD_BtFindBestMatch_extDict (
                         const U32 maxNbAttempts, const U32 mls)
 {
     if (ip < zc->base + zc->nextToUpdate) return 0;   /* skipped area */
-    ZSTD_updateTree(zc, ip, iLimit, maxNbAttempts, mls, 1, 0);
+    ZSTD_updateTree_extDict(zc, ip, iLimit, maxNbAttempts, mls);
     return ZSTD_insertBtAndFindBestMatch(zc, ip, iLimit, offsetPtr, maxNbAttempts, mls, 1);
 }
 
@@ -2054,7 +2063,7 @@ static size_t ZSTD_loadDictionaryContent(ZSTD_CCtx* zc, const void* src, size_t 
 
     case ZSTD_btlazy2:
     case ZSTD_btopt:
-        ZSTD_updateTree(zc, iend-8, iend, 1 << zc->params.searchLog, zc->params.searchLength, 0, 1);
+        ZSTD_updateTree(zc, iend-8, iend, 1 << zc->params.searchLog, zc->params.searchLength);
         break;
 
     default:
@@ -2327,7 +2336,7 @@ static const ZSTD_parameters ZSTD_defaultParameters[4][ZSTD_MAX_CLEVEL+1] = {
     {  0, 17, 17, 16,  6,  4,  4, ZSTD_lazy2   },  /* level 10 */
     {  0, 17, 17, 17,  7,  4,  4, ZSTD_lazy2   },  /* level 11 */
     {  0, 17, 17, 17,  8,  4,  4, ZSTD_lazy2   },  /* level 12 */
-    {  0, 17, 18, 17,  5,  4,  4, ZSTD_btlazy2 },  /* level 13 */
+    {  0, 17, 17, 17,  9,  4,  4, ZSTD_lazy2   },  /* level 13 */
     {  0, 17, 18, 16,  5,  4, 20, ZSTD_btopt   },  /* level 14 */
     {  0, 17, 18, 16,  9,  4, 48, ZSTD_btopt   },  /* level 15 */
     {  0, 17, 18, 17,  7,  4,128, ZSTD_btopt   },  /* level 16 */

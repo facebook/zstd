@@ -23,9 +23,19 @@ roundTripTest() {
 [ -n "$ZSTD" ] || die "ZSTD variable must be defined!"
 
 
-echo "\n**** simple test **** "
+echo "\n**** simple tests **** "
 ./datagen > tmp
 $ZSTD tmp
+$ZSTD tmp -c > tmpCompressed
+$ZSTD tmp --stdout > tmpCompressed
+$ZSTD -d tmpCompressed && die "wrong suffix error not detected!"
+$ZSTD -d tmpCompressed -c > tmpResult
+$ZSTD --decompress tmpCompressed -c > tmpResult
+$ZSTD --decompress tmpCompressed --stdout > tmpResult
+$ZSTD -q tmp && die "overwrite check failed!"
+$ZSTD -q -f tmp
+$ZSTD -q --force tmp
+
 
 echo "\n**** frame concatenation **** "
 
@@ -83,6 +93,7 @@ $ZSTD -f tmp1 notHere tmp2 && die "missing file not detected!"
 echo "\n**** integrity tests **** "
 echo "test one file (tmp1.zst) "
 $ZSTD -t tmp1.zst
+$ZSTD --test tmp1.zst
 echo "test multiple files (*.zst) "
 $ZSTD -t *.zst
 echo "test good and bad files (*) "

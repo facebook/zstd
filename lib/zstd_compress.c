@@ -1411,7 +1411,8 @@ static size_t ZSTD_BtFindBestMatch_selectMLS_extDict (
 
 /* Update chains up to ip (excluded)
    Assumption : always within prefix (ie. not within extDict) */
-static U32 ZSTD_insertAndFindFirstIndex (ZSTD_CCtx* zc, const BYTE* ip, U32 mls)
+FORCE_INLINE
+U32 ZSTD_insertAndFindFirstIndex (ZSTD_CCtx* zc, const BYTE* ip, U32 mls)
 {
     U32* const hashTable  = zc->hashTable;
     const U32 hashLog = zc->params.hashLog;
@@ -1613,7 +1614,7 @@ void ZSTD_compressBlock_lazy_generic(ZSTD_CCtx* ctx,
             break;  /* nothing found : store previous solution */
         }
 
-       /* catch up */
+        /* catch up */
         if (offset) {
             while ((start>anchor) && (start>base+offset) && (start[-1] == start[-1-offset]))   /* only search for offset within prefix */
                 { start--; matchLength++; }

@@ -26,6 +26,7 @@ roundTripTest() {
 echo "\n**** simple tests **** "
 ./datagen > tmp
 $ZSTD tmp
+$ZSTD -99 tmp && die "too large compression level undetected"
 $ZSTD tmp -c > tmpCompressed
 $ZSTD tmp --stdout > tmpCompressed
 $ZSTD -d tmpCompressed && die "wrong suffix error not detected!"

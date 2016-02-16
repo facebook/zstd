@@ -142,8 +142,8 @@ static int usage_advanced(const char* programName)
 #ifndef ZSTD_NOBENCH
     DISPLAY( "Benchmark arguments :\n");
     DISPLAY( " -b#    : benchmark file(s), using # compression level (default : 1) \n");
-    DISPLAY( " -B#    : cut file into independent blocks of size # (default: no block)\n");
     DISPLAY( " -i#    : iteration loops [1-9](default : 3)\n");
+    DISPLAY( " -B#    : cut file into independent blocks of size # (default: no block)\n");
     DISPLAY( " -r#    : test all compression levels from 1 to # (default: disabled)\n");
 #endif
     return 0;
@@ -208,12 +208,17 @@ int main(int argCount, const char** argv)
         if(!argument) continue;   /* Protection if argument empty */
 
         /* long commands (--long-word) */
+        if (!strcmp(argument, "--decompress")) { decode=1; continue; }
+        if (!strcmp(argument, "--force")) {  FIO_overwriteMode(); continue; }
         if (!strcmp(argument, "--version")) { displayOut=stdout; DISPLAY(WELCOME_MESSAGE); return 0; }
         if (!strcmp(argument, "--help")) { displayOut=stdout; return usage_advanced(programName); }
         if (!strcmp(argument, "--verbose")) { displayLevel=4; continue; }
         if (!strcmp(argument, "--quiet")) { displayLevel--; continue; }
+        if (!strcmp(argument, "--stdout")) { forceStdout=1; outFileName=stdoutmark; displayLevel=1; continue; }
+        if (!strcmp(argument, "--test")) { decode=1; outFileName=nulmark; FIO_overwriteMode(); continue; }
         if (!strcmp(argument, "--train")) { dictBuild=1; outFileName=g_defaultDictName; continue; }
         if (!strcmp(argument, "--maxdict")) { nextArgumentIsMaxDict=1; continue; }
+        if (!strcmp(argument, "--keep")) { continue; }   /* does nothing, since preserving input is default; for gzip/xz compatibility */
 
         /* '-' means stdin/stdout */
         if (!strcmp(argument, "-")){

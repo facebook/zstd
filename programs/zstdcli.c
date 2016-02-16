@@ -241,6 +241,8 @@ int main(int argCount, const char** argv)
                         argument++;
                     }
                     dictCLevel = cLevel;
+                    if (dictCLevel > ZSTD_maxCLevel())
+                        return badusage(programName);
                     continue;
                 }
 

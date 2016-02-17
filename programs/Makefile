@@ -53,7 +53,7 @@ BINDIR  = $(PREFIX)/bin
 MANDIR  = $(PREFIX)/share/man/man1
 ZSTDDIR = ../lib
 
-ZSTD_FILES := $(ZSTDDIR)/zstd_compress.c $(ZSTDDIR)/zstd_decompress.c $(ZSTDDIR)/fse.c $(ZSTDDIR)/huff0.c 
+ZSTD_FILES := $(ZSTDDIR)/huff0.c $(ZSTDDIR)/fse.c $(ZSTDDIR)/zstd_compress.c $(ZSTDDIR)/zstd_decompress.c
 
 ifeq ($(ZSTD_LEGACY_SUPPORT), 0)
 CPPFLAGS  += -DZSTD_LEGACY_SUPPORT=0
@@ -97,7 +97,12 @@ zstd_nolegacy :
 
 zstd-pgo : MOREFLAGS = -fprofile-generate
 zstd-pgo : clean zstd
+	./zstd -b19i1 $(PROFILE_WITH)
+	./zstd -b16i1 $(PROFILE_WITH)
+	./zstd -b9i2 $(PROFILE_WITH)
 	./zstd -b $(PROFILE_WITH)
+	./zstd -b7i2 $(PROFILE_WITH)
+	./zstd -b5 $(PROFILE_WITH)
 	rm zstd
 	$(MAKE) zstd MOREFLAGS=-fprofile-use
 

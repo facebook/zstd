@@ -16,7 +16,7 @@ As a reference, several fast compression algorithms were tested and compared to 
 |Name             | Ratio | C.speed | D.speed |
 |-----------------|-------|--------:|--------:|
 |                 |       |   MB/s  |  MB/s   |
-|**zstd 0.4.7 -1**|**2.875**|**330**| **890** |
+|**zstd 0.5.1 -1**|**2.876**|**330**| **890** |
 | [zlib] 1.2.8 -1 | 2.730 |    95   |   360   |
 | brotli -0       | 2.708 |   220   |   430   |
 | QuickLZ 1.5     | 2.237 |   510   |   605   |
@@ -40,33 +40,80 @@ Compression Speed vs Ratio | Decompression Speed
 
 ### The case for Small Data compression
 
-The above chart is applicable to large files or large streams scenarios (200 MB in this case).
+Above chart provides results applicable to large files or large streams scenarios (200 MB for this case).
 Small data (< 64 KB) come with different perspectives.
 The smaller the amount of data to compress, the more difficult it is to achieve any significant compression.
 On reaching the 1 KB region, it becomes almost impossible to compress anything.
-This problem is common to all compression algorithms, and throwing CPU power at it achieves no significant gains.
+This problem is common to any compression algorithms, and throwing CPU power at it achieves little gains.
 
 The reason is, compression algorithms learn from past data how to compress future data.
 But at the beginning of a new file, there is no "past" to build upon.
 
-[Starting with 0.5](https://github.com/Cyan4973/zstd/releases), Zstd now offers [a _Dictionary Builder_ tool](https://github.com/Cyan4973/zstd/tree/master/dictBuilder).
-It can be used to train the algorithm to fit a selected type of data, by providing it with some samples.
-The result is a file (or a byte buffer) called "dictionary", which can be loaded before compression and decompression.
-By using this dictionary, the compression ratio achievable on small data improves dramatically :
+To solve this situation, Zstd now offers a __training mode__,
+which can be used to make the algorithm fit a selected type of data, by providing it with some samples.
+The result of the training is a file called "dictionary", which can be loaded before compression and decompression.
+Using this dictionary, the compression ratio achievable on small data improves dramatically :
 
-| Collection Name    | Direct compression | Dictionary Compression | Gains  | Average unit | Range       |
-| ---------------    | ------------------ | ---------------------- | -----  | ------------:| -----       |
-| Small JSON records | x1.331 - x1.366	  | x5.860 - x6.830        | ~ x4.7 | 300          | 200 - 400   |
-| Mercurial events   | x2.322 - x2.538    | x3.377 - x4.462        | ~ x1.5 | 1.5 KB       | 20 - 200 KB |	
-| Large JSON docs    | x3.813 - x4.043    | x8.935 - x13.366       | ~ x2.8 | 6 KB         | 800 - 20 KB |	
+| Collection Name    | Direct compression | Dictionary Compression | Gains      | Average unit | Range       |
+| ---------------    | ------------------ | ---------------------- | ---------  | ------------:| -----       |
+| Small JSON records | x1.331 - x1.366	  | x5.860 - x6.830        | ~ __x4.7__ | 300          | 200 - 400   |
+| Mercurial events   | x2.322 - x2.538    | x3.377 - x4.462        | ~ __x1.5__ | 1.5 KB       | 20 - 200 KB |	
+| Large JSON docs    | x3.813 - x4.043    | x8.935 - x13.366       | ~ __x2.8__ | 6 KB         | 800 - 20 KB |	
 
-It has to be noted that these compression gains are achieved without any speed loss, and even some faster decompression processing.
+These compression gains are achieved without any speed loss, and prove in general a bit faster to compress and decompress.
 
 Dictionary work if there is some correlation in a family of small data (there is no _universal dictionary_).
 Hence, deploying one dictionary per type of data will provide the greater benefits.
 
 Large documents will benefit proportionally less, since dictionary gains are mostly effective in the first few KB.
-Then there is enough history to build upon, and the compression algorithm can rely on it to compress the rest of the file.
+Then, the compression algorithm will rely more and more on already decoded content to compress the rest of the file.
+
+#### Dictionary compression How To :
+
+##### _Using the Command Line Utility_ :
+
+1) Create the dictionary
+
+`zstd --train FullPathToTrainingSet/* -o dictionaryName`
+
+2) Compression with dictionary
+
+`zstd FILE -D dictionaryName`
+
+3) Decompress with dictionary
+
+`zstd --decompress FILE.zst -D dictionaryName`
+
+##### _Using API_ :
+
+1) Create dictionary
+
+```
+#include "zdict.h"
+(...)
+/* Train a dictionary from a memory buffer `samplesBuffer`, 
+   where `nbSamples` samples have been stored concatenated. */
+size_t dictSize = ZDICT_trainFromBuffer(dictBuffer, dictBufferCapacity,
+                                        samplesBuffer, samplesSizes, nbSamples);
+```
+
+2) Compression with dictionary
+
+```
+#include "zstd.h"
+(...)
+ZSTD_CCtx* context = ZSTD_createCCtx();
+size_t compressedSize = ZSTD_compress_usingDict(context, dst, dstCapacity, src, srcSize, dict, dictSize, compressionLevel);
+```
+
+3) Decompress with dictionary
+
+```
+#include "zstd.h"
+(...)
+ZSTD_DCtx* context = ZSTD_createDCtx();
+size_t regeneratedSize = ZSTD_decompress_usingDict(context, dst, dstCapacity, cSrc, cSrcSize, dict, dictSize);
+```
 
 
 ### Status

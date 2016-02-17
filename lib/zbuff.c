@@ -41,7 +41,7 @@
 #include <stdlib.h>
 #include "error_private.h"
 #include "zstd_static.h"
-#include "zstd_buffered_static.h"
+#include "zbuff_static.h"
 
 
 /* *************************************

@@ -1,6 +1,6 @@
 # ################################################################
 # zstd - Makefile
-# Copyright (C) Yann Collet 2014-2015
+# Copyright (C) Yann Collet 2014-2016
 # All rights reserved.
 # 
 # BSD license
@@ -27,8 +27,7 @@
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 # 
 # You can contact the author at :
-#  - zstd source repository : https://github.com/Cyan4973/zstd
-#  - Public forum : https://groups.google.com/forum/#!forum/lz4c
+#  - zstd homepage : http://www.zstd.net/
 # ################################################################
 
 # Get library version based on information from input content (use regular exp)
@@ -58,9 +57,11 @@ GetLibraryVersion("${HEADER_CONTENT}" LIBVER_MAJOR LIBVER_MINOR LIBVER_RELEASE)
 MESSAGE("ZSTD VERSION ${LIBVER_MAJOR}.${LIBVER_MINOR}.${LIBVER_RELEASE}")
 
 SET(Sources
+        ${LIBRARY_DIR}/divsufsort.c
         ${LIBRARY_DIR}/fse.c
         ${LIBRARY_DIR}/huff0.c
-        ${LIBRARY_DIR}/zstd_buffered.c
+        ${LIBRARY_DIR}/zbuff.c
+        ${LIBRARY_DIR}/zdict.c
         ${LIBRARY_DIR}/zstd_compress.c
         ${LIBRARY_DIR}/zstd_decompress.c)
 
@@ -73,8 +74,10 @@ SET(Headers
         ${LIBRARY_DIR}/huff0.h
         ${LIBRARY_DIR}/huff0_static.h
         ${LIBRARY_DIR}/mem.h
-        ${LIBRARY_DIR}/zstd_buffered_static.h
-        ${LIBRARY_DIR}/zstd_buffered.h
+        ${LIBRARY_DIR}/zbuff.h
+        ${LIBRARY_DIR}/zbuff_static.h
+        ${LIBRARY_DIR}/zdict.h
+        ${LIBRARY_DIR}/zdict_static.h
         ${LIBRARY_DIR}/zstd_internal.h
         ${LIBRARY_DIR}/zstd_static.h
         ${LIBRARY_DIR}/zstd.h)
@@ -86,13 +89,15 @@ IF (ZSTD_LEGACY_SUPPORT)
     SET(Sources ${Sources}
             ${LIBRARY_LEGACY_DIR}/zstd_v01.c
             ${LIBRARY_LEGACY_DIR}/zstd_v02.c
-            ${LIBRARY_LEGACY_DIR}/zstd_v03.c)
+            ${LIBRARY_LEGACY_DIR}/zstd_v03.c
+            ${LIBRARY_LEGACY_DIR}/zstd_v04.c)
 
     SET(Headers ${Headers}
             ${LIBRARY_LEGACY_DIR}/zstd_legacy.h
             ${LIBRARY_LEGACY_DIR}/zstd_v01.h
             ${LIBRARY_LEGACY_DIR}/zstd_v02.h
-            ${LIBRARY_LEGACY_DIR}/zstd_v03.h)
+            ${LIBRARY_LEGACY_DIR}/zstd_v03.h
+            ${LIBRARY_LEGACY_DIR}/zstd_v04.h)
 ENDIF (ZSTD_LEGACY_SUPPORT)
 
 IF (MSVC)
@@ -161,7 +166,7 @@ IF (UNIX)
     SET(INSTALL_INCLUDE_DIR ${PREFIX}/include)
 
     # install target
-    INSTALL(FILES ${LIBRARY_DIR}/zstd.h DESTINATION ${INSTALL_INCLUDE_DIR})
+    INSTALL(FILES ${LIBRARY_DIR}/zstd.h ${LIBRARY_DIR}/zstd_buffered.h ${LIBRARY_DIR}/dictBuilder.h DESTINATION ${INSTALL_INCLUDE_DIR})
     INSTALL(TARGETS libzstd_static DESTINATION ${INSTALL_LIBRARY_DIR})
     INSTALL(TARGETS libzstd_shared LIBRARY DESTINATION ${INSTALL_LIBRARY_DIR})
 

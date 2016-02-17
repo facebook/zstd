@@ -35,7 +35,10 @@ The following test is run on a Core i7-3930K CPU @ 4.5GHz, using [lzbench], an o
 
 Compression Speed vs Ratio | Decompression Speed
 ---------------------------|--------------------
-![Compression Speed vs Ratio](images/CSpeed.png "Compression Speed vs Ratio") | ![Decompression Speed](images/DSpeed.png "Decompression Speed")
+![Compression Speed vs Ratio](images/Cspeed4.png "Compression Speed vs Ratio") | ![Decompression Speed](images/Dspeed4.png "Decompression Speed")
+
+Several algorithms can produce higher compression ratio at slower speed, falling outside of the graph.
+For a larger picture including very slow modes, [click on this link](images/DCspeed5.png) .
 
 
 ### The case for Small Data compression

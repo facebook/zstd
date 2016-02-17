@@ -101,11 +101,11 @@ zstd-pgo : clean zstd
 	rm zstd
 	$(MAKE) zstd MOREFLAGS=-fprofile-use
 
-zstd-frugal: $(ZSTD_FILES) $(ZSTDDIR)/zstd_buffered.c zstdcli.c fileio.c
+zstd-frugal: $(ZSTD_FILES) $(ZSTDDIR)/zbuff.c zstdcli.c fileio.c
 	$(CC)      $(FLAGS) -DZSTD_NOBENCH -DZSTD_NODICT -DZSTD_LEGACY_SUPPORT=0 $^ -o zstd$(EXT)
 
 zstd-small: clean 
-	CFLAGS=-Os $(MAKE) zstd-frugal 
+	CFLAGS="-Os -s" $(MAKE) zstd-frugal 
 
 fullbench  : $(ZSTD_FILES) \
         datagen.c fullbench.c

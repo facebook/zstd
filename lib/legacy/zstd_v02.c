@@ -2133,7 +2133,8 @@ static size_t HUF_readDTableX4 (U32* DTable, const void* src, size_t srcSize)
     if (tableLog > memLog) return ERROR(tableLog_tooLarge);   /* DTable can't fit code depth */
 
     /* find maxWeight */
-    for (maxW = tableLog; rankStats[maxW]==0; maxW--) {}  /* necessarily finds a solution before 0 */
+    for (maxW = tableLog; rankStats[maxW]==0; maxW--)
+        {if (!maxW) return ERROR(GENERIC); }  /* necessarily finds a solution before maxW==0 */
 
     /* Get start index of each weight */
     {
@@ -2465,7 +2466,9 @@ static size_t HUF_readDTableX6 (U32* DTable, const void* src, size_t srcSize)
     if (tableLog > memLog) return ERROR(tableLog_tooLarge);   /* DTable is too small */
 
     /* find maxWeight */
-    for (maxW = tableLog; rankStats[maxW]==0; maxW--) {}  /* necessarily finds a solution before 0 */
+    for (maxW = tableLog; rankStats[maxW]==0; maxW--)
+        { if (!maxW) return ERROR(GENERIC); }  /* necessarily finds a solution before maxW==0 */
+
 
     /* Get start index of each weight */
     {

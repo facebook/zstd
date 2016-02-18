@@ -14,7 +14,7 @@
 
 .SH SYNOPSIS
 .TP 5
-\fBzstd\fR [\fBOPTIONS\fR] [-|INPUT-FILE] <OUTPUT-FILE>
+\fBzstd\fR [\fBOPTIONS\fR] [-|INPUT-FILE] [-o <OUTPUT-FILE>]
 .PP
 .B unzstd
 is equivalent to
@@ -28,15 +28,13 @@ is equivalent to
 .SH DESCRIPTION
 .PP
 \fBzstd\fR is a fast lossless compression algorithm.
-It is based on the \fBLZ77\fR family, with FSE & huff0 entropy stage.
-zstd offers compression speed > 200 MB/s per core.
-It also features a fast decoder, with speed > 500 MB/s per core.
+It is based on the \fBLZ77\fR family, with further FSE & huff0 entropy stages.
+\fBzstd\fR offers configurable compression speed, with fast modes at > 200 MB/s per core.
+It also features a very fast decoder, with speed > 500 MB/s per core.
 
 \fBzstd\fR command line is generally similar to gzip, but features the following differences :
  - Original files are preserved
- - By default, \fBzstd file1 file2\fR means : compress file1 \fBinto\fR file2.
-     Use \fB-m\fR command if you want : compress file1 into file1.zstd and file2 into file2.zst
- - By default, when compressing files, \fBzstd\fR displays advancement notification and result summary.
+ - By default, when compressing a single file, \fBzstd\fR displays progress notifications and result summary.
      Use \fB-q\fR to turn them off
 
 
@@ -45,21 +43,19 @@ It also features a fast decoder, with speed > 500 MB/s per core.
 .SH OPTIONS
 .TP
 .B \-#
- # compression level [1-19](default:1)
+ # compression level [1-21] (default:1)
 .TP
-.B \-d
+.BR \-d ", " --decompress
  decompression
 .TP
-.B \-f
+.B \-D file
+ use `file` as Dictionary to compress or decompress FILE(s)
+.TP
+.B \-o file
+ save result into `file` (only possible with a single input FILE)
+.TP
+.BR \-f ", " --force
  overwrite output without prompting
-.TP
-.BR \-m ", " --multiple
- multiple files mode
- In this mode, multiple files on the command line means compression or decompression of each named file
- Notifications are also turned off by default
-.TP
-.B \-D
- Use next file as dictionary content for compress / decompression
 .TP
 .BR \-h/\-H ", " --help
  display help/long help and exit
@@ -73,17 +69,47 @@ It also features a fast decoder, with speed > 500 MB/s per core.
 .BR \-q ", " --quiet
  suppress warnings and notifications; specify twice to suppress errors too
 .TP
-.B \-c 
+.BR \-c ", " --stdout
  force write to standard output, even if it is the console
+
+.SH DICTIONARY
+.PP
+\fBzstd\fR offers \fIdictionary\fR compression, useful for very small files and messages.
+It's possible to train \fBzstd\fR with some samples, the result of which is saved into a file called `dictionary`.
+Then during compression and decompression, make reference to the same dictionary.
+It will improve compression ratio of small files.
+Typical gains range from ~10% (at 64KB) to x5 better (at <1KB).
 .TP
-.B \-z
- force compression
+.B \--train FILEs
+ use FILEs as training set to create a dictionary.
+ The training set should contain a lot of small files (> 100).
+ and weight typically 100x the target dictionary size
+ (for example, 10 MB for a 100 KB dictionary)
+.TP
+.B \-o file
+ dictionary saved into `file` (default: dictionary)
+.TP
+.B \--maxdict #
+ limit dictionary to specified size (default : 112640) 
+.TP
+.B \-s#
+ dictionary selectivity level (default: 9)
+ the smaller the value, the denser the dictionary, improving its efficiency but reducing its possible maximum size.
+
+.SH BENCHMARK
 .TP
 .B \-b#
  benchmark file(s) using compression level #
 .TP
 .B \-i#
  iteration loops [1-9](default : 3), benchmark mode only
+.TP
+.B \-B#
+ cut file into independent blocks of size # (default: no block)
+.TP
+.B \-r#
+ test all compression levels from 1 to # (default: disabled)
+
 
 .SH BUGS
 Report bugs at:- https://github.com/Cyan4973/zstd/issues

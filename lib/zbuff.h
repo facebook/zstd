@@ -1,6 +1,6 @@
 /*
     Buffered version of Zstd compression library
-    Copyright (C) 2015, Yann Collet.
+    Copyright (C) 2015-2016, Yann Collet.
 
     BSD 2-Clause License (http://www.opensource.org/licenses/bsd-license.php)
 
@@ -26,14 +26,13 @@
     OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
     You can contact the author at :
-    - zstd source repository : https://github.com/Cyan4973/zstd
-    - ztsd public forum : https://groups.google.com/forum/#!forum/lz4c
+    - zstd homepage : http://www.zstd.net/
 */
 #ifndef ZSTD_BUFFERED_H
 #define ZSTD_BUFFERED_H
 
 /* The objects defined into this file should be considered experimental.
- * They are not labelled stable, as their prototype may change in the future.
+ * They are not considered stable, as their prototype may change in the future.
  * You can use them for tests, provide feedback, or if you can endure risk of future changes.
  */
 
@@ -42,7 +41,7 @@ extern "C" {
 #endif
 
 /* *************************************
-*  Includes
+*  Dependencies
 ***************************************/
 #include <stddef.h>   /* size_t */
 
@@ -75,7 +74,7 @@ ZSTDLIB_API size_t ZBUFF_compressContinue(ZBUFF_CCtx* cctx, void* dst, size_t* d
 ZSTDLIB_API size_t ZBUFF_compressFlush(ZBUFF_CCtx* cctx, void* dst, size_t* dstCapacityPtr);
 ZSTDLIB_API size_t ZBUFF_compressEnd(ZBUFF_CCtx* cctx, void* dst, size_t* dstCapacityPtr);
 
-/** ************************************************
+/*-*************************************************
 *  Streaming compression
 *
 *  A ZBUFF_CCtx object is required to track streaming operation.
@@ -123,12 +122,14 @@ ZSTDLIB_API size_t      ZBUFF_freeDCtx(ZBUFF_DCtx* dctx);
 ZSTDLIB_API size_t ZBUFF_decompressInit(ZBUFF_DCtx* dctx);
 ZSTDLIB_API size_t ZBUFF_decompressInitDictionary(ZBUFF_DCtx* dctx, const void* dict, size_t dictSize);
 
-ZSTDLIB_API size_t ZBUFF_decompressContinue(ZBUFF_DCtx* dctx, void* dst, size_t* dstCapacityPtr, const void* src, size_t* srcSizePtr);
+ZSTDLIB_API size_t ZBUFF_decompressContinue(ZBUFF_DCtx* dctx,
+                                            void* dst, size_t* dstCapacityPtr,
+                                      const void* src, size_t* srcSizePtr);
 
-/** ************************************************
+/*-***************************************************************************
 *  Streaming decompression
 *
-*  A ZBUFF_DCtx object is required to track streaming operation.
+*  A ZBUFF_DCtx object is required to track streaming operations.
 *  Use ZBUFF_createDCtx() and ZBUFF_freeDCtx() to create/release resources.
 *  Use ZBUFF_decompressInit() to start a new decompression operation,
 *   or ZBUFF_decompressInitDictionary() if decompression requires a dictionary.
@@ -143,10 +144,10 @@ ZSTDLIB_API size_t ZBUFF_decompressContinue(ZBUFF_DCtx* dctx, void* dst, size_t*
 *            or 0 when a frame is completely decoded
 *            or an error code, which can be tested using ZBUFF_isError().
 *
-*  Hint : recommended buffer sizes (not compulsory) : ZBUFF_recommendedDInSize / ZBUFF_recommendedDOutSize
-*  output : ZBUFF_recommendedDOutSize==128 KB block size is the internal unit, it ensures it's always possible to write a full block when it's decoded.
-*  input : ZBUFF_recommendedDInSize==128Kb+3; just follow indications from ZBUFF_decompressContinue() to minimize latency. It should always be <= 128 KB + 3 .
-* **************************************************/
+*  Hint : recommended buffer sizes (not compulsory) : ZBUFF_recommendedDInSize() / ZBUFF_recommendedDOutSize()
+*  output : ZBUFF_recommendedDOutSize==128 KB block size is the internal unit, it ensures it's always possible to write a full block when decoded.
+*  input  : ZBUFF_recommendedDInSize==128Kb+3; just follow indications from ZBUFF_decompressContinue() to minimize latency. It should always be <= 128 KB + 3 .
+* *******************************************************************************/
 
 
 /* *************************************
@@ -155,7 +156,7 @@ ZSTDLIB_API size_t ZBUFF_decompressContinue(ZBUFF_DCtx* dctx, void* dst, size_t*
 ZSTDLIB_API unsigned ZBUFF_isError(size_t errorCode);
 ZSTDLIB_API const char* ZBUFF_getErrorName(size_t errorCode);
 
-/** The below functions provide recommended buffer sizes for Compression or Decompression operations.
+/** Functions below provide recommended buffer sizes for Compression or Decompression operations.
 *   These sizes are just hints, and tend to offer better latency */
 ZSTDLIB_API size_t ZBUFF_recommendedCInSize(void);
 ZSTDLIB_API size_t ZBUFF_recommendedCOutSize(void);

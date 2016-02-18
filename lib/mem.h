@@ -86,7 +86,7 @@ extern "C" {
 /*-**************************************************************
 *  Memory I/O
 *****************************************************************/
-/*!MEM_FORCE_MEMORY_ACCESS
+/* MEM_FORCE_MEMORY_ACCESS :
  * By default, access to unaligned memory is controlled by `memcpy()`, which is safe and portable.
  * Unfortunately, on some target/compiler combinations, the generated assembly is sub-optimal.
  * The below switch allow to select different access method for improved performance.
@@ -119,11 +119,12 @@ MEM_STATIC unsigned MEM_isLittleEndian(void)
 
 #if defined(MEM_FORCE_MEMORY_ACCESS) && (MEM_FORCE_MEMORY_ACCESS==2)
 
-/* violates C standard on structure alignment.
+/* violates C standard, by lying on structure alignment.
 Only use if no other choice to achieve best performance on target platform */
 MEM_STATIC U16 MEM_read16(const void* memPtr) { return *(const U16*) memPtr; }
 MEM_STATIC U32 MEM_read32(const void* memPtr) { return *(const U32*) memPtr; }
 MEM_STATIC U64 MEM_read64(const void* memPtr) { return *(const U64*) memPtr; }
+MEM_STATIC U64 MEM_readST(const void* memPtr) { return *(const size_t*) memPtr; }
 
 MEM_STATIC void MEM_write16(void* memPtr, U16 value) { *(U16*)memPtr = value; }
 MEM_STATIC void MEM_write32(void* memPtr, U32 value) { *(U32*)memPtr = value; }
@@ -133,11 +134,12 @@ MEM_STATIC void MEM_write64(void* memPtr, U64 value) { *(U64*)memPtr = value; }
 
 /* __pack instructions are safer, but compiler specific, hence potentially problematic for some compilers */
 /* currently only defined for gcc and icc */
-typedef union { U16 u16; U32 u32; U64 u64; } __attribute__((packed)) unalign;
+typedef union { U16 u16; U32 u32; U64 u64; size_t st; } __attribute__((packed)) unalign;
 
 MEM_STATIC U16 MEM_read16(const void* ptr) { return ((const unalign*)ptr)->u16; }
 MEM_STATIC U32 MEM_read32(const void* ptr) { return ((const unalign*)ptr)->u32; }
 MEM_STATIC U64 MEM_read64(const void* ptr) { return ((const unalign*)ptr)->u64; }
+MEM_STATIC U64 MEM_readST(const void* ptr) { return ((const unalign*)ptr)->st; }
 
 MEM_STATIC void MEM_write16(void* memPtr, U16 value) { ((unalign*)memPtr)->u16 = value; }
 MEM_STATIC void MEM_write32(void* memPtr, U32 value) { ((unalign*)memPtr)->u32 = value; }
@@ -163,6 +165,11 @@ MEM_STATIC U64 MEM_read64(const void* memPtr)
     U64 val; memcpy(&val, memPtr, sizeof(val)); return val;
 }
 
+MEM_STATIC size_t MEM_readST(const void* memPtr)
+{
+    size_t val; memcpy(&val, memPtr, sizeof(val)); return val;
+}
+
 MEM_STATIC void MEM_write16(void* memPtr, U16 value)
 {
     memcpy(memPtr, &value, sizeof(value));
@@ -178,7 +185,7 @@ MEM_STATIC void MEM_write64(void* memPtr, U64 value)
     memcpy(memPtr, &value, sizeof(value));
 }
 
-#endif // MEM_FORCE_MEMORY_ACCESS
+#endif /* MEM_FORCE_MEMORY_ACCESS */
 
 
 MEM_STATIC U16 MEM_readLE16(const void* memPtr)

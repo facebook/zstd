@@ -2,7 +2,6 @@ language: c
 
 before_install:
   - sudo apt-get update  -qq
-  - sudo apt-get install -qq gcc-arm-linux-gnueabi
   - sudo apt-get install -qq clang
   - sudo apt-get install -qq g++-multilib
   - sudo apt-get install -qq gcc-multilib
@@ -13,7 +12,7 @@ env:
   - ZSTD_TRAVIS_CI_ENV=cmaketest
   - ZSTD_TRAVIS_CI_ENV=clangtest  
   - ZSTD_TRAVIS_CI_ENV=gpptest  
-  - ZSTD_TRAVIS_CI_ENV=armtest  
+  - ZSTD_TRAVIS_CI_ENV=armtest-w-install  
   - ZSTD_TRAVIS_CI_ENV=test  
   - ZSTD_TRAVIS_CI_ENV="-C programs test32"  
   - ZSTD_TRAVIS_CI_ENV="-C programs test-zstd_nolegacy"

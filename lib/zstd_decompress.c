@@ -612,6 +612,8 @@ typedef struct {
     const BYTE* dumpsEnd;
 } seqState_t;
 
+
+
 static void ZSTD_decodeSequence(seq_t* seq, seqState_t* seqState)
 {
     size_t litLength;

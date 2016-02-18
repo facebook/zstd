@@ -16,28 +16,45 @@ roundTripTest() {
     rm -f tmp1 tmp2
     echo "roundTripTest: ./datagen $1 $p | $ZSTD -v$c | $ZSTD -d"
     ./datagen $1 $p | md5sum > tmp1
-    ./datagen $1 $p | $ZSTD -v$c | $ZSTD -d  | md5sum > tmp2
+    ./datagen $1 $p | $ZSTD -vq$c | $ZSTD -d  | md5sum > tmp2
     diff -q tmp1 tmp2
 }
 
 [ -n "$ZSTD" ] || die "ZSTD variable must be defined!"
 
-printf "\n**** frame concatenation **** "
+
+echo "\n**** simple tests **** "
+./datagen > tmp
+$ZSTD tmp
+$ZSTD -99 tmp && die "too large compression level undetected"
+$ZSTD tmp -c > tmpCompressed
+$ZSTD tmp --stdout > tmpCompressed
+$ZSTD -d tmpCompressed && die "wrong suffix error not detected!"
+$ZSTD -d tmpCompressed -c > tmpResult
+$ZSTD --decompress tmpCompressed -c > tmpResult
+$ZSTD --decompress tmpCompressed --stdout > tmpResult
+$ZSTD -q tmp && die "overwrite check failed!"
+$ZSTD -q -f tmp
+$ZSTD -q --force tmp
+
+
+echo "\n**** frame concatenation **** "
 
 echo "hello " > hello.tmp
 echo "world!" > world.tmp
 cat hello.tmp world.tmp > helloworld.tmp
-$ZSTD hello.tmp > hello.zstd
-$ZSTD world.tmp > world.zstd
+$ZSTD -c hello.tmp > hello.zstd
+$ZSTD -c world.tmp > world.zstd
 cat hello.zstd world.zstd > helloworld.zstd
-$ZSTD -df helloworld.zstd > result.tmp
+$ZSTD -dc helloworld.zstd > result.tmp
 cat result.tmp
 sdiff helloworld.tmp result.tmp
 rm ./*.tmp ./*.zstd
 
 echo frame concatenation test completed
 
-echo "**** flush write error test **** "
+
+echo "\n**** flush write error test **** "
 
 echo "echo foo | $ZSTD > /dev/full"
 echo foo | $ZSTD > /dev/full && die "write error not detected!"
@@ -45,30 +62,52 @@ echo "echo foo | $ZSTD | $ZSTD -d > /dev/full"
 echo foo | $ZSTD | $ZSTD -d > /dev/full && die "write error not detected!"
 
 
-echo "*** dictionary tests *** "
+echo "\n**** dictionary tests **** "
 
 ./datagen > tmpDict
 ./datagen -g1M | md5sum > tmp1
-./datagen -g1M | $ZSTD -D tmpDict | $ZSTD -D tmpDict -dv | md5sum > tmp2
+./datagen -g1M | $ZSTD -D tmpDict | $ZSTD -D tmpDict -dvq | md5sum > tmp2
 diff -q tmp1 tmp2
 
-echo "*** multiple files tests *** "
+echo "\n**** multiple files tests **** "
 
 ./datagen -s1        > tmp1 2> /dev/null
 ./datagen -s2 -g100K > tmp2 2> /dev/null
 ./datagen -s3 -g1M   > tmp3 2> /dev/null
-$ZSTD -f -m tmp*
+$ZSTD -f tmp*
+echo "compress tmp* : "
 ls -ls tmp*
 rm tmp1 tmp2 tmp3
-$ZSTD -df -m *.zst
+echo "decompress tmp* : "
+$ZSTD -df *.zst
 ls -ls tmp*
-$ZSTD -f -m tmp1 notHere tmp2 && die "missing file not detected!"
-rm tmp*
+echo "compress tmp* into stdout > tmpall : "
+$ZSTD -c tmp1 tmp2 tmp3 > tmpall
+ls -ls tmp*
+echo "decompress tmpall* into stdout > tmpdec : "
+cp tmpall tmpall2
+$ZSTD -dc tmpall* > tmpdec
+ls -ls tmp*
+echo "compress multiple files including a missing one (notHere) : "
+$ZSTD -f tmp1 notHere tmp2 && die "missing file not detected!"
 
-echo "**** zstd round-trip tests **** "
+echo "\n**** integrity tests **** "
+echo "test one file (tmp1.zst) "
+$ZSTD -t tmp1.zst
+$ZSTD --test tmp1.zst
+echo "test multiple files (*.zst) "
+$ZSTD -t *.zst
+echo "test good and bad files (*) "
+$ZSTD -t * && die "bad files not detected !"
+
+echo "\n**** zstd round-trip tests **** "
 
 roundTripTest
-roundTripTest '' 6
+roundTripTest -g512K 6    # greedy, hash chain
+roundTripTest -g512K 16   # btlazy2 
+roundTripTest -g512K 19   # btopt
+
+rm tmp*
 
 if [ "$1" != "--test-large-data" ]; then
     echo "Skipping large data tests"
@@ -102,3 +141,6 @@ roundTripTest -g50000000 -P94 19
 
 roundTripTest -g99000000 -P99 20
 roundTripTest -g6000000000 -P99 q
+
+rm tmp*
+

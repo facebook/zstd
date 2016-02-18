@@ -175,7 +175,7 @@ static U64 XXH_read64(const void* memPtr)
     return val;
 }
 
-#endif // XXH_FORCE_DIRECT_MEMORY_ACCESS
+#endif   /* XXH_FORCE_DIRECT_MEMORY_ACCESS */
 
 
 /* ****************************************

@@ -91,6 +91,7 @@ static U32 g_testTime = 0;
 /*********************************************************
 *  Fuzzer functions
 *********************************************************/
+#define MIN(a,b) ((a)<(b)?(a):(b))
 #define MAX(a,b) ((a)>(b)?(a):(b))
 
 static U32 FUZ_GetMilliStart(void)
@@ -452,7 +453,8 @@ int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compressibilit
         crcOrig = XXH64(sampleBuffer, sampleSize, 0);
 
         /* compression test */
-        cLevelMod = MAX(1, 38 - (int)(MAX(9, sampleSizeLog) * 2));   /* use high compression levels with small samples, for speed */
+        //cLevelMod = MAX(1, 38 - (int)(MAX(9, sampleSizeLog) * 2));   /* high levels only for small samples, for manageable speed */
+        cLevelMod = MIN( ZSTD_maxCLevel(), (U32)MAX(1,  55 - 3*(int)sampleSizeLog) );   /* high levels only for small samples, for manageable speed */
         cLevel = (FUZ_rand(&lseed) % cLevelMod) +1;
         cSize = ZSTD_compressCCtx(ctx, cBuffer, cBufferSize, sampleBuffer, sampleSize, cLevel);
         CHECK(ZSTD_isError(cSize), "ZSTD_compressCCtx failed");

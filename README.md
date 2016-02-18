@@ -106,7 +106,7 @@ size_t dictSize = ZDICT_trainFromBuffer(dictBuffer, dictBufferCapacity,
 #include "zstd.h"
 (...)
 ZSTD_CCtx* context = ZSTD_createCCtx();
-size_t compressedSize = ZSTD_compress_usingDict(context, dst, dstCapacity, src, srcSize, dict, dictSize, compressionLevel);
+size_t compressedSize = ZSTD_compress_usingDict(context, dst, dstCapacity, src, srcSize, dictBuffer, dictSize, compressionLevel);
 ```
 
 3) Decompress with dictionary
@@ -115,7 +115,7 @@ size_t compressedSize = ZSTD_compress_usingDict(context, dst, dstCapacity, src, 
 #include "zstd.h"
 (...)
 ZSTD_DCtx* context = ZSTD_createDCtx();
-size_t regeneratedSize = ZSTD_decompress_usingDict(context, dst, dstCapacity, cSrc, cSrcSize, dict, dictSize);
+size_t regeneratedSize = ZSTD_decompress_usingDict(context, dst, dstCapacity, cSrc, cSrcSize, dictBuffer, dictSize);
 ```
 
 

@@ -1,7 +1,7 @@
 v0.5.1
 New : Optimal parsing => Very high compression modes, thanks to Przemyslaw Skibinski
 Changed : Dictionary builder integrated into libzstd and zstd cli
-Changed : zstd cli now uses "multiple input files" as default mode
+Changed (!) : zstd cli now uses "multiple input files" as default mode. See `zstd -h`.
 Fix : high compression modes for big-endian platforms
 New : zstd cli : `-t` | `--test` command
 

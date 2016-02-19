@@ -50,6 +50,11 @@
 /*-*************************************
 *  Common constants
 ***************************************/
+#define ZSTD_OPT_DEBUG 0     // 1 = tableID=0;  5 = check encoded sequences;  9 = full logs
+#if ZSTD_OPT_DEBUG > 0
+    #include <stdio.h>  /* for debug */
+#endif
+
 #define ZSTD_DICT_MAGIC  0xEC30A435
 
 #define KB *(1 <<10)

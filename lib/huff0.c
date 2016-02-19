@@ -1381,7 +1381,7 @@ size_t HUF_readDTableX6 (U32* DTable, const void* src, size_t srcSize)
     if (tableLog > memLog) return ERROR(tableLog_tooLarge);   /* DTable is too small */
 
     /* find maxWeight */
-    for (maxW = tableLog; rankStats[maxW]==0; maxW--) {}  /* necessarily finds a solution before 0 */
+    for (maxW = tableLog; maxW && rankStats[maxW]==0; maxW--) {}  /* necessarily finds a solution before 0 */
 
     /* Get start index of each weight */
     {

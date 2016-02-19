@@ -50,7 +50,7 @@
 /*-*************************************
 *  Common constants
 ***************************************/
-#define ZSTD_OPT_DEBUG 0     // 1 = tableID=0;  5 = check encoded sequences;  9 = full logs
+#define ZSTD_OPT_DEBUG 1     // 1 = tableID=0;  5 = check encoded sequences;  9 = full logs
 #if ZSTD_OPT_DEBUG > 0
     #include <stdio.h>  /* for debug */
 #endif
@@ -79,7 +79,7 @@ static const size_t ZSTD_frameHeaderSize_min = 5;
 #define IS_RAW 2
 #define IS_RLE 3
 
-#define MINMATCH 4
+#define MINMATCH 3
 #define REPCODE_STARTVALUE 1
 
 #define Litbits  8

@@ -78,9 +78,7 @@ typedef struct {
 
 FORCE_INLINE U32 ZSTD_getLiteralPrice(seqStore_t* seqStorePtr, U32 litLength, const BYTE* literals)
 {
-    U32 price, freq, u;
-
-    if (!litLength) return 0;   /* special case */
+    U32 price, u;
 
     /* literals */
     price = litLength * ZSTD_highbit(seqStorePtr->litSum);
@@ -90,8 +88,7 @@ FORCE_INLINE U32 ZSTD_getLiteralPrice(seqStore_t* seqStorePtr, U32 litLength, co
     /* literal Length */
     price += ((litLength >= MaxLL)<<3) + ((litLength >= 255+MaxLL)<<4) + ((litLength>=(1<<15))<<3);
     if (litLength >= MaxLL) litLength = MaxLL;
-    freq = seqStorePtr->litLengthFreq[litLength];
-    price += ZSTD_highbit(seqStorePtr->litLengthSum) - ZSTD_highbit(freq);
+    price += ZSTD_highbit(seqStorePtr->litLengthSum) - ZSTD_highbit(seqStorePtr->litLengthFreq[litLength]);
 
     return price;
 }
@@ -107,9 +104,12 @@ FORCE_INLINE U32 ZSTD_getPrice(seqStore_t* seqStorePtr, U32 litLength, const BYT
     matchLength -= MINMATCH;
     price += ((matchLength >= MaxML)<<3) + ((matchLength >= 255+MaxML)<<4) + ((matchLength>=(1<<15))<<3);
     if (matchLength >= MaxML) matchLength = MaxML;
-    price += ZSTD_getLiteralPrice(seqStorePtr, litLength, literals) + ZSTD_highbit(seqStorePtr->matchLengthSum) - ZSTD_highbit(seqStorePtr->matchLengthFreq[matchLength]);
+    price += ZSTD_highbit(seqStorePtr->matchLengthSum) - ZSTD_highbit(seqStorePtr->matchLengthFreq[matchLength]);
 
-    return ((seqStorePtr->litSum>>4) / seqStorePtr->litLengthSum) + (matchLength==0) + (litLength==0) + price;
+    if (!litLength) 
+        return price + 1;   /* special case */
+
+    return price + ZSTD_getLiteralPrice(seqStorePtr, litLength, literals); //((seqStorePtr->litSum>>4) / seqStorePtr->litLengthSum) + (matchLength==0) + (litLength==0) + price;
 }
 
 

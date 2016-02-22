@@ -74,7 +74,7 @@ extern "C" {
 #define ZSTD_TARGETLENGTH_MAX 999
 
 /* from faster to stronger */
-typedef enum { ZSTD_fast, ZSTD_greedy, ZSTD_lazy, ZSTD_lazy2, ZSTD_btlazy2, ZSTD_opt, ZSTD_btopt } ZSTD_strategy;
+typedef enum { ZSTD_fast, ZSTD_greedy, ZSTD_lazy, ZSTD_lazy2, ZSTD_btlazy2, ZSTD_btopt } ZSTD_strategy;
 
 typedef struct
 {

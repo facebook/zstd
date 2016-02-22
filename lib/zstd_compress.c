@@ -1657,14 +1657,9 @@ _storeSequence:
 }
 
 
-static void ZSTD_compressBlock_opt_bt(ZSTD_CCtx* ctx, const void* src, size_t srcSize)
+static void ZSTD_compressBlock_btopt(ZSTD_CCtx* ctx, const void* src, size_t srcSize)
 {
-    ZSTD_compressBlock_opt_generic(ctx, src, srcSize, 1, 2);
-}
-
-static void ZSTD_compressBlock_opt(ZSTD_CCtx* ctx, const void* src, size_t srcSize)
-{
-    ZSTD_compressBlock_opt_generic(ctx, src, srcSize, 0, 2);
+    ZSTD_compressBlock_opt_generic(ctx, src, srcSize, 2);
 }
 
 static void ZSTD_compressBlock_btlazy2(ZSTD_CCtx* ctx, const void* src, size_t srcSize)
@@ -1881,14 +1876,9 @@ static void ZSTD_compressBlock_btlazy2_extDict(ZSTD_CCtx* ctx, const void* src, 
     ZSTD_compressBlock_lazy_extDict_generic(ctx, src, srcSize, 1, 2);
 }
 
-static void ZSTD_compressBlock_opt_extDict(ZSTD_CCtx* ctx, const void* src, size_t srcSize)
+static void ZSTD_compressBlock_btopt_extDict(ZSTD_CCtx* ctx, const void* src, size_t srcSize)
 {
-    ZSTD_compressBlock_opt_extDict_generic(ctx, src, srcSize, 0, 2);
-}
-
-static void ZSTD_compressBlock_opt_bt_extDict(ZSTD_CCtx* ctx, const void* src, size_t srcSize)
-{
-    ZSTD_compressBlock_opt_extDict_generic(ctx, src, srcSize, 1, 2);
+    ZSTD_compressBlock_opt_extDict_generic(ctx, src, srcSize, 2);
 }
 
 
@@ -1896,9 +1886,9 @@ typedef void (*ZSTD_blockCompressor) (ZSTD_CCtx* ctx, const void* src, size_t sr
 
 static ZSTD_blockCompressor ZSTD_selectBlockCompressor(ZSTD_strategy strat, int extDict)
 {
-    static const ZSTD_blockCompressor blockCompressor[2][7] = {
-        { ZSTD_compressBlock_fast, ZSTD_compressBlock_greedy, ZSTD_compressBlock_lazy,ZSTD_compressBlock_lazy2, ZSTD_compressBlock_btlazy2, ZSTD_compressBlock_opt, ZSTD_compressBlock_opt_bt },
-        { ZSTD_compressBlock_fast_extDict, ZSTD_compressBlock_greedy_extDict, ZSTD_compressBlock_lazy_extDict,ZSTD_compressBlock_lazy2_extDict, ZSTD_compressBlock_btlazy2_extDict, ZSTD_compressBlock_opt_extDict, ZSTD_compressBlock_opt_bt_extDict }
+    static const ZSTD_blockCompressor blockCompressor[2][6] = {
+        { ZSTD_compressBlock_fast, ZSTD_compressBlock_greedy, ZSTD_compressBlock_lazy, ZSTD_compressBlock_lazy2, ZSTD_compressBlock_btlazy2, ZSTD_compressBlock_btopt },
+        { ZSTD_compressBlock_fast_extDict, ZSTD_compressBlock_greedy_extDict, ZSTD_compressBlock_lazy_extDict,ZSTD_compressBlock_lazy2_extDict, ZSTD_compressBlock_btlazy2_extDict, ZSTD_compressBlock_btopt_extDict }
     };
 
     return blockCompressor[extDict][(U32)strat];
@@ -2062,7 +2052,6 @@ static size_t ZSTD_loadDictionaryContent(ZSTD_CCtx* zc, const void* src, size_t 
     case ZSTD_greedy:
     case ZSTD_lazy:
     case ZSTD_lazy2:
-    case ZSTD_opt:
         ZSTD_insertAndFindFirstIndex (zc, iend-8, zc->params.searchLength);
         break;
 

@@ -398,139 +398,13 @@ static U32 ZSTD_BtGetAllMatches_selectMLS_extDict (
 }
 
 
-/* ***********************
-*  Hash Chain
-*************************/
-FORCE_INLINE /* inlining is important to hardwire a hot branch (template emulation) */
-U32 ZSTD_HcGetAllMatches_generic (
-                        ZSTD_CCtx* zc,   /* Index table will be updated */
-                        const BYTE* const ip, const BYTE* const iLowLimit, const BYTE* const iHighLimit,
-                        const U32 maxNbAttempts, const U32 mls, const U32 extDict, ZSTD_match_t* matches)
-{
-    U32* const chainTable = zc->contentTable;
-    const U32 chainSize = (1U << zc->params.contentLog);
-    const U32 chainMask = chainSize-1;
-    const BYTE* const base = zc->base;
-    const BYTE* const dictBase = zc->dictBase;
-    const U32 dictLimit = zc->dictLimit;
-    const BYTE* const prefixStart = base + dictLimit;
-    const BYTE* const dictEnd = dictBase + dictLimit;
-    const BYTE* const dictStart  = dictBase + zc->lowLimit;
-    const U32 lowLimit = zc->lowLimit;
-    const U32 current = (U32)(ip-base);
-    const U32 minChain = current > chainSize ? current - chainSize : 0;
-    U32 matchIndex;
-    U32 mnum = 0;
-    const BYTE* match;
-    U32 nbAttempts=maxNbAttempts;
-    size_t minml=MINMATCH-1;
-
-    /* HC4 match finder with update */
-    matchIndex = ZSTD_insertAndFindFirstIndex (zc, ip, mls);
-
-#if MINMATCH == 3
-    /* HC3 match finder */
-    U32 matchIndex3 = zc->hashTable3[ZSTD_hash3Ptr(ip, zc->params.hashLog3)];
-
-    if (matchIndex3>lowLimit) {
-        size_t currentMl=0;
-        if ((!extDict) || matchIndex3 >= dictLimit) {
-            match = base + matchIndex3;
-            if (match[minml] == ip[minml]) currentMl = ZSTD_count(ip, match, iHighLimit);   // faster
-            //if (MEM_readMINMATCH(match) == MEM_readMINMATCH(ip)) currentMl = ZSTD_count(ip+MINMATCH, match+MINMATCH, iHighLimit)+MINMATCH;  // stronger
-        } else {
-            match = dictBase + matchIndex3;
-            if (MEM_readMINMATCH(match) == MEM_readMINMATCH(ip))    /* assumption : matchIndex3 <= dictLimit-4 (by table construction) */
-                currentMl = ZSTD_count_2segments(ip+MINMATCH, match+MINMATCH, iHighLimit, dictEnd, prefixStart) + MINMATCH;
-        }
-
-        /* save best solution */
-        if (currentMl > minml) {
-            minml = currentMl;
-            matches[mnum].off = current - matchIndex3;
-            matches[mnum].len = (U32)currentMl;
-            matches[mnum].back = 0;
-            mnum++;
-            if (currentMl > ZSTD_OPT_NUM) return mnum;
-            if (ip+currentMl == iHighLimit) return mnum; /* best possible, and avoid read overflow*/
-        }
-    }
-#endif
-
-    while ((matchIndex>lowLimit) && (nbAttempts)) {
-        size_t currentMl=0;
-        int back = 0;
-        nbAttempts--;
-        if ((!extDict) || matchIndex >= dictLimit) {
-            match = base + matchIndex;
-            if (match[minml] == ip[minml]) currentMl = ZSTD_count(ip, match, iHighLimit); if (currentMl>0) {   // faster
-            //if (MEM_readMINMATCH(match) == MEM_readMINMATCH(ip)) { currentMl = ZSTD_count(ip+MINMATCH, match+MINMATCH, iHighLimit)+MINMATCH;  // stronger
-                while ((match+back > prefixStart) && (ip+back > iLowLimit) && (ip[back-1] == match[back-1])) back--;
-                currentMl += (U32)(-back);
-            }
-        } else {
-            match = dictBase + matchIndex;
-            if (MEM_readMINMATCH(match) == MEM_readMINMATCH(ip)) {   /* assumption : matchIndex <= dictLimit-4 (by table construction) */
-                currentMl = ZSTD_count_2segments(ip+MINMATCH, match+MINMATCH, iHighLimit, dictEnd, prefixStart) + MINMATCH;
-                while ((match+back > dictStart) && (ip+back > iLowLimit) && (ip[back-1] == match[back-1])) back--;   /* backward match extension */
-                currentMl += (U32)(-back);
-        }   }
-
-        /* save best solution */
-        if (currentMl > minml) {
-            minml = currentMl;
-            matches[mnum].off = current - matchIndex;
-            matches[mnum].len = (U32)currentMl;
-            matches[mnum].back = (U32)(-back);
-            mnum++;
-            if (currentMl > ZSTD_OPT_NUM) break;
-            if (ip+currentMl == iHighLimit) break; /* best possible, and avoid read overflow*/
-        }
-
-        if (matchIndex <= minChain) break;
-        matchIndex = NEXT_IN_CHAIN(matchIndex, chainMask);
-    }
-
-    return mnum;
-}
-
-
-static U32 ZSTD_HcGetAllMatches_selectMLS (
-                        ZSTD_CCtx* zc,
-                        const BYTE* ip, const BYTE* const iLowLimit, const BYTE* const iHighLimit,
-                        const U32 maxNbAttempts, const U32 matchLengthSearch, ZSTD_match_t* matches)
-{
-    switch(matchLengthSearch)
-    {
-    default :
-    case 4 : return ZSTD_HcGetAllMatches_generic(zc, ip, iLowLimit, iHighLimit, maxNbAttempts, 4, 0, matches);
-    case 5 : return ZSTD_HcGetAllMatches_generic(zc, ip, iLowLimit, iHighLimit, maxNbAttempts, 5, 0, matches);
-    case 6 : return ZSTD_HcGetAllMatches_generic(zc, ip, iLowLimit, iHighLimit, maxNbAttempts, 6, 0, matches);
-    }
-}
-
-static U32 ZSTD_HcGetAllMatches_selectMLS_extDict (
-                        ZSTD_CCtx* zc,
-                        const BYTE* ip, const BYTE* const iLowLimit, const BYTE* const iHighLimit,
-                        const U32 maxNbAttempts, const U32 matchLengthSearch, ZSTD_match_t* matches)
-{
-    switch(matchLengthSearch)
-    {
-    default :
-    case 4 : return ZSTD_HcGetAllMatches_generic(zc, ip, iLowLimit, iHighLimit, maxNbAttempts, 4, 1, matches);
-    case 5 : return ZSTD_HcGetAllMatches_generic(zc, ip, iLowLimit, iHighLimit, maxNbAttempts, 5, 1, matches);
-    case 6 : return ZSTD_HcGetAllMatches_generic(zc, ip, iLowLimit, iHighLimit, maxNbAttempts, 6, 1, matches);
-    }
-}
-
-
 /*-*******************************
 *  Optimal parser
 *********************************/
 FORCE_INLINE
 void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
                                     const void* src, size_t srcSize,
-                                    const U32 searchMethod, const U32 depth)
+                                    const U32 depth)
 {
     seqStore_t* seqStorePtr = &(ctx->seqStore);
     const BYTE* const istart = (const BYTE*)src;
@@ -545,17 +419,12 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
     const U32 maxSearches = 1U << ctx->params.searchLog;
     const U32 mls = ctx->params.searchLength;
 
-    typedef U32 (*getAllMatches_f)(ZSTD_CCtx* zc, const BYTE* ip, const BYTE* iLowLimit, const BYTE* iHighLimit,
-                        U32 maxNbAttempts, U32 matchLengthSearch, ZSTD_match_t* matches);
-    getAllMatches_f getAllMatches = searchMethod ? ZSTD_BtGetAllMatches_selectMLS : ZSTD_HcGetAllMatches_selectMLS;
-
     ZSTD_optimal_t opt[ZSTD_OPT_NUM+4];
     ZSTD_match_t matches[ZSTD_OPT_NUM+1];
     const BYTE* inr;
-    U32 skip_num, cur, cur2, match_num, last_pos, litlen, price;
+    U32 cur, cur2, match_num, last_pos, litlen, price;
 
     const U32 sufficient_len = ctx->params.targetLength;
-    const U32 faster_get_matches = (ctx->params.strategy == ZSTD_opt);
 
     /* init */
     ctx->nextToUpdate3 = ctx->nextToUpdate;
@@ -595,10 +464,7 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
             } while (mlen >= MINMATCH);
         }
 
-        if (faster_get_matches && last_pos)
-           match_num = 0;
-        else
-           match_num = getAllMatches(ctx, ip, ip, iend, maxSearches, mls, matches); /* first search (depth 0) */
+        match_num = ZSTD_BtGetAllMatches_selectMLS_extDict(ctx, ip, ip, iend, maxSearches, mls, matches); /* first search (depth 0) */
 
         ZSTD_LOG_PARSER("%d: match_num=%d last_pos=%d\n", (int)(ip-base), match_num, last_pos);
         if (!last_pos && !match_num) { ip++; continue; }
@@ -633,7 +499,7 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
         if (last_pos < MINMATCH) { ip++; continue; }
 
          /* check further positions */
-        for (skip_num = 0, cur = 1; cur <= last_pos; cur++) {
+        for (cur = 1; cur <= last_pos; cur++) {
            size_t cur_rep;
            inr = ip + cur;
 
@@ -715,8 +581,7 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
                 }
 
                 best_mlen = mlen;
-                if (faster_get_matches) skip_num = best_mlen;
-                ZSTD_LOG_PARSER("%d: Found REP mlen=%d off=%d price=%d litlen=%d\n", (int)(inr-base), mlen, 0, price, litlen);
+                 ZSTD_LOG_PARSER("%d: Found REP mlen=%d off=%d price=%d litlen=%d\n", (int)(inr-base), mlen, 0, price, litlen);
 
                 do {
                     if (cur + mlen > last_pos || price <= opt[cur + mlen].price)
@@ -725,9 +590,7 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
                 } while (mlen >= MINMATCH);
             }
 
-            if (faster_get_matches && skip_num > 0) { skip_num--; continue; }
-
-            match_num = getAllMatches(ctx, inr, ip, iend, maxSearches, mls, matches);
+            match_num = ZSTD_BtGetAllMatches_selectMLS_extDict(ctx, inr, ip, iend, maxSearches, mls, matches);
             ZSTD_LOG_PARSER("%d: ZSTD_GetAllMatches match_num=%d\n", (int)(inr-base), match_num);
 
             if (match_num > 0 && matches[match_num-1].len > sufficient_len) {
@@ -769,7 +632,7 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
                         SET_PRICE(cur2 + mlen, mlen, matches[u].off, litlen, price);
 
                     mlen++;
-        }   }   }   //  for (skip_num = 0, cur = 1; cur <= last_pos; cur++)
+        }   }   }   //  for (cur = 1; cur <= last_pos; cur++)
 
         best_mlen = opt[last_pos].mlen;
         best_off = opt[last_pos].off;
@@ -879,7 +742,7 @@ _storeSequence:   /* cur, last_pos, best_mlen, best_off have to be set */
 FORCE_INLINE
 void ZSTD_compressBlock_opt_extDict_generic(ZSTD_CCtx* ctx,
                                      const void* src, size_t srcSize,
-                                     const U32 searchMethod, const U32 depth)
+                                     const U32 depth)
 {
     seqStore_t* seqStorePtr = &(ctx->seqStore);
     const BYTE* const istart = (const BYTE*)src;
@@ -898,17 +761,12 @@ void ZSTD_compressBlock_opt_extDict_generic(ZSTD_CCtx* ctx,
     const U32 maxSearches = 1U << ctx->params.searchLog;
     const U32 mls = ctx->params.searchLength;
 
-    typedef U32 (*getAllMatches_f)(ZSTD_CCtx* zc, const BYTE* ip, const BYTE* iLowLimit, const BYTE* iHighLimit,
-                        U32 maxNbAttempts, U32 matchLengthSearch, ZSTD_match_t* matches);
-    getAllMatches_f getAllMatches = searchMethod ? ZSTD_BtGetAllMatches_selectMLS_extDict : ZSTD_HcGetAllMatches_selectMLS_extDict;
-
     ZSTD_optimal_t opt[ZSTD_OPT_NUM+4];
     ZSTD_match_t matches[ZSTD_OPT_NUM+1];
     const BYTE* inr;
-    U32 skip_num, cur, cur2, match_num, last_pos, litlen, price;
+    U32 cur, cur2, match_num, last_pos, litlen, price;
 
     const U32 sufficient_len = ctx->params.targetLength;
-    const U32 faster_get_matches = (ctx->params.strategy == ZSTD_opt);
 
     /* init */
     ctx->nextToUpdate3 = ctx->nextToUpdate;
@@ -955,10 +813,7 @@ void ZSTD_compressBlock_opt_extDict_generic(ZSTD_CCtx* ctx,
 
        best_mlen = (last_pos) ? last_pos : MINMATCH;
 
-       if (faster_get_matches && last_pos)
-           match_num = 0;
-       else
-           match_num = getAllMatches(ctx, ip, ip, iend, maxSearches, mls, matches);  /* first search (depth 0) */
+       match_num = ZSTD_BtGetAllMatches_selectMLS_extDict(ctx, ip, ip, iend, maxSearches, mls, matches);  /* first search (depth 0) */
 
        ZSTD_LOG_PARSER("%d: match_num=%d last_pos=%d\n", (int)(ip-base), match_num, last_pos);
        if (!last_pos && !match_num) { ip++; continue; }
@@ -994,7 +849,7 @@ void ZSTD_compressBlock_opt_extDict_generic(ZSTD_CCtx* ctx,
         }
 
         /* check further positions */
-        for (skip_num = 0, cur = 1; cur <= last_pos; cur++) {
+        for (cur = 1; cur <= last_pos; cur++) {
            size_t cur_rep;
            inr = ip + cur;
 
@@ -1082,7 +937,6 @@ void ZSTD_compressBlock_opt_extDict_generic(ZSTD_CCtx* ctx,
                 }
 
                 best_mlen = mlen;
-                if (faster_get_matches) skip_num = best_mlen;
 
                 ZSTD_LOG_PARSER("%d: Found REP mlen=%d off=%d price=%d litlen=%d\n", (int)(inr-base), mlen, 0, price, litlen);
 
@@ -1093,11 +947,9 @@ void ZSTD_compressBlock_opt_extDict_generic(ZSTD_CCtx* ctx,
                 } while (mlen >= MINMATCH);
             }
 
-            if (faster_get_matches && skip_num > 0) { skip_num--; continue; }
-
             best_mlen = (best_mlen > MINMATCH) ? best_mlen : MINMATCH;
 
-            match_num = getAllMatches(ctx, inr, ip, iend, maxSearches, mls, matches);
+            match_num = ZSTD_BtGetAllMatches_selectMLS_extDict(ctx, inr, ip, iend, maxSearches, mls, matches);
             ZSTD_LOG_PARSER("%d: ZSTD_GetAllMatches match_num=%d\n", (int)(inr-base), match_num);
 
             if (match_num > 0 && matches[match_num-1].len > sufficient_len) {
@@ -1137,7 +989,7 @@ void ZSTD_compressBlock_opt_extDict_generic(ZSTD_CCtx* ctx,
                         SET_PRICE(cur2 + mlen, mlen, matches[u].off, litlen, price);
 
                     mlen++;
-        }   }   }   //  for (skip_num = 0, cur = 1; cur <= last_pos; cur++)
+        }   }   }   //  for (cur = 1; cur <= last_pos; cur++)
 
         best_mlen = opt[last_pos].mlen;
         best_off = opt[last_pos].off;

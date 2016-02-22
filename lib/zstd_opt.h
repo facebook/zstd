@@ -50,6 +50,7 @@ FORCE_INLINE U32 ZSTD_GETPRICE(seqStore_t* seqStorePtr, U32 litLength, const BYT
         return price + 1 + ((seqStorePtr->litSum>>4) / seqStorePtr->litLengthSum) + (matchLength==0);
 
     return price + ZSTD_getLiteralPrice(seqStorePtr, litLength, literals) + ((seqStorePtr->litSum>>4) / seqStorePtr->litLengthSum) + (matchLength==0);
+//    return price + ZSTD_getLiteralPrice(seqStorePtr, litLength, literals);
 }
 
 

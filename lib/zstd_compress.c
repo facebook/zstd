@@ -1369,6 +1369,7 @@ static void ZSTD_updateTree_extDict(ZSTD_CCtx* zc, const BYTE* const ip, const B
     while (idx < target) idx += ZSTD_insertBt1(zc, base+idx, mls, iend, nbCompares, 1);
 }
 
+#include "zstd_opt_internal.h"
 
 /** Tree updater, providing best match */
 static size_t ZSTD_BtFindBestMatch_extDict (
@@ -1410,10 +1411,6 @@ static size_t ZSTD_BtFindBestMatch_selectMLS_extDict (
 FORCE_INLINE
 U32 ZSTD_insertAndFindFirstIndex (ZSTD_CCtx* zc, const BYTE* ip, U32 mls)
 {
-#if MINMATCH == 3
-    U32* const hashTable3  = zc->hashTable3;
-    const U32 hashLog3 = zc->params.hashLog3;
-#endif 
     U32* const hashTable  = zc->hashTable;
     const U32 hashLog = zc->params.hashLog;
     U32* const chainTable = zc->contentTable;
@@ -1426,17 +1423,12 @@ U32 ZSTD_insertAndFindFirstIndex (ZSTD_CCtx* zc, const BYTE* ip, U32 mls)
         size_t h = ZSTD_hashPtr(base+idx, hashLog, mls);
         NEXT_IN_CHAIN(idx, chainMask) = hashTable[h];
         hashTable[h] = idx;
-#if MINMATCH == 3
-        hashTable3[ZSTD_hash3Ptr(base+idx, hashLog3)] = idx;
-#endif 
         idx++;
     }
 
     zc->nextToUpdate = target;
     return hashTable[ZSTD_hashPtr(ip, hashLog, mls)];
 }
-
-#include "zstd_opt.h"
 
 
 FORCE_INLINE /* inlining is important to hardwire a hot branch (template emulation) */
@@ -1659,7 +1651,10 @@ _storeSequence:
 
 static void ZSTD_compressBlock_btopt(ZSTD_CCtx* ctx, const void* src, size_t srcSize)
 {
-    ZSTD_compressBlock_opt_generic(ctx, src, srcSize, 2);
+    if (ctx->params.searchLength == 3)
+        ZSTD_compressBlock_opt_generic3(ctx, src, srcSize, 2);
+    else
+        ZSTD_compressBlock_opt_generic4(ctx, src, srcSize, 2);
 }
 
 static void ZSTD_compressBlock_btlazy2(ZSTD_CCtx* ctx, const void* src, size_t srcSize)
@@ -1878,7 +1873,10 @@ static void ZSTD_compressBlock_btlazy2_extDict(ZSTD_CCtx* ctx, const void* src, 
 
 static void ZSTD_compressBlock_btopt_extDict(ZSTD_CCtx* ctx, const void* src, size_t srcSize)
 {
-    ZSTD_compressBlock_opt_extDict_generic(ctx, src, srcSize, 2);
+    if (ctx->params.searchLength == 3)
+        ZSTD_compressBlock_opt_extDict_generic3(ctx, src, srcSize, 2);
+    else
+        ZSTD_compressBlock_opt_extDict_generic4(ctx, src, srcSize, 2);
 }
 
 
@@ -2261,7 +2259,7 @@ size_t ZSTD_compress(void* dst, size_t maxDstSize, const void* src, size_t srcSi
 
 /*-=====  Pre-defined compression levels  =====-*/
 
-#define ZSTD_MAX_CLEVEL 21
+#define ZSTD_MAX_CLEVEL 22
 unsigned ZSTD_maxCLevel(void) { return ZSTD_MAX_CLEVEL; }
 
 
@@ -2290,6 +2288,7 @@ static const ZSTD_parameters ZSTD_defaultParameters[4][ZSTD_MAX_CLEVEL+1] = {
     {  0, 25, 25, 24, 16,  5,  4, 40, ZSTD_btopt   },  /* level 19 */
     {  0, 26, 26, 25, 16,  8,  4,256, ZSTD_btopt   },  /* level 20 */
     {  0, 26, 27, 25, 24, 10,  4,256, ZSTD_btopt   },  /* level 21 */
+    {  0, 26, 26, 25, 16,  8,  3,256, ZSTD_btopt   },  /* level 20+MM3 */
 },
 {   /* for srcSize <= 256 KB */
     /* l,  W,  C,  H, H3,  S,  L,  T, strat */

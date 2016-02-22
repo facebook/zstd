@@ -2317,6 +2317,10 @@ static const ZSTD_parameters ZSTD_defaultParameters[4][ZSTD_MAX_CLEVEL+1] = {
     {  0, 18, 19, 18,  0, 10,  4,256, ZSTD_btopt   },  /* level 19.*/
     {  0, 18, 19, 18,  0, 11,  4,256, ZSTD_btopt   },  /* level 20.*/
     {  0, 18, 19, 18,  0, 12,  4,256, ZSTD_btopt   },  /* level 21.*/
+    {  0, 18, 19, 18,  0, 12,  4,256, ZSTD_btopt   },  /* level 21-2*/
+    {  0, 18, 19, 18,  0, 12,  4,256, ZSTD_btopt   },  /* level 21-3*/
+    {  0, 18, 19, 18,  0, 12,  4,256, ZSTD_btopt   },  /* level 21-4*/
+    {  0, 18, 19, 18,  0, 12,  4,256, ZSTD_btopt   },  /* level 21-5*/
 },
 {   /* for srcSize <= 128 KB */
     /* l,  W,  C,  H, H3,  S,  L,  T, strat */
@@ -2342,6 +2346,10 @@ static const ZSTD_parameters ZSTD_defaultParameters[4][ZSTD_MAX_CLEVEL+1] = {
     {  0, 17, 18, 17,  0,  9,  4,256, ZSTD_btopt   },  /* level 19 */
     {  0, 17, 18, 17,  0, 10,  4,512, ZSTD_btopt   },  /* level 20 */
     {  0, 17, 18, 17,  0, 11,  4,512, ZSTD_btopt   },  /* level 21 */
+    {  0, 17, 18, 17,  0, 11,  4,512, ZSTD_btopt   },  /* level 21-2 */
+    {  0, 17, 18, 17,  0, 11,  4,512, ZSTD_btopt   },  /* level 21-3 */
+    {  0, 17, 18, 17,  0, 11,  4,512, ZSTD_btopt   },  /* level 21-4 */
+    {  0, 17, 18, 17,  0, 11,  4,512, ZSTD_btopt   },  /* level 21-5 */
 
 },
 {   /* for srcSize <= 16 KB */
@@ -2368,6 +2376,10 @@ static const ZSTD_parameters ZSTD_defaultParameters[4][ZSTD_MAX_CLEVEL+1] = {
     {  0, 14, 15, 15,  0, 15,  4,256, ZSTD_btopt   },  /* level 19 */
     {  0, 14, 15, 15,  0, 16,  4,256, ZSTD_btopt   },  /* level 20 */
     {  0, 14, 15, 15,  0, 17,  4,256, ZSTD_btopt   },  /* level 21 */
+    {  0, 14, 15, 15,  0, 17,  4,256, ZSTD_btopt   },  /* level 21-2 */
+    {  0, 14, 15, 15,  0, 17,  4,256, ZSTD_btopt   },  /* level 21-3 */
+    {  0, 14, 15, 15,  0, 17,  4,256, ZSTD_btopt   },  /* level 21-4 */
+    {  0, 14, 15, 15,  0, 17,  4,256, ZSTD_btopt   },  /* level 21-5 */
 },
 };
 

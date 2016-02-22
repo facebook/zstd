@@ -292,7 +292,8 @@ size_t ZSTD_getFrameParams(ZSTD_parameters* params, const void* src, size_t srcS
     if (magicNumber != ZSTD_MAGICNUMBER) return ERROR(prefix_unknown);
     memset(params, 0, sizeof(*params));
     params->windowLog = (((const BYTE*)src)[4] & 15) + ZSTD_WINDOWLOG_ABSOLUTEMIN;
-    if ((((const BYTE*)src)[4] >> 4) != 0) return ERROR(frameParameter_unsupported);   /* reserved bits */
+    params->searchLength = (((const BYTE*)src)[4] & 16) ? MINMATCH-1 : MINMATCH;
+    if ((((const BYTE*)src)[4] >> 5) != 0) return ERROR(frameParameter_unsupported);   /* reserved 3 bits */
     return 0;
 }
 
@@ -614,7 +615,7 @@ typedef struct {
 
 
 
-static void ZSTD_decodeSequence(seq_t* seq, seqState_t* seqState)
+static void ZSTD_decodeSequence(seq_t* seq, seqState_t* seqState, const U32 mls)
 {
     size_t litLength;
     size_t prevOffset;
@@ -669,7 +670,7 @@ static void ZSTD_decodeSequence(seq_t* seq, seqState_t* seqState)
         }
         if (dumps >= de) dumps = de-1;   /* late correction, to avoid read overflow (data is now corrupted anyway) */
     }
-    matchLength += MINMATCH;
+    matchLength += mls;
 
     /* save result */
     seq->litLength = litLength;
@@ -784,6 +785,7 @@ static size_t ZSTD_decompressSequences(
     const BYTE* const base = (const BYTE*) (dctx->base);
     const BYTE* const vBase = (const BYTE*) (dctx->vBase);
     const BYTE* const dictEnd = (const BYTE*) (dctx->dictEnd);
+    const U32 mls = dctx->params.searchLength;
 
     /* Build Decoding Tables */
     errorCode = ZSTD_decodeSeqHeaders(&nbSeq, &dumps, &dumpsLength,
@@ -811,7 +813,7 @@ static size_t ZSTD_decompressSequences(
         for ( ; (BIT_reloadDStream(&(seqState.DStream)) <= BIT_DStream_completed) && nbSeq ; ) {
             size_t oneSeqSize;
             nbSeq--;
-            ZSTD_decodeSequence(&sequence, &seqState);
+            ZSTD_decodeSequence(&sequence, &seqState, mls);
             oneSeqSize = ZSTD_execSequence(op, oend, sequence, &litPtr, litLimit_8, base, vBase, dictEnd);
             if (ZSTD_isError(oneSeqSize)) return oneSeqSize;
             op += oneSeqSize;

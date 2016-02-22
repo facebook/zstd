@@ -279,7 +279,6 @@ static U32 ZSTD_insertBtAndGetAllMatches (
             bestLength = currentMl;
             matches[mnum].off = current - matchIndex3;
             matches[mnum].len = (U32)currentMl;
-            matches[mnum].back = 0;
             mnum++;
             if (currentMl > ZSTD_OPT_NUM) return mnum;
             if (ip+currentMl == iLimit) return mnum; /* best possible, and avoid read overflow*/
@@ -313,7 +312,6 @@ static U32 ZSTD_insertBtAndGetAllMatches (
             bestLength = matchLength;
             matches[mnum].off = current - matchIndex;
             matches[mnum].len = (U32)matchLength;
-            matches[mnum].back = 0;
             mnum++;
             if (matchLength > ZSTD_OPT_NUM) break;
             if (ip+matchLength == iLimit)   /* equal : no way to know if inf or sup */
@@ -422,7 +420,7 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
     ZSTD_optimal_t opt[ZSTD_OPT_NUM+4];
     ZSTD_match_t matches[ZSTD_OPT_NUM+1];
     const BYTE* inr;
-    U32 cur, cur2, match_num, last_pos, litlen, price;
+    U32 cur, match_num, last_pos, litlen, price;
 
     const U32 sufficient_len = ctx->params.targetLength;
 
@@ -594,7 +592,6 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
             ZSTD_LOG_PARSER("%d: ZSTD_GetAllMatches match_num=%d\n", (int)(inr-base), match_num);
 
             if (match_num > 0 && matches[match_num-1].len > sufficient_len) {
-                cur -= matches[match_num-1].back;
                 best_mlen = matches[match_num-1].len;
                 best_off = matches[match_num-1].off;
                 last_pos = cur + 1;
@@ -606,30 +603,27 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
             /* set prices using matches at position = cur */
             for (u = 0; u < match_num; u++) {
                 mlen = (u>0) ? matches[u-1].len+1 : best_mlen;
-                cur2 = cur - matches[u].back;
-                best_mlen = (cur2 + matches[u].len < ZSTD_OPT_NUM) ? matches[u].len : ZSTD_OPT_NUM - cur2;
+                best_mlen = (cur + matches[u].len < ZSTD_OPT_NUM) ? matches[u].len : ZSTD_OPT_NUM - cur;
 
-                ZSTD_LOG_PARSER("%d: Found1 cur=%d cur2=%d mlen=%d off=%d best_mlen=%d last_pos=%d\n", (int)(inr-base), cur, cur2, matches[u].len, matches[u].off, best_mlen, last_pos);
-                if (mlen < matches[u].back + 1)
-                    mlen = matches[u].back + 1;
+                ZSTD_LOG_PARSER("%d: Found1 cur=%d mlen=%d off=%d best_mlen=%d last_pos=%d\n", (int)(inr-base), cur, matches[u].len, matches[u].off, best_mlen, last_pos);
 
                 while (mlen <= best_mlen) {
-                    if (opt[cur2].mlen == 1) {
-                        litlen = opt[cur2].litlen;
-                        if (cur2 > litlen)
-                            price = opt[cur2 - litlen].price + ZSTD_getPrice(seqStorePtr, litlen, ip+cur2-litlen, matches[u].off, mlen);
+                    if (opt[cur].mlen == 1) {
+                        litlen = opt[cur].litlen;
+                        if (cur > litlen)
+                            price = opt[cur - litlen].price + ZSTD_getPrice(seqStorePtr, litlen, ip+cur-litlen, matches[u].off, mlen);
                         else
                             price = ZSTD_getPrice(seqStorePtr, litlen, litstart, matches[u].off, mlen);
                     } else {
                         litlen = 0;
-                        price = opt[cur2].price + ZSTD_getPrice(seqStorePtr, 0, NULL, matches[u].off, mlen);
+                        price = opt[cur].price + ZSTD_getPrice(seqStorePtr, 0, NULL, matches[u].off, mlen);
                     }
 
-                    ZSTD_LOG_PARSER("%d: Found2 pred=%d mlen=%d best_mlen=%d off=%d price=%d litlen=%d\n", (int)(inr-base), matches[u].back, mlen, best_mlen, matches[u].off, price, litlen);
-                    ZSTD_LOG_TRY_PRICE("%d: TRY8 price=%d opt[%d].price=%d\n", (int)(inr-base), price, cur2 + mlen, opt[cur2 + mlen].price);
+                    ZSTD_LOG_PARSER("%d: Found2 mlen=%d best_mlen=%d off=%d price=%d litlen=%d\n", (int)(inr-base), mlen, best_mlen, matches[u].off, price, litlen);
+                    ZSTD_LOG_TRY_PRICE("%d: TRY8 price=%d opt[%d].price=%d\n", (int)(inr-base), price, cur + mlen, opt[cur + mlen].price);
 
-                    if (cur2 + mlen > last_pos || (price < opt[cur2 + mlen].price))
-                        SET_PRICE(cur2 + mlen, mlen, matches[u].off, litlen, price);
+                    if (cur + mlen > last_pos || (price < opt[cur + mlen].price))
+                        SET_PRICE(cur + mlen, mlen, matches[u].off, litlen, price);
 
                     mlen++;
         }   }   }   //  for (cur = 1; cur <= last_pos; cur++)
@@ -764,7 +758,7 @@ void ZSTD_compressBlock_opt_extDict_generic(ZSTD_CCtx* ctx,
     ZSTD_optimal_t opt[ZSTD_OPT_NUM+4];
     ZSTD_match_t matches[ZSTD_OPT_NUM+1];
     const BYTE* inr;
-    U32 cur, cur2, match_num, last_pos, litlen, price;
+    U32 cur, match_num, last_pos, litlen, price;
 
     const U32 sufficient_len = ctx->params.targetLength;
 
@@ -953,7 +947,6 @@ void ZSTD_compressBlock_opt_extDict_generic(ZSTD_CCtx* ctx,
             ZSTD_LOG_PARSER("%d: ZSTD_GetAllMatches match_num=%d\n", (int)(inr-base), match_num);
 
             if (match_num > 0 && matches[match_num-1].len > sufficient_len) {
-                cur -= matches[match_num-1].back;
                 best_mlen = matches[match_num-1].len;
                 best_off = matches[match_num-1].off;
                 last_pos = cur + 1;
@@ -963,30 +956,27 @@ void ZSTD_compressBlock_opt_extDict_generic(ZSTD_CCtx* ctx,
             // set prices using matches at position = cur
             for (u = 0; u < match_num; u++) {
                 mlen = (u>0) ? matches[u-1].len+1 : best_mlen;
-                cur2 = cur - matches[u].back;
-                best_mlen = (cur2 + matches[u].len < ZSTD_OPT_NUM) ? matches[u].len : ZSTD_OPT_NUM - cur2;
+                best_mlen = (cur + matches[u].len < ZSTD_OPT_NUM) ? matches[u].len : ZSTD_OPT_NUM - cur;
 
-                ZSTD_LOG_PARSER("%d: Found1 cur=%d cur2=%d mlen=%d off=%d best_mlen=%d last_pos=%d\n", (int)(inr-base), cur, cur2, matches[u].len, matches[u].off, best_mlen, last_pos);
-                if (mlen < matches[u].back + 1)
-                    mlen = matches[u].back + 1;
+                ZSTD_LOG_PARSER("%d: Found1 cur=%d mlen=%d off=%d best_mlen=%d last_pos=%d\n", (int)(inr-base), cur, matches[u].len, matches[u].off, best_mlen, last_pos);
 
                 while (mlen <= best_mlen) {
-                    if (opt[cur2].mlen == 1) {
-                        litlen = opt[cur2].litlen;
-                        if (cur2 > litlen)
-                            price = opt[cur2 - litlen].price + ZSTD_getPrice(seqStorePtr, litlen, ip+cur2-litlen, matches[u].off, mlen);
+                    if (opt[cur].mlen == 1) {
+                        litlen = opt[cur].litlen;
+                        if (cur > litlen)
+                            price = opt[cur - litlen].price + ZSTD_getPrice(seqStorePtr, litlen, ip+cur-litlen, matches[u].off, mlen);
                         else
                             price = ZSTD_getPrice(seqStorePtr, litlen, litstart, matches[u].off, mlen);
                     } else {
                         litlen = 0;
-                        price = opt[cur2].price + ZSTD_getPrice(seqStorePtr, 0, NULL, matches[u].off, mlen);
+                        price = opt[cur].price + ZSTD_getPrice(seqStorePtr, 0, NULL, matches[u].off, mlen);
                     }
 
-                    ZSTD_LOG_PARSER("%d: Found2 pred=%d mlen=%d best_mlen=%d off=%d price=%d litlen=%d\n", (int)(inr-base), matches[u].back, mlen, best_mlen, matches[u].off, price, litlen);
-                    ZSTD_LOG_TRY_PRICE("%d: TRY8 price=%d opt[%d].price=%d\n", (int)(inr-base), price, cur2 + mlen, opt[cur2 + mlen].price);
+                    ZSTD_LOG_PARSER("%d: Found2 mlen=%d best_mlen=%d off=%d price=%d litlen=%d\n", (int)(inr-base), mlen, best_mlen, matches[u].off, price, litlen);
+                    ZSTD_LOG_TRY_PRICE("%d: TRY8 price=%d opt[%d].price=%d\n", (int)(inr-base), price, cur + mlen, opt[cur + mlen].price);
 
-                    if (cur2 + mlen > last_pos || (price < opt[cur2 + mlen].price))
-                        SET_PRICE(cur2 + mlen, mlen, matches[u].off, litlen, price);
+                    if (cur + mlen > last_pos || (price < opt[cur + mlen].price))
+                        SET_PRICE(cur + mlen, mlen, matches[u].off, litlen, price);
 
                     mlen++;
         }   }   }   //  for (cur = 1; cur <= last_pos; cur++)

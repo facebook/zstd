@@ -43,7 +43,7 @@
 #define ZSTD_OPT_NUM    (1<<12)
 #define ZSTD_FREQ_START 1
 #define ZSTD_FREQ_STEP  1
-#define ZSTD_FREQ_DIV   5
+#define ZSTD_FREQ_DIV   4
 
 /*-  Debug  -*/
 #if defined(ZSTD_OPT_DEBUG) && ZSTD_OPT_DEBUG>=9
@@ -81,7 +81,8 @@ MEM_STATIC void ZSTD_rescaleFreqs(seqStore_t* ssPtr)
         ssPtr->litLengthSum = (1<<LLbits);
         ssPtr->litSum = (1<<Litbits);
         ssPtr->offCodeSum = (1<<Offbits);
-
+        ssPtr->matchSum = 0;
+        
         for (u=0; u<=MaxLit; u++)
             ssPtr->litFreq[u] = 1;
         for (u=0; u<=MaxLL; u++)
@@ -94,8 +95,8 @@ MEM_STATIC void ZSTD_rescaleFreqs(seqStore_t* ssPtr)
         ssPtr->matchLengthSum = 0;
         ssPtr->litLengthSum = 0;
         ssPtr->litSum = 0;
-        ssPtr->matchSum = 0;
         ssPtr->offCodeSum = 0;
+        ssPtr->matchSum = 0;
 
         for (u=0; u<=MaxLit; u++) {
             ssPtr->litFreq[u] = ZSTD_FREQ_START + (ssPtr->litFreq[u]>>ZSTD_FREQ_DIV);
@@ -149,6 +150,9 @@ MEM_STATIC void ZSTD_updatePrice(seqStore_t* seqStorePtr, U32 litLength, const B
 FORCE_INLINE U32 ZSTD_getLiteralPrice(seqStore_t* seqStorePtr, U32 litLength, const BYTE* literals)
 {
     U32 price, u;
+
+    if (litLength == 0)
+        return ZSTD_highbit(seqStorePtr->litLengthSum) - ZSTD_highbit(seqStorePtr->litLengthFreq[0]);
 
     /* literals */
     price = litLength * ZSTD_highbit(seqStorePtr->litSum);

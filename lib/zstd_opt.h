@@ -44,21 +44,17 @@ FORCE_INLINE U32 ZSTD_GETPRICE(seqStore_t* seqStorePtr, U32 litLength, const BYT
     matchLength -= MINMATCHOPT;
     price += ((matchLength >= MaxML)<<3) + ((matchLength >= 255+MaxML)<<4) + ((matchLength>=(1<<15))<<3);
     if (matchLength >= MaxML) matchLength = MaxML;
-    price += ZSTD_highbit(seqStorePtr->matchLengthSum) - ZSTD_highbit(seqStorePtr->matchLengthFreq[matchLength]);
+    price += ZSTD_getLiteralPrice(seqStorePtr, litLength, literals) + ZSTD_highbit(seqStorePtr->matchLengthSum) - ZSTD_highbit(seqStorePtr->matchLengthFreq[matchLength]);
 
-#define ZSTD_PRICE_MULT 2
     switch (seqStorePtr->priceFunc)
     {
         default:
         case 0:
-            if (!litLength) return price + 1 + ((seqStorePtr->litSum<<ZSTD_PRICE_MULT) / (seqStorePtr->litSum + seqStorePtr->matchSum)) + (matchLength==0);
-            return price + ZSTD_getLiteralPrice(seqStorePtr, litLength, literals) + ((seqStorePtr->litSum<<ZSTD_PRICE_MULT) / (seqStorePtr->litSum + seqStorePtr->matchSum)) + (matchLength==0);
+            return price + ((seqStorePtr->litSum>>4) / seqStorePtr->litLengthSum);
         case 1:
-            if (!litLength) return price + 1 + ((seqStorePtr->litSum>>5) / seqStorePtr->litLengthSum) + (matchLength==0);
-            return price + ZSTD_getLiteralPrice(seqStorePtr, litLength, literals) + ((seqStorePtr->litSum>>5) / seqStorePtr->litLengthSum) + (matchLength==0);
+            return price + ((seqStorePtr->litSum<<1) / (seqStorePtr->litSum + seqStorePtr->matchSum));
         case 2:
-            if (!litLength) return price + 1;
-            return price + ZSTD_getLiteralPrice(seqStorePtr, litLength, literals);
+            return price;
     }
 }
 

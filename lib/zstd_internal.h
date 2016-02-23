@@ -50,7 +50,7 @@
 /*-*************************************
 *  Common constants
 ***************************************/
-#define ZSTD_OPT_DEBUG 3     // 1 = tableID=0;  3 = print block stats;  5 = check encoded sequences;  9 = full logs
+#define ZSTD_OPT_DEBUG 0     // 1 = tableID=0;  3 = print block stats;  5 = check encoded sequences;  9 = full logs
 #if ZSTD_OPT_DEBUG > 0
     #include <stdio.h>  /* for debug */
 #endif

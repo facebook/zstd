@@ -618,6 +618,14 @@ static void ZDICT_countEStats(EStats_ress_t esr,
         litlengthCount[*bytePtr]++;
 }
 
+static size_t ZDICT_maxSampleSize(const size_t* fileSizes, unsigned nbFiles)
+{
+    unsigned u;
+    size_t max=0;
+    for (u=0; u<nbFiles; u++)
+        if (max < fileSizes[u]) max = fileSizes[u];
+    return max;
+}
 
 #define OFFCODE_MAX 18  /* only applicable to first block */
 static size_t ZDICT_analyzeEntropy(void*  dstBuffer, size_t maxDstSize,
@@ -653,7 +661,7 @@ static size_t ZDICT_analyzeEntropy(void*  dstBuffer, size_t maxDstSize,
             goto _cleanup;
     }
     if (compressionLevel==0) compressionLevel=g_compressionLevel_default;
-    params = ZSTD_getParams(compressionLevel, dictBufferSize + 15 KB);
+    params = ZSTD_getParams(compressionLevel, MAX(dictBufferSize, ZDICT_maxSampleSize(fileSizes, nbFiles)));
     params.strategy = ZSTD_greedy;
     ZSTD_compressBegin_advanced(esr.ref, dictBuffer, dictBufferSize, params);
 
@@ -800,7 +808,7 @@ size_t ZDICT_trainFromBuffer_unsafe(
     dictItem* dictList = (dictItem*)malloc(dictListSize * sizeof(*dictList));
     unsigned selectivity = params.selectivityLevel;
     unsigned compressionLevel = params.compressionLevel;
-    size_t targetDictSize = maxDictSize - g_provision_entropySize;
+    size_t targetDictSize = maxDictSize;
     size_t sBuffSize;
     size_t dictSize = 0;
 
@@ -859,8 +867,8 @@ size_t ZDICT_trainFromBuffer_unsafe(
         if (selectivity==1) {  /* note could also be used to complete a dictionary, but not necessarily better */
             DISPLAYLEVEL(3, "\r%70s\r", "");   /* clean display line */
             DISPLAYLEVEL(3, "Adding %u KB with fast sampling \n", (U32)(targetDictSize>>10));
-            dictContentSize = (U32)ZDICT_fastSampling((char*)dictBuffer + g_provision_entropySize,
-                                               targetDictSize, samplesBuffer, sBuffSize);
+            dictContentSize = (U32)ZDICT_fastSampling(dictBuffer, targetDictSize,
+                                                      samplesBuffer, sBuffSize);
         }
 
        /* dictionary header */

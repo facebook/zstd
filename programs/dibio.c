@@ -259,7 +259,7 @@ int DiB_trainFromFiles(const char* dictFileName, unsigned maxDictSize,
                         srcBuffer, fileSizes, nbFiles,
                         params);
     if (ZDICT_isError(dictSize)) {
-        DISPLAYLEVEL(1, "dictionary training failed : %s", ZDICT_getErrorName(dictSize));   /* should not happen */
+        DISPLAYLEVEL(1, "dictionary training failed : %s \n", ZDICT_getErrorName(dictSize));   /* should not happen */
         result = 1;
         goto _cleanup;
     }

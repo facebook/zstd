@@ -75,9 +75,7 @@ typedef struct {
 MEM_STATIC void ZSTD_rescaleFreqs(seqStore_t* ssPtr)
 {
     unsigned u;
-    
- //   printf("matchLengthSum=%d litLengthSum=%d litSum=%d offCodeSum=%d\n", ssPtr->matchLengthSum, ssPtr->litLengthSum, ssPtr->litSum, ssPtr->offCodeSum);
-    
+
     if (ssPtr->litLengthSum == 0) {
         ssPtr->matchLengthSum = (1<<MLbits);
         ssPtr->litLengthSum = (1<<LLbits);

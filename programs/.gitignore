@@ -29,3 +29,6 @@ datagen
 # Visual solution files
 *.suo
 *.user
+
+# Default dictionary name
+dictionary

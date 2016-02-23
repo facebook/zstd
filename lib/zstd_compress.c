@@ -726,6 +726,12 @@ MEM_STATIC void ZSTD_storeSeq(seqStore_t* seqStorePtr, size_t litLength, const B
     printf("pos %6u : %3u literals & match %3u bytes at distance %6u \n",
            (U32)(literals - g_start), (U32)litLength, (U32)matchCode+MINMATCH, (U32)offsetCode);
 #endif
+#if ZSTD_OPT_DEBUG >= 3
+    if (offsetCode == 0) seqStorePtr->realRepSum++;
+    seqStorePtr->realSeqSum++;
+    seqStorePtr->realMatchSum += matchCode;
+    seqStorePtr->realLitSum += litLength;
+#endif
 
     /* copy Literals */
     ZSTD_wildcopy(seqStorePtr->lit, literals, litLength);
@@ -1912,6 +1918,9 @@ static size_t ZSTD_compress_generic (ZSTD_CCtx* zc,
     BYTE* const ostart = (BYTE*)dst;
     BYTE* op = ostart;
     const U32 maxDist = 1 << zc->params.windowLog;
+    seqStore_t* ssPtr = &zc->seqStore;
+
+    ssPtr->realMatchSum = ssPtr->realLitSum = ssPtr->realSeqSum = ssPtr->realRepSum = 0;
 
     while (remaining) {
         size_t cSize;
@@ -1944,6 +1953,11 @@ static size_t ZSTD_compress_generic (ZSTD_CCtx* zc,
         ip += blockSize;
         op += cSize;
     }
+
+#if ZSTD_OPT_DEBUG >= 3
+    ssPtr->realMatchSum += ssPtr->realSeqSum * ((zc->params.searchLength == 3) ? 3 : 4);
+    printf("avgMatchL=%.2f avgLitL=%.2f match=%.1f%% lit=%.1f%% reps=%d seq=%d\n", (float)ssPtr->realMatchSum/ssPtr->realSeqSum, (float)ssPtr->realLitSum/ssPtr->realSeqSum, 100.0*ssPtr->realMatchSum/(ssPtr->realMatchSum+ssPtr->realLitSum), 100.0*ssPtr->realLitSum/(ssPtr->realMatchSum+ssPtr->realLitSum), ssPtr->realRepSum, ssPtr->realSeqSum);
+#endif
 
     return op-ostart;
 }

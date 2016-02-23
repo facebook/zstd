@@ -50,7 +50,7 @@
 /*-*************************************
 *  Common constants
 ***************************************/
-#define ZSTD_OPT_DEBUG 0     // 1 = tableID=0;  5 = check encoded sequences;  9 = full logs
+#define ZSTD_OPT_DEBUG 3     // 1 = tableID=0;  3 = print block stats;  5 = check encoded sequences;  9 = full logs
 #if ZSTD_OPT_DEBUG > 0
     #include <stdio.h>  /* for debug */
 #endif
@@ -179,6 +179,10 @@ typedef struct {
     U32  litLengthSum;
     U32  litSum;
     U32  offCodeSum;
+    U32  realMatchSum;
+    U32  realLitSum;
+    U32  realSeqSum;
+    U32  realRepSum;
 } seqStore_t;
 
 seqStore_t ZSTD_copySeqStore(const ZSTD_CCtx* ctx);

@@ -20,6 +20,7 @@
 # Visual solution files
 *.suo
 *.user
+*.VC.db
 
 # Build results
 [Dd]ebug/

@@ -176,6 +176,7 @@ typedef struct {
     U32* litFreq;
     U32* offCodeFreq;
     U32  matchLengthSum;
+    U32  matchSum;
     U32  litLengthSum;
     U32  litSum;
     U32  offCodeSum;
@@ -183,6 +184,7 @@ typedef struct {
     U32  realLitSum;
     U32  realSeqSum;
     U32  realRepSum;
+    U32  priceFunc;
 } seqStore_t;
 
 seqStore_t ZSTD_copySeqStore(const ZSTD_CCtx* ctx);

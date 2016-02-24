@@ -37,26 +37,26 @@
 FORCE_INLINE U32 ZSTD_GETPRICE(seqStore_t* seqStorePtr, U32 litLength, const BYTE* literals, U32 offset, U32 matchLength)
 {
     /* offset */
-    BYTE offCode = offset ? (BYTE)ZSTD_highbit(offset) + 1 : 0;
-    U32 price = offCode + ZSTD_highbit(seqStorePtr->offCodeSum) - ZSTD_highbit(seqStorePtr->offCodeFreq[offCode]);
+    BYTE offCode = offset ? (BYTE)ZSTD_highbit(offset+1) + 1 : 0;
+    U32 price = (offCode-1) + (!offCode) + ZSTD_highbit(seqStorePtr->offCodeSum+1) - ZSTD_highbit(seqStorePtr->offCodeFreq[offCode]+1);
 
     /* match Length */
     matchLength -= MINMATCHOPT;
     price += ((matchLength >= MaxML)<<3) + ((matchLength >= 255+MaxML)<<4) + ((matchLength>=(1<<15))<<3);
     if (matchLength >= MaxML) matchLength = MaxML;
-    price += ZSTD_getLiteralPrice(seqStorePtr, litLength, literals) + ZSTD_highbit(seqStorePtr->matchLengthSum) - ZSTD_highbit(seqStorePtr->matchLengthFreq[matchLength]);
+    price += ZSTD_getLiteralPrice(seqStorePtr, litLength, literals) + ZSTD_highbit(seqStorePtr->matchLengthSum+1) - ZSTD_highbit(seqStorePtr->matchLengthFreq[matchLength]+1);
 
     switch (seqStorePtr->priceFunc)
     {
-        default:   
+        default:
         case 0:
-            return price + seqStorePtr->factor + ((seqStorePtr->litSum>>5) / seqStorePtr->litLengthSum) + ((seqStorePtr->litSum<<1) / (seqStorePtr->litSum + seqStorePtr->matchSum));
+            return 1 + price + seqStorePtr->factor + ((seqStorePtr->litSum>>5) / seqStorePtr->litLengthSum) + ((seqStorePtr->litSum<<1) / (seqStorePtr->litSum + seqStorePtr->matchSum));
         case 1:
-            return price + seqStorePtr->factor + ((seqStorePtr->factor2) ? ((seqStorePtr->litSum>>5) / seqStorePtr->litLengthSum) + ((seqStorePtr->litSum<<1) / (seqStorePtr->litSum + seqStorePtr->matchSum)) : 0);
+            return 1 + price + seqStorePtr->factor + ((seqStorePtr->factor2) ? ((seqStorePtr->litSum>>5) / seqStorePtr->litLengthSum) + ((seqStorePtr->litSum<<1) / (seqStorePtr->litSum + seqStorePtr->matchSum)) : 0);
         case 2:
-            return price + seqStorePtr->factor + ((seqStorePtr->factor2) ? ((seqStorePtr->litSum>>4) / seqStorePtr->litLengthSum) + ((seqStorePtr->litSum<<1) / (seqStorePtr->litSum + seqStorePtr->matchSum)) : 0);
+            return 1 + price + seqStorePtr->factor + ((seqStorePtr->factor2) ? ((seqStorePtr->litSum>>4) / seqStorePtr->litLengthSum) + ((seqStorePtr->litSum<<1) / (seqStorePtr->litSum + seqStorePtr->matchSum)) : 0);
         case 3:
-            return price;
+            return 1 + price;
     }
 }
 

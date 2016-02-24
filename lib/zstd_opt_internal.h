@@ -52,7 +52,7 @@
     #define ZSTD_LOG_TRY_PRICE(...) printf(__VA_ARGS__)
 #else
     #define ZSTD_LOG_PARSER(...)
-    #define ZSTD_LOG_ENCODE(...)
+    #define ZSTD_LOG_ENCODE(...) // printf(__VA_ARGS__)
     #define ZSTD_LOG_TRY_PRICE(...)
 #endif
 
@@ -136,7 +136,7 @@ MEM_STATIC void ZSTD_updatePrice(seqStore_t* seqStorePtr, U32 litLength, const B
 
     /* match offset */
     seqStorePtr->offCodeSum += ZSTD_FREQ_STEP;
-    BYTE offCode = offset ? (BYTE)ZSTD_highbit(offset) + 1 : 0;
+    BYTE offCode = offset ? (BYTE)ZSTD_highbit(offset+1) + 1 : 0;
     seqStorePtr->offCodeFreq[offCode] += ZSTD_FREQ_STEP;
 
     /* match Length */
@@ -152,17 +152,17 @@ FORCE_INLINE U32 ZSTD_getLiteralPrice(seqStore_t* seqStorePtr, U32 litLength, co
     U32 price, u;
 
     if (litLength == 0)
-        return ZSTD_highbit(seqStorePtr->litLengthSum) - ZSTD_highbit(seqStorePtr->litLengthFreq[0]);
+        return ZSTD_highbit(seqStorePtr->litLengthSum+1) - ZSTD_highbit(seqStorePtr->litLengthFreq[0]+1);
 
     /* literals */
-    price = litLength * ZSTD_highbit(seqStorePtr->litSum);
+    price = litLength * ZSTD_highbit(seqStorePtr->litSum+1);
     for (u=0; u < litLength; u++)
-        price -= ZSTD_highbit(seqStorePtr->litFreq[literals[u]]);
+        price -= ZSTD_highbit(seqStorePtr->litFreq[literals[u]]+1);
 
     /* literal Length */
     price += ((litLength >= MaxLL)<<3) + ((litLength >= 255+MaxLL)<<4) + ((litLength>=(1<<15))<<3);
     if (litLength >= MaxLL) litLength = MaxLL;
-    price += ZSTD_highbit(seqStorePtr->litLengthSum) - ZSTD_highbit(seqStorePtr->litLengthFreq[litLength]);
+    price += ZSTD_highbit(seqStorePtr->litLengthSum+1) - ZSTD_highbit(seqStorePtr->litLengthFreq[litLength]+1);
 
     return price;
 }

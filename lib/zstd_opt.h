@@ -48,12 +48,14 @@ FORCE_INLINE U32 ZSTD_GETPRICE(seqStore_t* seqStorePtr, U32 litLength, const BYT
 
     switch (seqStorePtr->priceFunc)
     {
-        default:
+        default:   
         case 0:
-            return price + ((seqStorePtr->litSum>>4) / seqStorePtr->litLengthSum);
+            return price + seqStorePtr->factor + ((seqStorePtr->litSum>>5) / seqStorePtr->litLengthSum) + ((seqStorePtr->litSum<<1) / (seqStorePtr->litSum + seqStorePtr->matchSum));
         case 1:
-            return price + ((seqStorePtr->litSum<<1) / (seqStorePtr->litSum + seqStorePtr->matchSum));
+            return price + seqStorePtr->factor + ((seqStorePtr->factor2) ? ((seqStorePtr->litSum>>5) / seqStorePtr->litLengthSum) + ((seqStorePtr->litSum<<1) / (seqStorePtr->litSum + seqStorePtr->matchSum)) : 0);
         case 2:
+            return price + seqStorePtr->factor + ((seqStorePtr->factor2) ? ((seqStorePtr->litSum>>4) / seqStorePtr->litLengthSum) + ((seqStorePtr->litSum<<1) / (seqStorePtr->litSum + seqStorePtr->matchSum)) : 0);
+        case 3:
             return price;
     }
 }
@@ -263,6 +265,33 @@ void ZSTD_COMPRESSBLOCK_OPT_GENERIC(ZSTD_CCtx* ctx,
     ZSTD_resetSeqStore(seqStorePtr);
     ZSTD_rescaleFreqs(seqStorePtr);
     if ((ip-base) < REPCODE_STARTVALUE) ip = base + REPCODE_STARTVALUE;
+
+
+    size_t mostFrequent;
+    unsigned count[256], maxSymbolValue, usedSymbols = 0;
+    maxSymbolValue = 255;
+    mostFrequent = FSE_count(count, &maxSymbolValue, src, srcSize);
+    for (unsigned i=0; i<=maxSymbolValue; i++)
+        if (count[i]) usedSymbols++;
+
+    seqStorePtr->factor = ((usedSymbols <= 18) && (mostFrequent < (1<<14))) ? mostFrequent>>10 : 0; // helps RTF files
+    seqStorePtr->factor2 = (usedSymbols==256) && (mostFrequent > (1<<14));
+
+#if 0
+    if (seqStorePtr->factor2)
+        printf("FACTOR2 usedSymbols==256;mostFrequent>(1<<14) maxSymbolValue=%d mostFrequent=%d usedSymbols=%d\n", maxSymbolValue, (int)mostFrequent, usedSymbols);
+    if (seqStorePtr->factor) {
+        printf("FACTOR1 usedSymbols<56;mostFrequent<(1<<14) maxSymbolValue=%d mostFrequent=%d usedSymbols=%d\n", maxSymbolValue, (int)mostFrequent, usedSymbols);
+#if 0
+        for (int i=0; i<256; i++)
+            if (count[i]) printf("%d=%d ", i, count[i]);
+        printf("\n");
+
+#endif
+    }
+#endif
+
+
 
     /* Match Loop */
     while (ip < ilimit) {

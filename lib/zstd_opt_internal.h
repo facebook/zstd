@@ -43,7 +43,7 @@
 #define ZSTD_OPT_NUM    (1<<12)
 #define ZSTD_FREQ_START 1
 #define ZSTD_FREQ_STEP  1
-#define ZSTD_FREQ_DIV   4
+#define ZSTD_FREQ_DIV   5
 
 /*-  Debug  -*/
 #if defined(ZSTD_OPT_DEBUG) && ZSTD_OPT_DEBUG>=9
@@ -77,20 +77,20 @@ MEM_STATIC void ZSTD_rescaleFreqs(seqStore_t* ssPtr)
     unsigned u;
 
     if (ssPtr->litLengthSum == 0) {
-        ssPtr->matchLengthSum = (1<<MLbits);
-        ssPtr->litLengthSum = (1<<LLbits);
-        ssPtr->litSum = (1<<Litbits);
-        ssPtr->offCodeSum = (1<<Offbits);
-        ssPtr->matchSum = 0;
+        ssPtr->matchLengthSum = ZSTD_FREQ_START*(1<<MLbits);
+        ssPtr->litLengthSum = ZSTD_FREQ_START*(1<<LLbits);
+        ssPtr->litSum = ZSTD_FREQ_START*(1<<Litbits);
+        ssPtr->offCodeSum = ZSTD_FREQ_START*(1<<Offbits);
+        ssPtr->matchSum = ZSTD_FREQ_START*ssPtr->litSum;
         
         for (u=0; u<=MaxLit; u++)
-            ssPtr->litFreq[u] = 1;
+            ssPtr->litFreq[u] = ZSTD_FREQ_START;
         for (u=0; u<=MaxLL; u++)
-            ssPtr->litLengthFreq[u] = 1;
+            ssPtr->litLengthFreq[u] = ZSTD_FREQ_START;
         for (u=0; u<=MaxML; u++)
-            ssPtr->matchLengthFreq[u] = 1;
+            ssPtr->matchLengthFreq[u] = ZSTD_FREQ_START;
         for (u=0; u<=MaxOff; u++)
-            ssPtr->offCodeFreq[u] = 1;
+            ssPtr->offCodeFreq[u] = ZSTD_FREQ_START;
     } else {
         ssPtr->matchLengthSum = 0;
         ssPtr->litLengthSum = 0;

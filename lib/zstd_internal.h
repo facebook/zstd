@@ -184,6 +184,8 @@ typedef struct {
     U32  realLitSum;
     U32  realSeqSum;
     U32  realRepSum;
+    U32  factor;
+    U32  factor2;
     U32  priceFunc;
 } seqStore_t;
 

@@ -46,6 +46,7 @@ FORCE_INLINE U32 ZSTD_GETPRICE(seqStore_t* seqStorePtr, U32 litLength, const BYT
     if (matchLength >= MaxML) matchLength = MaxML;
     price += ZSTD_getLiteralPrice(seqStorePtr, litLength, literals) + ZSTD_highbit(seqStorePtr->matchLengthSum+1) - ZSTD_highbit(seqStorePtr->matchLengthFreq[matchLength]+1);
 
+#if ZSTD_OPT_DEBUG >= 3
     switch (seqStorePtr->priceFunc)
     {
         default:
@@ -58,6 +59,9 @@ FORCE_INLINE U32 ZSTD_GETPRICE(seqStore_t* seqStorePtr, U32 litLength, const BYT
         case 3:
             return 1 + price;
     }
+#else
+    return 1 + price + ((seqStorePtr->litSum>>5) / seqStorePtr->litLengthSum) + ((seqStorePtr->litSum<<1) / (seqStorePtr->litSum + seqStorePtr->matchSum));
+#endif
 }
 
 
@@ -266,7 +270,7 @@ void ZSTD_COMPRESSBLOCK_OPT_GENERIC(ZSTD_CCtx* ctx,
     ZSTD_rescaleFreqs(seqStorePtr);
     if ((ip-base) < REPCODE_STARTVALUE) ip = base + REPCODE_STARTVALUE;
 
-
+#if ZSTD_OPT_DEBUG >= 3
     size_t mostFrequent;
     unsigned count[256], maxSymbolValue, usedSymbols = 0;
     maxSymbolValue = 255;
@@ -276,6 +280,7 @@ void ZSTD_COMPRESSBLOCK_OPT_GENERIC(ZSTD_CCtx* ctx,
 
     seqStorePtr->factor = ((usedSymbols <= 18) && (mostFrequent < (1<<14))) ? mostFrequent>>10 : 0; // helps RTF files
     seqStorePtr->factor2 = (usedSymbols==256) && (mostFrequent > (1<<14));
+#endif
 
 #if 0
     if (seqStorePtr->factor2)

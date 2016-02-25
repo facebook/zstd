@@ -127,7 +127,7 @@ static U32 g_rand = 1;
 static U32 g_singleRun = 0;
 static U32 g_target = 0;
 static U32 g_noSeed = 0;
-static ZSTD_parameters g_params = { 0, 0, 0, 0, 0, 0, 0, ZSTD_greedy };
+static ZSTD_parameters g_params = { 0, 0, 0, 0, 0, 0, 0, 0, ZSTD_greedy };
 
 void BMK_SetNbIterations(int nbLoops)
 {
@@ -406,7 +406,6 @@ const char* g_stratName[] = { "ZSTD_fast   ",
                               "ZSTD_lazy   ",
                               "ZSTD_lazy2  ",
                               "ZSTD_btlazy2",
-                              "ZSTD_opt    ",
                               "ZSTD_btopt  " };
 
 static void BMK_printWinner(FILE* f, U32 cLevel, BMK_result_t result, ZSTD_parameters params, size_t srcSize)
@@ -549,7 +548,7 @@ static ZSTD_parameters* sanitizeParams(ZSTD_parameters params)
     g_params = params;
     if (params.strategy == ZSTD_fast)
         g_params.contentLog = 0, g_params.searchLog = 0;
-    if ((params.strategy != ZSTD_opt) && (params.strategy != ZSTD_btopt ))
+    if (params.strategy != ZSTD_btopt )
         g_params.targetLength = 0;
     return &g_params;
 }

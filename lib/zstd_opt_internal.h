@@ -81,7 +81,7 @@ MEM_STATIC void ZSTD_rescaleFreqs(seqStore_t* ssPtr)
         ssPtr->litLengthSum = ZSTD_FREQ_START*(1<<LLbits);
         ssPtr->litSum = ZSTD_FREQ_START*(1<<Litbits);
         ssPtr->offCodeSum = ZSTD_FREQ_START*(1<<Offbits);
-        ssPtr->matchSum = ZSTD_FREQ_START*ssPtr->litSum;
+        ssPtr->matchSum = ssPtr->litSum;
         
         for (u=0; u<=MaxLit; u++)
             ssPtr->litFreq[u] = ZSTD_FREQ_START;

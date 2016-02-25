@@ -228,8 +228,8 @@ static size_t ZSTD_resetCCtx_advanced (ZSTD_CCtx* zc,
 size_t ZSTD_copyCCtx(ZSTD_CCtx* dstCCtx, const ZSTD_CCtx* srcCCtx)
 {
     const U32 contentLog = (srcCCtx->params.strategy == ZSTD_fast) ? 1 : srcCCtx->params.contentLog;
-    const size_t tableSpace = ((1 << contentLog) + (1 << srcCCtx->params.hashLog)) * sizeof(U32);
-
+    const size_t tableSpace = ((1 << contentLog) + (1 << srcCCtx->params.hashLog) + (1 << srcCCtx->params.hashLog3)) * sizeof(U32);
+    
     if (srcCCtx->stage!=0) return ERROR(stage_wrong);
 
     ZSTD_resetCCtx_advanced(dstCCtx, srcCCtx->params);
@@ -243,6 +243,7 @@ size_t ZSTD_copyCCtx(ZSTD_CCtx* dstCCtx, const ZSTD_CCtx* srcCCtx)
 
     /* copy dictionary pointers */
     dstCCtx->nextToUpdate= srcCCtx->nextToUpdate;
+    dstCCtx->nextToUpdate3 = srcCCtx->nextToUpdate3;
     dstCCtx->nextSrc     = srcCCtx->nextSrc;
     dstCCtx->base        = srcCCtx->base;
     dstCCtx->dictBase    = srcCCtx->dictBase;

@@ -159,6 +159,7 @@ size_t ZSTD_decompressBegin(ZSTD_DCtx* dctx)
     dctx->dictEnd = NULL;
     dctx->hufTableX4[0] = HufLog;
     dctx->flagStaticTables = 0;
+    dctx->params.searchLength = MINMATCH;
     return 0;
 }
 

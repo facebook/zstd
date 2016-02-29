@@ -2040,6 +2040,7 @@ size_t ZSTD_compressContinue (ZSTD_CCtx* zc,
 size_t ZSTD_compressBlock(ZSTD_CCtx* zc, void* dst, size_t maxDstSize, const void* src, size_t srcSize)
 {
     if (srcSize > BLOCKSIZE) return ERROR(srcSize_wrong);
+    zc->params.searchLength = MINMATCH;
     return ZSTD_compressContinue_internal(zc, dst, maxDstSize, src, srcSize, 0);
 }
 

@@ -1958,7 +1958,7 @@ static size_t ZSTD_compress_generic (ZSTD_CCtx* zc,
     }
 
 
-#if ZSTD_OPT_DEBUG >= 3
+#if ZSTD_OPT_DEBUG == 3
     ssPtr->realMatchSum += ssPtr->realSeqSum * ((zc->params.searchLength == 3) ? 3 : 4);
     printf("avgMatchL=%.2f avgLitL=%.2f match=%.1f%% lit=%.1f%% reps=%d seq=%d priceFunc=%d\n", (float)ssPtr->realMatchSum/ssPtr->realSeqSum, (float)ssPtr->realLitSum/ssPtr->realSeqSum, 100.0*ssPtr->realMatchSum/(ssPtr->realMatchSum+ssPtr->realLitSum), 100.0*ssPtr->realLitSum/(ssPtr->realMatchSum+ssPtr->realLitSum), ssPtr->realRepSum, ssPtr->realSeqSum, ssPtr->priceFunc);
     priceFunc++;

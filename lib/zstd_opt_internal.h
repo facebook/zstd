@@ -49,11 +49,9 @@
 #if defined(ZSTD_OPT_DEBUG) && ZSTD_OPT_DEBUG>=9
     #define ZSTD_LOG_PARSER(...) printf(__VA_ARGS__)
     #define ZSTD_LOG_ENCODE(...) printf(__VA_ARGS__)
-    #define ZSTD_LOG_TRY_PRICE(...) printf(__VA_ARGS__)
 #else
     #define ZSTD_LOG_PARSER(...)
     #define ZSTD_LOG_ENCODE(...) // printf(__VA_ARGS__)
-    #define ZSTD_LOG_TRY_PRICE(...)
 #endif
 
 

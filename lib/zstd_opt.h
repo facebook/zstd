@@ -373,16 +373,12 @@ void ZSTD_COMPRESSBLOCK_OPT_GENERIC(ZSTD_CCtx* ctx,
                 litlen = opt[cur-1].litlen + 1;
                 if (cur > litlen) {
                     price = opt[cur - litlen].price + ZSTD_getLiteralPrice(seqStorePtr, litlen, inr-litlen);
-                    ZSTD_LOG_TRY_PRICE("%d: TRY1 opt[%d].price=%d price=%d cur=%d litlen=%d\n", (int)(inr-base), cur - litlen, opt[cur - litlen].price, price, cur, litlen);
                 } else
                     price = ZSTD_getLiteralPrice(seqStorePtr, litlen, litstart);
            } else {
                 litlen = 1;
                 price = opt[cur - 1].price + ZSTD_getLiteralPrice(seqStorePtr, litlen, inr-1);
-                ZSTD_LOG_TRY_PRICE("%d: TRY3 price=%d cur=%d litlen=%d litonly=%d\n", (int)(inr-base), price, cur, litlen, (int)ZSTD_getLiteralPrice(seqStorePtr, litlen, inr-1));
            }
-
-           ZSTD_LOG_TRY_PRICE("%d: TRY4 price=%d opt[%d].price=%d\n", (int)(inr-base), price, cur, opt[cur].price);
 
            if (cur > last_pos || price <= opt[cur].price) // || ((price == opt[cur].price) && (opt[cur-1].mlen == 1) && (cur != litlen)))
                 SET_PRICE(cur, 1, 0, litlen, price);
@@ -392,33 +388,33 @@ void ZSTD_COMPRESSBLOCK_OPT_GENERIC(ZSTD_CCtx* ctx,
            if (inr > ilimit)  /* last match must start at a minimum distance of 8 from oend */
                continue;
 
-            mlen = opt[cur].mlen;
+           mlen = opt[cur].mlen;
 
-            if (opt[cur-mlen].off) {
+           if (opt[cur].off) {
                 opt[cur].rep2 = opt[cur-mlen].rep;
-                opt[cur].rep = opt[cur-mlen].off;
-                ZSTD_LOG_PARSER("%d: COPYREP1 cur=%d mlen=%d rep=%d rep2=%d\n", (int)(inr-base), cur, mlen, opt[cur].rep, opt[cur].rep2);
-            } else {
-                if (cur!=mlen && opt[cur-mlen].litlen == 0) {
+                opt[cur].rep = opt[cur].off;
+                ZSTD_LOG_ENCODE("%d: COPYREP_OFF cur=%d mlen=%d rep=%d rep2=%d\n", (int)(inr-base), cur, mlen, opt[cur].rep, opt[cur].rep2);
+           } else {
+                if (cur!=mlen && opt[cur].litlen == 0) {
                     opt[cur].rep2 = opt[cur-mlen].rep;
                     opt[cur].rep = opt[cur-mlen].rep2;
-                    ZSTD_LOG_PARSER("%d: COPYREP2 cur=%d mlen=%d rep=%d rep2=%d\n", (int)(inr-base), cur, mlen, opt[cur].rep, opt[cur].rep2);
+                    ZSTD_LOG_ENCODE("%d: COPYREP_SWI cur=%d mlen=%d rep=%d rep2=%d\n", (int)(inr-base), cur, mlen, opt[cur].rep, opt[cur].rep2);
                 } else {
                     opt[cur].rep2 = opt[cur-mlen].rep2;
                     opt[cur].rep = opt[cur-mlen].rep;
-                    ZSTD_LOG_PARSER("%d: COPYREP3 cur=%d mlen=%d rep=%d rep2=%d\n", (int)(inr-base), cur, mlen, opt[cur].rep, opt[cur].rep2);
-            }   }
+                    ZSTD_LOG_ENCODE("%d: COPYREP_NOR cur=%d mlen=%d rep=%d rep2=%d\n", (int)(inr-base), cur, mlen, opt[cur].rep, opt[cur].rep2);
+           }   }
 
-           ZSTD_LOG_PARSER("%d: CURRENT price[%d/%d]=%d off=%d mlen=%d litlen=%d rep=%d rep2=%d\n", (int)(inr-base), cur, last_pos, opt[cur].price, opt[cur].off, opt[cur].mlen, opt[cur].litlen, opt[cur].rep, opt[cur].rep2);
+           ZSTD_LOG_PARSER("%d: CURRENT_NoExt price[%d/%d]=%d off=%d mlen=%d litlen=%d rep=%d rep2=%d\n", (int)(inr-base), cur, last_pos, opt[cur].price, opt[cur].off, opt[cur].mlen, opt[cur].litlen, opt[cur].rep, opt[cur].rep2);
 
            best_mlen = 0;
 
-           if (!opt[cur].off && opt[cur].mlen != 1) {
+           if (opt[cur].mlen != 1) {
                cur_rep = opt[cur].rep2;
-               ZSTD_LOG_PARSER("%d: try REP2 rep2=%u mlen=%u\n", (int)(inr-base), (U32)cur_rep, mlen);
+               ZSTD_LOG_PARSER("%d: tryNoExt REP2 rep2=%u mlen=%u\n", (int)(inr-base), (U32)cur_rep, mlen);
            } else {
                cur_rep = opt[cur].rep;
-               ZSTD_LOG_PARSER("%d: try REP1 rep=%u mlen=%u\n", (int)(inr-base), (U32)cur_rep, mlen);
+               ZSTD_LOG_PARSER("%d: tryNoExt REP1 rep=%u mlen=%u\n", (int)(inr-base), (U32)cur_rep, mlen);
            }
 
            if (MEM_readMINMATCH(inr) == MEM_readMINMATCH(inr - cur_rep)) {  // check rep
@@ -437,13 +433,11 @@ void ZSTD_COMPRESSBLOCK_OPT_GENERIC(ZSTD_CCtx* ctx,
                     litlen = opt[cur].litlen;
                     if (cur > litlen) {
                         price = opt[cur - litlen].price + ZSTD_GETPRICE(seqStorePtr, litlen, inr-litlen, 0, mlen);
-                        ZSTD_LOG_TRY_PRICE("%d: TRY5 opt[%d].price=%d price=%d cur=%d litlen=%d\n", (int)(inr-base), cur - litlen, opt[cur - litlen].price, price, cur, litlen);
                     } else
                         price = ZSTD_GETPRICE(seqStorePtr, litlen, litstart, 0, mlen);
                 } else {
                     litlen = 0;
                     price = opt[cur].price + ZSTD_GETPRICE(seqStorePtr, 0, NULL, 0, mlen);
-                    ZSTD_LOG_TRY_PRICE("%d: TRY7 price=%d cur=%d litlen=0 getprice=%d\n", (int)(inr-base), price, cur, (int)ZSTD_GETPRICE(seqStorePtr, 0, NULL, 0, mlen));
                 }
 
                 best_mlen = mlen;
@@ -488,7 +482,6 @@ void ZSTD_COMPRESSBLOCK_OPT_GENERIC(ZSTD_CCtx* ctx,
                     }
 
                     ZSTD_LOG_PARSER("%d: Found2 mlen=%d best_mlen=%d off=%d price=%d litlen=%d\n", (int)(inr-base), mlen, best_mlen, matches[u].off, price, litlen);
-                    ZSTD_LOG_TRY_PRICE("%d: TRY8 price=%d opt[%d].price=%d\n", (int)(inr-base), price, cur + mlen, opt[cur + mlen].price);
 
                     if (cur + mlen > last_pos || (price < opt[cur + mlen].price))
                         SET_PRICE(cur + mlen, mlen, matches[u].off, litlen, price);
@@ -512,7 +505,6 @@ _storeSequence:   /* cur, last_pos, best_mlen, best_off have to be set */
 
         while (1) {
             mlen = opt[cur].mlen;
-            ZSTD_LOG_PARSER("%d: cur=%d mlen=%d\n", (int)(ip-base), cur, mlen);
             offset = opt[cur].off;
             opt[cur].mlen = best_mlen;
             opt[cur].off = best_off;
@@ -557,7 +549,7 @@ _storeSequence:   /* cur, last_pos, best_mlen, best_off have to be set */
                 ml2 = (U32)ZSTD_count(ip, ip-rep_1, iend);
             if (offset == 0 || offset >= 8)
             if (ml2 < mlen && ml2 < MINMATCHOPT) {
-                printf("%d: ERROR iend=%d mlen=%d offset=%d ml2=%d\n", (int)(ip - base), (int)(iend - ip), (int)mlen, (int)offset, (int)ml2); exit(0); }
+                printf("%d: ERROR_NoExt iend=%d mlen=%d offset=%d ml2=%d\n", (int)(ip - base), (int)(iend - ip), (int)mlen, (int)offset, (int)ml2); exit(0); }
             if (ip < anchor) {
                 printf("%d: ERROR ip < anchor iend=%d mlen=%d offset=%d\n", (int)(ip - base), (int)(iend - ip), (int)mlen, (int)offset); exit(0); }
             if (ip - offset < ctx->base) {
@@ -718,16 +710,12 @@ void ZSTD_COMPRESSBLOCK_OPT_EXTDICT_GENERIC(ZSTD_CCtx* ctx,
                 litlen = opt[cur-1].litlen + 1;
                 if (cur > litlen) {
                     price = opt[cur - litlen].price + ZSTD_getLiteralPrice(seqStorePtr, litlen, inr-litlen);
-                    ZSTD_LOG_TRY_PRICE("%d: TRY1 opt[%d].price=%d price=%d cur=%d litlen=%d\n", (int)(inr-base), cur - litlen, opt[cur - litlen].price, price, cur, litlen);
                 } else
                     price = ZSTD_getLiteralPrice(seqStorePtr, litlen, litstart);
            } else {
                 litlen = 1;
                 price = opt[cur - 1].price + ZSTD_getLiteralPrice(seqStorePtr, litlen, inr-1);
-                ZSTD_LOG_TRY_PRICE("%d: TRY3 price=%d cur=%d litlen=%d litonly=%d\n", (int)(inr-base), price, cur, litlen, (int)ZSTD_getLiteralPrice(seqStorePtr, litlen, inr-1));
            }
-
-           ZSTD_LOG_TRY_PRICE("%d: TRY4 price=%d opt[%d].price=%d\n", (int)(inr-base), price, cur, opt[cur].price);
 
            if (cur > last_pos || price <= opt[cur].price) // || ((price == opt[cur].price) && (opt[cur-1].mlen == 1) && (cur != litlen)))
                 SET_PRICE(cur, 1, 0, litlen, price);
@@ -737,33 +725,33 @@ void ZSTD_COMPRESSBLOCK_OPT_EXTDICT_GENERIC(ZSTD_CCtx* ctx,
            if (inr > ilimit) // last match must start at a minimum distance of 8 from oend
                continue;
 
-            mlen = opt[cur].mlen;
+           mlen = opt[cur].mlen;
 
-            if (opt[cur-mlen].off) {
+           if (opt[cur].off) {
                 opt[cur].rep2 = opt[cur-mlen].rep;
-                opt[cur].rep = opt[cur-mlen].off;
-                ZSTD_LOG_PARSER("%d: COPYREP1 cur=%d mlen=%d rep=%d rep2=%d\n", (int)(inr-base), cur, mlen, opt[cur].rep, opt[cur].rep2);
-            } else {
-                if (cur!=mlen && opt[cur-mlen].litlen == 0) {
+                opt[cur].rep = opt[cur].off;
+                ZSTD_LOG_ENCODE("%d: COPYREP_OFF cur=%d mlen=%d rep=%d rep2=%d\n", (int)(inr-base), cur, mlen, opt[cur].rep, opt[cur].rep2);
+           } else {
+                if (cur!=mlen && opt[cur].litlen == 0) {
                     opt[cur].rep2 = opt[cur-mlen].rep;
                     opt[cur].rep = opt[cur-mlen].rep2;
-                    ZSTD_LOG_PARSER("%d: COPYREP2 cur=%d mlen=%d rep=%d rep2=%d\n", (int)(inr-base), cur, mlen, opt[cur].rep, opt[cur].rep2);
+                    ZSTD_LOG_ENCODE("%d: COPYREP_SWI cur=%d mlen=%d rep=%d rep2=%d\n", (int)(inr-base), cur, mlen, opt[cur].rep, opt[cur].rep2);
                 } else {
                     opt[cur].rep2 = opt[cur-mlen].rep2;
                     opt[cur].rep = opt[cur-mlen].rep;
-                    ZSTD_LOG_PARSER("%d: COPYREP3 cur=%d mlen=%d rep=%d rep2=%d\n", (int)(inr-base), cur, mlen, opt[cur].rep, opt[cur].rep2);
-            }   }
+                    ZSTD_LOG_ENCODE("%d: COPYREP_NOR cur=%d mlen=%d rep=%d rep2=%d\n", (int)(inr-base), cur, mlen, opt[cur].rep, opt[cur].rep2);
+           }   }
 
-           ZSTD_LOG_PARSER("%d: CURRENT price[%d/%d]=%d off=%d mlen=%d litlen=%d rep=%d rep2=%d\n", (int)(inr-base), cur, last_pos, opt[cur].price, opt[cur].off, opt[cur].mlen, opt[cur].litlen, opt[cur].rep, opt[cur].rep2);
+           ZSTD_LOG_PARSER("%d: CURRENT_Ext price[%d/%d]=%d off=%d mlen=%d litlen=%d rep=%d rep2=%d\n", (int)(inr-base), cur, last_pos, opt[cur].price, opt[cur].off, opt[cur].mlen, opt[cur].litlen, opt[cur].rep, opt[cur].rep2);
 
            best_mlen = 0;
 
-           if (!opt[cur].off && opt[cur].mlen != 1) {
+           if (opt[cur].mlen != 1) {
                cur_rep = opt[cur].rep2;
-               ZSTD_LOG_PARSER("%d: try REP2 rep2=%u mlen=%u\n", (int)(inr-base), (U32)cur_rep, mlen);
+               ZSTD_LOG_PARSER("%d: tryExt REP2 rep2=%u mlen=%u\n", (int)(inr-base), (U32)cur_rep, mlen);
            } else {
                cur_rep = opt[cur].rep;
-               ZSTD_LOG_PARSER("%d: try REP1 rep=%u mlen=%u\n", (int)(inr-base), (U32)cur_rep, mlen);
+               ZSTD_LOG_PARSER("%d: tryExt REP1 rep=%u mlen=%u\n", (int)(inr-base), (U32)cur_rep, mlen);
            }
 
            const U32 repIndex = (U32)(current+cur - cur_rep);
@@ -788,13 +776,11 @@ void ZSTD_COMPRESSBLOCK_OPT_EXTDICT_GENERIC(ZSTD_CCtx* ctx,
                     litlen = opt[cur].litlen;
                     if (cur > litlen) {
                         price = opt[cur - litlen].price + ZSTD_GETPRICE(seqStorePtr, litlen, inr-litlen, 0, mlen);
-                        ZSTD_LOG_TRY_PRICE("%d: TRY5 opt[%d].price=%d price=%d cur=%d litlen=%d\n", (int)(inr-base), cur - litlen, opt[cur - litlen].price, price, cur, litlen);
                     } else
                         price = ZSTD_GETPRICE(seqStorePtr, litlen, litstart, 0, mlen);
                 } else {
                     litlen = 0;
                     price = opt[cur].price + ZSTD_GETPRICE(seqStorePtr, 0, NULL, 0, mlen);
-                    ZSTD_LOG_TRY_PRICE("%d: TRY7 price=%d cur=%d litlen=0 getprice=%d\n", (int)(inr-base), price, cur, (int)ZSTD_GETPRICE(seqStorePtr, 0, NULL, 0, mlen));
                 }
 
                 best_mlen = mlen;
@@ -840,7 +826,6 @@ void ZSTD_COMPRESSBLOCK_OPT_EXTDICT_GENERIC(ZSTD_CCtx* ctx,
                     }
 
                     ZSTD_LOG_PARSER("%d: Found2 mlen=%d best_mlen=%d off=%d price=%d litlen=%d\n", (int)(inr-base), mlen, best_mlen, matches[u].off, price, litlen);
-                    ZSTD_LOG_TRY_PRICE("%d: TRY8 price=%d opt[%d].price=%d\n", (int)(inr-base), price, cur + mlen, opt[cur + mlen].price);
 
                     if (cur + mlen > last_pos || (price < opt[cur + mlen].price))
                         SET_PRICE(cur + mlen, mlen, matches[u].off, litlen, price);
@@ -863,7 +848,6 @@ _storeSequence: // cur, last_pos, best_mlen, best_off have to be set
 
         while (1) {
             mlen = opt[cur].mlen;
-            ZSTD_LOG_PARSER("%d: cur=%d mlen=%d\n", (int)(ip-base), cur, mlen);
             offset = opt[cur].off;
             opt[cur].mlen = best_mlen;
             opt[cur].off = best_off;
@@ -907,8 +891,8 @@ _storeSequence: // cur, last_pos, best_mlen, best_off have to be set
                 ml2 = (U32)ZSTD_count(ip, ip-offset, iend);
             else
                 ml2 = (U32)ZSTD_count(ip, ip-rep_1, iend);
-            if (ml2 < mlen && ml2 < MINMATCHOPT) {
-                printf("%d: ERROR iend=%d mlen=%d offset=%d ml2=%d\n", (int)(ip - base), (int)(iend - ip), (int)mlen, (int)offset, (int)ml2); exit(0); }
+       //     if (ml2 < mlen && ml2 < MINMATCHOPT) {
+       //         printf("%d: ERROR_Ext iend=%d mlen=%d offset=%d ml2=%d\n", (int)(ip - base), (int)(iend - ip), (int)mlen, (int)offset, (int)ml2); exit(0); }
             if (ip < anchor) {
                 printf("%d: ERROR ip < anchor iend=%d mlen=%d offset=%d\n", (int)(ip - base), (int)(iend - ip), (int)mlen, (int)offset); exit(0); }
             if (ip - offset < ctx->base) {

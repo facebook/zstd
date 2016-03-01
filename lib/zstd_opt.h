@@ -47,8 +47,7 @@ FORCE_INLINE U32 ZSTD_GETPRICE(seqStore_t* seqStorePtr, U32 litLength, const BYT
     price += ZSTD_getLiteralPrice(seqStorePtr, litLength, literals) + ZSTD_highbit(seqStorePtr->matchLengthSum+1) - ZSTD_highbit(seqStorePtr->matchLengthFreq[matchLength]+1);
 
 #if ZSTD_OPT_DEBUG >= 3
-    switch (seqStorePtr->priceFunc)
-    {
+    switch (seqStorePtr->priceFunc) {
         default:
         case 0:
             return 1 + price + seqStorePtr->factor + ((seqStorePtr->litSum>>5) / seqStorePtr->litLengthSum) + ((seqStorePtr->litSum<<1) / (seqStorePtr->litSum + seqStorePtr->matchSum));
@@ -557,8 +556,7 @@ _storeSequence:   /* cur, last_pos, best_mlen, best_off have to be set */
                 ml2 = (U32)ZSTD_count(ip, ip-offset, iend);
             else
                 ml2 = (U32)ZSTD_count(ip, ip-rep_1, iend);
-            if (offset >= 8)
-            if (ml2 < mlen || ml2 < MINMATCHOPT) {
+            if ((offset >= 8) && (ml2 < mlen || ml2 < MINMATCHOPT)) {
                 printf("%d: ERROR_NoExt iend=%d mlen=%d offset=%d ml2=%d\n", (int)(ip - base), (int)(iend - ip), (int)mlen, (int)offset, (int)ml2); exit(0); }
             if (ip < anchor) {
                 printf("%d: ERROR_NoExt ip < anchor iend=%d mlen=%d offset=%d\n", (int)(ip - base), (int)(iend - ip), (int)mlen, (int)offset); exit(0); }
@@ -572,7 +570,7 @@ _storeSequence:   /* cur, last_pos, best_mlen, best_off have to be set */
         }   /* for (cur=0; cur < last_pos; ) */
 
         /* check immediate repcode */
-        while ( (anchor <= ilimit)
+        while ((anchor >= prefixStart + rep_2) && (anchor <= ilimit)
              && (MEM_readMINMATCH(anchor) == MEM_readMINMATCH(anchor - rep_2)) ) {
             /* store sequence */
             best_mlen = (U32)ZSTD_count(anchor+MINMATCHOPT, anchor+MINMATCHOPT-rep_2, iend);
@@ -614,7 +612,8 @@ void ZSTD_COMPRESSBLOCK_OPT_EXTDICT_GENERIC(ZSTD_CCtx* ctx,
     const BYTE* const prefixStart = base + dictLimit;
     const BYTE* const dictBase = ctx->dictBase;
     const BYTE* const dictEnd  = dictBase + dictLimit;
-
+    const U32 lowLimit = ctx->lowLimit;
+   
     U32 rep_2=REPCODE_STARTVALUE, rep_1=REPCODE_STARTVALUE;
     const U32 maxSearches = 1U << ctx->params.searchLog;
     const U32 mls = ctx->params.searchLength;
@@ -892,21 +891,16 @@ _storeSequence: // cur, last_pos, best_mlen, best_off have to be set
 
 #if ZSTD_OPT_DEBUG >= 5
             U32 ml2;
-            if (offset)
-            {
-                if (offset > (size_t)(ip - prefixStart)) 
-                {
+            if (offset) {
+                if (offset > (size_t)(ip - prefixStart))  {
                     const BYTE* match = dictEnd - (offset - (ip - prefixStart));
                     ml2 = ZSTD_count_2segments(ip, match, iend, dictEnd, prefixStart);
                     ZSTD_LOG_PARSER("%d: ZSTD_count_2segments=%d offset=%d dictBase=%p dictEnd=%p prefixStart=%p ip=%p match=%p\n", (int)current, (int)ml2, (int)offset, dictBase, dictEnd, prefixStart, ip, match);
                 }
-                else
-                    ml2 = (U32)ZSTD_count(ip, ip-offset, iend);
+                else ml2 = (U32)ZSTD_count(ip, ip-offset, iend);
             }
-            else
-                ml2 = (U32)ZSTD_count(ip, ip-rep_1, iend);
-            if (offset >= 8)
-            if (ml2 < mlen || ml2 < MINMATCHOPT) {
+            else ml2 = (U32)ZSTD_count(ip, ip-rep_1, iend);
+            if ((offset >= 8) && (ml2 < mlen || ml2 < MINMATCHOPT)) {
                 printf("%d: ERROR_Ext iend=%d mlen=%d offset=%d ml2=%d\n", (int)(ip - base), (int)(iend - ip), (int)mlen, (int)offset, (int)ml2); exit(0); }
             if (ip < anchor) {
                 printf("%d: ERROR_Ext ip < anchor iend=%d mlen=%d offset=%d\n", (int)(ip - base), (int)(iend - ip), (int)mlen, (int)offset); exit(0); }
@@ -920,7 +914,7 @@ _storeSequence: // cur, last_pos, best_mlen, best_off have to be set
         }
 
         /* check immediate repcode */
-        while (anchor <= ilimit) {
+        while ((anchor >= base + lowLimit + rep_2) && (anchor <= ilimit)) {
             const U32 repIndex = (U32)((anchor-base) - rep_2);
             const BYTE* const repBase = repIndex < dictLimit ? dictBase : base;
             const BYTE* const repMatch = repBase + repIndex;

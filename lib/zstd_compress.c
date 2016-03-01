@@ -2040,7 +2040,8 @@ size_t ZSTD_compressContinue (ZSTD_CCtx* zc,
 size_t ZSTD_compressBlock(ZSTD_CCtx* zc, void* dst, size_t maxDstSize, const void* src, size_t srcSize)
 {
     if (srcSize > BLOCKSIZE) return ERROR(srcSize_wrong);
-    zc->params.searchLength = MINMATCH;
+    zc->params.searchLength = MINMATCH; /* force ZSTD_btopt to MINMATCH in block mode */
+    ZSTD_LOG_BLOCK("%p: ZSTD_compressBlock searchLength=%d\n", zc->base, zc->params.searchLength);
     return ZSTD_compressContinue_internal(zc, dst, maxDstSize, src, srcSize, 0);
 }
 
@@ -2174,11 +2175,13 @@ size_t ZSTD_compressBegin_advanced(ZSTD_CCtx* zc,
 
 size_t ZSTD_compressBegin_usingDict(ZSTD_CCtx* zc, const void* dict, size_t dictSize, int compressionLevel)
 {
+    ZSTD_LOG_BLOCK("%p: ZSTD_compressBegin_usingDict compressionLevel=%d\n", zc->base, compressionLevel);
     return ZSTD_compressBegin_advanced(zc, dict, dictSize, ZSTD_getParams(compressionLevel, MAX(128 KB, dictSize)));
 }
 
 size_t ZSTD_compressBegin(ZSTD_CCtx* zc, int compressionLevel)
 {
+    ZSTD_LOG_BLOCK("%p: ZSTD_compressBegin compressionLevel=%d\n", zc->base, compressionLevel);
     return ZSTD_compressBegin_advanced(zc, NULL, 0, ZSTD_getParams(compressionLevel, 0));
 }
 
@@ -2258,11 +2261,13 @@ size_t ZSTD_compress_advanced (ZSTD_CCtx* ctx,
 
 size_t ZSTD_compress_usingDict(ZSTD_CCtx* ctx, void* dst, size_t maxDstSize, const void* src, size_t srcSize, const void* dict, size_t dictSize, int compressionLevel)
 {
+    ZSTD_LOG_BLOCK("%p: ZSTD_compress_usingDict srcSize=%d dictSize=%d compressionLevel=%d\n", ctx->base, (int)srcSize, (int)dictSize, compressionLevel);
     return ZSTD_compress_advanced(ctx, dst, maxDstSize, src, srcSize, dict, dictSize, ZSTD_getParams(compressionLevel, srcSize));
 }
 
 size_t ZSTD_compressCCtx (ZSTD_CCtx* ctx, void* dst, size_t maxDstSize, const void* src, size_t srcSize, int compressionLevel)
 {
+    ZSTD_LOG_BLOCK("%p: ZSTD_compressCCtx srcSize=%d compressionLevel=%d\n", ctx->base, (int)srcSize, compressionLevel);
     return ZSTD_compress_advanced(ctx, dst, maxDstSize, src, srcSize, NULL, 0, ZSTD_getParams(compressionLevel, srcSize));
 }
 

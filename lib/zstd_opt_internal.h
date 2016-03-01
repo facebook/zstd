@@ -45,17 +45,6 @@
 #define ZSTD_FREQ_STEP  1
 #define ZSTD_FREQ_DIV   5
 
-/*-  Debug  -*/
-#if defined(ZSTD_OPT_DEBUG) && ZSTD_OPT_DEBUG>=9
-    #define ZSTD_LOG_PARSER(...) printf(__VA_ARGS__)
-    #define ZSTD_LOG_ENCODE(...) printf(__VA_ARGS__)
-    #define ZSTD_LOG_BLOCK(...) printf(__VA_ARGS__)
-#else
-    #define ZSTD_LOG_PARSER(...)
-    #define ZSTD_LOG_ENCODE(...)
-    #define ZSTD_LOG_BLOCK(...)
-#endif
-
 
 typedef struct {
     U32 off;

@@ -74,24 +74,6 @@ size_t ZSTD_compressBound(size_t srcSize) { return FSE_compressBound(srcSize) + 
 /*-*************************************
 *  Sequence storage
 ***************************************/
-/** ZSTD_resetFreqs() : for opt variants */
-static void ZSTD_resetFreqs(seqStore_t* ssPtr)
-{
-    unsigned u;
-    ssPtr->matchLengthSum = 512; // (1<<MLbits);
-    ssPtr->litLengthSum = 256; // (1<<LLbits);
-    ssPtr->litSum = (1<<Litbits);
-    ssPtr->offCodeSum = (1<<Offbits);
-
-    for (u=0; u<=MaxLit; u++)
-        ssPtr->litFreq[u] = 1;
-    for (u=0; u<=MaxLL; u++)
-        ssPtr->litLengthFreq[u] = 1;
-    for (u=0; u<=MaxML; u++)
-        ssPtr->matchLengthFreq[u] = 1;
-    for (u=0; u<=MaxOff; u++)
-        ssPtr->offCodeFreq[u] = 1;
-}
 
 static void ZSTD_resetSeqStore(seqStore_t* ssPtr)
 {
@@ -114,6 +96,7 @@ struct ZSTD_CCtx_s
     U32   dictLimit;        /* below that point, need extDict */
     U32   lowLimit;         /* below that point, no more data */
     U32   nextToUpdate;     /* index from which to continue dictionary update */
+    U32   nextToUpdate3;    /* index from which to continue dictionary update */
     U32   loadedDictEnd;
     U32   stage;
     ZSTD_parameters params;
@@ -125,6 +108,7 @@ struct ZSTD_CCtx_s
 
     seqStore_t seqStore;    /* sequences storage ptrs */
     U32* hashTable;
+    U32* hashTable3;
     U32* contentTable;
     HUF_CElt* hufTable;
     U32 flagStaticTables;
@@ -167,6 +151,7 @@ void ZSTD_validateParams(ZSTD_parameters* params)
     CLAMP(params->windowLog, ZSTD_WINDOWLOG_MIN, ZSTD_WINDOWLOG_MAX);
     CLAMP(params->contentLog, ZSTD_CONTENTLOG_MIN, ZSTD_CONTENTLOG_MAX);
     CLAMP(params->hashLog, ZSTD_HASHLOG_MIN, ZSTD_HASHLOG_MAX);
+    CLAMP(params->hashLog3, ZSTD_HASHLOG3_MIN, ZSTD_HASHLOG3_MAX);
     CLAMP(params->searchLog, ZSTD_SEARCHLOG_MIN, ZSTD_SEARCHLOG_MAX);
     CLAMP(params->searchLength, ZSTD_SEARCHLENGTH_MIN, ZSTD_SEARCHLENGTH_MAX);
     CLAMP(params->targetLength, ZSTD_TARGETLENGTH_MIN, ZSTD_TARGETLENGTH_MAX);
@@ -188,7 +173,7 @@ static size_t ZSTD_resetCCtx_advanced (ZSTD_CCtx* zc,
     const size_t blockSize = MIN(BLOCKSIZE, (size_t)1 << params.windowLog);
     /* reserve table memory */
     const U32 contentLog = (params.strategy == ZSTD_fast) ? 1 : params.contentLog;
-    const size_t tableSpace = ((1 << contentLog) + (1 << params.hashLog)) * sizeof(U32);
+    const size_t tableSpace = ((1 << contentLog) + (1 << params.hashLog) + (1 << params.hashLog3)) * sizeof(U32);
     const size_t neededSpace = tableSpace + (256*sizeof(U32)) + (3*blockSize) + ((1<<MLbits) + (1<<LLbits) + (1<<Offbits) + (1<<Litbits))*sizeof(U32);
     if (zc->workSpaceSize < neededSpace) {
         free(zc->workSpace);
@@ -197,7 +182,8 @@ static size_t ZSTD_resetCCtx_advanced (ZSTD_CCtx* zc,
         zc->workSpaceSize = neededSpace;
     }
     memset(zc->workSpace, 0, tableSpace );   /* reset only tables */
-    zc->hashTable = (U32*)(zc->workSpace);
+    zc->hashTable3 = (U32*)(zc->workSpace);
+    zc->hashTable = zc->hashTable3 + ((size_t)1 << params.hashLog3);
     zc->contentTable = zc->hashTable + ((size_t)1 << params.hashLog);
     zc->seqStore.buffer = zc->contentTable + ((size_t)1 << contentLog);
     zc->hufTable = (HUF_CElt*)zc->seqStore.buffer;
@@ -225,6 +211,7 @@ static size_t ZSTD_resetCCtx_advanced (ZSTD_CCtx* zc,
     zc->seqStore.matchLengthStart = zc->seqStore.litLengthStart + (blockSize>>2);
     zc->seqStore.dumpsStart = zc->seqStore.matchLengthStart + (blockSize>>2);
     // zc->seqStore.XXX = zc->seqStore.dumpsStart + (blockSize>>4);
+    zc->seqStore.litLengthSum = 0;
 
     zc->hbSize = 0;
     zc->stage = 0;
@@ -241,14 +228,14 @@ static size_t ZSTD_resetCCtx_advanced (ZSTD_CCtx* zc,
 size_t ZSTD_copyCCtx(ZSTD_CCtx* dstCCtx, const ZSTD_CCtx* srcCCtx)
 {
     const U32 contentLog = (srcCCtx->params.strategy == ZSTD_fast) ? 1 : srcCCtx->params.contentLog;
-    const size_t tableSpace = ((1 << contentLog) + (1 << srcCCtx->params.hashLog)) * sizeof(U32);
-
+    const size_t tableSpace = ((1 << contentLog) + (1 << srcCCtx->params.hashLog) + (1 << srcCCtx->params.hashLog3)) * sizeof(U32);
+    
     if (srcCCtx->stage!=0) return ERROR(stage_wrong);
 
     ZSTD_resetCCtx_advanced(dstCCtx, srcCCtx->params);
 
     /* copy tables */
-    memcpy(dstCCtx->hashTable, srcCCtx->hashTable, tableSpace);
+    memcpy(dstCCtx->workSpace, srcCCtx->workSpace, tableSpace);
 
     /* copy frame header */
     dstCCtx->hbSize = srcCCtx->hbSize;
@@ -256,6 +243,7 @@ size_t ZSTD_copyCCtx(ZSTD_CCtx* dstCCtx, const ZSTD_CCtx* srcCCtx)
 
     /* copy dictionary pointers */
     dstCCtx->nextToUpdate= srcCCtx->nextToUpdate;
+    dstCCtx->nextToUpdate3 = srcCCtx->nextToUpdate3;
     dstCCtx->nextSrc     = srcCCtx->nextSrc;
     dstCCtx->base        = srcCCtx->base;
     dstCCtx->dictBase    = srcCCtx->dictBase;
@@ -555,6 +543,11 @@ size_t ZSTD_compressSequences(ZSTD_CCtx* zc,
         op += cSize;
     }
 
+#if ZSTD_OPT_DEBUG >= 5
+    if (nbSeq >= 32768)
+        printf("ERROR: nbSeq=%d\n", (int)nbSeq);
+#endif
+
     /* Sequences Header */
     if ((oend-op) < MIN_SEQUENCES_SIZE) return ERROR(dstSize_tooSmall);
     if (nbSeq < 128) *op++ = (BYTE)nbSeq;
@@ -732,7 +725,13 @@ MEM_STATIC void ZSTD_storeSeq(seqStore_t* seqStorePtr, size_t litLength, const B
     if (g_start==NULL) g_start = literals;
     //if (literals - g_start == 8695)
     printf("pos %6u : %3u literals & match %3u bytes at distance %6u \n",
-           (U32)(literals - g_start), (U32)litLength, (U32)matchCode+4, (U32)offsetCode);
+           (U32)(literals - g_start), (U32)litLength, (U32)matchCode+MINMATCH, (U32)offsetCode);
+#endif
+#if ZSTD_OPT_DEBUG >= 3
+    if (offsetCode == 0) seqStorePtr->realRepSum++;
+    seqStorePtr->realSeqSum++;
+    seqStorePtr->realMatchSum += matchCode;
+    seqStorePtr->realLitSum += litLength;
 #endif
 
     /* copy Literals */
@@ -875,6 +874,10 @@ static size_t ZSTD_count_2segments(const BYTE* ip, const BYTE* match, const BYTE
 /*-*************************************
 *  Hashes
 ***************************************/
+static const U32 prime3bytes = 506832829U;
+static U32    ZSTD_hash3(U32 u, U32 h) { return ((u << (32-24)) * prime3bytes)  >> (32-h) ; }
+static size_t ZSTD_hash3Ptr(const void* ptr, U32 h) { return ZSTD_hash3(MEM_read32(ptr), h); }
+
 static const U32 prime4bytes = 2654435761U;
 static U32    ZSTD_hash4(U32 u, U32 h) { return (u * prime4bytes) >> (32-h) ; }
 static size_t ZSTD_hash4Ptr(const void* ptr, U32 h) { return ZSTD_hash4(MEM_read32(ptr), h); }
@@ -1373,6 +1376,7 @@ static void ZSTD_updateTree_extDict(ZSTD_CCtx* zc, const BYTE* const ip, const B
     while (idx < target) idx += ZSTD_insertBt1(zc, base+idx, mls, iend, nbCompares, 1);
 }
 
+#include "zstd_opt_internal.h"
 
 /** Tree updater, providing best match */
 static size_t ZSTD_BtFindBestMatch_extDict (
@@ -1651,16 +1655,13 @@ _storeSequence:
     }
 }
 
-#include "zstd_opt.h"
 
-static void ZSTD_compressBlock_opt_bt(ZSTD_CCtx* ctx, const void* src, size_t srcSize)
+static void ZSTD_compressBlock_btopt(ZSTD_CCtx* ctx, const void* src, size_t srcSize)
 {
-    ZSTD_compressBlock_opt_generic(ctx, src, srcSize, 1, 2);
-}
-
-static void ZSTD_compressBlock_opt(ZSTD_CCtx* ctx, const void* src, size_t srcSize)
-{
-    ZSTD_compressBlock_opt_generic(ctx, src, srcSize, 0, 2);
+    if (ctx->params.searchLength == 3)
+        ZSTD_compressBlock_opt_generic3(ctx, src, srcSize, 2);
+    else
+        ZSTD_compressBlock_opt_generic4(ctx, src, srcSize, 2);
 }
 
 static void ZSTD_compressBlock_btlazy2(ZSTD_CCtx* ctx, const void* src, size_t srcSize)
@@ -1877,14 +1878,12 @@ static void ZSTD_compressBlock_btlazy2_extDict(ZSTD_CCtx* ctx, const void* src, 
     ZSTD_compressBlock_lazy_extDict_generic(ctx, src, srcSize, 1, 2);
 }
 
-static void ZSTD_compressBlock_opt_extDict(ZSTD_CCtx* ctx, const void* src, size_t srcSize)
+static void ZSTD_compressBlock_btopt_extDict(ZSTD_CCtx* ctx, const void* src, size_t srcSize)
 {
-    ZSTD_compressBlock_opt_extDict_generic(ctx, src, srcSize, 0, 2);
-}
-
-static void ZSTD_compressBlock_opt_bt_extDict(ZSTD_CCtx* ctx, const void* src, size_t srcSize)
-{
-    ZSTD_compressBlock_opt_extDict_generic(ctx, src, srcSize, 1, 2);
+    if (ctx->params.searchLength == 3)
+        ZSTD_compressBlock_opt_extDict_generic3(ctx, src, srcSize, 2);
+    else
+        ZSTD_compressBlock_opt_extDict_generic4(ctx, src, srcSize, 2);
 }
 
 
@@ -1892,9 +1891,9 @@ typedef void (*ZSTD_blockCompressor) (ZSTD_CCtx* ctx, const void* src, size_t sr
 
 static ZSTD_blockCompressor ZSTD_selectBlockCompressor(ZSTD_strategy strat, int extDict)
 {
-    static const ZSTD_blockCompressor blockCompressor[2][7] = {
-        { ZSTD_compressBlock_fast, ZSTD_compressBlock_greedy, ZSTD_compressBlock_lazy,ZSTD_compressBlock_lazy2, ZSTD_compressBlock_btlazy2, ZSTD_compressBlock_opt, ZSTD_compressBlock_opt_bt },
-        { ZSTD_compressBlock_fast_extDict, ZSTD_compressBlock_greedy_extDict, ZSTD_compressBlock_lazy_extDict,ZSTD_compressBlock_lazy2_extDict, ZSTD_compressBlock_btlazy2_extDict, ZSTD_compressBlock_opt_extDict, ZSTD_compressBlock_opt_bt_extDict }
+    static const ZSTD_blockCompressor blockCompressor[2][6] = {
+        { ZSTD_compressBlock_fast, ZSTD_compressBlock_greedy, ZSTD_compressBlock_lazy, ZSTD_compressBlock_lazy2, ZSTD_compressBlock_btlazy2, ZSTD_compressBlock_btopt },
+        { ZSTD_compressBlock_fast_extDict, ZSTD_compressBlock_greedy_extDict, ZSTD_compressBlock_lazy_extDict,ZSTD_compressBlock_lazy2_extDict, ZSTD_compressBlock_btlazy2_extDict, ZSTD_compressBlock_btopt_extDict }
     };
 
     return blockCompressor[extDict][(U32)strat];
@@ -1920,6 +1919,11 @@ static size_t ZSTD_compress_generic (ZSTD_CCtx* zc,
     BYTE* const ostart = (BYTE*)dst;
     BYTE* op = ostart;
     const U32 maxDist = 1 << zc->params.windowLog;
+    seqStore_t* ssPtr = &zc->seqStore;
+    static U32 priceFunc = 0;
+
+    ssPtr->realMatchSum = ssPtr->realLitSum = ssPtr->realSeqSum = ssPtr->realRepSum = 1;
+    ssPtr->priceFunc = priceFunc;
 
     while (remaining) {
         size_t cSize;
@@ -1952,6 +1956,13 @@ static size_t ZSTD_compress_generic (ZSTD_CCtx* zc,
         ip += blockSize;
         op += cSize;
     }
+
+
+#if ZSTD_OPT_DEBUG == 3
+    ssPtr->realMatchSum += ssPtr->realSeqSum * ((zc->params.searchLength == 3) ? 3 : 4);
+    printf("avgMatchL=%.2f avgLitL=%.2f match=%.1f%% lit=%.1f%% reps=%d seq=%d priceFunc=%d\n", (float)ssPtr->realMatchSum/ssPtr->realSeqSum, (float)ssPtr->realLitSum/ssPtr->realSeqSum, 100.0*ssPtr->realMatchSum/(ssPtr->realMatchSum+ssPtr->realLitSum), 100.0*ssPtr->realLitSum/(ssPtr->realMatchSum+ssPtr->realLitSum), ssPtr->realRepSum, ssPtr->realSeqSum, ssPtr->priceFunc);
+    priceFunc++;
+#endif
 
     return op-ostart;
 }
@@ -2029,6 +2040,8 @@ size_t ZSTD_compressContinue (ZSTD_CCtx* zc,
 size_t ZSTD_compressBlock(ZSTD_CCtx* zc, void* dst, size_t maxDstSize, const void* src, size_t srcSize)
 {
     if (srcSize > BLOCKSIZE) return ERROR(srcSize_wrong);
+    zc->params.searchLength = MINMATCH; /* force ZSTD_btopt to MINMATCH in block mode */
+    ZSTD_LOG_BLOCK("%p: ZSTD_compressBlock searchLength=%d\n", zc->base, zc->params.searchLength);
     return ZSTD_compressContinue_internal(zc, dst, maxDstSize, src, srcSize, 0);
 }
 
@@ -2058,7 +2071,6 @@ static size_t ZSTD_loadDictionaryContent(ZSTD_CCtx* zc, const void* src, size_t 
     case ZSTD_greedy:
     case ZSTD_lazy:
     case ZSTD_lazy2:
-    case ZSTD_opt:
         ZSTD_insertAndFindFirstIndex (zc, iend-8, zc->params.searchLength);
         break;
 
@@ -2153,7 +2165,7 @@ size_t ZSTD_compressBegin_advanced(ZSTD_CCtx* zc,
     if (ZSTD_isError(errorCode)) return errorCode;
 
     MEM_writeLE32(zc->headerBuffer, ZSTD_MAGICNUMBER);   /* Write Header */
-    ((BYTE*)zc->headerBuffer)[4] = (BYTE)(params.windowLog - ZSTD_WINDOWLOG_ABSOLUTEMIN);
+    ((BYTE*)zc->headerBuffer)[4] = (BYTE)(params.windowLog - ZSTD_WINDOWLOG_ABSOLUTEMIN + ((params.searchLength==3)<<4));
     zc->hbSize = ZSTD_frameHeaderSize_min;
     zc->stage = 0;
 
@@ -2163,11 +2175,13 @@ size_t ZSTD_compressBegin_advanced(ZSTD_CCtx* zc,
 
 size_t ZSTD_compressBegin_usingDict(ZSTD_CCtx* zc, const void* dict, size_t dictSize, int compressionLevel)
 {
+    ZSTD_LOG_BLOCK("%p: ZSTD_compressBegin_usingDict compressionLevel=%d\n", zc->base, compressionLevel);
     return ZSTD_compressBegin_advanced(zc, dict, dictSize, ZSTD_getParams(compressionLevel, MAX(128 KB, dictSize)));
 }
 
 size_t ZSTD_compressBegin(ZSTD_CCtx* zc, int compressionLevel)
 {
+    ZSTD_LOG_BLOCK("%p: ZSTD_compressBegin compressionLevel=%d\n", zc->base, compressionLevel);
     return ZSTD_compressBegin_advanced(zc, NULL, 0, ZSTD_getParams(compressionLevel, 0));
 }
 
@@ -2247,11 +2261,13 @@ size_t ZSTD_compress_advanced (ZSTD_CCtx* ctx,
 
 size_t ZSTD_compress_usingDict(ZSTD_CCtx* ctx, void* dst, size_t maxDstSize, const void* src, size_t srcSize, const void* dict, size_t dictSize, int compressionLevel)
 {
+    ZSTD_LOG_BLOCK("%p: ZSTD_compress_usingDict srcSize=%d dictSize=%d compressionLevel=%d\n", ctx->base, (int)srcSize, (int)dictSize, compressionLevel);
     return ZSTD_compress_advanced(ctx, dst, maxDstSize, src, srcSize, dict, dictSize, ZSTD_getParams(compressionLevel, srcSize));
 }
 
 size_t ZSTD_compressCCtx (ZSTD_CCtx* ctx, void* dst, size_t maxDstSize, const void* src, size_t srcSize, int compressionLevel)
 {
+    ZSTD_LOG_BLOCK("%p: ZSTD_compressCCtx srcSize=%d compressionLevel=%d\n", ctx->base, (int)srcSize, compressionLevel);
     return ZSTD_compress_advanced(ctx, dst, maxDstSize, src, srcSize, NULL, 0, ZSTD_getParams(compressionLevel, srcSize));
 }
 
@@ -2268,110 +2284,127 @@ size_t ZSTD_compress(void* dst, size_t maxDstSize, const void* src, size_t srcSi
 
 /*-=====  Pre-defined compression levels  =====-*/
 
-#define ZSTD_MAX_CLEVEL 21
+#define ZSTD_MAX_CLEVEL 25
 unsigned ZSTD_maxCLevel(void) { return ZSTD_MAX_CLEVEL; }
+
 
 static const ZSTD_parameters ZSTD_defaultParameters[4][ZSTD_MAX_CLEVEL+1] = {
 {   /* "default" */
-    /* l,  W,  C,  H,  S,  L, SL, strat */
-    {  0,  0,  0,  0,  0,  0,  0, ZSTD_fast    },  /* level  0 - never used */
-    {  0, 19, 13, 14,  1,  7,  4, ZSTD_fast    },  /* level  1 */
-    {  0, 19, 15, 16,  1,  6,  4, ZSTD_fast    },  /* level  2 */
-    {  0, 20, 18, 20,  1,  6,  4, ZSTD_fast    },  /* level  3 */
-    {  0, 21, 19, 21,  1,  6,  4, ZSTD_fast    },  /* level  4 */
-    {  0, 20, 14, 18,  3,  5,  4, ZSTD_greedy  },  /* level  5 */
-    {  0, 20, 18, 19,  3,  5,  4, ZSTD_greedy  },  /* level  6 */
-    {  0, 21, 17, 20,  3,  5,  4, ZSTD_lazy    },  /* level  7 */
-    {  0, 21, 19, 20,  3,  5,  4, ZSTD_lazy    },  /* level  8 */
-    {  0, 21, 20, 20,  3,  5,  4, ZSTD_lazy2   },  /* level  9 */
-    {  0, 21, 19, 21,  4,  5,  4, ZSTD_lazy2   },  /* level 10 */
-    {  0, 22, 20, 22,  4,  5,  4, ZSTD_lazy2   },  /* level 11 */
-    {  0, 22, 20, 22,  5,  5,  4, ZSTD_lazy2   },  /* level 12 */
-    {  0, 22, 21, 22,  5,  5,  4, ZSTD_lazy2   },  /* level 13 */
-    {  0, 22, 22, 23,  5,  5,  4, ZSTD_lazy2   },  /* level 14 */
-    {  0, 23, 23, 23,  5,  5,  4, ZSTD_lazy2   },  /* level 15 */
-    {  0, 23, 22, 22,  5,  5,  4, ZSTD_btlazy2 },  /* level 16 */
-    {  0, 24, 24, 23,  4,  5,  4, ZSTD_btlazy2 },  /* level 17 */
-    {  0, 24, 24, 23,  5,  5, 30, ZSTD_btopt   },  /* level 18 */
-    {  0, 25, 25, 24,  5,  4, 40, ZSTD_btopt   },  /* level 19 */
-    {  0, 26, 26, 25,  8,  4,256, ZSTD_btopt   },  /* level 20 */
-    {  0, 26, 27, 25, 10,  4,256, ZSTD_btopt   },  /* level 21 */
+    /* l,  W,  C,  H, H3,  S,  L, SL, strat */
+    {  0,  0,  0,  0,  0,  0,  0,  0, ZSTD_fast    },  /* level  0 - never used */
+    {  0, 19, 13, 14,  0,  1,  7,  4, ZSTD_fast    },  /* level  1 */
+    {  0, 19, 15, 16,  0,  1,  6,  4, ZSTD_fast    },  /* level  2 */
+    {  0, 20, 18, 20,  0,  1,  6,  4, ZSTD_fast    },  /* level  3 */
+    {  0, 21, 19, 21,  0,  1,  6,  4, ZSTD_fast    },  /* level  4 */
+    {  0, 20, 14, 18,  0,  3,  5,  4, ZSTD_greedy  },  /* level  5 */
+    {  0, 20, 18, 19,  0,  3,  5,  4, ZSTD_greedy  },  /* level  6 */
+    {  0, 21, 17, 20,  0,  3,  5,  4, ZSTD_lazy    },  /* level  7 */
+    {  0, 21, 19, 20,  0,  3,  5,  4, ZSTD_lazy    },  /* level  8 */
+    {  0, 21, 20, 20,  0,  3,  5,  4, ZSTD_lazy2   },  /* level  9 */
+    {  0, 21, 19, 21,  0,  4,  5,  4, ZSTD_lazy2   },  /* level 10 */
+    {  0, 22, 20, 22,  0,  4,  5,  4, ZSTD_lazy2   },  /* level 11 */
+    {  0, 22, 20, 22,  0,  5,  5,  4, ZSTD_lazy2   },  /* level 12 */
+    {  0, 22, 21, 22,  0,  5,  5,  4, ZSTD_lazy2   },  /* level 13 */
+    {  0, 22, 22, 23,  0,  5,  5,  4, ZSTD_lazy2   },  /* level 14 */
+    {  0, 23, 23, 23,  0,  5,  5,  4, ZSTD_lazy2   },  /* level 15 */
+    {  0, 23, 22, 22,  0,  5,  5,  4, ZSTD_btlazy2 },  /* level 16 */
+    {  0, 24, 24, 23,  0,  4,  5,  4, ZSTD_btlazy2 },  /* level 17 */
+    {  0, 24, 24, 23,  0,  5,  5, 30, ZSTD_btopt   },  /* level 18 */
+    {  0, 25, 25, 24,  0,  5,  4, 40, ZSTD_btopt   },  /* level 19 */
+    {  0, 26, 26, 25,  0,  8,  4,256, ZSTD_btopt   },  /* level 20 */
+    {  0, 26, 27, 25,  0, 10,  4,256, ZSTD_btopt   },  /* level 21 */
+    {  0, 24, 24, 23, 16,  5,  3, 30, ZSTD_btopt   },  /* level 22 */
+    {  0, 25, 25, 24, 16,  5,  3, 40, ZSTD_btopt   },  /* level 23 */
+    {  0, 26, 26, 25, 16,  8,  3,256, ZSTD_btopt   },  /* level 24 */
+    {  0, 26, 27, 25, 24, 10,  3,256, ZSTD_btopt   },  /* level 25 */
 },
 {   /* for srcSize <= 256 KB */
-    /* l,  W,  C,  H,  S,  L,  T, strat */
-    {  0,  0,  0,  0,  0,  0,  0, ZSTD_fast    },  /* level  0 */
-    {  0, 18, 14, 15,  1,  6,  4, ZSTD_fast    },  /* level  1 */
-    {  0, 18, 14, 16,  1,  5,  4, ZSTD_fast    },  /* level  2 */
-    {  0, 18, 14, 17,  1,  5,  4, ZSTD_fast    },  /* level  3.*/
-    {  0, 18, 14, 15,  4,  4,  4, ZSTD_greedy  },  /* level  4 */
-    {  0, 18, 16, 17,  4,  4,  4, ZSTD_greedy  },  /* level  5 */
-    {  0, 18, 17, 17,  3,  4,  4, ZSTD_lazy    },  /* level  6 */
-    {  0, 18, 17, 17,  4,  4,  4, ZSTD_lazy    },  /* level  7 */
-    {  0, 18, 17, 17,  4,  4,  4, ZSTD_lazy2   },  /* level  8 */
-    {  0, 18, 17, 17,  5,  4,  4, ZSTD_lazy2   },  /* level  9 */
-    {  0, 18, 17, 17,  6,  4,  4, ZSTD_lazy2   },  /* level 10 */
-    {  0, 18, 17, 17,  7,  4,  4, ZSTD_lazy2   },  /* level 11 */
-    {  0, 18, 18, 17,  4,  4,  4, ZSTD_btlazy2 },  /* level 12 */
-    {  0, 18, 19, 17,  7,  4,  4, ZSTD_btlazy2 },  /* level 13.*/
-    {  0, 18, 17, 19,  8,  4, 24, ZSTD_btopt   },  /* level 14.*/
-    {  0, 18, 19, 19,  8,  4, 48, ZSTD_btopt   },  /* level 15.*/
-    {  0, 18, 19, 18,  9,  4,128, ZSTD_btopt   },  /* level 16.*/
-    {  0, 18, 19, 18,  9,  4,192, ZSTD_btopt   },  /* level 17.*/
-    {  0, 18, 19, 18,  9,  4,256, ZSTD_btopt   },  /* level 18.*/
-    {  0, 18, 19, 18, 10,  4,256, ZSTD_btopt   },  /* level 19.*/
-    {  0, 18, 19, 18, 11,  4,256, ZSTD_btopt   },  /* level 20.*/
-    {  0, 18, 19, 18, 12,  4,256, ZSTD_btopt   },  /* level 21.*/
+    /* l,  W,  C,  H, H3,  S,  L,  T, strat */
+    {  0,  0,  0,  0,  0,  0,  0,  0, ZSTD_fast    },  /* level  0 */
+    {  0, 18, 14, 15,  0,  1,  6,  4, ZSTD_fast    },  /* level  1 */
+    {  0, 18, 14, 16,  0,  1,  5,  4, ZSTD_fast    },  /* level  2 */
+    {  0, 18, 14, 17,  0,  1,  5,  4, ZSTD_fast    },  /* level  3.*/
+    {  0, 18, 14, 15,  0,  4,  4,  4, ZSTD_greedy  },  /* level  4 */
+    {  0, 18, 16, 17,  0,  4,  4,  4, ZSTD_greedy  },  /* level  5 */
+    {  0, 18, 17, 17,  0,  3,  4,  4, ZSTD_lazy    },  /* level  6 */
+    {  0, 18, 17, 17,  0,  4,  4,  4, ZSTD_lazy    },  /* level  7 */
+    {  0, 18, 17, 17,  0,  4,  4,  4, ZSTD_lazy2   },  /* level  8 */
+    {  0, 18, 17, 17,  0,  5,  4,  4, ZSTD_lazy2   },  /* level  9 */
+    {  0, 18, 17, 17,  0,  6,  4,  4, ZSTD_lazy2   },  /* level 10 */
+    {  0, 18, 17, 17,  0,  7,  4,  4, ZSTD_lazy2   },  /* level 11 */
+    {  0, 18, 18, 17,  0,  4,  4,  4, ZSTD_btlazy2 },  /* level 12 */
+    {  0, 18, 19, 17,  0,  7,  4,  4, ZSTD_btlazy2 },  /* level 13.*/
+    {  0, 18, 17, 19,  0,  8,  4, 24, ZSTD_btopt   },  /* level 14.*/
+    {  0, 18, 19, 19,  0,  8,  4, 48, ZSTD_btopt   },  /* level 15.*/
+    {  0, 18, 19, 18,  0,  9,  4,128, ZSTD_btopt   },  /* level 16.*/
+    {  0, 18, 19, 18,  0,  9,  4,192, ZSTD_btopt   },  /* level 17.*/
+    {  0, 18, 19, 18,  0,  9,  4,256, ZSTD_btopt   },  /* level 18.*/
+    {  0, 18, 19, 18,  0, 10,  4,256, ZSTD_btopt   },  /* level 19.*/
+    {  0, 18, 19, 18,  0, 11,  4,256, ZSTD_btopt   },  /* level 20.*/
+    {  0, 18, 19, 18,  0, 12,  4,256, ZSTD_btopt   },  /* level 21.*/
+    {  0, 18, 19, 18,  0, 12,  4,256, ZSTD_btopt   },  /* level 21-2*/
+    {  0, 18, 19, 18,  0, 12,  4,256, ZSTD_btopt   },  /* level 21-3*/
+    {  0, 18, 19, 18,  0, 12,  4,256, ZSTD_btopt   },  /* level 21-4*/
+    {  0, 18, 19, 18,  0, 12,  4,256, ZSTD_btopt   },  /* level 21-5*/
 },
 {   /* for srcSize <= 128 KB */
-    /* l,  W,  C,  H,  S,  L,  T, strat */
-    {  0,  0,  0,  0,  0,  0,  0, ZSTD_fast    },  /* level  0 - never used */
-    {  0, 17, 12, 13,  1,  6,  4, ZSTD_fast    },  /* level  1 */
-    {  0, 17, 13, 16,  1,  5,  4, ZSTD_fast    },  /* level  2 */
-    {  0, 17, 13, 14,  2,  5,  4, ZSTD_greedy  },  /* level  3 */
-    {  0, 17, 13, 15,  3,  4,  4, ZSTD_greedy  },  /* level  4 */
-    {  0, 17, 15, 17,  4,  4,  4, ZSTD_greedy  },  /* level  5 */
-    {  0, 17, 16, 17,  3,  4,  4, ZSTD_lazy    },  /* level  6 */
-    {  0, 17, 16, 17,  4,  4,  4, ZSTD_lazy    },  /* level  7 */
-    {  0, 17, 17, 16,  4,  4,  4, ZSTD_lazy2   },  /* level  8 */
-    {  0, 17, 17, 16,  5,  4,  4, ZSTD_lazy2   },  /* level  9 */
-    {  0, 17, 17, 16,  6,  4,  4, ZSTD_lazy2   },  /* level 10 */
-    {  0, 17, 17, 17,  7,  4,  4, ZSTD_lazy2   },  /* level 11 */
-    {  0, 17, 17, 17,  8,  4,  4, ZSTD_lazy2   },  /* level 12 */
-    {  0, 17, 17, 17,  9,  4,  4, ZSTD_lazy2   },  /* level 13 */
-    {  0, 17, 18, 16,  5,  4, 20, ZSTD_btopt   },  /* level 14 */
-    {  0, 17, 18, 16,  9,  4, 48, ZSTD_btopt   },  /* level 15 */
-    {  0, 17, 18, 17,  7,  4,128, ZSTD_btopt   },  /* level 16 */
-    {  0, 17, 18, 17,  8,  4,128, ZSTD_btopt   },  /* level 17 */
-    {  0, 17, 18, 17,  8,  4,256, ZSTD_btopt   },  /* level 18 */
-    {  0, 17, 18, 17,  9,  4,256, ZSTD_btopt   },  /* level 19 */
-    {  0, 17, 18, 17, 10,  4,512, ZSTD_btopt   },  /* level 20 */
-    {  0, 17, 18, 17, 11,  4,512, ZSTD_btopt   },  /* level 21 */
+    /* l,  W,  C,  H, H3,  S,  L,  T, strat */
+    {  0,  0,  0,  0,  0,  0,  0,  0, ZSTD_fast    },  /* level  0 - never used */
+    {  0, 17, 12, 13,  0,  1,  6,  4, ZSTD_fast    },  /* level  1 */
+    {  0, 17, 13, 16,  0,  1,  5,  4, ZSTD_fast    },  /* level  2 */
+    {  0, 17, 13, 14,  0,  2,  5,  4, ZSTD_greedy  },  /* level  3 */
+    {  0, 17, 13, 15,  0,  3,  4,  4, ZSTD_greedy  },  /* level  4 */
+    {  0, 17, 15, 17,  0,  4,  4,  4, ZSTD_greedy  },  /* level  5 */
+    {  0, 17, 16, 17,  0,  3,  4,  4, ZSTD_lazy    },  /* level  6 */
+    {  0, 17, 16, 17,  0,  4,  4,  4, ZSTD_lazy    },  /* level  7 */
+    {  0, 17, 17, 16,  0,  4,  4,  4, ZSTD_lazy2   },  /* level  8 */
+    {  0, 17, 17, 16,  0,  5,  4,  4, ZSTD_lazy2   },  /* level  9 */
+    {  0, 17, 17, 16,  0,  6,  4,  4, ZSTD_lazy2   },  /* level 10 */
+    {  0, 17, 17, 17,  0,  7,  4,  4, ZSTD_lazy2   },  /* level 11 */
+    {  0, 17, 17, 17,  0,  8,  4,  4, ZSTD_lazy2   },  /* level 12 */
+    {  0, 17, 17, 17,  0,  9,  4,  4, ZSTD_lazy2   },  /* level 13 */
+    {  0, 17, 18, 16,  0,  5,  4, 20, ZSTD_btopt   },  /* level 14 */
+    {  0, 17, 18, 16,  0,  9,  4, 48, ZSTD_btopt   },  /* level 15 */
+    {  0, 17, 18, 17,  0,  7,  4,128, ZSTD_btopt   },  /* level 16 */
+    {  0, 17, 18, 17,  0,  8,  4,128, ZSTD_btopt   },  /* level 17 */
+    {  0, 17, 18, 17,  0,  8,  4,256, ZSTD_btopt   },  /* level 18 */
+    {  0, 17, 18, 17,  0,  9,  4,256, ZSTD_btopt   },  /* level 19 */
+    {  0, 17, 18, 17,  0, 10,  4,512, ZSTD_btopt   },  /* level 20 */
+    {  0, 17, 18, 17,  0, 11,  4,512, ZSTD_btopt   },  /* level 21 */
+    {  0, 17, 18, 17,  0, 11,  4,512, ZSTD_btopt   },  /* level 21-2 */
+    {  0, 17, 18, 17,  0, 11,  4,512, ZSTD_btopt   },  /* level 21-3 */
+    {  0, 17, 18, 17,  0, 11,  4,512, ZSTD_btopt   },  /* level 21-4 */
+    {  0, 17, 18, 17,  0, 11,  4,512, ZSTD_btopt   },  /* level 21-5 */
 
 },
 {   /* for srcSize <= 16 KB */
-    /* l,  W,  C,  H,  S,  L,  T, strat */
-    {  0,  0,  0,  0,  0,  0,  0, ZSTD_fast    },  /* level  0 -- never used */
-    {  0, 14, 14, 14,  1,  4,  4, ZSTD_fast    },  /* level  1 */
-    {  0, 14, 14, 15,  1,  4,  4, ZSTD_fast    },  /* level  2 */
-    {  0, 14, 13, 15,  4,  4,  4, ZSTD_greedy  },  /* level  3 */
-    {  0, 14, 14, 15,  3,  4,  4, ZSTD_lazy    },  /* level  4 */
-    {  0, 14, 14, 14,  6,  4,  4, ZSTD_lazy    },  /* level  5 */
-    {  0, 14, 14, 14,  5,  4,  4, ZSTD_lazy2   },  /* level  6 */
-    {  0, 14, 14, 14,  7,  4,  4, ZSTD_lazy2   },  /* level  7 */
-    {  0, 14, 14, 14,  8,  4,  4, ZSTD_lazy2   },  /* level  8 */
-    {  0, 14, 14, 14,  9,  4,  4, ZSTD_lazy2   },  /* level  9 */
-    {  0, 14, 14, 14, 10,  4,  4, ZSTD_lazy2   },  /* level 10 */
-    {  0, 14, 14, 14, 11,  4,  4, ZSTD_lazy2   },  /* level 11 */
-    {  0, 14, 15, 15, 12,  4, 32, ZSTD_btopt   },  /* level 12 */
-    {  0, 14, 15, 15, 12,  4, 64, ZSTD_btopt   },  /* level 13 */
-    {  0, 14, 15, 15, 12,  4, 96, ZSTD_btopt   },  /* level 14 */
-    {  0, 14, 15, 15, 12,  4,128, ZSTD_btopt   },  /* level 15 */
-    {  0, 14, 15, 15, 12,  4,256, ZSTD_btopt   },  /* level 16 */
-    {  0, 14, 15, 15, 13,  4,256, ZSTD_btopt   },  /* level 17 */
-    {  0, 14, 15, 15, 14,  4,256, ZSTD_btopt   },  /* level 18 */
-    {  0, 14, 15, 15, 15,  4,256, ZSTD_btopt   },  /* level 19 */
-    {  0, 14, 15, 15, 16,  4,256, ZSTD_btopt   },  /* level 20 */
-    {  0, 14, 15, 15, 17,  4,256, ZSTD_btopt   },  /* level 21 */
+    /* l,  W,  C,  H, H3,  S,  L,  T, strat */
+    {  0,  0,  0,  0,  0,  0,  0,  0, ZSTD_fast    },  /* level  0 -- never used */
+    {  0, 14, 14, 14,  0,  1,  4,  4, ZSTD_fast    },  /* level  1 */
+    {  0, 14, 14, 15,  0,  1,  4,  4, ZSTD_fast    },  /* level  2 */
+    {  0, 14, 13, 15,  0,  4,  4,  4, ZSTD_greedy  },  /* level  3 */
+    {  0, 14, 14, 15,  0,  3,  4,  4, ZSTD_lazy    },  /* level  4 */
+    {  0, 14, 14, 14,  0,  6,  4,  4, ZSTD_lazy    },  /* level  5 */
+    {  0, 14, 14, 14,  0,  5,  4,  4, ZSTD_lazy2   },  /* level  6 */
+    {  0, 14, 14, 14,  0,  7,  4,  4, ZSTD_lazy2   },  /* level  7 */
+    {  0, 14, 14, 14,  0,  8,  4,  4, ZSTD_lazy2   },  /* level  8 */
+    {  0, 14, 14, 14,  0,  9,  4,  4, ZSTD_lazy2   },  /* level  9 */
+    {  0, 14, 14, 14,  0, 10,  4,  4, ZSTD_lazy2   },  /* level 10 */
+    {  0, 14, 14, 14,  0, 11,  4,  4, ZSTD_lazy2   },  /* level 11 */
+    {  0, 14, 15, 15,  0, 12,  4, 32, ZSTD_btopt   },  /* level 12 */
+    {  0, 14, 15, 15,  0, 12,  4, 64, ZSTD_btopt   },  /* level 13 */
+    {  0, 14, 15, 15,  0, 12,  4, 96, ZSTD_btopt   },  /* level 14 */
+    {  0, 14, 15, 15,  0, 12,  4,128, ZSTD_btopt   },  /* level 15 */
+    {  0, 14, 15, 15,  0, 12,  4,256, ZSTD_btopt   },  /* level 16 */
+    {  0, 14, 15, 15,  0, 13,  4,256, ZSTD_btopt   },  /* level 17 */
+    {  0, 14, 15, 15,  0, 14,  4,256, ZSTD_btopt   },  /* level 18 */
+    {  0, 14, 15, 15,  0, 15,  4,256, ZSTD_btopt   },  /* level 19 */
+    {  0, 14, 15, 15,  0, 16,  4,256, ZSTD_btopt   },  /* level 20 */
+    {  0, 14, 15, 15,  0, 17,  4,256, ZSTD_btopt   },  /* level 21 */
+    {  0, 14, 15, 15,  0, 17,  4,256, ZSTD_btopt   },  /* level 21-2 */
+    {  0, 14, 15, 15,  0, 17,  4,256, ZSTD_btopt   },  /* level 21-3 */
+    {  0, 14, 15, 15,  0, 17,  4,256, ZSTD_btopt   },  /* level 21-4 */
+    {  0, 14, 15, 15,  0, 17,  4,256, ZSTD_btopt   },  /* level 21-5 */
 },
 };
 

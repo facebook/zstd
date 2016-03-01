@@ -50,6 +50,20 @@
 /*-*************************************
 *  Common constants
 ***************************************/
+#define ZSTD_OPT_DEBUG 0     // 1 = tableID=0;  3 = price func tests;  5 = check encoded sequences;  9 = full logs
+#if defined(ZSTD_OPT_DEBUG) && ZSTD_OPT_DEBUG>0
+    #include <stdio.h>
+#endif
+#if defined(ZSTD_OPT_DEBUG) && ZSTD_OPT_DEBUG>=9
+    #define ZSTD_LOG_PARSER(...) printf(__VA_ARGS__)
+    #define ZSTD_LOG_ENCODE(...) printf(__VA_ARGS__)
+    #define ZSTD_LOG_BLOCK(...) printf(__VA_ARGS__)
+#else
+    #define ZSTD_LOG_PARSER(...)
+    #define ZSTD_LOG_ENCODE(...)
+    #define ZSTD_LOG_BLOCK(...)
+#endif
+
 #define ZSTD_DICT_MAGIC  0xEC30A435
 
 #define KB *(1 <<10)
@@ -171,9 +185,17 @@ typedef struct {
     U32* litFreq;
     U32* offCodeFreq;
     U32  matchLengthSum;
+    U32  matchSum;
     U32  litLengthSum;
     U32  litSum;
     U32  offCodeSum;
+    U32  realMatchSum;
+    U32  realLitSum;
+    U32  realSeqSum;
+    U32  realRepSum;
+    U32  factor;
+    U32  factor2;
+    U32  priceFunc;
 } seqStore_t;
 
 seqStore_t ZSTD_copySeqStore(const ZSTD_CCtx* ctx);

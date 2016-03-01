@@ -51,8 +51,17 @@
 *  Common constants
 ***************************************/
 #define ZSTD_OPT_DEBUG 0     // 1 = tableID=0;  3 = price func tests;  5 = check encoded sequences;  9 = full logs
-#if ZSTD_OPT_DEBUG > 0
-    #include <stdio.h>  /* for debug */
+#if defined(ZSTD_OPT_DEBUG) && ZSTD_OPT_DEBUG>0
+    #include <stdio.h>
+#endif
+#if defined(ZSTD_OPT_DEBUG) && ZSTD_OPT_DEBUG>=9
+    #define ZSTD_LOG_PARSER(...) printf(__VA_ARGS__)
+    #define ZSTD_LOG_ENCODE(...) printf(__VA_ARGS__)
+    #define ZSTD_LOG_BLOCK(...) printf(__VA_ARGS__)
+#else
+    #define ZSTD_LOG_PARSER(...)
+    #define ZSTD_LOG_ENCODE(...)
+    #define ZSTD_LOG_BLOCK(...)
 #endif
 
 #define ZSTD_DICT_MAGIC  0xEC30A435

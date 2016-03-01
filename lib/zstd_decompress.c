@@ -159,7 +159,8 @@ size_t ZSTD_decompressBegin(ZSTD_DCtx* dctx)
     dctx->dictEnd = NULL;
     dctx->hufTableX4[0] = HufLog;
     dctx->flagStaticTables = 0;
-    dctx->params.searchLength = MINMATCH;
+    dctx->params.searchLength = MINMATCH; /* overwritten by frame but forces ZSTD_btopt to MINMATCH in block mode */
+    ZSTD_LOG_BLOCK("%p: ZSTD_decompressBegin searchLength=%d\n", dctx->base, dctx->params.searchLength);
     return 0;
 }
 
@@ -749,7 +750,7 @@ FORCE_INLINE size_t ZSTD_execSequence(BYTE* op,
     }
     op += 8; match += 8;
 
-    if (oMatchEnd > oend-12) {
+    if (oMatchEnd > oend-(16-3)) { // 3 = MINMATCH
         if (op < oend_8) {
             ZSTD_wildcopy(op, match, oend_8 - op);
             match += oend_8 - op;
@@ -856,6 +857,8 @@ static size_t ZSTD_decompressBlock_internal(ZSTD_DCtx* dctx,
     size_t litCSize;
 
     if (srcSize >= BLOCKSIZE) return ERROR(srcSize_wrong);
+
+    ZSTD_LOG_BLOCK("%p: ZSTD_decompressBlock_internal searchLength=%d\n", dctx->base, dctx->params.searchLength);
 
     /* Decode literals sub-block */
     litCSize = ZSTD_decodeLiteralsBlock(dctx, src, srcSize);
@@ -966,6 +969,7 @@ size_t ZSTD_decompress_usingDict(ZSTD_DCtx* dctx,
                                  const void* dict, size_t dictSize)
 {
     ZSTD_decompressBegin_usingDict(dctx, dict, dictSize);
+    ZSTD_LOG_BLOCK("%p: ZSTD_decompressBegin_usingDict searchLength=%d\n", dctx->base, dctx->params.searchLength);
     ZSTD_checkContinuity(dctx, dst);
     return ZSTD_decompress_continueDCtx(dctx, dst, maxDstSize, src, srcSize);
 }

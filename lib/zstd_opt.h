@@ -269,8 +269,8 @@ void ZSTD_COMPRESSBLOCK_OPT_GENERIC(ZSTD_CCtx* ctx,
     const U32 mls = ctx->params.searchLength;
     const U32 sufficient_len = ctx->params.targetLength;
 
-    ZSTD_optimal_t opt[ZSTD_OPT_NUM+1];
-    ZSTD_match_t matches[ZSTD_OPT_NUM+1];
+    ZSTD_optimal_t* opt = seqStorePtr->priceTable;
+    ZSTD_match_t* matches = seqStorePtr->matchTable;
     const BYTE* inr;
     U32 cur, match_num, last_pos, litlen, price;
 
@@ -279,32 +279,6 @@ void ZSTD_COMPRESSBLOCK_OPT_GENERIC(ZSTD_CCtx* ctx,
     ZSTD_resetSeqStore(seqStorePtr);
     ZSTD_rescaleFreqs(seqStorePtr);
     if ((ip-prefixStart) < REPCODE_STARTVALUE) ip = prefixStart + REPCODE_STARTVALUE;
-
-#if ZSTD_OPT_DEBUG >= 3
-    size_t mostFrequent;
-    unsigned count[256], maxSymbolValue, usedSymbols = 0;
-    maxSymbolValue = 255;
-    mostFrequent = FSE_count(count, &maxSymbolValue, src, srcSize);
-    for (unsigned i=0; i<=maxSymbolValue; i++)
-        if (count[i]) usedSymbols++;
-
-    seqStorePtr->factor = ((usedSymbols <= 18) && (mostFrequent < (1<<14))) ? mostFrequent>>10 : 0; // helps RTF files
-    seqStorePtr->factor2 = (usedSymbols==256) && (mostFrequent > (1<<14));
-#endif
-
-#if 0
-    if (seqStorePtr->factor2)
-        printf("FACTOR2 usedSymbols==256;mostFrequent>(1<<14) maxSymbolValue=%d mostFrequent=%d usedSymbols=%d\n", maxSymbolValue, (int)mostFrequent, usedSymbols);
-    if (seqStorePtr->factor) {
-        printf("FACTOR1 usedSymbols<56;mostFrequent<(1<<14) maxSymbolValue=%d mostFrequent=%d usedSymbols=%d\n", maxSymbolValue, (int)mostFrequent, usedSymbols);
-#if 0
-        for (int i=0; i<256; i++)
-            if (count[i]) printf("%d=%d ", i, count[i]);
-        printf("\n");
-
-#endif
-    }
-#endif
 
     ZSTD_LOG_BLOCK("%d: COMPBLOCK_OPT_GENERIC srcSz=%d maxSrch=%d mls=%d sufLen=%d\n", (int)(ip-base), (int)srcSize, maxSearches, mls, sufficient_len);
 
@@ -619,8 +593,8 @@ void ZSTD_COMPRESSBLOCK_OPT_EXTDICT_GENERIC(ZSTD_CCtx* ctx,
     const U32 mls = ctx->params.searchLength;
     const U32 sufficient_len = ctx->params.targetLength;
 
-    ZSTD_optimal_t opt[ZSTD_OPT_NUM+1];
-    ZSTD_match_t matches[ZSTD_OPT_NUM+1];
+    ZSTD_optimal_t* opt = seqStorePtr->priceTable;
+    ZSTD_match_t* matches = seqStorePtr->matchTable;
     const BYTE* inr;
     U32 cur, match_num, last_pos, litlen, price;
 
@@ -913,7 +887,31 @@ _storeSequence: // cur, last_pos, best_mlen, best_off have to be set
             anchor = ip = ip + mlen;
         }
 
+#if 0
         /* check immediate repcode */
+        while ((anchor >= base + lowLimit + rep_2) && (anchor <= ilimit)) {
+            if ((anchor - rep_2) >= prefixStart) {
+                if (MEM_readMINMATCH(anchor) == MEM_readMINMATCH(anchor - rep_2))
+                    mlen = (U32)ZSTD_count(anchor+MINMATCHOPT, anchor - rep_2 + MINMATCHOPT, iend) + MINMATCHOPT;
+                else
+                    break;
+            } else {
+                const BYTE* repMatch = dictBase + ((anchor-base) - rep_2);
+                if ((repMatch + MINMATCHOPT <= dictEnd) && (MEM_readMINMATCH(anchor) == MEM_readMINMATCH(repMatch))) 
+                    mlen = (U32)ZSTD_count_2segments(anchor+MINMATCHOPT, repMatch+MINMATCHOPT, iend, dictEnd, prefixStart) + MINMATCHOPT;
+                else
+                    break;
+            }
+                   
+            offset = rep_2; rep_2 = rep_1; rep_1 = offset;   /* swap offset history */
+            ZSTD_LOG_ENCODE("%d/%d: ENCODE REP literals=%d mlen=%d off=%d rep1=%d rep2=%d\n", (int)(anchor-base), (int)(iend-base), (int)(0), (int)best_mlen, (int)(0), (int)rep_1, (int)rep_2);
+            ZSTD_updatePrice(seqStorePtr, 0, anchor, 0, mlen-MINMATCHOPT);
+            ZSTD_storeSeq(seqStorePtr, 0, anchor, 0, mlen-MINMATCHOPT);
+            anchor += mlen;
+        }
+#else
+        /* check immediate repcode */
+        /* minimal correctness condition = while ((anchor >= prefixStart + REPCODE_STARTVALUE) && (anchor <= ilimit)) { */
         while ((anchor >= base + lowLimit + rep_2) && (anchor <= ilimit)) {
             const U32 repIndex = (U32)((anchor-base) - rep_2);
             const BYTE* const repBase = repIndex < dictLimit ? dictBase : base;
@@ -932,6 +930,7 @@ _storeSequence: // cur, last_pos, best_mlen, best_off have to be set
             }
             break;
         }
+#endif
         if (anchor > ip) ip = anchor;
     }
 

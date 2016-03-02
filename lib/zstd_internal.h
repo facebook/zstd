@@ -64,6 +64,7 @@
     #define ZSTD_LOG_BLOCK(...)
 #endif
 
+#define ZSTD_OPT_NUM    (1<<12)
 #define ZSTD_DICT_MAGIC  0xEC30A435
 
 #define KB *(1 <<10)
@@ -166,6 +167,20 @@ MEM_STATIC unsigned ZSTD_highbit(U32 val)
 *  Private interfaces
 *********************************************/
 typedef struct {
+    U32 off;
+    U32 len;
+} ZSTD_match_t;
+
+typedef struct {
+    U32 price;
+    U32 off;
+    U32 mlen;
+    U32 litlen;
+    U32 rep;
+    U32 rep2;
+} ZSTD_optimal_t;
+
+typedef struct {
     void* buffer;
     U32*  offsetStart;
     U32*  offset;
@@ -180,6 +195,8 @@ typedef struct {
     BYTE* dumpsStart;
     BYTE* dumps;
     /* opt */
+    ZSTD_optimal_t* priceTable;
+    ZSTD_match_t* matchTable;
     U32* matchLengthFreq;
     U32* litLengthFreq;
     U32* litFreq;

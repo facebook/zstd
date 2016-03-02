@@ -202,13 +202,13 @@ static size_t ZSTD_resetCCtx_advanced (ZSTD_CCtx* zc,
     zc->blockSize = blockSize;
 
     zc->seqStore.offsetStart = (U32*) (zc->seqStore.buffer);
-    zc->seqStore.offCodeStart = (BYTE*) (zc->seqStore.offsetStart + (blockSize>>2));
+    zc->seqStore.offCodeStart = (BYTE*) (zc->seqStore.offsetStart) + blockSize;
     zc->seqStore.litStart = zc->seqStore.offCodeStart + (blockSize>>2);
     zc->seqStore.litLengthStart =  zc->seqStore.litStart + blockSize;
     zc->seqStore.matchLengthStart = zc->seqStore.litLengthStart + (blockSize>>2);
-    zc->seqStore.dumpsStart = zc->seqStore.matchLengthStart + (blockSize>>2); 
-
-    zc->seqStore.litFreq = (U32*)(zc->seqStore.dumpsStart + (blockSize>>2)); 
+    zc->seqStore.dumpsStart = zc->seqStore.matchLengthStart + (blockSize>>2);
+    BYTE* dumpsEnd = zc->seqStore.dumpsStart + (blockSize>>2);
+    zc->seqStore.litFreq = (U32*)(dumpsEnd);
     zc->seqStore.litLengthFreq = zc->seqStore.litFreq + (1<<Litbits);
     zc->seqStore.matchLengthFreq = zc->seqStore.litLengthFreq + (1<<LLbits);
     zc->seqStore.offCodeFreq = zc->seqStore.matchLengthFreq + (1<<MLbits);

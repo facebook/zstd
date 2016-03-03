@@ -174,7 +174,9 @@ static size_t ZSTD_resetCCtx_advanced (ZSTD_CCtx* zc,
     /* reserve table memory */
     const U32 contentLog = (params.strategy == ZSTD_fast) ? 1 : params.contentLog;
     const size_t tableSpace = ((1 << contentLog) + (1 << params.hashLog) + (1 << params.hashLog3)) * sizeof(U32);
-    const size_t neededSpace = tableSpace + (256*sizeof(U32)) + (3*blockSize) + ((1<<MLbits) + (1<<LLbits) + (1<<Offbits) + (1<<Litbits))*sizeof(U32);
+    const size_t neededSpace = tableSpace + (256*sizeof(U32)) + (3*blockSize)
+        + ((params.strategy == ZSTD_btopt) ? ((1<<MLbits) + (1<<LLbits) + (1<<Offbits) + (1<<Litbits))*sizeof(U32) + (ZSTD_OPT_NUM+1)*(sizeof(ZSTD_match_t) + sizeof(ZSTD_optimal_t)) : 0);
+
     if (zc->workSpaceSize < neededSpace) {
         free(zc->workSpace);
         zc->workSpace = malloc(neededSpace);
@@ -199,20 +201,21 @@ static size_t ZSTD_resetCCtx_advanced (ZSTD_CCtx* zc,
     zc->params = params;
     zc->blockSize = blockSize;
 
-    zc->seqStore.litFreq = (U32*) (zc->seqStore.buffer);
-    zc->seqStore.litLengthFreq = zc->seqStore.litFreq + (1<<Litbits);
-    zc->seqStore.matchLengthFreq = zc->seqStore.litLengthFreq + (1<<LLbits);
-    zc->seqStore.offCodeFreq = zc->seqStore.matchLengthFreq + (1<<MLbits);
-
-    zc->seqStore.offsetStart = zc->seqStore.offCodeFreq + (1<<Offbits);
-    zc->seqStore.offCodeStart = (BYTE*) (zc->seqStore.offsetStart + (blockSize>>2));
+    zc->seqStore.offsetStart = (U32*) (zc->seqStore.buffer);
+    zc->seqStore.offCodeStart = (BYTE*) (zc->seqStore.offsetStart) + blockSize;
     zc->seqStore.litStart = zc->seqStore.offCodeStart + (blockSize>>2);
     zc->seqStore.litLengthStart =  zc->seqStore.litStart + blockSize;
     zc->seqStore.matchLengthStart = zc->seqStore.litLengthStart + (blockSize>>2);
     zc->seqStore.dumpsStart = zc->seqStore.matchLengthStart + (blockSize>>2);
-    // zc->seqStore.XXX = zc->seqStore.dumpsStart + (blockSize>>4);
-    zc->seqStore.litLengthSum = 0;
 
+    zc->seqStore.litFreq = (U32*)((void*)(zc->seqStore.dumpsStart + (blockSize>>2)));
+    zc->seqStore.litLengthFreq = zc->seqStore.litFreq + (1<<Litbits);
+    zc->seqStore.matchLengthFreq = zc->seqStore.litLengthFreq + (1<<LLbits);
+    zc->seqStore.offCodeFreq = zc->seqStore.matchLengthFreq + (1<<MLbits);
+    zc->seqStore.matchTable = (ZSTD_match_t*)(zc->seqStore.offCodeFreq + (1<<Offbits));
+    zc->seqStore.priceTable = (ZSTD_optimal_t*)(zc->seqStore.matchTable + ZSTD_OPT_NUM+1);
+
+    zc->seqStore.litLengthSum = 0;
     zc->hbSize = 0;
     zc->stage = 0;
     zc->loadedDictEnd = 0;

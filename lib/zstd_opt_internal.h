@@ -40,25 +40,7 @@
 *  The optimal parser
 *********************************************/
 /*-  Constants  -*/
-#define ZSTD_OPT_NUM    (1<<12)
-#define ZSTD_FREQ_START 1
-#define ZSTD_FREQ_STEP  1
 #define ZSTD_FREQ_DIV   5
-
-
-typedef struct {
-    U32 off;
-    U32 len;
-} ZSTD_match_t;
-
-typedef struct {
-    U32 price;
-    U32 off;
-    U32 mlen;
-    U32 litlen;
-    U32 rep;
-    U32 rep2;
-} ZSTD_optimal_t;
 
 
 MEM_STATIC void ZSTD_rescaleFreqs(seqStore_t* ssPtr)
@@ -66,74 +48,75 @@ MEM_STATIC void ZSTD_rescaleFreqs(seqStore_t* ssPtr)
     unsigned u;
 
     if (ssPtr->litLengthSum == 0) {
-        ssPtr->matchLengthSum = ZSTD_FREQ_START*(1<<MLbits);
-        ssPtr->litLengthSum = ZSTD_FREQ_START*(1<<LLbits);
-        ssPtr->litSum = ZSTD_FREQ_START*(1<<Litbits);
-        ssPtr->offCodeSum = ZSTD_FREQ_START*(1<<Offbits);
-        ssPtr->matchSum = ssPtr->litSum;
-        
+        ssPtr->litSum = 2*(1<<Litbits);
+        ssPtr->litLengthSum = 1*(1<<LLbits);
+        ssPtr->matchLengthSum = 1*(1<<MLbits);
+        ssPtr->offCodeSum = 1*(1<<Offbits);
+        ssPtr->matchSum = 2*(1<<Litbits);
+
         for (u=0; u<=MaxLit; u++)
-            ssPtr->litFreq[u] = ZSTD_FREQ_START;
+            ssPtr->litFreq[u] = 2;
         for (u=0; u<=MaxLL; u++)
-            ssPtr->litLengthFreq[u] = ZSTD_FREQ_START;
+            ssPtr->litLengthFreq[u] = 1;
         for (u=0; u<=MaxML; u++)
-            ssPtr->matchLengthFreq[u] = ZSTD_FREQ_START;
+            ssPtr->matchLengthFreq[u] = 1;
         for (u=0; u<=MaxOff; u++)
-            ssPtr->offCodeFreq[u] = ZSTD_FREQ_START;
+            ssPtr->offCodeFreq[u] = 1;
     } else {
         ssPtr->matchLengthSum = 0;
         ssPtr->litLengthSum = 0;
-        ssPtr->litSum = 0;
         ssPtr->offCodeSum = 0;
         ssPtr->matchSum = 0;
+        ssPtr->litSum = 0;
 
         for (u=0; u<=MaxLit; u++) {
-            ssPtr->litFreq[u] = ZSTD_FREQ_START + (ssPtr->litFreq[u]>>ZSTD_FREQ_DIV);
+            ssPtr->litFreq[u] = 1 + (ssPtr->litFreq[u]>>ZSTD_FREQ_DIV);
             ssPtr->litSum += ssPtr->litFreq[u];
         }
         for (u=0; u<=MaxLL; u++) {
-            ssPtr->litLengthFreq[u] = ZSTD_FREQ_START + (ssPtr->litLengthFreq[u]>>ZSTD_FREQ_DIV);
+            ssPtr->litLengthFreq[u] = 1 + (ssPtr->litLengthFreq[u]>>ZSTD_FREQ_DIV);
             ssPtr->litLengthSum += ssPtr->litLengthFreq[u];
         }
         for (u=0; u<=MaxML; u++) {
-            ssPtr->matchLengthFreq[u] = ZSTD_FREQ_START + (ssPtr->matchLengthFreq[u]>>ZSTD_FREQ_DIV);
+            ssPtr->matchLengthFreq[u] = 1 + (ssPtr->matchLengthFreq[u]>>ZSTD_FREQ_DIV);
             ssPtr->matchLengthSum += ssPtr->matchLengthFreq[u];
             ssPtr->matchSum += ssPtr->matchLengthFreq[u] * (u + 3);
         }
         for (u=0; u<=MaxOff; u++) {
-            ssPtr->offCodeFreq[u] = ZSTD_FREQ_START + (ssPtr->offCodeFreq[u]>>ZSTD_FREQ_DIV);
+            ssPtr->offCodeFreq[u] = 1 + (ssPtr->offCodeFreq[u]>>ZSTD_FREQ_DIV);
             ssPtr->offCodeSum += ssPtr->offCodeFreq[u];
         }
     }
 }
+
 
 MEM_STATIC void ZSTD_updatePrice(seqStore_t* seqStorePtr, U32 litLength, const BYTE* literals, U32 offset, U32 matchLength)
 {
     U32 u;
 
     /* literals */
-    seqStorePtr->litSum += litLength * ZSTD_FREQ_STEP;
+    seqStorePtr->litSum += litLength;
     for (u=0; u < litLength; u++)
-        seqStorePtr->litFreq[literals[u]] += ZSTD_FREQ_STEP;
+        seqStorePtr->litFreq[literals[u]]++;
 
     /* literal Length */
-    seqStorePtr->litLengthSum += ZSTD_FREQ_STEP;
+    seqStorePtr->litLengthSum++;
     if (litLength >= MaxLL)
-        seqStorePtr->litLengthFreq[MaxLL] += ZSTD_FREQ_STEP;
+        seqStorePtr->litLengthFreq[MaxLL]++;
     else
-        seqStorePtr->litLengthFreq[litLength] += ZSTD_FREQ_STEP;
+        seqStorePtr->litLengthFreq[litLength]++;
 
     /* match offset */
-    seqStorePtr->offCodeSum += ZSTD_FREQ_STEP;
+    seqStorePtr->offCodeSum++;
     BYTE offCode = offset ? (BYTE)ZSTD_highbit(offset+1) + 1 : 0;
-    seqStorePtr->offCodeFreq[offCode] += ZSTD_FREQ_STEP;
+    seqStorePtr->offCodeFreq[offCode]++;
 
     /* match Length */
-    seqStorePtr->matchLengthSum += ZSTD_FREQ_STEP;
+    seqStorePtr->matchLengthSum++;
     if (matchLength >= MaxML)
-        seqStorePtr->matchLengthFreq[MaxML] += ZSTD_FREQ_STEP;
+        seqStorePtr->matchLengthFreq[MaxML]++;
     else
-        seqStorePtr->matchLengthFreq[matchLength] += ZSTD_FREQ_STEP;
+        seqStorePtr->matchLengthFreq[matchLength]++;
 }
 
 FORCE_INLINE U32 ZSTD_getLiteralPrice(seqStore_t* seqStorePtr, U32 litLength, const BYTE* literals)

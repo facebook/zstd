@@ -145,6 +145,8 @@ static unsigned ZSTD_highbit(U32 val);
 void ZSTD_validateParams(ZSTD_parameters* params)
 {
     const U32 btPlus = (params->strategy == ZSTD_btlazy2) || (params->strategy == ZSTD_btopt);
+    const U32 searchLengthMax = (params->strategy == ZSTD_fast) ? ZSTD_SEARCHLENGTH_MAX : ZSTD_SEARCHLENGTH_MAX-1;
+    const U32 searchLengthMin = (params->strategy == ZSTD_btopt) ? ZSTD_SEARCHLENGTH_MIN : ZSTD_SEARCHLENGTH_MIN+1;
 
     /* validate params */
     if (MEM_32bits()) if (params->windowLog > 25) params->windowLog = 25;   /* 32 bits mode cannot flush > 24 bits */
@@ -153,7 +155,7 @@ void ZSTD_validateParams(ZSTD_parameters* params)
     CLAMP(params->hashLog, ZSTD_HASHLOG_MIN, ZSTD_HASHLOG_MAX);
     CLAMP(params->hashLog3, ZSTD_HASHLOG3_MIN, ZSTD_HASHLOG3_MAX);
     CLAMP(params->searchLog, ZSTD_SEARCHLOG_MIN, ZSTD_SEARCHLOG_MAX);
-    CLAMP(params->searchLength, ZSTD_SEARCHLENGTH_MIN, ZSTD_SEARCHLENGTH_MAX);
+    CLAMP(params->searchLength, searchLengthMin, searchLengthMax);
     CLAMP(params->targetLength, ZSTD_TARGETLENGTH_MIN, ZSTD_TARGETLENGTH_MAX);
     if ((U32)params->strategy>(U32)ZSTD_btopt) params->strategy = ZSTD_btopt;
 

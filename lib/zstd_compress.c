@@ -731,7 +731,7 @@ MEM_STATIC void ZSTD_storeSeq(seqStore_t* seqStorePtr, size_t litLength, const B
     printf("pos %6u : %3u literals & match %3u bytes at distance %6u \n",
            (U32)(literals - g_start), (U32)litLength, (U32)matchCode+MINMATCH, (U32)offsetCode);
 #endif
-#if ZSTD_OPT_DEBUG >= 3
+#if ZSTD_OPT_DEBUG == 3
     if (offsetCode == 0) seqStorePtr->realRepSum++;
     seqStorePtr->realSeqSum++;
     seqStorePtr->realMatchSum += matchCode;
@@ -1917,11 +1917,12 @@ static size_t ZSTD_compress_generic (ZSTD_CCtx* zc,
     BYTE* const ostart = (BYTE*)dst;
     BYTE* op = ostart;
     const U32 maxDist = 1 << zc->params.windowLog;
+#if ZSTD_OPT_DEBUG == 3
     seqStore_t* ssPtr = &zc->seqStore;
     static U32 priceFunc = 0;
-
     ssPtr->realMatchSum = ssPtr->realLitSum = ssPtr->realSeqSum = ssPtr->realRepSum = 1;
     ssPtr->priceFunc = priceFunc;
+#endif
 
     while (remaining) {
         size_t cSize;

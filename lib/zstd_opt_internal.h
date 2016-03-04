@@ -168,39 +168,14 @@ static U32 ZSTD_insertAndFindFirstIndexHash3 (ZSTD_CCtx* zc, const BYTE* ip)
     return hashTable3[ZSTD_hash3Ptr(ip, hashLog3)];
 }
 
-
-#define MINMATCHOPT 4
-#define MEM_readMINMATCH(ptr) (U32)(MEM_read32(ptr)) 
-#define ZSTD_GETPRICE ZSTD_getPrice4
-#define ZSTD_INSERTBTANDGETALLMATCHES ZSTD_insertBtAndGetAllMatches4
-#define ZSTD_BTGETALLMATCHES ZSTD_BtGetAllMatches4
-#define ZSTD_BTGETALLMATCHES_SELECTMLS ZSTD_BtGetAllMatches_selectMLS4
-#define ZSTD_BTGETALLMATCHES_EXTDICT ZSTD_BtGetAllMatches_extDict4
-#define ZSTD_BTGETALLMATCHES_SELECTMLS_EXTDICT ZSTD_BtGetAllMatches_selectMLS_extDict4
-#define ZSTD_COMPRESSBLOCK_OPT_GENERIC ZSTD_compressBlock_opt_generic4
-#define ZSTD_COMPRESSBLOCK_OPT_EXTDICT_GENERIC ZSTD_compressBlock_opt_extDict_generic4
-#include "zstd_opt.h"
-#undef MINMATCHOPT
-#undef MEM_readMINMATCH
-#undef ZSTD_GETPRICE
-#undef ZSTD_INSERTBTANDGETALLMATCHES
-#undef ZSTD_BTGETALLMATCHES
-#undef ZSTD_BTGETALLMATCHES_SELECTMLS
-#undef ZSTD_BTGETALLMATCHES_EXTDICT
-#undef ZSTD_BTGETALLMATCHES_SELECTMLS_EXTDICT
-#undef ZSTD_COMPRESSBLOCK_OPT_GENERIC
-#undef ZSTD_COMPRESSBLOCK_OPT_EXTDICT_GENERIC
-
-#define MINMATCHOPT 3
-#define MEM_readMINMATCH(ptr) ((U32)(MEM_read32(ptr)<<8)) 
-#define ZSTD_GETPRICE ZSTD_getPrice3
-#define ZSTD_INSERTBTANDGETALLMATCHES ZSTD_insertBtAndGetAllMatches3
-#define ZSTD_BTGETALLMATCHES ZSTD_BtGetAllMatches3
-#define ZSTD_BTGETALLMATCHES_SELECTMLS ZSTD_BtGetAllMatches_selectMLS3
-#define ZSTD_BTGETALLMATCHES_EXTDICT ZSTD_BtGetAllMatches_extDict3
-#define ZSTD_BTGETALLMATCHES_SELECTMLS_EXTDICT ZSTD_BtGetAllMatches_selectMLS_extDict3
-#define ZSTD_COMPRESSBLOCK_OPT_GENERIC ZSTD_compressBlock_opt_generic3
-#define ZSTD_COMPRESSBLOCK_OPT_EXTDICT_GENERIC ZSTD_compressBlock_opt_extDict_generic3
+#define ZSTD_GETPRICE ZSTD_getPrice
+#define ZSTD_INSERTBTANDGETALLMATCHES ZSTD_insertBtAndGetAllMatches
+#define ZSTD_BTGETALLMATCHES ZSTD_BtGetAllMatches
+#define ZSTD_BTGETALLMATCHES_SELECTMLS ZSTD_BtGetAllMatches_selectMLS
+#define ZSTD_BTGETALLMATCHES_EXTDICT ZSTD_BtGetAllMatches_extDict
+#define ZSTD_BTGETALLMATCHES_SELECTMLS_EXTDICT ZSTD_BtGetAllMatches_selectMLS_extDict
+#define ZSTD_COMPRESSBLOCK_OPT_GENERIC ZSTD_compressBlock_opt_generic
+#define ZSTD_COMPRESSBLOCK_OPT_EXTDICT_GENERIC ZSTD_compressBlock_opt_extDict_generic
 #include "zstd_opt.h"
 
 

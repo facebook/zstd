@@ -207,15 +207,16 @@ static size_t ZSTD_resetCCtx_advanced (ZSTD_CCtx* zc,
     zc->seqStore.litLengthStart =  zc->seqStore.litStart + blockSize;
     zc->seqStore.matchLengthStart = zc->seqStore.litLengthStart + (blockSize>>2);
     zc->seqStore.dumpsStart = zc->seqStore.matchLengthStart + (blockSize>>2);
+    if (params.strategy == ZSTD_btopt) {
+        zc->seqStore.litFreq = (U32*)((void*)(zc->seqStore.dumpsStart + (blockSize>>2)));
+        zc->seqStore.litLengthFreq = zc->seqStore.litFreq + (1<<Litbits);
+        zc->seqStore.matchLengthFreq = zc->seqStore.litLengthFreq + (1<<LLbits);
+        zc->seqStore.offCodeFreq = zc->seqStore.matchLengthFreq + (1<<MLbits);
+        zc->seqStore.matchTable = (ZSTD_match_t*)((void*)(zc->seqStore.offCodeFreq + (1<<Offbits)));
+        zc->seqStore.priceTable = (ZSTD_optimal_t*)((void*)(zc->seqStore.matchTable + ZSTD_OPT_NUM+1));
+        zc->seqStore.litLengthSum = 0;
+    }
 
-    zc->seqStore.litFreq = (U32*)((void*)(zc->seqStore.dumpsStart + (blockSize>>2)));
-    zc->seqStore.litLengthFreq = zc->seqStore.litFreq + (1<<Litbits);
-    zc->seqStore.matchLengthFreq = zc->seqStore.litLengthFreq + (1<<LLbits);
-    zc->seqStore.offCodeFreq = zc->seqStore.matchLengthFreq + (1<<MLbits);
-    zc->seqStore.matchTable = (ZSTD_match_t*)(zc->seqStore.offCodeFreq + (1<<Offbits));
-    zc->seqStore.priceTable = (ZSTD_optimal_t*)(zc->seqStore.matchTable + ZSTD_OPT_NUM+1);
-
-    zc->seqStore.litLengthSum = 0;
     zc->hbSize = 0;
     zc->stage = 0;
     zc->loadedDictEnd = 0;
@@ -1661,10 +1662,7 @@ _storeSequence:
 
 static void ZSTD_compressBlock_btopt(ZSTD_CCtx* ctx, const void* src, size_t srcSize)
 {
-    if (ctx->params.searchLength == 3)
-        ZSTD_compressBlock_opt_generic3(ctx, src, srcSize, 2);
-    else
-        ZSTD_compressBlock_opt_generic4(ctx, src, srcSize, 2);
+    ZSTD_compressBlock_opt_generic(ctx, src, srcSize, 2);
 }
 
 static void ZSTD_compressBlock_btlazy2(ZSTD_CCtx* ctx, const void* src, size_t srcSize)
@@ -1883,10 +1881,7 @@ static void ZSTD_compressBlock_btlazy2_extDict(ZSTD_CCtx* ctx, const void* src, 
 
 static void ZSTD_compressBlock_btopt_extDict(ZSTD_CCtx* ctx, const void* src, size_t srcSize)
 {
-    if (ctx->params.searchLength == 3)
-        ZSTD_compressBlock_opt_extDict_generic3(ctx, src, srcSize, 2);
-    else
-        ZSTD_compressBlock_opt_extDict_generic4(ctx, src, srcSize, 2);
+    ZSTD_compressBlock_opt_extDict_generic(ctx, src, srcSize, 2);
 }
 
 
@@ -2404,10 +2399,10 @@ static const ZSTD_parameters ZSTD_defaultParameters[4][ZSTD_MAX_CLEVEL+1] = {
     {  0, 14, 15, 15,  0, 15,  4,256, ZSTD_btopt   },  /* level 19 */
     {  0, 14, 15, 15,  0, 16,  4,256, ZSTD_btopt   },  /* level 20 */
     {  0, 14, 15, 15,  0, 17,  4,256, ZSTD_btopt   },  /* level 21 */
-    {  0, 14, 15, 15,  0, 17,  4,256, ZSTD_btopt   },  /* level 21-2 */
-    {  0, 14, 15, 15,  0, 17,  4,256, ZSTD_btopt   },  /* level 21-3 */
-    {  0, 14, 15, 15,  0, 17,  4,256, ZSTD_btopt   },  /* level 21-4 */
-    {  0, 14, 15, 15,  0, 17,  4,256, ZSTD_btopt   },  /* level 21-5 */
+    {  0, 14, 15, 15,  0, 14,  3,256, ZSTD_btopt   },  /* level 21-2 */
+    {  0, 14, 15, 15,  0, 15,  3,256, ZSTD_btopt   },  /* level 21-3 */
+    {  0, 14, 15, 15,  0, 16,  3,256, ZSTD_btopt   },  /* level 21-4 */
+    {  0, 14, 15, 15,  0, 17,  3,256, ZSTD_btopt   },  /* level 21-5 */
 },
 };
 

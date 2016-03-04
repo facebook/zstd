@@ -496,9 +496,14 @@ size_t ZSTD_decodeSeqHeaders(int* nbSeq, const BYTE** dumpsPtr, size_t* dumpsLen
     /* SeqHead */
     *nbSeq = *ip++;
     if (*nbSeq==0) return 1;
-    if (*nbSeq >= 128)
-        *nbSeq = ((nbSeq[0]-128)<<8) + *ip++;
+    if (*nbSeq >= 0x7F) {
+        if (*nbSeq == 0xFF)
+            *nbSeq = MEM_readLE16(ip) + LONGNBSEQ, ip+=2;
+        else
+            *nbSeq = ((nbSeq[0]-0x80)<<8) + *ip++;
+    }
 
+    /* FSE table descriptors */
     LLtype  = *ip >> 6;
     Offtype = (*ip >> 4) & 3;
     MLtype  = (*ip >> 2) & 3;

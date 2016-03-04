@@ -628,12 +628,12 @@ size_t FSE_count(unsigned* count, unsigned* maxSymbolValuePtr,
 /*-**************************************************************
 *  FSE Compression Code
 ****************************************************************/
-/*!
-FSE_CTable is a variable size structure which contains :
-    U16 tableLog;
-    U16 maxSymbolValue;
-    U16 nextStateNumber[1 << tableLog];                         // This size is variable
-    FSE_symbolCompressionTransform symbolTT[maxSymbolValue+1];  // This size is variable
+/*! FSE_sizeof_CTable() :
+    FSE_CTable is a variable size structure which contains :
+    `U16 tableLog;`
+    `U16 maxSymbolValue;`
+    `U16 nextStateNumber[1 << tableLog];`                         // This size is variable
+    `FSE_symbolCompressionTransform symbolTT[maxSymbolValue+1];`  // This size is variable
 Allocation is manual, since C standard does not support variable-size structures.
 */
 
@@ -654,10 +654,7 @@ FSE_CTable* FSE_createCTable (unsigned maxSymbolValue, unsigned tableLog)
     return (FSE_CTable*)malloc(size);
 }
 
-void  FSE_freeCTable (FSE_CTable* ct)
-{
-    free(ct);
-}
+void  FSE_freeCTable (FSE_CTable* ct) { free(ct); }
 
 /* provides the minimum logSize to safely represent a distribution */
 static unsigned FSE_minTableLog(size_t srcSize, unsigned maxSymbolValue)
@@ -888,31 +885,32 @@ static size_t FSE_compress_usingCTable_generic (void* dst, size_t dstSize,
                            const FSE_CTable* ct, const unsigned fast)
 {
     const BYTE* const istart = (const BYTE*) src;
-    const BYTE* ip;
     const BYTE* const iend = istart + srcSize;
+    const BYTE* ip=iend;
 
     size_t errorCode;
     BIT_CStream_t bitC;
     FSE_CState_t CState1, CState2;
 
-
     /* init */
+    if (srcSize <= 2) return 0;
     errorCode = BIT_initCStream(&bitC, dst, dstSize);
     if (FSE_isError(errorCode)) return 0;
-    FSE_initCState(&CState1, ct);
-    CState2 = CState1;
-
-    ip=iend;
 
 #define FSE_FLUSHBITS(s)  (fast ? BIT_flushBitsFast(s) : BIT_flushBits(s))
 
-    /* join to even */
     if (srcSize & 1) {
+        FSE_initCState2(&CState1, ct, *--ip);
+        FSE_initCState2(&CState2, ct, *--ip);
         FSE_encodeSymbol(&bitC, &CState1, *--ip);
         FSE_FLUSHBITS(&bitC);
+    } else {
+        FSE_initCState2(&CState2, ct, *--ip);
+        FSE_initCState2(&CState1, ct, *--ip);
     }
 
     /* join to mod 4 */
+    srcSize -= 2;
     if ((sizeof(bitC.bitContainer)*8 > FSE_MAX_TABLELOG*4+7 ) && (srcSize & 2)) {  /* test bit 2 */
         FSE_encodeSymbol(&bitC, &CState2, *--ip);
         FSE_encodeSymbol(&bitC, &CState1, *--ip);
@@ -1106,24 +1104,25 @@ FORCE_INLINE size_t FSE_decompress_usingDTable_generic(
     /* tail */
     /* note : BIT_reloadDStream(&bitD) >= FSE_DStream_partiallyFilled; Ends at exactly BIT_DStream_completed */
     while (1) {
-        if ( (BIT_reloadDStream(&bitD)>BIT_DStream_completed) || (op==omax) || (BIT_endOfDStream(&bitD) && (fast || FSE_endOfDState(&state1))) )
-            break;
+        if (op>(omax-2)) return ERROR(dstSize_tooSmall);
 
         *op++ = FSE_GETSYMBOL(&state1);
 
-        if ( (BIT_reloadDStream(&bitD)>BIT_DStream_completed) || (op==omax) || (BIT_endOfDStream(&bitD) && (fast || FSE_endOfDState(&state2))) )
+        if (BIT_reloadDStream(&bitD)==BIT_DStream_overflow) {
+            *op++ = FSE_GETSYMBOL(&state2);
             break;
+        }
+
+        if (op>(omax-2)) return ERROR(dstSize_tooSmall);
 
         *op++ = FSE_GETSYMBOL(&state2);
-    }
 
-    /* end ? */
-    if (BIT_endOfDStream(&bitD) && FSE_endOfDState(&state1) && FSE_endOfDState(&state2))
-        return op-ostart;
+        if (BIT_reloadDStream(&bitD)==BIT_DStream_overflow) {
+            *op++ = FSE_GETSYMBOL(&state1);
+            break;
+    }   }
 
-    if (op==omax) return ERROR(dstSize_tooSmall);   /* dst buffer is full, but cSrc unfinished */
-
-    return ERROR(corruption_detected);
+    return op-ostart;
 }
 
 

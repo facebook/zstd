@@ -145,6 +145,8 @@ static unsigned ZSTD_highbit(U32 val);
 void ZSTD_validateParams(ZSTD_parameters* params)
 {
     const U32 btPlus = (params->strategy == ZSTD_btlazy2) || (params->strategy == ZSTD_btopt);
+    const U32 searchLengthMax = (params->strategy == ZSTD_fast) ? ZSTD_SEARCHLENGTH_MAX : ZSTD_SEARCHLENGTH_MAX-1;
+    const U32 searchLengthMin = (params->strategy == ZSTD_btopt) ? ZSTD_SEARCHLENGTH_MIN : ZSTD_SEARCHLENGTH_MIN+1;
 
     /* validate params */
     if (MEM_32bits()) if (params->windowLog > 25) params->windowLog = 25;   /* 32 bits mode cannot flush > 24 bits */
@@ -153,7 +155,7 @@ void ZSTD_validateParams(ZSTD_parameters* params)
     CLAMP(params->hashLog, ZSTD_HASHLOG_MIN, ZSTD_HASHLOG_MAX);
     CLAMP(params->hashLog3, ZSTD_HASHLOG3_MIN, ZSTD_HASHLOG3_MAX);
     CLAMP(params->searchLog, ZSTD_SEARCHLOG_MIN, ZSTD_SEARCHLOG_MAX);
-    CLAMP(params->searchLength, ZSTD_SEARCHLENGTH_MIN, ZSTD_SEARCHLENGTH_MAX);
+    CLAMP(params->searchLength, searchLengthMin, searchLengthMax);
     CLAMP(params->targetLength, ZSTD_TARGETLENGTH_MIN, ZSTD_TARGETLENGTH_MAX);
     if ((U32)params->strategy>(U32)ZSTD_btopt) params->strategy = ZSTD_btopt;
 
@@ -233,7 +235,7 @@ size_t ZSTD_copyCCtx(ZSTD_CCtx* dstCCtx, const ZSTD_CCtx* srcCCtx)
 {
     const U32 contentLog = (srcCCtx->params.strategy == ZSTD_fast) ? 1 : srcCCtx->params.contentLog;
     const size_t tableSpace = ((1 << contentLog) + (1 << srcCCtx->params.hashLog) + (1 << srcCCtx->params.hashLog3)) * sizeof(U32);
-    
+
     if (srcCCtx->stage!=0) return ERROR(stage_wrong);
 
     ZSTD_resetCCtx_advanced(dstCCtx, srcCCtx->params);
@@ -547,17 +549,11 @@ size_t ZSTD_compressSequences(ZSTD_CCtx* zc,
         op += cSize;
     }
 
-#if ZSTD_OPT_DEBUG >= 5
-    if (nbSeq >= 32768)
-        printf("ERROR: nbSeq=%d\n", (int)nbSeq);
-#endif
-
     /* Sequences Header */
     if ((oend-op) < MIN_SEQUENCES_SIZE) return ERROR(dstSize_tooSmall);
-    if (nbSeq < 128) *op++ = (BYTE)nbSeq;
-    else {
-        op[0] = (BYTE)((nbSeq>>8) + 128); op[1] = (BYTE)nbSeq; op+=2;
-    }
+    if (nbSeq < 0x7F) *op++ = (BYTE)nbSeq;
+    else if (nbSeq < LONGNBSEQ) op[0] = (BYTE)((nbSeq>>8) + 0x80), op[1] = (BYTE)nbSeq, op+=2;
+    else op[0]=0xFF, MEM_writeLE16(op+1, (U16)(nbSeq - LONGNBSEQ)), op+=3;
     if (nbSeq==0) goto _check_compressibility;
 
     /* dumps : contains rests of large lengths */

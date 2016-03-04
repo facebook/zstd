@@ -118,16 +118,12 @@ FORCE_INLINE U32 ZSTD_getPrice(seqStore_t* seqStorePtr, U32 litLength, const BYT
     if (matchLength >= MaxML) matchLength = MaxML;
     price += ZSTD_getLiteralPrice(seqStorePtr, litLength, literals) + ZSTD_highbit(seqStorePtr->matchLengthSum+1) - ZSTD_highbit(seqStorePtr->matchLengthFreq[matchLength]+1);
 
-#if ZSTD_OPT_DEBUG >= 3
+#if ZSTD_OPT_DEBUG == 3
     switch (seqStorePtr->priceFunc) {
         default:
         case 0:
-            return 1 + price + seqStorePtr->factor + ((seqStorePtr->litSum>>5) / seqStorePtr->litLengthSum) + ((seqStorePtr->litSum<<1) / (seqStorePtr->litSum + seqStorePtr->matchSum));
+            return 1 + price + ((seqStorePtr->litSum>>5) / seqStorePtr->litLengthSum) + ((seqStorePtr->litSum<<1) / (seqStorePtr->litSum + seqStorePtr->matchSum));
         case 1:
-            return 1 + price + seqStorePtr->factor + ((seqStorePtr->factor2) ? ((seqStorePtr->litSum>>5) / seqStorePtr->litLengthSum) + ((seqStorePtr->litSum<<1) / (seqStorePtr->litSum + seqStorePtr->matchSum)) : 0);
-        case 2:
-            return 1 + price + seqStorePtr->factor + ((seqStorePtr->factor2) ? ((seqStorePtr->litSum>>4) / seqStorePtr->litLengthSum) + ((seqStorePtr->litSum<<1) / (seqStorePtr->litSum + seqStorePtr->matchSum)) : 0);
-        case 3:
             return 1 + price;
     }
 #else

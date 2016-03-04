@@ -1380,7 +1380,7 @@ static void ZSTD_updateTree_extDict(ZSTD_CCtx* zc, const BYTE* const ip, const B
     while (idx < target) idx += ZSTD_insertBt1(zc, base+idx, mls, iend, nbCompares, 1);
 }
 
-#include "zstd_opt_internal.h"
+#include "zstd_opt.h"
 
 /** Tree updater, providing best match */
 static size_t ZSTD_BtFindBestMatch_extDict (

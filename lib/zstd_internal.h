@@ -105,11 +105,12 @@ static const size_t ZSTD_frameHeaderSize_min = 5;
 #define OffFSELog   9
 #define MaxSeq MAX(MaxLL, MaxML)
 
+#define LONGNBSEQ 0xFF00
+
 #define FSE_ENCODING_RAW     0
 #define FSE_ENCODING_RLE     1
 #define FSE_ENCODING_STATIC  2
 #define FSE_ENCODING_DYNAMIC 3
-
 
 #define HufLog 12
 

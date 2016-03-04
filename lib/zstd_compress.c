@@ -212,8 +212,8 @@ static size_t ZSTD_resetCCtx_advanced (ZSTD_CCtx* zc,
     zc->seqStore.litLengthFreq = zc->seqStore.litFreq + (1<<Litbits);
     zc->seqStore.matchLengthFreq = zc->seqStore.litLengthFreq + (1<<LLbits);
     zc->seqStore.offCodeFreq = zc->seqStore.matchLengthFreq + (1<<MLbits);
-    zc->seqStore.matchTable = (ZSTD_match_t*)(zc->seqStore.offCodeFreq + (1<<Offbits));
-    zc->seqStore.priceTable = (ZSTD_optimal_t*)(zc->seqStore.matchTable + ZSTD_OPT_NUM+1);
+    zc->seqStore.matchTable = (ZSTD_match_t*)(void*)(zc->seqStore.offCodeFreq + (1<<Offbits));
+    zc->seqStore.priceTable = (ZSTD_optimal_t*)(void*)(zc->seqStore.matchTable + ZSTD_OPT_NUM+1);
 
     zc->seqStore.litLengthSum = 0;
     zc->hbSize = 0;
@@ -232,7 +232,7 @@ size_t ZSTD_copyCCtx(ZSTD_CCtx* dstCCtx, const ZSTD_CCtx* srcCCtx)
 {
     const U32 contentLog = (srcCCtx->params.strategy == ZSTD_fast) ? 1 : srcCCtx->params.contentLog;
     const size_t tableSpace = ((1 << contentLog) + (1 << srcCCtx->params.hashLog) + (1 << srcCCtx->params.hashLog3)) * sizeof(U32);
-    
+
     if (srcCCtx->stage!=0) return ERROR(stage_wrong);
 
     ZSTD_resetCCtx_advanced(dstCCtx, srcCCtx->params);
@@ -546,17 +546,11 @@ size_t ZSTD_compressSequences(ZSTD_CCtx* zc,
         op += cSize;
     }
 
-#if ZSTD_OPT_DEBUG >= 5
-    if (nbSeq >= 32768)
-        printf("ERROR: nbSeq=%d\n", (int)nbSeq);
-#endif
-
     /* Sequences Header */
     if ((oend-op) < MIN_SEQUENCES_SIZE) return ERROR(dstSize_tooSmall);
-    if (nbSeq < 128) *op++ = (BYTE)nbSeq;
-    else {
-        op[0] = (BYTE)((nbSeq>>8) + 128); op[1] = (BYTE)nbSeq; op+=2;
-    }
+    if (nbSeq < 0x7F) *op++ = (BYTE)nbSeq;
+    else if (nbSeq < LONGNBSEQ) op[0] = (BYTE)((nbSeq>>8) + 0x80), op[1] = (BYTE)nbSeq, op+=2;
+    else op[0]=0xFF, MEM_writeLE16(op+1, (U16)(nbSeq - LONGNBSEQ)), op+=3;
     if (nbSeq==0) goto _check_compressibility;
 
     /* dumps : contains rests of large lengths */

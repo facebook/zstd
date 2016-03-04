@@ -171,6 +171,7 @@ static int basicUnitTests(U32 seed, double compressibility)
     DISPLAYLEVEL(4, "test%3i : decompress %u bytes : ", testNb++, COMPRESSIBLE_NOISE_LENGTH);
     result = ZSTD_decompress(decodedBuffer, COMPRESSIBLE_NOISE_LENGTH, compressedBuffer, cSize);
     if (ZSTD_isError(result)) goto _output_error;
+    if (result != COMPRESSIBLE_NOISE_LENGTH) goto _output_error;
     DISPLAYLEVEL(4, "OK \n");
 
     {
@@ -194,6 +195,22 @@ static int basicUnitTests(U32 seed, double compressibility)
     if (!ZSTD_isError(result)) goto _output_error;
     if (result != (size_t)-ZSTD_error_srcSize_wrong) goto _output_error;
     DISPLAYLEVEL(4, "OK \n");
+
+    /* All zeroes test (#137 verif) */
+    #define ZEROESLENGTH 100
+    DISPLAYLEVEL(4, "test%3i : compress %u zeroes : ", testNb++, ZEROESLENGTH);
+    memset(CNBuffer, 0, ZEROESLENGTH);
+    result = ZSTD_compress(compressedBuffer, ZSTD_compressBound(ZEROESLENGTH), CNBuffer, ZEROESLENGTH, 1);
+    if (ZSTD_isError(result)) goto _output_error;
+    cSize = result;
+    DISPLAYLEVEL(4, "OK (%u bytes : %.2f%%)\n", (U32)cSize, (double)cSize/ZEROESLENGTH*100);
+
+    DISPLAYLEVEL(4, "test%3i : decompress %u zeroes : ", testNb++, ZEROESLENGTH);
+    result = ZSTD_decompress(decodedBuffer, ZEROESLENGTH, compressedBuffer, cSize);
+    if (ZSTD_isError(result)) goto _output_error;
+    if (result != ZEROESLENGTH) goto _output_error;
+    DISPLAYLEVEL(4, "OK \n");
+
 
     /* Dictionary and Duplication tests */
     {

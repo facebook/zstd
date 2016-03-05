@@ -207,13 +207,13 @@ typedef struct {
     U32  litLengthSum;
     U32  litSum;
     U32  offCodeSum;
+#if ZSTD_OPT_DEBUG == 3
     U32  realMatchSum;
     U32  realLitSum;
     U32  realSeqSum;
     U32  realRepSum;
-    U32  factor;
-    U32  factor2;
     U32  priceFunc;
+#endif
 } seqStore_t;
 
 seqStore_t ZSTD_copySeqStore(const ZSTD_CCtx* ctx);

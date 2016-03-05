@@ -2377,35 +2377,35 @@ static const ZSTD_parameters ZSTD_defaultParameters[4][ZSTD_MAX_CLEVEL+1] = {
     {  0,  0,  0,  0,  0,  0,  0,  0, ZSTD_fast    },  /* level  0 -- never used */
     {  0, 14, 14, 14,  0,  1,  4,  4, ZSTD_fast    },  /* level  1 */
     {  0, 14, 14, 15,  0,  1,  4,  4, ZSTD_fast    },  /* level  2 */
-    {  0, 14, 13, 15,  0,  4,  4,  4, ZSTD_greedy  },  /* level  3 */
-    {  0, 14, 14, 15,  0,  3,  4,  4, ZSTD_lazy    },  /* level  4 */
-    {  0, 14, 14, 14,  0,  6,  4,  4, ZSTD_lazy    },  /* level  5 */
+    {  0, 14, 14, 14,  0,  4,  4,  4, ZSTD_greedy  },  /* level  3.*/
+    {  0, 14, 14, 14,  0,  3,  4,  4, ZSTD_lazy    },  /* level  4.*/
+    {  0, 14, 14, 14,  0,  4,  4,  4, ZSTD_lazy2   },  /* level  5 */
     {  0, 14, 14, 14,  0,  5,  4,  4, ZSTD_lazy2   },  /* level  6 */
-    {  0, 14, 14, 14,  0,  7,  4,  4, ZSTD_lazy2   },  /* level  7 */
-    {  0, 14, 14, 14,  0,  8,  4,  4, ZSTD_lazy2   },  /* level  8 */
-    {  0, 14, 14, 14,  0,  9,  4,  4, ZSTD_lazy2   },  /* level  9 */
-    {  0, 14, 14, 14,  0, 10,  4,  4, ZSTD_lazy2   },  /* level 10 */
-    {  0, 14, 14, 14,  0, 11,  4,  4, ZSTD_lazy2   },  /* level 11 */
-    {  0, 14, 15, 15,  0, 12,  4, 32, ZSTD_btopt   },  /* level 12 */
-    {  0, 14, 15, 15,  0, 12,  4, 64, ZSTD_btopt   },  /* level 13 */
-    {  0, 14, 15, 15,  0, 12,  4, 96, ZSTD_btopt   },  /* level 14 */
-    {  0, 14, 15, 15,  0, 12,  4,128, ZSTD_btopt   },  /* level 15 */
-    {  0, 14, 15, 15,  0, 12,  4,256, ZSTD_btopt   },  /* level 16 */
-    {  0, 14, 15, 15,  0, 13,  4,256, ZSTD_btopt   },  /* level 17 */
-    {  0, 14, 15, 15,  0, 14,  4,256, ZSTD_btopt   },  /* level 18 */
-    {  0, 14, 15, 15,  0, 15,  4,256, ZSTD_btopt   },  /* level 19 */
-    {  0, 14, 15, 15,  0, 16,  4,256, ZSTD_btopt   },  /* level 20 */
-    {  0, 14, 15, 15,  0, 17,  4,256, ZSTD_btopt   },  /* level 21 */
-    {  0, 14, 15, 15,  0, 14,  3,256, ZSTD_btopt   },  /* level 21-2 */
-    {  0, 14, 15, 15,  0, 15,  3,256, ZSTD_btopt   },  /* level 21-3 */
-    {  0, 14, 15, 15,  0, 16,  3,256, ZSTD_btopt   },  /* level 21-4 */
-    {  0, 14, 15, 15,  0, 17,  3,256, ZSTD_btopt   },  /* level 21-5 */
+    {  0, 14, 14, 14,  0,  6,  4,  4, ZSTD_lazy2   },  /* level  7.*/
+    {  0, 14, 14, 14,  0,  7,  4,  4, ZSTD_lazy2   },  /* level  8.*/
+    {  0, 14, 15, 14,  0,  6,  4,  4, ZSTD_btlazy2 },  /* level  9.*/
+    {  0, 14, 15, 14,  0,  3,  3,  6, ZSTD_btopt   },  /* level 10.*/
+    {  0, 14, 15, 14,  0,  6,  3,  8, ZSTD_btopt   },  /* level 11.*/
+    {  0, 14, 15, 14,  0,  6,  3, 16, ZSTD_btopt   },  /* level 12.*/
+    {  0, 14, 15, 14,  0,  6,  3, 24, ZSTD_btopt   },  /* level 13.*/
+    {  0, 14, 15, 15,  0,  6,  3, 48, ZSTD_btopt   },  /* level 14.*/
+    {  0, 14, 15, 15,  0,  6,  3, 64, ZSTD_btopt   },  /* level 15.*/
+    {  0, 14, 15, 15,  0,  6,  3, 96, ZSTD_btopt   },  /* level 16.*/
+    {  0, 14, 15, 15,  0,  6,  3,128, ZSTD_btopt   },  /* level 17.*/
+    {  0, 14, 15, 15,  0,  6,  3,256, ZSTD_btopt   },  /* level 18.*/
+    {  0, 14, 15, 15,  0,  7,  3,256, ZSTD_btopt   },  /* level 19.*/
+    {  0, 14, 15, 15,  0,  8,  3,256, ZSTD_btopt   },  /* level 20.*/
+    {  0, 14, 15, 15,  0,  9,  3,256, ZSTD_btopt   },  /* level 21.*/
+    {  0, 14, 15, 15,  0, 10,  3,256, ZSTD_btopt   },  /* level 22.*/
+    {  0, 14, 15, 15,  0, 11,  3,256, ZSTD_btopt   },  /* level 23.*/
+    {  0, 14, 15, 15,  0, 12,  3,256, ZSTD_btopt   },  /* level 24.*/
+    {  0, 14, 15, 15,  0, 13,  3,256, ZSTD_btopt   },  /* level 25.*/
 },
 };
 
-/*! ZSTD_getParams
+/*! ZSTD_getParams() :
 *   @return ZSTD_parameters structure for a selected compression level and srcSize.
-*   @srcSizeHint value is optional, select 0 if not known */
+*   `srcSizeHint` value is optional, select 0 if not known */
 ZSTD_parameters ZSTD_getParams(int compressionLevel, U64 srcSizeHint)
 {
     ZSTD_parameters result;

@@ -196,22 +196,6 @@ static int basicUnitTests(U32 seed, double compressibility)
     if (result != (size_t)-ZSTD_error_srcSize_wrong) goto _output_error;
     DISPLAYLEVEL(4, "OK \n");
 
-    /* All zeroes test (#137 verif) */
-    #define ZEROESLENGTH 100
-    DISPLAYLEVEL(4, "test%3i : compress %u zeroes : ", testNb++, ZEROESLENGTH);
-    memset(CNBuffer, 0, ZEROESLENGTH);
-    result = ZSTD_compress(compressedBuffer, ZSTD_compressBound(ZEROESLENGTH), CNBuffer, ZEROESLENGTH, 1);
-    if (ZSTD_isError(result)) goto _output_error;
-    cSize = result;
-    DISPLAYLEVEL(4, "OK (%u bytes : %.2f%%)\n", (U32)cSize, (double)cSize/ZEROESLENGTH*100);
-
-    DISPLAYLEVEL(4, "test%3i : decompress %u zeroes : ", testNb++, ZEROESLENGTH);
-    result = ZSTD_decompress(decodedBuffer, ZEROESLENGTH, compressedBuffer, cSize);
-    if (ZSTD_isError(result)) goto _output_error;
-    if (result != ZEROESLENGTH) goto _output_error;
-    DISPLAYLEVEL(4, "OK \n");
-
-
     /* Dictionary and Duplication tests */
     {
         ZSTD_CCtx* ctxOrig = ZSTD_createCCtx();
@@ -341,6 +325,58 @@ static int basicUnitTests(U32 seed, double compressibility)
         result = ZSTD_decompress(decodedBuffer, sampleSize, compressedBuffer, cSize);
         if (ZSTD_isError(result)) goto _output_error;
         if (result!=sampleSize) goto _output_error;
+        DISPLAYLEVEL(4, "OK \n");
+    }
+
+    /* All zeroes test (#137 verif) */
+    #define ZEROESLENGTH 100
+    DISPLAYLEVEL(4, "test%3i : compress %u zeroes : ", testNb++, ZEROESLENGTH);
+    memset(CNBuffer, 0, ZEROESLENGTH);
+    result = ZSTD_compress(compressedBuffer, ZSTD_compressBound(ZEROESLENGTH), CNBuffer, ZEROESLENGTH, 1);
+    if (ZSTD_isError(result)) goto _output_error;
+    cSize = result;
+    DISPLAYLEVEL(4, "OK (%u bytes : %.2f%%)\n", (U32)cSize, (double)cSize/ZEROESLENGTH*100);
+
+    DISPLAYLEVEL(4, "test%3i : decompress %u zeroes : ", testNb++, ZEROESLENGTH);
+    result = ZSTD_decompress(decodedBuffer, ZEROESLENGTH, compressedBuffer, cSize);
+    if (ZSTD_isError(result)) goto _output_error;
+    if (result != ZEROESLENGTH) goto _output_error;
+    DISPLAYLEVEL(4, "OK \n");
+
+    /* nbSeq limit test */
+    {
+        #define _3BYTESTESTLENGTH 131000
+        #define NB3BYTESSEQLOG   9
+        #define NB3BYTESSEQ     (1 << NB3BYTESSEQLOG)
+        #define NB3BYTESSEQMASK (NB3BYTESSEQ-1)
+        BYTE _3BytesSeqs[NB3BYTESSEQ][3];
+        U32 r = 1;
+        int i;
+
+        for (i=0; i < NB3BYTESSEQ; i++) {
+            _3BytesSeqs[i][0] = (BYTE)(FUZ_rand(&r) & 255);
+            _3BytesSeqs[i][1] = (BYTE)(FUZ_rand(&r) & 255);
+            _3BytesSeqs[i][2] = (BYTE)(FUZ_rand(&r) & 255);
+        }
+
+        for (i=0; i < _3BYTESTESTLENGTH; ){
+            U32 id = FUZ_rand(&r) & NB3BYTESSEQMASK;
+            ((BYTE*)CNBuffer)[i+0] = _3BytesSeqs[id][0];
+            ((BYTE*)CNBuffer)[i+1] = _3BytesSeqs[id][1];
+            ((BYTE*)CNBuffer)[i+2] = _3BytesSeqs[id][2];
+            i += 3;
+        }
+
+        DISPLAYLEVEL(4, "test%3i : compress lots 3-bytes sequences : ", testNb++);
+        result = ZSTD_compress(compressedBuffer, ZSTD_compressBound(_3BYTESTESTLENGTH), CNBuffer, _3BYTESTESTLENGTH, 19);
+        if (ZSTD_isError(result)) goto _output_error;
+        cSize = result;
+        DISPLAYLEVEL(4, "OK (%u bytes : %.2f%%)\n", (U32)cSize, (double)cSize/_3BYTESTESTLENGTH*100);
+
+        DISPLAYLEVEL(4, "test%3i : decompress lots 3-bytes sequence : ", testNb++);
+        result = ZSTD_decompress(decodedBuffer, _3BYTESTESTLENGTH, compressedBuffer, cSize);
+        if (ZSTD_isError(result)) goto _output_error;
+        if (result != _3BYTESTESTLENGTH) goto _output_error;
         DISPLAYLEVEL(4, "OK \n");
     }
 

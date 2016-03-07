@@ -335,10 +335,9 @@ static U32 ZSTD_BtGetAllMatches (
 
 static U32 ZSTD_BtGetAllMatches_selectMLS (
                         ZSTD_CCtx* zc,   /* Index table will be updated */
-                        const BYTE* ip, const BYTE* const iLowLimit, const BYTE* const iHighLimit,
+                        const BYTE* ip, const BYTE* const iHighLimit,
                         const U32 maxNbAttempts, const U32 matchLengthSearch, ZSTD_match_t* matches)
 {
-    (void)iLowLimit;  /* unused */
     switch(matchLengthSearch)
     {
     default :
@@ -363,10 +362,9 @@ static U32 ZSTD_BtGetAllMatches_extDict (
 
 static U32 ZSTD_BtGetAllMatches_selectMLS_extDict (
                         ZSTD_CCtx* zc,   /* Index table will be updated */
-                        const BYTE* ip, const BYTE* const iLowLimit, const BYTE* const iHighLimit,
+                        const BYTE* ip, const BYTE* const iHighLimit,
                         const U32 maxNbAttempts, const U32 matchLengthSearch, ZSTD_match_t* matches)
 {
-    (void)iLowLimit;
     switch(matchLengthSearch)
     {
     default :
@@ -447,7 +445,7 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
             } while (mlen >= minMatch);
         }
 
-        match_num = ZSTD_BtGetAllMatches_selectMLS(ctx, ip, ip, iend, maxSearches, mls, matches); /* first search (depth 0) */
+        match_num = ZSTD_BtGetAllMatches_selectMLS(ctx, ip, iend, maxSearches, mls, matches); /* first search (depth 0) */
 
         ZSTD_LOG_PARSER("%d: match_num=%d last_pos=%d\n", (int)(ip-base), match_num, last_pos);
         if (!last_pos && !match_num) { ip++; continue; }
@@ -567,7 +565,7 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
                 } while (mlen >= minMatch);
             }
 
-            match_num = ZSTD_BtGetAllMatches_selectMLS(ctx, inr, ip, iend, maxSearches, mls, matches);
+            match_num = ZSTD_BtGetAllMatches_selectMLS(ctx, inr, iend, maxSearches, mls, matches);
             ZSTD_LOG_PARSER("%d: ZSTD_GetAllMatches match_num=%d\n", (int)(inr-base), match_num);
 
             if (match_num > 0 && matches[match_num-1].len > sufficient_len) {
@@ -779,7 +777,7 @@ void ZSTD_compressBlock_opt_extDict_generic(ZSTD_CCtx* ctx,
 
        best_mlen = (last_pos) ? last_pos : minMatch;
 
-       match_num = ZSTD_BtGetAllMatches_selectMLS_extDict(ctx, ip, ip, iend, maxSearches, mls, matches);  /* first search (depth 0) */
+       match_num = ZSTD_BtGetAllMatches_selectMLS_extDict(ctx, ip, iend, maxSearches, mls, matches);  /* first search (depth 0) */
 
        ZSTD_LOG_PARSER("%d: match_num=%d last_pos=%d\n", (int)(ip-base), match_num, last_pos);
        if (!last_pos && !match_num) { ip++; continue; }
@@ -909,7 +907,7 @@ void ZSTD_compressBlock_opt_extDict_generic(ZSTD_CCtx* ctx,
 
             best_mlen = (best_mlen > minMatch) ? best_mlen : minMatch;
 
-            match_num = ZSTD_BtGetAllMatches_selectMLS_extDict(ctx, inr, ip, iend, maxSearches, mls, matches);
+            match_num = ZSTD_BtGetAllMatches_selectMLS_extDict(ctx, inr, iend, maxSearches, mls, matches);
             ZSTD_LOG_PARSER("%d: ZSTD_GetAllMatches match_num=%d\n", (int)(inr-base), match_num);
 
             if (match_num > 0 && matches[match_num-1].len > sufficient_len) {

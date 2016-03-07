@@ -250,8 +250,8 @@ static U32 ZSTD_insertBtAndGetAllMatches (
                 matches[mnum].off = current - matchIndex3;
                 matches[mnum].len = (U32)currentMl;
                 mnum++;
-                if (currentMl > ZSTD_OPT_NUM) return mnum;
-                if (ip+currentMl == iLimit) return mnum; /* best possible, and avoid read overflow*/
+                if (currentMl > ZSTD_OPT_NUM) goto update;
+                if (ip+currentMl == iLimit) goto update; /* best possible, and avoid read overflow*/
             }
         }
     }
@@ -316,6 +316,7 @@ static U32 ZSTD_insertBtAndGetAllMatches (
 
     *smallerPtr = *largerPtr = 0;
 
+update:
     zc->nextToUpdate = (matchEndIdx > current + 8) ? matchEndIdx - 8 : current+1;
     return mnum;
 }
@@ -340,8 +341,8 @@ static U32 ZSTD_BtGetAllMatches_selectMLS (
 {
     switch(matchLengthSearch)
     {
-    default :
     case 3 : return ZSTD_BtGetAllMatches(zc, ip, iHighLimit, maxNbAttempts, 3, matches);
+    default :
     case 4 : return ZSTD_BtGetAllMatches(zc, ip, iHighLimit, maxNbAttempts, 4, matches);
     case 5 : return ZSTD_BtGetAllMatches(zc, ip, iHighLimit, maxNbAttempts, 5, matches);
     case 6 : return ZSTD_BtGetAllMatches(zc, ip, iHighLimit, maxNbAttempts, 6, matches);
@@ -367,8 +368,8 @@ static U32 ZSTD_BtGetAllMatches_selectMLS_extDict (
 {
     switch(matchLengthSearch)
     {
-    default :
     case 3 : return ZSTD_BtGetAllMatches_extDict(zc, ip, iHighLimit, maxNbAttempts, 3, matches);
+    default :
     case 4 : return ZSTD_BtGetAllMatches_extDict(zc, ip, iHighLimit, maxNbAttempts, 4, matches);
     case 5 : return ZSTD_BtGetAllMatches_extDict(zc, ip, iHighLimit, maxNbAttempts, 5, matches);
     case 6 : return ZSTD_BtGetAllMatches_extDict(zc, ip, iHighLimit, maxNbAttempts, 6, matches);

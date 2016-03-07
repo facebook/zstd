@@ -876,7 +876,7 @@ static size_t ZSTD_count_2segments(const BYTE* ip, const BYTE* match, const BYTE
 ***************************************/
 static const U32 prime3bytes = 506832829U;
 static U32    ZSTD_hash3(U32 u, U32 h) { return ((u << (32-24)) * prime3bytes)  >> (32-h) ; }
-static size_t ZSTD_hash3Ptr(const void* ptr, U32 h) { return ZSTD_hash3(MEM_read32(ptr), h); }
+static size_t ZSTD_hash3Ptr(const void* ptr, U32 h) { return ZSTD_hash3(MEM_readLE32(ptr), h); }
 
 static const U32 prime4bytes = 2654435761U;
 static U32    ZSTD_hash4(U32 u, U32 h) { return (u * prime4bytes) >> (32-h) ; }

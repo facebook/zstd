@@ -147,13 +147,14 @@ void ZSTD_validateParams(ZSTD_parameters* params)
     const U32 btPlus = (params->strategy == ZSTD_btlazy2) || (params->strategy == ZSTD_btopt);
     const U32 searchLengthMax = (params->strategy == ZSTD_fast) ? ZSTD_SEARCHLENGTH_MAX : ZSTD_SEARCHLENGTH_MAX-1;
     const U32 searchLengthMin = (params->strategy == ZSTD_btopt) ? ZSTD_SEARCHLENGTH_MIN : ZSTD_SEARCHLENGTH_MIN+1;
+    const U32 hashLog3Min = (params->strategy == ZSTD_btopt) ? ZSTD_HASHLOG3_MIN : 0;
 
     /* validate params */
     if (MEM_32bits()) if (params->windowLog > 25) params->windowLog = 25;   /* 32 bits mode cannot flush > 24 bits */
     CLAMP(params->windowLog, ZSTD_WINDOWLOG_MIN, ZSTD_WINDOWLOG_MAX);
     CLAMP(params->contentLog, ZSTD_CONTENTLOG_MIN, ZSTD_CONTENTLOG_MAX);
     CLAMP(params->hashLog, ZSTD_HASHLOG_MIN, ZSTD_HASHLOG_MAX);
-    CLAMP(params->hashLog3, ZSTD_HASHLOG3_MIN, ZSTD_HASHLOG3_MAX);
+    CLAMP(params->hashLog3, hashLog3Min, ZSTD_HASHLOG3_MAX);
     CLAMP(params->searchLog, ZSTD_SEARCHLOG_MIN, ZSTD_SEARCHLOG_MAX);
     CLAMP(params->searchLength, searchLengthMin, searchLengthMax);
     CLAMP(params->targetLength, ZSTD_TARGETLENGTH_MIN, ZSTD_TARGETLENGTH_MAX);
@@ -174,10 +175,11 @@ static size_t ZSTD_resetCCtx_advanced (ZSTD_CCtx* zc,
 {   /* note : params considered validated here */
     const size_t blockSize = MIN(BLOCKSIZE, (size_t)1 << params.windowLog);
     /* reserve table memory */
-    const U32 contentLog = (params.strategy == ZSTD_fast) ? 1 : params.contentLog;
+    const U32    contentLog = (params.strategy == ZSTD_fast) ? 1 : params.contentLog;
     const size_t tableSpace = ((1 << contentLog) + (1 << params.hashLog) + (1 << params.hashLog3)) * sizeof(U32);
-    const size_t neededSpace = tableSpace + (256*sizeof(U32)) + (3*blockSize)
-        + ((params.strategy == ZSTD_btopt) ? ((1<<MLbits) + (1<<LLbits) + (1<<Offbits) + (1<<Litbits))*sizeof(U32) + (ZSTD_OPT_NUM+1)*(sizeof(ZSTD_match_t) + sizeof(ZSTD_optimal_t)) : 0);
+    const size_t optSpace   = ((1<<MLbits) + (1<<LLbits) + (1<<Offbits) + (1<<Litbits))*sizeof(U32) + (ZSTD_OPT_NUM+1)*(sizeof(ZSTD_match_t) + sizeof(ZSTD_optimal_t));
+    const size_t neededSpace = tableSpace + (256*sizeof(U32)) /* huffTable */ + (3*blockSize)
+                           + ((params.strategy == ZSTD_btopt) ? optSpace : 0);
 
     if (zc->workSpaceSize < neededSpace) {
         free(zc->workSpace);
@@ -204,7 +206,7 @@ static size_t ZSTD_resetCCtx_advanced (ZSTD_CCtx* zc,
     zc->blockSize = blockSize;
 
     zc->seqStore.offsetStart = (U32*) (zc->seqStore.buffer);
-    zc->seqStore.offCodeStart = (BYTE*) (zc->seqStore.offsetStart) + blockSize;
+    zc->seqStore.offCodeStart = (BYTE*) (zc->seqStore.offsetStart + (blockSize>>2));
     zc->seqStore.litStart = zc->seqStore.offCodeStart + (blockSize>>2);
     zc->seqStore.litLengthStart =  zc->seqStore.litStart + blockSize;
     zc->seqStore.matchLengthStart = zc->seqStore.litLengthStart + (blockSize>>2);
@@ -227,9 +229,9 @@ static size_t ZSTD_resetCCtx_advanced (ZSTD_CCtx* zc,
 }
 
 
-/*! ZSTD_copyCCtx
-*   Duplicate an existing context @srcCCtx into another one @dstCCtx.
-*   Only works during stage 0 (i.e. before first call to ZSTD_compressContinue())
+/*! ZSTD_copyCCtx() :
+*   Duplicate an existing context `srcCCtx` into another one `dstCCtx`.
+*   Only works during stage 0 (i.e. before first call to ZSTD_compressContinue()).
 *   @return : 0, or an error code */
 size_t ZSTD_copyCCtx(ZSTD_CCtx* dstCCtx, const ZSTD_CCtx* srcCCtx)
 {
@@ -2363,7 +2365,7 @@ static const ZSTD_parameters ZSTD_defaultParameters[4][ZSTD_MAX_CLEVEL+1] = {
     {  0, 17, 18, 17,  0,  7,  4,128, ZSTD_btopt   },  /* level 16 */
     {  0, 17, 18, 17,  0,  8,  4,128, ZSTD_btopt   },  /* level 17 */
     {  0, 17, 18, 17,  0,  8,  4,256, ZSTD_btopt   },  /* level 18 */
-    {  0, 17, 18, 17,  0,  9,  4,256, ZSTD_btopt   },  /* level 19 */
+    {  0, 17, 18, 17, 16,  9,  3,256, ZSTD_btopt   },  /* level 19 */
     {  0, 17, 18, 17,  0, 10,  4,512, ZSTD_btopt   },  /* level 20 */
     {  0, 17, 18, 17,  0, 11,  4,512, ZSTD_btopt   },  /* level 21 */
     {  0, 17, 18, 17,  0, 11,  4,512, ZSTD_btopt   },  /* level 21-2 */
@@ -2384,22 +2386,22 @@ static const ZSTD_parameters ZSTD_defaultParameters[4][ZSTD_MAX_CLEVEL+1] = {
     {  0, 14, 14, 14,  0,  6,  4,  4, ZSTD_lazy2   },  /* level  7.*/
     {  0, 14, 14, 14,  0,  7,  4,  4, ZSTD_lazy2   },  /* level  8.*/
     {  0, 14, 15, 14,  0,  6,  4,  4, ZSTD_btlazy2 },  /* level  9.*/
-    {  0, 14, 15, 14,  0,  3,  3,  6, ZSTD_btopt   },  /* level 10.*/
-    {  0, 14, 15, 14,  0,  6,  3,  8, ZSTD_btopt   },  /* level 11.*/
-    {  0, 14, 15, 14,  0,  6,  3, 16, ZSTD_btopt   },  /* level 12.*/
-    {  0, 14, 15, 14,  0,  6,  3, 24, ZSTD_btopt   },  /* level 13.*/
-    {  0, 14, 15, 15,  0,  6,  3, 48, ZSTD_btopt   },  /* level 14.*/
-    {  0, 14, 15, 15,  0,  6,  3, 64, ZSTD_btopt   },  /* level 15.*/
-    {  0, 14, 15, 15,  0,  6,  3, 96, ZSTD_btopt   },  /* level 16.*/
-    {  0, 14, 15, 15,  0,  6,  3,128, ZSTD_btopt   },  /* level 17.*/
-    {  0, 14, 15, 15,  0,  6,  3,256, ZSTD_btopt   },  /* level 18.*/
-    {  0, 14, 15, 15,  0,  7,  3,256, ZSTD_btopt   },  /* level 19.*/
-    {  0, 14, 15, 15,  0,  8,  3,256, ZSTD_btopt   },  /* level 20.*/
-    {  0, 14, 15, 15,  0,  9,  3,256, ZSTD_btopt   },  /* level 21.*/
-    {  0, 14, 15, 15,  0, 10,  3,256, ZSTD_btopt   },  /* level 22.*/
-    {  0, 14, 15, 15,  0, 11,  3,256, ZSTD_btopt   },  /* level 23.*/
-    {  0, 14, 15, 15,  0, 12,  3,256, ZSTD_btopt   },  /* level 24.*/
-    {  0, 14, 15, 15,  0, 13,  3,256, ZSTD_btopt   },  /* level 25.*/
+    {  0, 14, 15, 14, 16,  3,  3,  6, ZSTD_btopt   },  /* level 10.*/
+    {  0, 14, 15, 14, 16,  6,  3,  8, ZSTD_btopt   },  /* level 11.*/
+    {  0, 14, 15, 14, 16,  6,  3, 16, ZSTD_btopt   },  /* level 12.*/
+    {  0, 14, 15, 14, 16,  6,  3, 24, ZSTD_btopt   },  /* level 13.*/
+    {  0, 14, 15, 15, 16,  6,  3, 48, ZSTD_btopt   },  /* level 14.*/
+    {  0, 14, 15, 15, 16,  6,  3, 64, ZSTD_btopt   },  /* level 15.*/
+    {  0, 14, 15, 15, 16,  6,  3, 96, ZSTD_btopt   },  /* level 16.*/
+    {  0, 14, 15, 15, 16,  6,  3,128, ZSTD_btopt   },  /* level 17.*/
+    {  0, 14, 15, 15, 16,  6,  3,256, ZSTD_btopt   },  /* level 18.*/
+    {  0, 14, 15, 15, 16,  7,  3,256, ZSTD_btopt   },  /* level 19.*/
+    {  0, 14, 15, 15, 16,  8,  3,256, ZSTD_btopt   },  /* level 20.*/
+    {  0, 14, 15, 15, 16,  9,  3,256, ZSTD_btopt   },  /* level 21.*/
+    {  0, 14, 15, 15, 16, 10,  3,256, ZSTD_btopt   },  /* level 22.*/
+    {  0, 14, 15, 15, 16, 11,  3,256, ZSTD_btopt   },  /* level 23.*/
+    {  0, 14, 15, 15, 16, 12,  3,256, ZSTD_btopt   },  /* level 24.*/
+    {  0, 14, 15, 15, 16, 13,  3,256, ZSTD_btopt   },  /* level 25.*/
 },
 };
 

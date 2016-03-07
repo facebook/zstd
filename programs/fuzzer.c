@@ -344,6 +344,7 @@ static int basicUnitTests(U32 seed, double compressibility)
     DISPLAYLEVEL(4, "OK \n");
 
     /* nbSeq limit test */
+    if (0)
     {
         #define _3BYTESTESTLENGTH 131000
         #define NB3BYTESSEQLOG   9

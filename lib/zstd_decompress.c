@@ -822,7 +822,8 @@ static size_t ZSTD_decompressSequences(
             nbSeq--;
             ZSTD_decodeSequence(&sequence, &seqState, mls);
             oneSeqSize = ZSTD_execSequence(op, oend, sequence, &litPtr, litLimit_8, base, vBase, dictEnd);
-            if (ZSTD_isError(oneSeqSize)) return oneSeqSize;
+            if (ZSTD_isError(oneSeqSize))
+                return oneSeqSize;
             op += oneSeqSize;
         }
 

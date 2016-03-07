@@ -105,7 +105,7 @@ static const size_t ZSTD_frameHeaderSize_min = 5;
 #define OffFSELog   9
 #define MaxSeq MAX(MaxLL, MaxML)
 
-#define LONGNBSEQ 0xFF00
+#define LONGNBSEQ 0x7F00
 
 #define FSE_ENCODING_RAW     0
 #define FSE_ENCODING_RLE     1

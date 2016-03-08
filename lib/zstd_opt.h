@@ -227,7 +227,6 @@ static U32 ZSTD_insertBtAndGetAllMatches (
 
     const U32 minMatch = (mls == 3) ? 3 : 4;
     size_t bestLength = minMatch-1;
-    hashTable[h] = current;   /* Update Hash Table */
 
     if (minMatch == 3) { /* HC3 match finder */
         U32 matchIndex3 = ZSTD_insertAndFindFirstIndexHash3 (zc, ip);
@@ -255,6 +254,8 @@ static U32 ZSTD_insertBtAndGetAllMatches (
             }
         }
     }
+
+    hashTable[h] = current;   /* Update Hash Table */
 
     while (nbCompares-- && (matchIndex > windowLow)) {
         U32* nextPtr = bt + 2*(matchIndex & btMask);

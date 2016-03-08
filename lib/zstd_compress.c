@@ -74,7 +74,6 @@ size_t ZSTD_compressBound(size_t srcSize) { return FSE_compressBound(srcSize) + 
 /*-*************************************
 *  Sequence storage
 ***************************************/
-
 static void ZSTD_resetSeqStore(seqStore_t* ssPtr)
 {
     ssPtr->offset = ssPtr->offsetStart;
@@ -709,10 +708,10 @@ size_t ZSTD_compressSequences(ZSTD_CCtx* zc,
             BYTE litLength = llTable[i];                                    /* (7)*/  /* (7)*/
             FSE_encodeSymbol(&blockStream, &stateMatchLength, mlCode);      /* 17 */  /* 17 */
             if (MEM_32bits()) BIT_flushBits(&blockStream);                  /*  7 */
-            FSE_encodeSymbol(&blockStream, &stateLitLength, litLength);     /* 26 */  /* 61 */
-            FSE_encodeSymbol(&blockStream, &stateOffsetBits, offCode);      /* 16 */  /* 51 */
+            FSE_encodeSymbol(&blockStream, &stateLitLength, litLength);     /* 17 */  /* 27 */
+            FSE_encodeSymbol(&blockStream, &stateOffsetBits, offCode);      /* 26 */  /* 36 */
             if (MEM_32bits()) BIT_flushBits(&blockStream);                  /*  7 */
-            BIT_addBits(&blockStream, offset, nbBits);                      /* 31 */  /* 42 */   /* 24 bits max in 32-bits mode */
+            BIT_addBits(&blockStream, offset, nbBits);                      /* 31 */  /* 62 */   /* 24 bits max in 32-bits mode */
             BIT_flushBits(&blockStream);                                    /*  7 */  /*  7 */
         }
 
@@ -733,10 +732,10 @@ _check_compressibility:
 }
 
 
-/*! ZSTD_storeSeq
-    Store a sequence (literal length, literals, offset code and match length code) into seqStore_t
-    @offsetCode : distance to match, or 0 == repCode
-    @matchCode : matchLength - MINMATCH
+/*! ZSTD_storeSeq() :
+    Store a sequence (literal length, literals, offset code and match length code) into seqStore_t.
+    `offsetCode` : distance to match, or 0 == repCode.
+    `matchCode` : matchLength - MINMATCH
 */
 MEM_STATIC void ZSTD_storeSeq(seqStore_t* seqStorePtr, size_t litLength, const BYTE* literals, size_t offsetCode, size_t matchCode)
 {
@@ -771,8 +770,7 @@ MEM_STATIC void ZSTD_storeSeq(seqStore_t* seqStorePtr, size_t litLength, const B
             } else {
                 MEM_writeLE32(seqStorePtr->dumps, (U32)((litLength<<1)+1));
                 seqStorePtr->dumps += 3;
-            }
-    }   }
+    }   }   }
     else *(seqStorePtr->litLength++) = (BYTE)litLength;
 
     /* match offset */
@@ -791,8 +789,7 @@ MEM_STATIC void ZSTD_storeSeq(seqStore_t* seqStorePtr, size_t litLength, const B
             } else {
                 MEM_writeLE32(seqStorePtr->dumps, (U32)((matchCode<<1)+1));
                 seqStorePtr->dumps += 3;
-            }
-    }   }
+    }   }   }
     else *(seqStorePtr->matchLength++) = (BYTE)matchCode;
 }
 
@@ -1971,7 +1968,6 @@ static size_t ZSTD_compress_generic (ZSTD_CCtx* zc,
         ip += blockSize;
         op += cSize;
     }
-
 
 #if ZSTD_OPT_DEBUG == 3
     ssPtr->realMatchSum += ssPtr->realSeqSum * ((zc->params.searchLength == 3) ? 3 : 4);

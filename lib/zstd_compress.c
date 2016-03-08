@@ -129,7 +129,7 @@ size_t ZSTD_freeCCtx(ZSTD_CCtx* cctx)
     return 0;   /* reserved as a potential error code in the future */
 }
 
-seqStore_t ZSTD_copySeqStore(const ZSTD_CCtx* ctx)
+seqStore_t ZSTD_copySeqStore(const ZSTD_CCtx* ctx)   /* hidden interface */
 {
     return ctx->seqStore;
 }
@@ -170,11 +170,26 @@ void ZSTD_validateParams(ZSTD_parameters* params)
 }
 
 
+size_t ZSTD_sizeofCCtx(ZSTD_parameters params)   /* hidden interface, for paramagrill */
+{   /* copy / pasted from ZSTD_resetCCtx_advanced */
+    const size_t blockSize = MIN(BLOCKSIZE, (size_t)1 << params.windowLog);
+    const U32    contentLog = (params.strategy == ZSTD_fast) ? 1 : params.contentLog;
+    const U32    divider = (params.searchLength==3) ? 3 : 4;
+    const size_t maxNbSeq = blockSize / divider;
+    const size_t tokenSpace = blockSize + 8*maxNbSeq;
+    const size_t tableSpace = ((1 << contentLog) + (1 << params.hashLog) + (1 << params.hashLog3)) * sizeof(U32);
+    const size_t optSpace   = ((1<<MLbits) + (1<<LLbits) + (1<<Offbits) + (1<<Litbits))*sizeof(U32) + (ZSTD_OPT_NUM+1)*(sizeof(ZSTD_match_t) + sizeof(ZSTD_optimal_t));
+    const size_t neededSpace = tableSpace + (256*sizeof(U32)) /* huffTable */ + tokenSpace
+                           + ((params.strategy == ZSTD_btopt) ? optSpace : 0);
+
+    return sizeof(ZSTD_CCtx) + neededSpace;
+}
+
+
 static size_t ZSTD_resetCCtx_advanced (ZSTD_CCtx* zc,
                                        ZSTD_parameters params)
 {   /* note : params considered validated here */
     const size_t blockSize = MIN(BLOCKSIZE, (size_t)1 << params.windowLog);
-    /* reserve table memory */
     const U32    contentLog = (params.strategy == ZSTD_fast) ? 1 : params.contentLog;
     const U32    divider = (params.searchLength==3) ? 3 : 4;
     const size_t maxNbSeq = blockSize / divider;

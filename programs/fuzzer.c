@@ -344,7 +344,6 @@ static int basicUnitTests(U32 seed, double compressibility)
     DISPLAYLEVEL(4, "OK \n");
 
     /* nbSeq limit test */
-    if (0)
     {
         #define _3BYTESTESTLENGTH 131000
         #define NB3BYTESSEQLOG   9
@@ -360,7 +359,7 @@ static int basicUnitTests(U32 seed, double compressibility)
             _3BytesSeqs[i][2] = (BYTE)(FUZ_rand(&r) & 255);
         }
 
-        for (i=0; i < _3BYTESTESTLENGTH; ){
+        for (i=0; i < _3BYTESTESTLENGTH; ) {
             U32 id = FUZ_rand(&r) & NB3BYTESSEQMASK;
             ((BYTE*)CNBuffer)[i+0] = _3BytesSeqs[id][0];
             ((BYTE*)CNBuffer)[i+1] = _3BytesSeqs[id][1];

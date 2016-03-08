@@ -165,8 +165,8 @@ void ZSTD_validateParams(ZSTD_parameters* params)
         U32 srcLog = ZSTD_highbit((U32)(params->srcSize)-1) + 1;
         if (params->windowLog > srcLog) params->windowLog = srcLog;
     }
-    if (params->windowLog   < ZSTD_WINDOWLOG_ABSOLUTEMIN) params->windowLog = ZSTD_WINDOWLOG_ABSOLUTEMIN;  /* required for frame header */
-    if (params->contentLog  > params->windowLog+btPlus) params->contentLog = params->windowLog+btPlus;   /* <= ZSTD_CONTENTLOG_MAX */
+    if (params->windowLog  < ZSTD_WINDOWLOG_ABSOLUTEMIN) params->windowLog = ZSTD_WINDOWLOG_ABSOLUTEMIN;  /* required for frame header */
+    if (params->contentLog > params->windowLog+btPlus) params->contentLog = params->windowLog+btPlus;   /* <= ZSTD_CONTENTLOG_MAX */
 }
 
 
@@ -176,9 +176,12 @@ static size_t ZSTD_resetCCtx_advanced (ZSTD_CCtx* zc,
     const size_t blockSize = MIN(BLOCKSIZE, (size_t)1 << params.windowLog);
     /* reserve table memory */
     const U32    contentLog = (params.strategy == ZSTD_fast) ? 1 : params.contentLog;
+    const U32    divider = (params.searchLength==3) ? 3 : 4;
+    const size_t maxNbSeq = blockSize / divider;
+    const size_t tokenSpace = blockSize + 8*maxNbSeq;
     const size_t tableSpace = ((1 << contentLog) + (1 << params.hashLog) + (1 << params.hashLog3)) * sizeof(U32);
     const size_t optSpace   = ((1<<MLbits) + (1<<LLbits) + (1<<Offbits) + (1<<Litbits))*sizeof(U32) + (ZSTD_OPT_NUM+1)*(sizeof(ZSTD_match_t) + sizeof(ZSTD_optimal_t));
-    const size_t neededSpace = tableSpace + (256*sizeof(U32)) /* huffTable */ + (3*blockSize)
+    const size_t neededSpace = tableSpace + (256*sizeof(U32)) /* huffTable */ + tokenSpace
                            + ((params.strategy == ZSTD_btopt) ? optSpace : 0);
 
     if (zc->workSpaceSize < neededSpace) {
@@ -206,13 +209,13 @@ static size_t ZSTD_resetCCtx_advanced (ZSTD_CCtx* zc,
     zc->blockSize = blockSize;
 
     zc->seqStore.offsetStart = (U32*) (zc->seqStore.buffer);
-    zc->seqStore.offCodeStart = (BYTE*) (zc->seqStore.offsetStart + (blockSize>>2));
-    zc->seqStore.litStart = zc->seqStore.offCodeStart + (blockSize>>2);
+    zc->seqStore.offCodeStart = (BYTE*) (zc->seqStore.offsetStart + maxNbSeq);
+    zc->seqStore.litStart = zc->seqStore.offCodeStart + maxNbSeq;
     zc->seqStore.litLengthStart =  zc->seqStore.litStart + blockSize;
-    zc->seqStore.matchLengthStart = zc->seqStore.litLengthStart + (blockSize>>2);
-    zc->seqStore.dumpsStart = zc->seqStore.matchLengthStart + (blockSize>>2);
+    zc->seqStore.matchLengthStart = zc->seqStore.litLengthStart + maxNbSeq;
+    zc->seqStore.dumpsStart = zc->seqStore.matchLengthStart + maxNbSeq;
     if (params.strategy == ZSTD_btopt) {
-        zc->seqStore.litFreq = (U32*)((void*)(zc->seqStore.dumpsStart + (blockSize>>2)));
+        zc->seqStore.litFreq = (U32*)((void*)(zc->seqStore.dumpsStart + maxNbSeq));
         zc->seqStore.litLengthFreq = zc->seqStore.litFreq + (1<<Litbits);
         zc->seqStore.matchLengthFreq = zc->seqStore.litLengthFreq + (1<<LLbits);
         zc->seqStore.offCodeFreq = zc->seqStore.matchLengthFreq + (1<<MLbits);

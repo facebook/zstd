@@ -447,6 +447,7 @@ static void BMK_printWinners(FILE* f, const winnerInfo_t* winners, size_t srcSiz
     BMK_printWinners2(stdout, winners, srcSize);
 }
 
+size_t ZSTD_sizeofCCtx(ZSTD_parameters params);   /* hidden interface, declared here */
 
 static int BMK_seed(winnerInfo_t* winners, const ZSTD_parameters params,
               const void* srcBuffer, size_t srcSize,
@@ -481,10 +482,8 @@ static int BMK_seed(winnerInfo_t* winners, const ZSTD_parameters params,
             double W_DMemUsed_note = W_ratioNote * ( 40 + 9*cLevel) - log((double)W_DMemUsed);
             double O_DMemUsed_note = O_ratioNote * ( 40 + 9*cLevel) - log((double)O_DMemUsed);
 
-            size_t W_CMemUsed = (1 << params.windowLog) + 4 * (1 << params.hashLog) +
-                                ((params.strategy==ZSTD_fast) ? 0 : 4 * (1 << params.contentLog));
-            size_t O_CMemUsed = (1 << winners[cLevel].params.windowLog) + 4 * (1 << winners[cLevel].params.hashLog) +
-                                ((winners[cLevel].params.strategy==ZSTD_fast) ? 0 :  4 * (1 << winners[cLevel].params.contentLog));
+            size_t W_CMemUsed = (1 << params.windowLog) + ZSTD_sizeofCCtx(params);
+            size_t O_CMemUsed = (1 << winners[cLevel].params.windowLog) + ZSTD_sizeofCCtx(winners[cLevel].params);
             double W_CMemUsed_note = W_ratioNote * ( 50 + 13*cLevel) - log((double)W_CMemUsed);
             double O_CMemUsed_note = O_ratioNote * ( 50 + 13*cLevel) - log((double)O_CMemUsed);
 

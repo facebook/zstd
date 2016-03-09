@@ -207,6 +207,12 @@ typedef struct {
     U32  litLengthSum;
     U32  litSum;
     U32  offCodeSum;
+    U32  log2matchLengthSum;
+    U32  log2matchSum;
+    U32  log2litLengthSum;
+    U32  log2litSum;
+    U32  log2offCodeSum;
+    U32  factor;
 #if ZSTD_OPT_DEBUG == 3
     U32  realMatchSum;
     U32  realLitSum;

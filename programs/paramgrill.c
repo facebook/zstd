@@ -127,7 +127,7 @@ static U32 g_rand = 1;
 static U32 g_singleRun = 0;
 static U32 g_target = 0;
 static U32 g_noSeed = 0;
-static ZSTD_parameters g_params = { 0, 0, 0, 0, 0, 0, 0, 0, ZSTD_greedy };
+static ZSTD_parameters g_params = { 0, 0, 0, 0, 0, 0, 0, ZSTD_greedy };
 
 void BMK_SetNbIterations(int nbLoops)
 {

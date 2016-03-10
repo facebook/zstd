@@ -244,8 +244,8 @@ static U32 ZSTD_insertBtAndGetAllMatches (
 
     if (minMatch == 3) { /* HC3 match finder */
         U32 matchIndex3 = ZSTD_insertAndFindFirstIndexHash3 (zc, ip);
-
-        if (matchIndex3>windowLow) {
+        
+        if (matchIndex3>windowLow && (current - matchIndex3 < (1<<18))) {
             const BYTE* match;
             size_t currentMl=0;
             if ((!extDict) || matchIndex3 >= dictLimit) {

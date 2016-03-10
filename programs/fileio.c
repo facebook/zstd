@@ -126,6 +126,7 @@
 #define DISPLAY(...)         fprintf(stderr, __VA_ARGS__)
 #define DISPLAYLEVEL(l, ...) if (g_displayLevel>=l) { DISPLAY(__VA_ARGS__); }
 static U32 g_displayLevel = 2;   /* 0 : no display;   1: errors;   2 : + result + interaction + warnings;   3 : + progression;   4 : + information */
+void FIO_setNotificationLevel(unsigned level) { g_displayLevel=level; }
 
 #define DISPLAYUPDATE(l, ...) if (g_displayLevel>=l) { \
             if ((FIO_GetMilliSpan(g_time) > refreshRate) || (g_displayLevel>=4)) \
@@ -142,7 +143,8 @@ static clock_t g_time = 0;
 ***************************************/
 static U32 g_overwrite = 0;
 void FIO_overwriteMode(void) { g_overwrite=1; }
-void FIO_setNotificationLevel(unsigned level) { g_displayLevel=level; }
+static U32 g_maxWLog = 23;
+void FIO_setMaxWLog(unsigned maxWLog) { g_maxWLog = maxWLog; }
 
 
 /*-*************************************
@@ -239,10 +241,10 @@ static FILE* FIO_openDstFile(const char* dstFileName)
 }
 
 
-/*!FIO_loadFile
-*  creates a buffer, pointed by *bufferPtr,
-*  loads "filename" content into it
-*  up to MAX_DICT_SIZE bytes
+/*! FIO_loadFile() :
+*   creates a buffer, pointed by *bufferPtr,
+*   loads `filename` content into it,
+*   up to MAX_DICT_SIZE bytes
 */
 static size_t FIO_loadFile(void** bufferPtr, const char* fileName)
 {
@@ -274,7 +276,7 @@ static size_t FIO_loadFile(void** bufferPtr, const char* fileName)
 }
 
 
-/* **********************************************************************
+/*-**********************************************************************
 *  Compression
 ************************************************************************/
 typedef struct {
@@ -321,7 +323,7 @@ static void FIO_freeCResources(cRess_t ress)
 
 
 /*! FIO_compressFilename_internal() :
- *  same as FIO_compressFilename_extRess(), with ress.desFile already opened
+ *  same as FIO_compressFilename_extRess(), with `ress.desFile` already opened.
  *  @return : 0 : compression completed correctly,
  *            1 : missing or pb opening srcFileName
  */
@@ -335,10 +337,13 @@ static int FIO_compressFilename_internal(cRess_t ress,
     U64 compressedfilesize = 0;
     size_t dictSize = ress.dictBufferSize;
     size_t sizeCheck, errorCode;
+    ZSTD_parameters params;
 
     /* init */
     filesize = MAX(FIO_getFileSize(srcFileName),dictSize);
-    errorCode = ZBUFF_compressInit_advanced(ress.ctx, ress.dictBuffer, ress.dictBufferSize, ZSTD_getParams(cLevel, filesize));
+    params = ZSTD_getParams(cLevel, filesize);
+    if (g_maxWLog) if (params.windowLog > g_maxWLog) params.windowLog = g_maxWLog;
+    errorCode = ZBUFF_compressInit_advanced(ress.ctx, ress.dictBuffer, ress.dictBufferSize, params);
     if (ZBUFF_isError(errorCode)) EXM_THROW(21, "Error initializing compression : %s", ZBUFF_getErrorName(errorCode));
 
     /* Main compression loop */
@@ -482,7 +487,7 @@ int FIO_compressMultipleFilenames(const char** inFileNamesTable, unsigned nbFile
         ress.dstFile = stdout;
         for (u=0; u<nbFiles; u++)
             missed_files += FIO_compressFilename_srcFile(ress, stdoutmark,
-                                                          inFileNamesTable[u], compressionLevel);
+                                                         inFileNamesTable[u], compressionLevel);
         if (fclose(ress.dstFile)) EXM_THROW(29, "Write error : cannot properly close %s", stdoutmark);
     } else {
         for (u=0; u<nbFiles; u++) {

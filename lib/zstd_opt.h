@@ -196,18 +196,17 @@ MEM_STATIC void ZSTD_updatePrice(seqStore_t* seqStorePtr, U32 litLength, const B
 static U32 ZSTD_insertAndFindFirstIndexHash3 (ZSTD_CCtx* zc, const BYTE* ip)
 {
     U32* const hashTable3  = zc->hashTable3;
-    const U32 hashLog3 = zc->params.hashLog3;
     const BYTE* const base = zc->base;
     const U32 target = (U32)(ip - base);
     U32 idx = zc->nextToUpdate3;
 
     while(idx < target) {
-        hashTable3[ZSTD_hash3Ptr(base+idx, hashLog3)] = idx;
+        hashTable3[ZSTD_hash3Ptr(base+idx, HASHLOG3)] = idx;
         idx++;
     }
 
     zc->nextToUpdate3 = target;
-    return hashTable3[ZSTD_hash3Ptr(ip, hashLog3)];
+    return hashTable3[ZSTD_hash3Ptr(ip, HASHLOG3)];
 }
 
 

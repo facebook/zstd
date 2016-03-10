@@ -114,6 +114,7 @@ static const size_t ZSTD_frameHeaderSize_min = 5;
 #define FSE_ENCODING_DYNAMIC 3
 
 #define HufLog 12
+#define HASHLOG3 17
 
 #define MIN_SEQUENCES_SIZE 1 /* nbSeq==0 */
 #define MIN_CBLOCK_SIZE (1 /*litCSize*/ + 1 /* RLE or RAW */ + MIN_SEQUENCES_SIZE /* nbSeq==0 */)   /* for a non-null block */

@@ -63,8 +63,6 @@ extern "C" {
 #define ZSTD_CONTENTLOG_MIN     4
 #define ZSTD_HASHLOG_MAX       28
 #define ZSTD_HASHLOG_MIN       12
-#define ZSTD_HASHLOG3_MAX      16
-#define ZSTD_HASHLOG3_MIN      16
 #define ZSTD_SEARCHLOG_MAX    (ZSTD_CONTENTLOG_MAX-1)
 #define ZSTD_SEARCHLOG_MIN      1
 #define ZSTD_SEARCHLENGTH_MAX   7
@@ -81,7 +79,6 @@ typedef struct
     U32 windowLog;     /* largest match distance : larger == more compression, more memory needed during decompression */
     U32 contentLog;    /* full search segment : larger == more compression, slower, more memory (useless for fast) */
     U32 hashLog;       /* dispatch table : larger == faster, more memory */
-    U32 hashLog3;      /* dispatch table : larger == faster, more memory */
     U32 searchLog;     /* nb of searches : larger == more compression, slower */
     U32 searchLength;  /* match length searched : larger == faster decompression, sometimes less compression */
     U32 targetLength;  /* acceptable match size for optimal parser (only) : larger == more compression, slower */

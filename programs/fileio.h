@@ -41,14 +41,15 @@ extern "C" {
 #endif
 
 
-/* *************************************
+/*-*************************************
 *  Parameters
 ***************************************/
 void FIO_overwriteMode(void);
 void FIO_setNotificationLevel(unsigned level);
+void FIO_setMaxWLog(unsigned maxWLog);   /**< if `maxWLog` == 0, no max enforced */
 
 
-/* *************************************
+/*-*************************************
 *  Single File functions
 ***************************************/
 /** FIO_compressFilename() :
@@ -60,7 +61,7 @@ int FIO_compressFilename (const char* outfilename, const char* infilename, const
 int FIO_decompressFilename (const char* outfilename, const char* infilename, const char* dictFileName);
 
 
-/* *************************************
+/*-*************************************
 *  Multiple File functions
 ***************************************/
 /** FIO_compressMultipleFilenames() :

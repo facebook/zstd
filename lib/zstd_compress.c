@@ -2307,8 +2307,8 @@ static const ZSTD_parameters ZSTD_defaultParameters[4][ZSTD_MAX_CLEVEL+1] = {
     {  0, 19, 15, 16,  0,  1,  6,  4, ZSTD_fast    },  /* level  2 */
     {  0, 20, 18, 20,  0,  1,  6,  4, ZSTD_fast    },  /* level  3 */
     {  0, 20, 13, 17,  0,  2,  5,  4, ZSTD_greedy  },  /* level  4.*/
-    {  0, 20, 15, 18,  0,  3,  5,  4, ZSTD_greedy  },  /* level  5.*/
-    {  0, 20, 18, 19,  0,  3,  5,  4, ZSTD_greedy  },  /* level  6 */
+    {  0, 20, 15, 18,  0,  3,  5,  4, ZSTD_greedy  },  /* level  5 */
+    {  0, 21, 16, 19,  0,  2,  5,  4, ZSTD_lazy    },  /* level  6 */
     {  0, 21, 17, 20,  0,  3,  5,  4, ZSTD_lazy    },  /* level  7 */
     {  0, 21, 18, 20,  0,  3,  5,  4, ZSTD_lazy2   },  /* level  8.*/
     {  0, 21, 20, 20,  0,  3,  5,  4, ZSTD_lazy2   },  /* level  9 */
@@ -2319,12 +2319,12 @@ static const ZSTD_parameters ZSTD_defaultParameters[4][ZSTD_MAX_CLEVEL+1] = {
     {  0, 22, 21, 22,  0,  6,  5,  4, ZSTD_lazy2   },  /* level 14 */
     {  0, 22, 21, 21,  0,  5,  5,  4, ZSTD_btlazy2 },  /* level 15 */
     {  0, 23, 22, 22,  0,  5,  5,  4, ZSTD_btlazy2 },  /* level 16 */
-    {  0, 24, 24, 24,  0,  5,  5,  4, ZSTD_btlazy2 },  /* level 17 */
-    {  0, 24, 24, 23,  0,  5,  5, 30, ZSTD_btopt   },  /* level 18 */
-    {  0, 25, 25, 24,  0,  5,  4, 40, ZSTD_btopt   },  /* level 19 */
-    {  0, 25, 25, 24,  0,  6,  3, 64, ZSTD_btopt   },  /* level 20 */
-    {  0, 26, 26, 25,  0,  7,  3,256, ZSTD_btopt   },  /* level 21 */
-    {  0, 27, 28, 27,  0,  9,  3,256, ZSTD_btopt   },  /* level 22 */
+    {  0, 23, 22, 22,  0,  6,  5, 22, ZSTD_btopt   },  /* level 17 */
+    {  0, 22, 22, 22,  0,  5,  3, 44, ZSTD_btopt   },  /* level 18 */
+    {  0, 23, 24, 22,  0,  7,  3, 44, ZSTD_btopt   },  /* level 19 */
+    {  0, 25, 26, 22,  0,  7,  3, 71, ZSTD_btopt   },  /* level 20 */
+    {  0, 26, 26, 24,  0,  7,  3,256, ZSTD_btopt   },  /* level 21 */
+    {  0, 27, 28, 26,  0,  9,  3,256, ZSTD_btopt   },  /* level 22 */
 },
 {   /* for srcSize <= 256 KB */
     /* l,  W,  C,  H, H3,  S,  L,  T, strat */

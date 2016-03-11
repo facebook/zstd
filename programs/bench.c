@@ -62,6 +62,17 @@
 #  include <sys/time.h>   /* gettimeofday */
 #endif
 
+/* sleep : posix - windows - others */
+#if !defined(_WIN32) && (defined(__unix__) || defined(__unix) || (defined(__APPLE__) && defined(__MACH__)))
+#  include <unistd.h>
+#  define BMK_sleep(s) sleep(s)
+#elif defined(_WIN32)
+#  include <windows.h>
+#  define BMK_sleep(s) Sleep(1000*s)
+#else
+#  define BMK_sleep(s)   /* disabled */
+#endif
+
 #include "mem.h"
 #include "zstd_static.h"
 #include "xxhash.h"
@@ -83,8 +94,10 @@
 /* *************************************
 *  Constants
 ***************************************/
-#define NBLOOPS    3
-#define TIMELOOP   2500
+#define NBLOOPS          3
+#define TIMELOOP_MS   2500
+#define ACTIVEPERIOD_S  70
+#define COOLPERIOD_S    10
 
 #define KB *(1 <<10)
 #define MB *(1 <<20)
@@ -274,12 +287,20 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
         double fastestC = 100000000., fastestD = 100000000.;
         double ratio = 0.;
         U64 crcCheck = 0;
+        int coolTime = BMK_GetMilliStart();
 
         DISPLAY("\r%79s\r", "");
         for (loopNb = 1; loopNb <= nbIterations; loopNb++) {
             int nbLoops;
             int milliTime;
             U32 blockNb;
+
+            /* overheat protection */
+            if (BMK_GetMilliSpan(coolTime) > ACTIVEPERIOD_S*1000) {
+                DISPLAY("\rcooling down ...    \r");
+                BMK_sleep(COOLPERIOD_S);
+                coolTime = BMK_GetMilliStart();
+            }
 
             /* Compression */
             DISPLAY("%2i-%-17.17s :%10u ->\r", loopNb, displayName, (U32)srcSize);
@@ -289,7 +310,7 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
             milliTime = BMK_GetMilliStart();
             while (BMK_GetMilliStart() == milliTime);
             milliTime = BMK_GetMilliStart();
-            while (BMK_GetMilliSpan(milliTime) < TIMELOOP) {
+            while (BMK_GetMilliSpan(milliTime) < TIMELOOP_MS) {
                 ZSTD_compressBegin_advanced(refCtx, dictBuffer, dictBufferSize, ZSTD_getParams(cLevel, MAX(dictBufferSize, largestBlockSize)));
                 for (blockNb=0; blockNb<nbBlocks; blockNb++) {
                     size_t rSize = ZSTD_compress_usingPreparedCCtx(ctx, refCtx,
@@ -318,7 +339,7 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
             while (BMK_GetMilliStart() == milliTime);
             milliTime = BMK_GetMilliStart();
 
-            for ( ; BMK_GetMilliSpan(milliTime) < TIMELOOP; nbLoops++) {
+            for ( ; BMK_GetMilliSpan(milliTime) < TIMELOOP_MS; nbLoops++) {
                 ZSTD_decompressBegin_usingDict(refDCtx, dictBuffer, dictBufferSize);
                 for (blockNb=0; blockNb<nbBlocks; blockNb++) {
                     size_t regenSize = ZSTD_decompress_usingPreparedDCtx(dctx, refDCtx,
@@ -405,11 +426,12 @@ static void BMK_benchCLevel(void* srcBuffer, size_t benchedSize,
 {
     if (cLevel < 0) {
         int l;
-        for (l=1; l <= -cLevel; l++)
+        for (l=1; l <= -cLevel; l++) {
             BMK_benchMem(srcBuffer, benchedSize,
                          displayName, l,
                          fileSizes, nbFiles,
                          dictBuffer, dictBufferSize);
+        }
         return;
     }
     BMK_benchMem(srcBuffer, benchedSize,

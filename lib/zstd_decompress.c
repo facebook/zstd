@@ -136,7 +136,7 @@ struct ZSTD_DCtx_s
     const void* dictEnd;
     size_t expected;
     size_t headerSize;
-    ZSTD_parameters params;
+    ZSTD_frameParams fParams;
     blockType_t bType;   /* used in ZSTD_decompressContinue(), to transfer blockType between header decoding and block decoding stages */
     ZSTD_dStage stage;
     U32 flagStaticTables;
@@ -144,7 +144,7 @@ struct ZSTD_DCtx_s
     size_t litBufSize;
     size_t litSize;
     BYTE litBuffer[BLOCKSIZE + WILDCOPY_OVERLENGTH];
-    BYTE headerBuffer[ZSTD_frameHeaderSize_max];
+    BYTE headerBuffer[ZSTD_FRAMEHEADERSIZE_MAX];
 };  /* typedef'd to ZSTD_DCtx within "zstd_static.h" */
 
 size_t sizeofDCtx (void) { return sizeof(ZSTD_DCtx); }
@@ -159,7 +159,7 @@ size_t ZSTD_decompressBegin(ZSTD_DCtx* dctx)
     dctx->dictEnd = NULL;
     dctx->hufTableX4[0] = HufLog;
     dctx->flagStaticTables = 0;
-    dctx->params.searchLength = MINMATCH; /* overwritten by frame but forces ZSTD_btopt to MINMATCH in block mode */
+    dctx->fParams.mml = MINMATCH; /* overwritten by frame but forces ZSTD_btopt to MINMATCH in block mode */
     ZSTD_LOG_BLOCK("%p: ZSTD_decompressBegin searchLength=%d\n", dctx->base, dctx->params.searchLength);
     return 0;
 }
@@ -286,15 +286,15 @@ static size_t ZSTD_decodeFrameHeader_Part1(ZSTD_DCtx* zc, const void* src, size_
 }
 
 
-size_t ZSTD_getFrameParams(ZSTD_parameters* params, const void* src, size_t srcSize)
+size_t ZSTD_getFrameParams(ZSTD_frameParams* fparamsPtr, const void* src, size_t srcSize)
 {
     U32 magicNumber;
     if (srcSize < ZSTD_frameHeaderSize_min) return ZSTD_frameHeaderSize_max;
     magicNumber = MEM_readLE32(src);
     if (magicNumber != ZSTD_MAGICNUMBER) return ERROR(prefix_unknown);
-    memset(params, 0, sizeof(*params));
-    params->windowLog = (((const BYTE*)src)[4] & 15) + ZSTD_WINDOWLOG_ABSOLUTEMIN;
-    params->searchLength = (((const BYTE*)src)[4] & 16) ? MINMATCH-1 : MINMATCH;
+    memset(fparamsPtr, 0, sizeof(*fparamsPtr));
+    fparamsPtr->windowLog = (((const BYTE*)src)[4] & 15) + ZSTD_WINDOWLOG_ABSOLUTEMIN;
+    fparamsPtr->mml = (((const BYTE*)src)[4] & 16) ? MINMATCH-1 : MINMATCH;
     if ((((const BYTE*)src)[4] >> 5) != 0) return ERROR(frameParameter_unsupported);   /* reserved 3 bits */
     return 0;
 }
@@ -308,8 +308,8 @@ static size_t ZSTD_decodeFrameHeader_Part2(ZSTD_DCtx* zc, const void* src, size_
     size_t result;
     if (srcSize != zc->headerSize)
         return ERROR(srcSize_wrong);
-    result = ZSTD_getFrameParams(&(zc->params), src, srcSize);
-    if ((MEM_32bits()) && (zc->params.windowLog > 25)) return ERROR(frameParameter_unsupportedBy32bits);
+    result = ZSTD_getFrameParams(&(zc->fParams), src, srcSize);
+    if ((MEM_32bits()) && (zc->fParams.windowLog > 25)) return ERROR(frameParameter_unsupportedBy32bits);
     return result;
 }
 
@@ -792,7 +792,7 @@ static size_t ZSTD_decompressSequences(
     const BYTE* const base = (const BYTE*) (dctx->base);
     const BYTE* const vBase = (const BYTE*) (dctx->vBase);
     const BYTE* const dictEnd = (const BYTE*) (dctx->dictEnd);
-    const U32 mls = dctx->params.searchLength;
+    const U32 mls = dctx->fParams.mml;
 
     /* Build Decoding Tables */
     errorCode = ZSTD_decodeSeqHeaders(&nbSeq, &dumps, &dumpsLength,
@@ -885,9 +885,9 @@ size_t ZSTD_decompressBlock(ZSTD_DCtx* dctx,
 }
 
 
-/*! ZSTD_decompress_continueDCtx
-*   dctx must have been properly initialized */
-static size_t ZSTD_decompress_continueDCtx(ZSTD_DCtx* dctx,
+/*! ZSTD_decompress_continueDCtx() :
+*   `dctx` must have been properly initialized */
+static size_t ZSTD_decompressFrame(ZSTD_DCtx* dctx,
                                  void* dst, size_t maxDstSize,
                                  const void* src, size_t srcSize)
 {
@@ -965,7 +965,7 @@ size_t ZSTD_decompress_usingPreparedDCtx(ZSTD_DCtx* dctx, const ZSTD_DCtx* refDC
 {
     ZSTD_copyDCtx(dctx, refDCtx);
     ZSTD_checkContinuity(dctx, dst);
-    return ZSTD_decompress_continueDCtx(dctx, dst, maxDstSize, src, srcSize);
+    return ZSTD_decompressFrame(dctx, dst, maxDstSize, src, srcSize);
 }
 
 
@@ -977,7 +977,7 @@ size_t ZSTD_decompress_usingDict(ZSTD_DCtx* dctx,
     ZSTD_decompressBegin_usingDict(dctx, dict, dictSize);
     ZSTD_LOG_BLOCK("%p: ZSTD_decompressBegin_usingDict searchLength=%d\n", dctx->base, dctx->params.searchLength);
     ZSTD_checkContinuity(dctx, dst);
-    return ZSTD_decompress_continueDCtx(dctx, dst, maxDstSize, src, srcSize);
+    return ZSTD_decompressFrame(dctx, dst, maxDstSize, src, srcSize);
 }
 
 
@@ -985,6 +985,7 @@ size_t ZSTD_decompressDCtx(ZSTD_DCtx* dctx, void* dst, size_t maxDstSize, const 
 {
     return ZSTD_decompress_usingDict(dctx, dst, maxDstSize, src, srcSize, NULL, 0);
 }
+
 
 size_t ZSTD_decompress(void* dst, size_t maxDstSize, const void* src, size_t srcSize)
 {

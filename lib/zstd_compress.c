@@ -103,7 +103,7 @@ struct ZSTD_CCtx_s
     size_t workSpaceSize;
     size_t blockSize;
     size_t hbSize;
-    char headerBuffer[ZSTD_frameHeaderSize_max];
+    char headerBuffer[ZSTD_FRAMEHEADERSIZE_MAX];
 
     seqStore_t seqStore;    /* sequences storage ptrs */
     U32* hashTable;

@@ -211,6 +211,12 @@ void ZSTD_copyDCtx(ZSTD_DCtx* dstDCtx, const ZSTD_DCtx* srcDCtx)
    bit 4   : minmatch 4(0) or 3(1)
    bit 5   : reserved (must be zero)
    bit 6-7 : Frame content size : unknown, 1 byte, 2 bytes, 8 bytes
+
+   Optional : content size (0, 1, 2 or 8 bytes)
+   0 : unknown
+   1 : 0-255 bytes
+   2 : 256 - 65535+256
+   8 : up to 16 exa
 */
 
 

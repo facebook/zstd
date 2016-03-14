@@ -36,7 +36,10 @@ $ZSTD --decompress tmpCompressed --stdout > tmpResult
 $ZSTD -q tmp && die "overwrite check failed!"
 $ZSTD -q -f tmp
 $ZSTD -q --force tmp
-
+$ZSTD -df tmp && die "should have refused : wrong extension"
+cp tmp tmp2.zst
+$ZSTD -df tmp2.zst && die "should have failed : wrong format"
+rm tmp2.zst
 
 echo "\n**** frame concatenation **** "
 

@@ -94,7 +94,6 @@
 
 #define KNUTH      2654435761U
 #define MAX_MEM    (1984 MB)
-#define DEFAULT_CHUNKSIZE   (4<<20)
 
 #define COMPRESSIBILITY_DEFAULT 0.50
 static const size_t sampleSize = 10000000;

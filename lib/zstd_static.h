@@ -165,12 +165,16 @@ ZSTDLIB_API size_t ZSTD_compressEnd(ZSTD_CCtx* cctx, void* dst, size_t dstCapaci
   You can then reuse ZSTD_CCtx to compress some new frame.
 */
 
+typedef struct { U64 frameContentSize; U32 windowLog; U32 mml; } ZSTD_frameParams;
+
+#define ZSTD_FRAMEHEADERSIZE_MAX 13    /* for static allocation */
+static const size_t ZSTD_frameHeaderSize_min = 5;
+static const size_t ZSTD_frameHeaderSize_max = ZSTD_FRAMEHEADERSIZE_MAX;
+ZSTDLIB_API size_t ZSTD_getFrameParams(ZSTD_frameParams* fparamsPtr, const void* src, size_t srcSize);   /**< doesn't consume input */
 
 ZSTDLIB_API size_t ZSTD_decompressBegin(ZSTD_DCtx* dctx);
 ZSTDLIB_API size_t ZSTD_decompressBegin_usingDict(ZSTD_DCtx* dctx, const void* dict, size_t dictSize);
 ZSTDLIB_API void   ZSTD_copyDCtx(ZSTD_DCtx* dctx, const ZSTD_DCtx* preparedDCtx);
-
-ZSTDLIB_API size_t ZSTD_getFrameParams(ZSTD_parameters* params, const void* src, size_t srcSize);
 
 ZSTDLIB_API size_t ZSTD_nextSrcSizeToDecompress(ZSTD_DCtx* dctx);
 ZSTDLIB_API size_t ZSTD_decompressContinue(ZSTD_DCtx* dctx, void* dst, size_t dstCapacity, const void* src, size_t srcSize);
@@ -182,15 +186,16 @@ ZSTDLIB_API size_t ZSTD_decompressContinue(ZSTD_DCtx* dctx, void* dst, size_t ds
   Use ZSTD_createDCtx() / ZSTD_freeDCtx() to manage it.
   A ZSTD_DCtx object can be re-used multiple times.
 
-  First typical operation is to retrieve frame parameters, using ZSTD_getFrameParams().
-  This operation is independent, and just needs enough input data to properly decode the frame header.
-  Objective is to retrieve *params.windowlog, to know minimum amount of memory required during decoding.
-  Result : 0 when successful, it means the ZSTD_parameters structure has been filled.
-           >0 : means there is not enough data into src. Provides the expected size to successfully decode header.
+  First optional operation is to retrieve frame parameters, using ZSTD_getFrameParams().
+  It requires to read the beginning of compressed frame.
+  The amount of data to read is variable, from ZSTD_frameHeaderSize_min to ZSTD_frameHeaderSize_max.
+  If you don't provide enough length, function will return the minimum size it wants to produce a result.
+  Result : 0 when successful, it means the ZSTD_frameParams structure has been filled.
+          >0 : means there is not enough data into src. Provides the expected size to successfully decode header.
            errorCode, which can be tested using ZSTD_isError()
 
-  Start decompression, with ZSTD_decompressBegin() or ZSTD_decompressBegin_usingDict()
-  Alternatively, you can copy a prepared context, using ZSTD_copyDCtx()
+  Start decompression, with ZSTD_decompressBegin() or ZSTD_decompressBegin_usingDict().
+  Alternatively, you can copy a prepared context, using ZSTD_copyDCtx().
 
   Then use ZSTD_nextSrcSizeToDecompress() and ZSTD_decompressContinue() alternatively.
   ZSTD_nextSrcSizeToDecompress() tells how much bytes to provide as 'srcSize' to ZSTD_decompressContinue().

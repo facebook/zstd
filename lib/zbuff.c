@@ -298,28 +298,29 @@ size_t ZBUFF_compressEnd(ZBUFF_CCtx* zbc, void* dst, size_t* maxDstSizePtr)
 }
 
 
-
-/** ************************************************
-*  Streaming decompression
+/*-***************************************************************************
+*  Streaming decompression howto
 *
-*  A ZBUFF_DCtx object is required to track streaming operation.
+*  A ZBUFF_DCtx object is required to track streaming operations.
 *  Use ZBUFF_createDCtx() and ZBUFF_freeDCtx() to create/release resources.
-*  Use ZBUFF_decompressInit() to start a new decompression operation.
-*  ZBUFF_DCtx objects can be reused multiple times.
+*  Use ZBUFF_decompressInit() to start a new decompression operation,
+*   or ZBUFF_decompressInitDictionary() if decompression requires a dictionary.
+*  Note that ZBUFF_DCtx objects can be re-init multiple times.
 *
 *  Use ZBUFF_decompressContinue() repetitively to consume your input.
-*  *srcSizePtr and *maxDstSizePtr can be any size.
-*  The function will report how many bytes were read or written by modifying *srcSizePtr and *maxDstSizePtr.
-*  Note that it may not consume the entire input, in which case it's up to the caller to call again the function with remaining input.
-*  The content of dst will be overwritten (up to *maxDstSizePtr) at each function call, so save its content if it matters or change dst .
-*  @return : a hint to preferred nb of bytes to use as input for next function call (it's only a hint, to improve latency)
-*            or 0 when a frame is completely decoded
+*  *srcSizePtr and *dstCapacityPtr can be any size.
+*  The function will report how many bytes were read or written by modifying *srcSizePtr and *dstCapacityPtr.
+*  Note that it may not consume the entire input, in which case it's up to the caller to present remaining input again.
+*  The content of @dst will be overwritten (up to *dstCapacityPtr) at each function call, so save its content if it matters, or change @dst.
+*  @return : a hint to preferred nb of bytes to use as input for next function call (it's only a hint, to help latency),
+*            or 0 when a frame is completely decoded,
 *            or an error code, which can be tested using ZBUFF_isError().
 *
-*  Hint : recommended buffer sizes (not compulsory)
-*  output : 128 KB block size is the internal unit, it ensures it's always possible to write a full block when it's decoded.
-*  input : just follow indications from ZBUFF_decompressContinue() to minimize latency. It should always be <= 128 KB + 3 .
-* **************************************************/
+*  Hint : recommended buffer sizes (not compulsory) : ZBUFF_recommendedDInSize() and ZBUFF_recommendedDOutSize()
+*  output : ZBUFF_recommendedDOutSize==128 KB block size is the internal unit, it ensures it's always possible to write a full block when decoded.
+*  input  : ZBUFF_recommendedDInSize == 128KB + 3;
+*           just follow indications from ZBUFF_decompressContinue() to minimize latency. It should always be <= 128 KB + 3 .
+* *******************************************************************************/
 
 typedef enum { ZBUFFds_init, ZBUFFds_readHeader, ZBUFFds_loadHeader, ZBUFFds_decodeHeader,
                ZBUFFds_read, ZBUFFds_load, ZBUFFds_flush } ZBUFF_dStage;
@@ -329,7 +330,7 @@ typedef enum { ZBUFFds_init, ZBUFFds_readHeader, ZBUFFds_loadHeader, ZBUFFds_dec
 #define ZSTD_frameHeaderSize_max 5   /* too magical, should come from reference */
 struct ZBUFF_DCtx_s {
     ZSTD_DCtx* zc;
-    ZSTD_parameters params;
+    ZSTD_frameParams fParams;
     char* inBuff;
     size_t inBuffSize;
     size_t inPos;
@@ -381,14 +382,16 @@ size_t ZBUFF_decompressInit(ZBUFF_DCtx* zbc)
 
 /* *** Decompression *** */
 
-size_t ZBUFF_decompressContinue(ZBUFF_DCtx* zbc, void* dst, size_t* maxDstSizePtr, const void* src, size_t* srcSizePtr)
+size_t ZBUFF_decompressContinue(ZBUFF_DCtx* zbc,
+                                void* dst, size_t* dstCapacityPtr,
+                          const void* src, size_t* srcSizePtr)
 {
     const char* const istart = (const char*)src;
     const char* ip = istart;
     const char* const iend = istart + *srcSizePtr;
     char* const ostart = (char*)dst;
     char* op = ostart;
-    char* const oend = ostart + *maxDstSizePtr;
+    char* const oend = ostart + *dstCapacityPtr;
     U32 notDone = 1;
 
     while (notDone) {
@@ -400,13 +403,13 @@ size_t ZBUFF_decompressContinue(ZBUFF_DCtx* zbc, void* dst, size_t* maxDstSizePt
         case ZBUFFds_readHeader :
             /* read header from src */
             {
-                size_t headerSize = ZSTD_getFrameParams(&(zbc->params), src, *srcSizePtr);
+                size_t headerSize = ZSTD_getFrameParams(&(zbc->fParams), src, *srcSizePtr);
                 if (ZSTD_isError(headerSize)) return headerSize;
                 if (headerSize) {
                     /* not enough input to decode header : tell how many bytes would be necessary */
                     memcpy(zbc->headerBuffer+zbc->hPos, src, *srcSizePtr);
                     zbc->hPos += *srcSizePtr;
-                    *maxDstSizePtr = 0;
+                    *dstCapacityPtr = 0;
                     zbc->stage = ZBUFFds_loadHeader;
                     return headerSize - zbc->hPos;
                 }
@@ -422,11 +425,11 @@ size_t ZBUFF_decompressContinue(ZBUFF_DCtx* zbc, void* dst, size_t* maxDstSizePt
                     src, *srcSizePtr);
                 zbc->hPos += headerSize;
                 ip += headerSize;
-                headerSize = ZSTD_getFrameParams(&(zbc->params), zbc->headerBuffer, zbc->hPos);
+                headerSize = ZSTD_getFrameParams(&(zbc->fParams), zbc->headerBuffer, zbc->hPos);
                 if (ZSTD_isError(headerSize)) return headerSize;
                 if (headerSize) {
                     /* not enough input to decode header : tell how many bytes would be necessary */
-                    *maxDstSizePtr = 0;
+                    *dstCapacityPtr = 0;
                     return headerSize - zbc->hPos;
                 }
                 // zbc->stage = ZBUFFds_decodeHeader; break;   /* useless : stage follows */
@@ -435,7 +438,7 @@ size_t ZBUFF_decompressContinue(ZBUFF_DCtx* zbc, void* dst, size_t* maxDstSizePt
         case ZBUFFds_decodeHeader:
                 /* apply header to create / resize buffers */
                 {
-                    size_t neededOutSize = (size_t)1 << zbc->params.windowLog;
+                    size_t neededOutSize = (size_t)1 << zbc->fParams.windowLog;
                     size_t neededInSize = BLOCKSIZE;   /* a block is never > BLOCKSIZE */
                     if (zbc->inBuffSize < neededInSize) {
                         free(zbc->inBuff);
@@ -524,7 +527,7 @@ size_t ZBUFF_decompressContinue(ZBUFF_DCtx* zbc, void* dst, size_t* maxDstSizePt
     }   }
 
     *srcSizePtr = ip-istart;
-    *maxDstSizePtr = op-ostart;
+    *dstCapacityPtr = op-ostart;
 
     {
         size_t nextSrcSizeHint = ZSTD_nextSrcSizeToDecompress(zbc->zc);

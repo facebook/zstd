@@ -428,6 +428,10 @@ static int FIO_compressFilename_extRess(cRess_t ress,
 
     result = FIO_compressFilename_internal(ress, dstFileName, srcFileName, cLevel);
 
+    if (result != 0) {
+      unlink(dstFileName);
+    }
+
     fclose(ress.srcFile);   /* no pb to expect : only reading */
     if (fclose(ress.dstFile)) EXM_THROW(28, "Write error : cannot properly close %s", dstFileName);
     return result;
@@ -633,13 +637,17 @@ static int FIO_decompressSrcFile(dRess_t ress, const char* srcFileName)
 static int FIO_decompressFile_extRess(dRess_t ress,
                                       const char* dstFileName, const char* srcFileName)
 {
+    int result;
     ress.dstFile = FIO_openDstFile(dstFileName);
     if (ress.dstFile==0) return 1;
 
-    FIO_decompressSrcFile(ress, srcFileName);
+    result = FIO_decompressSrcFile(ress, srcFileName);
+    if (result != 0) {
+      unlink(dstFileName);
+    }
 
     if (fclose(ress.dstFile)) EXM_THROW(38, "Write error : cannot properly close %s", dstFileName);
-    return 0;
+    return result;
 }
 
 

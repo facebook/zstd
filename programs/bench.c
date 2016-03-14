@@ -215,10 +215,10 @@ typedef struct
 
 typedef struct
 {
-    float ratio;
+    double ratio;
     size_t cSize;
-    float cSpeed;
-    float dSpeed;
+    double cSpeed;
+    double dSpeed;
 } benchResult_t;
 
             
@@ -425,7 +425,8 @@ static void BMK_benchCLevel(void* srcBuffer, size_t benchedSize,
     if (cLevel < 0) {
         int l;
         memset(&total, 0, sizeof(total));
-        char* pch = strrchr(displayName, '\\');       
+        char* pch = strrchr(displayName, '\\'); /* Windows */
+        if (!pch) pch = strrchr(displayName, '/'); /* Linux */
         if (pch) displayName = pch+1;
 
         if (g_displayLevel == 1)
@@ -437,7 +438,7 @@ static void BMK_benchCLevel(void* srcBuffer, size_t benchedSize,
                          fileSizes, nbFiles,
                          dictBuffer, dictBufferSize, &result);
             if (g_displayLevel == 1) {
-                DISPLAY("%2i:%11i (%5.3f),%6.1f MB/s,%6.1f MB/s, %s\n", -l, (int)result.cSize, result.ratio, result.cSpeed, result.dSpeed, displayName);
+                DISPLAY("%-3i%11i (%5.3f) %6.1f MB/s %6.1f MB/s  %s\n", -l, (int)result.cSize, result.ratio, result.cSpeed, result.dSpeed, displayName);
                 total.cSize += result.cSize;
                 total.cSpeed += result.cSpeed;
                 total.dSpeed += result.dSpeed;
@@ -450,7 +451,7 @@ static void BMK_benchCLevel(void* srcBuffer, size_t benchedSize,
             total.cSpeed /= -cLevel;
             total.dSpeed /= -cLevel;
             total.ratio /= -cLevel;
-            DISPLAY("avg%11i (%5.3f),%6.1f MB/s,%6.1f MB/s, %s\n", (int)total.cSize, total.ratio, total.cSpeed, total.dSpeed, displayName);            
+            DISPLAY("avg%11i (%5.3f) %6.1f MB/s %6.1f MB/s  %s\n", (int)total.cSize, total.ratio, total.cSpeed, total.dSpeed, displayName);            
         }
         return;
     }

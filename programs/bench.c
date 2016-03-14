@@ -419,49 +419,46 @@ static size_t BMK_findMaxMem(U64 requiredMem)
 }
 
 static void BMK_benchCLevel(void* srcBuffer, size_t benchedSize,
-                            const char* displayName, int cLevel,
+                            const char* displayName, int cLevel, int cLevelLast,
                             const size_t* fileSizes, unsigned nbFiles,
                             const void* dictBuffer, size_t dictBufferSize)
 {
     benchResult_t result, total;
-    
-    if (cLevel < 0) {
-        int l;
-        memset(&total, 0, sizeof(total));
-        const char* pch = strrchr(displayName, '\\'); /* Windows */
-        if (!pch) pch = strrchr(displayName, '/'); /* Linux */
-        if (pch) displayName = pch+1;
+    int l;
 
-        if (g_displayLevel == 1)
-            DISPLAY("bench %s: input %u bytes, %i iterations, %u KB blocks\n", ZSTD_VERSION, (U32)benchedSize, nbIterations, (U32)(g_blockSize>>10));
+    const char* pch = strrchr(displayName, '\\'); /* Windows */
+    if (!pch) pch = strrchr(displayName, '/'); /* Linux */
+    if (pch) displayName = pch+1;
 
-        for (l=1; l <= -cLevel; l++) {           
-            BMK_benchMem(srcBuffer, benchedSize,
-                         displayName, l,
-                         fileSizes, nbFiles,
-                         dictBuffer, dictBufferSize, &result);
-            if (g_displayLevel == 1) {
-                DISPLAY("%-3i%11i (%5.3f) %6.1f MB/s %6.1f MB/s  %s\n", -l, (int)result.cSize, result.ratio, result.cSpeed, result.dSpeed, displayName);
-                total.cSize += result.cSize;
-                total.cSpeed += result.cSpeed;
-                total.dSpeed += result.dSpeed;
-                total.ratio += result.ratio;
-            }
+    memset(&result, 0, sizeof(result));
+    memset(&total, 0, sizeof(total));
+ 
+    if (g_displayLevel == 1)
+        DISPLAY("bench %s: input %u bytes, %i iterations, %u KB blocks\n", ZSTD_VERSION, (U32)benchedSize, nbIterations, (U32)(g_blockSize>>10));
+
+    if (cLevelLast < cLevel) cLevelLast = cLevel;
+
+    for (l=cLevel; l <= cLevelLast; l++) {           
+        BMK_benchMem(srcBuffer, benchedSize,
+                     displayName, l,
+                     fileSizes, nbFiles,
+                     dictBuffer, dictBufferSize, &result);
+        if (g_displayLevel == 1) {
+            DISPLAY("%-3i%11i (%5.3f) %6.1f MB/s %6.1f MB/s  %s\n", -l, (int)result.cSize, result.ratio, result.cSpeed, result.dSpeed, displayName);
+            total.cSize += result.cSize;
+            total.cSpeed += result.cSpeed;
+            total.dSpeed += result.dSpeed;
+            total.ratio += result.ratio;
         }
-        if (g_displayLevel == 1)
-        {
-            total.cSize /= -cLevel;
-            total.cSpeed /= -cLevel;
-            total.dSpeed /= -cLevel;
-            total.ratio /= -cLevel;
-            DISPLAY("avg%11i (%5.3f) %6.1f MB/s %6.1f MB/s  %s\n", (int)total.cSize, total.ratio, total.cSpeed, total.dSpeed, displayName);            
-        }
-        return;
     }
-    BMK_benchMem(srcBuffer, benchedSize,
-                 displayName, cLevel,
-                 fileSizes, nbFiles,
-                 dictBuffer, dictBufferSize, &result);
+    if (g_displayLevel == 1 && cLevelLast > cLevel)
+    {
+        total.cSize /= 1+cLevelLast-cLevel;
+        total.cSpeed /= 1+cLevelLast-cLevel;
+        total.dSpeed /= 1+cLevelLast-cLevel;
+        total.ratio /= 1+cLevelLast-cLevel;
+        DISPLAY("avg%11i (%5.3f) %6.1f MB/s %6.1f MB/s  %s\n", (int)total.cSize, total.ratio, total.cSpeed, total.dSpeed, displayName);            
+    }
 }
 
 static U64 BMK_getTotalFileSize(const char** fileNamesTable, unsigned nbFiles)
@@ -497,7 +494,7 @@ static void BMK_loadFiles(void* buffer, size_t bufferSize,
 }
 
 static void BMK_benchFileTable(const char** fileNamesTable, unsigned nbFiles,
-                               const char* dictFileName, int cLevel)
+                               const char* dictFileName, int cLevel, int cLevelLast)
 {
     void* srcBuffer;
     size_t benchedSize;
@@ -537,7 +534,7 @@ static void BMK_benchFileTable(const char** fileNamesTable, unsigned nbFiles,
     else displayName = fileNamesTable[0];
 
     BMK_benchCLevel(srcBuffer, benchedSize,
-                    displayName, cLevel,
+                    displayName, cLevel, cLevelLast,
                     fileSizes, nbFiles,
                     dictBuffer, dictBufferSize);
 
@@ -548,7 +545,7 @@ static void BMK_benchFileTable(const char** fileNamesTable, unsigned nbFiles,
 }
 
 
-static void BMK_syntheticTest(int cLevel, double compressibility)
+static void BMK_syntheticTest(int cLevel, int cLevelLast, double compressibility)
 {
     char name[20] = {0};
     size_t benchedSize = 10000000;
@@ -562,7 +559,7 @@ static void BMK_syntheticTest(int cLevel, double compressibility)
 
     /* Bench */
     snprintf (name, sizeof(name), "Synthetic %2u%%", (unsigned)(compressibility*100));
-    BMK_benchCLevel(srcBuffer, benchedSize, name, cLevel, &benchedSize, 1, NULL, 0);
+    BMK_benchCLevel(srcBuffer, benchedSize, name, cLevel, cLevelLast, &benchedSize, 1, NULL, 0);
 
     /* clean up */
     free(srcBuffer);
@@ -570,14 +567,14 @@ static void BMK_syntheticTest(int cLevel, double compressibility)
 
 
 int BMK_benchFiles(const char** fileNamesTable, unsigned nbFiles,
-                   const char* dictFileName, int cLevel)
+                   const char* dictFileName, int cLevel, int cLevelLast)
 {
     double compressibility = (double)g_compressibilityDefault / 100;
 
     if (nbFiles == 0)
-        BMK_syntheticTest(cLevel, compressibility);
+        BMK_syntheticTest(cLevel, cLevelLast, compressibility);
     else
-        BMK_benchFileTable(fileNamesTable, nbFiles, dictFileName, cLevel);
+        BMK_benchFileTable(fileNamesTable, nbFiles, dictFileName, cLevel, cLevelLast);
     return 0;
 }
 

@@ -32,5 +32,5 @@ int BMK_benchFiles(const char** fileNamesTable, unsigned nbFiles,
 /* Set Parameters */
 void BMK_SetNbIterations(int nbLoops);
 void BMK_SetBlockSize(size_t blockSize);
-
+void BMK_setNotificationLevel(unsigned level);
 

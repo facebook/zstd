@@ -291,6 +291,7 @@ int main(int argCount, const char** argv)
                         argument++;
                         while ((*argument >='0') && (*argument <='9'))
                             iters *= 10, iters += *argument++ - '0';
+                        BMK_setNotificationLevel(displayLevel);
                         BMK_SetNbIterations(iters);
                     }
                     break;
@@ -305,6 +306,7 @@ int main(int argCount, const char** argv)
                         if (*argument=='K') bSize<<=10, argument++;  /* allows using KB notation */
                         if (*argument=='M') bSize<<=20, argument++;
                         if (*argument=='B') argument++;
+                        BMK_setNotificationLevel(displayLevel);
                         BMK_SetBlockSize(bSize);
                     }
                     break;
@@ -366,6 +368,7 @@ int main(int argCount, const char** argv)
     /* Check if benchmark is selected */
     if (bench) {
 #ifndef ZSTD_NOBENCH
+        BMK_setNotificationLevel(displayLevel);
         BMK_benchFiles(filenameTable, filenameIdx, dictFileName, cLevel*rangeBench);
 #endif
         goto _end;

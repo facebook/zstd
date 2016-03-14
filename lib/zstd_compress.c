@@ -103,7 +103,7 @@ struct ZSTD_CCtx_s
     size_t workSpaceSize;
     size_t blockSize;
     size_t hbSize;
-    char headerBuffer[ZSTD_frameHeaderSize_max];
+    char headerBuffer[ZSTD_FRAMEHEADERSIZE_MAX];
 
     seqStore_t seqStore;    /* sequences storage ptrs */
     U32* hashTable;
@@ -287,7 +287,7 @@ size_t ZSTD_copyCCtx(ZSTD_CCtx* dstCCtx, const ZSTD_CCtx* srcCCtx)
 }
 
 
-/*! ZSTD_reduceIndex
+/*! ZSTD_reduceIndex() :
 *   rescale indexes to avoid future overflow (indexes are U32) */
 static void ZSTD_reduceIndex (ZSTD_CCtx* zc,
                         const U32 reducerValue)
@@ -307,6 +307,37 @@ static void ZSTD_reduceIndex (ZSTD_CCtx* zc,
 /*-*******************************************************
 *  Block entropic compression
 *********************************************************/
+
+/* Frame format description
+   Frame Header -  [ Block Header - Block ] - Frame End
+   1) Frame Header
+      - 4 bytes - Magic Number : ZSTD_MAGICNUMBER (defined within zstd_static.h)
+      - 1 byte  - Frame Descriptor
+   2) Block Header
+      - 3 bytes, starting with a 2-bits descriptor
+                 Uncompressed, Compressed, Frame End, unused
+   3) Block
+      See Block Format Description
+   4) Frame End
+      - 3 bytes, compatible with Block Header
+*/
+
+
+/* Frame descriptor
+
+   1 byte, using :
+   bit 0-3 : windowLog - ZSTD_WINDOWLOG_ABSOLUTEMIN   (see zstd_internal.h)
+   bit 4   : minmatch 4(0) or 3(1)
+   bit 5   : reserved (must be zero)
+   bit 6-7 : Frame content size : unknown, 1 byte, 2 bytes, 8 bytes
+
+   Optional : content size (0, 1, 2 or 8 bytes)
+   0 : unknown
+   1 : 0-255 bytes
+   2 : 256 - 65535+256
+   8 : up to 16 exa
+*/
+
 
 /* Block format description
 
@@ -2099,10 +2130,10 @@ static size_t ZSTD_loadDictionaryContent(ZSTD_CCtx* zc, const void* src, size_t 
 
 /* Dictionary format :
      Magic == ZSTD_DICT_MAGIC (4 bytes)
-     Huff0 CTable (256 * 4 bytes)  => to be changed to read from writeCTable
+     HUF_writeCTable(256)
      Dictionary content
 */
-/*! ZSTD_loadDictEntropyStats
+/*! ZSTD_loadDictEntropyStats() :
     @return : size read from dictionary */
 static size_t ZSTD_loadDictEntropyStats(ZSTD_CCtx* zc, const void* dict, size_t dictSize)
 {
@@ -2160,7 +2191,7 @@ static size_t ZSTD_compress_insertDictionary(ZSTD_CCtx* zc, const void* dict, si
 }
 
 
-/*! ZSTD_compressBegin_advanced
+/*! ZSTD_compressBegin_advanced() :
 *   @return : 0, or an error code */
 size_t ZSTD_compressBegin_advanced(ZSTD_CCtx* zc,
                              const void* dict, size_t dictSize,
@@ -2173,6 +2204,7 @@ size_t ZSTD_compressBegin_advanced(ZSTD_CCtx* zc,
     errorCode = ZSTD_resetCCtx_advanced(zc, params);
     if (ZSTD_isError(errorCode)) return errorCode;
 
+    /* Write Frame Header */
     MEM_writeLE32(zc->headerBuffer, ZSTD_MAGICNUMBER);   /* Write Header */
     ((BYTE*)zc->headerBuffer)[4] = (BYTE)(params.windowLog - ZSTD_WINDOWLOG_ABSOLUTEMIN + ((params.searchLength==3)<<4));
     zc->hbSize = ZSTD_frameHeaderSize_min;
@@ -2195,8 +2227,8 @@ size_t ZSTD_compressBegin(ZSTD_CCtx* zc, int compressionLevel)
 }
 
 
-/*! ZSTD_compressEnd
-*   Write frame epilogue
+/*! ZSTD_compressEnd() :
+*   Write frame epilogue.
 *   @return : nb of bytes written into dst (or an error code) */
 size_t ZSTD_compressEnd(ZSTD_CCtx* zc, void* dst, size_t maxDstSize)
 {

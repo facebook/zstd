@@ -71,11 +71,9 @@
 #define MB *(1 <<20)
 #define GB *(1U<<30)
 
-#define BLOCKSIZE (128 KB)                 /* define, for static allocation */
+#define BLOCKSIZE (128 KB)                  /* define, for static allocation */
 
 static const size_t ZSTD_blockHeaderSize = 3;
-static const size_t ZSTD_frameHeaderSize_min = 5;
-#define ZSTD_frameHeaderSize_max 5         /* define, for static allocation */
 
 #define BIT7 128
 #define BIT6  64

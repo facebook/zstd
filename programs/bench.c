@@ -83,6 +83,10 @@
 /* *************************************
 *  Constants
 ***************************************/
+#ifndef ZSTD_VERSION
+#  define ZSTD_VERSION ""
+#endif
+
 #define NBLOOPS    3
 #define TIMELOOP   2500
 
@@ -91,7 +95,6 @@
 #define GB *(1U<<30)
 
 static const size_t maxMemory = (sizeof(size_t)==4)  ?  (2 GB - 64 MB) : (size_t)(1ULL << ((sizeof(size_t)*8)-31));
-#define DEFAULT_CHUNKSIZE   (4 MB)
 
 static U32 g_compressibilityDefault = 50;
 
@@ -425,12 +428,12 @@ static void BMK_benchCLevel(void* srcBuffer, size_t benchedSize,
     if (cLevel < 0) {
         int l;
         memset(&total, 0, sizeof(total));
-        char* pch = strrchr(displayName, '\\'); /* Windows */
+        const char* pch = strrchr(displayName, '\\'); /* Windows */
         if (!pch) pch = strrchr(displayName, '/'); /* Linux */
         if (pch) displayName = pch+1;
 
         if (g_displayLevel == 1)
-            DISPLAY("- input %u bytes, %i iterations, %u KB blocks\n", (U32)benchedSize, nbIterations, (U32)(g_blockSize>>10));
+            DISPLAY("bench %s: input %u bytes, %i iterations, %u KB blocks\n", ZSTD_VERSION, (U32)benchedSize, nbIterations, (U32)(g_blockSize>>10));
 
         for (l=1; l <= -cLevel; l++) {           
             BMK_benchMem(srcBuffer, benchedSize,

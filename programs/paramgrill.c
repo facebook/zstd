@@ -100,7 +100,6 @@
 #define NB_LEVELS_TRACKED 30
 
 static const size_t maxMemory = (sizeof(size_t)==4)  ?  (2 GB - 64 MB) : (size_t)(1ULL << ((sizeof(size_t)*8)-31));
-#define DEFAULT_CHUNKSIZE   (4<<20)
 
 #define COMPRESSIBILITY_DEFAULT 0.50
 static const size_t sampleSize = 10000000;

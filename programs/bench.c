@@ -64,6 +64,7 @@
 
 #include "mem.h"
 #include "zstd_static.h"
+#include "zstd_internal.h" /* ZSTD_setAdditionalParam */
 #include "xxhash.h"
 #include "datagen.h"      /* RDG_genBuffer */
 
@@ -229,7 +230,7 @@ typedef struct
 #define MAX(a,b) ((a)>(b) ? (a) : (b))
 
 static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
-                        const char* displayName, int cLevel,
+                        const char* displayName, int cLevel, int additionalParam,
                         const size_t* fileSizes, U32 nbFiles,
                         const void* dictBuffer, size_t dictBufferSize, benchResult_t *result)
 {
@@ -280,6 +281,7 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
     }   }   }
 
     /* warmimg up memory */
+    ZSTD_setAdditionalParam(refCtx, additionalParam);
     RDG_genBuffer(compressedBuffer, maxCompressedSize, 0.10, 0.50, 1);
 
     /* Bench */
@@ -419,7 +421,7 @@ static size_t BMK_findMaxMem(U64 requiredMem)
 }
 
 static void BMK_benchCLevel(void* srcBuffer, size_t benchedSize,
-                            const char* displayName, int cLevel, int cLevelLast,
+                            const char* displayName, int cLevel, int cLevelLast, int additionalParam,
                             const size_t* fileSizes, unsigned nbFiles,
                             const void* dictBuffer, size_t dictBufferSize)
 {
@@ -432,15 +434,15 @@ static void BMK_benchCLevel(void* srcBuffer, size_t benchedSize,
 
     memset(&result, 0, sizeof(result));
     memset(&total, 0, sizeof(total));
- 
-    if (g_displayLevel == 1)
+
+     if (g_displayLevel == 1)
         DISPLAY("bench %s: input %u bytes, %i iterations, %u KB blocks\n", ZSTD_VERSION, (U32)benchedSize, nbIterations, (U32)(g_blockSize>>10));
 
     if (cLevelLast < cLevel) cLevelLast = cLevel;
 
     for (l=cLevel; l <= cLevelLast; l++) {           
         BMK_benchMem(srcBuffer, benchedSize,
-                     displayName, l,
+                     displayName, l, additionalParam,
                      fileSizes, nbFiles,
                      dictBuffer, dictBufferSize, &result);
         if (g_displayLevel == 1) {
@@ -494,7 +496,7 @@ static void BMK_loadFiles(void* buffer, size_t bufferSize,
 }
 
 static void BMK_benchFileTable(const char** fileNamesTable, unsigned nbFiles,
-                               const char* dictFileName, int cLevel, int cLevelLast)
+                               const char* dictFileName, int cLevel, int cLevelLast, int additionalParam)
 {
     void* srcBuffer;
     size_t benchedSize;
@@ -534,7 +536,7 @@ static void BMK_benchFileTable(const char** fileNamesTable, unsigned nbFiles,
     else displayName = fileNamesTable[0];
 
     BMK_benchCLevel(srcBuffer, benchedSize,
-                    displayName, cLevel, cLevelLast,
+                    displayName, cLevel, cLevelLast, additionalParam,
                     fileSizes, nbFiles,
                     dictBuffer, dictBufferSize);
 
@@ -545,7 +547,7 @@ static void BMK_benchFileTable(const char** fileNamesTable, unsigned nbFiles,
 }
 
 
-static void BMK_syntheticTest(int cLevel, int cLevelLast, double compressibility)
+static void BMK_syntheticTest(int cLevel, int cLevelLast, int additionalParam, double compressibility)
 {
     char name[20] = {0};
     size_t benchedSize = 10000000;
@@ -559,7 +561,7 @@ static void BMK_syntheticTest(int cLevel, int cLevelLast, double compressibility
 
     /* Bench */
     snprintf (name, sizeof(name), "Synthetic %2u%%", (unsigned)(compressibility*100));
-    BMK_benchCLevel(srcBuffer, benchedSize, name, cLevel, cLevelLast, &benchedSize, 1, NULL, 0);
+    BMK_benchCLevel(srcBuffer, benchedSize, name, cLevel, cLevelLast, additionalParam, &benchedSize, 1, NULL, 0);
 
     /* clean up */
     free(srcBuffer);
@@ -567,14 +569,14 @@ static void BMK_syntheticTest(int cLevel, int cLevelLast, double compressibility
 
 
 int BMK_benchFiles(const char** fileNamesTable, unsigned nbFiles,
-                   const char* dictFileName, int cLevel, int cLevelLast)
+                   const char* dictFileName, int cLevel, int cLevelLast, int additionalParam)
 {
     double compressibility = (double)g_compressibilityDefault / 100;
 
     if (nbFiles == 0)
-        BMK_syntheticTest(cLevel, cLevelLast, compressibility);
+        BMK_syntheticTest(cLevel, cLevelLast, additionalParam, compressibility);
     else
-        BMK_benchFileTable(fileNamesTable, nbFiles, dictFileName, cLevel, cLevelLast);
+        BMK_benchFileTable(fileNamesTable, nbFiles, dictFileName, cLevel, cLevelLast, additionalParam);
     return 0;
 }
 

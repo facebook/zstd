@@ -305,7 +305,7 @@ static size_t ZSTD_frameHeaderSize(const void* src, size_t srcSize)
 *   @return : 0, `fparamsPtr` is correctly filled,
 *            >0, `srcSize` is too small, result is expected `srcSize`,
 *             or an error code, which can be tested using ZSTD_isError() */
-size_t ZSTD_getFrameParams(ZSTD_frameParams* fparamsPtr, const void* src, size_t const srcSize)
+size_t ZSTD_getFrameParams(ZSTD_frameParams* fparamsPtr, const void* src, size_t srcSize)
 {
     const BYTE* ip = (const BYTE*)src;
 

@@ -180,7 +180,7 @@ static size_t BMK_findMaxMem(U64 requiredMem)
 }
 
 
-static U64 BMK_GetFileSize(char* infilename)
+static U64 BMK_GetFileSize(const char* infilename)
 {
     int r;
 #if defined(_MSC_VER)
@@ -345,8 +345,7 @@ size_t benchMem(void* src, size_t srcSize, U32 benchNb)
             ZSTD_compress(dstBuff, dstBuffSize, src, srcSize, 1);   /* it would be better to use direct block compression here */
             ip += 5;   /* Skip frame Header */
             blockSize = ZSTD_getcBlockSize(ip, dstBuffSize, &bp);   /* Get 1st block type */
-            if (bp.blockType != bt_compressed)
-            {
+            if (bp.blockType != bt_compressed) {
                 DISPLAY("ZSTD_decodeSeqHeaders : impossible to test on this sample (not compressible)\n");
                 goto _cleanOut;
             }
@@ -374,8 +373,7 @@ size_t benchMem(void* src, size_t srcSize, U32 benchNb)
 
     { size_t i; for (i=0; i<dstBuffSize; i++) dstBuff[i]=(BYTE)i; }     /* warming up memory */
 
-    for (loopNb = 1; loopNb <= nbIterations; loopNb++)
-    {
+    for (loopNb = 1; loopNb <= nbIterations; loopNb++) {
         double averageTime;
         int milliTime;
         U32 nbRounds=0;
@@ -409,16 +407,12 @@ _cleanOut:
 
 int benchSample(U32 benchNb)
 {
-    char* origBuff;
-    size_t benchedSize = sampleSize;
+    size_t const benchedSize = sampleSize;
     const char* name = "Sample 10MiB";
 
     /* Allocation */
-    origBuff = (char*) malloc((size_t)benchedSize);
-    if(!origBuff) {
-        DISPLAY("\nError: not enough memory!\n");
-        return 12;
-    }
+    void* origBuff = malloc(benchedSize);
+    if (!origBuff) { DISPLAY("\nError: not enough memory!\n"); return 12; }
 
     /* Fill buffer */
     RDG_genBuffer(origBuff, benchedSize, g_compressibility, 0.0, 0);
@@ -436,41 +430,31 @@ int benchSample(U32 benchNb)
 }
 
 
-int benchFiles(char** fileNamesTable, int nbFiles, U32 benchNb)
+int benchFiles(const char** fileNamesTable, int nbFiles, U32 benchNb)
 {
     /* Loop for each file */
     int fileIdx=0;
     while (fileIdx<nbFiles) {
-        FILE* inFile;
-        char* inFileName;
+        const char* inFileName = fileNamesTable[fileIdx++];
+        FILE* inFile = fopen( inFileName, "rb" );
         U64   inFileSize;
         size_t benchedSize;
         size_t readSize;
-        char* origBuff;
+        void* origBuff;
 
         /* Check file existence */
-        inFileName = fileNamesTable[fileIdx++];
-        inFile = fopen( inFileName, "rb" );
-        if (inFile==NULL) {
-            DISPLAY( "Pb opening %s\n", inFileName);
-            return 11;
-        }
+        if (inFile==NULL) { DISPLAY( "Pb opening %s\n", inFileName); return 11; }
 
         /* Memory allocation & restrictions */
         inFileSize = BMK_GetFileSize(inFileName);
-        benchedSize = (size_t) BMK_findMaxMem(inFileSize*3) / 3;
+        benchedSize = BMK_findMaxMem(inFileSize*3) / 3;
         if ((U64)benchedSize > inFileSize) benchedSize = (size_t)inFileSize;
-        if (benchedSize < inFileSize) {
+        if (benchedSize < inFileSize)
             DISPLAY("Not enough memory for '%s' full size; testing %i MB only...\n", inFileName, (int)(benchedSize>>20));
-        }
 
         /* Alloc */
-        origBuff = (char*) malloc((size_t)benchedSize);
-        if(!origBuff) {
-            DISPLAY("\nError: not enough memory!\n");
-            fclose(inFile);
-            return 12;
-        }
+        origBuff = malloc(benchedSize);
+        if (!origBuff) { DISPLAY("\nError: not enough memory!\n"); fclose(inFile); return 12; }
 
         /* Fill input buffer */
         DISPLAY("Loading %s...       \r", inFileName);
@@ -496,7 +480,7 @@ int benchFiles(char** fileNamesTable, int nbFiles, U32 benchNb)
 }
 
 
-static int usage(char* exename)
+static int usage(const char* exename)
 {
     DISPLAY( "Usage :\n");
     DISPLAY( "      %s [arg] file1 file2 ... fileX\n", exename);
@@ -514,20 +498,20 @@ static int usage_advanced(void)
     return 0;
 }
 
-static int badusage(char* exename)
+static int badusage(const char* exename)
 {
     DISPLAY("Wrong parameters\n");
     usage(exename);
     return 0;
 }
 
-int main(int argc, char** argv)
+int main(int argc, const char** argv)
 {
     int i,
         filenamesStart=0,
         result;
-    char* exename=argv[0];
-    char* input_filename=0;
+    const char* exename=argv[0];
+    const char* input_filename=0;
     U32 benchNb = 0, main_pause = 0;
 
     // Welcome message
@@ -537,7 +521,7 @@ int main(int argc, char** argv)
 
     for(i=1; i<argc; i++)
     {
-        char* argument = argv[i];
+        const char* argument = argv[i];
 
         if(!argument) continue;   // Protection if argument empty
 
@@ -560,8 +544,7 @@ int main(int argc, char** argv)
                     /* Select specific algorithm to bench */
                 case 'b':
                     benchNb = 0;
-                    while ((argument[1]>= '0') && (argument[1]<= '9'))
-                    {
+                    while ((argument[1]>= '0') && (argument[1]<= '9')) {
                         benchNb *= 10;
                         benchNb += argument[1] - '0';
                         argument++;
@@ -570,8 +553,7 @@ int main(int argc, char** argv)
 
                     /* Modify Nb Iterations */
                 case 'i':
-                    if ((argument[1] >='0') && (argument[1] <='9'))
-                    {
+                    if ((argument[1] >='0') && (argument[1] <='9')) {
                         int iters = argument[1] - '0';
                         BMK_SetNbIterations(iters);
                         argument++;
@@ -580,10 +562,8 @@ int main(int argc, char** argv)
 
                     /* Select specific algorithm to bench */
                 case 'P':
-                    {
-                        U32 proba32 = 0;
-                        while ((argument[1]>= '0') && (argument[1]<= '9'))
-                        {
+                    {   U32 proba32 = 0;
+                        while ((argument[1]>= '0') && (argument[1]<= '9')) {
                             proba32 *= 10;
                             proba32 += argument[1] - '0';
                             argument++;

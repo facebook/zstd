@@ -98,6 +98,7 @@ struct ZSTD_CCtx_s
     U32   nextToUpdate3;    /* index from which to continue dictionary update */
     U32   loadedDictEnd;
     U32   stage;
+    U32   additionalParam;
     ZSTD_parameters params;
     void* workSpace;
     size_t workSpaceSize;
@@ -273,6 +274,7 @@ size_t ZSTD_copyCCtx(ZSTD_CCtx* dstCCtx, const ZSTD_CCtx* srcCCtx)
     dstCCtx->dictLimit   = srcCCtx->dictLimit;
     dstCCtx->lowLimit    = srcCCtx->lowLimit;
     dstCCtx->loadedDictEnd = srcCCtx->loadedDictEnd;
+    dstCCtx->additionalParam = srcCCtx->additionalParam;
 
     /* copy entropy tables */
     dstCCtx->flagStaticTables = srcCCtx->flagStaticTables;
@@ -2421,3 +2423,5 @@ ZSTD_parameters ZSTD_getParams(int compressionLevel, U64 srcSizeHint)
     return result;
 }
 
+
+void ZSTD_setAdditionalParam(ZSTD_CCtx* ctx, int additionalParam) { ctx->additionalParam = additionalParam; };

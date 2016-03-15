@@ -287,7 +287,7 @@ size_t benchMem(void* src, size_t srcSize, U32 benchNb)
     case 1:
         benchFunction = local_ZSTD_compress; benchName = "ZSTD_compress";
         break;
-    case 11:
+    case 2:
         benchFunction = local_ZSTD_decompress; benchName = "ZSTD_decompress";
         break;
     case 31:
@@ -320,7 +320,7 @@ size_t benchMem(void* src, size_t srcSize, U32 benchNb)
     /* Preparation */
     switch(benchNb)
     {
-    case 11:
+    case 2:
         g_cSize = ZSTD_compress(buff2, dstBuffSize, src, srcSize, 1);
         break;
     case 31:  /* ZSTD_decodeLiteralsBlock */

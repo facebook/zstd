@@ -1033,7 +1033,7 @@ size_t ZSTD_decompress(void* dst, size_t maxDstSize, const void* src, size_t src
 }
 
 
-/* ******************************
+/*_******************************
 *  Streaming Decompression API
 ********************************/
 size_t ZSTD_nextSrcSizeToDecompress(ZSTD_DCtx* dctx)

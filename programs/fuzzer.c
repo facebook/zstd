@@ -513,8 +513,7 @@ int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compressibilit
         CHECK(ZSTD_isError(cSize), "ZSTD_compressCCtx failed");
 
         /* compression failure test : too small dest buffer */
-        if (cSize > 3)
-        {
+        if (cSize > 3) {
             const size_t missing = (FUZ_rand(&lseed) % (cSize-2)) + 1;   /* no problem, as cSize > 4 (frameHeaderSizer) */
             const size_t tooSmallSize = cSize - missing;
             static const U32 endMark = 0x4DC2B1A9;
@@ -524,6 +523,13 @@ int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compressibilit
             CHECK(!ZSTD_isError(errorCode), "ZSTD_compressCCtx should have failed ! (buffer too small : %u < %u)", (U32)tooSmallSize, (U32)cSize);
             memcpy(&endCheck, dstBuffer+tooSmallSize, 4);
             CHECK(endCheck != endMark, "ZSTD_compressCCtx : dst buffer overflow");
+        }
+
+        /* decompression header test */
+        {   ZSTD_frameParams dParams;
+            size_t const check = ZSTD_getFrameParams(&dParams, cBuffer, cSize);
+            CHECK(ZSTD_isError(check), "Frame Parameters extraction failed");
+            CHECK(dParams.frameContentSize != sampleSize, "Frame content size incorrect");
         }
 
         /* successfull decompression tests*/

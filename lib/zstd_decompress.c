@@ -307,15 +307,13 @@ static size_t ZSTD_frameHeaderSize(const void* src, size_t srcSize)
 *             or an error code, which can be tested using ZSTD_isError() */
 size_t ZSTD_getFrameParams(ZSTD_frameParams* fparamsPtr, const void* src, size_t srcSize)
 {
-    U32 magicNumber, fcsId;
     const BYTE* ip = (const BYTE*)src;
     BYTE frameDesc;
 
     if (srcSize < ZSTD_frameHeaderSize_min) return ZSTD_frameHeaderSize_min;
-    magicNumber = MEM_readLE32(src);
-    if (magicNumber != ZSTD_MAGICNUMBER) return ERROR(prefix_unknown);
+    if (MEM_readLE32(src) != ZSTD_MAGICNUMBER) return ERROR(prefix_unknown);
 
-    { size_t fhsize = ZSTD_frameHeaderSize(src, srcSize);
+    { size_t const fhsize = ZSTD_frameHeaderSize(src, srcSize);
       if (srcSize < fhsize) return fhsize; }
 
     memset(fparamsPtr, 0, sizeof(*fparamsPtr));
@@ -323,13 +321,12 @@ size_t ZSTD_getFrameParams(ZSTD_frameParams* fparamsPtr, const void* src, size_t
     fparamsPtr->windowLog = (frameDesc & 0xF) + ZSTD_WINDOWLOG_ABSOLUTEMIN;
     fparamsPtr->mml = (frameDesc & 0x10) ? MINMATCH-1 : MINMATCH;
     if ((frameDesc & 0x20) != 0) return ERROR(frameParameter_unsupported);   /* reserved 1 bit */
-    fcsId = frameDesc >> 6;
-    switch(fcsId)
+    switch(frameDesc >> 6)  /* fcsId */
     {
         default:   /* impossible */
         case 0 : fparamsPtr->frameContentSize = 0; break;
         case 1 : fparamsPtr->frameContentSize = ip[5]; break;
-        case 2 : fparamsPtr->frameContentSize = MEM_readLE16(ip+5); break;
+        case 2 : fparamsPtr->frameContentSize = MEM_readLE16(ip+5)+256; break;
         case 3 : fparamsPtr->frameContentSize = MEM_readLE64(ip+5); break;
     }
     return 0;

@@ -2205,19 +2205,20 @@ size_t ZSTD_compressBegin_advanced(ZSTD_CCtx* zc,
     /* Write Frame Header into ctx headerBuffer */
     MEM_writeLE32(zc->headerBuffer, ZSTD_MAGICNUMBER);
     {
+        BYTE* const op = (BYTE*)zc->headerBuffer;
         U32 const fcsSize[4] = { 0, 1, 2, 8 };
         U32 const fcsId = (params.srcSize>0) + (params.srcSize>=256) + (params.srcSize>=65536+256);   /* 0-3 */
         BYTE fdescriptor = (BYTE)(params.windowLog - ZSTD_WINDOWLOG_ABSOLUTEMIN);   /* windowLog : 4 KB - 128 MB */
         fdescriptor |= (BYTE)((params.searchLength==3)<<4);   /* mml : 3-4 */
         fdescriptor |= (BYTE)(fcsId << 6);
-        ((BYTE*)zc->headerBuffer)[4] = fdescriptor;
+        op[4] = fdescriptor;
         switch(fcsId)
         {
             default:   /* impossible */
             case 0 : break;
-            case 1 : ((BYTE*)zc->headerBuffer)[5] = (BYTE)(params.srcSize); break;
-            case 2 : MEM_writeLE16(((BYTE*)zc->headerBuffer)+5, (U16)(params.srcSize-256)); break;
-            case 3 : MEM_writeLE64(((BYTE*)zc->headerBuffer)+5, (U64)(params.srcSize)); break;
+            case 1 : op[5] = (BYTE)(params.srcSize); break;
+            case 2 : MEM_writeLE16(op+5, (U16)(params.srcSize-256)); break;
+            case 3 : MEM_writeLE64(op+5, (U64)(params.srcSize)); break;
         }
         zc->hbSize = ZSTD_frameHeaderSize_min + fcsSize[fcsId];
     }

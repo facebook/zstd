@@ -435,7 +435,7 @@ static void BMK_benchCLevel(void* srcBuffer, size_t benchedSize,
     memset(&result, 0, sizeof(result));
     memset(&total, 0, sizeof(total));
 
-     if (g_displayLevel == 1)
+    if (g_displayLevel == 1 && !additionalParam)
         DISPLAY("bench %s: input %u bytes, %i iterations, %u KB blocks\n", ZSTD_VERSION, (U32)benchedSize, nbIterations, (U32)(g_blockSize>>10));
 
     if (cLevelLast < cLevel) cLevelLast = cLevel;
@@ -446,7 +446,10 @@ static void BMK_benchCLevel(void* srcBuffer, size_t benchedSize,
                      fileSizes, nbFiles,
                      dictBuffer, dictBufferSize, &result);
         if (g_displayLevel == 1) {
-            DISPLAY("%-3i%11i (%5.3f) %6.1f MB/s %6.1f MB/s  %s\n", -l, (int)result.cSize, result.ratio, result.cSpeed, result.dSpeed, displayName);
+            if (additionalParam)
+                DISPLAY("%-3i%11i (%5.3f) %6.1f MB/s %6.1f MB/s  %s (p=%d)\n", -l, (int)result.cSize, result.ratio, result.cSpeed, result.dSpeed, displayName, additionalParam);
+            else
+                DISPLAY("%-3i%11i (%5.3f) %6.1f MB/s %6.1f MB/s  %s\n", -l, (int)result.cSize, result.ratio, result.cSpeed, result.dSpeed, displayName);
             total.cSize += result.cSize;
             total.cSpeed += result.cSpeed;
             total.dSpeed += result.dSpeed;

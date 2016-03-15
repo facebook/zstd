@@ -34,3 +34,8 @@ paramgrill
 # Default result files
 dictionary
 grillResults.txt
+_*
+
+# Misc files
+*.bat
+fileTests.sh

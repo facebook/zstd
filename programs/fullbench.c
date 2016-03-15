@@ -1,6 +1,6 @@
 /*
     fullbench.c - Detailed bench program for zstd
-    Copyright (C) Yann Collet 2014-2015
+    Copyright (C) Yann Collet 2014-2016
 
     GPL v2 License
 
@@ -19,11 +19,10 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
     You can contact the author at :
-    - zstd source repository : https://github.com/Cyan4973/zstd
-    - ztsd public forum : https://groups.google.com/forum/#!forum/lz4c
+    - zstd homepage : http://www.zstd.net
 */
 
-/**************************************
+/*_************************************
 *  Compiler Options
 **************************************/
 /* Disable some Visual warning messages */
@@ -44,7 +43,7 @@
 #endif
 
 
-/**************************************
+/*_************************************
 *  Includes
 **************************************/
 #include <stdlib.h>       /* malloc */
@@ -63,10 +62,11 @@
 #include "mem.h"
 #include "zstd_static.h"
 #include "fse_static.h"
+#include "zbuff.h"
 #include "datagen.h"
 
 
-/**************************************
+/*_************************************
 *  Compiler Options
 **************************************/
 /* S_ISREG & gettimeofday() are not supported by MSVC */
@@ -75,7 +75,7 @@
 #endif
 
 
-/**************************************
+/*_************************************
 *  Constants
 **************************************/
 #define PROGRAM_DESCRIPTION "Zstandard speed analyzer"
@@ -100,13 +100,13 @@
 static const size_t sampleSize = 10000000;
 
 
-/**************************************
+/*_************************************
 *  Macros
 **************************************/
 #define DISPLAY(...)  fprintf(stderr, __VA_ARGS__)
 
 
-/**************************************
+/*_************************************
 *  Benchmark Parameters
 **************************************/
 static int nbIterations = NBLOOPS;
@@ -119,7 +119,7 @@ void BMK_SetNbIterations(int nbLoops)
 }
 
 
-/*********************************************************
+/*_*******************************************************
 *  Private functions
 *********************************************************/
 
@@ -156,8 +156,7 @@ static int BMK_GetMilliStart(void)
 static int BMK_GetMilliSpan( int nTimeStart )
 {
   int nSpan = BMK_GetMilliStart() - nTimeStart;
-  if ( nSpan < 0 )
-    nSpan += 0x100000 * 1000;
+  if ( nSpan < 0 ) nSpan += 0x100000 * 1000;
   return nSpan;
 }
 
@@ -165,16 +164,15 @@ static int BMK_GetMilliSpan( int nTimeStart )
 static size_t BMK_findMaxMem(U64 requiredMem)
 {
     size_t step = 64 MB;
-    BYTE* testmem=NULL;
+    void* testmem = NULL;
 
     requiredMem = (((requiredMem >> 26) + 1) << 26);
     if (requiredMem > MAX_MEM) requiredMem = MAX_MEM;
 
     requiredMem += 2*step;
-    while (!testmem)
-    {
+    while (!testmem) {
         requiredMem -= step;
-        testmem = (BYTE*) malloc ((size_t)requiredMem);
+        testmem = malloc ((size_t)requiredMem);
     }
 
     free (testmem);
@@ -197,12 +195,11 @@ static U64 BMK_GetFileSize(char* infilename)
 }
 
 
-/*********************************************************
+/*_*******************************************************
 *  Benchmark wrappers
 *********************************************************/
 typedef enum { bt_compressed, bt_raw, bt_rle, bt_end } blockType_t;
-typedef struct
-{
+typedef struct {
     blockType_t blockType;
     U32 unusedBits;
     U32 origSize;
@@ -210,9 +207,6 @@ typedef struct
 
 static size_t g_cSize = 0;
 static ZSTD_DCtx* g_dctxPtr = NULL;
-
-extern size_t ZSTD_getcBlockSize(const void* src, size_t srcSize, blockProperties_t* bpPtr);
-extern size_t ZSTD_decodeSeqHeaders(int* nbSeq, const BYTE** dumpsPtr, size_t* dumpsLengthPtr, FSE_DTable* DTableLL, FSE_DTable* DTableML, FSE_DTable* DTableOffb, const void* src, size_t srcSize);
 
 size_t local_ZSTD_compress(void* dst, size_t dstSize, void* buff2, const void* src, size_t srcSize)
 {
@@ -233,6 +227,8 @@ size_t local_ZSTD_decodeLiteralsBlock(void* dst, size_t dstSize, void* buff2, co
     return ZSTD_decodeLiteralsBlock((ZSTD_DCtx*)g_dctxPtr, buff2, g_cSize);
 }
 
+extern size_t ZSTD_getcBlockSize(const void* src, size_t srcSize, blockProperties_t* bpPtr);
+extern size_t ZSTD_decodeSeqHeaders(int* nbSeq, const BYTE** dumpsPtr, size_t* dumpsLengthPtr, FSE_DTable* DTableLL, FSE_DTable* DTableML, FSE_DTable* DTableOffb, const void* src, size_t srcSize);
 size_t local_ZSTD_decodeSeqHeaders(void* dst, size_t dstSize, void* buff2, const void* src, size_t srcSize)
 {
     U32 DTableML[FSE_DTABLE_SIZE_U32(10)], DTableLL[FSE_DTABLE_SIZE_U32(10)], DTableOffb[FSE_DTABLE_SIZE_U32(9)];   /* MLFSELog, LLFSELog and OffFSELog are not public values */
@@ -244,8 +240,34 @@ size_t local_ZSTD_decodeSeqHeaders(void* dst, size_t dstSize, void* buff2, const
 }
 
 
+static ZBUFF_CCtx* g_zbcc = NULL;
+size_t local_ZBUFF_compress(void* dst, size_t dstSize, void* buff2, const void* src, size_t srcSize)
+{
+    size_t compressedSize;
+    size_t srcRead = srcSize, dstWritten = dstSize;
+    (void)buff2;
+    ZBUFF_compressInit(g_zbcc, 1);
+    ZBUFF_compressContinue(g_zbcc, dst, &dstWritten, src, &srcRead);
+    compressedSize = dstWritten;
+    dstWritten = dstSize-compressedSize;
+    ZBUFF_compressEnd(g_zbcc, ((char*)dst)+compressedSize, &dstWritten);
+    compressedSize += dstWritten;
+    return compressedSize;
+}
 
-/*********************************************************
+static ZBUFF_DCtx* g_zbdc = NULL;
+size_t local_ZBUFF_decompress(void* dst, size_t dstSize, void* buff2, const void* src, size_t srcSize)
+{
+    size_t srcRead = g_cSize, dstWritten = dstSize;
+    (void)src; (void)srcSize;
+    ZBUFF_decompressInit(g_zbdc);
+    ZBUFF_decompressContinue(g_zbdc, dst, &dstWritten, buff2, &srcRead);
+    return dstWritten;
+}
+
+
+
+/*_*******************************************************
 *  Bench functions
 *********************************************************/
 size_t benchMem(void* src, size_t srcSize, U32 benchNb)
@@ -274,6 +296,12 @@ size_t benchMem(void* src, size_t srcSize, U32 benchNb)
     case 32:
         benchFunction = local_ZSTD_decodeSeqHeaders; benchName = "ZSTD_decodeSeqHeaders";
         break;
+    case 41:
+        benchFunction = local_ZBUFF_compress; benchName = "ZBUFF_compressContinue";
+        break;
+    case 42:
+        benchFunction = local_ZBUFF_decompress; benchName = "ZBUFF_decompressContinue";
+        break;
     default :
         return 0;
     }
@@ -283,8 +311,7 @@ size_t benchMem(void* src, size_t srcSize, U32 benchNb)
     dstBuff = (BYTE*)malloc(dstBuffSize);
     buff2 = (BYTE*)malloc(dstBuffSize);
     g_dctxPtr = ZSTD_createDCtx();
-    if ((!dstBuff) || (!buff2))
-    {
+    if ((!dstBuff) || (!buff2)) {
         DISPLAY("\nError: not enough memory!\n");
         free(dstBuff); free(buff2);
         return 12;
@@ -301,8 +328,7 @@ size_t benchMem(void* src, size_t srcSize, U32 benchNb)
             blockProperties_t bp;
             g_cSize = ZSTD_compress(dstBuff, dstBuffSize, src, srcSize, 1);
             ZSTD_getcBlockSize(dstBuff+4, dstBuffSize, &bp);  /* Get 1st block type */
-            if (bp.blockType != bt_compressed)
-            {
+            if (bp.blockType != bt_compressed) {
                 DISPLAY("ZSTD_decodeLiteralsBlock : impossible to test on this sample (not compressible)\n");
                 goto _cleanOut;
             }
@@ -332,6 +358,13 @@ size_t benchMem(void* src, size_t srcSize, U32 benchNb)
             srcSize = srcSize > 128 KB ? 128 KB : srcSize;   /* speed relative to block */
             break;
         }
+    case 41 :
+        if (g_zbcc==NULL) g_zbcc=ZBUFF_createCCtx();
+        break;
+    case 42 :
+        if (g_zbdc==NULL) g_zbdc=ZBUFF_createDCtx();
+        g_cSize = ZSTD_compress(buff2, dstBuffSize, src, srcSize, 1);
+        break;
 
     /* test functions */
     /* by convention, test functions can be added > 100 */
@@ -352,8 +385,7 @@ size_t benchMem(void* src, size_t srcSize, U32 benchNb)
         milliTime = BMK_GetMilliStart();
         while(BMK_GetMilliStart() == milliTime);
         milliTime = BMK_GetMilliStart();
-        while(BMK_GetMilliSpan(milliTime) < TIMELOOP)
-        {
+        while(BMK_GetMilliSpan(milliTime) < TIMELOOP) {
             errorCode = benchFunction(dstBuff, dstBuffSize, buff2, src, srcSize);
             if (ZSTD_isError(errorCode)) { DISPLAY("ERROR ! %s() => %s !! \n", benchName, ZSTD_getErrorName(errorCode)); exit(1); }
             nbRounds++;
@@ -383,8 +415,7 @@ int benchSample(U32 benchNb)
 
     /* Allocation */
     origBuff = (char*) malloc((size_t)benchedSize);
-    if(!origBuff)
-    {
+    if(!origBuff) {
         DISPLAY("\nError: not enough memory!\n");
         return 12;
     }
@@ -407,11 +438,9 @@ int benchSample(U32 benchNb)
 
 int benchFiles(char** fileNamesTable, int nbFiles, U32 benchNb)
 {
-    int fileIdx=0;
-
     /* Loop for each file */
-    while (fileIdx<nbFiles)
-    {
+    int fileIdx=0;
+    while (fileIdx<nbFiles) {
         FILE* inFile;
         char* inFileName;
         U64   inFileSize;
@@ -422,8 +451,7 @@ int benchFiles(char** fileNamesTable, int nbFiles, U32 benchNb)
         /* Check file existence */
         inFileName = fileNamesTable[fileIdx++];
         inFile = fopen( inFileName, "rb" );
-        if (inFile==NULL)
-        {
+        if (inFile==NULL) {
             DISPLAY( "Pb opening %s\n", inFileName);
             return 11;
         }
@@ -432,15 +460,13 @@ int benchFiles(char** fileNamesTable, int nbFiles, U32 benchNb)
         inFileSize = BMK_GetFileSize(inFileName);
         benchedSize = (size_t) BMK_findMaxMem(inFileSize*3) / 3;
         if ((U64)benchedSize > inFileSize) benchedSize = (size_t)inFileSize;
-        if (benchedSize < inFileSize)
-        {
+        if (benchedSize < inFileSize) {
             DISPLAY("Not enough memory for '%s' full size; testing %i MB only...\n", inFileName, (int)(benchedSize>>20));
         }
 
         /* Alloc */
         origBuff = (char*) malloc((size_t)benchedSize);
-        if(!origBuff)
-        {
+        if(!origBuff) {
             DISPLAY("\nError: not enough memory!\n");
             fclose(inFile);
             return 12;
@@ -451,8 +477,7 @@ int benchFiles(char** fileNamesTable, int nbFiles, U32 benchNb)
         readSize = fread(origBuff, 1, benchedSize, inFile);
         fclose(inFile);
 
-        if(readSize != benchedSize)
-        {
+        if(readSize != benchedSize) {
             DISPLAY("\nError: problem reading file '%s' !!    \n", inFileName);
             free(origBuff);
             return 13;
@@ -471,7 +496,7 @@ int benchFiles(char** fileNamesTable, int nbFiles, U32 benchNb)
 }
 
 
-int usage(char* exename)
+static int usage(char* exename)
 {
     DISPLAY( "Usage :\n");
     DISPLAY( "      %s [arg] file1 file2 ... fileX\n", exename);
@@ -480,7 +505,7 @@ int usage(char* exename)
     return 0;
 }
 
-int usage_advanced(void)
+static int usage_advanced(void)
 {
     DISPLAY( "\nAdvanced options :\n");
     DISPLAY( " -b#    : test only function # \n");
@@ -489,7 +514,7 @@ int usage_advanced(void)
     return 0;
 }
 
-int badusage(char* exename)
+static int badusage(char* exename)
 {
     DISPLAY("Wrong parameters\n");
     usage(exename);

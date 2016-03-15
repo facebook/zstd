@@ -1,6 +1,7 @@
 v0.6.0
 Stronger high compression modes, thanks to Przemyslaw Skibinski
 API : ZSTD_getFrameParams() provides size of decompressed content
+New : highest compression modes require `--ultra` command to fully unleash their capacity
 
 v0.5.1
 New : Optimal parsing => Very high compression modes, thanks to Przemyslaw Skibinski

@@ -1,3 +1,7 @@
+v0.6.0
+Stronger high compression modes, thanks to Przemyslaw Skibinski
+API : ZSTD_getFrameParams() provides size of decompressed content
+
 v0.5.1
 New : Optimal parsing => Very high compression modes, thanks to Przemyslaw Skibinski
 Changed : Dictionary builder integrated into libzstd and zstd cli

@@ -187,11 +187,14 @@ ZSTDLIB_API size_t ZSTD_decompressContinue(ZSTD_DCtx* dctx, void* dst, size_t ds
   A ZSTD_DCtx object can be re-used multiple times.
 
   First optional operation is to retrieve frame parameters, using ZSTD_getFrameParams().
-  It requires to read the beginning of compressed frame.
+  It can provide the minimum size of buffer required to properly decompress data,
+  and optionally the final size of uncompressed content.
+  (Note : content size is an optional info that may not be present. 0 means : content size unknown)
+  It is done by reading a certain amount of the beginning of compressed frame.
   The amount of data to read is variable, from ZSTD_frameHeaderSize_min to ZSTD_frameHeaderSize_max.
-  If you don't provide enough length, function will return the minimum size it wants to produce a result.
+  If `srcSize` is too small for operation to succeed, function will return the minimum size it requires to produce a result.
   Result : 0 when successful, it means the ZSTD_frameParams structure has been filled.
-          >0 : means there is not enough data into src. Provides the expected size to successfully decode header.
+          >0 : means there is not enough data into `src`. Provides the expected size to successfully decode header.
            errorCode, which can be tested using ZSTD_isError()
 
   Start decompression, with ZSTD_decompressBegin() or ZSTD_decompressBegin_usingDict().

@@ -303,39 +303,38 @@ static size_t ZSTD_frameHeaderSize(const void* src, size_t srcSize)
 /** ZSTD_getFrameParams() :
 *   decode Frame Header, or provide expected `srcSize`.
 *   @return : 0, `fparamsPtr` is correctly filled,
-*            >0, not enough srcSize, provide expected `srcSize`,
+*            >0, `srcSize` is too small, result is expected `srcSize`,
 *             or an error code, which can be tested using ZSTD_isError() */
-size_t ZSTD_getFrameParams(ZSTD_frameParams* fparamsPtr, const void* src, size_t srcSize)
+size_t ZSTD_getFrameParams(ZSTD_frameParams* fparamsPtr, const void* src, size_t const srcSize)
 {
     const BYTE* ip = (const BYTE*)src;
-    BYTE frameDesc;
 
     if (srcSize < ZSTD_frameHeaderSize_min) return ZSTD_frameHeaderSize_min;
     if (MEM_readLE32(src) != ZSTD_MAGICNUMBER) return ERROR(prefix_unknown);
 
+    /* ensure there is enough `srcSize` to fully read/decode frame header */
     { size_t const fhsize = ZSTD_frameHeaderSize(src, srcSize);
       if (srcSize < fhsize) return fhsize; }
 
     memset(fparamsPtr, 0, sizeof(*fparamsPtr));
-    frameDesc = ip[4];
-    fparamsPtr->windowLog = (frameDesc & 0xF) + ZSTD_WINDOWLOG_ABSOLUTEMIN;
-    fparamsPtr->mml = (frameDesc & 0x10) ? MINMATCH-1 : MINMATCH;
-    if ((frameDesc & 0x20) != 0) return ERROR(frameParameter_unsupported);   /* reserved 1 bit */
-    switch(frameDesc >> 6)  /* fcsId */
-    {
-        default:   /* impossible */
-        case 0 : fparamsPtr->frameContentSize = 0; break;
-        case 1 : fparamsPtr->frameContentSize = ip[5]; break;
-        case 2 : fparamsPtr->frameContentSize = MEM_readLE16(ip+5)+256; break;
-        case 3 : fparamsPtr->frameContentSize = MEM_readLE64(ip+5); break;
-    }
+    {   BYTE const frameDesc = ip[4];
+        fparamsPtr->windowLog = (frameDesc & 0xF) + ZSTD_WINDOWLOG_ABSOLUTEMIN;
+        fparamsPtr->mml = (frameDesc & 0x10) ? MINMATCH-1 : MINMATCH;
+        if ((frameDesc & 0x20) != 0) return ERROR(frameParameter_unsupported);   /* reserved 1 bit */
+        switch(frameDesc >> 6)  /* fcsId */
+        {
+            default:   /* impossible */
+            case 0 : fparamsPtr->frameContentSize = 0; break;
+            case 1 : fparamsPtr->frameContentSize = ip[5]; break;
+            case 2 : fparamsPtr->frameContentSize = MEM_readLE16(ip+5)+256; break;
+            case 3 : fparamsPtr->frameContentSize = MEM_readLE64(ip+5); break;
+    }   }
     return 0;
 }
 
 
 /** ZSTD_decodeFrameHeader() :
-*   decode Frame Header.
-*   srcSize must be the size provided by ZSTD_decodeFrameHeader_Part1().
+*   `srcSize` must be the size provided by ZSTD_frameHeaderSize().
 *   @return : 0, or an error code, which can be tested using ZSTD_isError() */
 static size_t ZSTD_decodeFrameHeader(ZSTD_DCtx* zc, const void* src, size_t srcSize)
 {

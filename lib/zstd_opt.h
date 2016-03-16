@@ -574,7 +574,7 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
                 }
 
                 best_mlen = mlen;
-                 ZSTD_LOG_PARSER("%d: Found REP mlen=%d off=%d price=%d litlen=%d\n", (int)(inr-base), mlen, 0, price, litlen);
+                ZSTD_LOG_PARSER("%d: Found REP mlen=%d off=%d price=%d litlen=%d\n", (int)(inr-base), mlen, 0, price, litlen);
 
                 do {
                     if (cur + mlen > last_pos || price <= opt[cur + mlen].price)
@@ -688,7 +688,7 @@ _storeSequence:   /* cur, last_pos, best_mlen, best_off have to be set */
 #endif
 
             ZSTD_updatePrice(seqStorePtr, litLength, anchor, offset, mlen-minMatch);
-            ZSTD_storeSeq(seqStorePtr, litLength, anchor, offset + ZSTD_REP_NUM - 1, mlen-minMatch);
+            ZSTD_storeSeq(seqStorePtr, litLength, anchor, offset ? offset + ZSTD_REP_NUM - 1 : 0, mlen-minMatch);
             anchor = ip = ip + mlen;
         }   /* for (cur=0; cur < last_pos; ) */
 
@@ -702,7 +702,7 @@ _storeSequence:   /* cur, last_pos, best_mlen, best_off have to be set */
             rep[0] = best_off;
             ZSTD_LOG_ENCODE("%d/%d: ENCODE REP literals=%d mlen=%d off=%d rep1=%d rep2=%d\n", (int)(anchor-base), (int)(iend-base), (int)(0), (int)best_mlen, (int)(0), (int)rep[0], (int)rep[1]);
             ZSTD_updatePrice(seqStorePtr, 0, anchor, 0, best_mlen);
-            ZSTD_storeSeq(seqStorePtr, 0, anchor, 0 + ZSTD_REP_NUM - 1, best_mlen);
+            ZSTD_storeSeq(seqStorePtr, 0, anchor, 0, best_mlen);
             anchor += best_mlen+minMatch;
             continue;   /* faster when present ... (?) */
         }
@@ -1036,7 +1036,7 @@ _storeSequence: // cur, last_pos, best_mlen, best_off have to be set
 #endif
 
             ZSTD_updatePrice(seqStorePtr, litLength, anchor, offset, mlen-minMatch);
-            ZSTD_storeSeq(seqStorePtr, litLength, anchor, offset + ZSTD_REP_NUM - 1, mlen-minMatch);
+            ZSTD_storeSeq(seqStorePtr, litLength, anchor, offset ? offset + ZSTD_REP_NUM - 1 : 0, mlen-minMatch);
             anchor = ip = ip + mlen;
         }
 
@@ -1059,7 +1059,7 @@ _storeSequence: // cur, last_pos, best_mlen, best_off have to be set
             offset = rep[1]; rep[1] = rep[0]; rep[0] = offset;   /* swap offset history */
             ZSTD_LOG_ENCODE("%d/%d: ENCODE REP literals=%d mlen=%d off=%d rep1=%d rep2=%d\n", (int)(anchor-base), (int)(iend-base), (int)(0), (int)best_mlen, (int)(0), (int)rep[0], (int)rep[1]);
             ZSTD_updatePrice(seqStorePtr, 0, anchor, 0, mlen-minMatch);
-            ZSTD_storeSeq(seqStorePtr, 0, anchor, 0 + ZSTD_REP_NUM - 1, mlen-minMatch);
+            ZSTD_storeSeq(seqStorePtr, 0, anchor, 0, mlen-minMatch);
             anchor += mlen;
         }
 #else
@@ -1077,7 +1077,7 @@ _storeSequence: // cur, last_pos, best_mlen, best_off have to be set
                 offset = rep[1]; rep[1] = rep[0]; rep[0] = offset;   /* swap offset history */
                 ZSTD_LOG_ENCODE("%d/%d: ENCODE REP literals=%d mlen=%d off=%d rep1=%d rep2=%d\n", (int)(anchor-base), (int)(iend-base), (int)(0), (int)best_mlen, (int)(0), (int)rep[0], (int)rep[1]);
                 ZSTD_updatePrice(seqStorePtr, 0, anchor, 0, mlen-minMatch);
-                ZSTD_storeSeq(seqStorePtr, 0, anchor, 0 + ZSTD_REP_NUM - 1, mlen-minMatch);
+                ZSTD_storeSeq(seqStorePtr, 0, anchor, 0, mlen-minMatch);
                 anchor += mlen;
                 continue;   /* faster when present ... (?) */
             }

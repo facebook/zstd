@@ -89,7 +89,6 @@
 #endif
 
 #define NBLOOPS    3
-#define TIMELOOP   2500
 
 #define KB *(1 <<10)
 #define MB *(1 <<20)
@@ -281,6 +280,7 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
     }   }   }
 
     /* warmimg up memory */
+    int timeloop = additionalParam; //2500;
     ZSTD_setAdditionalParam(refCtx, additionalParam);
     RDG_genBuffer(compressedBuffer, maxCompressedSize, 0.10, 0.50, 1);
 
@@ -305,7 +305,7 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
             milliTime = BMK_GetMilliStart();
             while (BMK_GetMilliStart() == milliTime);
             milliTime = BMK_GetMilliStart();
-            while (BMK_GetMilliSpan(milliTime) < TIMELOOP) {
+            while (BMK_GetMilliSpan(milliTime) < timeloop) {
                 ZSTD_compressBegin_advanced(refCtx, dictBuffer, dictBufferSize, ZSTD_getParams(cLevel, MAX(dictBufferSize, largestBlockSize)));
                 for (blockNb=0; blockNb<nbBlocks; blockNb++) {
                     size_t rSize = ZSTD_compress_usingPreparedCCtx(ctx, refCtx,
@@ -334,7 +334,7 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
             while (BMK_GetMilliStart() == milliTime);
             milliTime = BMK_GetMilliStart();
 
-            for ( ; BMK_GetMilliSpan(milliTime) < TIMELOOP; nbLoops++) {
+            for ( ; BMK_GetMilliSpan(milliTime) < timeloop; nbLoops++) {
                 ZSTD_decompressBegin_usingDict(refDCtx, dictBuffer, dictBufferSize);
                 for (blockNb=0; blockNb<nbBlocks; blockNb++) {
                     size_t regenSize = ZSTD_decompress_usingPreparedDCtx(dctx, refDCtx,

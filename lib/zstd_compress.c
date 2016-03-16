@@ -776,7 +776,7 @@ MEM_STATIC void ZSTD_storeSeq(seqStore_t* seqStorePtr, size_t litLength, const B
     else *(seqStorePtr->litLength++) = (BYTE)litLength;
 
     /* match offset */
-    *(seqStorePtr->offset++) = (U32)offsetCode + ZSTD_REP_NUM - 1;
+    *(seqStorePtr->offset++) = (U32)offsetCode;
 
     /* match Length */
     if (matchCode >= MaxML) {
@@ -997,7 +997,7 @@ void ZSTD_compressBlock_fast_generic(ZSTD_CCtx* zc,
         }
 
         /* match found */
-        ZSTD_storeSeq(seqStorePtr, ip-anchor, anchor, offset, mlCode);
+        ZSTD_storeSeq(seqStorePtr, ip-anchor, anchor, offset + ZSTD_REP_NUM - 1, mlCode);
         ip += mlCode + MINMATCH;
         anchor = ip;
 
@@ -1012,7 +1012,7 @@ void ZSTD_compressBlock_fast_generic(ZSTD_CCtx* zc,
                 size_t rlCode = ZSTD_count(ip+MINMATCH, ip+MINMATCH-offset_2, iend);
                 size_t tmpOff = offset_2; offset_2 = offset_1; offset_1 = tmpOff;   /* swap offset_2 <=> offset_1 */
                 hashTable[ZSTD_hashPtr(ip, hBits, mls)] = (U32)(ip-base);
-                ZSTD_storeSeq(seqStorePtr, 0, anchor, 0, rlCode);
+                ZSTD_storeSeq(seqStorePtr, 0, anchor, 0 + ZSTD_REP_NUM - 1, rlCode);
                 ip += rlCode+MINMATCH;
                 anchor = ip;
                 continue;   /* faster when present ... (?) */
@@ -1109,7 +1109,7 @@ static void ZSTD_compressBlock_fast_extDict_generic(ZSTD_CCtx* ctx,
         }   }
 
         /* found a match : store it */
-        ZSTD_storeSeq(seqStorePtr, ip-anchor, anchor, offset, mlCode);
+        ZSTD_storeSeq(seqStorePtr, ip-anchor, anchor, offset + ZSTD_REP_NUM - 1, mlCode);
         ip += mlCode + MINMATCH;
         anchor = ip;
 
@@ -1127,7 +1127,7 @@ static void ZSTD_compressBlock_fast_extDict_generic(ZSTD_CCtx* ctx,
                     const BYTE* const repEnd2 = repIndex2 < dictLimit ? dictEnd : iend;
                     size_t repLength2 = ZSTD_count_2segments(ip+MINMATCH, repMatch2+MINMATCH, iend, repEnd2, lowPrefixPtr);
                     U32 tmpOffset = offset_2; offset_2 = offset_1; offset_1 = tmpOffset;   /* swap offset_2 <=> offset_1 */
-                    ZSTD_storeSeq(seqStorePtr, 0, anchor, 0, repLength2);
+                    ZSTD_storeSeq(seqStorePtr, 0, anchor, 0 + ZSTD_REP_NUM - 1, repLength2);
                     hashTable[ZSTD_hashPtr(ip, hBits, mls)] = current2;
                     ip += repLength2+MINMATCH;
                     anchor = ip;
@@ -1648,7 +1648,7 @@ void ZSTD_compressBlock_lazy_generic(ZSTD_CCtx* ctx,
 _storeSequence:
         {
             size_t litLength = start - anchor;
-            ZSTD_storeSeq(seqStorePtr, litLength, anchor, offset, matchLength-MINMATCH);
+            ZSTD_storeSeq(seqStorePtr, litLength, anchor, offset + ZSTD_REP_NUM - 1, matchLength-MINMATCH);
             anchor = ip = start + matchLength;
         }
 
@@ -1660,7 +1660,7 @@ _storeSequence:
             offset = offset_2;
             offset_2 = offset_1;
             offset_1 = offset;
-            ZSTD_storeSeq(seqStorePtr, 0, anchor, 0, matchLength);
+            ZSTD_storeSeq(seqStorePtr, 0, anchor, 0 + ZSTD_REP_NUM - 1, matchLength);
             ip += matchLength+MINMATCH;
             anchor = ip;
             continue;   /* faster when present ... (?) */
@@ -1843,7 +1843,7 @@ void ZSTD_compressBlock_lazy_extDict_generic(ZSTD_CCtx* ctx,
 _storeSequence:
         {
             size_t litLength = start - anchor;
-            ZSTD_storeSeq(seqStorePtr, litLength, anchor, offset, matchLength-MINMATCH);
+            ZSTD_storeSeq(seqStorePtr, litLength, anchor, offset + ZSTD_REP_NUM - 1, matchLength-MINMATCH);
             anchor = ip = start + matchLength;
         }
 
@@ -1858,7 +1858,7 @@ _storeSequence:
                 const BYTE* const repEnd = repIndex < dictLimit ? dictEnd : iend;
                 matchLength = ZSTD_count_2segments(ip+MINMATCH, repMatch+MINMATCH, iend, repEnd, prefixStart) + MINMATCH;
                 offset = offset_2; offset_2 = offset_1; offset_1 = offset;   /* swap offset history */
-                ZSTD_storeSeq(seqStorePtr, 0, anchor, 0, matchLength-MINMATCH);
+                ZSTD_storeSeq(seqStorePtr, 0, anchor, 0 + ZSTD_REP_NUM - 1, matchLength-MINMATCH);
                 ip += matchLength;
                 anchor = ip;
                 continue;   /* faster when present ... (?) */

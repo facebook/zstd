@@ -66,6 +66,7 @@
 
 #define ZSTD_OPT_NUM    (1<<12)
 #define ZSTD_DICT_MAGIC  0xEC30A435
+#define ZSTD_REP_NUM    4
 
 #define KB *(1 <<10)
 #define MB *(1 <<20)

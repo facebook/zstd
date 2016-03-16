@@ -627,8 +627,10 @@ size_t ZSTD_compressSequences(ZSTD_CCtx* zc,
     /* CTable for Offset codes */
     {   /* create Offset codes */
         size_t i; for (i=0; i<nbSeq; i++) {
-            offCodeTable[i] = (BYTE)ZSTD_highbit(offsetTable[i]) + 1;
-            if (offsetTable[i]==0) offCodeTable[i]=0;
+            if (offsetTable[i] < ZSTD_REP_NUM) 
+                offCodeTable[i] = 0;
+            else
+                offCodeTable[i] = (BYTE)ZSTD_highbit(offsetTable[i]) + 1;
         }
     }
     max = MaxOff;
@@ -774,7 +776,7 @@ MEM_STATIC void ZSTD_storeSeq(seqStore_t* seqStorePtr, size_t litLength, const B
     else *(seqStorePtr->litLength++) = (BYTE)litLength;
 
     /* match offset */
-    *(seqStorePtr->offset++) = (U32)offsetCode;
+    *(seqStorePtr->offset++) = (U32)offsetCode + ZSTD_REP_NUM - 1;
 
     /* match Length */
     if (matchCode >= MaxML) {

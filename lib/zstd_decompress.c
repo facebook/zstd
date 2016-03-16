@@ -657,8 +657,10 @@ static void ZSTD_decodeSequence(seq_t* seq, seqState_t* seqState, const U32 mls)
         offset = offsetPrefix[offsetCode] + BIT_readBits(&(seqState->DStream), nbBits);
         if (MEM_32bits()) BIT_reloadDStream(&(seqState->DStream));
         if (offsetCode==0) offset = prevOffset;   /* repcode, cmove */
+        else offset -= ZSTD_REP_NUM - 1;
         if (offsetCode | !litLength) seqState->prevOffset = seq->offset;   /* cmove */
         FSE_decodeSymbol(&(seqState->stateOffb), &(seqState->DStream));    /* update */
+//    printf("offsetCode=%d nbBits=%d offset=%d\n", offsetCode, nbBits, (int)offset); fflush(stdout);
     }
 
     /* Literal length update */

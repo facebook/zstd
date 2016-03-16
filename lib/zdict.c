@@ -587,7 +587,7 @@ typedef struct
 {
     ZSTD_CCtx* ref;
     ZSTD_CCtx* zc;
-    void* workPlace;   /* must be BLOCKSIZE allocated */
+    void* workPlace;   /* must be ZSTD_BLOCKSIZE_MAX allocated */
 } EStats_ress_t;
 
 
@@ -599,9 +599,9 @@ static void ZDICT_countEStats(EStats_ress_t esr,
     const U32* u32Ptr;
     seqStore_t seqStore;
 
-    if (srcSize > BLOCKSIZE) srcSize = BLOCKSIZE;   /* protection vs large samples */
+    if (srcSize > ZSTD_BLOCKSIZE_MAX) srcSize = ZSTD_BLOCKSIZE_MAX;   /* protection vs large samples */
     ZSTD_copyCCtx(esr.zc, esr.ref);
-    ZSTD_compressBlock(esr.zc, esr.workPlace, BLOCKSIZE, src, srcSize);
+    ZSTD_compressBlock(esr.zc, esr.workPlace, ZSTD_BLOCKSIZE_MAX, src, srcSize);
     seqStore = ZSTD_copySeqStore(esr.zc);
 
     /* count stats */
@@ -654,7 +654,7 @@ static size_t ZDICT_analyzeEntropy(void*  dstBuffer, size_t maxDstSize,
     for (u=0; u<=MaxLL; u++) litlengthCount[u]=1;
     esr.ref = ZSTD_createCCtx();
     esr.zc = ZSTD_createCCtx();
-    esr.workPlace = malloc(BLOCKSIZE);
+    esr.workPlace = malloc(ZSTD_BLOCKSIZE_MAX);
     if (!esr.ref || !esr.zc || !esr.workPlace) {
             eSize = ERROR(memory_allocation);
             DISPLAYLEVEL(1, "Not enough memory");

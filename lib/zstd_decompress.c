@@ -143,7 +143,7 @@ struct ZSTD_DCtx_s
     const BYTE* litPtr;
     size_t litBufSize;
     size_t litSize;
-    BYTE litBuffer[BLOCKSIZE + WILDCOPY_OVERLENGTH];
+    BYTE litBuffer[ZSTD_BLOCKSIZE_MAX + WILDCOPY_OVERLENGTH];
     BYTE headerBuffer[ZSTD_FRAMEHEADERSIZE_MAX];
 };  /* typedef'd to ZSTD_DCtx within "zstd_static.h" */
 
@@ -181,7 +181,7 @@ size_t ZSTD_freeDCtx(ZSTD_DCtx* dctx)
 void ZSTD_copyDCtx(ZSTD_DCtx* dstDCtx, const ZSTD_DCtx* srcDCtx)
 {
     memcpy(dstDCtx, srcDCtx,
-           sizeof(ZSTD_DCtx) - (BLOCKSIZE+WILDCOPY_OVERLENGTH + ZSTD_frameHeaderSize_max));  /* no need to copy workspace */
+           sizeof(ZSTD_DCtx) - (ZSTD_BLOCKSIZE_MAX+WILDCOPY_OVERLENGTH + ZSTD_frameHeaderSize_max));  /* no need to copy workspace */
 }
 
 
@@ -411,7 +411,7 @@ size_t ZSTD_decodeLiteralsBlock(ZSTD_DCtx* dctx,
                 litCSize = ((istart[2] &  3) << 16) + (istart[3] << 8) + istart[4];
                 break;
             }
-            if (litSize > BLOCKSIZE) return ERROR(corruption_detected);
+            if (litSize > ZSTD_BLOCKSIZE_MAX) return ERROR(corruption_detected);
 
             if (HUF_isError(singleStream ?
                             HUF_decompress1X2(dctx->litBuffer, litSize, istart+lhSize, litCSize) :
@@ -419,7 +419,7 @@ size_t ZSTD_decodeLiteralsBlock(ZSTD_DCtx* dctx,
                 return ERROR(corruption_detected);
 
             dctx->litPtr = dctx->litBuffer;
-            dctx->litBufSize = BLOCKSIZE+8;
+            dctx->litBufSize = ZSTD_BLOCKSIZE_MAX+8;
             dctx->litSize = litSize;
             return litCSize + lhSize;
         }
@@ -442,7 +442,7 @@ size_t ZSTD_decodeLiteralsBlock(ZSTD_DCtx* dctx,
             if (HUF_isError(errorCode)) return ERROR(corruption_detected);
 
             dctx->litPtr = dctx->litBuffer;
-            dctx->litBufSize = BLOCKSIZE+WILDCOPY_OVERLENGTH;
+            dctx->litBufSize = ZSTD_BLOCKSIZE_MAX+WILDCOPY_OVERLENGTH;
             dctx->litSize = litSize;
             return litCSize + lhSize;
         }
@@ -468,7 +468,7 @@ size_t ZSTD_decodeLiteralsBlock(ZSTD_DCtx* dctx,
                 if (litSize+lhSize > srcSize) return ERROR(corruption_detected);
                 memcpy(dctx->litBuffer, istart+lhSize, litSize);
                 dctx->litPtr = dctx->litBuffer;
-                dctx->litBufSize = BLOCKSIZE+8;
+                dctx->litBufSize = ZSTD_BLOCKSIZE_MAX+8;
                 dctx->litSize = litSize;
                 return lhSize+litSize;
             }
@@ -495,10 +495,10 @@ size_t ZSTD_decodeLiteralsBlock(ZSTD_DCtx* dctx,
                 litSize = ((istart[0] & 15) << 16) + (istart[1] << 8) + istart[2];
                 break;
             }
-            if (litSize > BLOCKSIZE) return ERROR(corruption_detected);
+            if (litSize > ZSTD_BLOCKSIZE_MAX) return ERROR(corruption_detected);
             memset(dctx->litBuffer, istart[lhSize], litSize);
             dctx->litPtr = dctx->litBuffer;
-            dctx->litBufSize = BLOCKSIZE+WILDCOPY_OVERLENGTH;
+            dctx->litBufSize = ZSTD_BLOCKSIZE_MAX+WILDCOPY_OVERLENGTH;
             dctx->litSize = litSize;
             return lhSize+1;
         }
@@ -892,7 +892,7 @@ static size_t ZSTD_decompressBlock_internal(ZSTD_DCtx* dctx,
     const BYTE* ip = (const BYTE*)src;
     size_t litCSize;
 
-    if (srcSize >= BLOCKSIZE) return ERROR(srcSize_wrong);
+    if (srcSize >= ZSTD_BLOCKSIZE_MAX) return ERROR(srcSize_wrong);
 
     ZSTD_LOG_BLOCK("%p: ZSTD_decompressBlock_internal searchLength=%d\n", dctx->base, dctx->params.searchLength);
 

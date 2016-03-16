@@ -97,7 +97,7 @@
 #define DEFAULT_CHUNKSIZE   (4<<20)
 
 #define COMPRESSIBILITY_DEFAULT 0.50
-static const size_t sampleSize = 10000000;
+static const size_t g_sampleSize = 10000000;
 
 
 /*_************************************
@@ -256,7 +256,7 @@ size_t local_ZBUFF_compress(void* dst, size_t dstSize, void* buff2, const void* 
 }
 
 static ZBUFF_DCtx* g_zbdc = NULL;
-size_t local_ZBUFF_decompress(void* dst, size_t dstSize, void* buff2, const void* src, size_t srcSize)
+static size_t local_ZBUFF_decompress(void* dst, size_t dstSize, void* buff2, const void* src, size_t srcSize)
 {
     size_t srcRead = g_cSize, dstWritten = dstSize;
     (void)src; (void)srcSize;
@@ -270,7 +270,7 @@ size_t local_ZBUFF_decompress(void* dst, size_t dstSize, void* buff2, const void
 /*_*******************************************************
 *  Bench functions
 *********************************************************/
-size_t benchMem(void* src, size_t srcSize, U32 benchNb)
+static size_t benchMem(const void* src, size_t srcSize, U32 benchNb)
 {
     BYTE*  dstBuff;
     size_t dstBuffSize;
@@ -405,9 +405,9 @@ _cleanOut:
 }
 
 
-int benchSample(U32 benchNb)
+static int benchSample(U32 benchNb)
 {
-    size_t const benchedSize = sampleSize;
+    size_t const benchedSize = g_sampleSize;
     const char* name = "Sample 10MiB";
 
     /* Allocation */
@@ -430,16 +430,15 @@ int benchSample(U32 benchNb)
 }
 
 
-int benchFiles(const char** fileNamesTable, int nbFiles, U32 benchNb)
+static int benchFiles(const char** fileNamesTable, const int nbFiles, U32 benchNb)
 {
     /* Loop for each file */
-    int fileIdx=0;
-    while (fileIdx<nbFiles) {
-        const char* inFileName = fileNamesTable[fileIdx++];
+    int fileIdx;
+    for (fileIdx=0; fileIdx<nbFiles; fileIdx++) {
+        const char* inFileName = fileNamesTable[fileIdx];
         FILE* inFile = fopen( inFileName, "rb" );
         U64   inFileSize;
         size_t benchedSize;
-        size_t readSize;
         void* origBuff;
 
         /* Check file existence */
@@ -450,7 +449,7 @@ int benchFiles(const char** fileNamesTable, int nbFiles, U32 benchNb)
         benchedSize = BMK_findMaxMem(inFileSize*3) / 3;
         if ((U64)benchedSize > inFileSize) benchedSize = (size_t)inFileSize;
         if (benchedSize < inFileSize)
-            DISPLAY("Not enough memory for '%s' full size; testing %i MB only...\n", inFileName, (int)(benchedSize>>20));
+            DISPLAY("Not enough memory for '%s' full size; testing %u MB only...\n", inFileName, (U32)(benchedSize>>20));
 
         /* Alloc */
         origBuff = malloc(benchedSize);
@@ -458,14 +457,14 @@ int benchFiles(const char** fileNamesTable, int nbFiles, U32 benchNb)
 
         /* Fill input buffer */
         DISPLAY("Loading %s...       \r", inFileName);
-        readSize = fread(origBuff, 1, benchedSize, inFile);
-        fclose(inFile);
-
-        if(readSize != benchedSize) {
-            DISPLAY("\nError: problem reading file '%s' !!    \n", inFileName);
-            free(origBuff);
-            return 13;
-        }
+        {
+            size_t readSize = fread(origBuff, 1, benchedSize, inFile);
+            fclose(inFile);
+            if (readSize != benchedSize) {
+                DISPLAY("\nError: problem reading file '%s' !!    \n", inFileName);
+                free(origBuff);
+                return 13;
+        }   }
 
         /* bench */
         DISPLAY("\r%79s\r", "");
@@ -474,6 +473,8 @@ int benchFiles(const char** fileNamesTable, int nbFiles, U32 benchNb)
             benchMem(origBuff, benchedSize, benchNb);
         else
             for (benchNb=0; benchNb<100; benchNb++) benchMem(origBuff, benchedSize, benchNb);
+
+        free(origBuff);
     }
 
     return 0;
@@ -489,8 +490,9 @@ static int usage(const char* exename)
     return 0;
 }
 
-static int usage_advanced(void)
+static int usage_advanced(const char* exename)
 {
+    usage(exename);
     DISPLAY( "\nAdvanced options :\n");
     DISPLAY( " -b#    : test only function # \n");
     DISPLAY( " -i#    : iteration loops [1-9](default : %i)\n", NBLOOPS);
@@ -502,41 +504,34 @@ static int badusage(const char* exename)
 {
     DISPLAY("Wrong parameters\n");
     usage(exename);
-    return 0;
+    return 1;
 }
 
 int main(int argc, const char** argv)
 {
-    int i,
-        filenamesStart=0,
-        result;
-    const char* exename=argv[0];
-    const char* input_filename=0;
+    int i, filenamesStart=0, result;
+    const char* exename = argv[0];
+    const char* input_filename = NULL;
     U32 benchNb = 0, main_pause = 0;
 
-    // Welcome message
     DISPLAY(WELCOME_MESSAGE);
+    if (argc<1) return badusage(exename);
 
-    if (argc<1) { badusage(exename); return 1; }
-
-    for(i=1; i<argc; i++)
-    {
+    for(i=1; i<argc; i++) {
         const char* argument = argv[i];
+        if(!argument) continue;   /* Protection if argument empty */
 
-        if(!argument) continue;   // Protection if argument empty
+        /* Commands (note : aggregated commands are allowed) */
+        if (argument[0]=='-') {
 
-        // Decode command (note : aggregated commands are allowed)
-        if (argument[0]=='-')
-        {
-            while (argument[1]!=0)
-            {
-                argument ++;
+            while (argument[1]!=0) {
+                argument++;
 
                 switch(argument[0])
                 {
                     /* Display help on usage */
                 case 'h' :
-                case 'H': usage(exename); usage_advanced(); return 0;
+                case 'H': return usage_advanced(exename);
 
                     /* Pause at the end (hidden option) */
                 case 'p': main_pause = 1; break;
@@ -560,7 +555,7 @@ int main(int argc, const char** argv)
                     }
                     break;
 
-                    /* Select specific algorithm to bench */
+                    /* Select compressibility of synthetic sample */
                 case 'P':
                     {   U32 proba32 = 0;
                         while ((argument[1]>= '0') && (argument[1]<= '9')) {
@@ -573,7 +568,7 @@ int main(int argc, const char** argv)
                     break;
 
                     /* Unknown command */
-                default : badusage(exename); return 1;
+                default : return badusage(exename);
                 }
             }
             continue;
@@ -583,9 +578,10 @@ int main(int argc, const char** argv)
         if (!input_filename) { input_filename=argument; filenamesStart=i; continue; }
     }
 
-    if (filenamesStart==0)
+    if (filenamesStart==0)   /* no input file */
         result = benchSample(benchNb);
-    else result = benchFiles(argv+filenamesStart, argc-filenamesStart, benchNb);
+    else
+        result = benchFiles(argv+filenamesStart, argc-filenamesStart, benchNb);
 
     if (main_pause) { int unused; printf("press enter...\n"); unused = getchar(); (void)unused; }
 

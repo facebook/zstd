@@ -169,7 +169,7 @@ void ZSTD_validateParams(ZSTD_parameters* params)
 
 size_t ZSTD_sizeofCCtx(ZSTD_parameters params)   /* hidden interface, for paramagrill */
 {   /* copy / pasted from ZSTD_resetCCtx_advanced */
-    const size_t blockSize = MIN(BLOCKSIZE, (size_t)1 << params.windowLog);
+    const size_t blockSize = MIN(ZSTD_BLOCKSIZE_MAX, (size_t)1 << params.windowLog);
     const U32    contentLog = (params.strategy == ZSTD_fast) ? 1 : params.contentLog;
     const U32    divider = (params.searchLength==3) ? 3 : 4;
     const size_t maxNbSeq = blockSize / divider;
@@ -186,7 +186,7 @@ size_t ZSTD_sizeofCCtx(ZSTD_parameters params)   /* hidden interface, for parama
 static size_t ZSTD_resetCCtx_advanced (ZSTD_CCtx* zc,
                                        ZSTD_parameters params)
 {   /* note : params considered validated here */
-    const size_t blockSize = MIN(BLOCKSIZE, (size_t)1 << params.windowLog);
+    const size_t blockSize = MIN(ZSTD_BLOCKSIZE_MAX, (size_t)1 << params.windowLog);
     const U32    contentLog = (params.strategy == ZSTD_fast) ? 1 : params.contentLog;
     const U32    divider = (params.searchLength==3) ? 3 : 4;
     const size_t maxNbSeq = blockSize / divider;
@@ -2079,7 +2079,7 @@ size_t ZSTD_compressContinue (ZSTD_CCtx* zc,
 
 size_t ZSTD_compressBlock(ZSTD_CCtx* zc, void* dst, size_t dstCapacity, const void* src, size_t srcSize)
 {
-    if (srcSize > BLOCKSIZE) return ERROR(srcSize_wrong);
+    if (srcSize > ZSTD_BLOCKSIZE_MAX) return ERROR(srcSize_wrong);
     zc->params.searchLength = MINMATCH; /* force ZSTD_btopt to MINMATCH in block mode */
     ZSTD_LOG_BLOCK("%p: ZSTD_compressBlock searchLength=%d\n", zc->base, zc->params.searchLength);
     return ZSTD_compressContinue_internal(zc, dst, dstCapacity, src, srcSize, 0);

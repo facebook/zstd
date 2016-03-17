@@ -51,13 +51,7 @@
 #include <sys/types.h>    /* stat64 */
 #include <sys/stat.h>     /* stat64 */
 #include <string.h>       /* strcmp */
-
-/* Use ftime() if gettimeofday() is not available on your target */
-#if defined(BMK_LEGACY_TIMER)
-#  include <sys/timeb.h>  /* timeb, ftime */
-#else
-#  include <sys/time.h>   /* gettimeofday */
-#endif
+#include <time.h>         /* clock_t, clock, CLOCKS_PER_SEC */
 
 #include "mem.h"
 #include "zstd_static.h"
@@ -90,7 +84,7 @@
 #define MB *(1<<20)
 
 #define NBLOOPS    6
-#define TIMELOOP   2500
+#define TIMELOOP_S 2
 
 #define KNUTH      2654435761U
 #define MAX_MEM    (1984 MB)
@@ -122,42 +116,10 @@ void BMK_SetNbIterations(int nbLoops)
 /*_*******************************************************
 *  Private functions
 *********************************************************/
-
-#if defined(BMK_LEGACY_TIMER)
-
-static int BMK_GetMilliStart(void)
+static clock_t BMK_clockSpan( clock_t clockStart )
 {
-  /* Based on Legacy ftime()
-  *  Rolls over every ~ 12.1 days (0x100000/24/60/60)
-  *  Use GetMilliSpan to correct for rollover */
-  struct timeb tb;
-  int nCount;
-  ftime( &tb );
-  nCount = (int) (tb.millitm + (tb.time & 0xfffff) * 1000);
-  return nCount;
-}
-
-#else
-
-static int BMK_GetMilliStart(void)
-{
-  /* Based on newer gettimeofday()
-  *  Use GetMilliSpan to correct for rollover */
-  struct timeval tv;
-  int nCount;
-  gettimeofday(&tv, NULL);
-  nCount = (int) (tv.tv_usec/1000 + (tv.tv_sec & 0xfffff) * 1000);
-  return nCount;
-}
-
-#endif
-
-
-static int BMK_GetMilliSpan( int nTimeStart )
-{
-  int nSpan = BMK_GetMilliStart() - nTimeStart;
-  if ( nSpan < 0 ) nSpan += 0x100000 * 1000;
-  return nSpan;
+    const clock_t clockEnd = clock();
+    return clockEnd - clockStart;   /* overflow possible */
 }
 
 
@@ -310,7 +272,6 @@ static size_t benchMem(const void* src, size_t srcSize, U32 benchNb)
     const char* benchName;
     size_t (*benchFunction)(void* dst, size_t dstSize, void* verifBuff, const void* src, size_t srcSize);
     double bestTime = 100000000.;
-    size_t errorCode = 0;
 
     /* Selection */
     switch(benchNb)
@@ -416,28 +377,26 @@ static size_t benchMem(const void* src, size_t srcSize, U32 benchNb)
     { size_t i; for (i=0; i<dstBuffSize; i++) dstBuff[i]=(BYTE)i; }     /* warming up memory */
 
     for (loopNb = 1; loopNb <= nbIterations; loopNb++) {
+        clock_t const timeLoop = TIMELOOP_S * CLOCKS_PER_SEC;
+        clock_t clockStart;
+        U32 nbRounds;
+        size_t benchResult=0;
         double averageTime;
-        int milliTime;
-        U32 nbRounds=0;
 
         DISPLAY("%2i- %-30.30s : \r", loopNb, benchName);
 
-        milliTime = BMK_GetMilliStart();
-        while(BMK_GetMilliStart() == milliTime);
-        milliTime = BMK_GetMilliStart();
-        while(BMK_GetMilliSpan(milliTime) < TIMELOOP) {
-            errorCode = benchFunction(dstBuff, dstBuffSize, buff2, src, srcSize);
-            if (ZSTD_isError(errorCode)) { DISPLAY("ERROR ! %s() => %s !! \n", benchName, ZSTD_getErrorName(errorCode)); exit(1); }
-            nbRounds++;
+        clockStart = clock();
+        while (clock() == clockStart);
+        clockStart = clock();
+        for (nbRounds=0; BMK_clockSpan(clockStart) < timeLoop; nbRounds++) {
+            benchResult = benchFunction(dstBuff, dstBuffSize, buff2, src, srcSize);
+            if (ZSTD_isError(benchResult)) { DISPLAY("ERROR ! %s() => %s !! \n", benchName, ZSTD_getErrorName(benchResult)); exit(1); }
         }
-        milliTime = BMK_GetMilliSpan(milliTime);
-
-        averageTime = (double)milliTime / nbRounds;
+        averageTime = (((double)BMK_clockSpan(clockStart)) / CLOCKS_PER_SEC) / nbRounds;
         if (averageTime < bestTime) bestTime = averageTime;
-        DISPLAY("%2i- %-30.30s : %7.1f MB/s  (%9u)\r", loopNb, benchName, (double)srcSize / bestTime / 1000., (U32)errorCode);
+        DISPLAY("%2i- %-30.30s : %7.1f MB/s  (%9u)\r", loopNb, benchName, (double)srcSize / (1 MB) / bestTime, (U32)benchResult);
     }
-
-    DISPLAY("%2u- %-30.30s : %7.1f MB/s  (%9u)\n", benchNb, benchName, (double)srcSize / bestTime / 1000., (U32)errorCode);
+    DISPLAY("%2u\n", benchNb);
 
 _cleanOut:
     free(dstBuff);

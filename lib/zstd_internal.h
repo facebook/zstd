@@ -51,9 +51,7 @@
 *  Common constants
 ***************************************/
 #define ZSTD_OPT_DEBUG 0     // 1 = tableID=0;  3 = price func tests;  5 = check encoded sequences;  9 = full logs
-#if defined(ZSTD_OPT_DEBUG) && ZSTD_OPT_DEBUG>0
-    #include <stdio.h>
-#endif
+#include <stdio.h>
 #if defined(ZSTD_OPT_DEBUG) && ZSTD_OPT_DEBUG>=9
     #define ZSTD_LOG_PARSER(...) printf(__VA_ARGS__)
     #define ZSTD_LOG_ENCODE(...) printf(__VA_ARGS__)
@@ -227,7 +225,6 @@ typedef struct {
 
 seqStore_t ZSTD_copySeqStore(const ZSTD_CCtx* ctx);
 
-void ZSTD_setAdditionalParam(ZSTD_CCtx* ctx, int additionalParam);
-
+extern int kSlotNew;
 
 #endif   /* ZSTD_CCOMMON_H_MODULE */

@@ -653,15 +653,13 @@ static void ZSTD_decodeSequence(seq_t* seq, seqState_t* seqState, const U32 mls)
         offset = offsetPrefix[offsetCode] + BIT_readBits(&(seqState->DStream), nbBits);
         if (MEM_32bits()) BIT_reloadDStream(&(seqState->DStream));
 #if ZSTD_REP_NUM == 4
-        if (offsetCode==0) {
-            if (!litLength) {
-                offset = seqState->prevOffset[1];
-                seqState->prevOffset[1] = seqState->prevOffset[0];
-                seqState->prevOffset[0] = offset;
-            } else
-                offset = seqState->prevOffset[0];
-        } else {
-            if (offset < ZSTD_REP_NUM) { /* offset = 1,2,3 */
+        if (offsetCode==0) offset = 0;
+        
+        if (offset < ZSTD_REP_NUM) {
+            if (!litLength && offset <= 1)
+                offset = 1-offset;
+            if (offset != 0)
+            {
                 size_t temp = seqState->prevOffset[offset];
                 if (offset != 1) {
                     if (offset == 3) seqState->prevOffset[3] = seqState->prevOffset[2];
@@ -670,23 +668,25 @@ static void ZSTD_decodeSequence(seq_t* seq, seqState_t* seqState, const U32 mls)
                 offset = temp;
                 seqState->prevOffset[1] = seqState->prevOffset[0];
                 seqState->prevOffset[0] = offset;
-            } else {
-                offset -= ZSTD_REP_NUM - 1;
-#if 0
-                seqState->prevOffset[3] = seqState->prevOffset[2];
-                seqState->prevOffset[2] = seqState->prevOffset[1];
-                seqState->prevOffset[1] = seqState->prevOffset[0];
-                seqState->prevOffset[0] = offset;
-#else
-                if (kSlotNew < 3)
-                    seqState->prevOffset[3] = seqState->prevOffset[2];
-                if (kSlotNew < 2)
-                    seqState->prevOffset[2] = seqState->prevOffset[1];
-                if (kSlotNew < 1)
-                    seqState->prevOffset[1] = seqState->prevOffset[0];               
-                seqState->prevOffset[kSlotNew] = offset;
-#endif
             }
+            else
+                offset = seqState->prevOffset[0];
+        } else {
+            offset -= ZSTD_REP_NUM - 1;
+#if 0
+            seqState->prevOffset[3] = seqState->prevOffset[2];
+            seqState->prevOffset[2] = seqState->prevOffset[1];
+            seqState->prevOffset[1] = seqState->prevOffset[0];
+            seqState->prevOffset[0] = offset;
+#else
+            if (kSlotNew < 3)
+                seqState->prevOffset[3] = seqState->prevOffset[2];
+            if (kSlotNew < 2)
+                seqState->prevOffset[2] = seqState->prevOffset[1];
+            if (kSlotNew < 1)
+                seqState->prevOffset[1] = seqState->prevOffset[0];               
+            seqState->prevOffset[kSlotNew] = offset;
+#endif
         }
 #else
         if (offsetCode==0) offset = litLength ? seq->offset : seqState->prevOffset[0];   /* repcode, cmove */

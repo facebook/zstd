@@ -632,6 +632,9 @@ static void ZSTD_decodeSequence(seq_t* seq, seqState_t* seqState, const U32 mls)
 
     /* Literal length */
     litLength = FSE_peakSymbol(&(seqState->stateLL));
+#if 0 //ZSTD_REP_NUM == 1
+    size_t prevOffset = litLength ? seq->offset : seqState->prevOffset[0];
+#endif
     if (litLength == MaxLL) {
         U32 add = *dumps++;
         if (add < 255) litLength += add;
@@ -654,6 +657,7 @@ static void ZSTD_decodeSequence(seq_t* seq, seqState_t* seqState, const U32 mls)
         if (offsetCode==0) nbBits = 0;   /* cmove */
         offset = offsetPrefix[offsetCode] + BIT_readBits(&(seqState->DStream), nbBits);
         if (MEM_32bits()) BIT_reloadDStream(&(seqState->DStream));
+#if ZSTD_REP_NUM == 4
         if (offsetCode==0) {
             if (!litLength) {
                 offset = seqState->prevOffset[1];
@@ -675,7 +679,16 @@ static void ZSTD_decodeSequence(seq_t* seq, seqState_t* seqState, const U32 mls)
                 seqState->prevOffset[2] = seqState->prevOffset[1];
                 seqState->prevOffset[1] = seq->offset;   /* cmove */
             }
-        } 
+        }
+#else
+#if 0
+        if (offsetCode==0) offset = prevOffset;   /* repcode, cmove */
+        if (offsetCode | !litLength) seqState->prevOffset[0] = seq->offset;   /* cmove */
+#else
+        if (offsetCode==0) offset = litLength ? seq->offset : seqState->prevOffset[0];   /* repcode, cmove */
+        if (offsetCode | !litLength) seqState->prevOffset[0] = seq->offset;   /* cmove */
+#endif
+#endif
         FSE_decodeSymbol(&(seqState->stateOffb), &(seqState->DStream));    /* update */
 //    printf("offsetCode=%d nbBits=%d offset=%d\n", offsetCode, nbBits, (int)offset); fflush(stdout);
     }

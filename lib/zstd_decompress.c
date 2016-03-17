@@ -656,12 +656,12 @@ static void ZSTD_decodeSequence(seq_t* seq, seqState_t* seqState, const U32 mls)
 {
     const BYTE* dumps = seqState->dumps;
     const BYTE* const de = seqState->dumpsEnd;
-    size_t litLength, offset, matchLength;
+    size_t litLength, offset;
 
     /* Literal length */
     litLength = FSE_peakSymbol(&(seqState->stateLL));
     if (litLength == MaxLL) {
-        U32 add = *dumps++;
+        const U32 add = *dumps++;
         if (add < 255) litLength += add;
         else {
             litLength = MEM_readLE32(dumps) & 0xFFFFFF;  /* no risk : dumps is always followed by seq tables > 1 byte */
@@ -677,9 +677,8 @@ static void ZSTD_decodeSequence(seq_t* seq, seqState_t* seqState, const U32 mls)
                 1 /*fake*/, 1, 2, 4, 8, 0x10, 0x20, 0x40, 0x80, 0x100,
                 0x200, 0x400, 0x800, 0x1000, 0x2000, 0x4000, 0x8000, 0x10000, 0x20000, 0x40000,
                 0x80000, 0x100000, 0x200000, 0x400000, 0x800000, 0x1000000, 0x2000000, 0x4000000, /*fake*/ 1, 1, 1, 1 };
-        U32 offsetCode = FSE_peakSymbol(&(seqState->stateOffb));   /* <= maxOff, by table construction */
-        U32 nbBits = offsetCode - 1;
-        if (offsetCode==0) nbBits = 0;   /* cmove */
+        const U32 offsetCode = FSE_peakSymbol(&(seqState->stateOffb));   /* <= maxOff, by table construction */
+        const U32 nbBits = offsetCode ? offsetCode-1 : 0;
         offset = offsetPrefix[offsetCode] + BIT_readBits(&(seqState->DStream), nbBits);
         if (MEM_32bits()) BIT_reloadDStream(&(seqState->DStream));
         if (offsetCode==0) offset = litLength ? seq->offset : seqState->prevOffset;
@@ -692,23 +691,25 @@ static void ZSTD_decodeSequence(seq_t* seq, seqState_t* seqState, const U32 mls)
     if (MEM_32bits()) BIT_reloadDStream(&(seqState->DStream));
 
     /* MatchLength */
-    matchLength = FSE_decodeSymbol(&(seqState->stateML), &(seqState->DStream));
-    if (matchLength == MaxML) {
-        U32 add = *dumps++;
-        if (add < 255) matchLength += add;
-        else {
-            matchLength = MEM_readLE32(dumps) & 0xFFFFFF;  /* no pb : dumps is always followed by seq tables > 1 byte */
-            if (matchLength&1) matchLength>>=1, dumps += 3;
-            else matchLength = (U16)(matchLength)>>1, dumps += 2;
+    {
+        size_t matchLength = FSE_decodeSymbol(&(seqState->stateML), &(seqState->DStream));
+        if (matchLength == MaxML) {
+            const U32 add = *dumps++;
+            if (add < 255) matchLength += add;
+            else {
+                matchLength = MEM_readLE32(dumps) & 0xFFFFFF;  /* no pb : dumps is always followed by seq tables > 1 byte */
+                if (matchLength&1) matchLength>>=1, dumps += 3;
+                else matchLength = (U16)(matchLength)>>1, dumps += 2;
+            }
+            if (dumps >= de) dumps = de-1;   /* late correction, to avoid read overflow (data is now corrupted anyway) */
         }
-        if (dumps >= de) dumps = de-1;   /* late correction, to avoid read overflow (data is now corrupted anyway) */
+        matchLength += mls;
+        seq->matchLength = matchLength;
     }
-    matchLength += mls;
 
     /* save result */
     seq->litLength = litLength;
     seq->offset = offset;
-    seq->matchLength = matchLength;
     seqState->dumps = dumps;
 
 #if 0   /* debug */

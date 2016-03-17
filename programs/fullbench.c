@@ -328,32 +328,42 @@ static size_t benchMem(const void* src, size_t srcSize, U32 benchNb)
         g_cSize = ZSTD_compress(buff2, dstBuffSize, src, srcSize, 1);
         break;
     case 31:  /* ZSTD_decodeLiteralsBlock */
+        if (g_zdc==NULL) g_zdc = ZSTD_createDCtx();
         {   blockProperties_t bp;
+            ZSTD_frameParams zfp;
+            size_t frameHeaderSize, skippedSize;
             g_cSize = ZSTD_compress(dstBuff, dstBuffSize, src, srcSize, 1);
-            ZSTD_getcBlockSize(dstBuff+4, dstBuffSize, &bp);  /* Get 1st block type */
+            frameHeaderSize = ZSTD_getFrameParams(&zfp, dstBuff, ZSTD_frameHeaderSize_min);
+            if (frameHeaderSize==0) frameHeaderSize = ZSTD_frameHeaderSize_min;
+            ZSTD_getcBlockSize(dstBuff+frameHeaderSize, dstBuffSize, &bp);  /* Get 1st block type */
             if (bp.blockType != bt_compressed) {
                 DISPLAY("ZSTD_decodeLiteralsBlock : impossible to test on this sample (not compressible)\n");
                 goto _cleanOut;
             }
-            memcpy(buff2, dstBuff+8, g_cSize-8);
+            skippedSize = frameHeaderSize + 3 /* ZSTD_blockHeaderSize */;
+            memcpy(buff2, dstBuff+skippedSize, g_cSize-skippedSize);
             srcSize = srcSize > 128 KB ? 128 KB : srcSize;    /* speed relative to block */
             break;
         }
     case 32:   /* ZSTD_decodeSeqHeaders */
         if (g_zdc==NULL) g_zdc = ZSTD_createDCtx();
         {   blockProperties_t bp;
+            ZSTD_frameParams zfp;
             const BYTE* ip = dstBuff;
             const BYTE* iend;
-            size_t blockSize;
+            size_t frameHeaderSize, cBlockSize;
             ZSTD_compress(dstBuff, dstBuffSize, src, srcSize, 1);   /* it would be better to use direct block compression here */
-            ip += 5;   /* Skip frame Header */
-            blockSize = ZSTD_getcBlockSize(ip, dstBuffSize, &bp);   /* Get 1st block type */
+            g_cSize = ZSTD_compress(dstBuff, dstBuffSize, src, srcSize, 1);
+            frameHeaderSize = ZSTD_getFrameParams(&zfp, dstBuff, ZSTD_frameHeaderSize_min);
+            if (frameHeaderSize==0) frameHeaderSize = ZSTD_frameHeaderSize_min;
+            ip += frameHeaderSize;   /* Skip frame Header */
+            cBlockSize = ZSTD_getcBlockSize(ip, dstBuffSize, &bp);   /* Get 1st block type */
             if (bp.blockType != bt_compressed) {
                 DISPLAY("ZSTD_decodeSeqHeaders : impossible to test on this sample (not compressible)\n");
                 goto _cleanOut;
             }
-            iend = ip + 3 + blockSize;   /* End of first block */
-            ip += 3;                     /* skip block header */
+            iend = ip + 3 /* ZSTD_blockHeaderSize */ + cBlockSize;   /* End of first block */
+            ip += 3 /* ZSTD_blockHeaderSize */;                     /* skip block header */
             ip += ZSTD_decodeLiteralsBlock(g_zdc, ip, iend-ip);  /* skip literal segment */
             g_cSize = iend-ip;
             memcpy(buff2, ip, g_cSize);   /* copy rest of block (it starts by SeqHeader) */

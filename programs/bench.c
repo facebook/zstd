@@ -280,7 +280,7 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
     }   }   }
 
     /* warmimg up memory */
-    int timeloop = additionalParam; //2500;
+    int timeloop = additionalParam ? additionalParam : 2500;
     ZSTD_setAdditionalParam(refCtx, additionalParam);
     RDG_genBuffer(compressedBuffer, maxCompressedSize, 0.10, 0.50, 1);
 

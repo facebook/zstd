@@ -420,8 +420,8 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
     U32 cur, match_num, last_pos, litlen, price;
 
     /* init */
-    U32 rep[ZSTD_REP_NUM];
-    for (int i=0; i<ZSTD_REP_NUM; i++)
+    U32 rep[ZSTD_REP_NUM+1];
+    for (int i=0; i<ZSTD_REP_NUM+1; i++)
         rep[i]=REPCODE_STARTVALUE;
 
     ctx->nextToUpdate3 = ctx->nextToUpdate;
@@ -748,8 +748,8 @@ void ZSTD_compressBlock_opt_extDict_generic(ZSTD_CCtx* ctx,
     U32 cur, match_num, last_pos, litlen, price;
 
     /* init */
-    U32 rep[ZSTD_REP_NUM];
-    for (int i=0; i<ZSTD_REP_NUM; i++)
+    U32 rep[ZSTD_REP_NUM+1];
+    for (int i=0; i<ZSTD_REP_NUM+1; i++)
         rep[i]=REPCODE_STARTVALUE;
 
     ctx->nextToUpdate3 = ctx->nextToUpdate;

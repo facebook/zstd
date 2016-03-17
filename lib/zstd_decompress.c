@@ -677,9 +677,8 @@ static void ZSTD_decodeSequence(seq_t* seq, seqState_t* seqState, const U32 mls)
                 1 /*fake*/, 1, 2, 4, 8, 0x10, 0x20, 0x40, 0x80, 0x100,
                 0x200, 0x400, 0x800, 0x1000, 0x2000, 0x4000, 0x8000, 0x10000, 0x20000, 0x40000,
                 0x80000, 0x100000, 0x200000, 0x400000, 0x800000, 0x1000000, 0x2000000, 0x4000000, /*fake*/ 1, 1, 1, 1 };
-        U32 offsetCode = FSE_peakSymbol(&(seqState->stateOffb));   /* <= maxOff, by table construction */
-        U32 nbBits = offsetCode - 1;
-        if (offsetCode==0) nbBits = 0;   /* cmove */
+        const U32 offsetCode = FSE_peakSymbol(&(seqState->stateOffb));   /* <= maxOff, by table construction */
+        const U32 nbBits = offsetCode ? offsetCode-1 : 0;
         offset = offsetPrefix[offsetCode] + BIT_readBits(&(seqState->DStream), nbBits);
         if (MEM_32bits()) BIT_reloadDStream(&(seqState->DStream));
         if (offsetCode==0) offset = litLength ? seq->offset : seqState->prevOffset;

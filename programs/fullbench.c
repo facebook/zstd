@@ -37,11 +37,6 @@
 #  define _LARGEFILE64_SOURCE
 #endif
 
-/* S_ISREG & gettimeofday() are not supported by MSVC */
-#if defined(_MSC_VER) || defined(_WIN32)
-#  define BMK_LEGACY_TIMER 1
-#endif
-
 
 /*_************************************
 *  Includes
@@ -103,13 +98,13 @@ static const size_t g_sampleSize = 10000000;
 /*_************************************
 *  Benchmark Parameters
 **************************************/
-static int nbIterations = NBLOOPS;
+static U32 g_nbIterations = NBLOOPS;
 static double g_compressibility = COMPRESSIBILITY_DEFAULT;
 
-void BMK_SetNbIterations(int nbLoops)
+static void BMK_SetNbIterations(U32 nbLoops)
 {
-    nbIterations = nbLoops;
-    DISPLAY("- %i iterations -\n", nbIterations);
+    g_nbIterations = nbLoops;
+    DISPLAY("- %i iterations -\n", g_nbIterations);
 }
 
 
@@ -118,27 +113,26 @@ void BMK_SetNbIterations(int nbLoops)
 *********************************************************/
 static clock_t BMK_clockSpan( clock_t clockStart )
 {
-    const clock_t clockEnd = clock();
-    return clockEnd - clockStart;   /* overflow possible */
+    return clock() - clockStart;   /* works even if overflow, span limited to <= ~30mn */
 }
 
 
 static size_t BMK_findMaxMem(U64 requiredMem)
 {
-    size_t step = 64 MB;
+    const size_t step = 64 MB;
     void* testmem = NULL;
 
     requiredMem = (((requiredMem >> 26) + 1) << 26);
     if (requiredMem > MAX_MEM) requiredMem = MAX_MEM;
 
-    requiredMem += 2*step;
-    while (!testmem) {
-        requiredMem -= step;
+    requiredMem += step;
+    do {
         testmem = malloc ((size_t)requiredMem);
-    }
+        requiredMem -= step;
+    } while (!testmem);
 
     free (testmem);
-    return (size_t) (requiredMem - step);
+    return (size_t) requiredMem;
 }
 
 
@@ -268,7 +262,6 @@ static size_t benchMem(const void* src, size_t srcSize, U32 benchNb)
     BYTE*  dstBuff;
     size_t dstBuffSize;
     BYTE*  buff2;
-    int loopNb;
     const char* benchName;
     size_t (*benchFunction)(void* dst, size_t dstSize, void* verifBuff, const void* src, size_t srcSize);
     double bestTime = 100000000.;
@@ -386,7 +379,8 @@ static size_t benchMem(const void* src, size_t srcSize, U32 benchNb)
 
     { size_t i; for (i=0; i<dstBuffSize; i++) dstBuff[i]=(BYTE)i; }     /* warming up memory */
 
-    for (loopNb = 1; loopNb <= nbIterations; loopNb++) {
+    { U32 loopNb;
+    for (loopNb = 1; loopNb <= g_nbIterations; loopNb++) {
         clock_t const timeLoop = TIMELOOP_S * CLOCKS_PER_SEC;
         clock_t clockStart;
         U32 nbRounds;
@@ -405,7 +399,7 @@ static size_t benchMem(const void* src, size_t srcSize, U32 benchNb)
         averageTime = (((double)BMK_clockSpan(clockStart)) / CLOCKS_PER_SEC) / nbRounds;
         if (averageTime < bestTime) bestTime = averageTime;
         DISPLAY("%2i- %-30.30s : %7.1f MB/s  (%9u)\r", loopNb, benchName, (double)srcSize / (1 MB) / bestTime, (U32)benchResult);
-    }
+    }}
     DISPLAY("%2u\n", benchNb);
 
 _cleanOut:

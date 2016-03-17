@@ -30,7 +30,7 @@ int BMK_benchFiles(const char** fileNamesTable, unsigned nbFiles,
                    const char* dictFileName, int cLevel);
 
 /* Set Parameters */
-void BMK_SetNbIterations(int nbLoops);
+void BMK_SetNbIterations(unsigned nbLoops);
 void BMK_SetBlockSize(size_t blockSize);
 
 

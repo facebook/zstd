@@ -126,13 +126,13 @@ static U32 g_displayLevel = 2;   /* 0 : no display;   1: errors;   2 : + result 
 /* *************************************
 *  Benchmark Parameters
 ***************************************/
-static int nbIterations = NBLOOPS;
+static U32 g_nbIterations = NBLOOPS;
 static size_t g_blockSize = 0;
 
-void BMK_SetNbIterations(int nbLoops)
+void BMK_SetNbIterations(unsigned nbLoops)
 {
-    nbIterations = nbLoops;
-    DISPLAY("- %i iterations -\n", nbIterations);
+    g_nbIterations = nbLoops;
+    DISPLAY("- %i iterations -\n", g_nbIterations);
 }
 
 void BMK_SetBlockSize(size_t blockSize)
@@ -238,7 +238,7 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
 
     /* Bench */
     {
-        int loopNb;
+        U32 loopNb;
         size_t cSize = 0;
         double fastestC = 100000000., fastestD = 100000000.;
         double ratio = 0.;
@@ -246,10 +246,11 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
         clock_t coolTime = clock();
 
         DISPLAY("\r%79s\r", "");
-        for (loopNb = 1; loopNb <= nbIterations; loopNb++) {
+        for (loopNb = 1; loopNb <= (g_nbIterations + !g_nbIterations); loopNb++) {
             int nbLoops;
             U32 blockNb;
             clock_t clockStart, clockSpan;
+            clock_t const clockLoop = g_nbIterations ? TIMELOOP_S * CLOCKS_PER_SEC : 10;
 
             /* overheat protection */
             if (BMK_clockSpan(coolTime) > ACTIVEPERIOD_S * CLOCKS_PER_SEC) {
@@ -266,7 +267,7 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
             clockStart = clock();
             while (clock() == clockStart);
             clockStart = clock();
-            while (BMK_clockSpan(clockStart) < TIMELOOP_S * CLOCKS_PER_SEC) {
+            while (BMK_clockSpan(clockStart) < clockLoop) {
                 ZSTD_compressBegin_advanced(refCtx, dictBuffer, dictBufferSize, ZSTD_getParams(cLevel, MAX(dictBufferSize, largestBlockSize)));
                 for (blockNb=0; blockNb<nbBlocks; blockNb++) {
                     size_t rSize = ZSTD_compress_usingPreparedCCtx(ctx, refCtx,
@@ -297,7 +298,7 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
             while (clock() == clockStart);
             clockStart = clock();
 
-            for ( ; BMK_clockSpan(clockStart) < TIMELOOP_S * CLOCKS_PER_SEC; nbLoops++) {
+            for ( ; BMK_clockSpan(clockStart) < clockLoop; nbLoops++) {
                 ZSTD_decompressBegin_usingDict(refDCtx, dictBuffer, dictBufferSize);
                 for (blockNb=0; blockNb<nbBlocks; blockNb++) {
                     size_t regenSize = ZSTD_decompress_usingPreparedDCtx(dctx, refDCtx,

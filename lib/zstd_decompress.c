@@ -654,16 +654,12 @@ typedef struct {
 
 static void ZSTD_decodeSequence(seq_t* seq, seqState_t* seqState, const U32 mls)
 {
-    size_t litLength;
-    size_t prevOffset;
-    size_t offset;
-    size_t matchLength;
     const BYTE* dumps = seqState->dumps;
     const BYTE* const de = seqState->dumpsEnd;
+    size_t litLength, offset, matchLength;
 
     /* Literal length */
     litLength = FSE_peakSymbol(&(seqState->stateLL));
-    prevOffset = litLength ? seq->offset : seqState->prevOffset;
     if (litLength == MaxLL) {
         U32 add = *dumps++;
         if (add < 255) litLength += add;
@@ -686,7 +682,7 @@ static void ZSTD_decodeSequence(seq_t* seq, seqState_t* seqState, const U32 mls)
         if (offsetCode==0) nbBits = 0;   /* cmove */
         offset = offsetPrefix[offsetCode] + BIT_readBits(&(seqState->DStream), nbBits);
         if (MEM_32bits()) BIT_reloadDStream(&(seqState->DStream));
-        if (offsetCode==0) offset = prevOffset;   /* repcode, cmove */
+        if (offsetCode==0) offset = litLength ? seq->offset : seqState->prevOffset;
         if (offsetCode | !litLength) seqState->prevOffset = seq->offset;   /* cmove */
         FSE_decodeSymbol(&(seqState->stateOffb), &(seqState->DStream));    /* update */
     }

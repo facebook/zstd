@@ -228,6 +228,8 @@ typedef struct
 #define MIN(a,b) ((a)<(b) ? (a) : (b))
 #define MAX(a,b) ((a)>(b) ? (a) : (b))
 
+int kSlotNew = 0;
+
 static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
                         const char* displayName, int cLevel, int additionalParam,
                         const size_t* fileSizes, U32 nbFiles,
@@ -280,8 +282,9 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
     }   }   }
 
     /* warmimg up memory */
-    int timeloop = additionalParam ? additionalParam : 2500;
-    ZSTD_setAdditionalParam(refCtx, additionalParam);
+//    int timeloop = additionalParam ? additionalParam : 2500;
+    int timeloop = 2500;
+    kSlotNew = additionalParam;
     RDG_genBuffer(compressedBuffer, maxCompressedSize, 0.10, 0.50, 1);
 
     /* Bench */

@@ -620,8 +620,6 @@ typedef struct {
     const BYTE* dumpsEnd;
 } seqState_t;
 
-
-
 static void ZSTD_decodeSequence(seq_t* seq, seqState_t* seqState, const U32 mls)
 {
     size_t litLength;
@@ -632,9 +630,6 @@ static void ZSTD_decodeSequence(seq_t* seq, seqState_t* seqState, const U32 mls)
 
     /* Literal length */
     litLength = FSE_peakSymbol(&(seqState->stateLL));
-#if 0 //ZSTD_REP_NUM == 1
-    size_t prevOffset = litLength ? seq->offset : seqState->prevOffset[0];
-#endif
     if (litLength == MaxLL) {
         U32 add = *dumps++;
         if (add < 255) litLength += add;
@@ -661,9 +656,10 @@ static void ZSTD_decodeSequence(seq_t* seq, seqState_t* seqState, const U32 mls)
         if (offsetCode==0) {
             if (!litLength) {
                 offset = seqState->prevOffset[1];
-                seqState->prevOffset[1] = seq->offset;   /* cmove */
+                seqState->prevOffset[1] = seqState->prevOffset[0];
+                seqState->prevOffset[0] = offset;
             } else
-                offset = seq->offset;
+                offset = seqState->prevOffset[0];
         } else {
             if (offset < ZSTD_REP_NUM) { /* offset = 1,2,3 */
                 size_t temp = seqState->prevOffset[offset];
@@ -671,23 +667,30 @@ static void ZSTD_decodeSequence(seq_t* seq, seqState_t* seqState, const U32 mls)
                     if (offset == 3) seqState->prevOffset[3] = seqState->prevOffset[2];
                     seqState->prevOffset[2] = seqState->prevOffset[1];
                 }
-                seqState->prevOffset[1] = seq->offset;
                 offset = temp;
+                seqState->prevOffset[1] = seqState->prevOffset[0];
+                seqState->prevOffset[0] = offset;
             } else {
                 offset -= ZSTD_REP_NUM - 1;
+#if 0
                 seqState->prevOffset[3] = seqState->prevOffset[2];
                 seqState->prevOffset[2] = seqState->prevOffset[1];
-                seqState->prevOffset[1] = seq->offset;   /* cmove */
+                seqState->prevOffset[1] = seqState->prevOffset[0];
+                seqState->prevOffset[0] = offset;
+#else
+                if (kSlotNew < 3)
+                    seqState->prevOffset[3] = seqState->prevOffset[2];
+                if (kSlotNew < 2)
+                    seqState->prevOffset[2] = seqState->prevOffset[1];
+                if (kSlotNew < 1)
+                    seqState->prevOffset[1] = seqState->prevOffset[0];               
+                seqState->prevOffset[kSlotNew] = offset;
+#endif
             }
         }
 #else
-#if 0
-        if (offsetCode==0) offset = prevOffset;   /* repcode, cmove */
-        if (offsetCode | !litLength) seqState->prevOffset[0] = seq->offset;   /* cmove */
-#else
         if (offsetCode==0) offset = litLength ? seq->offset : seqState->prevOffset[0];   /* repcode, cmove */
         if (offsetCode | !litLength) seqState->prevOffset[0] = seq->offset;   /* cmove */
-#endif
 #endif
         FSE_decodeSymbol(&(seqState->stateOffb), &(seqState->DStream));    /* update */
 //    printf("offsetCode=%d nbBits=%d offset=%d\n", offsetCode, nbBits, (int)offset); fflush(stdout);

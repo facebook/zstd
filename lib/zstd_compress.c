@@ -1574,18 +1574,18 @@ void ZSTD_compressBlock_lazy_generic(ZSTD_CCtx* ctx,
     while (ip < ilimit) {
         size_t matchLength=0;
         size_t offset=0;
-        const BYTE* start=ip+1;
+        const BYTE* start=ip;
 
         /* check repCode */
         for (int i=0; i<ZSTD_REP_NUM; i++)
-        if (MEM_read32(ip+1) == MEM_read32(ip+1 - rep[i])) {
+        if (MEM_read32(ip) == MEM_read32(ip - rep[i])) {
             /* repcode : we take it */
             if (matchLength==0) {
-                matchLength = ZSTD_count(ip+1+MINMATCH, ip+1+MINMATCH-rep[i], iend) + MINMATCH;
+                matchLength = ZSTD_count(ip+MINMATCH, ip+MINMATCH-rep[i], iend) + MINMATCH;
                 offset = i;
                 if (depth==0) goto _storeSequence;
-            } else {                   
-                size_t mlRep = ZSTD_count(ip+1+MINMATCH, ip+1+MINMATCH-rep[i], iend) + MINMATCH;
+            } else {
+                size_t mlRep = ZSTD_count(ip+MINMATCH, ip+MINMATCH-rep[i], iend) + MINMATCH;
                 int gain2 = (int)(mlRep * 3 /*- ZSTD_highbit((U32)i+1)*/);
                 int gain1 = (int)(matchLength*3 - /*ZSTD_highbit((U32)offset+1)*/ + 1);
                 if (gain2 > gain1)
@@ -1686,6 +1686,8 @@ _storeSequence:
                     rep[1] = rep[0];
                     rep[0] = temp;
                 }
+
+                if (offset<=1 && start==anchor) offset = 1-offset;
             }
 #else
             if (offset >= ZSTD_REP_NUM) {
@@ -1696,20 +1698,7 @@ _storeSequence:
             ZSTD_storeSeq(seqStorePtr, litLength, anchor, offset, matchLength-MINMATCH);
             anchor = ip = start + matchLength;
         }
-
-        /* check immediate repcode */
-        while ( (ip <= ilimit)
-             && (MEM_read32(ip) == MEM_read32(ip - rep[1])) ) {
-            /* store sequence */
-            matchLength = ZSTD_count(ip+MINMATCH, ip+MINMATCH-rep[1], iend);
-            offset = rep[1];
-            rep[1] = rep[0];
-            rep[0] = offset;
-            ZSTD_storeSeq(seqStorePtr, 0, anchor, 0, matchLength);
-            ip += matchLength+MINMATCH;
-            anchor = ip;
-            continue;   /* faster when present ... (?) */
-    }   }
+    }
 
     /* Last Literals */
     {

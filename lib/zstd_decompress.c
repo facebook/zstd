@@ -710,12 +710,9 @@ static void ZSTD_decodeSequence(seq_t* seq, seqState_t* seqState, const U32 mls)
             seqState->prevOffset[1] = seqState->prevOffset[0];
             seqState->prevOffset[0] = offset;
     #else
-            if (kSlotNew < 3)
-                seqState->prevOffset[3] = seqState->prevOffset[2];
-            if (kSlotNew < 2)
-                seqState->prevOffset[2] = seqState->prevOffset[1];
-            if (kSlotNew < 1)
-                seqState->prevOffset[1] = seqState->prevOffset[0];               
+            if (kSlotNew < 3) seqState->prevOffset[3] = seqState->prevOffset[2];
+            if (kSlotNew < 2) seqState->prevOffset[2] = seqState->prevOffset[1];
+            if (kSlotNew < 1) seqState->prevOffset[1] = seqState->prevOffset[0];               
             seqState->prevOffset[kSlotNew] = offset;
     #endif
         }

@@ -1699,22 +1699,17 @@ _storeSequence:
                 rep[1] = rep[0];
                 rep[0] = offset - ZSTD_REP_MOVE;
 #else
-                if (kSlotNew < 3)
-                    rep[3] = rep[2];
-                if (kSlotNew < 2)
-                    rep[2] = rep[1];
-                if (kSlotNew < 1)
-                    rep[1] = rep[0];               
+                if (kSlotNew < 3) rep[3] = rep[2];
+                if (kSlotNew < 2) rep[2] = rep[1];
+                if (kSlotNew < 1) rep[1] = rep[0];               
                 rep[kSlotNew] = offset - ZSTD_REP_MOVE;
 #endif
             } else {
                 if (offset != 0) {
                     size_t temp = rep[offset];
-                    if (offset != 1) {
-                        if (offset == 3) rep[3] = rep[2];
-                        rep[2] = rep[1];
-                    }
-                    rep[1] = rep[0];
+                    if (offset > 2) rep[3] = rep[2];
+                    if (offset > 1) rep[2] = rep[1];
+                    if (offset > 0) rep[1] = rep[0];
                     rep[0] = temp;
                 }
 

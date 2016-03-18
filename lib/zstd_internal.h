@@ -90,6 +90,8 @@ static const size_t ZSTD_blockHeaderSize = ZSTD_BLOCKHEADERSIZE;
 #define REPCODE_STARTVALUE 1
 #define ZSTD_WINDOWLOG_ABSOLUTEMIN 12
 
+#define LONGNBSEQ 0x7F00
+
 #define Litbits  8
 #define MLbits   7
 #define LLbits   6
@@ -101,9 +103,7 @@ static const size_t ZSTD_blockHeaderSize = ZSTD_BLOCKHEADERSIZE;
 #define MLFSELog   10
 #define LLFSELog   10
 #define OffFSELog   9
-#define MaxSeq MAX(MaxLL, MaxML)
-
-#define LONGNBSEQ 0x7F00
+#define MaxSeq MAX(MaxLL, MaxML)   /* Assumption : MaxOff < MaxLL,MaxML */
 
 #define FSE_ENCODING_RAW     0
 #define FSE_ENCODING_RLE     1

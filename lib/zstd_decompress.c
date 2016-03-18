@@ -508,6 +508,39 @@ size_t ZSTD_decodeLiteralsBlock(ZSTD_DCtx* dctx,
 }
 
 
+/*! ZSTD_buildSeqTable() :
+    @return : nb bytes read from src,
+              or an error code if it fails, testable with ZSTD_isError()
+*/
+static size_t ZSTD_buildSeqTable(FSE_DTable* DTable, U32 type, U32 rawBits, U32 maxLog,
+                                 const void* src, size_t srcSize)
+{
+    switch(type)
+    {
+    case FSE_ENCODING_RLE :
+        if (!srcSize) return ERROR(srcSize_wrong);
+        FSE_buildDTable_rle(DTable, *(const BYTE*)src);
+        return 1;
+    case FSE_ENCODING_RAW :
+        FSE_buildDTable_raw(DTable, rawBits);
+        return 0;
+    case FSE_ENCODING_STATIC:
+        return 0;
+    default :   /* impossible */
+    case FSE_ENCODING_DYNAMIC :
+        {   U32 tableLog, max = (1<<rawBits)-1;
+            S16 norm[MaxSeq+1];
+            size_t const headerSize = FSE_readNCount(norm, &max, &tableLog, src, srcSize);
+            if (FSE_isError(headerSize)) return ERROR(GENERIC);
+            if (tableLog > maxLog) return ERROR(corruption_detected);
+            FSE_buildDTable(DTable, norm, max, tableLog);
+            return headerSize;
+    }   }
+}
+
+
+
+
 size_t ZSTD_decodeSeqHeaders(int* nbSeq, const BYTE** dumpsPtr, size_t* dumpsLengthPtr,
                          FSE_DTable* DTableLL, FSE_DTable* DTableML, FSE_DTable* DTableOffb,
                          const void* src, size_t srcSize)
@@ -516,11 +549,9 @@ size_t ZSTD_decodeSeqHeaders(int* nbSeq, const BYTE** dumpsPtr, size_t* dumpsLen
     const BYTE* ip = istart;
     const BYTE* const iend = istart + srcSize;
     U32 LLtype, Offtype, MLtype;
-    size_t dumpsLength;
 
     /* check */
-    if (srcSize < MIN_SEQUENCES_SIZE)
-        return ERROR(srcSize_wrong);
+    if (srcSize < MIN_SEQUENCES_SIZE) return ERROR(srcSize_wrong);
 
     /* SeqHead */
     *nbSeq = *ip++;
@@ -536,91 +567,37 @@ size_t ZSTD_decodeSeqHeaders(int* nbSeq, const BYTE** dumpsPtr, size_t* dumpsLen
     LLtype  = *ip >> 6;
     Offtype = (*ip >> 4) & 3;
     MLtype  = (*ip >> 2) & 3;
-    if (*ip & 2) {
-        dumpsLength  = ip[2];
-        dumpsLength += ip[1] << 8;
-        ip += 3;
-    } else {
-        dumpsLength  = ip[1];
-        dumpsLength += (ip[0] & 1) << 8;
-        ip += 2;
+    {   size_t dumpsLength;
+        if (*ip & 2) {
+            dumpsLength  = ip[2];
+            dumpsLength += ip[1] << 8;
+            ip += 3;
+        } else {
+            dumpsLength  = ip[1];
+            dumpsLength += (ip[0] & 1) << 8;
+            ip += 2;
+        }
+        *dumpsPtr = ip;
+        ip += dumpsLength;
+        *dumpsLengthPtr = dumpsLength;
     }
-    *dumpsPtr = ip;
-    ip += dumpsLength;
-    *dumpsLengthPtr = dumpsLength;
 
     /* check */
     if (ip > iend-3) return ERROR(srcSize_wrong); /* min : all 3 are "raw", hence no header, but at least xxLog bits per type */
 
     /* Build DTables */
-    {
-        S16 norm[MaxML+1];    /* assumption : MaxML >= MaxLL >= MaxOff */
-
-        switch(LLtype)
-        {
-        case FSE_ENCODING_RLE :
-            FSE_buildDTable_rle(DTableLL, *ip++);
-            break;
-        case FSE_ENCODING_RAW :
-            FSE_buildDTable_raw(DTableLL, LLbits);
-            break;
-        case FSE_ENCODING_STATIC:
-            break;
-        default :   /* impossible */
-        case FSE_ENCODING_DYNAMIC :
-            {   U32 LLlog, max = MaxLL;
-                size_t const headerSize = FSE_readNCount(norm, &max, &LLlog, ip, iend-ip);
-                if (FSE_isError(headerSize)) return ERROR(GENERIC);
-                if (LLlog > LLFSELog) return ERROR(corruption_detected);
-                ip += headerSize;
-                FSE_buildDTable(DTableLL, norm, max, LLlog);
-            }
-        }
-
-        switch(Offtype)
-        {
-        case FSE_ENCODING_RLE :
-            if (ip > iend-2) return ERROR(srcSize_wrong);   /* min : "raw", hence no header, but at least xxLog bits */
-            FSE_buildDTable_rle(DTableOffb, *ip++ & MaxOff); /* if *ip > MaxOff, data is corrupted */
-            break;
-        case FSE_ENCODING_RAW :
-            FSE_buildDTable_raw(DTableOffb, Offbits);
-            break;
-        case FSE_ENCODING_STATIC:
-            break;
-        default :   /* impossible */
-        case FSE_ENCODING_DYNAMIC :
-            {
-                U32 Offlog, max = MaxOff;
-                size_t const headerSize = FSE_readNCount(norm, &max, &Offlog, ip, iend-ip);
-                if (FSE_isError(headerSize)) return ERROR(GENERIC);
-                if (Offlog > OffFSELog) return ERROR(corruption_detected);
-                ip += headerSize;
-                FSE_buildDTable(DTableOffb, norm, max, Offlog);
-            }
-        }
-
-        switch(MLtype)
-        {
-        case FSE_ENCODING_RLE :
-            if (ip > iend-2) return ERROR(srcSize_wrong); /* min : "raw", hence no header, but at least xxLog bits */
-            FSE_buildDTable_rle(DTableML, *ip++);
-            break;
-        case FSE_ENCODING_RAW :
-            FSE_buildDTable_raw(DTableML, MLbits);
-            break;
-        case FSE_ENCODING_STATIC:
-            break;
-        default :   /* impossible */
-        case FSE_ENCODING_DYNAMIC :
-            {   U32 MLlog, max = MaxML;
-                size_t const headerSize = FSE_readNCount(norm, &max, &MLlog, ip, iend-ip);
-                if (FSE_isError(headerSize)) return ERROR(GENERIC);
-                if (MLlog > MLFSELog) return ERROR(corruption_detected);
-                ip += headerSize;
-                FSE_buildDTable(DTableML, norm, max, MLlog);
-            }
-    }   }   /* Build DTables */
+    {   size_t const bhSize = ZSTD_buildSeqTable(DTableLL, LLtype, LLbits, LLFSELog, ip, iend-ip);
+        if (ZSTD_isError(bhSize)) return ERROR(corruption_detected);
+        ip += bhSize;
+    }
+    {   size_t const bhSize = ZSTD_buildSeqTable(DTableOffb, Offtype, Offbits, OffFSELog, ip, iend-ip);
+        if (ZSTD_isError(bhSize)) return ERROR(corruption_detected);
+        ip += bhSize;
+    }
+    {   size_t const bhSize = ZSTD_buildSeqTable(DTableML, MLtype, MLbits, MLFSELog, ip, iend-ip);
+        if (ZSTD_isError(bhSize)) return ERROR(corruption_detected);
+        ip += bhSize;
+    }
 
     return ip-istart;
 }

@@ -993,7 +993,7 @@ void ZSTD_compressBlock_fast_generic(ZSTD_CCtx* zc,
             offset_2 = offset_1;
             offset_1 = offset;
 
-            ZSTD_storeSeq(seqStorePtr, ip-anchor, anchor, offset + ZSTD_REP_NUM - 1, mlCode);
+            ZSTD_storeSeq(seqStorePtr, ip-anchor, anchor, offset + ZSTD_REP_MOVE, mlCode);
         }
 
         /* match found */
@@ -1105,7 +1105,7 @@ static void ZSTD_compressBlock_fast_extDict_generic(ZSTD_CCtx* ctx,
                 offset = current - matchIndex;
                 offset_2 = offset_1;
                 offset_1 = offset;
-                ZSTD_storeSeq(seqStorePtr, ip-anchor, anchor, offset + ZSTD_REP_NUM - 1, mlCode);
+                ZSTD_storeSeq(seqStorePtr, ip-anchor, anchor, offset + ZSTD_REP_MOVE, mlCode);
         }   }
 
         /* found a match : store it */
@@ -1563,8 +1563,8 @@ void ZSTD_compressBlock_lazy_generic(ZSTD_CCtx* ctx,
     searchMax_f searchMax = searchMethod ? ZSTD_BtFindBestMatch_selectMLS : ZSTD_HcFindBestMatch_selectMLS;
 
     /* init */
-    U32 rep[ZSTD_REP_NUM+1];
-    for (int i=0; i<ZSTD_REP_NUM+1; i++)
+    U32 rep[ZSTD_REP_INIT];
+    for (int i=0; i<ZSTD_REP_INIT; i++)
         rep[i]=REPCODE_STARTVALUE;
 
     ZSTD_resetSeqStore(seqStorePtr);
@@ -1598,7 +1598,7 @@ void ZSTD_compressBlock_lazy_generic(ZSTD_CCtx* ctx,
             size_t offsetFound = 99999999;
             size_t ml2 = searchMax(ctx, ip, iend, &offsetFound, maxSearches, mls);
             if (ml2 > matchLength)
-                matchLength = ml2, start = ip, offset=offsetFound + (ZSTD_REP_NUM - 1);
+                matchLength = ml2, start = ip, offset=offsetFound + ZSTD_REP_MOVE;
         }
 
         if (matchLength < MINMATCH) {
@@ -1624,7 +1624,7 @@ void ZSTD_compressBlock_lazy_generic(ZSTD_CCtx* ctx,
                 int gain2 = (int)(ml2*4 - ZSTD_highbit((U32)offset2+1));   /* raw approx */
                 int gain1 = (int)(matchLength*4 - ZSTD_highbit((U32)offset+1) + 4);
                 if ((ml2 >= MINMATCH) && (gain2 > gain1)) {
-                    matchLength = ml2, offset = offset2 + (ZSTD_REP_NUM - 1), start = ip;
+                    matchLength = ml2, offset = offset2 + ZSTD_REP_MOVE, start = ip;
                     continue;   /* search a better one */
             }   }
 
@@ -1645,7 +1645,7 @@ void ZSTD_compressBlock_lazy_generic(ZSTD_CCtx* ctx,
                     int gain2 = (int)(ml2*4 - ZSTD_highbit((U32)offset2+1));   /* raw approx */
                     int gain1 = (int)(matchLength*4 - ZSTD_highbit((U32)offset+1) + 7);
                     if ((ml2 >= MINMATCH) && (gain2 > gain1)) {
-                        matchLength = ml2, offset = offset2 + (ZSTD_REP_NUM - 1), start = ip;
+                        matchLength = ml2, offset = offset2 + ZSTD_REP_MOVE, start = ip;
                         continue;
             }   }   }
             break;  /* nothing found : store previous solution */
@@ -1653,7 +1653,7 @@ void ZSTD_compressBlock_lazy_generic(ZSTD_CCtx* ctx,
 
         /* catch up */
         if (offset >= ZSTD_REP_NUM) {
-            while ((start>anchor) && (start>base+offset-(ZSTD_REP_NUM-1)) && (start[-1] == start[-1-offset+(ZSTD_REP_NUM-1)]))   /* only search for offset within prefix */
+            while ((start>anchor) && (start>base+offset-ZSTD_REP_MOVE) && (start[-1] == start[-1-offset+ZSTD_REP_MOVE]))   /* only search for offset within prefix */
                 { start--; matchLength++; }
         }
 
@@ -1666,7 +1666,7 @@ _storeSequence:
                 rep[3] = rep[2];
                 rep[2] = rep[1];
                 rep[1] = rep[0];
-                rep[0] = offset - (ZSTD_REP_NUM - 1);
+                rep[0] = offset - ZSTD_REP_MOVE;
 #else
                 if (kSlotNew < 3)
                     rep[3] = rep[2];
@@ -1674,7 +1674,7 @@ _storeSequence:
                     rep[2] = rep[1];
                 if (kSlotNew < 1)
                     rep[1] = rep[0];               
-                rep[kSlotNew] = offset - (ZSTD_REP_NUM - 1);
+                rep[kSlotNew] = offset - ZSTD_REP_MOVE;
 #endif
             } else {
                 if (offset != 0) {
@@ -1691,7 +1691,7 @@ _storeSequence:
             }
 #else
             if (offset >= ZSTD_REP_NUM) {
-                rep[1] = rep[0]; rep[0] = offset - (ZSTD_REP_NUM - 1);
+                rep[1] = rep[0]; rep[0] = offset - ZSTD_REP_MOVE;
             }
 #endif
             size_t litLength = start - anchor;
@@ -1764,8 +1764,8 @@ void ZSTD_compressBlock_lazy_extDict_generic(ZSTD_CCtx* ctx,
     printf("ZSTD_compressBlock_lazy_extDict_generic reps not implemented!\n"); exit(1);
 
     /* init */
-    U32 rep[ZSTD_REP_NUM];
-    for (int i=0; i<ZSTD_REP_NUM; i++)
+    U32 rep[ZSTD_REP_INIT];
+    for (int i=0; i<ZSTD_REP_INIT; i++)
         rep[i]=REPCODE_STARTVALUE;
     ZSTD_resetSeqStore(seqStorePtr);
     if ((ip - prefixStart) < REPCODE_STARTVALUE) ip += REPCODE_STARTVALUE;
@@ -1795,7 +1795,7 @@ void ZSTD_compressBlock_lazy_extDict_generic(ZSTD_CCtx* ctx,
             size_t offsetFound = 99999999;
             size_t ml2 = searchMax(ctx, ip, iend, &offsetFound, maxSearches, mls);
             if (ml2 > matchLength)
-                matchLength = ml2, start = ip, offset=offsetFound + (ZSTD_REP_NUM - 1);
+                matchLength = ml2, start = ip, offset=offsetFound + ZSTD_REP_MOVE;
         }
 
          if (matchLength < MINMATCH) {
@@ -1831,7 +1831,7 @@ void ZSTD_compressBlock_lazy_extDict_generic(ZSTD_CCtx* ctx,
                 int gain2 = (int)(ml2*4 - ZSTD_highbit((U32)offset2+1));   /* raw approx */
                 int gain1 = (int)(matchLength*4 - ZSTD_highbit((U32)offset+1) + 4);
                 if ((ml2 >= MINMATCH) && (gain2 > gain1)) {
-                    matchLength = ml2, offset = offset2 + (ZSTD_REP_NUM - 1), start = ip;
+                    matchLength = ml2, offset = offset2 + ZSTD_REP_MOVE, start = ip;
                     continue;   /* search a better one */
             }   }
 
@@ -1862,7 +1862,7 @@ void ZSTD_compressBlock_lazy_extDict_generic(ZSTD_CCtx* ctx,
                     int gain2 = (int)(ml2*4 - ZSTD_highbit((U32)offset2+1));   /* raw approx */
                     int gain1 = (int)(matchLength*4 - ZSTD_highbit((U32)offset+1) + 7);
                     if ((ml2 >= MINMATCH) && (gain2 > gain1)) {
-                        matchLength = ml2, offset = offset2 + (ZSTD_REP_NUM - 1), start = ip;
+                        matchLength = ml2, offset = offset2 + ZSTD_REP_MOVE, start = ip;
                         continue;
             }   }   }
             break;  /* nothing found : store previous solution */
@@ -1870,11 +1870,11 @@ void ZSTD_compressBlock_lazy_extDict_generic(ZSTD_CCtx* ctx,
 
         /* catch up */
         if (offset >= ZSTD_REP_NUM) {
-            U32 matchIndex = (U32)((start-base) - (offset - (ZSTD_REP_NUM - 1)));
+            U32 matchIndex = (U32)((start-base) - (offset - ZSTD_REP_MOVE));
             const BYTE* match = (matchIndex < dictLimit) ? dictBase + matchIndex : base + matchIndex;
             const BYTE* const mStart = (matchIndex < dictLimit) ? dictStart : prefixStart;
             while ((start>anchor) && (match>mStart) && (start[-1] == match[-1])) { start--; match--; matchLength++; }  /* catch up */
-            rep[1] = rep[0]; rep[0] = offset - (ZSTD_REP_NUM - 1);
+            rep[1] = rep[0]; rep[0] = offset - ZSTD_REP_MOVE;
         }
 
         /* store sequence */

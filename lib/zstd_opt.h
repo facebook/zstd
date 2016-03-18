@@ -420,8 +420,8 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
     U32 cur, match_num, last_pos, litlen, price;
 
     /* init */
-    U32 rep[ZSTD_REP_NUM+1];
-    for (int i=0; i<ZSTD_REP_NUM+1; i++)
+    U32 rep[ZSTD_REP_INIT];
+    for (int i=0; i<ZSTD_REP_INIT; i++)
         rep[i]=REPCODE_STARTVALUE;
 
     ctx->nextToUpdate3 = ctx->nextToUpdate;
@@ -688,7 +688,7 @@ _storeSequence:   /* cur, last_pos, best_mlen, best_off have to be set */
 #endif
 
             ZSTD_updatePrice(seqStorePtr, litLength, anchor, offset, mlen-minMatch);
-            ZSTD_storeSeq(seqStorePtr, litLength, anchor, offset ? offset + ZSTD_REP_NUM - 1 : 0, mlen-minMatch);
+            ZSTD_storeSeq(seqStorePtr, litLength, anchor, offset ? offset + ZSTD_REP_MOVE : 0, mlen-minMatch);
             anchor = ip = ip + mlen;
         }   /* for (cur=0; cur < last_pos; ) */
 
@@ -748,8 +748,8 @@ void ZSTD_compressBlock_opt_extDict_generic(ZSTD_CCtx* ctx,
     U32 cur, match_num, last_pos, litlen, price;
 
     /* init */
-    U32 rep[ZSTD_REP_NUM+1];
-    for (int i=0; i<ZSTD_REP_NUM+1; i++)
+    U32 rep[ZSTD_REP_INIT];
+    for (int i=0; i<ZSTD_REP_INIT; i++)
         rep[i]=REPCODE_STARTVALUE;
 
     ctx->nextToUpdate3 = ctx->nextToUpdate;
@@ -1036,7 +1036,7 @@ _storeSequence: // cur, last_pos, best_mlen, best_off have to be set
 #endif
 
             ZSTD_updatePrice(seqStorePtr, litLength, anchor, offset, mlen-minMatch);
-            ZSTD_storeSeq(seqStorePtr, litLength, anchor, offset ? offset + ZSTD_REP_NUM - 1 : 0, mlen-minMatch);
+            ZSTD_storeSeq(seqStorePtr, litLength, anchor, offset ? offset + ZSTD_REP_MOVE : 0, mlen-minMatch);
             anchor = ip = ip + mlen;
         }
 

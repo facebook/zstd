@@ -183,8 +183,7 @@ typedef struct {
     U32 off;
     U32 mlen;
     U32 litlen;
-    U32 rep;
-    U32 rep2;
+    U32 rep[ZSTD_REP_NUM];
 } ZSTD_optimal_t;
 
 typedef struct {

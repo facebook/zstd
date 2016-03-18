@@ -22,6 +22,7 @@
     <ProjectGuid>{61ABD629-1CC8-4FD7-9281-6B8DBB9D3DF8}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
     <RootNamespace>fullbench</RootNamespace>
+    <OutDir>$(SolutionDir)bin\$(Platform)\$(Configuration)\</OutDir>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">

@@ -22,6 +22,7 @@
     <ProjectGuid>{6FD4352B-346C-4703-96EA-D4A8B9A6976E}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
     <RootNamespace>fuzzer</RootNamespace>
+    <OutDir>$(SolutionDir)bin\$(Platform)\$(Configuration)\</OutDir>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">

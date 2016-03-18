@@ -615,7 +615,7 @@ typedef struct {
     FSE_DState_t stateLL;
     FSE_DState_t stateOffb;
     FSE_DState_t stateML;
-    size_t prevOffset[ZSTD_REP_NUM];
+    size_t prevOffset[ZSTD_REP_INIT];
     const BYTE* dumps;
     const BYTE* dumpsEnd;
 } seqState_t;
@@ -672,13 +672,13 @@ static void ZSTD_decodeSequence(seq_t* seq, seqState_t* seqState, const U32 mls)
             else
                 offset = seqState->prevOffset[0];
         } else {
-            offset -= ZSTD_REP_NUM - 1;
-#if 0
+            offset -= ZSTD_REP_MOVE;
+    #if 0
             seqState->prevOffset[3] = seqState->prevOffset[2];
             seqState->prevOffset[2] = seqState->prevOffset[1];
             seqState->prevOffset[1] = seqState->prevOffset[0];
             seqState->prevOffset[0] = offset;
-#else
+    #else
             if (kSlotNew < 3)
                 seqState->prevOffset[3] = seqState->prevOffset[2];
             if (kSlotNew < 2)
@@ -686,11 +686,25 @@ static void ZSTD_decodeSequence(seq_t* seq, seqState_t* seqState, const U32 mls)
             if (kSlotNew < 1)
                 seqState->prevOffset[1] = seqState->prevOffset[0];               
             seqState->prevOffset[kSlotNew] = offset;
-#endif
+    #endif
         }
-#else
+#else // ZSTD_REP_NUM == 1
+    #if 0
         if (offsetCode==0) offset = litLength ? seq->offset : seqState->prevOffset[0];   /* repcode, cmove */
+        else offset -= ZSTD_REP_MOVE;
         if (offsetCode | !litLength) seqState->prevOffset[0] = seq->offset;   /* cmove */
+    #else
+        if (offsetCode==0) {
+            if (!litLength) {
+                offset = seqState->prevOffset[0];   /* repcode, cmove */
+                seqState->prevOffset[0] = seq->offset;   /* cmove */
+            } else
+                offset = seq->offset;   /* repcode, cmove */
+        } else {
+            seqState->prevOffset[0] = seq->offset;   /* cmove */
+            offset -= ZSTD_REP_MOVE;
+        }
+    #endif
 #endif
         FSE_decodeSymbol(&(seqState->stateOffb), &(seqState->DStream));    /* update */
 //    printf("offsetCode=%d nbBits=%d offset=%d\n", offsetCode, nbBits, (int)offset); fflush(stdout);
@@ -845,7 +859,7 @@ static size_t ZSTD_decompressSequences(
         sequence.offset = REPCODE_STARTVALUE;
         seqState.dumps = dumps;
         seqState.dumpsEnd = dumps + dumpsLength;
-        for (int i=0; i<ZSTD_REP_NUM; i++)
+        for (int i=0; i<ZSTD_REP_INIT; i++)
             seqState.prevOffset[i] = REPCODE_STARTVALUE;
         errorCode = BIT_initDStream(&(seqState.DStream), ip, iend-ip);
         if (ERR_isError(errorCode)) return ERROR(corruption_detected);

@@ -44,13 +44,22 @@
 /* *************************************
 *  Includes
 ***************************************/
+#if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(WIN64) || defined(_WIN64)
+	#define WINDOWS
+#endif
 #include <stdlib.h>      /* malloc, free */
 #include <string.h>      /* memset */
 #include <stdio.h>       /* fprintf, fopen, ftello64 */
 #include <sys/types.h>   /* stat64 */
 #include <sys/stat.h>    /* stat64 */
-#include <time.h>         /* clock_t, clock, CLOCKS_PER_SEC */
-
+#include <time.h>        /* clock_t, clock, CLOCKS_PER_SEC */
+#ifdef WINDOWS
+	#define mili_sleep(mili) Sleep(mili)
+#else
+	#define mili_sleep(mili) usleep(mili*1000)
+    #include <sys/resource.h> /* setpriority */
+#endif
+    
 /* sleep : posix - windows - others */
 #if !defined(_WIN32) && (defined(__unix__) || defined(__unix) || (defined(__APPLE__) && defined(__MACH__)))
 #  include <unistd.h>
@@ -283,6 +292,7 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
             memset(compressedBuffer, 0xE5, maxCompressedSize);  /* warm up and erase result buffer */
 
             nbLoops = 0;
+            mili_sleep(1); // give processor to other processes
             clockStart = clock();
             while (clock() == clockStart);
             clockStart = clock();
@@ -313,6 +323,7 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
             memset(resultBuffer, 0xD6, srcSize);  /* warm result buffer */
 
             nbLoops = 0;
+            mili_sleep(1); // give processor to other processes
             clockStart = clock();
             while (clock() == clockStart);
             clockStart = clock();
@@ -413,6 +424,11 @@ static void BMK_benchCLevel(void* srcBuffer, size_t benchedSize,
 {
     benchResult_t result, total;
     int l;
+#ifdef WINDOWS
+    SetPriorityClass(GetCurrentProcess(), REALTIME_PRIORITY_CLASS);
+#else
+    setpriority(PRIO_PROCESS, 0, -20);
+#endif
 
     const char* pch = strrchr(displayName, '\\'); /* Windows */
     if (!pch) pch = strrchr(displayName, '/'); /* Linux */

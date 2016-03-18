@@ -27,7 +27,7 @@
     OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
     You can contact the author at :
-    - zstd source repository : https://github.com/Cyan4973/zstd
+    - zstd homepage : https://www.zstd.net
 */
 #ifndef ZSTD_CCOMMON_H_MODULE
 #define ZSTD_CCOMMON_H_MODULE
@@ -78,11 +78,8 @@
 #define MB *(1 <<20)
 #define GB *(1U<<30)
 
-#define BLOCKSIZE (128 KB)                 /* define, for static allocation */
-
-static const size_t ZSTD_blockHeaderSize = 3;
-static const size_t ZSTD_frameHeaderSize_min = 5;
-#define ZSTD_frameHeaderSize_max 5         /* define, for static allocation */
+#define ZSTD_BLOCKHEADERSIZE 3   /* because C standard does not allow a static const value to be defined using another static const value .... :( */
+static const size_t ZSTD_blockHeaderSize = ZSTD_BLOCKHEADERSIZE;
 
 #define BIT7 128
 #define BIT6  64

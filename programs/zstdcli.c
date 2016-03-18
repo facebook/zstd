@@ -132,6 +132,7 @@ static int usage_advanced(const char* programName)
     DISPLAY( " -v     : verbose mode\n");
     DISPLAY( " -q     : suppress warnings; specify twice to suppress errors too\n");
     DISPLAY( " -c     : force write to standard output, even if it is the console\n");
+    DISPLAY( "--ultra : enable ultra modes (requires more memory to decompress)\n");
 #ifndef ZSTD_NODICT
     DISPLAY( "Dictionary builder :\n");
     DISPLAY( "--train : create a dictionary from a training set of files \n");
@@ -220,6 +221,7 @@ int main(int argCount, const char** argv)
         if (!strcmp(argument, "--train")) { dictBuild=1; outFileName=g_defaultDictName; continue; }
         if (!strcmp(argument, "--maxdict")) { nextArgumentIsMaxDict=1; continue; }
         if (!strcmp(argument, "--keep")) { continue; }   /* does nothing, since preserving input is default; for gzip/xz compatibility */
+        if (!strcmp(argument, "--ultra")) { FIO_setMaxWLog(0); continue; }
 
         /* '-' means stdin/stdout */
         if (!strcmp(argument, "-")){

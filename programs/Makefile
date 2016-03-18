@@ -112,11 +112,11 @@ zstd-frugal: $(ZSTD_FILES) $(ZSTDDIR)/zbuff.c zstdcli.c fileio.c
 zstd-small: clean 
 	CFLAGS="-Os -s" $(MAKE) zstd-frugal 
 
-fullbench  : $(ZSTD_FILES) \
+fullbench  : $(ZSTD_FILES) $(ZSTDDIR)/zbuff.c \
         datagen.c fullbench.c
 	$(CC)      $(FLAGS) $^ -o $@$(EXT)
 
-fullbench32: $(ZSTD_FILES) \
+fullbench32: $(ZSTD_FILES) $(ZSTDDIR)/zbuff.c \
       datagen.c fullbench.c
 	$(CC) -m32 $(FLAGS) $^ -o $@$(EXT)
 

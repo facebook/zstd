@@ -347,7 +347,7 @@ _findError:
 #endif
         }
 
-        DISPLAY("%2i-\n", cLevel);
+        DISPLAY("%2i#\n", cLevel);
     }
 
     /* clean up */

@@ -445,13 +445,12 @@ int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compressibilit
     srcBuffer = cNoiseBuffer[2];
 
     /* catch up testNb */
-    for (testNb=1; testNb < startTest; testNb++)
-        FUZ_rand(&coreSeed);
+    for (testNb=1; testNb < startTest; testNb++) FUZ_rand(&coreSeed);
 
-    /* test loop */
+    /* main test loop */
     for ( ; (testNb <= nbTests) || (FUZ_GetMilliSpan(startTime) < g_testTime); testNb++ ) {
         size_t sampleSize, sampleStart, maxTestSize, totalTestSize;
-        size_t cSize, dSize, dSupSize, errorCode, totalCSize, totalGenSize;
+        size_t cSize, dSize, errorCode, totalCSize, totalGenSize;
         U32 sampleSizeLog, buffNb, cLevelMod, nbChunks, n;
         XXH64_CREATESTATE_STATIC(xxh64);
         U64 crcOrig, crcDest;
@@ -460,9 +459,8 @@ int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compressibilit
         const BYTE* dict;
         size_t dictSize;
 
-        /* init */
-        if (nbTests >= testNb)
-             { DISPLAYUPDATE(2, "\r%6u/%6u    ", testNb, nbTests); }
+        /* notification */
+        if (nbTests >= testNb) { DISPLAYUPDATE(2, "\r%6u/%6u    ", testNb, nbTests); }
         else { DISPLAYUPDATE(2, "\r%6u      ", testNb); }
 
         FUZ_rand(&coreSeed);
@@ -477,8 +475,7 @@ int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compressibilit
             } else {
                 const U32 tnb[2] = { 0, 4 };
                 buffNb = tnb[buffNb >> 3];
-            }
-        }
+        }   }
         srcBuffer = cNoiseBuffer[buffNb];
         sampleSizeLog = FUZ_rand(&lseed) % maxSampleLog;
         sampleSize = (size_t)1 << sampleSizeLog;
@@ -509,19 +506,20 @@ int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compressibilit
             CHECK(endCheck != endMark, "ZSTD_compressCCtx : dst buffer overflow"); }
         }
 
-        /* decompression header test */
+        /* frame header decompression test */
         {   ZSTD_frameParams dParams;
             size_t const check = ZSTD_getFrameParams(&dParams, cBuffer, cSize);
             CHECK(ZSTD_isError(check), "Frame Parameters extraction failed");
             CHECK(dParams.frameContentSize != sampleSize, "Frame content size incorrect");
         }
 
-        /* successfull decompression tests*/
-        dSupSize = (FUZ_rand(&lseed) & 1) ? 0 : (FUZ_rand(&lseed) & 31) + 1;
-        dSize = ZSTD_decompress(dstBuffer, sampleSize + dSupSize, cBuffer, cSize);
-        CHECK(dSize != sampleSize, "ZSTD_decompress failed (%s) (srcSize : %u ; cSize : %u)", ZSTD_getErrorName(dSize), (U32)sampleSize, (U32)cSize);
-        crcDest = XXH64(dstBuffer, sampleSize, 0);
-        CHECK(crcOrig != crcDest, "decompression result corrupted (pos %u / %u)", (U32)findDiff(sampleBuffer, dstBuffer, sampleSize), (U32)sampleSize);
+        /* successful decompression test */
+        {   size_t margin = (FUZ_rand(&lseed) & 1) ? 0 : (FUZ_rand(&lseed) & 31) + 1;
+            dSize = ZSTD_decompress(dstBuffer, sampleSize + margin, cBuffer, cSize);
+            CHECK(dSize != sampleSize, "ZSTD_decompress failed (%s) (srcSize : %u ; cSize : %u)", ZSTD_getErrorName(dSize), (U32)sampleSize, (U32)cSize);
+            crcDest = XXH64(dstBuffer, sampleSize, 0);
+            CHECK(crcOrig != crcDest, "decompression result corrupted (pos %u / %u)", (U32)findDiff(sampleBuffer, dstBuffer, sampleSize), (U32)sampleSize);
+        }
 
         free(sampleBuffer);   /* no longer useful after this point */
 
@@ -576,7 +574,7 @@ int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compressibilit
             {   U32 const endMark = 0xA9B1C3D6;
                 memcpy(dstBuffer+sampleSize, &endMark, 4);
                 errorCode = ZSTD_decompress(dstBuffer, sampleSize, cBuffer, cSize);
-                /* result *may* be an unlikely success, but even then, it must strictly respect dest buffer boundaries */
+                /* result *may* be an unlikely success, but even then, it must strictly respect dst buffer boundaries */
                 CHECK((!ZSTD_isError(errorCode)) && (errorCode>sampleSize),
                       "ZSTD_decompress on noisy src : result is too large : %u > %u (dst buffer)", (U32)errorCode, (U32)sampleSize);
                 { U32 endCheck; memcpy(&endCheck, dstBuffer+sampleSize, 4);

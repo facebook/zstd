@@ -506,7 +506,7 @@ size_t ZSTD_decodeLiteralsBlock(ZSTD_DCtx* dctx,
     @return : nb bytes read from src,
               or an error code if it fails, testable with ZSTD_isError()
 */
-static size_t ZSTD_buildSeqTable(FSE_DTable* DTable, U32 type, U32 rawBits, U32 maxLog,
+FORCE_INLINE size_t ZSTD_buildSeqTable(FSE_DTable* DTable, U32 type, U32 rawBits, U32 maxLog,
                                  const void* src, size_t srcSize)
 {
     U32 max = (1<<rawBits)-1;
@@ -526,7 +526,7 @@ static size_t ZSTD_buildSeqTable(FSE_DTable* DTable, U32 type, U32 rawBits, U32 
         {   U32 tableLog;
             S16 norm[MaxSeq+1];
             size_t const headerSize = FSE_readNCount(norm, &max, &tableLog, src, srcSize);
-            if (FSE_isError(headerSize)) return ERROR(GENERIC);
+            if (FSE_isError(headerSize)) return ERROR(corruption_detected);
             if (tableLog > maxLog) return ERROR(corruption_detected);
             FSE_buildDTable(DTable, norm, max, tableLog);
             return headerSize;

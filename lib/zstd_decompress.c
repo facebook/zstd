@@ -342,7 +342,7 @@ typedef struct
 size_t ZSTD_getcBlockSize(const void* src, size_t srcSize, blockProperties_t* bpPtr)
 {
     const BYTE* const in = (const BYTE* const)src;
-    size_t cSize;
+    U32 cSize;
 
     if (srcSize < ZSTD_blockHeaderSize) return ERROR(srcSize_wrong);
 

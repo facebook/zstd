@@ -62,7 +62,7 @@
 /*-*************************************
 *  Constants
 ***************************************/
-static const U32 g_searchStrength = 8;
+static const U32 g_searchStrength = 8;   /* control skip over incompressible data */
 
 
 /*-*************************************

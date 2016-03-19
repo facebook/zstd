@@ -5,6 +5,8 @@ fullbench
 fullbench32
 fuzzer
 fuzzer32
+zbufftest
+zbufftest32
 datagen
 paramgrill
 

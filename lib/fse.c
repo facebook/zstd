@@ -466,7 +466,7 @@ size_t FSE_readNCount (short* normalizedCounter, unsigned* maxSVPtr, unsigned* t
                 bitStream >>= 2;
         }
         {
-            const short max = (short)((2*threshold-1)-remaining);
+            short const max = (short)((2*threshold-1)-remaining);
             short count;
 
             if ((bitStream & (threshold-1)) < (U32)max) {

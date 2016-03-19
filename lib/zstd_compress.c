@@ -143,17 +143,15 @@ static unsigned ZSTD_highbit(U32 val);
     optimize for `srcSize` if srcSize > 0 */
 void ZSTD_validateParams(ZSTD_parameters* params)
 {
-    const U32 btPlus = (params->strategy == ZSTD_btlazy2) || (params->strategy == ZSTD_btopt);
-    const U32 searchLengthMax = (params->strategy == ZSTD_fast) ? ZSTD_SEARCHLENGTH_MAX : ZSTD_SEARCHLENGTH_MAX-1;
-    const U32 searchLengthMin = (params->strategy == ZSTD_btopt) ? ZSTD_SEARCHLENGTH_MIN : ZSTD_SEARCHLENGTH_MIN+1;
-
     /* validate params */
     if (MEM_32bits()) if (params->windowLog > 25) params->windowLog = 25;   /* 32 bits mode cannot flush > 24 bits */
     CLAMP(params->windowLog, ZSTD_WINDOWLOG_MIN, ZSTD_WINDOWLOG_MAX);
     CLAMP(params->contentLog, ZSTD_CONTENTLOG_MIN, ZSTD_CONTENTLOG_MAX);
     CLAMP(params->hashLog, ZSTD_HASHLOG_MIN, ZSTD_HASHLOG_MAX);
     CLAMP(params->searchLog, ZSTD_SEARCHLOG_MIN, ZSTD_SEARCHLOG_MAX);
-    CLAMP(params->searchLength, searchLengthMin, searchLengthMax);
+    { U32 const searchLengthMin = (params->strategy == ZSTD_btopt) ? ZSTD_SEARCHLENGTH_MIN : ZSTD_SEARCHLENGTH_MIN+1;
+      U32 const searchLengthMax = (params->strategy == ZSTD_fast) ? ZSTD_SEARCHLENGTH_MAX : ZSTD_SEARCHLENGTH_MAX-1;
+      CLAMP(params->searchLength, searchLengthMin, searchLengthMax); }
     CLAMP(params->targetLength, ZSTD_TARGETLENGTH_MIN, ZSTD_TARGETLENGTH_MAX);
     if ((U32)params->strategy>(U32)ZSTD_btopt) params->strategy = ZSTD_btopt;
 
@@ -163,23 +161,18 @@ void ZSTD_validateParams(ZSTD_parameters* params)
         if (params->windowLog > srcLog) params->windowLog = srcLog;
     }
     if (params->windowLog  < ZSTD_WINDOWLOG_ABSOLUTEMIN) params->windowLog = ZSTD_WINDOWLOG_ABSOLUTEMIN;  /* required for frame header */
-    if (params->contentLog > params->windowLog+btPlus) params->contentLog = params->windowLog+btPlus;   /* <= ZSTD_CONTENTLOG_MAX */
+    { U32 const btPlus = (params->strategy == ZSTD_btlazy2) || (params->strategy == ZSTD_btopt);
+      if (params->contentLog > params->windowLog+btPlus) params->contentLog = params->windowLog+btPlus; }   /* <= ZSTD_CONTENTLOG_MAX */
 }
 
 
 size_t ZSTD_sizeofCCtx(ZSTD_parameters params)   /* hidden interface, for paramagrill */
-{   /* copy / pasted from ZSTD_resetCCtx_advanced */
-    const size_t blockSize = MIN(ZSTD_BLOCKSIZE_MAX, (size_t)1 << params.windowLog);
-    const U32    contentLog = (params.strategy == ZSTD_fast) ? 1 : params.contentLog;
-    const U32    divider = (params.searchLength==3) ? 3 : 4;
-    const size_t maxNbSeq = blockSize / divider;
-    const size_t tokenSpace = blockSize + 8*maxNbSeq;
-    const size_t tableSpace = ((1 << contentLog) + (1 << params.hashLog) + (1 << HASHLOG3)) * sizeof(U32);
-    const size_t optSpace   = ((1<<MLbits) + (1<<LLbits) + (1<<Offbits) + (1<<Litbits))*sizeof(U32) + (ZSTD_OPT_NUM+1)*(sizeof(ZSTD_match_t) + sizeof(ZSTD_optimal_t));
-    const size_t neededSpace = tableSpace + (256*sizeof(U32)) /* huffTable */ + tokenSpace
-                           + ((params.strategy == ZSTD_btopt) ? optSpace : 0);
-
-    return sizeof(ZSTD_CCtx) + neededSpace;
+{
+    ZSTD_CCtx* zc = ZSTD_createCCtx();
+    ZSTD_compressBegin_advanced(zc, NULL, 0, params);
+    { size_t size = sizeof(*zc) + zc->workSpaceSize;
+    ZSTD_freeCCtx(zc);
+    return size; }
 }
 
 
@@ -187,24 +180,29 @@ static size_t ZSTD_resetCCtx_advanced (ZSTD_CCtx* zc,
                                        ZSTD_parameters params)
 {   /* note : params considered validated here */
     const size_t blockSize = MIN(ZSTD_BLOCKSIZE_MAX, (size_t)1 << params.windowLog);
-    const U32    contentLog = (params.strategy == ZSTD_fast) ? 1 : params.contentLog;
     const U32    divider = (params.searchLength==3) ? 3 : 4;
     const size_t maxNbSeq = blockSize / divider;
     const size_t tokenSpace = blockSize + 8*maxNbSeq;
-    const size_t tableSpace = ((1 << contentLog) + (1 << params.hashLog) + (1 << HASHLOG3)) * sizeof(U32);
-    const size_t optSpace   = ((1<<MLbits) + (1<<LLbits) + (1<<Offbits) + (1<<Litbits))*sizeof(U32) + (ZSTD_OPT_NUM+1)*(sizeof(ZSTD_match_t) + sizeof(ZSTD_optimal_t));
-    const size_t neededSpace = tableSpace + (256*sizeof(U32)) /* huffTable */ + tokenSpace
-                           + ((params.strategy == ZSTD_btopt) ? optSpace : 0);
+    const U32    contentLog = (params.strategy == ZSTD_fast) ? 1 : params.contentLog;
+    const size_t h3Size = (params.searchLength==3) ? (1 << HASHLOG3) : 0;
+    const size_t tableSpace = ((1 << contentLog) + (1 << params.hashLog) + h3Size) * sizeof(U32);
 
-    if (zc->workSpaceSize < neededSpace) {
-        free(zc->workSpace);
-        zc->workSpace = malloc(neededSpace);
-        if (zc->workSpace == NULL) return ERROR(memory_allocation);
-        zc->workSpaceSize = neededSpace;
+    /* Check if workSpace is large enough, alloc a new one if needed */
+    {   size_t const optSpace = ((1<<MLbits) + (1<<LLbits) + (1<<Offbits) + (1<<Litbits))*sizeof(U32)
+                              + (ZSTD_OPT_NUM+1)*(sizeof(ZSTD_match_t) + sizeof(ZSTD_optimal_t));
+        size_t const neededSpace = tableSpace + (256*sizeof(U32)) /* huffTable */ + tokenSpace
+                           + ((params.strategy == ZSTD_btopt) ? optSpace : 0);
+        if (zc->workSpaceSize < neededSpace) {
+            free(zc->workSpace);
+            zc->workSpace = malloc(neededSpace);
+            if (zc->workSpace == NULL) return ERROR(memory_allocation);
+            zc->workSpaceSize = neededSpace;
+        }
     }
+
     memset(zc->workSpace, 0, tableSpace );   /* reset only tables */
     zc->hashTable3 = (U32*)(zc->workSpace);
-    zc->hashTable = zc->hashTable3 + ((size_t)1 << HASHLOG3);
+    zc->hashTable = zc->hashTable3 + h3Size;
     zc->contentTable = zc->hashTable + ((size_t)1 << params.hashLog);
     zc->seqStore.buffer = zc->contentTable + ((size_t)1 << contentLog);
     zc->hufTable = (HUF_CElt*)zc->seqStore.buffer;
@@ -251,7 +249,8 @@ static size_t ZSTD_resetCCtx_advanced (ZSTD_CCtx* zc,
 size_t ZSTD_copyCCtx(ZSTD_CCtx* dstCCtx, const ZSTD_CCtx* srcCCtx)
 {
     const U32 contentLog = (srcCCtx->params.strategy == ZSTD_fast) ? 1 : srcCCtx->params.contentLog;
-    const size_t tableSpace = ((1 << contentLog) + (1 << srcCCtx->params.hashLog) + (1 << HASHLOG3)) * sizeof(U32);
+    const size_t h3Size = (srcCCtx->params.searchLength == 3) ? (1 << HASHLOG3) : 0;
+    const size_t tableSpace = ((1 << contentLog) + (1 << srcCCtx->params.hashLog) + h3Size) * sizeof(U32);
 
     if (srcCCtx->stage!=0) return ERROR(stage_wrong);
 

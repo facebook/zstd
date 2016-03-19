@@ -948,7 +948,6 @@ static size_t ZSTD_hashPtr(const void* p, U32 hBits, U32 mls)
 /*-*************************************
 *  Fast Scan
 ***************************************/
-#define FILLHASHSTEP 3
 static void ZSTD_fillHashTable (ZSTD_CCtx* zc, const void* end, const U32 mls)
 {
     U32* const hashTable = zc->hashTable;
@@ -956,10 +955,11 @@ static void ZSTD_fillHashTable (ZSTD_CCtx* zc, const void* end, const U32 mls)
     const BYTE* const base = zc->base;
     const BYTE* ip = base + zc->nextToUpdate;
     const BYTE* const iend = ((const BYTE*)end) - 8;
+    const size_t fastHashFillStep = 3;
 
     while(ip <= iend) {
         hashTable[ZSTD_hashPtr(ip, hBits, mls)] = (U32)(ip - base);
-        ip += FILLHASHSTEP;
+        ip += fastHashFillStep;
     }
 }
 
@@ -980,9 +980,7 @@ void ZSTD_compressBlock_fast_generic(ZSTD_CCtx* zc,
     const BYTE* const lowest = base + lowIndex;
     const BYTE* const iend = istart + srcSize;
     const BYTE* const ilimit = iend - 8;
-
     size_t offset_2=REPCODE_STARTVALUE, offset_1=REPCODE_STARTVALUE;
-
 
     /* init */
     ZSTD_resetSeqStore(seqStorePtr);
@@ -2196,9 +2194,7 @@ size_t ZSTD_compressBegin_advanced(ZSTD_CCtx* zc,
 
     /* Write Frame Header into ctx headerBuffer */
     MEM_writeLE32(zc->headerBuffer, ZSTD_MAGICNUMBER);
-    {
-        BYTE* const op = (BYTE*)zc->headerBuffer;
-        U32 const fcsSize[4] = { 0, 1, 2, 8 };
+    {   BYTE* const op = (BYTE*)zc->headerBuffer;
         U32 const fcsId = (params.srcSize>0) + (params.srcSize>=256) + (params.srcSize>=65536+256);   /* 0-3 */
         BYTE fdescriptor = (BYTE)(params.windowLog - ZSTD_WINDOWLOG_ABSOLUTEMIN);   /* windowLog : 4 KB - 128 MB */
         fdescriptor |= (BYTE)((params.searchLength==3)<<4);   /* mml : 3-4 */
@@ -2212,7 +2208,7 @@ size_t ZSTD_compressBegin_advanced(ZSTD_CCtx* zc,
             case 2 : MEM_writeLE16(op+5, (U16)(params.srcSize-256)); break;
             case 3 : MEM_writeLE64(op+5, (U64)(params.srcSize)); break;
         }
-        zc->hbSize = ZSTD_frameHeaderSize_min + fcsSize[fcsId];
+        zc->hbSize = ZSTD_frameHeaderSize_min + ZSTD_fcs_fieldSize[fcsId];
     }
 
     zc->stage = 0;

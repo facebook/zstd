@@ -1,6 +1,6 @@
 /*
     Fuzzer test tool for zstd
-    Copyright (C) Yann Collet 2014-2105
+    Copyright (C) Yann Collet 2014-2016
 
     GPL v2 License
 
@@ -19,11 +19,10 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
     You can contact the author at :
-    - ZSTD source repository : https://github.com/Cyan4973/zstd
-    - ZSTD public forum : https://groups.google.com/forum/#!forum/lz4c
+    - ZSTD homepage : http://www.zstd.net
 */
 
-/**************************************
+/*-************************************
 *  Compiler specific
 **************************************/
 #ifdef _MSC_VER    /* Visual Studio */
@@ -32,14 +31,8 @@
 #  pragma warning(disable : 4146)     /* disable: C4146: minus unsigned expression */
 #endif
 
-#define GCC_VERSION (__GNUC__ * 100 + __GNUC_MINOR__)
-#ifdef __GNUC__
-#  pragma GCC diagnostic ignored "-Wmissing-braces"   /* GCC bug 53119 : doesn't accept { 0 } as initializer (https://gcc.gnu.org/bugzilla/show_bug.cgi?id=53119) */
-#  pragma GCC diagnostic ignored "-Wmissing-field-initializers"   /* GCC bug 53119 : doesn't accept { 0 } as initializer (https://gcc.gnu.org/bugzilla/show_bug.cgi?id=53119) */
-#endif
 
-
-/**************************************
+/*-************************************
 *  Includes
 **************************************/
 #include <stdlib.h>      /* free */
@@ -52,8 +45,8 @@
 #include "mem.h"
 
 
-/**************************************
- Constants
+/*-************************************
+*  Constants
 **************************************/
 #ifndef ZSTD_VERSION
 #  define ZSTD_VERSION ""
@@ -63,15 +56,12 @@
 #define MB *(1U<<20)
 #define GB *(1U<<30)
 
+static const size_t COMPRESSIBLE_NOISE_LENGTH = 10 MB;   /* capital, used to be a macro */
+static const U32 FUZ_compressibility_default = 50;
 static const U32 nbTestsDefault = 30000;
-#define COMPRESSIBLE_NOISE_LENGTH (10 MB)
-#define FUZ_COMPRESSIBILITY_DEFAULT 50
-static const U32 prime1 = 2654435761U;
-static const U32 prime2 = 2246822519U;
 
 
-
-/**************************************
+/*-************************************
 *  Display Macros
 **************************************/
 #define DISPLAY(...)          fprintf(stderr, __VA_ARGS__)
@@ -85,10 +75,8 @@ static U32 g_displayLevel = 2;
 static const U32 g_refreshRate = 150;
 static U32 g_displayTime = 0;
 
-static U32 g_testTime = 0;
 
-
-/*********************************************************
+/*-*******************************************************
 *  Fuzzer functions
 *********************************************************/
 #define MIN(a,b) ((a)<(b)?(a):(b))
@@ -117,6 +105,8 @@ static U32 FUZ_GetMilliSpan(U32 nTimeStart)
 #  define FUZ_rotl32(x,r) ((x << r) | (x >> (32 - r)))
 unsigned int FUZ_rand(unsigned int* src)
 {
+    static const U32 prime1 = 2654435761U;
+    static const U32 prime2 = 2246822519U;
     U32 rand32 = *src;
     rand32 *= prime1;
     rand32 += prime2;
@@ -130,8 +120,7 @@ static unsigned FUZ_highbit32(U32 v32)
 {
     unsigned nbBits = 0;
     if (v32==0) return 0;
-    while (v32)
-    {
+    while (v32) {
         v32 >>= 1;
         nbBits ++;
     }
@@ -161,13 +150,13 @@ static int basicUnitTests(U32 seed, double compressibility)
     RDG_genBuffer(CNBuffer, COMPRESSIBLE_NOISE_LENGTH, compressibility, 0., randState);
 
     /* Basic tests */
-    DISPLAYLEVEL(4, "test%3i : compress %u bytes : ", testNb++, COMPRESSIBLE_NOISE_LENGTH);
+    DISPLAYLEVEL(4, "test%3i : compress %u bytes : ", testNb++, (U32)COMPRESSIBLE_NOISE_LENGTH);
     result = ZSTD_compress(compressedBuffer, ZSTD_compressBound(COMPRESSIBLE_NOISE_LENGTH), CNBuffer, COMPRESSIBLE_NOISE_LENGTH, 1);
     if (ZSTD_isError(result)) goto _output_error;
     cSize = result;
     DISPLAYLEVEL(4, "OK (%u bytes : %.2f%%)\n", (U32)cSize, (double)cSize/COMPRESSIBLE_NOISE_LENGTH*100);
 
-    DISPLAYLEVEL(4, "test%3i : decompress %u bytes : ", testNb++, COMPRESSIBLE_NOISE_LENGTH);
+    DISPLAYLEVEL(4, "test%3i : decompress %u bytes : ", testNb++, (U32)COMPRESSIBLE_NOISE_LENGTH);
     result = ZSTD_decompress(decodedBuffer, COMPRESSIBLE_NOISE_LENGTH, compressedBuffer, cSize);
     if (ZSTD_isError(result)) goto _output_error;
     if (result != COMPRESSIBLE_NOISE_LENGTH) goto _output_error;
@@ -342,35 +331,36 @@ static int basicUnitTests(U32 seed, double compressibility)
     #define NB3BYTESSEQLOG   9
     #define NB3BYTESSEQ     (1 << NB3BYTESSEQLOG)
     #define NB3BYTESSEQMASK (NB3BYTESSEQ-1)
+    /* creates a buffer full of 3-bytes sequences */
     {   BYTE _3BytesSeqs[NB3BYTESSEQ][3];
-        U32 r = 1;
+        U32 rSeed = 1;
 
+        /* create batch of 3-bytes sequences */
         { int i; for (i=0; i < NB3BYTESSEQ; i++) {
-            _3BytesSeqs[i][0] = (BYTE)(FUZ_rand(&r) & 255);
-            _3BytesSeqs[i][1] = (BYTE)(FUZ_rand(&r) & 255);
-            _3BytesSeqs[i][2] = (BYTE)(FUZ_rand(&r) & 255);
+            _3BytesSeqs[i][0] = (BYTE)(FUZ_rand(&rSeed) & 255);
+            _3BytesSeqs[i][1] = (BYTE)(FUZ_rand(&rSeed) & 255);
+            _3BytesSeqs[i][2] = (BYTE)(FUZ_rand(&rSeed) & 255);
         }}
 
-        { int i; for (i=0; i < _3BYTESTESTLENGTH; ) {
-            U32 id = FUZ_rand(&r) & NB3BYTESSEQMASK;
+        /* randomly fills CNBuffer with prepared 3-bytes sequences */
+        { int i; for (i=0; i < _3BYTESTESTLENGTH; ) {   /* note : CNBuffer size > _3BYTESTESTLENGTH+3 */
+            U32 id = FUZ_rand(&rSeed) & NB3BYTESSEQMASK;
             ((BYTE*)CNBuffer)[i+0] = _3BytesSeqs[id][0];
             ((BYTE*)CNBuffer)[i+1] = _3BytesSeqs[id][1];
             ((BYTE*)CNBuffer)[i+2] = _3BytesSeqs[id][2];
             i += 3;
-        }}
+    }   }}
+    DISPLAYLEVEL(4, "test%3i : compress lots 3-bytes sequences : ", testNb++);
+    result = ZSTD_compress(compressedBuffer, ZSTD_compressBound(_3BYTESTESTLENGTH), CNBuffer, _3BYTESTESTLENGTH, 19);
+    if (ZSTD_isError(result)) goto _output_error;
+    cSize = result;
+    DISPLAYLEVEL(4, "OK (%u bytes : %.2f%%)\n", (U32)cSize, (double)cSize/_3BYTESTESTLENGTH*100);
 
-        DISPLAYLEVEL(4, "test%3i : compress lots 3-bytes sequences : ", testNb++);
-        result = ZSTD_compress(compressedBuffer, ZSTD_compressBound(_3BYTESTESTLENGTH), CNBuffer, _3BYTESTESTLENGTH, 19);
-        if (ZSTD_isError(result)) goto _output_error;
-        cSize = result;
-        DISPLAYLEVEL(4, "OK (%u bytes : %.2f%%)\n", (U32)cSize, (double)cSize/_3BYTESTESTLENGTH*100);
-
-        DISPLAYLEVEL(4, "test%3i : decompress lots 3-bytes sequence : ", testNb++);
-        result = ZSTD_decompress(decodedBuffer, _3BYTESTESTLENGTH, compressedBuffer, cSize);
-        if (ZSTD_isError(result)) goto _output_error;
-        if (result != _3BYTESTESTLENGTH) goto _output_error;
-        DISPLAYLEVEL(4, "OK \n");
-    }
+    DISPLAYLEVEL(4, "test%3i : decompress lots 3-bytes sequence : ", testNb++);
+    result = ZSTD_decompress(decodedBuffer, _3BYTESTESTLENGTH, compressedBuffer, cSize);
+    if (ZSTD_isError(result)) goto _output_error;
+    if (result != _3BYTESTESTLENGTH) goto _output_error;
+    DISPLAYLEVEL(4, "OK \n");
 
 _end:
     free(CNBuffer);
@@ -396,13 +386,13 @@ static size_t findDiff(const void* buf1, const void* buf2, size_t max)
     return i;
 }
 
-#   define CHECK(cond, ...) if (cond) { DISPLAY("Error => "); DISPLAY(__VA_ARGS__); \
-                            DISPLAY(" (seed %u, test nb %u)  \n", seed, testNb); goto _output_error; }
+#define CHECK(cond, ...) if (cond) { DISPLAY("Error => "); DISPLAY(__VA_ARGS__); \
+                         DISPLAY(" (seed %u, test nb %u)  \n", seed, testNb); goto _output_error; }
 
 static const U32 maxSrcLog = 23;
 static const U32 maxSampleLog = 22;
 
-int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compressibility)
+int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, U32 maxDuration, double compressibility)
 {
     BYTE* cNoiseBuffer[5];
     BYTE* srcBuffer;
@@ -448,7 +438,7 @@ int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compressibilit
     for (testNb=1; testNb < startTest; testNb++) FUZ_rand(&coreSeed);
 
     /* main test loop */
-    for ( ; (testNb <= nbTests) || (FUZ_GetMilliSpan(startTime) < g_testTime); testNb++ ) {
+    for ( ; (testNb <= nbTests) || (FUZ_GetMilliSpan(startTime) < maxDuration); testNb++ ) {
         size_t sampleSize, sampleStart, maxTestSize, totalTestSize;
         size_t cSize, dSize, errorCode, totalCSize, totalGenSize;
         U32 sampleSizeLog, buffNb, cLevelMod, nbChunks, n;
@@ -464,7 +454,7 @@ int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compressibilit
         else { DISPLAYUPDATE(2, "\r%6u      ", testNb); }
 
         FUZ_rand(&coreSeed);
-        lseed = coreSeed ^ prime1;
+        { U32 const prime1 = 2654435761U; lseed = coreSeed ^ prime1; }
         buffNb = FUZ_rand(&lseed) & 127;
         if (buffNb & 7) buffNb=2;
         else {
@@ -680,7 +670,7 @@ int FUZ_usage(const char* programName)
     DISPLAY( " -i#    : Nb of tests (default:%u) \n", nbTestsDefault);
     DISPLAY( " -s#    : Select seed (default:prompt user)\n");
     DISPLAY( " -t#    : Select starting test number (default:0)\n");
-    DISPLAY( " -P#    : Select compressibility in %% (default:%i%%)\n", FUZ_COMPRESSIBILITY_DEFAULT);
+    DISPLAY( " -P#    : Select compressibility in %% (default:%u%%)\n", FUZ_compressibility_default);
     DISPLAY( " -v     : verbose\n");
     DISPLAY( " -p     : pause at the end\n");
     DISPLAY( " -h     : display help and exit\n");
@@ -695,9 +685,10 @@ int main(int argc, const char** argv)
     int argNb;
     int nbTests = nbTestsDefault;
     int testNb = 0;
-    int proba = FUZ_COMPRESSIBILITY_DEFAULT;
+    U32 proba = FUZ_compressibility_default;
     int result=0;
     U32 mainPause = 0;
+    U32 maxDuration = 0;
     const char* programName;
 
     /* Check command line */
@@ -728,7 +719,7 @@ int main(int argc, const char** argv)
                     break;
 
                 case 'i':
-                    argument++; g_testTime=0;
+                    argument++; maxDuration=0;
                     nbTests=0;
                     while ((*argument>='0') && (*argument<='9')) {
                         nbTests *= 10;
@@ -739,15 +730,15 @@ int main(int argc, const char** argv)
 
                 case 'T':
                     argument++;
-                    nbTests=0; g_testTime=0;
+                    nbTests=0; maxDuration=0;
                     while ((*argument>='0') && (*argument<='9')) {
-                        g_testTime *= 10;
-                        g_testTime += *argument - '0';
+                        maxDuration *= 10;
+                        maxDuration += *argument - '0';
                         argument++;
                     }
-                    if (*argument=='m') g_testTime *=60, argument++;
+                    if (*argument=='m') maxDuration *=60, argument++;
                     if (*argument=='n') argument++;
-                    g_testTime *= 1000;
+                    maxDuration *= 1000;
                     break;
 
                 case 's':
@@ -779,7 +770,6 @@ int main(int argc, const char** argv)
                         proba += *argument - '0';
                         argument++;
                     }
-                    if (proba<0) proba=0;
                     if (proba>100) proba=100;
                     break;
 
@@ -792,12 +782,12 @@ int main(int argc, const char** argv)
 
     if (!seedset) seed = FUZ_GetMilliStart() % 10000;
     DISPLAY("Seed = %u\n", seed);
-    if (proba!=FUZ_COMPRESSIBILITY_DEFAULT) DISPLAY("Compressibility : %i%%\n", proba);
+    if (proba!=FUZ_compressibility_default) DISPLAY("Compressibility : %u%%\n", proba);
 
     if (testNb==0)
         result = basicUnitTests(0, ((double)proba) / 100);  /* constant seed for predictability */
     if (!result)
-        result = fuzzerTests(seed, nbTests, testNb, ((double)proba) / 100);
+        result = fuzzerTests(seed, nbTests, testNb, maxDuration, ((double)proba) / 100);
     if (mainPause) {
         int unused;
         DISPLAY("Press Enter \n");

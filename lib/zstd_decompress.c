@@ -515,11 +515,12 @@ size_t ZSTD_decodeLiteralsBlock(ZSTD_DCtx* dctx,
 static size_t ZSTD_buildSeqTable(FSE_DTable* DTable, U32 type, U32 rawBits, U32 maxLog,
                                  const void* src, size_t srcSize)
 {
+    U32 max = (1<<rawBits)-1;
     switch(type)
     {
     case FSE_ENCODING_RLE :
         if (!srcSize) return ERROR(srcSize_wrong);
-        FSE_buildDTable_rle(DTable, *(const BYTE*)src);
+        FSE_buildDTable_rle(DTable, (*(const BYTE*)src) & max);   /* if *src > max, data is corrupted */
         return 1;
     case FSE_ENCODING_RAW :
         FSE_buildDTable_raw(DTable, rawBits);
@@ -528,7 +529,7 @@ static size_t ZSTD_buildSeqTable(FSE_DTable* DTable, U32 type, U32 rawBits, U32 
         return 0;
     default :   /* impossible */
     case FSE_ENCODING_DYNAMIC :
-        {   U32 tableLog, max = (1<<rawBits)-1;
+        {   U32 tableLog;
             S16 norm[MaxSeq+1];
             size_t const headerSize = FSE_readNCount(norm, &max, &tableLog, src, srcSize);
             if (FSE_isError(headerSize)) return ERROR(GENERIC);
@@ -537,8 +538,6 @@ static size_t ZSTD_buildSeqTable(FSE_DTable* DTable, U32 type, U32 rawBits, U32 
             return headerSize;
     }   }
 }
-
-
 
 
 size_t ZSTD_decodeSeqHeaders(int* nbSeq, const BYTE** dumpsPtr, size_t* dumpsLengthPtr,
@@ -641,13 +640,13 @@ static void ZSTD_decodeSequence(seq_t* seq, seqState_t* seqState, const U32 mls)
     }
 
     /* Offset */
-    {
-        static const U32 offsetPrefix[MaxOff+1] = {
-                1 /*fake*/, 1, 2, 4, 8, 0x10, 0x20, 0x40, 0x80, 0x100,
-                0x200, 0x400, 0x800, 0x1000, 0x2000, 0x4000, 0x8000, 0x10000, 0x20000, 0x40000,
-                0x80000, 0x100000, 0x200000, 0x400000, 0x800000, 0x1000000, 0x2000000, 0x4000000, /*fake*/ 1, 1, 1, 1 };
-        const U32 offsetCode = FSE_peakSymbol(&(seqState->stateOffb));   /* <= maxOff, by table construction */
-        const U32 nbBits = offsetCode ? offsetCode-1 : 0;
+    {   static const U32 offsetPrefix[MaxOff+1] = {
+                1 /*fake*/, 1, 2, 4, 8, 0x10, 0x20, 0x40,
+                0x80, 0x100, 0x200, 0x400, 0x800, 0x1000, 0x2000, 0x4000,
+                0x8000, 0x10000, 0x20000, 0x40000, 0x80000, 0x100000, 0x200000, 0x400000,
+                0x800000, 0x1000000, 0x2000000, 0x4000000, /*fake*/ 1, 1, 1, 1 };
+        U32 const offsetCode = FSE_peakSymbol(&(seqState->stateOffb));   /* <= maxOff, by table construction */
+        U32 const nbBits = offsetCode ? offsetCode-1 : 0;
         offset = offsetPrefix[offsetCode] + BIT_readBits(&(seqState->DStream), nbBits);
         if (MEM_32bits()) BIT_reloadDStream(&(seqState->DStream));
         if (offsetCode==0) offset = litLength ? seq->offset : seqState->prevOffset;
@@ -727,8 +726,7 @@ FORCE_INLINE size_t ZSTD_execSequence(BYTE* op,
             return sequenceLength;
         }
         /* span extDict & currentPrefixSegment */
-        {
-            size_t length1 = dictEnd - match;
+        {   size_t const length1 = dictEnd - match;
             memmove(oLitEnd, match, length1);
             op = oLitEnd + length1;
             sequence.matchLength -= length1;

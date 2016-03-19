@@ -157,12 +157,14 @@ void ZSTD_validateParams(ZSTD_parameters* params)
 
     /* correct params, to use less memory */
     if ((params->srcSize > 0) && (params->srcSize < (1<<ZSTD_WINDOWLOG_MAX))) {
-        U32 srcLog = ZSTD_highbit((U32)(params->srcSize)-1) + 1;
+        U32 const srcLog = ZSTD_highbit((U32)(params->srcSize)-1) + 1;
         if (params->windowLog > srcLog) params->windowLog = srcLog;
     }
-    if (params->windowLog  < ZSTD_WINDOWLOG_ABSOLUTEMIN) params->windowLog = ZSTD_WINDOWLOG_ABSOLUTEMIN;  /* required for frame header */
+    if (params->hashLog > params->windowLog) params->hashLog = params->windowLog;
     { U32 const btPlus = (params->strategy == ZSTD_btlazy2) || (params->strategy == ZSTD_btopt);
       if (params->contentLog > params->windowLog+btPlus) params->contentLog = params->windowLog+btPlus; }   /* <= ZSTD_CONTENTLOG_MAX */
+
+    if (params->windowLog  < ZSTD_WINDOWLOG_ABSOLUTEMIN) params->windowLog = ZSTD_WINDOWLOG_ABSOLUTEMIN;  /* required for frame header */
 }
 
 
@@ -170,9 +172,9 @@ size_t ZSTD_sizeofCCtx(ZSTD_parameters params)   /* hidden interface, for parama
 {
     ZSTD_CCtx* zc = ZSTD_createCCtx();
     ZSTD_compressBegin_advanced(zc, NULL, 0, params);
-    { size_t size = sizeof(*zc) + zc->workSpaceSize;
-    ZSTD_freeCCtx(zc);
-    return size; }
+    { size_t const size = sizeof(*zc) + zc->workSpaceSize;
+      ZSTD_freeCCtx(zc);
+      return size; }
 }
 
 
@@ -183,9 +185,10 @@ static size_t ZSTD_resetCCtx_advanced (ZSTD_CCtx* zc,
     const U32    divider = (params.searchLength==3) ? 3 : 4;
     const size_t maxNbSeq = blockSize / divider;
     const size_t tokenSpace = blockSize + 8*maxNbSeq;
-    const U32    contentLog = (params.strategy == ZSTD_fast) ? 1 : params.contentLog;
+    const size_t contentSize = (params.strategy == ZSTD_fast) ? 0 : (1 << params.contentLog);
+    const size_t hSize = 1 << params.hashLog;
     const size_t h3Size = (params.searchLength==3) ? (1 << HASHLOG3) : 0;
-    const size_t tableSpace = ((1 << contentLog) + (1 << params.hashLog) + h3Size) * sizeof(U32);
+    const size_t tableSpace = (contentSize + hSize + h3Size) * sizeof(U32);
 
     /* Check if workSpace is large enough, alloc a new one if needed */
     {   size_t const optSpace = ((1<<MLbits) + (1<<LLbits) + (1<<Offbits) + (1<<Litbits))*sizeof(U32)
@@ -197,14 +200,13 @@ static size_t ZSTD_resetCCtx_advanced (ZSTD_CCtx* zc,
             zc->workSpace = malloc(neededSpace);
             if (zc->workSpace == NULL) return ERROR(memory_allocation);
             zc->workSpaceSize = neededSpace;
-        }
-    }
+    }   }
 
     memset(zc->workSpace, 0, tableSpace );   /* reset only tables */
     zc->hashTable3 = (U32*)(zc->workSpace);
     zc->hashTable = zc->hashTable3 + h3Size;
-    zc->contentTable = zc->hashTable + ((size_t)1 << params.hashLog);
-    zc->seqStore.buffer = zc->contentTable + ((size_t)1 << contentLog);
+    zc->contentTable = zc->hashTable + hSize;
+    zc->seqStore.buffer = zc->contentTable + contentSize;
     zc->hufTable = (HUF_CElt*)zc->seqStore.buffer;
     zc->flagStaticTables = 0;
     zc->seqStore.buffer = (U32*)(zc->seqStore.buffer) + 256;
@@ -248,30 +250,31 @@ static size_t ZSTD_resetCCtx_advanced (ZSTD_CCtx* zc,
 *   @return : 0, or an error code */
 size_t ZSTD_copyCCtx(ZSTD_CCtx* dstCCtx, const ZSTD_CCtx* srcCCtx)
 {
-    const U32 contentLog = (srcCCtx->params.strategy == ZSTD_fast) ? 1 : srcCCtx->params.contentLog;
-    const size_t h3Size = (srcCCtx->params.searchLength == 3) ? (1 << HASHLOG3) : 0;
-    const size_t tableSpace = ((1 << contentLog) + (1 << srcCCtx->params.hashLog) + h3Size) * sizeof(U32);
-
     if (srcCCtx->stage!=0) return ERROR(stage_wrong);
 
     ZSTD_resetCCtx_advanced(dstCCtx, srcCCtx->params);
 
     /* copy tables */
-    memcpy(dstCCtx->workSpace, srcCCtx->workSpace, tableSpace);
+    {   const size_t contentSize = (srcCCtx->params.strategy == ZSTD_fast) ? 0 : (1 << srcCCtx->params.contentLog);
+        const size_t hSize = 1 << srcCCtx->params.hashLog;
+        const size_t h3Size = (srcCCtx->params.searchLength == 3) ? (1 << HASHLOG3) : 0;
+        const size_t tableSpace = (contentSize + hSize + h3Size) * sizeof(U32);
+        memcpy(dstCCtx->workSpace, srcCCtx->workSpace, tableSpace);
+    }
 
     /* copy frame header */
     dstCCtx->hbSize = srcCCtx->hbSize;
     memcpy(dstCCtx->headerBuffer , srcCCtx->headerBuffer, srcCCtx->hbSize);
 
     /* copy dictionary pointers */
-    dstCCtx->nextToUpdate= srcCCtx->nextToUpdate;
-    dstCCtx->nextToUpdate3 = srcCCtx->nextToUpdate3;
-    dstCCtx->nextSrc     = srcCCtx->nextSrc;
-    dstCCtx->base        = srcCCtx->base;
-    dstCCtx->dictBase    = srcCCtx->dictBase;
-    dstCCtx->dictLimit   = srcCCtx->dictLimit;
-    dstCCtx->lowLimit    = srcCCtx->lowLimit;
-    dstCCtx->loadedDictEnd = srcCCtx->loadedDictEnd;
+    dstCCtx->nextToUpdate = srcCCtx->nextToUpdate;
+    dstCCtx->nextToUpdate3= srcCCtx->nextToUpdate3;
+    dstCCtx->nextSrc      = srcCCtx->nextSrc;
+    dstCCtx->base         = srcCCtx->base;
+    dstCCtx->dictBase     = srcCCtx->dictBase;
+    dstCCtx->dictLimit    = srcCCtx->dictLimit;
+    dstCCtx->lowLimit     = srcCCtx->lowLimit;
+    dstCCtx->loadedDictEnd= srcCCtx->loadedDictEnd;
 
     /* copy entropy tables */
     dstCCtx->flagStaticTables = srcCCtx->flagStaticTables;

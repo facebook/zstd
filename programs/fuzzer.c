@@ -596,18 +596,16 @@ int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compressibilit
             }
 
             /* decompress noisy source */
-            {
-                U32 noiseSrc = FUZ_rand(&lseed) % 5;
-                const U32 endMark = 0xA9B1C3D6;
-                U32 endCheck;
+            {   U32 const noiseSrc = FUZ_rand(&lseed) % 5;
+                U32 const endMark = 0xA9B1C3D6;
                 srcBuffer = cNoiseBuffer[noiseSrc];
                 memcpy(dstBuffer+sampleSize, &endMark, 4);
                 errorCode = ZSTD_decompress(dstBuffer, sampleSize, cBuffer, cSize);
                 /* result *may* be an unlikely success, but even then, it must strictly respect dest buffer boundaries */
                 CHECK((!ZSTD_isError(errorCode)) && (errorCode>sampleSize),
                       "ZSTD_decompress on noisy src : result is too large : %u > %u (dst buffer)", (U32)errorCode, (U32)sampleSize);
-                memcpy(&endCheck, dstBuffer+sampleSize, 4);
-                CHECK(endMark!=endCheck, "ZSTD_decompress on noisy src : dst buffer overflow");
+                { U32 endCheck; memcpy(&endCheck, dstBuffer+sampleSize, 4);
+                CHECK(endMark!=endCheck, "ZSTD_decompress on noisy src : dst buffer overflow"); }
             }
         }
 

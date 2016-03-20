@@ -501,7 +501,7 @@ static size_t ZSTD_compressRleLiteralsBlock (void* dst, size_t dstCapacity, cons
 }
 
 
-size_t ZSTD_minGain(size_t srcSize) { return (srcSize >> 6) + 2; }
+static size_t ZSTD_minGain(size_t srcSize) { return (srcSize >> 6) + 2; }
 
 static size_t ZSTD_compressLiterals (ZSTD_CCtx* zc,
                                      void* dst, size_t dstCapacity,
@@ -514,8 +514,14 @@ static size_t ZSTD_compressLiterals (ZSTD_CCtx* zc,
     U32 hType = IS_HUF;
     size_t cLitSize;
 
-    if (dstCapacity < lhSize+1) return ERROR(dstSize_tooSmall);   /* not enough space for compression */
 
+    /* small ? don't even attempt compression (speed opt) */
+#   define LITERAL_NOENTROPY 63
+    {   size_t const minLitSize = zc->flagStaticTables ? 6 : LITERAL_NOENTROPY;
+        if (srcSize <= minLitSize) return ZSTD_noCompressLiterals(dst, dstCapacity, src, srcSize);
+    }
+
+    if (dstCapacity < lhSize+1) return ERROR(dstSize_tooSmall);   /* not enough space for compression */
     if (zc->flagStaticTables && (lhSize==3)) {
         hType = IS_PCH;
         singleStream = 1;
@@ -581,14 +587,9 @@ size_t ZSTD_compressSequences(ZSTD_CCtx* zc,
     BYTE* seqHead;
 
     /* Compress literals */
-#   define LITERAL_NOENTROPY 63   /* don't even attempt to compress literals below this threshold (cheap heuristic) */
-    {
-        const BYTE* const literals = seqStorePtr->litStart;
+    {   const BYTE* const literals = seqStorePtr->litStart;
         size_t const litSize = seqStorePtr->lit - literals;
-        size_t const minLitSize = zc->flagStaticTables ? 6 : LITERAL_NOENTROPY;
-        size_t const cSize = (litSize <= minLitSize) ?
-                             ZSTD_noCompressLiterals(op, dstCapacity, literals, litSize) :
-                             ZSTD_compressLiterals(zc, op, dstCapacity, literals, litSize);
+        size_t const cSize = ZSTD_compressLiterals(zc, op, dstCapacity, literals, litSize);
         if (ZSTD_isError(cSize)) return cSize;
         op += cSize;
     }
@@ -604,8 +605,7 @@ size_t ZSTD_compressSequences(ZSTD_CCtx* zc,
     if ((oend-op) < 3 /* dumps */ + 1 /*seqHead*/)
         return ERROR(dstSize_tooSmall);
     seqHead = op;
-    {
-        size_t const dumpsLength = seqStorePtr->dumps - seqStorePtr->dumpsStart;
+    {   size_t const dumpsLength = seqStorePtr->dumps - seqStorePtr->dumpsStart;
         if (dumpsLength < 512) {
             op[0] = (BYTE)(dumpsLength >> 8);
             op[1] = (BYTE)(dumpsLength);

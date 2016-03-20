@@ -284,8 +284,7 @@ static dictItem ZDICT_analyzePos(
         return solution;
     }
 
-    {
-        int i;
+    {   int i;
         U32 searchLength;
         U32 refinedStart = start;
         U32 refinedEnd = end;

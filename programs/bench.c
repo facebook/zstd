@@ -190,7 +190,6 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
 {
     const size_t blockSize = (g_blockSize ? g_blockSize : srcSize) + (!srcSize);   /* avoid div by 0 */
     const U32 maxNbBlocks = (U32) ((srcSize + (blockSize-1)) / blockSize) + nbFiles;
-    size_t largestBlockSize = 0;
     blockParam_t* const blockTable = (blockParam_t*) malloc(maxNbBlocks * sizeof(blockParam_t));
     const size_t maxCompressedSize = ZSTD_compressBound(srcSize) + (maxNbBlocks * 1024);   /* add some room for safety */
     void* const compressedBuffer = malloc(maxCompressedSize);
@@ -199,28 +198,27 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
     ZSTD_CCtx* ctx = ZSTD_createCCtx();
     ZSTD_DCtx* refDCtx = ZSTD_createDCtx();
     ZSTD_DCtx* dctx = ZSTD_createDCtx();
-    U64 crcOrig = XXH64(srcBuffer, srcSize, 0);
-    U32 nbBlocks = 0;
+    U64 const crcOrig = XXH64(srcBuffer, srcSize, 0);
+    U32 nbBlocks;
+
+    /* checks */
+    if (!compressedBuffer || !resultBuffer || !blockTable || !refCtx || !ctx || !refDCtx || !dctx)
+        EXM_THROW(31, "not enough memory");
 
     /* init */
     if (strlen(displayName)>17) displayName += strlen(displayName)-17;   /* can only display 17 characters */
 
-    /* Memory allocation & restrictions */
-    if (!compressedBuffer || !resultBuffer || !blockTable || !refCtx || !ctx || !refDCtx || !dctx)
-        EXM_THROW(31, "not enough memory");
-
     /* Init blockTable data */
-    {
-        const char* srcPtr = (const char*)srcBuffer;
+    {   const char* srcPtr = (const char*)srcBuffer;
         char* cPtr = (char*)compressedBuffer;
         char* resPtr = (char*)resultBuffer;
         U32 fileNb;
-        for (fileNb=0; fileNb<nbFiles; fileNb++) {
+        for (nbBlocks=0, fileNb=0; fileNb<nbFiles; fileNb++) {
             size_t remaining = fileSizes[fileNb];
             U32 const nbBlocksforThisFile = (U32)((remaining + (blockSize-1)) / blockSize);
             U32 const blockEnd = nbBlocks + nbBlocksforThisFile;
             for ( ; nbBlocks<blockEnd; nbBlocks++) {
-                size_t thisBlockSize = MIN(remaining, blockSize);
+                size_t const thisBlockSize = MIN(remaining, blockSize);
                 blockTable[nbBlocks].srcPtr = srcPtr;
                 blockTable[nbBlocks].cPtr = cPtr;
                 blockTable[nbBlocks].resPtr = resPtr;
@@ -230,25 +228,22 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
                 cPtr += blockTable[nbBlocks].cRoom;
                 resPtr += thisBlockSize;
                 remaining -= thisBlockSize;
-                if (thisBlockSize > largestBlockSize) largestBlockSize = thisBlockSize;
     }   }   }
 
     /* warmimg up memory */
     RDG_genBuffer(compressedBuffer, maxCompressedSize, 0.10, 0.50, 1);
 
     /* Bench */
-    {
-        U32 loopNb;
-        size_t cSize = 0;
+    {   size_t cSize = 0;
         double fastestC = 100000000., fastestD = 100000000.;
         double ratio = 0.;
         U64 crcCheck = 0;
         clock_t coolTime = clock();
+        U32 testNb;
 
         DISPLAY("\r%79s\r", "");
-        for (loopNb = 1; loopNb <= (g_nbIterations + !g_nbIterations); loopNb++) {
+        for (testNb = 1; testNb <= (g_nbIterations + !g_nbIterations); testNb++) {
             int nbLoops;
-            U32 blockNb;
             clock_t clockStart, clockSpan;
             clock_t const clockLoop = g_nbIterations ? TIMELOOP_S * CLOCKS_PER_SEC : 10;
 
@@ -260,45 +255,43 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
             }
 
             /* Compression */
-            DISPLAY("%2i-%-17.17s :%10u ->\r", loopNb, displayName, (U32)srcSize);
+            DISPLAY("%2i-%-17.17s :%10u ->\r", testNb, displayName, (U32)srcSize);
             memset(compressedBuffer, 0xE5, maxCompressedSize);  /* warm up and erase result buffer */
 
-            nbLoops = 0;
             clockStart = clock();
             while (clock() == clockStart);
             clockStart = clock();
-            while (BMK_clockSpan(clockStart) < clockLoop) {
-                ZSTD_compressBegin_advanced(refCtx, dictBuffer, dictBufferSize, ZSTD_getParams(cLevel, MAX(dictBufferSize, largestBlockSize)));
+
+            for (nbLoops = 0 ; BMK_clockSpan(clockStart) < clockLoop ; nbLoops++) {
+                U32 blockNb;
+                ZSTD_compressBegin_usingDict(refCtx, dictBuffer, dictBufferSize, cLevel);
                 for (blockNb=0; blockNb<nbBlocks; blockNb++) {
-                    size_t rSize = ZSTD_compress_usingPreparedCCtx(ctx, refCtx,
+                    size_t const rSize = ZSTD_compress_usingPreparedCCtx(ctx, refCtx,
                                         blockTable[blockNb].cPtr,  blockTable[blockNb].cRoom,
                                         blockTable[blockNb].srcPtr,blockTable[blockNb].srcSize);
                     if (ZSTD_isError(rSize)) EXM_THROW(1, "ZSTD_compress_usingPreparedCCtx() failed : %s", ZSTD_getErrorName(rSize));
                     blockTable[blockNb].cSize = rSize;
-                }
-                nbLoops++;
-            }
+            }   }
             clockSpan = BMK_clockSpan(clockStart);
 
-            cSize = 0;
-            for (blockNb=0; blockNb<nbBlocks; blockNb++)
-                cSize += blockTable[blockNb].cSize;
             if ((double)clockSpan < fastestC*nbLoops) fastestC = (double)clockSpan / nbLoops;
+            cSize = 0;
+            { U32 blockNb; for (blockNb=0; blockNb<nbBlocks; blockNb++) cSize += blockTable[blockNb].cSize; }
             ratio = (double)srcSize / (double)cSize;
             DISPLAY("%2i-%-17.17s :%10u ->%10u (%5.3f),%6.1f MB/s\r",
-                    loopNb, displayName, (U32)srcSize, (U32)cSize, ratio,
+                    testNb, displayName, (U32)srcSize, (U32)cSize, ratio,
                     (double)srcSize / 1000000. / (fastestC / CLOCKS_PER_SEC) );
 
 #if 1
             /* Decompression */
             memset(resultBuffer, 0xD6, srcSize);  /* warm result buffer */
 
-            nbLoops = 0;
             clockStart = clock();
             while (clock() == clockStart);
             clockStart = clock();
 
-            for ( ; BMK_clockSpan(clockStart) < clockLoop; nbLoops++) {
+            for (nbLoops = 0 ; BMK_clockSpan(clockStart) < clockLoop ; nbLoops++) {
+                U32 blockNb;
                 ZSTD_decompressBegin_usingDict(refDCtx, dictBuffer, dictBufferSize);
                 for (blockNb=0; blockNb<nbBlocks; blockNb++) {
                     size_t regenSize = ZSTD_decompress_usingPreparedDCtx(dctx, refDCtx,
@@ -315,7 +308,7 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
             clockSpan = BMK_clockSpan(clockStart);
             if ((double)clockSpan < fastestD*nbLoops) fastestD = (double)clockSpan / nbLoops;
             DISPLAY("%2i-%-17.17s :%10u ->%10u (%5.3f),%6.1f MB/s ,%6.1f MB/s\r",
-                    loopNb, displayName, (U32)srcSize, (U32)cSize, ratio,
+                    testNb, displayName, (U32)srcSize, (U32)cSize, ratio,
                     (double)srcSize / 1000000. / (fastestC / CLOCKS_PER_SEC),
                     (double)srcSize / 1000000. / (fastestD / CLOCKS_PER_SEC) );
 
@@ -343,12 +336,11 @@ _findError:
                         printf("no difference detected\n");
                 }   }
                 break;
-            }
+            }   /* if (crcOrig!=crcCheck) */
 #endif
-        }
-
+        }   /* for (testNb = 1; testNb <= (g_nbIterations + !g_nbIterations); testNb++) */
         DISPLAY("%2i#\n", cLevel);
-    }
+    }   /* Bench */
 
     /* clean up */
     free(compressedBuffer);
@@ -363,19 +355,20 @@ _findError:
 
 static size_t BMK_findMaxMem(U64 requiredMem)
 {
-    size_t step = 64 MB;
+    size_t const step = 64 MB;
     BYTE* testmem = NULL;
 
     requiredMem = (((requiredMem >> 26) + 1) << 26);
-    requiredMem += 2 * step;
+    requiredMem += step;
     if (requiredMem > maxMemory) requiredMem = maxMemory;
 
-    while (!testmem) {
-        requiredMem -= step;
+    do {
         testmem = (BYTE*)malloc((size_t)requiredMem);
-    }
+        requiredMem -= step;
+    } while (!testmem);
+
     free(testmem);
-    return (size_t)(requiredMem - step);
+    return (size_t)(requiredMem);
 }
 
 static void BMK_benchCLevel(void* srcBuffer, size_t benchedSize,

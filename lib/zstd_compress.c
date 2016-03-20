@@ -655,7 +655,7 @@ static const BYTE deltaCode = 18;
 
     /* CTable for Literal Lengths */
 #if 1
-    { U32 max = 36;
+    { U32 max = 35;
     size_t const mostFrequent = FSE_countFast(count, &max, llCodeTable, nbSeq);
     if ((mostFrequent == nbSeq) && (nbSeq > 2)) {
         *op++ = llCodeTable[0];
@@ -664,7 +664,13 @@ static const BYTE deltaCode = 18;
     } else if ((zc->flagStaticTables) && (nbSeq < MAX_SEQ_FOR_STATIC_FSE)) {
         LLtype = FSE_ENCODING_STATIC;
     } else if ((nbSeq < MIN_SEQ_FOR_DYNAMIC_FSE) || (mostFrequent < (nbSeq >> (LLbits-1)))) {
-        FSE_buildCTable_raw(CTable_LitLength, LLbits);
+        static const S16 LL_defaultNorm[36] = { 2, 2, 2, 2, 2, 2, 2, 2,
+                                                2, 2, 2, 2, 2, 2, 2, 2,
+                                                2, 2, 2, 2, 2, 2, 2, 2,
+                                                2, 2, 2, 2, 1, 1, 1, 1,
+                                                1, 1, 1, 1 };
+        static const U32 LL_defaultNormLog = 6;
+        FSE_buildCTable(CTable_LitLength, LL_defaultNorm, 35, LL_defaultNormLog);
         LLtype = FSE_ENCODING_RAW;
     } else {
         size_t NCountSize;

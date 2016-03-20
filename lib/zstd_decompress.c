@@ -325,7 +325,7 @@ size_t ZSTD_getFrameParams(ZSTD_frameParams* fparamsPtr, const void* src, size_t
 *   @return : 0 if success, or an error code, which can be tested using ZSTD_isError() */
 static size_t ZSTD_decodeFrameHeader(ZSTD_DCtx* zc, const void* src, size_t srcSize)
 {
-    size_t result = ZSTD_getFrameParams(&(zc->fParams), src, srcSize);
+    size_t const result = ZSTD_getFrameParams(&(zc->fParams), src, srcSize);
     if ((MEM_32bits()) && (zc->fParams.windowLog > 25)) return ERROR(frameParameter_unsupportedBy32bits);
     return result;
 }

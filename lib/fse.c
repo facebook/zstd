@@ -145,21 +145,18 @@ static U32 FSE_tableStep(U32 tableSize) { return (tableSize>>1) + (tableSize>>3)
 
 size_t FSE_buildCTable(FSE_CTable* ct, const short* normalizedCounter, unsigned maxSymbolValue, unsigned tableLog)
 {
-    const unsigned tableSize = 1 << tableLog;
-    const unsigned tableMask = tableSize - 1;
+    U32 const tableSize = 1 << tableLog;
+    U32 const tableMask = tableSize - 1;
     void* const ptr = ct;
     U16* const tableU16 = ( (U16*) ptr) + 2;
     void* const FSCT = ((U32*)ptr) + 1 /* header */ + (tableLog ? tableSize>>1 : 1) ;
     FSE_symbolCompressionTransform* const symbolTT = (FSE_symbolCompressionTransform*) (FSCT);
-    const unsigned step = FSE_tableStep(tableSize);
-    unsigned cumul[FSE_MAX_SYMBOL_VALUE+2];
-    U32 position = 0;
+    U32 const step = FSE_tableStep(tableSize);
+    U32 cumul[FSE_MAX_SYMBOL_VALUE+2];
     FSE_FUNCTION_TYPE tableSymbol[FSE_MAX_TABLESIZE]; /* memset() is not necessary, even if static analyzer complain about it */
     U32 highThreshold = tableSize-1;
-    unsigned symbol;
-    unsigned i;
 
-    /* header */
+    /* CTable header */
     tableU16[-2] = (U16) tableLog;
     tableU16[-1] = (U16) maxSymbolValue;
 
@@ -167,42 +164,44 @@ size_t FSE_buildCTable(FSE_CTable* ct, const short* normalizedCounter, unsigned 
     *  http://fastcompression.blogspot.fr/2014/02/fse-distributing-symbol-values.html */
 
     /* symbol start positions */
-    cumul[0] = 0;
-    for (i=1; i<=maxSymbolValue+1; i++) {
-        if (normalizedCounter[i-1]==-1) {  /* Low proba symbol */
-            cumul[i] = cumul[i-1] + 1;
-            tableSymbol[highThreshold--] = (FSE_FUNCTION_TYPE)(i-1);
-        } else {
-            cumul[i] = cumul[i-1] + normalizedCounter[i-1];
-    }   }
-    cumul[maxSymbolValue+1] = tableSize+1;
-
-    /* Spread symbols */
-    for (symbol=0; symbol<=maxSymbolValue; symbol++) {
-        int nbOccurences;
-        for (nbOccurences=0; nbOccurences<normalizedCounter[symbol]; nbOccurences++) {
-            tableSymbol[position] = (FSE_FUNCTION_TYPE)symbol;
-            position = (position + step) & tableMask;
-            while (position > highThreshold) position = (position + step) & tableMask;   /* Low proba area */
-    }   }
-
-    if (position!=0) return ERROR(GENERIC);   /* Must have gone through all positions */
-
-    /* Build table */
-    for (i=0; i<tableSize; i++) {
-        FSE_FUNCTION_TYPE s = tableSymbol[i];   /* note : static analyzer may not understand tableSymbol is properly initialized */
-        tableU16[cumul[s]++] = (U16) (tableSize+i);   /* TableU16 : sorted by symbol order; gives next state value */
+    {   U32 u;
+        cumul[0] = 0;
+        for (u=1; u<=maxSymbolValue+1; u++) {
+            if (normalizedCounter[u-1]==-1) {  /* Low proba symbol */
+                cumul[u] = cumul[u-1] + 1;
+                tableSymbol[highThreshold--] = (FSE_FUNCTION_TYPE)(u-1);
+            } else {
+                cumul[u] = cumul[u-1] + normalizedCounter[u-1];
+        }   }
+        cumul[maxSymbolValue+1] = tableSize+1;
     }
 
+    /* Spread symbols */
+    {   U32 position = 0;
+        U32 symbol;
+        for (symbol=0; symbol<=maxSymbolValue; symbol++) {
+            int nbOccurences;
+            for (nbOccurences=0; nbOccurences<normalizedCounter[symbol]; nbOccurences++) {
+                tableSymbol[position] = (FSE_FUNCTION_TYPE)symbol;
+                position = (position + step) & tableMask;
+                while (position > highThreshold) position = (position + step) & tableMask;   /* Low proba area */
+        }   }
+        if (position!=0) return ERROR(GENERIC);   /* Must have gone through all positions */
+    }
+
+    /* Build table */
+    { U32 u; for (u=0; u<tableSize; u++) {
+        FSE_FUNCTION_TYPE s = tableSymbol[u];   /* note : static analyzer may not understand tableSymbol is properly initialized */
+        tableU16[cumul[s]++] = (U16) (tableSize+u);   /* TableU16 : sorted by symbol order; gives next state value */
+    }}
+
     /* Build Symbol Transformation Table */
-    {
+    {   unsigned total = 0;
         unsigned s;
-        unsigned total = 0;
         for (s=0; s<=maxSymbolValue; s++) {
             switch (normalizedCounter[s])
             {
-            case  0:
-                break;
+            case  0: break;
             case -1:
             case  1:
                 symbolTT[s].deltaNbBits = (tableLog << 16) - (1<<tableLog);
@@ -211,8 +210,8 @@ size_t FSE_buildCTable(FSE_CTable* ct, const short* normalizedCounter, unsigned 
                 break;
             default :
                 {
-                    U32 maxBitsOut = tableLog - BIT_highbit32 (normalizedCounter[s]-1);
-                    U32 minStatePlus = normalizedCounter[s] << maxBitsOut;
+                    U32 const maxBitsOut = tableLog - BIT_highbit32 (normalizedCounter[s]-1);
+                    U32 const minStatePlus = normalizedCounter[s] << maxBitsOut;
                     symbolTT[s].deltaNbBits = (maxBitsOut << 16) - minStatePlus;
                     symbolTT[s].deltaFindState = total - normalizedCounter[s];
                     total +=  normalizedCounter[s];
@@ -242,9 +241,8 @@ size_t FSE_buildDTable(FSE_DTable* dt, const short* normalizedCounter, unsigned 
     const U32 tableMask = tableSize-1;
     const U32 step = FSE_tableStep(tableSize);
     U16 symbolNext[FSE_MAX_SYMBOL_VALUE+1];
-    U32 position = 0;
     U32 highThreshold = tableSize-1;
-    const S16 largeLimit= (S16)(1 << (tableLog-1));
+    S16 const largeLimit= (S16)(1 << (tableLog-1));
     U32 noLarge = 1;
     U32 s;
 
@@ -264,24 +262,24 @@ size_t FSE_buildDTable(FSE_DTable* dt, const short* normalizedCounter, unsigned 
     }   }
 
     /* Spread symbols */
-    for (s=0; s<=maxSymbolValue; s++) {
-        int i;
-        for (i=0; i<normalizedCounter[s]; i++) {
-            tableDecode[position].symbol = (FSE_FUNCTION_TYPE)s;
-            position = (position + step) & tableMask;
-            while (position > highThreshold) position = (position + step) & tableMask;   /* lowprob area */
-    }   }
-
-    if (position!=0) return ERROR(GENERIC);   /* position must reach all cells once, otherwise normalizedCounter is incorrect */
+    {   U32 position = 0;
+        for (s=0; s<=maxSymbolValue; s++) {
+            int i;
+            for (i=0; i<normalizedCounter[s]; i++) {
+                tableDecode[position].symbol = (FSE_FUNCTION_TYPE)s;
+                position = (position + step) & tableMask;
+                while (position > highThreshold) position = (position + step) & tableMask;   /* lowprob area */
+        }   }
+        if (position!=0) return ERROR(GENERIC);   /* position must reach all cells once, otherwise normalizedCounter is incorrect */
+    }
 
     /* Build Decoding table */
-    {
-        U32 i;
-        for (i=0; i<tableSize; i++) {
-            FSE_FUNCTION_TYPE symbol = (FSE_FUNCTION_TYPE)(tableDecode[i].symbol);
+    {   U32 u;
+        for (u=0; u<tableSize; u++) {
+            FSE_FUNCTION_TYPE symbol = (FSE_FUNCTION_TYPE)(tableDecode[u].symbol);
             U16 nextState = symbolNext[symbol]++;
-            tableDecode[i].nbBits = (BYTE) (tableLog - BIT_highbit32 ((U32)nextState) );
-            tableDecode[i].newState = (U16) ( (nextState << tableDecode[i].nbBits) - tableSize);
+            tableDecode[u].nbBits = (BYTE) (tableLog - BIT_highbit32 ((U32)nextState) );
+            tableDecode[u].newState = (U16) ( (nextState << tableDecode[u].nbBits) - tableSize);
     }   }
 
     DTableH.fastMode = (U16)noLarge;
@@ -465,8 +463,7 @@ size_t FSE_readNCount (short* normalizedCounter, unsigned* maxSVPtr, unsigned* t
             else
                 bitStream >>= 2;
         }
-        {
-            short const max = (short)((2*threshold-1)-remaining);
+        {   short const max = (short)((2*threshold-1)-remaining);
             short count;
 
             if ((bitStream & (threshold-1)) < (U32)max) {

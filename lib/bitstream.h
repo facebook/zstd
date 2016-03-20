@@ -206,7 +206,7 @@ MEM_STATIC void BIT_addBitsFast(BIT_CStream_t* bitC, size_t value, unsigned nbBi
  *  unsafe version; does not check buffer overflow */
 MEM_STATIC void BIT_flushBitsFast(BIT_CStream_t* bitC)
 {
-    size_t nbBytes = bitC->bitPos >> 3;
+    size_t const nbBytes = bitC->bitPos >> 3;
     MEM_writeLEST(bitC->ptr, bitC->bitContainer);
     bitC->ptr += nbBytes;
     bitC->bitPos &= 7;
@@ -218,7 +218,7 @@ MEM_STATIC void BIT_flushBitsFast(BIT_CStream_t* bitC)
  *  note : does not signal buffer overflow. This will be revealed later on using BIT_closeCStream() */
 MEM_STATIC void BIT_flushBits(BIT_CStream_t* bitC)
 {
-    size_t nbBytes = bitC->bitPos >> 3;
+    size_t const nbBytes = bitC->bitPos >> 3;
     MEM_writeLEST(bitC->ptr, bitC->bitContainer);
     bitC->ptr += nbBytes;
     if (bitC->ptr > bitC->endPtr) bitC->ptr = bitC->endPtr;

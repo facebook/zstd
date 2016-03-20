@@ -110,7 +110,7 @@ typedef enum { bt_compressed, bt_raw, bt_rle, bt_end } blockType_t;
 #define MaxLL  ((1<<LLbits) - 1)
 #define MaxOff ((1<<Offbits)- 1)
 #define MLFSELog   10
-#define LLFSELog   10
+#define LLFSELog    9
 #define OffFSELog   9
 #define MaxSeq MAX(MaxLL, MaxML)   /* Assumption : MaxOff < MaxLL,MaxML */
 
@@ -188,6 +188,7 @@ typedef struct {
     BYTE* lit;
     U16*  litLengthStart;
     U16*  litLength;
+    U32   litLengthLong;
     BYTE* llCodeStart;
     BYTE* matchLengthStart;
     BYTE* matchLength;

@@ -172,9 +172,9 @@ size_t ZSTD_sizeofCCtx(ZSTD_parameters params)   /* hidden interface, for parama
 {
     ZSTD_CCtx* zc = ZSTD_createCCtx();
     ZSTD_compressBegin_advanced(zc, NULL, 0, params);
-    { size_t const size = sizeof(*zc) + zc->workSpaceSize;
+    { size_t const ccsize = sizeof(*zc) + zc->workSpaceSize;
       ZSTD_freeCCtx(zc);
-      return size; }
+      return ccsize; }
 }
 
 
@@ -291,7 +291,7 @@ size_t ZSTD_copyCCtx(ZSTD_CCtx* dstCCtx, const ZSTD_CCtx* srcCCtx)
 
 
 /*! ZSTD_reduceTable() :
-*   rescale indexes from a table (indexes are U32) */
+*   reduce table indexes by `reducerValue` */
 static void ZSTD_reduceTable (U32* const table, U32 const size, U32 const reducerValue)
 {
     U32 u;
@@ -586,15 +586,15 @@ size_t ZSTD_compressSequences(ZSTD_CCtx* zc,
     FSE_CTable* CTable_MatchLength = zc->matchlengthCTable;
     U32 LLtype, Offtype, MLtype;   /* compressed, raw or rle */
     const U16*  const llTable = seqStorePtr->litLengthStart;
-    const U16*  const llPtr = seqStorePtr->litLength;
     const BYTE* const mlTable = seqStorePtr->matchLengthStart;
     const U32*  const offsetTable = seqStorePtr->offsetStart;
+    const U32*  const offsetTableEnd = seqStorePtr->offset;
     BYTE* const offCodeTable = seqStorePtr->offCodeStart;
     BYTE* const llCodeTable = seqStorePtr->llCodeStart;
     BYTE* const ostart = (BYTE*)dst;
     BYTE* const oend = ostart + dstCapacity;
     BYTE* op = ostart;
-    size_t const nbSeq = llPtr - llTable;
+    size_t const nbSeq = offsetTableEnd - offsetTable;
     BYTE* seqHead;
 
     /* Compress literals */
@@ -648,7 +648,8 @@ static const BYTE deltaCode = 18;
 
     {   size_t i;
         for (i=0; i<nbSeq; i++) {
-            U32 const ll = llTable[i];
+            U32 ll = llTable[i];
+            if (llTable[i] == 65535) ll = seqStorePtr->litLengthLong;
             llCodeTable[i] = (ll>63) ? ZSTD_highbit(ll) + deltaCode : llCode[ll];
     }   }
 
@@ -788,10 +789,11 @@ static const U32 llBits[36] = { 0, 0, 0, 0, 0, 0, 0, 0,
             const BYTE LLCode = llCodeTable[n];                             /* (7)*/  /* (7)*/
             FSE_encodeSymbol(&blockStream, &stateMatchLength, mlCode);      /* 17 */  /* 17 */
             if (MEM_32bits()) BIT_flushBits(&blockStream);                  /*  7 */
-            FSE_encodeSymbol(&blockStream, &stateLitLength, LLCode);        /* 17 */  /* 27 */
-            FSE_encodeSymbol(&blockStream, &stateOffsetBits, offCode);      /* 26 */  /* 36 */
+            FSE_encodeSymbol(&blockStream, &stateLitLength, LLCode);        /* 16 */  /* 26 */
+            FSE_encodeSymbol(&blockStream, &stateOffsetBits, offCode);      /* 25 */  /* 35 */
             if (MEM_32bits()) BIT_flushBits(&blockStream);                  /*  7 */
-            BIT_addBits(&blockStream, offset, nbBits);                      /* 31 */  /* 62 */   /* 24 bits max in 32-bits mode */
+            //BIT_flushBits(&blockStream);                                    /*  7 */  /*  7 */
+            BIT_addBits(&blockStream, offset, nbBits);                      /* 31 */  /* 61 */   /* 24 bits max in 32-bits mode */
             BIT_addBits(&blockStream, llTable[n], llBits[LLCode]);
             BIT_flushBits(&blockStream);                                    /*  7 */  /*  7 */
         } }
@@ -866,7 +868,8 @@ MEM_STATIC void ZSTD_storeSeq(seqStore_t* seqStorePtr, size_t litLength, const B
 
     /* literal Length */
 #if 1
-    *seqStorePtr->litLength++ = (U16)litLength;   /* take care of litLength >= 65535 ! */
+    if (litLength>=65535) { *(seqStorePtr->litLength++) = 65535; seqStorePtr->litLengthLong = (U32)litLength; }
+    else *seqStorePtr->litLength++ = (U16)litLength;
 #else
     if (litLength >= MaxLL) {
         *(seqStorePtr->litLength++) = MaxLL;

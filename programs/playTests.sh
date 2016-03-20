@@ -143,7 +143,7 @@ roundTripTest -g50000000 -P94 18
 roundTripTest -g50000000 -P94 19
 
 roundTripTest -g99000000 -P99 20
-roundTripTest -g6000000000 -P99 q
+roundTripTest -g6000000000 -P99 1
 
 rm tmp*
 

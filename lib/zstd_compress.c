@@ -289,20 +289,29 @@ size_t ZSTD_copyCCtx(ZSTD_CCtx* dstCCtx, const ZSTD_CCtx* srcCCtx)
 }
 
 
-/*! ZSTD_reduceIndex() :
-*   rescale indexes to avoid future overflow (indexes are U32) */
-static void ZSTD_reduceIndex (ZSTD_CCtx* zc,
-                        const U32 reducerValue)
+/*! ZSTD_reduceTable() :
+*   rescale indexes from a table (indexes are U32) */
+static void ZSTD_reduceTable (U32* const table, U32 const size, U32 const reducerValue)
 {
-    const U32 contentLog = (zc->params.strategy == ZSTD_fast) ? 1 : zc->params.contentLog;
-    const U32 tableSpaceU32 = (1 << contentLog) + (1 << zc->params.hashLog);
-    U32* table32 = zc->hashTable;
-    U32 index;
-
-    for (index=0 ; index < tableSpaceU32 ; index++) {
-        if (table32[index] < reducerValue) table32[index] = 0;
-        else table32[index] -= reducerValue;
+    U32 u;
+    for (u=0 ; u < size ; u++) {
+        if (table[u] < reducerValue) table[u] = 0;
+        else table[u] -= reducerValue;
     }
+}
+
+/*! ZSTD_reduceIndex() :
+*   rescale all indexes to avoid future overflow (indexes are U32) */
+static void ZSTD_reduceIndex (ZSTD_CCtx* zc, const U32 reducerValue)
+{
+    { const U32 hSize = 1 << zc->params.hashLog;
+      ZSTD_reduceTable(zc->hashTable, hSize, reducerValue); }
+
+    { const U32 contentSize = (zc->params.strategy == ZSTD_fast) ? 0 : (1 << zc->params.contentLog);
+      ZSTD_reduceTable(zc->contentTable, contentSize, reducerValue); }
+
+    { const U32 h3Size = (zc->params.searchLength == 3) ? (1 << HASHLOG3) : 0;
+      ZSTD_reduceTable(zc->hashTable3, h3Size, reducerValue); }
 }
 
 

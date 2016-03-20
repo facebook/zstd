@@ -2431,18 +2431,18 @@ static const ZSTD_parameters ZSTD_defaultParameters[4][ZSTD_MAX_CLEVEL+1] = {
 
 /*! ZSTD_getParams() :
 *   @return ZSTD_parameters structure for a selected compression level and srcSize.
-*   `srcSizeHint` value is optional, select 0 if not known */
-ZSTD_parameters ZSTD_getParams(int compressionLevel, U64 srcSizeHint)
+*   `srcSize` value is optional, select 0 if not known */
+ZSTD_parameters ZSTD_getParams(int compressionLevel, U64 srcSize)
 {
     ZSTD_parameters result;
-    int tableID = ((srcSizeHint-1) <= 256 KB) + ((srcSizeHint-1) <= 128 KB) + ((srcSizeHint-1) <= 16 KB);   /* intentional underflow for srcSizeHint == 0 */
+    int tableID = ((srcSize-1) <= 256 KB) + ((srcSize-1) <= 128 KB) + ((srcSize-1) <= 16 KB);   /* intentional underflow for srcSizeHint == 0 */
     if (compressionLevel<=0) compressionLevel = 1;
     if (compressionLevel > ZSTD_MAX_CLEVEL) compressionLevel = ZSTD_MAX_CLEVEL;
 #if ZSTD_OPT_DEBUG >= 1
     tableID=0;
 #endif
     result = ZSTD_defaultParameters[tableID][compressionLevel];
-    result.srcSize = srcSizeHint;
+    result.srcSize = srcSize;
     return result;
 }
 

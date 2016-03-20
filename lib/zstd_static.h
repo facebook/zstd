@@ -73,8 +73,7 @@ extern "C" {
 /* from faster to stronger */
 typedef enum { ZSTD_fast, ZSTD_greedy, ZSTD_lazy, ZSTD_lazy2, ZSTD_btlazy2, ZSTD_btopt } ZSTD_strategy;
 
-typedef struct
-{
+typedef struct {
     U64 srcSize;       /* optional : tells how much bytes are present in the frame. Use 0 if not known. */
     U32 windowLog;     /* largest match distance : larger == more compression, more memory needed during decompression */
     U32 contentLog;    /* full search segment : larger == more compression, slower, more memory (useless for fast) */
@@ -245,7 +244,7 @@ size_t ZSTD_decompressBlock(ZSTD_DCtx* dctx, void* dst, size_t dstCapacity, cons
 ***************************************/
 #include "error_public.h"
 /*! ZSTD_getErrorCode() :
-    convert a `size_t` function result into a `ZSTD_error_code` enum type,
+    convert a `size_t` function result into a `ZSTD_ErrorCode` enum type,
     which can be used to compare directly with enum list published into "error_public.h" */
 ZSTD_ErrorCode ZSTD_getError(size_t code);
 

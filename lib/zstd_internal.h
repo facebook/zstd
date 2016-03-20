@@ -184,11 +184,11 @@ typedef struct {
     U32*  offsetStart;
     U32*  offset;
     BYTE* offCodeStart;
-    BYTE* offCode;
     BYTE* litStart;
     BYTE* lit;
-    BYTE* litLengthStart;
-    BYTE* litLength;
+    U16*  litLengthStart;
+    U16*  litLength;
+    BYTE* llCodeStart;
     BYTE* matchLengthStart;
     BYTE* matchLength;
     BYTE* dumpsStart;

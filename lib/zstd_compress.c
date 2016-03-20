@@ -184,7 +184,7 @@ static size_t ZSTD_resetCCtx_advanced (ZSTD_CCtx* zc,
     const size_t blockSize = MIN(ZSTD_BLOCKSIZE_MAX, (size_t)1 << params.windowLog);
     const U32    divider = (params.searchLength==3) ? 3 : 4;
     const size_t maxNbSeq = blockSize / divider;
-    const size_t tokenSpace = blockSize + 8*maxNbSeq;
+    const size_t tokenSpace = blockSize + 10*maxNbSeq;
     const size_t contentSize = (params.strategy == ZSTD_fast) ? 0 : (1 << params.contentLog);
     const size_t hSize = 1 << params.hashLog;
     const size_t h3Size = (params.searchLength==3) ? (1 << HASHLOG3) : 0;
@@ -209,7 +209,7 @@ static size_t ZSTD_resetCCtx_advanced (ZSTD_CCtx* zc,
     zc->seqStore.buffer = zc->contentTable + contentSize;
     zc->hufTable = (HUF_CElt*)zc->seqStore.buffer;
     zc->flagStaticTables = 0;
-    zc->seqStore.buffer = (U32*)(zc->seqStore.buffer) + 256;
+    zc->seqStore.buffer = ((U32*)(zc->seqStore.buffer)) + 256;
 
     zc->nextToUpdate = 1;
     zc->nextSrc = NULL;
@@ -221,10 +221,11 @@ static size_t ZSTD_resetCCtx_advanced (ZSTD_CCtx* zc,
     zc->blockSize = blockSize;
 
     zc->seqStore.offsetStart = (U32*) (zc->seqStore.buffer);
-    zc->seqStore.offCodeStart = (BYTE*) (zc->seqStore.offsetStart + maxNbSeq);
+    zc->seqStore.litLengthStart = (U16*) (void*)(zc->seqStore.offsetStart + maxNbSeq);
+    zc->seqStore.llCodeStart = (BYTE*) (zc->seqStore.litLengthStart + maxNbSeq);
+    zc->seqStore.offCodeStart = zc->seqStore.llCodeStart + maxNbSeq;
     zc->seqStore.litStart = zc->seqStore.offCodeStart + maxNbSeq;
-    zc->seqStore.litLengthStart =  zc->seqStore.litStart + blockSize;
-    zc->seqStore.matchLengthStart = zc->seqStore.litLengthStart + maxNbSeq;
+    zc->seqStore.matchLengthStart = zc->seqStore.litStart + blockSize;
     zc->seqStore.dumpsStart = zc->seqStore.matchLengthStart + maxNbSeq;
     if (params.strategy == ZSTD_btopt) {
         zc->seqStore.litFreq = (U32*)((void*)(zc->seqStore.dumpsStart + maxNbSeq));
@@ -584,11 +585,12 @@ size_t ZSTD_compressSequences(ZSTD_CCtx* zc,
     FSE_CTable* CTable_OffsetBits = zc->offcodeCTable;
     FSE_CTable* CTable_MatchLength = zc->matchlengthCTable;
     U32 LLtype, Offtype, MLtype;   /* compressed, raw or rle */
-    const BYTE* const llTable = seqStorePtr->litLengthStart;
-    const BYTE* const llPtr = seqStorePtr->litLength;
+    const U16*  const llTable = seqStorePtr->litLengthStart;
+    const U16*  const llPtr = seqStorePtr->litLength;
     const BYTE* const mlTable = seqStorePtr->matchLengthStart;
     const U32*  const offsetTable = seqStorePtr->offsetStart;
     BYTE* const offCodeTable = seqStorePtr->offCodeStart;
+    BYTE* const llCodeTable = seqStorePtr->llCodeStart;
     BYTE* const ostart = (BYTE*)dst;
     BYTE* const oend = ostart + dstCapacity;
     BYTE* op = ostart;
@@ -633,7 +635,49 @@ size_t ZSTD_compressSequences(ZSTD_CCtx* zc,
 #define MIN_SEQ_FOR_DYNAMIC_FSE   64
 #define MAX_SEQ_FOR_STATIC_FSE  1000
 
+    /* LL codes */
+static const BYTE llCode[64] = {  0,  1,  2,  3,  4,  5,  6,  7,
+                                  8,  9, 10, 11, 12, 13, 14, 15,
+                                 16, 16, 17, 17, 18, 18, 19, 19,
+                                 20, 20, 20, 20, 21, 21, 21, 21,
+                                 22, 22, 22, 22, 22, 22, 22, 22,
+                                 23, 23, 23, 23, 23, 23, 23, 23,
+                                 24, 24, 24, 24, 24, 24, 24, 24,
+                                 24, 24, 24, 24, 24, 24, 24, 24 };
+static const BYTE deltaCode = 18;
+
+    {   size_t i;
+        for (i=0; i<nbSeq; i++) {
+            U32 const ll = llTable[i];
+            llCodeTable[i] = (ll>63) ? ZSTD_highbit(ll) + deltaCode : llCode[ll];
+    }   }
+
     /* CTable for Literal Lengths */
+#if 1
+    { U32 max = 36;
+    size_t const mostFrequent = FSE_countFast(count, &max, llCodeTable, nbSeq);
+    if ((mostFrequent == nbSeq) && (nbSeq > 2)) {
+        *op++ = llCodeTable[0];
+        FSE_buildCTable_rle(CTable_LitLength, (BYTE)max);
+        LLtype = FSE_ENCODING_RLE;
+    } else if ((zc->flagStaticTables) && (nbSeq < MAX_SEQ_FOR_STATIC_FSE)) {
+        LLtype = FSE_ENCODING_STATIC;
+    } else if ((nbSeq < MIN_SEQ_FOR_DYNAMIC_FSE) || (mostFrequent < (nbSeq >> (LLbits-1)))) {
+        FSE_buildCTable_raw(CTable_LitLength, LLbits);
+        LLtype = FSE_ENCODING_RAW;
+    } else {
+        size_t NCountSize;
+        size_t nbSeq_1 = nbSeq;
+        const U32 tableLog = FSE_optimalTableLog(LLFSELog, nbSeq, max);
+        if (count[llCodeTable[nbSeq-1]]>1) { count[llCodeTable[nbSeq-1]]--; nbSeq_1--; }
+        FSE_normalizeCount(norm, tableLog, count, nbSeq_1, max);
+        NCountSize = FSE_writeNCount(op, oend-op, norm, max, tableLog);   /* overflow protected */
+        if (FSE_isError(NCountSize)) return ERROR(GENERIC);
+        op += NCountSize;
+        FSE_buildCTable(CTable_LitLength, norm, max, tableLog);
+        LLtype = FSE_ENCODING_DYNAMIC;
+    }}
+#else
     { U32 max = MaxLL;
     size_t const mostFrequent = FSE_countFast(count, &max, llTable, nbSeq);
     if ((mostFrequent == nbSeq) && (nbSeq > 2)) {
@@ -657,6 +701,7 @@ size_t ZSTD_compressSequences(ZSTD_CCtx* zc,
         FSE_buildCTable(CTable_LitLength, norm, max, tableLog);
         LLtype = FSE_ENCODING_DYNAMIC;
     }}
+#endif // 0
 
     /* Offset codes */
     { size_t i; for (i=0; i<nbSeq; i++) offCodeTable[i] = offsetTable[i] ? (BYTE)ZSTD_highbit(offsetTable[i]) + 1 : 0; }
@@ -718,8 +763,39 @@ size_t ZSTD_compressSequences(ZSTD_CCtx* zc,
         FSE_CState_t  stateLitLength;
 
         { size_t const errorCode = BIT_initCStream(&blockStream, op, oend-op);
-        if (ERR_isError(errorCode)) return ERROR(dstSize_tooSmall); }   /* not enough space remaining */
+          if (ERR_isError(errorCode)) return ERROR(dstSize_tooSmall); }   /* not enough space remaining */
 
+#if 1
+        /* first symbols */
+        FSE_initCState2(&stateMatchLength, CTable_MatchLength, mlTable[nbSeq-1]);
+        FSE_initCState2(&stateOffsetBits,  CTable_OffsetBits,  offCodeTable[nbSeq-1]);
+        FSE_initCState2(&stateLitLength,   CTable_LitLength,   llCodeTable[nbSeq-1]);
+        BIT_addBits(&blockStream, offsetTable[nbSeq-1], offCodeTable[nbSeq-1] ? (offCodeTable[nbSeq-1]-1) : 0);
+        BIT_flushBits(&blockStream);
+
+static const U32 llBits[36] = { 0, 0, 0, 0, 0, 0, 0, 0,
+                                0, 0, 0, 0, 0, 0, 0, 0,
+                                1, 1, 1, 1, 2, 2, 3, 3,
+                                4, 6, 7, 8, 9,10,11,12,
+                               13,14,15,16 };
+
+        { size_t n;
+          for (n=nbSeq-2; n<nbSeq; n--) {   /* intentional underflow */
+            const BYTE mlCode = mlTable[n];
+            const U32  offset = offsetTable[n];
+            const BYTE offCode = offCodeTable[n];                           /* 32b*/  /* 64b*/
+            const U32  nbBits = (offCode-1) + (!offCode);
+            const BYTE LLCode = llCodeTable[n];                             /* (7)*/  /* (7)*/
+            FSE_encodeSymbol(&blockStream, &stateMatchLength, mlCode);      /* 17 */  /* 17 */
+            if (MEM_32bits()) BIT_flushBits(&blockStream);                  /*  7 */
+            FSE_encodeSymbol(&blockStream, &stateLitLength, LLCode);        /* 17 */  /* 27 */
+            FSE_encodeSymbol(&blockStream, &stateOffsetBits, offCode);      /* 26 */  /* 36 */
+            if (MEM_32bits()) BIT_flushBits(&blockStream);                  /*  7 */
+            BIT_addBits(&blockStream, offset, nbBits);                      /* 31 */  /* 62 */   /* 24 bits max in 32-bits mode */
+            BIT_addBits(&blockStream, llTable[n], llBits[LLCode]);
+            BIT_flushBits(&blockStream);                                    /*  7 */  /*  7 */
+        } }
+#else
         /* first symbols */
         FSE_initCState2(&stateMatchLength, CTable_MatchLength, mlTable[nbSeq-1]);
         FSE_initCState2(&stateOffsetBits,  CTable_OffsetBits,  offCodeTable[nbSeq-1]);
@@ -741,6 +817,7 @@ size_t ZSTD_compressSequences(ZSTD_CCtx* zc,
             BIT_addBits(&blockStream, offset, nbBits);                      /* 31 */  /* 62 */   /* 24 bits max in 32-bits mode */
             BIT_flushBits(&blockStream);                                    /*  7 */  /*  7 */
         }}
+#endif // 0
 
         FSE_flushCState(&blockStream, &stateMatchLength);
         FSE_flushCState(&blockStream, &stateOffsetBits);
@@ -788,6 +865,9 @@ MEM_STATIC void ZSTD_storeSeq(seqStore_t* seqStorePtr, size_t litLength, const B
     seqStorePtr->lit += litLength;
 
     /* literal Length */
+#if 1
+    *seqStorePtr->litLength++ = (U16)litLength;   /* take care of litLength >= 65535 ! */
+#else
     if (litLength >= MaxLL) {
         *(seqStorePtr->litLength++) = MaxLL;
         if (litLength<255 + MaxLL) {
@@ -802,6 +882,7 @@ MEM_STATIC void ZSTD_storeSeq(seqStore_t* seqStorePtr, size_t litLength, const B
                 seqStorePtr->dumps += 3;
     }   }   }
     else *(seqStorePtr->litLength++) = (BYTE)litLength;
+#endif // 0
 
     /* match offset */
     *(seqStorePtr->offset++) = (U32)offsetCode;

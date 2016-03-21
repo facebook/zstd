@@ -67,7 +67,7 @@
 #if 1
     #define ZSTD_REP_NUM    4
     #define ZSTD_REP_INIT   4
-    #define ZSTD_REP_MOVE  (ZSTD_REP_NUM-1)
+    #define ZSTD_REP_MOVE   (ZSTD_REP_NUM-1)
 #else
     #define ZSTD_REP_NUM    1
     #define ZSTD_REP_INIT   2
@@ -183,7 +183,7 @@ typedef struct {
     U32 off;
     U32 mlen;
     U32 litlen;
-    U32 rep[ZSTD_REP_NUM];
+    U32 rep[ZSTD_REP_INIT];
 } ZSTD_optimal_t;
 
 typedef struct {

@@ -160,7 +160,7 @@ size_t ZSTD_decompressBegin(ZSTD_DCtx* dctx)
     dctx->hufTableX4[0] = HufLog;
     dctx->flagStaticTables = 0;
     dctx->fParams.mml = MINMATCH; /* overwritten by frame but forces ZSTD_btopt to MINMATCH in block mode */
-    ZSTD_LOG_BLOCK("%p: ZSTD_decompressBegin searchLength=%d\n", dctx->base, dctx->params.searchLength);
+    ZSTD_LOG_BLOCK("%p: ZSTD_decompressBegin searchLength=%d\n", dctx->base, dctx->fParams.mml);
     return 0;
 }
 
@@ -683,38 +683,35 @@ static void ZSTD_decodeSequence(seq_t* seq, seqState_t* seqState, const U32 mls)
         if (offsetCode==0) offset = 0;
         
         if (offset < ZSTD_REP_NUM) {
+#if 0
             if (!litLength && offset <= 1)
                 offset = 1-offset;
-            if (offset != 0)
-            {
-    #if 1
+#endif
+            if (offset != 0) {
                 size_t temp = seqState->prevOffset[offset];
                 if (offset != 1) {
                     if (offset == 3) seqState->prevOffset[3] = seqState->prevOffset[2];
                     seqState->prevOffset[2] = seqState->prevOffset[1];
                 }
                 offset = temp;
-    #else
-                offset = seqState->prevOffset[1];
-    #endif
                 seqState->prevOffset[1] = seqState->prevOffset[0];
                 seqState->prevOffset[0] = offset;
-            }
-            else
+            } else {
                 offset = seqState->prevOffset[0];
+            }
+
+            if (litLength == 0) {
+                size_t temp = seqState->prevOffset[1];
+                seqState->prevOffset[1] = seqState->prevOffset[0];
+                seqState->prevOffset[0] = temp;
+             //   offset = seqState->prevOffset[0];
+            }
         } else {
             offset -= ZSTD_REP_MOVE;
-    #if 0
-        //    seqState->prevOffset[3] = seqState->prevOffset[2];
-        //    seqState->prevOffset[2] = seqState->prevOffset[1];
-            seqState->prevOffset[1] = seqState->prevOffset[0];
-            seqState->prevOffset[0] = offset;
-    #else
             if (kSlotNew < 3) seqState->prevOffset[3] = seqState->prevOffset[2];
             if (kSlotNew < 2) seqState->prevOffset[2] = seqState->prevOffset[1];
             if (kSlotNew < 1) seqState->prevOffset[1] = seqState->prevOffset[0];               
             seqState->prevOffset[kSlotNew] = offset;
-    #endif
         }
 #else // ZSTD_REP_NUM == 1
     #if 0
@@ -944,7 +941,7 @@ static size_t ZSTD_decompressBlock_internal(ZSTD_DCtx* dctx,
 
     if (srcSize >= ZSTD_BLOCKSIZE_MAX) return ERROR(srcSize_wrong);
 
-    ZSTD_LOG_BLOCK("%p: ZSTD_decompressBlock_internal searchLength=%d\n", dctx->base, dctx->params.searchLength);
+    ZSTD_LOG_BLOCK("%p: ZSTD_decompressBlock_internal searchLength=%d\n", dctx->base, dctx->fParams.mml);
 
     /* Decode literals sub-block */
     litCSize = ZSTD_decodeLiteralsBlock(dctx, src, srcSize);
@@ -1055,7 +1052,7 @@ size_t ZSTD_decompress_usingDict(ZSTD_DCtx* dctx,
                                  const void* dict, size_t dictSize)
 {
     ZSTD_decompressBegin_usingDict(dctx, dict, dictSize);
-    ZSTD_LOG_BLOCK("%p: ZSTD_decompressBegin_usingDict searchLength=%d\n", dctx->base, dctx->params.searchLength);
+    ZSTD_LOG_BLOCK("%p: ZSTD_decompressBegin_usingDict searchLength=%d\n", dctx->base, dctx->fParams.mml);
     ZSTD_checkContinuity(dctx, dst);
     return ZSTD_decompressFrame(dctx, dst, maxDstSize, src, srcSize);
 }

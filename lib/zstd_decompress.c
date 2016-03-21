@@ -683,14 +683,8 @@ static void ZSTD_decodeSequence(seq_t* seq, seqState_t* seqState, const U32 mls)
         if (offsetCode==0) offset = 0;
         
         if (offset < ZSTD_REP_NUM) {
-            if (litLength == 0) {
-                if (offset <= 1) offset = 1-offset;
-                offset = seqState->prevOffset[offset];
-                size_t temp = seqState->prevOffset[1];
-                seqState->prevOffset[1] = seqState->prevOffset[0];
-                seqState->prevOffset[0] = temp;
-            }
-            else
+            if (litLength == 0 && offset <= 1) offset = 1-offset;
+
             if (offset != 0) {
                 size_t temp = seqState->prevOffset[offset];
                 if (offset != 1) {

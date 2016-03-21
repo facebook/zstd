@@ -103,11 +103,10 @@ typedef enum { bt_compressed, bt_raw, bt_rle, bt_end } blockType_t;
 
 #define Litbits  8
 #define MLbits   7
-#define LLbits   6
 #define Offbits  5
 #define MaxLit ((1<<Litbits) - 1)
 #define MaxML  ((1<<MLbits) - 1)
-#define MaxLL  ((1<<LLbits) - 1)
+#define MaxLL  35
 #define MaxOff ((1<<Offbits)- 1)
 #define MLFSELog   10
 #define LLFSELog    9
@@ -118,6 +117,14 @@ typedef enum { bt_compressed, bt_raw, bt_rle, bt_end } blockType_t;
 #define FSE_ENCODING_RLE     1
 #define FSE_ENCODING_STATIC  2
 #define FSE_ENCODING_DYNAMIC 3
+
+static const U32 LL_bits[MaxLL+1] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                      1, 1, 1, 1, 2, 2, 3, 3, 4, 6, 7, 8, 9,10,11,12,
+                                     13,14,15,16 };
+static const S16 LL_defaultNorm[MaxLL+1] = { 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+                                             2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 1, 1, 1,
+                                             1, 1, 1, 1 };
+static const U32 LL_defaultNormLog = 6;
 
 
 /*-*******************************************

@@ -363,8 +363,7 @@ static size_t FSE_writeNCount_generic (void* header, size_t headerBufferSize,
                 bitStream >>= 16;
                 bitCount -= 16;
         }   }
-        {
-            short count = normalizedCounter[charnum++];
+        {   short count = normalizedCounter[charnum++];
             const short max = (short)((2*threshold-1)-remaining);
             remaining -= FSE_abs(count);
             if (remaining<1) return ERROR(GENERIC);
@@ -506,11 +505,11 @@ size_t FSE_readNCount (short* normalizedCounter, unsigned* maxSVPtr, unsigned* t
 *  Counting histogram
 ****************************************************************/
 /*! FSE_count_simple
-    This function just counts byte values within @src,
-    and store the histogram into @count.
-    This function is unsafe : it doesn't check that all values within @src can fit into @count.
-    For this reason, prefer using a table @count with 256 elements.
-    @return : highest count for a single element
+    This function just counts byte values within `src`,
+    and store the histogram into table `count`.
+    This function is unsafe : it doesn't check that all values within `src` can fit into `count`.
+    For this reason, prefer using a table `count` with 256 elements.
+    @return : count of most numerous element
 */
 static size_t FSE_count_simple(unsigned* count, unsigned* maxSymbolValuePtr,
                                const void* src, size_t srcSize)
@@ -519,7 +518,6 @@ static size_t FSE_count_simple(unsigned* count, unsigned* maxSymbolValuePtr,
     const BYTE* const end = ip + srcSize;
     unsigned maxSymbolValue = *maxSymbolValuePtr;
     unsigned max=0;
-    U32 s;
 
     memset(count, 0, (maxSymbolValue+1)*sizeof(*count));
     if (srcSize==0) { *maxSymbolValuePtr = 0; return 0; }
@@ -529,7 +527,7 @@ static size_t FSE_count_simple(unsigned* count, unsigned* maxSymbolValuePtr,
     while (!count[maxSymbolValue]) maxSymbolValue--;
     *maxSymbolValuePtr = maxSymbolValue;
 
-    for (s=0; s<=maxSymbolValue; s++) if (count[s] > max) max = count[s];
+    { U32 s; for (s=0; s<=maxSymbolValue; s++) if (count[s] > max) max = count[s]; }
 
     return (size_t)max;
 }
@@ -543,7 +541,6 @@ static size_t FSE_count_parallel(unsigned* count, unsigned* maxSymbolValuePtr,
     const BYTE* const iend = ip+sourceSize;
     unsigned maxSymbolValue = *maxSymbolValuePtr;
     unsigned max=0;
-    U32 s;
 
     U32 Counting1[256] = { 0 };
     U32 Counting2[256] = { 0 };
@@ -558,8 +555,8 @@ static size_t FSE_count_parallel(unsigned* count, unsigned* maxSymbolValuePtr,
     }
     if (!maxSymbolValue) maxSymbolValue = 255;            /* 0 == default */
 
-    {   /* by stripes of 16 bytes */
-        U32 cached = MEM_read32(ip); ip += 4;
+    /* by stripes of 16 bytes */
+    {   U32 cached = MEM_read32(ip); ip += 4;
         while (ip < iend-15) {
             U32 c = cached; cached = MEM_read32(ip); ip += 4;
             Counting1[(BYTE) c     ]++;
@@ -589,15 +586,15 @@ static size_t FSE_count_parallel(unsigned* count, unsigned* maxSymbolValuePtr,
     while (ip<iend) Counting1[*ip++]++;
 
     if (checkMax) {   /* verify stats will fit into destination table */
-        for (s=255; s>maxSymbolValue; s--) {
+        U32 s; for (s=255; s>maxSymbolValue; s--) {
             Counting1[s] += Counting2[s] + Counting3[s] + Counting4[s];
             if (Counting1[s]) return ERROR(maxSymbolValue_tooSmall);
     }   }
 
-    for (s=0; s<=maxSymbolValue; s++) {
+    { U32 s; for (s=0; s<=maxSymbolValue; s++) {
         count[s] = Counting1[s] + Counting2[s] + Counting3[s] + Counting4[s];
         if (count[s] > max) max = count[s];
-    }
+    }}
 
     while (!count[maxSymbolValue]) maxSymbolValue--;
     *maxSymbolValuePtr = maxSymbolValue;
@@ -631,7 +628,7 @@ size_t FSE_count(unsigned* count, unsigned* maxSymbolValuePtr,
     `U16 maxSymbolValue;`
     `U16 nextStateNumber[1 << tableLog];`                         // This size is variable
     `FSE_symbolCompressionTransform symbolTT[maxSymbolValue+1];`  // This size is variable
-Allocation is manual, since C standard does not support variable-size structures.
+Allocation is manual (C standard does not support variable-size structures).
 */
 
 size_t FSE_sizeof_CTable (unsigned maxSymbolValue, unsigned tableLog)
@@ -727,7 +724,7 @@ static size_t FSE_normalizeM2(short* norm, U32 tableLog, const unsigned* count, 
         /* all values are pretty poor;
            probably incompressible data (should have already been detected);
            find max, then give all remaining points to max */
-        U32 maxV = 0, maxC =0;
+        U32 maxV = 0, maxC = 0;
         for (s=0; s<=maxSymbolValue; s++)
             if (count[s] > maxC) maxV=s, maxC=count[s];
         norm[maxV] += (short)ToDistribute;
@@ -765,8 +762,7 @@ size_t FSE_normalizeCount (short* normalizedCounter, unsigned tableLog,
     if (tableLog > FSE_MAX_TABLELOG) return ERROR(tableLog_tooLarge);   /* Unsupported size */
     if (tableLog < FSE_minTableLog(total, maxSymbolValue)) return ERROR(GENERIC);   /* Too small tableLog, compression potentially impossible */
 
-    {
-        U32 const rtbTable[] = {     0, 473195, 504333, 520860, 550000, 700000, 750000, 830000 };
+    {   U32 const rtbTable[] = {     0, 473195, 504333, 520860, 550000, 700000, 750000, 830000 };
         U64 const scale = 62 - tableLog;
         U64 const step = ((U64)1<<62) / total;   /* <== here, one division ! */
         U64 const vStep = 1ULL<<(scale-20);
@@ -842,13 +838,11 @@ size_t FSE_buildCTable_raw (FSE_CTable* ct, unsigned nbBits)
         tableU16[s] = (U16)(tableSize + s);
 
     /* Build Symbol Transformation Table */
-    {
-        const U32 deltaNbBits = (nbBits << 16) - (1 << nbBits);
+    {   const U32 deltaNbBits = (nbBits << 16) - (1 << nbBits);
         for (s=0; s<=maxSymbolValue; s++) {
             symbolTT[s].deltaNbBits = deltaNbBits;
             symbolTT[s].deltaFindState = s-1;
-        }
-    }
+    }   }
 
     return 0;
 }
@@ -884,15 +878,13 @@ static size_t FSE_compress_usingCTable_generic (void* dst, size_t dstSize,
     const BYTE* const istart = (const BYTE*) src;
     const BYTE* const iend = istart + srcSize;
     const BYTE* ip=iend;
-
-    size_t errorCode;
     BIT_CStream_t bitC;
     FSE_CState_t CState1, CState2;
 
     /* init */
     if (srcSize <= 2) return 0;
-    errorCode = BIT_initCStream(&bitC, dst, dstSize);
-    if (FSE_isError(errorCode)) return 0;
+    { size_t const errorCode = BIT_initCStream(&bitC, dst, dstSize);
+      if (FSE_isError(errorCode)) return 0; }
 
 #define FSE_FLUSHBITS(s)  (fast ? BIT_flushBitsFast(s) : BIT_flushBits(s))
 
@@ -915,8 +907,7 @@ static size_t FSE_compress_usingCTable_generic (void* dst, size_t dstSize,
     }
 
     /* 2 or 4 encoding per loop */
-    for ( ; ip>istart ; )
-    {
+    for ( ; ip>istart ; ) {
         FSE_encodeSymbol(&bitC, &CState2, *--ip);
 
         if (sizeof(bitC.bitContainer)*8 < FSE_MAX_TABLELOG*2+7 )   /* this test must be static */

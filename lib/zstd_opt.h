@@ -531,18 +531,17 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
                 ZSTD_LOG_ENCODE("%d: COPYREP_OFF cur=%d mlen=%d rep=%d rep[1]=%d\n", (int)(inr-base), cur, mlen, opt[cur].rep[0], opt[cur].rep[1]);
            } else {
 #if 1
-                opt[cur].rep[3] = (opt[cur].off > 2) ? opt[cur-mlen].rep[2] : opt[cur-mlen].rep[3];
-                opt[cur].rep[2] = (opt[cur].off > 1) ? opt[cur-mlen].rep[1] : opt[cur-mlen].rep[2];
-                opt[cur].rep[1] = (opt[cur].off > 0) ? opt[cur-mlen].rep[0] : opt[cur-mlen].rep[1];
-                opt[cur].rep[0] = opt[cur-mlen].rep[opt[cur].off];
-
-#if 1
                 if (cur!=mlen && opt[cur].litlen == 0) {
-                    U32 temp = opt[cur].rep[0];
-                    opt[cur].rep[0] = opt[cur].rep[1];
-                    opt[cur].rep[1] = temp;
+                    opt[cur].rep[0] = opt[cur-mlen].rep[1];
+                    opt[cur].rep[1] = opt[cur-mlen].rep[0];
+                    opt[cur].rep[2] = opt[cur-mlen].rep[2];
+                    opt[cur].rep[3] = opt[cur-mlen].rep[3];
+                } else {
+                    opt[cur].rep[3] = (opt[cur].off > 2) ? opt[cur-mlen].rep[2] : opt[cur-mlen].rep[3];
+                    opt[cur].rep[2] = (opt[cur].off > 1) ? opt[cur-mlen].rep[1] : opt[cur-mlen].rep[2];
+                    opt[cur].rep[1] = (opt[cur].off > 0) ? opt[cur-mlen].rep[0] : opt[cur-mlen].rep[1];
+                    opt[cur].rep[0] = opt[cur-mlen].rep[opt[cur].off];
                 }
-#endif
 #else
                 if (cur!=mlen && opt[cur].litlen == 0) {
                     opt[cur].rep[3] = (opt[cur].off > 2) ? opt[cur-mlen].rep[2] : opt[cur-mlen].rep[3];
@@ -569,10 +568,13 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
                mlen = (U32)ZSTD_count(inr+minMatch, inr+minMatch - opt[cur].rep[i], iend) + minMatch;
                ZSTD_LOG_PARSER("%d: Found REP %d/%d mlen=%d off=%d rep=%d opt[%d].off=%d\n", (int)(inr-base), i, ZSTD_REP_NUM, mlen, i, opt[cur].rep[i], cur, opt[cur].off);
 
-               best_off = i;//(i<=1 && opt[cur].mlen != 1) ? 1-i : i;
+               best_off = (i<=1 && opt[cur].mlen != 1) ? 1-i : i;
 
                if (mlen > sufficient_len || cur + mlen >= ZSTD_OPT_NUM) {
                     best_mlen = mlen;
+#if 1               
+                    best_off = i;
+#endif
                     ZSTD_LOG_PARSER("%d: REP sufficient_len=%d best_mlen=%d best_off=%d last_pos=%d\n", (int)(inr-base), sufficient_len, best_mlen, best_off, last_pos);
                     last_pos = cur + 1;
                     goto _storeSequence;
@@ -594,7 +596,11 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
 
                 do {
                     if (cur + mlen > last_pos || price <= opt[cur + mlen].price)
+#if 1
+                        SET_PRICE(cur + mlen, mlen, i, litlen, price);
+#else
                         SET_PRICE(cur + mlen, mlen, best_off, litlen, price);
+#endif
                     mlen--;
                 } while (mlen >= minMatch);
             }
@@ -684,37 +690,23 @@ _storeSequence:   /* cur, last_pos, best_mlen, best_off have to be set */
                 if (kSlotNew < 1) rep[1] = rep[0];               
                 rep[kSlotNew] = offset - ZSTD_REP_MOVE;               
             } else {
-                U32 temp = rep[offset];
-                rep[3] = (offset > 2) ? rep[2] : rep[3];
-                rep[2] = (offset > 1) ? rep[1] : rep[2];
-                rep[1] = (offset > 0) ? rep[0] : rep[1];
-                rep[0] = temp;
-
-#if 1
                 if (litLength == 0) {
-                    temp = rep[0];
+                    U32 temp = rep[0];
                     rep[0] = rep[1];
                     rep[1] = temp;
-                }
-#endif
-
-
-/*                if (offset != 0) {
-                    size_t temp = rep[offset];
-                    if (offset != 1) {
-                        if (offset == 3) rep[3] = rep[2];
-                        rep[2] = rep[1];
+                    if (offset<=1) offset = 1-offset;
+                 }  else {
+                    if (offset != 0) {
+                        size_t temp = rep[offset];
+                        if (offset != 1) {
+                            if (offset == 3) rep[3] = rep[2];
+                            rep[2] = rep[1];
+                        }
+                        rep[1] = rep[0];
+                        rep[0] = temp;
                     }
-                    rep[1] = rep[0];
-                    rep[0] = temp;
                 }
-
-                if (litLength == 0) {
-                    best_off = rep[1];
-                    rep[1] = rep[0];
-                    rep[0] = best_off;
-                }*/
-            }
+           }
 
            // ZSTD_LOG_ENCODE("%d/%d: ENCODE2 literals=%d mlen=%d off=%d rep1=%d rep[1]=%d\n", (int)(ip-base), (int)(iend-base), (int)(litLength), (int)mlen, (int)(offset), (int)rep[1], (int)rep_2);
 

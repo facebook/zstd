@@ -683,10 +683,14 @@ static void ZSTD_decodeSequence(seq_t* seq, seqState_t* seqState, const U32 mls)
         if (offsetCode==0) offset = 0;
         
         if (offset < ZSTD_REP_NUM) {
-#if 0
-            if (!litLength && offset <= 1)
-                offset = 1-offset;
-#endif
+            if (litLength == 0) {
+                if (offset <= 1) offset = 1-offset;
+                offset = seqState->prevOffset[offset];
+                size_t temp = seqState->prevOffset[1];
+                seqState->prevOffset[1] = seqState->prevOffset[0];
+                seqState->prevOffset[0] = temp;
+            }
+            else
             if (offset != 0) {
                 size_t temp = seqState->prevOffset[offset];
                 if (offset != 1) {
@@ -700,12 +704,6 @@ static void ZSTD_decodeSequence(seq_t* seq, seqState_t* seqState, const U32 mls)
                 offset = seqState->prevOffset[0];
             }
 
-            if (litLength == 0) {
-                size_t temp = seqState->prevOffset[1];
-                seqState->prevOffset[1] = seqState->prevOffset[0];
-                seqState->prevOffset[0] = temp;
-             //   offset = seqState->prevOffset[0];
-            }
         } else {
             offset -= ZSTD_REP_MOVE;
             if (kSlotNew < 3) seqState->prevOffset[3] = seqState->prevOffset[2];

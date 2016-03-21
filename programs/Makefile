@@ -215,19 +215,19 @@ test-zbuff: zbufftest
 test-zbuff32: zbufftest32
 	./zbufftest32 $(ZBUFFTEST)
 
+valgrindTest: VALGRIND = valgrind --leak-check=full --error-exitcode=1
 valgrindTest: zstd datagen fuzzer fullbench zbufftest
 	@echo "\n ---- valgrind tests : memory analyzer ----"
-	valgrind --leak-check=yes --error-exitcode=1 ./datagen -g50M > $(VOID)
-	./datagen -g16KB > tmp
-	valgrind --leak-check=yes --error-exitcode=1 ./zstd -vf tmp -o $(VOID)
-	./datagen -g2930KB > tmp
-	valgrind --leak-check=yes --error-exitcode=1 ./zstd -5 -vf tmp -o tmp2
-	valgrind --leak-check=yes --error-exitcode=1 ./zstd -vdf tmp2 -o $(VOID)
-	./datagen -g64MB > tmp
-	valgrind --leak-check=yes --error-exitcode=1 ./zstd -vf tmp -o $(VOID)
+	$(VALGRIND) ./datagen -g50M > $(VOID)
+	$(VALGRIND) ./zstd ; if [ $$? -eq 0 ] ; then echo "zstd without argument should have failed"; false; fi
+	./datagen -g80 | $(VALGRIND) ./zstd - -c > $(VOID)
+	./datagen -g16KB | $(VALGRIND) ./zstd -vf - -o $(VOID)
+	./datagen -g2930KB | $(VALGRIND) ./zstd -5 -vf - -o tmp
+	$(VALGRIND) ./zstd -vdf tmp -o $(VOID)
+	./datagen -g64MB | $(VALGRIND) ./zstd -vf - -o $(VOID)
 	@rm tmp
-	valgrind --leak-check=yes --error-exitcode=1 ./fuzzer -T1mn -t1
-	valgrind --leak-check=yes --error-exitcode=1 ./fullbench -i1
-	valgrind --leak-check=yes --error-exitcode=1 ./zbufftest -T1mn
+	$(VALGRIND) ./fuzzer -T1mn -t1
+	$(VALGRIND) ./fullbench -i1
+	$(VALGRIND) ./zbufftest -T1mn
 
 endif

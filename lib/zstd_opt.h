@@ -532,33 +532,11 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
                 opt[cur].rep[kSlotNew] = opt[cur].off - ZSTD_REP_MOVE;               
                 ZSTD_LOG_ENCODE("%d: COPYREP_OFF cur=%d mlen=%d rep=%d rep[1]=%d\n", (int)(inr-base), cur, mlen, opt[cur].rep[0], opt[cur].rep[1]);
            } else {
-#if 1
-                if (opt[cur].litlen == 0) {
-                    opt[cur].rep[0] = opt[cur-mlen].rep[1];
-                    opt[cur].rep[1] = opt[cur-mlen].rep[0];
-                    opt[cur].rep[2] = opt[cur-mlen].rep[2];
-                    opt[cur].rep[3] = opt[cur-mlen].rep[3];
-                } else {
-                    opt[cur].rep[3] = (opt[cur].off > 2) ? opt[cur-mlen].rep[2] : opt[cur-mlen].rep[3];
-                    opt[cur].rep[2] = (opt[cur].off > 1) ? opt[cur-mlen].rep[1] : opt[cur-mlen].rep[2];
-                    opt[cur].rep[1] = (opt[cur].off > 0) ? opt[cur-mlen].rep[0] : opt[cur-mlen].rep[1];
-                    opt[cur].rep[0] = opt[cur-mlen].rep[opt[cur].off];
-                }
-#else
-                if (cur!=mlen && opt[cur].litlen == 0) {
-                    opt[cur].rep[3] = (opt[cur].off > 2) ? opt[cur-mlen].rep[2] : opt[cur-mlen].rep[3];
-                    opt[cur].rep[2] = (opt[cur].off > 1) ? opt[cur-mlen].rep[1] : opt[cur-mlen].rep[2];
-                    opt[cur].rep[0] = (opt[cur].off > 0) ? opt[cur-mlen].rep[0] : opt[cur-mlen].rep[1];
-                    opt[cur].rep[1] = opt[cur-mlen].rep[opt[cur].off];
-                    ZSTD_LOG_ENCODE("%d: COPYREP_SWI cur=%d mlen=%d rep=%d rep[1]=%d\n", (int)(inr-base), cur, mlen, opt[cur].rep[0], opt[cur].rep[1]);
-                } else {
-                    opt[cur].rep[3] = (opt[cur].off > 2) ? opt[cur-mlen].rep[2] : opt[cur-mlen].rep[3];
-                    opt[cur].rep[2] = (opt[cur].off > 1) ? opt[cur-mlen].rep[1] : opt[cur-mlen].rep[2];
-                    opt[cur].rep[1] = (opt[cur].off > 0) ? opt[cur-mlen].rep[0] : opt[cur-mlen].rep[1];
-                    opt[cur].rep[0] = opt[cur-mlen].rep[opt[cur].off];
-                    ZSTD_LOG_ENCODE("%d: COPYREP_NOR cur=%d mlen=%d rep=%d rep[1]=%d\n", (int)(inr-base), cur, mlen, opt[cur].rep[0], opt[cur].rep[1]);
-                }
-#endif
+                opt[cur].rep[3] = (opt[cur].off > 2) ? opt[cur-mlen].rep[2] : opt[cur-mlen].rep[3];
+                opt[cur].rep[2] = (opt[cur].off > 1) ? opt[cur-mlen].rep[1] : opt[cur-mlen].rep[2];
+                opt[cur].rep[1] = (opt[cur].off > 0) ? opt[cur-mlen].rep[0] : opt[cur-mlen].rep[1];
+                opt[cur].rep[0] = opt[cur-mlen].rep[opt[cur].off];
+                ZSTD_LOG_ENCODE("%d: COPYREP_NOR cur=%d mlen=%d rep=%d rep[1]=%d\n", (int)(inr-base), cur, mlen, opt[cur].rep[0], opt[cur].rep[1]);
            }
 
            ZSTD_LOG_PARSER("%d: CURRENT_NoExt price[%d/%d]=%d off=%d mlen=%d litlen=%d rep=%d rep[1]=%d\n", (int)(inr-base), cur, last_pos, opt[cur].price, opt[cur].off, opt[cur].mlen, opt[cur].litlen, opt[cur].rep[0], opt[cur].rep[1]);
@@ -686,22 +664,17 @@ _storeSequence:   /* cur, last_pos, best_mlen, best_off have to be set */
                 if (kSlotNew < 1) rep[1] = rep[0];               
                 rep[kSlotNew] = offset - ZSTD_REP_MOVE;               
             } else {
-                if (litLength == 0) {
-                    U32 temp = rep[0];
-                    rep[0] = rep[1];
-                    rep[1] = temp;
-                    if (offset<=1) offset = 1-offset;
-                 }  else {
-                    if (offset != 0) {
-                        size_t temp = rep[offset];
-                        if (offset != 1) {
-                            if (offset == 3) rep[3] = rep[2];
-                            rep[2] = rep[1];
-                        }
-                        rep[1] = rep[0];
-                        rep[0] = temp;
+                if (offset != 0) {
+                    size_t temp = rep[offset];
+                    if (offset != 1) {
+                        if (offset == 3) rep[3] = rep[2];
+                        rep[2] = rep[1];
                     }
+                    rep[1] = rep[0];
+                    rep[0] = temp;
                 }
+                
+                if (litLength == 0 && offset<=1) offset = 1-offset;
            }
 
            // ZSTD_LOG_ENCODE("%d/%d: ENCODE2 literals=%d mlen=%d off=%d rep1=%d rep[1]=%d\n", (int)(ip-base), (int)(iend-base), (int)(litLength), (int)mlen, (int)(offset), (int)rep[1], (int)rep_2);

@@ -191,7 +191,7 @@ static size_t ZSTD_resetCCtx_advanced (ZSTD_CCtx* zc,
     const size_t tableSpace = (contentSize + hSize + h3Size) * sizeof(U32);
 
     /* Check if workSpace is large enough, alloc a new one if needed */
-    {   size_t const optSpace = ((1<<MLbits) + (1<<LLbits) + (1<<Offbits) + (1<<Litbits))*sizeof(U32)
+    {   size_t const optSpace = ((1<<MLbits) + (MaxLL+1) + (1<<Offbits) + (1<<Litbits))*sizeof(U32)
                               + (ZSTD_OPT_NUM+1)*(sizeof(ZSTD_match_t) + sizeof(ZSTD_optimal_t));
         size_t const neededSpace = tableSpace + (256*sizeof(U32)) /* huffTable */ + tokenSpace
                            + ((params.strategy == ZSTD_btopt) ? optSpace : 0);
@@ -230,7 +230,7 @@ static size_t ZSTD_resetCCtx_advanced (ZSTD_CCtx* zc,
     if (params.strategy == ZSTD_btopt) {
         zc->seqStore.litFreq = (U32*)((void*)(zc->seqStore.dumpsStart + maxNbSeq));
         zc->seqStore.litLengthFreq = zc->seqStore.litFreq + (1<<Litbits);
-        zc->seqStore.matchLengthFreq = zc->seqStore.litLengthFreq + (1<<LLbits);
+        zc->seqStore.matchLengthFreq = zc->seqStore.litLengthFreq + (MaxLL+1);
         zc->seqStore.offCodeFreq = zc->seqStore.matchLengthFreq + (1<<MLbits);
         zc->seqStore.matchTable = (ZSTD_match_t*)((void*)(zc->seqStore.offCodeFreq + (1<<Offbits)));
         zc->seqStore.priceTable = (ZSTD_optimal_t*)((void*)(zc->seqStore.matchTable + ZSTD_OPT_NUM+1));
@@ -585,7 +585,7 @@ size_t ZSTD_compressSequences(ZSTD_CCtx* zc,
     FSE_CTable* CTable_OffsetBits = zc->offcodeCTable;
     FSE_CTable* CTable_MatchLength = zc->matchlengthCTable;
     U32 LLtype, Offtype, MLtype;   /* compressed, raw or rle */
-    const U16*  const llTable = seqStorePtr->litLengthStart;
+    U16*  const llTable = seqStorePtr->litLengthStart;
     const BYTE* const mlTable = seqStorePtr->matchLengthStart;
     const U32*  const offsetTable = seqStorePtr->offsetStart;
     const U32*  const offsetTableEnd = seqStorePtr->offset;
@@ -636,26 +636,24 @@ size_t ZSTD_compressSequences(ZSTD_CCtx* zc,
 #define MAX_SEQ_FOR_STATIC_FSE  1000
 
     /* LL codes */
-static const BYTE llCode[64] = {  0,  1,  2,  3,  4,  5,  6,  7,
-                                  8,  9, 10, 11, 12, 13, 14, 15,
-                                 16, 16, 17, 17, 18, 18, 19, 19,
-                                 20, 20, 20, 20, 21, 21, 21, 21,
-                                 22, 22, 22, 22, 22, 22, 22, 22,
-                                 23, 23, 23, 23, 23, 23, 23, 23,
-                                 24, 24, 24, 24, 24, 24, 24, 24,
-                                 24, 24, 24, 24, 24, 24, 24, 24 };
-static const BYTE deltaCode = 18;
-
-    {   size_t i;
+    {   static const BYTE LL_Code[64] = {  0,  1,  2,  3,  4,  5,  6,  7,
+                                           8,  9, 10, 11, 12, 13, 14, 15,
+                                          16, 16, 17, 17, 18, 18, 19, 19,
+                                          20, 20, 20, 20, 21, 21, 21, 21,
+                                          22, 22, 22, 22, 22, 22, 22, 22,
+                                          23, 23, 23, 23, 23, 23, 23, 23,
+                                          24, 24, 24, 24, 24, 24, 24, 24,
+                                          24, 24, 24, 24, 24, 24, 24, 24 };
+        const BYTE deltaCode = 19;
+        size_t i;
         for (i=0; i<nbSeq; i++) {
             U32 ll = llTable[i];
-            if (llTable[i] == 65535) ll = seqStorePtr->litLengthLong;
-            llCodeTable[i] = (ll>63) ? ZSTD_highbit(ll) + deltaCode : llCode[ll];
+            if (llTable[i] == 65535) { ll = seqStorePtr->litLengthLong; llTable[i] = (U16)ll; }
+            llCodeTable[i] = (ll>63) ? ZSTD_highbit(ll) + deltaCode : LL_Code[ll];
     }   }
 
     /* CTable for Literal Lengths */
-#if 1
-    { U32 max = 35;
+    { U32 max = MaxLL;
     size_t const mostFrequent = FSE_countFast(count, &max, llCodeTable, nbSeq);
     if ((mostFrequent == nbSeq) && (nbSeq > 2)) {
         *op++ = llCodeTable[0];
@@ -663,14 +661,8 @@ static const BYTE deltaCode = 18;
         LLtype = FSE_ENCODING_RLE;
     } else if ((zc->flagStaticTables) && (nbSeq < MAX_SEQ_FOR_STATIC_FSE)) {
         LLtype = FSE_ENCODING_STATIC;
-    } else if ((nbSeq < MIN_SEQ_FOR_DYNAMIC_FSE) || (mostFrequent < (nbSeq >> (LLbits-1)))) {
-        static const S16 LL_defaultNorm[36] = { 2, 2, 2, 2, 2, 2, 2, 2,
-                                                2, 2, 2, 2, 2, 2, 2, 2,
-                                                2, 2, 2, 2, 2, 2, 2, 2,
-                                                2, 2, 2, 2, 1, 1, 1, 1,
-                                                1, 1, 1, 1 };
-        static const U32 LL_defaultNormLog = 6;
-        FSE_buildCTable(CTable_LitLength, LL_defaultNorm, 35, LL_defaultNormLog);
+    } else if ((nbSeq < MIN_SEQ_FOR_DYNAMIC_FSE) || (mostFrequent < (nbSeq >> (LL_defaultNormLog-1)))) {
+        FSE_buildCTable(CTable_LitLength, LL_defaultNorm, MaxLL, LL_defaultNormLog);
         LLtype = FSE_ENCODING_RAW;
     } else {
         size_t NCountSize;
@@ -684,31 +676,6 @@ static const BYTE deltaCode = 18;
         FSE_buildCTable(CTable_LitLength, norm, max, tableLog);
         LLtype = FSE_ENCODING_DYNAMIC;
     }}
-#else
-    { U32 max = MaxLL;
-    size_t const mostFrequent = FSE_countFast(count, &max, llTable, nbSeq);
-    if ((mostFrequent == nbSeq) && (nbSeq > 2)) {
-        *op++ = llTable[0];
-        FSE_buildCTable_rle(CTable_LitLength, (BYTE)max);
-        LLtype = FSE_ENCODING_RLE;
-    } else if ((zc->flagStaticTables) && (nbSeq < MAX_SEQ_FOR_STATIC_FSE)) {
-        LLtype = FSE_ENCODING_STATIC;
-    } else if ((nbSeq < MIN_SEQ_FOR_DYNAMIC_FSE) || (mostFrequent < (nbSeq >> (LLbits-1)))) {
-        FSE_buildCTable_raw(CTable_LitLength, LLbits);
-        LLtype = FSE_ENCODING_RAW;
-    } else {
-        size_t NCountSize;
-        size_t nbSeq_1 = nbSeq;
-        const U32 tableLog = FSE_optimalTableLog(LLFSELog, nbSeq, max);
-        if (count[llTable[nbSeq-1]]>1) { count[llTable[nbSeq-1]]--; nbSeq_1--; }
-        FSE_normalizeCount(norm, tableLog, count, nbSeq_1, max);
-        NCountSize = FSE_writeNCount(op, oend-op, norm, max, tableLog);   /* overflow protected */
-        if (FSE_isError(NCountSize)) return ERROR(GENERIC);
-        op += NCountSize;
-        FSE_buildCTable(CTable_LitLength, norm, max, tableLog);
-        LLtype = FSE_ENCODING_DYNAMIC;
-    }}
-#endif // 0
 
     /* Offset codes */
     { size_t i; for (i=0; i<nbSeq; i++) offCodeTable[i] = offsetTable[i] ? (BYTE)ZSTD_highbit(offsetTable[i]) + 1 : 0; }
@@ -778,13 +745,8 @@ static const BYTE deltaCode = 18;
         FSE_initCState2(&stateOffsetBits,  CTable_OffsetBits,  offCodeTable[nbSeq-1]);
         FSE_initCState2(&stateLitLength,   CTable_LitLength,   llCodeTable[nbSeq-1]);
         BIT_addBits(&blockStream, offsetTable[nbSeq-1], offCodeTable[nbSeq-1] ? (offCodeTable[nbSeq-1]-1) : 0);
+        BIT_addBits(&blockStream, llTable[nbSeq-1], LL_bits[llCodeTable[nbSeq-1]]);
         BIT_flushBits(&blockStream);
-
-static const U32 llBits[36] = { 0, 0, 0, 0, 0, 0, 0, 0,
-                                0, 0, 0, 0, 0, 0, 0, 0,
-                                1, 1, 1, 1, 2, 2, 3, 3,
-                                4, 6, 7, 8, 9,10,11,12,
-                               13,14,15,16 };
 
         { size_t n;
           for (n=nbSeq-2; n<nbSeq; n--) {   /* intentional underflow */
@@ -800,7 +762,7 @@ static const U32 llBits[36] = { 0, 0, 0, 0, 0, 0, 0, 0,
             if (MEM_32bits()) BIT_flushBits(&blockStream);                  /*  7 */
             //BIT_flushBits(&blockStream);                                    /*  7 */  /*  7 */
             BIT_addBits(&blockStream, offset, nbBits);                      /* 31 */  /* 61 */   /* 24 bits max in 32-bits mode */
-            BIT_addBits(&blockStream, llTable[n], llBits[LLCode]);
+            BIT_addBits(&blockStream, llTable[n], LL_bits[LLCode]);
             BIT_flushBits(&blockStream);                                    /*  7 */  /*  7 */
         } }
 #else
@@ -856,10 +818,11 @@ MEM_STATIC void ZSTD_storeSeq(seqStore_t* seqStorePtr, size_t litLength, const B
 {
 #if 0  /* for debug */
     static const BYTE* g_start = NULL;
+    const U32 pos = (U32)(literals - g_start);
     if (g_start==NULL) g_start = literals;
-    //if (literals - g_start == 8695)
+    if ((pos > 198618400) && (pos < 198618500))
     printf("pos %6u : %3u literals & match %3u bytes at distance %6u \n",
-           (U32)(literals - g_start), (U32)litLength, (U32)matchCode+MINMATCH, (U32)offsetCode);
+           pos, (U32)litLength, (U32)matchCode+MINMATCH, (U32)offsetCode);
 #endif
 #if ZSTD_OPT_DEBUG == 3
     if (offsetCode == 0) seqStorePtr->realRepSum++;
@@ -2278,7 +2241,7 @@ size_t ZSTD_compressBegin_advanced(ZSTD_CCtx* zc,
     ZSTD_validateParams(&params);
 
     { size_t const errorCode = ZSTD_resetCCtx_advanced(zc, params);
-    if (ZSTD_isError(errorCode)) return errorCode; }
+      if (ZSTD_isError(errorCode)) return errorCode; }
 
     /* Write Frame Header into ctx headerBuffer */
     MEM_writeLE32(zc->headerBuffer, ZSTD_MAGICNUMBER);

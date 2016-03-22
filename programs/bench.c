@@ -49,7 +49,7 @@
 #include <stdio.h>       /* fprintf, fopen, ftello64 */
 #include <sys/types.h>   /* stat64 */
 #include <sys/stat.h>    /* stat64 */
-#include <time.h>         /* clock_t, clock, CLOCKS_PER_SEC */
+#include <time.h>        /* clock_t, clock, CLOCKS_PER_SEC */
 
 /* sleep : posix - windows - others */
 #if !defined(_WIN32) && (defined(__unix__) || defined(__unix) || (defined(__APPLE__) && defined(__MACH__)))
@@ -65,7 +65,7 @@
 #include "mem.h"
 #include "zstd_static.h"
 #include "xxhash.h"
-#include "datagen.h"      /* RDG_genBuffer */
+#include "datagen.h"     /* RDG_genBuffer */
 
 
 /* *************************************
@@ -283,7 +283,7 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
                     (double)srcSize / 1000000. / (fastestC / CLOCKS_PER_SEC) );
 
             (void)crcCheck; (void)fastestD; (void)crcOrig;   /*  unused when decompression disabled */
-#if 0
+#if 1
             /* Decompression */
             memset(resultBuffer, 0xD6, srcSize);  /* warm result buffer */
 

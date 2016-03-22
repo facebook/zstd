@@ -102,16 +102,15 @@ typedef enum { bt_compressed, bt_raw, bt_rle, bt_end } blockType_t;
 #define HASHLOG3 17
 
 #define Litbits  8
-#define MLbits   7
 #define Offbits  5
 #define MaxLit ((1<<Litbits) - 1)
 #define MaxML  52
 #define MaxLL  35
 #define MaxOff ((1<<Offbits)- 1)
-#define MLFSELog   10
+#define MaxSeq MAX(MaxLL, MaxML)   /* Assumption : MaxOff < MaxLL,MaxML */
+#define MLFSELog    9
 #define LLFSELog    9
 #define OffFSELog   9
-#define MaxSeq MAX(MaxLL, MaxML)   /* Assumption : MaxOff < MaxLL,MaxML */
 
 #define FSE_ENCODING_RAW     0
 #define FSE_ENCODING_RLE     1
@@ -209,8 +208,6 @@ typedef struct {
     U16*  matchLengthStart;
     U16*  matchLength;
     BYTE* mlCodeStart;
-    BYTE* dumpsStart;
-    BYTE* dumps;
     U32   longLength;
     /* opt */
     ZSTD_optimal_t* priceTable;

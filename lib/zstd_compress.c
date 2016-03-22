@@ -80,7 +80,6 @@ static void ZSTD_resetSeqStore(seqStore_t* ssPtr)
     ssPtr->lit = ssPtr->litStart;
     ssPtr->litLength = ssPtr->litLengthStart;
     ssPtr->matchLength = ssPtr->matchLengthStart;
-    ssPtr->dumps = ssPtr->dumpsStart;
 }
 
 
@@ -184,14 +183,14 @@ static size_t ZSTD_resetCCtx_advanced (ZSTD_CCtx* zc,
     const size_t blockSize = MIN(ZSTD_BLOCKSIZE_MAX, (size_t)1 << params.windowLog);
     const U32    divider = (params.searchLength==3) ? 3 : 4;
     const size_t maxNbSeq = blockSize / divider;
-    const size_t tokenSpace = blockSize + 12*maxNbSeq;
+    const size_t tokenSpace = blockSize + 11*maxNbSeq;
     const size_t contentSize = (params.strategy == ZSTD_fast) ? 0 : (1 << params.contentLog);
     const size_t hSize = 1 << params.hashLog;
     const size_t h3Size = (params.searchLength==3) ? (1 << HASHLOG3) : 0;
     const size_t tableSpace = (contentSize + hSize + h3Size) * sizeof(U32);
 
     /* Check if workSpace is large enough, alloc a new one if needed */
-    {   size_t const optSpace = ((1<<MLbits) + (MaxLL+1) + (1<<Offbits) + (1<<Litbits))*sizeof(U32)
+    {   size_t const optSpace = ((MaxML+1) + (MaxLL+1) + (1<<Offbits) + (1<<Litbits))*sizeof(U32)
                               + (ZSTD_OPT_NUM+1)*(sizeof(ZSTD_match_t) + sizeof(ZSTD_optimal_t));
         size_t const neededSpace = tableSpace + (256*sizeof(U32)) /* huffTable */ + tokenSpace
                            + ((params.strategy == ZSTD_btopt) ? optSpace : 0);
@@ -227,12 +226,11 @@ static size_t ZSTD_resetCCtx_advanced (ZSTD_CCtx* zc,
     zc->seqStore.mlCodeStart = zc->seqStore.llCodeStart + maxNbSeq;
     zc->seqStore.offCodeStart = zc->seqStore.mlCodeStart + maxNbSeq;
     zc->seqStore.litStart = zc->seqStore.offCodeStart + maxNbSeq;
-    zc->seqStore.dumpsStart = zc->seqStore.litStart + maxNbSeq;
     if (params.strategy == ZSTD_btopt) {
-        zc->seqStore.litFreq = (U32*)((void*)(zc->seqStore.dumpsStart + maxNbSeq));
+        zc->seqStore.litFreq = (U32*)((void*)(zc->seqStore.litStart + blockSize));
         zc->seqStore.litLengthFreq = zc->seqStore.litFreq + (1<<Litbits);
         zc->seqStore.matchLengthFreq = zc->seqStore.litLengthFreq + (MaxLL+1);
-        zc->seqStore.offCodeFreq = zc->seqStore.matchLengthFreq + (1<<MLbits);
+        zc->seqStore.offCodeFreq = zc->seqStore.matchLengthFreq + (MaxML+1);
         zc->seqStore.matchTable = (ZSTD_match_t*)((void*)(zc->seqStore.offCodeFreq + (1<<Offbits)));
         zc->seqStore.priceTable = (ZSTD_optimal_t*)((void*)(zc->seqStore.matchTable + ZSTD_OPT_NUM+1));
         zc->seqStore.litLengthSum = 0;
@@ -599,12 +597,6 @@ size_t ZSTD_compressSequences(ZSTD_CCtx* zc,
     size_t const nbSeq = offsetTableEnd - offsetTable;
     BYTE* seqHead;
 
-    static U32 blockNb = 0;
-    blockNb++;
-
-    if (blockNb==79)
-        blockNb += !nbSeq;
-
     /* Compress literals */
     {   const BYTE* const literals = seqStorePtr->litStart;
         size_t const litSize = seqStorePtr->lit - literals;
@@ -620,25 +612,8 @@ size_t ZSTD_compressSequences(ZSTD_CCtx* zc,
     else op[0]=0xFF, MEM_writeLE16(op+1, (U16)(nbSeq - LONGNBSEQ)), op+=3;
     if (nbSeq==0) goto _check_compressibility;
 
-    /* dumps : contains rests of large lengths */
-    if ((oend-op) < 3 /* dumps */ + 1 /*seqHead*/)
-        return ERROR(dstSize_tooSmall);
-    seqHead = op;
-    {   size_t const dumpsLength = seqStorePtr->dumps - seqStorePtr->dumpsStart;
-        if (dumpsLength < 512) {
-            op[0] = (BYTE)(dumpsLength >> 8);
-            op[1] = (BYTE)(dumpsLength);
-            op += 2;
-        } else {
-            op[0] = 2;
-            op[1] = (BYTE)(dumpsLength>>8);
-            op[2] = (BYTE)(dumpsLength);
-            op += 3;
-        }
-        if ((size_t)(oend-op) < dumpsLength+6) return ERROR(dstSize_tooSmall);
-        memcpy(op, seqStorePtr->dumpsStart, dumpsLength);
-        op += dumpsLength;
-    }
+    /* seqHead : flags for FSE encoding type */
+    seqHead = op++;
 
 #define MIN_SEQ_FOR_DYNAMIC_FSE   64
 #define MAX_SEQ_FOR_STATIC_FSE  1000
@@ -714,7 +689,7 @@ size_t ZSTD_compressSequences(ZSTD_CCtx* zc,
 
     /* ML codes */
     {   static const BYTE ML_Code[128] = { 0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15,
-                                          16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 20, 31,
+                                          16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
                                           32, 32, 33, 33, 34, 34, 35, 35, 36, 36, 36, 36, 37, 37, 37, 37,
                                           38, 38, 38, 38, 38, 38, 38, 38, 39, 39, 39, 39, 39, 39, 39, 39,
                                           40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40,
@@ -753,7 +728,7 @@ size_t ZSTD_compressSequences(ZSTD_CCtx* zc,
             MLtype = FSE_ENCODING_DYNAMIC;
     }   }
 
-    seqHead[0] += (BYTE)((LLtype<<6) + (Offtype<<4) + (MLtype<<2));
+    *seqHead = (BYTE)((LLtype<<6) + (Offtype<<4) + (MLtype<<2));
     zc->flagStaticTables = 0;
 
     /* Encoding Sequences */
@@ -791,6 +766,7 @@ size_t ZSTD_compressSequences(ZSTD_CCtx* zc,
                 BIT_addBits(&blockStream, mlTable[n], ML_bits[MLCode]);
                 BIT_addBits(&blockStream, offset, nbBits);                      /* 31 */  /* 61 */   /* 24 bits max in 32-bits mode */
                 BIT_addBits(&blockStream, llTable[n], LL_bits[LLCode]);
+                //if (blockStream.bitPos > 63) printf("pb : blockStream.bitPos == %u > 63  \n", blockStream.bitPos);
                 BIT_flushBits(&blockStream);                                    /*  7 */  /*  7 */
         }   }
 
@@ -824,7 +800,7 @@ MEM_STATIC void ZSTD_storeSeq(seqStore_t* seqStorePtr, size_t litLength, const B
     static const BYTE* g_start = NULL;
     const U32 pos = (U32)(literals - g_start);
     if (g_start==NULL) g_start = literals;
-    if ((pos > 198618400) && (pos < 198618500))
+    if ((pos > 10354000) && (pos < 10355000))
     printf("pos %6u : %3u literals & match %3u bytes at distance %6u \n",
            pos, (U32)litLength, (U32)matchCode+MINMATCH, (U32)offsetCode);
 #endif

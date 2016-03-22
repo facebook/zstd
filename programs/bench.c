@@ -44,31 +44,28 @@
 /* *************************************
 *  Includes
 ***************************************/
-#if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(WIN64) || defined(_WIN64)
-	#define WINDOWS
-#endif
+#define _POSIX_C_SOURCE 199309L /* before time.h */
 #include <stdlib.h>      /* malloc, free */
 #include <string.h>      /* memset */
 #include <stdio.h>       /* fprintf, fopen, ftello64 */
 #include <sys/types.h>   /* stat64 */
 #include <sys/stat.h>    /* stat64 */
 #include <time.h>        /* clock_t, clock, nanosleep, CLOCKS_PER_SEC */
-#ifdef WINDOWS
-    #define mili_sleep(mili) Sleep(mili)
-#else
-    #include <sys/resource.h> /* setpriority */
-    #define mili_sleep(mili) { struct timespec t; t.tv_sec=0; t.tv_nsec=mili*1000000L; nanosleep(&t, NULL); }
-#endif
 
 /* sleep : posix - windows - others */
 #if !defined(_WIN32) && (defined(__unix__) || defined(__unix) || (defined(__APPLE__) && defined(__MACH__)))
 #  include <unistd.h>
+#  include <sys/resource.h> /* setpriority */
 #  define BMK_sleep(s) sleep(s)
+#  define mili_sleep(mili) { struct timespec t; t.tv_sec=0; t.tv_nsec=mili*1000000L; nanosleep(&t, NULL); }
 #elif defined(_WIN32)
 #  include <windows.h>
 #  define BMK_sleep(s) Sleep(1000*s)
+#  define mili_sleep(mili) Sleep(mili)
 #else
 #  define BMK_sleep(s)   /* disabled */
+#  define mili_sleep(mili) /* disabled */
+#error "disabled"
 #endif
 
 #include "mem.h"
@@ -424,7 +421,7 @@ static void BMK_benchCLevel(void* srcBuffer, size_t benchedSize,
 {
     benchResult_t result, total;
     int l;
-#ifdef WINDOWS
+#ifdef _WIN32
     SetPriorityClass(GetCurrentProcess(), REALTIME_PRIORITY_CLASS);
 #else
     setpriority(PRIO_PROCESS, 0, -20);
@@ -437,8 +434,8 @@ static void BMK_benchCLevel(void* srcBuffer, size_t benchedSize,
     memset(&result, 0, sizeof(result));
     memset(&total, 0, sizeof(total));
 
-    if (g_displayLevel == 1 && !additionalParam)
-        DISPLAY("bench %s: input %u bytes, %i iterations, %u KB blocks\n", ZSTD_VERSION, (U32)benchedSize, g_nbIterations, (U32)(g_blockSize>>10));
+  //  if (g_displayLevel == 1 && !additionalParam)
+ //       DISPLAY("bench %s: input %u bytes, %i iterations, %u KB blocks\n", ZSTD_VERSION, (U32)benchedSize, g_nbIterations, (U32)(g_blockSize>>10));
 
     if (cLevelLast < cLevel) cLevelLast = cLevel;
 
@@ -448,8 +445,8 @@ static void BMK_benchCLevel(void* srcBuffer, size_t benchedSize,
                      fileSizes, nbFiles,
                      dictBuffer, dictBufferSize, &result);
         if (g_displayLevel == 1) {
-            if (additionalParam)
-                DISPLAY("%-3i%11i (%5.3f) %6.1f MB/s %6.1f MB/s  %s (param=%d)\n", -l, (int)result.cSize, result.ratio, result.cSpeed, result.dSpeed, displayName, additionalParam);
+            if (1)// && additionalParam)
+                DISPLAY("%-3i%11i (%5.3f) %6.1f MB/s %6.1f MB/s  %s (kSlotNew=%d)\n", -l, (int)result.cSize, result.ratio, result.cSpeed, result.dSpeed, displayName, additionalParam);
             else
                 DISPLAY("%-3i%11i (%5.3f) %6.1f MB/s %6.1f MB/s  %s\n", -l, (int)result.cSize, result.ratio, result.cSpeed, result.dSpeed, displayName);
             total.cSize += result.cSize;

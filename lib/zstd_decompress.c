@@ -559,9 +559,37 @@ FORCE_INLINE size_t ZSTD_buildSeqTableLL(FSE_DTable* DTable, U32 type, U32 max, 
 }
 
 
-size_t ZSTD_decodeSeqHeaders(int* nbSeq, const BYTE** dumpsPtr, size_t* dumpsLengthPtr,
-                         FSE_DTable* DTableLL, FSE_DTable* DTableML, FSE_DTable* DTableOffb,
-                         const void* src, size_t srcSize)
+FORCE_INLINE size_t ZSTD_buildSeqTableML(FSE_DTable* DTable, U32 type, U32 max, U32 maxLog,
+                                 const void* src, size_t srcSize)
+{
+    switch(type)
+    {
+    case FSE_ENCODING_RLE :
+        if (!srcSize) return ERROR(srcSize_wrong);
+        if ( (*(const BYTE*)src) > max) return ERROR(corruption_detected);
+        FSE_buildDTable_rle(DTable, *(const BYTE*)src);   /* if *src > max, data is corrupted */
+        return 1;
+    case FSE_ENCODING_RAW :
+        FSE_buildDTable(DTable, ML_defaultNorm, max, ML_defaultNormLog);
+        return 0;
+    case FSE_ENCODING_STATIC:
+        return 0;
+    default :   /* impossible */
+    case FSE_ENCODING_DYNAMIC :
+        {   U32 tableLog;
+            S16 norm[MaxSeq+1];
+            size_t const headerSize = FSE_readNCount(norm, &max, &tableLog, src, srcSize);
+            if (FSE_isError(headerSize)) return ERROR(corruption_detected);
+            if (tableLog > maxLog) return ERROR(corruption_detected);
+            FSE_buildDTable(DTable, norm, max, tableLog);
+            return headerSize;
+    }   }
+}
+
+
+size_t ZSTD_decodeSeqHeaders(int* nbSeq,
+                             FSE_DTable* DTableLL, FSE_DTable* DTableML, FSE_DTable* DTableOffb,
+                             const void* src, size_t srcSize)
 {
     const BYTE* const istart = (const BYTE* const)src;
     const BYTE* ip = istart;
@@ -585,26 +613,13 @@ size_t ZSTD_decodeSeqHeaders(int* nbSeq, const BYTE** dumpsPtr, size_t* dumpsLen
     LLtype  = *ip >> 6;
     Offtype = (*ip >> 4) & 3;
     MLtype  = (*ip >> 2) & 3;
-    {   size_t dumpsLength;
-        if (*ip & 2) {
-            dumpsLength  = ip[2];
-            dumpsLength += ip[1] << 8;
-            ip += 3;
-        } else {
-            dumpsLength  = ip[1];
-            dumpsLength += (ip[0] & 1) << 8;
-            ip += 2;
-        }
-        *dumpsPtr = ip;
-        ip += dumpsLength;
-        *dumpsLengthPtr = dumpsLength;
-    }
+    ip++;
 
     /* check */
     if (ip > iend-3) return ERROR(srcSize_wrong); /* min : all 3 are "raw", hence no header, but at least xxLog bits per type */
 
     /* Build DTables */
-    {   size_t const bhSize = ZSTD_buildSeqTableLL(DTableLL, LLtype, 35, LLFSELog, ip, iend-ip);
+    {   size_t const bhSize = ZSTD_buildSeqTableLL(DTableLL, LLtype, MaxLL, LLFSELog, ip, iend-ip);
         if (ZSTD_isError(bhSize)) return ERROR(corruption_detected);
         ip += bhSize;
     }
@@ -612,7 +627,7 @@ size_t ZSTD_decodeSeqHeaders(int* nbSeq, const BYTE** dumpsPtr, size_t* dumpsLen
         if (ZSTD_isError(bhSize)) return ERROR(corruption_detected);
         ip += bhSize;
     }
-    {   size_t const bhSize = ZSTD_buildSeqTable(DTableML, MLtype, MLbits, MLFSELog, ip, iend-ip);
+    {   size_t const bhSize = ZSTD_buildSeqTableML(DTableML, MLtype, MaxML, MLFSELog, ip, iend-ip);
         if (ZSTD_isError(bhSize)) return ERROR(corruption_detected);
         ip += bhSize;
     }
@@ -633,8 +648,6 @@ typedef struct {
     FSE_DState_t stateOffb;
     FSE_DState_t stateML;
     size_t prevOffset;
-    const BYTE* dumps;
-    const BYTE* dumpsEnd;
 } seqState_t;
 
 
@@ -662,31 +675,26 @@ static void ZSTD_decodeSequence(seq_t* seq, seqState_t* seqState, const U32 mls)
         if (offsetCode | !litCode) seqState->prevOffset = seq->offset;   /* cmove */
         seq->offset = offset;
         if (MEM_32bits()) BIT_reloadDStream(&(seqState->DStream));
-        FSE_decodeSymbol(&(seqState->stateOffb), &(seqState->DStream));  /* update */
     }
 
-    /* Literal length update */
+    {   static const U32 ML_base[MaxML+1] = {
+                             0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,   11,    12,    13,    14,    15,
+                            16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26,   27,    28,    29,    30,    31,
+                            32, 34, 36, 38, 40, 44, 48, 56, 64, 80, 96, 0x80, 0x100, 0x200, 0x400, 0x800,
+                            0x1000, 0x2000, 0x4000, 0x8000, 0x10000 };
+        U32 const mlCode = FSE_peakSymbol(&(seqState->stateML));
+        seq->matchLength = ML_base[mlCode] + BIT_readBits(&(seqState->DStream), ML_bits[mlCode]) + mls;
+    }
+
+    /* ANS update */
     FSE_decodeSymbol(&(seqState->stateLL), &(seqState->DStream));   /* update */
     if (MEM_32bits()) BIT_reloadDStream(&(seqState->DStream));
 
-    /* MatchLength */
-    {   size_t matchLength = FSE_decodeSymbol(&(seqState->stateML), &(seqState->DStream));
-        const BYTE* dumps = seqState->dumps;
-        if (matchLength == MaxML) {
-            const BYTE* const de = seqState->dumpsEnd;
-            const U32 add = *dumps++;
-            if (add < 255) matchLength += add;
-            else {
-                matchLength = MEM_readLE32(dumps) & 0xFFFFFF;  /* no pb : dumps is always followed by seq tables > 1 byte */
-                if (matchLength&1) matchLength>>=1, dumps += 3;
-                else matchLength = (U16)(matchLength)>>1, dumps += 2;
-            }
-            if (dumps >= de) dumps = de-1;   /* late correction, to avoid read overflow (data is now corrupted anyway) */
-        }
-        matchLength += mls;
-        seq->matchLength = matchLength;
-        seqState->dumps = dumps;
-    }
+    FSE_decodeSymbol(&(seqState->stateOffb), &(seqState->DStream));  /* update */
+    if (MEM_32bits()) BIT_reloadDStream(&(seqState->DStream));
+
+    FSE_decodeSymbol(&(seqState->stateML), &(seqState->DStream));   /* update */
+    if (MEM_32bits()) BIT_reloadDStream(&(seqState->DStream));
 
 #if 0   /* debug */
     {
@@ -781,12 +789,10 @@ static size_t ZSTD_decompressSequences(
     BYTE* const ostart = (BYTE* const)dst;
     BYTE* op = ostart;
     BYTE* const oend = ostart + maxDstSize;
-    size_t dumpsLength;
     const BYTE* litPtr = dctx->litPtr;
     const BYTE* const litLimit_8 = litPtr + dctx->litBufSize - 8;
     const BYTE* const litEnd = litPtr + dctx->litSize;
     int nbSeq;
-    const BYTE* dumps;
     U32* DTableLL = dctx->LLTable;
     U32* DTableML = dctx->MLTable;
     U32* DTableOffb = dctx->OffTable;
@@ -796,7 +802,7 @@ static size_t ZSTD_decompressSequences(
     const U32 mls = dctx->fParams.mml;
 
     /* Build Decoding Tables */
-    {   size_t const errorCode = ZSTD_decodeSeqHeaders(&nbSeq, &dumps, &dumpsLength,
+    {   size_t const errorCode = ZSTD_decodeSeqHeaders(&nbSeq,
                                       DTableLL, DTableML, DTableOffb,
                                       ip, seqSize);
         if (ZSTD_isError(errorCode)) return errorCode;
@@ -810,8 +816,6 @@ static size_t ZSTD_decompressSequences(
 
         memset(&sequence, 0, sizeof(sequence));
         sequence.offset = REPCODE_STARTVALUE;
-        seqState.dumps = dumps;
-        seqState.dumpsEnd = dumps + dumpsLength;
         seqState.prevOffset = REPCODE_STARTVALUE;
         { size_t const errorCode = BIT_initDStream(&(seqState.DStream), ip, iend-ip);
           if (ERR_isError(errorCode)) return ERROR(corruption_detected); }
@@ -825,7 +829,7 @@ static size_t ZSTD_decompressSequences(
             ZSTD_decodeSequence(&sequence, &seqState, mls);
 #if 0  /* for debug */
             {   U32 pos = (U32)(op-base);
-                if ((pos > 198618400) && (pos < 198618500))
+                if ((pos > 10354000) && (pos < 10355000))
                     printf("pos %6u : %3u literals & match %3u bytes at distance %6u \n",
                         pos, (U32)sequence.litLength, (U32)sequence.matchLength, (U32)sequence.offset);
             }
@@ -867,17 +871,16 @@ static size_t ZSTD_decompressBlock_internal(ZSTD_DCtx* dctx,
                       const void* src, size_t srcSize)
 {   /* blockType == blockCompressed */
     const BYTE* ip = (const BYTE*)src;
-    size_t litCSize;
 
     if (srcSize >= ZSTD_BLOCKSIZE_MAX) return ERROR(srcSize_wrong);
 
     ZSTD_LOG_BLOCK("%p: ZSTD_decompressBlock_internal searchLength=%d\n", dctx->base, dctx->params.searchLength);
 
     /* Decode literals sub-block */
-    litCSize = ZSTD_decodeLiteralsBlock(dctx, src, srcSize);
-    if (ZSTD_isError(litCSize)) return litCSize;
-    ip += litCSize;
-    srcSize -= litCSize;
+    { size_t const litCSize = ZSTD_decodeLiteralsBlock(dctx, src, srcSize);
+      if (ZSTD_isError(litCSize)) return litCSize;
+      ip += litCSize;
+      srcSize -= litCSize; }
 
     return ZSTD_decompressSequences(dctx, dst, dstCapacity, ip, srcSize);
 }

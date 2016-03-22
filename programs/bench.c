@@ -40,11 +40,6 @@
 #  define _LARGEFILE64_SOURCE
 #endif
 
-/* S_ISREG & gettimeofday() are not supported by MSVC */
-#if defined(_MSC_VER) || defined(_WIN32)
-#  define BMK_LEGACY_TIMER 1
-#endif
-
 
 /* *************************************
 *  Includes
@@ -54,12 +49,17 @@
 #include <stdio.h>       /* fprintf, fopen, ftello64 */
 #include <sys/types.h>   /* stat64 */
 #include <sys/stat.h>    /* stat64 */
+#include <time.h>         /* clock_t, clock, CLOCKS_PER_SEC */
 
-/* Use ftime() if gettimeofday() is not available */
-#if defined(BMK_LEGACY_TIMER)
-#  include <sys/timeb.h>  /* timeb, ftime */
+/* sleep : posix - windows - others */
+#if !defined(_WIN32) && (defined(__unix__) || defined(__unix) || (defined(__APPLE__) && defined(__MACH__)))
+#  include <unistd.h>
+#  define BMK_sleep(s) sleep(s)
+#elif defined(_WIN32)
+#  include <windows.h>
+#  define BMK_sleep(s) Sleep(1000*s)
 #else
-#  include <sys/time.h>   /* gettimeofday */
+#  define BMK_sleep(s)   /* disabled */
 #endif
 
 #include "mem.h"
@@ -88,8 +88,10 @@
 #  define ZSTD_VERSION ""
 #endif
 
-#define NBLOOPS    3
-#define TIMELOOP   2500
+#define NBLOOPS          3
+#define TIMELOOP_S       1
+#define ACTIVEPERIOD_S  70
+#define COOLPERIOD_S    10
 
 #define KB *(1 <<10)
 #define MB *(1 <<20)
@@ -128,15 +130,15 @@ static U32 g_displayLevel = 2;   /* 0 : no display;   1: errors;   2 : + result 
 /* *************************************
 *  Benchmark Parameters
 ***************************************/
-static int nbIterations = NBLOOPS;
+static U32 g_nbIterations = NBLOOPS;
 static size_t g_blockSize = 0;
 
 void BMK_setNotificationLevel(unsigned level) { g_displayLevel=level; }
 
-void BMK_SetNbIterations(int nbLoops)
+void BMK_SetNbIterations(unsigned nbLoops)
 {
-    nbIterations = nbLoops;
-    DISPLAYLEVEL(2, "- %i iterations -\n", nbIterations);
+    g_nbIterations = nbLoops;
+    DISPLAYLEVEL(2, "- %i iterations -\n", g_nbIterations);
 }
 
 void BMK_SetBlockSize(size_t blockSize)
@@ -149,44 +151,11 @@ void BMK_SetBlockSize(size_t blockSize)
 /* ********************************************************
 *  Private functions
 **********************************************************/
-
-#if defined(BMK_LEGACY_TIMER)
-
-static int BMK_GetMilliStart(void)
+static clock_t BMK_clockSpan( clock_t clockStart )
 {
-  /* Based on Legacy ftime()
-  *  Rolls over every ~ 12.1 days (0x100000/24/60/60)
-  *  Use GetMilliSpan to correct for rollover */
-  struct timeb tb;
-  int nCount;
-  ftime( &tb );
-  nCount = (int) (tb.millitm + (tb.time & 0xfffff) * 1000);
-  return nCount;
+    return clock() - clockStart;   /* works even if overflow, span limited to <= ~30mn */
 }
 
-#else
-
-static int BMK_GetMilliStart(void)
-{
-  /* Based on newer gettimeofday()
-  *  Use GetMilliSpan to correct for rollover */
-  struct timeval tv;
-  int nCount;
-  gettimeofday(&tv, NULL);
-  nCount = (int) (tv.tv_usec/1000 + (tv.tv_sec & 0xfffff) * 1000);
-  return nCount;
-}
-
-#endif
-
-
-static int BMK_GetMilliSpan( int nTimeStart )
-{
-  int nSpan = BMK_GetMilliStart() - nTimeStart;
-  if ( nSpan < 0 )
-    nSpan += 0x100000 * 1000;
-  return nSpan;
-}
 
 static U64 BMK_getFileSize(const char* infilename)
 {
@@ -236,7 +205,6 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
 {
     const size_t blockSize = (g_blockSize ? g_blockSize : srcSize) + (!srcSize);   /* avoid div by 0 */
     const U32 maxNbBlocks = (U32) ((srcSize + (blockSize-1)) / blockSize) + nbFiles;
-    size_t largestBlockSize = 0;
     blockParam_t* const blockTable = (blockParam_t*) malloc(maxNbBlocks * sizeof(blockParam_t));
     const size_t maxCompressedSize = ZSTD_compressBound(srcSize) + (maxNbBlocks * 1024);   /* add some room for safety */
     void* const compressedBuffer = malloc(maxCompressedSize);
@@ -245,29 +213,28 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
     ZSTD_CCtx* ctx = ZSTD_createCCtx();
     ZSTD_DCtx* refDCtx = ZSTD_createDCtx();
     ZSTD_DCtx* dctx = ZSTD_createDCtx();
-    U64 crcOrig = XXH64(srcBuffer, srcSize, 0);
-    U32 nbBlocks = 0;
-    size_t cSize = 0;
-        
-    /* init */
-    if (strlen(displayName)>17) displayName += strlen(displayName)-17;   /* can only display 17 characters */
 
-    /* Memory allocation & restrictions */
+    U64 const crcOrig = XXH64(srcBuffer, srcSize, 0);
+    U32 nbBlocks;
+
+    /* checks */
     if (!compressedBuffer || !resultBuffer || !blockTable || !refCtx || !ctx || !refDCtx || !dctx)
         EXM_THROW(31, "not enough memory");
 
+    /* init */
+    if (strlen(displayName)>17) displayName += strlen(displayName)-17;   /* can only display 17 characters */
+
     /* Init blockTable data */
-    {
-        U32 fileNb;
-        const char* srcPtr = (const char*)srcBuffer;
+    {   const char* srcPtr = (const char*)srcBuffer;
         char* cPtr = (char*)compressedBuffer;
         char* resPtr = (char*)resultBuffer;
-        for (fileNb=0; fileNb<nbFiles; fileNb++) {
+        U32 fileNb;
+        for (nbBlocks=0, fileNb=0; fileNb<nbFiles; fileNb++) {
             size_t remaining = fileSizes[fileNb];
-            U32 nbBlocksforThisFile = (U32)((remaining + (blockSize-1)) / blockSize);
-            U32 blockEnd = nbBlocks + nbBlocksforThisFile;
+            U32 const nbBlocksforThisFile = (U32)((remaining + (blockSize-1)) / blockSize);
+            U32 const blockEnd = nbBlocks + nbBlocksforThisFile;
             for ( ; nbBlocks<blockEnd; nbBlocks++) {
-                size_t thisBlockSize = MIN(remaining, blockSize);
+                size_t const thisBlockSize = MIN(remaining, blockSize);
                 blockTable[nbBlocks].srcPtr = srcPtr;
                 blockTable[nbBlocks].cPtr = cPtr;
                 blockTable[nbBlocks].resPtr = resPtr;
@@ -277,7 +244,6 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
                 cPtr += blockTable[nbBlocks].cRoom;
                 resPtr += thisBlockSize;
                 remaining -= thisBlockSize;
-                if (thisBlockSize > largestBlockSize) largestBlockSize = thisBlockSize;
     }   }   }
 
     /* warmimg up memory */
@@ -285,56 +251,64 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
     RDG_genBuffer(compressedBuffer, maxCompressedSize, 0.10, 0.50, 1);
 
     /* Bench */
-    {
-        int loopNb;
+    {   size_t cSize = 0;
         double fastestC = 100000000., fastestD = 100000000.;
         double ratio = 0.;
         U64 crcCheck = 0;
+        clock_t coolTime = clock();
+        U32 testNb;
 
         DISPLAYLEVEL(2, "\r%79s\r", "");
-        for (loopNb = 1; loopNb <= nbIterations; loopNb++) {
+        for (testNb = 1; testNb <= (g_nbIterations + !g_nbIterations); testNb++) {
             int nbLoops;
-            int milliTime;
-            U32 blockNb;
+            clock_t clockStart, clockSpan;
+            clock_t const clockLoop = g_nbIterations ? TIMELOOP_S * CLOCKS_PER_SEC : 10;
+
+            /* overheat protection */
+            if (BMK_clockSpan(coolTime) > ACTIVEPERIOD_S * CLOCKS_PER_SEC) {
+                DISPLAY("\rcooling down ...    \r");
+                BMK_sleep(COOLPERIOD_S);
+                coolTime = clock();
+            }
 
             /* Compression */
-            DISPLAYLEVEL(2, "%2i-%-17.17s :%10u ->\r", loopNb, displayName, (U32)srcSize);
-            memset(compressedBuffer, 0xE5, maxCompressedSize);
+            DISPLAYLEVEL(2, "%2i-%-17.17s :%10u ->\r", testNb, displayName, (U32)srcSize);
+            memset(compressedBuffer, 0xE5, maxCompressedSize);  /* warm up and erase result buffer */
 
-            nbLoops = 0;
-            milliTime = BMK_GetMilliStart();
-            while (BMK_GetMilliStart() == milliTime);
-            milliTime = BMK_GetMilliStart();
-            while (BMK_GetMilliSpan(milliTime) < TIMELOOP) {
-                ZSTD_compressBegin_advanced(refCtx, dictBuffer, dictBufferSize, ZSTD_getParams(cLevel, MAX(dictBufferSize, largestBlockSize)));
+            clockStart = clock();
+            while (clock() == clockStart);
+            clockStart = clock();
+
+            for (nbLoops = 0 ; BMK_clockSpan(clockStart) < clockLoop ; nbLoops++) {
+                U32 blockNb;
+                ZSTD_compressBegin_usingDict(refCtx, dictBuffer, dictBufferSize, cLevel);
                 for (blockNb=0; blockNb<nbBlocks; blockNb++) {
-                    size_t rSize = ZSTD_compress_usingPreparedCCtx(ctx, refCtx,
+                    size_t const rSize = ZSTD_compress_usingPreparedCCtx(ctx, refCtx,
                                         blockTable[blockNb].cPtr,  blockTable[blockNb].cRoom,
                                         blockTable[blockNb].srcPtr,blockTable[blockNb].srcSize);
                     if (ZSTD_isError(rSize)) EXM_THROW(1, "ZSTD_compress_usingPreparedCCtx() failed : %s", ZSTD_getErrorName(rSize));
                     blockTable[blockNb].cSize = rSize;
-                }
-                nbLoops++;
-            }
-            milliTime = BMK_GetMilliSpan(milliTime);
+            }   }
+            clockSpan = BMK_clockSpan(clockStart);
 
+            if ((double)clockSpan < fastestC*nbLoops) fastestC = (double)clockSpan / nbLoops;
             cSize = 0;
-            for (blockNb=0; blockNb<nbBlocks; blockNb++)
-                cSize += blockTable[blockNb].cSize;
-            if ((double)milliTime < fastestC*nbLoops) fastestC = (double)milliTime / nbLoops;
+            { U32 blockNb; for (blockNb=0; blockNb<nbBlocks; blockNb++) cSize += blockTable[blockNb].cSize; }
             ratio = (double)srcSize / (double)cSize;
-            DISPLAYLEVEL(2, "%2i-%-17.17s :%10i ->%10i (%5.3f),%6.1f MB/s\r", loopNb, displayName, (int)srcSize, (int)cSize, ratio, (double)srcSize / fastestC / 1000.);
+            DISPLAYLEVEL(2, "%2i-%-17.17s :%10u ->%10u (%5.3f),%6.1f MB/s\r",
+                    testNb, displayName, (U32)srcSize, (U32)cSize, ratio,
+                    (double)srcSize / 1000000. / (fastestC / CLOCKS_PER_SEC) );
 
 #if 1
             /* Decompression */
             memset(resultBuffer, 0xD6, srcSize);  /* warm result buffer */
 
-            nbLoops = 0;
-            milliTime = BMK_GetMilliStart();
-            while (BMK_GetMilliStart() == milliTime);
-            milliTime = BMK_GetMilliStart();
+            clockStart = clock();
+            while (clock() == clockStart);
+            clockStart = clock();
 
-            for ( ; BMK_GetMilliSpan(milliTime) < TIMELOOP; nbLoops++) {
+            for (nbLoops = 0 ; BMK_clockSpan(clockStart) < clockLoop ; nbLoops++) {
+                U32 blockNb;
                 ZSTD_decompressBegin_usingDict(refDCtx, dictBuffer, dictBufferSize);
                 for (blockNb=0; blockNb<nbBlocks; blockNb++) {
                     size_t regenSize = ZSTD_decompress_usingPreparedDCtx(dctx, refDCtx,
@@ -348,9 +322,12 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
                     blockTable[blockNb].resSize = regenSize;
             }   }
 
-            milliTime = BMK_GetMilliSpan(milliTime);
-            if ((double)milliTime < fastestD*nbLoops) fastestD = (double)milliTime / nbLoops;
-            DISPLAYLEVEL(2, "%2i-%-17.17s :%10i ->%10i (%5.3f),%6.1f MB/s ,%6.1f MB/s\r", loopNb, displayName, (int)srcSize, (int)cSize, ratio, (double)srcSize / fastestC / 1000., (double)srcSize / fastestD / 1000.);
+            clockSpan = BMK_clockSpan(clockStart);
+            if ((double)clockSpan < fastestD*nbLoops) fastestD = (double)clockSpan / nbLoops;
+            DISPLAYLEVEL(2, "%2i-%-17.17s :%10u ->%10u (%5.3f),%6.1f MB/s ,%6.1f MB/s\r",
+                    testNb, displayName, (U32)srcSize, (U32)cSize, ratio,
+                    (double)srcSize / 1000000. / (fastestC / CLOCKS_PER_SEC),
+                    (double)srcSize / 1000000. / (fastestD / CLOCKS_PER_SEC) );
 
             /* CRC Checking */
 _findError:
@@ -376,21 +353,18 @@ _findError:
                         printf("no difference detected\n");
                 }   }
                 break;
-            }
+            }   /* if (crcOrig!=crcCheck) */
 #endif
-        }
+        }   /* for (testNb = 1; testNb <= (g_nbIterations + !g_nbIterations); testNb++) */
 
-        if (crcOrig == crcCheck)
-        {
-            DISPLAYLEVEL(2, "%2i-%-17.17s :%10i ->%10i (%5.3f),%6.1f MB/s ,%6.1f MB/s \n", cLevel, displayName, (int)srcSize, (int)cSize, ratio, (double)srcSize / fastestC / 1000., (double)srcSize / fastestD / 1000.);
+        if (crcOrig == crcCheck) {
             result->ratio = ratio;
             result->cSize = cSize;
-            result->cSpeed = (double)srcSize / fastestC / 1000.; 
-            result->dSpeed = (double)srcSize / fastestD / 1000.;
+            result->cSpeed = (double)srcSize / 1000000. / (fastestC / CLOCKS_PER_SEC); 
+            result->dSpeed = (double)srcSize / 1000000. / (fastestD / CLOCKS_PER_SEC);
         }
-        else
-            DISPLAYLEVEL(2, "%2i-\n", cLevel);
-    }
+        DISPLAYLEVEL(2, "%2i#\n", cLevel);
+    }   /* Bench */
 
     /* clean up */
     free(compressedBuffer);
@@ -405,19 +379,20 @@ _findError:
 
 static size_t BMK_findMaxMem(U64 requiredMem)
 {
-    size_t step = 64 MB;
+    size_t const step = 64 MB;
     BYTE* testmem = NULL;
 
     requiredMem = (((requiredMem >> 26) + 1) << 26);
-    requiredMem += 2 * step;
+    requiredMem += step;
     if (requiredMem > maxMemory) requiredMem = maxMemory;
 
-    while (!testmem) {
-        requiredMem -= step;
+    do {
         testmem = (BYTE*)malloc((size_t)requiredMem);
-    }
+        requiredMem -= step;
+    } while (!testmem);
+
     free(testmem);
-    return (size_t)(requiredMem - step);
+    return (size_t)(requiredMem);
 }
 
 static void BMK_benchCLevel(void* srcBuffer, size_t benchedSize,
@@ -436,7 +411,7 @@ static void BMK_benchCLevel(void* srcBuffer, size_t benchedSize,
     memset(&total, 0, sizeof(total));
 
     if (g_displayLevel == 1 && !additionalParam)
-        DISPLAY("bench %s: input %u bytes, %i iterations, %u KB blocks\n", ZSTD_VERSION, (U32)benchedSize, nbIterations, (U32)(g_blockSize>>10));
+        DISPLAY("bench %s: input %u bytes, %i iterations, %u KB blocks\n", ZSTD_VERSION, (U32)benchedSize, g_nbIterations, (U32)(g_blockSize>>10));
 
     if (cLevelLast < cLevel) cLevelLast = cLevel;
 
@@ -477,12 +452,11 @@ static U64 BMK_getTotalFileSize(const char** fileNamesTable, unsigned nbFiles)
 
 static void BMK_loadFiles(void* buffer, size_t bufferSize,
                           size_t* fileSizes,
-                          const char** fileNamesTable, unsigned nbFiles)
+                          const char** fileNamesTable, unsigned const nbFiles)
 {
-    BYTE* buff = (BYTE*)buffer;
     size_t pos = 0;
-    unsigned n;
 
+    unsigned n;
     for (n=0; n<nbFiles; n++) {
         size_t readSize;
         U64 fileSize = BMK_getFileSize(fileNamesTable[n]);
@@ -490,7 +464,7 @@ static void BMK_loadFiles(void* buffer, size_t bufferSize,
         if (f==NULL) EXM_THROW(10, "impossible to open file %s", fileNamesTable[n]);
         DISPLAYLEVEL(2, "Loading %s...       \r", fileNamesTable[n]);
         if (fileSize > bufferSize-pos) fileSize = bufferSize-pos;
-        readSize = fread(buff+pos, 1, (size_t)fileSize, f);
+        readSize = fread(((char*)buffer)+pos, 1, (size_t)fileSize, f);
         if (readSize != (size_t)fileSize) EXM_THROW(11, "could not read %s", fileNamesTable[n]);
         pos += readSize;
         fileSizes[n] = (size_t)fileSize;
@@ -574,7 +548,7 @@ static void BMK_syntheticTest(int cLevel, int cLevelLast, int additionalParam, d
 int BMK_benchFiles(const char** fileNamesTable, unsigned nbFiles,
                    const char* dictFileName, int cLevel, int cLevelLast, int additionalParam)
 {
-    double compressibility = (double)g_compressibilityDefault / 100;
+    double const compressibility = (double)g_compressibilityDefault / 100;
 
     if (nbFiles == 0)
         BMK_syntheticTest(cLevel, cLevelLast, additionalParam, compressibility);

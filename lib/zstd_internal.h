@@ -27,7 +27,7 @@
     OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
     You can contact the author at :
-    - zstd source repository : https://github.com/Cyan4973/zstd
+    - zstd homepage : https://www.zstd.net
 */
 #ifndef ZSTD_CCOMMON_H_MODULE
 #define ZSTD_CCOMMON_H_MODULE
@@ -71,12 +71,6 @@
 #define MB *(1 <<20)
 #define GB *(1U<<30)
 
-#define BLOCKSIZE (128 KB)                 /* define, for static allocation */
-
-static const size_t ZSTD_blockHeaderSize = 3;
-static const size_t ZSTD_frameHeaderSize_min = 5;
-#define ZSTD_frameHeaderSize_max 5         /* define, for static allocation */
-
 #define BIT7 128
 #define BIT6  64
 #define BIT5  32
@@ -84,14 +78,28 @@ static const size_t ZSTD_frameHeaderSize_min = 5;
 #define BIT1   2
 #define BIT0   1
 
+#define ZSTD_WINDOWLOG_ABSOLUTEMIN 12
+static const size_t ZSTD_fcs_fieldSize[4] = { 0, 1, 2, 8 };
+
+#define ZSTD_BLOCKHEADERSIZE 3   /* because C standard does not allow a static const value to be defined using another static const value .... :( */
+static const size_t ZSTD_blockHeaderSize = ZSTD_BLOCKHEADERSIZE;
+typedef enum { bt_compressed, bt_raw, bt_rle, bt_end } blockType_t;
+
+#define MIN_SEQUENCES_SIZE 1 /* nbSeq==0 */
+#define MIN_CBLOCK_SIZE (1 /*litCSize*/ + 1 /* RLE or RAW */ + MIN_SEQUENCES_SIZE /* nbSeq==0 */)   /* for a non-null block */
+
+#define HufLog 12
+
 #define IS_HUF 0
 #define IS_PCH 1
 #define IS_RAW 2
 #define IS_RLE 3
 
+#define LONGNBSEQ 0x7F00
+
 #define MINMATCH 4
 #define REPCODE_STARTVALUE 1
-#define ZSTD_WINDOWLOG_ABSOLUTEMIN 12
+#define HASHLOG3 17
 
 #define Litbits  8
 #define MLbits   7
@@ -104,35 +112,23 @@ static const size_t ZSTD_frameHeaderSize_min = 5;
 #define MLFSELog   10
 #define LLFSELog   10
 #define OffFSELog   9
-#define MaxSeq MAX(MaxLL, MaxML)
-
-#define LONGNBSEQ 0x7F00
+#define MaxSeq MAX(MaxLL, MaxML)   /* Assumption : MaxOff < MaxLL,MaxML */
 
 #define FSE_ENCODING_RAW     0
 #define FSE_ENCODING_RLE     1
 #define FSE_ENCODING_STATIC  2
 #define FSE_ENCODING_DYNAMIC 3
 
-#define HufLog 12
-#define HASHLOG3 17
-
-#define MIN_SEQUENCES_SIZE 1 /* nbSeq==0 */
-#define MIN_CBLOCK_SIZE (1 /*litCSize*/ + 1 /* RLE or RAW */ + MIN_SEQUENCES_SIZE /* nbSeq==0 */)   /* for a non-null block */
-
-#define WILDCOPY_OVERLENGTH 8
-
-typedef enum { bt_compressed, bt_raw, bt_rle, bt_end } blockType_t;
-
 
 /*-*******************************************
 *  Shared functions to include for inlining
 *********************************************/
 static void ZSTD_copy8(void* dst, const void* src) { memcpy(dst, src, 8); }
-
 #define COPY8(d,s) { ZSTD_copy8(d,s); d+=8; s+=8; }
 
 /*! ZSTD_wildcopy() :
 *   custom version of memcpy(), can copy up to 7 bytes too many (8 bytes if length==0) */
+#define WILDCOPY_OVERLENGTH 8
 MEM_STATIC void ZSTD_wildcopy(void* dst, const void* src, size_t length)
 {
     const BYTE* ip = (const BYTE*)src;

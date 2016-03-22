@@ -105,7 +105,7 @@ typedef enum { bt_compressed, bt_raw, bt_rle, bt_end } blockType_t;
 #define MLbits   7
 #define Offbits  5
 #define MaxLit ((1<<Litbits) - 1)
-#define MaxML  ((1<<MLbits) - 1)
+#define MaxML  52
 #define MaxLL  35
 #define MaxOff ((1<<Offbits)- 1)
 #define MLFSELog   10
@@ -125,6 +125,16 @@ static const S16 LL_defaultNorm[MaxLL+1] = { 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
                                              2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 1, 1, 1,
                                              1, 1, 1, 1 };
 static const U32 LL_defaultNormLog = 6;
+
+static const U32 ML_bits[MaxML+1] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                      1, 1, 1, 1, 2, 2, 3, 3, 4, 4, 5, 7, 8, 9,10,11,
+                                      12,13,14,15,16 };
+static const S16 ML_defaultNorm[MaxML+1] = { 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 1, 1, 1, 1,
+                                             1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                             1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                             1, 1, 1, 1, 1, };
+static const U32 ML_defaultNormLog = 6;
 
 
 /*-*******************************************
@@ -195,12 +205,13 @@ typedef struct {
     BYTE* lit;
     U16*  litLengthStart;
     U16*  litLength;
-    U32   litLengthLong;
     BYTE* llCodeStart;
-    BYTE* matchLengthStart;
-    BYTE* matchLength;
+    U16*  matchLengthStart;
+    U16*  matchLength;
+    BYTE* mlCodeStart;
     BYTE* dumpsStart;
     BYTE* dumps;
+    U32   longLength;
     /* opt */
     ZSTD_optimal_t* priceTable;
     ZSTD_match_t* matchTable;

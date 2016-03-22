@@ -1617,8 +1617,8 @@ void ZSTD_compressBlock_lazy_generic(ZSTD_CCtx* ctx,
                 if (depth==0) goto _storeSequence;
             } else {
                 size_t mlRep = ZSTD_count(ip+MINMATCH, ip+MINMATCH-rep[i], iend) + MINMATCH;
-                int gain2 = (int)(mlRep * 3 /*- ZSTD_highbit((U32)i+1)*/);
-                int gain1 = (int)(matchLength*3 - /*ZSTD_highbit((U32)offset+1)*/ + 1);
+                int gain2 = (int)(mlRep * 3 /*- ZSTD_highbit((U32)i+1)*/ + (i==1));
+                int gain1 = (int)(matchLength*3 - /*ZSTD_highbit((U32)offset+1)*/ + 1 + (offset==1));
                 if (gain2 > gain1)
                     matchLength = mlRep, offset = i;
             }
@@ -1642,10 +1642,10 @@ void ZSTD_compressBlock_lazy_generic(ZSTD_CCtx* ctx,
         while (ip<ilimit) {
             ip ++;
             for (int i=0; i<ZSTD_REP_NUM; i++)
-            if ((offset >= ZSTD_REP_NUM) && (MEM_read32(ip) == MEM_read32(ip - rep[i]))) {
+            if (MEM_read32(ip) == MEM_read32(ip - rep[i])) {
                 size_t mlRep = ZSTD_count(ip+MINMATCH, ip+MINMATCH-rep[i], iend) + MINMATCH;
                 int gain2 = (int)(mlRep * 3);
-                int gain1 = (int)(matchLength*3 - ZSTD_highbit((U32)offset+1) + 1);
+                int gain1 = (int)(matchLength*3 - ZSTD_highbit((U32)offset+1) + 1 + (offset<ZSTD_REP_NUM));
                 if ((mlRep >= MINMATCH) && (gain2 > gain1))
                     matchLength = mlRep, offset = i, start = ip;
             }
@@ -1663,10 +1663,10 @@ void ZSTD_compressBlock_lazy_generic(ZSTD_CCtx* ctx,
             if ((depth==2) && (ip<ilimit)) {
                 ip ++;
                 for (int i=0; i<ZSTD_REP_NUM; i++)
-                if ((offset >= ZSTD_REP_NUM) && (MEM_read32(ip) == MEM_read32(ip - rep[i]))) {
+                if (MEM_read32(ip) == MEM_read32(ip - rep[i])) {
                     size_t ml2 = ZSTD_count(ip+MINMATCH, ip+MINMATCH-rep[i], iend) + MINMATCH;
                     int gain2 = (int)(ml2 * 4);
-                    int gain1 = (int)(matchLength*4 - ZSTD_highbit((U32)offset+1) + 1);
+                    int gain1 = (int)(matchLength*4 - ZSTD_highbit((U32)offset+1) + 1 + (offset<ZSTD_REP_NUM));
                     if ((ml2 >= MINMATCH) && (gain2 > gain1))
                         matchLength = ml2, offset = i, start = ip;
                 }
@@ -1693,7 +1693,7 @@ _storeSequence:
         {
 #if ZSTD_REP_NUM == 4
             if (offset >= ZSTD_REP_NUM) {
-#if 0
+#if 1
                 rep[3] = rep[2];
                 rep[2] = rep[1];
                 rep[1] = rep[0];

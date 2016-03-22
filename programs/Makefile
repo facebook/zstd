@@ -46,7 +46,7 @@ DESTDIR?=
 PREFIX ?= /usr/local
 CPPFLAGS= -I../lib -DZSTD_VERSION=\"$(VERSION)\"
 CFLAGS ?= -O3  # -falign-loops=32   # not always beneficial
-CFLAGS += -std=c99 -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow -Wstrict-aliasing=1 -Wswitch-enum -Wstrict-prototypes -Wundef
+CFLAGS += -std=gnu99 -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow -Wstrict-aliasing=1 -Wswitch-enum -Wstrict-prototypes -Wundef
 FLAGS   = $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) $(MOREFLAGS)
 
 BINDIR  = $(PREFIX)/bin

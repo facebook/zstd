@@ -283,7 +283,7 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
                     (double)srcSize / 1000000. / (fastestC / CLOCKS_PER_SEC) );
 
             (void)crcCheck; (void)fastestD; (void)crcOrig;   /*  unused when decompression disabled */
-#if 1
+#if 0
             /* Decompression */
             memset(resultBuffer, 0xD6, srcSize);  /* warm result buffer */
 

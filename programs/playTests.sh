@@ -36,7 +36,10 @@ $ZSTD --decompress tmpCompressed --stdout > tmpResult
 $ZSTD -q tmp && die "overwrite check failed!"
 $ZSTD -q -f tmp
 $ZSTD -q --force tmp
-
+$ZSTD -df tmp && die "should have refused : wrong extension"
+cp tmp tmp2.zst
+$ZSTD -df tmp2.zst && die "should have failed : wrong format"
+rm tmp2.zst
 
 echo "\n**** frame concatenation **** "
 
@@ -140,7 +143,7 @@ roundTripTest -g50000000 -P94 18
 roundTripTest -g50000000 -P94 19
 
 roundTripTest -g99000000 -P99 20
-roundTripTest -g6000000000 -P99 q
+roundTripTest -g6000000000 -P99 1
 
 rm tmp*
 

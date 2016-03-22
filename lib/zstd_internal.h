@@ -71,7 +71,7 @@
 #else
     #define ZSTD_REP_NUM    1
     #define ZSTD_REP_INIT   2
-    #define ZSTD_REP_MOVE  0//(ZSTD_REP_NUM-1)
+    #define ZSTD_REP_MOVE   0 //(ZSTD_REP_NUM-1)
 #endif
 
 #define KB *(1 <<10)

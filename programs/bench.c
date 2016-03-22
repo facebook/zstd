@@ -52,14 +52,14 @@
 #include <stdio.h>       /* fprintf, fopen, ftello64 */
 #include <sys/types.h>   /* stat64 */
 #include <sys/stat.h>    /* stat64 */
-#include <time.h>        /* clock_t, clock, CLOCKS_PER_SEC */
+#include <time.h>        /* clock_t, clock, nanosleep, CLOCKS_PER_SEC */
 #ifdef WINDOWS
-	#define mili_sleep(mili) Sleep(mili)
+    #define mili_sleep(mili) Sleep(mili)
 #else
-	#define mili_sleep(mili) usleep(mili*1000)
     #include <sys/resource.h> /* setpriority */
+    #define mili_sleep(mili) { struct timespec t; t.tv_sec=0; t.tv_nsec=mili*1000000L; nanosleep(&t, NULL); }
 #endif
-    
+
 /* sleep : posix - windows - others */
 #if !defined(_WIN32) && (defined(__unix__) || defined(__unix) || (defined(__APPLE__) && defined(__MACH__)))
 #  include <unistd.h>
@@ -379,11 +379,11 @@ _findError:
 
         if (crcOrig == crcCheck)
         {
-            DISPLAYLEVEL(2, "%2i-%-17.17s :%10i ->%10i (%5.3f),%6.1f MB/s ,%6.1f MB/s \n", cLevel, displayName, (int)srcSize, (int)cSize, ratio, (double)srcSize / fastestC / 1000., (double)srcSize / fastestD / 1000.);
             result->ratio = ratio;
             result->cSize = cSize;
-            result->cSpeed = (double)srcSize / fastestC / 1000.; 
-            result->dSpeed = (double)srcSize / fastestD / 1000.;
+            result->cSpeed = (double)srcSize / 1000000. / (fastestC / CLOCKS_PER_SEC); 
+            result->dSpeed = (double)srcSize / 1000000. / (fastestD / CLOCKS_PER_SEC);
+            DISPLAYLEVEL(2, "%2i-%-17.17s :%10i ->%10i (%5.3f),%6.1f MB/s ,%6.1f MB/s \n", cLevel, displayName, (int)srcSize, (int)cSize, ratio, result->cSpeed, result->dSpeed);
         }
         else
             DISPLAYLEVEL(2, "%2i-\n", cLevel);
@@ -449,7 +449,7 @@ static void BMK_benchCLevel(void* srcBuffer, size_t benchedSize,
                      dictBuffer, dictBufferSize, &result);
         if (g_displayLevel == 1) {
             if (additionalParam)
-                DISPLAY("%-3i%11i (%5.3f) %6.1f MB/s %6.1f MB/s  %s (p=%d)\n", -l, (int)result.cSize, result.ratio, result.cSpeed, result.dSpeed, displayName, additionalParam);
+                DISPLAY("%-3i%11i (%5.3f) %6.1f MB/s %6.1f MB/s  %s (param=%d)\n", -l, (int)result.cSize, result.ratio, result.cSpeed, result.dSpeed, displayName, additionalParam);
             else
                 DISPLAY("%-3i%11i (%5.3f) %6.1f MB/s %6.1f MB/s  %s\n", -l, (int)result.cSize, result.ratio, result.cSpeed, result.dSpeed, displayName);
             total.cSize += result.cSize;

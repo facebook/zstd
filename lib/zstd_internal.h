@@ -218,6 +218,6 @@ typedef struct {
 } seqStore_t;
 
 seqStore_t ZSTD_copySeqStore(const ZSTD_CCtx* ctx);
-
+size_t ZSTD_compressBegin_targetSrcSize(ZSTD_CCtx* zc, const void* dict, size_t dictSize, size_t targetSrcSize, int compressionLevel);
 
 #endif   /* ZSTD_CCOMMON_H_MODULE */

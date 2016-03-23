@@ -97,6 +97,7 @@ struct ZSTD_CCtx_s
     U32   nextToUpdate;     /* index from which to continue dictionary update */
     U32   nextToUpdate3;    /* index from which to continue dictionary update */
     U32   hashLog3;         /* dispatch table : larger == faster, more memory */
+    U32   targetSrcSize;    /* optimize compression for this source size */
     U32   loadedDictEnd;
     U32   stage;
     ZSTD_parameters params;
@@ -240,6 +241,7 @@ static size_t ZSTD_resetCCtx_advanced (ZSTD_CCtx* zc,
     zc->hbSize = 0;
     zc->stage = 0;
     zc->loadedDictEnd = 0;
+    zc->targetSrcSize = 0;
 
     return 0;
 }
@@ -277,6 +279,7 @@ size_t ZSTD_copyCCtx(ZSTD_CCtx* dstCCtx, const ZSTD_CCtx* srcCCtx)
     dstCCtx->dictLimit    = srcCCtx->dictLimit;
     dstCCtx->lowLimit     = srcCCtx->lowLimit;
     dstCCtx->loadedDictEnd= srcCCtx->loadedDictEnd;
+    dstCCtx->targetSrcSize= srcCCtx->targetSrcSize;
 
     /* copy entropy tables */
     dstCCtx->flagStaticTables = srcCCtx->flagStaticTables;
@@ -2180,6 +2183,7 @@ static size_t ZSTD_compress_insertDictionary(ZSTD_CCtx* zc, const void* dict, si
     }
 }
 
+extern int g_additionalParam;
 
 /*! ZSTD_compressBegin_advanced() :
 *   @return : 0, or an error code */
@@ -2187,10 +2191,10 @@ size_t ZSTD_compressBegin_advanced(ZSTD_CCtx* zc,
                              const void* dict, size_t dictSize,
                                    ZSTD_parameters params)
 {
-//    printf("windowLog=%d hashLog=%d\n", params.windowLog, params.hashLog);
+//    printf("windowLog=%d hashLog=%d targetSrcSize=%d\n", params.windowLog, params.hashLog, zc->targetSrcSize);
     ZSTD_validateParams(&params);
-    zc->hashLog3 = (params.searchLength==3) ? ZSTD_HASHLOG3 : 0;
-//    if (zc->hashLog3 > params.windowLog) zc->hashLog3 = params.windowLog;
+    U32 hashLog3 = (!zc->targetSrcSize || zc->targetSrcSize >= 8192) ? ZSTD_HASHLOG3_MAX : ((zc->targetSrcSize >= 2048) ? ZSTD_HASHLOG3_MIN + 1 : ZSTD_HASHLOG3_MIN);  
+    zc->hashLog3 = (params.searchLength==3) ? hashLog3 : 0;
 //    printf("windowLog=%d hashLog=%d hashLog3=%d \n", params.windowLog, params.hashLog, zc->hashLog3);
 
     { size_t const errorCode = ZSTD_resetCCtx_advanced(zc, params);
@@ -2219,6 +2223,15 @@ size_t ZSTD_compressBegin_advanced(ZSTD_CCtx* zc,
     return ZSTD_compress_insertDictionary(zc, dict, dictSize);
 }
 
+
+size_t ZSTD_compressBegin_targetSrcSize(ZSTD_CCtx* zc, const void* dict, size_t dictSize, size_t targetSrcSize, int compressionLevel)
+{
+    zc->targetSrcSize = dictSize ? dictSize : targetSrcSize;
+    ZSTD_parameters params = ZSTD_getParams(compressionLevel, zc->targetSrcSize);
+    params.srcSize = 0;
+    ZSTD_LOG_BLOCK("%p: ZSTD_compressBegin_targetSrcSize compressionLevel=%d\n", zc->base, compressionLevel);
+    return ZSTD_compressBegin_advanced(zc, dict, dictSize, params);
+}
 
 size_t ZSTD_compressBegin_usingDict(ZSTD_CCtx* zc, const void* dict, size_t dictSize, int compressionLevel)
 {
@@ -2309,12 +2322,14 @@ size_t ZSTD_compress_advanced (ZSTD_CCtx* ctx,
 size_t ZSTD_compress_usingDict(ZSTD_CCtx* ctx, void* dst, size_t dstCapacity, const void* src, size_t srcSize, const void* dict, size_t dictSize, int compressionLevel)
 {
     ZSTD_LOG_BLOCK("%p: ZSTD_compress_usingDict srcSize=%d dictSize=%d compressionLevel=%d\n", ctx->base, (int)srcSize, (int)dictSize, compressionLevel);
+    ctx->targetSrcSize = srcSize;
     return ZSTD_compress_advanced(ctx, dst, dstCapacity, src, srcSize, dict, dictSize, ZSTD_getParams(compressionLevel, srcSize));
 }
 
 size_t ZSTD_compressCCtx (ZSTD_CCtx* ctx, void* dst, size_t dstCapacity, const void* src, size_t srcSize, int compressionLevel)
 {
     ZSTD_LOG_BLOCK("%p: ZSTD_compressCCtx srcSize=%d compressionLevel=%d\n", ctx->base, (int)srcSize, compressionLevel);
+    ctx->targetSrcSize = srcSize;
     return ZSTD_compress_advanced(ctx, dst, dstCapacity, src, srcSize, NULL, 0, ZSTD_getParams(compressionLevel, srcSize));
 }
 

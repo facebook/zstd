@@ -63,7 +63,8 @@ extern "C" {
 #define ZSTD_CONTENTLOG_MIN     4
 #define ZSTD_HASHLOG_MAX       28
 #define ZSTD_HASHLOG_MIN       12
-#define ZSTD_HASHLOG3          17
+#define ZSTD_HASHLOG3_MAX      17
+#define ZSTD_HASHLOG3_MIN      15
 #define ZSTD_SEARCHLOG_MAX    (ZSTD_CONTENTLOG_MAX-1)
 #define ZSTD_SEARCHLOG_MIN      1
 #define ZSTD_SEARCHLENGTH_MAX   7

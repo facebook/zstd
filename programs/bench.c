@@ -72,8 +72,9 @@
 
 #include "mem.h"
 #include "zstd_static.h"
+#include "zstd_internal.h" /* ZSTD_compressBegin_targetSrcSize */
+#include "datagen.h"       /* RDG_genBuffer */
 #include "xxhash.h"
-#include "datagen.h"      /* RDG_genBuffer */
 
 
 /* *************************************
@@ -139,8 +140,11 @@ static U32 g_displayLevel = 2;   /* 0 : no display;   1: errors;   2 : + result 
 ***************************************/
 static U32 g_nbIterations = NBLOOPS;
 static size_t g_blockSize = 0;
+int g_additionalParam = 0;
 
 void BMK_setNotificationLevel(unsigned level) { g_displayLevel=level; }
+
+void BMK_setAdditionalParam(int additionalParam) { g_additionalParam=additionalParam; }
 
 void BMK_SetNbIterations(unsigned nbLoops)
 {
@@ -288,15 +292,7 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
 
             for (nbLoops = 0 ; BMK_clockSpan(clockStart) < clockLoop ; nbLoops++) {
                 U32 blockNb;
-#if 0
-                ZSTD_compressBegin_usingDict(refCtx, dictBuffer, dictBufferSize, cLevel);
-#else
-                ZSTD_parameters params = ZSTD_getParams(cLevel, dictBufferSize ? dictBufferSize : blockSize);
-           //     printf("cLevel=%d dictBufferSize=%d srcSize=%d params.srcSize=%d \n", cLevel, (int)dictBufferSize, (int)blockTable[0].srcSize, (int)params.srcSize);
-                params.srcSize = 0;
-                ZSTD_compressBegin_advanced(refCtx, dictBuffer, dictBufferSize, params);
-#endif
-
+                ZSTD_compressBegin_targetSrcSize(refCtx, dictBuffer, dictBufferSize, blockSize, cLevel);
                 for (blockNb=0; blockNb<nbBlocks; blockNb++) {
                     size_t const rSize = ZSTD_compress_usingPreparedCCtx(ctx, refCtx,
                                         blockTable[blockNb].cPtr,  blockTable[blockNb].cRoom,
@@ -412,7 +408,7 @@ static size_t BMK_findMaxMem(U64 requiredMem)
 }
 
 static void BMK_benchCLevel(void* srcBuffer, size_t benchedSize,
-                            const char* displayName, int cLevel, int cLevelLast, int additionalParam,
+                            const char* displayName, int cLevel, int cLevelLast,
                             const size_t* fileSizes, unsigned nbFiles,
                             const void* dictBuffer, size_t dictBufferSize)
 {
@@ -428,7 +424,7 @@ static void BMK_benchCLevel(void* srcBuffer, size_t benchedSize,
     memset(&result, 0, sizeof(result));
     memset(&total, 0, sizeof(total));
 
-    if (g_displayLevel == 1 && !additionalParam)
+    if (g_displayLevel == 1 && !g_additionalParam)
         DISPLAY("bench %s: input %u bytes, %i iterations, %u KB blocks\n", ZSTD_VERSION, (U32)benchedSize, g_nbIterations, (U32)(g_blockSize>>10));
 
     if (cLevelLast < cLevel) cLevelLast = cLevel;
@@ -439,8 +435,8 @@ static void BMK_benchCLevel(void* srcBuffer, size_t benchedSize,
                      fileSizes, nbFiles,
                      dictBuffer, dictBufferSize, &result);
         if (g_displayLevel == 1) {
-            if (additionalParam)
-                DISPLAY("%-3i%11i (%5.3f) %6.1f MB/s %6.1f MB/s  %s (p=%d)\n", -l, (int)result.cSize, result.ratio, result.cSpeed, result.dSpeed, displayName, additionalParam);
+            if (g_additionalParam)
+                DISPLAY("%-3i%11i (%5.3f) %6.1f MB/s %6.1f MB/s  %s (param=%d)\n", -l, (int)result.cSize, result.ratio, result.cSpeed, result.dSpeed, displayName, g_additionalParam);
             else
                 DISPLAY("%-3i%11i (%5.3f) %6.1f MB/s %6.1f MB/s  %s\n", -l, (int)result.cSize, result.ratio, result.cSpeed, result.dSpeed, displayName);
             total.cSize += result.cSize;
@@ -491,7 +487,7 @@ static void BMK_loadFiles(void* buffer, size_t bufferSize,
 }
 
 static void BMK_benchFileTable(const char** fileNamesTable, unsigned nbFiles,
-                               const char* dictFileName, int cLevel, int cLevelLast, int additionalParam)
+                               const char* dictFileName, int cLevel, int cLevelLast)
 {
     void* srcBuffer;
     size_t benchedSize;
@@ -531,7 +527,7 @@ static void BMK_benchFileTable(const char** fileNamesTable, unsigned nbFiles,
     else displayName = fileNamesTable[0];
 
     BMK_benchCLevel(srcBuffer, benchedSize,
-                    displayName, cLevel, cLevelLast, additionalParam,
+                    displayName, cLevel, cLevelLast,
                     fileSizes, nbFiles,
                     dictBuffer, dictBufferSize);
 
@@ -542,7 +538,7 @@ static void BMK_benchFileTable(const char** fileNamesTable, unsigned nbFiles,
 }
 
 
-static void BMK_syntheticTest(int cLevel, int cLevelLast, int additionalParam, double compressibility)
+static void BMK_syntheticTest(int cLevel, int cLevelLast, double compressibility)
 {
     char name[20] = {0};
     size_t benchedSize = 10000000;
@@ -556,7 +552,7 @@ static void BMK_syntheticTest(int cLevel, int cLevelLast, int additionalParam, d
 
     /* Bench */
     snprintf (name, sizeof(name), "Synthetic %2u%%", (unsigned)(compressibility*100));
-    BMK_benchCLevel(srcBuffer, benchedSize, name, cLevel, cLevelLast, additionalParam, &benchedSize, 1, NULL, 0);
+    BMK_benchCLevel(srcBuffer, benchedSize, name, cLevel, cLevelLast, &benchedSize, 1, NULL, 0);
 
     /* clean up */
     free(srcBuffer);
@@ -564,14 +560,14 @@ static void BMK_syntheticTest(int cLevel, int cLevelLast, int additionalParam, d
 
 
 int BMK_benchFiles(const char** fileNamesTable, unsigned nbFiles,
-                   const char* dictFileName, int cLevel, int cLevelLast, int additionalParam)
+                   const char* dictFileName, int cLevel, int cLevelLast)
 {
     double const compressibility = (double)g_compressibilityDefault / 100;
 
     if (nbFiles == 0)
-        BMK_syntheticTest(cLevel, cLevelLast, additionalParam, compressibility);
+        BMK_syntheticTest(cLevel, cLevelLast, compressibility);
     else
-        BMK_benchFileTable(fileNamesTable, nbFiles, dictFileName, cLevel, cLevelLast, additionalParam);
+        BMK_benchFileTable(fileNamesTable, nbFiles, dictFileName, cLevel, cLevelLast);
     return 0;
 }
 

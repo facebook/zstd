@@ -222,7 +222,5 @@ typedef struct {
 
 seqStore_t ZSTD_copySeqStore(const ZSTD_CCtx* ctx);
 
-void ZSTD_setAdditionalParam(ZSTD_CCtx* ctx, int additionalParam);
-
 
 #endif   /* ZSTD_CCOMMON_H_MODULE */

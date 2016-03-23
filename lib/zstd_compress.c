@@ -219,6 +219,16 @@ static size_t ZSTD_resetCCtx_advanced (ZSTD_CCtx* zc,
     zc->params = params;
     zc->blockSize = blockSize;
 
+    if (params.strategy == ZSTD_btopt) {
+        zc->seqStore.litFreq = (U32*)(zc->seqStore.buffer);
+        zc->seqStore.litLengthFreq = zc->seqStore.litFreq + (1<<Litbits);
+        zc->seqStore.matchLengthFreq = zc->seqStore.litLengthFreq + (MaxLL+1);
+        zc->seqStore.offCodeFreq = zc->seqStore.matchLengthFreq + (MaxML+1);
+        zc->seqStore.matchTable = (ZSTD_match_t*)((void*)(zc->seqStore.offCodeFreq + (1<<Offbits)));
+        zc->seqStore.priceTable = (ZSTD_optimal_t*)((void*)(zc->seqStore.matchTable + ZSTD_OPT_NUM+1));
+        zc->seqStore.buffer = zc->seqStore.priceTable + ZSTD_OPT_NUM+1;
+        zc->seqStore.litLengthSum = 0;
+    }
     zc->seqStore.offsetStart = (U32*) (zc->seqStore.buffer);
     zc->seqStore.litLengthStart = (U16*) (void*)(zc->seqStore.offsetStart + maxNbSeq);
     zc->seqStore.matchLengthStart = (U16*) (void*)(zc->seqStore.litLengthStart + maxNbSeq);
@@ -226,15 +236,6 @@ static size_t ZSTD_resetCCtx_advanced (ZSTD_CCtx* zc,
     zc->seqStore.mlCodeStart = zc->seqStore.llCodeStart + maxNbSeq;
     zc->seqStore.offCodeStart = zc->seqStore.mlCodeStart + maxNbSeq;
     zc->seqStore.litStart = zc->seqStore.offCodeStart + maxNbSeq;
-    if (params.strategy == ZSTD_btopt) {
-        zc->seqStore.litFreq = (U32*)((void*)(zc->seqStore.litStart + blockSize));
-        zc->seqStore.litLengthFreq = zc->seqStore.litFreq + (1<<Litbits);
-        zc->seqStore.matchLengthFreq = zc->seqStore.litLengthFreq + (MaxLL+1);
-        zc->seqStore.offCodeFreq = zc->seqStore.matchLengthFreq + (MaxML+1);
-        zc->seqStore.matchTable = (ZSTD_match_t*)((void*)(zc->seqStore.offCodeFreq + (1<<Offbits)));
-        zc->seqStore.priceTable = (ZSTD_optimal_t*)((void*)(zc->seqStore.matchTable + ZSTD_OPT_NUM+1));
-        zc->seqStore.litLengthSum = 0;
-    }
 
     zc->hbSize = 0;
     zc->stage = 0;
@@ -632,7 +633,7 @@ size_t ZSTD_compressSequences(ZSTD_CCtx* zc,
         for (u=0; u<nbSeq; u++) {
             U32 ll = llTable[u];
             if (llTable[u] == 65535) { ll = seqStorePtr->longLength; llTable[u] = (U16)ll; }
-            llCodeTable[u] = (ll>63) ? ZSTD_highbit(ll) + LL_deltaCode : LL_Code[ll];
+            llCodeTable[u] = (ll>63) ? (BYTE)ZSTD_highbit(ll) + LL_deltaCode : LL_Code[ll];
     }   }
 
     /* CTable for Literal Lengths */
@@ -699,14 +700,14 @@ size_t ZSTD_compressSequences(ZSTD_CCtx* zc,
         for (u=0; u<nbSeq; u++) {
             U32 ml = mlTable[u];
             if (mlTable[u] == 65535) { ml = seqStorePtr->longLength; mlTable[u] = (U16)ml; }
-            mlCodeTable[u] = (ml>127) ? ZSTD_highbit(ml) + ML_deltaCode : ML_Code[ml];
+            mlCodeTable[u] = (ml>127) ? (BYTE)ZSTD_highbit(ml) + ML_deltaCode : ML_Code[ml];
     }   }
 
     /* CTable for MatchLengths */
     {   U32 max = MaxML;
         size_t const mostFrequent = FSE_countFast(count, &max, mlCodeTable, nbSeq);
         if ((mostFrequent == nbSeq) && (nbSeq > 2)) {
-            *op++ = *mlTable;
+            *op++ = *mlCodeTable;
             FSE_buildCTable_rle(CTable_MatchLength, (BYTE)max);
             MLtype = FSE_ENCODING_RLE;
         } else if ((zc->flagStaticTables) && (nbSeq < MAX_SEQ_FOR_STATIC_FSE)) {

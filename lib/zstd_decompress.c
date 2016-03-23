@@ -652,15 +652,17 @@ static void ZSTD_decodeSequence(seq_t* seq, seqState_t* seqState, const U32 mls)
                 0x8000, 0x10000, 0x20000, 0x40000, 0x80000, 0x100000, 0x200000, 0x400000,
                 0x800000, 0x1000000, 0x2000000, 0x4000000, /*fake*/ 1, 1, 1, 1 };
 
-    seq->litLength = LL_base[llCode] + BIT_readBits(&(seqState->DStream), llBits);
-    seq->matchLength = ML_base[mlCode] + BIT_readBits(&(seqState->DStream), mlBits) + mls;
+    size_t allBits = BIT_readBits(&(seqState->DStream), llBits+mlBits+ofBits);
 
     /* Offset */
-    {   size_t const offset = ofCode ? OF_base[ofCode] + BIT_readBits(&(seqState->DStream), ofBits) :
+    {   size_t const offset = ofCode ? OF_base[ofCode] + BIT_consumeFirstBits(&allBits, ofBits) :
                                        llCode ? seq->offset : seqState->prevOffset;
         if (ofCode | !llCode) seqState->prevOffset = seq->offset;   /* cmove */
         seq->offset = offset;
     }
+
+    seq->matchLength = ML_base[mlCode] + BIT_consumeFirstBits(&allBits, mlBits) + mls;
+    seq->litLength = LL_base[llCode] + BIT_consumeFirstBits(&allBits, llBits);
 
     /* ANS state update */
     FSE_updateState(&(seqState->stateLL), &(seqState->DStream));

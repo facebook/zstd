@@ -285,6 +285,14 @@ MEM_STATIC size_t BIT_initDStream(BIT_DStream_t* bitD, const void* srcBuffer, si
     return srcSize;
 }
 
+MEM_STATIC size_t BIT_consumeFirstBits(size_t* bitDPtr, U32 const nbBits)
+{
+    static const unsigned mask[] = { 0, 1, 3, 7, 0xF, 0x1F, 0x3F, 0x7F, 0xFF, 0x1FF, 0x3FF, 0x7FF, 0xFFF, 0x1FFF, 0x3FFF, 0x7FFF, 0xFFFF, 0x1FFFF, 0x3FFFF, 0x7FFFF, 0xFFFFF, 0x1FFFFF, 0x3FFFFF, 0x7FFFFF,  0xFFFFFF, 0x1FFFFFF, 0x3FFFFFF };   /* up to 26 bits */
+    size_t const result = *bitDPtr & mask[nbBits];
+    *bitDPtr >>= nbBits;
+    return result;
+}
+
 /*! BIT_lookBits() :
  *  Provides next n bits from local register.
  *  local register is not modified (bits are still present for next read/look).
@@ -318,7 +326,7 @@ MEM_STATIC void BIT_skipBits(BIT_DStream_t* bitD, U32 nbBits)
  */
 MEM_STATIC size_t BIT_readBits(BIT_DStream_t* bitD, U32 nbBits)
 {
-    size_t value = BIT_lookBits(bitD, nbBits);
+    size_t const value = BIT_lookBits(bitD, nbBits);
     BIT_skipBits(bitD, nbBits);
     return value;
 }
@@ -327,7 +335,7 @@ MEM_STATIC size_t BIT_readBits(BIT_DStream_t* bitD, U32 nbBits)
 *   unsafe version; only works only if nbBits >= 1 */
 MEM_STATIC size_t BIT_readBitsFast(BIT_DStream_t* bitD, U32 nbBits)
 {
-    size_t value = BIT_lookBitsFast(bitD, nbBits);
+    size_t const value = BIT_lookBitsFast(bitD, nbBits);
     BIT_skipBits(bitD, nbBits);
     return value;
 }

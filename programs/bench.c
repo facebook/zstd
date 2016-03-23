@@ -288,7 +288,15 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
 
             for (nbLoops = 0 ; BMK_clockSpan(clockStart) < clockLoop ; nbLoops++) {
                 U32 blockNb;
+#if 0
                 ZSTD_compressBegin_usingDict(refCtx, dictBuffer, dictBufferSize, cLevel);
+#else
+                ZSTD_parameters params = ZSTD_getParams(cLevel, dictBufferSize ? dictBufferSize : blockSize);
+           //     printf("cLevel=%d dictBufferSize=%d srcSize=%d params.srcSize=%d \n", cLevel, (int)dictBufferSize, (int)blockTable[0].srcSize, (int)params.srcSize);
+                params.srcSize = 0;
+                ZSTD_compressBegin_advanced(refCtx, dictBuffer, dictBufferSize, params);
+#endif
+
                 for (blockNb=0; blockNb<nbBlocks; blockNb++) {
                     size_t const rSize = ZSTD_compress_usingPreparedCCtx(ctx, refCtx,
                                         blockTable[blockNb].cPtr,  blockTable[blockNb].cRoom,

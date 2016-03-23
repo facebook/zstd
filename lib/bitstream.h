@@ -141,7 +141,7 @@ MEM_STATIC size_t BIT_readBitsFast(BIT_DStream_t* bitD, unsigned nbBits);
 
 
 /*-**************************************************************
-*  Helper functions
+*  Internal functions
 ****************************************************************/
 MEM_STATIC unsigned BIT_highbit32 (register U32 val)
 {
@@ -164,6 +164,9 @@ MEM_STATIC unsigned BIT_highbit32 (register U32 val)
     return r;
 #   endif
 }
+
+/*=====    Local Constants   =====*/
+static const unsigned BIT_mask[] = { 0, 1, 3, 7, 0xF, 0x1F, 0x3F, 0x7F, 0xFF, 0x1FF, 0x3FF, 0x7FF, 0xFFF, 0x1FFF, 0x3FFF, 0x7FFF, 0xFFFF, 0x1FFFF, 0x3FFFF, 0x7FFFF, 0xFFFFF, 0x1FFFFF, 0x3FFFFF, 0x7FFFFF,  0xFFFFFF, 0x1FFFFFF, 0x3FFFFFF };   /* up to 26 bits */
 
 
 /*-**************************************************************
@@ -189,8 +192,7 @@ MEM_STATIC size_t BIT_initCStream(BIT_CStream_t* bitC, void* startPtr, size_t ds
     Does not check for register overflow ! */
 MEM_STATIC void BIT_addBits(BIT_CStream_t* bitC, size_t value, unsigned nbBits)
 {
-    static const unsigned mask[] = { 0, 1, 3, 7, 0xF, 0x1F, 0x3F, 0x7F, 0xFF, 0x1FF, 0x3FF, 0x7FF, 0xFFF, 0x1FFF, 0x3FFF, 0x7FFF, 0xFFFF, 0x1FFFF, 0x3FFFF, 0x7FFFF, 0xFFFFF, 0x1FFFFF, 0x3FFFFF, 0x7FFFFF,  0xFFFFFF, 0x1FFFFFF, 0x3FFFFFF };   /* up to 26 bits */
-    bitC->bitContainer |= (value & mask[nbBits]) << bitC->bitPos;
+    bitC->bitContainer |= (value & BIT_mask[nbBits]) << bitC->bitPos;
     bitC->bitPos += nbBits;
 }
 
@@ -290,18 +292,14 @@ MEM_STATIC size_t BIT_getUpperBits(size_t bitD, U32 const start)
     return bitD >> start;
 }
 
-MEM_STATIC size_t BIT_getNBits(size_t bitD, U32 const nbBits, U32 const start)
+MEM_STATIC size_t BIT_getMiddleBits(size_t bitD, U32 const nbBits, U32 const start)
 {
-    static const unsigned mask[] = { 0, 1, 3, 7, 0xF, 0x1F, 0x3F, 0x7F, 0xFF, 0x1FF, 0x3FF, 0x7FF, 0xFFF, 0x1FFF, 0x3FFF, 0x7FFF, 0xFFFF, 0x1FFFF, 0x3FFFF, 0x7FFFF, 0xFFFFF, 0x1FFFFF, 0x3FFFFF, 0x7FFFFF,  0xFFFFFF, 0x1FFFFFF, 0x3FFFFFF };   /* up to 26 bits */
-    return (bitD >> start) & mask[nbBits];
+    return (bitD >> start) & BIT_mask[nbBits];
 }
 
-MEM_STATIC size_t BIT_consumeFirstBits(size_t* bitDPtr, U32 const nbBits)
+MEM_STATIC size_t BIT_getLowerBits(size_t bitD, U32 const nbBits)
 {
-    static const unsigned mask[] = { 0, 1, 3, 7, 0xF, 0x1F, 0x3F, 0x7F, 0xFF, 0x1FF, 0x3FF, 0x7FF, 0xFFF, 0x1FFF, 0x3FFF, 0x7FFF, 0xFFFF, 0x1FFFF, 0x3FFFF, 0x7FFFF, 0xFFFFF, 0x1FFFFF, 0x3FFFFF, 0x7FFFFF,  0xFFFFFF, 0x1FFFFFF, 0x3FFFFFF };   /* up to 26 bits */
-    size_t const result = *bitDPtr & mask[nbBits];
-    *bitDPtr >>= nbBits;
-    return result;
+    return bitD & BIT_mask[nbBits];
 }
 
 /*! BIT_lookBits() :

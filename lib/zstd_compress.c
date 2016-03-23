@@ -648,14 +648,13 @@ size_t ZSTD_compressSequences(ZSTD_CCtx* zc,
             FSE_buildCTable(CTable_LitLength, LL_defaultNorm, MaxLL, LL_defaultNormLog);
             LLtype = FSE_ENCODING_RAW;
         } else {
-            size_t NCountSize;
             size_t nbSeq_1 = nbSeq;
             const U32 tableLog = FSE_optimalTableLog(LLFSELog, nbSeq, max);
             if (count[llCodeTable[nbSeq-1]]>1) { count[llCodeTable[nbSeq-1]]--; nbSeq_1--; }
             FSE_normalizeCount(norm, tableLog, count, nbSeq_1, max);
-            NCountSize = FSE_writeNCount(op, oend-op, norm, max, tableLog);   /* overflow protected */
-            if (FSE_isError(NCountSize)) return ERROR(GENERIC);
-            op += NCountSize;
+            { size_t const NCountSize = FSE_writeNCount(op, oend-op, norm, max, tableLog);   /* overflow protected */
+              if (FSE_isError(NCountSize)) return ERROR(GENERIC);
+              op += NCountSize; }
             FSE_buildCTable(CTable_LitLength, norm, max, tableLog);
             LLtype = FSE_ENCODING_DYNAMIC;
     }   }
@@ -675,14 +674,13 @@ size_t ZSTD_compressSequences(ZSTD_CCtx* zc,
             FSE_buildCTable_raw(CTable_OffsetBits, Offbits);
             Offtype = FSE_ENCODING_RAW;
         } else {
-            size_t NCountSize;
             size_t nbSeq_1 = nbSeq;
             const U32 tableLog = FSE_optimalTableLog(OffFSELog, nbSeq, max);
             if (count[offCodeTable[nbSeq-1]]>1) { count[offCodeTable[nbSeq-1]]--; nbSeq_1--; }
             FSE_normalizeCount(norm, tableLog, count, nbSeq_1, max);
-            NCountSize = FSE_writeNCount(op, oend-op, norm, max, tableLog);   /* overflow protected */
-            if (FSE_isError(NCountSize)) return ERROR(GENERIC);
-            op += NCountSize;
+            { size_t const NCountSize = FSE_writeNCount(op, oend-op, norm, max, tableLog);   /* overflow protected */
+              if (FSE_isError(NCountSize)) return ERROR(GENERIC);
+              op += NCountSize; }
             FSE_buildCTable(CTable_OffsetBits, norm, max, tableLog);
             Offtype = FSE_ENCODING_DYNAMIC;
     }   }
@@ -744,8 +742,8 @@ size_t ZSTD_compressSequences(ZSTD_CCtx* zc,
         FSE_initCState2(&stateMatchLength, CTable_MatchLength, mlCodeTable[nbSeq-1]);
         FSE_initCState2(&stateOffsetBits,  CTable_OffsetBits,  offCodeTable[nbSeq-1]);
         FSE_initCState2(&stateLitLength,   CTable_LitLength,   llCodeTable[nbSeq-1]);
-        BIT_addBits(&blockStream, mlTable[nbSeq-1], ML_bits[mlCodeTable[nbSeq-1]]);
         BIT_addBits(&blockStream, offsetTable[nbSeq-1], offCodeTable[nbSeq-1] ? (offCodeTable[nbSeq-1]-1) : 0);
+        BIT_addBits(&blockStream, mlTable[nbSeq-1], ML_bits[mlCodeTable[nbSeq-1]]);
         BIT_addBits(&blockStream, llTable[nbSeq-1], LL_bits[llCodeTable[nbSeq-1]]);
         BIT_flushBits(&blockStream);
 
@@ -757,16 +755,12 @@ size_t ZSTD_compressSequences(ZSTD_CCtx* zc,
                 const U32  nbBits = (offCode-1) + (!offCode);
                 const BYTE LLCode = llCodeTable[n];
                                                                                 /* (7)*/  /* (7)*/
-                FSE_encodeSymbol(&blockStream, &stateMatchLength, MLCode);      /* 17 */  /* 17 */
-                if (MEM_32bits()) BIT_flushBits(&blockStream);                  /*  7 */
                 FSE_encodeSymbol(&blockStream, &stateOffsetBits, offCode);      /* 25 */  /* 35 */
+                FSE_encodeSymbol(&blockStream, &stateMatchLength, MLCode);      /* 17 */  /* 17 */
                 FSE_encodeSymbol(&blockStream, &stateLitLength, LLCode);        /* 16 */  /* 26 */
-                if (MEM_32bits()) BIT_flushBits(&blockStream);                  /*  7 */
-                //BIT_flushBits(&blockStream);                                    /*  7 */  /*  7 */
-                BIT_addBits(&blockStream, mlTable[n], ML_bits[MLCode]);
                 BIT_addBits(&blockStream, offset, nbBits);                      /* 31 */  /* 61 */   /* 24 bits max in 32-bits mode */
+                BIT_addBits(&blockStream, mlTable[n], ML_bits[MLCode]);
                 BIT_addBits(&blockStream, llTable[n], LL_bits[LLCode]);
-                //if (blockStream.bitPos > 63) printf("pb : blockStream.bitPos == %u > 63  \n", blockStream.bitPos);
                 BIT_flushBits(&blockStream);                                    /*  7 */  /*  7 */
         }   }
 

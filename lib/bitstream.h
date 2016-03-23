@@ -246,8 +246,7 @@ MEM_STATIC size_t BIT_closeCStream(BIT_CStream_t* bitC)
 /*! BIT_initDStream() :
 *   Initialize a BIT_DStream_t.
 *   `bitD` : a pointer to an already allocated BIT_DStream_t structure.
-*   `srcBuffer` must point at the beginning of a bitStream.
-*   `srcSize` must be the exact size of the bitStream, in bytes.
+*   `srcSize` must be the *exact* size of the bitStream, in bytes.
 *   @return : size of stream (== srcSize) or an errorCode if a problem is detected
 */
 MEM_STATIC size_t BIT_initDStream(BIT_DStream_t* bitD, const void* srcBuffer, size_t srcSize)
@@ -293,7 +292,7 @@ MEM_STATIC size_t BIT_initDStream(BIT_DStream_t* bitD, const void* srcBuffer, si
  *  On 64-bits, maxNbBits==56.
  *  @return : value extracted
  */
-MEM_STATIC size_t BIT_lookBits(BIT_DStream_t* bitD, U32 nbBits)
+MEM_STATIC size_t BIT_lookBits(const BIT_DStream_t* bitD, U32 nbBits)
 {
     U32 const bitMask = sizeof(bitD->bitContainer)*8 - 1;
     return ((bitD->bitContainer << (bitD->bitsConsumed & bitMask)) >> 1) >> ((bitMask-nbBits) & bitMask);
@@ -301,7 +300,7 @@ MEM_STATIC size_t BIT_lookBits(BIT_DStream_t* bitD, U32 nbBits)
 
 /*! BIT_lookBitsFast() :
 *   unsafe version; only works only if nbBits >= 1 */
-MEM_STATIC size_t BIT_lookBitsFast(BIT_DStream_t* bitD, U32 nbBits)
+MEM_STATIC size_t BIT_lookBitsFast(const BIT_DStream_t* bitD, U32 nbBits)
 {
     U32 const bitMask = sizeof(bitD->bitContainer)*8 - 1;
     return (bitD->bitContainer << (bitD->bitsConsumed & bitMask)) >> (((bitMask+1)-nbBits) & bitMask);

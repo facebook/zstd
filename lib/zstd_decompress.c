@@ -655,8 +655,8 @@ static void ZSTD_decodeSequence(seq_t* seq, seqState_t* seqState, const U32 mls)
                 0x800000, 0x1000000, 0x2000000, 0x4000000, /*fake*/ 1, 1, 1, 1 };
 
     /* sequence */
-    seq->litLength = LL_base[llCode] + BIT_getNBits(allBits, llBits, 0);
-    seq->matchLength = ML_base[mlCode] + BIT_getNBits(allBits, mlBits, llBits) + mls;
+    seq->litLength = LL_base[llCode] + BIT_getLowerBits(allBits, llBits);
+    seq->matchLength = ML_base[mlCode] + mls + BIT_getMiddleBits(allBits, mlBits, llBits);
     {   size_t const offset = ofCode ? OF_base[ofCode] + BIT_getUpperBits(allBits, llBits+mlBits) :
                                        llCode ? seq->offset : seqState->prevOffset;
         if (ofCode | !llCode) seqState->prevOffset = seq->offset;   /* cmove */

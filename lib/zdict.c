@@ -611,10 +611,13 @@ static void ZDICT_countEStats(EStats_ress_t esr,
         if (*u32Ptr==0) offcode=0;
         offsetcodeCount[offcode]++;
     }
+    (void)matchlengthCount; (void)litlengthCount;
+    /*
     for(bytePtr = seqStore.matchLengthStart; bytePtr < seqStore.matchLength; bytePtr++)
         matchlengthCount[*bytePtr]++;
     for(bytePtr = seqStore.litLengthStart; bytePtr < seqStore.litLength; bytePtr++)
         litlengthCount[*bytePtr]++;
+    */
 }
 
 static size_t ZDICT_maxSampleSize(const size_t* fileSizes, unsigned nbFiles)

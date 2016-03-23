@@ -742,9 +742,9 @@ size_t ZSTD_compressSequences(ZSTD_CCtx* zc,
         FSE_initCState2(&stateMatchLength, CTable_MatchLength, mlCodeTable[nbSeq-1]);
         FSE_initCState2(&stateOffsetBits,  CTable_OffsetBits,  offCodeTable[nbSeq-1]);
         FSE_initCState2(&stateLitLength,   CTable_LitLength,   llCodeTable[nbSeq-1]);
-        BIT_addBits(&blockStream, offsetTable[nbSeq-1], offCodeTable[nbSeq-1] ? (offCodeTable[nbSeq-1]-1) : 0);
-        BIT_addBits(&blockStream, mlTable[nbSeq-1], ML_bits[mlCodeTable[nbSeq-1]]);
         BIT_addBits(&blockStream, llTable[nbSeq-1], LL_bits[llCodeTable[nbSeq-1]]);
+        BIT_addBits(&blockStream, mlTable[nbSeq-1], ML_bits[mlCodeTable[nbSeq-1]]);
+        BIT_addBits(&blockStream, offsetTable[nbSeq-1], offCodeTable[nbSeq-1] ? (offCodeTable[nbSeq-1]-1) : 0);
         BIT_flushBits(&blockStream);
 
         {   size_t n;
@@ -758,9 +758,9 @@ size_t ZSTD_compressSequences(ZSTD_CCtx* zc,
                 FSE_encodeSymbol(&blockStream, &stateOffsetBits, offCode);      /* 25 */  /* 35 */
                 FSE_encodeSymbol(&blockStream, &stateMatchLength, MLCode);      /* 17 */  /* 17 */
                 FSE_encodeSymbol(&blockStream, &stateLitLength, LLCode);        /* 16 */  /* 26 */
-                BIT_addBits(&blockStream, offset, nbBits);                      /* 31 */  /* 61 */   /* 24 bits max in 32-bits mode */
-                BIT_addBits(&blockStream, mlTable[n], ML_bits[MLCode]);
                 BIT_addBits(&blockStream, llTable[n], LL_bits[LLCode]);
+                BIT_addBits(&blockStream, mlTable[n], ML_bits[MLCode]);
+                BIT_addBits(&blockStream, offset, nbBits);                      /* 31 */  /* 61 */   /* 24 bits max in 32-bits mode */
                 BIT_flushBits(&blockStream);                                    /*  7 */  /*  7 */
         }   }
 

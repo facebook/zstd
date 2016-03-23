@@ -183,7 +183,6 @@ int main(int argCount, const char** argv)
         nextArgumentIsMaxDict=0;
     unsigned cLevel = 1;
     unsigned cLevelLast = 1;
-    int additionalParam = 0;
     const char** filenameTable = (const char**)malloc(argCount * sizeof(const char*));   /* argCount >= 1 */
     unsigned filenameIdx = 0;
     const char* programName = argv[0];
@@ -195,7 +194,7 @@ int main(int argCount, const char** argv)
     unsigned dictSelect = g_defaultSelectivityLevel;
 
     /* init */
-    (void)additionalParam; (void)cLevelLast; (void)dictCLevel;   /* not used when ZSTD_NOBENCH / ZSTD_NODICT set */
+    (void)cLevelLast; (void)dictCLevel;   /* not used when ZSTD_NOBENCH / ZSTD_NODICT set */
     if (filenameTable==NULL) { DISPLAY("not enough memory\n"); exit(1); }
     displayOut = stderr;
     /* Pick out program name from path. Don't rely on stdlib because of conflicting behavior */
@@ -321,7 +320,6 @@ int main(int argCount, const char** argv)
                             cLevelLast = 0;
                             while ((*argument >= '0') && (*argument <= '9'))
                                 cLevelLast *= 10, cLevelLast += *argument++ - '0';
-                            continue;
                         }
                         break;
 #endif   /* ZSTD_NOBENCH */
@@ -336,12 +334,14 @@ int main(int argCount, const char** argv)
                     /* Pause at the end (-p) or set an additional param (-p#) (hidden option) */
                 case 'p': argument++; 
                     if ((*argument>='0') && (*argument<='9')) {
-                        additionalParam = 0;
+                        int additionalParam = 0;
                         while ((*argument >= '0') && (*argument <= '9'))
                             additionalParam *= 10, additionalParam += *argument++ - '0';
-                        continue;
+                        BMK_setAdditionalParam(additionalParam);
+                    } else {
+                        main_pause=1;
                     }
-                    main_pause=1; break;
+                    break;
                     /* unknown command */
                 default : CLEAN_RETURN(badusage(programName));
                 }
@@ -383,7 +383,7 @@ int main(int argCount, const char** argv)
     if (bench) {
 #ifndef ZSTD_NOBENCH
         BMK_setNotificationLevel(displayLevel);
-        BMK_benchFiles(filenameTable, filenameIdx, dictFileName, cLevel, cLevelLast, additionalParam);
+        BMK_benchFiles(filenameTable, filenameIdx, dictFileName, cLevel, cLevelLast);
 #endif
         goto _end;
     }

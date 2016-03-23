@@ -635,7 +635,7 @@ static void ZSTD_decodeSequence(seq_t* seq, seqState_t* seqState, const U32 mls)
     U32 const mlBits = ML_bits[mlCode];
     U32 const ofBits = ofCode ? ofCode-1 : 0;
 
-    size_t allBits = BIT_readBits(&(seqState->DStream), llBits+mlBits+ofBits);
+    size_t const allBits = BIT_readBits(&(seqState->DStream), llBits+mlBits+ofBits);
 
     static const U32 LL_base[MaxLL+1] = {
                              0,  1,  2,  3,  4,  5,  6,  7,  8,  9,   10,    11,    12,    13,    14,     15,
@@ -655,9 +655,9 @@ static void ZSTD_decodeSequence(seq_t* seq, seqState_t* seqState, const U32 mls)
                 0x800000, 0x1000000, 0x2000000, 0x4000000, /*fake*/ 1, 1, 1, 1 };
 
     /* sequence */
-    seq->litLength = LL_base[llCode] + BIT_consumeFirstBits(&allBits, llBits);
-    seq->matchLength = ML_base[mlCode] + BIT_consumeFirstBits(&allBits, mlBits) + mls;
-    {   size_t const offset = ofCode ? OF_base[ofCode] + BIT_consumeFirstBits(&allBits, ofBits) :
+    seq->litLength = LL_base[llCode] + BIT_getNBits(allBits, llBits, 0);
+    seq->matchLength = ML_base[mlCode] + BIT_getNBits(allBits, mlBits, llBits) + mls;
+    {   size_t const offset = ofCode ? OF_base[ofCode] + BIT_getUpperBits(allBits, llBits+mlBits) :
                                        llCode ? seq->offset : seqState->prevOffset;
         if (ofCode | !llCode) seqState->prevOffset = seq->offset;   /* cmove */
         seq->offset = offset;

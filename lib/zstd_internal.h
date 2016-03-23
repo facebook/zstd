@@ -51,9 +51,7 @@
 *  Common constants
 ***************************************/
 #define ZSTD_OPT_DEBUG 0     // 1 = tableID=0;  3 = price func tests;  5 = check encoded sequences;  9 = full logs
-#if defined(ZSTD_OPT_DEBUG) && ZSTD_OPT_DEBUG>0
-    #include <stdio.h>
-#endif
+#include <stdio.h>
 #if defined(ZSTD_OPT_DEBUG) && ZSTD_OPT_DEBUG>=9
     #define ZSTD_LOG_PARSER(...) printf(__VA_ARGS__)
     #define ZSTD_LOG_ENCODE(...) printf(__VA_ARGS__)
@@ -99,7 +97,6 @@ typedef enum { bt_compressed, bt_raw, bt_rle, bt_end } blockType_t;
 
 #define MINMATCH 4
 #define REPCODE_STARTVALUE 1
-#define HASHLOG3 17
 
 #define Litbits  8
 #define MLbits   7

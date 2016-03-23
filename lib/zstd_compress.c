@@ -96,6 +96,7 @@ struct ZSTD_CCtx_s
     U32   lowLimit;         /* below that point, no more data */
     U32   nextToUpdate;     /* index from which to continue dictionary update */
     U32   nextToUpdate3;    /* index from which to continue dictionary update */
+    U32   hashLog3;         /* dispatch table : larger == faster, more memory */
     U32   loadedDictEnd;
     U32   stage;
     ZSTD_parameters params;
@@ -187,7 +188,7 @@ static size_t ZSTD_resetCCtx_advanced (ZSTD_CCtx* zc,
     const size_t tokenSpace = blockSize + 8*maxNbSeq;
     const size_t contentSize = (params.strategy == ZSTD_fast) ? 0 : (1 << params.contentLog);
     const size_t hSize = 1 << params.hashLog;
-    const size_t h3Size = (params.searchLength==3) ? (1 << HASHLOG3) : 0;
+    const size_t h3Size = (zc->hashLog3) ? 1 << zc->hashLog3 : 0;
     const size_t tableSpace = (contentSize + hSize + h3Size) * sizeof(U32);
 
     /* Check if workSpace is large enough, alloc a new one if needed */
@@ -252,12 +253,13 @@ size_t ZSTD_copyCCtx(ZSTD_CCtx* dstCCtx, const ZSTD_CCtx* srcCCtx)
 {
     if (srcCCtx->stage!=0) return ERROR(stage_wrong);
 
+    dstCCtx->hashLog3 = srcCCtx->hashLog3; /* must be before ZSTD_resetCCtx_advanced */
     ZSTD_resetCCtx_advanced(dstCCtx, srcCCtx->params);
 
     /* copy tables */
     {   const size_t contentSize = (srcCCtx->params.strategy == ZSTD_fast) ? 0 : (1 << srcCCtx->params.contentLog);
         const size_t hSize = 1 << srcCCtx->params.hashLog;
-        const size_t h3Size = (srcCCtx->params.searchLength == 3) ? (1 << HASHLOG3) : 0;
+        const size_t h3Size = (srcCCtx->hashLog3) ? 1 << srcCCtx->hashLog3 : 0;
         const size_t tableSpace = (contentSize + hSize + h3Size) * sizeof(U32);
         memcpy(dstCCtx->workSpace, srcCCtx->workSpace, tableSpace);
     }
@@ -310,7 +312,7 @@ static void ZSTD_reduceIndex (ZSTD_CCtx* zc, const U32 reducerValue)
     { const U32 contentSize = (zc->params.strategy == ZSTD_fast) ? 0 : (1 << zc->params.contentLog);
       ZSTD_reduceTable(zc->contentTable, contentSize, reducerValue); }
 
-    { const U32 h3Size = (zc->params.searchLength == 3) ? (1 << HASHLOG3) : 0;
+    { const U32 h3Size = (zc->hashLog3) ? 1 << zc->hashLog3 : 0;
       ZSTD_reduceTable(zc->hashTable3, h3Size, reducerValue); }
 }
 
@@ -2185,7 +2187,11 @@ size_t ZSTD_compressBegin_advanced(ZSTD_CCtx* zc,
                              const void* dict, size_t dictSize,
                                    ZSTD_parameters params)
 {
+//    printf("windowLog=%d hashLog=%d\n", params.windowLog, params.hashLog);
     ZSTD_validateParams(&params);
+    zc->hashLog3 = (params.searchLength==3) ? ZSTD_HASHLOG3 : 0;
+//    if (zc->hashLog3 > params.windowLog) zc->hashLog3 = params.windowLog;
+//    printf("windowLog=%d hashLog=%d hashLog3=%d \n", params.windowLog, params.hashLog, zc->hashLog3);
 
     { size_t const errorCode = ZSTD_resetCCtx_advanced(zc, params);
     if (ZSTD_isError(errorCode)) return errorCode; }

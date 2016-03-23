@@ -44,27 +44,34 @@
 /* *************************************
 *  Includes
 ***************************************/
+#define _POSIX_C_SOURCE 199309L /* before <time.h> - needed for nanosleep() */
 #include <stdlib.h>      /* malloc, free */
 #include <string.h>      /* memset */
 #include <stdio.h>       /* fprintf, fopen, ftello64 */
 #include <sys/types.h>   /* stat64 */
 #include <sys/stat.h>    /* stat64 */
-#include <time.h>         /* clock_t, clock, CLOCKS_PER_SEC */
+#include <time.h>         /* clock_t, nanosleep, clock, CLOCKS_PER_SEC */
 
 /* sleep : posix - windows - others */
 #if !defined(_WIN32) && (defined(__unix__) || defined(__unix) || (defined(__APPLE__) && defined(__MACH__)))
 #  include <unistd.h>
+#  include <sys/resource.h> /* setpriority */
 #  define BMK_sleep(s) sleep(s)
+#  define mili_sleep(mili) { struct timespec t; t.tv_sec=0; t.tv_nsec=mili*1000000L; nanosleep(&t, NULL); }
+#  define setHighPriority() setpriority(PRIO_PROCESS, 0, -20)
 #elif defined(_WIN32)
 #  include <windows.h>
 #  define BMK_sleep(s) Sleep(1000*s)
+#  define mili_sleep(mili) Sleep(mili)
+#  define setHighPriority() SetPriorityClass(GetCurrentProcess(), REALTIME_PRIORITY_CLASS)
 #else
 #  define BMK_sleep(s)   /* disabled */
+#  define mili_sleep(mili) /* disabled */
+#  define setHighPriority() /* disabled */
 #endif
 
 #include "mem.h"
 #include "zstd_static.h"
-#include "zstd_internal.h" /* ZSTD_setAdditionalParam */
 #include "xxhash.h"
 #include "datagen.h"      /* RDG_genBuffer */
 
@@ -199,7 +206,7 @@ typedef struct
 #define MAX(a,b) ((a)>(b) ? (a) : (b))
 
 static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
-                        const char* displayName, int cLevel, int additionalParam,
+                        const char* displayName, int cLevel,
                         const size_t* fileSizes, U32 nbFiles,
                         const void* dictBuffer, size_t dictBufferSize, benchResult_t *result)
 {
@@ -247,7 +254,6 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
     }   }   }
 
     /* warmimg up memory */
-    ZSTD_setAdditionalParam(refCtx, additionalParam);
     RDG_genBuffer(compressedBuffer, maxCompressedSize, 0.10, 0.50, 1);
 
     /* Bench */
@@ -275,6 +281,7 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
             DISPLAYLEVEL(2, "%2i-%-17.17s :%10u ->\r", testNb, displayName, (U32)srcSize);
             memset(compressedBuffer, 0xE5, maxCompressedSize);  /* warm up and erase result buffer */
 
+            mili_sleep(1); /* give processor time to other processes */
             clockStart = clock();
             while (clock() == clockStart);
             clockStart = clock();
@@ -303,6 +310,7 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
             /* Decompression */
             memset(resultBuffer, 0xD6, srcSize);  /* warm result buffer */
 
+            mili_sleep(1); /* give processor time to other processes */
             clockStart = clock();
             while (clock() == clockStart);
             clockStart = clock();
@@ -403,6 +411,8 @@ static void BMK_benchCLevel(void* srcBuffer, size_t benchedSize,
     benchResult_t result, total;
     int l;
 
+    setHighPriority();
+
     const char* pch = strrchr(displayName, '\\'); /* Windows */
     if (!pch) pch = strrchr(displayName, '/'); /* Linux */
     if (pch) displayName = pch+1;
@@ -417,7 +427,7 @@ static void BMK_benchCLevel(void* srcBuffer, size_t benchedSize,
 
     for (l=cLevel; l <= cLevelLast; l++) {           
         BMK_benchMem(srcBuffer, benchedSize,
-                     displayName, l, additionalParam,
+                     displayName, l,
                      fileSizes, nbFiles,
                      dictBuffer, dictBufferSize, &result);
         if (g_displayLevel == 1) {

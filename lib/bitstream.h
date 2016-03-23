@@ -292,9 +292,14 @@ MEM_STATIC size_t BIT_getUpperBits(size_t bitD, U32 const start)
     return bitD >> start;
 }
 
+#include <immintrin.h>
 MEM_STATIC size_t BIT_getMiddleBits(size_t bitD, U32 const nbBits, U32 const start)
 {
+#if defined(__BMI__) && defined(__GNUC__)
+    return __builtin_ia32_bextr_u64(bitD, (nbBits<<8) | start );
+#else
     return (bitD >> start) & BIT_mask[nbBits];
+#endif
 }
 
 MEM_STATIC size_t BIT_getLowerBits(size_t bitD, U32 const nbBits)
@@ -309,10 +314,15 @@ MEM_STATIC size_t BIT_getLowerBits(size_t bitD, U32 const nbBits)
  *  On 64-bits, maxNbBits==56.
  *  @return : value extracted
  */
-MEM_STATIC size_t BIT_lookBits(const BIT_DStream_t* bitD, U32 nbBits)
+ MEM_STATIC size_t BIT_lookBits(const BIT_DStream_t* bitD, U32 nbBits)
 {
+#if defined(__BMI__) && defined(__GNUC__)
+    return __builtin_ia32_bextr_u64(bitD->bitContainer, (nbBits<<8) | (64 - bitD->bitsConsumed - nbBits) );
+#else
     U32 const bitMask = sizeof(bitD->bitContainer)*8 - 1;
     return ((bitD->bitContainer << (bitD->bitsConsumed & bitMask)) >> 1) >> ((bitMask-nbBits) & bitMask);
+    //return (bitD->bitContainer >> (64 - bitD->bitsConsumed - nbBits)) & BIT_mask[nbBits];
+#endif
 }
 
 /*! BIT_lookBitsFast() :

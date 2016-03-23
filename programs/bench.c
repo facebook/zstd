@@ -53,13 +53,17 @@
 
 /* sleep : posix - windows - others */
 #if !defined(_WIN32) && (defined(__unix__) || defined(__unix) || (defined(__APPLE__) && defined(__MACH__)))
-#  include <unistd.h>
+#  include <unistd.h>         /* sleep */
+#  include <sys/resource.h>   /* setpriority */
 #  define BMK_sleep(s) sleep(s)
+#  define HIGH_PRIORITY setpriority(PRIO_PROCESS, 0, -20)
 #elif defined(_WIN32)
 #  include <windows.h>
 #  define BMK_sleep(s) Sleep(1000*s)
+#  define HIGH_PRIORITY SetPriorityClass(GetCurrentProcess(), REALTIME_PRIORITY_CLASS);
 #else
 #  define BMK_sleep(s)   /* disabled */
+#  define HIGH_PRIORITY
 #endif
 
 #include "mem.h"
@@ -207,6 +211,7 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
 
     /* init */
     if (strlen(displayName)>17) displayName += strlen(displayName)-17;   /* can only display 17 characters */
+    HIGH_PRIORITY;
 
     /* Init blockTable data */
     {   const char* srcPtr = (const char*)srcBuffer;

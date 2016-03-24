@@ -122,7 +122,7 @@ MEM_STATIC unsigned BIT_endOfDStream(const BIT_DStream_t* bitD);
 *  Local register is explicitly reloaded from memory by the BIT_reloadDStream() method.
 *  A reload guarantee a minimum of ((8*sizeof(size_t))-7) bits when its result is BIT_DStream_unfinished.
 *  Otherwise, it can be less than that, so proceed accordingly.
-*  Checking if DStream has reached its end can be performed with BIT_endOfDStream()
+*  Checking if DStream has reached its end can be performed with BIT_endOfDStream().
 */
 
 
@@ -256,15 +256,13 @@ MEM_STATIC size_t BIT_initDStream(BIT_DStream_t* bitD, const void* srcBuffer, si
     if (srcSize < 1) { memset(bitD, 0, sizeof(*bitD)); return ERROR(srcSize_wrong); }
 
     if (srcSize >=  sizeof(size_t)) {  /* normal case */
-        U32 contain32;
         bitD->start = (const char*)srcBuffer;
         bitD->ptr   = (const char*)srcBuffer + srcSize - sizeof(size_t);
         bitD->bitContainer = MEM_readLEST(bitD->ptr);
-        contain32 = ((const BYTE*)srcBuffer)[srcSize-1];
-        if (contain32 == 0) return ERROR(GENERIC);   /* endMark not present */
-        bitD->bitsConsumed = 8 - BIT_highbit32(contain32);
+        { BYTE const lastByte = ((const BYTE*)srcBuffer)[srcSize-1];
+          if (lastByte == 0) return ERROR(GENERIC);   /* endMark not present */
+          bitD->bitsConsumed = 8 - BIT_highbit32(lastByte); }
     } else {
-        U32 contain32;
         bitD->start = (const char*)srcBuffer;
         bitD->ptr   = bitD->start;
         bitD->bitContainer = *(const BYTE*)(bitD->start);
@@ -278,9 +276,9 @@ MEM_STATIC size_t BIT_initDStream(BIT_DStream_t* bitD, const void* srcBuffer, si
             case 2: bitD->bitContainer += (size_t)(((const BYTE*)(bitD->start))[1]) <<  8;
             default:;
         }
-        contain32 = ((const BYTE*)srcBuffer)[srcSize-1];
-        if (contain32 == 0) return ERROR(GENERIC);   /* endMark not present */
-        bitD->bitsConsumed = 8 - BIT_highbit32(contain32);
+        { BYTE const lastByte = ((const BYTE*)srcBuffer)[srcSize-1];
+          if (lastByte == 0) return ERROR(GENERIC);   /* endMark not present */
+          bitD->bitsConsumed = 8 - BIT_highbit32(lastByte); }
         bitD->bitsConsumed += (U32)(sizeof(size_t) - srcSize)*8;
     }
 
@@ -295,7 +293,7 @@ MEM_STATIC size_t BIT_getUpperBits(size_t bitD, U32 const start)
 #include <immintrin.h>
 MEM_STATIC size_t BIT_getMiddleBits(size_t bitD, U32 const nbBits, U32 const start)
 {
-#if defined(__BMI__) && defined(__GNUC__)
+#if defined(__BMI__) && defined(__GNUC__)   /* experimental */
     return __builtin_ia32_bextr_u64(bitD, (nbBits<<8) | start );
 #else
     return (bitD >> start) & BIT_mask[nbBits];
@@ -316,12 +314,11 @@ MEM_STATIC size_t BIT_getLowerBits(size_t bitD, U32 const nbBits)
  */
  MEM_STATIC size_t BIT_lookBits(const BIT_DStream_t* bitD, U32 nbBits)
 {
-#if defined(__BMI__) && defined(__GNUC__)
+#if defined(__BMI__) && defined(__GNUC__)   /* experimental */
     return __builtin_ia32_bextr_u64(bitD->bitContainer, (nbBits<<8) | (64 - bitD->bitsConsumed - nbBits) );
 #else
     U32 const bitMask = sizeof(bitD->bitContainer)*8 - 1;
     return ((bitD->bitContainer << (bitD->bitsConsumed & bitMask)) >> 1) >> ((bitMask-nbBits) & bitMask);
-    //return (bitD->bitContainer >> (64 - bitD->bitsConsumed - nbBits)) & BIT_mask[nbBits];
 #endif
 }
 
@@ -339,8 +336,8 @@ MEM_STATIC void BIT_skipBits(BIT_DStream_t* bitD, U32 nbBits)
 }
 
 /*! BIT_readBits() :
- *  Read next n bits from local register.
- *  pay attention to not read more than nbBits contained into local register.
+ *  Read (consume) next n bits from local register and update.
+ *  Pay attention to not read more than nbBits contained into local register.
  *  @return : extracted value.
  */
 MEM_STATIC size_t BIT_readBits(BIT_DStream_t* bitD, U32 nbBits)

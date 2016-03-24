@@ -634,9 +634,12 @@ static void ZSTD_decodeSequence(seq_t* seq, seqState_t* seqState, const U32 mls)
 
     U32 const llBits = LL_bits[llCode];
     U32 const mlBits = ML_bits[mlCode];
-    U32 const ofBits = ofCode ? ofCode-1 : 0;
+    U32 const ofBits = ofCode;
+    U32 const totalBits = llBits+mlBits+ofBits;
 
-    size_t const allBits = BIT_readBits(&(seqState->DStream), llBits+mlBits+ofBits);
+    size_t const allBits = BIT_readBits(&(seqState->DStream), totalBits);
+
+    if (totalBits > 64 - 7 - (LLFSELog+MLFSELog+OffFSELog)) BIT_reloadDStream(&(seqState->DStream));
 
     static const U32 LL_base[MaxLL+1] = {
                              0,  1,  2,  3,  4,  5,  6,  7,  8,  9,   10,    11,    12,    13,    14,     15,
@@ -650,10 +653,10 @@ static void ZSTD_decodeSequence(seq_t* seq, seqState_t* seqState, const U32 mls)
                             0x1000, 0x2000, 0x4000, 0x8000, 0x10000 };
 
     static const U32 OF_base[MaxOff+1] = {
-                1 /*fake*/, 1, 2, 4, 8, 0x10, 0x20, 0x40,
-                0x80, 0x100, 0x200, 0x400, 0x800, 0x1000, 0x2000, 0x4000,
-                0x8000, 0x10000, 0x20000, 0x40000, 0x80000, 0x100000, 0x200000, 0x400000,
-                0x800000, 0x1000000, 0x2000000, 0x4000000, /*fake*/ 1, 1, 1, 1 };
+                 0,        1,       3,       7,     0xF,     0x1F,     0x3F,     0x7F,
+                 0xFF,   0x1FF,   0x3FF,   0x7FF,   0xFFF,   0x1FFF,   0x3FFF,   0x7FFF,
+                 0xFFFF, 0x1FFFF, 0x3FFFF, 0x7FFFF, 0xFFFFF, 0x1FFFFF, 0x3FFFFF, 0x7FFFFF,
+                 0xFFFFFF, 0x1FFFFFF, 0x3FFFFFF, /*fake*/ 1, 1, 1, 1, 1 };
 
     /* sequence */
     seq->litLength = LL_base[llCode] + BIT_getLowerBits(allBits, llBits);
@@ -792,8 +795,8 @@ static size_t ZSTD_decompressSequences(
             ZSTD_decodeSequence(&sequence, &seqState, mls);
 #if 0  /* for debug */
             {   U32 pos = (U32)(op-base);
-                if ((pos > 10354000) && (pos < 10355000))
-                    printf("pos %6u : %3u literals & match %3u bytes at distance %6u \n",
+                if ((pos > 23945280) && (pos < 23946797))
+                    printf("Dpos %6u : %3u literals & match %3u bytes at distance %6u \n",
                         pos, (U32)sequence.litLength, (U32)sequence.matchLength, (U32)sequence.offset);
             }
 #endif

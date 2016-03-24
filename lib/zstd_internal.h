@@ -110,7 +110,7 @@ typedef enum { bt_compressed, bt_raw, bt_rle, bt_end } blockType_t;
 #define MaxSeq MAX(MaxLL, MaxML)   /* Assumption : MaxOff < MaxLL,MaxML */
 #define MLFSELog    9
 #define LLFSELog    9
-#define OffFSELog   9
+#define OffFSELog   8
 
 #define FSE_ENCODING_RAW     0
 #define FSE_ENCODING_RLE     1

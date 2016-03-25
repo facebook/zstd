@@ -99,7 +99,7 @@ MEM_STATIC void ZSTD_statsResetFreqs(ZSTD_stats_t* stats)
         stats->offCodeFreq[u] = 1;
 }
 
-MEM_STATIC void ZSTD_statsUpdatePrices(ZSTD_stats_t* stats, U32 litLength, const BYTE* literals, U32 offset, U32 matchLength)
+MEM_STATIC void ZSTD_statsUpdatePrices(ZSTD_stats_t* stats, size_t litLength, const BYTE* literals, size_t offset, size_t matchLength)
 {
     /* offset */
     BYTE offCode = offset ? (BYTE)ZSTD_highbit(offset+1) + 1 : 0;

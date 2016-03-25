@@ -183,7 +183,7 @@ typedef struct {
     MEM_STATIC void ZSTD_statsPrint(ZSTD_stats_t* stats, U32 searchLength) { (void)stats; (void)searchLength; };
     MEM_STATIC void ZSTD_statsInit(ZSTD_stats_t* stats) { (void)stats; };
     MEM_STATIC void ZSTD_statsResetFreqs(ZSTD_stats_t* stats) { (void)stats; };
-    MEM_STATIC void ZSTD_statsUpdatePrices(ZSTD_stats_t* stats, U32 litLength, const BYTE* literals, U32 offset, U32 matchLength) { (void)stats; (void)litLength; (void)literals; (void)offset; (void)matchLength; };
+    MEM_STATIC void ZSTD_statsUpdatePrices(ZSTD_stats_t* stats, size_t litLength, const BYTE* literals, size_t offset, size_t matchLength) { (void)stats; (void)litLength; (void)literals; (void)offset; (void)matchLength; };
 #endif
 
 typedef struct {

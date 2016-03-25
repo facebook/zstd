@@ -130,8 +130,8 @@ FORCE_INLINE U32 ZSTD_getPrice(seqStore_t* seqStorePtr, U32 litLength, const BYT
     if (matchLength >= MaxML) matchLength = MaxML;
     price += ZSTD_getLiteralPrice(seqStorePtr, litLength, literals) + seqStorePtr->log2matchLengthSum - ZSTD_highbit(seqStorePtr->matchLengthFreq[matchLength]+1);
 
-#if ZSTD_OPT_DEBUG == 3
-    switch (seqStorePtr->priceFunc) {
+#if ZSTD_OPT_DEBUG == 333
+    switch (seqStorePtr->) {
         default:
         case 0:
             return 1 + price + ((seqStorePtr->litSum>>5) / seqStorePtr->litLengthSum) + ((seqStorePtr->litSum<<1) / (seqStorePtr->litSum + seqStorePtr->matchSum));

@@ -97,11 +97,11 @@ struct ZSTD_CCtx_s
     U32   nextToUpdate;     /* index from which to continue dictionary update */
     U32   nextToUpdate3;    /* index from which to continue dictionary update */
     U32   hashLog3;         /* dispatch table : larger == faster, more memory */
-    U32   targetSrcSize;    /* optimize compression for this source size */
     U32   loadedDictEnd;
     U32   stage;
     ZSTD_parameters params;
     void* workSpace;
+    size_t targetSrcSize;    /* optimize compression for this source size */
     size_t workSpaceSize;
     size_t blockSize;
     size_t hbSize;
@@ -781,12 +781,7 @@ MEM_STATIC void ZSTD_storeSeq(seqStore_t* seqStorePtr, size_t litLength, const B
     printf("pos %6u : %3u literals & match %3u bytes at distance %6u \n",
            (U32)(literals - g_start), (U32)litLength, (U32)matchCode+MINMATCH, (U32)offsetCode);
 #endif
-#if ZSTD_OPT_DEBUG == 3
-    if (offsetCode == 0) seqStorePtr->realRepSum++;
-    seqStorePtr->realSeqSum++;
-    seqStorePtr->realMatchSum += matchCode;
-    seqStorePtr->realLitSum += litLength;
-#endif
+    ZSTD_statsUpdatePrices(&seqStorePtr->stats, litLength, literals, offsetCode, matchCode);
 
     /* copy Literals */
     ZSTD_wildcopy(seqStorePtr->lit, literals, litLength);
@@ -1696,6 +1691,7 @@ _storeSequence:
     {   size_t const lastLLSize = iend - anchor;
         memcpy(seqStorePtr->lit, anchor, lastLLSize);
         seqStorePtr->lit += lastLLSize;
+        ZSTD_statsUpdatePrices(&seqStorePtr->stats, lastLLSize, anchor, 0, 0);
     }
 }
 
@@ -1942,6 +1938,8 @@ static size_t ZSTD_compressBlock_internal(ZSTD_CCtx* zc, void* dst, size_t dstCa
 }
 
 
+
+
 static size_t ZSTD_compress_generic (ZSTD_CCtx* zc,
                                         void* dst, size_t dstCapacity,
                                   const void* src, size_t srcSize)
@@ -1952,15 +1950,13 @@ static size_t ZSTD_compress_generic (ZSTD_CCtx* zc,
     BYTE* const ostart = (BYTE*)dst;
     BYTE* op = ostart;
     const U32 maxDist = 1 << zc->params.windowLog;
-#if ZSTD_OPT_DEBUG == 3
-    seqStore_t* ssPtr = &zc->seqStore;
-    static U32 priceFunc = 0;
-    ssPtr->realMatchSum = ssPtr->realLitSum = ssPtr->realSeqSum = ssPtr->realRepSum = 1;
-    ssPtr->priceFunc = priceFunc;
-#endif
+    ZSTD_stats_t* stats = &zc->seqStore.stats;
+
+    ZSTD_statsInit(stats);
 
     while (remaining) {
         size_t cSize;
+        ZSTD_statsResetFreqs(stats);
 
         if (dstCapacity < ZSTD_blockHeaderSize + MIN_CBLOCK_SIZE) return ERROR(dstSize_tooSmall);   /* not enough space to store compressed block */
         if (remaining < blockSize) blockSize = remaining;
@@ -1992,12 +1988,7 @@ static size_t ZSTD_compress_generic (ZSTD_CCtx* zc,
         op += cSize;
     }
 
-#if ZSTD_OPT_DEBUG == 3
-    ssPtr->realMatchSum += ssPtr->realSeqSum * ((zc->params.searchLength == 3) ? 3 : 4);
-    printf("avgMatchL=%.2f avgLitL=%.2f match=%.1f%% lit=%.1f%% reps=%d seq=%d priceFunc=%d\n", (float)ssPtr->realMatchSum/ssPtr->realSeqSum, (float)ssPtr->realLitSum/ssPtr->realSeqSum, 100.0*ssPtr->realMatchSum/(ssPtr->realMatchSum+ssPtr->realLitSum), 100.0*ssPtr->realLitSum/(ssPtr->realMatchSum+ssPtr->realLitSum), ssPtr->realRepSum, ssPtr->realSeqSum, ssPtr->priceFunc);
-    priceFunc++;
-#endif
-
+    ZSTD_statsPrint(stats, zc->params.searchLength);
     return op-ostart;
 }
 
@@ -2466,9 +2457,6 @@ ZSTD_parameters ZSTD_getParams(int compressionLevel, U64 srcSize)
     int tableID = ((srcSize-1) <= 256 KB) + ((srcSize-1) <= 128 KB) + ((srcSize-1) <= 16 KB);   /* intentional underflow for srcSizeHint == 0 */
     if (compressionLevel<=0) compressionLevel = 1;
     if (compressionLevel > ZSTD_MAX_CLEVEL) compressionLevel = ZSTD_MAX_CLEVEL;
-#if ZSTD_OPT_DEBUG >= 1
-    tableID=0;
-#endif
     result = ZSTD_defaultParameters[tableID][compressionLevel];
     result.srcSize = srcSize;
     return result;

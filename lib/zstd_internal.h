@@ -50,7 +50,7 @@
 /*-*************************************
 *  Common constants
 ***************************************/
-#define ZSTD_OPT_DEBUG 0     // 1 = tableID=0;  3 = price func tests;  5 = check encoded sequences;  9 = full logs
+#define ZSTD_OPT_DEBUG 0     // 3 = compression stats;  5 = check encoded sequences;  9 = full logs
 #include <stdio.h>
 #if defined(ZSTD_OPT_DEBUG) && ZSTD_OPT_DEBUG>=9
     #define ZSTD_LOG_PARSER(...) printf(__VA_ARGS__)
@@ -176,6 +176,16 @@ typedef struct {
     U32 rep2;
 } ZSTD_optimal_t;
 
+#if ZSTD_OPT_DEBUG == 3
+    #include "zstd_stats.h"
+#else
+    typedef struct { U32  unused; } ZSTD_stats_t;
+    MEM_STATIC void ZSTD_statsPrint(ZSTD_stats_t* stats, U32 searchLength) { (void)stats; (void)searchLength; };
+    MEM_STATIC void ZSTD_statsInit(ZSTD_stats_t* stats) { (void)stats; };
+    MEM_STATIC void ZSTD_statsResetFreqs(ZSTD_stats_t* stats) { (void)stats; };
+    MEM_STATIC void ZSTD_statsUpdatePrices(ZSTD_stats_t* stats, U32 litLength, const BYTE* literals, U32 offset, U32 matchLength) { (void)stats; (void)litLength; (void)literals; (void)offset; (void)matchLength; };
+#endif
+
 typedef struct {
     void* buffer;
     U32*  offsetStart;
@@ -208,13 +218,7 @@ typedef struct {
     U32  log2litSum;
     U32  log2offCodeSum;
     U32  factor;
-#if ZSTD_OPT_DEBUG == 3
-    U32  realMatchSum;
-    U32  realLitSum;
-    U32  realSeqSum;
-    U32  realRepSum;
-    U32  priceFunc;
-#endif
+    ZSTD_stats_t stats;
 } seqStore_t;
 
 seqStore_t ZSTD_copySeqStore(const ZSTD_CCtx* ctx);

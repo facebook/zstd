@@ -333,14 +333,15 @@ int main(int argCount, const char** argv)
 
                     /* Pause at the end (-p) or set an additional param (-p#) (hidden option) */
                 case 'p': argument++; 
+#ifndef ZSTD_NOBENCH
                     if ((*argument>='0') && (*argument<='9')) {
                         int additionalParam = 0;
                         while ((*argument >= '0') && (*argument <= '9'))
                             additionalParam *= 10, additionalParam += *argument++ - '0';
                         BMK_setAdditionalParam(additionalParam);
-                    } else {
+                    } else 
+#endif
                         main_pause=1;
-                    }
                     break;
                     /* unknown command */
                 default : CLEAN_RETURN(badusage(programName));

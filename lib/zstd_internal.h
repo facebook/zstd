@@ -236,7 +236,8 @@ typedef struct {
 #endif
 } seqStore_t;
 
-seqStore_t ZSTD_copySeqStore(const ZSTD_CCtx* ctx);
+const seqStore_t* ZSTD_getSeqStore(const ZSTD_CCtx* ctx);
+void ZSTD_seqToCodes(const seqStore_t* seqStorePtr, size_t const nbSeq);
 
 
 #endif   /* ZSTD_CCOMMON_H_MODULE */

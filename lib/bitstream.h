@@ -53,6 +53,14 @@ extern "C" {
 #include "error_private.h"  /* error codes and messages */
 
 
+/*=========================================
+*  Target specific
+=========================================*/
+#if defined(__BMI__) && defined(__GNUC__)
+#  include <immintrin.h>   /* support for bextr (experimental) */
+#endif
+
+
 /*-******************************************
 *  bitStream encoding API (write forward)
 ********************************************/
@@ -290,7 +298,6 @@ MEM_STATIC size_t BIT_getUpperBits(size_t bitD, U32 const start)
     return bitD >> start;
 }
 
-#include <immintrin.h>
 MEM_STATIC size_t BIT_getMiddleBits(size_t bitD, U32 const nbBits, U32 const start)
 {
 #if defined(__BMI__) && defined(__GNUC__)   /* experimental */

@@ -574,7 +574,6 @@ static void ZDICT_fillNoise(void* buffer, size_t length)
 {
     unsigned acc = PRIME1;
     size_t p=0;;
-
     for (p=0; p<length; p++) {
         acc *= PRIME2;
         ((unsigned char*)buffer)[p] = (unsigned char)(acc >> 21);
@@ -594,30 +593,37 @@ static void ZDICT_countEStats(EStats_ress_t esr,
                             U32* countLit, U32* offsetcodeCount, U32* matchlengthCount, U32* litlengthCount,
                             const void* src, size_t srcSize)
 {
-    const BYTE* bytePtr;
-    const U32* u32Ptr;
-    seqStore_t seqStore;
+    const seqStore_t* seqStorePtr;
 
     if (srcSize > ZSTD_BLOCKSIZE_MAX) srcSize = ZSTD_BLOCKSIZE_MAX;   /* protection vs large samples */
     ZSTD_copyCCtx(esr.zc, esr.ref);
     ZSTD_compressBlock(esr.zc, esr.workPlace, ZSTD_BLOCKSIZE_MAX, src, srcSize);
-    seqStore = ZSTD_copySeqStore(esr.zc);
+    seqStorePtr = ZSTD_getSeqStore(esr.zc);
 
-    /* count stats */
-    for(bytePtr = seqStore.litStart; bytePtr < seqStore.lit; bytePtr++)
-        countLit[*bytePtr]++;
-    for(u32Ptr = seqStore.offsetStart; u32Ptr < seqStore.offset; u32Ptr++) {
-        BYTE offcode = (BYTE)ZSTD_highbit(*u32Ptr) + 1;
-        if (*u32Ptr==0) offcode=0;
-        offsetcodeCount[offcode]++;
+    /* literals stats */
+    {   const BYTE* bytePtr;
+        for(bytePtr = seqStorePtr->litStart; bytePtr < seqStorePtr->lit; bytePtr++)
+            countLit[*bytePtr]++;
     }
-    (void)matchlengthCount; (void)litlengthCount;
-    /*
-    for(bytePtr = seqStore.matchLengthStart; bytePtr < seqStore.matchLength; bytePtr++)
-        matchlengthCount[*bytePtr]++;
-    for(bytePtr = seqStore.litLengthStart; bytePtr < seqStore.litLength; bytePtr++)
-        litlengthCount[*bytePtr]++;
-    */
+
+    /* seqStats */
+    {   size_t const nbSeq = (size_t)(seqStorePtr->offset - seqStorePtr->offsetStart);
+        ZSTD_seqToCodes(seqStorePtr, nbSeq);
+
+        {   const BYTE* codePtr = seqStorePtr->offCodeStart;
+            size_t u;
+            for (u=0; u<nbSeq; u++) offsetcodeCount[codePtr[u]]++;
+        }
+
+        {   const BYTE* codePtr = seqStorePtr->mlCodeStart;
+            size_t u;
+            for (u=0; u<nbSeq; u++) matchlengthCount[codePtr[u]]++;
+        }
+
+        {   const BYTE* codePtr = seqStorePtr->llCodeStart;
+            size_t u;
+            for (u=0; u<nbSeq; u++) litlengthCount[codePtr[u]]++;
+    }   }
 }
 
 static size_t ZDICT_maxSampleSize(const size_t* fileSizes, unsigned nbFiles)
@@ -636,13 +642,13 @@ static size_t ZDICT_analyzeEntropy(void*  dstBuffer, size_t maxDstSize,
                            const void* dictBuffer, size_t  dictBufferSize)
 {
     U32 countLit[256];
-    U32 offcodeCount[MaxOff+1];
     HUF_CREATE_STATIC_CTABLE(hufTable, 255);
-    short offcodeNCount[MaxOff+1];
+    U32 offcodeCount[OFFCODE_MAX+1];
+    short offcodeNCount[OFFCODE_MAX+1];
     U32 matchLengthCount[MaxML+1];
     short matchLengthNCount[MaxML+1];
-    U32 litlengthCount[MaxLL+1];
-    short litlengthNCount[MaxLL+1];
+    U32 litLengthCount[MaxLL+1];
+    short litLengthNCount[MaxLL+1];
     EStats_ress_t esr;
     ZSTD_parameters params;
     U32 u, huffLog = 12, Offlog = OffFSELog, mlLog = MLFSELog, llLog = LLFSELog, total;
@@ -653,7 +659,7 @@ static size_t ZDICT_analyzeEntropy(void*  dstBuffer, size_t maxDstSize,
     for (u=0; u<256; u++) countLit[u]=1;   /* any character must be described */
     for (u=0; u<=OFFCODE_MAX; u++) offcodeCount[u]=1;
     for (u=0; u<=MaxML; u++) matchLengthCount[u]=1;
-    for (u=0; u<=MaxLL; u++) litlengthCount[u]=1;
+    for (u=0; u<=MaxLL; u++) litLengthCount[u]=1;
     esr.ref = ZSTD_createCCtx();
     esr.zc = ZSTD_createCCtx();
     esr.workPlace = malloc(ZSTD_BLOCKSIZE_MAX);
@@ -670,7 +676,7 @@ static size_t ZDICT_analyzeEntropy(void*  dstBuffer, size_t maxDstSize,
     /* collect stats on all files */
     for (u=0; u<nbFiles; u++) {
         ZDICT_countEStats(esr,
-                        countLit, offcodeCount, matchLengthCount, litlengthCount,
+                        countLit, offcodeCount, matchLengthCount, litLengthCount,
            (const char*)srcBuffer + pos, fileSizes[u]);
         pos += fileSizes[u];
     }
@@ -702,11 +708,11 @@ static size_t ZDICT_analyzeEntropy(void*  dstBuffer, size_t maxDstSize,
     }
     mlLog = (U32)errorCode;
 
-    total=0; for (u=0; u<=MaxLL; u++) total+=litlengthCount[u];
-    errorCode = FSE_normalizeCount(litlengthNCount, llLog, litlengthCount, total, MaxLL);
+    total=0; for (u=0; u<=MaxLL; u++) total+=litLengthCount[u];
+    errorCode = FSE_normalizeCount(litLengthNCount, llLog, litLengthCount, total, MaxLL);
     if (FSE_isError(errorCode)) {
         eSize = ERROR(GENERIC);
-        DISPLAYLEVEL(1, "FSE_normalizeCount error with litlengthCount");
+        DISPLAYLEVEL(1, "FSE_normalizeCount error with litLengthCount");
         goto _cleanup;
     }
     llLog = (U32)errorCode;
@@ -742,7 +748,7 @@ static size_t ZDICT_analyzeEntropy(void*  dstBuffer, size_t maxDstSize,
     maxDstSize -= errorCode;
     eSize += errorCode;
 
-    errorCode = FSE_writeNCount(dstBuffer, maxDstSize, litlengthNCount, MaxLL, llLog);
+    errorCode = FSE_writeNCount(dstBuffer, maxDstSize, litLengthNCount, MaxLL, llLog);
     if (FSE_isError(errorCode)) {
         eSize = ERROR(GENERIC);
         DISPLAYLEVEL(1, "FSE_writeNCount error with litlengthNCount");
@@ -801,12 +807,17 @@ static size_t ZDICT_fastSampling(void* dictBuffer, size_t dictSize,
 }
 
 
+#define DIB_MINSAMPLESSIZE (DIB_FASTSEGMENTSIZE*3)
+/*! ZDICT_trainFromBuffer_unsafe() :
+*   `samplesBuffer` must be followed by noisy guard band.
+*   @return : size of dictionary.
+*/
 size_t ZDICT_trainFromBuffer_unsafe(
                             void* dictBuffer, size_t maxDictSize,
                             const void* samplesBuffer, const size_t* sampleSizes, unsigned nbSamples,
                             ZDICT_params_t params)
 {
-    const U32 dictListSize = MAX( MAX(DICTLISTSIZE, nbSamples), (U32)(maxDictSize/16));
+    U32 const dictListSize = MAX( MAX(DICTLISTSIZE, nbSamples), (U32)(maxDictSize/16));
     dictItem* dictList = (dictItem*)malloc(dictListSize * sizeof(*dictList));
     unsigned selectivity = params.selectivityLevel;
     unsigned compressionLevel = params.compressionLevel;
@@ -816,10 +827,11 @@ size_t ZDICT_trainFromBuffer_unsafe(
 
     /* checks */
     if (maxDictSize <= g_provision_entropySize + g_min_fast_dictContent) return ERROR(dstSize_tooSmall);
+    if (!dictList) return ERROR(memory_allocation);
 
     /* init */
     { unsigned u; for (u=0, sBuffSize=0; u<nbSamples; u++) sBuffSize += sampleSizes[u]; }
-    if (!dictList) return ERROR(memory_allocation);
+    if (sBuffSize < DIB_MINSAMPLESSIZE) return 0;   /* not enough source to create dictionary */
     ZDICT_initDictItem(dictList);
     g_displayLevel = params.notificationLevel;
     if (selectivity==0) selectivity = g_selectivity_default;
@@ -834,9 +846,9 @@ size_t ZDICT_trainFromBuffer_unsafe(
 
         /* display best matches */
         if (g_displayLevel>= 3) {
-            const U32 nb = 25;
+            U32 const nb = 25;
+            U32 const dictContentSize = ZDICT_dictSize(dictList);
             U32 u;
-            U32 dictContentSize = ZDICT_dictSize(dictList);
             DISPLAYLEVEL(3, "\n %u segments found, of total size %u \n", dictList[0].pos, dictContentSize);
             DISPLAYLEVEL(3, "list %u best segments \n", nb);
             for (u=1; u<=nb; u++) {
@@ -850,8 +862,7 @@ size_t ZDICT_trainFromBuffer_unsafe(
     }   }   }
 
     /* create dictionary */
-    {
-        U32 dictContentSize = ZDICT_dictSize(dictList);
+    {   U32 dictContentSize = ZDICT_dictSize(dictList);
         size_t hSize;
         BYTE* ptr;
         U32 u;
@@ -896,31 +907,32 @@ size_t ZDICT_trainFromBuffer_unsafe(
 }
 
 
+/* issue : samplesBuffer need to be followed by a noisy guard band.
+*  work around : duplicate the buffer, and add the noise */
 size_t ZDICT_trainFromBuffer_advanced(void* dictBuffer, size_t dictBufferCapacity,
                            const void* samplesBuffer, const size_t* samplesSizes, unsigned nbSamples,
                            ZDICT_params_t params)
 {
-    size_t sBuffSize;
     void* newBuff;
-    size_t result;
+    size_t sBuffSize;
 
     { unsigned u; for (u=0, sBuffSize=0; u<nbSamples; u++) sBuffSize += samplesSizes[u]; }
+    if (sBuffSize==0) return 0;   /* empty content => no dictionary */
     newBuff = malloc(sBuffSize + NOISELENGTH);
     if (!newBuff) return ERROR(memory_allocation);
 
     memcpy(newBuff, samplesBuffer, sBuffSize);
     ZDICT_fillNoise((char*)newBuff + sBuffSize, NOISELENGTH);   /* guard band, for end of buffer condition */
 
-    result = ZDICT_trainFromBuffer_unsafe(dictBuffer, dictBufferCapacity,
+    { size_t const result = ZDICT_trainFromBuffer_unsafe(
+                                        dictBuffer, dictBufferCapacity,
                                         newBuff, samplesSizes, nbSamples,
                                         params);
-    free(newBuff);
-    return result;
+      free(newBuff);
+      return result; }
 }
 
 
-/* issue : samplesBuffer need to be followed by a noisy guard band.
-*  work around : duplicate the buffer, and add the noise ? */
 size_t ZDICT_trainFromBuffer(void* dictBuffer, size_t dictBufferCapacity,
                              const void* samplesBuffer, const size_t* samplesSizes, unsigned nbSamples)
 {

@@ -744,38 +744,43 @@ size_t ZSTD_compressSequences(ZSTD_CCtx* zc,
         FSE_initCState2(&stateOffsetBits,  CTable_OffsetBits,  ofCodeTable[nbSeq-1]);
         FSE_initCState2(&stateLitLength,   CTable_LitLength,   llCodeTable[nbSeq-1]);
         BIT_addBits(&blockStream, llTable[nbSeq-1], LL_bits[llCodeTable[nbSeq-1]]);
+        if (MEM_32bits()) BIT_flushBits(&blockStream);
         BIT_addBits(&blockStream, mlTable[nbSeq-1], ML_bits[mlCodeTable[nbSeq-1]]);
+        if (MEM_32bits()) BIT_flushBits(&blockStream);
         BIT_addBits(&blockStream, offsetTable[nbSeq-1], ofCodeTable[nbSeq-1]);
         BIT_flushBits(&blockStream);
 
         {   size_t n;
             for (n=nbSeq-2 ; n<nbSeq ; n--) {      /* intentional underflow */
-                const BYTE ofCode = ofCodeTable[n];                             /* 32b*/  /* 64b*/
+                const BYTE ofCode = ofCodeTable[n];
                 const BYTE mlCode = mlCodeTable[n];
                 const BYTE llCode = llCodeTable[n];
                 const U32  llBits = LL_bits[llCode];
                 const U32  mlBits = ML_bits[mlCode];
-                const U32  ofBits = ofCode;
+                const U32  ofBits = ofCode;                                     /* 32b*/  /* 64b*/
                                                                                 /* (7)*/  /* (7)*/
-                FSE_encodeSymbol(&blockStream, &stateOffsetBits, ofCode);       /* 25 */  /* 35 */
-                FSE_encodeSymbol(&blockStream, &stateMatchLength, mlCode);      /* 17 */  /* 17 */
-                FSE_encodeSymbol(&blockStream, &stateLitLength, llCode);        /* 16 */  /* 26 */
-                if (ofBits + mlBits + llBits > 64 - 7 - (LLFSELog+MLFSELog+OffFSELog))
-                    BIT_flushBits(&blockStream);
+                FSE_encodeSymbol(&blockStream, &stateOffsetBits, ofCode);       /* 15 */  /* 15 */
+                FSE_encodeSymbol(&blockStream, &stateMatchLength, mlCode);      /* 24 */  /* 24 */
+                if (MEM_32bits()) BIT_flushBits(&blockStream);                  /* (7)*/
+                FSE_encodeSymbol(&blockStream, &stateLitLength, llCode);        /* 16 */  /* 33 */
+                if (MEM_32bits() || (ofBits+mlBits+llBits > 64-7-(LLFSELog+MLFSELog+OffFSELog)))
+                    BIT_flushBits(&blockStream);                                /* (7)*/
                 BIT_addBits(&blockStream, llTable[n], llBits);
+                if (MEM_32bits() && ((llBits+mlBits)>24)) BIT_flushBits(&blockStream);
                 BIT_addBits(&blockStream, mlTable[n], mlBits);
-                BIT_addBits(&blockStream, offsetTable[n], ofBits);                      /* 31 */  /* 61 */   /* 24 bits max in 32-bits mode */
-                BIT_flushBits(&blockStream);                                    /*  7 */  /*  7 */
+                if (MEM_32bits()) BIT_flushBits(&blockStream);                  /* (7)*/
+                BIT_addBits(&blockStream, offsetTable[n], ofBits);              /* 31 */
+                BIT_flushBits(&blockStream);                                    /* (7)*/
         }   }
 
         FSE_flushCState(&blockStream, &stateMatchLength);
         FSE_flushCState(&blockStream, &stateOffsetBits);
         FSE_flushCState(&blockStream, &stateLitLength);
 
-        { size_t const streamSize = BIT_closeCStream(&blockStream);
-          if (streamSize==0) return ERROR(dstSize_tooSmall);   /* not enough space */
-          op += streamSize; }
-    }
+        {   size_t const streamSize = BIT_closeCStream(&blockStream);
+            if (streamSize==0) return ERROR(dstSize_tooSmall);   /* not enough space */
+            op += streamSize;
+    }   }
 
     /* check compressibility */
 _check_compressibility:
@@ -798,8 +803,8 @@ MEM_STATIC void ZSTD_storeSeq(seqStore_t* seqStorePtr, size_t litLength, const B
     static const BYTE* g_start = NULL;
     const U32 pos = (U32)(literals - g_start);
     if (g_start==NULL) g_start = literals;
-    if ((pos > 15181500) && (pos < 15183150))
-        printf("Cpos %6u :%4u literals & match %3u bytes at distance %6u \n",
+    if ((pos > 200000000) && (pos < 200900000))
+        printf("Cpos %6u :%5u literals & match %3u bytes at distance %6u \n",
                pos, (U32)litLength, (U32)matchCode+MINMATCH, (U32)offsetCode);
 #endif
 #if ZSTD_OPT_DEBUG == 3

@@ -637,8 +637,6 @@ static void ZSTD_decodeSequence(seq_t* seq, seqState_t* seqState, const U32 mls)
     U32 const ofBits = ofCode;
     U32 const totalBits = llBits+mlBits+ofBits;
 
-    //size_t const allBits = BIT_readBits(&(seqState->DStream), totalBits);
-
     static const U32 LL_base[MaxLL+1] = {
                              0,  1,  2,  3,  4,  5,  6,  7,  8,  9,   10,    11,    12,    13,    14,     15,
                             16, 18, 20, 22, 24, 28, 32, 40, 48, 64, 0x80, 0x100, 0x200, 0x400, 0x800, 0x1000,
@@ -657,20 +655,25 @@ static void ZSTD_decodeSequence(seq_t* seq, seqState_t* seqState, const U32 mls)
                  0xFFFFFF, 0x1FFFFFF, 0x3FFFFFF, /*fake*/ 1, 1, 1, 1, 1 };
 
     /* sequence */
-    {   size_t const offset = ofCode ? OF_base[ofCode] + BIT_readBits(&(seqState->DStream), ofBits) :
+    {   size_t const offset = ofCode ? OF_base[ofCode] + BIT_readBits(&(seqState->DStream), ofBits) :   /* <=  26 bits */
                                        llCode ? seq->offset : seqState->prevOffset;
+        if (MEM_32bits()) BIT_reloadDStream(&(seqState->DStream));
         if (ofCode | !llCode) seqState->prevOffset = seq->offset;   /* cmove */
         seq->offset = offset;
     }
-    seq->matchLength = ML_base[mlCode] + mls + ((mlCode>31) ? BIT_readBits(&(seqState->DStream), mlBits) : 0);
-    seq->litLength = LL_base[llCode] + ((llCode>15) ? BIT_readBits(&(seqState->DStream), llBits) : 0);
 
-    if (totalBits > 64 - 7 - (LLFSELog+MLFSELog+OffFSELog)) BIT_reloadDStream(&(seqState->DStream));
+    seq->matchLength = ML_base[mlCode] + mls + ((mlCode>31) ? BIT_readBits(&(seqState->DStream), mlBits) : 0);   /* <=  16 bits */
+    if (MEM_32bits() && (mlBits+llBits>24)) BIT_reloadDStream(&(seqState->DStream));
+
+    seq->litLength = LL_base[llCode] + ((llCode>15) ? BIT_readBits(&(seqState->DStream), llBits) : 0);   /* <=  16 bits */
+    if (MEM_32bits() ||
+       (totalBits > 64 - 7 - (LLFSELog+MLFSELog+OffFSELog)) ) BIT_reloadDStream(&(seqState->DStream));
 
     /* ANS state update */
-    FSE_updateState(&(seqState->stateLL), &(seqState->DStream));
-    FSE_updateState(&(seqState->stateML), &(seqState->DStream));
-    FSE_updateState(&(seqState->stateOffb), &(seqState->DStream));
+    FSE_updateState(&(seqState->stateLL), &(seqState->DStream));   /* <=  9 bits */
+    FSE_updateState(&(seqState->stateML), &(seqState->DStream));   /* <=  9 bits */
+    if (MEM_32bits()) BIT_reloadDStream(&(seqState->DStream));     /* <= 18 bits */
+    FSE_updateState(&(seqState->stateOffb), &(seqState->DStream)); /* <=  8 bits */
 }
 
 
@@ -795,8 +798,8 @@ static size_t ZSTD_decompressSequences(
             ZSTD_decodeSequence(&sequence, &seqState, mls);
 #if 0  /* for debug */
             {   U32 pos = (U32)(op-base);
-                if ((pos > 15181500) && (pos < 15183150))
-                    printf("Dpos %6u : %3u literals & match %3u bytes at distance %6u \n",
+                if ((pos > 200802300) && (pos < 200802400))
+                    printf("Dpos %6u :%5u literals & match %3u bytes at distance %6u \n",
                         pos, (U32)sequence.litLength, (U32)sequence.matchLength, (U32)sequence.offset);
             }
 #endif

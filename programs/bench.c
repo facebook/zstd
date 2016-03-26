@@ -195,14 +195,13 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
     size_t const blockSize = (g_blockSize ? g_blockSize : srcSize) + (!srcSize);   /* avoid div by 0 */
     U32 const maxNbBlocks = (U32) ((srcSize + (blockSize-1)) / blockSize) + nbFiles;
     blockParam_t* const blockTable = (blockParam_t*) malloc(maxNbBlocks * sizeof(blockParam_t));
-    const size_t maxCompressedSize = ZSTD_compressBound(srcSize) + (maxNbBlocks * 1024);   /* add some room for safety */
+    size_t const maxCompressedSize = ZSTD_compressBound(srcSize) + (maxNbBlocks * 1024);   /* add some room for safety */
     void* const compressedBuffer = malloc(maxCompressedSize);
     void* const resultBuffer = malloc(srcSize);
     ZSTD_CCtx* refCtx = ZSTD_createCCtx();
     ZSTD_CCtx* ctx = ZSTD_createCCtx();
     ZSTD_DCtx* refDCtx = ZSTD_createDCtx();
     ZSTD_DCtx* dctx = ZSTD_createDCtx();
-    U64 const crcOrig = XXH64(srcBuffer, srcSize, 0);
     U32 nbBlocks;
 
     /* checks */
@@ -240,6 +239,7 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
 
     /* Bench */
     {   double fastestC = 100000000., fastestD = 100000000.;
+        U64 const crcOrig = XXH64(srcBuffer, srcSize, 0);
         clock_t coolTime = clock();
         U32 testNb;
 
@@ -306,6 +306,7 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
                         if (ZSTD_isError(regenSize)) {
                             DISPLAY("ZSTD_decompress_usingPreparedDCtx() failed on block %u : %s  \n",
                                       blockNb, ZSTD_getErrorName(regenSize));
+                            clockStart -= clockLoop+1;   /* force immediate test end */
                             break;
                         }
                         blockTable[blockNb].resSize = regenSize;

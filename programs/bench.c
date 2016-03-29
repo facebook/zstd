@@ -162,9 +162,17 @@ void BMK_SetBlockSize(size_t blockSize)
 /* ********************************************************
 *  Private functions
 **********************************************************/
-static clock_t BMK_clockSpan( clock_t clockStart )
+typedef clock_t BMK_time_t;
+
+static BMK_time_t BMK_getTime()
 {
-    return clock() - clockStart;   /* works even if overflow, span limited to <= ~30mn */
+    return clock();
+}
+
+/* returns time span in nanoseconds */
+static U64 BMK_clockSpan( BMK_time_t clockStart )
+{
+    return 1000000ULL * (BMK_getTime() - clockStart) / CLOCKS_PER_SEC;
 }
 
 
@@ -265,20 +273,21 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
         double fastestC = 100000000., fastestD = 100000000.;
         double ratio = 0.;
         U64 crcCheck = 0;
-        clock_t coolTime = clock();
+        BMK_time_t coolTime = BMK_getTime();
         U32 testNb;
 
         DISPLAYLEVEL(2, "\r%79s\r", "");
         for (testNb = 1; testNb <= (g_nbIterations + !g_nbIterations); testNb++) {
             int nbLoops;
-            clock_t clockStart, clockSpan;
-            clock_t const clockLoop = g_nbIterations ? TIMELOOP_S * CLOCKS_PER_SEC : 10;
+            BMK_time_t clockStart;
+            U64 clockSpan;
+            U64 const clockLoop = g_nbIterations ? TIMELOOP_S*1000000ULL : 10;
 
             /* overheat protection */
-            if (BMK_clockSpan(coolTime) > ACTIVEPERIOD_S * CLOCKS_PER_SEC) {
+            if (BMK_clockSpan(coolTime) > ACTIVEPERIOD_S*1000000ULL) {
                 DISPLAY("\rcooling down ...    \r");
                 BMK_sleep(COOLPERIOD_S);
-                coolTime = clock();
+                coolTime = BMK_getTime();
             }
 
             /* Compression */
@@ -286,9 +295,9 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
             memset(compressedBuffer, 0xE5, maxCompressedSize);  /* warm up and erase result buffer */
 
             mili_sleep(1); /* give processor time to other processes */
-            clockStart = clock();
-            while (clock() == clockStart);
-            clockStart = clock();
+            clockStart = BMK_getTime();
+            while (BMK_getTime() == clockStart);
+            clockStart = BMK_getTime();
 
             for (nbLoops = 0 ; BMK_clockSpan(clockStart) < clockLoop ; nbLoops++) {
                 U32 blockNb;
@@ -308,16 +317,16 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
             ratio = (double)srcSize / (double)cSize;
             DISPLAYLEVEL(2, "%2i-%-17.17s :%10u ->%10u (%5.3f),%6.1f MB/s\r",
                     testNb, displayName, (U32)srcSize, (U32)cSize, ratio,
-                    (double)srcSize / 1000000. / (fastestC / CLOCKS_PER_SEC) );
+                    (double)srcSize / fastestC );
 
 #if 1
             /* Decompression */
             memset(resultBuffer, 0xD6, srcSize);  /* warm result buffer */
 
             mili_sleep(1); /* give processor time to other processes */
-            clockStart = clock();
-            while (clock() == clockStart);
-            clockStart = clock();
+            clockStart = BMK_getTime();
+            while (BMK_getTime() == clockStart);
+            clockStart = BMK_getTime();
 
             for (nbLoops = 0 ; BMK_clockSpan(clockStart) < clockLoop ; nbLoops++) {
                 U32 blockNb;
@@ -338,8 +347,8 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
             if ((double)clockSpan < fastestD*nbLoops) fastestD = (double)clockSpan / nbLoops;
             DISPLAYLEVEL(2, "%2i-%-17.17s :%10u ->%10u (%5.3f),%6.1f MB/s ,%6.1f MB/s\r",
                     testNb, displayName, (U32)srcSize, (U32)cSize, ratio,
-                    (double)srcSize / 1000000. / (fastestC / CLOCKS_PER_SEC),
-                    (double)srcSize / 1000000. / (fastestD / CLOCKS_PER_SEC) );
+                    (double)srcSize / fastestC,
+                    (double)srcSize / fastestD );
 
             /* CRC Checking */
 _findError:
@@ -372,8 +381,8 @@ _findError:
         if (crcOrig == crcCheck) {
             result->ratio = ratio;
             result->cSize = cSize;
-            result->cSpeed = (double)srcSize / 1000000. / (fastestC / CLOCKS_PER_SEC); 
-            result->dSpeed = (double)srcSize / 1000000. / (fastestD / CLOCKS_PER_SEC);
+            result->cSpeed = (double)srcSize / fastestC; 
+            result->dSpeed = (double)srcSize / fastestD;
         }
         DISPLAYLEVEL(2, "%2i#\n", cLevel);
     }   /* Bench */

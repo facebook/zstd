@@ -48,6 +48,7 @@ CPPFLAGS= -I../lib -DZSTD_VERSION=\"$(VERSION)\"
 CFLAGS ?= -O3  # -falign-loops=32   # not always beneficial
 CFLAGS += -std=c99 -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow -Wstrict-aliasing=1 -Wswitch-enum -Wstrict-prototypes -Wundef
 FLAGS   = $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) $(MOREFLAGS)
+LDFLAGS ?= -lrt
 
 BINDIR  = $(PREFIX)/bin
 MANDIR  = $(PREFIX)/share/man/man1
@@ -86,11 +87,11 @@ all: zstd zstd32 fullbench fullbench32 fuzzer fuzzer32 zbufftest zbufftest32 par
 
 zstd  : $(ZSTD_FILES) $(ZSTD_FILES_LEGACY) $(ZSTDDIR)/zbuff.c $(ZSTDDIR)/zdict.c $(ZSTDDIR)/divsufsort.c \
         zstdcli.c fileio.c bench.c xxhash.c datagen.c dibio.c
-	$(CC)      $(FLAGS) -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT) $^ -o $@$(EXT)
+	$(CC)      $(FLAGS) -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT) $^ $(LDFLAGS) -o $@$(EXT)
 
 zstd32: $(ZSTD_FILES) $(ZSTD_FILES_LEGACY) $(ZSTDDIR)/zbuff.c $(ZSTDDIR)/zdict.c $(ZSTDDIR)/divsufsort.c \
         zstdcli.c fileio.c bench.c xxhash.c datagen.c dibio.c 
-	$(CC) -m32 $(FLAGS) -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT) $^ -o $@$(EXT)
+	$(CC) -m32 $(FLAGS) -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT) $^ $(LDFLAGS) -o $@$(EXT)
 
 zstd_nolegacy :
 	$(MAKE) zstd ZSTD_LEGACY_SUPPORT=0

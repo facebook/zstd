@@ -57,7 +57,7 @@
 #  include <unistd.h>
 #  include <sys/resource.h> /* setpriority */
 #  define BMK_sleep(s) sleep(s)
-#  define mili_sleep(mili) { struct timespec t; t.tv_sec=0; t.tv_nsec=mili*1000000L; nanosleep(&t, NULL); }
+#  define mili_sleep(mili) { struct timespec t; t.tv_sec=0; t.tv_nsec=mili*1000000ULL; nanosleep(&t, NULL); }
 #  define setHighPriority() setpriority(PRIO_PROCESS, 0, -20)
 #elif defined(_WIN32)
 #  include <windows.h>
@@ -68,6 +68,49 @@
 #  define BMK_sleep(s)   /* disabled */
 #  define mili_sleep(mili) /* disabled */
 #  define setHighPriority() /* disabled */
+#endif
+
+/*
+Windows QueryPerformanceCounter resolution = 410 nanosec
+Windows clock() resolution = 1000000 nanosec
+VirtualBox Ubuntu clock() resolution = 1000 nanosec
+VirtualBox Ubuntu clock_gettime() resolution = 100-280 nanosec
+fizzle clock() resolution = 1000 nanosec
+fizzle clock_gettime() resolution = 100-280 nanosec
+*/
+
+#if !defined(_WIN32) && (defined(__unix__) || defined(__unix) || (defined(__APPLE__) && defined(__MACH__)))
+
+#if 0
+   typedef clock_t BMK_time_t;
+#  define BMK_TIME_FUNCTION "clock()"
+#  define BMK_initTimer(ticksPerSecond) (void)ticksPerSecond
+#  define BMK_getTime(x) x = clock()
+#  define BMK_getSpanTimeMicro(ticksPerSecond, clockStart, clockEnd) (1000000ULL * (clockEnd - clockStart) / CLOCKS_PER_SEC)
+#  define BMK_getSpanTimeNano(ticksPerSecond, clockStart, clockEnd) (1000000000ULL * (clockEnd - clockStart) / CLOCKS_PER_SEC)
+#else
+   typedef struct timespec BMK_time_t;
+#  define BMK_TIME_FUNCTION "clock_gettime"
+#  define BMK_initTimer(ticksPerSecond) (void)ticksPerSecond
+#  define BMK_getTime(x) if (clock_gettime(CLOCK_MONOTONIC, &x) == -1 ){ fprintf(stderr, "ERROR: clock_gettime error\n"); }
+#  define BMK_getSpanTimeMicro(ticksPerSecond, clockStart, clockEnd) (1000000ULL*( clockEnd.tv_sec - clockStart.tv_sec ) + ( clockEnd.tv_nsec - clockStart.tv_nsec ) / 1000)
+#  define BMK_getSpanTimeNano(ticksPerSecond, clockStart, clockEnd) (1000000000ULL*( clockEnd.tv_sec - clockStart.tv_sec ) + ( clockEnd.tv_nsec - clockStart.tv_nsec ))
+#endif
+
+#elif defined(_WIN32)
+   typedef LARGE_INTEGER BMK_time_t;
+#  define BMK_TIME_FUNCTION "QueryPerformanceFrequency"
+#  define BMK_initTimer(x) if (!QueryPerformanceFrequency(&x)) { fprintf(stderr, "ERROR: QueryPerformance not present\n"); }
+#  define BMK_getTime(x) QueryPerformanceCounter(&x)
+#  define BMK_getSpanTimeMicro(ticksPerSecond, clockStart, clockEnd) (1000000ULL*(clockEnd.QuadPart - clockStart.QuadPart)/ticksPerSecond.QuadPart)
+#  define BMK_getSpanTimeNano(ticksPerSecond, clockStart, clockEnd) (1000000000ULL*(clockEnd.QuadPart - clockStart.QuadPart)/ticksPerSecond.QuadPart)
+#else
+   typedef int BMK_time_t;
+#  define BMK_TIME_FUNCTION "None"
+#  define BMK_initTimer(ticksPerSecond) (void)ticksPerSecond
+#  define BMK_getTimeMicro(clockStart) clockStart=1
+#  define BMK_getSpanTimeMicro(ticksPerSecond, clockStart, clockEnd) (TIMELOOP_S*1000000ULL+clockEnd-clockStart)
+#  define BMK_getSpanTimeNano(ticksPerSecond, clockStart, clockEnd) (TIMELOOP_S*1000000000ULL+clockEnd-clockStart)
 #endif
 
 #include "mem.h"
@@ -162,19 +205,15 @@ void BMK_SetBlockSize(size_t blockSize)
 /* ********************************************************
 *  Private functions
 **********************************************************/
-typedef clock_t BMK_time_t;
-
-static BMK_time_t BMK_getTime()
+/* returns time span in microseconds */
+static U64 BMK_clockSpan( BMK_time_t clockStart, BMK_time_t ticksPerSecond )
 {
-    return clock();
+    BMK_time_t clockEnd;
+    
+    (void)ticksPerSecond;
+    BMK_getTime(clockEnd);
+    return BMK_getSpanTimeMicro(ticksPerSecond, clockStart, clockEnd);
 }
-
-/* returns time span in nanoseconds */
-static U64 BMK_clockSpan( BMK_time_t clockStart )
-{
-    return 1000000ULL * (BMK_getTime() - clockStart) / CLOCKS_PER_SEC;
-}
-
 
 static U64 BMK_getFileSize(const char* infilename)
 {
@@ -235,6 +274,7 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
 
     U64 const crcOrig = XXH64(srcBuffer, srcSize, 0);
     U32 nbBlocks;
+    BMK_time_t ticksPerSecond;
 
     /* checks */
     if (!compressedBuffer || !resultBuffer || !blockTable || !refCtx || !ctx || !refDCtx || !dctx)
@@ -242,6 +282,18 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
 
     /* init */
     if (strlen(displayName)>17) displayName += strlen(displayName)-17;   /* can only display 17 characters */
+    BMK_initTimer(ticksPerSecond);
+
+    {
+        BMK_time_t clockStart, clockEnd;
+
+        BMK_getTime(clockStart);
+        do { BMK_getTime(clockEnd); }
+        while (BMK_getSpanTimeNano(ticksPerSecond, clockStart, clockEnd) == 0);
+
+        printf(BMK_TIME_FUNCTION " resolution = %d nanosec\n", (int)BMK_getSpanTimeNano(ticksPerSecond, clockStart, clockEnd));
+    }
+
 
     /* Init blockTable data */
     {   const char* srcPtr = (const char*)srcBuffer;
@@ -273,21 +325,22 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
         double fastestC = 100000000., fastestD = 100000000.;
         double ratio = 0.;
         U64 crcCheck = 0;
-        BMK_time_t coolTime = BMK_getTime();
+        BMK_time_t coolTime;
         U32 testNb;
 
+        BMK_getTime(coolTime);
         DISPLAYLEVEL(2, "\r%79s\r", "");
         for (testNb = 1; testNb <= (g_nbIterations + !g_nbIterations); testNb++) {
             int nbLoops;
-            BMK_time_t clockStart;
+            BMK_time_t clockStart, clockEnd;
             U64 clockSpan;
             U64 const clockLoop = g_nbIterations ? TIMELOOP_S*1000000ULL : 10;
 
             /* overheat protection */
-            if (BMK_clockSpan(coolTime) > ACTIVEPERIOD_S*1000000ULL) {
+            if (BMK_clockSpan(coolTime, ticksPerSecond) > ACTIVEPERIOD_S*1000000ULL) {
                 DISPLAY("\rcooling down ...    \r");
                 BMK_sleep(COOLPERIOD_S);
-                coolTime = BMK_getTime();
+                BMK_getTime(coolTime);
             }
 
             /* Compression */
@@ -295,11 +348,12 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
             memset(compressedBuffer, 0xE5, maxCompressedSize);  /* warm up and erase result buffer */
 
             mili_sleep(1); /* give processor time to other processes */
-            clockStart = BMK_getTime();
-            while (BMK_getTime() == clockStart);
-            clockStart = BMK_getTime();
+            BMK_getTime(clockStart);
+            do { BMK_getTime(clockEnd); }
+            while (BMK_getSpanTimeNano(ticksPerSecond, clockStart, clockEnd) == 0);
+            BMK_getTime(clockStart);
 
-            for (nbLoops = 0 ; BMK_clockSpan(clockStart) < clockLoop ; nbLoops++) {
+            for (nbLoops = 0 ; BMK_clockSpan(clockStart, ticksPerSecond) < clockLoop ; nbLoops++) {
                 U32 blockNb;
                 ZSTD_compressBegin_targetSrcSize(refCtx, dictBuffer, dictBufferSize, blockSize, cLevel);
                 for (blockNb=0; blockNb<nbBlocks; blockNb++) {
@@ -309,7 +363,7 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
                     if (ZSTD_isError(rSize)) EXM_THROW(1, "ZSTD_compress_usingPreparedCCtx() failed : %s", ZSTD_getErrorName(rSize));
                     blockTable[blockNb].cSize = rSize;
             }   }
-            clockSpan = BMK_clockSpan(clockStart);
+            clockSpan = BMK_clockSpan(clockStart, ticksPerSecond);
 
             if ((double)clockSpan < fastestC*nbLoops) fastestC = (double)clockSpan / nbLoops;
             cSize = 0;
@@ -324,11 +378,12 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
             memset(resultBuffer, 0xD6, srcSize);  /* warm result buffer */
 
             mili_sleep(1); /* give processor time to other processes */
-            clockStart = BMK_getTime();
-            while (BMK_getTime() == clockStart);
-            clockStart = BMK_getTime();
+            BMK_getTime(clockStart);
+            do { BMK_getTime(clockEnd); }
+            while (BMK_getSpanTimeNano(ticksPerSecond, clockStart, clockEnd) == 0);
+            BMK_getTime(clockStart);
 
-            for (nbLoops = 0 ; BMK_clockSpan(clockStart) < clockLoop ; nbLoops++) {
+            for (nbLoops = 0 ; BMK_clockSpan(clockStart, ticksPerSecond) < clockLoop ; nbLoops++) {
                 U32 blockNb;
                 ZSTD_decompressBegin_usingDict(refDCtx, dictBuffer, dictBufferSize);
                 for (blockNb=0; blockNb<nbBlocks; blockNb++) {
@@ -343,7 +398,7 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
                     blockTable[blockNb].resSize = regenSize;
             }   }
 
-            clockSpan = BMK_clockSpan(clockStart);
+            clockSpan = BMK_clockSpan(clockStart, ticksPerSecond);
             if ((double)clockSpan < fastestD*nbLoops) fastestD = (double)clockSpan / nbLoops;
             DISPLAYLEVEL(2, "%2i-%-17.17s :%10u ->%10u (%5.3f),%6.1f MB/s ,%6.1f MB/s\r",
                     testNb, displayName, (U32)srcSize, (U32)cSize, ratio,

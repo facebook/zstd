@@ -133,35 +133,51 @@ const seqStore_t* ZSTD_getSeqStore(const ZSTD_CCtx* ctx)   /* hidden interface *
 }
 
 
+#define CLAMP(val,min,max) { if (val<min) val=min; else if (val>max) val=max; }
+#define CLAMPCHECK(val,min,max) { if ((val<min) || (val>max)) return ERROR(compressionParameter_unsupported); }
+
+/** ZSTD_checkParams() :
+    ensure param values remain within authorized range.
+    @return : 0, or an error code if one value is beyond authorized range */
+size_t ZSTD_checkParams(ZSTD_parameters params)
+{
+    { U32 const windowLog_max = MEM_32bits() ? 25 : ZSTD_WINDOWLOG_MAX;   /* 32 bits mode cannot flush > 24 bits */
+      CLAMPCHECK(params.windowLog, ZSTD_WINDOWLOG_MIN, windowLog_max); }
+    CLAMPCHECK(params.contentLog, ZSTD_CONTENTLOG_MIN, ZSTD_CONTENTLOG_MAX);
+    CLAMPCHECK(params.hashLog, ZSTD_HASHLOG_MIN, ZSTD_HASHLOG_MAX);
+    CLAMPCHECK(params.searchLog, ZSTD_SEARCHLOG_MIN, ZSTD_SEARCHLOG_MAX);
+    { U32 const searchLengthMin = (params.strategy == ZSTD_btopt) ? ZSTD_SEARCHLENGTH_MIN : ZSTD_SEARCHLENGTH_MIN+1;
+      U32 const searchLengthMax = (params.strategy == ZSTD_fast) ? ZSTD_SEARCHLENGTH_MAX : ZSTD_SEARCHLENGTH_MAX-1;
+      CLAMPCHECK(params.searchLength, searchLengthMin, searchLengthMax); }
+    CLAMPCHECK(params.targetLength, ZSTD_TARGETLENGTH_MIN, ZSTD_TARGETLENGTH_MAX);
+    CLAMPCHECK((U32)(params.strategy), 0, (U32)ZSTD_btopt);
+    return 0;
+}
+
+
 static unsigned ZSTD_highbit(U32 val);
 
-#define CLAMP(val,min,max) { if (val<min) val=min; else if (val>max) val=max; }
-
-/** ZSTD_validateParams() :
-    correct params value to remain within authorized range,
-    optimize for `srcSize` if srcSize > 0 */
-void ZSTD_validateParams(ZSTD_parameters* params)
+/** ZSTD_adjustParams() :
+    optimize params for q given input (`srcSize` and `dictSize`).
+    mostly downsizing to reduce memory consumption and initialization.
+    Both `srcSize` and `dictSize` are optional (use 0 if unknown),
+    but if both are 0, no optimization can be done.
+    Note : params is considered validated at this stage. Use ZSTD_checkParams() to ensure that. */
+void ZSTD_adjustParams(ZSTD_parameters* params, size_t srcSize, size_t dictSize)
 {
-    /* validate params */
-    if (MEM_32bits()) if (params->windowLog > 25) params->windowLog = 25;   /* 32 bits mode cannot flush > 24 bits */
-    CLAMP(params->windowLog, ZSTD_WINDOWLOG_MIN, ZSTD_WINDOWLOG_MAX);
-    CLAMP(params->contentLog, ZSTD_CONTENTLOG_MIN, ZSTD_CONTENTLOG_MAX);
-    CLAMP(params->hashLog, ZSTD_HASHLOG_MIN, ZSTD_HASHLOG_MAX);
-    CLAMP(params->searchLog, ZSTD_SEARCHLOG_MIN, ZSTD_SEARCHLOG_MAX);
-    { U32 const searchLengthMin = (params->strategy == ZSTD_btopt) ? ZSTD_SEARCHLENGTH_MIN : ZSTD_SEARCHLENGTH_MIN+1;
-      U32 const searchLengthMax = (params->strategy == ZSTD_fast) ? ZSTD_SEARCHLENGTH_MAX : ZSTD_SEARCHLENGTH_MAX-1;
-      CLAMP(params->searchLength, searchLengthMin, searchLengthMax); }
-    CLAMP(params->targetLength, ZSTD_TARGETLENGTH_MIN, ZSTD_TARGETLENGTH_MAX);
-    if ((U32)params->strategy>(U32)ZSTD_btopt) params->strategy = ZSTD_btopt;
+    if (srcSize+dictSize == 0) return;   /* no size information available : no adjustment */
 
     /* resize params, to use less memory when necessary */
-    if ((params->srcSize > 0) && (params->srcSize < (1<<ZSTD_WINDOWLOG_MAX))) {
-        U32 const srcLog = ZSTD_highbit((U32)(params->srcSize)-1) + 1;
-        if (params->windowLog > srcLog) params->windowLog = srcLog;
-    }
+    {   size_t const minSrcSize = (srcSize==0) ? 500 : 0;
+        size_t const rSize = srcSize + dictSize + minSrcSize;
+        if (rSize < (1<<ZSTD_WINDOWLOG_MAX)) {
+            U32 const srcLog = ZSTD_highbit((U32)(rSize)-1) + 1;
+            if (params->windowLog > srcLog) params->windowLog = srcLog;
+    }   }
     if (params->hashLog > params->windowLog) params->hashLog = params->windowLog;
-    { U32 const btPlus = (params->strategy == ZSTD_btlazy2) || (params->strategy == ZSTD_btopt);
-      if (params->contentLog > params->windowLog+btPlus) params->contentLog = params->windowLog+btPlus; }   /* <= ZSTD_CONTENTLOG_MAX */
+    {   U32 const btPlus = (params->strategy == ZSTD_btlazy2) || (params->strategy == ZSTD_btopt);
+        U32 const maxContentLog = params->windowLog+btPlus;
+        if (params->contentLog > maxContentLog) params->contentLog = maxContentLog; }   /* <= ZSTD_CONTENTLOG_MAX */
 
     if (params->windowLog  < ZSTD_WINDOWLOG_ABSOLUTEMIN) params->windowLog = ZSTD_WINDOWLOG_ABSOLUTEMIN;  /* required for frame header */
 }
@@ -2194,9 +2210,9 @@ static size_t ZSTD_compress_insertDictionary(ZSTD_CCtx* zc, const void* dict, si
     if (MEM_readLE32(dict) != ZSTD_DICT_MAGIC) return ZSTD_loadDictionaryContent(zc, dict, dictSize);
 
     /* known magic number : dict is parsed for entropy stats and content */
-    { size_t const eSize = ZSTD_loadDictEntropyStats(zc, (const char*)dict+4 /* skip magic */, dictSize-4) + 4;
-      if (ZSTD_isError(eSize)) return eSize;
-      return ZSTD_loadDictionaryContent(zc, (const char*)dict+eSize, dictSize-eSize);
+    {   size_t const eSize = ZSTD_loadDictEntropyStats(zc, (const char*)dict+4 /* skip magic */, dictSize-4) + 4;
+        if (ZSTD_isError(eSize)) return eSize;
+        return ZSTD_loadDictionaryContent(zc, (const char*)dict+eSize, dictSize-eSize);
     }
 }
 
@@ -2207,7 +2223,11 @@ size_t ZSTD_compressBegin_advanced(ZSTD_CCtx* zc,
                              const void* dict, size_t dictSize,
                                    ZSTD_parameters params)
 {
-    ZSTD_validateParams(&params);
+    /* compression parameters verification and optimization */
+    { size_t const errorCode = ZSTD_checkParams(params);
+      if (ZSTD_isError(errorCode)) return errorCode; }
+
+    ZSTD_adjustParams(&params, 0, dictSize);
 
     { size_t const errorCode = ZSTD_resetCCtx_advanced(zc, params);
       if (ZSTD_isError(errorCode)) return errorCode; }
@@ -2295,7 +2315,7 @@ size_t ZSTD_compress_usingPreparedCCtx(ZSTD_CCtx* cctx, const ZSTD_CCtx* prepare
 }
 
 
-size_t ZSTD_compress_advanced (ZSTD_CCtx* ctx,
+static size_t ZSTD_compress_internal (ZSTD_CCtx* ctx,
                                void* dst, size_t dstCapacity,
                          const void* src, size_t srcSize,
                          const void* dict,size_t dictSize,
@@ -2322,16 +2342,29 @@ size_t ZSTD_compress_advanced (ZSTD_CCtx* ctx,
     return (op - ostart);
 }
 
+size_t ZSTD_compress_advanced (ZSTD_CCtx* ctx,
+                               void* dst, size_t dstCapacity,
+                         const void* src, size_t srcSize,
+                         const void* dict,size_t dictSize,
+                               ZSTD_parameters params)
+{
+    size_t const errorCode = ZSTD_checkParams(params);
+    if (ZSTD_isError(errorCode)) return errorCode;
+    return ZSTD_compress_internal(ctx, dst, dstCapacity, src, srcSize, dict, dictSize, params);
+}
+
 size_t ZSTD_compress_usingDict(ZSTD_CCtx* ctx, void* dst, size_t dstCapacity, const void* src, size_t srcSize, const void* dict, size_t dictSize, int compressionLevel)
 {
+    ZSTD_parameters params = ZSTD_getParams(compressionLevel, srcSize+dictSize);
     ZSTD_LOG_BLOCK("%p: ZSTD_compress_usingDict srcSize=%d dictSize=%d compressionLevel=%d\n", ctx->base, (int)srcSize, (int)dictSize, compressionLevel);
-    return ZSTD_compress_advanced(ctx, dst, dstCapacity, src, srcSize, dict, dictSize, ZSTD_getParams(compressionLevel, srcSize));
+    ZSTD_adjustParams(&params, srcSize, dictSize);
+    return ZSTD_compress_internal(ctx, dst, dstCapacity, src, srcSize, dict, dictSize, params);
 }
 
 size_t ZSTD_compressCCtx (ZSTD_CCtx* ctx, void* dst, size_t dstCapacity, const void* src, size_t srcSize, int compressionLevel)
 {
     ZSTD_LOG_BLOCK("%p: ZSTD_compressCCtx srcSize=%d compressionLevel=%d\n", ctx->base, (int)srcSize, compressionLevel);
-    return ZSTD_compress_advanced(ctx, dst, dstCapacity, src, srcSize, NULL, 0, ZSTD_getParams(compressionLevel, srcSize));
+    return ZSTD_compress_usingDict(ctx, dst, dstCapacity, src, srcSize, NULL, 0, compressionLevel);
 }
 
 size_t ZSTD_compress(void* dst, size_t dstCapacity, const void* src, size_t srcSize, int compressionLevel)

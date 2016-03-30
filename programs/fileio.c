@@ -336,18 +336,16 @@ static int FIO_compressFilename_internal(cRess_t ress,
     U64 readsize = 0;
     U64 compressedfilesize = 0;
     size_t dictSize = ress.dictBufferSize;
-    size_t sizeCheck, errorCode;
+    size_t sizeCheck;
     ZSTD_parameters params;
+    U64 const fileSize = FIO_getFileSize(srcFileName);
 
     /* init */
-    {   U64 const filesize = FIO_getFileSize(srcFileName);
-        U64 const levelsize = MAX(FIO_getFileSize(srcFileName), dictSize);
-        params = ZSTD_getParams(cLevel, levelsize);
-        params.srcSize = filesize;
-    }
-    if (g_maxWLog) if (params.windowLog > g_maxWLog) params.windowLog = g_maxWLog;
-    errorCode = ZBUFF_compressInit_advanced(ress.ctx, ress.dictBuffer, ress.dictBufferSize, params);
-    if (ZBUFF_isError(errorCode)) EXM_THROW(21, "Error initializing compression : %s", ZBUFF_getErrorName(errorCode));
+    params.cParams = ZSTD_getCParams(cLevel, fileSize, dictSize);
+    params.fParams.contentSizeFlag = 1;
+    if (g_maxWLog) if (params.cParams.windowLog > g_maxWLog) params.cParams.windowLog = g_maxWLog;
+    { size_t const errorCode = ZBUFF_compressInit_advanced(ress.ctx, ress.dictBuffer, ress.dictBufferSize, params, fileSize);
+      if (ZBUFF_isError(errorCode)) EXM_THROW(21, "Error initializing compression : %s", ZBUFF_getErrorName(errorCode)); }
 
     /* Main compression loop */
     readsize = 0;

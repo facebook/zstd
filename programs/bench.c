@@ -70,43 +70,20 @@
 #  define setHighPriority() /* disabled */
 #endif
 
-/*
-Windows QueryPerformanceCounter resolution = 410 nanosec
-Windows clock() resolution = 1000000 nanosec
-VirtualBox Ubuntu clock() resolution = 1000 nanosec
-VirtualBox Ubuntu clock_gettime() resolution = 100-280 nanosec
-fizzle clock() resolution = 1000 nanosec
-fizzle clock_gettime() resolution = 100-280 nanosec
-*/
-
 #if !defined(_WIN32) && (defined(__unix__) || defined(__unix) || (defined(__APPLE__) && defined(__MACH__)))
-
-#if 0
    typedef clock_t BMK_time_t;
-#  define BMK_TIME_FUNCTION "clock()"
 #  define BMK_initTimer(ticksPerSecond) (void)ticksPerSecond
 #  define BMK_getTime(x) x = clock()
 #  define BMK_getSpanTimeMicro(ticksPerSecond, clockStart, clockEnd) (1000000ULL * (clockEnd - clockStart) / CLOCKS_PER_SEC)
 #  define BMK_getSpanTimeNano(ticksPerSecond, clockStart, clockEnd) (1000000000ULL * (clockEnd - clockStart) / CLOCKS_PER_SEC)
-#else
-   typedef struct timespec BMK_time_t;
-#  define BMK_TIME_FUNCTION "clock_gettime"
-#  define BMK_initTimer(ticksPerSecond) (void)ticksPerSecond
-#  define BMK_getTime(x) if (clock_gettime(CLOCK_MONOTONIC, &x) == -1 ){ fprintf(stderr, "ERROR: clock_gettime error\n"); }
-#  define BMK_getSpanTimeMicro(ticksPerSecond, clockStart, clockEnd) (1000000ULL*( clockEnd.tv_sec - clockStart.tv_sec ) + ( clockEnd.tv_nsec - clockStart.tv_nsec ) / 1000)
-#  define BMK_getSpanTimeNano(ticksPerSecond, clockStart, clockEnd) (1000000000ULL*( clockEnd.tv_sec - clockStart.tv_sec ) + ( clockEnd.tv_nsec - clockStart.tv_nsec ))
-#endif
-
 #elif defined(_WIN32)
    typedef LARGE_INTEGER BMK_time_t;
-#  define BMK_TIME_FUNCTION "QueryPerformanceFrequency"
 #  define BMK_initTimer(x) if (!QueryPerformanceFrequency(&x)) { fprintf(stderr, "ERROR: QueryPerformance not present\n"); }
 #  define BMK_getTime(x) QueryPerformanceCounter(&x)
 #  define BMK_getSpanTimeMicro(ticksPerSecond, clockStart, clockEnd) (1000000ULL*(clockEnd.QuadPart - clockStart.QuadPart)/ticksPerSecond.QuadPart)
 #  define BMK_getSpanTimeNano(ticksPerSecond, clockStart, clockEnd) (1000000000ULL*(clockEnd.QuadPart - clockStart.QuadPart)/ticksPerSecond.QuadPart)
 #else
    typedef int BMK_time_t;
-#  define BMK_TIME_FUNCTION "None"
 #  define BMK_initTimer(ticksPerSecond) (void)ticksPerSecond
 #  define BMK_getTimeMicro(clockStart) clockStart=1
 #  define BMK_getSpanTimeMicro(ticksPerSecond, clockStart, clockEnd) (TIMELOOP_S*1000000ULL+clockEnd-clockStart)
@@ -283,17 +260,6 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
     /* init */
     if (strlen(displayName)>17) displayName += strlen(displayName)-17;   /* can only display 17 characters */
     BMK_initTimer(ticksPerSecond);
-
-    {
-        BMK_time_t clockStart, clockEnd;
-
-        BMK_getTime(clockStart);
-        do { BMK_getTime(clockEnd); }
-        while (BMK_getSpanTimeNano(ticksPerSecond, clockStart, clockEnd) == 0);
-
-        printf(BMK_TIME_FUNCTION " resolution = %d nanosec\n", (int)BMK_getSpanTimeNano(ticksPerSecond, clockStart, clockEnd));
-    }
-
 
     /* Init blockTable data */
     {   const char* srcPtr = (const char*)srcBuffer;

@@ -95,6 +95,7 @@ ERR_STATIC const char* ERR_getErrorName(size_t code)
     case PREFIX(prefix_unknown): return "Unknown frame descriptor";
     case PREFIX(frameParameter_unsupported): return "Unsupported frame parameter";
     case PREFIX(frameParameter_unsupportedBy32bits): return "Frame parameter unsupported in 32-bits mode";
+    case PREFIX(compressionParameter_unsupported): return "Compression parameter is out of bound";
     case PREFIX(init_missing): return "Context should be init first";
     case PREFIX(memory_allocation): return "Allocation error : not enough memory";
     case PREFIX(stage_wrong): return "Operation not authorized at current processing stage";

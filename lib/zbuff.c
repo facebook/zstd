@@ -128,7 +128,9 @@ size_t ZBUFF_compressInit_advanced(ZBUFF_CCtx* zbc, const void* dict, size_t dic
 {
     size_t neededInBuffSize;
 
-    ZSTD_validateParams(&params);
+    { size_t const errorCode = ZSTD_checkParams(params);
+      if (ZSTD_isError(errorCode)) return errorCode; }
+    ZSTD_adjustParams(&params, 0, dictSize);
     neededInBuffSize = (size_t)1 << params.windowLog;
 
     /* allocate buffers */
@@ -156,6 +158,7 @@ size_t ZBUFF_compressInit_advanced(ZBUFF_CCtx* zbc, const void* dict, size_t dic
     zbc->stage = ZBUFFcs_flush;   /* starts by flushing the header */
     return 0;   /* ready to go */
 }
+
 
 size_t ZBUFF_compressInit(ZBUFF_CCtx* zbc, int compressionLevel)
 {

@@ -95,9 +95,14 @@ ZSTDLIB_API unsigned ZSTD_maxCLevel (void);
 *   `srcSize` value is optional, select 0 if not known */
 ZSTDLIB_API ZSTD_parameters ZSTD_getParams(int compressionLevel, U64 srcSize);
 
-/*! ZSTD_validateParams() :
-*   correct params value to remain within authorized range */
-ZSTDLIB_API void ZSTD_validateParams(ZSTD_parameters* params);
+/*! ZSTD_checkParams() :
+*   Ensure param values remain within authorized range */
+ZSTDLIB_API size_t ZSTD_checkParams(ZSTD_parameters params);
+
+/*! ZSTD_adjustParams() :
+*   optimize params for a given `srcSize` and `dictSize`.
+*   both values are optional, select `0` if unknown. */
+ZSTDLIB_API void ZSTD_adjustParams(ZSTD_parameters* params, size_t srcSize, size_t dictSize);
 
 /*! ZSTD_compress_advanced() :
 *   Same as ZSTD_compress_usingDict(), with fine-tune control of each compression parameter */

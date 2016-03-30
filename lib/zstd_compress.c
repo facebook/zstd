@@ -196,9 +196,12 @@ void ZSTD_adjustCParams(ZSTD_compressionParameters* params, U64 srcSize, size_t 
 }
 
 
-size_t ZSTD_sizeofCCtx(ZSTD_parameters params)   /* hidden interface, for paramagrill */
+size_t ZSTD_sizeofCCtx(ZSTD_compressionParameters cParams)   /* hidden interface, for paramagrill */
 {
     ZSTD_CCtx* zc = ZSTD_createCCtx();
+    ZSTD_parameters params;
+    params.cParams = cParams;
+    params.fParams.contentSizeFlag = 1;
     ZSTD_compressBegin_advanced(zc, NULL, 0, params, 0);
     { size_t const ccsize = sizeof(*zc) + zc->workSpaceSize;
       ZSTD_freeCCtx(zc);

@@ -218,12 +218,12 @@ static U32 ZSTD_insertBtAndGetAllMatches (
 {
     const BYTE* const base = zc->base;
     const U32 current = (U32)(ip-base);
-    const U32 hashLog = zc->params.hashLog;
+    const U32 hashLog = zc->params.cParams.hashLog;
     const size_t h  = ZSTD_hashPtr(ip, hashLog, mls);
     U32* const hashTable = zc->hashTable;
     U32 matchIndex  = hashTable[h];
     U32* const bt   = zc->contentTable;
-    const U32 btLog = zc->params.contentLog - 1;
+    const U32 btLog = zc->params.cParams.contentLog - 1;
     const U32 btMask= (1U << btLog) - 1;
     size_t commonLengthSmaller=0, commonLengthLarger=0;
     const BYTE* const dictBase = zc->dictBase;
@@ -410,10 +410,10 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
     const BYTE* const prefixStart = base + ctx->dictLimit;
 
     U32 rep_2=REPCODE_STARTVALUE, rep_1=REPCODE_STARTVALUE;
-    const U32 maxSearches = 1U << ctx->params.searchLog;
-    const U32 sufficient_len = ctx->params.targetLength;
-    const U32 mls = ctx->params.searchLength;
-    const U32 minMatch = (ctx->params.searchLength == 3) ? 3 : 4;
+    const U32 maxSearches = 1U << ctx->params.cParams.searchLog;
+    const U32 sufficient_len = ctx->params.cParams.targetLength;
+    const U32 mls = ctx->params.cParams.searchLength;
+    const U32 minMatch = (ctx->params.cParams.searchLength == 3) ? 3 : 4;
 
     ZSTD_optimal_t* opt = seqStorePtr->priceTable;
     ZSTD_match_t* matches = seqStorePtr->matchTable;
@@ -735,10 +735,10 @@ void ZSTD_compressBlock_opt_extDict_generic(ZSTD_CCtx* ctx,
     const U32 lowLimit = ctx->lowLimit;
 
     U32 rep_2=REPCODE_STARTVALUE, rep_1=REPCODE_STARTVALUE;
-    const U32 maxSearches = 1U << ctx->params.searchLog;
-    const U32 sufficient_len = ctx->params.targetLength;
-    const U32 mls = ctx->params.searchLength;
-    const U32 minMatch = (ctx->params.searchLength == 3) ? 3 : 4;
+    const U32 maxSearches = 1U << ctx->params.cParams.searchLog;
+    const U32 sufficient_len = ctx->params.cParams.targetLength;
+    const U32 mls = ctx->params.cParams.searchLength;
+    const U32 minMatch = (ctx->params.cParams.searchLength == 3) ? 3 : 4;
 
     ZSTD_optimal_t* opt = seqStorePtr->priceTable;
     ZSTD_match_t* matches = seqStorePtr->matchTable;

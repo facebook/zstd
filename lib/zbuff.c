@@ -124,14 +124,14 @@ size_t ZBUFF_freeCCtx(ZBUFF_CCtx* zbc)
 
 /* *** Initialization *** */
 
-size_t ZBUFF_compressInit_advanced(ZBUFF_CCtx* zbc, const void* dict, size_t dictSize, ZSTD_parameters params)
+size_t ZBUFF_compressInit_advanced(ZBUFF_CCtx* zbc,
+                                   const void* dict, size_t dictSize,
+                                   ZSTD_parameters params, U64 pledgedSrcSize)
 {
     size_t neededInBuffSize;
 
-    { size_t const errorCode = ZSTD_checkParams(params);
-      if (ZSTD_isError(errorCode)) return errorCode; }
-    ZSTD_adjustParams(&params, 0, dictSize);
-    neededInBuffSize = (size_t)1 << params.windowLog;
+    ZSTD_adjustCParams(&params.cParams, pledgedSrcSize, dictSize);
+    neededInBuffSize = (size_t)1 << params.cParams.windowLog;
 
     /* allocate buffers */
     if (zbc->inBuffSize < neededInBuffSize) {
@@ -148,7 +148,7 @@ size_t ZBUFF_compressInit_advanced(ZBUFF_CCtx* zbc, const void* dict, size_t dic
         if (zbc->outBuff == NULL) return ERROR(memory_allocation);
     }
 
-    zbc->outBuffContentSize = ZSTD_compressBegin_advanced(zbc->zc, dict, dictSize, params);
+    zbc->outBuffContentSize = ZSTD_compressBegin_advanced(zbc->zc, dict, dictSize, params, pledgedSrcSize);
     if (ZSTD_isError(zbc->outBuffContentSize)) return zbc->outBuffContentSize;
 
     zbc->inToCompress = 0;
@@ -160,15 +160,17 @@ size_t ZBUFF_compressInit_advanced(ZBUFF_CCtx* zbc, const void* dict, size_t dic
 }
 
 
-size_t ZBUFF_compressInit(ZBUFF_CCtx* zbc, int compressionLevel)
-{
-    return ZBUFF_compressInit_advanced(zbc, NULL, 0, ZSTD_getParams(compressionLevel, 0));
-}
-
-
 ZSTDLIB_API size_t ZBUFF_compressInitDictionary(ZBUFF_CCtx* zbc, const void* dict, size_t dictSize, int compressionLevel)
 {
-    return ZBUFF_compressInit_advanced(zbc, dict, dictSize, ZSTD_getParams(compressionLevel, 0));
+    ZSTD_parameters params;
+    params.cParams = ZSTD_getCParams(compressionLevel, 0, dictSize);
+    params.fParams.contentSizeFlag = 0;
+    return ZBUFF_compressInit_advanced(zbc, dict, dictSize, params, 0);
+}
+
+size_t ZBUFF_compressInit(ZBUFF_CCtx* zbc, int compressionLevel)
+{
+    return ZBUFF_compressInitDictionary(zbc, NULL, 0, compressionLevel);
 }
 
 

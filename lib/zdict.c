@@ -626,6 +626,7 @@ static void ZDICT_countEStats(EStats_ress_t esr,
     }   }
 }
 
+/*
 static size_t ZDICT_maxSampleSize(const size_t* fileSizes, unsigned nbFiles)
 {
     unsigned u;
@@ -633,6 +634,15 @@ static size_t ZDICT_maxSampleSize(const size_t* fileSizes, unsigned nbFiles)
     for (u=0; u<nbFiles; u++)
         if (max < fileSizes[u]) max = fileSizes[u];
     return max;
+}
+*/
+
+static size_t ZDICT_totalSampleSize(const size_t* fileSizes, unsigned nbFiles)
+{
+    size_t total;
+    unsigned u;
+    for (u=0, total=0; u<nbFiles; u++) total += fileSizes[u];
+    return total;
 }
 
 #define OFFCODE_MAX 18  /* only applicable to first block */
@@ -654,6 +664,8 @@ static size_t ZDICT_analyzeEntropy(void*  dstBuffer, size_t maxDstSize,
     U32 u, huffLog = 12, Offlog = OffFSELog, mlLog = MLFSELog, llLog = LLFSELog, total;
     size_t pos = 0, errorCode;
     size_t eSize = 0;
+    size_t const totalSrcSize = ZDICT_totalSampleSize(fileSizes, nbFiles);
+    size_t const averageSampleSize = totalSrcSize / nbFiles;
 
     /* init */
     for (u=0; u<256; u++) countLit[u]=1;   /* any character must be described */
@@ -669,9 +681,10 @@ static size_t ZDICT_analyzeEntropy(void*  dstBuffer, size_t maxDstSize,
             goto _cleanup;
     }
     if (compressionLevel==0) compressionLevel=g_compressionLevel_default;
-    params = ZSTD_getParams(compressionLevel, MAX(dictBufferSize, ZDICT_maxSampleSize(fileSizes, nbFiles)));
-    params.strategy = ZSTD_greedy;
-    ZSTD_compressBegin_advanced(esr.ref, dictBuffer, dictBufferSize, params);
+    params.cParams = ZSTD_getCParams(compressionLevel, averageSampleSize, dictBufferSize);
+    params.cParams.strategy = ZSTD_greedy;
+    params.fParams.contentSizeFlag = 0;
+    ZSTD_compressBegin_advanced(esr.ref, dictBuffer, dictBufferSize, params, 0);
 
     /* collect stats on all files */
     for (u=0; u<nbFiles; u++) {

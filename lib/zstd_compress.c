@@ -176,13 +176,13 @@ size_t ZSTD_checkCParams_advanced(ZSTD_compressionParameters cParams, U64 srcSiz
     Both `srcSize` and `dictSize` are optional (use 0 if unknown),
     but if both are 0, no optimization can be done.
     Note : params is considered validated at this stage. Use ZSTD_checkParams() to ensure that. */
-void ZSTD_adjustCParams(ZSTD_compressionParameters* params, size_t srcSize, size_t dictSize)
+void ZSTD_adjustCParams(ZSTD_compressionParameters* params, U64 srcSize, size_t dictSize)
 {
     if (srcSize+dictSize == 0) return;   /* no size information available : no adjustment */
 
     /* resize params, to use less memory when necessary */
-    {   size_t const minSrcSize = (srcSize==0) ? 500 : 0;
-        size_t const rSize = srcSize + dictSize + minSrcSize;
+    {   U32 const minSrcSize = (srcSize==0) ? 500 : 0;
+        U64 const rSize = srcSize + dictSize + minSrcSize;
         if (rSize < (1<<ZSTD_WINDOWLOG_MAX)) {
             U32 const srcLog = ZSTD_highbit((U32)(rSize)-1) + 1;
             if (params->windowLog > srcLog) params->windowLog = srcLog;

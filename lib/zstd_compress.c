@@ -37,7 +37,9 @@
 *********************************************************/
 #ifdef _MSC_VER    /* Visual Studio */
 #  define FORCE_INLINE static __forceinline
-#  include <intrin.h>                    /* For Visual 2005 */
+#  if _MSC_VER >= 1400
+#    include <intrin.h>                  /* For Visual 2005 and above */
+#  endif
 #  pragma warning(disable : 4127)        /* disable: C4127: conditional expression is constant */
 #else
 #  ifdef __GNUC__
@@ -793,10 +795,10 @@ static unsigned ZSTD_NbCommonBytes (register size_t val)
             return (__builtin_ctzll((U64)val) >> 3);
 #       else
             static const int DeBruijnBytePos[64] = { 0, 0, 0, 0, 0, 1, 1, 2, 0, 3, 1, 3, 1, 4, 2, 7, 0, 2, 3, 6, 1, 5, 3, 5, 1, 3, 4, 4, 2, 5, 6, 7, 7, 0, 1, 2, 3, 3, 4, 6, 2, 6, 5, 5, 3, 4, 5, 6, 7, 1, 2, 4, 6, 4, 4, 5, 7, 2, 6, 5, 7, 6, 7, 7 };
-            return DeBruijnBytePos[((U64)((val & -(long long)val) * 0x0218A392CDABBD3FULL)) >> 58];
+            return DeBruijnBytePos[((U64)((val & -(S64)val) * LIT_U64(0x0218A392CDABBD3F))) >> 58];
 #       endif
         } else { /* 32 bits */
-#       if defined(_MSC_VER)
+#       if defined(_MSC_VER) && (_MSC_VER >= 1400)   /* For Visual 2005 and above */
             unsigned long r=0;
             _BitScanForward( &r, (U32)val );
             return (unsigned)(r>>3);
@@ -824,7 +826,7 @@ static unsigned ZSTD_NbCommonBytes (register size_t val)
             return r;
 #       endif
         } else { /* 32 bits */
-#       if defined(_MSC_VER)
+#       if defined(_MSC_VER) && (_MSC_VER >= 1400)   /* For Visual 2005 and above */
             unsigned long r = 0;
             _BitScanReverse( &r, (unsigned long)val );
             return (unsigned)(r>>3);
@@ -879,15 +881,15 @@ static const U32 prime4bytes = 2654435761U;
 static U32    ZSTD_hash4(U32 u, U32 h) { return (u * prime4bytes) >> (32-h) ; }
 static size_t ZSTD_hash4Ptr(const void* ptr, U32 h) { return ZSTD_hash4(MEM_read32(ptr), h); }
 
-static const U64 prime5bytes = 889523592379ULL;
+static const U64 prime5bytes = LIT_U64(889523592379);
 static size_t ZSTD_hash5(U64 u, U32 h) { return (size_t)(((u  << (64-40)) * prime5bytes) >> (64-h)) ; }
 static size_t ZSTD_hash5Ptr(const void* p, U32 h) { return ZSTD_hash5(MEM_readLE64(p), h); }
 
-static const U64 prime6bytes = 227718039650203ULL;
+static const U64 prime6bytes = LIT_U64(227718039650203);
 static size_t ZSTD_hash6(U64 u, U32 h) { return (size_t)(((u  << (64-48)) * prime6bytes) >> (64-h)) ; }
 static size_t ZSTD_hash6Ptr(const void* p, U32 h) { return ZSTD_hash6(MEM_readLE64(p), h); }
 
-static const U64 prime7bytes = 58295818150454627ULL;
+static const U64 prime7bytes = LIT_U64(58295818150454627);
 static size_t ZSTD_hash7(U64 u, U32 h) { return (size_t)(((u  << (64-56)) * prime7bytes) >> (64-h)) ; }
 static size_t ZSTD_hash7Ptr(const void* p, U32 h) { return ZSTD_hash7(MEM_readLE64(p), h); }
 
@@ -1536,9 +1538,9 @@ void ZSTD_compressBlock_lazy_generic(ZSTD_CCtx* ctx,
     const U32 maxSearches = 1 << ctx->params.searchLog;
     const U32 mls = ctx->params.searchLength;
 
-    typedef size_t (*searchMax_f)(ZSTD_CCtx* zc, const BYTE* ip, const BYTE* iLimit,
+    typedef size_t (*searchMax_f)(ZSTD_CCtx* zc, const BYTE* ip, const BYTE* const iLimit,
                         size_t* offsetPtr,
-                        U32 maxNbAttempts, U32 matchLengthSearch);
+                        const U32 maxNbAttempts, const U32 matchLengthSearch);
     searchMax_f searchMax = searchMethod ? ZSTD_BtFindBestMatch_selectMLS : ZSTD_HcFindBestMatch_selectMLS;
 
     /* init */
@@ -1706,9 +1708,9 @@ void ZSTD_compressBlock_lazy_extDict_generic(ZSTD_CCtx* ctx,
     const U32 maxSearches = 1 << ctx->params.searchLog;
     const U32 mls = ctx->params.searchLength;
 
-    typedef size_t (*searchMax_f)(ZSTD_CCtx* zc, const BYTE* ip, const BYTE* iLimit,
+    typedef size_t (*searchMax_f)(ZSTD_CCtx* zc, const BYTE* ip, const BYTE* const iLimit,
                         size_t* offsetPtr,
-                        U32 maxNbAttempts, U32 matchLengthSearch);
+                        const U32 maxNbAttempts, const U32 matchLengthSearch);
     searchMax_f searchMax = searchMethod ? ZSTD_BtFindBestMatch_selectMLS_extDict : ZSTD_HcFindBestMatch_extDict_selectMLS;
 
     /* init */

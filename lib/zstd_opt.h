@@ -62,13 +62,20 @@ typedef struct {
 #define ZSTD_OPT_DEBUG 0     // 1 = tableID=0;    5 = check encoded sequences
 
 #if defined(ZSTD_OPT_DEBUG) && ZSTD_OPT_DEBUG>=1
-    #define ZSTD_LOG_PARSER(...) printf(__VA_ARGS__)
-    #define ZSTD_LOG_ENCODE(...) printf(__VA_ARGS__)
-    #define ZSTD_LOG_TRY_PRICE(...) printf(__VA_ARGS__)
+  #define ZSTD_LOG_PARSER printf
+  #define ZSTD_LOG_ENCODE printf
+  #define ZSTD_LOG_TRY_PRICE printf
 #else
+  #if defined(_MSC_VER) && (_MSC_VER < 1400)       /* For VC6 and other legacy versions */
+    void __inline impl_ZSTD_LOG_PARSER(...) { }
+    #define ZSTD_LOG_PARSER impl_ZSTD_LOG_PARSER
+    #define ZSTD_LOG_ENCODE impl_ZSTD_LOG_PARSER
+    #define ZSTD_LOG_TRY_PRICE impl_ZSTD_LOG_PARSER
+  #else
     #define ZSTD_LOG_PARSER(...)
     #define ZSTD_LOG_ENCODE(...)
     #define ZSTD_LOG_TRY_PRICE(...)
+  #endif
 #endif
 
 
@@ -427,8 +434,8 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
     const U32 maxSearches = 1U << ctx->params.searchLog;
     const U32 mls = ctx->params.searchLength;
 
-    typedef U32 (*getAllMatches_f)(ZSTD_CCtx* zc, const BYTE* ip, const BYTE* iLowLimit, const BYTE* iHighLimit,
-                        U32 maxNbAttempts, U32 matchLengthSearch, ZSTD_match_t* matches, U32 minml);
+    typedef U32 (*getAllMatches_f)(ZSTD_CCtx* zc, const BYTE* ip, const BYTE* const iLowLimit, const BYTE* const iHighLimit,
+                        const U32 maxNbAttempts, const U32 matchLengthSearch, ZSTD_match_t* matches, U32 minml);
     getAllMatches_f getAllMatches = searchMethod ? ZSTD_BtGetAllMatches_selectMLS : ZSTD_HcGetAllMatches_selectMLS;
 
     ZSTD_optimal_t opt[ZSTD_OPT_NUM+4];
@@ -777,8 +784,8 @@ void ZSTD_compressBlock_opt_extDict_generic(ZSTD_CCtx* ctx,
     const U32 maxSearches = 1U << ctx->params.searchLog;
     const U32 mls = ctx->params.searchLength;
 
-    typedef U32 (*getAllMatches_f)(ZSTD_CCtx* zc, const BYTE* ip, const BYTE* iLowLimit, const BYTE* iHighLimit,
-                        U32 maxNbAttempts, U32 matchLengthSearch, ZSTD_match_t* matches, U32 minml);
+    typedef U32 (*getAllMatches_f)(ZSTD_CCtx* zc, const BYTE* ip, const BYTE* const iLowLimit, const BYTE* const iHighLimit,
+                        const U32 maxNbAttempts, const U32 matchLengthSearch, ZSTD_match_t* matches, U32 minml);
     getAllMatches_f getAllMatches = searchMethod ? ZSTD_BtGetAllMatches_selectMLS_extDict : ZSTD_HcGetAllMatches_selectMLS_extDict;
 
     ZSTD_optimal_t opt[ZSTD_OPT_NUM+4];

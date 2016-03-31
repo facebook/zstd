@@ -98,16 +98,53 @@ static const size_t g_min_fast_dictContent = 192;
 /*-*************************************
 *  Console display
 ***************************************/
+static unsigned g_displayLevel = 0;   /* 0 : no display;   1: errors;   2: default;  4: full information */
+static const unsigned refreshRate = 300;
+static clock_t g_time = 0;
+
+#if defined(_MSC_VER) && _MSC_VER < 1400    /* For VC6 and other legacy versions */
+#include <stdarg.h>
+void __inline impl_DISPLAY(char *format, ...)
+{ 
+    va_list argptr;
+    va_start(argptr, format);
+    vfprintf(stderr, format, argptr);
+    va_end(argptr);
+}
+void __inline impl_DISPLAYLEVEL(int l, char *format, ...)
+{
+    if (g_displayLevel>=l) {
+        va_list argptr;
+        va_start(argptr, format);
+        vfprintf(stderr, format, argptr);
+        va_end(argptr);
+    }
+}
+static unsigned ZDICT_GetMilliSpan(clock_t nPrevious);
+void __inline impl_DISPLAYUPDATE(int l, char *format, ...)
+{
+    if (g_displayLevel>=l) {
+        if (ZDICT_GetMilliSpan(g_time) > refreshRate) {
+            g_time = clock();
+            va_list argptr;
+            va_start(argptr, format);
+            vfprintf(stderr, format, argptr);
+            va_end(argptr);
+            if (g_displayLevel>=4) fflush(stdout); 
+        }
+    }
+}
+#define DISPLAY              impl_DISPLAY
+#define DISPLAYLEVEL         impl_DISPLAYLEVEL
+#define DISPLAYUPDATE        impl_DISPLAYUPDATE
+#else
 #define DISPLAY(...)         fprintf(stderr, __VA_ARGS__)
 #define DISPLAYLEVEL(l, ...) if (g_displayLevel>=l) { DISPLAY(__VA_ARGS__); }
-static unsigned g_displayLevel = 0;   /* 0 : no display;   1: errors;   2: default;  4: full information */
-
 #define DISPLAYUPDATE(l, ...) if (g_displayLevel>=l) { \
             if (ZDICT_GetMilliSpan(g_time) > refreshRate)  \
             { g_time = clock(); DISPLAY(__VA_ARGS__); \
             if (g_displayLevel>=4) fflush(stdout); } }
-static const unsigned refreshRate = 300;
-static clock_t g_time = 0;
+#endif
 
 static void ZDICT_printHex(U32 dlevel, const void* ptr, size_t length)
 {
@@ -152,10 +189,10 @@ static unsigned ZDICT_NbCommonBytes (register size_t val)
             return (__builtin_ctzll((U64)val) >> 3);
 #       else
             static const int DeBruijnBytePos[64] = { 0, 0, 0, 0, 0, 1, 1, 2, 0, 3, 1, 3, 1, 4, 2, 7, 0, 2, 3, 6, 1, 5, 3, 5, 1, 3, 4, 4, 2, 5, 6, 7, 7, 0, 1, 2, 3, 3, 4, 6, 2, 6, 5, 5, 3, 4, 5, 6, 7, 1, 2, 4, 6, 4, 4, 5, 7, 2, 6, 5, 7, 6, 7, 7 };
-            return DeBruijnBytePos[((U64)((val & -(long long)val) * 0x0218A392CDABBD3FULL)) >> 58];
+            return DeBruijnBytePos[((U64)((val & -(S64)val) * LIT_U64(0x0218A392CDABBD3F))) >> 58];
 #       endif
         } else { /* 32 bits */
-#       if defined(_MSC_VER)
+#       if defined(_MSC_VER) && (_MSC_VER >= 1400)
             unsigned long r=0;
             _BitScanForward( &r, (U32)val );
             return (unsigned)(r>>3);
@@ -183,7 +220,7 @@ static unsigned ZDICT_NbCommonBytes (register size_t val)
             return r;
 #       endif
         } else { /* 32 bits */
-#       if defined(_MSC_VER)
+#       if defined(_MSC_VER) && (_MSC_VER >= 1400)
             unsigned long r = 0;
             _BitScanReverse( &r, (unsigned long)val );
             return (unsigned)(r>>3);

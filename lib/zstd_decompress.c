@@ -71,7 +71,9 @@
 *********************************************************/
 #ifdef _MSC_VER    /* Visual Studio */
 #  define FORCE_INLINE static __forceinline
-#  include <intrin.h>                    /* For Visual 2005 */
+#  if _MSC_VER >= 1400
+#    include <intrin.h>                  /* For Visual 2005 and above*/
+#  endif
 #  pragma warning(disable : 4127)        /* disable: C4127: conditional expression is constant */
 #  pragma warning(disable : 4324)        /* disable: C4324: padded structure */
 #else

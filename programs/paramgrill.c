@@ -127,7 +127,7 @@ static U32 g_rand = 1;
 static U32 g_singleRun = 0;
 static U32 g_target = 0;
 static U32 g_noSeed = 0;
-static ZSTD_parameters g_params = { 0, 0, 0, 0, 0, 0, 0, ZSTD_greedy };
+static ZSTD_compressionParameters g_params = { 0, 0, 0, 0, 0, 0, ZSTD_greedy };
 
 void BMK_SetNbIterations(int nbLoops)
 {
@@ -252,7 +252,7 @@ typedef struct
 static size_t BMK_benchParam(BMK_result_t* resultPtr,
                              const void* srcBuffer, size_t srcSize,
                              ZSTD_CCtx* ctx,
-                             const ZSTD_parameters params)
+                             const ZSTD_compressionParameters cParams)
 {
     const size_t blockSize = g_blockSize ? g_blockSize : srcSize;
     const U32 nbBlocks = (U32) ((srcSize + (blockSize-1)) / blockSize);
@@ -260,13 +260,14 @@ static size_t BMK_benchParam(BMK_result_t* resultPtr,
     const size_t maxCompressedSize = (size_t)nbBlocks * ZSTD_compressBound(blockSize);
     void* const compressedBuffer = malloc(maxCompressedSize);
     void* const resultBuffer = malloc(srcSize);
-    U32 Wlog = params.windowLog;
-    U32 Clog = params.contentLog;
-    U32 Hlog = params.hashLog;
-    U32 Slog = params.searchLog;
-    U32 Slength = params.searchLength;
-    U32 Tlength = params.targetLength;
-    ZSTD_strategy strat = params.strategy;
+    ZSTD_parameters params;
+    U32 Wlog = cParams.windowLog;
+    U32 Clog = cParams.contentLog;
+    U32 Hlog = cParams.hashLog;
+    U32 Slog = cParams.searchLog;
+    U32 Slength = cParams.searchLength;
+    U32 Tlength = cParams.targetLength;
+    ZSTD_strategy strat = cParams.strategy;
     char name[30] = { 0 };
     U64 crcOrig;
 
@@ -316,6 +317,8 @@ static size_t BMK_benchParam(BMK_result_t* resultPtr,
         const int startTime =BMK_GetMilliStart();
 
         DISPLAY("\r%79s\r", "");
+        params.cParams = cParams;
+        params.fParams.contentSizeFlag = 0;
         for (loopNb = 1; loopNb <= g_nbIterations; loopNb++) {
             int nbLoops;
             int milliTime;
@@ -408,11 +411,11 @@ const char* g_stratName[] = { "ZSTD_fast   ",
                               "ZSTD_btlazy2",
                               "ZSTD_btopt  " };
 
-static void BMK_printWinner(FILE* f, U32 cLevel, BMK_result_t result, ZSTD_parameters params, size_t srcSize)
+static void BMK_printWinner(FILE* f, U32 cLevel, BMK_result_t result, ZSTD_compressionParameters params, size_t srcSize)
 {
     DISPLAY("\r%79s\r", "");
-    fprintf(f,"    {%3u,%3u,%3u,%3u,%3u,%3u,%3u, %s },  ",
-            0, params.windowLog, params.contentLog, params.hashLog, params.searchLog, params.searchLength,
+    fprintf(f,"    {%3u,%3u,%3u,%3u,%3u,%3u, %s },  ",
+            params.windowLog, params.contentLog, params.hashLog, params.searchLog, params.searchLength,
             params.targetLength, g_stratName[(U32)(params.strategy)]);
     fprintf(f,
             "/* level %2u */   /* R:%5.3f at %5.1f MB/s - %5.1f MB/s */\n",
@@ -424,7 +427,7 @@ static U32 g_cSpeedTarget[NB_LEVELS_TRACKED] = { 0 };   /* NB_LEVELS_TRACKED : c
 
 typedef struct {
     BMK_result_t result;
-    ZSTD_parameters params;
+    ZSTD_compressionParameters params;
 } winnerInfo_t;
 
 static void BMK_printWinners2(FILE* f, const winnerInfo_t* winners, size_t srcSize)
@@ -432,7 +435,7 @@ static void BMK_printWinners2(FILE* f, const winnerInfo_t* winners, size_t srcSi
     unsigned cLevel;
 
     fprintf(f, "\n /* Proposed configurations : */ \n");
-    fprintf(f, "    /* l,  W,  C,  H,  S,  L,  T, strat */ \n");
+    fprintf(f, "    /* W,  C,  H,  S,  L,  T, strat */ \n");
 
     for (cLevel=0; cLevel <= ZSTD_maxCLevel(); cLevel++)
         BMK_printWinner(f, cLevel, winners[cLevel].result, winners[cLevel].params, srcSize);
@@ -447,9 +450,9 @@ static void BMK_printWinners(FILE* f, const winnerInfo_t* winners, size_t srcSiz
     BMK_printWinners2(stdout, winners, srcSize);
 }
 
-size_t ZSTD_sizeofCCtx(ZSTD_parameters params);   /* hidden interface, declared here */
+size_t ZSTD_sizeofCCtx(ZSTD_compressionParameters params);   /* hidden interface, declared here */
 
-static int BMK_seed(winnerInfo_t* winners, const ZSTD_parameters params,
+static int BMK_seed(winnerInfo_t* winners, const ZSTD_compressionParameters params,
               const void* srcBuffer, size_t srcSize,
                     ZSTD_CCtx* ctx)
 {
@@ -542,7 +545,7 @@ static int BMK_seed(winnerInfo_t* winners, const ZSTD_parameters params,
 
 
 /* nullified useless params, to ensure count stats */
-static ZSTD_parameters* sanitizeParams(ZSTD_parameters params)
+static ZSTD_compressionParameters* sanitizeParams(ZSTD_compressionParameters params)
 {
     g_params = params;
     if (params.strategy == ZSTD_fast)
@@ -553,44 +556,50 @@ static ZSTD_parameters* sanitizeParams(ZSTD_parameters params)
 }
 
 
-static void paramVariation(ZSTD_parameters* p)
+static void paramVariation(ZSTD_compressionParameters* ptr)
 {
-    U32 nbChanges = (FUZ_rand(&g_rand) & 3) + 1;
-    for (; nbChanges; nbChanges--) {
-        const U32 changeID = FUZ_rand(&g_rand) % 14;
-        switch(changeID)
-        {
-        case 0:
-            p->contentLog++; break;
-        case 1:
-            p->contentLog--; break;
-        case 2:
-            p->hashLog++; break;
-        case 3:
-            p->hashLog--; break;
-        case 4:
-            p->searchLog++; break;
-        case 5:
-            p->searchLog--; break;
-        case 6:
-            p->windowLog++; break;
-        case 7:
-            p->windowLog--; break;
-        case 8:
-            p->searchLength++; break;
-        case 9:
-            p->searchLength--; break;
-        case 10:
-            p->strategy = (ZSTD_strategy)(((U32)p->strategy)+1); break;
-        case 11:
-            p->strategy = (ZSTD_strategy)(((U32)p->strategy)-1); break;
-        case 12:
-            p->targetLength *= 1 + ((double)(FUZ_rand(&g_rand)&255)) / 256.; break;
-        case 13:
-            p->targetLength /= 1 + ((double)(FUZ_rand(&g_rand)&255)) / 256.; break;
+    ZSTD_compressionParameters p;
+    U32 validated = 0;
+    while (!validated) {
+        U32 nbChanges = (FUZ_rand(&g_rand) & 3) + 1;
+        p = *ptr;
+        for ( ; nbChanges ; nbChanges--) {
+            const U32 changeID = FUZ_rand(&g_rand) % 14;
+            switch(changeID)
+            {
+            case 0:
+                p.contentLog++; break;
+            case 1:
+                p.contentLog--; break;
+            case 2:
+                p.hashLog++; break;
+            case 3:
+                p.hashLog--; break;
+            case 4:
+                p.searchLog++; break;
+            case 5:
+                p.searchLog--; break;
+            case 6:
+                p.windowLog++; break;
+            case 7:
+                p.windowLog--; break;
+            case 8:
+                p.searchLength++; break;
+            case 9:
+                p.searchLength--; break;
+            case 10:
+                p.strategy = (ZSTD_strategy)(((U32)p.strategy)+1); break;
+            case 11:
+                p.strategy = (ZSTD_strategy)(((U32)p.strategy)-1); break;
+            case 12:
+                p.targetLength *= 1 + ((double)(FUZ_rand(&g_rand)&255)) / 256.; break;
+            case 13:
+                p.targetLength /= 1 + ((double)(FUZ_rand(&g_rand)&255)) / 256.; break;
+            }
         }
+        validated = !ZSTD_isError(ZSTD_checkCParams(p));
     }
-    ZSTD_validateParams(p);
+    *ptr = p;
 }
 
 
@@ -606,7 +615,7 @@ static BYTE g_alreadyTested[PARAMTABLESIZE] = {0};   /* init to zero */
 #define MAX(a,b)   ( (a) > (b) ? (a) : (b) )
 
 static void playAround(FILE* f, winnerInfo_t* winners,
-                       ZSTD_parameters params,
+                       ZSTD_compressionParameters params,
                        const void* srcBuffer, size_t srcSize,
                        ZSTD_CCtx* ctx)
 {
@@ -614,7 +623,7 @@ static void playAround(FILE* f, winnerInfo_t* winners,
     const int startTime = BMK_GetMilliStart();
 
     while (BMK_GetMilliSpan(startTime) < g_maxVariationTime) {
-        ZSTD_parameters p = params;
+        ZSTD_compressionParameters p = params;
 
         if (nbVariations++ > g_maxNbVariations) break;
         paramVariation(&p);
@@ -635,10 +644,12 @@ static void playAround(FILE* f, winnerInfo_t* winners,
 }
 
 
-static void potentialRandomParams(ZSTD_parameters* p, U32 inverseChance)
+static void potentialRandomParams(ZSTD_compressionParameters* p, U32 inverseChance)
 {
     U32 chance = (FUZ_rand(&g_rand) % (inverseChance+1));
-    if (!chance) {
+    U32 validated = 0;
+    if (!chance)
+    while (!validated) {
         /* totally random entry */
         p->contentLog = FUZ_rand(&g_rand) % (ZSTD_CONTENTLOG_MAX+1 - ZSTD_CONTENTLOG_MIN) + ZSTD_CONTENTLOG_MIN;
         p->hashLog    = FUZ_rand(&g_rand) % (ZSTD_HASHLOG_MAX+1 - ZSTD_HASHLOG_MIN) + ZSTD_HASHLOG_MIN;
@@ -647,7 +658,7 @@ static void potentialRandomParams(ZSTD_parameters* p, U32 inverseChance)
         p->searchLength=FUZ_rand(&g_rand) % (ZSTD_SEARCHLENGTH_MAX+1 - ZSTD_SEARCHLENGTH_MIN) + ZSTD_SEARCHLENGTH_MIN;
         p->targetLength=FUZ_rand(&g_rand) % (ZSTD_TARGETLENGTH_MAX+1 - ZSTD_TARGETLENGTH_MIN) + ZSTD_TARGETLENGTH_MIN;
         p->strategy   = (ZSTD_strategy) (FUZ_rand(&g_rand) % (ZSTD_btopt +1));
-        ZSTD_validateParams(p);
+        validated = !ZSTD_isError(ZSTD_checkCParams(*p));
     }
 }
 
@@ -659,10 +670,9 @@ static void BMK_selectRandomStart(
     U32 id = (FUZ_rand(&g_rand) % (ZSTD_maxCLevel()+1));
     if ((id==0) || (winners[id].params.windowLog==0)) {
         /* totally random entry */
-        ZSTD_parameters p;
+        ZSTD_compressionParameters p;
         potentialRandomParams(&p, 1);
-        p.srcSize = srcSize;
-        ZSTD_validateParams(&p);
+        ZSTD_adjustCParams(&p, srcSize, 0);
         playAround(f, winners, p, srcBuffer, srcSize, ctx);
     }
     else
@@ -673,7 +683,7 @@ static void BMK_selectRandomStart(
 static void BMK_benchMem(void* srcBuffer, size_t srcSize)
 {
     ZSTD_CCtx* ctx = ZSTD_createCCtx();
-    ZSTD_parameters params;
+    ZSTD_compressionParameters params;
     winnerInfo_t winners[NB_LEVELS_TRACKED];
     int i;
     unsigned u;
@@ -683,8 +693,7 @@ static void BMK_benchMem(void* srcBuffer, size_t srcSize)
 
     if (g_singleRun) {
         BMK_result_t testResult;
-        g_params.srcSize = blockSize;
-        ZSTD_validateParams(&g_params);
+        ZSTD_adjustCParams(&g_params, srcSize, 0);
         BMK_benchParam(&testResult, srcBuffer, srcSize, ctx, g_params);
         DISPLAY("\n");
         return;
@@ -700,7 +709,7 @@ static void BMK_benchMem(void* srcBuffer, size_t srcSize)
     else {
         /* baseline config for level 1 */
         BMK_result_t testResult;
-        params = ZSTD_getParams(1, blockSize);
+        params = ZSTD_getCParams(1, blockSize, 0);
         BMK_benchParam(&testResult, srcBuffer, srcSize, ctx, params);
         g_cSpeedTarget[1] = (testResult.cSpeed * 31) >> 5;
     }
@@ -713,8 +722,7 @@ static void BMK_benchMem(void* srcBuffer, size_t srcSize)
     {
         const int maxSeeds = g_noSeed ? 1 : ZSTD_maxCLevel();
         for (i=1; i<=maxSeeds; i++) {
-            params = ZSTD_getParams(i, blockSize);
-            ZSTD_validateParams(&params);
+            params = ZSTD_getCParams(i, blockSize, 0);
             BMK_seed(winners, params, srcBuffer, srcSize, ctx);
         }
     }
@@ -865,7 +873,7 @@ int optimizeForSize(char* inFileName)
 
     {
         ZSTD_CCtx* ctx = ZSTD_createCCtx();
-        ZSTD_parameters params;
+        ZSTD_compressionParameters params;
         winnerInfo_t winner;
         BMK_result_t candidate;
         const size_t blockSize = g_blockSize ? g_blockSize : benchedSize;
@@ -879,7 +887,7 @@ int optimizeForSize(char* inFileName)
         {
             const int maxSeeds = g_noSeed ? 1 : ZSTD_maxCLevel();
             for (i=1; i<=maxSeeds; i++) {
-                params = ZSTD_getParams(i, blockSize);
+                params = ZSTD_getCParams(i, blockSize, 0);
                 BMK_benchParam(&candidate, origBuff, benchedSize, ctx, params);
                 if ( (candidate.cSize < winner.result.cSize)
                    ||((candidate.cSize == winner.result.cSize) && (candidate.cSpeed > winner.result.cSpeed)) )
@@ -1029,7 +1037,7 @@ int main(int argc, char** argv)
                 case 'S':
                     g_singleRun = 1;
                     argument++;
-                    g_params = ZSTD_getParams(2, g_blockSize);
+                    g_params = ZSTD_getCParams(2, g_blockSize, 0);
                     for ( ; ; ) {
                         switch(*argument)
                         {
@@ -1080,7 +1088,7 @@ int main(int argc, char** argv)
                                 argument++;
                                 while ((*argument>= '0') && (*argument<='9'))
                                     cLevel *= 10, cLevel += *argument++ - '0';
-                                g_params = ZSTD_getParams(cLevel, g_blockSize);
+                                g_params = ZSTD_getCParams(cLevel, g_blockSize, 0);
                                 continue;
                             }
                         default : ;

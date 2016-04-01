@@ -25,7 +25,9 @@ roundTripTest() {
 
 echo "\n**** simple tests **** "
 ./datagen > tmp
-$ZSTD tmp
+echo -n "trivial compression : "
+$ZSTD -f tmp
+echo "OK"
 $ZSTD -99 tmp && die "too large compression level undetected"
 $ZSTD tmp -c > tmpCompressed
 $ZSTD tmp --stdout > tmpCompressed
@@ -71,6 +73,11 @@ echo "\n**** dictionary tests **** "
 ./datagen -g1M | md5sum > tmp1
 ./datagen -g1M | $ZSTD -D tmpDict | $ZSTD -D tmpDict -dvq | md5sum > tmp2
 diff -q tmp1 tmp2
+$ZSTD --train *.c *.h -o tmpDict
+$ZSTD xxhash.c -D tmpDict -of tmp
+$ZSTD -d tmp -D tmpDict -of result
+diff xxhash.c result
+
 
 echo "\n**** multiple files tests **** "
 
@@ -106,6 +113,10 @@ $ZSTD -t * && die "bad files not detected !"
 echo "\n**** zstd round-trip tests **** "
 
 roundTripTest
+roundTripTest -g15K       # TableID==3
+roundTripTest -g127K      # TableID==2
+roundTripTest -g255K      # TableID==1
+roundTripTest -g513K      # TableID==0
 roundTripTest -g512K 6    # greedy, hash chain
 roundTripTest -g512K 16   # btlazy2 
 roundTripTest -g512K 19   # btopt

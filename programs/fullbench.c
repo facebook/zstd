@@ -119,7 +119,7 @@ static clock_t BMK_clockSpan( clock_t clockStart )
 
 static size_t BMK_findMaxMem(U64 requiredMem)
 {
-    const size_t step = 64 MB;
+    size_t const step = 64 MB;
     void* testmem = NULL;
 
     requiredMem = (((requiredMem >> 26) + 1) << 26);
@@ -183,15 +183,13 @@ size_t local_ZSTD_decodeLiteralsBlock(void* dst, size_t dstSize, void* buff2, co
 }
 
 extern size_t ZSTD_getcBlockSize(const void* src, size_t srcSize, blockProperties_t* bpPtr);
-extern size_t ZSTD_decodeSeqHeaders(int* nbSeq, const BYTE** dumpsPtr, size_t* dumpsLengthPtr, FSE_DTable* DTableLL, FSE_DTable* DTableML, FSE_DTable* DTableOffb, const void* src, size_t srcSize);
+extern size_t ZSTD_decodeSeqHeaders(int* nbSeq, FSE_DTable* DTableLL, FSE_DTable* DTableML, FSE_DTable* DTableOffb, const void* src, size_t srcSize);
 size_t local_ZSTD_decodeSeqHeaders(void* dst, size_t dstSize, void* buff2, const void* src, size_t srcSize)
 {
     U32 DTableML[FSE_DTABLE_SIZE_U32(10)], DTableLL[FSE_DTABLE_SIZE_U32(10)], DTableOffb[FSE_DTABLE_SIZE_U32(9)];   /* MLFSELog, LLFSELog and OffFSELog are not public values */
-    const BYTE* dumps;
-    size_t length;
     int nbSeq;
     (void)src; (void)srcSize; (void)dst; (void)dstSize;
-    return ZSTD_decodeSeqHeaders(&nbSeq, &dumps, &length, DTableLL, DTableML, DTableOffb, buff2, g_cSize);
+    return ZSTD_decodeSeqHeaders(&nbSeq, DTableLL, DTableML, DTableOffb, buff2, g_cSize);
 }
 
 

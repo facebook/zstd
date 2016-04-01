@@ -735,7 +735,7 @@ static size_t FSE_normalizeM2(short* norm, U32 tableLog, const unsigned* count, 
 
     {
         U64 const vStepLog = 62 - tableLog;
-        U64 const mid = (LIT_U64(1) << (vStepLog-1)) - 1;
+        U64 const mid = (CONST_U64(1) << (vStepLog-1)) - 1;
         U64 const rStep = ((((U64)1<<vStepLog) * ToDistribute) + mid) / total;   /* scale on remaining */
         U64 tmpTotal = mid;
         for (s=0; s<=maxSymbolValue; s++) {
@@ -767,7 +767,7 @@ size_t FSE_normalizeCount (short* normalizedCounter, unsigned tableLog,
     {   U32 const rtbTable[] = {     0, 473195, 504333, 520860, 550000, 700000, 750000, 830000 };
         U64 const scale = 62 - tableLog;
         U64 const step = ((U64)1<<62) / total;   /* <== here, one division ! */
-        U64 const vStep = LIT_U64(1)<<(scale-20);
+        U64 const vStep = CONST_U64(1)<<(scale-20);
         int stillToDistribute = 1<<tableLog;
         unsigned s;
         unsigned largest=0;

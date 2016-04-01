@@ -94,19 +94,19 @@ static void ZSTD_copy4(void* dst, const void* src) { memcpy(dst, src, 4); }
 /*-*************************************
 *  Error Management
 ***************************************/
-unsigned ZSTD_versionNumber (void) { return ZSTD_VERSION_NUMBER; }
+ZSTDLIB_API(unsigned) ZSTD_versionNumber (void) { return ZSTD_VERSION_NUMBER; }
 
 /*! ZSTD_isError() :
 *   tells if a return value is an error code */
-unsigned ZSTD_isError(size_t code) { return ERR_isError(code); }
+ZSTDLIB_API(unsigned) ZSTD_isError(size_t code) { return ERR_isError(code); }
 
 /*! ZSTD_getError() :
 *   convert a `size_t` function result into a proper ZSTD_errorCode enum */
-ZSTD_ErrorCode ZSTD_getError(size_t code) { return ERR_getError(code); }
+ZSTDLIB_API(ZSTD_ErrorCode) ZSTD_getError(size_t code) { return ERR_getError(code); }
 
 /*! ZSTD_getErrorName() :
 *   provides error code string (useful for debugging) */
-const char* ZSTD_getErrorName(size_t code) { return ERR_getErrorName(code); }
+ZSTDLIB_API(const char*) ZSTD_getErrorName(size_t code) { return ERR_getErrorName(code); }
 
 
 /*-*************************************************************
@@ -140,7 +140,7 @@ struct ZSTD_DCtx_s
 
 size_t ZSTD_sizeofDCtx (void) { return sizeof(ZSTD_DCtx); }   /* non published interface */
 
-size_t ZSTD_decompressBegin(ZSTD_DCtx* dctx)
+ZSTDLIB_API(size_t) ZSTD_decompressBegin(ZSTD_DCtx* dctx)
 {
     dctx->expected = ZSTD_frameHeaderSize_min;
     dctx->stage = ZSTDds_getFrameHeaderSize;
@@ -153,7 +153,7 @@ size_t ZSTD_decompressBegin(ZSTD_DCtx* dctx)
     return 0;
 }
 
-ZSTD_DCtx* ZSTD_createDCtx(void)
+ZSTDLIB_API(ZSTD_DCtx*) ZSTD_createDCtx(void)
 {
     ZSTD_DCtx* dctx = (ZSTD_DCtx*)malloc(sizeof(ZSTD_DCtx));
     if (dctx==NULL) return NULL;
@@ -161,13 +161,13 @@ ZSTD_DCtx* ZSTD_createDCtx(void)
     return dctx;
 }
 
-size_t ZSTD_freeDCtx(ZSTD_DCtx* dctx)
+ZSTDLIB_API(size_t) ZSTD_freeDCtx(ZSTD_DCtx* dctx)
 {
     free(dctx);
     return 0;   /* reserved as a potential error code in the future */
 }
 
-void ZSTD_copyDCtx(ZSTD_DCtx* dstDCtx, const ZSTD_DCtx* srcDCtx)
+ZSTDLIB_API(void) ZSTD_copyDCtx(ZSTD_DCtx* dstDCtx, const ZSTD_DCtx* srcDCtx)
 {
     memcpy(dstDCtx, srcDCtx,
            sizeof(ZSTD_DCtx) - (ZSTD_BLOCKSIZE_MAX+WILDCOPY_OVERLENGTH + ZSTD_frameHeaderSize_max));  /* no need to copy workspace */
@@ -292,7 +292,7 @@ static size_t ZSTD_frameHeaderSize(const void* src, size_t srcSize)
 *   @return : 0, `fparamsPtr` is correctly filled,
 *            >0, `srcSize` is too small, result is expected `srcSize`,
 *             or an error code, which can be tested using ZSTD_isError() */
-size_t ZSTD_getFrameParams(ZSTD_frameParams* fparamsPtr, const void* src, size_t srcSize)
+ZSTDLIB_API(size_t) ZSTD_getFrameParams(ZSTD_frameParams* fparamsPtr, const void* src, size_t srcSize)
 {
     const BYTE* ip = (const BYTE*)src;
 
@@ -841,9 +841,9 @@ static size_t ZSTD_decompressBlock_internal(ZSTD_DCtx* dctx,
 }
 
 
-size_t ZSTD_decompressBlock(ZSTD_DCtx* dctx,
-                            void* dst, size_t dstCapacity,
-                      const void* src, size_t srcSize)
+ZSTDLIB_API(size_t) ZSTD_decompressBlock(ZSTD_DCtx* dctx,
+                                         void* dst, size_t dstCapacity,
+                                   const void* src, size_t srcSize)
 {
     ZSTD_checkContinuity(dctx, dst);
     return ZSTD_decompressBlock_internal(dctx, dst, dstCapacity, src, srcSize);
@@ -921,9 +921,9 @@ static size_t ZSTD_decompressFrame(ZSTD_DCtx* dctx,
 }
 
 
-size_t ZSTD_decompress_usingPreparedDCtx(ZSTD_DCtx* dctx, const ZSTD_DCtx* refDCtx,
-                                         void* dst, size_t dstCapacity,
-                                   const void* src, size_t srcSize)
+ZSTDLIB_API(size_t) ZSTD_decompress_usingPreparedDCtx(ZSTD_DCtx* dctx, const ZSTD_DCtx* refDCtx,
+                                                      void* dst, size_t dstCapacity,
+                                                const void* src, size_t srcSize)
 {
     ZSTD_copyDCtx(dctx, refDCtx);
     ZSTD_checkContinuity(dctx, dst);
@@ -931,10 +931,10 @@ size_t ZSTD_decompress_usingPreparedDCtx(ZSTD_DCtx* dctx, const ZSTD_DCtx* refDC
 }
 
 
-size_t ZSTD_decompress_usingDict(ZSTD_DCtx* dctx,
-                                 void* dst, size_t dstCapacity,
-                                 const void* src, size_t srcSize,
-                                 const void* dict, size_t dictSize)
+ZSTDLIB_API(size_t) ZSTD_decompress_usingDict(ZSTD_DCtx* dctx,
+                                              void* dst, size_t dstCapacity,
+                                        const void* src, size_t srcSize,
+                                        const void* dict, size_t dictSize)
 {
     ZSTD_decompressBegin_usingDict(dctx, dict, dictSize);
     ZSTD_checkContinuity(dctx, dst);
@@ -942,13 +942,13 @@ size_t ZSTD_decompress_usingDict(ZSTD_DCtx* dctx,
 }
 
 
-size_t ZSTD_decompressDCtx(ZSTD_DCtx* dctx, void* dst, size_t dstCapacity, const void* src, size_t srcSize)
+ZSTDLIB_API(size_t) ZSTD_decompressDCtx(ZSTD_DCtx* dctx, void* dst, size_t dstCapacity, const void* src, size_t srcSize)
 {
     return ZSTD_decompress_usingDict(dctx, dst, dstCapacity, src, srcSize, NULL, 0);
 }
 
 
-size_t ZSTD_decompress(void* dst, size_t dstCapacity, const void* src, size_t srcSize)
+ZSTDLIB_API(size_t) ZSTD_decompress(void* dst, size_t dstCapacity, const void* src, size_t srcSize)
 {
 #if defined(ZSTD_HEAPMODE) && (ZSTD_HEAPMODE==1)
     size_t regenSize;
@@ -967,12 +967,12 @@ size_t ZSTD_decompress(void* dst, size_t dstCapacity, const void* src, size_t sr
 /*_******************************
 *  Streaming Decompression API
 ********************************/
-size_t ZSTD_nextSrcSizeToDecompress(ZSTD_DCtx* dctx)
+ZSTDLIB_API(size_t) ZSTD_nextSrcSizeToDecompress(ZSTD_DCtx* dctx)
 {
     return dctx->expected;
 }
 
-size_t ZSTD_decompressContinue(ZSTD_DCtx* dctx, void* dst, size_t maxDstSize, const void* src, size_t srcSize)
+ZSTDLIB_API(size_t) ZSTD_decompressContinue(ZSTD_DCtx* dctx, void* dst, size_t maxDstSize, const void* src, size_t srcSize)
 {
     /* Sanity check */
     if (srcSize != dctx->expected) return ERROR(srcSize_wrong);
@@ -1121,7 +1121,7 @@ static size_t ZSTD_decompress_insertDictionary(ZSTD_DCtx* dctx, const void* dict
 }
 
 
-size_t ZSTD_decompressBegin_usingDict(ZSTD_DCtx* dctx, const void* dict, size_t dictSize)
+ZSTDLIB_API(size_t) ZSTD_decompressBegin_usingDict(ZSTD_DCtx* dctx, const void* dict, size_t dictSize)
 {
     { size_t const errorCode = ZSTD_decompressBegin(dctx);
       if (ZSTD_isError(errorCode)) return errorCode; }

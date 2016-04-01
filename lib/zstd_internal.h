@@ -55,13 +55,20 @@
 #define ZSTD_OPT_DEBUG 0     // 3 = compression stats;  5 = check encoded sequences;  9 = full logs
 #include <stdio.h>
 #if defined(ZSTD_OPT_DEBUG) && ZSTD_OPT_DEBUG>=9
-    #define ZSTD_LOG_PARSER(...) printf(__VA_ARGS__)
-    #define ZSTD_LOG_ENCODE(...) printf(__VA_ARGS__)
-    #define ZSTD_LOG_BLOCK(...) printf(__VA_ARGS__)
+  #define ZSTD_LOG_PARSER
+  #define ZSTD_LOG_ENCODE
+  #define ZSTD_LOG_BLOCK
 #else
+  #if defined(_MSC_VER) && (_MSC_VER < 1400)       /* For VC6 and other legacy versions */
+    void __inline impl_ZSTD_LOG_PARSER(...) { }
+    #define ZSTD_LOG_PARSER impl_ZSTD_LOG_PARSER
+    #define ZSTD_LOG_ENCODE impl_ZSTD_LOG_PARSER
+    #define ZSTD_LOG_BLOCK impl_ZSTD_LOG_PARSER
+  #else
     #define ZSTD_LOG_PARSER(...)
     #define ZSTD_LOG_ENCODE(...)
     #define ZSTD_LOG_BLOCK(...)
+  #endif
 #endif
 
 #define ZSTD_OPT_NUM    (1<<12)

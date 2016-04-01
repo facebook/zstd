@@ -135,8 +135,9 @@ size_t ZBUFF_compressInit_advanced(ZBUFF_CCtx* zbc,
             free(zbc->inBuff);   /* should not be necessary */
             zbc->inBuff = (char*)malloc(neededInBuffSize);
             if (zbc->inBuff == NULL) return ERROR(memory_allocation);
-    }   }
-    zbc->blockSize = MIN(ZSTD_BLOCKSIZE_MAX, zbc->inBuffSize);
+        }
+        zbc->blockSize = MIN(ZSTD_BLOCKSIZE_MAX, neededInBuffSize);
+    }
     if (zbc->outBuffSize < ZSTD_compressBound(zbc->blockSize)+1) {
         zbc->outBuffSize = ZSTD_compressBound(zbc->blockSize)+1;
         free(zbc->outBuff);   /* should not be necessary */

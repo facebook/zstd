@@ -161,11 +161,11 @@ static unsigned ZSTD_highbit(U32 val);
     temporary work-around, while the compressor compatibility remains limited regarding windowLog < 18 */
 size_t ZSTD_checkCParams_advanced(ZSTD_compressionParameters cParams, U64 srcSize)
 {
-    if (srcSize > (1U << ZSTD_WINDOWLOG_MIN)) return ZSTD_checkCParams(cParams);
+    if (srcSize > (1ULL << ZSTD_WINDOWLOG_MIN)) return ZSTD_checkCParams(cParams);
     if (cParams.windowLog < ZSTD_WINDOWLOG_ABSOLUTEMIN) return ERROR(compressionParameter_unsupported);
-    if (srcSize <= (1U << cParams.windowLog)) cParams.windowLog = ZSTD_WINDOWLOG_MIN;   /* fake value - temporary work around */
-    if (srcSize <= (1U << cParams.hashLog)) cParams.hashLog = ZSTD_HASHLOG_MIN;       /* fake value - temporary work around */
-    if (srcSize <= (1U << cParams.contentLog)) cParams.contentLog = ZSTD_CONTENTLOG_MIN; /* fake value - temporary work around */
+    if (srcSize <= (1ULL << cParams.windowLog)) cParams.windowLog = ZSTD_WINDOWLOG_MIN;   /* fake value - temporary work around */
+    if (srcSize <= (1ULL << cParams.hashLog)) cParams.hashLog = ZSTD_HASHLOG_MIN;       /* fake value - temporary work around */
+    if (srcSize <= (1ULL << cParams.contentLog)) cParams.contentLog = ZSTD_CONTENTLOG_MIN; /* fake value - temporary work around */
     return ZSTD_checkCParams(cParams);
 }
 

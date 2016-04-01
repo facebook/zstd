@@ -193,6 +193,7 @@ void ZSTD_adjustCParams(ZSTD_compressionParameters* params, U64 srcSize, size_t 
         if (params->contentLog > maxContentLog) params->contentLog = maxContentLog; }   /* <= ZSTD_CONTENTLOG_MAX */
 
     if (params->windowLog  < ZSTD_WINDOWLOG_ABSOLUTEMIN) params->windowLog = ZSTD_WINDOWLOG_ABSOLUTEMIN;  /* required for frame header */
+    if ((params->hashLog  < ZSTD_HASHLOG_MIN) && ((U32)params->strategy >= (U32)ZSTD_btlazy2)) params->hashLog = ZSTD_HASHLOG_MIN;  /* required to ensure collision resistance in bt */
 }
 
 

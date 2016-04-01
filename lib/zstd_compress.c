@@ -208,7 +208,8 @@ size_t ZSTD_sizeofCCtx(ZSTD_compressionParameters cParams)   /* hidden interface
       return ccsize; }
 }
 
-
+/*! ZSTD_resetCCtx_advanced() :
+    note : 'params' is expected to be validated */
 static size_t ZSTD_resetCCtx_advanced (ZSTD_CCtx* zc,
                                        ZSTD_parameters params)
 {   /* note : params considered validated here */
@@ -1200,8 +1201,8 @@ static void ZSTD_compressBlock_fast_extDict_generic(ZSTD_CCtx* ctx,
             hashTable[ZSTD_hashPtr(ip-2, hBits, mls)] = (U32)(ip-2-base);
             /* check immediate repcode */
             while (ip <= ilimit) {
-                U32 current2 = (U32)(ip-base);
-                const U32 repIndex2 = current2 - offset_2;
+                U32 const current2 = (U32)(ip-base);
+                U32 const repIndex2 = current2 - offset_2;
                 const BYTE* repMatch2 = repIndex2 < dictLimit ? dictBase + repIndex2 : base + repIndex2;
                 if ( ((repIndex2 <= dictLimit-4) || (repIndex2 >= dictLimit))
                   && (MEM_read32(repMatch2) == MEM_read32(ip)) ) {
@@ -2233,18 +2234,12 @@ static size_t ZSTD_compress_insertDictionary(ZSTD_CCtx* zc, const void* dict, si
 }
 
 
-/*! ZSTD_compressBegin_advanced() :
+/*! ZSTD_compressBegin_internal() :
 *   @return : 0, or an error code */
-size_t ZSTD_compressBegin_advanced(ZSTD_CCtx* zc,
+static size_t ZSTD_compressBegin_internal(ZSTD_CCtx* zc,
                              const void* dict, size_t dictSize,
                                    ZSTD_parameters params, U64 pledgedSrcSize)
 {
-    /* compression parameters verification and optimization */
-    { size_t const errorCode = ZSTD_checkCParams_advanced(params.cParams, pledgedSrcSize);
-      if (ZSTD_isError(errorCode)) return errorCode; }
-
-    ZSTD_adjustCParams(&params.cParams, pledgedSrcSize, dictSize);
-
     { size_t const errorCode = ZSTD_resetCCtx_advanced(zc, params);
       if (ZSTD_isError(errorCode)) return errorCode; }
 
@@ -2272,13 +2267,28 @@ size_t ZSTD_compressBegin_advanced(ZSTD_CCtx* zc,
 }
 
 
+/*! ZSTD_compressBegin_advanced() :
+*   @return : 0, or an error code */
+size_t ZSTD_compressBegin_advanced(ZSTD_CCtx* zc,
+                             const void* dict, size_t dictSize,
+                                   ZSTD_parameters params, U64 pledgedSrcSize)
+{
+    /* compression parameters verification and optimization */
+    { size_t const errorCode = ZSTD_checkCParams_advanced(params.cParams, pledgedSrcSize);
+      if (ZSTD_isError(errorCode)) return errorCode; }
+
+    return ZSTD_compressBegin_internal(zc, dict, dictSize, params, pledgedSrcSize);
+}
+
+
 size_t ZSTD_compressBegin_usingDict(ZSTD_CCtx* zc, const void* dict, size_t dictSize, int compressionLevel)
 {
     ZSTD_parameters params;
     params.cParams = ZSTD_getCParams(compressionLevel, 0, dictSize);
     params.fParams.contentSizeFlag = 0;
+    ZSTD_adjustCParams(&params.cParams, 0, dictSize);
     ZSTD_LOG_BLOCK("%p: ZSTD_compressBegin_usingDict compressionLevel=%d\n", zc->base, compressionLevel);
-    return ZSTD_compressBegin_advanced(zc, dict, dictSize, params, 0);
+    return ZSTD_compressBegin_internal(zc, dict, dictSize, params, 0);
 }
 
 size_t ZSTD_compressBegin(ZSTD_CCtx* zc, int compressionLevel)
@@ -2342,7 +2352,7 @@ static size_t ZSTD_compress_internal (ZSTD_CCtx* ctx,
     BYTE* op = ostart;
 
     /* Init */
-    { size_t const errorCode = ZSTD_compressBegin_advanced(ctx, dict, dictSize, params, srcSize);
+    { size_t const errorCode = ZSTD_compressBegin_internal(ctx, dict, dictSize, params, srcSize);
       if(ZSTD_isError(errorCode)) return errorCode; }
 
     /* body (compression) */

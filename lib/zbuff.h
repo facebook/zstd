@@ -31,11 +31,6 @@
 #ifndef ZSTD_BUFFERED_H
 #define ZSTD_BUFFERED_H
 
-/* The objects defined into this file should be considered experimental.
- * They are not considered stable, as their prototype may change in the future.
- * You can use them for tests, provide feedback, or if you can endure risk of future changes.
- */
-
 #if defined (__cplusplus)
 extern "C" {
 #endif
@@ -89,12 +84,12 @@ ZSTDLIB_API size_t ZBUFF_compressEnd(ZBUFF_CCtx* cctx, void* dst, size_t* dstCap
 *  *srcSizePtr and *dstCapacityPtr can be any size.
 *  The function will report how many bytes were read or written within *srcSizePtr and *dstCapacityPtr.
 *  Note that it may not consume the entire input, in which case it's up to the caller to present again remaining data.
-*  The content of @dst will be overwritten (up to *dstCapacityPtr) at each call, so save its content if it matters or change @dst .
+*  The content of `dst` will be overwritten (up to *dstCapacityPtr) at each call, so save its content if it matters or change @dst .
 *  @return : a hint to preferred nb of bytes to use as input for next function call (it's just a hint, to improve latency)
 *            or an error code, which can be tested using ZBUFF_isError().
 *
 *  At any moment, it's possible to flush whatever data remains within buffer, using ZBUFF_compressFlush().
-*  The nb of bytes written into @dst will be reported into *dstCapacityPtr.
+*  The nb of bytes written into `dst` will be reported into *dstCapacityPtr.
 *  Note that the function cannot output more than *dstCapacityPtr,
 *  therefore, some content might still be left into internal buffer if *dstCapacityPtr is too small.
 *  @return : nb of bytes still present into internal buffer (0 if it's empty)
@@ -139,13 +134,13 @@ ZSTDLIB_API size_t ZBUFF_decompressContinue(ZBUFF_DCtx* dctx,
 *  *srcSizePtr and *dstCapacityPtr can be any size.
 *  The function will report how many bytes were read or written by modifying *srcSizePtr and *dstCapacityPtr.
 *  Note that it may not consume the entire input, in which case it's up to the caller to present remaining input again.
-*  The content of @dst will be overwritten (up to *dstCapacityPtr) at each function call, so save its content if it matters, or change @dst.
+*  The content of `dst` will be overwritten (up to *dstCapacityPtr) at each function call, so save its content if it matters, or change `dst`.
 *  @return : a hint to preferred nb of bytes to use as input for next function call (it's only a hint, to help latency),
 *            or 0 when a frame is completely decoded,
 *            or an error code, which can be tested using ZBUFF_isError().
 *
 *  Hint : recommended buffer sizes (not compulsory) : ZBUFF_recommendedDInSize() and ZBUFF_recommendedDOutSize()
-*  output : ZBUFF_recommendedDOutSize==128 KB block size is the internal unit, it ensures it's always possible to write a full block when decoded.
+*  output : ZBUFF_recommendedDOutSize== 128 KB block size is the internal unit, it ensures it's always possible to write a full block when decoded.
 *  input  : ZBUFF_recommendedDInSize == 128KB + 3;
 *           just follow indications from ZBUFF_decompressContinue() to minimize latency. It should always be <= 128 KB + 3 .
 * *******************************************************************************/

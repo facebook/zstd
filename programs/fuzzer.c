@@ -488,12 +488,12 @@ int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, U32 maxDuration, doub
         if (cSize > 3) {
             const size_t missing = (FUZ_rand(&lseed) % (cSize-2)) + 1;   /* no problem, as cSize > 4 (frameHeaderSizer) */
             const size_t tooSmallSize = cSize - missing;
-            static const U32 endMark = 0x4DC2B1A9;
+            const U32 endMark = 0x4DC2B1A9;
             memcpy(dstBuffer+tooSmallSize, &endMark, 4);
             errorCode = ZSTD_compressCCtx(ctx, dstBuffer, tooSmallSize, sampleBuffer, sampleSize, cLevel);
             CHECK(!ZSTD_isError(errorCode), "ZSTD_compressCCtx should have failed ! (buffer too small : %u < %u)", (U32)tooSmallSize, (U32)cSize);
             { U32 endCheck; memcpy(&endCheck, dstBuffer+tooSmallSize, 4);
-            CHECK(endCheck != endMark, "ZSTD_compressCCtx : dst buffer overflow"); }
+              CHECK(endCheck != endMark, "ZSTD_compressCCtx : dst buffer overflow"); }
         }
 
         /* frame header decompression test */

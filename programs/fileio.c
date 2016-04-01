@@ -333,28 +333,28 @@ static int FIO_compressFilename_internal(cRess_t ress,
 {
     FILE* srcFile = ress.srcFile;
     FILE* dstFile = ress.dstFile;
-    U64 filesize = 0;
+    U64 readsize = 0;
     U64 compressedfilesize = 0;
     size_t dictSize = ress.dictBufferSize;
-    size_t sizeCheck, errorCode;
+    size_t sizeCheck;
     ZSTD_parameters params;
+    U64 const fileSize = FIO_getFileSize(srcFileName);
 
     /* init */
-    filesize = MAX(FIO_getFileSize(srcFileName),dictSize);
-    params = ZSTD_getParams(cLevel, filesize);
-    params.srcSize = filesize;
-    if (g_maxWLog) if (params.windowLog > g_maxWLog) params.windowLog = g_maxWLog;
-    errorCode = ZBUFF_compressInit_advanced(ress.ctx, ress.dictBuffer, ress.dictBufferSize, params);
-    if (ZBUFF_isError(errorCode)) EXM_THROW(21, "Error initializing compression : %s", ZBUFF_getErrorName(errorCode));
+    params.cParams = ZSTD_getCParams(cLevel, fileSize, dictSize);
+    params.fParams.contentSizeFlag = 1;
+    if (g_maxWLog) if (params.cParams.windowLog > g_maxWLog) params.cParams.windowLog = g_maxWLog;
+    { size_t const errorCode = ZBUFF_compressInit_advanced(ress.ctx, ress.dictBuffer, ress.dictBufferSize, params, fileSize);
+      if (ZBUFF_isError(errorCode)) EXM_THROW(21, "Error initializing compression : %s", ZBUFF_getErrorName(errorCode)); }
 
     /* Main compression loop */
-    filesize = 0;
+    readsize = 0;
     while (1) {
         /* Fill input Buffer */
-        size_t inSize = fread(ress.srcBuffer, (size_t)1, ress.srcBufferSize, srcFile);
+        size_t const inSize = fread(ress.srcBuffer, (size_t)1, ress.srcBufferSize, srcFile);
         if (inSize==0) break;
-        filesize += inSize;
-        DISPLAYUPDATE(2, "\rRead : %u MB  ", (U32)(filesize>>20));
+        readsize += inSize;
+        DISPLAYUPDATE(2, "\rRead : %u MB  ", (U32)(readsize>>20));
 
         {   /* Compress using buffered streaming */
             size_t usedInSize = inSize;
@@ -371,13 +371,12 @@ static int FIO_compressFilename_internal(cRess_t ress,
             if (sizeCheck!=cSize) EXM_THROW(25, "Write error : cannot write compressed block into %s", dstFileName);
             compressedfilesize += cSize;
         }
-        DISPLAYUPDATE(2, "\rRead : %u MB  ==> %.2f%%   ", (U32)(filesize>>20), (double)compressedfilesize/filesize*100);
+        DISPLAYUPDATE(2, "\rRead : %u MB  ==> %.2f%%   ", (U32)(readsize>>20), (double)compressedfilesize/readsize*100);
     }
 
     /* End of Frame */
-    {
-        size_t cSize = ress.dstBufferSize;
-        size_t result = ZBUFF_compressEnd(ress.ctx, ress.dstBuffer, &cSize);
+    {   size_t cSize = ress.dstBufferSize;
+        size_t const result = ZBUFF_compressEnd(ress.ctx, ress.dstBuffer, &cSize);
         if (result!=0) EXM_THROW(26, "Compression error : cannot create frame end");
 
         sizeCheck = fwrite(ress.dstBuffer, 1, cSize, dstFile);
@@ -388,7 +387,7 @@ static int FIO_compressFilename_internal(cRess_t ress,
     /* Status */
     DISPLAYLEVEL(2, "\r%79s\r", "");
     DISPLAYLEVEL(2,"Compressed %llu bytes into %llu bytes ==> %.2f%%\n",
-        (unsigned long long) filesize, (unsigned long long) compressedfilesize, (double)compressedfilesize/filesize*100);
+        (unsigned long long)readsize, (unsigned long long) compressedfilesize, (double)compressedfilesize/readsize*100);
 
     return 0;
 }

@@ -90,31 +90,31 @@ typedef struct
 /*-*************************************
 *  Advanced functions
 ***************************************/
-ZSTDLIB_API unsigned ZSTD_maxCLevel (void);
+ZSTDLIB_API(unsigned) ZSTD_maxCLevel (void);
 
 /*! ZSTD_getParams() :
 *   @return ZSTD_parameters structure for a selected compression level and srcSize.
 *   `srcSizeHint` value is optional, select 0 if not known */
-ZSTDLIB_API ZSTD_parameters ZSTD_getParams(int compressionLevel, U64 srcSizeHint);
+ZSTDLIB_API(ZSTD_parameters) ZSTD_getParams(int compressionLevel, U64 srcSizeHint);
 
 /*! ZSTD_validateParams() :
 *   correct params value to remain within authorized range */
-ZSTDLIB_API void ZSTD_validateParams(ZSTD_parameters* params);
+ZSTDLIB_API(void) ZSTD_validateParams(ZSTD_parameters* params);
 
 /*! ZSTD_compress_advanced() :
 *   Same as ZSTD_compress_usingDict(), with fine-tune control of each compression parameter */
-ZSTDLIB_API size_t ZSTD_compress_advanced (ZSTD_CCtx* ctx,
-                                           void* dst, size_t dstCapacity,
-                                     const void* src, size_t srcSize,
-                                     const void* dict,size_t dictSize,
-                                           ZSTD_parameters params);
+ZSTDLIB_API(size_t) ZSTD_compress_advanced (ZSTD_CCtx* ctx,
+                                            void* dst, size_t dstCapacity,
+                                      const void* src, size_t srcSize,
+                                      const void* dict,size_t dictSize,
+                                            ZSTD_parameters params);
 
 /*! ZSTD_compress_usingPreparedDCtx() :
 *   Same as ZSTD_compress_usingDict, but using a reference context `preparedCCtx`, where dictionary has been loaded.
 *   It avoids reloading the dictionary each time.
 *   `preparedCCtx` must have been properly initialized using ZSTD_compressBegin_usingDict() or ZSTD_compressBegin_advanced().
 *   Requires 2 contexts : 1 for reference, which will not be modified, and 1 to run the compression operation */
-ZSTDLIB_API size_t ZSTD_compress_usingPreparedCCtx(
+ZSTDLIB_API(size_t) ZSTD_compress_usingPreparedCCtx(
                                            ZSTD_CCtx* cctx, const ZSTD_CCtx* preparedCCtx,
                                            void* dst, size_t dstCapacity,
                                      const void* src, size_t srcSize);
@@ -126,7 +126,7 @@ ZSTDLIB_API size_t ZSTD_compress_usingPreparedCCtx(
 *   It avoids reloading the dictionary each time.
 *   `preparedDCtx` must have been properly initialized using ZSTD_decompressBegin_usingDict().
 *   Requires 2 contexts : 1 for reference, which will not be modified, and 1 to run the decompression operation */
-ZSTDLIB_API size_t ZSTD_decompress_usingPreparedDCtx(
+ZSTDLIB_API(size_t) ZSTD_decompress_usingPreparedDCtx(
                                              ZSTD_DCtx* dctx, const ZSTD_DCtx* preparedDCtx,
                                              void* dst, size_t dstCapacity,
                                        const void* src, size_t srcSize);
@@ -135,13 +135,13 @@ ZSTDLIB_API size_t ZSTD_decompress_usingPreparedDCtx(
 /* **************************************
 *  Streaming functions (direct mode)
 ****************************************/
-ZSTDLIB_API size_t ZSTD_compressBegin(ZSTD_CCtx* cctx, int compressionLevel);
-ZSTDLIB_API size_t ZSTD_compressBegin_usingDict(ZSTD_CCtx* cctx, const void* dict,size_t dictSize, int compressionLevel);
-ZSTDLIB_API size_t ZSTD_compressBegin_advanced(ZSTD_CCtx* cctx, const void* dict,size_t dictSize, ZSTD_parameters params);
-ZSTDLIB_API size_t ZSTD_copyCCtx(ZSTD_CCtx* cctx, const ZSTD_CCtx* preparedCCtx);
+ZSTDLIB_API(size_t) ZSTD_compressBegin(ZSTD_CCtx* cctx, int compressionLevel);
+ZSTDLIB_API(size_t) ZSTD_compressBegin_usingDict(ZSTD_CCtx* cctx, const void* dict,size_t dictSize, int compressionLevel);
+ZSTDLIB_API(size_t) ZSTD_compressBegin_advanced(ZSTD_CCtx* cctx, const void* dict,size_t dictSize, ZSTD_parameters params);
+ZSTDLIB_API(size_t) ZSTD_copyCCtx(ZSTD_CCtx* cctx, const ZSTD_CCtx* preparedCCtx);
 
-ZSTDLIB_API size_t ZSTD_compressContinue(ZSTD_CCtx* cctx, void* dst, size_t dstCapacity, const void* src, size_t srcSize);
-ZSTDLIB_API size_t ZSTD_compressEnd(ZSTD_CCtx* cctx, void* dst, size_t dstCapacity);
+ZSTDLIB_API(size_t) ZSTD_compressContinue(ZSTD_CCtx* cctx, void* dst, size_t dstCapacity, const void* src, size_t srcSize);
+ZSTDLIB_API(size_t) ZSTD_compressEnd(ZSTD_CCtx* cctx, void* dst, size_t dstCapacity);
 
 /*
   Streaming compression, synchronous mode (bufferless)
@@ -167,14 +167,14 @@ ZSTDLIB_API size_t ZSTD_compressEnd(ZSTD_CCtx* cctx, void* dst, size_t dstCapaci
 */
 
 
-ZSTDLIB_API size_t ZSTD_decompressBegin(ZSTD_DCtx* dctx);
-ZSTDLIB_API size_t ZSTD_decompressBegin_usingDict(ZSTD_DCtx* dctx, const void* dict, size_t dictSize);
-ZSTDLIB_API void   ZSTD_copyDCtx(ZSTD_DCtx* dctx, const ZSTD_DCtx* preparedDCtx);
+ZSTDLIB_API(size_t) ZSTD_decompressBegin(ZSTD_DCtx* dctx);
+ZSTDLIB_API(size_t) ZSTD_decompressBegin_usingDict(ZSTD_DCtx* dctx, const void* dict, size_t dictSize);
+ZSTDLIB_API(void)   ZSTD_copyDCtx(ZSTD_DCtx* dctx, const ZSTD_DCtx* preparedDCtx);
 
-ZSTDLIB_API size_t ZSTD_getFrameParams(ZSTD_parameters* params, const void* src, size_t srcSize);
+ZSTDLIB_API(size_t) ZSTD_getFrameParams(ZSTD_parameters* params, const void* src, size_t srcSize);
 
-ZSTDLIB_API size_t ZSTD_nextSrcSizeToDecompress(ZSTD_DCtx* dctx);
-ZSTDLIB_API size_t ZSTD_decompressContinue(ZSTD_DCtx* dctx, void* dst, size_t dstCapacity, const void* src, size_t srcSize);
+ZSTDLIB_API(size_t) ZSTD_nextSrcSizeToDecompress(ZSTD_DCtx* dctx);
+ZSTDLIB_API(size_t) ZSTD_decompressContinue(ZSTD_DCtx* dctx, void* dst, size_t dstCapacity, const void* src, size_t srcSize);
 
 /*
   Streaming decompression, direct mode (bufferless)

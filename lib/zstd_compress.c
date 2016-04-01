@@ -70,7 +70,7 @@ static const U32 g_searchStrength = 8;
 /*-*************************************
 *  Helper functions
 ***************************************/
-size_t ZSTD_compressBound(size_t srcSize) { return FSE_compressBound(srcSize) + 12; }
+ZSTDLIB_API(size_t) ZSTD_compressBound(size_t srcSize) { return FSE_compressBound(srcSize) + 12; }
 
 
 /*-*************************************
@@ -135,12 +135,12 @@ struct ZSTD_CCtx_s
     FSE_CTable litlengthCTable   [FSE_CTABLE_SIZE_U32(LLFSELog, MaxLL)];
 };
 
-ZSTD_CCtx* ZSTD_createCCtx(void)
+ZSTDLIB_API(ZSTD_CCtx*) ZSTD_createCCtx(void)
 {
     return (ZSTD_CCtx*) calloc(1, sizeof(ZSTD_CCtx));
 }
 
-size_t ZSTD_freeCCtx(ZSTD_CCtx* cctx)
+ZSTDLIB_API(size_t) ZSTD_freeCCtx(ZSTD_CCtx* cctx)
 {
     free(cctx->workSpace);
     free(cctx);
@@ -160,7 +160,7 @@ static unsigned ZSTD_highbit(U32 val);
 /** ZSTD_validateParams() :
     correct params value to remain within authorized range,
     optimize for `srcSize` if srcSize > 0 */
-void ZSTD_validateParams(ZSTD_parameters* params)
+ZSTDLIB_API(void) ZSTD_validateParams(ZSTD_parameters* params)
 {
     const U32 btPlus = (params->strategy == ZSTD_btlazy2) || (params->strategy == ZSTD_btopt);
 
@@ -240,7 +240,7 @@ static size_t ZSTD_resetCCtx_advanced (ZSTD_CCtx* zc,
 *   Duplicate an existing context @srcCCtx into another one @dstCCtx.
 *   Only works during stage 0 (i.e. before first call to ZSTD_compressContinue())
 *   @return : 0, or an error code */
-size_t ZSTD_copyCCtx(ZSTD_CCtx* dstCCtx, const ZSTD_CCtx* srcCCtx)
+ZSTDLIB_API(size_t) ZSTD_copyCCtx(ZSTD_CCtx* dstCCtx, const ZSTD_CCtx* srcCCtx)
 {
     const U32 contentLog = (srcCCtx->params.strategy == ZSTD_fast) ? 1 : srcCCtx->params.contentLog;
     const size_t tableSpace = ((1 << contentLog) + (1 << srcCCtx->params.hashLog)) * sizeof(U32);
@@ -2020,7 +2020,7 @@ static size_t ZSTD_compressContinue_internal (ZSTD_CCtx* zc,
 }
 
 
-size_t ZSTD_compressContinue (ZSTD_CCtx* zc,
+ZSTDLIB_API(size_t) ZSTD_compressContinue (ZSTD_CCtx* zc,
                               void* dst, size_t dstSize,
                         const void* src, size_t srcSize)
 {
@@ -2143,7 +2143,7 @@ static size_t ZSTD_compress_insertDictionary(ZSTD_CCtx* zc, const void* dict, si
 
 /*! ZSTD_compressBegin_advanced
 *   @return : 0, or an error code */
-size_t ZSTD_compressBegin_advanced(ZSTD_CCtx* zc,
+ZSTDLIB_API(size_t) ZSTD_compressBegin_advanced(ZSTD_CCtx* zc,
                              const void* dict, size_t dictSize,
                                    ZSTD_parameters params)
 {
@@ -2163,12 +2163,12 @@ size_t ZSTD_compressBegin_advanced(ZSTD_CCtx* zc,
 }
 
 
-size_t ZSTD_compressBegin_usingDict(ZSTD_CCtx* zc, const void* dict, size_t dictSize, int compressionLevel)
+ZSTDLIB_API(size_t) ZSTD_compressBegin_usingDict(ZSTD_CCtx* zc, const void* dict, size_t dictSize, int compressionLevel)
 {
     return ZSTD_compressBegin_advanced(zc, dict, dictSize, ZSTD_getParams(compressionLevel, MAX(128 KB, dictSize)));
 }
 
-size_t ZSTD_compressBegin(ZSTD_CCtx* zc, int compressionLevel)
+ZSTDLIB_API(size_t) ZSTD_compressBegin(ZSTD_CCtx* zc, int compressionLevel)
 {
     return ZSTD_compressBegin_advanced(zc, NULL, 0, ZSTD_getParams(compressionLevel, 0));
 }
@@ -2177,7 +2177,7 @@ size_t ZSTD_compressBegin(ZSTD_CCtx* zc, int compressionLevel)
 /*! ZSTD_compressEnd
 *   Write frame epilogue
 *   @return : nb of bytes written into dst (or an error code) */
-size_t ZSTD_compressEnd(ZSTD_CCtx* zc, void* dst, size_t maxDstSize)
+ZSTDLIB_API(size_t) ZSTD_compressEnd(ZSTD_CCtx* zc, void* dst, size_t maxDstSize)
 {
     BYTE* op = (BYTE*)dst;
     size_t hbSize = 0;
@@ -2202,7 +2202,7 @@ size_t ZSTD_compressEnd(ZSTD_CCtx* zc, void* dst, size_t maxDstSize)
 }
 
 
-size_t ZSTD_compress_usingPreparedCCtx(ZSTD_CCtx* cctx, const ZSTD_CCtx* preparedCCtx,
+ZSTDLIB_API(size_t) ZSTD_compress_usingPreparedCCtx(ZSTD_CCtx* cctx, const ZSTD_CCtx* preparedCCtx,
                                        void* dst, size_t maxDstSize,
                                  const void* src, size_t srcSize)
 {
@@ -2219,7 +2219,7 @@ size_t ZSTD_compress_usingPreparedCCtx(ZSTD_CCtx* cctx, const ZSTD_CCtx* prepare
 }
 
 
-size_t ZSTD_compress_advanced (ZSTD_CCtx* ctx,
+ZSTDLIB_API(size_t) ZSTD_compress_advanced (ZSTD_CCtx* ctx,
                                void* dst, size_t maxDstSize,
                          const void* src, size_t srcSize,
                          const void* dict,size_t dictSize,
@@ -2247,17 +2247,17 @@ size_t ZSTD_compress_advanced (ZSTD_CCtx* ctx,
     return (op - ostart);
 }
 
-size_t ZSTD_compress_usingDict(ZSTD_CCtx* ctx, void* dst, size_t maxDstSize, const void* src, size_t srcSize, const void* dict, size_t dictSize, int compressionLevel)
+ZSTDLIB_API(size_t) ZSTD_compress_usingDict(ZSTD_CCtx* ctx, void* dst, size_t maxDstSize, const void* src, size_t srcSize, const void* dict, size_t dictSize, int compressionLevel)
 {
     return ZSTD_compress_advanced(ctx, dst, maxDstSize, src, srcSize, dict, dictSize, ZSTD_getParams(compressionLevel, srcSize));
 }
 
-size_t ZSTD_compressCCtx (ZSTD_CCtx* ctx, void* dst, size_t maxDstSize, const void* src, size_t srcSize, int compressionLevel)
+ZSTDLIB_API(size_t) ZSTD_compressCCtx (ZSTD_CCtx* ctx, void* dst, size_t maxDstSize, const void* src, size_t srcSize, int compressionLevel)
 {
     return ZSTD_compress_advanced(ctx, dst, maxDstSize, src, srcSize, NULL, 0, ZSTD_getParams(compressionLevel, srcSize));
 }
 
-size_t ZSTD_compress(void* dst, size_t maxDstSize, const void* src, size_t srcSize, int compressionLevel)
+ZSTDLIB_API(size_t) ZSTD_compress(void* dst, size_t maxDstSize, const void* src, size_t srcSize, int compressionLevel)
 {
     size_t result;
     ZSTD_CCtx ctxBody;
@@ -2271,7 +2271,7 @@ size_t ZSTD_compress(void* dst, size_t maxDstSize, const void* src, size_t srcSi
 /*-=====  Pre-defined compression levels  =====-*/
 
 #define ZSTD_MAX_CLEVEL 21
-unsigned ZSTD_maxCLevel(void) { return ZSTD_MAX_CLEVEL; }
+ZSTDLIB_API(unsigned) ZSTD_maxCLevel(void) { return ZSTD_MAX_CLEVEL; }
 
 static const ZSTD_parameters ZSTD_defaultParameters[4][ZSTD_MAX_CLEVEL+1] = {
 {   /* "default" */
@@ -2380,7 +2380,7 @@ static const ZSTD_parameters ZSTD_defaultParameters[4][ZSTD_MAX_CLEVEL+1] = {
 /*! ZSTD_getParams
 *   @return ZSTD_parameters structure for a selected compression level and srcSize.
 *   @srcSizeHint value is optional, select 0 if not known */
-ZSTD_parameters ZSTD_getParams(int compressionLevel, U64 srcSizeHint)
+ZSTDLIB_API(ZSTD_parameters) ZSTD_getParams(int compressionLevel, U64 srcSizeHint)
 {
     ZSTD_parameters result;
     int tableID = ((srcSizeHint-1) <= 256 KB) + ((srcSizeHint-1) <= 128 KB) + ((srcSizeHint-1) <= 16 KB);   /* intentional underflow for srcSizeHint == 0 */

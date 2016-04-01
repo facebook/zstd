@@ -164,7 +164,7 @@ size_t ZBUFF_compressInit(ZBUFF_CCtx* zbc, int compressionLevel)
 }
 
 
-ZSTDLIB_API size_t ZBUFF_compressInitDictionary(ZBUFF_CCtx* zbc, const void* dict, size_t dictSize, int compressionLevel)
+ZSTDLIB_API(size_t) ZBUFF_compressInitDictionary(ZBUFF_CCtx* zbc, const void* dict, size_t dictSize, int compressionLevel)
 {
     return ZBUFF_compressInit_advanced(zbc, dict, dictSize, ZSTD_getParams(compressionLevel, 0));
 }

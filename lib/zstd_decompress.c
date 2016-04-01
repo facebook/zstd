@@ -574,7 +574,7 @@ size_t ZSTD_decodeSeqHeaders(int* nbSeqPtr,
     /* SeqHead */
     {   int nbSeq = *ip++;
         if (!nbSeq) { *nbSeqPtr=0; return 1; }
-        if (nbSeq >= 0x7F) {
+        if (nbSeq > 0x7F) {
             if (nbSeq == 0xFF)
                 nbSeq = MEM_readLE16(ip) + LONGNBSEQ, ip+=2;
             else

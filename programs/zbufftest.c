@@ -286,8 +286,15 @@ static int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compres
         if (nbTests >= testNb) DISPLAYUPDATE(2, "/%6u   ", nbTests);
         FUZ_rand(&coreSeed);
         lseed = coreSeed ^ prime1;
+
+        /* random state complete reset */
+        /* some problems only happen when states are re-used in a specific order */
+        if ((FUZ_rand(&lseed) & 0xFF) == 131) { ZBUFF_freeCCtx(zc); zc = ZBUFF_createCCtx(); }
+        if ((FUZ_rand(&lseed) & 0xFF) == 132) { ZBUFF_freeDCtx(zd); zd = ZBUFF_createDCtx(); }
+
+        /* srcBuffer selection */
         buffNb = FUZ_rand(&lseed) & 0x7F;
-        if (buffNb & 7) buffNb=2;   /* select srcBuffer */
+        if (buffNb & 7) buffNb=2;
         else {
             buffNb >>= 3;
             if (buffNb & 7) {

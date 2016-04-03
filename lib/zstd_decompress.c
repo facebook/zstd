@@ -686,18 +686,18 @@ FORCE_INLINE size_t ZSTD_execSequence(BYTE* op,
     size_t const sequenceLength = sequence.litLength + sequence.matchLength;
     BYTE* const oMatchEnd = op + sequenceLength;   /* risk : address space overflow (32-bits) */
     BYTE* const oend_8 = oend-8;
-    const BYTE* const litEnd = *litPtr + sequence.litLength;
+    const BYTE* const iLitEnd = *litPtr + sequence.litLength;
     const BYTE* match = oLitEnd - sequence.offset;
 
     /* check */
     if (oLitEnd > oend_8) return ERROR(dstSize_tooSmall);   /* last match must start at a minimum distance of 8 from oend */
     if (oMatchEnd > oend) return ERROR(dstSize_tooSmall);   /* overwrite beyond dst buffer */
-    if (litEnd > litLimit_8) return ERROR(corruption_detected);   /* over-read beyond lit buffer */
+    if (iLitEnd > litLimit_8) return ERROR(corruption_detected);   /* over-read beyond lit buffer */
 
     /* copy Literals */
     ZSTD_wildcopy(op, *litPtr, sequence.litLength);   /* note : oLitEnd <= oend-8 : no risk of overwrite beyond oend */
     op = oLitEnd;
-    *litPtr = litEnd;   /* update for next sequence */
+    *litPtr = iLitEnd;   /* update for next sequence */
 
     /* copy Match */
     if (sequence.offset > (size_t)(oLitEnd - base)) {
@@ -761,7 +761,6 @@ static size_t ZSTD_decompressSequences(
     const BYTE* litPtr = dctx->litPtr;
     const BYTE* const litLimit_8 = litPtr + dctx->litBufSize - 8;
     const BYTE* const litEnd = litPtr + dctx->litSize;
-    int nbSeq;
     U32* DTableLL = dctx->LLTable;
     U32* DTableML = dctx->MLTable;
     U32* DTableOffb = dctx->OffTable;
@@ -769,13 +768,14 @@ static size_t ZSTD_decompressSequences(
     const BYTE* const vBase = (const BYTE*) (dctx->vBase);
     const BYTE* const dictEnd = (const BYTE*) (dctx->dictEnd);
     const U32 mls = dctx->fParams.mml;
+    int nbSeq;
 
     /* Build Decoding Tables */
-    {   size_t const errorCode = ZSTD_decodeSeqHeaders(&nbSeq,
+    {   size_t const seqHSize = ZSTD_decodeSeqHeaders(&nbSeq,
                                       DTableLL, DTableML, DTableOffb,
                                       ip, seqSize);
-        if (ZSTD_isError(errorCode)) return errorCode;
-        ip += errorCode;
+        if (ZSTD_isError(seqHSize)) return seqHSize;
+        ip += seqHSize;
     }
 
     /* Regen sequences */

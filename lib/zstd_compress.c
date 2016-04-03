@@ -164,8 +164,8 @@ size_t ZSTD_checkCParams_advanced(ZSTD_compressionParameters cParams, U64 srcSiz
     if (srcSize > (1ULL << ZSTD_WINDOWLOG_MIN)) return ZSTD_checkCParams(cParams);
     if (cParams.windowLog < ZSTD_WINDOWLOG_ABSOLUTEMIN) return ERROR(compressionParameter_unsupported);
     if (srcSize <= (1ULL << cParams.windowLog)) cParams.windowLog = ZSTD_WINDOWLOG_MIN;   /* fake value - temporary work around */
-    if (srcSize <= (1ULL << cParams.hashLog)) cParams.hashLog = ZSTD_HASHLOG_MIN;       /* fake value - temporary work around */
     if (srcSize <= (1ULL << cParams.contentLog)) cParams.contentLog = ZSTD_CONTENTLOG_MIN; /* fake value - temporary work around */
+    if ((srcSize <= (1ULL << cParams.hashLog)) && ((U32)cParams.strategy < (U32)ZSTD_btlazy2)) cParams.hashLog = ZSTD_HASHLOG_MIN;       /* fake value - temporary work around */
     return ZSTD_checkCParams(cParams);
 }
 
@@ -193,6 +193,7 @@ void ZSTD_adjustCParams(ZSTD_compressionParameters* params, U64 srcSize, size_t 
         if (params->contentLog > maxContentLog) params->contentLog = maxContentLog; }   /* <= ZSTD_CONTENTLOG_MAX */
 
     if (params->windowLog  < ZSTD_WINDOWLOG_ABSOLUTEMIN) params->windowLog = ZSTD_WINDOWLOG_ABSOLUTEMIN;  /* required for frame header */
+    if ((params->hashLog  < ZSTD_HASHLOG_MIN) && ((U32)params->strategy >= (U32)ZSTD_btlazy2)) params->hashLog = ZSTD_HASHLOG_MIN;  /* required to ensure collision resistance in bt */
 }
 
 

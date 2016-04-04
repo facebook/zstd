@@ -107,7 +107,7 @@ struct ZSTD_CCtx_s
     seqStore_t seqStore;    /* sequences storage ptrs */
     U32* hashTable;
     U32* hashTable3;
-    U32* contentTable;
+    U32* chainTable;
     HUF_CElt* hufTable;
     U32 flagStaticTables;
     FSE_CTable offcodeCTable   [FSE_CTABLE_SIZE_U32(OffFSELog, MaxOff)];
@@ -142,7 +142,7 @@ const seqStore_t* ZSTD_getSeqStore(const ZSTD_CCtx* ctx)   /* hidden interface *
 size_t ZSTD_checkCParams(ZSTD_compressionParameters cParams)
 {
     CLAMPCHECK(cParams.windowLog, ZSTD_WINDOWLOG_MIN, ZSTD_WINDOWLOG_MAX);
-    CLAMPCHECK(cParams.contentLog, ZSTD_CONTENTLOG_MIN, ZSTD_CONTENTLOG_MAX);
+    CLAMPCHECK(cParams.chainLog, ZSTD_CHAINLOG_MIN, ZSTD_CHAINLOG_MAX);
     CLAMPCHECK(cParams.hashLog, ZSTD_HASHLOG_MIN, ZSTD_HASHLOG_MAX);
     CLAMPCHECK(cParams.searchLog, ZSTD_SEARCHLOG_MIN, ZSTD_SEARCHLOG_MAX);
     { U32 const searchLengthMin = (cParams.strategy == ZSTD_btopt) ? ZSTD_SEARCHLENGTH_MIN : ZSTD_SEARCHLENGTH_MIN+1;
@@ -162,8 +162,8 @@ size_t ZSTD_checkCParams_advanced(ZSTD_compressionParameters cParams, U64 srcSiz
 {
     if (srcSize > (1ULL << ZSTD_WINDOWLOG_MIN)) return ZSTD_checkCParams(cParams);
     if (cParams.windowLog < ZSTD_WINDOWLOG_ABSOLUTEMIN) return ERROR(compressionParameter_unsupported);
-    if (srcSize <= (1ULL << cParams.windowLog)) cParams.windowLog = ZSTD_WINDOWLOG_MIN;   /* fake value - temporary work around */
-    if (srcSize <= (1ULL << cParams.contentLog)) cParams.contentLog = ZSTD_CONTENTLOG_MIN; /* fake value - temporary work around */
+    if (srcSize <= (1ULL << cParams.windowLog)) cParams.windowLog = ZSTD_WINDOWLOG_MIN; /* fake value - temporary work around */
+    if (srcSize <= (1ULL << cParams.chainLog)) cParams.chainLog = ZSTD_CHAINLOG_MIN;    /* fake value - temporary work around */
     if ((srcSize <= (1ULL << cParams.hashLog)) && ((U32)cParams.strategy < (U32)ZSTD_btlazy2)) cParams.hashLog = ZSTD_HASHLOG_MIN;       /* fake value - temporary work around */
     return ZSTD_checkCParams(cParams);
 }
@@ -188,8 +188,8 @@ void ZSTD_adjustCParams(ZSTD_compressionParameters* params, U64 srcSize, size_t 
     }   }
     if (params->hashLog > params->windowLog) params->hashLog = params->windowLog;
     {   U32 const btPlus = (params->strategy == ZSTD_btlazy2) || (params->strategy == ZSTD_btopt);
-        U32 const maxContentLog = params->windowLog+btPlus;
-        if (params->contentLog > maxContentLog) params->contentLog = maxContentLog; }   /* <= ZSTD_CONTENTLOG_MAX */
+        U32 const maxChainLog = params->windowLog+btPlus;
+        if (params->chainLog > maxChainLog) params->chainLog = maxChainLog; }   /* <= ZSTD_CHAINLOG_MAX */
 
     if (params->windowLog  < ZSTD_WINDOWLOG_ABSOLUTEMIN) params->windowLog = ZSTD_WINDOWLOG_ABSOLUTEMIN;  /* required for frame header */
     if ((params->hashLog  < ZSTD_HASHLOG_MIN) && ((U32)params->strategy >= (U32)ZSTD_btlazy2)) params->hashLog = ZSTD_HASHLOG_MIN;  /* required to ensure collision resistance in bt */
@@ -217,10 +217,10 @@ static size_t ZSTD_resetCCtx_advanced (ZSTD_CCtx* zc,
     const U32    divider = (params.cParams.searchLength==3) ? 3 : 4;
     const size_t maxNbSeq = blockSize / divider;
     const size_t tokenSpace = blockSize + 11*maxNbSeq;
-    const size_t contentSize = (params.cParams.strategy == ZSTD_fast) ? 0 : (1 << params.cParams.contentLog);
+    const size_t chainSize = (params.cParams.strategy == ZSTD_fast) ? 0 : (1 << params.cParams.chainLog);
     const size_t hSize = 1 << params.cParams.hashLog;
     const size_t h3Size = (params.cParams.searchLength==3) ? (1 << HASHLOG3) : 0;
-    const size_t tableSpace = (contentSize + hSize + h3Size) * sizeof(U32);
+    const size_t tableSpace = (chainSize + hSize + h3Size) * sizeof(U32);
 
     /* Check if workSpace is large enough, alloc a new one if needed */
     {   size_t const optSpace = ((MaxML+1) + (MaxLL+1) + (1<<Offbits) + (1<<Litbits))*sizeof(U32)
@@ -237,8 +237,8 @@ static size_t ZSTD_resetCCtx_advanced (ZSTD_CCtx* zc,
     memset(zc->workSpace, 0, tableSpace );   /* reset only tables */
     zc->hashTable3 = (U32*)(zc->workSpace);
     zc->hashTable = zc->hashTable3 + h3Size;
-    zc->contentTable = zc->hashTable + hSize;
-    zc->seqStore.buffer = zc->contentTable + contentSize;
+    zc->chainTable = zc->hashTable + hSize;
+    zc->seqStore.buffer = zc->chainTable + chainSize;
     zc->hufTable = (HUF_CElt*)zc->seqStore.buffer;
     zc->flagStaticTables = 0;
     zc->seqStore.buffer = ((U32*)(zc->seqStore.buffer)) + 256;
@@ -289,10 +289,10 @@ size_t ZSTD_copyCCtx(ZSTD_CCtx* dstCCtx, const ZSTD_CCtx* srcCCtx)
     ZSTD_resetCCtx_advanced(dstCCtx, srcCCtx->params);
 
     /* copy tables */
-    {   const size_t contentSize = (srcCCtx->params.cParams.strategy == ZSTD_fast) ? 0 : (1 << srcCCtx->params.cParams.contentLog);
+    {   const size_t chaineSize = (srcCCtx->params.cParams.strategy == ZSTD_fast) ? 0 : (1 << srcCCtx->params.cParams.chainLog);
         const size_t hSize = 1 << srcCCtx->params.cParams.hashLog;
         const size_t h3Size = (srcCCtx->params.cParams.searchLength == 3) ? (1 << HASHLOG3) : 0;
-        const size_t tableSpace = (contentSize + hSize + h3Size) * sizeof(U32);
+        const size_t tableSpace = (chaineSize + hSize + h3Size) * sizeof(U32);
         memcpy(dstCCtx->workSpace, srcCCtx->workSpace, tableSpace);
     }
 
@@ -341,8 +341,8 @@ static void ZSTD_reduceIndex (ZSTD_CCtx* zc, const U32 reducerValue)
     { const U32 hSize = 1 << zc->params.cParams.hashLog;
       ZSTD_reduceTable(zc->hashTable, hSize, reducerValue); }
 
-    { const U32 contentSize = (zc->params.cParams.strategy == ZSTD_fast) ? 0 : (1 << zc->params.cParams.contentLog);
-      ZSTD_reduceTable(zc->contentTable, contentSize, reducerValue); }
+    { const U32 chainSize = (zc->params.cParams.strategy == ZSTD_fast) ? 0 : (1 << zc->params.cParams.chainLog);
+      ZSTD_reduceTable(zc->chainTable, chainSize, reducerValue); }
 
     { const U32 h3Size = (zc->params.cParams.searchLength == 3) ? (1 << HASHLOG3) : 0;
       ZSTD_reduceTable(zc->hashTable3, h3Size, reducerValue); }
@@ -1257,8 +1257,8 @@ static U32 ZSTD_insertBt1(ZSTD_CCtx* zc, const BYTE* const ip, const U32 mls, co
     U32* const hashTable = zc->hashTable;
     const U32 hashLog = zc->params.cParams.hashLog;
     const size_t h  = ZSTD_hashPtr(ip, hashLog, mls);
-    U32* const bt   = zc->contentTable;
-    const U32 btLog = zc->params.cParams.contentLog - 1;
+    U32* const bt   = zc->chainTable;
+    const U32 btLog = zc->params.cParams.chainLog - 1;
     const U32 btMask= (1 << btLog) - 1;
     U32 matchIndex  = hashTable[h];
     size_t commonLengthSmaller=0, commonLengthLarger=0;
@@ -1359,8 +1359,8 @@ static size_t ZSTD_insertBtAndFindBestMatch (
     U32* const hashTable = zc->hashTable;
     const U32 hashLog = zc->params.cParams.hashLog;
     const size_t h  = ZSTD_hashPtr(ip, hashLog, mls);
-    U32* const bt   = zc->contentTable;
-    const U32 btLog = zc->params.cParams.contentLog - 1;
+    U32* const bt   = zc->chainTable;
+    const U32 btLog = zc->params.cParams.chainLog - 1;
     const U32 btMask= (1 << btLog) - 1;
     U32 matchIndex  = hashTable[h];
     size_t commonLengthSmaller=0, commonLengthLarger=0;
@@ -1520,8 +1520,8 @@ U32 ZSTD_insertAndFindFirstIndex (ZSTD_CCtx* zc, const BYTE* ip, U32 mls)
 {
     U32* const hashTable  = zc->hashTable;
     const U32 hashLog = zc->params.cParams.hashLog;
-    U32* const chainTable = zc->contentTable;
-    const U32 chainMask = (1 << zc->params.cParams.contentLog) - 1;
+    U32* const chainTable = zc->chainTable;
+    const U32 chainMask = (1 << zc->params.cParams.chainLog) - 1;
     const BYTE* const base = zc->base;
     const U32 target = (U32)(ip - base);
     U32 idx = zc->nextToUpdate;
@@ -1545,8 +1545,8 @@ size_t ZSTD_HcFindBestMatch_generic (
                         size_t* offsetPtr,
                         const U32 maxNbAttempts, const U32 mls, const U32 extDict)
 {
-    U32* const chainTable = zc->contentTable;
-    const U32 chainSize = (1 << zc->params.cParams.contentLog);
+    U32* const chainTable = zc->chainTable;
+    const U32 chainSize = (1 << zc->params.cParams.chainLog);
     const U32 chainMask = chainSize-1;
     const BYTE* const base = zc->base;
     const BYTE* const dictBase = zc->dictBase;
@@ -2084,8 +2084,8 @@ static size_t ZSTD_compressContinue_internal (ZSTD_CCtx* zc,
     /* preemptive overflow correction */
     if (zc->lowLimit > (1<<30)) {
         U32 const btplus = (zc->params.cParams.strategy == ZSTD_btlazy2) || (zc->params.cParams.strategy == ZSTD_btopt);
-        U32 const contentMask = (1 << (zc->params.cParams.contentLog - btplus)) - 1;
-        U32 const newLowLimit = zc->lowLimit & contentMask;   /* preserve position % contentSize */
+        U32 const chainMask = (1 << (zc->params.cParams.chainLog - btplus)) - 1;
+        U32 const newLowLimit = zc->lowLimit & chainMask;   /* preserve position % chainSize */
         U32 const correction = zc->lowLimit - newLowLimit;
         ZSTD_reduceIndex(zc, correction);
         zc->base += correction;
@@ -2536,7 +2536,7 @@ ZSTD_compressionParameters ZSTD_getCParams(int compressionLevel, U64 srcSize, si
     cp = ZSTD_defaultCParameters[tableID][compressionLevel];
     if (MEM_32bits()) {   /* auto-correction, for 32-bits mode */
         if (cp.windowLog > ZSTD_WINDOWLOG_MAX) cp.windowLog = ZSTD_WINDOWLOG_MAX;
-        if (cp.contentLog > ZSTD_CONTENTLOG_MAX) cp.contentLog = ZSTD_CONTENTLOG_MAX;
+        if (cp.chainLog > ZSTD_CHAINLOG_MAX) cp.chainLog = ZSTD_CHAINLOG_MAX;
         if (cp.hashLog > ZSTD_HASHLOG_MAX) cp.hashLog = ZSTD_HASHLOG_MAX;
     }
     return cp;

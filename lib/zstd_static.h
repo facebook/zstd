@@ -59,8 +59,8 @@ extern "C" {
 ***************************************/
 #define ZSTD_WINDOWLOG_MAX    (MEM_32bits() ? 25 : 27)
 #define ZSTD_WINDOWLOG_MIN     18
-#define ZSTD_CONTENTLOG_MAX   (ZSTD_WINDOWLOG_MAX+1)
-#define ZSTD_CONTENTLOG_MIN     4
+#define ZSTD_CHAINLOG_MAX     (ZSTD_WINDOWLOG_MAX+1)
+#define ZSTD_CHAINLOG_MIN       4
 #define ZSTD_HASHLOG_MAX       ZSTD_WINDOWLOG_MAX
 #define ZSTD_HASHLOG_MIN       12
 #define ZSTD_SEARCHLOG_MAX    (ZSTD_WINDOWLOG_MAX-1)
@@ -75,7 +75,7 @@ typedef enum { ZSTD_fast, ZSTD_greedy, ZSTD_lazy, ZSTD_lazy2, ZSTD_btlazy2, ZSTD
 
 typedef struct {
     U32 windowLog;     /* largest match distance : larger == more compression, more memory needed during decompression */
-    U32 contentLog;    /* full search segment : larger == more compression, slower, more memory (useless for fast) */
+    U32 chainLog;      /* fully searched segment : larger == more compression, slower, more memory (useless for fast) */
     U32 hashLog;       /* dispatch table : larger == faster, more memory */
     U32 searchLog;     /* nb of searches : larger == more compression, slower */
     U32 searchLength;  /* match length searched : larger == faster decompression, sometimes less compression */

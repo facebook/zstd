@@ -99,22 +99,38 @@ typedef enum { bt_compressed, bt_raw, bt_rle, bt_end } blockType_t;
 #define REPCODE_STARTVALUE 1
 
 #define Litbits  8
-#define MLbits   7
-#define LLbits   6
 #define Offbits  5
 #define MaxLit ((1<<Litbits) - 1)
-#define MaxML  ((1<<MLbits) - 1)
-#define MaxLL  ((1<<LLbits) - 1)
+#define MaxML  52
+#define MaxLL  35
 #define MaxOff ((1<<Offbits)- 1)
-#define MLFSELog   10
-#define LLFSELog   10
-#define OffFSELog   9
 #define MaxSeq MAX(MaxLL, MaxML)   /* Assumption : MaxOff < MaxLL,MaxML */
+#define MLFSELog    9
+#define LLFSELog    9
+#define OffFSELog   8
 
 #define FSE_ENCODING_RAW     0
 #define FSE_ENCODING_RLE     1
 #define FSE_ENCODING_STATIC  2
 #define FSE_ENCODING_DYNAMIC 3
+
+static const U32 LL_bits[MaxLL+1] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                      1, 1, 1, 1, 2, 2, 3, 3, 4, 6, 7, 8, 9,10,11,12,
+                                     13,14,15,16 };
+static const S16 LL_defaultNorm[MaxLL+1] = { 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+                                             2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 1, 1, 1,
+                                             1, 1, 1, 1 };
+static const U32 LL_defaultNormLog = 6;
+
+static const U32 ML_bits[MaxML+1] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                      1, 1, 1, 1, 2, 2, 3, 3, 4, 4, 5, 7, 8, 9,10,11,
+                                      12,13,14,15,16 };
+static const S16 ML_defaultNorm[MaxML+1] = { 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 1, 1, 1, 1,
+                                             1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                             1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                             1, 1, 1, 1, 1, };
+static const U32 ML_defaultNormLog = 6;
 
 
 /*-*******************************************
@@ -191,15 +207,15 @@ typedef struct {
     U32*  offsetStart;
     U32*  offset;
     BYTE* offCodeStart;
-    BYTE* offCode;
     BYTE* litStart;
     BYTE* lit;
-    BYTE* litLengthStart;
-    BYTE* litLength;
-    BYTE* matchLengthStart;
-    BYTE* matchLength;
-    BYTE* dumpsStart;
-    BYTE* dumps;
+    U16*  litLengthStart;
+    U16*  litLength;
+    BYTE* llCodeStart;
+    U16*  matchLengthStart;
+    U16*  matchLength;
+    BYTE* mlCodeStart;
+    U32   longLength;
     /* opt */
     ZSTD_optimal_t* priceTable;
     ZSTD_match_t* matchTable;
@@ -221,7 +237,9 @@ typedef struct {
     ZSTD_stats_t stats;
 } seqStore_t;
 
-seqStore_t ZSTD_copySeqStore(const ZSTD_CCtx* ctx);
+const seqStore_t* ZSTD_getSeqStore(const ZSTD_CCtx* ctx);
+void ZSTD_seqToCodes(const seqStore_t* seqStorePtr, size_t const nbSeq);
 size_t ZSTD_compressBegin_targetSrcSize(ZSTD_CCtx* zc, const void* dict, size_t dictSize, size_t targetSrcSize, int compressionLevel);
+
 
 #endif   /* ZSTD_CCOMMON_H_MODULE */

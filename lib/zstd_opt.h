@@ -31,7 +31,7 @@
        - Zstd source repository : https://www.zstd.net
 */
 
-/* Note : this file is intended to be included within zstd_compress.c */ 
+/* Note : this file is intended to be included within zstd_compress.c */
 
 
 #define ZSTD_FREQ_DIV   5
@@ -55,8 +55,8 @@ MEM_STATIC void ZSTD_rescaleFreqs(seqStore_t* ssPtr)
 
     if (ssPtr->litLengthSum == 0) {
         ssPtr->litSum = (2<<Litbits);
-        ssPtr->litLengthSum = (1<<LLbits);
-        ssPtr->matchLengthSum = (1<<MLbits);
+        ssPtr->litLengthSum = MaxLL+1;
+        ssPtr->matchLengthSum = MaxML+1;
         ssPtr->offCodeSum = (1<<Offbits);
         ssPtr->matchSum = (2<<Litbits);
 
@@ -93,7 +93,7 @@ MEM_STATIC void ZSTD_rescaleFreqs(seqStore_t* ssPtr)
             ssPtr->offCodeSum += ssPtr->offCodeFreq[u];
         }
     }
-    
+
     ZSTD_setLog2Prices(ssPtr);
 }
 
@@ -219,12 +219,12 @@ static U32 ZSTD_insertBtAndGetAllMatches (
 {
     const BYTE* const base = zc->base;
     const U32 current = (U32)(ip-base);
-    const U32 hashLog = zc->params.hashLog;
+    const U32 hashLog = zc->params.cParams.hashLog;
     const size_t h  = ZSTD_hashPtr(ip, hashLog, mls);
     U32* const hashTable = zc->hashTable;
     U32 matchIndex  = hashTable[h];
     U32* const bt   = zc->contentTable;
-    const U32 btLog = zc->params.contentLog - 1;
+    const U32 btLog = zc->params.cParams.contentLog - 1;
     const U32 btMask= (1U << btLog) - 1;
     size_t commonLengthSmaller=0, commonLengthLarger=0;
     const BYTE* const dictBase = zc->dictBase;
@@ -244,7 +244,7 @@ static U32 ZSTD_insertBtAndGetAllMatches (
 
     if (minMatch == 3) { /* HC3 match finder */
         U32 matchIndex3 = ZSTD_insertAndFindFirstIndexHash3 (zc, ip);
-        
+
         if (matchIndex3>windowLow && (current - matchIndex3 < (1<<18))) {
             const BYTE* match;
             size_t currentMl=0;
@@ -409,12 +409,12 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
     const BYTE* const ilimit = iend - 8;
     const BYTE* const base = ctx->base;
     const BYTE* const prefixStart = base + ctx->dictLimit;
-    
+
     U32 rep_2=REPCODE_STARTVALUE, rep_1=REPCODE_STARTVALUE;
-    const U32 maxSearches = 1U << ctx->params.searchLog;
-    const U32 sufficient_len = ctx->params.targetLength;
-    const U32 mls = ctx->params.searchLength;
-    const U32 minMatch = (ctx->params.searchLength == 3) ? 3 : 4;
+    const U32 maxSearches = 1U << ctx->params.cParams.searchLog;
+    const U32 sufficient_len = ctx->params.cParams.targetLength;
+    const U32 mls = ctx->params.cParams.searchLength;
+    const U32 minMatch = (ctx->params.cParams.searchLength == 3) ? 3 : 4;
 
     ZSTD_optimal_t* opt = seqStorePtr->priceTable;
     ZSTD_match_t* matches = seqStorePtr->matchTable;
@@ -734,12 +734,12 @@ void ZSTD_compressBlock_opt_extDict_generic(ZSTD_CCtx* ctx,
     const BYTE* const dictBase = ctx->dictBase;
     const BYTE* const dictEnd  = dictBase + dictLimit;
     const U32 lowLimit = ctx->lowLimit;
-   
+
     U32 rep_2=REPCODE_STARTVALUE, rep_1=REPCODE_STARTVALUE;
-    const U32 maxSearches = 1U << ctx->params.searchLog;
-    const U32 sufficient_len = ctx->params.targetLength;
-    const U32 mls = ctx->params.searchLength;
-    const U32 minMatch = (ctx->params.searchLength == 3) ? 3 : 4;
+    const U32 maxSearches = 1U << ctx->params.cParams.searchLog;
+    const U32 sufficient_len = ctx->params.cParams.targetLength;
+    const U32 mls = ctx->params.cParams.searchLength;
+    const U32 minMatch = (ctx->params.cParams.searchLength == 3) ? 3 : 4;
 
     ZSTD_optimal_t* opt = seqStorePtr->priceTable;
     ZSTD_match_t* matches = seqStorePtr->matchTable;
@@ -1045,12 +1045,12 @@ _storeSequence: // cur, last_pos, best_mlen, best_off have to be set
                     break;
             } else {
                 const BYTE* repMatch = dictBase + ((anchor-base) - rep_2);
-                if ((repMatch + minMatch <= dictEnd) && (MEM_readMINMATCH(anchor, minMatch) == MEM_readMINMATCH(repMatch, minMatch))) 
+                if ((repMatch + minMatch <= dictEnd) && (MEM_readMINMATCH(anchor, minMatch) == MEM_readMINMATCH(repMatch, minMatch)))
                     mlen = (U32)ZSTD_count_2segments(anchor+minMatch, repMatch+minMatch, iend, dictEnd, prefixStart) + minMatch;
                 else
                     break;
             }
-                   
+
             offset = rep_2; rep_2 = rep_1; rep_1 = offset;   /* swap offset history */
             ZSTD_LOG_ENCODE("%d/%d: ENCODE REP literals=%d mlen=%d off=%d rep1=%d rep2=%d\n", (int)(anchor-base), (int)(iend-base), (int)(0), (int)best_mlen, (int)(0), (int)rep_1, (int)rep_2);
             ZSTD_updatePrice(seqStorePtr, 0, anchor, 0, mlen-minMatch);

@@ -226,7 +226,7 @@ static size_t ZSTD_resetCCtx_advanced (ZSTD_CCtx* zc,
     {   size_t const optSpace = ((MaxML+1) + (MaxLL+1) + (1<<Offbits) + (1<<Litbits))*sizeof(U32)
                               + (ZSTD_OPT_NUM+1)*(sizeof(ZSTD_match_t) + sizeof(ZSTD_optimal_t));
         size_t const neededSpace = tableSpace + (256*sizeof(U32)) /* huffTable */ + tokenSpace
-                           + ((params.cParams.strategy == ZSTD_btopt) ? optSpace : 0);
+                              + ((params.cParams.strategy == ZSTD_btopt) ? optSpace : 0);
         if (zc->workSpaceSize < neededSpace) {
             free(zc->workSpace);
             zc->workSpace = malloc(neededSpace);
@@ -2525,7 +2525,7 @@ static const ZSTD_compressionParameters ZSTD_defaultCParameters[4][ZSTD_MAX_CLEV
 ZSTD_compressionParameters ZSTD_getCParams(int compressionLevel, U64 srcSize, size_t dictSize)
 {
     ZSTD_compressionParameters cp;
-    size_t addedSize = srcSize ? 0 : 500;
+    size_t const addedSize = srcSize ? 0 : 500;
     U64 const rSize = srcSize+dictSize ? srcSize+dictSize+addedSize : (U64)-1;
     U32 const tableID = (rSize <= 256 KB) + (rSize <= 128 KB) + (rSize <= 16 KB);   /* intentional underflow for srcSizeHint == 0 */
     if (compressionLevel<=0) compressionLevel = 1;
@@ -2534,6 +2534,10 @@ ZSTD_compressionParameters ZSTD_getCParams(int compressionLevel, U64 srcSize, si
     tableID=0;
 #endif
     cp = ZSTD_defaultCParameters[tableID][compressionLevel];
-    if (cp.windowLog > ZSTD_WINDOWLOG_MAX) cp.windowLog = ZSTD_WINDOWLOG_MAX;   /* auto-correction, for 32-bits mode */
+    if (MEM_32bits()) {   /* auto-correction, for 32-bits mode */
+        if (cp.windowLog > ZSTD_WINDOWLOG_MAX) cp.windowLog = ZSTD_WINDOWLOG_MAX;
+        if (cp.contentLog > ZSTD_CONTENTLOG_MAX) cp.contentLog = ZSTD_CONTENTLOG_MAX;
+        if (cp.hashLog > ZSTD_HASHLOG_MAX) cp.hashLog = ZSTD_HASHLOG_MAX;
+    }
     return cp;
 }

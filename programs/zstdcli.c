@@ -167,6 +167,8 @@ static void waitEnter(void)
 }
 
 
+#define CLEAN_RETURN(i) { operationResult = (i); goto _end; }
+
 int main(int argCount, const char** argv)
 {
     int i,
@@ -181,7 +183,6 @@ int main(int argCount, const char** argv)
         nextArgumentIsMaxDict=0;
     unsigned cLevel = 1;
     unsigned cLevelLast = 1;
-    int additionalParam = 0;
     const char** filenameTable = (const char**)malloc(argCount * sizeof(const char*));   /* argCount >= 1 */
     unsigned filenameIdx = 0;
     const char* programName = argv[0];
@@ -193,7 +194,7 @@ int main(int argCount, const char** argv)
     unsigned dictSelect = g_defaultSelectivityLevel;
 
     /* init */
-    (void)additionalParam; (void)cLevelLast; (void)dictCLevel;   /* not used when ZSTD_NOBENCH / ZSTD_NODICT set */
+    (void)cLevelLast; (void)dictCLevel;   /* not used when ZSTD_NOBENCH / ZSTD_NODICT set */
     if (filenameTable==NULL) { DISPLAY("not enough memory\n"); exit(1); }
     displayOut = stderr;
     /* Pick out program name from path. Don't rely on stdlib because of conflicting behavior */
@@ -212,8 +213,8 @@ int main(int argCount, const char** argv)
         /* long commands (--long-word) */
         if (!strcmp(argument, "--decompress")) { decode=1; continue; }
         if (!strcmp(argument, "--force")) {  FIO_overwriteMode(); continue; }
-        if (!strcmp(argument, "--version")) { displayOut=stdout; DISPLAY(WELCOME_MESSAGE); return 0; }
-        if (!strcmp(argument, "--help")) { displayOut=stdout; return usage_advanced(programName); }
+        if (!strcmp(argument, "--version")) { displayOut=stdout; DISPLAY(WELCOME_MESSAGE); CLEAN_RETURN(0); }
+        if (!strcmp(argument, "--help")) { displayOut=stdout; CLEAN_RETURN(usage_advanced(programName)); }
         if (!strcmp(argument, "--verbose")) { displayLevel=4; continue; }
         if (!strcmp(argument, "--quiet")) { displayLevel--; continue; }
         if (!strcmp(argument, "--stdout")) { forceStdout=1; outFileName=stdoutmark; displayLevel=1; continue; }
@@ -244,16 +245,16 @@ int main(int argCount, const char** argv)
                     }
                     dictCLevel = cLevel;
                     if (dictCLevel > ZSTD_maxCLevel())
-                        return badusage(programName);
+                        CLEAN_RETURN(badusage(programName));
                     continue;
                 }
 
                 switch(argument[0])
                 {
                     /* Display help */
-                case 'V': displayOut=stdout; DISPLAY(WELCOME_MESSAGE); return 0;   /* Version Only */
+                case 'V': displayOut=stdout; DISPLAY(WELCOME_MESSAGE); CLEAN_RETURN(0);   /* Version Only */
                 case 'H':
-                case 'h': displayOut=stdout; return usage_advanced(programName);
+                case 'h': displayOut=stdout; CLEAN_RETURN(usage_advanced(programName));
 
                      /* Decoding */
                 case 'd': decode=1; argument++; break;
@@ -288,8 +289,7 @@ int main(int argCount, const char** argv)
 
                     /* Modify Nb Iterations (benchmark only) */
                 case 'i':
-                    {
-                        int iters= 0;
+                    {   U32 iters= 0;
                         argument++;
                         while ((*argument >='0') && (*argument <='9'))
                             iters *= 10, iters += *argument++ - '0';
@@ -300,8 +300,7 @@ int main(int argCount, const char** argv)
 
                     /* cut input into blocks (benchmark only) */
                 case 'B':
-                    {
-                        size_t bSize = 0;
+                    {   size_t bSize = 0;
                         argument++;
                         while ((*argument >='0') && (*argument <='9'))
                             bSize *= 10, bSize += *argument++ - '0';
@@ -321,7 +320,6 @@ int main(int argCount, const char** argv)
                             cLevelLast = 0;
                             while ((*argument >= '0') && (*argument <= '9'))
                                 cLevelLast *= 10, cLevelLast += *argument++ - '0';
-                            continue;
                         }
                         break;
 #endif   /* ZSTD_NOBENCH */
@@ -335,19 +333,22 @@ int main(int argCount, const char** argv)
 
                     /* Pause at the end (-p) or set an additional param (-p#) (hidden option) */
                 case 'p': argument++; 
+#ifndef ZSTD_NOBENCH
                     if ((*argument>='0') && (*argument<='9')) {
-                        additionalParam = 0;
+                        int additionalParam = 0;
                         while ((*argument >= '0') && (*argument <= '9'))
                             additionalParam *= 10, additionalParam += *argument++ - '0';
-                        continue;
-                    }
-                    main_pause=1; break;
+                        BMK_setAdditionalParam(additionalParam);
+                    } else 
+#endif
+                        main_pause=1;
+                    break;
                     /* unknown command */
-                default : return badusage(programName);
+                default : CLEAN_RETURN(badusage(programName));
                 }
             }
             continue;
-        }
+        }   /* if (argument[0]=='-') */
 
         if (nextEntryIsDictionary) {
             nextEntryIsDictionary = 0;
@@ -383,7 +384,7 @@ int main(int argCount, const char** argv)
     if (bench) {
 #ifndef ZSTD_NOBENCH
         BMK_setNotificationLevel(displayLevel);
-        BMK_benchFiles(filenameTable, filenameIdx, dictFileName, cLevel, cLevelLast, additionalParam);
+        BMK_benchFiles(filenameTable, filenameIdx, dictFileName, cLevel, cLevelLast);
 #endif
         goto _end;
     }
@@ -404,17 +405,17 @@ int main(int argCount, const char** argv)
     if(!filenameIdx) filenameIdx=1, filenameTable[0]=stdinmark, outFileName=stdoutmark;
 
     /* Check if input/output defined as console; trigger an error in this case */
-    if (!strcmp(filenameTable[0], stdinmark) && IS_CONSOLE(stdin) ) return badusage(programName);
-    if (outFileName && !strcmp(outFileName, stdoutmark) && IS_CONSOLE(stdout) && !forceStdout) return badusage(programName);
+    if (!strcmp(filenameTable[0], stdinmark) && IS_CONSOLE(stdin) ) CLEAN_RETURN(badusage(programName));
+    if (outFileName && !strcmp(outFileName, stdoutmark) && IS_CONSOLE(stdout) && !forceStdout) CLEAN_RETURN(badusage(programName));
 
     /* user-selected output filename, only possible with a single file */
     if (outFileName && strcmp(outFileName,stdoutmark) && strcmp(outFileName,nulmark) && (filenameIdx>1)) {
         DISPLAY("Too many files (%u) on the command line. \n", filenameIdx);
-        return filenameIdx;
+        CLEAN_RETURN(filenameIdx);
     }
 
     /* No warning message in pipe mode (stdin + stdout) or multiple mode */
-    if (!strcmp(filenameTable[0], stdinmark) && !strcmp(outFileName,stdoutmark) && (displayLevel==2)) displayLevel=1;
+    if (!strcmp(filenameTable[0], stdinmark) && outFileName && !strcmp(outFileName,stdoutmark) && (displayLevel==2)) displayLevel=1;
     if ((filenameIdx>1) && (displayLevel==2)) displayLevel=1;
 
     /* IO Stream/File */

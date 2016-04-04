@@ -41,7 +41,7 @@
 #include <string.h>      /* strcmp */
 #include "mem.h"
 #include "zbuff.h"
-#include "zstd.h"        /* ZSTD_compressBound() */
+#include "zstd_static.h" /* ZSTD_compressBound(), ZSTD_maxCLevel() */
 #include "datagen.h"     /* RDG_genBuffer */
 #include "xxhash.h"      /* XXH64 */
 
@@ -106,15 +106,17 @@ static U32 FUZ_GetMilliSpan(U32 nTimeStart)
     return nSpan;
 }
 
-
+/*! FUZ_rand() :
+    @return : a 27 bits random value, from a 32-bits `seed`.
+    `seed` is also modified */
 #  define FUZ_rotl32(x,r) ((x << r) | (x >> (32 - r)))
-unsigned int FUZ_rand(unsigned int* src)
+unsigned int FUZ_rand(unsigned int* seedPtr)
 {
-    U32 rand32 = *src;
+    U32 rand32 = *seedPtr;
     rand32 *= prime1;
     rand32 += prime2;
     rand32  = FUZ_rotl32(rand32, 13);
-    *src = rand32;
+    *seedPtr = rand32;
     return rand32 >> 5;
 }
 
@@ -220,6 +222,19 @@ static size_t findDiff(const void* buf1, const void* buf2, size_t max)
 #define CHECK(cond, ...) if (cond) { DISPLAY("Error => "); DISPLAY(__VA_ARGS__); \
                          DISPLAY(" (seed %u, test nb %u)  \n", seed, testNb); goto _output_error; }
 
+
+static size_t FUZ_rLogLength(U32* seed, U32 logLength)
+{
+    size_t const lengthMask = ((size_t)1 << logLength) - 1;
+    return (lengthMask+1) + (FUZ_rand(seed) & lengthMask);
+}
+
+static size_t FUZ_randomLength(U32* seed, U32 maxLog)
+{
+    U32 const logLength = FUZ_rand(seed) % maxLog;
+    return FUZ_rLogLength(seed, logLength);
+}
+
 static int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compressibility)
 {
     static const U32 maxSrcLog = 24;
@@ -270,12 +285,12 @@ static int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compres
     for ( ; (testNb <= nbTests) || (FUZ_GetMilliSpan(startTime) < g_testTime); testNb++ ) {
         U32 lseed;
         const BYTE* srcBuffer;
-        size_t sampleSize, sampleStart;
         const BYTE* dict;
-        size_t cSize, dictSize;
-        size_t maxTestSize, totalTestSize, readSize, totalCSize, genSize, totalGenSize;
+        U32 testLog;
+        size_t maxTestSize, dictSize;
+        size_t cSize, totalTestSize, totalCSize, totalGenSize;
         size_t errorCode;
-        U32 sampleSizeLog, n, nbChunks;
+        U32 n, nbChunks;
         XXH64_CREATESTATE_STATIC(xxh64);
         U64 crcOrig;
 
@@ -285,102 +300,81 @@ static int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compres
         FUZ_rand(&coreSeed);
         lseed = coreSeed ^ prime1;
 
-        /* random state complete reset */
+        /* state total reset */
         /* some problems only happen when states are re-used in a specific order */
         if ((FUZ_rand(&lseed) & 0xFF) == 131) { ZBUFF_freeCCtx(zc); zc = ZBUFF_createCCtx(); }
         if ((FUZ_rand(&lseed) & 0xFF) == 132) { ZBUFF_freeDCtx(zd); zd = ZBUFF_createDCtx(); }
 
         /* srcBuffer selection */
         {   U32 buffNb = FUZ_rand(&lseed) & 0x7F;
-            if (buffNb & 7) buffNb=2;
+            if (buffNb & 7) buffNb=2;   /* most common : compressible (P) */
             else {
                 buffNb >>= 3;
                 if (buffNb & 7) {
-                    const U32 tnb[2] = { 1, 3 };
+                    const U32 tnb[2] = { 1, 3 };   /* barely/highly compressible */
                     buffNb = tnb[buffNb >> 3];
                 } else {
-                    const U32 tnb[2] = { 0, 4 };
+                    const U32 tnb[2] = { 0, 4 };   /* not compressible / sparse */
                     buffNb = tnb[buffNb >> 3];
             }   }
             srcBuffer = cNoiseBuffer[buffNb];
         }
 
-        /* Multi - segments compression test */
+        testLog = FUZ_rand(&lseed) % maxSrcLog;
+        maxTestSize = FUZ_rLogLength(&lseed, testLog);
+        /* random dictionary selection */
+        {   size_t dictStart;
+            U32 const cLevel = (FUZ_rand(&lseed) % (ZSTD_maxCLevel() - (testLog/3))) + 1;
+            dictSize  = (FUZ_rand(&lseed)==1) ? FUZ_randomLength(&lseed, maxSampleLog) : 0;
+            dictStart = FUZ_rand(&lseed) % (srcBufferSize - dictSize);
+            dict      = srcBuffer + dictStart;
+            ZBUFF_compressInitDictionary(zc, dict, dictSize, cLevel);
+        }
+
+        /* multi-segments compression test */
         XXH64_reset(xxh64, 0);
-        nbChunks = (FUZ_rand(&lseed) & 127) + 2;
-        sampleSizeLog = FUZ_rand(&lseed) % maxSrcLog;
-        maxTestSize = (size_t)1 << sampleSizeLog;
-        maxTestSize += FUZ_rand(&lseed) & (maxTestSize-1);
+        nbChunks    = (FUZ_rand(&lseed) & 127) + 2;
+        for (n=0, cSize=0, totalTestSize=0 ; (n<nbChunks) && (totalTestSize < maxTestSize) ; n++) {
+            /* compress random chunk into random size dst buffer */
+            {   size_t readChunkSize = FUZ_randomLength(&lseed, maxSampleLog);
+                size_t dstBuffSize = MIN(cBufferSize - cSize, FUZ_randomLength(&lseed, maxSampleLog));
+                size_t const srcStart = FUZ_rand(&lseed) % (srcBufferSize - readChunkSize);
 
-        sampleSizeLog = FUZ_rand(&lseed) % maxSampleLog;
-        sampleSize = (size_t)1 << sampleSizeLog;
-        sampleSize += FUZ_rand(&lseed) & (sampleSize-1);
-        sampleStart = FUZ_rand(&lseed) % (srcBufferSize - sampleSize);
-        dict = srcBuffer + sampleStart;
-        dictSize = sampleSize;
-        ZBUFF_compressInitDictionary(zc, dict, dictSize, (FUZ_rand(&lseed) % (20 - (sampleSizeLog/3))) + 1);
-
-        totalTestSize = 0;
-        cSize = 0;
-        for (n=0; (n<nbChunks) && (totalTestSize < maxTestSize); n++) {
-            {   size_t readChunkSize;
-                size_t dstBuffSize;
-                {   U32 const srcChSizeLog = FUZ_rand(&lseed) % maxSampleLog;
-                    size_t const srcChSizeMask = ((size_t)1 << srcChSizeLog) - 1;
-                    size_t const srcChSize = srcChSizeMask+1 + (FUZ_rand(&lseed) & srcChSizeMask);
-                    readChunkSize = srcChSize;
-                }
-                {   U32 const dstChSizeLog = FUZ_rand(&lseed) % maxSampleLog;
-                    size_t const dstChSizeMask = ((size_t)1 << dstChSizeLog) - 1;
-                    size_t const dstChSize = dstChSizeMask+1 + (FUZ_rand(&lseed) & dstChSizeMask);
-                    dstBuffSize = MIN (cBufferSize - cSize, dstChSize);
-                }
-
-                errorCode = ZBUFF_compressContinue(zc, cBuffer+cSize, &dstBuffSize, srcBuffer+sampleStart, &readChunkSize);
+                errorCode = ZBUFF_compressContinue(zc, cBuffer+cSize, &dstBuffSize, srcBuffer+srcStart, &readChunkSize);
                 CHECK (ZBUFF_isError(errorCode), "compression error : %s", ZBUFF_getErrorName(errorCode));
 
-                XXH64_update(xxh64, srcBuffer+sampleStart, readChunkSize);
-                memcpy(copyBuffer+totalTestSize, srcBuffer+sampleStart, readChunkSize);
+                XXH64_update(xxh64, srcBuffer+srcStart, readChunkSize);
+                memcpy(copyBuffer+totalTestSize, srcBuffer+srcStart, readChunkSize);
                 cSize += dstBuffSize;
                 totalTestSize += readChunkSize;
             }
 
             /* random flush operation, to mess around */
             if ((FUZ_rand(&lseed) & 15) == 0) {
-                size_t dstBuffSize;
-                {   U32 const dstChSizeLog = FUZ_rand(&lseed) % maxSampleLog;
-                    size_t const dstChSizeMask = ((size_t)1 << dstChSizeLog) - 1;
-                    size_t const dstChSize = dstChSizeMask+1 + (FUZ_rand(&lseed) & dstChSizeMask);
-                    dstBuffSize = MIN (cBufferSize - cSize, dstChSize);
-                }
-                { size_t const flushError = ZBUFF_compressFlush(zc, cBuffer+cSize, &dstBuffSize);
-                  CHECK (ZBUFF_isError(flushError), "flush error : %s", ZBUFF_getErrorName(flushError)); }
+                size_t dstBuffSize = MIN(cBufferSize - cSize, FUZ_randomLength(&lseed, maxSampleLog));
+                size_t const flushError = ZBUFF_compressFlush(zc, cBuffer+cSize, &dstBuffSize);
+                CHECK (ZBUFF_isError(flushError), "flush error : %s", ZBUFF_getErrorName(flushError));
                 cSize += dstBuffSize;
         }   }
-        genSize = cBufferSize - cSize;
-        errorCode = ZBUFF_compressEnd(zc, cBuffer+cSize, &genSize);
-        CHECK (ZBUFF_isError(errorCode), "compression error : %s", ZBUFF_getErrorName(errorCode));
-        CHECK (errorCode != 0, "frame epilogue not fully consumed");
-        cSize += genSize;
+
+        /* final frame epilogue */
+        {   size_t dstBuffSize = cBufferSize - cSize;
+            size_t const flushError = ZBUFF_compressEnd(zc, cBuffer+cSize, &dstBuffSize);
+            CHECK (ZBUFF_isError(flushError), "flush error : %s", ZBUFF_getErrorName(flushError));
+            cSize += dstBuffSize;
+        }
         crcOrig = XXH64_digest(xxh64);
 
         /* multi - fragments decompression test */
         ZBUFF_decompressInitDictionary(zd, dict, dictSize);
-        totalCSize = 0;
-        totalGenSize = 0;
-        while (totalCSize < cSize) {
-            sampleSizeLog  = FUZ_rand(&lseed) % maxSampleLog;
-            sampleSize  = (size_t)1 << sampleSizeLog;
-            sampleSize += FUZ_rand(&lseed) & (sampleSize-1);
-            readSize = sampleSize;
-            sampleSizeLog  = FUZ_rand(&lseed) % maxSampleLog;
-            sampleSize  = (size_t)1 << sampleSizeLog;
-            sampleSize += FUZ_rand(&lseed) & (sampleSize-1);
-            genSize = MIN(sampleSize, dstBufferSize - totalGenSize);
-            errorCode = ZBUFF_decompressContinue(zd, dstBuffer+totalGenSize, &genSize, cBuffer+totalCSize, &readSize);
-            CHECK (ZBUFF_isError(errorCode), "decompression error : %s", ZBUFF_getErrorName(errorCode));
-            totalGenSize += genSize;
-            totalCSize += readSize;
+        for (totalCSize = 0, totalGenSize = 0 ; totalCSize < cSize ; ) {
+            size_t readCSrcSize = FUZ_randomLength(&lseed, maxSampleLog);
+            size_t dstBuffSize = MIN(dstBufferSize - totalGenSize, FUZ_randomLength(&lseed, maxSampleLog));
+            size_t const decompressError = ZBUFF_decompressContinue(zd, dstBuffer+totalGenSize, &dstBuffSize, cBuffer+totalCSize, &readCSrcSize);
+            CHECK (ZBUFF_isError(decompressError), "decompression error : %s", ZBUFF_getErrorName(decompressError));
+            totalGenSize += dstBuffSize;
+            totalCSize += readCSrcSize;
+            errorCode = decompressError;   /* needed for != 0 last test */
         }
         CHECK (errorCode != 0, "frame not fully decoded");
         CHECK (totalGenSize != totalTestSize, "decompressed data : wrong size")
@@ -407,18 +401,12 @@ static int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compres
         totalCSize = 0;
         totalGenSize = 0;
         while ( (totalCSize < cSize) && (totalGenSize < dstBufferSize) ) {
-            sampleSizeLog  = FUZ_rand(&lseed) % maxSampleLog;
-            sampleSize  = (size_t)1 << sampleSizeLog;
-            sampleSize += FUZ_rand(&lseed) & (sampleSize-1);
-            readSize = sampleSize;
-            sampleSizeLog  = FUZ_rand(&lseed) % maxSampleLog;
-            sampleSize  = (size_t)1 << sampleSizeLog;
-            sampleSize += FUZ_rand(&lseed) & (sampleSize-1);
-            genSize = MIN(sampleSize, dstBufferSize - totalGenSize);
-            errorCode = ZBUFF_decompressContinue(zd, dstBuffer+totalGenSize, &genSize, cBuffer+totalCSize, &readSize);
-            if (ZBUFF_isError(errorCode)) break;   /* error correctly detected */
-            totalGenSize += genSize;
-            totalCSize += readSize;
+            size_t readCSrcSize = FUZ_randomLength(&lseed, maxSampleLog);
+            size_t dstBuffSize = MIN(dstBufferSize - totalGenSize, FUZ_randomLength(&lseed, maxSampleLog));
+            size_t const decompressError = ZBUFF_decompressContinue(zd, dstBuffer+totalGenSize, &dstBuffSize, cBuffer+totalCSize, &readCSrcSize);
+            if (ZBUFF_isError(decompressError)) break;   /* error correctly detected */
+            totalGenSize += dstBuffSize;
+            totalCSize += readCSrcSize;
     }   }
     DISPLAY("\r%u fuzzer tests completed   \n", testNb);
 

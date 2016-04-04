@@ -432,7 +432,7 @@ _output_error:
 /*-*******************************************************
 *  Command line
 *********************************************************/
-int FUZ_usage(char* programName)
+int FUZ_usage(const char* programName)
 {
     DISPLAY( "Usage :\n");
     DISPLAY( "      %s [args]\n", programName);
@@ -449,7 +449,7 @@ int FUZ_usage(char* programName)
 }
 
 
-int main(int argc, char** argv)
+int main(int argc, const char** argv)
 {
     U32 seed=0;
     int seedset=0;
@@ -459,12 +459,11 @@ int main(int argc, char** argv)
     int proba = FUZ_COMPRESSIBILITY_DEFAULT;
     int result=0;
     U32 mainPause = 0;
-    char* programName;
+    const char* programName = argv[0];
 
     /* Check command line */
-    programName = argv[0];
     for(argNb=1; argNb<argc; argNb++) {
-        char* argument = argv[argNb];
+        const char* argument = argv[argNb];
 
         if(!argument) continue;   /* Protection if argument empty */
 

@@ -47,6 +47,7 @@ typedef enum {
   ZSTD_error_prefix_unknown,
   ZSTD_error_frameParameter_unsupported,
   ZSTD_error_frameParameter_unsupportedBy32bits,
+  ZSTD_error_compressionParameter_unsupported,
   ZSTD_error_init_missing,
   ZSTD_error_memory_allocation,
   ZSTD_error_stage_wrong,

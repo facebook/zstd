@@ -141,8 +141,7 @@ const seqStore_t* ZSTD_getSeqStore(const ZSTD_CCtx* ctx)   /* hidden interface *
     @return : 0, or an error code if one value is beyond authorized range */
 size_t ZSTD_checkCParams(ZSTD_compressionParameters cParams)
 {
-    { U32 const windowLog_max = MEM_32bits() ? 25 : ZSTD_WINDOWLOG_MAX;   /* 32 bits mode cannot flush > 24 bits */
-      CLAMPCHECK(cParams.windowLog, ZSTD_WINDOWLOG_MIN, windowLog_max); }
+    CLAMPCHECK(cParams.windowLog, ZSTD_WINDOWLOG_MIN, ZSTD_WINDOWLOG_MAX);
     CLAMPCHECK(cParams.contentLog, ZSTD_CONTENTLOG_MIN, ZSTD_CONTENTLOG_MAX);
     CLAMPCHECK(cParams.hashLog, ZSTD_HASHLOG_MIN, ZSTD_HASHLOG_MAX);
     CLAMPCHECK(cParams.searchLog, ZSTD_SEARCHLOG_MIN, ZSTD_SEARCHLOG_MAX);
@@ -2413,7 +2412,6 @@ size_t ZSTD_compress(void* dst, size_t dstCapacity, const void* src, size_t srcS
 #define ZSTD_MAX_CLEVEL 22
 unsigned ZSTD_maxCLevel(void) { return ZSTD_MAX_CLEVEL; }
 
-
 static const ZSTD_compressionParameters ZSTD_defaultCParameters[4][ZSTD_MAX_CLEVEL+1] = {
 {   /* "default" */
     /* W,  C,  H,  S,  L, SL, strat */
@@ -2526,14 +2524,16 @@ static const ZSTD_compressionParameters ZSTD_defaultCParameters[4][ZSTD_MAX_CLEV
 *   `srcSize` value is optional, select 0 if not known */
 ZSTD_compressionParameters ZSTD_getCParams(int compressionLevel, U64 srcSize, size_t dictSize)
 {
+    ZSTD_compressionParameters cp;
     size_t addedSize = srcSize ? 0 : 500;
-    U64 rSize = srcSize+dictSize ? srcSize+dictSize+addedSize : (U64)-1;
+    U64 const rSize = srcSize+dictSize ? srcSize+dictSize+addedSize : (U64)-1;
     U32 const tableID = (rSize <= 256 KB) + (rSize <= 128 KB) + (rSize <= 16 KB);   /* intentional underflow for srcSizeHint == 0 */
     if (compressionLevel<=0) compressionLevel = 1;
     if (compressionLevel > ZSTD_MAX_CLEVEL) compressionLevel = ZSTD_MAX_CLEVEL;
 #if ZSTD_OPT_DEBUG >= 1
     tableID=0;
 #endif
-    return ZSTD_defaultCParameters[tableID][compressionLevel];
+    cp = ZSTD_defaultCParameters[tableID][compressionLevel];
+    if (cp.windowLog > ZSTD_WINDOWLOG_MAX) cp.windowLog = ZSTD_WINDOWLOG_MAX;   /* auto-correction, for 32-bits mode */
+    return cp;
 }
-

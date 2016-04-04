@@ -261,7 +261,7 @@ static size_t BMK_benchParam(BMK_result_t* resultPtr,
     void* const resultBuffer = malloc(srcSize);
     ZSTD_parameters params;
     U32 Wlog = cParams.windowLog;
-    U32 Clog = cParams.contentLog;
+    U32 Clog = cParams.chainLog;
     U32 Hlog = cParams.hashLog;
     U32 Slog = cParams.searchLog;
     U32 Slength = cParams.searchLength;
@@ -414,7 +414,7 @@ static void BMK_printWinner(FILE* f, U32 cLevel, BMK_result_t result, ZSTD_compr
 {
     DISPLAY("\r%79s\r", "");
     fprintf(f,"    {%3u,%3u,%3u,%3u,%3u,%3u, %s },  ",
-            params.windowLog, params.contentLog, params.hashLog, params.searchLog, params.searchLength,
+            params.windowLog, params.chainLog, params.hashLog, params.searchLog, params.searchLength,
             params.targetLength, g_stratName[(U32)(params.strategy)]);
     fprintf(f,
             "/* level %2u */   /* R:%5.3f at %5.1f MB/s - %5.1f MB/s */\n",
@@ -548,7 +548,7 @@ static ZSTD_compressionParameters* sanitizeParams(ZSTD_compressionParameters par
 {
     g_params = params;
     if (params.strategy == ZSTD_fast)
-        g_params.contentLog = 0, g_params.searchLog = 0;
+        g_params.chainLog = 0, g_params.searchLog = 0;
     if (params.strategy != ZSTD_btopt )
         g_params.targetLength = 0;
     return &g_params;
@@ -567,9 +567,9 @@ static void paramVariation(ZSTD_compressionParameters* ptr)
             switch(changeID)
             {
             case 0:
-                p.contentLog++; break;
+                p.chainLog++; break;
             case 1:
-                p.contentLog--; break;
+                p.chainLog--; break;
             case 2:
                 p.hashLog++; break;
             case 3:
@@ -650,7 +650,7 @@ static void potentialRandomParams(ZSTD_compressionParameters* p, U32 inverseChan
     if (!chance)
     while (!validated) {
         /* totally random entry */
-        p->contentLog = FUZ_rand(&g_rand) % (ZSTD_CONTENTLOG_MAX+1 - ZSTD_CONTENTLOG_MIN) + ZSTD_CONTENTLOG_MIN;
+        p->chainLog   = FUZ_rand(&g_rand) % (ZSTD_CHAINLOG_MAX+1 - ZSTD_CHAINLOG_MIN) + ZSTD_CHAINLOG_MIN;
         p->hashLog    = FUZ_rand(&g_rand) % (ZSTD_HASHLOG_MAX+1 - ZSTD_HASHLOG_MIN) + ZSTD_HASHLOG_MIN;
         p->searchLog  = FUZ_rand(&g_rand) % (ZSTD_SEARCHLOG_MAX+1 - ZSTD_SEARCHLOG_MIN) + ZSTD_SEARCHLOG_MIN;
         p->windowLog  = FUZ_rand(&g_rand) % (ZSTD_WINDOWLOG_MAX+1 - ZSTD_WINDOWLOG_MIN) + ZSTD_WINDOWLOG_MIN;
@@ -1047,10 +1047,10 @@ int main(int argc, char** argv)
                                 g_params.windowLog *= 10, g_params.windowLog += *argument++ - '0';
                             continue;
                         case 'c':
-                            g_params.contentLog = 0;
+                            g_params.chainLog = 0;
                             argument++;
                             while ((*argument>= '0') && (*argument<='9'))
-                                g_params.contentLog *= 10, g_params.contentLog += *argument++ - '0';
+                                g_params.chainLog *= 10, g_params.chainLog += *argument++ - '0';
                             continue;
                         case 'h':
                             g_params.hashLog = 0;

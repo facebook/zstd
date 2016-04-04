@@ -247,8 +247,8 @@ static U32 ZSTD_insertBtAndGetAllMatches (
     const size_t h  = ZSTD_hashPtr(ip, hashLog, mls);
     U32* const hashTable = zc->hashTable;
     U32 matchIndex  = hashTable[h];
-    U32* const bt   = zc->contentTable;
-    const U32 btLog = zc->params.cParams.contentLog - 1;
+    U32* const bt   = zc->chainTable;
+    const U32 btLog = zc->params.cParams.chainLog - 1;
     const U32 btMask= (1U << btLog) - 1;
     size_t commonLengthSmaller=0, commonLengthLarger=0;
     const BYTE* const dictBase = zc->dictBase;

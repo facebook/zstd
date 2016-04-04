@@ -178,7 +178,7 @@ MEM_STATIC void ZSTD_updatePrice(seqStore_t* seqStorePtr, U32 litLength, const B
 
     /* match offset */
     seqStorePtr->offCodeSum++;
-    BYTE offCode = ZSTD_highbit(offset+1);
+    BYTE offCode = (BYTE)ZSTD_highbit(offset+1);
     seqStorePtr->offCodeFreq[offCode]++;
 
     /* match Length */

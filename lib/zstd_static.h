@@ -57,7 +57,7 @@ extern "C" {
 /*-*************************************
 *  Types
 ***************************************/
-#define ZSTD_WINDOWLOG_MAX    (MEM_32bits() ? 25 : 27)
+#define ZSTD_WINDOWLOG_MAX    ((U32)(MEM_32bits() ? 25 : 27))
 #define ZSTD_WINDOWLOG_MIN     18
 #define ZSTD_CHAINLOG_MAX     (ZSTD_WINDOWLOG_MAX+1)
 #define ZSTD_CHAINLOG_MIN       4

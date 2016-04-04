@@ -450,11 +450,6 @@ static void BMK_benchCLevel(void* srcBuffer, size_t benchedSize,
 {
     benchResult_t result, total;
     int l;
-#ifdef _WIN32
-    SetPriorityClass(GetCurrentProcess(), REALTIME_PRIORITY_CLASS);
-#else
-    setpriority(PRIO_PROCESS, 0, -20);
-#endif
 
     SET_HIGH_PRIORITY;
 

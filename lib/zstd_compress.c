@@ -2154,7 +2154,7 @@ size_t ZSTD_compressBlock(ZSTD_CCtx* zc, void* dst, size_t dstCapacity, const vo
 {
     if (srcSize > ZSTD_BLOCKSIZE_MAX) return ERROR(srcSize_wrong);
     zc->params.cParams.searchLength = MINMATCH; /* force ZSTD_btopt to MINMATCH in block mode */
-    ZSTD_LOG_BLOCK("%p: ZSTD_compressBlock searchLength=%d\n", zc->base, zc->params.searchLength);
+    ZSTD_LOG_BLOCK("%p: ZSTD_compressBlock searchLength=%d\n", zc->base, zc->params.cParams.searchLength);
     return ZSTD_compressContinue_internal(zc, dst, dstCapacity, src, srcSize, 0);
 }
 

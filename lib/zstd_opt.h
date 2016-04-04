@@ -527,6 +527,7 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
          /* check further positions */
         for (cur = 1; cur <= last_pos; cur++) {
            inr = ip + cur;
+           ZSTD_LOG_PARSER("%d: START_NoExt price[%d/%d]=%d off=%d mlen=%d litlen=%d rep=%d rep[1]=%d\n", (int)(inr-base), cur, last_pos, opt[cur].price, opt[cur].off, opt[cur].mlen, opt[cur].litlen, opt[cur].rep[0], opt[cur].rep[1]);
 
            if (opt[cur-1].mlen == 1) {
                 litlen = opt[cur-1].litlen + 1;

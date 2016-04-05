@@ -46,17 +46,6 @@
 #define MIN(a,b) ((a)<(b) ? (a) : (b))
 #define MAX(a,b) ((a)>(b) ? (a) : (b))
 
-#define ZSTD_GCC_VERSION (__GNUC__ * 100 + __GNUC_MINOR__)
-
-#if (ZSTD_GCC_VERSION >= 302) || (__INTEL_COMPILER >= 800) || defined(__clang__)
-#  define expect(expr,value)    (__builtin_expect ((expr),(value)) )
-#else
-#  define expect(expr,value)    (expr)
-#endif
-
-#define likely(expr)     expect((expr) != 0, 1)
-#define unlikely(expr)   expect((expr) != 0, 0)
-
 
 /*-*************************************
 *  Common constants
@@ -256,7 +245,6 @@ typedef struct {
     ZSTD_stats_t stats;
 } seqStore_t;
 
-extern int kSlotNew;
 const seqStore_t* ZSTD_getSeqStore(const ZSTD_CCtx* ctx);
 void ZSTD_seqToCodes(const seqStore_t* seqStorePtr, size_t const nbSeq);
 size_t ZSTD_compressBegin_targetSrcSize(ZSTD_CCtx* zc, const void* dict, size_t dictSize, size_t targetSrcSize, int compressionLevel);

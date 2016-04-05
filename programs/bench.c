@@ -234,8 +234,6 @@ typedef struct
 #define MIN(a,b) ((a)<(b) ? (a) : (b))
 #define MAX(a,b) ((a)>(b) ? (a) : (b))
 
-int kSlotNew = 0;
-
 static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
                         const char* displayName, int cLevel,
                         const size_t* fileSizes, U32 nbFiles,
@@ -460,7 +458,6 @@ static void BMK_benchCLevel(void* srcBuffer, size_t benchedSize,
     memset(&result, 0, sizeof(result));
     memset(&total, 0, sizeof(total));
 
-    kSlotNew = g_additionalParam;
     if (g_displayLevel == 1 && !g_additionalParam)
         DISPLAY("bench %s: input %u bytes, %i iterations, %u KB blocks\n", ZSTD_VERSION, (U32)benchedSize, g_nbIterations, (U32)(g_blockSize>>10));
 

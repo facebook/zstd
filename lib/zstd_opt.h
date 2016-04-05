@@ -551,11 +551,10 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
            mlen = opt[cur].mlen;
 
            if (opt[cur].off >= ZSTD_REP_NUM) {
-                opt[cur].rep[3] = (kSlotNew < 3) ? opt[cur-mlen].rep[2] : opt[cur-mlen].rep[3];
-                opt[cur].rep[2] = (kSlotNew < 2) ? opt[cur-mlen].rep[1] : opt[cur-mlen].rep[2];
-                opt[cur].rep[1] = (kSlotNew < 1) ? opt[cur-mlen].rep[0] : opt[cur-mlen].rep[1];
-                opt[cur].rep[0] = opt[cur-mlen].rep[0];
-                opt[cur].rep[kSlotNew] = opt[cur].off - ZSTD_REP_MOVE;               
+                opt[cur].rep[3] = opt[cur-mlen].rep[2];
+                opt[cur].rep[2] = opt[cur-mlen].rep[1];
+                opt[cur].rep[1] = opt[cur-mlen].rep[0];
+                opt[cur].rep[0] = opt[cur].off - ZSTD_REP_MOVE;               
                 ZSTD_LOG_ENCODE("%d: COPYREP_OFF cur=%d mlen=%d rep=%d rep[1]=%d\n", (int)(inr-base), cur, mlen, opt[cur].rep[0], opt[cur].rep[1]);
            } else {
                 opt[cur].rep[3] = (opt[cur].off > 2) ? opt[cur-mlen].rep[2] : opt[cur-mlen].rep[3];
@@ -685,10 +684,10 @@ _storeSequence:   /* cur, last_pos, best_mlen, best_off have to be set */
             ZSTD_LOG_ENCODE("%d/%d: ENCODE literals=%d mlen=%d off=%d rep1=%d rep[1]=%d\n", (int)(ip-base), (int)(iend-base), (int)(litLength), (int)mlen, (int)(offset), (int)rep[0], (int)rep[1]);
 
             if (offset >= ZSTD_REP_NUM) {
-                if (kSlotNew < 3) rep[3] = rep[2];
-                if (kSlotNew < 2) rep[2] = rep[1];
-                if (kSlotNew < 1) rep[1] = rep[0];               
-                rep[kSlotNew] = offset - ZSTD_REP_MOVE;               
+                rep[3] = rep[2];
+                rep[2] = rep[1];
+                rep[1] = rep[0];               
+                rep[0] = offset - ZSTD_REP_MOVE;               
             } else {
                 if (offset != 0) {
                     size_t temp = rep[offset];

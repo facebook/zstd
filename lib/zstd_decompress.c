@@ -810,7 +810,7 @@ static size_t ZSTD_decompressSequences(
 
         memset(&sequence, 0, sizeof(sequence));
         sequence.offset = REPCODE_STARTVALUE;
-        for (int i=0; i<ZSTD_REP_INIT; i++)
+        for (U32 i=0; i<ZSTD_REP_INIT; i++)
             seqState.prevOffset[i] = REPCODE_STARTVALUE;
         { size_t const errorCode = BIT_initDStream(&(seqState.DStream), ip, iend-ip);
           if (ERR_isError(errorCode)) return ERROR(corruption_detected); }

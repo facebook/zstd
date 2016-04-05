@@ -143,9 +143,9 @@ static int usage_advanced(const char* programName)
 #ifndef ZSTD_NOBENCH
     DISPLAY( "Benchmark arguments :\n");
     DISPLAY( " -b#    : benchmark file(s), using # compression level (default : 1) \n");
+    DISPLAY( " -r#    : test all compression levels from -bX to # (default: 1)\n");
     DISPLAY( " -i#    : iteration loops [1-9](default : 3)\n");
     DISPLAY( " -B#    : cut file into independent blocks of size # (default: no block)\n");
-    DISPLAY( " -r#    : test all compression levels from 1 to # (default: disabled)\n");
 #endif
     return 0;
 }
@@ -182,19 +182,19 @@ int main(int argCount, const char** argv)
         nextArgumentIsOutFileName=0,
         nextArgumentIsMaxDict=0;
     unsigned cLevel = 1;
+    unsigned cLevelLast = 1;
     const char** filenameTable = (const char**)malloc(argCount * sizeof(const char*));   /* argCount >= 1 */
     unsigned filenameIdx = 0;
     const char* programName = argv[0];
     const char* outFileName = NULL;
     const char* dictFileName = NULL;
     char* dynNameSpace = NULL;
-    int rangeBench = 1;
     unsigned maxDictSize = g_defaultMaxDictSize;
     unsigned dictCLevel = g_defaultDictCLevel;
     unsigned dictSelect = g_defaultSelectivityLevel;
 
     /* init */
-    (void)rangeBench; (void)dictCLevel;   /* not used when ZSTD_NOBENCH / ZSTD_NODICT set */
+    (void)cLevelLast; (void)dictCLevel;   /* not used when ZSTD_NOBENCH / ZSTD_NODICT set */
     if (filenameTable==NULL) { DISPLAY("not enough memory\n"); exit(1); }
     displayOut = stderr;
     /* Pick out program name from path. Don't rely on stdlib because of conflicting behavior */
@@ -235,7 +235,6 @@ int main(int argCount, const char** argv)
             argument++;
 
             while (argument[0]!=0) {
-
                 /* compression Level */
                 if ((*argument>='0') && (*argument<='9')) {
                     cLevel = 0;
@@ -294,6 +293,7 @@ int main(int argCount, const char** argv)
                         argument++;
                         while ((*argument >='0') && (*argument <='9'))
                             iters *= 10, iters += *argument++ - '0';
+                        BMK_setNotificationLevel(displayLevel);
                         BMK_SetNbIterations(iters);
                     }
                     break;
@@ -307,14 +307,20 @@ int main(int argCount, const char** argv)
                         if (*argument=='K') bSize<<=10, argument++;  /* allows using KB notation */
                         if (*argument=='M') bSize<<=20, argument++;
                         if (*argument=='B') argument++;
+                        BMK_setNotificationLevel(displayLevel);
                         BMK_SetBlockSize(bSize);
                     }
                     break;
 
                     /* range bench (benchmark only) */
                 case 'r':
-                        rangeBench = -1;
+                        /* compression Level */
                         argument++;
+                        if ((*argument>='0') && (*argument<='9')) {
+                            cLevelLast = 0;
+                            while ((*argument >= '0') && (*argument <= '9'))
+                                cLevelLast *= 10, cLevelLast += *argument++ - '0';
+                        }
                         break;
 #endif   /* ZSTD_NOBENCH */
 
@@ -325,9 +331,18 @@ int main(int argCount, const char** argv)
                         dictSelect *= 10, dictSelect += *argument++ - '0';
                     break;
 
-                    /* Pause at the end (hidden option) */
-                case 'p': main_pause=1; argument++; break;
-
+                    /* Pause at the end (-p) or set an additional param (-p#) (hidden option) */
+                case 'p': argument++; 
+#ifndef ZSTD_NOBENCH
+                    if ((*argument>='0') && (*argument<='9')) {
+                        int additionalParam = 0;
+                        while ((*argument >= '0') && (*argument <= '9'))
+                            additionalParam *= 10, additionalParam += *argument++ - '0';
+                        BMK_setAdditionalParam(additionalParam);
+                    } else 
+#endif
+                        main_pause=1;
+                    break;
                     /* unknown command */
                 default : CLEAN_RETURN(badusage(programName));
                 }
@@ -368,7 +383,8 @@ int main(int argCount, const char** argv)
     /* Check if benchmark is selected */
     if (bench) {
 #ifndef ZSTD_NOBENCH
-        BMK_benchFiles(filenameTable, filenameIdx, dictFileName, cLevel*rangeBench);
+        BMK_setNotificationLevel(displayLevel);
+        BMK_benchFiles(filenameTable, filenameIdx, dictFileName, cLevel, cLevelLast);
 #endif
         goto _end;
     }

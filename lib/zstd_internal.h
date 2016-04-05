@@ -193,7 +193,7 @@ typedef struct {
 } ZSTD_optimal_t;
 
 #if ZSTD_OPT_DEBUG == 3
-    #include "zstd_stats.h"
+    #include ".debug/zstd_stats.h"
 #else
     typedef struct { U32  unused; } ZSTD_stats_t;
     MEM_STATIC void ZSTD_statsPrint(ZSTD_stats_t* stats, U32 searchLength) { (void)stats; (void)searchLength; };

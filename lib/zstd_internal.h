@@ -64,15 +64,10 @@
 
 #define ZSTD_OPT_NUM    (1<<12)
 #define ZSTD_DICT_MAGIC  0xEC30A435
-#if 1
-    #define ZSTD_REP_NUM    4
-    #define ZSTD_REP_INIT   4
-    #define ZSTD_REP_MOVE   (ZSTD_REP_NUM-1)
-#else
-    #define ZSTD_REP_NUM    1
-    #define ZSTD_REP_INIT   2
-    #define ZSTD_REP_MOVE   0 //(ZSTD_REP_NUM-1)
-#endif
+
+#define ZSTD_REP_NUM    3
+#define ZSTD_REP_INIT   ZSTD_REP_NUM
+#define ZSTD_REP_MOVE   (ZSTD_REP_NUM-1)
 
 #define KB *(1 <<10)
 #define MB *(1 <<20)

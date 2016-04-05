@@ -64,7 +64,7 @@
 
 #define ZSTD_OPT_NUM    (1<<12)
 #define ZSTD_DICT_MAGIC  0xEC30A435
-#if 0
+#if 1
     #define ZSTD_REP_NUM    4
     #define ZSTD_REP_INIT   4
     #define ZSTD_REP_MOVE   (ZSTD_REP_NUM-1)

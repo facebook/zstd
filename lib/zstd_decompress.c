@@ -656,51 +656,7 @@ static void ZSTD_decodeSequence(seq_t* seq, seqState_t* seqState, const U32 mls)
                  0xFFFFFF, 0x1FFFFFF, 0x3FFFFFF, /*fake*/ 1, 1, 1, 1, 1 };
 
     /* sequence */
-#if ZSTD_REP_NUM == 1
-#if 1
-    {   size_t const offset = ofCode ? OF_base[ofCode] + BIT_readBits(&(seqState->DStream), ofBits) - ZSTD_REP_MOVE :   /* <=  26 bits */
-                                       llCode ? seq->offset : seqState->prevOffset[0];
-        if (MEM_32bits()) BIT_reloadDStream(&(seqState->DStream));
-        if (ofCode | !llCode) seqState->prevOffset[0] = seq->offset;   /* cmove */
-        seq->offset = offset;
-    }
-#else
     {   size_t offset;
-        if (ofCode) {
-            offset = OF_base[ofCode] + BIT_readBits(&(seqState->DStream), ofBits) - ZSTD_REP_MOVE;   /* <=  26 bits */
-            if (MEM_32bits()) BIT_reloadDStream(&(seqState->DStream));
-            seqState->prevOffset[0] = seq->offset;   /* cmove */
-        } else {
-            if (llCode) {
-                offset = seq->offset;
-            } else {
-                offset = seqState->prevOffset[0];
-                seqState->prevOffset[0] = seq->offset;
-            }
-        }
-        seq->offset = offset;
-    }
-#endif
-
-
-#else // ZSTD_REP_NUM == 1
-
-
-    {   size_t offset;
-#if 0
-        if (!ofCode) {
-            if (!llCode) {
-                offset = seqState->prevOffset[1];
-                seqState->prevOffset[1] = seqState->prevOffset[0];
-                seqState->prevOffset[0] = offset;
-
-            } else {
-                offset = seqState->prevOffset[0];
-            }
-        } else {
-            offset = OF_base[ofCode] + BIT_readBits(&(seqState->DStream), ofBits);   /* <=  26 bits */
-            if (MEM_32bits()) BIT_reloadDStream(&(seqState->DStream));
-#else
         if (!ofCode)
             offset = 0;
         else {
@@ -708,37 +664,34 @@ static void ZSTD_decodeSequence(seq_t* seq, seqState_t* seqState, const U32 mls)
             if (MEM_32bits()) BIT_reloadDStream(&(seqState->DStream));
         }
         
-        {
+        if (offset < ZSTD_REP_NUM) {
+            if (llCode == 0 && offset <= 1) offset = 1-offset;
+
+            if (offset != 0) {
+                size_t temp = seqState->prevOffset[offset];
+                if (offset != 1) {
+#if ZSTD_REP_NUM > 3
+                    if (offset == 3) seqState->prevOffset[3] = seqState->prevOffset[2];
 #endif
-            if (offset < ZSTD_REP_NUM) {
-                if (llCode == 0 && offset <= 1) offset = 1-offset;
-
-                if (offset != 0) {
-                    size_t temp = seqState->prevOffset[offset];
-                    if (offset != 1) {
-                        if (offset == 3) seqState->prevOffset[3] = seqState->prevOffset[2];
-                        seqState->prevOffset[2] = seqState->prevOffset[1];
-                    }
-                    seqState->prevOffset[1] = seqState->prevOffset[0];
-                    seqState->prevOffset[0] = offset = temp;
-
-                } else {
-                    offset = seqState->prevOffset[0];
+                    seqState->prevOffset[2] = seqState->prevOffset[1];
                 }
+                seqState->prevOffset[1] = seqState->prevOffset[0];
+                seqState->prevOffset[0] = offset = temp;
+
             } else {
-                offset -= ZSTD_REP_MOVE;
-                seqState->prevOffset[3] = seqState->prevOffset[2];
-                seqState->prevOffset[2] = seqState->prevOffset[1];
-                seqState->prevOffset[1] = seqState->prevOffset[0];               
-                seqState->prevOffset[0] = offset;
+                offset = seqState->prevOffset[0];
             }
+        } else {
+            offset -= ZSTD_REP_MOVE;
+#if ZSTD_REP_NUM > 3
+            seqState->prevOffset[3] = seqState->prevOffset[2];
+#endif
+            seqState->prevOffset[2] = seqState->prevOffset[1];
+            seqState->prevOffset[1] = seqState->prevOffset[0];               
+            seqState->prevOffset[0] = offset;
         }
         seq->offset = offset;
     }
-    
-
-
-#endif
 
     seq->matchLength = ML_base[mlCode] + mls + ((mlCode>31) ? BIT_readBits(&(seqState->DStream), mlBits) : 0);   /* <=  16 bits */
     if (MEM_32bits() && (mlBits+llBits>24)) BIT_reloadDStream(&(seqState->DStream));

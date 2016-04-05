@@ -1736,16 +1736,19 @@ void ZSTD_compressBlock_lazy_generic(ZSTD_CCtx* ctx,
         /* store sequence */
 _storeSequence:
         {
-#if ZSTD_REP_NUM == 4
             if (offset >= ZSTD_REP_NUM) {
+#if ZSTD_REP_NUM > 3
                 rep[3] = rep[2];
+#endif
                 rep[2] = rep[1];
                 rep[1] = rep[0];
                 rep[0] = offset - ZSTD_REP_MOVE;
             } else {
                 if (offset != 0) {
                     size_t temp = rep[offset];
+#if ZSTD_REP_NUM > 3
                     if (offset > 2) rep[3] = rep[2];
+#endif
                     if (offset > 1) rep[2] = rep[1];
                     if (offset > 0) rep[1] = rep[0];
                     rep[0] = temp;
@@ -1753,11 +1756,7 @@ _storeSequence:
 
                 if (offset<=1 && start==anchor) offset = 1-offset;
             }
-#else
-            if (offset >= ZSTD_REP_NUM) {
-                rep[1] = rep[0]; rep[0] = offset - ZSTD_REP_MOVE;
-            }
-#endif
+
             size_t const litLength = start - anchor;
 
             ZSTD_storeSeq(seqStorePtr, litLength, anchor, offset, matchLength-MINMATCH);

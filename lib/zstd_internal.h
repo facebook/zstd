@@ -46,6 +46,17 @@
 #define MIN(a,b) ((a)<(b) ? (a) : (b))
 #define MAX(a,b) ((a)>(b) ? (a) : (b))
 
+#define ZSTD_GCC_VERSION (__GNUC__ * 100 + __GNUC_MINOR__)
+
+#if (ZSTD_GCC_VERSION >= 302) || (__INTEL_COMPILER >= 800) || defined(__clang__)
+#  define expect(expr,value)    (__builtin_expect ((expr),(value)) )
+#else
+#  define expect(expr,value)    (expr)
+#endif
+
+#define likely(expr)     expect((expr) != 0, 1)
+#define unlikely(expr)   expect((expr) != 0, 0)
+
 
 /*-*************************************
 *  Common constants

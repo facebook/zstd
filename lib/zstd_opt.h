@@ -111,9 +111,18 @@ FORCE_INLINE U32 ZSTD_getLiteralPrice(seqStore_t* seqStorePtr, U32 litLength, co
         price -= ZSTD_highbit(seqStorePtr->litFreq[literals[u]]+1);
 
     /* literal Length */
-    price += ((litLength >= MaxLL)<<3) + ((litLength >= 255+MaxLL)<<4) + ((litLength>=(1<<15))<<3);
-    if (litLength >= MaxLL) litLength = MaxLL;
-    price += seqStorePtr->log2litLengthSum - ZSTD_highbit(seqStorePtr->litLengthFreq[litLength]+1);
+    {   static const BYTE LL_Code[64] = {  0,  1,  2,  3,  4,  5,  6,  7,
+                                           8,  9, 10, 11, 12, 13, 14, 15,
+                                          16, 16, 17, 17, 18, 18, 19, 19,
+                                          20, 20, 20, 20, 21, 21, 21, 21,
+                                          22, 22, 22, 22, 22, 22, 22, 22,
+                                          23, 23, 23, 23, 23, 23, 23, 23,
+                                          24, 24, 24, 24, 24, 24, 24, 24,
+                                          24, 24, 24, 24, 24, 24, 24, 24 };
+        const BYTE LL_deltaCode = 19;
+        const BYTE llCode = (litLength>63) ? (BYTE)ZSTD_highbit(litLength) + LL_deltaCode : LL_Code[litLength];
+        price += LL_bits[llCode] + seqStorePtr->log2litLengthSum - ZSTD_highbit(seqStorePtr->litLengthFreq[llCode]+1);
+    }
 
     return price;
 }
@@ -122,25 +131,24 @@ FORCE_INLINE U32 ZSTD_getLiteralPrice(seqStore_t* seqStorePtr, U32 litLength, co
 FORCE_INLINE U32 ZSTD_getPrice(seqStore_t* seqStorePtr, U32 litLength, const BYTE* literals, U32 offset, U32 matchLength)
 {
     /* offset */
-    BYTE offCode = offset ? (BYTE)ZSTD_highbit(offset+1) + 1 : 0;
-    U32 price = (offCode-1) + (!offCode) + seqStorePtr->log2offCodeSum - ZSTD_highbit(seqStorePtr->offCodeFreq[offCode]+1);
+    BYTE offCode = (BYTE)ZSTD_highbit(offset+1);
+    U32 price = offCode + seqStorePtr->log2offCodeSum - ZSTD_highbit(seqStorePtr->offCodeFreq[offCode]+1);
 
     /* match Length */
-    price += ((matchLength >= MaxML)<<3) + ((matchLength >= 255+MaxML)<<4) + ((matchLength>=(1<<15))<<3);
-    if (matchLength >= MaxML) matchLength = MaxML;
-    price += ZSTD_getLiteralPrice(seqStorePtr, litLength, literals) + seqStorePtr->log2matchLengthSum - ZSTD_highbit(seqStorePtr->matchLengthFreq[matchLength]+1);
-
-#if ZSTD_OPT_DEBUG == 3
-    switch (seqStorePtr->priceFunc) {
-        default:
-        case 0:
-            return 1 + price + ((seqStorePtr->litSum>>5) / seqStorePtr->litLengthSum) + ((seqStorePtr->litSum<<1) / (seqStorePtr->litSum + seqStorePtr->matchSum));
-        case 1:
-            return 1 + price;
+    {   static const BYTE ML_Code[128] = { 0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15,
+                                          16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
+                                          32, 32, 33, 33, 34, 34, 35, 35, 36, 36, 36, 36, 37, 37, 37, 37,
+                                          38, 38, 38, 38, 38, 38, 38, 38, 39, 39, 39, 39, 39, 39, 39, 39,
+                                          40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40,
+                                          41, 41, 41, 41, 41, 41, 41, 41, 41, 41, 41, 41, 41, 41, 41, 41,
+                                          42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42,
+                                          42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42 };
+        const BYTE ML_deltaCode = 36;
+        const BYTE mlCode = (matchLength>127) ? (BYTE)ZSTD_highbit(matchLength) + ML_deltaCode : ML_Code[matchLength];
+        price += ML_bits[mlCode] + seqStorePtr->log2matchLengthSum - ZSTD_highbit(seqStorePtr->matchLengthFreq[mlCode]+1);
     }
-#else
-    return price + seqStorePtr->factor;
-#endif
+
+    return price + ZSTD_getLiteralPrice(seqStorePtr, litLength, literals) + seqStorePtr->factor;
 }
 
 
@@ -154,23 +162,39 @@ MEM_STATIC void ZSTD_updatePrice(seqStore_t* seqStorePtr, U32 litLength, const B
         seqStorePtr->litFreq[literals[u]]++;
 
     /* literal Length */
-    seqStorePtr->litLengthSum++;
-    if (litLength >= MaxLL)
-        seqStorePtr->litLengthFreq[MaxLL]++;
-    else
-        seqStorePtr->litLengthFreq[litLength]++;
+    {   static const BYTE LL_Code[64] = {  0,  1,  2,  3,  4,  5,  6,  7,
+                                           8,  9, 10, 11, 12, 13, 14, 15,
+                                          16, 16, 17, 17, 18, 18, 19, 19,
+                                          20, 20, 20, 20, 21, 21, 21, 21,
+                                          22, 22, 22, 22, 22, 22, 22, 22,
+                                          23, 23, 23, 23, 23, 23, 23, 23,
+                                          24, 24, 24, 24, 24, 24, 24, 24,
+                                          24, 24, 24, 24, 24, 24, 24, 24 };
+        const BYTE LL_deltaCode = 19;
+        const BYTE llCode = (litLength>63) ? (BYTE)ZSTD_highbit(litLength) + LL_deltaCode : LL_Code[litLength];
+        seqStorePtr->litLengthFreq[llCode]++;
+        seqStorePtr->litLengthSum++;
+    }
 
     /* match offset */
     seqStorePtr->offCodeSum++;
-    BYTE offCode = offset ? (BYTE)ZSTD_highbit(offset+1) + 1 : 0;
+    BYTE offCode = (BYTE)ZSTD_highbit(offset+1);
     seqStorePtr->offCodeFreq[offCode]++;
 
     /* match Length */
-    seqStorePtr->matchLengthSum++;
-    if (matchLength >= MaxML)
-        seqStorePtr->matchLengthFreq[MaxML]++;
-    else
-        seqStorePtr->matchLengthFreq[matchLength]++;
+    {   static const BYTE ML_Code[128] = { 0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15,
+                                          16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
+                                          32, 32, 33, 33, 34, 34, 35, 35, 36, 36, 36, 36, 37, 37, 37, 37,
+                                          38, 38, 38, 38, 38, 38, 38, 38, 39, 39, 39, 39, 39, 39, 39, 39,
+                                          40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40,
+                                          41, 41, 41, 41, 41, 41, 41, 41, 41, 41, 41, 41, 41, 41, 41, 41,
+                                          42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42,
+                                          42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42 };
+        const BYTE ML_deltaCode = 36;
+        const BYTE mlCode = (matchLength>127) ? (BYTE)ZSTD_highbit(matchLength) + ML_deltaCode : ML_Code[matchLength];
+        seqStorePtr->matchLengthFreq[mlCode]++;
+        seqStorePtr->matchLengthSum++;
+    }
 
     ZSTD_setLog2Prices(seqStorePtr);
 }
@@ -196,17 +220,18 @@ MEM_STATIC void ZSTD_updatePrice(seqStore_t* seqStorePtr, U32 litLength, const B
 static U32 ZSTD_insertAndFindFirstIndexHash3 (ZSTD_CCtx* zc, const BYTE* ip)
 {
     U32* const hashTable3  = zc->hashTable3;
+    U32 const hashLog3  = zc->hashLog3;
     const BYTE* const base = zc->base;
     const U32 target = (U32)(ip - base);
     U32 idx = zc->nextToUpdate3;
 
     while(idx < target) {
-        hashTable3[ZSTD_hash3Ptr(base+idx, HASHLOG3)] = idx;
+        hashTable3[ZSTD_hash3Ptr(base+idx, hashLog3)] = idx;
         idx++;
     }
 
     zc->nextToUpdate3 = target;
-    return hashTable3[ZSTD_hash3Ptr(ip, HASHLOG3)];
+    return hashTable3[ZSTD_hash3Ptr(ip, hashLog3)];
 }
 
 

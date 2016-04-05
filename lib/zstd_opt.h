@@ -796,24 +796,24 @@ void ZSTD_compressBlock_opt_extDict_generic(ZSTD_CCtx* ctx,
                 } while (mlen >= minMatch);
         }   }
 
-       best_mlen = (last_pos) ? last_pos : minMatch;
+        best_mlen = (last_pos) ? last_pos : minMatch;
 
-       match_num = ZSTD_BtGetAllMatches_selectMLS_extDict(ctx, ip, iend, maxSearches, mls, matches);  /* first search (depth 0) */
+        match_num = ZSTD_BtGetAllMatches_selectMLS_extDict(ctx, ip, iend, maxSearches, mls, matches);  /* first search (depth 0) */
 
-       ZSTD_LOG_PARSER("%d: match_num=%d last_pos=%d\n", (int)(ip-base), match_num, last_pos);
-       if (!last_pos && !match_num) { ip++; continue; }
+        ZSTD_LOG_PARSER("%d: match_num=%d last_pos=%d\n", (int)(ip-base), match_num, last_pos);
+        if (!last_pos && !match_num) { ip++; continue; }
 
-       for (int i=0; i<ZSTD_REP_INIT; i++)
+        for (int i=0; i<ZSTD_REP_INIT; i++)
             opt[0].rep[i] = rep[i];
-       opt[0].mlen = 1;
+        opt[0].mlen = 1;
 
-       if (match_num && matches[match_num-1].len > sufficient_len) {
+        if (match_num && matches[match_num-1].len > sufficient_len) {
             best_mlen = matches[match_num-1].len;
             best_off = matches[match_num-1].off;
             cur = 0;
             last_pos = 1;
             goto _storeSequence;
-       }
+        }
 
         // set prices using matches at position = 0
         for (u = 0; u < match_num; u++) {
@@ -870,7 +870,6 @@ void ZSTD_compressBlock_opt_extDict_generic(ZSTD_CCtx* ctx,
             }
 
             ZSTD_LOG_PARSER("%d: CURRENT_NoExt price[%d/%d]=%d off=%d mlen=%d litlen=%d rep=%d rep[1]=%d\n", (int)(inr-base), cur, last_pos, opt[cur].price, opt[cur].off, opt[cur].mlen, opt[cur].litlen, opt[cur].rep[0], opt[cur].rep[1]);
-
             best_mlen = 0;
 
             for (U32 i=0; i<ZSTD_REP_NUM; i++) {
@@ -885,10 +884,8 @@ void ZSTD_compressBlock_opt_extDict_generic(ZSTD_CCtx* ctx,
                     ZSTD_LOG_PARSER("%d: Found REP mlen=%d off=%d rep=%d opt[%d].off=%d\n", (int)(inr-base), mlen, 0, opt[cur].rep, cur, opt[cur].off);
 
                     if (mlen > sufficient_len || cur + mlen >= ZSTD_OPT_NUM) {
-                        best_mlen = mlen;
-                        best_off = i;
                         ZSTD_LOG_PARSER("%d: REP sufficient_len=%d best_mlen=%d best_off=%d last_pos=%d\n", (int)(inr-base), sufficient_len, best_mlen, best_off, last_pos);
-                        last_pos = cur + 1;
+                        best_mlen = mlen; best_off = i; last_pos = cur + 1;
                         goto _storeSequence;
                     }
 
@@ -914,8 +911,6 @@ void ZSTD_compressBlock_opt_extDict_generic(ZSTD_CCtx* ctx,
                     } while (mlen >= minMatch);
             }   }
 
-            best_mlen = (best_mlen > minMatch) ? best_mlen : minMatch;
-
             match_num = ZSTD_BtGetAllMatches_selectMLS_extDict(ctx, inr, iend, maxSearches, mls, matches);
             ZSTD_LOG_PARSER("%d: ZSTD_GetAllMatches match_num=%d\n", (int)(inr-base), match_num);
 
@@ -925,6 +920,8 @@ void ZSTD_compressBlock_opt_extDict_generic(ZSTD_CCtx* ctx,
                 last_pos = cur + 1;
                 goto _storeSequence;
             }
+
+            best_mlen = (best_mlen > minMatch) ? best_mlen : minMatch;
 
             // set prices using matches at position = cur
             for (u = 0; u < match_num; u++) {

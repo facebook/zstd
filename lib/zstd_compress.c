@@ -1671,7 +1671,7 @@ void ZSTD_compressBlock_greedy_generic(ZSTD_CCtx* ctx,
         /* catch up */
         while ((start>anchor) && (start>base+offset-ZSTD_REP_MOVE) && (start[-1] == start[-1-offset+ZSTD_REP_MOVE]))   /* only search for offset within prefix */
             { start--; matchLength++; }
-        rep[1] = rep[0]; rep[0] = offset - ZSTD_REP_MOVE;
+        rep[1] = rep[0]; rep[0] = (U32)(offset - ZSTD_REP_MOVE);
 
 _storeSequence:
         /* store sequence */
@@ -1685,7 +1685,7 @@ _storeSequence:
              && (MEM_read32(ip) == MEM_read32(ip - rep[1])) ) {
             /* store sequence */
             matchLength = ZSTD_count(ip+MINMATCH, ip+MINMATCH-rep[1], iend);
-            offset = rep[1]; rep[1] = rep[0]; rep[0] = offset;  /* swap offset history */
+            offset = rep[1]; rep[1] = rep[0]; rep[0] = (U32)offset;  /* swap offset history */
             ZSTD_storeSeq(seqStorePtr, 0, anchor, 0, matchLength);
             ip += matchLength+MINMATCH;
             anchor = ip;
@@ -1767,7 +1767,7 @@ void ZSTD_compressBlock_greedy_extDict_generic(ZSTD_CCtx* ctx,
             const BYTE* match = (matchIndex < dictLimit) ? dictBase + matchIndex : base + matchIndex;
             const BYTE* const mStart = (matchIndex < dictLimit) ? dictStart : prefixStart;
             while ((start>anchor) && (match>mStart) && (start[-1] == match[-1])) { start--; match--; matchLength++; }
-            rep[1] = rep[0]; rep[0] = offset - ZSTD_REP_MOVE;
+            rep[1] = rep[0]; rep[0] = (U32)(offset - ZSTD_REP_MOVE);
         } 
 
 _storeSequence:
@@ -1787,7 +1787,7 @@ _storeSequence:
                 /* repcode detected we should take it */
                 const BYTE* const repEnd = repIndex < dictLimit ? dictEnd : iend;
                 matchLength = ZSTD_count_2segments(ip+MINMATCH, repMatch+MINMATCH, iend, repEnd, prefixStart) + MINMATCH;
-                offset = rep[1]; rep[1] = rep[0]; rep[0] = offset;   /* swap offset history */
+                offset = rep[1]; rep[1] = rep[0]; rep[0] = (U32)offset;   /* swap offset history */
                 ZSTD_storeSeq(seqStorePtr, 0, anchor, 0, matchLength-MINMATCH);
                 ip += matchLength;
                 anchor = ip;
@@ -1925,7 +1925,7 @@ void ZSTD_compressBlock_lazy_generic(ZSTD_CCtx* ctx,
             if (offset >= ZSTD_REP_NUM) {
                 rep[2] = rep[1];
                 rep[1] = rep[0];
-                rep[0] = offset - ZSTD_REP_MOVE;
+                rep[0] = (U32)(offset - ZSTD_REP_MOVE);
             } else {
                 if (offset != 0) {
                     U32 temp = rep[offset];
@@ -1955,7 +1955,7 @@ void ZSTD_compressBlock_lazy_generic(ZSTD_CCtx* ctx,
 
 static void ZSTD_compressBlock_btopt(ZSTD_CCtx* ctx, const void* src, size_t srcSize)
 {
-    ZSTD_compressBlock_opt_generic(ctx, src, srcSize, 2);
+    ZSTD_compressBlock_opt_generic(ctx, src, srcSize);
 }
 
 static void ZSTD_compressBlock_btlazy2(ZSTD_CCtx* ctx, const void* src, size_t srcSize)
@@ -2129,7 +2129,7 @@ void ZSTD_compressBlock_lazy_extDict_generic(ZSTD_CCtx* ctx,
             if (offset >= ZSTD_REP_NUM) {
                 rep[2] = rep[1];
                 rep[1] = rep[0];
-                rep[0] = offset - ZSTD_REP_MOVE;
+                rep[0] = (U32)(offset - ZSTD_REP_MOVE);
             } else {
                 if (offset != 0) {
                     U32 temp = rep[offset];
@@ -2175,7 +2175,7 @@ static void ZSTD_compressBlock_btlazy2_extDict(ZSTD_CCtx* ctx, const void* src, 
 
 static void ZSTD_compressBlock_btopt_extDict(ZSTD_CCtx* ctx, const void* src, size_t srcSize)
 {
-    ZSTD_compressBlock_opt_extDict_generic(ctx, src, srcSize, 2);
+    ZSTD_compressBlock_opt_extDict_generic(ctx, src, srcSize);
 }
 
 

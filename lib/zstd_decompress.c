@@ -990,7 +990,9 @@ size_t ZSTD_nextSrcSizeToDecompress(ZSTD_DCtx* dctx)
 size_t ZSTD_decompressContinue(ZSTD_DCtx* dctx, void* dst, size_t maxDstSize, const void* src, size_t srcSize)
 {
     /* Sanity check */
-    if (srcSize != dctx->expected) return ERROR(srcSize_wrong);
+    if (srcSize != dctx->expected &&
+       !(dctx->stage == ZSTDds_getFrameHeaderSize && srcSize == ZSTD_frameHeaderSize_max))
+           return ERROR(srcSize_wrong);
     ZSTD_checkContinuity(dctx, dst);
 
     /* Decompress : frame header; part 1 */
@@ -998,16 +1000,17 @@ size_t ZSTD_decompressContinue(ZSTD_DCtx* dctx, void* dst, size_t maxDstSize, co
     {
     case ZSTDds_getFrameHeaderSize :
         {
-            if (srcSize != ZSTD_frameHeaderSize_min) return ERROR(srcSize_wrong);   /* impossible */
             dctx->headerSize = ZSTD_frameHeaderSize(src, ZSTD_frameHeaderSize_min);
             if (ZSTD_isError(dctx->headerSize)) return dctx->headerSize;
             memcpy(dctx->headerBuffer, src, ZSTD_frameHeaderSize_min);
             if (dctx->headerSize > ZSTD_frameHeaderSize_min) {
                 dctx->expected = dctx->headerSize - ZSTD_frameHeaderSize_min;
                 dctx->stage = ZSTDds_decodeFrameHeader;
-                return 0;
+                if (srcSize < dctx->headerSize)
+                    return 0;
+            } else {
+                dctx->expected = 0;   /* not necessary to copy more */
             }
-            dctx->expected = 0;   /* not necessary to copy more */
         }
     case ZSTDds_decodeFrameHeader:
         {

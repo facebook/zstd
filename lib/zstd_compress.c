@@ -1738,17 +1738,10 @@ _storeSequence:
         {
 #if ZSTD_REP_NUM == 4
             if (offset >= ZSTD_REP_NUM) {
-#if 1
                 rep[3] = rep[2];
                 rep[2] = rep[1];
                 rep[1] = rep[0];
                 rep[0] = offset - ZSTD_REP_MOVE;
-#else
-                if (kSlotNew < 3) rep[3] = rep[2];
-                if (kSlotNew < 2) rep[2] = rep[1];
-                if (kSlotNew < 1) rep[1] = rep[0];               
-                rep[kSlotNew] = offset - ZSTD_REP_MOVE;
-#endif
             } else {
                 if (offset != 0) {
                     size_t temp = rep[offset];

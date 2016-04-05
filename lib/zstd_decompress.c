@@ -824,7 +824,7 @@ static size_t ZSTD_decompressSequences(
             ZSTD_decodeSequence(&sequence, &seqState, mls);
 #if 0  /* for debug */
             {   U32 pos = (U32)(op-base);
-                if ((pos > 200802300) && (pos < 200802400))
+               // if ((pos > 200802300) && (pos < 200802400))
                     printf("Dpos %6u :%5u literals & match %3u bytes at distance %6u \n",
                         pos, (U32)sequence.litLength, (U32)sequence.matchLength, (U32)sequence.offset);
             }

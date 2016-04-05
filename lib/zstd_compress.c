@@ -1737,18 +1737,12 @@ void ZSTD_compressBlock_lazy_generic(ZSTD_CCtx* ctx,
 _storeSequence:
         {
             if (offset >= ZSTD_REP_NUM) {
-#if ZSTD_REP_NUM > 3
-                rep[3] = rep[2];
-#endif
                 rep[2] = rep[1];
                 rep[1] = rep[0];
                 rep[0] = offset - ZSTD_REP_MOVE;
             } else {
                 if (offset != 0) {
                     size_t temp = rep[offset];
-#if ZSTD_REP_NUM > 3
-                    if (offset > 2) rep[3] = rep[2];
-#endif
                     if (offset > 1) rep[2] = rep[1];
                     if (offset > 0) rep[1] = rep[0];
                     rep[0] = temp;

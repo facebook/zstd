@@ -179,7 +179,7 @@ ZSTDLIB_API size_t ZSTD_compressEnd(ZSTD_CCtx* cctx, void* dst, size_t dstCapaci
   You can then reuse ZSTD_CCtx to compress some new frame.
 */
 
-typedef struct { U64 frameContentSize; U32 windowLog; U32 mml; } ZSTD_frameParams;
+typedef struct { U64 frameContentSize; U32 windowLog; } ZSTD_frameParams;
 
 #define ZSTD_FRAMEHEADERSIZE_MAX 13    /* for static allocation */
 static const size_t ZSTD_frameHeaderSize_min = 5;

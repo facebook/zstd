@@ -1470,7 +1470,7 @@ static size_t ZSTD_insertBtAndFindBestMatch (
 
 update:
     zc->nextToUpdate = (matchEndIdx > current + 8) ? matchEndIdx - 8 : current+1;
-    return bestLength;
+    return (bestLength>=minMatch) ? bestLength : 0;
 }
 
 
@@ -1627,7 +1627,7 @@ size_t ZSTD_HcFindBestMatch_generic (
             }
 
             /* save best solution */
-            if (currentMl > ml) { ml = currentMl; *offsetPtr = ZSTD_REP_MOVE + current - matchIndex; if (ip+currentMl == iLimit) return ml; /* best possible, and avoid read overflow*/ }
+            if (currentMl > ml) { ml = currentMl; *offsetPtr = ZSTD_REP_MOVE + current - matchIndex; if (ip+currentMl == iLimit) return (ml>=minMatch) ? ml : 0; /* best possible, and avoid read overflow*/ }
         }
     }
 
@@ -1653,7 +1653,7 @@ size_t ZSTD_HcFindBestMatch_generic (
         matchIndex = NEXT_IN_CHAIN(matchIndex, chainMask);
     }
 
-    return ml;
+    return (ml>=minMatch) ? ml : 0;
 }
 
 
@@ -2796,7 +2796,7 @@ static const ZSTD_compressionParameters ZSTD_defaultCParameters[4][ZSTD_MAX_CLEV
     { 14, 14, 14,  1,  4,  4, ZSTD_fast    },  /* level  1 */
     { 14, 14, 15,  1,  4,  4, ZSTD_fast    },  /* level  2 */
     { 14, 14, 14,  4,  4,  4, ZSTD_greedy  },  /* level  3.*/
-#if 1
+#if 0
     { 14, 14, 14,  3,  3,  4, ZSTD_lazy    },  /* level  4.*/
     { 14, 14, 14,  4,  3,  4, ZSTD_lazy2   },  /* level  5 */
     { 14, 14, 14,  5,  3,  4, ZSTD_lazy2   },  /* level  6 */

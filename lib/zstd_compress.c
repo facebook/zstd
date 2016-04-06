@@ -1251,28 +1251,6 @@ static void ZSTD_compressBlock_fast_extDict(ZSTD_CCtx* ctx,
 
 #define NEXT_IN_CHAIN(d, mask)   chainTable[(d) & mask]
 
-
-/* Update hashTable3 up to ip (excluded)
-   Assumption : always within prefix (ie. not within extDict) */
-FORCE_INLINE
-U32 ZSTD_insertAndFindFirstIndexHash3 (ZSTD_CCtx* zc, const BYTE* ip)
-{
-    U32* const hashTable3  = zc->hashTable3;
-    U32 const hashLog3  = zc->hashLog3;
-    const BYTE* const base = zc->base;
-    const U32 target = (U32)(ip - base);
-    U32 idx = zc->nextToUpdate3;
-
-    while(idx < target) {
-        hashTable3[ZSTD_hash3Ptr(base+idx, hashLog3)] = idx;
-        idx++;
-    }
-
-    zc->nextToUpdate3 = target;
-    return hashTable3[ZSTD_hash3Ptr(ip, hashLog3)];
-}
-
-
 /* Update chains up to ip (excluded)
    Assumption : always within prefix (ie. not within extDict) */
 FORCE_INLINE
@@ -1295,6 +1273,27 @@ U32 ZSTD_insertAndFindFirstIndex (ZSTD_CCtx* zc, const BYTE* ip, U32 mls)
 
     zc->nextToUpdate = target;
     return hashTable[ZSTD_hashPtr(ip, hashLog, mls)];
+}
+
+
+/* Update hashTable3 up to ip (excluded)
+   Assumption : always within prefix (ie. not within extDict) */
+FORCE_INLINE
+U32 ZSTD_insertAndFindFirstIndexHash3 (ZSTD_CCtx* zc, const BYTE* ip)
+{
+    U32* const hashTable3  = zc->hashTable3;
+    U32 const hashLog3  = zc->hashLog3;
+    const BYTE* const base = zc->base;
+    U32 idx = zc->nextToUpdate3;
+    const U32 target = zc->nextToUpdate3 = (U32)(ip - base);
+    const size_t hash3 = ZSTD_hash3Ptr(ip, hashLog3);
+    
+    while(idx < target) {
+        hashTable3[ZSTD_hash3Ptr(base+idx, hashLog3)] = idx;
+        idx++;
+    }
+
+    return hashTable3[hash3];
 }
 
 
@@ -1321,22 +1320,22 @@ size_t ZSTD_HcFindBestMatch_generic (
     size_t ml=minMatch-1;
 
     if (minMatch == 3) { /* HC3 match finder */
-        matchIndex = ZSTD_insertAndFindFirstIndexHash3 (zc, ip);
-        if (matchIndex>lowLimit && current - matchIndex<(1<<18)) {
+        U32 const matchIndex3 = ZSTD_insertAndFindFirstIndexHash3 (zc, ip);
+        if (matchIndex3>lowLimit && current - matchIndex3<(1<<18)) {
             const BYTE* match;
             size_t currentMl=0;
-            if ((!extDict) || matchIndex >= dictLimit) {
-                match = base + matchIndex;
+            if ((!extDict) || matchIndex3 >= dictLimit) {
+                match = base + matchIndex3;
                 if (match[ml] == ip[ml])   /* potentially better */
                     currentMl = ZSTD_count(ip, match, iLimit);
             } else {
-                match = dictBase + matchIndex;
-                if (MEM_readMINMATCH(match, MINMATCH) == MEM_readMINMATCH(ip, MINMATCH))   /* assumption : matchIndex <= dictLimit-4 (by table construction) */
+                match = dictBase + matchIndex3;
+                if (MEM_readMINMATCH(match, MINMATCH) == MEM_readMINMATCH(ip, MINMATCH))   /* assumption : matchIndex3 <= dictLimit-4 (by table construction) */
                     currentMl = ZSTD_count_2segments(ip+MINMATCH, match+MINMATCH, iLimit, dictEnd, prefixStart) + MINMATCH;
             }
 
             /* save best solution */
-            if (currentMl > ml) { ml = currentMl; *offsetPtr = ZSTD_REP_MOVE + current - matchIndex; if (ip+currentMl == iLimit) return (ml>=MINMATCH) ? ml : 0; /* best possible, and avoid read overflow*/ }
+            if (currentMl > ml) { ml = currentMl; *offsetPtr = ZSTD_REP_MOVE + current - matchIndex3; if (ip+currentMl == iLimit) return (ml>=MINMATCH) ? ml : 0; /* best possible, and avoid read overflow*/ }
         }
     }
 

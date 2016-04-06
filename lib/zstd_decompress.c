@@ -148,8 +148,6 @@ size_t ZSTD_decompressBegin(ZSTD_DCtx* dctx)
     dctx->dictEnd = NULL;
     dctx->hufTableX4[0] = HufLog;
     dctx->flagStaticTables = 0;
-    dctx->fParams.mml = MINMATCH; /* overwritten by frame but forces ZSTD_btopt to MINMATCH in block mode */
-    ZSTD_LOG_BLOCK("%p: ZSTD_decompressBegin searchLength=%d\n", dctx->base, dctx->fParams.mml);
     return 0;
 }
 
@@ -306,7 +304,6 @@ size_t ZSTD_getFrameParams(ZSTD_frameParams* fparamsPtr, const void* src, size_t
     memset(fparamsPtr, 0, sizeof(*fparamsPtr));
     {   BYTE const frameDesc = ip[4];
         fparamsPtr->windowLog = (frameDesc & 0xF) + ZSTD_WINDOWLOG_ABSOLUTEMIN;
-        fparamsPtr->mml = (frameDesc & 0x10) ? MINMATCH-1 : MINMATCH;
         if ((frameDesc & 0x20) != 0) return ERROR(frameParameter_unsupported);   /* reserved 1 bit */
         switch(frameDesc >> 6)  /* fcsId */
         {
@@ -626,7 +623,7 @@ typedef struct {
 
 
 
-static void ZSTD_decodeSequence(seq_t* seq, seqState_t* seqState, const U32 mls)
+static void ZSTD_decodeSequence(seq_t* seq, seqState_t* seqState)
 {
     /* Literal length */
     U32 const llCode = FSE_peekSymbol(&(seqState->stateLL));
@@ -687,7 +684,7 @@ static void ZSTD_decodeSequence(seq_t* seq, seqState_t* seqState, const U32 mls)
         seq->offset = offset;
     }
 
-    seq->matchLength = ML_base[mlCode] + mls + ((mlCode>31) ? BIT_readBits(&(seqState->DStream), mlBits) : 0);   /* <=  16 bits */
+    seq->matchLength = ML_base[mlCode] + MINMATCH + ((mlCode>31) ? BIT_readBits(&(seqState->DStream), mlBits) : 0);   /* <=  16 bits */
     if (MEM_32bits() && (mlBits+llBits>24)) BIT_reloadDStream(&(seqState->DStream));
 
     seq->litLength = LL_base[llCode] + ((llCode>15) ? BIT_readBits(&(seqState->DStream), llBits) : 0);   /* <=  16 bits */
@@ -759,7 +756,7 @@ FORCE_INLINE size_t ZSTD_execSequence(BYTE* op,
     }
     op += 8; match += 8;
 
-    if (oMatchEnd > oend-(16-3)) { // 3 = MINMATCH
+    if (oMatchEnd > oend-(16-MINMATCH)) {
         if (op < oend_8) {
             ZSTD_wildcopy(op, match, oend_8 - op);
             match += oend_8 - op;
@@ -792,7 +789,6 @@ static size_t ZSTD_decompressSequences(
     const BYTE* const base = (const BYTE*) (dctx->base);
     const BYTE* const vBase = (const BYTE*) (dctx->vBase);
     const BYTE* const dictEnd = (const BYTE*) (dctx->dictEnd);
-    const U32 mls = dctx->fParams.mml;
     int nbSeq;
 
     /* Build Decoding Tables */
@@ -821,7 +817,7 @@ static size_t ZSTD_decompressSequences(
         for ( ; (BIT_reloadDStream(&(seqState.DStream)) <= BIT_DStream_completed) && nbSeq ; ) {
             size_t oneSeqSize;
             nbSeq--;
-            ZSTD_decodeSequence(&sequence, &seqState, mls);
+            ZSTD_decodeSequence(&sequence, &seqState);
 #if 0  /* for debug */
             {   U32 pos = (U32)(op-base);
                // if ((pos > 200802300) && (pos < 200802400))
@@ -868,8 +864,6 @@ static size_t ZSTD_decompressBlock_internal(ZSTD_DCtx* dctx,
     const BYTE* ip = (const BYTE*)src;
 
     if (srcSize >= ZSTD_BLOCKSIZE_MAX) return ERROR(srcSize_wrong);
-
-    ZSTD_LOG_BLOCK("%p: ZSTD_decompressBlock_internal searchLength=%d\n", dctx->base, dctx->fParams.mml);
 
     /* Decode literals sub-block */
     { size_t const litCSize = ZSTD_decodeLiteralsBlock(dctx, src, srcSize);
@@ -977,7 +971,6 @@ size_t ZSTD_decompress_usingDict(ZSTD_DCtx* dctx,
                                  const void* dict, size_t dictSize)
 {
     ZSTD_decompressBegin_usingDict(dctx, dict, dictSize);
-    ZSTD_LOG_BLOCK("%p: ZSTD_decompressBegin_usingDict searchLength=%d\n", dctx->base, dctx->fParams.mml);
     ZSTD_checkContinuity(dctx, dst);
     return ZSTD_decompressFrame(dctx, dst, dstCapacity, src, srcSize);
 }

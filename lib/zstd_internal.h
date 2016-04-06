@@ -99,7 +99,8 @@ typedef enum { bt_compressed, bt_raw, bt_rle, bt_end } blockType_t;
 
 #define LONGNBSEQ 0x7F00
 
-#define MINMATCH 4
+#define MINMATCH 3
+#define EQUAL_READ32 4
 #define REPCODE_STARTVALUE 1
 
 #define Litbits  8

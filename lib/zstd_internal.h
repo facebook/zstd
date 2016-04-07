@@ -65,6 +65,10 @@
 #define ZSTD_OPT_NUM    (1<<12)
 #define ZSTD_DICT_MAGIC  0xEC30A435
 
+#define ZSTD_REP_NUM    3
+#define ZSTD_REP_INIT   ZSTD_REP_NUM
+#define ZSTD_REP_MOVE   (ZSTD_REP_NUM-1)
+
 #define KB *(1 <<10)
 #define MB *(1 <<20)
 #define GB *(1U<<30)
@@ -95,7 +99,8 @@ typedef enum { bt_compressed, bt_raw, bt_rle, bt_end } blockType_t;
 
 #define LONGNBSEQ 0x7F00
 
-#define MINMATCH 4
+#define MINMATCH 3
+#define EQUAL_READ32 4
 #define REPCODE_STARTVALUE 1
 
 #define Litbits  8
@@ -188,8 +193,7 @@ typedef struct {
     U32 off;
     U32 mlen;
     U32 litlen;
-    U32 rep;
-    U32 rep2;
+    U32 rep[ZSTD_REP_INIT];
 } ZSTD_optimal_t;
 
 #if ZSTD_OPT_DEBUG == 3

@@ -1319,6 +1319,7 @@ size_t ZSTD_HcFindBestMatch_generic (
     const U32 minMatch = (mls == 3) ? 3 : 4;
     size_t ml=minMatch-1;
 
+#if 0
     if (minMatch == 3) { /* HC3 match finder */
         U32 const matchIndex3 = ZSTD_insertAndFindFirstIndexHash3 (zc, ip);
         if (matchIndex3>lowLimit && current - matchIndex3<(1<<18)) {
@@ -1326,8 +1327,7 @@ size_t ZSTD_HcFindBestMatch_generic (
             size_t currentMl=0;
             if ((!extDict) || matchIndex3 >= dictLimit) {
                 match = base + matchIndex3;
-                if (match[ml] == ip[ml])   /* potentially better */
-                    currentMl = ZSTD_count(ip, match, iLimit);
+                if (match[ml] == ip[ml]) currentMl = ZSTD_count(ip, match, iLimit); /* potentially better */
             } else {
                 match = dictBase + matchIndex3;
                 if (MEM_readMINMATCH(match, MINMATCH) == MEM_readMINMATCH(ip, MINMATCH))   /* assumption : matchIndex3 <= dictLimit-4 (by table construction) */
@@ -1335,9 +1335,12 @@ size_t ZSTD_HcFindBestMatch_generic (
             }
 
             /* save best solution */
-            if (currentMl > ml) { ml = currentMl; *offsetPtr = ZSTD_REP_MOVE + current - matchIndex3; if (ip+currentMl == iLimit) return (ml>=MINMATCH) ? ml : 0; /* best possible, and avoid read overflow*/ }
-        }
+            if (currentMl > ml) { 
+                ml = currentMl; *offsetPtr = ZSTD_REP_MOVE + current - matchIndex3; 
+                if (ip+currentMl == iLimit) return (ml>=MINMATCH) ? ml : 0; /* best possible, and avoid read overflow*/ 
+        }   }
     }
+#endif
 
     /* HC4 match finder */
     U32 matchIndex = ZSTD_insertAndFindFirstIndex (zc, ip, mls);
@@ -1536,7 +1539,7 @@ static size_t ZSTD_insertBtAndFindBestMatch (
     size_t bestLength = minMatch-1;
 
     if (minMatch == 3) { /* HC3 match finder */
-        U32 matchIndex3 = ZSTD_insertAndFindFirstIndexHash3 (zc, ip);
+        U32 const matchIndex3 = ZSTD_insertAndFindFirstIndexHash3 (zc, ip);
         if (matchIndex3>windowLow && (current - matchIndex3 < (1<<18))) {
             const BYTE* match;
             size_t currentMl=0;
@@ -1545,8 +1548,8 @@ static size_t ZSTD_insertBtAndFindBestMatch (
                 if (match[bestLength] == ip[bestLength]) currentMl = ZSTD_count(ip, match, iend);
             } else {
                 match = dictBase + matchIndex3;
-                if (MEM_readMINMATCH(match, minMatch) == MEM_readMINMATCH(ip, minMatch))    /* assumption : matchIndex3 <= dictLimit-4 (by table construction) */
-                    currentMl = ZSTD_count_2segments(ip+minMatch, match+minMatch, iend, dictEnd, prefixStart) + minMatch;
+                if (MEM_readMINMATCH(match, MINMATCH) == MEM_readMINMATCH(ip, MINMATCH))    /* assumption : matchIndex3 <= dictLimit-4 (by table construction) */
+                    currentMl = ZSTD_count_2segments(ip+MINMATCH, match+MINMATCH, iend, dictEnd, prefixStart) + MINMATCH;
             }
 
             /* save best solution */

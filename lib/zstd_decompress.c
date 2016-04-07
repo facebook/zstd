@@ -500,34 +500,6 @@ size_t ZSTD_decodeLiteralsBlock(ZSTD_DCtx* dctx,
     @return : nb bytes read from src,
               or an error code if it fails, testable with ZSTD_isError()
 */
-FORCE_INLINE size_t ZSTD_buildSeqTableOff(FSE_DTable* DTable, U32 type, U32 rawBits, U32 maxLog,
-                                 const void* src, size_t srcSize)
-{
-    U32 max = (1<<rawBits)-1;
-    switch(type)
-    {
-    case FSE_ENCODING_RLE :
-        if (!srcSize) return ERROR(srcSize_wrong);
-        FSE_buildDTable_rle(DTable, (*(const BYTE*)src) & max);   /* if *src > max, data is corrupted */
-        return 1;
-    case FSE_ENCODING_RAW :
-        FSE_buildDTable_raw(DTable, rawBits);
-        return 0;
-    case FSE_ENCODING_STATIC:
-        return 0;
-    default :   /* impossible */
-    case FSE_ENCODING_DYNAMIC :
-        {   U32 tableLog;
-            S16 norm[MaxSeq+1];
-            size_t const headerSize = FSE_readNCount(norm, &max, &tableLog, src, srcSize);
-            if (FSE_isError(headerSize)) return ERROR(corruption_detected);
-            if (tableLog > maxLog) return ERROR(corruption_detected);
-            FSE_buildDTable(DTable, norm, max, tableLog);
-            return headerSize;
-    }   }
-}
-
-
 FORCE_INLINE size_t ZSTD_buildSeqTable(FSE_DTable* DTable, U32 type, U32 max, U32 maxLog,
                                  const void* src, size_t srcSize,
                                  const S16* defaultNorm, U32 defaultLog)
@@ -594,7 +566,7 @@ size_t ZSTD_decodeSeqHeaders(int* nbSeqPtr,
             if (ZSTD_isError(bhSize)) return ERROR(corruption_detected);
             ip += bhSize;
         }
-        {   size_t const bhSize = ZSTD_buildSeqTableOff(DTableOffb, Offtype, Offbits, OffFSELog, ip, iend-ip);
+        {   size_t const bhSize = ZSTD_buildSeqTable(DTableOffb, Offtype, MaxOff, OffFSELog, ip, iend-ip, OF_defaultNorm, OF_defaultNormLog);
             if (ZSTD_isError(bhSize)) return ERROR(corruption_detected);
             ip += bhSize;
         }
@@ -650,7 +622,7 @@ static void ZSTD_decodeSequence(seq_t* seq, seqState_t* seqState)
                  0,        1,       3,       7,     0xF,     0x1F,     0x3F,     0x7F,
                  0xFF,   0x1FF,   0x3FF,   0x7FF,   0xFFF,   0x1FFF,   0x3FFF,   0x7FFF,
                  0xFFFF, 0x1FFFF, 0x3FFFF, 0x7FFFF, 0xFFFFF, 0x1FFFFF, 0x3FFFFF, 0x7FFFFF,
-                 0xFFFFFF, 0x1FFFFFF, 0x3FFFFFF, /*fake*/ 1, 1, 1, 1, 1 };
+                 0xFFFFFF, 0x1FFFFFF, 0x3FFFFFF, /*fake*/ 1, 1 };
 
     /* sequence */
     {   size_t offset;
@@ -660,7 +632,7 @@ static void ZSTD_decodeSequence(seq_t* seq, seqState_t* seqState)
             offset = OF_base[ofCode] + BIT_readBits(&(seqState->DStream), ofBits);   /* <=  26 bits */
             if (MEM_32bits()) BIT_reloadDStream(&(seqState->DStream));
         }
-        
+
         if (offset < ZSTD_REP_NUM) {
             if (llCode == 0 && offset <= 1) offset = 1-offset;
 
@@ -678,7 +650,7 @@ static void ZSTD_decodeSequence(seq_t* seq, seqState_t* seqState)
         } else {
             offset -= ZSTD_REP_MOVE;
             seqState->prevOffset[2] = seqState->prevOffset[1];
-            seqState->prevOffset[1] = seqState->prevOffset[0];               
+            seqState->prevOffset[1] = seqState->prevOffset[0];
             seqState->prevOffset[0] = offset;
         }
         seq->offset = offset;

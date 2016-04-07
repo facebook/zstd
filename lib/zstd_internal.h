@@ -222,7 +222,8 @@ typedef struct {
     U16*  matchLengthStart;
     U16*  matchLength;
     BYTE* mlCodeStart;
-    U32   longLength;
+    U32   longLengthID;   /* 0 == no longLength; 1 == Lit.longLength; 2 == Match.longLength; */
+    U32   longLengthPos;
     /* opt */
     ZSTD_optimal_t* priceTable;
     ZSTD_match_t* matchTable;

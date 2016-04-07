@@ -400,6 +400,7 @@ size_t ZSTD_decodeLiteralsBlock(ZSTD_DCtx* dctx,
                 break;
             }
             if (litSize > ZSTD_BLOCKSIZE_MAX) return ERROR(corruption_detected);
+            if (litCSize + lhSize > srcSize) return ERROR(corruption_detected);
 
             if (HUF_isError(singleStream ?
                             HUF_decompress1X2(dctx->litBuffer, litSize, istart+lhSize, litCSize) :

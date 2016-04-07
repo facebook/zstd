@@ -80,6 +80,7 @@ static void ZSTD_resetSeqStore(seqStore_t* ssPtr)
     ssPtr->lit = ssPtr->litStart;
     ssPtr->litLength = ssPtr->litLengthStart;
     ssPtr->matchLength = ssPtr->matchLengthStart;
+    ssPtr->longLengthID = 0;
 }
 
 
@@ -620,14 +621,16 @@ void ZSTD_seqToCodes(const seqStore_t* seqStorePtr, size_t const nbSeq)
                                           24, 24, 24, 24, 24, 24, 24, 24,
                                           24, 24, 24, 24, 24, 24, 24, 24 };
         const BYTE LL_deltaCode = 19;
-        U16*  const llTable = seqStorePtr->litLengthStart;
+        const U16* const llTable = seqStorePtr->litLengthStart;
         BYTE* const llCodeTable = seqStorePtr->llCodeStart;
         size_t u;
         for (u=0; u<nbSeq; u++) {
-            U32 ll = llTable[u];
-            if (llTable[u] == 65535) { ll = seqStorePtr->longLength; llTable[u] = (U16)ll; }
+            U32 const  ll = llTable[u];
             llCodeTable[u] = (ll>63) ? (BYTE)ZSTD_highbit(ll) + LL_deltaCode : LL_Code[ll];
-    }   }
+        }
+        if (seqStorePtr->longLengthID==1)
+            llCodeTable[seqStorePtr->longLengthPos] = MaxLL;
+    }
 
     /* Offset codes */
     {   const U32* const offsetTable = seqStorePtr->offsetStart;
@@ -646,14 +649,16 @@ void ZSTD_seqToCodes(const seqStore_t* seqStorePtr, size_t const nbSeq)
                                           42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42,
                                           42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42 };
         const BYTE ML_deltaCode = 36;
-        U16*  const mlTable = seqStorePtr->matchLengthStart;
+        const U16* const mlTable = seqStorePtr->matchLengthStart;
         BYTE* const mlCodeTable = seqStorePtr->mlCodeStart;
         size_t u;
         for (u=0; u<nbSeq; u++) {
-            U32 ml = mlTable[u];
-            if (mlTable[u] == 65535) { ml = seqStorePtr->longLength; mlTable[u] = (U16)ml; }
+            U32 const ml = mlTable[u];
             mlCodeTable[u] = (ml>127) ? (BYTE)ZSTD_highbit(ml) + ML_deltaCode : ML_Code[ml];
-    }   }
+        }
+        if (seqStorePtr->longLengthID==2)
+            mlCodeTable[seqStorePtr->longLengthPos] = MaxML;
+    }
 }
 
 
@@ -864,15 +869,15 @@ MEM_STATIC void ZSTD_storeSeq(seqStore_t* seqStorePtr, size_t litLength, const B
     seqStorePtr->lit += litLength;
 
     /* literal Length */
-    if (litLength>=65535) { *(seqStorePtr->litLength++) = 65535; seqStorePtr->longLength = (U32)litLength; }
-    else *seqStorePtr->litLength++ = (U16)litLength;
+    if (litLength>0xFFFF) { seqStorePtr->longLengthID = 1; seqStorePtr->longLengthPos = (U32)(seqStorePtr->litLength - seqStorePtr->litLengthStart); }
+    *seqStorePtr->litLength++ = (U16)litLength;
 
     /* match offset */
     *(seqStorePtr->offset++) = (U32)offsetCode + 1;
 
     /* match Length */
-    if (matchCode>=65535) { *(seqStorePtr->matchLength++) = 65535; seqStorePtr->longLength = (U32)matchCode; }
-    else *seqStorePtr->matchLength++ = (U16)matchCode;
+    if (matchCode>0xFFFF) { seqStorePtr->longLengthID = 2; seqStorePtr->longLengthPos = (U32)(seqStorePtr->matchLength - seqStorePtr->matchLengthStart); }
+    *seqStorePtr->matchLength++ = (U16)matchCode;
 }
 
 

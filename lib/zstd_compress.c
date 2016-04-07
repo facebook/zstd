@@ -1989,7 +1989,7 @@ typedef void (*ZSTD_blockCompressor) (ZSTD_CCtx* ctx, const void* src, size_t sr
 static ZSTD_blockCompressor ZSTD_selectBlockCompressor(ZSTD_strategy strat, int extDict)
 {
     static const ZSTD_blockCompressor blockCompressor[2][6] = {
-#if 0
+#if 1
         { ZSTD_compressBlock_fast, ZSTD_compressBlock_greedy, ZSTD_compressBlock_lazy, ZSTD_compressBlock_lazy2, ZSTD_compressBlock_btlazy2, ZSTD_compressBlock_btopt },
 #else
         { ZSTD_compressBlock_fast_extDict, ZSTD_compressBlock_greedy_extDict, ZSTD_compressBlock_lazy_extDict,ZSTD_compressBlock_lazy2_extDict, ZSTD_compressBlock_btlazy2_extDict, ZSTD_compressBlock_btopt_extDict },

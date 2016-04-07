@@ -212,6 +212,28 @@ MEM_STATIC void ZSTD_updatePrice(seqStore_t* seqStorePtr, U32 litLength, const B
 
 
 
+
+/* Update hashTable3 up to ip (excluded)
+   Assumption : always within prefix (ie. not within extDict) */
+FORCE_INLINE
+U32 ZSTD_insertAndFindFirstIndexHash3 (ZSTD_CCtx* zc, const BYTE* ip)
+{
+    U32* const hashTable3  = zc->hashTable3;
+    U32 const hashLog3  = zc->hashLog3;
+    const BYTE* const base = zc->base;
+    U32 idx = zc->nextToUpdate3;
+    const U32 target = zc->nextToUpdate3 = (U32)(ip - base);
+    const size_t hash3 = ZSTD_hash3Ptr(ip, hashLog3);
+    
+    while(idx < target) {
+        hashTable3[ZSTD_hash3Ptr(base+idx, hashLog3)] = idx;
+        idx++;
+    }
+
+    return hashTable3[hash3];
+}
+
+
 /*-*************************************
 *  Binary Tree search
 ***************************************/

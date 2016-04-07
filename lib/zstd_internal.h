@@ -104,11 +104,10 @@ typedef enum { bt_compressed, bt_raw, bt_rle, bt_end } blockType_t;
 #define REPCODE_STARTVALUE 1
 
 #define Litbits  8
-#define Offbits  5
 #define MaxLit ((1<<Litbits) - 1)
 #define MaxML  52
 #define MaxLL  35
-#define MaxOff ((1<<Offbits)- 1)
+#define MaxOff 28
 #define MaxSeq MAX(MaxLL, MaxML)   /* Assumption : MaxOff < MaxLL,MaxML */
 #define MLFSELog    9
 #define LLFSELog    9
@@ -122,20 +121,24 @@ typedef enum { bt_compressed, bt_raw, bt_rle, bt_end } blockType_t;
 static const U32 LL_bits[MaxLL+1] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
                                       1, 1, 1, 1, 2, 2, 3, 3, 4, 6, 7, 8, 9,10,11,12,
                                      13,14,15,16 };
-static const S16 LL_defaultNorm[MaxLL+1] = { 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
-                                             2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 1, 1, 1,
-                                             1, 1, 1, 1 };
+static const S16 LL_defaultNorm[MaxLL+1] = { 4, 3, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 1, 1,
+                                             2, 2, 2, 2, 2, 2, 2, 2, 2, 3, 2, 1, 1, 1, 1, 1,
+                                            -1,-1,-1,-1 };
 static const U32 LL_defaultNormLog = 6;
 
 static const U32 ML_bits[MaxML+1] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
                                       0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
                                       1, 1, 1, 1, 2, 2, 3, 3, 4, 4, 5, 7, 8, 9,10,11,
-                                      12,13,14,15,16 };
-static const S16 ML_defaultNorm[MaxML+1] = { 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 1, 1, 1, 1,
+                                     12,13,14,15,16 };
+static const S16 ML_defaultNorm[MaxML+1] = { 1, 4, 3, 2, 2, 2, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1,
                                              1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-                                             1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-                                             1, 1, 1, 1, 1, };
+                                             1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,-1,-1,
+                                            -1,-1,-1,-1,-1 };
 static const U32 ML_defaultNormLog = 6;
+
+static const S16 OF_defaultNorm[MaxOff+1] = { 1, 1, 1, 1, 1, 1, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1,
+                                              1, 1, 1, 1, 1, 1, 1, 1,-1,-1,-1,-1,-1 };
+static const U32 OF_defaultNormLog = 5;
 
 
 /*-*******************************************
@@ -219,7 +222,8 @@ typedef struct {
     U16*  matchLengthStart;
     U16*  matchLength;
     BYTE* mlCodeStart;
-    U32   longLength;
+    U32   longLengthID;   /* 0 == no longLength; 1 == Lit.longLength; 2 == Match.longLength; */
+    U32   longLengthPos;
     /* opt */
     ZSTD_optimal_t* priceTable;
     ZSTD_match_t* matchTable;

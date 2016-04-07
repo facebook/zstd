@@ -57,7 +57,7 @@ MEM_STATIC void ZSTD_rescaleFreqs(seqStore_t* ssPtr)
         ssPtr->litSum = (2<<Litbits);
         ssPtr->litLengthSum = MaxLL+1;
         ssPtr->matchLengthSum = MaxML+1;
-        ssPtr->offCodeSum = (1<<Offbits);
+        ssPtr->offCodeSum = (MaxOff+1);
         ssPtr->matchSum = (2<<Litbits);
 
         for (u=0; u<=MaxLit; u++)
@@ -551,7 +551,7 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
            if (opt[cur].off >= ZSTD_REP_NUM) {
                 opt[cur].rep[2] = opt[cur-mlen].rep[1];
                 opt[cur].rep[1] = opt[cur-mlen].rep[0];
-                opt[cur].rep[0] = opt[cur].off - ZSTD_REP_MOVE;               
+                opt[cur].rep[0] = opt[cur].off - ZSTD_REP_MOVE;
                 ZSTD_LOG_ENCODE("%d: COPYREP_OFF cur=%d mlen=%d rep[0]=%d rep[1]=%d\n", (int)(inr-base), cur, mlen, opt[cur].rep[0], opt[cur].rep[1]);
            } else {
                 opt[cur].rep[2] = (opt[cur].off > 1) ? opt[cur-mlen].rep[1] : opt[cur-mlen].rep[2];
@@ -860,7 +860,7 @@ void ZSTD_compressBlock_opt_extDict_generic(ZSTD_CCtx* ctx,
             if (opt[cur].off >= ZSTD_REP_NUM) {
                 opt[cur].rep[2] = opt[cur-mlen].rep[1];
                 opt[cur].rep[1] = opt[cur-mlen].rep[0];
-                opt[cur].rep[0] = opt[cur].off - ZSTD_REP_MOVE;               
+                opt[cur].rep[0] = opt[cur].off - ZSTD_REP_MOVE;
                 ZSTD_LOG_ENCODE("%d: COPYREP_OFF cur=%d mlen=%d rep[0]=%d rep[1]=%d\n", (int)(inr-base), cur, mlen, opt[cur].rep[0], opt[cur].rep[1]);
             } else {
                 opt[cur].rep[2] = (opt[cur].off > 1) ? opt[cur-mlen].rep[1] : opt[cur-mlen].rep[2];

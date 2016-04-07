@@ -80,6 +80,7 @@ static void ZSTD_resetSeqStore(seqStore_t* ssPtr)
     ssPtr->lit = ssPtr->litStart;
     ssPtr->litLength = ssPtr->litLengthStart;
     ssPtr->matchLength = ssPtr->matchLengthStart;
+    ssPtr->longLengthID = 0;
 }
 
 
@@ -183,7 +184,7 @@ void ZSTD_adjustCParams(ZSTD_compressionParameters* params, U64 srcSize, size_t 
     /* resize params, to use less memory when necessary */
     {   U32 const minSrcSize = (srcSize==0) ? 500 : 0;
         U64 const rSize = srcSize + dictSize + minSrcSize;
-        if (rSize < (1<<ZSTD_WINDOWLOG_MAX)) {
+        if (rSize < ((U64)1<<ZSTD_WINDOWLOG_MAX)) {
             U32 const srcLog = ZSTD_highbit((U32)(rSize)-1) + 1;
             if (params->windowLog > srcLog) params->windowLog = srcLog;
     }   }
@@ -224,7 +225,7 @@ static size_t ZSTD_resetCCtx_advanced (ZSTD_CCtx* zc,
     const size_t tableSpace = (chainSize + hSize + h3Size) * sizeof(U32);
 
     /* Check if workSpace is large enough, alloc a new one if needed */
-    {   size_t const optSpace = ((MaxML+1) + (MaxLL+1) + (1<<Offbits) + (1<<Litbits))*sizeof(U32)
+    {   size_t const optSpace = ((MaxML+1) + (MaxLL+1) + (MaxOff+1) + (1<<Litbits))*sizeof(U32)
                               + (ZSTD_OPT_NUM+1)*(sizeof(ZSTD_match_t) + sizeof(ZSTD_optimal_t));
         size_t const neededSpace = tableSpace + (256*sizeof(U32)) /* huffTable */ + tokenSpace
                               + ((params.cParams.strategy == ZSTD_btopt) ? optSpace : 0);
@@ -258,7 +259,7 @@ static size_t ZSTD_resetCCtx_advanced (ZSTD_CCtx* zc,
         zc->seqStore.litLengthFreq = zc->seqStore.litFreq + (1<<Litbits);
         zc->seqStore.matchLengthFreq = zc->seqStore.litLengthFreq + (MaxLL+1);
         zc->seqStore.offCodeFreq = zc->seqStore.matchLengthFreq + (MaxML+1);
-        zc->seqStore.matchTable = (ZSTD_match_t*)((void*)(zc->seqStore.offCodeFreq + (1<<Offbits)));
+        zc->seqStore.matchTable = (ZSTD_match_t*)((void*)(zc->seqStore.offCodeFreq + (MaxOff+1)));
         zc->seqStore.priceTable = (ZSTD_optimal_t*)((void*)(zc->seqStore.matchTable + ZSTD_OPT_NUM+1));
         zc->seqStore.buffer = zc->seqStore.priceTable + ZSTD_OPT_NUM+1;
         zc->seqStore.litLengthSum = 0;
@@ -620,14 +621,16 @@ void ZSTD_seqToCodes(const seqStore_t* seqStorePtr, size_t const nbSeq)
                                           24, 24, 24, 24, 24, 24, 24, 24,
                                           24, 24, 24, 24, 24, 24, 24, 24 };
         const BYTE LL_deltaCode = 19;
-        U16*  const llTable = seqStorePtr->litLengthStart;
+        const U16* const llTable = seqStorePtr->litLengthStart;
         BYTE* const llCodeTable = seqStorePtr->llCodeStart;
         size_t u;
         for (u=0; u<nbSeq; u++) {
-            U32 ll = llTable[u];
-            if (llTable[u] == 65535) { ll = seqStorePtr->longLength; llTable[u] = (U16)ll; }
+            U32 const  ll = llTable[u];
             llCodeTable[u] = (ll>63) ? (BYTE)ZSTD_highbit(ll) + LL_deltaCode : LL_Code[ll];
-    }   }
+        }
+        if (seqStorePtr->longLengthID==1)
+            llCodeTable[seqStorePtr->longLengthPos] = MaxLL;
+    }
 
     /* Offset codes */
     {   const U32* const offsetTable = seqStorePtr->offsetStart;
@@ -646,14 +649,16 @@ void ZSTD_seqToCodes(const seqStore_t* seqStorePtr, size_t const nbSeq)
                                           42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42,
                                           42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42 };
         const BYTE ML_deltaCode = 36;
-        U16*  const mlTable = seqStorePtr->matchLengthStart;
+        const U16* const mlTable = seqStorePtr->matchLengthStart;
         BYTE* const mlCodeTable = seqStorePtr->mlCodeStart;
         size_t u;
         for (u=0; u<nbSeq; u++) {
-            U32 ml = mlTable[u];
-            if (mlTable[u] == 65535) { ml = seqStorePtr->longLength; mlTable[u] = (U16)ml; }
+            U32 const ml = mlTable[u];
             mlCodeTable[u] = (ml>127) ? (BYTE)ZSTD_highbit(ml) + ML_deltaCode : ML_Code[ml];
-    }   }
+        }
+        if (seqStorePtr->longLengthID==2)
+            mlCodeTable[seqStorePtr->longLengthPos] = MaxML;
+    }
 }
 
 
@@ -738,8 +743,8 @@ size_t ZSTD_compressSequences(ZSTD_CCtx* zc,
             Offtype = FSE_ENCODING_RLE;
         } else if ((zc->flagStaticTables) && (nbSeq < MAX_SEQ_FOR_STATIC_FSE)) {
             Offtype = FSE_ENCODING_STATIC;
-        } else if ((nbSeq < MIN_SEQ_FOR_DYNAMIC_FSE) || (mostFrequent < (nbSeq >> (Offbits-1)))) {
-            FSE_buildCTable_raw(CTable_OffsetBits, Offbits);
+        } else if ((nbSeq < MIN_SEQ_FOR_DYNAMIC_FSE) || (mostFrequent < (nbSeq >> (OF_defaultNormLog-1)))) {
+            FSE_buildCTable(CTable_OffsetBits, OF_defaultNorm, MaxOff, OF_defaultNormLog);
             Offtype = FSE_ENCODING_RAW;
         } else {
             size_t nbSeq_1 = nbSeq;
@@ -864,15 +869,15 @@ MEM_STATIC void ZSTD_storeSeq(seqStore_t* seqStorePtr, size_t litLength, const B
     seqStorePtr->lit += litLength;
 
     /* literal Length */
-    if (litLength>=65535) { *(seqStorePtr->litLength++) = 65535; seqStorePtr->longLength = (U32)litLength; }
-    else *seqStorePtr->litLength++ = (U16)litLength;
+    if (litLength>0xFFFF) { seqStorePtr->longLengthID = 1; seqStorePtr->longLengthPos = (U32)(seqStorePtr->litLength - seqStorePtr->litLengthStart); }
+    *seqStorePtr->litLength++ = (U16)litLength;
 
     /* match offset */
     *(seqStorePtr->offset++) = (U32)offsetCode + 1;
 
     /* match Length */
-    if (matchCode>=65535) { *(seqStorePtr->matchLength++) = 65535; seqStorePtr->longLength = (U32)matchCode; }
-    else *seqStorePtr->matchLength++ = (U16)matchCode;
+    if (matchCode>0xFFFF) { seqStorePtr->longLengthID = 2; seqStorePtr->longLengthPos = (U32)(seqStorePtr->matchLength - seqStorePtr->matchLengthStart); }
+    *seqStorePtr->matchLength++ = (U16)matchCode;
 }
 
 
@@ -1508,12 +1513,12 @@ static size_t ZSTD_BtFindBestMatch_selectMLS_extDict (
 
 
 
-
 /* ***********************
 *  Hash Chain
 *************************/
 
 #define NEXT_IN_CHAIN(d, mask)   chainTable[(d) & mask]
+
 
 /* Update chains up to ip (excluded)
    Assumption : always within prefix (ie. not within extDict) */
@@ -2251,7 +2256,7 @@ static size_t ZSTD_compressBegin_internal(ZSTD_CCtx* zc,
                              const void* dict, size_t dictSize,
                                    ZSTD_parameters params, U64 pledgedSrcSize)
 {
-    U32 hashLog3 = (pledgedSrcSize || pledgedSrcSize >= 8192) ? ZSTD_HASHLOG3_MAX : ((pledgedSrcSize >= 2048) ? ZSTD_HASHLOG3_MIN + 1 : ZSTD_HASHLOG3_MIN);  
+    U32 hashLog3 = (pledgedSrcSize || pledgedSrcSize >= 8192) ? ZSTD_HASHLOG3_MAX : ((pledgedSrcSize >= 2048) ? ZSTD_HASHLOG3_MIN + 1 : ZSTD_HASHLOG3_MIN);
     zc->hashLog3 = (params.cParams.searchLength==3) ? hashLog3 : 0;
 //    printf("windowLog=%d hashLog=%d hashLog3=%d \n", params.windowLog, params.hashLog, zc->hashLog3);
 

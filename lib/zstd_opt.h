@@ -247,8 +247,7 @@ static U32 ZSTD_insertBtAndGetAllMatches (
     size_t bestLength = minMatch-1;
 
     if (minMatch == 3) { /* HC3 match finder */
-        U32 matchIndex3 = ZSTD_insertAndFindFirstIndexHash3 (zc, ip);
-
+        U32 const matchIndex3 = ZSTD_insertAndFindFirstIndexHash3 (zc, ip);
         if (matchIndex3>windowLow && (current - matchIndex3 < (1<<18))) {
             const BYTE* match;
             size_t currentMl=0;
@@ -257,8 +256,8 @@ static U32 ZSTD_insertBtAndGetAllMatches (
                 if (match[bestLength] == ip[bestLength]) currentMl = ZSTD_count(ip, match, iLimit);
             } else {
                 match = dictBase + matchIndex3;
-                if (MEM_readMINMATCH(match, minMatch) == MEM_readMINMATCH(ip, minMatch))    /* assumption : matchIndex3 <= dictLimit-4 (by table construction) */
-                    currentMl = ZSTD_count_2segments(ip+minMatch, match+minMatch, iLimit, dictEnd, prefixStart) + minMatch;
+                if (MEM_readMINMATCH(match, MINMATCH) == MEM_readMINMATCH(ip, MINMATCH))    /* assumption : matchIndex3 <= dictLimit-4 (by table construction) */
+                    currentMl = ZSTD_count_2segments(ip+MINMATCH, match+MINMATCH, iLimit, dictEnd, prefixStart) + MINMATCH;
             }
 
             /* save best solution */

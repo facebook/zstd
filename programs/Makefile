@@ -53,7 +53,7 @@ BINDIR  = $(PREFIX)/bin
 MANDIR  = $(PREFIX)/share/man/man1
 ZSTDDIR = ../lib
 
-ZSTD_FILES := $(ZSTDDIR)/huff0.c $(ZSTDDIR)/fse.c $(ZSTDDIR)/zstd_compress.c $(ZSTDDIR)/zstd_decompress.c
+ZSTD_FILES := $(ZSTDDIR)/huff0.c $(ZSTDDIR)/fse.c $(ZSTDDIR)/zstd_decompress.c $(ZSTDDIR)/zstd_compress.c
 
 ifeq ($(ZSTD_LEGACY_SUPPORT), 0)
 CPPFLAGS  += -DZSTD_LEGACY_SUPPORT=0

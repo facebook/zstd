@@ -84,10 +84,6 @@ default: zstd
 
 all: zstd zstd32 fullbench fullbench32 fuzzer fuzzer32 zbufftest zbufftest32 paramgrill datagen
 
-zstd_clang: $(ZSTD_FILES) $(ZSTD_FILES_LEGACY) $(ZSTDDIR)/zbuff.c $(ZSTDDIR)/zdict.c $(ZSTDDIR)/divsufsort.c \
-        zstdcli.c fileio.c bench.c xxhash.c datagen.c dibio.c
-	clang.exe --target=x86_64-w64-mingw32 -Werror -Wconversion -Wno-sign-conversion $(FLAGS) -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT) $^ -o $@$(EXT)
-
 zstd  : $(ZSTD_FILES) $(ZSTD_FILES_LEGACY) $(ZSTDDIR)/zbuff.c $(ZSTDDIR)/zdict.c $(ZSTDDIR)/divsufsort.c \
         zstdcli.c fileio.c bench.c xxhash.c datagen.c dibio.c
 	$(CC)      $(FLAGS) -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT) $^ -o $@$(EXT)

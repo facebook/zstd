@@ -70,24 +70,18 @@
 #  define SET_HIGH_PRIORITY /* disabled */
 #endif
 
-#if !defined(_WIN32) && (defined(__unix__) || defined(__unix) || (defined(__APPLE__) && defined(__MACH__)))
+#if !defined(_WIN32)
    typedef clock_t BMK_time_t;
 #  define BMK_initTimer(ticksPerSecond) ticksPerSecond=0
 #  define BMK_getTime(x) x = clock()
 #  define BMK_getSpanTimeMicro(ticksPerSecond, clockStart, clockEnd) (1000000ULL * (clockEnd - clockStart) / CLOCKS_PER_SEC)
 #  define BMK_getSpanTimeNano(ticksPerSecond, clockStart, clockEnd) (1000000000ULL * (clockEnd - clockStart) / CLOCKS_PER_SEC)
-#elif defined(_WIN32)
+#else
    typedef LARGE_INTEGER BMK_time_t;
 #  define BMK_initTimer(x) if (!QueryPerformanceFrequency(&x)) { fprintf(stderr, "ERROR: QueryPerformance not present\n"); }
 #  define BMK_getTime(x) QueryPerformanceCounter(&x)
 #  define BMK_getSpanTimeMicro(ticksPerSecond, clockStart, clockEnd) (1000000ULL*(clockEnd.QuadPart - clockStart.QuadPart)/ticksPerSecond.QuadPart)
 #  define BMK_getSpanTimeNano(ticksPerSecond, clockStart, clockEnd) (1000000000ULL*(clockEnd.QuadPart - clockStart.QuadPart)/ticksPerSecond.QuadPart)
-#else
-   typedef int BMK_time_t;
-#  define BMK_initTimer(ticksPerSecond) ticksPerSecond=0
-#  define BMK_getTimeMicro(clockStart) clockStart=1
-#  define BMK_getSpanTimeMicro(ticksPerSecond, clockStart, clockEnd) (TIMELOOP_S*1000000ULL+clockEnd-clockStart)
-#  define BMK_getSpanTimeNano(ticksPerSecond, clockStart, clockEnd) (TIMELOOP_S*1000000000ULL+clockEnd-clockStart)
 #endif
 
 #include "mem.h"

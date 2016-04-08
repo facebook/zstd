@@ -39,6 +39,7 @@
 #include <stdio.h>       /* fgets, sscanf */
 #include <sys/timeb.h>   /* timeb */
 #include <string.h>      /* strcmp */
+#include <time.h>        /* clock_t */
 #include "zstd_static.h"
 #include "datagen.h"     /* RDG_genBuffer */
 #include "xxhash.h"      /* XXH64 */
@@ -69,11 +70,11 @@ static const U32 nbTestsDefault = 30000;
 static U32 g_displayLevel = 2;
 
 #define DISPLAYUPDATE(l, ...) if (g_displayLevel>=l) { \
-            if ((FUZ_GetMilliSpan(g_displayTime) > g_refreshRate) || (g_displayLevel>=4)) \
-            { g_displayTime = FUZ_GetMilliStart(); DISPLAY(__VA_ARGS__); \
+            if ((FUZ_clockSpan(g_displayClock) > g_refreshRate) || (g_displayLevel>=4)) \
+            { g_displayClock = clock(); DISPLAY(__VA_ARGS__); \
             if (g_displayLevel>=4) fflush(stdout); } }
-static const U32 g_refreshRate = 150;
-static U32 g_displayTime = 0;
+static const clock_t g_refreshRate = CLOCKS_PER_SEC * 150 / 1000;
+static clock_t g_displayClock = 0;
 
 
 /*-*******************************************************
@@ -82,23 +83,9 @@ static U32 g_displayTime = 0;
 #define MIN(a,b) ((a)<(b)?(a):(b))
 #define MAX(a,b) ((a)>(b)?(a):(b))
 
-static U32 FUZ_GetMilliStart(void)
+static clock_t FUZ_clockSpan(clock_t cStart)
 {
-    struct timeb tb;
-    U32 nCount;
-    ftime( &tb );
-    nCount = (U32) (((tb.time & 0xFFFFF) * 1000) +  tb.millitm);
-    return nCount;
-}
-
-
-static U32 FUZ_GetMilliSpan(U32 nTimeStart)
-{
-    U32 nCurrent = FUZ_GetMilliStart();
-    U32 nSpan = nCurrent - nTimeStart;
-    if (nTimeStart > nCurrent)
-        nSpan += 0x100000 * 1000;
-    return nSpan;
+    return clock() - cStart;   /* works even when overflow; max span ~ 30mn */
 }
 
 
@@ -392,7 +379,7 @@ static size_t findDiff(const void* buf1, const void* buf2, size_t max)
 static const U32 maxSrcLog = 23;
 static const U32 maxSampleLog = 22;
 
-int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, U32 maxDuration, double compressibility)
+static int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, U32 const maxDurationS, double compressibility)
 {
     BYTE* cNoiseBuffer[5];
     BYTE* srcBuffer;
@@ -408,7 +395,8 @@ int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, U32 maxDuration, doub
     ZSTD_CCtx* refCtx;
     ZSTD_CCtx* ctx;
     ZSTD_DCtx* dctx;
-    U32 startTime = FUZ_GetMilliStart();
+    clock_t startClock = clock();
+    clock_t const maxClockSpan = maxDurationS * CLOCKS_PER_SEC;
 
     /* allocation */
     refCtx = ZSTD_createCCtx();
@@ -438,7 +426,7 @@ int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, U32 maxDuration, doub
     for (testNb=1; testNb < startTest; testNb++) FUZ_rand(&coreSeed);
 
     /* main test loop */
-    for ( ; (testNb <= nbTests) || (FUZ_GetMilliSpan(startTime) < maxDuration); testNb++ ) {
+    for ( ; (testNb <= nbTests) || (FUZ_clockSpan(startClock) < maxClockSpan); testNb++ ) {
         size_t sampleSize, sampleStart, maxTestSize, totalTestSize;
         size_t cSize, dSize, errorCode, totalCSize, totalGenSize;
         U32 sampleSizeLog, buffNb, cLevelMod, nbChunks, n;
@@ -526,8 +514,8 @@ int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, U32 maxDuration, doub
 
         /* too small dst decompression test */
         if (sampleSize > 3) {
-            const size_t missing = (FUZ_rand(&lseed) % (sampleSize-2)) + 1;   /* no problem, as cSize > 4 (frameHeaderSizer) */
-            const size_t tooSmallSize = sampleSize - missing;
+            size_t const missing = (FUZ_rand(&lseed) % (sampleSize-2)) + 1;   /* no problem, as cSize > 4 (frameHeaderSizer) */
+            size_t const tooSmallSize = sampleSize - missing;
             static const BYTE token = 0xA9;
             dstBuffer[tooSmallSize] = token;
             errorCode = ZSTD_decompress(dstBuffer, tooSmallSize, cBuffer, cSize);
@@ -568,10 +556,10 @@ int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, U32 maxDuration, doub
                 CHECK((!ZSTD_isError(errorCode)) && (errorCode>sampleSize),
                       "ZSTD_decompress on noisy src : result is too large : %u > %u (dst buffer)", (U32)errorCode, (U32)sampleSize);
                 { U32 endCheck; memcpy(&endCheck, dstBuffer+sampleSize, 4);
-                CHECK(endMark!=endCheck, "ZSTD_decompress on noisy src : dst buffer overflow"); }
+                  CHECK(endMark!=endCheck, "ZSTD_decompress on noisy src : dst buffer overflow"); }
         }   }   /* noisy src decompression test */
 
-        /* Streaming compression of scattered segments test */
+        /* Streaming compression test, scattered segments and dictionary */
         XXH64_reset(xxh64, 0);
         nbChunks = (FUZ_rand(&lseed) & 127) + 2;
         sampleSizeLog = FUZ_rand(&lseed) % maxSrcLog;
@@ -689,10 +677,9 @@ int main(int argc, const char** argv)
     int result=0;
     U32 mainPause = 0;
     U32 maxDuration = 0;
-    const char* programName;
+    const char* programName = argv[0];
 
     /* Check command line */
-    programName = argv[0];
     for (argNb=1; argNb<argc; argNb++) {
         const char* argument = argv[argNb];
         if(!argument) continue;   /* Protection if argument empty */
@@ -738,7 +725,6 @@ int main(int argc, const char** argv)
                     }
                     if (*argument=='m') maxDuration *=60, argument++;
                     if (*argument=='n') argument++;
-                    maxDuration *= 1000;
                     break;
 
                 case 's':
@@ -780,7 +766,7 @@ int main(int argc, const char** argv)
     /* Get Seed */
     DISPLAY("Starting zstd tester (%i-bits, %s)\n", (int)(sizeof(size_t)*8), ZSTD_VERSION);
 
-    if (!seedset) seed = FUZ_GetMilliStart() % 10000;
+    if (!seedset) seed = (U32)(clock() % 10000);
     DISPLAY("Seed = %u\n", seed);
     if (proba!=FUZ_compressibility_default) DISPLAY("Compressibility : %u%%\n", proba);
 

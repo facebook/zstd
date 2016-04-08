@@ -1655,8 +1655,7 @@ void ZSTD_compressBlock_lazy_generic(ZSTD_CCtx* ctx,
 
     /* init */
     U32 rep[ZSTD_REP_INIT];
-    for (U32 i=0; i<ZSTD_REP_INIT; i++)
-        rep[i]=REPCODE_STARTVALUE;
+    { U32 i ; for (i=0; i<ZSTD_REP_INIT; i++) rep[i]=REPCODE_STARTVALUE; }
 
     ctx->nextToUpdate3 = ctx->nextToUpdate;
     ZSTD_resetSeqStore(seqStorePtr);
@@ -1818,8 +1817,7 @@ void ZSTD_compressBlock_lazy_extDict_generic(ZSTD_CCtx* ctx,
 
     /* init */
     U32 rep[ZSTD_REP_INIT];
-    for (U32 i=0; i<ZSTD_REP_INIT; i++)
-        rep[i]=REPCODE_STARTVALUE;
+    { U32 i; for (i=0; i<ZSTD_REP_INIT; i++) rep[i]=REPCODE_STARTVALUE; }
 
     ctx->nextToUpdate3 = ctx->nextToUpdate;
     ZSTD_resetSeqStore(seqStorePtr);

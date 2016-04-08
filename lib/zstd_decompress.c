@@ -751,23 +751,21 @@ static size_t ZSTD_decompressSequences(
     const BYTE* ip = (const BYTE*)seqStart;
     const BYTE* const iend = ip + seqSize;
     BYTE* const ostart = (BYTE* const)dst;
-    BYTE* op = ostart;
     BYTE* const oend = ostart + maxDstSize;
+    BYTE* op = ostart;
     const BYTE* litPtr = dctx->litPtr;
     const BYTE* const litLimit_8 = litPtr + dctx->litBufSize - 8;
     const BYTE* const litEnd = litPtr + dctx->litSize;
-    U32* DTableLL = dctx->LLTable;
-    U32* DTableML = dctx->MLTable;
-    U32* DTableOffb = dctx->OffTable;
+    FSE_DTable* DTableLL = dctx->LLTable;
+    FSE_DTable* DTableML = dctx->MLTable;
+    FSE_DTable* DTableOffb = dctx->OffTable;
     const BYTE* const base = (const BYTE*) (dctx->base);
     const BYTE* const vBase = (const BYTE*) (dctx->vBase);
     const BYTE* const dictEnd = (const BYTE*) (dctx->dictEnd);
     int nbSeq;
 
     /* Build Decoding Tables */
-    {   size_t const seqHSize = ZSTD_decodeSeqHeaders(&nbSeq,
-                                      DTableLL, DTableML, DTableOffb,
-                                      ip, seqSize);
+    {   size_t const seqHSize = ZSTD_decodeSeqHeaders(&nbSeq, DTableLL, DTableML, DTableOffb, ip, seqSize);
         if (ZSTD_isError(seqHSize)) return seqHSize;
         ip += seqHSize;
     }
@@ -779,29 +777,19 @@ static size_t ZSTD_decompressSequences(
 
         memset(&sequence, 0, sizeof(sequence));
         sequence.offset = REPCODE_STARTVALUE;
-        for (U32 i=0; i<ZSTD_REP_INIT; i++)
-            seqState.prevOffset[i] = REPCODE_STARTVALUE;
+        { U32 i; for (i=0; i<ZSTD_REP_INIT; i++) seqState.prevOffset[i] = REPCODE_STARTVALUE; }
         { size_t const errorCode = BIT_initDStream(&(seqState.DStream), ip, iend-ip);
           if (ERR_isError(errorCode)) return ERROR(corruption_detected); }
         FSE_initDState(&(seqState.stateLL), &(seqState.DStream), DTableLL);
         FSE_initDState(&(seqState.stateOffb), &(seqState.DStream), DTableOffb);
         FSE_initDState(&(seqState.stateML), &(seqState.DStream), DTableML);
 
-        for ( ; (BIT_reloadDStream(&(seqState.DStream)) <= BIT_DStream_completed) && nbSeq ; ) {
-            size_t oneSeqSize;
-            nbSeq--;
+        for ( ; (BIT_reloadDStream(&(seqState.DStream)) <= BIT_DStream_completed) && nbSeq-- ; ) {
             ZSTD_decodeSequence(&sequence, &seqState);
-#if 0  /* for debug */
-            {   U32 pos = (U32)(op-base);
-               // if ((pos > 200802300) && (pos < 200802400))
-                    printf("Dpos %6u :%5u literals & match %3u bytes at distance %6u \n",
-                        pos, (U32)sequence.litLength, (U32)sequence.matchLength, (U32)sequence.offset);
-            }
-#endif
-            oneSeqSize = ZSTD_execSequence(op, oend, sequence, &litPtr, litLimit_8, base, vBase, dictEnd);
-            if (ZSTD_isError(oneSeqSize)) return oneSeqSize;
-            op += oneSeqSize;
-        }
+            {   size_t const oneSeqSize = ZSTD_execSequence(op, oend, sequence, &litPtr, litLimit_8, base, vBase, dictEnd);
+                if (ZSTD_isError(oneSeqSize)) return oneSeqSize;
+                op += oneSeqSize;
+        }   }
 
         /* check if reached exact end */
         if (nbSeq) return ERROR(corruption_detected);
@@ -839,11 +827,11 @@ static size_t ZSTD_decompressBlock_internal(ZSTD_DCtx* dctx,
     if (srcSize >= ZSTD_BLOCKSIZE_MAX) return ERROR(srcSize_wrong);
 
     /* Decode literals sub-block */
-    { size_t const litCSize = ZSTD_decodeLiteralsBlock(dctx, src, srcSize);
-      if (ZSTD_isError(litCSize)) return litCSize;
-      ip += litCSize;
-      srcSize -= litCSize; }
-
+    {   size_t const litCSize = ZSTD_decodeLiteralsBlock(dctx, src, srcSize);
+        if (ZSTD_isError(litCSize)) return litCSize;
+        ip += litCSize;
+        srcSize -= litCSize;
+    }
     return ZSTD_decompressSequences(dctx, dst, dstCapacity, ip, srcSize);
 }
 

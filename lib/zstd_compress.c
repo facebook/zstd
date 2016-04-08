@@ -2642,6 +2642,7 @@ size_t ZSTD_compress_usingPreparedCCtx(ZSTD_CCtx* cctx, const ZSTD_CCtx* prepare
     }
     {   size_t const cSize = ZSTD_compressContinue(cctx, dst, dstCapacity, src, srcSize);
         if (ZSTD_isError(cSize)) return cSize;
+
         {   size_t const endSize = ZSTD_compressEnd(cctx, (char*)dst+cSize, dstCapacity-cSize);
             if (ZSTD_isError(endSize)) return endSize;
             return cSize + endSize;
@@ -2749,7 +2750,7 @@ static const ZSTD_compressionParameters ZSTD_defaultCParameters[4][ZSTD_MAX_CLEV
 {   /* for srcSize <= 256 KB */
     /* W,  C,  H,  S,  L,  T, strat */
     {  0,  0,  0,  0,  0,  0, ZSTD_fast    },  /* level  0 */
-    { 18, 14, 15,  1,  6,  4, ZSTD_fast    },  /* level  1 */
+    { 18, 13, 14,  1,  6,  4, ZSTD_fast    },  /* level  1 */
     { 18, 14, 16,  1,  5,  4, ZSTD_fast    },  /* level  2 */
     { 18, 14, 17,  1,  5,  4, ZSTD_fast    },  /* level  3.*/
     { 18, 14, 15,  4,  4,  4, ZSTD_greedy  },  /* level  4 */

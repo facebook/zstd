@@ -983,8 +983,7 @@ int main(int argc, char** argv)
 
     if (argc<1) { badusage(exename); return 1; }
 
-    for(i=1; i<argc; i++)
-    {
+    for(i=1; i<argc; i++) {
         char* argument = argv[i];
 
         if(!argument) continue;   /* Protection if argument empty */
@@ -1016,13 +1015,9 @@ int main(int argc, char** argv)
                     /* Sample compressibility (when no file provided) */
                 case 'P':
                     argument++;
-                    {
-                        U32 proba32 = 0;
-                        while ((argument[0]>= '0') && (argument[0]<= '9')) {
-                            proba32 *= 10;
-                            proba32 += argument[0] - '0';
-                            argument++;
-                        }
+                    {   U32 proba32 = 0;
+                        while ((argument[0]>= '0') && (argument[0]<= '9'))
+                            proba32 = (proba32*10) + (*argument++ - '0');
                         g_compressibility = (double)proba32 / 100.;
                     }
                     break;
@@ -1082,8 +1077,7 @@ int main(int argc, char** argv)
                                 g_params.strategy = (ZSTD_strategy)(*argument++ - '0');
                             continue;
                         case 'L':
-                            {
-                                int cLevel = 0;
+                            {   int cLevel = 0;
                                 argument++;
                                 while ((*argument>= '0') && (*argument<='9'))
                                     cLevel *= 10, cLevel += *argument++ - '0';
@@ -1100,25 +1094,20 @@ int main(int argc, char** argv)
                 case 'T':
                     argument++;
                     g_target = 0;
-                    while ((*argument >= '0') && (*argument <= '9')) {
-                        g_target *= 10;
-                        g_target += *argument - '0';
-                        argument++;
-                    }
+                    while ((*argument >= '0') && (*argument <= '9'))
+                        g_target = (g_target*10) + (*argument++ - '0');
                     break;
 
                     /* cut input into blocks */
                 case 'B':
-                    {
-                        g_blockSize = 0;
-                        argument++;
-                        while ((*argument >='0') && (*argument <='9'))
-                            g_blockSize *= 10, g_blockSize += *argument++ - '0';
-                        if (*argument=='K') g_blockSize<<=10, argument++;  /* allows using KB notation */
-                        if (*argument=='M') g_blockSize<<=20, argument++;
-                        if (*argument=='B') argument++;
-                        DISPLAY("using %u KB block size \n", g_blockSize>>10);
-                    }
+                    g_blockSize = 0;
+                    argument++;
+                    while ((*argument >='0') && (*argument <='9'))
+                        g_blockSize = (g_blockSize*10) + (*argument++ - '0');
+                    if (*argument=='K') g_blockSize<<=10, argument++;  /* allows using KB notation */
+                    if (*argument=='M') g_blockSize<<=20, argument++;
+                    if (*argument=='B') argument++;
+                    DISPLAY("using %u KB block size \n", g_blockSize>>10);
                     break;
 
                     /* Unknown command */
@@ -1126,7 +1115,7 @@ int main(int argc, char** argv)
                 }
             }
             continue;
-        }
+        }   /* if (argument[0]=='-') */
 
         /* first provided filename is input */
         if (!input_filename) { input_filename=argument; filenamesStart=i; continue; }

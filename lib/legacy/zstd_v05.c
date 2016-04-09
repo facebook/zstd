@@ -3952,7 +3952,7 @@ static void ZSTDv05_decodeSequence(seq_t* seq, seqState_t* seqState)
 }
 
 
-FORCE_INLINE size_t ZSTDv05_execSequence(BYTE* op,
+static size_t ZSTDv05_execSequence(BYTE* op,
                                 BYTE* const oend, seq_t sequence,
                                 const BYTE** litPtr, const BYTE* const litLimit_8,
                                 const BYTE* const base, const BYTE* const vBase, const BYTE* const dictEnd)

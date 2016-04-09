@@ -61,7 +61,8 @@ ZSTD_FILES_LEGACY:=
 else
 ZSTD_LEGACY_SUPPORT:=1
 CPPFLAGS  += -I../lib/legacy -I./legacy
-ZSTD_FILES_LEGACY:= $(ZSTDDIR)/legacy/zstd_v01.c $(ZSTDDIR)/legacy/zstd_v02.c $(ZSTDDIR)/legacy/zstd_v03.c $(ZSTDDIR)/legacy/zstd_v04.c legacy/fileio_legacy.c
+ZSTD_FILES_LEGACY:= $(ZSTDDIR)/legacy/zstd_v01.c $(ZSTDDIR)/legacy/zstd_v02.c $(ZSTDDIR)/legacy/zstd_v03.c \
+                    $(ZSTDDIR)/legacy/zstd_v04.c $(ZSTDDIR)/legacy/zstd_v05.c legacy/fileio_legacy.c
 endif
 
 

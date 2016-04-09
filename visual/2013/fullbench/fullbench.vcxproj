@@ -22,6 +22,7 @@
     <ProjectGuid>{61ABD629-1CC8-4FD7-9281-6B8DBB9D3DF8}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
     <RootNamespace>fullbench</RootNamespace>
+    <OutDir>$(SolutionDir)bin\$(Platform)\$(Configuration)\</OutDir>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
@@ -161,6 +162,7 @@
   <ItemGroup>
     <ClCompile Include="..\..\..\lib\fse.c" />
     <ClCompile Include="..\..\..\lib\huff0.c" />
+    <ClCompile Include="..\..\..\lib\zbuff.c" />
     <ClCompile Include="..\..\..\lib\zstd_compress.c" />
     <ClCompile Include="..\..\..\lib\zstd_decompress.c" />
     <ClCompile Include="..\..\..\programs\datagen.c" />
@@ -175,6 +177,8 @@
     <ClInclude Include="..\..\..\lib\legacy\zstd_v01.h" />
     <ClInclude Include="..\..\..\lib\legacy\zstd_v02.h" />
     <ClInclude Include="..\..\..\lib\legacy\zstd_v03.h" />
+    <ClInclude Include="..\..\..\lib\zbuff.h" />
+    <ClInclude Include="..\..\..\lib\zbuff_static.h" />
     <ClInclude Include="..\..\..\lib\zstd.h" />
     <ClInclude Include="..\..\..\lib\zstd_static.h" />
     <ClInclude Include="..\..\..\programs\datagen.h" />

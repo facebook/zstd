@@ -1,6 +1,6 @@
 /*
-  fileio.c - File i/o handler
-  Copyright (C) Yann Collet 2013-2015
+  fileio_legacy.c - File i/o handler for legacy format
+  Copyright (C) Yann Collet 2015-2016
 
   GPL v2 License
 
@@ -19,12 +19,11 @@
   51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
   You can contact the author at :
+  - zstd homepage : http://www.zstd.net
   - zstd source repository : https://github.com/Cyan4973/zstd
-  - Public forum : https://groups.google.com/forum/#!forum/lz4c
 */
 /*
-  Note : this is stand-alone program.
-  It is not part of ZSTD compression library, it is a user program of ZSTD library.
+  Note : this file is not part of ZSTD compression library.
   The license of ZSTD library is BSD.
   The license of this file is GPLv2.
 */
@@ -172,8 +171,7 @@ unsigned long long FIOv01_decompressFrame(FILE* foutput, FILE* finput)
 
     /* Main decompression Loop */
     toRead = ZSTDv01_nextSrcSizeToDecompress(dctx);
-    while (toRead)
-    {
+    while (toRead){
         size_t readSize, decodedSize;
 
         /* Fill input buffer */
@@ -187,8 +185,7 @@ unsigned long long FIOv01_decompressFrame(FILE* foutput, FILE* finput)
         decodedSize = ZSTDv01_decompressContinue(dctx, op, oend-op, inBuff, readSize);
         if (ZSTDv01_isError(decodedSize)) EXM_THROW(45, "Decoding error : input corrupted");
 
-        if (decodedSize)   /* not a header */
-        {
+        if (decodedSize) {  /* not a header */
             /* Write block */
             sizeCheck = fwrite(op, 1, decodedSize, foutput);
             if (sizeCheck != decodedSize) EXM_THROW(46, "Write error : unable to write data block to destination file");
@@ -232,8 +229,7 @@ unsigned long long FIOv02_decompressFrame(FILE* foutput, FILE* finput)
 
     /* Main decompression Loop */
     toRead = ZSTDv02_nextSrcSizeToDecompress(dctx);
-    while (toRead)
-    {
+    while (toRead) {
         size_t readSize, decodedSize;
 
         /* Fill input buffer */
@@ -247,8 +243,7 @@ unsigned long long FIOv02_decompressFrame(FILE* foutput, FILE* finput)
         decodedSize = ZSTDv02_decompressContinue(dctx, op, oend-op, inBuff, readSize);
         if (ZSTDv02_isError(decodedSize)) EXM_THROW(45, "Decoding error : input corrupted");
 
-        if (decodedSize)   /* not a header */
-        {
+        if (decodedSize) {   /* not a header */
             /* Write block */
             sizeCheck = fwrite(op, 1, decodedSize, foutput);
             if (sizeCheck != decodedSize) EXM_THROW(46, "Write error : unable to write data block to destination file");
@@ -292,8 +287,7 @@ unsigned long long FIOv03_decompressFrame(FILE* foutput, FILE* finput)
 
     /* Main decompression Loop */
     toRead = ZSTDv03_nextSrcSizeToDecompress(dctx);
-    while (toRead)
-    {
+    while (toRead) {
         size_t readSize, decodedSize;
 
         /* Fill input buffer */
@@ -307,8 +301,7 @@ unsigned long long FIOv03_decompressFrame(FILE* foutput, FILE* finput)
         decodedSize = ZSTDv03_decompressContinue(dctx, op, oend-op, inBuff, readSize);
         if (ZSTDv03_isError(decodedSize)) EXM_THROW(45, "Decoding error : input corrupted");
 
-        if (decodedSize)   /* not a header */
-        {
+        if (decodedSize) {   /* not a header */
             /* Write block */
             sizeCheck = fwrite(op, 1, decodedSize, foutput);
             if (sizeCheck != decodedSize) EXM_THROW(46, "Write error : unable to write data block to destination file");
@@ -329,7 +322,7 @@ unsigned long long FIOv03_decompressFrame(FILE* foutput, FILE* finput)
 }
 
 
-/*- v0.4.x -*/
+/*=====    v0.4.x    =====*/
 
 typedef struct {
     void*  srcBuffer;
@@ -380,8 +373,7 @@ unsigned long long FIOv04_decompressFrame(dRessv04_t ress,
     ZBUFFv04_decompressInit(ress.dctx);
     ZBUFFv04_decompressWithDictionary(ress.dctx, ress.dictBuffer, ress.dictBufferSize);
 
-    while (1)
-    {
+    while (1) {
         /* Decode */
         size_t sizeCheck;
         size_t inSize=readSize, decodedSize=ress.dstBufferSize;
@@ -404,10 +396,88 @@ unsigned long long FIOv04_decompressFrame(dRessv04_t ress,
         if (readSize != toRead) EXM_THROW(35, "Read error");
     }
 
-    FIOv04_freeDResources(ress);
     return frameSize;
 }
 
+
+/*=====    v0.5.x    =====*/
+
+typedef struct {
+    void*  srcBuffer;
+    size_t srcBufferSize;
+    void*  dstBuffer;
+    size_t dstBufferSize;
+    void*  dictBuffer;
+    size_t dictBufferSize;
+    ZBUFFv05_DCtx* dctx;
+} dRessv05_t;
+
+static dRessv05_t FIOv05_createDResources(void)
+{
+    dRessv05_t ress;
+
+    /* init */
+    ress.dctx = ZBUFFv05_createDCtx();
+    if (ress.dctx==NULL) EXM_THROW(60, "Can't create ZBUFF decompression context");
+    ress.dictBuffer = NULL; ress.dictBufferSize=0;
+
+    /* Allocate Memory */
+    ress.srcBufferSize = ZBUFFv05_recommendedDInSize();
+    ress.srcBuffer = malloc(ress.srcBufferSize);
+    ress.dstBufferSize = ZBUFFv05_recommendedDOutSize();
+    ress.dstBuffer = malloc(ress.dstBufferSize);
+    if (!ress.srcBuffer || !ress.dstBuffer) EXM_THROW(61, "Allocation error : not enough memory");
+
+    return ress;
+}
+
+static void FIOv05_freeDResources(dRessv05_t ress)
+{
+    size_t const errorCode = ZBUFFv05_freeDCtx(ress.dctx);
+    if (ZBUFFv05_isError(errorCode)) EXM_THROW(69, "Error : can't free ZBUFF context resource : %s", ZBUFFv05_getErrorName(errorCode));
+    free(ress.srcBuffer);
+    free(ress.dstBuffer);
+    free(ress.dictBuffer);
+}
+
+
+unsigned long long FIOv05_decompressFrame(dRessv05_t ress,
+                                          FILE* foutput, FILE* finput)
+{
+    U64    frameSize = 0;
+    size_t readSize = 4;
+
+    MEM_writeLE32(ress.srcBuffer, ZSTDv05_MAGICNUMBER);
+    ZBUFFv05_decompressInitDictionary(ress.dctx, ress.dictBuffer, ress.dictBufferSize);
+
+    while (1) {
+        /* Decode */
+        size_t sizeCheck;
+        size_t inSize=readSize, decodedSize=ress.dstBufferSize;
+        size_t toRead = ZBUFFv05_decompressContinue(ress.dctx, ress.dstBuffer, &decodedSize, ress.srcBuffer, &inSize);
+        if (ZBUFFv05_isError(toRead)) EXM_THROW(36, "Decoding error : %s", ZBUFFv05_getErrorName(toRead));
+        readSize -= inSize;
+
+        /* Write block */
+        sizeCheck = fwrite(ress.dstBuffer, 1, decodedSize, foutput);
+        if (sizeCheck != decodedSize) EXM_THROW(37, "Write error : unable to write data block to destination file");
+        frameSize += decodedSize;
+        DISPLAYUPDATE(2, "\rDecoded : %u MB...     ", (U32)(frameSize>>20) );
+
+        if (toRead == 0) break;
+        if (readSize) EXM_THROW(38, "Decoding error : should consume entire input");
+
+        /* Fill input buffer */
+        if (toRead > ress.srcBufferSize) EXM_THROW(34, "too large block");
+        readSize = fread(ress.srcBuffer, 1, toRead, finput);
+        if (readSize != toRead) EXM_THROW(35, "Read error");
+    }
+
+    return frameSize;
+}
+
+
+/*=====   General legacy dispatcher   =====*/
 
 unsigned long long FIO_decompressLegacyFrame(FILE* foutput, FILE* finput, U32 magicNumberLE)
 {
@@ -420,7 +490,17 @@ unsigned long long FIO_decompressLegacyFrame(FILE* foutput, FILE* finput, U32 ma
 		case ZSTDv03_magicNumber :
 			return FIOv03_decompressFrame(foutput, finput);
 		case ZSTDv04_magicNumber :
-			return FIOv04_decompressFrame(FIOv04_createDResources(), foutput, finput);
+		    {   dRessv04_t r = FIOv04_createDResources();
+                unsigned long long const s = FIOv04_decompressFrame(r, foutput, finput);
+                FIOv04_freeDResources(r);
+                return s;
+		    }
+		case ZSTDv05_MAGICNUMBER :
+		    {   dRessv05_t r = FIOv05_createDResources();
+                unsigned long long const s = FIOv05_decompressFrame(r, foutput, finput);
+                FIOv05_freeDResources(r);
+                return s;
+		    }
 		default :
 		    return ERROR(prefix_unknown);
 	}

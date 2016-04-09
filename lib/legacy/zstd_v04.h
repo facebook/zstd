@@ -95,7 +95,7 @@ size_t ZSTDv04_decompressContinue(ZSTDv04_Dctx* dctx, void* dst, size_t maxDstSi
 ***************************************/
 typedef struct ZBUFFv04_DCtx_s ZBUFFv04_DCtx;
 ZBUFFv04_DCtx* ZBUFFv04_createDCtx(void);
-size_t      ZBUFFv04_freeDCtx(ZBUFFv04_DCtx* dctx);
+size_t         ZBUFFv04_freeDCtx(ZBUFFv04_DCtx* dctx);
 
 size_t ZBUFFv04_decompressInit(ZBUFFv04_DCtx* dctx);
 size_t ZBUFFv04_decompressWithDictionary(ZBUFFv04_DCtx* dctx, const void* dict, size_t dictSize);

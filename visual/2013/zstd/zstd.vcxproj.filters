@@ -69,6 +69,9 @@
     <ClCompile Include="..\..\..\programs\dibio.c">
       <Filter>Fichiers sources</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\..\lib\legacy\zstd_v05.c">
+      <Filter>Fichiers sources</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\lib\fse.h">
@@ -144,6 +147,9 @@
       <Filter>Fichiers sources</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\programs\dibio.h">
+      <Filter>Fichiers d%27en-tête</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\lib\legacy\zstd_v05.h">
       <Filter>Fichiers d%27en-tête</Filter>
     </ClInclude>
   </ItemGroup>

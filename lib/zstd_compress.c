@@ -1291,7 +1291,7 @@ static U32 ZSTD_insertBt1(ZSTD_CCtx* zc, const BYTE* const ip, const U32 mls, co
     while (nbCompares-- && (matchIndex > windowLow)) {
         U32* nextPtr = bt + 2*(matchIndex & btMask);
         size_t matchLength = MIN(commonLengthSmaller, commonLengthLarger);   /* guaranteed minimum nb of common bytes */
-#if 1   /* note : can create issues when hlog small <= 11 */
+#if 0   /* note : can create issues when hlog small <= 11 */
         const U32* predictPtr = bt + 2*((matchIndex-1) & btMask);   /* written this way, as bt is a roll buffer */
         if (matchIndex == predictedSmall) {
             /* no need to check length, result known */
@@ -1645,8 +1645,8 @@ void ZSTD_compressBlock_lazy_generic(ZSTD_CCtx* ctx,
     const BYTE* const ilimit = iend - 8;
     const BYTE* const base = ctx->base + ctx->dictLimit;
 
-    const U32 maxSearches = 1 << ctx->params.cParams.searchLog;
-    const U32 mls = ctx->params.cParams.searchLength;
+    U32 const maxSearches = 1 << ctx->params.cParams.searchLog;
+    U32 const mls = ctx->params.cParams.searchLength;
 
     typedef size_t (*searchMax_f)(ZSTD_CCtx* zc, const BYTE* ip, const BYTE* iLimit,
                         size_t* offsetPtr,
@@ -2444,7 +2444,7 @@ unsigned ZSTD_maxCLevel(void) { return ZSTD_MAX_CLEVEL; }
 
 static const ZSTD_compressionParameters ZSTD_defaultCParameters[4][ZSTD_MAX_CLEVEL+1] = {
 {   /* "default" */
-    /* W,  C,  H,  S,  L, SL, strat */
+    /* W,  C,  H,  S,  L, TL, strat */
     {  0,  0,  0,  0,  0,  0, ZSTD_fast    },  /* level  0 - never used */
     { 19, 13, 14,  1,  7,  4, ZSTD_fast    },  /* level  1 */
     { 19, 15, 16,  1,  6,  4, ZSTD_fast    },  /* level  2 */
@@ -2462,12 +2462,12 @@ static const ZSTD_compressionParameters ZSTD_defaultCParameters[4][ZSTD_MAX_CLEV
     { 22, 21, 22,  6,  5,  4, ZSTD_lazy2   },  /* level 14 */
     { 22, 21, 21,  5,  5,  4, ZSTD_btlazy2 },  /* level 15 */
     { 23, 22, 22,  5,  5,  4, ZSTD_btlazy2 },  /* level 16 */
-    { 23, 22, 22,  6,  5, 22, ZSTD_btopt   },  /* level 17 */
-    { 22, 22, 22,  5,  3, 44, ZSTD_btopt   },  /* level 18 */
-    { 23, 24, 22,  7,  3, 44, ZSTD_btopt   },  /* level 19 */
-    { 25, 26, 22,  7,  3, 71, ZSTD_btopt   },  /* level 20 */
-    { 26, 26, 24,  7,  3,256, ZSTD_btopt   },  /* level 21 */
-    { 27, 28, 26,  9,  3,256, ZSTD_btopt   },  /* level 22 */
+    { 23, 23, 22,  5,  5,  4, ZSTD_btlazy2 },  /* level 17.*/
+    { 23, 23, 22,  6,  5, 24, ZSTD_btopt   },  /* level 18.*/
+    { 23, 23, 22,  6,  3, 48, ZSTD_btopt   },  /* level 19.*/
+    { 25, 26, 23,  7,  3, 64, ZSTD_btopt   },  /* level 20.*/
+    { 26, 26, 23,  7,  3,256, ZSTD_btopt   },  /* level 21.*/
+    { 27, 27, 25,  9,  3,512, ZSTD_btopt   },  /* level 22.*/
 },
 {   /* for srcSize <= 256 KB */
     /* W,  C,  H,  S,  L,  T, strat */

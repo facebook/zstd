@@ -46,6 +46,7 @@ extern "C" {
 #include "zstd_v02.h"
 #include "zstd_v03.h"
 #include "zstd_v04.h"
+#include "zstd_v05.h"
 
 MEM_STATIC unsigned ZSTD_isLegacy (U32 magicNumberLE)
 {
@@ -53,28 +54,32 @@ MEM_STATIC unsigned ZSTD_isLegacy (U32 magicNumberLE)
 	{
 		case ZSTDv01_magicNumberLE :
 		case ZSTDv02_magicNumber :
-		case ZSTDv03_magicNumber : 
-		case ZSTDv04_magicNumber : return 1;
+		case ZSTDv03_magicNumber :
+		case ZSTDv04_magicNumber :
+		case ZSTDv05_MAGICNUMBER :
+            return 1;
 		default : return 0;
 	}
 }
 
 
 MEM_STATIC size_t ZSTD_decompressLegacy(
-                     void* dst, size_t maxOriginalSize,
+                     void* dst, size_t dstCapacity,
                const void* src, size_t compressedSize,
                      U32 magicNumberLE)
 {
 	switch(magicNumberLE)
 	{
 		case ZSTDv01_magicNumberLE :
-			return ZSTDv01_decompress(dst, maxOriginalSize, src, compressedSize);
+			return ZSTDv01_decompress(dst, dstCapacity, src, compressedSize);
 		case ZSTDv02_magicNumber :
-			return ZSTDv02_decompress(dst, maxOriginalSize, src, compressedSize);
+			return ZSTDv02_decompress(dst, dstCapacity, src, compressedSize);
 		case ZSTDv03_magicNumber :
-			return ZSTDv03_decompress(dst, maxOriginalSize, src, compressedSize);
+			return ZSTDv03_decompress(dst, dstCapacity, src, compressedSize);
 		case ZSTDv04_magicNumber :
-			return ZSTDv04_decompress(dst, maxOriginalSize, src, compressedSize);
+			return ZSTDv04_decompress(dst, dstCapacity, src, compressedSize);
+		case ZSTDv05_MAGICNUMBER :
+			return ZSTDv05_decompress(dst, dstCapacity, src, compressedSize);
 		default :
 		    return ERROR(prefix_unknown);
 	}

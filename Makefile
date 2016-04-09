@@ -89,9 +89,8 @@ gpptest: clean
 	$(MAKE) all CC=g++ CFLAGS="-O3 -Wall -Wextra -Wundef -Wshadow -Wcast-align -Werror"
 
 armtest: clean
-#	$(MAKE) -C $(ZSTDDIR) all CC=arm-linux-gnueabi-gcc MOREFLAGS="-Werror"
 	$(MAKE) -C $(PRGDIR) datagen   # use native, faster
-	$(MAKE) -C $(PRGDIR) test CC=arm-linux-gnueabi-gcc ZSTDRTTEST= MOREFLAGS=-static # MOREFLAGS="-Werror -static"
+	$(MAKE) -C $(PRGDIR) test CC=arm-linux-gnueabi-gcc ZSTDRTTEST= MOREFLAGS="-Werror -static"
 
 # for Travis CI
 arminstall: clean   
@@ -105,7 +104,7 @@ armtest-w-install: clean arminstall armtest
 
 ppctest: clean
 	$(MAKE) -C $(PRGDIR) datagen   # use native, faster
-	$(MAKE) -C $(PRGDIR) test CC=powerpc-linux-gnu-gcc ZSTDRTTEST= MOREFLAGS=-static # MOREFLAGS="-Werror -static" 
+	$(MAKE) -C $(PRGDIR) test CC=powerpc-linux-gnu-gcc ZSTDRTTEST= MOREFLAGS="-Werror -static" 
 
 # for Travis CI
 ppcinstall: clean   

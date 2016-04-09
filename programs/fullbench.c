@@ -1,6 +1,6 @@
 /*
     fullbench.c - Detailed bench program for zstd
-    Copyright (C) Yann Collet 2014-2015
+    Copyright (C) Yann Collet 2014-2016
 
     GPL v2 License
 
@@ -19,11 +19,10 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
     You can contact the author at :
-    - zstd source repository : https://github.com/Cyan4973/zstd
-    - ztsd public forum : https://groups.google.com/forum/#!forum/lz4c
+    - zstd homepage : http://www.zstd.net
 */
 
-/**************************************
+/*_************************************
 *  Compiler Options
 **************************************/
 /* Disable some Visual warning messages */
@@ -38,13 +37,8 @@
 #  define _LARGEFILE64_SOURCE
 #endif
 
-/* S_ISREG & gettimeofday() are not supported by MSVC */
-#if defined(_MSC_VER) || defined(_WIN32)
-#  define BMK_LEGACY_TIMER 1
-#endif
 
-
-/**************************************
+/*_************************************
 *  Includes
 **************************************/
 #include <stdlib.h>       /* malloc */
@@ -52,21 +46,16 @@
 #include <sys/types.h>    /* stat64 */
 #include <sys/stat.h>     /* stat64 */
 #include <string.h>       /* strcmp */
-
-/* Use ftime() if gettimeofday() is not available on your target */
-#if defined(BMK_LEGACY_TIMER)
-#  include <sys/timeb.h>  /* timeb, ftime */
-#else
-#  include <sys/time.h>   /* gettimeofday */
-#endif
+#include <time.h>         /* clock_t, clock, CLOCKS_PER_SEC */
 
 #include "mem.h"
 #include "zstd_static.h"
 #include "fse_static.h"
+#include "zbuff.h"
 #include "datagen.h"
 
 
-/**************************************
+/*_************************************
 *  Compiler Options
 **************************************/
 /* S_ISREG & gettimeofday() are not supported by MSVC */
@@ -75,7 +64,7 @@
 #endif
 
 
-/**************************************
+/*_************************************
 *  Constants
 **************************************/
 #define PROGRAM_DESCRIPTION "Zstandard speed analyzer"
@@ -90,99 +79,63 @@
 #define MB *(1<<20)
 
 #define NBLOOPS    6
-#define TIMELOOP   2500
+#define TIMELOOP_S 2
 
 #define KNUTH      2654435761U
 #define MAX_MEM    (1984 MB)
-#define DEFAULT_CHUNKSIZE   (4<<20)
 
 #define COMPRESSIBILITY_DEFAULT 0.50
-static const size_t sampleSize = 10000000;
+static const size_t g_sampleSize = 10000000;
 
 
-/**************************************
+/*_************************************
 *  Macros
 **************************************/
 #define DISPLAY(...)  fprintf(stderr, __VA_ARGS__)
 
 
-/**************************************
+/*_************************************
 *  Benchmark Parameters
 **************************************/
-static int nbIterations = NBLOOPS;
+static U32 g_nbIterations = NBLOOPS;
 static double g_compressibility = COMPRESSIBILITY_DEFAULT;
 
-void BMK_SetNbIterations(int nbLoops)
+static void BMK_SetNbIterations(U32 nbLoops)
 {
-    nbIterations = nbLoops;
-    DISPLAY("- %i iterations -\n", nbIterations);
+    g_nbIterations = nbLoops;
+    DISPLAY("- %i iterations -\n", g_nbIterations);
 }
 
 
-/*********************************************************
+/*_*******************************************************
 *  Private functions
 *********************************************************/
-
-#if defined(BMK_LEGACY_TIMER)
-
-static int BMK_GetMilliStart(void)
+static clock_t BMK_clockSpan( clock_t clockStart )
 {
-  /* Based on Legacy ftime()
-  *  Rolls over every ~ 12.1 days (0x100000/24/60/60)
-  *  Use GetMilliSpan to correct for rollover */
-  struct timeb tb;
-  int nCount;
-  ftime( &tb );
-  nCount = (int) (tb.millitm + (tb.time & 0xfffff) * 1000);
-  return nCount;
-}
-
-#else
-
-static int BMK_GetMilliStart(void)
-{
-  /* Based on newer gettimeofday()
-  *  Use GetMilliSpan to correct for rollover */
-  struct timeval tv;
-  int nCount;
-  gettimeofday(&tv, NULL);
-  nCount = (int) (tv.tv_usec/1000 + (tv.tv_sec & 0xfffff) * 1000);
-  return nCount;
-}
-
-#endif
-
-
-static int BMK_GetMilliSpan( int nTimeStart )
-{
-  int nSpan = BMK_GetMilliStart() - nTimeStart;
-  if ( nSpan < 0 )
-    nSpan += 0x100000 * 1000;
-  return nSpan;
+    return clock() - clockStart;   /* works even if overflow, span limited to <= ~30mn */
 }
 
 
 static size_t BMK_findMaxMem(U64 requiredMem)
 {
-    size_t step = 64 MB;
-    BYTE* testmem=NULL;
+    size_t const step = 64 MB;
+    void* testmem = NULL;
 
     requiredMem = (((requiredMem >> 26) + 1) << 26);
     if (requiredMem > MAX_MEM) requiredMem = MAX_MEM;
 
-    requiredMem += 2*step;
-    while (!testmem)
-    {
+    requiredMem += step;
+    do {
+        testmem = malloc ((size_t)requiredMem);
         requiredMem -= step;
-        testmem = (BYTE*) malloc ((size_t)requiredMem);
-    }
+    } while (!testmem);
 
     free (testmem);
-    return (size_t) (requiredMem - step);
+    return (size_t) requiredMem;
 }
 
 
-static U64 BMK_GetFileSize(char* infilename)
+static U64 BMK_GetFileSize(const char* infilename)
 {
     int r;
 #if defined(_MSC_VER)
@@ -197,22 +150,15 @@ static U64 BMK_GetFileSize(char* infilename)
 }
 
 
-/*********************************************************
+/*_*******************************************************
 *  Benchmark wrappers
 *********************************************************/
 typedef enum { bt_compressed, bt_raw, bt_rle, bt_end } blockType_t;
-typedef struct
-{
+typedef struct {
     blockType_t blockType;
     U32 unusedBits;
     U32 origSize;
 } blockProperties_t;
-
-static size_t g_cSize = 0;
-static ZSTD_DCtx* g_dctxPtr = NULL;
-
-extern size_t ZSTD_getcBlockSize(const void* src, size_t srcSize, blockProperties_t* bpPtr);
-extern size_t ZSTD_decodeSeqHeaders(int* nbSeq, const BYTE** dumpsPtr, size_t* dumpsLengthPtr, FSE_DTable* DTableLL, FSE_DTable* DTableML, FSE_DTable* DTableOffb, const void* src, size_t srcSize);
 
 size_t local_ZSTD_compress(void* dst, size_t dstSize, void* buff2, const void* src, size_t srcSize)
 {
@@ -220,44 +166,102 @@ size_t local_ZSTD_compress(void* dst, size_t dstSize, void* buff2, const void* s
     return ZSTD_compress(dst, dstSize, src, srcSize, 1);
 }
 
+static size_t g_cSize = 0;
 size_t local_ZSTD_decompress(void* dst, size_t dstSize, void* buff2, const void* src, size_t srcSize)
 {
     (void)src; (void)srcSize;
     return ZSTD_decompress(dst, dstSize, buff2, g_cSize);
 }
 
+static ZSTD_DCtx* g_zdc = NULL;
 extern size_t ZSTD_decodeLiteralsBlock(ZSTD_DCtx* ctx, const void* src, size_t srcSize);
 size_t local_ZSTD_decodeLiteralsBlock(void* dst, size_t dstSize, void* buff2, const void* src, size_t srcSize)
 {
     (void)src; (void)srcSize; (void)dst; (void)dstSize;
-    return ZSTD_decodeLiteralsBlock((ZSTD_DCtx*)g_dctxPtr, buff2, g_cSize);
+    return ZSTD_decodeLiteralsBlock((ZSTD_DCtx*)g_zdc, buff2, g_cSize);
 }
 
+extern size_t ZSTD_getcBlockSize(const void* src, size_t srcSize, blockProperties_t* bpPtr);
+extern size_t ZSTD_decodeSeqHeaders(int* nbSeq, FSE_DTable* DTableLL, FSE_DTable* DTableML, FSE_DTable* DTableOffb, U32 tableRepeatFlag, const void* src, size_t srcSize);
 size_t local_ZSTD_decodeSeqHeaders(void* dst, size_t dstSize, void* buff2, const void* src, size_t srcSize)
 {
     U32 DTableML[FSE_DTABLE_SIZE_U32(10)], DTableLL[FSE_DTABLE_SIZE_U32(10)], DTableOffb[FSE_DTABLE_SIZE_U32(9)];   /* MLFSELog, LLFSELog and OffFSELog are not public values */
-    const BYTE* dumps;
-    size_t length;
     int nbSeq;
     (void)src; (void)srcSize; (void)dst; (void)dstSize;
-    return ZSTD_decodeSeqHeaders(&nbSeq, &dumps, &length, DTableLL, DTableML, DTableOffb, buff2, g_cSize);
+    return ZSTD_decodeSeqHeaders(&nbSeq, DTableLL, DTableML, DTableOffb, 0, buff2, g_cSize);
 }
 
 
+static ZBUFF_CCtx* g_zbcc = NULL;
+size_t local_ZBUFF_compress(void* dst, size_t dstCapacity, void* buff2, const void* src, size_t srcSize)
+{
+    size_t compressedSize;
+    size_t srcRead = srcSize, dstWritten = dstCapacity;
+    (void)buff2;
+    ZBUFF_compressInit(g_zbcc, 1);
+    ZBUFF_compressContinue(g_zbcc, dst, &dstWritten, src, &srcRead);
+    compressedSize = dstWritten;
+    dstWritten = dstCapacity-compressedSize;
+    ZBUFF_compressEnd(g_zbcc, ((char*)dst)+compressedSize, &dstWritten);
+    compressedSize += dstWritten;
+    return compressedSize;
+}
 
-/*********************************************************
+static ZBUFF_DCtx* g_zbdc = NULL;
+static size_t local_ZBUFF_decompress(void* dst, size_t dstCapacity, void* buff2, const void* src, size_t srcSize)
+{
+    size_t srcRead = g_cSize, dstWritten = dstCapacity;
+    (void)src; (void)srcSize;
+    ZBUFF_decompressInit(g_zbdc);
+    ZBUFF_decompressContinue(g_zbdc, dst, &dstWritten, buff2, &srcRead);
+    return dstWritten;
+}
+
+static ZSTD_CCtx* g_zcc = NULL;
+size_t local_ZSTD_compressContinue(void* dst, size_t dstCapacity, void* buff2, const void* src, size_t srcSize)
+{
+    size_t compressedSize;
+    (void)buff2;
+    ZSTD_compressBegin(g_zcc, 1);
+    compressedSize = ZSTD_compressContinue(g_zcc, dst, dstCapacity, src, srcSize);
+    compressedSize += ZSTD_compressEnd(g_zcc, ((char*)dst)+compressedSize, dstCapacity-compressedSize);
+    return compressedSize;
+}
+
+size_t local_ZSTD_decompressContinue(void* dst, size_t dstCapacity, void* buff2, const void* src, size_t srcSize)
+{
+    size_t regeneratedSize = 0;
+    const BYTE* ip = (const BYTE*)buff2;
+    const BYTE* const iend = ip + g_cSize;
+    BYTE* op = (BYTE*)dst;
+    size_t remainingCapacity = dstCapacity;
+
+    (void)src; (void)srcSize;
+    ZSTD_decompressBegin(g_zdc);
+    while (ip < iend) {
+        size_t const iSize = ZSTD_nextSrcSizeToDecompress(g_zdc);
+        size_t const decodedSize = ZSTD_decompressContinue(g_zdc, op, remainingCapacity, ip, iSize);
+        ip += iSize;
+        regeneratedSize += decodedSize;
+        op += decodedSize;
+        remainingCapacity -= decodedSize;
+    }
+
+    return regeneratedSize;
+}
+
+
+/*_*******************************************************
 *  Bench functions
 *********************************************************/
-size_t benchMem(void* src, size_t srcSize, U32 benchNb)
+static size_t benchMem(const void* src, size_t srcSize, U32 benchNb)
 {
     BYTE*  dstBuff;
     size_t dstBuffSize;
     BYTE*  buff2;
-    int loopNb;
     const char* benchName;
     size_t (*benchFunction)(void* dst, size_t dstSize, void* verifBuff, const void* src, size_t srcSize);
     double bestTime = 100000000.;
-    size_t errorCode = 0;
 
     /* Selection */
     switch(benchNb)
@@ -265,14 +269,26 @@ size_t benchMem(void* src, size_t srcSize, U32 benchNb)
     case 1:
         benchFunction = local_ZSTD_compress; benchName = "ZSTD_compress";
         break;
-    case 11:
+    case 2:
         benchFunction = local_ZSTD_decompress; benchName = "ZSTD_decompress";
+        break;
+    case 11:
+        benchFunction = local_ZSTD_compressContinue; benchName = "ZSTD_compressContinue";
+        break;
+    case 12:
+        benchFunction = local_ZSTD_decompressContinue; benchName = "ZSTD_decompressContinue";
         break;
     case 31:
         benchFunction = local_ZSTD_decodeLiteralsBlock; benchName = "ZSTD_decodeLiteralsBlock";
         break;
     case 32:
         benchFunction = local_ZSTD_decodeSeqHeaders; benchName = "ZSTD_decodeSeqHeaders";
+        break;
+    case 41:
+        benchFunction = local_ZBUFF_compress; benchName = "ZBUFF_compressContinue";
+        break;
+    case 42:
+        benchFunction = local_ZBUFF_decompress; benchName = "ZBUFF_decompressContinue";
         break;
     default :
         return 0;
@@ -282,9 +298,7 @@ size_t benchMem(void* src, size_t srcSize, U32 benchNb)
     dstBuffSize = ZSTD_compressBound(srcSize);
     dstBuff = (BYTE*)malloc(dstBuffSize);
     buff2 = (BYTE*)malloc(dstBuffSize);
-    g_dctxPtr = ZSTD_createDCtx();
-    if ((!dstBuff) || (!buff2))
-    {
+    if ((!dstBuff) || (!buff2)) {
         DISPLAY("\nError: not enough memory!\n");
         free(dstBuff); free(buff2);
         return 12;
@@ -293,45 +307,66 @@ size_t benchMem(void* src, size_t srcSize, U32 benchNb)
     /* Preparation */
     switch(benchNb)
     {
-    case 11:
+    case 2:
+        g_cSize = ZSTD_compress(buff2, dstBuffSize, src, srcSize, 1);
+        break;
+    case 11 :
+        if (g_zcc==NULL) g_zcc = ZSTD_createCCtx();
+        break;
+    case 12 :
+        if (g_zdc==NULL) g_zdc = ZSTD_createDCtx();
         g_cSize = ZSTD_compress(buff2, dstBuffSize, src, srcSize, 1);
         break;
     case 31:  /* ZSTD_decodeLiteralsBlock */
-        {
-            blockProperties_t bp;
+        if (g_zdc==NULL) g_zdc = ZSTD_createDCtx();
+        {   blockProperties_t bp;
+            ZSTD_frameParams zfp;
+            size_t frameHeaderSize, skippedSize;
             g_cSize = ZSTD_compress(dstBuff, dstBuffSize, src, srcSize, 1);
-            ZSTD_getcBlockSize(dstBuff+4, dstBuffSize, &bp);  /* Get 1st block type */
-            if (bp.blockType != bt_compressed)
-            {
+            frameHeaderSize = ZSTD_getFrameParams(&zfp, dstBuff, ZSTD_frameHeaderSize_min);
+            if (frameHeaderSize==0) frameHeaderSize = ZSTD_frameHeaderSize_min;
+            ZSTD_getcBlockSize(dstBuff+frameHeaderSize, dstBuffSize, &bp);  /* Get 1st block type */
+            if (bp.blockType != bt_compressed) {
                 DISPLAY("ZSTD_decodeLiteralsBlock : impossible to test on this sample (not compressible)\n");
                 goto _cleanOut;
             }
-            memcpy(buff2, dstBuff+8, g_cSize-8);
+            skippedSize = frameHeaderSize + 3 /* ZSTD_blockHeaderSize */;
+            memcpy(buff2, dstBuff+skippedSize, g_cSize-skippedSize);
             srcSize = srcSize > 128 KB ? 128 KB : srcSize;    /* speed relative to block */
             break;
         }
     case 32:   /* ZSTD_decodeSeqHeaders */
-        {
-            blockProperties_t bp;
+        if (g_zdc==NULL) g_zdc = ZSTD_createDCtx();
+        {   blockProperties_t bp;
+            ZSTD_frameParams zfp;
             const BYTE* ip = dstBuff;
             const BYTE* iend;
-            size_t blockSize;
+            size_t frameHeaderSize, cBlockSize;
             ZSTD_compress(dstBuff, dstBuffSize, src, srcSize, 1);   /* it would be better to use direct block compression here */
-            ip += 5;   /* Skip frame Header */
-            blockSize = ZSTD_getcBlockSize(ip, dstBuffSize, &bp);   /* Get 1st block type */
-            if (bp.blockType != bt_compressed)
-            {
+            g_cSize = ZSTD_compress(dstBuff, dstBuffSize, src, srcSize, 1);
+            frameHeaderSize = ZSTD_getFrameParams(&zfp, dstBuff, ZSTD_frameHeaderSize_min);
+            if (frameHeaderSize==0) frameHeaderSize = ZSTD_frameHeaderSize_min;
+            ip += frameHeaderSize;   /* Skip frame Header */
+            cBlockSize = ZSTD_getcBlockSize(ip, dstBuffSize, &bp);   /* Get 1st block type */
+            if (bp.blockType != bt_compressed) {
                 DISPLAY("ZSTD_decodeSeqHeaders : impossible to test on this sample (not compressible)\n");
                 goto _cleanOut;
             }
-            iend = ip + 3 + blockSize;   /* End of first block */
-            ip += 3;                     /* skip block header */
-            ip += ZSTD_decodeLiteralsBlock(g_dctxPtr, ip, iend-ip);  /* skip literal segment */
+            iend = ip + 3 /* ZSTD_blockHeaderSize */ + cBlockSize;   /* End of first block */
+            ip += 3 /* ZSTD_blockHeaderSize */;                     /* skip block header */
+            ip += ZSTD_decodeLiteralsBlock(g_zdc, ip, iend-ip);  /* skip literal segment */
             g_cSize = iend-ip;
             memcpy(buff2, ip, g_cSize);   /* copy rest of block (it starts by SeqHeader) */
             srcSize = srcSize > 128 KB ? 128 KB : srcSize;   /* speed relative to block */
             break;
         }
+    case 41 :
+        if (g_zbcc==NULL) g_zbcc = ZBUFF_createCCtx();
+        break;
+    case 42 :
+        if (g_zbdc==NULL) g_zbdc = ZBUFF_createDCtx();
+        g_cSize = ZSTD_compress(buff2, dstBuffSize, src, srcSize, 1);
+        break;
 
     /* test functions */
     /* by convention, test functions can be added > 100 */
@@ -341,53 +376,44 @@ size_t benchMem(void* src, size_t srcSize, U32 benchNb)
 
     { size_t i; for (i=0; i<dstBuffSize; i++) dstBuff[i]=(BYTE)i; }     /* warming up memory */
 
-    for (loopNb = 1; loopNb <= nbIterations; loopNb++)
-    {
+    { U32 loopNb;
+    for (loopNb = 1; loopNb <= g_nbIterations; loopNb++) {
+        clock_t const timeLoop = TIMELOOP_S * CLOCKS_PER_SEC;
+        clock_t clockStart;
+        U32 nbRounds;
+        size_t benchResult=0;
         double averageTime;
-        int milliTime;
-        U32 nbRounds=0;
 
         DISPLAY("%2i- %-30.30s : \r", loopNb, benchName);
 
-        milliTime = BMK_GetMilliStart();
-        while(BMK_GetMilliStart() == milliTime);
-        milliTime = BMK_GetMilliStart();
-        while(BMK_GetMilliSpan(milliTime) < TIMELOOP)
-        {
-            errorCode = benchFunction(dstBuff, dstBuffSize, buff2, src, srcSize);
-            if (ZSTD_isError(errorCode)) { DISPLAY("ERROR ! %s() => %s !! \n", benchName, ZSTD_getErrorName(errorCode)); exit(1); }
-            nbRounds++;
+        clockStart = clock();
+        while (clock() == clockStart);
+        clockStart = clock();
+        for (nbRounds=0; BMK_clockSpan(clockStart) < timeLoop; nbRounds++) {
+            benchResult = benchFunction(dstBuff, dstBuffSize, buff2, src, srcSize);
+            if (ZSTD_isError(benchResult)) { DISPLAY("ERROR ! %s() => %s !! \n", benchName, ZSTD_getErrorName(benchResult)); exit(1); }
         }
-        milliTime = BMK_GetMilliSpan(milliTime);
-
-        averageTime = (double)milliTime / nbRounds;
+        averageTime = (((double)BMK_clockSpan(clockStart)) / CLOCKS_PER_SEC) / nbRounds;
         if (averageTime < bestTime) bestTime = averageTime;
-        DISPLAY("%2i- %-30.30s : %7.1f MB/s  (%9u)\r", loopNb, benchName, (double)srcSize / bestTime / 1000., (U32)errorCode);
-    }
-
-    DISPLAY("%2u- %-30.30s : %7.1f MB/s  (%9u)\n", benchNb, benchName, (double)srcSize / bestTime / 1000., (U32)errorCode);
+        DISPLAY("%2i- %-30.30s : %7.1f MB/s  (%9u)\r", loopNb, benchName, (double)srcSize / (1 MB) / bestTime, (U32)benchResult);
+    }}
+    DISPLAY("%2u\n", benchNb);
 
 _cleanOut:
     free(dstBuff);
     free(buff2);
-    ZSTD_freeDCtx(g_dctxPtr);
     return 0;
 }
 
 
-int benchSample(U32 benchNb)
+static int benchSample(U32 benchNb)
 {
-    char* origBuff;
-    size_t benchedSize = sampleSize;
+    size_t const benchedSize = g_sampleSize;
     const char* name = "Sample 10MiB";
 
     /* Allocation */
-    origBuff = (char*) malloc((size_t)benchedSize);
-    if(!origBuff)
-    {
-        DISPLAY("\nError: not enough memory!\n");
-        return 12;
-    }
+    void* origBuff = malloc(benchedSize);
+    if (!origBuff) { DISPLAY("\nError: not enough memory!\n"); return 12; }
 
     /* Fill buffer */
     RDG_genBuffer(origBuff, benchedSize, g_compressibility, 0.0, 0);
@@ -405,58 +431,41 @@ int benchSample(U32 benchNb)
 }
 
 
-int benchFiles(char** fileNamesTable, int nbFiles, U32 benchNb)
+static int benchFiles(const char** fileNamesTable, const int nbFiles, U32 benchNb)
 {
-    int fileIdx=0;
-
     /* Loop for each file */
-    while (fileIdx<nbFiles)
-    {
-        FILE* inFile;
-        char* inFileName;
+    int fileIdx;
+    for (fileIdx=0; fileIdx<nbFiles; fileIdx++) {
+        const char* inFileName = fileNamesTable[fileIdx];
+        FILE* inFile = fopen( inFileName, "rb" );
         U64   inFileSize;
         size_t benchedSize;
-        size_t readSize;
-        char* origBuff;
+        void* origBuff;
 
         /* Check file existence */
-        inFileName = fileNamesTable[fileIdx++];
-        inFile = fopen( inFileName, "rb" );
-        if (inFile==NULL)
-        {
-            DISPLAY( "Pb opening %s\n", inFileName);
-            return 11;
-        }
+        if (inFile==NULL) { DISPLAY( "Pb opening %s\n", inFileName); return 11; }
 
         /* Memory allocation & restrictions */
         inFileSize = BMK_GetFileSize(inFileName);
-        benchedSize = (size_t) BMK_findMaxMem(inFileSize*3) / 3;
+        benchedSize = BMK_findMaxMem(inFileSize*3) / 3;
         if ((U64)benchedSize > inFileSize) benchedSize = (size_t)inFileSize;
         if (benchedSize < inFileSize)
-        {
-            DISPLAY("Not enough memory for '%s' full size; testing %i MB only...\n", inFileName, (int)(benchedSize>>20));
-        }
+            DISPLAY("Not enough memory for '%s' full size; testing %u MB only...\n", inFileName, (U32)(benchedSize>>20));
 
         /* Alloc */
-        origBuff = (char*) malloc((size_t)benchedSize);
-        if(!origBuff)
-        {
-            DISPLAY("\nError: not enough memory!\n");
-            fclose(inFile);
-            return 12;
-        }
+        origBuff = malloc(benchedSize);
+        if (!origBuff) { DISPLAY("\nError: not enough memory!\n"); fclose(inFile); return 12; }
 
         /* Fill input buffer */
         DISPLAY("Loading %s...       \r", inFileName);
-        readSize = fread(origBuff, 1, benchedSize, inFile);
-        fclose(inFile);
-
-        if(readSize != benchedSize)
         {
-            DISPLAY("\nError: problem reading file '%s' !!    \n", inFileName);
-            free(origBuff);
-            return 13;
-        }
+            size_t readSize = fread(origBuff, 1, benchedSize, inFile);
+            fclose(inFile);
+            if (readSize != benchedSize) {
+                DISPLAY("\nError: problem reading file '%s' !!    \n", inFileName);
+                free(origBuff);
+                return 13;
+        }   }
 
         /* bench */
         DISPLAY("\r%79s\r", "");
@@ -465,13 +474,15 @@ int benchFiles(char** fileNamesTable, int nbFiles, U32 benchNb)
             benchMem(origBuff, benchedSize, benchNb);
         else
             for (benchNb=0; benchNb<100; benchNb++) benchMem(origBuff, benchedSize, benchNb);
+
+        free(origBuff);
     }
 
     return 0;
 }
 
 
-int usage(char* exename)
+static int usage(const char* exename)
 {
     DISPLAY( "Usage :\n");
     DISPLAY( "      %s [arg] file1 file2 ... fileX\n", exename);
@@ -480,8 +491,9 @@ int usage(char* exename)
     return 0;
 }
 
-int usage_advanced(void)
+static int usage_advanced(const char* exename)
 {
+    usage(exename);
     DISPLAY( "\nAdvanced options :\n");
     DISPLAY( " -b#    : test only function # \n");
     DISPLAY( " -i#    : iteration loops [1-9](default : %i)\n", NBLOOPS);
@@ -489,45 +501,38 @@ int usage_advanced(void)
     return 0;
 }
 
-int badusage(char* exename)
+static int badusage(const char* exename)
 {
     DISPLAY("Wrong parameters\n");
     usage(exename);
-    return 0;
+    return 1;
 }
 
-int main(int argc, char** argv)
+int main(int argc, const char** argv)
 {
-    int i,
-        filenamesStart=0,
-        result;
-    char* exename=argv[0];
-    char* input_filename=0;
+    int i, filenamesStart=0, result;
+    const char* exename = argv[0];
+    const char* input_filename = NULL;
     U32 benchNb = 0, main_pause = 0;
 
-    // Welcome message
     DISPLAY(WELCOME_MESSAGE);
+    if (argc<1) return badusage(exename);
 
-    if (argc<1) { badusage(exename); return 1; }
+    for(i=1; i<argc; i++) {
+        const char* argument = argv[i];
+        if(!argument) continue;   /* Protection if argument empty */
 
-    for(i=1; i<argc; i++)
-    {
-        char* argument = argv[i];
+        /* Commands (note : aggregated commands are allowed) */
+        if (argument[0]=='-') {
 
-        if(!argument) continue;   // Protection if argument empty
-
-        // Decode command (note : aggregated commands are allowed)
-        if (argument[0]=='-')
-        {
-            while (argument[1]!=0)
-            {
-                argument ++;
+            while (argument[1]!=0) {
+                argument++;
 
                 switch(argument[0])
                 {
                     /* Display help on usage */
                 case 'h' :
-                case 'H': usage(exename); usage_advanced(); return 0;
+                case 'H': return usage_advanced(exename);
 
                     /* Pause at the end (hidden option) */
                 case 'p': main_pause = 1; break;
@@ -535,8 +540,7 @@ int main(int argc, char** argv)
                     /* Select specific algorithm to bench */
                 case 'b':
                     benchNb = 0;
-                    while ((argument[1]>= '0') && (argument[1]<= '9'))
-                    {
+                    while ((argument[1]>= '0') && (argument[1]<= '9')) {
                         benchNb *= 10;
                         benchNb += argument[1] - '0';
                         argument++;
@@ -545,20 +549,17 @@ int main(int argc, char** argv)
 
                     /* Modify Nb Iterations */
                 case 'i':
-                    if ((argument[1] >='0') && (argument[1] <='9'))
-                    {
+                    if ((argument[1] >='0') && (argument[1] <='9')) {
                         int iters = argument[1] - '0';
                         BMK_SetNbIterations(iters);
                         argument++;
                     }
                     break;
 
-                    /* Select specific algorithm to bench */
+                    /* Select compressibility of synthetic sample */
                 case 'P':
-                    {
-                        U32 proba32 = 0;
-                        while ((argument[1]>= '0') && (argument[1]<= '9'))
-                        {
+                    {   U32 proba32 = 0;
+                        while ((argument[1]>= '0') && (argument[1]<= '9')) {
                             proba32 *= 10;
                             proba32 += argument[1] - '0';
                             argument++;
@@ -568,7 +569,7 @@ int main(int argc, char** argv)
                     break;
 
                     /* Unknown command */
-                default : badusage(exename); return 1;
+                default : return badusage(exename);
                 }
             }
             continue;
@@ -578,9 +579,10 @@ int main(int argc, char** argv)
         if (!input_filename) { input_filename=argument; filenamesStart=i; continue; }
     }
 
-    if (filenamesStart==0)
+    if (filenamesStart==0)   /* no input file */
         result = benchSample(benchNb);
-    else result = benchFiles(argv+filenamesStart, argc-filenamesStart, benchNb);
+    else
+        result = benchFiles(argv+filenamesStart, argc-filenamesStart, benchNb);
 
     if (main_pause) { int unused; printf("press enter...\n"); unused = getchar(); (void)unused; }
 

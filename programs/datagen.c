@@ -211,7 +211,7 @@ void RDG_genStdout(unsigned long long size, double matchProba, double litProba, 
 
     /* Generate compressible data */
     while (total < size) {
-        size_t const genBlockSize = MIN (RDG_BLOCKSIZE, size-total);
+        size_t const genBlockSize = (size_t) (MIN (RDG_BLOCKSIZE, size-total));
         RDG_genBlock(buff, RDG_DICTSIZE+RDG_BLOCKSIZE, RDG_DICTSIZE, matchProba, ldt, &seed);
         total += genBlockSize;
         { size_t const unused = fwrite(buff, 1, genBlockSize, stdout); (void)unused; }

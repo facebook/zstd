@@ -769,7 +769,7 @@ static size_t ZSTD_decompressSequences(
     {   size_t const seqHSize = ZSTD_decodeSeqHeaders(&nbSeq, DTableLL, DTableML, DTableOffb, dctx->flagRepeatTable, ip, seqSize);
         if (ZSTD_isError(seqHSize)) return seqHSize;
         ip += seqHSize;
-        dctx->flagRepeatTable = 1;
+        dctx->flagRepeatTable = 0;
     }
 
     /* Regen sequences */

@@ -25,16 +25,21 @@ roundTripTest() {
 
 echo "\n**** simple tests **** "
 ./datagen > tmp
-echo -n "trivial compression : "
-$ZSTD -f tmp
-echo "OK"
+$ZSTD -f tmp                             # trivial compression case, creates tmp.zst
+$ZSTD -df tmp.zst                        # trivial decompression case (overwrites tmp)
+echo "test : too large compression level (must fail)"
 $ZSTD -99 tmp && die "too large compression level undetected"
-$ZSTD tmp -c > tmpCompressed
-$ZSTD tmp --stdout > tmpCompressed
+$ZSTD tmp -c > tmpCompressed             # compression using stdout     
+$ZSTD tmp --stdout > tmpCompressed       # compressoin using stdout, long format
+echo "test : decompress file with wrong suffix (must fail)"
 $ZSTD -d tmpCompressed && die "wrong suffix error not detected!"
-$ZSTD -d tmpCompressed -c > tmpResult
+$ZSTD -d tmpCompressed -c > tmpResult    # decompression using stdout   
 $ZSTD --decompress tmpCompressed -c > tmpResult
 $ZSTD --decompress tmpCompressed --stdout > tmpResult
+$ZSTD -d    < tmp.zst > /dev/null        # combine decompression, stdin & stdout
+$ZSTD -d  - < tmp.zst > /dev/null
+$ZSTD -dc   < tmp.zst > /dev/null
+$ZSTD -dc - < tmp.zst > /dev/null
 $ZSTD -q tmp && die "overwrite check failed!"
 $ZSTD -q -f tmp
 $ZSTD -q --force tmp

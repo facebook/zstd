@@ -1,6 +1,6 @@
 /*
     datagen.c - compressible data generator test tool
-    Copyright (C) Yann Collet 2012-2015
+    Copyright (C) Yann Collet 2012-2016
 
     GPL v2 License
 
@@ -19,8 +19,8 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
     You can contact the author at :
-   - ZSTD source repository : https://github.com/Cyan4973/zstd
-   - Public forum : https://groups.google.com/forum/#!forum/lz4c
+    - zstd homepage : http://www.zstd.net/
+    - source repository : https://github.com/Cyan4973/zstd
 */
 
 /*-************************************
@@ -67,9 +67,6 @@
 **************************************/
 #define KB *(1 <<10)
 
-#define PRIME1   2654435761U
-#define PRIME2   2246822519U
-
 
 /*-************************************
 *  Local types
@@ -87,9 +84,11 @@ typedef BYTE litDistribTable[LTSIZE];
 #define RDG_rotl32(x,r) ((x << r) | (x >> (32 - r)))
 static unsigned int RDG_rand(U32* src)
 {
+    static const U32 prime1 = 2654435761U;
+    static const U32 prime2 = 2246822519U;
     U32 rand32 = *src;
-    rand32 *= PRIME1;
-    rand32 ^= PRIME2;
+    rand32 *= prime1;
+    rand32 ^= prime2;
     rand32  = RDG_rotl32(rand32, 13);
     *src = rand32;
     return rand32;
@@ -103,7 +102,7 @@ static void RDG_fillLiteralDistrib(litDistribTable lt, double ld)
     BYTE firstChar = '(';
     BYTE lastChar = '}';
 
-    if (ld==0.0) {
+    if (ld<=0.0) {
         character = 0;
         firstChar = 0;
         lastChar =255;
@@ -122,7 +121,7 @@ static void RDG_fillLiteralDistrib(litDistribTable lt, double ld)
 
 static BYTE RDG_genChar(U32* seed, const litDistribTable lt)
 {
-    U32 id = RDG_rand(seed) & LTMASK;
+    U32 const id = RDG_rand(seed) & LTMASK;
     return (lt[id]);
 }
 
@@ -215,7 +214,7 @@ void RDG_genStdout(unsigned long long size, double matchProba, double litProba, 
         RDG_genBlock(buff, RDG_DICTSIZE+RDG_BLOCKSIZE, RDG_DICTSIZE, matchProba, lt, &seed);
         if (size-total < RDG_BLOCKSIZE) genBlockSize = (size_t)(size-total);
         total += genBlockSize;
-        fwrite(buff, 1, genBlockSize, stdout);
+        { size_t const unused = fwrite(buff, 1, genBlockSize, stdout); (void)unused; }
         /* update dict */
         memcpy(buff, buff + RDG_BLOCKSIZE, RDG_DICTSIZE);
     }

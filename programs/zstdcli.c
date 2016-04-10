@@ -22,9 +22,9 @@
   - zstd homepage : http://www.zstd.net/
 */
 /*
-  Note : this is user program, not part of libzstd.
-  The license of this command line program is GPLv2.
+  Note : this is a user program, not part of libzstd.
   The license of libzstd is BSD.
+  The license of this command line program is GPLv2.
 */
 
 
@@ -71,9 +71,10 @@
 **************************************/
 #define COMPRESSOR_NAME "zstd command line interface"
 #ifndef ZSTD_VERSION
+#  define LIB_VERSION ZSTD_VERSION_MAJOR.ZSTD_VERSION_MINOR.ZSTD_VERSION_RELEASE
 #  define QUOTE(str) #str
 #  define EXPAND_AND_QUOTE(str) QUOTE(str)
-#  define ZSTD_VERSION "v" EXPAND_AND_QUOTE(ZSTD_VERSION_MAJOR) "." EXPAND_AND_QUOTE(ZSTD_VERSION_MINOR) "." EXPAND_AND_QUOTE(ZSTD_VERSION_RELEASE)
+#  define ZSTD_VERSION "v" EXPAND_AND_QUOTE(LIB_VERSION)
 #endif
 #define AUTHOR "Yann Collet"
 #define WELCOME_MESSAGE "*** %s %i-bits %s, by %s ***\n", COMPRESSOR_NAME, (int)(sizeof(void*)*8), ZSTD_VERSION, AUTHOR
@@ -226,8 +227,7 @@ int main(int argCount, const char** argv)
 
         /* '-' means stdin/stdout */
         if (!strcmp(argument, "-")){
-            if (!filenameIdx) { filenameIdx=1, filenameTable[0]=stdinmark; continue; }
-            outFileName=stdoutmark; continue;
+            if (!filenameIdx) { filenameIdx=1, filenameTable[0]=stdinmark; outFileName=stdoutmark; continue; }
         }
 
         /* Decode commands (note : aggregated commands are allowed) */
@@ -332,14 +332,14 @@ int main(int argCount, const char** argv)
                     break;
 
                     /* Pause at the end (-p) or set an additional param (-p#) (hidden option) */
-                case 'p': argument++; 
+                case 'p': argument++;
 #ifndef ZSTD_NOBENCH
                     if ((*argument>='0') && (*argument<='9')) {
                         int additionalParam = 0;
                         while ((*argument >= '0') && (*argument <= '9'))
                             additionalParam *= 10, additionalParam += *argument++ - '0';
                         BMK_setAdditionalParam(additionalParam);
-                    } else 
+                    } else
 #endif
                         main_pause=1;
                     break;

@@ -193,26 +193,26 @@ void RDG_genBuffer(void* buffer, size_t size, double matchProba, double litProba
 
 #define RDG_DICTSIZE  (32 KB)
 #define RDG_BLOCKSIZE (128 KB)
+#define MIN(a,b)  ( (a) < (b) ? (a) : (b) )
 void RDG_genStdout(unsigned long long size, double matchProba, double litProba, unsigned seed)
 {
     BYTE* buff = (BYTE*)malloc(RDG_DICTSIZE + RDG_BLOCKSIZE);
     U64 total = 0;
-    size_t genBlockSize = RDG_BLOCKSIZE;
-    litDistribTable lt;
+    litDistribTable ldt;
 
     /* init */
     if (buff==NULL) { fprintf(stdout, "not enough memory\n"); exit(1); }
-    if (litProba==0.0) litProba = matchProba / 4.5;
-    RDG_fillLiteralDistrib(lt, litProba);
+    if (litProba<=0.0) litProba = matchProba / 4.5;
+    RDG_fillLiteralDistrib(ldt, litProba);
     SET_BINARY_MODE(stdout);
 
     /* Generate initial dict */
-    RDG_genBlock(buff, RDG_DICTSIZE, 0, matchProba, lt, &seed);
+    RDG_genBlock(buff, RDG_DICTSIZE, 0, matchProba, ldt, &seed);
 
     /* Generate compressible data */
     while (total < size) {
-        RDG_genBlock(buff, RDG_DICTSIZE+RDG_BLOCKSIZE, RDG_DICTSIZE, matchProba, lt, &seed);
-        if (size-total < RDG_BLOCKSIZE) genBlockSize = (size_t)(size-total);
+        size_t const genBlockSize = MIN (RDG_BLOCKSIZE, size-total);
+        RDG_genBlock(buff, RDG_DICTSIZE+RDG_BLOCKSIZE, RDG_DICTSIZE, matchProba, ldt, &seed);
         total += genBlockSize;
         { size_t const unused = fwrite(buff, 1, genBlockSize, stdout); (void)unused; }
         /* update dict */

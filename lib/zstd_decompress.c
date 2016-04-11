@@ -482,6 +482,7 @@ size_t ZSTD_decodeLiteralsBlock(ZSTD_DCtx* dctx,
                 break;
             case 3:
                 litSize = ((istart[0] & 15) << 16) + (istart[1] << 8) + istart[2];
+                if (srcSize<4) return ERROR(corruption_detected);
                 break;
             }
             if (litSize > ZSTD_BLOCKSIZE_MAX) return ERROR(corruption_detected);

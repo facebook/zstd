@@ -567,7 +567,7 @@ unsigned long long FIO_decompressFrame(dRess_t ress,
     /* Complete Header loading */
     {   size_t const toLoad = ZSTD_frameHeaderSize_max - alreadyLoaded;   /* assumption : alreadyLoaded <= ZSTD_frameHeaderSize_max */
         size_t const checkSize = fread(((char*)ress.srcBuffer) + alreadyLoaded, 1, toLoad, finput);
-        if (checkSize != toLoad) EXM_THROW(32, "Read error");
+        if (checkSize != toLoad) EXM_THROW(32, "Read error");   /* assumption : srcSize >= ZSTD_frameHeaderSize_max */
     }
     readSize = ZSTD_frameHeaderSize_max;
 
@@ -581,7 +581,7 @@ unsigned long long FIO_decompressFrame(dRess_t ress,
 
         /* Write block */
         { size_t const sizeCheck = fwrite(ress.dstBuffer, 1, decodedSize, foutput);
-        if (sizeCheck != decodedSize) EXM_THROW(37, "Write error : unable to write data block into destination"); }
+          if (sizeCheck != decodedSize) EXM_THROW(37, "Write error : unable to write data block into destination"); }
         frameSize += decodedSize;
         DISPLAYUPDATE(2, "\rDecoded : %u MB...     ", (U32)(frameSize>>20) );
 
@@ -613,10 +613,9 @@ static int FIO_decompressSrcFile(dRess_t ress, const char* srcFileName)
 
     /* for each frame */
     for ( ; ; ) {
-        size_t sizeCheck;
         /* check magic number -> version */
-        size_t toRead = 4;
-        sizeCheck = fread(ress.srcBuffer, (size_t)1, toRead, srcFile);
+        size_t const toRead = 4;
+        size_t const sizeCheck = fread(ress.srcBuffer, (size_t)1, toRead, srcFile);
         if (sizeCheck==0) break;   /* no more input */
         if (sizeCheck != toRead) EXM_THROW(31, "zstd: %s read error : cannot read header", srcFileName);
 #if defined(ZSTD_LEGACY_SUPPORT) && (ZSTD_LEGACY_SUPPORT==1)

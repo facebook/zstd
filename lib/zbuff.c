@@ -319,7 +319,7 @@ typedef enum { ZBUFFds_init, ZBUFFds_readHeader,
 
 /* *** Resource management *** */
 struct ZBUFF_DCtx_s {
-    ZSTD_DCtx* zc;
+    ZSTD_DCtx* zd;
     ZSTD_frameParams fParams;
     size_t blockSize;
     char*  inBuff;
@@ -335,63 +335,63 @@ struct ZBUFF_DCtx_s {
 
 ZBUFF_DCtx* ZBUFF_createDCtx(void)
 {
-    ZBUFF_DCtx* zbc = (ZBUFF_DCtx*)malloc(sizeof(ZBUFF_DCtx));
-    if (zbc==NULL) return NULL;
-    memset(zbc, 0, sizeof(*zbc));
-    zbc->zc = ZSTD_createDCtx();
-    zbc->stage = ZBUFFds_init;
-    return zbc;
+    ZBUFF_DCtx* zbd = (ZBUFF_DCtx*)malloc(sizeof(ZBUFF_DCtx));
+    if (zbd==NULL) return NULL;
+    memset(zbd, 0, sizeof(*zbd));
+    zbd->zd = ZSTD_createDCtx();
+    zbd->stage = ZBUFFds_init;
+    return zbd;
 }
 
-size_t ZBUFF_freeDCtx(ZBUFF_DCtx* zbc)
+size_t ZBUFF_freeDCtx(ZBUFF_DCtx* zbd)
 {
-    if (zbc==NULL) return 0;   /* support free on null */
-    ZSTD_freeDCtx(zbc->zc);
-    free(zbc->inBuff);
-    free(zbc->outBuff);
-    free(zbc);
+    if (zbd==NULL) return 0;   /* support free on null */
+    ZSTD_freeDCtx(zbd->zd);
+    free(zbd->inBuff);
+    free(zbd->outBuff);
+    free(zbd);
     return 0;
 }
 
 
 /* *** Initialization *** */
 
-size_t ZBUFF_decompressInitDictionary(ZBUFF_DCtx* zbc, const void* dict, size_t dictSize)
+size_t ZBUFF_decompressInitDictionary(ZBUFF_DCtx* zbd, const void* dict, size_t dictSize)
 {
-    zbc->stage = ZBUFFds_readHeader;
-    zbc->inPos = zbc->outStart = zbc->outEnd = 0;
-    return ZSTD_decompressBegin_usingDict(zbc->zc, dict, dictSize);
+    zbd->stage = ZBUFFds_readHeader;
+    zbd->inPos = zbd->outStart = zbd->outEnd = 0;
+    return ZSTD_decompressBegin_usingDict(zbd->zd, dict, dictSize);
 }
 
-size_t ZBUFF_decompressInit(ZBUFF_DCtx* zbc)
+size_t ZBUFF_decompressInit(ZBUFF_DCtx* zbd)
 {
-    return ZBUFF_decompressInitDictionary(zbc, NULL, 0);
+    return ZBUFF_decompressInitDictionary(zbd, NULL, 0);
 }
 
 
 /* *** Decompression *** */
 
-size_t ZBUFF_decompressContinue(ZBUFF_DCtx* zbc,
+size_t ZBUFF_decompressContinue(ZBUFF_DCtx* zbd,
                                 void* dst, size_t* dstCapacityPtr,
                           const void* src, size_t* srcSizePtr)
 {
     const char* const istart = (const char*)src;
-    const char* ip = istart;
     const char* const iend = istart + *srcSizePtr;
+    const char* ip = istart;
     char* const ostart = (char*)dst;
-    char* op = ostart;
     char* const oend = ostart + *dstCapacityPtr;
+    char* op = ostart;
     U32 notDone = 1;
 
     while (notDone) {
-        switch(zbc->stage)
+        switch(zbd->stage)
         {
         case ZBUFFds_init :
             return ERROR(init_missing);
 
         case ZBUFFds_readHeader :
             /* read header from src */
-            {   size_t const headerSize = ZSTD_getFrameParams(&(zbc->fParams), src, *srcSizePtr);
+            {   size_t const headerSize = ZSTD_getFrameParams(&(zbd->fParams), src, *srcSizePtr);
                 if (ZSTD_isError(headerSize)) return headerSize;
                 if (headerSize) {
                     /* not enough input to decode header : needs headerSize > *srcSizePtr */
@@ -401,76 +401,76 @@ size_t ZBUFF_decompressContinue(ZBUFF_DCtx* zbc,
             }   }
 
             /* Frame header instruct buffer sizes */
-            {   size_t const blockSize = MIN(1 << zbc->fParams.windowLog, ZSTD_BLOCKSIZE_MAX);
-                zbc->blockSize = blockSize;
-                if (zbc->inBuffSize < blockSize) {
-                    free(zbc->inBuff);
-                    zbc->inBuffSize = blockSize;
-                    zbc->inBuff = (char*)malloc(blockSize);
-                    if (zbc->inBuff == NULL) return ERROR(memory_allocation);
+            {   size_t const blockSize = MIN(1 << zbd->fParams.windowLog, ZSTD_BLOCKSIZE_MAX);
+                zbd->blockSize = blockSize;
+                if (zbd->inBuffSize < blockSize) {
+                    free(zbd->inBuff);
+                    zbd->inBuffSize = blockSize;
+                    zbd->inBuff = (char*)malloc(blockSize);
+                    if (zbd->inBuff == NULL) return ERROR(memory_allocation);
                 }
-                {   size_t const neededOutSize = ((size_t)1 << zbc->fParams.windowLog) + blockSize;
-                    if (zbc->outBuffSize < neededOutSize) {
-                        free(zbc->outBuff);
-                        zbc->outBuffSize = neededOutSize;
-                        zbc->outBuff = (char*)malloc(neededOutSize);
-                        if (zbc->outBuff == NULL) return ERROR(memory_allocation);
+                {   size_t const neededOutSize = ((size_t)1 << zbd->fParams.windowLog) + blockSize;
+                    if (zbd->outBuffSize < neededOutSize) {
+                        free(zbd->outBuff);
+                        zbd->outBuffSize = neededOutSize;
+                        zbd->outBuff = (char*)malloc(neededOutSize);
+                        if (zbd->outBuff == NULL) return ERROR(memory_allocation);
             }   }   }
-            zbc->stage = ZBUFFds_read;
+            zbd->stage = ZBUFFds_read;
 
         case ZBUFFds_read:
-            {   size_t const neededInSize = ZSTD_nextSrcSizeToDecompress(zbc->zc);
+            {   size_t const neededInSize = ZSTD_nextSrcSizeToDecompress(zbd->zd);
                 if (neededInSize==0) {  /* end of frame */
-                    zbc->stage = ZBUFFds_init;
+                    zbd->stage = ZBUFFds_init;
                     notDone = 0;
                     break;
                 }
                 if ((size_t)(iend-ip) >= neededInSize) {
                     /* directly decode from src */
-                    size_t const decodedSize = ZSTD_decompressContinue(zbc->zc,
-                        zbc->outBuff + zbc->outStart, zbc->outBuffSize - zbc->outStart,
+                    size_t const decodedSize = ZSTD_decompressContinue(zbd->zd,
+                        zbd->outBuff + zbd->outStart, zbd->outBuffSize - zbd->outStart,
                         ip, neededInSize);
                     if (ZSTD_isError(decodedSize)) return decodedSize;
                     ip += neededInSize;
                     if (!decodedSize) break;   /* this was just a header */
-                    zbc->outEnd = zbc->outStart +  decodedSize;
-                    zbc->stage = ZBUFFds_flush;
+                    zbd->outEnd = zbd->outStart +  decodedSize;
+                    zbd->stage = ZBUFFds_flush;
                     break;
                 }
                 if (ip==iend) { notDone = 0; break; }   /* no more input */
-                zbc->stage = ZBUFFds_load;
+                zbd->stage = ZBUFFds_load;
             }
 
         case ZBUFFds_load:
-            {   size_t const neededInSize = ZSTD_nextSrcSizeToDecompress(zbc->zc);
-                size_t const toLoad = neededInSize - zbc->inPos;   /* should always be <= remaining space within inBuff */
+            {   size_t const neededInSize = ZSTD_nextSrcSizeToDecompress(zbd->zd);
+                size_t const toLoad = neededInSize - zbd->inPos;   /* should always be <= remaining space within inBuff */
                 size_t loadedSize;
-                if (toLoad > zbc->inBuffSize - zbc->inPos) return ERROR(corruption_detected);   /* should never happen */
-                loadedSize = ZBUFF_limitCopy(zbc->inBuff + zbc->inPos, toLoad, ip, iend-ip);
+                if (toLoad > zbd->inBuffSize - zbd->inPos) return ERROR(corruption_detected);   /* should never happen */
+                loadedSize = ZBUFF_limitCopy(zbd->inBuff + zbd->inPos, toLoad, ip, iend-ip);
                 ip += loadedSize;
-                zbc->inPos += loadedSize;
+                zbd->inPos += loadedSize;
                 if (loadedSize < toLoad) { notDone = 0; break; }   /* not enough input, wait for more */
                 /* decode loaded input */
-                {   size_t const decodedSize = ZSTD_decompressContinue(zbc->zc,
-                        zbc->outBuff + zbc->outStart, zbc->outBuffSize - zbc->outStart,
-                        zbc->inBuff, neededInSize);
+                {   size_t const decodedSize = ZSTD_decompressContinue(zbd->zd,
+                        zbd->outBuff + zbd->outStart, zbd->outBuffSize - zbd->outStart,
+                        zbd->inBuff, neededInSize);
                     if (ZSTD_isError(decodedSize)) return decodedSize;
-                    zbc->inPos = 0;   /* input is consumed */
-                    if (!decodedSize) { zbc->stage = ZBUFFds_read; break; }   /* this was just a header */
-                    zbc->outEnd = zbc->outStart +  decodedSize;
-                    zbc->stage = ZBUFFds_flush;
+                    zbd->inPos = 0;   /* input is consumed */
+                    if (!decodedSize) { zbd->stage = ZBUFFds_read; break; }   /* this was just a header */
+                    zbd->outEnd = zbd->outStart +  decodedSize;
+                    zbd->stage = ZBUFFds_flush;
                     // break; /* ZBUFFds_flush follows */
             }   }
 
         case ZBUFFds_flush:
-            {   size_t const toFlushSize = zbc->outEnd - zbc->outStart;
-                size_t const flushedSize = ZBUFF_limitCopy(op, oend-op, zbc->outBuff + zbc->outStart, toFlushSize);
+            {   size_t const toFlushSize = zbd->outEnd - zbd->outStart;
+                size_t const flushedSize = ZBUFF_limitCopy(op, oend-op, zbd->outBuff + zbd->outStart, toFlushSize);
                 op += flushedSize;
-                zbc->outStart += flushedSize;
+                zbd->outStart += flushedSize;
                 if (flushedSize == toFlushSize) {
-                    zbc->stage = ZBUFFds_read;
-                    if (zbc->outStart + zbc->blockSize > zbc->outBuffSize)
-                        zbc->outStart = zbc->outEnd = 0;
+                    zbd->stage = ZBUFFds_read;
+                    if (zbd->outStart + zbd->blockSize > zbd->outBuffSize)
+                        zbd->outStart = zbd->outEnd = 0;
                     break;
                 }
                 /* cannot flush everything */
@@ -483,9 +483,9 @@ size_t ZBUFF_decompressContinue(ZBUFF_DCtx* zbc,
     /* result */
     *srcSizePtr = ip-istart;
     *dstCapacityPtr = op-ostart;
-    {   size_t nextSrcSizeHint = ZSTD_nextSrcSizeToDecompress(zbc->zc);
+    {   size_t nextSrcSizeHint = ZSTD_nextSrcSizeToDecompress(zbd->zd);
         if (nextSrcSizeHint > ZSTD_blockHeaderSize) nextSrcSizeHint+= ZSTD_blockHeaderSize;   /* get following block header too */
-        nextSrcSizeHint -= zbc->inPos;   /* already loaded*/
+        nextSrcSizeHint -= zbd->inPos;   /* already loaded*/
         return nextSrcSizeHint;
     }
 }

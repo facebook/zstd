@@ -1,6 +1,6 @@
 /*
-    bench.c - Demo module to benchmark open-source compression algorithms
-    Copyright (C) Yann Collet 2012-2015
+    bench.c - open-source compression benchmark module
+    Copyright (C) Yann Collet 2012-2016
 
     GPL v2 License
 
@@ -19,8 +19,8 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
     You can contact the author at :
+    - zstd homepage : http://www.zstd.net
     - zstd source repository : https://github.com/Cyan4973/zstd
-    - ztsd public forum : https://groups.google.com/forum/#!forum/lz4c
 */
 
 /* **************************************
@@ -44,13 +44,13 @@
 /* *************************************
 *  Includes
 ***************************************/
-#define _POSIX_C_SOURCE 199309L /* before <time.h> - needed for nanosleep() */
+#define _POSIX_C_SOURCE 199309L   /* before <time.h> - needed for nanosleep() */
 #include <stdlib.h>      /* malloc, free */
 #include <string.h>      /* memset */
 #include <stdio.h>       /* fprintf, fopen, ftello64 */
 #include <sys/types.h>   /* stat64 */
 #include <sys/stat.h>    /* stat64 */
-#include <time.h>         /* clock_t, nanosleep, clock, CLOCKS_PER_SEC */
+#include <time.h>        /* clock_t, nanosleep, clock, CLOCKS_PER_SEC */
 
 /* sleep : posix - windows - others */
 #if !defined(_WIN32) && (defined(__unix__) || defined(__unix) || (defined(__APPLE__) && defined(__MACH__)))
@@ -91,7 +91,6 @@
 #include "xxhash.h"
 
 
-
 /* *************************************
 *  Compiler specifics
 ***************************************/
@@ -99,8 +98,12 @@
 #  define S_ISREG(x) (((x) & S_IFMT) == S_IFREG)
 #endif
 
-#ifdef _MSC_VER
-#define snprintf sprintf_s
+#if defined(_MSC_VER)
+#  define snprintf sprintf_s
+#elif defined (__cplusplus) || (defined (__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L))
+  /* part of <stdio.h> */
+#else
+  extern int snprintf (char* s, size_t maxlen, const char* format, ...);   /* not declared in <stdio.h> when C version < c99 */
 #endif
 
 
@@ -181,7 +184,7 @@ void BMK_SetBlockSize(size_t blockSize)
 static U64 BMK_clockSpan( BMK_time_t clockStart, BMK_time_t ticksPerSecond )
 {
     BMK_time_t clockEnd;
-    
+
     (void)ticksPerSecond;
     BMK_getTime(clockEnd);
     return BMK_getSpanTimeMicro(ticksPerSecond, clockStart, clockEnd);
@@ -224,7 +227,7 @@ typedef struct
     double dSpeed;
 } benchResult_t;
 
-            
+
 #define MIN(a,b) ((a)<(b) ? (a) : (b))
 #define MAX(a,b) ((a)>(b) ? (a) : (b))
 
@@ -400,7 +403,7 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
         if (crcOrig == crcCheck) {
             result->ratio = ratio;
             result->cSize = cSize;
-            result->cSpeed = (double)srcSize / fastestC; 
+            result->cSpeed = (double)srcSize / fastestC;
             result->dSpeed = (double)srcSize / fastestD;
         }
         DISPLAYLEVEL(2, "%2i#\n", cLevel);
@@ -457,7 +460,7 @@ static void BMK_benchCLevel(void* srcBuffer, size_t benchedSize,
 
     if (cLevelLast < cLevel) cLevelLast = cLevel;
 
-    for (l=cLevel; l <= cLevelLast; l++) {           
+    for (l=cLevel; l <= cLevelLast; l++) {
         BMK_benchMem(srcBuffer, benchedSize,
                      displayName, l,
                      fileSizes, nbFiles,
@@ -471,15 +474,13 @@ static void BMK_benchCLevel(void* srcBuffer, size_t benchedSize,
             total.cSpeed += result.cSpeed;
             total.dSpeed += result.dSpeed;
             total.ratio += result.ratio;
-        }
-    }
-    if (g_displayLevel == 1 && cLevelLast > cLevel)
-    {
+    }   }
+    if (g_displayLevel == 1 && cLevelLast > cLevel) {
         total.cSize /= 1+cLevelLast-cLevel;
         total.cSpeed /= 1+cLevelLast-cLevel;
         total.dSpeed /= 1+cLevelLast-cLevel;
         total.ratio /= 1+cLevelLast-cLevel;
-        DISPLAY("avg%11i (%5.3f) %6.1f MB/s %6.1f MB/s  %s\n", (int)total.cSize, total.ratio, total.cSpeed, total.dSpeed, displayName);            
+        DISPLAY("avg%11i (%5.3f) %6.1f MB/s %6.1f MB/s  %s\n", (int)total.cSize, total.ratio, total.cSpeed, total.dSpeed, displayName);
     }
 }
 

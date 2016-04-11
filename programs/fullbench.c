@@ -182,13 +182,13 @@ size_t local_ZSTD_decodeLiteralsBlock(void* dst, size_t dstSize, void* buff2, co
 }
 
 extern size_t ZSTD_getcBlockSize(const void* src, size_t srcSize, blockProperties_t* bpPtr);
-extern size_t ZSTD_decodeSeqHeaders(int* nbSeq, FSE_DTable* DTableLL, FSE_DTable* DTableML, FSE_DTable* DTableOffb, const void* src, size_t srcSize);
+extern size_t ZSTD_decodeSeqHeaders(int* nbSeq, FSE_DTable* DTableLL, FSE_DTable* DTableML, FSE_DTable* DTableOffb, U32 tableRepeatFlag, const void* src, size_t srcSize);
 size_t local_ZSTD_decodeSeqHeaders(void* dst, size_t dstSize, void* buff2, const void* src, size_t srcSize)
 {
     U32 DTableML[FSE_DTABLE_SIZE_U32(10)], DTableLL[FSE_DTABLE_SIZE_U32(10)], DTableOffb[FSE_DTABLE_SIZE_U32(9)];   /* MLFSELog, LLFSELog and OffFSELog are not public values */
     int nbSeq;
     (void)src; (void)srcSize; (void)dst; (void)dstSize;
-    return ZSTD_decodeSeqHeaders(&nbSeq, DTableLL, DTableML, DTableOffb, buff2, g_cSize);
+    return ZSTD_decodeSeqHeaders(&nbSeq, DTableLL, DTableML, DTableOffb, 0, buff2, g_cSize);
 }
 
 

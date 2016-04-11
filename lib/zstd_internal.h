@@ -242,6 +242,9 @@ typedef struct {
     U32  log2litSum;
     U32  log2offCodeSum;
     U32  factor;
+    U32  cachedPrice;
+    U32  cachedLitLength;
+    const BYTE* cachedLiterals;
     ZSTD_stats_t stats;
 } seqStore_t;
 

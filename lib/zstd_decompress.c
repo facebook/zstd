@@ -374,9 +374,9 @@ size_t ZSTD_decodeLiteralsBlock(ZSTD_DCtx* dctx,
     switch(istart[0]>> 6)
     {
     case IS_HUF:
-        {
-            size_t litSize, litCSize, singleStream=0;
+        {   size_t litSize, litCSize, singleStream=0;
             U32 lhSize = ((istart[0]) >> 4) & 3;
+            if (srcSize < 5) return ERROR(corruption_detected);   /* srcSize >= MIN_CBLOCK_SIZE == 3; here we need up to 5 for lhSize, + cSize (+nbSeq) */
             switch(lhSize)
             {
             case 0: case 1: default:   /* note : default is impossible, since lhSize into [0..3] */
@@ -413,9 +413,7 @@ size_t ZSTD_decodeLiteralsBlock(ZSTD_DCtx* dctx,
             return litCSize + lhSize;
         }
     case IS_PCH:
-        {
-            size_t errorCode;
-            size_t litSize, litCSize;
+        {   size_t litSize, litCSize;
             U32 lhSize = ((istart[0]) >> 4) & 3;
             if (lhSize != 1)  /* only case supported for now : small litSize, single stream */
                 return ERROR(corruption_detected);
@@ -427,17 +425,16 @@ size_t ZSTD_decodeLiteralsBlock(ZSTD_DCtx* dctx,
             litSize  = ((istart[0] & 15) << 6) + (istart[1] >> 2);
             litCSize = ((istart[1] &  3) << 8) + istart[2];
 
-            errorCode = HUF_decompress1X4_usingDTable(dctx->litBuffer, litSize, istart+lhSize, litCSize, dctx->hufTableX4);
-            if (HUF_isError(errorCode)) return ERROR(corruption_detected);
-
+            {   size_t const errorCode = HUF_decompress1X4_usingDTable(dctx->litBuffer, litSize, istart+lhSize, litCSize, dctx->hufTableX4);
+                if (HUF_isError(errorCode)) return ERROR(corruption_detected);
+            }
             dctx->litPtr = dctx->litBuffer;
             dctx->litBufSize = ZSTD_BLOCKSIZE_MAX+WILDCOPY_OVERLENGTH;
             dctx->litSize = litSize;
             return litCSize + lhSize;
         }
     case IS_RAW:
-        {
-            size_t litSize;
+        {   size_t litSize;
             U32 lhSize = ((istart[0]) >> 4) & 3;
             switch(lhSize)
             {
@@ -468,8 +465,7 @@ size_t ZSTD_decodeLiteralsBlock(ZSTD_DCtx* dctx,
             return lhSize+litSize;
         }
     case IS_RLE:
-        {
-            size_t litSize;
+        {   size_t litSize;
             U32 lhSize = ((istart[0]) >> 4) & 3;
             switch(lhSize)
             {
@@ -482,7 +478,7 @@ size_t ZSTD_decodeLiteralsBlock(ZSTD_DCtx* dctx,
                 break;
             case 3:
                 litSize = ((istart[0] & 15) << 16) + (istart[1] << 8) + istart[2];
-                if (srcSize<4) return ERROR(corruption_detected);
+                if (srcSize<4) return ERROR(corruption_detected);   /* srcSize >= MIN_CBLOCK_SIZE == 3; here we need lhSize+1 = 4 */
                 break;
             }
             if (litSize > ZSTD_BLOCKSIZE_MAX) return ERROR(corruption_detected);

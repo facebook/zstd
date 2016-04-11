@@ -98,7 +98,7 @@ struct ZSTD_CCtx_s
     U32   nextToUpdate3;    /* index from which to continue dictionary update */
     U32   hashLog3;         /* dispatch table : larger == faster, more memory */
     U32   loadedDictEnd;
-    U32   stage;
+    U32   stage;            /* 0: created; 1: init,dictLoad; 2:started */
     ZSTD_parameters params;
     void* workSpace;
     size_t workSpaceSize;
@@ -273,7 +273,7 @@ static size_t ZSTD_resetCCtx_advanced (ZSTD_CCtx* zc,
     zc->seqStore.litStart = zc->seqStore.offCodeStart + maxNbSeq;
 
     zc->hbSize = 0;
-    zc->stage = 0;
+    zc->stage = 1;
     zc->loadedDictEnd = 0;
 
     return 0;
@@ -282,11 +282,11 @@ static size_t ZSTD_resetCCtx_advanced (ZSTD_CCtx* zc,
 
 /*! ZSTD_copyCCtx() :
 *   Duplicate an existing context `srcCCtx` into another one `dstCCtx`.
-*   Only works during stage 0 (i.e. before first call to ZSTD_compressContinue()).
+*   Only works during stage 1 (i.e. after creation, but before first call to ZSTD_compressContinue()).
 *   @return : 0, or an error code */
 size_t ZSTD_copyCCtx(ZSTD_CCtx* dstCCtx, const ZSTD_CCtx* srcCCtx)
 {
-    if (srcCCtx->stage!=0) return ERROR(stage_wrong);
+    if (srcCCtx->stage!=1) return ERROR(stage_wrong);
 
     dstCCtx->hashLog3 = srcCCtx->hashLog3; /* must be before ZSTD_resetCCtx_advanced */
     ZSTD_resetCCtx_advanced(dstCCtx, srcCCtx->params);
@@ -2076,10 +2076,11 @@ static size_t ZSTD_compressContinue_internal (ZSTD_CCtx* zc,
     const BYTE* const ip = (const BYTE*) src;
     size_t hbSize = 0;
 
-    if (frame && (zc->stage==0)) {
+    if (zc->stage==0) return ERROR(stage_wrong);
+    if (frame && (zc->stage==1)) {   /* copy saved header */
         hbSize = zc->hbSize;
         if (dstCapacity <= hbSize) return ERROR(dstSize_tooSmall);
-        zc->stage = 1;
+        zc->stage = 2;
         memcpy(dst, zc->headerBuffer, hbSize);
         dstCapacity -= hbSize;
         dst = (char*)dst + hbSize;
@@ -2279,7 +2280,6 @@ static size_t ZSTD_compressBegin_internal(ZSTD_CCtx* zc,
         zc->hbSize = ZSTD_frameHeaderSize_min + ZSTD_fcs_fieldSize[fcsId];
     }
 
-    zc->stage = 0;
     return ZSTD_compress_insertDictionary(zc, dict, dictSize);
 }
 
@@ -2335,11 +2335,14 @@ size_t ZSTD_compressEnd(ZSTD_CCtx* zc, void* dst, size_t dstCapacity)
     BYTE* op = (BYTE*)dst;
     size_t hbSize = 0;
 
-    /* special case : empty frame : header still within internal buffer */
-    if (zc->stage==0) {
+    /* not even init ! */
+    if (zc->stage==0) return ERROR(stage_wrong);
+
+    /* special case : empty frame */
+    if (zc->stage==1) {
         hbSize = zc->hbSize;
         if (dstCapacity <= hbSize) return ERROR(dstSize_tooSmall);
-        zc->stage = 1;
+        zc->stage = 2;
         memcpy(dst, zc->headerBuffer, hbSize);
         dstCapacity -= hbSize;
         op += hbSize;
@@ -2351,6 +2354,7 @@ size_t ZSTD_compressEnd(ZSTD_CCtx* zc, void* dst, size_t dstCapacity)
     op[1] = 0;
     op[2] = 0;
 
+    zc->stage = 0;  /* return to "created by not init" status */
     return 3+hbSize;
 }
 

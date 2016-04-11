@@ -176,11 +176,17 @@ static int basicUnitTests(U32 seed, double compressibility)
         const size_t dictSize = 500;
         size_t cSizeOrig;
 
+        DISPLAYLEVEL(4, "test%3i : copy context too soon : ", testNb++);
+        {   size_t const copyResult = ZSTD_copyCCtx(ctxDuplicated, ctxOrig);
+            if (!ZSTD_isError(copyResult)) goto _output_error;   /* error should be detected */
+        }
+        DISPLAYLEVEL(4, "OK \n");
+
         DISPLAYLEVEL(4, "test%3i : load dictionary into context : ", testNb++);
-        result = ZSTD_compressBegin_usingDict(ctxOrig, CNBuffer, dictSize, 2);
-        if (ZSTD_isError(result)) goto _output_error;
-        result = ZSTD_copyCCtx(ctxDuplicated, ctxOrig);
-        if (ZSTD_isError(result)) goto _output_error;
+        { size_t const initResult = ZSTD_compressBegin_usingDict(ctxOrig, CNBuffer, dictSize, 2);
+          if (ZSTD_isError(initResult)) goto _output_error; }
+        { size_t const copyResult = ZSTD_copyCCtx(ctxDuplicated, ctxOrig);
+          if (ZSTD_isError(copyResult)) goto _output_error; }
         DISPLAYLEVEL(4, "OK \n");
 
         DISPLAYLEVEL(4, "test%3i : compress with dictionary : ", testNb++);

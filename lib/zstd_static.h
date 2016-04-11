@@ -166,7 +166,7 @@ ZSTDLIB_API size_t ZSTD_compressEnd(ZSTD_CCtx* cctx, void* dst, size_t dstCapaci
   Start by initializing a context.
   Use ZSTD_compressBegin(), or ZSTD_compressBegin_usingDict() for dictionary compression,
   or ZSTD_compressBegin_advanced(), for finer parameter control.
-  It's also possible to duplicate a reference context which has been initialized, using ZSTD_copyCCtx()
+  It's also possible to duplicate a reference context which has already been initialized, using ZSTD_copyCCtx()
 
   Then, consume your input using ZSTD_compressContinue().
   The interface is synchronous, so all input will be consumed and produce a compressed output.

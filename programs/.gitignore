@@ -38,6 +38,9 @@ dictionary
 grillResults.txt
 _*
 
+# fuzzer
+afl
+
 # Misc files
 *.bat
 fileTests.sh

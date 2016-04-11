@@ -26,6 +26,7 @@
     <ClCompile Include="..\..\..\lib\legacy\zstd_v02.c" />
     <ClCompile Include="..\..\..\lib\legacy\zstd_v03.c" />
     <ClCompile Include="..\..\..\lib\legacy\zstd_v04.c" />
+    <ClCompile Include="..\..\..\lib\legacy\zstd_v05.c" />
     <ClCompile Include="..\..\..\lib\zbuff.c" />
     <ClCompile Include="..\..\..\lib\zdict.c" />
     <ClCompile Include="..\..\..\lib\zstd_compress.c" />
@@ -49,6 +50,7 @@
     <ClInclude Include="..\..\..\lib\legacy\zstd_v02.h" />
     <ClInclude Include="..\..\..\lib\legacy\zstd_v03.h" />
     <ClInclude Include="..\..\..\lib\legacy\zstd_v04.h" />
+    <ClInclude Include="..\..\..\lib\legacy\zstd_v05.h" />
     <ClInclude Include="..\..\..\lib\zbuff.h" />
     <ClInclude Include="..\..\..\lib\zbuff_static.h" />
     <ClInclude Include="..\..\..\lib\zdict.h" />

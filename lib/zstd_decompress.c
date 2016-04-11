@@ -786,6 +786,16 @@ static size_t ZSTD_decompressSequences(
         for ( ; (BIT_reloadDStream(&(seqState.DStream)) <= BIT_DStream_completed) && nbSeq ; ) {
             nbSeq--;
             ZSTD_decodeSequence(&sequence, &seqState);
+
+#if 0  /* debug */
+            static BYTE* start = NULL;
+            if (start==NULL) start = op;
+            size_t pos = (size_t)(op-start);
+            if ((pos >= 5810037) && (pos < 5810400))
+                printf("Dpos %6u :%5u literals & match %3u bytes at distance %6u \n",
+                       pos, (U32)sequence.litLength, (U32)sequence.matchLength, (U32)sequence.offset);
+#endif
+
             {   size_t const oneSeqSize = ZSTD_execSequence(op, oend, sequence, &litPtr, litLimit_8, base, vBase, dictEnd);
                 if (ZSTD_isError(oneSeqSize)) return oneSeqSize;
                 op += oneSeqSize;

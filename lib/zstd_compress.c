@@ -818,7 +818,7 @@ size_t ZSTD_compressSequences(ZSTD_CCtx* zc,
                 FSE_encodeSymbol(&blockStream, &stateMatchLength, mlCode);      /* 24 */  /* 24 */
                 if (MEM_32bits()) BIT_flushBits(&blockStream);                  /* (7)*/
                 FSE_encodeSymbol(&blockStream, &stateLitLength, llCode);        /* 16 */  /* 33 */
-                if (MEM_32bits() || (ofBits+mlBits+llBits > 64-7-(LLFSELog+MLFSELog+OffFSELog)))
+                if (MEM_32bits() || (ofBits+mlBits+llBits >= 64-7-(LLFSELog+MLFSELog+OffFSELog)))
                     BIT_flushBits(&blockStream);                                /* (7)*/
                 BIT_addBits(&blockStream, llTable[n], llBits);
                 if (MEM_32bits() && ((llBits+mlBits)>24)) BIT_flushBits(&blockStream);
@@ -858,7 +858,7 @@ MEM_STATIC void ZSTD_storeSeq(seqStore_t* seqStorePtr, size_t litLength, const B
     static const BYTE* g_start = NULL;
     const U32 pos = (U32)(literals - g_start);
     if (g_start==NULL) g_start = literals;
-    if ((pos > 200000000) && (pos < 200900000))
+    if ((pos > 5810300) && (pos < 5810500))
         printf("Cpos %6u :%5u literals & match %3u bytes at distance %6u \n",
                pos, (U32)litLength, (U32)matchCode+MINMATCH, (U32)offsetCode);
 #endif

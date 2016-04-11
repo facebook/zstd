@@ -213,7 +213,7 @@ size_t ZSTD_sizeofCCtx(ZSTD_compressionParameters cParams)   /* hidden interface
 /*! ZSTD_resetCCtx_advanced() :
     note : 'params' is expected to be validated */
 static size_t ZSTD_resetCCtx_advanced (ZSTD_CCtx* zc,
-                                       ZSTD_parameters params)
+                                       ZSTD_parameters params, U32 reset)
 {   /* note : params considered validated here */
     const size_t blockSize = MIN(ZSTD_BLOCKSIZE_MAX, (size_t)1 << params.cParams.windowLog);
     const U32    divider = (params.cParams.searchLength==3) ? 3 : 4;
@@ -236,7 +236,7 @@ static size_t ZSTD_resetCCtx_advanced (ZSTD_CCtx* zc,
             zc->workSpaceSize = neededSpace;
     }   }
 
-    memset(zc->workSpace, 0, tableSpace );   /* reset only tables */
+    if (reset) memset(zc->workSpace, 0, tableSpace );   /* reset only tables */
     zc->hashTable3 = (U32*)(zc->workSpace);
     zc->hashTable = zc->hashTable3 + h3Size;
     zc->chainTable = zc->hashTable + hSize;
@@ -289,7 +289,7 @@ size_t ZSTD_copyCCtx(ZSTD_CCtx* dstCCtx, const ZSTD_CCtx* srcCCtx)
     if (srcCCtx->stage!=1) return ERROR(stage_wrong);
 
     dstCCtx->hashLog3 = srcCCtx->hashLog3; /* must be before ZSTD_resetCCtx_advanced */
-    ZSTD_resetCCtx_advanced(dstCCtx, srcCCtx->params);
+    ZSTD_resetCCtx_advanced(dstCCtx, srcCCtx->params, 0);
 
     /* copy tables */
     {   const size_t chainSize = (srcCCtx->params.cParams.strategy == ZSTD_fast) ? 0 : (1 << srcCCtx->params.cParams.chainLog);
@@ -2259,8 +2259,8 @@ static size_t ZSTD_compressBegin_internal(ZSTD_CCtx* zc,
     zc->hashLog3 = (params.cParams.searchLength==3) ? hashLog3 : 0;
 //    printf("windowLog=%d hashLog=%d hashLog3=%d \n", params.windowLog, params.hashLog, zc->hashLog3);
 
-    { size_t const errorCode = ZSTD_resetCCtx_advanced(zc, params);
-      if (ZSTD_isError(errorCode)) return errorCode; }
+    { size_t const resetError = ZSTD_resetCCtx_advanced(zc, params, 1);
+      if (ZSTD_isError(resetError)) return resetError; }
 
     /* Write Frame Header into ctx headerBuffer */
     MEM_writeLE32(zc->headerBuffer, ZSTD_MAGICNUMBER);

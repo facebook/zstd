@@ -53,7 +53,7 @@ BINDIR  = $(PREFIX)/bin
 MANDIR  = $(PREFIX)/share/man/man1
 ZSTDDIR = ../lib
 
-ZSTD_FILES := $(ZSTDDIR)/huff0.c $(ZSTDDIR)/fse.c $(ZSTDDIR)/zstd_compress.c $(ZSTDDIR)/zstd_decompress.c
+ZSTD_FILES := $(ZSTDDIR)/huff0.c $(ZSTDDIR)/fse.c $(ZSTDDIR)/zstd_decompress.c $(ZSTDDIR)/zstd_compress.c
 
 ifeq ($(ZSTD_LEGACY_SUPPORT), 0)
 CPPFLAGS  += -DZSTD_LEGACY_SUPPORT=0
@@ -61,7 +61,8 @@ ZSTD_FILES_LEGACY:=
 else
 ZSTD_LEGACY_SUPPORT:=1
 CPPFLAGS  += -I../lib/legacy -I./legacy
-ZSTD_FILES_LEGACY:= $(ZSTDDIR)/legacy/zstd_v01.c $(ZSTDDIR)/legacy/zstd_v02.c $(ZSTDDIR)/legacy/zstd_v03.c $(ZSTDDIR)/legacy/zstd_v04.c legacy/fileio_legacy.c
+ZSTD_FILES_LEGACY:= $(ZSTDDIR)/legacy/zstd_v01.c $(ZSTDDIR)/legacy/zstd_v02.c $(ZSTDDIR)/legacy/zstd_v03.c \
+                    $(ZSTDDIR)/legacy/zstd_v04.c $(ZSTDDIR)/legacy/zstd_v05.c legacy/fileio_legacy.c
 endif
 
 
@@ -112,11 +113,11 @@ zstd-frugal: $(ZSTD_FILES) $(ZSTDDIR)/zbuff.c zstdcli.c fileio.c
 zstd-small: clean 
 	CFLAGS="-Os -s" $(MAKE) zstd-frugal 
 
-fullbench  : $(ZSTD_FILES) \
+fullbench  : $(ZSTD_FILES) $(ZSTDDIR)/zbuff.c \
         datagen.c fullbench.c
 	$(CC)      $(FLAGS) $^ -o $@$(EXT)
 
-fullbench32: $(ZSTD_FILES) \
+fullbench32: $(ZSTD_FILES) $(ZSTDDIR)/zbuff.c \
       datagen.c fullbench.c
 	$(CC) -m32 $(FLAGS) $^ -o $@$(EXT)
 
@@ -215,19 +216,19 @@ test-zbuff: zbufftest
 test-zbuff32: zbufftest32
 	./zbufftest32 $(ZBUFFTEST)
 
+valgrindTest: VALGRIND = valgrind --leak-check=full --error-exitcode=1
 valgrindTest: zstd datagen fuzzer fullbench zbufftest
 	@echo "\n ---- valgrind tests : memory analyzer ----"
-	valgrind --leak-check=yes --error-exitcode=1 ./datagen -g50M > $(VOID)
-	./datagen -g16KB > tmp
-	valgrind --leak-check=yes --error-exitcode=1 ./zstd -vf tmp -o $(VOID)
-	./datagen -g2930KB > tmp
-	valgrind --leak-check=yes --error-exitcode=1 ./zstd -5 -vf tmp -o tmp2
-	valgrind --leak-check=yes --error-exitcode=1 ./zstd -vdf tmp2 -o $(VOID)
-	./datagen -g64MB > tmp
-	valgrind --leak-check=yes --error-exitcode=1 ./zstd -vf tmp -o $(VOID)
+	$(VALGRIND) ./datagen -g50M > $(VOID)
+	$(VALGRIND) ./zstd ; if [ $$? -eq 0 ] ; then echo "zstd without argument should have failed"; false; fi
+	./datagen -g80 | $(VALGRIND) ./zstd - -c > $(VOID)
+	./datagen -g16KB | $(VALGRIND) ./zstd -vf - -o $(VOID)
+	./datagen -g2930KB | $(VALGRIND) ./zstd -5 -vf - -o tmp
+	$(VALGRIND) ./zstd -vdf tmp -o $(VOID)
+	./datagen -g64MB | $(VALGRIND) ./zstd -vf - -o $(VOID)
 	@rm tmp
-	valgrind --leak-check=yes --error-exitcode=1 ./fuzzer -T1mn -t1
-	valgrind --leak-check=yes --error-exitcode=1 ./fullbench -i1
-	valgrind --leak-check=yes --error-exitcode=1 ./zbufftest -T1mn
+	$(VALGRIND) ./fuzzer -T1mn -t1
+	$(VALGRIND) ./fullbench -i1
+	$(VALGRIND) ./zbufftest -T1mn
 
 endif

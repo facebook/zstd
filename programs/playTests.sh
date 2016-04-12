@@ -25,18 +25,28 @@ roundTripTest() {
 
 echo "\n**** simple tests **** "
 ./datagen > tmp
-$ZSTD tmp
+$ZSTD -f tmp                             # trivial compression case, creates tmp.zst
+$ZSTD -df tmp.zst                        # trivial decompression case (overwrites tmp)
+echo "test : too large compression level (must fail)"
 $ZSTD -99 tmp && die "too large compression level undetected"
-$ZSTD tmp -c > tmpCompressed
-$ZSTD tmp --stdout > tmpCompressed
+$ZSTD tmp -c > tmpCompressed             # compression using stdout     
+$ZSTD tmp --stdout > tmpCompressed       # compressoin using stdout, long format
+echo "test : decompress file with wrong suffix (must fail)"
 $ZSTD -d tmpCompressed && die "wrong suffix error not detected!"
-$ZSTD -d tmpCompressed -c > tmpResult
+$ZSTD -d tmpCompressed -c > tmpResult    # decompression using stdout   
 $ZSTD --decompress tmpCompressed -c > tmpResult
 $ZSTD --decompress tmpCompressed --stdout > tmpResult
+$ZSTD -d    < tmp.zst > /dev/null        # combine decompression, stdin & stdout
+$ZSTD -d  - < tmp.zst > /dev/null
+$ZSTD -dc   < tmp.zst > /dev/null
+$ZSTD -dc - < tmp.zst > /dev/null
 $ZSTD -q tmp && die "overwrite check failed!"
 $ZSTD -q -f tmp
 $ZSTD -q --force tmp
-
+$ZSTD -df tmp && die "should have refused : wrong extension"
+cp tmp tmp2.zst
+$ZSTD -df tmp2.zst && die "should have failed : wrong format"
+rm tmp2.zst
 
 echo "\n**** frame concatenation **** "
 
@@ -68,6 +78,11 @@ echo "\n**** dictionary tests **** "
 ./datagen -g1M | md5sum > tmp1
 ./datagen -g1M | $ZSTD -D tmpDict | $ZSTD -D tmpDict -dvq | md5sum > tmp2
 diff -q tmp1 tmp2
+$ZSTD --train *.c *.h -o tmpDict
+$ZSTD xxhash.c -D tmpDict -of tmp
+$ZSTD -d tmp -D tmpDict -of result
+diff xxhash.c result
+
 
 echo "\n**** multiple files tests **** "
 
@@ -103,6 +118,10 @@ $ZSTD -t * && die "bad files not detected !"
 echo "\n**** zstd round-trip tests **** "
 
 roundTripTest
+roundTripTest -g15K       # TableID==3
+roundTripTest -g127K      # TableID==2
+roundTripTest -g255K      # TableID==1
+roundTripTest -g513K      # TableID==0
 roundTripTest -g512K 6    # greedy, hash chain
 roundTripTest -g512K 16   # btlazy2 
 roundTripTest -g512K 19   # btopt
@@ -140,7 +159,7 @@ roundTripTest -g50000000 -P94 18
 roundTripTest -g50000000 -P94 19
 
 roundTripTest -g99000000 -P99 20
-roundTripTest -g6000000000 -P99 q
+roundTripTest -g6000000000 -P99 1
 
 rm tmp*
 

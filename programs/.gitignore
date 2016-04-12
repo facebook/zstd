@@ -5,7 +5,10 @@ fullbench
 fullbench32
 fuzzer
 fuzzer32
+zbufftest
+zbufftest32
 datagen
+paramgrill
 
 # Object files
 *.o
@@ -29,3 +32,15 @@ datagen
 # Visual solution files
 *.suo
 *.user
+
+# Default result files
+dictionary
+grillResults.txt
+_*
+
+# fuzzer
+afl
+
+# Misc files
+*.bat
+fileTests.sh

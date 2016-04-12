@@ -13,6 +13,11 @@ The __lib__ directory contains several files, but depending on target use case, 
 
 ##### zstd core compression
 
+Stable API is exposed in [zstd.h].
+Advanced and experimental API is exposed in `zstd_static.h`.
+`zstd_static.h` API elements should be used with static linking only,
+as their definition may change in future version of the library.
+
 - [bitstream.h](bitstream.h)
 - fse.c
 - fse.h
@@ -24,13 +29,15 @@ The __lib__ directory contains several files, but depending on target use case, 
 - zstd_decompress.c
 - zstd_internal.h
 - zstd_opt.h
-- zstd.h
+- [zstd.h]
 - zstd_static.h
+
+[zstd.h]: zstd.h
 
 #### Buffered streaming
 
 This complementary API makes streaming integration easier.
-It is used by `zstd` command line utility :
+It is used by `zstd` command line utility, and [7zip plugin](http://mcmilk.de/projects/7-Zip-ZStd) :
 
 - zbuff.c
 - zbuff.h

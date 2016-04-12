@@ -16,7 +16,7 @@ As a reference, several fast compression algorithms were tested and compared to 
 |Name             | Ratio | C.speed | D.speed |
 |-----------------|-------|--------:|--------:|
 |                 |       |   MB/s  |  MB/s   |
-|**zstd 0.5.1 -1**|**2.876**|**330**| **890** |
+|**zstd 0.6.0 -1**|**2.877**|**330**| **915** |
 | [zlib] 1.2.8 -1 | 2.730 |    95   |   360   |
 | brotli -0       | 2.708 |   220   |   430   |
 | QuickLZ 1.5     | 2.237 |   510   |   605   |
@@ -43,33 +43,18 @@ For a larger picture including very slow modes, [click on this link](images/DCsp
 
 ### The case for Small Data compression
 
-Above chart provides results applicable to large files or large streams scenarios (200 MB for this case).
-Small data (< 64 KB) come with different perspectives.
-The smaller the amount of data to compress, the more difficult it is to achieve any significant compression.
-On reaching the 1 KB region, it becomes almost impossible to compress anything.
-This problem is common to any compression algorithms, and throwing CPU power at it achieves little gains.
+Previous charts provide results applicable to typical files and streams scenarios (several MB). Small data come with different perspectives. The smaller the amount of data to compress, the more difficult it is to achieve any significant compression.
 
-The reason is, compression algorithms learn from past data how to compress future data.
-But at the beginning of a new file, there is no "past" to build upon.
+This problem is common to any compression algorithm. The reason is, compression algorithms learn from past data how to compress future data. But at the beginning of a new file, there is no "past" to build upon.
 
-To solve this situation, Zstd now offers a __training mode__,
-which can be used to make the algorithm fit a selected type of data, by providing it with some samples.
-The result of the training is a file called "dictionary", which can be loaded before compression and decompression.
-Using this dictionary, the compression ratio achievable on small data improves dramatically :
+To solve this situation, Zstd offers a __training mode__, which can be used to tune the algorithm for a selected type of data, by providing it with a few samples. The result of the training is stored in a file called "dictionary", which can be loaded before compression and decompression. Using this dictionary, the compression ratio achievable on small data improves dramatically :
 
-| Collection Name    | Direct compression | Dictionary Compression | Gains      | Average unit | Range       |
-| ---------------    | ------------------ | ---------------------- | ---------  | ------------:| -----       |
-| Small JSON records | x1.331 - x1.366	  | x5.860 - x6.830        | ~ __x4.7__ | 300          | 200 - 400   |
-| Mercurial events   | x2.322 - x2.538    | x3.377 - x4.462        | ~ __x1.5__ | 1.5 KB       | 20 - 200 KB |	
-| Large JSON docs    | x3.813 - x4.043    | x8.935 - x13.366       | ~ __x2.8__ | 6 KB         | 800 - 20 KB |	
+![Compressing Small Data](images/smallData.png "Compressing Small Data")
 
-These compression gains are achieved without any speed loss, and prove in general a bit faster to compress and decompress.
+These compression gains are achieved while simultaneously providing faster compression and decompression speeds.
 
 Dictionary work if there is some correlation in a family of small data (there is no _universal dictionary_).
-Hence, deploying one dictionary per type of data will provide the greater benefits.
-
-Large documents will benefit proportionally less, since dictionary gains are mostly effective in the first few KB.
-Then, the compression algorithm will rely more and more on already decoded content to compress the rest of the file.
+Hence, deploying one dictionary per type of data will provide the greater benefits. Dictionary gains are mostly effective in the first few KB. Then, the compression algorithm will rely more and more on previously decoded content to compress the rest of the file.
 
 #### Dictionary compression How To :
 
@@ -79,7 +64,7 @@ Then, the compression algorithm will rely more and more on already decoded conte
 
 `zstd --train FullPathToTrainingSet/* -o dictionaryName`
 
-2) Compression with dictionary
+2) Compress with dictionary
 
 `zstd FILE -D dictionaryName`
 
@@ -87,53 +72,15 @@ Then, the compression algorithm will rely more and more on already decoded conte
 
 `zstd --decompress FILE.zst -D dictionaryName`
 
-##### _Using API_ :
-
-1) Create dictionary
-
-```
-#include "zdict.h"
-(...)
-/* Train a dictionary from a memory buffer `samplesBuffer`, 
-   where `nbSamples` samples have been stored concatenated. */
-size_t dictSize = ZDICT_trainFromBuffer(dictBuffer, dictBufferCapacity,
-                                        samplesBuffer, samplesSizes, nbSamples);
-```
-
-2) Compression with dictionary
-
-```
-#include "zstd.h"
-(...)
-ZSTD_CCtx* context = ZSTD_createCCtx();
-size_t compressedSize = ZSTD_compress_usingDict(context, dst, dstCapacity, src, srcSize, dictBuffer, dictSize, compressionLevel);
-```
-
-3) Decompress with dictionary
-
-```
-#include "zstd.h"
-(...)
-ZSTD_DCtx* context = ZSTD_createDCtx();
-size_t regeneratedSize = ZSTD_decompress_usingDict(context, dst, dstCapacity, cSrc, cSrcSize, dictBuffer, dictSize);
-```
-
-
 ### Status
 
-Zstd has not yet reached "stable format" status. It doesn't guarantee yet that its current compression format will remain stable in future versions. During this period, it can still change to adapt new optimizations still being investigated. "Stable Format" is projected H1 2016, and will be tagged `v1.0`.
-
-That being said, the library is now fairly robust, able to withstand hazards situations, including invalid inputs. It also features legacy support, so that documents compressed with current and previous version of zstd can still be decoded in the future. 
-Library reliability has been tested using [Fuzz Testing](https://en.wikipedia.org/wiki/Fuzz_testing), with both [internal tools](programs/fuzzer.c) and [external ones](http://lcamtuf.coredump.cx/afl). Therefore, Zstandard is considered safe for testings, even within production environments.
+Zstd is in development. The internal format evolves to reach better performance. "Final Format" is projected H1 2016, and will be tagged `v1.0`. Zstd offers legacy support, meaning any data compressed by any version >= 0.1 (therefore including current one) remain decodable in the future.
+The library is also quite robust, able to withstand hazards situations, including invalid inputs. Library reliability has been tested using [Fuzz Testing](https://en.wikipedia.org/wiki/Fuzz_testing), with both [internal tools](programs/fuzzer.c) and [external ones](http://lcamtuf.coredump.cx/afl). Therefore, Zstandard is considered safe for production environments.
 
 ### Branch Policy
 
 The "dev" branch is the one where all contributions will be merged before reaching "master". If you plan to propose a patch, please commit into the "dev" branch or its own feature branch. Direct commit to "master" are not permitted.
 
-
-### Trivia
+### Miscellaneous
 
 Zstd entropy stage is provided by [Huff0 and FSE, from Finite State Entropy library](https://github.com/Cyan4973/FiniteStateEntropy).
-
-Its memory requirement can be configured to fit into low-memory hardware configurations, or servers handling multiple connections/contexts in parallel.
-

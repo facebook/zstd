@@ -200,7 +200,7 @@ ZSTDLIB_API size_t ZSTD_decompressContinue(ZSTD_DCtx* dctx, void* dst, size_t ds
   Use ZSTD_createDCtx() / ZSTD_freeDCtx() to manage it.
   A ZSTD_DCtx object can be re-used multiple times.
 
-  First optional operation is to retrieve frame parameters, using ZSTD_getFrameParams().
+  First optional operation is to retrieve frame parameters, using ZSTD_getFrameParams(), which doesn't consume the input.
   It can provide the minimum size of rolling buffer required to properly decompress data,
   and optionally the final size of uncompressed content.
   (Note : content size is an optional info that may not be present. 0 means : content size unknown)

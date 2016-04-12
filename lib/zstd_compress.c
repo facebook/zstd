@@ -2249,6 +2249,30 @@ static size_t ZSTD_compress_insertDictionary(ZSTD_CCtx* zc, const void* dict, si
     }
 }
 
+
+static size_t ZSTD_writeFrameHeader(void* dst, size_t dstCapacity,
+                                    ZSTD_parameters params, U64 pledgedSrcSize)
+{   BYTE* const op = (BYTE*)dst;
+    U32 const fcsId = (pledgedSrcSize>0) + (pledgedSrcSize>=256) + (pledgedSrcSize>=65536+256);   /* 0-3 */
+    BYTE const fdescriptor = (BYTE)((params.cParams.windowLog - ZSTD_WINDOWLOG_ABSOLUTEMIN)   /* windowLog : 4 KB - 128 MB */
+                                  | (fcsId << 6) );
+    size_t const hSize = ZSTD_frameHeaderSize_min + ZSTD_fcs_fieldSize[fcsId];
+    if (hSize > dstCapacity) return ERROR(dstSize_tooSmall);
+
+    MEM_writeLE32(dst, ZSTD_MAGICNUMBER);
+    op[4] = fdescriptor;
+    switch(fcsId)
+    {
+        default:   /* impossible */
+        case 0 : break;
+        case 1 : op[5] = (BYTE)(pledgedSrcSize); break;
+        case 2 : MEM_writeLE16(op+5, (U16)(pledgedSrcSize-256)); break;
+        case 3 : MEM_writeLE64(op+5, (U64)(pledgedSrcSize)); break;
+    }
+    return hSize;
+}
+
+
 /*! ZSTD_compressBegin_internal() :
 *   @return : 0, or an error code */
 static size_t ZSTD_compressBegin_internal(ZSTD_CCtx* zc,
@@ -2263,22 +2287,8 @@ static size_t ZSTD_compressBegin_internal(ZSTD_CCtx* zc,
       if (ZSTD_isError(resetError)) return resetError; }
 
     /* Write Frame Header into ctx headerBuffer */
-    MEM_writeLE32(zc->headerBuffer, ZSTD_MAGICNUMBER);
-    {   BYTE* const op = (BYTE*)zc->headerBuffer;
-        U32 const fcsId = (pledgedSrcSize>0) + (pledgedSrcSize>=256) + (pledgedSrcSize>=65536+256);   /* 0-3 */
-        BYTE fdescriptor = (BYTE)(params.cParams.windowLog - ZSTD_WINDOWLOG_ABSOLUTEMIN);   /* windowLog : 4 KB - 128 MB */
-        fdescriptor |= (BYTE)(fcsId << 6);
-        op[4] = fdescriptor;
-        switch(fcsId)
-        {
-            default:   /* impossible */
-            case 0 : break;
-            case 1 : op[5] = (BYTE)(pledgedSrcSize); break;
-            case 2 : MEM_writeLE16(op+5, (U16)(pledgedSrcSize-256)); break;
-            case 3 : MEM_writeLE64(op+5, (U64)(pledgedSrcSize)); break;
-        }
-        zc->hbSize = ZSTD_frameHeaderSize_min + ZSTD_fcs_fieldSize[fcsId];
-    }
+    zc->hbSize = ZSTD_writeFrameHeader(zc->headerBuffer, ZSTD_FRAMEHEADERSIZE_MAX,
+                                       params, pledgedSrcSize);
 
     return ZSTD_compress_insertDictionary(zc, dict, dictSize);
 }

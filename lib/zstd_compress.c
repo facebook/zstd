@@ -287,6 +287,7 @@ size_t ZSTD_copyCCtx(ZSTD_CCtx* dstCCtx, const ZSTD_CCtx* srcCCtx)
 
     dstCCtx->hashLog3 = srcCCtx->hashLog3; /* must be before ZSTD_resetCCtx_advanced */
     ZSTD_resetCCtx_advanced(dstCCtx, srcCCtx->params, 0);
+    dstCCtx->params.fParams.contentSizeFlag = 0;   /* content size different from the one set during srcCCtx init */
 
     /* copy tables */
     {   const size_t chainSize = (srcCCtx->params.cParams.strategy == ZSTD_fast) ? 0 : (1 << srcCCtx->params.cParams.chainLog);

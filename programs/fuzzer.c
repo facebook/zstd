@@ -169,17 +169,15 @@ static int basicUnitTests(U32 seed, double compressibility)
     if (result != (size_t)-ZSTD_error_srcSize_wrong) goto _output_error;
     DISPLAYLEVEL(4, "OK \n");
 
-    /* Dictionary and Duplication tests */
+    /* Dictionary and CCtx Duplication tests */
     {   ZSTD_CCtx* ctxOrig = ZSTD_createCCtx();
         ZSTD_CCtx* ctxDuplicated = ZSTD_createCCtx();
         ZSTD_DCtx* dctx = ZSTD_createDCtx();
         size_t const dictSize = 500;
-        size_t cSizeOrig;
 
         DISPLAYLEVEL(4, "test%3i : copy context too soon : ", testNb++);
-        {   size_t const copyResult = ZSTD_copyCCtx(ctxDuplicated, ctxOrig);
-            if (!ZSTD_isError(copyResult)) goto _output_error;   /* error should be detected */
-        }
+        { size_t const copyResult = ZSTD_copyCCtx(ctxDuplicated, ctxOrig);
+          if (!ZSTD_isError(copyResult)) goto _output_error; }  /* error should be detected */
         DISPLAYLEVEL(4, "OK \n");
 
         DISPLAYLEVEL(4, "test%3i : load dictionary into context : ", testNb++);
@@ -209,15 +207,16 @@ static int basicUnitTests(U32 seed, double compressibility)
         DISPLAYLEVEL(4, "OK \n");
 
         DISPLAYLEVEL(4, "test%3i : compress with duplicated context : ", testNb++);
-        cSizeOrig = cSize;
-        cSize = 0;
-        result = ZSTD_compressContinue(ctxDuplicated, compressedBuffer, ZSTD_compressBound(COMPRESSIBLE_NOISE_LENGTH), (const char*)CNBuffer + dictSize, COMPRESSIBLE_NOISE_LENGTH - dictSize);
-        if (ZSTD_isError(result)) goto _output_error;
-        cSize += result;
-        result = ZSTD_compressEnd(ctxDuplicated, (char*)compressedBuffer+cSize, ZSTD_compressBound(COMPRESSIBLE_NOISE_LENGTH)-cSize);
-        if (ZSTD_isError(result)) goto _output_error;
-        cSize += result;
-        if (cSize != cSizeOrig) goto _output_error;   /* should be identical == have same size */
+        {   size_t const cSizeOrig = cSize;
+            cSize = 0;
+            result = ZSTD_compressContinue(ctxDuplicated, compressedBuffer, ZSTD_compressBound(COMPRESSIBLE_NOISE_LENGTH), (const char*)CNBuffer + dictSize, COMPRESSIBLE_NOISE_LENGTH - dictSize);
+            if (ZSTD_isError(result)) goto _output_error;
+            cSize += result;
+            result = ZSTD_compressEnd(ctxDuplicated, (char*)compressedBuffer+cSize, ZSTD_compressBound(COMPRESSIBLE_NOISE_LENGTH)-cSize);
+            if (ZSTD_isError(result)) goto _output_error;
+            cSize += result;
+            if (cSize != cSizeOrig) goto _output_error;   /* should be identical == have same size */
+        }
         DISPLAYLEVEL(4, "OK (%u bytes : %.2f%%)\n", (U32)cSize, (double)cSize/COMPRESSIBLE_NOISE_LENGTH*100);
 
         DISPLAYLEVEL(4, "test%3i : frame built with duplicated context should be decompressible : ", testNb++);

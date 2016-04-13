@@ -500,10 +500,21 @@ static void BMK_loadFiles(void* buffer, size_t bufferSize,
                           size_t* fileSizes,
                           const char** fileNamesTable, unsigned nbFiles)
 {
-    size_t pos = 0;
+    size_t pos = 0, totalSize = 0;
 
     unsigned n;
     for (n=0; n<nbFiles; n++) {
+#if defined(_MSC_VER)
+        struct _stat64 statbuf;
+        int r = _stat64(fileNamesTable[n], &statbuf);
+#else
+        struct stat statbuf;
+        int r = stat(fileNamesTable[n], &statbuf);
+#endif
+        if (!r && S_ISDIR(statbuf.st_mode)) {
+            DISPLAYLEVEL(2, "Ignoring %s directory...       \n", fileNamesTable[n]);
+            continue;
+        }
         U64 fileSize = BMK_getFileSize(fileNamesTable[n]);
         FILE* const f = fopen(fileNamesTable[n], "rb");
         if (f==NULL) EXM_THROW(10, "impossible to open file %s", fileNamesTable[n]);
@@ -513,8 +524,11 @@ static void BMK_loadFiles(void* buffer, size_t bufferSize,
           if (readSize != (size_t)fileSize) EXM_THROW(11, "could not read %s", fileNamesTable[n]);
           pos += readSize; }
         fileSizes[n] = (size_t)fileSize;
+        totalSize += (size_t)fileSize;
         fclose(f);
     }
+    
+    if (totalSize == 0) EXM_THROW(12, "no data to bench");
 }
 
 static void BMK_benchFileTable(const char** fileNamesTable, unsigned nbFiles,

@@ -86,7 +86,6 @@
 
 #include "mem.h"
 #include "zstd_static.h"
-#include "zstd_internal.h" /* ZSTD_compressBegin_targetSrcSize */
 #include "datagen.h"       /* RDG_genBuffer */
 #include "xxhash.h"
 
@@ -204,6 +203,19 @@ static U64 BMK_getFileSize(const char* infilename)
     return (U64)statbuf.st_size;
 }
 
+static U32 BMK_isDirectory(const char* infilename)
+{
+    int r;
+#if defined(_MSC_VER)
+    struct _stat64 statbuf;
+    r = _stat64(infilename, &statbuf);
+#else
+    struct stat statbuf;
+    r = stat(infilename, &statbuf);
+#endif
+    if (!r && S_ISDIR(statbuf.st_mode)) return 1;
+    return 0;
+}
 
 /* ********************************************************
 *  Bench functions
@@ -317,8 +329,13 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
             {   U32 nbLoops;
                 for (nbLoops = 0 ; BMK_clockSpan(clockStart, ticksPerSecond) < clockLoop ; nbLoops++) {
                     U32 blockNb;
-                    ZSTD_compressBegin_targetSrcSize(refCtx, dictBuffer, dictBufferSize, blockSize, cLevel);
-                  //  ZSTD_compressBegin_usingDict(refCtx, dictBuffer, dictBufferSize, cLevel);
+                    {   ZSTD_parameters params;
+                        params.cParams = ZSTD_getCParams(cLevel, blockSize, dictBufferSize);
+                        params.fParams.contentSizeFlag = 1;
+                        ZSTD_adjustCParams(&params.cParams, blockSize, dictBufferSize);
+                        {   size_t const initResult = ZSTD_compressBegin_advanced(refCtx, dictBuffer, dictBufferSize, params, blockSize);
+                            if (ZSTD_isError(initResult)) break;
+                    }   }
                     for (blockNb=0; blockNb<nbBlocks; blockNb++) {
                         size_t const rSize = ZSTD_compress_usingPreparedCCtx(ctx, refCtx,
                                             blockTable[blockNb].cPtr,  blockTable[blockNb].cRoom,
@@ -504,14 +521,7 @@ static void BMK_loadFiles(void* buffer, size_t bufferSize,
 
     unsigned n;
     for (n=0; n<nbFiles; n++) {
-#if defined(_MSC_VER)
-        struct _stat64 statbuf;
-        int r = _stat64(fileNamesTable[n], &statbuf);
-#else
-        struct stat statbuf;
-        int r = stat(fileNamesTable[n], &statbuf);
-#endif
-        if (!r && S_ISDIR(statbuf.st_mode)) {
+        if (BMK_isDirectory(fileNamesTable[n])) {
             DISPLAYLEVEL(2, "Ignoring %s directory...       \n", fileNamesTable[n]);
             continue;
         }

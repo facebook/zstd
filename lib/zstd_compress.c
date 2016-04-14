@@ -2309,17 +2309,6 @@ size_t ZSTD_compressBegin_usingDict(ZSTD_CCtx* zc, const void* dict, size_t dict
 }
 
 
-size_t ZSTD_compressBegin_targetSrcSize(ZSTD_CCtx* zc, const void* dict, size_t dictSize, size_t targetSrcSize, int compressionLevel)
-{
-    ZSTD_parameters params;
-    params.cParams = ZSTD_getCParams(compressionLevel, targetSrcSize, dictSize);
-    params.fParams.contentSizeFlag = 1;
-    ZSTD_adjustCParams(&params.cParams, targetSrcSize, dictSize);
-    ZSTD_LOG_BLOCK("%p: ZSTD_compressBegin_targetSrcSize compressionLevel=%d\n", zc->base, compressionLevel);
-    return ZSTD_compressBegin_internal(zc, dict, dictSize, params, targetSrcSize);
-}
-
-
 size_t ZSTD_compressBegin(ZSTD_CCtx* zc, int compressionLevel)
 {
     ZSTD_LOG_BLOCK("%p: ZSTD_compressBegin compressionLevel=%d\n", zc->base, compressionLevel);

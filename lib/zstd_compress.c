@@ -2431,7 +2431,8 @@ size_t ZSTD_compress(void* dst, size_t dstCapacity, const void* src, size_t srcS
 
 /*-=====  Pre-defined compression levels  =====-*/
 
-#define ZSTD_MAX_CLEVEL 22
+#define ZSTD_DEAFULT_CLEVEL 5
+#define ZSTD_MAX_CLEVEL     22
 unsigned ZSTD_maxCLevel(void) { return ZSTD_MAX_CLEVEL; }
 
 static const ZSTD_compressionParameters ZSTD_defaultCParameters[4][ZSTD_MAX_CLEVEL+1] = {
@@ -2550,7 +2551,8 @@ ZSTD_compressionParameters ZSTD_getCParams(int compressionLevel, U64 srcSize, si
     size_t const addedSize = srcSize ? 0 : 500;
     U64 const rSize = srcSize+dictSize ? srcSize+dictSize+addedSize : (U64)-1;
     U32 const tableID = (rSize <= 256 KB) + (rSize <= 128 KB) + (rSize <= 16 KB);   /* intentional underflow for srcSizeHint == 0 */
-    if (compressionLevel<=0) compressionLevel = 1;
+    if (compressionLevel < 0) compressionLevel = ZSTD_DEAFULT_CLEVEL;
+    if (compressionLevel==0) compressionLevel = 1;
     if (compressionLevel > ZSTD_MAX_CLEVEL) compressionLevel = ZSTD_MAX_CLEVEL;
     cp = ZSTD_defaultCParameters[tableID][compressionLevel];
     if (MEM_32bits()) {   /* auto-correction, for 32-bits mode */

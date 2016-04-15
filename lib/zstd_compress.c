@@ -2552,7 +2552,7 @@ static const ZSTD_compressionParameters ZSTD_defaultCParameters[4][ZSTD_MAX_CLEV
 },
 };
 
-/*! ZSTD_getParams() :
+/*! ZSTD_getCParams() :
 *   @return ZSTD_parameters structure for a selected compression level and srcSize.
 *   `srcSize` value is optional, select 0 if not known */
 ZSTD_compressionParameters ZSTD_getCParams(int compressionLevel, U64 srcSize, size_t dictSize)

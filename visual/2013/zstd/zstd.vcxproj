@@ -56,8 +56,6 @@
     <ClInclude Include="..\..\..\lib\zdict.h" />
     <ClInclude Include="..\..\..\lib\zdict_static.h" />
     <ClInclude Include="..\..\..\lib\zstd.h" />
-    <ClInclude Include="..\..\..\lib\zstd_buffered.h" />
-    <ClInclude Include="..\..\..\lib\zstd_buffered_static.h" />
     <ClInclude Include="..\..\..\lib\zstd_internal.h" />
     <ClInclude Include="..\..\..\lib\zstd_static.h" />
     <ClInclude Include="..\..\..\programs\bench.h" />

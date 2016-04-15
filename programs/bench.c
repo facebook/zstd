@@ -295,7 +295,7 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
     RDG_genBuffer(compressedBuffer, maxCompressedSize, 0.10, 0.50, 1);
 
     /* Bench */
-    {   double fastestC = 100000000., fastestD = 100000000.;
+    {   U64 fastestC = (U64)(-1LL), fastestD = (U64)(-1LL);
         U64 const crcOrig = XXH64(srcBuffer, srcSize, 0);
         U64 crcCheck = 0;
         BMK_time_t coolTime;
@@ -344,7 +344,7 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
                         blockTable[blockNb].cSize = rSize;
                 }   }
                 {   U64 const clockSpan = BMK_clockSpan(clockStart, ticksPerSecond);
-                    if ((double)clockSpan < fastestC*nbLoops) fastestC = (double)clockSpan / nbLoops;
+                    if (clockSpan < fastestC*nbLoops) fastestC = clockSpan / nbLoops;
             }   }
 
             cSize = 0;
@@ -382,7 +382,7 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
                         blockTable[blockNb].resSize = regenSize;
                 }   }
                 {   U64 const clockSpan = BMK_clockSpan(clockStart, ticksPerSecond);
-                    if ((double)clockSpan < fastestD*nbLoops) fastestD = (double)clockSpan / nbLoops;
+                    if (clockSpan < fastestD*nbLoops) fastestD = clockSpan / nbLoops;
             }   }
 
             DISPLAYLEVEL(2, "%2i-%-17.17s :%10u ->%10u (%5.3f),%6.1f MB/s ,%6.1f MB/s\r",

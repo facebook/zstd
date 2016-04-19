@@ -307,7 +307,7 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
         DISPLAYLEVEL(2, "\r%79s\r", "");
         for (testNb = 1; testNb <= (g_nbIterations + !g_nbIterations); testNb++) {
             BMK_time_t clockStart, clockEnd;
-            U64 clockLoop = g_nbIterations ? TIMELOOP_S*1000000ULL : 10;
+            U64 clockLoop = g_nbIterations ? TIMELOOP_S*1000000ULL : 1;
 
             /* overheat protection */
             if (BMK_clockSpan(coolTime, ticksPerSecond) > ACTIVEPERIOD_S*1000000ULL) {
@@ -326,8 +326,8 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
             while (BMK_getSpanTimeNano(ticksPerSecond, clockStart, clockEnd) == 0);
             BMK_getTime(clockStart);
 
-            {   U32 nbLoops;
-                for (nbLoops = 0 ; BMK_clockSpan(clockStart, ticksPerSecond) < clockLoop ; nbLoops++) {
+            {   U32 nbLoops = 0;
+                do {
                     U32 blockNb;
                     {   ZSTD_parameters params;
                         params.cParams = ZSTD_getCParams(cLevel, blockSize, dictBufferSize);
@@ -342,7 +342,9 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
                                             blockTable[blockNb].srcPtr,blockTable[blockNb].srcSize);
                         if (ZSTD_isError(rSize)) EXM_THROW(1, "ZSTD_compress_usingPreparedCCtx() failed : %s", ZSTD_getErrorName(rSize));
                         blockTable[blockNb].cSize = rSize;
-                }   }
+                    }
+                    nbLoops++;
+                } while (BMK_clockSpan(clockStart, ticksPerSecond) < clockLoop);
                 {   U64 const clockSpan = BMK_clockSpan(clockStart, ticksPerSecond);
                     if (clockSpan < fastestC*nbLoops) fastestC = clockSpan / nbLoops;
             }   }
@@ -365,8 +367,8 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
             while (BMK_getSpanTimeNano(ticksPerSecond, clockStart, clockEnd) == 0);
             BMK_getTime(clockStart);
 
-            {   U32 nbLoops;
-                for (nbLoops = 0 ; BMK_clockSpan(clockStart, ticksPerSecond) < clockLoop ; nbLoops++) {
+            {   U32 nbLoops = 0;
+                do {
                     U32 blockNb;
                     ZSTD_decompressBegin_usingDict(refDCtx, dictBuffer, dictBufferSize);
                     for (blockNb=0; blockNb<nbBlocks; blockNb++) {
@@ -380,7 +382,9 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
                             break;
                         }
                         blockTable[blockNb].resSize = regenSize;
-                }   }
+                    }
+                    nbLoops++;
+                } while (BMK_clockSpan(clockStart, ticksPerSecond) < clockLoop);
                 {   U64 const clockSpan = BMK_clockSpan(clockStart, ticksPerSecond);
                     if (clockSpan < fastestD*nbLoops) fastestD = clockSpan / nbLoops;
             }   }

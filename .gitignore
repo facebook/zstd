@@ -47,3 +47,4 @@ ipch/
 .directory
 _codelite
 _zstdbench
+zlib_wrapper

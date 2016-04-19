@@ -53,9 +53,10 @@ MEM_STATIC void ZSTD_rescaleFreqs(seqStore_t* ssPtr)
 {
     unsigned u;
 
+    ssPtr->cachedLiterals = NULL;
+    ssPtr->cachedPrice = ssPtr->cachedLitLength = 0;
+
     if (ssPtr->litLengthSum == 0) {
-        ssPtr->cachedLiterals = NULL;
-        ssPtr->cachedPrice = ssPtr->cachedLitLength = 0;
         ssPtr->litSum = (2<<Litbits);
         ssPtr->litLengthSum = MaxLL+1;
         ssPtr->matchLengthSum = MaxML+1;

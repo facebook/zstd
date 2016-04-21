@@ -72,10 +72,7 @@
 **************************************/
 #define COMPRESSOR_NAME "zstd command line interface"
 #ifndef ZSTD_VERSION
-#  define LIB_VERSION ZSTD_VERSION_MAJOR.ZSTD_VERSION_MINOR.ZSTD_VERSION_RELEASE
-#  define QUOTE(str) #str
-#  define EXPAND_AND_QUOTE(str) QUOTE(str)
-#  define ZSTD_VERSION "v" EXPAND_AND_QUOTE(LIB_VERSION)
+#  define ZSTD_VERSION "v" ZSTD_VERSION_STRING
 #endif
 #define AUTHOR "Yann Collet"
 #define WELCOME_MESSAGE "*** %s %i-bits %s, by %s ***\n", COMPRESSOR_NAME, (int)(sizeof(void*)*8), ZSTD_VERSION, AUTHOR
@@ -88,7 +85,7 @@
 #define MB *(1 <<20)
 #define GB *(1U<<30)
 
-static const char* g_defaultDictName = "dictionary";
+static const char*    g_defaultDictName = "dictionary";
 static const unsigned g_defaultMaxDictSize = 110 KB;
 static const unsigned g_defaultDictCLevel = 5;
 static const unsigned g_defaultSelectivityLevel = 9;

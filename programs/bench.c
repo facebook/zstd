@@ -248,7 +248,7 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
                         const size_t* fileSizes, U32 nbFiles,
                         const void* dictBuffer, size_t dictBufferSize, benchResult_t *result)
 {
-    size_t const blockSize = (g_blockSize ? g_blockSize : srcSize) + (!srcSize);   /* avoid div by 0 */
+    size_t const blockSize = (g_blockSize>=32 ? g_blockSize : srcSize) + (!srcSize);   /* avoid div by 0 */
     U32 const maxNbBlocks = (U32) ((srcSize + (blockSize-1)) / blockSize) + nbFiles;
     blockParam_t* const blockTable = (blockParam_t*) malloc(maxNbBlocks * sizeof(blockParam_t));
     size_t const maxCompressedSize = ZSTD_compressBound(srcSize) + (maxNbBlocks * 1024);   /* add some room for safety */
@@ -488,9 +488,9 @@ static void BMK_benchCLevel(void* srcBuffer, size_t benchedSize,
                      dictBuffer, dictBufferSize, &result);
         if (g_displayLevel == 1) {
             if (g_additionalParam)
-                DISPLAY("%-3i%11i (%5.3f) %6.1f MB/s %6.1f MB/s  %s (param=%d)\n", -l, (int)result.cSize, result.ratio, result.cSpeed, result.dSpeed, displayName, g_additionalParam);
+                DISPLAY("%-3i%11i (%5.3f) %6.2f MB/s %6.1f MB/s  %s (param=%d)\n", -l, (int)result.cSize, result.ratio, result.cSpeed, result.dSpeed, displayName, g_additionalParam);
             else
-                DISPLAY("%-3i%11i (%5.3f) %6.1f MB/s %6.1f MB/s  %s\n", -l, (int)result.cSize, result.ratio, result.cSpeed, result.dSpeed, displayName);
+                DISPLAY("%-3i%11i (%5.3f) %6.2f MB/s %6.1f MB/s  %s\n", -l, (int)result.cSize, result.ratio, result.cSpeed, result.dSpeed, displayName);
             total.cSize += result.cSize;
             total.cSpeed += result.cSpeed;
             total.dSpeed += result.dSpeed;
@@ -501,7 +501,7 @@ static void BMK_benchCLevel(void* srcBuffer, size_t benchedSize,
         total.cSpeed /= 1+cLevelLast-cLevel;
         total.dSpeed /= 1+cLevelLast-cLevel;
         total.ratio /= 1+cLevelLast-cLevel;
-        DISPLAY("avg%11i (%5.3f) %6.1f MB/s %6.1f MB/s  %s\n", (int)total.cSize, total.ratio, total.cSpeed, total.dSpeed, displayName);
+        DISPLAY("avg%11i (%5.3f) %6.2f MB/s %6.1f MB/s  %s\n", (int)total.cSize, total.ratio, total.cSpeed, total.dSpeed, displayName);
     }
 }
 

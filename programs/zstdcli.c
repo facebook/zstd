@@ -41,6 +41,7 @@
 #include <stdio.h>    /* fprintf, getchar */
 #include <stdlib.h>   /* exit, calloc, free */
 #include <string.h>   /* strcmp, strlen */
+#include <ctype.h>    /* toupper */
 #include "fileio.h"
 #ifndef ZSTD_NOBENCH
 #  include "bench.h"  /* BMK_benchFiles, BMK_SetNbIterations */
@@ -304,9 +305,9 @@ int main(int argCount, const char** argv)
                         argument++;
                         while ((*argument >='0') && (*argument <='9'))
                             bSize *= 10, bSize += *argument++ - '0';
-                        if (*argument=='K') bSize<<=10, argument++;  /* allows using KB notation */
-                        if (*argument=='M') bSize<<=20, argument++;
-                        if (*argument=='B') argument++;
+                        if (toupper(*argument)=='K') bSize<<=10, argument++;  /* allows using KB notation */
+                        if (toupper(*argument)=='M') bSize<<=20, argument++;
+                        if (toupper(*argument)=='B') argument++;
                         BMK_setNotificationLevel(displayLevel);
                         BMK_SetBlockSize(bSize);
                     }
@@ -368,8 +369,7 @@ int main(int argCount, const char** argv)
             maxDictSize = 0;
             while ((*argument>='0') && (*argument<='9'))
                 maxDictSize = maxDictSize * 10 + (*argument - '0'), argument++;
-            if (*argument=='k' || *argument=='K')
-                maxDictSize <<= 10;
+            if (toupper(*argument)=='K') maxDictSize <<= 10;
             continue;
         }
 

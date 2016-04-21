@@ -38,7 +38,9 @@
 #include "mem.h"
 #include "error_private.h"
 #include "zstd_static.h"
-
+#if defined(_MSC_VER) && (_MSC_VER >= 1400)
+#  include <intrin.h>                   /* For Visual 2005 and above */
+#endif
 
 /*-*************************************
 *  Common macros
@@ -53,13 +55,20 @@
 #define ZSTD_OPT_DEBUG 0     // 3 = compression stats;  5 = check encoded sequences;  9 = full logs
 #include <stdio.h>
 #if defined(ZSTD_OPT_DEBUG) && ZSTD_OPT_DEBUG>=9
-    #define ZSTD_LOG_PARSER(...) printf(__VA_ARGS__)
-    #define ZSTD_LOG_ENCODE(...) printf(__VA_ARGS__)
-    #define ZSTD_LOG_BLOCK(...) printf(__VA_ARGS__)
+  #define ZSTD_LOG_PARSER
+  #define ZSTD_LOG_ENCODE
+  #define ZSTD_LOG_BLOCK
 #else
+  #if defined(_MSC_VER) && (_MSC_VER < 1400)       /* For VC6 and other legacy versions */
+    void __inline impl_ZSTD_LOG_PARSER(...) { }
+    #define ZSTD_LOG_PARSER impl_ZSTD_LOG_PARSER
+    #define ZSTD_LOG_ENCODE impl_ZSTD_LOG_PARSER
+    #define ZSTD_LOG_BLOCK impl_ZSTD_LOG_PARSER
+  #else
     #define ZSTD_LOG_PARSER(...)
     #define ZSTD_LOG_ENCODE(...)
     #define ZSTD_LOG_BLOCK(...)
+  #endif
 #endif
 
 #define ZSTD_OPT_NUM    (1<<12)
@@ -162,7 +171,7 @@ MEM_STATIC void ZSTD_wildcopy(void* dst, const void* src, size_t length)
 
 MEM_STATIC unsigned ZSTD_highbit(U32 val)
 {
-#   if defined(_MSC_VER)   /* Visual */
+#   if defined(_MSC_VER) && (_MSC_VER >= 1400)   /* Visual 2005 and above */
     unsigned long r=0;
     _BitScanReverse(&r, val);
     return (unsigned)r;

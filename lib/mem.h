@@ -63,7 +63,17 @@ extern "C" {
 /*-**************************************************************
 *  Basic Types
 *****************************************************************/
-#if defined (__cplusplus) || (defined (__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L) /* C99 */)
+#if defined(_MSC_VER) && (_MSC_VER < 1400)     /* For VC6 and other legacy versions */
+  typedef unsigned char       BYTE;
+  typedef unsigned short      U16;
+  typedef   signed short      S16;
+  typedef unsigned int        U32;
+  typedef   signed int        S32;
+  typedef unsigned __int64    U64;
+  typedef   signed __int64    S64;
+  #define CONST_S64(x) x##i64
+  #define CONST_U64(x) x##ui64
+#elif defined (__cplusplus) || (defined (__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L) /* C99 */)
 # include <stdint.h>
   typedef  uint8_t BYTE;
   typedef uint16_t U16;
@@ -72,6 +82,8 @@ extern "C" {
   typedef  int32_t S32;
   typedef uint64_t U64;
   typedef  int64_t S64;
+  #define CONST_S64(x) x##LL
+  #define CONST_U64(x) x##ULL
 #else
   typedef unsigned char       BYTE;
   typedef unsigned short      U16;
@@ -80,6 +92,8 @@ extern "C" {
   typedef   signed int        S32;
   typedef unsigned long long  U64;
   typedef   signed long long  S64;
+  #define CONST_S64(x) x##LL
+  #define CONST_U64(x) x##ULL
 #endif
 
 

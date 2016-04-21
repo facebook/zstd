@@ -1619,9 +1619,6 @@ FORCE_INLINE size_t ZSTD_HcFindBestMatch_extDict_selectMLS (
     }
 }
 
-/* The optimal parser */
-#include "zstd_opt.h"
-
 
 /* *******************************
 *  Common parser - lazy strategy
@@ -1755,12 +1752,6 @@ _storeSequence:
     }
 }
 
-
-
-static void ZSTD_compressBlock_btopt(ZSTD_CCtx* ctx, const void* src, size_t srcSize)
-{
-    ZSTD_compressBlock_opt_generic(ctx, src, srcSize);
-}
 
 static void ZSTD_compressBlock_btlazy2(ZSTD_CCtx* ctx, const void* src, size_t srcSize)
 {
@@ -1973,6 +1964,16 @@ static void ZSTD_compressBlock_lazy2_extDict(ZSTD_CCtx* ctx, const void* src, si
 static void ZSTD_compressBlock_btlazy2_extDict(ZSTD_CCtx* ctx, const void* src, size_t srcSize)
 {
     ZSTD_compressBlock_lazy_extDict_generic(ctx, src, srcSize, 1, 2);
+}
+
+
+
+/* The optimal parser */
+#include "zstd_opt.h"
+
+static void ZSTD_compressBlock_btopt(ZSTD_CCtx* ctx, const void* src, size_t srcSize)
+{
+    ZSTD_compressBlock_opt_generic(ctx, src, srcSize);
 }
 
 static void ZSTD_compressBlock_btopt_extDict(ZSTD_CCtx* ctx, const void* src, size_t srcSize)

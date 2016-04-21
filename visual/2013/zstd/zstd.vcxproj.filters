@@ -116,12 +116,6 @@
     <ClInclude Include="..\..\..\programs\legacy\fileio_legacy.h">
       <Filter>Fichiers d%27en-tête</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\lib\zstd_buffered.h">
-      <Filter>Fichiers d%27en-tête</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\lib\zstd_buffered_static.h">
-      <Filter>Fichiers d%27en-tête</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\..\lib\legacy\zstd_v03.h">
       <Filter>Fichiers d%27en-tête</Filter>
     </ClInclude>

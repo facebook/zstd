@@ -52,7 +52,7 @@
 
 #include "mem.h"            /* read */
 #include "error_private.h"
-#include "zdict_static.h"
+#include "dibio.h"
 
 
 /*-*************************************

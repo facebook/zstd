@@ -22,9 +22,9 @@ as their definition may change in future version of the library.
 - fse.c
 - fse.h
 - fse_static.h
-- huff0.c
-- huff0.h
-- huff0_static.h
+- huf.c
+- huf.h
+- huf_static.h
 - zstd_compress.c
 - zstd_decompress.c
 - zstd_internal.h

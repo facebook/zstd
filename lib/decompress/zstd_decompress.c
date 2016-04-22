@@ -59,7 +59,7 @@
 #include "mem.h"         /* low level memory routines */
 #include "zstd_internal.h"
 #include "fse_static.h"
-#include "huff0_static.h"
+#include "huf_static.h"
 
 #if defined(ZSTD_LEGACY_SUPPORT) && (ZSTD_LEGACY_SUPPORT==1)
 #  include "zstd_legacy.h"

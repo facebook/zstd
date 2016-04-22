@@ -61,7 +61,7 @@
 #include "mem.h"           /* read */
 #include "error_private.h"
 #include "fse.h"
-#include "huff0_static.h"
+#include "huf_static.h"
 #include "zstd_internal.h"
 #include "divsufsort.h"
 #include "zdict_static.h"

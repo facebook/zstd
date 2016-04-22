@@ -114,7 +114,9 @@ static int usage(const char* programName)
 #ifndef ZSTD_NOCOMPRESS
     DISPLAY( " -#     : # compression level (1-%u, default:1) \n", ZSTD_maxCLevel());
 #endif
+#ifndef ZSTD_NODECOMPRESS
     DISPLAY( " -d     : decompression \n");
+#endif
     DISPLAY( " -D file: use `file` as Dictionary \n");
     DISPLAY( " -o file: result stored into `file` (only if 1 input file) \n");
     DISPLAY( " -f     : overwrite output without prompting \n");
@@ -433,10 +435,14 @@ int main(int argCount, const char** argv)
     } else 
 #endif
     {  /* decompression */
+#ifndef ZSTD_NODECOMPRESS
         if (filenameIdx==1 && outFileName)
         operationResult = FIO_decompressFilename(outFileName, filenameTable[0], dictFileName);
         else
         operationResult = FIO_decompressMultipleFilenames(filenameTable, filenameIdx, outFileName ? outFileName : ZSTD_EXTENSION, dictFileName);
+#else
+        DISPLAY("Decompression not supported\n");
+#endif
     }
 
 _end:

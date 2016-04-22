@@ -154,7 +154,7 @@ datagen : datagen.c datagencli.c
 
 clean:
 	@rm -f core *.o tmp* result* *.gcda dictionary *.zst \
-        zstd$(EXT) zstd32$(EXT) \
+        zstd$(EXT) zstd32$(EXT) zstd-compress$(EXT) zstd-decompress$(EXT) \
         fullbench$(EXT) fullbench32$(EXT) \
         fuzzer$(EXT) fuzzer32$(EXT) zbufftest$(EXT) zbufftest32$(EXT) \
 	datagen$(EXT) paramgrill$(EXT)

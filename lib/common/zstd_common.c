@@ -37,7 +37,10 @@
 #include "mem.h"
 #include "fse_static.h"  /* FSE_MIN_TABLELOG */
 #include "error_private.h"
-
+#include "zstd.h" /* declaration of ZSTD_isError, ZSTD_getErrorName */
+#include "zbuff.h" /* declaration of ZBUFF_isError, ZBUFF_getErrorName */
+#include "fse.h" /* declaration of FSE_isError, FSE_getErrorName */
+#include "huf.h" /* declaration of HUF_isError, HUF_getErrorName */
 
 
 /*-****************************************

@@ -53,8 +53,8 @@ BINDIR  = $(PREFIX)/bin
 MANDIR  = $(PREFIX)/share/man/man1
 ZSTDDIR = ../lib
 
-ZSTDCOMP_FILES := $(ZSTDDIR)/compress/zstd_compress.c $(ZSTDDIR)/compress/fse_compress.c $(ZSTDDIR)/compress/huf_compress.c
-ZSTDDECOMP_FILES := $(ZSTDDIR)/decompress/zstd_decompress.c $(ZSTDDIR)/decompress/fse_decompress.c $(ZSTDDIR)/decompress/huf_decompress.c
+ZSTDCOMP_FILES := $(ZSTDDIR)/compress/zstd_compress.c $(ZSTDDIR)/compress/fse_compress.c $(ZSTDDIR)/compress/huf_compress.c $(ZSTDDIR)/common/zstd_common.c
+ZSTDDECOMP_FILES := $(ZSTDDIR)/decompress/zstd_decompress.c $(ZSTDDIR)/decompress/fse_decompress.c $(ZSTDDIR)/decompress/huf_decompress.c $(ZSTDDIR)/common/zstd_common.c
 ZDICT_FILES := $(ZSTDDIR)/dictBuilder/zdict.c $(ZSTDDIR)/dictBuilder/divsufsort.c
 ZBUFF_FILES := $(ZSTDDIR)/compress/zbuff_compress.c $(ZSTDDIR)/decompress/zbuff_decompress.c
 ZSTD_FILES := $(ZSTDDECOMP_FILES) $(ZSTDCOMP_FILES)
@@ -87,7 +87,7 @@ ZSTDRTTEST= --test-large-data
 
 default: zstd
 
-all: zstd zstd32 fullbench fullbench32 fuzzer fuzzer32 zbufftest zbufftest32 paramgrill datagen
+all: zstd fullbench fuzzer zbufftest paramgrill datagen zstd32 fullbench32 fuzzer32 zbufftest32
 
 zstd  : $(ZSTD_FILES) $(ZSTD_FILES_LEGACY) $(ZBUFF_FILES) $(ZDICT_FILES) \
         zstdcli.c fileio.c bench.c xxhash.c datagen.c dibio.c
@@ -113,6 +113,9 @@ zstd-pgo : clean zstd
 
 zstd-frugal: $(ZSTD_FILES) $(ZBUFF_FILES) zstdcli.c fileio.c
 	$(CC)      $(FLAGS) -DZSTD_NOBENCH -DZSTD_NODICT -DZSTD_LEGACY_SUPPORT=0 $^ -o zstd$(EXT)
+
+zstd-compress: $(ZSTDCOMP_FILES) $(ZSTDDIR)/compress/zbuff_compress.c zstdcli.c fileio.c
+	$(CC)      $(FLAGS) -DZSTD_NOBENCH -DZSTD_NODICT -DZSTD_NODECOMPRESS -DZSTD_LEGACY_SUPPORT=0 $^ -o $@$(EXT)
 
 zstd-decompress: $(ZSTDDECOMP_FILES) $(ZSTDDIR)/decompress/zbuff_decompress.c zstdcli.c fileio.c
 	$(CC)      $(FLAGS) -DZSTD_NOBENCH -DZSTD_NODICT -DZSTD_NOCOMPRESS -DZSTD_LEGACY_SUPPORT=0 $^ -o $@$(EXT)

@@ -57,6 +57,7 @@ GetLibraryVersion("${HEADER_CONTENT}" LIBVER_MAJOR LIBVER_MINOR LIBVER_RELEASE)
 MESSAGE("ZSTD VERSION ${LIBVER_MAJOR}.${LIBVER_MINOR}.${LIBVER_RELEASE}")
 
 SET(Sources
+        ${LIBRARY_DIR}/common/zstd_common.c
         ${LIBRARY_DIR}/compress/fse_compress.c
         ${LIBRARY_DIR}/compress/huf_compress.c
         ${LIBRARY_DIR}/compress/zbuff_compress.c
@@ -120,8 +121,8 @@ ENDIF (MSVC)
 
 # Define include directories
 IF (NOT WORKAROUND_OUTDATED_CODE_STYLE)
-    TARGET_INCLUDE_DIRECTORIES(libzstd_static PUBLIC ${LIBRARY_DIR})
-    TARGET_INCLUDE_DIRECTORIES(libzstd_shared PUBLIC ${LIBRARY_DIR})
+    TARGET_INCLUDE_DIRECTORIES(libzstd_static PUBLIC ${LIBRARY_DIR}/common)
+    TARGET_INCLUDE_DIRECTORIES(libzstd_shared PUBLIC ${LIBRARY_DIR}/common)
     IF (ZSTD_LEGACY_SUPPORT)
         TARGET_INCLUDE_DIRECTORIES(libzstd_static PUBLIC ${LIBRARY_LEGACY_DIR})
         TARGET_INCLUDE_DIRECTORIES(libzstd_shared PUBLIC ${LIBRARY_LEGACY_DIR})

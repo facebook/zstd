@@ -245,8 +245,5 @@ size_t ZBUFF_decompressContinue(ZBUFF_DCtx* zbd,
 /* *************************************
 *  Tool functions
 ***************************************/
-unsigned ZBUFF_isError(size_t errorCode) { return ERR_isError(errorCode); }
-const char* ZBUFF_getErrorName(size_t errorCode) { return ERR_getErrorName(errorCode); }
-
 size_t ZBUFF_recommendedDInSize(void)  { return ZSTD_BLOCKSIZE_MAX + ZSTD_blockHeaderSize /* block header size*/ ; }
 size_t ZBUFF_recommendedDOutSize(void) { return ZSTD_BLOCKSIZE_MAX; }

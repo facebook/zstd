@@ -114,6 +114,9 @@ zstd-pgo : clean zstd
 zstd-frugal: $(ZSTD_FILES) $(ZBUFF_FILES) zstdcli.c fileio.c
 	$(CC)      $(FLAGS) -DZSTD_NOBENCH -DZSTD_NODICT -DZSTD_LEGACY_SUPPORT=0 $^ -o zstd$(EXT)
 
+zstd-decompress: $(ZSTDDECOMP_FILES) $(ZSTDDIR)/decompress/zbuff_decompress.c zstdcli.c fileio.c
+	$(CC)      $(FLAGS) -DZSTD_NOBENCH -DZSTD_NODICT -DZSTD_NOCOMPRESS -DZSTD_LEGACY_SUPPORT=0 $^ -o $@$(EXT)
+
 zstd-small: clean 
 	CFLAGS="-Os -s" $(MAKE) zstd-frugal 
 

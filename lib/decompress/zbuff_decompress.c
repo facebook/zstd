@@ -40,12 +40,6 @@
 #include "zbuff_static.h"
 
 
-/* *************************************
-*  Constants
-***************************************/
-static size_t const ZBUFF_endFrameSize = ZSTD_BLOCKHEADERSIZE;
-
-
 /*-***************************************************************************
 *  Streaming decompression howto
 *

@@ -112,6 +112,8 @@
 
 #define MAX_DICT_SIZE (1 MB)   /* protection against large input (attack scenario) ; can be changed */
 
+#define FNSPACE 30
+
 
 /*-*************************************
 *  Macros
@@ -267,6 +269,7 @@ static size_t FIO_loadFile(void** bufferPtr, const char* fileName)
     return (size_t)fileSize;
 }
 
+#ifndef ZSTD_NOCOMPRESS
 
 /*-**********************************************************************
 *  Compression
@@ -460,7 +463,6 @@ int FIO_compressFilename(const char* dstFileName, const char* srcFileName,
 }
 
 
-#define FNSPACE 30
 int FIO_compressMultipleFilenames(const char** inFileNamesTable, unsigned nbFiles,
                                   const char* suffix,
                                   const char* dictFileName, int compressionLevel)
@@ -498,6 +500,8 @@ int FIO_compressMultipleFilenames(const char** inFileNamesTable, unsigned nbFile
 
     return missed_files;
 }
+
+#endif // #ifndef ZSTD_NOCOMPRESS
 
 
 /* **************************************************************************

@@ -95,19 +95,12 @@
 /*-*************************************
 *  Constants
 ***************************************/
-#define KB *(1U<<10)
-#define MB *(1U<<20)
-#define GB *(1U<<30)
-
 #define _1BIT  0x01
 #define _2BITS 0x03
 #define _3BITS 0x07
 #define _4BITS 0x0F
 #define _6BITS 0x3F
 #define _8BITS 0xFF
-
-#define BIT6  0x40
-#define BIT7  0x80
 
 #define BLOCKSIZE      (128 KB)
 #define ROLLBUFFERSIZE (BLOCKSIZE*8*64)
@@ -135,7 +128,6 @@ void FIO_setNotificationLevel(unsigned level) { g_displayLevel=level; }
 static const unsigned refreshRate = 150;
 static clock_t g_time = 0;
 
-#define MAX(a,b)   ((a)>(b)?(a):(b))
 
 
 /*-*************************************

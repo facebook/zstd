@@ -94,18 +94,6 @@ static void ZSTD_copy4(void* dst, const void* src) { memcpy(dst, src, 4); }
 ***************************************/
 unsigned ZSTD_versionNumber (void) { return ZSTD_VERSION_NUMBER; }
 
-/*! ZSTD_isError() :
-*   tells if a return value is an error code */
-unsigned ZSTD_isError(size_t code) { return ERR_isError(code); }
-
-/*! ZSTD_getError() :
-*   convert a `size_t` function result into a proper ZSTD_errorCode enum */
-ZSTD_ErrorCode ZSTD_getError(size_t code) { return ERR_getError(code); }
-
-/*! ZSTD_getErrorName() :
-*   provides error code string (useful for debugging) */
-const char* ZSTD_getErrorName(size_t code) { return ERR_getErrorName(code); }
-
 
 /*-*************************************************************
 *   Context management
@@ -867,7 +855,7 @@ static size_t ZSTD_decompressFrame(ZSTD_DCtx* dctx,
     BYTE* op = ostart;
     BYTE* const oend = ostart + dstCapacity;
     size_t remainingSize = srcSize;
-    blockProperties_t blockProperties;
+    blockProperties_t blockProperties = {0};
 
     /* check */
     if (srcSize < ZSTD_frameHeaderSize_min+ZSTD_blockHeaderSize) return ERROR(srcSize_wrong);

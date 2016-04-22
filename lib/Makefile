@@ -54,7 +54,7 @@ INCLUDEDIR=$(PREFIX)/include
 ZSTDCOMP_FILES := compress/zstd_compress.c compress/fse_compress.c compress/huf_compress.c compress/zbuff_compress.c 
 ZSTDDECOMP_FILES := decompress/zstd_decompress.c decompress/fse_decompress.c decompress/huf_decompress.c decompress/zbuff_decompress.c
 ZSTDDICT_FILES := dictBuilder/zdict.c dictBuilder/divsufsort.c
-ZSTD_FILES := $(ZSTDDECOMP_FILES) $(ZSTDCOMP_FILES) $(ZSTDDICT_FILES)
+ZSTD_FILES := $(ZSTDDECOMP_FILES) common/zstd_common.c $(ZSTDCOMP_FILES) $(ZSTDDICT_FILES)
 ZSTD_LEGACY:= legacy/zstd_v01.c legacy/zstd_v02.c legacy/zstd_v03.c legacy/zstd_v04.c legacy/zstd_v05.c
 
 ifeq ($(ZSTD_LEGACY_SUPPORT), 0)
@@ -120,9 +120,9 @@ install: libzstd libzstd.pc
 	@cp -a libzstd.$(SHARED_EXT) $(DESTDIR)$(LIBDIR)
 	@cp -a libzstd.pc $(DESTDIR)$(LIBDIR)/pkgconfig/
 	@install -m 644 libzstd.a $(DESTDIR)$(LIBDIR)/libzstd.a
-	@install -m 644 zstd.h $(DESTDIR)$(INCLUDEDIR)/zstd.h
-	@install -m 644 zbuff.h $(DESTDIR)$(INCLUDEDIR)/zbuff.h
-	@install -m 644 zdict.h $(DESTDIR)$(INCLUDEDIR)/zdict.h
+	@install -m 644 common/zstd.h $(DESTDIR)$(INCLUDEDIR)/zstd.h
+	@install -m 644 common/zbuff.h $(DESTDIR)$(INCLUDEDIR)/zbuff.h
+	@install -m 644 dictBuilder/zdict.h $(DESTDIR)$(INCLUDEDIR)/zdict.h
 	@echo zstd static and shared library installed
 
 uninstall:

@@ -855,7 +855,7 @@ static size_t ZSTD_decompressFrame(ZSTD_DCtx* dctx,
     BYTE* op = ostart;
     BYTE* const oend = ostart + dstCapacity;
     size_t remainingSize = srcSize;
-    blockProperties_t blockProperties = {0};
+    blockProperties_t blockProperties = { bt_compressed, 0 };
 
     /* check */
     if (srcSize < ZSTD_frameHeaderSize_min+ZSTD_blockHeaderSize) return ERROR(srcSize_wrong);

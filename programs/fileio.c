@@ -504,6 +504,9 @@ int FIO_compressMultipleFilenames(const char** inFileNamesTable, unsigned nbFile
 #endif // #ifndef ZSTD_NOCOMPRESS
 
 
+
+#ifndef ZSTD_NODECOMPRESS
+
 /* **************************************************************************
 *  Decompression
 ****************************************************************************/
@@ -721,3 +724,4 @@ int FIO_decompressMultipleFilenames(const char** srcNamesTable, unsigned nbFiles
     return missingFiles + skippedFiles;
 }
 
+#endif // #ifndef ZSTD_NODECOMPRESS

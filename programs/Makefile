@@ -53,7 +53,7 @@ BINDIR  = $(PREFIX)/bin
 MANDIR  = $(PREFIX)/share/man/man1
 ZSTDDIR = ../lib
 
-ZSTDCOMP_FILES := $(ZSTDDIR)/compress/zstd_compress.c $(ZSTDDIR)/compress/fse_compress.c $(ZSTDDIR)/compress/huf_compress.c $(ZSTDDIR)/common/zstd_common.c
+ZSTDCOMP_FILES := $(ZSTDDIR)/compress/zstd_compress.c $(ZSTDDIR)/compress/fse_compress.c $(ZSTDDIR)/compress/huf_compress.c $(ZSTDDIR)/common/zstd_common.c $(ZSTDDIR)/decompress/fse_decompress.c
 ZSTDDECOMP_FILES := $(ZSTDDIR)/decompress/zstd_decompress.c $(ZSTDDIR)/decompress/fse_decompress.c $(ZSTDDIR)/decompress/huf_decompress.c $(ZSTDDIR)/common/zstd_common.c
 ZDICT_FILES := $(ZSTDDIR)/dictBuilder/zdict.c $(ZSTDDIR)/dictBuilder/divsufsort.c
 ZBUFF_FILES := $(ZSTDDIR)/compress/zbuff_compress.c $(ZSTDDIR)/decompress/zbuff_decompress.c

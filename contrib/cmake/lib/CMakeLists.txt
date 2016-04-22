@@ -47,40 +47,43 @@ SET(ROOT_DIR ../../..)
 
 # Define library directory, where sources and header files are located
 SET(LIBRARY_DIR ${ROOT_DIR}/lib)
-INCLUDE_DIRECTORIES(${LIBRARY_DIR})
+INCLUDE_DIRECTORIES(${LIBRARY_DIR}/common)
 
 # Read file content
-FILE(READ ${LIBRARY_DIR}/zstd.h HEADER_CONTENT)
+FILE(READ ${LIBRARY_DIR}/common/zstd.h HEADER_CONTENT)
 
 # Parse version
 GetLibraryVersion("${HEADER_CONTENT}" LIBVER_MAJOR LIBVER_MINOR LIBVER_RELEASE)
 MESSAGE("ZSTD VERSION ${LIBVER_MAJOR}.${LIBVER_MINOR}.${LIBVER_RELEASE}")
 
 SET(Sources
-        ${LIBRARY_DIR}/divsufsort.c
-        ${LIBRARY_DIR}/fse.c
-        ${LIBRARY_DIR}/huff0.c
-        ${LIBRARY_DIR}/zbuff.c
-        ${LIBRARY_DIR}/zdict.c
-        ${LIBRARY_DIR}/zstd_compress.c
-        ${LIBRARY_DIR}/zstd_decompress.c)
+        ${LIBRARY_DIR}/compress/fse_compress.c
+        ${LIBRARY_DIR}/compress/huf_compress.c
+        ${LIBRARY_DIR}/compress/zbuff_compress.c
+        ${LIBRARY_DIR}/compress/zstd_compress.c
+        ${LIBRARY_DIR}/decompress/fse_decompress.c
+        ${LIBRARY_DIR}/decompress/huf_decompress.c
+        ${LIBRARY_DIR}/decompress/zbuff_decompress.c
+        ${LIBRARY_DIR}/decompress/zstd_decompress.c
+        ${LIBRARY_DIR}/dictBuilder/divsufsort.c
+        ${LIBRARY_DIR}/dictBuilder/zdict.c)
 
 SET(Headers
-        ${LIBRARY_DIR}/bitstream.h
-        ${LIBRARY_DIR}/error_private.h
-        ${LIBRARY_DIR}/error_public.h
-        ${LIBRARY_DIR}/fse.h
-        ${LIBRARY_DIR}/fse_static.h
-        ${LIBRARY_DIR}/huff0.h
-        ${LIBRARY_DIR}/huff0_static.h
-        ${LIBRARY_DIR}/mem.h
-        ${LIBRARY_DIR}/zbuff.h
-        ${LIBRARY_DIR}/zbuff_static.h
-        ${LIBRARY_DIR}/zdict.h
-        ${LIBRARY_DIR}/zdict_static.h
-        ${LIBRARY_DIR}/zstd_internal.h
-        ${LIBRARY_DIR}/zstd_static.h
-        ${LIBRARY_DIR}/zstd.h)
+        ${LIBRARY_DIR}/common/bitstream.h
+        ${LIBRARY_DIR}/common/error_private.h
+        ${LIBRARY_DIR}/common/error_public.h
+        ${LIBRARY_DIR}/common/fse.h
+        ${LIBRARY_DIR}/common/fse_static.h
+        ${LIBRARY_DIR}/common/huf.h
+        ${LIBRARY_DIR}/common/huf_static.h
+        ${LIBRARY_DIR}/common/mem.h
+        ${LIBRARY_DIR}/common/zbuff.h
+        ${LIBRARY_DIR}/common/zbuff_static.h
+        ${LIBRARY_DIR}/common/zstd_internal.h
+        ${LIBRARY_DIR}/common/zstd_static.h
+        ${LIBRARY_DIR}/common/zstd.h
+        ${LIBRARY_DIR}/dictBuilder/zdict.h
+        ${LIBRARY_DIR}/dictBuilder/zdict_static.h)
 
 IF (ZSTD_LEGACY_SUPPORT)
     SET(LIBRARY_LEGACY_DIR ${LIBRARY_DIR}/legacy)

@@ -15,7 +15,7 @@ To build the zstd library the following files are required:
 - common/huf.h
 - common/huf_static.h
 - [common/mem.h](common/mem.h)
-- [common/zstd.h](common/zstd.h)
+- [common/zstd.h]
 - common/zstd_internal.h
 - common/zstd_static.h
 - compress/fse_compress.c
@@ -26,16 +26,18 @@ To build the zstd library the following files are required:
 - decompress/huf_decompress.c
 - decompress/zstd_decompress.c
 
-Stable API is exposed in [zstd.h].
-Advanced and experimental API is exposed in `zstd_static.h`.
-`zstd_static.h` API elements should be used with static linking only,
+Stable API is exposed in [common/zstd.h].
+Advanced and experimental API is exposed in `common/zstd_static.h`.
+`common/zstd_static.h` API elements should be used with static linking only,
 as their definition may change in future version of the library.
+
+[common/zstd.h]: common/zstd.h
 
 
 #### Separate compressor and decompressor
 
-To build a separate zstd compressor all files from common/ and compressor/ directories are required.
-In similar way to build a separate zstd decompressor all files from common/ and decompressor/ directories are needed.
+To build a separate zstd compressor all files from `common/` and `compressor/` directories are required.
+In a similar way to build a separate zstd decompressor all files from `common/` and `decompressor/` directories are needed.
 
 
 #### Buffered streaming

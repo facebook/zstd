@@ -209,12 +209,13 @@ static U32 BMK_isDirectory(const char* infilename)
 #if defined(_MSC_VER)
     struct _stat64 statbuf;
     r = _stat64(infilename, &statbuf);
+    if (!r && (statbuf.st_mode & _S_IFDIR)) return 1;
 #else
     struct stat statbuf;
     r = stat(infilename, &statbuf);
-#endif
     if (!r && S_ISDIR(statbuf.st_mode)) return 1;
-    return 0;
+#endif
+	return 0;
 }
 
 /* ********************************************************
@@ -467,11 +468,11 @@ static void BMK_benchCLevel(void* srcBuffer, size_t benchedSize,
     benchResult_t result, total;
     int l;
 
-    SET_HIGH_PRIORITY;
-
     const char* pch = strrchr(displayName, '\\'); /* Windows */
     if (!pch) pch = strrchr(displayName, '/'); /* Linux */
     if (pch) displayName = pch+1;
+
+    SET_HIGH_PRIORITY;
 
     memset(&result, 0, sizeof(result));
     memset(&total, 0, sizeof(total));
@@ -522,15 +523,15 @@ static void BMK_loadFiles(void* buffer, size_t bufferSize,
                           const char** fileNamesTable, unsigned nbFiles)
 {
     size_t pos = 0, totalSize = 0;
-
+    FILE* f;
     unsigned n;
     for (n=0; n<nbFiles; n++) {
+        U64 fileSize = BMK_getFileSize(fileNamesTable[n]);
         if (BMK_isDirectory(fileNamesTable[n])) {
             DISPLAYLEVEL(2, "Ignoring %s directory...       \n", fileNamesTable[n]);
             continue;
         }
-        U64 fileSize = BMK_getFileSize(fileNamesTable[n]);
-        FILE* const f = fopen(fileNamesTable[n], "rb");
+        f = fopen(fileNamesTable[n], "rb");
         if (f==NULL) EXM_THROW(10, "impossible to open file %s", fileNamesTable[n]);
         DISPLAYLEVEL(2, "Loading %s...       \r", fileNamesTable[n]);
         if (fileSize > bufferSize-pos) fileSize = bufferSize-pos, nbFiles=n;   /* buffer too small - stop after this file */

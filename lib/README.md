@@ -27,11 +27,12 @@ To build the zstd library the following files are required:
 - decompress/zstd_decompress.c
 
 Stable API is exposed in [common/zstd.h].
-Advanced and experimental API is exposed in `common/zstd_static.h`.
-`common/zstd_static.h` API elements should be used with static linking only,
+Advanced and experimental API is exposed in [common/zstd_static.h].
+API elements of [common/zstd_static.h] should be used with static linking only,
 as their definition may change in future version of the library.
 
 [common/zstd.h]: common/zstd.h
+[common/zstd_static.h]: common/zstd_static.h
 
 
 #### Separate compressor and decompressor

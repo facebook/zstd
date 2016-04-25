@@ -196,9 +196,10 @@ MEM_STATIC void ZSTD_updatePrice(seqStore_t* seqStorePtr, U32 litLength, const B
     }
 
     /* match offset */
-    seqStorePtr->offCodeSum++;
-    BYTE offCode = (BYTE)ZSTD_highbit(offset+1);
-    seqStorePtr->offCodeFreq[offCode]++;
+	{   BYTE offCode = (BYTE)ZSTD_highbit(offset+1);
+		seqStorePtr->offCodeSum++;
+		seqStorePtr->offCodeFreq[offCode]++;
+	}
 
     /* match Length */
     {   static const BYTE ML_Code[128] = { 0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15,
@@ -462,7 +463,7 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
     const BYTE* inr;
 
     /* init */
-    U32 rep[ZSTD_REP_INIT];
+    U32 offset, rep[ZSTD_REP_INIT];
     { U32 i; for (i=0; i<ZSTD_REP_INIT; i++) rep[i]=REPCODE_STARTVALUE; }
 
     ctx->nextToUpdate3 = ctx->nextToUpdate;
@@ -475,7 +476,7 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
     /* Match Loop */
     while (ip < ilimit) {
         U32 cur, match_num, last_pos, litlen, price;
-        U32 u, mlen, best_mlen, best_off;
+        U32 u, mlen, best_mlen, best_off, litLength;
         memset(opt, 0, sizeof(ZSTD_optimal_t));
         last_pos = 0;
         litlen = (U32)(ip - anchor);
@@ -650,7 +651,6 @@ _storeSequence:   /* cur, last_pos, best_mlen, best_off have to be set */
         ZSTD_LOG_PARSER("%d: cur=%d/%d best_mlen=%d best_off=%d rep[0]=%d\n", (int)(ip-base+cur), (int)cur, (int)last_pos, (int)best_mlen, (int)best_off, opt[cur].rep[0]);
 
         opt[0].mlen = 1;
-        U32 offset;
 
         while (1) {
             mlen = opt[cur].mlen;
@@ -674,8 +674,7 @@ _storeSequence:   /* cur, last_pos, best_mlen, best_off have to be set */
             if (mlen == 1) { ip++; cur++; continue; }
             offset = opt[cur].off;
             cur += mlen;
-
-            U32 const litLength = (U32)(ip - anchor);
+            litLength = (U32)(ip - anchor);
            // ZSTD_LOG_ENCODE("%d/%d: ENCODE literals=%d mlen=%d off=%d rep[0]=%d rep[1]=%d\n", (int)(ip-base), (int)(iend-base), (int)(litLength), (int)mlen, (int)(offset), (int)rep[0], (int)rep[1]);
 
             if (offset >= ZSTD_REP_NUM) {
@@ -746,10 +745,9 @@ void ZSTD_compressBlock_opt_extDict_generic(ZSTD_CCtx* ctx,
     ZSTD_optimal_t* opt = seqStorePtr->priceTable;
     ZSTD_match_t* matches = seqStorePtr->matchTable;
     const BYTE* inr;
-    U32 cur, match_num, last_pos, litlen, price;
 
     /* init */
-    U32 rep[ZSTD_REP_INIT];
+    U32 offset, rep[ZSTD_REP_INIT];
     { U32 i; for (i=0; i<ZSTD_REP_INIT; i++) rep[i]=REPCODE_STARTVALUE; }
 
     ctx->nextToUpdate3 = ctx->nextToUpdate;
@@ -761,10 +759,8 @@ void ZSTD_compressBlock_opt_extDict_generic(ZSTD_CCtx* ctx,
 
     /* Match Loop */
     while (ip < ilimit) {
-        U32 u;
-        U32 mlen=0;
-        U32 best_mlen=0;
-        U32 best_off=0;
+        U32 cur, match_num, last_pos, litlen, price;
+        U32 u, mlen, best_mlen, best_off, litLength;
         U32 current = (U32)(ip-base);
         memset(opt, 0, sizeof(ZSTD_optimal_t));
         last_pos = 0;
@@ -960,7 +956,6 @@ _storeSequence:   /* cur, last_pos, best_mlen, best_off have to be set */
         ZSTD_LOG_PARSER("%d: cur=%d/%d best_mlen=%d best_off=%d rep[0]=%d\n", (int)(ip-base+cur), (int)cur, (int)last_pos, (int)best_mlen, (int)best_off, opt[cur].rep[0]);
 
         opt[0].mlen = 1;
-        U32 offset;
 
         while (1) {
             mlen = opt[cur].mlen;
@@ -984,8 +979,7 @@ _storeSequence:   /* cur, last_pos, best_mlen, best_off have to be set */
             if (mlen == 1) { ip++; cur++; continue; }
             offset = opt[cur].off;
             cur += mlen;
-
-            U32 const litLength = (U32)(ip - anchor);
+            litLength = (U32)(ip - anchor);
          //   ZSTD_LOG_ENCODE("%d/%d: ENCODE1 literals=%d mlen=%d off=%d rep[0]=%d rep[1]=%d\n", (int)(ip-base), (int)(iend-base), (int)(litLength), (int)mlen, (int)(offset), (int)rep[0], (int)rep[1]);
 
             if (offset >= ZSTD_REP_NUM) {

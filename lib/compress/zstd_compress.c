@@ -218,7 +218,7 @@ static size_t ZSTD_resetCCtx_advanced (ZSTD_CCtx* zc,
     const size_t maxNbSeq = blockSize / divider;
     const size_t tokenSpace = blockSize + 11*maxNbSeq;
     const size_t chainSize = (params.cParams.strategy == ZSTD_fast) ? 0 : (1 << params.cParams.chainLog);
-    const size_t hSize = 1 << params.cParams.hashLog;
+    const size_t hSize = (size_t)(1 << params.cParams.hashLog);
     const size_t h3Size = (zc->hashLog3) ? 1 << zc->hashLog3 : 0;
     const size_t tableSpace = (chainSize + hSize + h3Size) * sizeof(U32);
 
@@ -291,7 +291,7 @@ size_t ZSTD_copyCCtx(ZSTD_CCtx* dstCCtx, const ZSTD_CCtx* srcCCtx)
 
     /* copy tables */
     {   const size_t chainSize = (srcCCtx->params.cParams.strategy == ZSTD_fast) ? 0 : (1 << srcCCtx->params.cParams.chainLog);
-        const size_t hSize = 1 << srcCCtx->params.cParams.hashLog;
+        const size_t hSize = (size_t)(1 << srcCCtx->params.cParams.hashLog);
         const size_t h3Size = (srcCCtx->hashLog3) ? 1 << srcCCtx->hashLog3 : 0;
         const size_t tableSpace = (chainSize + hSize + h3Size) * sizeof(U32);
         memcpy(dstCCtx->workSpace, srcCCtx->workSpace, tableSpace);

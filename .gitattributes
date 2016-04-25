@@ -10,7 +10,7 @@
 *.png binary
 
 # Visual Studio
-*.sln binary
-*.suo binary
+*.sln text eol=crlf
 *.vcxproj* text eol=crlf
-*.rc text eol=crlf
+*.suo binary
+*.rc binary

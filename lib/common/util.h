@@ -42,6 +42,7 @@ extern "C" {
 /*-****************************************
 *  Dependencies
 ******************************************/
+#include <time.h>        /* clock_t, nanosleep, clock, CLOCKS_PER_SEC */
 
 
 /*-****************************************
@@ -57,10 +58,63 @@ extern "C" {
 #  define UTIL_STATIC static  /* this version may generate warnings for unused static functions; disable the relevant warning */
 #endif
 
+/* Sleep functions: posix - windows - others */
+#if !defined(_WIN32) && (defined(__unix__) || defined(__unix) || (defined(__APPLE__) && defined(__MACH__)))
+#  include <unistd.h>
+#  include <sys/resource.h> /* setpriority */
+#  define UTIL_sleep(s) sleep(s)
+#  define UTIL_sleepMilli(milli) { struct timespec t; t.tv_sec=0; t.tv_nsec=milli*1000000ULL; nanosleep(&t, NULL); }
+#  define SET_HIGH_PRIORITY setpriority(PRIO_PROCESS, 0, -20)
+#elif defined(_WIN32)
+#  include <windows.h>
+#  define UTIL_sleep(s) Sleep(1000*s)
+#  define UTIL_sleepMilli(milli) Sleep(milli)
+#  define SET_HIGH_PRIORITY SetPriorityClass(GetCurrentProcess(), REALTIME_PRIORITY_CLASS)
+#else
+#  define UTIL_sleep(s)   /* disabled */
+#  define UTIL_sleepMilli(milli) /* disabled */
+#  define SET_HIGH_PRIORITY /* disabled */
+#endif
+
+#if !defined(_WIN32)
+   typedef clock_t UTIL_time_t;
+#  define UTIL_initTimer(ticksPerSecond) ticksPerSecond=0
+#  define UTIL_getTime(x) x = clock()
+#  define UTIL_getSpanTimeMicro(ticksPerSecond, clockStart, clockEnd) (1000000ULL * (clockEnd - clockStart) / CLOCKS_PER_SEC)
+#  define UTIL_getSpanTimeNano(ticksPerSecond, clockStart, clockEnd) (1000000000ULL * (clockEnd - clockStart) / CLOCKS_PER_SEC)
+#else
+   typedef LARGE_INTEGER UTIL_time_t;
+#  define UTIL_initTimer(x) if (!QueryPerformanceFrequency(&x)) { fprintf(stderr, "ERROR: QueryPerformance not present\n"); }
+#  define UTIL_getTime(x) QueryPerformanceCounter(&x)
+#  define UTIL_getSpanTimeMicro(ticksPerSecond, clockStart, clockEnd) (1000000ULL*(clockEnd.QuadPart - clockStart.QuadPart)/ticksPerSecond.QuadPart)
+#  define UTIL_getSpanTimeNano(ticksPerSecond, clockStart, clockEnd) (1000000000ULL*(clockEnd.QuadPart - clockStart.QuadPart)/ticksPerSecond.QuadPart)
+#endif
+
+
 
 /*-****************************************
 *  Utility functions
 ******************************************/
+/* returns time span in microseconds */
+UTIL_STATIC U64 UTIL_clockSpanMicro( UTIL_time_t clockStart, UTIL_time_t ticksPerSecond )
+{
+    UTIL_time_t clockEnd;
+
+    (void)ticksPerSecond;
+    UTIL_getTime(clockEnd);
+    return UTIL_getSpanTimeMicro(ticksPerSecond, clockStart, clockEnd);
+}
+
+
+UTIL_STATIC void UTIL_waitForNextTick(UTIL_time_t ticksPerSecond)
+{
+    UTIL_time_t clockStart, clockEnd;
+    UTIL_getTime(clockStart);
+    do { UTIL_getTime(clockEnd); }
+    while (UTIL_getSpanTimeNano(ticksPerSecond, clockStart, clockEnd) == 0);
+}
+
+
 UTIL_STATIC U64 UTIL_getFileSize(const char* infilename)
 {
     int r;

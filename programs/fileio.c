@@ -66,6 +66,7 @@
 #include "fileio.h"
 #include "zstd_static.h"   /* ZSTD_magicNumber, ZSTD_frameHeaderSize_max */
 #include "zbuff_static.h"
+#include "util.h"        /* UTIL_GetFileSize */
 
 #if defined(ZSTD_LEGACY_SUPPORT) && (ZSTD_LEGACY_SUPPORT==1)
 #  include "zstd_legacy.h"    /* ZSTD_isLegacy */
@@ -85,10 +86,6 @@
 #  include <unistd.h>   /* isatty */
 #  define SET_BINARY_MODE(file)
 #  define IS_CONSOLE(stdStream) isatty(fileno(stdStream))
-#endif
-
-#if !defined(S_ISREG)
-#  define S_ISREG(x) (((x) & S_IFMT) == S_IFREG)
 #endif
 
 
@@ -169,21 +166,6 @@ static unsigned FIO_GetMilliSpan(clock_t nPrevious)
 }
 
 
-static U64 FIO_getFileSize(const char* infilename)
-{
-    int r;
-#if defined(_MSC_VER)
-    struct _stat64 statbuf;
-    r = _stat64(infilename, &statbuf);
-#else
-    struct stat statbuf;
-    r = stat(infilename, &statbuf);
-#endif
-    if (r || !S_ISREG(statbuf.st_mode)) return 0;
-    return (U64)statbuf.st_size;
-}
-
-
 static FILE* FIO_openSrcFile(const char* srcFileName)
 {
     FILE* f;
@@ -252,7 +234,7 @@ static size_t FIO_loadFile(void** bufferPtr, const char* fileName)
     DISPLAYLEVEL(4,"Loading %s as dictionary \n", fileName);
     fileHandle = fopen(fileName, "rb");
     if (fileHandle==0) EXM_THROW(31, "Error opening file %s", fileName);
-    fileSize = FIO_getFileSize(fileName);
+    fileSize = UTIL_getFileSize(fileName);
     if (fileSize > MAX_DICT_SIZE) {
         int seekResult;
         if (fileSize > 1 GB) EXM_THROW(32, "Dictionary file %s is too large", fileName);   /* avoid extreme cases */
@@ -333,7 +315,7 @@ static int FIO_compressFilename_internal(cRess_t ress,
     size_t dictSize = ress.dictBufferSize;
     size_t sizeCheck;
     ZSTD_parameters params;
-    U64 const fileSize = FIO_getFileSize(srcFileName);
+    U64 const fileSize = UTIL_getFileSize(srcFileName);
 
     /* init */
     params.cParams = ZSTD_getCParams(cLevel, fileSize, dictSize);

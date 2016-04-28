@@ -52,8 +52,6 @@
 **************************************/
 #include <stdlib.h>       /* malloc */
 #include <stdio.h>        /* fprintf, fopen, ftello64 */
-#include <sys/types.h>    /* stat64 */
-#include <sys/stat.h>     /* stat64 */
 #include <string.h>       /* strcmp */
 #include <math.h>         /* log */
 
@@ -64,17 +62,17 @@
 #  include <sys/time.h>   /* gettimeofday */
 #endif
 
+#include "util.h"        /* UTIL_GetFileSize */
 #include "mem.h"
 #include "zstd_static.h"
 #include "datagen.h"
 #include "xxhash.h"
-#include "util.h"        /* UTIL_GetFileSize */
 
 
 /*-************************************
 *  Constants
 **************************************/
-#define PROGRAM_DESCRIPTION "ZSTD_HC parameters tester"
+#define PROGRAM_DESCRIPTION "ZSTD parameters tester"
 #ifndef ZSTD_VERSION
 #  define ZSTD_VERSION ""
 #endif

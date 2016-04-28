@@ -44,18 +44,15 @@
 /* *************************************
 *  Includes
 ***************************************/
-#define _POSIX_C_SOURCE 199309L   /* before <time.h> - needed for nanosleep() */
 #include <stdlib.h>      /* malloc, free */
 #include <string.h>      /* memset */
 #include <stdio.h>       /* fprintf, fopen, ftello64 */
-#include <sys/types.h>   /* stat64 */
-#include <sys/stat.h>    /* stat64 */
 
+#include "util.h"        /* UTIL_GetFileSize */
 #include "mem.h"
 #include "zstd_static.h"
 #include "datagen.h"     /* RDG_genBuffer */
 #include "xxhash.h"
-#include "util.h"        /* UTIL_GetFileSize */
 
 
 /* *************************************

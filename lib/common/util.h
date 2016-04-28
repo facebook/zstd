@@ -42,7 +42,11 @@ extern "C" {
 /*-****************************************
 *  Dependencies
 ******************************************/
-#include <time.h>        /* clock_t, nanosleep, clock, CLOCKS_PER_SEC */
+#define _POSIX_C_SOURCE 199309L   /* before <time.h> - needed for nanosleep() */
+#include <time.h>       /* clock_t, nanosleep, clock, CLOCKS_PER_SEC */
+#include <sys/types.h>  /* stat */
+#include <sys/stat.h>   /* stat */
+#include "mem.h"        /* U32, U64 */
 
 
 /*-****************************************
@@ -99,8 +103,8 @@ extern "C" {
 UTIL_STATIC U64 UTIL_clockSpanMicro( UTIL_time_t clockStart, UTIL_time_t ticksPerSecond )
 {
     UTIL_time_t clockEnd;
-
     (void)ticksPerSecond;
+
     UTIL_getTime(clockEnd);
     return UTIL_getSpanTimeMicro(ticksPerSecond, clockStart, clockEnd);
 }
@@ -109,9 +113,12 @@ UTIL_STATIC U64 UTIL_clockSpanMicro( UTIL_time_t clockStart, UTIL_time_t ticksPe
 UTIL_STATIC void UTIL_waitForNextTick(UTIL_time_t ticksPerSecond)
 {
     UTIL_time_t clockStart, clockEnd;
+    (void)ticksPerSecond;
+
     UTIL_getTime(clockStart);
-    do { UTIL_getTime(clockEnd); }
-    while (UTIL_getSpanTimeNano(ticksPerSecond, clockStart, clockEnd) == 0);
+    do { 
+        UTIL_getTime(clockEnd); 
+    } while (UTIL_getSpanTimeNano(ticksPerSecond, clockStart, clockEnd) == 0);
 }
 
 

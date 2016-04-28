@@ -60,10 +60,9 @@
 #include <string.h>     /* strcmp, strlen */
 #include <time.h>       /* clock */
 #include <errno.h>      /* errno */
-#include <sys/types.h>  /* stat64 */
-#include <sys/stat.h>   /* stat64 */
-#include "mem.h"
+
 #include "util.h"        /* UTIL_GetFileSize */
+#include "mem.h"
 #include "fileio.h"
 #include "zstd_static.h"   /* ZSTD_magicNumber, ZSTD_frameHeaderSize_max */
 #include "zbuff_static.h"

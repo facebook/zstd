@@ -43,17 +43,15 @@
 **************************************/
 #include <stdlib.h>       /* malloc */
 #include <stdio.h>        /* fprintf, fopen, ftello64 */
-#include <sys/types.h>    /* stat64 */
-#include <sys/stat.h>     /* stat64 */
 #include <string.h>       /* strcmp */
 #include <time.h>         /* clock_t, clock, CLOCKS_PER_SEC */
 
+#include "util.h"        /* UTIL_GetFileSize */
 #include "mem.h"
 #include "zstd_static.h"
 #include "fse_static.h"
 #include "zbuff.h"
 #include "datagen.h"
-#include "util.h"        /* UTIL_GetFileSize */
 
 
 /*_************************************

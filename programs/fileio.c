@@ -63,10 +63,10 @@
 #include <sys/types.h>  /* stat64 */
 #include <sys/stat.h>   /* stat64 */
 #include "mem.h"
+#include "util.h"        /* UTIL_GetFileSize */
 #include "fileio.h"
 #include "zstd_static.h"   /* ZSTD_magicNumber, ZSTD_frameHeaderSize_max */
 #include "zbuff_static.h"
-#include "util.h"        /* UTIL_GetFileSize */
 
 #if defined(ZSTD_LEGACY_SUPPORT) && (ZSTD_LEGACY_SUPPORT==1)
 #  include "zstd_legacy.h"    /* ZSTD_isLegacy */

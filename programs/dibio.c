@@ -105,16 +105,6 @@ const char* DiB_getErrorName(size_t errorCode) { return ERR_getErrorName(errorCo
 /* ********************************************************
 *  File related operations
 **********************************************************/
-static unsigned long long DiB_getTotalFileSize(const char** fileNamesTable, unsigned nbFiles)
-{
-    unsigned long long total = 0;
-    unsigned n;
-    for (n=0; n<nbFiles; n++)
-        total += UTIL_getFileSize(fileNamesTable[n]);
-    return total;
-}
-
-
 static void DiB_loadFiles(void* buffer, size_t bufferSize,
                           size_t* fileSizes,
                           const char** fileNamesTable, unsigned nbFiles)
@@ -209,7 +199,7 @@ int DiB_trainFromFiles(const char* dictFileName, unsigned maxDictSize,
     void* srcBuffer;
     size_t benchedSize;
     size_t* fileSizes = (size_t*)malloc(nbFiles * sizeof(size_t));
-    unsigned long long totalSizeToLoad = DiB_getTotalFileSize(fileNamesTable, nbFiles);
+    unsigned long long totalSizeToLoad = UTIL_getTotalFileSize(fileNamesTable, nbFiles);
     void* dictBuffer = malloc(maxDictSize);
     size_t dictSize;
     int result = 0;

@@ -67,13 +67,6 @@
 #include "zdict_static.h"
 
 
-/*-*************************************
-*  Compiler specifics
-***************************************/
-#if !defined(S_ISREG)
-#  define S_ISREG(x) (((x) & S_IFMT) == S_IFREG)
-#endif
-
 
 /*-*************************************
 *  Constants

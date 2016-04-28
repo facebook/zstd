@@ -86,17 +86,14 @@
 
 #include "mem.h"
 #include "zstd_static.h"
-#include "datagen.h"       /* RDG_genBuffer */
+#include "datagen.h"     /* RDG_genBuffer */
 #include "xxhash.h"
+#include "util.h"        /* UTIL_GetFileSize */
 
 
 /* *************************************
 *  Compiler specifics
 ***************************************/
-#if !defined(S_ISREG)
-#  define S_ISREG(x) (((x) & S_IFMT) == S_IFREG)
-#endif
-
 #if defined(_MSC_VER)
 #  define snprintf sprintf_s
 #elif defined (__cplusplus) || (defined (__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L))
@@ -189,34 +186,6 @@ static U64 BMK_clockSpan( BMK_time_t clockStart, BMK_time_t ticksPerSecond )
     return BMK_getSpanTimeMicro(ticksPerSecond, clockStart, clockEnd);
 }
 
-static U64 BMK_getFileSize(const char* infilename)
-{
-    int r;
-#if defined(_MSC_VER)
-    struct _stat64 statbuf;
-    r = _stat64(infilename, &statbuf);
-#else
-    struct stat statbuf;
-    r = stat(infilename, &statbuf);
-#endif
-    if (r || !S_ISREG(statbuf.st_mode)) return 0;   /* No good... */
-    return (U64)statbuf.st_size;
-}
-
-static U32 BMK_isDirectory(const char* infilename)
-{
-    int r;
-#if defined(_MSC_VER)
-    struct _stat64 statbuf;
-    r = _stat64(infilename, &statbuf);
-    if (!r && (statbuf.st_mode & _S_IFDIR)) return 1;
-#else
-    struct stat statbuf;
-    r = stat(infilename, &statbuf);
-    if (!r && S_ISDIR(statbuf.st_mode)) return 1;
-#endif
-	return 0;
-}
 
 /* ********************************************************
 *  Bench functions
@@ -511,7 +480,7 @@ static U64 BMK_getTotalFileSize(const char** fileNamesTable, unsigned nbFiles)
     U64 total = 0;
     unsigned n;
     for (n=0; n<nbFiles; n++)
-        total += BMK_getFileSize(fileNamesTable[n]);
+        total += UTIL_getFileSize(fileNamesTable[n]);
     return total;
 }
 
@@ -526,8 +495,8 @@ static void BMK_loadFiles(void* buffer, size_t bufferSize,
     FILE* f;
     unsigned n;
     for (n=0; n<nbFiles; n++) {
-        U64 fileSize = BMK_getFileSize(fileNamesTable[n]);
-        if (BMK_isDirectory(fileNamesTable[n])) {
+        U64 fileSize = UTIL_getFileSize(fileNamesTable[n]);
+        if (UTIL_isDirectory(fileNamesTable[n])) {
             DISPLAYLEVEL(2, "Ignoring %s directory...       \n", fileNamesTable[n]);
             continue;
         }
@@ -562,7 +531,7 @@ static void BMK_benchFileTable(const char** fileNamesTable, unsigned nbFiles,
 
     /* Load dictionary */
     if (dictFileName != NULL) {
-        U64 dictFileSize = BMK_getFileSize(dictFileName);
+        U64 dictFileSize = UTIL_getFileSize(dictFileName);
         if (dictFileSize > 64 MB) EXM_THROW(10, "dictionary file %s too large", dictFileName);
         dictBufferSize = (size_t)dictFileSize;
         dictBuffer = malloc(dictBufferSize);

@@ -53,14 +53,7 @@
 #include "mem.h"            /* read */
 #include "error_private.h"
 #include "dibio.h"
-
-
-/*-*************************************
-*  Compiler specifics
-***************************************/
-#if !defined(S_ISREG)
-#  define S_ISREG(x) (((x) & S_IFMT) == S_IFREG)
-#endif
+#include "util.h"           /* UTIL_GetFileSize */
 
 
 /*-*************************************
@@ -115,27 +108,12 @@ const char* DiB_getErrorName(size_t errorCode) { return ERR_getErrorName(errorCo
 /* ********************************************************
 *  File related operations
 **********************************************************/
-static unsigned long long DiB_getFileSize(const char* infilename)
-{
-    int r;
-#if defined(_MSC_VER)
-    struct _stat64 statbuf;
-    r = _stat64(infilename, &statbuf);
-#else
-    struct stat statbuf;
-    r = stat(infilename, &statbuf);
-#endif
-    if (r || !S_ISREG(statbuf.st_mode)) return 0;   /* No good... */
-    return (unsigned long long)statbuf.st_size;
-}
-
-
 static unsigned long long DiB_getTotalFileSize(const char** fileNamesTable, unsigned nbFiles)
 {
     unsigned long long total = 0;
     unsigned n;
     for (n=0; n<nbFiles; n++)
-        total += DiB_getFileSize(fileNamesTable[n]);
+        total += UTIL_getFileSize(fileNamesTable[n]);
     return total;
 }
 
@@ -150,7 +128,7 @@ static void DiB_loadFiles(void* buffer, size_t bufferSize,
 
     for (n=0; n<nbFiles; n++) {
         size_t readSize;
-        unsigned long long fileSize = DiB_getFileSize(fileNamesTable[n]);
+        unsigned long long fileSize = UTIL_getFileSize(fileNamesTable[n]);
         FILE* f = fopen(fileNamesTable[n], "rb");
         if (f==NULL) EXM_THROW(10, "impossible to open file %s", fileNamesTable[n]);
         DISPLAYLEVEL(2, "Loading %s...       \r", fileNamesTable[n]);

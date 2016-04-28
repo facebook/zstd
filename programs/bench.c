@@ -44,11 +44,11 @@
 /* *************************************
 *  Includes
 ***************************************/
+#include "util.h"        /* UTIL_GetFileSize */
 #include <stdlib.h>      /* malloc, free */
 #include <string.h>      /* memset */
 #include <stdio.h>       /* fprintf, fopen, ftello64 */
 
-#include "util.h"        /* UTIL_GetFileSize */
 #include "mem.h"
 #include "zstd_static.h"
 #include "datagen.h"     /* RDG_genBuffer */
@@ -421,14 +421,6 @@ static void BMK_benchCLevel(void* srcBuffer, size_t benchedSize,
     }
 }
 
-static U64 BMK_getTotalFileSize(const char** fileNamesTable, unsigned nbFiles)
-{
-    U64 total = 0;
-    unsigned n;
-    for (n=0; n<nbFiles; n++)
-        total += UTIL_getFileSize(fileNamesTable[n]);
-    return total;
-}
 
 /*! BMK_loadFiles() :
     Loads `buffer` with content of files listed within `fileNamesTable`.
@@ -469,7 +461,7 @@ static void BMK_benchFileTable(const char** fileNamesTable, unsigned nbFiles,
     void* dictBuffer = NULL;
     size_t dictBufferSize = 0;
     size_t* fileSizes = (size_t*)malloc(nbFiles * sizeof(size_t));
-    U64 totalSizeToLoad = BMK_getTotalFileSize(fileNamesTable, nbFiles);
+    U64 totalSizeToLoad = UTIL_getTotalFileSize(fileNamesTable, nbFiles);
     char mfName[20] = {0};
     const char* displayName = NULL;
 

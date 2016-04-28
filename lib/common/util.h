@@ -138,6 +138,16 @@ UTIL_STATIC U64 UTIL_getFileSize(const char* infilename)
 }
 
 
+UTIL_STATIC U64 UTIL_getTotalFileSize(const char** fileNamesTable, unsigned nbFiles)
+{
+    U64 total = 0;
+    unsigned n;
+    for (n=0; n<nbFiles; n++)
+        total += UTIL_getFileSize(fileNamesTable[n]);
+    return total;
+}
+
+
 UTIL_STATIC U32 UTIL_isDirectory(const char* infilename)
 {
     int r;

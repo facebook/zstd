@@ -41,12 +41,12 @@
 /*_************************************
 *  Includes
 **************************************/
+#include "util.h"         /* UTIL_GetFileSize */
 #include <stdlib.h>       /* malloc */
 #include <stdio.h>        /* fprintf, fopen, ftello64 */
 #include <string.h>       /* strcmp */
 #include <time.h>         /* clock_t, clock, CLOCKS_PER_SEC */
 
-#include "util.h"        /* UTIL_GetFileSize */
 #include "mem.h"
 #include "zstd_static.h"
 #include "fse_static.h"

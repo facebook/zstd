@@ -43,11 +43,11 @@
 /*-*************************************
 *  Includes
 ***************************************/
+#include "util.h"           /* UTIL_GetFileSize */
 #include <stdlib.h>         /* malloc, free */
 #include <string.h>         /* memset */
 #include <stdio.h>          /* fprintf, fopen, ftello64 */
 
-#include "util.h"           /* UTIL_GetFileSize */
 #include "mem.h"            /* read */
 #include "error_private.h"
 #include "dibio.h"

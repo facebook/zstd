@@ -55,13 +55,13 @@
 /*-*************************************
 *  Includes
 ***************************************/
+#include "util.h"       /* UTIL_GetFileSize */
 #include <stdio.h>      /* fprintf, fopen, fread, _fileno, stdin, stdout */
 #include <stdlib.h>     /* malloc, free */
 #include <string.h>     /* strcmp, strlen */
 #include <time.h>       /* clock */
 #include <errno.h>      /* errno */
 
-#include "util.h"        /* UTIL_GetFileSize */
 #include "mem.h"
 #include "fileio.h"
 #include "zstd_static.h"   /* ZSTD_magicNumber, ZSTD_frameHeaderSize_max */

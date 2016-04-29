@@ -436,6 +436,7 @@ static void BMK_loadFiles(void* buffer, size_t bufferSize,
         U64 fileSize = UTIL_getFileSize(fileNamesTable[n]);
         if (UTIL_isDirectory(fileNamesTable[n])) {
             DISPLAYLEVEL(2, "Ignoring %s directory...       \n", fileNamesTable[n]);
+            fileSizes[n] = 0;
             continue;
         }
         f = fopen(fileNamesTable[n], "rb");

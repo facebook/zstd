@@ -50,6 +50,7 @@
 /*-************************************
 *  Dependencies
 **************************************/
+#include "util.h"         /* UTIL_GetFileSize */
 #include <stdlib.h>       /* malloc */
 #include <stdio.h>        /* fprintf, fopen, ftello64 */
 #include <string.h>       /* strcmp */
@@ -62,7 +63,6 @@
 #  include <sys/time.h>   /* gettimeofday */
 #endif
 
-#include "util.h"        /* UTIL_GetFileSize */
 #include "mem.h"
 #include "zstd_static.h"
 #include "datagen.h"

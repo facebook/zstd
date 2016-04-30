@@ -45,5 +45,9 @@ ipch/
 
 # Other files
 .directory
-_codelite
-_zstdbench
+_codelite/
+_zstdbench/
+zlib_wrapper/
+
+# CMake
+contrib/cmake/

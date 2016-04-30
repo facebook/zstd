@@ -41,10 +41,9 @@
 /*_************************************
 *  Includes
 **************************************/
+#include "util.h"         /* UTIL_GetFileSize */
 #include <stdlib.h>       /* malloc */
 #include <stdio.h>        /* fprintf, fopen, ftello64 */
-#include <sys/types.h>    /* stat64 */
-#include <sys/stat.h>     /* stat64 */
 #include <string.h>       /* strcmp */
 #include <time.h>         /* clock_t, clock, CLOCKS_PER_SEC */
 
@@ -53,15 +52,6 @@
 #include "fse_static.h"
 #include "zbuff.h"
 #include "datagen.h"
-
-
-/*_************************************
-*  Compiler Options
-**************************************/
-/* S_ISREG & gettimeofday() are not supported by MSVC */
-#if !defined(S_ISREG)
-#  define S_ISREG(x) (((x) & S_IFMT) == S_IFREG)
-#endif
 
 
 /*_************************************
@@ -132,21 +122,6 @@ static size_t BMK_findMaxMem(U64 requiredMem)
 
     free (testmem);
     return (size_t) requiredMem;
-}
-
-
-static U64 BMK_GetFileSize(const char* infilename)
-{
-    int r;
-#if defined(_MSC_VER)
-    struct _stat64 statbuf;
-    r = _stat64(infilename, &statbuf);
-#else
-    struct stat statbuf;
-    r = stat(infilename, &statbuf);
-#endif
-    if (r || !S_ISREG(statbuf.st_mode)) return 0;   /* No good... */
-    return (U64)statbuf.st_size;
 }
 
 
@@ -446,7 +421,7 @@ static int benchFiles(const char** fileNamesTable, const int nbFiles, U32 benchN
         if (inFile==NULL) { DISPLAY( "Pb opening %s\n", inFileName); return 11; }
 
         /* Memory allocation & restrictions */
-        inFileSize = BMK_GetFileSize(inFileName);
+        inFileSize = UTIL_getFileSize(inFileName);
         benchedSize = BMK_findMaxMem(inFileSize*3) / 3;
         if ((U64)benchedSize > inFileSize) benchedSize = (size_t)inFileSize;
         if (benchedSize < inFileSize)

@@ -37,7 +37,7 @@
 #  define _LARGEFILE64_SOURCE
 #endif
 
-/* S_ISREG & gettimeofday() are not supported by MSVC */
+/* gettimeofday() are not supported by MSVC */
 #if defined(_MSC_VER) || defined(_WIN32)
 #  define BMK_LEGACY_TIMER 1
 #endif
@@ -50,10 +50,9 @@
 /*-************************************
 *  Dependencies
 **************************************/
+#include "util.h"         /* UTIL_GetFileSize */
 #include <stdlib.h>       /* malloc */
 #include <stdio.h>        /* fprintf, fopen, ftello64 */
-#include <sys/types.h>    /* stat64 */
-#include <sys/stat.h>     /* stat64 */
 #include <string.h>       /* strcmp */
 #include <math.h>         /* log */
 
@@ -71,18 +70,9 @@
 
 
 /*-************************************
-*  Compiler Options
-**************************************/
-/* S_ISREG & gettimeofday() are not supported by MSVC */
-#if !defined(S_ISREG)
-#  define S_ISREG(x) (((x) & S_IFMT) == S_IFREG)
-#endif
-
-
-/*-************************************
 *  Constants
 **************************************/
-#define PROGRAM_DESCRIPTION "ZSTD_HC parameters tester"
+#define PROGRAM_DESCRIPTION "ZSTD parameters tester"
 #ifndef ZSTD_VERSION
 #  define ZSTD_VERSION ""
 #endif
@@ -196,20 +186,6 @@ static size_t BMK_findMaxMem(U64 requiredMem)
     return (size_t) (requiredMem - step);
 }
 
-
-static U64 BMK_GetFileSize(char* infilename)
-{
-    int r;
-#if defined(_MSC_VER)
-    struct _stat64 statbuf;
-    r = _stat64(infilename, &statbuf);
-#else
-    struct stat statbuf;
-    r = stat(infilename, &statbuf);
-#endif
-    if (r || !S_ISREG(statbuf.st_mode)) return 0;   /* No good... */
-    return (U64)statbuf.st_size;
-}
 
 #  define FUZ_rotl32(x,r) ((x << r) | (x >> (32 - r)))
 U32 FUZ_rand(U32* src)
@@ -790,7 +766,7 @@ int benchFiles(char** fileNamesTable, int nbFiles)
         }
 
         /* Memory allocation & restrictions */
-        inFileSize = BMK_GetFileSize(inFileName);
+        inFileSize = UTIL_getFileSize(inFileName);
         benchedSize = BMK_findMaxMem(inFileSize*3) / 3;
         if ((U64)benchedSize > inFileSize) benchedSize = (size_t)inFileSize;
         if (benchedSize < inFileSize)
@@ -841,7 +817,7 @@ int optimizeForSize(char* inFileName)
     }
 
     /* Memory allocation & restrictions */
-    inFileSize = BMK_GetFileSize(inFileName);
+    inFileSize = UTIL_getFileSize(inFileName);
     benchedSize = (size_t) BMK_findMaxMem(inFileSize*3) / 3;
     if ((U64)benchedSize > inFileSize) benchedSize = (size_t)inFileSize;
     if (benchedSize < inFileSize)

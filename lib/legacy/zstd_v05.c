@@ -2372,9 +2372,6 @@ size_t HUFv05_decompress4X2_usingDTable(
     const U32 dtLog = DTable[0];
     size_t errorCode;
 
-    /* Check */
-    if (cSrcSize < 10) return ERROR(corruption_detected);   /* strict minimum : jump table + 1 byte per stream */
-
     /* Init */
     BITv05_DStream_t bitD1;
     BITv05_DStream_t bitD2;
@@ -2397,6 +2394,9 @@ size_t HUFv05_decompress4X2_usingDTable(
     BYTE* op3 = opStart3;
     BYTE* op4 = opStart4;
     U32 endSignal;
+
+    /* Check */
+    if (cSrcSize < 10) return ERROR(corruption_detected);   /* strict minimum : jump table + 1 byte per stream */
 
     length4 = cSrcSize - (length1 + length2 + length3 + 6);
     if (length4 > cSrcSize) return ERROR(corruption_detected);   /* overflow */
@@ -3124,9 +3124,6 @@ size_t HUFv05_decompress4X6_usingDTable(
     const HUFv05_DSeqX6* ds = (const HUFv05_DSeqX6*)dsPtr;
     size_t errorCode;
 
-    /* Check */
-    if (cSrcSize < 10) return ERROR(corruption_detected);   /* strict minimum : jump table + 1 byte per stream */
-
     /* Init */
     BITv05_DStream_t bitD1;
     BITv05_DStream_t bitD2;
@@ -3149,6 +3146,9 @@ size_t HUFv05_decompress4X6_usingDTable(
     BYTE* op3 = opStart3;
     BYTE* op4 = opStart4;
     U32 endSignal;
+
+	/* Check */
+    if (cSrcSize < 10) return ERROR(corruption_detected);   /* strict minimum : jump table + 1 byte per stream */
 
     length4 = cSrcSize - (length1 + length2 + length3 + 6);
     if (length4 > cSrcSize) return ERROR(corruption_detected);   /* overflow */

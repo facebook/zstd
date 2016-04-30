@@ -242,12 +242,14 @@ typedef struct {
     U32  log2litSum;
     U32  log2offCodeSum;
     U32  factor;
+    U32  cachedPrice;
+    U32  cachedLitLength;
+    const BYTE* cachedLiterals;
     ZSTD_stats_t stats;
 } seqStore_t;
 
 const seqStore_t* ZSTD_getSeqStore(const ZSTD_CCtx* ctx);
 void ZSTD_seqToCodes(const seqStore_t* seqStorePtr, size_t const nbSeq);
-size_t ZSTD_compressBegin_targetSrcSize(ZSTD_CCtx* zc, const void* dict, size_t dictSize, size_t targetSrcSize, int compressionLevel);
 
 
 #endif   /* ZSTD_CCOMMON_H_MODULE */

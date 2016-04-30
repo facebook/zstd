@@ -55,13 +55,13 @@
 /*-*************************************
 *  Includes
 ***************************************/
+#include "util.h"       /* UTIL_GetFileSize */
 #include <stdio.h>      /* fprintf, fopen, fread, _fileno, stdin, stdout */
 #include <stdlib.h>     /* malloc, free */
 #include <string.h>     /* strcmp, strlen */
 #include <time.h>       /* clock */
 #include <errno.h>      /* errno */
-#include <sys/types.h>  /* stat64 */
-#include <sys/stat.h>   /* stat64 */
+
 #include "mem.h"
 #include "fileio.h"
 #include "zstd_static.h"   /* ZSTD_magicNumber, ZSTD_frameHeaderSize_max */
@@ -87,27 +87,16 @@
 #  define IS_CONSOLE(stdStream) isatty(fileno(stdStream))
 #endif
 
-#if !defined(S_ISREG)
-#  define S_ISREG(x) (((x) & S_IFMT) == S_IFREG)
-#endif
-
 
 /*-*************************************
 *  Constants
 ***************************************/
-#define KB *(1U<<10)
-#define MB *(1U<<20)
-#define GB *(1U<<30)
-
 #define _1BIT  0x01
 #define _2BITS 0x03
 #define _3BITS 0x07
 #define _4BITS 0x0F
 #define _6BITS 0x3F
 #define _8BITS 0xFF
-
-#define BIT6  0x40
-#define BIT7  0x80
 
 #define BLOCKSIZE      (128 KB)
 #define ROLLBUFFERSIZE (BLOCKSIZE*8*64)
@@ -118,6 +107,8 @@
 #define CACHELINE 64
 
 #define MAX_DICT_SIZE (1 MB)   /* protection against large input (attack scenario) ; can be changed */
+
+#define FNSPACE 30
 
 
 /*-*************************************
@@ -135,7 +126,6 @@ void FIO_setNotificationLevel(unsigned level) { g_displayLevel=level; }
 static const unsigned refreshRate = 150;
 static clock_t g_time = 0;
 
-#define MAX(a,b)   ((a)>(b)?(a):(b))
 
 
 /*-*************************************
@@ -172,21 +162,6 @@ static unsigned FIO_GetMilliSpan(clock_t nPrevious)
     clock_t nCurrent = clock();
     unsigned nSpan = (unsigned)(((nCurrent - nPrevious) * 1000) / CLOCKS_PER_SEC);
     return nSpan;
-}
-
-
-static U64 FIO_getFileSize(const char* infilename)
-{
-    int r;
-#if defined(_MSC_VER)
-    struct _stat64 statbuf;
-    r = _stat64(infilename, &statbuf);
-#else
-    struct stat statbuf;
-    r = stat(infilename, &statbuf);
-#endif
-    if (r || !S_ISREG(statbuf.st_mode)) return 0;
-    return (U64)statbuf.st_size;
 }
 
 
@@ -258,7 +233,7 @@ static size_t FIO_loadFile(void** bufferPtr, const char* fileName)
     DISPLAYLEVEL(4,"Loading %s as dictionary \n", fileName);
     fileHandle = fopen(fileName, "rb");
     if (fileHandle==0) EXM_THROW(31, "Error opening file %s", fileName);
-    fileSize = FIO_getFileSize(fileName);
+    fileSize = UTIL_getFileSize(fileName);
     if (fileSize > MAX_DICT_SIZE) {
         int seekResult;
         if (fileSize > 1 GB) EXM_THROW(32, "Dictionary file %s is too large", fileName);   /* avoid extreme cases */
@@ -275,6 +250,7 @@ static size_t FIO_loadFile(void** bufferPtr, const char* fileName)
     return (size_t)fileSize;
 }
 
+#ifndef ZSTD_NOCOMPRESS
 
 /*-**********************************************************************
 *  Compression
@@ -338,7 +314,7 @@ static int FIO_compressFilename_internal(cRess_t ress,
     size_t dictSize = ress.dictBufferSize;
     size_t sizeCheck;
     ZSTD_parameters params;
-    U64 const fileSize = FIO_getFileSize(srcFileName);
+    U64 const fileSize = UTIL_getFileSize(srcFileName);
 
     /* init */
     params.cParams = ZSTD_getCParams(cLevel, fileSize, dictSize);
@@ -468,7 +444,6 @@ int FIO_compressFilename(const char* dstFileName, const char* srcFileName,
 }
 
 
-#define FNSPACE 30
 int FIO_compressMultipleFilenames(const char** inFileNamesTable, unsigned nbFiles,
                                   const char* suffix,
                                   const char* dictFileName, int compressionLevel)
@@ -507,6 +482,11 @@ int FIO_compressMultipleFilenames(const char** inFileNamesTable, unsigned nbFile
     return missed_files;
 }
 
+#endif // #ifndef ZSTD_NOCOMPRESS
+
+
+
+#ifndef ZSTD_NODECOMPRESS
 
 /* **************************************************************************
 *  Decompression
@@ -725,3 +705,4 @@ int FIO_decompressMultipleFilenames(const char** srcNamesTable, unsigned nbFiles
     return missingFiles + skippedFiles;
 }
 
+#endif // #ifndef ZSTD_NODECOMPRESS

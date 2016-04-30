@@ -54,25 +54,16 @@
 #include <stdlib.h>        /* malloc, free */
 #include <string.h>        /* memset */
 #include <stdio.h>         /* fprintf, fopen, ftello64 */
-#include <sys/types.h>     /* stat64 */
-#include <sys/stat.h>      /* stat64 */
 #include <time.h>          /* clock */
 
 #include "mem.h"           /* read */
 #include "error_private.h"
 #include "fse.h"
-#include "huff0_static.h"
+#include "huf_static.h"
 #include "zstd_internal.h"
 #include "divsufsort.h"
 #include "zdict_static.h"
 
-
-/*-*************************************
-*  Compiler specifics
-***************************************/
-#if !defined(S_ISREG)
-#  define S_ISREG(x) (((x) & S_IFMT) == S_IFREG)
-#endif
 
 
 /*-*************************************

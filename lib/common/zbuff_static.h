@@ -46,6 +46,7 @@ extern "C" {
 ***************************************/
 #include "zstd_static.h"     /* ZSTD_parameters */
 #include "zbuff.h"
+#include "zstd_internal.h"  /* MIN  */
 
 
 /* *************************************
@@ -54,6 +55,13 @@ extern "C" {
 ZSTDLIB_API size_t ZBUFF_compressInit_advanced(ZBUFF_CCtx* cctx,
                                                const void* dict, size_t dictSize,
                                                ZSTD_parameters params, U64 pledgedSrcSize);
+
+MEM_STATIC size_t ZBUFF_limitCopy(void* dst, size_t dstCapacity, const void* src, size_t srcSize)
+{
+    size_t length = MIN(dstCapacity, srcSize);
+    memcpy(dst, src, length);
+    return length;
+}
 
 
 #if defined (__cplusplus)

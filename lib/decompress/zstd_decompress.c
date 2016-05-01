@@ -266,10 +266,9 @@ void ZSTD_copyDCtx(ZSTD_DCtx* dstDCtx, const ZSTD_DCtx* srcDCtx)
 *   @return : size of the Frame Header */
 static size_t ZSTD_frameHeaderSize(const void* src, size_t srcSize)
 {
-    U32 fcsId;
     if (srcSize < ZSTD_frameHeaderSize_min) return ERROR(srcSize_wrong);
-    fcsId = (((const BYTE*)src)[4]) >> 6;
-    return ZSTD_frameHeaderSize_min + ZSTD_fcs_fieldSize[fcsId];
+    { U32 const fcsId = (((const BYTE*)src)[4]) >> 6;
+      return ZSTD_frameHeaderSize_min + ZSTD_fcs_fieldSize[fcsId]; }
 }
 
 

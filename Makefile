@@ -54,6 +54,9 @@ all:
 zstdprogram:
 	$(MAKE) -C $(PRGDIR)
 
+test:
+	$(MAKE) -C $(PRGDIR) $@
+
 clean:
 	@$(MAKE) -C $(ZSTDDIR) $@ > $(VOID)
 	@$(MAKE) -C $(PRGDIR) $@ > $(VOID)
@@ -75,9 +78,6 @@ uninstall:
 travis-install:
 	$(MAKE) install PREFIX=~/install_test_dir
 
-test:
-	$(MAKE) -C $(PRGDIR) $@
-
 cmaketest:
 	cd contrib/cmake ; cmake . ; $(MAKE)
 
@@ -87,6 +87,15 @@ clangtest: clean
 
 gpptest: clean
 	$(MAKE) all CC=g++ CFLAGS="-O3 -Wall -Wextra -Wundef -Wshadow -Wcast-align -Werror"
+
+bmix64test: clean
+	CFLAGS="-O3 -mbmi -Werror" $(MAKE) -C $(PRGDIR) test
+
+bmix32test: clean
+	CFLAGS="-O3 -mbmi -mx32 -Werror" $(MAKE) -C $(PRGDIR) test
+
+bmi32test: clean
+	CFLAGS="-O3 -mbmi -m32 -Werror" $(MAKE) -C $(PRGDIR) test
 
 armtest: clean
 	$(MAKE) -C $(PRGDIR) datagen   # use native, faster

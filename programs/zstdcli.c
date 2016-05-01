@@ -75,7 +75,7 @@
 #  define ZSTD_VERSION "v" ZSTD_VERSION_STRING
 #endif
 #define AUTHOR "Yann Collet"
-#define WELCOME_MESSAGE "*** %s %i-bits %s, by %s ***\n", COMPRESSOR_NAME, (int)(sizeof(void*)*8), ZSTD_VERSION, AUTHOR
+#define WELCOME_MESSAGE "*** %s %i-bits %s, by %s ***\n", COMPRESSOR_NAME, (int)(sizeof(size_t)*8), ZSTD_VERSION, AUTHOR
 
 #define ZSTD_EXTENSION ".zst"
 #define ZSTD_CAT "zstdcat"
@@ -432,7 +432,7 @@ int main(int argCount, const char** argv)
           operationResult = FIO_compressFilename(outFileName, filenameTable[0], dictFileName, cLevel);
         else
           operationResult = FIO_compressMultipleFilenames(filenameTable, filenameIdx, outFileName ? outFileName : ZSTD_EXTENSION, dictFileName, cLevel);
-    } else 
+    } else
 #endif
     {  /* decompression */
 #ifndef ZSTD_NODECOMPRESS

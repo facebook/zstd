@@ -34,7 +34,7 @@
 /*-************************************
 *  Basic Types
 **************************************/
-#if defined (__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L)   /* C99 */
+#if !defined (__VMS) && ( defined (__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L)   /* C99 */ )
 # include <stdint.h>
   typedef  uint8_t BYTE;
   typedef uint16_t U16;

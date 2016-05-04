@@ -42,8 +42,8 @@ extern "C" {
 /*-****************************************
 *  Dependencies
 ******************************************/
-#define _POSIX_C_SOURCE 199309L   /* before <time.h> - needed for nanosleep() */
-#include <time.h>       /* clock_t, nanosleep, clock, CLOCKS_PER_SEC */
+#include <stdlib.h>     /* _POSIX_C_SOURCE, malloc */
+#include <stdio.h>      /* fprintf */
 #include <sys/types.h>  /* stat */
 #include <sys/stat.h>   /* stat */
 #include "mem.h"        /* U32, U64 */
@@ -62,24 +62,34 @@ extern "C" {
 #  define UTIL_STATIC static  /* this version may generate warnings for unused static functions; disable the relevant warning */
 #endif
 
-/* Sleep functions: posix - windows - others */
-#if !defined(_WIN32) && (defined(__unix__) || defined(__unix) || (defined(__APPLE__) && defined(__MACH__)))
-#  include <unistd.h>
-#  include <sys/resource.h> /* setpriority */
-#  define UTIL_sleep(s) sleep(s)
-#  define UTIL_sleepMilli(milli) { struct timespec t; t.tv_sec=0; t.tv_nsec=milli*1000000ULL; nanosleep(&t, NULL); }
-#  define SET_HIGH_PRIORITY setpriority(PRIO_PROCESS, 0, -20)
-#elif defined(_WIN32)
+
+/* Sleep functions: Windows - Posix - others */
+#if defined(_WIN32)
 #  include <windows.h>
+#  define SET_HIGH_PRIORITY SetPriorityClass(GetCurrentProcess(), REALTIME_PRIORITY_CLASS)
 #  define UTIL_sleep(s) Sleep(1000*s)
 #  define UTIL_sleepMilli(milli) Sleep(milli)
-#  define SET_HIGH_PRIORITY SetPriorityClass(GetCurrentProcess(), REALTIME_PRIORITY_CLASS)
+#elif (defined(__unix__) || defined(__unix) || (defined(__APPLE__) && defined(__MACH__)))
+#  include <unistd.h>
+#  include <sys/resource.h> /* setpriority */
+#  include <time.h>         /* clock_t, nanosleep, clock, CLOCKS_PER_SEC */
+#  define SET_HIGH_PRIORITY setpriority(PRIO_PROCESS, 0, -20)
+#  define UTIL_sleep(s) sleep(s)
+   #if defined(_POSIX_C_SOURCE) && (_POSIX_C_SOURCE >= 199309L)
+   #  define UTIL_sleepMilli(milli) { struct timespec t; t.tv_sec=0; t.tv_nsec=milli*1000000ULL; nanosleep(&t, NULL); }
+   #else
+   #  define UTIL_sleepMilli(milli) /* disabled */
+   #endif
 #else
-#  define UTIL_sleep(s)   /* disabled */
+#  define SET_HIGH_PRIORITY      /* disabled */
+#  define UTIL_sleep(s)          /* disabled */
 #  define UTIL_sleepMilli(milli) /* disabled */
-#  define SET_HIGH_PRIORITY /* disabled */
 #endif
 
+
+/*-****************************************
+*  Time functions
+******************************************/
 #if !defined(_WIN32)
    typedef clock_t UTIL_time_t;
 #  define UTIL_initTimer(ticksPerSecond) ticksPerSecond=0
@@ -95,10 +105,6 @@ extern "C" {
 #endif
 
 
-
-/*-****************************************
-*  Utility functions
-******************************************/
 /* returns time span in microseconds */
 UTIL_STATIC U64 UTIL_clockSpanMicro( UTIL_time_t clockStart, UTIL_time_t ticksPerSecond )
 {
@@ -122,6 +128,10 @@ UTIL_STATIC void UTIL_waitForNextTick(UTIL_time_t ticksPerSecond)
 }
 
 
+
+/*-****************************************
+*  File functions
+******************************************/
 UTIL_STATIC U64 UTIL_getFileSize(const char* infilename)
 {
     int r;
@@ -148,6 +158,22 @@ UTIL_STATIC U64 UTIL_getTotalFileSize(const char** fileNamesTable, unsigned nbFi
 }
 
 
+UTIL_STATIC int UTIL_doesFileExists(const char* infilename)
+{
+    int r;
+#if defined(_MSC_VER)
+    struct _stat64 statbuf;
+    r = _stat64(infilename, &statbuf);
+    if (r || !(statbuf.st_mode & S_IFREG)) return 0;   /* No good... */
+#else
+    struct stat statbuf;
+    r = stat(infilename, &statbuf);
+    if (r || !S_ISREG(statbuf.st_mode)) return 0;   /* No good... */
+#endif
+    return 1;
+}
+
+
 UTIL_STATIC U32 UTIL_isDirectory(const char* infilename)
 {
     int r;
@@ -161,6 +187,159 @@ UTIL_STATIC U32 UTIL_isDirectory(const char* infilename)
     if (!r && S_ISDIR(statbuf.st_mode)) return 1;
 #endif
     return 0;
+}
+
+
+#ifdef _WIN32
+
+UTIL_STATIC int UTIL_prepareFileList(const char *dirName, char** bufStart, char* bufEnd)
+{
+    char path[MAX_PATH];
+    int pathLength, nbFiles = 0;
+    WIN32_FIND_DATA cFile;
+    HANDLE hFile;
+
+    if (*bufStart >= bufEnd) return 0;
+
+    pathLength = snprintf(path, MAX_PATH, "%s\\*", dirName);
+    if (pathLength < 0 || pathLength >= MAX_PATH) {
+        fprintf(stderr, "Path length has got too long.\n");
+        return 0;
+    }
+
+    hFile=FindFirstFile(path, &cFile);
+    if (hFile == INVALID_HANDLE_VALUE) {
+        fprintf(stderr, "Cannot open directory '%s'\n", dirName);
+        return 0;
+    }
+
+    while (*bufStart < bufEnd) {
+        if (cFile.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
+            if (strcmp (cFile.cFileName, "..") == 0 ||
+                strcmp (cFile.cFileName, ".") == 0) goto next;
+            pathLength = snprintf(path, MAX_PATH, "%s\\%s", dirName, cFile.cFileName);
+            if (pathLength < 0 || pathLength >= MAX_PATH) {
+                fprintf(stderr, "Path length has got too long.\n");
+                goto next;
+            }
+         //   printf ("[%s]\n", path);
+            nbFiles += UTIL_prepareFileList(path, bufStart, bufEnd);  /* Recursively call "UTIL_prepareFileList" with the new path. */
+        }
+        else if ((cFile.dwFileAttributes & FILE_ATTRIBUTE_NORMAL) || (cFile.dwFileAttributes & FILE_ATTRIBUTE_ARCHIVE) || (cFile.dwFileAttributes & FILE_ATTRIBUTE_COMPRESSED)) {
+            pathLength = snprintf(*bufStart, bufEnd - *bufStart, "%s\\%s", dirName, cFile.cFileName);
+            if (pathLength < 0) break;
+            *bufStart += pathLength + 1;
+            if (*bufStart >= bufEnd) break;
+            nbFiles++;
+         //   printf ("%s\\%s nbFiles=%d left=%d\n", dirName, cFile.cFileName, nbFiles, (int)(bufEnd - *bufStart));
+        }
+
+next:
+        if (!FindNextFile(hFile, &cFile)) break;
+    }
+
+    FindClose(hFile);
+    return nbFiles;
+}
+
+#elif (defined(__unix__) || defined(__unix) || (defined(__APPLE__) && defined(__MACH__))) && defined(_POSIX_C_SOURCE) && (_POSIX_C_SOURCE >= 200112L) /* snprintf, opendir */
+#  include <dirent.h>       /* opendir, readdir */
+#  include <limits.h>       /* PATH_MAX */
+#  include <errno.h>
+
+UTIL_STATIC int UTIL_prepareFileList(const char *dirName, char** bufStart, char* bufEnd)
+{
+    DIR *dir;
+    struct dirent *entry;
+    char path[PATH_MAX];
+    int pathLength, nbFiles = 0;
+
+    if (*bufStart >= bufEnd) return 0;
+
+    if (!(dir = opendir(dirName))) {
+        fprintf(stderr, "Cannot open directory '%s': %s\n", dirName, strerror(errno));
+        return 0;
+    }
+ 
+    while ((entry = readdir(dir)) && (*bufStart < bufEnd)) {
+        if (entry->d_type & DT_DIR) {
+            if (strcmp (entry->d_name, "..") == 0 ||
+                strcmp (entry->d_name, ".") == 0) continue;
+
+            pathLength = snprintf(path, PATH_MAX, "%s/%s", dirName, entry->d_name);
+            if (pathLength < 0 || pathLength >= PATH_MAX) {
+                fprintf(stderr, "Path length has got too long.\n");
+                continue;
+            }
+         //   printf ("[%s]\n", path);
+            nbFiles += UTIL_prepareFileList(path, bufStart, bufEnd);  /* Recursively call "UTIL_prepareFileList" with the new path. */
+        } else {
+            pathLength = snprintf(*bufStart, bufEnd - *bufStart, "%s/%s", dirName, entry->d_name);
+            if (pathLength < 0) break;
+            *bufStart += pathLength + 1;
+            if (*bufStart >= bufEnd) break;
+            nbFiles++;
+         //   printf ("%s/%s nbFiles=%d left=%d\n", dirName, entry->d_name, nbFiles, (int)(bufEnd - *bufStart));
+        }
+    }
+
+    closedir(dir);
+    return nbFiles;
+}
+
+#else
+
+UTIL_STATIC int UTIL_prepareFileList(const char *dirName, char** bufStart, char* bufEnd)
+{
+    fprintf(stderr, "Directory %s ignored (zstd compiled without _POSIX_C_SOURCE)\n", dirName);
+    return 0;
+}
+
+#endif // WIN32
+
+
+UTIL_STATIC int UTIL_createFileList(const char **inputNames, unsigned nbNames, unsigned maxListSize, char*** filenameTable)
+{
+    unsigned i, nbFiles = 0;
+    char *pbuf, *bufend, *buf;
+
+    buf = (char*)malloc(maxListSize);
+    bufend = buf + maxListSize;
+    for (i=0, pbuf = buf; i<nbNames; i++) {
+        if (UTIL_doesFileExists(inputNames[i])) {
+       // printf ("UTIL_doesFileExists=[%s]\n", inputNames[i]);
+            int len = strlen(inputNames[i]);
+            if (bufend - pbuf <= len) break;
+            strncpy(pbuf, inputNames[i], bufend - pbuf);
+            pbuf += len + 1;
+            nbFiles++;
+        }
+        else
+            nbFiles += UTIL_prepareFileList(inputNames[i], &pbuf, bufend);
+    }
+
+    {   char** fileTable = (char**)malloc((nbFiles+1) * sizeof(const char*));
+
+        if (nbFiles == 0)
+            fileTable[0] = buf;
+
+        for (i=0, pbuf = buf; i<nbFiles; i++)
+        {
+            fileTable[i] = pbuf;
+            pbuf += strlen(pbuf) + 1;
+        }
+
+        *filenameTable = fileTable;
+    }
+
+    return nbFiles;
+}
+
+
+UTIL_STATIC void UTIL_freeFileList(char** filenameTable)
+{
+    free(filenameTable[0]); /* free buffer */
+    free(filenameTable);
 }
 
 

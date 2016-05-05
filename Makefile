@@ -89,7 +89,10 @@ gpptest: clean
 	$(MAKE) all CC=g++ CFLAGS="-O3 -Wall -Wextra -Wundef -Wshadow -Wcast-align -Werror"
 
 gnu90test: clean
-	$(MAKE) all CFLAGS="-Wall -Wextra -Wcast-qual -Wcast-align -Wshadow -Wstrict-aliasing=1 -Wswitch-enum -Wstrict-prototypes -Wundef -Werror"
+	$(MAKE) all CFLAGS="-std=gnu90 -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow -Wstrict-aliasing=1 -Wswitch-enum -Wstrict-prototypes -Wundef -Wdeclaration-after-statement -Werror"
+
+c90test: clean
+	$(MAKE) all CFLAGS="-std=c90 -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow -Wstrict-aliasing=1 -Wswitch-enum -Wstrict-prototypes -Wundef -Werror"   # will fail, due to // and long long
 
 bmix64test: clean
 	CFLAGS="-O3 -mbmi -Werror" $(MAKE) -C $(PRGDIR) test

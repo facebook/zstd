@@ -44,6 +44,9 @@
 
 #if defined(_MSC_VER)
 #  define snprintf _snprintf    /* snprintf unsupported by Visual <= 2012 */
+#elif defined (__cplusplus) || (defined (__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L) /* C99 */)
+#else
+#  define snprintf(b, s, ...) sprintf(b, __VA_ARGS__)
 #endif
 
 

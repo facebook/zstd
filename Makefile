@@ -88,6 +88,9 @@ clangtest: clean
 gpptest: clean
 	$(MAKE) all CC=g++ CFLAGS="-O3 -Wall -Wextra -Wundef -Wshadow -Wcast-align -Werror"
 
+gnu90test: clean
+	$(MAKE) all CFLAGS="-Wall -Wextra -Wcast-qual -Wcast-align -Wshadow -Wstrict-aliasing=1 -Wswitch-enum -Wstrict-prototypes -Wundef -Werror"
+
 bmix64test: clean
 	CFLAGS="-O3 -mbmi -Werror" $(MAKE) -C $(PRGDIR) test
 

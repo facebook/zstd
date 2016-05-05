@@ -34,7 +34,7 @@
 /*-************************************
 *  Dependencies
 **************************************/
-#include "util.h"         /* UTIL_GetFileSize */
+#include "util.h"         /* Compiler options, UTIL_GetFileSize */
 #include <stdlib.h>       /* malloc */
 #include <stdio.h>        /* fprintf, fopen, ftello64 */
 #include <string.h>       /* strcmp */

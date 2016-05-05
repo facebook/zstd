@@ -288,15 +288,14 @@ UTIL_STATIC int UTIL_prepareFileList(const char *dirName, char** bufStart, char*
     }
  
     while ((entry = readdir(dir)) && (*bufStart < bufEnd)) {
-        if (entry->d_type & DT_DIR) {
-            if (strcmp (entry->d_name, "..") == 0 ||
-                strcmp (entry->d_name, ".") == 0) continue;
-
-            pathLength = snprintf(path, PATH_MAX, "%s/%s", dirName, entry->d_name);
-            if (pathLength < 0 || pathLength >= PATH_MAX) {
-                fprintf(stderr, "Path length has got too long.\n");
-                continue;
-            }
+        if (strcmp (entry->d_name, "..") == 0 ||
+            strcmp (entry->d_name, ".") == 0) continue;
+        pathLength = snprintf(path, PATH_MAX, "%s/%s", dirName, entry->d_name);
+        if (pathLength < 0 || pathLength >= PATH_MAX) {
+            fprintf(stderr, "Path length has got too long.\n");
+            continue;
+        }
+        if (UTIL_isDirectory(path)) {
          //   printf ("[%s]\n", path);
             nbFiles += UTIL_prepareFileList(path, bufStart, bufEnd);  /* Recursively call "UTIL_prepareFileList" with the new path. */
         } else {
@@ -370,7 +369,7 @@ UTIL_STATIC int UTIL_createFileList(const char **inputNames, unsigned nbNames, u
 UTIL_STATIC void UTIL_freeFileList(const char** filenameTable, char* buf)
 {
     free(buf);
-    free(filenameTable);
+    free((void*)filenameTable);
 }
 
 

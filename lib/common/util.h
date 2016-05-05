@@ -330,10 +330,10 @@ UTIL_STATIC int UTIL_createFileList(const char **inputNames, unsigned nbNames, u
     char *pbuf, *bufend, *buf;
 
     buf = (char*)malloc(maxListSize);
-	if (!buf) { *filenameTable = NULL; return 0; }
+    if (!buf) { *filenameTable = NULL; return 0; }
     bufend = buf + maxListSize;
 
-	for (i=0, pbuf = buf; i<nbNames; i++) {
+    for (i=0, pbuf = buf; i<nbNames; i++) {
         if (UTIL_doesFileExists(inputNames[i])) {
        // printf ("UTIL_doesFileExists=[%s]\n", inputNames[i]);
             size_t len = strlen(inputNames[i]);
@@ -347,7 +347,7 @@ UTIL_STATIC int UTIL_createFileList(const char **inputNames, unsigned nbNames, u
     }
 
     {   const char** fileTable = (const char**)malloc((nbFiles+1) * sizeof(const char*));
-		if (!fileTable) { free(buf); *filenameTable = NULL; return 0; }
+        if (!fileTable) { free(buf); *filenameTable = NULL; return 0; }
 
         if (nbFiles == 0)
             fileTable[0] = buf;

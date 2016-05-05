@@ -25,7 +25,7 @@
 /*-*************************************
 *  Includes
 ***************************************/
-#include "util.h"           /* UTIL_GetFileSize */
+#include "util.h"           /* Compiler options, UTIL_GetFileSize, UTIL_getTotalFileSize */
 #include <stdlib.h>         /* malloc, free */
 #include <string.h>         /* memset */
 #include <stdio.h>          /* fprintf, fopen, ftello64 */

@@ -26,7 +26,7 @@
 /* *************************************
 *  Includes
 ***************************************/
-#include "util.h"        /* UTIL_GetFileSize */
+#include "util.h"        /* Compiler options, UTIL_GetFileSize, UTIL_createFileList, UTIL_sleep */
 #include <stdlib.h>      /* malloc, free */
 #include <string.h>      /* memset */
 #include <stdio.h>       /* fprintf, fopen, ftello64 */
@@ -36,17 +36,6 @@
 #include "datagen.h"     /* RDG_genBuffer */
 #include "xxhash.h"
 
-
-/* *************************************
-*  Compiler specifics
-***************************************/
-#if defined(_MSC_VER)
-
-#elif defined (__cplusplus) || (defined (__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L))
-  /* part of <stdio.h> */
-#else
-  extern int snprintf (char* s, size_t maxlen, const char* format, ...);   /* not declared in <stdio.h> when C version < c99 */
-#endif
 
 
 /* *************************************

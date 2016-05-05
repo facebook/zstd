@@ -47,7 +47,7 @@
 /*-*************************************
 *  Includes
 ***************************************/
-#include "util.h"       /* UTIL_GetFileSize */
+#include "util.h"       /* Compiler options, UTIL_GetFileSize */
 #include <stdio.h>      /* fprintf, fopen, fread, _fileno, stdin, stdout */
 #include <stdlib.h>     /* malloc, free */
 #include <string.h>     /* strcmp, strlen */

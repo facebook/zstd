@@ -41,7 +41,7 @@
 /* *************************************
 *  Compiler Options
 ***************************************/
-#define _POSIX_SOURCE 1        /* enable fileno() within <stdio.h> on unix */
+#define _POSIX_SOURCE 1        /* enable %llu on Windows */
 
 
 /*-*************************************
@@ -72,11 +72,9 @@
 #  include <fcntl.h>    /* _O_BINARY */
 #  include <io.h>       /* _setmode, _isatty */
 #  define SET_BINARY_MODE(file) { int unused = _setmode(_fileno(file), _O_BINARY); (void)unused; }
-#  define IS_CONSOLE(stdStream) _isatty(_fileno(stdStream))
 #else
 #  include <unistd.h>   /* isatty */
 #  define SET_BINARY_MODE(file)
-#  define IS_CONSOLE(stdStream) isatty(fileno(stdStream))
 #endif
 
 

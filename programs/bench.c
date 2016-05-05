@@ -330,6 +330,7 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
     }   /* Bench */
 
     /* clean up */
+    free(blockTable);
     free(compressedBuffer);
     free(resultBuffer);
     ZSTD_freeCCtx(refCtx);
@@ -525,7 +526,7 @@ int BMK_benchFiles(const char** fileNamesTable, unsigned nbFiles,
         unsigned i;
         nbFiles = UTIL_createFileList(fileNamesTable, nbFiles, MAX_LIST_SIZE, &filenameTable, &buf);
         if (filenameTable) {
-            for (i=0; i<nbFiles; i++) printf ("%d %s\n", i, filenameTable[i]);
+            for (i=0; i<nbFiles; i++) DISPLAYLEVEL(3, "%d %s\n", i, filenameTable[i]);
             BMK_benchFileTable(filenameTable, nbFiles, dictFileName, cLevel, cLevelLast);
             UTIL_freeFileList(filenameTable, buf);
         }

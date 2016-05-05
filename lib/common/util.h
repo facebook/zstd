@@ -39,6 +39,28 @@
 extern "C" {
 #endif
 
+/* **************************************
+*  Compiler Options
+****************************************/
+#if defined(_MSC_VER)
+#  define _CRT_SECURE_NO_WARNINGS    /* Disable some Visual warning messages for fopen, strncpy */
+#  define _CRT_SECURE_NO_DEPRECATE   /* VS2005 */
+#  pragma warning(disable : 4127)    /* disable: C4127: conditional expression is constant */
+#  define snprintf sprintf_s         /* snprintf unsupported by Visual <= 2012 */
+//#  define snprintf _snprintf    
+#endif
+
+/* Unix Large Files support (>4GB) */
+#if !defined(__LP64__)              /* No point defining Large file for 64 bit */
+#   define _FILE_OFFSET_BITS 64     /* turn off_t into a 64-bit type for ftello, fseeko */
+#   if defined(__sun__)             /* Sun Solaris 32-bits requires specific definitions */
+#      define _LARGEFILE_SOURCE     /* fseeko, ftello */
+#   else                        
+#      define _LARGEFILE64_SOURCE   /* off64_t, fseeko64, ftello64 */
+#   endif
+#endif
+
+
 /*-****************************************
 *  Dependencies
 ******************************************/
@@ -63,7 +85,9 @@ extern "C" {
 #endif
 
 
-/* Sleep functions: Windows - Posix - others */
+/*-****************************************
+*  Sleep functions: Windows - Posix - others
+******************************************/
 #if defined(_WIN32)
 #  include <windows.h>
 #  define SET_HIGH_PRIORITY SetPriorityClass(GetCurrentProcess(), REALTIME_PRIORITY_CLASS)
@@ -75,11 +99,11 @@ extern "C" {
 #  include <time.h>         /* clock_t, nanosleep, clock, CLOCKS_PER_SEC */
 #  define SET_HIGH_PRIORITY setpriority(PRIO_PROCESS, 0, -20)
 #  define UTIL_sleep(s) sleep(s)
-   #if defined(_POSIX_C_SOURCE) && (_POSIX_C_SOURCE >= 199309L)
-   #  define UTIL_sleepMilli(milli) { struct timespec t; t.tv_sec=0; t.tv_nsec=milli*1000000ULL; nanosleep(&t, NULL); }
-   #else
-   #  define UTIL_sleepMilli(milli) /* disabled */
-   #endif
+#  if defined(_POSIX_C_SOURCE) && (_POSIX_C_SOURCE >= 199309L)
+#      define UTIL_sleepMilli(milli) { struct timespec t; t.tv_sec=0; t.tv_nsec=milli*1000000ULL; nanosleep(&t, NULL); }
+#  else
+#      define UTIL_sleepMilli(milli) /* disabled */
+#  endif
 #else
 #  define SET_HIGH_PRIORITY      /* disabled */
 #  define UTIL_sleep(s)          /* disabled */
@@ -191,6 +215,7 @@ UTIL_STATIC U32 UTIL_isDirectory(const char* infilename)
 
 
 #ifdef _WIN32
+#  define UTIL_HAS_CREATEFILELIST
 
 UTIL_STATIC int UTIL_prepareFileList(const char *dirName, char** bufStart, char* bufEnd)
 {
@@ -243,6 +268,7 @@ next:
 }
 
 #elif (defined(__unix__) || defined(__unix) || (defined(__APPLE__) && defined(__MACH__))) && defined(_POSIX_C_SOURCE) && (_POSIX_C_SOURCE >= 200112L) /* snprintf, opendir */
+#  define UTIL_HAS_CREATEFILELIST
 #  include <dirent.h>       /* opendir, readdir */
 #  include <limits.h>       /* PATH_MAX */
 #  include <errno.h>
@@ -291,25 +317,28 @@ UTIL_STATIC int UTIL_prepareFileList(const char *dirName, char** bufStart, char*
 
 UTIL_STATIC int UTIL_prepareFileList(const char *dirName, char** bufStart, char* bufEnd)
 {
+    (void)bufStart; (void)bufEnd;
     fprintf(stderr, "Directory %s ignored (zstd compiled without _POSIX_C_SOURCE)\n", dirName);
     return 0;
 }
 
-#endif // WIN32
+#endif // #ifdef _WIN32
 
 
-UTIL_STATIC int UTIL_createFileList(const char **inputNames, unsigned nbNames, unsigned maxListSize, char*** filenameTable)
+UTIL_STATIC int UTIL_createFileList(const char **inputNames, unsigned nbNames, unsigned maxListSize, const char*** filenameTable, char** allocatedBuffer)
 {
     unsigned i, nbFiles = 0;
     char *pbuf, *bufend, *buf;
 
     buf = (char*)malloc(maxListSize);
+	if (!buf) { *filenameTable = NULL; return 0; }
     bufend = buf + maxListSize;
-    for (i=0, pbuf = buf; i<nbNames; i++) {
+
+	for (i=0, pbuf = buf; i<nbNames; i++) {
         if (UTIL_doesFileExists(inputNames[i])) {
        // printf ("UTIL_doesFileExists=[%s]\n", inputNames[i]);
-            int len = strlen(inputNames[i]);
-            if (bufend - pbuf <= len) break;
+            size_t len = strlen(inputNames[i]);
+            if (pbuf + len >= bufend) break;
             strncpy(pbuf, inputNames[i], bufend - pbuf);
             pbuf += len + 1;
             nbFiles++;
@@ -318,7 +347,8 @@ UTIL_STATIC int UTIL_createFileList(const char **inputNames, unsigned nbNames, u
             nbFiles += UTIL_prepareFileList(inputNames[i], &pbuf, bufend);
     }
 
-    {   char** fileTable = (char**)malloc((nbFiles+1) * sizeof(const char*));
+    {   const char** fileTable = (const char**)malloc((nbFiles+1) * sizeof(const char*));
+		if (!fileTable) { free(buf); *filenameTable = NULL; return 0; }
 
         if (nbFiles == 0)
             fileTable[0] = buf;
@@ -330,15 +360,16 @@ UTIL_STATIC int UTIL_createFileList(const char **inputNames, unsigned nbNames, u
         }
 
         *filenameTable = fileTable;
+        *allocatedBuffer = buf;
     }
 
     return nbFiles;
 }
 
 
-UTIL_STATIC void UTIL_freeFileList(char** filenameTable)
+UTIL_STATIC void UTIL_freeFileList(const char** filenameTable, char* buf)
 {
-    free(filenameTable[0]); /* free buffer */
+    free(buf);
     free(filenameTable);
 }
 

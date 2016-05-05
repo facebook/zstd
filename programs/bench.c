@@ -23,24 +23,6 @@
     - zstd source repository : https://github.com/Cyan4973/zstd
 */
 
-/* **************************************
-*  Compiler Options
-****************************************/
-/* Disable some Visual warning messages */
-#ifdef _MSC_VER
-#  define _CRT_SECURE_NO_WARNINGS                /* fopen */
-#  pragma warning(disable : 4127)                /* disable: C4127: conditional expression is constant */
-#endif
-
-/* Unix Large Files support (>4GB) */
-#define _FILE_OFFSET_BITS 64
-#if (defined(__sun__) && (!defined(__LP64__)))   /* Sun Solaris 32-bits requires specific definitions */
-#  define _LARGEFILE_SOURCE
-#elif ! defined(__LP64__)                        /* No point defining Large file for 64 bit */
-#  define _LARGEFILE64_SOURCE
-#endif
-
-
 /* *************************************
 *  Includes
 ***************************************/
@@ -59,7 +41,7 @@
 *  Compiler specifics
 ***************************************/
 #if defined(_MSC_VER)
-#  define snprintf sprintf_s
+
 #elif defined (__cplusplus) || (defined (__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L))
   /* part of <stdio.h> */
 #else
@@ -78,6 +60,7 @@
 #define TIMELOOP_MICROSEC     1*1000000ULL /* 1 second */
 #define ACTIVEPERIOD_MICROSEC 70*1000000ULL /* 70 seconds */
 #define COOLPERIOD_SEC        10
+#define MAX_LIST_SIZE         (64*1024)
 
 #define KB *(1 <<10)
 #define MB *(1 <<20)
@@ -535,7 +518,21 @@ int BMK_benchFiles(const char** fileNamesTable, unsigned nbFiles,
     if (nbFiles == 0)
         BMK_syntheticTest(cLevel, cLevelLast, compressibility);
     else
+    {
+#ifdef UTIL_HAS_CREATEFILELIST
+        char* buf;
+        const char** filenameTable;
+        unsigned i;
+        nbFiles = UTIL_createFileList(fileNamesTable, nbFiles, MAX_LIST_SIZE, &filenameTable, &buf);
+        if (filenameTable) {
+            for (i=0; i<nbFiles; i++) printf ("%d %s\n", i, filenameTable[i]);
+            BMK_benchFileTable(filenameTable, nbFiles, dictFileName, cLevel, cLevelLast);
+            UTIL_freeFileList(filenameTable, buf);
+        }
+#else
         BMK_benchFileTable(fileNamesTable, nbFiles, dictFileName, cLevel, cLevelLast);
+#endif
+    }
     return 0;
 }
 

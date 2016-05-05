@@ -41,14 +41,6 @@
 /* *************************************
 *  Compiler Options
 ***************************************/
-/* Disable some Visual warning messages */
-#ifdef _MSC_VER
-#  define _CRT_SECURE_NO_WARNINGS
-#  define _CRT_SECURE_NO_DEPRECATE     /* VS2005 */
-#  pragma warning(disable : 4127)      /* disable: C4127: conditional expression is constant */
-#endif
-
-#define _FILE_OFFSET_BITS 64   /* Large file support on 32-bits unix */
 #define _POSIX_SOURCE 1        /* enable fileno() within <stdio.h> on unix */
 
 

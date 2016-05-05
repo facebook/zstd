@@ -25,25 +25,9 @@
 /*-************************************
 *  Compiler Options
 **************************************/
-/* Disable some Visual warning messages */
-#define _CRT_SECURE_NO_WARNINGS
-#define _CRT_SECURE_NO_DEPRECATE     /* VS2005 */
-
-/* Unix Large Files support (>4GB) */
-#if (defined(__sun__) && (!defined(__LP64__)))   /* Sun Solaris 32-bits requires specific definitions */
-#  define _LARGEFILE_SOURCE
-#  define _FILE_OFFSET_BITS 64
-#elif ! defined(__LP64__)                        /* No point defining Large file for 64 bit */
-#  define _LARGEFILE64_SOURCE
-#endif
-
 /* gettimeofday() are not supported by MSVC */
 #if defined(_MSC_VER) || defined(_WIN32)
 #  define BMK_LEGACY_TIMER 1
-#endif
-
-#if defined(_MSC_VER)
-#  define snprintf _snprintf    /* snprintf unsupported by Visual <= 2012 */
 #endif
 
 

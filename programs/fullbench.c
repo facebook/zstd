@@ -23,22 +23,6 @@
 */
 
 /*_************************************
-*  Compiler Options
-**************************************/
-/* Disable some Visual warning messages */
-#define _CRT_SECURE_NO_WARNINGS
-#define _CRT_SECURE_NO_DEPRECATE     /* VS2005 */
-
-/* Unix Large Files support (>4GB) */
-#if (defined(__sun__) && (!defined(__LP64__)))   /* Sun Solaris 32-bits requires specific definitions */
-#  define _LARGEFILE_SOURCE
-#  define _FILE_OFFSET_BITS 64
-#elif ! defined(__LP64__)                        /* No point defining Large file for 64 bit */
-#  define _LARGEFILE64_SOURCE
-#endif
-
-
-/*_************************************
 *  Includes
 **************************************/
 #include "util.h"         /* UTIL_GetFileSize */

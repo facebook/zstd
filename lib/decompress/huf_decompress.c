@@ -1118,7 +1118,7 @@ size_t HUF_decompress (void* dst, size_t dstSize, const void* cSrc, size_t cSrcS
     Dtime[1] += Dtime[1] >> 4; Dtime[2] += Dtime[2] >> 3; /* advantage to algorithms using less memory, for cache eviction */
 
     if (Dtime[1] < Dtime[0]) algoNb = 1;
-    if (Dtime[2] < Dtime[algoNb]) algoNb = 2;
+    //if (Dtime[2] < Dtime[algoNb]) algoNb = 2;
 
     return decompress[algoNb](dst, dstSize, cSrc, cSrcSize);
 

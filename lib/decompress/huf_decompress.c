@@ -114,7 +114,7 @@ size_t HUF_readDTableX2 (U16* DTable, const void* src, size_t srcSize)
 
     /* Prepare ranks */
     nextRankStart = 0;
-    for (n=1; n<=tableLog; n++) {
+    for (n=1; n<tableLog+1; n++) {
         U32 current = nextRankStart;
         nextRankStart += (rankVal[n] << (n-1));
         rankVal[n] = current;
@@ -442,7 +442,7 @@ size_t HUF_readDTableX4 (U32* DTable, const void* src, size_t srcSize)
 
     /* Get start index of each weight */
     {   U32 w, nextRankStart = 0;
-        for (w=1; w<=maxW; w++) {
+        for (w=1; w<maxW+1; w++) {
             U32 current = nextRankStart;
             nextRankStart += rankStats[w];
             rankStart[w] = current;
@@ -454,8 +454,8 @@ size_t HUF_readDTableX4 (U32* DTable, const void* src, size_t srcSize)
     /* sort symbols by weight */
     {   U32 s;
         for (s=0; s<nbSymbols; s++) {
-            U32 w = weightList[s];
-            U32 r = rankStart[w]++;
+            U32 const w = weightList[s];
+            U32 const r = rankStart[w]++;
             sortedSymbol[r].symbol = (BYTE)s;
             sortedSymbol[r].weight = (BYTE)w;
         }
@@ -463,21 +463,23 @@ size_t HUF_readDTableX4 (U32* DTable, const void* src, size_t srcSize)
     }
 
     /* Build rankVal */
-    {   const U32 minBits = tableLog+1 - maxW;
-        U32 nextRankVal = 0;
-        U32 w, consumed;
-        const int rescale = (memLog-tableLog) - 1;   /* tableLog <= memLog */
-        U32* rankVal0 = rankVal[0];
-        for (w=1; w<=maxW; w++) {
-            U32 current = nextRankVal;
-            nextRankVal += rankStats[w] << (w+rescale);
-            rankVal0[w] = current;
-        }
-        for (consumed = minBits; consumed <= memLog - minBits; consumed++) {
-            U32* rankValPtr = rankVal[consumed];
-            for (w = 1; w <= maxW; w++) {
-                rankValPtr[w] = rankVal0[w] >> consumed;
-    }   }   }
+    {   U32* const rankVal0 = rankVal[0];
+        {   int const rescale = (memLog-tableLog) - 1;   /* tableLog <= memLog */
+            U32 nextRankVal = 0;
+            U32 w;
+            for (w=1; w<maxW+1; w++) {
+                U32 current = nextRankVal;
+                nextRankVal += rankStats[w] << (w+rescale);
+                rankVal0[w] = current;
+        }   }
+        {   U32 const minBits = tableLog+1 - maxW;
+            U32 consumed;
+            for (consumed = minBits; consumed < memLog - minBits + 1; consumed++) {
+                U32* const rankValPtr = rankVal[consumed];
+                U32 w;
+                for (w = 1; w < maxW+1; w++) {
+                    rankValPtr[w] = rankVal0[w] >> consumed;
+    }   }   }   }
 
     HUF_fillDTableX4(dt, memLog,
                    sortedSymbol, sizeOfSort,
@@ -788,7 +790,7 @@ size_t HUF_readDTableX6 (U32* DTable, const void* src, size_t srcSize)
 
     /* Get start index of each weight */
     {   U32 w, nextRankStart = 0;
-        for (w=1; w<=maxW; w++) {
+        for (w=1; w<maxW+1; w++) {
             U32 current = nextRankStart;
             nextRankStart += rankStats[w];
             rankStart[w] = current;
@@ -814,14 +816,14 @@ size_t HUF_readDTableX6 (U32* DTable, const void* src, size_t srcSize)
         U32 w, consumed;
         const int rescale = (memLog-tableLog) - 1;   /* tableLog <= memLog */
         U32* rankVal0 = rankVal[0];
-        for (w=1; w<=maxW; w++) {
+        for (w=1; w<maxW+1; w++) {
             U32 current = nextRankVal;
             nextRankVal += rankStats[w] << (w+rescale);
             rankVal0[w] = current;
         }
         for (consumed = minBits; consumed <= memLog - minBits; consumed++) {
             U32* rankValPtr = rankVal[consumed];
-            for (w = 1; w <= maxW; w++) {
+            for (w = 1; w < maxW+1; w++) {
                 rankValPtr[w] = rankVal0[w] >> consumed;
     }   }   }
 

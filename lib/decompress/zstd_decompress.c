@@ -842,14 +842,14 @@ size_t ZSTD_decompressBlock(ZSTD_DCtx* dctx,
 }
 
 
-/*! ZSTD_decompress_continueDCtx() :
-*   `dctx` must have been properly initialized */
+/*! ZSTD_decompressFrame() :
+*   `dctx` must be properly initialized */
 static size_t ZSTD_decompressFrame(ZSTD_DCtx* dctx,
                                  void* dst, size_t dstCapacity,
                                  const void* src, size_t srcSize)
 {
     const BYTE* ip = (const BYTE*)src;
-    const BYTE* iend = ip + srcSize;
+    const BYTE* const iend = ip + srcSize;
     BYTE* const ostart = (BYTE* const)dst;
     BYTE* op = ostart;
     BYTE* const oend = ostart + dstCapacity;
@@ -858,12 +858,6 @@ static size_t ZSTD_decompressFrame(ZSTD_DCtx* dctx,
 
     /* check */
     if (srcSize < ZSTD_frameHeaderSize_min+ZSTD_blockHeaderSize) return ERROR(srcSize_wrong);
-#if defined(ZSTD_LEGACY_SUPPORT) && (ZSTD_LEGACY_SUPPORT==1)
-    {   const U32 magicNumber = MEM_readLE32(src);
-        if (ZSTD_isLegacy(magicNumber))
-            return ZSTD_decompressLegacy(dst, dstCapacity, src, srcSize, magicNumber);
-    }
-#endif
 
     /* Frame Header */
     {   size_t const frameHeaderSize = ZSTD_frameHeaderSize(src, ZSTD_frameHeaderSize_min);
@@ -928,6 +922,12 @@ size_t ZSTD_decompress_usingDict(ZSTD_DCtx* dctx,
                                  const void* src, size_t srcSize,
                                  const void* dict, size_t dictSize)
 {
+#if defined(ZSTD_LEGACY_SUPPORT) && (ZSTD_LEGACY_SUPPORT==1)
+    {   const U32 magicNumber = MEM_readLE32(src);
+        if (ZSTD_isLegacy(magicNumber))
+            return ZSTD_decompressLegacy(dst, dstCapacity, src, srcSize, dict, dictSize, magicNumber);
+    }
+#endif
     ZSTD_decompressBegin_usingDict(dctx, dict, dictSize);
     ZSTD_checkContinuity(dctx, dst);
     return ZSTD_decompressFrame(dctx, dst, dstCapacity, src, srcSize);
@@ -949,7 +949,7 @@ size_t ZSTD_decompress(void* dst, size_t dstCapacity, const void* src, size_t sr
     regenSize = ZSTD_decompressDCtx(dctx, dst, dstCapacity, src, srcSize);
     ZSTD_freeDCtx(dctx);
     return regenSize;
-#else
+#else   /* stack mode */
     ZSTD_DCtx dctx;
     return ZSTD_decompressDCtx(&dctx, dst, dstCapacity, src, srcSize);
 #endif
@@ -1053,37 +1053,40 @@ static void ZSTD_refDictContent(ZSTD_DCtx* dctx, const void* dict, size_t dictSi
 
 static size_t ZSTD_loadEntropy(ZSTD_DCtx* dctx, const void* dict, size_t dictSize)
 {
-    size_t hSize, offcodeHeaderSize, matchlengthHeaderSize, errorCode, litlengthHeaderSize;
-    short offcodeNCount[MaxOff+1];
-    U32 offcodeMaxValue=MaxOff, offcodeLog=OffFSELog;
-    short matchlengthNCount[MaxML+1];
-    unsigned matchlengthMaxValue = MaxML, matchlengthLog = MLFSELog;
-    short litlengthNCount[MaxLL+1];
-    unsigned litlengthMaxValue = MaxLL, litlengthLog = LLFSELog;
+    size_t hSize, offcodeHeaderSize, matchlengthHeaderSize, litlengthHeaderSize;
 
     hSize = HUF_readDTableX4(dctx->hufTableX4, dict, dictSize);
     if (HUF_isError(hSize)) return ERROR(dictionary_corrupted);
     dict = (const char*)dict + hSize;
     dictSize -= hSize;
 
-    offcodeHeaderSize = FSE_readNCount(offcodeNCount, &offcodeMaxValue, &offcodeLog, dict, dictSize);
-    if (FSE_isError(offcodeHeaderSize)) return ERROR(dictionary_corrupted);
-    errorCode = FSE_buildDTable(dctx->OffTable, offcodeNCount, offcodeMaxValue, offcodeLog);
-    if (FSE_isError(errorCode)) return ERROR(dictionary_corrupted);
-    dict = (const char*)dict + offcodeHeaderSize;
-    dictSize -= offcodeHeaderSize;
+    {   short offcodeNCount[MaxOff+1];
+        U32 offcodeMaxValue=MaxOff, offcodeLog=OffFSELog;
+        offcodeHeaderSize = FSE_readNCount(offcodeNCount, &offcodeMaxValue, &offcodeLog, dict, dictSize);
+        if (FSE_isError(offcodeHeaderSize)) return ERROR(dictionary_corrupted);
+        { size_t const errorCode = FSE_buildDTable(dctx->OffTable, offcodeNCount, offcodeMaxValue, offcodeLog);
+          if (FSE_isError(errorCode)) return ERROR(dictionary_corrupted); }
+        dict = (const char*)dict + offcodeHeaderSize;
+        dictSize -= offcodeHeaderSize;
+    }
 
-    matchlengthHeaderSize = FSE_readNCount(matchlengthNCount, &matchlengthMaxValue, &matchlengthLog, dict, dictSize);
-    if (FSE_isError(matchlengthHeaderSize)) return ERROR(dictionary_corrupted);
-    errorCode = FSE_buildDTable(dctx->MLTable, matchlengthNCount, matchlengthMaxValue, matchlengthLog);
-    if (FSE_isError(errorCode)) return ERROR(dictionary_corrupted);
-    dict = (const char*)dict + matchlengthHeaderSize;
-    dictSize -= matchlengthHeaderSize;
+    {   short matchlengthNCount[MaxML+1];
+        unsigned matchlengthMaxValue = MaxML, matchlengthLog = MLFSELog;
+        matchlengthHeaderSize = FSE_readNCount(matchlengthNCount, &matchlengthMaxValue, &matchlengthLog, dict, dictSize);
+        if (FSE_isError(matchlengthHeaderSize)) return ERROR(dictionary_corrupted);
+        { size_t const errorCode = FSE_buildDTable(dctx->MLTable, matchlengthNCount, matchlengthMaxValue, matchlengthLog);
+          if (FSE_isError(errorCode)) return ERROR(dictionary_corrupted); }
+        dict = (const char*)dict + matchlengthHeaderSize;
+        dictSize -= matchlengthHeaderSize;
+    }
 
-    litlengthHeaderSize = FSE_readNCount(litlengthNCount, &litlengthMaxValue, &litlengthLog, dict, dictSize);
-    if (FSE_isError(litlengthHeaderSize)) return ERROR(dictionary_corrupted);
-    errorCode = FSE_buildDTable(dctx->LLTable, litlengthNCount, litlengthMaxValue, litlengthLog);
-    if (FSE_isError(errorCode)) return ERROR(dictionary_corrupted);
+    {   short litlengthNCount[MaxLL+1];
+        unsigned litlengthMaxValue = MaxLL, litlengthLog = LLFSELog;
+        litlengthHeaderSize = FSE_readNCount(litlengthNCount, &litlengthMaxValue, &litlengthLog, dict, dictSize);
+        if (FSE_isError(litlengthHeaderSize)) return ERROR(dictionary_corrupted);
+        { size_t const errorCode = FSE_buildDTable(dctx->LLTable, litlengthNCount, litlengthMaxValue, litlengthLog);
+          if (FSE_isError(errorCode)) return ERROR(dictionary_corrupted); }
+    }
 
     dctx->flagRepeatTable = 1;
     return hSize + offcodeHeaderSize + matchlengthHeaderSize + litlengthHeaderSize;

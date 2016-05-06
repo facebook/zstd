@@ -69,7 +69,7 @@ const char* ZSTDv05_getErrorName(size_t code);     /*!< provides readable string
 /** Decompression context */
 typedef struct ZSTDv05_DCtx_s ZSTDv05_DCtx;
 ZSTDv05_DCtx* ZSTDv05_createDCtx(void);
-size_t     ZSTDv05_freeDCtx(ZSTDv05_DCtx* dctx);      /*!< @return : errorCode */
+size_t ZSTDv05_freeDCtx(ZSTDv05_DCtx* dctx);      /*!< @return : errorCode */
 
 /** ZSTDv05_decompressDCtx() :
 *   Same as ZSTDv05_decompress(), but requires an already allocated ZSTDv05_DCtx (see ZSTDv05_createDCtx()) */
@@ -84,9 +84,9 @@ size_t ZSTDv05_decompressDCtx(ZSTDv05_DCtx* ctx, void* dst, size_t dstCapacity, 
 *   Dictionary must be identical to the one used during compression, otherwise regenerated data will be corrupted.
 *   Note : dict can be NULL, in which case, it's equivalent to ZSTDv05_decompressDCtx() */
 size_t ZSTDv05_decompress_usingDict(ZSTDv05_DCtx* dctx,
-                                             void* dst, size_t dstCapacity,
-                                       const void* src, size_t srcSize,
-                                       const void* dict,size_t dictSize);
+                                            void* dst, size_t dstCapacity,
+                                      const void* src, size_t srcSize,
+                                      const void* dict,size_t dictSize);
 
 
 

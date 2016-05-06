@@ -111,17 +111,13 @@ void FSE_freeDTable (FSE_DTable* dt)
 size_t FSE_buildDTable(FSE_DTable* dt, const short* normalizedCounter, unsigned maxSymbolValue, unsigned tableLog)
 {
     FSE_DTableHeader DTableH;
-    void* const tdPtr = dt+1;   /* because dt is unsigned, 32-bits aligned on 32-bits */
+    void* const tdPtr = dt+1;   /* because *dt is unsigned, 32-bits aligned on 32-bits */
     FSE_DECODE_TYPE* const tableDecode = (FSE_DECODE_TYPE*) (tdPtr);
-    const U32 tableSize = 1 << tableLog;
-    const U32 tableMask = tableSize-1;
-    const U32 step = FSE_TABLESTEP(tableSize);
     U16 symbolNext[FSE_MAX_SYMBOL_VALUE+1];
 
+    U32 const maxSV1 = maxSymbolValue + 1;
+    U32 const tableSize = 1 << tableLog;
     U32 highThreshold = tableSize-1;
-    S16 const largeLimit= (S16)(1 << (tableLog-1));
-    U32 noLarge = 1;
-    U32 s;
 
     /* Sanity Checks */
     if (maxSymbolValue > FSE_MAX_SYMBOL_VALUE) return ERROR(maxSymbolValue_tooLarge);
@@ -129,18 +125,24 @@ size_t FSE_buildDTable(FSE_DTable* dt, const short* normalizedCounter, unsigned 
 
     /* Init, lay down lowprob symbols */
     DTableH.tableLog = (U16)tableLog;
-    for (s=0; s<=maxSymbolValue; s++) {
-        if (normalizedCounter[s]==-1) {
-            tableDecode[highThreshold--].symbol = (FSE_FUNCTION_TYPE)s;
-            symbolNext[s] = 1;
-        } else {
-            if (normalizedCounter[s] >= largeLimit) noLarge=0;
-            symbolNext[s] = normalizedCounter[s];
-    }   }
+    DTableH.fastMode = 1;
+    {   S16 const largeLimit= (S16)(1 << (tableLog-1));
+        U32 s;
+        for (s=0; s<maxSV1; s++) {
+            if (normalizedCounter[s]==-1) {
+                tableDecode[highThreshold--].symbol = (FSE_FUNCTION_TYPE)s;
+                symbolNext[s] = 1;
+            } else {
+                if (normalizedCounter[s] >= largeLimit) DTableH.fastMode=0;
+                symbolNext[s] = normalizedCounter[s];
+    }   }   }
+    memcpy(dt, &DTableH, sizeof(DTableH));
 
     /* Spread symbols */
-    {   U32 position = 0;
-        for (s=0; s<=maxSymbolValue; s++) {
+    {   U32 const tableMask = tableSize-1;
+        U32 const step = FSE_TABLESTEP(tableSize);
+        U32 s, position = 0;
+        for (s=0; s<maxSV1; s++) {
             int i;
             for (i=0; i<normalizedCounter[s]; i++) {
                 tableDecode[position].symbol = (FSE_FUNCTION_TYPE)s;
@@ -154,15 +156,12 @@ size_t FSE_buildDTable(FSE_DTable* dt, const short* normalizedCounter, unsigned 
     /* Build Decoding table */
     {   U32 u;
         for (u=0; u<tableSize; u++) {
-            FSE_FUNCTION_TYPE symbol = (FSE_FUNCTION_TYPE)(tableDecode[u].symbol);
-
+            FSE_FUNCTION_TYPE const symbol = (FSE_FUNCTION_TYPE)(tableDecode[u].symbol);
             U16 nextState = symbolNext[symbol]++;
             tableDecode[u].nbBits = (BYTE) (tableLog - BIT_highbit32 ((U32)nextState) );
             tableDecode[u].newState = (U16) ( (nextState << tableDecode[u].nbBits) - tableSize);
     }   }
 
-    DTableH.fastMode = (U16)noLarge;
-    memcpy(dt, &DTableH, sizeof(DTableH));
     return 0;
 }
 
@@ -199,7 +198,7 @@ size_t FSE_buildDTable_raw (FSE_DTable* dt, unsigned nbBits)
     FSE_decode_t* const dinfo = (FSE_decode_t*)dPtr;
     const unsigned tableSize = 1 << nbBits;
     const unsigned tableMask = tableSize - 1;
-    const unsigned maxSymbolValue = tableMask;
+    const unsigned maxSV1 = tableMask+1;
     unsigned s;
 
     /* Sanity checks */
@@ -208,7 +207,7 @@ size_t FSE_buildDTable_raw (FSE_DTable* dt, unsigned nbBits)
     /* Build Decoding Table */
     DTableH->tableLog = (U16)nbBits;
     DTableH->fastMode = 1;
-    for (s=0; s<=maxSymbolValue; s++) {
+    for (s=0; s<maxSV1; s++) {
         dinfo[s].newState = 0;
         dinfo[s].symbol = (BYTE)s;
         dinfo[s].nbBits = (BYTE)nbBits;
@@ -230,11 +229,10 @@ FORCE_INLINE size_t FSE_decompress_usingDTable_generic(
     BIT_DStream_t bitD;
     FSE_DState_t state1;
     FSE_DState_t state2;
-    size_t errorCode;
 
     /* Init */
-    errorCode = BIT_initDStream(&bitD, cSrc, cSrcSize);   /* replaced last arg by maxCompressed Size */
-    if (FSE_isError(errorCode)) return errorCode;
+    { size_t const errorCode = BIT_initDStream(&bitD, cSrc, cSrcSize);   /* replaced last arg by maxCompressed Size */
+      if (FSE_isError(errorCode)) return errorCode; }
 
     FSE_initDState(&state1, &bitD, dt);
     FSE_initDState(&state2, &bitD, dt);
@@ -308,22 +306,21 @@ size_t FSE_decompress(void* dst, size_t maxDstSize, const void* cSrc, size_t cSr
     DTable_max_t dt;   /* Static analyzer seems unable to understand this table will be properly initialized later */
     unsigned tableLog;
     unsigned maxSymbolValue = FSE_MAX_SYMBOL_VALUE;
-    size_t errorCode;
 
     if (cSrcSize<2) return ERROR(srcSize_wrong);   /* too small input size */
 
     /* normal FSE decoding mode */
-    errorCode = FSE_readNCount (counting, &maxSymbolValue, &tableLog, istart, cSrcSize);
-    if (FSE_isError(errorCode)) return errorCode;
-    if (errorCode >= cSrcSize) return ERROR(srcSize_wrong);   /* too small input size */
-    ip += errorCode;
-    cSrcSize -= errorCode;
+    {   size_t const NCountLength = FSE_readNCount (counting, &maxSymbolValue, &tableLog, istart, cSrcSize);
+        if (FSE_isError(NCountLength)) return NCountLength;
+        if (NCountLength >= cSrcSize) return ERROR(srcSize_wrong);   /* too small input size */
+        ip += NCountLength;
+        cSrcSize -= NCountLength;
+    }
 
-    errorCode = FSE_buildDTable (dt, counting, maxSymbolValue, tableLog);
-    if (FSE_isError(errorCode)) return errorCode;
+    { size_t const errorCode = FSE_buildDTable (dt, counting, maxSymbolValue, tableLog);
+      if (FSE_isError(errorCode)) return errorCode; }
 
-    /* always return, even if it is an error code */
-    return FSE_decompress_usingDTable (dst, maxDstSize, ip, cSrcSize, dt);
+    return FSE_decompress_usingDTable (dst, maxDstSize, ip, cSrcSize, dt);   /* always return, even if it is an error code */
 }
 
 

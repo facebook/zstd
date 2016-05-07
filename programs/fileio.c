@@ -307,21 +307,20 @@ static int FIO_compressFilename_internal(cRess_t ress,
                                          const char* dstFileName, const char* srcFileName,
                                          int cLevel)
 {
-    FILE* srcFile = ress.srcFile;
-    FILE* dstFile = ress.dstFile;
+    FILE* const srcFile = ress.srcFile;
+    FILE* const dstFile = ress.dstFile;
     U64 readsize = 0;
     U64 compressedfilesize = 0;
-    size_t dictSize = ress.dictBufferSize;
-    size_t sizeCheck;
-    ZSTD_parameters params;
     U64 const fileSize = UTIL_getFileSize(srcFileName);
 
     /* init */
-    params.cParams = ZSTD_getCParams(cLevel, fileSize, dictSize);
-    params.fParams.contentSizeFlag = 1;
-    if (g_maxWLog) if (params.cParams.windowLog > g_maxWLog) params.cParams.windowLog = g_maxWLog;
-    { size_t const errorCode = ZBUFF_compressInit_advanced(ress.ctx, ress.dictBuffer, ress.dictBufferSize, params, fileSize);
-      if (ZBUFF_isError(errorCode)) EXM_THROW(21, "Error initializing compression : %s", ZBUFF_getErrorName(errorCode)); }
+    {   ZSTD_parameters params;
+        params.cParams = ZSTD_getCParams(cLevel, fileSize, ress.dictBufferSize);
+        params.fParams.contentSizeFlag = 1;
+        if (g_maxWLog) if (params.cParams.windowLog > g_maxWLog) params.cParams.windowLog = g_maxWLog;
+        { size_t const errorCode = ZBUFF_compressInit_advanced(ress.ctx, ress.dictBuffer, ress.dictBufferSize, params, fileSize);
+          if (ZBUFF_isError(errorCode)) EXM_THROW(21, "Error initializing compression : %s", ZBUFF_getErrorName(errorCode)); }
+    }
 
     /* Main compression loop */
     readsize = 0;
@@ -335,16 +334,15 @@ static int FIO_compressFilename_internal(cRess_t ress,
         {   /* Compress using buffered streaming */
             size_t usedInSize = inSize;
             size_t cSize = ress.dstBufferSize;
-            size_t result = ZBUFF_compressContinue(ress.ctx, ress.dstBuffer, &cSize, ress.srcBuffer, &usedInSize);
-            if (ZBUFF_isError(result))
-                EXM_THROW(23, "Compression error : %s ", ZBUFF_getErrorName(result));
+            { size_t const result = ZBUFF_compressContinue(ress.ctx, ress.dstBuffer, &cSize, ress.srcBuffer, &usedInSize);
+              if (ZBUFF_isError(result)) EXM_THROW(23, "Compression error : %s ", ZBUFF_getErrorName(result)); }
             if (inSize != usedInSize)
                 /* inBuff should be entirely consumed since buffer sizes are recommended ones */
                 EXM_THROW(24, "Compression error : input block not fully consumed");
 
             /* Write cBlock */
-            sizeCheck = fwrite(ress.dstBuffer, 1, cSize, dstFile);
-            if (sizeCheck!=cSize) EXM_THROW(25, "Write error : cannot write compressed block into %s", dstFileName);
+            { size_t const sizeCheck = fwrite(ress.dstBuffer, 1, cSize, dstFile);
+              if (sizeCheck!=cSize) EXM_THROW(25, "Write error : cannot write compressed block into %s", dstFileName); }
             compressedfilesize += cSize;
         }
         DISPLAYUPDATE(2, "\rRead : %u MB  ==> %.2f%%   ", (U32)(readsize>>20), (double)compressedfilesize/readsize*100);
@@ -355,8 +353,8 @@ static int FIO_compressFilename_internal(cRess_t ress,
         size_t const result = ZBUFF_compressEnd(ress.ctx, ress.dstBuffer, &cSize);
         if (result!=0) EXM_THROW(26, "Compression error : cannot create frame end");
 
-        sizeCheck = fwrite(ress.dstBuffer, 1, cSize, dstFile);
-        if (sizeCheck!=cSize) EXM_THROW(27, "Write error : cannot write frame end into %s", dstFileName);
+        { size_t const sizeCheck = fwrite(ress.dstBuffer, 1, cSize, dstFile);
+          if (sizeCheck!=cSize) EXM_THROW(27, "Write error : cannot write frame end into %s", dstFileName); }
         compressedfilesize += cSize;
     }
 
@@ -386,7 +384,6 @@ static int FIO_compressFilename_srcFile(cRess_t ress,
 
     result = FIO_compressFilename_internal(ress, dstFileName, srcFileName, cLevel);
 
-    /* clean */
     fclose(ress.srcFile);
     return result;
 }
@@ -435,8 +432,7 @@ int FIO_compressFilename(const char* dstFileName, const char* srcFileName,
 
     /* Final Status */
     end = clock();
-    {
-        double seconds = (double)(end - start) / CLOCKS_PER_SEC;
+    {   double seconds = (double)(end - start) / CLOCKS_PER_SEC;
         DISPLAYLEVEL(4, "Completed in %.2f sec \n", seconds);
     }
 
@@ -448,11 +444,10 @@ int FIO_compressMultipleFilenames(const char** inFileNamesTable, unsigned nbFile
                                   const char* suffix,
                                   const char* dictFileName, int compressionLevel)
 {
-    unsigned u;
     int missed_files = 0;
-    char* dstFileName = (char*)malloc(FNSPACE);
+    char*  dstFileName = (char*)malloc(FNSPACE);
     size_t dfnSize = FNSPACE;
-    const size_t suffixSize = suffix ? strlen(suffix) : 0;
+    size_t const suffixSize = suffix ? strlen(suffix) : 0;
     cRess_t ress;
 
     /* init */
@@ -460,12 +455,14 @@ int FIO_compressMultipleFilenames(const char** inFileNamesTable, unsigned nbFile
 
     /* loop on each file */
     if (!strcmp(suffix, stdoutmark)) {
+        unsigned u;
         ress.dstFile = stdout;
         for (u=0; u<nbFiles; u++)
             missed_files += FIO_compressFilename_srcFile(ress, stdoutmark,
                                                          inFileNamesTable[u], compressionLevel);
         if (fclose(ress.dstFile)) EXM_THROW(29, "Write error : cannot properly close %s", stdoutmark);
     } else {
+        unsigned u;
         for (u=0; u<nbFiles; u++) {
             size_t ifnSize = strlen(inFileNamesTable[u]);
             if (dfnSize <= ifnSize+suffixSize+1) { free(dstFileName); dfnSize = ifnSize + 20; dstFileName = (char*)malloc(dfnSize); }
@@ -482,7 +479,7 @@ int FIO_compressMultipleFilenames(const char** inFileNamesTable, unsigned nbFile
     return missed_files;
 }
 
-#endif // #ifndef ZSTD_NOCOMPRESS
+#endif /* #ifndef ZSTD_NOCOMPRESS */
 
 
 
@@ -525,7 +522,7 @@ static dRess_t FIO_createDResources(const char* dictFileName)
 
 static void FIO_freeDResources(dRess_t ress)
 {
-    size_t errorCode = ZBUFF_freeDCtx(ress.dctx);
+    size_t const errorCode = ZBUFF_freeDCtx(ress.dctx);
     if (ZBUFF_isError(errorCode)) EXM_THROW(69, "Error : can't free ZBUFF context resource : %s", ZBUFF_getErrorName(errorCode));
     free(ress.srcBuffer);
     free(ress.dstBuffer);
@@ -587,8 +584,8 @@ unsigned long long FIO_decompressFrame(dRess_t ress,
 static int FIO_decompressSrcFile(dRess_t ress, const char* srcFileName)
 {
     unsigned long long filesize = 0;
-    FILE* dstFile = ress.dstFile;
-    FILE* srcFile = FIO_openSrcFile(srcFileName);
+    FILE* const dstFile = ress.dstFile;
+    FILE* const srcFile = FIO_openSrcFile(srcFileName);
     if (srcFile==0) return 1;
 
     /* for each frame */
@@ -598,16 +595,17 @@ static int FIO_decompressSrcFile(dRess_t ress, const char* srcFileName)
         size_t const sizeCheck = fread(ress.srcBuffer, (size_t)1, toRead, srcFile);
         if (sizeCheck==0) break;   /* no more input */
         if (sizeCheck != toRead) EXM_THROW(31, "zstd: %s read error : cannot read header", srcFileName);
-#if defined(ZSTD_LEGACY_SUPPORT) && (ZSTD_LEGACY_SUPPORT==1)
-        if (ZSTD_isLegacy(MEM_readLE32(ress.srcBuffer))) {
-            filesize += FIO_decompressLegacyFrame(dstFile, srcFile, MEM_readLE32(ress.srcBuffer));
-            continue;
-        }
+        {   U32 const magic = MEM_readLE32(ress.srcBuffer);
+#if defined(ZSTD_LEGACY_SUPPORT) && (ZSTD_LEGACY_SUPPORT>=1)
+            if (ZSTD_isLegacy(magic)) {
+                filesize += FIO_decompressLegacyFrame(dstFile, srcFile, magic);
+                continue;
+            }
 #endif   /* ZSTD_LEGACY_SUPPORT */
-        if (MEM_readLE32(ress.srcBuffer) !=  ZSTD_MAGICNUMBER) {
-            DISPLAYLEVEL(1, "zstd: %s: not in zstd format \n", srcFileName);
-            return 1;
-        }
+            if (magic !=  ZSTD_MAGICNUMBER) {
+                DISPLAYLEVEL(1, "zstd: %s: not in zstd format \n", srcFileName);
+                return 1;
+        }   }
         filesize += FIO_decompressFrame(ress, dstFile, srcFile, toRead);
     }
 
@@ -661,24 +659,25 @@ int FIO_decompressMultipleFilenames(const char** srcNamesTable, unsigned nbFiles
                                     const char* suffix,
                                     const char* dictFileName)
 {
-    unsigned u;
     int skippedFiles = 0;
     int missingFiles = 0;
-    char* dstFileName = (char*)malloc(FNSPACE);
+    char*  dstFileName = (char*)malloc(FNSPACE);
     size_t dfnSize = FNSPACE;
-    const size_t suffixSize = suffix ? strlen(suffix) : 0;
+    size_t const suffixSize = suffix ? strlen(suffix) : 0;
     dRess_t ress;
 
 	if (dstFileName==NULL) EXM_THROW(70, "not enough memory for dstFileName");
     ress = FIO_createDResources(dictFileName);
 
     if (!strcmp(suffix, stdoutmark) || !strcmp(suffix, nulmark)) {
+        unsigned u;
         ress.dstFile = FIO_openDstFile(suffix);
         if (ress.dstFile == 0) EXM_THROW(71, "cannot open %s", suffix);
         for (u=0; u<nbFiles; u++)
             missingFiles += FIO_decompressSrcFile(ress, srcNamesTable[u]);
         if (fclose(ress.dstFile)) EXM_THROW(39, "Write error : cannot properly close %s", stdoutmark);
     } else {
+        unsigned u;
         for (u=0; u<nbFiles; u++) {   /* create dstFileName */
             const char* srcFileName = srcNamesTable[u];
             size_t sfnSize = strlen(srcFileName);

@@ -598,7 +598,7 @@ static int FIO_decompressSrcFile(dRess_t ress, const char* srcFileName)
         {   U32 const magic = MEM_readLE32(ress.srcBuffer);
 #if defined(ZSTD_LEGACY_SUPPORT) && (ZSTD_LEGACY_SUPPORT>=1)
             if (ZSTD_isLegacy(magic)) {
-                filesize += FIO_decompressLegacyFrame(dstFile, srcFile, magic);
+                filesize += FIO_decompressLegacyFrame(dstFile, srcFile, ress.dictBuffer, ress.dstBufferSize, magic);
                 continue;
             }
 #endif   /* ZSTD_LEGACY_SUPPORT */

@@ -405,7 +405,7 @@ typedef struct {
     size_t srcBufferSize;
     void*  dstBuffer;
     size_t dstBufferSize;
-    void*  dictBuffer;
+    const void*  dictBuffer;
     size_t dictBufferSize;
     ZBUFFv05_DCtx* dctx;
 } dRessv05_t;
@@ -435,7 +435,6 @@ static void FIOv05_freeDResources(dRessv05_t ress)
     if (ZBUFFv05_isError(errorCode)) EXM_THROW(69, "Error : can't free ZBUFF context resource : %s", ZBUFFv05_getErrorName(errorCode));
     free(ress.srcBuffer);
     free(ress.dstBuffer);
-    free(ress.dictBuffer);
 }
 
 
@@ -476,7 +475,9 @@ unsigned long long FIOv05_decompressFrame(dRessv05_t ress,
 
 /*=====   General legacy dispatcher   =====*/
 
-unsigned long long FIO_decompressLegacyFrame(FILE* foutput, FILE* finput, U32 magicNumberLE)
+unsigned long long FIO_decompressLegacyFrame(FILE* foutput, FILE* finput,
+                                             const void* dictBuffer, size_t dictSize,
+                                             U32 magicNumberLE)
 {
 	switch(magicNumberLE)
 	{
@@ -494,10 +495,12 @@ unsigned long long FIO_decompressLegacyFrame(FILE* foutput, FILE* finput, U32 ma
 		    }
 		case ZSTDv05_MAGICNUMBER :
 		    {   dRessv05_t r = FIOv05_createDResources();
-                unsigned long long const s = FIOv05_decompressFrame(r, foutput, finput);
-                FIOv05_freeDResources(r);
-                return s;
-		    }
+                r.dictBuffer = dictBuffer;
+                r.dictBufferSize = dictSize;
+                {   unsigned long long const s = FIOv05_decompressFrame(r, foutput, finput);
+                    FIOv05_freeDResources(r);
+                    return s;
+		    }   }
 		default :
 		    return ERROR(prefix_unknown);
 	}

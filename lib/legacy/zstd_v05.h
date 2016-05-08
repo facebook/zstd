@@ -77,7 +77,7 @@ size_t ZSTDv05_decompressDCtx(ZSTDv05_DCtx* ctx, void* dst, size_t dstCapacity, 
 
 
 /*-***********************
-*  Dictionary API
+*  Simple Dictionary API
 *************************/
 /*! ZSTDv05_decompress_usingDict() :
 *   Decompression using a pre-defined Dictionary content (see dictBuilder).
@@ -88,11 +88,18 @@ size_t ZSTDv05_decompress_usingDict(ZSTDv05_DCtx* dctx,
                                       const void* src, size_t srcSize,
                                       const void* dict,size_t dictSize);
 
+/*-************************
+*  Advanced Streaming API
+***************************/
+size_t ZSTDv05_decompressBegin_usingDict(ZSTDv05_DCtx* dctx, const void* dict, size_t dictSize);
+void   ZSTDv05_copyDCtx(ZSTDv05_DCtx* dstDCtx, const ZSTDv05_DCtx* srcDCtx);
+size_t ZSTDv05_nextSrcSizeToDecompress(ZSTDv05_DCtx* dctx);
+size_t ZSTDv05_decompressContinue(ZSTDv05_DCtx* dctx, void* dst, size_t dstCapacity, const void* src, size_t srcSize);
 
 
-
-
-
+/*-***********************
+*  ZBUFF API
+*************************/
 typedef struct ZBUFFv05_DCtx_s ZBUFFv05_DCtx;
 ZBUFFv05_DCtx* ZBUFFv05_createDCtx(void);
 size_t      ZBUFFv05_freeDCtx(ZBUFFv05_DCtx* dctx);

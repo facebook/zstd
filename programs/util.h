@@ -1,37 +1,26 @@
 /* ******************************************************************
-   util.h
-   utility functions
-   Copyright (C) 2016, Yann Collet.
+  util.h - utility functions
+  Copyright (C) 2016, Przemyslaw Skibinski, Yann Collet.
 
-   BSD 2-Clause License (http://www.opensource.org/licenses/bsd-license.php)
+  GPL v2 License
 
-   Redistribution and use in source and binary forms, with or without
-   modification, are permitted provided that the following conditions are
-   met:
+  This program is free software; you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation; either version 2 of the License, or
+  (at your option) any later version.
 
-       * Redistributions of source code must retain the above copyright
-   notice, this list of conditions and the following disclaimer.
-       * Redistributions in binary form must reproduce the above
-   copyright notice, this list of conditions and the following disclaimer
-   in the documentation and/or other materials provided with the
-   distribution.
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
 
-   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-   "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-   LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-   A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-   OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-   SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-   LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-   DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-   THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+  You should have received a copy of the GNU General Public License along
+  with this program; if not, write to the Free Software Foundation, Inc.,
+  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
-    You can contact the author at :
-    - FSE source repository : https://github.com/Cyan4973/FiniteStateEntropy
-    - Public forum : https://groups.google.com/forum/#!forum/lz4c
-****************************************************************** */
+  You can contact the author at :
+  - ZSTD homepage : http://www.zstd.net/
+*/
 #ifndef UTIL_H_MODULE
 #define UTIL_H_MODULE
 
@@ -46,8 +35,8 @@ extern "C" {
 #  define _CRT_SECURE_NO_WARNINGS    /* Disable some Visual warning messages for fopen, strncpy */
 #  define _CRT_SECURE_NO_DEPRECATE   /* VS2005 */
 #  pragma warning(disable : 4127)    /* disable: C4127: conditional expression is constant */
-#if _MSC_VER <= 1700                 /* (1700 = Visual Studio 2012) */
-    #define snprintf sprintf_s       /* snprintf unsupported by Visual <= 2012 */
+#if _MSC_VER <= 1800                 /* (1800 = Visual Studio 2013) */
+    #define snprintf sprintf_s       /* snprintf unsupported by Visual <= 2013 */
   //#define snprintf _snprintf
 #endif
 #endif
@@ -119,16 +108,16 @@ extern "C" {
 ******************************************/
 #if !defined(_WIN32)
    typedef clock_t UTIL_time_t;
-#  define UTIL_initTimer(ticksPerSecond) ticksPerSecond=0
-#  define UTIL_getTime(x) x = clock()
-#  define UTIL_getSpanTimeMicro(ticksPerSecond, clockStart, clockEnd) (1000000ULL * (clockEnd - clockStart) / CLOCKS_PER_SEC)
-#  define UTIL_getSpanTimeNano(ticksPerSecond, clockStart, clockEnd) (1000000000ULL * (clockEnd - clockStart) / CLOCKS_PER_SEC)
+   UTIL_STATIC void UTIL_initTimer(UTIL_time_t* ticksPerSecond) { *ticksPerSecond=0; }
+   UTIL_STATIC void UTIL_getTime(UTIL_time_t* x) { *x = clock(); }
+   UTIL_STATIC U64 UTIL_getSpanTimeMicro(UTIL_time_t ticksPerSecond, UTIL_time_t clockStart, UTIL_time_t clockEnd) { (void)ticksPerSecond; return 1000000ULL * (clockEnd - clockStart) / CLOCKS_PER_SEC; }
+   UTIL_STATIC U64 UTIL_getSpanTimeNano(UTIL_time_t ticksPerSecond, UTIL_time_t clockStart, UTIL_time_t clockEnd) { (void)ticksPerSecond; return 1000000000ULL * (clockEnd - clockStart) / CLOCKS_PER_SEC); }
 #else
    typedef LARGE_INTEGER UTIL_time_t;
-#  define UTIL_initTimer(x) if (!QueryPerformanceFrequency(&x)) { fprintf(stderr, "ERROR: QueryPerformance not present\n"); }
-#  define UTIL_getTime(x) QueryPerformanceCounter(&x)
-#  define UTIL_getSpanTimeMicro(ticksPerSecond, clockStart, clockEnd) (1000000ULL*(clockEnd.QuadPart - clockStart.QuadPart)/ticksPerSecond.QuadPart)
-#  define UTIL_getSpanTimeNano(ticksPerSecond, clockStart, clockEnd) (1000000000ULL*(clockEnd.QuadPart - clockStart.QuadPart)/ticksPerSecond.QuadPart)
+   UTIL_STATIC void UTIL_initTimer(UTIL_time_t* ticksPerSecond) { if (!QueryPerformanceFrequency(ticksPerSecond)) fprintf(stderr, "ERROR: QueryPerformance not present\n"); }
+   UTIL_STATIC void UTIL_getTime(UTIL_time_t* x) { QueryPerformanceCounter(x); }
+   UTIL_STATIC U64 UTIL_getSpanTimeMicro(UTIL_time_t ticksPerSecond, UTIL_time_t clockStart, UTIL_time_t clockEnd) { return 1000000ULL*(clockEnd.QuadPart - clockStart.QuadPart)/ticksPerSecond.QuadPart; }
+   UTIL_STATIC U64 UTIL_getSpanTimeNano(UTIL_time_t ticksPerSecond, UTIL_time_t clockStart, UTIL_time_t clockEnd) { return 1000000000ULL*(clockEnd.QuadPart - clockStart.QuadPart)/ticksPerSecond.QuadPart; }
 #endif
 
 
@@ -136,9 +125,7 @@ extern "C" {
 UTIL_STATIC U64 UTIL_clockSpanMicro( UTIL_time_t clockStart, UTIL_time_t ticksPerSecond )
 {
     UTIL_time_t clockEnd;
-    (void)ticksPerSecond;
-
-    UTIL_getTime(clockEnd);
+    UTIL_getTime(&clockEnd);
     return UTIL_getSpanTimeMicro(ticksPerSecond, clockStart, clockEnd);
 }
 
@@ -146,11 +133,9 @@ UTIL_STATIC U64 UTIL_clockSpanMicro( UTIL_time_t clockStart, UTIL_time_t ticksPe
 UTIL_STATIC void UTIL_waitForNextTick(UTIL_time_t ticksPerSecond)
 {
     UTIL_time_t clockStart, clockEnd;
-    (void)ticksPerSecond;
-
-    UTIL_getTime(clockStart);
+    UTIL_getTime(&clockStart);
     do { 
-        UTIL_getTime(clockEnd); 
+        UTIL_getTime(&clockEnd); 
     } while (UTIL_getSpanTimeNano(ticksPerSecond, clockStart, clockEnd) == 0);
 }
 

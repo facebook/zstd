@@ -11,6 +11,7 @@ To build the zstd library the following files are required:
 - [common/error_private.h](common/error_private.h)
 - [common/error_public.h](common/error_public.h)
 - common/fse.h
+- common/fse_decompress.c
 - common/fse_static.h
 - common/huf.h
 - common/huf_static.h
@@ -22,7 +23,6 @@ To build the zstd library the following files are required:
 - compress/huf_compress.c
 - compress/zstd_compress.c
 - compress/zstd_opt.h 
-- decompress/fse_decompress.c
 - decompress/huf_decompress.c
 - decompress/zstd_decompress.c
 

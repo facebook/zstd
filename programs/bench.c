@@ -159,7 +159,7 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
 
     /* init */
     if (strlen(displayName)>17) displayName += strlen(displayName)-17;   /* can only display 17 characters */
-    UTIL_initTimer(ticksPerSecond);
+    UTIL_initTimer(&ticksPerSecond);
 
     /* Init blockTable data */
     {   const char* srcPtr = (const char*)srcBuffer;
@@ -195,7 +195,7 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
         size_t cSize = 0;
         double ratio = 0.;
 
-        UTIL_getTime(coolTime);
+        UTIL_getTime(&coolTime);
         DISPLAYLEVEL(2, "\r%79s\r", "");
         for (testNb = 1; testNb <= (g_nbIterations + !g_nbIterations); testNb++) {
             UTIL_time_t clockStart;
@@ -205,7 +205,7 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
             if (UTIL_clockSpanMicro(coolTime, ticksPerSecond) > ACTIVEPERIOD_MICROSEC) {
                 DISPLAY("\rcooling down ...    \r");
                 UTIL_sleep(COOLPERIOD_SEC);
-                UTIL_getTime(coolTime);
+                UTIL_getTime(&coolTime);
             }
 
             /* Compression */
@@ -214,7 +214,7 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
 
             UTIL_sleepMilli(1); /* give processor time to other processes */
             UTIL_waitForNextTick(ticksPerSecond);
-            UTIL_getTime(clockStart);
+            UTIL_getTime(&clockStart);
 
             {   U32 nbLoops = 0;
                 do {
@@ -253,7 +253,7 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
 
             UTIL_sleepMilli(1); /* give processor time to other processes */
             UTIL_waitForNextTick(ticksPerSecond);
-            UTIL_getTime(clockStart);
+            UTIL_getTime(&clockStart);
 
             {   U32 nbLoops = 0;
                 do {

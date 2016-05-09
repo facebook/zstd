@@ -1,0 +1,23 @@
+version: 1.0.{build}
+configuration:
+- Release
+- Debug
+platform:
+- Win32
+- x64
+environment:
+  matrix:
+  - PlatformToolset: v110
+  - PlatformToolset: v140
+build_script:
+- cmd: >-
+    ECHO PlatformToolset=%PlatformToolset%
+
+    msbuild "visual\2013\zstd.sln" /m /verbosity:minimal /property:PlatformToolset=%PlatformToolset% /t:Clean,Build /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll"
+test_script:
+- cmd: >-
+    ECHO %APPVEYOR_BUILD_FOLDER%\bin\%PLATFORM%\%CONFIGURATION%\fuzzer.exe %FUZZERTEST%
+
+    SET FUZZERTEST=-T5mn
+
+    IF %CONFIGURATION%==Release (%APPVEYOR_BUILD_FOLDER%\visual\2013\bin\%PLATFORM%\%CONFIGURATION%\fuzzer.exe %FUZZERTEST%)

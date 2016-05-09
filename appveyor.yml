@@ -7,7 +7,9 @@ platform:
 - x64
 environment:
   matrix:
+  - PlatformToolset: v100
   - PlatformToolset: v110
+  - PlatformToolset: v120
   - PlatformToolset: v140
 build_script:
 - cmd: >-
@@ -16,7 +18,7 @@ build_script:
     msbuild "visual\2013\zstd.sln" /m /verbosity:minimal /property:PlatformToolset=%PlatformToolset% /t:Clean,Build /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll"
 test_script:
 - cmd: >-
-    ECHO %APPVEYOR_BUILD_FOLDER%\bin\%PLATFORM%\%CONFIGURATION%\fuzzer.exe %FUZZERTEST%
+    ECHO %APPVEYOR_BUILD_FOLDER%\visual\2013\bin\%PLATFORM%\%CONFIGURATION%\fuzzer.exe %FUZZERTEST%
 
     SET FUZZERTEST=-T5mn
 

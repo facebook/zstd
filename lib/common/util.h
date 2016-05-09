@@ -46,9 +46,12 @@ extern "C" {
 #  define _CRT_SECURE_NO_WARNINGS    /* Disable some Visual warning messages for fopen, strncpy */
 #  define _CRT_SECURE_NO_DEPRECATE   /* VS2005 */
 #  pragma warning(disable : 4127)    /* disable: C4127: conditional expression is constant */
-#  define snprintf sprintf_s         /* snprintf unsupported by Visual <= 2012 */
-//#  define snprintf _snprintf    
+#if _MSC_VER <= 1700                 /* (1700 = Visual Studio 2012) */
+    #define snprintf sprintf_s       /* snprintf unsupported by Visual <= 2012 */
+  //#define snprintf _snprintf
 #endif
+#endif
+
 
 /* Unix Large Files support (>4GB) */
 #if !defined(__LP64__)              /* No point defining Large file for 64 bit */

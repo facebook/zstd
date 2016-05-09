@@ -95,7 +95,6 @@ extern "C" {
 #endif
 
 
-
 /*-****************************************
 *  Utility functions
 ******************************************/
@@ -116,8 +115,8 @@ UTIL_STATIC void UTIL_waitForNextTick(UTIL_time_t ticksPerSecond)
     (void)ticksPerSecond;
 
     UTIL_getTime(clockStart);
-    do { 
-        UTIL_getTime(clockEnd); 
+    do {
+        UTIL_getTime(clockEnd);
     } while (UTIL_getSpanTimeNano(ticksPerSecond, clockStart, clockEnd) == 0);
 }
 

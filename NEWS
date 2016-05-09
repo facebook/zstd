@@ -1,3 +1,7 @@
+v0.6.1
+Fixed : Legacy codec v0.5 compatible with dictionary decompression
+Fixed : Decoder corruption error (#173)
+
 v0.6.0
 Stronger high compression modes, thanks to Przemyslaw Skibinski
 API : ZSTD_getFrameParams() provides size of decompressed content

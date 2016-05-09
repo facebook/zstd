@@ -126,6 +126,11 @@ void FIO_setNotificationLevel(unsigned level) { g_displayLevel=level; }
 static const unsigned refreshRate = 150;
 static clock_t g_time = 0;
 
+static unsigned FIO_GetMilliSpan(clock_t nPrevious)
+{
+    clock_t const nCurrent = clock();
+    return (unsigned)(((nCurrent - nPrevious) * 1000) / CLOCKS_PER_SEC);
+}
 
 
 /*-*************************************
@@ -157,14 +162,6 @@ void FIO_setMaxWLog(unsigned maxWLog) { g_maxWLog = maxWLog; }
 /*-*************************************
 *  Functions
 ***************************************/
-static unsigned FIO_GetMilliSpan(clock_t nPrevious)
-{
-    clock_t nCurrent = clock();
-    unsigned nSpan = (unsigned)(((nCurrent - nPrevious) * 1000) / CLOCKS_PER_SEC);
-    return nSpan;
-}
-
-
 static FILE* FIO_openSrcFile(const char* srcFileName)
 {
     FILE* f;

@@ -29,6 +29,9 @@
 #include <stdlib.h>    /* malloc */
 #include <stdio.h>     /* FILE, fwrite */
 #include <string.h>    /* memcpy */
+<<<<<<< HEAD
+#include "mem.h"
+=======
 
 
 /*-************************************
@@ -48,6 +51,7 @@
   typedef   signed int        S32;
   typedef unsigned long long  U64;
 #endif
+>>>>>>> 59b6ba767710823fa688ff1f4b7ea443567f0b27
 
 
 /*-************************************
@@ -63,7 +67,7 @@
 
 
 /*-************************************
-*  Constants
+*  Macros
 **************************************/
 #define KB *(1 <<10)
 
@@ -98,15 +102,10 @@ static unsigned int RDG_rand(U32* src)
 static void RDG_fillLiteralDistrib(litDistribTable lt, double ld)
 {
     U32 i = 0;
-    BYTE character = '0';
-    BYTE firstChar = '(';
-    BYTE lastChar = '}';
+    BYTE character = (ld<=0.0) ? 0 : '0';
+    BYTE const firstChar = (ld<=0.0) ? 0 : '(';
+    BYTE const lastChar  = (ld<=0.0) ?255: '}';
 
-    if (ld<=0.0) {
-        character = 0;
-        firstChar = 0;
-        lastChar =255;
-    }
     while (i<LTSIZE) {
         U32 weight = (U32)((double)(LTSIZE - i) * ld) + 1;
         U32 end;
@@ -161,7 +160,7 @@ void RDG_genBlock(void* buffer, size_t buffSize, size_t prefixSize, double match
             /* Copy (within 32K) */
             size_t match;
             size_t d;
-            int length = RDG_RANDLENGTH + 4;
+            size_t const length = RDG_RANDLENGTH + 4;
             U32 offset = RDG_RAND15BITS + 1;
             U32 repeatOffset = (RDG_rand(seed) & 15) == 2;
             if (repeatOffset) offset = prevOffset;
@@ -173,9 +172,8 @@ void RDG_genBlock(void* buffer, size_t buffSize, size_t prefixSize, double match
             while (pos < d) buffPtr[pos++] = buffPtr[match++];   /* correctly manages overlaps */
         } else {
             /* Literal (noise) */
-            size_t d;
-            size_t length = RDG_RANDLENGTH;
-            d = pos + length;
+            size_t const length = RDG_RANDLENGTH;
+            size_t d = pos + length;
             if (d > buffSize) d = buffSize;
             while (pos < d) buffPtr[pos++] = RDG_genChar(seed, lt);
     }   }

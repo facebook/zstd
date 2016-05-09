@@ -29,29 +29,7 @@
 #include <stdlib.h>    /* malloc */
 #include <stdio.h>     /* FILE, fwrite */
 #include <string.h>    /* memcpy */
-<<<<<<< HEAD
 #include "mem.h"
-=======
-
-
-/*-************************************
-*  Basic Types
-**************************************/
-#if !defined (__VMS) && ( defined (__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L)   /* C99 */ )
-# include <stdint.h>
-  typedef  uint8_t BYTE;
-  typedef uint16_t U16;
-  typedef uint32_t U32;
-  typedef  int32_t S32;
-  typedef uint64_t U64;
-#else
-  typedef unsigned char       BYTE;
-  typedef unsigned short      U16;
-  typedef unsigned int        U32;
-  typedef   signed int        S32;
-  typedef unsigned long long  U64;
-#endif
->>>>>>> 59b6ba767710823fa688ff1f4b7ea443567f0b27
 
 
 /*-************************************

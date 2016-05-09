@@ -63,7 +63,7 @@ extern "C" {
 #endif
 
 /* Sleep functions: posix - windows - others */
-#if !defined(_WIN32) && (defined(__unix__) || defined(__unix) || (defined(__APPLE__) && defined(__MACH__)))
+#if !defined(_WIN32) && (defined(__unix__) || defined(__unix) || defined(__midipix__) || (defined(__APPLE__) && defined(__MACH__)))
 #  include <unistd.h>
 #  include <sys/resource.h> /* setpriority */
 #  define UTIL_sleep(s) sleep(s)

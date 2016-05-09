@@ -76,6 +76,19 @@ static const size_t maxMemory = (sizeof(size_t) == 4) ? (2 GB - 64 MB) : ((size_
 #define DISPLAYLEVEL(l, ...) if (g_displayLevel>=l) { DISPLAY(__VA_ARGS__); }
 static unsigned g_displayLevel = 0;   /* 0 : no display;   1: errors;   2: default;  4: full information */
 
+#define DISPLAYUPDATE(l, ...) if (g_displayLevel>=l) { \
+            if ((DIB_GetMilliSpan(g_time) > refreshRate) || (g_displayLevel>=4)) \
+            { g_time = clock(); DISPLAY(__VA_ARGS__); \
+            if (g_displayLevel>=4) fflush(stdout); } }
+static const unsigned refreshRate = 150;
+static clock_t g_time = 0;
+
+static unsigned DIB_GetMilliSpan(clock_t nPrevious)
+{
+    clock_t const nCurrent = clock();
+    return (unsigned)(((nCurrent - nPrevious) * 1000) / CLOCKS_PER_SEC);
+}
+
 
 /*-*************************************
 *  Exceptions
@@ -118,7 +131,7 @@ static void DiB_loadFiles(void* buffer, size_t bufferSize,
         unsigned long long fileSize = UTIL_getFileSize(fileNamesTable[n]);
         FILE* f = fopen(fileNamesTable[n], "rb");
         if (f==NULL) EXM_THROW(10, "impossible to open file %s", fileNamesTable[n]);
-        DISPLAYLEVEL(2, "Loading %s...       \r", fileNamesTable[n]);
+        DISPLAYUPDATE(2, "Loading %s...       \r", fileNamesTable[n]);
         if (fileSize > bufferSize-pos) fileSize = 0;  /* stop there, not enough memory to load all files */
         readSize = fread(buff+pos, 1, (size_t)fileSize, f);
         if (readSize != (size_t)fileSize) EXM_THROW(11, "could not read %s", fileNamesTable[n]);
@@ -166,17 +179,14 @@ static void DiB_fillNoise(void* buffer, size_t length)
 static void DiB_saveDict(const char* dictFileName,
                          const void* buff, size_t buffSize)
 {
-    FILE* f;
-    size_t n;
-
-    f = fopen(dictFileName, "wb");
+    FILE* f = fopen(dictFileName, "wb");
     if (f==NULL) EXM_THROW(3, "cannot open %s ", dictFileName);
 
-    n = fwrite(buff, 1, buffSize, f);
-    if (n!=buffSize) EXM_THROW(4, "%s : write error", dictFileName)
+    { size_t const n = fwrite(buff, 1, buffSize, f);
+      if (n!=buffSize) EXM_THROW(4, "%s : write error", dictFileName) }
 
-    n = (size_t)fclose(f);
-    if (n!=0) EXM_THROW(5, "%s : flush error", dictFileName)
+    { size_t const n = (size_t)fclose(f);
+      if (n!=0) EXM_THROW(5, "%s : flush error", dictFileName) }
 }
 
 

@@ -102,7 +102,7 @@ size_t ZSTDv05_decompressContinue(ZSTDv05_DCtx* dctx, void* dst, size_t dstCapac
 *************************/
 typedef struct ZBUFFv05_DCtx_s ZBUFFv05_DCtx;
 ZBUFFv05_DCtx* ZBUFFv05_createDCtx(void);
-size_t      ZBUFFv05_freeDCtx(ZBUFFv05_DCtx* dctx);
+size_t         ZBUFFv05_freeDCtx(ZBUFFv05_DCtx* dctx);
 
 size_t ZBUFFv05_decompressInit(ZBUFFv05_DCtx* dctx);
 size_t ZBUFFv05_decompressInitDictionary(ZBUFFv05_DCtx* dctx, const void* dict, size_t dictSize);

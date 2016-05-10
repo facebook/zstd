@@ -189,7 +189,7 @@ static int basicUnitTests(U32 seed, double compressibility)
     }
 
     /* Byte-by-byte decompression test */
-    DISPLAYLEVEL(4, "test%3i : decompress byte-by-byte : ", testNb++, COMPRESSIBLE_NOISE_LENGTH);
+    DISPLAYLEVEL(4, "test%3i : decompress byte-by-byte : ", testNb++);
     ZBUFF_decompressInitDictionary(zd, CNBuffer, 128 KB);
     {   size_t r = 1, pIn=0, pOut=0;
         while (r) {

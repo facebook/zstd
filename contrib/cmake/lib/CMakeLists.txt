@@ -58,11 +58,11 @@ MESSAGE("ZSTD VERSION ${LIBVER_MAJOR}.${LIBVER_MINOR}.${LIBVER_RELEASE}")
 
 SET(Sources
         ${LIBRARY_DIR}/common/zstd_common.c
+        ${LIBRARY_DIR}/common/fse_decompress.c
         ${LIBRARY_DIR}/compress/fse_compress.c
         ${LIBRARY_DIR}/compress/huf_compress.c
         ${LIBRARY_DIR}/compress/zbuff_compress.c
         ${LIBRARY_DIR}/compress/zstd_compress.c
-        ${LIBRARY_DIR}/decompress/fse_decompress.c
         ${LIBRARY_DIR}/decompress/huf_decompress.c
         ${LIBRARY_DIR}/decompress/zbuff_decompress.c
         ${LIBRARY_DIR}/decompress/zstd_decompress.c

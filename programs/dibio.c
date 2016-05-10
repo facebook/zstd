@@ -22,31 +22,14 @@
     - zstd homepage : http://www.zstd.net/
 */
 
-/*-**************************************
-*  Compiler Options
-****************************************/
-/* Disable some Visual warning messages */
-#ifdef _MSC_VER
-#  define _CRT_SECURE_NO_WARNINGS                /* fopen */
-#  pragma warning(disable : 4127)                /* disable: C4127: conditional expression is constant */
-#endif
-
-/* Unix Large Files support (>4GB) */
-#define _FILE_OFFSET_BITS 64
-#if (defined(__sun__) && (!defined(__LP64__)))   /* Sun Solaris 32-bits requires specific definitions */
-#  define _LARGEFILE_SOURCE
-#elif ! defined(__LP64__)                        /* No point defining Large file for 64 bit */
-#  define _LARGEFILE64_SOURCE
-#endif
-
-
 /*-*************************************
 *  Includes
 ***************************************/
-#include "util.h"           /* UTIL_GetFileSize */
+#include "util.h"           /* Compiler options, UTIL_GetFileSize, UTIL_getTotalFileSize */
 #include <stdlib.h>         /* malloc, free */
 #include <string.h>         /* memset */
 #include <stdio.h>          /* fprintf, fopen, ftello64 */
+#include <time.h>           /* clock_t, clock, CLOCKS_PER_SEC */
 
 #include "mem.h"            /* read */
 #include "error_private.h"

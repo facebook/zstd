@@ -23,28 +23,10 @@
     - zstd source repository : https://github.com/Cyan4973/zstd
 */
 
-/* **************************************
-*  Compiler Options
-****************************************/
-/* Disable some Visual warning messages */
-#ifdef _MSC_VER
-#  define _CRT_SECURE_NO_WARNINGS                /* fopen */
-#  pragma warning(disable : 4127)                /* disable: C4127: conditional expression is constant */
-#endif
-
-/* Unix Large Files support (>4GB) */
-#define _FILE_OFFSET_BITS 64
-#if (defined(__sun__) && (!defined(__LP64__)))   /* Sun Solaris 32-bits requires specific definitions */
-#  define _LARGEFILE_SOURCE
-#elif ! defined(__LP64__)                        /* No point defining Large file for 64 bit */
-#  define _LARGEFILE64_SOURCE
-#endif
-
-
 /* *************************************
 *  Includes
 ***************************************/
-#include "util.h"        /* UTIL_GetFileSize */
+#include "util.h"        /* Compiler options, UTIL_GetFileSize, UTIL_HAS_CREATEFILELIST, UTIL_sleep */
 #include <stdlib.h>      /* malloc, free */
 #include <string.h>      /* memset */
 #include <stdio.h>       /* fprintf, fopen, ftello64 */
@@ -54,17 +36,6 @@
 #include "datagen.h"     /* RDG_genBuffer */
 #include "xxhash.h"
 
-
-/* *************************************
-*  Compiler specifics
-***************************************/
-#if defined(_MSC_VER)
-#  define snprintf sprintf_s
-#elif defined (__cplusplus) || (defined (__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L))
-  /* part of <stdio.h> */
-#else
-  extern int snprintf (char* s, size_t maxlen, const char* format, ...);   /* not declared in <stdio.h> when C version < c99 */
-#endif
 
 
 /* *************************************
@@ -78,6 +49,7 @@
 #define TIMELOOP_MICROSEC     1*1000000ULL /* 1 second */
 #define ACTIVEPERIOD_MICROSEC 70*1000000ULL /* 70 seconds */
 #define COOLPERIOD_SEC        10
+#define MAX_LIST_SIZE         (64*1024)
 
 #define KB *(1 <<10)
 #define MB *(1 <<20)
@@ -187,7 +159,7 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
 
     /* init */
     if (strlen(displayName)>17) displayName += strlen(displayName)-17;   /* can only display 17 characters */
-    UTIL_initTimer(ticksPerSecond);
+    UTIL_initTimer(&ticksPerSecond);
 
     /* Init blockTable data */
     {   const char* srcPtr = (const char*)srcBuffer;
@@ -223,7 +195,7 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
         size_t cSize = 0;
         double ratio = 0.;
 
-        UTIL_getTime(coolTime);
+        UTIL_getTime(&coolTime);
         DISPLAYLEVEL(2, "\r%79s\r", "");
         for (testNb = 1; testNb <= (g_nbIterations + !g_nbIterations); testNb++) {
             UTIL_time_t clockStart;
@@ -233,7 +205,7 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
             if (UTIL_clockSpanMicro(coolTime, ticksPerSecond) > ACTIVEPERIOD_MICROSEC) {
                 DISPLAY("\rcooling down ...    \r");
                 UTIL_sleep(COOLPERIOD_SEC);
-                UTIL_getTime(coolTime);
+                UTIL_getTime(&coolTime);
             }
 
             /* Compression */
@@ -242,7 +214,7 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
 
             UTIL_sleepMilli(1); /* give processor time to other processes */
             UTIL_waitForNextTick(ticksPerSecond);
-            UTIL_getTime(clockStart);
+            UTIL_getTime(&clockStart);
 
             {   U32 nbLoops = 0;
                 do {
@@ -281,7 +253,7 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
 
             UTIL_sleepMilli(1); /* give processor time to other processes */
             UTIL_waitForNextTick(ticksPerSecond);
-            UTIL_getTime(clockStart);
+            UTIL_getTime(&clockStart);
 
             {   U32 nbLoops = 0;
                 do {
@@ -347,6 +319,7 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
     }   /* Bench */
 
     /* clean up */
+    free(blockTable);
     free(compressedBuffer);
     free(resultBuffer);
     ZSTD_freeCCtx(refCtx);
@@ -528,14 +501,32 @@ static void BMK_syntheticTest(int cLevel, int cLevelLast, double compressibility
 
 
 int BMK_benchFiles(const char** fileNamesTable, unsigned nbFiles,
-                   const char* dictFileName, int cLevel, int cLevelLast)
+                   const char* dictFileName, int cLevel, int cLevelLast, int recursive)
 {
     double const compressibility = (double)g_compressibilityDefault / 100;
 
     if (nbFiles == 0)
         BMK_syntheticTest(cLevel, cLevelLast, compressibility);
     else
+    {
+#ifdef UTIL_HAS_CREATEFILELIST
+        if (recursive) {
+            char* buf;
+            const char** filenameTable;
+            unsigned i;
+            nbFiles = UTIL_createFileList(fileNamesTable, nbFiles, MAX_LIST_SIZE, &filenameTable, &buf);
+            if (filenameTable) {
+                for (i=0; i<nbFiles; i++) DISPLAYLEVEL(3, "%d %s\n", i, filenameTable[i]);
+                BMK_benchFileTable(filenameTable, nbFiles, dictFileName, cLevel, cLevelLast);
+                UTIL_freeFileList(filenameTable, buf);
+            }
+        }
+        else BMK_benchFileTable(fileNamesTable, nbFiles, dictFileName, cLevel, cLevelLast);
+#else
+        (void)recursive;
         BMK_benchFileTable(fileNamesTable, nbFiles, dictFileName, cLevel, cLevelLast);
+#endif
+    }
     return 0;
 }
 

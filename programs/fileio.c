@@ -41,21 +41,13 @@
 /* *************************************
 *  Compiler Options
 ***************************************/
-/* Disable some Visual warning messages */
-#ifdef _MSC_VER
-#  define _CRT_SECURE_NO_WARNINGS
-#  define _CRT_SECURE_NO_DEPRECATE     /* VS2005 */
-#  pragma warning(disable : 4127)      /* disable: C4127: conditional expression is constant */
-#endif
-
-#define _FILE_OFFSET_BITS 64   /* Large file support on 32-bits unix */
-#define _POSIX_SOURCE 1        /* enable fileno() within <stdio.h> on unix */
+#define _POSIX_SOURCE 1        /* enable %llu on Windows */
 
 
 /*-*************************************
 *  Includes
 ***************************************/
-#include "util.h"       /* UTIL_GetFileSize */
+#include "util.h"       /* Compiler options, UTIL_GetFileSize */
 #include <stdio.h>      /* fprintf, fopen, fread, _fileno, stdin, stdout */
 #include <stdlib.h>     /* malloc, free */
 #include <string.h>     /* strcmp, strlen */
@@ -80,11 +72,9 @@
 #  include <fcntl.h>    /* _O_BINARY */
 #  include <io.h>       /* _setmode, _isatty */
 #  define SET_BINARY_MODE(file) { int unused = _setmode(_fileno(file), _O_BINARY); (void)unused; }
-#  define IS_CONSOLE(stdStream) _isatty(_fileno(stdStream))
 #else
 #  include <unistd.h>   /* isatty */
 #  define SET_BINARY_MODE(file)
-#  define IS_CONSOLE(stdStream) isatty(fileno(stdStream))
 #endif
 
 

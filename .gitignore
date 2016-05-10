@@ -17,28 +17,8 @@
 *.out
 *.app
 
-# Visual solution files
-*.suo
-*.user
-*.VC.db
-
-# Build results
-[Dd]ebug/
-[Rr]elease/
-[Rr]eleases/
-x64/
-x86/
-[Bb]in/
-[Oo]bj/
-
-# Visual C++ cache files
-ipch/
-*.aps
-*.ncb
-*.opendb
-*.opensdf
-*.sdf
-*.cachefile
+# Visual C++
+visual/
 
 # IDEA solution files
 *.idea

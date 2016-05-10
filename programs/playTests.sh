@@ -29,6 +29,8 @@ $ZSTD -f tmp                             # trivial compression case, creates tmp
 $ZSTD -df tmp.zst                        # trivial decompression case (overwrites tmp)
 echo "test : too large compression level (must fail)"
 $ZSTD -99 tmp && die "too large compression level undetected"
+echo "test : compress null-length file"
+echo -n '' | $ZSTD - --stdout | $ZSTD -d --stdout
 $ZSTD tmp -c > tmpCompressed             # compression using stdout     
 $ZSTD tmp --stdout > tmpCompressed       # compressoin using stdout, long format
 echo "test : decompress file with wrong suffix (must fail)"

@@ -38,8 +38,6 @@
 #  pragma warning(disable : 4127)      /* disable: C4127: conditional expression is constant */
 #endif
 
-#define GCC_VERSION (__GNUC__ * 100 + __GNUC_MINOR__)
-
 #define _FILE_OFFSET_BITS 64   /* Large file support on 32-bits unix */
 #define _POSIX_SOURCE 1        /* enable fileno() within <stdio.h> on unix */
 
@@ -92,8 +90,8 @@
 #define BIT6  0x40
 #define BIT7  0x80
 
-#define FIO_FRAMEHEADERSIZE 5        /* as a define, because needed to allocated table on stack */
-#define FSE_CHECKSUM_SEED        0
+#define FIO_FRAMEHEADERSIZE 5     /* as a define, because needed to allocated table on stack */
+#define FSE_CHECKSUM_SEED   0
 
 #define CACHELINE 64
 
@@ -149,7 +147,7 @@ static unsigned FIO_GetMilliSpan(clock_t nPrevious)
 
 unsigned long long FIOv01_decompressFrame(FILE* foutput, FILE* finput)
 {
-    size_t outBuffSize = 512 KB;
+    size_t const outBuffSize = 512 KB;
     BYTE* outBuff = (BYTE*)malloc(outBuffSize);
     size_t inBuffSize = 128 KB + 8;
     BYTE inBuff[128 KB + 8];
@@ -208,7 +206,7 @@ unsigned long long FIOv01_decompressFrame(FILE* foutput, FILE* finput)
 
 unsigned long long FIOv02_decompressFrame(FILE* foutput, FILE* finput)
 {
-    size_t outBuffSize = 512 KB;
+    size_t const outBuffSize = 512 KB;
     BYTE* outBuff = (BYTE*)malloc(outBuffSize);
     size_t inBuffSize = 128 KB + 8;
     BYTE inBuff[128 KB + 8];
@@ -266,7 +264,7 @@ unsigned long long FIOv02_decompressFrame(FILE* foutput, FILE* finput)
 
 unsigned long long FIOv03_decompressFrame(FILE* foutput, FILE* finput)
 {
-    size_t outBuffSize = 512 KB;
+    size_t const outBuffSize = 512 KB;
     BYTE* outBuff = (BYTE*)malloc(outBuffSize);
     size_t inBuffSize = 128 KB + 8;
     BYTE inBuff[128 KB + 8];
@@ -407,7 +405,7 @@ typedef struct {
     size_t srcBufferSize;
     void*  dstBuffer;
     size_t dstBufferSize;
-    void*  dictBuffer;
+    const void*  dictBuffer;
     size_t dictBufferSize;
     ZBUFFv05_DCtx* dctx;
 } dRessv05_t;
@@ -437,7 +435,6 @@ static void FIOv05_freeDResources(dRessv05_t ress)
     if (ZBUFFv05_isError(errorCode)) EXM_THROW(69, "Error : can't free ZBUFF context resource : %s", ZBUFFv05_getErrorName(errorCode));
     free(ress.srcBuffer);
     free(ress.dstBuffer);
-    free(ress.dictBuffer);
 }
 
 
@@ -445,22 +442,21 @@ unsigned long long FIOv05_decompressFrame(dRessv05_t ress,
                                           FILE* foutput, FILE* finput)
 {
     U64    frameSize = 0;
-    size_t readSize = 4;
+    size_t readSize  = 4;
 
     MEM_writeLE32(ress.srcBuffer, ZSTDv05_MAGICNUMBER);
     ZBUFFv05_decompressInitDictionary(ress.dctx, ress.dictBuffer, ress.dictBufferSize);
 
     while (1) {
         /* Decode */
-        size_t sizeCheck;
         size_t inSize=readSize, decodedSize=ress.dstBufferSize;
         size_t toRead = ZBUFFv05_decompressContinue(ress.dctx, ress.dstBuffer, &decodedSize, ress.srcBuffer, &inSize);
         if (ZBUFFv05_isError(toRead)) EXM_THROW(36, "Decoding error : %s", ZBUFFv05_getErrorName(toRead));
         readSize -= inSize;
 
         /* Write block */
-        sizeCheck = fwrite(ress.dstBuffer, 1, decodedSize, foutput);
-        if (sizeCheck != decodedSize) EXM_THROW(37, "Write error : unable to write data block to destination file");
+        { size_t const sizeCheck = fwrite(ress.dstBuffer, 1, decodedSize, foutput);
+          if (sizeCheck != decodedSize) EXM_THROW(37, "Write error : unable to write data block to destination file"); }
         frameSize += decodedSize;
         DISPLAYUPDATE(2, "\rDecoded : %u MB...     ", (U32)(frameSize>>20) );
 
@@ -479,7 +475,9 @@ unsigned long long FIOv05_decompressFrame(dRessv05_t ress,
 
 /*=====   General legacy dispatcher   =====*/
 
-unsigned long long FIO_decompressLegacyFrame(FILE* foutput, FILE* finput, U32 magicNumberLE)
+unsigned long long FIO_decompressLegacyFrame(FILE* foutput, FILE* finput,
+                                             const void* dictBuffer, size_t dictSize,
+                                             U32 magicNumberLE)
 {
 	switch(magicNumberLE)
 	{
@@ -497,10 +495,12 @@ unsigned long long FIO_decompressLegacyFrame(FILE* foutput, FILE* finput, U32 ma
 		    }
 		case ZSTDv05_MAGICNUMBER :
 		    {   dRessv05_t r = FIOv05_createDResources();
-                unsigned long long const s = FIOv05_decompressFrame(r, foutput, finput);
-                FIOv05_freeDResources(r);
-                return s;
-		    }
+                r.dictBuffer = dictBuffer;
+                r.dictBufferSize = dictSize;
+                {   unsigned long long const s = FIOv05_decompressFrame(r, foutput, finput);
+                    FIOv05_freeDResources(r);
+                    return s;
+		    }   }
 		default :
 		    return ERROR(prefix_unknown);
 	}

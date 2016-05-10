@@ -76,7 +76,7 @@ extern "C" {
 ******************************************/
 size_t HUF_decompress4X2 (void* dst, size_t dstSize, const void* cSrc, size_t cSrcSize);   /* single-symbol decoder */
 size_t HUF_decompress4X4 (void* dst, size_t dstSize, const void* cSrc, size_t cSrcSize);   /* double-symbols decoder */
-size_t HUF_decompress4X6 (void* dst, size_t dstSize, const void* cSrc, size_t cSrcSize);   /* quad-symbols decoder */
+size_t HUF_decompress4X6 (void* dst, size_t dstSize, const void* cSrc, size_t cSrcSize);   /* quad-symbols decoder, only works for dstSize >= 64 */
 
 
 /* ****************************************
@@ -122,7 +122,7 @@ size_t HUF_compress1X_usingCTable(void* dst, size_t dstSize, const void* src, si
 
 size_t HUF_decompress1X2 (void* dst, size_t dstSize, const void* cSrc, size_t cSrcSize);   /* single-symbol decoder */
 size_t HUF_decompress1X4 (void* dst, size_t dstSize, const void* cSrc, size_t cSrcSize);   /* double-symbol decoder */
-size_t HUF_decompress1X6 (void* dst, size_t dstSize, const void* cSrc, size_t cSrcSize);   /* quad-symbol decoder */
+size_t HUF_decompress1X6 (void* dst, size_t dstSize, const void* cSrc, size_t cSrcSize);   /* quad-symbols decoder, only works for dstSize >= 64 */
 
 size_t HUF_decompress1X2_usingDTable(void* dst, size_t maxDstSize, const void* cSrc, size_t cSrcSize, const unsigned short* DTable);
 size_t HUF_decompress1X4_usingDTable(void* dst, size_t maxDstSize, const void* cSrc, size_t cSrcSize, const unsigned* DTable);
@@ -157,7 +157,6 @@ MEM_STATIC size_t HUF_readStats(BYTE* huffWeight, size_t hwSize, U32* rankStats,
                             const void* src, size_t srcSize)
 {
     U32 weightTotal;
-    U32 tableLog;
     const BYTE* ip = (const BYTE*) src;
     size_t iSize = ip[0];
     size_t oSize;
@@ -191,31 +190,31 @@ MEM_STATIC size_t HUF_readStats(BYTE* huffWeight, size_t hwSize, U32* rankStats,
     /* collect weight stats */
     memset(rankStats, 0, (HUF_ABSOLUTEMAX_TABLELOG + 1) * sizeof(U32));
     weightTotal = 0;
-    { U32 n; for (n=0; n<oSize; n++) {
-        if (huffWeight[n] >= HUF_ABSOLUTEMAX_TABLELOG) return ERROR(corruption_detected);
-        rankStats[huffWeight[n]]++;
-        weightTotal += (1 << huffWeight[n]) >> 1;
-    }}
+    {   U32 n; for (n=0; n<oSize; n++) {
+            if (huffWeight[n] >= HUF_ABSOLUTEMAX_TABLELOG) return ERROR(corruption_detected);
+            rankStats[huffWeight[n]]++;
+            weightTotal += (1 << huffWeight[n]) >> 1;
+    }   }
 
     /* get last non-null symbol weight (implied, total must be 2^n) */
-    tableLog = BIT_highbit32(weightTotal) + 1;
-    if (tableLog > HUF_ABSOLUTEMAX_TABLELOG) return ERROR(corruption_detected);
-    /* determine last weight */
-    {   U32 const total = 1 << tableLog;
-        U32 const rest = total - weightTotal;
-        U32 const verif = 1 << BIT_highbit32(rest);
-        U32 const lastWeight = BIT_highbit32(rest) + 1;
-        if (verif != rest) return ERROR(corruption_detected);    /* last value must be a clean power of 2 */
-        huffWeight[oSize] = (BYTE)lastWeight;
-        rankStats[lastWeight]++;
-    }
+    {   U32 const tableLog = BIT_highbit32(weightTotal) + 1;
+        if (tableLog > HUF_ABSOLUTEMAX_TABLELOG) return ERROR(corruption_detected);
+        *tableLogPtr = tableLog;
+        /* determine last weight */
+        {   U32 const total = 1 << tableLog;
+            U32 const rest = total - weightTotal;
+            U32 const verif = 1 << BIT_highbit32(rest);
+            U32 const lastWeight = BIT_highbit32(rest) + 1;
+            if (verif != rest) return ERROR(corruption_detected);    /* last value must be a clean power of 2 */
+            huffWeight[oSize] = (BYTE)lastWeight;
+            rankStats[lastWeight]++;
+    }   }
 
     /* check tree construction validity */
     if ((rankStats[1] < 2) || (rankStats[1] & 1)) return ERROR(corruption_detected);   /* by construction : at least 2 elts of rank 1, must be even */
 
     /* results */
     *nbSymbolsPtr = (U32)(oSize+1);
-    *tableLogPtr = tableLog;
     return iSize+1;
 }
 

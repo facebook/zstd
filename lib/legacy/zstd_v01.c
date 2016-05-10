@@ -407,7 +407,7 @@ FORCE_INLINE unsigned FSE_highbit32 (register U32 val)
 
 static U32 FSE_tableStep(U32 tableSize) { return (tableSize>>1) + (tableSize>>3) + 3; }
 
-#define FSE_DECODE_TYPE FSE_TYPE_NAME(FSE_decode_t, FSE_FUNCTION_EXTENSION)
+#define FSE_DECODE_TYPE FSE_decode_t
 
 
 typedef struct {
@@ -415,7 +415,7 @@ typedef struct {
     U16 fastMode;
 } FSE_DTableHeader;   /* sizeof U32 */
 
-static size_t FSE_FUNCTION_NAME(FSE_buildDTable, FSE_FUNCTION_EXTENSION)
+static size_t FSE_buildDTable
 (FSE_DTable* dt, const short* normalizedCounter, unsigned maxSymbolValue, unsigned tableLog)
 {
     void* ptr = dt;

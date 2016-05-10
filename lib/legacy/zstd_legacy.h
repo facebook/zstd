@@ -1,7 +1,7 @@
 /*
     zstd_legacy - decoder for legacy format
     Header File
-    Copyright (C) 2015, Yann Collet.
+    Copyright (C) 2015-2016, Yann Collet.
 
     BSD 2-Clause License (http://www.opensource.org/licenses/bsd-license.php)
 
@@ -48,16 +48,20 @@ extern "C" {
 #include "zstd_v04.h"
 #include "zstd_v05.h"
 
+
+/** ZSTD_isLegacy() :
+    @return : > 0 if supported by legacy decoder. 0 otherwise.
+              return value is the version.
+*/
 MEM_STATIC unsigned ZSTD_isLegacy (U32 magicNumberLE)
 {
 	switch(magicNumberLE)
 	{
-		case ZSTDv01_magicNumberLE :
-		case ZSTDv02_magicNumber :
-		case ZSTDv03_magicNumber :
-		case ZSTDv04_magicNumber :
-		case ZSTDv05_MAGICNUMBER :
-            return 1;
+		case ZSTDv01_magicNumberLE:return 1;
+		case ZSTDv02_magicNumber : return 2;
+		case ZSTDv03_magicNumber : return 3;
+		case ZSTDv04_magicNumber : return 4;
+		case ZSTDv05_MAGICNUMBER : return 5;
 		default : return 0;
 	}
 }
@@ -66,6 +70,7 @@ MEM_STATIC unsigned ZSTD_isLegacy (U32 magicNumberLE)
 MEM_STATIC size_t ZSTD_decompressLegacy(
                      void* dst, size_t dstCapacity,
                const void* src, size_t compressedSize,
+               const void* dict,size_t dictSize,
                      U32 magicNumberLE)
 {
 	switch(magicNumberLE)
@@ -79,7 +84,14 @@ MEM_STATIC size_t ZSTD_decompressLegacy(
 		case ZSTDv04_magicNumber :
 			return ZSTDv04_decompress(dst, dstCapacity, src, compressedSize);
 		case ZSTDv05_MAGICNUMBER :
-			return ZSTDv05_decompress(dst, dstCapacity, src, compressedSize);
+		    {
+		        size_t result;
+		        ZSTDv05_DCtx* zd = ZSTDv05_createDCtx();
+		        if (zd==NULL) return ERROR(memory_allocation);
+		        result = ZSTDv05_decompress_usingDict(zd, dst, dstCapacity, src, compressedSize, dict, dictSize);
+		        ZSTDv05_freeDCtx(zd);
+		        return result;
+		    }
 		default :
 		    return ERROR(prefix_unknown);
 	}

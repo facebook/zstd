@@ -423,7 +423,7 @@ static void BMK_loadFiles(void* buffer, size_t bufferSize,
         totalSize += (size_t)fileSize;
         fclose(f);
     }
-    
+
     if (totalSize == 0) EXM_THROW(12, "no data to bench");
 }
 

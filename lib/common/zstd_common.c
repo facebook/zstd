@@ -52,11 +52,15 @@ unsigned ZSTD_isError(size_t code) { return ERR_isError(code); }
 
 /*! ZSTD_getError() :
 *   convert a `size_t` function result into a proper ZSTD_errorCode enum */
-ZSTD_ErrorCode ZSTD_getError(size_t code) { return ERR_getError(code); }
+ZSTD_ErrorCode ZSTD_getErrorCode(size_t code) { return ERR_getErrorCode(code); }
 
 /*! ZSTD_getErrorName() :
 *   provides error code string (useful for debugging) */
 const char* ZSTD_getErrorName(size_t code) { return ERR_getErrorName(code); }
+
+/*! ZSTD_getErrorName() :
+*   provides error code string (useful for debugging) */
+const char* ZSTD_getErrorString(ZSTD_ErrorCode code) { return ERR_getErrorName(code); }
 
 
 /*-****************************************

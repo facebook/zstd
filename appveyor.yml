@@ -7,7 +7,7 @@ platform:
 - x64
 environment:
   matrix:
-  - PlatformToolset: v100
+# - PlatformToolset: v100
   - PlatformToolset: v110
   - PlatformToolset: v120
   - PlatformToolset: v140

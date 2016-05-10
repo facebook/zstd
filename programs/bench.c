@@ -26,7 +26,7 @@
 /* *************************************
 *  Includes
 ***************************************/
-#include "util.h"        /* Compiler options, UTIL_GetFileSize, UTIL_createFileList, UTIL_sleep */
+#include "util.h"        /* Compiler options, UTIL_GetFileSize, UTIL_HAS_CREATEFILELIST, UTIL_sleep */
 #include <stdlib.h>      /* malloc, free */
 #include <string.h>      /* memset */
 #include <stdio.h>       /* fprintf, fopen, ftello64 */
@@ -501,7 +501,7 @@ static void BMK_syntheticTest(int cLevel, int cLevelLast, double compressibility
 
 
 int BMK_benchFiles(const char** fileNamesTable, unsigned nbFiles,
-                   const char* dictFileName, int cLevel, int cLevelLast)
+                   const char* dictFileName, int cLevel, int cLevelLast, int recursive)
 {
     double const compressibility = (double)g_compressibilityDefault / 100;
 
@@ -510,15 +510,18 @@ int BMK_benchFiles(const char** fileNamesTable, unsigned nbFiles,
     else
     {
 #ifdef UTIL_HAS_CREATEFILELIST
-        char* buf;
-        const char** filenameTable;
-        unsigned i;
-        nbFiles = UTIL_createFileList(fileNamesTable, nbFiles, MAX_LIST_SIZE, &filenameTable, &buf);
-        if (filenameTable) {
-            for (i=0; i<nbFiles; i++) DISPLAYLEVEL(3, "%d %s\n", i, filenameTable[i]);
-            BMK_benchFileTable(filenameTable, nbFiles, dictFileName, cLevel, cLevelLast);
-            UTIL_freeFileList(filenameTable, buf);
+        if (recursive) {
+            char* buf;
+            const char** filenameTable;
+            unsigned i;
+            nbFiles = UTIL_createFileList(fileNamesTable, nbFiles, MAX_LIST_SIZE, &filenameTable, &buf);
+            if (filenameTable) {
+                for (i=0; i<nbFiles; i++) DISPLAYLEVEL(3, "%d %s\n", i, filenameTable[i]);
+                BMK_benchFileTable(filenameTable, nbFiles, dictFileName, cLevel, cLevelLast);
+                UTIL_freeFileList(filenameTable, buf);
+            }
         }
+        else BMK_benchFileTable(fileNamesTable, nbFiles, dictFileName, cLevel, cLevelLast);
 #else
         BMK_benchFileTable(fileNamesTable, nbFiles, dictFileName, cLevel, cLevelLast);
 #endif

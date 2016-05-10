@@ -29,6 +29,7 @@
 #include <stdlib.h>         /* malloc, free */
 #include <string.h>         /* memset */
 #include <stdio.h>          /* fprintf, fopen, ftello64 */
+#include <time.h>           /* clock_t, clock, CLOCKS_PER_SEC */
 
 #include "mem.h"            /* read */
 #include "error_private.h"

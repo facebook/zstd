@@ -31,15 +31,13 @@
 /*-************************************
 *  Compiler Options
 **************************************/
-#define _CRT_SECURE_NO_WARNINGS  /* Visual : removes warning from strcpy */
 #define _POSIX_SOURCE 1          /* triggers fileno() within <stdio.h> on unix */
 
 
 /*-************************************
 *  Includes
 **************************************/
-#include <stdio.h>    /* fprintf, getchar */
-#include <stdlib.h>   /* exit, calloc, free */
+#include "util.h"     /* Compiler options, UTIL_HAS_CREATEFILELIST */
 #include <string.h>   /* strcmp, strlen */
 #include <ctype.h>    /* toupper */
 #include "fileio.h"
@@ -48,7 +46,7 @@
 #endif
 #include "zstd_static.h" /* ZSTD_maxCLevel, ZSTD version numbers  */
 #ifndef ZSTD_NODICT
-#  include "dibio.h"  /* BMK_benchFiles, BMK_SetNbIterations */
+#  include "dibio.h"
 #endif
 
 
@@ -148,8 +146,11 @@ static int usage_advanced(const char* programName)
 #ifndef ZSTD_NOBENCH
     DISPLAY( "Benchmark arguments :\n");
     DISPLAY( " -b#    : benchmark file(s), using # compression level (default : 1) \n");
-    DISPLAY( " -r#    : test all compression levels from -bX to # (default: 1)\n");
+    DISPLAY( " -e#    : test all compression levels from -bX to # (default: 1)\n");
     DISPLAY( " -i#    : iteration loops [1-9](default : 3)\n");
+#ifdef UTIL_HAS_CREATEFILELIST
+    DISPLAY( " -r     : operate recursively on directories\n");
+#endif
     DISPLAY( " -B#    : cut file into independent blocks of size # (default: no block)\n");
 #endif
     return 0;
@@ -188,6 +189,7 @@ int main(int argCount, const char** argv)
         nextArgumentIsMaxDict=0;
     unsigned cLevel = 1;
     unsigned cLevelLast = 1;
+    unsigned recursive = 0;
     const char** filenameTable = (const char**)malloc(argCount * sizeof(const char*));   /* argCount >= 1 */
     unsigned filenameIdx = 0;
     const char* programName = argv[0];
@@ -199,7 +201,7 @@ int main(int argCount, const char** argv)
     unsigned dictSelect = g_defaultSelectivityLevel;
 
     /* init */
-    (void)cLevelLast; (void)dictCLevel;   /* not used when ZSTD_NOBENCH / ZSTD_NODICT set */
+    (void)recursive; (void)cLevelLast; (void)dictCLevel;   /* not used when ZSTD_NOBENCH / ZSTD_NODICT set */
     (void)decode; (void)cLevel; /* not used when ZSTD_NOCOMPRESS set */
     if (filenameTable==NULL) { DISPLAY("not enough memory\n"); exit(1); }
     displayOut = stderr;
@@ -294,6 +296,17 @@ int main(int argCount, const char** argv)
                     /* Benchmark */
                 case 'b': bench=1; argument++; break;
 
+                    /* range bench (benchmark only) */
+                case 'e':
+                        /* compression Level */
+                        argument++;
+                        if ((*argument>='0') && (*argument<='9')) {
+                            cLevelLast = 0;
+                            while ((*argument >= '0') && (*argument <= '9'))
+                                cLevelLast *= 10, cLevelLast += *argument++ - '0';
+                        }
+                        break;
+
                     /* Modify Nb Iterations (benchmark only) */
                 case 'i':
                     {   U32 iters= 0;
@@ -304,6 +317,9 @@ int main(int argCount, const char** argv)
                         BMK_SetNbIterations(iters);
                     }
                     break;
+
+                    /* recursive */
+                case 'r': recursive=1; argument++; break;
 
                     /* cut input into blocks (benchmark only) */
                 case 'B':
@@ -318,17 +334,6 @@ int main(int argCount, const char** argv)
                         BMK_SetBlockSize(bSize);
                     }
                     break;
-
-                    /* range bench (benchmark only) */
-                case 'r':
-                        /* compression Level */
-                        argument++;
-                        if ((*argument>='0') && (*argument<='9')) {
-                            cLevelLast = 0;
-                            while ((*argument >= '0') && (*argument <= '9'))
-                                cLevelLast *= 10, cLevelLast += *argument++ - '0';
-                        }
-                        break;
 #endif   /* ZSTD_NOBENCH */
 
                     /* Selection level */
@@ -390,7 +395,7 @@ int main(int argCount, const char** argv)
     if (bench) {
 #ifndef ZSTD_NOBENCH
         BMK_setNotificationLevel(displayLevel);
-        BMK_benchFiles(filenameTable, filenameIdx, dictFileName, cLevel, cLevelLast);
+        BMK_benchFiles(filenameTable, filenameIdx, dictFileName, cLevel, cLevelLast, recursive);
 #endif
         goto _end;
     }

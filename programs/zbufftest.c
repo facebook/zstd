@@ -188,6 +188,33 @@ static int basicUnitTests(U32 seed, double compressibility)
         DISPLAYLEVEL(4, "OK \n");
     }
 
+    /* Byte-by-byte decompression test */
+    DISPLAYLEVEL(4, "test%3i : decompress byte-by-byte : ", testNb++, COMPRESSIBLE_NOISE_LENGTH);
+    ZBUFF_decompressInitDictionary(zd, CNBuffer, 128 KB);
+    {   size_t r = 1, pIn=0, pOut=0;
+        while (r) {
+            size_t inS = 1;
+            size_t outS = 1;
+            r = ZBUFF_decompressContinue(zd, ((BYTE*)decodedBuffer)+pOut, &outS, ((BYTE*)compressedBuffer)+pIn, &inS);
+            pIn += inS;
+            pOut += outS;
+        }
+        readSize = pIn;
+        genSize = pOut;
+    }
+    if (genSize != CNBufferSize) goto _output_error;   /* should regenerate the same amount */
+    if (readSize != cSize) goto _output_error;   /* should have read the entire frame */
+    DISPLAYLEVEL(4, "OK \n");
+
+    /* check regenerated data is byte exact */
+    {   size_t i;
+        DISPLAYLEVEL(4, "test%3i : check decompressed result : ", testNb++);
+        for (i=0; i<CNBufferSize; i++) {
+            if (((BYTE*)decodedBuffer)[i] != ((BYTE*)CNBuffer)[i]) goto _output_error;;
+        }
+        DISPLAYLEVEL(4, "OK \n");
+    }
+
 _end:
     ZBUFF_freeCCtx(zc);
     ZBUFF_freeDCtx(zd);

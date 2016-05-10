@@ -523,6 +523,7 @@ int BMK_benchFiles(const char** fileNamesTable, unsigned nbFiles,
         }
         else BMK_benchFileTable(fileNamesTable, nbFiles, dictFileName, cLevel, cLevelLast);
 #else
+        (void)recursive;
         BMK_benchFileTable(fileNamesTable, nbFiles, dictFileName, cLevel, cLevelLast);
 #endif
     }

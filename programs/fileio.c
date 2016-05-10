@@ -535,10 +535,9 @@ unsigned long long FIO_decompressFrame(dRess_t ress,
 
     /* Complete Header loading */
     {   size_t const toLoad = ZSTD_frameHeaderSize_max - alreadyLoaded;   /* assumption : alreadyLoaded <= ZSTD_frameHeaderSize_max */
-        size_t const checkSize = fread(((char*)ress.srcBuffer) + alreadyLoaded, 1, toLoad, finput);
-        if (checkSize != toLoad) EXM_THROW(32, "Read error");   /* assumption : srcSize >= ZSTD_frameHeaderSize_max */
+        size_t const loadedSize = fread(((char*)ress.srcBuffer) + alreadyLoaded, 1, toLoad, finput);   /* can be <= toLoad (null string) */
+        readSize = alreadyLoaded + loadedSize;
     }
-    readSize = ZSTD_frameHeaderSize_max;
 
     /* Main decompression Loop */
     while (1) {

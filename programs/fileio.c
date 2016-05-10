@@ -413,7 +413,7 @@ static int FIO_compressFilename_extRess(cRess_t ress,
 int FIO_compressFilename(const char* dstFileName, const char* srcFileName,
                          const char* dictFileName, int compressionLevel)
 {
-    clock_t start, end;
+    clock_t start;
     cRess_t ress;
     int issueWithSrcFile = 0;
 
@@ -421,18 +421,13 @@ int FIO_compressFilename(const char* dstFileName, const char* srcFileName,
     start = clock();
     ress = FIO_createCResources(dictFileName);
 
-    /* Compress File */
     issueWithSrcFile += FIO_compressFilename_extRess(ress, dstFileName, srcFileName, compressionLevel);
 
-    /* Free resources */
     FIO_freeCResources(ress);
 
-    /* Final Status */
-    end = clock();
-    {   double seconds = (double)(end - start) / CLOCKS_PER_SEC;
+    {   double seconds = (double)(clock() - start) / CLOCKS_PER_SEC;
         DISPLAYLEVEL(4, "Completed in %.2f sec \n", seconds);
     }
-
     return issueWithSrcFile;
 }
 
@@ -549,7 +544,7 @@ unsigned long long FIO_decompressFrame(dRess_t ress,
     while (1) {
         /* Decode */
         size_t inSize=readSize, decodedSize=ress.dstBufferSize;
-        size_t toRead = ZBUFF_decompressContinue(ress.dctx, ress.dstBuffer, &decodedSize, ress.srcBuffer, &inSize);
+        size_t const toRead = ZBUFF_decompressContinue(ress.dctx, ress.dstBuffer, &decodedSize, ress.srcBuffer, &inSize);
         if (ZBUFF_isError(toRead)) EXM_THROW(36, "Decoding error : %s", ZBUFF_getErrorName(toRead));
         readSize -= inSize;
 
@@ -598,7 +593,7 @@ static int FIO_decompressSrcFile(dRess_t ress, const char* srcFileName)
                 filesize += FIO_decompressLegacyFrame(dstFile, srcFile, ress.dictBuffer, ress.dictBufferSize, magic);
                 continue;
             }
-#endif   /* ZSTD_LEGACY_SUPPORT */
+#endif
             if (magic !=  ZSTD_MAGICNUMBER) {
                 DISPLAYLEVEL(1, "zstd: %s: not in zstd format \n", srcFileName);
                 return 1;
@@ -629,9 +624,7 @@ static int FIO_decompressFile_extRess(dRess_t ress,
     if (ress.dstFile==0) return 1;
 
     result = FIO_decompressSrcFile(ress, srcFileName);
-    if (result != 0) {
-      remove(dstFileName);
-    }
+    if (result != 0) remove(dstFileName);
 
     if (fclose(ress.dstFile)) EXM_THROW(38, "Write error : cannot properly close %s", dstFileName);
     return result;
@@ -658,13 +651,7 @@ int FIO_decompressMultipleFilenames(const char** srcNamesTable, unsigned nbFiles
 {
     int skippedFiles = 0;
     int missingFiles = 0;
-    char*  dstFileName = (char*)malloc(FNSPACE);
-    size_t dfnSize = FNSPACE;
-    size_t const suffixSize = suffix ? strlen(suffix) : 0;
-    dRess_t ress;
-
-	if (dstFileName==NULL) EXM_THROW(70, "not enough memory for dstFileName");
-    ress = FIO_createDResources(dictFileName);
+    dRess_t ress = FIO_createDResources(dictFileName);
 
     if (!strcmp(suffix, stdoutmark) || !strcmp(suffix, nulmark)) {
         unsigned u;
@@ -674,11 +661,15 @@ int FIO_decompressMultipleFilenames(const char** srcNamesTable, unsigned nbFiles
             missingFiles += FIO_decompressSrcFile(ress, srcNamesTable[u]);
         if (fclose(ress.dstFile)) EXM_THROW(39, "Write error : cannot properly close %s", stdoutmark);
     } else {
+        size_t const suffixSize = suffix ? strlen(suffix) : 0;
+        size_t dfnSize = FNSPACE;
         unsigned u;
+        char* dstFileName = (char*)malloc(FNSPACE);
+        if (dstFileName==NULL) EXM_THROW(70, "not enough memory for dstFileName");
         for (u=0; u<nbFiles; u++) {   /* create dstFileName */
-            const char* srcFileName = srcNamesTable[u];
-            size_t sfnSize = strlen(srcFileName);
-            const char* suffixPtr = srcFileName + sfnSize - suffixSize;
+            const char* const srcFileName = srcNamesTable[u];
+            size_t const sfnSize = strlen(srcFileName);
+            const char* const suffixPtr = srcFileName + sfnSize - suffixSize;
             if (dfnSize+suffixSize <= sfnSize+1) {
                 free(dstFileName);
                 dfnSize = sfnSize + 20;
@@ -694,11 +685,12 @@ int FIO_decompressMultipleFilenames(const char** srcNamesTable, unsigned nbFiles
             dstFileName[sfnSize-suffixSize] = '\0';
 
             missingFiles += FIO_decompressFile_extRess(ress, dstFileName, srcFileName);
-    }   }
+        }
+        free(dstFileName);
+    }
 
     FIO_freeDResources(ress);
-    free(dstFileName);
     return missingFiles + skippedFiles;
 }
 
-#endif // #ifndef ZSTD_NODECOMPRESS
+#endif /* #ifndef ZSTD_NODECOMPRESS */

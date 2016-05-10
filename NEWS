@@ -1,3 +1,8 @@
+v0.6.1
+Fixed : Legacy codec v0.5 compatible with dictionary decompression
+Fixed : Decoder corruption error (#173)
+New : midipix support
+
 v0.6.0
 Stronger high compression modes, thanks to Przemyslaw Skibinski
 API : ZSTD_getFrameParams() provides size of decompressed content
@@ -95,7 +100,7 @@ frame concatenation support
 v0.1.1
 fix compression bug
 detects write-flush errors
-
+git@github.com:Cyan4973/zstd.git
 v0.1.0
 first release
 

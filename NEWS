@@ -1,6 +1,7 @@
 v0.6.1
 Fixed : Legacy codec v0.5 compatible with dictionary decompression
 Fixed : Decoder corruption error (#173)
+Fixed : null-string roundtrip (#176)
 New : midipix support
 
 v0.6.0

@@ -222,9 +222,9 @@ MEM_STATIC U64 MEM_swap64(U64 in)
 MEM_STATIC size_t MEM_swapST(size_t in)
 {
     if (MEM_32bits())
-        return (size_t)MEM_swap32(in);
+        return (size_t)MEM_swap32((U32)in);
     else
-        return (size_t)MEM_swap64(in);
+        return (size_t)MEM_swap64((U64)in);
 }
 
 /*=== Little endian r/w ===*/

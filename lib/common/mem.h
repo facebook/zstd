@@ -219,6 +219,14 @@ MEM_STATIC U64 MEM_swap64(U64 in)
 #endif
 }
 
+MEM_STATIC size_t MEM_swapST(size_t in)
+{
+    if (MEM_32bits())
+        return (size_t)MEM_swap32(in);
+    else
+        return (size_t)MEM_swap64(in);
+}
+
 /*=== Little endian r/w ===*/
 
 MEM_STATIC U16 MEM_readLE16(const void* memPtr)

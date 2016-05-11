@@ -24,39 +24,17 @@
    - Public forum : https://groups.google.com/forum/#!forum/lz4c
 */
 
-/**************************************
+/*-************************************
 *  Includes
 **************************************/
 #include <stdio.h>     /* fprintf, stderr */
+#include "mem.h"
 #include "datagen.h"   /* RDG_generate */
 
 
-/**************************************
-*  Basic Types
-**************************************/
-#if defined (__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L)   /* C99 */
-# include <stdint.h>
-  typedef  uint8_t BYTE;
-  typedef uint16_t U16;
-  typedef uint32_t U32;
-  typedef  int32_t S32;
-  typedef uint64_t U64;
-#else
-  typedef unsigned char       BYTE;
-  typedef unsigned short      U16;
-  typedef unsigned int        U32;
-  typedef   signed int        S32;
-  typedef unsigned long long  U64;
-#endif
-
-
-/**************************************
+/*-************************************
 *  Constants
 **************************************/
-#ifndef ZSTD_VERSION
-#  define ZSTD_VERSION "r1"
-#endif
-
 #define KB *(1 <<10)
 #define MB *(1 <<20)
 #define GB *(1U<<30)
@@ -66,7 +44,7 @@
 #define COMPRESSIBILITY_DEFAULT 50
 
 
-/**************************************
+/*-************************************
 *  Macros
 **************************************/
 #define DISPLAY(...)         fprintf(stderr, __VA_ARGS__)
@@ -74,10 +52,10 @@
 static unsigned displayLevel = 2;
 
 
-/*********************************************************
+/*-*******************************************************
 *  Command line
 *********************************************************/
-static int usage(char* programName)
+static int usage(const char* programName)
 {
     DISPLAY( "Compressible data generator\n");
     DISPLAY( "Usage :\n");
@@ -92,29 +70,26 @@ static int usage(char* programName)
 }
 
 
-int main(int argc, char** argv)
+int main(int argc, const char** argv)
 {
     int argNb;
     double proba = (double)COMPRESSIBILITY_DEFAULT / 100;
     double litProba = 0.0;
     U64 size = SIZE_DEFAULT;
     U32 seed = SEED_DEFAULT;
-    char* programName;
+    const char* programName;
 
     /* Check command line */
     programName = argv[0];
-    for(argNb=1; argNb<argc; argNb++)
-    {
-        char* argument = argv[argNb];
+    for(argNb=1; argNb<argc; argNb++) {
+        const char* argument = argv[argNb];
 
         if(!argument) continue;   /* Protection if argument empty */
 
         /* Handle commands. Aggregated commands are allowed */
-        if (*argument=='-')
-        {
+        if (*argument=='-') {
             argument++;
-            while (*argument!=0)
-            {
+            while (*argument!=0) {
                 switch(*argument)
                 {
                 case 'h':
@@ -123,11 +98,7 @@ int main(int argc, char** argv)
                     argument++;
                     size=0;
                     while ((*argument>='0') && (*argument<='9'))
-                    {
-                        size *= 10;
-                        size += *argument - '0';
-                        argument++;
-                    }
+                        size *= 10, size += *argument++ - '0';
                     if (*argument=='K') { size <<= 10; argument++; }
                     if (*argument=='M') { size <<= 20; argument++; }
                     if (*argument=='G') { size <<= 30; argument++; }
@@ -137,21 +108,13 @@ int main(int argc, char** argv)
                     argument++;
                     seed=0;
                     while ((*argument>='0') && (*argument<='9'))
-                    {
-                        seed *= 10;
-                        seed += *argument - '0';
-                        argument++;
-                    }
+                        seed *= 10, seed += *argument++ - '0';
                     break;
                 case 'P':
                     argument++;
                     proba=0.0;
                     while ((*argument>='0') && (*argument<='9'))
-                    {
-                        proba *= 10;
-                        proba += *argument - '0';
-                        argument++;
-                    }
+                        proba *= 10, proba += *argument++ - '0';
                     if (proba>100.) proba=100.;
                     proba /= 100.;
                     break;
@@ -159,11 +122,7 @@ int main(int argc, char** argv)
                     argument++;
                     litProba=0.;
                     while ((*argument>='0') && (*argument<='9'))
-                    {
-                        litProba *= 10;
-                        litProba += *argument - '0';
-                        argument++;
-                    }
+                        litProba *= 10, litProba += *argument++ - '0';
                     if (litProba>100.) litProba=100.;
                     litProba /= 100.;
                     break;
@@ -174,12 +133,9 @@ int main(int argc, char** argv)
                 default:
                     return usage(programName);
                 }
-            }
+    }   }   }   /* for(argNb=1; argNb<argc; argNb++) */
 
-        }
-    }
-
-    DISPLAYLEVEL(4, "Data Generator %s \n", ZSTD_VERSION);
+    DISPLAYLEVEL(4, "Data Generator \n");
     DISPLAYLEVEL(3, "Seed = %u \n", seed);
     if (proba!=COMPRESSIBILITY_DEFAULT) DISPLAYLEVEL(3, "Compressibility : %i%%\n", (U32)(proba*100));
 

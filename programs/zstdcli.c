@@ -29,12 +29,6 @@
 
 
 /*-************************************
-*  Compiler Options
-**************************************/
-#define _POSIX_SOURCE 1          /* triggers fileno() within <stdio.h> on unix */
-
-
-/*-************************************
 *  Includes
 **************************************/
 #include "util.h"     /* Compiler options, UTIL_HAS_CREATEFILELIST */
@@ -50,6 +44,7 @@
 #endif
 
 
+
 /*-************************************
 *  OS-specific Includes
 **************************************/
@@ -59,6 +54,7 @@
 #  define SET_BINARY_MODE(file) _setmode(_fileno(file), _O_BINARY)
 #  define IS_CONSOLE(stdStream) _isatty(_fileno(stdStream))
 #else
+   extern int fileno(FILE *stream);  /* triggers fileno() within <stdio.h> on POSIX */
 #  include <unistd.h>   /* isatty */
 #  define SET_BINARY_MODE(file)
 #  define IS_CONSOLE(stdStream) isatty(fileno(stdStream))

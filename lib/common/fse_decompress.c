@@ -64,6 +64,7 @@
 /* **************************************************************
 *  Error Management
 ****************************************************************/
+#define FSE_isError ERR_isError
 #define FSE_STATIC_ASSERT(c) { enum { FSE_static_assert = 1/(int)(!!(c)) }; }   /* use only *after* variable declarations */
 
 

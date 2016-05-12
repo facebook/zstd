@@ -281,7 +281,7 @@ UTIL_STATIC int UTIL_prepareFileList(const char *dirName, char** bufStart, size_
         return 0;
     }
  
-    while (entry = readdir(dir)) {
+    while ((entry = readdir(dir)) != NULL) {
         if (strcmp (entry->d_name, "..") == 0 ||
             strcmp (entry->d_name, ".") == 0) continue;
         pathLength = snprintf(path, PATH_MAX, "%s/%s", dirName, entry->d_name);

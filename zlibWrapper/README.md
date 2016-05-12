@@ -1,7 +1,7 @@
 zstd wrapper for zlib
 ================================
 
-The main objective of creating a zstd wrapper for zlib is to allow a quick and smooth transition to zstd for projects already using zlib.
+The main objective of creating a zstd wrapper for [zlib](http://zlib.net/) is to allow a quick and smooth transition to zstd for projects already using zlib.
 
 #### Required files
 
@@ -39,7 +39,7 @@ There is no switch for zstd decompression because zlib and zstd streams are auto
 
 
 #### Example
-We have take the file ```test\example.c``` from the zlib library distribution and copied it to ```zlibWrapper\examples\example.c```.
+We have take the file ```test\example.c``` from [the zlib library distribution](http://zlib.net/) and copied it to ```[zlibWrapper\examples\example.c](examples/example.c)```.
 After compilation and execution it shows the following results: 
 ```
 zlib version 1.2.8 = 0x1280, compile flags = 0x65
@@ -51,9 +51,9 @@ large_inflate(): OK
 after inflateSync(): hello, hello!
 inflate with dictionary: hello, hello!
 ```
-Then we have compiled the example.c file with ```-DZWRAP_USE_ZSTD=1``` and linked with ```zlib_wrapper.o -lzstd```.
+Then we have compiled the ```[example.c](examples/example.c)``` file with ```-DZWRAP_USE_ZSTD=1``` and linked with additional ```zlib_wrapper.o -lzstd```.
 We have also turned of the following functions: test_gzio, test_flush, test_sync which use currently unsupported features.
-It shows the following results:
+After running it shows the following results:
 ```
 zlib version 1.2.8 = 0x1280, compile flags = 0x65
 uncompress(): hello, hello!
@@ -61,11 +61,11 @@ inflate(): hello, hello!
 large_inflate(): OK
 inflate with dictionary: hello, hello!
 ```
-The script used for compilation can be found at [zlibWrapper\Makefile](.\Makefile).
+The script used for compilation can be found at [zlibWrapper\Makefile](Makefile).
 
 
 #### Compatibility issues
-After enabling zstd compression not all functions are supported. Unsupported methods when called print error message and return an error value.
+After enabling zstd compression not all native zlib functions are supported. When calling unsupported methods they print error message and return an error value.
 
 Supported methods:
 - deflateInit

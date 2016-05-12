@@ -30,17 +30,23 @@
 */
 
 
-/* *************************************
+/*-*************************************
 *  Dependencies
 ***************************************/
 #include <stdlib.h>
 #include "mem.h"
 #include "fse_static.h"  /* FSE_MIN_TABLELOG */
 #include "error_private.h"
-#include "zstd.h" /* declaration of ZSTD_isError, ZSTD_getErrorName */
+#include "zstd.h"  /* declaration of ZSTD_isError, ZSTD_getErrorName */
 #include "zbuff.h" /* declaration of ZBUFF_isError, ZBUFF_getErrorName */
-#include "fse.h" /* declaration of FSE_isError, FSE_getErrorName */
-#include "huf.h" /* declaration of HUF_isError, HUF_getErrorName */
+#include "fse.h"   /* declaration of FSE_isError, FSE_getErrorName */
+#include "huf.h"   /* declaration of HUF_isError, HUF_getErrorName */
+
+
+/*-****************************************
+*  Version
+******************************************/
+unsigned ZSTD_versionNumber (void) { return ZSTD_VERSION_NUMBER; }
 
 
 /*-****************************************
@@ -50,16 +56,16 @@
 *   tells if a return value is an error code */
 unsigned ZSTD_isError(size_t code) { return ERR_isError(code); }
 
+/*! ZSTD_getErrorName() :
+*   provides error code string from function result (useful for debugging) */
+const char* ZSTD_getErrorName(size_t code) { return ERR_getErrorName(code); }
+
 /*! ZSTD_getError() :
 *   convert a `size_t` function result into a proper ZSTD_errorCode enum */
 ZSTD_ErrorCode ZSTD_getErrorCode(size_t code) { return ERR_getErrorCode(code); }
 
-/*! ZSTD_getErrorName() :
-*   provides error code string (useful for debugging) */
-const char* ZSTD_getErrorName(size_t code) { return ERR_getErrorName(code); }
-
-/*! ZSTD_getErrorName() :
-*   provides error code string (useful for debugging) */
+/*! ZSTD_getErrorString() :
+*   provides error code string from enum */
 const char* ZSTD_getErrorString(ZSTD_ErrorCode code) { return ERR_getErrorName(code); }
 
 
@@ -88,7 +94,7 @@ const char* ZBUFF_getErrorName(size_t errorCode) { return ERR_getErrorName(error
 
 
 /*-**************************************************************
-*  FSE NCount encoding-decoding
+*  FSE NCount decoding
 ****************************************************************/
 static short FSE_abs(short a) { return a<0 ? -a : a; }
 
@@ -175,7 +181,7 @@ size_t FSE_readNCount (short* normalizedCounter, unsigned* maxSVPtr, unsigned* t
                 ip = iend - 4;
             }
             bitStream = MEM_readLE32(ip) >> (bitCount & 31);
-    }   }
+    }   }   /* while ((remaining>1) && (charnum<=*maxSVPtr)) */
     if (remaining != 1) return ERROR(GENERIC);
     *maxSVPtr = charnum-1;
 

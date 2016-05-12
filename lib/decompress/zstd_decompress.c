@@ -83,16 +83,18 @@
 #endif
 
 
+/*-*************************************
+*  Macros
+***************************************/
+#define ZSTD_isError ERR_isError   /* for inlining */
+#define FSE_isError  ERR_isError
+#define HUF_isError  ERR_isError
+
+
 /*_*******************************************************
 *  Memory operations
 **********************************************************/
 static void ZSTD_copy4(void* dst, const void* src) { memcpy(dst, src, 4); }
-
-
-/*-*************************************
-*  Error Management
-***************************************/
-unsigned ZSTD_versionNumber (void) { return ZSTD_VERSION_NUMBER; }
 
 
 /*-*************************************************************

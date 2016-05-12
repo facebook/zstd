@@ -39,7 +39,7 @@ There is no switch for zstd decompression because zlib and zstd streams are auto
 
 
 #### Example
-We have take the file ```test\example.c``` from [the zlib library distribution](http://zlib.net/) and copied it to ```[zlibWrapper\examples\example.c](examples/example.c)```.
+We have take the file ```test/example.c``` from [the zlib library distribution](http://zlib.net/) and copied it to [zlibWrapper/examples/example.c](examples/example.c).
 After compilation and execution it shows the following results: 
 ```
 zlib version 1.2.8 = 0x1280, compile flags = 0x65
@@ -51,7 +51,7 @@ large_inflate(): OK
 after inflateSync(): hello, hello!
 inflate with dictionary: hello, hello!
 ```
-Then we have compiled the ```[example.c](examples/example.c)``` file with ```-DZWRAP_USE_ZSTD=1``` and linked with additional ```zlib_wrapper.o -lzstd```.
+Then we have compiled the [example.c](examples/example.c) file with ```-DZWRAP_USE_ZSTD=1``` and linked with additional ```zlib_wrapper.o -lzstd```.
 We have also turned of the following functions: test_gzio, test_flush, test_sync which use currently unsupported features.
 After running it shows the following results:
 ```
@@ -61,7 +61,7 @@ inflate(): hello, hello!
 large_inflate(): OK
 inflate with dictionary: hello, hello!
 ```
-The script used for compilation can be found at [zlibWrapper\Makefile](Makefile).
+The script used for compilation can be found at [zlibWrapper/Makefile](Makefile).
 
 
 #### Compatibility issues

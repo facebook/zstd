@@ -49,7 +49,6 @@
 #define TIMELOOP_MICROSEC     1*1000000ULL /* 1 second */
 #define ACTIVEPERIOD_MICROSEC 70*1000000ULL /* 70 seconds */
 #define COOLPERIOD_SEC        10
-#define MAX_LIST_SIZE         (64*1024)
 
 #define KB *(1 <<10)
 #define MB *(1 <<20)
@@ -514,7 +513,7 @@ int BMK_benchFiles(const char** fileNamesTable, unsigned nbFiles,
             char* buf;
             const char** filenameTable;
             unsigned i;
-            nbFiles = UTIL_createFileList(fileNamesTable, nbFiles, MAX_LIST_SIZE, &filenameTable, &buf);
+            filenameTable = UTIL_createFileList(fileNamesTable, nbFiles, &buf, &nbFiles);
             if (filenameTable) {
                 for (i=0; i<nbFiles; i++) DISPLAYLEVEL(3, "%d %s\n", i, filenameTable[i]);
                 BMK_benchFileTable(filenameTable, nbFiles, dictFileName, cLevel, cLevelLast);

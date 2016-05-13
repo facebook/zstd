@@ -324,18 +324,24 @@ UTIL_STATIC int UTIL_prepareFileList(const char *dirName, char** bufStart, size_
 
 #endif // #ifdef _WIN32
 
-
-UTIL_STATIC int UTIL_createFileList(const char **inputNames, unsigned nbNames, const char*** filenameTable, char** allocatedBuffer)
+/* 
+ * UTIL_createFileList - takes a list of files and directories (params: inputNames, inputNamesNb), scans directories, 
+ *                       and returns a new list of files (params: return value, allocatedBuffer, allocatedNamesNb).
+ * After finishing usage of the list the structures should be freed with UTIL_freeFileList(params: return value, allocatedBuffer)
+ * In case of error UTIL_createFileList returns NULL and UTIL_freeFileList should not be called.
+ */
+UTIL_STATIC const char** UTIL_createFileList(const char **inputNames, unsigned inputNamesNb, char** allocatedBuffer, unsigned* allocatedNamesNb)
 {
     size_t pos;
-    unsigned i, nbFiles = 0;
+    unsigned i, nbFiles;
     char *bufend, *buf;
+    const char** fileTable;
 
     buf = (char*)malloc(LIST_SIZE_INCREASE);
-    if (!buf) { *filenameTable = NULL; return 0; }
+    if (!buf) return NULL;
     bufend = buf + LIST_SIZE_INCREASE;
 
-    for (i=0, pos=0; i<nbNames; i++) {
+    for (i=0, pos=0, nbFiles=0; i<inputNamesNb; i++) {
         if (UTIL_doesFileExists(inputNames[i])) {
        // printf ("UTIL_doesFileExists=[%s]\n", inputNames[i]);
             size_t len = strlen(inputNames[i]);
@@ -343,7 +349,7 @@ UTIL_STATIC int UTIL_createFileList(const char **inputNames, unsigned nbNames, c
                 ptrdiff_t newListSize = (bufend - buf) + LIST_SIZE_INCREASE;
                 buf = (char*)realloc(buf, newListSize);
                 bufend = buf + newListSize;
-                if (!buf) { *filenameTable = NULL; return 0; }
+                if (!buf) return NULL;
             }
             if (buf + pos + len < bufend) {
                 strncpy(buf + pos, inputNames[i], bufend - (buf + pos));
@@ -354,34 +360,34 @@ UTIL_STATIC int UTIL_createFileList(const char **inputNames, unsigned nbNames, c
         else
         {
             nbFiles += UTIL_prepareFileList(inputNames[i], &buf, &pos, &bufend);
-            if (buf == NULL) { *filenameTable = NULL; return 0; }
+            if (buf == NULL) return NULL;
         }
     }
 
-    {   const char** fileTable = (const char**)malloc((nbFiles+1) * sizeof(const char*));
-        if (!fileTable) { free(buf); *filenameTable = NULL; return 0; }
+    if (nbFiles == 0) { free(buf); return NULL; }
 
-        if (nbFiles == 0)
-            fileTable[0] = buf;
+    fileTable = (const char**)malloc((nbFiles+1) * sizeof(const char*));
+    if (!fileTable) { free(buf); return NULL; }
 
-        for (i=0, pos=0; i<nbFiles; i++)
-        {
-            fileTable[i] = buf + pos;
-            pos += strlen(fileTable[i]) + 1;
-        }
-
-        *filenameTable = fileTable;
-        *allocatedBuffer = buf;
+    for (i=0, pos=0; i<nbFiles; i++)
+    {
+        fileTable[i] = buf + pos;
+        pos += strlen(fileTable[i]) + 1;
     }
 
-    return nbFiles;
+    if (buf + pos > bufend) { free(buf); free((void*)fileTable); return NULL; }
+
+    *allocatedBuffer = buf;
+    *allocatedNamesNb = nbFiles;
+
+    return fileTable;
 }
 
 
-UTIL_STATIC void UTIL_freeFileList(const char** filenameTable, char* buf)
+UTIL_STATIC void UTIL_freeFileList(const char** filenameTable, char* allocatedBuffer)
 {
-    free(buf);
-    free((void*)filenameTable);
+    if (allocatedBuffer) free(allocatedBuffer);
+    if (filenameTable) free((void*)filenameTable);
 }
 
 

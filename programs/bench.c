@@ -513,7 +513,7 @@ int BMK_benchFiles(const char** fileNamesTable, unsigned nbFiles,
             char* buf;
             const char** filenameTable;
             unsigned i;
-            nbFiles = UTIL_createFileList(fileNamesTable, nbFiles, &filenameTable, &buf);
+            filenameTable = UTIL_createFileList(fileNamesTable, nbFiles, &buf, &nbFiles);
             if (filenameTable) {
                 for (i=0; i<nbFiles; i++) DISPLAYLEVEL(3, "%d %s\n", i, filenameTable[i]);
                 BMK_benchFileTable(filenameTable, nbFiles, dictFileName, cLevel, cLevelLast);

@@ -1131,7 +1131,7 @@ size_t HUF_decompress (void* dst, size_t dstSize, const void* cSrc, size_t cSrcS
 
     {   U32 algoNb = 0;
         if (Dtime[1] < Dtime[0]) algoNb = 1;
-        if (Dtime[2] < Dtime[algoNb]) algoNb = 2;
+        // if (Dtime[2] < Dtime[algoNb]) algoNb = 2;   /* current speed of HUF_decompress4X6 is not good */
         return decompress[algoNb](dst, dstSize, cSrc, cSrcSize);
     }
 

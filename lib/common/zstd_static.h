@@ -261,7 +261,8 @@ ZSTDLIB_API size_t ZSTD_decompressBlock(ZSTD_DCtx* dctx, void* dst, size_t dstCa
 /*! ZSTD_getErrorCode() :
     convert a `size_t` function result into a `ZSTD_ErrorCode` enum type,
     which can be used to compare directly with enum list published into "error_public.h" */
-ZSTDLIB_API ZSTD_ErrorCode ZSTD_getError(size_t code);
+ZSTDLIB_API ZSTD_ErrorCode ZSTD_getErrorCode(size_t functionResult);
+ZSTDLIB_API const char* ZSTD_getErrorString(ZSTD_ErrorCode code);
 
 
 #if defined (__cplusplus)

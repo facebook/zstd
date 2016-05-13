@@ -83,16 +83,18 @@
 #endif
 
 
+/*-*************************************
+*  Macros
+***************************************/
+#define ZSTD_isError ERR_isError   /* for inlining */
+#define FSE_isError  ERR_isError
+#define HUF_isError  ERR_isError
+
+
 /*_*******************************************************
 *  Memory operations
 **********************************************************/
 static void ZSTD_copy4(void* dst, const void* src) { memcpy(dst, src, 4); }
-
-
-/*-*************************************
-*  Error Management
-***************************************/
-unsigned ZSTD_versionNumber (void) { return ZSTD_VERSION_NUMBER; }
 
 
 /*-*************************************************************
@@ -657,7 +659,8 @@ static void ZSTD_decodeSequence(seq_t* seq, seqState_t* seqState)
 }
 
 
-FORCE_INLINE size_t ZSTD_execSequence(BYTE* op,
+FORCE_INLINE
+size_t ZSTD_execSequence(BYTE* op,
                                 BYTE* const oend, seq_t sequence,
                                 const BYTE** litPtr, const BYTE* const litLimit_8,
                                 const BYTE* const base, const BYTE* const vBase, const BYTE* const dictEnd)
@@ -964,31 +967,29 @@ size_t ZSTD_nextSrcSizeToDecompress(ZSTD_DCtx* dctx)
     return dctx->expected;
 }
 
-size_t ZSTD_decompressContinue(ZSTD_DCtx* dctx, void* dst, size_t maxDstSize, const void* src, size_t srcSize)
+size_t ZSTD_decompressContinue(ZSTD_DCtx* dctx, void* dst, size_t dstCapacity, const void* src, size_t srcSize)
 {
     /* Sanity check */
     if (srcSize != dctx->expected) return ERROR(srcSize_wrong);
-    ZSTD_checkContinuity(dctx, dst);
+    if (dstCapacity) ZSTD_checkContinuity(dctx, dst);
 
     /* Decompress : frame header; part 1 */
     switch (dctx->stage)
     {
     case ZSTDds_getFrameHeaderSize :
-        {
-            if (srcSize != ZSTD_frameHeaderSize_min) return ERROR(srcSize_wrong);   /* impossible */
-            dctx->headerSize = ZSTD_frameHeaderSize(src, ZSTD_frameHeaderSize_min);
-            if (ZSTD_isError(dctx->headerSize)) return dctx->headerSize;
-            memcpy(dctx->headerBuffer, src, ZSTD_frameHeaderSize_min);
-            if (dctx->headerSize > ZSTD_frameHeaderSize_min) {
-                dctx->expected = dctx->headerSize - ZSTD_frameHeaderSize_min;
-                dctx->stage = ZSTDds_decodeFrameHeader;
-                return 0;
-            }
-            dctx->expected = 0;   /* not necessary to copy more */
+        if (srcSize != ZSTD_frameHeaderSize_min) return ERROR(srcSize_wrong);   /* impossible */
+        dctx->headerSize = ZSTD_frameHeaderSize(src, ZSTD_frameHeaderSize_min);
+        if (ZSTD_isError(dctx->headerSize)) return dctx->headerSize;
+        memcpy(dctx->headerBuffer, src, ZSTD_frameHeaderSize_min);
+        if (dctx->headerSize > ZSTD_frameHeaderSize_min) {
+            dctx->expected = dctx->headerSize - ZSTD_frameHeaderSize_min;
+            dctx->stage = ZSTDds_decodeFrameHeader;
+            return 0;
         }
+        dctx->expected = 0;   /* not necessary to copy more */
+
     case ZSTDds_decodeFrameHeader:
-        {
-            size_t result;
+        {   size_t result;
             memcpy(dctx->headerBuffer + ZSTD_frameHeaderSize_min, src, dctx->expected);
             result = ZSTD_decodeFrameHeader(dctx, dctx->headerBuffer, dctx->headerSize);
             if (ZSTD_isError(result)) return result;
@@ -997,8 +998,7 @@ size_t ZSTD_decompressContinue(ZSTD_DCtx* dctx, void* dst, size_t maxDstSize, co
             return 0;
         }
     case ZSTDds_decodeBlockHeader:
-        {
-            blockProperties_t bp;
+        {   blockProperties_t bp;
             size_t const cBlockSize = ZSTD_getcBlockSize(src, ZSTD_blockHeaderSize, &bp);
             if (ZSTD_isError(cBlockSize)) return cBlockSize;
             if (bp.blockType == bt_end) {
@@ -1012,16 +1012,14 @@ size_t ZSTD_decompressContinue(ZSTD_DCtx* dctx, void* dst, size_t maxDstSize, co
             return 0;
         }
     case ZSTDds_decompressBlock:
-        {
-            /* Decompress : block content */
-            size_t rSize;
+        {   size_t rSize;
             switch(dctx->bType)
             {
             case bt_compressed:
-                rSize = ZSTD_decompressBlock_internal(dctx, dst, maxDstSize, src, srcSize);
+                rSize = ZSTD_decompressBlock_internal(dctx, dst, dstCapacity, src, srcSize);
                 break;
             case bt_raw :
-                rSize = ZSTD_copyRawBlock(dst, maxDstSize, src, srcSize);
+                rSize = ZSTD_copyRawBlock(dst, dstCapacity, src, srcSize);
                 break;
             case bt_rle :
                 return ERROR(GENERIC);   /* not yet handled */

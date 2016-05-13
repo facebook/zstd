@@ -64,6 +64,7 @@
 /* **************************************************************
 *  Error Management
 ****************************************************************/
+#define FSE_isError ERR_isError
 #define FSE_STATIC_ASSERT(c) { enum { FSE_static_assert = 1/(int)(!!(c)) }; }   /* use only *after* variable declarations */
 
 
@@ -110,7 +111,6 @@ void FSE_freeDTable (FSE_DTable* dt)
 
 size_t FSE_buildDTable(FSE_DTable* dt, const short* normalizedCounter, unsigned maxSymbolValue, unsigned tableLog)
 {
-    FSE_DTableHeader DTableH;
     void* const tdPtr = dt+1;   /* because *dt is unsigned, 32-bits aligned on 32-bits */
     FSE_DECODE_TYPE* const tableDecode = (FSE_DECODE_TYPE*) (tdPtr);
     U16 symbolNext[FSE_MAX_SYMBOL_VALUE+1];
@@ -124,19 +124,21 @@ size_t FSE_buildDTable(FSE_DTable* dt, const short* normalizedCounter, unsigned 
     if (tableLog > FSE_MAX_TABLELOG) return ERROR(tableLog_tooLarge);
 
     /* Init, lay down lowprob symbols */
-    DTableH.tableLog = (U16)tableLog;
-    DTableH.fastMode = 1;
-    {   S16 const largeLimit= (S16)(1 << (tableLog-1));
-        U32 s;
-        for (s=0; s<maxSV1; s++) {
-            if (normalizedCounter[s]==-1) {
-                tableDecode[highThreshold--].symbol = (FSE_FUNCTION_TYPE)s;
-                symbolNext[s] = 1;
-            } else {
-                if (normalizedCounter[s] >= largeLimit) DTableH.fastMode=0;
-                symbolNext[s] = normalizedCounter[s];
-    }   }   }
-    memcpy(dt, &DTableH, sizeof(DTableH));
+    {   FSE_DTableHeader DTableH;
+        DTableH.tableLog = (U16)tableLog;
+        DTableH.fastMode = 1;
+        {   S16 const largeLimit= (S16)(1 << (tableLog-1));
+            U32 s;
+            for (s=0; s<maxSV1; s++) {
+                if (normalizedCounter[s]==-1) {
+                    tableDecode[highThreshold--].symbol = (FSE_FUNCTION_TYPE)s;
+                    symbolNext[s] = 1;
+                } else {
+                    if (normalizedCounter[s] >= largeLimit) DTableH.fastMode=0;
+                    symbolNext[s] = normalizedCounter[s];
+        }   }   }
+        memcpy(dt, &DTableH, sizeof(DTableH));
+    }
 
     /* Spread symbols */
     {   U32 const tableMask = tableSize-1;

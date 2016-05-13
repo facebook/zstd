@@ -57,6 +57,7 @@ GetLibraryVersion("${HEADER_CONTENT}" LIBVER_MAJOR LIBVER_MINOR LIBVER_RELEASE)
 MESSAGE("ZSTD VERSION ${LIBVER_MAJOR}.${LIBVER_MINOR}.${LIBVER_RELEASE}")
 
 SET(Sources
+        ${LIBRARY_DIR}/common/entropy_common.c
         ${LIBRARY_DIR}/common/zstd_common.c
         ${LIBRARY_DIR}/common/fse_decompress.c
         ${LIBRARY_DIR}/compress/fse_compress.c

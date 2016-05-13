@@ -44,6 +44,9 @@
     <ClCompile Include="..\..\..\lib\common\fse_decompress.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\..\lib\common\entropy_common.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\lib\common\fse.h">

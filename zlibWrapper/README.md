@@ -29,7 +29,7 @@ The linking should be changed to:
 ```gcc project.o zlib_wrapper.o -lz -lzstd```
 
 
-#### Using the zstd wrapper with your project
+#### Enabling zstd compression within your project
 
 After embedding the zstd wrapper within your project the zstd library is turned off by default.
 Your project should work as before with zlib. There are two options to enable zstd compression:
@@ -51,8 +51,9 @@ large_inflate(): OK
 after inflateSync(): hello, hello!
 inflate with dictionary: hello, hello!
 ```
-Then we have compiled the [example.c](examples/example.c) file with ```-DZWRAP_USE_ZSTD=1``` and linked with additional ```zlib_wrapper.o -lzstd```.
-We have also turned of the following functions: test_gzio, test_flush, test_sync which use currently unsupported features.
+Then we have changed ```#include "zlib.h"``` to ```#include "zstd_zlibwrapper.h"```, compiled the [example.c](examples/example.c) file
+with ```-DZWRAP_USE_ZSTD=1``` and linked with additional ```zlib_wrapper.o -lzstd```.
+We were forced to turn off the following functions: ```test_gzio```, ```test_flush```, ```test_sync``` which use currently unsupported features.
 After running it shows the following results:
 ```
 zlib version 1.2.8 = 0x1280, compile flags = 0x65

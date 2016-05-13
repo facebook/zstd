@@ -1,8 +1,10 @@
 v0.6.1
+New : zlib wrapper API, thanks to Przemyslaw Skibinski
 Fixed : Legacy codec v0.5 compatible with dictionary decompression
 Fixed : Decoder corruption error (#173)
 Fixed : null-string roundtrip (#176)
 New : midipix support
+New : benchmark mode can select directory as input
 
 v0.6.0
 Stronger high compression modes, thanks to Przemyslaw Skibinski

@@ -29,26 +29,20 @@
 
 
 /*-************************************
-*  Compiler Options
-**************************************/
-#define _CRT_SECURE_NO_WARNINGS  /* Visual : removes warning from strcpy */
-#define _POSIX_SOURCE 1          /* triggers fileno() within <stdio.h> on unix */
-
-
-/*-************************************
 *  Includes
 **************************************/
-#include <stdio.h>    /* fprintf, getchar */
-#include <stdlib.h>   /* exit, calloc, free */
+#include "util.h"     /* Compiler options, UTIL_HAS_CREATEFILELIST */
 #include <string.h>   /* strcmp, strlen */
+#include <ctype.h>    /* toupper */
 #include "fileio.h"
 #ifndef ZSTD_NOBENCH
 #  include "bench.h"  /* BMK_benchFiles, BMK_SetNbIterations */
 #endif
 #include "zstd_static.h" /* ZSTD_maxCLevel, ZSTD version numbers  */
 #ifndef ZSTD_NODICT
-#  include "dibio.h"  /* BMK_benchFiles, BMK_SetNbIterations */
+#  include "dibio.h"
 #endif
+
 
 
 /*-************************************
@@ -60,6 +54,7 @@
 #  define SET_BINARY_MODE(file) _setmode(_fileno(file), _O_BINARY)
 #  define IS_CONSOLE(stdStream) _isatty(_fileno(stdStream))
 #else
+   extern int fileno(FILE *stream);  /* triggers fileno() within <stdio.h> on POSIX */
 #  include <unistd.h>   /* isatty */
 #  define SET_BINARY_MODE(file)
 #  define IS_CONSOLE(stdStream) isatty(fileno(stdStream))
@@ -71,13 +66,10 @@
 **************************************/
 #define COMPRESSOR_NAME "zstd command line interface"
 #ifndef ZSTD_VERSION
-#  define LIB_VERSION ZSTD_VERSION_MAJOR.ZSTD_VERSION_MINOR.ZSTD_VERSION_RELEASE
-#  define QUOTE(str) #str
-#  define EXPAND_AND_QUOTE(str) QUOTE(str)
-#  define ZSTD_VERSION "v" EXPAND_AND_QUOTE(LIB_VERSION)
+#  define ZSTD_VERSION "v" ZSTD_VERSION_STRING
 #endif
 #define AUTHOR "Yann Collet"
-#define WELCOME_MESSAGE "*** %s %i-bits %s, by %s ***\n", COMPRESSOR_NAME, (int)(sizeof(void*)*8), ZSTD_VERSION, AUTHOR
+#define WELCOME_MESSAGE "*** %s %i-bits %s, by %s ***\n", COMPRESSOR_NAME, (int)(sizeof(size_t)*8), ZSTD_VERSION, AUTHOR
 
 #define ZSTD_EXTENSION ".zst"
 #define ZSTD_CAT "zstdcat"
@@ -87,7 +79,7 @@
 #define MB *(1 <<20)
 #define GB *(1U<<30)
 
-static const char* g_defaultDictName = "dictionary";
+static const char*    g_defaultDictName = "dictionary";
 static const unsigned g_defaultMaxDictSize = 110 KB;
 static const unsigned g_defaultDictCLevel = 5;
 static const unsigned g_defaultSelectivityLevel = 9;
@@ -113,8 +105,12 @@ static int usage(const char* programName)
     DISPLAY( "FILE    : a filename\n");
     DISPLAY( "          with no FILE, or when FILE is - , read standard input\n");
     DISPLAY( "Arguments :\n");
+#ifndef ZSTD_NOCOMPRESS
     DISPLAY( " -#     : # compression level (1-%u, default:1) \n", ZSTD_maxCLevel());
+#endif
+#ifndef ZSTD_NODECOMPRESS
     DISPLAY( " -d     : decompression \n");
+#endif
     DISPLAY( " -D file: use `file` as Dictionary \n");
     DISPLAY( " -o file: result stored into `file` (only if 1 input file) \n");
     DISPLAY( " -f     : overwrite output without prompting \n");
@@ -133,7 +129,9 @@ static int usage_advanced(const char* programName)
     DISPLAY( " -v     : verbose mode\n");
     DISPLAY( " -q     : suppress warnings; specify twice to suppress errors too\n");
     DISPLAY( " -c     : force write to standard output, even if it is the console\n");
+#ifndef ZSTD_NOCOMPRESS
     DISPLAY( "--ultra : enable ultra modes (requires more memory to decompress)\n");
+#endif
 #ifndef ZSTD_NODICT
     DISPLAY( "Dictionary builder :\n");
     DISPLAY( "--train : create a dictionary from a training set of files \n");
@@ -144,8 +142,11 @@ static int usage_advanced(const char* programName)
 #ifndef ZSTD_NOBENCH
     DISPLAY( "Benchmark arguments :\n");
     DISPLAY( " -b#    : benchmark file(s), using # compression level (default : 1) \n");
-    DISPLAY( " -r#    : test all compression levels from -bX to # (default: 1)\n");
+    DISPLAY( " -e#    : test all compression levels from -bX to # (default: 1)\n");
     DISPLAY( " -i#    : iteration loops [1-9](default : 3)\n");
+#ifdef UTIL_HAS_CREATEFILELIST
+    DISPLAY( " -r     : operate recursively on directories\n");
+#endif
     DISPLAY( " -B#    : cut file into independent blocks of size # (default: no block)\n");
 #endif
     return 0;
@@ -184,6 +185,7 @@ int main(int argCount, const char** argv)
         nextArgumentIsMaxDict=0;
     unsigned cLevel = 1;
     unsigned cLevelLast = 1;
+    unsigned recursive = 0;
     const char** filenameTable = (const char**)malloc(argCount * sizeof(const char*));   /* argCount >= 1 */
     unsigned filenameIdx = 0;
     const char* programName = argv[0];
@@ -195,7 +197,8 @@ int main(int argCount, const char** argv)
     unsigned dictSelect = g_defaultSelectivityLevel;
 
     /* init */
-    (void)cLevelLast; (void)dictCLevel;   /* not used when ZSTD_NOBENCH / ZSTD_NODICT set */
+    (void)recursive; (void)cLevelLast; (void)dictCLevel;   /* not used when ZSTD_NOBENCH / ZSTD_NODICT set */
+    (void)decode; (void)cLevel; /* not used when ZSTD_NOCOMPRESS set */
     if (filenameTable==NULL) { DISPLAY("not enough memory\n"); exit(1); }
     displayOut = stderr;
     /* Pick out program name from path. Don't rely on stdlib because of conflicting behavior */
@@ -235,6 +238,7 @@ int main(int argCount, const char** argv)
             argument++;
 
             while (argument[0]!=0) {
+#ifndef ZSTD_NOCOMPRESS
                 /* compression Level */
                 if ((*argument>='0') && (*argument<='9')) {
                     cLevel = 0;
@@ -248,6 +252,7 @@ int main(int argCount, const char** argv)
                         CLEAN_RETURN(badusage(programName));
                     continue;
                 }
+#endif
 
                 switch(argument[0])
                 {
@@ -287,6 +292,17 @@ int main(int argCount, const char** argv)
                     /* Benchmark */
                 case 'b': bench=1; argument++; break;
 
+                    /* range bench (benchmark only) */
+                case 'e':
+                        /* compression Level */
+                        argument++;
+                        if ((*argument>='0') && (*argument<='9')) {
+                            cLevelLast = 0;
+                            while ((*argument >= '0') && (*argument <= '9'))
+                                cLevelLast *= 10, cLevelLast += *argument++ - '0';
+                        }
+                        break;
+
                     /* Modify Nb Iterations (benchmark only) */
                 case 'i':
                     {   U32 iters= 0;
@@ -298,30 +314,22 @@ int main(int argCount, const char** argv)
                     }
                     break;
 
+                    /* recursive */
+                case 'r': recursive=1; argument++; break;
+
                     /* cut input into blocks (benchmark only) */
                 case 'B':
                     {   size_t bSize = 0;
                         argument++;
                         while ((*argument >='0') && (*argument <='9'))
                             bSize *= 10, bSize += *argument++ - '0';
-                        if (*argument=='K') bSize<<=10, argument++;  /* allows using KB notation */
-                        if (*argument=='M') bSize<<=20, argument++;
-                        if (*argument=='B') argument++;
+                        if (toupper(*argument)=='K') bSize<<=10, argument++;  /* allows using KB notation */
+                        if (toupper(*argument)=='M') bSize<<=20, argument++;
+                        if (toupper(*argument)=='B') argument++;
                         BMK_setNotificationLevel(displayLevel);
                         BMK_SetBlockSize(bSize);
                     }
                     break;
-
-                    /* range bench (benchmark only) */
-                case 'r':
-                        /* compression Level */
-                        argument++;
-                        if ((*argument>='0') && (*argument<='9')) {
-                            cLevelLast = 0;
-                            while ((*argument >= '0') && (*argument <= '9'))
-                                cLevelLast *= 10, cLevelLast += *argument++ - '0';
-                        }
-                        break;
 #endif   /* ZSTD_NOBENCH */
 
                     /* Selection level */
@@ -368,8 +376,7 @@ int main(int argCount, const char** argv)
             maxDictSize = 0;
             while ((*argument>='0') && (*argument<='9'))
                 maxDictSize = maxDictSize * 10 + (*argument - '0'), argument++;
-            if (*argument=='k' || *argument=='K')
-                maxDictSize <<= 10;
+            if (toupper(*argument)=='K') maxDictSize <<= 10;
             continue;
         }
 
@@ -384,7 +391,7 @@ int main(int argCount, const char** argv)
     if (bench) {
 #ifndef ZSTD_NOBENCH
         BMK_setNotificationLevel(displayLevel);
-        BMK_benchFiles(filenameTable, filenameIdx, dictFileName, cLevel, cLevelLast);
+        BMK_benchFiles(filenameTable, filenameIdx, dictFileName, cLevel, cLevelLast, recursive);
 #endif
         goto _end;
     }
@@ -420,16 +427,23 @@ int main(int argCount, const char** argv)
 
     /* IO Stream/File */
     FIO_setNotificationLevel(displayLevel);
-    if (decode) {
-      if (filenameIdx==1 && outFileName)
-        operationResult = FIO_decompressFilename(outFileName, filenameTable[0], dictFileName);
-      else
-        operationResult = FIO_decompressMultipleFilenames(filenameTable, filenameIdx, outFileName ? outFileName : ZSTD_EXTENSION, dictFileName);
-    } else {  /* compression */
+#ifndef ZSTD_NOCOMPRESS
+    if (!decode) {
         if (filenameIdx==1 && outFileName)
           operationResult = FIO_compressFilename(outFileName, filenameTable[0], dictFileName, cLevel);
         else
           operationResult = FIO_compressMultipleFilenames(filenameTable, filenameIdx, outFileName ? outFileName : ZSTD_EXTENSION, dictFileName, cLevel);
+    } else
+#endif
+    {  /* decompression */
+#ifndef ZSTD_NODECOMPRESS
+        if (filenameIdx==1 && outFileName)
+        operationResult = FIO_decompressFilename(outFileName, filenameTable[0], dictFileName);
+        else
+        operationResult = FIO_decompressMultipleFilenames(filenameTable, filenameIdx, outFileName ? outFileName : ZSTD_EXTENSION, dictFileName);
+#else
+        DISPLAY("Decompression not supported\n");
+#endif
     }
 
 _end:

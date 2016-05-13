@@ -22,45 +22,18 @@
     - zstd homepage : http://www.zstd.net/
 */
 
-/*-**************************************
-*  Compiler Options
-****************************************/
-/* Disable some Visual warning messages */
-#ifdef _MSC_VER
-#  define _CRT_SECURE_NO_WARNINGS                /* fopen */
-#  pragma warning(disable : 4127)                /* disable: C4127: conditional expression is constant */
-#endif
-
-/* Unix Large Files support (>4GB) */
-#define _FILE_OFFSET_BITS 64
-#if (defined(__sun__) && (!defined(__LP64__)))   /* Sun Solaris 32-bits requires specific definitions */
-#  define _LARGEFILE_SOURCE
-#elif ! defined(__LP64__)                        /* No point defining Large file for 64 bit */
-#  define _LARGEFILE64_SOURCE
-#endif
-
-
 /*-*************************************
 *  Includes
 ***************************************/
+#include "util.h"           /* Compiler options, UTIL_GetFileSize, UTIL_getTotalFileSize */
 #include <stdlib.h>         /* malloc, free */
 #include <string.h>         /* memset */
 #include <stdio.h>          /* fprintf, fopen, ftello64 */
-#include <sys/types.h>      /* stat64 */
-#include <sys/stat.h>       /* stat64 */
-#include <time.h>           /* clock */
+#include <time.h>           /* clock_t, clock, CLOCKS_PER_SEC */
 
 #include "mem.h"            /* read */
 #include "error_private.h"
-#include "zdict_static.h"
-
-
-/*-*************************************
-*  Compiler specifics
-***************************************/
-#if !defined(S_ISREG)
-#  define S_ISREG(x) (((x) & S_IFMT) == S_IFREG)
-#endif
+#include "dibio.h"
 
 
 /*-*************************************
@@ -85,6 +58,19 @@ static const size_t maxMemory = (sizeof(size_t) == 4) ? (2 GB - 64 MB) : ((size_
 #define DISPLAY(...)         fprintf(stderr, __VA_ARGS__)
 #define DISPLAYLEVEL(l, ...) if (g_displayLevel>=l) { DISPLAY(__VA_ARGS__); }
 static unsigned g_displayLevel = 0;   /* 0 : no display;   1: errors;   2: default;  4: full information */
+
+#define DISPLAYUPDATE(l, ...) if (g_displayLevel>=l) { \
+            if ((DIB_GetMilliSpan(g_time) > refreshRate) || (g_displayLevel>=4)) \
+            { g_time = clock(); DISPLAY(__VA_ARGS__); \
+            if (g_displayLevel>=4) fflush(stdout); } }
+static const unsigned refreshRate = 150;
+static clock_t g_time = 0;
+
+static unsigned DIB_GetMilliSpan(clock_t nPrevious)
+{
+    clock_t const nCurrent = clock();
+    return (unsigned)(((nCurrent - nPrevious) * 1000) / CLOCKS_PER_SEC);
+}
 
 
 /*-*************************************
@@ -115,31 +101,6 @@ const char* DiB_getErrorName(size_t errorCode) { return ERR_getErrorName(errorCo
 /* ********************************************************
 *  File related operations
 **********************************************************/
-static unsigned long long DiB_getFileSize(const char* infilename)
-{
-    int r;
-#if defined(_MSC_VER)
-    struct _stat64 statbuf;
-    r = _stat64(infilename, &statbuf);
-#else
-    struct stat statbuf;
-    r = stat(infilename, &statbuf);
-#endif
-    if (r || !S_ISREG(statbuf.st_mode)) return 0;   /* No good... */
-    return (unsigned long long)statbuf.st_size;
-}
-
-
-static unsigned long long DiB_getTotalFileSize(const char** fileNamesTable, unsigned nbFiles)
-{
-    unsigned long long total = 0;
-    unsigned n;
-    for (n=0; n<nbFiles; n++)
-        total += DiB_getFileSize(fileNamesTable[n]);
-    return total;
-}
-
-
 static void DiB_loadFiles(void* buffer, size_t bufferSize,
                           size_t* fileSizes,
                           const char** fileNamesTable, unsigned nbFiles)
@@ -150,10 +111,10 @@ static void DiB_loadFiles(void* buffer, size_t bufferSize,
 
     for (n=0; n<nbFiles; n++) {
         size_t readSize;
-        unsigned long long fileSize = DiB_getFileSize(fileNamesTable[n]);
+        unsigned long long fileSize = UTIL_getFileSize(fileNamesTable[n]);
         FILE* f = fopen(fileNamesTable[n], "rb");
         if (f==NULL) EXM_THROW(10, "impossible to open file %s", fileNamesTable[n]);
-        DISPLAYLEVEL(2, "Loading %s...       \r", fileNamesTable[n]);
+        DISPLAYUPDATE(2, "Loading %s...       \r", fileNamesTable[n]);
         if (fileSize > bufferSize-pos) fileSize = 0;  /* stop there, not enough memory to load all files */
         readSize = fread(buff+pos, 1, (size_t)fileSize, f);
         if (readSize != (size_t)fileSize) EXM_THROW(11, "could not read %s", fileNamesTable[n]);
@@ -201,17 +162,14 @@ static void DiB_fillNoise(void* buffer, size_t length)
 static void DiB_saveDict(const char* dictFileName,
                          const void* buff, size_t buffSize)
 {
-    FILE* f;
-    size_t n;
-
-    f = fopen(dictFileName, "wb");
+    FILE* f = fopen(dictFileName, "wb");
     if (f==NULL) EXM_THROW(3, "cannot open %s ", dictFileName);
 
-    n = fwrite(buff, 1, buffSize, f);
-    if (n!=buffSize) EXM_THROW(4, "%s : write error", dictFileName)
+    { size_t const n = fwrite(buff, 1, buffSize, f);
+      if (n!=buffSize) EXM_THROW(4, "%s : write error", dictFileName) }
 
-    n = (size_t)fclose(f);
-    if (n!=0) EXM_THROW(5, "%s : flush error", dictFileName)
+    { size_t const n = (size_t)fclose(f);
+      if (n!=0) EXM_THROW(5, "%s : flush error", dictFileName) }
 }
 
 
@@ -234,7 +192,7 @@ int DiB_trainFromFiles(const char* dictFileName, unsigned maxDictSize,
     void* srcBuffer;
     size_t benchedSize;
     size_t* fileSizes = (size_t*)malloc(nbFiles * sizeof(size_t));
-    unsigned long long totalSizeToLoad = DiB_getTotalFileSize(fileNamesTable, nbFiles);
+    unsigned long long totalSizeToLoad = UTIL_getTotalFileSize(fileNamesTable, nbFiles);
     void* dictBuffer = malloc(maxDictSize);
     size_t dictSize;
     int result = 0;

@@ -5,53 +5,61 @@ The __lib__ directory contains several files, but depending on target use case, 
 
 #### Minimal library files
 
-##### Shared ressources
+To build the zstd library the following files are required:
 
-- [mem.h](mem.h)
-- [error_private.h](error_private.h)
-- [error_public.h](error_public.h)
+- [common/bitstream.h](common/bitstream.h)
+- [common/error_private.h](common/error_private.h)
+- [common/error_public.h](common/error_public.h)
+- common/fse.h
+- common/fse_decompress.c
+- common/fse_static.h
+- common/huf.h
+- common/huf_static.h
+- [common/mem.h](common/mem.h)
+- [common/zstd.h]
+- common/zstd_internal.h
+- common/zstd_static.h
+- compress/fse_compress.c
+- compress/huf_compress.c
+- compress/zstd_compress.c
+- compress/zstd_opt.h 
+- decompress/huf_decompress.c
+- decompress/zstd_decompress.c
 
-##### zstd core compression
-
-Stable API is exposed in [zstd.h].
-Advanced and experimental API is exposed in `zstd_static.h`.
-`zstd_static.h` API elements should be used with static linking only,
+Stable API is exposed in [common/zstd.h].
+Advanced and experimental API is exposed in [common/zstd_static.h].
+API elements of [common/zstd_static.h] should be used with static linking only,
 as their definition may change in future version of the library.
 
-- [bitstream.h](bitstream.h)
-- fse.c
-- fse.h
-- fse_static.h
-- huff0.c
-- huff0.h
-- huff0_static.h
-- zstd_compress.c
-- zstd_decompress.c
-- zstd_internal.h
-- zstd_opt.h
-- [zstd.h]
-- zstd_static.h
+[common/zstd.h]: common/zstd.h
+[common/zstd_static.h]: common/zstd_static.h
 
-[zstd.h]: zstd.h
+
+#### Separate compressor and decompressor
+
+To build a separate zstd compressor all files from `common/` and `compressor/` directories are required.
+In a similar way to build a separate zstd decompressor all files from `common/` and `decompressor/` directories are needed.
+
 
 #### Buffered streaming
 
 This complementary API makes streaming integration easier.
 It is used by `zstd` command line utility, and [7zip plugin](http://mcmilk.de/projects/7-Zip-ZStd) :
 
-- zbuff.c
-- zbuff.h
-- zbuff_static.h
+- common/zbuff.h
+- common/zbuff_static.h
+- compress/zbuff_compress.c
+- decompress/zbuff_decompress.c
 
 #### Dictionary builder
 
 To create dictionaries from training sets :
 
-- divsufsort.c
-- divsufsort.h
-- zdict.c
-- zdict.h
-- zdict_static.h
+- dictBuilder/divsufsort.c
+- dictBuilder/divsufsort.h
+- dictBuilder/zdict.c
+- dictBuilder/zdict.h
+- dictBuilder/zdict_static.h
 
 #### Miscellaneous
 

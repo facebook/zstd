@@ -1,6 +1,6 @@
 /*
     bench.h - Demo program to benchmark open-source compression algorithm
-    Copyright (C) Yann Collet 2012-2015
+    Copyright (C) Yann Collet 2012-2016
 
     GPL v2 License
 
@@ -19,15 +19,14 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
     You can contact the author at :
-    - LZ4 source repository : http://code.google.com/p/lz4/
-    - LZ4 public forum : https://group.google.com/forum/#!forum/lz4c
+    - ZSTD homepage : http://www.zstd.net/
 */
 #pragma once
 
 
 /* Main function */
 int BMK_benchFiles(const char** fileNamesTable, unsigned nbFiles,
-                   const char* dictFileName, int cLevel, int cLevelLast);
+                   const char* dictFileName, int cLevel, int cLevelLast, int recursive);
 
 /* Set Parameters */
 void BMK_SetNbIterations(unsigned nbLoops);

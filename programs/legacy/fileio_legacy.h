@@ -38,7 +38,9 @@ void FIO_legacy_setNotificationLevel(unsigned level);
 /* *************************************
 *  Stream/File functions
 ***************************************/
-unsigned long long FIO_decompressLegacyFrame(FILE* foutput, FILE* finput, U32 magicNumberLE);
+unsigned long long FIO_decompressLegacyFrame(FILE* foutput, FILE* finput,
+                                             const void* dictBuffer, size_t dictSize,
+                                             U32 magicNumberLE);
 
 
 #if defined (__cplusplus)

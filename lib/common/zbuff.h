@@ -153,7 +153,7 @@ ZSTDLIB_API unsigned ZBUFF_isError(size_t errorCode);
 ZSTDLIB_API const char* ZBUFF_getErrorName(size_t errorCode);
 
 /** Functions below provide recommended buffer sizes for Compression or Decompression operations.
-*   These sizes are just hints, and tend to offer better latency */
+*   These sizes are just hints, they tend to offer better latency */
 ZSTDLIB_API size_t ZBUFF_recommendedCInSize(void);
 ZSTDLIB_API size_t ZBUFF_recommendedCOutSize(void);
 ZSTDLIB_API size_t ZBUFF_recommendedDInSize(void);

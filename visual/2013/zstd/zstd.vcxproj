@@ -19,18 +19,23 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\..\lib\divsufsort.c" />
-    <ClCompile Include="..\..\..\lib\fse.c" />
-    <ClCompile Include="..\..\..\lib\huff0.c" />
+    <ClCompile Include="..\..\..\lib\common\entropy_common.c" />
+    <ClCompile Include="..\..\..\lib\common\zstd_common.c" />
+    <ClCompile Include="..\..\..\lib\common\fse_decompress.c" />
+    <ClCompile Include="..\..\..\lib\compress\fse_compress.c" />
+    <ClCompile Include="..\..\..\lib\compress\huf_compress.c" />
+    <ClCompile Include="..\..\..\lib\compress\zbuff_compress.c" />
+    <ClCompile Include="..\..\..\lib\compress\zstd_compress.c" />
+    <ClCompile Include="..\..\..\lib\decompress\huf_decompress.c" />
+    <ClCompile Include="..\..\..\lib\decompress\zbuff_decompress.c" />
+    <ClCompile Include="..\..\..\lib\decompress\zstd_decompress.c" />
+    <ClCompile Include="..\..\..\lib\dictBuilder\divsufsort.c" />
+    <ClCompile Include="..\..\..\lib\dictBuilder\zdict.c" />
     <ClCompile Include="..\..\..\lib\legacy\zstd_v01.c" />
     <ClCompile Include="..\..\..\lib\legacy\zstd_v02.c" />
     <ClCompile Include="..\..\..\lib\legacy\zstd_v03.c" />
     <ClCompile Include="..\..\..\lib\legacy\zstd_v04.c" />
     <ClCompile Include="..\..\..\lib\legacy\zstd_v05.c" />
-    <ClCompile Include="..\..\..\lib\zbuff.c" />
-    <ClCompile Include="..\..\..\lib\zdict.c" />
-    <ClCompile Include="..\..\..\lib\zstd_compress.c" />
-    <ClCompile Include="..\..\..\lib\zstd_decompress.c" />
     <ClCompile Include="..\..\..\programs\bench.c" />
     <ClCompile Include="..\..\..\programs\datagen.c" />
     <ClCompile Include="..\..\..\programs\dibio.c" />
@@ -40,32 +45,32 @@
     <ClCompile Include="..\..\..\programs\zstdcli.c" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\..\lib\divsufsort.h" />
-    <ClInclude Include="..\..\..\lib\fse.h" />
-    <ClInclude Include="..\..\..\lib\fse_static.h" />
-    <ClInclude Include="..\..\..\lib\huff0.h" />
-    <ClInclude Include="..\..\..\lib\huff0_static.h" />
+    <ClInclude Include="..\..\..\lib\dictBuilder\zdict.h" />
+    <ClInclude Include="..\..\..\lib\dictBuilder\zdict_static.h" />
+    <ClInclude Include="..\..\..\lib\dictBuilder\divsufsort.h" />
+    <ClInclude Include="..\..\..\lib\common\fse.h" />
+    <ClInclude Include="..\..\..\lib\common\fse_static.h" />
+    <ClInclude Include="..\..\..\lib\common\huf.h" />
+    <ClInclude Include="..\..\..\lib\common\huf_static.h" />
+    <ClInclude Include="..\..\..\lib\common\zbuff.h" />
+    <ClInclude Include="..\..\..\lib\common\zbuff_static.h" />
+    <ClInclude Include="..\..\..\lib\common\zstd.h" />
+    <ClInclude Include="..\..\..\lib\common\zstd_internal.h" />
+    <ClInclude Include="..\..\..\lib\common\zstd_static.h" />
+    <ClInclude Include="..\..\..\lib\compress\zstd_opt.h" />
     <ClInclude Include="..\..\..\lib\legacy\zstd_legacy.h" />
     <ClInclude Include="..\..\..\lib\legacy\zstd_v01.h" />
     <ClInclude Include="..\..\..\lib\legacy\zstd_v02.h" />
     <ClInclude Include="..\..\..\lib\legacy\zstd_v03.h" />
     <ClInclude Include="..\..\..\lib\legacy\zstd_v04.h" />
     <ClInclude Include="..\..\..\lib\legacy\zstd_v05.h" />
-    <ClInclude Include="..\..\..\lib\zbuff.h" />
-    <ClInclude Include="..\..\..\lib\zbuff_static.h" />
-    <ClInclude Include="..\..\..\lib\zdict.h" />
-    <ClInclude Include="..\..\..\lib\zdict_static.h" />
-    <ClInclude Include="..\..\..\lib\zstd.h" />
-    <ClInclude Include="..\..\..\lib\zstd_buffered.h" />
-    <ClInclude Include="..\..\..\lib\zstd_buffered_static.h" />
-    <ClInclude Include="..\..\..\lib\zstd_internal.h" />
-    <ClInclude Include="..\..\..\lib\zstd_static.h" />
     <ClInclude Include="..\..\..\programs\bench.h" />
     <ClInclude Include="..\..\..\programs\datagen.h" />
     <ClInclude Include="..\..\..\programs\dibio.h" />
     <ClInclude Include="..\..\..\programs\fileio.h" />
     <ClInclude Include="..\..\..\programs\legacy\fileio_legacy.h" />
     <ClInclude Include="..\..\..\programs\xxhash.h" />
+    <ClInclude Include="..\..\..\programs\util.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{4E52A41A-F33B-4C7A-8C36-A1A6B4F4277C}</ProjectGuid>
@@ -77,28 +82,28 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <CharacterSet>Unicode</CharacterSet>
-    <PlatformToolset>v120</PlatformToolset>
+    <PlatformToolset>v110</PlatformToolset>
+    <CharacterSet>MultiByte</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v120</PlatformToolset>
-    <CharacterSet>Unicode</CharacterSet>
+    <PlatformToolset>v110</PlatformToolset>
+    <CharacterSet>MultiByte</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
     <WholeProgramOptimization>true</WholeProgramOptimization>
-    <PlatformToolset>v120_xp</PlatformToolset>
-    <CharacterSet>Unicode</CharacterSet>
+    <PlatformToolset>v110</PlatformToolset>
+    <CharacterSet>MultiByte</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
     <WholeProgramOptimization>true</WholeProgramOptimization>
-    <PlatformToolset>v120</PlatformToolset>
-    <CharacterSet>Unicode</CharacterSet>
+    <PlatformToolset>v110</PlatformToolset>
+    <CharacterSet>MultiByte</CharacterSet>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="ExtensionSettings">
@@ -118,22 +123,22 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>$(SolutionDir)..\..\programs\legacy;$(SolutionDir)..\..\lib\legacy;$(SolutionDir)..\..\lib;$(VCInstallDir)include;$(VCInstallDir)atlmfc\include;$(WindowsSDK_IncludePath);</IncludePath>
-    <RunCodeAnalysis>true</RunCodeAnalysis>
+    <IncludePath>$(WindowsSdkDir)\include;$(UniversalCRT_IncludePath);$(SolutionDir)..\..\programs\legacy;$(SolutionDir)..\..\lib\legacy;$(SolutionDir)..\..\lib\common;$(VCInstallDir)include;$(VCInstallDir)atlmfc\include;$(WindowsSDK_IncludePath);</IncludePath>
+    <RunCodeAnalysis>false</RunCodeAnalysis>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>$(SolutionDir)..\..\programs\legacy;$(SolutionDir)..\..\lib\legacy;$(SolutionDir)..\..\lib;$(VCInstallDir)include;$(VCInstallDir)atlmfc\include;$(WindowsSDK_IncludePath);</IncludePath>
-    <RunCodeAnalysis>true</RunCodeAnalysis>
+    <IncludePath>$(WindowsSdkDir)\include;$(UniversalCRT_IncludePath);$(SolutionDir)..\..\programs\legacy;$(SolutionDir)..\..\lib\legacy;$(SolutionDir)..\..\lib\common;$(VCInstallDir)include;$(VCInstallDir)atlmfc\include;$(WindowsSDK_IncludePath);</IncludePath>
+    <RunCodeAnalysis>false</RunCodeAnalysis>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>$(SolutionDir)..\..\programs\legacy;$(SolutionDir)..\..\lib\legacy;$(SolutionDir)..\..\lib;$(VCInstallDir)include;$(VCInstallDir)atlmfc\include;$(WindowsSDK_IncludePath);</IncludePath>
+    <IncludePath>$(WindowsSdkDir)\include;$(UniversalCRT_IncludePath);$(SolutionDir)..\..\programs\legacy;$(SolutionDir)..\..\lib\legacy;$(SolutionDir)..\..\lib\common;$(VCInstallDir)include;$(VCInstallDir)atlmfc\include;$(WindowsSDK_IncludePath);</IncludePath>
     <RunCodeAnalysis>false</RunCodeAnalysis>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>$(SolutionDir)..\..\programs\legacy;$(SolutionDir)..\..\lib\legacy;$(SolutionDir)..\..\lib;$(VCInstallDir)include;$(VCInstallDir)atlmfc\include;$(WindowsSDK_IncludePath);</IncludePath>
+    <IncludePath>$(WindowsSdkDir)\include;$(UniversalCRT_IncludePath);$(SolutionDir)..\..\programs\legacy;$(SolutionDir)..\..\lib\legacy;$(SolutionDir)..\..\lib\common;$(VCInstallDir)include;$(VCInstallDir)atlmfc\include;$(WindowsSDK_IncludePath);</IncludePath>
     <RunCodeAnalysis>false</RunCodeAnalysis>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
@@ -144,8 +149,7 @@
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <TreatWarningAsError>true</TreatWarningAsError>
-      <EnablePREfast>true</EnablePREfast>
-      <AdditionalOptions>/analyze:stacksize25000 %(AdditionalOptions)</AdditionalOptions>
+      <EnablePREfast>false</EnablePREfast>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -160,8 +164,7 @@
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <TreatWarningAsError>false</TreatWarningAsError>
-      <EnablePREfast>true</EnablePREfast>
-      <AdditionalOptions>/analyze:stacksize19000 %(AdditionalOptions)</AdditionalOptions>
+      <EnablePREfast>false</EnablePREfast>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>

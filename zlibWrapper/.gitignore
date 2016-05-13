@@ -17,17 +17,10 @@
 *.out
 *.app
 
-# Visual C++
-visual/
+# Default result files
+_*
 
-# IDEA solution files
-*.idea
-
-# Other files
-.directory
-_codelite/
-_zstdbench/
-zlib_wrapper/
-
-# CMake
-contrib/cmake/
+# Misc files
+*.bat
+*.zip
+examples/example2.c

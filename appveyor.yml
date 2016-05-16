@@ -32,7 +32,7 @@ build_script:
     ECHO *** Building Visual Studio 2013 %PLATFORM%\%CONFIGURATION%
     ECHO ***
     msbuild "projects\VS2010\zstd.sln" /m /verbosity:minimal /property:PlatformToolset=v120 /t:Clean,Build /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll"
-    projects\VS2010\bin\%PLATFORM%\%CONFIGURATION%\fuzzer.exe projects\fuzzer_VS2013_%PLATFORM%_%CONFIGURATION%.exe
+    COPY projects\VS2010\bin\%PLATFORM%\%CONFIGURATION%\fuzzer.exe projects\fuzzer_VS2013_%PLATFORM%_%CONFIGURATION%.exe
 
     ECHO ***
     ECHO *** Building Visual Studio 2015 %PLATFORM%\%CONFIGURATION%

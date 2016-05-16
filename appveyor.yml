@@ -1,7 +1,7 @@
 version: 1.0.{build}
 configuration:
-- Release
 - Debug
+- Release
 platform:
 - Win32
 - x64
@@ -19,7 +19,8 @@ build_script:
     ECHO ***
     REM msbuild "projects\VS2010\zstd.sln" /m /verbosity:detailed /property:PlatformToolset=Windows7.1SDK /t:Clean,Build /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll"
     REM msbuild "projects\VS2010\zstd.sln" "/p:AdditionalLibPaths=C:\Program Files\Microsoft SDKs\Windows\v7.1\Lib\X64" /m /verbosity:detailed /property:PlatformToolset=v100 /t:Clean,Build /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll"
-    msbuild "projects\VS2010\zstd.sln" /p:LibraryPath="C:\Program Files\Microsoft SDKs\Windows\v7.1\lib\x64;c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\lib\amd64;C:\Program Files (x86)\Microsoft Visual Studio 10.0\;C:\Program Files (x86)\Microsoft Visual Studio 10.0\lib\amd64;" /m /verbosity:normal /property:PlatformToolset=v100 /t:Clean,Build /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll"
+    If %PLATFORM%==x64 SET ADDITIONALPARAM=/p:LibraryPath="C:\Program Files\Microsoft SDKs\Windows\v7.1\lib\x64;c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\lib\amd64;C:\Program Files (x86)\Microsoft Visual Studio 10.0\;C:\Program Files (x86)\Microsoft Visual Studio 10.0\lib\amd64;"
+    msbuild "projects\VS2010\zstd.sln" %ADDITIONALPARAM% /m /verbosity:normal /property:PlatformToolset=v100 /t:Clean,Build /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll"
     COPY projects\VS2010\bin\%PLATFORM%\%CONFIGURATION%\fuzzer.exe projects\fuzzer_VS2010_%PLATFORM%_%CONFIGURATION%.exe
 
     ECHO ***

@@ -116,7 +116,7 @@ size_t HUF_writeCTable (void* dst, size_t maxDstSize,
     if (size >= 128) return ERROR(GENERIC);   /* should never happen, since maxSymbolValue <= 255 */
     if ((size <= 1) || (size >= maxSymbolValue/2)) {
         if (size==1) {  /* RLE */
-            /* only possible case : serie of 1 (because there are at least 2) */
+            /* only possible case : series of 1 (because there are at least 2) */
             /* can only be 2^n or (2^n-1), otherwise not an huffman tree */
             BYTE code;
             switch(maxSymbolValue)

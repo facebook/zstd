@@ -81,7 +81,7 @@ static size_t const ZBUFF_endFrameSize = ZSTD_BLOCKHEADERSIZE;
 
 typedef enum { ZBUFFcs_init, ZBUFFcs_load, ZBUFFcs_flush } ZBUFF_cStage;
 
-/* *** Ressources *** */
+/* *** Resources *** */
 struct ZBUFF_CCtx_s {
     ZSTD_CCtx* zc;
     char*  inBuff;

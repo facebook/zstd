@@ -95,7 +95,11 @@ extern "C" {
 #  include <unistd.h>
 #  include <sys/resource.h> /* setpriority */
 #  include <time.h>         /* clock_t, nanosleep, clock, CLOCKS_PER_SEC */
-#  define SET_HIGH_PRIORITY setpriority(PRIO_PROCESS, 0, -20)
+#  if defined(PRIO_PROCESS)
+#    define SET_HIGH_PRIORITY setpriority(PRIO_PROCESS, 0, -20)
+#  else
+#    define SET_HIGH_PRIORITY /* disabled */
+#  endif
 #  define UTIL_sleep(s) sleep(s)
 #  if defined(_POSIX_C_SOURCE) && (_POSIX_C_SOURCE >= 199309L)
 #      define UTIL_sleepMilli(milli) { struct timespec t; t.tv_sec=0; t.tv_nsec=milli*1000000ULL; nanosleep(&t, NULL); }

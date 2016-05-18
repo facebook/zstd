@@ -139,7 +139,7 @@ asan: clean
 	$(MAKE) test CC=clang MOREFLAGS="-g -fsanitize=address"
 
 msan: clean
-	$(MAKE) test CC=clang MOREFLAGS="-g -fsanitize=memory"
+	$(MAKE) test CC=clang MOREFLAGS="-g -fsanitize=memory"   # datagen.c fails this test, for no obvious reason
 
 asan32: clean
 	$(MAKE) -C $(PRGDIR) test32 CC=clang MOREFLAGS="-g -fsanitize=address"

@@ -28,7 +28,9 @@ install:
       SET "PATH_MINGW64=c:\msys64\mingw64\bin;c:\msys64\usr\bin" &&
       COPY C:\MinGW\bin\mingw32-make.exe C:\MinGW\bin\make.exe
     ) else (
-      IF [%PLATFORM%]==[x64] SET ADDITIONALPARAM=/p:LibraryPath="C:\Program Files\Microsoft SDKs\Windows\v7.1\lib\x64;c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\lib\amd64;C:\Program Files (x86)\Microsoft Visual Studio 10.0\;C:\Program Files (x86)\Microsoft Visual Studio 10.0\lib\amd64;"
+      IF [%PLATFORM%]==[x64] (SET ADDITIONALPARAM=/p:LibraryPath="C:\Program Files\Microsoft SDKs\Windows\v7.1\lib\x64;c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\lib\amd64;C:\Program Files (x86)\Microsoft Visual Studio 10.0\;C:\Program Files (x86)\Microsoft Visual Studio 10.0\lib\amd64;") &&
+      COPY programs\tests\playTests.bat playTests.bat &&
+      COPY programs\tests\roundTripTest.bat roundTripTest.bat
     )
 
 build_script:
@@ -51,7 +53,6 @@ build_script:
       ECHO *** &&
       ECHO make %MAKE_PARAMS% &&
       make %MAKE_PARAMS% &&
-      COPY programs\fuzzer.exe projects\fuzzer_%PLATFORM%.exe &&
       make clean
     )
   - if [%ZSTD_APPVEYOR%]==[visual] (
@@ -79,14 +80,13 @@ build_script:
       ECHO *** Building Visual Studio 2015 %PLATFORM%\%CONFIGURATION% &&
       ECHO *** &&
       msbuild "projects\VS2010\zstd.sln" /m /verbosity:normal /property:PlatformToolset=v140 /t:Clean,Build /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll" &&
-      COPY projects\VS2010\bin\%PLATFORM%\%CONFIGURATION%\fuzzer.exe projects\fuzzer_VS2015_%PLATFORM%_%CONFIGURATION%.exe
-      COPY projects\VS2010\bin\%PLATFORM%\%CONFIGURATION%\zstd.exe projects\zstd_VS2015_%PLATFORM%_%CONFIGURATION%.exe
+      COPY projects\VS2010\bin\%PLATFORM%\%CONFIGURATION%\fuzzer.exe projects\fuzzer_VS2015_%PLATFORM%_%CONFIGURATION%.exe &&
+      COPY projects\VS2010\bin\%PLATFORM%\%CONFIGURATION%\zstd.exe zstd_VS2015_%PLATFORM%_%CONFIGURATION%.exe
     )
 
 test_script:
   - SET FUZZERTEST=-T1mn
   - if [%ZSTD_APPVEYOR%]==[gcc] (
-      projects\fuzzer_%PLATFORM%.exe %FUZZERTEST% &&
       if [%PLATFORM%]==[mingw64] projects\fuzzer_clang.exe %FUZZERTEST%
     )
   - if [%ZSTD_APPVEYOR%]==[visual] if [%CONFIGURATION%]==[Release] (
@@ -94,5 +94,6 @@ test_script:
       projects\fuzzer_VS2010_%PLATFORM%_Release.exe %FUZZERTEST% &&
       projects\fuzzer_VS2012_%PLATFORM%_Release.exe %FUZZERTEST% &&
       projects\fuzzer_VS2013_%PLATFORM%_Release.exe %FUZZERTEST% &&
-      projects\fuzzer_VS2015_%PLATFORM%_Release.exe %FUZZERTEST%
+      projects\fuzzer_VS2015_%PLATFORM%_Release.exe %FUZZERTEST% &&
+      zstd_VS2015_%PLATFORM%_Release.exe
     )

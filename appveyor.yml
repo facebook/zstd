@@ -2,6 +2,11 @@ version: 1.0.{build}
 environment:
   matrix:
   - ZSTD_APPVEYOR: "gcc"
+    MAKE_PARAMS: "test"
+    PLATFORM: "mingw32"
+  - ZSTD_APPVEYOR: "gcc"
+    MAKE_PARAMS: "test"
+    PLATFORM: "mingw64"
   - ZSTD_APPVEYOR: "visual"
     CONFIGURATION: "Debug"
     PLATFORM: "Win32"
@@ -18,7 +23,6 @@ environment:
 install:
   - if [%ZSTD_APPVEYOR%]==[gcc] SET PATH_ORIGINAL=%PATH%
   - if [%ZSTD_APPVEYOR%]==[gcc] (
-      SET "MINGW_PARAMS=-C programs zstd fullbench fuzzer zbufftest paramgrill datagen" &&
       SET "CLANG_PARAMS=-C programs zstd fullbench fuzzer zbufftest paramgrill datagen CC=clang MOREFLAGS="--target=x86_64-w64-mingw32 -Werror -Wconversion -Wno-sign-conversion"" &&
       SET "PATH_MINGW32=c:\MinGW\bin;c:\MinGW\usr\bin" &&
       SET "PATH_MINGW64=c:\msys64\mingw64\bin;c:\msys64\usr\bin" &&
@@ -29,24 +33,9 @@ install:
 
 build_script:
   - ECHO Building %ZSTD_APPVEYOR%
-  - if [%ZSTD_APPVEYOR%]==[gcc] SET PATH=%PATH_MINGW32%;%PATH_ORIGINAL% 
-  - if [%ZSTD_APPVEYOR%]==[gcc] (
-      ECHO *** &&
-      ECHO *** Building mingw32 &&
-      ECHO *** &&
-      ECHO make %MINGW_PARAMS% &&
-      make %MINGW_PARAMS% &&
-      COPY programs\fuzzer.exe projects\fuzzer_mingw32.exe &&
-      make clean
-    )
-  - if [%ZSTD_APPVEYOR%]==[gcc] SET PATH=%PATH_MINGW64%;%PATH_ORIGINAL% 
-  - if [%ZSTD_APPVEYOR%]==[gcc] (
-      ECHO *** &&
-      ECHO *** Building mingw64 &&
-      ECHO *** &&
-      ECHO make %MINGW_PARAMS% &&
-      make %MINGW_PARAMS% &&
-      COPY programs\fuzzer.exe projects\fuzzer_mingw64.exe &&
+  - if [%PLATFORM%]==[mingw32] SET PATH=%PATH_MINGW32%;%PATH_ORIGINAL% 
+  - if [%PLATFORM%]==[mingw64] SET PATH=%PATH_MINGW64%;%PATH_ORIGINAL% 
+  - if [%PLATFORM%]==[mingw64] (
       make clean &&
       ECHO *** &&
       ECHO *** Building clang &&
@@ -54,6 +43,15 @@ build_script:
       ECHO make %CLANG_PARAMS% &&
       make %CLANG_PARAMS% &&
       COPY programs\fuzzer.exe projects\fuzzer_clang.exe &&
+      make clean
+    )
+  - if [%ZSTD_APPVEYOR%]==[gcc] (
+      ECHO *** &&
+      ECHO *** Building %PLATFORM% &&
+      ECHO *** &&
+      ECHO make %MAKE_PARAMS% &&
+      make %MAKE_PARAMS% &&
+      COPY programs\fuzzer.exe projects\fuzzer_%PLATFORM%.exe &&
       make clean
     )
   - if [%ZSTD_APPVEYOR%]==[visual] (
@@ -82,14 +80,14 @@ build_script:
       ECHO *** &&
       msbuild "projects\VS2010\zstd.sln" /m /verbosity:normal /property:PlatformToolset=v140 /t:Clean,Build /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll" &&
       COPY projects\VS2010\bin\%PLATFORM%\%CONFIGURATION%\fuzzer.exe projects\fuzzer_VS2015_%PLATFORM%_%CONFIGURATION%.exe
+      COPY projects\VS2010\bin\%PLATFORM%\%CONFIGURATION%\zstd.exe projects\zstd_VS2015_%PLATFORM%_%CONFIGURATION%.exe
     )
 
 test_script:
   - SET FUZZERTEST=-T1mn
   - if [%ZSTD_APPVEYOR%]==[gcc] (
-      projects\fuzzer_mingw32.exe %FUZZERTEST% &&
-      projects\fuzzer_mingw64.exe %FUZZERTEST% &&
-      projects\fuzzer_clang.exe %FUZZERTEST%
+      projects\fuzzer_%PLATFORM%.exe %FUZZERTEST% &&
+      if [%PLATFORM%]==[mingw64] projects\fuzzer_clang.exe %FUZZERTEST%
     )
   - if [%ZSTD_APPVEYOR%]==[visual] if [%CONFIGURATION%]==[Release] (
       projects\fuzzer_VS2008_%PLATFORM%_Release.exe %FUZZERTEST% &&

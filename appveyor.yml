@@ -1,51 +1,100 @@
 version: 1.0.{build}
-configuration:
-- Debug
-- Release
-platform:
-- Win32
-- x64
+environment:
+  matrix:
+  - ZSTD_APPVEYOR: "gcc"
+  - ZSTD_APPVEYOR: "visual"
+    CONFIGURATION: "Debug"
+    PLATFORM: "Win32"
+  - ZSTD_APPVEYOR: "visual"
+    CONFIGURATION: "Release"
+    PLATFORM: "Win32"
+  - ZSTD_APPVEYOR: "visual"
+    CONFIGURATION: "Debug"
+    PLATFORM: "x64"
+  - ZSTD_APPVEYOR: "visual"
+    CONFIGURATION: "Release"
+    PLATFORM: "x64"
+
+install:
+  - if [%ZSTD_APPVEYOR%]==[gcc] SET PATH_ORIGINAL=%PATH%
+  - if [%ZSTD_APPVEYOR%]==[gcc] (
+      SET "MINGW_PARAMS=-C programs zstd fullbench fuzzer zbufftest paramgrill datagen" &&
+      SET "CLANG_PARAMS=-C programs zstd fullbench fuzzer zbufftest paramgrill datagen CC=clang MOREFLAGS="--target=x86_64-w64-mingw32 -Werror -Wconversion -Wno-sign-conversion"" &&
+      SET "PATH_MINGW32=c:\MinGW\bin;c:\MinGW\usr\bin" &&
+      SET "PATH_MINGW64=c:\msys64\mingw64\bin;c:\msys64\usr\bin" &&
+      COPY C:\MinGW\bin\mingw32-make.exe C:\MinGW\bin\make.exe
+    ) else (
+      IF [%PLATFORM%]==[x64] SET ADDITIONALPARAM=/p:LibraryPath="C:\Program Files\Microsoft SDKs\Windows\v7.1\lib\x64;c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\lib\amd64;C:\Program Files (x86)\Microsoft Visual Studio 10.0\;C:\Program Files (x86)\Microsoft Visual Studio 10.0\lib\amd64;"
+    )
 
 build_script:
-- cmd: |
-    ECHO ***
-    ECHO *** Building Visual Studio 2008 %PLATFORM%\%CONFIGURATION%
-    ECHO ***
-    msbuild "projects\VS2008\zstd.sln" /m /verbosity:minimal /property:PlatformToolset=v90 /t:Clean,Build /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll"
-    COPY projects\VS2008\bin\%PLATFORM%\%CONFIGURATION%\fuzzer.exe projects\fuzzer_VS2008_%PLATFORM%_%CONFIGURATION%.exe
-
-    ECHO ***
-    ECHO *** Building Visual Studio 2010 %PLATFORM%\%CONFIGURATION%
-    ECHO ***
-    REM msbuild "projects\VS2010\zstd.sln" /m /verbosity:detailed /property:PlatformToolset=Windows7.1SDK /t:Clean,Build /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll"
-    REM msbuild "projects\VS2010\zstd.sln" "/p:AdditionalLibPaths=C:\Program Files\Microsoft SDKs\Windows\v7.1\Lib\X64" /m /verbosity:detailed /property:PlatformToolset=v100 /t:Clean,Build /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll"
-    If %PLATFORM%==x64 SET ADDITIONALPARAM=/p:LibraryPath="C:\Program Files\Microsoft SDKs\Windows\v7.1\lib\x64;c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\lib\amd64;C:\Program Files (x86)\Microsoft Visual Studio 10.0\;C:\Program Files (x86)\Microsoft Visual Studio 10.0\lib\amd64;"
-    msbuild "projects\VS2010\zstd.sln" %ADDITIONALPARAM% /m /verbosity:normal /property:PlatformToolset=v100 /t:Clean,Build /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll"
-    COPY projects\VS2010\bin\%PLATFORM%\%CONFIGURATION%\fuzzer.exe projects\fuzzer_VS2010_%PLATFORM%_%CONFIGURATION%.exe
-
-    ECHO ***
-    ECHO *** Building Visual Studio 2012 %PLATFORM%\%CONFIGURATION%
-    ECHO ***
-    msbuild "projects\VS2010\zstd.sln" /m /verbosity:minimal /property:PlatformToolset=v110 /t:Clean,Build /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll"
-    COPY projects\VS2010\bin\%PLATFORM%\%CONFIGURATION%\fuzzer.exe projects\fuzzer_VS2012_%PLATFORM%_%CONFIGURATION%.exe
-
-    ECHO ***
-    ECHO *** Building Visual Studio 2013 %PLATFORM%\%CONFIGURATION%
-    ECHO ***
-    msbuild "projects\VS2010\zstd.sln" /m /verbosity:minimal /property:PlatformToolset=v120 /t:Clean,Build /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll"
-    COPY projects\VS2010\bin\%PLATFORM%\%CONFIGURATION%\fuzzer.exe projects\fuzzer_VS2013_%PLATFORM%_%CONFIGURATION%.exe
-
-    ECHO ***
-    ECHO *** Building Visual Studio 2015 %PLATFORM%\%CONFIGURATION%
-    ECHO ***
-    msbuild "projects\VS2010\zstd.sln" /m /verbosity:normal /property:PlatformToolset=v140 /t:Clean,Build /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll"
-    COPY projects\VS2010\bin\%PLATFORM%\%CONFIGURATION%\fuzzer.exe projects\fuzzer_VS2015_%PLATFORM%_%CONFIGURATION%.exe
+  - ECHO Building %ZSTD_APPVEYOR%
+  - if [%ZSTD_APPVEYOR%]==[gcc] SET PATH=%PATH_MINGW32%;%PATH_ORIGINAL% 
+  - if [%ZSTD_APPVEYOR%]==[gcc] (
+      ECHO *** &&
+      ECHO *** Building mingw32 &&
+      ECHO *** &&
+      ECHO make %MINGW_PARAMS% &&
+      make %MINGW_PARAMS% &&
+      COPY programs\fuzzer.exe projects\fuzzer_mingw32.exe &&
+      make clean
+    )
+  - if [%ZSTD_APPVEYOR%]==[gcc] SET PATH=%PATH_MINGW64%;%PATH_ORIGINAL% 
+  - if [%ZSTD_APPVEYOR%]==[gcc] (
+      ECHO *** &&
+      ECHO *** Building mingw64 &&
+      ECHO *** &&
+      ECHO make %MINGW_PARAMS% &&
+      make %MINGW_PARAMS% &&
+      COPY programs\fuzzer.exe projects\fuzzer_mingw64.exe &&
+      make clean &&
+      ECHO *** &&
+      ECHO *** Building clang &&
+      ECHO *** &&
+      ECHO make %CLANG_PARAMS% &&
+      make %CLANG_PARAMS% &&
+      COPY programs\fuzzer.exe projects\fuzzer_clang.exe &&
+      make clean
+    )
+  - if [%ZSTD_APPVEYOR%]==[visual] (
+      ECHO *** &&
+      ECHO *** Building Visual Studio 2008 %PLATFORM%\%CONFIGURATION% &&
+      ECHO *** &&
+      msbuild "projects\VS2008\zstd.sln" /m /verbosity:minimal /property:PlatformToolset=v90 /t:Clean,Build /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll" &&
+      COPY projects\VS2008\bin\%PLATFORM%\%CONFIGURATION%\fuzzer.exe projects\fuzzer_VS2008_%PLATFORM%_%CONFIGURATION%.exe &&
+      ECHO *** &&
+      ECHO *** Building Visual Studio 2010 %PLATFORM%\%CONFIGURATION% &&
+      ECHO *** &&
+      msbuild "projects\VS2010\zstd.sln" %ADDITIONALPARAM% /m /verbosity:normal /property:PlatformToolset=v100 /t:Clean,Build /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll" &&
+      COPY projects\VS2010\bin\%PLATFORM%\%CONFIGURATION%\fuzzer.exe projects\fuzzer_VS2010_%PLATFORM%_%CONFIGURATION%.exe &&
+      ECHO *** &&
+      ECHO *** Building Visual Studio 2012 %PLATFORM%\%CONFIGURATION% &&
+      ECHO *** &&
+      msbuild "projects\VS2010\zstd.sln" /m /verbosity:minimal /property:PlatformToolset=v110 /t:Clean,Build /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll" &&
+      COPY projects\VS2010\bin\%PLATFORM%\%CONFIGURATION%\fuzzer.exe projects\fuzzer_VS2012_%PLATFORM%_%CONFIGURATION%.exe &&
+      ECHO *** &&
+      ECHO *** Building Visual Studio 2013 %PLATFORM%\%CONFIGURATION% &&
+      ECHO *** &&
+      msbuild "projects\VS2010\zstd.sln" /m /verbosity:minimal /property:PlatformToolset=v120 /t:Clean,Build /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll" &&
+      COPY projects\VS2010\bin\%PLATFORM%\%CONFIGURATION%\fuzzer.exe projects\fuzzer_VS2013_%PLATFORM%_%CONFIGURATION%.exe &&
+      ECHO *** &&
+      ECHO *** Building Visual Studio 2015 %PLATFORM%\%CONFIGURATION% &&
+      ECHO *** &&
+      msbuild "projects\VS2010\zstd.sln" /m /verbosity:normal /property:PlatformToolset=v140 /t:Clean,Build /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll" &&
+      COPY projects\VS2010\bin\%PLATFORM%\%CONFIGURATION%\fuzzer.exe projects\fuzzer_VS2015_%PLATFORM%_%CONFIGURATION%.exe
+    )
 
 test_script:
-- cmd: SET FUZZERTEST=-T1mn
-- cmd: |
-    IF %CONFIGURATION%==Release (projects\fuzzer_VS2008_%PLATFORM%_Release.exe %FUZZERTEST%)
-    IF %CONFIGURATION%==Release (projects\fuzzer_VS2010_%PLATFORM%_Release.exe %FUZZERTEST%)
-    IF %CONFIGURATION%==Release (projects\fuzzer_VS2012_%PLATFORM%_Release.exe %FUZZERTEST%)
-    IF %CONFIGURATION%==Release (projects\fuzzer_VS2013_%PLATFORM%_Release.exe %FUZZERTEST%)
-    IF %CONFIGURATION%==Release (projects\fuzzer_VS2015_%PLATFORM%_Release.exe %FUZZERTEST%)
+  - SET FUZZERTEST=-T1mn
+  - if [%ZSTD_APPVEYOR%]==[gcc] (
+      projects\fuzzer_mingw32.exe %FUZZERTEST% &&
+      projects\fuzzer_mingw64.exe %FUZZERTEST% &&
+      projects\fuzzer_clang.exe %FUZZERTEST%
+    )
+  - if [%ZSTD_APPVEYOR%]==[visual] if [%CONFIGURATION%]==[Release] (
+      projects\fuzzer_VS2008_%PLATFORM%_Release.exe %FUZZERTEST% &&
+      projects\fuzzer_VS2010_%PLATFORM%_Release.exe %FUZZERTEST% &&
+      projects\fuzzer_VS2012_%PLATFORM%_Release.exe %FUZZERTEST% &&
+      projects\fuzzer_VS2013_%PLATFORM%_Release.exe %FUZZERTEST% &&
+      projects\fuzzer_VS2015_%PLATFORM%_Release.exe %FUZZERTEST%
+    )

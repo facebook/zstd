@@ -138,6 +138,9 @@ usan: clean
 asan: clean
 	$(MAKE) test CC=clang MOREFLAGS="-g -fsanitize=address"
 
+msan: clean
+	$(MAKE) test CC=clang MOREFLAGS="-g -fsanitize=memory"
+
 asan32: clean
 	$(MAKE) -C $(PRGDIR) test32 CC=clang MOREFLAGS="-g -fsanitize=address"
 

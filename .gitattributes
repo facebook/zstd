@@ -14,3 +14,6 @@
 *.vcxproj* text eol=crlf
 *.suo binary
 *.rc binary
+
+# Windows
+*.bat text eol=crlf

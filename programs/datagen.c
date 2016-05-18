@@ -142,10 +142,10 @@ void RDG_genBlock(void* buffer, size_t buffSize, size_t prefixSize, double match
         if (RDG_RAND15BITS < matchProba32) {
             /* Copy (within 32K) */
             U32 const length = RDG_RANDLENGTH + 4;
-            U32 const d = MIN (pos + length , buffSize);
+            U32 const d = (U32) MIN(pos + length , buffSize);
             U32 const repeatOffset = (RDG_rand(seed) & 15) == 2;
             U32 const randOffset = RDG_RAND15BITS + 1;
-            U32 const offset = repeatOffset ? prevOffset : MIN(randOffset , pos);
+            U32 const offset = repeatOffset ? prevOffset : (U32) MIN(randOffset , pos);
             size_t match = pos - offset;
             //TRACE("pos : %u; offset: %u ; length : %u \n", (U32)pos, offset, length);
             while (pos < d) buffPtr[pos++] = buffPtr[match++];   /* correctly manages overlaps */
@@ -153,7 +153,7 @@ void RDG_genBlock(void* buffer, size_t buffSize, size_t prefixSize, double match
         } else {
             /* Literal (noise) */
             U32 const length = RDG_RANDLENGTH;
-            U32 const d = MIN(pos + length, buffSize);
+            U32 const d = (U32) MIN(pos + length, buffSize);
             while (pos < d) buffPtr[pos++] = RDG_genChar(seed, ldt);
     }   }
 }

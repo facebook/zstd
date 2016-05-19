@@ -1,6 +1,9 @@
 @echo off
-if [%ZSTD%]==[] echo ZSTD variable must be defined! && exit /b 1
-if [%DATAGEN%]==[] echo DATAGEN variable must be defined! && exit /b 1
+ECHO Start playTests.bat
+ECHO ZSTD^: %ZSTD%
+ECHO DATAGEN^: %DATAGEN%
+if "%ZSTD%"=="" echo ZSTD variable must be defined! && exit /b 1
+if "%DATAGEN%"=="" echo DATAGEN variable must be defined! && exit /b 1
 
 SET ROUNDTRIPTEST=tests\roundTripTest.bat
 

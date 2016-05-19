@@ -23,7 +23,7 @@ roundTripTest() {
 [ -n "$ZSTD" ] || die "ZSTD variable must be defined!"
 
 
-echo "\n**** simple tests **** "
+echo -e "\n**** simple tests **** "
 ./datagen > tmp
 $ZSTD -f tmp                             # trivial compression case, creates tmp.zst
 $ZSTD -df tmp.zst                        # trivial decompression case (overwrites tmp)
@@ -51,7 +51,7 @@ cp tmp tmp2.zst
 $ZSTD -df tmp2.zst && die "should have failed : wrong format"
 rm tmp2.zst
 
-echo "\n**** frame concatenation **** "
+echo -e "\n**** frame concatenation **** "
 
 echo "hello " > hello.tmp
 echo "world!" > world.tmp
@@ -67,7 +67,7 @@ rm ./*.tmp ./*.zstd
 echo frame concatenation test completed
 
 
-echo "\n**** dictionary tests **** "
+echo -e "\n**** dictionary tests **** "
 
 ./datagen > tmpDict
 ./datagen -g1M | md5sum > tmp1
@@ -79,7 +79,7 @@ $ZSTD -d tmp -D tmpDict -of result
 fc xxhash.c result
 
 
-echo "\n**** multiple files tests **** "
+echo -e "\n**** multiple files tests **** "
 
 ./datagen -s1        > tmp1 2> /dev/null
 ./datagen -s2 -g100K > tmp2 2> /dev/null
@@ -96,12 +96,12 @@ $ZSTD -c tmp1 tmp2 tmp3 > tmpall
 ls -ls tmp*
 echo "decompress tmpall* into stdout > tmpdec : "
 cp tmpall tmpall2
-# $ZSTD -dc tmpall* > tmpdec
+$ZSTD -dc tmpall* > tmpdec
 ls -ls tmp*
 echo "compress multiple files including a missing one (notHere) : "
 $ZSTD -f tmp1 notHere tmp2 && die "missing file not detected!"
 
-echo "\n**** integrity tests **** "
+echo -e "\n**** integrity tests **** "
 echo "test one file (tmp1.zst) "
 $ZSTD -t tmp1.zst
 $ZSTD --test tmp1.zst
@@ -110,7 +110,7 @@ $ZSTD -t *.zst
 echo "test good and bad files (*) "
 $ZSTD -t * && die "bad files not detected !"
 
-echo "\n**** zstd round-trip tests **** "
+echo -e "\n**** zstd round-trip tests **** "
 
 roundTripTest
 roundTripTest -g15K       # TableID==3

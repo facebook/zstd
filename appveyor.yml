@@ -95,5 +95,5 @@ test_script:
       projects\fuzzer_VS2012_%PLATFORM%_Release.exe %FUZZERTEST% &&
       projects\fuzzer_VS2013_%PLATFORM%_Release.exe %FUZZERTEST% &&
       projects\fuzzer_VS2015_%PLATFORM%_Release.exe %FUZZERTEST% &&
-      zstd_VS2015_%PLATFORM%_Release.exe
+      REM zstd_VS2015_%PLATFORM%_Release.exe
     )

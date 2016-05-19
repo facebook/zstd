@@ -28,9 +28,7 @@ install:
       SET "PATH_MINGW64=c:\msys64\mingw64\bin;c:\msys64\usr\bin" &&
       COPY C:\MinGW\bin\mingw32-make.exe C:\MinGW\bin\make.exe
     ) else (
-      IF [%PLATFORM%]==[x64] (SET ADDITIONALPARAM=/p:LibraryPath="C:\Program Files\Microsoft SDKs\Windows\v7.1\lib\x64;c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\lib\amd64;C:\Program Files (x86)\Microsoft Visual Studio 10.0\;C:\Program Files (x86)\Microsoft Visual Studio 10.0\lib\amd64;") &&
-      COPY programs\tests\playTests.bat playTests.bat &&
-      COPY programs\tests\roundTripTest.bat roundTripTest.bat
+      IF [%PLATFORM%]==[x64] (SET ADDITIONALPARAM=/p:LibraryPath="C:\Program Files\Microsoft SDKs\Windows\v7.1\lib\x64;c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\lib\amd64;C:\Program Files (x86)\Microsoft Visual Studio 10.0\;C:\Program Files (x86)\Microsoft Visual Studio 10.0\lib\amd64;")
     )
 
 build_script:
@@ -81,7 +79,8 @@ build_script:
       ECHO *** &&
       msbuild "projects\VS2010\zstd.sln" /m /verbosity:normal /property:PlatformToolset=v140 /t:Clean,Build /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll" &&
       COPY projects\VS2010\bin\%PLATFORM%\%CONFIGURATION%\fuzzer.exe projects\fuzzer_VS2015_%PLATFORM%_%CONFIGURATION%.exe &&
-      COPY projects\VS2010\bin\%PLATFORM%\%CONFIGURATION%\zstd.exe zstd_VS2015_%PLATFORM%_%CONFIGURATION%.exe
+      COPY projects\VS2010\bin\%PLATFORM%\%CONFIGURATION%\zstd.exe projects\zstd_VS2015_%PLATFORM%_%CONFIGURATION%.exe &&
+      COPY projects\VS2010\bin\%PLATFORM%\%CONFIGURATION%\datagen.exe projects\datagen_VS2015_%PLATFORM%_%CONFIGURATION%.exe
     )
 
 test_script:
@@ -95,5 +94,8 @@ test_script:
       projects\fuzzer_VS2012_%PLATFORM%_Release.exe %FUZZERTEST% &&
       projects\fuzzer_VS2013_%PLATFORM%_Release.exe %FUZZERTEST% &&
       projects\fuzzer_VS2015_%PLATFORM%_Release.exe %FUZZERTEST% &&
-      REM zstd_VS2015_%PLATFORM%_Release.exe
+      CD programs &&
+      SET ZSTD=..\projects\zstd_VS2015_%PLATFORM%_Release.exe &&
+      SET DATAGEN=..\projects\datagen_VS2015_%PLATFORM%_Release.exe &&
+      CALL tests\playTests.bat --test-large-data
     )

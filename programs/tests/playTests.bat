@@ -1,8 +1,11 @@
 @echo off
 if [%ZSTD%]==[] echo ZSTD variable must be defined! && exit /b 1
+if [%DATAGEN%]==[] echo DATAGEN variable must be defined! && exit /b 1
+
+SET ROUNDTRIPTEST=tests\roundTripTest.bat
 
 echo. && echo **** simple tests ****
-datagen > tmp
+%DATAGEN% > tmp
 %ZSTD% -f tmp                             && REM trivial compression case, creates tmp.zst
 %ZSTD% -df tmp.zst                        && REM trivial decompression case (overwrites tmp)
 echo test : too large compression level (must fail)
@@ -55,9 +58,9 @@ REM echo foo | %ZSTD% | %ZSTD% -d > /dev/full && (echo write error not detected!
 
 echo. && echo **** dictionary tests ****
 
-datagen > tmpDict
-datagen -g1M | md5sum > tmp1
-datagen -g1M | %ZSTD% -D tmpDict | %ZSTD% -D tmpDict -dvq | md5sum > tmp2
+%DATAGEN% > tmpDict
+%DATAGEN% -g1M | md5sum > tmp1
+%DATAGEN% -g1M | %ZSTD% -D tmpDict | %ZSTD% -D tmpDict -dvq | md5sum > tmp2
 fc tmp1 tmp2
 %ZSTD% --train *.c *.h -o tmpDict
 %ZSTD% xxhash.c -D tmpDict -of tmp
@@ -67,9 +70,9 @@ fc xxhash.c result
 
 echo. && echo **** multiple files tests ****
 
-datagen -s1        > tmp1 2> NUL
-datagen -s2 -g100K > tmp2 2> NUL
-datagen -s3 -g1M   > tmp3 2> NUL
+%DATAGEN% -s1        > tmp1 2> NUL
+%DATAGEN% -s2 -g100K > tmp2 2> NUL
+%DATAGEN% -s3 -g1M   > tmp3 2> NUL
 %ZSTD% -f tmp*
 echo compress tmp* :
 ls -ls tmp*
@@ -101,14 +104,14 @@ echo test good and bad files (*)
 
 echo. && echo **** zstd round-trip tests ****
 
-CALL roundTripTest.bat
-CALL roundTripTest.bat -g15K       && REM TableID==3
-CALL roundTripTest.bat -g127K      && REM TableID==2
-CALL roundTripTest.bat -g255K      && REM TableID==1
-CALL roundTripTest.bat -g513K      && REM TableID==0
-CALL roundTripTest.bat -g512K 6    && REM greedy, hash chain
-CALL roundTripTest.bat -g512K 16   && REM btlazy2 
-CALL roundTripTest.bat -g512K 19   && REM btopt
+CALL %ROUNDTRIPTEST%
+CALL %ROUNDTRIPTEST% -g15K       && REM TableID==3
+CALL %ROUNDTRIPTEST% -g127K      && REM TableID==2
+CALL %ROUNDTRIPTEST% -g255K      && REM TableID==1
+CALL %ROUNDTRIPTEST% -g513K      && REM TableID==0
+CALL %ROUNDTRIPTEST% -g512K 6    && REM greedy, hash chain
+CALL %ROUNDTRIPTEST% -g512K 16   && REM btlazy2 
+CALL %ROUNDTRIPTEST% -g512K 19   && REM btopt
 
 rm tmp*
 echo Param = %1
@@ -117,33 +120,33 @@ if NOT "%1"=="--test-large-data" (
     exit /b 0
 )
 
-CALL roundTripTest.bat -g270000000 1
-CALL roundTripTest.bat -g270000000 2
-CALL roundTripTest.bat -g270000000 3
+CALL %ROUNDTRIPTEST% -g270000000 1
+CALL %ROUNDTRIPTEST% -g270000000 2
+CALL %ROUNDTRIPTEST% -g270000000 3
 
-CALL roundTripTest.bat -g140000000 -P60 4
-CALL roundTripTest.bat -g140000000 -P60 5
-CALL roundTripTest.bat -g140000000 -P60 6
+CALL %ROUNDTRIPTEST% -g140000000 -P60 4
+CALL %ROUNDTRIPTEST% -g140000000 -P60 5
+CALL %ROUNDTRIPTEST% -g140000000 -P60 6
 
-CALL roundTripTest.bat -g70000000 -P70 7
-CALL roundTripTest.bat -g70000000 -P70 8
-CALL roundTripTest.bat -g70000000 -P70 9
+CALL %ROUNDTRIPTEST% -g70000000 -P70 7
+CALL %ROUNDTRIPTEST% -g70000000 -P70 8
+CALL %ROUNDTRIPTEST% -g70000000 -P70 9
 
-CALL roundTripTest.bat -g35000000 -P75 10
-CALL roundTripTest.bat -g35000000 -P75 11
-CALL roundTripTest.bat -g35000000 -P75 12
+CALL %ROUNDTRIPTEST% -g35000000 -P75 10
+CALL %ROUNDTRIPTEST% -g35000000 -P75 11
+CALL %ROUNDTRIPTEST% -g35000000 -P75 12
 
-CALL roundTripTest.bat -g18000000 -P80 13
-CALL roundTripTest.bat -g18000000 -P80 14
-CALL roundTripTest.bat -g18000000 -P80 15
-CALL roundTripTest.bat -g18000000 -P80 16
-CALL roundTripTest.bat -g18000000 -P80 17
+CALL %ROUNDTRIPTEST% -g18000000 -P80 13
+CALL %ROUNDTRIPTEST% -g18000000 -P80 14
+CALL %ROUNDTRIPTEST% -g18000000 -P80 15
+CALL %ROUNDTRIPTEST% -g18000000 -P80 16
+CALL %ROUNDTRIPTEST% -g18000000 -P80 17
 
-CALL roundTripTest.bat -g50000000 -P94 18
-CALL roundTripTest.bat -g50000000 -P94 19
+CALL %ROUNDTRIPTEST% -g50000000 -P94 18
+CALL %ROUNDTRIPTEST% -g50000000 -P94 19
 
-CALL roundTripTest.bat -g99000000 -P99 20
-CALL roundTripTest.bat -g6000000000 -P99 1
+CALL %ROUNDTRIPTEST% -g99000000 -P99 20
+CALL %ROUNDTRIPTEST% -g6000000000 -P99 1
 
 rm tmp*
 exit /b 0

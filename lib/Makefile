@@ -45,7 +45,7 @@ DESTDIR?=
 PREFIX ?= /usr/local
 CPPFLAGS= -I./common
 CFLAGS ?= -O3
-CFLAGS += -std=c99 -Wall -Wextra -Wundef -Wshadow -Wcast-qual -Wcast-align -Wstrict-prototypes -Wstrict-aliasing=1
+CFLAGS += -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow -Wstrict-aliasing=1 -Wswitch-enum -Wstrict-prototypes -Wundef
 FLAGS   = $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) $(MOREFLAGS)
 
 LIBDIR ?= $(PREFIX)/lib

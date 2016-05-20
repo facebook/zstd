@@ -13,6 +13,8 @@ env:
   - ZSTD_TRAVIS_CI_ENV=clangtest  
   - ZSTD_TRAVIS_CI_ENV=gpptest  
   - ZSTD_TRAVIS_CI_ENV=gnu90test
+  - ZSTD_TRAVIS_CI_ENV=c99test
+  - ZSTD_TRAVIS_CI_ENV=gnu99test
   - ZSTD_TRAVIS_CI_ENV=armtest-w-install  
   - ZSTD_TRAVIS_CI_ENV=test  
   - ZSTD_TRAVIS_CI_ENV="-C programs test32"  

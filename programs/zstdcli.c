@@ -133,6 +133,7 @@ static int usage_advanced(const char* programName)
     DISPLAY( "--ultra : enable ultra modes (requires more memory to decompress)\n");
 #endif
 #ifndef ZSTD_NODICT
+    DISPLAY( "\n");
     DISPLAY( "Dictionary builder :\n");
     DISPLAY( "--train : create a dictionary from a training set of files \n");
     DISPLAY( " -o file: `file` is dictionary name (default: %s) \n", g_defaultDictName);
@@ -140,6 +141,7 @@ static int usage_advanced(const char* programName)
     DISPLAY( " -s#    : dictionary selectivity level (default: %u)\n", g_defaultSelectivityLevel);
 #endif
 #ifndef ZSTD_NOBENCH
+    DISPLAY( "\n");
     DISPLAY( "Benchmark arguments :\n");
     DISPLAY( " -b#    : benchmark file(s), using # compression level (default : 1) \n");
     DISPLAY( " -e#    : test all compression levels from -bX to # (default: 1)\n");

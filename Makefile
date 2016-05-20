@@ -30,9 +30,6 @@
 #  - zstd homepage : http://www.zstd.net/
 # ################################################################
 
-# force a version number : uncomment below export (otherwise, default to the one declared into zstd.h)
-#export VERSION := 0.6.1
-
 PRGDIR  = programs
 ZSTDDIR = lib
 
@@ -88,11 +85,20 @@ clangtest: clean
 gpptest: clean
 	$(MAKE) all CC=g++ CFLAGS="-O3 -Wall -Wextra -Wundef -Wshadow -Wcast-align -Werror"
 
-gnu90test: clean
-	$(MAKE) all CFLAGS="-std=gnu90 -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow -Wstrict-aliasing=1 -Wswitch-enum -Wstrict-prototypes -Wundef -Wdeclaration-after-statement -Werror"
-
 c90test: clean
-	$(MAKE) all CFLAGS="-std=c90 -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow -Wstrict-aliasing=1 -Wswitch-enum -Wstrict-prototypes -Wundef -Werror"   # will fail, due to // and long long
+	CFLAGS="-std=c90" $(MAKE) all  # will fail, due to // and long long
+
+gnu90test: clean
+	CFLAGS="-std=gnu90" $(MAKE) all
+
+c99test: clean
+	CFLAGS="-std=c99" $(MAKE) all
+
+gnu99test: clean
+	CFLAGS="-std=gnu99" $(MAKE) all
+
+c11test: clean
+	CFLAGS="-std=c11" $(MAKE) all
 
 bmix64test: clean
 	CFLAGS="-O3 -mbmi -Werror" $(MAKE) -C $(PRGDIR) test

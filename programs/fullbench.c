@@ -32,7 +32,7 @@
 #include <time.h>        /* clock_t, clock, CLOCKS_PER_SEC */
 
 #include "mem.h"
-#include "zstd_static.h"
+#include "zstd_static.h" /* ZSTD_VERSION_STRING */
 #include "fse_static.h"
 #include "zbuff.h"
 #include "datagen.h"
@@ -42,11 +42,8 @@
 *  Constants
 **************************************/
 #define PROGRAM_DESCRIPTION "Zstandard speed analyzer"
-#ifndef ZSTD_VERSION
-#  define ZSTD_VERSION ""
-#endif
 #define AUTHOR "Yann Collet"
-#define WELCOME_MESSAGE "*** %s %s %i-bits, by %s (%s) ***\n", PROGRAM_DESCRIPTION, ZSTD_VERSION, (int)(sizeof(void*)*8), AUTHOR, __DATE__
+#define WELCOME_MESSAGE "*** %s %s %i-bits, by %s (%s) ***\n", PROGRAM_DESCRIPTION, ZSTD_VERSION_STRING, (int)(sizeof(void*)*8), AUTHOR, __DATE__
 
 
 #define KB *(1<<10)

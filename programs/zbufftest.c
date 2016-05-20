@@ -49,10 +49,6 @@
 /*-************************************
 *  Constants
 **************************************/
-#ifndef ZSTD_VERSION
-#  define ZSTD_VERSION ""
-#endif
-
 #define KB *(1U<<10)
 #define MB *(1U<<20)
 #define GB *(1U<<30)
@@ -577,7 +573,7 @@ int main(int argc, const char** argv)
     }   }   }   /* for(argNb=1; argNb<argc; argNb++) */
 
     /* Get Seed */
-    DISPLAY("Starting zstd_buffered tester (%i-bits, %s)\n", (int)(sizeof(size_t)*8), ZSTD_VERSION);
+    DISPLAY("Starting zstd_buffered tester (%i-bits, %s)\n", (int)(sizeof(size_t)*8), ZSTD_VERSION_STRING);
 
     if (!seedset) seed = FUZ_GetMilliStart() % 10000;
     DISPLAY("Seed = %u\n", seed);

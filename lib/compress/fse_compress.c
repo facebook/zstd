@@ -111,8 +111,6 @@ size_t FSE_buildCTable(FSE_CTable* ct, const short* normalizedCounter, unsigned 
     U32 highThreshold = tableSize-1;
 
     /* CTable header */
-
-
     tableU16[-2] = (U16) tableLog;
     tableU16[-1] = (U16) maxSymbolValue;
 
@@ -147,10 +145,10 @@ size_t FSE_buildCTable(FSE_CTable* ct, const short* normalizedCounter, unsigned 
     }
 
     /* Build table */
-    { U32 u; for (u=0; u<tableSize; u++) {
+    {   U32 u; for (u=0; u<tableSize; u++) {
         FSE_FUNCTION_TYPE s = tableSymbol[u];   /* note : static analyzer may not understand tableSymbol is properly initialized */
         tableU16[cumul[s]++] = (U16) (tableSize+u);   /* TableU16 : sorted by symbol order; gives next state value */
-    }}
+    }   }
 
     /* Build Symbol Transformation Table */
     {   unsigned total = 0;

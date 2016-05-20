@@ -188,7 +188,6 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
     /* Bench */
     {   U64 fastestC = (U64)(-1LL), fastestD = (U64)(-1LL);
         U64 const crcOrig = XXH64(srcBuffer, srcSize, 0);
-        U64 crcCheck = 0;
         UTIL_time_t coolTime;
         U32 testNb;
         size_t cSize = 0;
@@ -282,7 +281,7 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
                     (double)srcSize / fastestD );
 
             /* CRC Checking */
-            {   crcCheck = XXH64(resultBuffer, srcSize, 0);
+            {   U64 const crcCheck = XXH64(resultBuffer, srcSize, 0);
                 if (crcOrig!=crcCheck) {
                     size_t u;
                     DISPLAY("!!! WARNING !!! %14s : Invalid Checksum : %x != %x   \n", displayName, (unsigned)crcOrig, (unsigned)crcCheck);
@@ -308,12 +307,10 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
 #endif
         }   /* for (testNb = 1; testNb <= (g_nbIterations + !g_nbIterations); testNb++) */
 
-        if (crcOrig == crcCheck) {
-            result->ratio = ratio;
-            result->cSize = cSize;
-            result->cSpeed = (double)srcSize / fastestC;
-            result->dSpeed = (double)srcSize / fastestD;
-        }
+        result->ratio = ratio;
+        result->cSize = cSize;
+        result->cSpeed = (double)srcSize / fastestC;
+        result->dSpeed = (double)srcSize / fastestD;
         DISPLAYLEVEL(2, "%2i#\n", cLevel);
     }   /* Bench */
 
@@ -402,9 +399,9 @@ static void BMK_loadFiles(void* buffer, size_t bufferSize,
                           const char** fileNamesTable, unsigned nbFiles)
 {
     size_t pos = 0, totalSize = 0;
-    FILE* f;
     unsigned n;
     for (n=0; n<nbFiles; n++) {
+        FILE* f;
         U64 fileSize = UTIL_getFileSize(fileNamesTable[n]);
         if (UTIL_isDirectory(fileNamesTable[n])) {
             DISPLAYLEVEL(2, "Ignoring %s directory...       \n", fileNamesTable[n]);
@@ -434,9 +431,8 @@ static void BMK_benchFileTable(const char** fileNamesTable, unsigned nbFiles,
     void* dictBuffer = NULL;
     size_t dictBufferSize = 0;
     size_t* fileSizes = (size_t*)malloc(nbFiles * sizeof(size_t));
-    U64 totalSizeToLoad = UTIL_getTotalFileSize(fileNamesTable, nbFiles);
+    U64 const totalSizeToLoad = UTIL_getTotalFileSize(fileNamesTable, nbFiles);
     char mfName[20] = {0};
-    const char* displayName = NULL;
 
     if (!fileSizes) EXM_THROW(12, "not enough memory for fileSizes");
 
@@ -463,13 +459,12 @@ static void BMK_benchFileTable(const char** fileNamesTable, unsigned nbFiles,
 
     /* Bench */
     snprintf (mfName, sizeof(mfName), " %u files", nbFiles);
-    if (nbFiles > 1) displayName = mfName;
-    else displayName = fileNamesTable[0];
-
-    BMK_benchCLevel(srcBuffer, benchedSize,
-                    displayName, cLevel, cLevelLast,
-                    fileSizes, nbFiles,
-                    dictBuffer, dictBufferSize);
+    {   const char* displayName = (nbFiles > 1) ? mfName : fileNamesTable[0];
+        BMK_benchCLevel(srcBuffer, benchedSize,
+                        displayName, cLevel, cLevelLast,
+                        fileSizes, nbFiles,
+                        dictBuffer, dictBufferSize);
+    }
 
     /* clean up */
     free(srcBuffer);
@@ -482,7 +477,7 @@ static void BMK_syntheticTest(int cLevel, int cLevelLast, double compressibility
 {
     char name[20] = {0};
     size_t benchedSize = 10000000;
-    void* srcBuffer = malloc(benchedSize);
+    void* const srcBuffer = malloc(benchedSize);
 
     /* Memory allocation */
     if (!srcBuffer) EXM_THROW(21, "not enough memory");

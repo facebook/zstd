@@ -57,6 +57,7 @@
 #include "fse_static.h"
 #include "huf_static.h"
 #include "zstd_internal.h"
+#include ".debug/zstd_stats.h"
 
 
 /*-*************************************
@@ -856,7 +857,7 @@ MEM_STATIC void ZSTD_storeSeq(seqStore_t* seqStorePtr, size_t litLength, const B
         printf("Cpos %6u :%5u literals & match %3u bytes at distance %6u \n",
                pos, (U32)litLength, (U32)matchCode+MINMATCH, (U32)offsetCode);
 #endif
-    ZSTD_statsUpdatePrices(&seqStorePtr->stats, litLength, literals, offsetCode, matchCode);
+    ZSTD_statsUpdatePrices(seqStorePtr->stats, litLength, literals, offsetCode, matchCode);
 
     /* copy Literals */
     ZSTD_wildcopy(seqStorePtr->lit, literals, litLength);
@@ -1748,7 +1749,7 @@ _storeSequence:
     {   size_t const lastLLSize = iend - anchor;
         memcpy(seqStorePtr->lit, anchor, lastLLSize);
         seqStorePtr->lit += lastLLSize;
-        ZSTD_statsUpdatePrices(&seqStorePtr->stats, lastLLSize, anchor, 0, 0);
+        ZSTD_statsUpdatePrices(seqStorePtr->stats, lastLLSize, anchor, 0, 0);
     }
 }
 
@@ -2020,8 +2021,9 @@ static size_t ZSTD_compress_generic (ZSTD_CCtx* zc,
     BYTE* const ostart = (BYTE*)dst;
     BYTE* op = ostart;
     const U32 maxDist = 1 << zc->params.cParams.windowLog;
-    ZSTD_stats_t* stats = &zc->seqStore.stats;
-
+    ZSTD_stats_t* stats = malloc(sizeof(ZSTD_stats_t));
+    if (!stats) return ERROR(memory_allocation);
+    zc->seqStore.stats = stats;
     ZSTD_statsInit(stats);
 
     while (remaining) {
@@ -2059,6 +2061,7 @@ static size_t ZSTD_compress_generic (ZSTD_CCtx* zc,
     }
 
     ZSTD_statsPrint(stats, zc->params.cParams.searchLength);
+    free(stats);
     return op-ostart;
 }
 

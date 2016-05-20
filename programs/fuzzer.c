@@ -40,7 +40,7 @@
 #include <sys/timeb.h>   /* timeb */
 #include <string.h>      /* strcmp */
 #include <time.h>        /* clock_t */
-#include "zstd_static.h"
+#include "zstd_static.h" /* ZSTD_VERSION_STRING */
 #include "datagen.h"     /* RDG_genBuffer */
 #include "xxhash.h"      /* XXH64 */
 #include "mem.h"
@@ -49,10 +49,6 @@
 /*-************************************
 *  Constants
 **************************************/
-#ifndef ZSTD_VERSION
-#  define ZSTD_VERSION ""
-#endif
-
 #define KB *(1U<<10)
 #define MB *(1U<<20)
 #define GB *(1U<<30)
@@ -805,7 +801,7 @@ int main(int argc, const char** argv)
     }   }   }   }   /* for (argNb=1; argNb<argc; argNb++) */
 
     /* Get Seed */
-    DISPLAY("Starting zstd tester (%i-bits, %s)\n", (int)(sizeof(size_t)*8), ZSTD_VERSION);
+    DISPLAY("Starting zstd tester (%i-bits, %s)\n", (int)(sizeof(size_t)*8), ZSTD_VERSION_STRING);
 
     if (!seedset) seed = (U32)(clock() % 10000);
     DISPLAY("Seed = %u\n", seed);

@@ -57,11 +57,8 @@
 *  Constants
 **************************************/
 #define PROGRAM_DESCRIPTION "ZSTD parameters tester"
-#ifndef ZSTD_VERSION
-#  define ZSTD_VERSION ""
-#endif
 #define AUTHOR "Yann Collet"
-#define WELCOME_MESSAGE "*** %s %s %i-bits, by %s (%s) ***\n", PROGRAM_DESCRIPTION, ZSTD_VERSION, (int)(sizeof(void*)*8), AUTHOR, __DATE__
+#define WELCOME_MESSAGE "*** %s %s %i-bits, by %s (%s) ***\n", PROGRAM_DESCRIPTION, ZSTD_VERSION_STRING, (int)(sizeof(void*)*8), AUTHOR, __DATE__
 
 
 #define KB *(1<<10)

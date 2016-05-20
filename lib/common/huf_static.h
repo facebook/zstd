@@ -85,15 +85,17 @@ size_t HUF_decompress4X6 (void* dst, size_t dstSize, const void* cSrc, size_t cS
 /*!
 HUF_compress() does the following:
 1. count symbol occurrence from source[] into table count[] using FSE_count()
-2. build Huffman table from count using HUF_buildCTable()
-3. save Huffman table to memory buffer using HUF_writeCTable()
-4. encode the data stream using HUF_compress4X_usingCTable()
+2. (optional) refine tableLog using HUF_optimalTableLog()
+3. build Huffman table from count using HUF_buildCTable()
+4. save Huffman table to memory buffer using HUF_writeCTable()
+5. encode the data stream using HUF_compress4X_usingCTable()
 
 The following API allows targeting specific sub-functions for advanced tasks.
 For example, it's possible to compress several blocks using the same 'CTable',
 or to save and regenerate 'CTable' using external methods.
 */
 /* FSE_count() : find it within "fse.h" */
+unsigned HUF_optimalTableLog(unsigned maxTableLog, size_t srcSize, unsigned maxSymbolValue);
 typedef struct HUF_CElt_s HUF_CElt;   /* incomplete type */
 size_t HUF_buildCTable (HUF_CElt* CTable, const unsigned* count, unsigned maxSymbolValue, unsigned maxNbBits);
 size_t HUF_writeCTable (void* dst, size_t maxDstSize, const HUF_CElt* CTable, unsigned maxSymbolValue, unsigned huffLog);
@@ -137,16 +139,19 @@ size_t HUF_readCTable (HUF_CElt* CTable, unsigned maxSymbolValue, const void* sr
 /* **************************************************************
 *  Constants
 ****************************************************************/
-#define HUF_ABSOLUTEMAX_TABLELOG  16   /* absolute limit of HUF_MAX_TABLELOG. Beyond that value, code does not work */
-#define HUF_MAX_TABLELOG  12           /* max configured tableLog (for static allocation); can be modified up to HUF_ABSOLUTEMAX_TABLELOG */
-#define HUF_DEFAULT_TABLELOG  HUF_MAX_TABLELOG   /* tableLog by default, when not specified */
-#define HUF_MAX_SYMBOL_VALUE 255
-#if (HUF_MAX_TABLELOG > HUF_ABSOLUTEMAX_TABLELOG)
-#  error "HUF_MAX_TABLELOG is too large !"
+#define HUF_TABLELOG_ABSOLUTEMAX  16   /* absolute limit of HUF_MAX_TABLELOG. Beyond that value, code does not work */
+#define HUF_TABLELOG_MAX  12           /* max configured tableLog (for static allocation); can be modified up to HUF_ABSOLUTEMAX_TABLELOG */
+#define HUF_TABLELOG_DEFAULT  HUF_TABLELOG_MAX   /* tableLog by default, when not specified */
+#define HUF_SYMBOLVALUE_MAX 255
+#if (HUF_TABLELOG_MAX > HUF_TABLELOG_ABSOLUTEMAX)
+#  error "HUF_TABLELOG_MAX is too large !"
 #endif
 
 
 
+/* **************************************************************
+*  Needed by zstd in both compression and decompression
+****************************************************************/
 /*! HUF_readStats() :
     Read compact Huffman tree, saved by HUF_writeCTable().
     `huffWeight` is destination buffer.
@@ -188,17 +193,17 @@ MEM_STATIC size_t HUF_readStats(BYTE* huffWeight, size_t hwSize, U32* rankStats,
     }
 
     /* collect weight stats */
-    memset(rankStats, 0, (HUF_ABSOLUTEMAX_TABLELOG + 1) * sizeof(U32));
+    memset(rankStats, 0, (HUF_TABLELOG_ABSOLUTEMAX + 1) * sizeof(U32));
     weightTotal = 0;
     {   U32 n; for (n=0; n<oSize; n++) {
-            if (huffWeight[n] >= HUF_ABSOLUTEMAX_TABLELOG) return ERROR(corruption_detected);
+            if (huffWeight[n] >= HUF_TABLELOG_ABSOLUTEMAX) return ERROR(corruption_detected);
             rankStats[huffWeight[n]]++;
             weightTotal += (1 << huffWeight[n]) >> 1;
     }   }
 
     /* get last non-null symbol weight (implied, total must be 2^n) */
     {   U32 const tableLog = BIT_highbit32(weightTotal) + 1;
-        if (tableLog > HUF_ABSOLUTEMAX_TABLELOG) return ERROR(corruption_detected);
+        if (tableLog > HUF_TABLELOG_ABSOLUTEMAX) return ERROR(corruption_detected);
         *tableLogPtr = tableLog;
         /* determine last weight */
         {   U32 const total = 1 << tableLog;

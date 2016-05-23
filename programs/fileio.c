@@ -641,19 +641,19 @@ unsigned long long FIO_decompressFrame(dRess_t ress,
 
 /** FIO_passThrough() : just copy input into output, for compatibility with gzip -df mode
     @return : 0 (no error) */
-static unsigned FIO_passThrough(FILE* foutput, FILE* finput, unsigned char* buffer, size_t bufferSize)
+static unsigned FIO_passThrough(FILE* foutput, FILE* finput, void* buffer, size_t bufferSize)
 {
     size_t const blockSize = MIN (64 KB, bufferSize);
-    size_t read = 1;
+    size_t readFromInput = 1;
     unsigned storedSkips = 0;
 
     /* assumption : first 4 bytes already loaded (magic number detection), and stored within buffer */
     { size_t const sizeCheck = fwrite(buffer, 1, 4, foutput);
       if (sizeCheck != 4) EXM_THROW(50, "Pass-through write error"); }
 
-    while (read) {
-        read = fread(buffer, 1, blockSize, finput);
-        storedSkips = FIO_fwriteSparse(foutput, buffer, read, storedSkips);
+    while (readFromInput) {
+        readFromInput = fread(buffer, 1, blockSize, finput);
+        storedSkips = FIO_fwriteSparse(foutput, buffer, readFromInput, storedSkips);
     }
 
     FIO_fwriteSparseEnd(foutput, storedSkips);

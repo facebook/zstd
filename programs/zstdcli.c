@@ -176,7 +176,7 @@ static void waitEnter(void)
 
 int main(int argCount, const char** argv)
 {
-    int i,
+    int argNb,
         bench=0,
         decode=0,
         forceStdout=0,
@@ -203,18 +203,21 @@ int main(int argCount, const char** argv)
     (void)recursive; (void)cLevelLast; (void)dictCLevel;   /* not used when ZSTD_NOBENCH / ZSTD_NODICT set */
     (void)decode; (void)cLevel; /* not used when ZSTD_NOCOMPRESS set */
     if (filenameTable==NULL) { DISPLAY("not enough memory\n"); exit(1); }
+    filenameTable[0] = stdinmark;
     displayOut = stderr;
     /* Pick out program name from path. Don't rely on stdlib because of conflicting behavior */
-    for (i = (int)strlen(programName); i > 0; i--) { if (programName[i] == '/') { i++; break; } }
-    programName += i;
+    {   size_t pos;
+        for (pos = (int)strlen(programName); pos > 0; pos--) { if (programName[pos] == '/') { pos++; break; } }
+        programName += pos;
+    }
 
     /* preset behaviors */
     if (!strcmp(programName, ZSTD_UNZSTD)) decode=1;
     if (!strcmp(programName, ZSTD_CAT)) { decode=1; forceStdout=1; displayLevel=1; outFileName=stdoutmark; }
 
     /* command switches */
-    for(i=1; i<argCount; i++) {
-        const char* argument = argv[i];
+    for(argNb=1; argNb<argCount; argNb++) {
+        const char* argument = argv[argNb];
         if(!argument) continue;   /* Protection if argument empty */
 
         /* long commands (--long-word) */
@@ -414,7 +417,8 @@ int main(int argCount, const char** argv)
     }
 
     /* No input filename ==> use stdin and stdout */
-    if(!filenameIdx) filenameIdx=1, filenameTable[0]=stdinmark, outFileName=stdoutmark;
+    filenameIdx += !filenameIdx;   /*< default input is stdin */
+    if (!strcmp(filenameTable[0], stdinmark) && !outFileName ) outFileName = stdoutmark;   /*< when input is stdin, default output is stdout */
 
     /* Check if input/output defined as console; trigger an error in this case */
     if (!strcmp(filenameTable[0], stdinmark) && IS_CONSOLE(stdin) ) CLEAN_RETURN(badusage(programName));
@@ -443,9 +447,9 @@ int main(int argCount, const char** argv)
     {  /* decompression */
 #ifndef ZSTD_NODECOMPRESS
         if (filenameIdx==1 && outFileName)
-        operationResult = FIO_decompressFilename(outFileName, filenameTable[0], dictFileName);
+            operationResult = FIO_decompressFilename(outFileName, filenameTable[0], dictFileName);
         else
-        operationResult = FIO_decompressMultipleFilenames(filenameTable, filenameIdx, outFileName ? outFileName : ZSTD_EXTENSION, dictFileName);
+            operationResult = FIO_decompressMultipleFilenames(filenameTable, filenameIdx, outFileName ? outFileName : ZSTD_EXTENSION, dictFileName);
 #else
         DISPLAY("Decompression not supported\n");
 #endif

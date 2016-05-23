@@ -75,6 +75,33 @@ echo "echo foo | $ZSTD | $ZSTD -d > /dev/full"
 echo foo | $ZSTD | $ZSTD -d > /dev/full && die "write error not detected!"
 
 
+echo "\n**** test sparse file support **** "
+
+./datagen -g5M  -P100 > tmpSparse
+$ZSTD tmpSparse -c | $ZSTD -dv -o tmpSparseRegen
+diff -s tmpSparse tmpSparseRegen
+$ZSTD tmpSparse -c | $ZSTD -dv --sparse -c > tmpOutSparse
+diff -s tmpSparse tmpOutSparse
+$ZSTD tmpSparse -c | $ZSTD -dv --no-sparse -c > tmpOutNoSparse
+diff -s tmpSparse tmpOutNoSparse
+ls -ls tmpSparse*
+./datagen -s1 -g1200007 -P100 | $ZSTD | $ZSTD -dv --sparse -c > tmpSparseOdd   # Odd size file (to not finish on an exact nb of blocks)
+./datagen -s1 -g1200007 -P100 | diff -s - tmpSparseOdd
+ls -ls tmpSparseOdd
+echo "\n Sparse Compatibility with Console :"
+echo "Hello World 1 !" | $ZSTD | $ZSTD -d -c
+echo "Hello World 2 !" | $ZSTD | $ZSTD -d | cat
+echo "\n Sparse Compatibility with Append :"
+./datagen -P100 -g1M > tmpSparse1M
+cat tmpSparse1M tmpSparse1M > tmpSparse2M
+$ZSTD -v -f tmpSparse1M -o tmpSparseCompressed
+$ZSTD -d -v -f tmpSparseCompressed -o tmpSparseRegenerated
+$ZSTD -d -v -f tmpSparseCompressed -c >> tmpSparseRegenerated
+ls -ls tmpSparse*
+diff tmpSparse2M tmpSparseRegenerated
+# rm tmpSparse*
+
+
 echo "\n**** dictionary tests **** "
 
 ./datagen > tmpDict

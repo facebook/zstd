@@ -132,6 +132,7 @@ static int usage_advanced(const char* programName)
 #ifndef ZSTD_NOCOMPRESS
     DISPLAY( "--ultra : enable ultra modes (requires more memory to decompress)\n");
 #endif
+    DISPLAY( "--[no-]sparse  : sparse mode (default:enabled on file, disabled on stdout)\n");
 #ifndef ZSTD_NODICT
     DISPLAY( "\n");
     DISPLAY( "Dictionary builder :\n");
@@ -229,6 +230,8 @@ int main(int argCount, const char** argv)
         if (!strcmp(argument, "--maxdict")) { nextArgumentIsMaxDict=1; continue; }
         if (!strcmp(argument, "--keep")) { continue; }   /* does nothing, since preserving input is default; for gzip/xz compatibility */
         if (!strcmp(argument, "--ultra")) { FIO_setMaxWLog(0); continue; }
+        if (!strcmp(argument, "--sparse")) { FIO_setSparseWrite(2); continue; }
+        if (!strcmp(argument, "--no-sparse")) { FIO_setSparseWrite(0); continue; }
 
         /* '-' means stdin/stdout */
         if (!strcmp(argument, "-")){

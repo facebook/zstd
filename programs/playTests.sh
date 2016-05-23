@@ -24,6 +24,7 @@ roundTripTest() {
 
 
 echo "\n**** simple tests **** "
+
 ./datagen > tmp
 $ZSTD -f tmp                             # trivial compression case, creates tmp.zst
 $ZSTD -df tmp.zst                        # trivial decompression case (overwrites tmp)
@@ -47,9 +48,12 @@ $ZSTD -q tmp && die "overwrite check failed!"
 $ZSTD -q -f tmp
 $ZSTD -q --force tmp
 $ZSTD -df tmp && die "should have refused : wrong extension"
-cp tmp tmp2.zst
-$ZSTD -df tmp2.zst && die "should have failed : wrong format"
-rm tmp2.zst
+
+
+echo "\n**** Pass-Through mode **** "
+echo "Hello world !" | $ZSTD -df
+echo "Hello world !" | $ZSTD -dcf
+
 
 echo "\n**** frame concatenation **** "
 
@@ -63,8 +67,7 @@ $ZSTD -dc helloworld.zstd > result.tmp
 cat result.tmp
 sdiff helloworld.tmp result.tmp
 rm ./*.tmp ./*.zstd
-
-echo frame concatenation test completed
+echo "frame concatenation tests completed"
 
 
 echo "\n**** flush write error test **** "
@@ -136,7 +139,9 @@ ls -ls tmp*
 echo "compress multiple files including a missing one (notHere) : "
 $ZSTD -f tmp1 notHere tmp2 && die "missing file not detected!"
 
+
 echo "\n**** integrity tests **** "
+
 echo "test one file (tmp1.zst) "
 $ZSTD -t tmp1.zst
 $ZSTD --test tmp1.zst
@@ -144,6 +149,7 @@ echo "test multiple files (*.zst) "
 $ZSTD -t *.zst
 echo "test good and bad files (*) "
 $ZSTD -t * && die "bad files not detected !"
+
 
 echo "\n**** zstd round-trip tests **** "
 

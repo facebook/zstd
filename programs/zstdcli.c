@@ -279,7 +279,7 @@ int main(int argCount, const char** argv)
                 case 'D': nextEntryIsDictionary = 1; argument++; break;
 
                     /* Overwrite */
-                case 'f': FIO_overwriteMode(); argument++; break;
+                case 'f': FIO_overwriteMode(); forceStdout=1; argument++; break;
 
                     /* Verbose mode */
                 case 'v': displayLevel=4; argument++; break;
@@ -422,7 +422,8 @@ int main(int argCount, const char** argv)
 
     /* Check if input/output defined as console; trigger an error in this case */
     if (!strcmp(filenameTable[0], stdinmark) && IS_CONSOLE(stdin) ) CLEAN_RETURN(badusage(programName));
-    if (outFileName && !strcmp(outFileName, stdoutmark) && IS_CONSOLE(stdout) && !forceStdout) CLEAN_RETURN(badusage(programName));
+    if (outFileName && !strcmp(outFileName, stdoutmark) && IS_CONSOLE(stdout) && !(forceStdout && decode))
+        CLEAN_RETURN(badusage(programName));
 
     /* user-selected output filename, only possible with a single file */
     if (outFileName && strcmp(outFileName,stdoutmark) && strcmp(outFileName,nulmark) && (filenameIdx>1)) {

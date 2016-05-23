@@ -1,3 +1,7 @@
+v0.6.2
+New : Support for Sparse File-systems (do not use space for zero-filled sectors)
+New : Support pass-through mode, when using `-df`
+
 v0.6.1
 New : zlib wrapper API, thanks to Przemyslaw Skibinski
 New : Ability to compile compressor / decompressor separately

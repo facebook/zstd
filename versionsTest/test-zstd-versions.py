@@ -41,7 +41,10 @@ def get_git_tags():
     return tags
 
 def compress_sample(tag, sample):
-    from subprocess import DEVNULL
+    try:
+        from subprocess import DEVNULL # py3k
+    except ImportError:
+        DEVNULL = open(os.devnull, 'wb')
     if subprocess.call(['./zstd.' + tag, '-f'  ,  sample], stderr=DEVNULL)==0:
         os.rename(sample + '.zst', sample + '_01_64_' + tag + '.zst')
     if subprocess.call(['./zstd.' + tag, '-5f' ,  sample], stderr=DEVNULL)==0:
@@ -76,7 +79,10 @@ def remove_duplicates():
 def decompress_zst(tag):
     dec_error = 0
     list_zst = sorted(glob.glob('*.zst'))
-    from subprocess import DEVNULL
+    try:
+        from subprocess import DEVNULL # py3k
+    except ImportError:
+        DEVNULL = open(os.devnull, 'wb')
     for file_zst in list_zst:
         print(file_zst, end=" ")
         print(tag, end=" ")
@@ -90,6 +96,7 @@ def decompress_zst(tag):
         else:
             print('command does not work')
     return dec_error
+
 
 if __name__ == '__main__':
     error_code = 0

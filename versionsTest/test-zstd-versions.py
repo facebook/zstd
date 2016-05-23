@@ -41,16 +41,16 @@ def get_git_tags():
     return tags
 
 def compress_sample(tag, sample):
-    print(tag)
-    if subprocess.call(['./zstd.' + tag, '-f'  ,  sample])==0:   # for some reason, compressed file is not created (or is overwritten ?) when pipe=True
+    from subprocess import DEVNULL
+    if subprocess.call(['./zstd.' + tag, '-f'  ,  sample], stderr=DEVNULL)==0:
         os.rename(sample + '.zst', sample + '_01_64_' + tag + '.zst')
-    if subprocess.call(['./zstd.' + tag, '-5f' ,  sample])==0:
+    if subprocess.call(['./zstd.' + tag, '-5f' ,  sample], stderr=DEVNULL)==0:
         os.rename(sample + '.zst', sample + '_05_64_' + tag + '.zst')
-    if subprocess.call(['./zstd.' + tag, '-9f' ,  sample])==0 :
+    if subprocess.call(['./zstd.' + tag, '-9f' ,  sample], stderr=DEVNULL)==0 :
         os.rename(sample + '.zst', sample + '_09_64_' + tag + '.zst')
-    if subprocess.call(['./zstd.' + tag, '-15f',  sample])==0 :
+    if subprocess.call(['./zstd.' + tag, '-15f',  sample], stderr=DEVNULL)==0 :
         os.rename(sample + '.zst', sample + '_15_64_' + tag + '.zst')
-    if subprocess.call(['./zstd.' + tag, '-18f',  sample])==0:
+    if subprocess.call(['./zstd.' + tag, '-18f',  sample], stderr=DEVNULL)==0:
         os.rename(sample + '.zst', sample + '_18_64_' + tag + '.zst')
     # zstdFiles = glob.glob("*.zst*")
     # print(zstdFiles)
@@ -76,16 +76,19 @@ def remove_duplicates():
 def decompress_zst(tag):
     dec_error = 0
     list_zst = sorted(glob.glob('*.zst'))
+    from subprocess import DEVNULL
     for file_zst in list_zst:
         print(file_zst, end=" ")
         print(tag, end=" ")
         file_dec = file_zst + '_d64_' + tag + '.dec'
-        if subprocess.call(['./zstd.'   + tag, '-df', file_zst, '-o', file_dec])==0:
+        if subprocess.call(['./zstd.'   + tag, '-df', file_zst, '-o', file_dec], stderr=DEVNULL)==0:
             if not filecmp.cmp(file_dec, test_dat):
                 print('ERR !! ')
                 dec_error = 1
             else:
                 print('OK     ')
+        else:
+            print('command does not work')
     return dec_error
 
 if __name__ == '__main__':

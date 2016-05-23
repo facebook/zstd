@@ -120,20 +120,25 @@ struct ZSTD_CCtx_s
 
 ZSTD_CCtx* ZSTD_createCCtx(void)
 {
-    ZSTD_CCtx* ctx = (ZSTD_CCtx*) calloc(1, sizeof(ZSTD_CCtx));
-    if (!ctx) return NULL;
-
-    ctx->customAlloc = malloc;
-    ctx->customFree = free;
-    return ctx;
+    ZSTD_customMem customMem = { NULL, NULL };
+    return ZSTD_createCCtx_advanced(customMem);
 }
 
 ZSTD_CCtx* ZSTD_createCCtx_advanced(ZSTD_customMem customMem)
 {
-    if (!customMem.customAlloc || !customMem.customFree)
-        return ZSTD_createCCtx();
+    ZSTD_CCtx* ctx;
 
-    ZSTD_CCtx* ctx = (ZSTD_CCtx*) customMem.customAlloc(sizeof(ZSTD_CCtx));
+    if (!customMem.customAlloc || !customMem.customFree)
+    {
+        ctx = (ZSTD_CCtx*) calloc(1, sizeof(ZSTD_CCtx));
+        if (!ctx) return NULL;
+
+        ctx->customAlloc = malloc;
+        ctx->customFree = free;
+        return ctx;
+    }
+
+    ctx = (ZSTD_CCtx*) customMem.customAlloc(sizeof(ZSTD_CCtx));
     if (!ctx) return NULL;
 
     memset(ctx, 0, sizeof(ZSTD_CCtx));
@@ -307,7 +312,9 @@ size_t ZSTD_copyCCtx(ZSTD_CCtx* dstCCtx, const ZSTD_CCtx* srcCCtx)
 {
     if (srcCCtx->stage!=1) return ERROR(stage_wrong);
 
-    dstCCtx->hashLog3 = srcCCtx->hashLog3; /* must be before ZSTD_resetCCtx_advanced */
+    dstCCtx->hashLog3    = srcCCtx->hashLog3; /* must be before ZSTD_resetCCtx_advanced */
+    dstCCtx->customAlloc = srcCCtx->customAlloc;
+    dstCCtx->customFree  = srcCCtx->customFree;
     ZSTD_resetCCtx_advanced(dstCCtx, srcCCtx->params, 0);
     dstCCtx->params.fParams.contentSizeFlag = 0;   /* content size different from the one set during srcCCtx init */
 

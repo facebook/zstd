@@ -103,9 +103,12 @@ typedef struct { ZSTD_allocFunction customAlloc; ZSTD_freeFunction customFree; }
 *  Advanced functions
 ***************************************/
 /*! ZSTD_createCCtx_advanced() :
- *  Create ZSTD context using external alloc and free functions */ 
+ *  Create a ZSTD compression context using external alloc and free functions */ 
 ZSTDLIB_API ZSTD_CCtx* ZSTD_createCCtx_advanced(ZSTD_customMem customMem);
 
+/*! ZSTD_createDCtx_advanced() :
+ *  Create a ZSTD decompression context using external alloc and free functions */ 
+ZSTDLIB_API ZSTD_DCtx* ZSTD_createDCtx_advanced(ZSTD_customMem customMem);
 
 ZSTDLIB_API unsigned ZSTD_maxCLevel (void);
 

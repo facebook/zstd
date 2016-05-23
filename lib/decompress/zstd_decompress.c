@@ -153,7 +153,7 @@ ZSTD_DCtx* ZSTD_createDCtx_advanced(ZSTD_customMem customMem)
 {
     ZSTD_DCtx* dctx;
 
-    if (!customMem.customAlloc || !customMem.customFree)
+    if (!customMem.customAlloc && !customMem.customFree)
     {
         dctx = (ZSTD_DCtx*) malloc(sizeof(ZSTD_DCtx));
         if (!dctx) return NULL;
@@ -163,6 +163,9 @@ ZSTD_DCtx* ZSTD_createDCtx_advanced(ZSTD_customMem customMem)
         ZSTD_decompressBegin(dctx);
         return dctx;
     }
+
+    if (!customMem.customAlloc || !customMem.customFree)
+        return NULL;
 
     dctx = (ZSTD_DCtx*) customMem.customAlloc(sizeof(ZSTD_DCtx));
     if (!dctx) return NULL;

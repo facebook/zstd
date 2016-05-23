@@ -128,7 +128,7 @@ ZSTD_CCtx* ZSTD_createCCtx_advanced(ZSTD_customMem customMem)
 {
     ZSTD_CCtx* ctx;
 
-    if (!customMem.customAlloc || !customMem.customFree)
+    if (!customMem.customAlloc && !customMem.customFree)
     {
         ctx = (ZSTD_CCtx*) calloc(1, sizeof(ZSTD_CCtx));
         if (!ctx) return NULL;
@@ -137,6 +137,9 @@ ZSTD_CCtx* ZSTD_createCCtx_advanced(ZSTD_customMem customMem)
         ctx->customFree = free;
         return ctx;
     }
+
+    if (!customMem.customAlloc || !customMem.customFree)
+        return NULL;
 
     ctx = (ZSTD_CCtx*) customMem.customAlloc(sizeof(ZSTD_CCtx));
     if (!ctx) return NULL;

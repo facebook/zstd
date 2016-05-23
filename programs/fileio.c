@@ -639,6 +639,28 @@ unsigned long long FIO_decompressFrame(dRess_t ress,
 }
 
 
+/** FIO_passThrough() : just copy input into output, for compatibility with gzip -df mode
+    @return : 0 (no error) */
+static unsigned FIO_passThrough(FILE* foutput, FILE* finput, unsigned char* buffer, size_t bufferSize)
+{
+    size_t const blockSize = MIN (64 KB, bufferSize);
+    size_t read = 1;
+    unsigned storedSkips = 0;
+
+    /* assumption : first 4 bytes already loaded (magic number detection), and stored within buffer */
+    { size_t const sizeCheck = fwrite(buffer, 1, 4, foutput);
+      if (sizeCheck != 4) EXM_THROW(50, "Pass-through write error"); }
+
+    while (read) {
+        read = fread(buffer, 1, blockSize, finput);
+        storedSkips = FIO_fwriteSparse(foutput, buffer, read, storedSkips);
+    }
+
+    FIO_fwriteSparseEnd(foutput, storedSkips);
+    return 0;
+}
+
+
 /** FIO_decompressSrcFile() :
     Decompression `srcFileName` into `ress.dstFile`
     @return : 0 : OK
@@ -666,9 +688,12 @@ static int FIO_decompressSrcFile(dRess_t ress, const char* srcFileName)
             }
 #endif
             if (magic !=  ZSTD_MAGICNUMBER) {
-                DISPLAYLEVEL(1, "zstd: %s: not in zstd format \n", srcFileName);
-                return 1;
-        }   }
+                if (g_overwrite)   /* -df : pass-through mode */
+                    return FIO_passThrough(dstFile, srcFile, ress.srcBuffer, ress.srcBufferSize);
+                else {
+                    DISPLAYLEVEL(1, "zstd: %s: not in zstd format \n", srcFileName);
+                    return 1;
+        }   }   }
         filesize += FIO_decompressFrame(ress, dstFile, srcFile, toRead);
     }
 

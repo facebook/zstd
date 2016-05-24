@@ -31,9 +31,11 @@ REM %ZSTD% -d  - < tmp.zst > NUL
 %ZSTD% -q -f tmp
 %ZSTD% -q --force tmp
 %ZSTD% -df tmp && (echo should have refused : wrong extension && exit /b 1)
-cp tmp tmp2.zst
-%ZSTD% -df tmp2.zst && (echo should have failed : wrong format && exit /b 1)
-rm tmp2.zst
+
+echo. && echo **** Pass-Through mode ****
+echo "Hello world !" | %ZSTD% -df
+echo "Hello world !" | %ZSTD% -dcf
+
 
 echo. && echo **** frame concatenation ****
 
@@ -48,7 +50,7 @@ cat result.tmp
 fc /b helloworld.tmp result.tmp
 rm *.tmp *.zstd
 
-echo frame concatenation test completed
+echo frame concatenation tests completed
 
 
 REM echo. && echo **** flush write error test ****

@@ -64,19 +64,22 @@ extern "C" {
 *  FSE advanced API
 *******************************************/
 size_t FSE_countFast(unsigned* count, unsigned* maxSymbolValuePtr, const void* src, size_t srcSize);
-/* same as FSE_count(), but blindly trusts that all byte values within src are <= *maxSymbolValuePtr  */
+/**< same as FSE_count(), but blindly trusts that all byte values within src are <= *maxSymbolValuePtr  */
+
+unsigned FSE_optimalTableLog_internal(unsigned maxTableLog, size_t srcSize, unsigned maxSymbolValue, unsigned minus);
+/**< same as FSE_optimalTableLog(), which used `minus==2` */
 
 size_t FSE_buildCTable_raw (FSE_CTable* ct, unsigned nbBits);
-/* build a fake FSE_CTable, designed to not compress an input, where each symbol uses nbBits */
+/**< build a fake FSE_CTable, designed to not compress an input, where each symbol uses nbBits */
 
 size_t FSE_buildCTable_rle (FSE_CTable* ct, unsigned char symbolValue);
-/* build a fake FSE_CTable, designed to compress always the same symbolValue */
+/**< build a fake FSE_CTable, designed to compress always the same symbolValue */
 
 size_t FSE_buildDTable_raw (FSE_DTable* dt, unsigned nbBits);
-/* build a fake FSE_DTable, designed to read an uncompressed bitstream where each symbol uses nbBits */
+/**< build a fake FSE_DTable, designed to read an uncompressed bitstream where each symbol uses nbBits */
 
 size_t FSE_buildDTable_rle (FSE_DTable* dt, unsigned char symbolValue);
-/* build a fake FSE_DTable, designed to always generate the same symbolValue */
+/**< build a fake FSE_DTable, designed to always generate the same symbolValue */
 
 
 /* *****************************************
@@ -103,7 +106,7 @@ static void FSE_encodeSymbol(BIT_CStream_t* bitC, FSE_CState_t* CStatePtr, unsig
 
 static void FSE_flushCState(BIT_CStream_t* bitC, const FSE_CState_t* CStatePtr);
 
-/*!
+/**<
 These functions are inner components of FSE_compress_usingCTable().
 They allow the creation of custom streams, mixing multiple tables and bit sources.
 
@@ -163,7 +166,7 @@ static unsigned char FSE_decodeSymbol(FSE_DState_t* DStatePtr, BIT_DStream_t* bi
 
 static unsigned FSE_endOfDState(const FSE_DState_t* DStatePtr);
 
-/*!
+/**<
 Let's now decompose FSE_decompress_usingDTable() into its unitary components.
 You will decode FSE-encoded symbols from the bitStream,
 and also any other bitFields you put in, **in reverse order**.

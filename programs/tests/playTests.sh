@@ -24,6 +24,7 @@ roundTripTest() {
 
 
 echo "\n**** simple tests **** "
+
 ./datagen > tmp
 $ZSTD -f tmp                             # trivial compression case, creates tmp.zst
 $ZSTD -df tmp.zst                        # trivial decompression case (overwrites tmp)
@@ -47,9 +48,12 @@ $ZSTD -q tmp && die "overwrite check failed!"
 $ZSTD -q -f tmp
 $ZSTD -q --force tmp
 $ZSTD -df tmp && die "should have refused : wrong extension"
-cp tmp tmp2.zst
-$ZSTD -df tmp2.zst && die "should have failed : wrong format"
-rm tmp2.zst
+
+
+echo "\n**** Pass-Through mode **** "
+echo "Hello world !" | $ZSTD -df
+echo "Hello world !" | $ZSTD -dcf
+
 
 echo "\n**** frame concatenation **** "
 
@@ -63,8 +67,7 @@ $ZSTD -dc helloworld.zstd > result.tmp
 cat result.tmp
 sdiff helloworld.tmp result.tmp
 rm ./*.tmp ./*.zstd
-
-echo frame concatenation test completed
+echo "frame concatenation tests completed"
 
 
 echo "\n**** flush write error test **** "
@@ -73,6 +76,33 @@ echo "echo foo | $ZSTD > /dev/full"
 echo foo | $ZSTD > /dev/full && die "write error not detected!"
 echo "echo foo | $ZSTD | $ZSTD -d > /dev/full"
 echo foo | $ZSTD | $ZSTD -d > /dev/full && die "write error not detected!"
+
+
+echo "\n**** test sparse file support **** "
+
+./datagen -g5M  -P100 > tmpSparse
+$ZSTD tmpSparse -c | $ZSTD -dv -o tmpSparseRegen
+diff -s tmpSparse tmpSparseRegen
+$ZSTD tmpSparse -c | $ZSTD -dv --sparse -c > tmpOutSparse
+diff -s tmpSparse tmpOutSparse
+$ZSTD tmpSparse -c | $ZSTD -dv --no-sparse -c > tmpOutNoSparse
+diff -s tmpSparse tmpOutNoSparse
+ls -ls tmpSparse*
+./datagen -s1 -g1200007 -P100 | $ZSTD | $ZSTD -dv --sparse -c > tmpSparseOdd   # Odd size file (to not finish on an exact nb of blocks)
+./datagen -s1 -g1200007 -P100 | diff -s - tmpSparseOdd
+ls -ls tmpSparseOdd
+echo "\n Sparse Compatibility with Console :"
+echo "Hello World 1 !" | $ZSTD | $ZSTD -d -c
+echo "Hello World 2 !" | $ZSTD | $ZSTD -d | cat
+echo "\n Sparse Compatibility with Append :"
+./datagen -P100 -g1M > tmpSparse1M
+cat tmpSparse1M tmpSparse1M > tmpSparse2M
+$ZSTD -v -f tmpSparse1M -o tmpSparseCompressed
+$ZSTD -d -v -f tmpSparseCompressed -o tmpSparseRegenerated
+$ZSTD -d -v -f tmpSparseCompressed -c >> tmpSparseRegenerated
+ls -ls tmpSparse*
+diff tmpSparse2M tmpSparseRegenerated
+# rm tmpSparse*
 
 
 echo "\n**** dictionary tests **** "
@@ -109,7 +139,9 @@ ls -ls tmp*
 echo "compress multiple files including a missing one (notHere) : "
 $ZSTD -f tmp1 notHere tmp2 && die "missing file not detected!"
 
+
 echo "\n**** integrity tests **** "
+
 echo "test one file (tmp1.zst) "
 $ZSTD -t tmp1.zst
 $ZSTD --test tmp1.zst
@@ -117,6 +149,7 @@ echo "test multiple files (*.zst) "
 $ZSTD -t *.zst
 echo "test good and bad files (*) "
 $ZSTD -t * && die "bad files not detected !"
+
 
 echo "\n**** zstd round-trip tests **** "
 

@@ -55,8 +55,11 @@ struct ZSTD_stats_s {
 
 
 /*-*************************************
-*  Advanced functions
+*  Stats functions
 ***************************************/
+MEM_STATIC ZSTD_stats_t* ZSTD_statsAlloc() { return malloc(sizeof(ZSTD_stats_t)); }
+MEM_STATIC void ZSTD_statsFree(struct ZSTD_stats_s* stats) { free(stats); }
+
 MEM_STATIC void ZSTD_statsPrint(ZSTD_stats_t* stats, U32 searchLength)
 {
     stats->totalMatchSum += stats->totalSeqSum * ((searchLength == 3) ? 3 : 4);
@@ -155,6 +158,8 @@ MEM_STATIC void ZSTD_statsUpdatePrices(ZSTD_stats_t* stats, size_t litLength, co
 
 #else
     struct ZSTD_stats_s { U32 unused; };
+    MEM_STATIC ZSTD_stats_t* ZSTD_statsAlloc(void) { return NULL; }
+    MEM_STATIC void ZSTD_statsFree(struct ZSTD_stats_s* stats) { (void)stats; }
     MEM_STATIC void ZSTD_statsPrint(ZSTD_stats_t* stats, U32 searchLength) { (void)stats; (void)searchLength; }
     MEM_STATIC void ZSTD_statsInit(ZSTD_stats_t* stats) { (void)stats; }
     MEM_STATIC void ZSTD_statsResetFreqs(ZSTD_stats_t* stats) { (void)stats; }

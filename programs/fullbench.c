@@ -213,19 +213,6 @@ size_t local_ZSTD_decompressContinue(void* dst, size_t dstCapacity, void* buff2,
 /*_*******************************************************
 *  Bench functions
 *********************************************************/
-void* BMK_allocFunction(size_t size)
-{
-    void* address = malloc(size);
-   /* printf("alloc %p, %d \n", address, (int)size); */
-    return address;
-}
-
-void BMK_freeFunction(void* address)
-{
-/*   printf("free %p \n", address); */
-    free(address);
-}
-
 static size_t benchMem(const void* src, size_t srcSize, U32 benchNb)
 {
     BYTE*  dstBuff;
@@ -233,7 +220,6 @@ static size_t benchMem(const void* src, size_t srcSize, U32 benchNb)
     BYTE*  buff2;
     const char* benchName;
     size_t (*benchFunction)(void* dst, size_t dstSize, void* verifBuff, const void* src, size_t srcSize);
-    ZSTD_customMem customMem = { BMK_allocFunction, BMK_freeFunction };
     double bestTime = 100000000.;
 
     /* Selection */
@@ -261,13 +247,7 @@ static size_t benchMem(const void* src, size_t srcSize, U32 benchNb)
         benchFunction = local_ZBUFF_compress; benchName = "ZBUFF_compressContinue";
         break;
     case 42:
-        benchFunction = local_ZBUFF_compress; benchName = "ZBUFF_createCCtx_advanced/ZBUFF_compressContinue";
-        break;
-    case 43:
         benchFunction = local_ZBUFF_decompress; benchName = "ZBUFF_decompressContinue";
-        break;
-    case 44:
-        benchFunction = local_ZBUFF_decompress; benchName = "ZBUFF_createDCtx_advanced/ZBUFF_decompressContinue";
         break;
     default :
         return 0;
@@ -343,14 +323,7 @@ static size_t benchMem(const void* src, size_t srcSize, U32 benchNb)
         if (g_zbcc==NULL) g_zbcc = ZBUFF_createCCtx();
         break;
     case 42 :
-        if (g_zbcc==NULL) g_zbcc = ZBUFF_createCCtx_advanced(customMem);
-        break;
-    case 43 :
         if (g_zbdc==NULL) g_zbdc = ZBUFF_createDCtx();
-        g_cSize = ZSTD_compress(buff2, dstBuffSize, src, srcSize, 1);
-        break;
-    case 44 :
-        if (g_zbdc==NULL) g_zbdc = ZBUFF_createDCtx_advanced(customMem);
         g_cSize = ZSTD_compress(buff2, dstBuffSize, src, srcSize, 1);
         break;
 
@@ -382,29 +355,7 @@ static size_t benchMem(const void* src, size_t srcSize, U32 benchNb)
         averageTime = (((double)BMK_clockSpan(clockStart)) / CLOCKS_PER_SEC) / nbRounds;
         if (averageTime < bestTime) bestTime = averageTime;
         DISPLAY("%2i- %-30.30s : %7.1f MB/s  (%9u)\r", loopNb, benchName, (double)srcSize / (1 MB) / bestTime, (U32)benchResult);
-    }
-
-    /* free allocated structures */
-    switch(benchNb)
-    {
-    case 11 :
-        if (g_zcc) { ZSTD_freeCCtx(g_zcc); g_zcc=NULL; }
-        break;
-    case 12 :
-    case 31:
-    case 32:
-        if (g_zdc) { ZSTD_freeDCtx(g_zdc); g_zdc=NULL; }
-        break;
-    case 41 :
-    case 42 :
-        if (g_zbcc) { ZBUFF_freeCCtx(g_zbcc); g_zbcc=NULL; }
-        break;
-    case 43 :
-    case 44 :
-        if (g_zbdc) { ZBUFF_freeDCtx(g_zbdc); g_zbdc=NULL; }
-        break;
-    default : ;
-    } }
+    }}
     DISPLAY("%2u\n", benchNb);
 
 _cleanOut:

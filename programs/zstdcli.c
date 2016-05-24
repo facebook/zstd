@@ -129,7 +129,9 @@ static int usage_advanced(const char* programName)
 #ifndef ZSTD_NOCOMPRESS
     DISPLAY( "--ultra : enable ultra modes (requires more memory to decompress)\n");
 #endif
+    DISPLAY( "--[no-]sparse  : sparse mode (default:enabled on file, disabled on stdout)\n");
 #ifndef ZSTD_NODICT
+    DISPLAY( "\n");
     DISPLAY( "Dictionary builder :\n");
     DISPLAY( "--train : create a dictionary from a training set of files \n");
     DISPLAY( " -o file: `file` is dictionary name (default: %s) \n", g_defaultDictName);
@@ -137,6 +139,7 @@ static int usage_advanced(const char* programName)
     DISPLAY( " -s#    : dictionary selectivity level (default: %u)\n", g_defaultSelectivityLevel);
 #endif
 #ifndef ZSTD_NOBENCH
+    DISPLAY( "\n");
     DISPLAY( "Benchmark arguments :\n");
     DISPLAY( " -b#    : benchmark file(s), using # compression level (default : 1) \n");
     DISPLAY( " -e#    : test all compression levels from -bX to # (default: 1)\n");
@@ -170,7 +173,7 @@ static void waitEnter(void)
 
 int main(int argCount, const char** argv)
 {
-    int i,
+    int argNb,
         bench=0,
         decode=0,
         forceStdout=0,
@@ -197,18 +200,21 @@ int main(int argCount, const char** argv)
     (void)recursive; (void)cLevelLast; (void)dictCLevel;   /* not used when ZSTD_NOBENCH / ZSTD_NODICT set */
     (void)decode; (void)cLevel; /* not used when ZSTD_NOCOMPRESS set */
     if (filenameTable==NULL) { DISPLAY("not enough memory\n"); exit(1); }
+    filenameTable[0] = stdinmark;
     displayOut = stderr;
     /* Pick out program name from path. Don't rely on stdlib because of conflicting behavior */
-    for (i = (int)strlen(programName); i > 0; i--) { if (programName[i] == '/') { i++; break; } }
-    programName += i;
+    {   size_t pos;
+        for (pos = (int)strlen(programName); pos > 0; pos--) { if (programName[pos] == '/') { pos++; break; } }
+        programName += pos;
+    }
 
     /* preset behaviors */
     if (!strcmp(programName, ZSTD_UNZSTD)) decode=1;
     if (!strcmp(programName, ZSTD_CAT)) { decode=1; forceStdout=1; displayLevel=1; outFileName=stdoutmark; }
 
     /* command switches */
-    for(i=1; i<argCount; i++) {
-        const char* argument = argv[i];
+    for(argNb=1; argNb<argCount; argNb++) {
+        const char* argument = argv[argNb];
         if(!argument) continue;   /* Protection if argument empty */
 
         /* long commands (--long-word) */
@@ -224,6 +230,8 @@ int main(int argCount, const char** argv)
         if (!strcmp(argument, "--maxdict")) { nextArgumentIsMaxDict=1; continue; }
         if (!strcmp(argument, "--keep")) { continue; }   /* does nothing, since preserving input is default; for gzip/xz compatibility */
         if (!strcmp(argument, "--ultra")) { FIO_setMaxWLog(0); continue; }
+        if (!strcmp(argument, "--sparse")) { FIO_setSparseWrite(2); continue; }
+        if (!strcmp(argument, "--no-sparse")) { FIO_setSparseWrite(0); continue; }
 
         /* '-' means stdin/stdout */
         if (!strcmp(argument, "-")){
@@ -268,7 +276,7 @@ int main(int argCount, const char** argv)
                 case 'D': nextEntryIsDictionary = 1; argument++; break;
 
                     /* Overwrite */
-                case 'f': FIO_overwriteMode(); argument++; break;
+                case 'f': FIO_overwriteMode(); forceStdout=1; argument++; break;
 
                     /* Verbose mode */
                 case 'v': displayLevel=4; argument++; break;
@@ -406,11 +414,13 @@ int main(int argCount, const char** argv)
     }
 
     /* No input filename ==> use stdin and stdout */
-    if(!filenameIdx) filenameIdx=1, filenameTable[0]=stdinmark, outFileName=stdoutmark;
+    filenameIdx += !filenameIdx;   /*< default input is stdin */
+    if (!strcmp(filenameTable[0], stdinmark) && !outFileName ) outFileName = stdoutmark;   /*< when input is stdin, default output is stdout */
 
     /* Check if input/output defined as console; trigger an error in this case */
     if (!strcmp(filenameTable[0], stdinmark) && IS_CONSOLE(stdin) ) CLEAN_RETURN(badusage(programName));
-    if (outFileName && !strcmp(outFileName, stdoutmark) && IS_CONSOLE(stdout) && !forceStdout) CLEAN_RETURN(badusage(programName));
+    if (outFileName && !strcmp(outFileName, stdoutmark) && IS_CONSOLE(stdout) && !(forceStdout && decode))
+        CLEAN_RETURN(badusage(programName));
 
     /* user-selected output filename, only possible with a single file */
     if (outFileName && strcmp(outFileName,stdoutmark) && strcmp(outFileName,nulmark) && (filenameIdx>1)) {
@@ -435,9 +445,9 @@ int main(int argCount, const char** argv)
     {  /* decompression */
 #ifndef ZSTD_NODECOMPRESS
         if (filenameIdx==1 && outFileName)
-        operationResult = FIO_decompressFilename(outFileName, filenameTable[0], dictFileName);
+            operationResult = FIO_decompressFilename(outFileName, filenameTable[0], dictFileName);
         else
-        operationResult = FIO_decompressMultipleFilenames(filenameTable, filenameIdx, outFileName ? outFileName : ZSTD_EXTENSION, dictFileName);
+            operationResult = FIO_decompressMultipleFilenames(filenameTable, filenameIdx, outFileName ? outFileName : ZSTD_EXTENSION, dictFileName);
 #else
         DISPLAY("Decompression not supported\n");
 #endif

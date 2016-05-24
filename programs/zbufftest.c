@@ -49,10 +49,6 @@
 /*-************************************
 *  Constants
 **************************************/
-#ifndef ZSTD_VERSION
-#  define ZSTD_VERSION ""
-#endif
-
 #define KB *(1U<<10)
 #define MB *(1U<<20)
 #define GB *(1U<<30)
@@ -153,7 +149,6 @@ static int basicUnitTests(U32 seed, double compressibility, ZSTD_customMem custo
     void* compressedBuffer = malloc(compressedBufferSize);
     size_t const decodedBufferSize = CNBufferSize;
     void* decodedBuffer = malloc(decodedBufferSize);
-    U32 randState = seed;
     size_t result, cSize, readSize, genSize;
     U32 testNb=0;
     ZBUFF_CCtx* zc = ZBUFF_createCCtx_advanced(customMem);
@@ -164,7 +159,7 @@ static int basicUnitTests(U32 seed, double compressibility, ZSTD_customMem custo
         DISPLAY("Not enough memory, aborting\n");
         goto _output_error;
     }
-    RDG_genBuffer(CNBuffer, CNBufferSize, compressibility, 0., randState);
+    RDG_genBuffer(CNBuffer, CNBufferSize, compressibility, 0., seed);
 
     /* Basic compression test */
     DISPLAYLEVEL(4, "test%3i : compress %u bytes : ", testNb++, COMPRESSIBLE_NOISE_LENGTH);
@@ -247,18 +242,12 @@ static size_t findDiff(const void* buf1, const void* buf2, size_t max)
 {
     const BYTE* b1 = (const BYTE*)buf1;
     const BYTE* b2 = (const BYTE*)buf2;
-    size_t i;
-    for (i=0; i<max; i++) {
-        if (b1[i] != b2[i]) break;
+    size_t u;
+    for (u=0; u<max; u++) {
+        if (b1[u] != b2[u]) break;
     }
-    return i;
+    return u;
 }
-
-#define MIN(a,b)   ( (a) < (b) ? (a) : (b) )
-
-#define CHECK(cond, ...) if (cond) { DISPLAY("Error => "); DISPLAY(__VA_ARGS__); \
-                         DISPLAY(" (seed %u, test nb %u)  \n", seed, testNb); goto _output_error; }
-
 
 static size_t FUZ_rLogLength(U32* seed, U32 logLength)
 {
@@ -271,6 +260,11 @@ static size_t FUZ_randomLength(U32* seed, U32 maxLog)
     U32 const logLength = FUZ_rand(seed) % maxLog;
     return FUZ_rLogLength(seed, logLength);
 }
+
+#define MIN(a,b)   ( (a) < (b) ? (a) : (b) )
+
+#define CHECK(cond, ...) if (cond) { DISPLAY("Error => "); DISPLAY(__VA_ARGS__); \
+                         DISPLAY(" (seed %u, test nb %u)  \n", seed, testNb); goto _output_error; }
 
 static int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compressibility)
 {
@@ -594,7 +588,7 @@ int main(int argc, const char** argv)
     }   }   }   /* for(argNb=1; argNb<argc; argNb++) */
 
     /* Get Seed */
-    DISPLAY("Starting zstd_buffered tester (%i-bits, %s)\n", (int)(sizeof(size_t)*8), ZSTD_VERSION);
+    DISPLAY("Starting zstd_buffered tester (%i-bits, %s)\n", (int)(sizeof(size_t)*8), ZSTD_VERSION_STRING);
 
     if (!seedset) seed = FUZ_GetMilliStart() % 10000;
     DISPLAY("Seed = %u\n", seed);

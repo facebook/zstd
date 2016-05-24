@@ -436,21 +436,6 @@ extern "C" {
 ***************************************/
 #define ZSTDv05_WINDOWLOG_ABSOLUTEMIN 11
 
-/* from faster to stronger */
-typedef enum { ZSTDv05_fast, ZSTDv05_greedy, ZSTDv05_lazy, ZSTDv05_lazy2, ZSTDv05_btlazy2, ZSTDv05_opt, ZSTDv05_btopt } ZSTDv05_strategy;
-
-typedef struct
-{
-    U64 srcSize;       /* optional : tells how much bytes are present in the frame. Use 0 if not known. */
-    U32 windowLog;     /* largest match distance : larger == more compression, more memory needed during decompression */
-    U32 contentLog;    /* full search segment : larger == more compression, slower, more memory (useless for fast) */
-    U32 hashLog;       /* dispatch table : larger == faster, more memory */
-    U32 searchLog;     /* nb of searches : larger == more compression, slower */
-    U32 searchLength;  /* match length searched : larger == faster decompression, sometimes less compression */
-    U32 targetLength;  /* acceptable match size for optimal parser (only) : larger == more compression, slower */
-    ZSTDv05_strategy strategy;
-} ZSTDv05_parameters;
-
 
 /*-*************************************
 *  Advanced functions

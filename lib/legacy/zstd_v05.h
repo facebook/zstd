@@ -40,7 +40,7 @@ extern "C" {
 *  Dependencies
 ***************************************/
 #include <stddef.h>   /* size_t */
-
+#include "mem.h"      /* U64, U32 */
 
 
 /* *************************************
@@ -91,6 +91,14 @@ size_t ZSTDv05_decompress_usingDict(ZSTDv05_DCtx* dctx,
 /*-************************
 *  Advanced Streaming API
 ***************************/
+typedef enum { ZSTDv05_fast, ZSTDv05_greedy, ZSTDv05_lazy, ZSTDv05_lazy2, ZSTDv05_btlazy2, ZSTDv05_opt, ZSTDv05_btopt } ZSTDv05_strategy;
+typedef struct {
+    U64 srcSize;
+    U32 windowLog;     /* the only useful information to retrieve */
+    U32 contentLog; U32 hashLog; U32 searchLog; U32 searchLength; U32 targetLength; ZSTDv05_strategy strategy;
+} ZSTDv05_parameters;
+size_t ZSTDv05_getFrameParams(ZSTDv05_parameters* params, const void* src, size_t srcSize);
+
 size_t ZSTDv05_decompressBegin_usingDict(ZSTDv05_DCtx* dctx, const void* dict, size_t dictSize);
 void   ZSTDv05_copyDCtx(ZSTDv05_DCtx* dstDCtx, const ZSTDv05_DCtx* srcDCtx);
 size_t ZSTDv05_nextSrcSizeToDecompress(ZSTDv05_DCtx* dctx);

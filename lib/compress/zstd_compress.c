@@ -973,7 +973,7 @@ static size_t ZSTD_count(const BYTE* pIn, const BYTE* pMatch, const BYTE* pInLim
     const BYTE* const pStart = pIn;
 
     while ((pIn<pInLimit-(sizeof(size_t)-1))) {
-        size_t diff = MEM_readST(pMatch) ^ MEM_readST(pIn);
+        size_t const diff = MEM_readST(pMatch) ^ MEM_readST(pIn);
         if (!diff) { pIn+=sizeof(size_t); pMatch+=sizeof(size_t); continue; }
         pIn += ZSTD_NbCommonBytes(diff);
         return (size_t)(pIn - pStart);
@@ -990,10 +990,8 @@ static size_t ZSTD_count(const BYTE* pIn, const BYTE* pMatch, const BYTE* pInLim
 */
 static size_t ZSTD_count_2segments(const BYTE* ip, const BYTE* match, const BYTE* iEnd, const BYTE* mEnd, const BYTE* iStart)
 {
-    size_t matchLength;
-    const BYTE* vEnd = ip + (mEnd - match);
-    if (vEnd > iEnd) vEnd = iEnd;
-    matchLength = ZSTD_count(ip, match, vEnd);
+    const BYTE* const vEnd = MIN( ip + (mEnd - match), iEnd);
+    size_t matchLength = ZSTD_count(ip, match, vEnd);
     if (match + matchLength == mEnd)
         matchLength += ZSTD_count(ip+matchLength, iStart, iEnd);
     return matchLength;
@@ -2464,7 +2462,7 @@ size_t ZSTD_compress(void* dst, size_t dstCapacity, const void* src, size_t srcS
 
 /*-=====  Pre-defined compression levels  =====-*/
 
-#define ZSTD_DEFAULT_CLEVEL 5
+#define ZSTD_DEFAULT_CLEVEL 1
 #define ZSTD_MAX_CLEVEL     22
 unsigned ZSTD_maxCLevel(void) { return ZSTD_MAX_CLEVEL; }
 
@@ -2575,17 +2573,16 @@ static const ZSTD_compressionParameters ZSTD_defaultCParameters[4][ZSTD_MAX_CLEV
 },
 };
 
-/*! ZSTD_getParams() :
-*   @return ZSTD_parameters structure for a selected compression level and srcSize.
-*   `srcSize` value is optional, select 0 if not known */
+/*! ZSTD_getCParams() :
+*   @return ZSTD_compressionParameters structure for a selected compression level, `srcSize` and `dictSize`.
+*   Size values are optional, provide 0 if not known or unused */
 ZSTD_compressionParameters ZSTD_getCParams(int compressionLevel, U64 srcSize, size_t dictSize)
 {
     ZSTD_compressionParameters cp;
     size_t const addedSize = srcSize ? 0 : 500;
     U64 const rSize = srcSize+dictSize ? srcSize+dictSize+addedSize : (U64)-1;
     U32 const tableID = (rSize <= 256 KB) + (rSize <= 128 KB) + (rSize <= 16 KB);   /* intentional underflow for srcSizeHint == 0 */
-    if (compressionLevel < 0) compressionLevel = ZSTD_DEFAULT_CLEVEL;
-    if (compressionLevel==0) compressionLevel = 1;
+    if (compressionLevel <= 0) compressionLevel = ZSTD_DEFAULT_CLEVEL;   /* 0 == default; no negative compressionLevel yet */
     if (compressionLevel > ZSTD_MAX_CLEVEL) compressionLevel = ZSTD_MAX_CLEVEL;
     cp = ZSTD_defaultCParameters[tableID][compressionLevel];
     if (MEM_32bits()) {   /* auto-correction, for 32-bits mode */

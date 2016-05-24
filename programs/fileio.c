@@ -130,6 +130,8 @@ static U32 g_overwrite = 0;
 void FIO_overwriteMode(void) { g_overwrite=1; }
 static U32 g_maxWLog = 23;
 void FIO_setMaxWLog(unsigned maxWLog) { g_maxWLog = maxWLog; }
+static U32 g_sparseFileSupport = 1;   /* 0 : no sparse allowed; 1: auto (file yes, stdout no); 2: force sparse */
+void FIO_setSparseWrite(unsigned sparse) { g_sparseFileSupport=sparse; }
 
 
 /*-*************************************
@@ -178,6 +180,10 @@ static FILE* FIO_openDstFile(const char* dstFileName)
         DISPLAYLEVEL(4,"Using stdout for output\n");
         f = stdout;
         SET_BINARY_MODE(stdout);
+        if (g_sparseFileSupport==1) {
+            g_sparseFileSupport = 0;
+            DISPLAYLEVEL(4, "Sparse File Support is automatically disabled on stdout ; try --sparse \n");
+        }
     } else {
         if (!g_overwrite) {  /* Check if destination file already exists */
             f = fopen( dstFileName, "rb" );
@@ -189,8 +195,7 @@ static FILE* FIO_openDstFile(const char* dstFileName)
                     return 0;
                 }
                 DISPLAY("zstd: %s already exists; do you wish to overwrite (y/N) ? ", dstFileName);
-                {
-                    int ch = getchar();
+                {   int ch = getchar();
                     if ((ch!='Y') && (ch!='y')) {
                         DISPLAY("    not overwritten  \n");
                         return 0;
@@ -513,6 +518,81 @@ static void FIO_freeDResources(dRess_t ress)
 }
 
 
+/** FIO_fwriteSparse() :
+*   @return : storedSkips, to be provided to next call to FIO_fwriteSparse() of LZ4IO_fwriteSparseEnd() */
+static unsigned FIO_fwriteSparse(FILE* file, const void* buffer, size_t bufferSize, unsigned storedSkips)
+{
+    const size_t* const bufferT = (const size_t*)buffer;   /* Buffer is supposed malloc'ed, hence aligned on size_t */
+    size_t bufferSizeT = bufferSize / sizeof(size_t);
+    const size_t* const bufferTEnd = bufferT + bufferSizeT;
+    const size_t* ptrT = bufferT;
+    static const size_t segmentSizeT = (32 KB) / sizeof(size_t);   /* 0-test re-attempted every 32 KB */
+
+    if (!g_sparseFileSupport) {  /* normal write */
+        size_t const sizeCheck = fwrite(buffer, 1, bufferSize, file);
+        if (sizeCheck != bufferSize) EXM_THROW(70, "Write error : cannot write decoded block");
+        return 0;
+    }
+
+    /* avoid int overflow */
+    if (storedSkips > 1 GB) {
+        int const seekResult = fseek(file, 1 GB, SEEK_CUR);
+        if (seekResult != 0) EXM_THROW(71, "1 GB skip error (sparse file support)");
+        storedSkips -= 1 GB;
+    }
+
+    while (ptrT < bufferTEnd) {
+        size_t seg0SizeT = segmentSizeT;
+        size_t nb0T;
+
+        /* count leading zeros */
+        if (seg0SizeT > bufferSizeT) seg0SizeT = bufferSizeT;
+        bufferSizeT -= seg0SizeT;
+        for (nb0T=0; (nb0T < seg0SizeT) && (ptrT[nb0T] == 0); nb0T++) ;
+        storedSkips += (unsigned)(nb0T * sizeof(size_t));
+
+        if (nb0T != seg0SizeT) {   /* not all 0s */
+            int const seekResult = fseek(file, storedSkips, SEEK_CUR);
+            if (seekResult) EXM_THROW(72, "Sparse skip error ; try --no-sparse");
+            storedSkips = 0;
+            seg0SizeT -= nb0T;
+            ptrT += nb0T;
+            {   size_t const sizeCheck = fwrite(ptrT, sizeof(size_t), seg0SizeT, file);
+                if (sizeCheck != seg0SizeT) EXM_THROW(73, "Write error : cannot write decoded block");
+        }   }
+        ptrT += seg0SizeT;
+    }
+
+    {   static size_t const maskT = sizeof(size_t)-1;
+        if (bufferSize & maskT) {   /* size not multiple of sizeof(size_t) : implies end of block */
+            const char* const restStart = (const char*)bufferTEnd;
+            const char* restPtr = restStart;
+            size_t restSize =  bufferSize & maskT;
+            const char* const restEnd = restStart + restSize;
+            for ( ; (restPtr < restEnd) && (*restPtr == 0); restPtr++) ;
+            storedSkips += (unsigned) (restPtr - restStart);
+            if (restPtr != restEnd) {
+                int seekResult = fseek(file, storedSkips, SEEK_CUR);
+                if (seekResult) EXM_THROW(74, "Sparse skip error ; try --no-sparse");
+                storedSkips = 0;
+                {   size_t const sizeCheck = fwrite(restPtr, 1, restEnd - restPtr, file);
+                    if (sizeCheck != (size_t)(restEnd - restPtr)) EXM_THROW(75, "Write error : cannot write decoded end of block");
+    }   }   }   }
+
+    return storedSkips;
+}
+
+static void FIO_fwriteSparseEnd(FILE* file, unsigned storedSkips)
+{
+    if (storedSkips-->0) {   /* implies g_sparseFileSupport>0 */
+        int const seekResult = fseek(file, storedSkips, SEEK_CUR);
+        if (seekResult != 0) EXM_THROW(69, "Final skip error (sparse file)\n");
+        {   const char lastZeroByte[1] = { 0 };
+            size_t const sizeCheck = fwrite(lastZeroByte, 1, 1, file);
+            if (sizeCheck != 1) EXM_THROW(69, "Write error : cannot write last zero\n");
+    }   }
+}
+
 /** FIO_decompressFrame() :
     @return : size of decoded frame
 */
@@ -521,6 +601,7 @@ unsigned long long FIO_decompressFrame(dRess_t ress,
 {
     U64    frameSize = 0;
     size_t readSize;
+    U32 storedSkips = 0;
 
     ZBUFF_decompressInitDictionary(ress.dctx, ress.dictBuffer, ress.dictBufferSize);
 
@@ -539,8 +620,7 @@ unsigned long long FIO_decompressFrame(dRess_t ress,
         readSize -= inSize;
 
         /* Write block */
-        { size_t const sizeCheck = fwrite(ress.dstBuffer, 1, decodedSize, foutput);
-          if (sizeCheck != decodedSize) EXM_THROW(37, "Write error : unable to write data block into destination"); }
+        storedSkips = FIO_fwriteSparse(foutput, ress.dstBuffer, decodedSize, storedSkips);
         frameSize += decodedSize;
         DISPLAYUPDATE(2, "\rDecoded : %u MB...     ", (U32)(frameSize>>20) );
 
@@ -554,7 +634,31 @@ unsigned long long FIO_decompressFrame(dRess_t ress,
             EXM_THROW(35, "Read error");
     }
 
+    FIO_fwriteSparseEnd(foutput, storedSkips);
+
     return frameSize;
+}
+
+
+/** FIO_passThrough() : just copy input into output, for compatibility with gzip -df mode
+    @return : 0 (no error) */
+static unsigned FIO_passThrough(FILE* foutput, FILE* finput, void* buffer, size_t bufferSize)
+{
+    size_t const blockSize = MIN (64 KB, bufferSize);
+    size_t readFromInput = 1;
+    unsigned storedSkips = 0;
+
+    /* assumption : first 4 bytes already loaded (magic number detection), and stored within buffer */
+    { size_t const sizeCheck = fwrite(buffer, 1, 4, foutput);
+      if (sizeCheck != 4) EXM_THROW(50, "Pass-through write error"); }
+
+    while (readFromInput) {
+        readFromInput = fread(buffer, 1, blockSize, finput);
+        storedSkips = FIO_fwriteSparse(foutput, buffer, readFromInput, storedSkips);
+    }
+
+    FIO_fwriteSparseEnd(foutput, storedSkips);
+    return 0;
 }
 
 
@@ -585,9 +689,12 @@ static int FIO_decompressSrcFile(dRess_t ress, const char* srcFileName)
             }
 #endif
             if (magic !=  ZSTD_MAGICNUMBER) {
-                DISPLAYLEVEL(1, "zstd: %s: not in zstd format \n", srcFileName);
-                return 1;
-        }   }
+                if (g_overwrite)   /* -df : pass-through mode */
+                    return FIO_passThrough(dstFile, srcFile, ress.srcBuffer, ress.srcBufferSize);
+                else {
+                    DISPLAYLEVEL(1, "zstd: %s: not in zstd format \n", srcFileName);
+                    return 1;
+        }   }   }
         filesize += FIO_decompressFrame(ress, dstFile, srcFile, toRead);
     }
 

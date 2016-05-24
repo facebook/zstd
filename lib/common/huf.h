@@ -77,6 +77,7 @@ HUF_decompress() :
 /* ****************************************
 *  Tool functions
 ******************************************/
+#define HUF_BLOCKSIZE_MAX (128 * 1024)
 size_t HUF_compressBound(size_t size);       /**< maximum compressed size */
 
 /* Error Management */

@@ -95,14 +95,39 @@ struct ZBUFF_CCtx_s {
     size_t outBuffContentSize;
     size_t outBuffFlushedSize;
     ZBUFF_cStage stage;
+    ZSTD_allocFunction customAlloc;
+    ZSTD_freeFunction customFree;
 };   /* typedef'd tp ZBUFF_CCtx within "zstd_buffered.h" */
 
 ZBUFF_CCtx* ZBUFF_createCCtx(void)
 {
-    ZBUFF_CCtx* zbc = (ZBUFF_CCtx*)malloc(sizeof(ZBUFF_CCtx));
+    ZSTD_customMem customMem = { NULL, NULL };
+    return ZBUFF_createCCtx_advanced(customMem);
+}
+
+ZBUFF_CCtx* ZBUFF_createCCtx_advanced(ZSTD_customMem customMem)
+{
+    ZBUFF_CCtx* zbc;
+
+    if (!customMem.customAlloc && !customMem.customFree)
+    {
+        zbc = (ZBUFF_CCtx*)calloc(1, sizeof(ZBUFF_CCtx));
+        if (zbc==NULL) return NULL;
+        zbc->customAlloc = malloc;
+        zbc->customFree = free;
+        zbc->zc = ZSTD_createCCtx();
+        return zbc;
+    }
+
+    if (!customMem.customAlloc || !customMem.customFree)
+        return NULL;
+
+    zbc = (ZBUFF_CCtx*)customMem.customAlloc(sizeof(ZBUFF_CCtx));
     if (zbc==NULL) return NULL;
-    memset(zbc, 0, sizeof(*zbc));
-    zbc->zc = ZSTD_createCCtx();
+    memset(zbc, 0, sizeof(ZBUFF_CCtx));
+    zbc->customAlloc = customMem.customAlloc; 
+    zbc->customFree = customMem.customFree;
+    zbc->zc = ZSTD_createCCtx_advanced(customMem);
     return zbc;
 }
 
@@ -110,9 +135,9 @@ size_t ZBUFF_freeCCtx(ZBUFF_CCtx* zbc)
 {
     if (zbc==NULL) return 0;   /* support free on NULL */
     ZSTD_freeCCtx(zbc->zc);
-    free(zbc->inBuff);
-    free(zbc->outBuff);
-    free(zbc);
+    zbc->customFree(zbc->inBuff);
+    zbc->customFree(zbc->outBuff);
+    zbc->customFree(zbc);
     return 0;
 }
 
@@ -127,16 +152,16 @@ size_t ZBUFF_compressInit_advanced(ZBUFF_CCtx* zbc,
     {   size_t const neededInBuffSize = (size_t)1 << params.cParams.windowLog;
         if (zbc->inBuffSize < neededInBuffSize) {
             zbc->inBuffSize = neededInBuffSize;
-            free(zbc->inBuff);   /* should not be necessary */
-            zbc->inBuff = (char*)malloc(neededInBuffSize);
+            zbc->customFree(zbc->inBuff);   /* should not be necessary */
+            zbc->inBuff = (char*)zbc->customAlloc(neededInBuffSize);
             if (zbc->inBuff == NULL) return ERROR(memory_allocation);
         }
         zbc->blockSize = MIN(ZSTD_BLOCKSIZE_MAX, neededInBuffSize/2);
     }
     if (zbc->outBuffSize < ZSTD_compressBound(zbc->blockSize)+1) {
         zbc->outBuffSize = ZSTD_compressBound(zbc->blockSize)+1;
-        free(zbc->outBuff);   /* should not be necessary */
-        zbc->outBuff = (char*)malloc(zbc->outBuffSize);
+        zbc->customFree(zbc->outBuff);   /* should not be necessary */
+        zbc->outBuff = (char*)zbc->customAlloc(zbc->outBuffSize);
         if (zbc->outBuff == NULL) return ERROR(memory_allocation);
     }
 

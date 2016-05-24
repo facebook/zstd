@@ -186,6 +186,8 @@ MEM_STATIC unsigned ZSTD_highbit(U32 val)
 /*-*******************************************
 *  Private interfaces
 *********************************************/
+typedef struct ZSTD_stats_s ZSTD_stats_t;
+
 typedef struct {
     U32 off;
     U32 len;
@@ -198,16 +200,6 @@ typedef struct {
     U32 litlen;
     U32 rep[ZSTD_REP_INIT];
 } ZSTD_optimal_t;
-
-#if ZSTD_OPT_DEBUG == 3
-    #include ".debug/zstd_stats.h"
-#else
-    typedef struct { U32  unused; } ZSTD_stats_t;
-    MEM_STATIC void ZSTD_statsPrint(ZSTD_stats_t* stats, U32 searchLength) { (void)stats; (void)searchLength; }
-    MEM_STATIC void ZSTD_statsInit(ZSTD_stats_t* stats) { (void)stats; }
-    MEM_STATIC void ZSTD_statsResetFreqs(ZSTD_stats_t* stats) { (void)stats; }
-    MEM_STATIC void ZSTD_statsUpdatePrices(ZSTD_stats_t* stats, size_t litLength, const BYTE* literals, size_t offset, size_t matchLength) { (void)stats; (void)litLength; (void)literals; (void)offset; (void)matchLength; }
-#endif
 
 typedef struct {
     void* buffer;
@@ -245,7 +237,7 @@ typedef struct {
     U32  cachedPrice;
     U32  cachedLitLength;
     const BYTE* cachedLiterals;
-    ZSTD_stats_t stats;
+    ZSTD_stats_t* stats;
 } seqStore_t;
 
 const seqStore_t* ZSTD_getSeqStore(const ZSTD_CCtx* ctx);

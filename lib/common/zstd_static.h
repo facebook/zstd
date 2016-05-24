@@ -94,10 +94,22 @@ typedef struct {
     ZSTD_frameParameters fParams;
 } ZSTD_parameters;
 
+typedef void* (*ZSTD_allocFunction) (size_t size);
+typedef void  (*ZSTD_freeFunction) (void* address);
+typedef struct { ZSTD_allocFunction customAlloc; ZSTD_freeFunction customFree; } ZSTD_customMem;
+
 
 /*-*************************************
 *  Advanced functions
 ***************************************/
+/*! ZSTD_createCCtx_advanced() :
+ *  Create a ZSTD compression context using external alloc and free functions */ 
+ZSTDLIB_API ZSTD_CCtx* ZSTD_createCCtx_advanced(ZSTD_customMem customMem);
+
+/*! ZSTD_createDCtx_advanced() :
+ *  Create a ZSTD decompression context using external alloc and free functions */ 
+ZSTDLIB_API ZSTD_DCtx* ZSTD_createDCtx_advanced(ZSTD_customMem customMem);
+
 ZSTDLIB_API unsigned ZSTD_maxCLevel (void);
 
 /*! ZSTD_getCParams() :

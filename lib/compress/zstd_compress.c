@@ -57,7 +57,6 @@
 #include "fse_static.h"
 #include "huf_static.h"
 #include "zstd_internal.h"
-#include ".debug/zstd_stats.h"
 
 
 /*-*************************************
@@ -888,7 +887,7 @@ MEM_STATIC void ZSTD_storeSeq(seqStore_t* seqStorePtr, size_t litLength, const B
         printf("Cpos %6u :%5u literals & match %3u bytes at distance %6u \n",
                pos, (U32)litLength, (U32)matchCode+MINMATCH, (U32)offsetCode);
 #endif
-    ZSTD_statsUpdatePrices(seqStorePtr->stats, litLength, literals, offsetCode, matchCode);
+    ZSTD_statsUpdatePrices(&seqStorePtr->stats, litLength, literals, offsetCode, matchCode);
 
     /* copy Literals */
     ZSTD_wildcopy(seqStorePtr->lit, literals, litLength);
@@ -1780,7 +1779,7 @@ _storeSequence:
     {   size_t const lastLLSize = iend - anchor;
         memcpy(seqStorePtr->lit, anchor, lastLLSize);
         seqStorePtr->lit += lastLLSize;
-        ZSTD_statsUpdatePrices(seqStorePtr->stats, lastLLSize, anchor, 0, 0);
+        ZSTD_statsUpdatePrices(&seqStorePtr->stats, lastLLSize, anchor, 0, 0);
     }
 }
 
@@ -2052,15 +2051,14 @@ static size_t ZSTD_compress_generic (ZSTD_CCtx* zc,
     BYTE* const ostart = (BYTE*)dst;
     BYTE* op = ostart;
     const U32 maxDist = 1 << zc->params.cParams.windowLog;
-    ZSTD_stats_t* stats = ZSTD_statsAlloc();
-    zc->seqStore.stats = stats;
+    ZSTD_stats_t* stats = &zc->seqStore.stats;
     ZSTD_statsInit(stats);
 
     while (remaining) {
         size_t cSize;
         ZSTD_statsResetFreqs(stats);
 
-        if (dstCapacity < ZSTD_blockHeaderSize + MIN_CBLOCK_SIZE) { ZSTD_statsFree(stats); return ERROR(dstSize_tooSmall); }   /* not enough space to store compressed block */
+        if (dstCapacity < ZSTD_blockHeaderSize + MIN_CBLOCK_SIZE) return ERROR(dstSize_tooSmall);   /* not enough space to store compressed block */
         if (remaining < blockSize) blockSize = remaining;
 
         if ((U32)(ip+blockSize - zc->base) > zc->loadedDictEnd + maxDist) {
@@ -2071,11 +2069,11 @@ static size_t ZSTD_compress_generic (ZSTD_CCtx* zc,
         }
 
         cSize = ZSTD_compressBlock_internal(zc, op+ZSTD_blockHeaderSize, dstCapacity-ZSTD_blockHeaderSize, ip, blockSize);
-        if (ZSTD_isError(cSize)) { ZSTD_statsFree(stats); return cSize; }
+        if (ZSTD_isError(cSize)) return cSize;
 
         if (cSize == 0) {  /* block is not compressible */
             cSize = ZSTD_noCompressBlock(op, dstCapacity, ip, blockSize);
-            if (ZSTD_isError(cSize)) { ZSTD_statsFree(stats); return cSize; }
+            if (ZSTD_isError(cSize)) return cSize;
         } else {
             op[0] = (BYTE)(cSize>>16);
             op[1] = (BYTE)(cSize>>8);
@@ -2091,7 +2089,6 @@ static size_t ZSTD_compress_generic (ZSTD_CCtx* zc,
     }
 
     ZSTD_statsPrint(stats, zc->params.cParams.searchLength);
-    ZSTD_statsFree(stats);
     return op-ostart;
 }
 

@@ -47,9 +47,12 @@ $ZSTD -q tmp && die "overwrite check failed!"
 $ZSTD -q -f tmp
 $ZSTD -q --force tmp
 $ZSTD -df tmp && die "should have refused : wrong extension"
-cp tmp tmp2.zst
-$ZSTD -df tmp2.zst && die "should have failed : wrong format"
-rm tmp2.zst
+
+
+echo -e "\n**** Pass-Through mode **** "
+echo "Hello world !" | $ZSTD -df
+echo "Hello world !" | $ZSTD -dcf
+
 
 echo -e "\n**** frame concatenation **** "
 
@@ -64,7 +67,34 @@ cat result.tmp
 fc helloworld.tmp result.tmp
 rm ./*.tmp ./*.zstd
 
-echo frame concatenation test completed
+echo frame concatenation tests completed
+
+
+echo -e "\n**** test sparse file support **** "
+
+./datagen -g5M  -P100 > tmpSparse
+$ZSTD tmpSparse -c | $ZSTD -dv -o tmpSparseRegen
+fc tmpSparse tmpSparseRegen
+$ZSTD tmpSparse -c | $ZSTD -dv --sparse -c > tmpOutSparse
+fc tmpSparse tmpOutSparse
+$ZSTD tmpSparse -c | $ZSTD -dv --no-sparse -c > tmpOutNoSparse
+fc tmpSparse tmpOutNoSparse
+ls -ls tmpSparse*
+./datagen -s1 -g1200007 -P100 | $ZSTD | $ZSTD -dv --sparse -c > tmpSparseOdd   # Odd size file (to not finish on an exact nb of blocks)
+./datagen -s1 -g1200007 -P100 | fc - tmpSparseOdd
+ls -ls tmpSparseOdd
+echo -e "\n Sparse Compatibility with Console :"
+echo "Hello World 1 !" | $ZSTD | $ZSTD -d -c
+echo "Hello World 2 !" | $ZSTD | $ZSTD -d | cat
+echo -e "\n Sparse Compatibility with Append :"
+./datagen -P100 -g1M > tmpSparse1M
+cat tmpSparse1M tmpSparse1M > tmpSparse2M
+$ZSTD -v -f tmpSparse1M -o tmpSparseCompressed
+$ZSTD -d -v -f tmpSparseCompressed -o tmpSparseRegenerated
+$ZSTD -d -v -f tmpSparseCompressed -c >> tmpSparseRegenerated
+ls -ls tmpSparse*
+fc tmpSparse2M tmpSparseRegenerated
+
 
 
 echo -e "\n**** dictionary tests **** "

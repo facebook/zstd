@@ -163,7 +163,11 @@ clean:
 
 #------------------------------------------------------------------------
 #make install is validated only for Linux, OSX, kFreeBSD and Hurd targets
+#------------------------------------------------------------------------
 ifneq (,$(filter $(shell uname),Linux Darwin GNU/kFreeBSD GNU))
+HOST_OS = POSIX
+zstd-playTests: datagen
+	ZSTD=$(ZSTD) ./tests/playTests.sh $(ZSTDRTTEST)
 
 install: zstd
 	@echo Installing binaries
@@ -186,14 +190,40 @@ uninstall:
 	[ -f $(DESTDIR)$(MANDIR)/zstd.1 ] && rm -f $(DESTDIR)$(MANDIR)/zstd.1
 	@echo zstd programs successfully uninstalled
 
+valgrindTest: VALGRIND = valgrind --leak-check=full --error-exitcode=1
+valgrindTest: zstd datagen fuzzer fullbench zbufftest
+	@echo "\n ---- valgrind tests : memory analyzer ----"
+	$(VALGRIND) ./datagen -g50M > $(VOID)
+	$(VALGRIND) ./zstd ; if [ $$? -eq 0 ] ; then echo "zstd without argument should have failed"; false; fi
+	./datagen -g80 | $(VALGRIND) ./zstd - -c > $(VOID)
+	./datagen -g16KB | $(VALGRIND) ./zstd -vf - -o $(VOID)
+	./datagen -g2930KB | $(VALGRIND) ./zstd -5 -vf - -o tmp
+	$(VALGRIND) ./zstd -vdf tmp -o $(VOID)
+	./datagen -g64MB | $(VALGRIND) ./zstd -vf - -o $(VOID)
+	@rm tmp
+	$(VALGRIND) ./fuzzer -T1mn -t1
+	$(VALGRIND) ./fullbench -i1
+	$(VALGRIND) ./zbufftest -T1mn
+
+endif
+
+
+ifneq (,$(filter MSYS%,$(shell uname)))
+HOST_OS = MSYS
+zstd-playTests: datagen
+	ZSTD=$(ZSTD) ./tests/playTestsMSYS.sh $(ZSTDRTTEST)
+endif
+
+
+#------------------------------------------------------------------------
+#make tests validated only for MSYS, Linux, OSX, kFreeBSD and Hurd targets
+#------------------------------------------------------------------------
+ifneq (,$(filter $(HOST_OS),MSYS POSIX))
 test: test-zstd test-fullbench test-fuzzer test-zbuff
 
 test32: test-zstd32 test-fullbench32 test-fuzzer32 test-zbuff32
 
 test-all: test test32 valgrindTest
-
-zstd-playTests: datagen
-	ZSTD=$(ZSTD) ./playTests.sh $(ZSTDRTTEST)
 
 test-zstd: ZSTD = ./zstd
 test-zstd: zstd zstd-playTests
@@ -223,20 +253,4 @@ test-zbuff: zbufftest
 
 test-zbuff32: zbufftest32
 	./zbufftest32 $(ZBUFFTEST)
-
-valgrindTest: VALGRIND = valgrind --leak-check=full --error-exitcode=1
-valgrindTest: zstd datagen fuzzer fullbench zbufftest
-	@echo "\n ---- valgrind tests : memory analyzer ----"
-	$(VALGRIND) ./datagen -g50M > $(VOID)
-	$(VALGRIND) ./zstd ; if [ $$? -eq 0 ] ; then echo "zstd without argument should have failed"; false; fi
-	./datagen -g80 | $(VALGRIND) ./zstd - -c > $(VOID)
-	./datagen -g16KB | $(VALGRIND) ./zstd -vf - -o $(VOID)
-	./datagen -g2930KB | $(VALGRIND) ./zstd -5 -vf - -o tmp
-	$(VALGRIND) ./zstd -vdf tmp -o $(VOID)
-	./datagen -g64MB | $(VALGRIND) ./zstd -vf - -o $(VOID)
-	@rm tmp
-	$(VALGRIND) ./fuzzer -T1mn -t1
-	$(VALGRIND) ./fullbench -i1
-	$(VALGRIND) ./zbufftest -T1mn
-
 endif

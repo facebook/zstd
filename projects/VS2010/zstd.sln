@@ -9,6 +9,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "fullbench", "fullbench\full
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "zstdlib", "zstdlib\zstdlib.vcxproj", "{8BFD8150-94D5-4BF9-8A50-7BD9929A0850}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "datagen", "datagen\datagen.vcxproj", "{037E781E-81A6-494B-B1B3-438AB1200523}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Win32 = Debug|Win32
@@ -49,6 +51,14 @@ Global
 		{8BFD8150-94D5-4BF9-8A50-7BD9929A0850}.Release|Win32.Build.0 = Release|Win32
 		{8BFD8150-94D5-4BF9-8A50-7BD9929A0850}.Release|x64.ActiveCfg = Release|x64
 		{8BFD8150-94D5-4BF9-8A50-7BD9929A0850}.Release|x64.Build.0 = Release|x64
+		{037E781E-81A6-494B-B1B3-438AB1200523}.Debug|Win32.ActiveCfg = Debug|Win32
+		{037E781E-81A6-494B-B1B3-438AB1200523}.Debug|Win32.Build.0 = Debug|Win32
+		{037E781E-81A6-494B-B1B3-438AB1200523}.Debug|x64.ActiveCfg = Debug|x64
+		{037E781E-81A6-494B-B1B3-438AB1200523}.Debug|x64.Build.0 = Debug|x64
+		{037E781E-81A6-494B-B1B3-438AB1200523}.Release|Win32.ActiveCfg = Release|Win32
+		{037E781E-81A6-494B-B1B3-438AB1200523}.Release|Win32.Build.0 = Release|Win32
+		{037E781E-81A6-494B-B1B3-438AB1200523}.Release|x64.ActiveCfg = Release|x64
+		{037E781E-81A6-494B-B1B3-438AB1200523}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

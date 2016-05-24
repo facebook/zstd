@@ -57,6 +57,7 @@
 #include "fse_static.h"
 #include "huf_static.h"
 #include "zstd_internal.h"
+#include ".debug/zstd_stats.h"
 
 
 /*-*************************************
@@ -103,6 +104,8 @@ struct ZSTD_CCtx_s
     void* workSpace;
     size_t workSpaceSize;
     size_t blockSize;
+    ZSTD_allocFunction customAlloc;
+    ZSTD_freeFunction customFree;
 
     seqStore_t seqStore;    /* sequences storage ptrs */
     U32* hashTable;
@@ -117,13 +120,40 @@ struct ZSTD_CCtx_s
 
 ZSTD_CCtx* ZSTD_createCCtx(void)
 {
-    return (ZSTD_CCtx*) calloc(1, sizeof(ZSTD_CCtx));
+    ZSTD_customMem customMem = { NULL, NULL };
+    return ZSTD_createCCtx_advanced(customMem);
+}
+
+ZSTD_CCtx* ZSTD_createCCtx_advanced(ZSTD_customMem customMem)
+{
+    ZSTD_CCtx* ctx;
+
+    if (!customMem.customAlloc && !customMem.customFree)
+    {
+        ctx = (ZSTD_CCtx*) calloc(1, sizeof(ZSTD_CCtx));
+        if (!ctx) return NULL;
+
+        ctx->customAlloc = malloc;
+        ctx->customFree = free;
+        return ctx;
+    }
+
+    if (!customMem.customAlloc || !customMem.customFree)
+        return NULL;
+
+    ctx = (ZSTD_CCtx*) customMem.customAlloc(sizeof(ZSTD_CCtx));
+    if (!ctx) return NULL;
+
+    memset(ctx, 0, sizeof(ZSTD_CCtx));
+    ctx->customAlloc = customMem.customAlloc; 
+    ctx->customFree = customMem.customFree;
+    return ctx;
 }
 
 size_t ZSTD_freeCCtx(ZSTD_CCtx* cctx)
 {
-    free(cctx->workSpace);
-    free(cctx);
+    cctx->customFree(cctx->workSpace);
+    cctx->customFree(cctx);
     return 0;   /* reserved as a potential error code in the future */
 }
 
@@ -228,8 +258,8 @@ static size_t ZSTD_resetCCtx_advanced (ZSTD_CCtx* zc,
         size_t const neededSpace = tableSpace + (256*sizeof(U32)) /* huffTable */ + tokenSpace
                               + ((params.cParams.strategy == ZSTD_btopt) ? optSpace : 0);
         if (zc->workSpaceSize < neededSpace) {
-            free(zc->workSpace);
-            zc->workSpace = malloc(neededSpace);
+            zc->customFree(zc->workSpace);
+            zc->workSpace = zc->customAlloc(neededSpace);
             if (zc->workSpace == NULL) return ERROR(memory_allocation);
             zc->workSpaceSize = neededSpace;
     }   }
@@ -285,7 +315,9 @@ size_t ZSTD_copyCCtx(ZSTD_CCtx* dstCCtx, const ZSTD_CCtx* srcCCtx)
 {
     if (srcCCtx->stage!=1) return ERROR(stage_wrong);
 
-    dstCCtx->hashLog3 = srcCCtx->hashLog3; /* must be before ZSTD_resetCCtx_advanced */
+    dstCCtx->hashLog3    = srcCCtx->hashLog3; /* must be before ZSTD_resetCCtx_advanced */
+    dstCCtx->customAlloc = srcCCtx->customAlloc;
+    dstCCtx->customFree  = srcCCtx->customFree;
     ZSTD_resetCCtx_advanced(dstCCtx, srcCCtx->params, 0);
     dstCCtx->params.fParams.contentSizeFlag = 0;   /* content size different from the one set during srcCCtx init */
 
@@ -856,7 +888,7 @@ MEM_STATIC void ZSTD_storeSeq(seqStore_t* seqStorePtr, size_t litLength, const B
         printf("Cpos %6u :%5u literals & match %3u bytes at distance %6u \n",
                pos, (U32)litLength, (U32)matchCode+MINMATCH, (U32)offsetCode);
 #endif
-    ZSTD_statsUpdatePrices(&seqStorePtr->stats, litLength, literals, offsetCode, matchCode);
+    ZSTD_statsUpdatePrices(seqStorePtr->stats, litLength, literals, offsetCode, matchCode);
 
     /* copy Literals */
     ZSTD_wildcopy(seqStorePtr->lit, literals, litLength);
@@ -1748,7 +1780,7 @@ _storeSequence:
     {   size_t const lastLLSize = iend - anchor;
         memcpy(seqStorePtr->lit, anchor, lastLLSize);
         seqStorePtr->lit += lastLLSize;
-        ZSTD_statsUpdatePrices(&seqStorePtr->stats, lastLLSize, anchor, 0, 0);
+        ZSTD_statsUpdatePrices(seqStorePtr->stats, lastLLSize, anchor, 0, 0);
     }
 }
 
@@ -2020,15 +2052,15 @@ static size_t ZSTD_compress_generic (ZSTD_CCtx* zc,
     BYTE* const ostart = (BYTE*)dst;
     BYTE* op = ostart;
     const U32 maxDist = 1 << zc->params.cParams.windowLog;
-    ZSTD_stats_t* stats = &zc->seqStore.stats;
-
+    ZSTD_stats_t* stats = ZSTD_statsAlloc();
+    zc->seqStore.stats = stats;
     ZSTD_statsInit(stats);
 
     while (remaining) {
         size_t cSize;
         ZSTD_statsResetFreqs(stats);
 
-        if (dstCapacity < ZSTD_blockHeaderSize + MIN_CBLOCK_SIZE) return ERROR(dstSize_tooSmall);   /* not enough space to store compressed block */
+        if (dstCapacity < ZSTD_blockHeaderSize + MIN_CBLOCK_SIZE) { ZSTD_statsFree(stats); return ERROR(dstSize_tooSmall); }   /* not enough space to store compressed block */
         if (remaining < blockSize) blockSize = remaining;
 
         if ((U32)(ip+blockSize - zc->base) > zc->loadedDictEnd + maxDist) {
@@ -2039,11 +2071,11 @@ static size_t ZSTD_compress_generic (ZSTD_CCtx* zc,
         }
 
         cSize = ZSTD_compressBlock_internal(zc, op+ZSTD_blockHeaderSize, dstCapacity-ZSTD_blockHeaderSize, ip, blockSize);
-        if (ZSTD_isError(cSize)) return cSize;
+        if (ZSTD_isError(cSize)) { ZSTD_statsFree(stats); return cSize; }
 
         if (cSize == 0) {  /* block is not compressible */
             cSize = ZSTD_noCompressBlock(op, dstCapacity, ip, blockSize);
-            if (ZSTD_isError(cSize)) return cSize;
+            if (ZSTD_isError(cSize)) { ZSTD_statsFree(stats); return cSize; }
         } else {
             op[0] = (BYTE)(cSize>>16);
             op[1] = (BYTE)(cSize>>8);
@@ -2059,6 +2091,7 @@ static size_t ZSTD_compress_generic (ZSTD_CCtx* zc,
     }
 
     ZSTD_statsPrint(stats, zc->params.cParams.searchLength);
+    ZSTD_statsFree(stats);
     return op-ostart;
 }
 
@@ -2424,8 +2457,10 @@ size_t ZSTD_compress(void* dst, size_t dstCapacity, const void* src, size_t srcS
     size_t result;
     ZSTD_CCtx ctxBody;
     memset(&ctxBody, 0, sizeof(ctxBody));
+    ctxBody.customAlloc = malloc;
+    ctxBody.customFree = free;
     result = ZSTD_compressCCtx(&ctxBody, dst, dstCapacity, src, srcSize, compressionLevel);
-    free(ctxBody.workSpace);   /* can't free ctxBody, since it's on stack; just free heap content */
+    ctxBody.customFree(ctxBody.workSpace);   /* can't free ctxBody, since it's on stack; just free heap content */
     return result;
 }
 

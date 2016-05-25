@@ -155,9 +155,6 @@ clean:
 #------------------------------------------------------------------------
 ifneq (,$(filter $(shell uname),Linux Darwin GNU/kFreeBSD GNU))
 HOST_OS = POSIX
-zstd-playTests: datagen
-	ZSTD=$(ZSTD) ./tests/playTests.sh $(ZSTDRTTEST)
-
 install: zstd
 	@echo Installing binaries
 	@install -d -m 755 $(DESTDIR)$(BINDIR)/ $(DESTDIR)$(MANDIR)/
@@ -199,8 +196,6 @@ endif
 
 ifneq (,$(filter MSYS%,$(shell uname)))
 HOST_OS = MSYS
-zstd-playTests: datagen
-	ZSTD=$(ZSTD) ./tests/playTestsMSYS.sh $(ZSTDRTTEST)
 endif
 
 
@@ -208,6 +203,9 @@ endif
 #make tests validated only for MSYS, Linux, OSX, kFreeBSD and Hurd targets
 #------------------------------------------------------------------------
 ifneq (,$(filter $(HOST_OS),MSYS POSIX))
+zstd-playTests: datagen
+	ZSTD=$(ZSTD) ./tests/playTests.sh $(ZSTDRTTEST)
+
 test: test-zstd test-fullbench test-fuzzer test-zbuff
 
 test32: test-zstd32 test-fullbench32 test-fuzzer32 test-zbuff32

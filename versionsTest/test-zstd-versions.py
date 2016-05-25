@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-
+"""Test zstd interoperability between versions"""
 # Based on LZ4 version test script, by Takayuki Matsuoka
 
 import filecmp
@@ -75,7 +75,7 @@ def remove_duplicates():
     for i, ref_zst in enumerate(list_of_zst):
         if not os.path.isfile(ref_zst):
             continue
-        for j in range(i+1, len(list_of_zst)):
+        for j in range(i + 1, len(list_of_zst)):
             compared_zst = list_of_zst[j]
             if not os.path.isfile(compared_zst):
                 continue
@@ -92,8 +92,8 @@ def decompress_zst(tag):
     except ImportError:
         DEVNULL = open(os.devnull, 'wb')
     for file_zst in list_zst:
-        print(file_zst, end=" ")
-        print(tag, end=" ")
+        print(file_zst, end=' ')
+        print(tag, end=' ')
         file_dec = file_zst + '_d64_' + tag + '.dec'
         if subprocess.call(['./zstd.' + tag, '-df', file_zst, '-o', file_dec], stderr=DEVNULL) == 0:
             if not filecmp.cmp(file_dec, test_dat):

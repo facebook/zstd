@@ -35,15 +35,16 @@
 /*-************************************
 *  Includes
 **************************************/
-#include <stdlib.h>      /* free */
-#include <stdio.h>       /* fgets, sscanf */
-#include <sys/timeb.h>   /* timeb */
-#include <string.h>      /* strcmp */
+#include <stdlib.h>       /* free */
+#include <stdio.h>        /* fgets, sscanf */
+#include <sys/timeb.h>    /* timeb */
+#include <string.h>       /* strcmp */
 #include "mem.h"
 #include "zbuff.h"
-#include "zstd_static.h" /* ZSTD_compressBound(), ZSTD_maxCLevel() */
-#include "datagen.h"     /* RDG_genBuffer */
-#include "xxhash.h"      /* XXH64 */
+#include "zstd_static.h"  /* ZSTD_compressBound(), ZSTD_maxCLevel() */
+#include "zbuff_static.h" /* ZBUFF_createCCtx_advanced */
+#include "datagen.h"      /* RDG_genBuffer */
+#include "xxhash.h"       /* XXH64 */
 
 
 /*-************************************
@@ -127,7 +128,20 @@ static unsigned FUZ_highbit32(U32 v32)
 }
 */
 
-static int basicUnitTests(U32 seed, double compressibility)
+void* ZBUFF_allocFunction(size_t size)
+{
+    void* address = malloc(size);
+   /* DISPLAYLEVEL(4, "alloc %p, %d \n", address, (int)size); */
+    return address;
+}
+
+void ZBUFF_freeFunction(void* address)
+{
+    /* if (address) DISPLAYLEVEL(4, "free %p \n", address); */
+    free(address);
+}
+
+static int basicUnitTests(U32 seed, double compressibility, ZSTD_customMem customMem)
 {
     int testResult = 0;
     size_t CNBufferSize = COMPRESSIBLE_NOISE_LENGTH;
@@ -138,8 +152,8 @@ static int basicUnitTests(U32 seed, double compressibility)
     void* decodedBuffer = malloc(decodedBufferSize);
     size_t result, cSize, readSize, genSize;
     U32 testNb=0;
-    ZBUFF_CCtx* zc = ZBUFF_createCCtx();
-    ZBUFF_DCtx* zd = ZBUFF_createDCtx();
+    ZBUFF_CCtx* zc = ZBUFF_createCCtx_advanced(customMem);
+    ZBUFF_DCtx* zd = ZBUFF_createDCtx_advanced(customMem);
 
     /* Create compressible test buffer */
     if (!CNBuffer || !compressedBuffer || !decodedBuffer || !zc || !zd) {
@@ -483,6 +497,8 @@ int main(int argc, const char** argv)
     int result=0;
     U32 mainPause = 0;
     const char* programName = argv[0];
+    ZSTD_customMem customMem = { ZBUFF_allocFunction, ZBUFF_freeFunction };
+    ZSTD_customMem customNULL = { NULL, NULL };
 
     /* Check command line */
     for(argNb=1; argNb<argc; argNb++) {
@@ -581,7 +597,12 @@ int main(int argc, const char** argv)
 
     if (nbTests<=0) nbTests=1;
 
-    if (testNb==0) result = basicUnitTests(0, ((double)proba) / 100);  /* constant seed for predictability */
+    if (testNb==0) {
+        result = basicUnitTests(0, ((double)proba) / 100, customNULL);  /* constant seed for predictability */
+        if (!result)
+            result = basicUnitTests(0, ((double)proba) / 100, customMem);  /* use custom memory allocation functions */
+    }
+
     if (!result)
         result = fuzzerTests(seed, nbTests, testNb, ((double)proba) / 100);
 

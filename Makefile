@@ -76,7 +76,7 @@ travis-install:
 	$(MAKE) install PREFIX=~/install_test_dir
 
 cmaketest:
-	cd contrib/cmake ; cmake . ; $(MAKE)
+	cd projects/cmake/build ; cmake .. ; $(MAKE)
 
 clangtest: clean
 	clang -v

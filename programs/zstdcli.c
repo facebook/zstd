@@ -129,6 +129,9 @@ static int usage_advanced(const char* programName)
     DISPLAY( " -v     : verbose mode\n");
     DISPLAY( " -q     : suppress warnings; specify twice to suppress errors too\n");
     DISPLAY( " -c     : force write to standard output, even if it is the console\n");
+#ifdef UTIL_HAS_CREATEFILELIST
+    DISPLAY( " -r     : operate recursively on directories\n");
+#endif
 #ifndef ZSTD_NOCOMPRESS
     DISPLAY( "--ultra : enable ultra modes (requires more memory to decompress)\n");
 #endif
@@ -147,9 +150,6 @@ static int usage_advanced(const char* programName)
     DISPLAY( " -b#    : benchmark file(s), using # compression level (default : 1) \n");
     DISPLAY( " -e#    : test all compression levels from -bX to # (default: 1)\n");
     DISPLAY( " -i#    : iteration loops [1-9](default : 3)\n");
-#ifdef UTIL_HAS_CREATEFILELIST
-    DISPLAY( " -r     : operate recursively on directories\n");
-#endif
     DISPLAY( " -B#    : cut file into independent blocks of size # (default: no block)\n");
 #endif
     return 0;
@@ -198,6 +198,11 @@ int main(int argCount, const char** argv)
     unsigned maxDictSize = g_defaultMaxDictSize;
     unsigned dictCLevel = g_defaultDictCLevel;
     unsigned dictSelect = g_defaultSelectivityLevel;
+#ifdef UTIL_HAS_CREATEFILELIST
+    const char** fileNamesTable = NULL;
+    char* fileNamesBuf;
+    unsigned fileNamesNb;
+#endif
 
     /* init */
     (void)recursive; (void)cLevelLast; (void)dictCLevel;   /* not used when ZSTD_NOBENCH / ZSTD_NODICT set */
@@ -296,6 +301,9 @@ int main(int argCount, const char** argv)
                     /* dictionary name */
                 case 'o': nextArgumentIsOutFileName=1; argument++; break;
 
+                    /* recursive */
+                case 'r': recursive=1; argument++; break;
+
 #ifndef ZSTD_NOBENCH
                     /* Benchmark */
                 case 'b': bench=1; argument++; break;
@@ -321,9 +329,6 @@ int main(int argCount, const char** argv)
                         BMK_SetNbIterations(iters);
                     }
                     break;
-
-                    /* recursive */
-                case 'r': recursive=1; argument++; break;
 
                     /* cut input into blocks (benchmark only) */
                 case 'B':
@@ -395,11 +400,24 @@ int main(int argCount, const char** argv)
     /* Welcome message (if verbose) */
     DISPLAYLEVEL(3, WELCOME_MESSAGE);
 
+#ifdef UTIL_HAS_CREATEFILELIST
+    if (recursive) {
+        fileNamesTable = UTIL_createFileList(filenameTable, filenameIdx, &fileNamesBuf, &fileNamesNb);
+        if (fileNamesTable) {
+            unsigned i;
+            for (i=0; i<fileNamesNb; i++) DISPLAYLEVEL(3, "%d %s\n", i, fileNamesTable[i]);
+            free((void*)filenameTable);
+            filenameTable = fileNamesTable;
+            filenameIdx = fileNamesNb;
+        }
+    }
+#endif
+
     /* Check if benchmark is selected */
     if (bench) {
 #ifndef ZSTD_NOBENCH
         BMK_setNotificationLevel(displayLevel);
-        BMK_benchFiles(filenameTable, filenameIdx, dictFileName, cLevel, cLevelLast, recursive);
+        BMK_benchFiles(filenameTable, filenameIdx, dictFileName, cLevel, cLevelLast);
 #endif
         goto _end;
     }
@@ -459,6 +477,11 @@ int main(int argCount, const char** argv)
 _end:
     if (main_pause) waitEnter();
     free(dynNameSpace);
-    free((void*)filenameTable);
+#ifdef UTIL_HAS_CREATEFILELIST
+    if (fileNamesTable)
+        UTIL_freeFileList(fileNamesTable, fileNamesBuf);
+    else
+#endif
+        free((void*)filenameTable);
     return operationResult;
 }

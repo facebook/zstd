@@ -262,6 +262,8 @@ static size_t FUZ_randomLength(U32* seed, U32 maxLog)
     return FUZ_rLogLength(seed, logLength);
 }
 
+#define MIN(a,b)   ( (a) < (b) ? (a) : (b) )
+
 #define CHECK(cond, ...) if (cond) { DISPLAY("Error => "); DISPLAY(__VA_ARGS__); \
                          DISPLAY(" (seed %u, test nb %u)  \n", seed, testNb); goto _output_error; }
 

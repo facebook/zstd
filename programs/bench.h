@@ -26,7 +26,7 @@
 
 /* Main function */
 int BMK_benchFiles(const char** fileNamesTable, unsigned nbFiles,
-                   const char* dictFileName, int cLevel, int cLevelLast, int recursive);
+                   const char* dictFileName, int cLevel, int cLevelLast);
 
 /* Set Parameters */
 void BMK_SetNbIterations(unsigned nbLoops);

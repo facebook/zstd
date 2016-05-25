@@ -1,7 +1,7 @@
 #!/bin/sh -e
 
 die() {
-    echo "$@" 1>&2
+    $ECHO "$@" 1>&2
     exit 1
 }
 
@@ -14,34 +14,44 @@ roundTripTest() {
     fi
 
     rm -f tmp1 tmp2
-    echo "roundTripTest: ./datagen $1 $p | $ZSTD -v$c | $ZSTD -d"
+    $ECHO "roundTripTest: ./datagen $1 $p | $ZSTD -v$c | $ZSTD -d"
     ./datagen $1 $p | md5sum > tmp1
     ./datagen $1 $p | $ZSTD -vq$c | $ZSTD -d  | md5sum > tmp2
     diff -q tmp1 tmp2
 }
 
+isWindows=false
+ECHO="echo"
+if [[ "$OS" == "Windows"* ]]; then
+    isWindows=true
+    ECHO="echo -e"
+fi
+
+$ECHO "\nStarting playTests.sh isWindows=$isWindows"
+
 [ -n "$ZSTD" ] || die "ZSTD variable must be defined!"
 
-
-echo "\n**** simple tests **** "
+$ECHO "\n**** simple tests **** "
 
 ./datagen > tmp
 $ZSTD -f tmp                             # trivial compression case, creates tmp.zst
 $ZSTD -df tmp.zst                        # trivial decompression case (overwrites tmp)
-echo "test : too large compression level (must fail)"
+$ECHO "test : too large compression level (must fail)"
 $ZSTD -99 tmp && die "too large compression level undetected"
-echo "test : compress to stdout"
+$ECHO "test : compress to stdout"
 $ZSTD tmp -c > tmpCompressed                 
 $ZSTD tmp --stdout > tmpCompressed       # long command format
-echo "test : null-length file roundtrip"
-echo -n '' | $ZSTD - --stdout | $ZSTD -d --stdout
-echo "test : decompress file with wrong suffix (must fail)"
+$ECHO "test : null-length file roundtrip"
+$ECHO -n '' | $ZSTD - --stdout | $ZSTD -d --stdout
+$ECHO "test : decompress file with wrong suffix (must fail)"
 $ZSTD -d tmpCompressed && die "wrong suffix error not detected!"
 $ZSTD -d tmpCompressed -c > tmpResult    # decompression using stdout   
 $ZSTD --decompress tmpCompressed -c > tmpResult
 $ZSTD --decompress tmpCompressed --stdout > tmpResult
-$ZSTD -d    < tmp.zst > /dev/null        # combine decompression, stdin & stdout
-$ZSTD -d  - < tmp.zst > /dev/null
+if [ "$isWindows" = false ] ; then
+    $ZSTD -d    < tmp.zst > /dev/null        # combine decompression, stdin & stdout
+    $ZSTD -d  - < tmp.zst > /dev/null
+fi
 $ZSTD -dc   < tmp.zst > /dev/null
 $ZSTD -dc - < tmp.zst > /dev/null
 $ZSTD -q tmp && die "overwrite check failed!"
@@ -50,15 +60,15 @@ $ZSTD -q --force tmp
 $ZSTD -df tmp && die "should have refused : wrong extension"
 
 
-echo "\n**** Pass-Through mode **** "
-echo "Hello world !" | $ZSTD -df
-echo "Hello world !" | $ZSTD -dcf
+$ECHO "\n**** Pass-Through mode **** "
+$ECHO "Hello world !" | $ZSTD -df
+$ECHO "Hello world !" | $ZSTD -dcf
 
 
-echo "\n**** frame concatenation **** "
+$ECHO "\n**** frame concatenation **** "
 
-echo "hello " > hello.tmp
-echo "world!" > world.tmp
+$ECHO "hello " > hello.tmp
+$ECHO "world!" > world.tmp
 cat hello.tmp world.tmp > helloworld.tmp
 $ZSTD -c hello.tmp > hello.zstd
 $ZSTD -c world.tmp > world.zstd
@@ -67,18 +77,20 @@ $ZSTD -dc helloworld.zstd > result.tmp
 cat result.tmp
 sdiff helloworld.tmp result.tmp
 rm ./*.tmp ./*.zstd
-echo "frame concatenation tests completed"
+$ECHO "frame concatenation tests completed"
 
 
-echo "\n**** flush write error test **** "
+if [ "$isWindows" = false ] ; then
+$ECHO "\n**** flush write error test **** "
 
-echo "echo foo | $ZSTD > /dev/full"
-echo foo | $ZSTD > /dev/full && die "write error not detected!"
-echo "echo foo | $ZSTD | $ZSTD -d > /dev/full"
-echo foo | $ZSTD | $ZSTD -d > /dev/full && die "write error not detected!"
+$ECHO "$ECHO foo | $ZSTD > /dev/full"
+$ECHO foo | $ZSTD > /dev/full && die "write error not detected!"
+$ECHO "$ECHO foo | $ZSTD | $ZSTD -d > /dev/full"
+$ECHO foo | $ZSTD | $ZSTD -d > /dev/full && die "write error not detected!"
+fi
 
 
-echo "\n**** test sparse file support **** "
+$ECHO "\n**** test sparse file support **** "
 
 ./datagen -g5M  -P100 > tmpSparse
 $ZSTD tmpSparse -c | $ZSTD -dv -o tmpSparseRegen
@@ -91,10 +103,10 @@ ls -ls tmpSparse*
 ./datagen -s1 -g1200007 -P100 | $ZSTD | $ZSTD -dv --sparse -c > tmpSparseOdd   # Odd size file (to not finish on an exact nb of blocks)
 ./datagen -s1 -g1200007 -P100 | diff -s - tmpSparseOdd
 ls -ls tmpSparseOdd
-echo "\n Sparse Compatibility with Console :"
-echo "Hello World 1 !" | $ZSTD | $ZSTD -d -c
-echo "Hello World 2 !" | $ZSTD | $ZSTD -d | cat
-echo "\n Sparse Compatibility with Append :"
+$ECHO "\n Sparse Compatibility with Console :"
+$ECHO "Hello World 1 !" | $ZSTD | $ZSTD -d -c
+$ECHO "Hello World 2 !" | $ZSTD | $ZSTD -d | cat
+$ECHO "\n Sparse Compatibility with Append :"
 ./datagen -P100 -g1M > tmpSparse1M
 cat tmpSparse1M tmpSparse1M > tmpSparse2M
 $ZSTD -v -f tmpSparse1M -o tmpSparseCompressed
@@ -105,7 +117,7 @@ diff tmpSparse2M tmpSparseRegenerated
 # rm tmpSparse*
 
 
-echo "\n**** dictionary tests **** "
+$ECHO "\n**** dictionary tests **** "
 
 ./datagen > tmpDict
 ./datagen -g1M | md5sum > tmp1
@@ -117,41 +129,41 @@ $ZSTD -d tmp -D tmpDict -of result
 diff xxhash.c result
 
 
-echo "\n**** multiple files tests **** "
+$ECHO "\n**** multiple files tests **** "
 
 ./datagen -s1        > tmp1 2> /dev/null
 ./datagen -s2 -g100K > tmp2 2> /dev/null
 ./datagen -s3 -g1M   > tmp3 2> /dev/null
 $ZSTD -f tmp*
-echo "compress tmp* : "
+$ECHO "compress tmp* : "
 ls -ls tmp*
 rm tmp1 tmp2 tmp3
-echo "decompress tmp* : "
+$ECHO "decompress tmp* : "
 $ZSTD -df *.zst
 ls -ls tmp*
-echo "compress tmp* into stdout > tmpall : "
+$ECHO "compress tmp* into stdout > tmpall : "
 $ZSTD -c tmp1 tmp2 tmp3 > tmpall
 ls -ls tmp*
-echo "decompress tmpall* into stdout > tmpdec : "
+$ECHO "decompress tmpall* into stdout > tmpdec : "
 cp tmpall tmpall2
 $ZSTD -dc tmpall* > tmpdec
 ls -ls tmp*
-echo "compress multiple files including a missing one (notHere) : "
+$ECHO "compress multiple files including a missing one (notHere) : "
 $ZSTD -f tmp1 notHere tmp2 && die "missing file not detected!"
 
 
-echo "\n**** integrity tests **** "
+$ECHO "\n**** integrity tests **** "
 
-echo "test one file (tmp1.zst) "
+$ECHO "test one file (tmp1.zst) "
 $ZSTD -t tmp1.zst
 $ZSTD --test tmp1.zst
-echo "test multiple files (*.zst) "
+$ECHO "test multiple files (*.zst) "
 $ZSTD -t *.zst
-echo "test good and bad files (*) "
+$ECHO "test good and bad files (*) "
 $ZSTD -t * && die "bad files not detected !"
 
 
-echo "\n**** zstd round-trip tests **** "
+$ECHO "\n**** zstd round-trip tests **** "
 
 roundTripTest
 roundTripTest -g15K       # TableID==3
@@ -165,7 +177,7 @@ roundTripTest -g512K 19   # btopt
 rm tmp*
 
 if [ "$1" != "--test-large-data" ]; then
-    echo "Skipping large data tests"
+    $ECHO "Skipping large data tests"
     exit 0
 fi
 

@@ -35,15 +35,16 @@
 /*-************************************
 *  Includes
 **************************************/
-#include <stdlib.h>      /* free */
-#include <stdio.h>       /* fgets, sscanf */
-#include <sys/timeb.h>   /* timeb */
-#include <string.h>      /* strcmp */
+#include <stdlib.h>       /* free */
+#include <stdio.h>        /* fgets, sscanf */
+#include <sys/timeb.h>    /* timeb */
+#include <string.h>       /* strcmp */
 #include "mem.h"
 #include "zbuff.h"
-#include "zstd_static.h" /* ZSTD_compressBound(), ZSTD_maxCLevel() */
-#include "datagen.h"     /* RDG_genBuffer */
-#include "xxhash.h"      /* XXH64 */
+#include "zstd_static.h"  /* ZSTD_compressBound(), ZSTD_maxCLevel() */
+#include "zbuff_static.h" /* ZBUFF_createCCtx_advanced */
+#include "datagen.h"      /* RDG_genBuffer */
+#include "xxhash.h"       /* XXH64 */
 
 
 /*-************************************

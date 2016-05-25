@@ -37,57 +37,50 @@
 extern "C" {
 #endif
 
-/*-*************************************
-*  Dependencies
-***************************************/
-//#include "zstd.h"
-//#include "mem.h"
-
-
-/*-*************************************
-*  Constants
-***************************************/
-//#define ZSTD_MAGICNUMBER 0xFD2FB526   /* v0.6 */
-
 
 /*-*************************************
 *  Types
 ***************************************/
-typedef struct {
-    U32  priceOffset, priceOffCode, priceMatchLength, priceLiteral, priceLitLength, priceDumpsLength;
+struct ZSTD_stats_s {
+    U32  priceOffset, priceOffCode, priceMatchLength, priceLiteral, priceLitLength;
     U32  totalMatchSum, totalLitSum, totalSeqSum, totalRepSum;
     U32  litSum, matchLengthSum, litLengthSum, offCodeSum;
-    U32  matchLengthFreq[1<<MLbits];
-    U32  litLengthFreq[1<<LLbits];
+    U32  matchLengthFreq[MaxML+1];
+    U32  litLengthFreq[MaxLL+1];
     U32  litFreq[1<<Litbits];
-    U32  offCodeFreq[1<<Offbits];
-} ZSTD_stats_t;
+    U32  offCodeFreq[MaxOff+1];
+};
 
 
 /*-*************************************
-*  Advanced functions
+*  Stats functions
 ***************************************/
+MEM_STATIC ZSTD_stats_t* ZSTD_statsAlloc() { return malloc(sizeof(ZSTD_stats_t)); }
+MEM_STATIC void ZSTD_statsFree(struct ZSTD_stats_s* stats) { free(stats); }
+
 MEM_STATIC void ZSTD_statsPrint(ZSTD_stats_t* stats, U32 searchLength)
 {
     stats->totalMatchSum += stats->totalSeqSum * ((searchLength == 3) ? 3 : 4);
-    printf("avgMatchL=%.2f avgLitL=%.2f match=%.1f%% lit=%.1f%% reps=%d seq=%d\n", (float)stats->totalMatchSum/stats->totalSeqSum, (float)stats->totalLitSum/stats->totalSeqSum, 100.0*stats->totalMatchSum/(stats->totalMatchSum+stats->totalLitSum), 100.0*stats->totalLitSum/(stats->totalMatchSum+stats->totalLitSum), stats->totalRepSum, stats->totalSeqSum);
-    printf("SumBytes=%d Offset=%d OffCode=%d Match=%d Literal=%d LitLength=%d DumpsLength=%d\n", (stats->priceOffset+stats->priceOffCode+stats->priceMatchLength+stats->priceLiteral+stats->priceLitLength+stats->priceDumpsLength)/8, stats->priceOffset/8, stats->priceOffCode/8, stats->priceMatchLength/8, stats->priceLiteral/8, stats->priceLitLength/8, stats->priceDumpsLength/8);
+    printf("\navgMatchL=%.2f avgLitL=%.2f match=%.1f%% lit=%.1f%% reps=%d seq=%d\n", (float)stats->totalMatchSum/stats->totalSeqSum, (float)stats->totalLitSum/stats->totalSeqSum, 100.0*stats->totalMatchSum/(stats->totalMatchSum+stats->totalLitSum), 100.0*stats->totalLitSum/(stats->totalMatchSum+stats->totalLitSum), stats->totalRepSum, stats->totalSeqSum);
+    printf("SumBytes=%d Offset=%d OffCode=%d Match=%d Literal=%d LitLength=%d\n", (stats->priceOffset+stats->priceOffCode+stats->priceMatchLength+stats->priceLiteral+stats->priceLitLength)/8, stats->priceOffset/8, stats->priceOffCode/8, stats->priceMatchLength/8, stats->priceLiteral/8, stats->priceLitLength/8);
 }
+
 
 MEM_STATIC void ZSTD_statsInit(ZSTD_stats_t* stats)
 {
     stats->totalLitSum = stats->totalMatchSum = stats->totalSeqSum = stats->totalRepSum = 1;
-    stats->priceOffset = stats->priceOffCode = stats->priceMatchLength = stats->priceLiteral = stats->priceLitLength = stats->priceDumpsLength = 0;
+    stats->priceOffset = stats->priceOffCode = stats->priceMatchLength = stats->priceLiteral = stats->priceLitLength = 0;
 }
+
 
 MEM_STATIC void ZSTD_statsResetFreqs(ZSTD_stats_t* stats)
 {
     unsigned u;
 
-    stats->litSum = (1<<Litbits);
-    stats->litLengthSum = (1<<LLbits);
-    stats->matchLengthSum = (1<<MLbits);
-    stats->offCodeSum = (1<<Offbits);
+    stats->litSum = (2<<Litbits);
+    stats->litLengthSum = MaxLL+1;
+    stats->matchLengthSum = MaxML+1;
+    stats->offCodeSum = (MaxOff+1);
 
     for (u=0; u<=MaxLit; u++)
         stats->litFreq[u] = 1;
@@ -99,62 +92,67 @@ MEM_STATIC void ZSTD_statsResetFreqs(ZSTD_stats_t* stats)
         stats->offCodeFreq[u] = 1;
 }
 
+
 MEM_STATIC void ZSTD_statsUpdatePrices(ZSTD_stats_t* stats, size_t litLength, const BYTE* literals, size_t offset, size_t matchLength)
 {
-    /* offset */
-    BYTE offCode = offset ? (BYTE)ZSTD_highbit(offset+1) + 1 : 0;
-    stats->priceOffCode += ZSTD_highbit(stats->offCodeSum+1) - ZSTD_highbit(stats->offCodeFreq[offCode]+1);
-    stats->priceOffset += (offCode-1) + (!offCode);
-
-    /* match Length */
-    stats->priceDumpsLength += ((matchLength >= MaxML)<<3) + ((matchLength >= 255+MaxML)<<4) + ((matchLength>=(1<<15))<<3);
-    stats->priceMatchLength += ZSTD_highbit(stats->matchLengthSum+1) - ZSTD_highbit(stats->matchLengthFreq[(matchLength >= MaxML) ? MaxML : matchLength]+1);
-
-    if (litLength) {
-        /* literals */
-        U32 u;
-        stats->priceLiteral += litLength * ZSTD_highbit(stats->litSum+1);
-        for (u=0; u < litLength; u++)
-            stats->priceLiteral -= ZSTD_highbit(stats->litFreq[literals[u]]+1);
-
-        /* literal Length */
-        stats->priceDumpsLength += ((litLength >= MaxLL)<<3) + ((litLength >= 255+MaxLL)<<4) + ((litLength>=(1<<15))<<3);
-        stats->priceLitLength += ZSTD_highbit(stats->litLengthSum+1) - ZSTD_highbit(stats->litLengthFreq[(litLength >= MaxLL) ? MaxLL : litLength]+1);
-    } else {
-        stats->priceLitLength += ZSTD_highbit(stats->litLengthSum+1) - ZSTD_highbit(stats->litLengthFreq[0]+1);
-    }
-
-
-    if (offset == 0) stats->totalRepSum++;
-    stats->totalSeqSum++;
-    stats->totalMatchSum += matchLength;
-    stats->totalLitSum += litLength;
-        
     U32 u;
     /* literals */
+    stats->priceLiteral += litLength * ZSTD_highbit(stats->litSum+1);
+    for (u=0; u < litLength; u++)
+        stats->priceLiteral -= ZSTD_highbit(stats->litFreq[literals[u]]+1);
     stats->litSum += litLength;
     for (u=0; u < litLength; u++)
         stats->litFreq[literals[u]]++;
 
     /* literal Length */
-    stats->litLengthSum++;
-    if (litLength >= MaxLL)
-        stats->litLengthFreq[MaxLL]++;
-    else
-        stats->litLengthFreq[litLength]++;
+    {   static const BYTE LL_Code[64] = {  0,  1,  2,  3,  4,  5,  6,  7,
+                                           8,  9, 10, 11, 12, 13, 14, 15,
+                                          16, 16, 17, 17, 18, 18, 19, 19,
+                                          20, 20, 20, 20, 21, 21, 21, 21,
+                                          22, 22, 22, 22, 22, 22, 22, 22,
+                                          23, 23, 23, 23, 23, 23, 23, 23,
+                                          24, 24, 24, 24, 24, 24, 24, 24,
+                                          24, 24, 24, 24, 24, 24, 24, 24 };
+        const BYTE LL_deltaCode = 19;
+        const BYTE llCode = (litLength>63) ? (BYTE)ZSTD_highbit(litLength) + LL_deltaCode : LL_Code[litLength];
+        if (litLength) {
+            stats->priceLitLength += LL_bits[llCode] + ZSTD_highbit(stats->litLengthSum+1) - ZSTD_highbit(stats->litLengthFreq[llCode]+1);
+        } else {
+            stats->priceLitLength += ZSTD_highbit(stats->litLengthSum+1) - ZSTD_highbit(stats->litLengthFreq[0]+1);
+        }
+        stats->litLengthFreq[llCode]++;
+        stats->litLengthSum++;
+    }
 
     /* match offset */
-    stats->offCodeSum++;
-    stats->offCodeFreq[offCode]++;
+    {   BYTE offCode = (BYTE)ZSTD_highbit(offset+1);
+        stats->priceOffCode += ZSTD_highbit(stats->offCodeSum+1) - ZSTD_highbit(stats->offCodeFreq[offCode]+1);
+        stats->priceOffset += offCode;
+        stats->offCodeSum++;
+        stats->offCodeFreq[offCode]++;
+    }
 
     /* match Length */
-    stats->matchLengthSum++;
-    if (matchLength >= MaxML)
-        stats->matchLengthFreq[MaxML]++;
-    else
-        stats->matchLengthFreq[matchLength]++;
-}
+    {   static const BYTE ML_Code[128] = { 0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15,
+                                          16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
+                                          32, 32, 33, 33, 34, 34, 35, 35, 36, 36, 36, 36, 37, 37, 37, 37,
+                                          38, 38, 38, 38, 38, 38, 38, 38, 39, 39, 39, 39, 39, 39, 39, 39,
+                                          40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40,
+                                          41, 41, 41, 41, 41, 41, 41, 41, 41, 41, 41, 41, 41, 41, 41, 41,
+                                          42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42,
+                                          42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42 };
+        const BYTE ML_deltaCode = 36;
+        const BYTE mlCode = (matchLength>127) ? (BYTE)ZSTD_highbit(matchLength) + ML_deltaCode : ML_Code[matchLength];
+        stats->priceMatchLength += ML_bits[mlCode] + ZSTD_highbit(stats->matchLengthSum+1) - ZSTD_highbit(stats->matchLengthFreq[mlCode]+1);
+        stats->matchLengthFreq[mlCode]++;
+        stats->matchLengthSum++;
+    }
 
+    if (offset == 0) stats->totalRepSum++;
+    stats->totalSeqSum++;
+    stats->totalMatchSum += matchLength;
+    stats->totalLitSum += litLength;
+}
 
 
 #if defined (__cplusplus)

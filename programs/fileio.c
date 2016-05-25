@@ -57,6 +57,7 @@
 #include "mem.h"
 #include "fileio.h"
 #include "zstd_static.h"   /* ZSTD_magicNumber, ZSTD_frameHeaderSize_max */
+#include "zstd_internal.h" /* MIN, KB, MB */
 #include "zbuff_static.h"
 
 #if defined(ZSTD_LEGACY_SUPPORT) && (ZSTD_LEGACY_SUPPORT==1)
@@ -71,7 +72,7 @@
 #if defined(MSDOS) || defined(OS2) || defined(WIN32) || defined(_WIN32) || defined(__CYGWIN__)
 #  include <fcntl.h>    /* _O_BINARY */
 #  include <io.h>       /* _setmode, _isatty */
-#  define SET_BINARY_MODE(file) { int unused = _setmode(_fileno(file), _O_BINARY); (void)unused; }
+#  define SET_BINARY_MODE(file) { if (_setmode(_fileno(file), _O_BINARY) == -1) perror("Cannot set _O_BINARY"); }
 #else
 #  include <unistd.h>   /* isatty */
 #  define SET_BINARY_MODE(file)
@@ -444,6 +445,7 @@ int FIO_compressMultipleFilenames(const char** inFileNamesTable, unsigned nbFile
     if (!strcmp(suffix, stdoutmark)) {
         unsigned u;
         ress.dstFile = stdout;
+        SET_BINARY_MODE(stdout);
         for (u=0; u<nbFiles; u++)
             missed_files += FIO_compressFilename_srcFile(ress, stdoutmark,
                                                          inFileNamesTable[u], compressionLevel);

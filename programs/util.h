@@ -345,8 +345,7 @@ UTIL_STATIC const char** UTIL_createFileList(const char **inputNames, unsigned i
     bufend = buf + LIST_SIZE_INCREASE;
 
     for (i=0, pos=0, nbFiles=0; i<inputNamesNb; i++) {
-        if (UTIL_doesFileExists(inputNames[i])) {
-       // printf ("UTIL_doesFileExists=[%s]\n", inputNames[i]);
+        if (!UTIL_isDirectory(inputNames[i])) {
             size_t len = strlen(inputNames[i]);
             if (buf + pos + len >= bufend) {
                 ptrdiff_t newListSize = (bufend - buf) + LIST_SIZE_INCREASE;

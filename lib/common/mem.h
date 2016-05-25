@@ -42,8 +42,11 @@ extern "C" {
 /*-****************************************
 *  Dependencies
 ******************************************/
-#include <stddef.h>    /* size_t, ptrdiff_t */
-#include <string.h>    /* memcpy */
+#include <stddef.h>     /* size_t, ptrdiff_t */
+#include <string.h>     /* memcpy */
+#if defined(_MSC_VER)   /* Visual Studio */
+#   include <stdlib.h>  /* _byteswap_ulong */
+#endif
 
 
 /*-****************************************

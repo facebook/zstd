@@ -46,7 +46,20 @@ extern "C" {
 ***************************************/
 #include "zstd_static.h"     /* ZSTD_parameters */
 #include "zbuff.h"
-#include "zstd_internal.h"  /* MIN  */
+
+#define ZBUFF_MIN(a,b) ((a)<(b) ? (a) : (b))
+
+
+/*-*************************************
+*  Advanced functions
+***************************************/
+/*! ZBUFF_createCCtx_advanced() :
+ *  Create a ZBUFF compression context using external alloc and free functions */ 
+ZSTDLIB_API ZBUFF_CCtx* ZBUFF_createCCtx_advanced(ZSTD_customMem customMem);
+
+/*! ZBUFF_createDCtx_advanced() :
+ *  Create a ZBUFF decompression context using external alloc and free functions */ 
+ZSTDLIB_API ZBUFF_DCtx* ZBUFF_createDCtx_advanced(ZSTD_customMem customMem);
 
 
 /* *************************************
@@ -58,7 +71,7 @@ ZSTDLIB_API size_t ZBUFF_compressInit_advanced(ZBUFF_CCtx* cctx,
 
 MEM_STATIC size_t ZBUFF_limitCopy(void* dst, size_t dstCapacity, const void* src, size_t srcSize)
 {
-    size_t length = MIN(dstCapacity, srcSize);
+    size_t length = ZBUFF_MIN(dstCapacity, srcSize);
     memcpy(dst, src, length);
     return length;
 }

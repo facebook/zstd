@@ -186,6 +186,8 @@ MEM_STATIC unsigned ZSTD_highbit(U32 val)
 /*-*******************************************
 *  Private interfaces
 *********************************************/
+typedef struct ZSTD_stats_s ZSTD_stats_t;
+
 typedef struct {
     U32 off;
     U32 len;
@@ -202,12 +204,12 @@ typedef struct {
 #if ZSTD_OPT_DEBUG == 3
     #include ".debug/zstd_stats.h"
 #else
-    typedef struct { U32  unused; } ZSTD_stats_t;
+    struct ZSTD_stats_s { U32 unused; };
     MEM_STATIC void ZSTD_statsPrint(ZSTD_stats_t* stats, U32 searchLength) { (void)stats; (void)searchLength; }
     MEM_STATIC void ZSTD_statsInit(ZSTD_stats_t* stats) { (void)stats; }
     MEM_STATIC void ZSTD_statsResetFreqs(ZSTD_stats_t* stats) { (void)stats; }
     MEM_STATIC void ZSTD_statsUpdatePrices(ZSTD_stats_t* stats, size_t litLength, const BYTE* literals, size_t offset, size_t matchLength) { (void)stats; (void)litLength; (void)literals; (void)offset; (void)matchLength; }
-#endif
+#endif // #if ZSTD_OPT_DEBUG == 3
 
 typedef struct {
     void* buffer;

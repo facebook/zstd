@@ -200,7 +200,7 @@ int main(int argCount, const char** argv)
     unsigned dictSelect = g_defaultSelectivityLevel;
 #ifdef UTIL_HAS_CREATEFILELIST
     const char** fileNamesTable = NULL;
-    char* fileNamesBuf;
+    char* fileNamesBuf = NULL;
     unsigned fileNamesNb;
 #endif
 

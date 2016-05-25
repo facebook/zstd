@@ -46,7 +46,22 @@ extern "C" {
 ***************************************/
 #include "zstd_static.h"     /* ZSTD_parameters */
 #include "zbuff.h"
-#include "zstd_internal.h"  /* MIN  */
+
+#ifndef MIN
+    #define MIN(a,b) ((a)<(b) ? (a) : (b))
+#endif
+
+
+/*-*************************************
+*  Advanced functions
+***************************************/
+/*! ZBUFF_createCCtx_advanced() :
+ *  Create a ZBUFF compression context using external alloc and free functions */ 
+ZSTDLIB_API ZBUFF_CCtx* ZBUFF_createCCtx_advanced(ZSTD_customMem customMem);
+
+/*! ZBUFF_createDCtx_advanced() :
+ *  Create a ZBUFF decompression context using external alloc and free functions */ 
+ZSTDLIB_API ZBUFF_DCtx* ZBUFF_createDCtx_advanced(ZSTD_customMem customMem);
 
 
 /* *************************************

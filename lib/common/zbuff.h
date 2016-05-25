@@ -39,7 +39,6 @@ extern "C" {
 *  Dependencies
 ***************************************/
 #include <stddef.h>      /* size_t */
-#include "zstd_static.h" /* ZSTD_customMem */
 
 
 /* ***************************************************************
@@ -61,7 +60,6 @@ extern "C" {
 ***************************************/
 typedef struct ZBUFF_CCtx_s ZBUFF_CCtx;
 ZSTDLIB_API ZBUFF_CCtx* ZBUFF_createCCtx(void);
-ZSTDLIB_API ZBUFF_CCtx* ZBUFF_createCCtx_advanced(ZSTD_customMem customMem);
 ZSTDLIB_API size_t      ZBUFF_freeCCtx(ZBUFF_CCtx* cctx);
 
 ZSTDLIB_API size_t ZBUFF_compressInit(ZBUFF_CCtx* cctx, int compressionLevel);
@@ -114,7 +112,6 @@ ZSTDLIB_API size_t ZBUFF_compressEnd(ZBUFF_CCtx* cctx, void* dst, size_t* dstCap
 
 typedef struct ZBUFF_DCtx_s ZBUFF_DCtx;
 ZSTDLIB_API ZBUFF_DCtx* ZBUFF_createDCtx(void);
-ZSTDLIB_API ZBUFF_DCtx* ZBUFF_createDCtx_advanced(ZSTD_customMem customMem);
 ZSTDLIB_API size_t      ZBUFF_freeDCtx(ZBUFF_DCtx* dctx);
 
 ZSTDLIB_API size_t ZBUFF_decompressInit(ZBUFF_DCtx* dctx);

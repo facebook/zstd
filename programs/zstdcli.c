@@ -52,9 +52,12 @@
 #  include <io.h>       /* _isatty */
 #  define IS_CONSOLE(stdStream) _isatty(_fileno(stdStream))
 #else
-   extern int fileno(FILE *stream);  /* triggers fileno() within <stdio.h> on POSIX */
+#if _POSIX_C_SOURCE >= 1 || _XOPEN_SOURCE || _POSIX_SOURCE
 #  include <unistd.h>   /* isatty */
 #  define IS_CONSOLE(stdStream) isatty(fileno(stdStream))
+#else
+#  define IS_CONSOLE(stdStream) 0
+#endif
 #endif
 
 

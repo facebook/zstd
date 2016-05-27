@@ -22,10 +22,12 @@ roundTripTest() {
 
 isWindows=false
 ECHO="echo"
-if [[ "$OS" == "Windows"* ]]; then
+case "$OS" in
+  Windows*) 
     isWindows=true
     ECHO="echo -e"
-fi
+    ;;
+esac
 
 $ECHO "\nStarting playTests.sh isWindows=$isWindows"
 

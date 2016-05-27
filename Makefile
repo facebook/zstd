@@ -32,6 +32,7 @@
 
 PRGDIR  = programs
 ZSTDDIR = lib
+ZWRAPDIR = zlibWrapper
 
 # Define nul output
 ifneq (,$(filter Windows%,$(OS)))
@@ -40,7 +41,7 @@ else
 VOID = /dev/null
 endif
 
-.PHONY: default all zstdprogram clean install uninstall travis-install test clangtest gpptest armtest usan asan uasan
+.PHONY: default all zlibwrapper zstdprogram clean install uninstall travis-install test clangtest gpptest armtest usan asan uasan
 
 default: zstdprogram
 
@@ -51,12 +52,17 @@ all:
 zstdprogram:
 	$(MAKE) -C $(PRGDIR)
 
+zlibwrapper:
+	$(MAKE) -C $(ZSTDDIR) all
+	$(MAKE) -C $(ZWRAPDIR) all
+
 test:
 	$(MAKE) -C $(PRGDIR) $@
 
 clean:
 	@$(MAKE) -C $(ZSTDDIR) $@ > $(VOID)
 	@$(MAKE) -C $(PRGDIR) $@ > $(VOID)
+	@$(MAKE) -C $(ZWRAPDIR) $@ > $(VOID)
 	@echo Cleaning completed
 
 

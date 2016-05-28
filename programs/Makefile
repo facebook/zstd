@@ -134,15 +134,13 @@ zbufftest32: $(ZSTD_FILES) $(ZBUFF_FILES) \
       datagen.c xxhash.c zbufftest.c
 	$(CC) -m32 $(FLAGS) $^ -o $@$(EXT)
 
-paramgrill : $(ZSTD_FILES) \
-      datagen.c xxhash.c paramgrill.c
+paramgrill : $(ZSTD_FILES) datagen.c xxhash.c paramgrill.c
 	$(CC)      $(FLAGS) $^ -lm -o $@$(EXT)
 
 datagen : datagen.c datagencli.c
 	$(CC)      $(FLAGS) $^ -o $@$(EXT)
 
-roundTripCrash  : $(ZSTD_FILES) \
-      roundTripCrash.c
+roundTripCrash  : $(ZSTD_FILES) roundTripCrash.c
 	$(CC)      $(FLAGS) $^ -o $@$(EXT)
 
 clean:
@@ -150,7 +148,7 @@ clean:
         zstd$(EXT) zstd32$(EXT) zstd-compress$(EXT) zstd-decompress$(EXT) \
         fullbench$(EXT) fullbench32$(EXT) \
         fuzzer$(EXT) fuzzer32$(EXT) zbufftest$(EXT) zbufftest32$(EXT) \
-        datagen$(EXT) paramgrill$(EXT) roundTripCrash($EXT)
+        datagen$(EXT) paramgrill$(EXT) roundTripCrash$(EXT)
 	@echo Cleaning completed
 
 

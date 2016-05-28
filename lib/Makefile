@@ -43,25 +43,21 @@ VERSION?= $(LIBVER)
 
 DESTDIR?=
 PREFIX ?= /usr/local
+LIBDIR ?= $(PREFIX)/lib
+INCLUDEDIR=$(PREFIX)/include
+
 CPPFLAGS= -I./common -DXXH_NAMESPACE=ZSTD_
 CFLAGS ?= -O3
 CFLAGS += -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow -Wstrict-aliasing=1 -Wswitch-enum -Wstrict-prototypes -Wundef
 FLAGS   = $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) $(MOREFLAGS)
 
-LIBDIR ?= $(PREFIX)/lib
-INCLUDEDIR=$(PREFIX)/include
 
-ZSTDCOMMON_FILES := common/fse_decompress.c common/zstd_common.c common/entropy_common.c common/xxhash.c
-ZSTDCOMP_FILES := compress/zstd_compress.c compress/fse_compress.c compress/huf_compress.c compress/zbuff_compress.c
-ZSTDDECOMP_FILES := decompress/zstd_decompress.c decompress/huf_decompress.c decompress/zbuff_decompress.c
-ZSTDDICT_FILES := dictBuilder/zdict.c dictBuilder/divsufsort.c
-ZSTD_FILES := $(ZSTDCOMMON_FILES) $(ZSTDDECOMP_FILES) $(ZSTDCOMP_FILES) $(ZSTDDICT_FILES)
-ZSTD_LEGACY:= legacy/zstd_v01.c legacy/zstd_v02.c legacy/zstd_v03.c legacy/zstd_v04.c legacy/zstd_v05.c
+ZSTD_FILES := common/*.c compress/*.c decompress/*.c dictBuilder/*.c
 
 ifeq ($(ZSTD_LEGACY_SUPPORT), 0)
 CPPFLAGS  += -DZSTD_LEGACY_SUPPORT=0
 else
-ZSTD_FILES+= $(ZSTD_LEGACY)
+ZSTD_FILES+= legacy/*.c
 CPPFLAGS  += -I./legacy -DZSTD_LEGACY_SUPPORT=1
 endif
 

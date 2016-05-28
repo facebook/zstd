@@ -9,6 +9,7 @@ zbufftest
 zbufftest32
 datagen
 paramgrill
+roundTripCrash
 
 # Object files
 *.o

@@ -42,8 +42,9 @@
 #include <time.h>        /* clock_t */
 #include "zstd_static.h" /* ZSTD_VERSION_STRING */
 #include "datagen.h"     /* RDG_genBuffer */
-#include "xxhash.h"      /* XXH64 */
 #include "mem.h"
+#define XXH_STATIC_LINKING_ONLY
+#include "xxhash.h"      /* XXH64 */
 
 
 /*-************************************
@@ -463,7 +464,7 @@ static int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, U32 const maxD
         size_t sampleSize, sampleStart, maxTestSize, totalTestSize;
         size_t cSize, dSize, totalCSize, totalGenSize;
         U32 sampleSizeLog, nbChunks, n;
-        XXH64_CREATESTATE_STATIC(xxh64);
+        XXH64_state_t xxhState;
         U64 crcOrig;
         BYTE* sampleBuffer;
         const BYTE* dict;
@@ -614,7 +615,7 @@ static int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, U32 const maxD
             { size_t const errorCode = ZSTD_copyCCtx(ctx, refCtx);
               CHECK (ZSTD_isError(errorCode), "ZSTD_copyCCtx error : %s", ZSTD_getErrorName(errorCode)); }
         }
-        XXH64_reset(xxh64, 0);
+        XXH64_reset(&xxhState, 0);
         nbChunks = (FUZ_rand(&lseed) & 127) + 2;
         for (totalTestSize=0, cSize=0, n=0 ; n<nbChunks ; n++) {
             sampleSizeLog = FUZ_rand(&lseed) % maxSampleLog;
@@ -629,7 +630,7 @@ static int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, U32 const maxD
                 CHECK (ZSTD_isError(compressResult), "multi-segments compression error : %s", ZSTD_getErrorName(compressResult));
                 cSize += compressResult;
             }
-            XXH64_update(xxh64, srcBuffer+sampleStart, sampleSize);
+            XXH64_update(&xxhState, srcBuffer+sampleStart, sampleSize);
             memcpy(mirrorBuffer + totalTestSize, srcBuffer+sampleStart, sampleSize);
             totalTestSize += sampleSize;
         }
@@ -637,7 +638,7 @@ static int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, U32 const maxD
             CHECK (ZSTD_isError(flushResult), "multi-segments epilogue error : %s", ZSTD_getErrorName(flushResult));
             cSize += flushResult;
         }
-        crcOrig = XXH64_digest(xxh64);
+        crcOrig = XXH64_digest(&xxhState);
 
         /* streaming decompression test */
         { size_t const errorCode = ZSTD_decompressBegin_usingDict(dctx, dict, dictSize);

@@ -83,7 +83,7 @@ zstd  : $(ZSTD_FILES) $(ZSTD_FILES_LEGACY) $(ZBUFF_FILES) $(ZDICT_FILES) \
 	$(CC)      $(FLAGS) -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT) $^ -o $@$(EXT)
 
 zstd32: $(ZSTD_FILES) $(ZSTD_FILES_LEGACY) $(ZBUFF_FILES) $(ZDICT_FILES) \
-        zstdcli.c fileio.c bench.c xxhash.c datagen.c dibio.c 
+        zstdcli.c fileio.c bench.c xxhash.c datagen.c dibio.c
 	$(CC) -m32 $(FLAGS) -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT) $^ -o $@$(EXT)
 
 zstd_nolegacy :
@@ -109,8 +109,8 @@ zstd-compress: $(ZSTDCOMP_FILES) $(ZSTDDIR)/compress/zbuff_compress.c zstdcli.c 
 zstd-decompress: $(ZSTDDECOMP_FILES) $(ZSTDDIR)/decompress/zbuff_decompress.c zstdcli.c fileio.c
 	$(CC)      $(FLAGS) -DZSTD_NOBENCH -DZSTD_NODICT -DZSTD_NOCOMPRESS -DZSTD_LEGACY_SUPPORT=0 $^ -o $@$(EXT)
 
-zstd-small: clean 
-	CFLAGS="-Os -s" $(MAKE) zstd-frugal 
+zstd-small: clean
+	CFLAGS="-Os -s" $(MAKE) zstd-frugal
 
 fullbench  : $(ZSTD_FILES) $(ZBUFF_FILES) datagen.c fullbench.c
 	$(CC)      $(FLAGS) $^ -o $@$(EXT)
@@ -134,11 +134,13 @@ zbufftest32: $(ZSTD_FILES) $(ZBUFF_FILES) \
       datagen.c xxhash.c zbufftest.c
 	$(CC) -m32 $(FLAGS) $^ -o $@$(EXT)
 
-paramgrill : $(ZSTD_FILES) \
-      datagen.c xxhash.c paramgrill.c
+paramgrill : $(ZSTD_FILES) datagen.c xxhash.c paramgrill.c
 	$(CC)      $(FLAGS) $^ -lm -o $@$(EXT)
 
 datagen : datagen.c datagencli.c
+	$(CC)      $(FLAGS) $^ -o $@$(EXT)
+
+roundTripCrash  : $(ZSTD_FILES) roundTripCrash.c
 	$(CC)      $(FLAGS) $^ -o $@$(EXT)
 
 clean:
@@ -146,7 +148,7 @@ clean:
         zstd$(EXT) zstd32$(EXT) zstd-compress$(EXT) zstd-decompress$(EXT) \
         fullbench$(EXT) fullbench32$(EXT) \
         fuzzer$(EXT) fuzzer32$(EXT) zbufftest$(EXT) zbufftest32$(EXT) \
-	datagen$(EXT) paramgrill$(EXT)
+        datagen$(EXT) paramgrill$(EXT) roundTripCrash$(EXT)
 	@echo Cleaning completed
 
 

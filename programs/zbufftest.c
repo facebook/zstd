@@ -44,6 +44,7 @@
 #include "zstd_static.h"  /* ZSTD_compressBound(), ZSTD_maxCLevel() */
 #include "zbuff_static.h" /* ZBUFF_createCCtx_advanced */
 #include "datagen.h"      /* RDG_genBuffer */
+#define XXH_STATIC_LINKING_ONLY
 #include "xxhash.h"       /* XXH64 */
 
 
@@ -322,7 +323,7 @@ static int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compres
         size_t cSize, totalTestSize, totalCSize, totalGenSize;
         size_t errorCode;
         U32 n, nbChunks;
-        XXH64_CREATESTATE_STATIC(xxh64);
+        XXH64_state_t xxhState;
         U64 crcOrig;
 
         /* init */
@@ -366,7 +367,7 @@ static int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compres
         }   }
 
         /* multi-segments compression test */
-        XXH64_reset(xxh64, 0);
+        XXH64_reset(&xxhState, 0);
         nbChunks    = (FUZ_rand(&lseed) & 127) + 2;
         for (n=0, cSize=0, totalTestSize=0 ; (n<nbChunks) && (totalTestSize < maxTestSize) ; n++) {
             /* compress random chunk into random size dst buffer */
@@ -378,7 +379,7 @@ static int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compres
                 size_t const compressionError = ZBUFF_compressContinue(zc, cBuffer+cSize, &dstBuffSize, srcBuffer+srcStart, &readChunkSize);
                 CHECK (ZBUFF_isError(compressionError), "compression error : %s", ZBUFF_getErrorName(compressionError));
 
-                XXH64_update(xxh64, srcBuffer+srcStart, readChunkSize);
+                XXH64_update(&xxhState, srcBuffer+srcStart, readChunkSize);
                 memcpy(copyBuffer+totalTestSize, srcBuffer+srcStart, readChunkSize);
                 cSize += dstBuffSize;
                 totalTestSize += readChunkSize;
@@ -399,7 +400,7 @@ static int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compres
             CHECK (ZBUFF_isError(flushError), "flush error : %s", ZBUFF_getErrorName(flushError));
             cSize += dstBuffSize;
         }
-        crcOrig = XXH64_digest(xxh64);
+        crcOrig = XXH64_digest(&xxhState);
 
         /* multi - fragments decompression test */
         ZBUFF_decompressInitDictionary(zd, dict, dictSize);

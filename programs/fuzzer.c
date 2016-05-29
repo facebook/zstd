@@ -607,7 +607,8 @@ static int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, U32 const maxD
                 size_t const errorCode = ZSTD_compressBegin_usingDict(refCtx, dict, dictSize, cLevel);
                 CHECK (ZSTD_isError(errorCode), "ZSTD_compressBegin_usingDict error : %s", ZSTD_getErrorName(errorCode));
             } else {
-                ZSTD_parameters p = (ZSTD_parameters) { ZSTD_getCParams(cLevel, 0, dictSize), { 0, 0 } };
+                ZSTD_frameParameters const fpar = { FUZ_rand(&lseed)&1, FUZ_rand(&lseed)&1 };   /* note : since dictionary is fake, dictIDflag has no impact */
+                ZSTD_parameters p = (ZSTD_parameters) { ZSTD_getCParams(cLevel, 0, dictSize), fpar };
                 size_t const errorCode = ZSTD_compressBegin_advanced(refCtx, dict, dictSize, p, 0);
                 CHECK (ZSTD_isError(errorCode), "ZSTD_compressBegin_advanced error : %s", ZSTD_getErrorName(errorCode));
             }

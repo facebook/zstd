@@ -124,9 +124,9 @@ $ECHO "\n**** dictionary tests **** "
 ./datagen -g1M | $ZSTD -D tmpDict | $ZSTD -D tmpDict -dvq | md5sum > tmp2
 diff -q tmp1 tmp2
 $ZSTD --train *.c *.h -o tmpDict
-$ZSTD zstd_compress.c -D tmpDict -of tmp
+$ZSTD zstdcli.c -D tmpDict -of tmp
 $ZSTD -d tmp -D tmpDict -of result
-diff zstd_compress.c result
+diff zstdcli.c result
 
 
 $ECHO "\n**** multiple files tests **** "

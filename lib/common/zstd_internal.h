@@ -63,7 +63,7 @@
 #endif
 
 #define ZSTD_OPT_NUM    (1<<12)
-#define ZSTD_DICT_MAGIC  0xEC30A436
+#define ZSTD_DICT_MAGIC  0xEC30A437
 
 #define ZSTD_REP_NUM    3
 #define ZSTD_REP_INIT   ZSTD_REP_NUM
@@ -82,6 +82,7 @@
 
 #define ZSTD_WINDOWLOG_ABSOLUTEMIN 12
 static const size_t ZSTD_fcs_fieldSize[4] = { 0, 1, 2, 8 };
+static const size_t ZSTD_did_fieldSize[4] = { 0, 1, 2, 4 };
 
 #define ZSTD_BLOCKHEADERSIZE 3   /* because C standard does not allow a static const value to be defined using another static const value .... :( */
 static const size_t ZSTD_blockHeaderSize = ZSTD_BLOCKHEADERSIZE;

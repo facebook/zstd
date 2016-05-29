@@ -34,7 +34,7 @@
 *  Dependencies
 ***************************************/
 #include "error_private.h"
-#include "zstd.h"           /* declaration of ZSTD_isError, ZSTD_getErrorName */
+#include "zstd_static.h"    /* declaration of ZSTD_isError, ZSTD_getErrorName, ZSTD_getErrorCode */
 #include "zbuff.h"          /* declaration of ZBUFF_isError, ZBUFF_getErrorName */
 
 

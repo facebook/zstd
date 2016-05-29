@@ -114,7 +114,7 @@ $ZSTD -d -v -f tmpSparseCompressed -o tmpSparseRegenerated
 $ZSTD -d -v -f tmpSparseCompressed -c >> tmpSparseRegenerated
 ls -ls tmpSparse*
 diff tmpSparse2M tmpSparseRegenerated
-# rm tmpSparse*
+rm tmpSparse*
 
 
 $ECHO "\n**** dictionary tests **** "
@@ -123,10 +123,12 @@ $ECHO "\n**** dictionary tests **** "
 ./datagen -g1M | md5sum > tmp1
 ./datagen -g1M | $ZSTD -D tmpDict | $ZSTD -D tmpDict -dvq | md5sum > tmp2
 diff -q tmp1 tmp2
-$ZSTD --train *.c *.h -o tmpDict
+$ZSTD --train *.c -o tmpDict
 $ZSTD zstdcli.c -D tmpDict -of tmp
 $ZSTD -d tmp -D tmpDict -of result
 diff zstdcli.c result
+$ZSTD --train *.c *.h -o tmpDictC
+$ZSTD -d tmp -D tmpDictC -of result && die "wrong dictionary not detected!"
 
 
 $ECHO "\n**** multiple files tests **** "

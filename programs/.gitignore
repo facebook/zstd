@@ -38,6 +38,8 @@ roundTripCrash
 dictionary
 grillResults.txt
 _*
+tmp*
+*.zst
 
 # fuzzer
 afl

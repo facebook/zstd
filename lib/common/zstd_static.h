@@ -51,7 +51,7 @@ extern "C" {
 /*-*************************************
 *  Constants
 ***************************************/
-#define ZSTD_MAGICNUMBER 0xFD2FB526   /* v0.6 */
+#define ZSTD_MAGICNUMBER 0xFD2FB527   /* v0.7 */
 
 
 /*-*************************************
@@ -87,6 +87,7 @@ typedef struct {
 
 typedef struct {
     U32 contentSizeFlag;   /* 1: content size will be in frame header (if known). */
+    U32 noDictIDFlag;      /* 1: no dict ID will be saved into frame header (if dictionary compression) */
 } ZSTD_frameParameters;
 
 typedef struct {
@@ -103,11 +104,11 @@ typedef struct { ZSTD_allocFunction customAlloc; ZSTD_freeFunction customFree; }
 *  Advanced functions
 ***************************************/
 /*! ZSTD_createCCtx_advanced() :
- *  Create a ZSTD compression context using external alloc and free functions */ 
+ *  Create a ZSTD compression context using external alloc and free functions */
 ZSTDLIB_API ZSTD_CCtx* ZSTD_createCCtx_advanced(ZSTD_customMem customMem);
 
 /*! ZSTD_createDCtx_advanced() :
- *  Create a ZSTD decompression context using external alloc and free functions */ 
+ *  Create a ZSTD decompression context using external alloc and free functions */
 ZSTDLIB_API ZSTD_DCtx* ZSTD_createDCtx_advanced(ZSTD_customMem customMem);
 
 ZSTDLIB_API unsigned ZSTD_maxCLevel (void);
@@ -191,10 +192,14 @@ ZSTDLIB_API size_t ZSTD_compressEnd(ZSTD_CCtx* cctx, void* dst, size_t dstCapaci
   You can then reuse ZSTD_CCtx to compress some new frame.
 */
 
-typedef struct { U64 frameContentSize; U32 windowLog; } ZSTD_frameParams;
+typedef struct {
+    U64 frameContentSize;
+    U32 windowLog;
+    U32 dictID;
+} ZSTD_frameParams;
 
-#define ZSTD_FRAMEHEADERSIZE_MAX 13    /* for static allocation */
-static const size_t ZSTD_frameHeaderSize_min = 5;
+#define ZSTD_FRAMEHEADERSIZE_MAX 18    /* for static allocation */
+static const size_t ZSTD_frameHeaderSize_min = 6;
 static const size_t ZSTD_frameHeaderSize_max = ZSTD_FRAMEHEADERSIZE_MAX;
 ZSTDLIB_API size_t ZSTD_getFrameParams(ZSTD_frameParams* fparamsPtr, const void* src, size_t srcSize);   /**< doesn't consume input */
 

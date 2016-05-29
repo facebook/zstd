@@ -308,6 +308,7 @@ static int FIO_compressFilename_internal(cRess_t ress,
 
     /* init */
     {   ZSTD_parameters params;
+        memset(&params, 0, sizeof(params));
         params.cParams = ZSTD_getCParams(cLevel, fileSize, ress.dictBufferSize);
         params.fParams.contentSizeFlag = 1;
         if (g_maxWLog) if (params.cParams.windowLog > g_maxWLog) params.cParams.windowLog = g_maxWLog;

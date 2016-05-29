@@ -61,9 +61,9 @@
 #include "fse.h"
 #include "huf_static.h"
 #include "zstd_internal.h"
+#include "xxhash.h"
 #include "divsufsort.h"
 #include "zdict_static.h"
-
 
 
 /*-*************************************
@@ -104,8 +104,7 @@ static void ZDICT_printHex(U32 dlevel, const void* ptr, size_t length)
 {
     const BYTE* const b = (const BYTE*)ptr;
     size_t u;
-    for (u=0; u<length; u++)
-    {
+    for (u=0; u<length; u++) {
         BYTE c = b[u];
         if (c<32 || c>126) c = '.';   /* non-printable char */
         DISPLAYLEVEL(dlevel, "%c", c);
@@ -198,8 +197,12 @@ static size_t ZDICT_count(const void* pIn, const void* pMatch)
 {
     const char* const pStart = (const char*)pIn;
     for (;;) {
-        size_t diff = MEM_readST(pMatch) ^ MEM_readST(pIn);
-        if (!diff) { pIn = (const char*)pIn+sizeof(size_t); pMatch = (const char*)pMatch+sizeof(size_t); continue; }
+        size_t const diff = MEM_readST(pMatch) ^ MEM_readST(pIn);
+        if (!diff) {
+            pIn = (const char*)pIn+sizeof(size_t);
+            pMatch = (const char*)pMatch+sizeof(size_t);
+            continue;
+        }
         pIn = (const char*)pIn+ZDICT_NbCommonBytes(diff);
         return (size_t)((const char*)pIn - pStart);
     }
@@ -346,9 +349,8 @@ static dictItem ZDICT_analyzePos(
         maxLength = i;
 
         /* reduce maxLength in case of final into repetitive data */
-        {
-            U32 l = (U32)maxLength;
-            BYTE c = b[pos + maxLength-1];
+        {   U32 l = (U32)maxLength;
+            BYTE const c = b[pos + maxLength-1];
             while (b[pos+l-2]==c) l--;
             maxLength = l;
         }
@@ -367,12 +369,10 @@ static dictItem ZDICT_analyzePos(
         solution.savings = savings[maxLength];
 
         /* mark positions done */
-        {
-            U32 id;
-            U32 testedPos;
+        {   U32 id;
             for (id=start; id<end; id++) {
                 U32 p, pEnd;
-                testedPos = suffix[id];
+                U32 const testedPos = suffix[id];
                 if (testedPos == pos)
                     length = solution.length;
                 else {
@@ -439,7 +439,7 @@ static U32 ZDICT_checkMerge(dictItem* table, dictItem elt, U32 eltNbToSkip)
 static void ZDICT_removeDictItem(dictItem* table, U32 id)
 {
     /* convention : first element is nb of elts */
-    U32 max = table->pos;
+    U32 const max = table->pos;
     U32 u;
     if (!id) return;   /* protection, should never happen */
     for (u=id; u<max-1; u++)
@@ -463,8 +463,7 @@ static void ZDICT_insertDictItem(dictItem* table, U32 maxSize, dictItem elt)
     }
 
     /* insert */
-    {
-        U32 current;
+    {   U32 current;
         U32 nextElt = table->pos;
         if (nextElt >= maxSize) nextElt = maxSize-1;
         current = nextElt-1;
@@ -530,8 +529,7 @@ static size_t ZDICT_trainBuffer(dictItem* dictList, U32 dictListSize,
     DISPLAYLEVEL(2, "finding patterns ... \n");
     DISPLAYLEVEL(3, "minimum ratio : %u \n", minRatio);
 
-    {
-        U32 cursor; for (cursor=0; cursor < bufferSize; ) {
+    {   U32 cursor; for (cursor=0; cursor < bufferSize; ) {
             dictItem solution;
             if (doneMarks[cursor]) { cursor++; continue; }
             solution = ZDICT_analyzePos(doneMarks, suffix, reverseSuffix[cursor], buffer, minRatio);
@@ -542,8 +540,7 @@ static size_t ZDICT_trainBuffer(dictItem* dictList, U32 dictListSize,
     }   }
 
     /* limit dictionary size */
-    {
-        U32 max = dictList->pos;   /* convention : nb of useful elts within dictList */
+    {   U32 const max = dictList->pos;   /* convention : nb of useful elts within dictList */
         U32 currentSize = 0;
         U32 n; for (n=1; n<max; n++) {
             currentSize += dictList[n].length;
@@ -785,7 +782,7 @@ static size_t ZDICT_fastSampling(void* dictBuffer, size_t dictSize,
 {
     char* dstPtr = (char*)dictBuffer + dictSize;
     const char* srcPtr = (const char*)samplesBuffer;
-    size_t nbSegments = dictSize / DIB_FASTSEGMENTSIZE;
+    size_t const nbSegments = dictSize / DIB_FASTSEGMENTSIZE;
     size_t segNb, interSize;
 
     if (nbSegments <= 2) return ERROR(srcSize_wrong);
@@ -890,12 +887,15 @@ size_t ZDICT_trainFromBuffer_unsafe(
 
        /* dictionary header */
         MEM_writeLE32(dictBuffer, ZSTD_DICT_MAGIC);
-        hSize = 4;
+        {   U64 const randomID = XXH64((char*)dictBuffer + maxDictSize - dictContentSize, dictContentSize, 0);
+            MEM_writeLE32((char*)dictBuffer+4, (U32)(randomID>>11));
+        }
+        hSize = 8;
 
         /* entropic tables */
         DISPLAYLEVEL(2, "\r%70s\r", "");   /* clean display line */
         DISPLAYLEVEL(2, "statistics ... \n");
-        hSize += ZDICT_analyzeEntropy((char*)dictBuffer+4, maxDictSize-4,
+        hSize += ZDICT_analyzeEntropy((char*)dictBuffer+hSize, maxDictSize-hSize,
                                     compressionLevel,
                                     samplesBuffer, sampleSizes, nbSamples,
                                     (char*)dictBuffer + maxDictSize - dictContentSize, dictContentSize);
@@ -946,4 +946,3 @@ size_t ZDICT_trainFromBuffer(void* dictBuffer, size_t dictBufferCapacity,
                                           samplesBuffer, samplesSizes, nbSamples,
                                           params);
 }
-

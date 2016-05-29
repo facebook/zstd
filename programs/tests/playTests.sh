@@ -39,13 +39,13 @@ $ZSTD -df tmp.zst                        # trivial decompression case (overwrite
 $ECHO "test : too large compression level (must fail)"
 $ZSTD -99 tmp && die "too large compression level undetected"
 $ECHO "test : compress to stdout"
-$ZSTD tmp -c > tmpCompressed                 
+$ZSTD tmp -c > tmpCompressed
 $ZSTD tmp --stdout > tmpCompressed       # long command format
 $ECHO "test : null-length file roundtrip"
 $ECHO -n '' | $ZSTD - --stdout | $ZSTD -d --stdout
 $ECHO "test : decompress file with wrong suffix (must fail)"
 $ZSTD -d tmpCompressed && die "wrong suffix error not detected!"
-$ZSTD -d tmpCompressed -c > tmpResult    # decompression using stdout   
+$ZSTD -d tmpCompressed -c > tmpResult    # decompression using stdout
 $ZSTD --decompress tmpCompressed -c > tmpResult
 $ZSTD --decompress tmpCompressed --stdout > tmpResult
 if [ "$isWindows" = false ] ; then
@@ -124,9 +124,9 @@ $ECHO "\n**** dictionary tests **** "
 ./datagen -g1M | $ZSTD -D tmpDict | $ZSTD -D tmpDict -dvq | md5sum > tmp2
 diff -q tmp1 tmp2
 $ZSTD --train *.c *.h -o tmpDict
-$ZSTD xxhash.c -D tmpDict -of tmp
+$ZSTD zstd_compress.c -D tmpDict -of tmp
 $ZSTD -d tmp -D tmpDict -of result
-diff xxhash.c result
+diff zstd_compress.c result
 
 
 $ECHO "\n**** multiple files tests **** "
@@ -171,7 +171,7 @@ roundTripTest -g127K      # TableID==2
 roundTripTest -g255K      # TableID==1
 roundTripTest -g513K      # TableID==0
 roundTripTest -g512K 6    # greedy, hash chain
-roundTripTest -g512K 16   # btlazy2 
+roundTripTest -g512K 16   # btlazy2
 roundTripTest -g512K 19   # btopt
 
 rm tmp*
@@ -210,4 +210,3 @@ roundTripTest -g99000000 -P99 20
 roundTripTest -g6000000000 -P99 1
 
 rm tmp*
-

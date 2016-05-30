@@ -244,7 +244,7 @@ static int basicUnitTests(U32 seed, double compressibility)
         void* dictBuffer = malloc(dictSize);
         size_t const totalSampleSize = 1 MB;
         size_t const sampleUnitSize = 8 KB;
-        U32 const nbSamples = totalSampleSize / sampleUnitSize;
+        U32 const nbSamples = (U32)(totalSampleSize / sampleUnitSize);
         size_t* const samplesSizes = (size_t*) malloc(nbSamples * sizeof(size_t));
 
         if (dictBuffer==NULL || samplesSizes==NULL) {

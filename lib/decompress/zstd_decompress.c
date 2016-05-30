@@ -362,10 +362,11 @@ size_t ZSTD_getFrameParams(ZSTD_frameParams* fparamsPtr, const void* src, size_t
 /** ZSTD_decodeFrameHeader() :
 *   `srcSize` must be the size provided by ZSTD_frameHeaderSize().
 *   @return : 0 if success, or an error code, which can be tested using ZSTD_isError() */
-static size_t ZSTD_decodeFrameHeader(ZSTD_DCtx* zc, const void* src, size_t srcSize)
+static size_t ZSTD_decodeFrameHeader(ZSTD_DCtx* dctx, const void* src, size_t srcSize)
 {
-    size_t const result = ZSTD_getFrameParams(&(zc->fParams), src, srcSize);
-    if ((MEM_32bits()) && (zc->fParams.windowLog > 25)) return ERROR(frameParameter_unsupportedBy32bits);
+    size_t const result = ZSTD_getFrameParams(&(dctx->fParams), src, srcSize);
+    if ((MEM_32bits()) && (dctx->fParams.windowLog > 25)) return ERROR(frameParameter_unsupportedBy32bits);
+    if (dctx->fParams.dictID && (dctx->dictID != dctx->fParams.dictID)) return ERROR(dictionary_wrong);
     return result;
 }
 
@@ -1046,7 +1047,6 @@ size_t ZSTD_decompressContinue(ZSTD_DCtx* dctx, void* dst, size_t dstCapacity, c
             memcpy(dctx->headerBuffer + ZSTD_frameHeaderSize_min, src, dctx->expected);
             result = ZSTD_decodeFrameHeader(dctx, dctx->headerBuffer, dctx->headerSize);
             if (ZSTD_isError(result)) return result;
-            if (dctx->dictID != dctx->fParams.dictID) return ERROR(dictionary_wrong);
             dctx->expected = ZSTD_blockHeaderSize;
             dctx->stage = ZSTDds_decodeBlockHeader;
             return 0;

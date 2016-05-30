@@ -204,7 +204,7 @@ endif
 #------------------------------------------------------------------------
 ifneq (,$(filter $(HOST_OS),MSYS POSIX))
 zstd-playTests: datagen
-	ZSTD=$(ZSTD) ./tests/playTests.sh $(ZSTDRTTEST)
+	ZSTD=$(ZSTD) ./playTests.sh $(ZSTDRTTEST)
 
 test: test-zstd test-fullbench test-fuzzer test-zbuff
 

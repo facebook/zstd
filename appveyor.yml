@@ -80,7 +80,7 @@ build_script:
       ECHO *** &&
       msbuild "projects\VS2010\zstd.sln" /m /verbosity:minimal /property:PlatformToolset=v140 /t:Clean,Build /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll" &&
       COPY projects\VS2010\bin\%PLATFORM%\%CONFIGURATION%\fuzzer.exe projects\fuzzer_VS2015_%PLATFORM%_%CONFIGURATION%.exe &&
-      COPY projects\VS2010\bin\%PLATFORM%\%CONFIGURATION%\*.exe projects\
+      COPY projects\VS2010\bin\%PLATFORM%\%CONFIGURATION%\*.exe programs\
     )
 
 test_script:
@@ -91,9 +91,9 @@ test_script:
     )
   - if [%COMPILER%]==[visual] if [%CONFIGURATION%]==[Release] (
       CD programs &&
-      SET ZSTD=..\projects\zstd.exe &&
-      SET DATAGEN=..\projects\datagen.exe &&
-      sh playTests.sh --test-large-data &&
+      SET ZSTD=./zstd.exe &&
+      SET DATAGEN=./datagen.exe &&
+      sh -e playTests.sh --test-large-data &&
       CD .. &&
       projects\fullbench.exe -i1 &&
       projects\fullbench.exe -i1 -P0 &&

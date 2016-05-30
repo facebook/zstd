@@ -129,6 +129,8 @@ $ZSTD -d tmp -D tmpDict -of result
 diff zstdcli.c result
 $ZSTD --train *.c *.h -o tmpDictC
 $ZSTD -d tmp -D tmpDictC -of result && die "wrong dictionary not detected!"
+$ZSTD --train *.c --dictID 1 -o tmpDict1
+cmp tmpDict tmpDict1 && die "dictionaries should have different ID !"
 
 
 $ECHO "\n**** multiple files tests **** "

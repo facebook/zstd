@@ -28,7 +28,7 @@
 #ifdef _MSC_VER    /* Visual Studio */
 #  define _CRT_SECURE_NO_WARNINGS     /* fgets */
 #  pragma warning(disable : 4127)     /* disable: C4127: conditional expression is constant */
-#  pragma warning(disable : 4146)     /* disable: C4146: minus unsigned expression */
+#  pragma warning(disable : 4204)     /* disable: C4204: non-constant aggregate initializer */
 #endif
 
 
@@ -215,7 +215,10 @@ static int basicUnitTests(U32 seed, double compressibility)
 
         DISPLAYLEVEL(4, "test%3i : check content size on duplicated context : ", testNb++);
         {   size_t const testSize = CNBuffSize / 3;
-            {   ZSTD_parameters const p = (ZSTD_parameters) { ZSTD_getCParams(2, testSize, dictSize), { 1, 0 } };
+            {   ZSTD_compressionParameters const cPar = ZSTD_getCParams(2, testSize, dictSize);
+                ZSTD_frameParameters const fPar = { 1 , 0 };
+                ZSTD_parameters p;
+                p.cParams = cPar; p.fParams = fPar;
                 CHECK( ZSTD_compressBegin_advanced(ctxOrig, CNBuffer, dictSize, p, testSize-1) );
             }
             CHECK( ZSTD_copyCCtx(ctxDuplicated, ctxOrig) );
@@ -274,7 +277,9 @@ static int basicUnitTests(U32 seed, double compressibility)
 
         DISPLAYLEVEL(4, "test%3i : compress without dictID : ", testNb++);
         {   ZSTD_frameParameters const fParams = { 0, 1 /*NoDictID*/ };
-            ZSTD_parameters const p = { ZSTD_getCParams(3, CNBuffSize, dictSize), fParams };
+            ZSTD_compressionParameters const cParams = ZSTD_getCParams(3, CNBuffSize, dictSize);
+            ZSTD_parameters p;
+            p.cParams = cParams; p.fParams = fParams;
             cSize = ZSTD_compress_advanced(cctx, compressedBuffer, ZSTD_compressBound(CNBuffSize),
                                            CNBuffer, CNBuffSize,
                                            dictBuffer, dictSize, p);
@@ -638,9 +643,12 @@ static int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, U32 const maxD
                 size_t const errorCode = ZSTD_compressBegin_usingDict(refCtx, dict, dictSize, cLevel);
                 CHECK (ZSTD_isError(errorCode), "ZSTD_compressBegin_usingDict error : %s", ZSTD_getErrorName(errorCode));
             } else {
+                ZSTD_compressionParameters const cPar = ZSTD_getCParams(cLevel, 0, dictSize);
                 ZSTD_frameParameters const fpar = { FUZ_rand(&lseed)&1, FUZ_rand(&lseed)&1 };   /* note : since dictionary is fake, dictIDflag has no impact */
-                ZSTD_parameters const p = (ZSTD_parameters) { ZSTD_getCParams(cLevel, 0, dictSize), fpar };
-                size_t const errorCode = ZSTD_compressBegin_advanced(refCtx, dict, dictSize, p, 0);
+                ZSTD_parameters p;
+                size_t errorCode;
+                p.cParams = cPar; p.fParams = fpar;
+                errorCode = ZSTD_compressBegin_advanced(refCtx, dict, dictSize, p, 0);
                 CHECK (ZSTD_isError(errorCode), "ZSTD_compressBegin_advanced error : %s", ZSTD_getErrorName(errorCode));
             }
             { size_t const errorCode = ZSTD_copyCCtx(ctx, refCtx);

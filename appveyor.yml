@@ -93,7 +93,7 @@ test_script:
       CD programs &&
       SET ZSTD=..\projects\zstd.exe &&
       SET DATAGEN=..\projects\datagen.exe &&
-      CALL tests\playTests.bat --test-large-data &&
+      sh playTests.sh --test-large-data &&
       CD .. &&
       projects\fullbench.exe -i1 &&
       projects\fullbench.exe -i1 -P0 &&

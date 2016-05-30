@@ -82,7 +82,6 @@ all: zstd fullbench fuzzer zbufftest paramgrill datagen zstd32 fullbench32 fuzze
 
 zstd  : $(ZSTD_FILES) $(ZSTDLEGACY_FILES) $(ZBUFF_FILES) $(ZDICT_FILES) \
         zstdcli.c fileio.c bench.c datagen.c dibio.c
-	@echo $(ZSTD_FILES)
 	$(CC)      $(FLAGS) -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT) $^ -o $@$(EXT)
 
 zstd32: $(ZSTD_FILES) $(ZSTDLEGACY_FILES) $(ZBUFF_FILES) $(ZDICT_FILES) \
@@ -123,10 +122,12 @@ fullbench  : $(ZSTD_FILES) $(ZBUFF_FILES) datagen.c fullbench.c
 fullbench32: $(ZSTD_FILES) $(ZBUFF_FILES) datagen.c fullbench.c
 	$(CC) -m32 $(FLAGS) $^ -o $@$(EXT)
 
-fuzzer  : $(ZSTD_FILES) datagen.c fuzzer.c
+fuzzer  : CPPFLAGS += -I$(ZSTDDIR)/dictBuilder
+fuzzer  : $(ZSTD_FILES) $(ZDICT_FILES) datagen.c fuzzer.c
 	$(CC)      $(FLAGS) $^ -o $@$(EXT)
 
-fuzzer32: $(ZSTD_FILES) datagen.c fuzzer.c
+fuzzer32 : CPPFLAGS += -I$(ZSTDDIR)/dictBuilder
+fuzzer32: $(ZSTD_FILES) $(ZDICT_FILES) datagen.c fuzzer.c
 	$(CC) -m32 $(FLAGS) $^ -o $@$(EXT)
 
 zbufftest  : $(ZSTD_FILES) $(ZBUFF_FILES) datagen.c zbufftest.c

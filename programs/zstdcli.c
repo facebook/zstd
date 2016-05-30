@@ -143,6 +143,7 @@ static int usage_advanced(const char* programName)
     DISPLAY( " -o file: `file` is dictionary name (default: %s) \n", g_defaultDictName);
     DISPLAY( "--maxdict:limit dictionary to specified size (default : %u) \n", g_defaultMaxDictSize);
     DISPLAY( " -s#    : dictionary selectivity level (default: %u)\n", g_defaultSelectivityLevel);
+    DISPLAY( "--dictID: force dictionary ID to specified value (default: random)\n");
 #endif
 #ifndef ZSTD_NOBENCH
     DISPLAY( "\n");
@@ -185,7 +186,8 @@ int main(int argCount, const char** argv)
         operationResult=0,
         dictBuild=0,
         nextArgumentIsOutFileName=0,
-        nextArgumentIsMaxDict=0;
+        nextArgumentIsMaxDict=0,
+        nextArgumentIsDictID=0;
     unsigned cLevel = 1;
     unsigned cLevelLast = 1;
     unsigned recursive = 0;
@@ -196,6 +198,7 @@ int main(int argCount, const char** argv)
     const char* dictFileName = NULL;
     char* dynNameSpace = NULL;
     unsigned maxDictSize = g_defaultMaxDictSize;
+    unsigned dictID = 0;
     unsigned dictCLevel = g_defaultDictCLevel;
     unsigned dictSelect = g_defaultSelectivityLevel;
 #ifdef UTIL_HAS_CREATEFILELIST
@@ -236,6 +239,7 @@ int main(int argCount, const char** argv)
         if (!strcmp(argument, "--test")) { decode=1; outFileName=nulmark; FIO_overwriteMode(); continue; }
         if (!strcmp(argument, "--train")) { dictBuild=1; outFileName=g_defaultDictName; continue; }
         if (!strcmp(argument, "--maxdict")) { nextArgumentIsMaxDict=1; continue; }
+        if (!strcmp(argument, "--dictID")) { nextArgumentIsDictID=1; continue; }
         if (!strcmp(argument, "--keep")) { continue; }   /* does nothing, since preserving input is default; for gzip/xz compatibility */
         if (!strcmp(argument, "--ultra")) { FIO_setMaxWLog(0); continue; }
         if (!strcmp(argument, "--sparse")) { FIO_setSparseWrite(2); continue; }
@@ -393,6 +397,14 @@ int main(int argCount, const char** argv)
             continue;
         }
 
+        if (nextArgumentIsDictID) {
+            nextArgumentIsDictID = 0;
+            dictID = 0;
+            while ((*argument>='0') && (*argument<='9'))
+                dictID = dictID * 10 + (*argument - '0'), argument++;
+            continue;
+        }
+
         /* add filename to list */
         filenameTable[filenameIdx++] = argument;
     }
@@ -429,6 +441,7 @@ int main(int argCount, const char** argv)
         dictParams.compressionLevel = dictCLevel;
         dictParams.selectivityLevel = dictSelect;
         dictParams.notificationLevel = displayLevel;
+        dictParams.dictID = dictID;
         DiB_trainFromFiles(outFileName, maxDictSize, filenameTable, filenameIdx, dictParams);
 #endif
         goto _end;

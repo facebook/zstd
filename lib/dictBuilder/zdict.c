@@ -819,10 +819,10 @@ size_t ZDICT_trainFromBuffer_unsafe(
                             ZDICT_params_t params)
 {
     U32 const dictListSize = MAX( MAX(DICTLISTSIZE, nbSamples), (U32)(maxDictSize/16));
-    dictItem* dictList = (dictItem*)malloc(dictListSize * sizeof(*dictList));
+    dictItem* const dictList = (dictItem*)malloc(dictListSize * sizeof(*dictList));
     unsigned selectivity = params.selectivityLevel;
     unsigned compressionLevel = params.compressionLevel;
-    size_t targetDictSize = maxDictSize;
+    size_t const targetDictSize = maxDictSize;
     size_t sBuffSize;
     size_t dictSize = 0;
 
@@ -865,17 +865,16 @@ size_t ZDICT_trainFromBuffer_unsafe(
     /* create dictionary */
     {   U32 dictContentSize = ZDICT_dictSize(dictList);
         size_t hSize;
-        BYTE* ptr;
-        U32 u;
 
         /* build dict content */
-        ptr = (BYTE*)dictBuffer + maxDictSize;
-        for (u=1; u<dictList->pos; u++) {
-            U32 l = dictList[u].length;
-            ptr -= l;
-            if (ptr<(BYTE*)dictBuffer) return ERROR(GENERIC);   /* should not happen */
-            memcpy(ptr, (const char*)samplesBuffer+dictList[u].pos, l);
-        }
+        {   U32 u;
+            BYTE* ptr = (BYTE*)dictBuffer + maxDictSize;
+            for (u=1; u<dictList->pos; u++) {
+                U32 l = dictList[u].length;
+                ptr -= l;
+                if (ptr<(BYTE*)dictBuffer) return ERROR(GENERIC);   /* should not happen */
+                memcpy(ptr, (const char*)samplesBuffer+dictList[u].pos, l);
+        }   }
 
         /* fast mode dict content */
         if (selectivity==1) {  /* note could also be used to complete a dictionary, but not necessarily better */
@@ -888,7 +887,8 @@ size_t ZDICT_trainFromBuffer_unsafe(
        /* dictionary header */
         MEM_writeLE32(dictBuffer, ZSTD_DICT_MAGIC);
         {   U64 const randomID = XXH64((char*)dictBuffer + maxDictSize - dictContentSize, dictContentSize, 0);
-            MEM_writeLE32((char*)dictBuffer+4, (U32)(randomID>>11));
+            U32 const dictID = params.dictID ? params.dictID : (U32)(randomID>>11);
+            MEM_writeLE32((char*)dictBuffer+4, dictID);
         }
         hSize = 8;
 

@@ -54,7 +54,8 @@ typedef struct {
     unsigned selectivityLevel;   /* 0 means default; larger => bigger selection => larger dictionary */
     unsigned compressionLevel;   /* 0 means default; target a specific zstd compression level */
     unsigned notificationLevel;  /* Write to stderr; 0 = none (default); 1 = errors; 2 = progression; 3 = details; 4 = debug; */
-    unsigned reserved[3];        /* space for future parameters */
+    unsigned dictID;             /* 0 means auto mode (32-bits random value); other : force dictID value */
+    unsigned reserved[2];        /* space for future parameters */
 } ZDICT_params_t;
 
 
@@ -65,7 +66,7 @@ typedef struct {
     Same as ZDICT_trainFromBuffer() with control over more parameters.
     `parameters` is optional and can be provided with values set to 0 to mean "default".
     @return : size of dictionary stored into `dictBuffer` (<= `dictBufferSize`)
-              or an error code, which can be tested by DiB_isError().
+              or an error code, which can be tested by ZDICT_isError().
     note : ZDICT_trainFromBuffer_advanced() will send notifications into stderr if instructed to, using ZDICT_setNotificationLevel()
 */
 size_t ZDICT_trainFromBuffer_advanced(void* dictBuffer, size_t dictBufferCapacity,

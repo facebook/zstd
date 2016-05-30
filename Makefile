@@ -76,6 +76,7 @@ travis-install:
 	$(MAKE) install PREFIX=~/install_test_dir
 
 cmaketest:
+	cmake --version
 	rm -rf projects/cmake/build
 	mkdir projects/cmake/build
 	cd projects/cmake/build ; cmake .. ; $(MAKE)

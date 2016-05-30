@@ -2,19 +2,19 @@
 # zstd - Makefile
 # Copyright (C) Yann Collet 2014-2016
 # All rights reserved.
-# 
+#
 # BSD license
 #
 # Redistribution and use in source and binary forms, with or without modification,
 # are permitted provided that the following conditions are met:
-# 
+#
 # * Redistributions of source code must retain the above copyright notice, this
 #   list of conditions and the following disclaimer.
-# 
+#
 # * Redistributions in binary form must reproduce the above copyright notice, this
 #   list of conditions and the following disclaimer in the documentation and/or
 #   other materials provided with the distribution.
-# 
+#
 # THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
 # ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 # WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -25,7 +25,7 @@
 # ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-# 
+#
 # You can contact the author at :
 #  - zstd homepage : http://www.zstd.net/
 # ################################################################
@@ -44,7 +44,7 @@ endif
 
 default: zstdprogram
 
-all: 
+all:
 	$(MAKE) -C $(ZSTDDIR) $@
 	$(MAKE) -C $(PRGDIR) $@
 
@@ -76,6 +76,8 @@ travis-install:
 	$(MAKE) install PREFIX=~/install_test_dir
 
 cmaketest:
+	rm -rf projects/cmake/build
+	mkdir projects/cmake/build
 	cd projects/cmake/build ; cmake .. ; $(MAKE)
 
 clangtest: clean
@@ -114,8 +116,8 @@ armtest: clean
 	$(MAKE) -C $(PRGDIR) test CC=arm-linux-gnueabi-gcc ZSTDRTTEST= MOREFLAGS="-Werror -static"
 
 # for Travis CI
-arminstall: clean   
-	sudo apt-get install -q qemu  
+arminstall: clean
+	sudo apt-get install -q qemu
 	sudo apt-get install -q binfmt-support
 	sudo apt-get install -q qemu-user-static
 	sudo apt-get install -q gcc-arm-linux-gnueabi
@@ -125,11 +127,11 @@ armtest-w-install: clean arminstall armtest
 
 ppctest: clean
 	$(MAKE) -C $(PRGDIR) datagen   # use native, faster
-	$(MAKE) -C $(PRGDIR) test CC=powerpc-linux-gnu-gcc ZSTDRTTEST= MOREFLAGS="-Werror -static" 
+	$(MAKE) -C $(PRGDIR) test CC=powerpc-linux-gnu-gcc ZSTDRTTEST= MOREFLAGS="-Werror -static"
 
 # for Travis CI
-ppcinstall: clean   
-	sudo apt-get install -q qemu  
+ppcinstall: clean
+	sudo apt-get install -q qemu
 	sudo apt-get install -q binfmt-support
 	sudo apt-get install -q qemu-user-static
 	sudo apt-get update  -q

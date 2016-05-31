@@ -1090,7 +1090,7 @@ size_t ZSTD_decompressContinue(ZSTD_DCtx* dctx, void* dst, size_t dstCapacity, c
             return 0;
         }
     case ZSTDds_skipFrame:
-        {   dctx->expected = ZSTD_frameHeaderSize_min;
+        {   dctx->expected = 0;
             dctx->stage = ZSTDds_getFrameHeaderSize;
             return 0;
         }

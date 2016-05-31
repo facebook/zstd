@@ -224,13 +224,7 @@ size_t ZBUFF_decompressContinue(ZBUFF_DCtx* zbd,
                         ip, neededInSize);
                     if (ZSTD_isError(decodedSize)) return decodedSize;
                     ip += neededInSize;
-                    if (!decodedSize)  {
-                        if (isSkipFrame) {
-                           zbd->stage = ZBUFFds_loadHeader;
-                           zbd->lhSize = 0;
-                        }
-                        break;   /* this was just a header */
-                    }
+                    if (!decodedSize && !isSkipFrame) break;   /* this was just a header */
                     zbd->outEnd = zbd->outStart +  decodedSize;
                     zbd->stage = ZBUFFds_flush;
                     break;
@@ -256,15 +250,7 @@ size_t ZBUFF_decompressContinue(ZBUFF_DCtx* zbd,
                         zbd->inBuff, neededInSize);
                     if (ZSTD_isError(decodedSize)) return decodedSize;
                     zbd->inPos = 0;   /* input is consumed */
-                    if (!decodedSize) {
-                        if (isSkipFrame) {
-                           zbd->stage = ZBUFFds_loadHeader;
-                           zbd->lhSize = 0;
-                           break; 
-                        }
-                        zbd->stage = ZBUFFds_read; /* this was just a header */
-                        break; 
-                    }
+                    if (!decodedSize && !isSkipFrame) { zbd->stage = ZBUFFds_read; break; }   /* this was just a header */
                     zbd->outEnd = zbd->outStart +  decodedSize;
                     zbd->stage = ZBUFFds_flush;
                     // break; /* ZBUFFds_flush follows */
@@ -292,7 +278,7 @@ size_t ZBUFF_decompressContinue(ZBUFF_DCtx* zbd,
     *srcSizePtr = ip-istart;
     *dstCapacityPtr = op-ostart;
     {   size_t nextSrcSizeHint = ZSTD_nextSrcSizeToDecompress(zbd->zd);
-        if (nextSrcSizeHint > ZSTD_blockHeaderSize) nextSrcSizeHint+= ZSTD_blockHeaderSize;   /* get following block header too */
+//        if (nextSrcSizeHint > ZSTD_blockHeaderSize) nextSrcSizeHint+= ZSTD_blockHeaderSize;   /* get following block header too */
         nextSrcSizeHint -= zbd->inPos;   /* already loaded*/
         return nextSrcSizeHint;
     }

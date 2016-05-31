@@ -125,7 +125,6 @@ static int usage_advanced(const char* programName)
     DISPLAY( "\n");
     DISPLAY( "Advanced arguments :\n");
     DISPLAY( " -V     : display Version number and exit\n");
-    DISPLAY( " -t     : test compressed file integrity \n");
     DISPLAY( " -v     : verbose mode\n");
     DISPLAY( " -q     : suppress warnings; specify twice to suppress errors too\n");
     DISPLAY( " -c     : force write to standard output, even if it is the console\n");
@@ -134,8 +133,12 @@ static int usage_advanced(const char* programName)
 #endif
 #ifndef ZSTD_NOCOMPRESS
     DISPLAY( "--ultra : enable ultra modes (requires more memory to decompress)\n");
+    DISPLAY( "--no-dictID:don't write dictID into header (dictionary compression)\n");
 #endif
+#ifndef ZSTD_NODECOMPRESS
+    DISPLAY( " -t     : test compressed file integrity \n");
     DISPLAY( "--[no-]sparse  : sparse mode (default:enabled on file, disabled on stdout)\n");
+#endif
 #ifndef ZSTD_NODICT
     DISPLAY( "\n");
     DISPLAY( "Dictionary builder :\n");
@@ -236,14 +239,15 @@ int main(int argCount, const char** argv)
         if (!strcmp(argument, "--verbose")) { displayLevel=4; continue; }
         if (!strcmp(argument, "--quiet")) { displayLevel--; continue; }
         if (!strcmp(argument, "--stdout")) { forceStdout=1; outFileName=stdoutmark; displayLevel=1; continue; }
+        if (!strcmp(argument, "--ultra")) { FIO_setMaxWLog(0); continue; }
+        if (!strcmp(argument, "--no-dictID")) { FIO_setDictIDFlag(0); continue; }
+        if (!strcmp(argument, "--sparse")) { FIO_setSparseWrite(2); continue; }
+        if (!strcmp(argument, "--no-sparse")) { FIO_setSparseWrite(0); continue; }
         if (!strcmp(argument, "--test")) { decode=1; outFileName=nulmark; FIO_overwriteMode(); continue; }
         if (!strcmp(argument, "--train")) { dictBuild=1; outFileName=g_defaultDictName; continue; }
         if (!strcmp(argument, "--maxdict")) { nextArgumentIsMaxDict=1; continue; }
         if (!strcmp(argument, "--dictID")) { nextArgumentIsDictID=1; continue; }
         if (!strcmp(argument, "--keep")) { continue; }   /* does nothing, since preserving input is default; for gzip/xz compatibility */
-        if (!strcmp(argument, "--ultra")) { FIO_setMaxWLog(0); continue; }
-        if (!strcmp(argument, "--sparse")) { FIO_setSparseWrite(2); continue; }
-        if (!strcmp(argument, "--no-sparse")) { FIO_setSparseWrite(0); continue; }
 
         /* '-' means stdin/stdout */
         if (!strcmp(argument, "-")){
@@ -300,7 +304,7 @@ int main(int argCount, const char** argv)
                 case 'k': argument++; break;
 
                     /* test compressed file */
-                case 't': decode=1; outFileName=nulmark; FIO_overwriteMode(); argument++; break;
+                case 't': decode=1; outFileName=nulmark; argument++; break;
 
                     /* dictionary name */
                 case 'o': nextArgumentIsOutFileName=1; argument++; break;

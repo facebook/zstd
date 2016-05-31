@@ -106,11 +106,6 @@ IF (ZSTD_LEGACY_SUPPORT)
             ${LIBRARY_LEGACY_DIR}/zstd_v04.h)
 ENDIF (ZSTD_LEGACY_SUPPORT)
 
-IF (MSVC)
-    SET(MSVC_RESOURCE_DIR ${ROOT_DIR}/visual/2013/zstdlib)
-    SET(PlatformDependResources ${MSVC_RESOURCE_DIR}/resource.h ${MSVC_RESOURCE_DIR}/zstdlib.rc)
-ENDIF (MSVC)
-
 # Split project to static and shared libraries build
 ADD_LIBRARY(libzstd_static STATIC ${Sources} ${Headers} ${PlatformDependResources})
 ADD_LIBRARY(libzstd_shared SHARED ${Sources} ${Headers} ${PlatformDependResources})
@@ -132,13 +127,11 @@ IF (NOT WORKAROUND_OUTDATED_CODE_STYLE)
 ENDIF (NOT WORKAROUND_OUTDATED_CODE_STYLE)
 
 # Define library base name
-IF (UNIX)
-    SET(LIBRARY_BASE_NAME libzstd)
-ELSEIF (MSVC)
+IF (MSVC)
     SET(LIBRARY_BASE_NAME zstdlib)
 ELSE ()
-    MESSAGE(FATAL_ERROR "Unsupported build type")
-ENDIF (UNIX)
+    SET(LIBRARY_BASE_NAME libzstd)
+ENDIF (MSVC)
 
 # Define static and shared library names
 SET(STATIC_LIBRARY_OUTPUT_NAME ${LIBRARY_BASE_NAME})

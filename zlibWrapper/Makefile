@@ -15,14 +15,14 @@ IMPLIB    = -lz ../lib/libzstd.a
 endif
 
 ZLIBWRAPPER_PATH = .
-EXAMPLE_PATH = examples/
+EXAMPLE_PATH = examples
 CC = gcc
 CFLAGS = $(LOC) -I../lib/common -I$(ZLIBWRAPPER_PATH) -O3 -Wall -std=gnu89
 LDFLAGS = $(LOC)
 RM = rm -f
 
 
-all: example example_d
+all: clean test testdll
 
 test: example
 	./example

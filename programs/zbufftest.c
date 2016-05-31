@@ -147,11 +147,12 @@ static int basicUnitTests(U32 seed, double compressibility, ZSTD_customMem custo
     int testResult = 0;
     size_t CNBufferSize = COMPRESSIBLE_NOISE_LENGTH;
     void* CNBuffer = malloc(CNBufferSize);
-    size_t const compressedBufferSize = ZSTD_compressBound(COMPRESSIBLE_NOISE_LENGTH);
+    size_t const skippableFrameSize = 11;
+    size_t const compressedBufferSize = (8 + skippableFrameSize) + ZSTD_compressBound(COMPRESSIBLE_NOISE_LENGTH);
     void* compressedBuffer = malloc(compressedBufferSize);
     size_t const decodedBufferSize = CNBufferSize;
     void* decodedBuffer = malloc(decodedBufferSize);
-    size_t result, cSize, readSize, genSize;
+    size_t result, cSize, readSize, readSkipSize, genSize;
     U32 testNb=0;
     ZBUFF_CCtx* zc = ZBUFF_createCCtx_advanced(customMem);
     ZBUFF_DCtx* zd = ZBUFF_createDCtx_advanced(customMem);
@@ -163,15 +164,19 @@ static int basicUnitTests(U32 seed, double compressibility, ZSTD_customMem custo
     }
     RDG_genBuffer(CNBuffer, CNBufferSize, compressibility, 0., seed);
 
+    /* generate skippable frame */
+    MEM_writeLE32(compressedBuffer, ZSTD_MAGIC_SKIPPABLE_START);
+    MEM_writeLE32(((char*)compressedBuffer)+4, (U32)skippableFrameSize);
+    cSize = skippableFrameSize + 8;
     /* Basic compression test */
     DISPLAYLEVEL(4, "test%3i : compress %u bytes : ", testNb++, COMPRESSIBLE_NOISE_LENGTH);
     ZBUFF_compressInitDictionary(zc, CNBuffer, 128 KB, 1);
     readSize = CNBufferSize;
     genSize = compressedBufferSize;
-    result = ZBUFF_compressContinue(zc, compressedBuffer, &genSize, CNBuffer, &readSize);
+    result = ZBUFF_compressContinue(zc, ((char*)compressedBuffer)+cSize, &genSize, CNBuffer, &readSize);
     if (ZBUFF_isError(result)) goto _output_error;
     if (readSize != CNBufferSize) goto _output_error;   /* entire input should be consumed */
-    cSize = genSize;
+    cSize += genSize;
     genSize = compressedBufferSize - cSize;
     result = ZBUFF_compressEnd(zc, ((char*)compressedBuffer)+cSize, &genSize);
     if (result != 0) goto _output_error;   /* error, or some data not flushed */
@@ -181,12 +186,17 @@ static int basicUnitTests(U32 seed, double compressibility, ZSTD_customMem custo
     /* Basic decompression test */
     DISPLAYLEVEL(4, "test%3i : decompress %u bytes : ", testNb++, COMPRESSIBLE_NOISE_LENGTH);
     ZBUFF_decompressInitDictionary(zd, CNBuffer, 128 KB);
-    readSize = cSize;
+    readSkipSize = cSize;
     genSize = CNBufferSize;
-    result = ZBUFF_decompressContinue(zd, decodedBuffer, &genSize, compressedBuffer, &readSize);
+    result = ZBUFF_decompressContinue(zd, decodedBuffer, &genSize, compressedBuffer, &readSkipSize);
+    if (genSize != 0) goto _output_error;   /* skippable frame */
+    ZBUFF_decompressInitDictionary(zd, CNBuffer, 128 KB);
+    readSize = cSize - readSkipSize;
+    genSize = CNBufferSize;
+    result = ZBUFF_decompressContinue(zd, decodedBuffer, &genSize, ((char*)compressedBuffer)+readSkipSize, &readSize);
     if (result != 0) goto _output_error;  /* should reach end of frame == 0; otherwise, some data left, or an error */
     if (genSize != CNBufferSize) goto _output_error;   /* should regenerate the same amount */
-    if (readSize != cSize) goto _output_error;   /* should have read the entire frame */
+    if (readSize+readSkipSize != cSize) goto _output_error;   /* should have read the entire frame */
     DISPLAYLEVEL(4, "OK \n");
 
     /* check regenerated data is byte exact */
@@ -200,17 +210,20 @@ static int basicUnitTests(U32 seed, double compressibility, ZSTD_customMem custo
 
     /* Byte-by-byte decompression test */
     DISPLAYLEVEL(4, "test%3i : decompress byte-by-byte : ", testNb++);
-    ZBUFF_decompressInitDictionary(zd, CNBuffer, 128 KB);
-    {   size_t r = 1, pIn=0, pOut=0;
-        while (r) {
-            size_t inS = 1;
-            size_t outS = 1;
-            r = ZBUFF_decompressContinue(zd, ((BYTE*)decodedBuffer)+pOut, &outS, ((BYTE*)compressedBuffer)+pIn, &inS);
-            pIn += inS;
-            pOut += outS;
-        }
-        readSize = pIn;
-        genSize = pOut;
+    {   size_t r, pIn=0, pOut=0;
+        do 
+        {   ZBUFF_decompressInitDictionary(zd, CNBuffer, 128 KB);
+            r = 1;
+            while (r) {
+                size_t inS = 1;
+                size_t outS = 1;
+                r = ZBUFF_decompressContinue(zd, ((BYTE*)decodedBuffer)+pOut, &outS, ((BYTE*)compressedBuffer)+pIn, &inS);
+                pIn += inS;
+                pOut += outS;
+            }
+            readSize = pIn;
+            genSize = pOut;
+        } while (genSize==0);
     }
     if (genSize != CNBufferSize) goto _output_error;   /* should regenerate the same amount */
     if (readSize != cSize) goto _output_error;   /* should have read the entire frame */

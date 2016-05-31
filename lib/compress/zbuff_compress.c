@@ -125,7 +125,7 @@ ZBUFF_CCtx* ZBUFF_createCCtx_advanced(ZSTD_customMem customMem)
     zbc = (ZBUFF_CCtx*)customMem.customAlloc(sizeof(ZBUFF_CCtx));
     if (zbc==NULL) return NULL;
     memset(zbc, 0, sizeof(ZBUFF_CCtx));
-    zbc->customAlloc = customMem.customAlloc; 
+    zbc->customAlloc = customMem.customAlloc;
     zbc->customFree = customMem.customFree;
     zbc->zc = ZSTD_createCCtx_advanced(customMem);
     return zbc;
@@ -180,6 +180,7 @@ size_t ZBUFF_compressInit_advanced(ZBUFF_CCtx* zbc,
 size_t ZBUFF_compressInitDictionary(ZBUFF_CCtx* zbc, const void* dict, size_t dictSize, int compressionLevel)
 {
     ZSTD_parameters params;
+    memset(&params, 0, sizeof(params));
     params.cParams = ZSTD_getCParams(compressionLevel, 0, dictSize);
     params.fParams.contentSizeFlag = 0;
     ZSTD_adjustCParams(&params.cParams, 0, dictSize);

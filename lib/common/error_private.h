@@ -102,6 +102,7 @@ ERR_STATIC const char* ERR_getErrorString(ERR_enum code)
     case PREFIX(dstSize_tooSmall): return "Destination buffer is too small";
     case PREFIX(srcSize_wrong): return "Src size incorrect";
     case PREFIX(corruption_detected): return "Corrupted block detected";
+    case PREFIX(checksum_wrong): return "Restored data doesn't match checksum";
     case PREFIX(tableLog_tooLarge): return "tableLog requires too much memory : unsupported";
     case PREFIX(maxSymbolValue_tooLarge): return "Unsupported max Symbol Value : too large";
     case PREFIX(maxSymbolValue_tooSmall): return "Specified maxSymbolValue is too small";

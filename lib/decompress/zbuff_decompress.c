@@ -218,12 +218,19 @@ size_t ZBUFF_decompressContinue(ZBUFF_DCtx* zbd,
                     break;
                 }
                 if ((size_t)(iend-ip) >= neededInSize) {  /* decode directly from src */
+                    const int isSkipFrame = ZSTD_isSkipFrame(zbd->zd);
                     size_t const decodedSize = ZSTD_decompressContinue(zbd->zd,
-                        zbd->outBuff + zbd->outStart, zbd->outBuffSize - zbd->outStart,
+                        zbd->outBuff + zbd->outStart, (isSkipFrame ? 0 : zbd->outBuffSize - zbd->outStart),
                         ip, neededInSize);
                     if (ZSTD_isError(decodedSize)) return decodedSize;
                     ip += neededInSize;
-                    if (!decodedSize) break;   /* this was just a header */
+                    if (!decodedSize)  {
+                        if (isSkipFrame) {
+                           zbd->stage = ZBUFFds_loadHeader;
+                           zbd->lhSize = 0;
+                        }
+                        break;   /* this was just a header */
+                    }
                     zbd->outEnd = zbd->outStart +  decodedSize;
                     zbd->stage = ZBUFFds_flush;
                     break;
@@ -243,12 +250,21 @@ size_t ZBUFF_decompressContinue(ZBUFF_DCtx* zbd,
                 if (loadedSize < toLoad) { notDone = 0; break; }   /* not enough input, wait for more */
 
                 /* decode loaded input */
-                {   size_t const decodedSize = ZSTD_decompressContinue(zbd->zd,
+                {  const int isSkipFrame = ZSTD_isSkipFrame(zbd->zd);
+                   size_t const decodedSize = ZSTD_decompressContinue(zbd->zd,
                         zbd->outBuff + zbd->outStart, zbd->outBuffSize - zbd->outStart,
                         zbd->inBuff, neededInSize);
                     if (ZSTD_isError(decodedSize)) return decodedSize;
                     zbd->inPos = 0;   /* input is consumed */
-                    if (!decodedSize) { zbd->stage = ZBUFFds_read; break; }   /* this was just a header */
+                    if (!decodedSize) {
+                        if (isSkipFrame) {
+                           zbd->stage = ZBUFFds_loadHeader;
+                           zbd->lhSize = 0;
+                           break; 
+                        }
+                        zbd->stage = ZBUFFds_read; /* this was just a header */
+                        break; 
+                    }
                     zbd->outEnd = zbd->outStart +  decodedSize;
                     zbd->stage = ZBUFFds_flush;
                     // break; /* ZBUFFds_flush follows */

@@ -51,7 +51,8 @@ extern "C" {
 /*-*************************************
 *  Constants
 ***************************************/
-#define ZSTD_MAGICNUMBER 0xFD2FB526   /* v0.6 */
+#define ZSTD_MAGICNUMBER            0xFD2FB526   /* v0.6 */
+#define ZSTD_MAGIC_SKIPPABLE_START  0x184D2A50U
 
 
 /*-*************************************
@@ -196,6 +197,7 @@ typedef struct { U64 frameContentSize; U32 windowLog; } ZSTD_frameParams;
 #define ZSTD_FRAMEHEADERSIZE_MAX 13    /* for static allocation */
 static const size_t ZSTD_frameHeaderSize_min = 5;
 static const size_t ZSTD_frameHeaderSize_max = ZSTD_FRAMEHEADERSIZE_MAX;
+static const size_t ZSTD_skippableHeaderSize = 8; /* magic number + skippable frame length */
 ZSTDLIB_API size_t ZSTD_getFrameParams(ZSTD_frameParams* fparamsPtr, const void* src, size_t srcSize);   /**< doesn't consume input */
 
 ZSTDLIB_API size_t ZSTD_decompressBegin(ZSTD_DCtx* dctx);

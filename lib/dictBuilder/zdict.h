@@ -52,6 +52,21 @@ extern "C" {
 size_t ZDICT_trainFromBuffer(void* dictBuffer, size_t dictBufferCapacity,
                              const void* samplesBuffer, const size_t* samplesSizes, unsigned nbSamples);
 
+/*! ZDICT_addEntropyTablesFromBuffer() :
+
+    Given a content-only dictionary (built for example from common strings in
+    the input), add entropy tables computed from the memory buffer
+    `samplesBuffer`, where `nbSamples` samples have been stored concatenated.
+    Each sample size is provided into an orderly table `samplesSizes`.
+
+    The input dictionary is the last `dictContentSize` bytes of `dictBuffer`. The
+    resulting dictionary with added entropy tables will written back to
+    `dictBuffer`.
+    @return : size of dictionary stored into `dictBuffer` (<= `dictBufferCapacity`).
+*/
+size_t ZDICT_addEntropyTablesFromBuffer(void* dictBuffer, size_t dictContentSize, size_t dictBufferCapacity,
+                                        const void* samplesBuffer, const size_t* samplesSizes, unsigned nbSamples);
+
 
 /*-*************************************
 *  Helper functions

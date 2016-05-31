@@ -192,7 +192,7 @@ static int basicUnitTests(U32 seed, double compressibility, ZSTD_customMem custo
     ZBUFF_decompressInitDictionary(zd, CNBuffer, 128 KB);
     readSize = cSize - readSkipSize;
     genSize = CNBufferSize;
-    result = ZBUFF_decompressContinue(zd, decodedBuffer, &genSize, compressedBuffer+readSkipSize, &readSize);
+    result = ZBUFF_decompressContinue(zd, decodedBuffer, &genSize, ((char*)compressedBuffer)+readSkipSize, &readSize);
     if (result != 0) goto _output_error;  /* should reach end of frame == 0; otherwise, some data left, or an error */
     if (genSize != CNBufferSize) goto _output_error;   /* should regenerate the same amount */
     if (readSize+readSkipSize != cSize) goto _output_error;   /* should have read the entire frame */

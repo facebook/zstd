@@ -689,7 +689,7 @@ static int FIO_decompressSrcFile(dRess_t ress, const char* srcFileName)
                 continue;
             }
 #endif
-            if (magic !=  ZSTD_MAGICNUMBER) {
+            if (((magic & 0xFFFFFFF0U) != ZSTD_MAGIC_SKIPPABLE_START) && (magic != ZSTD_MAGICNUMBER)) {
                 if (g_overwrite)   /* -df : pass-through mode */
                     return FIO_passThrough(dstFile, srcFile, ress.srcBuffer, ress.srcBufferSize);
                 else {

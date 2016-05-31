@@ -252,6 +252,6 @@ typedef struct {
 
 const seqStore_t* ZSTD_getSeqStore(const ZSTD_CCtx* ctx);
 void ZSTD_seqToCodes(const seqStore_t* seqStorePtr, size_t const nbSeq);
-
+int ZSTD_isSkipFrame(ZSTD_DCtx* dctx);
 
 #endif   /* ZSTD_CCOMMON_H_MODULE */

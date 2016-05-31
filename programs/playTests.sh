@@ -15,22 +15,30 @@ roundTripTest() {
 
     rm -f tmp1 tmp2
     $ECHO "roundTripTest: ./datagen $1 $p | $ZSTD -v$c | $ZSTD -d"
-    ./datagen $1 $p | md5sum > tmp1
-    ./datagen $1 $p | $ZSTD -vq$c | $ZSTD -d  | md5sum > tmp2
+    ./datagen $1 $p | $MD5SUM > tmp1
+    ./datagen $1 $p | $ZSTD -vq$c | $ZSTD -d  | $MD5SUM > tmp2
     diff -q tmp1 tmp2
 }
 
 isWindows=false
 ECHO="echo"
-if [[ "$OS" == "Windows"* ]]; then
+case "$OS" in
+  Windows*) 
     isWindows=true
     ECHO="echo -e"
+    ;;
+esac
+
+MD5SUM="md5sum"
+if [ "$TRAVIS_OS_NAME" = "osx" ]; then
+    MD5SUM="md5 -r"
 fi
 
-$ECHO "\nStarting playTests.sh isWindows=$isWindows"
+$ECHO "\nStarting playTests.sh isWindows=$isWindows TRAVIS_OS_NAME=$TRAVIS_OS_NAME"
 
 [ -n "$ZSTD" ] || die "ZSTD variable must be defined!"
 
+file $ZSTD
 $ECHO "\n**** simple tests **** "
 
 ./datagen > tmp
@@ -120,8 +128,8 @@ diff tmpSparse2M tmpSparseRegenerated
 $ECHO "\n**** dictionary tests **** "
 
 ./datagen > tmpDict
-./datagen -g1M | md5sum > tmp1
-./datagen -g1M | $ZSTD -D tmpDict | $ZSTD -D tmpDict -dvq | md5sum > tmp2
+./datagen -g1M | $MD5SUM > tmp1
+./datagen -g1M | $ZSTD -D tmpDict | $ZSTD -D tmpDict -dvq | $MD5SUM > tmp2
 diff -q tmp1 tmp2
 $ZSTD --train *.c *.h -o tmpDict
 $ZSTD xxhash.c -D tmpDict -of tmp

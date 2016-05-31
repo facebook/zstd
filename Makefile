@@ -32,6 +32,7 @@
 
 PRGDIR  = programs
 ZSTDDIR = lib
+ZWRAPDIR = zlibWrapper
 
 # Define nul output
 ifneq (,$(filter Windows%,$(OS)))
@@ -40,7 +41,7 @@ else
 VOID = /dev/null
 endif
 
-.PHONY: default all zstdprogram clean install uninstall travis-install test clangtest gpptest armtest usan asan uasan
+.PHONY: default all zlibwrapper zstdprogram clean install uninstall travis-install test clangtest gpptest armtest usan asan uasan
 
 default: zstdprogram
 
@@ -51,12 +52,17 @@ all:
 zstdprogram:
 	$(MAKE) -C $(PRGDIR)
 
+zlibwrapper:
+	$(MAKE) -C $(ZSTDDIR) all
+	$(MAKE) -C $(ZWRAPDIR) all
+
 test:
 	$(MAKE) -C $(PRGDIR) $@
 
 clean:
 	@$(MAKE) -C $(ZSTDDIR) $@ > $(VOID)
 	@$(MAKE) -C $(PRGDIR) $@ > $(VOID)
+	@$(MAKE) -C $(ZWRAPDIR) $@ > $(VOID)
 	@echo Cleaning completed
 
 
@@ -114,11 +120,8 @@ armtest: clean
 	$(MAKE) -C $(PRGDIR) test CC=arm-linux-gnueabi-gcc ZSTDRTTEST= MOREFLAGS="-Werror -static"
 
 # for Travis CI
-arminstall: clean   
-	sudo apt-get install -q qemu  
-	sudo apt-get install -q binfmt-support
-	sudo apt-get install -q qemu-user-static
-	sudo apt-get install -q gcc-arm-linux-gnueabi
+arminstall: clean
+	sudo apt-get install -y -q qemu binfmt-support qemu-user-static gcc-arm-linux-gnueabi
 
 # for Travis CI
 armtest-w-install: clean arminstall armtest
@@ -128,15 +131,23 @@ ppctest: clean
 	$(MAKE) -C $(PRGDIR) test CC=powerpc-linux-gnu-gcc ZSTDRTTEST= MOREFLAGS="-Werror -static" 
 
 # for Travis CI
-ppcinstall: clean   
-	sudo apt-get install -q qemu  
-	sudo apt-get install -q binfmt-support
-	sudo apt-get install -q qemu-user-static
-	sudo apt-get update  -q
-	sudo apt-get install -q gcc-powerpc-linux-gnu   # unfortunately, doesn't work on Travis CI (package not available)
+ppcinstall: clean
+	sudo apt-get update  -y -q
+	sudo apt-get install -y -q qemu-system-ppc binfmt-support qemu-user-static gcc-powerpc-linux-gnu  # doesn't work with Ubuntu 12.04
 
 # for Travis CI
 ppctest-w-install: clean ppcinstall ppctest
+
+ppc64test: clean
+	$(MAKE) -C $(PRGDIR) datagen   # use native, faster
+	$(MAKE) -C $(PRGDIR) test CC=powerpc64le-linux-gnu-gcc ZSTDRTTEST= MOREFLAGS="-Werror -static" 
+
+ppc64install: clean
+	sudo apt-get update  -y -q
+	sudo apt-get install -y -q qemu-ppc64le binfmt-support qemu-user-static gcc-powerpc64le-linux-gnu
+	update-binfmts --displ
+
+ppc64test-w-install: clean ppc64install ppc64test
 
 usan: clean
 	$(MAKE) test CC=clang MOREFLAGS="-g -fsanitize=undefined"

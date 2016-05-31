@@ -34,4 +34,4 @@ _zstdbench/
 zlib_wrapper/
 
 # CMake
-contrib/cmake/
+projects/cmake/

@@ -33,7 +33,7 @@
 
 DESTDIR?=
 PREFIX ?= /usr/local
-CPPFLAGS= -I../lib/common
+CPPFLAGS= -I../lib/common -I../lib/dictBuilder
 CFLAGS ?= -O3  # -falign-loops=32   # not always beneficial
 CFLAGS += -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow -Wstrict-aliasing=1 -Wswitch-enum -Wstrict-prototypes -Wundef
 FLAGS   = $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) $(MOREFLAGS)

@@ -165,7 +165,7 @@ static int basicUnitTests(U32 seed, double compressibility, ZSTD_customMem custo
 
     /* generate skippable frame */
     MEM_writeLE32(compressedBuffer, ZSTD_MAGIC_SKIPPABLE_START);
-    MEM_writeLE32(compressedBuffer+4, (U32)skippableFrameSize);
+    MEM_writeLE32(((char*)compressedBuffer)+4, (U32)skippableFrameSize);
     cSize = skippableFrameSize + 8;
     /* Basic compression test */
     DISPLAYLEVEL(4, "test%3i : compress %u bytes : ", testNb++, COMPRESSIBLE_NOISE_LENGTH);

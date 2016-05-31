@@ -97,7 +97,7 @@
 
 #define CACHELINE 64
 
-#define MAX_DICT_SIZE (1 MB)   /* protection against large input (attack scenario) ; can be changed */
+#define MAX_DICT_SIZE (8 MB)   /* protection against large input (attack scenario) */
 
 #define FNSPACE 30
 
@@ -214,12 +214,12 @@ static FILE* FIO_openDstFile(const char* dstFileName)
 /*! FIO_loadFile() :
 *   creates a buffer, pointed by `*bufferPtr`,
 *   loads `filename` content into it,
-*   up to MAX_DICT_SIZE bytes
+*   up to MAX_DICT_SIZE bytes.
+*   @return : loaded size
 */
 static size_t FIO_loadFile(void** bufferPtr, const char* fileName)
 {
     FILE* fileHandle;
-    size_t readSize;
     U64 fileSize;
 
     *bufferPtr = NULL;
@@ -239,8 +239,8 @@ static size_t FIO_loadFile(void** bufferPtr, const char* fileName)
     }
     *bufferPtr = (BYTE*)malloc((size_t)fileSize);
     if (*bufferPtr==NULL) EXM_THROW(34, "Allocation error : not enough memory for dictBuffer");
-    readSize = fread(*bufferPtr, 1, (size_t)fileSize, fileHandle);
-    if (readSize!=fileSize) EXM_THROW(35, "Error reading dictionary file %s", fileName);
+    { size_t const readSize = fread(*bufferPtr, 1, (size_t)fileSize, fileHandle);
+      if (readSize!=fileSize) EXM_THROW(35, "Error reading dictionary file %s", fileName); }
     fclose(fileHandle);
     return (size_t)fileSize;
 }
@@ -315,9 +315,9 @@ static int FIO_compressFilename_internal(cRess_t ress,
         params.fParams.contentSizeFlag = 1;
         params.fParams.noDictIDFlag = !g_dictIDFlag;
         if (g_maxWLog) if (params.cParams.windowLog > g_maxWLog) params.cParams.windowLog = g_maxWLog;
-        { size_t const errorCode = ZBUFF_compressInit_advanced(ress.ctx, ress.dictBuffer, ress.dictBufferSize, params, fileSize);
-          if (ZBUFF_isError(errorCode)) EXM_THROW(21, "Error initializing compression : %s", ZBUFF_getErrorName(errorCode)); }
-    }
+        {   size_t const errorCode = ZBUFF_compressInit_advanced(ress.ctx, ress.dictBuffer, ress.dictBufferSize, params, fileSize);
+            if (ZBUFF_isError(errorCode)) EXM_THROW(21, "Error initializing compression : %s", ZBUFF_getErrorName(errorCode));
+    }   }
 
     /* Main compression loop */
     readsize = 0;

@@ -216,7 +216,7 @@ static int basicUnitTests(U32 seed, double compressibility)
         DISPLAYLEVEL(4, "test%3i : check content size on duplicated context : ", testNb++);
         {   size_t const testSize = CNBuffSize / 3;
             {   ZSTD_compressionParameters const cPar = ZSTD_getCParams(2, testSize, dictSize);
-                ZSTD_frameParameters const fPar = { 1 , 0 };
+                ZSTD_frameParameters const fPar = { 1 , 0 , 0 };
                 ZSTD_parameters p;
                 p.cParams = cPar; p.fParams = fPar;
                 CHECK( ZSTD_compressBegin_advanced(ctxOrig, CNBuffer, dictSize, p, testSize-1) );
@@ -276,7 +276,7 @@ static int basicUnitTests(U32 seed, double compressibility)
         DISPLAYLEVEL(4, "OK \n");
 
         DISPLAYLEVEL(4, "test%3i : compress without dictID : ", testNb++);
-        {   ZSTD_frameParameters const fParams = { 0, 1 /*NoDictID*/ };
+        {   ZSTD_frameParameters const fParams = { 0 /*contentSize*/, 0 /*checksum*/, 1 /*NoDictID*/ };
             ZSTD_compressionParameters const cParams = ZSTD_getCParams(3, CNBuffSize, dictSize);
             ZSTD_parameters p;
             p.cParams = cParams; p.fParams = fParams;
@@ -639,12 +639,14 @@ static int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, U32 const maxD
             dictSize = FUZ_randomLength(&lseed, maxSampleLog);   /* needed also for decompression */
             dict = srcBuffer + (FUZ_rand(&lseed) % (srcBufferSize - dictSize));
 
-            if (FUZ_rand(&lseed) & 15) {
+            if (FUZ_rand(&lseed) & 0xF) {
                 size_t const errorCode = ZSTD_compressBegin_usingDict(refCtx, dict, dictSize, cLevel);
                 CHECK (ZSTD_isError(errorCode), "ZSTD_compressBegin_usingDict error : %s", ZSTD_getErrorName(errorCode));
             } else {
                 ZSTD_compressionParameters const cPar = ZSTD_getCParams(cLevel, 0, dictSize);
-                ZSTD_frameParameters const fpar = { FUZ_rand(&lseed)&1, FUZ_rand(&lseed)&1 };   /* note : since dictionary is fake, dictIDflag has no impact */
+                ZSTD_frameParameters const fpar = { FUZ_rand(&lseed)&1 /* contentSizeFlag */,
+                                                    !(FUZ_rand(&lseed)&3) /* contentChecksumFlag*/,
+                                                    0 /*NodictID*/ };   /* note : since dictionary is fake, dictIDflag has no impact */
                 ZSTD_parameters p;
                 size_t errorCode;
                 p.cParams = cPar; p.fParams = fpar;

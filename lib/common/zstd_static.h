@@ -86,8 +86,9 @@ typedef struct {
 } ZSTD_compressionParameters;
 
 typedef struct {
-    U32 contentSizeFlag;   /* 1: content size will be in frame header (if known). */
-    U32 noDictIDFlag;      /* 1: no dict ID will be saved into frame header (if dictionary compression) */
+    U32 contentSizeFlag;  /* 1: content size will be in frame header (if known). */
+    U32 checksumFlag;     /* 1: will generate a 22-bits checksum at end of frame, to be used for error detection by decompressor */
+    U32 noDictIDFlag;     /* 1: no dict ID will be saved into frame header (if dictionary compression) */
 } ZSTD_frameParameters;
 
 typedef struct {
@@ -196,6 +197,7 @@ typedef struct {
     U64 frameContentSize;
     U32 windowLog;
     U32 dictID;
+    U32 checksumFlag;
 } ZSTD_frameParams;
 
 #define ZSTD_FRAMEHEADERSIZE_MAX 18    /* for static allocation */

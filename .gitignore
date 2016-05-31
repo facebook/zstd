@@ -32,6 +32,4 @@ projects/VS2015
 _codelite/
 _zstdbench/
 zlib_wrapper/
-
-# CMake
-contrib/cmake/
+.clang_complete

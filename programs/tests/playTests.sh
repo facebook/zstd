@@ -123,14 +123,23 @@ $ECHO "\n**** dictionary tests **** "
 ./datagen -g1M | md5sum > tmp1
 ./datagen -g1M | $ZSTD -D tmpDict | $ZSTD -D tmpDict -dvq | md5sum > tmp2
 diff -q tmp1 tmp2
+$ECHO "Create first dictionary"
 $ZSTD --train *.c -o tmpDict
-$ZSTD zstdcli.c -D tmpDict -of tmp
-$ZSTD -d tmp -D tmpDict -of result
+cp zstdcli.c tmp
+$ZSTD -f tmp -D tmpDict
+$ZSTD -d tmp.zst -D tmpDict -of result
 diff zstdcli.c result
+$ECHO "Create second (different) dictionary"
 $ZSTD --train *.c *.h -o tmpDictC
-$ZSTD -d tmp -D tmpDictC -of result && die "wrong dictionary not detected!"
+$ZSTD -d tmp.zst -D tmpDictC -of result && die "wrong dictionary not detected!"
+$ECHO "Create dictionary with short dictID"
 $ZSTD --train *.c --dictID 1 -o tmpDict1
 cmp tmpDict tmpDict1 && die "dictionaries should have different ID !"
+$ECHO "Compress without dictID"
+$ZSTD -f tmp -D tmpDict1 --no-dictID
+$ZSTD -d tmp.zst -D tmpDict -of result
+diff zstdcli.c result
+rm tmp*
 
 
 $ECHO "\n**** multiple files tests **** "

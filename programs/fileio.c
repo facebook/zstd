@@ -133,6 +133,8 @@ static U32 g_maxWLog = 23;
 void FIO_setMaxWLog(unsigned maxWLog) { g_maxWLog = maxWLog; }
 static U32 g_sparseFileSupport = 1;   /* 0 : no sparse allowed; 1: auto (file yes, stdout no); 2: force sparse */
 void FIO_setSparseWrite(unsigned sparse) { g_sparseFileSupport=sparse; }
+static U32 g_dictIDFlag = 1;
+void FIO_setDictIDFlag(unsigned dictIDFlag) { g_dictIDFlag = dictIDFlag; }
 
 
 /*-*************************************
@@ -186,7 +188,7 @@ static FILE* FIO_openDstFile(const char* dstFileName)
             DISPLAYLEVEL(4, "Sparse File Support is automatically disabled on stdout ; try --sparse \n");
         }
     } else {
-        if (!g_overwrite) {  /* Check if destination file already exists */
+        if (!g_overwrite && strcmp (dstFileName, nulmark)) {  /* Check if destination file already exists */
             f = fopen( dstFileName, "rb" );
             if (f != 0) {  /* dest file exists, prompt for overwrite authorization */
                 fclose(f);
@@ -311,6 +313,7 @@ static int FIO_compressFilename_internal(cRess_t ress,
         memset(&params, 0, sizeof(params));
         params.cParams = ZSTD_getCParams(cLevel, fileSize, ress.dictBufferSize);
         params.fParams.contentSizeFlag = 1;
+        params.fParams.noDictIDFlag = !g_dictIDFlag;
         if (g_maxWLog) if (params.cParams.windowLog > g_maxWLog) params.cParams.windowLog = g_maxWLog;
         { size_t const errorCode = ZBUFF_compressInit_advanced(ress.ctx, ress.dictBuffer, ress.dictBufferSize, params, fileSize);
           if (ZBUFF_isError(errorCode)) EXM_THROW(21, "Error initializing compression : %s", ZBUFF_getErrorName(errorCode)); }
@@ -410,13 +413,9 @@ static int FIO_compressFilename_extRess(cRess_t ress,
 int FIO_compressFilename(const char* dstFileName, const char* srcFileName,
                          const char* dictFileName, int compressionLevel)
 {
-    clock_t start;
-    cRess_t ress;
+    clock_t const start = clock();
+    cRess_t const ress = FIO_createCResources(dictFileName);
     int issueWithSrcFile = 0;
-
-    /* Init */
-    start = clock();
-    ress = FIO_createCResources(dictFileName);
 
     issueWithSrcFile += FIO_compressFilename_extRess(ress, dstFileName, srcFileName, compressionLevel);
 
@@ -702,7 +701,7 @@ static int FIO_decompressSrcFile(dRess_t ress, const char* srcFileName)
 
     /* Final Status */
     DISPLAYLEVEL(2, "\r%79s\r", "");
-    DISPLAYLEVEL(2, "Successfully decoded %llu bytes \n", filesize);
+    DISPLAYLEVEL(2, "%-20.20s: %llu bytes \n", srcFileName, filesize);
 
     /* Close */
     fclose(srcFile);

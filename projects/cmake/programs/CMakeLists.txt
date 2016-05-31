@@ -38,14 +38,10 @@ SET(CMAKE_INCLUDE_CURRENT_DIR TRUE)
 SET(ROOT_DIR ../../..)
 
 # Define programs directory, where sources and header files are located
+SET(LIBRARY_DIR ${ROOT_DIR}/lib)
 SET(PROGRAMS_DIR ${ROOT_DIR}/programs)
-INCLUDE_DIRECTORIES(${PROGRAMS_DIR})
+INCLUDE_DIRECTORIES(${PROGRAMS_DIR} ${LIBRARY_DIR}/common ${LIBRARY_DIR}/dictBuilder)
 
-IF (WORKAROUND_OUTDATED_CODE_STYLE)
-    # Define library directory, where sources and header files are located
-    SET(LIBRARY_DIR ${ROOT_DIR}/lib)
-    INCLUDE_DIRECTORIES(${LIBRARY_DIR}/common)
-ENDIF (WORKAROUND_OUTDATED_CODE_STYLE)
 
 IF (ZSTD_LEGACY_SUPPORT)
     SET(PROGRAMS_LEGACY_DIR ${PROGRAMS_DIR}/legacy)

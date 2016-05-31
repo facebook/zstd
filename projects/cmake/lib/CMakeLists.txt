@@ -2,19 +2,19 @@
 # zstd - Makefile
 # Copyright (C) Yann Collet 2014-2016
 # All rights reserved.
-# 
+#
 # BSD license
 #
 # Redistribution and use in source and binary forms, with or without modification,
 # are permitted provided that the following conditions are met:
-# 
+#
 # * Redistributions of source code must retain the above copyright notice, this
 #   list of conditions and the following disclaimer.
-# 
+#
 # * Redistributions in binary form must reproduce the above copyright notice, this
 #   list of conditions and the following disclaimer in the documentation and/or
 #   other materials provided with the distribution.
-# 
+#
 # THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
 # ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 # WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -25,7 +25,7 @@
 # ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-# 
+#
 # You can contact the author at :
 #  - zstd homepage : http://www.zstd.net/
 # ################################################################
@@ -105,11 +105,6 @@ IF (ZSTD_LEGACY_SUPPORT)
             ${LIBRARY_LEGACY_DIR}/zstd_v04.h)
 ENDIF (ZSTD_LEGACY_SUPPORT)
 
-IF (MSVC)
-    SET(MSVC_RESOURCE_DIR ${ROOT_DIR}/visual/2013/zstdlib)
-    SET(PlatformDependResources ${MSVC_RESOURCE_DIR}/resource.h ${MSVC_RESOURCE_DIR}/zstdlib.rc)
-ENDIF (MSVC)
-
 # Split project to static and shared libraries build
 ADD_LIBRARY(libzstd_static STATIC ${Sources} ${Headers} ${PlatformDependResources})
 ADD_LIBRARY(libzstd_shared SHARED ${Sources} ${Headers} ${PlatformDependResources})
@@ -131,13 +126,11 @@ IF (NOT WORKAROUND_OUTDATED_CODE_STYLE)
 ENDIF (NOT WORKAROUND_OUTDATED_CODE_STYLE)
 
 # Define library base name
-IF (UNIX)
-    SET(LIBRARY_BASE_NAME libzstd)
-ELSEIF (MSVC)
+IF (MSVC)
     SET(LIBRARY_BASE_NAME zstdlib)
 ELSE ()
-    MESSAGE(FATAL_ERROR "Unsupported build type")
-ENDIF (UNIX)
+    SET(LIBRARY_BASE_NAME libzstd)
+ENDIF (MSVC)
 
 # Define static and shared library names
 SET(STATIC_LIBRARY_OUTPUT_NAME ${LIBRARY_BASE_NAME})

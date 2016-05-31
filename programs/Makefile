@@ -38,7 +38,7 @@ MANDIR  = $(PREFIX)/share/man/man1
 
 ZSTDDIR = ../lib
 
-CPPFLAGS= -I$(ZSTDDIR)/common -DXXH_NAMESPACE=ZSTD_
+CPPFLAGS= -I$(ZSTDDIR)/common -I$(ZSTDDIR)/dictBuilder -DXXH_NAMESPACE=ZSTD_
 CFLAGS ?= -O3  # -falign-loops=32   # not always beneficial
 CFLAGS += -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow -Wstrict-aliasing=1 -Wswitch-enum -Wstrict-prototypes -Wundef
 FLAGS   = $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) $(MOREFLAGS)
@@ -208,7 +208,7 @@ endif
 #------------------------------------------------------------------------
 ifneq (,$(filter $(HOST_OS),MSYS POSIX))
 zstd-playTests: datagen
-	ZSTD=$(ZSTD) ./tests/playTests.sh $(ZSTDRTTEST)
+	ZSTD=$(ZSTD) ./playTests.sh $(ZSTDRTTEST)
 
 test: test-zstd test-fullbench test-fuzzer test-zbuff
 

@@ -40,6 +40,9 @@ extern "C" {
 #define Z_PREFIX
 #include <zlib.h>
 
+#if !defined(z_const)
+#  define z_const const 
+#endif
 
 void useZSTD(int turn_on);
 int isUsingZSTD();

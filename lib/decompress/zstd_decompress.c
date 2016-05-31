@@ -57,6 +57,8 @@
 #include <string.h>      /* memcpy, memmove */
 #include <stdio.h>       /* debug only : printf */
 #include "mem.h"         /* low level memory routines */
+#define XXH_STATIC_LINKING_ONLY   /* XXH64_state_t */
+#include "xxhash.h"      /* XXH64_* */
 #include "zstd_internal.h"
 #include "fse_static.h"
 #include "huf_static.h"
@@ -116,6 +118,7 @@ struct ZSTD_DCtx_s
     size_t expected;
     size_t headerSize;
     ZSTD_frameParams fParams;
+    XXH64_state_t xxhState;
     ZSTD_allocFunction customAlloc;
     ZSTD_freeFunction customFree;
     blockType_t bType;   /* used in ZSTD_decompressContinue(), to transfer blockType between header decoding and block decoding stages */
@@ -339,6 +342,8 @@ size_t ZSTD_getFrameParams(ZSTD_frameParams* fparamsPtr, const void* src, size_t
         U32 const dictIDSizeCode = checkByte&3;
         fparamsPtr->windowLog = (allocByte & 0xF) + ZSTD_WINDOWLOG_ABSOLUTEMIN;
         if ((allocByte & 0x30) != 0) return ERROR(frameParameter_unsupported);   /* reserved bits */
+        if ((checkByte & 0xEC) != 0) return ERROR(frameParameter_unsupported);   /* reserved bits */
+        fparamsPtr->checksumFlag = checkByte & 0x10;
         switch(dictIDSizeCode)  /* fcsId */
         {
             default:   /* impossible */
@@ -367,6 +372,7 @@ static size_t ZSTD_decodeFrameHeader(ZSTD_DCtx* dctx, const void* src, size_t sr
     size_t const result = ZSTD_getFrameParams(&(dctx->fParams), src, srcSize);
     if ((MEM_32bits()) && (dctx->fParams.windowLog > 25)) return ERROR(frameParameter_unsupportedBy32bits);
     if (dctx->fParams.dictID && (dctx->dictID != dctx->fParams.dictID)) return ERROR(dictionary_wrong);
+    if (dctx->fParams.checksumFlag) XXH64_reset(&dctx->xxhState, 0);
     return result;
 }
 
@@ -1021,6 +1027,9 @@ size_t ZSTD_nextSrcSizeToDecompress(ZSTD_DCtx* dctx)
     return dctx->expected;
 }
 
+/** ZSTD_decompressContinue() :
+*   @return : nb of bytes generated into `dst` (necessarily <= `dstCapacity)
+*             or an error code, which can be tested using ZSTD_isError() */
 size_t ZSTD_decompressContinue(ZSTD_DCtx* dctx, void* dst, size_t dstCapacity, const void* src, size_t srcSize)
 {
     /* Sanity check */

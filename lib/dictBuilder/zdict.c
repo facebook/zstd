@@ -807,6 +807,33 @@ static size_t ZDICT_fastSampling(void* dictBuffer, size_t dictSize,
     return nbSegments * DIB_FASTSEGMENTSIZE;
 }
 
+size_t ZDICT_addEntropyTablesFromBuffer_advanced(void* dictBuffer, size_t dictContentSize, size_t dictBufferCapacity,
+                                                 const void* samplesBuffer, const size_t* samplesSizes, unsigned nbSamples,
+                                                 ZDICT_params_t params)
+{
+    size_t hSize;
+    unsigned const compressionLevel = (params.compressionLevel == 0) ? g_compressionLevel_default : params.compressionLevel;
+
+    /* dictionary header */
+    MEM_writeLE32(dictBuffer, ZSTD_DICT_MAGIC);
+    {   U64 const randomID = XXH64((char*)dictBuffer + dictBufferCapacity - dictContentSize, dictContentSize, 0);
+        U32 const dictID = params.dictID ? params.dictID : (U32)(randomID>>11);
+        MEM_writeLE32((char*)dictBuffer+4, dictID);
+    }
+    hSize = 8;
+
+    /* entropy tables */
+    DISPLAYLEVEL(2, "\r%70s\r", "");   /* clean display line */
+    DISPLAYLEVEL(2, "statistics ... \n");
+    hSize += ZDICT_analyzeEntropy((char*)dictBuffer+hSize, dictBufferCapacity-hSize,
+                                  compressionLevel,
+                                  samplesBuffer, samplesSizes, nbSamples,
+                                  (char*)dictBuffer + dictBufferCapacity - dictContentSize, dictContentSize);
+
+    if (hSize + dictContentSize < dictBufferCapacity)
+        memmove((char*)dictBuffer + hSize, (char*)dictBuffer + dictBufferCapacity - dictContentSize, dictContentSize);
+    return MIN(dictBufferCapacity, hSize+dictContentSize);
+}
 
 #define DIB_MINSAMPLESSIZE (DIB_FASTSEGMENTSIZE*3)
 /*! ZDICT_trainFromBuffer_unsafe() :
@@ -815,13 +842,12 @@ static size_t ZDICT_fastSampling(void* dictBuffer, size_t dictSize,
 */
 size_t ZDICT_trainFromBuffer_unsafe(
                             void* dictBuffer, size_t maxDictSize,
-                            const void* samplesBuffer, const size_t* sampleSizes, unsigned nbSamples,
+                            const void* samplesBuffer, const size_t* samplesSizes, unsigned nbSamples,
                             ZDICT_params_t params)
 {
     U32 const dictListSize = MAX( MAX(DICTLISTSIZE, nbSamples), (U32)(maxDictSize/16));
     dictItem* const dictList = (dictItem*)malloc(dictListSize * sizeof(*dictList));
     unsigned selectivity = params.selectivityLevel;
-    unsigned compressionLevel = params.compressionLevel;
     size_t const targetDictSize = maxDictSize;
     size_t sBuffSize;
     size_t dictSize = 0;
@@ -831,18 +857,17 @@ size_t ZDICT_trainFromBuffer_unsafe(
     if (!dictList) return ERROR(memory_allocation);
 
     /* init */
-    { unsigned u; for (u=0, sBuffSize=0; u<nbSamples; u++) sBuffSize += sampleSizes[u]; }
+    { unsigned u; for (u=0, sBuffSize=0; u<nbSamples; u++) sBuffSize += samplesSizes[u]; }
     if (sBuffSize < DIB_MINSAMPLESSIZE) return 0;   /* not enough source to create dictionary */
     ZDICT_initDictItem(dictList);
     g_displayLevel = params.notificationLevel;
     if (selectivity==0) selectivity = g_selectivity_default;
-    if (compressionLevel==0) compressionLevel = g_compressionLevel_default;
 
     /* build dictionary */
     if (selectivity>1) {  /* selectivity == 1 => fast mode */
         ZDICT_trainBuffer(dictList, dictListSize,
                         samplesBuffer, sBuffSize,
-                        sampleSizes, nbSamples,
+                        samplesSizes, nbSamples,
                         selectivity, (U32)targetDictSize);
 
         /* display best matches */
@@ -864,7 +889,6 @@ size_t ZDICT_trainFromBuffer_unsafe(
 
     /* create dictionary */
     {   U32 dictContentSize = ZDICT_dictSize(dictList);
-        size_t hSize;
 
         /* build dict content */
         {   U32 u;
@@ -884,25 +908,9 @@ size_t ZDICT_trainFromBuffer_unsafe(
                                                       samplesBuffer, sBuffSize);
         }
 
-       /* dictionary header */
-        MEM_writeLE32(dictBuffer, ZSTD_DICT_MAGIC);
-        {   U64 const randomID = XXH64((char*)dictBuffer + maxDictSize - dictContentSize, dictContentSize, 0);
-            U32 const dictID = params.dictID ? params.dictID : (U32)(randomID>>11);
-            MEM_writeLE32((char*)dictBuffer+4, dictID);
-        }
-        hSize = 8;
-
-        /* entropic tables */
-        DISPLAYLEVEL(2, "\r%70s\r", "");   /* clean display line */
-        DISPLAYLEVEL(2, "statistics ... \n");
-        hSize += ZDICT_analyzeEntropy((char*)dictBuffer+hSize, maxDictSize-hSize,
-                                    compressionLevel,
-                                    samplesBuffer, sampleSizes, nbSamples,
-                                    (char*)dictBuffer + maxDictSize - dictContentSize, dictContentSize);
-
-        if (hSize + dictContentSize < maxDictSize)
-            memmove((char*)dictBuffer + hSize, (char*)dictBuffer + maxDictSize - dictContentSize, dictContentSize);
-        dictSize = MIN(maxDictSize, hSize+dictContentSize);
+        dictSize = ZDICT_addEntropyTablesFromBuffer_advanced(dictBuffer, dictContentSize, maxDictSize,
+                                                             samplesBuffer, samplesSizes, nbSamples,
+                                                             params);
     }
 
     /* clean up */
@@ -914,8 +922,8 @@ size_t ZDICT_trainFromBuffer_unsafe(
 /* issue : samplesBuffer need to be followed by a noisy guard band.
 *  work around : duplicate the buffer, and add the noise */
 size_t ZDICT_trainFromBuffer_advanced(void* dictBuffer, size_t dictBufferCapacity,
-                           const void* samplesBuffer, const size_t* samplesSizes, unsigned nbSamples,
-                           ZDICT_params_t params)
+                                      const void* samplesBuffer, const size_t* samplesSizes, unsigned nbSamples,
+                                      ZDICT_params_t params)
 {
     void* newBuff;
     size_t sBuffSize;
@@ -945,4 +953,14 @@ size_t ZDICT_trainFromBuffer(void* dictBuffer, size_t dictBufferCapacity,
     return ZDICT_trainFromBuffer_advanced(dictBuffer, dictBufferCapacity,
                                           samplesBuffer, samplesSizes, nbSamples,
                                           params);
+}
+
+size_t ZDICT_addEntropyTablesFromBuffer(void* dictBuffer, size_t dictContentSize, size_t dictBufferCapacity,
+                                        const void* samplesBuffer, const size_t* samplesSizes, unsigned nbSamples)
+{
+    ZDICT_params_t params;
+    memset(&params, 0, sizeof(params));
+    return ZDICT_addEntropyTablesFromBuffer_advanced(dictBuffer, dictContentSize, dictBufferCapacity,
+                                                     samplesBuffer, samplesSizes, nbSamples,
+                                                     params);
 }

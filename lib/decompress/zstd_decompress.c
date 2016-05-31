@@ -1104,6 +1104,7 @@ size_t ZSTD_decompressContinue(ZSTD_DCtx* dctx, void* dst, size_t dstCapacity, c
             dctx->stage = ZSTDds_decodeBlockHeader;
             dctx->expected = ZSTD_blockHeaderSize;
             dctx->previousDstEnd = (char*)dst + rSize;
+            if (ZSTD_isError(rSize)) return rSize;
             if (dctx->fParams.checksumFlag) XXH64_update(&dctx->xxhState, dst, rSize);
             return rSize;
         }

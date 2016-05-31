@@ -92,11 +92,10 @@ test_script:
   - if [%COMPILER%]==[visual] if [%CONFIGURATION%]==[Release] (
       CD programs &&
       SET ZSTD=./zstd.exe &&
-      SET DATAGEN=./datagen.exe &&
       sh -e playTests.sh --test-large-data &&
+      fullbench.exe -i1 &&
+      fullbench.exe -i1 -P0 &&
       CD .. &&
-      projects\fullbench.exe -i1 &&
-      projects\fullbench.exe -i1 -P0 &&
       projects\fuzzer_VS2008_%PLATFORM%_Release.exe %FUZZERTEST% &&
       projects\fuzzer_VS2010_%PLATFORM%_Release.exe %FUZZERTEST% &&
       projects\fuzzer_VS2012_%PLATFORM%_Release.exe %FUZZERTEST% &&

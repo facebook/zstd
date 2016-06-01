@@ -345,6 +345,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\..\lib\common\xxhash.c"
+				>
+			</File>
+			<File
 				RelativePath="..\..\..\programs\fullbench.c"
 				>
 			</File>
@@ -415,6 +419,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\..\lib\common\xxhash.h"
+				>
+			</File>
+            <File
 				RelativePath="..\..\..\lib\common\mem.h"
 				>
 			</File>

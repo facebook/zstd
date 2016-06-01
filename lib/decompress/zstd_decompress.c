@@ -333,7 +333,8 @@ size_t ZSTD_getFrameParams(ZSTD_frameParams* fparamsPtr, const void* src, size_t
     if (MEM_readLE32(src) != ZSTD_MAGICNUMBER) {
         if ((MEM_readLE32(src) & 0xFFFFFFF0U) == ZSTD_MAGIC_SKIPPABLE_START) {
             if (srcSize < ZSTD_skippableHeaderSize) return ZSTD_skippableHeaderSize; /* magic number + skippable frame length */
-            fparamsPtr->frameContentSize = 0;
+            memset(fparamsPtr, 0, sizeof(*fparamsPtr));
+            fparamsPtr->frameContentSize = MEM_readLE32((const char *)src + 4);
             fparamsPtr->windowLog = ZSTD_WINDOWLOG_ABSOLUTEMIN;
             return 0;
         }

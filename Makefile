@@ -68,8 +68,9 @@ clean:
 
 #------------------------------------------------------------------------
 #make install is validated only for Linux, OSX, kFreeBSD and Hurd targets
+#------------------------------------------------------------------------
 ifneq (,$(filter $(shell uname),Linux Darwin GNU/kFreeBSD GNU))
-
+HOST_OS = POSIX
 install:
 	$(MAKE) -C $(ZSTDDIR) $@
 	$(MAKE) -C $(PRGDIR) $@
@@ -81,42 +82,12 @@ uninstall:
 travis-install:
 	$(MAKE) install PREFIX=~/install_test_dir
 
-cmaketest:
-	cmake --version
-	rm -rf projects/cmake/build
-	mkdir projects/cmake/build
-	cd projects/cmake/build ; cmake .. ; $(MAKE)
+gpptest: clean
+	$(MAKE) all CC=g++ CFLAGS="-O3 -Wall -Wextra -Wundef -Wshadow -Wcast-align -Werror"
 
 clangtest: clean
 	clang -v
 	$(MAKE) all CC=clang MOREFLAGS="-Werror -Wconversion -Wno-sign-conversion"
-
-gpptest: clean
-	$(MAKE) all CC=g++ CFLAGS="-O3 -Wall -Wextra -Wundef -Wshadow -Wcast-align -Werror"
-
-c90test: clean
-	CFLAGS="-std=c90" $(MAKE) all  # will fail, due to // and long long
-
-gnu90test: clean
-	CFLAGS="-std=gnu90" $(MAKE) all
-
-c99test: clean
-	CFLAGS="-std=c99" $(MAKE) all
-
-gnu99test: clean
-	CFLAGS="-std=gnu99" $(MAKE) all
-
-c11test: clean
-	CFLAGS="-std=c11" $(MAKE) all
-
-bmix64test: clean
-	CFLAGS="-O3 -mbmi -Werror" $(MAKE) -C $(PRGDIR) test
-
-bmix32test: clean
-	CFLAGS="-O3 -mbmi -mx32 -Werror" $(MAKE) -C $(PRGDIR) test
-
-bmi32test: clean
-	CFLAGS="-O3 -mbmi -m32 -Werror" $(MAKE) -C $(PRGDIR) test
 
 armtest: clean
 	$(MAKE) -C $(PRGDIR) datagen   # use native, faster
@@ -167,4 +138,46 @@ asan32: clean
 uasan: clean
 	$(MAKE) test CC=clang MOREFLAGS="-g -fsanitize=address -fsanitize=undefined"
 
+endif
+
+
+ifneq (,$(filter MSYS%,$(shell uname)))
+HOST_OS = MSYS
+CMAKE_PARAMS = -G"MSYS Makefiles"
+endif
+
+
+#------------------------------------------------------------------------
+#make tests validated only for MSYS, Linux, OSX, kFreeBSD and Hurd targets
+#------------------------------------------------------------------------
+ifneq (,$(filter $(HOST_OS),MSYS POSIX))
+cmaketest:
+	cmake --version
+	rm -rf projects/cmake/build
+	mkdir projects/cmake/build
+	cd projects/cmake/build ; cmake $(CMAKE_PARAMS) .. ; $(MAKE)
+
+c90test: clean
+	CFLAGS="-std=c90" $(MAKE) all  # will fail, due to // and long long
+
+gnu90test: clean
+	CFLAGS="-std=gnu90" $(MAKE) all
+
+c99test: clean
+	CFLAGS="-std=c99" $(MAKE) all
+
+gnu99test: clean
+	CFLAGS="-std=gnu99" $(MAKE) all
+
+c11test: clean
+	CFLAGS="-std=c11" $(MAKE) all
+
+bmix64test: clean
+	CFLAGS="-O3 -mbmi -Werror" $(MAKE) -C $(PRGDIR) test
+
+bmix32test: clean
+	CFLAGS="-O3 -mbmi -mx32 -Werror" $(MAKE) -C $(PRGDIR) test
+
+bmi32test: clean
+	CFLAGS="-O3 -mbmi -m32 -Werror" $(MAKE) -C $(PRGDIR) test
 endif

@@ -51,9 +51,11 @@
 /*-*************************************
 *  Dependencies
 ***************************************/
-#include <stdlib.h>   /* malloc */
-#include <string.h>   /* memset */
+#include <stdlib.h>      /* malloc */
+#include <string.h>      /* memset */
 #include "mem.h"
+#define XXH_STATIC_LINKING_ONLY   /* XXH64_state_t */
+#include "xxhash.h"      /* XXH_reset, update, digest */
 #include "fse_static.h"
 #include "huf_static.h"
 #include "zstd_internal.h"
@@ -104,6 +106,7 @@ struct ZSTD_CCtx_s
     void* workSpace;
     size_t workSpaceSize;
     size_t blockSize;
+    XXH64_state_t xxhState;
     ZSTD_allocFunction customAlloc;
     ZSTD_freeFunction customFree;
 
@@ -266,6 +269,7 @@ static size_t ZSTD_resetCCtx_advanced (ZSTD_CCtx* zc,
     }   }
 
     if (reset) memset(zc->workSpace, 0, tableSpace );   /* reset only tables */
+    XXH64_reset(&zc->xxhState, 0);
     zc->hashTable3 = (U32*)(zc->workSpace);
     zc->hashTable = zc->hashTable3 + h3Size;
     zc->chainTable = zc->hashTable + hSize;
@@ -1938,7 +1942,7 @@ void ZSTD_compressBlock_lazy_extDict_generic(ZSTD_CCtx* ctx,
 
         /* catch up */
         if (offset) {
-            U32 matchIndex = (U32)((start-base) - (offset - ZSTD_REP_MOVE));
+            U32 const matchIndex = (U32)((start-base) - (offset - ZSTD_REP_MOVE));
             const BYTE* match = (matchIndex < dictLimit) ? dictBase + matchIndex : base + matchIndex;
             const BYTE* const mStart = (matchIndex < dictLimit) ? dictStart : prefixStart;
             while ((start>anchor) && (match>mStart) && (start[-1] == match[-1])) { start--; match--; matchLength++; }  /* catch up */
@@ -2043,18 +2047,21 @@ static size_t ZSTD_compressBlock_internal(ZSTD_CCtx* zc, void* dst, size_t dstCa
 
 
 
-static size_t ZSTD_compress_generic (ZSTD_CCtx* zc,
-                                        void* dst, size_t dstCapacity,
-                                  const void* src, size_t srcSize)
+static size_t ZSTD_compress_generic (ZSTD_CCtx* cctx,
+                                     void* dst, size_t dstCapacity,
+                               const void* src, size_t srcSize)
 {
-    size_t blockSize = zc->blockSize;
+    size_t blockSize = cctx->blockSize;
     size_t remaining = srcSize;
     const BYTE* ip = (const BYTE*)src;
     BYTE* const ostart = (BYTE*)dst;
     BYTE* op = ostart;
-    const U32 maxDist = 1 << zc->params.cParams.windowLog;
-    ZSTD_stats_t* stats = &zc->seqStore.stats;
+    const U32 maxDist = 1 << cctx->params.cParams.windowLog;
+    ZSTD_stats_t* stats = &cctx->seqStore.stats;
     ZSTD_statsInit(stats);
+
+    if (cctx->params.fParams.checksumFlag)
+        XXH64_update(&cctx->xxhState, src, srcSize);
 
     while (remaining) {
         size_t cSize;
@@ -2063,14 +2070,14 @@ static size_t ZSTD_compress_generic (ZSTD_CCtx* zc,
         if (dstCapacity < ZSTD_blockHeaderSize + MIN_CBLOCK_SIZE) return ERROR(dstSize_tooSmall);   /* not enough space to store compressed block */
         if (remaining < blockSize) blockSize = remaining;
 
-        if ((U32)(ip+blockSize - zc->base) > zc->loadedDictEnd + maxDist) {
+        if ((U32)(ip+blockSize - cctx->base) > cctx->loadedDictEnd + maxDist) {
             /* enforce maxDist */
-            U32 const newLowLimit = (U32)(ip+blockSize - zc->base) - maxDist;
-            if (zc->lowLimit < newLowLimit) zc->lowLimit = newLowLimit;
-            if (zc->dictLimit < zc->lowLimit) zc->dictLimit = zc->lowLimit;
+            U32 const newLowLimit = (U32)(ip+blockSize - cctx->base) - maxDist;
+            if (cctx->lowLimit < newLowLimit) cctx->lowLimit = newLowLimit;
+            if (cctx->dictLimit < cctx->lowLimit) cctx->dictLimit = cctx->lowLimit;
         }
 
-        cSize = ZSTD_compressBlock_internal(zc, op+ZSTD_blockHeaderSize, dstCapacity-ZSTD_blockHeaderSize, ip, blockSize);
+        cSize = ZSTD_compressBlock_internal(cctx, op+ZSTD_blockHeaderSize, dstCapacity-ZSTD_blockHeaderSize, ip, blockSize);
         if (ZSTD_isError(cSize)) return cSize;
 
         if (cSize == 0) {  /* block is not compressible */
@@ -2090,7 +2097,7 @@ static size_t ZSTD_compress_generic (ZSTD_CCtx* zc,
         op += cSize;
     }
 
-    ZSTD_statsPrint(stats, zc->params.cParams.searchLength);
+    ZSTD_statsPrint(stats, cctx->params.cParams.searchLength);
     return op-ostart;
 }
 
@@ -2104,7 +2111,7 @@ static size_t ZSTD_writeFrameHeader(void* dst, size_t dstCapacity,
     BYTE const fAllocByte = (BYTE)((params.cParams.windowLog - ZSTD_WINDOWLOG_ABSOLUTEMIN)   /* windowLog : 4 KB - 128 MB */
                                   | (fcsId << 6) );
     U32 const dictIDSizeCode = (dictID>0) + (dictID>=256) + (dictID>=65536);   /* 0-3 */
-    BYTE const fCheckByte = (BYTE)(dictIDSizeCode&3);
+    BYTE const fCheckByte = (BYTE)((dictIDSizeCode&3) + (params.fParams.checksumFlag<<4));
     size_t pos;
 
     if (dstCapacity < ZSTD_frameHeaderSize_max) return ERROR(dstSize_tooSmall);
@@ -2261,40 +2268,45 @@ static size_t ZSTD_loadDictionaryContent(ZSTD_CCtx* zc, const void* src, size_t 
 static size_t ZSTD_loadDictEntropyStats(ZSTD_CCtx* zc, const void* dict, size_t dictSize)
 {
     /* note : magic number already checked */
-    size_t offcodeHeaderSize, matchlengthHeaderSize, litlengthHeaderSize, errorCode;
-    short offcodeNCount[MaxOff+1];
-    unsigned offcodeMaxValue = MaxOff, offcodeLog = OffFSELog;
-    short matchlengthNCount[MaxML+1];
-    unsigned matchlengthMaxValue = MaxML, matchlengthLog = MLFSELog;
-    short litlengthNCount[MaxLL+1];
-    unsigned litlengthMaxValue = MaxLL, litlengthLog = LLFSELog;
+    size_t const dictSizeStart = dictSize;
 
-    size_t const hufHeaderSize = HUF_readCTable(zc->hufTable, 255, dict, dictSize);
-    if (HUF_isError(hufHeaderSize)) return ERROR(dictionary_corrupted);
-    zc->flagStaticTables = 1;
-    dict = (const char*)dict + hufHeaderSize;
-    dictSize -= hufHeaderSize;
+    {   size_t const hufHeaderSize = HUF_readCTable(zc->hufTable, 255, dict, dictSize);
+        if (HUF_isError(hufHeaderSize)) return ERROR(dictionary_corrupted);
+        zc->flagStaticTables = 1;
+        dict = (const char*)dict + hufHeaderSize;
+        dictSize -= hufHeaderSize;
+    }
 
-    offcodeHeaderSize = FSE_readNCount(offcodeNCount, &offcodeMaxValue, &offcodeLog, dict, dictSize);
-    if (FSE_isError(offcodeHeaderSize)) return ERROR(dictionary_corrupted);
-    errorCode = FSE_buildCTable(zc->offcodeCTable, offcodeNCount, offcodeMaxValue, offcodeLog);
-    if (FSE_isError(errorCode)) return ERROR(dictionary_corrupted);
-    dict = (const char*)dict + offcodeHeaderSize;
-    dictSize -= offcodeHeaderSize;
+    {   short offcodeNCount[MaxOff+1];
+        unsigned offcodeMaxValue = MaxOff, offcodeLog = OffFSELog;
+        size_t const offcodeHeaderSize = FSE_readNCount(offcodeNCount, &offcodeMaxValue, &offcodeLog, dict, dictSize);
+        if (FSE_isError(offcodeHeaderSize)) return ERROR(dictionary_corrupted);
+        { size_t const errorCode = FSE_buildCTable(zc->offcodeCTable, offcodeNCount, offcodeMaxValue, offcodeLog);
+          if (FSE_isError(errorCode)) return ERROR(dictionary_corrupted); }
+        dict = (const char*)dict + offcodeHeaderSize;
+        dictSize -= offcodeHeaderSize;
+    }
 
-    matchlengthHeaderSize = FSE_readNCount(matchlengthNCount, &matchlengthMaxValue, &matchlengthLog, dict, dictSize);
-    if (FSE_isError(matchlengthHeaderSize)) return ERROR(dictionary_corrupted);
-    errorCode = FSE_buildCTable(zc->matchlengthCTable, matchlengthNCount, matchlengthMaxValue, matchlengthLog);
-    if (FSE_isError(errorCode)) return ERROR(dictionary_corrupted);
-    dict = (const char*)dict + matchlengthHeaderSize;
-    dictSize -= matchlengthHeaderSize;
+    {   short matchlengthNCount[MaxML+1];
+        unsigned matchlengthMaxValue = MaxML, matchlengthLog = MLFSELog;
+        size_t const matchlengthHeaderSize = FSE_readNCount(matchlengthNCount, &matchlengthMaxValue, &matchlengthLog, dict, dictSize);
+        if (FSE_isError(matchlengthHeaderSize)) return ERROR(dictionary_corrupted);
+        { size_t const errorCode = FSE_buildCTable(zc->matchlengthCTable, matchlengthNCount, matchlengthMaxValue, matchlengthLog);
+          if (FSE_isError(errorCode)) return ERROR(dictionary_corrupted); }
+        dict = (const char*)dict + matchlengthHeaderSize;
+        dictSize -= matchlengthHeaderSize;
+    }
 
-    litlengthHeaderSize = FSE_readNCount(litlengthNCount, &litlengthMaxValue, &litlengthLog, dict, dictSize);
-    if (FSE_isError(litlengthHeaderSize)) return ERROR(dictionary_corrupted);
-    errorCode = FSE_buildCTable(zc->litlengthCTable, litlengthNCount, litlengthMaxValue, litlengthLog);
-    if (FSE_isError(errorCode)) return ERROR(dictionary_corrupted);
+    {   short litlengthNCount[MaxLL+1];
+        unsigned litlengthMaxValue = MaxLL, litlengthLog = LLFSELog;
+        size_t const litlengthHeaderSize = FSE_readNCount(litlengthNCount, &litlengthMaxValue, &litlengthLog, dict, dictSize);
+        if (FSE_isError(litlengthHeaderSize)) return ERROR(dictionary_corrupted);
+        { size_t const errorCode = FSE_buildCTable(zc->litlengthCTable, litlengthNCount, litlengthMaxValue, litlengthLog);
+          if (FSE_isError(errorCode)) return ERROR(dictionary_corrupted); }
+        dictSize -= litlengthHeaderSize;
+    }
 
-    return hufHeaderSize + offcodeHeaderSize + matchlengthHeaderSize + litlengthHeaderSize;
+    return (dictSizeStart-dictSize);
 }
 
 /** ZSTD_compress_insertDictionary() :
@@ -2366,30 +2378,34 @@ size_t ZSTD_compressBegin(ZSTD_CCtx* zc, int compressionLevel)
 /*! ZSTD_compressEnd() :
 *   Write frame epilogue.
 *   @return : nb of bytes written into dst (or an error code) */
-size_t ZSTD_compressEnd(ZSTD_CCtx* zc, void* dst, size_t dstCapacity)
+size_t ZSTD_compressEnd(ZSTD_CCtx* cctx, void* dst, size_t dstCapacity)
 {
     BYTE* op = (BYTE*)dst;
     size_t fhSize = 0;
 
     /* not even init ! */
-    if (zc->stage==0) return ERROR(stage_wrong);
+    if (cctx->stage==0) return ERROR(stage_wrong);
 
     /* special case : empty frame */
-    if (zc->stage==1) {
-        fhSize = ZSTD_writeFrameHeader(dst, dstCapacity, zc->params, 0, 0);
+    if (cctx->stage==1) {
+        fhSize = ZSTD_writeFrameHeader(dst, dstCapacity, cctx->params, 0, 0);
         if (ZSTD_isError(fhSize)) return fhSize;
         dstCapacity -= fhSize;
         op += fhSize;
-        zc->stage = 2;
+        cctx->stage = 2;
     }
 
     /* frame epilogue */
     if (dstCapacity < 3) return ERROR(dstSize_tooSmall);
-    op[0] = (BYTE)(bt_end << 6);
-    op[1] = 0;
-    op[2] = 0;
+    {   U32 const checksum = cctx->params.fParams.checksumFlag ?
+                             (U32)((XXH64_digest(&cctx->xxhState) >> 11) & ((1<<22)-1)) :
+                             0;
+        op[0] = (BYTE)((bt_end<<6) + (checksum>>16));
+        op[1] = (BYTE)(checksum>>8);
+        op[2] = (BYTE)checksum;
+    }
 
-    zc->stage = 0;  /* return to "created by not init" status */
+    cctx->stage = 0;  /* return to "created but not init" status */
     return 3+fhSize;
 }
 

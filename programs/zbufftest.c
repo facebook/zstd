@@ -97,7 +97,7 @@ static U32 FUZ_GetMilliStart(void)
 
 static U32 FUZ_GetMilliSpan(U32 nTimeStart)
 {
-    U32 nCurrent = FUZ_GetMilliStart();
+    U32 const nCurrent = FUZ_GetMilliStart();
     U32 nSpan = nCurrent - nTimeStart;
     if (nTimeStart > nCurrent)
         nSpan += 0x100000 * 1000;
@@ -152,7 +152,7 @@ static int basicUnitTests(U32 seed, double compressibility, ZSTD_customMem custo
     void* compressedBuffer = malloc(compressedBufferSize);
     size_t const decodedBufferSize = CNBufferSize;
     void* decodedBuffer = malloc(decodedBufferSize);
-    size_t result, cSize, readSize, readSkipSize, genSize;
+    size_t cSize, readSize, readSkipSize, genSize;
     U32 testNb=0;
     ZBUFF_CCtx* zc = ZBUFF_createCCtx_advanced(customMem);
     ZBUFF_DCtx* zd = ZBUFF_createDCtx_advanced(customMem);
@@ -173,13 +173,13 @@ static int basicUnitTests(U32 seed, double compressibility, ZSTD_customMem custo
     ZBUFF_compressInitDictionary(zc, CNBuffer, 128 KB, 1);
     readSize = CNBufferSize;
     genSize = compressedBufferSize;
-    result = ZBUFF_compressContinue(zc, ((char*)compressedBuffer)+cSize, &genSize, CNBuffer, &readSize);
-    if (ZBUFF_isError(result)) goto _output_error;
+    { size_t const r = ZBUFF_compressContinue(zc, ((char*)compressedBuffer)+cSize, &genSize, CNBuffer, &readSize);
+      if (ZBUFF_isError(r)) goto _output_error; }
     if (readSize != CNBufferSize) goto _output_error;   /* entire input should be consumed */
     cSize += genSize;
     genSize = compressedBufferSize - cSize;
-    result = ZBUFF_compressEnd(zc, ((char*)compressedBuffer)+cSize, &genSize);
-    if (result != 0) goto _output_error;   /* error, or some data not flushed */
+    { size_t const r = ZBUFF_compressEnd(zc, ((char*)compressedBuffer)+cSize, &genSize);
+      if (r != 0) goto _output_error; }  /*< error, or some data not flushed */
     cSize += genSize;
     DISPLAYLEVEL(4, "OK (%u bytes : %.2f%%)\n", (U32)cSize, (double)cSize/COMPRESSIBLE_NOISE_LENGTH*100);
 
@@ -188,13 +188,14 @@ static int basicUnitTests(U32 seed, double compressibility, ZSTD_customMem custo
     ZBUFF_decompressInitDictionary(zd, CNBuffer, 128 KB);
     readSkipSize = cSize;
     genSize = CNBufferSize;
-    result = ZBUFF_decompressContinue(zd, decodedBuffer, &genSize, compressedBuffer, &readSkipSize);
-    if (genSize != 0) goto _output_error;   /* skippable frame */
+    { size_t const r = ZBUFF_decompressContinue(zd, decodedBuffer, &genSize, compressedBuffer, &readSkipSize);
+      if (r != 0) goto _output_error; }
+    if (genSize != 0) goto _output_error;   /* skippable frame len is 0 */
     ZBUFF_decompressInitDictionary(zd, CNBuffer, 128 KB);
     readSize = cSize - readSkipSize;
     genSize = CNBufferSize;
-    result = ZBUFF_decompressContinue(zd, decodedBuffer, &genSize, ((char*)compressedBuffer)+readSkipSize, &readSize);
-    if (result != 0) goto _output_error;  /* should reach end of frame == 0; otherwise, some data left, or an error */
+    { size_t const r = ZBUFF_decompressContinue(zd, decodedBuffer, &genSize, ((char*)compressedBuffer)+readSkipSize, &readSize);
+      if (r != 0) goto _output_error; }  /* should reach end of frame == 0; otherwise, some data left, or an error */
     if (genSize != CNBufferSize) goto _output_error;   /* should regenerate the same amount */
     if (readSize+readSkipSize != cSize) goto _output_error;   /* should have read the entire frame */
     DISPLAYLEVEL(4, "OK \n");
@@ -613,9 +614,10 @@ int main(int argc, const char** argv)
 
     if (testNb==0) {
         result = basicUnitTests(0, ((double)proba) / 100, customNULL);  /* constant seed for predictability */
-        if (!result)
+        if (!result) {
+            DISPLAYLEVEL(4, "Unit tests using customMem :\n")
             result = basicUnitTests(0, ((double)proba) / 100, customMem);  /* use custom memory allocation functions */
-    }
+    }   }
 
     if (!result)
         result = fuzzerTests(seed, nbTests, testNb, ((double)proba) / 100);

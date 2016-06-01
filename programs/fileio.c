@@ -135,6 +135,8 @@ static U32 g_sparseFileSupport = 1;   /* 0 : no sparse allowed; 1: auto (file ye
 void FIO_setSparseWrite(unsigned sparse) { g_sparseFileSupport=sparse; }
 static U32 g_dictIDFlag = 1;
 void FIO_setDictIDFlag(unsigned dictIDFlag) { g_dictIDFlag = dictIDFlag; }
+static U32 g_checksumFlag = 0;
+void FIO_setChecksumFlag(unsigned checksumFlag) { g_checksumFlag = checksumFlag; }
 
 
 /*-*************************************
@@ -313,6 +315,7 @@ static int FIO_compressFilename_internal(cRess_t ress,
         memset(&params, 0, sizeof(params));
         params.cParams = ZSTD_getCParams(cLevel, fileSize, ress.dictBufferSize);
         params.fParams.contentSizeFlag = 1;
+        params.fParams.checksumFlag = g_checksumFlag;
         params.fParams.noDictIDFlag = !g_dictIDFlag;
         if (g_maxWLog) if (params.cParams.windowLog > g_maxWLog) params.cParams.windowLog = g_maxWLog;
         {   size_t const errorCode = ZBUFF_compressInit_advanced(ress.ctx, ress.dictBuffer, ress.dictBufferSize, params, fileSize);

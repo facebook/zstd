@@ -40,6 +40,7 @@
 
 #define Z_INFLATE_SYNC              8
 #define ZWRAP_HEADERSIZE            4
+#define ZWRAP_DEFAULT_CLEVEL        5   /* Z_DEFAULT_COMPRESSION is translated to ZWRAP_DEFAULT_CLEVEL for zstd */
 
 #define LOG_WRAPPER(...)  // printf(__VA_ARGS__)
 
@@ -116,6 +117,9 @@ ZEXTERN int ZEXPORT z_deflateInit_ OF((z_streamp strm, int level,
     zwc = ZWRAP_createCCtx();
     if (zwc == NULL) return Z_MEM_ERROR;
 
+    if (level == Z_DEFAULT_COMPRESSION)
+        level = ZWRAP_DEFAULT_CLEVEL;
+
     { size_t const errorCode = ZBUFF_compressInit(zwc->zbc, level);
       if (ZSTD_isError(errorCode)) return Z_MEM_ERROR; }
 
@@ -127,7 +131,7 @@ ZEXTERN int ZEXPORT z_deflateInit_ OF((z_streamp strm, int level,
 }
 
 
-ZEXTERN int ZEXPORT z_deflateInit2_ OF((z_streamp strm, int  level, int  method,
+ZEXTERN int ZEXPORT z_deflateInit2_ OF((z_streamp strm, int level, int method,
                                       int windowBits, int memLevel,
                                       int strategy, const char *version,
                                       int stream_size))

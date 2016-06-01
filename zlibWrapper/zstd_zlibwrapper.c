@@ -35,16 +35,17 @@
 #include "zstd_zlibwrapper.h"
 #include "zstd.h"
 #include "zstd_static.h"      /* ZSTD_MAGICNUMBER */
-#include "zstd_internal.h"    /* MIN */
 #include "zbuff.h"
 
 
 #define Z_INFLATE_SYNC              8
 #define ZWRAP_HEADERSIZE            4
-#define ZSTD_FRAMEHEADERSIZE_MIN    5
+#define ZWRAP_DEFAULT_CLEVEL        5   /* Z_DEFAULT_COMPRESSION is translated to ZWRAP_DEFAULT_CLEVEL for zstd */
 
 #define LOG_WRAPPER(...)  // printf(__VA_ARGS__)
 
+
+#define MIN(a,b) ((a)<(b)?(a):(b))
 
 #define FINISH_WITH_ERR(msg) { \
     fprintf(stderr, "ERROR: %s\n", msg); \
@@ -116,6 +117,9 @@ ZEXTERN int ZEXPORT z_deflateInit_ OF((z_streamp strm, int level,
     zwc = ZWRAP_createCCtx();
     if (zwc == NULL) return Z_MEM_ERROR;
 
+    if (level == Z_DEFAULT_COMPRESSION)
+        level = ZWRAP_DEFAULT_CLEVEL;
+
     { size_t const errorCode = ZBUFF_compressInit(zwc->zbc, level);
       if (ZSTD_isError(errorCode)) return Z_MEM_ERROR; }
 
@@ -127,7 +131,7 @@ ZEXTERN int ZEXPORT z_deflateInit_ OF((z_streamp strm, int level,
 }
 
 
-ZEXTERN int ZEXPORT z_deflateInit2_ OF((z_streamp strm, int  level, int  method,
+ZEXTERN int ZEXPORT z_deflateInit2_ OF((z_streamp strm, int level, int method,
                                       int windowBits, int memLevel,
                                       int strategy, const char *version,
                                       int stream_size))
@@ -253,9 +257,8 @@ ZEXTERN int ZEXPORT z_deflateParams OF((z_streamp strm,
 
 typedef struct {
     ZBUFF_DCtx* zbd;
-    char headerBuf[ZSTD_FRAMEHEADERSIZE_MIN];
+    char headerBuf[ZWRAP_HEADERSIZE];
     int errorCount;
-    int requiredHeaderSize;
     
     /* zlib params */
     int stream_size;
@@ -298,7 +301,6 @@ ZEXTERN int ZEXPORT z_inflateInit_ OF((z_streamp strm,
     zwd->zalloc = strm->zalloc;
     zwd->zfree = strm->zfree;
     zwd->opaque = strm->opaque;
-    zwd->requiredHeaderSize = ZWRAP_HEADERSIZE;
 
     strm->state = (struct internal_state*) zwd;
     strm->total_in = 0;
@@ -360,14 +362,14 @@ ZEXTERN int ZEXPORT z_inflate OF((z_streamp strm, int flush))
         size_t errorCode, dstCapacity, srcSize;
         ZWRAP_DCtx* zwd = (ZWRAP_DCtx*) strm->state;
         LOG_WRAPPER("inflate avail_in=%d avail_out=%d total_in=%d total_out=%d\n", (int)strm->avail_in, (int)strm->avail_out, (int)strm->total_in, (int)strm->total_out);
-        while (strm->total_in < ZSTD_FRAMEHEADERSIZE_MIN)
+        if (strm->total_in < ZWRAP_HEADERSIZE)
         {
-            srcSize = MIN(strm->avail_in, zwd->requiredHeaderSize - strm->total_in);
+            srcSize = MIN(strm->avail_in, ZWRAP_HEADERSIZE - strm->total_in);
             memcpy(zwd->headerBuf+strm->total_in, strm->next_in, srcSize);
             strm->total_in += srcSize;
             strm->next_in += srcSize;
             strm->avail_in -= srcSize;
-            if (strm->total_in < zwd->requiredHeaderSize) return Z_OK;
+            if (strm->total_in < ZWRAP_HEADERSIZE) return Z_OK;
 
             if (MEM_readLE32(zwd->headerBuf) != ZSTD_MAGICNUMBER) {
                 z_stream strm2;
@@ -401,16 +403,11 @@ ZEXTERN int ZEXPORT z_inflate OF((z_streamp strm, int flush))
                 return inflate(strm, flush);
             }
 
-            if (zwd->requiredHeaderSize < ZSTD_FRAMEHEADERSIZE_MIN) {
-                zwd->requiredHeaderSize = ZSTD_FRAMEHEADERSIZE_MIN;
-                continue;
-            }
-
             zwd->zbd = ZBUFF_createDCtx();
             { size_t const errorCode = ZBUFF_decompressInit(zwd->zbd);
               if (ZSTD_isError(errorCode)) return Z_MEM_ERROR; }
 
-            srcSize = ZSTD_FRAMEHEADERSIZE_MIN;
+            srcSize = ZWRAP_HEADERSIZE;
             dstCapacity = 0;
             errorCode = ZBUFF_decompressContinue(zwd->zbd, strm->next_out, &dstCapacity, zwd->headerBuf, &srcSize);
             LOG_WRAPPER("ZBUFF_decompressContinue1 errorCode=%d srcSize=%d dstCapacity=%d\n", (int)errorCode, (int)srcSize, (int)dstCapacity);
@@ -419,7 +416,6 @@ ZEXTERN int ZEXPORT z_inflate OF((z_streamp strm, int flush))
                 return Z_MEM_ERROR;
             }
             if (strm->avail_in == 0) return Z_OK;
-            break;
         }
 
         srcSize = strm->avail_in;

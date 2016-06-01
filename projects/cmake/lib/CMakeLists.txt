@@ -96,15 +96,22 @@ IF (ZSTD_LEGACY_SUPPORT)
             ${LIBRARY_LEGACY_DIR}/zstd_v01.c
             ${LIBRARY_LEGACY_DIR}/zstd_v02.c
             ${LIBRARY_LEGACY_DIR}/zstd_v03.c
-            ${LIBRARY_LEGACY_DIR}/zstd_v04.c)
+            ${LIBRARY_LEGACY_DIR}/zstd_v04.c
+            ${LIBRARY_LEGACY_DIR}/zstd_v05.c)
 
     SET(Headers ${Headers}
             ${LIBRARY_LEGACY_DIR}/zstd_legacy.h
             ${LIBRARY_LEGACY_DIR}/zstd_v01.h
             ${LIBRARY_LEGACY_DIR}/zstd_v02.h
             ${LIBRARY_LEGACY_DIR}/zstd_v03.h
-            ${LIBRARY_LEGACY_DIR}/zstd_v04.h)
+            ${LIBRARY_LEGACY_DIR}/zstd_v04.h
+            ${LIBRARY_LEGACY_DIR}/zstd_v05.h)
 ENDIF (ZSTD_LEGACY_SUPPORT)
+
+IF (MSVC)
+    SET(MSVC_RESOURCE_DIR ${ROOT_DIR}/projects/VS2010/zstdlib)
+    SET(PlatformDependResources ${MSVC_RESOURCE_DIR}/zstdlib.rc)
+ENDIF (MSVC)
 
 # Split project to static and shared libraries build
 ADD_LIBRARY(libzstd_static STATIC ${Sources} ${Headers} ${PlatformDependResources})
@@ -115,16 +122,6 @@ IF (MSVC)
     SET_TARGET_PROPERTIES(libzstd_static PROPERTIES COMPILE_DEFINITIONS "ZSTD_HEAPMODE=0;_CRT_SECURE_NO_WARNINGS")
     SET_TARGET_PROPERTIES(libzstd_shared PROPERTIES COMPILE_DEFINITIONS "ZSTD_DLL_EXPORT=1;ZSTD_HEAPMODE=0;_CONSOLE;_CRT_SECURE_NO_WARNINGS")
 ENDIF (MSVC)
-
-# Define include directories
-IF (NOT WORKAROUND_OUTDATED_CODE_STYLE)
-    TARGET_INCLUDE_DIRECTORIES(libzstd_static PUBLIC ${LIBRARY_DIR}/common)
-    TARGET_INCLUDE_DIRECTORIES(libzstd_shared PUBLIC ${LIBRARY_DIR}/common)
-    IF (ZSTD_LEGACY_SUPPORT)
-        TARGET_INCLUDE_DIRECTORIES(libzstd_static PUBLIC ${LIBRARY_LEGACY_DIR})
-        TARGET_INCLUDE_DIRECTORIES(libzstd_shared PUBLIC ${LIBRARY_LEGACY_DIR})
-    ENDIF (ZSTD_LEGACY_SUPPORT)
-ENDIF (NOT WORKAROUND_OUTDATED_CODE_STYLE)
 
 # Define library base name
 IF (MSVC)

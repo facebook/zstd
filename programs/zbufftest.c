@@ -212,7 +212,7 @@ static int basicUnitTests(U32 seed, double compressibility, ZSTD_customMem custo
     /* Byte-by-byte decompression test */
     DISPLAYLEVEL(4, "test%3i : decompress byte-by-byte : ", testNb++);
     {   size_t r, pIn=0, pOut=0;
-        do 
+        do
         {   ZBUFF_decompressInitDictionary(zd, CNBuffer, 128 KB);
             r = 1;
             while (r) {
@@ -346,8 +346,8 @@ static int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compres
         FUZ_rand(&coreSeed);
         lseed = coreSeed ^ prime1;
 
-        /* state total reset */
-        /* some problems only happen when states are re-used in a specific order */
+        /* states full reset (unsynchronized) */
+        /* some issues only happen when reusing states in a specific sequence of parameters */
         if ((FUZ_rand(&lseed) & 0xFF) == 131) { ZBUFF_freeCCtx(zc); zc = ZBUFF_createCCtx(); }
         if ((FUZ_rand(&lseed) & 0xFF) == 132) { ZBUFF_freeDCtx(zd); zd = ZBUFF_createDCtx(); }
 
@@ -370,15 +370,22 @@ static int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compres
         {   U32 const testLog = FUZ_rand(&lseed) % maxSrcLog;
             U32 const cLevel = (FUZ_rand(&lseed) % (ZSTD_maxCLevel() - (testLog/3))) + 1;
             maxTestSize = FUZ_rLogLength(&lseed, testLog);
+            dictSize  = (FUZ_rand(&lseed)==1) ? FUZ_randomLength(&lseed, maxSampleLog) : 0;
             /* random dictionary selection */
-            {   size_t dictStart;
-                dictSize  = (FUZ_rand(&lseed)==1) ? FUZ_randomLength(&lseed, maxSampleLog) : 0;
-                dictStart = FUZ_rand(&lseed) % (srcBufferSize - dictSize);
-                dict      = srcBuffer + dictStart;
+            {   size_t const dictStart = FUZ_rand(&lseed) % (srcBufferSize - dictSize);
+                dict = srcBuffer + dictStart;
             }
-            {   size_t const initError = ZBUFF_compressInitDictionary(zc, dict, dictSize, cLevel);
-                CHECK (ZBUFF_isError(initError),"init error : %s", ZBUFF_getErrorName(initError));
-        }   }
+            {   ZSTD_compressionParameters cPar = ZSTD_getCParams(cLevel, 0, dictSize);
+                U32 const checksum = FUZ_rand(&lseed) & 1;
+                U32 const noDictIDFlag = FUZ_rand(&lseed) & 1;
+                ZSTD_frameParameters const fPar = { 0, checksum, noDictIDFlag };
+                ZSTD_parameters params;
+                ZSTD_adjustCParams(&cPar, 0, dictSize);
+                params.cParams = cPar;
+                params.fParams = fPar;
+                {   size_t const initError = ZBUFF_compressInit_advanced(zc, dict, dictSize, params, 0);
+                    CHECK (ZBUFF_isError(initError),"init error : %s", ZBUFF_getErrorName(initError));
+        }   }   }
 
         /* multi-segments compression test */
         XXH64_reset(&xxhState, 0);

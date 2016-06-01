@@ -48,7 +48,9 @@
     <ClInclude Include="..\..\..\lib\common\zstd_static.h" />
     <ClInclude Include="..\..\..\lib\compress\zstd_opt.h" />
     <ClInclude Include="..\..\..\programs\util.h" />
-    <ClInclude Include="resource.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="zstdlib.rc" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{8BFD8150-94D5-4BF9-8A50-7BD9929A0850}</ProjectGuid>

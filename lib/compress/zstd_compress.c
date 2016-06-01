@@ -202,30 +202,32 @@ size_t ZSTD_checkCParams_advanced(ZSTD_compressionParameters cParams, U64 srcSiz
 }
 
 
-/** ZSTD_adjustParams() :
-    optimize params for q given input (`srcSize` and `dictSize`).
+/** ZSTD_adjustCParams() :
+    optimize cPar for a given input (`srcSize` and `dictSize`).
     mostly downsizing to reduce memory consumption and initialization.
     Both `srcSize` and `dictSize` are optional (use 0 if unknown),
     but if both are 0, no optimization can be done.
-    Note : params is considered validated at this stage. Use ZSTD_checkParams() to ensure that. */
-void ZSTD_adjustCParams(ZSTD_compressionParameters* params, U64 srcSize, size_t dictSize)
+    Note : cPar is considered validated at this stage. Use ZSTD_checkParams() to ensure that. */
+ZSTD_compressionParameters ZSTD_adjustCParams(ZSTD_compressionParameters cPar, U64 srcSize, size_t dictSize)
 {
-    if (srcSize+dictSize == 0) return;   /* no size information available : no adjustment */
+    if (srcSize+dictSize == 0) return cPar;   /* no size information available : no adjustment */
 
     /* resize params, to use less memory when necessary */
     {   U32 const minSrcSize = (srcSize==0) ? 500 : 0;
         U64 const rSize = srcSize + dictSize + minSrcSize;
         if (rSize < ((U64)1<<ZSTD_WINDOWLOG_MAX)) {
             U32 const srcLog = ZSTD_highbit((U32)(rSize)-1) + 1;
-            if (params->windowLog > srcLog) params->windowLog = srcLog;
+            if (cPar.windowLog > srcLog) cPar.windowLog = srcLog;
     }   }
-    if (params->hashLog > params->windowLog) params->hashLog = params->windowLog;
-    {   U32 const btPlus = (params->strategy == ZSTD_btlazy2) || (params->strategy == ZSTD_btopt);
-        U32 const maxChainLog = params->windowLog+btPlus;
-        if (params->chainLog > maxChainLog) params->chainLog = maxChainLog; }   /* <= ZSTD_CHAINLOG_MAX */
+    if (cPar.hashLog > cPar.windowLog) cPar.hashLog = cPar.windowLog;
+    {   U32 const btPlus = (cPar.strategy == ZSTD_btlazy2) || (cPar.strategy == ZSTD_btopt);
+        U32 const maxChainLog = cPar.windowLog+btPlus;
+        if (cPar.chainLog > maxChainLog) cPar.chainLog = maxChainLog; }   /* <= ZSTD_CHAINLOG_MAX */
 
-    if (params->windowLog  < ZSTD_WINDOWLOG_ABSOLUTEMIN) params->windowLog = ZSTD_WINDOWLOG_ABSOLUTEMIN;  /* required for frame header */
-    if ((params->hashLog  < ZSTD_HASHLOG_MIN) && ((U32)params->strategy >= (U32)ZSTD_btlazy2)) params->hashLog = ZSTD_HASHLOG_MIN;  /* required to ensure collision resistance in bt */
+    if (cPar.windowLog < ZSTD_WINDOWLOG_ABSOLUTEMIN) cPar.windowLog = ZSTD_WINDOWLOG_ABSOLUTEMIN;  /* required for frame header */
+    if ((cPar.hashLog  < ZSTD_HASHLOG_MIN) && ( (U32)cPar.strategy >= (U32)ZSTD_btlazy2)) cPar.hashLog = ZSTD_HASHLOG_MIN;  /* required to ensure collision resistance in bt */
+
+    return cPar;
 }
 
 
@@ -2362,7 +2364,6 @@ size_t ZSTD_compressBegin_usingDict(ZSTD_CCtx* zc, const void* dict, size_t dict
     ZSTD_parameters params;
     memset(&params, 0, sizeof(params));
     params.cParams = ZSTD_getCParams(compressionLevel, 0, dictSize);
-    ZSTD_adjustCParams(&params.cParams, 0, dictSize);
     ZSTD_LOG_BLOCK("%p: ZSTD_compressBegin_usingDict compressionLevel=%d\n", zc->base, compressionLevel);
     return ZSTD_compressBegin_internal(zc, dict, dictSize, params, 0);
 }
@@ -2472,7 +2473,6 @@ size_t ZSTD_compress_usingDict(ZSTD_CCtx* ctx, void* dst, size_t dstCapacity, co
     ZSTD_LOG_BLOCK("%p: ZSTD_compress_usingDict srcSize=%d dictSize=%d compressionLevel=%d\n", ctx->base, (int)srcSize, (int)dictSize, compressionLevel);
     params.cParams =  ZSTD_getCParams(compressionLevel, srcSize, dictSize);
     params.fParams.contentSizeFlag = 1;
-    ZSTD_adjustCParams(&params.cParams, srcSize, dictSize);
     return ZSTD_compress_internal(ctx, dst, dstCapacity, src, srcSize, dict, dictSize, params);
 }
 
@@ -2625,5 +2625,6 @@ ZSTD_compressionParameters ZSTD_getCParams(int compressionLevel, U64 srcSize, si
         if (cp.chainLog > ZSTD_CHAINLOG_MAX) cp.chainLog = ZSTD_CHAINLOG_MAX;
         if (cp.hashLog > ZSTD_HASHLOG_MAX) cp.hashLog = ZSTD_HASHLOG_MAX;
     }
+    cp = ZSTD_adjustCParams(cp, srcSize, dictSize);
     return cp;
 }

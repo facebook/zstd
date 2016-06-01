@@ -192,6 +192,8 @@ size_t ZBUFF_decompressContinue(ZBUFF_DCtx* zbd,
                     if (ZSTD_isError(h2Result)) return h2Result;
             }   }
 
+            if (zbd->fParams.windowLog < ZSTD_WINDOWLOG_ABSOLUTEMIN) zbd->fParams.windowLog = ZSTD_WINDOWLOG_ABSOLUTEMIN;  /* required for buffer allocation */
+    
             /* Frame header instruct buffer sizes */
             {   size_t const blockSize = MIN(1 << zbd->fParams.windowLog, ZSTD_BLOCKSIZE_MAX);
                 zbd->blockSize = blockSize;

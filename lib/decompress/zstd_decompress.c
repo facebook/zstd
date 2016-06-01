@@ -335,7 +335,7 @@ size_t ZSTD_getFrameParams(ZSTD_frameParams* fparamsPtr, const void* src, size_t
             if (srcSize < ZSTD_skippableHeaderSize) return ZSTD_skippableHeaderSize; /* magic number + skippable frame length */
             memset(fparamsPtr, 0, sizeof(*fparamsPtr));
             fparamsPtr->frameContentSize = MEM_readLE32((const char *)src + 4);
-            fparamsPtr->windowLog = ZSTD_WINDOWLOG_ABSOLUTEMIN;
+            fparamsPtr->windowLog = 0; /* windowLog==0 means a frame is skippable */
             return 0;
         }
         return ERROR(prefix_unknown);

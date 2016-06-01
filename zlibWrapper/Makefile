@@ -22,13 +22,16 @@ LDFLAGS = $(LOC)
 RM = rm -f
 
 
-all: clean test testdll
+all: clean test testdll testzstd
 
 test: example
 	./example
 
 testdll: example_d
 	./example_d
+
+testzstd: example_zstd
+	./example_zstd
 
 .c.o:
 	$(CC) $(CFLAGS) -c -o $@ $<
@@ -39,11 +42,17 @@ example: $(EXAMPLE_PATH)/example.o $(ZLIBWRAPPER_PATH)/zstd_zlibwrapper.o
 example_d: $(EXAMPLE_PATH)/example.o $(ZLIBWRAPPER_PATH)/zstd_zlibwrapper.o
 	$(CC) $(LDFLAGS) -o $@ $(EXAMPLE_PATH)/example.o $(ZLIBWRAPPER_PATH)/zstd_zlibwrapper.o $(IMPLIB)
 
+example_zstd: $(EXAMPLE_PATH)/example.o $(ZLIBWRAPPER_PATH)/zstdTurnedOn_zlibwrapper.o
+	$(CC) $(LDFLAGS)  -o $@ $(EXAMPLE_PATH)/example.o $(ZLIBWRAPPER_PATH)/zstdTurnedOn_zlibwrapper.o $(STATICLIB)
+
 $(EXAMPLE_PATH)/example.o: $(EXAMPLE_PATH)/example.c
 	$(CC) $(CFLAGS) -I. -c -o $@ $(EXAMPLE_PATH)/example.c
 
 $(ZLIBWRAPPER_PATH)/zstd_zlibwrapper.o: $(ZLIBWRAPPER_PATH)/zstd_zlibwrapper.c $(ZLIBWRAPPER_PATH)/zstd_zlibwrapper.h
 	$(CC) $(CFLAGS) -I. -c -o $@ $(ZLIBWRAPPER_PATH)/zstd_zlibwrapper.c
+
+$(ZLIBWRAPPER_PATH)/zstdTurnedOn_zlibwrapper.o: $(ZLIBWRAPPER_PATH)/zstd_zlibwrapper.c $(ZLIBWRAPPER_PATH)/zstd_zlibwrapper.h
+	$(CC) $(CFLAGS) -DZWRAP_USE_ZSTD=1 -I. -c -o $@ $(ZLIBWRAPPER_PATH)/zstd_zlibwrapper.c
 
 clean:
 	-$(RM) $(ZLIBWRAPPER_PATH)/*.o

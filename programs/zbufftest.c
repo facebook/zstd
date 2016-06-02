@@ -129,7 +129,7 @@ static unsigned FUZ_highbit32(U32 v32)
 }
 */
 
-void* ZBUFF_allocFunction(void* opaque, size_t size)
+static void* ZBUFF_allocFunction(void* opaque, size_t size)
 {
     (void)opaque;
     void* address = malloc(size);
@@ -137,7 +137,7 @@ void* ZBUFF_allocFunction(void* opaque, size_t size)
     return address;
 }
 
-void ZBUFF_freeFunction(void* opaque, void* address)
+static void ZBUFF_freeFunction(void* opaque, void* address)
 {
     (void)opaque;
     /* if (address) DISPLAYLEVEL(4, "free %p opaque=%p \n", address, opaque); */
@@ -514,7 +514,7 @@ int main(int argc, const char** argv)
     int result=0;
     U32 mainPause = 0;
     const char* programName = argv[0];
-    ZSTD_customMem customMem = { ZBUFF_allocFunction, ZBUFF_freeFunction, (void*)777 };
+    ZSTD_customMem customMem = { ZBUFF_allocFunction, ZBUFF_freeFunction, NULL };
     ZSTD_customMem customNULL = { NULL, NULL, NULL };
 
     /* Check command line */

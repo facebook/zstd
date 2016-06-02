@@ -41,7 +41,11 @@ extern "C" {
 #include <zlib.h>
 
 #if !defined(z_const)
-#  define z_const const 
+#if ZLIB_VERNUM >= 0x1260
+    #define z_const const 
+#else
+    #define z_const
+#endif
 #endif
 
 void useZSTD(int turn_on);

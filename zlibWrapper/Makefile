@@ -7,8 +7,9 @@
 
 # Paths to static and dynamic zlib and zstd libraries
 ifneq (,$(filter Windows%,$(OS)))
-STATICLIB = ../../zlib/libz.a ../lib/libzstd.a
-IMPLIB    = ../../zlib/libz.dll.a ../lib/libzstd.a
+ZLIBDIR = ../../zlib1.2.8
+STATICLIB = $(ZLIBDIR)/libz.a ../lib/libzstd.a
+IMPLIB    = $(ZLIBDIR)/libz.dll.a ../lib/libzstd.a
 else
 STATICLIB = -static -lz ../lib/libzstd.a
 IMPLIB    = -lz ../lib/libzstd.a
@@ -17,12 +18,12 @@ endif
 ZLIBWRAPPER_PATH = .
 EXAMPLE_PATH = examples
 CC = gcc
-CFLAGS = $(LOC) -I../lib/common -I$(ZLIBWRAPPER_PATH) -O3 -Wall -std=gnu89
+CFLAGS = $(LOC) -I../lib/common -I$(ZLIBDIR) -I$(ZLIBWRAPPER_PATH) -O3 -Wall -std=gnu89
 LDFLAGS = $(LOC)
 RM = rm -f
 
 
-all: clean test testdll testzstd
+all: clean test testzstd
 
 test: example
 	./example

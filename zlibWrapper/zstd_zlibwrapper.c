@@ -37,6 +37,7 @@
 #include "zstd.h"
 #include "zstd_static.h"      /* ZSTD_MAGICNUMBER */
 #include "zbuff.h"
+#include "zbuff_static.h"      /* ZBUFF_createCCtx_advanced */
 
 
 #define Z_INFLATE_SYNC              8
@@ -75,6 +76,22 @@ const char * zstdVersion() { return ZSTD_VERSION_STRING; }
 ZEXTERN const char * ZEXPORT z_zlibVersion OF((void)) { return zlibVersion();  }
 
 
+void* ZWRAP_allocFunction(void* opaque, size_t size)
+{
+    z_streamp strm = (z_streamp) opaque;
+    void* address = strm->zalloc(strm->opaque, 1, size);
+  /*  printf("ZWRAP alloc %p, %d \n", address, (int)size); */
+    return address;
+}
+
+void ZWRAP_freeFunction(void* opaque, void* address)
+{
+    z_streamp strm = (z_streamp) opaque;
+    strm->zfree(strm->opaque, address);
+   /* if (address) printf("ZWRAP free %p \n", address); */
+}
+
+
 
 /* *** Compression *** */
 
@@ -82,15 +99,22 @@ typedef struct {
     ZBUFF_CCtx* zbc;
     size_t bytesLeft;
     int compressionLevel;
+    z_stream allocFunc; /* copy of zalloc, zfree, opaque */
 } ZWRAP_CCtx;
 
 
-ZWRAP_CCtx* ZWRAP_createCCtx()
+ZWRAP_CCtx* ZWRAP_createCCtx(z_streamp strm)
 {
     ZWRAP_CCtx* zwc = (ZWRAP_CCtx*)malloc(sizeof(ZWRAP_CCtx));
     if (zwc==NULL) return NULL;
     memset(zwc, 0, sizeof(*zwc));
-    zwc->zbc = ZBUFF_createCCtx();
+    if (strm->zalloc && strm->zfree) {
+       ZSTD_customMem ZWRAP_customMem = { ZWRAP_allocFunction, ZWRAP_freeFunction, &zwc->allocFunc };
+       memcpy(&zwc->allocFunc, strm, sizeof(z_stream));
+       zwc->zbc = ZBUFF_createCCtx_advanced(ZWRAP_customMem);
+    }
+    else
+       zwc->zbc = ZBUFF_createCCtx();
     return zwc;
 }
 
@@ -115,7 +139,7 @@ ZEXTERN int ZEXPORT z_deflateInit_ OF((z_streamp strm, int level,
     }
 
     LOG_WRAPPER("- deflateInit level=%d\n", level);
-    zwc = ZWRAP_createCCtx();
+    zwc = ZWRAP_createCCtx(strm);
     if (zwc == NULL) return Z_MEM_ERROR;
 
     if (level == Z_DEFAULT_COMPRESSION)
@@ -265,14 +289,16 @@ typedef struct {
     int stream_size;
     char *version;
     int windowBits;
+    z_stream allocFunc; /* copy of zalloc, zfree, opaque */
 } ZWRAP_DCtx;
 
 
-ZWRAP_DCtx* ZWRAP_createDCtx(void)
+ZWRAP_DCtx* ZWRAP_createDCtx(z_streamp strm)
 {
     ZWRAP_DCtx* zwd = (ZWRAP_DCtx*)malloc(sizeof(ZWRAP_DCtx));
     if (zwd==NULL) return NULL;
     memset(zwd, 0, sizeof(*zwd));
+    memcpy(&zwd->allocFunc, strm, sizeof(z_stream));
     return zwd;
 }
 
@@ -290,7 +316,7 @@ size_t ZWRAP_freeDCtx(ZWRAP_DCtx* zwd)
 ZEXTERN int ZEXPORT z_inflateInit_ OF((z_streamp strm,
                                      const char *version, int stream_size))
 {
-    ZWRAP_DCtx* zwd = ZWRAP_createDCtx();
+    ZWRAP_DCtx* zwd = ZWRAP_createDCtx(strm);
     LOG_WRAPPER("- inflateInit\n");
     if (zwd == NULL) return Z_MEM_ERROR;
 
@@ -402,7 +428,12 @@ ZEXTERN int ZEXPORT z_inflate OF((z_streamp strm, int flush))
                 return inflate(strm, flush);
             }
 
-            zwd->zbd = ZBUFF_createDCtx();
+            if (zwd->allocFunc.zalloc && zwd->allocFunc.zfree) {
+               ZSTD_customMem ZWRAP_customMem = { ZWRAP_allocFunction, ZWRAP_freeFunction, &zwd->allocFunc };
+               zwd->zbd = ZBUFF_createDCtx_advanced(ZWRAP_customMem);
+            } else
+               zwd->zbd = ZBUFF_createDCtx();
+
             { size_t const errorCode = ZBUFF_decompressInit(zwd->zbd);
               if (ZSTD_isError(errorCode)) return Z_MEM_ERROR; }
 

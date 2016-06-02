@@ -133,14 +133,14 @@ void* ZBUFF_allocFunction(void* opaque, size_t size)
 {
     (void)opaque;
     void* address = malloc(size);
-    /* DISPLAYLEVEL(4, "alloc %p, %d opaque=%d \n", address, (int)size, (int)opaque); */
+    /* DISPLAYLEVEL(4, "alloc %p, %d opaque=%p \n", address, (int)size, opaque); */
     return address;
 }
 
 void ZBUFF_freeFunction(void* opaque, void* address)
 {
     (void)opaque;
-    /* if (address) DISPLAYLEVEL(4, "free %p opaque=%d \n", address, (int)opaque); */
+    /* if (address) DISPLAYLEVEL(4, "free %p opaque=%p \n", address, opaque); */
     free(address);
 }
 

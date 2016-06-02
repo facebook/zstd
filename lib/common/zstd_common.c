@@ -78,13 +78,13 @@ void* ZSTD_defaultAllocFunction(void* opaque, size_t size)
 {
     void* address = malloc(size);
     (void)opaque;
-    /* DISPLAYLEVEL(4, "alloc %p, %d opaque=%d \n", address, (int)size, (int)opaque); */
+    /* printf("alloc %p, %d opaque=%p \n", address, (int)size, opaque); */
     return address;
 }
 
 void ZSTD_defaultFreeFunction(void* opaque, void* address)
 {
     (void)opaque;
-    /* if (address) DISPLAYLEVEL(4, "free %p opaque=%d \n", address, (int)opaque); */
+    /* if (address) printf("free %p opaque=%p \n", address, opaque); */
     free(address);
 }

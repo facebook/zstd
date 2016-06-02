@@ -179,8 +179,6 @@ size_t ZBUFF_compressInitDictionary(ZBUFF_CCtx* zbc, const void* dict, size_t di
     ZSTD_parameters params;
     memset(&params, 0, sizeof(params));
     params.cParams = ZSTD_getCParams(compressionLevel, 0, dictSize);
-    params.fParams.contentSizeFlag = 0;
-    ZSTD_adjustCParams(&params.cParams, 0, dictSize);
     return ZBUFF_compressInit_advanced(zbc, dict, dictSize, params, 0);
 }
 

@@ -134,9 +134,10 @@ static int usage_advanced(const char* programName)
 #ifndef ZSTD_NOCOMPRESS
     DISPLAY( "--ultra : enable ultra modes (requires more memory to decompress)\n");
     DISPLAY( "--no-dictID:don't write dictID into header (dictionary compression)\n");
+    DISPLAY( "--check : enable integrity check\n");
 #endif
 #ifndef ZSTD_NODECOMPRESS
-    DISPLAY( " -t     : test compressed file integrity \n");
+    DISPLAY( "--test  : test compressed file integrity \n");
     DISPLAY( "--[no-]sparse  : sparse mode (default:enabled on file, disabled on stdout)\n");
 #endif
 #ifndef ZSTD_NODICT
@@ -240,6 +241,7 @@ int main(int argCount, const char** argv)
         if (!strcmp(argument, "--quiet")) { displayLevel--; continue; }
         if (!strcmp(argument, "--stdout")) { forceStdout=1; outFileName=stdoutmark; displayLevel=1; continue; }
         if (!strcmp(argument, "--ultra")) { FIO_setMaxWLog(0); continue; }
+        if (!strcmp(argument, "--check")) { FIO_setChecksumFlag(2); continue; }
         if (!strcmp(argument, "--no-dictID")) { FIO_setDictIDFlag(0); continue; }
         if (!strcmp(argument, "--sparse")) { FIO_setSparseWrite(2); continue; }
         if (!strcmp(argument, "--no-sparse")) { FIO_setSparseWrite(0); continue; }
@@ -302,6 +304,9 @@ int main(int argCount, const char** argv)
 
                     /* keep source file (default anyway, so useless; for gzip/xz compatibility) */
                 case 'k': argument++; break;
+
+                    /* Checksum */
+                case 'C': argument++; FIO_setChecksumFlag(2); break;
 
                     /* test compressed file */
                 case 't': decode=1; outFileName=nulmark; argument++; break;

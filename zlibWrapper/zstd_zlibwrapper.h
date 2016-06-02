@@ -49,8 +49,8 @@ extern "C" {
 #endif
 
 void useZSTD(int turn_on);
-int isUsingZSTD();
-const char * zstdVersion();
+int isUsingZSTD(void);
+const char * zstdVersion(void);
 
 
 #if defined (__cplusplus)

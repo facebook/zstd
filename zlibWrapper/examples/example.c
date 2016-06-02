@@ -61,8 +61,8 @@ void *myalloc(q, n, m)
     void *q;
     unsigned n, m;
 {
-    q = Z_NULL;
     void *buf = calloc(n, m);
+    q = Z_NULL;
   /*  printf("myalloc %p n=%d m=%d\n", buf, n, m); */
     return buf;
 }

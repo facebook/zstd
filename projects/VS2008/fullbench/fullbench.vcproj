@@ -361,10 +361,6 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\..\lib\common\xxhash.c"
-				>
-			</File>
-			<File
 				RelativePath="..\..\..\lib\compress\zbuff_compress.c"
 				>
 			</File>
@@ -422,12 +418,8 @@
 				RelativePath="..\..\..\lib\common\xxhash.h"
 				>
 			</File>
-            <File
-				RelativePath="..\..\..\lib\common\mem.h"
-				>
-			</File>
 			<File
-				RelativePath="..\..\..\lib\common\xxhash.h"
+				RelativePath="..\..\..\lib\common\mem.h"
 				>
 			</File>
 			<File

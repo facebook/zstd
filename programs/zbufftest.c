@@ -131,8 +131,8 @@ static unsigned FUZ_highbit32(U32 v32)
 
 static void* ZBUFF_allocFunction(void* opaque, size_t size)
 {
-    (void)opaque;
     void* address = malloc(size);
+    (void)opaque;
     /* DISPLAYLEVEL(4, "alloc %p, %d opaque=%p \n", address, (int)size, opaque); */
     return address;
 }

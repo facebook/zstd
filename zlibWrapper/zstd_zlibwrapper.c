@@ -667,9 +667,9 @@ ZEXTERN int ZEXPORT z_compress OF((Bytef *dest,   uLongf *destLen,
     if (!g_useZSTD)
         return compress(dest, destLen, source, sourceLen);
 
-    size_t dstCapacity = *destLen; 
-    LOG_WRAPPER("z_compress sourceLen=%d dstCapacity=%d\n", (int)sourceLen, (int)dstCapacity);
-    { size_t const errorCode = ZSTD_compress(dest, dstCapacity, source, sourceLen, -1);
+    { size_t dstCapacity = *destLen; 
+      size_t const errorCode = ZSTD_compress(dest, dstCapacity, source, sourceLen, -1);
+      LOG_WRAPPER("z_compress sourceLen=%d dstCapacity=%d\n", (int)sourceLen, (int)dstCapacity);
       if (ZSTD_isError(errorCode)) return Z_MEM_ERROR;
       *destLen = errorCode;
     }
@@ -684,8 +684,8 @@ ZEXTERN int ZEXPORT z_compress2 OF((Bytef *dest,   uLongf *destLen,
     if (!g_useZSTD)
         return compress2(dest, destLen, source, sourceLen, level);
         
-    size_t dstCapacity = *destLen; 
-    { size_t const errorCode = ZSTD_compress(dest, dstCapacity, source, sourceLen, level);
+    { size_t dstCapacity = *destLen; 
+      size_t const errorCode = ZSTD_compress(dest, dstCapacity, source, sourceLen, level);
       if (ZSTD_isError(errorCode)) return Z_MEM_ERROR;
       *destLen = errorCode;
     }
@@ -709,8 +709,8 @@ ZEXTERN int ZEXPORT z_uncompress OF((Bytef *dest,   uLongf *destLen,
 //    if (!g_useZSTD)
         return uncompress(dest, destLen, source, sourceLen);
 
-    size_t dstCapacity = *destLen; 
-    { size_t const errorCode = ZSTD_decompress(dest, dstCapacity, source, sourceLen);
+    { size_t dstCapacity = *destLen; 
+      size_t const errorCode = ZSTD_decompress(dest, dstCapacity, source, sourceLen);
       if (ZSTD_isError(errorCode)) return Z_MEM_ERROR;
       *destLen = errorCode;
      }

@@ -128,7 +128,7 @@ ZSTDLIB_API size_t ZSTD_checkCParams(ZSTD_compressionParameters params);
 /*! ZSTD_adjustParams() :
 *   optimize params for a given `srcSize` and `dictSize`.
 *   both values are optional, select `0` if unknown. */
-ZSTDLIB_API void ZSTD_adjustCParams(ZSTD_compressionParameters* params, U64 srcSize, size_t dictSize);
+ZSTDLIB_API ZSTD_compressionParameters ZSTD_adjustCParams(ZSTD_compressionParameters cPar, U64 srcSize, size_t dictSize);
 
 /*! ZSTD_compress_advanced() :
 *   Same as ZSTD_compress_usingDict(), with fine-tune control of each compression parameter */

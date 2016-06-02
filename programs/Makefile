@@ -40,7 +40,7 @@ ZSTDDIR = ../lib
 
 CPPFLAGS= -I$(ZSTDDIR)/common -I$(ZSTDDIR)/dictBuilder -DXXH_NAMESPACE=ZSTD_
 CFLAGS ?= -O3  # -falign-loops=32   # not always beneficial
-CFLAGS += -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow -Wstrict-aliasing=1 -Wswitch-enum -Wstrict-prototypes -Wundef
+CFLAGS += -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow -Wstrict-aliasing=1 -Wswitch-enum -Wdeclaration-after-statement -Wstrict-prototypes -Wundef
 FLAGS   = $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) $(MOREFLAGS)
 
 

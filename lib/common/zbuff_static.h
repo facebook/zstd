@@ -32,9 +32,9 @@
 #ifndef ZSTD_BUFFERED_STATIC_H
 #define ZSTD_BUFFERED_STATIC_H
 
-/* The objects defined into this file should be considered experimental.
- * They are not labelled stable, as their prototype may change in the future.
- * You can use them for tests, provide feedback, or if you can endure risk of future changes.
+/* The objects defined into this file must be considered experimental.
+ * Their prototype may change in future versions.
+ * Never use them with a dynamic library.
  */
 
 #if defined (__cplusplus)
@@ -54,20 +54,23 @@ extern "C" {
 *  Advanced functions
 ***************************************/
 /*! ZBUFF_createCCtx_advanced() :
- *  Create a ZBUFF compression context using external alloc and free functions */ 
+ *  Create a ZBUFF compression context using external alloc and free functions */
 ZSTDLIB_API ZBUFF_CCtx* ZBUFF_createCCtx_advanced(ZSTD_customMem customMem);
 
 /*! ZBUFF_createDCtx_advanced() :
- *  Create a ZBUFF decompression context using external alloc and free functions */ 
+ *  Create a ZBUFF decompression context using external alloc and free functions */
 ZSTDLIB_API ZBUFF_DCtx* ZBUFF_createDCtx_advanced(ZSTD_customMem customMem);
 
 
 /* *************************************
 *  Advanced Streaming functions
 ***************************************/
-ZSTDLIB_API size_t ZBUFF_compressInit_advanced(ZBUFF_CCtx* cctx,
+ZSTDLIB_API size_t ZBUFF_compressInit_advanced(ZBUFF_CCtx* zbc,
                                                const void* dict, size_t dictSize,
                                                ZSTD_parameters params, U64 pledgedSrcSize);
+
+
+/* internal util function */
 
 MEM_STATIC size_t ZBUFF_limitCopy(void* dst, size_t dstCapacity, const void* src, size_t srcSize)
 {

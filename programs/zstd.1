@@ -52,7 +52,7 @@ It also features a very fast decoder, with speed > 500 MB/s per core.
  use `file` as Dictionary to compress or decompress FILE(s)
 .TP
 .B \-o file
- save result into `file` (only possible with a single input FILE)
+ save result into `file` (only possible with a single INPUT-FILE)
 .TP
 .BR \-f ", " --force
  overwrite output without prompting
@@ -71,6 +71,13 @@ It also features a very fast decoder, with speed > 500 MB/s per core.
 .TP
 .BR \-c ", " --stdout
  force write to standard output, even if it is the console
+.TP
+.BR \-C ", " --check
+ add integrity check computed from uncompressed data
+.TP
+.BR \-t ", " --test
+ Test the integrity of compressed files.  This option is equivalent to \fB--decompress --stdout > /dev/null\fR.
+ No files are created or removed.
 
 .SH DICTIONARY
 .PP

@@ -76,8 +76,8 @@ const char* ZBUFF_getErrorName(size_t errorCode) { return ERR_getErrorName(error
 
 void* ZSTD_defaultAllocFunction(void* opaque, size_t size)
 {
-    (void)opaque;
     void* address = malloc(size);
+    (void)opaque;
     /* DISPLAYLEVEL(4, "alloc %p, %d opaque=%d \n", address, (int)size, (int)opaque); */
     return address;
 }

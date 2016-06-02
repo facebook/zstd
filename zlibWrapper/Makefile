@@ -18,7 +18,8 @@ endif
 ZLIBWRAPPER_PATH = .
 EXAMPLE_PATH = examples
 CC = gcc
-CFLAGS = $(LOC) -I../lib/common -I$(ZLIBDIR) -I$(ZLIBWRAPPER_PATH) -O3 -Wall -std=gnu89
+CFLAGS = $(LOC) -I../lib/common -I$(ZLIBDIR) -I$(ZLIBWRAPPER_PATH) -O3 -std=gnu90
+CFLAGS += -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow -Wswitch-enum -Wstrict-prototypes -Wundef
 LDFLAGS = $(LOC)
 RM = rm -f
 

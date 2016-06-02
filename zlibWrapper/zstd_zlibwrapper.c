@@ -69,9 +69,9 @@ static int g_useZSTD = ZWRAP_USE_ZSTD;   /* 0 = don't use ZSTD */
 
 void useZSTD(int turn_on) { g_useZSTD = turn_on; }
 
-int isUsingZSTD() { return g_useZSTD; }
+int isUsingZSTD(void) { return g_useZSTD; }
 
-const char * zstdVersion() { return ZSTD_VERSION_STRING; }
+const char * zstdVersion(void) { return ZSTD_VERSION_STRING; }
 
 ZEXTERN const char * ZEXPORT z_zlibVersion OF((void)) { return zlibVersion();  }
 
@@ -421,8 +421,8 @@ ZEXTERN int ZEXPORT z_inflate OF((z_streamp strm, int flush))
                 strm->avail_out = strm2.avail_out;
 
                 strm->reserved = 0; /* mark as zlib stream */
-                { size_t const errorCode = ZWRAP_freeDCtx(zwd);
-                  if (ZSTD_isError(errorCode)) return Z_MEM_ERROR; }
+                errorCode = ZWRAP_freeDCtx(zwd);
+                if (ZSTD_isError(errorCode)) return Z_MEM_ERROR;
 
                 if (flush == Z_INFLATE_SYNC) return inflateSync(strm);
                 return inflate(strm, flush);
@@ -434,8 +434,8 @@ ZEXTERN int ZEXPORT z_inflate OF((z_streamp strm, int flush))
             } else
                zwd->zbd = ZBUFF_createDCtx();
 
-            { size_t const errorCode = ZBUFF_decompressInit(zwd->zbd);
-              if (ZSTD_isError(errorCode)) return Z_MEM_ERROR; }
+            errorCode = ZBUFF_decompressInit(zwd->zbd);
+            if (ZSTD_isError(errorCode)) return Z_MEM_ERROR;
 
             srcSize = ZWRAP_HEADERSIZE;
             dstCapacity = 0;

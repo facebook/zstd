@@ -125,7 +125,7 @@ ZEXTERN int ZEXPORT z_deflateInit_ OF((z_streamp strm, int level,
       if (ZSTD_isError(errorCode)) return Z_MEM_ERROR; }
 
     zwc->compressionLevel = level;
-    strm->opaque = (voidpf) zwc;
+    strm->state = (struct internal_state*) zwc; /* use state which in not used by user */
     strm->total_in = 0;
     strm->total_out = 0;
     return Z_OK;
@@ -151,7 +151,7 @@ ZEXTERN int ZEXPORT z_deflateSetDictionary OF((z_streamp strm,
     if (!g_useZSTD)
         return deflateSetDictionary(strm, dictionary, dictLength);
 
-    {   ZWRAP_CCtx* zwc = (ZWRAP_CCtx*) strm->opaque;
+    {   ZWRAP_CCtx* zwc = (ZWRAP_CCtx*) strm->state;
         LOG_WRAPPER("- deflateSetDictionary level=%d\n", (int)strm->data_type);
         { size_t const errorCode = ZBUFF_compressInitDictionary(zwc->zbc, dictionary, dictLength, zwc->compressionLevel);
           if (ZSTD_isError(errorCode)) return Z_MEM_ERROR; }
@@ -171,7 +171,7 @@ ZEXTERN int ZEXPORT z_deflate OF((z_streamp strm, int flush))
         return res;
     }
 
-    zwc = (ZWRAP_CCtx*) strm->opaque;
+    zwc = (ZWRAP_CCtx*) strm->state;
 
     LOG_WRAPPER("deflate flush=%d avail_in=%d avail_out=%d total_in=%d total_out=%d\n", (int)flush, (int)strm->avail_in, (int)strm->avail_out, (int)strm->total_in, (int)strm->total_out);
     if (strm->avail_in > 0) {
@@ -220,7 +220,7 @@ ZEXTERN int ZEXPORT z_deflateEnd OF((z_streamp strm))
         return deflateEnd(strm);
     }
     LOG_WRAPPER("- deflateEnd total_in=%d total_out=%d\n", (int)(strm->total_in), (int)(strm->total_out));
-    {   ZWRAP_CCtx* zwc = (ZWRAP_CCtx*) strm->opaque;
+    {   ZWRAP_CCtx* zwc = (ZWRAP_CCtx*) strm->state;
         size_t const errorCode = ZWRAP_freeCCtx(zwc);
         if (ZSTD_isError(errorCode)) return Z_MEM_ERROR;
     }
@@ -265,9 +265,6 @@ typedef struct {
     int stream_size;
     char *version;
     int windowBits;
-    alloc_func zalloc;  /* used to allocate the internal state */
-    free_func  zfree;   /* used to free the internal state */
-    voidpf     opaque;  /* private data object passed to zalloc and zfree */ 
 } ZWRAP_DCtx;
 
 
@@ -299,11 +296,8 @@ ZEXTERN int ZEXPORT z_inflateInit_ OF((z_streamp strm,
 
     zwd->stream_size = stream_size;
     zwd->version = strdup(version);
-    zwd->zalloc = strm->zalloc;
-    zwd->zfree = strm->zfree;
-    zwd->opaque = strm->opaque;
 
-    strm->state = (struct internal_state*) zwd;
+    strm->state = (struct internal_state*) zwd; /* use state which in not used by user */
     strm->total_in = 0;
     strm->total_out = 0;
     strm->reserved = 1; /* mark as unknown steam */
@@ -399,7 +393,11 @@ ZEXTERN int ZEXPORT z_inflate OF((z_streamp strm, int flush))
                 strm->avail_in = strm2.avail_in;
                 strm->next_out = strm2.next_out;
                 strm->avail_out = strm2.avail_out;
+
                 strm->reserved = 0; /* mark as zlib stream */
+                { size_t const errorCode = ZWRAP_freeDCtx(zwd);
+                  if (ZSTD_isError(errorCode)) return Z_MEM_ERROR; }
+
                 if (flush == Z_INFLATE_SYNC) return inflateSync(strm);
                 return inflate(strm, flush);
             }
@@ -444,7 +442,7 @@ ZEXTERN int ZEXPORT z_inflateEnd OF((z_streamp strm))
 {
     int ret = Z_OK;
     if (!strm->reserved)
-        ret = inflateEnd(strm);
+        return inflateEnd(strm);
  
     LOG_WRAPPER("- inflateEnd total_in=%d total_out=%d\n", (int)(strm->total_in), (int)(strm->total_out));
     {   ZWRAP_DCtx* zwd = (ZWRAP_DCtx*) strm->state;

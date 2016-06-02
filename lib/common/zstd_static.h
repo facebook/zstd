@@ -97,9 +97,14 @@ typedef struct {
     ZSTD_frameParameters fParams;
 } ZSTD_parameters;
 
-typedef void* (*ZSTD_allocFunction) (size_t size);
-typedef void  (*ZSTD_freeFunction) (void* address);
-typedef struct { ZSTD_allocFunction customAlloc; ZSTD_freeFunction customFree; } ZSTD_customMem;
+/* custom memory allocation functions */
+typedef void* (*ZSTD_allocFunction) (void* opaque, size_t size);
+typedef void  (*ZSTD_freeFunction) (void* opaque, void* address);
+typedef struct { ZSTD_allocFunction customAlloc; ZSTD_freeFunction customFree; void* opaque; } ZSTD_customMem;
+
+void* ZSTD_defaultAllocFunction(void* opaque, size_t size);
+void ZSTD_defaultFreeFunction(void* opaque, void* address);
+static ZSTD_customMem const defaultCustomMem = { ZSTD_defaultAllocFunction, ZSTD_defaultFreeFunction, NULL };
 
 
 /*-*************************************

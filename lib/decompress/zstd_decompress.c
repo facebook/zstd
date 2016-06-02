@@ -120,8 +120,7 @@ struct ZSTD_DCtx_s
     size_t headerSize;
     ZSTD_frameParams fParams;
     XXH64_state_t xxhState;
-    ZSTD_allocFunction customAlloc;
-    ZSTD_freeFunction customFree;
+    ZSTD_customMem customMem;
     blockType_t bType;   /* used in ZSTD_decompressContinue(), to transfer blockType between header decoding and block decoding stages */
     ZSTD_dStage stage;
     U32 dictID;
@@ -156,9 +155,7 @@ ZSTD_DCtx* ZSTD_createDCtx_advanced(ZSTD_customMem customMem)
     if (!customMem.customAlloc && !customMem.customFree) {
         dctx = (ZSTD_DCtx*) malloc(sizeof(ZSTD_DCtx));
         if (!dctx) return NULL;
-        dctx->customAlloc = malloc;
-        dctx->customFree = free;
-
+        memcpy(&dctx->customMem, &defaultCustomMem, sizeof(ZSTD_customMem));
         ZSTD_decompressBegin(dctx);
         return dctx;
     }
@@ -166,25 +163,23 @@ ZSTD_DCtx* ZSTD_createDCtx_advanced(ZSTD_customMem customMem)
     if (!customMem.customAlloc || !customMem.customFree)
         return NULL;
 
-    dctx = (ZSTD_DCtx*) customMem.customAlloc(sizeof(ZSTD_DCtx));
+    dctx = (ZSTD_DCtx*) customMem.customAlloc(customMem.opaque, sizeof(ZSTD_DCtx));
     if (!dctx) return NULL;
-    dctx->customAlloc = customMem.customAlloc;
-    dctx->customFree = customMem.customFree;
-
+    memcpy(&dctx->customMem, &customMem, sizeof(ZSTD_customMem));
     ZSTD_decompressBegin(dctx);
     return dctx;
 }
 
 ZSTD_DCtx* ZSTD_createDCtx(void)
 {
-    ZSTD_customMem const customMem = { NULL, NULL };
+    ZSTD_customMem const customMem = { NULL, NULL, NULL };
     return ZSTD_createDCtx_advanced(customMem);
 }
 
 
 size_t ZSTD_freeDCtx(ZSTD_DCtx* dctx)
 {
-    dctx->customFree(dctx);
+    dctx->customMem.customFree(dctx->customMem.opaque, dctx);
     return 0;   /* reserved as a potential error code in the future */
 }
 

@@ -76,7 +76,7 @@ const char * zstdVersion() { return ZSTD_VERSION_STRING; }
 ZEXTERN const char * ZEXPORT z_zlibVersion OF((void)) { return zlibVersion();  }
 
 
-void* ZWRAP_allocFunction(void* opaque, size_t size)
+static void* ZWRAP_allocFunction(void* opaque, size_t size)
 {
     z_streamp strm = (z_streamp) opaque;
     void* address = strm->zalloc(strm->opaque, 1, size);
@@ -84,7 +84,7 @@ void* ZWRAP_allocFunction(void* opaque, size_t size)
     return address;
 }
 
-void ZWRAP_freeFunction(void* opaque, void* address)
+static void ZWRAP_freeFunction(void* opaque, void* address)
 {
     z_streamp strm = (z_streamp) opaque;
     strm->zfree(strm->opaque, address);

@@ -106,7 +106,7 @@ ppctest: clean
 
 # for Travis CI
 ppcinstall: clean
-	sudo apt-get update  -y -q
+	# sudo apt-get update  -y -q
 	sudo apt-get install -y -q qemu-system-ppc binfmt-support qemu-user-static gcc-powerpc-linux-gnu  # doesn't work with Ubuntu 12.04
 
 # for Travis CI

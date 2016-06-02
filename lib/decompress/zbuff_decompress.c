@@ -82,14 +82,13 @@ struct ZBUFF_DCtx_s {
     size_t blockSize;
     BYTE headerBuffer[ZSTD_FRAMEHEADERSIZE_MAX];
     size_t lhSize;
-    ZSTD_allocFunction customAlloc;
-    ZSTD_freeFunction customFree;
+    ZSTD_customMem customMem;
 };   /* typedef'd to ZBUFF_DCtx within "zstd_buffered.h" */
 
 
 ZBUFF_DCtx* ZBUFF_createDCtx(void)
 {
-    ZSTD_customMem customMem = { NULL, NULL };
+    ZSTD_customMem const customMem = { NULL, NULL, NULL };
     return ZBUFF_createDCtx_advanced(customMem);
 }
 
@@ -101,8 +100,7 @@ ZBUFF_DCtx* ZBUFF_createDCtx_advanced(ZSTD_customMem customMem)
     {
         zbd = (ZBUFF_DCtx*)calloc(1, sizeof(ZBUFF_DCtx));
         if (zbd==NULL) return NULL;
-        zbd->customAlloc = malloc;
-        zbd->customFree = free;
+        memcpy(&zbd->customMem, &defaultCustomMem, sizeof(ZSTD_customMem));
         zbd->zd = ZSTD_createDCtx();
         zbd->stage = ZBUFFds_init;
         return zbd;
@@ -111,11 +109,10 @@ ZBUFF_DCtx* ZBUFF_createDCtx_advanced(ZSTD_customMem customMem)
     if (!customMem.customAlloc || !customMem.customFree)
         return NULL;
 
-    zbd = (ZBUFF_DCtx*)customMem.customAlloc(sizeof(ZBUFF_DCtx));
+    zbd = (ZBUFF_DCtx*)customMem.customAlloc(customMem.opaque, sizeof(ZBUFF_DCtx));
     if (zbd==NULL) return NULL;
     memset(zbd, 0, sizeof(ZBUFF_DCtx));
-    zbd->customAlloc = customMem.customAlloc; 
-    zbd->customFree = customMem.customFree;
+    memcpy(&zbd->customMem, &customMem, sizeof(ZSTD_customMem));
     zbd->zd = ZSTD_createDCtx_advanced(customMem);
     zbd->stage = ZBUFFds_init;
     return zbd;
@@ -125,9 +122,9 @@ size_t ZBUFF_freeDCtx(ZBUFF_DCtx* zbd)
 {
     if (zbd==NULL) return 0;   /* support free on null */
     ZSTD_freeDCtx(zbd->zd);
-    zbd->customFree(zbd->inBuff);
-    zbd->customFree(zbd->outBuff);
-    zbd->customFree(zbd);
+    zbd->customMem.customFree(zbd->customMem.opaque, zbd->inBuff);
+    zbd->customMem.customFree(zbd->customMem.opaque, zbd->outBuff);
+    zbd->customMem.customFree(zbd->customMem.opaque, zbd);
     return 0;
 }
 
@@ -198,16 +195,16 @@ size_t ZBUFF_decompressContinue(ZBUFF_DCtx* zbd,
             {   size_t const blockSize = MIN(1 << zbd->fParams.windowLog, ZSTD_BLOCKSIZE_MAX);
                 zbd->blockSize = blockSize;
                 if (zbd->inBuffSize < blockSize) {
-                    zbd->customFree(zbd->inBuff);
+                    zbd->customMem.customFree(zbd->customMem.opaque, zbd->inBuff);
                     zbd->inBuffSize = blockSize;
-                    zbd->inBuff = (char*)zbd->customAlloc(blockSize);
+                    zbd->inBuff = (char*)zbd->customMem.customAlloc(zbd->customMem.opaque, blockSize);
                     if (zbd->inBuff == NULL) return ERROR(memory_allocation);
                 }
                 {   size_t const neededOutSize = ((size_t)1 << zbd->fParams.windowLog) + blockSize;
                     if (zbd->outBuffSize < neededOutSize) {
-                        zbd->customFree(zbd->outBuff);
+                        zbd->customMem.customFree(zbd->customMem.opaque, zbd->outBuff);
                         zbd->outBuffSize = neededOutSize;
-                        zbd->outBuff = (char*)zbd->customAlloc(neededOutSize);
+                        zbd->outBuff = (char*)zbd->customMem.customAlloc(zbd->customMem.opaque, neededOutSize);
                         if (zbd->outBuff == NULL) return ERROR(memory_allocation);
             }   }   }
             zbd->stage = ZBUFFds_read;

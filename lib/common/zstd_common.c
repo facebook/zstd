@@ -33,6 +33,7 @@
 /*-*************************************
 *  Dependencies
 ***************************************/
+#include <stdlib.h>         /* malloc */
 #include "error_private.h"
 #include "zstd_static.h"    /* declaration of ZSTD_isError, ZSTD_getErrorName, ZSTD_getErrorCode */
 #include "zbuff.h"          /* declaration of ZBUFF_isError, ZBUFF_getErrorName */
@@ -70,3 +71,20 @@ const char* ZSTD_getErrorString(ZSTD_ErrorCode code) { return ERR_getErrorName(c
 unsigned ZBUFF_isError(size_t errorCode) { return ERR_isError(errorCode); }
 
 const char* ZBUFF_getErrorName(size_t errorCode) { return ERR_getErrorName(errorCode); }
+
+
+
+void* ZSTD_defaultAllocFunction(void* opaque, size_t size)
+{
+    (void)opaque;
+    void* address = malloc(size);
+    /* DISPLAYLEVEL(4, "alloc %p, %d opaque=%d \n", address, (int)size, (int)opaque); */
+    return address;
+}
+
+void ZSTD_defaultFreeFunction(void* opaque, void* address)
+{
+    (void)opaque;
+    /* if (address) DISPLAYLEVEL(4, "free %p opaque=%d \n", address, (int)opaque); */
+    free(address);
+}

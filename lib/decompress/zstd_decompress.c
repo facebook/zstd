@@ -53,7 +53,6 @@
 /*-*******************************************************
 *  Dependencies
 *********************************************************/
-#include <stdlib.h>      /* calloc */
 #include <string.h>      /* memcpy, memmove */
 #include <stdio.h>       /* debug only : printf */
 #include "mem.h"         /* low level memory routines */
@@ -120,8 +119,7 @@ struct ZSTD_DCtx_s
     size_t headerSize;
     ZSTD_frameParams fParams;
     XXH64_state_t xxhState;
-    ZSTD_allocFunction customAlloc;
-    ZSTD_freeFunction customFree;
+    ZSTD_customMem customMem;
     blockType_t bType;   /* used in ZSTD_decompressContinue(), to transfer blockType between header decoding and block decoding stages */
     ZSTD_dStage stage;
     U32 dictID;
@@ -153,38 +151,29 @@ ZSTD_DCtx* ZSTD_createDCtx_advanced(ZSTD_customMem customMem)
 {
     ZSTD_DCtx* dctx;
 
-    if (!customMem.customAlloc && !customMem.customFree) {
-        dctx = (ZSTD_DCtx*) malloc(sizeof(ZSTD_DCtx));
-        if (!dctx) return NULL;
-        dctx->customAlloc = malloc;
-        dctx->customFree = free;
-
-        ZSTD_decompressBegin(dctx);
-        return dctx;
-    }
+    if (!customMem.customAlloc && !customMem.customFree)
+        customMem = defaultCustomMem;
 
     if (!customMem.customAlloc || !customMem.customFree)
         return NULL;
 
-    dctx = (ZSTD_DCtx*) customMem.customAlloc(sizeof(ZSTD_DCtx));
+    dctx = (ZSTD_DCtx*) customMem.customAlloc(customMem.opaque, sizeof(ZSTD_DCtx));
     if (!dctx) return NULL;
-    dctx->customAlloc = customMem.customAlloc;
-    dctx->customFree = customMem.customFree;
-
+    memcpy(&dctx->customMem, &customMem, sizeof(ZSTD_customMem));
     ZSTD_decompressBegin(dctx);
     return dctx;
 }
 
 ZSTD_DCtx* ZSTD_createDCtx(void)
 {
-    ZSTD_customMem const customMem = { NULL, NULL };
-    return ZSTD_createDCtx_advanced(customMem);
+    return ZSTD_createDCtx_advanced(defaultCustomMem);
 }
 
 
 size_t ZSTD_freeDCtx(ZSTD_DCtx* dctx)
 {
-    dctx->customFree(dctx);
+    if (dctx==NULL) return 0;   /* support free on NULL */
+    dctx->customMem.customFree(dctx->customMem.opaque, dctx);
     return 0;   /* reserved as a potential error code in the future */
 }
 
@@ -333,8 +322,9 @@ size_t ZSTD_getFrameParams(ZSTD_frameParams* fparamsPtr, const void* src, size_t
     if (MEM_readLE32(src) != ZSTD_MAGICNUMBER) {
         if ((MEM_readLE32(src) & 0xFFFFFFF0U) == ZSTD_MAGIC_SKIPPABLE_START) {
             if (srcSize < ZSTD_skippableHeaderSize) return ZSTD_skippableHeaderSize; /* magic number + skippable frame length */
-            fparamsPtr->frameContentSize = 0;
-            fparamsPtr->windowLog = ZSTD_WINDOWLOG_ABSOLUTEMIN;
+            memset(fparamsPtr, 0, sizeof(*fparamsPtr));
+            fparamsPtr->frameContentSize = MEM_readLE32((const char *)src + 4);
+            fparamsPtr->windowLog = 0; /* windowLog==0 means a frame is skippable */
             return 0;
         }
         return ERROR(prefix_unknown);

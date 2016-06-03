@@ -396,6 +396,7 @@ int main(int argCount, const char** argv)
             nextArgumentIsMaxDict = 0;
             maxDictSize = readU32FromChar(&argument);
             if (toupper(*argument)=='K') maxDictSize <<= 10;
+            if (toupper(*argument)=='M') maxDictSize <<= 20;
             continue;
         }
 

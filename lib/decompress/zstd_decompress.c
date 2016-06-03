@@ -172,6 +172,7 @@ ZSTD_DCtx* ZSTD_createDCtx(void)
 
 size_t ZSTD_freeDCtx(ZSTD_DCtx* dctx)
 {
+    if (dctx==NULL) return 0;   /* support free on NULL */
     dctx->customMem.customFree(dctx->customMem.opaque, dctx);
     return 0;   /* reserved as a potential error code in the future */
 }

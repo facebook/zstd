@@ -106,6 +106,7 @@ ZBUFF_DCtx* ZBUFF_createDCtx_advanced(ZSTD_customMem customMem)
     memset(zbd, 0, sizeof(ZBUFF_DCtx));
     memcpy(&zbd->customMem, &customMem, sizeof(ZSTD_customMem));
     zbd->zd = ZSTD_createDCtx_advanced(customMem);
+    if (zbd->zd == NULL) { ZBUFF_freeDCtx(zbd); return NULL; }
     zbd->stage = ZBUFFds_init;
     return zbd;
 }
@@ -114,8 +115,8 @@ size_t ZBUFF_freeDCtx(ZBUFF_DCtx* zbd)
 {
     if (zbd==NULL) return 0;   /* support free on null */
     ZSTD_freeDCtx(zbd->zd);
-    zbd->customMem.customFree(zbd->customMem.opaque, zbd->inBuff);
-    zbd->customMem.customFree(zbd->customMem.opaque, zbd->outBuff);
+    if (zbd->inBuff) zbd->customMem.customFree(zbd->customMem.opaque, zbd->inBuff);
+    if (zbd->outBuff) zbd->customMem.customFree(zbd->customMem.opaque, zbd->outBuff);
     zbd->customMem.customFree(zbd->customMem.opaque, zbd);
     return 0;
 }

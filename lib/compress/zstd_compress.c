@@ -122,8 +122,7 @@ struct ZSTD_CCtx_s
 
 ZSTD_CCtx* ZSTD_createCCtx(void)
 {
-    ZSTD_customMem const customMem = { NULL, NULL, NULL };
-    return ZSTD_createCCtx_advanced(customMem);
+    return ZSTD_createCCtx_advanced(defaultCustomNULL);
 }
 
 ZSTD_CCtx* ZSTD_createCCtx_advanced(ZSTD_customMem customMem)

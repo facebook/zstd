@@ -172,8 +172,7 @@ ZSTD_DCtx* ZSTD_createDCtx_advanced(ZSTD_customMem customMem)
 
 ZSTD_DCtx* ZSTD_createDCtx(void)
 {
-    ZSTD_customMem const customMem = { NULL, NULL, NULL };
-    return ZSTD_createDCtx_advanced(customMem);
+    return ZSTD_createDCtx_advanced(defaultCustomNULL);
 }
 
 

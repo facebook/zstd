@@ -6,8 +6,8 @@
 
 
 # Paths to static and dynamic zlib and zstd libraries
-ifneq (,$(filter Windows%,$(OS)))
-ZLIBDIR = ../../zlib1.2.8
+# Use "make ZLIBDIR=path/to/zlib" to select a path to library
+ifdef ZLIBDIR
 STATICLIB = $(ZLIBDIR)/libz.a ../lib/libzstd.a
 IMPLIB    = $(ZLIBDIR)/libz.dll.a ../lib/libzstd.a
 else

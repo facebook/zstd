@@ -317,7 +317,10 @@ static int FIO_compressFilename_internal(cRess_t ress,
         params.fParams.contentSizeFlag = 1;
         params.fParams.checksumFlag = g_checksumFlag;
         params.fParams.noDictIDFlag = !g_dictIDFlag;
-        if (g_maxWLog) if (params.cParams.windowLog > g_maxWLog) params.cParams.windowLog = g_maxWLog;
+        if ((g_maxWLog) && (params.cParams.windowLog > g_maxWLog)) {
+            params.cParams.windowLog = g_maxWLog;
+            params.cParams = ZSTD_adjustCParams(params.cParams, fileSize, ress.dictBufferSize);
+        }
         {   size_t const errorCode = ZBUFF_compressInit_advanced(ress.ctx, ress.dictBuffer, ress.dictBufferSize, params, fileSize);
             if (ZBUFF_isError(errorCode)) EXM_THROW(21, "Error initializing compression : %s", ZBUFF_getErrorName(errorCode));
     }   }

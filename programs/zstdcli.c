@@ -176,6 +176,18 @@ static void waitEnter(void)
     (void)unused;
 }
 
+/*! readU32FromChar() :
+    @return : unsigned integer value reach from input in `char` format
+    Will also modify `*stringPtr`, advancing it to position where it stopped reading.
+    Note : this function can overflow if result > MAX_UNIT */
+static unsigned readU32FromChar(const char** stringPtr)
+{
+    unsigned result = 0;
+    while ((**stringPtr >='0') && (**stringPtr <='9'))
+        result *= 10, result += **stringPtr - '0', (*stringPtr)++ ;
+    return result;
+}
+
 
 #define CLEAN_RETURN(i) { operationResult = (i); goto _end; }
 
@@ -264,12 +276,7 @@ int main(int argCount, const char** argv)
 #ifndef ZSTD_NOCOMPRESS
                 /* compression Level */
                 if ((*argument>='0') && (*argument<='9')) {
-                    cLevel = 0;
-                    while ((*argument >= '0') && (*argument <= '9')) {
-                        cLevel *= 10;
-                        cLevel += *argument - '0';
-                        argument++;
-                    }
+                    cLevel = readU32FromChar(&argument);
                     dictCLevel = cLevel;
                     if (dictCLevel > ZSTD_maxCLevel())
                         CLEAN_RETURN(badusage(programName));
@@ -325,19 +332,13 @@ int main(int argCount, const char** argv)
                 case 'e':
                         /* compression Level */
                         argument++;
-                        if ((*argument>='0') && (*argument<='9')) {
-                            cLevelLast = 0;
-                            while ((*argument >= '0') && (*argument <= '9'))
-                                cLevelLast *= 10, cLevelLast += *argument++ - '0';
-                        }
+                        cLevelLast = readU32FromChar(&argument);
                         break;
 
                     /* Modify Nb Iterations (benchmark only) */
                 case 'i':
-                    {   U32 iters= 0;
-                        argument++;
-                        while ((*argument >='0') && (*argument <='9'))
-                            iters *= 10, iters += *argument++ - '0';
+                    argument++;
+                    {   U32 const iters = readU32FromChar(&argument);
                         BMK_setNotificationLevel(displayLevel);
                         BMK_SetNbIterations(iters);
                     }
@@ -345,10 +346,8 @@ int main(int argCount, const char** argv)
 
                     /* cut input into blocks (benchmark only) */
                 case 'B':
-                    {   size_t bSize = 0;
-                        argument++;
-                        while ((*argument >='0') && (*argument <='9'))
-                            bSize *= 10, bSize += *argument++ - '0';
+                    argument++;
+                    {   size_t bSize = readU32FromChar(&argument);
                         if (toupper(*argument)=='K') bSize<<=10, argument++;  /* allows using KB notation */
                         if (toupper(*argument)=='M') bSize<<=20, argument++;
                         if (toupper(*argument)=='B') argument++;
@@ -358,21 +357,17 @@ int main(int argCount, const char** argv)
                     break;
 #endif   /* ZSTD_NOBENCH */
 
-                    /* Selection level */
-                case 's': argument++;
-                    dictSelect = 0;
-                    while ((*argument >= '0') && (*argument <= '9'))
-                        dictSelect *= 10, dictSelect += *argument++ - '0';
+                    /* Dictionary Selection level */
+                case 's':
+                    argument++;
+                    dictSelect = readU32FromChar(&argument);
                     break;
 
                     /* Pause at the end (-p) or set an additional param (-p#) (hidden option) */
                 case 'p': argument++;
 #ifndef ZSTD_NOBENCH
                     if ((*argument>='0') && (*argument<='9')) {
-                        int additionalParam = 0;
-                        while ((*argument >= '0') && (*argument <= '9'))
-                            additionalParam *= 10, additionalParam += *argument++ - '0';
-                        BMK_setAdditionalParam(additionalParam);
+                        BMK_setAdditionalParam(readU32FromChar(&argument));
                     } else
 #endif
                         main_pause=1;
@@ -399,18 +394,14 @@ int main(int argCount, const char** argv)
 
         if (nextArgumentIsMaxDict) {
             nextArgumentIsMaxDict = 0;
-            maxDictSize = 0;
-            while ((*argument>='0') && (*argument<='9'))
-                maxDictSize = maxDictSize * 10 + (*argument - '0'), argument++;
+            maxDictSize = readU32FromChar(&argument);
             if (toupper(*argument)=='K') maxDictSize <<= 10;
             continue;
         }
 
         if (nextArgumentIsDictID) {
             nextArgumentIsDictID = 0;
-            dictID = 0;
-            while ((*argument>='0') && (*argument<='9'))
-                dictID = dictID * 10 + (*argument - '0'), argument++;
+            dictID = readU32FromChar(&argument);
             continue;
         }
 

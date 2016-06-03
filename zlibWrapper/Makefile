@@ -57,9 +57,5 @@ $(ZLIBWRAPPER_PATH)/zstdTurnedOn_zlibwrapper.o: $(ZLIBWRAPPER_PATH)/zstd_zlibwra
 	$(CC) $(CFLAGS) -DZWRAP_USE_ZSTD=1 -I. -c -o $@ $(ZLIBWRAPPER_PATH)/zstd_zlibwrapper.c
 
 clean:
-	-$(RM) $(ZLIBWRAPPER_PATH)/*.o
-	-$(RM) $(EXAMPLE_PATH)/*.o
-	-$(RM) *.o
-	-$(RM) *.exe
-	-$(RM) foo.gz
-
+	-$(RM) $(ZLIBWRAPPER_PATH)/*.o $(EXAMPLE_PATH)/*.o *.o *.exe foo.gz example example_d example_zstd
+	@echo Cleaning completed

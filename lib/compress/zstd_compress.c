@@ -143,7 +143,8 @@ ZSTD_CCtx* ZSTD_createCCtx_advanced(ZSTD_customMem customMem)
 
 size_t ZSTD_freeCCtx(ZSTD_CCtx* cctx)
 {
-    cctx->customMem.customFree(cctx->customMem.opaque, cctx->workSpace);
+    if (cctx==NULL) return 0;   /* support free on NULL */
+    if (cctx->workSpace) cctx->customMem.customFree(cctx->customMem.opaque, cctx->workSpace);
     cctx->customMem.customFree(cctx->customMem.opaque, cctx);
     return 0;   /* reserved as a potential error code in the future */
 }

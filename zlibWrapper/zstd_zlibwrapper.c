@@ -30,7 +30,6 @@
 */
 
 #include <stdio.h>           /* fprintf */
-#include <stdlib.h>          /* malloc */
 #include <stdarg.h>          /* va_list */
 #include <zlib.h>
 #include "zstd_zlibwrapper.h"
@@ -103,6 +102,15 @@ typedef struct {
 } ZWRAP_CCtx;
 
 
+size_t ZWRAP_freeCCtx(ZWRAP_CCtx* zwc)
+{
+    if (zwc==NULL) return 0;   /* support free on NULL */
+    ZBUFF_freeCCtx(zwc->zbc);
+    zwc->customMem.customFree(zwc->customMem.opaque, zwc);
+    return 0;
+}
+
+
 ZWRAP_CCtx* ZWRAP_createCCtx(z_streamp strm)
 {
     ZWRAP_CCtx* zwc;
@@ -123,16 +131,8 @@ ZWRAP_CCtx* ZWRAP_createCCtx(z_streamp strm)
     }
 
     zwc->zbc = ZBUFF_createCCtx_advanced(zwc->customMem);
+    if (zwc->zbc == NULL) { ZWRAP_freeCCtx(zwc); return NULL; }
     return zwc;
-}
-
-
-size_t ZWRAP_freeCCtx(ZWRAP_CCtx* zwc)
-{
-    if (zwc==NULL) return 0;   /* support free on NULL */
-    ZBUFF_freeCCtx(zwc->zbc);
-    zwc->customMem.customFree(zwc->customMem.opaque, zwc);
-    return 0;
 }
 
 
@@ -297,16 +297,30 @@ typedef struct {
     int stream_size;
     char *version;
     int windowBits;
+    ZSTD_customMem customMem;
     z_stream allocFunc; /* copy of zalloc, zfree, opaque */
 } ZWRAP_DCtx;
 
 
 ZWRAP_DCtx* ZWRAP_createDCtx(z_streamp strm)
 {
-    ZWRAP_DCtx* zwd = (ZWRAP_DCtx*)malloc(sizeof(ZWRAP_DCtx));
-    if (zwd==NULL) return NULL;
-    memset(zwd, 0, sizeof(*zwd));
-    memcpy(&zwd->allocFunc, strm, sizeof(z_stream));
+    ZWRAP_DCtx* zwd;
+
+    if (strm->zalloc && strm->zfree) {
+        zwd = (ZWRAP_DCtx*)strm->zalloc(strm->opaque, 1, sizeof(ZWRAP_DCtx));
+        if (zwd==NULL) return NULL;
+        memset(zwd, 0, sizeof(ZWRAP_DCtx));
+        memcpy(&zwd->allocFunc, strm, sizeof(z_stream));
+        { ZSTD_customMem ZWRAP_customMem = { ZWRAP_allocFunction, ZWRAP_freeFunction, &zwd->allocFunc };
+          memcpy(&zwd->customMem, &ZWRAP_customMem, sizeof(ZSTD_customMem));
+        }
+    } else {
+        zwd = (ZWRAP_DCtx*)defaultCustomMem.customAlloc(defaultCustomMem.opaque, sizeof(ZWRAP_DCtx));
+        if (zwd==NULL) return NULL;
+        memset(zwd, 0, sizeof(ZWRAP_DCtx));
+        memcpy(&zwd->customMem, &defaultCustomMem, sizeof(ZSTD_customMem));
+    }
+
     return zwd;
 }
 
@@ -314,9 +328,9 @@ ZWRAP_DCtx* ZWRAP_createDCtx(z_streamp strm)
 size_t ZWRAP_freeDCtx(ZWRAP_DCtx* zwd)
 {
     if (zwd==NULL) return 0;   /* support free on null */
-    if (zwd->version) free(zwd->version);
-    if (zwd->zbd) ZBUFF_freeDCtx(zwd->zbd);
-    free(zwd);
+    ZBUFF_freeDCtx(zwd->zbd);
+    if (zwd->version) zwd->customMem.customFree(zwd->customMem.opaque, zwd->version);
+    zwd->customMem.customFree(zwd->customMem.opaque, zwd);
     return 0;
 }
 
@@ -328,9 +342,11 @@ ZEXTERN int ZEXPORT z_inflateInit_ OF((z_streamp strm,
     LOG_WRAPPER("- inflateInit\n");
     if (zwd == NULL) return Z_MEM_ERROR;
 
-    zwd->stream_size = stream_size;
-    zwd->version = strdup(version);
+    zwd->version = zwd->customMem.customAlloc(zwd->customMem.opaque, strlen(version) + 1);
+    if (zwd->version == NULL) { ZWRAP_freeDCtx(zwd); return Z_MEM_ERROR; }
+    strcpy(zwd->version, version);
 
+    zwd->stream_size = stream_size;
     strm->state = (struct internal_state*) zwd; /* use state which in not used by user */
     strm->total_in = 0;
     strm->total_out = 0;
@@ -436,11 +452,8 @@ ZEXTERN int ZEXPORT z_inflate OF((z_streamp strm, int flush))
                 return inflate(strm, flush);
             }
 
-            if (zwd->allocFunc.zalloc && zwd->allocFunc.zfree) {
-               ZSTD_customMem ZWRAP_customMem = { ZWRAP_allocFunction, ZWRAP_freeFunction, &zwd->allocFunc };
-               zwd->zbd = ZBUFF_createDCtx_advanced(ZWRAP_customMem);
-            } else
-               zwd->zbd = ZBUFF_createDCtx();
+            zwd->zbd = ZBUFF_createDCtx_advanced(zwd->customMem);
+            if (zwd->zbd == NULL) { ZWRAP_freeDCtx(zwd); return Z_MEM_ERROR; }
 
             errorCode = ZBUFF_decompressInit(zwd->zbd);
             if (ZSTD_isError(errorCode)) return Z_MEM_ERROR;

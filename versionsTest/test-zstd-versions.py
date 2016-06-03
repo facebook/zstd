@@ -62,6 +62,7 @@ def compress_sample(tag, sample):
         os.rename(sample + '.zst', sample + '_18_64_' + tag + '.zst')
     # zstdFiles = glob.glob("*.zst*")
     # print(zstdFiles)
+    print(tag + " : compression completed")
 
 
 # http://stackoverflow.com/a/19711609/2132223

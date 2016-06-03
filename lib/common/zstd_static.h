@@ -97,9 +97,10 @@ typedef struct {
     ZSTD_frameParameters fParams;
 } ZSTD_parameters;
 
-typedef void* (*ZSTD_allocFunction) (size_t size);
-typedef void  (*ZSTD_freeFunction) (void* address);
-typedef struct { ZSTD_allocFunction customAlloc; ZSTD_freeFunction customFree; } ZSTD_customMem;
+/* custom memory allocation functions */
+typedef void* (*ZSTD_allocFunction) (void* opaque, size_t size);
+typedef void  (*ZSTD_freeFunction) (void* opaque, void* address);
+typedef struct { ZSTD_allocFunction customAlloc; ZSTD_freeFunction customFree; void* opaque; } ZSTD_customMem;
 
 
 /*-*************************************
@@ -246,6 +247,15 @@ ZSTDLIB_API size_t ZSTD_decompressContinue(ZSTD_DCtx* dctx, void* dst, size_t ds
 
   A frame is fully decoded when ZSTD_nextSrcSizeToDecompress() returns zero.
   Context can then be reset to start a new decompression.
+
+  Skippable frames allow the integration of user-defined data into a flow of concatenated frames.
+  Skippable frames will be ignored (skipped) by a decompressor. The format of skippable frame is following:
+  a) Skippable frame ID - 4 Bytes, Little endian format, any value from 0x184D2A50 to 0x184D2A5F
+  b) Frame Size - 4 Bytes, Little endian format, unsigned 32-bits
+  c) Frame Content - any content (User Data) of length equal to Frame Size
+  For skippable frames ZSTD_decompressContinue() always returns 0. 
+  For skippable frames ZSTD_getFrameParams() returns fparamsPtr->windowLog==0 what means that a frame is skippable.
+  It also returns Frame Size as fparamsPtr->frameContentSize.
 */
 
 

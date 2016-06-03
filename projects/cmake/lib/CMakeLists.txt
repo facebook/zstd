@@ -162,7 +162,8 @@ IF (UNIX)
     SET(INSTALL_INCLUDE_DIR ${PREFIX}/include)
 
     # install target
-    INSTALL(FILES ${LIBRARY_DIR}/zstd.h ${LIBRARY_DIR}/zstd_buffered.h ${LIBRARY_DIR}/dictBuilder.h DESTINATION ${INSTALL_INCLUDE_DIR})
+    INSTALL(FILES ${LIBRARY_DIR}/common/zstd.h ${LIBRARY_DIR}/common/zstd_static.h ${LIBRARY_DIR}/common/zbuff.h ${LIBRARY_DIR}/common/zbuff_static.h
+            ${LIBRARY_DIR}/common/mem.h ${LIBRARY_DIR}/common/error_public.h ${LIBRARY_DIR}/dictBuilder/zdict.h ${LIBRARY_DIR}/dictBuilder/zdict_static.h DESTINATION ${INSTALL_INCLUDE_DIR})
     INSTALL(TARGETS libzstd_static DESTINATION ${INSTALL_LIBRARY_DIR})
     INSTALL(TARGETS libzstd_shared LIBRARY DESTINATION ${INSTALL_LIBRARY_DIR})
 

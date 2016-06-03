@@ -53,7 +53,6 @@
 /*-*******************************************************
 *  Dependencies
 *********************************************************/
-#include <stdlib.h>      /* calloc */
 #include <string.h>      /* memcpy, memmove */
 #include <stdio.h>       /* debug only : printf */
 #include "mem.h"         /* low level memory routines */
@@ -152,13 +151,8 @@ ZSTD_DCtx* ZSTD_createDCtx_advanced(ZSTD_customMem customMem)
 {
     ZSTD_DCtx* dctx;
 
-    if (!customMem.customAlloc && !customMem.customFree) {
-        dctx = (ZSTD_DCtx*) malloc(sizeof(ZSTD_DCtx));
-        if (!dctx) return NULL;
-        memcpy(&dctx->customMem, &defaultCustomMem, sizeof(ZSTD_customMem));
-        ZSTD_decompressBegin(dctx);
-        return dctx;
-    }
+    if (!customMem.customAlloc && !customMem.customFree)
+        customMem = defaultCustomMem;
 
     if (!customMem.customAlloc || !customMem.customFree)
         return NULL;

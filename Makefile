@@ -155,7 +155,7 @@ cmaketest:
 	cmake --version
 	rm -rf projects/cmake/build
 	mkdir projects/cmake/build
-	cd projects/cmake/build ; cmake $(CMAKE_PARAMS) .. ; $(MAKE)
+	cd projects/cmake/build ; cmake -DPREFIX:STRING=~/install_test_dir $(CMAKE_PARAMS) .. ; $(MAKE) install ; $(MAKE) uninstall
 
 c90test: clean
 	CFLAGS="-std=c90" $(MAKE) all  # will fail, due to // and long long

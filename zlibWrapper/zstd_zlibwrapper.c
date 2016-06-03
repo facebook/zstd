@@ -29,11 +29,11 @@
     - zstd source repository : https://github.com/Cyan4973/zstd
 */
 
-#include <stdarg.h>          /* va_list */
+#include <stdarg.h>            /* va_list */
 #include <zlib.h>
 #include "zstd_zlibwrapper.h"
 #include "zstd.h"
-#include "zstd_static.h"      /* ZSTD_MAGICNUMBER */
+#include "zstd_static.h"       /* ZSTD_MAGICNUMBER */
 #include "zbuff.h"
 #include "zbuff_static.h"      /* ZBUFF_createCCtx_advanced */
 #include "zstd_internal.h"     /* defaultCustomMem */
@@ -693,7 +693,7 @@ ZEXTERN int ZEXPORT z_compress OF((Bytef *dest,   uLongf *destLen,
         return compress(dest, destLen, source, sourceLen);
 
     { size_t dstCapacity = *destLen; 
-      size_t const errorCode = ZSTD_compress(dest, dstCapacity, source, sourceLen, -1);
+      size_t const errorCode = ZSTD_compress(dest, dstCapacity, source, sourceLen, ZWRAP_DEFAULT_CLEVEL);
       LOG_WRAPPER("z_compress sourceLen=%d dstCapacity=%d\n", (int)sourceLen, (int)dstCapacity);
       if (ZSTD_isError(errorCode)) return Z_MEM_ERROR;
       *destLen = errorCode;

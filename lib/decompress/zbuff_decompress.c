@@ -88,7 +88,7 @@ struct ZBUFF_DCtx_s {
 
 ZBUFF_DCtx* ZBUFF_createDCtx(void)
 {
-    return ZBUFF_createDCtx_advanced(defaultCustomNULL);
+    return ZBUFF_createDCtx_advanced(defaultCustomMem);
 }
 
 ZBUFF_DCtx* ZBUFF_createDCtx_advanced(ZSTD_customMem customMem)

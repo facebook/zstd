@@ -29,7 +29,6 @@
     - zstd source repository : https://github.com/Cyan4973/zstd
 */
 
-#include <stdio.h>           /* fprintf */
 #include <stdarg.h>          /* va_list */
 #include <zlib.h>
 #include "zstd_zlibwrapper.h"
@@ -47,13 +46,18 @@
 #define LOG_WRAPPER(...)  // printf(__VA_ARGS__)
 
 
-#define FINISH_WITH_ERR(msg) { \
-    fprintf(stderr, "ERROR: %s\n", msg); \
+#define FINISH_WITH_GZ_ERR(msg) { \
+    (void)msg; \
+    return Z_MEM_ERROR; \
+}
+
+#define FINISH_WITH_ERR(strm, message) { \
+    strm->msg = message; \
     return Z_MEM_ERROR; \
 }
 
 #define FINISH_WITH_NULL_ERR(msg) { \
-    fprintf(stderr, "ERROR: %s\n", msg); \
+    (void)msg; \
     return NULL; \
 }
 
@@ -220,7 +224,7 @@ ZEXTERN int ZEXPORT z_deflate OF((z_streamp strm, int flush))
         strm->avail_in -= srcSize;
     }
 
-    if (flush == Z_FULL_FLUSH) FINISH_WITH_ERR("Z_FULL_FLUSH is not supported!");
+    if (flush == Z_FULL_FLUSH) FINISH_WITH_ERR(strm, "Z_FULL_FLUSH is not supported!");
 
     if (flush == Z_FINISH || flush == Z_FULL_FLUSH) {
         size_t bytesLeft;
@@ -519,7 +523,7 @@ ZEXTERN int ZEXPORT z_deflateCopy OF((z_streamp dest,
 {
     if (!g_useZSTD)
         return deflateCopy(dest, source);
-    FINISH_WITH_ERR("deflateCopy is not supported!");
+    FINISH_WITH_ERR(source, "deflateCopy is not supported!");
 }
 
 
@@ -527,7 +531,7 @@ ZEXTERN int ZEXPORT z_deflateReset OF((z_streamp strm))
 {
     if (!g_useZSTD)
         return deflateReset(strm);
-    FINISH_WITH_ERR("deflateReset is not supported!");
+    FINISH_WITH_ERR(strm, "deflateReset is not supported!");
 }
 
 
@@ -539,7 +543,7 @@ ZEXTERN int ZEXPORT z_deflateTune OF((z_streamp strm,
 {
     if (!g_useZSTD)
         return deflateTune(strm, good_length, max_lazy, nice_length, max_chain);
-    FINISH_WITH_ERR("deflateTune is not supported!");
+    FINISH_WITH_ERR(strm, "deflateTune is not supported!");
 }
 
 
@@ -550,7 +554,7 @@ ZEXTERN int ZEXPORT z_deflatePending OF((z_streamp strm,
 {
     if (!g_useZSTD)
         return deflatePending(strm, pending, bits);
-    FINISH_WITH_ERR("deflatePending is not supported!");
+    FINISH_WITH_ERR(strm, "deflatePending is not supported!");
 }
 #endif
 
@@ -561,7 +565,7 @@ ZEXTERN int ZEXPORT z_deflatePrime OF((z_streamp strm,
 {
     if (!g_useZSTD)
         return deflatePrime(strm, bits, value);
-    FINISH_WITH_ERR("deflatePrime is not supported!");
+    FINISH_WITH_ERR(strm, "deflatePrime is not supported!");
 }
 
 
@@ -570,7 +574,7 @@ ZEXTERN int ZEXPORT z_deflateSetHeader OF((z_streamp strm,
 {
     if (!g_useZSTD)
         return deflateSetHeader(strm, head);
-    FINISH_WITH_ERR("deflateSetHeader is not supported!");
+    FINISH_WITH_ERR(strm, "deflateSetHeader is not supported!");
 }
 
 
@@ -584,7 +588,7 @@ ZEXTERN int ZEXPORT z_inflateGetDictionary OF((z_streamp strm,
 {
     if (!strm->reserved)
         return inflateGetDictionary(strm, dictionary, dictLength);
-    FINISH_WITH_ERR("inflateGetDictionary is not supported!");
+    FINISH_WITH_ERR(strm, "inflateGetDictionary is not supported!");
 }
 #endif
 
@@ -594,7 +598,7 @@ ZEXTERN int ZEXPORT z_inflateCopy OF((z_streamp dest,
 {
     if (!g_useZSTD)
         return inflateCopy(dest, source);
-    FINISH_WITH_ERR("inflateCopy is not supported!");
+    FINISH_WITH_ERR(source, "inflateCopy is not supported!");
 }
 
 
@@ -602,7 +606,7 @@ ZEXTERN int ZEXPORT z_inflateReset OF((z_streamp strm))
 {
     if (!strm->reserved)
         return inflateReset(strm);
-    FINISH_WITH_ERR("inflateReset is not supported!");
+    FINISH_WITH_ERR(strm, "inflateReset is not supported!");
 }
 
 
@@ -612,7 +616,7 @@ ZEXTERN int ZEXPORT z_inflateReset2 OF((z_streamp strm,
 {
     if (!strm->reserved)
         return inflateReset2(strm, windowBits);
-    FINISH_WITH_ERR("inflateReset2 is not supported!");
+    FINISH_WITH_ERR(strm, "inflateReset2 is not supported!");
 }
 #endif
 
@@ -622,7 +626,7 @@ ZEXTERN long ZEXPORT z_inflateMark OF((z_streamp strm))
 {
     if (!strm->reserved)
         return inflateMark(strm);
-    FINISH_WITH_ERR("inflateMark is not supported!");
+    FINISH_WITH_ERR(strm, "inflateMark is not supported!");
 }
 #endif
 
@@ -633,7 +637,7 @@ ZEXTERN int ZEXPORT z_inflatePrime OF((z_streamp strm,
 {
     if (!strm->reserved)
         return inflatePrime(strm, bits, value);
-    FINISH_WITH_ERR("inflatePrime is not supported!");
+    FINISH_WITH_ERR(strm, "inflatePrime is not supported!");
 }
 
 
@@ -642,7 +646,7 @@ ZEXTERN int ZEXPORT z_inflateGetHeader OF((z_streamp strm,
 {
     if (!strm->reserved)
         return inflateGetHeader(strm, head);
-    FINISH_WITH_ERR("inflateGetHeader is not supported!");
+    FINISH_WITH_ERR(strm, "inflateGetHeader is not supported!");
 }
 
 
@@ -653,7 +657,7 @@ ZEXTERN int ZEXPORT z_inflateBackInit_ OF((z_streamp strm, int windowBits,
 {
     if (!strm->reserved)
         return inflateBackInit_(strm, windowBits, window, version, stream_size);
-    FINISH_WITH_ERR("inflateBackInit is not supported!");
+    FINISH_WITH_ERR(strm, "inflateBackInit is not supported!");
 }
 
 
@@ -663,7 +667,7 @@ ZEXTERN int ZEXPORT z_inflateBack OF((z_streamp strm,
 {
     if (!strm->reserved)
         return inflateBack(strm, in, in_desc, out, out_desc);
-    FINISH_WITH_ERR("inflateBack is not supported!");
+    FINISH_WITH_ERR(strm, "inflateBack is not supported!");
 }
 
 
@@ -671,7 +675,7 @@ ZEXTERN int ZEXPORT z_inflateBackEnd OF((z_streamp strm))
 {
     if (!strm->reserved)
         return inflateBackEnd(strm);
-    FINISH_WITH_ERR("inflateBackEnd is not supported!");
+    FINISH_WITH_ERR(strm, "inflateBackEnd is not supported!");
 }
 
 
@@ -762,7 +766,7 @@ ZEXTERN int ZEXPORT z_gzbuffer OF((gzFile file, unsigned size))
 {
     if (!g_useZSTD)
         return gzbuffer(file, size);
-    FINISH_WITH_ERR("gzbuffer is not supported!");
+    FINISH_WITH_GZ_ERR("gzbuffer is not supported!");
 }
 
 
@@ -770,7 +774,7 @@ ZEXTERN z_off_t ZEXPORT z_gzoffset OF((gzFile file))
 {
     if (!g_useZSTD)
         return gzoffset(file);
-    FINISH_WITH_ERR("gzoffset is not supported!");
+    FINISH_WITH_GZ_ERR("gzoffset is not supported!");
 }
 
 
@@ -778,7 +782,7 @@ ZEXTERN int ZEXPORT z_gzclose_r OF((gzFile file))
 {
     if (!g_useZSTD)
         return gzclose_r(file);
-    FINISH_WITH_ERR("gzclose_r is not supported!");
+    FINISH_WITH_GZ_ERR("gzclose_r is not supported!");
 }
 
 
@@ -786,7 +790,7 @@ ZEXTERN int ZEXPORT z_gzclose_w OF((gzFile file))
 {
     if (!g_useZSTD)
         return gzclose_w(file);
-    FINISH_WITH_ERR("gzclose_w is not supported!");
+    FINISH_WITH_GZ_ERR("gzclose_w is not supported!");
 }
 #endif
 
@@ -795,7 +799,7 @@ ZEXTERN int ZEXPORT z_gzsetparams OF((gzFile file, int level, int strategy))
 {
     if (!g_useZSTD)
         return gzsetparams(file, level, strategy);
-    FINISH_WITH_ERR("gzsetparams is not supported!");
+    FINISH_WITH_GZ_ERR("gzsetparams is not supported!");
 }
 
 
@@ -803,7 +807,7 @@ ZEXTERN int ZEXPORT z_gzread OF((gzFile file, voidp buf, unsigned len))
 {
     if (!g_useZSTD)
         return gzread(file, buf, len);
-    FINISH_WITH_ERR("gzread is not supported!");
+    FINISH_WITH_GZ_ERR("gzread is not supported!");
 }
 
 
@@ -812,7 +816,7 @@ ZEXTERN int ZEXPORT z_gzwrite OF((gzFile file,
 {
     if (!g_useZSTD)
         return gzwrite(file, buf, len);
-    FINISH_WITH_ERR("gzwrite is not supported!");
+    FINISH_WITH_GZ_ERR("gzwrite is not supported!");
 }
 
 
@@ -834,7 +838,7 @@ ZEXTERN int ZEXPORTVA z_gzprintf OF((gzFile file, const char *format, ...))
       //  printf("gzprintf ret=%d\n", ret);
         return ret;
     }
-    FINISH_WITH_ERR("gzprintf is not supported!");
+    FINISH_WITH_GZ_ERR("gzprintf is not supported!");
 }
 
 
@@ -842,7 +846,7 @@ ZEXTERN int ZEXPORT z_gzputs OF((gzFile file, const char *s))
 {
     if (!g_useZSTD)
         return gzputs(file, s);
-    FINISH_WITH_ERR("gzputs is not supported!");
+    FINISH_WITH_GZ_ERR("gzputs is not supported!");
 }
 
 
@@ -858,7 +862,7 @@ ZEXTERN int ZEXPORT z_gzputc OF((gzFile file, int c))
 {
     if (!g_useZSTD)
         return gzputc(file, c);
-    FINISH_WITH_ERR("gzputc is not supported!");
+    FINISH_WITH_GZ_ERR("gzputc is not supported!");
 }
 
 
@@ -870,7 +874,7 @@ ZEXTERN int ZEXPORT z_gzgetc OF((gzFile file))
 {
     if (!g_useZSTD)
         return gzgetc(file);
-    FINISH_WITH_ERR("gzgetc is not supported!");
+    FINISH_WITH_GZ_ERR("gzgetc is not supported!");
 }
 
 
@@ -878,7 +882,7 @@ ZEXTERN int ZEXPORT z_gzungetc OF((int c, gzFile file))
 {
     if (!g_useZSTD)
         return gzungetc(c, file);
-    FINISH_WITH_ERR("gzungetc is not supported!");
+    FINISH_WITH_GZ_ERR("gzungetc is not supported!");
 }
 
 
@@ -886,7 +890,7 @@ ZEXTERN int ZEXPORT z_gzflush OF((gzFile file, int flush))
 {
     if (!g_useZSTD)
         return gzflush(file, flush);
-    FINISH_WITH_ERR("gzflush is not supported!");
+    FINISH_WITH_GZ_ERR("gzflush is not supported!");
 }
 
 
@@ -894,7 +898,7 @@ ZEXTERN z_off_t ZEXPORT z_gzseek OF((gzFile file, z_off_t offset, int whence))
 {
     if (!g_useZSTD)
         return gzseek(file, offset, whence);
-    FINISH_WITH_ERR("gzseek is not supported!");
+    FINISH_WITH_GZ_ERR("gzseek is not supported!");
 }
 
 
@@ -902,7 +906,7 @@ ZEXTERN int ZEXPORT    z_gzrewind OF((gzFile file))
 {
     if (!g_useZSTD)
         return gzrewind(file);
-    FINISH_WITH_ERR("gzrewind is not supported!");
+    FINISH_WITH_GZ_ERR("gzrewind is not supported!");
 }
 
 
@@ -910,7 +914,7 @@ ZEXTERN z_off_t ZEXPORT    z_gztell OF((gzFile file))
 {
     if (!g_useZSTD)
         return gztell(file);
-    FINISH_WITH_ERR("gztell is not supported!");
+    FINISH_WITH_GZ_ERR("gztell is not supported!");
 }
 
 
@@ -918,7 +922,7 @@ ZEXTERN int ZEXPORT z_gzeof OF((gzFile file))
 {
     if (!g_useZSTD)
         return gzeof(file);
-    FINISH_WITH_ERR("gzeof is not supported!");
+    FINISH_WITH_GZ_ERR("gzeof is not supported!");
 }
 
 
@@ -926,7 +930,7 @@ ZEXTERN int ZEXPORT z_gzdirect OF((gzFile file))
 {
     if (!g_useZSTD)
         return gzdirect(file);
-    FINISH_WITH_ERR("gzdirect is not supported!");
+    FINISH_WITH_GZ_ERR("gzdirect is not supported!");
 }
 
 
@@ -934,7 +938,7 @@ ZEXTERN int ZEXPORT    z_gzclose OF((gzFile file))
 {
     if (!g_useZSTD)
         return gzclose(file);
-    FINISH_WITH_ERR("gzclose is not supported!");
+    FINISH_WITH_GZ_ERR("gzclose is not supported!");
 }
 
 

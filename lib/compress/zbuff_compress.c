@@ -100,7 +100,7 @@ struct ZBUFF_CCtx_s {
 
 ZBUFF_CCtx* ZBUFF_createCCtx(void)
 {
-    return ZBUFF_createCCtx_advanced(defaultCustomNULL);
+    return ZBUFF_createCCtx_advanced(defaultCustomMem);
 }
 
 ZBUFF_CCtx* ZBUFF_createCCtx_advanced(ZSTD_customMem customMem)

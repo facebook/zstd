@@ -652,9 +652,10 @@ typedef struct {
 
 
 
-static void ZSTD_decodeSequence(seq_t* seq, seqState_t* seqState)
+static seq_t ZSTD_decodeSequence(seqState_t* seqState)
 {
-    /* Literal length */
+    seq_t seq;
+
     U32 const llCode = FSE_peekSymbol(&(seqState->stateLL));
     U32 const mlCode = FSE_peekSymbol(&(seqState->stateML));
     U32 const ofCode = FSE_peekSymbol(&(seqState->stateOffb));   /* <= maxOff, by table construction */
@@ -710,13 +711,13 @@ static void ZSTD_decodeSequence(seq_t* seq, seqState_t* seqState)
             seqState->prevOffset[1] = seqState->prevOffset[0];
             seqState->prevOffset[0] = offset;
         }
-        seq->offset = offset;
+        seq.offset = offset;
     }
 
-    seq->matchLength = ML_base[mlCode] + MINMATCH + ((mlCode>31) ? BIT_readBits(&(seqState->DStream), mlBits) : 0);   /* <=  16 bits */
+    seq.matchLength = ML_base[mlCode] + MINMATCH + ((mlCode>31) ? BIT_readBits(&(seqState->DStream), mlBits) : 0);   /* <=  16 bits */
     if (MEM_32bits() && (mlBits+llBits>24)) BIT_reloadDStream(&(seqState->DStream));
 
-    seq->litLength = LL_base[llCode] + ((llCode>15) ? BIT_readBits(&(seqState->DStream), llBits) : 0);   /* <=  16 bits */
+    seq.litLength = LL_base[llCode] + ((llCode>15) ? BIT_readBits(&(seqState->DStream), llBits) : 0);   /* <=  16 bits */
     if (MEM_32bits() ||
        (totalBits > 64 - 7 - (LLFSELog+MLFSELog+OffFSELog)) ) BIT_reloadDStream(&(seqState->DStream));
 
@@ -725,6 +726,8 @@ static void ZSTD_decodeSequence(seq_t* seq, seqState_t* seqState)
     FSE_updateState(&(seqState->stateML), &(seqState->DStream));   /* <=  9 bits */
     if (MEM_32bits()) BIT_reloadDStream(&(seqState->DStream));     /* <= 18 bits */
     FSE_updateState(&(seqState->stateOffb), &(seqState->DStream)); /* <=  8 bits */
+
+    return seq;
 }
 
 
@@ -830,11 +833,7 @@ static size_t ZSTD_decompressSequences(
 
     /* Regen sequences */
     if (nbSeq) {
-        seq_t sequence;
         seqState_t seqState;
-
-        memset(&sequence, 0, sizeof(sequence));
-        sequence.offset = REPCODE_STARTVALUE;
         { U32 i; for (i=0; i<ZSTD_REP_INIT; i++) seqState.prevOffset[i] = REPCODE_STARTVALUE; }
         { size_t const errorCode = BIT_initDStream(&(seqState.DStream), ip, iend-ip);
           if (ERR_isError(errorCode)) return ERROR(corruption_detected); }
@@ -843,8 +842,9 @@ static size_t ZSTD_decompressSequences(
         FSE_initDState(&(seqState.stateML), &(seqState.DStream), DTableML);
 
         for ( ; (BIT_reloadDStream(&(seqState.DStream)) <= BIT_DStream_completed) && nbSeq ; ) {
+            seq_t sequence;
             nbSeq--;
-            ZSTD_decodeSequence(&sequence, &seqState);
+            sequence = ZSTD_decodeSequence(&seqState);
 
 #if 0  /* debug */
             static BYTE* start = NULL;
@@ -923,10 +923,9 @@ static size_t ZSTD_decompressFrame(ZSTD_DCtx* dctx,
     const BYTE* ip = (const BYTE*)src;
     const BYTE* const iend = ip + srcSize;
     BYTE* const ostart = (BYTE* const)dst;
-    BYTE* op = ostart;
     BYTE* const oend = ostart + dstCapacity;
+    BYTE* op = ostart;
     size_t remainingSize = srcSize;
-    blockProperties_t blockProperties = { bt_compressed, 0 };
 
     /* check */
     if (srcSize < ZSTD_frameHeaderSize_min+ZSTD_blockHeaderSize) return ERROR(srcSize_wrong);
@@ -942,6 +941,7 @@ static size_t ZSTD_decompressFrame(ZSTD_DCtx* dctx,
     /* Loop on each block */
     while (1) {
         size_t decodedSize=0;
+        blockProperties_t blockProperties;
         size_t const cBlockSize = ZSTD_getcBlockSize(ip, iend-ip, &blockProperties);
         if (ZSTD_isError(cBlockSize)) return cBlockSize;
 
@@ -996,7 +996,7 @@ size_t ZSTD_decompress_usingDict(ZSTD_DCtx* dctx,
                                  const void* dict, size_t dictSize)
 {
 #if defined(ZSTD_LEGACY_SUPPORT) && (ZSTD_LEGACY_SUPPORT==1)
-    {   const U32 magicNumber = MEM_readLE32(src);
+    {   U32 const magicNumber = MEM_readLE32(src);
         if (ZSTD_isLegacy(magicNumber))
             return ZSTD_decompressLegacy(dst, dstCapacity, src, srcSize, dict, dictSize, magicNumber);
     }
@@ -1017,7 +1017,7 @@ size_t ZSTD_decompress(void* dst, size_t dstCapacity, const void* src, size_t sr
 {
 #if defined(ZSTD_HEAPMODE) && (ZSTD_HEAPMODE==1)
     size_t regenSize;
-    ZSTD_DCtx* dctx = ZSTD_createDCtx();
+    ZSTD_DCtx* const dctx = ZSTD_createDCtx();
     if (dctx==NULL) return ERROR(memory_allocation);
     regenSize = ZSTD_decompressDCtx(dctx, dst, dstCapacity, src, srcSize);
     ZSTD_freeDCtx(dctx);

@@ -521,7 +521,6 @@ int main(int argc, const char** argv)
     U32 mainPause = 0;
     const char* programName = argv[0];
     ZSTD_customMem customMem = { ZBUFF_allocFunction, ZBUFF_freeFunction, NULL };
-    ZSTD_customMem customNULL = { NULL, NULL, NULL };
 
     /* Check command line */
     for(argNb=1; argNb<argc; argNb++) {
@@ -621,7 +620,7 @@ int main(int argc, const char** argv)
     if (nbTests<=0) nbTests=1;
 
     if (testNb==0) {
-        result = basicUnitTests(0, ((double)proba) / 100, customNULL);  /* constant seed for predictability */
+        result = basicUnitTests(0, ((double)proba) / 100, defaultCustomNULL);  /* constant seed for predictability */
         if (!result) {
             DISPLAYLEVEL(4, "Unit tests using customMem :\n")
             result = basicUnitTests(0, ((double)proba) / 100, customMem);  /* use custom memory allocation functions */

@@ -259,5 +259,5 @@ int ZSTD_isSkipFrame(ZSTD_DCtx* dctx);
 void* ZSTD_defaultAllocFunction(void* opaque, size_t size);
 void ZSTD_defaultFreeFunction(void* opaque, void* address);
 static ZSTD_customMem const defaultCustomMem = { ZSTD_defaultAllocFunction, ZSTD_defaultFreeFunction, NULL };
- 
+
 #endif   /* ZSTD_CCOMMON_H_MODULE */

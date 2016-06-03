@@ -38,6 +38,7 @@
 #include "zstd_static.h"      /* ZSTD_MAGICNUMBER */
 #include "zbuff.h"
 #include "zbuff_static.h"      /* ZBUFF_createCCtx_advanced */
+#include "zstd_internal.h"     /* defaultCustomMem */
 
 
 #define Z_INFLATE_SYNC              8
@@ -46,8 +47,6 @@
 
 #define LOG_WRAPPER(...)  // printf(__VA_ARGS__)
 
-
-#define MIN(a,b) ((a)<(b)?(a):(b))
 
 #define FINISH_WITH_ERR(msg) { \
     fprintf(stderr, "ERROR: %s\n", msg); \
@@ -99,22 +98,31 @@ typedef struct {
     ZBUFF_CCtx* zbc;
     size_t bytesLeft;
     int compressionLevel;
+    ZSTD_customMem customMem;
     z_stream allocFunc; /* copy of zalloc, zfree, opaque */
 } ZWRAP_CCtx;
 
 
 ZWRAP_CCtx* ZWRAP_createCCtx(z_streamp strm)
 {
-    ZWRAP_CCtx* zwc = (ZWRAP_CCtx*)malloc(sizeof(ZWRAP_CCtx));
-    if (zwc==NULL) return NULL;
-    memset(zwc, 0, sizeof(*zwc));
+    ZWRAP_CCtx* zwc;
+
     if (strm->zalloc && strm->zfree) {
-       ZSTD_customMem ZWRAP_customMem = { ZWRAP_allocFunction, ZWRAP_freeFunction, &zwc->allocFunc };
-       memcpy(&zwc->allocFunc, strm, sizeof(z_stream));
-       zwc->zbc = ZBUFF_createCCtx_advanced(ZWRAP_customMem);
+        zwc = (ZWRAP_CCtx*)strm->zalloc(strm->opaque, 1, sizeof(ZWRAP_CCtx));
+        if (zwc==NULL) return NULL;
+        memset(zwc, 0, sizeof(ZWRAP_CCtx));
+        memcpy(&zwc->allocFunc, strm, sizeof(z_stream));
+        { ZSTD_customMem ZWRAP_customMem = { ZWRAP_allocFunction, ZWRAP_freeFunction, &zwc->allocFunc };
+          memcpy(&zwc->customMem, &ZWRAP_customMem, sizeof(ZSTD_customMem));
+        }
+    } else {
+        zwc = (ZWRAP_CCtx*)defaultCustomMem.customAlloc(defaultCustomMem.opaque, sizeof(ZWRAP_CCtx));
+        if (zwc==NULL) return NULL;
+        memset(zwc, 0, sizeof(ZWRAP_CCtx));
+        memcpy(&zwc->customMem, &defaultCustomMem, sizeof(ZSTD_customMem));
     }
-    else
-       zwc->zbc = ZBUFF_createCCtx();
+
+    zwc->zbc = ZBUFF_createCCtx_advanced(zwc->customMem);
     return zwc;
 }
 
@@ -123,7 +131,7 @@ size_t ZWRAP_freeCCtx(ZWRAP_CCtx* zwc)
 {
     if (zwc==NULL) return 0;   /* support free on NULL */
     ZBUFF_freeCCtx(zwc->zbc);
-    free(zwc);
+    zwc->customMem.customFree(zwc->customMem.opaque, zwc);
     return 0;
 }
 

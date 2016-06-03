@@ -832,9 +832,8 @@ static size_t ZSTD_decompressSequences(
         FSE_initDState(&(seqState.stateML), &(seqState.DStream), DTableML);
 
         for ( ; (BIT_reloadDStream(&(seqState.DStream)) <= BIT_DStream_completed) && nbSeq ; ) {
-            seq_t sequence;
             nbSeq--;
-            sequence = ZSTD_decodeSequence(&seqState);
+            {   seq_t const sequence = ZSTD_decodeSequence(&seqState);
 
 #if 0  /* debug */
             static BYTE* start = NULL;
@@ -845,7 +844,7 @@ static size_t ZSTD_decompressSequences(
                        pos, (U32)sequence.litLength, (U32)sequence.matchLength, (U32)sequence.offset);
 #endif
 
-            {   size_t const oneSeqSize = ZSTD_execSequence(op, oend, sequence, &litPtr, litLimit_8, base, vBase, dictEnd);
+                size_t const oneSeqSize = ZSTD_execSequence(op, oend, sequence, &litPtr, litLimit_8, base, vBase, dictEnd);
                 if (ZSTD_isError(oneSeqSize)) return oneSeqSize;
                 op += oneSeqSize;
         }   }

@@ -51,7 +51,6 @@
 /*-*************************************
 *  Dependencies
 ***************************************/
-#include <stdlib.h>      /* malloc */
 #include <string.h>      /* memset */
 #include "mem.h"
 #define XXH_STATIC_LINKING_ONLY   /* XXH64_state_t */
@@ -130,12 +129,7 @@ ZSTD_CCtx* ZSTD_createCCtx_advanced(ZSTD_customMem customMem)
     ZSTD_CCtx* ctx;
 
     if (!customMem.customAlloc && !customMem.customFree)
-    {
-        ctx = (ZSTD_CCtx*) calloc(1, sizeof(ZSTD_CCtx));
-        if (!ctx) return NULL;
-        memcpy(&ctx->customMem, &defaultCustomMem, sizeof(ZSTD_customMem));
-        return ctx;
-    }
+        customMem = defaultCustomMem;
 
     if (!customMem.customAlloc || !customMem.customFree)
         return NULL;

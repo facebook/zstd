@@ -108,13 +108,7 @@ ZBUFF_CCtx* ZBUFF_createCCtx_advanced(ZSTD_customMem customMem)
     ZBUFF_CCtx* zbc;
 
     if (!customMem.customAlloc && !customMem.customFree)
-    {
-        zbc = (ZBUFF_CCtx*)calloc(1, sizeof(ZBUFF_CCtx));
-        if (zbc==NULL) return NULL;
-        memcpy(&zbc->customMem, &defaultCustomMem, sizeof(ZSTD_customMem));
-        zbc->zc = ZSTD_createCCtx();
-        return zbc;
-    }
+        customMem = defaultCustomMem;
 
     if (!customMem.customAlloc || !customMem.customFree)
         return NULL;

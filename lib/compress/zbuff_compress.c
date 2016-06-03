@@ -147,7 +147,7 @@ size_t ZBUFF_compressInit_advanced(ZBUFF_CCtx* zbc,
             zbc->inBuff = (char*)zbc->customMem.customAlloc(zbc->customMem.opaque, neededInBuffSize);
             if (zbc->inBuff == NULL) return ERROR(memory_allocation);
         }
-        zbc->blockSize = MIN(ZSTD_BLOCKSIZE_MAX, neededInBuffSize/2);
+        zbc->blockSize = MIN(ZSTD_BLOCKSIZE_MAX, neededInBuffSize);
     }
     if (zbc->outBuffSize < ZSTD_compressBound(zbc->blockSize)+1) {
         zbc->outBuffSize = ZSTD_compressBound(zbc->blockSize)+1;

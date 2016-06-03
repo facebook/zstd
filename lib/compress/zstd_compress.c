@@ -51,7 +51,6 @@
 /*-*************************************
 *  Dependencies
 ***************************************/
-#include <stdlib.h>      /* malloc */
 #include <string.h>      /* memset */
 #include "mem.h"
 #define XXH_STATIC_LINKING_ONLY   /* XXH64_state_t */
@@ -107,8 +106,7 @@ struct ZSTD_CCtx_s
     size_t workSpaceSize;
     size_t blockSize;
     XXH64_state_t xxhState;
-    ZSTD_allocFunction customAlloc;
-    ZSTD_freeFunction customFree;
+    ZSTD_customMem customMem;
 
     seqStore_t seqStore;    /* sequences storage ptrs */
     U32* hashTable;
@@ -123,8 +121,7 @@ struct ZSTD_CCtx_s
 
 ZSTD_CCtx* ZSTD_createCCtx(void)
 {
-    ZSTD_customMem customMem = { NULL, NULL };
-    return ZSTD_createCCtx_advanced(customMem);
+    return ZSTD_createCCtx_advanced(defaultCustomMem);
 }
 
 ZSTD_CCtx* ZSTD_createCCtx_advanced(ZSTD_customMem customMem)
@@ -132,31 +129,23 @@ ZSTD_CCtx* ZSTD_createCCtx_advanced(ZSTD_customMem customMem)
     ZSTD_CCtx* ctx;
 
     if (!customMem.customAlloc && !customMem.customFree)
-    {
-        ctx = (ZSTD_CCtx*) calloc(1, sizeof(ZSTD_CCtx));
-        if (!ctx) return NULL;
-
-        ctx->customAlloc = malloc;
-        ctx->customFree = free;
-        return ctx;
-    }
+        customMem = defaultCustomMem;
 
     if (!customMem.customAlloc || !customMem.customFree)
         return NULL;
 
-    ctx = (ZSTD_CCtx*) customMem.customAlloc(sizeof(ZSTD_CCtx));
+    ctx = (ZSTD_CCtx*) customMem.customAlloc(customMem.opaque, sizeof(ZSTD_CCtx));
     if (!ctx) return NULL;
-
     memset(ctx, 0, sizeof(ZSTD_CCtx));
-    ctx->customAlloc = customMem.customAlloc;
-    ctx->customFree = customMem.customFree;
+    memcpy(&ctx->customMem, &customMem, sizeof(ZSTD_customMem));
     return ctx;
 }
 
 size_t ZSTD_freeCCtx(ZSTD_CCtx* cctx)
 {
-    cctx->customFree(cctx->workSpace);
-    cctx->customFree(cctx);
+    if (cctx==NULL) return 0;   /* support free on NULL */
+    if (cctx->workSpace) cctx->customMem.customFree(cctx->customMem.opaque, cctx->workSpace);
+    cctx->customMem.customFree(cctx->customMem.opaque, cctx);
     return 0;   /* reserved as a potential error code in the future */
 }
 
@@ -264,8 +253,8 @@ static size_t ZSTD_resetCCtx_advanced (ZSTD_CCtx* zc,
         size_t const neededSpace = tableSpace + (256*sizeof(U32)) /* huffTable */ + tokenSpace
                               + ((params.cParams.strategy == ZSTD_btopt) ? optSpace : 0);
         if (zc->workSpaceSize < neededSpace) {
-            zc->customFree(zc->workSpace);
-            zc->workSpace = zc->customAlloc(neededSpace);
+            zc->customMem.customFree(zc->customMem.opaque, zc->workSpace);
+            zc->workSpace = zc->customMem.customAlloc(zc->customMem.opaque, neededSpace);
             if (zc->workSpace == NULL) return ERROR(memory_allocation);
             zc->workSpaceSize = neededSpace;
     }   }
@@ -324,8 +313,7 @@ size_t ZSTD_copyCCtx(ZSTD_CCtx* dstCCtx, const ZSTD_CCtx* srcCCtx)
     if (srcCCtx->stage!=1) return ERROR(stage_wrong);
 
     dstCCtx->hashLog3    = srcCCtx->hashLog3; /* must be before ZSTD_resetCCtx_advanced */
-    dstCCtx->customAlloc = srcCCtx->customAlloc;
-    dstCCtx->customFree  = srcCCtx->customFree;
+    memcpy(&dstCCtx->customMem, &srcCCtx->customMem, sizeof(ZSTD_customMem));
     ZSTD_resetCCtx_advanced(dstCCtx, srcCCtx->params, 0);
     dstCCtx->params.fParams.contentSizeFlag = 0;   /* content size different from the one set during srcCCtx init */
 
@@ -2487,10 +2475,9 @@ size_t ZSTD_compress(void* dst, size_t dstCapacity, const void* src, size_t srcS
     size_t result;
     ZSTD_CCtx ctxBody;
     memset(&ctxBody, 0, sizeof(ctxBody));
-    ctxBody.customAlloc = malloc;
-    ctxBody.customFree = free;
+    memcpy(&ctxBody.customMem, &defaultCustomMem, sizeof(ZSTD_customMem));
     result = ZSTD_compressCCtx(&ctxBody, dst, dstCapacity, src, srcSize, compressionLevel);
-    ctxBody.customFree(ctxBody.workSpace);   /* can't free ctxBody, since it's on stack; just free heap content */
+    ctxBody.customMem.customFree(ctxBody.customMem.opaque, ctxBody.workSpace);   /* can't free ctxBody, since it's on stack; just free heap content */
     return result;
 }
 

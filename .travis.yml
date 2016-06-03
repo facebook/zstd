@@ -22,6 +22,9 @@ matrix:
     - os: linux
       sudo: false
       env: PLATFORM="Ubuntu 12.04 container" MAKE_PARAM=asan
+    - os: linux
+      sudo: false
+      env: PLATFORM="Ubuntu 12.04 container" MAKE_PARAM=zlibwrapper
     # Standard Ubuntu 12.04 LTS Server Edition 64 bit
     - os: linux
       sudo: required
@@ -53,15 +56,6 @@ matrix:
     - os: linux
       sudo: required
       env: PLATFORM="Ubuntu 12.04" MAKE_PARAM="-C programs valgrindTest"
-    - os: linux
-      sudo: required
-      env: PLATFORM="Ubuntu 12.04" MAKE_PARAM=gnu90test
-    - os: linux
-      sudo: required
-      env: PLATFORM="Ubuntu 12.04" MAKE_PARAM=c99test
-    #- os: linux
-    #  sudo: required
-    #  env: PLATFORM="Ubuntu 12.04" MAKE_PARAM=zlibwrapper
     # Ubuntu 14.04 LTS Server Edition 64 bit
     - os: linux
       dist: trusty

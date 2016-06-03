@@ -6,9 +6,10 @@
 
 
 # Paths to static and dynamic zlib and zstd libraries
-ifneq (,$(filter Windows%,$(OS)))
-STATICLIB = ../../zlib/libz.a ../lib/libzstd.a
-IMPLIB    = ../../zlib/libz.dll.a ../lib/libzstd.a
+# Use "make ZLIBDIR=path/to/zlib" to select a path to library
+ifdef ZLIBDIR
+STATICLIB = $(ZLIBDIR)/libz.a ../lib/libzstd.a
+IMPLIB    = $(ZLIBDIR)/libz.dll.a ../lib/libzstd.a
 else
 STATICLIB = -static -lz ../lib/libzstd.a
 IMPLIB    = -lz ../lib/libzstd.a
@@ -17,12 +18,13 @@ endif
 ZLIBWRAPPER_PATH = .
 EXAMPLE_PATH = examples
 CC = gcc
-CFLAGS = $(LOC) -I../lib/common -I$(ZLIBWRAPPER_PATH) -O3 -Wall -std=gnu89
+CFLAGS = $(LOC) -I../lib/common -I$(ZLIBDIR) -I$(ZLIBWRAPPER_PATH) -O3 -std=gnu90
+CFLAGS += -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow -Wswitch-enum -Wdeclaration-after-statement -Wstrict-prototypes -Wundef
 LDFLAGS = $(LOC)
 RM = rm -f
 
 
-all: clean test testdll testzstd
+all: clean test testzstd
 
 test: example
 	./example
@@ -55,9 +57,5 @@ $(ZLIBWRAPPER_PATH)/zstdTurnedOn_zlibwrapper.o: $(ZLIBWRAPPER_PATH)/zstd_zlibwra
 	$(CC) $(CFLAGS) -DZWRAP_USE_ZSTD=1 -I. -c -o $@ $(ZLIBWRAPPER_PATH)/zstd_zlibwrapper.c
 
 clean:
-	-$(RM) $(ZLIBWRAPPER_PATH)/*.o
-	-$(RM) $(EXAMPLE_PATH)/*.o
-	-$(RM) *.o
-	-$(RM) *.exe
-	-$(RM) foo.gz
-
+	-$(RM) $(ZLIBWRAPPER_PATH)/*.o $(EXAMPLE_PATH)/*.o *.o *.exe foo.gz example example_d example_zstd
+	@echo Cleaning completed

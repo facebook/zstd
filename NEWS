@@ -1,10 +1,12 @@
 v0.7.0
 New : Support for directory compression, using `-r`, thanks to Przemyslaw Skibinski
 New : Support for Sparse File-systems (do not use space for zero-filled sectors)
+New : Frame checksum support
 New : Support pass-through mode (when using `-df`)
 New : API : dictionary files from custom content, by Giuseppe Ottaviano
 New : API support for custom malloc/free functions
 New : controllable Dictionary ID
+New : Support for skippable frames
 
 v0.6.1
 New : zlib wrapper API, thanks to Przemyslaw Skibinski

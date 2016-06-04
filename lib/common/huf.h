@@ -39,13 +39,11 @@ extern "C" {
 #endif
 
 
-/* ****************************************
-*  Dependency
-******************************************/
+/* *** Dependencies *** */
 #include <stddef.h>    /* size_t */
 
 
-/* ****************************************
+/*-****************************************
 *  HUF simple functions
 ******************************************/
 size_t HUF_compress(void* dst, size_t dstCapacity,
@@ -54,17 +52,17 @@ size_t HUF_decompress(void* dst,  size_t dstSize,
                 const void* cSrc, size_t cSrcSize);
 /*
 HUF_compress() :
-    Compress content of buffer 'src', of size 'srcSize', into destination buffer 'dst'.
-    'dst' buffer must be already allocated. Compression runs faster if dstCapacity >= HUF_compressBound(srcSize).
-    Note : srcSize must be <= 128 KB
-    @return : size of compressed data (<= dstCapacity)
+    Compress content from buffer 'src', of size 'srcSize', into buffer 'dst'.
+    'dst' buffer must be already allocated. Compression runs faster if `dstCapacity` >= HUF_compressBound(srcSize).
+    Note : `srcSize` must be <= `HUF_BLOCKSIZE_MAX` == 128 KB
+    @return : size of compressed data (<= `dstCapacity`)
     Special values : if return == 0, srcData is not compressible => Nothing is stored within dst !!!
                      if return == 1, srcData is a single repeated byte symbol (RLE compression).
                      if HUF_isError(return), compression failed (more details using HUF_getErrorName())
 
 HUF_decompress() :
     Decompress HUF data from buffer 'cSrc', of size 'cSrcSize',
-    into already allocated destination buffer 'dst', of size 'dstSize'.
+    into already allocated buffer 'dst', of minimum size 'dstSize'.
     `dstSize` : must be the **exact** size of original (uncompressed) data.
     Note : in contrast with FSE, HUF_decompress can regenerate
            RLE (cSrcSize==1) and uncompressed (cSrcSize==dstSize) data,
@@ -78,25 +76,24 @@ HUF_decompress() :
 *  Tool functions
 ******************************************/
 #define HUF_BLOCKSIZE_MAX (128 * 1024)
-size_t HUF_compressBound(size_t size);       /**< maximum compressed size */
+size_t HUF_compressBound(size_t size);       /**< maximum compressed size (worst case) */
 
 /* Error Management */
 unsigned    HUF_isError(size_t code);        /**< tells if a return value is an error code */
 const char* HUF_getErrorName(size_t code);   /**< provides error code string (useful for debugging) */
 
 
-/* ****************************************
-*  Advanced functions
-******************************************/
-size_t HUF_compress2 (void* dst, size_t dstSize, const void* src, size_t srcSize, unsigned maxSymbolValue, unsigned tableLog);
+/* *** Advanced function *** */
 
+/** HUF_compress2() :
+*   Same as HUF_compress(), but offers direct control over `maxSymbolValue` and `tableLog` */
+size_t HUF_compress2 (void* dst, size_t dstSize, const void* src, size_t srcSize, unsigned maxSymbolValue, unsigned tableLog);
 
 
 #ifdef HUF_STATIC_LINKING_ONLY
 
 /* *** Dependencies *** */
-#include "fse.h"
-#include "bitstream.h"   /* includes mem.h */
+#include "mem.h"   /* U32 */
 
 
 /* *** Constants *** */
@@ -197,8 +194,8 @@ size_t HUF_decompress1X6_usingDTable(void* dst, size_t maxDstSize, const void* c
     Read compact Huffman tree, saved by HUF_writeCTable().
     `huffWeight` is destination buffer.
     @return : size read from `src` , or an error Code .
-    Note : Needed by HUF_readCTable() and HUF_readDTableXn() .
-*/size_t HUF_readStats(BYTE* huffWeight, size_t hwSize, U32* rankStats,
+    Note : Needed by HUF_readCTable() and HUF_readDTableXn() . */
+size_t HUF_readStats(BYTE* huffWeight, size_t hwSize, U32* rankStats,
                      U32* nbSymbolsPtr, U32* tableLogPtr,
                      const void* src, size_t srcSize);
 

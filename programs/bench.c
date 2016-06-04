@@ -32,7 +32,8 @@
 #include <stdio.h>       /* fprintf, fopen, ftello64 */
 
 #include "mem.h"
-#include "zstd_static.h"
+#define ZSTD_STATIC_LINKING_ONLY
+#include "zstd.h"
 #include "datagen.h"     /* RDG_genBuffer */
 #include "xxhash.h"
 

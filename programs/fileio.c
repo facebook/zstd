@@ -56,7 +56,8 @@
 
 #include "mem.h"
 #include "fileio.h"
-#include "zstd_static.h"   /* ZSTD_magicNumber, ZSTD_frameHeaderSize_max */
+#define ZSTD_STATIC_LINKING_ONLY   /* ZSTD_magicNumber, ZSTD_frameHeaderSize_max */
+#include "zstd.h"
 #include "zstd_internal.h" /* MIN, KB, MB */
 #define ZBUFF_STATIC_LINKING_ONLY
 #include "zbuff.h"

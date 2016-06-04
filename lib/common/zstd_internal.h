@@ -37,7 +37,8 @@
 ***************************************/
 #include "mem.h"
 #include "error_private.h"
-#include "zstd_static.h"
+#define ZSTD_STATIC_LINKING_ONLY
+#include "zstd.h"
 
 
 /*-*************************************

@@ -40,7 +40,8 @@
 #include <sys/timeb.h>   /* timeb */
 #include <string.h>      /* strcmp */
 #include <time.h>        /* clock_t */
-#include "zstd_static.h" /* ZSTD_VERSION_STRING, ZSTD_getErrorCode */
+#define ZSTD_STATIC_LINKING_ONLY   /* ZSTD_compressContinue */
+#include "zstd.h"        /* ZSTD_VERSION_STRING, ZSTD_getErrorCode */
 #include "zdict.h"       /* ZDICT_trainFromBuffer */
 #include "datagen.h"     /* RDG_genBuffer */
 #include "mem.h"

@@ -48,7 +48,8 @@
 #endif
 
 #include "mem.h"
-#include "zstd_static.h"
+#define ZSTD_STATIC_LINKING_ONLY   /* ZSTD_parameters */
+#include "zstd.h"
 #include "datagen.h"
 #include "xxhash.h"
 

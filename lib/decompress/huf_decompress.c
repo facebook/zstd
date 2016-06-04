@@ -61,9 +61,10 @@
 ****************************************************************/
 #include <string.h>     /* memcpy, memset */
 #include <stdio.h>      /* printf (debug) */
-#include "huf_static.h"
 #include "bitstream.h"
 #include "fse.h"        /* header compression */
+#define HUF_STATIC_LINKING_ONLY
+#include "huf.h"
 
 
 

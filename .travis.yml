@@ -2,9 +2,9 @@ language: c
 compiler: gcc
 matrix:
   fast_finish: true
-  include: 
+  include:
     # Container-based Ubuntu 12.04 LTS Server Edition 64 bit (doesn't support 32-bit includes)
-    - os: linux  
+    - os: linux
       sudo: false
       env: PLATFORM="Ubuntu 12.04 container" MAKE_PARAM=travis-install
     - os: linux
@@ -47,9 +47,9 @@ matrix:
     - os: linux
       sudo: required
       env: PLATFORM="Ubuntu 12.04" MAKE_PARAM="-C programs test32"
-    - os: linux
-      sudo: required
-      env: PLATFORM="Ubuntu 12.04" MAKE_PARAM="-C versionsTest"
+#    - os: linux
+#      sudo: required
+#      env: PLATFORM="Ubuntu 12.04" MAKE_PARAM="-C versionsTest"
     - os: linux
       sudo: required
       env: PLATFORM="Ubuntu 12.04" MAKE_PARAM=asan32
@@ -66,7 +66,7 @@ matrix:
       sudo: required
       env: PLATFORM="Ubuntu 14.04" MAKE_PARAM=zlibwrapper
     # OS X Mavericks
-    - os: osx  
+    - os: osx
       env: PLATFORM="OS X Mavericks" MAKE_PARAM=travis-install
     - os: osx
       env: PLATFORM="OS X Mavericks" MAKE_PARAM=gnu90test
@@ -86,6 +86,5 @@ before_install:
       fi
     fi
 
-script: 
+script:
   - make $MAKE_PARAM
-

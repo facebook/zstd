@@ -162,15 +162,19 @@ ZSTDLIB_API size_t ZBUFF_recommendedDOutSize(void);
 
 #ifdef ZBUFF_STATIC_LINKING_ONLY
 
-/* *************************************
-*  Dependency
-***************************************/
-#include "zstd_static.h"     /* ZSTD_parameters */
+/* ====================================================================================
+ * The definitions in this section are considered experimental.
+ * They should never be used in association with a dynamic library, as they may change in the future.
+ * They are provided for advanced usages.
+ * Use them only in association with static linking.
+ * ==================================================================================== */
+
+/*--- Dependency ---*/
+#define ZSTD_STATIC_LINKING_ONLY   /* ZSTD_parameters */
+#include "zstd.h"
 
 
-/*-*************************************
-*  Advanced functions
-***************************************/
+/*--- External memory ---*/
 /*! ZBUFF_createCCtx_advanced() :
  *  Create a ZBUFF compression context using external alloc and free functions */
 ZSTDLIB_API ZBUFF_CCtx* ZBUFF_createCCtx_advanced(ZSTD_customMem customMem);
@@ -180,9 +184,7 @@ ZSTDLIB_API ZBUFF_CCtx* ZBUFF_createCCtx_advanced(ZSTD_customMem customMem);
 ZSTDLIB_API ZBUFF_DCtx* ZBUFF_createDCtx_advanced(ZSTD_customMem customMem);
 
 
-/* *************************************
-*  Advanced Streaming functions
-***************************************/
+/*--- Advanced Streaming function ---*/
 ZSTDLIB_API size_t ZBUFF_compressInit_advanced(ZBUFF_CCtx* zbc,
                                                const void* dict, size_t dictSize,
                                                ZSTD_parameters params, U64 pledgedSrcSize);

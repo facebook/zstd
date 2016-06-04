@@ -38,10 +38,11 @@
 #ifndef ZSTD_NOBENCH
 #  include "bench.h"  /* BMK_benchFiles, BMK_SetNbIterations */
 #endif
-#include "zstd_static.h" /* ZSTD_maxCLevel, ZSTD version numbers  */
 #ifndef ZSTD_NODICT
 #  include "dibio.h"
 #endif
+#define ZSTD_STATIC_LINKING_ONLY   /* ZSTD_maxCLevel */
+#include "zstd.h"     /* ZSTD_VERSION_STRING */
 
 
 

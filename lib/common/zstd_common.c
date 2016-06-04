@@ -35,7 +35,8 @@
 ***************************************/
 #include <stdlib.h>         /* malloc */
 #include "error_private.h"
-#include "zstd_static.h"    /* declaration of ZSTD_isError, ZSTD_getErrorName, ZSTD_getErrorCode */
+#define ZSTD_STATIC_LINKING_ONLY
+#include "zstd.h"           /* declaration of ZSTD_isError, ZSTD_getErrorName, ZSTD_getErrorCode, ZSTD_getErrorString, ZSTD_versionNumber */
 #include "zbuff.h"          /* declaration of ZBUFF_isError, ZBUFF_getErrorName */
 
 

@@ -32,7 +32,8 @@
 #include <time.h>        /* clock_t, clock, CLOCKS_PER_SEC */
 
 #include "mem.h"
-#include "zstd_static.h" /* ZSTD_VERSION_STRING */
+#define ZSTD_STATIC_LINKING_ONLY  /* ZSTD_compressContinue */
+#include "zstd.h"        /* ZSTD_VERSION_STRING */
 #include "fse_static.h"
 #include "zbuff.h"
 #include "datagen.h"

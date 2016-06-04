@@ -40,7 +40,8 @@
 #include <sys/timeb.h>    /* timeb */
 #include <string.h>       /* strcmp */
 #include "mem.h"
-#include "zstd_static.h"  /* ZSTD_compressBound(), ZSTD_maxCLevel() */
+#define ZSTD_STATIC_LINKING_ONLY   /* ZSTD_maxCLevel */
+#include "zstd.h"         /* ZSTD_compressBound */
 #define ZBUFF_STATIC_LINKING_ONLY
 #include "zbuff.h"        /* ZBUFF_createCCtx_advanced */
 #include "datagen.h"      /* RDG_genBuffer */

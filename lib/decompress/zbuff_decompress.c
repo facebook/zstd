@@ -37,7 +37,8 @@
 #include "error_private.h"
 #include "zstd_internal.h"  /* MIN, ZSTD_blockHeaderSize */
 #include "zstd_static.h"    /* ZSTD_BLOCKSIZE_MAX */
-#include "zbuff_static.h"
+#define ZBUFF_STATIC_LINKING_ONLY
+#include "zbuff.h"
 
 
 /*-***************************************************************************
@@ -183,7 +184,7 @@ size_t ZBUFF_decompressContinue(ZBUFF_DCtx* zbd,
             }   }
 
             if (zbd->fParams.windowLog < ZSTD_WINDOWLOG_ABSOLUTEMIN) zbd->fParams.windowLog = ZSTD_WINDOWLOG_ABSOLUTEMIN;  /* required for buffer allocation */
-    
+
             /* Frame header instruct buffer sizes */
             {   size_t const blockSize = MIN(1 << zbd->fParams.windowLog, ZSTD_BLOCKSIZE_MAX);
                 zbd->blockSize = blockSize;

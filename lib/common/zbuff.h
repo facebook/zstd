@@ -28,8 +28,8 @@
     You can contact the author at :
     - zstd homepage : http://www.zstd.net/
 */
-#ifndef ZSTD_BUFFERED_H
-#define ZSTD_BUFFERED_H
+#ifndef ZSTD_BUFFERED_H_23987
+#define ZSTD_BUFFERED_H_23987
 
 #if defined (__cplusplus)
 extern "C" {
@@ -160,8 +160,48 @@ ZSTDLIB_API size_t ZBUFF_recommendedDInSize(void);
 ZSTDLIB_API size_t ZBUFF_recommendedDOutSize(void);
 
 
+#ifdef ZBUFF_STATIC_LINKING_ONLY
+
+/* *************************************
+*  Includes
+***************************************/
+#include "zstd_static.h"     /* ZSTD_parameters */
+
+/* internal util function */
+#define ZBUFF_MIN(a,b) ((a)<(b) ? (a) : (b))
+MEM_STATIC size_t ZBUFF_limitCopy(void* dst, size_t dstCapacity, const void* src, size_t srcSize)
+{
+    size_t length = ZBUFF_MIN(dstCapacity, srcSize);
+    memcpy(dst, src, length);
+    return length;
+}
+
+
+/*-*************************************
+*  Advanced functions
+***************************************/
+/*! ZBUFF_createCCtx_advanced() :
+ *  Create a ZBUFF compression context using external alloc and free functions */
+ZSTDLIB_API ZBUFF_CCtx* ZBUFF_createCCtx_advanced(ZSTD_customMem customMem);
+
+/*! ZBUFF_createDCtx_advanced() :
+ *  Create a ZBUFF decompression context using external alloc and free functions */
+ZSTDLIB_API ZBUFF_DCtx* ZBUFF_createDCtx_advanced(ZSTD_customMem customMem);
+
+
+/* *************************************
+*  Advanced Streaming functions
+***************************************/
+ZSTDLIB_API size_t ZBUFF_compressInit_advanced(ZBUFF_CCtx* zbc,
+                                               const void* dict, size_t dictSize,
+                                               ZSTD_parameters params, U64 pledgedSrcSize);
+
+
+#endif
+
+
 #if defined (__cplusplus)
 }
 #endif
 
-#endif  /* ZSTD_BUFFERED_H */
+#endif  /* ZSTD_BUFFERED_H_23987 */

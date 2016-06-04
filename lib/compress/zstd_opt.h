@@ -41,10 +41,10 @@
 ***************************************/
 FORCE_INLINE void ZSTD_setLog2Prices(seqStore_t* ssPtr)
 {
-    ssPtr->log2matchLengthSum = ZSTD_highbit(ssPtr->matchLengthSum+1);
-    ssPtr->log2litLengthSum = ZSTD_highbit(ssPtr->litLengthSum+1);
-    ssPtr->log2litSum = ZSTD_highbit(ssPtr->litSum+1);
-    ssPtr->log2offCodeSum = ZSTD_highbit(ssPtr->offCodeSum+1);
+    ssPtr->log2matchLengthSum = ZSTD_highbit32(ssPtr->matchLengthSum+1);
+    ssPtr->log2litLengthSum = ZSTD_highbit32(ssPtr->litLengthSum+1);
+    ssPtr->log2litSum = ZSTD_highbit32(ssPtr->litSum+1);
+    ssPtr->log2offCodeSum = ZSTD_highbit32(ssPtr->offCodeSum+1);
     ssPtr->factor = 1 + ((ssPtr->litSum>>5) / ssPtr->litLengthSum) + ((ssPtr->litSum<<1) / (ssPtr->litSum + ssPtr->matchSum));
 }
 
@@ -106,7 +106,7 @@ FORCE_INLINE U32 ZSTD_getLiteralPrice(seqStore_t* ssPtr, U32 litLength, const BY
     U32 price, u;
 
     if (litLength == 0)
-        return ssPtr->log2litLengthSum - ZSTD_highbit(ssPtr->litLengthFreq[0]+1);
+        return ssPtr->log2litLengthSum - ZSTD_highbit32(ssPtr->litLengthFreq[0]+1);
 
     /* literals */
     if (ssPtr->cachedLiterals == literals) {
@@ -114,13 +114,13 @@ FORCE_INLINE U32 ZSTD_getLiteralPrice(seqStore_t* ssPtr, U32 litLength, const BY
         const BYTE* literals2 = ssPtr->cachedLiterals + ssPtr->cachedLitLength;
         price = ssPtr->cachedPrice + additional * ssPtr->log2litSum;
         for (u=0; u < additional; u++)
-            price -= ZSTD_highbit(ssPtr->litFreq[literals2[u]]+1);
+            price -= ZSTD_highbit32(ssPtr->litFreq[literals2[u]]+1);
         ssPtr->cachedPrice = price;
         ssPtr->cachedLitLength = litLength;
     } else {
         price = litLength * ssPtr->log2litSum;
         for (u=0; u < litLength; u++)
-            price -= ZSTD_highbit(ssPtr->litFreq[literals[u]]+1);
+            price -= ZSTD_highbit32(ssPtr->litFreq[literals[u]]+1);
 
         if (litLength >= 12) {
             ssPtr->cachedLiterals = literals;
@@ -139,8 +139,8 @@ FORCE_INLINE U32 ZSTD_getLiteralPrice(seqStore_t* ssPtr, U32 litLength, const BY
                                           24, 24, 24, 24, 24, 24, 24, 24,
                                           24, 24, 24, 24, 24, 24, 24, 24 };
         const BYTE LL_deltaCode = 19;
-        const BYTE llCode = (litLength>63) ? (BYTE)ZSTD_highbit(litLength) + LL_deltaCode : LL_Code[litLength];
-        price += LL_bits[llCode] + ssPtr->log2litLengthSum - ZSTD_highbit(ssPtr->litLengthFreq[llCode]+1);
+        const BYTE llCode = (litLength>63) ? (BYTE)ZSTD_highbit32(litLength) + LL_deltaCode : LL_Code[litLength];
+        price += LL_bits[llCode] + ssPtr->log2litLengthSum - ZSTD_highbit32(ssPtr->litLengthFreq[llCode]+1);
     }
 
     return price;
@@ -150,8 +150,8 @@ FORCE_INLINE U32 ZSTD_getLiteralPrice(seqStore_t* ssPtr, U32 litLength, const BY
 FORCE_INLINE U32 ZSTD_getPrice(seqStore_t* seqStorePtr, U32 litLength, const BYTE* literals, U32 offset, U32 matchLength)
 {
     /* offset */
-    BYTE offCode = (BYTE)ZSTD_highbit(offset+1);
-    U32 price = offCode + seqStorePtr->log2offCodeSum - ZSTD_highbit(seqStorePtr->offCodeFreq[offCode]+1);
+    BYTE offCode = (BYTE)ZSTD_highbit32(offset+1);
+    U32 price = offCode + seqStorePtr->log2offCodeSum - ZSTD_highbit32(seqStorePtr->offCodeFreq[offCode]+1);
 
     /* match Length */
     {   static const BYTE ML_Code[128] = { 0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15,
@@ -163,8 +163,8 @@ FORCE_INLINE U32 ZSTD_getPrice(seqStore_t* seqStorePtr, U32 litLength, const BYT
                                           42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42,
                                           42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42 };
         const BYTE ML_deltaCode = 36;
-        const BYTE mlCode = (matchLength>127) ? (BYTE)ZSTD_highbit(matchLength) + ML_deltaCode : ML_Code[matchLength];
-        price += ML_bits[mlCode] + seqStorePtr->log2matchLengthSum - ZSTD_highbit(seqStorePtr->matchLengthFreq[mlCode]+1);
+        const BYTE mlCode = (matchLength>127) ? (BYTE)ZSTD_highbit32(matchLength) + ML_deltaCode : ML_Code[matchLength];
+        price += ML_bits[mlCode] + seqStorePtr->log2matchLengthSum - ZSTD_highbit32(seqStorePtr->matchLengthFreq[mlCode]+1);
     }
 
     return price + ZSTD_getLiteralPrice(seqStorePtr, litLength, literals) + seqStorePtr->factor;
@@ -190,13 +190,13 @@ MEM_STATIC void ZSTD_updatePrice(seqStore_t* seqStorePtr, U32 litLength, const B
                                           24, 24, 24, 24, 24, 24, 24, 24,
                                           24, 24, 24, 24, 24, 24, 24, 24 };
         const BYTE LL_deltaCode = 19;
-        const BYTE llCode = (litLength>63) ? (BYTE)ZSTD_highbit(litLength) + LL_deltaCode : LL_Code[litLength];
+        const BYTE llCode = (litLength>63) ? (BYTE)ZSTD_highbit32(litLength) + LL_deltaCode : LL_Code[litLength];
         seqStorePtr->litLengthFreq[llCode]++;
         seqStorePtr->litLengthSum++;
     }
 
     /* match offset */
-	{   BYTE offCode = (BYTE)ZSTD_highbit(offset+1);
+	{   BYTE offCode = (BYTE)ZSTD_highbit32(offset+1);
 		seqStorePtr->offCodeSum++;
 		seqStorePtr->offCodeFreq[offCode]++;
 	}
@@ -211,7 +211,7 @@ MEM_STATIC void ZSTD_updatePrice(seqStore_t* seqStorePtr, U32 litLength, const B
                                           42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42,
                                           42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42 };
         const BYTE ML_deltaCode = 36;
-        const BYTE mlCode = (matchLength>127) ? (BYTE)ZSTD_highbit(matchLength) + ML_deltaCode : ML_Code[matchLength];
+        const BYTE mlCode = (matchLength>127) ? (BYTE)ZSTD_highbit32(matchLength) + ML_deltaCode : ML_Code[matchLength];
         seqStorePtr->matchLengthFreq[mlCode]++;
         seqStorePtr->matchLengthSum++;
     }

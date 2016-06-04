@@ -60,7 +60,7 @@
 #include "error_private.h"
 #include "fse.h"
 #include "huf_static.h"
-#include "zstd_internal.h"
+#include "zstd_internal.h" /* includes zstd.h */
 #include "xxhash.h"
 #include "divsufsort.h"
 #define ZDICT_STATIC_LINKING_ONLY

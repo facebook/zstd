@@ -81,12 +81,9 @@ SET(Headers
         ${LIBRARY_DIR}/common/huf_static.h
         ${LIBRARY_DIR}/common/mem.h
         ${LIBRARY_DIR}/common/zbuff.h
-        ${LIBRARY_DIR}/common/zbuff_static.h
         ${LIBRARY_DIR}/common/zstd_internal.h
-        ${LIBRARY_DIR}/common/zstd_static.h
         ${LIBRARY_DIR}/common/zstd.h
-        ${LIBRARY_DIR}/dictBuilder/zdict.h
-        ${LIBRARY_DIR}/dictBuilder/zdict_static.h)
+        ${LIBRARY_DIR}/dictBuilder/zdict.h)
 
 IF (ZSTD_LEGACY_SUPPORT)
     SET(LIBRARY_LEGACY_DIR ${LIBRARY_DIR}/legacy)

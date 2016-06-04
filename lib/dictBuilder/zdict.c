@@ -63,7 +63,8 @@
 #include "zstd_internal.h"
 #include "xxhash.h"
 #include "divsufsort.h"
-#include "zdict_static.h"
+#define ZDICT_STATIC_LINKING_ONLY
+#include "zdict.h"
 
 
 /*-*************************************

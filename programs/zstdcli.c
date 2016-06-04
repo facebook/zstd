@@ -225,7 +225,8 @@ int main(int argCount, const char** argv)
 #endif
 
     /* init */
-    (void)recursive; (void)cLevelLast; (void)dictCLevel;   /* not used when ZSTD_NOBENCH / ZSTD_NODICT set */
+    (void)recursive; (void)cLevelLast;    /* not used when ZSTD_NOBENCH set */
+    (void)dictCLevel; (void)dictSelect; (void)dictID;  /* not used when ZSTD_NODICT set */
     (void)decode; (void)cLevel; /* not used when ZSTD_NOCOMPRESS set */
     if (filenameTable==NULL) { DISPLAY("not enough memory\n"); exit(1); }
     filenameTable[0] = stdinmark;

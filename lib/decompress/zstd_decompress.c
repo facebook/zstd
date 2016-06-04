@@ -58,9 +58,10 @@
 #include "mem.h"         /* low level memory routines */
 #define XXH_STATIC_LINKING_ONLY   /* XXH64_state_t */
 #include "xxhash.h"      /* XXH64_* */
-#include "zstd_internal.h"
 #include "fse_static.h"
-#include "huf_static.h"
+#define HUF_STATIC_LINKING_ONLY
+#include "huf.h"
+#include "zstd_internal.h"
 
 #if defined(ZSTD_LEGACY_SUPPORT) && (ZSTD_LEGACY_SUPPORT==1)
 #  include "zstd_legacy.h"

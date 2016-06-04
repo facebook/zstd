@@ -59,7 +59,8 @@
 #include "mem.h"           /* read */
 #include "error_private.h"
 #include "fse.h"
-#include "huf_static.h"
+#define HUF_STATIC_LINKING_ONLY
+#include "huf.h"
 #include "zstd_internal.h" /* includes zstd.h */
 #include "xxhash.h"
 #include "divsufsort.h"

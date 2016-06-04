@@ -162,7 +162,7 @@ ZSTDLIB_API size_t ZSTD_decompress_usingDict(ZSTD_DCtx* dctx,
 
 
 /*--- Constants ---*/
-#define ZSTD_MAGICNUMBER            0xFD2FB526   /* v0.6 */
+#define ZSTD_MAGICNUMBER            0xFD2FB527   /* v0.7 */
 #define ZSTD_MAGIC_SKIPPABLE_START  0x184D2A50U
 
 #define ZSTD_WINDOWLOG_MAX    ((U32)(MEM_32bits() ? 25 : 27))
@@ -350,7 +350,7 @@ ZSTDLIB_API size_t ZSTD_decompressContinue(ZSTD_DCtx* dctx, void* dst, size_t ds
   ZSTD_decompressContinue() needs previous data blocks during decompression, up to (1 << windowlog).
   They should preferably be located contiguously, prior to current block. Alternatively, a round buffer is also possible.
 
-  @result of ZSTD_decompressContinue() is the number of bytes regenerated within 'dst' (necessarily <= dstCapacity)
+  @result of ZSTD_decompressContinue() is the number of bytes regenerated within 'dst' (necessarily <= dstCapacity).
   It can be zero, which is not an error; it just means ZSTD_decompressContinue() has decoded some header.
 
   A frame is fully decoded when ZSTD_nextSrcSizeToDecompress() returns zero.

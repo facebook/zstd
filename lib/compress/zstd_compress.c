@@ -55,7 +55,8 @@
 #include "mem.h"
 #define XXH_STATIC_LINKING_ONLY   /* XXH64_state_t */
 #include "xxhash.h"         /* XXH_reset, update, digest */
-#include "fse_static.h"
+#define FSE_STATIC_LINKING_ONLY
+#include "fse.h"
 #define HUF_STATIC_LINKING_ONLY
 #include "huf.h"
 #include "zstd_internal.h"  /* includes zstd.h */

@@ -37,7 +37,8 @@
 ***************************************/
 #include <stdlib.h>
 #include "mem.h"
-#include "fse_static.h"  /* FSE_MIN_TABLELOG */
+#define FSE_STATIC_LINKING_ONLY  /* FSE_MIN_TABLELOG */
+#include "fse.h"
 #include "error_private.h"
 #include "fse.h" /* declaration of FSE_isError, FSE_getErrorName */
 #include "huf.h" /* declaration of HUF_isError, HUF_getErrorName */

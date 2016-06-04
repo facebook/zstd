@@ -76,9 +76,7 @@ SET(Headers
         ${LIBRARY_DIR}/common/error_private.h
         ${LIBRARY_DIR}/common/error_public.h
         ${LIBRARY_DIR}/common/fse.h
-        ${LIBRARY_DIR}/common/fse_static.h
         ${LIBRARY_DIR}/common/huf.h
-        ${LIBRARY_DIR}/common/huf_static.h
         ${LIBRARY_DIR}/common/mem.h
         ${LIBRARY_DIR}/common/zbuff.h
         ${LIBRARY_DIR}/common/zstd_internal.h

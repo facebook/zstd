@@ -205,6 +205,7 @@ void ZSTD_copyDCtx(ZSTD_DCtx* dstDCtx, const ZSTD_DCtx* srcDCtx)
 
 /* Frame descriptor
 
+    // old
    1 byte - Alloc :
    bit 0-3 : windowLog - ZSTD_WINDOWLOG_ABSOLUTEMIN   (see zstd_internal.h)
    bit 4   : reserved for windowLog (must be zero)
@@ -214,6 +215,22 @@ void ZSTD_copyDCtx(ZSTD_DCtx* dstDCtx, const ZSTD_DCtx* srcDCtx)
    1 byte - checker :
    bit 0-1 : dictID (0, 1, 2 or 4 bytes)
    bit 2-7 : reserved (must be zero)
+
+
+    // new
+   1 byte - Alloc :
+   bit 0-1 : dictID (0, 1, 2 or 4 bytes)
+   bit 2-4 : reserved (must be zero)
+   bit 5   : WindowLog skipped (note : if 1, then fcs > 0)
+   bit 6-7 : Frame content size : unknown, 1 byte, 2 bytes, 8 bytes
+
+   OR : 0-3 : no windowLog, 1, 2, 4, 8
+        4-7 : windowLog, 0, 2, 4, 8
+
+   1 byte - WindowLog (can be skipped if fcs>0)
+   bit 0-2 : octal Fractional (1/8th)
+   bit 3-7 : Power of 2, with 0 = 1 KB (up to 2 TB)
+
 
    Optional : dictID (0, 1, 2 or 4 bytes)
    Automatic adaptation

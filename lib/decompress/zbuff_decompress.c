@@ -138,6 +138,15 @@ size_t ZBUFF_decompressInit(ZBUFF_DCtx* zbd)
 }
 
 
+/* internal util function */
+MEM_STATIC size_t ZBUFF_limitCopy(void* dst, size_t dstCapacity, const void* src, size_t srcSize)
+{
+    size_t const length = MIN(dstCapacity, srcSize);
+    memcpy(dst, src, length);
+    return length;
+}
+
+
 /* *** Decompression *** */
 
 size_t ZBUFF_decompressContinue(ZBUFF_DCtx* zbd,

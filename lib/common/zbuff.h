@@ -163,18 +163,9 @@ ZSTDLIB_API size_t ZBUFF_recommendedDOutSize(void);
 #ifdef ZBUFF_STATIC_LINKING_ONLY
 
 /* *************************************
-*  Includes
+*  Dependency
 ***************************************/
 #include "zstd_static.h"     /* ZSTD_parameters */
-
-/* internal util function */
-#define ZBUFF_MIN(a,b) ((a)<(b) ? (a) : (b))
-MEM_STATIC size_t ZBUFF_limitCopy(void* dst, size_t dstCapacity, const void* src, size_t srcSize)
-{
-    size_t length = ZBUFF_MIN(dstCapacity, srcSize);
-    memcpy(dst, src, length);
-    return length;
-}
 
 
 /*-*************************************

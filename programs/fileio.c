@@ -58,7 +58,8 @@
 #include "fileio.h"
 #include "zstd_static.h"   /* ZSTD_magicNumber, ZSTD_frameHeaderSize_max */
 #include "zstd_internal.h" /* MIN, KB, MB */
-#include "zbuff_static.h"
+#define ZBUFF_STATIC_LINKING_ONLY
+#include "zbuff.h"
 
 #if defined(ZSTD_LEGACY_SUPPORT) && (ZSTD_LEGACY_SUPPORT==1)
 #  include "zstd_legacy.h"    /* ZSTD_isLegacy */

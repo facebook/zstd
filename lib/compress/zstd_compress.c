@@ -269,7 +269,7 @@ static size_t ZSTD_resetCCtx_advanced (ZSTD_CCtx* zc,
     const U32 hashLog3 = (params.cParams.searchLength>3) ? 0 :
                         ( (!frameContentSize || frameContentSize >= 8192) ? ZSTD_HASHLOG3_MAX :
                           ((frameContentSize >= 2048) ? ZSTD_HASHLOG3_MIN + 1 : ZSTD_HASHLOG3_MIN) );
-    const size_t h3Size = 1 << hashLog3;
+    const size_t h3Size = ((size_t)1) << hashLog3;
     const size_t tableSpace = (chainSize + hSize + h3Size) * sizeof(U32);
 
     /* Check if workSpace is large enough, alloc a new one if needed */

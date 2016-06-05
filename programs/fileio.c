@@ -615,7 +615,7 @@ unsigned long long FIO_decompressFrame(dRess_t ress,
     ZBUFF_decompressInitDictionary(ress.dctx, ress.dictBuffer, ress.dictBufferSize);
 
     /* Header loading (optional, saves one loop) */
-    {   size_t const toLoad = ZSTD_frameHeaderSize_min - alreadyLoaded;   /* assumption : ZSTD_frameHeaderSize_min >= alreadyLoaded */
+    {   size_t const toLoad = 9 - alreadyLoaded;   /* assumption : 9 >= alreadyLoaded */
         size_t const loadedSize = fread(((char*)ress.srcBuffer) + alreadyLoaded, 1, toLoad, finput);
         readSize = alreadyLoaded + loadedSize;
     }

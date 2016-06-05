@@ -189,8 +189,7 @@ ZSTDLIB_API size_t ZBUFF_compressInit_advanced(ZBUFF_CCtx* zbc,
                                                const void* dict, size_t dictSize,
                                                ZSTD_parameters params, U64 pledgedSrcSize);
 
-
-#endif
+#endif /* ZBUFF_STATIC_LINKING_ONLY */
 
 
 #if defined (__cplusplus)

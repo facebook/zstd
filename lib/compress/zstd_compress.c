@@ -128,6 +128,7 @@ struct ZSTD_CCtx_s
     void* workSpace;
     size_t workSpaceSize;
     size_t blockSize;
+    U64 frameContentSize;
     XXH64_state_t xxhState;
     ZSTD_customMem customMem;
 
@@ -257,7 +258,7 @@ size_t ZSTD_sizeofCCtx(ZSTD_compressionParameters cParams)   /* hidden interface
 /*! ZSTD_resetCCtx_advanced() :
     note : 'params' is expected to be validated */
 static size_t ZSTD_resetCCtx_advanced (ZSTD_CCtx* zc,
-                                       ZSTD_parameters params, U32 reset)
+                                       ZSTD_parameters params, U64 frameContentSize, U32 reset)
 {   /* note : params considered validated here */
     const size_t blockSize = MIN(ZSTD_BLOCKSIZE_MAX, (size_t)1 << params.cParams.windowLog);
     const U32    divider = (params.cParams.searchLength==3) ? 3 : 4;
@@ -265,7 +266,10 @@ static size_t ZSTD_resetCCtx_advanced (ZSTD_CCtx* zc,
     const size_t tokenSpace = blockSize + 11*maxNbSeq;
     const size_t chainSize = (params.cParams.strategy == ZSTD_fast) ? 0 : (1 << params.cParams.chainLog);
     const size_t hSize = ((size_t)1) << params.cParams.hashLog;
-    const size_t h3Size = (zc->hashLog3) ? 1 << zc->hashLog3 : 0;
+    const U32 hashLog3 = (params.cParams.searchLength>3) ? 0 :
+                        ( (!frameContentSize || frameContentSize >= 8192) ? ZSTD_HASHLOG3_MAX :
+                          ((frameContentSize >= 2048) ? ZSTD_HASHLOG3_MIN + 1 : ZSTD_HASHLOG3_MIN) );
+    const size_t h3Size = 1 << hashLog3;
     const size_t tableSpace = (chainSize + hSize + h3Size) * sizeof(U32);
 
     /* Check if workSpace is large enough, alloc a new one if needed */
@@ -282,6 +286,7 @@ static size_t ZSTD_resetCCtx_advanced (ZSTD_CCtx* zc,
 
     if (reset) memset(zc->workSpace, 0, tableSpace );   /* reset only tables */
     XXH64_reset(&zc->xxhState, 0);
+    zc->hashLog3 = hashLog3;
     zc->hashTable3 = (U32*)(zc->workSpace);
     zc->hashTable = zc->hashTable3 + h3Size;
     zc->chainTable = zc->hashTable + hSize;
@@ -298,6 +303,7 @@ static size_t ZSTD_resetCCtx_advanced (ZSTD_CCtx* zc,
     zc->lowLimit = 0;
     zc->params = params;
     zc->blockSize = blockSize;
+    zc->frameContentSize = frameContentSize;
 
     if (params.cParams.strategy == ZSTD_btopt) {
         zc->seqStore.litFreq = (U32*)(zc->seqStore.buffer);
@@ -333,9 +339,8 @@ size_t ZSTD_copyCCtx(ZSTD_CCtx* dstCCtx, const ZSTD_CCtx* srcCCtx)
 {
     if (srcCCtx->stage!=1) return ERROR(stage_wrong);
 
-    dstCCtx->hashLog3    = srcCCtx->hashLog3; /* must be before ZSTD_resetCCtx_advanced */
     memcpy(&dstCCtx->customMem, &srcCCtx->customMem, sizeof(ZSTD_customMem));
-    ZSTD_resetCCtx_advanced(dstCCtx, srcCCtx->params, 0);
+    ZSTD_resetCCtx_advanced(dstCCtx, srcCCtx->params, srcCCtx->frameContentSize, 0);
     dstCCtx->params.fParams.contentSizeFlag = 0;   /* content size different from the one set during srcCCtx init */
 
     /* copy tables */
@@ -403,8 +408,9 @@ static void ZSTD_reduceIndex (ZSTD_CCtx* zc, const U32 reducerValue)
 /* Frame format description
    Frame Header -  [ Block Header - Block ] - Frame End
    1) Frame Header
-      - 4 bytes - Magic Number : ZSTD_MAGICNUMBER (defined within zstd_static.h)
-      - 1 byte  - Frame Descriptor
+      - 4 bytes : Magic Number : ZSTD_MAGICNUMBER (defined within zstd_static.h)
+      - 1 byte  : Frame Header Descriptor
+      - 1-13 bytes : Optional fields
    2) Block Header
       - 3 bytes, starting with a 2-bits descriptor
                  Uncompressed, Compressed, Frame End, unused
@@ -417,13 +423,38 @@ static void ZSTD_reduceIndex (ZSTD_CCtx* zc, const U32 reducerValue)
 
 /* Frame descriptor
 
-   1 byte, using :
+    // old
+   1 byte - Alloc :
    bit 0-3 : windowLog - ZSTD_WINDOWLOG_ABSOLUTEMIN   (see zstd_internal.h)
-   bit 4   : minmatch 4(0) or 3(1)
+   bit 4   : reserved for windowLog (must be zero)
    bit 5   : reserved (must be zero)
    bit 6-7 : Frame content size : unknown, 1 byte, 2 bytes, 8 bytes
 
-   Optional : content size (0, 1, 2 or 8 bytes)
+   1 byte - checker :
+   bit 0-1 : dictID (0, 1, 2 or 4 bytes)
+   bit 2-7 : reserved (must be zero)
+
+
+    // new
+   1 byte - FrameHeaderDescription :
+   bit 0-1 : dictID (0, 1, 2 or 4 bytes)
+   bit 2-4 : reserved (must be zero)
+   bit 5   : SkippedWindowLog (if 1, WindowLog byte is not present)
+   bit 6-7 : FrameContentFieldsize (0, 2, 4, or 8)
+             if (SkippedWindowLog && !FrameContentFieldsize) FrameContentFieldsize=1;
+
+   Optional : WindowLog (0 or 1 byte)
+   bit 0-2 : octal Fractional (1/8th)
+   bit 3-7 : Power of 2, with 0 = 1 KB (up to 2 TB)
+
+   Optional : dictID (0, 1, 2 or 4 bytes)
+   Automatic adaptation
+   0 : no dictID
+   1 : 1 - 255
+   2 : 256 - 65535
+   4 : all other values
+
+   Optional : content size (0, 1, 2, 4 or 8 bytes)
    0 : unknown
    1 : 0-255 bytes
    2 : 256 - 65535+256
@@ -2116,21 +2147,22 @@ static size_t ZSTD_compress_generic (ZSTD_CCtx* cctx,
 static size_t ZSTD_writeFrameHeader(void* dst, size_t dstCapacity,
                                     ZSTD_parameters params, U64 pledgedSrcSize, U32 dictID)
 {   BYTE* const op = (BYTE*)dst;
-    U32 const fcsId = params.fParams.contentSizeFlag ?
-                     (pledgedSrcSize>0) + (pledgedSrcSize>=256) + (pledgedSrcSize>=65536+256) :   /* 0-3 */
-                      0;
-    BYTE const fAllocByte = (BYTE)((params.cParams.windowLog - ZSTD_WINDOWLOG_ABSOLUTEMIN)   /* windowLog : 4 KB - 128 MB */
-                                  | (fcsId << 6) );
     U32 const dictIDSizeCode = (dictID>0) + (dictID>=256) + (dictID>=65536);   /* 0-3 */
-    BYTE const fCheckByte = (BYTE)((dictIDSizeCode&3) + (params.fParams.checksumFlag<<4));
+    U32 const checksumFlag = params.fParams.checksumFlag;
+    U32 const windowSize = 1U << params.cParams.windowLog;
+    U32 const directModeFlag = params.fParams.contentSizeFlag && (windowSize > (pledgedSrcSize-1));
+    BYTE const windowLogByte = (BYTE)((params.cParams.windowLog - ZSTD_WINDOWLOG_ABSOLUTEMIN) << 3);
+    U32 const fcsCode = params.fParams.contentSizeFlag ?
+                     (pledgedSrcSize>=256) + (pledgedSrcSize>=65536+256) + (pledgedSrcSize>=0xFFFFFFFFU) :   /* 0-3 */
+                      0;
+    BYTE const frameHeaderDecriptionByte = (BYTE)(dictIDSizeCode + (checksumFlag<<2) + (directModeFlag<<5) + (fcsCode<<6) );
     size_t pos;
 
     if (dstCapacity < ZSTD_frameHeaderSize_max) return ERROR(dstSize_tooSmall);
 
     MEM_writeLE32(dst, ZSTD_MAGICNUMBER);
-    op[4] = fAllocByte;
-    op[5] = fCheckByte;
-    pos = 6;
+    op[4] = frameHeaderDecriptionByte; pos=5;
+    if (!directModeFlag) op[pos++] = windowLogByte;
     switch(dictIDSizeCode)
     {
         default:   /* impossible */
@@ -2139,12 +2171,12 @@ static size_t ZSTD_writeFrameHeader(void* dst, size_t dstCapacity,
         case 2 : MEM_writeLE16(op+pos, (U16)(dictID)); pos+=2; break;
         case 3 : MEM_writeLE32(op+pos, dictID); pos+=4; break;
     }
-    switch(fcsId)
+    switch(fcsCode)
     {
         default:   /* impossible */
-        case 0 : break;
-        case 1 : op[pos] = (BYTE)(pledgedSrcSize); pos++; break;
-        case 2 : MEM_writeLE16(op+pos, (U16)(pledgedSrcSize-256)); pos+=2; break;
+        case 0 : if (directModeFlag) op[pos++] = (BYTE)(pledgedSrcSize); break;
+        case 1 : MEM_writeLE16(op+pos, (U16)(pledgedSrcSize-256)); pos+=2; break;
+        case 2 : MEM_writeLE32(op+pos, (U32)(pledgedSrcSize)); pos+=4; break;
         case 3 : MEM_writeLE64(op+pos, (U64)(pledgedSrcSize)); pos+=8; break;
     }
     return pos;
@@ -2161,7 +2193,7 @@ static size_t ZSTD_compressContinue_internal (ZSTD_CCtx* zc,
 
     if (zc->stage==0) return ERROR(stage_wrong);
     if (frame && (zc->stage==1)) {   /* copy saved header */
-        fhSize = ZSTD_writeFrameHeader(dst, dstCapacity, zc->params, srcSize, zc->dictID);
+        fhSize = ZSTD_writeFrameHeader(dst, dstCapacity, zc->params, zc->frameContentSize, zc->dictID);
         if (ZSTD_isError(fhSize)) return fhSize;
         dstCapacity -= fhSize;
         dst = (char*)dst + fhSize;
@@ -2344,11 +2376,8 @@ static size_t ZSTD_compressBegin_internal(ZSTD_CCtx* zc,
                              const void* dict, size_t dictSize,
                                    ZSTD_parameters params, U64 pledgedSrcSize)
 {
-    { U32 const hashLog3 = (!pledgedSrcSize || pledgedSrcSize >= 8192) ? ZSTD_HASHLOG3_MAX : ((pledgedSrcSize >= 2048) ? ZSTD_HASHLOG3_MIN + 1 : ZSTD_HASHLOG3_MIN);
-      zc->hashLog3 = (params.cParams.searchLength==3) ? hashLog3 : 0; }
-
-    { size_t const resetError = ZSTD_resetCCtx_advanced(zc, params, 1);
-      if (ZSTD_isError(resetError)) return resetError; }
+    size_t const resetError = ZSTD_resetCCtx_advanced(zc, params, pledgedSrcSize, 1);
+    if (ZSTD_isError(resetError)) return resetError;
 
     return ZSTD_compress_insertDictionary(zc, dict, dictSize);
 }

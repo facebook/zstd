@@ -180,6 +180,11 @@ ZSTDLIB_API size_t ZSTD_decompress_usingDict(ZSTD_DCtx* dctx,
 #define ZSTD_TARGETLENGTH_MIN   4
 #define ZSTD_TARGETLENGTH_MAX 999
 
+#define ZSTD_FRAMEHEADERSIZE_MAX 18    /* for static allocation */
+static const size_t ZSTD_frameHeaderSize_min = 5;
+static const size_t ZSTD_frameHeaderSize_max = ZSTD_FRAMEHEADERSIZE_MAX;
+static const size_t ZSTD_skippableHeaderSize = 8;  /* magic number + skippable frame length */
+
 
 /*--- Types ---*/
 typedef enum { ZSTD_fast, ZSTD_greedy, ZSTD_lazy, ZSTD_lazy2, ZSTD_btlazy2, ZSTD_btopt } ZSTD_strategy;   /* from faster to stronger */
@@ -305,15 +310,11 @@ ZSTDLIB_API size_t ZSTD_compressEnd(ZSTD_CCtx* cctx, void* dst, size_t dstCapaci
 
 typedef struct {
     U64 frameContentSize;
-    U32 windowLog;
+    U32 windowSize;
     U32 dictID;
     U32 checksumFlag;
 } ZSTD_frameParams;
 
-#define ZSTD_FRAMEHEADERSIZE_MAX 18    /* for static allocation */
-static const size_t ZSTD_frameHeaderSize_min = 6;
-static const size_t ZSTD_frameHeaderSize_max = ZSTD_FRAMEHEADERSIZE_MAX;
-static const size_t ZSTD_skippableHeaderSize = 8; /* magic number + skippable frame length */
 ZSTDLIB_API size_t ZSTD_getFrameParams(ZSTD_frameParams* fparamsPtr, const void* src, size_t srcSize);   /**< doesn't consume input */
 
 ZSTDLIB_API size_t ZSTD_decompressBegin(ZSTD_DCtx* dctx);

@@ -64,7 +64,7 @@
 #include "huf.h"
 #include "zstd_internal.h"
 
-#if defined(ZSTD_LEGACY_SUPPORT) && (ZSTD_LEGACY_SUPPORT==1)
+#if defined(ZSTD_LEGACY_SUPPORT) && (ZSTD_LEGACY_SUPPORT>=1)
 #  include "zstd_legacy.h"
 #endif
 
@@ -218,21 +218,17 @@ void ZSTD_copyDCtx(ZSTD_DCtx* dstDCtx, const ZSTD_DCtx* srcDCtx)
    bit 0-1 : dictID (0, 1, 2 or 4 bytes)
    bit 2-7 : reserved (must be zero)
 
-
     // new
-   1 byte - Alloc :
+   1 byte - FrameHeaderDescription :
    bit 0-1 : dictID (0, 1, 2 or 4 bytes)
    bit 2-4 : reserved (must be zero)
-   bit 5   : WindowLog skipped (note : if 1, then fcs > 0)
-   bit 6-7 : Frame content size : unknown, 1 byte, 2 bytes, 8 bytes
+   bit 5   : SkippedWindowLog (if 1, WindowLog byte is not present)
+   bit 6-7 : FrameContentFieldSize (0, 2, 4, or 8)
+             if (SkippedWindowLog && !FrameContentFieldsize) FrameContentFieldsize=1;
 
-   OR : 0-3 : no windowLog, 1, 2, 4, 8
-        4-7 : windowLog, 0, 2, 4, 8
-
-   1 byte - WindowLog (can be skipped if fcs>0)
+   Optional : WindowLog (0 or 1 byte)
    bit 0-2 : octal Fractional (1/8th)
    bit 3-7 : Power of 2, with 0 = 1 KB (up to 2 TB)
-
 
    Optional : dictID (0, 1, 2 or 4 bytes)
    Automatic adaptation
@@ -241,11 +237,12 @@ void ZSTD_copyDCtx(ZSTD_DCtx* dstDCtx, const ZSTD_DCtx* srcDCtx)
    2 : 256 - 65535
    4 : all other values
 
-   Optional : content size (0, 1, 2 or 8 bytes)
-   0 : unknown
-   1 : 0-255 bytes
-   2 : 256 - 65535+256
-   8 : up to 16 exa
+   Optional : content size (0, 1, 2, 4 or 8 bytes)
+   0 : unknown          (fcfs==0 and swl==0)
+   1 : 0-255 bytes      (fcfs==0 and swl==1)
+   2 : 256 - 65535+256  (fcfs==1)
+   4 : 0 - 4GB-1        (fcfs==2)
+   8 : 0 - 16EB-1       (fcfs==3)
 */
 
 
@@ -321,15 +318,18 @@ void ZSTD_copyDCtx(ZSTD_DCtx* dstDCtx, const ZSTD_DCtx* srcDCtx)
 static size_t ZSTD_frameHeaderSize(const void* src, size_t srcSize)
 {
     if (srcSize < ZSTD_frameHeaderSize_min) return ERROR(srcSize_wrong);
-    {   U32 const fcsId = (((const BYTE*)src)[4]) >> 6;
-        U32 const dictID =(((const BYTE*)src)[5]) & 3;
-        return ZSTD_frameHeaderSize_min + ZSTD_fcs_fieldSize[fcsId] + ZSTD_did_fieldSize[dictID];
+    {   BYTE const fhd = ((const BYTE*)src)[4];
+        U32 const dictID= fhd & 3;
+        U32 const directMode = (fhd >> 5) & 1;
+        U32 const fcsId = fhd >> 6;
+        return ZSTD_frameHeaderSize_min + !directMode + ZSTD_did_fieldSize[dictID] + ZSTD_fcs_fieldSize[fcsId]
+                + (directMode && !ZSTD_fcs_fieldSize[fcsId]);
     }
 }
 
 
 /** ZSTD_getFrameParams() :
-*   decode Frame Header, or provide expected `srcSize`.
+*   decode Frame Header, or require larger `srcSize`.
 *   @return : 0, `fparamsPtr` is correctly filled,
 *            >0, `srcSize` is too small, result is expected `srcSize`,
 *             or an error code, which can be tested using ZSTD_isError() */
@@ -343,7 +343,7 @@ size_t ZSTD_getFrameParams(ZSTD_frameParams* fparamsPtr, const void* src, size_t
             if (srcSize < ZSTD_skippableHeaderSize) return ZSTD_skippableHeaderSize; /* magic number + skippable frame length */
             memset(fparamsPtr, 0, sizeof(*fparamsPtr));
             fparamsPtr->frameContentSize = MEM_readLE32((const char *)src + 4);
-            fparamsPtr->windowLog = 0; /* windowLog==0 means a frame is skippable */
+            fparamsPtr->windowSize = 0; /* windowSize==0 means a frame is skippable */
             return 0;
         }
         return ERROR(prefix_unknown);
@@ -353,31 +353,48 @@ size_t ZSTD_getFrameParams(ZSTD_frameParams* fparamsPtr, const void* src, size_t
     { size_t const fhsize = ZSTD_frameHeaderSize(src, srcSize);
       if (srcSize < fhsize) return fhsize; }
 
-    memset(fparamsPtr, 0, sizeof(*fparamsPtr));
-    {   BYTE const allocByte = ip[4];
-        BYTE const checkByte = ip[5];
-        size_t pos = ZSTD_frameHeaderSize_min;
-        U32 const dictIDSizeCode = checkByte&3;
-        if ((allocByte & 0x30) != 0) return ERROR(frameParameter_unsupported);   /* reserved bits */
-        if ((checkByte & 0xEC) != 0) return ERROR(frameParameter_unsupported);   /* reserved bits */
-        fparamsPtr->windowLog = (allocByte & 0xF) + ZSTD_WINDOWLOG_ABSOLUTEMIN;
-        fparamsPtr->checksumFlag = checkByte & 0x10;
-        switch(dictIDSizeCode)  /* fcsId */
-        {
-            default:   /* impossible */
-            case 0 : fparamsPtr->dictID = 0; break;
-            case 1 : fparamsPtr->dictID = ip[pos]; pos++; break;
-            case 2 : fparamsPtr->dictID = MEM_readLE16(ip+pos); pos+=2; break;
-            case 3 : fparamsPtr->dictID = MEM_readLE32(ip+pos); pos+=4; break;
+    {   BYTE const fhdByte = ip[4];
+        size_t pos = 5;
+        U32 const dictIDSizeCode = fhdByte&3;
+        U32 const checksumFlag = (fhdByte>>2)&1;
+        U32 const directMode = (fhdByte>>5)&1;
+        U32 const fcsID = fhdByte>>6;
+        U32 const windowSizeMax = 1U << ZSTD_WINDOWLOG_MAX;
+        U32 windowSize = 0;
+        U32 dictID = 0;
+        U64 frameContentSize = 0;
+        if ((fhdByte & 0x18) != 0) return ERROR(frameParameter_unsupported);   /* reserved bits */
+        if (!directMode) {
+            BYTE const wlByte = ip[pos++];
+            U32 const windowLog = (wlByte >> 3) + ZSTD_WINDOWLOG_ABSOLUTEMIN;
+            if (windowLog > ZSTD_WINDOWLOG_MAX) return ERROR(frameParameter_unsupported);
+            windowSize = (1U << windowLog);
+            windowSize += (windowSize >> 3) * (wlByte&7);
         }
-        switch(allocByte >> 6)  /* fcsId */
+
+        switch(dictIDSizeCode)
         {
             default:   /* impossible */
-            case 0 : fparamsPtr->frameContentSize = 0; break;
-            case 1 : fparamsPtr->frameContentSize = ip[pos]; break;
-            case 2 : fparamsPtr->frameContentSize = MEM_readLE16(ip+pos)+256; break;
-            case 3 : fparamsPtr->frameContentSize = MEM_readLE64(ip+pos); break;
-    }   }
+            case 0 : break;
+            case 1 : dictID = ip[pos]; pos++; break;
+            case 2 : dictID = MEM_readLE16(ip+pos); pos+=2; break;
+            case 3 : dictID = MEM_readLE32(ip+pos); pos+=4; break;
+        }
+        switch(fcsID)
+        {
+            default:   /* impossible */
+            case 0 : if (directMode) frameContentSize = ip[pos]; break;
+            case 1 : frameContentSize = MEM_readLE16(ip+pos)+256; break;
+            case 2 : frameContentSize = MEM_readLE32(ip+pos); break;
+            case 3 : frameContentSize = MEM_readLE64(ip+pos); break;
+        }
+        if (!windowSize) windowSize = (U32)frameContentSize;
+        if (windowSize > windowSizeMax) return ERROR(frameParameter_unsupported);
+        fparamsPtr->frameContentSize = frameContentSize;
+        fparamsPtr->windowSize = windowSize;
+        fparamsPtr->dictID = dictID;
+        fparamsPtr->checksumFlag = checksumFlag;
+    }
     return 0;
 }
 
@@ -388,7 +405,6 @@ size_t ZSTD_getFrameParams(ZSTD_frameParams* fparamsPtr, const void* src, size_t
 static size_t ZSTD_decodeFrameHeader(ZSTD_DCtx* dctx, const void* src, size_t srcSize)
 {
     size_t const result = ZSTD_getFrameParams(&(dctx->fParams), src, srcSize);
-    if ((MEM_32bits()) && (dctx->fParams.windowLog > 25)) return ERROR(frameParameter_unsupportedBy32bits);
     if (dctx->fParams.dictID && (dctx->dictID != dctx->fParams.dictID)) return ERROR(dictionary_wrong);
     if (dctx->fParams.checksumFlag) XXH64_reset(&dctx->xxhState, 0);
     return result;
@@ -1059,7 +1075,6 @@ size_t ZSTD_decompressContinue(ZSTD_DCtx* dctx, void* dst, size_t dstCapacity, c
     if (srcSize != dctx->expected) return ERROR(srcSize_wrong);
     if (dstCapacity) ZSTD_checkContinuity(dctx, dst);
 
-    /* Decompress : frame header; part 1 */
     switch (dctx->stage)
     {
     case ZSTDds_getFrameHeaderSize :

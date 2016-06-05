@@ -23,7 +23,7 @@ roundTripTest() {
 isWindows=false
 ECHO="echo"
 case "$OS" in
-  Windows*) 
+  Windows*)
     isWindows=true
     ECHO="echo -e"
     ;;
@@ -42,8 +42,8 @@ file $ZSTD
 $ECHO "\n**** simple tests **** "
 
 ./datagen > tmp
-$ZSTD -f tmp                             # trivial compression case, creates tmp.zst
-$ZSTD -df tmp.zst                        # trivial decompression case (overwrites tmp)
+$ZSTD -f tmp                      # trivial compression case, creates tmp.zst
+$ZSTD -df tmp.zst                 # trivial decompression case (overwrites tmp)
 $ECHO "test : too large compression level (must fail)"
 $ZSTD -99 tmp && die "too large compression level undetected"
 $ECHO "test : compress to stdout"
@@ -57,7 +57,7 @@ $ZSTD -d tmpCompressed -c > tmpResult    # decompression using stdout
 $ZSTD --decompress tmpCompressed -c > tmpResult
 $ZSTD --decompress tmpCompressed --stdout > tmpResult
 if [ "$isWindows" = false ] ; then
-    $ZSTD -d    < tmp.zst > /dev/null        # combine decompression, stdin & stdout
+    $ZSTD -d    < tmp.zst > /dev/null    # combine decompression, stdin & stdout
     $ZSTD -d  - < tmp.zst > /dev/null
 fi
 $ZSTD -dc   < tmp.zst > /dev/null

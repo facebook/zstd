@@ -191,10 +191,10 @@ size_t ZBUFF_decompressContinue(ZBUFF_DCtx* zbd,
                     if (ZSTD_isError(h2Result)) return h2Result;
             }   }
 
-            if (zbd->fParams.windowLog < ZSTD_WINDOWLOG_ABSOLUTEMIN) zbd->fParams.windowLog = ZSTD_WINDOWLOG_ABSOLUTEMIN;  /* required for buffer allocation */
+            zbd->fParams.windowSize = MAX(zbd->fParams.windowSize, 1U << ZSTD_WINDOWLOG_ABSOLUTEMIN);
 
             /* Frame header instruct buffer sizes */
-            {   size_t const blockSize = MIN(1 << zbd->fParams.windowLog, ZSTD_BLOCKSIZE_MAX);
+            {   size_t const blockSize = MIN(zbd->fParams.windowSize, ZSTD_BLOCKSIZE_MAX);
                 zbd->blockSize = blockSize;
                 if (zbd->inBuffSize < blockSize) {
                     zbd->customMem.customFree(zbd->customMem.opaque, zbd->inBuff);
@@ -202,7 +202,7 @@ size_t ZBUFF_decompressContinue(ZBUFF_DCtx* zbd,
                     zbd->inBuff = (char*)zbd->customMem.customAlloc(zbd->customMem.opaque, blockSize);
                     if (zbd->inBuff == NULL) return ERROR(memory_allocation);
                 }
-                {   size_t const neededOutSize = ((size_t)1 << zbd->fParams.windowLog) + blockSize;
+                {   size_t const neededOutSize = zbd->fParams.windowSize + blockSize;
                     if (zbd->outBuffSize < neededOutSize) {
                         zbd->customMem.customFree(zbd->customMem.opaque, zbd->outBuff);
                         zbd->outBuffSize = neededOutSize;

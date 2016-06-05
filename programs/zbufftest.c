@@ -171,6 +171,7 @@ static int basicUnitTests(U32 seed, double compressibility, ZSTD_customMem custo
     MEM_writeLE32(compressedBuffer, ZSTD_MAGIC_SKIPPABLE_START);
     MEM_writeLE32(((char*)compressedBuffer)+4, (U32)skippableFrameSize);
     cSize = skippableFrameSize + 8;
+
     /* Basic compression test */
     DISPLAYLEVEL(4, "test%3i : compress %u bytes : ", testNb++, COMPRESSIBLE_NOISE_LENGTH);
     ZBUFF_compressInitDictionary(zc, CNBuffer, 128 KB, 1);
@@ -186,14 +187,18 @@ static int basicUnitTests(U32 seed, double compressibility, ZSTD_customMem custo
     cSize += genSize;
     DISPLAYLEVEL(4, "OK (%u bytes : %.2f%%)\n", (U32)cSize, (double)cSize/COMPRESSIBLE_NOISE_LENGTH*100);
 
-    /* Basic decompression test */
-    DISPLAYLEVEL(4, "test%3i : decompress %u bytes : ", testNb++, COMPRESSIBLE_NOISE_LENGTH);
+    /* skippable frame test */
+    DISPLAYLEVEL(4, "test%3i : decompress skippable frame : ", testNb++);
     ZBUFF_decompressInitDictionary(zd, CNBuffer, 128 KB);
     readSkipSize = cSize;
     genSize = CNBufferSize;
     { size_t const r = ZBUFF_decompressContinue(zd, decodedBuffer, &genSize, compressedBuffer, &readSkipSize);
       if (r != 0) goto _output_error; }
     if (genSize != 0) goto _output_error;   /* skippable frame len is 0 */
+    DISPLAYLEVEL(4, "OK \n");
+
+    /* Basic decompression test */
+    DISPLAYLEVEL(4, "test%3i : decompress %u bytes : ", testNb++, COMPRESSIBLE_NOISE_LENGTH);
     ZBUFF_decompressInitDictionary(zd, CNBuffer, 128 KB);
     readSize = cSize - readSkipSize;
     genSize = CNBufferSize;
@@ -204,13 +209,12 @@ static int basicUnitTests(U32 seed, double compressibility, ZSTD_customMem custo
     DISPLAYLEVEL(4, "OK \n");
 
     /* check regenerated data is byte exact */
+    DISPLAYLEVEL(4, "test%3i : check decompressed result : ", testNb++);
     {   size_t i;
-        DISPLAYLEVEL(4, "test%3i : check decompressed result : ", testNb++);
         for (i=0; i<CNBufferSize; i++) {
             if (((BYTE*)decodedBuffer)[i] != ((BYTE*)CNBuffer)[i]) goto _output_error;;
-        }
-        DISPLAYLEVEL(4, "OK \n");
-    }
+    }   }
+    DISPLAYLEVEL(4, "OK \n");
 
     /* Byte-by-byte decompression test */
     DISPLAYLEVEL(4, "test%3i : decompress byte-by-byte : ", testNb++);
@@ -234,13 +238,12 @@ static int basicUnitTests(U32 seed, double compressibility, ZSTD_customMem custo
     DISPLAYLEVEL(4, "OK \n");
 
     /* check regenerated data is byte exact */
+    DISPLAYLEVEL(4, "test%3i : check decompressed result : ", testNb++);
     {   size_t i;
-        DISPLAYLEVEL(4, "test%3i : check decompressed result : ", testNb++);
         for (i=0; i<CNBufferSize; i++) {
             if (((BYTE*)decodedBuffer)[i] != ((BYTE*)CNBuffer)[i]) goto _output_error;;
-        }
-        DISPLAYLEVEL(4, "OK \n");
-    }
+    }   }
+    DISPLAYLEVEL(4, "OK \n");
 
 _end:
     ZBUFF_freeCCtx(zc);

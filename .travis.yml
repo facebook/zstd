@@ -24,9 +24,6 @@ matrix:
       env: PLATFORM="Ubuntu 12.04 container" MAKE_PARAM=asan
     - os: linux
       sudo: false
-      env: PLATFORM="Ubuntu 12.04 container" MAKE_PARAM=msan
-    - os: linux
-      sudo: false
       env: PLATFORM="Ubuntu 12.04 container" MAKE_PARAM=zlibwrapper
     # Standard Ubuntu 12.04 LTS Server Edition 64 bit
     - os: linux

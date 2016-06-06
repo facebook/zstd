@@ -27,9 +27,9 @@
 *  Includes
 **************************************/
 #include <stdlib.h>    /* malloc */
-#include <stdio.h>     /* FILE, fwrite */
+#include <stdio.h>     /* FILE, fwrite, fprintf */
 #include <string.h>    /* memcpy */
-#include "mem.h"
+#include "mem.h"       /* U32 */
 
 
 /*-************************************
@@ -92,7 +92,7 @@ static void RDG_fillLiteralDistrib(BYTE* ldt, double ld)
     for (u=0; u<LTSIZE; ) {
         U32 const weight = (U32)((double)(LTSIZE - u) * ld) + 1;
         U32 const end = MIN ( u + weight , LTSIZE);
-        while (u < end) ldt[u++] = character; // TRACE(" %u(%c)[%02X] ", u, character, character);
+        while (u < end) ldt[u++] = character;   // TRACE(" %u(%c)[%02X] ", u, character, character);
         character++;
         if (character > lastChar) character = firstChar;
     }
@@ -108,43 +108,52 @@ static BYTE RDG_genChar(U32* seed, const BYTE* ldt)
 }
 
 
-#define RDG_RAND15BITS  ( RDG_rand(seed) & 0x7FFF )
-#define RDG_RANDLENGTH  ( (RDG_rand(seed) & 7) ? (RDG_rand(seed) & 0xF) : (RDG_rand(seed) & 0x1FF) + 0xF)
+static U32 RDG_rand15Bits (unsigned* seedPtr)
+{
+    return RDG_rand(seedPtr) & 0x7FFF;
+}
+
+static U32 RDG_randLength(unsigned* seedPtr)
+{
+    if (RDG_rand(seedPtr) & 7)
+        return (RDG_rand(seedPtr) & 0xF);
+    return (RDG_rand(seedPtr) & 0x1FF) + 0xF;
+}
+
 void RDG_genBlock(void* buffer, size_t buffSize, size_t prefixSize, double matchProba, const BYTE* ldt, unsigned* seedPtr)
 {
-    BYTE* buffPtr = (BYTE*)buffer;
-    const U32 matchProba32 = (U32)(32768 * matchProba);
+    BYTE* const buffPtr = (BYTE*)buffer;
+    U32 const matchProba32 = (U32)(32768 * matchProba);
     size_t pos = prefixSize;
-    U32* seed = seedPtr;
     U32 prevOffset = 1;
 
     /* special case : sparse content */
     while (matchProba >= 1.0) {
-        size_t size0 = RDG_rand(seed) & 3;
+        size_t size0 = RDG_rand(seedPtr) & 3;
         size0  = (size_t)1 << (16 + size0 * 2);
-        size0 += RDG_rand(seed) & (size0-1);   /* because size0 is power of 2*/
+        size0 += RDG_rand(seedPtr) & (size0-1);   /* because size0 is power of 2*/
         if (buffSize < pos + size0) {
             memset(buffPtr+pos, 0, buffSize-pos);
             return;
         }
         memset(buffPtr+pos, 0, size0);
         pos += size0;
-        buffPtr[pos-1] = RDG_genChar(seed, ldt);
+        buffPtr[pos-1] = RDG_genChar(seedPtr, ldt);
         continue;
     }
 
     /* init */
-    if (pos==0) buffPtr[0] = RDG_genChar(seed, ldt), pos=1;
+    if (pos==0) buffPtr[0] = RDG_genChar(seedPtr, ldt), pos=1;
 
     /* Generate compressible data */
     while (pos < buffSize) {
         /* Select : Literal (char) or Match (within 32K) */
-        if (RDG_RAND15BITS < matchProba32) {
+        if (RDG_rand15Bits(seedPtr) < matchProba32) {
             /* Copy (within 32K) */
-            U32 const length = RDG_RANDLENGTH + 4;
+            U32 const length = RDG_randLength(seedPtr) + 4;
             U32 const d = (U32) MIN(pos + length , buffSize);
-            U32 const repeatOffset = (RDG_rand(seed) & 15) == 2;
-            U32 const randOffset = RDG_RAND15BITS + 1;
+            U32 const repeatOffset = (RDG_rand(seedPtr) & 15) == 2;
+            U32 const randOffset = RDG_rand15Bits(seedPtr) + 1;
             U32 const offset = repeatOffset ? prevOffset : (U32) MIN(randOffset , pos);
             size_t match = pos - offset;
             //TRACE("pos : %u; offset: %u ; length : %u \n", (U32)pos, offset, length);
@@ -152,9 +161,9 @@ void RDG_genBlock(void* buffer, size_t buffSize, size_t prefixSize, double match
             prevOffset = offset;
         } else {
             /* Literal (noise) */
-            U32 const length = RDG_RANDLENGTH;
+            U32 const length = RDG_randLength(seedPtr);
             U32 const d = (U32) MIN(pos + length, buffSize);
-            while (pos < d) buffPtr[pos++] = RDG_genChar(seed, ldt);
+            while (pos < d) buffPtr[pos++] = RDG_genChar(seedPtr, ldt);
     }   }
 }
 
@@ -174,7 +183,7 @@ void RDG_genStdout(unsigned long long size, double matchProba, double litProba, 
 {
     size_t const stdBlockSize = 128 KB;
     size_t const stdDictSize = 32 KB;
-    BYTE* buff = (BYTE*)malloc(stdDictSize + stdBlockSize);
+    BYTE* const buff = (BYTE*)malloc(stdDictSize + stdBlockSize);
     U64 total = 0;
     BYTE ldt[LTSIZE];
 

@@ -114,7 +114,7 @@ ppctest-w-install: clean ppcinstall ppctest
 
 ppc64test: clean
 	$(MAKE) -C $(PRGDIR) datagen   # use native, faster
-	$(MAKE) -C $(PRGDIR) test CC=powerpc64le-linux-gnu-gcc ZSTDRTTEST= MOREFLAGS="-Werror -static" 
+	$(MAKE) -C $(PRGDIR) test CC=powerpc64le-linux-gnu-gcc ZSTDRTTEST= MOREFLAGS="-Werror -static"
 
 ppc64install: clean
 	sudo apt-get update  -y -q
@@ -130,7 +130,7 @@ asan: clean
 	$(MAKE) test CC=clang MOREFLAGS="-g -fsanitize=address"
 
 msan: clean
-	$(MAKE) test CC=clang MOREFLAGS="-g -fsanitize=memory"   # datagen.c fails this test, for no obvious reason
+	$(MAKE) test CC=clang MOREFLAGS="-g -fsanitize=memory"   # datagen.c used to fail this test for no obvious reason
 
 asan32: clean
 	$(MAKE) -C $(PRGDIR) test32 CC=clang MOREFLAGS="-g -fsanitize=address"

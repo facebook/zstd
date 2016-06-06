@@ -219,6 +219,7 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
                 do {
                     U32 blockNb;
                     {   ZSTD_parameters params;
+                        memset(&params, 0, sizeof(params));
                         params.cParams = ZSTD_getCParams(cLevel, blockSize, dictBufferSize);
                         params.fParams.contentSizeFlag = 1;
                         {   size_t const initResult = ZSTD_compressBegin_advanced(refCtx, dictBuffer, dictBufferSize, params, blockSize);

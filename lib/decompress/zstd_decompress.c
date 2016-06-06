@@ -53,7 +53,7 @@
 /*-*******************************************************
 *  Dependencies
 *********************************************************/
-#include <string.h>      /* memcpy, memmove */
+#include <string.h>      /* memcpy, memmove, memset */
 #include <stdio.h>       /* debug only : printf */
 #include "mem.h"         /* low level memory routines */
 #define XXH_STATIC_LINKING_ONLY   /* XXH64_state_t */
@@ -938,6 +938,14 @@ size_t ZSTD_decompressBlock(ZSTD_DCtx* dctx,
 }
 
 
+size_t ZSTD_generateNxByte(void* dst, size_t dstCapacity, BYTE byte, size_t length)
+{
+    if (length > dstCapacity) return ERROR(dstSize_tooSmall);
+    memset(dst, byte, length);
+    return length;
+}
+
+
 /*! ZSTD_decompressFrame() :
 *   `dctx` must be properly initialized */
 static size_t ZSTD_decompressFrame(ZSTD_DCtx* dctx,
@@ -982,7 +990,7 @@ static size_t ZSTD_decompressFrame(ZSTD_DCtx* dctx,
             decodedSize = ZSTD_copyRawBlock(op, oend-op, ip, cBlockSize);
             break;
         case bt_rle :
-            return ERROR(GENERIC);   /* not yet supported */
+            decodedSize = ZSTD_generateNxByte(op, oend-op, *ip, blockProperties.origSize);
             break;
         case bt_end :
             /* end of frame */

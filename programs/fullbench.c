@@ -28,12 +28,13 @@
 #include "util.h"        /* Compiler options, UTIL_GetFileSize */
 #include <stdlib.h>      /* malloc */
 #include <stdio.h>       /* fprintf, fopen, ftello64 */
-#include <string.h>      /* strcmp */
 #include <time.h>        /* clock_t, clock, CLOCKS_PER_SEC */
 
 #include "mem.h"
-#include "zstd_static.h" /* ZSTD_VERSION_STRING */
-#include "fse_static.h"
+#define ZSTD_STATIC_LINKING_ONLY  /* ZSTD_compressBegin, ZSTD_compressContinue, etc. */
+#include "zstd.h"        /* ZSTD_VERSION_STRING */
+#define FSE_STATIC_LINKING_ONLY   /* FSE_DTABLE_SIZE_U32 */
+#include "fse.h"
 #include "zbuff.h"
 #include "datagen.h"
 
@@ -544,4 +545,3 @@ int main(int argc, const char** argv)
 
     return result;
 }
-

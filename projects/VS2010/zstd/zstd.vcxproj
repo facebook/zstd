@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
@@ -20,6 +20,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\..\lib\common\entropy_common.c" />
+    <ClCompile Include="..\..\..\lib\common\xxhash.c" />
     <ClCompile Include="..\..\..\lib\common\zstd_common.c" />
     <ClCompile Include="..\..\..\lib\common\fse_decompress.c" />
     <ClCompile Include="..\..\..\lib\compress\fse_compress.c" />
@@ -41,10 +42,10 @@
     <ClCompile Include="..\..\..\programs\dibio.c" />
     <ClCompile Include="..\..\..\programs\fileio.c" />
     <ClCompile Include="..\..\..\programs\legacy\fileio_legacy.c" />
-    <ClCompile Include="..\..\..\programs\xxhash.c" />
     <ClCompile Include="..\..\..\programs\zstdcli.c" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\..\..\lib\common\xxhash.h" />
     <ClInclude Include="..\..\..\lib\dictBuilder\zdict.h" />
     <ClInclude Include="..\..\..\lib\dictBuilder\zdict_static.h" />
     <ClInclude Include="..\..\..\lib\dictBuilder\divsufsort.h" />
@@ -69,7 +70,6 @@
     <ClInclude Include="..\..\..\programs\dibio.h" />
     <ClInclude Include="..\..\..\programs\fileio.h" />
     <ClInclude Include="..\..\..\programs\legacy\fileio_legacy.h" />
-    <ClInclude Include="..\..\..\programs\xxhash.h" />
     <ClInclude Include="..\..\..\programs\util.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
@@ -119,27 +119,27 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>$(IncludePath);$(SolutionDir)..\..\programs\legacy;$(SolutionDir)..\..\lib\legacy;$(SolutionDir)..\..\lib\common;$(UniversalCRT_IncludePath);</IncludePath>
+    <IncludePath>$(IncludePath);$(SolutionDir)..\..\programs\legacy;$(SolutionDir)..\..\lib\legacy;$(SolutionDir)..\..\lib\common;$(SolutionDir)..\..\lib\dictBuilder;$(UniversalCRT_IncludePath);</IncludePath>
     <RunCodeAnalysis>false</RunCodeAnalysis>
     <LibraryPath>$(LibraryPath)</LibraryPath>
     <IntDir>$(Platform)\$(Configuration)\</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>$(IncludePath);$(SolutionDir)..\..\programs\legacy;$(SolutionDir)..\..\lib\legacy;$(SolutionDir)..\..\lib\common;$(UniversalCRT_IncludePath);</IncludePath>
+    <IncludePath>$(IncludePath);$(SolutionDir)..\..\programs\legacy;$(SolutionDir)..\..\lib\legacy;$(SolutionDir)..\..\lib\common;$(SolutionDir)..\..\lib\dictBuilder;$(UniversalCRT_IncludePath);</IncludePath>
     <RunCodeAnalysis>false</RunCodeAnalysis>
     <LibraryPath>$(LibraryPath);</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>$(IncludePath);$(SolutionDir)..\..\programs\legacy;$(SolutionDir)..\..\lib\legacy;$(SolutionDir)..\..\lib\common;$(UniversalCRT_IncludePath);</IncludePath>
+    <IncludePath>$(IncludePath);$(SolutionDir)..\..\programs\legacy;$(SolutionDir)..\..\lib\legacy;$(SolutionDir)..\..\lib\common;$(SolutionDir)..\..\lib\dictBuilder;$(UniversalCRT_IncludePath);</IncludePath>
     <RunCodeAnalysis>false</RunCodeAnalysis>
     <LibraryPath>$(LibraryPath)</LibraryPath>
     <IntDir>$(Platform)\$(Configuration)\</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>$(IncludePath);$(SolutionDir)..\..\programs\legacy;$(SolutionDir)..\..\lib\legacy;$(SolutionDir)..\..\lib\common;$(UniversalCRT_IncludePath);</IncludePath>
+    <IncludePath>$(IncludePath);$(SolutionDir)..\..\programs\legacy;$(SolutionDir)..\..\lib\legacy;$(SolutionDir)..\..\lib\common;$(SolutionDir)..\..\lib\dictBuilder;$(UniversalCRT_IncludePath);</IncludePath>
     <RunCodeAnalysis>false</RunCodeAnalysis>
     <LibraryPath>$(LibraryPath);</LibraryPath>
   </PropertyGroup>

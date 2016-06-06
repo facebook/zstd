@@ -57,7 +57,8 @@
 #include <string.h>     /* memcpy, memset */
 #include <stdio.h>      /* printf (debug) */
 #include "bitstream.h"
-#include "fse_static.h"
+#define FSE_STATIC_LINKING_ONLY
+#include "fse.h"
 
 
 /* **************************************************************

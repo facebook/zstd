@@ -2,19 +2,19 @@
 # ZSTD library - Makefile
 # Copyright (C) Yann Collet 2015-2016
 # All rights reserved.
-# 
+#
 # BSD license
 
 # Redistribution and use in source and binary forms, with or without modification,
 # are permitted provided that the following conditions are met:
-# 
+#
 # * Redistributions of source code must retain the above copyright notice, this
 #   list of conditions and the following disclaimer.
-# 
+#
 # * Redistributions in binary form must reproduce the above copyright notice, this
 #   list of conditions and the following disclaimer in the documentation and/or
 #   other materials provided with the distribution.
-# 
+#
 # THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
 # ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 # WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -25,7 +25,7 @@
 # ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-# 
+#
 # You can contact the author at :
 #  - ZSTD homepage : http://www.zstd.net
 # ################################################################
@@ -43,24 +43,21 @@ VERSION?= $(LIBVER)
 
 DESTDIR?=
 PREFIX ?= /usr/local
-CPPFLAGS= -I./common
-CFLAGS ?= -O3
-CFLAGS += -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow -Wstrict-aliasing=1 -Wswitch-enum -Wstrict-prototypes -Wundef
-FLAGS   = $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) $(MOREFLAGS)
-
 LIBDIR ?= $(PREFIX)/lib
 INCLUDEDIR=$(PREFIX)/include
 
-ZSTDCOMP_FILES := compress/zstd_compress.c compress/fse_compress.c compress/huf_compress.c compress/zbuff_compress.c 
-ZSTDDECOMP_FILES := decompress/zstd_decompress.c common/fse_decompress.c decompress/huf_decompress.c decompress/zbuff_decompress.c
-ZSTDDICT_FILES := dictBuilder/zdict.c dictBuilder/divsufsort.c
-ZSTD_FILES := $(ZSTDDECOMP_FILES) common/entropy_common.c common/zstd_common.c $(ZSTDCOMP_FILES) $(ZSTDDICT_FILES)
-ZSTD_LEGACY:= legacy/zstd_v01.c legacy/zstd_v02.c legacy/zstd_v03.c legacy/zstd_v04.c legacy/zstd_v05.c
+CPPFLAGS= -I./common -DXXH_NAMESPACE=ZSTD_
+CFLAGS ?= -O3
+CFLAGS += -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow -Wstrict-aliasing=1 -Wswitch-enum -Wdeclaration-after-statement -Wstrict-prototypes -Wundef
+FLAGS   = $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) $(MOREFLAGS)
+
+
+ZSTD_FILES := common/*.c compress/*.c decompress/*.c dictBuilder/*.c
 
 ifeq ($(ZSTD_LEGACY_SUPPORT), 0)
 CPPFLAGS  += -DZSTD_LEGACY_SUPPORT=0
 else
-ZSTD_FILES+= $(ZSTD_LEGACY)
+ZSTD_FILES+= legacy/*.c
 CPPFLAGS  += -I./legacy -DZSTD_LEGACY_SUPPORT=1
 endif
 

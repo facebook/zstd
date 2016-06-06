@@ -35,9 +35,9 @@
 ***************************************/
 #include <stdlib.h>
 #include "error_private.h"
-#include "zstd_internal.h"  /* MIN, ZSTD_blockHeaderSize */
-#include "zstd_static.h"    /* ZSTD_BLOCKSIZE_MAX */
-#include "zbuff_static.h"
+#include "zstd_internal.h"  /* MIN, ZSTD_blockHeaderSize, ZSTD_BLOCKSIZE_MAX */
+#define ZBUFF_STATIC_LINKING_ONLY
+#include "zbuff.h"
 
 
 /*-***************************************************************************
@@ -82,15 +82,13 @@ struct ZBUFF_DCtx_s {
     size_t blockSize;
     BYTE headerBuffer[ZSTD_FRAMEHEADERSIZE_MAX];
     size_t lhSize;
-    ZSTD_allocFunction customAlloc;
-    ZSTD_freeFunction customFree;
+    ZSTD_customMem customMem;
 };   /* typedef'd to ZBUFF_DCtx within "zstd_buffered.h" */
 
 
 ZBUFF_DCtx* ZBUFF_createDCtx(void)
 {
-    ZSTD_customMem customMem = { NULL, NULL };
-    return ZBUFF_createDCtx_advanced(customMem);
+    return ZBUFF_createDCtx_advanced(defaultCustomMem);
 }
 
 ZBUFF_DCtx* ZBUFF_createDCtx_advanced(ZSTD_customMem customMem)
@@ -98,25 +96,17 @@ ZBUFF_DCtx* ZBUFF_createDCtx_advanced(ZSTD_customMem customMem)
     ZBUFF_DCtx* zbd;
 
     if (!customMem.customAlloc && !customMem.customFree)
-    {
-        zbd = (ZBUFF_DCtx*)calloc(1, sizeof(ZBUFF_DCtx));
-        if (zbd==NULL) return NULL;
-        zbd->customAlloc = malloc;
-        zbd->customFree = free;
-        zbd->zd = ZSTD_createDCtx();
-        zbd->stage = ZBUFFds_init;
-        return zbd;
-    }
+        customMem = defaultCustomMem;
 
     if (!customMem.customAlloc || !customMem.customFree)
         return NULL;
 
-    zbd = (ZBUFF_DCtx*)customMem.customAlloc(sizeof(ZBUFF_DCtx));
+    zbd = (ZBUFF_DCtx*)customMem.customAlloc(customMem.opaque, sizeof(ZBUFF_DCtx));
     if (zbd==NULL) return NULL;
     memset(zbd, 0, sizeof(ZBUFF_DCtx));
-    zbd->customAlloc = customMem.customAlloc; 
-    zbd->customFree = customMem.customFree;
+    memcpy(&zbd->customMem, &customMem, sizeof(ZSTD_customMem));
     zbd->zd = ZSTD_createDCtx_advanced(customMem);
+    if (zbd->zd == NULL) { ZBUFF_freeDCtx(zbd); return NULL; }
     zbd->stage = ZBUFFds_init;
     return zbd;
 }
@@ -125,9 +115,9 @@ size_t ZBUFF_freeDCtx(ZBUFF_DCtx* zbd)
 {
     if (zbd==NULL) return 0;   /* support free on null */
     ZSTD_freeDCtx(zbd->zd);
-    zbd->customFree(zbd->inBuff);
-    zbd->customFree(zbd->outBuff);
-    zbd->customFree(zbd);
+    if (zbd->inBuff) zbd->customMem.customFree(zbd->customMem.opaque, zbd->inBuff);
+    if (zbd->outBuff) zbd->customMem.customFree(zbd->customMem.opaque, zbd->outBuff);
+    zbd->customMem.customFree(zbd->customMem.opaque, zbd);
     return 0;
 }
 
@@ -144,6 +134,15 @@ size_t ZBUFF_decompressInitDictionary(ZBUFF_DCtx* zbd, const void* dict, size_t 
 size_t ZBUFF_decompressInit(ZBUFF_DCtx* zbd)
 {
     return ZBUFF_decompressInitDictionary(zbd, NULL, 0);
+}
+
+
+/* internal util function */
+MEM_STATIC size_t ZBUFF_limitCopy(void* dst, size_t dstCapacity, const void* src, size_t srcSize)
+{
+    size_t const length = MIN(dstCapacity, srcSize);
+    memcpy(dst, src, length);
+    return length;
 }
 
 
@@ -192,20 +191,22 @@ size_t ZBUFF_decompressContinue(ZBUFF_DCtx* zbd,
                     if (ZSTD_isError(h2Result)) return h2Result;
             }   }
 
+            zbd->fParams.windowSize = MAX(zbd->fParams.windowSize, 1U << ZSTD_WINDOWLOG_ABSOLUTEMIN);
+
             /* Frame header instruct buffer sizes */
-            {   size_t const blockSize = MIN(1 << zbd->fParams.windowLog, ZSTD_BLOCKSIZE_MAX);
+            {   size_t const blockSize = MIN(zbd->fParams.windowSize, ZSTD_BLOCKSIZE_MAX);
                 zbd->blockSize = blockSize;
                 if (zbd->inBuffSize < blockSize) {
-                    zbd->customFree(zbd->inBuff);
+                    zbd->customMem.customFree(zbd->customMem.opaque, zbd->inBuff);
                     zbd->inBuffSize = blockSize;
-                    zbd->inBuff = (char*)zbd->customAlloc(blockSize);
+                    zbd->inBuff = (char*)zbd->customMem.customAlloc(zbd->customMem.opaque, blockSize);
                     if (zbd->inBuff == NULL) return ERROR(memory_allocation);
                 }
-                {   size_t const neededOutSize = ((size_t)1 << zbd->fParams.windowLog) + blockSize;
+                {   size_t const neededOutSize = zbd->fParams.windowSize + blockSize;
                     if (zbd->outBuffSize < neededOutSize) {
-                        zbd->customFree(zbd->outBuff);
+                        zbd->customMem.customFree(zbd->customMem.opaque, zbd->outBuff);
                         zbd->outBuffSize = neededOutSize;
-                        zbd->outBuff = (char*)zbd->customAlloc(neededOutSize);
+                        zbd->outBuff = (char*)zbd->customMem.customAlloc(zbd->customMem.opaque, neededOutSize);
                         if (zbd->outBuff == NULL) return ERROR(memory_allocation);
             }   }   }
             zbd->stage = ZBUFFds_read;
@@ -218,12 +219,13 @@ size_t ZBUFF_decompressContinue(ZBUFF_DCtx* zbd,
                     break;
                 }
                 if ((size_t)(iend-ip) >= neededInSize) {  /* decode directly from src */
+                    const int isSkipFrame = ZSTD_isSkipFrame(zbd->zd);
                     size_t const decodedSize = ZSTD_decompressContinue(zbd->zd,
-                        zbd->outBuff + zbd->outStart, zbd->outBuffSize - zbd->outStart,
+                        zbd->outBuff + zbd->outStart, (isSkipFrame ? 0 : zbd->outBuffSize - zbd->outStart),
                         ip, neededInSize);
                     if (ZSTD_isError(decodedSize)) return decodedSize;
                     ip += neededInSize;
-                    if (!decodedSize) break;   /* this was just a header */
+                    if (!decodedSize && !isSkipFrame) break;   /* this was just a header */
                     zbd->outEnd = zbd->outStart +  decodedSize;
                     zbd->stage = ZBUFFds_flush;
                     break;
@@ -243,12 +245,13 @@ size_t ZBUFF_decompressContinue(ZBUFF_DCtx* zbd,
                 if (loadedSize < toLoad) { notDone = 0; break; }   /* not enough input, wait for more */
 
                 /* decode loaded input */
-                {   size_t const decodedSize = ZSTD_decompressContinue(zbd->zd,
+                {  const int isSkipFrame = ZSTD_isSkipFrame(zbd->zd);
+                   size_t const decodedSize = ZSTD_decompressContinue(zbd->zd,
                         zbd->outBuff + zbd->outStart, zbd->outBuffSize - zbd->outStart,
                         zbd->inBuff, neededInSize);
                     if (ZSTD_isError(decodedSize)) return decodedSize;
                     zbd->inPos = 0;   /* input is consumed */
-                    if (!decodedSize) { zbd->stage = ZBUFFds_read; break; }   /* this was just a header */
+                    if (!decodedSize && !isSkipFrame) { zbd->stage = ZBUFFds_read; break; }   /* this was just a header */
                     zbd->outEnd = zbd->outStart +  decodedSize;
                     zbd->stage = ZBUFFds_flush;
                     // break; /* ZBUFFds_flush follows */
@@ -276,7 +279,7 @@ size_t ZBUFF_decompressContinue(ZBUFF_DCtx* zbd,
     *srcSizePtr = ip-istart;
     *dstCapacityPtr = op-ostart;
     {   size_t nextSrcSizeHint = ZSTD_nextSrcSizeToDecompress(zbd->zd);
-        if (nextSrcSizeHint > ZSTD_blockHeaderSize) nextSrcSizeHint+= ZSTD_blockHeaderSize;   /* get following block header too */
+//        if (nextSrcSizeHint > ZSTD_blockHeaderSize) nextSrcSizeHint+= ZSTD_blockHeaderSize;   /* get following block header too */
         nextSrcSizeHint -= zbd->inPos;   /* already loaded*/
         return nextSrcSizeHint;
     }

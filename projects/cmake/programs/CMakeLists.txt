@@ -38,33 +38,23 @@ SET(CMAKE_INCLUDE_CURRENT_DIR TRUE)
 SET(ROOT_DIR ../../..)
 
 # Define programs directory, where sources and header files are located
+SET(LIBRARY_DIR ${ROOT_DIR}/lib)
 SET(PROGRAMS_DIR ${ROOT_DIR}/programs)
-INCLUDE_DIRECTORIES(${PROGRAMS_DIR})
-
-IF (WORKAROUND_OUTDATED_CODE_STYLE)
-    # Define library directory, where sources and header files are located
-    SET(LIBRARY_DIR ${ROOT_DIR}/lib)
-    INCLUDE_DIRECTORIES(${LIBRARY_DIR}/common)
-ENDIF (WORKAROUND_OUTDATED_CODE_STYLE)
+INCLUDE_DIRECTORIES(${PROGRAMS_DIR} ${LIBRARY_DIR}/common ${LIBRARY_DIR}/dictBuilder)
 
 IF (ZSTD_LEGACY_SUPPORT)
     SET(PROGRAMS_LEGACY_DIR ${PROGRAMS_DIR}/legacy)
-    INCLUDE_DIRECTORIES(${PROGRAMS_LEGACY_DIR})
-
-    IF (WORKAROUND_OUTDATED_CODE_STYLE)
-        INCLUDE_DIRECTORIES(${LIBRARY_DIR}/legacy)
-    ENDIF (WORKAROUND_OUTDATED_CODE_STYLE)
-
+    INCLUDE_DIRECTORIES(${PROGRAMS_LEGACY_DIR} ${LIBRARY_DIR}/legacy)
     SET(ZSTD_FILEIO_LEGACY ${PROGRAMS_LEGACY_DIR}/fileio_legacy.c)
 ENDIF (ZSTD_LEGACY_SUPPORT)
 
-ADD_EXECUTABLE(zstd ${PROGRAMS_DIR}/zstdcli.c ${PROGRAMS_DIR}/fileio.c ${PROGRAMS_DIR}/bench.c ${PROGRAMS_DIR}/xxhash.c ${PROGRAMS_DIR}/datagen.c ${PROGRAMS_DIR}/dibio.c ${ZSTD_FILEIO_LEGACY})
+ADD_EXECUTABLE(zstd ${PROGRAMS_DIR}/zstdcli.c ${PROGRAMS_DIR}/fileio.c ${PROGRAMS_DIR}/bench.c ${PROGRAMS_DIR}/datagen.c ${PROGRAMS_DIR}/dibio.c ${ZSTD_FILEIO_LEGACY})
 TARGET_LINK_LIBRARIES(zstd libzstd_static)
 
 ADD_EXECUTABLE(fullbench ${PROGRAMS_DIR}/datagen.c ${PROGRAMS_DIR}/fullbench.c)
 TARGET_LINK_LIBRARIES(fullbench libzstd_static)
 
-ADD_EXECUTABLE(fuzzer ${PROGRAMS_DIR}/datagen.c ${PROGRAMS_DIR}/xxhash.c ${PROGRAMS_DIR}/fuzzer.c)
+ADD_EXECUTABLE(fuzzer ${PROGRAMS_DIR}/datagen.c ${PROGRAMS_DIR}/fuzzer.c)
 TARGET_LINK_LIBRARIES(fuzzer libzstd_static)
 
 IF (UNIX)
@@ -72,10 +62,10 @@ IF (UNIX)
     TARGET_LINK_LIBRARIES(zstd-frugal libzstd_static)
     SET_TARGET_PROPERTIES(zstd-frugal PROPERTIES COMPILE_DEFINITIONS "ZSTD_NOBENCH;ZSTD_NODICT")
 
-    ADD_EXECUTABLE(zbufftest ${PROGRAMS_DIR}/datagen.c ${PROGRAMS_DIR}/xxhash.c ${PROGRAMS_DIR}/zbufftest.c)
+    ADD_EXECUTABLE(zbufftest ${PROGRAMS_DIR}/datagen.c ${PROGRAMS_DIR}/zbufftest.c)
     TARGET_LINK_LIBRARIES(zbufftest libzstd_static)
 
-    ADD_EXECUTABLE(paramgrill ${PROGRAMS_DIR}/datagen.c ${PROGRAMS_DIR}/xxhash.c ${PROGRAMS_DIR}/paramgrill.c)
+    ADD_EXECUTABLE(paramgrill ${PROGRAMS_DIR}/datagen.c ${PROGRAMS_DIR}/paramgrill.c)
     TARGET_LINK_LIBRARIES(paramgrill libzstd_static m) #m is math library
 
     ADD_EXECUTABLE(datagen ${PROGRAMS_DIR}/datagen.c ${PROGRAMS_DIR}/datagencli.c)

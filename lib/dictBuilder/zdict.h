@@ -52,6 +52,21 @@ extern "C" {
 size_t ZDICT_trainFromBuffer(void* dictBuffer, size_t dictBufferCapacity,
                              const void* samplesBuffer, const size_t* samplesSizes, unsigned nbSamples);
 
+/*! ZDICT_addEntropyTablesFromBuffer() :
+
+    Given a content-only dictionary (built for example from common strings in
+    the input), add entropy tables computed from the memory buffer
+    `samplesBuffer`, where `nbSamples` samples have been stored concatenated.
+    Each sample size is provided into an orderly table `samplesSizes`.
+
+    The input dictionary is the last `dictContentSize` bytes of `dictBuffer`. The
+    resulting dictionary with added entropy tables will written back to
+    `dictBuffer`.
+    @return : size of dictionary stored into `dictBuffer` (<= `dictBufferCapacity`).
+*/
+size_t ZDICT_addEntropyTablesFromBuffer(void* dictBuffer, size_t dictContentSize, size_t dictBufferCapacity,
+                                        const void* samplesBuffer, const size_t* samplesSizes, unsigned nbSamples);
+
 
 /*-*************************************
 *  Helper functions
@@ -59,6 +74,44 @@ size_t ZDICT_trainFromBuffer(void* dictBuffer, size_t dictBufferCapacity,
 unsigned ZDICT_isError(size_t errorCode);
 const char* ZDICT_getErrorName(size_t errorCode);
 
+
+#ifdef ZDICT_STATIC_LINKING_ONLY
+
+/* ====================================================================================
+ * The definitions in this section are considered experimental.
+ * They should never be used in association with a dynamic library, as they may change in the future.
+ * They are provided for advanced usages.
+ * Use them only in association with static linking.
+ * ==================================================================================== */
+
+
+/*-*************************************
+*  Public type
+***************************************/
+typedef struct {
+    unsigned selectivityLevel;   /* 0 means default; larger => bigger selection => larger dictionary */
+    unsigned compressionLevel;   /* 0 means default; target a specific zstd compression level */
+    unsigned notificationLevel;  /* Write to stderr; 0 = none (default); 1 = errors; 2 = progression; 3 = details; 4 = debug; */
+    unsigned dictID;             /* 0 means auto mode (32-bits random value); other : force dictID value */
+    unsigned reserved[2];        /* space for future parameters */
+} ZDICT_params_t;
+
+
+/*-*************************************
+*  Public functions
+***************************************/
+/*! ZDICT_trainFromBuffer_advanced() :
+    Same as ZDICT_trainFromBuffer() with control over more parameters.
+    `parameters` is optional and can be provided with values set to 0 to mean "default".
+    @return : size of dictionary stored into `dictBuffer` (<= `dictBufferSize`)
+              or an error code, which can be tested by ZDICT_isError().
+    note : ZDICT_trainFromBuffer_advanced() will send notifications into stderr if instructed to, using ZDICT_setNotificationLevel()
+*/
+size_t ZDICT_trainFromBuffer_advanced(void* dictBuffer, size_t dictBufferCapacity,
+                             const void* samplesBuffer, const size_t* samplesSizes, unsigned nbSamples,
+                             ZDICT_params_t parameters);
+
+#endif   /* ZDICT_STATIC_LINKING_ONLY */
 
 #if defined (__cplusplus)
 }

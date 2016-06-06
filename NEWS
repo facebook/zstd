@@ -1,6 +1,12 @@
-v0.6.2
+v0.7.0
+New : Support for directory compression, using `-r`, thanks to Przemyslaw Skibinski
 New : Support for Sparse File-systems (do not use space for zero-filled sectors)
-New : Support pass-through mode, when using `-df`
+New : Frame checksum support
+New : Support pass-through mode (when using `-df`)
+New : API : dictionary files from custom content, by Giuseppe Ottaviano
+New : API support for custom malloc/free functions
+New : controllable Dictionary ID
+New : Support for skippable frames
 
 v0.6.1
 New : zlib wrapper API, thanks to Przemyslaw Skibinski
@@ -63,7 +69,7 @@ Fixed : ZSTD_LEGACY_SUPPORT=0 build mode (reported by Luben)
 removed `zstd.c`
 
 v0.4.0
-Command line utility compatible with high compression levels 
+Command line utility compatible with high compression levels
 Removed zstdhc => merged into zstd
 Added : ZBUFF API (see zstd_buffered.h)
 Rolling buffer support
@@ -93,7 +99,7 @@ v0.2.2
 Fix : Visual Studio 2013 & 2015 release compilation, by Christophe Chevalier
 
 v0.2.1
-Fix : Read errors, advanced fuzzer tests, by Hanno Böck 
+Fix : Read errors, advanced fuzzer tests, by Hanno Böck
 
 v0.2.0
 **Breaking format change**
@@ -112,4 +118,3 @@ detects write-flush errors
 git@github.com:Cyan4973/zstd.git
 v0.1.0
 first release
-

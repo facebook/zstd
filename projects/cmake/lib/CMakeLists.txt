@@ -59,6 +59,7 @@ MESSAGE("ZSTD VERSION ${LIBVER_MAJOR}.${LIBVER_MINOR}.${LIBVER_RELEASE}")
 SET(Sources
         ${LIBRARY_DIR}/common/entropy_common.c
         ${LIBRARY_DIR}/common/zstd_common.c
+        ${LIBRARY_DIR}/common/xxhash.c
         ${LIBRARY_DIR}/common/fse_decompress.c
         ${LIBRARY_DIR}/compress/fse_compress.c
         ${LIBRARY_DIR}/compress/huf_compress.c
@@ -75,17 +76,12 @@ SET(Headers
         ${LIBRARY_DIR}/common/error_private.h
         ${LIBRARY_DIR}/common/error_public.h
         ${LIBRARY_DIR}/common/fse.h
-        ${LIBRARY_DIR}/common/fse_static.h
         ${LIBRARY_DIR}/common/huf.h
-        ${LIBRARY_DIR}/common/huf_static.h
         ${LIBRARY_DIR}/common/mem.h
         ${LIBRARY_DIR}/common/zbuff.h
-        ${LIBRARY_DIR}/common/zbuff_static.h
         ${LIBRARY_DIR}/common/zstd_internal.h
-        ${LIBRARY_DIR}/common/zstd_static.h
         ${LIBRARY_DIR}/common/zstd.h
-        ${LIBRARY_DIR}/dictBuilder/zdict.h
-        ${LIBRARY_DIR}/dictBuilder/zdict_static.h)
+        ${LIBRARY_DIR}/dictBuilder/zdict.h)
 
 IF (ZSTD_LEGACY_SUPPORT)
     SET(LIBRARY_LEGACY_DIR ${LIBRARY_DIR}/legacy)
@@ -156,12 +152,15 @@ SET_TARGET_PROPERTIES(
         OUTPUT_NAME ${SHARED_LIBRARY_OUTPUT_NAME})
 
 IF (UNIX)
-    SET(PREFIX /usr/local)
+    IF ("${PREFIX}" STREQUAL "")
+        SET(PREFIX /usr/local)
+    ENDIF()
+    MESSAGE("the variable PREFIX=${PREFIX}")
     SET(INSTALL_LIBRARY_DIR ${PREFIX}/lib)
     SET(INSTALL_INCLUDE_DIR ${PREFIX}/include)
 
     # install target
-    INSTALL(FILES ${LIBRARY_DIR}/zstd.h ${LIBRARY_DIR}/zstd_buffered.h ${LIBRARY_DIR}/dictBuilder.h DESTINATION ${INSTALL_INCLUDE_DIR})
+    INSTALL(FILES ${LIBRARY_DIR}/common/zstd.h ${LIBRARY_DIR}/common/zbuff.h ${LIBRARY_DIR}/dictBuilder/zdict.h DESTINATION ${INSTALL_INCLUDE_DIR})
     INSTALL(TARGETS libzstd_static DESTINATION ${INSTALL_LIBRARY_DIR})
     INSTALL(TARGETS libzstd_shared LIBRARY DESTINATION ${INSTALL_LIBRARY_DIR})
 

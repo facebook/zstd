@@ -287,10 +287,10 @@ static size_t ZSTD_resetCCtx_advanced (ZSTD_CCtx* zc,
     if (reset) memset(zc->workSpace, 0, tableSpace );   /* reset only tables */
     XXH64_reset(&zc->xxhState, 0);
     zc->hashLog3 = hashLog3;
-    zc->hashTable3 = (U32*)(zc->workSpace);
-    zc->hashTable = zc->hashTable3 + h3Size;
+    zc->hashTable = (U32*)(zc->workSpace);
     zc->chainTable = zc->hashTable + hSize;
-    zc->seqStore.buffer = zc->chainTable + chainSize;
+    zc->hashTable3 = zc->chainTable + chainSize;
+    zc->seqStore.buffer = zc->hashTable3 + h3Size;
     zc->hufTable = (HUF_CElt*)zc->seqStore.buffer;
     zc->flagStaticTables = 0;
     zc->seqStore.buffer = ((U32*)(zc->seqStore.buffer)) + 256;
@@ -346,7 +346,7 @@ size_t ZSTD_copyCCtx(ZSTD_CCtx* dstCCtx, const ZSTD_CCtx* srcCCtx)
     /* copy tables */
     {   const size_t chainSize = (srcCCtx->params.cParams.strategy == ZSTD_fast) ? 0 : (1 << srcCCtx->params.cParams.chainLog);
         const size_t hSize = ((size_t)1) << srcCCtx->params.cParams.hashLog;
-        const size_t h3Size = (srcCCtx->hashLog3) ? 1 << srcCCtx->hashLog3 : 0;
+        const size_t h3Size = (size_t)1 << srcCCtx->hashLog3;
         const size_t tableSpace = (chainSize + hSize + h3Size) * sizeof(U32);
         memcpy(dstCCtx->workSpace, srcCCtx->workSpace, tableSpace);
     }
@@ -2107,7 +2107,7 @@ static size_t ZSTD_compress_generic (ZSTD_CCtx* cctx,
 
     while (remaining) {
         size_t cSize;
-        ZSTD_statsResetFreqs(stats);
+        ZSTD_statsResetFreqs(stats);   /* debug only */
 
         if (dstCapacity < ZSTD_blockHeaderSize + MIN_CBLOCK_SIZE) return ERROR(dstSize_tooSmall);   /* not enough space to store compressed block */
         if (remaining < blockSize) blockSize = remaining;

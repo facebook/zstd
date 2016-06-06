@@ -59,12 +59,13 @@
 /* **************************************************************
 *  Includes
 ****************************************************************/
-#include <stdlib.h>     /* malloc, free, qsort */
 #include <string.h>     /* memcpy, memset */
 #include <stdio.h>      /* printf (debug) */
-#include "huf_static.h"
 #include "bitstream.h"
-#include "fse_static.h" /* header compression */
+#define FSE_STATIC_LINKING_ONLY   /* FSE_optimalTableLog_internal */
+#include "fse.h"        /* header compression */
+#define HUF_STATIC_LINKING_ONLY
+#include "huf.h"
 
 
 /* **************************************************************

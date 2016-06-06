@@ -21,10 +21,11 @@
     You can contact the author at :
     - ZSTD homepage : http://www.zstd.net/
 */
-#pragma once
+#ifndef BENCH_H_121279284357
+#define BENCH_H_121279284357
 
+#include <stddef.h>
 
-/* Main function */
 int BMK_benchFiles(const char** fileNamesTable, unsigned nbFiles,
                    const char* dictFileName, int cLevel, int cLevelLast);
 
@@ -34,3 +35,4 @@ void BMK_SetBlockSize(size_t blockSize);
 void BMK_setAdditionalParam(int additionalParam);
 void BMK_setNotificationLevel(unsigned level);
 
+ #endif   /* BENCH_H_121279284357 */

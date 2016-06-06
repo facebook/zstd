@@ -101,27 +101,30 @@ const char* DiB_getErrorName(size_t errorCode) { return ERR_getErrorName(errorCo
 /* ********************************************************
 *  File related operations
 **********************************************************/
-static void DiB_loadFiles(void* buffer, size_t bufferSize,
-                          size_t* fileSizes,
-                          const char** fileNamesTable, unsigned nbFiles)
+/** DiB_loadFiles() :
+*   @return : nb of files effectively loaded into `buffer` */
+static unsigned DiB_loadFiles(void* buffer, size_t bufferSize,
+                              size_t* fileSizes,
+                              const char** fileNamesTable, unsigned nbFiles)
 {
-    char* buff = (char*)buffer;
+    char* const buff = (char*)buffer;
     size_t pos = 0;
     unsigned n;
 
     for (n=0; n<nbFiles; n++) {
-        size_t readSize;
-        unsigned long long fileSize = UTIL_getFileSize(fileNamesTable[n]);
-        FILE* f = fopen(fileNamesTable[n], "rb");
+        unsigned long long const fs64 = UTIL_getFileSize(fileNamesTable[n]);
+        size_t const fileSize = (size_t)(fs64 > bufferSize-pos ? 0 : fs64);
+        FILE* const f = fopen(fileNamesTable[n], "rb");
         if (f==NULL) EXM_THROW(10, "impossible to open file %s", fileNamesTable[n]);
         DISPLAYUPDATE(2, "Loading %s...       \r", fileNamesTable[n]);
-        if (fileSize > bufferSize-pos) fileSize = 0;  /* stop there, not enough memory to load all files */
-        readSize = fread(buff+pos, 1, (size_t)fileSize, f);
-        if (readSize != (size_t)fileSize) EXM_THROW(11, "could not read %s", fileNamesTable[n]);
-        pos += readSize;
-        fileSizes[n] = (size_t)fileSize;
+        { size_t const readSize = fread(buff+pos, 1, fileSize, f);
+          if (readSize != fileSize) EXM_THROW(11, "could not read %s", fileNamesTable[n]);
+          pos += readSize; }
+        fileSizes[n] = fileSize;
         fclose(f);
+        if (fileSize == 0) break;  /* stop there, not enough memory to load all files */
     }
+    return n;
 }
 
 
@@ -130,7 +133,7 @@ static void DiB_loadFiles(void* buffer, size_t bufferSize,
 **********************************************************/
 static size_t DiB_findMaxMem(unsigned long long requiredMem)
 {
-    size_t step = 8 MB;
+    size_t const step = 8 MB;
     void* testmem = NULL;
 
     requiredMem = (((requiredMem >> 23) + 1) << 23);
@@ -162,7 +165,7 @@ static void DiB_fillNoise(void* buffer, size_t length)
 static void DiB_saveDict(const char* dictFileName,
                          const void* buff, size_t buffSize)
 {
-    FILE* f = fopen(dictFileName, "wb");
+    FILE* const f = fopen(dictFileName, "wb");
     if (f==NULL) EXM_THROW(3, "cannot open %s ", dictFileName);
 
     { size_t const n = fwrite(buff, 1, buffSize, f);
@@ -185,46 +188,43 @@ size_t ZDICT_trainFromBuffer_unsafe(void* dictBuffer, size_t dictBufferCapacity,
                               ZDICT_params_t parameters);
 
 
+#define MIN(a,b)  ((a)<(b)?(a):(b))
 int DiB_trainFromFiles(const char* dictFileName, unsigned maxDictSize,
                        const char** fileNamesTable, unsigned nbFiles,
                        ZDICT_params_t params)
 {
-    void* srcBuffer;
-    size_t benchedSize;
-    size_t* fileSizes = (size_t*)malloc(nbFiles * sizeof(size_t));
-    unsigned long long totalSizeToLoad = UTIL_getTotalFileSize(fileNamesTable, nbFiles);
-    void* dictBuffer = malloc(maxDictSize);
-    size_t dictSize;
+    void* const dictBuffer = malloc(maxDictSize);
+    size_t* const fileSizes = (size_t*)malloc(nbFiles * sizeof(size_t));
+    unsigned long long const totalSizeToLoad = UTIL_getTotalFileSize(fileNamesTable, nbFiles);
+    size_t const maxMem =  DiB_findMaxMem(totalSizeToLoad * MEMMULT) / MEMMULT;
+    size_t const benchedSize = MIN (maxMem, (size_t)totalSizeToLoad);
+    void* const srcBuffer = malloc(benchedSize+NOISELENGTH);
     int result = 0;
+
+    /* Checks */
+    if ((!fileSizes) || (!srcBuffer) || (!dictBuffer)) EXM_THROW(12, "not enough memory for DiB_trainFiles");   /* should not happen */
 
     /* init */
     g_displayLevel = params.notificationLevel;
-    benchedSize = DiB_findMaxMem(totalSizeToLoad * MEMMULT) / MEMMULT;
-    if ((unsigned long long)benchedSize > totalSizeToLoad) benchedSize = (size_t)totalSizeToLoad;
     if (benchedSize < totalSizeToLoad)
         DISPLAYLEVEL(1, "Not enough memory; training on %u MB only...\n", (unsigned)(benchedSize >> 20));
 
-    /* Memory allocation & restrictions */
-    srcBuffer = malloc(benchedSize+NOISELENGTH);     /* + noise */
-    if ((!fileSizes) || (!srcBuffer) || (!dictBuffer)) EXM_THROW(12, "not enough memory for DiB_trainFiles");  /* should not happen */
-
     /* Load input buffer */
-    DiB_loadFiles(srcBuffer, benchedSize, fileSizes, fileNamesTable, nbFiles);
+    nbFiles = DiB_loadFiles(srcBuffer, benchedSize, fileSizes, fileNamesTable, nbFiles);
     DiB_fillNoise((char*)srcBuffer + benchedSize, NOISELENGTH);   /* guard band, for end of buffer condition */
 
-    /* call buffer version */
-    dictSize = ZDICT_trainFromBuffer_unsafe(dictBuffer, maxDictSize,
-                        srcBuffer, fileSizes, nbFiles,
-                        params);
-    if (ZDICT_isError(dictSize)) {
-        DISPLAYLEVEL(1, "dictionary training failed : %s \n", ZDICT_getErrorName(dictSize));   /* should not happen */
-        result = 1;
-        goto _cleanup;
+    {   size_t const dictSize = ZDICT_trainFromBuffer_unsafe(dictBuffer, maxDictSize,
+                            srcBuffer, fileSizes, nbFiles,
+                            params);
+        if (ZDICT_isError(dictSize)) {
+            DISPLAYLEVEL(1, "dictionary training failed : %s \n", ZDICT_getErrorName(dictSize));   /* should not happen */
+            result = 1;
+            goto _cleanup;
+        }
+        /* save dict */
+        DISPLAYLEVEL(2, "Save dictionary of size %u into file %s \n", (U32)dictSize, dictFileName);
+        DiB_saveDict(dictFileName, dictBuffer, dictSize);
     }
-
-    /* save dict */
-    DISPLAYLEVEL(2, "Save dictionary of size %u into file %s \n", (U32)dictSize, dictFileName);
-    DiB_saveDict(dictFileName, dictBuffer, dictSize);
 
     /* clean up */
 _cleanup:

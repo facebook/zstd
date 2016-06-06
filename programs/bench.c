@@ -32,7 +32,8 @@
 #include <stdio.h>       /* fprintf, fopen, ftello64 */
 
 #include "mem.h"
-#include "zstd_static.h"
+#define ZSTD_STATIC_LINKING_ONLY
+#include "zstd.h"
 #include "datagen.h"     /* RDG_genBuffer */
 #include "xxhash.h"
 
@@ -220,7 +221,6 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
                     {   ZSTD_parameters params;
                         params.cParams = ZSTD_getCParams(cLevel, blockSize, dictBufferSize);
                         params.fParams.contentSizeFlag = 1;
-                        ZSTD_adjustCParams(&params.cParams, blockSize, dictBufferSize);
                         {   size_t const initResult = ZSTD_compressBegin_advanced(refCtx, dictBuffer, dictBufferSize, params, blockSize);
                             if (ZSTD_isError(initResult)) break;
                     }   }
@@ -505,4 +505,3 @@ int BMK_benchFiles(const char** fileNamesTable, unsigned nbFiles,
         BMK_benchFileTable(fileNamesTable, nbFiles, dictFileName, cLevel, cLevelLast);
     return 0;
 }
-

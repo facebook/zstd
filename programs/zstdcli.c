@@ -38,10 +38,11 @@
 #ifndef ZSTD_NOBENCH
 #  include "bench.h"  /* BMK_benchFiles, BMK_SetNbIterations */
 #endif
-#include "zstd_static.h" /* ZSTD_maxCLevel, ZSTD version numbers  */
 #ifndef ZSTD_NODICT
 #  include "dibio.h"
 #endif
+#define ZSTD_STATIC_LINKING_ONLY   /* ZSTD_maxCLevel */
+#include "zstd.h"     /* ZSTD_VERSION_STRING */
 
 
 
@@ -52,7 +53,7 @@
 #  include <io.h>       /* _isatty */
 #  define IS_CONSOLE(stdStream) _isatty(_fileno(stdStream))
 #else
-#if _POSIX_C_SOURCE >= 1 || _XOPEN_SOURCE || _POSIX_SOURCE
+#if defined(_POSIX_C_SOURCE) || defined(_XOPEN_SOURCE) || defined(_POSIX_SOURCE)
 #  include <unistd.h>   /* isatty */
 #  define IS_CONSOLE(stdStream) isatty(fileno(stdStream))
 #else
@@ -125,7 +126,6 @@ static int usage_advanced(const char* programName)
     DISPLAY( "\n");
     DISPLAY( "Advanced arguments :\n");
     DISPLAY( " -V     : display Version number and exit\n");
-    DISPLAY( " -t     : test compressed file integrity \n");
     DISPLAY( " -v     : verbose mode\n");
     DISPLAY( " -q     : suppress warnings; specify twice to suppress errors too\n");
     DISPLAY( " -c     : force write to standard output, even if it is the console\n");
@@ -134,8 +134,13 @@ static int usage_advanced(const char* programName)
 #endif
 #ifndef ZSTD_NOCOMPRESS
     DISPLAY( "--ultra : enable ultra modes (requires more memory to decompress)\n");
+    DISPLAY( "--no-dictID:don't write dictID into header (dictionary compression)\n");
+    DISPLAY( "--check : enable integrity check\n");
 #endif
+#ifndef ZSTD_NODECOMPRESS
+    DISPLAY( "--test  : test compressed file integrity \n");
     DISPLAY( "--[no-]sparse  : sparse mode (default:enabled on file, disabled on stdout)\n");
+#endif
 #ifndef ZSTD_NODICT
     DISPLAY( "\n");
     DISPLAY( "Dictionary builder :\n");
@@ -143,6 +148,7 @@ static int usage_advanced(const char* programName)
     DISPLAY( " -o file: `file` is dictionary name (default: %s) \n", g_defaultDictName);
     DISPLAY( "--maxdict:limit dictionary to specified size (default : %u) \n", g_defaultMaxDictSize);
     DISPLAY( " -s#    : dictionary selectivity level (default: %u)\n", g_defaultSelectivityLevel);
+    DISPLAY( "--dictID: force dictionary ID to specified value (default: random)\n");
 #endif
 #ifndef ZSTD_NOBENCH
     DISPLAY( "\n");
@@ -171,6 +177,18 @@ static void waitEnter(void)
     (void)unused;
 }
 
+/*! readU32FromChar() :
+    @return : unsigned integer value reach from input in `char` format
+    Will also modify `*stringPtr`, advancing it to position where it stopped reading.
+    Note : this function can overflow if result > MAX_UNIT */
+static unsigned readU32FromChar(const char** stringPtr)
+{
+    unsigned result = 0;
+    while ((**stringPtr >='0') && (**stringPtr <='9'))
+        result *= 10, result += **stringPtr - '0', (*stringPtr)++ ;
+    return result;
+}
+
 
 #define CLEAN_RETURN(i) { operationResult = (i); goto _end; }
 
@@ -185,7 +203,8 @@ int main(int argCount, const char** argv)
         operationResult=0,
         dictBuild=0,
         nextArgumentIsOutFileName=0,
-        nextArgumentIsMaxDict=0;
+        nextArgumentIsMaxDict=0,
+        nextArgumentIsDictID=0;
     unsigned cLevel = 1;
     unsigned cLevelLast = 1;
     unsigned recursive = 0;
@@ -196,6 +215,7 @@ int main(int argCount, const char** argv)
     const char* dictFileName = NULL;
     char* dynNameSpace = NULL;
     unsigned maxDictSize = g_defaultMaxDictSize;
+    unsigned dictID = 0;
     unsigned dictCLevel = g_defaultDictCLevel;
     unsigned dictSelect = g_defaultSelectivityLevel;
 #ifdef UTIL_HAS_CREATEFILELIST
@@ -205,7 +225,8 @@ int main(int argCount, const char** argv)
 #endif
 
     /* init */
-    (void)recursive; (void)cLevelLast; (void)dictCLevel;   /* not used when ZSTD_NOBENCH / ZSTD_NODICT set */
+    (void)recursive; (void)cLevelLast;    /* not used when ZSTD_NOBENCH set */
+    (void)dictCLevel; (void)dictSelect; (void)dictID;  /* not used when ZSTD_NODICT set */
     (void)decode; (void)cLevel; /* not used when ZSTD_NOCOMPRESS set */
     if (filenameTable==NULL) { DISPLAY("not enough memory\n"); exit(1); }
     filenameTable[0] = stdinmark;
@@ -233,13 +254,16 @@ int main(int argCount, const char** argv)
         if (!strcmp(argument, "--verbose")) { displayLevel=4; continue; }
         if (!strcmp(argument, "--quiet")) { displayLevel--; continue; }
         if (!strcmp(argument, "--stdout")) { forceStdout=1; outFileName=stdoutmark; displayLevel=1; continue; }
+        if (!strcmp(argument, "--ultra")) { FIO_setMaxWLog(0); continue; }
+        if (!strcmp(argument, "--check")) { FIO_setChecksumFlag(2); continue; }
+        if (!strcmp(argument, "--no-dictID")) { FIO_setDictIDFlag(0); continue; }
+        if (!strcmp(argument, "--sparse")) { FIO_setSparseWrite(2); continue; }
+        if (!strcmp(argument, "--no-sparse")) { FIO_setSparseWrite(0); continue; }
         if (!strcmp(argument, "--test")) { decode=1; outFileName=nulmark; FIO_overwriteMode(); continue; }
         if (!strcmp(argument, "--train")) { dictBuild=1; outFileName=g_defaultDictName; continue; }
         if (!strcmp(argument, "--maxdict")) { nextArgumentIsMaxDict=1; continue; }
+        if (!strcmp(argument, "--dictID")) { nextArgumentIsDictID=1; continue; }
         if (!strcmp(argument, "--keep")) { continue; }   /* does nothing, since preserving input is default; for gzip/xz compatibility */
-        if (!strcmp(argument, "--ultra")) { FIO_setMaxWLog(0); continue; }
-        if (!strcmp(argument, "--sparse")) { FIO_setSparseWrite(2); continue; }
-        if (!strcmp(argument, "--no-sparse")) { FIO_setSparseWrite(0); continue; }
 
         /* '-' means stdin/stdout */
         if (!strcmp(argument, "-")){
@@ -254,12 +278,7 @@ int main(int argCount, const char** argv)
 #ifndef ZSTD_NOCOMPRESS
                 /* compression Level */
                 if ((*argument>='0') && (*argument<='9')) {
-                    cLevel = 0;
-                    while ((*argument >= '0') && (*argument <= '9')) {
-                        cLevel *= 10;
-                        cLevel += *argument - '0';
-                        argument++;
-                    }
+                    cLevel = readU32FromChar(&argument);
                     dictCLevel = cLevel;
                     if (dictCLevel > ZSTD_maxCLevel())
                         CLEAN_RETURN(badusage(programName));
@@ -295,8 +314,11 @@ int main(int argCount, const char** argv)
                     /* keep source file (default anyway, so useless; for gzip/xz compatibility) */
                 case 'k': argument++; break;
 
+                    /* Checksum */
+                case 'C': argument++; FIO_setChecksumFlag(2); break;
+
                     /* test compressed file */
-                case 't': decode=1; outFileName=nulmark; FIO_overwriteMode(); argument++; break;
+                case 't': decode=1; outFileName=nulmark; argument++; break;
 
                     /* dictionary name */
                 case 'o': nextArgumentIsOutFileName=1; argument++; break;
@@ -312,19 +334,13 @@ int main(int argCount, const char** argv)
                 case 'e':
                         /* compression Level */
                         argument++;
-                        if ((*argument>='0') && (*argument<='9')) {
-                            cLevelLast = 0;
-                            while ((*argument >= '0') && (*argument <= '9'))
-                                cLevelLast *= 10, cLevelLast += *argument++ - '0';
-                        }
+                        cLevelLast = readU32FromChar(&argument);
                         break;
 
                     /* Modify Nb Iterations (benchmark only) */
                 case 'i':
-                    {   U32 iters= 0;
-                        argument++;
-                        while ((*argument >='0') && (*argument <='9'))
-                            iters *= 10, iters += *argument++ - '0';
+                    argument++;
+                    {   U32 const iters = readU32FromChar(&argument);
                         BMK_setNotificationLevel(displayLevel);
                         BMK_SetNbIterations(iters);
                     }
@@ -332,10 +348,8 @@ int main(int argCount, const char** argv)
 
                     /* cut input into blocks (benchmark only) */
                 case 'B':
-                    {   size_t bSize = 0;
-                        argument++;
-                        while ((*argument >='0') && (*argument <='9'))
-                            bSize *= 10, bSize += *argument++ - '0';
+                    argument++;
+                    {   size_t bSize = readU32FromChar(&argument);
                         if (toupper(*argument)=='K') bSize<<=10, argument++;  /* allows using KB notation */
                         if (toupper(*argument)=='M') bSize<<=20, argument++;
                         if (toupper(*argument)=='B') argument++;
@@ -345,21 +359,17 @@ int main(int argCount, const char** argv)
                     break;
 #endif   /* ZSTD_NOBENCH */
 
-                    /* Selection level */
-                case 's': argument++;
-                    dictSelect = 0;
-                    while ((*argument >= '0') && (*argument <= '9'))
-                        dictSelect *= 10, dictSelect += *argument++ - '0';
+                    /* Dictionary Selection level */
+                case 's':
+                    argument++;
+                    dictSelect = readU32FromChar(&argument);
                     break;
 
                     /* Pause at the end (-p) or set an additional param (-p#) (hidden option) */
                 case 'p': argument++;
 #ifndef ZSTD_NOBENCH
                     if ((*argument>='0') && (*argument<='9')) {
-                        int additionalParam = 0;
-                        while ((*argument >= '0') && (*argument <= '9'))
-                            additionalParam *= 10, additionalParam += *argument++ - '0';
-                        BMK_setAdditionalParam(additionalParam);
+                        BMK_setAdditionalParam(readU32FromChar(&argument));
                     } else
 #endif
                         main_pause=1;
@@ -386,10 +396,15 @@ int main(int argCount, const char** argv)
 
         if (nextArgumentIsMaxDict) {
             nextArgumentIsMaxDict = 0;
-            maxDictSize = 0;
-            while ((*argument>='0') && (*argument<='9'))
-                maxDictSize = maxDictSize * 10 + (*argument - '0'), argument++;
+            maxDictSize = readU32FromChar(&argument);
             if (toupper(*argument)=='K') maxDictSize <<= 10;
+            if (toupper(*argument)=='M') maxDictSize <<= 20;
+            continue;
+        }
+
+        if (nextArgumentIsDictID) {
+            nextArgumentIsDictID = 0;
+            dictID = readU32FromChar(&argument);
             continue;
         }
 
@@ -429,6 +444,7 @@ int main(int argCount, const char** argv)
         dictParams.compressionLevel = dictCLevel;
         dictParams.selectivityLevel = dictSelect;
         dictParams.notificationLevel = displayLevel;
+        dictParams.dictID = dictID;
         DiB_trainFromFiles(outFileName, maxDictSize, filenameTable, filenameIdx, dictParams);
 #endif
         goto _end;

@@ -622,7 +622,6 @@ unsigned long long FIO_decompressFrame(dRess_t ress,
 
     /* Main decompression Loop */
     while (1) {
-        /* Decode */
         size_t inSize=readSize, decodedSize=ress.dstBufferSize;
         size_t const toRead = ZBUFF_decompressContinue(ress.dctx, ress.dstBuffer, &decodedSize, ress.srcBuffer, &inSize);
         if (ZBUFF_isError(toRead)) EXM_THROW(36, "Decoding error : %s", ZBUFF_getErrorName(toRead));

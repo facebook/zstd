@@ -1267,3 +1267,77 @@ size_t ZSTD_decompressBegin_usingDict(ZSTD_DCtx* dctx, const void* dict, size_t 
 
     return 0;
 }
+
+
+struct ZSTD_DDict_s {
+    void* dictContent;
+    size_t dictContentSize;
+    ZSTD_DCtx* refContext;
+};  /* typedef'd tp ZSTD_CDict within zstd.h */
+
+ZSTD_DDict* ZSTD_createDDict_advanced(const void* dict, size_t dictSize, ZSTD_customMem customMem)
+{
+    if (!customMem.customAlloc && !customMem.customFree)
+        customMem = defaultCustomMem;
+
+    if (!customMem.customAlloc || !customMem.customFree)
+        return NULL;
+
+    {   ZSTD_DDict* const ddict = (ZSTD_DDict*) customMem.customAlloc(customMem.opaque, sizeof(*ddict));
+        void* const dictContent = customMem.customAlloc(customMem.opaque, dictSize);
+        ZSTD_DCtx* const dctx = ZSTD_createDCtx_advanced(customMem);
+
+        if (!dictContent || !ddict || !dctx) {
+            customMem.customFree(customMem.opaque, dictContent);
+            customMem.customFree(customMem.opaque, ddict);
+            customMem.customFree(customMem.opaque, dctx);
+            return NULL;
+        }
+
+        memcpy(dictContent, dict, dictSize);
+        {   size_t const errorCode = ZSTD_decompressBegin_usingDict(dctx, dictContent, dictSize);
+            if (ZSTD_isError(errorCode)) {
+                customMem.customFree(customMem.opaque, dictContent);
+                customMem.customFree(customMem.opaque, ddict);
+                customMem.customFree(customMem.opaque, dctx);
+                return NULL;
+        }   }
+
+        ddict->dictContent = dictContent;
+        ddict->dictContentSize = dictSize;
+        ddict->refContext = dctx;
+        return ddict;
+    }
+}
+
+/*! ZSTD_createDDict() :
+*   Create a digested dictionary, ready to start decompression operation without startup delay.
+*   `dict` can be released after creation */
+ZSTD_DDict* ZSTD_createDDict(const void* dict, size_t dictSize)
+{
+    ZSTD_customMem const allocator = { NULL, NULL, NULL };
+    return ZSTD_createDDict_advanced(dict, dictSize, allocator);
+}
+
+size_t ZSTD_freeDDict(ZSTD_DDict* ddict)
+{
+    ZSTD_freeFunction const cFree = ddict->refContext->customMem.customFree;
+    void* const opaque = ddict->refContext->customMem.opaque;
+    ZSTD_freeDCtx(ddict->refContext);
+    cFree(opaque, ddict->dictContent);
+    cFree(opaque, ddict);
+    return 0;
+}
+
+/*! ZSTD_decompress_usingDDict() :
+*   Decompression using a pre-digested Dictionary
+*   In contrast with older ZSTD_decompress_usingDict(), use dictionary without significant overhead. */
+ZSTDLIB_API size_t ZSTD_decompress_usingDDict(ZSTD_DCtx* dctx,
+                                           void* dst, size_t dstCapacity,
+                                     const void* src, size_t srcSize,
+                                     const ZSTD_DDict* ddict)
+{
+    return ZSTD_decompress_usingPreparedDCtx(dctx, ddict->refContext,
+                                           dst, dstCapacity,
+                                           src, srcSize);
+}

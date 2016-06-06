@@ -20,6 +20,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\..\lib\common\entropy_common.c" />
+    <ClCompile Include="..\..\..\lib\common\xxhash.c" />
     <ClCompile Include="..\..\..\lib\common\zstd_common.c" />
     <ClCompile Include="..\..\..\lib\common\fse_decompress.c" />
     <ClCompile Include="..\..\..\lib\compress\fse_compress.c" />
@@ -39,6 +40,7 @@
     <ClInclude Include="..\..\..\lib\common\fse_static.h" />
     <ClInclude Include="..\..\..\lib\common\huf.h" />
     <ClInclude Include="..\..\..\lib\common\huf_static.h" />
+    <ClInclude Include="..\..\..\lib\common\xxhash.h" />
     <ClInclude Include="..\..\..\lib\common\zbuff.h" />
     <ClInclude Include="..\..\..\lib\common\zbuff_static.h" />
     <ClInclude Include="..\..\..\lib\common\zstd.h" />
@@ -46,7 +48,9 @@
     <ClInclude Include="..\..\..\lib\common\zstd_static.h" />
     <ClInclude Include="..\..\..\lib\compress\zstd_opt.h" />
     <ClInclude Include="..\..\..\programs\util.h" />
-    <ClInclude Include="resource.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="zstdlib.rc" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{8BFD8150-94D5-4BF9-8A50-7BD9929A0850}</ProjectGuid>

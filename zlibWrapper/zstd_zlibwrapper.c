@@ -29,30 +29,35 @@
     - zstd source repository : https://github.com/Cyan4973/zstd
 */
 
-#include <stdio.h>           /* fprintf */
-#include <stdlib.h>          /* malloc */
+#include <stdarg.h>            /* va_list, for z_gzprintf */
 #include <zlib.h>
 #include "zstd_zlibwrapper.h"
+#define ZSTD_STATIC_LINKING_ONLY   /* ZSTD_MAGICNUMBER */
 #include "zstd.h"
-#include "zstd_static.h"      /* ZSTD_MAGICNUMBER */
-#include "zstd_internal.h"    /* MIN */
+#define ZBUFF_STATIC_LINKING_ONLY  /* ZBUFF_createCCtx_advanced */
 #include "zbuff.h"
+#include "zstd_internal.h"     /* defaultCustomMem */
 
 
 #define Z_INFLATE_SYNC              8
 #define ZWRAP_HEADERSIZE            4
-#define ZSTD_FRAMEHEADERSIZE_MIN    5
+#define ZWRAP_DEFAULT_CLEVEL        5   /* Z_DEFAULT_COMPRESSION is translated to ZWRAP_DEFAULT_CLEVEL for zstd */
 
 #define LOG_WRAPPER(...)  // printf(__VA_ARGS__)
 
 
-#define FINISH_WITH_ERR(msg) { \
-    fprintf(stderr, "ERROR: %s\n", msg); \
+#define FINISH_WITH_GZ_ERR(msg) { \
+    (void)msg; \
+    return Z_MEM_ERROR; \
+}
+
+#define FINISH_WITH_ERR(strm, message) { \
+    strm->msg = message; \
     return Z_MEM_ERROR; \
 }
 
 #define FINISH_WITH_NULL_ERR(msg) { \
-    fprintf(stderr, "ERROR: %s\n", msg); \
+    (void)msg; \
     return NULL; \
 }
 
@@ -66,11 +71,27 @@ static int g_useZSTD = ZWRAP_USE_ZSTD;   /* 0 = don't use ZSTD */
 
 void useZSTD(int turn_on) { g_useZSTD = turn_on; }
 
-int isUsingZSTD() { return g_useZSTD; }
+int isUsingZSTD(void) { return g_useZSTD; }
 
-const char * zstdVersion() { return ZSTD_VERSION_STRING; }
+const char * zstdVersion(void) { return ZSTD_VERSION_STRING; }
 
 ZEXTERN const char * ZEXPORT z_zlibVersion OF((void)) { return zlibVersion();  }
+
+
+static void* ZWRAP_allocFunction(void* opaque, size_t size)
+{
+    z_streamp strm = (z_streamp) opaque;
+    void* address = strm->zalloc(strm->opaque, 1, size);
+  /*  printf("ZWRAP alloc %p, %d \n", address, (int)size); */
+    return address;
+}
+
+static void ZWRAP_freeFunction(void* opaque, void* address)
+{
+    z_streamp strm = (z_streamp) opaque;
+    strm->zfree(strm->opaque, address);
+   /* if (address) printf("ZWRAP free %p \n", address); */
+}
 
 
 
@@ -80,25 +101,42 @@ typedef struct {
     ZBUFF_CCtx* zbc;
     size_t bytesLeft;
     int compressionLevel;
+    ZSTD_customMem customMem;
+    z_stream allocFunc; /* copy of zalloc, zfree, opaque */
 } ZWRAP_CCtx;
-
-
-ZWRAP_CCtx* ZWRAP_createCCtx()
-{
-    ZWRAP_CCtx* zwc = (ZWRAP_CCtx*)malloc(sizeof(ZWRAP_CCtx));
-    if (zwc==NULL) return NULL;
-    memset(zwc, 0, sizeof(*zwc));
-    zwc->zbc = ZBUFF_createCCtx();
-    return zwc;
-}
 
 
 size_t ZWRAP_freeCCtx(ZWRAP_CCtx* zwc)
 {
     if (zwc==NULL) return 0;   /* support free on NULL */
     ZBUFF_freeCCtx(zwc->zbc);
-    free(zwc);
+    zwc->customMem.customFree(zwc->customMem.opaque, zwc);
     return 0;
+}
+
+
+ZWRAP_CCtx* ZWRAP_createCCtx(z_streamp strm)
+{
+    ZWRAP_CCtx* zwc;
+
+    if (strm->zalloc && strm->zfree) {
+        zwc = (ZWRAP_CCtx*)strm->zalloc(strm->opaque, 1, sizeof(ZWRAP_CCtx));
+        if (zwc==NULL) return NULL;
+        memset(zwc, 0, sizeof(ZWRAP_CCtx));
+        memcpy(&zwc->allocFunc, strm, sizeof(z_stream));
+        { ZSTD_customMem ZWRAP_customMem = { ZWRAP_allocFunction, ZWRAP_freeFunction, &zwc->allocFunc };
+          memcpy(&zwc->customMem, &ZWRAP_customMem, sizeof(ZSTD_customMem));
+        }
+    } else {
+        zwc = (ZWRAP_CCtx*)defaultCustomMem.customAlloc(defaultCustomMem.opaque, sizeof(ZWRAP_CCtx));
+        if (zwc==NULL) return NULL;
+        memset(zwc, 0, sizeof(ZWRAP_CCtx));
+        memcpy(&zwc->customMem, &defaultCustomMem, sizeof(ZSTD_customMem));
+    }
+
+    zwc->zbc = ZBUFF_createCCtx_advanced(zwc->customMem);
+    if (zwc->zbc == NULL) { ZWRAP_freeCCtx(zwc); return NULL; }
+    return zwc;
 }
 
 
@@ -113,21 +151,24 @@ ZEXTERN int ZEXPORT z_deflateInit_ OF((z_streamp strm, int level,
     }
 
     LOG_WRAPPER("- deflateInit level=%d\n", level);
-    zwc = ZWRAP_createCCtx();
+    zwc = ZWRAP_createCCtx(strm);
     if (zwc == NULL) return Z_MEM_ERROR;
+
+    if (level == Z_DEFAULT_COMPRESSION)
+        level = ZWRAP_DEFAULT_CLEVEL;
 
     { size_t const errorCode = ZBUFF_compressInit(zwc->zbc, level);
       if (ZSTD_isError(errorCode)) return Z_MEM_ERROR; }
 
     zwc->compressionLevel = level;
-    strm->opaque = (voidpf) zwc;
+    strm->state = (struct internal_state*) zwc; /* use state which in not used by user */
     strm->total_in = 0;
     strm->total_out = 0;
     return Z_OK;
 }
 
 
-ZEXTERN int ZEXPORT z_deflateInit2_ OF((z_streamp strm, int  level, int  method,
+ZEXTERN int ZEXPORT z_deflateInit2_ OF((z_streamp strm, int level, int method,
                                       int windowBits, int memLevel,
                                       int strategy, const char *version,
                                       int stream_size))
@@ -146,7 +187,7 @@ ZEXTERN int ZEXPORT z_deflateSetDictionary OF((z_streamp strm,
     if (!g_useZSTD)
         return deflateSetDictionary(strm, dictionary, dictLength);
 
-    {   ZWRAP_CCtx* zwc = (ZWRAP_CCtx*) strm->opaque;
+    {   ZWRAP_CCtx* zwc = (ZWRAP_CCtx*) strm->state;
         LOG_WRAPPER("- deflateSetDictionary level=%d\n", (int)strm->data_type);
         { size_t const errorCode = ZBUFF_compressInitDictionary(zwc->zbc, dictionary, dictLength, zwc->compressionLevel);
           if (ZSTD_isError(errorCode)) return Z_MEM_ERROR; }
@@ -166,7 +207,7 @@ ZEXTERN int ZEXPORT z_deflate OF((z_streamp strm, int flush))
         return res;
     }
 
-    zwc = (ZWRAP_CCtx*) strm->opaque;
+    zwc = (ZWRAP_CCtx*) strm->state;
 
     LOG_WRAPPER("deflate flush=%d avail_in=%d avail_out=%d total_in=%d total_out=%d\n", (int)flush, (int)strm->avail_in, (int)strm->avail_out, (int)strm->total_in, (int)strm->total_out);
     if (strm->avail_in > 0) {
@@ -183,7 +224,7 @@ ZEXTERN int ZEXPORT z_deflate OF((z_streamp strm, int flush))
         strm->avail_in -= srcSize;
     }
 
-    if (flush == Z_FULL_FLUSH) FINISH_WITH_ERR("Z_FULL_FLUSH is not supported!");
+    if (flush == Z_FULL_FLUSH) FINISH_WITH_ERR(strm, "Z_FULL_FLUSH is not supported!");
 
     if (flush == Z_FINISH || flush == Z_FULL_FLUSH) {
         size_t bytesLeft;
@@ -215,7 +256,7 @@ ZEXTERN int ZEXPORT z_deflateEnd OF((z_streamp strm))
         return deflateEnd(strm);
     }
     LOG_WRAPPER("- deflateEnd total_in=%d total_out=%d\n", (int)(strm->total_in), (int)(strm->total_out));
-    {   ZWRAP_CCtx* zwc = (ZWRAP_CCtx*) strm->opaque;
+    {   ZWRAP_CCtx* zwc = (ZWRAP_CCtx*) strm->state;
         size_t const errorCode = ZWRAP_freeCCtx(zwc);
         if (ZSTD_isError(errorCode)) return Z_MEM_ERROR;
     }
@@ -253,25 +294,37 @@ ZEXTERN int ZEXPORT z_deflateParams OF((z_streamp strm,
 
 typedef struct {
     ZBUFF_DCtx* zbd;
-    char headerBuf[ZSTD_FRAMEHEADERSIZE_MIN];
+    char headerBuf[ZWRAP_HEADERSIZE];
     int errorCount;
-    int requiredHeaderSize;
     
     /* zlib params */
     int stream_size;
     char *version;
     int windowBits;
-    alloc_func zalloc;  /* used to allocate the internal state */
-    free_func  zfree;   /* used to free the internal state */
-    voidpf     opaque;  /* private data object passed to zalloc and zfree */ 
+    ZSTD_customMem customMem;
+    z_stream allocFunc; /* copy of zalloc, zfree, opaque */
 } ZWRAP_DCtx;
 
 
-ZWRAP_DCtx* ZWRAP_createDCtx(void)
+ZWRAP_DCtx* ZWRAP_createDCtx(z_streamp strm)
 {
-    ZWRAP_DCtx* zwd = (ZWRAP_DCtx*)malloc(sizeof(ZWRAP_DCtx));
-    if (zwd==NULL) return NULL;
-    memset(zwd, 0, sizeof(*zwd));
+    ZWRAP_DCtx* zwd;
+
+    if (strm->zalloc && strm->zfree) {
+        zwd = (ZWRAP_DCtx*)strm->zalloc(strm->opaque, 1, sizeof(ZWRAP_DCtx));
+        if (zwd==NULL) return NULL;
+        memset(zwd, 0, sizeof(ZWRAP_DCtx));
+        memcpy(&zwd->allocFunc, strm, sizeof(z_stream));
+        { ZSTD_customMem ZWRAP_customMem = { ZWRAP_allocFunction, ZWRAP_freeFunction, &zwd->allocFunc };
+          memcpy(&zwd->customMem, &ZWRAP_customMem, sizeof(ZSTD_customMem));
+        }
+    } else {
+        zwd = (ZWRAP_DCtx*)defaultCustomMem.customAlloc(defaultCustomMem.opaque, sizeof(ZWRAP_DCtx));
+        if (zwd==NULL) return NULL;
+        memset(zwd, 0, sizeof(ZWRAP_DCtx));
+        memcpy(&zwd->customMem, &defaultCustomMem, sizeof(ZSTD_customMem));
+    }
+
     return zwd;
 }
 
@@ -279,9 +332,9 @@ ZWRAP_DCtx* ZWRAP_createDCtx(void)
 size_t ZWRAP_freeDCtx(ZWRAP_DCtx* zwd)
 {
     if (zwd==NULL) return 0;   /* support free on null */
-    if (zwd->version) free(zwd->version);
-    if (zwd->zbd) ZBUFF_freeDCtx(zwd->zbd);
-    free(zwd);
+    ZBUFF_freeDCtx(zwd->zbd);
+    if (zwd->version) zwd->customMem.customFree(zwd->customMem.opaque, zwd->version);
+    zwd->customMem.customFree(zwd->customMem.opaque, zwd);
     return 0;
 }
 
@@ -289,18 +342,16 @@ size_t ZWRAP_freeDCtx(ZWRAP_DCtx* zwd)
 ZEXTERN int ZEXPORT z_inflateInit_ OF((z_streamp strm,
                                      const char *version, int stream_size))
 {
-    ZWRAP_DCtx* zwd = ZWRAP_createDCtx();
+    ZWRAP_DCtx* zwd = ZWRAP_createDCtx(strm);
     LOG_WRAPPER("- inflateInit\n");
     if (zwd == NULL) return Z_MEM_ERROR;
 
-    zwd->stream_size = stream_size;
-    zwd->version = strdup(version);
-    zwd->zalloc = strm->zalloc;
-    zwd->zfree = strm->zfree;
-    zwd->opaque = strm->opaque;
-    zwd->requiredHeaderSize = ZWRAP_HEADERSIZE;
+    zwd->version = zwd->customMem.customAlloc(zwd->customMem.opaque, strlen(version) + 1);
+    if (zwd->version == NULL) { ZWRAP_freeDCtx(zwd); return Z_MEM_ERROR; }
+    strcpy(zwd->version, version);
 
-    strm->state = (struct internal_state*) zwd;
+    zwd->stream_size = stream_size;
+    strm->state = (struct internal_state*) zwd; /* use state which in not used by user */
     strm->total_in = 0;
     strm->total_out = 0;
     strm->reserved = 1; /* mark as unknown steam */
@@ -360,14 +411,14 @@ ZEXTERN int ZEXPORT z_inflate OF((z_streamp strm, int flush))
         size_t errorCode, dstCapacity, srcSize;
         ZWRAP_DCtx* zwd = (ZWRAP_DCtx*) strm->state;
         LOG_WRAPPER("inflate avail_in=%d avail_out=%d total_in=%d total_out=%d\n", (int)strm->avail_in, (int)strm->avail_out, (int)strm->total_in, (int)strm->total_out);
-        while (strm->total_in < ZSTD_FRAMEHEADERSIZE_MIN)
+        if (strm->total_in < ZWRAP_HEADERSIZE)
         {
-            srcSize = MIN(strm->avail_in, zwd->requiredHeaderSize - strm->total_in);
+            srcSize = MIN(strm->avail_in, ZWRAP_HEADERSIZE - strm->total_in);
             memcpy(zwd->headerBuf+strm->total_in, strm->next_in, srcSize);
             strm->total_in += srcSize;
             strm->next_in += srcSize;
             strm->avail_in -= srcSize;
-            if (strm->total_in < zwd->requiredHeaderSize) return Z_OK;
+            if (strm->total_in < ZWRAP_HEADERSIZE) return Z_OK;
 
             if (MEM_readLE32(zwd->headerBuf) != ZSTD_MAGICNUMBER) {
                 z_stream strm2;
@@ -396,21 +447,22 @@ ZEXTERN int ZEXPORT z_inflate OF((z_streamp strm, int flush))
                 strm->avail_in = strm2.avail_in;
                 strm->next_out = strm2.next_out;
                 strm->avail_out = strm2.avail_out;
+
                 strm->reserved = 0; /* mark as zlib stream */
+                errorCode = ZWRAP_freeDCtx(zwd);
+                if (ZSTD_isError(errorCode)) return Z_MEM_ERROR;
+
                 if (flush == Z_INFLATE_SYNC) return inflateSync(strm);
                 return inflate(strm, flush);
             }
 
-            if (zwd->requiredHeaderSize < ZSTD_FRAMEHEADERSIZE_MIN) {
-                zwd->requiredHeaderSize = ZSTD_FRAMEHEADERSIZE_MIN;
-                continue;
-            }
+            zwd->zbd = ZBUFF_createDCtx_advanced(zwd->customMem);
+            if (zwd->zbd == NULL) { ZWRAP_freeDCtx(zwd); return Z_MEM_ERROR; }
 
-            zwd->zbd = ZBUFF_createDCtx();
-            { size_t const errorCode = ZBUFF_decompressInit(zwd->zbd);
-              if (ZSTD_isError(errorCode)) return Z_MEM_ERROR; }
+            errorCode = ZBUFF_decompressInit(zwd->zbd);
+            if (ZSTD_isError(errorCode)) return Z_MEM_ERROR;
 
-            srcSize = ZSTD_FRAMEHEADERSIZE_MIN;
+            srcSize = ZWRAP_HEADERSIZE;
             dstCapacity = 0;
             errorCode = ZBUFF_decompressContinue(zwd->zbd, strm->next_out, &dstCapacity, zwd->headerBuf, &srcSize);
             LOG_WRAPPER("ZBUFF_decompressContinue1 errorCode=%d srcSize=%d dstCapacity=%d\n", (int)errorCode, (int)srcSize, (int)dstCapacity);
@@ -419,7 +471,6 @@ ZEXTERN int ZEXPORT z_inflate OF((z_streamp strm, int flush))
                 return Z_MEM_ERROR;
             }
             if (strm->avail_in == 0) return Z_OK;
-            break;
         }
 
         srcSize = strm->avail_in;
@@ -447,7 +498,7 @@ ZEXTERN int ZEXPORT z_inflateEnd OF((z_streamp strm))
 {
     int ret = Z_OK;
     if (!strm->reserved)
-        ret = inflateEnd(strm);
+        return inflateEnd(strm);
  
     LOG_WRAPPER("- inflateEnd total_in=%d total_out=%d\n", (int)(strm->total_in), (int)(strm->total_out));
     {   ZWRAP_DCtx* zwd = (ZWRAP_DCtx*) strm->state;
@@ -472,7 +523,7 @@ ZEXTERN int ZEXPORT z_deflateCopy OF((z_streamp dest,
 {
     if (!g_useZSTD)
         return deflateCopy(dest, source);
-    FINISH_WITH_ERR("deflateCopy is not supported!");
+    FINISH_WITH_ERR(source, "deflateCopy is not supported!");
 }
 
 
@@ -480,7 +531,7 @@ ZEXTERN int ZEXPORT z_deflateReset OF((z_streamp strm))
 {
     if (!g_useZSTD)
         return deflateReset(strm);
-    FINISH_WITH_ERR("deflateReset is not supported!");
+    FINISH_WITH_ERR(strm, "deflateReset is not supported!");
 }
 
 
@@ -492,18 +543,20 @@ ZEXTERN int ZEXPORT z_deflateTune OF((z_streamp strm,
 {
     if (!g_useZSTD)
         return deflateTune(strm, good_length, max_lazy, nice_length, max_chain);
-    FINISH_WITH_ERR("deflateTune is not supported!");
+    FINISH_WITH_ERR(strm, "deflateTune is not supported!");
 }
 
 
+#if ZLIB_VERNUM >= 0x1260
 ZEXTERN int ZEXPORT z_deflatePending OF((z_streamp strm,
                                        unsigned *pending,
                                        int *bits))
 {
     if (!g_useZSTD)
         return deflatePending(strm, pending, bits);
-    FINISH_WITH_ERR("deflatePending is not supported!");
+    FINISH_WITH_ERR(strm, "deflatePending is not supported!");
 }
+#endif
 
 
 ZEXTERN int ZEXPORT z_deflatePrime OF((z_streamp strm,
@@ -512,7 +565,7 @@ ZEXTERN int ZEXPORT z_deflatePrime OF((z_streamp strm,
 {
     if (!g_useZSTD)
         return deflatePrime(strm, bits, value);
-    FINISH_WITH_ERR("deflatePrime is not supported!");
+    FINISH_WITH_ERR(strm, "deflatePrime is not supported!");
 }
 
 
@@ -521,22 +574,23 @@ ZEXTERN int ZEXPORT z_deflateSetHeader OF((z_streamp strm,
 {
     if (!g_useZSTD)
         return deflateSetHeader(strm, head);
-    FINISH_WITH_ERR("deflateSetHeader is not supported!");
+    FINISH_WITH_ERR(strm, "deflateSetHeader is not supported!");
 }
 
 
 
 
 /* Advanced compression functions */
+#if ZLIB_VERNUM >= 0x1280
 ZEXTERN int ZEXPORT z_inflateGetDictionary OF((z_streamp strm,
                                              Bytef *dictionary,
                                              uInt  *dictLength))
 {
     if (!strm->reserved)
         return inflateGetDictionary(strm, dictionary, dictLength);
-    FINISH_WITH_ERR("inflateGetDictionary is not supported!");
+    FINISH_WITH_ERR(strm, "inflateGetDictionary is not supported!");
 }
-
+#endif
 
 
 ZEXTERN int ZEXPORT z_inflateCopy OF((z_streamp dest,
@@ -544,7 +598,7 @@ ZEXTERN int ZEXPORT z_inflateCopy OF((z_streamp dest,
 {
     if (!g_useZSTD)
         return inflateCopy(dest, source);
-    FINISH_WITH_ERR("inflateCopy is not supported!");
+    FINISH_WITH_ERR(source, "inflateCopy is not supported!");
 }
 
 
@@ -552,17 +606,29 @@ ZEXTERN int ZEXPORT z_inflateReset OF((z_streamp strm))
 {
     if (!strm->reserved)
         return inflateReset(strm);
-    FINISH_WITH_ERR("inflateReset is not supported!");
+    FINISH_WITH_ERR(strm, "inflateReset is not supported!");
 }
 
 
+#if ZLIB_VERNUM >= 0x1240
 ZEXTERN int ZEXPORT z_inflateReset2 OF((z_streamp strm,
                                       int windowBits))
 {
     if (!strm->reserved)
         return inflateReset2(strm, windowBits);
-    FINISH_WITH_ERR("inflateReset2 is not supported!");
+    FINISH_WITH_ERR(strm, "inflateReset2 is not supported!");
 }
+#endif
+
+
+#if ZLIB_VERNUM >= 0x1240
+ZEXTERN long ZEXPORT z_inflateMark OF((z_streamp strm))
+{
+    if (!strm->reserved)
+        return inflateMark(strm);
+    FINISH_WITH_ERR(strm, "inflateMark is not supported!");
+}
+#endif
 
 
 ZEXTERN int ZEXPORT z_inflatePrime OF((z_streamp strm,
@@ -571,15 +637,7 @@ ZEXTERN int ZEXPORT z_inflatePrime OF((z_streamp strm,
 {
     if (!strm->reserved)
         return inflatePrime(strm, bits, value);
-    FINISH_WITH_ERR("inflatePrime is not supported!");
-}
-
-
-ZEXTERN long ZEXPORT z_inflateMark OF((z_streamp strm))
-{
-    if (!strm->reserved)
-        return inflateMark(strm);
-    FINISH_WITH_ERR("inflateMark is not supported!");
+    FINISH_WITH_ERR(strm, "inflatePrime is not supported!");
 }
 
 
@@ -588,7 +646,7 @@ ZEXTERN int ZEXPORT z_inflateGetHeader OF((z_streamp strm,
 {
     if (!strm->reserved)
         return inflateGetHeader(strm, head);
-    FINISH_WITH_ERR("inflateGetHeader is not supported!");
+    FINISH_WITH_ERR(strm, "inflateGetHeader is not supported!");
 }
 
 
@@ -599,7 +657,7 @@ ZEXTERN int ZEXPORT z_inflateBackInit_ OF((z_streamp strm, int windowBits,
 {
     if (!strm->reserved)
         return inflateBackInit_(strm, windowBits, window, version, stream_size);
-    FINISH_WITH_ERR("inflateBackInit is not supported!");
+    FINISH_WITH_ERR(strm, "inflateBackInit is not supported!");
 }
 
 
@@ -609,7 +667,7 @@ ZEXTERN int ZEXPORT z_inflateBack OF((z_streamp strm,
 {
     if (!strm->reserved)
         return inflateBack(strm, in, in_desc, out, out_desc);
-    FINISH_WITH_ERR("inflateBack is not supported!");
+    FINISH_WITH_ERR(strm, "inflateBack is not supported!");
 }
 
 
@@ -617,7 +675,7 @@ ZEXTERN int ZEXPORT z_inflateBackEnd OF((z_streamp strm))
 {
     if (!strm->reserved)
         return inflateBackEnd(strm);
-    FINISH_WITH_ERR("inflateBackEnd is not supported!");
+    FINISH_WITH_ERR(strm, "inflateBackEnd is not supported!");
 }
 
 
@@ -634,9 +692,9 @@ ZEXTERN int ZEXPORT z_compress OF((Bytef *dest,   uLongf *destLen,
     if (!g_useZSTD)
         return compress(dest, destLen, source, sourceLen);
 
-    size_t dstCapacity = *destLen; 
-    LOG_WRAPPER("z_compress sourceLen=%d dstCapacity=%d\n", (int)sourceLen, (int)dstCapacity);
-    { size_t const errorCode = ZSTD_compress(dest, dstCapacity, source, sourceLen, -1);
+    { size_t dstCapacity = *destLen; 
+      size_t const errorCode = ZSTD_compress(dest, dstCapacity, source, sourceLen, ZWRAP_DEFAULT_CLEVEL);
+      LOG_WRAPPER("z_compress sourceLen=%d dstCapacity=%d\n", (int)sourceLen, (int)dstCapacity);
       if (ZSTD_isError(errorCode)) return Z_MEM_ERROR;
       *destLen = errorCode;
     }
@@ -651,8 +709,8 @@ ZEXTERN int ZEXPORT z_compress2 OF((Bytef *dest,   uLongf *destLen,
     if (!g_useZSTD)
         return compress2(dest, destLen, source, sourceLen, level);
         
-    size_t dstCapacity = *destLen; 
-    { size_t const errorCode = ZSTD_compress(dest, dstCapacity, source, sourceLen, level);
+    { size_t dstCapacity = *destLen; 
+      size_t const errorCode = ZSTD_compress(dest, dstCapacity, source, sourceLen, level);
       if (ZSTD_isError(errorCode)) return Z_MEM_ERROR;
       *destLen = errorCode;
     }
@@ -676,8 +734,8 @@ ZEXTERN int ZEXPORT z_uncompress OF((Bytef *dest,   uLongf *destLen,
 //    if (!g_useZSTD)
         return uncompress(dest, destLen, source, sourceLen);
 
-    size_t dstCapacity = *destLen; 
-    { size_t const errorCode = ZSTD_decompress(dest, dstCapacity, source, sourceLen);
+    { size_t dstCapacity = *destLen; 
+      size_t const errorCode = ZSTD_decompress(dest, dstCapacity, source, sourceLen);
       if (ZSTD_isError(errorCode)) return Z_MEM_ERROR;
       *destLen = errorCode;
      }
@@ -703,19 +761,45 @@ ZEXTERN gzFile ZEXPORT z_gzdopen OF((int fd, const char *mode))
 }
 
 
+#if ZLIB_VERNUM >= 0x1240
 ZEXTERN int ZEXPORT z_gzbuffer OF((gzFile file, unsigned size))
 {
     if (!g_useZSTD)
         return gzbuffer(file, size);
-    FINISH_WITH_ERR("gzbuffer is not supported!");
+    FINISH_WITH_GZ_ERR("gzbuffer is not supported!");
 }
+
+
+ZEXTERN z_off_t ZEXPORT z_gzoffset OF((gzFile file))
+{
+    if (!g_useZSTD)
+        return gzoffset(file);
+    FINISH_WITH_GZ_ERR("gzoffset is not supported!");
+}
+
+
+ZEXTERN int ZEXPORT z_gzclose_r OF((gzFile file))
+{
+    if (!g_useZSTD)
+        return gzclose_r(file);
+    FINISH_WITH_GZ_ERR("gzclose_r is not supported!");
+}
+
+
+ZEXTERN int ZEXPORT z_gzclose_w OF((gzFile file))
+{
+    if (!g_useZSTD)
+        return gzclose_w(file);
+    FINISH_WITH_GZ_ERR("gzclose_w is not supported!");
+}
+#endif
 
 
 ZEXTERN int ZEXPORT z_gzsetparams OF((gzFile file, int level, int strategy))
 {
     if (!g_useZSTD)
         return gzsetparams(file, level, strategy);
-    FINISH_WITH_ERR("gzsetparams is not supported!");
+    FINISH_WITH_GZ_ERR("gzsetparams is not supported!");
 }
 
 
@@ -723,7 +807,7 @@ ZEXTERN int ZEXPORT z_gzread OF((gzFile file, voidp buf, unsigned len))
 {
     if (!g_useZSTD)
         return gzread(file, buf, len);
-    FINISH_WITH_ERR("gzread is not supported!");
+    FINISH_WITH_GZ_ERR("gzread is not supported!");
 }
 
 
@@ -732,11 +816,15 @@ ZEXTERN int ZEXPORT z_gzwrite OF((gzFile file,
 {
     if (!g_useZSTD)
         return gzwrite(file, buf, len);
-    FINISH_WITH_ERR("gzwrite is not supported!");
+    FINISH_WITH_GZ_ERR("gzwrite is not supported!");
 }
 
 
+#if ZLIB_VERNUM >= 0x1260
 ZEXTERN int ZEXPORTVA z_gzprintf Z_ARG((gzFile file, const char *format, ...))
+#else
+ZEXTERN int ZEXPORTVA z_gzprintf OF((gzFile file, const char *format, ...))
+#endif
 {
     if (!g_useZSTD) {
         int ret;
@@ -750,7 +838,7 @@ ZEXTERN int ZEXPORTVA z_gzprintf Z_ARG((gzFile file, const char *format, ...))
       //  printf("gzprintf ret=%d\n", ret);
         return ret;
     }
-    FINISH_WITH_ERR("gzprintf is not supported!");
+    FINISH_WITH_GZ_ERR("gzprintf is not supported!");
 }
 
 
@@ -758,7 +846,7 @@ ZEXTERN int ZEXPORT z_gzputs OF((gzFile file, const char *s))
 {
     if (!g_useZSTD)
         return gzputs(file, s);
-    FINISH_WITH_ERR("gzputs is not supported!");
+    FINISH_WITH_GZ_ERR("gzputs is not supported!");
 }
 
 
@@ -774,15 +862,19 @@ ZEXTERN int ZEXPORT z_gzputc OF((gzFile file, int c))
 {
     if (!g_useZSTD)
         return gzputc(file, c);
-    FINISH_WITH_ERR("gzputc is not supported!");
+    FINISH_WITH_GZ_ERR("gzputc is not supported!");
 }
 
 
+#if ZLIB_VERNUM == 0x1260
+ZEXTERN int ZEXPORT z_gzgetc_ OF((gzFile file))
+#else
 ZEXTERN int ZEXPORT z_gzgetc OF((gzFile file))
+#endif
 {
     if (!g_useZSTD)
         return gzgetc(file);
-    FINISH_WITH_ERR("gzgetc is not supported!");
+    FINISH_WITH_GZ_ERR("gzgetc is not supported!");
 }
 
 
@@ -790,7 +882,7 @@ ZEXTERN int ZEXPORT z_gzungetc OF((int c, gzFile file))
 {
     if (!g_useZSTD)
         return gzungetc(c, file);
-    FINISH_WITH_ERR("gzungetc is not supported!");
+    FINISH_WITH_GZ_ERR("gzungetc is not supported!");
 }
 
 
@@ -798,7 +890,7 @@ ZEXTERN int ZEXPORT z_gzflush OF((gzFile file, int flush))
 {
     if (!g_useZSTD)
         return gzflush(file, flush);
-    FINISH_WITH_ERR("gzflush is not supported!");
+    FINISH_WITH_GZ_ERR("gzflush is not supported!");
 }
 
 
@@ -806,7 +898,7 @@ ZEXTERN z_off_t ZEXPORT z_gzseek OF((gzFile file, z_off_t offset, int whence))
 {
     if (!g_useZSTD)
         return gzseek(file, offset, whence);
-    FINISH_WITH_ERR("gzseek is not supported!");
+    FINISH_WITH_GZ_ERR("gzseek is not supported!");
 }
 
 
@@ -814,7 +906,7 @@ ZEXTERN int ZEXPORT    z_gzrewind OF((gzFile file))
 {
     if (!g_useZSTD)
         return gzrewind(file);
-    FINISH_WITH_ERR("gzrewind is not supported!");
+    FINISH_WITH_GZ_ERR("gzrewind is not supported!");
 }
 
 
@@ -822,15 +914,7 @@ ZEXTERN z_off_t ZEXPORT    z_gztell OF((gzFile file))
 {
     if (!g_useZSTD)
         return gztell(file);
-    FINISH_WITH_ERR("gztell is not supported!");
-}
-
-
-ZEXTERN z_off_t ZEXPORT z_gzoffset OF((gzFile file))
-{
-    if (!g_useZSTD)
-        return gzoffset(file);
-    FINISH_WITH_ERR("gzoffset is not supported!");
+    FINISH_WITH_GZ_ERR("gztell is not supported!");
 }
 
 
@@ -838,7 +922,7 @@ ZEXTERN int ZEXPORT z_gzeof OF((gzFile file))
 {
     if (!g_useZSTD)
         return gzeof(file);
-    FINISH_WITH_ERR("gzeof is not supported!");
+    FINISH_WITH_GZ_ERR("gzeof is not supported!");
 }
 
 
@@ -846,7 +930,7 @@ ZEXTERN int ZEXPORT z_gzdirect OF((gzFile file))
 {
     if (!g_useZSTD)
         return gzdirect(file);
-    FINISH_WITH_ERR("gzdirect is not supported!");
+    FINISH_WITH_GZ_ERR("gzdirect is not supported!");
 }
 
 
@@ -854,23 +938,7 @@ ZEXTERN int ZEXPORT    z_gzclose OF((gzFile file))
 {
     if (!g_useZSTD)
         return gzclose(file);
-    FINISH_WITH_ERR("gzclose is not supported!");
-}
-
-
-ZEXTERN int ZEXPORT z_gzclose_r OF((gzFile file))
-{
-    if (!g_useZSTD)
-        return gzclose_r(file);
-    FINISH_WITH_ERR("gzclose_r is not supported!");
-}
-
-
-ZEXTERN int ZEXPORT z_gzclose_w OF((gzFile file))
-{
-    if (!g_useZSTD)
-        return gzclose_w(file);
-    FINISH_WITH_ERR("gzclose_w is not supported!");
+    FINISH_WITH_GZ_ERR("gzclose is not supported!");
 }
 
 

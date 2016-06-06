@@ -52,3 +52,8 @@ ADD_SUBDIRECTORY(programs)
 #-----------------------------------------------------------------------------
 INCLUDE(CMakeModules/AddExtraCompilationFlags.cmake)
 ADD_EXTRA_COMPILATION_FLAGS()
+
+ADD_CUSTOM_TARGET(clean-all
+   COMMAND ${CMAKE_BUILD_TOOL} clean
+   COMMAND rm -rf ${CMAKE_BINARY_DIR}/
+)

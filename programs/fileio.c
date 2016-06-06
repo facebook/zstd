@@ -56,9 +56,11 @@
 
 #include "mem.h"
 #include "fileio.h"
-#include "zstd_static.h"   /* ZSTD_magicNumber, ZSTD_frameHeaderSize_max */
+#define ZSTD_STATIC_LINKING_ONLY   /* ZSTD_magicNumber, ZSTD_frameHeaderSize_max */
+#include "zstd.h"
 #include "zstd_internal.h" /* MIN, KB, MB */
-#include "zbuff_static.h"
+#define ZBUFF_STATIC_LINKING_ONLY
+#include "zbuff.h"
 
 #if defined(ZSTD_LEGACY_SUPPORT) && (ZSTD_LEGACY_SUPPORT==1)
 #  include "zstd_legacy.h"    /* ZSTD_isLegacy */
@@ -97,7 +99,7 @@
 
 #define CACHELINE 64
 
-#define MAX_DICT_SIZE (1 MB)   /* protection against large input (attack scenario) ; can be changed */
+#define MAX_DICT_SIZE (8 MB)   /* protection against large input (attack scenario) */
 
 #define FNSPACE 30
 
@@ -133,6 +135,10 @@ static U32 g_maxWLog = 23;
 void FIO_setMaxWLog(unsigned maxWLog) { g_maxWLog = maxWLog; }
 static U32 g_sparseFileSupport = 1;   /* 0 : no sparse allowed; 1: auto (file yes, stdout no); 2: force sparse */
 void FIO_setSparseWrite(unsigned sparse) { g_sparseFileSupport=sparse; }
+static U32 g_dictIDFlag = 1;
+void FIO_setDictIDFlag(unsigned dictIDFlag) { g_dictIDFlag = dictIDFlag; }
+static U32 g_checksumFlag = 0;
+void FIO_setChecksumFlag(unsigned checksumFlag) { g_checksumFlag = checksumFlag; }
 
 
 /*-*************************************
@@ -186,7 +192,7 @@ static FILE* FIO_openDstFile(const char* dstFileName)
             DISPLAYLEVEL(4, "Sparse File Support is automatically disabled on stdout ; try --sparse \n");
         }
     } else {
-        if (!g_overwrite) {  /* Check if destination file already exists */
+        if (!g_overwrite && strcmp (dstFileName, nulmark)) {  /* Check if destination file already exists */
             f = fopen( dstFileName, "rb" );
             if (f != 0) {  /* dest file exists, prompt for overwrite authorization */
                 fclose(f);
@@ -212,12 +218,12 @@ static FILE* FIO_openDstFile(const char* dstFileName)
 /*! FIO_loadFile() :
 *   creates a buffer, pointed by `*bufferPtr`,
 *   loads `filename` content into it,
-*   up to MAX_DICT_SIZE bytes
+*   up to MAX_DICT_SIZE bytes.
+*   @return : loaded size
 */
 static size_t FIO_loadFile(void** bufferPtr, const char* fileName)
 {
     FILE* fileHandle;
-    size_t readSize;
     U64 fileSize;
 
     *bufferPtr = NULL;
@@ -237,8 +243,8 @@ static size_t FIO_loadFile(void** bufferPtr, const char* fileName)
     }
     *bufferPtr = (BYTE*)malloc((size_t)fileSize);
     if (*bufferPtr==NULL) EXM_THROW(34, "Allocation error : not enough memory for dictBuffer");
-    readSize = fread(*bufferPtr, 1, (size_t)fileSize, fileHandle);
-    if (readSize!=fileSize) EXM_THROW(35, "Error reading dictionary file %s", fileName);
+    { size_t const readSize = fread(*bufferPtr, 1, (size_t)fileSize, fileHandle);
+      if (readSize!=fileSize) EXM_THROW(35, "Error reading dictionary file %s", fileName); }
     fclose(fileHandle);
     return (size_t)fileSize;
 }
@@ -308,12 +314,18 @@ static int FIO_compressFilename_internal(cRess_t ress,
 
     /* init */
     {   ZSTD_parameters params;
+        memset(&params, 0, sizeof(params));
         params.cParams = ZSTD_getCParams(cLevel, fileSize, ress.dictBufferSize);
         params.fParams.contentSizeFlag = 1;
-        if (g_maxWLog) if (params.cParams.windowLog > g_maxWLog) params.cParams.windowLog = g_maxWLog;
-        { size_t const errorCode = ZBUFF_compressInit_advanced(ress.ctx, ress.dictBuffer, ress.dictBufferSize, params, fileSize);
-          if (ZBUFF_isError(errorCode)) EXM_THROW(21, "Error initializing compression : %s", ZBUFF_getErrorName(errorCode)); }
-    }
+        params.fParams.checksumFlag = g_checksumFlag;
+        params.fParams.noDictIDFlag = !g_dictIDFlag;
+        if ((g_maxWLog) && (params.cParams.windowLog > g_maxWLog)) {
+            params.cParams.windowLog = g_maxWLog;
+            params.cParams = ZSTD_adjustCParams(params.cParams, fileSize, ress.dictBufferSize);
+        }
+        {   size_t const errorCode = ZBUFF_compressInit_advanced(ress.ctx, ress.dictBuffer, ress.dictBufferSize, params, fileSize);
+            if (ZBUFF_isError(errorCode)) EXM_THROW(21, "Error initializing compression : %s", ZBUFF_getErrorName(errorCode));
+    }   }
 
     /* Main compression loop */
     readsize = 0;
@@ -409,13 +421,9 @@ static int FIO_compressFilename_extRess(cRess_t ress,
 int FIO_compressFilename(const char* dstFileName, const char* srcFileName,
                          const char* dictFileName, int compressionLevel)
 {
-    clock_t start;
-    cRess_t ress;
+    clock_t const start = clock();
+    cRess_t const ress = FIO_createCResources(dictFileName);
     int issueWithSrcFile = 0;
-
-    /* Init */
-    start = clock();
-    ress = FIO_createCResources(dictFileName);
 
     issueWithSrcFile += FIO_compressFilename_extRess(ress, dstFileName, srcFileName, compressionLevel);
 
@@ -607,7 +615,7 @@ unsigned long long FIO_decompressFrame(dRess_t ress,
     ZBUFF_decompressInitDictionary(ress.dctx, ress.dictBuffer, ress.dictBufferSize);
 
     /* Header loading (optional, saves one loop) */
-    {   size_t const toLoad = ZSTD_frameHeaderSize_min - alreadyLoaded;   /* assumption : ZSTD_frameHeaderSize_min >= alreadyLoaded */
+    {   size_t const toLoad = 9 - alreadyLoaded;   /* assumption : 9 >= alreadyLoaded */
         size_t const loadedSize = fread(((char*)ress.srcBuffer) + alreadyLoaded, 1, toLoad, finput);
         readSize = alreadyLoaded + loadedSize;
     }
@@ -701,7 +709,7 @@ static int FIO_decompressSrcFile(dRess_t ress, const char* srcFileName)
 
     /* Final Status */
     DISPLAYLEVEL(2, "\r%79s\r", "");
-    DISPLAYLEVEL(2, "Successfully decoded %llu bytes \n", filesize);
+    DISPLAYLEVEL(2, "%-20.20s: %llu bytes \n", srcFileName, filesize);
 
     /* Close */
     fclose(srcFile);

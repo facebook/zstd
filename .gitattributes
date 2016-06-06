@@ -12,6 +12,7 @@
 # Visual Studio
 *.sln text eol=crlf
 *.vcxproj* text eol=crlf
+*.vcproj* text eol=crlf
 *.suo binary
 *.rc binary
 

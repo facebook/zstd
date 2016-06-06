@@ -23,7 +23,7 @@ roundTripTest() {
 isWindows=false
 ECHO="echo"
 case "$OS" in
-  Windows*) 
+  Windows*)
     isWindows=true
     ECHO="echo -e"
     ;;
@@ -42,22 +42,22 @@ file $ZSTD
 $ECHO "\n**** simple tests **** "
 
 ./datagen > tmp
-$ZSTD -f tmp                             # trivial compression case, creates tmp.zst
-$ZSTD -df tmp.zst                        # trivial decompression case (overwrites tmp)
+$ZSTD -f tmp                      # trivial compression case, creates tmp.zst
+$ZSTD -df tmp.zst                 # trivial decompression case (overwrites tmp)
 $ECHO "test : too large compression level (must fail)"
 $ZSTD -99 tmp && die "too large compression level undetected"
 $ECHO "test : compress to stdout"
-$ZSTD tmp -c > tmpCompressed                 
+$ZSTD tmp -c > tmpCompressed
 $ZSTD tmp --stdout > tmpCompressed       # long command format
 $ECHO "test : null-length file roundtrip"
 $ECHO -n '' | $ZSTD - --stdout | $ZSTD -d --stdout
 $ECHO "test : decompress file with wrong suffix (must fail)"
 $ZSTD -d tmpCompressed && die "wrong suffix error not detected!"
-$ZSTD -d tmpCompressed -c > tmpResult    # decompression using stdout   
+$ZSTD -d tmpCompressed -c > tmpResult    # decompression using stdout
 $ZSTD --decompress tmpCompressed -c > tmpResult
 $ZSTD --decompress tmpCompressed --stdout > tmpResult
 if [ "$isWindows" = false ] ; then
-    $ZSTD -d    < tmp.zst > /dev/null        # combine decompression, stdin & stdout
+    $ZSTD -d    < tmp.zst > /dev/null    # combine decompression, stdin & stdout
     $ZSTD -d  - < tmp.zst > /dev/null
 fi
 $ZSTD -dc   < tmp.zst > /dev/null
@@ -122,7 +122,7 @@ $ZSTD -d -v -f tmpSparseCompressed -o tmpSparseRegenerated
 $ZSTD -d -v -f tmpSparseCompressed -c >> tmpSparseRegenerated
 ls -ls tmpSparse*
 diff tmpSparse2M tmpSparseRegenerated
-# rm tmpSparse*
+rm tmpSparse*
 
 
 $ECHO "\n**** dictionary tests **** "
@@ -131,10 +131,23 @@ $ECHO "\n**** dictionary tests **** "
 ./datagen -g1M | $MD5SUM > tmp1
 ./datagen -g1M | $ZSTD -D tmpDict | $ZSTD -D tmpDict -dvq | $MD5SUM > tmp2
 diff -q tmp1 tmp2
-$ZSTD --train *.c *.h -o tmpDict
-$ZSTD xxhash.c -D tmpDict -of tmp
-$ZSTD -d tmp -D tmpDict -of result
-diff xxhash.c result
+$ECHO "Create first dictionary"
+$ZSTD --train *.c -o tmpDict
+cp zstdcli.c tmp
+$ZSTD -f tmp -D tmpDict
+$ZSTD -d tmp.zst -D tmpDict -of result
+diff zstdcli.c result
+$ECHO "Create second (different) dictionary"
+$ZSTD --train *.c *.h -o tmpDictC
+$ZSTD -d tmp.zst -D tmpDictC -of result && die "wrong dictionary not detected!"
+$ECHO "Create dictionary with short dictID"
+$ZSTD --train *.c --dictID 1 -o tmpDict1
+cmp tmpDict tmpDict1 && die "dictionaries should have different ID !"
+$ECHO "Compress without dictID"
+$ZSTD -f tmp -D tmpDict1 --no-dictID
+$ZSTD -d tmp.zst -D tmpDict -of result
+diff zstdcli.c result
+rm tmp*
 
 
 $ECHO "\n**** multiple files tests **** "
@@ -179,7 +192,7 @@ roundTripTest -g127K      # TableID==2
 roundTripTest -g255K      # TableID==1
 roundTripTest -g513K      # TableID==0
 roundTripTest -g512K 6    # greedy, hash chain
-roundTripTest -g512K 16   # btlazy2 
+roundTripTest -g512K 16   # btlazy2
 roundTripTest -g512K 19   # btopt
 
 rm tmp*
@@ -218,4 +231,3 @@ roundTripTest -g99000000 -P99 20
 roundTripTest -g6000000000 -P99 1
 
 rm tmp*
-

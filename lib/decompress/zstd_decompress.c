@@ -1012,6 +1012,11 @@ static size_t ZSTD_decompressFrame(ZSTD_DCtx* dctx,
 }
 
 
+/*! ZSTD_decompress_usingPreparedDCtx() :
+*   Same as ZSTD_decompress_usingDict, but using a reference context `preparedDCtx`, where dictionary has been loaded.
+*   It avoids reloading the dictionary each time.
+*   `preparedDCtx` must have been properly initialized using ZSTD_decompressBegin_usingDict().
+*   Requires 2 contexts : 1 for reference (preparedDCtx), which will not be modified, and 1 to run the decompression operation (dctx) */
 size_t ZSTD_decompress_usingPreparedDCtx(ZSTD_DCtx* dctx, const ZSTD_DCtx* refDCtx,
                                          void* dst, size_t dstCapacity,
                                    const void* src, size_t srcSize)

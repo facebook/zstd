@@ -126,46 +126,10 @@ ZSTDLIB_API size_t     ZSTD_freeDCtx(ZSTD_DCtx* dctx);      /*!< @return : error
 ZSTDLIB_API size_t ZSTD_decompressDCtx(ZSTD_DCtx* ctx, void* dst, size_t dstCapacity, const void* src, size_t srcSize);
 
 
-/*-***********************
-*  Dictionary API
-*************************/
-/*! ZSTD_createCDict() :
-*   Create a digested dictionary, ready to start compression operation without startup delay.
-*   `dict` can be released after creation */
-typedef struct ZSTD_CDict_s ZSTD_CDict;
-ZSTDLIB_API ZSTD_CDict* ZSTD_createCDict(const void* dict, size_t dictSize, int compressionLevel);
-ZSTDLIB_API size_t      ZSTD_freeCDict(ZSTD_CDict* CDict);
-
-/*! ZSTD_compress_usingCDict() :
-*   Compression using a pre-digested Dictionary
-*   In contrast with older ZSTD_compress_usingDict(), use dictionary without significant overhead.
-*   Note that compression level is decided during dictionary creation */
-ZSTDLIB_API size_t ZSTD_compress_usingCDict(ZSTD_CCtx* cctx,
-                                           void* dst, size_t dstCapacity,
-                                     const void* src, size_t srcSize,
-                                     const ZSTD_CDict* cdict);
-
-/*! ZSTD_createDDict() :
-*   Create a digested dictionary, ready to start decompression operation without startup delay.
-*   `dict` can be released after creation */
-typedef struct ZSTD_DDict_s ZSTD_DDict;
-ZSTDLIB_API ZSTD_DDict* ZSTD_createDDict(const void* dict, size_t dictSize);
-ZSTDLIB_API size_t      ZSTD_freeDDict(ZSTD_DDict* ddict);
-
-/*! ZSTD_decompress_usingDDict() :
-*   Decompression using a pre-digested Dictionary
-*   In contrast with older ZSTD_decompress_usingDict(), use dictionary without significant overhead. */
-ZSTDLIB_API size_t ZSTD_decompress_usingDDict(ZSTD_DCtx* dctx,
-                                           void* dst, size_t dstCapacity,
-                                     const void* src, size_t srcSize,
-                                     const ZSTD_DDict* ddict);
-
-
-/*-***********************
-*  Deprecated API
-*************************/
+/*-************************
+*  Simple dictionary API
+***************************/
 /*! ZSTD_compress_usingDict() :
-*   *** Warning : this function will soon be declared deprecated ***
 *   Compression using a pre-defined Dictionary content (see dictBuilder).
 *   Note 1 : This function load the dictionary, resulting in a significant startup time.
 *   Note 2 : `dict` must remain valid and unmodified during compression operation.
@@ -177,7 +141,6 @@ ZSTDLIB_API size_t ZSTD_compress_usingDict(ZSTD_CCtx* ctx,
                                            int compressionLevel);
 
 /*! ZSTD_decompress_usingDict() :
-*   *** Warning : this function will soon be declared deprecated ***
 *   Decompression using a pre-defined Dictionary content (see dictBuilder).
 *   Dictionary must be identical to the one used during compression.
 *   Note 1 : This function load the dictionary, resulting in a significant startup time
@@ -187,6 +150,42 @@ ZSTDLIB_API size_t ZSTD_decompress_usingDict(ZSTD_DCtx* dctx,
                                              void* dst, size_t dstCapacity,
                                        const void* src, size_t srcSize,
                                        const void* dict,size_t dictSize);
+
+
+/*-**************************
+*  Advanced Dictionary API
+****************************/
+/*! ZSTD_createCDict() :
+*   Create a digested dictionary, ready to start compression operation without startup delay.
+*   `dict` can be released after creation */
+typedef struct ZSTD_CDict_s ZSTD_CDict;
+ZSTDLIB_API ZSTD_CDict* ZSTD_createCDict(const void* dict, size_t dictSize, int compressionLevel);
+ZSTDLIB_API size_t      ZSTD_freeCDict(ZSTD_CDict* CDict);
+
+/*! ZSTD_compress_usingCDict() :
+*   Compression using a pre-digested Dictionary.
+*   Much faster than ZSTD_compress_usingDict() when same dictionary is used multiple times.
+*   Note that compression level is decided during dictionary creation */
+ZSTDLIB_API size_t ZSTD_compress_usingCDict(ZSTD_CCtx* cctx,
+                                            void* dst, size_t dstCapacity,
+                                      const void* src, size_t srcSize,
+                                      const ZSTD_CDict* cdict);
+
+/*! ZSTD_createDDict() :
+*   Create a digested dictionary, ready to start decompression operation without startup delay.
+*   `dict` can be released after creation */
+typedef struct ZSTD_DDict_s ZSTD_DDict;
+ZSTDLIB_API ZSTD_DDict* ZSTD_createDDict(const void* dict, size_t dictSize);
+ZSTDLIB_API size_t      ZSTD_freeDDict(ZSTD_DDict* ddict);
+
+/*! ZSTD_decompress_usingDDict() :
+*   Decompression using a pre-digested Dictionary
+*   Much faster than ZSTD_decompress_usingDict() when same dictionary is used multiple times. */
+ZSTDLIB_API size_t ZSTD_decompress_usingDDict(ZSTD_DCtx* dctx,
+                                              void* dst, size_t dstCapacity,
+                                        const void* src, size_t srcSize,
+                                        const ZSTD_DDict* ddict);
+
 
 
 #ifdef ZSTD_STATIC_LINKING_ONLY
@@ -430,31 +429,6 @@ ZSTDLIB_API size_t ZSTD_decompressBlock(ZSTD_DCtx* dctx, void* dst, size_t dstCa
 ZSTDLIB_API ZSTD_ErrorCode ZSTD_getErrorCode(size_t functionResult);
 ZSTDLIB_API const char* ZSTD_getErrorString(ZSTD_ErrorCode code);
 
-
-/*-***********************
-*  Deprecated API
-*************************/
-/*! ZSTD_compress_usingPreparedCCtx() :
-*   *** Warning : this function will soon be deprecated ! ***
-*   Same as ZSTD_compress_usingDict, but using a reference context `preparedCCtx`, where dictionary has been loaded.
-*   It avoids reloading the dictionary each time.
-*   `preparedCCtx` must have been properly initialized using ZSTD_compressBegin_usingDict() or ZSTD_compressBegin_advanced().
-*   Requires 2 contexts : 1 for reference (preparedCCtx) which will not be modified, and 1 to run the compression operation (cctx) */
-ZSTDLIB_API size_t ZSTD_compress_usingPreparedCCtx(
-                                           ZSTD_CCtx* cctx, const ZSTD_CCtx* preparedCCtx,
-                                           void* dst, size_t dstCapacity,
-                                     const void* src, size_t srcSize);
-
-/*! ZSTD_decompress_usingPreparedDCtx() :
-*   *** Warning : this function will soon be deprecated ! ***
-*   Same as ZSTD_decompress_usingDict, but using a reference context `preparedDCtx`, where dictionary has been loaded.
-*   It avoids reloading the dictionary each time.
-*   `preparedDCtx` must have been properly initialized using ZSTD_decompressBegin_usingDict().
-*   Requires 2 contexts : 1 for reference (preparedDCtx), which will not be modified, and 1 to run the decompression operation (dctx) */
-ZSTDLIB_API size_t ZSTD_decompress_usingPreparedDCtx(
-                                           ZSTD_DCtx* dctx, const ZSTD_DCtx* preparedDCtx,
-                                           void* dst, size_t dstCapacity,
-                                     const void* src, size_t srcSize);
 
 #endif   /* ZSTD_STATIC_LINKING_ONLY */
 

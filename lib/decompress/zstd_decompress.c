@@ -112,7 +112,7 @@ struct ZSTD_DCtx_s
     FSE_DTable LLTable[FSE_DTABLE_SIZE_U32(LLFSELog)];
     FSE_DTable OffTable[FSE_DTABLE_SIZE_U32(OffFSELog)];
     FSE_DTable MLTable[FSE_DTABLE_SIZE_U32(MLFSELog)];
-    unsigned   hufTableX4[HUF_DTABLE_SIZE(HufLog)];
+    HUF_DTable hufTable[HUF_DTABLE_SIZE(HufLog+1)];
     const void* previousDstEnd;
     const void* base;
     const void* vBase;
@@ -143,7 +143,7 @@ size_t ZSTD_decompressBegin(ZSTD_DCtx* dctx)
     dctx->base = NULL;
     dctx->vBase = NULL;
     dctx->dictEnd = NULL;
-    dctx->hufTableX4[0] = HufLog;
+    dctx->hufTable[0] = (HUF_DTable)((HufLog+1)*0x101);
     dctx->flagRepeatTable = 0;
     dctx->dictID = 0;
     return 0;
@@ -508,7 +508,7 @@ size_t ZSTD_decodeLiteralsBlock(ZSTD_DCtx* dctx,
             litSize  = ((istart[0] & 15) << 6) + (istart[1] >> 2);
             litCSize = ((istart[1] &  3) << 8) + istart[2];
 
-            {   size_t const errorCode = HUF_decompress1X4_usingDTable(dctx->litBuffer, litSize, istart+lhSize, litCSize, dctx->hufTableX4);
+            {   size_t const errorCode = HUF_decompress1X4_usingDTable(dctx->litBuffer, litSize, istart+lhSize, litCSize, dctx->hufTable);
                 if (HUF_isError(errorCode)) return ERROR(corruption_detected);
             }
             dctx->litPtr = dctx->litBuffer;
@@ -1193,7 +1193,7 @@ static size_t ZSTD_loadEntropy(ZSTD_DCtx* dctx, const void* dict, size_t const d
 {
     size_t dictSize = dictSizeStart;
 
-    {   size_t const hSize = HUF_readDTableX4(dctx->hufTableX4, dict, dictSize);
+    {   size_t const hSize = HUF_readDTableX4(dctx->hufTable, dict, dictSize);
         if (HUF_isError(hSize)) return ERROR(dictionary_corrupted);
         dict = (const char*)dict + hSize;
         dictSize -= hSize;

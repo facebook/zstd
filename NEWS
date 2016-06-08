@@ -1,5 +1,6 @@
 v0.7.0
 New : Support for directory compression, using `-r`, thanks to Przemyslaw Skibinski
+New : Visual build scripts, by Christophe Chevalier
 New : Support for Sparse File-systems (do not use space for zero-filled sectors)
 New : Frame checksum support
 New : Support pass-through mode (when using `-df`)

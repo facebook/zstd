@@ -521,48 +521,6 @@ extern "C" {
 
 
 
-
-/*-*************************************
-*  Types
-***************************************/
-#define ZSTDv06_WINDOWLOG_MAX    ((U32)(MEM_32bits() ? 25 : 27))
-#define ZSTDv06_WINDOWLOG_MIN     18
-#define ZSTDv06_CHAINLOG_MAX     (ZSTDv06_WINDOWLOG_MAX+1)
-#define ZSTDv06_CHAINLOG_MIN       4
-#define ZSTDv06_HASHLOG_MAX       ZSTDv06_WINDOWLOG_MAX
-#define ZSTDv06_HASHLOG_MIN       12
-#define ZSTDv06_HASHLOG3_MAX      17
-#define ZSTDv06_HASHLOG3_MIN      15
-#define ZSTDv06_SEARCHLOG_MAX    (ZSTDv06_WINDOWLOG_MAX-1)
-#define ZSTDv06_SEARCHLOG_MIN      1
-#define ZSTDv06_SEARCHLENGTH_MAX   7
-#define ZSTDv06_SEARCHLENGTH_MIN   3
-#define ZSTDv06_TARGETLENGTH_MIN   4
-#define ZSTDv06_TARGETLENGTH_MAX 999
-
-/* from faster to stronger */
-typedef enum { ZSTDv06_fast, ZSTDv06_greedy, ZSTDv06_lazy, ZSTDv06_lazy2, ZSTDv06_btlazy2, ZSTDv06_btopt } ZSTDv06_strategy;
-
-typedef struct {
-    U32 windowLog;     /* largest match distance : larger == more compression, more memory needed during decompression */
-    U32 chainLog;      /* fully searched segment : larger == more compression, slower, more memory (useless for fast) */
-    U32 hashLog;       /* dispatch table : larger == faster, more memory */
-    U32 searchLog;     /* nb of searches : larger == more compression, slower */
-    U32 searchLength;  /* match length searched : larger == faster decompression, sometimes less compression */
-    U32 targetLength;  /* acceptable match size for optimal parser (only) : larger == more compression, slower */
-    ZSTDv06_strategy strategy;
-} ZSTDv06_compressionParameters;
-
-typedef struct {
-    U32 contentSizeFlag;   /* 1: content size will be in frame header (if known). */
-} ZSTDv06_frameParameters;
-
-typedef struct {
-    ZSTDv06_compressionParameters cParams;
-    ZSTDv06_frameParameters fParams;
-} ZSTDv06_parameters;
-
-
 /*- Advanced Decompression functions -*/
 
 /*! ZSTDv06_decompress_usingPreparedDCtx() :

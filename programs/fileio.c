@@ -139,6 +139,8 @@ static U32 g_dictIDFlag = 1;
 void FIO_setDictIDFlag(unsigned dictIDFlag) { g_dictIDFlag = dictIDFlag; }
 static U32 g_checksumFlag = 0;
 void FIO_setChecksumFlag(unsigned checksumFlag) { g_checksumFlag = checksumFlag; }
+static U32 g_removeSrcFile = 0;
+void FIO_setRemoveSrcFile(unsigned flag) { g_removeSrcFile = (flag>0); }
 
 
 /*-*************************************
@@ -365,8 +367,9 @@ static int FIO_compressFilename_internal(cRess_t ress,
 
     /* Status */
     DISPLAYLEVEL(2, "\r%79s\r", "");
-    DISPLAYLEVEL(2,"Compressed %llu bytes into %llu bytes ==> %.2f%%\n",
-        (unsigned long long)readsize, (unsigned long long) compressedfilesize, (double)compressedfilesize/readsize*100);
+    DISPLAYLEVEL(2,"%-20.20s :%6.2f%%   (%6llu =>%6llu bytes, %s) \n", srcFileName,
+        (double)compressedfilesize/readsize*100, (unsigned long long)readsize, (unsigned long long) compressedfilesize,
+                 dstFileName);
 
     return 0;
 }
@@ -384,36 +387,38 @@ static int FIO_compressFilename_srcFile(cRess_t ress,
     int result;
 
     /* File check */
+    if (UTIL_isDirectory(srcFileName)) {
+        DISPLAYLEVEL(1, "zstd: %s is a directory -- ignored \n", srcFileName);
+        return 1;
+    }
     ress.srcFile = FIO_openSrcFile(srcFileName);
     if (!ress.srcFile) return 1;   /* srcFile could not be opened */
 
     result = FIO_compressFilename_internal(ress, dstFileName, srcFileName, cLevel);
 
     fclose(ress.srcFile);
+    if ((g_removeSrcFile) && (!result)) remove(srcFileName);
     return result;
 }
 
 
-/*! FIO_compressFilename_extRess() :
+/*! FIO_compressFilename_dstFile() :
  *  @return : 0 : compression completed correctly,
- *            1 : missing or pb opening srcFileName
+ *            1 : pb
  */
-static int FIO_compressFilename_extRess(cRess_t ress,
+static int FIO_compressFilename_dstFile(cRess_t ress,
                                         const char* dstFileName, const char* srcFileName,
                                         int cLevel)
 {
     int result;
 
-    ress.srcFile = FIO_openSrcFile(srcFileName);
-    if (ress.srcFile==0) return 1;
     ress.dstFile = FIO_openDstFile(dstFileName);
     if (ress.dstFile==0) { fclose(ress.srcFile); return 1; }
 
-    result = FIO_compressFilename_internal(ress, dstFileName, srcFileName, cLevel);
-    if (result!=0) remove(dstFileName);   /* remove operation artefact */
+    result = FIO_compressFilename_srcFile(ress, dstFileName, srcFileName, cLevel);
 
-    fclose(ress.srcFile);   /* no pb to expect : only reading */
     if (fclose(ress.dstFile)) EXM_THROW(28, "Write error : cannot properly close %s", dstFileName);
+    if (result!=0) remove(dstFileName);   /* remove operation artefact */
     return result;
 }
 
@@ -422,14 +427,12 @@ int FIO_compressFilename(const char* dstFileName, const char* srcFileName,
                          const char* dictFileName, int compressionLevel)
 {
     clock_t const start = clock();
+
     cRess_t const ress = FIO_createCResources(dictFileName);
-    int issueWithSrcFile = 0;
-
-    issueWithSrcFile += FIO_compressFilename_extRess(ress, dstFileName, srcFileName, compressionLevel);
-
+    int const issueWithSrcFile = FIO_compressFilename_dstFile(ress, dstFileName, srcFileName, compressionLevel);
     FIO_freeCResources(ress);
 
-    {   double seconds = (double)(clock() - start) / CLOCKS_PER_SEC;
+    {   double const seconds = (double)(clock() - start) / CLOCKS_PER_SEC;
         DISPLAYLEVEL(4, "Completed in %.2f sec \n", seconds);
     }
     return issueWithSrcFile;
@@ -465,7 +468,7 @@ int FIO_compressMultipleFilenames(const char** inFileNamesTable, unsigned nbFile
             if (dfnSize <= ifnSize+suffixSize+1) { free(dstFileName); dfnSize = ifnSize + 20; dstFileName = (char*)malloc(dfnSize); }
             strcpy(dstFileName, inFileNamesTable[u]);
             strcat(dstFileName, suffix);
-            missed_files += FIO_compressFilename_extRess(ress, dstFileName,
+            missed_files += FIO_compressFilename_dstFile(ress, dstFileName,
                                                          inFileNamesTable[u], compressionLevel);
     }   }
 
@@ -679,7 +682,13 @@ static int FIO_decompressSrcFile(dRess_t ress, const char* srcFileName)
 {
     unsigned long long filesize = 0;
     FILE* const dstFile = ress.dstFile;
-    FILE* const srcFile = FIO_openSrcFile(srcFileName);
+    FILE* srcFile;
+
+    if (UTIL_isDirectory(srcFileName)) {
+        DISPLAYLEVEL(1, "zstd: %s is a directory -- ignored \n", srcFileName);
+        return 1;
+    }
+    srcFile = FIO_openSrcFile(srcFileName);
     if (srcFile==0) return 1;
 
     /* for each frame */
@@ -712,6 +721,7 @@ static int FIO_decompressSrcFile(dRess_t ress, const char* srcFileName)
 
     /* Close */
     fclose(srcFile);
+    if (g_removeSrcFile) remove(srcFileName);
     return 0;
 }
 
@@ -721,7 +731,7 @@ static int FIO_decompressSrcFile(dRess_t ress, const char* srcFileName)
     @return : 0 : OK
               1 : operation aborted (src not available, dst already taken, etc.)
 */
-static int FIO_decompressFile_extRess(dRess_t ress,
+static int FIO_decompressDstFile(dRess_t ress,
                                       const char* dstFileName, const char* srcFileName)
 {
     int result;
@@ -729,9 +739,9 @@ static int FIO_decompressFile_extRess(dRess_t ress,
     if (ress.dstFile==0) return 1;
 
     result = FIO_decompressSrcFile(ress, srcFileName);
-    if (result != 0) remove(dstFileName);
 
     if (fclose(ress.dstFile)) EXM_THROW(38, "Write error : cannot properly close %s", dstFileName);
+    if (result != 0) remove(dstFileName);
     return result;
 }
 
@@ -742,7 +752,7 @@ int FIO_decompressFilename(const char* dstFileName, const char* srcFileName,
     int missingFiles = 0;
     dRess_t ress = FIO_createDResources(dictFileName);
 
-    missingFiles += FIO_decompressFile_extRess(ress, dstFileName, srcFileName);
+    missingFiles += FIO_decompressDstFile(ress, dstFileName, srcFileName);
 
     FIO_freeDResources(ress);
     return missingFiles;
@@ -789,7 +799,7 @@ int FIO_decompressMultipleFilenames(const char** srcNamesTable, unsigned nbFiles
             memcpy(dstFileName, srcFileName, sfnSize - suffixSize);
             dstFileName[sfnSize-suffixSize] = '\0';
 
-            missingFiles += FIO_decompressFile_extRess(ress, dstFileName, srcFileName);
+            missingFiles += FIO_decompressDstFile(ress, dstFileName, srcFileName);
         }
         free(dstFileName);
     }

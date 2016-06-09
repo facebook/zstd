@@ -216,23 +216,21 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
             UTIL_getTime(&clockStart);
 
             {   U32 nbLoops = 0;
+                ZSTD_CDict* cdict = ZSTD_createCDict(dictBuffer, dictBufferSize, cLevel);
+                if (cdict==NULL) EXM_THROW(1, "ZSTD_createCDict() allocation failure");
                 do {
                     U32 blockNb;
-                    {   ZSTD_parameters params;
-                        params.cParams = ZSTD_getCParams(cLevel, blockSize, dictBufferSize);
-                        params.fParams.contentSizeFlag = 1;
-                        {   size_t const initResult = ZSTD_compressBegin_advanced(refCtx, dictBuffer, dictBufferSize, params, blockSize);
-                            if (ZSTD_isError(initResult)) break;
-                    }   }
                     for (blockNb=0; blockNb<nbBlocks; blockNb++) {
-                        size_t const rSize = ZSTD_compress_usingPreparedCCtx(ctx, refCtx,
+                        size_t const rSize = ZSTD_compress_usingCDict(ctx,
                                             blockTable[blockNb].cPtr,  blockTable[blockNb].cRoom,
-                                            blockTable[blockNb].srcPtr,blockTable[blockNb].srcSize);
+                                            blockTable[blockNb].srcPtr,blockTable[blockNb].srcSize,
+                                            cdict);
                         if (ZSTD_isError(rSize)) EXM_THROW(1, "ZSTD_compress_usingPreparedCCtx() failed : %s", ZSTD_getErrorName(rSize));
                         blockTable[blockNb].cSize = rSize;
                     }
                     nbLoops++;
                 } while (UTIL_clockSpanMicro(clockStart, ticksPerSecond) < clockLoop);
+                ZSTD_freeCDict(cdict);
                 {   U64 const clockSpan = UTIL_clockSpanMicro(clockStart, ticksPerSecond);
                     if (clockSpan < fastestC*nbLoops) fastestC = clockSpan / nbLoops;
             }   }
@@ -254,13 +252,15 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
             UTIL_getTime(&clockStart);
 
             {   U32 nbLoops = 0;
+                ZSTD_DDict* ddict = ZSTD_createDDict(dictBuffer, dictBufferSize);
+                if (!ddict) EXM_THROW(2, "ZSTD_createDDict() allocation failure");
                 do {
                     U32 blockNb;
-                    ZSTD_decompressBegin_usingDict(refDCtx, dictBuffer, dictBufferSize);
                     for (blockNb=0; blockNb<nbBlocks; blockNb++) {
-                        size_t const regenSize = ZSTD_decompress_usingPreparedDCtx(dctx, refDCtx,
+                        size_t const regenSize = ZSTD_decompress_usingDDict(dctx,
                             blockTable[blockNb].resPtr, blockTable[blockNb].srcSize,
-                            blockTable[blockNb].cPtr, blockTable[blockNb].cSize);
+                            blockTable[blockNb].cPtr, blockTable[blockNb].cSize,
+                            ddict);
                         if (ZSTD_isError(regenSize)) {
                             DISPLAY("ZSTD_decompress_usingPreparedDCtx() failed on block %u : %s  \n",
                                       blockNb, ZSTD_getErrorName(regenSize));
@@ -271,6 +271,7 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
                     }
                     nbLoops++;
                 } while (UTIL_clockSpanMicro(clockStart, ticksPerSecond) < clockLoop);
+                ZSTD_freeDDict(ddict);
                 {   U64 const clockSpan = UTIL_clockSpanMicro(clockStart, ticksPerSecond);
                     if (clockSpan < fastestD*nbLoops) fastestD = clockSpan / nbLoops;
             }   }

@@ -2148,7 +2148,7 @@ static size_t ZSTD_writeFrameHeader(void* dst, size_t dstCapacity,
                                     ZSTD_parameters params, U64 pledgedSrcSize, U32 dictID)
 {   BYTE* const op = (BYTE*)dst;
     U32 const dictIDSizeCode = (dictID>0) + (dictID>=256) + (dictID>=65536);   /* 0-3 */
-    U32 const checksumFlag = params.fParams.checksumFlag;
+    U32 const checksumFlag = params.fParams.checksumFlag>0;
     U32 const windowSize = 1U << params.cParams.windowLog;
     U32 const directModeFlag = params.fParams.contentSizeFlag && (windowSize > (pledgedSrcSize-1));
     BYTE const windowLogByte = (BYTE)((params.cParams.windowLog - ZSTD_WINDOWLOG_ABSOLUTEMIN) << 3);
@@ -2385,7 +2385,7 @@ static size_t ZSTD_compressBegin_internal(ZSTD_CCtx* zc,
 
 /*! ZSTD_compressBegin_advanced() :
 *   @return : 0, or an error code */
-size_t ZSTD_compressBegin_advanced(ZSTD_CCtx* zc,
+size_t ZSTD_compressBegin_advanced(ZSTD_CCtx* cctx,
                              const void* dict, size_t dictSize,
                                    ZSTD_parameters params, U64 pledgedSrcSize)
 {
@@ -2393,17 +2393,17 @@ size_t ZSTD_compressBegin_advanced(ZSTD_CCtx* zc,
     { size_t const errorCode = ZSTD_checkCParams_advanced(params.cParams, pledgedSrcSize);
       if (ZSTD_isError(errorCode)) return errorCode; }
 
-    return ZSTD_compressBegin_internal(zc, dict, dictSize, params, pledgedSrcSize);
+    return ZSTD_compressBegin_internal(cctx, dict, dictSize, params, pledgedSrcSize);
 }
 
 
-size_t ZSTD_compressBegin_usingDict(ZSTD_CCtx* zc, const void* dict, size_t dictSize, int compressionLevel)
+size_t ZSTD_compressBegin_usingDict(ZSTD_CCtx* cctx, const void* dict, size_t dictSize, int compressionLevel)
 {
     ZSTD_parameters params;
     memset(&params, 0, sizeof(params));
     params.cParams = ZSTD_getCParams(compressionLevel, 0, dictSize);
-    ZSTD_LOG_BLOCK("%p: ZSTD_compressBegin_usingDict compressionLevel=%d\n", zc->base, compressionLevel);
-    return ZSTD_compressBegin_internal(zc, dict, dictSize, params, 0);
+    ZSTD_LOG_BLOCK("%p: ZSTD_compressBegin_usingDict compressionLevel=%d\n", cctx->base, compressionLevel);
+    return ZSTD_compressBegin_internal(cctx, dict, dictSize, params, 0);
 }
 
 
@@ -2449,7 +2449,12 @@ size_t ZSTD_compressEnd(ZSTD_CCtx* cctx, void* dst, size_t dstCapacity)
 }
 
 
-size_t ZSTD_compress_usingPreparedCCtx(ZSTD_CCtx* cctx, const ZSTD_CCtx* preparedCCtx,
+/*! ZSTD_compress_usingPreparedCCtx() :
+*   Same as ZSTD_compress_usingDict, but using a reference context `preparedCCtx`, where dictionary has been loaded.
+*   It avoids reloading the dictionary each time.
+*   `preparedCCtx` must have been properly initialized using ZSTD_compressBegin_usingDict() or ZSTD_compressBegin_advanced().
+*   Requires 2 contexts : 1 for reference (preparedCCtx) which will not be modified, and 1 to run the compression operation (cctx) */
+static size_t ZSTD_compress_usingPreparedCCtx(ZSTD_CCtx* cctx, const ZSTD_CCtx* preparedCCtx,
                                        void* dst, size_t dstCapacity,
                                  const void* src, size_t srcSize)
 {
@@ -2530,6 +2535,81 @@ size_t ZSTD_compress(void* dst, size_t dstCapacity, const void* src, size_t srcS
     ctxBody.customMem.customFree(ctxBody.customMem.opaque, ctxBody.workSpace);   /* can't free ctxBody, since it's on stack; just free heap content */
     return result;
 }
+
+
+/* =====  Dictionary API  ===== */
+
+struct ZSTD_CDict_s {
+    void* dictContent;
+    size_t dictContentSize;
+    ZSTD_CCtx* refContext;
+};  /* typedef'd tp ZSTD_CDict within zstd.h */
+
+ZSTD_CDict* ZSTD_createCDict_advanced(const void* dict, size_t dictSize, ZSTD_parameters params, ZSTD_customMem customMem)
+{
+    if (!customMem.customAlloc && !customMem.customFree)
+        customMem = defaultCustomMem;
+
+    if (!customMem.customAlloc || !customMem.customFree)
+        return NULL;
+
+    {   ZSTD_CDict* const cdict = (ZSTD_CDict*) customMem.customAlloc(customMem.opaque, sizeof(*cdict));
+        void* const dictContent = customMem.customAlloc(customMem.opaque, dictSize);
+        ZSTD_CCtx* const cctx = ZSTD_createCCtx_advanced(customMem);
+
+        if (!dictContent || !cdict || !cctx) {
+            customMem.customFree(customMem.opaque, dictContent);
+            customMem.customFree(customMem.opaque, cdict);
+            customMem.customFree(customMem.opaque, cctx);
+            return NULL;
+        }
+
+        memcpy(dictContent, dict, dictSize);
+        {   size_t const errorCode = ZSTD_compressBegin_advanced(cctx, dictContent, dictSize, params, 0);
+            if (ZSTD_isError(errorCode)) {
+                customMem.customFree(customMem.opaque, dictContent);
+                customMem.customFree(customMem.opaque, cdict);
+                customMem.customFree(customMem.opaque, cctx);
+                return NULL;
+        }   }
+
+        cdict->dictContent = dictContent;
+        cdict->dictContentSize = dictSize;
+        cdict->refContext = cctx;
+        return cdict;
+    }
+}
+
+ZSTD_CDict* ZSTD_createCDict(const void* dict, size_t dictSize, int compressionLevel)
+{
+    ZSTD_customMem const allocator = { NULL, NULL, NULL };
+    ZSTD_parameters params;
+    memset(&params, 0, sizeof(params));
+    params.cParams = ZSTD_getCParams(compressionLevel, 0, dictSize);
+    params.fParams.contentSizeFlag = 1;
+    return ZSTD_createCDict_advanced(dict, dictSize, params, allocator);
+}
+
+size_t ZSTD_freeCDict(ZSTD_CDict* cdict)
+{
+    ZSTD_freeFunction const cFree = cdict->refContext->customMem.customFree;
+    void* const opaque = cdict->refContext->customMem.opaque;
+    ZSTD_freeCCtx(cdict->refContext);
+    cFree(opaque, cdict->dictContent);
+    cFree(opaque, cdict);
+    return 0;
+}
+
+ZSTDLIB_API size_t ZSTD_compress_usingCDict(ZSTD_CCtx* cctx,
+                                           void* dst, size_t dstCapacity,
+                                     const void* src, size_t srcSize,
+                                     const ZSTD_CDict* cdict)
+{
+    return ZSTD_compress_usingPreparedCCtx(cctx, cdict->refContext,
+                                           dst, dstCapacity,
+                                           src, srcSize);
+}
+
 
 
 /*-=====  Pre-defined compression levels  =====-*/

@@ -2218,10 +2218,6 @@ HUFv06_decompress() :
 ******************************************/
 size_t HUFv06_compressBound(size_t size);       /**< maximum compressed size */
 
-/* Error Management */
-unsigned    HUFv06_isError(size_t code);        /**< tells if a return value is an error code */
-const char* HUFv06_getErrorName(size_t code);   /**< provides error code string (useful for debugging) */
-
 
 #if defined (__cplusplus)
 }
@@ -3688,7 +3684,7 @@ size_t ZSTDv06_decodeLiteralsBlock(ZSTDv06_DCtx* dctx,
     @return : nb bytes read from src,
               or an error code if it fails, testable with ZSTDv06_isError()
 */
-FORCE_INLINE size_t ZSTDv06_buildSeqTable(FSEv06_DTable* DTable, U32 type, U32 max, U32 maxLog,
+size_t ZSTDv06_buildSeqTable(FSEv06_DTable* DTable, U32 type, U32 max, U32 maxLog,
                                  const void* src, size_t srcSize,
                                  const S16* defaultNorm, U32 defaultLog, U32 flagRepeatTable)
 {
@@ -3860,7 +3856,6 @@ static void ZSTDv06_decodeSequence(seq_t* seq, seqState_t* seqState)
 }
 
 
-FORCE_INLINE
 size_t ZSTDv06_execSequence(BYTE* op,
                                 BYTE* const oend, seq_t sequence,
                                 const BYTE** litPtr, const BYTE* const litLimit_8,

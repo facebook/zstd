@@ -11,7 +11,7 @@ import subprocess
 import sys
 
 repo_url = 'https://github.com/Cyan4973/zstd.git'
-tmp_dir_name = 'versionsTest/zstdtest'
+tmp_dir_name = 'tests/versionsTest'
 make_cmd = 'make'
 git_cmd = 'git'
 test_dat_src = 'README.md'
@@ -110,8 +110,8 @@ def decompress_zst(tag):
 if __name__ == '__main__':
     error_code = 0
     base_dir = os.getcwd() + '/..'           # /path/to/zstd
-    tmp_dir = base_dir + '/' + tmp_dir_name  # /path/to/zstd/versionsTest/zstdtest
-    clone_dir = tmp_dir + '/' + 'zstd'       # /path/to/zstd/versionsTest/zstdtest/zstd
+    tmp_dir = base_dir + '/' + tmp_dir_name  # /path/to/zstd/tests/versionsTest
+    clone_dir = tmp_dir + '/' + 'zstd'       # /path/to/zstd/tests/versionsTest/zstd
     programs_dir = base_dir + '/programs'    # /path/to/zstd/programs
     os.makedirs(tmp_dir, exist_ok=True)
 
@@ -130,14 +130,14 @@ if __name__ == '__main__':
     # Build all release zstd
     for tag in tags:
         os.chdir(base_dir)
-        dst_zstd = '{}/zstd.{}'  .format(tmp_dir, tag)  # /path/to/zstd/test/zstdtest/zstd.<TAG>
+        dst_zstd = '{}/zstd.{}'  .format(tmp_dir, tag)  # /path/to/zstd/tests/versionsTest/zstd.<TAG>
         if not os.path.isfile(dst_zstd) or tag == head:
             if tag != head:
-                r_dir = '{}/{}'.format(tmp_dir, tag)  # /path/to/zstd/test/zstdtest/<TAG>
+                r_dir = '{}/{}'.format(tmp_dir, tag)  # /path/to/zstd/tests/versionsTest/<TAG>
                 os.makedirs(r_dir, exist_ok=True)
                 os.chdir(clone_dir)
                 git(['--work-tree=' + r_dir, 'checkout', tag, '--', '.'], False)
-                os.chdir(r_dir + '/programs')  # /path/to/zstd/zstdtest/<TAG>/programs
+                os.chdir(r_dir + '/programs')  # /path/to/zstd/tests/versionsTest/<TAG>/programs
                 make(['clean', 'zstd'], False)
             else:
                 os.chdir(programs_dir)

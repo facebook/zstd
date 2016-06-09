@@ -23,6 +23,7 @@ projects/VS2010
 projects/VS2012
 projects/VS2013
 projects/VS2015
+build/bin
 
 # IDEA solution files
 *.idea

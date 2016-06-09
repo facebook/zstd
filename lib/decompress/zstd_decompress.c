@@ -53,7 +53,7 @@
 /*-*******************************************************
 *  Dependencies
 *********************************************************/
-#include <string.h>      /* memcpy, memmove */
+#include <string.h>      /* memcpy, memmove, memset */
 #include <stdio.h>       /* debug only : printf */
 #include "mem.h"         /* low level memory routines */
 #define XXH_STATIC_LINKING_ONLY   /* XXH64_state_t */
@@ -112,7 +112,7 @@ struct ZSTD_DCtx_s
     FSE_DTable LLTable[FSE_DTABLE_SIZE_U32(LLFSELog)];
     FSE_DTable OffTable[FSE_DTABLE_SIZE_U32(OffFSELog)];
     FSE_DTable MLTable[FSE_DTABLE_SIZE_U32(MLFSELog)];
-    unsigned   hufTableX4[HUF_DTABLE_SIZE(HufLog)];
+    HUF_DTable hufTable[HUF_DTABLE_SIZE(HufLog+1)];
     const void* previousDstEnd;
     const void* base;
     const void* vBase;
@@ -143,7 +143,7 @@ size_t ZSTD_decompressBegin(ZSTD_DCtx* dctx)
     dctx->base = NULL;
     dctx->vBase = NULL;
     dctx->dictEnd = NULL;
-    dctx->hufTableX4[0] = HufLog;
+    dctx->hufTable[0] = (HUF_DTable)((HufLog+1)*0x101);
     dctx->flagRepeatTable = 0;
     dctx->dictID = 0;
     return 0;
@@ -508,7 +508,7 @@ size_t ZSTD_decodeLiteralsBlock(ZSTD_DCtx* dctx,
             litSize  = ((istart[0] & 15) << 6) + (istart[1] >> 2);
             litCSize = ((istart[1] &  3) << 8) + istart[2];
 
-            {   size_t const errorCode = HUF_decompress1X4_usingDTable(dctx->litBuffer, litSize, istart+lhSize, litCSize, dctx->hufTableX4);
+            {   size_t const errorCode = HUF_decompress1X4_usingDTable(dctx->litBuffer, litSize, istart+lhSize, litCSize, dctx->hufTable);
                 if (HUF_isError(errorCode)) return ERROR(corruption_detected);
             }
             dctx->litPtr = dctx->litBuffer;
@@ -938,6 +938,14 @@ size_t ZSTD_decompressBlock(ZSTD_DCtx* dctx,
 }
 
 
+size_t ZSTD_generateNxByte(void* dst, size_t dstCapacity, BYTE byte, size_t length)
+{
+    if (length > dstCapacity) return ERROR(dstSize_tooSmall);
+    memset(dst, byte, length);
+    return length;
+}
+
+
 /*! ZSTD_decompressFrame() :
 *   `dctx` must be properly initialized */
 static size_t ZSTD_decompressFrame(ZSTD_DCtx* dctx,
@@ -982,7 +990,7 @@ static size_t ZSTD_decompressFrame(ZSTD_DCtx* dctx,
             decodedSize = ZSTD_copyRawBlock(op, oend-op, ip, cBlockSize);
             break;
         case bt_rle :
-            return ERROR(GENERIC);   /* not yet supported */
+            decodedSize = ZSTD_generateNxByte(op, oend-op, *ip, blockProperties.origSize);
             break;
         case bt_end :
             /* end of frame */
@@ -1004,6 +1012,11 @@ static size_t ZSTD_decompressFrame(ZSTD_DCtx* dctx,
 }
 
 
+/*! ZSTD_decompress_usingPreparedDCtx() :
+*   Same as ZSTD_decompress_usingDict, but using a reference context `preparedDCtx`, where dictionary has been loaded.
+*   It avoids reloading the dictionary each time.
+*   `preparedDCtx` must have been properly initialized using ZSTD_decompressBegin_usingDict().
+*   Requires 2 contexts : 1 for reference (preparedDCtx), which will not be modified, and 1 to run the decompression operation (dctx) */
 size_t ZSTD_decompress_usingPreparedDCtx(ZSTD_DCtx* dctx, const ZSTD_DCtx* refDCtx,
                                          void* dst, size_t dstCapacity,
                                    const void* src, size_t srcSize)
@@ -1180,7 +1193,7 @@ static size_t ZSTD_loadEntropy(ZSTD_DCtx* dctx, const void* dict, size_t const d
 {
     size_t dictSize = dictSizeStart;
 
-    {   size_t const hSize = HUF_readDTableX4(dctx->hufTableX4, dict, dictSize);
+    {   size_t const hSize = HUF_readDTableX4(dctx->hufTable, dict, dictSize);
         if (HUF_isError(hSize)) return ERROR(dictionary_corrupted);
         dict = (const char*)dict + hSize;
         dictSize -= hSize;
@@ -1258,4 +1271,78 @@ size_t ZSTD_decompressBegin_usingDict(ZSTD_DCtx* dctx, const void* dict, size_t 
     }
 
     return 0;
+}
+
+
+struct ZSTD_DDict_s {
+    void* dictContent;
+    size_t dictContentSize;
+    ZSTD_DCtx* refContext;
+};  /* typedef'd tp ZSTD_CDict within zstd.h */
+
+ZSTD_DDict* ZSTD_createDDict_advanced(const void* dict, size_t dictSize, ZSTD_customMem customMem)
+{
+    if (!customMem.customAlloc && !customMem.customFree)
+        customMem = defaultCustomMem;
+
+    if (!customMem.customAlloc || !customMem.customFree)
+        return NULL;
+
+    {   ZSTD_DDict* const ddict = (ZSTD_DDict*) customMem.customAlloc(customMem.opaque, sizeof(*ddict));
+        void* const dictContent = customMem.customAlloc(customMem.opaque, dictSize);
+        ZSTD_DCtx* const dctx = ZSTD_createDCtx_advanced(customMem);
+
+        if (!dictContent || !ddict || !dctx) {
+            customMem.customFree(customMem.opaque, dictContent);
+            customMem.customFree(customMem.opaque, ddict);
+            customMem.customFree(customMem.opaque, dctx);
+            return NULL;
+        }
+
+        memcpy(dictContent, dict, dictSize);
+        {   size_t const errorCode = ZSTD_decompressBegin_usingDict(dctx, dictContent, dictSize);
+            if (ZSTD_isError(errorCode)) {
+                customMem.customFree(customMem.opaque, dictContent);
+                customMem.customFree(customMem.opaque, ddict);
+                customMem.customFree(customMem.opaque, dctx);
+                return NULL;
+        }   }
+
+        ddict->dictContent = dictContent;
+        ddict->dictContentSize = dictSize;
+        ddict->refContext = dctx;
+        return ddict;
+    }
+}
+
+/*! ZSTD_createDDict() :
+*   Create a digested dictionary, ready to start decompression operation without startup delay.
+*   `dict` can be released after creation */
+ZSTD_DDict* ZSTD_createDDict(const void* dict, size_t dictSize)
+{
+    ZSTD_customMem const allocator = { NULL, NULL, NULL };
+    return ZSTD_createDDict_advanced(dict, dictSize, allocator);
+}
+
+size_t ZSTD_freeDDict(ZSTD_DDict* ddict)
+{
+    ZSTD_freeFunction const cFree = ddict->refContext->customMem.customFree;
+    void* const opaque = ddict->refContext->customMem.opaque;
+    ZSTD_freeDCtx(ddict->refContext);
+    cFree(opaque, ddict->dictContent);
+    cFree(opaque, ddict);
+    return 0;
+}
+
+/*! ZSTD_decompress_usingDDict() :
+*   Decompression using a pre-digested Dictionary
+*   In contrast with older ZSTD_decompress_usingDict(), use dictionary without significant overhead. */
+ZSTDLIB_API size_t ZSTD_decompress_usingDDict(ZSTD_DCtx* dctx,
+                                           void* dst, size_t dstCapacity,
+                                     const void* src, size_t srcSize,
+                                     const ZSTD_DDict* ddict)
+{
+    return ZSTD_decompress_usingPreparedDCtx(dctx, ddict->refContext,
+                                           dst, dstCapacity,
+                                           src, srcSize);
 }

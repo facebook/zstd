@@ -194,15 +194,16 @@ if __name__ == '__main__':
 
     test_path = os.getcwd() + '/' + test_dir_name     # /path/to/zstd/tests/speedTest 
     clone_path = test_path + '/' + 'zstd'             # /path/to/zstd/tests/speedTest/zstd 
-    execute.cwd = clone_path
 
     # clone ZSTD repo if needed
     if not os.path.isdir(test_path):
         os.mkdir(test_path)
     if not os.path.isdir(clone_path):
+        execute.cwd = test_path
         execute('git clone ' + repo_url)
     if not os.path.isdir(clone_path):
         raise RuntimeError("ZSTD clone not found: " + clone_path)
+    execute.cwd = clone_path
 
     while True:
         pid = str(os.getpid())

@@ -94,10 +94,7 @@ typedef enum { bt_compressed, bt_raw, bt_rle, bt_end } blockType_t;
 
 #define HufLog 12
 
-#define IS_HUF 0
-#define IS_PCH 1
-#define IS_RAW 2
-#define IS_RLE 3
+typedef enum { lbt_huffman, lbt_repeat, lbt_raw, lbt_rle } litBlockType_t;
 
 #define LONGNBSEQ 0x7F00
 

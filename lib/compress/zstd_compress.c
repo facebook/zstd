@@ -575,15 +575,15 @@ static size_t ZSTD_noCompressLiterals (void* dst, size_t dstCapacity, const void
     switch(flSize)
     {
         case 1: /* 2 - 1 - 5 */
-            ostart[0] = (BYTE)((IS_RAW<<6) + (0<<5) + srcSize);
+            ostart[0] = (BYTE)((lbt_raw<<6) + (0<<5) + srcSize);
             break;
         case 2: /* 2 - 2 - 12 */
-            ostart[0] = (BYTE)((IS_RAW<<6) + (2<<4) + (srcSize >> 8));
+            ostart[0] = (BYTE)((lbt_raw<<6) + (2<<4) + (srcSize >> 8));
             ostart[1] = (BYTE)srcSize;
             break;
         default:   /*note : should not be necessary : flSize is within {1,2,3} */
         case 3: /* 2 - 2 - 20 */
-            ostart[0] = (BYTE)((IS_RAW<<6) + (3<<4) + (srcSize >> 16));
+            ostart[0] = (BYTE)((lbt_raw<<6) + (3<<4) + (srcSize >> 16));
             ostart[1] = (BYTE)(srcSize>>8);
             ostart[2] = (BYTE)srcSize;
             break;
@@ -603,15 +603,15 @@ static size_t ZSTD_compressRleLiteralsBlock (void* dst, size_t dstCapacity, cons
     switch(flSize)
     {
         case 1: /* 2 - 1 - 5 */
-            ostart[0] = (BYTE)((IS_RLE<<6) + (0<<5) + srcSize);
+            ostart[0] = (BYTE)((lbt_rle<<6) + (0<<5) + srcSize);
             break;
         case 2: /* 2 - 2 - 12 */
-            ostart[0] = (BYTE)((IS_RLE<<6) + (2<<4) + (srcSize >> 8));
+            ostart[0] = (BYTE)((lbt_rle<<6) + (2<<4) + (srcSize >> 8));
             ostart[1] = (BYTE)srcSize;
             break;
         default:   /*note : should not be necessary : flSize is necessarily within {1,2,3} */
         case 3: /* 2 - 2 - 20 */
-            ostart[0] = (BYTE)((IS_RLE<<6) + (3<<4) + (srcSize >> 16));
+            ostart[0] = (BYTE)((lbt_rle<<6) + (3<<4) + (srcSize >> 16));
             ostart[1] = (BYTE)(srcSize>>8);
             ostart[2] = (BYTE)srcSize;
             break;
@@ -632,7 +632,7 @@ static size_t ZSTD_compressLiterals (ZSTD_CCtx* zc,
     size_t const lhSize = 3 + (srcSize >= 1 KB) + (srcSize >= 16 KB);
     BYTE* const ostart = (BYTE*)dst;
     U32 singleStream = srcSize < 256;
-    U32 hType = IS_HUF;
+    litBlockType_t hType = lbt_huffman;
     size_t cLitSize;
 
 
@@ -644,7 +644,7 @@ static size_t ZSTD_compressLiterals (ZSTD_CCtx* zc,
 
     if (dstCapacity < lhSize+1) return ERROR(dstSize_tooSmall);   /* not enough space for compression */
     if (zc->flagStaticTables && (lhSize==3)) {
-        hType = IS_PCH;
+        hType = lbt_repeat;
         singleStream = 1;
         cLitSize = HUF_compress1X_usingCTable(ostart+lhSize, dstCapacity-lhSize, src, srcSize, zc->hufTable);
     } else {

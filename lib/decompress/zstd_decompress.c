@@ -450,13 +450,14 @@ size_t ZSTD_decodeLiteralsBlock(ZSTD_DCtx* dctx,
                           const void* src, size_t srcSize)   /* note : srcSize < BLOCKSIZE */
 {
     const BYTE* const istart = (const BYTE*) src;
+    litBlockType_t lbt;
 
-    /* any compressed block with literals segment must be at least this size */
     if (srcSize < MIN_CBLOCK_SIZE) return ERROR(corruption_detected);
+    lbt = (litBlockType_t)(istart[0]>> 6);
 
-    switch(istart[0]>> 6)
+    switch(lbt)
     {
-    case IS_HUF:
+    case lbt_huffman:
         {   size_t litSize, litCSize, singleStream=0;
             U32 lhSize = ((istart[0]) >> 4) & 3;
             if (srcSize < 5) return ERROR(corruption_detected);   /* srcSize >= MIN_CBLOCK_SIZE == 3; here we need up to 5 for lhSize, + cSize (+nbSeq) */
@@ -495,7 +496,7 @@ size_t ZSTD_decodeLiteralsBlock(ZSTD_DCtx* dctx,
             dctx->litSize = litSize;
             return litCSize + lhSize;
         }
-    case IS_PCH:
+    case lbt_repeat:
         {   size_t litSize, litCSize;
             U32 lhSize = ((istart[0]) >> 4) & 3;
             if (lhSize != 1)  /* only case supported for now : small litSize, single stream */
@@ -516,7 +517,7 @@ size_t ZSTD_decodeLiteralsBlock(ZSTD_DCtx* dctx,
             dctx->litSize = litSize;
             return litCSize + lhSize;
         }
-    case IS_RAW:
+    case lbt_raw:
         {   size_t litSize;
             U32 lhSize = ((istart[0]) >> 4) & 3;
             switch(lhSize)
@@ -547,7 +548,7 @@ size_t ZSTD_decodeLiteralsBlock(ZSTD_DCtx* dctx,
             dctx->litSize = litSize;
             return lhSize+litSize;
         }
-    case IS_RLE:
+    case lbt_rle:
         {   size_t litSize;
             U32 lhSize = ((istart[0]) >> 4) & 3;
             switch(lhSize)
@@ -1317,7 +1318,7 @@ ZSTD_DDict* ZSTD_createDDict_advanced(const void* dict, size_t dictSize, ZSTD_cu
 
 /*! ZSTD_createDDict() :
 *   Create a digested dictionary, ready to start decompression operation without startup delay.
-*   `dict` can be released after creation */
+*   `dict` can be released after `ZSTD_DDict` creation */
 ZSTD_DDict* ZSTD_createDDict(const void* dict, size_t dictSize)
 {
     ZSTD_customMem const allocator = { NULL, NULL, NULL };
@@ -1336,7 +1337,7 @@ size_t ZSTD_freeDDict(ZSTD_DDict* ddict)
 
 /*! ZSTD_decompress_usingDDict() :
 *   Decompression using a pre-digested Dictionary
-*   In contrast with older ZSTD_decompress_usingDict(), use dictionary without significant overhead. */
+*   Use dictionary without significant overhead. */
 ZSTDLIB_API size_t ZSTD_decompress_usingDDict(ZSTD_DCtx* dctx,
                                            void* dst, size_t dstCapacity,
                                      const void* src, size_t srcSize,

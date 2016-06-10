@@ -17,7 +17,13 @@ If a new commit is found it is compiled and a speed benchmark for this commit is
 The results of the speed benchmark are compared to the previous results.
 If compression or decompression speed for one of zstd levels is lower than `lowerLimit` (an optional parameter, default 0.98) the speed benchmark is restarted.
 If second results are also lower than `lowerLimit` the warning e-mail is send to recipients from the list (the `emails` parameter).
-The speed benchmark is not performed until computers' load average is lower than `maxLoadAvg` (an optional parameter, default 0.75).
+
+Additional remarks:
+- To be sure that speed results are accurate the script should be run on a "stable" target system with no other jobs running in parallel
+- Using the script with virtual machines can lead to large variations of speed results
+- The speed benchmark is not performed until computers' load average is lower than `maxLoadAvg` (an optional parameter, default 0.75)
+- The script sends e-mails using `mutt`; if `mutt` is not available it sends e-mails without attachments using `mail`; if both are not available it only prints a warning
+
 
 The example usage with two test files, one e-mail address, and with an additional message:
 ```

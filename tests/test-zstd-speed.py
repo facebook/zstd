@@ -204,7 +204,7 @@ if __name__ == '__main__':
     # check availability of e-mail senders
     have_mutt = does_command_exist("mutt --help");
     have_mail = does_command_exist("mail -V");
-    if not have_mutt and not have_mail
+    if not have_mutt and not have_mail:
         log("WARNING: e-mail senders mail and mutt not found")
 
     # clone ZSTD repo if needed

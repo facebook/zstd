@@ -15,7 +15,7 @@ test_dir_name = 'speedTest'
 def log(text):
     print time.strftime("%Y/%m/%d %H:%M:%S") + ' - ' + text
 
-def execute(command, print_output=True):
+def execute(command, print_output=False, print_error=True):
     log("> " + command)
     popen = Popen(command, stdout=PIPE, stderr=PIPE, shell=True, cwd=execute.cwd)
     itout = iter(popen.stdout.readline, b"")
@@ -24,13 +24,23 @@ def execute(command, print_output=True):
     if print_output:
         print ''.join(stdout_lines)
     stderr_lines = list(iterr)
-    if stderr_lines:
+    if print_output:
         print ''.join(stderr_lines)
     popen.communicate()
     if popen.returncode is not None and popen.returncode != 0:
+        if not print_output and print_error:
+            print ''.join(stderr_lines)    
         raise RuntimeError(''.join(stderr_lines))
     return stdout_lines + stderr_lines
 execute.cwd = None
+
+
+def does_command_exist(command):
+    try:
+        execute(command, False, False);
+    except Exception as e:
+        return False
+    return True
 
 
 def fetch():
@@ -86,16 +96,17 @@ def get_last_commit(resultsFileName):
     return commit, cspeed, dspeed
 
 
-def benchmark_and_compare(branch, commit, resultsFileName, lastCLevel, testFilePath, fileName, last_cspeed, last_dspeed, lower_limit, maxLoadAvg):
+def benchmark_and_compare(branch, commit, resultsFileName, lastCLevel, testFilePath, fileName, last_cspeed, last_dspeed, lower_limit, maxLoadAvg, message):
+    sleepTime = 30
     while os.getloadavg()[0] > maxLoadAvg:
-        print "bench loadavg=%.2f is higher than %s" % (os.getloadavg()[0], maxLoadAvg)
-        time.sleep(30)
+        log("WARNING: bench loadavg=%.2f is higher than %s, sleeping for %s seconds" % (os.getloadavg()[0], maxLoadAvg, sleepTime))
+        time.sleep(sleepTime)
     start_load = str(os.getloadavg())
-    result = execute('programs/zstd -qb1e' + str(lastCLevel) + ' ' + testFilePath)
+    result = execute('programs/zstd -qi5b1e' + str(lastCLevel) + ' ' + testFilePath)
     end_load = str(os.getloadavg())
     linesExpected = lastCLevel + 2;
     if len(result) != linesExpected:
-        print "len(result)=%d is different that expected %d" % (len(result), linesExpected)
+        log("ERROR: number of result lines=%d is different that expected %d" % (len(result), linesExpected))
         return ""
     with open(resultsFileName, "a") as myfile:
         myfile.write(branch + " " + commit + "\n")
@@ -111,30 +122,24 @@ def benchmark_and_compare(branch, commit, resultsFileName, lastCLevel, testFileP
             if (dspeed[i]/last_dspeed[i] < lower_limit):
                 text += "WARNING: File=%s level=%d dspeed=%s last=%s diff=%s\n" % (fileName, i+1, dspeed[i], last_dspeed[i], dspeed[i]/last_dspeed[i])
         if text:
-            text += "maxLoadAvg=%s  load average at start=%s end=%s\n" % (maxLoadAvg, start_load, end_load)
+            text = message + ("\nmaxLoadAvg=%s  load average at start=%s end=%s\n" % (maxLoadAvg, start_load, end_load)) + text
         return text
 
 
-def send_email(branch, commit, last_commit, emails, text, results_files, logFileName, lower_limit):
+def send_email(branch, commit, last_commit, emails, text, results_files, logFileName, lower_limit, have_mutt, have_mail):
     with open(logFileName, "w") as myfile:
         myfile.writelines(text)
         myfile.close()
-        execute("mutt -s \"[ZSTD_speedTest] Warning for branch=" + branch + " commit=" + commit + " last_commit=" + last_commit + " speed<" + str(lower_limit) + "\" " + emails + " -a " + results_files + " < " + logFileName)
+        if have_mutt:
+            execute("mutt -s \"[ZSTD_speedTest] Warning for branch=" + branch + " commit=" + commit + " last_commit=" + last_commit + " speed<" + str(lower_limit) + "\" " + emails + " -a " + results_files + " < " + logFileName)
+        elif have_mail:
+            execute("mail -s \"[ZSTD_speedTest] Warning for branch=" + branch + " commit=" + commit + " last_commit=" + last_commit + " speed<" + str(lower_limit) + "\" " + emails + " < " + logFileName)
+        else:
+            log("e-mail cannot be sent (mail and mutt not found)")
 
 
-def main(args, test_path, clone_path, testFilePaths):
-    print "test_path=%s" % test_path
-    print "clone_path=%s" % clone_path
-    print "testFilePath(%s)=%s" % (len(testFilePaths), testFilePaths)
-    print "emails=%s" % args.emails
-    print "maxLoadAvg=%s" % args.maxLoadAvg
-    print "lowerLimit=%s" % args.lowerLimit
-    print "lastCLevel=%s" % args.lastCLevel
-    print "sleepTime=%s" % args.sleepTime
-    print "dry_run=%s" % args.dry_run
-
+def check_branches(args, test_path, testFilePaths, have_mutt, have_mail):
     for branch, commit in fetch():
-        log("checking branch %s: head %s" % (branch, commit))
         try:
             commitFileName = test_path + "/commit_" + branch.replace("/", "_")
             if os.path.isfile(commitFileName):
@@ -158,28 +163,29 @@ def main(args, test_path, clone_path, testFilePaths):
                     last_commit, cspeed, dspeed = get_last_commit(resultsFileName)
 
                     if not args.dry_run:
-                        text = benchmark_and_compare(branch, commit, resultsFileName, args.lastCLevel, filePath, fileName, cspeed, dspeed, args.lowerLimit, args.maxLoadAvg)
+                        text = benchmark_and_compare(branch, commit, resultsFileName, args.lastCLevel, filePath, fileName, cspeed, dspeed, args.lowerLimit, args.maxLoadAvg, args.message)
                         if text:
-                            text = benchmark_and_compare(branch, commit, resultsFileName, args.lastCLevel, filePath, fileName, cspeed, dspeed, args.lowerLimit, args.maxLoadAvg)
+                            text = benchmark_and_compare(branch, commit, resultsFileName, args.lastCLevel, filePath, fileName, cspeed, dspeed, args.lowerLimit, args.maxLoadAvg, args.message)
                             if text:
                                 text_to_send.append(text)
                                 results_files += resultsFileName + " "
                 if text_to_send:
-                    send_email(branch, commit, last_commit, args.emails, text_to_send, results_files, logFileName, args.lowerLimit)
+                    send_email(branch, commit, last_commit, args.emails, text_to_send, results_files, logFileName, args.lowerLimit, have_mutt, have_mail)
                 notify(branch, commit, last_commit)
         except Exception as e:
             stack = traceback.format_exc()
-            log("Error build %s, error %s" % (branch, str(e)) )
+            log("ERROR: build %s, error %s" % (branch, str(e)) )
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('testFileNames', help='file names list for speed test')
-    parser.add_argument('emails', help='e-mails to send warnings')
-    parser.add_argument('--lowerLimit', type=float, help='send email if speed is lower than given limit e.g. 0.98', default=0.98)
+    parser.add_argument('testFileNames', help='file names list for speed benchmark')
+    parser.add_argument('emails', help='list of e-mail addresses to send warnings')
+    parser.add_argument('--message', help='attach an additional message to e-mail')
+    parser.add_argument('--lowerLimit', type=float, help='send email if speed is lower than given limit', default=0.98)
     parser.add_argument('--maxLoadAvg', type=float, help='maximum load average to start testing', default=0.75)
     parser.add_argument('--lastCLevel', type=int, help='last compression level for testing', default=5)
-    parser.add_argument('--sleepTime', type=int, help='frequency of checking in seconds', default=60)
+    parser.add_argument('--sleepTime', type=int, help='frequency of repository checking in seconds', default=300)
     parser.add_argument('--dry-run', dest='dry_run', action='store_true', help='not build', default=False)
     args = parser.parse_args()
 
@@ -195,6 +201,12 @@ if __name__ == '__main__':
     test_path = os.getcwd() + '/' + test_dir_name     # /path/to/zstd/tests/speedTest 
     clone_path = test_path + '/' + 'zstd'             # /path/to/zstd/tests/speedTest/zstd 
 
+    # check availability of e-mail senders
+    have_mutt = does_command_exist("mutt --help");
+    have_mail = does_command_exist("mail -V");
+    if not have_mutt and not have_mail
+        log("WARNING: e-mail senders mail and mutt not found")
+
     # clone ZSTD repo if needed
     if not os.path.isdir(test_path):
         os.mkdir(test_path)
@@ -205,19 +217,32 @@ if __name__ == '__main__':
         raise RuntimeError("ZSTD clone not found: " + clone_path)
     execute.cwd = clone_path
 
+    print "PARAMETERS:\ntest_path=%s" % test_path
+    print "clone_path=%s" % clone_path
+    print "testFilePath(%s)=%s" % (len(testFilePaths), testFilePaths)
+    print "message=%s" % args.message
+    print "emails=%s" % args.emails
+    print "maxLoadAvg=%s" % args.maxLoadAvg
+    print "lowerLimit=%s" % args.lowerLimit
+    print "lastCLevel=%s" % args.lastCLevel
+    print "sleepTime=%s" % args.sleepTime
+    print "dry_run=%s" % args.dry_run
+    print "have_mutt=%s have_mail=%s" % (have_mutt, have_mail)
+
     while True:
         pid = str(os.getpid())
         pidfile = "./speedTest.pid"
         if os.path.isfile(pidfile):
-            print "%s already exists, exiting" % pidfile
+            log("%s already exists, exiting" % pidfile)
         else:
             file(pidfile, 'w').write(pid)
             try:
                 loadavg = os.getloadavg()[0]
                 if (loadavg <= args.maxLoadAvg):
-                    main(args, test_path, clone_path, testFilePaths)
+                    check_branches(args, test_path, testFilePaths, have_mutt, have_mail)
                 else:
-                    print "loadavg=%.2f is higher than %s" % (loadavg, args.maxLoadAvg)
+                    log("WARNING: main loadavg=%.2f is higher than %s" % (loadavg, args.maxLoadAvg))
             finally:
                 os.unlink(pidfile)
+        log("sleep for %s seconds" % args.sleepTime)
         time.sleep(args.sleepTime)

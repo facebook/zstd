@@ -13,14 +13,21 @@ In the following step interoperability between zstd versions is checked.
 This script creates `speedTest` directory to which zstd repository is cloned.
 Then it compiles all branches of zstd and performs a speed benchmark for a given list of files (the `testFileNames` parameter).
 After `sleepTime` (an optional parameter, default 300 seconds) seconds the script checks repository for new commits.
-If a new commit is found it's compiled and a speed benchmark for this commit is performed.
+If a new commit is found it is compiled and a speed benchmark for this commit is performed.
 The results of the speed benchmark are compared to the previous results.
 If compression or decompression speed for one of zstd levels is lower than `lowerLimit` (an optional parameter, default 0.98) the speed benchmark is restarted.
-If second results are lower than `lowerLimit` the warning e-mail is send to recipients from the list (the `emails` parameter).
-The speed benchmark is not performed if computers' load average is higher than `maxLoadAvg` (an optional parameter, default 0.75).
+If second results are also lower than `lowerLimit` the warning e-mail is send to recipients from the list (the `emails` parameter).
+The speed benchmark is not performed until computers' load average is lower than `maxLoadAvg` (an optional parameter, default 0.75).
 
-The example usage:
-```./test-zstd-speed.py "silesia.tar calgary.tar" "email@gmail.com" --message "tested on my laptop" --sleepTime 60``` 
+The example usage with two test files, one e-mail address, and with an additional message:
+```
+./test-zstd-speed.py "silesia.tar calgary.tar" "email@gmail.com" --message "tested on my laptop" --sleepTime 60
+``` 
+
+To run the script in background please use:
+```
+nohup ./test-zstd-speed.py testFileNames emails &
+```
 
 The full list of parameters:
 ```

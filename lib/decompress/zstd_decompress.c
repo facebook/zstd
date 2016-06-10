@@ -973,7 +973,7 @@ static size_t ZSTD_decompressFrame(ZSTD_DCtx* dctx,
 
     /* Loop on each block */
     while (1) {
-        size_t decodedSize=0;
+        size_t decodedSize;
         blockProperties_t blockProperties;
         size_t const cBlockSize = ZSTD_getcBlockSize(ip, iend-ip, &blockProperties);
         if (ZSTD_isError(cBlockSize)) return cBlockSize;
@@ -996,6 +996,7 @@ static size_t ZSTD_decompressFrame(ZSTD_DCtx* dctx,
         case bt_end :
             /* end of frame */
             if (remainingSize) return ERROR(srcSize_wrong);
+            decodedSize = 0;
             break;
         default:
             return ERROR(GENERIC);   /* impossible */

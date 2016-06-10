@@ -37,6 +37,7 @@
     <ClCompile Include="..\..\..\lib\legacy\zstd_v03.c" />
     <ClCompile Include="..\..\..\lib\legacy\zstd_v04.c" />
     <ClCompile Include="..\..\..\lib\legacy\zstd_v05.c" />
+    <ClCompile Include="..\..\..\lib\legacy\zstd_v06.c" />
     <ClCompile Include="..\..\..\programs\bench.c" />
     <ClCompile Include="..\..\..\programs\datagen.c" />
     <ClCompile Include="..\..\..\programs\dibio.c" />
@@ -65,6 +66,7 @@
     <ClInclude Include="..\..\..\lib\legacy\zstd_v03.h" />
     <ClInclude Include="..\..\..\lib\legacy\zstd_v04.h" />
     <ClInclude Include="..\..\..\lib\legacy\zstd_v05.h" />
+    <ClInclude Include="..\..\..\lib\legacy\zstd_v06.h" />
     <ClInclude Include="..\..\..\programs\bench.h" />
     <ClInclude Include="..\..\..\programs\datagen.h" />
     <ClInclude Include="..\..\..\programs\dibio.h" />

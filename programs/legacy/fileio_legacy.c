@@ -473,35 +473,118 @@ unsigned long long FIOv05_decompressFrame(dRessv05_t ress,
 }
 
 
+/*=====    v0.6.x    =====*/
+
+typedef struct {
+    void*  srcBuffer;
+    size_t srcBufferSize;
+    void*  dstBuffer;
+    size_t dstBufferSize;
+    const void*  dictBuffer;
+    size_t dictBufferSize;
+    ZBUFFv06_DCtx* dctx;
+} dRessv06_t;
+
+static dRessv06_t FIOv06_createDResources(void)
+{
+    dRessv06_t ress;
+
+    /* init */
+    ress.dctx = ZBUFFv06_createDCtx();
+    if (ress.dctx==NULL) EXM_THROW(60, "Can't create ZBUFF decompression context");
+    ress.dictBuffer = NULL; ress.dictBufferSize=0;
+
+    /* Allocate Memory */
+    ress.srcBufferSize = ZBUFFv06_recommendedDInSize();
+    ress.srcBuffer = malloc(ress.srcBufferSize);
+    ress.dstBufferSize = ZBUFFv06_recommendedDOutSize();
+    ress.dstBuffer = malloc(ress.dstBufferSize);
+    if (!ress.srcBuffer || !ress.dstBuffer) EXM_THROW(61, "Allocation error : not enough memory");
+
+    return ress;
+}
+
+static void FIOv06_freeDResources(dRessv06_t ress)
+{
+    size_t const errorCode = ZBUFFv06_freeDCtx(ress.dctx);
+    if (ZBUFFv06_isError(errorCode)) EXM_THROW(69, "Error : can't free ZBUFF context resource : %s", ZBUFFv06_getErrorName(errorCode));
+    free(ress.srcBuffer);
+    free(ress.dstBuffer);
+}
+
+
+unsigned long long FIOv06_decompressFrame(dRessv06_t ress,
+                                          FILE* foutput, FILE* finput)
+{
+    U64    frameSize = 0;
+    size_t readSize  = 4;
+
+    MEM_writeLE32(ress.srcBuffer, ZSTDv06_MAGICNUMBER);
+    ZBUFFv06_decompressInitDictionary(ress.dctx, ress.dictBuffer, ress.dictBufferSize);
+
+    while (1) {
+        /* Decode */
+        size_t inSize=readSize, decodedSize=ress.dstBufferSize;
+        size_t toRead = ZBUFFv06_decompressContinue(ress.dctx, ress.dstBuffer, &decodedSize, ress.srcBuffer, &inSize);
+        if (ZBUFFv06_isError(toRead)) EXM_THROW(36, "Decoding error : %s", ZBUFFv06_getErrorName(toRead));
+        readSize -= inSize;
+
+        /* Write block */
+        { size_t const sizeCheck = fwrite(ress.dstBuffer, 1, decodedSize, foutput);
+          if (sizeCheck != decodedSize) EXM_THROW(37, "Write error : unable to write data block to destination file"); }
+        frameSize += decodedSize;
+        DISPLAYUPDATE(2, "\rDecoded : %u MB...     ", (U32)(frameSize>>20) );
+
+        if (toRead == 0) break;
+        if (readSize) EXM_THROW(38, "Decoding error : should consume entire input");
+
+        /* Fill input buffer */
+        if (toRead > ress.srcBufferSize) EXM_THROW(34, "too large block");
+        readSize = fread(ress.srcBuffer, 1, toRead, finput);
+        if (readSize != toRead) EXM_THROW(35, "Read error");
+    }
+
+    return frameSize;
+}
+
+
 /*=====   General legacy dispatcher   =====*/
 
 unsigned long long FIO_decompressLegacyFrame(FILE* foutput, FILE* finput,
                                              const void* dictBuffer, size_t dictSize,
                                              U32 magicNumberLE)
 {
-	switch(magicNumberLE)
-	{
-		case ZSTDv01_magicNumberLE :
-			return FIOv01_decompressFrame(foutput, finput);
-		case ZSTDv02_magicNumber :
-			return FIOv02_decompressFrame(foutput, finput);
-		case ZSTDv03_magicNumber :
-			return FIOv03_decompressFrame(foutput, finput);
-		case ZSTDv04_magicNumber :
-		    {   dRessv04_t r = FIOv04_createDResources();
+    switch(magicNumberLE)
+    {
+        case ZSTDv01_magicNumberLE :
+            return FIOv01_decompressFrame(foutput, finput);
+        case ZSTDv02_magicNumber :
+            return FIOv02_decompressFrame(foutput, finput);
+        case ZSTDv03_magicNumber :
+            return FIOv03_decompressFrame(foutput, finput);
+        case ZSTDv04_magicNumber :
+            {   dRessv04_t r = FIOv04_createDResources();
                 unsigned long long const s = FIOv04_decompressFrame(r, foutput, finput);
                 FIOv04_freeDResources(r);
                 return s;
-		    }
-		case ZSTDv05_MAGICNUMBER :
-		    {   dRessv05_t r = FIOv05_createDResources();
+            }
+        case ZSTDv05_MAGICNUMBER :
+            {   dRessv05_t r = FIOv05_createDResources();
                 r.dictBuffer = dictBuffer;
                 r.dictBufferSize = dictSize;
                 {   unsigned long long const s = FIOv05_decompressFrame(r, foutput, finput);
                     FIOv05_freeDResources(r);
                     return s;
-		    }   }
-		default :
-		    return ERROR(prefix_unknown);
-	}
+            }   }
+        case ZSTDv06_MAGICNUMBER :
+            {   dRessv06_t r = FIOv06_createDResources();
+                r.dictBuffer = dictBuffer;
+                r.dictBufferSize = dictSize;
+                {   unsigned long long const s = FIOv06_decompressFrame(r, foutput, finput);
+                    FIOv06_freeDResources(r);
+                    return s;
+            }   }
+        default :
+            return ERROR(prefix_unknown);
+    }
 }

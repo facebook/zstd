@@ -47,6 +47,7 @@ extern "C" {
 #include "zstd_v03.h"
 #include "zstd_v04.h"
 #include "zstd_v05.h"
+#include "zstd_v06.h"
 
 
 /** ZSTD_isLegacy() :
@@ -55,15 +56,16 @@ extern "C" {
 */
 MEM_STATIC unsigned ZSTD_isLegacy (U32 magicNumberLE)
 {
-	switch(magicNumberLE)
-	{
-		case ZSTDv01_magicNumberLE:return 1;
-		case ZSTDv02_magicNumber : return 2;
-		case ZSTDv03_magicNumber : return 3;
-		case ZSTDv04_magicNumber : return 4;
-		case ZSTDv05_MAGICNUMBER : return 5;
-		default : return 0;
-	}
+    switch(magicNumberLE)
+    {
+        case ZSTDv01_magicNumberLE:return 1;
+        case ZSTDv02_magicNumber : return 2;
+        case ZSTDv03_magicNumber : return 3;
+        case ZSTDv04_magicNumber : return 4;
+        case ZSTDv05_MAGICNUMBER : return 5;
+        case ZSTDv06_MAGICNUMBER : return 6;
+        default : return 0;
+    }
 }
 
 
@@ -73,28 +75,37 @@ MEM_STATIC size_t ZSTD_decompressLegacy(
                const void* dict,size_t dictSize,
                      U32 magicNumberLE)
 {
-	switch(magicNumberLE)
-	{
-		case ZSTDv01_magicNumberLE :
-			return ZSTDv01_decompress(dst, dstCapacity, src, compressedSize);
-		case ZSTDv02_magicNumber :
-			return ZSTDv02_decompress(dst, dstCapacity, src, compressedSize);
-		case ZSTDv03_magicNumber :
-			return ZSTDv03_decompress(dst, dstCapacity, src, compressedSize);
-		case ZSTDv04_magicNumber :
-			return ZSTDv04_decompress(dst, dstCapacity, src, compressedSize);
-		case ZSTDv05_MAGICNUMBER :
-		    {
-		        size_t result;
-		        ZSTDv05_DCtx* zd = ZSTDv05_createDCtx();
-		        if (zd==NULL) return ERROR(memory_allocation);
-		        result = ZSTDv05_decompress_usingDict(zd, dst, dstCapacity, src, compressedSize, dict, dictSize);
-		        ZSTDv05_freeDCtx(zd);
-		        return result;
-		    }
-		default :
-		    return ERROR(prefix_unknown);
-	}
+    switch(magicNumberLE)
+    {
+        case ZSTDv01_magicNumberLE :
+            return ZSTDv01_decompress(dst, dstCapacity, src, compressedSize);
+        case ZSTDv02_magicNumber :
+            return ZSTDv02_decompress(dst, dstCapacity, src, compressedSize);
+        case ZSTDv03_magicNumber :
+            return ZSTDv03_decompress(dst, dstCapacity, src, compressedSize);
+        case ZSTDv04_magicNumber :
+            return ZSTDv04_decompress(dst, dstCapacity, src, compressedSize);
+        case ZSTDv05_MAGICNUMBER :
+            {
+                size_t result;
+                ZSTDv05_DCtx* zd = ZSTDv05_createDCtx();
+                if (zd==NULL) return ERROR(memory_allocation);
+                result = ZSTDv05_decompress_usingDict(zd, dst, dstCapacity, src, compressedSize, dict, dictSize);
+                ZSTDv05_freeDCtx(zd);
+                return result;
+            }
+        case ZSTDv06_MAGICNUMBER :
+            {
+                size_t result;
+                ZSTDv06_DCtx* zd = ZSTDv06_createDCtx();
+                if (zd==NULL) return ERROR(memory_allocation);
+                result = ZSTDv06_decompress_usingDict(zd, dst, dstCapacity, src, compressedSize, dict, dictSize);
+                ZSTDv06_freeDCtx(zd);
+                return result;
+            }
+        default :
+            return ERROR(prefix_unknown);
+    }
 }
 
 

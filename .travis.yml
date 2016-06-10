@@ -49,7 +49,7 @@ matrix:
       env: PLATFORM="Ubuntu 12.04" MAKE_PARAM="-C programs test32"
 #    - os: linux
 #      sudo: required
-#      env: PLATFORM="Ubuntu 12.04" MAKE_PARAM="-C versionsTest"
+#      env: PLATFORM="Ubuntu 12.04" MAKE_PARAM="-C tests versionsTest"
     - os: linux
       sudo: required
       env: PLATFORM="Ubuntu 12.04" MAKE_PARAM=asan32

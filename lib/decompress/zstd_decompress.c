@@ -112,7 +112,7 @@ struct ZSTD_DCtx_s
     FSE_DTable LLTable[FSE_DTABLE_SIZE_U32(LLFSELog)];
     FSE_DTable OffTable[FSE_DTABLE_SIZE_U32(OffFSELog)];
     FSE_DTable MLTable[FSE_DTABLE_SIZE_U32(MLFSELog)];
-    HUF_DTable hufTable[HUF_DTABLE_SIZE(HufLog+1)];
+    HUF_DTable hufTable[HUF_DTABLE_SIZE(HufLog)];  /* can accommodate HUF_decompress4X */
     const void* previousDstEnd;
     const void* base;
     const void* vBase;
@@ -143,7 +143,7 @@ size_t ZSTD_decompressBegin(ZSTD_DCtx* dctx)
     dctx->base = NULL;
     dctx->vBase = NULL;
     dctx->dictEnd = NULL;
-    dctx->hufTable[0] = (HUF_DTable)((HufLog+1)*0x101);
+    dctx->hufTable[0] = (HUF_DTable)((HufLog)*0x1000001);
     dctx->flagRepeatTable = 0;
     dctx->dictID = 0;
     return 0;
@@ -487,8 +487,8 @@ size_t ZSTD_decodeLiteralsBlock(ZSTD_DCtx* dctx,
             if (litCSize + lhSize > srcSize) return ERROR(corruption_detected);
 
             if (HUF_isError(singleStream ?
-                            HUF_decompress1X2(dctx->litBuffer, litSize, istart+lhSize, litCSize) :
-                            HUF_decompress   (dctx->litBuffer, litSize, istart+lhSize, litCSize) ))
+                            HUF_decompress1X2_DCtx(dctx->hufTable, dctx->litBuffer, litSize, istart+lhSize, litCSize) :
+                            HUF_decompress4X_DCtx (dctx->hufTable, dctx->litBuffer, litSize, istart+lhSize, litCSize) ))
                 return ERROR(corruption_detected);
 
             dctx->litPtr = dctx->litBuffer;
@@ -675,7 +675,6 @@ typedef struct {
     FSE_DState_t stateML;
     size_t prevOffset[ZSTD_REP_INIT];
 } seqState_t;
-
 
 
 static seq_t ZSTD_decodeSequence(seqState_t* seqState)
@@ -869,17 +868,7 @@ static size_t ZSTD_decompressSequences(
 
         for ( ; (BIT_reloadDStream(&(seqState.DStream)) <= BIT_DStream_completed) && nbSeq ; ) {
             nbSeq--;
-            {   seq_t const sequence = ZSTD_decodeSequence(&seqState);
-
-#if 0  /* debug */
-            static BYTE* start = NULL;
-            if (start==NULL) start = op;
-            size_t pos = (size_t)(op-start);
-            if ((pos >= 5810037) && (pos < 5810400))
-                printf("Dpos %6u :%5u literals & match %3u bytes at distance %6u \n",
-                       pos, (U32)sequence.litLength, (U32)sequence.matchLength, (U32)sequence.offset);
-#endif
-
+           {    seq_t const sequence = ZSTD_decodeSequence(&seqState);
                 size_t const oneSeqSize = ZSTD_execSequence(op, oend, sequence, &litPtr, litLimit_8, base, vBase, dictEnd);
                 if (ZSTD_isError(oneSeqSize)) return oneSeqSize;
                 op += oneSeqSize;

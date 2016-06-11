@@ -867,6 +867,18 @@ size_t HUF_decompress4X_DCtx (HUF_DTable* dctx, void* dst, size_t dstSize, const
     }
 }
 
+size_t HUF_decompress4X_hufOnly (HUF_DTable* dctx, void* dst, size_t dstSize, const void* cSrc, size_t cSrcSize)
+{
+    /* validation checks */
+    if (dstSize == 0) return ERROR(dstSize_tooSmall);
+    if ((cSrcSize >= dstSize) || (cSrcSize <= 1)) return ERROR(corruption_detected);   /* invalid */
+
+    {   U32 const algoNb = HUF_selectDecoder(dstSize, cSrcSize);
+        return algoNb ? HUF_decompress4X4_DCtx(dctx, dst, dstSize, cSrc, cSrcSize) :
+                        HUF_decompress4X2_DCtx(dctx, dst, dstSize, cSrc, cSrcSize) ;
+    }
+}
+
 size_t HUF_decompress1X_DCtx (HUF_DTable* dctx, void* dst, size_t dstSize, const void* cSrc, size_t cSrcSize)
 {
     /* validation checks */

@@ -488,7 +488,7 @@ size_t ZSTD_decodeLiteralsBlock(ZSTD_DCtx* dctx,
 
             if (HUF_isError(singleStream ?
                             HUF_decompress1X2_DCtx(dctx->hufTable, dctx->litBuffer, litSize, istart+lhSize, litCSize) :
-                            HUF_decompress4X_DCtx (dctx->hufTable, dctx->litBuffer, litSize, istart+lhSize, litCSize) ))
+                            HUF_decompress4X_hufOnly (dctx->hufTable, dctx->litBuffer, litSize, istart+lhSize, litCSize) ))
                 return ERROR(corruption_detected);
 
             dctx->litPtr = dctx->litBuffer;
@@ -509,6 +509,7 @@ size_t ZSTD_decodeLiteralsBlock(ZSTD_DCtx* dctx,
             lhSize=3;
             litSize  = ((istart[0] & 15) << 6) + (istart[1] >> 2);
             litCSize = ((istart[1] &  3) << 8) + istart[2];
+            if (litCSize + lhSize > srcSize) return ERROR(corruption_detected);
 
             {   size_t const errorCode = HUF_decompress1X4_usingDTable(dctx->litBuffer, litSize, istart+lhSize, litCSize, dctx->hufTable);
                 if (HUF_isError(errorCode)) return ERROR(corruption_detected);

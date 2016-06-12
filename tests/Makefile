@@ -27,6 +27,8 @@
 PYTHON?= python3
 TESTDIR := zstdtest
 
+.PHONY: default all clean versionsTest
+
 default: all
 
 all: versionsTest

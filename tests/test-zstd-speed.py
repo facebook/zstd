@@ -175,13 +175,14 @@ def check_branches(args, test_path, testFilePaths, have_mutt, have_mail):
         except Exception as e:
             stack = traceback.format_exc()
             log("ERROR: build %s, error %s" % (branch, str(e)) )
+            print stack
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('testFileNames', help='file names list for speed benchmark')
     parser.add_argument('emails', help='list of e-mail addresses to send warnings')
-    parser.add_argument('--message', help='attach an additional message to e-mail')
+    parser.add_argument('--message', help='attach an additional message to e-mail', default="")
     parser.add_argument('--lowerLimit', type=float, help='send email if speed is lower than given limit', default=0.98)
     parser.add_argument('--maxLoadAvg', type=float, help='maximum load average to start testing', default=0.75)
     parser.add_argument('--lastCLevel', type=int, help='last compression level for testing', default=5)

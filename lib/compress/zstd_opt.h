@@ -461,15 +461,19 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
     ZSTD_optimal_t* opt = seqStorePtr->priceTable;
     ZSTD_match_t* matches = seqStorePtr->matchTable;
     const BYTE* inr;
+    U32 offset, rep[ZSTD_REP_INIT];
 
     /* init */
-    U32 offset, rep[ZSTD_REP_INIT];
-    { U32 i; for (i=0; i<ZSTD_REP_INIT; i++) rep[i]=REPCODE_STARTVALUE; }
-
     ctx->nextToUpdate3 = ctx->nextToUpdate;
     ZSTD_resetSeqStore(seqStorePtr);
     ZSTD_rescaleFreqs(seqStorePtr);
-    if ((ip-prefixStart) < REPCODE_STARTVALUE) ip = prefixStart + REPCODE_STARTVALUE;
+    ip += (ip==prefixStart);
+    {   U32 i;
+        U32 const maxRep = (ip-prefixStart);
+        for (i=0; i<ZSTD_REP_INIT; i++) {
+            rep[i]=ctx->rep[i];
+            if (rep[i]>maxRep) rep[i]=0;
+    }   }
 
     ZSTD_LOG_BLOCK("%d: COMPBLOCK_OPT_GENERIC srcSz=%d maxSrch=%d mls=%d sufLen=%d\n", (int)(ip-base), (int)srcSize, maxSearches, mls, sufficient_len);
 
@@ -713,8 +717,15 @@ _storeSequence:   /* cur, last_pos, best_mlen, best_off have to be set */
             anchor = ip = ip + mlen;
     }    }   /* for (cur=0; cur < last_pos; ) */
 
-    {   /* Last Literals */
-        size_t lastLLSize = iend - anchor;
+    /* Save reps for next block */
+    {   int i;
+        for (i=0; i<ZSTD_REP_NUM; i++) {
+            if (!rep[i]) rep[i] = (U32)(iend-base);   /* in case some zero are left */
+            ctx->savedRep[i] = rep[i];
+    }   }
+
+    /* Last Literals */
+    {   size_t lastLLSize = iend - anchor;
         ZSTD_LOG_ENCODE("%d: lastLLSize literals=%u\n", (int)(ip-base), (U32)lastLLSize);
         memcpy(seqStorePtr->lit, anchor, lastLLSize);
         seqStorePtr->lit += lastLLSize;
@@ -750,12 +761,12 @@ void ZSTD_compressBlock_opt_extDict_generic(ZSTD_CCtx* ctx,
 
     /* init */
     U32 offset, rep[ZSTD_REP_INIT];
-    { U32 i; for (i=0; i<ZSTD_REP_INIT; i++) rep[i]=REPCODE_STARTVALUE; }
+    { U32 i; for (i=0; i<ZSTD_REP_INIT; i++) rep[i]=ctx->rep[i]; }
 
     ctx->nextToUpdate3 = ctx->nextToUpdate;
     ZSTD_resetSeqStore(seqStorePtr);
     ZSTD_rescaleFreqs(seqStorePtr);
-    if ((ip - prefixStart) < REPCODE_STARTVALUE) ip += REPCODE_STARTVALUE;
+    ip += (ip==prefixStart);
 
     ZSTD_LOG_BLOCK("%d: COMPBLOCK_OPT_EXTDICT srcSz=%d maxSrch=%d mls=%d sufLen=%d\n", (int)(ip-base), (int)srcSize, maxSearches, mls, sufficient_len);
 
@@ -1027,8 +1038,11 @@ _storeSequence:   /* cur, last_pos, best_mlen, best_off have to be set */
             anchor = ip = ip + mlen;
     }    }   /* for (cur=0; cur < last_pos; ) */
 
-    {   /* Last Literals */
-        size_t lastLLSize = iend - anchor;
+    /* Save reps for next block */
+    ctx->savedRep[0] = rep[0]; ctx->savedRep[1] = rep[1]; ctx->savedRep[2] = rep[2];
+
+    /* Last Literals */
+    {   size_t lastLLSize = iend - anchor;
         ZSTD_LOG_ENCODE("%d: lastLLSize literals=%u\n", (int)(ip-base), (U32)(lastLLSize));
         memcpy(seqStorePtr->lit, anchor, lastLLSize);
         seqStorePtr->lit += lastLLSize;

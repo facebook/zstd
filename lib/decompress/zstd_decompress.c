@@ -118,6 +118,7 @@ struct ZSTD_DCtx_s
     const void* vBase;
     const void* dictEnd;
     size_t expected;
+    U32 rep[3];
     ZSTD_frameParams fParams;
     blockType_t bType;   /* used in ZSTD_decompressContinue(), to transfer blockType between header decoding and block decoding stages */
     ZSTD_dStage stage;
@@ -147,6 +148,7 @@ size_t ZSTD_decompressBegin(ZSTD_DCtx* dctx)
     dctx->hufTable[0] = (HUF_DTable)((HufLog)*0x1000001);
     dctx->litEntropy = dctx->fseEntropy = 0;
     dctx->dictID = 0;
+    { int i; for (i=0; i<ZSTD_REP_NUM; i++) dctx->rep[i] = repStartValue[i]; }
     return 0;
 }
 
@@ -855,13 +857,13 @@ static size_t ZSTD_decompressSequences(
     {   size_t const seqHSize = ZSTD_decodeSeqHeaders(&nbSeq, DTableLL, DTableML, DTableOffb, dctx->fseEntropy, ip, seqSize);
         if (ZSTD_isError(seqHSize)) return seqHSize;
         ip += seqHSize;
-        dctx->fseEntropy = 1;
     }
 
     /* Regen sequences */
     if (nbSeq) {
         seqState_t seqState;
-        { U32 i; for (i=0; i<ZSTD_REP_INIT; i++) seqState.prevOffset[i] = REPCODE_STARTVALUE; }
+        dctx->fseEntropy = 1;
+        { U32 i; for (i=0; i<ZSTD_REP_INIT; i++) seqState.prevOffset[i] = dctx->rep[i]; }
         { size_t const errorCode = BIT_initDStream(&(seqState.DStream), ip, iend-ip);
           if (ERR_isError(errorCode)) return ERROR(corruption_detected); }
         FSE_initDState(&(seqState.stateLL), &(seqState.DStream), DTableLL);
@@ -870,7 +872,7 @@ static size_t ZSTD_decompressSequences(
 
         for ( ; (BIT_reloadDStream(&(seqState.DStream)) <= BIT_DStream_completed) && nbSeq ; ) {
             nbSeq--;
-           {    seq_t const sequence = ZSTD_decodeSequence(&seqState);
+            {   seq_t const sequence = ZSTD_decodeSequence(&seqState);
                 size_t const oneSeqSize = ZSTD_execSequence(op, oend, sequence, &litPtr, litLimit_8, base, vBase, dictEnd);
                 if (ZSTD_isError(oneSeqSize)) return oneSeqSize;
                 op += oneSeqSize;
@@ -878,6 +880,8 @@ static size_t ZSTD_decompressSequences(
 
         /* check if reached exact end */
         if (nbSeq) return ERROR(corruption_detected);
+        /* save reps for next block */
+        { U32 i; for (i=0; i<ZSTD_REP_INIT; i++) dctx->rep[i] = seqState.prevOffset[i]; }
     }
 
     /* last literal segment */

@@ -69,6 +69,7 @@
 #define ZSTD_REP_NUM    3
 #define ZSTD_REP_INIT   ZSTD_REP_NUM
 #define ZSTD_REP_MOVE   (ZSTD_REP_NUM-1)
+static const U32 repStartValue[ZSTD_REP_NUM] = { 1, 4, 8 };
 
 #define KB *(1 <<10)
 #define MB *(1 <<20)
@@ -99,7 +100,6 @@ typedef enum { lbt_huffman, lbt_repeat, lbt_raw, lbt_rle } litBlockType_t;
 
 #define MINMATCH 3
 #define EQUAL_READ32 4
-#define REPCODE_STARTVALUE 1
 
 #define Litbits  8
 #define MaxLit ((1<<Litbits) - 1)

@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
@@ -172,19 +172,14 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\lib\common\fse.h" />
-    <ClInclude Include="..\..\..\lib\common\fse_static.h" />
     <ClInclude Include="..\..\..\lib\common\huf.h" />
-    <ClInclude Include="..\..\..\lib\common\huf_static.h" />
     <ClInclude Include="..\..\..\lib\common\xxhash.h" />
     <ClInclude Include="..\..\..\lib\common\zbuff.h" />
     <ClInclude Include="..\..\..\lib\common\zstd_internal.h" />
-    <ClInclude Include="..\..\..\lib\common\zbuff_static.h" />
     <ClInclude Include="..\..\..\lib\common\zstd.h" />
-    <ClInclude Include="..\..\..\lib\common\zstd_static.h" />
     <ClInclude Include="..\..\..\lib\compress\zstd_opt.h" />
     <ClInclude Include="..\..\..\lib\dictBuilder\divsufsort.h" />
     <ClInclude Include="..\..\..\lib\dictBuilder\zdict.h" />
-    <ClInclude Include="..\..\..\lib\dictBuilder\zdict_static.h" />
     <ClInclude Include="..\..\..\lib\legacy\zstd_legacy.h" />
     <ClInclude Include="..\..\..\programs\datagen.h" />
     <ClInclude Include="..\..\..\programs\util.h" />

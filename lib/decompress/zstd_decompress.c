@@ -881,7 +881,7 @@ static size_t ZSTD_decompressSequences(
         /* check if reached exact end */
         if (nbSeq) return ERROR(corruption_detected);
         /* save reps for next block */
-        { U32 i; for (i=0; i<ZSTD_REP_INIT; i++) dctx->rep[i] = seqState.prevOffset[i]; }
+        { U32 i; for (i=0; i<ZSTD_REP_INIT; i++) dctx->rep[i] = (U32)(seqState.prevOffset[i]); }
     }
 
     /* last literal segment */

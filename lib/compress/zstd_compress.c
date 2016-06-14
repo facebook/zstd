@@ -933,9 +933,9 @@ _check_compressibility:
     `offsetCode` : distance to match, or 0 == repCode.
     `matchCode` : matchLength - MINMATCH
 */
-MEM_STATIC void ZSTD_storeSeq(seqStore_t* seqStorePtr, size_t litLength, const BYTE* literals, size_t offsetCode, size_t matchCode)
+MEM_STATIC void ZSTD_storeSeq(seqStore_t* seqStorePtr, size_t litLength, const void* literals, size_t offsetCode, size_t matchCode)
 {
-#if 1  /* for debug */
+#if 0  /* for debug */
     static const BYTE* g_start = NULL;
     const U32 pos = (U32)(literals - g_start);
     if (g_start==NULL) g_start = literals;
@@ -943,7 +943,7 @@ MEM_STATIC void ZSTD_storeSeq(seqStore_t* seqStorePtr, size_t litLength, const B
         printf("Cpos %6u :%5u literals & match %3u bytes at distance %6u \n",
                pos, (U32)litLength, (U32)matchCode+MINMATCH, (U32)offsetCode);
 #endif
-    ZSTD_statsUpdatePrices(&seqStorePtr->stats, litLength, literals, offsetCode, matchCode);
+    ZSTD_statsUpdatePrices(&seqStorePtr->stats, litLength, literals, offsetCode, matchCode);   /* debug only */
 
     /* copy Literals */
     ZSTD_wildcopy(seqStorePtr->lit, literals, litLength);
@@ -2346,7 +2346,6 @@ static size_t ZSTD_loadDictEntropyStats(ZSTD_CCtx* zc, const void* dict, size_t 
 
     {   size_t const hufHeaderSize = HUF_readCTable(zc->hufTable, 255, dict, dictSize);
         if (HUF_isError(hufHeaderSize)) return ERROR(dictionary_corrupted);
-        zc->flagStaticTables = 1;
         dict = (const char*)dict + hufHeaderSize;
         dictSize -= hufHeaderSize;
     }
@@ -2380,6 +2379,7 @@ static size_t ZSTD_loadDictEntropyStats(ZSTD_CCtx* zc, const void* dict, size_t 
         dictSize -= litlengthHeaderSize;
     }
 
+    zc->flagStaticTables = 1;
     return (dictSizeStart-dictSize);
 }
 

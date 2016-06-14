@@ -468,12 +468,7 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
     ZSTD_resetSeqStore(seqStorePtr);
     ZSTD_rescaleFreqs(seqStorePtr);
     ip += (ip==prefixStart);
-    {   U32 i;
-        U32 const maxRep = (ip-prefixStart);
-        for (i=0; i<ZSTD_REP_INIT; i++) {
-            rep[i]=ctx->rep[i];
-            if (rep[i]>maxRep) rep[i]=0;
-    }   }
+    { U32 i; for (i=0; i<ZSTD_REP_INIT; i++) rep[i]=ctx->rep[i]; }
 
     ZSTD_LOG_BLOCK("%d: COMPBLOCK_OPT_GENERIC srcSz=%d maxSrch=%d mls=%d sufLen=%d\n", (int)(ip-base), (int)srcSize, maxSearches, mls, sufficient_len);
 
@@ -488,7 +483,8 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
         /* check repCode */
         {   U32 i;
             for (i=0; i<ZSTD_REP_NUM; i++) {
-                if ((rep[i]>0) & (MEM_readMINMATCH(ip, minMatch) == MEM_readMINMATCH(ip - rep[i], minMatch))) {
+                if ((rep[i]<(U32)(ip-prefixStart))
+                    && (MEM_readMINMATCH(ip, minMatch) == MEM_readMINMATCH(ip - rep[i], minMatch))) {
                     mlen = (U32)ZSTD_count(ip+minMatch, ip+minMatch-rep[i], iend) + minMatch;
                     ZSTD_LOG_PARSER("%d: start try REP rep[%d]=%d mlen=%d\n", (int)(ip-base), i, (int)rep[i], (int)mlen);
                     if (mlen > sufficient_len || mlen >= ZSTD_OPT_NUM) {
@@ -578,7 +574,8 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
            best_mlen = minMatch;
            {   U32 i;
                for (i=0; i<ZSTD_REP_NUM; i++) {
-                   if ((rep[i]>0) & (MEM_readMINMATCH(inr, minMatch) == MEM_readMINMATCH(inr - opt[cur].rep[i], minMatch))) {  /* check rep */
+                   if ((rep[i]<(inr-prefixStart))
+                       && (MEM_readMINMATCH(inr, minMatch) == MEM_readMINMATCH(inr - opt[cur].rep[i], minMatch))) {  /* check rep */
                        mlen = (U32)ZSTD_count(inr+minMatch, inr+minMatch - opt[cur].rep[i], iend) + minMatch;
                        ZSTD_LOG_PARSER("%d: Found REP %d/%d mlen=%d off=%d rep=%d opt[%d].off=%d\n", (int)(inr-base), i, ZSTD_REP_NUM, mlen, i, opt[cur].rep[i], cur, opt[cur].off);
 
@@ -718,14 +715,10 @@ _storeSequence:   /* cur, last_pos, best_mlen, best_off have to be set */
     }    }   /* for (cur=0; cur < last_pos; ) */
 
     /* Save reps for next block */
-    {   int i;
-        for (i=0; i<ZSTD_REP_NUM; i++) {
-            if (!rep[i]) rep[i] = (U32)(iend-base);   /* in case some zero are left */
-            ctx->savedRep[i] = rep[i];
-    }   }
+    { int i; for (i=0; i<ZSTD_REP_NUM; i++) ctx->savedRep[i] = rep[i]; }
 
     /* Last Literals */
-    {   size_t lastLLSize = iend - anchor;
+    {   size_t const lastLLSize = iend - anchor;
         ZSTD_LOG_ENCODE("%d: lastLLSize literals=%u\n", (int)(ip-base), (U32)lastLLSize);
         memcpy(seqStorePtr->lit, anchor, lastLLSize);
         seqStorePtr->lit += lastLLSize;

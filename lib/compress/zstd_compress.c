@@ -943,7 +943,7 @@ MEM_STATIC void ZSTD_storeSeq(seqStore_t* seqStorePtr, size_t litLength, const v
         printf("Cpos %6u :%5u literals & match %3u bytes at distance %6u \n",
                pos, (U32)litLength, (U32)matchCode+MINMATCH, (U32)offsetCode);
 #endif
-    ZSTD_statsUpdatePrices(&seqStorePtr->stats, litLength, literals, offsetCode, matchCode);   /* debug only */
+    ZSTD_statsUpdatePrices(&seqStorePtr->stats, litLength, (const BYTE*)literals, offsetCode, matchCode);   /* debug only */
 
     /* copy Literals */
     ZSTD_wildcopy(seqStorePtr->lit, literals, litLength);
@@ -1187,8 +1187,8 @@ void ZSTD_compressBlock_fast_generic(ZSTD_CCtx* cctx,
     }   }   }
 
     /* save reps for next block */
-    cctx->savedRep[0] = offset_1 ? offset_1 : (U32)(iend-base);
-    cctx->savedRep[1] = offset_2 ? offset_2 : (U32)(iend-base);
+    cctx->savedRep[0] = offset_1 ? (U32)offset_1 : (U32)(iend-base);
+    cctx->savedRep[1] = offset_2 ? (U32)offset_2 : (U32)(iend-base);
 
     /* Last Literals */
     {   size_t const lastLLSize = iend - anchor;

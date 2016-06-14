@@ -14,9 +14,6 @@
     <ClCompile Include="..\..\..\programs\fuzzer.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\programs\xxhash.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\..\programs\datagen.c">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -44,11 +41,17 @@
     <ClCompile Include="..\..\..\lib\common\entropy_common.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\..\lib\common\xxhash.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\lib\dictBuilder\divsufsort.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\lib\dictBuilder\zdict.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\..\programs\xxhash.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\..\programs\datagen.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -58,13 +61,7 @@
     <ClInclude Include="..\..\..\lib\common\fse.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\lib\common\fse_static.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\..\lib\common\huf.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\lib\common\huf_static.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\lib\common\zbuff.h">
@@ -73,19 +70,22 @@
     <ClInclude Include="..\..\..\lib\common\zstd_internal.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\lib\common\zbuff_static.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\..\lib\common\zstd.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\lib\common\zstd_static.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\lib\compress\zstd_opt.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\programs\util.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\lib\common\xxhash.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\lib\dictBuilder\divsufsort.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\lib\dictBuilder\zdict.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

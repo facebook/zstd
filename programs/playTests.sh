@@ -66,6 +66,14 @@ $ZSTD -q tmp && die "overwrite check failed!"
 $ZSTD -q -f tmp
 $ZSTD -q --force tmp
 $ZSTD -df tmp && die "should have refused : wrong extension"
+$ECHO "test : file removal"
+$ZSTD -f --rm tmp
+ls tmp && die "tmp should no longer be present"
+$ZSTD -f -d --rm tmp.zst
+ls tmp.zst && die "tmp.zst should no longer be present"
+rm tmp
+$ZSTD -f tmp && die "tmp not present : should have failed"
+ls tmp.zst && die "tmp.zst should not be created"
 
 
 $ECHO "\n**** Pass-Through mode **** "

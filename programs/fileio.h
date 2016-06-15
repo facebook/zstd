@@ -50,6 +50,7 @@ void FIO_setMaxWLog(unsigned maxWLog);     /**< if `maxWLog` == 0, no max enforc
 void FIO_setSparseWrite(unsigned sparse);  /**< 0: no sparse; 1: disable on stdout; 2: always enabled */
 void FIO_setDictIDFlag(unsigned dictIDFlag);
 void FIO_setChecksumFlag(unsigned checksumFlag);
+void FIO_setRemoveSrcFile(unsigned flag);
 
 
 /*-*************************************

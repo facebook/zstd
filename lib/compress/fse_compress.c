@@ -256,7 +256,7 @@ static size_t FSE_writeNCount_generic (void* header, size_t headerBufferSize,
             bitStream += count << bitCount;
             bitCount  += nbBits;
             bitCount  -= (count<max);
-            previous0 = (count==1);
+            previous0  = (count==1);
             while (remaining<threshold) nbBits--, threshold>>=1;
         }
         if (bitCount>16) {

@@ -79,7 +79,7 @@ const char* ZDICT_getErrorName(size_t errorCode);
 
 /* ====================================================================================
  * The definitions in this section are considered experimental.
- * They should never be used in association with a dynamic library, as they may change in the future.
+ * They should never be used with a dynamic library, as they may change in the future.
  * They are provided for advanced usages.
  * Use them only in association with static linking.
  * ==================================================================================== */

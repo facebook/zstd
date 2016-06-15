@@ -133,6 +133,29 @@ diff tmpSparse2M tmpSparseRegenerated
 rm tmpSparse*
 
 
+$ECHO "\n**** multiple files tests **** "
+
+./datagen -s1        > tmp1 2> /dev/null
+./datagen -s2 -g100K > tmp2 2> /dev/null
+./datagen -s3 -g1M   > tmp3 2> /dev/null
+$ZSTD -f tmp*
+$ECHO "compress tmp* : "
+ls -ls tmp*
+rm tmp1 tmp2 tmp3
+$ECHO "decompress tmp* : "
+$ZSTD -df *.zst
+ls -ls tmp*
+$ECHO "compress tmp* into stdout > tmpall : "
+$ZSTD -c tmp1 tmp2 tmp3 > tmpall
+ls -ls tmp*
+$ECHO "decompress tmpall* into stdout > tmpdec : "
+cp tmpall tmpall2
+$ZSTD -dc tmpall* > tmpdec
+ls -ls tmp*
+$ECHO "compress multiple files including a missing one (notHere) : "
+$ZSTD -f tmp1 notHere tmp2 && die "missing file not detected!"
+
+
 $ECHO "\n**** dictionary tests **** "
 
 ./datagen > tmpDict
@@ -166,29 +189,6 @@ $ZSTD -d dirTestDict/*.zst -D tmpDictC -c | $MD5SUM > tmp2
 diff -q tmp1 tmp2
 rm -rf dirTestDict
 rm tmp*
-
-
-$ECHO "\n**** multiple files tests **** "
-
-./datagen -s1        > tmp1 2> /dev/null
-./datagen -s2 -g100K > tmp2 2> /dev/null
-./datagen -s3 -g1M   > tmp3 2> /dev/null
-$ZSTD -f tmp*
-$ECHO "compress tmp* : "
-ls -ls tmp*
-rm tmp1 tmp2 tmp3
-$ECHO "decompress tmp* : "
-$ZSTD -df *.zst
-ls -ls tmp*
-$ECHO "compress tmp* into stdout > tmpall : "
-$ZSTD -c tmp1 tmp2 tmp3 > tmpall
-ls -ls tmp*
-$ECHO "decompress tmpall* into stdout > tmpdec : "
-cp tmpall tmpall2
-$ZSTD -dc tmpall* > tmpdec
-ls -ls tmp*
-$ECHO "compress multiple files including a missing one (notHere) : "
-$ZSTD -f tmp1 notHere tmp2 && die "missing file not detected!"
 
 
 $ECHO "\n**** integrity tests **** "

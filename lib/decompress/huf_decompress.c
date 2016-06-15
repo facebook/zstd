@@ -625,7 +625,7 @@ size_t HUF_decompress1X4_usingDTable(
     const HUF_DTable* DTable)
 {
     DTableDesc dtd = HUF_getDTableDesc(DTable);
-    if (dtd.tableType != 0) return ERROR(GENERIC);
+    if (dtd.tableType != 1) return ERROR(GENERIC);
     return HUF_decompress1X4_usingDTable_internal(dst, dstSize, cSrc, cSrcSize, DTable);
 }
 

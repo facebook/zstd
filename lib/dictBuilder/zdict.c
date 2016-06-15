@@ -578,9 +578,10 @@ typedef struct
     void* workPlace;   /* must be ZSTD_BLOCKSIZE_MAX allocated */
 } EStats_ress_t;
 
+#define MAXREPOFFSET 1024
 
 static void ZDICT_countEStats(EStats_ress_t esr,
-                            U32* countLit, U32* offsetcodeCount, U32* matchlengthCount, U32* litlengthCount,
+                            U32* countLit, U32* offsetcodeCount, U32* matchlengthCount, U32* litlengthCount, U32* repOffsets,
                             const void* src, size_t srcSize)
 {
     const seqStore_t* seqStorePtr;
@@ -614,6 +615,17 @@ static void ZDICT_countEStats(EStats_ress_t esr,
             size_t u;
             for (u=0; u<nbSeq; u++) litlengthCount[codePtr[u]]++;
     }   }
+
+    /* rep offsets */
+    {   const U32* const offsetPtr = seqStorePtr->offsetStart;
+        U32 offset1 = offsetPtr[0] - 3;
+        U32 offset2 = offsetPtr[1] - 3;
+        if (offset1 >= MAXREPOFFSET) offset1 = 0;
+        if (offset2 >= MAXREPOFFSET) offset2 = 0;
+        repOffsets[offset1] += 3;
+        repOffsets[offset2] += 1;
+    }
+
 }
 
 /*
@@ -629,11 +641,28 @@ static size_t ZDICT_maxSampleSize(const size_t* fileSizes, unsigned nbFiles)
 
 static size_t ZDICT_totalSampleSize(const size_t* fileSizes, unsigned nbFiles)
 {
-    size_t total;
+    size_t total=0;
     unsigned u;
-    for (u=0, total=0; u<nbFiles; u++) total += fileSizes[u];
+    for (u=0; u<nbFiles; u++) total += fileSizes[u];
     return total;
 }
+
+typedef struct { U32 offset; U32 count; } offsetCount_t;
+
+static void ZDICT_insertSortCount(offsetCount_t table[ZSTD_REP_NUM+1], U32 val, U32 count)
+{
+    U32 u;
+    table[ZSTD_REP_NUM].offset = val;
+    table[ZSTD_REP_NUM].count = count;
+    for (u=ZSTD_REP_NUM; u>0; u--) {
+        offsetCount_t tmp;
+        if (table[u-1].count >= table[u].count) break;
+        tmp = table[u-1];
+        table[u-1] = table[u];
+        table[u] = tmp;
+    }
+}
+
 
 #define OFFCODE_MAX 18  /* only applicable to first block */
 static size_t ZDICT_analyzeEntropy(void*  dstBuffer, size_t maxDstSize,
@@ -649,6 +678,8 @@ static size_t ZDICT_analyzeEntropy(void*  dstBuffer, size_t maxDstSize,
     short matchLengthNCount[MaxML+1];
     U32 litLengthCount[MaxLL+1];
     short litLengthNCount[MaxLL+1];
+    U32 repOffset[MAXREPOFFSET] = { 0 };
+    offsetCount_t bestRepOffset[ZSTD_REP_NUM+1];
     EStats_ress_t esr;
     ZSTD_parameters params;
     U32 u, huffLog = 12, Offlog = OffFSELog, mlLog = MLFSELog, llLog = LLFSELog, total;
@@ -656,12 +687,15 @@ static size_t ZDICT_analyzeEntropy(void*  dstBuffer, size_t maxDstSize,
     size_t eSize = 0;
     size_t const totalSrcSize = ZDICT_totalSampleSize(fileSizes, nbFiles);
     size_t const averageSampleSize = totalSrcSize / nbFiles;
+    BYTE* dstPtr = (BYTE*)dstBuffer;
 
     /* init */
     for (u=0; u<256; u++) countLit[u]=1;   /* any character must be described */
     for (u=0; u<=OFFCODE_MAX; u++) offcodeCount[u]=1;
     for (u=0; u<=MaxML; u++) matchLengthCount[u]=1;
     for (u=0; u<=MaxLL; u++) litLengthCount[u]=1;
+    repOffset[1] = repOffset[4] = repOffset[8] = 1;
+    memset(bestRepOffset, 0, sizeof(bestRepOffset));
     esr.ref = ZSTD_createCCtx();
     esr.zc = ZSTD_createCCtx();
     esr.workPlace = malloc(ZSTD_BLOCKSIZE_MAX);
@@ -679,7 +713,7 @@ static size_t ZDICT_analyzeEntropy(void*  dstBuffer, size_t maxDstSize,
     /* collect stats on all files */
     for (u=0; u<nbFiles; u++) {
         ZDICT_countEStats(esr,
-                        countLit, offcodeCount, matchLengthCount, litLengthCount,
+                        countLit, offcodeCount, matchLengthCount, litLengthCount, repOffset,
            (const char*)srcBuffer + pos, fileSizes[u]);
         pos += fileSizes[u];
     }
@@ -720,46 +754,70 @@ static size_t ZDICT_analyzeEntropy(void*  dstBuffer, size_t maxDstSize,
     }
     llLog = (U32)errorCode;
 
+    {   U32 offset;
+        for (offset=1; offset<MAXREPOFFSET; offset++)
+            ZDICT_insertSortCount(bestRepOffset, offset, repOffset[offset]);
+    }
+
+
     /* write result to buffer */
-    errorCode = HUF_writeCTable(dstBuffer, maxDstSize, hufTable, 255, huffLog);
-    if (HUF_isError(errorCode)) {
-        eSize = ERROR(GENERIC);
-        DISPLAYLEVEL(1, "HUF_writeCTable error");
-        goto _cleanup;
+    {   size_t const hhSize = HUF_writeCTable(dstPtr, maxDstSize, hufTable, 255, huffLog);
+        if (HUF_isError(hhSize)) {
+            eSize = ERROR(GENERIC);
+            DISPLAYLEVEL(1, "HUF_writeCTable error");
+            goto _cleanup;
+        }
+        dstPtr += hhSize;
+        maxDstSize -= hhSize;
+        eSize += hhSize;
     }
-    dstBuffer = (char*)dstBuffer + errorCode;
-    maxDstSize -= errorCode;
-    eSize += errorCode;
 
-    errorCode = FSE_writeNCount(dstBuffer, maxDstSize, offcodeNCount, OFFCODE_MAX, Offlog);
-    if (FSE_isError(errorCode)) {
-        eSize = ERROR(GENERIC);
-        DISPLAYLEVEL(1, "FSE_writeNCount error with offcodeNCount");
-        goto _cleanup;
+    {   size_t const ohSize = FSE_writeNCount(dstPtr, maxDstSize, offcodeNCount, OFFCODE_MAX, Offlog);
+        if (FSE_isError(ohSize)) {
+            eSize = ERROR(GENERIC);
+            DISPLAYLEVEL(1, "FSE_writeNCount error with offcodeNCount");
+            goto _cleanup;
+        }
+        dstPtr += ohSize;
+        maxDstSize -= ohSize;
+        eSize += ohSize;
     }
-    dstBuffer = (char*)dstBuffer + errorCode;
-    maxDstSize -= errorCode;
-    eSize += errorCode;
 
-    errorCode = FSE_writeNCount(dstBuffer, maxDstSize, matchLengthNCount, MaxML, mlLog);
-    if (FSE_isError(errorCode)) {
-        eSize = ERROR(GENERIC);
-        DISPLAYLEVEL(1, "FSE_writeNCount error with matchLengthNCount");
-        goto _cleanup;
+    {   size_t const mhSize = FSE_writeNCount(dstPtr, maxDstSize, matchLengthNCount, MaxML, mlLog);
+        if (FSE_isError(mhSize)) {
+            eSize = ERROR(GENERIC);
+            DISPLAYLEVEL(1, "FSE_writeNCount error with matchLengthNCount");
+            goto _cleanup;
+        }
+        dstPtr += mhSize;
+        maxDstSize -= mhSize;
+        eSize += mhSize;
     }
-    dstBuffer = (char*)dstBuffer + errorCode;
-    maxDstSize -= errorCode;
-    eSize += errorCode;
 
-    errorCode = FSE_writeNCount(dstBuffer, maxDstSize, litLengthNCount, MaxLL, llLog);
-    if (FSE_isError(errorCode)) {
+    {   size_t const lhSize = FSE_writeNCount(dstPtr, maxDstSize, litLengthNCount, MaxLL, llLog);
+        if (FSE_isError(lhSize)) {
+            eSize = ERROR(GENERIC);
+            DISPLAYLEVEL(1, "FSE_writeNCount error with litlengthNCount");
+            goto _cleanup;
+        }
+        dstPtr += lhSize;
+        maxDstSize -= lhSize;
+        eSize += lhSize;
+    }
+
+    if (maxDstSize<12) {
         eSize = ERROR(GENERIC);
-        DISPLAYLEVEL(1, "FSE_writeNCount error with litlengthNCount");
+        DISPLAYLEVEL(1, "not enough space to write RepOffsets");
         goto _cleanup;
     }
-    dstBuffer = (char*)dstBuffer + errorCode;
-    maxDstSize -= errorCode;
-    eSize += errorCode;
+    MEM_writeLE32(dstPtr+0, bestRepOffset[0].offset);
+    MEM_writeLE32(dstPtr+4, bestRepOffset[1].offset);
+    MEM_writeLE32(dstPtr+8, bestRepOffset[2].offset);
+    //MEM_writeLE32(dstPtr+0, 1);
+    //MEM_writeLE32(dstPtr+4, 4);
+    //MEM_writeLE32(dstPtr+8, 8);
+    dstPtr += 12;
+    eSize += 12;
 
 _cleanup:
     ZSTD_freeCCtx(esr.ref);

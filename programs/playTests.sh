@@ -179,14 +179,14 @@ $ZSTD -f tmp -D tmpDict1 --no-dictID
 $ZSTD -d tmp.zst -D tmpDict -of result
 diff zstdcli.c result
 $ECHO "- Compress multiple files with dictionary"
-cat *.c *.h | $MD5SUM > tmp1
 rm -rf dirTestDict
 mkdir dirTestDict
 cp *.c dirTestDict
 cp *.h dirTestDict
+cat dirTestDict/* | $MD5SUM > tmph1  # note : we expect same file order to generate same hash
 $ZSTD -f dirTestDict/* -D tmpDictC
-$ZSTD -d dirTestDict/*.zst -D tmpDictC -c | $MD5SUM > tmp2
-diff -q tmp1 tmp2
+$ZSTD -d dirTestDict/*.zst -D tmpDictC -c | $MD5SUM > tmph2
+diff -q tmph1 tmph2
 rm -rf dirTestDict
 rm tmp*
 
@@ -194,6 +194,8 @@ rm tmp*
 $ECHO "\n**** integrity tests **** "
 
 $ECHO "test one file (tmp1.zst) "
+./datagen > tmp1
+$ZSTD tmp1
 $ZSTD -t tmp1.zst
 $ZSTD --test tmp1.zst
 $ECHO "test multiple files (*.zst) "

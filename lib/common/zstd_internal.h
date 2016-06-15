@@ -69,6 +69,7 @@
 #define ZSTD_REP_NUM    3
 #define ZSTD_REP_INIT   ZSTD_REP_NUM
 #define ZSTD_REP_MOVE   (ZSTD_REP_NUM-1)
+static const U32 repStartValue[ZSTD_REP_NUM] = { 1, 4, 8 };
 
 #define KB *(1 <<10)
 #define MB *(1 <<20)
@@ -93,17 +94,12 @@ typedef enum { bt_compressed, bt_raw, bt_rle, bt_end } blockType_t;
 #define MIN_CBLOCK_SIZE (1 /*litCSize*/ + 1 /* RLE or RAW */ + MIN_SEQUENCES_SIZE /* nbSeq==0 */)   /* for a non-null block */
 
 #define HufLog 12
-
-#define IS_HUF 0
-#define IS_PCH 1
-#define IS_RAW 2
-#define IS_RLE 3
+typedef enum { lbt_huffman, lbt_repeat, lbt_raw, lbt_rle } litBlockType_t;
 
 #define LONGNBSEQ 0x7F00
 
 #define MINMATCH 3
 #define EQUAL_READ32 4
-#define REPCODE_STARTVALUE 1
 
 #define Litbits  8
 #define MaxLit ((1<<Litbits) - 1)

@@ -292,16 +292,17 @@ ZSTDLIB_API size_t ZSTD_compress_advanced (ZSTD_CCtx* ctx,
                                      const void* dict,size_t dictSize,
                                            ZSTD_parameters params);
 
-/*- Advanced Decompression functions -*/
+
+/*--- Advanced Decompression functions ---*/
 
 /*! ZSTD_createDCtx_advanced() :
  *  Create a ZSTD decompression context using external alloc and free functions */
 ZSTDLIB_API ZSTD_DCtx* ZSTD_createDCtx_advanced(ZSTD_customMem customMem);
 
 
-/* **************************************
-*  Streaming functions (direct mode)
-****************************************/
+/* ****************************************************************
+*  Streaming functions (direct mode - synchronous and buffer-less)
+******************************************************************/
 ZSTDLIB_API size_t ZSTD_compressBegin(ZSTD_CCtx* cctx, int compressionLevel);
 ZSTDLIB_API size_t ZSTD_compressBegin_usingDict(ZSTD_CCtx* cctx, const void* dict, size_t dictSize, int compressionLevel);
 ZSTDLIB_API size_t ZSTD_compressBegin_advanced(ZSTD_CCtx* cctx, const void* dict, size_t dictSize, ZSTD_parameters params, U64 pledgedSrcSize);
@@ -311,10 +312,8 @@ ZSTDLIB_API size_t ZSTD_compressContinue(ZSTD_CCtx* cctx, void* dst, size_t dstC
 ZSTDLIB_API size_t ZSTD_compressEnd(ZSTD_CCtx* cctx, void* dst, size_t dstCapacity);
 
 /*
-  Streaming compression, synchronous mode (bufferless)
-
   A ZSTD_CCtx object is required to track streaming operations.
-  Use ZSTD_createCCtx() / ZSTD_freeCCtx() to manage it.
+  Use ZSTD_createCCtx() / ZSTD_freeCCtx() to manage resource.
   ZSTD_CCtx object can be re-used multiple times within successive compression operations.
 
   Start by initializing a context.
@@ -323,12 +322,13 @@ ZSTDLIB_API size_t ZSTD_compressEnd(ZSTD_CCtx* cctx, void* dst, size_t dstCapaci
   It's also possible to duplicate a reference context which has already been initialized, using ZSTD_copyCCtx()
 
   Then, consume your input using ZSTD_compressContinue().
-  The interface is synchronous, so all input will be consumed and produce a compressed output.
+  ZSTD_compressContinue() presumes prior data is still accessible and unmodified (up to maximum distance size, see WindowLog).
+  The interface is synchronous, so input will be entirely consumed and produce associated compressed output.
   You must ensure there is enough space in destination buffer to store compressed data under worst case scenario.
   Worst case evaluation is provided by ZSTD_compressBound().
 
   Finish a frame with ZSTD_compressEnd(), which will write the epilogue.
-  Without the epilogue, frames will be considered incomplete by decoder.
+  Without epilogue, frames will be considered unfinished (broken) by decoders.
 
   You can then reuse ZSTD_CCtx to compress some new frame.
 */

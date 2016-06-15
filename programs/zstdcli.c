@@ -132,23 +132,24 @@ static int usage_advanced(const char* programName)
 #ifdef UTIL_HAS_CREATEFILELIST
     DISPLAY( " -r     : operate recursively on directories\n");
 #endif
+    DISPLAY( "--rm    : remove source files after successful de/compression \n");
 #ifndef ZSTD_NOCOMPRESS
     DISPLAY( "--ultra : enable ultra modes (requires more memory to decompress)\n");
-    DISPLAY( "--no-dictID:don't write dictID into header (dictionary compression)\n");
+    DISPLAY( "--no-dictID : don't write dictID into header (dictionary compression)\n");
     DISPLAY( "--check : enable integrity check\n");
 #endif
 #ifndef ZSTD_NODECOMPRESS
     DISPLAY( "--test  : test compressed file integrity \n");
-    DISPLAY( "--[no-]sparse  : sparse mode (default:enabled on file, disabled on stdout)\n");
+    DISPLAY( "--[no-]sparse : sparse mode (default:enabled on file, disabled on stdout)\n");
 #endif
 #ifndef ZSTD_NODICT
     DISPLAY( "\n");
     DISPLAY( "Dictionary builder :\n");
-    DISPLAY( "--train : create a dictionary from a training set of files \n");
-    DISPLAY( " -o file: `file` is dictionary name (default: %s) \n", g_defaultDictName);
-    DISPLAY( "--maxdict:limit dictionary to specified size (default : %u) \n", g_defaultMaxDictSize);
+    DISPLAY( "--train ## : create a dictionary from a training set of files \n");
+    DISPLAY( " -o file : `file` is dictionary name (default: %s) \n", g_defaultDictName);
+    DISPLAY( "--maxdict ## : limit dictionary to specified size (default : %u) \n", g_defaultMaxDictSize);
     DISPLAY( " -s#    : dictionary selectivity level (default: %u)\n", g_defaultSelectivityLevel);
-    DISPLAY( "--dictID: force dictionary ID to specified value (default: random)\n");
+    DISPLAY( "--dictID ## : force dictionary ID to specified value (default: random)\n");
 #endif
 #ifndef ZSTD_NOBENCH
     DISPLAY( "\n");
@@ -264,6 +265,7 @@ int main(int argCount, const char** argv)
         if (!strcmp(argument, "--maxdict")) { nextArgumentIsMaxDict=1; continue; }
         if (!strcmp(argument, "--dictID")) { nextArgumentIsDictID=1; continue; }
         if (!strcmp(argument, "--keep")) { continue; }   /* does nothing, since preserving input is default; for gzip/xz compatibility */
+        if (!strcmp(argument, "--rm")) { FIO_setRemoveSrcFile(1); continue; }
 
         /* '-' means stdin/stdout */
         if (!strcmp(argument, "-")){

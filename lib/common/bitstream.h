@@ -266,8 +266,8 @@ MEM_STATIC size_t BIT_initDStream(BIT_DStream_t* bitD, const void* srcBuffer, si
         bitD->ptr   = (const char*)srcBuffer + srcSize - sizeof(bitD->bitContainer);
         bitD->bitContainer = MEM_readLEST(bitD->ptr);
         { BYTE const lastByte = ((const BYTE*)srcBuffer)[srcSize-1];
-          if (lastByte == 0) return ERROR(GENERIC);   /* endMark not present */
-          bitD->bitsConsumed = 8 - BIT_highbit32(lastByte); }
+          bitD->bitsConsumed = lastByte ? 8 - BIT_highbit32(lastByte) : 0;
+          if (lastByte == 0) return ERROR(GENERIC); /* endMark not present */ }
     } else {
         bitD->start = (const char*)srcBuffer;
         bitD->ptr   = bitD->start;
@@ -283,8 +283,8 @@ MEM_STATIC size_t BIT_initDStream(BIT_DStream_t* bitD, const void* srcBuffer, si
             default:;
         }
         { BYTE const lastByte = ((const BYTE*)srcBuffer)[srcSize-1];
-          if (lastByte == 0) return ERROR(GENERIC);   /* endMark not present */
-          bitD->bitsConsumed = 8 - BIT_highbit32(lastByte); }
+          bitD->bitsConsumed = lastByte ? 8 - BIT_highbit32(lastByte) : 0;
+          if (lastByte == 0) return ERROR(GENERIC); /* endMark not present */ }
         bitD->bitsConsumed += (U32)(sizeof(bitD->bitContainer) - srcSize)*8;
     }
 

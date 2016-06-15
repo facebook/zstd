@@ -727,6 +727,13 @@ static size_t ZDICT_analyzeEntropy(void*  dstBuffer, size_t maxDstSize,
     }
     huffLog = (U32)errorCode;
 
+    /* looking for most common first offsets */
+    {   U32 offset;
+        for (offset=1; offset<MAXREPOFFSET; offset++)
+            ZDICT_insertSortCount(bestRepOffset, offset, repOffset[offset]);
+    }
+    /* note : the result of this phase should be used to better appreciate the impact on statistics */
+
     total=0; for (u=0; u<=OFFCODE_MAX; u++) total+=offcodeCount[u];
     errorCode = FSE_normalizeCount(offcodeNCount, Offlog, offcodeCount, total, OFFCODE_MAX);
     if (FSE_isError(errorCode)) {
@@ -753,11 +760,6 @@ static size_t ZDICT_analyzeEntropy(void*  dstBuffer, size_t maxDstSize,
         goto _cleanup;
     }
     llLog = (U32)errorCode;
-
-    {   U32 offset;
-        for (offset=1; offset<MAXREPOFFSET; offset++)
-            ZDICT_insertSortCount(bestRepOffset, offset, repOffset[offset]);
-    }
 
 
     /* write result to buffer */
@@ -810,12 +812,17 @@ static size_t ZDICT_analyzeEntropy(void*  dstBuffer, size_t maxDstSize,
         DISPLAYLEVEL(1, "not enough space to write RepOffsets");
         goto _cleanup;
     }
+# if 0
     MEM_writeLE32(dstPtr+0, bestRepOffset[0].offset);
     MEM_writeLE32(dstPtr+4, bestRepOffset[1].offset);
     MEM_writeLE32(dstPtr+8, bestRepOffset[2].offset);
-    //MEM_writeLE32(dstPtr+0, 1);
-    //MEM_writeLE32(dstPtr+4, 4);
-    //MEM_writeLE32(dstPtr+8, 8);
+#else
+    /* at this stage, we don't use the result of "most common first offset",
+       as the impact of statistics is not properly evaluated */
+    MEM_writeLE32(dstPtr+0, repStartValue[0]);
+    MEM_writeLE32(dstPtr+4, repStartValue[1]);
+    MEM_writeLE32(dstPtr+8, repStartValue[2]);
+#endif
     dstPtr += 12;
     eSize += 12;
 

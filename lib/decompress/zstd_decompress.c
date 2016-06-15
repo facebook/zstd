@@ -1186,47 +1186,50 @@ static void ZSTD_refDictContent(ZSTD_DCtx* dctx, const void* dict, size_t dictSi
     dctx->previousDstEnd = (const char*)dict + dictSize;
 }
 
-static size_t ZSTD_loadEntropy(ZSTD_DCtx* dctx, const void* dict, size_t const dictSizeStart)
+static size_t ZSTD_loadEntropy(ZSTD_DCtx* dctx, const void* dict, size_t const dictSize)
 {
-    size_t dictSize = dictSizeStart;
+    const BYTE* dictPtr = (const BYTE*)dict;
+    const BYTE* const dictEnd = dict + dictSize;
 
     {   size_t const hSize = HUF_readDTableX4(dctx->hufTable, dict, dictSize);
         if (HUF_isError(hSize)) return ERROR(dictionary_corrupted);
-        dict = (const char*)dict + hSize;
-        dictSize -= hSize;
+        dictPtr += hSize;
     }
 
     {   short offcodeNCount[MaxOff+1];
         U32 offcodeMaxValue=MaxOff, offcodeLog=OffFSELog;
-        size_t const offcodeHeaderSize = FSE_readNCount(offcodeNCount, &offcodeMaxValue, &offcodeLog, dict, dictSize);
+        size_t const offcodeHeaderSize = FSE_readNCount(offcodeNCount, &offcodeMaxValue, &offcodeLog, dictPtr, dictEnd-dictPtr);
         if (FSE_isError(offcodeHeaderSize)) return ERROR(dictionary_corrupted);
         { size_t const errorCode = FSE_buildDTable(dctx->OffTable, offcodeNCount, offcodeMaxValue, offcodeLog);
           if (FSE_isError(errorCode)) return ERROR(dictionary_corrupted); }
-        dict = (const char*)dict + offcodeHeaderSize;
-        dictSize -= offcodeHeaderSize;
+        dictPtr += offcodeHeaderSize;
     }
 
     {   short matchlengthNCount[MaxML+1];
         unsigned matchlengthMaxValue = MaxML, matchlengthLog = MLFSELog;
-        size_t const matchlengthHeaderSize = FSE_readNCount(matchlengthNCount, &matchlengthMaxValue, &matchlengthLog, dict, dictSize);
+        size_t const matchlengthHeaderSize = FSE_readNCount(matchlengthNCount, &matchlengthMaxValue, &matchlengthLog, dictPtr, dictEnd-dictPtr);
         if (FSE_isError(matchlengthHeaderSize)) return ERROR(dictionary_corrupted);
         { size_t const errorCode = FSE_buildDTable(dctx->MLTable, matchlengthNCount, matchlengthMaxValue, matchlengthLog);
           if (FSE_isError(errorCode)) return ERROR(dictionary_corrupted); }
-        dict = (const char*)dict + matchlengthHeaderSize;
-        dictSize -= matchlengthHeaderSize;
+        dictPtr += matchlengthHeaderSize;
     }
 
     {   short litlengthNCount[MaxLL+1];
         unsigned litlengthMaxValue = MaxLL, litlengthLog = LLFSELog;
-        size_t const litlengthHeaderSize = FSE_readNCount(litlengthNCount, &litlengthMaxValue, &litlengthLog, dict, dictSize);
+        size_t const litlengthHeaderSize = FSE_readNCount(litlengthNCount, &litlengthMaxValue, &litlengthLog, dictPtr, dictEnd-dictPtr);
         if (FSE_isError(litlengthHeaderSize)) return ERROR(dictionary_corrupted);
         { size_t const errorCode = FSE_buildDTable(dctx->LLTable, litlengthNCount, litlengthMaxValue, litlengthLog);
           if (FSE_isError(errorCode)) return ERROR(dictionary_corrupted); }
-        dictSize -= litlengthHeaderSize;
+        dictPtr += litlengthHeaderSize;
     }
 
+    dctx->rep[0] = MEM_readLE32(dictPtr+0);
+    dctx->rep[1] = MEM_readLE32(dictPtr+4);
+    dctx->rep[2] = MEM_readLE32(dictPtr+8);
+    dictPtr += 12;
+
     dctx->litEntropy = dctx->fseEntropy = 1;
-    return dictSizeStart - dictSize;
+    return dictPtr - (const BYTE*)dict;
 }
 
 static size_t ZSTD_decompress_insertDictionary(ZSTD_DCtx* dctx, const void* dict, size_t dictSize)

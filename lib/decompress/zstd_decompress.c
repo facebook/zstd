@@ -1189,7 +1189,7 @@ static void ZSTD_refDictContent(ZSTD_DCtx* dctx, const void* dict, size_t dictSi
 static size_t ZSTD_loadEntropy(ZSTD_DCtx* dctx, const void* const dict, size_t const dictSize)
 {
     const BYTE* dictPtr = (const BYTE*)dict;
-    const BYTE* const dictEnd = dict + dictSize;
+    const BYTE* const dictEnd = dictPtr + dictSize;
 
     {   size_t const hSize = HUF_readDTableX4(dctx->hufTable, dict, dictSize);
         if (HUF_isError(hSize)) return ERROR(dictionary_corrupted);

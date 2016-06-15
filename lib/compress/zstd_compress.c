@@ -1847,7 +1847,7 @@ _storeSequence:
     /* Save reps for next block */
     {   int i;
         for (i=0; i<ZSTD_REP_NUM; i++) {
-            if (!rep[i]) rep[i] = (U32)(iend-base);   /* in case some zero are left */
+            if (!rep[i]) rep[i] = (U32)(iend - ctx->base);   /* in case some zero are left */
             ctx->savedRep[i] = rep[i];
     }   }
 

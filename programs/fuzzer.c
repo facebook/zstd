@@ -851,6 +851,8 @@ int main(int argc, const char** argv)
     DISPLAY("Seed = %u\n", seed);
     if (proba!=FUZ_compressibility_default) DISPLAY("Compressibility : %u%%\n", proba);
 
+    if (nbTests < testNb) nbTests = testNb;
+
     if (testNb==0)
         result = basicUnitTests(0, ((double)proba) / 100);  /* constant seed for predictability */
     if (!result)

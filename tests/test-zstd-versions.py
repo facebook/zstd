@@ -130,7 +130,7 @@ if __name__ == '__main__':
     # Build all release zstd
     for tag in tags:
         os.chdir(base_dir)
-        dst_zstd = '{}/zstd.{}'  .format(tmp_dir, tag)  # /path/to/zstd/tests/versionsTest/zstd.<TAG>
+        dst_zstd = '{}/zstd.{}'.format(tmp_dir, tag)  # /path/to/zstd/tests/versionsTest/zstd.<TAG>
         if not os.path.isfile(dst_zstd) or tag == head:
             if tag != head:
                 r_dir = '{}/{}'.format(tmp_dir, tag)  # /path/to/zstd/tests/versionsTest/<TAG>

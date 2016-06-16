@@ -18,3 +18,4 @@
 
 # Windows
 *.bat text eol=crlf
+*.cmd text eol=crlf

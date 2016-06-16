@@ -84,7 +84,11 @@ def dict_compress_sample(tag, sample):
         from subprocess import DEVNULL  # py3k
     except ImportError:
         DEVNULL = open(os.devnull, 'wb')
-    subprocess.call(['./zstd.' + tag, '-D', dict_name, '-f', sample, '-o', sample + '_01_64' + tag + '_dict.zst'], stderr=DEVNULL)
+    subprocess.call(['./zstd.' + tag, '-D', dict_name, '-f',   sample, '-o', sample + '_01_64_' + tag + '_dictio.zst'], stderr=DEVNULL)
+    subprocess.call(['./zstd.' + tag, '-D', dict_name, '-5f',  sample, '-o', sample + '_05_64_' + tag + '_dictio.zst'], stderr=DEVNULL)
+    subprocess.call(['./zstd.' + tag, '-D', dict_name, '-9f',  sample, '-o', sample + '_09_64_' + tag + '_dictio.zst'], stderr=DEVNULL)
+    subprocess.call(['./zstd.' + tag, '-D', dict_name, '-15f', sample, '-o', sample + '_15_64_' + tag + '_dictio.zst'], stderr=DEVNULL)
+    subprocess.call(['./zstd.' + tag, '-D', dict_name, '-18f', sample, '-o', sample + '_18_64_' + tag + '_dictio.zst'], stderr=DEVNULL)
     # zstdFiles = glob.glob("*.zst*")
     # print(zstdFiles)
     print(tag + " : dict compression completed")
@@ -96,15 +100,15 @@ def compress_sample(tag, sample):
     except ImportError:
         DEVNULL = open(os.devnull, 'wb')
     if subprocess.call(['./zstd.' + tag, '-f',   sample], stderr=DEVNULL) == 0:
-        os.rename(sample + '.zst', sample + '_01_64_' + tag + '_nodic.zst')
+        os.rename(sample + '.zst', sample + '_01_64_' + tag + '_nodict.zst')
     if subprocess.call(['./zstd.' + tag, '-5f',  sample], stderr=DEVNULL) == 0:
-        os.rename(sample + '.zst', sample + '_05_64_' + tag + '_nodic.zst')
+        os.rename(sample + '.zst', sample + '_05_64_' + tag + '_nodict.zst')
     if subprocess.call(['./zstd.' + tag, '-9f',  sample], stderr=DEVNULL) == 0:
-        os.rename(sample + '.zst', sample + '_09_64_' + tag + '_nodic.zst')
+        os.rename(sample + '.zst', sample + '_09_64_' + tag + '_nodict.zst')
     if subprocess.call(['./zstd.' + tag, '-15f', sample], stderr=DEVNULL) == 0:
-        os.rename(sample + '.zst', sample + '_15_64_' + tag + '_nodic.zst')
+        os.rename(sample + '.zst', sample + '_15_64_' + tag + '_nodict.zst')
     if subprocess.call(['./zstd.' + tag, '-18f', sample], stderr=DEVNULL) == 0:
-        os.rename(sample + '.zst', sample + '_18_64_' + tag + '_nodic.zst')
+        os.rename(sample + '.zst', sample + '_18_64_' + tag + '_nodict.zst')
     # zstdFiles = glob.glob("*.zst*")
     # print(zstdFiles)
     print(tag + " : compression completed")
@@ -117,7 +121,7 @@ def sha1_of_file(filepath):
 
 
 def remove_duplicates():
-    list_of_zst = sorted(glob.glob('*_nodic.zst'))
+    list_of_zst = sorted(glob.glob('*.zst'))
     for i, ref_zst in enumerate(list_of_zst):
         if not os.path.isfile(ref_zst):
             continue
@@ -132,7 +136,7 @@ def remove_duplicates():
 
 def decompress_zst(tag, zstd_up_to_v05=False):
     dec_error = 0
-    list_zst = sorted(glob.glob('*_nodic.zst'))
+    list_zst = sorted(glob.glob('*_nodict.zst'))
     try:
         from subprocess import DEVNULL  # py3k
     except ImportError:
@@ -158,21 +162,19 @@ def decompress_zst(tag, zstd_up_to_v05=False):
 
 def decompress_dict(tag, zstd_up_to_v05=False):
     dec_error = 0
-    list_zst = sorted(glob.glob('*_dict.zst'))
+    list_zst = sorted(glob.glob('*_dictio.zst'))
     try:
         from subprocess import DEVNULL  # py3k
     except ImportError:
         DEVNULL = open(os.devnull, 'wb')
     for file_zst in list_zst:
-        dict_tag = file_zst[0:len(file_zst)-9]  # remove "_dict.zst"
-        dict_tag = dict_tag[dict_tag.rfind('v'):]
-        if dict_tag == 'vel':
+        dict_tag = file_zst[0:len(file_zst)-11]  # remove "_dictio.zst"
+        if head in dict_tag: # find vdevel
             dict_tag = head
+        else:
+            dict_tag = dict_tag[dict_tag.rfind('v'):]
         dict_name = 'dict.' + dict_tag
-        #print("dict_tag=" + dict_tag + " dict_name=" + dict_name)
-        print(file_zst, end=' ')
-        print(tag, end=' ')
-        print(dict_tag, end=' ')
+        print(file_zst + ' ' + tag + ' dict=' + dict_tag, end=' ')
         file_dec = file_zst + '_d64_' + tag + '.dec'
         if zstd_up_to_v05:
             params = ['./zstd.' + tag, '-D', dict_name, '-df', file_zst, file_dec]
@@ -186,6 +188,7 @@ def decompress_dict(tag, zstd_up_to_v05=False):
                 print('OK     ')
         else:
             print('command does not work')
+            dec_error = 1
     return dec_error
 
 
@@ -251,7 +254,8 @@ if __name__ == '__main__':
         if tag >= 'v0.5.1':
             create_dict(tag, dict_source_path)
             dict_compress_sample(tag, test_dat)
-            decompress_dict(tag)
+            remove_duplicates()
+            error_code += decompress_dict(tag)
         compress_sample(tag, test_dat)
         remove_duplicates()
         if tag >= 'v0.5.1':

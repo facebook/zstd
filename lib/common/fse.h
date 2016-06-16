@@ -132,8 +132,8 @@ size_t FSE_count(unsigned* count, unsigned* maxSymbolValuePtr, const void* src, 
 /*! FSE_optimalTableLog():
     dynamically downsize 'tableLog' when conditions are met.
     It saves CPU time, by using smaller tables, while preserving or even improving compression ratio.
-    @return : recommended tableLog (necessarily <= initial 'tableLog') */
-unsigned FSE_optimalTableLog(unsigned tableLog, size_t srcSize, unsigned maxSymbolValue);
+    @return : recommended tableLog (necessarily <= 'maxTableLog') */
+unsigned FSE_optimalTableLog(unsigned maxTableLog, size_t srcSize, unsigned maxSymbolValue);
 
 /*! FSE_normalizeCount():
     normalize counts so that sum(count[]) == Power_of_2 (2^tableLog)

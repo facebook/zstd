@@ -223,8 +223,10 @@ void ZSTD_copyDCtx(ZSTD_DCtx* dstDCtx, const ZSTD_DCtx* srcDCtx)
     // new
    1 byte - FrameHeaderDescription :
    bit 0-1 : dictID (0, 1, 2 or 4 bytes)
-   bit 2-4 : reserved (must be zero)
-   bit 5   : SkippedWindowLog (if 1, WindowLog byte is not present)
+   bit 2   : checksumFlag
+   bit 3   : reserved (must be zero)
+   bit 4   : reserved (unused, can be any value)
+   bit 5   : Single Segment (if 1, WindowLog byte is not present)
    bit 6-7 : FrameContentFieldSize (0, 2, 4, or 8)
              if (SkippedWindowLog && !FrameContentFieldsize) FrameContentFieldsize=1;
 
@@ -365,7 +367,7 @@ size_t ZSTD_getFrameParams(ZSTD_frameParams* fparamsPtr, const void* src, size_t
         U32 windowSize = 0;
         U32 dictID = 0;
         U64 frameContentSize = 0;
-        if ((fhdByte & 0x18) != 0) return ERROR(frameParameter_unsupported);   /* reserved bits */
+        if ((fhdByte & 0x08) != 0) return ERROR(frameParameter_unsupported);   /* reserved bits, which must be zero */
         if (!directMode) {
             BYTE const wlByte = ip[pos++];
             U32 const windowLog = (wlByte >> 3) + ZSTD_WINDOWLOG_ABSOLUTEMIN;

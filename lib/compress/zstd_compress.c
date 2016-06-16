@@ -325,7 +325,7 @@ static size_t ZSTD_resetCCtx_advanced (ZSTD_CCtx* zc,
     zc->seqStore.mlCodeStart = zc->seqStore.llCodeStart + maxNbSeq;
     zc->seqStore.offCodeStart = zc->seqStore.mlCodeStart + maxNbSeq;
     zc->seqStore.litStart = zc->seqStore.offCodeStart + maxNbSeq;
-
+    ZSTD_resetSeqStore(&zc->seqStore);
     zc->stage = 1;
     zc->dictID = 0;
     zc->loadedDictEnd = 0;

@@ -57,7 +57,8 @@
 #include <string.h>     /* memcpy, memset */
 #include <stdio.h>      /* printf (debug) */
 #include "bitstream.h"
-#include "fse_static.h"
+#define FSE_STATIC_LINKING_ONLY
+#include "fse.h"
 
 
 /* **************************************************************
@@ -111,8 +112,6 @@ size_t FSE_buildCTable(FSE_CTable* ct, const short* normalizedCounter, unsigned 
     U32 highThreshold = tableSize-1;
 
     /* CTable header */
-
-
     tableU16[-2] = (U16) tableLog;
     tableU16[-1] = (U16) maxSymbolValue;
 
@@ -147,10 +146,10 @@ size_t FSE_buildCTable(FSE_CTable* ct, const short* normalizedCounter, unsigned 
     }
 
     /* Build table */
-    { U32 u; for (u=0; u<tableSize; u++) {
+    {   U32 u; for (u=0; u<tableSize; u++) {
         FSE_FUNCTION_TYPE s = tableSymbol[u];   /* note : static analyzer may not understand tableSymbol is properly initialized */
         tableU16[cumul[s]++] = (U16) (tableSize+u);   /* TableU16 : sorted by symbol order; gives next state value */
-    }}
+    }   }
 
     /* Build Symbol Transformation Table */
     {   unsigned total = 0;
@@ -257,7 +256,7 @@ static size_t FSE_writeNCount_generic (void* header, size_t headerBufferSize,
             bitStream += count << bitCount;
             bitCount  += nbBits;
             bitCount  -= (count<max);
-            previous0 = (count==1);
+            previous0  = (count==1);
             while (remaining<threshold) nbBits--, threshold>>=1;
         }
         if (bitCount>16) {
@@ -444,7 +443,7 @@ FSE_CTable* FSE_createCTable (unsigned maxSymbolValue, unsigned tableLog)
     return (FSE_CTable*)malloc(size);
 }
 
-void  FSE_freeCTable (FSE_CTable* ct) { free(ct); }
+void FSE_freeCTable (FSE_CTable* ct) { free(ct); }
 
 /* provides the minimum logSize to safely represent a distribution */
 static unsigned FSE_minTableLog(size_t srcSize, unsigned maxSymbolValue)
@@ -455,9 +454,9 @@ static unsigned FSE_minTableLog(size_t srcSize, unsigned maxSymbolValue)
 	return minBits;
 }
 
-unsigned FSE_optimalTableLog(unsigned maxTableLog, size_t srcSize, unsigned maxSymbolValue)
+unsigned FSE_optimalTableLog_internal(unsigned maxTableLog, size_t srcSize, unsigned maxSymbolValue, unsigned minus)
 {
-	U32 maxBitsSrc = BIT_highbit32((U32)(srcSize - 1)) - 2;
+	U32 maxBitsSrc = BIT_highbit32((U32)(srcSize - 1)) - minus;
     U32 tableLog = maxTableLog;
 	U32 minBits = FSE_minTableLog(srcSize, maxSymbolValue);
     if (tableLog==0) tableLog = FSE_DEFAULT_TABLELOG;
@@ -466,6 +465,11 @@ unsigned FSE_optimalTableLog(unsigned maxTableLog, size_t srcSize, unsigned maxS
     if (tableLog < FSE_MIN_TABLELOG) tableLog = FSE_MIN_TABLELOG;
     if (tableLog > FSE_MAX_TABLELOG) tableLog = FSE_MAX_TABLELOG;
     return tableLog;
+}
+
+unsigned FSE_optimalTableLog(unsigned maxTableLog, size_t srcSize, unsigned maxSymbolValue)
+{
+    return FSE_optimalTableLog_internal(maxTableLog, srcSize, maxSymbolValue, 2);
 }
 
 

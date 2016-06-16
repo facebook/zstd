@@ -18,11 +18,11 @@
 .PP
 .B unzstd
 is equivalent to
-.BR "zstd \-d" 
+.BR "zstd \-d"
 .br
 .B zstdcat
 is equivalent to
-.BR "zstd \-dc" 
+.BR "zstd \-dc"
 .br
 
 .SH DESCRIPTION
@@ -43,7 +43,7 @@ It also features a very fast decoder, with speed > 500 MB/s per core.
 .SH OPTIONS
 .TP
 .B \-#
- # compression level [1-21] (default:1)
+ # compression level [1-22] (default:1)
 .TP
 .BR \-d ", " --decompress
  decompression
@@ -52,7 +52,7 @@ It also features a very fast decoder, with speed > 500 MB/s per core.
  use `file` as Dictionary to compress or decompress FILE(s)
 .TP
 .B \-o file
- save result into `file` (only possible with a single input FILE)
+ save result into `file` (only possible with a single INPUT-FILE)
 .TP
 .BR \-f ", " --force
  overwrite output without prompting
@@ -71,6 +71,13 @@ It also features a very fast decoder, with speed > 500 MB/s per core.
 .TP
 .BR \-c ", " --stdout
  force write to standard output, even if it is the console
+.TP
+.BR \-C ", " --check
+ add integrity check computed from uncompressed data
+.TP
+.BR \-t ", " --test
+ Test the integrity of compressed files.  This option is equivalent to \fB--decompress --stdout > /dev/null\fR.
+ No files are created or removed.
 
 .SH DICTIONARY
 .PP
@@ -90,7 +97,15 @@ Typical gains range from ~10% (at 64KB) to x5 better (at <1KB).
  dictionary saved into `file` (default: dictionary)
 .TP
 .B \--maxdict #
- limit dictionary to specified size (default : 112640) 
+ limit dictionary to specified size (default : 112640)
+.TP
+.B \--dictID #
+ A dictionary ID is a locally unique ID that a decoder can use to verify it is using the right dictionary.
+ By default, zstd will create a 4-bytes random number ID.
+ It's possible to give a precise number instead.
+ Short numbers have an advantage : an ID < 256 will only need 1 byte in the compressed frame header,
+ and an ID < 65536 will only need 2 bytes. This compares favorably to 4 bytes default.
+ However, it's up to the dictionary manager to not assign twice the same ID to 2 different dictionaries.
 .TP
 .B \-s#
  dictionary selectivity level (default: 9)

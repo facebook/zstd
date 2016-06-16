@@ -54,10 +54,12 @@ typedef enum {
   ZSTD_error_dstSize_tooSmall,
   ZSTD_error_srcSize_wrong,
   ZSTD_error_corruption_detected,
+  ZSTD_error_checksum_wrong,
   ZSTD_error_tableLog_tooLarge,
   ZSTD_error_maxSymbolValue_tooLarge,
   ZSTD_error_maxSymbolValue_tooSmall,
   ZSTD_error_dictionary_corrupted,
+  ZSTD_error_dictionary_wrong,
   ZSTD_error_maxCode
 } ZSTD_ErrorCode;
 

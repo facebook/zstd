@@ -37,7 +37,6 @@ extern "C" {
 #  pragma warning(disable : 4127)    /* disable: C4127: conditional expression is constant */
 #if _MSC_VER <= 1800                 /* (1800 = Visual Studio 2013) */
     #define snprintf sprintf_s       /* snprintf unsupported by Visual <= 2013 */
-  //#define snprintf _snprintf
 #endif
 #endif
 
@@ -47,7 +46,7 @@ extern "C" {
 #   define _FILE_OFFSET_BITS 64     /* turn off_t into a 64-bit type for ftello, fseeko */
 #   if defined(__sun__)             /* Sun Solaris 32-bits requires specific definitions */
 #      define _LARGEFILE_SOURCE     /* fseeko, ftello */
-#   else                        
+#   else
 #      define _LARGEFILE64_SOURCE   /* off64_t, fseeko64, ftello64 */
 #   endif
 #endif
@@ -91,11 +90,15 @@ extern "C" {
 #  define SET_HIGH_PRIORITY SetPriorityClass(GetCurrentProcess(), REALTIME_PRIORITY_CLASS)
 #  define UTIL_sleep(s) Sleep(1000*s)
 #  define UTIL_sleepMilli(milli) Sleep(milli)
-#elif (defined(__unix__) || defined(__unix) || defined(__midipix__) || (defined(__APPLE__) && defined(__MACH__))) 
+#elif (defined(__unix__) || defined(__unix) || defined(__VMS) || defined(__midipix__) || (defined(__APPLE__) && defined(__MACH__)))
 #  include <unistd.h>
 #  include <sys/resource.h> /* setpriority */
 #  include <time.h>         /* clock_t, nanosleep, clock, CLOCKS_PER_SEC */
-#  define SET_HIGH_PRIORITY setpriority(PRIO_PROCESS, 0, -20)
+#  if defined(PRIO_PROCESS)
+#    define SET_HIGH_PRIORITY setpriority(PRIO_PROCESS, 0, -20)
+#  else
+#    define SET_HIGH_PRIORITY /* disabled */
+#  endif
 #  define UTIL_sleep(s) sleep(s)
 #  if defined(_POSIX_C_SOURCE) && (_POSIX_C_SOURCE >= 199309L)
 #      define UTIL_sleepMilli(milli) { struct timespec t; t.tv_sec=0; t.tv_nsec=milli*1000000ULL; nanosleep(&t, NULL); }
@@ -140,8 +143,8 @@ UTIL_STATIC void UTIL_waitForNextTick(UTIL_time_t ticksPerSecond)
 {
     UTIL_time_t clockStart, clockEnd;
     UTIL_getTime(&clockStart);
-    do { 
-        UTIL_getTime(&clockEnd); 
+    do {
+        UTIL_getTime(&clockEnd);
     } while (UTIL_getSpanTimeNano(ticksPerSecond, clockStart, clockEnd) == 0);
 }
 
@@ -280,7 +283,7 @@ UTIL_STATIC int UTIL_prepareFileList(const char *dirName, char** bufStart, size_
         fprintf(stderr, "Cannot open directory '%s': %s\n", dirName, strerror(errno));
         return 0;
     }
- 
+
     while ((entry = readdir(dir)) != NULL) {
         if (strcmp (entry->d_name, "..") == 0 ||
             strcmp (entry->d_name, ".") == 0) continue;
@@ -324,8 +327,8 @@ UTIL_STATIC int UTIL_prepareFileList(const char *dirName, char** bufStart, size_
 
 #endif // #ifdef _WIN32
 
-/* 
- * UTIL_createFileList - takes a list of files and directories (params: inputNames, inputNamesNb), scans directories, 
+/*
+ * UTIL_createFileList - takes a list of files and directories (params: inputNames, inputNamesNb), scans directories,
  *                       and returns a new list of files (params: return value, allocatedBuffer, allocatedNamesNb).
  * After finishing usage of the list the structures should be freed with UTIL_freeFileList(params: return value, allocatedBuffer)
  * In case of error UTIL_createFileList returns NULL and UTIL_freeFileList should not be called.
@@ -342,8 +345,7 @@ UTIL_STATIC const char** UTIL_createFileList(const char **inputNames, unsigned i
     bufend = buf + LIST_SIZE_INCREASE;
 
     for (i=0, pos=0, nbFiles=0; i<inputNamesNb; i++) {
-        if (UTIL_doesFileExists(inputNames[i])) {
-       // printf ("UTIL_doesFileExists=[%s]\n", inputNames[i]);
+        if (!UTIL_isDirectory(inputNames[i])) {
             size_t len = strlen(inputNames[i]);
             if (buf + pos + len >= bufend) {
                 ptrdiff_t newListSize = (bufend - buf) + LIST_SIZE_INCREASE;

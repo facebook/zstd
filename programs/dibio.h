@@ -32,7 +32,8 @@
 /*-*************************************
 *  Dependencies
 ***************************************/
-#include "../lib/dictBuilder/zdict_static.h"   /* ZDICT_params_t */
+#define ZDICT_STATIC_LINKING_ONLY
+#include "zdict.h"     /* ZDICT_params_t */
 
 
 /*-*************************************

@@ -1,31 +1,90 @@
 language: c
-
-before_install:
-  - sudo apt-get update  -qq
-  - sudo apt-get install -qq clang
-  - sudo apt-get install -qq g++-multilib
-  - sudo apt-get install -qq gcc-multilib
-  - sudo apt-get install -qq valgrind
-
-env:
-  - ZSTD_TRAVIS_CI_ENV=travis-install
-  - ZSTD_TRAVIS_CI_ENV=cmaketest
-  - ZSTD_TRAVIS_CI_ENV=clangtest  
-  - ZSTD_TRAVIS_CI_ENV=gpptest  
-  - ZSTD_TRAVIS_CI_ENV=gnu90test
-  - ZSTD_TRAVIS_CI_ENV=armtest-w-install  
-  - ZSTD_TRAVIS_CI_ENV=test  
-  - ZSTD_TRAVIS_CI_ENV="-C programs test32"  
-  - ZSTD_TRAVIS_CI_ENV="-C programs test-zstd_nolegacy"
-  - ZSTD_TRAVIS_CI_ENV=usan
-  - ZSTD_TRAVIS_CI_ENV=asan
-  - ZSTD_TRAVIS_CI_ENV=asan32
-  - ZSTD_TRAVIS_CI_ENV="-C programs valgrindTest"  
-  
 compiler: gcc
-
-script: 
-  - make $ZSTD_TRAVIS_CI_ENV
-
 matrix:
   fast_finish: true
+  include:
+    # Container-based Ubuntu 12.04 LTS Server Edition 64 bit (doesn't support 32-bit includes)
+    - os: linux
+      sudo: false
+      env: PLATFORM="Ubuntu 12.04 container" MAKE_PARAM=travis-install
+    - os: linux
+      sudo: false
+      env: PLATFORM="Ubuntu 12.04 container" MAKE_PARAM=cmaketest
+    - os: linux
+      sudo: false
+      env: PLATFORM="Ubuntu 12.04 container" MAKE_PARAM=test
+    - os: linux
+      sudo: false
+      env: PLATFORM="Ubuntu 12.04 container" MAKE_PARAM="-C programs test-zstd_nolegacy"
+    - os: linux
+      sudo: false
+      env: PLATFORM="Ubuntu 12.04 container" MAKE_PARAM=usan
+    - os: linux
+      sudo: false
+      env: PLATFORM="Ubuntu 12.04 container" MAKE_PARAM=asan
+    - os: linux
+      sudo: false
+      env: PLATFORM="Ubuntu 12.04 container" MAKE_PARAM=zlibwrapper
+    # Standard Ubuntu 12.04 LTS Server Edition 64 bit
+    - os: linux
+      sudo: required
+      env: PLATFORM="Ubuntu 12.04" MAKE_PARAM=clangtest
+    - os: linux
+      sudo: required
+      env: PLATFORM="Ubuntu 12.04" MAKE_PARAM=gpptest
+    - os: linux
+      sudo: required
+      env: PLATFORM="Ubuntu 12.04" MAKE_PARAM=gnu90test
+    - os: linux
+      sudo: required
+      env: PLATFORM="Ubuntu 12.04" MAKE_PARAM=c99test
+    - os: linux
+      sudo: required
+      env: PLATFORM="Ubuntu 12.04" MAKE_PARAM=gnu99test
+    - os: linux
+      sudo: required
+      env: PLATFORM="Ubuntu 12.04" MAKE_PARAM=armtest-w-install
+    - os: linux
+      sudo: required
+      env: PLATFORM="Ubuntu 12.04" MAKE_PARAM="-C programs test32"
+    - os: linux
+      sudo: required
+      env: PLATFORM="Ubuntu 12.04" MAKE_PARAM="-C tests versionsTest"
+    - os: linux
+      sudo: required
+      env: PLATFORM="Ubuntu 12.04" MAKE_PARAM=asan32
+    - os: linux
+      sudo: required
+      env: PLATFORM="Ubuntu 12.04" MAKE_PARAM="-C programs valgrindTest"
+    # Ubuntu 14.04 LTS Server Edition 64 bit
+    - os: linux
+      dist: trusty
+      sudo: required
+      env: PLATFORM="Ubuntu 14.04" MAKE_PARAM=ppctest-w-install
+    - os: linux
+      dist: trusty
+      sudo: required
+      env: PLATFORM="Ubuntu 14.04" MAKE_PARAM=zlibwrapper
+    # OS X Mavericks
+    - os: osx
+      env: PLATFORM="OS X Mavericks" MAKE_PARAM=travis-install
+    - os: osx
+      env: PLATFORM="OS X Mavericks" MAKE_PARAM=gnu90test
+    - os: osx
+      env: PLATFORM="OS X Mavericks" MAKE_PARAM=test
+  exclude:
+    - compiler: gcc
+
+before_install:
+  - set -e
+  - |
+    if [ "$TRAVIS_OS_NAME" == "linux" ]; then
+      CAN_I_RUN_SUDO=$(sudo -n uptime 2>&1|grep "load"|wc -l)
+      echo "CAN_I_RUN_SUDO=$CAN_I_RUN_SUDO\n"
+      if [ ${CAN_I_RUN_SUDO} -gt 0 ]; then
+        sudo apt-get install -y -qq clang g++-multilib gcc-multilib valgrind
+      fi
+    fi
+
+script:
+  - make $MAKE_PARAM

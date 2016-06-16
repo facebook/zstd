@@ -19,6 +19,9 @@
 
 # Default result files
 _*
+example
+example_zstd
+foo.gz
 
 # Misc files
 *.bat

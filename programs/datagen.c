@@ -27,9 +27,9 @@
 *  Includes
 **************************************/
 #include <stdlib.h>    /* malloc */
-#include <stdio.h>     /* FILE, fwrite */
+#include <stdio.h>     /* FILE, fwrite, fprintf */
 #include <string.h>    /* memcpy */
-#include "mem.h"
+#include "mem.h"       /* U32 */
 
 
 /*-************************************
@@ -48,22 +48,25 @@
 *  Macros
 **************************************/
 #define KB *(1 <<10)
+#define MIN(a,b)  ( (a) < (b) ? (a) : (b) )
+
+#define RDG_DEBUG 0
+#define TRACE(...)   if (RDG_DEBUG) fprintf(stderr, __VA_ARGS__ )
 
 
 /*-************************************
-*  Local types
+*  Local constants
 **************************************/
 #define LTLOG 13
 #define LTSIZE (1<<LTLOG)
 #define LTMASK (LTSIZE-1)
-typedef BYTE litDistribTable[LTSIZE];
 
 
 /*-*******************************************************
 *  Local Functions
 *********************************************************/
 #define RDG_rotl32(x,r) ((x << r) | (x >> (32 - r)))
-static unsigned int RDG_rand(U32* src)
+static U32 RDG_rand(U32* src)
 {
     static const U32 prime1 = 2654435761U;
     static const U32 prime2 = 2246822519U;
@@ -72,126 +75,136 @@ static unsigned int RDG_rand(U32* src)
     rand32 ^= prime2;
     rand32  = RDG_rotl32(rand32, 13);
     *src = rand32;
-    return rand32;
+    return rand32 >> 5;
 }
 
 
-static void RDG_fillLiteralDistrib(litDistribTable lt, double ld)
+static void RDG_fillLiteralDistrib(BYTE* ldt, double ld)
 {
-    U32 i = 0;
+    BYTE const firstChar = (ld<=0.0) ?   0 : '(';
+    BYTE const lastChar  = (ld<=0.0) ? 255 : '}';
     BYTE character = (ld<=0.0) ? 0 : '0';
-    BYTE const firstChar = (ld<=0.0) ? 0 : '(';
-    BYTE const lastChar  = (ld<=0.0) ?255: '}';
+    U32 u;
 
-    while (i<LTSIZE) {
-        U32 weight = (U32)((double)(LTSIZE - i) * ld) + 1;
-        U32 end;
-        if (weight + i > LTSIZE) weight = LTSIZE-i;
-        end = i + weight;
-        while (i < end) lt[i++] = character;
+    if (ld<=0.0) ld = 0.0;
+    //TRACE(" percent:%5.2f%% \n", ld*100.);
+    //TRACE(" start:(%c)[%02X] ", character, character);
+    for (u=0; u<LTSIZE; ) {
+        U32 const weight = (U32)((double)(LTSIZE - u) * ld) + 1;
+        U32 const end = MIN ( u + weight , LTSIZE);
+        while (u < end) ldt[u++] = character;   // TRACE(" %u(%c)[%02X] ", u, character, character);
         character++;
         if (character > lastChar) character = firstChar;
     }
 }
 
 
-static BYTE RDG_genChar(U32* seed, const litDistribTable lt)
+static BYTE RDG_genChar(U32* seed, const BYTE* ldt)
 {
     U32 const id = RDG_rand(seed) & LTMASK;
-    return (lt[id]);
+    //TRACE(" %u : \n", id);
+    //TRACE(" %4u [%4u] ; val : %4u \n", id, id&255, ldt[id]);
+    return (ldt[id]);  /* memory-sanitizer fails here, stating "uninitialized value" when table initialized with 0.0. Checked : table is fully initialized */
 }
 
 
-#define RDG_RAND15BITS  ((RDG_rand(seed) >> 3) & 0x7FFF)
-#define RDG_RANDLENGTH  ( ((RDG_rand(seed) >> 7) & 7) ? (RDG_rand(seed) & 15) : (RDG_rand(seed) & 511) + 15)
-void RDG_genBlock(void* buffer, size_t buffSize, size_t prefixSize, double matchProba, litDistribTable lt, unsigned* seedPtr)
+static U32 RDG_rand15Bits (unsigned* seedPtr)
 {
-    BYTE* buffPtr = (BYTE*)buffer;
-    const U32 matchProba32 = (U32)(32768 * matchProba);
+    return RDG_rand(seedPtr) & 0x7FFF;
+}
+
+static U32 RDG_randLength(unsigned* seedPtr)
+{
+    if (RDG_rand(seedPtr) & 7)
+        return (RDG_rand(seedPtr) & 0xF);
+    return (RDG_rand(seedPtr) & 0x1FF) + 0xF;
+}
+
+void RDG_genBlock(void* buffer, size_t buffSize, size_t prefixSize, double matchProba, const BYTE* ldt, unsigned* seedPtr)
+{
+    BYTE* const buffPtr = (BYTE*)buffer;
+    U32 const matchProba32 = (U32)(32768 * matchProba);
     size_t pos = prefixSize;
-    U32* seed = seedPtr;
     U32 prevOffset = 1;
 
     /* special case : sparse content */
     while (matchProba >= 1.0) {
-        size_t size0 = RDG_rand(seed) & 3;
+        size_t size0 = RDG_rand(seedPtr) & 3;
         size0  = (size_t)1 << (16 + size0 * 2);
-        size0 += RDG_rand(seed) & (size0-1);   /* because size0 is power of 2*/
+        size0 += RDG_rand(seedPtr) & (size0-1);   /* because size0 is power of 2*/
         if (buffSize < pos + size0) {
             memset(buffPtr+pos, 0, buffSize-pos);
             return;
         }
         memset(buffPtr+pos, 0, size0);
         pos += size0;
-        buffPtr[pos-1] = RDG_genChar(seed, lt);
+        buffPtr[pos-1] = RDG_genChar(seedPtr, ldt);
         continue;
     }
 
     /* init */
-    if (pos==0) buffPtr[0] = RDG_genChar(seed, lt), pos=1;
+    if (pos==0) buffPtr[0] = RDG_genChar(seedPtr, ldt), pos=1;
 
     /* Generate compressible data */
     while (pos < buffSize) {
         /* Select : Literal (char) or Match (within 32K) */
-        if (RDG_RAND15BITS < matchProba32) {
+        if (RDG_rand15Bits(seedPtr) < matchProba32) {
             /* Copy (within 32K) */
-            size_t match;
-            size_t d;
-            size_t const length = RDG_RANDLENGTH + 4;
-            U32 offset = RDG_RAND15BITS + 1;
-            U32 repeatOffset = (RDG_rand(seed) & 15) == 2;
-            if (repeatOffset) offset = prevOffset;
-            if (offset > pos) offset = (U32)pos;
-            prevOffset = offset;
-            match = pos - offset;
-            d = pos + length;
-            if (d > buffSize) d = buffSize;
+            U32 const length = RDG_randLength(seedPtr) + 4;
+            U32 const d = (U32) MIN(pos + length , buffSize);
+            U32 const repeatOffset = (RDG_rand(seedPtr) & 15) == 2;
+            U32 const randOffset = RDG_rand15Bits(seedPtr) + 1;
+            U32 const offset = repeatOffset ? prevOffset : (U32) MIN(randOffset , pos);
+            size_t match = pos - offset;
+            //TRACE("pos : %u; offset: %u ; length : %u \n", (U32)pos, offset, length);
             while (pos < d) buffPtr[pos++] = buffPtr[match++];   /* correctly manages overlaps */
+            prevOffset = offset;
         } else {
             /* Literal (noise) */
-            size_t const length = RDG_RANDLENGTH;
-            size_t d = pos + length;
-            if (d > buffSize) d = buffSize;
-            while (pos < d) buffPtr[pos++] = RDG_genChar(seed, lt);
+            U32 const length = RDG_randLength(seedPtr);
+            U32 const d = (U32) MIN(pos + length, buffSize);
+            while (pos < d) buffPtr[pos++] = RDG_genChar(seedPtr, ldt);
     }   }
 }
 
 
 void RDG_genBuffer(void* buffer, size_t size, double matchProba, double litProba, unsigned seed)
 {
-    litDistribTable lt;
-    if (litProba==0.0) litProba = matchProba / 4.5;
-    RDG_fillLiteralDistrib(lt, litProba);
-    RDG_genBlock(buffer, size, 0, matchProba, lt, &seed);
+    BYTE ldt[LTSIZE];
+    memset(ldt, '0', sizeof(ldt));
+    if (litProba<=0.0) litProba = matchProba / 4.5;
+    //TRACE(" percent:%5.2f%% \n", litProba*100.);
+    RDG_fillLiteralDistrib(ldt, litProba);
+    RDG_genBlock(buffer, size, 0, matchProba, ldt, &seed);
 }
 
 
-#define RDG_DICTSIZE  (32 KB)
-#define RDG_BLOCKSIZE (128 KB)
-#define MIN(a,b)  ( (a) < (b) ? (a) : (b) )
 void RDG_genStdout(unsigned long long size, double matchProba, double litProba, unsigned seed)
 {
-    BYTE* buff = (BYTE*)malloc(RDG_DICTSIZE + RDG_BLOCKSIZE);
+    size_t const stdBlockSize = 128 KB;
+    size_t const stdDictSize = 32 KB;
+    BYTE* const buff = (BYTE*)malloc(stdDictSize + stdBlockSize);
     U64 total = 0;
-    litDistribTable ldt;
+    BYTE ldt[LTSIZE];
 
     /* init */
     if (buff==NULL) { fprintf(stdout, "not enough memory\n"); exit(1); }
     if (litProba<=0.0) litProba = matchProba / 4.5;
+    memset(ldt, '0', sizeof(ldt));
     RDG_fillLiteralDistrib(ldt, litProba);
     SET_BINARY_MODE(stdout);
 
     /* Generate initial dict */
-    RDG_genBlock(buff, RDG_DICTSIZE, 0, matchProba, ldt, &seed);
+    RDG_genBlock(buff, stdDictSize, 0, matchProba, ldt, &seed);
 
     /* Generate compressible data */
     while (total < size) {
-        size_t const genBlockSize = (size_t) (MIN (RDG_BLOCKSIZE, size-total));
-        RDG_genBlock(buff, RDG_DICTSIZE+RDG_BLOCKSIZE, RDG_DICTSIZE, matchProba, ldt, &seed);
+        size_t const genBlockSize = (size_t) (MIN (stdBlockSize, size-total));
+        RDG_genBlock(buff, stdDictSize+stdBlockSize, stdDictSize, matchProba, ldt, &seed);
         total += genBlockSize;
         { size_t const unused = fwrite(buff, 1, genBlockSize, stdout); (void)unused; }
         /* update dict */
-        memcpy(buff, buff + RDG_BLOCKSIZE, RDG_DICTSIZE);
+        memcpy(buff, buff + stdBlockSize, stdDictSize);
     }
 
     /* cleanup */

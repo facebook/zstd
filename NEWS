@@ -5,8 +5,9 @@ New : Visual build scripts, by Christophe Chevalier
 New : Support for Sparse File-systems (do not use space for zero-filled sectors)
 New : Frame checksum support
 New : Support pass-through mode (when using `-df`)
-New : API : dictionary files from custom content, by Giuseppe Ottaviano
-New : API support for custom malloc/free functions
+API : more efficient Dictionary API : `ZSTD_compress_usingCDict()`, `ZSTD_decompress_usingDDict()`
+API : create dictionary files from custom content, by Giuseppe Ottaviano
+API : support for custom malloc/free functions
 New : controllable Dictionary ID
 New : Support for skippable frames
 

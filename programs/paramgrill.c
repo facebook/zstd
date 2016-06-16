@@ -48,7 +48,8 @@
 #endif
 
 #include "mem.h"
-#include "zstd_static.h"
+#define ZSTD_STATIC_LINKING_ONLY   /* ZSTD_parameters */
+#include "zstd.h"
 #include "datagen.h"
 #include "xxhash.h"
 
@@ -57,11 +58,8 @@
 *  Constants
 **************************************/
 #define PROGRAM_DESCRIPTION "ZSTD parameters tester"
-#ifndef ZSTD_VERSION
-#  define ZSTD_VERSION ""
-#endif
 #define AUTHOR "Yann Collet"
-#define WELCOME_MESSAGE "*** %s %s %i-bits, by %s (%s) ***\n", PROGRAM_DESCRIPTION, ZSTD_VERSION, (int)(sizeof(void*)*8), AUTHOR, __DATE__
+#define WELCOME_MESSAGE "*** %s %s %i-bits, by %s (%s) ***\n", PROGRAM_DESCRIPTION, ZSTD_VERSION_STRING, (int)(sizeof(void*)*8), AUTHOR, __DATE__
 
 
 #define KB *(1<<10)
@@ -603,22 +601,22 @@ static void playAround(FILE* f, winnerInfo_t* winners,
 }
 
 
-static void potentialRandomParams(ZSTD_compressionParameters* p, U32 inverseChance)
+static ZSTD_compressionParameters randomParams(void)
 {
-    U32 chance = (FUZ_rand(&g_rand) % (inverseChance+1));
+    ZSTD_compressionParameters p;
     U32 validated = 0;
-    if (!chance)
     while (!validated) {
         /* totally random entry */
-        p->chainLog   = FUZ_rand(&g_rand) % (ZSTD_CHAINLOG_MAX+1 - ZSTD_CHAINLOG_MIN) + ZSTD_CHAINLOG_MIN;
-        p->hashLog    = FUZ_rand(&g_rand) % (ZSTD_HASHLOG_MAX+1 - ZSTD_HASHLOG_MIN) + ZSTD_HASHLOG_MIN;
-        p->searchLog  = FUZ_rand(&g_rand) % (ZSTD_SEARCHLOG_MAX+1 - ZSTD_SEARCHLOG_MIN) + ZSTD_SEARCHLOG_MIN;
-        p->windowLog  = FUZ_rand(&g_rand) % (ZSTD_WINDOWLOG_MAX+1 - ZSTD_WINDOWLOG_MIN) + ZSTD_WINDOWLOG_MIN;
-        p->searchLength=FUZ_rand(&g_rand) % (ZSTD_SEARCHLENGTH_MAX+1 - ZSTD_SEARCHLENGTH_MIN) + ZSTD_SEARCHLENGTH_MIN;
-        p->targetLength=FUZ_rand(&g_rand) % (ZSTD_TARGETLENGTH_MAX+1 - ZSTD_TARGETLENGTH_MIN) + ZSTD_TARGETLENGTH_MIN;
-        p->strategy   = (ZSTD_strategy) (FUZ_rand(&g_rand) % (ZSTD_btopt +1));
-        validated = !ZSTD_isError(ZSTD_checkCParams(*p));
+        p.chainLog   = FUZ_rand(&g_rand) % (ZSTD_CHAINLOG_MAX+1 - ZSTD_CHAINLOG_MIN) + ZSTD_CHAINLOG_MIN;
+        p.hashLog    = FUZ_rand(&g_rand) % (ZSTD_HASHLOG_MAX+1 - ZSTD_HASHLOG_MIN) + ZSTD_HASHLOG_MIN;
+        p.searchLog  = FUZ_rand(&g_rand) % (ZSTD_SEARCHLOG_MAX+1 - ZSTD_SEARCHLOG_MIN) + ZSTD_SEARCHLOG_MIN;
+        p.windowLog  = FUZ_rand(&g_rand) % (ZSTD_WINDOWLOG_MAX+1 - ZSTD_WINDOWLOG_MIN) + ZSTD_WINDOWLOG_MIN;
+        p.searchLength=FUZ_rand(&g_rand) % (ZSTD_SEARCHLENGTH_MAX+1 - ZSTD_SEARCHLENGTH_MIN) + ZSTD_SEARCHLENGTH_MIN;
+        p.targetLength=FUZ_rand(&g_rand) % (ZSTD_TARGETLENGTH_MAX+1 - ZSTD_TARGETLENGTH_MIN) + ZSTD_TARGETLENGTH_MIN;
+        p.strategy   = (ZSTD_strategy) (FUZ_rand(&g_rand) % (ZSTD_btopt +1));
+        validated = !ZSTD_isError(ZSTD_checkCParams(p));
     }
+    return p;
 }
 
 static void BMK_selectRandomStart(
@@ -626,12 +624,10 @@ static void BMK_selectRandomStart(
                        const void* srcBuffer, size_t srcSize,
                        ZSTD_CCtx* ctx)
 {
-    U32 id = (FUZ_rand(&g_rand) % (ZSTD_maxCLevel()+1));
+    U32 const id = (FUZ_rand(&g_rand) % (ZSTD_maxCLevel()+1));
     if ((id==0) || (winners[id].params.windowLog==0)) {
         /* totally random entry */
-        ZSTD_compressionParameters p;
-        potentialRandomParams(&p, 1);
-        ZSTD_adjustCParams(&p, srcSize, 0);
+        ZSTD_compressionParameters const p = ZSTD_adjustCParams(randomParams(), srcSize, 0);
         playAround(f, winners, p, srcBuffer, srcSize, ctx);
     }
     else
@@ -652,7 +648,7 @@ static void BMK_benchMem(void* srcBuffer, size_t srcSize)
 
     if (g_singleRun) {
         BMK_result_t testResult;
-        ZSTD_adjustCParams(&g_params, srcSize, 0);
+        g_params = ZSTD_adjustCParams(g_params, srcSize, 0);
         BMK_benchParam(&testResult, srcBuffer, srcSize, ctx, g_params);
         DISPLAY("\n");
         return;
@@ -864,7 +860,7 @@ int optimizeForSize(char* inFileName)
             do {
                 params = winner.params;
                 paramVariation(&params);
-                potentialRandomParams(&params, 16);
+                if ((FUZ_rand(&g_rand) & 15) == 1) params = randomParams();
 
                 /* exclude faster if already played set of params */
                 if (FUZ_rand(&g_rand) & ((1 << NB_TESTS_PLAYED(params))-1)) continue;

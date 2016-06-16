@@ -37,7 +37,8 @@
 ***************************************/
 #include "mem.h"
 #include "error_private.h"
-#include "zstd_static.h"
+#define ZSTD_STATIC_LINKING_ONLY
+#include "zstd.h"
 
 
 /*-*************************************
@@ -63,11 +64,12 @@
 #endif
 
 #define ZSTD_OPT_NUM    (1<<12)
-#define ZSTD_DICT_MAGIC  0xEC30A436
+#define ZSTD_DICT_MAGIC  0xEC30A437   /* v0.7 */
 
 #define ZSTD_REP_NUM    3
 #define ZSTD_REP_INIT   ZSTD_REP_NUM
 #define ZSTD_REP_MOVE   (ZSTD_REP_NUM-1)
+static const U32 repStartValue[ZSTD_REP_NUM] = { 1, 4, 8 };
 
 #define KB *(1 <<10)
 #define MB *(1 <<20)
@@ -80,10 +82,11 @@
 #define BIT1   2
 #define BIT0   1
 
-#define ZSTD_WINDOWLOG_ABSOLUTEMIN 12
-static const size_t ZSTD_fcs_fieldSize[4] = { 0, 1, 2, 8 };
+#define ZSTD_WINDOWLOG_ABSOLUTEMIN 10
+static const size_t ZSTD_fcs_fieldSize[4] = { 0, 2, 4, 8 };
+static const size_t ZSTD_did_fieldSize[4] = { 0, 1, 2, 4 };
 
-#define ZSTD_BLOCKHEADERSIZE 3   /* because C standard does not allow a static const value to be defined using another static const value .... :( */
+#define ZSTD_BLOCKHEADERSIZE 3   /* C standard doesn't allow `static const` variable to be init using another `static const` variable */
 static const size_t ZSTD_blockHeaderSize = ZSTD_BLOCKHEADERSIZE;
 typedef enum { bt_compressed, bt_raw, bt_rle, bt_end } blockType_t;
 
@@ -91,17 +94,12 @@ typedef enum { bt_compressed, bt_raw, bt_rle, bt_end } blockType_t;
 #define MIN_CBLOCK_SIZE (1 /*litCSize*/ + 1 /* RLE or RAW */ + MIN_SEQUENCES_SIZE /* nbSeq==0 */)   /* for a non-null block */
 
 #define HufLog 12
-
-#define IS_HUF 0
-#define IS_PCH 1
-#define IS_RAW 2
-#define IS_RLE 3
+typedef enum { lbt_huffman, lbt_repeat, lbt_raw, lbt_rle } litBlockType_t;
 
 #define LONGNBSEQ 0x7F00
 
 #define MINMATCH 3
 #define EQUAL_READ32 4
-#define REPCODE_STARTVALUE 1
 
 #define Litbits  8
 #define MaxLit ((1<<Litbits) - 1)
@@ -160,32 +158,12 @@ MEM_STATIC void ZSTD_wildcopy(void* dst, const void* src, size_t length)
     while (op < oend);
 }
 
-MEM_STATIC unsigned ZSTD_highbit(U32 val)
-{
-#   if defined(_MSC_VER)   /* Visual */
-    unsigned long r=0;
-    _BitScanReverse(&r, val);
-    return (unsigned)r;
-#   elif defined(__GNUC__) && (__GNUC__ >= 3)   /* GCC Intrinsic */
-    return 31 - __builtin_clz(val);
-#   else   /* Software version */
-    static const int DeBruijnClz[32] = { 0, 9, 1, 10, 13, 21, 2, 29, 11, 14, 16, 18, 22, 25, 3, 30, 8, 12, 20, 28, 15, 17, 24, 7, 19, 27, 23, 6, 26, 5, 4, 31 };
-    U32 v = val;
-    int r;
-    v |= v >> 1;
-    v |= v >> 2;
-    v |= v >> 4;
-    v |= v >> 8;
-    v |= v >> 16;
-    r = DeBruijnClz[(U32)(v * 0x07C4ACDDU) >> 27];
-    return r;
-#   endif
-}
-
 
 /*-*******************************************
 *  Private interfaces
 *********************************************/
+typedef struct ZSTD_stats_s ZSTD_stats_t;
+
 typedef struct {
     U32 off;
     U32 len;
@@ -202,12 +180,12 @@ typedef struct {
 #if ZSTD_OPT_DEBUG == 3
     #include ".debug/zstd_stats.h"
 #else
-    typedef struct { U32  unused; } ZSTD_stats_t;
+    struct ZSTD_stats_s { U32 unused; };
     MEM_STATIC void ZSTD_statsPrint(ZSTD_stats_t* stats, U32 searchLength) { (void)stats; (void)searchLength; }
     MEM_STATIC void ZSTD_statsInit(ZSTD_stats_t* stats) { (void)stats; }
     MEM_STATIC void ZSTD_statsResetFreqs(ZSTD_stats_t* stats) { (void)stats; }
     MEM_STATIC void ZSTD_statsUpdatePrices(ZSTD_stats_t* stats, size_t litLength, const BYTE* literals, size_t offset, size_t matchLength) { (void)stats; (void)litLength; (void)literals; (void)offset; (void)matchLength; }
-#endif
+#endif   /* #if ZSTD_OPT_DEBUG == 3 */
 
 typedef struct {
     void* buffer;
@@ -250,6 +228,11 @@ typedef struct {
 
 const seqStore_t* ZSTD_getSeqStore(const ZSTD_CCtx* ctx);
 void ZSTD_seqToCodes(const seqStore_t* seqStorePtr, size_t const nbSeq);
+int ZSTD_isSkipFrame(ZSTD_DCtx* dctx);
 
+/* custom memory allocation functions */
+void* ZSTD_defaultAllocFunction(void* opaque, size_t size);
+void ZSTD_defaultFreeFunction(void* opaque, void* address);
+static ZSTD_customMem const defaultCustomMem = { ZSTD_defaultAllocFunction, ZSTD_defaultFreeFunction, NULL };
 
 #endif   /* ZSTD_CCOMMON_H_MODULE */

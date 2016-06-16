@@ -28,12 +28,13 @@
 #include "util.h"        /* Compiler options, UTIL_GetFileSize */
 #include <stdlib.h>      /* malloc */
 #include <stdio.h>       /* fprintf, fopen, ftello64 */
-#include <string.h>      /* strcmp */
 #include <time.h>        /* clock_t, clock, CLOCKS_PER_SEC */
 
 #include "mem.h"
-#include "zstd_static.h"
-#include "fse_static.h"
+#define ZSTD_STATIC_LINKING_ONLY  /* ZSTD_compressBegin, ZSTD_compressContinue, etc. */
+#include "zstd.h"        /* ZSTD_VERSION_STRING */
+#define FSE_STATIC_LINKING_ONLY   /* FSE_DTABLE_SIZE_U32 */
+#include "fse.h"
 #include "zbuff.h"
 #include "datagen.h"
 
@@ -42,11 +43,8 @@
 *  Constants
 **************************************/
 #define PROGRAM_DESCRIPTION "Zstandard speed analyzer"
-#ifndef ZSTD_VERSION
-#  define ZSTD_VERSION ""
-#endif
 #define AUTHOR "Yann Collet"
-#define WELCOME_MESSAGE "*** %s %s %i-bits, by %s (%s) ***\n", PROGRAM_DESCRIPTION, ZSTD_VERSION, (int)(sizeof(void*)*8), AUTHOR, __DATE__
+#define WELCOME_MESSAGE "*** %s %s %i-bits, by %s (%s) ***\n", PROGRAM_DESCRIPTION, ZSTD_VERSION_STRING, (int)(sizeof(void*)*8), AUTHOR, __DATE__
 
 
 #define KB *(1<<10)
@@ -547,4 +545,3 @@ int main(int argc, const char** argv)
 
     return result;
 }
-

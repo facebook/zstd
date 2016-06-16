@@ -18,7 +18,12 @@
 *.app
 
 # Visual C++
-visual/
+projects/VS2008
+projects/VS2010
+projects/VS2012
+projects/VS2013
+projects/VS2015
+build/bin
 
 # IDEA solution files
 *.idea
@@ -27,7 +32,7 @@ visual/
 .directory
 _codelite/
 _zstdbench/
-zlib_wrapper/
+.clang_complete
 
 # CMake
-contrib/cmake/
+projects/cmake/

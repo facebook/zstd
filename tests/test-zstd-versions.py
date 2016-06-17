@@ -9,7 +9,7 @@ import os
 import shutil
 import sys
 import subprocess
-from subprocess import Popen, PIPE, DEVNULL
+from subprocess import Popen, PIPE
 
 repo_url = 'https://github.com/Cyan4973/zstd.git'
 tmp_dir_name = 'tests/versionsTest'
@@ -66,7 +66,11 @@ def create_dict(tag, dict_source_path):
     if not os.path.isfile(dict_name):
         cFiles = glob.glob(dict_source_path + "/*.c")
         hFiles = glob.glob(dict_source_path + "/*.h")
-        if execute('./zstd.' + tag + ' -f --train ' + ' '.join(cFiles) + ' ' + ' '.join(hFiles) + ' -o ' + dict_name, print_output=False, param_shell=True) == 0:
+        if tag == 'v0.5.0':
+            result = execute('./dictBuilder.' + tag + ' ' + ' '.join(cFiles) + ' ' + ' '.join(hFiles) + ' -o ' + dict_name, print_output=False, param_shell=True)
+        else:
+            result = execute('./zstd.' + tag + ' ' + ' '.join(cFiles) + ' ' + ' '.join(hFiles) + ' -o ' + dict_name, print_output=False, param_shell=True)
+        if result == 0:
             print(dict_name + ' created')
         else:
             print('ERROR: creating of ' + dict_name + ' failed')
@@ -76,17 +80,24 @@ def create_dict(tag, dict_source_path):
 
 def dict_compress_sample(tag, sample):
     dict_name = 'dict.' + tag
-    subprocess.call(['./zstd.' + tag, '-D', dict_name, '-f',   sample, '-o', sample + '_01_64_' + tag + '_dictio.zst'], stderr=DEVNULL)
-    subprocess.call(['./zstd.' + tag, '-D', dict_name, '-5f',  sample, '-o', sample + '_05_64_' + tag + '_dictio.zst'], stderr=DEVNULL)
-    subprocess.call(['./zstd.' + tag, '-D', dict_name, '-9f',  sample, '-o', sample + '_09_64_' + tag + '_dictio.zst'], stderr=DEVNULL)
-    subprocess.call(['./zstd.' + tag, '-D', dict_name, '-15f', sample, '-o', sample + '_15_64_' + tag + '_dictio.zst'], stderr=DEVNULL)
-    subprocess.call(['./zstd.' + tag, '-D', dict_name, '-18f', sample, '-o', sample + '_18_64_' + tag + '_dictio.zst'], stderr=DEVNULL)
+    DEVNULL = open(os.devnull, 'wb')
+    if subprocess.call(['./zstd.' + tag, '-D', dict_name, '-f',   sample], stderr=DEVNULL) == 0:
+        os.rename(sample + '.zst', sample + '_01_64_' + tag + '_dictio.zst')
+    if subprocess.call(['./zstd.' + tag, '-D', dict_name, '-5f',  sample], stderr=DEVNULL) == 0:
+        os.rename(sample + '.zst', sample + '_05_64_' + tag + '_dictio.zst')
+    if subprocess.call(['./zstd.' + tag, '-D', dict_name, '-9f',  sample], stderr=DEVNULL) == 0:
+        os.rename(sample + '.zst', sample + '_09_64_' + tag + '_dictio.zst')
+    if subprocess.call(['./zstd.' + tag, '-D', dict_name, '-15f', sample], stderr=DEVNULL) == 0:
+        os.rename(sample + '.zst', sample + '_15_64_' + tag + '_dictio.zst')
+    if subprocess.call(['./zstd.' + tag, '-D', dict_name, '-18f', sample], stderr=DEVNULL) == 0:
+        os.rename(sample + '.zst', sample + '_18_64_' + tag + '_dictio.zst')
     # zstdFiles = glob.glob("*.zst*")
     # print(zstdFiles)
     print(tag + " : dict compression completed")
 
 
 def compress_sample(tag, sample):
+    DEVNULL = open(os.devnull, 'wb')
     if subprocess.call(['./zstd.' + tag, '-f',   sample], stderr=DEVNULL) == 0:
         os.rename(sample + '.zst', sample + '_01_64_' + tag + '_nodict.zst')
     if subprocess.call(['./zstd.' + tag, '-5f',  sample], stderr=DEVNULL) == 0:
@@ -122,14 +133,14 @@ def remove_duplicates():
                 print('duplicated : {} == {}'.format(ref_zst, compared_zst))
 
 
-def decompress_zst(tag, zstd_up_to_v05=False):
+def decompress_zst(tag):
     dec_error = 0
     list_zst = sorted(glob.glob('*_nodict.zst'))
     for file_zst in list_zst:
         print(file_zst, end=' ')
         print(tag, end=' ')
         file_dec = file_zst + '_d64_' + tag + '.dec'
-        if zstd_up_to_v05:
+        if tag <= 'v0.5.0':
             params = ['./zstd.' + tag, '-df', file_zst, file_dec]
         else:
             params = ['./zstd.' + tag, '-df', file_zst, '-o', file_dec]
@@ -144,7 +155,7 @@ def decompress_zst(tag, zstd_up_to_v05=False):
     return dec_error
 
 
-def decompress_dict(tag, zstd_up_to_v05=False):
+def decompress_dict(tag):
     dec_error = 0
     list_zst = sorted(glob.glob('*_dictio.zst'))
     for file_zst in list_zst:
@@ -153,10 +164,12 @@ def decompress_dict(tag, zstd_up_to_v05=False):
             dict_tag = head
         else:
             dict_tag = dict_tag[dict_tag.rfind('v'):]
+        if tag == 'v0.6.0' and dict_tag < 'v0.6.0':
+            continue
         dict_name = 'dict.' + dict_tag
         print(file_zst + ' ' + tag + ' dict=' + dict_tag, end=' ')
         file_dec = file_zst + '_d64_' + tag + '.dec'
-        if zstd_up_to_v05:
+        if tag <= 'v0.5.0':
             params = ['./zstd.' + tag, '-D', dict_name, '-df', file_zst, file_dec]
         else:
             params = ['./zstd.' + tag, '-D', dict_name, '-df', file_zst, '-o', file_dec]
@@ -203,6 +216,10 @@ if __name__ == '__main__':
                 os.makedirs(r_dir, exist_ok=True)
                 os.chdir(clone_dir)
                 git(['--work-tree=' + r_dir, 'checkout', tag, '--', '.'], False)
+                if tag == 'v0.5.0':
+                    os.chdir(r_dir + '/dictBuilder')  # /path/to/zstd/tests/versionsTest/v0.5.0/dictBuilder
+                    make(['clean', 'dictBuilder'], False)
+                    shutil.copy2('dictBuilder', '{}/dictBuilder.{}'.format(tmp_dir, tag))
                 os.chdir(r_dir + '/programs')  # /path/to/zstd/tests/versionsTest/<TAG>/programs
                 make(['clean', 'zstd'], False)
             else:
@@ -228,17 +245,14 @@ if __name__ == '__main__':
     error_code = 0
     for tag in tags:
         print(tag)
-        if tag >= 'v0.5.1':
+        if tag >= 'v0.5.0':
             create_dict(tag, dict_source_path)
             dict_compress_sample(tag, test_dat)
             remove_duplicates()
             error_code += decompress_dict(tag)
         compress_sample(tag, test_dat)
         remove_duplicates()
-        if tag >= 'v0.5.1':
-            error_code += decompress_zst(tag)
-        else:
-            error_code += decompress_zst(tag, zstd_up_to_v05=True)
+        error_code += decompress_zst(tag)
 
     print('')
     print('Enumerate different compressed files')

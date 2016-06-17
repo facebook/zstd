@@ -23,8 +23,8 @@ dict_files = './zstd/programs/*.c ./zstd/lib/common/*.c ./zstd/lib/compress/*.c 
 dict_files += './zstd/programs/*.h ./zstd/lib/common/*.h ./zstd/lib/compress/*.h ./zstd/lib/dictBuilder/*.h ./zstd/lib/legacy/*.h'
 
 
-def execute(command, print_output=False, print_error=True):
-    popen = Popen(command, stdout=PIPE, stderr=PIPE, shell=True)
+def execute(command, print_output=False, print_error=True, param_shell=False):
+    popen = Popen(command, stdout=PIPE, stderr=PIPE, shell=param_shell)
     stdout_lines, stderr_lines = popen.communicate()
     stderr_lines = stderr_lines.decode("utf-8")
     stdout_lines = stdout_lines.decode("utf-8")
@@ -66,7 +66,7 @@ def create_dict(tag, dict_source_path):
     if not os.path.isfile(dict_name):
         cFiles = glob.glob(dict_source_path + "/*.c")
         hFiles = glob.glob(dict_source_path + "/*.h")
-        if execute('./zstd.' + tag + ' -f --train ' + ' '.join(cFiles) + ' ' + ' '.join(hFiles) + ' -o ' + dict_name, print_output=False) == 0:
+        if execute('./zstd.' + tag + ' -f --train ' + ' '.join(cFiles) + ' ' + ' '.join(hFiles) + ' -o ' + dict_name, print_output=False, param_shell=True) == 0:
             print(dict_name + ' created')
         else:
             print('ERROR: creating of ' + dict_name + ' failed')
@@ -133,7 +133,7 @@ def decompress_zst(tag, zstd_up_to_v05=False):
             params = ['./zstd.' + tag, '-df', file_zst, file_dec]
         else:
             params = ['./zstd.' + tag, '-df', file_zst, '-o', file_dec]
-        if subprocess.call(params, stderr=DEVNULL) == 0:
+        if execute(params) == 0:
             if not filecmp.cmp(file_dec, test_dat):
                 print('ERR !! ')
                 dec_error = 1
@@ -160,7 +160,7 @@ def decompress_dict(tag, zstd_up_to_v05=False):
             params = ['./zstd.' + tag, '-D', dict_name, '-df', file_zst, file_dec]
         else:
             params = ['./zstd.' + tag, '-D', dict_name, '-df', file_zst, '-o', file_dec]
-        if subprocess.call(params, stderr=DEVNULL) == 0:
+        if execute(params) == 0:
             if not filecmp.cmp(file_dec, test_dat):
                 print('ERR !! ')
                 dec_error = 1
@@ -221,10 +221,7 @@ if __name__ == '__main__':
     if not os.path.isdir(dict_source_path):
         os.mkdir(dict_source_path)
         print('cp ' + dict_files + ' ' + dict_source_path)
-        subprocess.call(['cp ' + dict_files + ' ' + dict_source_path], shell=True)
-
-    dictFiles = glob.glob("dict*")
-    print('dictFiles=' + str(dictFiles))
+        execute('cp ' + dict_files + ' ' + dict_source_path, param_shell=True)
 
     print('Compress test.dat by all released zstd')
 

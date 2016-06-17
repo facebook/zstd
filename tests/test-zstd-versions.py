@@ -69,7 +69,7 @@ def create_dict(tag, dict_source_path):
         if tag == 'v0.5.0':
             result = execute('./dictBuilder.' + tag + ' ' + ' '.join(cFiles) + ' ' + ' '.join(hFiles) + ' -o ' + dict_name, print_output=False, param_shell=True)
         else:
-            result = execute('./zstd.' + tag + ' ' + ' '.join(cFiles) + ' ' + ' '.join(hFiles) + ' -o ' + dict_name, print_output=False, param_shell=True)
+            result = execute('./zstd.' + tag + ' -f --train ' + ' '.join(cFiles) + ' ' + ' '.join(hFiles) + ' -o ' + dict_name, print_output=False, param_shell=True)
         if result == 0:
             print(dict_name + ' created')
         else:

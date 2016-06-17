@@ -51,6 +51,7 @@ all:
 
 zstdprogram:
 	$(MAKE) -C $(PRGDIR)
+	mv $(PRGDIR)/zstd .
 
 zlibwrapper:
 	$(MAKE) -C $(ZSTDDIR) all

@@ -7,9 +7,9 @@ import glob
 import hashlib
 import os
 import shutil
-import subprocess
 import sys
-from subprocess import Popen, PIPE 
+import subprocess
+from subprocess import Popen, PIPE, DEVNULL
 
 repo_url = 'https://github.com/Cyan4973/zstd.git'
 tmp_dir_name = 'tests/versionsTest'
@@ -25,31 +25,25 @@ dict_files += './zstd/programs/*.h ./zstd/lib/common/*.h ./zstd/lib/compress/*.h
 
 def execute(command, print_output=False, print_error=True):
     popen = Popen(command, stdout=PIPE, stderr=PIPE, shell=True)
-    itout = iter(popen.stdout.readline, b"")
-    iterr = iter(popen.stderr.readline, b"")
-    stdout_lines = b''.join(list(itout)).decode("utf-8")
+    stdout_lines, stderr_lines = popen.communicate()
+    stderr_lines = stderr_lines.decode("utf-8")
+    stdout_lines = stdout_lines.decode("utf-8")
     if print_output:
         print(stdout_lines)
-    stderr_lines = b''.join(list(iterr)).decode("utf-8")
-    if print_output:
         print(stderr_lines)
-    popen.communicate()
     if popen.returncode is not None and popen.returncode != 0:
         if not print_output and print_error:
             print(stderr_lines)
-        raise RuntimeError(stderr_lines)
-    return stdout_lines + stderr_lines
+    return popen.returncode
 
 
 def proc(cmd_args, pipe=True, dummy=False):
     if dummy:
         return
     if pipe:
-        subproc = subprocess.Popen(cmd_args,
-                                   stdout=subprocess.PIPE,
-                                   stderr=subprocess.PIPE)
+        subproc = Popen(cmd_args, stdout=PIPE, stderr=PIPE)
     else:
-        subproc = subprocess.Popen(cmd_args)
+        subproc = Popen(cmd_args)
     return subproc.communicate()
 
 
@@ -72,18 +66,16 @@ def create_dict(tag, dict_source_path):
     if not os.path.isfile(dict_name):
         cFiles = glob.glob(dict_source_path + "/*.c")
         hFiles = glob.glob(dict_source_path + "/*.h")
-        execute('./zstd.' + tag + ' -f --train ' + ' '.join(cFiles) + ' ' + ' '.join(hFiles) + ' -o ' + dict_name)
-        print(dict_name + ' created')
+        if execute('./zstd.' + tag + ' -f --train ' + ' '.join(cFiles) + ' ' + ' '.join(hFiles) + ' -o ' + dict_name, print_output=False) == 0:
+            print(dict_name + ' created')
+        else:
+            print('ERROR: creating of ' + dict_name + ' failed')
     else:
         print(dict_name + ' already exists')
 
 
 def dict_compress_sample(tag, sample):
     dict_name = 'dict.' + tag
-    try:
-        from subprocess import DEVNULL  # py3k
-    except ImportError:
-        DEVNULL = open(os.devnull, 'wb')
     subprocess.call(['./zstd.' + tag, '-D', dict_name, '-f',   sample, '-o', sample + '_01_64_' + tag + '_dictio.zst'], stderr=DEVNULL)
     subprocess.call(['./zstd.' + tag, '-D', dict_name, '-5f',  sample, '-o', sample + '_05_64_' + tag + '_dictio.zst'], stderr=DEVNULL)
     subprocess.call(['./zstd.' + tag, '-D', dict_name, '-9f',  sample, '-o', sample + '_09_64_' + tag + '_dictio.zst'], stderr=DEVNULL)
@@ -95,10 +87,6 @@ def dict_compress_sample(tag, sample):
 
 
 def compress_sample(tag, sample):
-    try:
-        from subprocess import DEVNULL  # py3k
-    except ImportError:
-        DEVNULL = open(os.devnull, 'wb')
     if subprocess.call(['./zstd.' + tag, '-f',   sample], stderr=DEVNULL) == 0:
         os.rename(sample + '.zst', sample + '_01_64_' + tag + '_nodict.zst')
     if subprocess.call(['./zstd.' + tag, '-5f',  sample], stderr=DEVNULL) == 0:
@@ -137,10 +125,6 @@ def remove_duplicates():
 def decompress_zst(tag, zstd_up_to_v05=False):
     dec_error = 0
     list_zst = sorted(glob.glob('*_nodict.zst'))
-    try:
-        from subprocess import DEVNULL  # py3k
-    except ImportError:
-        DEVNULL = open(os.devnull, 'wb')
     for file_zst in list_zst:
         print(file_zst, end=' ')
         print(tag, end=' ')
@@ -163,10 +147,6 @@ def decompress_zst(tag, zstd_up_to_v05=False):
 def decompress_dict(tag, zstd_up_to_v05=False):
     dec_error = 0
     list_zst = sorted(glob.glob('*_dictio.zst'))
-    try:
-        from subprocess import DEVNULL  # py3k
-    except ImportError:
-        DEVNULL = open(os.devnull, 'wb')
     for file_zst in list_zst:
         dict_tag = file_zst[0:len(file_zst)-11]  # remove "_dictio.zst"
         if head in dict_tag: # find vdevel

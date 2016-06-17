@@ -465,7 +465,6 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
 
     /* init */
     ctx->nextToUpdate3 = ctx->nextToUpdate;
-    ZSTD_resetSeqStore(seqStorePtr);
     ZSTD_rescaleFreqs(seqStorePtr);
     ip += (ip==prefixStart);
     { U32 i; for (i=0; i<ZSTD_REP_INIT; i++) rep[i]=ctx->rep[i]; }
@@ -574,7 +573,7 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
            best_mlen = minMatch;
            {   U32 i;
                for (i=0; i<ZSTD_REP_NUM; i++) {
-                   if ((rep[i]<(U32)(inr-prefixStart))
+                   if ((opt[cur].rep[i]<(U32)(inr-prefixStart))
                        && (MEM_readMINMATCH(inr, minMatch) == MEM_readMINMATCH(inr - opt[cur].rep[i], minMatch))) {  /* check rep */
                        mlen = (U32)ZSTD_count(inr+minMatch, inr+minMatch - opt[cur].rep[i], iend) + minMatch;
                        ZSTD_LOG_PARSER("%d: Found REP %d/%d mlen=%d off=%d rep=%d opt[%d].off=%d\n", (int)(inr-base), i, ZSTD_REP_NUM, mlen, i, opt[cur].rep[i], cur, opt[cur].off);
@@ -757,7 +756,6 @@ void ZSTD_compressBlock_opt_extDict_generic(ZSTD_CCtx* ctx,
     { U32 i; for (i=0; i<ZSTD_REP_INIT; i++) rep[i]=ctx->rep[i]; }
 
     ctx->nextToUpdate3 = ctx->nextToUpdate;
-    ZSTD_resetSeqStore(seqStorePtr);
     ZSTD_rescaleFreqs(seqStorePtr);
     ip += (ip==prefixStart);
 

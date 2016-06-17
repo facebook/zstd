@@ -1128,7 +1128,6 @@ void ZSTD_compressBlock_fast_generic(ZSTD_CCtx* cctx,
     size_t offset_1=cctx->rep[0], offset_2=cctx->rep[1];
 
     /* init */
-    ZSTD_resetSeqStore(seqStorePtr);
     ip += (ip==lowest);
     {   U32 const maxRep = (U32)(ip-lowest);
         if (offset_1 > maxRep) offset_1 = 0;
@@ -1239,7 +1238,6 @@ static void ZSTD_compressBlock_fast_extDict_generic(ZSTD_CCtx* ctx,
     U32 offset_1=ctx->rep[0], offset_2=ctx->rep[1];
 
     /* init */
-    ZSTD_resetSeqStore(seqStorePtr);
     /* skip first position to avoid read overflow during repcode match check */
     hashTable[ZSTD_hashPtr(ip, hBits, mls)] = (U32)(ip-base);
     ip++;
@@ -1743,7 +1741,6 @@ void ZSTD_compressBlock_lazy_generic(ZSTD_CCtx* ctx,
     /* init */
     ip += (ip==base);
     ctx->nextToUpdate3 = ctx->nextToUpdate;
-    ZSTD_resetSeqStore(seqStorePtr);
     {   U32 i;
         U32 const maxRep = (U32)(ip-base);
         for (i=0; i<ZSTD_REP_INIT; i++) {
@@ -1847,7 +1844,7 @@ _storeSequence:
     /* Save reps for next block */
     {   int i;
         for (i=0; i<ZSTD_REP_NUM; i++) {
-            if (!rep[i]) rep[i] = (U32)(iend-base);   /* in case some zero are left */
+            if (!rep[i]) rep[i] = (U32)(iend - ctx->base);   /* in case some zero are left */
             ctx->savedRep[i] = rep[i];
     }   }
 
@@ -1913,7 +1910,6 @@ void ZSTD_compressBlock_lazy_extDict_generic(ZSTD_CCtx* ctx,
     { U32 i; for (i=0; i<ZSTD_REP_INIT; i++) rep[i]=ctx->rep[i]; }
 
     ctx->nextToUpdate3 = ctx->nextToUpdate;
-    ZSTD_resetSeqStore(seqStorePtr);
     ip += (ip == prefixStart);
 
     /* Match Loop */
@@ -2097,11 +2093,7 @@ typedef void (*ZSTD_blockCompressor) (ZSTD_CCtx* ctx, const void* src, size_t sr
 static ZSTD_blockCompressor ZSTD_selectBlockCompressor(ZSTD_strategy strat, int extDict)
 {
     static const ZSTD_blockCompressor blockCompressor[2][6] = {
-#if 1
         { ZSTD_compressBlock_fast, ZSTD_compressBlock_greedy, ZSTD_compressBlock_lazy, ZSTD_compressBlock_lazy2, ZSTD_compressBlock_btlazy2, ZSTD_compressBlock_btopt },
-#else
-        { ZSTD_compressBlock_fast_extDict, ZSTD_compressBlock_greedy_extDict, ZSTD_compressBlock_lazy_extDict,ZSTD_compressBlock_lazy2_extDict, ZSTD_compressBlock_btlazy2_extDict, ZSTD_compressBlock_btopt_extDict },
-#endif
         { ZSTD_compressBlock_fast_extDict, ZSTD_compressBlock_greedy_extDict, ZSTD_compressBlock_lazy_extDict,ZSTD_compressBlock_lazy2_extDict, ZSTD_compressBlock_btlazy2_extDict, ZSTD_compressBlock_btopt_extDict }
     };
 
@@ -2111,8 +2103,9 @@ static ZSTD_blockCompressor ZSTD_selectBlockCompressor(ZSTD_strategy strat, int 
 
 static size_t ZSTD_compressBlock_internal(ZSTD_CCtx* zc, void* dst, size_t dstCapacity, const void* src, size_t srcSize)
 {
-    ZSTD_blockCompressor blockCompressor = ZSTD_selectBlockCompressor(zc->params.cParams.strategy, zc->lowLimit < zc->dictLimit);
+    ZSTD_blockCompressor const blockCompressor = ZSTD_selectBlockCompressor(zc->params.cParams.strategy, zc->lowLimit < zc->dictLimit);
     if (srcSize < MIN_CBLOCK_SIZE+ZSTD_blockHeaderSize+1) return 0;   /* don't even attempt compression below a certain srcSize */
+    ZSTD_resetSeqStore(&(zc->seqStore));
     blockCompressor(zc, src, srcSize);
     return ZSTD_compressSequences(zc, dst, dstCapacity, srcSize);
 }
@@ -2335,52 +2328,60 @@ static size_t ZSTD_loadDictionaryContent(ZSTD_CCtx* zc, const void* src, size_t 
 /* Dictionary format :
      Magic == ZSTD_DICT_MAGIC (4 bytes)
      HUF_writeCTable(256)
+     FSE_writeNCount(ml)
+     FSE_writeNCount(off)
+     FSE_writeNCount(ll)
+     RepOffsets
      Dictionary content
 */
 /*! ZSTD_loadDictEntropyStats() :
-    @return : size read from dictionary */
-static size_t ZSTD_loadDictEntropyStats(ZSTD_CCtx* zc, const void* dict, size_t dictSize)
+    @return : size read from dictionary
+    note : magic number supposed already checked */
+static size_t ZSTD_loadDictEntropyStats(ZSTD_CCtx* cctx, const void* dict, size_t dictSize)
 {
-    /* note : magic number already checked */
-    size_t const dictSizeStart = dictSize;
+    const BYTE* dictPtr = (const BYTE*)dict;
+    const BYTE* const dictEnd = dictPtr + dictSize;
 
-    {   size_t const hufHeaderSize = HUF_readCTable(zc->hufTable, 255, dict, dictSize);
+    {   size_t const hufHeaderSize = HUF_readCTable(cctx->hufTable, 255, dict, dictSize);
         if (HUF_isError(hufHeaderSize)) return ERROR(dictionary_corrupted);
-        dict = (const char*)dict + hufHeaderSize;
-        dictSize -= hufHeaderSize;
+        dictPtr += hufHeaderSize;
     }
 
     {   short offcodeNCount[MaxOff+1];
         unsigned offcodeMaxValue = MaxOff, offcodeLog = OffFSELog;
-        size_t const offcodeHeaderSize = FSE_readNCount(offcodeNCount, &offcodeMaxValue, &offcodeLog, dict, dictSize);
+        size_t const offcodeHeaderSize = FSE_readNCount(offcodeNCount, &offcodeMaxValue, &offcodeLog, dictPtr, dictEnd-dictPtr);
         if (FSE_isError(offcodeHeaderSize)) return ERROR(dictionary_corrupted);
-        { size_t const errorCode = FSE_buildCTable(zc->offcodeCTable, offcodeNCount, offcodeMaxValue, offcodeLog);
+        { size_t const errorCode = FSE_buildCTable(cctx->offcodeCTable, offcodeNCount, offcodeMaxValue, offcodeLog);
           if (FSE_isError(errorCode)) return ERROR(dictionary_corrupted); }
-        dict = (const char*)dict + offcodeHeaderSize;
-        dictSize -= offcodeHeaderSize;
+        dictPtr += offcodeHeaderSize;
     }
 
     {   short matchlengthNCount[MaxML+1];
         unsigned matchlengthMaxValue = MaxML, matchlengthLog = MLFSELog;
-        size_t const matchlengthHeaderSize = FSE_readNCount(matchlengthNCount, &matchlengthMaxValue, &matchlengthLog, dict, dictSize);
+        size_t const matchlengthHeaderSize = FSE_readNCount(matchlengthNCount, &matchlengthMaxValue, &matchlengthLog, dictPtr, dictEnd-dictPtr);
         if (FSE_isError(matchlengthHeaderSize)) return ERROR(dictionary_corrupted);
-        { size_t const errorCode = FSE_buildCTable(zc->matchlengthCTable, matchlengthNCount, matchlengthMaxValue, matchlengthLog);
+        { size_t const errorCode = FSE_buildCTable(cctx->matchlengthCTable, matchlengthNCount, matchlengthMaxValue, matchlengthLog);
           if (FSE_isError(errorCode)) return ERROR(dictionary_corrupted); }
-        dict = (const char*)dict + matchlengthHeaderSize;
-        dictSize -= matchlengthHeaderSize;
+        dictPtr += matchlengthHeaderSize;
     }
 
     {   short litlengthNCount[MaxLL+1];
         unsigned litlengthMaxValue = MaxLL, litlengthLog = LLFSELog;
-        size_t const litlengthHeaderSize = FSE_readNCount(litlengthNCount, &litlengthMaxValue, &litlengthLog, dict, dictSize);
+        size_t const litlengthHeaderSize = FSE_readNCount(litlengthNCount, &litlengthMaxValue, &litlengthLog, dictPtr, dictEnd-dictPtr);
         if (FSE_isError(litlengthHeaderSize)) return ERROR(dictionary_corrupted);
-        { size_t const errorCode = FSE_buildCTable(zc->litlengthCTable, litlengthNCount, litlengthMaxValue, litlengthLog);
+        { size_t const errorCode = FSE_buildCTable(cctx->litlengthCTable, litlengthNCount, litlengthMaxValue, litlengthLog);
           if (FSE_isError(errorCode)) return ERROR(dictionary_corrupted); }
-        dictSize -= litlengthHeaderSize;
+        dictPtr += litlengthHeaderSize;
     }
 
-    zc->flagStaticTables = 1;
-    return (dictSizeStart-dictSize);
+    if (dictPtr+12 > dictEnd) return ERROR(dictionary_corrupted);
+    cctx->rep[0] = MEM_readLE32(dictPtr+0); if (cctx->rep[0] >= dictSize) return ERROR(dictionary_corrupted);
+    cctx->rep[1] = MEM_readLE32(dictPtr+4); if (cctx->rep[1] >= dictSize) return ERROR(dictionary_corrupted);
+    cctx->rep[2] = MEM_readLE32(dictPtr+8); if (cctx->rep[2] >= dictSize) return ERROR(dictionary_corrupted);
+    dictPtr += 12;
+
+    cctx->flagStaticTables = 1;
+    return dictPtr - (const BYTE*)dict;
 }
 
 /** ZSTD_compress_insertDictionary() :

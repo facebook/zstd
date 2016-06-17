@@ -1128,7 +1128,6 @@ void ZSTD_compressBlock_fast_generic(ZSTD_CCtx* cctx,
     size_t offset_1=cctx->rep[0], offset_2=cctx->rep[1];
 
     /* init */
-    ZSTD_resetSeqStore(seqStorePtr);
     ip += (ip==lowest);
     {   U32 const maxRep = (U32)(ip-lowest);
         if (offset_1 > maxRep) offset_1 = 0;
@@ -1239,7 +1238,6 @@ static void ZSTD_compressBlock_fast_extDict_generic(ZSTD_CCtx* ctx,
     U32 offset_1=ctx->rep[0], offset_2=ctx->rep[1];
 
     /* init */
-    ZSTD_resetSeqStore(seqStorePtr);
     /* skip first position to avoid read overflow during repcode match check */
     hashTable[ZSTD_hashPtr(ip, hBits, mls)] = (U32)(ip-base);
     ip++;
@@ -1743,7 +1741,6 @@ void ZSTD_compressBlock_lazy_generic(ZSTD_CCtx* ctx,
     /* init */
     ip += (ip==base);
     ctx->nextToUpdate3 = ctx->nextToUpdate;
-    ZSTD_resetSeqStore(seqStorePtr);
     {   U32 i;
         U32 const maxRep = (U32)(ip-base);
         for (i=0; i<ZSTD_REP_INIT; i++) {
@@ -1913,7 +1910,6 @@ void ZSTD_compressBlock_lazy_extDict_generic(ZSTD_CCtx* ctx,
     { U32 i; for (i=0; i<ZSTD_REP_INIT; i++) rep[i]=ctx->rep[i]; }
 
     ctx->nextToUpdate3 = ctx->nextToUpdate;
-    ZSTD_resetSeqStore(seqStorePtr);
     ip += (ip == prefixStart);
 
     /* Match Loop */
@@ -2097,11 +2093,7 @@ typedef void (*ZSTD_blockCompressor) (ZSTD_CCtx* ctx, const void* src, size_t sr
 static ZSTD_blockCompressor ZSTD_selectBlockCompressor(ZSTD_strategy strat, int extDict)
 {
     static const ZSTD_blockCompressor blockCompressor[2][6] = {
-#if 1
         { ZSTD_compressBlock_fast, ZSTD_compressBlock_greedy, ZSTD_compressBlock_lazy, ZSTD_compressBlock_lazy2, ZSTD_compressBlock_btlazy2, ZSTD_compressBlock_btopt },
-#else
-        { ZSTD_compressBlock_fast_extDict, ZSTD_compressBlock_greedy_extDict, ZSTD_compressBlock_lazy_extDict,ZSTD_compressBlock_lazy2_extDict, ZSTD_compressBlock_btlazy2_extDict, ZSTD_compressBlock_btopt_extDict },
-#endif
         { ZSTD_compressBlock_fast_extDict, ZSTD_compressBlock_greedy_extDict, ZSTD_compressBlock_lazy_extDict,ZSTD_compressBlock_lazy2_extDict, ZSTD_compressBlock_btlazy2_extDict, ZSTD_compressBlock_btopt_extDict }
     };
 
@@ -2111,8 +2103,9 @@ static ZSTD_blockCompressor ZSTD_selectBlockCompressor(ZSTD_strategy strat, int 
 
 static size_t ZSTD_compressBlock_internal(ZSTD_CCtx* zc, void* dst, size_t dstCapacity, const void* src, size_t srcSize)
 {
-    ZSTD_blockCompressor blockCompressor = ZSTD_selectBlockCompressor(zc->params.cParams.strategy, zc->lowLimit < zc->dictLimit);
+    ZSTD_blockCompressor const blockCompressor = ZSTD_selectBlockCompressor(zc->params.cParams.strategy, zc->lowLimit < zc->dictLimit);
     if (srcSize < MIN_CBLOCK_SIZE+ZSTD_blockHeaderSize+1) return 0;   /* don't even attempt compression below a certain srcSize */
+    ZSTD_resetSeqStore(&(zc->seqStore));
     blockCompressor(zc, src, srcSize);
     return ZSTD_compressSequences(zc, dst, dstCapacity, srcSize);
 }

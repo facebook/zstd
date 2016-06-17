@@ -847,9 +847,16 @@ int main(int argc, const char** argv)
     /* Get Seed */
     DISPLAY("Starting zstd tester (%i-bits, %s)\n", (int)(sizeof(size_t)*8), ZSTD_VERSION_STRING);
 
-    if (!seedset) seed = (U32)(clock() % 10000);
+    if (!seedset) {
+        time_t const t = time(NULL);
+        U32 const h = XXH32(&t, sizeof(t), 1);
+        seed = h % 10000;
+    }
+
     DISPLAY("Seed = %u\n", seed);
     if (proba!=FUZ_compressibility_default) DISPLAY("Compressibility : %u%%\n", proba);
+
+    if (nbTests < testNb) nbTests = testNb;
 
     if (testNb==0)
         result = basicUnitTests(0, ((double)proba) / 100);  /* constant seed for predictability */

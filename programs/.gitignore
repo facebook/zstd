@@ -50,3 +50,4 @@ afl
 # Misc files
 *.bat
 fileTests.sh
+dirTest*

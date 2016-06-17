@@ -33,7 +33,7 @@ IF %msbuild_version% == VS2013 SET msbuild="%programfiles(x86)%\MSBuild\12.0\Bin
 IF %msbuild_version% == VS2015 SET msbuild="%programfiles(x86)%\MSBuild\14.0\Bin\MSBuild.exe"
 rem TODO: Visual Studio "15" (vNext) will use MSBuild 15.0 ?
 
-SET project="%~p0\..\projects\VS2010\zstd.sln"
+SET project="%~p0\..\VS2010\zstd.sln"
 
 SET msbuild_params=/verbosity:minimal /nologo /t:Clean,Build /p:Platform=%msbuild_platform% /p:Configuration=%msbuild_configuration%
 IF NOT "%msbuild_toolset%" == "" SET msbuild_params=%msbuild_params% /p:PlatformToolset=%msbuild_toolset%
@@ -50,4 +50,3 @@ IF ERRORLEVEL 1 EXIT /B 1
 echo # Success
 echo # OutDir: %output%
 echo #
-

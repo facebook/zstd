@@ -1179,12 +1179,13 @@ size_t ZSTD_decompressContinue(ZSTD_DCtx* dctx, void* dst, size_t dstCapacity, c
 }
 
 
-static void ZSTD_refDictContent(ZSTD_DCtx* dctx, const void* dict, size_t dictSize)
+static size_t ZSTD_refDictContent(ZSTD_DCtx* dctx, const void* dict, size_t dictSize)
 {
     dctx->dictEnd = dctx->previousDstEnd;
     dctx->vBase = (const char*)dict - ((const char*)(dctx->previousDstEnd) - (const char*)(dctx->base));
     dctx->base = dict;
     dctx->previousDstEnd = (const char*)dict + dictSize;
+    return 0;
 }
 
 static size_t ZSTD_loadEntropy(ZSTD_DCtx* dctx, const void* const dict, size_t const dictSize)
@@ -1236,29 +1237,24 @@ static size_t ZSTD_loadEntropy(ZSTD_DCtx* dctx, const void* const dict, size_t c
 
 static size_t ZSTD_decompress_insertDictionary(ZSTD_DCtx* dctx, const void* dict, size_t dictSize)
 {
-    if (dictSize < 8) return ERROR(dictionary_corrupted);
+    if (dictSize < 8) return ZSTD_refDictContent(dctx, dict, dictSize);
     {   U32 const magic = MEM_readLE32(dict);
         if (magic != ZSTD_DICT_MAGIC) {
-            /* pure content mode */
-            ZSTD_refDictContent(dctx, dict, dictSize);
-            return 0;
-        }
-        dctx->dictID = MEM_readLE32((const char*)dict + 4);
+            return ZSTD_refDictContent(dctx, dict, dictSize);   /* pure content mode */
+    }   }
+    dctx->dictID = MEM_readLE32((const char*)dict + 4);
 
-        /* load entropy tables */
-        dict = (const char*)dict + 8;
-        dictSize -= 8;
-        {   size_t const eSize = ZSTD_loadEntropy(dctx, dict, dictSize);
-            if (ZSTD_isError(eSize)) return ERROR(dictionary_corrupted);
-            dict = (const char*)dict + eSize;
-            dictSize -= eSize;
-        }
-
-        /* reference dictionary content */
-        ZSTD_refDictContent(dctx, dict, dictSize);
-
-        return 0;
+    /* load entropy tables */
+    dict = (const char*)dict + 8;
+    dictSize -= 8;
+    {   size_t const eSize = ZSTD_loadEntropy(dctx, dict, dictSize);
+        if (ZSTD_isError(eSize)) return ERROR(dictionary_corrupted);
+        dict = (const char*)dict + eSize;
+        dictSize -= eSize;
     }
+
+    /* reference dictionary content */
+    return ZSTD_refDictContent(dctx, dict, dictSize);
 }
 
 
@@ -1318,7 +1314,7 @@ ZSTD_DDict* ZSTD_createDDict_advanced(const void* dict, size_t dictSize, ZSTD_cu
 }
 
 /*! ZSTD_createDDict() :
-*   Create a digested dictionary, ready to start decompression operation without startup delay.
+*   Create a digested dictionary, ready to start decompression without startup delay.
 *   `dict` can be released after `ZSTD_DDict` creation */
 ZSTD_DDict* ZSTD_createDDict(const void* dict, size_t dictSize)
 {

@@ -7,8 +7,9 @@ import glob
 import hashlib
 import os
 import shutil
-import subprocess
 import sys
+import subprocess
+from subprocess import Popen, PIPE
 
 repo_url = 'https://github.com/Cyan4973/zstd.git'
 tmp_dir_name = 'tests/versionsTest'
@@ -17,17 +18,32 @@ git_cmd = 'git'
 test_dat_src = 'README.md'
 test_dat = 'test_dat'
 head = 'vdevel'
+dict_source = 'dict_source'
+dict_files = './zstd/programs/*.c ./zstd/lib/common/*.c ./zstd/lib/compress/*.c ./zstd/lib/decompress/*.c ./zstd/lib/dictBuilder/*.c ./zstd/lib/legacy/*.c '
+dict_files += './zstd/programs/*.h ./zstd/lib/common/*.h ./zstd/lib/compress/*.h ./zstd/lib/dictBuilder/*.h ./zstd/lib/legacy/*.h'
+
+
+def execute(command, print_output=False, print_error=True, param_shell=False):
+    popen = Popen(command, stdout=PIPE, stderr=PIPE, shell=param_shell)
+    stdout_lines, stderr_lines = popen.communicate()
+    stderr_lines = stderr_lines.decode("utf-8")
+    stdout_lines = stdout_lines.decode("utf-8")
+    if print_output:
+        print(stdout_lines)
+        print(stderr_lines)
+    if popen.returncode is not None and popen.returncode != 0:
+        if not print_output and print_error:
+            print(stderr_lines)
+    return popen.returncode
 
 
 def proc(cmd_args, pipe=True, dummy=False):
     if dummy:
         return
     if pipe:
-        subproc = subprocess.Popen(cmd_args,
-                                   stdout=subprocess.PIPE,
-                                   stderr=subprocess.PIPE)
+        subproc = Popen(cmd_args, stdout=PIPE, stderr=PIPE)
     else:
-        subproc = subprocess.Popen(cmd_args)
+        subproc = Popen(cmd_args)
     return subproc.communicate()
 
 
@@ -45,21 +61,53 @@ def get_git_tags():
     return tags
 
 
+def create_dict(tag, dict_source_path):
+    dict_name = 'dict.' + tag
+    if not os.path.isfile(dict_name):
+        cFiles = glob.glob(dict_source_path + "/*.c")
+        hFiles = glob.glob(dict_source_path + "/*.h")
+        if tag == 'v0.5.0':
+            result = execute('./dictBuilder.' + tag + ' ' + ' '.join(cFiles) + ' ' + ' '.join(hFiles) + ' -o ' + dict_name, print_output=False, param_shell=True)
+        else:
+            result = execute('./zstd.' + tag + ' -f --train ' + ' '.join(cFiles) + ' ' + ' '.join(hFiles) + ' -o ' + dict_name, print_output=False, param_shell=True)
+        if result == 0:
+            print(dict_name + ' created')
+        else:
+            print('ERROR: creating of ' + dict_name + ' failed')
+    else:
+        print(dict_name + ' already exists')
+
+
+def dict_compress_sample(tag, sample):
+    dict_name = 'dict.' + tag
+    DEVNULL = open(os.devnull, 'wb')
+    if subprocess.call(['./zstd.' + tag, '-D', dict_name, '-f',   sample], stderr=DEVNULL) == 0:
+        os.rename(sample + '.zst', sample + '_01_64_' + tag + '_dictio.zst')
+    if subprocess.call(['./zstd.' + tag, '-D', dict_name, '-5f',  sample], stderr=DEVNULL) == 0:
+        os.rename(sample + '.zst', sample + '_05_64_' + tag + '_dictio.zst')
+    if subprocess.call(['./zstd.' + tag, '-D', dict_name, '-9f',  sample], stderr=DEVNULL) == 0:
+        os.rename(sample + '.zst', sample + '_09_64_' + tag + '_dictio.zst')
+    if subprocess.call(['./zstd.' + tag, '-D', dict_name, '-15f', sample], stderr=DEVNULL) == 0:
+        os.rename(sample + '.zst', sample + '_15_64_' + tag + '_dictio.zst')
+    if subprocess.call(['./zstd.' + tag, '-D', dict_name, '-18f', sample], stderr=DEVNULL) == 0:
+        os.rename(sample + '.zst', sample + '_18_64_' + tag + '_dictio.zst')
+    # zstdFiles = glob.glob("*.zst*")
+    # print(zstdFiles)
+    print(tag + " : dict compression completed")
+
+
 def compress_sample(tag, sample):
-    try:
-        from subprocess import DEVNULL  # py3k
-    except ImportError:
-        DEVNULL = open(os.devnull, 'wb')
+    DEVNULL = open(os.devnull, 'wb')
     if subprocess.call(['./zstd.' + tag, '-f',   sample], stderr=DEVNULL) == 0:
-        os.rename(sample + '.zst', sample + '_01_64_' + tag + '.zst')
+        os.rename(sample + '.zst', sample + '_01_64_' + tag + '_nodict.zst')
     if subprocess.call(['./zstd.' + tag, '-5f',  sample], stderr=DEVNULL) == 0:
-        os.rename(sample + '.zst', sample + '_05_64_' + tag + '.zst')
+        os.rename(sample + '.zst', sample + '_05_64_' + tag + '_nodict.zst')
     if subprocess.call(['./zstd.' + tag, '-9f',  sample], stderr=DEVNULL) == 0:
-        os.rename(sample + '.zst', sample + '_09_64_' + tag + '.zst')
+        os.rename(sample + '.zst', sample + '_09_64_' + tag + '_nodict.zst')
     if subprocess.call(['./zstd.' + tag, '-15f', sample], stderr=DEVNULL) == 0:
-        os.rename(sample + '.zst', sample + '_15_64_' + tag + '.zst')
+        os.rename(sample + '.zst', sample + '_15_64_' + tag + '_nodict.zst')
     if subprocess.call(['./zstd.' + tag, '-18f', sample], stderr=DEVNULL) == 0:
-        os.rename(sample + '.zst', sample + '_18_64_' + tag + '.zst')
+        os.rename(sample + '.zst', sample + '_18_64_' + tag + '_nodict.zst')
     # zstdFiles = glob.glob("*.zst*")
     # print(zstdFiles)
     print(tag + " : compression completed")
@@ -87,16 +135,16 @@ def remove_duplicates():
 
 def decompress_zst(tag):
     dec_error = 0
-    list_zst = sorted(glob.glob('*.zst'))
-    try:
-        from subprocess import DEVNULL  # py3k
-    except ImportError:
-        DEVNULL = open(os.devnull, 'wb')
+    list_zst = sorted(glob.glob('*_nodict.zst'))
     for file_zst in list_zst:
         print(file_zst, end=' ')
         print(tag, end=' ')
         file_dec = file_zst + '_d64_' + tag + '.dec'
-        if subprocess.call(['./zstd.' + tag, '-df', file_zst, '-o', file_dec], stderr=DEVNULL) == 0:
+        if tag <= 'v0.5.0':
+            params = ['./zstd.' + tag, '-df', file_zst, file_dec]
+        else:
+            params = ['./zstd.' + tag, '-df', file_zst, '-o', file_dec]
+        if execute(params) == 0:
             if not filecmp.cmp(file_dec, test_dat):
                 print('ERR !! ')
                 dec_error = 1
@@ -107,12 +155,43 @@ def decompress_zst(tag):
     return dec_error
 
 
+def decompress_dict(tag):
+    dec_error = 0
+    list_zst = sorted(glob.glob('*_dictio.zst'))
+    for file_zst in list_zst:
+        dict_tag = file_zst[0:len(file_zst)-11]  # remove "_dictio.zst"
+        if head in dict_tag: # find vdevel
+            dict_tag = head
+        else:
+            dict_tag = dict_tag[dict_tag.rfind('v'):]
+        if tag == 'v0.6.0' and dict_tag < 'v0.6.0':
+            continue
+        dict_name = 'dict.' + dict_tag
+        print(file_zst + ' ' + tag + ' dict=' + dict_tag, end=' ')
+        file_dec = file_zst + '_d64_' + tag + '.dec'
+        if tag <= 'v0.5.0':
+            params = ['./zstd.' + tag, '-D', dict_name, '-df', file_zst, file_dec]
+        else:
+            params = ['./zstd.' + tag, '-D', dict_name, '-df', file_zst, '-o', file_dec]
+        if execute(params) == 0:
+            if not filecmp.cmp(file_dec, test_dat):
+                print('ERR !! ')
+                dec_error = 1
+            else:
+                print('OK     ')
+        else:
+            print('command does not work')
+            dec_error = 1
+    return dec_error
+
+
 if __name__ == '__main__':
     error_code = 0
-    base_dir = os.getcwd() + '/..'           # /path/to/zstd
-    tmp_dir = base_dir + '/' + tmp_dir_name  # /path/to/zstd/tests/versionsTest
-    clone_dir = tmp_dir + '/' + 'zstd'       # /path/to/zstd/tests/versionsTest/zstd
-    programs_dir = base_dir + '/programs'    # /path/to/zstd/programs
+    base_dir = os.getcwd() + '/..'                  # /path/to/zstd
+    tmp_dir = base_dir + '/' + tmp_dir_name         # /path/to/zstd/tests/versionsTest
+    clone_dir = tmp_dir + '/' + 'zstd'              # /path/to/zstd/tests/versionsTest/zstd
+    dict_source_path = tmp_dir + '/' + dict_source  # /path/to/zstd/tests/versionsTest/dict_source
+    programs_dir = base_dir + '/programs'           # /path/to/zstd/programs
     os.makedirs(tmp_dir, exist_ok=True)
 
     # since Travis clones limited depth, we should clone full repository
@@ -137,6 +216,10 @@ if __name__ == '__main__':
                 os.makedirs(r_dir, exist_ok=True)
                 os.chdir(clone_dir)
                 git(['--work-tree=' + r_dir, 'checkout', tag, '--', '.'], False)
+                if tag == 'v0.5.0':
+                    os.chdir(r_dir + '/dictBuilder')  # /path/to/zstd/tests/versionsTest/v0.5.0/dictBuilder
+                    make(['clean', 'dictBuilder'], False)
+                    shutil.copy2('dictBuilder', '{}/dictBuilder.{}'.format(tmp_dir, tag))
                 os.chdir(r_dir + '/programs')  # /path/to/zstd/tests/versionsTest/<TAG>/programs
                 make(['clean', 'zstd'], False)
             else:
@@ -151,15 +234,25 @@ if __name__ == '__main__':
     for dec in glob.glob("*.dec"):
         os.remove(dec)
 
+    # copy *.c and *.h to a temporary directory ("dict_source")
+    if not os.path.isdir(dict_source_path):
+        os.mkdir(dict_source_path)
+        print('cp ' + dict_files + ' ' + dict_source_path)
+        execute('cp ' + dict_files + ' ' + dict_source_path, param_shell=True)
+
     print('Compress test.dat by all released zstd')
 
     error_code = 0
     for tag in tags:
         print(tag)
+        if tag >= 'v0.5.0':
+            create_dict(tag, dict_source_path)
+            dict_compress_sample(tag, test_dat)
+            remove_duplicates()
+            error_code += decompress_dict(tag)
         compress_sample(tag, test_dat)
         remove_duplicates()
-        if tag >= 'v0.5.1':
-            error_code += decompress_zst(tag)
+        error_code += decompress_zst(tag)
 
     print('')
     print('Enumerate different compressed files')

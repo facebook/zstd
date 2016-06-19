@@ -246,7 +246,7 @@ ZSTD_compressionParameters ZSTD_adjustCParams(ZSTD_compressionParameters cPar, U
 
 size_t ZSTD_sizeofCCtx(ZSTD_compressionParameters cParams)   /* hidden interface, for paramagrill */
 {
-    ZSTD_CCtx* zc = ZSTD_createCCtx();
+    ZSTD_CCtx* const zc = ZSTD_createCCtx();
     ZSTD_parameters params;
     memset(&params, 0, sizeof(params));
     params.cParams = cParams;

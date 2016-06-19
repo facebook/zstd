@@ -64,6 +64,7 @@ clean:
 	@$(MAKE) -C $(ZSTDDIR) $@ > $(VOID)
 	@$(MAKE) -C $(PRGDIR) $@ > $(VOID)
 	@$(MAKE) -C $(ZWRAPDIR) $@ > $(VOID)
+	@rm -f zstd
 	@echo Cleaning completed
 
 

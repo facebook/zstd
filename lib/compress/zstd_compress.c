@@ -1186,8 +1186,8 @@ void ZSTD_compressBlock_fast_generic(ZSTD_CCtx* cctx,
     }   }   }
 
     /* save reps for next block */
-    cctx->savedRep[0] = offset_1 ? (U32)offset_1 : (U32)(iend-base);
-    cctx->savedRep[1] = offset_2 ? (U32)offset_2 : (U32)(iend-base);
+    cctx->savedRep[0] = offset_1 ? (U32)offset_1 : (U32)(1 GB);
+    cctx->savedRep[1] = offset_2 ? (U32)offset_2 : (U32)(1 GB);
 
     /* Last Literals */
     {   size_t const lastLLSize = iend - anchor;
@@ -1844,7 +1844,7 @@ _storeSequence:
     /* Save reps for next block */
     {   int i;
         for (i=0; i<ZSTD_REP_NUM; i++) {
-            if (!rep[i]) rep[i] = (U32)(iend - ctx->base);   /* in case some zero are left */
+            if (!rep[i]) rep[i] = (U32)(1 GB);   /* in case some zero are left */
             ctx->savedRep[i] = rep[i];
     }   }
 

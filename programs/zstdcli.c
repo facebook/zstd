@@ -136,7 +136,7 @@ static int usage_advanced(const char* programName)
 #ifndef ZSTD_NOCOMPRESS
     DISPLAY( "--ultra : enable ultra modes (requires more memory to decompress)\n");
     DISPLAY( "--no-dictID : don't write dictID into header (dictionary compression)\n");
-    DISPLAY( "--check : enable integrity check\n");
+    DISPLAY( "--[no-]check : integrity check (default:enabled)\n");
 #endif
 #ifndef ZSTD_NODECOMPRESS
     DISPLAY( "--test  : test compressed file integrity \n");
@@ -257,6 +257,7 @@ int main(int argCount, const char** argv)
         if (!strcmp(argument, "--stdout")) { forceStdout=1; outFileName=stdoutmark; displayLevel=1; continue; }
         if (!strcmp(argument, "--ultra")) { FIO_setMaxWLog(0); continue; }
         if (!strcmp(argument, "--check")) { FIO_setChecksumFlag(2); continue; }
+        if (!strcmp(argument, "--no-check")) { FIO_setChecksumFlag(0); continue; }
         if (!strcmp(argument, "--no-dictID")) { FIO_setDictIDFlag(0); continue; }
         if (!strcmp(argument, "--sparse")) { FIO_setSparseWrite(2); continue; }
         if (!strcmp(argument, "--no-sparse")) { FIO_setSparseWrite(0); continue; }

@@ -1186,8 +1186,8 @@ void ZSTD_compressBlock_fast_generic(ZSTD_CCtx* cctx,
     }   }   }
 
     /* save reps for next block */
-    cctx->savedRep[0] = offset_1 ? (U32)offset_1 : (U32)(1 GB);
-    cctx->savedRep[1] = offset_2 ? (U32)offset_2 : (U32)(1 GB);
+    cctx->savedRep[0] = offset_1 ? (U32)offset_1 : (U32)(iend-base)+2;
+    cctx->savedRep[1] = offset_2 ? (U32)offset_2 : (U32)(iend-base)+2;
 
     /* Last Literals */
     {   size_t const lastLLSize = iend - anchor;
@@ -1844,7 +1844,7 @@ _storeSequence:
     /* Save reps for next block */
     {   int i;
         for (i=0; i<ZSTD_REP_NUM; i++) {
-            if (!rep[i]) rep[i] = (U32)(1 GB);   /* in case some zero are left */
+            if (!rep[i]) rep[i] = (U32)(iend - ctx->base) + 2;   /* in case some zero are left */
             ctx->savedRep[i] = rep[i];
     }   }
 
@@ -2238,7 +2238,7 @@ static size_t ZSTD_compressContinue_internal (ZSTD_CCtx* zc,
 
     /* preemptive overflow correction */
     if (zc->lowLimit > (1<<30)) {
-        U32 const btplus = (zc->params.cParams.strategy == ZSTD_btlazy2) || (zc->params.cParams.strategy == ZSTD_btopt);
+        U32 const btplus = (zc->params.cParams.strategy == ZSTD_btlazy2) | (zc->params.cParams.strategy == ZSTD_btopt);
         U32 const chainMask = (1 << (zc->params.cParams.chainLog - btplus)) - 1;
         U32 const newLowLimit = zc->lowLimit & chainMask;   /* preserve position % chainSize */
         U32 const correction = zc->lowLimit - newLowLimit;

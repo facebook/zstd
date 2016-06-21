@@ -421,10 +421,15 @@ static int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compres
         }   }
 
         /* final frame epilogue */
-        {   size_t dstBuffSize = cBufferSize - cSize;
-            size_t const flushError = ZBUFF_compressEnd(zc, cBuffer+cSize, &dstBuffSize);
-            CHECK (ZBUFF_isError(flushError), "flush error : %s", ZBUFF_getErrorName(flushError));
-            cSize += dstBuffSize;
+        {   size_t remainingToFlush = 1;
+            while (remainingToFlush) {
+                size_t const randomDstSize = FUZ_randomLength(&lseed, maxSampleLog);
+                size_t dstBuffSize = MIN(cBufferSize - cSize, randomDstSize);
+                remainingToFlush = ZBUFF_compressEnd(zc, cBuffer+cSize, &dstBuffSize);
+                CHECK (ZBUFF_isError(remainingToFlush), "flush error : %s", ZBUFF_getErrorName(remainingToFlush));
+                DISPLAY("flush %u bytes : still within context : %i \n", (U32)dstBuffSize, (int)remainingToFlush);
+                cSize += dstBuffSize;
+            }
         }
         crcOrig = XXH64_digest(&xxhState);
 

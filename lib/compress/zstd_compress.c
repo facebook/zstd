@@ -1330,8 +1330,6 @@ static void ZSTD_compressBlock_fast_extDict(ZSTD_CCtx* ctx,
 }
 
 
-
-
 /*-*************************************
 *  Binary Tree search
 ***************************************/
@@ -1614,7 +1612,7 @@ U32 ZSTD_insertAndFindFirstIndex (ZSTD_CCtx* zc, const BYTE* ip, U32 mls)
     const U32 target = (U32)(ip - base);
     U32 idx = zc->nextToUpdate;
 
-    while(idx < target) {
+    while(idx < target) { /* catch up */
         size_t const h = ZSTD_hashPtr(base+idx, hashLog, mls);
         NEXT_IN_CHAIN(idx, chainMask) = hashTable[h];
         hashTable[h] = idx;
@@ -1651,7 +1649,7 @@ size_t ZSTD_HcFindBestMatch_generic (
     /* HC4 match finder */
     U32 matchIndex = ZSTD_insertAndFindFirstIndex (zc, ip, mls);
 
-    for ( ; (matchIndex>lowLimit) && (nbAttempts) ; nbAttempts--) {
+    for ( ; (matchIndex>lowLimit) & (nbAttempts>0) ; nbAttempts--) {
         const BYTE* match;
         size_t currentMl=0;
         if ((!extDict) || matchIndex >= dictLimit) {
@@ -1665,7 +1663,7 @@ size_t ZSTD_HcFindBestMatch_generic (
         }
 
         /* save best solution */
-        if (currentMl > ml) { ml = currentMl; *offsetPtr = ZSTD_REP_MOVE + current - matchIndex; if (ip+currentMl == iLimit) break; /* best possible, and avoid read overflow*/ }
+        if (currentMl > ml) { ml = currentMl; *offsetPtr = current - matchIndex + ZSTD_REP_MOVE; if (ip+currentMl == iLimit) break; /* best possible, and avoid read overflow*/ }
 
         if (matchIndex <= minChain) break;
         matchIndex = NEXT_IN_CHAIN(matchIndex, chainMask);

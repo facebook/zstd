@@ -13,44 +13,41 @@ test_dir_name = 'speedTest'
 email_header = '[ZSTD_speedTest]'
 
 def log(text):
-    print time.strftime("%Y/%m/%d %H:%M:%S") + ' - ' + text
+    print(time.strftime("%Y/%m/%d %H:%M:%S") + ' - ' + text)
 
-def execute(command, print_output=False, print_error=True):
+
+def execute(command, print_output=False, print_error=True, param_shell=True):
     log("> " + command)
-    popen = Popen(command, stdout=PIPE, stderr=PIPE, shell=True, cwd=execute.cwd)
+    popen = Popen(command, stdout=PIPE, stderr=PIPE, shell=param_shell, cwd=execute.cwd)
     itout = iter(popen.stdout.readline, b"")
     iterr = iter(popen.stderr.readline, b"")
     stdout_lines = list(itout)
-    if print_output:
-        print ''.join(stdout_lines)
     stderr_lines = list(iterr)
-    if print_output:
-        print ''.join(stderr_lines)
     popen.communicate()
+    if print_output:
+        print(''.join(stdout_lines))
+        print(''.join(stderr_lines))
     if popen.returncode is not None and popen.returncode != 0:
         if not print_output and print_error:
-            print ''.join(stderr_lines)    
-        raise RuntimeError(''.join(stderr_lines))
-    return stdout_lines + stderr_lines
+            print(''.join(stderr_lines))
+    return popen.returncode, stdout_lines, stderr_lines
 execute.cwd = None
 
 
 def does_command_exist(command):
-    try:
-        execute(command, False, False);
-    except Exception as e:
-        return False
-    return True
+    result, stdoutdata, stderrdata = execute(command, False, False);
+    return result == 0
 
 
 def fetch():
     execute('git fetch -p')
-    output = execute('git branch -rl')
+    returncode, output, stderrdata = execute('git branch -rl')
     for line in output:
         if "HEAD" in line: 
-            output.remove(line) # remove "origin/HEAD -> origin/dev"
+            output.remove(line)  # remove "origin/HEAD -> origin/dev"
     branches = map(lambda l: l.strip(), output)
-    return map(lambda b: (b, execute('git show -s --format=%h ' + b)[0].strip()), branches)
+    print("branches=%s" % branches)
+    return map(lambda b: (b, execute('git show -s --format=%h ' + b)[1][0].strip()), branches)
 
 
 def notify(branch, commit, last_commit):
@@ -58,14 +55,13 @@ def notify(branch, commit, last_commit):
     branch = branch.split('/')[1]
     fmt = '--format="%h: (%an) %s, %ar"'
     if last_commit is None:
-        commits = execute('git log -n 10 %s %s' % (fmt, commit))
+        returncode, commits, stderrdata = execute('git log -n 10 %s %s' % (fmt, commit))
     else:
-        commits = execute('git --no-pager log %s %s..%s' % (fmt, last_commit, commit))
-
+        returncode, commits, stderrdata = execute('git --no-pager log %s %s..%s' % (fmt, last_commit, commit))
     text = text_tmpl.substitute({'last_commit': last_commit, 'commits': ''.join(commits)})
-    print str("commits for %s: %s" % (commit, text))
+    print(str("commits for %s: %s" % (commit, text)))
 
-
+ 
 def compile(branch, commit, dry_run):
     local_branch = string.split(branch, '/')[1]
     version = local_branch.rpartition('-')[2]
@@ -102,7 +98,7 @@ def benchmark_and_compare(branch, commit, resultsFileName, lastCLevel, testFileP
         log("WARNING: bench loadavg=%.2f is higher than %s, sleeping for %s seconds" % (os.getloadavg()[0], maxLoadAvg, sleepTime))
         time.sleep(sleepTime)
     start_load = str(os.getloadavg())
-    result = execute('programs/zstd -qi5b1e' + str(lastCLevel) + ' ' + testFilePath)
+    returncode, result, stderrdata = execute('programs/zstd -qi5b1e' + str(lastCLevel) + ' ' + testFilePath)
     end_load = str(os.getloadavg())
     linesExpected = lastCLevel + 2;
     if len(result) != linesExpected:
@@ -184,7 +180,7 @@ def check_branches(args, test_path, testFilePaths, have_mutt, have_mail):
         except Exception as e:
             stack = traceback.format_exc()
             log("ERROR: build %s, error %s" % (branch, str(e)) )
-            print stack
+            print(stack)
 
 
 if __name__ == '__main__':
@@ -214,24 +210,24 @@ if __name__ == '__main__':
     clone_path = test_path + '/' + 'zstd'             # /path/to/zstd/tests/speedTest/zstd 
 
     # check availability of e-mail senders
-    have_mutt = does_command_exist("mutt --help");
+    have_mutt = does_command_exist("mutt -h");
     have_mail = does_command_exist("mail -V");
     if not have_mutt and not have_mail:
         log("ERROR: e-mail senders 'mail' or 'mutt' not found")
         exit(1)
 
-    print "PARAMETERS:\nrepoURL=%s" % args.repoURL
-    print "test_path=%s" % test_path
-    print "clone_path=%s" % clone_path
-    print "testFilePath(%s)=%s" % (len(testFilePaths), testFilePaths)
-    print "message=%s" % args.message
-    print "emails=%s" % args.emails
-    print "maxLoadAvg=%s" % args.maxLoadAvg
-    print "lowerLimit=%s" % args.lowerLimit
-    print "lastCLevel=%s" % args.lastCLevel
-    print "sleepTime=%s" % args.sleepTime
-    print "dry_run=%s" % args.dry_run
-    print "have_mutt=%s have_mail=%s" % (have_mutt, have_mail)
+    print("PARAMETERS:\nrepoURL=%s" % args.repoURL)
+    print("test_path=%s" % test_path)
+    print("clone_path=%s" % clone_path)
+    print("testFilePath(%s)=%s" % (len(testFilePaths), testFilePaths))
+    print("message=%s" % args.message)
+    print("emails=%s" % args.emails)
+    print("maxLoadAvg=%s" % args.maxLoadAvg)
+    print("lowerLimit=%s" % args.lowerLimit)
+    print("lastCLevel=%s" % args.lastCLevel)
+    print("sleepTime=%s" % args.sleepTime)
+    print("dry_run=%s" % args.dry_run)
+    print("have_mutt=%s have_mail=%s" % (have_mutt, have_mail))
 
     # clone ZSTD repo if needed
     if not os.path.isdir(test_path):

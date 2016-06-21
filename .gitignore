@@ -13,6 +13,7 @@
 *.dylib
 
 # Executables
+zstd
 *.exe
 *.out
 *.app

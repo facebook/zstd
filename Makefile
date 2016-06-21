@@ -51,6 +51,7 @@ all:
 
 zstdprogram:
 	$(MAKE) -C $(PRGDIR)
+	mv $(PRGDIR)/zstd .
 
 zlibwrapper:
 	$(MAKE) -C $(ZSTDDIR) all
@@ -63,6 +64,7 @@ clean:
 	@$(MAKE) -C $(ZSTDDIR) $@ > $(VOID)
 	@$(MAKE) -C $(PRGDIR) $@ > $(VOID)
 	@$(MAKE) -C $(ZWRAPDIR) $@ > $(VOID)
+	@rm -f zstd
 	@echo Cleaning completed
 
 

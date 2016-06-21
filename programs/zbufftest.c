@@ -427,10 +427,9 @@ static int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compres
                 size_t dstBuffSize = MIN(cBufferSize - cSize, randomDstSize);
                 remainingToFlush = ZBUFF_compressEnd(zc, cBuffer+cSize, &dstBuffSize);
                 CHECK (ZBUFF_isError(remainingToFlush), "flush error : %s", ZBUFF_getErrorName(remainingToFlush));
-                DISPLAY("flush %u bytes : still within context : %i \n", (U32)dstBuffSize, (int)remainingToFlush);
+                //DISPLAY("flush %u bytes : still within context : %i \n", (U32)dstBuffSize, (int)remainingToFlush);
                 cSize += dstBuffSize;
-            }
-        }
+        }   }
         crcOrig = XXH64_digest(&xxhState);
 
         /* multi - fragments decompression test */

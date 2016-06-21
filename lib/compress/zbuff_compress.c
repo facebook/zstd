@@ -162,7 +162,7 @@ size_t ZBUFF_compressInit_advanced(ZBUFF_CCtx* zbc,
     zbc->inToCompress = 0;
     zbc->inBuffPos = 0;
     zbc->inBuffTarget = zbc->blockSize;
-    zbc->outBuffFlushedSize = 0;
+    zbc->outBuffContentSize = zbc->outBuffFlushedSize = 0;
     zbc->stage = ZBUFFcs_load;
     return 0;   /* ready to go */
 }
@@ -243,17 +243,20 @@ static size_t ZBUFF_compressContinue_generic(ZBUFF_CCtx* zbc,
             }
 
         case ZBUFFcs_flush:
-        case ZBUFFcs_final: /* flush into dst */
             {   size_t const toFlush = zbc->outBuffContentSize - zbc->outBuffFlushedSize;
                 size_t const flushed = ZBUFF_limitCopy(op, oend-op, zbc->outBuff + zbc->outBuffFlushedSize, toFlush);
                 op += flushed;
                 zbc->outBuffFlushedSize += flushed;
                 if (toFlush!=flushed) { notDone = 0; break; } /* dst too small to store flushed data : stop there */
                 zbc->outBuffContentSize = zbc->outBuffFlushedSize = 0;
-                if (zbc->stage==ZBUFFcs_flush) { zbc->stage = ZBUFFcs_load; break; }
-                notDone=0;
+                zbc->stage = ZBUFFcs_load;
                 break;
             }
+
+        case ZBUFFcs_final:
+            notDone = 0;   /* do nothing */
+            break;
+
         default:
             return ERROR(GENERIC);   /* impossible */
         }
@@ -292,26 +295,28 @@ size_t ZBUFF_compressEnd(ZBUFF_CCtx* zbc, void* dst, size_t* dstCapacityPtr)
     BYTE* const oend = ostart + *dstCapacityPtr;
     BYTE* op = ostart;
 
-    {   size_t outSize = *dstCapacityPtr;
+    if (zbc->stage != ZBUFFcs_final) {
+        /* flush whatever remains */
+        size_t outSize = *dstCapacityPtr;
         size_t const remainingToFlush = ZBUFF_compressFlush(zbc, dst, &outSize);
         op += outSize;
         if (remainingToFlush) {
             *dstCapacityPtr = op-ostart;
-            return remainingToFlush + (ZSTD_BLOCKHEADERSIZE * (zbc->stage != ZBUFFcs_final));
-    }   }
-
-    if (zbc->stage == ZBUFFcs_final) { zbc->stage = ZBUFFcs_init; *dstCapacityPtr = op-ostart; return 0; }
-
-    /* outBuff is flushed */
-    {   size_t outSize = oend-op;
-        size_t remainingToFlush;
+            return remainingToFlush + ZSTD_BLOCKHEADERSIZE;
+        }
+        /* create epilogue */
+        zbc->stage = ZBUFFcs_final;
         zbc->outBuffContentSize = ZSTD_compressEnd(zbc->zc, zbc->outBuff, zbc->outBuffSize); /* epilogue into outBuff */
-        zbc->stage = ZBUFFcs_flush;
-        remainingToFlush = ZBUFF_compressFlush(zbc, op, &outSize);
-        op += outSize;
-        zbc->stage = remainingToFlush ? ZBUFFcs_final : ZBUFFcs_init; /* close only if nothing left to flush */
-        *dstCapacityPtr = op-ostart;   /* how many bytes were written */
-        return remainingToFlush;
+    }
+
+    /* flush epilogue */
+    {   size_t const toFlush = zbc->outBuffContentSize - zbc->outBuffFlushedSize;
+        size_t const flushed = ZBUFF_limitCopy(op, oend-op, zbc->outBuff + zbc->outBuffFlushedSize, toFlush);
+        op += flushed;
+        zbc->outBuffFlushedSize += flushed;
+        *dstCapacityPtr = op-ostart;
+        if (toFlush==flushed) zbc->stage = ZBUFFcs_init;  /* end reached */
+        return toFlush - flushed;
     }
 }
 

@@ -132,7 +132,7 @@ ZSTDLIB_API size_t ZSTD_decompressDCtx(ZSTD_DCtx* ctx, void* dst, size_t dstCapa
 /*! ZSTD_compress_usingDict() :
 *   Compression using a pre-defined Dictionary content (see dictBuilder).
 *   Note 1 : This function load the dictionary, resulting in a significant startup time.
-*   Note 2 : `dict` must remain valid and unmodified during compression operation.
+*   Note 2 : `dict` must remain accessible and unmodified during compression operation.
 *   Note 3 : `dict` can be `NULL`, in which case, it's equivalent to ZSTD_compressCCtx() */
 ZSTDLIB_API size_t ZSTD_compress_usingDict(ZSTD_CCtx* ctx,
                                            void* dst, size_t dstCapacity,
@@ -144,7 +144,7 @@ ZSTDLIB_API size_t ZSTD_compress_usingDict(ZSTD_CCtx* ctx,
 *   Decompression using a pre-defined Dictionary content (see dictBuilder).
 *   Dictionary must be identical to the one used during compression.
 *   Note 1 : This function load the dictionary, resulting in a significant startup time
-*   Note 2 : `dict` must remain valid and unmodified during compression operation.
+*   Note 2 : `dict` must remain accessible and unmodified during compression operation.
 *   Note 3 : `dict` can be `NULL`, in which case, it's equivalent to ZSTD_decompressDCtx() */
 ZSTDLIB_API size_t ZSTD_decompress_usingDict(ZSTD_DCtx* dctx,
                                              void* dst, size_t dstCapacity,
@@ -192,7 +192,7 @@ ZSTDLIB_API size_t ZSTD_decompress_usingDDict(ZSTD_DCtx* dctx,
 
 /* ====================================================================================
  * The definitions in this section are considered experimental.
- * They should never be used in association with a dynamic library, as they may change in the future.
+ * They should never be used with a dynamic library, as they may change in the future.
  * They are provided for advanced usages.
  * Use them only in association with static linking.
  * ==================================================================================== */
@@ -322,15 +322,22 @@ ZSTDLIB_API size_t ZSTD_compressEnd(ZSTD_CCtx* cctx, void* dst, size_t dstCapaci
   It's also possible to duplicate a reference context which has already been initialized, using ZSTD_copyCCtx()
 
   Then, consume your input using ZSTD_compressContinue().
-  ZSTD_compressContinue() presumes prior data is still accessible and unmodified (up to maximum distance size, see WindowLog).
-  The interface is synchronous, so input will be entirely consumed and produce associated compressed output.
-  You must ensure there is enough space in destination buffer to store compressed data under worst case scenario.
-  Worst case evaluation is provided by ZSTD_compressBound().
+  There are some important considerations to keep in mind when using this advanced function :
+  - ZSTD_compressContinue() has no internal buffer. It uses externally provided buffer only.
+  - Interface is synchronous : input will be entirely consumed and produce 1+ compressed blocks.
+  - Caller must ensure there is enough space in `dst` to store compressed data under worst case scenario.
+    Worst case evaluation is provided by ZSTD_compressBound().
+    ZSTD_compressContinue() doesn't guarantee recover after a failed compression.
+  - ZSTD_compressContinue() presumes prior input ***is still accessible and unmodified*** (up to maximum distance size, see WindowLog).
+    It remembers all previous contiguous blocks, plus one separated memory segment (which can itself consists of multiple contiguous blocks)
+  - ZSTD_compressContinue() detects that prior input has been overwritten when `src` buffer overlaps.
+    In which case, it will "discard" the relevant memory section from its history.
+
 
   Finish a frame with ZSTD_compressEnd(), which will write the epilogue.
   Without epilogue, frames will be considered unfinished (broken) by decoders.
 
-  You can then reuse ZSTD_CCtx to compress some new frame.
+  You can then reuse `ZSTD_CCtx` (ZSTD_compressBegin()) to compress some new frame.
 */
 
 typedef struct {
@@ -357,7 +364,7 @@ ZSTDLIB_API size_t ZSTD_decompressContinue(ZSTD_DCtx* dctx, void* dst, size_t ds
   A ZSTD_DCtx object can be re-used multiple times.
 
   First optional operation is to retrieve frame parameters, using ZSTD_getFrameParams(), which doesn't consume the input.
-  It can provide the minimum size of rolling buffer required to properly decompress data,
+  It can provide the minimum size of rolling buffer required to properly decompress data (`windowSize`),
   and optionally the final size of uncompressed content.
   (Note : content size is an optional info that may not be present. 0 means : content size unknown)
   Frame parameters are extracted from the beginning of compressed frame.
@@ -373,7 +380,7 @@ ZSTDLIB_API size_t ZSTD_decompressContinue(ZSTD_DCtx* dctx, void* dst, size_t ds
   Then use ZSTD_nextSrcSizeToDecompress() and ZSTD_decompressContinue() alternatively.
   ZSTD_nextSrcSizeToDecompress() tells how much bytes to provide as 'srcSize' to ZSTD_decompressContinue().
   ZSTD_decompressContinue() requires this exact amount of bytes, or it will fail.
-  ZSTD_decompressContinue() needs previous data blocks during decompression, up to (1 << windowlog).
+  ZSTD_decompressContinue() needs previous data blocks during decompression, up to `windowSize`.
   They should preferably be located contiguously, prior to current block. Alternatively, a round buffer is also possible.
 
   @result of ZSTD_decompressContinue() is the number of bytes regenerated within 'dst' (necessarily <= dstCapacity).

@@ -297,7 +297,7 @@ size_t ZBUFF_compressEnd(ZBUFF_CCtx* zbc, void* dst, size_t* dstCapacityPtr)
         op += outSize;
         if (remainingToFlush) {
             *dstCapacityPtr = op-ostart;
-            return remainingToFlush;
+            return remainingToFlush + (ZSTD_BLOCKHEADERSIZE * (zbc->stage != ZBUFFcs_final));
     }   }
 
     if (zbc->stage == ZBUFFcs_final) { zbc->stage = ZBUFFcs_init; *dstCapacityPtr = op-ostart; return 0; }

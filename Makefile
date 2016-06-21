@@ -51,7 +51,7 @@ all:
 
 zstdprogram:
 	$(MAKE) -C $(PRGDIR)
-	mv $(PRGDIR)/zstd .
+	cp $(PRGDIR)/zstd .
 
 zlibwrapper:
 	$(MAKE) -C $(ZSTDDIR) all
@@ -86,6 +86,14 @@ travis-install:
 gpptest: clean
 	$(MAKE) all CC=g++ CFLAGS="-O3 -Wall -Wextra -Wundef -Wshadow -Wcast-align -Werror"
 
+gcc5test: clean
+	gcc-5 -v
+	$(MAKE) all CC=gcc-5 MOREFLAGS="-Werror"
+
+gcc6test: clean
+	gcc-6 -v
+	$(MAKE) all CC=gcc-6 MOREFLAGS="-Werror"
+
 clangtest: clean
 	clang -v
 	$(MAKE) all CC=clang MOREFLAGS="-Werror -Wconversion -Wno-sign-conversion"
@@ -94,35 +102,13 @@ armtest: clean
 	$(MAKE) -C $(PRGDIR) datagen   # use native, faster
 	$(MAKE) -C $(PRGDIR) test CC=arm-linux-gnueabi-gcc ZSTDRTTEST= MOREFLAGS="-Werror -static"
 
-# for Travis CI
-arminstall: clean
-	sudo apt-get install -y -q qemu binfmt-support qemu-user-static gcc-arm-linux-gnueabi
-
-# for Travis CI
-armtest-w-install: clean arminstall armtest
-
 ppctest: clean
 	$(MAKE) -C $(PRGDIR) datagen   # use native, faster
 	$(MAKE) -C $(PRGDIR) test CC=powerpc-linux-gnu-gcc ZSTDRTTEST= MOREFLAGS="-Werror -static"
 
-# for Travis CI
-ppcinstall: clean
-	# sudo apt-get update  -y -q
-	sudo apt-get install -y -q qemu-system-ppc binfmt-support qemu-user-static gcc-powerpc-linux-gnu  # doesn't work with Ubuntu 12.04
-
-# for Travis CI
-ppctest-w-install: clean ppcinstall ppctest
-
 ppc64test: clean
 	$(MAKE) -C $(PRGDIR) datagen   # use native, faster
-	$(MAKE) -C $(PRGDIR) test CC=powerpc64le-linux-gnu-gcc ZSTDRTTEST= MOREFLAGS="-Werror -static"
-
-ppc64install: clean
-	sudo apt-get update  -y -q
-	sudo apt-get install -y -q qemu-ppc64le binfmt-support qemu-user-static gcc-powerpc64le-linux-gnu
-	update-binfmts --displ
-
-ppc64test-w-install: clean ppc64install ppc64test
+	$(MAKE) -C $(PRGDIR) test CC=powerpc-linux-gnu-gcc ZSTDRTTEST= MOREFLAGS="-m64 -Werror -static"
 
 usan: clean
 	$(MAKE) test CC=clang MOREFLAGS="-g -fsanitize=undefined"
@@ -182,3 +168,37 @@ bmix32test: clean
 bmi32test: clean
 	CFLAGS="-O3 -mbmi -m32 -Werror" $(MAKE) -C $(PRGDIR) test
 endif
+
+
+#------------------------------------------------------------------------
+# for Travis CI
+#------------------------------------------------------------------------
+libc6install:
+	sudo apt-get install -y -qq libc6-dev-i386
+
+gppinstall:
+	sudo apt-get install -y -qq g++-multilib
+
+gcc5install:
+	sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
+	sudo apt-get update -y -qq
+	sudo apt-get install -y -qq gcc-5-multilib
+
+gcc6install:
+	sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
+	sudo apt-get update -y -qq 
+	sudo apt-get install -y -qq gcc-6-multilib
+
+arminstall: clean
+	sudo apt-get install -y -q qemu binfmt-support qemu-user-static gcc-arm-linux-gnueabi
+
+ppcinstall: clean
+	sudo apt-get install -y -q qemu-system-ppc binfmt-support qemu-user-static gcc-powerpc-linux-gnu  # doesn't work with Ubuntu 12.04
+
+ppc64install: clean   # compilation works but cannot be executed
+	sudo apt-get install -y -q qemu-system-ppc binfmt-support qemu-user-static gcc-powerpc-linux-gnu
+	update-binfmts --displ
+
+valgrindinstall:
+	echo sudo apt-get install -y -qq valgrind
+	sudo apt-get install -y -qq valgrind

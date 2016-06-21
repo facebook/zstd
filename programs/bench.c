@@ -42,10 +42,6 @@
 /* *************************************
 *  Constants
 ***************************************/
-#ifndef ZSTD_VERSION
-#  define ZSTD_VERSION ""
-#endif
-
 #define NBLOOPS               3
 #define TIMELOOP_MICROSEC     1*1000000ULL /* 1 second */
 #define ACTIVEPERIOD_MICROSEC 70*1000000ULL /* 70 seconds */
@@ -363,7 +359,7 @@ static void BMK_benchCLevel(void* srcBuffer, size_t benchedSize,
     memset(&total, 0, sizeof(total));
 
     if (g_displayLevel == 1 && !g_additionalParam)
-        DISPLAY("bench %s: input %u bytes, %i iterations, %u KB blocks\n", ZSTD_VERSION, (U32)benchedSize, g_nbIterations, (U32)(g_blockSize>>10));
+        DISPLAY("bench %s: input %u bytes, %i iterations, %u KB blocks\n", ZSTD_VERSION_STRING, (U32)benchedSize, g_nbIterations, (U32)(g_blockSize>>10));
 
     if (cLevelLast < cLevel) cLevelLast = cLevel;
 

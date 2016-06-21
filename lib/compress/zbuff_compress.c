@@ -302,7 +302,7 @@ size_t ZBUFF_compressEnd(ZBUFF_CCtx* zbc, void* dst, size_t* dstCapacityPtr)
         op += outSize;
         if (remainingToFlush) {
             *dstCapacityPtr = op-ostart;
-            return remainingToFlush + ZSTD_BLOCKHEADERSIZE;
+            return remainingToFlush + ZBUFF_endFrameSize;
         }
         /* create epilogue */
         zbc->stage = ZBUFFcs_final;

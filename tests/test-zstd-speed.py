@@ -123,7 +123,7 @@ def benchmark_and_compare(branch, commit, resultsFileName, lastCLevel, testFileP
         log("WARNING: bench loadavg=%.2f is higher than %s, sleeping for %s seconds" % (os.getloadavg()[0], maxLoadAvg, sleepTime))
         time.sleep(sleepTime)
     start_load = str(os.getloadavg())
-    result = execute('programs/zstd -qi5b1e' + str(lastCLevel) + ' ' + testFilePath, print_output=True)
+    result = execute('programs/zstd -qi5b1e%s %s' % (lastCLevel, testFilePath), print_output=True)
     end_load = str(os.getloadavg())
     linesExpected = lastCLevel + 2;
     if len(result) != linesExpected:
@@ -148,44 +148,35 @@ def benchmark_and_compare(branch, commit, resultsFileName, lastCLevel, testFileP
         return text
 
 
-def check_commit(branch, commit, args, testFilePaths, have_mutt, have_mail):
-    try:
-        last_commit = None
-        commitFileName = working_path + "/commit_" + branch.replace("/", "_")
-        if os.path.isfile(commitFileName):
-            last_commit = file(commitFileName, 'r').read()
-        file(commitFileName, 'w').write(commit)
+def update_config_file(branch, commit):
+    last_commit = None
+    commitFileName = working_path + "/commit_" + branch.replace("/", "_") + ".txt"
+    if os.path.isfile(commitFileName):
+        last_commit = file(commitFileName, 'r').read()
+    file(commitFileName, 'w').write(commit)
+    return last_commit
 
-        if commit == last_commit:
-            log("skipping branch %s: head %s already processed" % (branch, commit))
-            return
 
-        log("build branch %s: head %s is different from prev %s" % (branch, commit, last_commit))
-        compile(branch, commit, last_commit, args.dry_run)
+def test_commit(branch, commit, last_commit, args, testFilePaths, have_mutt, have_mail):
+    compile(branch, commit, last_commit, args.dry_run)
+    logFileName = working_path + "/log_" + branch.replace("/", "_") + ".txt"
+    text_to_send = []
+    results_files = ""
+    for filePath in testFilePaths:
+        fileName = filePath.rpartition('/')[2]
+        resultsFileName = working_path + "/results_" + branch.replace("/", "_") + "_" + fileName.replace(".", "_") + ".txt"
+        last_commit, cspeed, dspeed = get_last_results(resultsFileName)
 
-        logFileName = working_path + "/log_" + branch.replace("/", "_")
-        text_to_send = []
-        results_files = ""
-        for filePath in testFilePaths:
-            fileName = filePath.rpartition('/')[2]
-            resultsFileName = working_path + "/results_" + branch.replace("/", "_") + "_" + fileName.replace(".", "_") + ".txt"
-            last_commit, cspeed, dspeed = get_last_results(resultsFileName)
-
-            if not args.dry_run:
+        if not args.dry_run:
+            text = benchmark_and_compare(branch, commit, resultsFileName, args.lastCLevel, filePath, fileName, cspeed, dspeed, args.lowerLimit, args.maxLoadAvg, args.message)
+            if text:
+                log("WARNING: redoing tests for branch %s: commit %s" % (branch, commit))
                 text = benchmark_and_compare(branch, commit, resultsFileName, args.lastCLevel, filePath, fileName, cspeed, dspeed, args.lowerLimit, args.maxLoadAvg, args.message)
                 if text:
-                    log("WARNING: redoing tests for branch %s: commit %s" % (branch, commit))
-                    text = benchmark_and_compare(branch, commit, resultsFileName, args.lastCLevel, filePath, fileName, cspeed, dspeed, args.lowerLimit, args.maxLoadAvg, args.message)
-                    if text:
-                        text_to_send.append(text)
-                        results_files += resultsFileName + " "
-        if text_to_send:
-            send_email_with_attachments(branch, commit, last_commit, args.emails, text_to_send, results_files, logFileName, args.lowerLimit, have_mutt, have_mail)
-    except Exception as e:
-        stack = traceback.format_exc()
-        email_topic = '%s:%s ERROR in %s:%s' % (email_header, pid, branch, commit)
-        send_email(args.emails, email_topic, stack, have_mutt, have_mail)
-        print(stack)
+                    text_to_send.append(text)
+                    results_files += resultsFileName + " "
+    if text_to_send:
+        send_email_with_attachments(branch, commit, last_commit, args.emails, text_to_send, results_files, logFileName, args.lowerLimit, have_mutt, have_mail)
 
 
 if __name__ == '__main__':
@@ -258,13 +249,22 @@ if __name__ == '__main__':
             if (loadavg <= args.maxLoadAvg):
                 branches = git_get_branches()
                 for branch in branches:
-                    commits = execute('git show -s --format=%h ' + branch)[0]
-                    for commit in [commits]:
-                        check_commit(branch, commit, args, testFilePaths, have_mutt, have_mail)
+                    commit = execute('git show -s --format=%h ' + branch)[0]
+                    last_commit = update_config_file(branch, commit)
+                    if commit == last_commit:
+                        log("skipping branch %s: head %s already processed" % (branch, commit))
+                    else:
+                        log("build branch %s: head %s is different from prev %s" % (branch, commit, last_commit))
+                        test_commit(branch, commit, last_commit, args, testFilePaths, have_mutt, have_mail)
             else:
                 log("WARNING: main loadavg=%.2f is higher than %s" % (loadavg, args.maxLoadAvg))
             log("sleep for %s seconds" % args.sleepTime)
             time.sleep(args.sleepTime)
+        except Exception as e:
+            stack = traceback.format_exc()
+            email_topic = '%s:%s ERROR in %s:%s' % (email_header, pid, branch, commit)
+            send_email(args.emails, email_topic, stack, have_mutt, have_mail)
+            print(stack)
         except KeyboardInterrupt:
             os.unlink(pidfile)
             send_email(args.emails, email_header + ':%s test-zstd-speed.py has been stopped' % pid, args.message, have_mutt, have_mail)

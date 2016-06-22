@@ -295,7 +295,7 @@ static size_t ZSTD_resetCCtx_advanced (ZSTD_CCtx* zc,
     zc->seqStore.buffer = zc->hashTable3 + h3Size;
     zc->hufTable = (HUF_CElt*)zc->seqStore.buffer;
     zc->flagStaticTables = 0;
-    zc->seqStore.buffer = ((U32*)(zc->seqStore.buffer)) + 256;
+    zc->seqStore.buffer = ((U32*)(zc->seqStore.buffer)) + 256;  /* note : HUF_CElt* is incomplete type, size is simulated using U32 */
 
     zc->nextToUpdate = 1;
     zc->nextSrc = NULL;
@@ -313,14 +313,17 @@ static size_t ZSTD_resetCCtx_advanced (ZSTD_CCtx* zc,
         zc->seqStore.litLengthFreq = zc->seqStore.litFreq + (1<<Litbits);
         zc->seqStore.matchLengthFreq = zc->seqStore.litLengthFreq + (MaxLL+1);
         zc->seqStore.offCodeFreq = zc->seqStore.matchLengthFreq + (MaxML+1);
-        zc->seqStore.matchTable = (ZSTD_match_t*)((void*)(zc->seqStore.offCodeFreq + (MaxOff+1)));
-        zc->seqStore.priceTable = (ZSTD_optimal_t*)((void*)(zc->seqStore.matchTable + ZSTD_OPT_NUM+1));
+        zc->seqStore.buffer = zc->seqStore.offCodeFreq + (MaxOff+1);
+        zc->seqStore.matchTable = (ZSTD_match_t*)zc->seqStore.buffer;
+        zc->seqStore.buffer = zc->seqStore.matchTable + ZSTD_OPT_NUM+1;
+        zc->seqStore.priceTable = (ZSTD_optimal_t*)zc->seqStore.buffer;
         zc->seqStore.buffer = zc->seqStore.priceTable + ZSTD_OPT_NUM+1;
         zc->seqStore.litLengthSum = 0;
     }
-    zc->seqStore.offsetStart = (U32*) (zc->seqStore.buffer);
-    zc->seqStore.litLengthStart = (U16*) (void*)(zc->seqStore.offsetStart + maxNbSeq);
-    zc->seqStore.matchLengthStart = (U16*) (void*)(zc->seqStore.litLengthStart + maxNbSeq);
+    zc->seqStore.offsetStart = (U32*)(zc->seqStore.buffer);
+    zc->seqStore.buffer = zc->seqStore.offsetStart + maxNbSeq;
+    zc->seqStore.litLengthStart = (U16*)zc->seqStore.buffer;
+    zc->seqStore.matchLengthStart = zc->seqStore.litLengthStart + maxNbSeq;
     zc->seqStore.llCodeStart = (BYTE*) (zc->seqStore.matchLengthStart + maxNbSeq);
     zc->seqStore.mlCodeStart = zc->seqStore.llCodeStart + maxNbSeq;
     zc->seqStore.offCodeStart = zc->seqStore.mlCodeStart + maxNbSeq;
@@ -1330,8 +1333,6 @@ static void ZSTD_compressBlock_fast_extDict(ZSTD_CCtx* ctx,
 }
 
 
-
-
 /*-*************************************
 *  Binary Tree search
 ***************************************/
@@ -1614,7 +1615,7 @@ U32 ZSTD_insertAndFindFirstIndex (ZSTD_CCtx* zc, const BYTE* ip, U32 mls)
     const U32 target = (U32)(ip - base);
     U32 idx = zc->nextToUpdate;
 
-    while(idx < target) {
+    while(idx < target) { /* catch up */
         size_t const h = ZSTD_hashPtr(base+idx, hashLog, mls);
         NEXT_IN_CHAIN(idx, chainMask) = hashTable[h];
         hashTable[h] = idx;
@@ -1651,7 +1652,7 @@ size_t ZSTD_HcFindBestMatch_generic (
     /* HC4 match finder */
     U32 matchIndex = ZSTD_insertAndFindFirstIndex (zc, ip, mls);
 
-    for ( ; (matchIndex>lowLimit) && (nbAttempts) ; nbAttempts--) {
+    for ( ; (matchIndex>lowLimit) & (nbAttempts>0) ; nbAttempts--) {
         const BYTE* match;
         size_t currentMl=0;
         if ((!extDict) || matchIndex >= dictLimit) {
@@ -1665,7 +1666,7 @@ size_t ZSTD_HcFindBestMatch_generic (
         }
 
         /* save best solution */
-        if (currentMl > ml) { ml = currentMl; *offsetPtr = ZSTD_REP_MOVE + current - matchIndex; if (ip+currentMl == iLimit) break; /* best possible, and avoid read overflow*/ }
+        if (currentMl > ml) { ml = currentMl; *offsetPtr = current - matchIndex + ZSTD_REP_MOVE; if (ip+currentMl == iLimit) break; /* best possible, and avoid read overflow*/ }
 
         if (matchIndex <= minChain) break;
         matchIndex = NEXT_IN_CHAIN(matchIndex, chainMask);

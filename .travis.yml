@@ -6,85 +6,82 @@ matrix:
     # Container-based Ubuntu 12.04 LTS Server Edition 64 bit (doesn't support 32-bit includes)
     - os: linux
       sudo: false
-      env: PLATFORM="Ubuntu 12.04 container" MAKE_PARAM=travis-install
+      env: PLATFORM="Ubuntu 12.04 container" CMD="make travis-install"
     - os: linux
       sudo: false
-      env: PLATFORM="Ubuntu 12.04 container" MAKE_PARAM=cmaketest
+      env: PLATFORM="Ubuntu 12.04 container" CMD="make cmaketest"
     - os: linux
       sudo: false
-      env: PLATFORM="Ubuntu 12.04 container" MAKE_PARAM=test
+      env: PLATFORM="Ubuntu 12.04 container" CMD="make test"
     - os: linux
       sudo: false
-      env: PLATFORM="Ubuntu 12.04 container" MAKE_PARAM="-C programs test-zstd_nolegacy"
+      env: PLATFORM="Ubuntu 12.04 container" CMD="make -C programs test-zstd_nolegacy"
     - os: linux
       sudo: false
-      env: PLATFORM="Ubuntu 12.04 container" MAKE_PARAM=usan
+      env: PLATFORM="Ubuntu 12.04 container" CMD="make usan"
     - os: linux
       sudo: false
-      env: PLATFORM="Ubuntu 12.04 container" MAKE_PARAM=asan
+      env: PLATFORM="Ubuntu 12.04 container" CMD="make asan"
     - os: linux
       sudo: false
-      env: PLATFORM="Ubuntu 12.04 container" MAKE_PARAM=zlibwrapper
+      env: PLATFORM="Ubuntu 12.04 container" CMD="make zlibwrapper"
     # Standard Ubuntu 12.04 LTS Server Edition 64 bit
     - os: linux
       sudo: required
-      env: PLATFORM="Ubuntu 12.04" MAKE_PARAM=clangtest
+      env: PLATFORM="Ubuntu 12.04" CMD="make libc6install clangtest"
     - os: linux
       sudo: required
-      env: PLATFORM="Ubuntu 12.04" MAKE_PARAM=gpptest
+      env: PLATFORM="Ubuntu 12.04" CMD="make gppinstall gpptest"
     - os: linux
       sudo: required
-      env: PLATFORM="Ubuntu 12.04" MAKE_PARAM=gnu90test
+      env: PLATFORM="Ubuntu 12.04" CMD="make libc6install gnu90test"
     - os: linux
       sudo: required
-      env: PLATFORM="Ubuntu 12.04" MAKE_PARAM=c99test
+      env: PLATFORM="Ubuntu 12.04" CMD="make libc6install c99test"
     - os: linux
       sudo: required
-      env: PLATFORM="Ubuntu 12.04" MAKE_PARAM=gnu99test
+      env: PLATFORM="Ubuntu 12.04" CMD="make libc6install gnu99test"
     - os: linux
       sudo: required
-      env: PLATFORM="Ubuntu 12.04" MAKE_PARAM=armtest-w-install
+      env: PLATFORM="Ubuntu 12.04" CMD="make arminstall armtest"
     - os: linux
       sudo: required
-      env: PLATFORM="Ubuntu 12.04" MAKE_PARAM="-C programs test32"
+      env: PLATFORM="Ubuntu 12.04" CMD="make libc6install && make -C programs test32"
     - os: linux
       sudo: required
-      env: PLATFORM="Ubuntu 12.04" MAKE_PARAM="-C tests versionsTest"
+      env: PLATFORM="Ubuntu 12.04" CMD="make -C tests versionsTest"
     - os: linux
       sudo: required
-      env: PLATFORM="Ubuntu 12.04" MAKE_PARAM=asan32
+      env: PLATFORM="Ubuntu 12.04" CMD="make libc6install asan32"
     - os: linux
       sudo: required
-      env: PLATFORM="Ubuntu 12.04" MAKE_PARAM="-C programs valgrindTest"
+      env: PLATFORM="Ubuntu 12.04" CMD="make valgrindinstall && make -C programs valgrindTest"
     # Ubuntu 14.04 LTS Server Edition 64 bit
     - os: linux
       dist: trusty
       sudo: required
-      env: PLATFORM="Ubuntu 14.04" MAKE_PARAM=ppctest-w-install
+      env: PLATFORM="Ubuntu 14.04" CMD="make gcc5install gcc5test"
     - os: linux
       dist: trusty
       sudo: required
-      env: PLATFORM="Ubuntu 14.04" MAKE_PARAM=zlibwrapper
+      env: PLATFORM="Ubuntu 14.04" CMD="make gcc6install gcc6test"
+    - os: linux
+      dist: trusty
+      sudo: required
+      env: PLATFORM="Ubuntu 14.04" CMD="make ppcinstall ppctest"
+    - os: linux
+      dist: trusty
+      sudo: required
+      env: PLATFORM="Ubuntu 14.04" CMD="make zlibwrapper"
     # OS X Mavericks
     - os: osx
-      env: PLATFORM="OS X Mavericks" MAKE_PARAM=travis-install
+      env: PLATFORM="OS X Mavericks" CMD="make travis-install"
     - os: osx
-      env: PLATFORM="OS X Mavericks" MAKE_PARAM=gnu90test
+      env: PLATFORM="OS X Mavericks" CMD="make gnu90test"
     - os: osx
-      env: PLATFORM="OS X Mavericks" MAKE_PARAM=test
+      env: PLATFORM="OS X Mavericks" CMD="make test"
   exclude:
     - compiler: gcc
 
-before_install:
-  - set -e
-  - |
-    if [ "$TRAVIS_OS_NAME" == "linux" ]; then
-      CAN_I_RUN_SUDO=$(sudo -n uptime 2>&1|grep "load"|wc -l)
-      echo "CAN_I_RUN_SUDO=$CAN_I_RUN_SUDO\n"
-      if [ ${CAN_I_RUN_SUDO} -gt 0 ]; then
-        sudo apt-get install -y -qq clang g++-multilib gcc-multilib valgrind
-      fi
-    fi
-
 script:
-  - make $MAKE_PARAM
+  - sh -c "$CMD"

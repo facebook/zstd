@@ -88,16 +88,6 @@ def git_get_changes(branch, commit, last_commit):
     return str('Changes in %s since %s:\n' % (branch, last_commit)) + '\n'.join(commits)
 
 
-def compile(branch, commit, last_commit, dry_run):
-    local_branch = string.split(branch, '/')[1]
-    version = local_branch.rpartition('-')[2]
-    version = version + '_' + commit
-    execute('git checkout -- . && git checkout ' + branch)
-    print(git_get_changes(branch, commit, last_commit))
-    if not dry_run:
-        execute('make clean zstdprogram MOREFLAGS="-DZSTD_GIT_COMMIT=%s"' % version)
-
-
 def get_last_results(resultsFileName):
     if not os.path.isfile(resultsFileName):
         return None, None, None
@@ -158,7 +148,10 @@ def update_config_file(branch, commit):
 
 
 def test_commit(branch, commit, last_commit, args, testFilePaths, have_mutt, have_mail):
-    compile(branch, commit, last_commit, args.dry_run)
+    local_branch = string.split(branch, '/')[1]
+    version = local_branch.rpartition('-')[2] + '_' + commit
+    if not args.dry_run:
+        execute('make clean zstdprogram MOREFLAGS="-DZSTD_GIT_COMMIT=%s"' % version)
     logFileName = working_path + "/log_" + branch.replace("/", "_") + ".txt"
     text_to_send = []
     results_files = ""
@@ -166,7 +159,6 @@ def test_commit(branch, commit, last_commit, args, testFilePaths, have_mutt, hav
         fileName = filePath.rpartition('/')[2]
         resultsFileName = working_path + "/results_" + branch.replace("/", "_") + "_" + fileName.replace(".", "_") + ".txt"
         last_commit, cspeed, dspeed = get_last_results(resultsFileName)
-
         if not args.dry_run:
             text = benchmark_and_compare(branch, commit, resultsFileName, args.lastCLevel, filePath, fileName, cspeed, dspeed, args.lowerLimit, args.maxLoadAvg, args.message)
             if text:
@@ -255,6 +247,8 @@ if __name__ == '__main__':
                         log("skipping branch %s: head %s already processed" % (branch, commit))
                     else:
                         log("build branch %s: head %s is different from prev %s" % (branch, commit, last_commit))
+                        execute('git checkout -- . && git checkout ' + branch)
+                        print(git_get_changes(branch, commit, last_commit))
                         test_commit(branch, commit, last_commit, args, testFilePaths, have_mutt, have_mail)
             else:
                 log("WARNING: main loadavg=%.2f is higher than %s" % (loadavg, args.maxLoadAvg))

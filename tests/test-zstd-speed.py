@@ -6,6 +6,8 @@ import string
 import time
 import traceback
 import subprocess
+import signal
+ 
 
 default_repo_url = 'https://github.com/Cyan4973/zstd.git'
 working_dir_name = 'speedTest'
@@ -83,7 +85,7 @@ def git_get_changes(commit, last_commit):
         commits = execute('git log -n 10 %s %s' % (fmt, commit))
     else:
         commits = execute('git --no-pager log %s %s..%s' % (fmt, last_commit, commit))
-    return str('Changes since %s:' % (last_commit)) + '\n'.join(commits)
+    return str('Changes since %s:\n' % (last_commit)) + '\n'.join(commits)
 
 
 def compile(branch, commit, last_commit, dry_run):
@@ -96,7 +98,7 @@ def compile(branch, commit, last_commit, dry_run):
         execute('VERSION=' + version + '; make clean zstdprogram')
 
 
-def get_last_commit(resultsFileName):
+def get_last_results(resultsFileName):
     if not os.path.isfile(resultsFileName):
         return None, None, None
     commit = None
@@ -133,7 +135,7 @@ def benchmark_and_compare(branch, commit, resultsFileName, lastCLevel, testFileP
         if (last_cspeed == None):
             log("WARNING: No data for comparison for branch=%s file=%s " % (branch, fileName))
             return ""
-        commit, cspeed, dspeed = get_last_commit(resultsFileName)
+        commit, cspeed, dspeed = get_last_results(resultsFileName)
         text = ""
         for i in range(0, min(len(cspeed), len(last_cspeed))):
             print("%s:%s -%d cspeed=%6.2f clast=%6.2f cdiff=%1.4f dspeed=%6.2f dlast=%6.2f ddiff=%1.4f %s" % (branch, commit, i+1, cspeed[i], last_cspeed[i], cspeed[i]/last_cspeed[i], dspeed[i], last_dspeed[i], dspeed[i]/last_dspeed[i], fileName))
@@ -150,41 +152,41 @@ def check_branch(branch, args, testFilePaths, have_mutt, have_mail):
     commits = execute('git show -s --format=%h ' + branch)[0]
     for commit in [commits]:
         try:
+            last_commit = None
             commitFileName = working_path + "/commit_" + branch.replace("/", "_")
             if os.path.isfile(commitFileName):
                 last_commit = file(commitFileName, 'r').read()
-            else:
-                last_commit = None
             file(commitFileName, 'w').write(commit)
 
             if commit == last_commit:
                 log("skipping branch %s: head %s already processed" % (branch, commit))
-            else:
-                log("build branch %s: head %s is different from prev %s" % (branch, commit, last_commit))
-                compile(branch, commit, last_commit, args.dry_run)
+                continue
 
-                logFileName = working_path + "/log_" + branch.replace("/", "_")
-                text_to_send = []
-                results_files = ""
-                for filePath in testFilePaths:
-                    fileName = filePath.rpartition('/')[2]
-                    resultsFileName = working_path + "/results_" + branch.replace("/", "_") + "_" + fileName
-                    last_commit, cspeed, dspeed = get_last_commit(resultsFileName)
+            log("build branch %s: head %s is different from prev %s" % (branch, commit, last_commit))
+            compile(branch, commit, last_commit, args.dry_run)
 
-                    if not args.dry_run:
+            logFileName = working_path + "/log_" + branch.replace("/", "_")
+            text_to_send = []
+            results_files = ""
+            for filePath in testFilePaths:
+                fileName = filePath.rpartition('/')[2]
+                resultsFileName = working_path + "/results_" + branch.replace("/", "_") + "_" + fileName
+                last_commit, cspeed, dspeed = get_last_results(resultsFileName)
+
+                if not args.dry_run:
+                    text = benchmark_and_compare(branch, commit, resultsFileName, args.lastCLevel, filePath, fileName, cspeed, dspeed, args.lowerLimit, args.maxLoadAvg, args.message)
+                    if text:
+                        log("WARNING: redoing tests for branch %s: commit %s" % (branch, commit))
                         text = benchmark_and_compare(branch, commit, resultsFileName, args.lastCLevel, filePath, fileName, cspeed, dspeed, args.lowerLimit, args.maxLoadAvg, args.message)
                         if text:
-                            log("WARNING: redoing tests for branch %s: commit %s" % (branch, commit))
-                            text = benchmark_and_compare(branch, commit, resultsFileName, args.lastCLevel, filePath, fileName, cspeed, dspeed, args.lowerLimit, args.maxLoadAvg, args.message)
-                            if text:
-                                text_to_send.append(text)
-                                results_files += resultsFileName + " "
-                if text_to_send:
-                    send_email_with_attachments(branch, commit, last_commit, args.emails, text_to_send, results_files, logFileName, args.lowerLimit, have_mutt, have_mail)
+                            text_to_send.append(text)
+                            results_files += resultsFileName + " "
+            if text_to_send:
+                send_email_with_attachments(branch, commit, last_commit, args.emails, text_to_send, results_files, logFileName, args.lowerLimit, have_mutt, have_mail)
         except Exception as e:
             stack = traceback.format_exc()
             email_topic = '%s:%s ERROR in %s:%s' % (email_header, pid, branch, commit)
-            send_email(args.emails, email_topic, stack,  have_mutt, have_mail)
+            send_email(args.emails, email_topic, stack, have_mutt, have_mail)
             print(stack)
 
 
@@ -248,9 +250,9 @@ if __name__ == '__main__':
         log("ERROR: %s already exists, exiting" % pidfile)
         exit(1)
 
-    send_email(args.emails, email_header + ':%s test-zstd-speed.py has been started' % pid, '',  have_mutt, have_mail)
-
+    send_email(args.emails, email_header + ':%s test-zstd-speed.py has been started' % pid, '', have_mutt, have_mail)
     file(pidfile, 'w').write(pid)
+
     while True:
         try:
             loadavg = os.getloadavg()[0]
@@ -262,6 +264,7 @@ if __name__ == '__main__':
                 log("WARNING: main loadavg=%.2f is higher than %s" % (loadavg, args.maxLoadAvg))
             log("sleep for %s seconds" % args.sleepTime)
             time.sleep(args.sleepTime)
-        finally:
+        except KeyboardInterrupt:
             os.unlink(pidfile)
-            send_email(args.emails, email_header + ':%s test-zstd-speed.py has been stopped' % pid, '',  have_mutt, have_mail)
+            send_email(args.emails, email_header + ':%s test-zstd-speed.py has been stopped' % pid, '', have_mutt, have_mail)
+            exit(0)

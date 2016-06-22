@@ -22,10 +22,12 @@ roundTripTest() {
 
 isWindows=false
 ECHO="echo"
+INTOVOID="/dev/null"
 case "$OS" in
   Windows*)
     isWindows=true
     ECHO="echo -e"
+    INTOVOID="nul"
     ;;
 esac
 
@@ -53,19 +55,21 @@ $ECHO "test : null-length file roundtrip"
 $ECHO -n '' | $ZSTD - --stdout | $ZSTD -d --stdout
 $ECHO "test : decompress file with wrong suffix (must fail)"
 $ZSTD -d tmpCompressed && die "wrong suffix error not detected!"
+$ZSTD -df tmp && die "should have refused : wrong extension"
+$ECHO "test : decompress into stdout"
 $ZSTD -d tmpCompressed -c > tmpResult    # decompression using stdout
 $ZSTD --decompress tmpCompressed -c > tmpResult
 $ZSTD --decompress tmpCompressed --stdout > tmpResult
-if [ "$isWindows" = false ] ; then
-    $ZSTD -d    < tmp.zst > /dev/null    # combine decompression, stdin & stdout
-    $ZSTD -d  - < tmp.zst > /dev/null
-fi
-$ZSTD -dc   < tmp.zst > /dev/null
-$ZSTD -dc - < tmp.zst > /dev/null
+$ECHO "test : decompress from stdin into stdout"
+$ZSTD -dc   < tmp.zst > $INTOVOID   # combine decompression, stdin & stdout
+$ZSTD -dc - < tmp.zst > $INTOVOID
+$ZSTD -d    < tmp.zst > $INTOVOID   # implicit stdout when stdin is used
+$ZSTD -d  - < tmp.zst > $INTOVOID
+$ECHO "test : overwrite protection"
 $ZSTD -q tmp && die "overwrite check failed!"
+$ECHO "test : force overwrite"
 $ZSTD -q -f tmp
 $ZSTD -q --force tmp
-$ZSTD -df tmp && die "should have refused : wrong extension"
 $ECHO "test : file removal"
 $ZSTD -f --rm tmp
 ls tmp && die "tmp should no longer be present"
@@ -135,9 +139,9 @@ rm tmpSparse*
 
 $ECHO "\n**** multiple files tests **** "
 
-./datagen -s1        > tmp1 2> /dev/null
-./datagen -s2 -g100K > tmp2 2> /dev/null
-./datagen -s3 -g1M   > tmp3 2> /dev/null
+./datagen -s1        > tmp1 2> $INTOVOID
+./datagen -s2 -g100K > tmp2 2> $INTOVOID
+./datagen -s3 -g1M   > tmp3 2> $INTOVOID
 $ZSTD -f tmp*
 $ECHO "compress tmp* : "
 ls -ls tmp*

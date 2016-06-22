@@ -1,3 +1,9 @@
+v0.7.1
+fixed : ZBUFF_compressEnd() called multiple times with too small `dst` buffer, reported by Christophe Chevalier
+fixed : dictBuilder fails if first sample is too small, reported by Руслан Ковалёв
+fixed : corruption issue, reported by cj
+modified : checksum enabled by default in command line mode
+
 v0.7.0
 New : Support for directory compression, using `-r`, thanks to Przemyslaw Skibinski
 New : Command `--rm`, to remove source file after successful de/compression

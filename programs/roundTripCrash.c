@@ -36,7 +36,13 @@
 #include <stdio.h>      /* fprintf */
 #include <sys/types.h>  /* stat */
 #include <sys/stat.h>   /* stat */
+#include "xxhash.h"
 #include "zstd.h"
+
+/*===========================================
+*   Macros
+*==========================================*/
+#define MIN(a,b)  ( (a) < (b) ? (a) : (b) )
 
 /** roundTripTest() :
 *   Compresses `srcBuff` into `compressedBuff`,
@@ -51,7 +57,9 @@ static size_t roundTripTest(void* resultBuff, size_t resultBuffCapacity,
                       const void* srcBuff, size_t srcBuffSize)
 {
     static const int maxClevel = 19;
-    int const cLevel = (!srcBuffSize) ? 1 : (*(const unsigned char*)srcBuff) % maxClevel;
+    size_t const hashLength = MIN(128, srcBuffSize);
+    unsigned const h32 = XXH32(srcBuff, hashLength, 0);
+    int const cLevel = h32 % maxClevel;
     size_t const cSize = ZSTD_compress(compressedBuff, compressedBuffCapacity, srcBuff, srcBuffSize, cLevel);
     if (ZSTD_isError(cSize)) {
         fprintf(stderr, "Compression error : %s \n", ZSTD_getErrorName(cSize));

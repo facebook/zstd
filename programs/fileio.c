@@ -137,7 +137,7 @@ static U32 g_sparseFileSupport = 1;   /* 0 : no sparse allowed; 1: auto (file ye
 void FIO_setSparseWrite(unsigned sparse) { g_sparseFileSupport=sparse; }
 static U32 g_dictIDFlag = 1;
 void FIO_setDictIDFlag(unsigned dictIDFlag) { g_dictIDFlag = dictIDFlag; }
-static U32 g_checksumFlag = 0;
+static U32 g_checksumFlag = 1;
 void FIO_setChecksumFlag(unsigned checksumFlag) { g_checksumFlag = checksumFlag; }
 static U32 g_removeSrcFile = 0;
 void FIO_setRemoveSrcFile(unsigned flag) { g_removeSrcFile = (flag>0); }
@@ -413,7 +413,7 @@ static int FIO_compressFilename_dstFile(cRess_t ress,
     int result;
 
     ress.dstFile = FIO_openDstFile(dstFileName);
-    if (ress.dstFile==0) { fclose(ress.srcFile); return 1; }
+    if (ress.dstFile==0) return 1;
 
     result = FIO_compressFilename_srcFile(ress, dstFileName, srcFileName, cLevel);
 

@@ -749,7 +749,7 @@ static seq_t ZSTD_decodeSequence(seqState_t* seqState)
     if (MEM_32bits() && (mlBits+llBits>24)) BIT_reloadDStream(&(seqState->DStream));
 
     seq.litLength = LL_base[llCode] + ((llCode>15) ? BIT_readBits(&(seqState->DStream), llBits) : 0);   /* <=  16 bits */
-    if (MEM_32bits() ||
+    if (MEM_32bits() |
        (totalBits > 64 - 7 - (LLFSELog+MLFSELog+OffFSELog)) ) BIT_reloadDStream(&(seqState->DStream));
 
     /* ANS state update */
@@ -765,23 +765,22 @@ static seq_t ZSTD_decodeSequence(seqState_t* seqState)
 FORCE_INLINE
 size_t ZSTD_execSequence(BYTE* op,
                                 BYTE* const oend, seq_t sequence,
-                                const BYTE** litPtr, const BYTE* const litLimit_8,
+                                const BYTE** litPtr, const BYTE* const litLimit_w,
                                 const BYTE* const base, const BYTE* const vBase, const BYTE* const dictEnd)
 {
     BYTE* const oLitEnd = op + sequence.litLength;
     size_t const sequenceLength = sequence.litLength + sequence.matchLength;
     BYTE* const oMatchEnd = op + sequenceLength;   /* risk : address space overflow (32-bits) */
-    BYTE* const oend_8 = oend-8;
+    BYTE* const oend_w = oend-WILDCOPY_OVERLENGTH;
     const BYTE* const iLitEnd = *litPtr + sequence.litLength;
     const BYTE* match = oLitEnd - sequence.offset;
 
     /* check */
-    if (oLitEnd > oend_8) return ERROR(dstSize_tooSmall);   /* last match must start at a minimum distance of 8 from oend */
-    if (oMatchEnd > oend) return ERROR(dstSize_tooSmall);   /* overwrite beyond dst buffer */
-    if (iLitEnd > litLimit_8) return ERROR(corruption_detected);   /* over-read beyond lit buffer */
+    if ((oLitEnd>oend_w) | (oMatchEnd>oend)) return ERROR(dstSize_tooSmall); /* last match must start at a minimum distance of WILDCOPY_OVERLENGTH from oend */
+    if (iLitEnd > litLimit_w) return ERROR(corruption_detected);   /* over-read beyond lit buffer */
 
     /* copy Literals */
-    ZSTD_wildcopy(op, *litPtr, sequence.litLength);   /* note : oLitEnd <= oend-8 : no risk of overwrite beyond oend */
+    ZSTD_wildcopy(op, *litPtr, sequence.litLength);   /* note : since oLitEnd <= oend-WILDCOPY_OVERLENGTH, no risk of overwrite beyond oend */
     op = oLitEnd;
     *litPtr = iLitEnd;   /* update for next sequence */
 
@@ -821,10 +820,10 @@ size_t ZSTD_execSequence(BYTE* op,
     op += 8; match += 8;
 
     if (oMatchEnd > oend-(16-MINMATCH)) {
-        if (op < oend_8) {
-            ZSTD_wildcopy(op, match, oend_8 - op);
-            match += oend_8 - op;
-            op = oend_8;
+        if (op < oend_w) {
+            ZSTD_wildcopy(op, match, oend_w - op);
+            match += oend_w - op;
+            op = oend_w;
         }
         while (op < oMatchEnd) *op++ = *match++;
     } else {
@@ -845,7 +844,7 @@ static size_t ZSTD_decompressSequences(
     BYTE* const oend = ostart + maxDstSize;
     BYTE* op = ostart;
     const BYTE* litPtr = dctx->litPtr;
-    const BYTE* const litLimit_8 = litPtr + dctx->litBufSize - 8;
+    const BYTE* const litLimit_w = litPtr + dctx->litBufSize - WILDCOPY_OVERLENGTH;
     const BYTE* const litEnd = litPtr + dctx->litSize;
     FSE_DTable* DTableLL = dctx->LLTable;
     FSE_DTable* DTableML = dctx->MLTable;
@@ -875,7 +874,7 @@ static size_t ZSTD_decompressSequences(
         for ( ; (BIT_reloadDStream(&(seqState.DStream)) <= BIT_DStream_completed) && nbSeq ; ) {
             nbSeq--;
             {   seq_t const sequence = ZSTD_decodeSequence(&seqState);
-                size_t const oneSeqSize = ZSTD_execSequence(op, oend, sequence, &litPtr, litLimit_8, base, vBase, dictEnd);
+                size_t const oneSeqSize = ZSTD_execSequence(op, oend, sequence, &litPtr, litLimit_w, base, vBase, dictEnd);
                 if (ZSTD_isError(oneSeqSize)) return oneSeqSize;
                 op += oneSeqSize;
         }   }
@@ -888,8 +887,8 @@ static size_t ZSTD_decompressSequences(
 
     /* last literal segment */
     {   size_t const lastLLSize = litEnd - litPtr;
-        if (litPtr > litEnd) return ERROR(corruption_detected);   /* too many literals already used */
-        if (op+lastLLSize > oend) return ERROR(dstSize_tooSmall);
+        //if (litPtr > litEnd) return ERROR(corruption_detected);   /* too many literals already used */
+        if (lastLLSize > (size_t)(oend-op)) return ERROR(dstSize_tooSmall);
         memcpy(op, litPtr, lastLLSize);
         op += lastLLSize;
     }
@@ -1180,12 +1179,13 @@ size_t ZSTD_decompressContinue(ZSTD_DCtx* dctx, void* dst, size_t dstCapacity, c
 }
 
 
-static void ZSTD_refDictContent(ZSTD_DCtx* dctx, const void* dict, size_t dictSize)
+static size_t ZSTD_refDictContent(ZSTD_DCtx* dctx, const void* dict, size_t dictSize)
 {
     dctx->dictEnd = dctx->previousDstEnd;
     dctx->vBase = (const char*)dict - ((const char*)(dctx->previousDstEnd) - (const char*)(dctx->base));
     dctx->base = dict;
     dctx->previousDstEnd = (const char*)dict + dictSize;
+    return 0;
 }
 
 static size_t ZSTD_loadEntropy(ZSTD_DCtx* dctx, const void* const dict, size_t const dictSize)
@@ -1237,29 +1237,24 @@ static size_t ZSTD_loadEntropy(ZSTD_DCtx* dctx, const void* const dict, size_t c
 
 static size_t ZSTD_decompress_insertDictionary(ZSTD_DCtx* dctx, const void* dict, size_t dictSize)
 {
-    if (dictSize < 8) return ERROR(dictionary_corrupted);
+    if (dictSize < 8) return ZSTD_refDictContent(dctx, dict, dictSize);
     {   U32 const magic = MEM_readLE32(dict);
         if (magic != ZSTD_DICT_MAGIC) {
-            /* pure content mode */
-            ZSTD_refDictContent(dctx, dict, dictSize);
-            return 0;
-        }
-        dctx->dictID = MEM_readLE32((const char*)dict + 4);
+            return ZSTD_refDictContent(dctx, dict, dictSize);   /* pure content mode */
+    }   }
+    dctx->dictID = MEM_readLE32((const char*)dict + 4);
 
-        /* load entropy tables */
-        dict = (const char*)dict + 8;
-        dictSize -= 8;
-        {   size_t const eSize = ZSTD_loadEntropy(dctx, dict, dictSize);
-            if (ZSTD_isError(eSize)) return ERROR(dictionary_corrupted);
-            dict = (const char*)dict + eSize;
-            dictSize -= eSize;
-        }
-
-        /* reference dictionary content */
-        ZSTD_refDictContent(dctx, dict, dictSize);
-
-        return 0;
+    /* load entropy tables */
+    dict = (const char*)dict + 8;
+    dictSize -= 8;
+    {   size_t const eSize = ZSTD_loadEntropy(dctx, dict, dictSize);
+        if (ZSTD_isError(eSize)) return ERROR(dictionary_corrupted);
+        dict = (const char*)dict + eSize;
+        dictSize -= eSize;
     }
+
+    /* reference dictionary content */
+    return ZSTD_refDictContent(dctx, dict, dictSize);
 }
 
 
@@ -1319,7 +1314,7 @@ ZSTD_DDict* ZSTD_createDDict_advanced(const void* dict, size_t dictSize, ZSTD_cu
 }
 
 /*! ZSTD_createDDict() :
-*   Create a digested dictionary, ready to start decompression operation without startup delay.
+*   Create a digested dictionary, ready to start decompression without startup delay.
 *   `dict` can be released after `ZSTD_DDict` creation */
 ZSTD_DDict* ZSTD_createDDict(const void* dict, size_t dictSize)
 {

@@ -1,37 +1,38 @@
 #! /usr/bin/env python
-# execute(), fetch(), notify() are based on https://github.com/getlantern/build-automation/blob/master/build.py
 
 import argparse
 import os
 import string
 import time
 import traceback
-from subprocess import Popen, PIPE
+import subprocess
+import signal
+ 
 
 default_repo_url = 'https://github.com/Cyan4973/zstd.git'
-test_dir_name = 'speedTest'
+working_dir_name = 'speedTest'
+working_path = os.getcwd() + '/' + working_dir_name     # /path/to/zstd/tests/speedTest 
+clone_path = working_path + '/' + 'zstd'                # /path/to/zstd/tests/speedTest/zstd 
 email_header = '[ZSTD_speedTest]'
+pid = str(os.getpid())
+
 
 def log(text):
-    print time.strftime("%Y/%m/%d %H:%M:%S") + ' - ' + text
+    print(time.strftime("%Y/%m/%d %H:%M:%S") + ' - ' + text)
 
-def execute(command, print_output=False, print_error=True):
+
+def execute(command, print_output=False, print_error=True, param_shell=True):
     log("> " + command)
-    popen = Popen(command, stdout=PIPE, stderr=PIPE, shell=True, cwd=execute.cwd)
-    itout = iter(popen.stdout.readline, b"")
-    iterr = iter(popen.stderr.readline, b"")
-    stdout_lines = list(itout)
+    popen = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=param_shell, cwd=execute.cwd)
+    stdout = popen.communicate()[0]
+    stdout_lines = stdout.splitlines()
     if print_output:
-        print ''.join(stdout_lines)
-    stderr_lines = list(iterr)
-    if print_output:
-        print ''.join(stderr_lines)
-    popen.communicate()
+        print('\n'.join(stdout_lines))
     if popen.returncode is not None and popen.returncode != 0:
         if not print_output and print_error:
-            print ''.join(stderr_lines)    
-        raise RuntimeError(''.join(stderr_lines))
-    return stdout_lines + stderr_lines
+            print('\n'.join(stdout_lines))
+        raise RuntimeError('\n'.join(stdout_lines))
+    return stdout_lines
 execute.cwd = None
 
 
@@ -43,39 +44,51 @@ def does_command_exist(command):
     return True
 
 
-def fetch():
+def send_email(emails, topic, text, have_mutt, have_mail):
+    logFileName = working_path + '/' + 'tmpEmailContent'
+    with open(logFileName, "w") as myfile:
+        myfile.writelines(text)
+        myfile.close()
+        if have_mutt:
+            execute('mutt -s "' + topic + '" ' + emails + ' < ' + logFileName)
+        elif have_mail:
+            execute('mail -s "' + topic + '" ' + emails + ' < ' + logFileName)
+        else:
+            log("e-mail cannot be sent (mail or mutt not found)")
+
+
+def send_email_with_attachments(branch, commit, last_commit, emails, text, results_files, logFileName, lower_limit, have_mutt, have_mail):
+    with open(logFileName, "w") as myfile:
+        myfile.writelines(text)
+        myfile.close()
+        email_topic = '%s:%s Warning for %s:%s last_commit=%s speed<%s' % (email_header, pid, branch, commit, last_commit, lower_limit)
+        if have_mutt:
+            execute('mutt -s "' + email_topic + '" ' + emails + ' -a ' + results_files + ' < ' + logFileName)
+        elif have_mail:
+            execute('mail -s "' + email_topic + '" ' + emails + ' < ' + logFileName)
+        else:
+            log("e-mail cannot be sent (mail or mutt not found)")
+
+
+def git_get_branches():
     execute('git fetch -p')
     output = execute('git branch -rl')
     for line in output:
         if "HEAD" in line: 
-            output.remove(line) # remove "origin/HEAD -> origin/dev"
-    branches = map(lambda l: l.strip(), output)
-    return map(lambda b: (b, execute('git show -s --format=%h ' + b)[0].strip()), branches)
+            output.remove(line)  # remove "origin/HEAD -> origin/dev"
+    return map(lambda l: l.strip(), output)
 
 
-def notify(branch, commit, last_commit):
-    text_tmpl = string.Template('Changes since $last_commit:\r\n$commits')
-    branch = branch.split('/')[1]
+def git_get_changes(branch, commit, last_commit):
     fmt = '--format="%h: (%an) %s, %ar"'
     if last_commit is None:
         commits = execute('git log -n 10 %s %s' % (fmt, commit))
     else:
         commits = execute('git --no-pager log %s %s..%s' % (fmt, last_commit, commit))
-
-    text = text_tmpl.substitute({'last_commit': last_commit, 'commits': ''.join(commits)})
-    print str("commits for %s: %s" % (commit, text))
+    return str('Changes in %s since %s:\n' % (branch, last_commit)) + '\n'.join(commits)
 
 
-def compile(branch, commit, dry_run):
-    local_branch = string.split(branch, '/')[1]
-    version = local_branch.rpartition('-')[2]
-    version = version + '_' + commit
-    execute('git checkout -- . && git checkout ' + branch)
-    if not dry_run:
-        execute('VERSION=' + version + '; make clean zstdprogram')
-
-
-def get_last_commit(resultsFileName):
+def get_last_results(resultsFileName):
     if not os.path.isfile(resultsFileName):
         return None, None, None
     commit = None
@@ -84,15 +97,13 @@ def get_last_commit(resultsFileName):
     with open(resultsFileName,'r') as f:
         for line in f:
             words = line.split()
-            if len(words) == 2: # branch + commit
+            if len(words) == 2:   # branch + commit
                 commit = words[1];
                 cspeed = []
                 dspeed = []
-            if (len(words) == 8): 
+            if (len(words) == 8):  # results
                 cspeed.append(float(words[3]))
                 dspeed.append(float(words[5]))
-        #if commit != None:
-        #    print "commit=%s cspeed=%s dspeed=%s" % (commit, cspeed, dspeed)
     return commit, cspeed, dspeed
 
 
@@ -102,89 +113,62 @@ def benchmark_and_compare(branch, commit, resultsFileName, lastCLevel, testFileP
         log("WARNING: bench loadavg=%.2f is higher than %s, sleeping for %s seconds" % (os.getloadavg()[0], maxLoadAvg, sleepTime))
         time.sleep(sleepTime)
     start_load = str(os.getloadavg())
-    result = execute('programs/zstd -qi5b1e' + str(lastCLevel) + ' ' + testFilePath)
+    result = execute('programs/zstd -qi5b1e%s %s' % (lastCLevel, testFilePath), print_output=True)
     end_load = str(os.getloadavg())
     linesExpected = lastCLevel + 2;
     if len(result) != linesExpected:
-        log("ERROR: number of result lines=%d is different that expected %d" % (len(result), linesExpected))
-        return ""
+        raise RuntimeError("ERROR: number of result lines=%d is different that expected %d\n%s" % (len(result), linesExpected, '\n'.join(result)))
     with open(resultsFileName, "a") as myfile:
         myfile.write(branch + " " + commit + "\n")
-        myfile.writelines(result)
+        myfile.write('\n'.join(result) + '\n')
         myfile.close()
         if (last_cspeed == None):
+            log("WARNING: No data for comparison for branch=%s file=%s " % (branch, fileName))
             return ""
-        commit, cspeed, dspeed = get_last_commit(resultsFileName)
+        commit, cspeed, dspeed = get_last_results(resultsFileName)
         text = ""
         for i in range(0, min(len(cspeed), len(last_cspeed))):
+            print("%s:%s -%d cspeed=%6.2f clast=%6.2f cdiff=%1.4f dspeed=%6.2f dlast=%6.2f ddiff=%1.4f %s" % (branch, commit, i+1, cspeed[i], last_cspeed[i], cspeed[i]/last_cspeed[i], dspeed[i], last_dspeed[i], dspeed[i]/last_dspeed[i], fileName))
             if (cspeed[i]/last_cspeed[i] < lower_limit):
-                text += "WARNING: File=%s level=%d cspeed=%s last=%s diff=%s\n" % (fileName, i+1, cspeed[i], last_cspeed[i], cspeed[i]/last_cspeed[i])
+                text += "WARNING: -%d cspeed=%.2f clast=%.2f cdiff=%.4f %s\n" % (i+1, cspeed[i], last_cspeed[i], cspeed[i]/last_cspeed[i], fileName)
             if (dspeed[i]/last_dspeed[i] < lower_limit):
-                text += "WARNING: File=%s level=%d dspeed=%s last=%s diff=%s\n" % (fileName, i+1, dspeed[i], last_dspeed[i], dspeed[i]/last_dspeed[i])
+                text += "WARNING: -%d dspeed=%.2f dlast=%.2f ddiff=%.4f %s\n" % (i+1, dspeed[i], last_dspeed[i], dspeed[i]/last_dspeed[i], fileName)
         if text:
             text = message + ("\nmaxLoadAvg=%s  load average at start=%s end=%s\n" % (maxLoadAvg, start_load, end_load)) + text
         return text
 
 
-def send_simple_email(emails, email_topic, have_mutt, have_mail):
-    if have_mutt:
-        execute('mutt -s "' + email_header + ' ' + email_topic + '" ' + emails + ' </dev/null')
-    elif have_mail:
-        execute('mail -s "' + email_header + ' ' + email_topic + '" ' + emails + ' </dev/null')
-    else:
-        log("e-mail cannot be sent (mail and mutt not found)")
+def update_config_file(branch, commit):
+    last_commit = None
+    commitFileName = working_path + "/commit_" + branch.replace("/", "_") + ".txt"
+    if os.path.isfile(commitFileName):
+        last_commit = file(commitFileName, 'r').read()
+    file(commitFileName, 'w').write(commit)
+    return last_commit
 
 
-def send_email(branch, commit, last_commit, emails, text, results_files, logFileName, lower_limit, have_mutt, have_mail):
-    with open(logFileName, "w") as myfile:
-        myfile.writelines(text)
-        myfile.close()
-        if have_mutt:
-            execute('mutt -s "' + email_header + ' Warning for branch=' + branch + ' commit=' + commit + ' last_commit=' + last_commit + ' speed<' + str(lower_limit) + '" ' + emails + ' -a ' + results_files + ' < ' + logFileName)
-        elif have_mail:
-            execute('mail -s "' + email_header + ' Warning for branch=' + branch + ' commit=' + commit + ' last_commit=' + last_commit + ' speed<' + str(lower_limit) + '" ' + emails + ' < ' + logFileName)
-        else:
-            log("e-mail cannot be sent (mail and mutt not found)")
-
-
-def check_branches(args, test_path, testFilePaths, have_mutt, have_mail):
-    for branch, commit in fetch():
-        try:
-            commitFileName = test_path + "/commit_" + branch.replace("/", "_")
-            if os.path.isfile(commitFileName):
-                last_commit = file(commitFileName, 'r').read()
-            else:
-                last_commit = None
-            file(commitFileName, 'w').write(commit)
-
-            if commit == last_commit:
-                log("skipping branch %s: head %s already processed" % (branch, commit))
-            else:
-                log("build branch %s: head %s is different from prev %s" % (branch, commit, last_commit))
-                compile(branch, commit, args.dry_run)
-
-                logFileName = test_path + "/log_" + branch.replace("/", "_")
-                text_to_send = []
-                results_files = ""
-                for filePath in testFilePaths:
-                    fileName = filePath.rpartition('/')[2]
-                    resultsFileName = test_path + "/results_" + branch.replace("/", "_") + "_" + fileName
-                    last_commit, cspeed, dspeed = get_last_commit(resultsFileName)
-
-                    if not args.dry_run:
-                        text = benchmark_and_compare(branch, commit, resultsFileName, args.lastCLevel, filePath, fileName, cspeed, dspeed, args.lowerLimit, args.maxLoadAvg, args.message)
-                        if text:
-                            text = benchmark_and_compare(branch, commit, resultsFileName, args.lastCLevel, filePath, fileName, cspeed, dspeed, args.lowerLimit, args.maxLoadAvg, args.message)
-                            if text:
-                                text_to_send.append(text)
-                                results_files += resultsFileName + " "
-                if text_to_send:
-                    send_email(branch, commit, last_commit, args.emails, text_to_send, results_files, logFileName, args.lowerLimit, have_mutt, have_mail)
-                notify(branch, commit, last_commit)
-        except Exception as e:
-            stack = traceback.format_exc()
-            log("ERROR: build %s, error %s" % (branch, str(e)) )
-            print stack
+def test_commit(branch, commit, last_commit, args, testFilePaths, have_mutt, have_mail):
+    local_branch = string.split(branch, '/')[1]
+    version = local_branch.rpartition('-')[2] + '_' + commit
+    if not args.dry_run:
+        execute('make clean zstdprogram MOREFLAGS="-DZSTD_GIT_COMMIT=%s"' % version)
+    logFileName = working_path + "/log_" + branch.replace("/", "_") + ".txt"
+    text_to_send = []
+    results_files = ""
+    for filePath in testFilePaths:
+        fileName = filePath.rpartition('/')[2]
+        resultsFileName = working_path + "/results_" + branch.replace("/", "_") + "_" + fileName.replace(".", "_") + ".txt"
+        last_commit, cspeed, dspeed = get_last_results(resultsFileName)
+        if not args.dry_run:
+            text = benchmark_and_compare(branch, commit, resultsFileName, args.lastCLevel, filePath, fileName, cspeed, dspeed, args.lowerLimit, args.maxLoadAvg, args.message)
+            if text:
+                log("WARNING: redoing tests for branch %s: commit %s" % (branch, commit))
+                text = benchmark_and_compare(branch, commit, resultsFileName, args.lastCLevel, filePath, fileName, cspeed, dspeed, args.lowerLimit, args.maxLoadAvg, args.message)
+                if text:
+                    text_to_send.append(text)
+                    results_files += resultsFileName + " "
+    if text_to_send:
+        send_email_with_attachments(branch, commit, last_commit, args.emails, text_to_send, results_files, logFileName, args.lowerLimit, have_mutt, have_mail)
 
 
 if __name__ == '__main__':
@@ -204,40 +188,38 @@ if __name__ == '__main__':
     testFileNames = args.testFileNames.split()
     testFilePaths = []
     for fileName in testFileNames:
+        fileName = os.path.expanduser(fileName)
         if os.path.isfile(fileName):
             testFilePaths.append(os.path.abspath(fileName))
         else:
             log("ERROR: File not found: " + fileName)
             exit(1)
 
-    test_path = os.getcwd() + '/' + test_dir_name     # /path/to/zstd/tests/speedTest 
-    clone_path = test_path + '/' + 'zstd'             # /path/to/zstd/tests/speedTest/zstd 
-
     # check availability of e-mail senders
-    have_mutt = does_command_exist("mutt --help");
+    have_mutt = does_command_exist("mutt -h");
     have_mail = does_command_exist("mail -V");
     if not have_mutt and not have_mail:
         log("ERROR: e-mail senders 'mail' or 'mutt' not found")
         exit(1)
 
-    print "PARAMETERS:\nrepoURL=%s" % args.repoURL
-    print "test_path=%s" % test_path
-    print "clone_path=%s" % clone_path
-    print "testFilePath(%s)=%s" % (len(testFilePaths), testFilePaths)
-    print "message=%s" % args.message
-    print "emails=%s" % args.emails
-    print "maxLoadAvg=%s" % args.maxLoadAvg
-    print "lowerLimit=%s" % args.lowerLimit
-    print "lastCLevel=%s" % args.lastCLevel
-    print "sleepTime=%s" % args.sleepTime
-    print "dry_run=%s" % args.dry_run
-    print "have_mutt=%s have_mail=%s" % (have_mutt, have_mail)
+    print("PARAMETERS:\nrepoURL=%s" % args.repoURL)
+    print("working_path=%s" % working_path)
+    print("clone_path=%s" % clone_path)
+    print("testFilePath(%s)=%s" % (len(testFilePaths), testFilePaths))
+    print("message=%s" % args.message)
+    print("emails=%s" % args.emails)
+    print("maxLoadAvg=%s" % args.maxLoadAvg)
+    print("lowerLimit=%s" % args.lowerLimit)
+    print("lastCLevel=%s" % args.lastCLevel)
+    print("sleepTime=%s" % args.sleepTime)
+    print("dry_run=%s" % args.dry_run)
+    print("have_mutt=%s have_mail=%s" % (have_mutt, have_mail))
 
     # clone ZSTD repo if needed
-    if not os.path.isdir(test_path):
-        os.mkdir(test_path)
+    if not os.path.isdir(working_path):
+        os.mkdir(working_path)
     if not os.path.isdir(clone_path):
-        execute.cwd = test_path
+        execute.cwd = working_path
         execute('git clone ' + args.repoURL)
     if not os.path.isdir(clone_path):
         log("ERROR: ZSTD clone not found: " + clone_path)
@@ -245,22 +227,39 @@ if __name__ == '__main__':
     execute.cwd = clone_path
 
     # check if speedTest.pid already exists
-    pid = str(os.getpid())
     pidfile = "./speedTest.pid"
     if os.path.isfile(pidfile):
         log("ERROR: %s already exists, exiting" % pidfile)
         exit(1)
 
-    send_simple_email(args.emails, "test-zstd-speed.py(%s) has been started" % pid, have_mutt, have_mail)
+    send_email(args.emails, email_header + ':%s test-zstd-speed.py has been started' % pid, args.message, have_mutt, have_mail)
+    file(pidfile, 'w').write(pid)
+
     while True:
-        file(pidfile, 'w').write(pid)
         try:
             loadavg = os.getloadavg()[0]
             if (loadavg <= args.maxLoadAvg):
-                check_branches(args, test_path, testFilePaths, have_mutt, have_mail)
+                branches = git_get_branches()
+                for branch in branches:
+                    commit = execute('git show -s --format=%h ' + branch)[0]
+                    last_commit = update_config_file(branch, commit)
+                    if commit == last_commit:
+                        log("skipping branch %s: head %s already processed" % (branch, commit))
+                    else:
+                        log("build branch %s: head %s is different from prev %s" % (branch, commit, last_commit))
+                        execute('git checkout -- . && git checkout ' + branch)
+                        print(git_get_changes(branch, commit, last_commit))
+                        test_commit(branch, commit, last_commit, args, testFilePaths, have_mutt, have_mail)
             else:
                 log("WARNING: main loadavg=%.2f is higher than %s" % (loadavg, args.maxLoadAvg))
-        finally:
+            log("sleep for %s seconds" % args.sleepTime)
+            time.sleep(args.sleepTime)
+        except Exception as e:
+            stack = traceback.format_exc()
+            email_topic = '%s:%s ERROR in %s:%s' % (email_header, pid, branch, commit)
+            send_email(args.emails, email_topic, stack, have_mutt, have_mail)
+            print(stack)
+        except KeyboardInterrupt:
             os.unlink(pidfile)
-        log("sleep for %s seconds" % args.sleepTime)
-        time.sleep(args.sleepTime)
+            send_email(args.emails, email_header + ':%s test-zstd-speed.py has been stopped' % pid, args.message, have_mutt, have_mail)
+            exit(0)

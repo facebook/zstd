@@ -79,13 +79,13 @@ def git_get_branches():
     return map(lambda l: l.strip(), output)
 
 
-def git_get_changes(commit, last_commit):
+def git_get_changes(branch, commit, last_commit):
     fmt = '--format="%h: (%an) %s, %ar"'
     if last_commit is None:
         commits = execute('git log -n 10 %s %s' % (fmt, commit))
     else:
         commits = execute('git --no-pager log %s %s..%s' % (fmt, last_commit, commit))
-    return str('Changes since %s:\n' % (last_commit)) + '\n'.join(commits)
+    return str('Changes in %s since %s:\n' % (branch, last_commit)) + '\n'.join(commits)
 
 
 def compile(branch, commit, last_commit, dry_run):
@@ -93,9 +93,9 @@ def compile(branch, commit, last_commit, dry_run):
     version = local_branch.rpartition('-')[2]
     version = version + '_' + commit
     execute('git checkout -- . && git checkout ' + branch)
-    print(git_get_changes(commit, last_commit))
+    print(git_get_changes(branch, commit, last_commit))
     if not dry_run:
-        execute('VERSION=' + version + '; make clean zstdprogram')
+        execute('make clean zstdprogram MOREFLAGS="-DZSTD_GIT_COMMIT=%s"' % version, print_output=True)
 
 
 def get_last_results(resultsFileName):

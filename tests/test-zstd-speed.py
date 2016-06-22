@@ -8,9 +8,9 @@ import time
 import traceback
 from subprocess import Popen, PIPE
 
-repo_url = 'https://github.com/Cyan4973/zstd.git'
+default_repo_url = 'https://github.com/Cyan4973/zstd.git'
 test_dir_name = 'speedTest'
-
+email_header = '[ZSTD_speedTest]'
 
 def log(text):
     print time.strftime("%Y/%m/%d %H:%M:%S") + ' - ' + text
@@ -126,14 +126,23 @@ def benchmark_and_compare(branch, commit, resultsFileName, lastCLevel, testFileP
         return text
 
 
+def send_simple_email(emails, email_topic, have_mutt, have_mail):
+    if have_mutt:
+        execute('mutt -s "' + email_header + ' ' + email_topic + '" ' + emails + ' </dev/null')
+    elif have_mail:
+        execute('mail -s "' + email_header + ' ' + email_topic + '" ' + emails + ' </dev/null')
+    else:
+        log("e-mail cannot be sent (mail and mutt not found)")
+
+
 def send_email(branch, commit, last_commit, emails, text, results_files, logFileName, lower_limit, have_mutt, have_mail):
     with open(logFileName, "w") as myfile:
         myfile.writelines(text)
         myfile.close()
         if have_mutt:
-            execute("mutt -s \"[ZSTD_speedTest] Warning for branch=" + branch + " commit=" + commit + " last_commit=" + last_commit + " speed<" + str(lower_limit) + "\" " + emails + " -a " + results_files + " < " + logFileName)
+            execute('mutt -s "' + email_header + ' Warning for branch=' + branch + ' commit=' + commit + ' last_commit=' + last_commit + ' speed<' + str(lower_limit) + '" ' + emails + ' -a ' + results_files + ' < ' + logFileName)
         elif have_mail:
-            execute("mail -s \"[ZSTD_speedTest] Warning for branch=" + branch + " commit=" + commit + " last_commit=" + last_commit + " speed<" + str(lower_limit) + "\" " + emails + " < " + logFileName)
+            execute('mail -s "' + email_header + ' Warning for branch=' + branch + ' commit=' + commit + ' last_commit=' + last_commit + ' speed<' + str(lower_limit) + '" ' + emails + ' < ' + logFileName)
         else:
             log("e-mail cannot be sent (mail and mutt not found)")
 
@@ -183,6 +192,7 @@ if __name__ == '__main__':
     parser.add_argument('testFileNames', help='file names list for speed benchmark')
     parser.add_argument('emails', help='list of e-mail addresses to send warnings')
     parser.add_argument('--message', help='attach an additional message to e-mail', default="")
+    parser.add_argument('--repoURL', help='changes default repository URL', default=default_repo_url)
     parser.add_argument('--lowerLimit', type=float, help='send email if speed is lower than given limit', default=0.98)
     parser.add_argument('--maxLoadAvg', type=float, help='maximum load average to start testing', default=0.75)
     parser.add_argument('--lastCLevel', type=int, help='last compression level for testing', default=5)
@@ -197,7 +207,8 @@ if __name__ == '__main__':
         if os.path.isfile(fileName):
             testFilePaths.append(os.path.abspath(fileName))
         else:
-            raise RuntimeError("File not found: " + fileName)
+            log("ERROR: File not found: " + fileName)
+            exit(1)
 
     test_path = os.getcwd() + '/' + test_dir_name     # /path/to/zstd/tests/speedTest 
     clone_path = test_path + '/' + 'zstd'             # /path/to/zstd/tests/speedTest/zstd 
@@ -206,19 +217,11 @@ if __name__ == '__main__':
     have_mutt = does_command_exist("mutt --help");
     have_mail = does_command_exist("mail -V");
     if not have_mutt and not have_mail:
-        log("WARNING: e-mail senders mail and mutt not found")
+        log("ERROR: e-mail senders 'mail' or 'mutt' not found")
+        exit(1)
 
-    # clone ZSTD repo if needed
-    if not os.path.isdir(test_path):
-        os.mkdir(test_path)
-    if not os.path.isdir(clone_path):
-        execute.cwd = test_path
-        execute('git clone ' + repo_url)
-    if not os.path.isdir(clone_path):
-        raise RuntimeError("ZSTD clone not found: " + clone_path)
-    execute.cwd = clone_path
-
-    print "PARAMETERS:\ntest_path=%s" % test_path
+    print "PARAMETERS:\nrepoURL=%s" % args.repoURL
+    print "test_path=%s" % test_path
     print "clone_path=%s" % clone_path
     print "testFilePath(%s)=%s" % (len(testFilePaths), testFilePaths)
     print "message=%s" % args.message
@@ -230,20 +233,34 @@ if __name__ == '__main__':
     print "dry_run=%s" % args.dry_run
     print "have_mutt=%s have_mail=%s" % (have_mutt, have_mail)
 
+    # clone ZSTD repo if needed
+    if not os.path.isdir(test_path):
+        os.mkdir(test_path)
+    if not os.path.isdir(clone_path):
+        execute.cwd = test_path
+        execute('git clone ' + args.repoURL)
+    if not os.path.isdir(clone_path):
+        log("ERROR: ZSTD clone not found: " + clone_path)
+        exit(1)
+    execute.cwd = clone_path
+
+    # check if speedTest.pid already exists
+    pid = str(os.getpid())
+    pidfile = "./speedTest.pid"
+    if os.path.isfile(pidfile):
+        log("ERROR: %s already exists, exiting" % pidfile)
+        exit(1)
+
+    send_simple_email(args.emails, "test-zstd-speed.py(%s) has been started" % pid, have_mutt, have_mail)
     while True:
-        pid = str(os.getpid())
-        pidfile = "./speedTest.pid"
-        if os.path.isfile(pidfile):
-            log("%s already exists, exiting" % pidfile)
-        else:
-            file(pidfile, 'w').write(pid)
-            try:
-                loadavg = os.getloadavg()[0]
-                if (loadavg <= args.maxLoadAvg):
-                    check_branches(args, test_path, testFilePaths, have_mutt, have_mail)
-                else:
-                    log("WARNING: main loadavg=%.2f is higher than %s" % (loadavg, args.maxLoadAvg))
-            finally:
-                os.unlink(pidfile)
+        file(pidfile, 'w').write(pid)
+        try:
+            loadavg = os.getloadavg()[0]
+            if (loadavg <= args.maxLoadAvg):
+                check_branches(args, test_path, testFilePaths, have_mutt, have_mail)
+            else:
+                log("WARNING: main loadavg=%.2f is higher than %s" % (loadavg, args.maxLoadAvg))
+        finally:
+            os.unlink(pidfile)
         log("sleep for %s seconds" % args.sleepTime)
         time.sleep(args.sleepTime)

@@ -168,7 +168,7 @@ def check_commit(branch, commit, args, testFilePaths, have_mutt, have_mail):
         results_files = ""
         for filePath in testFilePaths:
             fileName = filePath.rpartition('/')[2]
-            resultsFileName = working_path + "/results_" + branch.replace("/", "_") + "_" + fileName
+            resultsFileName = working_path + "/results_" + branch.replace("/", "_") + "_" + fileName.replace(".", "_") + ".txt"
             last_commit, cspeed, dspeed = get_last_results(resultsFileName)
 
             if not args.dry_run:
@@ -205,6 +205,7 @@ if __name__ == '__main__':
     testFileNames = args.testFileNames.split()
     testFilePaths = []
     for fileName in testFileNames:
+        fileName = os.path.expanduser(fileName)
         if os.path.isfile(fileName):
             testFilePaths.append(os.path.abspath(fileName))
         else:
@@ -248,7 +249,7 @@ if __name__ == '__main__':
         log("ERROR: %s already exists, exiting" % pidfile)
         exit(1)
 
-    send_email(args.emails, email_header + ':%s test-zstd-speed.py has been started' % pid, '', have_mutt, have_mail)
+    send_email(args.emails, email_header + ':%s test-zstd-speed.py has been started' % pid, args.message, have_mutt, have_mail)
     file(pidfile, 'w').write(pid)
 
     while True:
@@ -266,5 +267,5 @@ if __name__ == '__main__':
             time.sleep(args.sleepTime)
         except KeyboardInterrupt:
             os.unlink(pidfile)
-            send_email(args.emails, email_header + ':%s test-zstd-speed.py has been stopped' % pid, '', have_mutt, have_mail)
+            send_email(args.emails, email_header + ':%s test-zstd-speed.py has been stopped' % pid, args.message, have_mutt, have_mail)
             exit(0)

@@ -1063,7 +1063,7 @@ static size_t ZSTD_count_2segments(const BYTE* ip, const BYTE* match, const BYTE
 ***************************************/
 static const U32 prime3bytes = 506832829U;
 static U32    ZSTD_hash3(U32 u, U32 h) { return ((u << (32-24)) * prime3bytes)  >> (32-h) ; }
-static size_t ZSTD_hash3Ptr(const void* ptr, U32 h) { return ZSTD_hash3(MEM_readLE32(ptr), h); }
+MEM_STATIC size_t ZSTD_hash3Ptr(const void* ptr, U32 h) { return ZSTD_hash3(MEM_readLE32(ptr), h); }   /* only in zstd_opt.h */
 
 static const U32 prime4bytes = 2654435761U;
 static U32    ZSTD_hash4(U32 u, U32 h) { return (u * prime4bytes) >> (32-h) ; }
@@ -2068,18 +2068,27 @@ static void ZSTD_compressBlock_btlazy2_extDict(ZSTD_CCtx* ctx, const void* src, 
 }
 
 
-
 /* The optimal parser */
 #include "zstd_opt.h"
 
 static void ZSTD_compressBlock_btopt(ZSTD_CCtx* ctx, const void* src, size_t srcSize)
 {
+#ifdef ZSTD_OPT_H_91842398743
     ZSTD_compressBlock_opt_generic(ctx, src, srcSize);
+#else
+    (void)ctx; (void)src; (void)srcSize;
+    return;
+#endif
 }
 
 static void ZSTD_compressBlock_btopt_extDict(ZSTD_CCtx* ctx, const void* src, size_t srcSize)
 {
+#ifdef ZSTD_OPT_H_91842398743
     ZSTD_compressBlock_opt_extDict_generic(ctx, src, srcSize);
+#else
+    (void)ctx; (void)src; (void)srcSize;
+    return;
+#endif
 }
 
 

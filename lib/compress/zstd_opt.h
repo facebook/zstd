@@ -34,6 +34,10 @@
 /* Note : this file is intended to be included within zstd_compress.c */
 
 
+#ifndef ZSTD_OPT_H_91842398743
+#define ZSTD_OPT_H_91842398743
+
+
 #define ZSTD_FREQ_DIV   5
 
 /*-*************************************
@@ -229,7 +233,6 @@ MEM_STATIC void ZSTD_updatePrice(seqStore_t* seqStorePtr, U32 litLength, const B
         opt[pos].price = price_;                       \
         ZSTD_LOG_PARSER("%d: SET price[%d/%d]=%d litlen=%d len=%d off=%d\n", (int)(inr-base), (int)pos, (int)last_pos, opt[pos].price, opt[pos].litlen, opt[pos].mlen, opt[pos].off); \
     }
-
 
 
 
@@ -1039,3 +1042,5 @@ _storeSequence:   /* cur, last_pos, best_mlen, best_off have to be set */
         seqStorePtr->lit += lastLLSize;
     }
 }
+
+#endif  /* ZSTD_OPT_H_91842398743 */

@@ -930,8 +930,11 @@ size_t ZSTD_decompressBlock(ZSTD_DCtx* dctx,
                             void* dst, size_t dstCapacity,
                       const void* src, size_t srcSize)
 {
+    size_t dSize;
     ZSTD_checkContinuity(dctx, dst);
-    return ZSTD_decompressBlock_internal(dctx, dst, dstCapacity, src, srcSize);
+    dSize = ZSTD_decompressBlock_internal(dctx, dst, dstCapacity, src, srcSize);
+    dctx->previousDstEnd = (char*)dst + dSize;
+    return dSize;
 }
 
 

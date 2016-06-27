@@ -148,15 +148,13 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
     size_t const maxCompressedSize = ZSTD_compressBound(srcSize) + (maxNbBlocks * 1024);   /* add some room for safety */
     void* const compressedBuffer = malloc(maxCompressedSize);
     void* const resultBuffer = malloc(srcSize);
-    ZSTD_CCtx* refCtx = ZSTD_createCCtx();
     ZSTD_CCtx* ctx = ZSTD_createCCtx();
-    ZSTD_DCtx* refDCtx = ZSTD_createDCtx();
     ZSTD_DCtx* dctx = ZSTD_createDCtx();
     U32 nbBlocks;
     UTIL_time_t ticksPerSecond;
 
     /* checks */
-    if (!compressedBuffer || !resultBuffer || !blockTable || !refCtx || !ctx || !refDCtx || !dctx)
+    if (!compressedBuffer || !resultBuffer || !blockTable || !ctx || !dctx)
         EXM_THROW(31, "not enough memory");
 
     /* init */
@@ -321,9 +319,7 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
     free(blockTable);
     free(compressedBuffer);
     free(resultBuffer);
-    ZSTD_freeCCtx(refCtx);
     ZSTD_freeCCtx(ctx);
-    ZSTD_freeDCtx(refDCtx);
     ZSTD_freeDCtx(dctx);
     return 0;
 }

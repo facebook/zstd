@@ -216,10 +216,8 @@ static int basicUnitTests(U32 seed, double compressibility)
 
         DISPLAYLEVEL(4, "test%3i : check content size on duplicated context : ", testNb++);
         {   size_t const testSize = CNBuffSize / 3;
-            {   ZSTD_compressionParameters const cPar = ZSTD_getCParams(2, testSize, dictSize);
-                ZSTD_frameParameters const fPar = { 1 , 0 , 0 };
-                ZSTD_parameters p;
-                p.cParams = cPar; p.fParams = fPar;
+            {   ZSTD_parameters p = ZSTD_getParams(2, testSize, dictSize);
+                p.fParams.contentSizeFlag = 1;
                 CHECK( ZSTD_compressBegin_advanced(ctxOrig, CNBuffer, dictSize, p, testSize-1) );
             }
             CHECK( ZSTD_copyCCtx(ctxDuplicated, ctxOrig) );
@@ -277,10 +275,8 @@ static int basicUnitTests(U32 seed, double compressibility)
         DISPLAYLEVEL(4, "OK \n");
 
         DISPLAYLEVEL(4, "test%3i : compress without dictID : ", testNb++);
-        {   ZSTD_frameParameters const fParams = { 0 /*contentSize*/, 0 /*checksum*/, 1 /*NoDictID*/ };
-            ZSTD_compressionParameters const cParams = ZSTD_getCParams(3, CNBuffSize, dictSize);
-            ZSTD_parameters p;
-            p.cParams = cParams; p.fParams = fParams;
+        {   ZSTD_parameters p = ZSTD_getParams(3, CNBuffSize, dictSize);
+            p.fParams.noDictIDFlag = 1;
             cSize = ZSTD_compress_advanced(cctx, compressedBuffer, ZSTD_compressBound(CNBuffSize),
                                            CNBuffer, CNBuffSize,
                                            dictBuffer, dictSize, p);

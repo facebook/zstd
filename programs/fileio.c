@@ -315,9 +315,7 @@ static int FIO_compressFilename_internal(cRess_t ress,
     U64 const fileSize = UTIL_getFileSize(srcFileName);
 
     /* init */
-    {   ZSTD_parameters params;
-        memset(&params, 0, sizeof(params));
-        params.cParams = ZSTD_getCParams(cLevel, fileSize, ress.dictBufferSize);
+    {   ZSTD_parameters params = ZSTD_getParams(cLevel, fileSize, ress.dictBufferSize);
         params.fParams.contentSizeFlag = 1;
         params.fParams.checksumFlag = g_checksumFlag;
         params.fParams.noDictIDFlag = !g_dictIDFlag;

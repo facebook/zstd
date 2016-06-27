@@ -227,7 +227,7 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
                                             blockTable[blockNb].cPtr,  blockTable[blockNb].cRoom,
                                             blockTable[blockNb].srcPtr,blockTable[blockNb].srcSize,
                                             cdict);
-                        if (ZSTD_isError(rSize)) EXM_THROW(1, "ZSTD_compress_usingPreparedCCtx() failed : %s", ZSTD_getErrorName(rSize));
+                        if (ZSTD_isError(rSize)) EXM_THROW(1, "ZSTD_compress_usingCDict() failed : %s", ZSTD_getErrorName(rSize));
                         blockTable[blockNb].cSize = rSize;
                     }
                     nbLoops++;
@@ -264,7 +264,7 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
                             blockTable[blockNb].cPtr, blockTable[blockNb].cSize,
                             ddict);
                         if (ZSTD_isError(regenSize)) {
-                            DISPLAY("ZSTD_decompress_usingPreparedDCtx() failed on block %u : %s  \n",
+                            DISPLAY("ZSTD_decompress_usingDDict() failed on block %u : %s  \n",
                                       blockNb, ZSTD_getErrorName(regenSize));
                             clockLoop = 0;   /* force immediate test end */
                             break;

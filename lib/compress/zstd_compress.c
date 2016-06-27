@@ -2586,7 +2586,7 @@ ZSTD_CDict* ZSTD_createCDict_advanced(const void* dict, size_t dictSize, ZSTD_pa
     if (!customMem.customAlloc && !customMem.customFree)
         customMem = defaultCustomMem;
 
-    if (!customMem.customAlloc || !customMem.customFree)
+    if (!customMem.customAlloc || !customMem.customFree)  /* can't have 1/2 custom alloc/free as NULL */
         return NULL;
 
     {   ZSTD_CDict* const cdict = (ZSTD_CDict*) customMem.customAlloc(customMem.opaque, sizeof(*cdict));
@@ -2780,4 +2780,15 @@ ZSTD_compressionParameters ZSTD_getCParams(int compressionLevel, U64 srcSize, si
     }
     cp = ZSTD_adjustCParams(cp, srcSize, dictSize);
     return cp;
+}
+
+/*! ZSTD_getParams() :
+*   same as ZSTD_getCParams(), but @return a `ZSTD_parameters` object instead of a `ZSTD_compressionParameters`.
+*   All fields of `ZSTD_frameParameters` are set to default (0) */
+ZSTD_parameters ZSTD_getParams(int compressionLevel, U64 srcSize, size_t dictSize) {
+    ZSTD_parameters params;
+    ZSTD_compressionParameters const cParams = ZSTD_getCParams(compressionLevel, srcSize, dictSize);
+    memset(&params, 0, sizeof(params));
+    params.cParams = cParams;
+    return params;
 }

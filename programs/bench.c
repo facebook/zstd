@@ -155,7 +155,7 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
 
     /* checks */
     if (!compressedBuffer || !resultBuffer || !blockTable || !ctx || !dctx)
-        EXM_THROW(31, "not enough memory");
+        EXM_THROW(31, "allocation error : not enough memory");
 
     /* init */
     if (strlen(displayName)>17) displayName += strlen(displayName)-17;   /* can only display 17 characters */
@@ -211,12 +211,15 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
             DISPLAYLEVEL(2, "%2i-%-17.17s :%10u ->\r", testNb, displayName, (U32)srcSize);
             memset(compressedBuffer, 0xE5, maxCompressedSize);  /* warm up and erase result buffer */
 
-            UTIL_sleepMilli(1); /* give processor time to other processes */
+            UTIL_sleepMilli(1);  /* give processor time to other processes */
             UTIL_waitForNextTick(ticksPerSecond);
             UTIL_getTime(&clockStart);
 
-            {   U32 nbLoops = 0;
-                ZSTD_CDict* cdict = ZSTD_createCDict(dictBuffer, dictBufferSize, cLevel);
+            {   size_t const refSrcSize = (nbBlocks == 1) ? srcSize : 0;
+                ZSTD_parameters const zparams = ZSTD_getParams(cLevel, refSrcSize, dictBufferSize);
+                ZSTD_customMem const cmem = { NULL, NULL, NULL };
+                U32 nbLoops = 0;
+                ZSTD_CDict* cdict = ZSTD_createCDict_advanced(dictBuffer, dictBufferSize, zparams, cmem);
                 if (cdict==NULL) EXM_THROW(1, "ZSTD_createCDict() allocation failure");
                 do {
                     U32 blockNb;

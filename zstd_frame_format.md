@@ -194,11 +194,11 @@ __WD byte__ (Window Descriptor)
 
 Provides guarantees on maximum back-reference distance
 that will be used within compressed data.
-This information can then be used by decoder to allocate enough memory.
+This information is useful for decoders to allocate enough memory.
 
-|  BitNb  |    7-3   |    0-2   |
-| ------- | -------- | -------- |
-|FieldName| Exponent | Mantissa |
+|   BitNb   |    7-3   |    0-2   |
+| --------- | -------- | -------- |
+| FieldName | Exponent | Mantissa |
 
 Maximum distance is given by the following formulae :
 ```
@@ -207,11 +207,17 @@ windowBase = 1 << windowLog;
 windowAdd = (windowBase / 8) * Mantissa;
 windowSize = windowBase + windowAdd;
 ```
-`WD` byte is optional. It's not present in `single segment` mode.
+The minimum window size is 1 KB.
+The maximum value is (15*(2^38))-1 bytes, which is almost 1.875 TB.
 
-In order to preserve decoder from unreasonable memory requirement,
+`WD` byte is optional. It's not present in `single segment` mode.
+In which case, the maximum back-reference distance is the content size itself, which can be any value from 1 to 2^64-1 bytes (16 EB).
+
+In order to preserve decoder from unreasonable memory requirements,
 a decoder can refuse a compressed frame
 which requests a memory size beyond decoder's authorized range.
+
+For better interoperability, decoders are recommended to be compatible with window sizes up to 8 MB. Encoders are recommended to not request more than 8 MB. It's just a recommendation, decoders are free to accept or refuse larger or lower values.
 
 __Frame Content Size__
 

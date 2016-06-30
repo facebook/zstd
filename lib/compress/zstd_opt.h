@@ -114,7 +114,7 @@ FORCE_INLINE U32 ZSTD_getLiteralPrice(seqStore_t* ssPtr, U32 litLength, const BY
 
     /* literals */
     if (ssPtr->cachedLiterals == literals) {
-        U32 additional = litLength - ssPtr->cachedLitLength;
+        U32 const additional = litLength - ssPtr->cachedLitLength;
         const BYTE* literals2 = ssPtr->cachedLiterals + ssPtr->cachedLitLength;
         price = ssPtr->cachedPrice + additional * ssPtr->log2litSum;
         for (u=0; u < additional; u++)
@@ -154,7 +154,7 @@ FORCE_INLINE U32 ZSTD_getLiteralPrice(seqStore_t* ssPtr, U32 litLength, const BY
 FORCE_INLINE U32 ZSTD_getPrice(seqStore_t* seqStorePtr, U32 litLength, const BYTE* literals, U32 offset, U32 matchLength)
 {
     /* offset */
-    BYTE offCode = (BYTE)ZSTD_highbit32(offset+1);
+    BYTE const offCode = (BYTE)ZSTD_highbit32(offset+1);
     U32 price = offCode + seqStorePtr->log2offCodeSum - ZSTD_highbit32(seqStorePtr->offCodeFreq[offCode]+1);
 
     /* match Length */
@@ -200,7 +200,7 @@ MEM_STATIC void ZSTD_updatePrice(seqStore_t* seqStorePtr, U32 litLength, const B
     }
 
     /* match offset */
-	{   BYTE offCode = (BYTE)ZSTD_highbit32(offset+1);
+	{   BYTE const offCode = (BYTE)ZSTD_highbit32(offset+1);
 		seqStorePtr->offCodeSum++;
 		seqStorePtr->offCodeFreq[offCode]++;
 	}

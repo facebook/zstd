@@ -1364,17 +1364,19 @@ static U32 ZSTD_insertBt1(ZSTD_CCtx* zc, const BYTE* const ip, const U32 mls, co
     const U32 windowLow = zc->lowLimit;
     U32 matchEndIdx = current+8;
     size_t bestLength = 8;
+#ifdef ZSTD_C_PREDICT
     U32 predictedSmall = *(bt + 2*((current-1)&btMask) + 0);
     U32 predictedLarge = *(bt + 2*((current-1)&btMask) + 1);
     predictedSmall += (predictedSmall>0);
     predictedLarge += (predictedLarge>0);
+#endif /* ZSTD_C_PREDICT */
 
     hashTable[h] = current;   /* Update Hash Table */
 
     while (nbCompares-- && (matchIndex > windowLow)) {
         U32* nextPtr = bt + 2*(matchIndex & btMask);
         size_t matchLength = MIN(commonLengthSmaller, commonLengthLarger);   /* guaranteed minimum nb of common bytes */
-#if 0   /* note : can create issues when hlog small <= 11 */
+#ifdef ZSTD_C_PREDICT   /* note : can create issues when hlog small <= 11 */
         const U32* predictPtr = bt + 2*((matchIndex-1) & btMask);   /* written this way, as bt is a roll buffer */
         if (matchIndex == predictedSmall) {
             /* no need to check length, result known */

@@ -115,6 +115,7 @@ static int usage(const char* programName)
     DISPLAY( " -D file: use `file` as Dictionary \n");
     DISPLAY( " -o file: result stored into `file` (only if 1 input file) \n");
     DISPLAY( " -f     : overwrite output without prompting \n");
+    DISPLAY( "--rm    : remove source file(s) after successful de/compression \n");
     DISPLAY( " -h/-H  : display help/long help and exit\n");
     return 0;
 }
@@ -132,7 +133,6 @@ static int usage_advanced(const char* programName)
 #ifdef UTIL_HAS_CREATEFILELIST
     DISPLAY( " -r     : operate recursively on directories\n");
 #endif
-    DISPLAY( "--rm    : remove source files after successful de/compression \n");
 #ifndef ZSTD_NOCOMPRESS
     DISPLAY( "--ultra : enable ultra modes (requires more memory to decompress)\n");
     DISPLAY( "--no-dictID : don't write dictID into header (dictionary compression)\n");
@@ -181,7 +181,7 @@ static void waitEnter(void)
 /*! readU32FromChar() :
     @return : unsigned integer value reach from input in `char` format
     Will also modify `*stringPtr`, advancing it to position where it stopped reading.
-    Note : this function can overflow if result > MAX_UNIT */
+    Note : this function can overflow if result > MAX_UINT */
 static unsigned readU32FromChar(const char** stringPtr)
 {
     unsigned result = 0;
@@ -265,7 +265,7 @@ int main(int argCount, const char** argv)
         if (!strcmp(argument, "--train")) { dictBuild=1; outFileName=g_defaultDictName; continue; }
         if (!strcmp(argument, "--maxdict")) { nextArgumentIsMaxDict=1; continue; }
         if (!strcmp(argument, "--dictID")) { nextArgumentIsDictID=1; continue; }
-        if (!strcmp(argument, "--keep")) { continue; }   /* does nothing, since preserving input is default; for gzip/xz compatibility */
+        if (!strcmp(argument, "--keep")) { FIO_setRemoveSrcFile(0); continue; }
         if (!strcmp(argument, "--rm")) { FIO_setRemoveSrcFile(1); continue; }
 
         /* '-' means stdin/stdout */
@@ -314,8 +314,8 @@ int main(int argCount, const char** argv)
                     /* Quiet mode */
                 case 'q': displayLevel--; argument++; break;
 
-                    /* keep source file (default anyway, so useless; for gzip/xz compatibility) */
-                case 'k': argument++; break;
+                    /* keep source file (default); for gzip/xz compatibility */
+                case 'k': FIO_setRemoveSrcFile(0); argument++; break;
 
                     /* Checksum */
                 case 'C': argument++; FIO_setChecksumFlag(2); break;

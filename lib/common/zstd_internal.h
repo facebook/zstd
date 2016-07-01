@@ -51,7 +51,7 @@
 /*-*************************************
 *  Common constants
 ***************************************/
-#define ZSTD_OPT_DEBUG 0     // 3 = compression stats;  5 = check encoded sequences;  9 = full logs
+#define ZSTD_OPT_DEBUG 0     /* 3 = compression stats;  5 = check encoded sequences;  9 = full logs */
 #include <stdio.h>
 #if defined(ZSTD_OPT_DEBUG) && ZSTD_OPT_DEBUG>=9
     #define ZSTD_LOG_PARSER(...) printf(__VA_ARGS__)

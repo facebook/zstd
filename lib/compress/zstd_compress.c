@@ -427,21 +427,8 @@ static void ZSTD_reduceIndex (ZSTD_CCtx* zc, const U32 reducerValue)
 */
 
 
-/* Frame descriptor
+/* Frame header :
 
-    // old
-   1 byte - Alloc :
-   bit 0-3 : windowLog - ZSTD_WINDOWLOG_ABSOLUTEMIN   (see zstd_internal.h)
-   bit 4   : reserved for windowLog (must be zero)
-   bit 5   : reserved (must be zero)
-   bit 6-7 : Frame content size : unknown, 1 byte, 2 bytes, 8 bytes
-
-   1 byte - checker :
-   bit 0-1 : dictID (0, 1, 2 or 4 bytes)
-   bit 2-7 : reserved (must be zero)
-
-
-    // new
    1 byte - FrameHeaderDescription :
    bit 0-1 : dictID (0, 1, 2 or 4 bytes)
    bit 2-4 : reserved (must be zero)
@@ -453,24 +440,24 @@ static void ZSTD_reduceIndex (ZSTD_CCtx* zc, const U32 reducerValue)
    bit 0-2 : octal Fractional (1/8th)
    bit 3-7 : Power of 2, with 0 = 1 KB (up to 2 TB)
 
+   Optional : content size (0, 1, 2, 4 or 8 bytes)
+   0 : unknown
+   1 : 0-255 bytes
+   2 : 256 - 65535+256
+   8 : up to 16 exa
+
    Optional : dictID (0, 1, 2 or 4 bytes)
    Automatic adaptation
    0 : no dictID
    1 : 1 - 255
    2 : 256 - 65535
    4 : all other values
-
-   Optional : content size (0, 1, 2, 4 or 8 bytes)
-   0 : unknown
-   1 : 0-255 bytes
-   2 : 256 - 65535+256
-   8 : up to 16 exa
 */
 
 
 /* Block format description
 
-   Block = Literal Section - Sequences Section
+   Block = Literals Section - Sequences Section
    Prerequisite : size of (compressed) block, maximum size of regenerated data
 
    1) Literal Section
@@ -478,7 +465,7 @@ static void ZSTD_reduceIndex (ZSTD_CCtx* zc, const U32 reducerValue)
    1.1) Header : 1-5 bytes
         flags: 2 bits
             00 compressed by Huff0
-            01 unused
+            01 repeat
             10 is Raw (uncompressed)
             11 is Rle
             Note : using 01 => Huff0 with precomputed table ?
@@ -514,7 +501,7 @@ static void ZSTD_reduceIndex (ZSTD_CCtx* zc, const U32 reducerValue)
             else           => 5 bytes (2-2-18-18)
             big endian convention
 
-        1- CTable available (stored into workspace ?)
+        1- CTable available (stored into workspace)
         2- Small input (fast heuristic ? Full comparison ? depend on clevel ?)
 
 

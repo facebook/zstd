@@ -411,7 +411,7 @@ static int FIO_compressFilename_dstFile(cRess_t ress,
     int result;
 
     ress.dstFile = FIO_openDstFile(dstFileName);
-    if (ress.dstFile==0) return 1;
+    if (ress.dstFile==0) { DISPLAYLEVEL(1, "zstd: %s: cannot open \n", dstFileName); return 1; }
 
     result = FIO_compressFilename_srcFile(ress, dstFileName, srcFileName, cLevel);
 

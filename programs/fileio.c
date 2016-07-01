@@ -113,21 +113,15 @@ static U32 g_displayLevel = 2;   /* 0 : no display;   1: errors;   2 : + result 
 void FIO_setNotificationLevel(unsigned level) { g_displayLevel=level; }
 
 #define DISPLAYUPDATE(l, ...) if (g_displayLevel>=l) { \
-            if ((FIO_GetMilliSpan(g_time) > refreshRate) || (g_displayLevel>=4)) \
+            if ((clock() - g_time > refreshRate) || (g_displayLevel>=4)) \
             { g_time = clock(); DISPLAY(__VA_ARGS__); \
             if (g_displayLevel>=4) fflush(stdout); } }
-static const unsigned refreshRate = 150;
+static const clock_t refreshRate = CLOCKS_PER_SEC * 15 / 100;
 static clock_t g_time = 0;
-
-static unsigned FIO_GetMilliSpan(clock_t nPrevious)
-{
-    clock_t const nCurrent = clock();
-    return (unsigned)(((nCurrent - nPrevious) * 1000) / CLOCKS_PER_SEC);
-}
 
 
 /*-*************************************
-*  Local Parameters
+*  Local Parameters - Not thread safe
 ***************************************/
 static U32 g_overwrite = 0;
 void FIO_overwriteMode(void) { g_overwrite=1; }
@@ -175,7 +169,7 @@ static FILE* FIO_openSrcFile(const char* srcFileName)
         f = fopen(srcFileName, "rb");
     }
 
-    if ( f==NULL ) DISPLAYLEVEL(1, "zstd: %s: No such file\n", srcFileName);
+    if ( f==NULL ) DISPLAYLEVEL(1, "zstd: %s: %s \n", srcFileName, strerror(errno));
 
     return f;
 }
@@ -201,18 +195,20 @@ static FILE* FIO_openDstFile(const char* dstFileName)
                 if (g_displayLevel <= 1) {
                     /* No interaction possible */
                     DISPLAY("zstd: %s already exists; not overwritten  \n", dstFileName);
-                    return 0;
+                    return NULL;
                 }
                 DISPLAY("zstd: %s already exists; do you wish to overwrite (y/N) ? ", dstFileName);
                 {   int ch = getchar();
                     if ((ch!='Y') && (ch!='y')) {
                         DISPLAY("    not overwritten  \n");
-                        return 0;
+                        return NULL;
                     }
                     while ((ch!=EOF) && (ch!='\n')) ch = getchar();  /* flush rest of input line */
         }   }   }
         f = fopen( dstFileName, "wb" );
     }
+
+    if (f==NULL) DISPLAYLEVEL(1, "zstd: %s: %s\n", dstFileName, strerror(errno));
     return f;
 }
 
@@ -233,17 +229,17 @@ static size_t FIO_loadFile(void** bufferPtr, const char* fileName)
 
     DISPLAYLEVEL(4,"Loading %s as dictionary \n", fileName);
     fileHandle = fopen(fileName, "rb");
-    if (fileHandle==0) EXM_THROW(31, "Error opening file %s", fileName);
+    if (fileHandle==0) EXM_THROW(31, "zstd: %s: %s", fileName, strerror(errno));
     fileSize = UTIL_getFileSize(fileName);
     if (fileSize > MAX_DICT_SIZE) {
         int seekResult;
         if (fileSize > 1 GB) EXM_THROW(32, "Dictionary file %s is too large", fileName);   /* avoid extreme cases */
         DISPLAYLEVEL(2,"Dictionary %s is too large : using last %u bytes only \n", fileName, MAX_DICT_SIZE);
         seekResult = fseek(fileHandle, (long int)(fileSize-MAX_DICT_SIZE), SEEK_SET);   /* use end of file */
-        if (seekResult != 0) EXM_THROW(33, "Error seeking into file %s", fileName);
+        if (seekResult != 0) EXM_THROW(33, "zstd: %s: %s", fileName, strerror(errno));
         fileSize = MAX_DICT_SIZE;
     }
-    *bufferPtr = (BYTE*)malloc((size_t)fileSize);
+    *bufferPtr = malloc((size_t)fileSize);
     if (*bufferPtr==NULL) EXM_THROW(34, "Allocation error : not enough memory for dictBuffer");
     { size_t const readSize = fread(*bufferPtr, 1, (size_t)fileSize, fileHandle);
       if (readSize!=fileSize) EXM_THROW(35, "Error reading dictionary file %s", fileName); }
@@ -373,8 +369,8 @@ static int FIO_compressFilename_internal(cRess_t ress,
 }
 
 
-/*! FIO_compressFilename_internal() :
- *  same as FIO_compressFilename_extRess(), with ress.destFile already opened (typically stdout)
+/*! FIO_compressFilename_srcFile() :
+ *  note : ress.destFile already opened
  *  @return : 0 : compression completed correctly,
  *            1 : missing or pb opening srcFileName
  */
@@ -411,11 +407,11 @@ static int FIO_compressFilename_dstFile(cRess_t ress,
     int result;
 
     ress.dstFile = FIO_openDstFile(dstFileName);
-    if (ress.dstFile==0) { DISPLAYLEVEL(1, "zstd: %s: %s \n", dstFileName, strerror(errno)); return 1; }
+    if (ress.dstFile==0) return 1;
 
     result = FIO_compressFilename_srcFile(ress, dstFileName, srcFileName, cLevel);
 
-    if (fclose(ress.dstFile)) EXM_THROW(28, "Write error : cannot properly close %s", dstFileName);
+    if (fclose(ress.dstFile)) { DISPLAYLEVEL(1, "zstd: %s: %s \n", dstFileName, strerror(errno)); result=1; }
     if (result!=0) remove(dstFileName);   /* remove operation artefact */
     return result;
 }
@@ -427,13 +423,13 @@ int FIO_compressFilename(const char* dstFileName, const char* srcFileName,
     clock_t const start = clock();
 
     cRess_t const ress = FIO_createCResources(dictFileName);
-    int const issueWithSrcFile = FIO_compressFilename_dstFile(ress, dstFileName, srcFileName, compressionLevel);
-    FIO_freeCResources(ress);
+    int const result = FIO_compressFilename_dstFile(ress, dstFileName, srcFileName, compressionLevel);
 
-    {   double const seconds = (double)(clock() - start) / CLOCKS_PER_SEC;
-        DISPLAYLEVEL(4, "Completed in %.2f sec \n", seconds);
-    }
-    return issueWithSrcFile;
+    double const seconds = (double)(clock() - start) / CLOCKS_PER_SEC;
+    DISPLAYLEVEL(4, "Completed in %.2f sec \n", seconds);
+
+    FIO_freeCResources(ress);
+    return result;
 }
 
 

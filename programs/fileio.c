@@ -41,7 +41,8 @@
 /* *************************************
 *  Compiler Options
 ***************************************/
-#define _POSIX_SOURCE 1        /* enable %llu on Windows */
+#define _POSIX_SOURCE 1          /* enable %llu on Windows */
+#define _CRT_SECURE_NO_WARNINGS  /* removes Visual warning on strerror() */
 
 
 /*-*************************************

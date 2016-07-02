@@ -23,6 +23,12 @@
     - source repository : https://github.com/Cyan4973/zstd
 */
 
+/* *************************************
+*  Compiler Options
+***************************************/
+#define _CRT_SECURE_NO_WARNINGS  /* removes Visual warning on strerror() */
+
+
 /*-************************************
 *  Includes
 **************************************/

@@ -404,6 +404,8 @@ static void ZSTD_reduceIndex (ZSTD_CCtx* zc, const U32 reducerValue)
 
     { const U32 h3Size = (zc->hashLog3) ? 1 << zc->hashLog3 : 0;
       ZSTD_reduceTable(zc->hashTable3, h3Size, reducerValue); }
+
+     ZSTD_reduceTable(zc->rep, ZSTD_REP_NUM, reducerValue);
 }
 
 

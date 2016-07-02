@@ -1885,10 +1885,9 @@ void ZSTD_compressBlock_lazy_extDict_generic(ZSTD_CCtx* ctx,
                         U32 maxNbAttempts, U32 matchLengthSearch);
     searchMax_f searchMax = searchMethod ? ZSTD_BtFindBestMatch_selectMLS_extDict : ZSTD_HcFindBestMatch_extDict_selectMLS;
 
-    /* init */
-    U32 rep[ZSTD_REP_INIT];
-    { U32 i; for (i=0; i<ZSTD_REP_INIT; i++) rep[i]=ctx->rep[i]; }
+    U32 offset_1 = ctx->rep[0], offset_2 = ctx->rep[1];
 
+    /* init */
     ctx->nextToUpdate3 = ctx->nextToUpdate;
     ip += (ip == prefixStart);
 
@@ -1900,7 +1899,7 @@ void ZSTD_compressBlock_lazy_extDict_generic(ZSTD_CCtx* ctx,
         U32 current = (U32)(ip-base);
 
         /* check repCode */
-        {   const U32 repIndex = (U32)(current+1 - rep[0]);
+        {   const U32 repIndex = (U32)(current+1 - offset_1);
             const BYTE* const repBase = repIndex < dictLimit ? dictBase : base;
             const BYTE* const repMatch = repBase + repIndex;
             if (((U32)((dictLimit-1) - repIndex) >= 3) & (repIndex > lowestIndex))   /* intentional overflow */
@@ -1930,7 +1929,7 @@ void ZSTD_compressBlock_lazy_extDict_generic(ZSTD_CCtx* ctx,
             current++;
             /* check repCode */
             if (offset) {
-                const U32 repIndex = (U32)(current - rep[0]);
+                const U32 repIndex = (U32)(current - offset_1);
                 const BYTE* const repBase = repIndex < dictLimit ? dictBase : base;
                 const BYTE* const repMatch = repBase + repIndex;
                 if (((U32)((dictLimit-1) - repIndex) >= 3) & (repIndex > lowestIndex))  /* intentional overflow */
@@ -1960,7 +1959,7 @@ void ZSTD_compressBlock_lazy_extDict_generic(ZSTD_CCtx* ctx,
                 current++;
                 /* check repCode */
                 if (offset) {
-                    const U32 repIndex = (U32)(current - rep[0]);
+                    const U32 repIndex = (U32)(current - offset_1);
                     const BYTE* const repBase = repIndex < dictLimit ? dictBase : base;
                     const BYTE* const repMatch = repBase + repIndex;
                     if (((U32)((dictLimit-1) - repIndex) >= 3) & (repIndex > lowestIndex))  /* intentional overflow */
@@ -1992,7 +1991,7 @@ void ZSTD_compressBlock_lazy_extDict_generic(ZSTD_CCtx* ctx,
             const BYTE* match = (matchIndex < dictLimit) ? dictBase + matchIndex : base + matchIndex;
             const BYTE* const mStart = (matchIndex < dictLimit) ? dictStart : prefixStart;
             while ((start>anchor) && (match>mStart) && (start[-1] == match[-1])) { start--; match--; matchLength++; }  /* catch up */
-            rep[1] = rep[0]; rep[0] = (U32)(offset - ZSTD_REP_MOVE);
+            offset_2 = offset_1; offset_1 = (U32)(offset - ZSTD_REP_MOVE);
         }
 
         /* store sequence */
@@ -2004,7 +2003,7 @@ _storeSequence:
 
         /* check immediate repcode */
         while (ip <= ilimit) {
-            const U32 repIndex = (U32)((ip-base) - rep[1]);
+            const U32 repIndex = (U32)((ip-base) - offset_2);
             const BYTE* const repBase = repIndex < dictLimit ? dictBase : base;
             const BYTE* const repMatch = repBase + repIndex;
             if (((U32)((dictLimit-1) - repIndex) >= 3) & (repIndex > lowestIndex))  /* intentional overflow */
@@ -2012,7 +2011,7 @@ _storeSequence:
                 /* repcode detected we should take it */
                 const BYTE* const repEnd = repIndex < dictLimit ? dictEnd : iend;
                 matchLength = ZSTD_count_2segments(ip+EQUAL_READ32, repMatch+EQUAL_READ32, iend, repEnd, prefixStart) + EQUAL_READ32;
-                offset = rep[1]; rep[1] = rep[0]; rep[0] = (U32)offset;   /* swap offset history */
+                offset = offset_2; offset_2 = offset_1; offset_1 = (U32)offset;   /* swap offset history */
                 ZSTD_storeSeq(seqStorePtr, 0, anchor, 0, matchLength-MINMATCH);
                 ip += matchLength;
                 anchor = ip;
@@ -2022,7 +2021,7 @@ _storeSequence:
     }   }
 
     /* Save reps for next block */
-    ctx->savedRep[0] = rep[0]; ctx->savedRep[1] = rep[1]; ctx->savedRep[2] = rep[2];
+    ctx->savedRep[0] = offset_1; ctx->savedRep[1] = offset_2;
 
     /* Last Literals */
     {   size_t const lastLLSize = iend - anchor;

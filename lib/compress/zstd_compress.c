@@ -1116,13 +1116,14 @@ void ZSTD_compressBlock_fast_generic(ZSTD_CCtx* cctx,
     const BYTE* const lowest = base + lowestIndex;
     const BYTE* const iend = istart + srcSize;
     const BYTE* const ilimit = iend - 8;
-    size_t offset_1=cctx->rep[0], offset_2=cctx->rep[1];
+    U32 offset_1=cctx->rep[0], offset_2=cctx->rep[1];
+    U32 offsetSaved = 0;
 
     /* init */
     ip += (ip==lowest);
     {   U32 const maxRep = (U32)(ip-lowest);
-        if (offset_1 > maxRep) offset_1 = 0;
-        if (offset_2 > maxRep) offset_2 = 0;
+        if (offset_2 > maxRep) offsetSaved = offset_2, offset_2 = 0;
+        if (offset_1 > maxRep) offsetSaved = offset_1, offset_1 = 0;
     }
 
     /* Main Search Loop */
@@ -1139,13 +1140,13 @@ void ZSTD_compressBlock_fast_generic(ZSTD_CCtx* cctx,
             ip++;
             ZSTD_storeSeq(seqStorePtr, ip-anchor, anchor, 0, mLength-MINMATCH);
         } else {
-            size_t offset;
+            U32 offset;
             if ( (matchIndex <= lowestIndex) || (MEM_read32(match) != MEM_read32(ip)) ) {
                 ip += ((ip-anchor) >> g_searchStrength) + 1;
                 continue;
             }
             mLength = ZSTD_count(ip+EQUAL_READ32, match+EQUAL_READ32, iend) + EQUAL_READ32;
-            offset = ip-match;
+            offset = (U32)(ip-match);
             while (((ip>anchor) & (match>lowest)) && (ip[-1] == match[-1])) { ip--; match--; mLength++; } /* catch up */
             offset_2 = offset_1;
             offset_1 = offset;
@@ -1167,7 +1168,7 @@ void ZSTD_compressBlock_fast_generic(ZSTD_CCtx* cctx,
                  & (MEM_read32(ip) == MEM_read32(ip - offset_2)) )) {
                 /* store sequence */
                 size_t const rLength = ZSTD_count(ip+EQUAL_READ32, ip+EQUAL_READ32-offset_2, iend) + EQUAL_READ32;
-                { size_t const tmpOff = offset_2; offset_2 = offset_1; offset_1 = tmpOff; } /* swap offset_2 <=> offset_1 */
+                { U32 const tmpOff = offset_2; offset_2 = offset_1; offset_1 = tmpOff; }  /* swap offset_2 <=> offset_1 */
                 hashTable[ZSTD_hashPtr(ip, hBits, mls)] = (U32)(ip-base);
                 ZSTD_storeSeq(seqStorePtr, 0, anchor, 0, rLength-MINMATCH);
                 ip += rLength;
@@ -1176,8 +1177,8 @@ void ZSTD_compressBlock_fast_generic(ZSTD_CCtx* cctx,
     }   }   }
 
     /* save reps for next block */
-    cctx->savedRep[0] = offset_1 ? (U32)offset_1 : (U32)(iend - base) + 1;
-    cctx->savedRep[1] = offset_2 ? (U32)offset_2 : (U32)(iend - base) + 1;
+    cctx->savedRep[0] = offset_1 ? offset_1 : offsetSaved;
+    cctx->savedRep[1] = offset_2 ? offset_2 : offsetSaved;
 
     /* Last Literals */
     {   size_t const lastLLSize = iend - anchor;

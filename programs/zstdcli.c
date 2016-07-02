@@ -254,7 +254,7 @@ int main(int argCount, const char** argv)
         if (!strcmp(argument, "--help")) { displayOut=stdout; CLEAN_RETURN(usage_advanced(programName)); }
         if (!strcmp(argument, "--verbose")) { displayLevel=4; continue; }
         if (!strcmp(argument, "--quiet")) { displayLevel--; continue; }
-        if (!strcmp(argument, "--stdout")) { forceStdout=1; outFileName=stdoutmark; displayLevel=1; continue; }
+        if (!strcmp(argument, "--stdout")) { forceStdout=1; outFileName=stdoutmark; displayLevel-=(displayLevel==2); continue; }
         if (!strcmp(argument, "--ultra")) { FIO_setMaxWLog(0); continue; }
         if (!strcmp(argument, "--check")) { FIO_setChecksumFlag(2); continue; }
         if (!strcmp(argument, "--no-check")) { FIO_setChecksumFlag(0); continue; }
@@ -270,8 +270,12 @@ int main(int argCount, const char** argv)
 
         /* '-' means stdin/stdout */
         if (!strcmp(argument, "-")){
-            if (!filenameIdx) { filenameIdx=1, filenameTable[0]=stdinmark; outFileName=stdoutmark; continue; }
-        }
+            if (!filenameIdx) {
+                filenameIdx=1, filenameTable[0]=stdinmark;
+                outFileName=stdoutmark;
+                displayLevel-=(displayLevel==2);
+                continue;
+        }   }
 
         /* Decode commands (note : aggregated commands are allowed) */
         if (argument[0]=='-') {
@@ -300,7 +304,7 @@ int main(int argCount, const char** argv)
                 case 'd': decode=1; argument++; break;
 
                     /* Force stdout, even if stdout==console */
-                case 'c': forceStdout=1; outFileName=stdoutmark; displayLevel=1; argument++; break;
+                case 'c': forceStdout=1; outFileName=stdoutmark; displayLevel-=(displayLevel==2); argument++; break;
 
                     /* Use file content as dictionary */
                 case 'D': nextEntryIsDictionary = 1; argument++; break;

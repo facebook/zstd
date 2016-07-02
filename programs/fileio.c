@@ -48,18 +48,17 @@
 /*-*************************************
 *  Includes
 ***************************************/
+#include "util.h"       /* Compiler options, UTIL_GetFileSize, _LARGEFILE64_SOURCE */
 #include <stdio.h>      /* fprintf, fopen, fread, _fileno, stdin, stdout */
 #include <stdlib.h>     /* malloc, free */
 #include <string.h>     /* strcmp, strlen */
 #include <time.h>       /* clock */
 #include <errno.h>      /* errno */
 
-#include "util.h"       /* Compiler options, UTIL_GetFileSize */
 #include "mem.h"
 #include "fileio.h"
 #define ZSTD_STATIC_LINKING_ONLY   /* ZSTD_magicNumber, ZSTD_frameHeaderSize_max */
 #include "zstd.h"
-//#include "zstd_internal.h" /* MIN, KB, MB */
 #define ZBUFF_STATIC_LINKING_ONLY
 #include "zbuff.h"
 

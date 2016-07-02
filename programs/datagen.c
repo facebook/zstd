@@ -29,6 +29,7 @@
 #include <stdlib.h>    /* malloc */
 #include <stdio.h>     /* FILE, fwrite, fprintf */
 #include <string.h>    /* memcpy */
+#include <errno.h>     /* errno */
 #include "mem.h"       /* U32 */
 
 
@@ -104,7 +105,7 @@ static BYTE RDG_genChar(U32* seed, const BYTE* ldt)
     U32 const id = RDG_rand(seed) & LTMASK;
     //TRACE(" %u : \n", id);
     //TRACE(" %4u [%4u] ; val : %4u \n", id, id&255, ldt[id]);
-    return (ldt[id]);  /* memory-sanitizer fails here, stating "uninitialized value" when table initialized with 0.0. Checked : table is fully initialized */
+    return ldt[id];  /* memory-sanitizer fails here, stating "uninitialized value" when table initialized with P==0.0. Checked : table is fully initialized */
 }
 
 
@@ -115,8 +116,7 @@ static U32 RDG_rand15Bits (unsigned* seedPtr)
 
 static U32 RDG_randLength(unsigned* seedPtr)
 {
-    if (RDG_rand(seedPtr) & 7)
-        return (RDG_rand(seedPtr) & 0xF);
+    if (RDG_rand(seedPtr) & 7) return (RDG_rand(seedPtr) & 0xF);   /* small length */
     return (RDG_rand(seedPtr) & 0x1FF) + 0xF;
 }
 
@@ -185,10 +185,10 @@ void RDG_genStdout(unsigned long long size, double matchProba, double litProba, 
     size_t const stdDictSize = 32 KB;
     BYTE* const buff = (BYTE*)malloc(stdDictSize + stdBlockSize);
     U64 total = 0;
-    BYTE ldt[LTSIZE];
+    BYTE ldt[LTSIZE];   /* literals distribution table */
 
     /* init */
-    if (buff==NULL) { fprintf(stdout, "not enough memory\n"); exit(1); }
+    if (buff==NULL) { fprintf(stderr, "datagen: error: %s \n", strerror(errno)); exit(1); }
     if (litProba<=0.0) litProba = matchProba / 4.5;
     memset(ldt, '0', sizeof(ldt));
     RDG_fillLiteralDistrib(ldt, litProba);

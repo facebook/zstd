@@ -240,7 +240,7 @@ static size_t FIO_loadFile(void** bufferPtr, const char* fileName)
         fileSize = MAX_DICT_SIZE;
     }
     *bufferPtr = malloc((size_t)fileSize);
-    if (*bufferPtr==NULL) EXM_THROW(34, "Allocation error : not enough memory for dictBuffer");
+    if (*bufferPtr==NULL) EXM_THROW(34, "zstd: %s", strerror(errno));
     { size_t const readSize = fread(*bufferPtr, 1, (size_t)fileSize, fileHandle);
       if (readSize!=fileSize) EXM_THROW(35, "Error reading dictionary file %s", fileName); }
     fclose(fileHandle);
@@ -269,14 +269,14 @@ static cRess_t FIO_createCResources(const char* dictFileName)
     cRess_t ress;
 
     ress.ctx = ZBUFF_createCCtx();
-    if (ress.ctx == NULL) EXM_THROW(30, "Allocation error : can't create ZBUFF context");
+    if (ress.ctx == NULL) EXM_THROW(30, "zstd: allocation error : can't create ZBUFF context");
 
     /* Allocate Memory */
     ress.srcBufferSize = ZBUFF_recommendedCInSize();
     ress.srcBuffer = malloc(ress.srcBufferSize);
     ress.dstBufferSize = ZBUFF_recommendedCOutSize();
     ress.dstBuffer = malloc(ress.dstBufferSize);
-    if (!ress.srcBuffer || !ress.dstBuffer) EXM_THROW(31, "Allocation error : not enough memory");
+    if (!ress.srcBuffer || !ress.dstBuffer) EXM_THROW(31, "zstd: allocation error : not enough memory");
 
     /* dictionary */
     ress.dictBufferSize = FIO_loadFile(&(ress.dictBuffer), dictFileName);
@@ -291,7 +291,7 @@ static void FIO_freeCResources(cRess_t ress)
     free(ress.dstBuffer);
     free(ress.dictBuffer);
     errorCode = ZBUFF_freeCCtx(ress.ctx);
-    if (ZBUFF_isError(errorCode)) EXM_THROW(38, "Error : can't release ZBUFF context resource : %s", ZBUFF_getErrorName(errorCode));
+    if (ZBUFF_isError(errorCode)) EXM_THROW(38, "zstd: error : can't release ZBUFF context resource : %s", ZBUFF_getErrorName(errorCode));
 }
 
 

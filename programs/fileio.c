@@ -48,18 +48,18 @@
 /*-*************************************
 *  Includes
 ***************************************/
-#include "util.h"       /* Compiler options, UTIL_GetFileSize */
 #include <stdio.h>      /* fprintf, fopen, fread, _fileno, stdin, stdout */
 #include <stdlib.h>     /* malloc, free */
 #include <string.h>     /* strcmp, strlen */
 #include <time.h>       /* clock */
 #include <errno.h>      /* errno */
 
+#include "util.h"       /* Compiler options, UTIL_GetFileSize */
 #include "mem.h"
 #include "fileio.h"
 #define ZSTD_STATIC_LINKING_ONLY   /* ZSTD_magicNumber, ZSTD_frameHeaderSize_max */
 #include "zstd.h"
-#include "zstd_internal.h" /* MIN, KB, MB */
+//#include "zstd_internal.h" /* MIN, KB, MB */
 #define ZBUFF_STATIC_LINKING_ONLY
 #include "zbuff.h"
 
@@ -85,6 +85,10 @@
 /*-*************************************
 *  Constants
 ***************************************/
+#define KB *(1<<10)
+#define MB *(1<<20)
+#define GB *(1U<<30)
+
 #define _1BIT  0x01
 #define _2BITS 0x03
 #define _3BITS 0x07
@@ -119,6 +123,8 @@ void FIO_setNotificationLevel(unsigned level) { g_displayLevel=level; }
             if (g_displayLevel>=4) fflush(stdout); } }
 static const clock_t refreshRate = CLOCKS_PER_SEC * 15 / 100;
 static clock_t g_time = 0;
+
+#define MIN(a,b)    ((a) < (b) ? (a) : (b))
 
 
 /*-*************************************

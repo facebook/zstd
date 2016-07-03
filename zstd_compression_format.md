@@ -16,7 +16,7 @@ Distribution of this document is unlimited.
 
 ### Version
 
-0.1.0 (30/06/2016 - unfinished)
+0.0.1 (30/06/2016 - Work in progress - unfinished)
 
 
 Introduction
@@ -395,6 +395,13 @@ A compressed block consists of 2 sections :
 - Literals section
 - Sequences section
 
+### Prerequisite
+For proper decoding, a compressed block requires access to following elements :
+- Previous decoded blocks, up to a distance of `windowSize`,
+  or all previous blocks in the same frame "single segment" mode.
+- List of "recent offsets" from previous compressed block.
+
+
 ### Compressed Literals
 
 Literals are compressed using order-0 huffman compression.
@@ -479,8 +486,106 @@ Note : also applicable to "repeat-stats" blocks.
                Compressed and regenerated sizes use 18 bits (0-262143)
                Total literal header size is 5 bytes
 
+Compressed and regenerated size fields follow big endian convention.
+
+#### Huffman Tree description
+
+This section is only present when block type is _compressed_ (`0`).
+It describes the different leaf nodes of the huffman tree,
+and their relative weights.
+
+##### Representation
+
+All byte values from zero (included) to last present one (excluded)
+are represented by `weight` values, from 0 to `maxBits`.
+Transformation from `weight` to `nbBits` follows this formulae :
+`nbBits = weight ? maxBits + 1 - weight : 0;` .
+The last symbol's weight is deduced from previously decoded ones,
+by completing to the nearest power of 2.
+This power of 2 gives `maxBits`, the depth of the current tree.
+
+__Example__ :
+Let's presume the following huffman tree must be described :
+
+|  Value | 0 | 1 | 2 | 3 | 4 | 5 |
+| ------ | - | - | - | - | - | - |
+| nbBits | 1 | 2 | 3 | 0 | 4 | 4 |
+
+The tree depth is 4, since its smallest element uses 4 bits.
+Value `5` will not be listed, nor will values above `5`.
+Values from `0` to `4` will be listed using `weight` instead of `nbBits`.
+Weight formula is : `weight = nbBits ? maxBits + 1 - nbBits : 0;`
+It gives the following serie of weights :
+
+| weight | 4 | 3 | 2 | 0 | 1 |
+| ------ | - | - | - | - | - |
+|  Value | 0 | 1 | 2 | 3 | 4 |
+
+The decoder will do the inverse operation :
+having collected weights of symbols from `0` to `4`,
+it knows the last symbol, `5`, is present with a non-zero weight.
+The weight of `5` can be deduced by joining to the nearest power of 2.
+Sum of 2^(weight-1) (excluding 0) is :
+8 + 4 + 2 + 0 + 1 = 15
+Nearest power of 2 is 16.
+Therefore, `maxBits = 4` and `weight[5] = 1`.
+It can then proceed to transform back weights into nbBits :
+`weight = nbBits ? maxBits + 1 - nbBits : 0;` .
+
+##### Huffman Tree header
+
+This is a single byte value (0-255), which tells how to decode the tree.
+
+- if headerByte >= 242 : this is one of 14 pre-defined weight distributions :
+  + 242 :  1x1 (+ 1x1)
+  + 243 :  2x1 (+ 1x2)
+  + 244 :  3x1 (+ 1x1)
+  + 245 :  4x1 (+ 1x4)
+  + 246 :  7x1 (+ 1x1)
+  + 247 :  8x1 (+ 1x8)
+  + 248 : 15x1 (+ 1x1)
+  + 249 : 16x1 (+ 1x16)
+  + 250 : 31x1 (+ 1x1)
+  + 251 : 32x1 (+ 1x32)
+  + 252 : 63x1 (+ 1x1)
+  + 253 : 64x1 (+ 1x64)
+  + 254 :127x1 (+ 1x1)
+  + 255 :128x1 (+ 1x128)
+
+- if headerByte >= 128 : this is a direct representation,
+  where each weight is written directly as a 4 bits field (0-15).
+  The full representation occupies (nbSymbols+1/2) bytes,
+  meaning it uses a last full byte even if nbSymbols is odd.
+  `nbSymbols = headerByte - 127;`
+
+- if headerByte < 128 :
+  the serie of weights is compressed by FSE.
+  The length of the compressed serie is `headerByte` (0-127).
+
+##### FSE (Finite State Entropy) compression of huffman weights
+
+The serie of weights is compressed using standard FSE compression.
+It's a single bitstream with 2 interleaved states,
+using a single distribution table.
+
+To decode an FSE bitstream, it is necessary to know its compressed size.
+Compressed size is provided by `headerByte`.
+It's also necessary to know its maximum decompressed size.
+In this case, it's `255`, since literal values range from `0` to `255`,
+and the last symbol value is not represented.
+
+An FSE bitstream starts by a header, describing probabilities distribution.
+Result will create a Decoding Table.
+It is necessary to know the maximum accuracy of distribution
+to properly allocate space for the Table.
+For a list of huffman weights, this maximum is 8 bits.
+
+FSE header and bitstreams are described in a separated chapter.
+
+##### Conversion from weights to huffman prefix codes
+
+
 
 
 Version changes
 ---------------
-0.1 : initial release

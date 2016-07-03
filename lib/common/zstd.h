@@ -412,6 +412,7 @@ ZSTDLIB_API size_t ZSTD_decompressContinue(ZSTD_DCtx* dctx, void* dst, size_t ds
 
     A few rules to respect :
     - Uncompressed block size must be <= ZSTD_BLOCKSIZE_MAX (128 KB)
+      + If you need to compress more, it's recommended to use ZSTD_compress() instead, since frame metadata costs become negligible.
     - Compressing or decompressing requires a context structure
       + Use ZSTD_createCCtx() and ZSTD_createDCtx()
     - It is necessary to init context before starting

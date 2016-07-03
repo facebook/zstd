@@ -1,3 +1,6 @@
+v0.7.3
+added : OpenBSD target, by Juan Francisco Cantero Hurtado
+
 v0.7.2
 fixed : ZSTD_decompressBlock() using multiple consecutive blocks. Reported by Greg Slazinski
 fixed : potential segfault on very large files (many gigabytes). Reported by Chip Turner.

@@ -31,7 +31,7 @@
 /*-************************************
 *  Includes
 **************************************/
-#include "util.h"     /* Compiler options, UTIL_HAS_CREATEFILELIST */
+#include "util.h"     /* Compiler options, UTIL_HAS_CREATEFILELIST, errno */
 #include <string.h>   /* strcmp, strlen */
 #include <ctype.h>    /* toupper */
 #include "fileio.h"
@@ -45,7 +45,6 @@
 #include "zstd.h"     /* ZSTD_VERSION_STRING */
 
 
-
 /*-************************************
 *  OS-specific Includes
 **************************************/
@@ -53,12 +52,12 @@
 #  include <io.h>       /* _isatty */
 #  define IS_CONSOLE(stdStream) _isatty(_fileno(stdStream))
 #else
-#if defined(_POSIX_C_SOURCE) || defined(_XOPEN_SOURCE) || defined(_POSIX_SOURCE)
-#  include <unistd.h>   /* isatty */
-#  define IS_CONSOLE(stdStream) isatty(fileno(stdStream))
-#else
-#  define IS_CONSOLE(stdStream) 0
-#endif
+#  if defined(_POSIX_C_SOURCE) || defined(_XOPEN_SOURCE) || defined(_POSIX_SOURCE)
+#    include <unistd.h>   /* isatty */
+#    define IS_CONSOLE(stdStream) isatty(fileno(stdStream))
+#  else
+#    define IS_CONSOLE(stdStream) 0
+#  endif
 #endif
 
 
@@ -116,6 +115,7 @@ static int usage(const char* programName)
     DISPLAY( " -o file: result stored into `file` (only if 1 input file) \n");
     DISPLAY( " -f     : overwrite output without prompting \n");
     DISPLAY( "--rm    : remove source file(s) after successful de/compression \n");
+    DISPLAY( " -k     : preserve source file(s) (default) \n");
     DISPLAY( " -h/-H  : display help/long help and exit\n");
     return 0;
 }
@@ -168,7 +168,6 @@ static int badusage(const char* programName)
     if (displayLevel >= 1) usage(programName);
     return 1;
 }
-
 
 static void waitEnter(void)
 {
@@ -229,7 +228,7 @@ int main(int argCount, const char** argv)
     (void)recursive; (void)cLevelLast;    /* not used when ZSTD_NOBENCH set */
     (void)dictCLevel; (void)dictSelect; (void)dictID;  /* not used when ZSTD_NODICT set */
     (void)decode; (void)cLevel; /* not used when ZSTD_NOCOMPRESS set */
-    if (filenameTable==NULL) { DISPLAY("not enough memory\n"); exit(1); }
+    if (filenameTable==NULL) { DISPLAY("zstd: %s \n", strerror(errno)); exit(1); }
     filenameTable[0] = stdinmark;
     displayOut = stderr;
     /* Pick out program name from path. Don't rely on stdlib because of conflicting behavior */

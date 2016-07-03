@@ -27,8 +27,8 @@
 /*-************************************
 *  Includes
 **************************************/
-#include <stdio.h>     /* fprintf, stderr */
 #include "util.h"      /* Compiler options */
+#include <stdio.h>     /* fprintf, stderr */
 #include "datagen.h"   /* RDG_generate */
 
 

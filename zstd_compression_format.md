@@ -1,5 +1,5 @@
-Zstandard Compression Format Description
-========================================
+Zstandard Compression Format
+============================
 
 ### Notices
 

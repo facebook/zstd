@@ -61,7 +61,7 @@ extern "C" {
 ***************************************/
 #define ZSTD_VERSION_MAJOR    0
 #define ZSTD_VERSION_MINOR    7
-#define ZSTD_VERSION_RELEASE  1
+#define ZSTD_VERSION_RELEASE  2
 
 #define ZSTD_LIB_VERSION ZSTD_VERSION_MAJOR.ZSTD_VERSION_MINOR.ZSTD_VERSION_RELEASE
 #define ZSTD_QUOTE(str) #str
@@ -200,7 +200,6 @@ ZSTDLIB_API size_t ZSTD_decompress_usingDDict(ZSTD_DCtx* dctx,
 /*--- Dependency ---*/
 #include "mem.h"   /* U32 */
 
-
 /*--- Constants ---*/
 #define ZSTD_MAGICNUMBER            0xFD2FB527   /* v0.7 */
 #define ZSTD_MAGIC_SKIPPABLE_START  0x184D2A50U
@@ -230,19 +229,19 @@ static const size_t ZSTD_skippableHeaderSize = 8;  /* magic number + skippable f
 typedef enum { ZSTD_fast, ZSTD_greedy, ZSTD_lazy, ZSTD_lazy2, ZSTD_btlazy2, ZSTD_btopt } ZSTD_strategy;   /*< from faster to stronger */
 
 typedef struct {
-    U32 windowLog;     /*< largest match distance : larger == more compression, more memory needed during decompression */
-    U32 chainLog;      /*< fully searched segment : larger == more compression, slower, more memory (useless for fast) */
-    U32 hashLog;       /*< dispatch table : larger == faster, more memory */
-    U32 searchLog;     /*< nb of searches : larger == more compression, slower */
-    U32 searchLength;  /*< match length searched : larger == faster decompression, sometimes less compression */
-    U32 targetLength;  /*< acceptable match size for optimal parser (only) : larger == more compression, slower */
+    U32 windowLog;      /*< largest match distance : larger == more compression, more memory needed during decompression */
+    U32 chainLog;       /*< fully searched segment : larger == more compression, slower, more memory (useless for fast) */
+    U32 hashLog;        /*< dispatch table : larger == faster, more memory */
+    U32 searchLog;      /*< nb of searches : larger == more compression, slower */
+    U32 searchLength;   /*< match length searched : larger == faster decompression, sometimes less compression */
+    U32 targetLength;   /*< acceptable match size for optimal parser (only) : larger == more compression, slower */
     ZSTD_strategy strategy;
 } ZSTD_compressionParameters;
 
 typedef struct {
-    U32 contentSizeFlag;  /*< 1: content size will be in frame header (if known). */
-    U32 checksumFlag;     /*< 1: will generate a 22-bits checksum at end of frame, to be used for error detection by decompressor */
-    U32 noDictIDFlag;     /*< 1: no dict ID will be saved into frame header (if dictionary compression) */
+    U32 contentSizeFlag; /*< 1: content size will be in frame header (if known). */
+    U32 checksumFlag;    /*< 1: will generate a 22-bits checksum at end of frame, to be used for error detection by decompressor */
+    U32 noDictIDFlag;    /*< 1: no dict ID will be saved into frame header (if dictionary compression) */
 } ZSTD_frameParameters;
 
 typedef struct {
@@ -270,16 +269,21 @@ ZSTDLIB_API ZSTD_CDict* ZSTD_createCDict_advanced(const void* dict, size_t dictS
 
 ZSTDLIB_API unsigned ZSTD_maxCLevel (void);
 
+/*! ZSTD_getParams() :
+*   same as ZSTD_getCParams(), but @return a full `ZSTD_parameters` object instead of a `ZSTD_compressionParameters`.
+*   All fields of `ZSTD_frameParameters` are set to default (0) */
+ZSTD_parameters ZSTD_getParams(int compressionLevel, U64 srcSize, size_t dictSize);
+
 /*! ZSTD_getCParams() :
 *   @return ZSTD_compressionParameters structure for a selected compression level and srcSize.
 *   `srcSize` value is optional, select 0 if not known */
 ZSTDLIB_API ZSTD_compressionParameters ZSTD_getCParams(int compressionLevel, U64 srcSize, size_t dictSize);
 
-/*! ZSTD_checkParams() :
+/*! ZSTD_checkCParams() :
 *   Ensure param values remain within authorized range */
 ZSTDLIB_API size_t ZSTD_checkCParams(ZSTD_compressionParameters params);
 
-/*! ZSTD_adjustParams() :
+/*! ZSTD_adjustCParams() :
 *   optimize params for a given `srcSize` and `dictSize`.
 *   both values are optional, select `0` if unknown. */
 ZSTDLIB_API ZSTD_compressionParameters ZSTD_adjustCParams(ZSTD_compressionParameters cPar, U64 srcSize, size_t dictSize);
@@ -408,6 +412,7 @@ ZSTDLIB_API size_t ZSTD_decompressContinue(ZSTD_DCtx* dctx, void* dst, size_t ds
 
     A few rules to respect :
     - Uncompressed block size must be <= ZSTD_BLOCKSIZE_MAX (128 KB)
+      + If you need to compress more, it's recommended to use ZSTD_compress() instead, since frame metadata costs become negligible.
     - Compressing or decompressing requires a context structure
       + Use ZSTD_createCCtx() and ZSTD_createDCtx()
     - It is necessary to init context before starting

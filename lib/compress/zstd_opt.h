@@ -34,6 +34,10 @@
 /* Note : this file is intended to be included within zstd_compress.c */
 
 
+#ifndef ZSTD_OPT_H_91842398743
+#define ZSTD_OPT_H_91842398743
+
+
 #define ZSTD_FREQ_DIV   5
 
 /*-*************************************
@@ -110,7 +114,7 @@ FORCE_INLINE U32 ZSTD_getLiteralPrice(seqStore_t* ssPtr, U32 litLength, const BY
 
     /* literals */
     if (ssPtr->cachedLiterals == literals) {
-        U32 additional = litLength - ssPtr->cachedLitLength;
+        U32 const additional = litLength - ssPtr->cachedLitLength;
         const BYTE* literals2 = ssPtr->cachedLiterals + ssPtr->cachedLitLength;
         price = ssPtr->cachedPrice + additional * ssPtr->log2litSum;
         for (u=0; u < additional; u++)
@@ -150,7 +154,7 @@ FORCE_INLINE U32 ZSTD_getLiteralPrice(seqStore_t* ssPtr, U32 litLength, const BY
 FORCE_INLINE U32 ZSTD_getPrice(seqStore_t* seqStorePtr, U32 litLength, const BYTE* literals, U32 offset, U32 matchLength)
 {
     /* offset */
-    BYTE offCode = (BYTE)ZSTD_highbit32(offset+1);
+    BYTE const offCode = (BYTE)ZSTD_highbit32(offset+1);
     U32 price = offCode + seqStorePtr->log2offCodeSum - ZSTD_highbit32(seqStorePtr->offCodeFreq[offCode]+1);
 
     /* match Length */
@@ -196,7 +200,7 @@ MEM_STATIC void ZSTD_updatePrice(seqStore_t* seqStorePtr, U32 litLength, const B
     }
 
     /* match offset */
-	{   BYTE offCode = (BYTE)ZSTD_highbit32(offset+1);
+	{   BYTE const offCode = (BYTE)ZSTD_highbit32(offset+1);
 		seqStorePtr->offCodeSum++;
 		seqStorePtr->offCodeFreq[offCode]++;
 	}
@@ -229,7 +233,6 @@ MEM_STATIC void ZSTD_updatePrice(seqStore_t* seqStorePtr, U32 litLength, const B
         opt[pos].price = price_;                       \
         ZSTD_LOG_PARSER("%d: SET price[%d/%d]=%d litlen=%d len=%d off=%d\n", (int)(inr-base), (int)pos, (int)last_pos, opt[pos].price, opt[pos].litlen, opt[pos].mlen, opt[pos].off); \
     }
-
 
 
 
@@ -1039,3 +1042,5 @@ _storeSequence:   /* cur, last_pos, best_mlen, best_off have to be set */
         seqStorePtr->lit += lastLLSize;
     }
 }
+
+#endif  /* ZSTD_OPT_H_91842398743 */

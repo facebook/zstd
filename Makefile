@@ -168,6 +168,9 @@ bmix32test: clean
 
 bmi32test: clean
 	CFLAGS="-O3 -mbmi -m32 -Werror" $(MAKE) -C $(PRGDIR) test
+
+staticAnalyze: clean
+	CPPFLAGS=-g scan-build --status-bugs -v $(MAKE) all	
 endif
 
 
@@ -187,7 +190,7 @@ gcc5install:
 
 gcc6install:
 	sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
-	sudo apt-get update -y -qq 
+	sudo apt-get update -y -qq
 	sudo apt-get install -y -qq gcc-6-multilib
 
 arminstall: clean

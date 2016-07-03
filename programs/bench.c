@@ -148,16 +148,14 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
     size_t const maxCompressedSize = ZSTD_compressBound(srcSize) + (maxNbBlocks * 1024);   /* add some room for safety */
     void* const compressedBuffer = malloc(maxCompressedSize);
     void* const resultBuffer = malloc(srcSize);
-    ZSTD_CCtx* refCtx = ZSTD_createCCtx();
     ZSTD_CCtx* ctx = ZSTD_createCCtx();
-    ZSTD_DCtx* refDCtx = ZSTD_createDCtx();
     ZSTD_DCtx* dctx = ZSTD_createDCtx();
     U32 nbBlocks;
     UTIL_time_t ticksPerSecond;
 
     /* checks */
-    if (!compressedBuffer || !resultBuffer || !blockTable || !refCtx || !ctx || !refDCtx || !dctx)
-        EXM_THROW(31, "not enough memory");
+    if (!compressedBuffer || !resultBuffer || !blockTable || !ctx || !dctx)
+        EXM_THROW(31, "allocation error : not enough memory");
 
     /* init */
     if (strlen(displayName)>17) displayName += strlen(displayName)-17;   /* can only display 17 characters */
@@ -213,12 +211,15 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
             DISPLAYLEVEL(2, "%2i-%-17.17s :%10u ->\r", testNb, displayName, (U32)srcSize);
             memset(compressedBuffer, 0xE5, maxCompressedSize);  /* warm up and erase result buffer */
 
-            UTIL_sleepMilli(1); /* give processor time to other processes */
+            UTIL_sleepMilli(1);  /* give processor time to other processes */
             UTIL_waitForNextTick(ticksPerSecond);
             UTIL_getTime(&clockStart);
 
-            {   U32 nbLoops = 0;
-                ZSTD_CDict* cdict = ZSTD_createCDict(dictBuffer, dictBufferSize, cLevel);
+            {   size_t const refSrcSize = (nbBlocks == 1) ? srcSize : 0;
+                ZSTD_parameters const zparams = ZSTD_getParams(cLevel, refSrcSize, dictBufferSize);
+                ZSTD_customMem const cmem = { NULL, NULL, NULL };
+                U32 nbLoops = 0;
+                ZSTD_CDict* cdict = ZSTD_createCDict_advanced(dictBuffer, dictBufferSize, zparams, cmem);
                 if (cdict==NULL) EXM_THROW(1, "ZSTD_createCDict() allocation failure");
                 do {
                     U32 blockNb;
@@ -227,7 +228,7 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
                                             blockTable[blockNb].cPtr,  blockTable[blockNb].cRoom,
                                             blockTable[blockNb].srcPtr,blockTable[blockNb].srcSize,
                                             cdict);
-                        if (ZSTD_isError(rSize)) EXM_THROW(1, "ZSTD_compress_usingPreparedCCtx() failed : %s", ZSTD_getErrorName(rSize));
+                        if (ZSTD_isError(rSize)) EXM_THROW(1, "ZSTD_compress_usingCDict() failed : %s", ZSTD_getErrorName(rSize));
                         blockTable[blockNb].cSize = rSize;
                     }
                     nbLoops++;
@@ -264,7 +265,7 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
                             blockTable[blockNb].cPtr, blockTable[blockNb].cSize,
                             ddict);
                         if (ZSTD_isError(regenSize)) {
-                            DISPLAY("ZSTD_decompress_usingPreparedDCtx() failed on block %u : %s  \n",
+                            DISPLAY("ZSTD_decompress_usingDDict() failed on block %u : %s  \n",
                                       blockNb, ZSTD_getErrorName(regenSize));
                             clockLoop = 0;   /* force immediate test end */
                             break;
@@ -321,9 +322,7 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
     free(blockTable);
     free(compressedBuffer);
     free(resultBuffer);
-    ZSTD_freeCCtx(refCtx);
     ZSTD_freeCCtx(ctx);
-    ZSTD_freeDCtx(refDCtx);
     ZSTD_freeDCtx(dctx);
     return 0;
 }

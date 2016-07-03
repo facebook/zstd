@@ -43,6 +43,7 @@ _*
 tmp*
 *.zst
 result
+out
 
 # fuzzer
 afl

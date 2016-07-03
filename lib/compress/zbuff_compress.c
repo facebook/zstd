@@ -170,9 +170,7 @@ size_t ZBUFF_compressInit_advanced(ZBUFF_CCtx* zbc,
 
 size_t ZBUFF_compressInitDictionary(ZBUFF_CCtx* zbc, const void* dict, size_t dictSize, int compressionLevel)
 {
-    ZSTD_parameters params;
-    memset(&params, 0, sizeof(params));
-    params.cParams = ZSTD_getCParams(compressionLevel, 0, dictSize);
+    ZSTD_parameters const params = ZSTD_getParams(compressionLevel, 0, dictSize);
     return ZBUFF_compressInit_advanced(zbc, dict, dictSize, params, 0);
 }
 

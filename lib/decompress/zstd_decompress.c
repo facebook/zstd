@@ -207,20 +207,8 @@ void ZSTD_copyDCtx(ZSTD_DCtx* dstDCtx, const ZSTD_DCtx* srcDCtx)
 */
 
 
-/* Frame descriptor
+/* Frame Header :
 
-    // old
-   1 byte - Alloc :
-   bit 0-3 : windowLog - ZSTD_WINDOWLOG_ABSOLUTEMIN   (see zstd_internal.h)
-   bit 4   : reserved for windowLog (must be zero)
-   bit 5   : reserved (must be zero)
-   bit 6-7 : Frame content size : unknown, 1 byte, 2 bytes, 8 bytes
-
-   1 byte - checker :
-   bit 0-1 : dictID (0, 1, 2 or 4 bytes)
-   bit 2-7 : reserved (must be zero)
-
-    // new
    1 byte - FrameHeaderDescription :
    bit 0-1 : dictID (0, 1, 2 or 4 bytes)
    bit 2   : checksumFlag
@@ -454,16 +442,14 @@ size_t ZSTD_decodeLiteralsBlock(ZSTD_DCtx* dctx,
                           const void* src, size_t srcSize)   /* note : srcSize < BLOCKSIZE */
 {
     const BYTE* const istart = (const BYTE*) src;
-    litBlockType_t lbt;
 
     if (srcSize < MIN_CBLOCK_SIZE) return ERROR(corruption_detected);
-    lbt = (litBlockType_t)(istart[0]>> 6);
 
-    switch(lbt)
+    switch((litBlockType_t)(istart[0]>> 6))
     {
     case lbt_huffman:
         {   size_t litSize, litCSize, singleStream=0;
-            U32 lhSize = ((istart[0]) >> 4) & 3;
+            U32 lhSize = (istart[0] >> 4) & 3;
             if (srcSize < 5) return ERROR(corruption_detected);   /* srcSize >= MIN_CBLOCK_SIZE == 3; here we need up to 5 for lhSize, + cSize (+nbSeq) */
             switch(lhSize)
             {
@@ -930,8 +916,11 @@ size_t ZSTD_decompressBlock(ZSTD_DCtx* dctx,
                             void* dst, size_t dstCapacity,
                       const void* src, size_t srcSize)
 {
+    size_t dSize;
     ZSTD_checkContinuity(dctx, dst);
-    return ZSTD_decompressBlock_internal(dctx, dst, dstCapacity, src, srcSize);
+    dSize = ZSTD_decompressBlock_internal(dctx, dst, dstCapacity, src, srcSize);
+    dctx->previousDstEnd = (char*)dst + dSize;
+    return dSize;
 }
 
 

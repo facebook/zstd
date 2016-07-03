@@ -16,7 +16,7 @@ Distribution of this document is unlimited.
 
 ### Version
 
-0.0.1 (30/06/2016 - Work in progress - unfinished)
+0.0.2 (July 2016 - Work in progress - unfinished)
 
 
 Introduction
@@ -464,7 +464,7 @@ __Sizes format for Raw or RLE block__ :
                Total literal header size is 2 bytes.
                `size = ((h[0] & 15) << 8) + h[1];`
 - Value : 11 : Regenerated size uses 20 bits (0-1048575).
-               Total literal header size is 2 bytes.
+               Total literal header size is 3 bytes.
                `size = ((h[0] & 15) << 16) + (h[1]<<8) + h[2];`
 
 Note : it's allowed to represent a short value (ex : `13`)
@@ -507,9 +507,9 @@ This power of 2 gives `maxBits`, the depth of the current tree.
 __Example__ :
 Let's presume the following huffman tree must be described :
 
-|  Value | 0 | 1 | 2 | 3 | 4 | 5 |
-| ------ | - | - | - | - | - | - |
-| nbBits | 1 | 2 | 3 | 0 | 4 | 4 |
+| literal |  0  |  1  |  2  |  3  |  4  |  5  |
+| ------- | --- | --- | --- | --- | --- | --- |
+| nbBits  |  1  |  2  |  3  |  0  |  4  |  4  |
 
 The tree depth is 4, since its smallest element uses 4 bits.
 Value `5` will not be listed, nor will values above `5`.
@@ -517,20 +517,18 @@ Values from `0` to `4` will be listed using `weight` instead of `nbBits`.
 Weight formula is : `weight = nbBits ? maxBits + 1 - nbBits : 0;`
 It gives the following serie of weights :
 
-| weight | 4 | 3 | 2 | 0 | 1 |
-| ------ | - | - | - | - | - |
-|  Value | 0 | 1 | 2 | 3 | 4 |
+| weights |  4  |  3  |  2  |  0  |  1  |
+| ------- | --- | --- | --- | --- | --- |
+| literal |  0  |  1  |  2  |  3  |  4  |
 
 The decoder will do the inverse operation :
-having collected weights of symbols from `0` to `4`,
-it knows the last symbol, `5`, is present with a non-zero weight.
+having collected weights of literals from `0` to `4`,
+it knows the last literal, `5`, is present with a non-zero weight.
 The weight of `5` can be deduced by joining to the nearest power of 2.
 Sum of 2^(weight-1) (excluding 0) is :
-8 + 4 + 2 + 0 + 1 = 15
+`8 + 4 + 2 + 0 + 1 = 15`
 Nearest power of 2 is 16.
 Therefore, `maxBits = 4` and `weight[5] = 1`.
-It can then proceed to transform back weights into nbBits :
-`weight = nbBits ? maxBits + 1 - nbBits : 0;` .
 
 ##### Huffman Tree header
 
@@ -583,6 +581,95 @@ For a list of huffman weights, this maximum is 8 bits.
 FSE header and bitstreams are described in a separated chapter.
 
 ##### Conversion from weights to huffman prefix codes
+
+All present symbols shall now have a `weight` value.
+A `weight` directly represent a `range` of prefix codes,
+following the formulae : `range = weight ? 1 << (weight-1) : 0 ;`
+Symbols are sorted by weight.
+Within same weight, symbols keep natural order.
+Starting from lowest weight,
+symbols are being allocated to a range of prefix codes.
+Symbols with a weight of zero are not present.
+
+It can then proceed to transform weights into nbBits :
+`nbBits = nbBits ? maxBits + 1 - weight : 0;` .
+
+
+__Example__ :
+Let's presume the following huffman tree has been decoded :
+
+| Literal |  0  |  1  |  2  |  3  |  4  |  5  |
+| ------- | --- | --- | --- | --- | --- | --- |
+|  weight |  4  |  3  |  2  |  0  |  1  |  1  |
+
+Sorted by weight and then natural order,
+it gives the following distribution :
+
+| Literal      |  3  |  4  |  5  |  2  |  1  |   0  |
+| ------------ | --- | --- | --- | --- | --- | ---- |
+| weight       |  0  |  1  |  1  |  2  |  3  |   4  |
+| range        |  0  |  1  |  1  |  2  |  4  |   8  |
+| prefix codes | N/A |  0  |  1  | 2-3 | 4-7 | 8-15 |
+| nb bits      |  0  |  4  |  4  |  3  |  2  |   1  |
+
+
+
+#### Literals bitstreams
+
+##### Bitstreams sizes
+
+As seen in a previous paragraph,
+there are 2 flavors of huffman-compressed literals :
+single stream, and 4-streams.
+
+4-streams is useful for CPU with multiple execution units and OoO operations.
+Since each stream can be decoded independently,
+it's possible to decode them up to 4x faster than a single stream,
+presuming the CPU has enough parallelism available.
+
+For single stream, header provides both the compressed and regenerated size.
+For 4-streams though,
+header only provides compressed and regenerated size of all 4 streams combined.
+
+In order to properly decode the 4 streams,
+it's necessary to know the compressed and regenerated size of each stream.
+
+Regenerated size is easiest :
+each stream has a size of `(totalSize+3)/4`,
+except the last one, which is up to 3 bytes smaller, to reach totalSize.
+
+Compressed size must be provided explicitly : in the 4-streams variant,
+bitstream is preceded by 3 unsigned short values using Little Endian convention.
+Each value represent the compressed size of one stream, in order.
+The last stream size is deducted from total compressed size
+and from already known stream sizes :
+`stream4CSize = totalCSize - 6 - stream1CSize - stream2CSize - stream3CSize;`
+
+##### Bitstreams reading
+
+Each bitstream must be read _backward_,
+that is starting from the end down to the beginning.
+Therefore it's necessary to know the size of each bitstream.
+
+It's also necessary to know exactly which _bit_ is the latest.
+This is detected by a final bit flag :
+the highest bit of latest byte is a final-bit-flag.
+Consequently, a last byte of `0` is not possible.
+And the final-bit-flag itself is not part of the useful bitstream.
+Hence, the last byte contain between 0 and 7 useful bits.
+
+Starting from the end,
+it's possible to read the bitstream in a little-endian fashion,
+keeping track of already used bits.
+
+Extracting `maxBits`,
+it's then possible to compare extracted value to the prefix codes table,
+determining the symbol to decode and number of bits to discard.
+
+The process continues up to reading the required number of symbols per stream.
+If a bitstream is not entirely and exactly consumed,
+hence reaching exactly its beginning position with all bits consumed,
+the decoding process is considered faulty.
 
 
 

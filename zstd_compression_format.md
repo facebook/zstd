@@ -386,7 +386,7 @@ User Data can be anything. Data will just be skipped by the decoder.
 Compressed block format
 -----------------------
 This specification details the content of a _compressed block_.
-A compressed block has a size, which must be known in order to decode it.
+A compressed block has a size, which must be known.
 It also has a guaranteed maximum regenerated size,
 in order to properly allocate destination buffer.
 See "Frame format" for more details.
@@ -396,19 +396,21 @@ A compressed block consists of 2 sections :
 - Sequences section
 
 ### Prerequisite
-For proper decoding, a compressed block requires access to following elements :
+To decode a compressed block, it's required to access to following elements :
 - Previous decoded blocks, up to a distance of `windowSize`,
-  or all previous blocks in the same frame "single segment" mode.
+  or all frame's previous blocks in "single segment" mode.
 - List of "recent offsets" from previous compressed block.
+- Decoding tables of previous compressed block for each symbol type
+  (literals, litLength, matchLength, offset)
 
 
-### Compressed Literals
+### Literals section
 
 Literals are compressed using order-0 huffman compression.
 During sequence phase, literals will be entangled with match copy operations.
 All literals are regrouped in the first part of the block.
 They can be decoded first, and then copied during sequence operations,
-or they can be decoded on the flow, as needed by sequences.
+or they can be decoded on the flow, as needed by sequence commands.
 
 | Header | (Tree Description) | Stream1 | (Stream2) | (Stream3) | (Stream4) |
 | ------ | ------------------ | ------- | --------- | --------- | --------- |
@@ -417,9 +419,9 @@ Literals can be compressed, or uncompressed.
 When compressed, an optional tree description can be present,
 followed by 1 or 4 streams.
 
-#### Block Literal Header
+#### Literals section header
 
-Header is in charge of describing precisely how literals are packed.
+Header is in charge of describing how literals are packed.
 It's a byte-aligned variable-size bitfield, ranging from 1 to 5 bytes,
 using big-endian convention.
 
@@ -491,12 +493,31 @@ Compressed and regenerated size fields follow big endian convention.
 #### Huffman Tree description
 
 This section is only present when block type is _compressed_ (`0`).
-It describes the different leaf nodes of the huffman tree,
-and their relative weights.
+
+Prefix coding represents symbols from an a priori known
+alphabet by bit sequences (codes), one code for each symbol, in
+a manner such that different symbols may be represented by bit
+sequences of different lengths, but a parser can always parse
+an encoded string unambiguously symbol-by-symbol.
+
+Given an alphabet with known symbol frequencies, the Huffman
+algorithm allows the construction of an optimal prefix code
+(one which represents strings with those symbol frequencies
+using the fewest bits of any possible prefix codes for that
+alphabet). Such a code is called a Huffman code.
+
+Huffman code must not exceed a maximum code length.
+More bits improve accuracy but cost more header size,
+and requires more memory for decoding operations.
+
+The current format limits the maximum depth to 15 bits.
+The reference decoder goes further, by limiting it to 11 bits.
+It is recommended to remain compatible with reference decoder.
+
 
 ##### Representation
 
-All byte values from zero (included) to last present one (excluded)
+All literal values from zero (included) to last present one (excluded)
 are represented by `weight` values, from 0 to `maxBits`.
 Transformation from `weight` to `nbBits` follows this formulae :
 `nbBits = weight ? maxBits + 1 - weight : 0;` .
@@ -552,7 +573,7 @@ This is a single byte value (0-255), which tells how to decode the tree.
 
 - if headerByte >= 128 : this is a direct representation,
   where each weight is written directly as a 4 bits field (0-15).
-  The full representation occupies (nbSymbols+1/2) bytes,
+  The full representation occupies ((nbSymbols+1)/2) bytes,
   meaning it uses a last full byte even if nbSymbols is odd.
   `nbSymbols = headerByte - 127;`
 
@@ -573,7 +594,7 @@ In this case, it's `255`, since literal values range from `0` to `255`,
 and the last symbol value is not represented.
 
 An FSE bitstream starts by a header, describing probabilities distribution.
-Result will create a Decoding Table.
+It will create a Decoding Table.
 It is necessary to know the maximum accuracy of distribution
 to properly allocate space for the Table.
 For a list of huffman weights, this maximum is 8 bits.
@@ -583,7 +604,7 @@ FSE header and bitstreams are described in a separated chapter.
 ##### Conversion from weights to huffman prefix codes
 
 All present symbols shall now have a `weight` value.
-A `weight` directly represent a `range` of prefix codes,
+A `weight` directly represents a `range` of prefix codes,
 following the formulae : `range = weight ? 1 << (weight-1) : 0 ;`
 Symbols are sorted by weight.
 Within same weight, symbols keep natural order.
@@ -591,7 +612,7 @@ Starting from lowest weight,
 symbols are being allocated to a range of prefix codes.
 Symbols with a weight of zero are not present.
 
-It can then proceed to transform weights into nbBits :
+It is then possible to transform weights into nbBits :
 `nbBits = nbBits ? maxBits + 1 - weight : 0;` .
 
 
@@ -639,13 +660,13 @@ each stream has a size of `(totalSize+3)/4`,
 except the last one, which is up to 3 bytes smaller, to reach totalSize.
 
 Compressed size must be provided explicitly : in the 4-streams variant,
-bitstream is preceded by 3 unsigned short values using Little Endian convention.
-Each value represent the compressed size of one stream, in order.
+bitstreams are preceded by 3 unsigned Little Endian 16-bits values.
+Each value represents the compressed size of one stream, in order.
 The last stream size is deducted from total compressed size
 and from already known stream sizes :
 `stream4CSize = totalCSize - 6 - stream1CSize - stream2CSize - stream3CSize;`
 
-##### Bitstreams reading
+##### Bitstreams read and decode
 
 Each bitstream must be read _backward_,
 that is starting from the end down to the beginning.
@@ -662,7 +683,7 @@ Starting from the end,
 it's possible to read the bitstream in a little-endian fashion,
 keeping track of already used bits.
 
-Extracting `maxBits`,
+Reading the last `maxBits` bits,
 it's then possible to compare extracted value to the prefix codes table,
 determining the symbol to decode and number of bits to discard.
 
@@ -670,6 +691,32 @@ The process continues up to reading the required number of symbols per stream.
 If a bitstream is not entirely and exactly consumed,
 hence reaching exactly its beginning position with all bits consumed,
 the decoding process is considered faulty.
+
+
+### Sequences section
+
+A compressed block is a succession of _sequences_ .
+A sequence is a literal copy command, followed by a match copy command.
+A literal copy command specifies a length.
+It is the number of bytes to be copied (or extracted) from the literal section.
+A match copy command specifies an offset and a length.
+The offset gives the position to copy from,
+which can stand within a previous block.
+
+These are 3 symbol types, `literalLength`, `matchLength` and `offset`,
+which are encoded together, interleaved in a single _bitstream_.
+
+Each symbol decoding consists of a _code_,
+which specifies a baseline and a number of additional bits.
+_Codes_ are FSE compressed,
+and interleaved with raw additional bits in the same bitstream.
+
+The Sequence section starts by a header,
+followed by an optional Probability table for each symbol type,
+followed by the bitstream.
+
+#### Sequences section header
+
 
 
 

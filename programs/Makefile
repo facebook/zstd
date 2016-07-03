@@ -154,10 +154,10 @@ clean:
 	@echo Cleaning completed
 
 
-#------------------------------------------------------------------------
-#make install is validated only for Linux, OSX, kFreeBSD and Hurd targets
-#------------------------------------------------------------------------
-ifneq (,$(filter $(shell uname),Linux Darwin GNU/kFreeBSD GNU))
+#---------------------------------------------------------------------------------
+#make install is validated only for Linux, OSX, kFreeBSD, Hurd and OpenBSD targets
+#---------------------------------------------------------------------------------
+ifneq (,$(filter $(shell uname),Linux Darwin GNU/kFreeBSD GNU OpenBSD))
 HOST_OS = POSIX
 install: zstd
 	@echo Installing binaries

@@ -31,9 +31,10 @@
 /*-************************************
 *  Includes
 **************************************/
-#include "util.h"     /* Compiler options, UTIL_HAS_CREATEFILELIST, errno */
+#include "util.h"     /* Compiler options, UTIL_HAS_CREATEFILELIST */
 #include <string.h>   /* strcmp, strlen */
 #include <ctype.h>    /* toupper */
+#include <errno.h>
 #include "fileio.h"
 #ifndef ZSTD_NOBENCH
 #  include "bench.h"  /* BMK_benchFiles, BMK_SetNbIterations */

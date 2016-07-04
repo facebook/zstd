@@ -735,7 +735,7 @@ static seq_t ZSTD_decodeSequence(seqState_t* seqState)
     if (MEM_32bits() && (mlBits+llBits>24)) BIT_reloadDStream(&(seqState->DStream));
 
     seq.litLength = LL_base[llCode] + ((llCode>15) ? BIT_readBits(&(seqState->DStream), llBits) : 0);   /* <=  16 bits */
-    if (MEM_32bits() |
+    if (MEM_32bits() ||
        (totalBits > 64 - 7 - (LLFSELog+MLFSELog+OffFSELog)) ) BIT_reloadDStream(&(seqState->DStream));
 
     /* ANS state update */

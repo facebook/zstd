@@ -134,9 +134,9 @@ delivering the final decompressed result as if it was a single content.
 Frame Header
 -------------
 
-| FHD     | (WD)      | (Content Size) | (dictID)  |
-| ------- | --------- |:--------------:| --------- |
-| 1 byte  | 0-1 byte  |  0 - 8 bytes   | 0-4 bytes |
+| FHD     | (WD)      | (dictID)  | (Content Size) |
+| ------- | --------- | --------- |:--------------:|
+| 1 byte  | 0-1 byte  | 0-4 bytes |  0 - 8 bytes   |
 
 Frame header has a variable size, which uses a minimum of 2 bytes,
 and up to 14 bytes depending on optional parameters.
@@ -145,11 +145,11 @@ __FHD byte__ (Frame Header Descriptor)
 
 The first Header's byte is called the Frame Header Descriptor.
 It tells which other fields are present.
-Decoding this byte is enough to get the full size of the Frame Header.
+Decoding this byte is enough to tell the size of Frame Header.
 
-|  BitNb  |   7-6  |    5    |   4    |    3     |    2     |    1-0   |
-| ------- | ------ | ------- | ------ | -------- | -------- | -------- |
-|FieldName| FCSize | Segment | Unused | Reserved | Checksum |  dictID  |
+|  BitNb  |   7-6  |    5    |   4    |    3     |    2     |  1-0   |
+| ------- | ------ | ------- | ------ | -------- | -------- | ------ |
+|FieldName| FCSize | Segment | Unused | Reserved | Checksum | dictID |
 
 In this table, bit 7 is highest bit, while bit 0 is lowest.
 
@@ -162,28 +162,28 @@ specifying if decompressed data size is provided within the header.
 | ------- | --- | --- | --- | --- |
 |FieldSize| 0-1 |  2  |  4  |  8  |
 
-Value 0 has a double meaning :
+Value 0 meaning depends on _single segment_ mode :
 it either means `0` (size not provided) _if_ the `WD` byte is present,
-or it means `1` byte (size <= 255 bytes).
+or `1` (frame content size <= 255 bytes) otherwise.
 
 __Single Segment__
 
 If this flag is set,
 data shall be regenerated within a single continuous memory segment.
+
 In which case, `WD` byte __is not present__,
 but `Frame Content Size` field necessarily is.
-
 As a consequence, the decoder must allocate a memory segment
 of size `>= Frame Content Size`.
 
 In order to preserve the decoder from unreasonable memory requirement,
-a decoder can refuse a compressed frame
+a decoder can reject a compressed frame
 which requests a memory size beyond decoder's authorized range.
 
 For broader compatibility, decoders are recommended to support
-memory sizes of 8 MB at least.
-However, this is merely a recommendation,
-and each decoder is free to support higher or lower limits,
+memory sizes of at least 8 MB.
+This is just a recommendation,
+as each decoder is free to support higher or lower limits,
 depending on local limitations.
 
 __Unused bit__
@@ -254,6 +254,21 @@ It's merely a recommendation though,
 decoders are free to support larger or lower limits,
 depending on local limitations.
 
+__Dictionary ID__
+
+This is a variable size field, which contains an ID.
+It checks if the correct dictionary is used for decoding.
+Note that this field is optional. If it's not present,
+it's up to the caller to make sure it uses the correct dictionary.
+
+Field size depends on __Dictionary ID flag__.
+1 byte can represent an ID 0-255.
+2 bytes can represent an ID 0-65535.
+4 bytes can represent an ID 0-(2^32-1).
+
+It's allowed to represent a small ID (for example `13`)
+with a large 4-bytes dictionary ID, losing some efficiency in the process.
+
 __Frame Content Size__
 
 This is the original (uncompressed) size.
@@ -274,26 +289,11 @@ When field size is 2, _an offset of 256 is added_.
 It's allowed to represent a small size (ex: `18`) using the 8-bytes variant.
 A size of `0` means `content size is unknown`.
 In which case, the `WD` byte will necessarily be present,
-and becomes the only hint to determine memory allocation.
+and becomes the only hint to help memory allocation.
 
 In order to preserve decoder from unreasonable memory requirement,
 a decoder can refuse a compressed frame
 which requests a memory size beyond decoder's authorized range.
-
-__Dictionary ID__
-
-This is a variable size field, which contains a single ID.
-It checks if the correct dictionary is used for decoding.
-Note that this field is optional. If it's not present,
-it's up to the caller to make sure it uses the correct dictionary.
-
-Field size depends on __Dictionary ID flag__.
-1 byte can represent an ID 0-255.
-2 bytes can represent an ID 0-65535.
-4 bytes can represent an ID 0-(2^32-1).
-
-It's allowed to represent a small ID (for example `13`)
-with a large 4-bytes dictionary ID, losing some efficiency in the process.
 
 
 Data Blocks
@@ -364,7 +364,6 @@ over user-defined data and continue decoding.
 
 Skippable frames defined in this specification are compatible with LZ4 ones.
 
-
 __Magic Number__ :
 
 4 Bytes, Little endian format.
@@ -395,8 +394,8 @@ A compressed block consists of 2 sections :
 - Literals section
 - Sequences section
 
-### Prerequisite
-To decode a compressed block, it's required to access to following elements :
+### Prerequisites
+To decode a compressed block, the following elements are necessary :
 - Previous decoded blocks, up to a distance of `windowSize`,
   or all frame's previous blocks in "single segment" mode.
 - List of "recent offsets" from previous compressed block.
@@ -634,7 +633,6 @@ it gives the following distribution :
 | nb bits      |  0  |  4  |  4  |  3  |  2  |   1  |
 
 
-
 #### Literals bitstreams
 
 ##### Bitstreams sizes
@@ -711,12 +709,265 @@ which specifies a baseline and a number of additional bits.
 _Codes_ are FSE compressed,
 and interleaved with raw additional bits in the same bitstream.
 
-The Sequence section starts by a header,
-followed by an optional Probability table for each symbol type,
+The Sequences section starts by a header,
+followed by optional Probability tables for each symbol type,
 followed by the bitstream.
+
+To decode the Sequence section, it's required to know its size.
+This size is deducted from "blockSize - literalSectionSize".
+
 
 #### Sequences section header
 
+Consists in 2 items :
+- Nb of Sequences
+- Flags providing Symbol compression types
+
+__Nb of Sequences__
+
+This is a variable size field, `nbSeqs`, using between 1 and 3 bytes.
+Let's call its first byte `byte0`.
+- `if (byte0 == 0)` : there are no sequences.
+            The sequence section stops there.
+            Regenerated content is defined entirely by literals section.
+- `if (byte0 < 128)` : nbSeqs = byte0 . Uses 1 byte.
+- `if (byte0 < 255)` : nbSeqs = ((byte0-128) << 8) + byte1 . Uses 2 bytes.
+- `if (byte0 == 255)`: nbSeqs = byte1 + (byte2<<8) + 0x7F00 . Uses 3 bytes.
+
+__Symbol compression modes__
+
+This is a single byte, defining the compression mode of each symbol type.
+
+|  BitNb  |   7-6  |   5-4  |   3-2  |    1-0   |
+| ------- | ------ | ------ | ------ | -------- |
+|FieldName| LLtype | OFType | MLType | Reserved |
+
+The last field, `Reserved`, must be all-zeroes.
+
+`LLtype`, `OFType` and `MLType` define the compression mode of
+Literal Lengths, Offsets and Match Lengths respectively.
+
+They follow the same enumeration :
+
+|       Value      |    0   |  1  |    2   |  3  |
+| ---------------- | ------ | --- | ------ | --- |
+| Compression Mode | predef | RLE | Repeat | FSE |
+
+- "predef" : uses a pre-defined distribution table.
+- "RLE" : it's a single code, repeated `nbSeqs` times.
+- "Repeat" : re-use distribution table from previous compressed block.
+- "FSE" : standard FSE compression.
+          Symbol type requires a distribution table,
+          which will be described in next part.
+
+#### Symbols decoding
+
+##### Literal Lengths codes
+
+Literal lengths codes are values ranging from `0` to `35` included.
+They define lengths from 0 to 131071 bytes.
+
+|  Code  | 0-15 |
+| ------ | ---- |
+| nbBits |   0  |
+| value  | Code |
+
+|   Code   |  16  |  17  |  18  |  19  |  20  |  21  |  22  |  23  |
+| -------- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- |
+| Baseline |  16  |  18  |  20  |  22  |  24  |  28  |  32  |  40  |
+| nb Bits  |   1  |   1  |   1  |   1  |   2  |   2  |   3  |   3  |
+
+|   Code   |  24  |  25  |  26  |  27  |  28  |  29  |  30  |  31  |
+| -------- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- |
+| Baseline |  48  |  64  |  128 |  256 |  512 | 1024 | 2048 | 4096 |
+| nb Bits  |   4  |   6  |   7  |   8  |   9  |  10  |  11  |  12  |
+
+|   Code   |  32  |  33  |  34  |  35  |
+| -------- | ---- | ---- | ---- | ---- |
+| Baseline | 8192 |16384 |32768 |65536 |
+| nb Bits  |  13  |  14  |  15  |  16  |
+
+__Default distribution__
+
+When "compression mode" is defined as "default distribution",
+a pre-defined distribution is used for FSE compression.
+
+Here is its definition. It uses an accuracy of 6 bits (64 states).
+```
+short literalLengths_defaultDistribution[36] =
+        { 4, 3, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 1, 1,
+          2, 2, 2, 2, 2, 2, 2, 2, 2, 3, 2, 1, 1, 1, 1, 1,
+         -1,-1,-1,-1 };
+```
+
+##### Match Lengths codes
+
+Match lengths codes are values ranging from `0` to `52` included.
+They define lengths from 3 to 131074 bytes.
+
+|  Code  |   0-31   |
+| ------ | -------- |
+| nbBits |     0    |
+| value  | Code + 3 |
+
+|   Code   |  32  |  33  |  34  |  35  |  36  |  37  |  38  |  39  |
+| -------- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- |
+| Baseline |  35  |  37  |  39  |  41  |  43  |  47  |  51  |  59  |
+| nb Bits  |   1  |   1  |   1  |   1  |   2  |   2  |   3  |   3  |
+
+|   Code   |  40  |  41  |  42  |  43  |  44  |  45  |  46  |  47  |
+| -------- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- |
+| Baseline |  67  |  83  |  99  |  131 |  258 |  514 | 1026 | 2050 |
+| nb Bits  |   4  |   4  |   5  |   7  |   8  |   9  |  10  |  11  |
+
+|   Code   |  48  |  49  |  50  |  51  |  52  |
+| -------- | ---- | ---- | ---- | ---- | ---- |
+| Baseline | 4098 | 8194 |16486 |32770 |65538 |
+| nb Bits  |  12  |  13  |  14  |  15  |  16  |
+
+__Default distribution__
+
+When "compression mode" is defined as "default distribution",
+a pre-defined distribution is used for FSE compression.
+
+Here is its definition. It uses an accuracy of 6 bits (64 states).
+```
+short matchLengths_defaultDistribution[53] =
+        { 1, 4, 3, 2, 2, 2, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1,
+          1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+          1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,-1,-1,
+         -1,-1,-1,-1,-1 };
+```
+
+##### Offset codes
+
+Offset codes are values ranging from `0` to `N`,
+with `N` being limited by maximum backreference distance.
+
+A decoder is free to limit its maximum `N` supported,
+although the recommendation is to support at least up to `22`.
+For information, at the time of this writing.
+the reference decoder supports a maximum `N` value of `28` in 64-bits mode.
+
+An offset code is also the nb of additional bits to read,
+and can be translated into an `OFValue` using the following formulae :
+
+```
+OFValue = (1 << offsetCode) + readNBits(offsetCode);
+if (OFValue > 3) offset = OFValue - 3;
+```
+
+OFValue from 1 to 3 are special : they define "repeat codes",
+which means one of the previous offsets will be repeated.
+They are sorted in recency order, with 1 meaning the most recent one.
+
+__Default distribution__
+
+When "compression mode" is defined as "default distribution",
+a pre-defined distribution is used for FSE compression.
+
+Here is its definition. It uses an accuracy of 5 bits (32 states),
+and support a maximum `N` of 28, allowing offset values up to 536,870,908 .
+
+If any sequence in the compressed block requires an offset larger than this,
+it's not possible to use the default distribution to represent it.
+
+```
+short offsetCodes_defaultDistribution[53] =
+        { 1, 1, 1, 1, 1, 1, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1,
+          1, 1, 1, 1, 1, 1, 1, 1,-1,-1,-1,-1,-1 };
+```
+
+#### Distribution tables
+
+Following the header, up to 3 distribution tables can be described.
+They are, in order :
+- Literal lengthes
+- Offsets
+- Match Lengthes
+
+The content to decode depends on their respective compression mode :
+- Repeat mode : no content. Re-use distribution from previous compressed block.
+- Predef : no content. Use pre-defined distribution table.
+- RLE : 1 byte. This is the only code to use across the whole compressed block.
+- FSE : A distribution table is present.
+
+##### FSE distribution table : condensed format
+
+An FSE distribution table describes the probabilities of all symbols
+from `0` to the last present one (included)
+on a normalized scale of `2^AccuracyLog` .
+
+It's a bitstream which is read forward, in little-endian fashion.
+It's not necessary to know its exact size,
+since it will be discovered and reported by the decoding process.
+
+The bitstream starts by reporting on which scale it operates.
+`AccuracyLog = low4bits + 5;`
+In theory, it can define a scale from 5 to 20.
+In practice, decoders are allowed to limit the maximum supported `AccuracyLog`.
+Recommended maximum are `9` for literal and match lengthes, and `8` for offsets.
+The reference decoder uses these limits.
+
+Then follow each symbol value, from `0` to last present one.
+The nb of bits used by each field is variable.
+It depends on :
+
+- Remaining probabilities + 1 :
+  __example__ :
+  Presuming an AccuracyLog of 8,
+  and presuming 100 probabilities points have already been distributed,
+  the decoder may discover value from `0` to `255 - 100 + 1 == 156` (included).
+  Therefore, it must read `log2sup(156) == 8` bits.
+
+- Value decoded : small values use 1 less bit :
+  __example__ :
+  Presuming values from 0 to 156 (included) are possible,
+  255-156 = 99 values are remaining in an 8-bits field.
+  They are used this way :
+  first 99 values (hence from 0 to 98) use only 7 bits,
+  values from 99 to 156 use 8 bits.
+  This is achieved through this scheme :
+
+  | Value read | Value decoded | nb Bits used |
+  | ---------- | ------------- | ------------ |
+  |   0 -  98  |   0 -  98     |  7           |
+  |  99 - 127  |  99 - 127     |  8           |
+  | 128 - 226  |   0 -  98     |  7           |
+  | 227 - 255  | 128 - 156     |  8           |
+
+Symbols probabilities are read one by one, in order.
+
+Probability is obtained from Value decoded by following formulae :
+`Proba = value - 1;`
+
+It means value `0` becomes negative probability `-1`.
+`-1` is a special probability, which means `less than 1`.
+Its effect on distribution table is described in a later paragraph.
+For the purpose of calculating cumulated distribution, it counts as one.
+
+When a symbol has a probability of `zero`,
+it is followed by a 2-bits repeat flag.
+This repeat flag tells how many probabilities of zeroes follow the current one.
+It provides a number ranging from 0 to 3.
+If it is a 3, another 2-bits repeat flag follows, and so on.
+
+When last symbol reaches cumulated total of `2^AccuracyLog`,
+decoding is complete.
+Then the decoder can tell how many bytes were used in this process,
+and how many symbols are present.
+
+The bitstream consumes a round number of bytes.
+Any remaining bit within the last byte is just unused.
+
+If the last symbol makes cumulated total go above `2^AccuracyLog`,
+distribution is considered corrupted.
+
+##### FSE decoding : from normalized distribution to decoding tables
+
+
+
+#### Bitstream
 
 
 

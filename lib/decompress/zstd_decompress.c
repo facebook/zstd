@@ -195,7 +195,7 @@ void ZSTD_copyDCtx(ZSTD_DCtx* dstDCtx, const ZSTD_DCtx* srcDCtx)
 /* Frame format description
    Frame Header -  [ Block Header - Block ] - Frame End
    1) Frame Header
-      - 4 bytes - Magic Number : ZSTD_MAGICNUMBER (defined within zstd_static.h)
+      - 4 bytes - Magic Number : ZSTD_MAGICNUMBER (defined within zstd.h)
       - 1 byte  - Frame Descriptor
    2) Block Header
       - 3 bytes, starting with a 2-bits descriptor
@@ -629,7 +629,7 @@ size_t ZSTD_decodeSeqHeaders(int* nbSeqPtr,
 
     /* FSE table descriptors */
     {   U32 const LLtype  = *ip >> 6;
-        U32 const Offtype = (*ip >> 4) & 3;
+        U32 const OFtype = (*ip >> 4) & 3;
         U32 const MLtype  = (*ip >> 2) & 3;
         ip++;
 
@@ -637,17 +637,17 @@ size_t ZSTD_decodeSeqHeaders(int* nbSeqPtr,
         if (ip > iend-3) return ERROR(srcSize_wrong); /* min : all 3 are "raw", hence no header, but at least xxLog bits per type */
 
         /* Build DTables */
-        {   size_t const bhSize = ZSTD_buildSeqTable(DTableLL, LLtype, MaxLL, LLFSELog, ip, iend-ip, LL_defaultNorm, LL_defaultNormLog, flagRepeatTable);
-            if (ZSTD_isError(bhSize)) return ERROR(corruption_detected);
-            ip += bhSize;
+        {   size_t const llhSize = ZSTD_buildSeqTable(DTableLL, LLtype, MaxLL, LLFSELog, ip, iend-ip, LL_defaultNorm, LL_defaultNormLog, flagRepeatTable);
+            if (ZSTD_isError(llhSize)) return ERROR(corruption_detected);
+            ip += llhSize;
         }
-        {   size_t const bhSize = ZSTD_buildSeqTable(DTableOffb, Offtype, MaxOff, OffFSELog, ip, iend-ip, OF_defaultNorm, OF_defaultNormLog, flagRepeatTable);
-            if (ZSTD_isError(bhSize)) return ERROR(corruption_detected);
-            ip += bhSize;
+        {   size_t const ofhSize = ZSTD_buildSeqTable(DTableOffb, OFtype, MaxOff, OffFSELog, ip, iend-ip, OF_defaultNorm, OF_defaultNormLog, flagRepeatTable);
+            if (ZSTD_isError(ofhSize)) return ERROR(corruption_detected);
+            ip += ofhSize;
         }
-        {   size_t const bhSize = ZSTD_buildSeqTable(DTableML, MLtype, MaxML, MLFSELog, ip, iend-ip, ML_defaultNorm, ML_defaultNormLog, flagRepeatTable);
-            if (ZSTD_isError(bhSize)) return ERROR(corruption_detected);
-            ip += bhSize;
+        {   size_t const mlhSize = ZSTD_buildSeqTable(DTableML, MLtype, MaxML, MLFSELog, ip, iend-ip, ML_defaultNorm, ML_defaultNormLog, flagRepeatTable);
+            if (ZSTD_isError(mlhSize)) return ERROR(corruption_detected);
+            ip += mlhSize;
     }   }
 
     return ip-istart;

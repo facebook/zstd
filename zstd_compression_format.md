@@ -561,7 +561,7 @@ which tells how to decode the list of weights.
 - if headerByte >= 242 : this is one of 14 pre-defined weight distributions :
 
 | value    |242|243|244|245|246|247|248|249|250|251|252|253|254|255|
-| -------- |
+| -------- |---|---|---|---|---|---|---|---|---|---|---|---|---|---|
 | Nb of 1s | 1 | 2 | 3 | 4 | 7 | 8 | 15| 16| 31| 32| 63| 64|127|128|
 |Complement| 1 | 2 | 1 | 4 | 1 | 8 | 1 | 16| 1 | 32| 1 | 64| 1 |128|
 

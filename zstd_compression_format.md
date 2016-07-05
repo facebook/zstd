@@ -25,7 +25,7 @@ Introduction
 The purpose of this document is to define a lossless compressed data format,
 that is independent of CPU type, operating system,
 file system and character set, suitable for
-File compression, Pipe and streaming compression
+file compression, pipe and streaming compression,
 using the [Zstandard algorithm](http://www.zstandard.org).
 
 The data can be produced or consumed,
@@ -99,7 +99,7 @@ __EndMark__
 The flow of blocks ends when the last block header brings an _end signal_ .
 This last block header may optionally host a __Content Checksum__ .
 
-__Content Checksum__
+##### __Content Checksum__
 
 Content Checksum verify that frame content has been regenrated correctly.
 The content checksum is the result
@@ -108,7 +108,8 @@ digesting the original (decoded) data as input, and a seed of zero.
 Bits from 11 to 32 (included) are extracted to form a 22 bits checksum
 stored into the last block header.
 ```
-contentChecksum = (XXH64(content, size, 0) >> 11) & (1<<22)-1);
+mask22bits = (1<<22)-1;
+contentChecksum = (XXH64(content, size, 0) >> 11) & mask22bits;
 ```
 Content checksum is only present when its associated flag
 is set in the frame descriptor.
@@ -183,7 +184,7 @@ which requests a memory size beyond decoder's authorized range.
 For broader compatibility, decoders are recommended to support
 memory sizes of at least 8 MB.
 This is just a recommendation,
-as each decoder is free to support higher or lower limits,
+each decoder is free to support higher or lower limits,
 depending on local limitations.
 
 __Unused bit__
@@ -204,13 +205,14 @@ to signal a feature that must be interpreted in order to decode the frame.
 __Content checksum flag__
 
 If this flag is set, a content checksum will be present into the EndMark.
-The checksum is a 22 bits value extracted from the XXH64() of data.
-See __Content Checksum__ .
+The checksum is a 22 bits value extracted from the XXH64() of data,
+and stored into endMark. See [__Content Checksum__](#content-checksum) .
 
 __Dictionary ID flag__
 
 This is a 2-bits flag (`= FHD & 3`),
-telling if a dictionary ID is provided within the header
+telling if a dictionary ID is provided within the header.
+It also specifies the size of this field.
 
 |  Value  |  0  |  1  |  2  |  3  |
 | ------- | --- | --- | --- | --- |
@@ -286,10 +288,10 @@ Format is Little endian.
 
 When field size is 1, 4 or 8 bytes, the value is read directly.
 When field size is 2, _an offset of 256 is added_.
-It's allowed to represent a small size (ex: `18`) using the 8-bytes variant.
+It's allowed to represent a small size (ex: `18`) using any compatible variant.
 A size of `0` means `content size is unknown`.
 In which case, the `WD` byte will necessarily be present,
-and becomes the only hint to help memory allocation.
+and becomes the only hint to guide memory allocation.
 
 In order to preserve decoder from unreasonable memory requirement,
 a decoder can refuse a compressed frame
@@ -317,8 +319,8 @@ There are 4 block types :
 | ---------- | ---------- | --- | --- | ------- |
 | Block Type | Compressed | Raw | RLE | EndMark |
 
-- Compressed : this is a Zstandard compressed block,
-  detailed in a later part of this specification.
+- Compressed : this is a [Zstandard compressed block](#compressed-block-format),
+  detailed in another section of this specification.
   "block size" is the compressed size.
   Decompressed size is unknown,
   but its maximum possible value is guaranteed (see below)
@@ -329,12 +331,12 @@ There are 4 block types :
   while the "compressed" block is just 1 byte (the byte to repeat).
 - EndMark : this is not a block. Signal the end of the frame.
   The rest of the field may be optionally filled by a checksum
-  (see frame checksum).
+  (see [__Content Checksum__]).
 
 Block sizes must respect a few rules :
-- In compressed mode, compressed size if always strictly `< contentSize`.
-- Block decompressed size is necessarily <= maximum back-reference distance .
-- Block decompressed size is necessarily <= 128 KB
+- In compressed mode, compressed size if always strictly `< decompressed size`.
+- Block decompressed size is always <= maximum back-reference distance .
+- Block decompressed size is always <= 128 KB
 
 
 __Data__
@@ -343,8 +345,8 @@ Where the actual data to decode stands.
 It might be compressed or not, depending on previous field indications.
 A data block is not necessarily "full" :
 since an arbitrary “flush” may happen anytime,
-block content can be any size, up to Block Maximum Size.
-Block Maximum Size is the smallest of :
+block decompressed content can be any size, up to Block Maximum Size.
+Block Maximum Decompressed Size is the smallest of :
 - Max back-reference distance
 - 128 KB
 
@@ -388,7 +390,7 @@ This specification details the content of a _compressed block_.
 A compressed block has a size, which must be known.
 It also has a guaranteed maximum regenerated size,
 in order to properly allocate destination buffer.
-See "Frame format" for more details.
+See [Data Blocks](#data-blocks) for more details.
 
 A compressed block consists of 2 sections :
 - Literals section
@@ -397,15 +399,15 @@ A compressed block consists of 2 sections :
 ### Prerequisites
 To decode a compressed block, the following elements are necessary :
 - Previous decoded blocks, up to a distance of `windowSize`,
-  or all frame's previous blocks in "single segment" mode.
+  or all previous blocks in "single segment" mode.
 - List of "recent offsets" from previous compressed block.
 - Decoding tables of previous compressed block for each symbol type
-  (literals, litLength, matchLength, offset)
+  (literals, litLength, matchLength, offset).
 
 
 ### Literals section
 
-Literals are compressed using order-0 huffman compression.
+Literals are compressed using huffman compression.
 During sequence phase, literals will be entangled with match copy operations.
 All literals are regrouped in the first part of the block.
 They can be decoded first, and then copied during sequence operations,
@@ -456,7 +458,7 @@ Sizes format are divided into 2 families :
 
 For values spanning several bytes, convention is Big-endian.
 
-__Sizes format for Raw or RLE block__ :
+__Sizes format for Raw or RLE literals block__ :
 
 - Value : 0x : Regenerated size uses 5 bits (0-31).
                Total literal header size is 1 byte.
@@ -471,7 +473,7 @@ __Sizes format for Raw or RLE block__ :
 Note : it's allowed to represent a short value (ex : `13`)
 using a long format, accepting the reduced compacity.
 
-__Sizes format for Compressed Block__ :
+__Sizes format for Compressed literals block__ :
 
 Note : also applicable to "repeat-stats" blocks.
 - Value : 00 : 4 streams
@@ -491,23 +493,23 @@ Compressed and regenerated size fields follow big endian convention.
 
 #### Huffman Tree description
 
-This section is only present when block type is _compressed_ (`0`).
+This section is only present when block type is `Compressed` (`0`).
 
-Prefix coding represents symbols from an a priori known
-alphabet by bit sequences (codes), one code for each symbol, in
-a manner such that different symbols may be represented by bit
-sequences of different lengths, but a parser can always parse
-an encoded string unambiguously symbol-by-symbol.
+Prefix coding represents symbols from an a priori known alphabet
+by bit sequences (codes), one code for each symbol,
+in a manner such that different symbols may be represented
+by bit sequences of different lengths,
+but a parser can always parse an encoded string
+unambiguously symbol-by-symbol.
 
-Given an alphabet with known symbol frequencies, the Huffman
-algorithm allows the construction of an optimal prefix code
-(one which represents strings with those symbol frequencies
-using the fewest bits of any possible prefix codes for that
-alphabet). Such a code is called a Huffman code.
+Given an alphabet with known symbol frequencies,
+the Huffman algorithm allows the construction of an optimal prefix code
+using the fewest bits of any possible prefix codes for that alphabet.
+Such a code is called a Huffman code.
 
-Huffman code must not exceed a maximum code length.
+Prefix code must not exceed a maximum code length.
 More bits improve accuracy but cost more header size,
-and requires more memory for decoding operations.
+and require more memory for decoding operations.
 
 The current format limits the maximum depth to 15 bits.
 The reference decoder goes further, by limiting it to 11 bits.
@@ -552,7 +554,8 @@ Therefore, `maxBits = 4` and `weight[5] = 1`.
 
 ##### Huffman Tree header
 
-This is a single byte value (0-255), which tells how to decode the tree.
+This is a single byte value (0-255),
+which tells how to decode the list of weights.
 
 - if headerByte >= 242 : this is one of 14 pre-defined weight distributions :
   + 242 :  1x1 (+ 1x1)
@@ -896,7 +899,7 @@ The content to decode depends on their respective compression mode :
 
 An FSE distribution table describes the probabilities of all symbols
 from `0` to the last present one (included)
-on a normalized scale of `2^AccuracyLog` .
+on a normalized scale of `1 << AccuracyLog` .
 
 It's a bitstream which is read forward, in little-endian fashion.
 It's not necessary to know its exact size,
@@ -952,7 +955,7 @@ This repeat flag tells how many probabilities of zeroes follow the current one.
 It provides a number ranging from 0 to 3.
 If it is a 3, another 2-bits repeat flag follows, and so on.
 
-When last symbol reaches cumulated total of `2^AccuracyLog`,
+When last symbol reaches cumulated total of `1 << AccuracyLog`,
 decoding is complete.
 Then the decoder can tell how many bytes were used in this process,
 and how many symbols are present.
@@ -960,15 +963,147 @@ and how many symbols are present.
 The bitstream consumes a round number of bytes.
 Any remaining bit within the last byte is just unused.
 
-If the last symbol makes cumulated total go above `2^AccuracyLog`,
+If the last symbol makes cumulated total go above `1 << AccuracyLog`,
 distribution is considered corrupted.
 
 ##### FSE decoding : from normalized distribution to decoding tables
 
+The distribution of normalized probabilities is enough
+to create a unique decoding table.
+
+It follows the following build rule :
+
+The table has a size of `tableSize = 1 << AccuracyLog;`.
+Each cell describes the symbol decoded,
+and instructions to get the next state.
+
+Symbols are scanned in their natural order for `less than 1` probabilities.
+Symbols with this probability are being attributed a single cell,
+starting from the end of the table.
+These symbols define a full state reset, reading `AccuracyLog` bits.
+
+All remaining symbols are sorted in their natural order.
+Starting from symbol `0` and table position `0`,
+each symbol gets attributed as many cells as its probability.
+Cell allocation is spreaded, not linear :
+each successor position follow this rule :
+
+`position += (tableSize>>1) + (tableSize>>3) + 3);
+position &= tableSize-1;`
+
+A position is skipped if already occupied,
+typically by a "less than 1" probability symbol.
+
+The result is a list of state values.
+Each state will decode the current symbol.
+
+To get the Number of bits and baseline required for next state,
+it's first necessary to sort all states in their natural order.
+The lower states will need 1 bit more than higher ones.
+
+__Example__ :
+Presuming a symbol has a probability of 5.
+It receives 5 state values.
+
+Next power of 2 is 8.
+Space of probabilities is divided into 8 equal parts.
+Presuming the AccuracyLog is 7, it defines 128 states.
+Divided by 8, each share is 16 large.
+
+In order to reach 8, 8-5=3 lowest states will count "double",
+taking shares twice larger,
+requiring one more bit in the process.
+
+Numbering starts from higher states using less bits.
+
+| state order |   0   |   1   |    2   |   3  |   4   |
+| ----------- | ----- | ----- | ------ | ---- | ----- |
+| width       |  32   |  32   |   32   |  16  |  16   |
+| nb Bits     |   5   |   5   |    5   |   4  |   4   |
+| range nb    |   2   |   4   |    6   |   0  |   1   |
+| baseline    |  32   |  64   |   96   |   0  |  16   |
+| range       | 32-63 | 64-95 | 96-127 | 0-15 | 16-31 |
+
+Next state is determined from current state
+by reading the required number of bits, and adding the specified baseline.
 
 
 #### Bitstream
 
+All sequences are stored in a single bitstream, read _backward_.
+It is therefore necessary to know the bitstream size,
+which is deducted from compressed block size.
+
+The exact last bit of the stream is followed by a set-bit-flag.
+The highest bit of last byte is this flag.
+It does not belong to the useful part of the bitstream.
+Therefore, last byte has 0-7 useful bits.
+Note that it also means that last byte cannot be `0`.
+
+##### Starting states
+
+The bitstream starts with initial state values,
+each using the required number of bits in their respective _accuracy_,
+decoded previously from their normalized distribution.
+
+It starts by `Literal Length State`,
+followed by `Offset State`,
+and finally `Match Length State`.
+
+Reminder : always keep in mind that all values are read _backward_.
+
+##### Decoding a sequence
+
+A state gives a code.
+A code provides a baseline and number of bits to add.
+See [Symbol Decoding] section for details on each symbol.
+
+Decoding starts by reading the nb of bits required to decode offset.
+It then does the same for match length,
+and then for literal length.
+
+Offset / matchLength / litLength define a sequence, which can be applied.
+
+The next operation is to update states.
+Using rules pre-calculated in the decoding tables,
+`Literal Length State` is updated,
+followed by `Match Length State`,
+and then `Offset State`.
+
+This operation will be repeated `NbSeqs` times.
+At the end, the bitstream shall be entirely consumed,
+otherwise bitstream is considered corrupted.
+
+[Symbol Decoding]:#symbols-decoding
+
+##### Repeat offsets
+
+As seen in [Offset Codes], the first 3 values define a repeated offset.
+They are sorted in recency order, with 1 meaning "most recent one".
+
+There is an exception though, when current sequence's literal length is `0`.
+In which case, 1 would just make previous match longer.
+Therefore, in such case, 1 means in fact 2, and 2 is impossible.
+Meaning of 3 is unmodified.
+
+Repeat offsets start with the following values : 1, 4 and 8 (in order).
+
+Then each block receives its start value from previous compressed block.
+Note that non-compressed blocks are skipped,
+they do not contribute to offset history.
+
+[Offset Codes]: #offset-codes
+
+###### Offset updates rules
+
+When the new offset is a normal one,
+offset history is simply translated by one position,
+with the new offset taking first spot.
+
+- When repeat offset 1 (most recent) is used, history is unmodified.
+- When repeat offset 2 is used, it's swapped with offset 1.
+- When repeat offset 3 is used, it takes first spot,
+  pushing the other ones by one position.
 
 
 

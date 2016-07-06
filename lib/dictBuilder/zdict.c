@@ -96,7 +96,7 @@ static unsigned g_displayLevel = 0;   /* 0 : no display;   1: errors;   2: defau
             if (ZDICT_clockSpan(g_time) > refreshRate)  \
             { g_time = clock(); DISPLAY(__VA_ARGS__); \
             if (g_displayLevel>=4) fflush(stdout); } }
-static const unsigned refreshRate = CLOCKS_PER_SEC * 3 / 10;
+static const clock_t refreshRate = CLOCKS_PER_SEC * 3 / 10;
 static clock_t g_time = 0;
 
 static clock_t ZDICT_clockSpan(clock_t nPrevious) { return clock() - nPrevious; }

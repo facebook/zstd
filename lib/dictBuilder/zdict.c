@@ -99,6 +99,8 @@ static unsigned g_displayLevel = 0;   /* 0 : no display;   1: errors;   2: defau
 static const unsigned refreshRate = CLOCKS_PER_SEC * 3 / 10;
 static clock_t g_time = 0;
 
+static clock_t ZDICT_clockSpan(clock_t nPrevious) { return clock() - nPrevious; }
+
 static void ZDICT_printHex(U32 dlevel, const void* ptr, size_t length)
 {
     const BYTE* const b = (const BYTE*)ptr;
@@ -114,11 +116,6 @@ static void ZDICT_printHex(U32 dlevel, const void* ptr, size_t length)
 /*-********************************************************
 *  Helper functions
 **********************************************************/
-static unsigned ZDICT_clockSpan(clock_t nPrevious)
-{
-    return clock() - nPrevious;
-}
-
 unsigned ZDICT_isError(size_t errorCode) { return ERR_isError(errorCode); }
 
 const char* ZDICT_getErrorName(size_t errorCode) { return ERR_getErrorName(errorCode); }

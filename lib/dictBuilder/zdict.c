@@ -32,6 +32,12 @@
 */
 
 /*-**************************************
+*  Tuning parameters
+****************************************/
+#define ZDICT_MAX_SAMPLES_SIZE (1500U << 20)
+
+
+/*-**************************************
 *  Compiler Options
 ****************************************/
 /* Unix Large Files support (>4GB) */
@@ -481,7 +487,7 @@ static U32 ZDICT_dictSize(const dictItem* dictList)
 
 
 static size_t ZDICT_trainBuffer(dictItem* dictList, U32 dictListSize,
-                            const void* const buffer, const size_t bufferSize,   /* buffer must end with noisy guard band */
+                            const void* const buffer, size_t bufferSize,   /* buffer must end with noisy guard band */
                             const size_t* fileSizes, unsigned nbFiles,
                             U32 shiftRatio, unsigned maxDictSize)
 {
@@ -502,6 +508,10 @@ static size_t ZDICT_trainBuffer(dictItem* dictList, U32 dictListSize,
     }
     if (minRatio < MINRATIO) minRatio = MINRATIO;
     memset(doneMarks, 0, bufferSize+16);
+
+    /* limit sample set size (divsufsort limitation)*/
+    if (bufferSize > ZDICT_MAX_SAMPLES_SIZE) DISPLAYLEVEL(3, "sample set too large : reduce to %u MB ...\n", (U32)(ZDICT_MAX_SAMPLES_SIZE>>20));
+    while (bufferSize > ZDICT_MAX_SAMPLES_SIZE) bufferSize -= fileSizes[--nbFiles];
 
     /* sort */
     DISPLAYLEVEL(2, "sorting %u files of total size %u MB ...\n", nbFiles, (U32)(bufferSize>>20));
@@ -703,7 +713,6 @@ static size_t ZDICT_analyzeEntropy(void*  dstBuffer, size_t maxDstSize,
     }
     if (compressionLevel==0) compressionLevel=g_compressionLevel_default;
     params.cParams = ZSTD_getCParams(compressionLevel, averageSampleSize, dictBufferSize);
-    //params.cParams.strategy = ZSTD_greedy;
     params.fParams.contentSizeFlag = 0;
 	{	size_t const beginResult = ZSTD_compressBegin_advanced(esr.ref, dictBuffer, dictBufferSize, params, 0);
 		if (ZSTD_isError(beginResult)) {

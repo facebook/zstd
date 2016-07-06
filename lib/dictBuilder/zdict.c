@@ -34,11 +34,6 @@
 /*-**************************************
 *  Compiler Options
 ****************************************/
-/* Disable some Visual warning messages */
-#ifdef _MSC_VER
-#  pragma warning(disable : 4127)                /* disable: C4127: conditional expression is constant */
-#endif
-
 /* Unix Large Files support (>4GB) */
 #define _FILE_OFFSET_BITS 64
 #if (defined(__sun__) && (!defined(__LP64__)))   /* Sun Solaris 32-bits requires specific definitions */
@@ -58,13 +53,15 @@
 
 #include "mem.h"           /* read */
 #include "error_private.h"
-#include "fse.h"
+#include "fse.h"           /* FSE_normalizeCount, FSE_writeNCount */
 #define HUF_STATIC_LINKING_ONLY
 #include "huf.h"
 #include "zstd_internal.h" /* includes zstd.h */
 #include "xxhash.h"
 #include "divsufsort.h"
-#define ZDICT_STATIC_LINKING_ONLY
+#ifndef ZDICT_STATIC_LINKING_ONLY
+#  define ZDICT_STATIC_LINKING_ONLY
+#endif
 #include "zdict.h"
 
 
@@ -91,15 +88,15 @@ static const size_t g_min_fast_dictContent = 192;
 /*-*************************************
 *  Console display
 ***************************************/
-#define DISPLAY(...)         fprintf(stderr, __VA_ARGS__)
+#define DISPLAY(...)         { fprintf(stderr, __VA_ARGS__); fflush( stderr ); }
 #define DISPLAYLEVEL(l, ...) if (g_displayLevel>=l) { DISPLAY(__VA_ARGS__); }
 static unsigned g_displayLevel = 0;   /* 0 : no display;   1: errors;   2: default;  4: full information */
 
 #define DISPLAYUPDATE(l, ...) if (g_displayLevel>=l) { \
-            if (ZDICT_GetMilliSpan(g_time) > refreshRate)  \
+            if (ZDICT_clockSpan(g_time) > refreshRate)  \
             { g_time = clock(); DISPLAY(__VA_ARGS__); \
             if (g_displayLevel>=4) fflush(stdout); } }
-static const unsigned refreshRate = 300;
+static const unsigned refreshRate = CLOCKS_PER_SEC * 3 / 10;
 static clock_t g_time = 0;
 
 static void ZDICT_printHex(U32 dlevel, const void* ptr, size_t length)
@@ -117,11 +114,9 @@ static void ZDICT_printHex(U32 dlevel, const void* ptr, size_t length)
 /*-********************************************************
 *  Helper functions
 **********************************************************/
-static unsigned ZDICT_GetMilliSpan(clock_t nPrevious)
+static unsigned ZDICT_clockSpan(clock_t nPrevious)
 {
-    clock_t nCurrent = clock();
-    unsigned nSpan = (unsigned)(((nCurrent - nPrevious) * 1000) / CLOCKS_PER_SEC);
-    return nSpan;
+    return clock() - nPrevious;
 }
 
 unsigned ZDICT_isError(size_t errorCode) { return ERR_isError(errorCode); }
@@ -587,7 +582,9 @@ static void ZDICT_countEStats(EStats_ress_t esr,
     size_t cSize;
 
     if (srcSize > ZSTD_BLOCKSIZE_MAX) srcSize = ZSTD_BLOCKSIZE_MAX;   /* protection vs large samples */
-    ZSTD_copyCCtx(esr.zc, esr.ref);
+	{	size_t const errorCode = ZSTD_copyCCtx(esr.zc, esr.ref);
+		if (ZSTD_isError(errorCode)) { DISPLAYLEVEL(1, "warning : ZSTD_copyCCtx failed \n"); return; }
+	}
     cSize = ZSTD_compressBlock(esr.zc, esr.workPlace, ZSTD_BLOCKSIZE_MAX, src, srcSize);
     if (ZSTD_isError(cSize)) { DISPLAYLEVEL(1, "warning : could not compress sample size %u \n", (U32)srcSize); return; }
 
@@ -709,9 +706,14 @@ static size_t ZDICT_analyzeEntropy(void*  dstBuffer, size_t maxDstSize,
     }
     if (compressionLevel==0) compressionLevel=g_compressionLevel_default;
     params.cParams = ZSTD_getCParams(compressionLevel, averageSampleSize, dictBufferSize);
-    params.cParams.strategy = ZSTD_greedy;
+    //params.cParams.strategy = ZSTD_greedy;
     params.fParams.contentSizeFlag = 0;
-    ZSTD_compressBegin_advanced(esr.ref, dictBuffer, dictBufferSize, params, 0);
+	{	size_t const beginResult = ZSTD_compressBegin_advanced(esr.ref, dictBuffer, dictBufferSize, params, 0);
+		if (ZSTD_isError(beginResult)) {
+			eSize = ERROR(GENERIC);
+			DISPLAYLEVEL(1, "error : ZSTD_compressBegin_advanced failed ");
+			goto _cleanup;
+	}	}
 
     /* collect stats on all files */
     for (u=0; u<nbFiles; u++) {
@@ -826,6 +828,7 @@ static size_t ZDICT_analyzeEntropy(void*  dstBuffer, size_t maxDstSize,
     MEM_writeLE32(dstPtr+4, repStartValue[1]);
     MEM_writeLE32(dstPtr+8, repStartValue[2]);
 #endif
+    dstPtr += 12;
     eSize += 12;
 
 _cleanup:
@@ -905,7 +908,6 @@ size_t ZDICT_addEntropyTablesFromBuffer_advanced(void* dictBuffer, size_t dictCo
 }
 
 #define DIB_MINSAMPLESSIZE (DIB_FASTSEGMENTSIZE*3)
-#define EXIT(e) { dictSize = ERROR(e); goto _cleanup; }
 /*! ZDICT_trainFromBuffer_unsafe() :
 *   `samplesBuffer` must be followed by noisy guard band.
 *   @return : size of dictionary.
@@ -923,12 +925,12 @@ size_t ZDICT_trainFromBuffer_unsafe(
     size_t dictSize = 0;
 
     /* checks */
-    if (maxDictSize <= g_provision_entropySize + g_min_fast_dictContent) EXIT(dstSize_tooSmall);
+    if (maxDictSize <= g_provision_entropySize + g_min_fast_dictContent) return ERROR(dstSize_tooSmall);
     if (!dictList) return ERROR(memory_allocation);
 
     /* init */
     { unsigned u; for (u=0, sBuffSize=0; u<nbSamples; u++) sBuffSize += samplesSizes[u]; }
-    if (sBuffSize < DIB_MINSAMPLESSIZE) EXIT(no_error);   /* not enough source to create dictionary */
+    if (sBuffSize < DIB_MINSAMPLESSIZE) return 0;   /* not enough source to create dictionary */
     ZDICT_initDictItem(dictList);
     g_displayLevel = params.notificationLevel;
     if (selectivity==0) selectivity = g_selectivity_default;
@@ -948,9 +950,9 @@ size_t ZDICT_trainFromBuffer_unsafe(
             DISPLAYLEVEL(3, "\n %u segments found, of total size %u \n", dictList[0].pos, dictContentSize);
             DISPLAYLEVEL(3, "list %u best segments \n", nb);
             for (u=1; u<=nb; u++) {
-                U32 const p = dictList[u].pos;
-                U32 const l = dictList[u].length;
-                U32 const d = MIN(40, l);
+                U32 p = dictList[u].pos;
+                U32 l = dictList[u].length;
+                U32 d = MIN(40, l);
                 DISPLAYLEVEL(3, "%3u:%3u bytes at pos %8u, savings %7u bytes |",
                              u, l, p, dictList[u].savings);
                 ZDICT_printHex(3, (const char*)samplesBuffer+p, d);
@@ -966,7 +968,7 @@ size_t ZDICT_trainFromBuffer_unsafe(
             for (u=1; u<dictList->pos; u++) {
                 U32 l = dictList[u].length;
                 ptr -= l;
-                if (ptr<(BYTE*)dictBuffer) EXIT(GENERIC);   /* should not happen */
+                if (ptr<(BYTE*)dictBuffer) return ERROR(GENERIC);   /* should not happen */
                 memcpy(ptr, (const char*)samplesBuffer+dictList[u].pos, l);
         }   }
 
@@ -983,7 +985,7 @@ size_t ZDICT_trainFromBuffer_unsafe(
                                                              params);
     }
 
-_cleanup :
+    /* clean up */
     free(dictList);
     return dictSize;
 }

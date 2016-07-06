@@ -919,6 +919,16 @@ size_t ZSTD_decompressBlock(ZSTD_DCtx* dctx,
 }
 
 
+/** ZSTD_insertBlock() :
+    insert `src` block into `dctx` history. Useful to track uncompressed blocks. */
+ZSTDLIB_API size_t ZSTD_insertBlock(ZSTD_DCtx* dctx, const void* blockStart, size_t blockSize)
+{
+    ZSTD_checkContinuity(dctx, blockStart);
+    dctx->previousDstEnd = (const char*)blockStart + blockSize;
+    return blockSize;
+}
+
+
 size_t ZSTD_generateNxByte(void* dst, size_t dstCapacity, BYTE byte, size_t length)
 {
     if (length > dstCapacity) return ERROR(dstSize_tooSmall);
@@ -1324,6 +1334,12 @@ ZSTDLIB_API size_t ZSTD_decompress_usingDDict(ZSTD_DCtx* dctx,
                                      const void* src, size_t srcSize,
                                      const ZSTD_DDict* ddict)
 {
+#if defined(ZSTD_LEGACY_SUPPORT) && (ZSTD_LEGACY_SUPPORT==1)
+    {   U32 const magicNumber = MEM_readLE32(src);
+        if (ZSTD_isLegacy(magicNumber))
+            return ZSTD_decompressLegacy(dst, dstCapacity, src, srcSize, ddict->dictContent, ddict->dictContentSize, magicNumber);
+    }
+#endif
     return ZSTD_decompress_usingPreparedDCtx(dctx, ddict->refContext,
                                            dst, dstCapacity,
                                            src, srcSize);

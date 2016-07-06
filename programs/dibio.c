@@ -43,13 +43,10 @@
 #define MB *(1 <<20)
 #define GB *(1U<<30)
 
-#define DICTLISTSIZE 10000
 #define MEMMULT 11
 static const size_t maxMemory = (sizeof(size_t) == 4) ? (2 GB - 64 MB) : ((size_t)(512 MB) << sizeof(size_t));
 
 #define NOISELENGTH 32
-#define PRIME1   2654435761U
-#define PRIME2   2246822519U
 
 
 /*-*************************************
@@ -60,17 +57,13 @@ static const size_t maxMemory = (sizeof(size_t) == 4) ? (2 GB - 64 MB) : ((size_
 static unsigned g_displayLevel = 0;   /* 0 : no display;   1: errors;   2: default;  4: full information */
 
 #define DISPLAYUPDATE(l, ...) if (g_displayLevel>=l) { \
-            if ((DIB_GetMilliSpan(g_time) > refreshRate) || (g_displayLevel>=4)) \
+            if ((DIB_clockSpan(g_time) > refreshRate) || (g_displayLevel>=4)) \
             { g_time = clock(); DISPLAY(__VA_ARGS__); \
             if (g_displayLevel>=4) fflush(stdout); } }
-static const unsigned refreshRate = 150;
+static const clock_t refreshRate = CLOCKS_PER_SEC * 2 / 10;
 static clock_t g_time = 0;
 
-static unsigned DIB_GetMilliSpan(clock_t nPrevious)
-{
-    clock_t const nCurrent = clock();
-    return (unsigned)(((nCurrent - nPrevious) * 1000) / CLOCKS_PER_SEC);
-}
+static clock_t DIB_clockSpan(clock_t nPrevious) { return clock() - nPrevious; }
 
 
 /*-*************************************
@@ -97,13 +90,15 @@ unsigned DiB_isError(size_t errorCode) { return ERR_isError(errorCode); }
 
 const char* DiB_getErrorName(size_t errorCode) { return ERR_getErrorName(errorCode); }
 
+#define MIN(a,b)   ( (a) < (b) ? (a) : (b) )
+
 
 /* ********************************************************
 *  File related operations
 **********************************************************/
 /** DiB_loadFiles() :
 *   @return : nb of files effectively loaded into `buffer` */
-static unsigned DiB_loadFiles(void* buffer, size_t bufferSize,
+static unsigned DiB_loadFiles(void* buffer, size_t* bufferSizePtr,
                               size_t* fileSizes,
                               const char** fileNamesTable, unsigned nbFiles)
 {
@@ -112,18 +107,20 @@ static unsigned DiB_loadFiles(void* buffer, size_t bufferSize,
     unsigned n;
 
     for (n=0; n<nbFiles; n++) {
-        unsigned long long const fs64 = UTIL_getFileSize(fileNamesTable[n]);
-        size_t const fileSize = (size_t)(fs64 > bufferSize-pos ? 0 : fs64);
-        FILE* const f = fopen(fileNamesTable[n], "rb");
-        if (f==NULL) EXM_THROW(10, "impossible to open file %s", fileNamesTable[n]);
-        DISPLAYUPDATE(2, "Loading %s...       \r", fileNamesTable[n]);
-        { size_t const readSize = fread(buff+pos, 1, fileSize, f);
-          if (readSize != fileSize) EXM_THROW(11, "could not read %s", fileNamesTable[n]);
-          pos += readSize; }
-        fileSizes[n] = fileSize;
-        fclose(f);
-        if (fileSize == 0) break;  /* stop there, not enough memory to load all files */
-    }
+        const char* const fileName = fileNamesTable[n];
+        unsigned long long const fs64 = UTIL_getFileSize(fileName);
+        size_t const fileSize = (size_t) MIN(fs64, 128 KB);
+        if (fileSize > *bufferSizePtr-pos) break;
+        {   FILE* const f = fopen(fileName, "rb");
+            if (f==NULL) EXM_THROW(10, "zstd: dictBuilder: %s %s ", fileName, strerror(errno));
+            DISPLAYUPDATE(2, "Loading %s...       \r", fileName);
+            { size_t const readSize = fread(buff+pos, 1, fileSize, f);
+              if (readSize != fileSize) EXM_THROW(11, "Pb reading %s", fileName);
+              pos += readSize; }
+            fileSizes[n] = fileSize;
+            fclose(f);
+    }   }
+    *bufferSizePtr = pos;
     return n;
 }
 
@@ -137,26 +134,28 @@ static size_t DiB_findMaxMem(unsigned long long requiredMem)
     void* testmem = NULL;
 
     requiredMem = (((requiredMem >> 23) + 1) << 23);
-    requiredMem += 2 * step;
+    requiredMem += step;
     if (requiredMem > maxMemory) requiredMem = maxMemory;
 
     while (!testmem) {
-        requiredMem -= step;
         testmem = malloc((size_t)requiredMem);
+        requiredMem -= step;
     }
 
     free(testmem);
-    return (size_t)(requiredMem - step);
+    return (size_t)requiredMem;
 }
 
 
 static void DiB_fillNoise(void* buffer, size_t length)
 {
-    unsigned acc = PRIME1;
+    unsigned const prime1 = 2654435761U;
+    unsigned const prime2 = 2246822519U;
+    unsigned acc = prime1;
     size_t p=0;;
 
     for (p=0; p<length; p++) {
-        acc *= PRIME2;
+        acc *= prime2;
         ((unsigned char*)buffer)[p] = (unsigned char)(acc >> 21);
     }
 }
@@ -188,7 +187,6 @@ size_t ZDICT_trainFromBuffer_unsafe(void* dictBuffer, size_t dictBufferCapacity,
                               ZDICT_params_t parameters);
 
 
-#define MIN(a,b)  ((a)<(b)?(a):(b))
 int DiB_trainFromFiles(const char* dictFileName, unsigned maxDictSize,
                        const char** fileNamesTable, unsigned nbFiles,
                        ZDICT_params_t params)
@@ -197,7 +195,7 @@ int DiB_trainFromFiles(const char* dictFileName, unsigned maxDictSize,
     size_t* const fileSizes = (size_t*)malloc(nbFiles * sizeof(size_t));
     unsigned long long const totalSizeToLoad = UTIL_getTotalFileSize(fileNamesTable, nbFiles);
     size_t const maxMem =  DiB_findMaxMem(totalSizeToLoad * MEMMULT) / MEMMULT;
-    size_t const benchedSize = MIN (maxMem, (size_t)totalSizeToLoad);
+    size_t benchedSize = MIN (maxMem, (size_t)totalSizeToLoad);
     void* const srcBuffer = malloc(benchedSize+NOISELENGTH);
     int result = 0;
 
@@ -210,7 +208,7 @@ int DiB_trainFromFiles(const char* dictFileName, unsigned maxDictSize,
         DISPLAYLEVEL(1, "Not enough memory; training on %u MB only...\n", (unsigned)(benchedSize >> 20));
 
     /* Load input buffer */
-    nbFiles = DiB_loadFiles(srcBuffer, benchedSize, fileSizes, fileNamesTable, nbFiles);
+    nbFiles = DiB_loadFiles(srcBuffer, &benchedSize, fileSizes, fileNamesTable, nbFiles);
     DiB_fillNoise((char*)srcBuffer + benchedSize, NOISELENGTH);   /* guard band, for end of buffer condition */
 
     {   size_t const dictSize = ZDICT_trainFromBuffer_unsafe(dictBuffer, maxDictSize,

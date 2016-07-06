@@ -408,12 +408,14 @@ ZSTDLIB_API size_t ZSTD_decompressContinue(ZSTD_DCtx* dctx, void* dst, size_t ds
 *  Block functions
 ****************************************/
 /*! Block functions produce and decode raw zstd blocks, without frame metadata.
+    Frame metadata cost is typically ~18 bytes, which is non-negligible on very small blocks.
     User will have to take in charge required information to regenerate data, such as compressed and content sizes.
 
     A few rules to respect :
     - Uncompressed block size must be <= ZSTD_BLOCKSIZE_MAX (128 KB)
-      + If you need to compress more, it's recommended to use ZSTD_compress() instead, since frame metadata costs become negligible.
-    - Compressing or decompressing requires a context structure
+      + If you need to compress more, cut data into multiple blocks
+      + Consider using the regular ZSTD_compress() instead, as frame metadata costs become negligible when source size is large.
+    - Compressing and decompressing require a context structure
       + Use ZSTD_createCCtx() and ZSTD_createDCtx()
     - It is necessary to init context before starting
       + compression : ZSTD_compressBegin()
@@ -423,12 +425,16 @@ ZSTDLIB_API size_t ZSTD_decompressContinue(ZSTD_DCtx* dctx, void* dst, size_t ds
     - When a block is considered not compressible enough, ZSTD_compressBlock() result will be zero.
       In which case, nothing is produced into `dst`.
       + User must test for such outcome and deal directly with uncompressed data
-      + ZSTD_decompressBlock() doesn't accept uncompressed data as input !!
+      + ZSTD_decompressBlock() doesn't accept uncompressed data as input !!!
+      + In case of multiple successive blocks, decoder must be informed of uncompressed block existence to follow proper history.
+        Use ZSTD_insertBlock() in such a case.
+        Insert block once it's copied into its final position.
 */
 
 #define ZSTD_BLOCKSIZE_MAX (128 * 1024)   /* define, for static allocation */
 ZSTDLIB_API size_t ZSTD_compressBlock  (ZSTD_CCtx* cctx, void* dst, size_t dstCapacity, const void* src, size_t srcSize);
 ZSTDLIB_API size_t ZSTD_decompressBlock(ZSTD_DCtx* dctx, void* dst, size_t dstCapacity, const void* src, size_t srcSize);
+ZSTDLIB_API size_t ZSTD_insertBlock(ZSTD_DCtx* dctx, const void* blockStart, size_t blockSize);  /**< insert block into `dctx` history. Useful to track uncompressed blocks */
 
 
 /*-*************************************

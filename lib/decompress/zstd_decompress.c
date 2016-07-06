@@ -710,7 +710,6 @@ static seq_t ZSTD_decodeSequence(seqState_t* seqState)
 
         if (ofCode <= 1) {
             if ((llCode == 0) & (offset <= 1)) offset = 1-offset;
-
             if (offset) {
                 size_t const temp = seqState->prevOffset[offset];
                 if (offset != 1) seqState->prevOffset[2] = seqState->prevOffset[1];

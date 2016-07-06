@@ -34,7 +34,7 @@
 /*-**************************************
 *  Tuning parameters
 ****************************************/
-#define ZDICT_MAX_SAMPLES_SIZE (1500U << 20)
+#define ZDICT_MAX_SAMPLES_SIZE (2000U << 20)
 
 
 /*-**************************************
@@ -497,7 +497,6 @@ static size_t ZDICT_trainBuffer(dictItem* dictList, U32 dictListSize,
     BYTE* doneMarks = (BYTE*)malloc((bufferSize+16)*sizeof(*doneMarks));   /* +16 for overflow security */
     U32* filePos = (U32*)malloc(nbFiles * sizeof(*filePos));
     U32 minRatio = nbFiles >> shiftRatio;
-    int divSuftSortResult;
     size_t result = 0;
 
     /* init */
@@ -510,18 +509,17 @@ static size_t ZDICT_trainBuffer(dictItem* dictList, U32 dictListSize,
     memset(doneMarks, 0, bufferSize+16);
 
     /* limit sample set size (divsufsort limitation)*/
-    if (bufferSize > ZDICT_MAX_SAMPLES_SIZE) DISPLAYLEVEL(3, "sample set too large : reduce to %u MB ...\n", (U32)(ZDICT_MAX_SAMPLES_SIZE>>20));
+    if (bufferSize > ZDICT_MAX_SAMPLES_SIZE) DISPLAYLEVEL(3, "sample set too large : reduced to %u MB ...\n", (U32)(ZDICT_MAX_SAMPLES_SIZE>>20));
     while (bufferSize > ZDICT_MAX_SAMPLES_SIZE) bufferSize -= fileSizes[--nbFiles];
 
     /* sort */
     DISPLAYLEVEL(2, "sorting %u files of total size %u MB ...\n", nbFiles, (U32)(bufferSize>>20));
-    divSuftSortResult = divsufsort((const unsigned char*)buffer, suffix, (int)bufferSize, 0);
-    if (divSuftSortResult != 0) { result = ERROR(GENERIC); goto _cleanup; }
+    { int const divSuftSortResult = divsufsort((const unsigned char*)buffer, suffix, (int)bufferSize, 0);
+      if (divSuftSortResult != 0) { result = ERROR(GENERIC); goto _cleanup; } }
     suffix[bufferSize] = (int)bufferSize;   /* leads into noise */
     suffix0[0] = (int)bufferSize;           /* leads into noise */
-    {
-        /* build reverse suffix sort */
-        size_t pos;
+    /* build reverse suffix sort */
+    {   size_t pos;
         for (pos=0; pos < bufferSize; pos++)
             reverseSuffix[suffix[pos]] = (U32)pos;
         /* build file pos */

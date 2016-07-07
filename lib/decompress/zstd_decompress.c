@@ -398,12 +398,10 @@ size_t ZSTD_getFrameParams(ZSTD_frameParams* fparamsPtr, const void* src, size_t
                    - decompressed size is not provided within frame header
                    - frame header unknown / not supported
                    - frame header not completely provided (`srcSize` too small) */
-unsigned long long ZSTD_getDecompressedSize(const void* src, size_t srcSize) {
-#if ZSTD_LEGACY_SUPPORT
-    if (srcSize < 4) return 0;
-    {   U32 const magic = MEM_readLE32(src);
-        if (ZSTD_isLegacy(magic)) return ZSTD_getDecompressedSize_legacy(src, srcSize);
-    }
+unsigned long long ZSTD_getDecompressedSize(const void* src, size_t srcSize)
+{
+#if defined(ZSTD_LEGACY_SUPPORT) && (ZSTD_LEGACY_SUPPORT==1)
+    if (ZSTD_isLegacy(src, srcSize)) return ZSTD_getDecompressedSize_legacy(src, srcSize);
 #endif
     {   ZSTD_frameParams fparams;
         size_t const frResult = ZSTD_getFrameParams(&fparams, src, srcSize);
@@ -1047,10 +1045,7 @@ size_t ZSTD_decompress_usingDict(ZSTD_DCtx* dctx,
                                  const void* dict, size_t dictSize)
 {
 #if defined(ZSTD_LEGACY_SUPPORT) && (ZSTD_LEGACY_SUPPORT==1)
-    {   U32 const magicNumber = MEM_readLE32(src);
-        if (ZSTD_isLegacy(magicNumber))
-            return ZSTD_decompressLegacy(dst, dstCapacity, src, srcSize, dict, dictSize, magicNumber);
-    }
+    if (ZSTD_isLegacy(src, srcSize)) return ZSTD_decompressLegacy(dst, dstCapacity, src, srcSize, dict, dictSize);
 #endif
     ZSTD_decompressBegin_usingDict(dctx, dict, dictSize);
     ZSTD_checkContinuity(dctx, dst);
@@ -1357,10 +1352,7 @@ ZSTDLIB_API size_t ZSTD_decompress_usingDDict(ZSTD_DCtx* dctx,
                                      const ZSTD_DDict* ddict)
 {
 #if defined(ZSTD_LEGACY_SUPPORT) && (ZSTD_LEGACY_SUPPORT==1)
-    {   U32 const magicNumber = MEM_readLE32(src);
-        if (ZSTD_isLegacy(magicNumber))
-            return ZSTD_decompressLegacy(dst, dstCapacity, src, srcSize, ddict->dictContent, ddict->dictContentSize, magicNumber);
-    }
+    if (ZSTD_isLegacy(src, srcSize)) return ZSTD_decompressLegacy(dst, dstCapacity, src, srcSize, ddict->dictContent, ddict->dictContentSize);
 #endif
     return ZSTD_decompress_usingPreparedDCtx(dctx, ddict->refContext,
                                            dst, dstCapacity,

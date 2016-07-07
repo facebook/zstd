@@ -443,17 +443,6 @@ ZSTDLIB_API size_t ZSTD_decompressBlock(ZSTD_DCtx* dctx, void* dst, size_t dstCa
 ZSTDLIB_API size_t ZSTD_insertBlock(ZSTD_DCtx* dctx, const void* blockStart, size_t blockSize);  /**< insert block into `dctx` history. Useful to track uncompressed blocks */
 
 
-/*-*************************************
-*  Error management
-***************************************/
-#include "error_public.h"
-/*! ZSTD_getErrorCode() :
-    convert a `size_t` function result into a `ZSTD_ErrorCode` enum type,
-    which can be used to compare directly with enum list published into "error_public.h" */
-ZSTDLIB_API ZSTD_ErrorCode ZSTD_getErrorCode(size_t functionResult);
-ZSTDLIB_API const char* ZSTD_getErrorString(ZSTD_ErrorCode code);
-
-
 #endif   /* ZSTD_STATIC_LINKING_ONLY */
 
 #if defined (__cplusplus)

@@ -197,9 +197,6 @@ ZSTDLIB_API size_t ZSTD_decompress_usingDDict(ZSTD_DCtx* dctx,
  * Use them only in association with static linking.
  * ==================================================================================== */
 
-/*--- Dependency ---*/
-#include "mem.h"   /* U32 */
-
 /*--- Constants ---*/
 #define ZSTD_MAGICNUMBER            0xFD2FB527   /* v0.7 */
 #define ZSTD_MAGIC_SKIPPABLE_START  0x184D2A50U
@@ -229,19 +226,19 @@ static const size_t ZSTD_skippableHeaderSize = 8;  /* magic number + skippable f
 typedef enum { ZSTD_fast, ZSTD_greedy, ZSTD_lazy, ZSTD_lazy2, ZSTD_btlazy2, ZSTD_btopt } ZSTD_strategy;   /*< from faster to stronger */
 
 typedef struct {
-    U32 windowLog;      /*< largest match distance : larger == more compression, more memory needed during decompression */
-    U32 chainLog;       /*< fully searched segment : larger == more compression, slower, more memory (useless for fast) */
-    U32 hashLog;        /*< dispatch table : larger == faster, more memory */
-    U32 searchLog;      /*< nb of searches : larger == more compression, slower */
-    U32 searchLength;   /*< match length searched : larger == faster decompression, sometimes less compression */
-    U32 targetLength;   /*< acceptable match size for optimal parser (only) : larger == more compression, slower */
+    unsigned windowLog;      /*< largest match distance : larger == more compression, more memory needed during decompression */
+    unsigned chainLog;       /*< fully searched segment : larger == more compression, slower, more memory (useless for fast) */
+    unsigned hashLog;        /*< dispatch table : larger == faster, more memory */
+    unsigned searchLog;      /*< nb of searches : larger == more compression, slower */
+    unsigned searchLength;   /*< match length searched : larger == faster decompression, sometimes less compression */
+    unsigned targetLength;   /*< acceptable match size for optimal parser (only) : larger == more compression, slower */
     ZSTD_strategy strategy;
 } ZSTD_compressionParameters;
 
 typedef struct {
-    U32 contentSizeFlag; /*< 1: content size will be in frame header (if known). */
-    U32 checksumFlag;    /*< 1: will generate a 22-bits checksum at end of frame, to be used for error detection by decompressor */
-    U32 noDictIDFlag;    /*< 1: no dict ID will be saved into frame header (if dictionary compression) */
+    unsigned contentSizeFlag; /*< 1: content size will be in frame header (if known). */
+    unsigned checksumFlag;    /*< 1: will generate a 22-bits checksum at end of frame, to be used for error detection by decompressor */
+    unsigned noDictIDFlag;    /*< 1: no dict ID will be saved into frame header (if dictionary compression) */
 } ZSTD_frameParameters;
 
 typedef struct {
@@ -272,12 +269,12 @@ ZSTDLIB_API unsigned ZSTD_maxCLevel (void);
 /*! ZSTD_getParams() :
 *   same as ZSTD_getCParams(), but @return a full `ZSTD_parameters` object instead of a `ZSTD_compressionParameters`.
 *   All fields of `ZSTD_frameParameters` are set to default (0) */
-ZSTD_parameters ZSTD_getParams(int compressionLevel, U64 srcSize, size_t dictSize);
+ZSTD_parameters ZSTD_getParams(int compressionLevel, unsigned long long srcSize, size_t dictSize);
 
 /*! ZSTD_getCParams() :
 *   @return ZSTD_compressionParameters structure for a selected compression level and srcSize.
 *   `srcSize` value is optional, select 0 if not known */
-ZSTDLIB_API ZSTD_compressionParameters ZSTD_getCParams(int compressionLevel, U64 srcSize, size_t dictSize);
+ZSTDLIB_API ZSTD_compressionParameters ZSTD_getCParams(int compressionLevel, unsigned long long srcSize, size_t dictSize);
 
 /*! ZSTD_checkCParams() :
 *   Ensure param values remain within authorized range */
@@ -286,7 +283,7 @@ ZSTDLIB_API size_t ZSTD_checkCParams(ZSTD_compressionParameters params);
 /*! ZSTD_adjustCParams() :
 *   optimize params for a given `srcSize` and `dictSize`.
 *   both values are optional, select `0` if unknown. */
-ZSTDLIB_API ZSTD_compressionParameters ZSTD_adjustCParams(ZSTD_compressionParameters cPar, U64 srcSize, size_t dictSize);
+ZSTDLIB_API ZSTD_compressionParameters ZSTD_adjustCParams(ZSTD_compressionParameters cPar, unsigned long long srcSize, size_t dictSize);
 
 /*! ZSTD_compress_advanced() :
 *   Same as ZSTD_compress_usingDict(), with fine-tune control of each compression parameter */
@@ -309,7 +306,7 @@ ZSTDLIB_API ZSTD_DCtx* ZSTD_createDCtx_advanced(ZSTD_customMem customMem);
 ******************************************************************/
 ZSTDLIB_API size_t ZSTD_compressBegin(ZSTD_CCtx* cctx, int compressionLevel);
 ZSTDLIB_API size_t ZSTD_compressBegin_usingDict(ZSTD_CCtx* cctx, const void* dict, size_t dictSize, int compressionLevel);
-ZSTDLIB_API size_t ZSTD_compressBegin_advanced(ZSTD_CCtx* cctx, const void* dict, size_t dictSize, ZSTD_parameters params, U64 pledgedSrcSize);
+ZSTDLIB_API size_t ZSTD_compressBegin_advanced(ZSTD_CCtx* cctx, const void* dict, size_t dictSize, ZSTD_parameters params, unsigned long long pledgedSrcSize);
 ZSTDLIB_API size_t ZSTD_copyCCtx(ZSTD_CCtx* cctx, const ZSTD_CCtx* preparedCCtx);
 
 ZSTDLIB_API size_t ZSTD_compressContinue(ZSTD_CCtx* cctx, void* dst, size_t dstCapacity, const void* src, size_t srcSize);
@@ -345,10 +342,10 @@ ZSTDLIB_API size_t ZSTD_compressEnd(ZSTD_CCtx* cctx, void* dst, size_t dstCapaci
 */
 
 typedef struct {
-    U64 frameContentSize;
-    U32 windowSize;
-    U32 dictID;
-    U32 checksumFlag;
+    unsigned long long frameContentSize;
+    unsigned windowSize;
+    unsigned dictID;
+    unsigned checksumFlag;
 } ZSTD_frameParams;
 
 ZSTDLIB_API size_t ZSTD_getFrameParams(ZSTD_frameParams* fparamsPtr, const void* src, size_t srcSize);   /**< doesn't consume input */

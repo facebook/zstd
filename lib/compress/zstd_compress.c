@@ -221,7 +221,7 @@ size_t ZSTD_checkCParams_advanced(ZSTD_compressionParameters cParams, U64 srcSiz
     Both `srcSize` and `dictSize` are optional (use 0 if unknown),
     but if both are 0, no optimization can be done.
     Note : cPar is considered validated at this stage. Use ZSTD_checkParams() to ensure that. */
-ZSTD_compressionParameters ZSTD_adjustCParams(ZSTD_compressionParameters cPar, U64 srcSize, size_t dictSize)
+ZSTD_compressionParameters ZSTD_adjustCParams(ZSTD_compressionParameters cPar, unsigned long long srcSize, size_t dictSize)
 {
     if (srcSize+dictSize == 0) return cPar;   /* no size information available : no adjustment */
 
@@ -2407,7 +2407,7 @@ static size_t ZSTD_compressBegin_internal(ZSTD_CCtx* zc,
 *   @return : 0, or an error code */
 size_t ZSTD_compressBegin_advanced(ZSTD_CCtx* cctx,
                              const void* dict, size_t dictSize,
-                                   ZSTD_parameters params, U64 pledgedSrcSize)
+                                   ZSTD_parameters params, unsigned long long pledgedSrcSize)
 {
     /* compression parameters verification and optimization */
     { size_t const errorCode = ZSTD_checkCParams_advanced(params.cParams, pledgedSrcSize);
@@ -2744,7 +2744,7 @@ static const ZSTD_compressionParameters ZSTD_defaultCParameters[4][ZSTD_MAX_CLEV
 /*! ZSTD_getCParams() :
 *   @return ZSTD_compressionParameters structure for a selected compression level, `srcSize` and `dictSize`.
 *   Size values are optional, provide 0 if not known or unused */
-ZSTD_compressionParameters ZSTD_getCParams(int compressionLevel, U64 srcSize, size_t dictSize)
+ZSTD_compressionParameters ZSTD_getCParams(int compressionLevel, unsigned long long srcSize, size_t dictSize)
 {
     ZSTD_compressionParameters cp;
     size_t const addedSize = srcSize ? 0 : 500;
@@ -2765,7 +2765,7 @@ ZSTD_compressionParameters ZSTD_getCParams(int compressionLevel, U64 srcSize, si
 /*! ZSTD_getParams() :
 *   same as ZSTD_getCParams(), but @return a `ZSTD_parameters` object instead of a `ZSTD_compressionParameters`.
 *   All fields of `ZSTD_frameParameters` are set to default (0) */
-ZSTD_parameters ZSTD_getParams(int compressionLevel, U64 srcSize, size_t dictSize) {
+ZSTD_parameters ZSTD_getParams(int compressionLevel, unsigned long long srcSize, size_t dictSize) {
     ZSTD_parameters params;
     ZSTD_compressionParameters const cParams = ZSTD_getCParams(compressionLevel, srcSize, dictSize);
     memset(&params, 0, sizeof(params));

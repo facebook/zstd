@@ -345,13 +345,18 @@ static int basicUnitTests(U32 seed, double compressibility)
         if (ZSTD_isError(cSize)) goto _output_error;
         cSize2 = ZSTD_compressBlock(cctx, (char*)compressedBuffer+cSize, ZSTD_compressBound(blockSize), (char*)CNBuffer+dictSize+blockSize, blockSize);
         if (ZSTD_isError(cSize2)) goto _output_error;
+        memcpy((char*)compressedBuffer+cSize, (char*)CNBuffer+dictSize+blockSize, blockSize);   /* fake non-compressed block */
+        cSize2 = ZSTD_compressBlock(cctx, (char*)compressedBuffer+cSize+blockSize, ZSTD_compressBound(blockSize),
+                                          (char*)CNBuffer+dictSize+2*blockSize, blockSize);
+        if (ZSTD_isError(cSize2)) goto _output_error;
         DISPLAYLEVEL(4, "OK \n");
 
         DISPLAYLEVEL(4, "test%3i : Dictionary Block decompression test : ", testNb++);
         CHECK( ZSTD_decompressBegin_usingDict(dctx, CNBuffer, dictSize) );
         { CHECK_V( r, ZSTD_decompressBlock(dctx, decodedBuffer, CNBuffSize, compressedBuffer, cSize) );
           if (r != blockSize) goto _output_error; }
-        { CHECK_V( r, ZSTD_decompressBlock(dctx, (char*)decodedBuffer+blockSize, CNBuffSize, (char*)compressedBuffer+cSize, cSize2) );
+        ZSTD_insertBlock(dctx, (char*)decodedBuffer+blockSize, blockSize);   /* insert non-compressed block into dctx history */
+        { CHECK_V( r, ZSTD_decompressBlock(dctx, (char*)decodedBuffer+2*blockSize, CNBuffSize, (char*)compressedBuffer+cSize+blockSize, cSize2) );
           if (r != blockSize) goto _output_error; }
         DISPLAYLEVEL(4, "OK \n");
 

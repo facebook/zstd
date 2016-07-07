@@ -296,6 +296,15 @@ ZSTDLIB_API size_t ZSTD_compress_advanced (ZSTD_CCtx* ctx,
 
 /*--- Advanced Decompression functions ---*/
 
+/** ZSTD_getDecompressedSize() :
+*   compatible with legacy mode
+*   @return : decompressed size if known, 0 otherwise
+              note : 0 can mean any of the following :
+                   - decompressed size is not provided within frame header
+                   - frame header unknown / not supported
+                   - frame header not completely provided (`srcSize` too small) */
+unsigned long long ZSTD_getDecompressedSize(const void* src, size_t srcSize);
+
 /*! ZSTD_createDCtx_advanced() :
  *  Create a ZSTD decompression context using external alloc and free functions */
 ZSTDLIB_API ZSTD_DCtx* ZSTD_createDCtx_advanced(ZSTD_customMem customMem);

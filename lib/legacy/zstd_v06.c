@@ -36,7 +36,7 @@
 #include "zstd_v06.h"
 #include <stddef.h>    /* size_t, ptrdiff_t */
 #include <string.h>    /* memcpy */
-#include <stdlib.h>    /* malloc, free, qsort */ 
+#include <stdlib.h>    /* malloc, free, qsort */
 
 
 
@@ -534,8 +534,6 @@ ZSTDLIB_API size_t ZSTDv06_decompress_usingPreparedDCtx(
                                      const void* src, size_t srcSize);
 
 
-
-struct ZSTDv06_frameParams_s { U64 frameContentSize; U32 windowLog; };
 
 #define ZSTDv06_FRAMEHEADERSIZE_MAX 13    /* for static allocation */
 static const size_t ZSTDv06_frameHeaderSize_min = 5;

@@ -391,6 +391,28 @@ size_t ZSTD_getFrameParams(ZSTD_frameParams* fparamsPtr, const void* src, size_t
 }
 
 
+/** ZSTD_getDecompressedSize() :
+*   compatible with legacy mode
+*   @return : decompressed size if known, 0 otherwise
+              note : 0 can mean any of the following :
+                   - decompressed size is not provided within frame header
+                   - frame header unknown / not supported
+                   - frame header not completely provided (`srcSize` too small) */
+unsigned long long ZSTD_getDecompressedSize(const void* src, size_t srcSize) {
+#if ZSTD_LEGACY_SUPPORT
+    if (srcSize < 4) return 0;
+    {   U32 const magic = MEM_readLE32(src);
+        if (ZSTD_isLegacy(magic)) return ZSTD_getDecompressedSize_legacy(src, srcSize);
+    }
+#endif
+    {   ZSTD_frameParams fparams;
+        size_t const frResult = ZSTD_getFrameParams(&fparams, src, srcSize);
+        if (frResult!=0) return 0;
+        return fparams.frameContentSize;
+    }
+}
+
+
 /** ZSTD_decodeFrameHeader() :
 *   `srcSize` must be the size provided by ZSTD_frameHeaderSize().
 *   @return : 0 if success, or an error code, which can be tested using ZSTD_isError() */

@@ -137,6 +137,12 @@ static int basicUnitTests(U32 seed, double compressibility)
               cSize=r );
     DISPLAYLEVEL(4, "OK (%u bytes : %.2f%%)\n", (U32)cSize, (double)cSize/CNBuffSize*100);
 
+    DISPLAYLEVEL(4, "test%3i : decompressed size test : ", testNb++);
+    {   unsigned long long const rSize = ZSTD_getDecompressedSize(compressedBuffer, cSize);
+        if (rSize != CNBuffSize) goto _output_error;
+    }
+    DISPLAYLEVEL(4, "OK \n");
+
     DISPLAYLEVEL(4, "test%3i : decompress %u bytes : ", testNb++, (U32)CNBuffSize);
     CHECKPLUS( r , ZSTD_decompress(decodedBuffer, CNBuffSize, compressedBuffer, cSize),
                if (r != CNBuffSize) goto _output_error);
@@ -390,19 +396,21 @@ static int basicUnitTests(U32 seed, double compressibility)
         U32 rSeed = 1;
 
         /* create batch of 3-bytes sequences */
-        { int i; for (i=0; i < NB3BYTESSEQ; i++) {
-            _3BytesSeqs[i][0] = (BYTE)(FUZ_rand(&rSeed) & 255);
-            _3BytesSeqs[i][1] = (BYTE)(FUZ_rand(&rSeed) & 255);
-            _3BytesSeqs[i][2] = (BYTE)(FUZ_rand(&rSeed) & 255);
-        }}
+        {   int i;
+            for (i=0; i < NB3BYTESSEQ; i++) {
+                _3BytesSeqs[i][0] = (BYTE)(FUZ_rand(&rSeed) & 255);
+                _3BytesSeqs[i][1] = (BYTE)(FUZ_rand(&rSeed) & 255);
+                _3BytesSeqs[i][2] = (BYTE)(FUZ_rand(&rSeed) & 255);
+        }   }
 
         /* randomly fills CNBuffer with prepared 3-bytes sequences */
-        { int i; for (i=0; i < _3BYTESTESTLENGTH; i += 3) {   /* note : CNBuffer size > _3BYTESTESTLENGTH+3 */
-            U32 const id = FUZ_rand(&rSeed) & NB3BYTESSEQMASK;
-            ((BYTE*)CNBuffer)[i+0] = _3BytesSeqs[id][0];
-            ((BYTE*)CNBuffer)[i+1] = _3BytesSeqs[id][1];
-            ((BYTE*)CNBuffer)[i+2] = _3BytesSeqs[id][2];
-    }   }}
+        {   int i;
+            for (i=0; i < _3BYTESTESTLENGTH; i += 3) {   /* note : CNBuffer size > _3BYTESTESTLENGTH+3 */
+                U32 const id = FUZ_rand(&rSeed) & NB3BYTESSEQMASK;
+                ((BYTE*)CNBuffer)[i+0] = _3BytesSeqs[id][0];
+                ((BYTE*)CNBuffer)[i+1] = _3BytesSeqs[id][1];
+                ((BYTE*)CNBuffer)[i+2] = _3BytesSeqs[id][2];
+    }   }   }
     DISPLAYLEVEL(4, "test%3i : compress lots 3-bytes sequences : ", testNb++);
     { CHECK_V(r, ZSTD_compress(compressedBuffer, ZSTD_compressBound(_3BYTESTESTLENGTH),
                                  CNBuffer, _3BYTESTESTLENGTH, 19) );
@@ -555,6 +563,11 @@ static int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, U32 const maxD
                 { U32 endCheck; memcpy(&endCheck, dstBuffer+tooSmallSize, 4);
                   CHECK(endCheck != endMark, "ZSTD_compressCCtx : dst buffer overflow"); }
         }   }
+
+        /* Decompressed size test */
+        {   unsigned long long const rSize = ZSTD_getDecompressedSize(cBuffer, cSize);
+            CHECK(rSize != sampleSize, "decompressed size incorrect");
+        }
 
         /* frame header decompression test */
         {   ZSTD_frameParams dParams;

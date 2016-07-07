@@ -69,6 +69,30 @@ MEM_STATIC unsigned ZSTD_isLegacy (U32 magicNumberLE)
 }
 
 
+MEM_STATIC unsigned long long ZSTD_getDecompressedSize_legacy(const void* src, size_t srcSize)
+{
+    if (srcSize < 4) return 0;
+
+    {   U32 const magic = MEM_readLE32(src);
+        U32 const version = ZSTD_isLegacy(magic);
+        if (!version) return 0;   /* not a supported legacy format */
+        if (version < 5) return 0;  /* no decompressed size in frame header */
+        if (version==5) {
+            ZSTDv05_parameters fParams;
+            size_t const frResult = ZSTDv05_getFrameParams(&fParams, src, srcSize);
+            if (frResult != 0) return 0;
+            return fParams.srcSize;
+        }
+        if (version==6) {
+            ZSTDv06_frameParams fParams;
+            size_t const frResult = ZSTDv06_getFrameParams(&fParams, src, srcSize);
+            if (frResult != 0) return 0;
+            return fParams.frameContentSize;
+        }
+        return 0;   /* should not be possible */
+    }
+}
+
 MEM_STATIC size_t ZSTD_decompressLegacy(
                      void* dst, size_t dstCapacity,
                const void* src, size_t compressedSize,

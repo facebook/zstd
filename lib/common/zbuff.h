@@ -185,7 +185,7 @@ ZSTDLIB_API ZBUFF_DCtx* ZBUFF_createDCtx_advanced(ZSTD_customMem customMem);
 /*--- Advanced Streaming function ---*/
 ZSTDLIB_API size_t ZBUFF_compressInit_advanced(ZBUFF_CCtx* zbc,
                                                const void* dict, size_t dictSize,
-                                               ZSTD_parameters params, U64 pledgedSrcSize);
+                                               ZSTD_parameters params, unsigned long long pledgedSrcSize);
 
 #endif /* ZBUFF_STATIC_LINKING_ONLY */
 

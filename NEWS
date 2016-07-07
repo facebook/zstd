@@ -1,5 +1,6 @@
 v0.7.3
 added : `--` separator, stating that all following arguments are file names. Suggested by Chip Turner.
+added : `ZSTD_getDecompressedSize()`
 added : OpenBSD target, by Juan Francisco Cantero Hurtado
 fixed : dictBuilder using HC levels, reported by Bartosz Taudul
 fixed : legacy support from ZSTD_decompress_usingDDict(), reported by Felix Handte

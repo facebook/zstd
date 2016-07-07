@@ -107,7 +107,7 @@ ZSTDLIB_API size_t ZSTDv06_decompress_usingDict(ZSTDv06_DCtx* dctx,
 /*-************************
 *  Advanced Streaming API
 ***************************/
-
+struct ZSTDv06_frameParams_s { unsigned long long frameContentSize; unsigned windowLog; };
 typedef struct ZSTDv06_frameParams_s ZSTDv06_frameParams;
 
 ZSTDLIB_API size_t ZSTDv06_getFrameParams(ZSTDv06_frameParams* fparamsPtr, const void* src, size_t srcSize);   /**< doesn't consume input */

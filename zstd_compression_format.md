@@ -409,7 +409,7 @@ To decode a compressed block, the following elements are necessary :
 
 ### Literals section
 
-Literals are compressed using huffman compression.
+Literals are compressed using Huffman prefix codes.
 During sequence phase, literals will be entangled with match copy operations.
 All literals are regrouped in the first part of the block.
 They can be decoded first, and then copied during sequence operations,
@@ -718,6 +718,9 @@ The Sequences section starts by a header,
 followed by optional Probability tables for each symbol type,
 followed by the bitstream.
 
+| Header | (LitLengthTable) | (OffsetTable) | (MatchLengthTable) | bitStream |
+| ------ | ---------------- | ------------- | ------------------ | --------- |
+
 To decode the Sequence section, it's required to know its size.
 This size is deducted from `blockSize - literalSectionSize`.
 
@@ -774,7 +777,7 @@ They define lengths from 0 to 131071 bytes.
 
 |  Code  | 0-15 |
 | ------ | ---- |
-| value  | Code |
+| length | Code |
 | nbBits |   0  |
 
 
@@ -798,7 +801,7 @@ __Default distribution__
 When "compression mode" is "predef"",
 a pre-defined distribution is used for FSE compression.
 
-Here is its definition. It uses an accuracy of 6 bits (64 states).
+Below is its definition. It uses an accuracy of 6 bits (64 states).
 ```
 short literalLengths_defaultDistribution[36] =
         { 4, 3, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 1, 1,
@@ -833,7 +836,7 @@ They define lengths from 3 to 131074 bytes.
 
 __Default distribution__
 
-When "compression mode" is defined as "default distribution",
+When "compression mode" is defined as "predef",
 a pre-defined distribution is used for FSE compression.
 
 Here is its definition. It uses an accuracy of 6 bits (64 states).
@@ -950,8 +953,10 @@ Probability is obtained from Value decoded by following formulae :
 
 It means value `0` becomes negative probability `-1`.
 `-1` is a special probability, which means `less than 1`.
-Its effect on distribution table is described in next paragraph.
+Its effect on distribution table is described in [next paragraph].
 For the purpose of calculating cumulated distribution, it counts as one.
+
+[next paragraph]:#fse-decoding--from-normalized-distribution-to-decoding-tables
 
 When a symbol has a probability of `zero`,
 it is followed by a 2-bits repeat flag.
@@ -1040,7 +1045,7 @@ All sequences are stored in a single bitstream, read _backward_.
 It is therefore necessary to know the bitstream size,
 which is deducted from compressed block size.
 
-The bit of the stream is followed by a set-bit-flag.
+The last useful bit of the stream is followed by an end-bit-flag.
 Highest bit of last byte is this flag.
 It does not belong to the useful part of the bitstream.
 Therefore, last byte has 0-7 useful bits.
@@ -1068,7 +1073,9 @@ Decoding starts by reading the nb of bits required to decode offset.
 It then does the same for match length,
 and then for literal length.
 
-Offset / matchLength / litLength define a sequence, which can be applied.
+Offset / matchLength / litLength define a sequence.
+It starts by inserting the number of literals defined by `litLength`,
+then continue by copying `matchLength` bytes from `currentPos - offset`.
 
 The next operation is to update states.
 Using rules pre-calculated in the decoding tables,

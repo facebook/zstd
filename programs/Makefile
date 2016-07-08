@@ -46,7 +46,7 @@ FLAGS   = $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) $(MOREFLAGS)
 
 ZSTDCOMMON_FILES := $(ZSTDDIR)/common/*.c
 ZSTDCOMP_FILES := $(ZSTDDIR)/compress/zstd_compress.c $(ZSTDDIR)/compress/fse_compress.c $(ZSTDDIR)/compress/huf_compress.c
-ZSTDDECOMP_FILES := $(ZSTDDIR)/decompress/huf_decompress.c $(ZSTDDIR)/decompress/zstd_decompress.c
+ZSTDDECOMP_FILES := $(ZSTDDIR)/decompress/fse_decompress.c $(ZSTDDIR)/decompress/huf_decompress.c $(ZSTDDIR)/decompress/zstd_decompress.c
 ZSTD_FILES := $(ZSTDDECOMP_FILES) $(ZSTDCOMMON_FILES) $(ZSTDCOMP_FILES)
 ZBUFF_FILES := $(ZSTDDIR)/compress/zbuff_compress.c $(ZSTDDIR)/decompress/zbuff_decompress.c
 ZDICT_FILES := $(ZSTDDIR)/dictBuilder/*.c

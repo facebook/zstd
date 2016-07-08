@@ -345,7 +345,7 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\..\lib\common\fse_decompress.c"
+				RelativePath="..\..\..\lib\decompress\fse_decompress.c"
 				>
 			</File>
 			<File

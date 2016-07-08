@@ -1284,8 +1284,8 @@ size_t ZSTD_decompressBegin_usingDict(ZSTD_DCtx* dctx, const void* dict, size_t 
 
 
 struct ZSTD_DDict_s {
-    void* dictContent;
-    size_t dictContentSize;
+    void* dict;
+    size_t dictSize;
     ZSTD_DCtx* refContext;
 };  /* typedef'd tp ZSTD_CDict within zstd.h */
 
@@ -1317,8 +1317,8 @@ ZSTD_DDict* ZSTD_createDDict_advanced(const void* dict, size_t dictSize, ZSTD_cu
                 return NULL;
         }   }
 
-        ddict->dictContent = dictContent;
-        ddict->dictContentSize = dictSize;
+        ddict->dict = dictContent;
+        ddict->dictSize = dictSize;
         ddict->refContext = dctx;
         return ddict;
     }
@@ -1338,7 +1338,7 @@ size_t ZSTD_freeDDict(ZSTD_DDict* ddict)
     ZSTD_freeFunction const cFree = ddict->refContext->customMem.customFree;
     void* const opaque = ddict->refContext->customMem.opaque;
     ZSTD_freeDCtx(ddict->refContext);
-    cFree(opaque, ddict->dictContent);
+    cFree(opaque, ddict->dict);
     cFree(opaque, ddict);
     return 0;
 }

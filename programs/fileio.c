@@ -700,7 +700,7 @@ static int FIO_decompressSrcFile(dRess_t ress, const char* srcFileName)
         if (sizeCheck != toRead) EXM_THROW(31, "zstd: %s read error : cannot read header", srcFileName);
         {   U32 const magic = MEM_readLE32(ress.srcBuffer);
 #if defined(ZSTD_LEGACY_SUPPORT) && (ZSTD_LEGACY_SUPPORT>=1)
-            if (ZSTD_isLegacy(magic)) {
+            if (ZSTD_isLegacy(ress.srcBuffer, 4)) {
                 filesize += FIO_decompressLegacyFrame(dstFile, srcFile, ress.dictBuffer, ress.dictBufferSize, magic);
                 continue;
             }

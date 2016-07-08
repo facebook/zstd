@@ -1135,17 +1135,17 @@ __Header__ : 4 bytes ID, value 0xEC30A437, Little Endian format
 
 __Dict_ID__ : 4 bytes, stored in Little Endian format.
               DictID can be any value, except 0 (which means no DictID).
-              It's used by decoders to check they use the correct dictionary.
+              It's used by decoders to check if they use the correct dictionary.
 
 __Stats__ : Entropy tables, following the same format as a [compressed blocks].
             They are stored in following order :
             Huffman tables for literals, FSE table for offset,
-            FSE table for matchLenth, and finally FSE table for litLength.
-            It's then followed by 3 offset values, populating recent offsets,
-            stored in order 4-bytes little endian each, for a total of 12 bytes.
+            FSE table for matchLenth, and FSE table for litLength.
+            It's finally followed by 3 offset values, populating recent offsets,
+            stored in order, 4-bytes little endian each, for a total of 12 bytes.
 
 __Content__ : Where the actual dictionary content is.
-              Content depends on Dictionary size.
+              Content size depends on Dictionary size.
 
 [compressed blocks]: #compressed-block-format
 

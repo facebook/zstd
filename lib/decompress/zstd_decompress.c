@@ -1352,7 +1352,7 @@ ZSTDLIB_API size_t ZSTD_decompress_usingDDict(ZSTD_DCtx* dctx,
                                      const ZSTD_DDict* ddict)
 {
 #if defined(ZSTD_LEGACY_SUPPORT) && (ZSTD_LEGACY_SUPPORT==1)
-    if (ZSTD_isLegacy(src, srcSize)) return ZSTD_decompressLegacy(dst, dstCapacity, src, srcSize, ddict->dictContent, ddict->dictContentSize);
+    if (ZSTD_isLegacy(src, srcSize)) return ZSTD_decompressLegacy(dst, dstCapacity, src, srcSize, ddict->dict, ddict->dictSize);
 #endif
     return ZSTD_decompress_usingPreparedDCtx(dctx, ddict->refContext,
                                            dst, dstCapacity,

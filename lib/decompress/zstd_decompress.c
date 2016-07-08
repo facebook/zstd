@@ -717,14 +717,14 @@ static seq_t ZSTD_decodeSequence(seqState_t* seqState)
                  0,        1,       1,       5,     0xD,     0x1D,     0x3D,     0x7D,
                  0xFD,   0x1FD,   0x3FD,   0x7FD,   0xFFD,   0x1FFD,   0x3FFD,   0x7FFD,
                  0xFFFD, 0x1FFFD, 0x3FFFD, 0x7FFFD, 0xFFFFD, 0x1FFFFD, 0x3FFFFD, 0x7FFFFD,
-                 0xFFFFFD, 0x1FFFFFD, 0x3FFFFFD, /*fake*/ 1, 1 };
+                 0xFFFFFD, 0x1FFFFFD, 0x3FFFFFD, 0x7FFFFFD, 0xFFFFFFD };
 
     /* sequence */
     {   size_t offset;
         if (!ofCode)
             offset = 0;
         else {
-            offset = OF_base[ofCode] + BIT_readBits(&(seqState->DStream), ofBits);   /* <=  26 bits */
+            offset = OF_base[ofCode] + BIT_readBits(&(seqState->DStream), ofBits);   /* <=  (ZSTD_WINDOWLOG_MAX-1) bits */
             if (MEM_32bits()) BIT_reloadDStream(&(seqState->DStream));
         }
 

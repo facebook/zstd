@@ -565,37 +565,46 @@ which tells how to decode the list of weights.
 | Nb of 1s | 1 | 2 | 3 | 4 | 7 | 8 | 15| 16| 31| 32| 63| 64|127|128|
 |Complement| 1 | 2 | 1 | 4 | 1 | 8 | 1 | 16| 1 | 32| 1 | 64| 1 |128|
 
-_Note_ : complement is by using the "join to nearest power of 2" rule.
+_Note_ : complement is found by using "join to nearest power of 2" rule.
 
 - if headerByte >= 128 : this is a direct representation,
   where each weight is written directly as a 4 bits field (0-15).
   The full representation occupies `((nbSymbols+1)/2)` bytes,
   meaning it uses a last full byte even if nbSymbols is odd.
-  `nbSymbols = headerByte - 127;`
+  `nbSymbols = headerByte - 127;`.
+  Note that maximum nbSymbols is 241-127 = 114.
+  A larger serie must necessarily use FSE compression.
 
 - if headerByte < 128 :
   the serie of weights is compressed by FSE.
-  The length of the compressed serie is `headerByte` (0-127).
+  The length of the FSE-compressed serie is `headerByte` (0-127).
 
 ##### FSE (Finite State Entropy) compression of huffman weights
 
-The serie of weights is compressed using standard FSE compression.
+The serie of weights is compressed using FSE compression.
 It's a single bitstream with 2 interleaved states,
-using a single distribution table.
+sharing a single distribution table.
 
 To decode an FSE bitstream, it is necessary to know its compressed size.
 Compressed size is provided by `headerByte`.
-It's also necessary to know its maximum decompressed size.
-In this case, it's `255`, since literal values range from `0` to `255`,
+It's also necessary to know its maximum decompressed size,
+which is `255`, since literal values span from `0` to `255`,
 and last symbol value is not represented.
 
 An FSE bitstream starts by a header, describing probabilities distribution.
 It will create a Decoding Table.
-It is necessary to know the maximum accuracy of distribution
-to properly allocate space for the Table.
-For a list of huffman weights, this maximum is 7 bits.
+Table must be pre-allocated, which requires to support a maximum accuracy.
+For a list of huffman weights, recommended maximum is 7 bits.
 
-FSE header and bitstreams are described in a separated chapter.
+FSE header is [described in relevant chapter](#fse-distribution-table--condensed-format),
+and so is [FSE bitstream](#bitstream).
+The main difference is that Huffman header compression uses 2 states,
+which share the same FSE distribution table.
+Bitstream contains only FSE symbols, there are no interleaved "raw bitfields".
+The number of symbols to decode is discovered
+by tracking bitStream overflow condition.
+When both states have overflowed the bitstream, end is reached.
+
 
 ##### Conversion from weights to huffman prefix codes
 

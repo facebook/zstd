@@ -336,7 +336,7 @@ ZSTDLIB_API size_t ZSTD_compressEnd(ZSTD_CCtx* cctx, void* dst, size_t dstCapaci
   Then, consume your input using ZSTD_compressContinue().
   There are some important considerations to keep in mind when using this advanced function :
   - ZSTD_compressContinue() has no internal buffer. It uses externally provided buffer only.
-  - Interface is synchronous : input will be entirely consumed and produce 1+ compressed blocks.
+  - Interface is synchronous : input is consumed entirely and produce 1 (or more) compressed blocks.
   - Caller must ensure there is enough space in `dst` to store compressed data under worst case scenario.
     Worst case evaluation is provided by ZSTD_compressBound().
     ZSTD_compressContinue() doesn't guarantee recover after a failed compression.
@@ -392,14 +392,22 @@ ZSTDLIB_API size_t ZSTD_decompressContinue(ZSTD_DCtx* dctx, void* dst, size_t ds
   Then use ZSTD_nextSrcSizeToDecompress() and ZSTD_decompressContinue() alternatively.
   ZSTD_nextSrcSizeToDecompress() tells how much bytes to provide as 'srcSize' to ZSTD_decompressContinue().
   ZSTD_decompressContinue() requires this exact amount of bytes, or it will fail.
-  ZSTD_decompressContinue() needs previous data blocks during decompression, up to `windowSize`.
-  They should preferably be located contiguously, prior to current block. Alternatively, a round buffer is also possible.
 
   @result of ZSTD_decompressContinue() is the number of bytes regenerated within 'dst' (necessarily <= dstCapacity).
   It can be zero, which is not an error; it just means ZSTD_decompressContinue() has decoded some header.
 
+  ZSTD_decompressContinue() needs previous data blocks during decompression, up to `windowSize`.
+  They should preferably be located contiguously, prior to current block.
+  Alternatively, a round buffer of sufficient size is also possible. Sufficient size is determined by frame parameters.
+  ZSTD_decompressContinue() is very sensitive to contiguity,
+  if 2 blocks don't follow each other, make sure that either the compressor breaks contiguity at the same place,
+    or that previous contiguous segment is large enough to properly handle maximum back-reference.
+
   A frame is fully decoded when ZSTD_nextSrcSizeToDecompress() returns zero.
   Context can then be reset to start a new decompression.
+
+
+  == Special case : skippable frames ==
 
   Skippable frames allow the integration of user-defined data into a flow of concatenated frames.
   Skippable frames will be ignored (skipped) by a decompressor. The format of skippable frame is following:

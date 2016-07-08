@@ -45,14 +45,19 @@ It is used by `zstd` command line utility, and [7zip plugin](http://mcmilk.de/pr
 - compress/zbuff_compress.c
 - decompress/zbuff_decompress.c
 
+
 #### Dictionary builder
 
-To create dictionaries from training sets :
+In order to create dictionaries from some training sets,
+it's needed to include all files from [dictBuilder directory](dictBuilder/)
 
-- dictBuilder/divsufsort.c
-- dictBuilder/divsufsort.h
-- dictBuilder/zdict.c
-- dictBuilder/zdict.h
+
+#### Legacy support
+
+Zstandard can decode previous formats, starting from v0.1.
+Support for these format is provided in [folder legacy](legacy/).
+It's also required to compile the library with `ZSTD_LEGACY_SUPPORT = 1`.
+
 
 #### Miscellaneous
 

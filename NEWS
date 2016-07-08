@@ -1,5 +1,17 @@
+v0.7.3
+New : compression format specification
+New : `--` separator, stating that all following arguments are file names. Suggested by Chip Turner.
+New : `ZSTD_getDecompressedSize()`
+New : OpenBSD target, by Juan Francisco Cantero Hurtado
+New : `examples` directory
+fixed : dictBuilder using HC levels, reported by Bartosz Taudul
+fixed : legacy support from ZSTD_decompress_usingDDict(), reported by Felix Handte
+fixed : multi-blocks decoding with intermediate uncompressed blocks, reported by Greg Slazinski
+modified : removed "mem.h" and "error_public.h" dependencies from "zstd.h" (experimental section)
+modified : legacy functions no longer need magic number
+
 v0.7.2
-fixed : ZSTD_decompressBlock() using multiple consecutive blocks. Reported by Greg Slazinski
+fixed : ZSTD_decompressBlock() using multiple consecutive blocks. Reported by Greg Slazinski.
 fixed : potential segfault on very large files (many gigabytes). Reported by Chip Turner.
 fixed : CLI displays system error message when destination file cannot be created (#231). Reported by Chip Turner.
 

@@ -63,7 +63,11 @@ typedef enum {
   ZSTD_error_maxCode
 } ZSTD_ErrorCode;
 
-/* note : compare with size_t function results using ZSTD_getError() */
+/*! ZSTD_getErrorCode() :
+    convert a `size_t` function result into a `ZSTD_ErrorCode` enum type,
+    which can be used to compare directly with enum list published into "error_public.h" */
+ZSTD_ErrorCode ZSTD_getErrorCode(size_t functionResult);
+const char* ZSTD_getErrorString(ZSTD_ErrorCode code);
 
 
 #if defined (__cplusplus)

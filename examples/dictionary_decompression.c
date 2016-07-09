@@ -73,7 +73,8 @@ static void* loadFile_X(const char* fileName, size_t* size)
     return buffer;
 }
 
-
+/* createDict() :
+   `dictFileName` is supposed to have been created using `zstd --train` */
 static const ZSTD_DDict* createDict(const char* dictFileName)
 {
     size_t dictSize;

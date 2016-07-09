@@ -1,6 +1,9 @@
- **Zstd**, short for Zstandard, is a fast lossless compression algorithm, targeting real-time compression scenarios at zlib-level and better compression ratios.
+ **Zstd**, short for Zstandard, is a fast lossless compression algorithm,
+ targeting real-time compression scenarios at zlib-level and better compression ratios.
 
-It is provided as a BSD-license package, hosted on Github.
+It is provided as an open-source C library BSD-licensed.
+If you're looking for a different programming language,
+you can consult a list of known ports on [Zstandard homepage](httP://www.zstd.net).
 
 |Branch      |Status   |
 |------------|---------|

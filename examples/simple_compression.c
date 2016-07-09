@@ -1,5 +1,5 @@
 /*
-  Dictionary decompression
+  Simple compression
   Educational program using zstd library
   Copyright (C) Yann Collet 2016
 
@@ -74,43 +74,23 @@ static void* loadFile_X(const char* fileName, size_t* size)
 }
 
 
-static const ZSTD_DDict* createDict(const char* dictFileName)
+static void compress(const char* fname)
 {
-    size_t dictSize;
-    void* const dictBuffer = loadFile_X(dictFileName, &dictSize);
-    const ZSTD_DDict* const ddict = ZSTD_createDDict(dictBuffer, dictSize);
-    free(dictBuffer);
-    return ddict;
-}
+    size_t fSize;
+    void* const fBuff = loadFile_X(fname, &fSize);
+    size_t const cBuffSize = ZSTD_compressBound(fSize);
+    void* const cBuff = malloc_X(cBuffSize);
 
-
-/* prototype declared here, as it currently is part of experimental section */
-unsigned long long ZSTD_getDecompressedSize(const void* src, size_t srcSize);
-
-static void decompress(const char* fname, const ZSTD_DDict* ddict)
-{
-    size_t cSize;
-    void* const cBuff = loadFile_X(fname, &cSize);
-    unsigned long long const rSize = ZSTD_getDecompressedSize(cBuff, cSize);
-    if (rSize==0) {
-        printf("%s : original size unknown \n", fname);
-        exit(5);
-    }
-    void* const rBuff = malloc_X(rSize);
-
-    ZSTD_DCtx* const dctx = ZSTD_createDCtx();
-    size_t const dSize = ZSTD_decompress_usingDDict(dctx, rBuff, rSize, cBuff, cSize, ddict);
-
-    if (dSize != rSize) {
-        printf("error decoding %s : %s \n", fname, ZSTD_getErrorName(dSize));
+    size_t const cSize = ZSTD_compress(cBuff, cBuffSize, fBuff, fSize, 1);
+    if (ZSTD_isError(cSize)) {
+        printf("error compressing %s : %s \n", fname, ZSTD_getErrorName(cSize));
         exit(7);
     }
 
     /* success */
-    printf("%25s : %6u -> %7u \n", fname, (unsigned)cSize, (unsigned)rSize);
+    printf("%25s : %6u -> %7u \n", fname, (unsigned)fSize, (unsigned)cSize);
 
-    ZSTD_freeDCtx(dctx);
-    free(rBuff);
+    free(fBuff);
     free(cBuff);
 }
 
@@ -119,19 +99,14 @@ int main(int argc, const char** argv)
 {
     const char* const exeName = argv[0];
 
-    if (argc<3) {
+    if (argc!=2) {
         printf("wrong arguments\n");
         printf("usage:\n");
-        printf("%s [FILES] dictionary\n", exeName);
+        printf("%s FILE\n", exeName);
         return 1;
     }
 
-    /* load dictionary only once */
-    const char* const dictName = argv[argc-1];
-    const ZSTD_DDict* const dictPtr = createDict(dictName);
+    compress(argv[1]);
 
-    int u;
-    for (u=1; u<argc-1; u++) decompress(argv[u], dictPtr);
-
-    printf("All %u files decoded. \n", argc-2);
+    printf("%s compressed. \n", argv[1]);
 }

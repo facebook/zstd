@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <!-- The above 3 meta tags *must* come first in the head; any other head content must come *after* these tags -->
+    <title>Zstandard - Real-time data compressoin algorithm</title>
+
+    <!-- Bootstrap -->
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.4/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css">
+
+    <!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
+    <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
+    <!--[if lt IE 9]>
+      <script src="https://oss.maxcdn.com/html5shiv/3.7.2/html5shiv.min.js"></script>
+      <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
+    <![endif]-->
+
+    <link rel="stylesheet" href="js/bootstrap-patch.css">
+    <style>
+      .list-inline li a img {
+        height: 50px;
+      }
+    </style>
+  </head>
+
+  <body style="padding-top:0; padding-bottom:0; ">
+    <nav class="navbar navbar-default">
+      <div class="container-fluid">
+        <!-- Brand and toggle get grouped for better mobile display -->
+        <div class="navbar-header">
+          <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-example-navbar-collapse-1">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
+          <a class="navbar-brand" href="/zstd/">Zstandard</a>
+        </div>
+
+        <!-- Collect the nav links, forms, and other content for toggling -->
+        <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
+          <ul class="nav navbar-nav navbar-nav">
+            <li><a href="https://github.com/Cyan4973/zstd/releases/latest">Latest Release</a></li>
+            <li><a href="#other-languages">Versions</a></li>
+            <li class="dropdown">
+              <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-expanded="false">Index<span class="caret"></span></a>
+              <ul class="dropdown-menu" role="menu">
+                <li><a href="#benchmarks">Benchmarks</a></li>
+                <li><a href="#other-languages">Other versions</a></li>
+              </ul>
+            </li>
+          </ul>
+          <ul class="nav navbar-nav navbar-right">
+            <li><a href="https://github.com/Cyan4973/zstd/issues">Issue Tracker</a></li>
+            <li><a href="https://github.com/Cyan4973/zstd"><i class="fa fa-lg fa-github"></i> GitHub</a></li>
+          </ul>
+        </div><!-- /.navbar-collapse -->
+      </div><!-- /.container-fluid -->
+    </nav>
+
+    <a name="summary"></a>
+    <div class="container">
+      <div class="page-header jumbotron text-justify" style="padding-top:1em;padding-bottom:2em;">
+        <h1>Zstandard</h1>
+        <iframe src="https://ghbtns.com/github-btn.html?user=Cyan4973&repo=zstd&type=star&count=true&size=large&v=2" frameborder="0" scrolling="0" width="160px" height="30px"></iframe>
+        <p>
+        Zstandard is a real-time compression algorithm,
+        providing high compression ratios.
+        It offers a very wide range of compression / speed trade-off,
+        while being backed by a very fast decoder (see <a href="#benchmarks">benchmarks</a> below).
+        It also offers a special mode for small data, called <a href="#small-data">dictionary compression</a>,
+        and can create dictionaries from any sample set.
+        Zstandard library is provided as open source software using a BSD license.
+      </div>
+    </div>
+
+
+<xmp theme="sandstone" style="display:none;">
+<a name="benchmarks"></a>
+Benchmarks
+----------
+
+For comparison, several fast compression algorithms were tested
+and compared on a Core i7-3930K CPU @ 4.5GHz,
+using [lzbench], an open-source in-memory benchmark by @inikep
+compiled with gcc 5.2.1, with the [Silesia compression corpus].
+
+[lzbench]: https://github.com/inikep/lzbench
+[Silesia compression corpus]: http://sun.aei.polsl.pl/~sdeor/index.php?page=silesia
+
+|Name             | Ratio | C.speed | D.speed |
+|-----------------|-------|--------:|--------:|
+|                 |       |   MB/s  |  MB/s   |
+|**zstd 0.7.0 -1**|**2.877**|**325**| **930** |
+| [zlib] 1.2.8 -1 | 2.730 |    95   |   360   |
+| brotli -0       | 2.708 |   220   |   430   |
+| QuickLZ 1.5     | 2.237 |   510   |   605   |
+| LZO 2.09        | 2.106 |   610   |   870   |
+| [LZ4] r131      | 2.101 |   620   |  3100   |
+| Snappy 1.1.3    | 2.091 |   480   |  1600   |
+| LZF 3.6         | 2.077 |   375   |   790   |
+
+[zlib]:http://www.zlib.net/
+[LZ4]: http://www.lz4.org/
+
+Zstd can trade compression speed for stronger compression ratios.
+It is configurable by small increment.
+Decompression speed is preserved and remain roughly the same at all settings,
+a property shared by most LZ compression algorithms, such as [zlib] or lzma.
+
+The following tests were run on a Core i7-3930K CPU @ 4.5GHz,
+using [lzbench], an open-source in-memory benchmark by @inikep
+compiled with gcc 5.2.1, on the [Silesia compression corpus].
+
+| Compression Speed vs Ratio | Decompression Speed |
+| ---------------------------|-------------------- |
+| <img src="https://raw.githubusercontent.com/Cyan4973/zstd/master/images/Cspeed4.png" alt="Compression Speed vs Ratio" style="height:500px;"> | <img src="https://raw.githubusercontent.com/Cyan4973/zstd/master/images/Dspeed4.png" alt="Decompression Speed" style="height:500px;">
+
+Several algorithms can produce higher compression ratio but at slower speed, falling outside of the graph.
+For a larger picture including very slow modes, [click on this link](https://raw.githubusercontent.com/Cyan4973/zstd/master/images/DCspeed5.png) .
+
+<a name="small-data"></a>
+### The case for Small Data compression
+
+Previous charts provide results applicable to typical files and streams scenarios (several MB). Small data come with different perspectives. The smaller the amount of data to compress, the more difficult it is to achieve any significant compression.
+
+This problem is common to any compression algorithm. The reason is, compression algorithms learn from past data how to compress future data. But at the beginning of a new file, there is no "past" to build upon.
+
+To solve this situation, Zstd offers a __training mode__, which can be used to tune the algorithm for a selected type of data, by providing it with a few samples. The result of the training is stored in a file called "dictionary", which can be loaded before compression and decompression. Using this dictionary, the compression ratio achievable on small data improves dramatically :
+
+<img src="https://raw.githubusercontent.com/Cyan4973/zstd/master/images/smallData.png" alt="Compressing Small Data" style="height:600px;">
+
+These compression gains are achieved while simultaneously providing faster compression and decompression speeds.
+
+Dictionary work if there is some correlation in a family of small data (there is no _universal dictionary_).
+Hence, deploying one dictionary per type of data will provide the greater benefits. Dictionary gains are mostly effective in the first few KB. Then, the compression algorithm will rely more and more on previously decoded content to compress the rest of the file.
+
+#### Dictionary compression How To :
+
+##### _Using the Command Line Utility_ :
+
+1) Create the dictionary
+
+`zstd --train FullPathToTrainingSet/* -o dictionaryName`
+
+2) Compress with dictionary
+
+`zstd FILE -D dictionaryName`
+
+3) Decompress with dictionary
+
+`zstd --decompress FILE.zst -D dictionaryName`
+
+<br/>
+<a name="GUI"></a>
+## Graphical User Interface
+
+Tino Reinhard has developped and hosts a version of 7-zip archive manager
+with [Zstandard included](https://mcmilk.de/projects/7-Zip-ZStd/).
+
+![7-zip with Zstandard](https://mcmilk.de/projects/7-Zip-ZStd/7-Zip_02.png)
+
+<br/>
+<a name="other-languages"></a>
+## Multiple languages
+
+Should you need Zstandard in another language,
+here is a list of known ports and their authors :
+
+| Language     | Author              | URL                                   |
+| ------------ | ------------------- | ------------------------------------- |
+| __Java__     | Luben Karavelov     | https://github.com/luben/zstd-jni     |
+| __Rust__     | Alexandre Bury      | https://crates.io/crates/zstd         |
+| __Python__   | Sergey Dryabzhinsky | https://github.com/sergey-dryabzhinsky/python-zstd
+| __Go__       | Jason Moiron        | https://github.com/DataDog/zstd       |
+| __OCaml__    | ygrek               | https://opam.ocaml.org/packages/zstd/ |
+| __Node.js__  | x25                 | https://github.com/x25/node-zstd      |
+| __PHP__      | Kamijo              | https://github.com/kjdev/php-ext-zstd |
+| __Ruby__     | Jarred Holman       | https://github.com/jarredholman/ruby-zstd
+
+
+---
+</xmp>
+
+    <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.2/jquery.min.js"></script>
+    <!-- Include all compiled plugins (below), or include individual files as needed -->
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.4/js/bootstrap.min.js"></script>
+    <script src="strapdown/v/0.2/strapdown.js"></script>
+
+    <!-- Chart -->
+    <script src="https://www.google.com/jsapi"></script>
+    <script src="js/rendercharts.js"></script>
+  </body>
+</html>

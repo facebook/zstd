@@ -74,9 +74,6 @@ static void* loadFile_X(const char* fileName, size_t* size)
 }
 
 
-/* prototype declared here, as it is currently part of experimental section */
-unsigned long long ZSTD_getDecompressedSize(const void* src, size_t srcSize);
-
 static void decompress(const char* fname)
 {
     size_t cSize;

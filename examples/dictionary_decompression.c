@@ -85,9 +85,6 @@ static const ZSTD_DDict* createDict(const char* dictFileName)
 }
 
 
-/* prototype declared here, as it currently is part of experimental section */
-unsigned long long ZSTD_getDecompressedSize(const void* src, size_t srcSize);
-
 static void decompress(const char* fname, const ZSTD_DDict* ddict)
 {
     size_t cSize;

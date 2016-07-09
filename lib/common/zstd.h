@@ -85,9 +85,14 @@ ZSTDLIB_API size_t ZSTD_compress(   void* dst, size_t dstCapacity,
                               const void* src, size_t srcSize,
                                      int  compressionLevel);
 
+/** ZSTD_getDecompressedSize() :
+*   @return : decompressed size if known, 0 otherwise.
+        note : to know precise reason why result is `0`, follow up with ZSTD_getFrameParams() */
+unsigned long long ZSTD_getDecompressedSize(const void* src, size_t srcSize);
+
 /*! ZSTD_decompress() :
-    `compressedSize` : is the _exact_ size of the compressed blob, otherwise decompression will fail.
-    `dstCapacity` must be large enough, equal or larger than originalSize.
+    `compressedSize` : is the _exact_ size of compressed input, otherwise decompression will fail.
+    `dstCapacity` must be equal or larger than originalSize.
     @return : the number of bytes decompressed into `dst` (<= `dstCapacity`),
               or an errorCode if it fails (which can be tested using ZSTD_isError()) */
 ZSTDLIB_API size_t ZSTD_decompress( void* dst, size_t dstCapacity,
@@ -297,15 +302,6 @@ ZSTDLIB_API size_t ZSTD_compress_advanced (ZSTD_CCtx* ctx,
 
 
 /*--- Advanced Decompression functions ---*/
-
-/** ZSTD_getDecompressedSize() :
-*   compatible with legacy mode
-*   @return : decompressed size if known, 0 otherwise
-              note : 0 can mean any of the following :
-                   - decompressed size is not provided within frame header
-                   - frame header unknown / not supported
-                   - frame header not completely provided (`srcSize` too small) */
-unsigned long long ZSTD_getDecompressedSize(const void* src, size_t srcSize);
 
 /*! ZSTD_createDCtx_advanced() :
  *  Create a ZSTD decompression context using external alloc and free functions */

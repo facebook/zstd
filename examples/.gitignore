@@ -1,0 +1,9 @@
+#build
+simple_compression
+simple_decompression
+dictionary_decompression
+
+#test artefact
+tmp*
+test*
+*.zst

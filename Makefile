@@ -170,7 +170,7 @@ bmi32test: clean
 	CFLAGS="-O3 -mbmi -m32 -Werror" $(MAKE) -C $(PRGDIR) test
 
 staticAnalyze: clean
-	CPPFLAGS=-g scan-build --status-bugs -v $(MAKE) all	
+	CPPFLAGS=-g scan-build --status-bugs -v $(MAKE) all
 endif
 
 

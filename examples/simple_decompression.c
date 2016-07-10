@@ -113,5 +113,7 @@ int main(int argc, const char** argv)
 
     decompress(argv[1]);
 
-    printf("%s decoded. \n", argv[1]);
+    printf("%s correctly decoded (in memory). \n", argv[1]);
+
+    return 0;
 }

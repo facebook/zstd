@@ -74,7 +74,23 @@ static void* loadFile_X(const char* fileName, size_t* size)
 }
 
 
-static void compress(const char* fname)
+static void saveFile_X(const char* fileName, const void* buff, size_t buffSize)
+{
+    FILE* const oFile = fopen_X(fileName, "wb");
+    size_t const wSize = fwrite(buff, 1, buffSize, oFile);
+    if (wSize != (size_t)buffSize) {
+        printf("fwrite: %s : %s \n", fileName, strerror(errno));
+        exit(5);
+    }
+    size_t const closeError = fclose(oFile);
+    if (closeError) {
+        printf("fclose: %s : %s \n", fileName, strerror(errno));
+        exit(6);
+    }
+}
+
+
+static void compress(const char* fname, const char* oname)
 {
     size_t fSize;
     void* const fBuff = loadFile_X(fname, &fSize);
@@ -87,17 +103,31 @@ static void compress(const char* fname)
         exit(7);
     }
 
+    saveFile_X(oname, cBuff, cSize);
+
     /* success */
-    printf("%25s : %6u -> %7u \n", fname, (unsigned)fSize, (unsigned)cSize);
+    printf("%25s : %6u -> %7u - %s \n", fname, (unsigned)fSize, (unsigned)cSize, oname);
 
     free(fBuff);
     free(cBuff);
 }
 
 
+static const char* createOutFilename(const char* filename)
+{
+    size_t const inL = strlen(filename);
+    size_t const outL = inL + 5;
+    void* outSpace = malloc_X(outL);
+    memset(outSpace, 0, outL);
+    strcat(outSpace, filename);
+    strcat(outSpace, ".zst");
+    return (const char*)outSpace;
+}
+
 int main(int argc, const char** argv)
 {
     const char* const exeName = argv[0];
+    const char* const inFilename = argv[1];
 
     if (argc!=2) {
         printf("wrong arguments\n");
@@ -106,7 +136,8 @@ int main(int argc, const char** argv)
         return 1;
     }
 
-    compress(argv[1]);
+    const char* const outFilename = createOutFilename(inFilename);
+    compress(inFilename, outFilename);
 
-    printf("%s compressed. \n", argv[1]);
+    return 0;
 }

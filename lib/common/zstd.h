@@ -276,6 +276,10 @@ ZSTDLIB_API ZSTD_CCtx* ZSTD_createCCtx_advanced(ZSTD_customMem customMem);
 ZSTDLIB_API ZSTD_CDict* ZSTD_createCDict_advanced(const void* dict, size_t dictSize,
                                                   ZSTD_parameters params, ZSTD_customMem customMem);
 
+/*! ZSTD_sizeofCCtx() :
+ *  Gives the amount of memory used by a given ZSTD_CCtx */
+size_t ZSTD_sizeofCCtx(const ZSTD_CCtx* cctx);
+
 ZSTDLIB_API unsigned ZSTD_maxCLevel (void);
 
 /*! ZSTD_getParams() :
@@ -311,6 +315,10 @@ ZSTDLIB_API size_t ZSTD_compress_advanced (ZSTD_CCtx* ctx,
 /*! ZSTD_createDCtx_advanced() :
  *  Create a ZSTD decompression context using external alloc and free functions */
 ZSTDLIB_API ZSTD_DCtx* ZSTD_createDCtx_advanced(ZSTD_customMem customMem);
+
+/*! ZSTD_sizeofCCtx() :
+ *  Gives the amount of memory used by a given ZSTD_CCtx */
+size_t ZSTD_sizeofDCtx(const ZSTD_DCtx* dctx);
 
 
 /* ****************************************************************

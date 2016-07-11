@@ -61,7 +61,7 @@ extern "C" {
 ***************************************/
 #define ZSTD_VERSION_MAJOR    0
 #define ZSTD_VERSION_MINOR    7
-#define ZSTD_VERSION_RELEASE  3
+#define ZSTD_VERSION_RELEASE  4
 
 #define ZSTD_LIB_VERSION ZSTD_VERSION_MAJOR.ZSTD_VERSION_MINOR.ZSTD_VERSION_RELEASE
 #define ZSTD_QUOTE(str) #str
@@ -262,6 +262,11 @@ typedef struct { ZSTD_allocFunction customAlloc; ZSTD_freeFunction customFree; v
 /*-*************************************
 *  Advanced compression functions
 ***************************************/
+/*! ZSTD_estimateCCtxSize() :
+ *  Gives the amount of memory allocated for a ZSTD_CCtx given a set of compression parameters.
+ *  `frameContentSize` is an optional parameter, provide `0` if unknown */
+size_t ZSTD_estimateCCtxSize(ZSTD_compressionParameters cParams, unsigned long long frameContentSize);
+
 /*! ZSTD_createCCtx_advanced() :
  *  Create a ZSTD compression context using external alloc and free functions */
 ZSTDLIB_API ZSTD_CCtx* ZSTD_createCCtx_advanced(ZSTD_customMem customMem);

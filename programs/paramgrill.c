@@ -48,7 +48,7 @@
 #endif
 
 #include "mem.h"
-#define ZSTD_STATIC_LINKING_ONLY   /* ZSTD_parameters */
+#define ZSTD_STATIC_LINKING_ONLY   /* ZSTD_parameters, ZSTD_estimateCCtxSize */
 #include "zstd.h"
 #include "datagen.h"
 #include "xxhash.h"
@@ -274,6 +274,7 @@ static size_t BMK_benchParam(BMK_result_t* resultPtr,
         const int startTime =BMK_GetMilliStart();
 
         DISPLAY("\r%79s\r", "");
+        memset(&params, 0, sizeof(params));
         params.cParams = cParams;
         params.fParams.contentSizeFlag = 0;
         for (loopNb = 1; loopNb <= g_nbIterations; loopNb++) {
@@ -407,8 +408,6 @@ static void BMK_printWinners(FILE* f, const winnerInfo_t* winners, size_t srcSiz
     BMK_printWinners2(stdout, winners, srcSize);
 }
 
-size_t ZSTD_sizeofCCtx(ZSTD_compressionParameters params);   /* hidden interface, declared here */
-
 static int BMK_seed(winnerInfo_t* winners, const ZSTD_compressionParameters params,
               const void* srcBuffer, size_t srcSize,
                     ZSTD_CCtx* ctx)
@@ -442,8 +441,8 @@ static int BMK_seed(winnerInfo_t* winners, const ZSTD_compressionParameters para
             double W_DMemUsed_note = W_ratioNote * ( 40 + 9*cLevel) - log((double)W_DMemUsed);
             double O_DMemUsed_note = O_ratioNote * ( 40 + 9*cLevel) - log((double)O_DMemUsed);
 
-            size_t W_CMemUsed = (1 << params.windowLog) + ZSTD_sizeofCCtx(params);
-            size_t O_CMemUsed = (1 << winners[cLevel].params.windowLog) + ZSTD_sizeofCCtx(winners[cLevel].params);
+            size_t W_CMemUsed = (1 << params.windowLog) + ZSTD_estimateCCtxSize(params, srcSize);
+            size_t O_CMemUsed = (1 << winners[cLevel].params.windowLog) + ZSTD_estimateCCtxSize(winners[cLevel].params, srcSize);
             double W_CMemUsed_note = W_ratioNote * ( 50 + 13*cLevel) - log((double)W_CMemUsed);
             double O_CMemUsed_note = O_ratioNote * ( 50 + 13*cLevel) - log((double)O_CMemUsed);
 
@@ -452,7 +451,6 @@ static int BMK_seed(winnerInfo_t* winners, const ZSTD_compressionParameters para
 
             double W_DSpeed_note = W_ratioNote * ( 20 + 2*cLevel) + log((double)testResult.dSpeed);
             double O_DSpeed_note = O_ratioNote * ( 20 + 2*cLevel) + log((double)winners[cLevel].result.dSpeed);
-
 
             if (W_DMemUsed_note < O_DMemUsed_note) {
                 /* uses too much Decompression memory for too little benefit */

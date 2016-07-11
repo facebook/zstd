@@ -137,6 +137,8 @@ struct ZSTD_DCtx_s
 
 size_t ZSTD_sizeofDCtx (const ZSTD_DCtx* dctx) { return sizeof(*dctx); }
 
+size_t ZSTD_estimateDCtxSize(void) { return sizeof(ZSTD_DCtx); }
+
 size_t ZSTD_decompressBegin(ZSTD_DCtx* dctx)
 {
     dctx->expected = ZSTD_frameHeaderSize_min;

@@ -265,7 +265,7 @@ typedef struct { ZSTD_allocFunction customAlloc; ZSTD_freeFunction customFree; v
 /*! ZSTD_estimateCCtxSize() :
  *  Gives the amount of memory allocated for a ZSTD_CCtx given a set of compression parameters.
  *  `frameContentSize` is an optional parameter, provide `0` if unknown */
-size_t ZSTD_estimateCCtxSize(ZSTD_compressionParameters cParams, unsigned long long frameContentSize);
+ZSTDLIB_API size_t ZSTD_estimateCCtxSize(ZSTD_compressionParameters cParams, unsigned long long frameContentSize);
 
 /*! ZSTD_createCCtx_advanced() :
  *  Create a ZSTD compression context using external alloc and free functions */
@@ -278,7 +278,7 @@ ZSTDLIB_API ZSTD_CDict* ZSTD_createCDict_advanced(const void* dict, size_t dictS
 
 /*! ZSTD_sizeofCCtx() :
  *  Gives the amount of memory used by a given ZSTD_CCtx */
-size_t ZSTD_sizeofCCtx(const ZSTD_CCtx* cctx);
+ZSTDLIB_API size_t ZSTD_sizeofCCtx(const ZSTD_CCtx* cctx);
 
 ZSTDLIB_API unsigned ZSTD_maxCLevel (void);
 
@@ -312,13 +312,17 @@ ZSTDLIB_API size_t ZSTD_compress_advanced (ZSTD_CCtx* ctx,
 
 /*--- Advanced Decompression functions ---*/
 
+/*! ZSTD_estimateDCtxSize() :
+ *  Gives the potential amount of memory allocated to create a ZSTD_DCtx */
+ZSTDLIB_API size_t ZSTD_estimateDCtxSize(void);
+
 /*! ZSTD_createDCtx_advanced() :
  *  Create a ZSTD decompression context using external alloc and free functions */
 ZSTDLIB_API ZSTD_DCtx* ZSTD_createDCtx_advanced(ZSTD_customMem customMem);
 
-/*! ZSTD_sizeofCCtx() :
- *  Gives the amount of memory used by a given ZSTD_CCtx */
-size_t ZSTD_sizeofDCtx(const ZSTD_DCtx* dctx);
+/*! ZSTD_sizeofDCtx() :
+ *  Gives the amount of memory used by a given ZSTD_DCtx */
+ZSTDLIB_API size_t ZSTD_sizeofDCtx(const ZSTD_DCtx* dctx);
 
 
 /* ****************************************************************

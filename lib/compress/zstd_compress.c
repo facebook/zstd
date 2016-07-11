@@ -175,6 +175,11 @@ size_t ZSTD_freeCCtx(ZSTD_CCtx* cctx)
     return 0;   /* reserved as a potential error code in the future */
 }
 
+size_t ZSTD_sizeofCCtx(const ZSTD_CCtx* cctx)
+{
+    return sizeof(*cctx) + cctx->workSpaceSize;
+}
+
 const seqStore_t* ZSTD_getSeqStore(const ZSTD_CCtx* ctx)   /* hidden interface */
 {
     return &(ctx->seqStore);
@@ -244,17 +249,27 @@ ZSTD_compressionParameters ZSTD_adjustCParams(ZSTD_compressionParameters cPar, u
 }
 
 
-size_t ZSTD_sizeofCCtx(ZSTD_compressionParameters cParams)   /* hidden interface, for paramagrill */
+size_t ZSTD_estimateCCtxSize(ZSTD_compressionParameters cParams, unsigned long long frameContentSize)
 {
-    ZSTD_CCtx* const zc = ZSTD_createCCtx();
-    ZSTD_parameters params;
-    memset(&params, 0, sizeof(params));
-    params.cParams = cParams;
-    params.fParams.contentSizeFlag = 1;
-    ZSTD_compressBegin_advanced(zc, NULL, 0, params, 0);
-    { size_t const ccsize = sizeof(*zc) + zc->workSpaceSize;
-      ZSTD_freeCCtx(zc);
-      return ccsize; }
+    const size_t blockSize = MIN(ZSTD_BLOCKSIZE_MAX, (size_t)1 << cParams.windowLog);
+    const U32    divider = (cParams.searchLength==3) ? 3 : 4;
+    const size_t maxNbSeq = blockSize / divider;
+    const size_t tokenSpace = blockSize + 11*maxNbSeq;
+
+    const size_t chainSize = (cParams.strategy == ZSTD_fast) ? 0 : (1 << cParams.chainLog);
+    const size_t hSize = ((size_t)1) << cParams.hashLog;
+    const U32 hashLog3 = (cParams.searchLength>3) ? 0 :
+                        ( (!frameContentSize || frameContentSize >= 8192) ? ZSTD_HASHLOG3_MAX :
+                          ((frameContentSize >= 2048) ? ZSTD_HASHLOG3_MIN + 1 : ZSTD_HASHLOG3_MIN) );
+    const size_t h3Size = ((size_t)1) << hashLog3;
+    const size_t tableSpace = (chainSize + hSize + h3Size) * sizeof(U32);
+
+    size_t const optSpace = ((MaxML+1) + (MaxLL+1) + (MaxOff+1) + (1<<Litbits))*sizeof(U32)
+                          + (ZSTD_OPT_NUM+1)*(sizeof(ZSTD_match_t) + sizeof(ZSTD_optimal_t));
+    size_t const neededSpace = tableSpace + (256*sizeof(U32)) /* huffTable */ + tokenSpace
+                             + ((cParams.strategy == ZSTD_btopt) ? optSpace : 0);
+
+    return sizeof(ZSTD_CCtx) + neededSpace;
 }
 
 /*! ZSTD_resetCCtx_advanced() :

@@ -949,7 +949,7 @@ ZSTDLIB_API size_t ZSTD_insertBlock(ZSTD_DCtx* dctx, const void* blockStart, siz
 }
 
 
-size_t ZSTD_generateNxByte(void* dst, size_t dstCapacity, BYTE byte, size_t length)
+size_t ZSTD_generateNxBytes(void* dst, size_t dstCapacity, BYTE byte, size_t length)
 {
     if (length > dstCapacity) return ERROR(dstSize_tooSmall);
     memset(dst, byte, length);
@@ -1001,7 +1001,7 @@ static size_t ZSTD_decompressFrame(ZSTD_DCtx* dctx,
             decodedSize = ZSTD_copyRawBlock(op, oend-op, ip, cBlockSize);
             break;
         case bt_rle :
-            decodedSize = ZSTD_generateNxByte(op, oend-op, *ip, blockProperties.origSize);
+            decodedSize = ZSTD_generateNxBytes(op, oend-op, *ip, blockProperties.origSize);
             break;
         case bt_end :
             /* end of frame */

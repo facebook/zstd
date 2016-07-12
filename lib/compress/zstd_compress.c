@@ -1544,7 +1544,7 @@ static void ZSTD_compressBlock_doubleFast_extDict_generic(ZSTD_CCtx* ctx,
                 offset_2 = offset_1;
                 offset_1 = offset;
                 ZSTD_storeSeq(seqStorePtr, ip-anchor, anchor, offset + ZSTD_REP_MOVE, mLength-MINMATCH);
-            } else if ((matchIndex > lowestIndex) && (MEM_read32(match) != MEM_read32(ip))) {
+            } else if ((matchIndex > lowestIndex) && (MEM_read32(match) == MEM_read32(ip))) {
                 const BYTE* matchEnd = matchIndex < dictLimit ? dictEnd : iend;
                 const BYTE* lowMatchPtr = matchIndex < dictLimit ? dictStart : lowPrefixPtr;
                 U32 offset;
@@ -2410,7 +2410,7 @@ static size_t ZSTD_compress_generic (ZSTD_CCtx* cctx,
     BYTE* op = ostart;
     const U32 maxDist = 1 << cctx->params.cParams.windowLog;
     ZSTD_stats_t* stats = &cctx->seqStore.stats;
-    ZSTD_statsInit(stats);
+    ZSTD_statsInit(stats);   /* debug only */
 
     if (cctx->params.fParams.checksumFlag)
         XXH64_update(&cctx->xxhState, src, srcSize);

@@ -230,7 +230,7 @@ static const size_t ZSTD_skippableHeaderSize = 8;  /* magic number + skippable f
 
 
 /*--- Types ---*/
-typedef enum { ZSTD_fast, ZSTD_greedy, ZSTD_lazy, ZSTD_lazy2, ZSTD_btlazy2, ZSTD_btopt } ZSTD_strategy;   /*< from faster to stronger */
+typedef enum { ZSTD_fast, ZSTD_dfast, ZSTD_greedy, ZSTD_lazy, ZSTD_lazy2, ZSTD_btlazy2, ZSTD_btopt } ZSTD_strategy;   /*< from faster to stronger */
 
 typedef struct {
     unsigned windowLog;      /*< largest match distance : larger == more compression, more memory needed during decompression */
@@ -325,9 +325,9 @@ ZSTDLIB_API ZSTD_DCtx* ZSTD_createDCtx_advanced(ZSTD_customMem customMem);
 ZSTDLIB_API size_t ZSTD_sizeofDCtx(const ZSTD_DCtx* dctx);
 
 
-/* ****************************************************************
+/* ******************************************************************
 *  Streaming functions (direct mode - synchronous and buffer-less)
-******************************************************************/
+********************************************************************/
 ZSTDLIB_API size_t ZSTD_compressBegin(ZSTD_CCtx* cctx, int compressionLevel);
 ZSTDLIB_API size_t ZSTD_compressBegin_usingDict(ZSTD_CCtx* cctx, const void* dict, size_t dictSize, int compressionLevel);
 ZSTDLIB_API size_t ZSTD_compressBegin_advanced(ZSTD_CCtx* cctx, const void* dict, size_t dictSize, ZSTD_parameters params, unsigned long long pledgedSrcSize);

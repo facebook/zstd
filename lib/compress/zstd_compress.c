@@ -2939,7 +2939,7 @@ unsigned ZSTD_maxCLevel(void) { return ZSTD_MAX_CLEVEL; }
 static const ZSTD_compressionParameters ZSTD_defaultCParameters[4][ZSTD_MAX_CLEVEL+1] = {
 {   /* "default" */
     /* W,  C,  H,  S,  L, TL, strat */
-    {  0,  0,  0,  0,  0,  0, ZSTD_fast    },  /* level  0 - never used */
+    { 18, 12, 12,  1,  7,  4, ZSTD_fast    },  /* level  0 - not used */
     { 19, 13, 14,  1,  7,  4, ZSTD_fast    },  /* level  1 */
     { 19, 15, 16,  1,  6,  4, ZSTD_fast    },  /* level  2 */
     { 20, 16, 17,  1,  6,  4, ZSTD_dfast   },  /* level  3 */
@@ -2965,7 +2965,7 @@ static const ZSTD_compressionParameters ZSTD_defaultCParameters[4][ZSTD_MAX_CLEV
 },
 {   /* for srcSize <= 256 KB */
     /* W,  C,  H,  S,  L,  T, strat */
-    {  0,  0,  0,  0,  0,  0, ZSTD_fast    },  /* level  0 */
+    { 18, 12, 12,  1,  7,  4, ZSTD_fast    },  /* level  0 - not used */
     { 18, 13, 14,  1,  6,  4, ZSTD_fast    },  /* level  1 */
     { 18, 15, 17,  1,  5,  4, ZSTD_fast    },  /* level  2 */
     { 18, 13, 15,  1,  5,  4, ZSTD_greedy  },  /* level  3.*/
@@ -2991,7 +2991,7 @@ static const ZSTD_compressionParameters ZSTD_defaultCParameters[4][ZSTD_MAX_CLEV
 },
 {   /* for srcSize <= 128 KB */
     /* W,  C,  H,  S,  L,  T, strat */
-    {  0,  0,  0,  0,  0,  0, ZSTD_fast    },  /* level  0 - never used */
+    { 17, 12, 12,  1,  7,  4, ZSTD_fast    },  /* level  0 - not used */
     { 17, 12, 13,  1,  6,  4, ZSTD_fast    },  /* level  1 */
     { 17, 13, 16,  1,  5,  4, ZSTD_fast    },  /* level  2 */
     { 17, 13, 14,  2,  5,  4, ZSTD_greedy  },  /* level  3 */
@@ -3017,7 +3017,7 @@ static const ZSTD_compressionParameters ZSTD_defaultCParameters[4][ZSTD_MAX_CLEV
 },
 {   /* for srcSize <= 16 KB */
     /* W,  C,  H,  S,  L,  T, strat */
-    {  0,  0,  0,  0,  0,  0, ZSTD_fast    },  /* level  0 -- never used */
+    { 14, 12, 12,  1,  7,  4, ZSTD_fast    },  /* level  0 - not used */
     { 14, 14, 14,  1,  4,  4, ZSTD_fast    },  /* level  1 */
     { 14, 14, 15,  1,  4,  4, ZSTD_fast    },  /* level  2 */
     { 14, 14, 14,  4,  4,  4, ZSTD_greedy  },  /* level  3.*/
@@ -3065,7 +3065,7 @@ ZSTD_compressionParameters ZSTD_getCParams(int compressionLevel, unsigned long l
 }
 
 /*! ZSTD_getParams() :
-*   same as ZSTD_getCParams(), but @return a `ZSTD_parameters` object instead of a `ZSTD_compressionParameters`.
+*   same as ZSTD_getCParams(), but @return a `ZSTD_parameters` object (instead of `ZSTD_compressionParameters`).
 *   All fields of `ZSTD_frameParameters` are set to default (0) */
 ZSTD_parameters ZSTD_getParams(int compressionLevel, unsigned long long srcSize, size_t dictSize) {
     ZSTD_parameters params;

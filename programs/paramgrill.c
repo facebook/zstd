@@ -363,6 +363,7 @@ static size_t BMK_benchParam(BMK_result_t* resultPtr,
 
 
 const char* g_stratName[] = { "ZSTD_fast   ",
+                              "ZSTD_dfast  ",
                               "ZSTD_greedy ",
                               "ZSTD_lazy   ",
                               "ZSTD_lazy2  ",
@@ -635,13 +636,12 @@ static void BMK_selectRandomStart(
 
 static void BMK_benchMem(void* srcBuffer, size_t srcSize)
 {
-    ZSTD_CCtx* ctx = ZSTD_createCCtx();
+    ZSTD_CCtx* const ctx = ZSTD_createCCtx();
     ZSTD_compressionParameters params;
     winnerInfo_t winners[NB_LEVELS_TRACKED];
-    int i;
     unsigned u;
     const char* rfName = "grillResults.txt";
-    FILE* f;
+    FILE* const f = fopen(rfName, "w");
     const size_t blockSize = g_blockSize ? g_blockSize : srcSize;
 
     if (g_singleRun) {
@@ -653,8 +653,8 @@ static void BMK_benchMem(void* srcBuffer, size_t srcSize)
     }
 
     /* init */
+    if (ctx==NULL) { DISPLAY("ZSTD_createCCtx() failed \n"); exit(1); }
     memset(winners, 0, sizeof(winners));
-    f = fopen(rfName, "w");
     if (f==NULL) { DISPLAY("error opening %s \n", rfName); exit(1); }
 
     if (g_target)
@@ -672,18 +672,16 @@ static void BMK_benchMem(void* srcBuffer, size_t srcSize)
         g_cSpeedTarget[u] = (g_cSpeedTarget[u-1] * 25) >> 5;
 
     /* populate initial solution */
-    {
-        const int maxSeeds = g_noSeed ? 1 : ZSTD_maxCLevel();
-        for (i=1; i<=maxSeeds; i++) {
+    {   const int maxSeeds = g_noSeed ? 1 : ZSTD_maxCLevel();
+        int i;
+        for (i=0; i<=maxSeeds; i++) {
             params = ZSTD_getCParams(i, blockSize, 0);
             BMK_seed(winners, params, srcBuffer, srcSize, ctx);
-        }
-    }
+    }   }
     BMK_printWinners(f, winners, srcSize);
 
     /* start tests */
-    {
-        const int milliStart = BMK_GetMilliStart();
+    {   const int milliStart = BMK_GetMilliStart();
         do {
             BMK_selectRandomStart(f, winners, srcBuffer, srcSize, ctx);
         } while (BMK_GetMilliSpan(milliStart) < g_grillDuration);
@@ -702,8 +700,8 @@ static void BMK_benchMem(void* srcBuffer, size_t srcSize)
 static int benchSample(void)
 {
     void* origBuff;
-    size_t benchedSize = sampleSize;
-    const char* name = "Sample 10MiB";
+    size_t const benchedSize = sampleSize;
+    const char* const name = "Sample 10MiB";
 
     /* Allocation */
     origBuff = malloc(benchedSize);
@@ -722,37 +720,31 @@ static int benchSample(void)
 }
 
 
-int benchFiles(char** fileNamesTable, int nbFiles)
+int benchFiles(const char** fileNamesTable, int nbFiles)
 {
     int fileIdx=0;
 
     /* Loop for each file */
     while (fileIdx<nbFiles) {
-        FILE* inFile;
-        char* inFileName;
-        U64   inFileSize;
+        const char* const inFileName = fileNamesTable[fileIdx++];
+        FILE* const inFile = fopen( inFileName, "rb" );
+        U64 const inFileSize = UTIL_getFileSize(inFileName);
         size_t benchedSize;
-        size_t readSize;
-        char* origBuff;
+        void* origBuff;
 
         /* Check file existence */
-        inFileName = fileNamesTable[fileIdx++];
-        inFile = fopen( inFileName, "rb" );
         if (inFile==NULL) {
             DISPLAY( "Pb opening %s\n", inFileName);
             return 11;
         }
 
-        /* Memory allocation & restrictions */
-        inFileSize = UTIL_getFileSize(inFileName);
+        /* Memory allocation */
         benchedSize = BMK_findMaxMem(inFileSize*3) / 3;
         if ((U64)benchedSize > inFileSize) benchedSize = (size_t)inFileSize;
         if (benchedSize < inFileSize)
             DISPLAY("Not enough memory for '%s' full size; testing %i MB only...\n", inFileName, (int)(benchedSize>>20));
-
-        /* Alloc */
-        origBuff = (char*) malloc((size_t)benchedSize);
-        if(!origBuff) {
+        origBuff = malloc(benchedSize);
+        if (origBuff==NULL) {
             DISPLAY("\nError: not enough memory!\n");
             fclose(inFile);
             return 12;
@@ -760,26 +752,28 @@ int benchFiles(char** fileNamesTable, int nbFiles)
 
         /* Fill input buffer */
         DISPLAY("Loading %s...       \r", inFileName);
-        readSize = fread(origBuff, 1, benchedSize, inFile);
-        fclose(inFile);
-
-        if(readSize != benchedSize) {
-            DISPLAY("\nError: problem reading file '%s' !!    \n", inFileName);
-            free(origBuff);
-            return 13;
-        }
+        {   size_t const readSize = fread(origBuff, 1, benchedSize, inFile);
+            fclose(inFile);
+            if(readSize != benchedSize) {
+                DISPLAY("\nError: problem reading file '%s' !!    \n", inFileName);
+                free(origBuff);
+                return 13;
+        }   }
 
         /* bench */
         DISPLAY("\r%79s\r", "");
         DISPLAY("using %s : \n", inFileName);
         BMK_benchMem(origBuff, benchedSize);
+
+        /* clean */
+        free(origBuff);
     }
 
     return 0;
 }
 
 
-int optimizeForSize(char* inFileName)
+int optimizeForSize(const char* inFileName)
 {
     FILE* inFile;
     U64   inFileSize;
@@ -824,8 +818,7 @@ int optimizeForSize(char* inFileName)
     DISPLAY("\r%79s\r", "");
     DISPLAY("optimizing for %s : \n", inFileName);
 
-    {
-        ZSTD_CCtx* ctx = ZSTD_createCCtx();
+    {   ZSTD_CCtx* ctx = ZSTD_createCCtx();
         ZSTD_compressionParameters params;
         winnerInfo_t winner;
         BMK_result_t candidate;
@@ -837,8 +830,7 @@ int optimizeForSize(char* inFileName)
         winner.result.cSize = (size_t)(-1);
 
         /* find best solution from default params */
-        {
-            const int maxSeeds = g_noSeed ? 1 : ZSTD_maxCLevel();
+        {   const int maxSeeds = g_noSeed ? 1 : ZSTD_maxCLevel();
             for (i=1; i<=maxSeeds; i++) {
                 params = ZSTD_getCParams(i, blockSize, 0);
                 BMK_benchParam(&candidate, origBuff, benchedSize, ctx, params);
@@ -853,8 +845,7 @@ int optimizeForSize(char* inFileName)
         BMK_printWinner(stdout, 99, winner.result, winner.params, benchedSize);
 
         /* start tests */
-        {
-            const int milliStart = BMK_GetMilliStart();
+        {   const int milliStart = BMK_GetMilliStart();
             do {
                 params = winner.params;
                 paramVariation(&params);
@@ -889,7 +880,7 @@ int optimizeForSize(char* inFileName)
 }
 
 
-static int usage(char* exename)
+static int usage(const char* exename)
 {
     DISPLAY( "Usage :\n");
     DISPLAY( "      %s [arg] file\n", exename);
@@ -902,27 +893,28 @@ static int usage(char* exename)
 static int usage_advanced(void)
 {
     DISPLAY( "\nAdvanced options :\n");
-    DISPLAY( " -i#    : iteration loops [1-9](default : %i)\n", NBLOOPS);
-    DISPLAY( " -B#    : cut input into blocks of size # (default : single block)\n");
-    DISPLAY( " -P#    : generated sample compressibility (default : %.1f%%)\n", COMPRESSIBILITY_DEFAULT * 100);
-    DISPLAY( " -S     : Single run\n");
+    DISPLAY( " -T#    : set level 1 speed objective \n");
+    DISPLAY( " -B#    : cut input into blocks of size # (default : single block) \n");
+    DISPLAY( " -i#    : iteration loops [1-9](default : %i) \n", NBLOOPS);
+    DISPLAY( " -S     : Single run \n");
+    DISPLAY( " -P#    : generated sample compressibility (default : %.1f%%) \n", COMPRESSIBILITY_DEFAULT * 100);
     return 0;
 }
 
-static int badusage(char* exename)
+static int badusage(const char* exename)
 {
     DISPLAY("Wrong parameters\n");
     usage(exename);
     return 1;
 }
 
-int main(int argc, char** argv)
+int main(int argc, const char** argv)
 {
     int i,
         filenamesStart=0,
         result;
-    char* exename=argv[0];
-    char* input_filename=0;
+    const char* exename=argv[0];
+    const char* input_filename=0;
     U32 optimizer = 0;
     U32 main_pause = 0;
 
@@ -938,7 +930,7 @@ int main(int argc, char** argv)
     if (argc<1) { badusage(exename); return 1; }
 
     for(i=1; i<argc; i++) {
-        char* argument = argv[i];
+        const char* argument = argv[i];
 
         if(!argument) continue;   /* Protection if argument empty */
 

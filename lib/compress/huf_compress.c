@@ -239,7 +239,7 @@ static U32 HUF_setMaxHeight(nodeElt* huffNode, U32 lastNonNull, U32 maxNbBits)
 
         /* repay normalized cost */
         {   U32 const noSymbol = 0xF0F0F0F0;
-            U32 rankLast[HUF_TABLELOG_MAX+1];
+            U32 rankLast[HUF_TABLELOG_MAX+2];
             int pos;
 
             /* Get pos of last (smallest) symbol per rank */

@@ -330,7 +330,6 @@ static int FIO_compressFilename_internal(cRess_t ress,
     }   }
 
     /* Main compression loop */
-    readsize = 0;
     while (1) {
         /* Fill input Buffer */
         size_t const inSize = fread(ress.srcBuffer, (size_t)1, ress.srcBufferSize, srcFile);
@@ -338,8 +337,8 @@ static int FIO_compressFilename_internal(cRess_t ress,
         readsize += inSize;
         DISPLAYUPDATE(2, "\rRead : %u MB  ", (U32)(readsize>>20));
 
-        {   /* Compress using buffered streaming */
-            size_t usedInSize = inSize;
+        /* Compress using buffered streaming */
+        {   size_t usedInSize = inSize;
             size_t cSize = ress.dstBufferSize;
             { size_t const result = ZBUFF_compressContinue(ress.ctx, ress.dstBuffer, &cSize, ress.srcBuffer, &usedInSize);
               if (ZBUFF_isError(result)) EXM_THROW(23, "Compression error : %s ", ZBUFF_getErrorName(result)); }
@@ -366,8 +365,10 @@ static int FIO_compressFilename_internal(cRess_t ress,
     }
 
     /* Status */
+    { size_t const len = strlen(srcFileName);
+      if (len > 20) srcFileName += len-20; }
     DISPLAYLEVEL(2, "\r%79s\r", "");
-    DISPLAYLEVEL(2,"%-20.20s :%6.2f%%   (%6llu =>%6llu bytes, %s) \n", srcFileName,
+    DISPLAYLEVEL(2,"%-20.20s :%6.2f%%   (%6llu => %6llu bytes, %s) \n", srcFileName,
         (double)compressedfilesize/readsize*100, (unsigned long long)readsize, (unsigned long long) compressedfilesize,
                  dstFileName);
 

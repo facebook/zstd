@@ -775,30 +775,23 @@ int benchFiles(const char** fileNamesTable, int nbFiles)
 }
 
 
-int optimizeForSize(const char* inFileName)
+int optimizeForSize(const char* inFileName, U32 targetSpeed)
 {
-    FILE* inFile;
-    U64   inFileSize;
-    size_t benchedSize;
-    size_t readSize;
-    char* origBuff;
+    FILE* const inFile = fopen( inFileName, "rb" );
+    U64 const inFileSize = UTIL_getFileSize(inFileName);
+    size_t benchedSize = BMK_findMaxMem(inFileSize*3) / 3;
+    void* origBuff;
 
-    /* Check file existence */
-    inFile = fopen( inFileName, "rb" );
-    if (inFile==NULL) {
-        DISPLAY( "Pb opening %s\n", inFileName);
-        return 11;
-    }
+    /* Init */
+    if (inFile==NULL) { DISPLAY( "Pb opening %s\n", inFileName); return 11; }
 
     /* Memory allocation & restrictions */
-    inFileSize = UTIL_getFileSize(inFileName);
-    benchedSize = (size_t) BMK_findMaxMem(inFileSize*3) / 3;
     if ((U64)benchedSize > inFileSize) benchedSize = (size_t)inFileSize;
     if (benchedSize < inFileSize)
         DISPLAY("Not enough memory for '%s' full size; testing %i MB only...\n", inFileName, (int)(benchedSize>>20));
 
     /* Alloc */
-    origBuff = (char*) malloc((size_t)benchedSize);
+    origBuff = malloc(benchedSize);
     if(!origBuff) {
         DISPLAY("\nError: not enough memory!\n");
         fclose(inFile);
@@ -807,37 +800,40 @@ int optimizeForSize(const char* inFileName)
 
     /* Fill input buffer */
     DISPLAY("Loading %s...       \r", inFileName);
-    readSize = fread(origBuff, 1, benchedSize, inFile);
-    fclose(inFile);
-
-    if(readSize != benchedSize) {
-        DISPLAY("\nError: problem reading file '%s' !!    \n", inFileName);
-        free(origBuff);
-        return 13;
-    }
+    {   size_t const readSize = fread(origBuff, 1, benchedSize, inFile);
+        fclose(inFile);
+        if(readSize != benchedSize) {
+            DISPLAY("\nError: problem reading file '%s' !!    \n", inFileName);
+            free(origBuff);
+            return 13;
+    }   }
 
     /* bench */
     DISPLAY("\r%79s\r", "");
-    DISPLAY("optimizing for %s : \n", inFileName);
+    DISPLAY("optimizing for %s - limit speed %u MB/s \n", inFileName, targetSpeed);
+    targetSpeed *= 1000;
 
-    {   ZSTD_CCtx* ctx = ZSTD_createCCtx();
+    {   ZSTD_CCtx* const ctx = ZSTD_createCCtx();
         ZSTD_compressionParameters params;
         winnerInfo_t winner;
         BMK_result_t candidate;
         const size_t blockSize = g_blockSize ? g_blockSize : benchedSize;
-        int i;
 
         /* init */
+        if (ctx==NULL) { DISPLAY("\n ZSTD_createCCtx error \n"); free(origBuff); return 14;}
         memset(&winner, 0, sizeof(winner));
         winner.result.cSize = (size_t)(-1);
 
         /* find best solution from default params */
         {   const int maxSeeds = g_noSeed ? 1 : ZSTD_maxCLevel();
+            int i;
             for (i=1; i<=maxSeeds; i++) {
                 params = ZSTD_getCParams(i, blockSize, 0);
                 BMK_benchParam(&candidate, origBuff, benchedSize, ctx, params);
+                if (candidate.cSpeed < targetSpeed)
+                    break;
                 if ( (candidate.cSize < winner.result.cSize)
-                   ||((candidate.cSize == winner.result.cSize) && (candidate.cSpeed > winner.result.cSpeed)) )
+                   | ((candidate.cSize == winner.result.cSize) & (candidate.cSpeed > winner.result.cSpeed)) )
                 {
                     winner.params = params;
                     winner.result = candidate;
@@ -851,7 +847,7 @@ int optimizeForSize(const char* inFileName)
             do {
                 params = winner.params;
                 paramVariation(&params);
-                if ((FUZ_rand(&g_rand) & 15) == 1) params = randomParams();
+                if ((FUZ_rand(&g_rand) & 15) == 3) params = randomParams();
 
                 /* exclude faster if already played set of params */
                 if (FUZ_rand(&g_rand) & ((1 << NB_TESTS_PLAYED(params))-1)) continue;
@@ -861,8 +857,10 @@ int optimizeForSize(const char* inFileName)
                 BMK_benchParam(&candidate, origBuff, benchedSize, ctx, params);
 
                 /* improvement found => new winner */
-                if ( (candidate.cSize < winner.result.cSize)
-                   ||((candidate.cSize == winner.result.cSize) && (candidate.cSpeed > winner.result.cSpeed)) ) {
+                if ( (candidate.cSpeed > targetSpeed)
+                   & ( (candidate.cSize < winner.result.cSize)
+                     | ((candidate.cSize == winner.result.cSize) & (candidate.cSpeed > winner.result.cSpeed)) )  )
+                {
                     winner.params = params;
                     winner.result = candidate;
                     BMK_printWinner(stdout, 99, winner.result, winner.params, benchedSize);
@@ -878,6 +876,7 @@ int optimizeForSize(const char* inFileName)
         ZSTD_freeCCtx(ctx);
     }
 
+    free(origBuff);
     return 0;
 }
 
@@ -898,6 +897,7 @@ static int usage_advanced(void)
     DISPLAY( " -T#    : set level 1 speed objective \n");
     DISPLAY( " -B#    : cut input into blocks of size # (default : single block) \n");
     DISPLAY( " -i#    : iteration loops [1-9](default : %i) \n", NBLOOPS);
+    DISPLAY( " -O#    : find Optimized parameters for # target speed (default : 0) \n");
     DISPLAY( " -S     : Single run \n");
     DISPLAY( " -P#    : generated sample compressibility (default : %.1f%%) \n", COMPRESSIBILITY_DEFAULT * 100);
     return 0;
@@ -919,6 +919,7 @@ int main(int argc, const char** argv)
     const char* input_filename=0;
     U32 optimizer = 0;
     U32 main_pause = 0;
+    U32 targetSpeed = 0;
 
     /* checks */
     if (NB_LEVELS_TRACKED <= ZSTD_maxCLevel()) {
@@ -956,7 +957,7 @@ int main(int argc, const char** argv)
                     /* Modify Nb Iterations */
                 case 'i':
                     argument++;
-                    if ((argument[0] >='0') && (argument[0] <='9'))
+                    if ((argument[0] >='0') & (argument[0] <='9'))
                         g_nbIterations = *argument++ - '0';
                     break;
 
@@ -964,7 +965,7 @@ int main(int argc, const char** argv)
                 case 'P':
                     argument++;
                     {   U32 proba32 = 0;
-                        while ((argument[0]>= '0') && (argument[0]<= '9'))
+                        while ((argument[0]>= '0') & (argument[0]<= '9'))
                             proba32 = (proba32*10) + (*argument++ - '0');
                         g_compressibility = (double)proba32 / 100.;
                     }
@@ -973,6 +974,9 @@ int main(int argc, const char** argv)
                 case 'O':
                     argument++;
                     optimizer=1;
+                    targetSpeed = 0;
+                    while ((*argument >= '0') & (*argument <= '9'))
+                        targetSpeed = (targetSpeed*10) + (*argument++ - '0');
                     break;
 
                     /* Run Single conf */
@@ -1050,7 +1054,7 @@ int main(int argc, const char** argv)
                 case 'B':
                     g_blockSize = 0;
                     argument++;
-                    while ((*argument >='0') && (*argument <='9'))
+                    while ((*argument >='0') & (*argument <='9'))
                         g_blockSize = (g_blockSize*10) + (*argument++ - '0');
                     if (*argument=='K') g_blockSize<<=10, argument++;  /* allows using KB notation */
                     if (*argument=='M') g_blockSize<<=20, argument++;
@@ -1073,7 +1077,7 @@ int main(int argc, const char** argv)
         result = benchSample();
     else {
         if (optimizer)
-            result = optimizeForSize(input_filename);
+            result = optimizeForSize(input_filename, targetSpeed);
         else
             result = benchFiles(argv+filenamesStart, argc-filenamesStart);
     }

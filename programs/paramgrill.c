@@ -506,6 +506,8 @@ static ZSTD_compressionParameters* sanitizeParams(ZSTD_compressionParameters par
     g_params = params;
     if (params.strategy == ZSTD_fast)
         g_params.chainLog = 0, g_params.searchLog = 0;
+    if (params.strategy == ZSTD_dfast)
+        g_params.searchLog = 0;
     if (params.strategy != ZSTD_btopt )
         g_params.targetLength = 0;
     return &g_params;

@@ -365,8 +365,7 @@ static int FIO_compressFilename_internal(cRess_t ress,
     }
 
     /* Status */
-    { size_t const len = strlen(srcFileName);
-      if (len > 20) srcFileName += len-20; }
+    if (strlen(srcFileName) > 20) srcFileName += strlen(srcFileName)-20; /* display last 20 characters */
     DISPLAYLEVEL(2, "\r%79s\r", "");
     DISPLAYLEVEL(2,"%-20.20s :%6.2f%%   (%6llu => %6llu bytes, %s) \n", srcFileName,
         (double)compressedfilesize/readsize*100, (unsigned long long)readsize, (unsigned long long) compressedfilesize,

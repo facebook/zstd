@@ -3864,11 +3864,9 @@ static size_t ZBUFF_decompressContinue(ZBUFF_DCtx* zbc, void* dst, size_t* maxDs
 
         case ZBUFFds_readHeader :
             /* read header from src */
-            {
-                size_t headerSize = ZSTD_getFrameParams(&(zbc->params), src, *srcSizePtr);
+            {   size_t const headerSize = ZSTD_getFrameParams(&(zbc->params), src, *srcSizePtr);
                 if (ZSTD_isError(headerSize)) return headerSize;
-                if (headerSize)
-                {
+                if (headerSize) {
                     /* not enough input to decode header : tell how many bytes would be necessary */
                     memcpy(zbc->headerBuffer+zbc->hPos, src, *srcSizePtr);
                     zbc->hPos += *srcSizePtr;
@@ -3882,8 +3880,7 @@ static size_t ZBUFF_decompressContinue(ZBUFF_DCtx* zbc, void* dst, size_t* maxDs
 
         case ZBUFFds_loadHeader:
             /* complete header from src */
-            {
-                size_t headerSize = ZBUFF_limitCopy(
+            {   size_t headerSize = ZBUFF_limitCopy(
                     zbc->headerBuffer + zbc->hPos, ZSTD_frameHeaderSize_max - zbc->hPos,
                     src, *srcSizePtr);
                 zbc->hPos += headerSize;
@@ -3895,12 +3892,12 @@ static size_t ZBUFF_decompressContinue(ZBUFF_DCtx* zbc, void* dst, size_t* maxDs
                     *maxDstSizePtr = 0;
                     return headerSize - zbc->hPos;
             }   }
+            /* intentional fallthrough */
 
         case ZBUFFds_decodeHeader:
                 /* apply header to create / resize buffers */
-                {
-                    size_t neededOutSize = (size_t)1 << zbc->params.windowLog;
-                    size_t neededInSize = BLOCKSIZE;   /* a block is never > BLOCKSIZE */
+                {   size_t const neededOutSize = (size_t)1 << zbc->params.windowLog;
+                    size_t const neededInSize = BLOCKSIZE;   /* a block is never > BLOCKSIZE */
                     if (zbc->inBuffSize < neededInSize) {
                         free(zbc->inBuff);
                         zbc->inBuffSize = neededInSize;

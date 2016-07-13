@@ -284,7 +284,7 @@ static dictItem ZDICT_analyzePos(
         U32 refinedEnd = end;
 
         DISPLAYLEVEL(4, "\n");
-        DISPLAYLEVEL(4, "found %3u matches of length >= %u at pos %7u  ", (U32)(end-start), MINMATCHLENGTH, (U32)pos);
+        DISPLAYLEVEL(4, "found %3u matches of length >= %i at pos %7u  ", (U32)(end-start), MINMATCHLENGTH, (U32)pos);
         DISPLAYLEVEL(4, "\n");
 
         for (searchLength = MINMATCHLENGTH ; ; searchLength++) {

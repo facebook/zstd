@@ -972,7 +972,7 @@ size_t ZDICT_trainFromBuffer_unsafe(
             for (u=1; u<dictList->pos; u++) {
                 U32 l = dictList[u].length;
                 ptr -= l;
-                if (ptr<(BYTE*)dictBuffer) return ERROR(GENERIC);   /* should not happen */
+                if (ptr<(BYTE*)dictBuffer) { free(dictList); return ERROR(GENERIC); }   /* should not happen */
                 memcpy(ptr, (const char*)samplesBuffer+dictList[u].pos, l);
         }   }
 

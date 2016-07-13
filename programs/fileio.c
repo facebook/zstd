@@ -273,11 +273,10 @@ typedef struct {
 static cRess_t FIO_createCResources(const char* dictFileName)
 {
     cRess_t ress;
+    memset(&ress, 0, sizeof(ress));
 
     ress.ctx = ZBUFF_createCCtx();
     if (ress.ctx == NULL) EXM_THROW(30, "zstd: allocation error : can't create ZBUFF context");
-
-    /* Allocate Memory */
     ress.srcBufferSize = ZBUFF_recommendedCInSize();
     ress.srcBuffer = malloc(ress.srcBufferSize);
     ress.dstBufferSize = ZBUFF_recommendedCOutSize();
@@ -502,12 +501,11 @@ typedef struct {
 static dRess_t FIO_createDResources(const char* dictFileName)
 {
     dRess_t ress;
+    memset(&ress, 0, sizeof(ress));
 
-    /* init */
+    /* Allocation */
     ress.dctx = ZBUFF_createDCtx();
     if (ress.dctx==NULL) EXM_THROW(60, "Can't create ZBUFF decompression context");
-
-    /* Allocate Memory */
     ress.srcBufferSize = ZBUFF_recommendedDInSize();
     ress.srcBuffer = malloc(ress.srcBufferSize);
     ress.dstBufferSize = ZBUFF_recommendedDOutSize();
@@ -710,6 +708,7 @@ static int FIO_decompressSrcFile(dRess_t ress, const char* srcFileName)
                     return FIO_passThrough(dstFile, srcFile, ress.srcBuffer, ress.srcBufferSize);
                 else {
                     DISPLAYLEVEL(1, "zstd: %s: not in zstd format \n", srcFileName);
+                    fclose(srcFile);
                     return 1;
         }   }   }
         filesize += FIO_decompressFrame(ress, dstFile, srcFile, toRead);

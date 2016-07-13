@@ -462,6 +462,7 @@ int main(int argCount, const char** argv)
     if (dictBuild) {
 #ifndef ZSTD_NODICT
         ZDICT_params_t dictParams;
+        memset(&dictParams, 0, sizeof(dictParams));
         dictParams.compressionLevel = dictCLevel;
         dictParams.selectivityLevel = dictSelect;
         dictParams.notificationLevel = displayLevel;

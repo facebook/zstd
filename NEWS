@@ -1,3 +1,6 @@
+v0.7.4
+Modified : default compression level for CLI is 3
+
 v0.7.3
 New : compression format specification
 New : `--` separator, stating that all following arguments are file names. Suggested by Chip Turner.

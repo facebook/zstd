@@ -3620,36 +3620,26 @@ static size_t ZSTD_decompressContinue(ZSTD_DCtx* ctx, void* dst, size_t maxDstSi
     switch (ctx->stage)
     {
     case ZSTDds_getFrameHeaderSize :
-        {
-            /* get frame header size */
-            if (srcSize != ZSTD_frameHeaderSize_min) return ERROR(srcSize_wrong);   /* impossible */
-            ctx->headerSize = ZSTD_decodeFrameHeader_Part1(ctx, src, ZSTD_frameHeaderSize_min);
-            if (ZSTD_isError(ctx->headerSize)) return ctx->headerSize;
-            memcpy(ctx->headerBuffer, src, ZSTD_frameHeaderSize_min);
-            if (ctx->headerSize > ZSTD_frameHeaderSize_min)
-            {
-                ctx->expected = ctx->headerSize - ZSTD_frameHeaderSize_min;
-                ctx->stage = ZSTDds_decodeFrameHeader;
-                return 0;
-            }
-            ctx->expected = 0;   /* not necessary to copy more */
-        }
+        /* get frame header size */
+        if (srcSize != ZSTD_frameHeaderSize_min) return ERROR(srcSize_wrong);   /* impossible */
+        ctx->headerSize = ZSTD_decodeFrameHeader_Part1(ctx, src, ZSTD_frameHeaderSize_min);
+        if (ZSTD_isError(ctx->headerSize)) return ctx->headerSize;
+        memcpy(ctx->headerBuffer, src, ZSTD_frameHeaderSize_min);
+        if (ctx->headerSize > ZSTD_frameHeaderSize_min) return ERROR(GENERIC);   /* impossible */
+        ctx->expected = 0;   /* not necessary to copy more */
+        /* fallthrough */
     case ZSTDds_decodeFrameHeader:
-        {
-            /* get frame header */
-            size_t result;
-            memcpy(ctx->headerBuffer + ZSTD_frameHeaderSize_min, src, ctx->expected);
-            result = ZSTD_decodeFrameHeader_Part2(ctx, ctx->headerBuffer, ctx->headerSize);
+        /* get frame header */
+        {   size_t const result = ZSTD_decodeFrameHeader_Part2(ctx, ctx->headerBuffer, ctx->headerSize);
             if (ZSTD_isError(result)) return result;
             ctx->expected = ZSTD_blockHeaderSize;
             ctx->stage = ZSTDds_decodeBlockHeader;
             return 0;
         }
     case ZSTDds_decodeBlockHeader:
-        {
-            /* Decode block header */
-            blockProperties_t bp;
-            size_t blockSize = ZSTD_getcBlockSize(src, ZSTD_blockHeaderSize, &bp);
+        /* Decode block header */
+        {   blockProperties_t bp;
+            size_t const blockSize = ZSTD_getcBlockSize(src, ZSTD_blockHeaderSize, &bp);
             if (ZSTD_isError(blockSize)) return blockSize;
             if (bp.blockType == bt_end)
             {

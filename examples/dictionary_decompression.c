@@ -78,6 +78,7 @@ static void* loadFile_X(const char* fileName, size_t* size)
 static const ZSTD_DDict* createDict(const char* dictFileName)
 {
     size_t dictSize;
+    printf("loading dictionary %s \n", dictFileName);
     void* const dictBuffer = loadFile_X(dictFileName, &dictSize);
     const ZSTD_DDict* const ddict = ZSTD_createDDict(dictBuffer, dictSize);
     free(dictBuffer);

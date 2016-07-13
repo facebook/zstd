@@ -189,10 +189,10 @@ depending on local limitations.
 
 __Unused bit__
 
-The value of this bit is unimportant
-and not interpreted by a decoder compliant with this specification version.
-It may be used in a future revision,
-to signal a property which is not required to properly decode the frame.
+The value of this bit should be set to zero.
+A decoder compliant with this specification version should not interpret it.
+It might be used in a future version,
+to signal a property which is not mandatory to properly decode the frame.
 
 __Reserved bit__
 

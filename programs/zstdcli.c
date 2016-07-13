@@ -31,8 +31,8 @@
 /*-************************************
 *  Tuning parameters
 **************************************/
-#ifndef ZSTDCLI_DEFAULT_CLEVEL
-#  define ZSTDCLI_DEFAULT_CLEVEL 3
+#ifndef ZSTDCLI_CLEVEL_DEFAULT
+#  define ZSTDCLI_CLEVEL_DEFAULT 3
 #endif
 
 
@@ -215,7 +215,7 @@ int main(int argCount, const char** argv)
         nextArgumentIsMaxDict=0,
         nextArgumentIsDictID=0,
         nextArgumentIsFile=0;
-    unsigned cLevel = ZSTDCLI_DEFAULT_CLEVEL;
+    unsigned cLevel = ZSTDCLI_CLEVEL_DEFAULT;
     unsigned cLevelLast = 1;
     unsigned recursive = 0;
     const char** filenameTable = (const char**)malloc(argCount * sizeof(const char*));   /* argCount >= 1 */

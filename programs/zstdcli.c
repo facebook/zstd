@@ -29,6 +29,14 @@
 
 
 /*-************************************
+*  Tuning parameters
+**************************************/
+#ifndef ZSTDCLI_DEFAULT_CLEVEL
+#  define ZSTDCLI_DEFAULT_CLEVEL 3
+#endif
+
+
+/*-************************************
 *  Includes
 **************************************/
 #include "util.h"     /* Compiler options, UTIL_HAS_CREATEFILELIST */
@@ -207,7 +215,7 @@ int main(int argCount, const char** argv)
         nextArgumentIsMaxDict=0,
         nextArgumentIsDictID=0,
         nextArgumentIsFile=0;
-    unsigned cLevel = 1;
+    unsigned cLevel = ZSTDCLI_DEFAULT_CLEVEL;
     unsigned cLevelLast = 1;
     unsigned recursive = 0;
     const char** filenameTable = (const char**)malloc(argCount * sizeof(const char*));   /* argCount >= 1 */
@@ -331,7 +339,7 @@ int main(int argCount, const char** argv)
                         /* test compressed file */
                     case 't': decode=1; outFileName=nulmark; argument++; break;
 
-                        /* dictionary name */
+                        /* destination file name */
                     case 'o': nextArgumentIsOutFileName=1; argument++; break;
 
                         /* recursive */

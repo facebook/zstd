@@ -1,5 +1,8 @@
 v0.7.4
+Added : new examples
+Fixed : segfault when using small dictionaries
 Modified : default compression level for CLI is 3
+
 
 v0.7.3
 New : compression format specification

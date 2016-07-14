@@ -215,7 +215,7 @@ ZSTDLIB_API size_t ZSTD_decompress_usingDDict(ZSTD_DCtx* dctx,
 #define ZSTD_HASHLOG_MAX       ZSTD_WINDOWLOG_MAX
 #define ZSTD_HASHLOG_MIN       12
 #define ZSTD_HASHLOG3_MAX      17
-#define ZSTD_HASHLOG3_MIN      15
+//#define ZSTD_HASHLOG3_MIN      15
 #define ZSTD_SEARCHLOG_MAX    (ZSTD_WINDOWLOG_MAX-1)
 #define ZSTD_SEARCHLOG_MIN      1
 #define ZSTD_SEARCHLENGTH_MAX   7
@@ -265,7 +265,7 @@ typedef struct { ZSTD_allocFunction customAlloc; ZSTD_freeFunction customFree; v
 /*! ZSTD_estimateCCtxSize() :
  *  Gives the amount of memory allocated for a ZSTD_CCtx given a set of compression parameters.
  *  `frameContentSize` is an optional parameter, provide `0` if unknown */
-ZSTDLIB_API size_t ZSTD_estimateCCtxSize(ZSTD_compressionParameters cParams, unsigned long long frameContentSize);
+ZSTDLIB_API size_t ZSTD_estimateCCtxSize(ZSTD_compressionParameters cParams);
 
 /*! ZSTD_createCCtx_advanced() :
  *  Create a ZSTD compression context using external alloc and free functions */

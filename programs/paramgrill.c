@@ -391,8 +391,8 @@ static int BMK_seed(winnerInfo_t* winners, const ZSTD_compressionParameters para
             double W_DMemUsed_note = W_ratioNote * ( 40 + 9*cLevel) - log((double)W_DMemUsed);
             double O_DMemUsed_note = O_ratioNote * ( 40 + 9*cLevel) - log((double)O_DMemUsed);
 
-            size_t W_CMemUsed = (1 << params.windowLog) + ZSTD_estimateCCtxSize(params, srcSize);
-            size_t O_CMemUsed = (1 << winners[cLevel].params.windowLog) + ZSTD_estimateCCtxSize(winners[cLevel].params, srcSize);
+            size_t W_CMemUsed = (1 << params.windowLog) + ZSTD_estimateCCtxSize(params);
+            size_t O_CMemUsed = (1 << winners[cLevel].params.windowLog) + ZSTD_estimateCCtxSize(winners[cLevel].params);
             double W_CMemUsed_note = W_ratioNote * ( 50 + 13*cLevel) - log((double)W_CMemUsed);
             double O_CMemUsed_note = O_ratioNote * ( 50 + 13*cLevel) - log((double)O_CMemUsed);
 

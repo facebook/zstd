@@ -2317,15 +2317,8 @@ _storeSequence:
     /* Save reps for next block */
     ctx->savedRep[0] = offset_1; ctx->savedRep[1] = offset_2;
 
-    static unsigned nbBlocks = 0;
-    printf("nbBlocks : %u \n", ++nbBlocks);
-    if (nbBlocks == 185)
-        printf("@");
-
     /* Last Literals */
     {   size_t const lastLLSize = iend - anchor;
-        if (lastLLSize == 4181)
-            printf("~");
         memcpy(seqStorePtr->lit, anchor, lastLLSize);
         seqStorePtr->lit += lastLLSize;
     }

@@ -710,8 +710,7 @@ static size_t ZDICT_analyzeEntropy(void*  dstBuffer, size_t maxDstSize,
             goto _cleanup;
     }
     if (compressionLevel==0) compressionLevel=g_compressionLevel_default;
-    params.cParams = ZSTD_getCParams(compressionLevel, averageSampleSize, dictBufferSize);
-    params.fParams.contentSizeFlag = 0;
+    params = ZSTD_getParams(compressionLevel, averageSampleSize, dictBufferSize);
 	{	size_t const beginResult = ZSTD_compressBegin_advanced(esr.ref, dictBuffer, dictBufferSize, params, 0);
 		if (ZSTD_isError(beginResult)) {
 			eSize = ERROR(GENERIC);

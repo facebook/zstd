@@ -249,7 +249,7 @@ ZSTD_compressionParameters ZSTD_adjustCParams(ZSTD_compressionParameters cPar, u
 }
 
 
-size_t ZSTD_estimateCCtxSize(ZSTD_compressionParameters cParams, unsigned long long frameContentSize)
+size_t ZSTD_estimateCCtxSize(ZSTD_compressionParameters cParams)
 {
     const size_t blockSize = MIN(ZSTD_BLOCKSIZE_MAX, (size_t)1 << cParams.windowLog);
     const U32    divider = (cParams.searchLength==3) ? 3 : 4;
@@ -258,9 +258,7 @@ size_t ZSTD_estimateCCtxSize(ZSTD_compressionParameters cParams, unsigned long l
 
     const size_t chainSize = (cParams.strategy == ZSTD_fast) ? 0 : (1 << cParams.chainLog);
     const size_t hSize = ((size_t)1) << cParams.hashLog;
-    const U32 hashLog3 = (cParams.searchLength>3) ? 0 :
-                        ( (!frameContentSize || frameContentSize >= 8192) ? ZSTD_HASHLOG3_MAX :
-                          ((frameContentSize >= 2048) ? ZSTD_HASHLOG3_MIN + 1 : ZSTD_HASHLOG3_MIN) );
+    const U32 hashLog3 = (cParams.searchLength>3) ? 0 : MIN(ZSTD_HASHLOG3_MAX, cParams.windowLog);
     const size_t h3Size = ((size_t)1) << hashLog3;
     const size_t tableSpace = (chainSize + hSize + h3Size) * sizeof(U32);
 
@@ -283,9 +281,7 @@ static size_t ZSTD_resetCCtx_advanced (ZSTD_CCtx* zc,
     const size_t tokenSpace = blockSize + 11*maxNbSeq;
     const size_t chainSize = (params.cParams.strategy == ZSTD_fast) ? 0 : (1 << params.cParams.chainLog);
     const size_t hSize = ((size_t)1) << params.cParams.hashLog;
-    const U32 hashLog3 = (params.cParams.searchLength>3) ? 0 :
-                        ( (!frameContentSize || frameContentSize >= 8192) ? ZSTD_HASHLOG3_MAX :
-                          ((frameContentSize >= 2048) ? ZSTD_HASHLOG3_MIN + 1 : ZSTD_HASHLOG3_MIN) );
+    const U32 hashLog3 = (params.cParams.searchLength>3) ? 0 : MIN(ZSTD_HASHLOG3_MAX, params.cParams.windowLog);
     const size_t h3Size = ((size_t)1) << hashLog3;
     const size_t tableSpace = (chainSize + hSize + h3Size) * sizeof(U32);
 

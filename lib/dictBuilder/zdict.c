@@ -514,8 +514,9 @@ static size_t ZDICT_trainBuffer(dictItem* dictList, U32 dictListSize,
 
     /* sort */
     DISPLAYLEVEL(2, "sorting %u files of total size %u MB ...\n", nbFiles, (U32)(bufferSize>>20));
-    { int const divSuftSortResult = divsufsort((const unsigned char*)buffer, suffix, (int)bufferSize, 0);
-      if (divSuftSortResult != 0) { result = ERROR(GENERIC); goto _cleanup; } }
+    {   int const divSuftSortResult = divsufsort((const unsigned char*)buffer, suffix, (int)bufferSize, 0);
+        if (divSuftSortResult != 0) { result = ERROR(GENERIC); goto _cleanup; }
+    }
     suffix[bufferSize] = (int)bufferSize;   /* leads into noise */
     suffix0[0] = (int)bufferSize;           /* leads into noise */
     /* build reverse suffix sort */
@@ -933,7 +934,7 @@ size_t ZDICT_trainFromBuffer_unsafe(
 
     /* init */
     { unsigned u; for (u=0, sBuffSize=0; u<nbSamples; u++) sBuffSize += samplesSizes[u]; }
-    if (sBuffSize < DIB_MINSAMPLESSIZE) return 0;   /* not enough source to create dictionary */
+    if (sBuffSize < DIB_MINSAMPLESSIZE) { free(dictList); return 0; }   /* not enough source to create dictionary */
     ZDICT_initDictItem(dictList);
     g_displayLevel = params.notificationLevel;
     if (selectivity==0) selectivity = g_selectivity_default;

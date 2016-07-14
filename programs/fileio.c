@@ -706,9 +706,11 @@ static int FIO_decompressSrcFile(dRess_t ress, const char* srcFileName)
             }
 #endif
             if (((magic & 0xFFFFFFF0U) != ZSTD_MAGIC_SKIPPABLE_START) && (magic != ZSTD_MAGICNUMBER)) {
-                if (g_overwrite)   /* -df : pass-through mode */
-                    return FIO_passThrough(dstFile, srcFile, ress.srcBuffer, ress.srcBufferSize);
-                else {
+                if (g_overwrite) {  /* -df : pass-through mode */
+                    unsigned const result = FIO_passThrough(dstFile, srcFile, ress.srcBuffer, ress.srcBufferSize);
+                    if (fclose(srcFile)) EXM_THROW(32, "zstd: %s close error", srcFileName);  /* error should never happen */
+                    return result;
+                } else {
                     DISPLAYLEVEL(1, "zstd: %s: not in zstd format \n", srcFileName);
                     fclose(srcFile);
                     return 1;
@@ -721,8 +723,8 @@ static int FIO_decompressSrcFile(dRess_t ress, const char* srcFileName)
     DISPLAYLEVEL(2, "%-20.20s: %llu bytes \n", srcFileName, filesize);
 
     /* Close */
-    if (fclose(srcFile)) EXM_THROW(32, "zstd: %s close error", srcFileName);  /* error should never happen */
-    if (g_removeSrcFile) { if (remove(srcFileName)) EXM_THROW(32, "zstd: %s: %s", srcFileName, strerror(errno)); };
+    if (fclose(srcFile)) EXM_THROW(33, "zstd: %s close error", srcFileName);  /* error should never happen */
+    if (g_removeSrcFile) { if (remove(srcFileName)) EXM_THROW(34, "zstd: %s: %s", srcFileName, strerror(errno)); };
     return 0;
 }
 
@@ -742,7 +744,7 @@ static int FIO_decompressDstFile(dRess_t ress,
     result = FIO_decompressSrcFile(ress, srcFileName);
 
     if (fclose(ress.dstFile)) EXM_THROW(38, "Write error : cannot properly close %s", dstFileName);
-    if (result != 0) remove(dstFileName);
+    if (result != 0) if (remove(dstFileName)) EXM_THROW(39, "remove %s error : %s", dstFileName, strerror(errno));
     return result;
 }
 

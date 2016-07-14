@@ -222,7 +222,7 @@ static size_t BMK_benchParam(BMK_result_t* resultPtr,
         double fastestC = 100000000., fastestD = 100000000.;
         double ratio = 0.;
         U64 crcCheck = 0;
-        time_t const benchStart = clock();
+        clock_t const benchStart = clock();
 
         DISPLAY("\r%79s\r", "");
         memset(&params, 0, sizeof(params));

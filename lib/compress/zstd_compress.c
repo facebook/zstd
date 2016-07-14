@@ -152,7 +152,7 @@ ZSTD_CCtx* ZSTD_createCCtx(void)
 
 ZSTD_CCtx* ZSTD_createCCtx_advanced(ZSTD_customMem customMem)
 {
-    ZSTD_CCtx* ctx;
+    ZSTD_CCtx* cctx;
 
     if (!customMem.customAlloc && !customMem.customFree)
         customMem = defaultCustomMem;
@@ -160,11 +160,11 @@ ZSTD_CCtx* ZSTD_createCCtx_advanced(ZSTD_customMem customMem)
     if (!customMem.customAlloc || !customMem.customFree)
         return NULL;
 
-    ctx = (ZSTD_CCtx*) customMem.customAlloc(customMem.opaque, sizeof(ZSTD_CCtx));
-    if (!ctx) return NULL;
-    memset(ctx, 0, sizeof(ZSTD_CCtx));
-    memcpy(&ctx->customMem, &customMem, sizeof(ZSTD_customMem));
-    return ctx;
+    cctx = (ZSTD_CCtx*) customMem.customAlloc(customMem.opaque, sizeof(ZSTD_CCtx));
+    if (!cctx) return NULL;
+    memset(cctx, 0, sizeof(ZSTD_CCtx));
+    memcpy(&(cctx->customMem), &customMem, sizeof(ZSTD_customMem));
+    return cctx;
 }
 
 size_t ZSTD_freeCCtx(ZSTD_CCtx* cctx)
@@ -2321,8 +2321,15 @@ _storeSequence:
     /* Save reps for next block */
     ctx->savedRep[0] = offset_1; ctx->savedRep[1] = offset_2;
 
+    static unsigned nbBlocks = 0;
+    printf("nbBlocks : %u \n", ++nbBlocks);
+    if (nbBlocks == 185)
+        printf("@");
+
     /* Last Literals */
     {   size_t const lastLLSize = iend - anchor;
+        if (lastLLSize == 4181)
+            printf("~");
         memcpy(seqStorePtr->lit, anchor, lastLLSize);
         seqStorePtr->lit += lastLLSize;
     }

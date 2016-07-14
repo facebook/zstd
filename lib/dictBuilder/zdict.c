@@ -929,8 +929,8 @@ size_t ZDICT_trainFromBuffer_unsafe(
     size_t dictSize = 0;
 
     /* checks */
-    if (maxDictSize <= g_provision_entropySize + g_min_fast_dictContent) return ERROR(dstSize_tooSmall);
     if (!dictList) return ERROR(memory_allocation);
+    if (maxDictSize <= g_provision_entropySize + g_min_fast_dictContent) { free(dictList); return ERROR(dstSize_tooSmall); }
 
     /* init */
     { unsigned u; for (u=0, sBuffSize=0; u<nbSamples; u++) sBuffSize += samplesSizes[u]; }

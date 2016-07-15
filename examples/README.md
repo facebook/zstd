@@ -9,6 +9,10 @@ Zstandard library : usage examples
   Decompress a single file compressed by zstd.
   Introduces usage of : `ZSTD_decompress()`
 
+- [Dictionary compression](dictionary_compression.c)
+  Compress multiple files using the same dictionary.
+  Introduces usage of : `ZSTD_createCDict()` and `ZSTD_compress_usingCDict()`
+
 - [Dictionary decompression](dictionary_decompression.c)
   Decompress multiple files using the same dictionary.
   Introduces usage of : `ZSTD_createDDict()` and `ZSTD_decompress_usingDDict()`

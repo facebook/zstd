@@ -653,8 +653,8 @@ static size_t ZSTD_compressLiterals (ZSTD_CCtx* zc,
         singleStream = 1;
         cLitSize = HUF_compress1X_usingCTable(ostart+lhSize, dstCapacity-lhSize, src, srcSize, zc->hufTable);
     } else {
-        cLitSize = singleStream ? HUF_compress1X(ostart+lhSize, dstCapacity-lhSize, src, srcSize, 255, 12)
-                                : HUF_compress2 (ostart+lhSize, dstCapacity-lhSize, src, srcSize, 255, 12);
+        cLitSize = singleStream ? HUF_compress1X(ostart+lhSize, dstCapacity-lhSize, src, srcSize, 255, 11)
+                                : HUF_compress2 (ostart+lhSize, dstCapacity-lhSize, src, srcSize, 255, 11);
     }
 
     if ((cLitSize==0) | (cLitSize >= srcSize - minGain))

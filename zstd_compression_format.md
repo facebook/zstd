@@ -1149,8 +1149,9 @@ __Dict_ID__ : 4 bytes, stored in Little Endian format.
               any dictionary ID can be used.
               However, for public distribution of compressed frames,
               some ranges are reserved for future use :
-              - low : 1 - 32767 : reserved
-              - high : >= (2^31) : reserved
+
+              - low range : 1 - 32767 : reserved
+              - high range : >= (2^31) : reserved
 
 __Stats__ : Entropy tables, following the same format as a [compressed blocks].
             They are stored in following order :
@@ -1167,5 +1168,5 @@ __Content__ : Where the actual dictionary content is.
 
 Version changes
 ---------------
-0.1.1 reserved dictID ranges
-0.1.0 initial release
+- 0.1.1 reserved dictID ranges
+- 0.1.0 initial release

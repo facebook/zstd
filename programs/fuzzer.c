@@ -321,8 +321,8 @@ static int basicUnitTests(U32 seed, double compressibility)
     /* block API tests */
     {   ZSTD_CCtx* const cctx = ZSTD_createCCtx();
         ZSTD_DCtx* const dctx = ZSTD_createDCtx();
-        static const size_t blockSize = 100 KB;
-        static const size_t dictSize = 16 KB;
+        static const size_t dictSize = 65 KB;
+        static const size_t blockSize = 100 KB;   /* won't cause pb with small dict size */
         size_t cSize2;
 
         /* basic block compression */

@@ -441,7 +441,7 @@ ZSTDLIB_API size_t ZSTD_decompressContinue(ZSTD_DCtx* dctx, void* dst, size_t ds
     User will have to take in charge required information to regenerate data, such as compressed and content sizes.
 
     A few rules to respect :
-    - Uncompressed block size must be <= ZSTD_BLOCKSIZE_MAX (128 KB)
+    - Uncompressed block size must be <= MIN (128 KB, 1 << windowLog)
       + If you need to compress more, cut data into multiple blocks
       + Consider using the regular ZSTD_compress() instead, as frame metadata costs become negligible when source size is large.
     - Compressing and decompressing require a context structure

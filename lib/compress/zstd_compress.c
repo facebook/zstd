@@ -274,9 +274,9 @@ size_t ZSTD_estimateCCtxSize(ZSTD_compressionParameters cParams)
     note : 'params' is expected to be validated */
 static size_t ZSTD_resetCCtx_advanced (ZSTD_CCtx* zc,
                                        ZSTD_parameters params, U64 frameContentSize,
-                                       U32 reset, U32 fullBlockSize)
+                                       U32 reset)
 {   /* note : params considered validated here */
-    const size_t blockSize = fullBlockSize ? ZSTD_BLOCKSIZE_MAX : MIN(ZSTD_BLOCKSIZE_MAX, (size_t)1 << params.cParams.windowLog);
+    const size_t blockSize = MIN(ZSTD_BLOCKSIZE_MAX, (size_t)1 << params.cParams.windowLog);
     const U32    divider = (params.cParams.searchLength==3) ? 3 : 4;
     const size_t maxNbSeq = blockSize / divider;
     const size_t tokenSpace = blockSize + 11*maxNbSeq;
@@ -358,7 +358,7 @@ size_t ZSTD_copyCCtx(ZSTD_CCtx* dstCCtx, const ZSTD_CCtx* srcCCtx)
     if (srcCCtx->stage!=1) return ERROR(stage_wrong);
 
     memcpy(&dstCCtx->customMem, &srcCCtx->customMem, sizeof(ZSTD_customMem));
-    ZSTD_resetCCtx_advanced(dstCCtx, srcCCtx->params, srcCCtx->frameContentSize, 0, 1);
+    ZSTD_resetCCtx_advanced(dstCCtx, srcCCtx->params, srcCCtx->frameContentSize, 0);
     dstCCtx->params.fParams.contentSizeFlag = 0;   /* content size different from the one set during srcCCtx init */
 
     /* copy tables */
@@ -2560,7 +2560,8 @@ size_t ZSTD_compressContinue (ZSTD_CCtx* zc,
 
 size_t ZSTD_compressBlock(ZSTD_CCtx* zc, void* dst, size_t dstCapacity, const void* src, size_t srcSize)
 {
-    if (srcSize > ZSTD_BLOCKSIZE_MAX) return ERROR(srcSize_wrong);
+    size_t const blockSizeMax = MIN (ZSTD_BLOCKSIZE_MAX, 1 << zc->params.cParams.windowLog);
+    if (srcSize > blockSizeMax) return ERROR(srcSize_wrong);
     ZSTD_LOG_BLOCK("%p: ZSTD_compressBlock searchLength=%d\n", zc->base, zc->params.cParams.searchLength);
     return ZSTD_compressContinue_internal(zc, dst, dstCapacity, src, srcSize, 0);
 }
@@ -2695,7 +2696,7 @@ static size_t ZSTD_compressBegin_internal(ZSTD_CCtx* zc,
                              const void* dict, size_t dictSize,
                                    ZSTD_parameters params, U64 pledgedSrcSize)
 {
-    size_t const resetError = ZSTD_resetCCtx_advanced(zc, params, pledgedSrcSize, 1, (pledgedSrcSize==0) );
+    size_t const resetError = ZSTD_resetCCtx_advanced(zc, params, pledgedSrcSize, 1);
     if (ZSTD_isError(resetError)) return resetError;
 
     return ZSTD_compress_insertDictionary(zc, dict, dictSize);

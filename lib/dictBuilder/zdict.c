@@ -581,13 +581,14 @@ typedef struct
 
 #define MAXREPOFFSET 1024
 
-static void ZDICT_countEStats(EStats_ress_t esr,
+static void ZDICT_countEStats(EStats_ress_t esr, ZSTD_parameters params,
                             U32* countLit, U32* offsetcodeCount, U32* matchlengthCount, U32* litlengthCount, U32* repOffsets,
                             const void* src, size_t srcSize)
 {
+    size_t const blockSizeMax = MIN (ZSTD_BLOCKSIZE_MAX, 1 << params.cParams.windowLog);
     size_t cSize;
 
-    if (srcSize > ZSTD_BLOCKSIZE_MAX) srcSize = ZSTD_BLOCKSIZE_MAX;   /* protection vs large samples */
+    if (srcSize > blockSizeMax) srcSize = blockSizeMax;   /* protection vs large samples */
 	{	size_t const errorCode = ZSTD_copyCCtx(esr.zc, esr.ref);
 		if (ZSTD_isError(errorCode)) { DISPLAYLEVEL(1, "warning : ZSTD_copyCCtx failed \n"); return; }
 	}
@@ -721,7 +722,7 @@ static size_t ZDICT_analyzeEntropy(void*  dstBuffer, size_t maxDstSize,
 
     /* collect stats on all files */
     for (u=0; u<nbFiles; u++) {
-        ZDICT_countEStats(esr,
+        ZDICT_countEStats(esr, params,
                         countLit, offcodeCount, matchLengthCount, litLengthCount, repOffset,
            (const char*)srcBuffer + pos, fileSizes[u]);
         pos += fileSizes[u];

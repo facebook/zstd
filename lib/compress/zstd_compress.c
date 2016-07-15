@@ -2695,7 +2695,7 @@ static size_t ZSTD_compressBegin_internal(ZSTD_CCtx* zc,
                              const void* dict, size_t dictSize,
                                    ZSTD_parameters params, U64 pledgedSrcSize)
 {
-    size_t const resetError = ZSTD_resetCCtx_advanced(zc, params, pledgedSrcSize, 1, 0);
+    size_t const resetError = ZSTD_resetCCtx_advanced(zc, params, pledgedSrcSize, 1, (pledgedSrcSize==0) );
     if (ZSTD_isError(resetError)) return resetError;
 
     return ZSTD_compress_insertDictionary(zc, dict, dictSize);

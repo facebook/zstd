@@ -209,7 +209,7 @@ static int basicUnitTests(U32 seed, double compressibility)
                       cSize += r);
             CHECKPLUS(r, ZSTD_compressEnd(ctxDuplicated, (char*)compressedBuffer+cSize, ZSTD_compressBound(CNBuffSize)-cSize),
                       cSize += r);
-            if (cSize != cSizeOrig) goto _output_error;   /* should be identical ==> have same size */
+            if (cSize != cSizeOrig) goto _output_error;   /* should be identical ==> same size */
         }
         DISPLAYLEVEL(4, "OK (%u bytes : %.2f%%)\n", (U32)cSize, (double)cSize/CNBuffSize*100);
 

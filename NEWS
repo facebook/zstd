@@ -1,6 +1,6 @@
 v0.7.4
 Added : new examples
-Fixed : segfault when using small dictionaries
+Fixed : segfault when using small dictionaries, reported by Felix Handte
 Modified : default compression level for CLI is 3
 
 

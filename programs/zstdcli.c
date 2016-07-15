@@ -264,7 +264,7 @@ int main(int argCount, const char** argv)
             if (!strcmp(argument, "--force")) {  FIO_overwriteMode(); continue; }
             if (!strcmp(argument, "--version")) { displayOut=stdout; DISPLAY(WELCOME_MESSAGE); CLEAN_RETURN(0); }
             if (!strcmp(argument, "--help")) { displayOut=stdout; CLEAN_RETURN(usage_advanced(programName)); }
-            if (!strcmp(argument, "--verbose")) { displayLevel=4; continue; }
+            if (!strcmp(argument, "--verbose")) { displayLevel++; continue; }
             if (!strcmp(argument, "--quiet")) { displayLevel--; continue; }
             if (!strcmp(argument, "--stdout")) { forceStdout=1; outFileName=stdoutmark; displayLevel-=(displayLevel==2); continue; }
             if (!strcmp(argument, "--ultra")) { FIO_setMaxWLog(0); continue; }
@@ -325,7 +325,7 @@ int main(int argCount, const char** argv)
                     case 'f': FIO_overwriteMode(); forceStdout=1; argument++; break;
 
                         /* Verbose mode */
-                    case 'v': displayLevel=4; argument++; break;
+                    case 'v': displayLevel++; argument++; break;
 
                         /* Quiet mode */
                     case 'q': displayLevel--; argument++; break;

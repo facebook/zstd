@@ -30,7 +30,8 @@ LDFLAGS+= -lzstd
 
 default: all
 
-all: simple_compression simple_decompression dictionary_decompression
+all: simple_compression simple_decompression \
+	dictionary_compression dictionary_decompression
 
 simple_compression : simple_compression.c
 	$(CC) $(CPPFLAGS) $(CFLAGS) $^ $(LDFLAGS) -o $@
@@ -38,12 +39,16 @@ simple_compression : simple_compression.c
 simple_decompression : simple_decompression.c
 	$(CC) $(CPPFLAGS) $(CFLAGS) $^ $(LDFLAGS) -o $@
 
+dictionary_compression : dictionary_compression.c
+	$(CC) $(CPPFLAGS) $(CFLAGS) $^ $(LDFLAGS) -o $@
+
 dictionary_decompression : dictionary_decompression.c
 	$(CC) $(CPPFLAGS) $(CFLAGS) $^ $(LDFLAGS) -o $@
 
 clean:
 	@rm -f core *.o tmp* result* *.zst \
-        simple_compression simple_decompression dictionary_decompression
+        simple_compression simple_decompression \
+		dictionary_compression dictionary_decompression
 	@echo Cleaning completed
 
 test: all

@@ -657,7 +657,7 @@ static size_t ZSTD_compressLiterals (ZSTD_CCtx* zc,
                                 : HUF_compress2 (ostart+lhSize, dstCapacity-lhSize, src, srcSize, 255, 12);
     }
 
-    if ((cLitSize==0) || (cLitSize >= srcSize - minGain))
+    if ((cLitSize==0) | (cLitSize >= srcSize - minGain))
         return ZSTD_noCompressLiterals(dst, dstCapacity, src, srcSize);
     if (cLitSize==1)
         return ZSTD_compressRleLiteralsBlock(dst, dstCapacity, src, srcSize);

@@ -41,7 +41,7 @@ else
 VOID = /dev/null
 endif
 
-.PHONY: default all zlibwrapper zstdprogram clean install uninstall travis-install test clangtest gpptest armtest usan asan uasan
+.PHONY: default all zlibwrapper zstdprogram zstd clean install uninstall travis-install test clangtest gpptest armtest usan asan uasan
 
 default: zstdprogram
 
@@ -52,6 +52,8 @@ all:
 zstdprogram:
 	$(MAKE) -C $(PRGDIR)
 	cp $(PRGDIR)/zstd .
+
+zstd: zstdprogram
 
 zlibwrapper:
 	$(MAKE) -C $(ZSTDDIR) all

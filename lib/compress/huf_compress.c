@@ -535,6 +535,7 @@ static size_t HUF_compress_internal (
     {   size_t const hSize = HUF_writeCTable (op, dstSize, CTable, maxSymbolValue, huffLog);
         if (HUF_isError(hSize)) return hSize;
         if (hSize + 12 >= srcSize) return 0;   /* not useful to try compression */
+        //static U64 totalHSize = 0; static U32 nbHSize = 0; totalHSize += hSize; nbHSize++; if ((nbHSize & 63) == 1) printf("average : %6.3f \n", (double)totalHSize / nbHSize);
         op += hSize;
     }
 

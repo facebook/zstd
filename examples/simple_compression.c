@@ -24,7 +24,7 @@
 */
 
 #include <stdlib.h>    // malloc, exit
-#include <stdio.h>     // printf
+#include <stdio.h>     // fprintf, perror
 #include <string.h>    // strerror
 #include <errno.h>     // errno
 #include <sys/stat.h>  // stat
@@ -36,7 +36,7 @@ static off_t fsize_X(const char *filename)
     struct stat st;
     if (stat(filename, &st) == 0) return st.st_size;
     /* error */
-    printf("stat: %s : %s \n", filename, strerror(errno));
+    perror(filename);
     exit(1);
 }
 
@@ -45,7 +45,7 @@ static FILE* fopen_X(const char *filename, const char *instruction)
     FILE* const inFile = fopen(filename, instruction);
     if (inFile) return inFile;
     /* error */
-    printf("fopen: %s : %s \n", filename, strerror(errno));
+    perror(filename);
     exit(2);
 }
 
@@ -54,7 +54,7 @@ static void* malloc_X(size_t size)
     void* const buff = malloc(size);
     if (buff) return buff;
     /* error */
-    printf("malloc: %s \n", strerror(errno));
+    perror(NULL);
     exit(3);
 }
 
@@ -65,7 +65,7 @@ static void* loadFile_X(const char* fileName, size_t* size)
     void* const buffer = malloc_X(buffSize);
     size_t const readSize = fread(buffer, 1, buffSize, inFile);
     if (readSize != (size_t)buffSize) {
-        printf("fread: %s : %s \n", fileName, strerror(errno));
+        fprintf(stderr, "fread: %s : %s \n", fileName, strerror(errno));
         exit(4);
     }
     fclose(inFile);
@@ -79,12 +79,11 @@ static void saveFile_X(const char* fileName, const void* buff, size_t buffSize)
     FILE* const oFile = fopen_X(fileName, "wb");
     size_t const wSize = fwrite(buff, 1, buffSize, oFile);
     if (wSize != (size_t)buffSize) {
-        printf("fwrite: %s : %s \n", fileName, strerror(errno));
+        fprintf(stderr, "fwrite: %s : %s \n", fileName, strerror(errno));
         exit(5);
     }
-    size_t const closeError = fclose(oFile);
-    if (closeError) {
-        printf("fclose: %s : %s \n", fileName, strerror(errno));
+    if (fclose(oFile)) {
+        perror(fileName);
         exit(6);
     }
 }
@@ -99,7 +98,7 @@ static void compress(const char* fname, const char* oname)
 
     size_t const cSize = ZSTD_compress(cBuff, cBuffSize, fBuff, fSize, 1);
     if (ZSTD_isError(cSize)) {
-        printf("error compressing %s : %s \n", fname, ZSTD_getErrorName(cSize));
+        fprintf(stderr, "error compressing %s : %s \n", fname, ZSTD_getErrorName(cSize));
         exit(7);
     }
 

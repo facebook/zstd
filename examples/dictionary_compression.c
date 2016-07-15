@@ -36,7 +36,7 @@ static off_t fsize_X(const char *filename)
     struct stat st;
     if (stat(filename, &st) == 0) return st.st_size;
     /* error */
-    printf("stat: %s : %s \n", filename, strerror(errno));
+    perror(filename);
     exit(1);
 }
 
@@ -45,7 +45,7 @@ static FILE* fopen_X(const char *filename, const char *instruction)
     FILE* const inFile = fopen(filename, instruction);
     if (inFile) return inFile;
     /* error */
-    printf("fopen: %s : %s \n", filename, strerror(errno));
+    perror(filename);
     exit(2);
 }
 
@@ -54,7 +54,7 @@ static void* malloc_X(size_t size)
     void* const buff = malloc(size);
     if (buff) return buff;
     /* error */
-    printf("malloc: %s \n", strerror(errno));
+    perror(NULL);
     exit(3);
 }
 
@@ -65,7 +65,7 @@ static void* loadFile_X(const char* fileName, size_t* size)
     void* const buffer = malloc_X(buffSize);
     size_t const readSize = fread(buffer, 1, buffSize, inFile);
     if (readSize != (size_t)buffSize) {
-        printf("fread: %s : %s \n", fileName, strerror(errno));
+        fprintf(stderr, "fread: %s : %s \n", fileName, strerror(errno));
         exit(4);
     }
     fclose(inFile);
@@ -73,64 +73,91 @@ static void* loadFile_X(const char* fileName, size_t* size)
     return buffer;
 }
 
+static void saveFile_X(const char* fileName, const void* buff, size_t buffSize)
+{
+    FILE* const oFile = fopen_X(fileName, "wb");
+    size_t const wSize = fwrite(buff, 1, buffSize, oFile);
+    if (wSize != (size_t)buffSize) {
+        fprintf(stderr, "fwrite: %s : %s \n", fileName, strerror(errno));
+        exit(5);
+    }
+    if (fclose(oFile)) {
+        perror(fileName);
+        exit(6);
+    }
+}
+
 /* createDict() :
    `dictFileName` is supposed to have been created using `zstd --train` */
-static const ZSTD_DDict* createDict(const char* dictFileName)
+static const ZSTD_CDict* createDict(const char* dictFileName)
 {
     size_t dictSize;
     printf("loading dictionary %s \n", dictFileName);
     void* const dictBuffer = loadFile_X(dictFileName, &dictSize);
-    const ZSTD_DDict* const ddict = ZSTD_createDDict(dictBuffer, dictSize);
+    const ZSTD_CDict* const ddict = ZSTD_createCDict(dictBuffer, dictSize, 3);
     free(dictBuffer);
     return ddict;
 }
 
 
-static void decompress(const char* fname, const ZSTD_DDict* ddict)
+static void compress(const char* fname, const char* oname, const ZSTD_CDict* cdict)
 {
-    size_t cSize;
-    void* const cBuff = loadFile_X(fname, &cSize);
-    unsigned long long const rSize = ZSTD_getDecompressedSize(cBuff, cSize);
-    if (rSize==0) {
-        printf("%s : original size unknown \n", fname);
-        exit(5);
-    }
-    void* const rBuff = malloc_X(rSize);
+    size_t fSize;
+    void* const fBuff = loadFile_X(fname, &fSize);
+    size_t const cBuffSize = ZSTD_compressBound(fSize);
+    void* const cBuff = malloc_X(cBuffSize);
 
-    ZSTD_DCtx* const dctx = ZSTD_createDCtx();
-    size_t const dSize = ZSTD_decompress_usingDDict(dctx, rBuff, rSize, cBuff, cSize, ddict);
-
-    if (dSize != rSize) {
-        printf("error decoding %s : %s \n", fname, ZSTD_getErrorName(dSize));
+    ZSTD_CCtx* const cctx = ZSTD_createCCtx();
+    size_t const cSize = ZSTD_compress_usingCDict(cctx, cBuff, cBuffSize, fBuff, fSize, cdict);
+    if (ZSTD_isError(cSize)) {
+        fprintf(stderr, "error compressing %s : %s \n", fname, ZSTD_getErrorName(cSize));
         exit(7);
     }
 
-    /* success */
-    printf("%25s : %6u -> %7u \n", fname, (unsigned)cSize, (unsigned)rSize);
+    saveFile_X(oname, cBuff, cSize);
 
-    ZSTD_freeDCtx(dctx);
-    free(rBuff);
+    /* success */
+    printf("%25s : %6u -> %7u - %s \n", fname, (unsigned)fSize, (unsigned)cSize, oname);
+
+    ZSTD_freeCCtx(cctx);
+    free(fBuff);
     free(cBuff);
 }
 
+
+static char* createOutFilename(const char* filename)
+{
+    size_t const inL = strlen(filename);
+    size_t const outL = inL + 5;
+    void* outSpace = malloc_X(outL);
+    memset(outSpace, 0, outL);
+    strcat(outSpace, filename);
+    strcat(outSpace, ".zst");
+    return (char*)outSpace;
+}
 
 int main(int argc, const char** argv)
 {
     const char* const exeName = argv[0];
 
     if (argc<3) {
-        printf("wrong arguments\n");
-        printf("usage:\n");
-        printf("%s [FILES] dictionary\n", exeName);
+        fprintf(stderr, "wrong arguments\n");
+        fprintf(stderr, "usage:\n");
+        fprintf(stderr, "%s [FILES] dictionary\n", exeName);
         return 1;
     }
 
     /* load dictionary only once */
     const char* const dictName = argv[argc-1];
-    const ZSTD_DDict* const dictPtr = createDict(dictName);
+    const ZSTD_CDict* const dictPtr = createDict(dictName);
 
     int u;
-    for (u=1; u<argc-1; u++) decompress(argv[u], dictPtr);
+    for (u=1; u<argc-1; u++) {
+        const char* inFilename = argv[u];
+        char* const outFilename = createOutFilename(inFilename);
+        compress(inFilename, outFilename, dictPtr);
+        free(outFilename);
+    }
 
-    printf("All %u files correctly decoded (in memory) \n", argc-2);
+    printf("All %u files compressed. \n", argc-2);
 }

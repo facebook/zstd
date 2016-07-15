@@ -16,7 +16,7 @@ Distribution of this document is unlimited.
 
 ### Version
 
-0.1.0 (08/07/16)
+0.1.1 (15/07/16)
 
 
 Introduction
@@ -258,9 +258,9 @@ depending on local limitations.
 
 __Dictionary ID__
 
-This is a variable size field, which contains an ID.
-It checks if the correct dictionary is used for decoding.
-Note that this field is optional. If it's not present,
+This is a variable size field, which contains
+the ID of the dictionary required to properly decode the frame.
+Note that this field is optional. When it's not present,
 it's up to the caller to make sure it uses the correct dictionary.
 
 Field size depends on __Dictionary ID flag__.
@@ -270,6 +270,15 @@ Field size depends on __Dictionary ID flag__.
 
 It's allowed to represent a small ID (for example `13`)
 with a large 4-bytes dictionary ID, losing some compacity in the process.
+
+_Reserved ranges :_
+If the frame is going to be distributed in a private environment,
+any dictionary ID can be used.
+However, for public distribution of compressed frames using a dictionary,
+some ranges are reserved for future use :
+- low : 1 - 32767 : reserved
+- high : >= (2^31) : reserved
+
 
 __Frame Content Size__
 
@@ -1136,6 +1145,13 @@ __Header__ : 4 bytes ID, value 0xEC30A437, Little Endian format
 __Dict_ID__ : 4 bytes, stored in Little Endian format.
               DictID can be any value, except 0 (which means no DictID).
               It's used by decoders to check if they use the correct dictionary.
+              _Reserved ranges :_
+              If the frame is going to be distributed in a private environment,
+              any dictionary ID can be used.
+              However, for public distribution of compressed frames,
+              some ranges are reserved for future use :
+              - low : 1 - 32767 : reserved
+              - high : >= (2^31) : reserved
 
 __Stats__ : Entropy tables, following the same format as a [compressed blocks].
             They are stored in following order :
@@ -1152,4 +1168,5 @@ __Content__ : Where the actual dictionary content is.
 
 Version changes
 ---------------
+0.1.1 reserved dictID ranges
 0.1.0 initial release

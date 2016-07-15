@@ -894,7 +894,8 @@ size_t ZDICT_addEntropyTablesFromBuffer_advanced(void* dictBuffer, size_t dictCo
     /* dictionary header */
     MEM_writeLE32(dictBuffer, ZSTD_DICT_MAGIC);
     {   U64 const randomID = XXH64((char*)dictBuffer + dictBufferCapacity - dictContentSize, dictContentSize, 0);
-        U32 const dictID = params.dictID ? params.dictID : (U32)(randomID>>11);
+        U32 const compliantID = (randomID % ((1U<<31)-32768)) + 32768;
+        U32 const dictID = params.dictID ? params.dictID : compliantID;
         MEM_writeLE32((char*)dictBuffer+4, dictID);
     }
     hSize = 8;
@@ -911,6 +912,7 @@ size_t ZDICT_addEntropyTablesFromBuffer_advanced(void* dictBuffer, size_t dictCo
         memmove((char*)dictBuffer + hSize, (char*)dictBuffer + dictBufferCapacity - dictContentSize, dictContentSize);
     return MIN(dictBufferCapacity, hSize+dictContentSize);
 }
+
 
 #define DIB_MINSAMPLESSIZE (DIB_FASTSEGMENTSIZE*3)
 /*! ZDICT_trainFromBuffer_unsafe() :

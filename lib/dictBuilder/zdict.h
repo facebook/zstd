@@ -84,10 +84,6 @@ const char* ZDICT_getErrorName(size_t errorCode);
  * Use them only in association with static linking.
  * ==================================================================================== */
 
-
-/*-*************************************
-*  Public type
-***************************************/
 typedef struct {
     unsigned selectivityLevel;   /* 0 means default; larger => bigger selection => larger dictionary */
     unsigned compressionLevel;   /* 0 means default; target a specific zstd compression level */
@@ -97,9 +93,6 @@ typedef struct {
 } ZDICT_params_t;
 
 
-/*-*************************************
-*  Public functions
-***************************************/
 /*! ZDICT_trainFromBuffer_advanced() :
     Same as ZDICT_trainFromBuffer() with control over more parameters.
     `parameters` is optional and can be provided with values set to 0 to mean "default".
@@ -117,4 +110,4 @@ size_t ZDICT_trainFromBuffer_advanced(void* dictBuffer, size_t dictBufferCapacit
 }
 #endif
 
-#endif
+#endif   /* DICTBUILDER_H_001 */

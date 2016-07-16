@@ -273,11 +273,10 @@ typedef struct {
 static cRess_t FIO_createCResources(const char* dictFileName)
 {
     cRess_t ress;
+    memset(&ress, 0, sizeof(ress));
 
     ress.ctx = ZBUFF_createCCtx();
     if (ress.ctx == NULL) EXM_THROW(30, "zstd: allocation error : can't create ZBUFF context");
-
-    /* Allocate Memory */
     ress.srcBufferSize = ZBUFF_recommendedCInSize();
     ress.srcBuffer = malloc(ress.srcBufferSize);
     ress.dstBufferSize = ZBUFF_recommendedCOutSize();
@@ -330,7 +329,6 @@ static int FIO_compressFilename_internal(cRess_t ress,
     }   }
 
     /* Main compression loop */
-    readsize = 0;
     while (1) {
         /* Fill input Buffer */
         size_t const inSize = fread(ress.srcBuffer, (size_t)1, ress.srcBufferSize, srcFile);
@@ -338,8 +336,8 @@ static int FIO_compressFilename_internal(cRess_t ress,
         readsize += inSize;
         DISPLAYUPDATE(2, "\rRead : %u MB  ", (U32)(readsize>>20));
 
-        {   /* Compress using buffered streaming */
-            size_t usedInSize = inSize;
+        /* Compress using buffered streaming */
+        {   size_t usedInSize = inSize;
             size_t cSize = ress.dstBufferSize;
             { size_t const result = ZBUFF_compressContinue(ress.ctx, ress.dstBuffer, &cSize, ress.srcBuffer, &usedInSize);
               if (ZBUFF_isError(result)) EXM_THROW(23, "Compression error : %s ", ZBUFF_getErrorName(result)); }
@@ -366,10 +364,12 @@ static int FIO_compressFilename_internal(cRess_t ress,
     }
 
     /* Status */
+    if (strlen(srcFileName) > 20) srcFileName += strlen(srcFileName)-20; /* display last 20 characters */
     DISPLAYLEVEL(2, "\r%79s\r", "");
-    DISPLAYLEVEL(2,"%-20.20s :%6.2f%%   (%6llu =>%6llu bytes, %s) \n", srcFileName,
-        (double)compressedfilesize/readsize*100, (unsigned long long)readsize, (unsigned long long) compressedfilesize,
-                 dstFileName);
+    DISPLAYLEVEL(2,"%-20.20s :%6.2f%%   (%6llu => %6llu bytes, %s) \n", srcFileName,
+        (double)compressedfilesize/(readsize+(!readsize) /* avoid div by zero */ )*100,
+        (unsigned long long)readsize, (unsigned long long) compressedfilesize,
+         dstFileName);
 
     return 0;
 }
@@ -397,7 +397,7 @@ static int FIO_compressFilename_srcFile(cRess_t ress,
     result = FIO_compressFilename_internal(ress, dstFileName, srcFileName, cLevel);
 
     fclose(ress.srcFile);
-    if ((g_removeSrcFile) && (!result)) remove(srcFileName);
+    if ((g_removeSrcFile) && (!result)) { if (remove(srcFileName)) EXM_THROW(1, "zstd: %s: %s", srcFileName, strerror(errno)); }
     return result;
 }
 
@@ -418,7 +418,7 @@ static int FIO_compressFilename_dstFile(cRess_t ress,
     result = FIO_compressFilename_srcFile(ress, dstFileName, srcFileName, cLevel);
 
     if (fclose(ress.dstFile)) { DISPLAYLEVEL(1, "zstd: %s: %s \n", dstFileName, strerror(errno)); result=1; }
-    if (result!=0) remove(dstFileName);   /* remove operation artefact */
+    if (result!=0) { if (remove(dstFileName)) EXM_THROW(1, "zstd: %s: %s", dstFileName, strerror(errno)); }  /* remove operation artefact */
     return result;
 }
 
@@ -444,13 +444,14 @@ int FIO_compressMultipleFilenames(const char** inFileNamesTable, unsigned nbFile
                                   const char* dictFileName, int compressionLevel)
 {
     int missed_files = 0;
-    char*  dstFileName = (char*)malloc(FNSPACE);
     size_t dfnSize = FNSPACE;
+    char*  dstFileName = (char*)malloc(FNSPACE);
     size_t const suffixSize = suffix ? strlen(suffix) : 0;
-    cRess_t ress;
+    cRess_t ress = FIO_createCResources(dictFileName);
 
     /* init */
-    ress = FIO_createCResources(dictFileName);
+    if (dstFileName==NULL) EXM_THROW(27, "FIO_compressMultipleFilenames : allocation error for dstFileName");
+    if (suffix == NULL) EXM_THROW(28, "FIO_compressMultipleFilenames : dst unknown");  /* should never happen */
 
     /* loop on each file */
     if (!strcmp(suffix, stdoutmark)) {
@@ -502,12 +503,11 @@ typedef struct {
 static dRess_t FIO_createDResources(const char* dictFileName)
 {
     dRess_t ress;
+    memset(&ress, 0, sizeof(ress));
 
-    /* init */
+    /* Allocation */
     ress.dctx = ZBUFF_createDCtx();
     if (ress.dctx==NULL) EXM_THROW(60, "Can't create ZBUFF decompression context");
-
-    /* Allocate Memory */
     ress.srcBufferSize = ZBUFF_recommendedDInSize();
     ress.srcBuffer = malloc(ress.srcBufferSize);
     ress.dstBufferSize = ZBUFF_recommendedDOutSize();
@@ -706,10 +706,13 @@ static int FIO_decompressSrcFile(dRess_t ress, const char* srcFileName)
             }
 #endif
             if (((magic & 0xFFFFFFF0U) != ZSTD_MAGIC_SKIPPABLE_START) && (magic != ZSTD_MAGICNUMBER)) {
-                if (g_overwrite)   /* -df : pass-through mode */
-                    return FIO_passThrough(dstFile, srcFile, ress.srcBuffer, ress.srcBufferSize);
-                else {
+                if (g_overwrite) {  /* -df : pass-through mode */
+                    unsigned const result = FIO_passThrough(dstFile, srcFile, ress.srcBuffer, ress.srcBufferSize);
+                    if (fclose(srcFile)) EXM_THROW(32, "zstd: %s close error", srcFileName);  /* error should never happen */
+                    return result;
+                } else {
                     DISPLAYLEVEL(1, "zstd: %s: not in zstd format \n", srcFileName);
+                    fclose(srcFile);
                     return 1;
         }   }   }
         filesize += FIO_decompressFrame(ress, dstFile, srcFile, toRead);
@@ -720,8 +723,8 @@ static int FIO_decompressSrcFile(dRess_t ress, const char* srcFileName)
     DISPLAYLEVEL(2, "%-20.20s: %llu bytes \n", srcFileName, filesize);
 
     /* Close */
-    fclose(srcFile);
-    if (g_removeSrcFile) remove(srcFileName);
+    if (fclose(srcFile)) EXM_THROW(33, "zstd: %s close error", srcFileName);  /* error should never happen */
+    if (g_removeSrcFile) { if (remove(srcFileName)) EXM_THROW(34, "zstd: %s: %s", srcFileName, strerror(errno)); };
     return 0;
 }
 
@@ -741,7 +744,7 @@ static int FIO_decompressDstFile(dRess_t ress,
     result = FIO_decompressSrcFile(ress, srcFileName);
 
     if (fclose(ress.dstFile)) EXM_THROW(38, "Write error : cannot properly close %s", dstFileName);
-    if (result != 0) remove(dstFileName);
+    if (result != 0) if (remove(dstFileName)) EXM_THROW(39, "remove %s error : %s", dstFileName, strerror(errno));
     return result;
 }
 
@@ -768,19 +771,21 @@ int FIO_decompressMultipleFilenames(const char** srcNamesTable, unsigned nbFiles
     int missingFiles = 0;
     dRess_t ress = FIO_createDResources(dictFileName);
 
+    if (suffix==NULL) EXM_THROW(70, "zstd: decompression: unknown dst");   /* should never happen */
+
     if (!strcmp(suffix, stdoutmark) || !strcmp(suffix, nulmark)) {
         unsigned u;
         ress.dstFile = FIO_openDstFile(suffix);
         if (ress.dstFile == 0) EXM_THROW(71, "cannot open %s", suffix);
         for (u=0; u<nbFiles; u++)
             missingFiles += FIO_decompressSrcFile(ress, srcNamesTable[u]);
-        if (fclose(ress.dstFile)) EXM_THROW(39, "Write error : cannot properly close %s", stdoutmark);
+        if (fclose(ress.dstFile)) EXM_THROW(72, "Write error : cannot properly close %s", stdoutmark);
     } else {
-        size_t const suffixSize = suffix ? strlen(suffix) : 0;
+        size_t const suffixSize = strlen(suffix);
         size_t dfnSize = FNSPACE;
         unsigned u;
         char* dstFileName = (char*)malloc(FNSPACE);
-        if (dstFileName==NULL) EXM_THROW(70, "not enough memory for dstFileName");
+        if (dstFileName==NULL) EXM_THROW(73, "not enough memory for dstFileName");
         for (u=0; u<nbFiles; u++) {   /* create dstFileName */
             const char* const srcFileName = srcNamesTable[u];
             size_t const sfnSize = strlen(srcFileName);
@@ -789,7 +794,7 @@ int FIO_decompressMultipleFilenames(const char** srcNamesTable, unsigned nbFiles
                 free(dstFileName);
                 dfnSize = sfnSize + 20;
                 dstFileName = (char*)malloc(dfnSize);
-                if (dstFileName==NULL) EXM_THROW(71, "not enough memory for dstFileName");
+                if (dstFileName==NULL) EXM_THROW(74, "not enough memory for dstFileName");
             }
             if (sfnSize <= suffixSize || strcmp(suffixPtr, suffix) != 0) {
                 DISPLAYLEVEL(1, "zstd: %s: unknown suffix (%4s expected) -- ignored \n", srcFileName, suffix);

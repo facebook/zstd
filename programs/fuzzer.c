@@ -209,7 +209,7 @@ static int basicUnitTests(U32 seed, double compressibility)
                       cSize += r);
             CHECKPLUS(r, ZSTD_compressEnd(ctxDuplicated, (char*)compressedBuffer+cSize, ZSTD_compressBound(CNBuffSize)-cSize),
                       cSize += r);
-            if (cSize != cSizeOrig) goto _output_error;   /* should be identical ==> have same size */
+            if (cSize != cSizeOrig) goto _output_error;   /* should be identical ==> same size */
         }
         DISPLAYLEVEL(4, "OK (%u bytes : %.2f%%)\n", (U32)cSize, (double)cSize/CNBuffSize*100);
 
@@ -321,8 +321,8 @@ static int basicUnitTests(U32 seed, double compressibility)
     /* block API tests */
     {   ZSTD_CCtx* const cctx = ZSTD_createCCtx();
         ZSTD_DCtx* const dctx = ZSTD_createDCtx();
-        static const size_t blockSize = 100 KB;
-        static const size_t dictSize = 16 KB;
+        static const size_t dictSize = 65 KB;
+        static const size_t blockSize = 100 KB;   /* won't cause pb with small dict size */
         size_t cSize2;
 
         /* basic block compression */
@@ -711,7 +711,7 @@ static int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, U32 const maxD
         while (totalCSize < cSize) {
             size_t const inSize = ZSTD_nextSrcSizeToDecompress(dctx);
             size_t const genSize = ZSTD_decompressContinue(dctx, dstBuffer+totalGenSize, dstBufferSize-totalGenSize, cBuffer+totalCSize, inSize);
-            CHECK (ZSTD_isError(genSize), "streaming decompression error : %s", ZSTD_getErrorName(genSize));
+            CHECK (ZSTD_isError(genSize), "ZSTD_decompressContinue error : %s", ZSTD_getErrorName(genSize));
             totalGenSize += genSize;
             totalCSize += inSize;
         }

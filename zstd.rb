@@ -1,8 +1,8 @@
 class Zstd < Formula
   desc "Zstandard - Fast real-time compression algorithm"
   homepage "http://www.zstd.net/"
-  url "https://github.com/Cyan4973/zstd/archive/v0.7.3.tar.gz"
-  sha256 "767da2a321b70d57a0f0776c39192a6c235c8f1fd7f1268eafde94a8869c3c71"
+  url "https://github.com/Cyan4973/zstd/archive/v0.7.4.tar.gz"
+  sha256 "35ab3a5084d0194e9ff08e702edb6f507eab1bfb8c09c913639241cec852e2b7"
 
   def install
     system "make", "install", "PREFIX=#{prefix}"

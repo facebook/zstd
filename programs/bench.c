@@ -142,14 +142,14 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
                         const size_t* fileSizes, U32 nbFiles,
                         const void* dictBuffer, size_t dictBufferSize, benchResult_t *result)
 {
-    size_t const blockSize = (g_blockSize>=32 ? g_blockSize : srcSize) + (!srcSize);   /* avoid div by 0 */
+    size_t const blockSize = (g_blockSize>=32 ? g_blockSize : srcSize) + (!srcSize) /* avoid div by 0 */ ;
     U32 const maxNbBlocks = (U32) ((srcSize + (blockSize-1)) / blockSize) + nbFiles;
     blockParam_t* const blockTable = (blockParam_t*) malloc(maxNbBlocks * sizeof(blockParam_t));
     size_t const maxCompressedSize = ZSTD_compressBound(srcSize) + (maxNbBlocks * 1024);   /* add some room for safety */
     void* const compressedBuffer = malloc(maxCompressedSize);
     void* const resultBuffer = malloc(srcSize);
-    ZSTD_CCtx* ctx = ZSTD_createCCtx();
-    ZSTD_DCtx* dctx = ZSTD_createDCtx();
+    ZSTD_CCtx* const ctx = ZSTD_createCCtx();
+    ZSTD_DCtx* const dctx = ZSTD_createDCtx();
     U32 nbBlocks;
     UTIL_time_t ticksPerSecond;
 
@@ -215,12 +215,13 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
             UTIL_waitForNextTick(ticksPerSecond);
             UTIL_getTime(&clockStart);
 
-            {   size_t const refSrcSize = (nbBlocks == 1) ? srcSize : 0;
-                ZSTD_parameters const zparams = ZSTD_getParams(cLevel, refSrcSize, dictBufferSize);
+            {   //size_t const refSrcSize = (nbBlocks == 1) ? srcSize : 0;
+                //ZSTD_parameters const zparams = ZSTD_getParams(cLevel, refSrcSize, dictBufferSize);
+                ZSTD_parameters const zparams = ZSTD_getParams(cLevel, blockSize, dictBufferSize);
                 ZSTD_customMem const cmem = { NULL, NULL, NULL };
                 U32 nbLoops = 0;
                 ZSTD_CDict* cdict = ZSTD_createCDict_advanced(dictBuffer, dictBufferSize, zparams, cmem);
-                if (cdict==NULL) EXM_THROW(1, "ZSTD_createCDict() allocation failure");
+                if (cdict==NULL) EXM_THROW(1, "ZSTD_createCDict_advanced() allocation failure");
                 do {
                     U32 blockNb;
                     for (blockNb=0; blockNb<nbBlocks; blockNb++) {

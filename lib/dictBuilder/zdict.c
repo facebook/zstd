@@ -284,7 +284,7 @@ static dictItem ZDICT_analyzePos(
         U32 refinedEnd = end;
 
         DISPLAYLEVEL(4, "\n");
-        DISPLAYLEVEL(4, "found %3u matches of length >= %u at pos %7u  ", (U32)(end-start), MINMATCHLENGTH, (U32)pos);
+        DISPLAYLEVEL(4, "found %3u matches of length >= %i at pos %7u  ", (U32)(end-start), MINMATCHLENGTH, (U32)pos);
         DISPLAYLEVEL(4, "\n");
 
         for (searchLength = MINMATCHLENGTH ; ; searchLength++) {
@@ -514,8 +514,9 @@ static size_t ZDICT_trainBuffer(dictItem* dictList, U32 dictListSize,
 
     /* sort */
     DISPLAYLEVEL(2, "sorting %u files of total size %u MB ...\n", nbFiles, (U32)(bufferSize>>20));
-    { int const divSuftSortResult = divsufsort((const unsigned char*)buffer, suffix, (int)bufferSize, 0);
-      if (divSuftSortResult != 0) { result = ERROR(GENERIC); goto _cleanup; } }
+    {   int const divSuftSortResult = divsufsort((const unsigned char*)buffer, suffix, (int)bufferSize, 0);
+        if (divSuftSortResult != 0) { result = ERROR(GENERIC); goto _cleanup; }
+    }
     suffix[bufferSize] = (int)bufferSize;   /* leads into noise */
     suffix0[0] = (int)bufferSize;           /* leads into noise */
     /* build reverse suffix sort */
@@ -580,13 +581,14 @@ typedef struct
 
 #define MAXREPOFFSET 1024
 
-static void ZDICT_countEStats(EStats_ress_t esr,
+static void ZDICT_countEStats(EStats_ress_t esr, ZSTD_parameters params,
                             U32* countLit, U32* offsetcodeCount, U32* matchlengthCount, U32* litlengthCount, U32* repOffsets,
                             const void* src, size_t srcSize)
 {
+    size_t const blockSizeMax = MIN (ZSTD_BLOCKSIZE_MAX, 1 << params.cParams.windowLog);
     size_t cSize;
 
-    if (srcSize > ZSTD_BLOCKSIZE_MAX) srcSize = ZSTD_BLOCKSIZE_MAX;   /* protection vs large samples */
+    if (srcSize > blockSizeMax) srcSize = blockSizeMax;   /* protection vs large samples */
 	{	size_t const errorCode = ZSTD_copyCCtx(esr.zc, esr.ref);
 		if (ZSTD_isError(errorCode)) { DISPLAYLEVEL(1, "warning : ZSTD_copyCCtx failed \n"); return; }
 	}
@@ -710,8 +712,7 @@ static size_t ZDICT_analyzeEntropy(void*  dstBuffer, size_t maxDstSize,
             goto _cleanup;
     }
     if (compressionLevel==0) compressionLevel=g_compressionLevel_default;
-    params.cParams = ZSTD_getCParams(compressionLevel, averageSampleSize, dictBufferSize);
-    params.fParams.contentSizeFlag = 0;
+    params = ZSTD_getParams(compressionLevel, averageSampleSize, dictBufferSize);
 	{	size_t const beginResult = ZSTD_compressBegin_advanced(esr.ref, dictBuffer, dictBufferSize, params, 0);
 		if (ZSTD_isError(beginResult)) {
 			eSize = ERROR(GENERIC);
@@ -721,7 +722,7 @@ static size_t ZDICT_analyzeEntropy(void*  dstBuffer, size_t maxDstSize,
 
     /* collect stats on all files */
     for (u=0; u<nbFiles; u++) {
-        ZDICT_countEStats(esr,
+        ZDICT_countEStats(esr, params,
                         countLit, offcodeCount, matchLengthCount, litLengthCount, repOffset,
            (const char*)srcBuffer + pos, fileSizes[u]);
         pos += fileSizes[u];
@@ -893,7 +894,8 @@ size_t ZDICT_addEntropyTablesFromBuffer_advanced(void* dictBuffer, size_t dictCo
     /* dictionary header */
     MEM_writeLE32(dictBuffer, ZSTD_DICT_MAGIC);
     {   U64 const randomID = XXH64((char*)dictBuffer + dictBufferCapacity - dictContentSize, dictContentSize, 0);
-        U32 const dictID = params.dictID ? params.dictID : (U32)(randomID>>11);
+        U32 const compliantID = (randomID % ((1U<<31)-32768)) + 32768;
+        U32 const dictID = params.dictID ? params.dictID : compliantID;
         MEM_writeLE32((char*)dictBuffer+4, dictID);
     }
     hSize = 8;
@@ -910,6 +912,7 @@ size_t ZDICT_addEntropyTablesFromBuffer_advanced(void* dictBuffer, size_t dictCo
         memmove((char*)dictBuffer + hSize, (char*)dictBuffer + dictBufferCapacity - dictContentSize, dictContentSize);
     return MIN(dictBufferCapacity, hSize+dictContentSize);
 }
+
 
 #define DIB_MINSAMPLESSIZE (DIB_FASTSEGMENTSIZE*3)
 /*! ZDICT_trainFromBuffer_unsafe() :
@@ -929,12 +932,12 @@ size_t ZDICT_trainFromBuffer_unsafe(
     size_t dictSize = 0;
 
     /* checks */
-    if (maxDictSize <= g_provision_entropySize + g_min_fast_dictContent) return ERROR(dstSize_tooSmall);
     if (!dictList) return ERROR(memory_allocation);
+    if (maxDictSize <= g_provision_entropySize + g_min_fast_dictContent) { free(dictList); return ERROR(dstSize_tooSmall); }
 
     /* init */
     { unsigned u; for (u=0, sBuffSize=0; u<nbSamples; u++) sBuffSize += samplesSizes[u]; }
-    if (sBuffSize < DIB_MINSAMPLESSIZE) return 0;   /* not enough source to create dictionary */
+    if (sBuffSize < DIB_MINSAMPLESSIZE) { free(dictList); return 0; }   /* not enough source to create dictionary */
     ZDICT_initDictItem(dictList);
     g_displayLevel = params.notificationLevel;
     if (selectivity==0) selectivity = g_selectivity_default;
@@ -972,7 +975,7 @@ size_t ZDICT_trainFromBuffer_unsafe(
             for (u=1; u<dictList->pos; u++) {
                 U32 l = dictList[u].length;
                 ptr -= l;
-                if (ptr<(BYTE*)dictBuffer) return ERROR(GENERIC);   /* should not happen */
+                if (ptr<(BYTE*)dictBuffer) { free(dictList); return ERROR(GENERIC); }   /* should not happen */
                 memcpy(ptr, (const char*)samplesBuffer+dictList[u].pos, l);
         }   }
 

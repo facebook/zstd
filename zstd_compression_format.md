@@ -16,7 +16,7 @@ Distribution of this document is unlimited.
 
 ### Version
 
-0.1.0 (08/07/16)
+0.1.1 (15/07/16)
 
 
 Introduction
@@ -189,10 +189,10 @@ depending on local limitations.
 
 __Unused bit__
 
-The value of this bit is unimportant
-and not interpreted by a decoder compliant with this specification version.
-It may be used in a future revision,
-to signal a property which is not required to properly decode the frame.
+The value of this bit should be set to zero.
+A decoder compliant with this specification version should not interpret it.
+It might be used in a future version,
+to signal a property which is not mandatory to properly decode the frame.
 
 __Reserved bit__
 
@@ -258,9 +258,9 @@ depending on local limitations.
 
 __Dictionary ID__
 
-This is a variable size field, which contains an ID.
-It checks if the correct dictionary is used for decoding.
-Note that this field is optional. If it's not present,
+This is a variable size field, which contains
+the ID of the dictionary required to properly decode the frame.
+Note that this field is optional. When it's not present,
 it's up to the caller to make sure it uses the correct dictionary.
 
 Field size depends on __Dictionary ID flag__.
@@ -270,6 +270,15 @@ Field size depends on __Dictionary ID flag__.
 
 It's allowed to represent a small ID (for example `13`)
 with a large 4-bytes dictionary ID, losing some compacity in the process.
+
+_Reserved ranges :_
+If the frame is going to be distributed in a private environment,
+any dictionary ID can be used.
+However, for public distribution of compressed frames using a dictionary,
+some ranges are reserved for future use :
+- low : 1 - 32767 : reserved
+- high : >= (2^31) : reserved
+
 
 __Frame Content Size__
 
@@ -497,7 +506,7 @@ Compressed and regenerated size fields follow big endian convention.
 This section is only present when literals block type is `Compressed` (`0`).
 
 Prefix coding represents symbols from an a priori known alphabet
-by bit sequences (codes), one code for each symbol,
+by bit sequences (codewords), one codeword for each symbol,
 in a manner such that different symbols may be represented
 by bit sequences of different lengths,
 but a parser can always parse an encoded string
@@ -506,14 +515,13 @@ unambiguously symbol-by-symbol.
 Given an alphabet with known symbol frequencies,
 the Huffman algorithm allows the construction of an optimal prefix code
 using the fewest bits of any possible prefix codes for that alphabet.
-Such a code is called a Huffman code.
 
 Prefix code must not exceed a maximum code length.
 More bits improve accuracy but cost more header size,
 and require more memory for decoding operations.
 
 The current format limits the maximum depth to 15 bits.
-The reference decoder goes further, by limiting it to 11 bits.
+The reference decoder goes further, by limiting it to 12 bits.
 It is recommended to remain compatible with reference decoder.
 
 
@@ -609,20 +617,19 @@ When both states have overflowed the bitstream, end is reached.
 ##### Conversion from weights to huffman prefix codes
 
 All present symbols shall now have a `weight` value.
-A `weight` directly represents a `range` of prefix codes,
-following the formulae : `range = weight ? 1 << (weight-1) : 0 ;`
 Symbols are sorted by weight.
+Symbols with a weight of zero are removed.
 Within same weight, symbols keep natural order.
 Starting from lowest weight,
-symbols are being allocated to a range of prefix codes.
-Symbols with a weight of zero are not present.
-
-It is then possible to transform weights into nbBits :
+symbols are being allocated to a `range`.
+A `weight` directly represents a `range`,
+following the formulae : `range = weight ? 1 << (weight-1) : 0 ;`
+Similarly, it is possible to transform weights into nbBits :
 `nbBits = nbBits ? maxBits + 1 - weight : 0;` .
 
 
 __Example__ :
-Let's presume the following huffman tree has been decoded :
+Let's presume the following list of weights has been decoded :
 
 | Literal |  0  |  1  |  2  |  3  |  4  |  5  |
 | ------- | --- | --- | --- | --- | --- | --- |
@@ -635,8 +642,9 @@ it gives the following distribution :
 | ------------ | --- | --- | --- | --- | --- | ---- |
 | weight       |  0  |  1  |  1  |  2  |  3  |   4  |
 | range        |  0  |  1  |  1  |  2  |  4  |   8  |
-| prefix codes | N/A |  0  |  1  | 2-3 | 4-7 | 8-15 |
+| table entries| N/A |  0  |  1  | 2-3 | 4-7 | 8-15 |
 | nb bits      |  0  |  4  |  4  |  3  |  2  |   1  |
+| prefix codes | N/A | 0000| 0001| 001 | 01  |   1  |
 
 
 #### Literals bitstreams
@@ -687,12 +695,12 @@ it's possible to read the bitstream in a little-endian fashion,
 keeping track of already used bits.
 
 Reading the last `maxBits` bits,
-it's then possible to compare extracted value to the prefix codes table,
+it's then possible to compare extracted value to decoding table,
 determining the symbol to decode and number of bits to discard.
 
 The process continues up to reading the required number of symbols per stream.
 If a bitstream is not entirely and exactly consumed,
-hence reaching exactly its beginning position with all bits consumed,
+hence reaching exactly its beginning position with _all_ bits consumed,
 the decoding process is considered faulty.
 
 
@@ -704,7 +712,7 @@ A literal copy command specifies a length.
 It is the number of bytes to be copied (or extracted) from the literal section.
 A match copy command specifies an offset and a length.
 The offset gives the position to copy from,
-which can stand within a previous block.
+which can be within a previous block.
 
 There are 3 symbol types, `literalLength`, `matchLength` and `offset`,
 which are encoded together, interleaved in a single _bitstream_.
@@ -1136,6 +1144,14 @@ __Header__ : 4 bytes ID, value 0xEC30A437, Little Endian format
 __Dict_ID__ : 4 bytes, stored in Little Endian format.
               DictID can be any value, except 0 (which means no DictID).
               It's used by decoders to check if they use the correct dictionary.
+              _Reserved ranges :_
+              If the frame is going to be distributed in a private environment,
+              any dictionary ID can be used.
+              However, for public distribution of compressed frames,
+              some ranges are reserved for future use :
+
+              - low range : 1 - 32767 : reserved
+              - high range : >= (2^31) : reserved
 
 __Stats__ : Entropy tables, following the same format as a [compressed blocks].
             They are stored in following order :
@@ -1152,4 +1168,5 @@ __Content__ : Where the actual dictionary content is.
 
 Version changes
 ---------------
-0.1.0 initial release
+- 0.1.1 reserved dictID ranges
+- 0.1.0 initial release

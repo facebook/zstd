@@ -30,7 +30,7 @@
 
 
 /*-************************************
-*  Includes
+*  Dependencies
 **************************************/
 #include <stdlib.h>    /* malloc */
 #include <stdio.h>     /* FILE, fwrite, fprintf */
@@ -94,12 +94,10 @@ static void RDG_fillLiteralDistrib(BYTE* ldt, double ld)
     U32 u;
 
     if (ld<=0.0) ld = 0.0;
-    //TRACE(" percent:%5.2f%% \n", ld*100.);
-    //TRACE(" start:(%c)[%02X] ", character, character);
     for (u=0; u<LTSIZE; ) {
         U32 const weight = (U32)((double)(LTSIZE - u) * ld) + 1;
         U32 const end = MIN ( u + weight , LTSIZE);
-        while (u < end) ldt[u++] = character;   // TRACE(" %u(%c)[%02X] ", u, character, character);
+        while (u < end) ldt[u++] = character;
         character++;
         if (character > lastChar) character = firstChar;
     }
@@ -109,8 +107,6 @@ static void RDG_fillLiteralDistrib(BYTE* ldt, double ld)
 static BYTE RDG_genChar(U32* seed, const BYTE* ldt)
 {
     U32 const id = RDG_rand(seed) & LTMASK;
-    //TRACE(" %u : \n", id);
-    //TRACE(" %4u [%4u] ; val : %4u \n", id, id&255, ldt[id]);
     return ldt[id];  /* memory-sanitizer fails here, stating "uninitialized value" when table initialized with P==0.0. Checked : table is fully initialized */
 }
 
@@ -162,7 +158,6 @@ void RDG_genBlock(void* buffer, size_t buffSize, size_t prefixSize, double match
             U32 const randOffset = RDG_rand15Bits(seedPtr) + 1;
             U32 const offset = repeatOffset ? prevOffset : (U32) MIN(randOffset , pos);
             size_t match = pos - offset;
-            //TRACE("pos : %u; offset: %u ; length : %u \n", (U32)pos, offset, length);
             while (pos < d) buffPtr[pos++] = buffPtr[match++];   /* correctly manages overlaps */
             prevOffset = offset;
         } else {
@@ -177,9 +172,8 @@ void RDG_genBlock(void* buffer, size_t buffSize, size_t prefixSize, double match
 void RDG_genBuffer(void* buffer, size_t size, double matchProba, double litProba, unsigned seed)
 {
     BYTE ldt[LTSIZE];
-    memset(ldt, '0', sizeof(ldt));
+    memset(ldt, '0', sizeof(ldt));  /* yes, character '0', this is intentional */
     if (litProba<=0.0) litProba = matchProba / 4.5;
-    //TRACE(" percent:%5.2f%% \n", litProba*100.);
     RDG_fillLiteralDistrib(ldt, litProba);
     RDG_genBlock(buffer, size, 0, matchProba, ldt, &seed);
 }
@@ -196,7 +190,7 @@ void RDG_genStdout(unsigned long long size, double matchProba, double litProba, 
     /* init */
     if (buff==NULL) { fprintf(stderr, "datagen: error: %s \n", strerror(errno)); exit(1); }
     if (litProba<=0.0) litProba = matchProba / 4.5;
-    memset(ldt, '0', sizeof(ldt));
+    memset(ldt, '0', sizeof(ldt));   /* yes, character '0', this is intentional */
     RDG_fillLiteralDistrib(ldt, litProba);
     SET_BINARY_MODE(stdout);
 

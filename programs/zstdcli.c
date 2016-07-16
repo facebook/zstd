@@ -29,6 +29,14 @@
 
 
 /*-************************************
+*  Tuning parameters
+**************************************/
+#ifndef ZSTDCLI_CLEVEL_DEFAULT
+#  define ZSTDCLI_CLEVEL_DEFAULT 3
+#endif
+
+
+/*-************************************
 *  Includes
 **************************************/
 #include "util.h"     /* Compiler options, UTIL_HAS_CREATEFILELIST */
@@ -207,7 +215,7 @@ int main(int argCount, const char** argv)
         nextArgumentIsMaxDict=0,
         nextArgumentIsDictID=0,
         nextArgumentIsFile=0;
-    unsigned cLevel = 1;
+    unsigned cLevel = ZSTDCLI_CLEVEL_DEFAULT;
     unsigned cLevelLast = 1;
     unsigned recursive = 0;
     const char** filenameTable = (const char**)malloc(argCount * sizeof(const char*));   /* argCount >= 1 */
@@ -256,7 +264,7 @@ int main(int argCount, const char** argv)
             if (!strcmp(argument, "--force")) {  FIO_overwriteMode(); continue; }
             if (!strcmp(argument, "--version")) { displayOut=stdout; DISPLAY(WELCOME_MESSAGE); CLEAN_RETURN(0); }
             if (!strcmp(argument, "--help")) { displayOut=stdout; CLEAN_RETURN(usage_advanced(programName)); }
-            if (!strcmp(argument, "--verbose")) { displayLevel=4; continue; }
+            if (!strcmp(argument, "--verbose")) { displayLevel++; continue; }
             if (!strcmp(argument, "--quiet")) { displayLevel--; continue; }
             if (!strcmp(argument, "--stdout")) { forceStdout=1; outFileName=stdoutmark; displayLevel-=(displayLevel==2); continue; }
             if (!strcmp(argument, "--ultra")) { FIO_setMaxWLog(0); continue; }
@@ -317,7 +325,7 @@ int main(int argCount, const char** argv)
                     case 'f': FIO_overwriteMode(); forceStdout=1; argument++; break;
 
                         /* Verbose mode */
-                    case 'v': displayLevel=4; argument++; break;
+                    case 'v': displayLevel++; argument++; break;
 
                         /* Quiet mode */
                     case 'q': displayLevel--; argument++; break;
@@ -331,7 +339,7 @@ int main(int argCount, const char** argv)
                         /* test compressed file */
                     case 't': decode=1; outFileName=nulmark; argument++; break;
 
-                        /* dictionary name */
+                        /* destination file name */
                     case 'o': nextArgumentIsOutFileName=1; argument++; break;
 
                         /* recursive */
@@ -454,6 +462,7 @@ int main(int argCount, const char** argv)
     if (dictBuild) {
 #ifndef ZSTD_NODICT
         ZDICT_params_t dictParams;
+        memset(&dictParams, 0, sizeof(dictParams));
         dictParams.compressionLevel = dictCLevel;
         dictParams.selectivityLevel = dictSelect;
         dictParams.notificationLevel = displayLevel;

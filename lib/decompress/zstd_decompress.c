@@ -135,7 +135,9 @@ struct ZSTD_DCtx_s
     BYTE headerBuffer[ZSTD_FRAMEHEADERSIZE_MAX];
 };  /* typedef'd to ZSTD_DCtx within "zstd_static.h" */
 
-size_t ZSTD_sizeofDCtx (void) { return sizeof(ZSTD_DCtx); }   /* non published interface */
+size_t ZSTD_sizeofDCtx (const ZSTD_DCtx* dctx) { return sizeof(*dctx); }
+
+size_t ZSTD_estimateDCtxSize(void) { return sizeof(ZSTD_DCtx); }
 
 size_t ZSTD_decompressBegin(ZSTD_DCtx* dctx)
 {
@@ -949,7 +951,7 @@ ZSTDLIB_API size_t ZSTD_insertBlock(ZSTD_DCtx* dctx, const void* blockStart, siz
 }
 
 
-size_t ZSTD_generateNxByte(void* dst, size_t dstCapacity, BYTE byte, size_t length)
+size_t ZSTD_generateNxBytes(void* dst, size_t dstCapacity, BYTE byte, size_t length)
 {
     if (length > dstCapacity) return ERROR(dstSize_tooSmall);
     memset(dst, byte, length);
@@ -1001,7 +1003,7 @@ static size_t ZSTD_decompressFrame(ZSTD_DCtx* dctx,
             decodedSize = ZSTD_copyRawBlock(op, oend-op, ip, cBlockSize);
             break;
         case bt_rle :
-            decodedSize = ZSTD_generateNxByte(op, oend-op, *ip, blockProperties.origSize);
+            decodedSize = ZSTD_generateNxBytes(op, oend-op, *ip, blockProperties.origSize);
             break;
         case bt_end :
             /* end of frame */

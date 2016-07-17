@@ -3016,7 +3016,7 @@ static const ZSTD_compressionParameters ZSTD_defaultCParameters[4][ZSTD_MAX_CLEV
 {   /* for srcSize <= 16 KB */
     /* W,  C,  H,  S,  L,  T, strat */
     { 14, 12, 12,  1,  7,  6, ZSTD_fast    },  /* level  0 - not used */
-    { 14, 14, 14,  1,  7,  6, ZSTD_fast    },  /* level  1 */
+    { 14, 14, 14,  1,  6,  6, ZSTD_fast    },  /* level  1 */
     { 14, 14, 14,  1,  4,  6, ZSTD_fast    },  /* level  2 */
     { 14, 14, 14,  1,  4,  6, ZSTD_dfast   },  /* level  3.*/
     { 14, 14, 14,  4,  4,  6, ZSTD_greedy  },  /* level  4.*/

@@ -16,7 +16,7 @@ Distribution of this document is unlimited.
 
 ### Version
 
-0.1.1 (15/07/16)
+0.1.2 (15/07/16)
 
 
 Introduction
@@ -518,11 +518,8 @@ using the fewest bits of any possible prefix codes for that alphabet.
 
 Prefix code must not exceed a maximum code length.
 More bits improve accuracy but cost more header size,
-and require more memory for decoding operations.
-
-The current format limits the maximum depth to 15 bits.
-The reference decoder goes further, by limiting it to 12 bits.
-It is recommended to remain compatible with reference decoder.
+and require more memory or more complex decoding operations.
+This specification limits maximum code length to 11 bits.
 
 
 ##### Representation
@@ -1168,5 +1165,6 @@ __Content__ : Where the actual dictionary content is.
 
 Version changes
 ---------------
-- 0.1.1 reserved dictID ranges
-- 0.1.0 initial release
+- 0.1.2 : limit huffman tree depth to 11 bits
+- 0.1.1 : reserved dictID ranges
+- 0.1.0 : initial release

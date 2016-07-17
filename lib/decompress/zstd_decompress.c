@@ -1013,7 +1013,7 @@ static size_t ZSTD_decompressFrame(ZSTD_DCtx* dctx,
         default:
             return ERROR(GENERIC);   /* impossible */
         }
-        if (cBlockSize == 0) break;   /* bt_end */
+        if (blockProperties.blockType == bt_end) break;   /* bt_end */
 
         if (ZSTD_isError(decodedSize)) return decodedSize;
         if (dctx->fParams.checksumFlag) XXH64_update(&dctx->xxhState, op, decodedSize);

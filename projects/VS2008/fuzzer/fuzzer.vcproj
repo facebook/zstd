@@ -120,7 +120,7 @@
 				Optimization="2"
 				EnableIntrinsicFunctions="true"
 				OmitFramePointers="true"
-				AdditionalIncludeDirectories="$(SolutionDir)..\..\lib\common;$(SolutionDir)..\..\lib\dictBuilder;$(SolutionDir)..\..\lib\legacy;$(SolutionDir)..\..\programs\legacy"
+				AdditionalIncludeDirectories="$(SolutionDir)..\..\lib;$(SolutionDir)..\..\lib\common;$(SolutionDir)..\..\lib\dictBuilder;$(SolutionDir)..\..\lib\legacy;$(SolutionDir)..\..\programs\legacy"
 				PreprocessorDefinitions="WIN32;NDEBUG;_CONSOLE"
 				RuntimeLibrary="0"
 				EnableFunctionLevelLinking="true"
@@ -194,7 +194,7 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				Optimization="0"
-				AdditionalIncludeDirectories="$(SolutionDir)..\..\lib\common;$(SolutionDir)..\..\lib\dictBuilder;$(SolutionDir)..\..\lib\legacy;$(SolutionDir)..\..\programs\legacy"
+				AdditionalIncludeDirectories="$(SolutionDir)..\..\lib;$(SolutionDir)..\..\lib\common;$(SolutionDir)..\..\lib\dictBuilder;$(SolutionDir)..\..\lib\legacy;$(SolutionDir)..\..\programs\legacy"
 				PreprocessorDefinitions="WIN32;_DEBUG;_CONSOLE"
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
@@ -271,7 +271,7 @@
 				Optimization="2"
 				EnableIntrinsicFunctions="true"
 				OmitFramePointers="true"
-				AdditionalIncludeDirectories="$(SolutionDir)..\..\lib\common;$(SolutionDir)..\..\lib\dictBuilder;$(SolutionDir)..\..\lib\legacy;$(SolutionDir)..\..\programs\legacy"
+				AdditionalIncludeDirectories="$(SolutionDir)..\..\lib;$(SolutionDir)..\..\lib\common;$(SolutionDir)..\..\lib\dictBuilder;$(SolutionDir)..\..\lib\legacy;$(SolutionDir)..\..\programs\legacy"
 				PreprocessorDefinitions="WIN32;NDEBUG;_CONSOLE"
 				RuntimeLibrary="0"
 				EnableFunctionLevelLinking="true"
@@ -439,7 +439,7 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\..\lib\common\zstd.h"
+				RelativePath="..\..\..\lib\zstd.h"
 				>
 			</File>
 			<File

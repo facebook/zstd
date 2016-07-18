@@ -14,7 +14,7 @@ at the root of `lib` directory.
 #### Advanced API
 
 Some additional API may be useful if you're looking into advanced features :
-- common/error_public.h : transform function result into an `enum`,
+- common/error_public.h : transforms `size_t` function results into an `enum`,
                           for precise error handling.
 - ZSTD_STATIC_LINKING_ONLY : if you define this macro _before_ including `zstd.h`,
                           it will give access to advanced and experimental API.
@@ -31,16 +31,16 @@ In a similar way, you can build a decompressor-only library with the `decompress
 
 Other optional functionalities provided are :
 
-- `dictBuilder/`  : this directory contains source files required to create dictionaries.
+- `dictBuilder/`  : source files to create dictionaries.
                     The API can be consulted in `dictBuilder/zdict.h`.
-                    It also depends on `common/` and `compress/` .
+                    This module also depends on `common/` and `compress/` .
 
-- `legacy/` : this directory contains source code to decompress previous versions of Zstd,
-              starting from `v0.1`. The main API can be consulted in `legacy/zstd_legacy.h`.
+- `legacy/` : source code to decompress previous versions of zstd, starting from `v0.1`.
+              This module also depends on `common/` and `decompress/` .
               Note that it's required to compile the library with `ZSTD_LEGACY_SUPPORT = 1` .
+              The main API can be consulted in `legacy/zstd_legacy.h`.
               Advanced API from each version can be found in its relevant header file.
               For example, advanced API for version `v0.4` is in `zstd_v04.h` .
-              It also depends on `common/` and `decompress/` .
 
 
 #### Streaming API

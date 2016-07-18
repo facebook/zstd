@@ -441,7 +441,7 @@ int main(int argCount, const char** argv)
         fileNamesTable = UTIL_createFileList(filenameTable, filenameIdx, &fileNamesBuf, &fileNamesNb);
         if (fileNamesTable) {
             unsigned i;
-            for (i=0; i<fileNamesNb; i++) DISPLAYLEVEL(3, "%d %s\n", i, fileNamesTable[i]);
+            for (i=0; i<fileNamesNb; i++) DISPLAYLEVEL(4, "%d %s\n", i, fileNamesTable[i]);
             free((void*)filenameTable);
             filenameTable = fileNamesTable;
             filenameIdx = fileNamesNb;
@@ -474,7 +474,7 @@ int main(int argCount, const char** argv)
 
     /* No input filename ==> use stdin and stdout */
     filenameIdx += !filenameIdx;   /*< default input is stdin */
-    if (!strcmp(filenameTable[0], stdinmark) && !outFileName ) outFileName = stdoutmark;   /*< when input is stdin, default output is stdout */
+    if (!strcmp(filenameTable[0], stdinmark) && !outFileName) outFileName = stdoutmark;   /*< when input is stdin, default output is stdout */
 
     /* Check if input/output defined as console; trigger an error in this case */
     if (!strcmp(filenameTable[0], stdinmark) && IS_CONSOLE(stdin) ) CLEAN_RETURN(badusage(programName));
@@ -489,7 +489,7 @@ int main(int argCount, const char** argv)
 
     /* No warning message in pipe mode (stdin + stdout) or multiple mode */
     if (!strcmp(filenameTable[0], stdinmark) && outFileName && !strcmp(outFileName,stdoutmark) && (displayLevel==2)) displayLevel=1;
-    if ((filenameIdx>1) && (displayLevel==2)) displayLevel=1;
+    if ((filenameIdx>1) & (displayLevel==2)) displayLevel=1;
 
     /* IO Stream/File */
     FIO_setNotificationLevel(displayLevel);

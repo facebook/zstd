@@ -1,3 +1,33 @@
+v0.7.5
+Fixed : premature end of frame when zero-sized raw block, reported by Eric Biggers
+Modified : minor compression level adaptations
+Update : specification, to v0.1.2 : max huffman depth at 11 bits
+changed : zstd.h moved to /lib directory
+
+v0.7.4
+Added : homebrew for Mac
+Added : more examples
+Fixed : segfault when using small dictionaries, reported by Felix Handte
+Modified : default compression level for CLI is now 3
+Updated : specification, to v0.1.1
+
+v0.7.3
+New : compression format specification
+New : `--` separator, stating that all following arguments are file names. Suggested by Chip Turner.
+New : `ZSTD_getDecompressedSize()`
+New : OpenBSD target, by Juan Francisco Cantero Hurtado
+New : `examples` directory
+fixed : dictBuilder using HC levels, reported by Bartosz Taudul
+fixed : legacy support from ZSTD_decompress_usingDDict(), reported by Felix Handte
+fixed : multi-blocks decoding with intermediate uncompressed blocks, reported by Greg Slazinski
+modified : removed "mem.h" and "error_public.h" dependencies from "zstd.h" (experimental section)
+modified : legacy functions no longer need magic number
+
+v0.7.2
+fixed : ZSTD_decompressBlock() using multiple consecutive blocks. Reported by Greg Slazinski.
+fixed : potential segfault on very large files (many gigabytes). Reported by Chip Turner.
+fixed : CLI displays system error message when destination file cannot be created (#231). Reported by Chip Turner.
+
 v0.7.1
 fixed : ZBUFF_compressEnd() called multiple times with too small `dst` buffer, reported by Christophe Chevalier
 fixed : dictBuilder fails if first sample is too small, reported by Руслан Ковалёв

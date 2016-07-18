@@ -33,12 +33,12 @@ It is based on the \fBLZ77\fR family, with further FSE & huff0 entropy stages.
 It also features a very fast decoder, with speed > 500 MB/s per core.
 
 \fBzstd\fR command line is generally similar to gzip, but features the following differences :
- - Original files are preserved
+ - Source files are preserved by default
+   It's possible to remove them automatically by using \fB--rm\fR command
  - By default, when compressing a single file, \fBzstd\fR displays progress notifications and result summary.
      Use \fB-q\fR to turn them off
 
 
-\fBzstd\fR supports the following options :
 
 .SH OPTIONS
 .TP
@@ -57,6 +57,19 @@ It also features a very fast decoder, with speed > 500 MB/s per core.
 .BR \-f ", " --force
  overwrite output without prompting
 .TP
+.BR \-c ", " --stdout
+ force write to standard output, even if it is the console
+.TP
+.BR \--rm
+ remove source file(s) after successful compression or decompression
+.TP
+.BR \-k ", " --keep
+ keep source file(s) after successful compression or decompression.
+ This is the default behavior.
+.TP
+.BR \-r
+ operate recursively on directories
+.TP
 .BR \-h/\-H ", " --help
  display help/long help and exit
 .TP
@@ -69,14 +82,11 @@ It also features a very fast decoder, with speed > 500 MB/s per core.
 .BR \-q ", " --quiet
  suppress warnings and notifications; specify twice to suppress errors too
 .TP
-.BR \-c ", " --stdout
- force write to standard output, even if it is the console
-.TP
 .BR \-C ", " --check
  add integrity check computed from uncompressed data
 .TP
 .BR \-t ", " --test
- Test the integrity of compressed files.  This option is equivalent to \fB--decompress --stdout > /dev/null\fR.
+ Test the integrity of compressed files. This option is equivalent to \fB--decompress --stdout > /dev/null\fR.
  No files are created or removed.
 
 .SH DICTIONARY
@@ -121,9 +131,6 @@ Typical gains range from ~10% (at 64KB) to x5 better (at <1KB).
 .TP
 .B \-B#
  cut file into independent blocks of size # (default: no block)
-.TP
-.B \-r#
- test all compression levels from 1 to # (default: disabled)
 
 
 .SH BUGS

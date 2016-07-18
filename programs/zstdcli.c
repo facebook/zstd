@@ -29,11 +29,20 @@
 
 
 /*-************************************
+*  Tuning parameters
+**************************************/
+#ifndef ZSTDCLI_CLEVEL_DEFAULT
+#  define ZSTDCLI_CLEVEL_DEFAULT 3
+#endif
+
+
+/*-************************************
 *  Includes
 **************************************/
 #include "util.h"     /* Compiler options, UTIL_HAS_CREATEFILELIST */
 #include <string.h>   /* strcmp, strlen */
 #include <ctype.h>    /* toupper */
+#include <errno.h>    /* errno */
 #include "fileio.h"
 #ifndef ZSTD_NOBENCH
 #  include "bench.h"  /* BMK_benchFiles, BMK_SetNbIterations */
@@ -45,7 +54,6 @@
 #include "zstd.h"     /* ZSTD_VERSION_STRING */
 
 
-
 /*-************************************
 *  OS-specific Includes
 **************************************/
@@ -53,12 +61,12 @@
 #  include <io.h>       /* _isatty */
 #  define IS_CONSOLE(stdStream) _isatty(_fileno(stdStream))
 #else
-#if defined(_POSIX_C_SOURCE) || defined(_XOPEN_SOURCE) || defined(_POSIX_SOURCE)
-#  include <unistd.h>   /* isatty */
-#  define IS_CONSOLE(stdStream) isatty(fileno(stdStream))
-#else
-#  define IS_CONSOLE(stdStream) 0
-#endif
+#  if defined(_POSIX_C_SOURCE) || defined(_XOPEN_SOURCE) || defined(_POSIX_SOURCE)
+#    include <unistd.h>   /* isatty */
+#    define IS_CONSOLE(stdStream) isatty(fileno(stdStream))
+#  else
+#    define IS_CONSOLE(stdStream) 0
+#  endif
 #endif
 
 
@@ -115,6 +123,8 @@ static int usage(const char* programName)
     DISPLAY( " -D file: use `file` as Dictionary \n");
     DISPLAY( " -o file: result stored into `file` (only if 1 input file) \n");
     DISPLAY( " -f     : overwrite output without prompting \n");
+    DISPLAY( "--rm    : remove source file(s) after successful de/compression \n");
+    DISPLAY( " -k     : preserve source file(s) (default) \n");
     DISPLAY( " -h/-H  : display help/long help and exit\n");
     return 0;
 }
@@ -132,7 +142,6 @@ static int usage_advanced(const char* programName)
 #ifdef UTIL_HAS_CREATEFILELIST
     DISPLAY( " -r     : operate recursively on directories\n");
 #endif
-    DISPLAY( "--rm    : remove source files after successful de/compression \n");
 #ifndef ZSTD_NOCOMPRESS
     DISPLAY( "--ultra : enable ultra modes (requires more memory to decompress)\n");
     DISPLAY( "--no-dictID : don't write dictID into header (dictionary compression)\n");
@@ -169,7 +178,6 @@ static int badusage(const char* programName)
     return 1;
 }
 
-
 static void waitEnter(void)
 {
     int unused;
@@ -181,7 +189,7 @@ static void waitEnter(void)
 /*! readU32FromChar() :
     @return : unsigned integer value reach from input in `char` format
     Will also modify `*stringPtr`, advancing it to position where it stopped reading.
-    Note : this function can overflow if result > MAX_UNIT */
+    Note : this function can overflow if result > MAX_UINT */
 static unsigned readU32FromChar(const char** stringPtr)
 {
     unsigned result = 0;
@@ -205,8 +213,9 @@ int main(int argCount, const char** argv)
         dictBuild=0,
         nextArgumentIsOutFileName=0,
         nextArgumentIsMaxDict=0,
-        nextArgumentIsDictID=0;
-    unsigned cLevel = 1;
+        nextArgumentIsDictID=0,
+        nextArgumentIsFile=0;
+    unsigned cLevel = ZSTDCLI_CLEVEL_DEFAULT;
     unsigned cLevelLast = 1;
     unsigned recursive = 0;
     const char** filenameTable = (const char**)malloc(argCount * sizeof(const char*));   /* argCount >= 1 */
@@ -229,7 +238,7 @@ int main(int argCount, const char** argv)
     (void)recursive; (void)cLevelLast;    /* not used when ZSTD_NOBENCH set */
     (void)dictCLevel; (void)dictSelect; (void)dictID;  /* not used when ZSTD_NODICT set */
     (void)decode; (void)cLevel; /* not used when ZSTD_NOCOMPRESS set */
-    if (filenameTable==NULL) { DISPLAY("not enough memory\n"); exit(1); }
+    if (filenameTable==NULL) { DISPLAY("zstd: %s \n", strerror(errno)); exit(1); }
     filenameTable[0] = stdinmark;
     displayOut = stderr;
     /* Pick out program name from path. Don't rely on stdlib because of conflicting behavior */
@@ -247,142 +256,165 @@ int main(int argCount, const char** argv)
         const char* argument = argv[argNb];
         if(!argument) continue;   /* Protection if argument empty */
 
-        /* long commands (--long-word) */
-        if (!strcmp(argument, "--decompress")) { decode=1; continue; }
-        if (!strcmp(argument, "--force")) {  FIO_overwriteMode(); continue; }
-        if (!strcmp(argument, "--version")) { displayOut=stdout; DISPLAY(WELCOME_MESSAGE); CLEAN_RETURN(0); }
-        if (!strcmp(argument, "--help")) { displayOut=stdout; CLEAN_RETURN(usage_advanced(programName)); }
-        if (!strcmp(argument, "--verbose")) { displayLevel=4; continue; }
-        if (!strcmp(argument, "--quiet")) { displayLevel--; continue; }
-        if (!strcmp(argument, "--stdout")) { forceStdout=1; outFileName=stdoutmark; displayLevel=1; continue; }
-        if (!strcmp(argument, "--ultra")) { FIO_setMaxWLog(0); continue; }
-        if (!strcmp(argument, "--check")) { FIO_setChecksumFlag(2); continue; }
-        if (!strcmp(argument, "--no-check")) { FIO_setChecksumFlag(0); continue; }
-        if (!strcmp(argument, "--no-dictID")) { FIO_setDictIDFlag(0); continue; }
-        if (!strcmp(argument, "--sparse")) { FIO_setSparseWrite(2); continue; }
-        if (!strcmp(argument, "--no-sparse")) { FIO_setSparseWrite(0); continue; }
-        if (!strcmp(argument, "--test")) { decode=1; outFileName=nulmark; FIO_overwriteMode(); continue; }
-        if (!strcmp(argument, "--train")) { dictBuild=1; outFileName=g_defaultDictName; continue; }
-        if (!strcmp(argument, "--maxdict")) { nextArgumentIsMaxDict=1; continue; }
-        if (!strcmp(argument, "--dictID")) { nextArgumentIsDictID=1; continue; }
-        if (!strcmp(argument, "--keep")) { continue; }   /* does nothing, since preserving input is default; for gzip/xz compatibility */
-        if (!strcmp(argument, "--rm")) { FIO_setRemoveSrcFile(1); continue; }
+        if (nextArgumentIsFile==0) {
 
-        /* '-' means stdin/stdout */
-        if (!strcmp(argument, "-")){
-            if (!filenameIdx) { filenameIdx=1, filenameTable[0]=stdinmark; outFileName=stdoutmark; continue; }
-        }
+            /* long commands (--long-word) */
+            if (!strcmp(argument, "--")) { nextArgumentIsFile=1; continue; }
+            if (!strcmp(argument, "--decompress")) { decode=1; continue; }
+            if (!strcmp(argument, "--force")) {  FIO_overwriteMode(); continue; }
+            if (!strcmp(argument, "--version")) { displayOut=stdout; DISPLAY(WELCOME_MESSAGE); CLEAN_RETURN(0); }
+            if (!strcmp(argument, "--help")) { displayOut=stdout; CLEAN_RETURN(usage_advanced(programName)); }
+            if (!strcmp(argument, "--verbose")) { displayLevel++; continue; }
+            if (!strcmp(argument, "--quiet")) { displayLevel--; continue; }
+            if (!strcmp(argument, "--stdout")) { forceStdout=1; outFileName=stdoutmark; displayLevel-=(displayLevel==2); continue; }
+            if (!strcmp(argument, "--ultra")) { FIO_setMaxWLog(0); continue; }
+            if (!strcmp(argument, "--check")) { FIO_setChecksumFlag(2); continue; }
+            if (!strcmp(argument, "--no-check")) { FIO_setChecksumFlag(0); continue; }
+            if (!strcmp(argument, "--no-dictID")) { FIO_setDictIDFlag(0); continue; }
+            if (!strcmp(argument, "--sparse")) { FIO_setSparseWrite(2); continue; }
+            if (!strcmp(argument, "--no-sparse")) { FIO_setSparseWrite(0); continue; }
+            if (!strcmp(argument, "--test")) { decode=1; outFileName=nulmark; FIO_overwriteMode(); continue; }
+            if (!strcmp(argument, "--train")) { dictBuild=1; outFileName=g_defaultDictName; continue; }
+            if (!strcmp(argument, "--maxdict")) { nextArgumentIsMaxDict=1; continue; }
+            if (!strcmp(argument, "--dictID")) { nextArgumentIsDictID=1; continue; }
+            if (!strcmp(argument, "--keep")) { FIO_setRemoveSrcFile(0); continue; }
+            if (!strcmp(argument, "--rm")) { FIO_setRemoveSrcFile(1); continue; }
 
-        /* Decode commands (note : aggregated commands are allowed) */
-        if (argument[0]=='-') {
-            argument++;
-
-            while (argument[0]!=0) {
-#ifndef ZSTD_NOCOMPRESS
-                /* compression Level */
-                if ((*argument>='0') && (*argument<='9')) {
-                    cLevel = readU32FromChar(&argument);
-                    dictCLevel = cLevel;
-                    if (dictCLevel > ZSTD_maxCLevel())
-                        CLEAN_RETURN(badusage(programName));
+            /* '-' means stdin/stdout */
+            if (!strcmp(argument, "-")){
+                if (!filenameIdx) {
+                    filenameIdx=1, filenameTable[0]=stdinmark;
+                    outFileName=stdoutmark;
+                    displayLevel-=(displayLevel==2);
                     continue;
-                }
-#endif
+            }   }
 
-                switch(argument[0])
-                {
-                    /* Display help */
-                case 'V': displayOut=stdout; DISPLAY(WELCOME_MESSAGE); CLEAN_RETURN(0);   /* Version Only */
-                case 'H':
-                case 'h': displayOut=stdout; CLEAN_RETURN(usage_advanced(programName));
+            /* Decode commands (note : aggregated commands are allowed) */
+            if (argument[0]=='-') {
+                argument++;
 
-                     /* Decoding */
-                case 'd': decode=1; argument++; break;
+                while (argument[0]!=0) {
+    #ifndef ZSTD_NOCOMPRESS
+                    /* compression Level */
+                    if ((*argument>='0') && (*argument<='9')) {
+                        cLevel = readU32FromChar(&argument);
+                        dictCLevel = cLevel;
+                        if (dictCLevel > ZSTD_maxCLevel())
+                            CLEAN_RETURN(badusage(programName));
+                        continue;
+                    }
+    #endif
 
-                    /* Force stdout, even if stdout==console */
-                case 'c': forceStdout=1; outFileName=stdoutmark; displayLevel=1; argument++; break;
+                    switch(argument[0])
+                    {
+                        /* Display help */
+                    case 'V': displayOut=stdout; DISPLAY(WELCOME_MESSAGE); CLEAN_RETURN(0);   /* Version Only */
+                    case 'H':
+                    case 'h': displayOut=stdout; CLEAN_RETURN(usage_advanced(programName));
 
-                    /* Use file content as dictionary */
-                case 'D': nextEntryIsDictionary = 1; argument++; break;
+                         /* Decoding */
+                    case 'd': decode=1; argument++; break;
 
-                    /* Overwrite */
-                case 'f': FIO_overwriteMode(); forceStdout=1; argument++; break;
+                        /* Force stdout, even if stdout==console */
+                    case 'c': forceStdout=1; outFileName=stdoutmark; displayLevel-=(displayLevel==2); argument++; break;
 
-                    /* Verbose mode */
-                case 'v': displayLevel=4; argument++; break;
+                        /* Use file content as dictionary */
+                    case 'D': nextEntryIsDictionary = 1; argument++; break;
 
-                    /* Quiet mode */
-                case 'q': displayLevel--; argument++; break;
+                        /* Overwrite */
+                    case 'f': FIO_overwriteMode(); forceStdout=1; argument++; break;
 
-                    /* keep source file (default anyway, so useless; for gzip/xz compatibility) */
-                case 'k': argument++; break;
+                        /* Verbose mode */
+                    case 'v': displayLevel++; argument++; break;
 
-                    /* Checksum */
-                case 'C': argument++; FIO_setChecksumFlag(2); break;
+                        /* Quiet mode */
+                    case 'q': displayLevel--; argument++; break;
 
-                    /* test compressed file */
-                case 't': decode=1; outFileName=nulmark; argument++; break;
+                        /* keep source file (default); for gzip/xz compatibility */
+                    case 'k': FIO_setRemoveSrcFile(0); argument++; break;
 
-                    /* dictionary name */
-                case 'o': nextArgumentIsOutFileName=1; argument++; break;
+                        /* Checksum */
+                    case 'C': argument++; FIO_setChecksumFlag(2); break;
 
-                    /* recursive */
-                case 'r': recursive=1; argument++; break;
+                        /* test compressed file */
+                    case 't': decode=1; outFileName=nulmark; argument++; break;
 
-#ifndef ZSTD_NOBENCH
-                    /* Benchmark */
-                case 'b': bench=1; argument++; break;
+                        /* destination file name */
+                    case 'o': nextArgumentIsOutFileName=1; argument++; break;
 
-                    /* range bench (benchmark only) */
-                case 'e':
-                        /* compression Level */
+                        /* recursive */
+                    case 'r': recursive=1; argument++; break;
+
+    #ifndef ZSTD_NOBENCH
+                        /* Benchmark */
+                    case 'b': bench=1; argument++; break;
+
+                        /* range bench (benchmark only) */
+                    case 'e':
+                            /* compression Level */
+                            argument++;
+                            cLevelLast = readU32FromChar(&argument);
+                            break;
+
+                        /* Modify Nb Iterations (benchmark only) */
+                    case 'i':
                         argument++;
-                        cLevelLast = readU32FromChar(&argument);
+                        {   U32 const iters = readU32FromChar(&argument);
+                            BMK_setNotificationLevel(displayLevel);
+                            BMK_SetNbIterations(iters);
+                        }
                         break;
 
-                    /* Modify Nb Iterations (benchmark only) */
-                case 'i':
-                    argument++;
-                    {   U32 const iters = readU32FromChar(&argument);
-                        BMK_setNotificationLevel(displayLevel);
-                        BMK_SetNbIterations(iters);
+                        /* cut input into blocks (benchmark only) */
+                    case 'B':
+                        argument++;
+                        {   size_t bSize = readU32FromChar(&argument);
+                            if (toupper(*argument)=='K') bSize<<=10, argument++;  /* allows using KB notation */
+                            if (toupper(*argument)=='M') bSize<<=20, argument++;
+                            if (toupper(*argument)=='B') argument++;
+                            BMK_setNotificationLevel(displayLevel);
+                            BMK_SetBlockSize(bSize);
+                        }
+                        break;
+    #endif   /* ZSTD_NOBENCH */
+
+                        /* Dictionary Selection level */
+                    case 's':
+                        argument++;
+                        dictSelect = readU32FromChar(&argument);
+                        break;
+
+                        /* Pause at the end (-p) or set an additional param (-p#) (hidden option) */
+                    case 'p': argument++;
+    #ifndef ZSTD_NOBENCH
+                        if ((*argument>='0') && (*argument<='9')) {
+                            BMK_setAdditionalParam(readU32FromChar(&argument));
+                        } else
+    #endif
+                            main_pause=1;
+                        break;
+                        /* unknown command */
+                    default : CLEAN_RETURN(badusage(programName));
                     }
-                    break;
-
-                    /* cut input into blocks (benchmark only) */
-                case 'B':
-                    argument++;
-                    {   size_t bSize = readU32FromChar(&argument);
-                        if (toupper(*argument)=='K') bSize<<=10, argument++;  /* allows using KB notation */
-                        if (toupper(*argument)=='M') bSize<<=20, argument++;
-                        if (toupper(*argument)=='B') argument++;
-                        BMK_setNotificationLevel(displayLevel);
-                        BMK_SetBlockSize(bSize);
-                    }
-                    break;
-#endif   /* ZSTD_NOBENCH */
-
-                    /* Dictionary Selection level */
-                case 's':
-                    argument++;
-                    dictSelect = readU32FromChar(&argument);
-                    break;
-
-                    /* Pause at the end (-p) or set an additional param (-p#) (hidden option) */
-                case 'p': argument++;
-#ifndef ZSTD_NOBENCH
-                    if ((*argument>='0') && (*argument<='9')) {
-                        BMK_setAdditionalParam(readU32FromChar(&argument));
-                    } else
-#endif
-                        main_pause=1;
-                    break;
-                    /* unknown command */
-                default : CLEAN_RETURN(badusage(programName));
                 }
+                continue;
+            }   /* if (argument[0]=='-') */
+
+            if (nextArgumentIsMaxDict) {
+                nextArgumentIsMaxDict = 0;
+                maxDictSize = readU32FromChar(&argument);
+                if (toupper(*argument)=='K') maxDictSize <<= 10;
+                if (toupper(*argument)=='M') maxDictSize <<= 20;
+                continue;
             }
-            continue;
-        }   /* if (argument[0]=='-') */
+
+            if (nextArgumentIsDictID) {
+                nextArgumentIsDictID = 0;
+                dictID = readU32FromChar(&argument);
+                continue;
+            }
+
+        }   /* if (nextArgumentIsAFile==0) */
 
         if (nextEntryIsDictionary) {
             nextEntryIsDictionary = 0;
@@ -394,20 +426,6 @@ int main(int argCount, const char** argv)
             nextArgumentIsOutFileName = 0;
             outFileName = argument;
             if (!strcmp(outFileName, "-")) outFileName = stdoutmark;
-            continue;
-        }
-
-        if (nextArgumentIsMaxDict) {
-            nextArgumentIsMaxDict = 0;
-            maxDictSize = readU32FromChar(&argument);
-            if (toupper(*argument)=='K') maxDictSize <<= 10;
-            if (toupper(*argument)=='M') maxDictSize <<= 20;
-            continue;
-        }
-
-        if (nextArgumentIsDictID) {
-            nextArgumentIsDictID = 0;
-            dictID = readU32FromChar(&argument);
             continue;
         }
 
@@ -444,6 +462,7 @@ int main(int argCount, const char** argv)
     if (dictBuild) {
 #ifndef ZSTD_NODICT
         ZDICT_params_t dictParams;
+        memset(&dictParams, 0, sizeof(dictParams));
         dictParams.compressionLevel = dictCLevel;
         dictParams.selectivityLevel = dictSelect;
         dictParams.notificationLevel = displayLevel;

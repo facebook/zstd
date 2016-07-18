@@ -1,0 +1,5 @@
+configurationVersion: 1
+
+filters:
+    # third-party embedded
+    - filePath: lib/dictBuilder/divsufsort.c

@@ -239,7 +239,7 @@ static U32 HUF_setMaxHeight(nodeElt* huffNode, U32 lastNonNull, U32 maxNbBits)
 
         /* repay normalized cost */
         {   U32 const noSymbol = 0xF0F0F0F0;
-            U32 rankLast[HUF_TABLELOG_MAX+1];
+            U32 rankLast[HUF_TABLELOG_MAX+2];
             int pos;
 
             /* Get pos of last (smallest) symbol per rank */
@@ -535,6 +535,7 @@ static size_t HUF_compress_internal (
     {   size_t const hSize = HUF_writeCTable (op, dstSize, CTable, maxSymbolValue, huffLog);
         if (HUF_isError(hSize)) return hSize;
         if (hSize + 12 >= srcSize) return 0;   /* not useful to try compression */
+        //static U64 totalHSize = 0; static U32 nbHSize = 0; totalHSize += hSize; nbHSize++; if ((nbHSize & 63) == 1) printf("average : %6.3f \n", (double)totalHSize / nbHSize);
         op += hSize;
     }
 

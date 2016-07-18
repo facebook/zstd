@@ -2,6 +2,7 @@ v0.7.5
 Fixed : premature end of frame when zero-sized raw block, reported by Eric Biggers
 Modified : minor compression level adaptations
 Update : specification, to v0.1.2 : max huffman depth at 11 bits
+changed : zstd.h moved to /lib directory
 
 v0.7.4
 Added : homebrew for Mac

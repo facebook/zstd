@@ -576,7 +576,7 @@ typedef struct
 {
     ZSTD_CCtx* ref;
     ZSTD_CCtx* zc;
-    void* workPlace;   /* must be ZSTD_BLOCKSIZE_MAX allocated */
+    void* workPlace;   /* must be ZSTD_BLOCKSIZE_ABSOLUTEMAX allocated */
 } EStats_ress_t;
 
 #define MAXREPOFFSET 1024
@@ -585,14 +585,14 @@ static void ZDICT_countEStats(EStats_ress_t esr, ZSTD_parameters params,
                             U32* countLit, U32* offsetcodeCount, U32* matchlengthCount, U32* litlengthCount, U32* repOffsets,
                             const void* src, size_t srcSize)
 {
-    size_t const blockSizeMax = MIN (ZSTD_BLOCKSIZE_MAX, 1 << params.cParams.windowLog);
+    size_t const blockSizeMax = MIN (ZSTD_BLOCKSIZE_ABSOLUTEMAX, 1 << params.cParams.windowLog);
     size_t cSize;
 
     if (srcSize > blockSizeMax) srcSize = blockSizeMax;   /* protection vs large samples */
 	{	size_t const errorCode = ZSTD_copyCCtx(esr.zc, esr.ref);
 		if (ZSTD_isError(errorCode)) { DISPLAYLEVEL(1, "warning : ZSTD_copyCCtx failed \n"); return; }
 	}
-    cSize = ZSTD_compressBlock(esr.zc, esr.workPlace, ZSTD_BLOCKSIZE_MAX, src, srcSize);
+    cSize = ZSTD_compressBlock(esr.zc, esr.workPlace, ZSTD_BLOCKSIZE_ABSOLUTEMAX, src, srcSize);
     if (ZSTD_isError(cSize)) { DISPLAYLEVEL(1, "warning : could not compress sample size %u \n", (U32)srcSize); return; }
 
     if (cSize) {  /* if == 0; block is not compressible */
@@ -705,7 +705,7 @@ static size_t ZDICT_analyzeEntropy(void*  dstBuffer, size_t maxDstSize,
     memset(bestRepOffset, 0, sizeof(bestRepOffset));
     esr.ref = ZSTD_createCCtx();
     esr.zc = ZSTD_createCCtx();
-    esr.workPlace = malloc(ZSTD_BLOCKSIZE_MAX);
+    esr.workPlace = malloc(ZSTD_BLOCKSIZE_ABSOLUTEMAX);
     if (!esr.ref || !esr.zc || !esr.workPlace) {
             eSize = ERROR(memory_allocation);
             DISPLAYLEVEL(1, "Not enough memory");

@@ -147,7 +147,7 @@ size_t ZBUFF_compressInit_advanced(ZBUFF_CCtx* zbc,
             zbc->inBuff = (char*)zbc->customMem.customAlloc(zbc->customMem.opaque, neededInBuffSize);
             if (zbc->inBuff == NULL) return ERROR(memory_allocation);
         }
-        zbc->blockSize = MIN(ZSTD_BLOCKSIZE_MAX, neededInBuffSize);
+        zbc->blockSize = MIN(ZSTD_BLOCKSIZE_ABSOLUTEMAX, neededInBuffSize);
     }
     if (zbc->outBuffSize < ZSTD_compressBound(zbc->blockSize)+1) {
         zbc->outBuffSize = ZSTD_compressBound(zbc->blockSize)+1;
@@ -323,5 +323,5 @@ size_t ZBUFF_compressEnd(ZBUFF_CCtx* zbc, void* dst, size_t* dstCapacityPtr)
 /* *************************************
 *  Tool functions
 ***************************************/
-size_t ZBUFF_recommendedCInSize(void)  { return ZSTD_BLOCKSIZE_MAX; }
-size_t ZBUFF_recommendedCOutSize(void) { return ZSTD_compressBound(ZSTD_BLOCKSIZE_MAX) + ZSTD_blockHeaderSize + ZBUFF_endFrameSize; }
+size_t ZBUFF_recommendedCInSize(void)  { return ZSTD_BLOCKSIZE_ABSOLUTEMAX; }
+size_t ZBUFF_recommendedCOutSize(void) { return ZSTD_compressBound(ZSTD_BLOCKSIZE_ABSOLUTEMAX) + ZSTD_blockHeaderSize + ZBUFF_endFrameSize; }

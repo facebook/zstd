@@ -194,7 +194,7 @@ size_t ZBUFF_decompressContinue(ZBUFF_DCtx* zbd,
             zbd->fParams.windowSize = MAX(zbd->fParams.windowSize, 1U << ZSTD_WINDOWLOG_ABSOLUTEMIN);
 
             /* Frame header instruct buffer sizes */
-            {   size_t const blockSize = MIN(zbd->fParams.windowSize, ZSTD_BLOCKSIZE_MAX);
+            {   size_t const blockSize = MIN(zbd->fParams.windowSize, ZSTD_BLOCKSIZE_ABSOLUTEMAX);
                 zbd->blockSize = blockSize;
                 if (zbd->inBuffSize < blockSize) {
                     zbd->customMem.customFree(zbd->customMem.opaque, zbd->inBuff);
@@ -279,7 +279,6 @@ size_t ZBUFF_decompressContinue(ZBUFF_DCtx* zbd,
     *srcSizePtr = ip-istart;
     *dstCapacityPtr = op-ostart;
     {   size_t nextSrcSizeHint = ZSTD_nextSrcSizeToDecompress(zbd->zd);
-//        if (nextSrcSizeHint > ZSTD_blockHeaderSize) nextSrcSizeHint+= ZSTD_blockHeaderSize;   /* get following block header too */
         nextSrcSizeHint -= zbd->inPos;   /* already loaded*/
         return nextSrcSizeHint;
     }
@@ -290,5 +289,5 @@ size_t ZBUFF_decompressContinue(ZBUFF_DCtx* zbd,
 /* *************************************
 *  Tool functions
 ***************************************/
-size_t ZBUFF_recommendedDInSize(void)  { return ZSTD_BLOCKSIZE_MAX + ZSTD_blockHeaderSize /* block header size*/ ; }
-size_t ZBUFF_recommendedDOutSize(void) { return ZSTD_BLOCKSIZE_MAX; }
+size_t ZBUFF_recommendedDInSize(void)  { return ZSTD_BLOCKSIZE_ABSOLUTEMAX + ZSTD_blockHeaderSize /* block header size*/ ; }
+size_t ZBUFF_recommendedDOutSize(void) { return ZSTD_BLOCKSIZE_ABSOLUTEMAX; }

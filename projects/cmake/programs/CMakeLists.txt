@@ -40,7 +40,7 @@ SET(ROOT_DIR ../../..)
 # Define programs directory, where sources and header files are located
 SET(LIBRARY_DIR ${ROOT_DIR}/lib)
 SET(PROGRAMS_DIR ${ROOT_DIR}/programs)
-INCLUDE_DIRECTORIES(${PROGRAMS_DIR} ${LIBRARY_DIR}/common ${LIBRARY_DIR}/dictBuilder)
+INCLUDE_DIRECTORIES(${PROGRAMS_DIR} ${LIBRARY_DIR} ${LIBRARY_DIR}/common ${LIBRARY_DIR}/dictBuilder)
 
 IF (ZSTD_LEGACY_SUPPORT)
     SET(PROGRAMS_LEGACY_DIR ${PROGRAMS_DIR}/legacy)

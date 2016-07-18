@@ -1,63 +1,57 @@
 zstd - library files
 ================================
 
-The __lib__ directory contains several files, but depending on target use case, some of them may not be necessary.
-
-#### Minimal library files
-
-To build the zstd library the following files are required:
-
-- [common/bitstream.h](common/bitstream.h)
-- [common/error_private.h](common/error_private.h)
-- [common/error_public.h](common/error_public.h)
-- common/fse.h
-- common/fse_decompress.c
-- common/huf.h
-- [common/mem.h](common/mem.h)
-- [common/zstd.h]
-- common/zstd_internal.h
-- compress/fse_compress.c
-- compress/huf_compress.c
-- compress/zstd_compress.c
-- compress/zstd_opt.h
-- decompress/huf_decompress.c
-- decompress/zstd_decompress.c
-
-Stable API is exposed in [common/zstd.h].
-Advanced and experimental API can be enabled by defining `ZSTD_STATIC_LINKING_ONLY`.
-Never use them with a dynamic library, as their definition may change in future versions.
-
-[common/zstd.h]: common/zstd.h
+The __lib__ directory contains several directories.
+Depending on target use case, it's enough to include only files from relevant directories.
 
 
-#### Separate compressor and decompressor
+#### API
 
-To build a separate zstd compressor all files from `common/` and `compressor/` directories are required.
-In a similar way to build a separate zstd decompressor all files from `common/` and `decompressor/` directories are needed.
+Zstandard's stable API is exposed within [zstd.h](zstd.h),
+at the root of `lib` directory.
 
 
-#### Buffered streaming
+#### Advanced API
 
-This complementary API makes streaming integration easier.
-It is used by `zstd` command line utility, and [7zip plugin](http://mcmilk.de/projects/7-Zip-ZStd) :
+Some additional API may be useful if you're looking into advanced features :
+- common/error_public.h : transform function result into an `enum`,
+                          for precise error handling.
+- ZSTD_STATIC_LINKING_ONLY : if you define this macro _before_ including `zstd.h`,
+                          it will give access to advanced and experimental API.
+                          These APIs shall ___never be used with dynamic library___ !
+                          They are not "stable", their definition may change in the future.
+                          Only static linking is allowed.
 
-- common/zbuff.h
-- compress/zbuff_compress.c
-- decompress/zbuff_decompress.c
 
-#### Dictionary builder
+#### Modular build
 
-To create dictionaries from training sets :
+Directory `common/` is required in all circumstances.
+You can select to support compression only, by just adding files from the `compress/` directory,
+In a similar way, you can build a decompressor-only library with the `decompress/` directory.
 
-- dictBuilder/divsufsort.c
-- dictBuilder/divsufsort.h
-- dictBuilder/zdict.c
-- dictBuilder/zdict.h
+Other optional functionalities provided are :
+
+- `dictBuilder/`  : this directory contains source files required to create dictionaries.
+                    The API can be consulted in `dictBuilder/zdict.h`.
+                    It also depends on `common/` and `compress/` .
+
+- `legacy/` : this directory contains source code to decompress previous versions of Zstd,
+              starting from `v0.1`. The main API can be consulted in `legacy/zstd_legacy.h`.
+              Note that it's required to compile the library with `ZSTD_LEGACY_SUPPORT = 1` .
+              Advanced API from each version can be found in its relevant header file.
+              For example, advanced API for version `v0.4` is in `zstd_v04.h` .
+              It also depends on `common/` and `decompress/` .
+
+
+#### Streaming API
+
+Streaming is currently provided by `common/zbuff.h`.
+
 
 #### Miscellaneous
 
 The other files are not source code. There are :
 
  - LICENSE : contains the BSD license text
- - Makefile : script to compile or install zstd library (static or dynamic)
- - libzstd.pc.in : for pkg-config (make install)
+ - Makefile : script to compile or install zstd library (static and dynamic)
+ - libzstd.pc.in : for pkg-config (`make install`)

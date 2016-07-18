@@ -381,13 +381,9 @@ static int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compres
             {   size_t const dictStart = FUZ_rand(&lseed) % (srcBufferSize - dictSize);
                 dict = srcBuffer + dictStart;
             }
-            {   ZSTD_compressionParameters const cPar = ZSTD_getCParams(cLevel, 0, dictSize);
-                U32 const checksum = FUZ_rand(&lseed) & 1;
-                U32 const noDictIDFlag = FUZ_rand(&lseed) & 1;
-                ZSTD_frameParameters const fPar = { 0, checksum, noDictIDFlag };
-                ZSTD_parameters params;
-                params.cParams = cPar;
-                params.fParams = fPar;
+            {   ZSTD_parameters params = ZSTD_getParams(cLevel, 0, dictSize);
+                params.fParams.checksumFlag = FUZ_rand(&lseed) & 1;
+                params.fParams.noDictIDFlag = FUZ_rand(&lseed) & 1;
                 {   size_t const initError = ZBUFF_compressInit_advanced(zc, dict, dictSize, params, 0);
                     CHECK (ZBUFF_isError(initError),"init error : %s", ZBUFF_getErrorName(initError));
         }   }   }

@@ -137,7 +137,7 @@ size_t ZBUFF_freeCCtx(ZBUFF_CCtx* zbc)
 
 size_t ZBUFF_compressInit_advanced(ZBUFF_CCtx* zbc,
                                    const void* dict, size_t dictSize,
-                                   ZSTD_parameters params, U64 pledgedSrcSize)
+                                   ZSTD_parameters params, unsigned long long pledgedSrcSize)
 {
     /* allocate buffers */
     {   size_t const neededInBuffSize = (size_t)1 << params.cParams.windowLog;
@@ -170,9 +170,7 @@ size_t ZBUFF_compressInit_advanced(ZBUFF_CCtx* zbc,
 
 size_t ZBUFF_compressInitDictionary(ZBUFF_CCtx* zbc, const void* dict, size_t dictSize, int compressionLevel)
 {
-    ZSTD_parameters params;
-    memset(&params, 0, sizeof(params));
-    params.cParams = ZSTD_getCParams(compressionLevel, 0, dictSize);
+    ZSTD_parameters const params = ZSTD_getParams(compressionLevel, 0, dictSize);
     return ZBUFF_compressInit_advanced(zbc, dict, dictSize, params, 0);
 }
 

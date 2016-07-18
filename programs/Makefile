@@ -38,7 +38,7 @@ MANDIR  = $(PREFIX)/share/man/man1
 
 ZSTDDIR = ../lib
 
-CPPFLAGS= -I$(ZSTDDIR)/common -I$(ZSTDDIR)/dictBuilder -DXXH_NAMESPACE=ZSTD_
+CPPFLAGS= -I$(ZSTDDIR) -I$(ZSTDDIR)/common -I$(ZSTDDIR)/dictBuilder -DXXH_NAMESPACE=ZSTD_
 CFLAGS ?= -O3  # -falign-loops=32   # not always beneficial
 CFLAGS += -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow -Wstrict-aliasing=1 -Wswitch-enum -Wdeclaration-after-statement -Wstrict-prototypes -Wundef
 FLAGS   = $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) $(MOREFLAGS)
@@ -154,10 +154,10 @@ clean:
 	@echo Cleaning completed
 
 
-#------------------------------------------------------------------------
-#make install is validated only for Linux, OSX, kFreeBSD and Hurd targets
-#------------------------------------------------------------------------
-ifneq (,$(filter $(shell uname),Linux Darwin GNU/kFreeBSD GNU))
+#---------------------------------------------------------------------------------
+#make install is validated only for Linux, OSX, kFreeBSD, Hurd and OpenBSD targets
+#---------------------------------------------------------------------------------
+ifneq (,$(filter $(shell uname),Linux Darwin GNU/kFreeBSD GNU OpenBSD))
 HOST_OS = POSIX
 install: zstd
 	@echo Installing binaries

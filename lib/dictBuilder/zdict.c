@@ -32,13 +32,14 @@
 */
 
 /*-**************************************
+*  Tuning parameters
+****************************************/
+#define ZDICT_MAX_SAMPLES_SIZE (2000U << 20)
+
+
+/*-**************************************
 *  Compiler Options
 ****************************************/
-/* Disable some Visual warning messages */
-#ifdef _MSC_VER
-#  pragma warning(disable : 4127)                /* disable: C4127: conditional expression is constant */
-#endif
-
 /* Unix Large Files support (>4GB) */
 #define _FILE_OFFSET_BITS 64
 #if (defined(__sun__) && (!defined(__LP64__)))   /* Sun Solaris 32-bits requires specific definitions */
@@ -58,13 +59,15 @@
 
 #include "mem.h"           /* read */
 #include "error_private.h"
-#include "fse.h"
+#include "fse.h"           /* FSE_normalizeCount, FSE_writeNCount */
 #define HUF_STATIC_LINKING_ONLY
 #include "huf.h"
 #include "zstd_internal.h" /* includes zstd.h */
 #include "xxhash.h"
 #include "divsufsort.h"
-#define ZDICT_STATIC_LINKING_ONLY
+#ifndef ZDICT_STATIC_LINKING_ONLY
+#  define ZDICT_STATIC_LINKING_ONLY
+#endif
 #include "zdict.h"
 
 
@@ -91,16 +94,18 @@ static const size_t g_min_fast_dictContent = 192;
 /*-*************************************
 *  Console display
 ***************************************/
-#define DISPLAY(...)         fprintf(stderr, __VA_ARGS__)
+#define DISPLAY(...)         { fprintf(stderr, __VA_ARGS__); fflush( stderr ); }
 #define DISPLAYLEVEL(l, ...) if (g_displayLevel>=l) { DISPLAY(__VA_ARGS__); }
 static unsigned g_displayLevel = 0;   /* 0 : no display;   1: errors;   2: default;  4: full information */
 
 #define DISPLAYUPDATE(l, ...) if (g_displayLevel>=l) { \
-            if (ZDICT_GetMilliSpan(g_time) > refreshRate)  \
+            if (ZDICT_clockSpan(g_time) > refreshRate)  \
             { g_time = clock(); DISPLAY(__VA_ARGS__); \
             if (g_displayLevel>=4) fflush(stdout); } }
-static const unsigned refreshRate = 300;
+static const clock_t refreshRate = CLOCKS_PER_SEC * 3 / 10;
 static clock_t g_time = 0;
+
+static clock_t ZDICT_clockSpan(clock_t nPrevious) { return clock() - nPrevious; }
 
 static void ZDICT_printHex(U32 dlevel, const void* ptr, size_t length)
 {
@@ -117,13 +122,6 @@ static void ZDICT_printHex(U32 dlevel, const void* ptr, size_t length)
 /*-********************************************************
 *  Helper functions
 **********************************************************/
-static unsigned ZDICT_GetMilliSpan(clock_t nPrevious)
-{
-    clock_t nCurrent = clock();
-    unsigned nSpan = (unsigned)(((nCurrent - nPrevious) * 1000) / CLOCKS_PER_SEC);
-    return nSpan;
-}
-
 unsigned ZDICT_isError(size_t errorCode) { return ERR_isError(errorCode); }
 
 const char* ZDICT_getErrorName(size_t errorCode) { return ERR_getErrorName(errorCode); }
@@ -286,7 +284,7 @@ static dictItem ZDICT_analyzePos(
         U32 refinedEnd = end;
 
         DISPLAYLEVEL(4, "\n");
-        DISPLAYLEVEL(4, "found %3u matches of length >= %u at pos %7u  ", (U32)(end-start), MINMATCHLENGTH, (U32)pos);
+        DISPLAYLEVEL(4, "found %3u matches of length >= %i at pos %7u  ", (U32)(end-start), MINMATCHLENGTH, (U32)pos);
         DISPLAYLEVEL(4, "\n");
 
         for (searchLength = MINMATCHLENGTH ; ; searchLength++) {
@@ -489,7 +487,7 @@ static U32 ZDICT_dictSize(const dictItem* dictList)
 
 
 static size_t ZDICT_trainBuffer(dictItem* dictList, U32 dictListSize,
-                            const void* const buffer, const size_t bufferSize,   /* buffer must end with noisy guard band */
+                            const void* const buffer, size_t bufferSize,   /* buffer must end with noisy guard band */
                             const size_t* fileSizes, unsigned nbFiles,
                             U32 shiftRatio, unsigned maxDictSize)
 {
@@ -499,7 +497,6 @@ static size_t ZDICT_trainBuffer(dictItem* dictList, U32 dictListSize,
     BYTE* doneMarks = (BYTE*)malloc((bufferSize+16)*sizeof(*doneMarks));   /* +16 for overflow security */
     U32* filePos = (U32*)malloc(nbFiles * sizeof(*filePos));
     U32 minRatio = nbFiles >> shiftRatio;
-    int divSuftSortResult;
     size_t result = 0;
 
     /* init */
@@ -511,15 +508,19 @@ static size_t ZDICT_trainBuffer(dictItem* dictList, U32 dictListSize,
     if (minRatio < MINRATIO) minRatio = MINRATIO;
     memset(doneMarks, 0, bufferSize+16);
 
+    /* limit sample set size (divsufsort limitation)*/
+    if (bufferSize > ZDICT_MAX_SAMPLES_SIZE) DISPLAYLEVEL(3, "sample set too large : reduced to %u MB ...\n", (U32)(ZDICT_MAX_SAMPLES_SIZE>>20));
+    while (bufferSize > ZDICT_MAX_SAMPLES_SIZE) bufferSize -= fileSizes[--nbFiles];
+
     /* sort */
     DISPLAYLEVEL(2, "sorting %u files of total size %u MB ...\n", nbFiles, (U32)(bufferSize>>20));
-    divSuftSortResult = divsufsort((const unsigned char*)buffer, suffix, (int)bufferSize, 0);
-    if (divSuftSortResult != 0) { result = ERROR(GENERIC); goto _cleanup; }
+    {   int const divSuftSortResult = divsufsort((const unsigned char*)buffer, suffix, (int)bufferSize, 0);
+        if (divSuftSortResult != 0) { result = ERROR(GENERIC); goto _cleanup; }
+    }
     suffix[bufferSize] = (int)bufferSize;   /* leads into noise */
     suffix0[0] = (int)bufferSize;           /* leads into noise */
-    {
-        /* build reverse suffix sort */
-        size_t pos;
+    /* build reverse suffix sort */
+    {   size_t pos;
         for (pos=0; pos < bufferSize; pos++)
             reverseSuffix[suffix[pos]] = (U32)pos;
         /* build file pos */
@@ -580,14 +581,17 @@ typedef struct
 
 #define MAXREPOFFSET 1024
 
-static void ZDICT_countEStats(EStats_ress_t esr,
+static void ZDICT_countEStats(EStats_ress_t esr, ZSTD_parameters params,
                             U32* countLit, U32* offsetcodeCount, U32* matchlengthCount, U32* litlengthCount, U32* repOffsets,
                             const void* src, size_t srcSize)
 {
+    size_t const blockSizeMax = MIN (ZSTD_BLOCKSIZE_MAX, 1 << params.cParams.windowLog);
     size_t cSize;
 
-    if (srcSize > ZSTD_BLOCKSIZE_MAX) srcSize = ZSTD_BLOCKSIZE_MAX;   /* protection vs large samples */
-    ZSTD_copyCCtx(esr.zc, esr.ref);
+    if (srcSize > blockSizeMax) srcSize = blockSizeMax;   /* protection vs large samples */
+	{	size_t const errorCode = ZSTD_copyCCtx(esr.zc, esr.ref);
+		if (ZSTD_isError(errorCode)) { DISPLAYLEVEL(1, "warning : ZSTD_copyCCtx failed \n"); return; }
+	}
     cSize = ZSTD_compressBlock(esr.zc, esr.workPlace, ZSTD_BLOCKSIZE_MAX, src, srcSize);
     if (ZSTD_isError(cSize)) { DISPLAYLEVEL(1, "warning : could not compress sample size %u \n", (U32)srcSize); return; }
 
@@ -685,7 +689,7 @@ static size_t ZDICT_analyzeEntropy(void*  dstBuffer, size_t maxDstSize,
     offsetCount_t bestRepOffset[ZSTD_REP_NUM+1];
     EStats_ress_t esr;
     ZSTD_parameters params;
-    U32 u, huffLog = 12, Offlog = OffFSELog, mlLog = MLFSELog, llLog = LLFSELog, total;
+    U32 u, huffLog = 11, Offlog = OffFSELog, mlLog = MLFSELog, llLog = LLFSELog, total;
     size_t pos = 0, errorCode;
     size_t eSize = 0;
     size_t const totalSrcSize = ZDICT_totalSampleSize(fileSizes, nbFiles);
@@ -708,14 +712,17 @@ static size_t ZDICT_analyzeEntropy(void*  dstBuffer, size_t maxDstSize,
             goto _cleanup;
     }
     if (compressionLevel==0) compressionLevel=g_compressionLevel_default;
-    params.cParams = ZSTD_getCParams(compressionLevel, averageSampleSize, dictBufferSize);
-    params.cParams.strategy = ZSTD_greedy;
-    params.fParams.contentSizeFlag = 0;
-    ZSTD_compressBegin_advanced(esr.ref, dictBuffer, dictBufferSize, params, 0);
+    params = ZSTD_getParams(compressionLevel, averageSampleSize, dictBufferSize);
+	{	size_t const beginResult = ZSTD_compressBegin_advanced(esr.ref, dictBuffer, dictBufferSize, params, 0);
+		if (ZSTD_isError(beginResult)) {
+			eSize = ERROR(GENERIC);
+			DISPLAYLEVEL(1, "error : ZSTD_compressBegin_advanced failed ");
+			goto _cleanup;
+	}	}
 
     /* collect stats on all files */
     for (u=0; u<nbFiles; u++) {
-        ZDICT_countEStats(esr,
+        ZDICT_countEStats(esr, params,
                         countLit, offcodeCount, matchLengthCount, litLengthCount, repOffset,
            (const char*)srcBuffer + pos, fileSizes[u]);
         pos += fileSizes[u];
@@ -887,7 +894,8 @@ size_t ZDICT_addEntropyTablesFromBuffer_advanced(void* dictBuffer, size_t dictCo
     /* dictionary header */
     MEM_writeLE32(dictBuffer, ZSTD_DICT_MAGIC);
     {   U64 const randomID = XXH64((char*)dictBuffer + dictBufferCapacity - dictContentSize, dictContentSize, 0);
-        U32 const dictID = params.dictID ? params.dictID : (U32)(randomID>>11);
+        U32 const compliantID = (randomID % ((1U<<31)-32768)) + 32768;
+        U32 const dictID = params.dictID ? params.dictID : compliantID;
         MEM_writeLE32((char*)dictBuffer+4, dictID);
     }
     hSize = 8;
@@ -904,6 +912,7 @@ size_t ZDICT_addEntropyTablesFromBuffer_advanced(void* dictBuffer, size_t dictCo
         memmove((char*)dictBuffer + hSize, (char*)dictBuffer + dictBufferCapacity - dictContentSize, dictContentSize);
     return MIN(dictBufferCapacity, hSize+dictContentSize);
 }
+
 
 #define DIB_MINSAMPLESSIZE (DIB_FASTSEGMENTSIZE*3)
 /*! ZDICT_trainFromBuffer_unsafe() :
@@ -923,12 +932,12 @@ size_t ZDICT_trainFromBuffer_unsafe(
     size_t dictSize = 0;
 
     /* checks */
-    if (maxDictSize <= g_provision_entropySize + g_min_fast_dictContent) return ERROR(dstSize_tooSmall);
     if (!dictList) return ERROR(memory_allocation);
+    if (maxDictSize <= g_provision_entropySize + g_min_fast_dictContent) { free(dictList); return ERROR(dstSize_tooSmall); }
 
     /* init */
     { unsigned u; for (u=0, sBuffSize=0; u<nbSamples; u++) sBuffSize += samplesSizes[u]; }
-    if (sBuffSize < DIB_MINSAMPLESSIZE) return 0;   /* not enough source to create dictionary */
+    if (sBuffSize < DIB_MINSAMPLESSIZE) { free(dictList); return 0; }   /* not enough source to create dictionary */
     ZDICT_initDictItem(dictList);
     g_displayLevel = params.notificationLevel;
     if (selectivity==0) selectivity = g_selectivity_default;
@@ -966,7 +975,7 @@ size_t ZDICT_trainFromBuffer_unsafe(
             for (u=1; u<dictList->pos; u++) {
                 U32 l = dictList[u].length;
                 ptr -= l;
-                if (ptr<(BYTE*)dictBuffer) return ERROR(GENERIC);   /* should not happen */
+                if (ptr<(BYTE*)dictBuffer) { free(dictList); return ERROR(GENERIC); }   /* should not happen */
                 memcpy(ptr, (const char*)samplesBuffer+dictList[u].pos, l);
         }   }
 

@@ -44,16 +44,14 @@ extern "C" {
 ******************************************/
 #include <stddef.h>     /* size_t, ptrdiff_t */
 #include <string.h>     /* memcpy */
-#if defined(_MSC_VER)   /* Visual Studio */
-#   include <stdlib.h>  /* _byteswap_ulong */
-#endif
 
 
 /*-****************************************
 *  Compiler specifics
 ******************************************/
-#if defined(_MSC_VER)
-#   include <intrin.h>   /* _byteswap_ */
+#if defined(_MSC_VER)   /* Visual Studio */
+#   include <stdlib.h>  /* _byteswap_ulong */
+#   include <intrin.h>  /* _byteswap_* */
 #endif
 #if defined(__GNUC__)
 #  define MEM_STATIC static __attribute__((unused))
@@ -64,6 +62,10 @@ extern "C" {
 #else
 #  define MEM_STATIC static  /* this version may generate warnings for unused static functions; disable the relevant warning */
 #endif
+
+/* code only tested on 32 and 64 bits systems */
+#define MEM_STATIC_ASSERT(c)   { enum { XXH_static_assert = 1/(int)(!!(c)) }; }
+MEM_STATIC void MEM_check(void) { MEM_STATIC_ASSERT((sizeof(size_t)==4) || (sizeof(size_t)==8)); }
 
 
 /*-**************************************************************

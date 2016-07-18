@@ -37,3 +37,6 @@ _zstdbench/
 
 # CMake
 projects/cmake/
+
+# Test artefacts
+tmp*

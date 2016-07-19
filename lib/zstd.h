@@ -72,7 +72,7 @@ ZSTDLIB_API unsigned ZSTD_versionNumber (void);
 /*! ZSTD_compress() :
     Compresses `src` buffer into already allocated `dst`.
     Hint : compression runs faster if `dstCapacity` >=  `ZSTD_compressBound(srcSize)`.
-    @return : the number of bytes written into `dst`,
+    @return : the number of bytes written into `dst` (<= `dstCapacity),
               or an error code if it fails (which can be tested using ZSTD_isError()) */
 ZSTDLIB_API size_t ZSTD_compress( void* dst, size_t dstCapacity,
                             const void* src, size_t srcSize,
@@ -80,7 +80,9 @@ ZSTDLIB_API size_t ZSTD_compress( void* dst, size_t dstCapacity,
 
 /*! ZSTD_getDecompressedSize() :
 *   @return : decompressed size if known, 0 otherwise.
-       note : if `0`, follow up with ZSTD_getFrameParams() to know precise failure cause */
+       note 1 : if `0`, follow up with ZSTD_getFrameParams() to know precise failure cause.
+       note 2 : decompressed size could be wrong or intentionally modified !
+                always ensure results fit within application's authorized limits */
 unsigned long long ZSTD_getDecompressedSize(const void* src, size_t srcSize);
 
 /*! ZSTD_decompress() :
@@ -106,7 +108,7 @@ ZSTDLIB_API ZSTD_CCtx* ZSTD_createCCtx(void);
 ZSTDLIB_API size_t     ZSTD_freeCCtx(ZSTD_CCtx* cctx);      /*!< @return : errorCode */
 
 /** ZSTD_compressCCtx() :
-    Same as ZSTD_compress(), but requires an allocated ZSTD_CCtx (see ZSTD_createCCtx()) */
+    Same as ZSTD_compress(), requires an allocated ZSTD_CCtx (see ZSTD_createCCtx()) */
 ZSTDLIB_API size_t ZSTD_compressCCtx(ZSTD_CCtx* ctx, void* dst, size_t dstCapacity, const void* src, size_t srcSize, int compressionLevel);
 
 /** Decompression context */
@@ -115,7 +117,7 @@ ZSTDLIB_API ZSTD_DCtx* ZSTD_createDCtx(void);
 ZSTDLIB_API size_t     ZSTD_freeDCtx(ZSTD_DCtx* dctx);      /*!< @return : errorCode */
 
 /** ZSTD_decompressDCtx() :
-*   Same as ZSTD_decompress(), but requires an allocated ZSTD_DCtx (see ZSTD_createDCtx()) */
+*   Same as ZSTD_decompress(), requires an allocated ZSTD_DCtx (see ZSTD_createDCtx()) */
 ZSTDLIB_API size_t ZSTD_decompressDCtx(ZSTD_DCtx* ctx, void* dst, size_t dstCapacity, const void* src, size_t srcSize);
 
 
@@ -439,14 +441,13 @@ ZSTDLIB_API size_t ZSTD_decompressContinue(ZSTD_DCtx* dctx, void* dst, size_t ds
       + ZSTD_decompressBlock() doesn't accept uncompressed data as input !!!
       + In case of multiple successive blocks, decoder must be informed of uncompressed block existence to follow proper history.
         Use ZSTD_insertBlock() in such a case.
-        Insert block once it's copied into its final position.
 */
 
 #define ZSTD_BLOCKSIZE_ABSOLUTEMAX (128 * 1024)   /* define, for static allocation */
 ZSTDLIB_API size_t ZSTD_getBlockSizeMax(ZSTD_CCtx* cctx);
 ZSTDLIB_API size_t ZSTD_compressBlock  (ZSTD_CCtx* cctx, void* dst, size_t dstCapacity, const void* src, size_t srcSize);
 ZSTDLIB_API size_t ZSTD_decompressBlock(ZSTD_DCtx* dctx, void* dst, size_t dstCapacity, const void* src, size_t srcSize);
-ZSTDLIB_API size_t ZSTD_insertBlock(ZSTD_DCtx* dctx, const void* blockStart, size_t blockSize);  /**< insert block into `dctx` history. Useful to track uncompressed blocks */
+ZSTDLIB_API size_t ZSTD_insertBlock(ZSTD_DCtx* dctx, const void* blockStart, size_t blockSize);  /**< insert block into `dctx` history. Useful for uncompressed blocks */
 
 
 #endif   /* ZSTD_STATIC_LINKING_ONLY */

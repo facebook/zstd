@@ -63,7 +63,7 @@ const char* HUF_getErrorName(size_t code) { return ERR_getErrorName(code); }
 /*-**************************************************************
 *  FSE NCount encoding-decoding
 ****************************************************************/
-static short FSE_abs(short a) { return a<0 ? -a : a; }
+static short FSE_abs(short a) { return (short)(a<0 ? -a : a); }
 
 size_t FSE_readNCount (short* normalizedCounter, unsigned* maxSVPtr, unsigned* tableLogPtr,
                  const void* headerBuffer, size_t hbSize)

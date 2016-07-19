@@ -15,14 +15,16 @@ working_path = os.getcwd() + '/' + working_dir_name     # /path/to/zstd/tests/sp
 clone_path = working_path + '/' + 'zstd'                # /path/to/zstd/tests/speedTest/zstd 
 email_header = '[ZSTD_speedTest]'
 pid = str(os.getpid())
+verbose = False
 
 
 def log(text):
     print(time.strftime("%Y/%m/%d %H:%M:%S") + ' - ' + text)
 
 
-def execute(command, print_output=False, print_error=True, param_shell=True):
-    log("> " + command)
+def execute(command, print_command=True, print_output=False, print_error=True, param_shell=True):
+    if print_command:
+        log("> " + command)
     popen = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=param_shell, cwd=execute.cwd)
     stdout = popen.communicate()[0]
     stdout_lines = stdout.splitlines()
@@ -38,7 +40,7 @@ execute.cwd = None
 
 def does_command_exist(command):
     try:
-        execute(command, False, False);
+        execute(command, verbose, False, False);
     except Exception as e:
         return False
     return True
@@ -50,9 +52,9 @@ def send_email(emails, topic, text, have_mutt, have_mail):
         myfile.writelines(text)
         myfile.close()
         if have_mutt:
-            execute('mutt -s "' + topic + '" ' + emails + ' < ' + logFileName)
+            execute('mutt -s "' + topic + '" ' + emails + ' < ' + logFileName, verbose)
         elif have_mail:
-            execute('mail -s "' + topic + '" ' + emails + ' < ' + logFileName)
+            execute('mail -s "' + topic + '" ' + emails + ' < ' + logFileName, verbose)
         else:
             log("e-mail cannot be sent (mail or mutt not found)")
 
@@ -71,8 +73,8 @@ def send_email_with_attachments(branch, commit, last_commit, emails, text, resul
 
 
 def git_get_branches():
-    execute('git fetch -p')
-    branches = execute('git branch -rl')
+    execute('git fetch -p', verbose)
+    branches = execute('git branch -rl', verbose)
     output = []
     for line in branches:
         if ("HEAD" not in line) and ("coverity_scan" not in line) and ("gh-pages" not in line):
@@ -183,7 +185,9 @@ if __name__ == '__main__':
     parser.add_argument('--lastCLevel', type=int, help='last compression level for testing', default=5)
     parser.add_argument('--sleepTime', type=int, help='frequency of repository checking in seconds', default=300)
     parser.add_argument('--dry-run', dest='dry_run', action='store_true', help='not build', default=False)
+    parser.add_argument('--verbose', action='store_true', help='more verbose logs', default=False)
     args = parser.parse_args()
+    verbose = args.verbose
 
     # check if test files are accessible
     testFileNames = args.testFileNames.split()
@@ -203,18 +207,20 @@ if __name__ == '__main__':
         log("ERROR: e-mail senders 'mail' or 'mutt' not found")
         exit(1)
 
-    print("PARAMETERS:\nrepoURL=%s" % args.repoURL)
-    print("working_path=%s" % working_path)
-    print("clone_path=%s" % clone_path)
-    print("testFilePath(%s)=%s" % (len(testFilePaths), testFilePaths))
-    print("message=%s" % args.message)
-    print("emails=%s" % args.emails)
-    print("maxLoadAvg=%s" % args.maxLoadAvg)
-    print("lowerLimit=%s" % args.lowerLimit)
-    print("lastCLevel=%s" % args.lastCLevel)
-    print("sleepTime=%s" % args.sleepTime)
-    print("dry_run=%s" % args.dry_run)
-    print("have_mutt=%s have_mail=%s" % (have_mutt, have_mail))
+    if verbose:
+        print("PARAMETERS:\nrepoURL=%s" % args.repoURL)
+        print("working_path=%s" % working_path)
+        print("clone_path=%s" % clone_path)
+        print("testFilePath(%s)=%s" % (len(testFilePaths), testFilePaths))
+        print("message=%s" % args.message)
+        print("emails=%s" % args.emails)
+        print("maxLoadAvg=%s" % args.maxLoadAvg)
+        print("lowerLimit=%s" % args.lowerLimit)
+        print("lastCLevel=%s" % args.lastCLevel)
+        print("sleepTime=%s" % args.sleepTime)
+        print("dry_run=%s" % args.dry_run)
+        print("verbose=%s" % args.verbose)
+        print("have_mutt=%s have_mail=%s" % (have_mutt, have_mail))
 
     # clone ZSTD repo if needed
     if not os.path.isdir(working_path):
@@ -242,7 +248,7 @@ if __name__ == '__main__':
             if (loadavg <= args.maxLoadAvg):
                 branches = git_get_branches()
                 for branch in branches:
-                    commit = execute('git show -s --format=%h ' + branch)[0]
+                    commit = execute('git show -s --format=%h ' + branch, verbose)[0]
                     last_commit = update_config_file(branch, commit)
                     if commit == last_commit:
                         log("skipping branch %s: head %s already processed" % (branch, commit))
@@ -253,7 +259,8 @@ if __name__ == '__main__':
                         test_commit(branch, commit, last_commit, args, testFilePaths, have_mutt, have_mail)
             else:
                 log("WARNING: main loadavg=%.2f is higher than %s" % (loadavg, args.maxLoadAvg))
-            log("sleep for %s seconds" % args.sleepTime)
+            if verbose:
+                log("sleep for %s seconds" % args.sleepTime)
             time.sleep(args.sleepTime)
         except Exception as e:
             stack = traceback.format_exc()

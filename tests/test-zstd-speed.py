@@ -72,11 +72,12 @@ def send_email_with_attachments(branch, commit, last_commit, emails, text, resul
 
 def git_get_branches():
     execute('git fetch -p')
-    output = execute('git branch -rl')
-    for line in output:
-        if "HEAD" in line: 
-            output.remove(line)  # remove "origin/HEAD -> origin/dev"
-    return map(lambda l: l.strip(), output)
+    branches = execute('git branch -rl')
+    output = []
+    for line in branches:
+        if ("HEAD" not in line) and ("coverity_scan" not in line) and ("gh-pages" not in line):
+            output.append(line.strip())
+    return output
 
 
 def git_get_changes(branch, commit, last_commit):

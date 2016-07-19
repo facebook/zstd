@@ -4024,7 +4024,7 @@ size_t ZSTDv04_decompress(void* dst, size_t maxDstSize, const void* src, size_t 
     return regenSize;
 #else
     ZSTD_DCtx dctx;
-    return ZSTD_decompressDCtx(&dctx, dst, maxDstSize, src, srcSize);
+    return ZSTDv04_decompressDCtx(&dctx, dst, maxDstSize, src, srcSize);
 #endif
 }
 

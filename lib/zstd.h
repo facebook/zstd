@@ -54,8 +54,8 @@ extern "C" {
 
 /*======  Version  ======*/
 #define ZSTD_VERSION_MAJOR    0
-#define ZSTD_VERSION_MINOR    7
-#define ZSTD_VERSION_RELEASE  5
+#define ZSTD_VERSION_MINOR    8
+#define ZSTD_VERSION_RELEASE  0
 
 #define ZSTD_LIB_VERSION ZSTD_VERSION_MAJOR.ZSTD_VERSION_MINOR.ZSTD_VERSION_RELEASE
 #define ZSTD_QUOTE(str) #str
@@ -188,7 +188,7 @@ ZSTDLIB_API size_t ZSTD_decompress_usingDDict(ZSTD_DCtx* dctx,
  * ==================================================================================== */
 
 /*--- Constants ---*/
-#define ZSTD_MAGICNUMBER            0xFD2FB527   /* v0.7 */
+#define ZSTD_MAGICNUMBER            0xFD2FB528   /* v0.8 */
 #define ZSTD_MAGIC_SKIPPABLE_START  0x184D2A50U
 
 #define ZSTD_WINDOWLOG_MAX_32  25

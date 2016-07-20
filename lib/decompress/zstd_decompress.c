@@ -435,18 +435,15 @@ typedef struct
 *   Provides the size of compressed block from block header `src` */
 size_t ZSTD_getcBlockSize(const void* src, size_t srcSize, blockProperties_t* bpPtr)
 {
-    const BYTE* const in = (const BYTE* const)src;
-    U32 cSize;
-
     if (srcSize < ZSTD_blockHeaderSize) return ERROR(srcSize_wrong);
-
-    bpPtr->blockType = (blockType_t)((*in) >> 6);
-    cSize = in[2] + (in[1]<<8) + ((in[0] & 7)<<16);
-    bpPtr->origSize = (bpPtr->blockType == bt_rle) ? cSize : 0;
-
-    if (bpPtr->blockType == bt_end) return 0;
-    if (bpPtr->blockType == bt_rle) return 1;
-    return cSize;
+    {   U32 const cBlockHeader = MEM_readLE24(src);
+        U32 const cSize = cBlockHeader >> 2;
+        bpPtr->blockType = (blockType_t)(cBlockHeader & 3);
+        bpPtr->origSize = cSize;   /* only useful for RLE */
+        if (bpPtr->blockType == bt_end) return 0;
+        if (bpPtr->blockType == bt_rle) return 1;
+        return cSize;
+    }
 }
 
 
@@ -890,7 +887,6 @@ static size_t ZSTD_decompressSequences(
 
     /* last literal segment */
     {   size_t const lastLLSize = litEnd - litPtr;
-        //if (litPtr > litEnd) return ERROR(corruption_detected);   /* too many literals already used */
         if (lastLLSize > (size_t)(oend-op)) return ERROR(dstSize_tooSmall);
         memcpy(op, litPtr, lastLLSize);
         op += lastLLSize;
@@ -1008,6 +1004,12 @@ static size_t ZSTD_decompressFrame(ZSTD_DCtx* dctx,
         case bt_end :
             /* end of frame */
             if (remainingSize) return ERROR(srcSize_wrong);
+            if (dctx->fParams.checksumFlag) {
+                U64 const h64 = XXH64_digest(&dctx->xxhState);
+                U32 const h32 = (U32)(h64>>11) & ((1<<22)-1);
+                U32 const check32 = MEM_readLE24(src) >> 2;
+                if (check32 != h32) return ERROR(checksum_wrong);
+            }
             decodedSize = 0;
             break;
         default:
@@ -1136,8 +1138,7 @@ size_t ZSTD_decompressContinue(ZSTD_DCtx* dctx, void* dst, size_t dstCapacity, c
                 if (dctx->fParams.checksumFlag) {
                     U64 const h64 = XXH64_digest(&dctx->xxhState);
                     U32 const h32 = (U32)(h64>>11) & ((1<<22)-1);
-                    const BYTE* const ip = (const BYTE*)src;
-                    U32 const check32 = ip[2] + (ip[1] << 8) + ((ip[0] & 0x3F) << 16);
+                    U32 const check32 = MEM_readLE24(src) >> 2;
                     if (check32 != h32) return ERROR(checksum_wrong);
                 }
                 dctx->expected = 0;

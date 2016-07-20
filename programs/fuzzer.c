@@ -35,19 +35,19 @@
 /*-************************************
 *  Includes
 **************************************/
-#include <stdlib.h>      /* free */
-#include <stdio.h>       /* fgets, sscanf */
-#include <sys/timeb.h>   /* timeb */
-#include <string.h>      /* strcmp */
-#include <time.h>        /* clock_t */
+#include <stdlib.h>       /* free */
+#include <stdio.h>        /* fgets, sscanf */
+#include <sys/timeb.h>    /* timeb */
+#include <string.h>       /* strcmp */
+#include <time.h>         /* clock_t */
 #define ZSTD_STATIC_LINKING_ONLY   /* ZSTD_compressContinue, ZSTD_compressBlock */
-#include "zstd.h"        /* ZSTD_VERSION_STRING */
+#include "zstd.h"         /* ZSTD_VERSION_STRING */
 #include "error_public.h" /* ZSTD_getErrorCode */
-#include "zdict.h"       /* ZDICT_trainFromBuffer */
-#include "datagen.h"     /* RDG_genBuffer */
+#include "zdict.h"        /* ZDICT_trainFromBuffer */
+#include "datagen.h"      /* RDG_genBuffer */
 #include "mem.h"
 #define XXH_STATIC_LINKING_ONLY
-#include "xxhash.h"      /* XXH64 */
+#include "xxhash.h"       /* XXH64 */
 
 
 /*-************************************

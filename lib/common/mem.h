@@ -258,6 +258,17 @@ MEM_STATIC void MEM_writeLE16(void* memPtr, U16 val)
     }
 }
 
+MEM_STATIC U32 MEM_readLE24(const void* memPtr)
+{
+    return MEM_readLE16(memPtr) + (((const BYTE*)memPtr)[2] << 16);
+}
+
+MEM_STATIC void MEM_writeLE24(void* memPtr, U32 val)
+{
+    MEM_writeLE16(memPtr, (U16)val);
+    ((BYTE*)memPtr)[2] = (BYTE)(val>>16);
+}
+
 MEM_STATIC U32 MEM_readLE32(const void* memPtr)
 {
     if (MEM_isLittleEndian())

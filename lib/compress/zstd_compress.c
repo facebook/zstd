@@ -555,17 +555,9 @@ static void ZSTD_reduceIndex (ZSTD_CCtx* zc, const U32 reducerValue)
 
 size_t ZSTD_noCompressBlock (void* dst, size_t dstCapacity, const void* src, size_t srcSize)
 {
-    BYTE* const ostart = (BYTE* const)dst;
-
     if (srcSize + ZSTD_blockHeaderSize > dstCapacity) return ERROR(dstSize_tooSmall);
-    memcpy(ostart + ZSTD_blockHeaderSize, src, srcSize);
-
-    /* Build header */
-    ostart[0]  = (BYTE)(srcSize>>16);
-    ostart[1]  = (BYTE)(srcSize>>8);
-    ostart[2]  = (BYTE) srcSize;
-    ostart[0] += (BYTE)(bt_raw<<6);   /* is a raw (uncompressed) block */
-
+    memcpy((BYTE*)dst + ZSTD_blockHeaderSize, src, srcSize);
+    MEM_writeLE24(dst, (U32)(srcSize << 2) + (U32)bt_raw);
     return ZSTD_blockHeaderSize+srcSize;
 }
 
@@ -2433,10 +2425,8 @@ static size_t ZSTD_compress_generic (ZSTD_CCtx* cctx,
             cSize = ZSTD_noCompressBlock(op, dstCapacity, ip, blockSize);
             if (ZSTD_isError(cSize)) return cSize;
         } else {
-            op[0] = (BYTE)(cSize>>16);
-            op[1] = (BYTE)(cSize>>8);
-            op[2] = (BYTE)cSize;
-            op[0] += (BYTE)(bt_compressed << 6); /* is a compressed block */
+            U32 const cBlockHeader24 = (U32)bt_compressed + (U32)(cSize << 2);
+            MEM_writeLE24(op, cBlockHeader24);
             cSize += 3;
         }
 
@@ -2446,7 +2436,7 @@ static size_t ZSTD_compress_generic (ZSTD_CCtx* cctx,
         op += cSize;
     }
 
-    ZSTD_statsPrint(stats, cctx->params.cParams.searchLength);
+    ZSTD_statsPrint(stats, cctx->params.cParams.searchLength);   /* debug only */
     return op-ostart;
 }
 
@@ -2760,11 +2750,9 @@ size_t ZSTD_compressEnd(ZSTD_CCtx* cctx, void* dst, size_t dstCapacity)
     /* frame epilogue */
     if (dstCapacity < 3) return ERROR(dstSize_tooSmall);
     {   U32 const checksum = cctx->params.fParams.checksumFlag ?
-                             (U32)((XXH64_digest(&cctx->xxhState) >> 11) & ((1<<22)-1)) :
+                             (U32)(XXH64_digest(&cctx->xxhState) >> 11) :
                              0;
-        op[0] = (BYTE)((bt_end<<6) + (checksum>>16));
-        op[1] = (BYTE)(checksum>>8);
-        op[2] = (BYTE)checksum;
+        MEM_writeLE24(op, (U32)bt_end + (checksum << 2));
     }
 
     cctx->stage = 0;  /* return to "created but not init" status */

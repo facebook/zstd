@@ -16,7 +16,7 @@ Distribution of this document is unlimited.
 
 ### Version
 
-0.1.2 (15/07/16)
+0.2.0 (22/07/16)
 
 
 Introduction
@@ -76,7 +76,7 @@ allowing streaming operations.
 General Structure of Zstandard Frame format
 -------------------------------------------
 
-| MagicNb |  Frame Header | Block | (More blocks) | EndMark |
+| MagicNb |  Frame Header | Block | [More blocks] | EndMark |
 |:-------:|:-------------:| ----- | ------------- | ------- |
 | 4 bytes |  2-14 bytes   |       |               | 3 bytes |
 
@@ -135,7 +135,7 @@ delivering the final decompressed result as if it was a single content.
 Frame Header
 -------------
 
-| FHD     | (WD)      | (dictID)  | (Content Size) |
+| FHD     | [WD]      | [dictID]  | [Content Size] |
 | ------- | --------- | --------- |:--------------:|
 | 1 byte  | 0-1 byte  | 0-4 bytes |  0 - 8 bytes   |
 
@@ -317,9 +317,9 @@ Data Blocks
 
 __Block Header__
 
-This field uses 3-bytes, format is __big-endian__.
+This field uses 3-bytes, format is __little-endian__.
 
-The 2 highest bits represent the `block type`,
+The 2 lowest bits represent the `block type`,
 while the remaining 22 bits represent the (compressed) block size.
 
 There are 4 block types :
@@ -424,7 +424,7 @@ All literals are regrouped in the first part of the block.
 They can be decoded first, and then copied during sequence operations,
 or they can be decoded on the flow, as needed by sequence commands.
 
-| Header | (Tree Description) | Stream1 | (Stream2) | (Stream3) | (Stream4) |
+| Header | [Tree Description] | Stream1 | [Stream2] | [Stream3] | [Stream4] |
 | ------ | ------------------ | ------- | --------- | --------- | --------- |
 
 Literals can be compressed, or uncompressed.
@@ -437,7 +437,7 @@ Header is in charge of describing how literals are packed.
 It's a byte-aligned variable-size bitfield, ranging from 1 to 5 bytes,
 using big-endian convention.
 
-| BlockType | sizes format | (compressed size) | regenerated size |
+| BlockType | sizes format | [compressed size] | regenerated size |
 | --------- | ------------ | ----------------- | ---------------- |
 |   2 bits  |  1 - 2 bits  |    0 - 18 bits    |    5 - 20 bits   |
 
@@ -723,7 +723,7 @@ The Sequences section starts by a header,
 followed by optional Probability tables for each symbol type,
 followed by the bitstream.
 
-| Header | (LitLengthTable) | (OffsetTable) | (MatchLengthTable) | bitStream |
+| Header | [LitLengthTable] | [OffsetTable] | [MatchLengthTable] | bitStream |
 | ------ | ---------------- | ------------- | ------------------ | --------- |
 
 To decode the Sequence section, it's required to know its size.
@@ -1165,6 +1165,7 @@ __Content__ : Where the actual dictionary content is.
 
 Version changes
 ---------------
+- 0.2.0 : numerous format adjustments for zstd v0.8
 - 0.1.2 : limit huffman tree depth to 11 bits
 - 0.1.1 : reserved dictID ranges
 - 0.1.0 : initial release

@@ -1,8 +1,9 @@
-v0.7.5
+v0.8.0
 Fixed : premature end of frame when zero-sized raw block, reported by Eric Biggers
 Fixed : legacy mode with ZSTD_HEAPMODE=0, by Christopher Bergqvist
+Fixed : checksum correctly checked in single-pass mode
 Modified : minor compression level adaptations
-Update : specification, to v0.1.2 : max huffman depth at 11 bits
+Updated : compression format specification to v0.2.0
 changed : zstd.h moved to /lib directory
 
 v0.7.4

@@ -435,15 +435,17 @@ followed by 1 or 4 streams.
 
 Header is in charge of describing how literals are packed.
 It's a byte-aligned variable-size bitfield, ranging from 1 to 5 bytes,
-using big-endian convention.
+using little-endian convention.
 
-| BlockType | sizes format | [compressed size] | regenerated size |
-| --------- | ------------ | ----------------- | ---------------- |
-|   2 bits  |  1 - 2 bits  |    0 - 18 bits    |    5 - 20 bits   |
+| BlockType | sizes format | regenerated size | [compressed size] |
+| --------- | ------------ | ---------------- | ----------------- |
+|   2 bits  |  1 - 2 bits  |    5 - 20 bits   |    0 - 18 bits    |
+
+In this representation, bits on the left are smallest bits.
 
 __Block Type__ :
 
-This is a 2-bits field, describing 4 different block types :
+This field uses 2 lowest bits of first byte, describing 4 different block types :
 
 |    Value   |      0     |    1   |  2  |    3    |
 | ---------- | ---------- | ------ | --- | ------- |
@@ -466,19 +468,19 @@ Sizes format are divided into 2 families :
   and the decompressed size. It will also decode the number of streams.
 - For Raw or RLE blocks, it's enough to decode the size to regenerate.
 
-For values spanning several bytes, convention is Big-endian.
+For values spanning several bytes, convention is Little-endian.
 
-__Sizes format for Raw or RLE literals block__ :
+__Sizes format for Raw and RLE literals block__ :
 
-- Value : 0x : Regenerated size uses 5 bits (0-31).
+- Value : x0 : Regenerated size uses 5 bits (0-31).
                Total literal header size is 1 byte.
-               `size = h[0] & 31;`
-- Value : 10 : Regenerated size uses 12 bits (0-4095).
+               `size = h[0]>>3;`
+- Value : 01 : Regenerated size uses 12 bits (0-4095).
                Total literal header size is 2 bytes.
-               `size = ((h[0] & 15) << 8) + h[1];`
+               `size = (h[0]>>4) + (h[1]<<4);`
 - Value : 11 : Regenerated size uses 20 bits (0-1048575).
                Total literal header size is 3 bytes.
-               `size = ((h[0] & 15) << 16) + (h[1]<<8) + h[2];`
+               `size = (h[0]>>4) + (h[1]<<4) + (h[2]<<12);`
 
 Note : it's allowed to represent a short value (ex : `13`)
 using a long format, accepting the reduced compacity.
@@ -499,7 +501,7 @@ Note : also applicable to "repeat-stats" blocks.
                Compressed and regenerated sizes use 18 bits (0-262143).
                Total literal header size is 5 bytes.
 
-Compressed and regenerated size fields follow big endian convention.
+Compressed and regenerated size fields follow little endian convention.
 
 #### Huffman Tree description
 

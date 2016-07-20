@@ -572,17 +572,14 @@ static size_t ZSTD_noCompressLiterals (void* dst, size_t dstCapacity, const void
     switch(flSize)
     {
         case 1: /* 2 - 1 - 5 */
-            ostart[0] = (BYTE)((lbt_raw<<6) + (0<<5) + srcSize);
+            ostart[0] = (BYTE)((U32)lbt_raw + (srcSize<<3));
             break;
         case 2: /* 2 - 2 - 12 */
-            ostart[0] = (BYTE)((lbt_raw<<6) + (2<<4) + (srcSize >> 8));
-            ostart[1] = (BYTE)srcSize;
+            MEM_writeLE16(ostart, (U32)lbt_raw + (1<<2) + (srcSize<<4));
             break;
         default:   /*note : should not be necessary : flSize is within {1,2,3} */
         case 3: /* 2 - 2 - 20 */
-            ostart[0] = (BYTE)((lbt_raw<<6) + (3<<4) + (srcSize >> 16));
-            ostart[1] = (BYTE)(srcSize>>8);
-            ostart[2] = (BYTE)srcSize;
+            MEM_writeLE32(ostart, (U32)lbt_raw + (3<<2) + (srcSize<<4));
             break;
     }
 
@@ -595,22 +592,19 @@ static size_t ZSTD_compressRleLiteralsBlock (void* dst, size_t dstCapacity, cons
     BYTE* const ostart = (BYTE* const)dst;
     U32 const flSize = 1 + (srcSize>31) + (srcSize>4095);
 
-    (void)dstCapacity;  /* dstCapacity guaranteed to be >=4, hence large enough */
+    (void)dstCapacity;  /* dstCapacity already guaranteed to be >=4, hence large enough */
 
     switch(flSize)
     {
         case 1: /* 2 - 1 - 5 */
-            ostart[0] = (BYTE)((lbt_rle<<6) + (0<<5) + srcSize);
+            ostart[0] = (BYTE)((U32)lbt_rle + (srcSize<<3));
             break;
         case 2: /* 2 - 2 - 12 */
-            ostart[0] = (BYTE)((lbt_rle<<6) + (2<<4) + (srcSize >> 8));
-            ostart[1] = (BYTE)srcSize;
+            MEM_writeLE16(ostart, (U32)lbt_rle + (1<<2) + (srcSize<<4));
             break;
         default:   /*note : should not be necessary : flSize is necessarily within {1,2,3} */
         case 3: /* 2 - 2 - 20 */
-            ostart[0] = (BYTE)((lbt_rle<<6) + (3<<4) + (srcSize >> 16));
-            ostart[1] = (BYTE)(srcSize>>8);
-            ostart[2] = (BYTE)srcSize;
+            MEM_writeLE32(ostart, (U32)lbt_rle + (3<<2) + (srcSize<<4));
             break;
     }
 
@@ -658,24 +652,22 @@ static size_t ZSTD_compressLiterals (ZSTD_CCtx* zc,
     switch(lhSize)
     {
     case 3: /* 2 - 2 - 10 - 10 */
-        ostart[0] = (BYTE)((srcSize>>6) + (singleStream << 4) + (hType<<6));
-        ostart[1] = (BYTE)((srcSize<<2) + (cLitSize>>8));
-        ostart[2] = (BYTE)(cLitSize);
-        break;
+        {   U32 const lhc = hType + (singleStream << 2) + (srcSize<<4) + (cLitSize<<14);
+            MEM_writeLE24(ostart, lhc);
+            break;
+        }
     case 4: /* 2 - 2 - 14 - 14 */
-        ostart[0] = (BYTE)((srcSize>>10) + (2<<4) +  (hType<<6));
-        ostart[1] = (BYTE)(srcSize>> 2);
-        ostart[2] = (BYTE)((srcSize<<6) + (cLitSize>>8));
-        ostart[3] = (BYTE)(cLitSize);
-        break;
+        {   U32 const lhc = hType + (2 << 2) + (srcSize<<4) + (cLitSize<<18);
+            MEM_writeLE32(ostart, lhc);
+            break;
+        }
     default:   /* should not be necessary, lhSize is only {3,4,5} */
     case 5: /* 2 - 2 - 18 - 18 */
-        ostart[0] = (BYTE)((srcSize>>14) + (3<<4) +  (hType<<6));
-        ostart[1] = (BYTE)(srcSize>>6);
-        ostart[2] = (BYTE)((srcSize<<2) + (cLitSize>>16));
-        ostart[3] = (BYTE)(cLitSize>>8);
-        ostart[4] = (BYTE)(cLitSize);
-        break;
+        {   U32 const lhc = hType + (3 << 2) + (srcSize<<4) + (cLitSize<<22);
+            MEM_writeLE32(ostart, lhc);
+            ostart[4] = (BYTE)(cLitSize >> 10);
+            break;
+        }
     }
     return lhSize+cLitSize;
 }
@@ -2735,8 +2727,7 @@ size_t ZSTD_compressEnd(ZSTD_CCtx* cctx, void* dst, size_t dstCapacity)
     BYTE* op = (BYTE*)dst;
     size_t fhSize = 0;
 
-    /* not even init ! */
-    if (cctx->stage==0) return ERROR(stage_wrong);
+    if (cctx->stage==0) return ERROR(stage_wrong);  /*< not even init ! */
 
     /* special case : empty frame */
     if (cctx->stage==1) {
@@ -2748,7 +2739,7 @@ size_t ZSTD_compressEnd(ZSTD_CCtx* cctx, void* dst, size_t dstCapacity)
     }
 
     /* frame epilogue */
-    if (dstCapacity < 3) return ERROR(dstSize_tooSmall);
+    if (dstCapacity < ZSTD_blockHeaderSize) return ERROR(dstSize_tooSmall);
     {   U32 const checksum = cctx->params.fParams.checksumFlag ?
                              (U32)(XXH64_digest(&cctx->xxhState) >> 11) :
                              0;
@@ -2756,7 +2747,7 @@ size_t ZSTD_compressEnd(ZSTD_CCtx* cctx, void* dst, size_t dstCapacity)
     }
 
     cctx->stage = 0;  /* return to "created but not init" status */
-    return 3+fhSize;
+    return ZSTD_blockHeaderSize+fhSize;
 }
 
 

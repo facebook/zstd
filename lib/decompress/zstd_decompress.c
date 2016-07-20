@@ -397,9 +397,9 @@ size_t ZSTD_getFrameParams(ZSTD_frameParams* fparamsPtr, const void* src, size_t
 *   compatible with legacy mode
 *   @return : decompressed size if known, 0 otherwise
               note : 0 can mean any of the following :
-                   - decompressed size is not provided within frame header
+                   - decompressed size is not present within frame header
                    - frame header unknown / not supported
-                   - frame header not completely provided (`srcSize` too small) */
+                   - frame header not complete (`srcSize` too small) */
 unsigned long long ZSTD_getDecompressedSize(const void* src, size_t srcSize)
 {
 #if defined(ZSTD_LEGACY_SUPPORT) && (ZSTD_LEGACY_SUPPORT==1)
@@ -464,33 +464,42 @@ size_t ZSTD_decodeLiteralsBlock(ZSTD_DCtx* dctx,
 
     if (srcSize < MIN_CBLOCK_SIZE) return ERROR(corruption_detected);
 
-    switch((litBlockType_t)(istart[0]>> 6))
+    switch((litBlockType_t)(istart[0] & 3))
     {
     case lbt_huffman:
-        {   size_t litSize, litCSize, singleStream=0;
-            U32 lhSize = (istart[0] >> 4) & 3;
+        {   size_t lhSize, litSize, litCSize, singleStream=0;
+            U32 const lhlCode = (istart[0] >> 2) & 3;
             if (srcSize < 5) return ERROR(corruption_detected);   /* srcSize >= MIN_CBLOCK_SIZE == 3; here we need up to 5 for lhSize, + cSize (+nbSeq) */
-            switch(lhSize)
+            switch(lhlCode)
             {
-            case 0: case 1: default:   /* note : default is impossible, since lhSize into [0..3] */
+            case 1:
+                singleStream = 1;
+                /* fall through */
+            case 0: default:   /* note : default is impossible, since lhlCode into [0..3] */
                 /* 2 - 2 - 10 - 10 */
-                lhSize=3;
-                singleStream = istart[0] & 16;
-                litSize  = ((istart[0] & 15) << 6) + (istart[1] >> 2);
-                litCSize = ((istart[1] &  3) << 8) + istart[2];
-                break;
+                {   U32 const lhc = MEM_readLE24(istart) >> 4;
+                    lhSize = 3;
+                    litSize  = lhc & 0x3FF;
+                    litCSize = lhc >> 10;
+                    break;
+                }
+
             case 2:
                 /* 2 - 2 - 14 - 14 */
-                lhSize=4;
-                litSize  = ((istart[0] & 15) << 10) + (istart[1] << 2) + (istart[2] >> 6);
-                litCSize = ((istart[2] & 63) <<  8) + istart[3];
-                break;
+                {   U32 const lhc = MEM_readLE32(istart) >> 4;
+                    lhSize = 4;
+                    litSize  = lhc & 0x3FFF;
+                    litCSize = lhc >> 14;
+                    break;
+                }
             case 3:
                 /* 2 - 2 - 18 - 18 */
-                lhSize=5;
-                litSize  = ((istart[0] & 15) << 14) + (istart[1] << 6) + (istart[2] >> 2);
-                litCSize = ((istart[2] &  3) << 16) + (istart[3] << 8) + istart[4];
-                break;
+                {   U64 const lhc = (MEM_readLE32(istart) + (((U64)istart[4]) << 32)) >> 4;
+                    lhSize = 5;
+                    litSize  = lhc & 0x3FFFF;
+                    litCSize = lhc >> 18;
+                    break;
+                }
             }
             if (litSize > ZSTD_BLOCKSIZE_ABSOLUTEMAX) return ERROR(corruption_detected);
             if (litCSize + lhSize > srcSize) return ERROR(corruption_detected);
@@ -501,23 +510,23 @@ size_t ZSTD_decodeLiteralsBlock(ZSTD_DCtx* dctx,
                 return ERROR(corruption_detected);
 
             dctx->litPtr = dctx->litBuffer;
-            dctx->litBufSize = ZSTD_BLOCKSIZE_ABSOLUTEMAX+8;
+            dctx->litBufSize = ZSTD_BLOCKSIZE_ABSOLUTEMAX+WILDCOPY_OVERLENGTH;
             dctx->litSize = litSize;
             dctx->litEntropy = 1;
             return litCSize + lhSize;
         }
     case lbt_repeat:
-        {   size_t litSize, litCSize;
-            U32 lhSize = ((istart[0]) >> 4) & 3;
-            if (lhSize != 1)  /* only case supported for now : small litSize, single stream */
+        {   size_t litSize, litCSize, lhSize;
+            U32 const lhc = MEM_readLE24(istart) >> 4;
+            if ((((istart[0]) >> 2) & 3) != 1)  /* only case supported for now : small litSize, single stream */
                 return ERROR(corruption_detected);
             if (dctx->litEntropy==0)
                 return ERROR(dictionary_corrupted);
 
             /* 2 - 2 - 10 - 10 */
-            lhSize=3;
-            litSize  = ((istart[0] & 15) << 6) + (istart[1] >> 2);
-            litCSize = ((istart[1] &  3) << 8) + istart[2];
+            lhSize = 3;
+            litSize  = lhc & 0x3FF;
+            litCSize = lhc >> 10;
             if (litCSize + lhSize > srcSize) return ERROR(corruption_detected);
 
             {   size_t const errorCode = HUF_decompress1X4_usingDTable(dctx->litBuffer, litSize, istart+lhSize, litCSize, dctx->hufTable);
@@ -529,19 +538,21 @@ size_t ZSTD_decodeLiteralsBlock(ZSTD_DCtx* dctx,
             return litCSize + lhSize;
         }
     case lbt_raw:
-        {   size_t litSize;
-            U32 lhSize = ((istart[0]) >> 4) & 3;
-            switch(lhSize)
+        {   size_t litSize, lhSize;
+            U32 const lhlCode = ((istart[0]) >> 2) & 3;
+            switch(lhlCode)
             {
-            case 0: case 1: default:   /* note : default is impossible, since lhSize into [0..3] */
-                lhSize=1;
-                litSize = istart[0] & 31;
+            case 0: case 2: default:   /* note : default is impossible, since lhlCode into [0..3] */
+                lhSize = 1;
+                litSize = istart[0] >> 3;
                 break;
-            case 2:
-                litSize = ((istart[0] & 15) << 8) + istart[1];
+            case 1:
+                lhSize = 2;
+                litSize = MEM_readLE16(istart) >> 4;
                 break;
             case 3:
-                litSize = ((istart[0] & 15) << 16) + (istart[1] << 8) + istart[2];
+                lhSize = 3;
+                litSize = MEM_readLE24(istart) >> 4;
                 break;
             }
 
@@ -560,19 +571,21 @@ size_t ZSTD_decodeLiteralsBlock(ZSTD_DCtx* dctx,
             return lhSize+litSize;
         }
     case lbt_rle:
-        {   size_t litSize;
-            U32 lhSize = ((istart[0]) >> 4) & 3;
-            switch(lhSize)
+        {   U32 const lhlCode = ((istart[0]) >> 2) & 3;
+            size_t litSize, lhSize;
+            switch(lhlCode)
             {
-            case 0: case 1: default:   /* note : default is impossible, since lhSize into [0..3] */
+            case 0: case 2: default:   /* note : default is impossible, since lhlCode into [0..3] */
                 lhSize = 1;
-                litSize = istart[0] & 31;
+                litSize = istart[0] >> 3;
                 break;
-            case 2:
-                litSize = ((istart[0] & 15) << 8) + istart[1];
+            case 1:
+                lhSize = 2;
+                litSize = MEM_readLE16(istart) >> 4;
                 break;
             case 3:
-                litSize = ((istart[0] & 15) << 16) + (istart[1] << 8) + istart[2];
+                lhSize = 3;
+                litSize = MEM_readLE24(istart) >> 4;
                 if (srcSize<4) return ERROR(corruption_detected);   /* srcSize >= MIN_CBLOCK_SIZE == 3; here we need lhSize+1 = 4 */
                 break;
             }

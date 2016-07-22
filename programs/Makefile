@@ -46,7 +46,8 @@ endif
 
 CPPFLAGS= -I$(ZSTDDIR) -I$(ZSTDDIR)/common -I$(ZSTDDIR)/dictBuilder -DXXH_NAMESPACE=ZSTD_
 CFLAGS ?= -O3
-CFLAGS += -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow -Wstrict-aliasing=1 -Wswitch-enum -Wdeclaration-after-statement -Wstrict-prototypes -Wundef
+CFLAGS += -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow -Wstrict-aliasing=1 \
+          -Wswitch-enum -Wdeclaration-after-statement -Wstrict-prototypes -Wundef
 FLAGS   = $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) $(MOREFLAGS)
 
 
@@ -80,11 +81,13 @@ ZBUFFTEST = -T2mn
 FUZZERTEST= -T5mn
 ZSTDRTTEST= --test-large-data
 
-.PHONY: default all clean install uninstall test test32 test-all
+.PHONY: default all all32 clean install uninstall test test32 test-all
 
 default: zstd
 
-all: zstd fullbench fuzzer zbufftest paramgrill datagen zstd32 fullbench32 fuzzer32 zbufftest32
+all: zstd fullbench fuzzer zbufftest paramgrill datagen
+
+all32: cleano32 zstd32 fullbench32 fuzzer32 zbufftest32
 
 $(ZSTDDIR)/decompress/zstd_decompress.o: CFLAGS += $(ALIGN_LOOP)
 
@@ -92,6 +95,7 @@ zstd  : $(ZSTD_FILES) $(ZSTDLEGACY_FILES) $(ZBUFF_FILES) $(ZDICT_FILES) \
         zstdcli.c fileio.c bench.c datagen.c dibio.c
 	$(CC)      $(FLAGS) -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT) $^ -o $@$(EXT)
 
+zstd32: CFLAGS += -m32
 zstd32: $(ZSTD_FILES) $(ZSTDLEGACY_FILES) $(ZBUFF_FILES) $(ZDICT_FILES) \
         zstdcli.c fileio.c bench.c datagen.c dibio.c
 	$(CC) -m32 $(FLAGS) -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT) $^ -o $@$(EXT)
@@ -162,6 +166,8 @@ clean:
         datagen$(EXT) paramgrill$(EXT) roundTripCrash$(EXT)
 	@echo Cleaning completed
 
+cleano32:
+	@rm -f ../lib/decompress/*.o
 
 #---------------------------------------------------------------------------------
 #make install is validated only for Linux, OSX, kFreeBSD, Hurd and OpenBSD targets

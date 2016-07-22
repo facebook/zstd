@@ -40,3 +40,6 @@ projects/cmake/
 
 # Test artefacts
 tmp*
+
+# tmp files
+*.swp

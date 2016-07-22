@@ -423,135 +423,7 @@ static void ZSTD_reduceIndex (ZSTD_CCtx* zc, const U32 reducerValue)
 *  Block entropic compression
 *********************************************************/
 
-/* Frame format description
-   Frame Header -  [ Block Header - Block ] - Frame End
-   1) Frame Header
-      - 4 bytes : Magic Number : ZSTD_MAGICNUMBER (defined within zstd_static.h)
-      - 1 byte  : Frame Header Descriptor
-      - 1-13 bytes : Optional fields
-   2) Block Header
-      - 3 bytes, starting with a 2-bits descriptor
-                 Uncompressed, Compressed, Frame End, unused
-   3) Block
-      See Block Format Description
-   4) Frame End
-      - 3 bytes, compatible with Block Header
-*/
-
-
-/* Frame header :
-
-   1 byte - FrameHeaderDescription :
-   bit 0-1 : dictID (0, 1, 2 or 4 bytes)
-   bit 2-4 : reserved (must be zero)
-   bit 5   : SkippedWindowLog (if 1, WindowLog byte is not present)
-   bit 6-7 : FrameContentFieldsize (0, 2, 4, or 8)
-             if (SkippedWindowLog && !FrameContentFieldsize) FrameContentFieldsize=1;
-
-   Optional : WindowLog (0 or 1 byte)
-   bit 0-2 : octal Fractional (1/8th)
-   bit 3-7 : Power of 2, with 0 = 1 KB (up to 2 TB)
-
-   Optional : content size (0, 1, 2, 4 or 8 bytes)
-   0 : unknown
-   1 : 0-255 bytes
-   2 : 256 - 65535+256
-   8 : up to 16 exa
-
-   Optional : dictID (0, 1, 2 or 4 bytes)
-   Automatic adaptation
-   0 : no dictID
-   1 : 1 - 255
-   2 : 256 - 65535
-   4 : all other values
-*/
-
-
-/* Block format description
-
-   Block = Literals Section - Sequences Section
-   Prerequisite : size of (compressed) block, maximum size of regenerated data
-
-   1) Literal Section
-
-   1.1) Header : 1-5 bytes
-        flags: 2 bits
-            00 compressed by Huff0
-            01 repeat
-            10 is Raw (uncompressed)
-            11 is Rle
-            Note : using 01 => Huff0 with precomputed table ?
-            Note : delta map ? => compressed ?
-
-   1.1.1) Huff0-compressed literal block : 3-5 bytes
-            srcSize < 1 KB => 3 bytes (2-2-10-10) => single stream
-            srcSize < 1 KB => 3 bytes (2-2-10-10)
-            srcSize < 16KB => 4 bytes (2-2-14-14)
-            else           => 5 bytes (2-2-18-18)
-            big endian convention
-
-   1.1.2) Raw (uncompressed) literal block header : 1-3 bytes
-        size :  5 bits: (IS_RAW<<6) + (0<<4) + size
-               12 bits: (IS_RAW<<6) + (2<<4) + (size>>8)
-                        size&255
-               20 bits: (IS_RAW<<6) + (3<<4) + (size>>16)
-                        size>>8&255
-                        size&255
-
-   1.1.3) Rle (repeated single byte) literal block header : 1-3 bytes
-        size :  5 bits: (IS_RLE<<6) + (0<<4) + size
-               12 bits: (IS_RLE<<6) + (2<<4) + (size>>8)
-                        size&255
-               20 bits: (IS_RLE<<6) + (3<<4) + (size>>16)
-                        size>>8&255
-                        size&255
-
-   1.1.4) Huff0-compressed literal block, using precomputed CTables : 3-5 bytes
-            srcSize < 1 KB => 3 bytes (2-2-10-10) => single stream
-            srcSize < 1 KB => 3 bytes (2-2-10-10)
-            srcSize < 16KB => 4 bytes (2-2-14-14)
-            else           => 5 bytes (2-2-18-18)
-            big endian convention
-
-        1- CTable available (stored into workspace)
-        2- Small input (fast heuristic ? Full comparison ? depend on clevel ?)
-
-
-   1.2) Literal block content
-
-   1.2.1) Huff0 block, using sizes from header
-        See Huff0 format
-
-   1.2.2) Huff0 block, using prepared table
-
-   1.2.3) Raw content
-
-   1.2.4) single byte
-
-
-   2) Sequences section
-
-      - Nb Sequences : 2 bytes, little endian
-      - Control Token : 1 byte (see below)
-      - Dumps Length : 1 or 2 bytes (depending on control token)
-      - Dumps : as stated by dumps length
-      - Literal Lengths FSE table (as needed depending on encoding method)
-      - Offset Codes FSE table (as needed depending on encoding method)
-      - Match Lengths FSE table (as needed depending on encoding method)
-
-    2.1) Control Token
-      8 bits, divided as :
-      0-1 : dumpsLength
-      2-3 : MatchLength, FSE encoding method
-      4-5 : Offset Codes, FSE encoding method
-      6-7 : Literal Lengths, FSE encoding method
-
-      FSE encoding method :
-      FSE_ENCODING_RAW : uncompressed; no header
-      FSE_ENCODING_RLE : single repeated value; header 1 byte
-      FSE_ENCODING_STATIC : use prepared table; no header
-      FSE_ENCODING_DYNAMIC : read NCount
-*/
+/* See zstd_compression_format.md for detailed format description */
 
 size_t ZSTD_noCompressBlock (void* dst, size_t dstCapacity, const void* src, size_t srcSize)
 {
@@ -652,7 +524,7 @@ static size_t ZSTD_compressLiterals (ZSTD_CCtx* zc,
     switch(lhSize)
     {
     case 3: /* 2 - 2 - 10 - 10 */
-        {   U32 const lhc = hType + (singleStream << 2) + ((U32)srcSize<<4) + ((U32)cLitSize<<14);
+        {   U32 const lhc = hType + ((!singleStream) << 2) + ((U32)srcSize<<4) + ((U32)cLitSize<<14);
             MEM_writeLE24(ostart, lhc);
             break;
         }

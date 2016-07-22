@@ -488,10 +488,10 @@ using a long format, accepting the reduced compacity.
 __Sizes format for Compressed literals block__ :
 
 Note : also applicable to "repeat-stats" blocks.
-- Value : 00 : 4 streams.
+- Value : 00 : _Single stream_.
                Compressed and regenerated sizes use 10 bits (0-1023).
                Total literal header size is 3 bytes.
-- Value : 01 : _Single stream_.
+- Value : 01 : 4 streams.
                Compressed and regenerated sizes use 10 bits (0-1023).
                Total literal header size is 3 bytes.
 - Value : 10 : 4 streams.

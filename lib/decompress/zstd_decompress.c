@@ -480,7 +480,7 @@ size_t ZSTD_decodeLiteralsBlock(ZSTD_DCtx* dctx,
                 {
                 case 0: case 1: default:   /* note : default is impossible, since lhlCode into [0..3] */
                     /* 2 - 2 - 10 - 10 */
-                    {   singleStream = lhlCode;
+                    {   singleStream = !lhlCode;
                         lhSize = 3;
                         litSize  = (lhc >> 4) & 0x3FF;
                         litCSize = (lhc >> 14) & 0x3FF;

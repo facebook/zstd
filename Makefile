@@ -41,19 +41,19 @@ else
 VOID = /dev/null
 endif
 
-.PHONY: default all zlibwrapper zstdprogram zstd clean install uninstall travis-install test clangtest gpptest armtest usan asan uasan
+.PHONY: default all zlibwrapper zstd clean install uninstall travis-install test clangtest gpptest armtest usan asan uasan
 
-default: zstdprogram
+default: zstd
 
 all:
 	$(MAKE) -C $(ZSTDDIR) $@
 	$(MAKE) -C $(PRGDIR) $@
+	@rm -f lib/decompress/*.o
+	$(MAKE) -C $(PRGDIR) all32
 
-zstdprogram:
+zstd:
 	$(MAKE) -C $(PRGDIR)
 	cp $(PRGDIR)/zstd .
-
-zstd: zstdprogram
 
 zlibwrapper:
 	$(MAKE) -C $(ZSTDDIR) all
@@ -87,7 +87,7 @@ travis-install:
 	$(MAKE) install PREFIX=~/install_test_dir
 
 gpptest: clean
-	$(MAKE) all CC=g++ CFLAGS="-O3 -Wall -Wextra -Wundef -Wshadow -Wcast-align -Werror"
+	$(MAKE) -C programs all CC=g++ CFLAGS="-O3 -Wall -Wextra -Wundef -Wshadow -Wcast-align -Werror"
 
 gcc5test: clean
 	gcc-5 -v

@@ -38,15 +38,21 @@ MANDIR  = $(PREFIX)/share/man/man1
 
 ZSTDDIR = ../lib
 
+ifeq ($(shell $(CC) -v 2>&1 | grep -c "gcc version "), 1)
+ALIGN_LOOP = -falign-loops=32
+else
+ALIGN_LOOP =
+endif
+
 CPPFLAGS= -I$(ZSTDDIR) -I$(ZSTDDIR)/common -I$(ZSTDDIR)/dictBuilder -DXXH_NAMESPACE=ZSTD_
-CFLAGS ?= -O3  # -falign-loops=32   # not always beneficial
+CFLAGS ?= -O3
 CFLAGS += -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow -Wstrict-aliasing=1 -Wswitch-enum -Wdeclaration-after-statement -Wstrict-prototypes -Wundef
 FLAGS   = $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) $(MOREFLAGS)
 
 
 ZSTDCOMMON_FILES := $(ZSTDDIR)/common/*.c
 ZSTDCOMP_FILES := $(ZSTDDIR)/compress/zstd_compress.c $(ZSTDDIR)/compress/fse_compress.c $(ZSTDDIR)/compress/huf_compress.c
-ZSTDDECOMP_FILES := $(ZSTDDIR)/decompress/zstd_decompress.c $(ZSTDDIR)/decompress/huf_decompress.c
+ZSTDDECOMP_FILES := $(ZSTDDIR)/decompress/zstd_decompress.o $(ZSTDDIR)/decompress/huf_decompress.c
 ZSTD_FILES := $(ZSTDDECOMP_FILES) $(ZSTDCOMMON_FILES) $(ZSTDCOMP_FILES)
 ZBUFF_FILES := $(ZSTDDIR)/compress/zbuff_compress.c $(ZSTDDIR)/decompress/zbuff_decompress.c
 ZDICT_FILES := $(ZSTDDIR)/dictBuilder/*.c
@@ -79,6 +85,8 @@ ZSTDRTTEST= --test-large-data
 default: zstd
 
 all: zstd fullbench fuzzer zbufftest paramgrill datagen zstd32 fullbench32 fuzzer32 zbufftest32
+
+$(ZSTDDIR)/decompress/zstd_decompress.o: CFLAGS += $(ALIGN_LOOP)
 
 zstd  : $(ZSTD_FILES) $(ZSTDLEGACY_FILES) $(ZBUFF_FILES) $(ZDICT_FILES) \
         zstdcli.c fileio.c bench.c datagen.c dibio.c
@@ -146,6 +154,7 @@ roundTripCrash : $(ZSTD_FILES) roundTripCrash.c
 	$(CC)      $(FLAGS) $^ -o $@$(EXT)
 
 clean:
+	$(MAKE) -C ../lib clean
 	@rm -f core *.o tmp* result* *.gcda dictionary *.zst \
         zstd$(EXT) zstd32$(EXT) zstd-compress$(EXT) zstd-decompress$(EXT) \
         fullbench$(EXT) fullbench32$(EXT) \

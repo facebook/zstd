@@ -95,6 +95,7 @@ libzstd: $(ZSTD_FILES)
 
 clean:
 	@rm -f core *.o *.a *.gcda *.$(SHARED_EXT) *.$(SHARED_EXT).* libzstd.pc
+	@rm -f decompress/*.o
 	@echo Cleaning library completed
 
 #------------------------------------------------------------------------

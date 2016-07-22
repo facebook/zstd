@@ -7,12 +7,12 @@ import time
 import traceback
 import subprocess
 import signal
- 
+
 
 default_repo_url = 'https://github.com/Cyan4973/zstd.git'
 working_dir_name = 'speedTest'
-working_path = os.getcwd() + '/' + working_dir_name     # /path/to/zstd/tests/speedTest 
-clone_path = working_path + '/' + 'zstd'                # /path/to/zstd/tests/speedTest/zstd 
+working_path = os.getcwd() + '/' + working_dir_name     # /path/to/zstd/tests/speedTest
+clone_path = working_path + '/' + 'zstd'                # /path/to/zstd/tests/speedTest/zstd
 email_header = '[ZSTD_speedTest]'
 pid = str(os.getpid())
 verbose = False
@@ -159,7 +159,7 @@ def test_commit(branch, commit, last_commit, args, testFilePaths, have_mutt, hav
     local_branch = string.split(branch, '/')[1]
     version = local_branch.rpartition('-')[2] + '_' + commit
     if not args.dry_run:
-        execute('make clean zstdprogram MOREFLAGS="-DZSTD_GIT_COMMIT=%s"' % version)
+        execute('make clean zstd MOREFLAGS="-DZSTD_GIT_COMMIT=%s"' % version)
     logFileName = working_path + "/log_" + branch.replace("/", "_") + ".txt"
     text_to_send = []
     results_files = ""

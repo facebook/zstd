@@ -87,7 +87,9 @@ default: zstd
 
 all: zstd fullbench fuzzer zbufftest paramgrill datagen
 
-all32: cleano32 zstd32 fullbench32 fuzzer32 zbufftest32
+all32: CFLAGS += -m32
+all32: EXT := 32$(EXT)
+all32: cleano32 all
 
 $(ZSTDDIR)/decompress/zstd_decompress.o: CFLAGS += $(ALIGN_LOOP)
 
@@ -96,9 +98,8 @@ zstd  : $(ZSTD_FILES) $(ZSTDLEGACY_FILES) $(ZBUFF_FILES) $(ZDICT_FILES) \
 	$(CC)      $(FLAGS) -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT) $^ -o $@$(EXT)
 
 zstd32: CFLAGS += -m32
-zstd32: $(ZSTD_FILES) $(ZSTDLEGACY_FILES) $(ZBUFF_FILES) $(ZDICT_FILES) \
-        zstdcli.c fileio.c bench.c datagen.c dibio.c
-	$(CC) -m32 $(FLAGS) -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT) $^ -o $@$(EXT)
+zstd32: EXT := 32$(EXT)
+zstd32: zstd
 
 zstd_nolegacy :
 	$(MAKE) zstd ZSTD_LEGACY_SUPPORT=0
@@ -131,22 +132,24 @@ zstd-small: clean
 fullbench  : $(ZSTD_FILES) $(ZBUFF_FILES) datagen.c fullbench.c
 	$(CC)      $(FLAGS) $^ -o $@$(EXT)
 
-fullbench32: $(ZSTD_FILES) $(ZBUFF_FILES) datagen.c fullbench.c
-	$(CC) -m32 $(FLAGS) $^ -o $@$(EXT)
+fullbench32 : CFLAGS += -m32
+fullbench32 : EXT := 32$(EXT)
+fullbench32 : fullbench
 
 fuzzer  : CPPFLAGS += -I$(ZSTDDIR)/dictBuilder
 fuzzer  : $(ZSTD_FILES) $(ZDICT_FILES) datagen.c fuzzer.c
 	$(CC)      $(FLAGS) $^ -o $@$(EXT)
 
-fuzzer32 : CPPFLAGS += -I$(ZSTDDIR)/dictBuilder
-fuzzer32: $(ZSTD_FILES) $(ZDICT_FILES) datagen.c fuzzer.c
-	$(CC) -m32 $(FLAGS) $^ -o $@$(EXT)
+fuzzer32 : CFLAGS += -m32
+fuzzer32 : EXT := 32$(EXT)
+fuzzer32 : fuzzer
 
 zbufftest  : $(ZSTD_FILES) $(ZBUFF_FILES) datagen.c zbufftest.c
 	$(CC)      $(FLAGS) $^ -o $@$(EXT)
 
-zbufftest32: $(ZSTD_FILES) $(ZBUFF_FILES) datagen.c zbufftest.c
-	$(CC) -m32 $(FLAGS) $^ -o $@$(EXT)
+zbufftest32 : CFLAGS += -m32
+zbufftest32 : EXT := 32$(EXT)
+zbufftest32 : zbufftest
 
 paramgrill : $(ZSTD_FILES) datagen.c paramgrill.c
 	$(CC)      $(FLAGS) $^ -lm -o $@$(EXT)

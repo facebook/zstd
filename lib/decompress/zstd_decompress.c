@@ -471,7 +471,7 @@ size_t ZSTD_decodeLiteralsBlock(ZSTD_DCtx* dctx,
         {   size_t lhSize, litSize, litCSize;
             U32 singleStream=0;
             U32 const lhlCode = (istart[0] >> 2) & 3;
-            U32 const lhc = MEM_read32(istart);
+            U32 const lhc = MEM_readLE32(istart);
             switch(lhlCode)
             {
             case 0: case 1: default:   /* note : default is impossible, since lhlCode into [0..3] */

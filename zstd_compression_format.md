@@ -497,7 +497,7 @@ Note : also applicable to "repeat-stats" blocks.
 - Value : 10 : 4 streams.
                Compressed and regenerated sizes use 14 bits (0-16383).
                Total literal header size is 4 bytes.
-- Value : 10 : 4 streams.
+- Value : 11 : 4 streams.
                Compressed and regenerated sizes use 18 bits (0-262143).
                Total literal header size is 5 bytes.
 

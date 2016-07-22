@@ -467,14 +467,16 @@ size_t ZSTD_decodeLiteralsBlock(ZSTD_DCtx* dctx,
     switch((litBlockType_t)(istart[0] & 3))
     {
     case lbt_huffman:
-        {   size_t lhSize, litSize, litCSize, singleStream=0;
+        {   size_t lhSize, litSize, litCSize;
+            U32 singleStream=0;
             U32 const lhlCode = (istart[0] >> 2) & 3;
+            U32 const lhc = MEM_read32(istart);
             if (srcSize < 5) return ERROR(corruption_detected);   /* srcSize >= MIN_CBLOCK_SIZE == 3; here we need up to 5 for lhSize, + cSize (+nbSeq) */
             switch(lhlCode)
             {
             case 0: case 1: default:   /* note : default is impossible, since lhlCode into [0..3] */
                 /* 2 - 2 - 10 - 10 */
-                {   U32 const lhc = MEM_readLE32(istart);
+                {   //U32 const lhc = MEM_readLE32(istart);
                     singleStream = lhlCode;
                     lhSize = 3;
                     litSize  = (lhc >> 4) & 0x3FF;
@@ -483,7 +485,7 @@ size_t ZSTD_decodeLiteralsBlock(ZSTD_DCtx* dctx,
                 }
             case 2:
                 /* 2 - 2 - 14 - 14 */
-                {   U32 const lhc = MEM_readLE32(istart);
+                {   //U32 const lhc = MEM_readLE32(istart);
                     lhSize = 4;
                     litSize  = (lhc >> 4) & 0x3FFF;
                     litCSize = lhc >> 18;
@@ -491,7 +493,7 @@ size_t ZSTD_decodeLiteralsBlock(ZSTD_DCtx* dctx,
                 }
             case 3:
                 /* 2 - 2 - 18 - 18 */
-                {   U32 const lhc = MEM_readLE32(istart);
+                {   //U32 const lhc = MEM_readLE32(istart);
                     lhSize = 5;
                     litSize  = (lhc >> 4) & 0x3FFFF;
                     litCSize = (lhc >> 22) + (istart[4] << 10);

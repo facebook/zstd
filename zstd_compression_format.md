@@ -921,10 +921,8 @@ since it will be discovered and reported by the decoding process.
 
 The bitstream starts by reporting on which scale it operates.
 `AccuracyLog = low4bits + 5;`
-In theory, it can define a scale from 5 to 20.
-In practice, decoders are allowed to limit the maximum supported `AccuracyLog`.
-Recommended maximum are `9` for literal and match lengthes, and `8` for offsets.
-The reference decoder uses these limits.
+Note that maximum `AccuracyLog` for literal and match lengthes is `9`,
+and for offsets it is `8`. Higher values are considered errors.
 
 Then follow each symbol value, from `0` to last present one.
 The nb of bits used by each field is variable.

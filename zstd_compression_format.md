@@ -324,9 +324,9 @@ while the remaining 22 bits represent the (compressed) block size.
 
 There are 4 block types :
 
-|    Value   |      0     |  1  |  2  |    3    |
-| ---------- | ---------- | --- | --- | ------- |
-| Block Type | Compressed | Raw | RLE | EndMark |
+|    Value   |  0  |  1  |      2     |    3    |
+| ---------- | --- | --- | ---------- | ------- |
+| Block Type | Raw | RLE | Compressed | EndMark |
 
 - Compressed : this is a [Zstandard compressed block](#compressed-block-format),
   detailed in another section of this specification.

@@ -88,13 +88,13 @@ static const size_t ZSTD_did_fieldSize[4] = { 0, 1, 2, 4 };
 
 #define ZSTD_BLOCKHEADERSIZE 3   /* C standard doesn't allow `static const` variable to be init using another `static const` variable */
 static const size_t ZSTD_blockHeaderSize = ZSTD_BLOCKHEADERSIZE;
-typedef enum { bt_raw, bt_rle, bt_compressed, bt_end } blockType_t;
+typedef enum { bt_raw, bt_rle, bt_compressed, bt_end } blockType_e;
 
 #define MIN_SEQUENCES_SIZE 1 /* nbSeq==0 */
 #define MIN_CBLOCK_SIZE (1 /*litCSize*/ + 1 /* RLE or RAW */ + MIN_SEQUENCES_SIZE /* nbSeq==0 */)   /* for a non-null block */
 
 #define HufLog 12
-typedef enum { lbt_huffman, lbt_repeat, lbt_raw, lbt_rle } litBlockType_t;
+typedef enum { set_basic, set_rle, set_compressed, set_repeat } symbolEncodingType_e;
 
 #define LONGNBSEQ 0x7F00
 
@@ -110,11 +110,6 @@ typedef enum { lbt_huffman, lbt_repeat, lbt_raw, lbt_rle } litBlockType_t;
 #define MLFSELog    9
 #define LLFSELog    9
 #define OffFSELog   8
-
-#define FSE_ENCODING_RAW     0
-#define FSE_ENCODING_RLE     1
-#define FSE_ENCODING_STATIC  2
-#define FSE_ENCODING_DYNAMIC 3
 
 static const U32 LL_bits[MaxLL+1] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
                                       1, 1, 1, 1, 2, 2, 3, 3, 4, 6, 7, 8, 9,10,11,12,

@@ -749,17 +749,17 @@ Let's call its first byte `byte0`.
 - `if (byte0 < 255)` : `nbSeqs = ((byte0-128) << 8) + byte1;` . Uses 2 bytes.
 - `if (byte0 == 255)`: `nbSeqs = byte1 + (byte2<<8) + 0x7F00;` . Uses 3 bytes.
 
-__Symbol compression modes__
+__Symbol encoding modes__
 
 This is a single byte, defining the compression mode of each symbol type.
 
 |  BitNb  |   7-6  |   5-4  |   3-2  |    1-0   |
 | ------- | ------ | ------ | ------ | -------- |
-|FieldName| LLtype | OFType | MLType | Reserved |
+|FieldName| LLType | OFType | MLType | Reserved |
 
 The last field, `Reserved`, must be all-zeroes.
 
-`LLtype`, `OFType` and `MLType` define the compression mode of
+`LLType`, `OFType` and `MLType` define the compression mode of
 Literal Lengths, Offsets and Match Lengths respectively.
 
 They follow the same enumeration :
@@ -898,16 +898,16 @@ short offsetCodes_defaultDistribution[53] =
 #### Distribution tables
 
 Following the header, up to 3 distribution tables can be described.
-They are, in order :
+When present, they are in this order :
 - Literal lengthes
 - Offsets
 - Match Lengthes
 
-The content to decode depends on their respective compression mode :
-- Repeat mode : no content. Re-use distribution from previous compressed block.
+The content to decode depends on their respective encoding mode :
 - Predef : no content. Use pre-defined distribution table.
 - RLE : 1 byte. This is the only code to use across the whole compressed block.
 - FSE : A distribution table is present.
+- Repeat mode : no content. Re-use distribution from previous compressed block.
 
 ##### FSE distribution table : condensed format
 
@@ -971,14 +971,13 @@ If it is a 3, another 2-bits repeat flag follows, and so on.
 
 When last symbol reaches cumulated total of `1 << AccuracyLog`,
 decoding is complete.
-Then the decoder can tell how many bytes were used in this process,
-and how many symbols are present.
-
-The bitstream consumes a round number of bytes.
-Any remaining bit within the last byte is just unused.
-
 If the last symbol makes cumulated total go above `1 << AccuracyLog`,
 distribution is considered corrupted.
+
+Then the decoder can tell how many bytes were used in this process,
+and how many symbols are present.
+The bitstream consumes a round number of bytes.
+Any remaining bit within the last byte is just unused.
 
 ##### FSE decoding : from normalized distribution to decoding tables
 

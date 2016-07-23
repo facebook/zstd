@@ -115,7 +115,7 @@ static int usage(const char* programName)
     DISPLAY( "          with no FILE, or when FILE is - , read standard input\n");
     DISPLAY( "Arguments :\n");
 #ifndef ZSTD_NOCOMPRESS
-    DISPLAY( " -#     : # compression level (1-%u, default:1) \n", ZSTD_maxCLevel());
+    DISPLAY( " -#     : # compression level (1-%u, default:%u) \n", ZSTD_maxCLevel(), ZSTDCLI_CLEVEL_DEFAULT);
 #endif
 #ifndef ZSTD_NODECOMPRESS
     DISPLAY( " -d     : decompression \n");

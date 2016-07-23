@@ -444,14 +444,14 @@ static size_t ZSTD_noCompressLiterals (void* dst, size_t dstCapacity, const void
     switch(flSize)
     {
         case 1: /* 2 - 1 - 5 */
-            ostart[0] = (BYTE)((U32)lbt_raw + (srcSize<<3));
+            ostart[0] = (BYTE)((U32)set_basic + (srcSize<<3));
             break;
         case 2: /* 2 - 2 - 12 */
-            MEM_writeLE16(ostart, (U16)((U32)lbt_raw + (1<<2) + (srcSize<<4)));
+            MEM_writeLE16(ostart, (U16)((U32)set_basic + (1<<2) + (srcSize<<4)));
             break;
         default:   /*note : should not be necessary : flSize is within {1,2,3} */
         case 3: /* 2 - 2 - 20 */
-            MEM_writeLE32(ostart, (U32)((U32)lbt_raw + (3<<2) + (srcSize<<4)));
+            MEM_writeLE32(ostart, (U32)((U32)set_basic + (3<<2) + (srcSize<<4)));
             break;
     }
 
@@ -469,14 +469,14 @@ static size_t ZSTD_compressRleLiteralsBlock (void* dst, size_t dstCapacity, cons
     switch(flSize)
     {
         case 1: /* 2 - 1 - 5 */
-            ostart[0] = (BYTE)((U32)lbt_rle + (srcSize<<3));
+            ostart[0] = (BYTE)((U32)set_rle + (srcSize<<3));
             break;
         case 2: /* 2 - 2 - 12 */
-            MEM_writeLE16(ostart, (U16)((U32)lbt_rle + (1<<2) + (srcSize<<4)));
+            MEM_writeLE16(ostart, (U16)((U32)set_rle + (1<<2) + (srcSize<<4)));
             break;
         default:   /*note : should not be necessary : flSize is necessarily within {1,2,3} */
         case 3: /* 2 - 2 - 20 */
-            MEM_writeLE32(ostart, (U32)((U32)lbt_rle + (3<<2) + (srcSize<<4)));
+            MEM_writeLE32(ostart, (U32)((U32)set_rle + (3<<2) + (srcSize<<4)));
             break;
     }
 
@@ -495,7 +495,7 @@ static size_t ZSTD_compressLiterals (ZSTD_CCtx* zc,
     size_t const lhSize = 3 + (srcSize >= 1 KB) + (srcSize >= 16 KB);
     BYTE* const ostart = (BYTE*)dst;
     U32 singleStream = srcSize < 256;
-    litBlockType_t hType = lbt_huffman;
+    symbolEncodingType_e hType = set_compressed;
     size_t cLitSize;
 
 
@@ -507,7 +507,7 @@ static size_t ZSTD_compressLiterals (ZSTD_CCtx* zc,
 
     if (dstCapacity < lhSize+1) return ERROR(dstSize_tooSmall);   /* not enough space for compression */
     if (zc->flagStaticTables && (lhSize==3)) {
-        hType = lbt_repeat;
+        hType = set_repeat;
         singleStream = 1;
         cLitSize = HUF_compress1X_usingCTable(ostart+lhSize, dstCapacity-lhSize, src, srcSize, zc->hufTable);
     } else {
@@ -652,12 +652,12 @@ size_t ZSTD_compressSequences(ZSTD_CCtx* zc,
         if ((mostFrequent == nbSeq) && (nbSeq > 2)) {
             *op++ = llCodeTable[0];
             FSE_buildCTable_rle(CTable_LitLength, (BYTE)max);
-            LLtype = FSE_ENCODING_RLE;
+            LLtype = set_rle;
         } else if ((zc->flagStaticTables) && (nbSeq < MAX_SEQ_FOR_STATIC_FSE)) {
-            LLtype = FSE_ENCODING_STATIC;
+            LLtype = set_repeat;
         } else if ((nbSeq < MIN_SEQ_FOR_DYNAMIC_FSE) || (mostFrequent < (nbSeq >> (LL_defaultNormLog-1)))) {
             FSE_buildCTable(CTable_LitLength, LL_defaultNorm, MaxLL, LL_defaultNormLog);
-            LLtype = FSE_ENCODING_RAW;
+            LLtype = set_basic;
         } else {
             size_t nbSeq_1 = nbSeq;
             const U32 tableLog = FSE_optimalTableLog(LLFSELog, nbSeq, max);
@@ -667,7 +667,7 @@ size_t ZSTD_compressSequences(ZSTD_CCtx* zc,
               if (FSE_isError(NCountSize)) return ERROR(GENERIC);
               op += NCountSize; }
             FSE_buildCTable(CTable_LitLength, norm, max, tableLog);
-            LLtype = FSE_ENCODING_DYNAMIC;
+            LLtype = set_compressed;
     }   }
 
     /* CTable for Offsets */
@@ -676,12 +676,12 @@ size_t ZSTD_compressSequences(ZSTD_CCtx* zc,
         if ((mostFrequent == nbSeq) && (nbSeq > 2)) {
             *op++ = ofCodeTable[0];
             FSE_buildCTable_rle(CTable_OffsetBits, (BYTE)max);
-            Offtype = FSE_ENCODING_RLE;
+            Offtype = set_rle;
         } else if ((zc->flagStaticTables) && (nbSeq < MAX_SEQ_FOR_STATIC_FSE)) {
-            Offtype = FSE_ENCODING_STATIC;
+            Offtype = set_repeat;
         } else if ((nbSeq < MIN_SEQ_FOR_DYNAMIC_FSE) || (mostFrequent < (nbSeq >> (OF_defaultNormLog-1)))) {
             FSE_buildCTable(CTable_OffsetBits, OF_defaultNorm, MaxOff, OF_defaultNormLog);
-            Offtype = FSE_ENCODING_RAW;
+            Offtype = set_basic;
         } else {
             size_t nbSeq_1 = nbSeq;
             const U32 tableLog = FSE_optimalTableLog(OffFSELog, nbSeq, max);
@@ -691,7 +691,7 @@ size_t ZSTD_compressSequences(ZSTD_CCtx* zc,
               if (FSE_isError(NCountSize)) return ERROR(GENERIC);
               op += NCountSize; }
             FSE_buildCTable(CTable_OffsetBits, norm, max, tableLog);
-            Offtype = FSE_ENCODING_DYNAMIC;
+            Offtype = set_compressed;
     }   }
 
     /* CTable for MatchLengths */
@@ -700,12 +700,12 @@ size_t ZSTD_compressSequences(ZSTD_CCtx* zc,
         if ((mostFrequent == nbSeq) && (nbSeq > 2)) {
             *op++ = *mlCodeTable;
             FSE_buildCTable_rle(CTable_MatchLength, (BYTE)max);
-            MLtype = FSE_ENCODING_RLE;
+            MLtype = set_rle;
         } else if ((zc->flagStaticTables) && (nbSeq < MAX_SEQ_FOR_STATIC_FSE)) {
-            MLtype = FSE_ENCODING_STATIC;
+            MLtype = set_repeat;
         } else if ((nbSeq < MIN_SEQ_FOR_DYNAMIC_FSE) || (mostFrequent < (nbSeq >> (ML_defaultNormLog-1)))) {
             FSE_buildCTable(CTable_MatchLength, ML_defaultNorm, MaxML, ML_defaultNormLog);
-            MLtype = FSE_ENCODING_RAW;
+            MLtype = set_basic;
         } else {
             size_t nbSeq_1 = nbSeq;
             const U32 tableLog = FSE_optimalTableLog(MLFSELog, nbSeq, max);
@@ -715,7 +715,7 @@ size_t ZSTD_compressSequences(ZSTD_CCtx* zc,
               if (FSE_isError(NCountSize)) return ERROR(GENERIC);
               op += NCountSize; }
             FSE_buildCTable(CTable_MatchLength, norm, max, tableLog);
-            MLtype = FSE_ENCODING_DYNAMIC;
+            MLtype = set_compressed;
     }   }
 
     *seqHead = (BYTE)((LLtype<<6) + (Offtype<<4) + (MLtype<<2));

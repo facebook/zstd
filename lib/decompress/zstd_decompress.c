@@ -120,7 +120,7 @@ struct ZSTD_DCtx_s
     size_t expected;
     U32 rep[3];
     ZSTD_frameParams fParams;
-    blockType_t bType;   /* used in ZSTD_decompressContinue(), to transfer blockType between header decoding and block decoding stages */
+    blockType_e bType;   /* used in ZSTD_decompressContinue(), to transfer blockType between header decoding and block decoding stages */
     ZSTD_dStage stage;
     U32 litEntropy;
     U32 fseEntropy;
@@ -427,7 +427,7 @@ static size_t ZSTD_decodeFrameHeader(ZSTD_DCtx* dctx, const void* src, size_t sr
 
 typedef struct
 {
-    blockType_t blockType;
+    blockType_e blockType;
     U32 origSize;
 } blockProperties_t;
 
@@ -438,7 +438,7 @@ size_t ZSTD_getcBlockSize(const void* src, size_t srcSize, blockProperties_t* bp
     if (srcSize < ZSTD_blockHeaderSize) return ERROR(srcSize_wrong);
     {   U32 const cBlockHeader = MEM_readLE24(src);
         U32 const cSize = cBlockHeader >> 2;
-        bpPtr->blockType = (blockType_t)(cBlockHeader & 3);
+        bpPtr->blockType = (blockType_e)(cBlockHeader & 3);
         bpPtr->origSize = cSize;   /* only useful for RLE */
         if (bpPtr->blockType == bt_end) return 0;
         if (bpPtr->blockType == bt_rle) return 1;
@@ -463,14 +463,14 @@ size_t ZSTD_decodeLiteralsBlock(ZSTD_DCtx* dctx,
     if (srcSize < MIN_CBLOCK_SIZE) return ERROR(corruption_detected);
 
     {   const BYTE* const istart = (const BYTE*) src;
-        litBlockType_t const litBlockType = (litBlockType_t)(istart[0] & 3);
+        symbolEncodingType_e const litEncType = (symbolEncodingType_e)(istart[0] & 3);
 
-        switch(litBlockType)
+        switch(litEncType)
         {
-        case lbt_repeat:
+        case set_repeat:
             if (dctx->litEntropy==0) return ERROR(dictionary_corrupted);
             /* fall-through */
-        case lbt_huffman:
+        case set_compressed:
             if (srcSize < 5) return ERROR(corruption_detected);   /* srcSize >= MIN_CBLOCK_SIZE == 3; here we need up to 5 for case 3 */
             {   size_t lhSize, litSize, litCSize;
                 U32 singleStream=0;
@@ -504,7 +504,7 @@ size_t ZSTD_decodeLiteralsBlock(ZSTD_DCtx* dctx,
                 if (litSize > ZSTD_BLOCKSIZE_ABSOLUTEMAX) return ERROR(corruption_detected);
                 if (litCSize + lhSize > srcSize) return ERROR(corruption_detected);
 
-                if (HUF_isError((litBlockType==lbt_repeat) ?
+                if (HUF_isError((litEncType==set_repeat) ?
                                     ( singleStream ?
                                         HUF_decompress1X_usingDTable(dctx->litBuffer, litSize, istart+lhSize, litCSize, dctx->hufTable) :
                                         HUF_decompress4X_usingDTable(dctx->litBuffer, litSize, istart+lhSize, litCSize, dctx->hufTable) ) :
@@ -520,7 +520,7 @@ size_t ZSTD_decodeLiteralsBlock(ZSTD_DCtx* dctx,
                 return litCSize + lhSize;
             }
 
-        case lbt_raw:
+        case set_basic:
             {   size_t litSize, lhSize;
                 U32 const lhlCode = ((istart[0]) >> 2) & 3;
                 switch(lhlCode)
@@ -554,7 +554,7 @@ size_t ZSTD_decodeLiteralsBlock(ZSTD_DCtx* dctx,
                 return lhSize+litSize;
             }
 
-        case lbt_rle:
+        case set_rle:
             {   U32 const lhlCode = ((istart[0]) >> 2) & 3;
                 size_t litSize, lhSize;
                 switch(lhlCode)
@@ -592,25 +592,25 @@ size_t ZSTD_decodeLiteralsBlock(ZSTD_DCtx* dctx,
     @return : nb bytes read from src,
               or an error code if it fails, testable with ZSTD_isError()
 */
-FORCE_INLINE size_t ZSTD_buildSeqTable(FSE_DTable* DTable, U32 type, U32 max, U32 maxLog,
+FORCE_INLINE size_t ZSTD_buildSeqTable(FSE_DTable* DTable, symbolEncodingType_e type, U32 max, U32 maxLog,
                                  const void* src, size_t srcSize,
                                  const S16* defaultNorm, U32 defaultLog, U32 flagRepeatTable)
 {
     switch(type)
     {
-    case FSE_ENCODING_RLE :
+    case set_rle :
         if (!srcSize) return ERROR(srcSize_wrong);
         if ( (*(const BYTE*)src) > max) return ERROR(corruption_detected);
         FSE_buildDTable_rle(DTable, *(const BYTE*)src);   /* if *src > max, data is corrupted */
         return 1;
-    case FSE_ENCODING_RAW :
+    case set_basic :
         FSE_buildDTable(DTable, defaultNorm, max, defaultLog);
         return 0;
-    case FSE_ENCODING_STATIC:
+    case set_repeat:
         if (!flagRepeatTable) return ERROR(corruption_detected);
         return 0;
     default :   /* impossible */
-    case FSE_ENCODING_DYNAMIC :
+    case set_compressed :
         {   U32 tableLog;
             S16 norm[MaxSeq+1];
             size_t const headerSize = FSE_readNCount(norm, &max, &tableLog, src, srcSize);
@@ -646,9 +646,9 @@ size_t ZSTD_decodeSeqHeaders(int* nbSeqPtr,
     }
 
     /* FSE table descriptors */
-    {   U32 const LLtype  = *ip >> 6;
-        U32 const OFtype = (*ip >> 4) & 3;
-        U32 const MLtype  = (*ip >> 2) & 3;
+    {   symbolEncodingType_e const LLtype = (symbolEncodingType_e)(*ip >> 6);
+        symbolEncodingType_e const OFtype = (symbolEncodingType_e)((*ip >> 4) & 3);
+        symbolEncodingType_e const MLtype = (symbolEncodingType_e)((*ip >> 2) & 3);
         ip++;
 
         /* check */

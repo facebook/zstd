@@ -437,19 +437,19 @@ Header is in charge of describing how literals are packed.
 It's a byte-aligned variable-size bitfield, ranging from 1 to 5 bytes,
 using little-endian convention.
 
-| BlockType | sizes format | regenerated size | [compressed size] |
-| --------- | ------------ | ---------------- | ----------------- |
-|   2 bits  |  1 - 2 bits  |    5 - 20 bits   |    0 - 18 bits    |
+| EncodingType | sizes format | regenerated size | [compressed size] |
+| ------------ | ------------ | ---------------- | ----------------- |
+|    2 bits    |  1 - 2 bits  |    5 - 20 bits   |    0 - 18 bits    |
 
 In this representation, bits on the left are smallest bits.
 
-__Block Type__ :
+__Encoding Type__ :
 
 This field uses 2 lowest bits of first byte, describing 4 different block types :
 
-|    Value   |      0     |    1   |  2  |    3    |
-| ---------- | ---------- | ------ | --- | ------- |
-| Block Type | Compressed | Repeat | Raw |   RLE   |
+|    Value   |  0  |  1  |      2     |      3      |
+| ---------- | --- | --- | ---------- | ----------- |
+| Block Type | Raw | RLE | Compressed | RepeatStats |    
 
 - Compressed : This is a standard huffman-compressed block,
         starting with a huffman tree description.
@@ -764,14 +764,14 @@ Literal Lengths, Offsets and Match Lengths respectively.
 
 They follow the same enumeration :
 
-|       Value      |    0   |  1  |    2   |  3  |
-| ---------------- | ------ | --- | ------ | --- |
-| Compression Mode | predef | RLE | Repeat | FSE |
+|       Value      |    0   |  1  |      2     |    3   |
+| ---------------- | ------ | --- | ---------- | ------ |
+| Compression Mode | predef | RLE | Compressed | Repeat |
 
 - "predef" : uses a pre-defined distribution table.
 - "RLE" : it's a single code, repeated `nbSeqs` times.
 - "Repeat" : re-use distribution table from previous compressed block.
-- "FSE" : standard FSE compression.
+- "Compressed" : standard FSE compression.
           A distribution table will be present.
           It will be described in [next part](#distribution-tables).
 

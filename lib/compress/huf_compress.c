@@ -174,7 +174,7 @@ size_t HUF_readCTable (HUF_CElt* CTable, U32 maxSymbolValue, const void* src, si
     U32 tableLog = 0;
     size_t readSize;
     U32 nbSymbols = 0;
-    //memset(huffWeight, 0, sizeof(huffWeight));   /* is not necessary, even though some analyzer complain ... */
+    /*memset(huffWeight, 0, sizeof(huffWeight));*/   /* is not necessary, even though some analyzer complain ... */
 
     /* get symbol weights */
     readSize = HUF_readStats(huffWeight, HUF_SYMBOLVALUE_MAX+1, rankVal, &nbSymbols, &tableLog, src, srcSize);
@@ -193,10 +193,10 @@ size_t HUF_readCTable (HUF_CElt* CTable, U32 maxSymbolValue, const void* src, si
     }   }
 
     /* fill nbBits */
-    { U32 n; for (n=0; n<nbSymbols; n++) {
-        const U32 w = huffWeight[n];
-        CTable[n].nbBits = (BYTE)(tableLog + 1 - w);
-    }}
+    {   U32 n; for (n=0; n<nbSymbols; n++) {
+            const U32 w = huffWeight[n];
+            CTable[n].nbBits = (BYTE)(tableLog + 1 - w);
+    }   }
 
     /* fill val */
     {   U16 nbPerRank[HUF_TABLELOG_MAX+1] = {0};
@@ -535,7 +535,6 @@ static size_t HUF_compress_internal (
     {   size_t const hSize = HUF_writeCTable (op, dstSize, CTable, maxSymbolValue, huffLog);
         if (HUF_isError(hSize)) return hSize;
         if (hSize + 12 >= srcSize) return 0;   /* not useful to try compression */
-        //static U64 totalHSize = 0; static U32 nbHSize = 0; totalHSize += hSize; nbHSize++; if ((nbHSize & 63) == 1) printf("average : %6.3f \n", (double)totalHSize / nbHSize);
         op += hSize;
     }
 

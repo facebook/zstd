@@ -173,16 +173,15 @@ size_t HUF_readStats(BYTE* huffWeight, size_t hwSize, U32* rankStats,
     size_t iSize = ip[0];
     size_t oSize;
 
-    //memset(huffWeight, 0, hwSize);   /* is not necessary, even though some analyzer complain ... */
+    /* memset(huffWeight, 0, hwSize);   *//* is not necessary, even though some analyzer complain ... */
 
-    if (iSize >= 128)  { /* special header */
+    if (iSize >= 128) {  /* special header */
         if (iSize >= (242)) {  /* RLE */
             static U32 l[14] = { 1, 2, 3, 4, 7, 8, 15, 16, 31, 32, 63, 64, 127, 128 };
             oSize = l[iSize-242];
             memset(huffWeight, 1, hwSize);
             iSize = 0;
-        }
-        else {   /* Incompressible */
+        } else {   /* Incompressible */
             oSize = iSize - 127;
             iSize = ((oSize+1)/2);
             if (iSize+1 > srcSize) return ERROR(srcSize_wrong);

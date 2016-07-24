@@ -565,21 +565,12 @@ Therefore, `maxBits = 4` and `weight[5] = 1`.
 This is a single byte value (0-255),
 which tells how to decode the list of weights.
 
-- if headerByte >= 242 : this is one of 14 pre-defined weight distributions :
-
-| value    |242|243|244|245|246|247|248|249|250|251|252|253|254|255|
-| -------- |---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| Nb of 1s | 1 | 2 | 3 | 4 | 7 | 8 | 15| 16| 31| 32| 63| 64|127|128|
-|Complement| 1 | 2 | 1 | 4 | 1 | 8 | 1 | 16| 1 | 32| 1 | 64| 1 |128|
-
-_Note_ : complement is found by using "join to nearest power of 2" rule.
-
 - if headerByte >= 128 : this is a direct representation,
   where each weight is written directly as a 4 bits field (0-15).
   The full representation occupies `((nbSymbols+1)/2)` bytes,
   meaning it uses a last full byte even if nbSymbols is odd.
   `nbSymbols = headerByte - 127;`.
-  Note that maximum nbSymbols is 241-127 = 114.
+  Note that maximum nbSymbols is 255-127 = 128.
   A larger serie must necessarily use FSE compression.
 
 - if headerByte < 128 :
@@ -594,20 +585,20 @@ sharing a single distribution table.
 
 To decode an FSE bitstream, it is necessary to know its compressed size.
 Compressed size is provided by `headerByte`.
-It's also necessary to know its maximum decompressed size,
+It's also necessary to know its _maximum possible_ decompressed size,
 which is `255`, since literal values span from `0` to `255`,
 and last symbol value is not represented.
 
 An FSE bitstream starts by a header, describing probabilities distribution.
 It will create a Decoding Table.
 Table must be pre-allocated, which requires to support a maximum accuracy.
-For a list of huffman weights, recommended maximum is 7 bits.
+For a list of huffman weights, maximum accuracy is 7 bits.
 
 FSE header is [described in relevant chapter](#fse-distribution-table--condensed-format),
 and so is [FSE bitstream](#bitstream).
 The main difference is that Huffman header compression uses 2 states,
 which share the same FSE distribution table.
-Bitstream contains only FSE symbols, there are no interleaved "raw bitfields".
+Bitstream contains only FSE symbols (no interleaved "raw bitfields").
 The number of symbols to decode is discovered
 by tracking bitStream overflow condition.
 When both states have overflowed the bitstream, end is reached.
@@ -616,16 +607,12 @@ When both states have overflowed the bitstream, end is reached.
 ##### Conversion from weights to huffman prefix codes
 
 All present symbols shall now have a `weight` value.
-Symbols are sorted by weight.
-Symbols with a weight of zero are removed.
-Within same weight, symbols keep natural order.
-Starting from lowest weight,
-symbols are being allocated to a `range`.
-A `weight` directly represents a `range`,
-following the formulae : `range = weight ? 1 << (weight-1) : 0 ;`
-Similarly, it is possible to transform weights into nbBits :
+It is possible to transform weights into nbBits, using this formula :
 `nbBits = nbBits ? maxBits + 1 - weight : 0;` .
 
+Symbols are sorted by weight. Within same weight, symbols keep natural order.
+Symbols with a weight of zero are removed.
+Then, starting from lowest weight, prefix codes are distributed in order.
 
 __Example__ :
 Let's presume the following list of weights has been decoded :
@@ -640,8 +627,6 @@ it gives the following distribution :
 | Literal      |  3  |  4  |  5  |  2  |  1  |   0  |
 | ------------ | --- | --- | --- | --- | --- | ---- |
 | weight       |  0  |  1  |  1  |  2  |  3  |   4  |
-| range        |  0  |  1  |  1  |  2  |  4  |   8  |
-| table entries| N/A |  0  |  1  | 2-3 | 4-7 | 8-15 |
 | nb bits      |  0  |  4  |  4  |  3  |  2  |   1  |
 | prefix codes | N/A | 0000| 0001| 001 | 01  |   1  |
 
@@ -665,15 +650,14 @@ header only provides compressed and regenerated size of all 4 streams combined.
 In order to properly decode the 4 streams,
 it's necessary to know the compressed and regenerated size of each stream.
 
-Regenerated size is easiest :
-each stream has a size of `(totalSize+3)/4`,
-except the last one, which is up to 3 bytes smaller, to reach `totalSize`.
+Regenerated size of each stream can be calculated by `(totalSize+3)/4`,
+except for last one, which can be up to 3 bytes smaller, to reach `totalSize`.
 
-Compressed size must be provided explicitly : in the 4-streams variant,
+Compressed size is provided explicitly : in the 4-streams variant,
 bitstreams are preceded by 3 unsigned Little Endian 16-bits values.
 Each value represents the compressed size of one stream, in order.
 The last stream size is deducted from total compressed size
-and from already known stream sizes :
+and from previously decoded stream sizes :
 `stream4CSize = totalCSize - 6 - stream1CSize - stream2CSize - stream3CSize;`
 
 ##### Bitstreams read and decode
@@ -687,7 +671,7 @@ This is detected by a final bit flag :
 the highest bit of latest byte is a final-bit-flag.
 Consequently, a last byte of `0` is not possible.
 And the final-bit-flag itself is not part of the useful bitstream.
-Hence, the last byte contain between 0 and 7 useful bits.
+Hence, the last byte contains between 0 and 7 useful bits.
 
 Starting from the end,
 it's possible to read the bitstream in a little-endian fashion,

@@ -93,18 +93,18 @@ size_t FSE_readNCount (short* normalizedCounter, unsigned* maxSVPtr, unsigned* t
         if (previous0) {
             unsigned n0 = charnum;
             while ((bitStream & 0xFFFF) == 0xFFFF) {
-                n0+=24;
+                n0 += 24;
                 if (ip < iend-5) {
-                    ip+=2;
+                    ip += 2;
                     bitStream = MEM_readLE32(ip) >> bitCount;
                 } else {
                     bitStream >>= 16;
-                    bitCount+=16;
+                    bitCount   += 16;
             }   }
             while ((bitStream & 3) == 3) {
-                n0+=3;
-                bitStream>>=2;
-                bitCount+=2;
+                n0 += 3;
+                bitStream >>= 2;
+                bitCount += 2;
             }
             n0 += bitStream & 3;
             bitCount += 2;
@@ -148,6 +148,7 @@ size_t FSE_readNCount (short* normalizedCounter, unsigned* maxSVPtr, unsigned* t
             bitStream = MEM_readLE32(ip) >> (bitCount & 31);
     }   }   /* while ((remaining>1) & (charnum<=*maxSVPtr)) */
     if (remaining != 1) return ERROR(corruption_detected);
+    if (bitCount > 32) return ERROR(corruption_detected);
     *maxSVPtr = charnum-1;
 
     ip += (bitCount+7)>>3;

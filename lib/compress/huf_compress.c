@@ -105,66 +105,37 @@ size_t HUF_writeCTable (void* dst, size_t maxDstSize,
                         const HUF_CElt* CTable, U32 maxSymbolValue, U32 huffLog)
 {
     BYTE bitsToWeight[HUF_TABLELOG_MAX + 1];
-    BYTE huffWeight[HUF_SYMBOLVALUE_MAX + 1];
-    U32 n;
+    BYTE huffWeight[HUF_SYMBOLVALUE_MAX];
     BYTE* op = (BYTE*)dst;
-    size_t size;
+    U32 n;
 
      /* check conditions */
-    if (maxSymbolValue > HUF_SYMBOLVALUE_MAX + 1)
-        return ERROR(GENERIC);
+    if (maxSymbolValue > HUF_SYMBOLVALUE_MAX) return ERROR(GENERIC);
 
     /* convert to weight */
     bitsToWeight[0] = 0;
-    for (n=1; n<=huffLog; n++)
+    for (n=1; n<huffLog+1; n++)
         bitsToWeight[n] = (BYTE)(huffLog + 1 - n);
     for (n=0; n<maxSymbolValue; n++)
         huffWeight[n] = bitsToWeight[CTable[n].nbBits];
 
-    size = FSE_compress(op+1, maxDstSize-1, huffWeight, maxSymbolValue);   /* don't need last symbol stat : implied */
-    if (HUF_isError(size)) return size;
-    if (size >= 128) return ERROR(GENERIC);   /* should never happen, since maxSymbolValue <= 255 */
-    if ((size <= 1) || (size >= maxSymbolValue/2)) {
-        if (size==1) {  /* RLE */
-            /* only possible case : series of 1 (because there are at least 2) */
-            /* can only be 2^n or (2^n-1), otherwise not an huffman tree */
-            BYTE code;
-            switch(maxSymbolValue)
-            {
-            case 1: code = 0; break;
-            case 2: code = 1; break;
-            case 3: code = 2; break;
-            case 4: code = 3; break;
-            case 7: code = 4; break;
-            case 8: code = 5; break;
-            case 15: code = 6; break;
-            case 16: code = 7; break;
-            case 31: code = 8; break;
-            case 32: code = 9; break;
-            case 63: code = 10; break;
-            case 64: code = 11; break;
-            case 127: code = 12; break;
-            case 128: code = 13; break;
-            default : return ERROR(corruption_detected);
-            }
-            op[0] = (BYTE)(255-13 + code);
-            return 1;
-        }
-         /* Not compressible */
-        if (maxSymbolValue > (241-128)) return ERROR(GENERIC);   /* not implemented (not possible with current format) */
-        if (((maxSymbolValue+1)/2) + 1 > maxDstSize) return ERROR(dstSize_tooSmall);   /* not enough space within dst buffer */
-        op[0] = (BYTE)(128 /*special case*/ + 0 /* Not Compressible */ + (maxSymbolValue-1));
-        huffWeight[maxSymbolValue] = 0;   /* to be sure it doesn't cause issue in final combination */
-        for (n=0; n<maxSymbolValue; n+=2)
-            op[(n/2)+1] = (BYTE)((huffWeight[n] << 4) + huffWeight[n+1]);
-        return ((maxSymbolValue+1)/2) + 1;
-    }
+    {   size_t const size = FSE_compress(op+1, maxDstSize-1, huffWeight, maxSymbolValue);
+        if (FSE_isError(size)) return size;
+        if ((size>1) & (size < maxSymbolValue/2)) {   /* FSE compressed */
+            op[0] = (BYTE)size;
+            return size+1;
+    }   }
 
-    /* normal header case */
-    op[0] = (BYTE)size;
-    return size+1;
+    /* raw values */
+    if (maxSymbolValue > (256-128)) return ERROR(GENERIC);   /* should not happen */
+    if (((maxSymbolValue+1)/2) + 1 > maxDstSize) return ERROR(dstSize_tooSmall);   /* not enough space within dst buffer */
+    op[0] = (BYTE)(128 /*special case*/ + (maxSymbolValue-1));
+    huffWeight[maxSymbolValue] = 0;   /* to be sure it doesn't cause issue in final combination */
+    for (n=0; n<maxSymbolValue; n+=2)
+        op[(n/2)+1] = (BYTE)((huffWeight[n] << 4) + huffWeight[n+1]);
+    return ((maxSymbolValue+1)/2) + 1;
+
 }
-
 
 
 size_t HUF_readCTable (HUF_CElt* CTable, U32 maxSymbolValue, const void* src, size_t srcSize)

@@ -6,8 +6,8 @@ Zstandard Compression Format
 Copyright (c) 2016 Yann Collet
 
 Permission is granted to copy and distribute this document
-for any  purpose and without charge,
-including translations into other  languages
+for any purpose and without charge,
+including translations into other languages
 and incorporation into compilations,
 provided that the copyright notice and this notice are preserved,
 and that any substantive changes or deletions from the original
@@ -58,6 +58,11 @@ it must produce a non-ambiguous error code and associated error message
 explaining which parameter is unsupported.
 
 
+Overall conventions
+-----------
+In this document square brackets i.e. `[` and `]` are used to indicate optional fields or parameters.
+
+
 Definitions
 -----------
 A content compressed by Zstandard is transformed into a Zstandard __frame__.
@@ -73,49 +78,8 @@ However, each block can be decompressed without waiting for its successor,
 allowing streaming operations.
 
 
-General Structure of Zstandard Frame format
--------------------------------------------
-
-| MagicNb |  Frame Header | Block | [More blocks] | EndMark |
-|:-------:|:-------------:| ----- | ------------- | ------- |
-| 4 bytes |  2-14 bytes   |       |               | 3 bytes |
-
-__Magic Number__
-
-4 Bytes, Little endian format.
-Value : 0xFD2FB527
-
-__Frame Header__
-
-2 to 14 Bytes, detailed in [next part](#frame-header).
-
-__Data Blocks__
-
-Detailed in [next chapter](#data-blocks).
-That’s where compressed data is stored.
-
-__EndMark__
-
-The flow of blocks ends when the last block header brings an _end signal_ .
-This last block header may optionally host a __Content Checksum__ .
-
-##### __Content Checksum__
-
-Content Checksum verify that frame content has been regenerated correctly.
-The content checksum is the result
-of [xxh64() hash function](https://www.xxHash.com)
-digesting the original (decoded) data as input, and a seed of zero.
-Bits from 11 to 32 (included) are extracted to form a 22 bits checksum
-stored into the endmark body.
-```
-mask22bits = (1<<22)-1;
-contentChecksum = (XXH64(content, size, 0) >> 11) & mask22bits;
-```
-Content checksum is only present when its associated flag
-is set in the frame descriptor.
-Its usage is optional.
-
-__Frame Concatenation__
+Frame Concatenation
+-------------------
 
 In some circumstances, it may be required to append multiple frames,
 for example in order to add new data to an existing compressed file
@@ -132,50 +96,84 @@ to decode all concatenated frames in their sequential order,
 delivering the final decompressed result as if it was a single content.
 
 
-Frame Header
--------------
+General Structure of Zstandard Frame format
+-------------------------------------------
+The structure of a single Zstandard frame is following:
 
-| FHD     | [WD]      | [dictID]  | [Content Size] |
-| ------- | --------- | --------- |:--------------:|
-| 1 byte  | 0-1 byte  | 0-4 bytes |  0 - 8 bytes   |
+| `Magic_Number` | `Frame_Header` |`Data_Block`| [More data blocks] |`End_Marker`|
+|:--------------:|:--------------:|:----------:| ------------------ |:----------:|
+| 4 bytes        |  2-14 bytes    | n bytes    |                    | 3 bytes    |
 
-Frame header has a variable size, which uses a minimum of 2 bytes,
+__`Magic_Number`__
+
+4 Bytes, Little endian format.
+Value : 0xFD2FB527
+
+__`Frame_Header`__
+
+2 to 14 Bytes, detailed in [next part](#the-structure-of-frame_header).
+
+__`Data_Block`__
+
+Detailed in [next chapter](#the-structure-of-data_block).
+That’s where compressed data is stored.
+
+__`End_Marker`__
+
+The flow of blocks ends when the last block header brings an _end signal_.
+This last block header may optionally host a `Content_Checksum`.
+
+##### __`Content_Checksum`__
+
+`Content_Checksum` allow to verify that frame content has been regenerated correctly.
+The content checksum is the result
+of [xxh64() hash function](https://www.xxHash.com)
+digesting the original (decoded) data as input, and a seed of zero.
+Bits from 11 to 32 (included) are extracted to form a 22 bits checksum
+stored within `End_Marker`.
+```
+mask22bits = (1<<22)-1;
+contentChecksum = (XXH64(content, size, 0) >> 11) & mask22bits;
+```
+`Content_Checksum` is only present when its associated flag
+is set in the frame descriptor.
+Its usage is optional.
+
+
+
+The structure of `Frame_Header`
+-------------------------------
+The `Frame_Header` has a variable size, which uses a minimum of 2 bytes,
 and up to 14 bytes depending on optional parameters.
+The structure of `Frame_Header` is following:
 
-__FHD byte__ (Frame Header Descriptor)
+| `Frame_Header_Descriptor` | [`Window_Descriptor`] | [`Dictionary_ID`] | [`Frame_Content_Size`] |
+| ------------------------- | --------------------- | ----------------- | ---------------------- |
+| 1 byte                    | 0-1 byte              | 0-4 bytes         | 0-8 bytes              |
 
-The first Header's byte is called the Frame Header Descriptor.
+### `Frame_Header_Descriptor`
+
+The first header's byte is called the `Frame_Header_Descriptor`.
 It tells which other fields are present.
-Decoding this byte is enough to tell the size of Frame Header.
+Decoding this byte is enough to tell the size of `Frame_Header`.
 
-|  BitNb  |   7-6  |    5    |   4    |    3     |    2     |  1-0   |
-| ------- | ------ | ------- | ------ | -------- | -------- | ------ |
-|FieldName| FCSize | Segment | Unused | Reserved | Checksum | dictID |
+| Bit number | Field name                |
+| ---------- | ----------                |
+| 7-6        | `Frame_Content_Size_flag` |
+| 5          | `Single_Segment_flag`     |
+| 4          | `Unused_bit`              |
+| 3          | `Reserved_bit`            |
+| 2          | `Content_Checksum_flag`   |
+| 1-0        | `Dictionary_ID_flag`      |
 
 In this table, bit 7 is highest bit, while bit 0 is lowest.
 
-__Frame Content Size flag__
+__`Single_Segment_flag`__
 
-This is a 2-bits flag (`= FHD >> 6`),
-specifying if decompressed data size is provided within the header.
+If `Single_Segment_flag` is not set then `Window_Descriptor` is mandatory and `Frame_Content_Size_flag` will be ignored.
 
-|  Value  |  0  |  1  |  2  |  3  |
-| ------- | --- | --- | --- | --- |
-|FieldSize| 0-1 |  2  |  4  |  8  |
-
-Value 0 meaning depends on _single segment_ mode :
-it either means `0` (size not provided) _if_ the `WD` byte is present,
-or `1` (frame content size <= 255 bytes) otherwise.
-
-__Single Segment__
-
-If this flag is set,
-data shall be regenerated within a single continuous memory segment.
-
-In which case, `WD` byte __is not present__,
-but `Frame Content Size` field necessarily is.
-As a consequence, the decoder must allocate a memory segment
-of size `>= Frame Content Size`.
+If `Single_Segment_flag` is set then `Window_Descriptor` should be absent and `Frame_Content_Size_flag` will be used along with a mandatory `Frame_Content_Size` field.
+As a consequence, the decoder must allocate a single continuous memory segment of size equal or bigger than `Frame_Content_Size`.
 
 In order to preserve the decoder from unreasonable memory requirement,
 a decoder can reject a compressed frame
@@ -187,14 +185,23 @@ This is just a recommendation,
 each decoder is free to support higher or lower limits,
 depending on local limitations.
 
-__Unused bit__
+__`Frame_Content_Size_flag`__
+
+This is a 2-bits flag (`= FHD >> 6`) used only if `Single_Segment_flag` is set.
+In this case Value can be converted to Field size that is number of bytes used by `Frame_Content_Size` according to the following table:
+
+|  Value   |  0  |  1  |  2  |  3  |
+|----------| --- | --- | --- | --- |
+|Field size|  1  |  2  |  4  |  8  |
+
+__`Unused_bit`__
 
 The value of this bit should be set to zero.
 A decoder compliant with this specification version should not interpret it.
 It might be used in a future version,
 to signal a property which is not mandatory to properly decode the frame.
 
-__Reserved bit__
+__`Reserved_bit`__
 
 This bit is reserved for some future feature.
 Its value _must be zero_.
@@ -202,35 +209,35 @@ A decoder compliant with this specification version must ensure it is not set.
 This bit may be used in a future revision,
 to signal a feature that must be interpreted in order to decode the frame.
 
-__Content checksum flag__
+__`Content_Checksum_flag`__
 
-If this flag is set, a content checksum will be present into the EndMark.
+If this flag is set, a content checksum will be present within `End_Marker`.
 The checksum is a 22 bits value extracted from the XXH64() of data,
-and stored into endMark. See [__Content Checksum__](#content-checksum) .
+and stored within `End_Marker`. See [`Content_Checksum`](#content_checksum) .
 
-__Dictionary ID flag__
+__`Dictionary_ID_flag`__
 
 This is a 2-bits flag (`= FHD & 3`),
 telling if a dictionary ID is provided within the header.
 It also specifies the size of this field.
 
-|  Value  |  0  |  1  |  2  |  3  |
-| ------- | --- | --- | --- | --- |
-|FieldSize|  0  |  1  |  2  |  4  |
+|  Value   |  0  |  1  |  2  |  3  |
+| -------- | --- | --- | --- | --- |
+|Field size|  0  |  1  |  2  |  4  |
 
-__WD byte__ (Window Descriptor)
+### `Window_Descriptor`
 
 Provides guarantees on maximum back-reference distance
 that will be present within compressed data.
 This information is useful for decoders to allocate enough memory.
 
-`WD` byte is optional. It's not present in `single segment` mode.
-In which case, the maximum back-reference distance is the content size itself,
+The `Window_Descriptor` byte is optional. It should be absent if `Single_Segment_flag` is set.
+In this case, the maximum back-reference distance is the content size itself,
 which can be any value from 1 to 2^64-1 bytes (16 EB).
 
-|   BitNb   |    7-3   |    0-2   |
-| --------- | -------- | -------- |
-| FieldName | Exponent | Mantissa |
+| Bit numbers |    7-3   |    0-2   |
+| ----------- | -------- | -------- |
+| Field name  | Exponent | Mantissa |
 
 Maximum distance is given by the following formulae :
 ```
@@ -256,14 +263,14 @@ It's merely a recommendation though,
 decoders are free to support larger or lower limits,
 depending on local limitations.
 
-__Dictionary ID__
+### `Dictionary_ID`
 
 This is a variable size field, which contains
 the ID of the dictionary required to properly decode the frame.
 Note that this field is optional. When it's not present,
 it's up to the caller to make sure it uses the correct dictionary.
 
-Field size depends on __Dictionary ID flag__.
+Field size depends on `Dictionary_ID_flag`.
 1 byte can represent an ID 0-255.
 2 bytes can represent an ID 0-65535.
 4 bytes can represent an ID 0-4294967295.
@@ -275,72 +282,67 @@ _Reserved ranges :_
 If the frame is going to be distributed in a private environment,
 any dictionary ID can be used.
 However, for public distribution of compressed frames using a dictionary,
-some ranges are reserved for future use :
-- low : 1 - 32767 : reserved
-- high : >= (2^31) : reserved
+the following ranges are reserved for future use and should not be used :
+- low range : 1 - 32767
+- high range : >= (2^31)
 
 
-__Frame Content Size__
+### `Frame_Content_Size`
 
 This is the original (uncompressed) size.
-This information is optional, and only present if associated flag is set.
-Content size is provided using 1, 2, 4 or 8 Bytes.
+This information is optional, and only present if `Single_Segment_flag` is set.
+Content size is provided using 1, 2, 4 or 8 bytes according to `Frame_Content_Size_flag`.
 Format is Little endian.
 
 | Field Size |    Range   |
 | ---------- | ---------- |
-|     0      |      0     |
 |     1      |   0 - 255  |
 |     2      | 256 - 65791|
 |     4      | 0 - 2^32-1 |
 |     8      | 0 - 2^64-1 |
 
 When field size is 1, 4 or 8 bytes, the value is read directly.
-When field size is 2, _an offset of 256 is added_.
-It's allowed to represent a small size (ex: `18`) using any compatible variant.
-A size of `0` means `content size is unknown`.
-In which case, the `WD` byte will necessarily be present,
-and becomes the only hint to guide memory allocation.
+When field size is 2, _the offset of 256 is added_.
+It's allowed to represent a small size (for example `18`) using any compatible variant.
 
 In order to preserve decoder from unreasonable memory requirement,
 a decoder can refuse a compressed frame
 which requests a memory size beyond decoder's authorized range.
 
 
-Data Blocks
------------
+The structure of `Data_Block`
+-----------------------------
+The structure of `Data_Block` is following:
 
-| B. Header |  data  |
-|:---------:| ------ |
-|  3 bytes  |        |
+| `Block_Type` | `Block_Size` | `Block_Content` |
+|:------------:|:------------:|:---------------:|
+|  2 bits      |  22 bits     |  n bytes        |
 
+__`Block_Type` and `Block_Size`__
 
-__Block Header__
-
-This field uses 3-bytes, format is __little-endian__.
-
-The 2 lowest bits represent the `block type`,
-while the remaining 22 bits represent the (compressed) block size.
+The block header uses 3-bytes, format is __little-endian__.
+The 2 highest bits represent the `Block_Type`,
+while the remaining 22 bits represent the (compressed) `Block_Size`.
 
 There are 4 block types :
 
-|    Value   |  0  |  1  |      2     |    3    |
-| ---------- | --- | --- | ---------- | ------- |
-| Block Type | Raw | RLE | Compressed | EndMark |
+|    Value     |      0      |     1       |  2                 |    3      |
+| ------------ | ----------- | ----------- | ------------------ | --------- |
+| `Block_Type` | `Raw_Block` | `RLE_Block` | `Compressed_Block` | `EndMark` |
 
-- Compressed : this is a [Zstandard compressed block](#compressed-block-format),
+- `Raw_Block` - this is an uncompressed block.
+  `Block_Size` is the number of bytes to read and copy.
+- `RLE_Block` - this is a single byte, repeated N times.
+  In which case, `Block_Size` is the size to regenerate,
+  while the "compressed" block is just 1 byte (the byte to repeat).
+- `Compressed_Block` - this is a [Zstandard compressed block](#the-format-of-compressed_block),
   detailed in another section of this specification.
-  "block size" is the compressed size.
+  `Block_Size` is the compressed size.
   Decompressed size is unknown,
   but its maximum possible value is guaranteed (see below)
-- Raw : this is an uncompressed block.
-  "block size" is the number of bytes to read and copy.
-- RLE : this is a single byte, repeated N times.
-  In which case, "block size" is the size to regenerate,
-  while the "compressed" block is just 1 byte (the byte to repeat).
-- EndMark : this is not a block. Signal the end of the frame.
+- `EndMark` - this is not a block. It signals the end of the frame.
   The rest of the field may be optionally filled by a checksum
-  (see [Content Checksum](#content-checksum)).
+  (see [`Content_Checksum`](#content_checksum)).
 
 Block sizes must respect a few rules :
 - In compressed mode, compressed size if always strictly `< decompressed size`.
@@ -348,14 +350,14 @@ Block sizes must respect a few rules :
 - Block decompressed size is always <= 128 KB
 
 
-__Data__
+__`Block_Content`__
 
-Where the actual data to decode stands.
+The `Block_Content` is where the actual data to decode stands.
 It might be compressed or not, depending on previous field indications.
 A data block is not necessarily "full" :
 since an arbitrary “flush” may happen anytime,
 block decompressed content can be any size,
-up to Block Maximum Decompressed Size, which is the smallest of :
+up to `Block_Maximum_Decompressed_Size`, which is the smallest of :
 - Maximum back-reference distance
 - 128 KB
 
@@ -363,9 +365,9 @@ up to Block Maximum Decompressed Size, which is the smallest of :
 Skippable Frames
 ----------------
 
-| Magic Number | Frame Size | User Data |
-|:------------:|:----------:| --------- |
-|   4 bytes    |  4 bytes   |           |
+| `Magic_Number` | `Frame_Size` | `User_Data` |
+|:--------------:|:------------:|:-----------:|
+|   4 bytes      |  4 bytes     |   n bytes   |
 
 Skippable frames allow the insertion of user-defined data
 into a flow of concatenated frames.
@@ -377,31 +379,30 @@ Skippable frames defined in this specification are compatible with [LZ4] ones.
 
 [LZ4]:http://www.lz4.org
 
-__Magic Number__ :
+__`Magic_Number`__
 
 4 Bytes, Little endian format.
 Value : 0x184D2A5X, which means any value from 0x184D2A50 to 0x184D2A5F.
 All 16 values are valid to identify a skippable frame.
 
-__Frame Size__ :
+__`Frame_Size`__
 
-This is the size, in bytes, of the following User Data
+This is the size, in bytes, of the following `User_Data`
 (without including the magic number nor the size field itself).
-4 Bytes, Little endian format, unsigned 32-bits.
-This means User Data can’t be bigger than (2^32-1) Bytes.
+This field is represented using 4 Bytes, Little endian format, unsigned 32-bits.
+This means `User_Data` can’t be bigger than (2^32-1) bytes.
 
-__User Data__ :
+__`User_Data`__
 
-User Data can be anything. Data will just be skipped by the decoder.
+The `User_Data` can be anything. Data will just be skipped by the decoder.
 
 
-Compressed block format
------------------------
-This specification details the content of a _compressed block_.
-A compressed block has a size, which must be known.
-It also has a guaranteed maximum regenerated size,
+The format of `Compressed_Block`
+--------------------------------
+The size of `Compressed_Block` must be provided using `Block_Size` field from `Data_Block`.
+The `Compressed_Block` has a guaranteed maximum regenerated size,
 in order to properly allocate destination buffer.
-See [Data Blocks](#data-blocks) for more details.
+See [`Data_Block`](#the-structure-of-data_block) for more details.
 
 A compressed block consists of 2 sections :
 - [Literals section](#literals-section)
@@ -410,7 +411,7 @@ A compressed block consists of 2 sections :
 ### Prerequisites
 To decode a compressed block, the following elements are necessary :
 - Previous decoded blocks, up to a distance of `windowSize`,
-  or all previous blocks in "single segment" mode.
+  or all previous blocks when `Single_Segment_flag` is set.
 - List of "recent offsets" from previous compressed block.
 - Decoding tables of previous compressed block for each symbol type
   (literals, litLength, matchLength, offset).
@@ -418,18 +419,18 @@ To decode a compressed block, the following elements are necessary :
 
 ### Literals section
 
-Literals are compressed using Huffman prefix codes.
 During sequence phase, literals will be entangled with match copy operations.
 All literals are regrouped in the first part of the block.
 They can be decoded first, and then copied during sequence operations,
 or they can be decoded on the flow, as needed by sequence commands.
 
-| Header | [Tree Description] | Stream1 | [Stream2] | [Stream3] | [Stream4] |
-| ------ | ------------------ | ------- | --------- | --------- | --------- |
+| Literals section header | [Huffman Tree Description] | Stream1 | [Stream2] | [Stream3] | [Stream4] |
+| ----------------------- | -------------------------- | ------- | --------- | --------- | --------- |
 
-Literals can be compressed, or uncompressed.
+Literals can be stored uncompressed or compressed using Huffman prefix codes.
 When compressed, an optional tree description can be present,
 followed by 1 or 4 streams.
+
 
 #### Literals section header
 
@@ -437,28 +438,28 @@ Header is in charge of describing how literals are packed.
 It's a byte-aligned variable-size bitfield, ranging from 1 to 5 bytes,
 using little-endian convention.
 
-| EncodingType | sizes format | regenerated size | [compressed size] |
-| ------------ | ------------ | ---------------- | ----------------- |
-|    2 bits    |  1 - 2 bits  |    5 - 20 bits   |    0 - 18 bits    |
+| Literals Block Type | sizes format | regenerated size | [compressed size] |
+| ------------------- | ------------ | ---------------- | ----------------- |
+|   2 bits            |  1 - 2 bits  |    5 - 20 bits   |    0 - 18 bits    |
 
 In this representation, bits on the left are smallest bits.
 
-__Encoding Type__ :
+__Literals Block Type__ :
 
 This field uses 2 lowest bits of first byte, describing 4 different block types :
 
-|    Value   |  0  |  1  |      2     |      3      |
-| ---------- | --- | --- | ---------- | ----------- |
-| Block Type | Raw | RLE | Compressed | RepeatStats |    
+|       Value         |  0  |  1  |      2     |      3      |
+| ------------------- | --- | --- | ---------- | ----------- |
+| Literals Block Type | Raw | RLE | Compressed | RepeatStats |    
 
-- Compressed : This is a standard huffman-compressed block,
+- Raw literals block - Literals are stored uncompressed.
+- RLE literals block - Literals consist of a single byte value repeated N times.
+- Compressed literals block - This is a standard huffman-compressed block,
         starting with a huffman tree description.
         See details below.
-- Repeat Stats : This is a huffman-compressed block,
+- Repeat Stats literals block - This is a huffman-compressed block,
         using huffman tree _from previous huffman-compressed literals block_.
         Huffman tree description will be skipped.
-- Raw : Literals are stored uncompressed.
-- RLE : Literals consist of a single byte value repeated N times.
 
 __Sizes format__ :
 
@@ -485,9 +486,8 @@ __Sizes format for Raw and RLE literals block__ :
 Note : it's allowed to represent a short value (ex : `13`)
 using a long format, accepting the reduced compacity.
 
-__Sizes format for Compressed literals block__ :
+__Sizes format for Compressed literals block and Repeat Stats literals block__ :
 
-Note : also applicable to "repeat-stats" blocks.
 - Value : 00 : _Single stream_.
                Compressed and regenerated sizes use 10 bits (0-1023).
                Total literal header size is 3 bytes.
@@ -501,7 +501,7 @@ Note : also applicable to "repeat-stats" blocks.
                Compressed and regenerated sizes use 18 bits (0-262143).
                Total literal header size is 5 bytes.
 
-Compressed and regenerated size fields follow little endian convention.
+Compressed and regenerated size fields follow little-endian convention.
 
 #### Huffman Tree description
 
@@ -1143,7 +1143,7 @@ __Stats__ : Entropy tables, following the same format as a [compressed blocks].
 __Content__ : Where the actual dictionary content is.
               Content size depends on Dictionary size.
 
-[compressed blocks]: #compressed-block-format
+[compressed blocks]: #the-format-of-compressed_block
 
 
 Version changes

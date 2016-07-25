@@ -106,7 +106,7 @@ The structure of a single Zstandard frame is following:
 
 __`Magic_Number`__
 
-4 Bytes, Little endian format.
+4 Bytes, Little-endian format.
 Value : 0xFD2FB527
 
 __`Frame_Header`__
@@ -178,7 +178,7 @@ The `Value` can be converted to `Field_Size` that is number of bytes used by `Fr
 | ---------- | --- | --- | --- | --- |
 |`Field_Size`| 0-1 |  2  |  4  |  8  |
 
-The meaning of `Value` equal 0 depends on `Single_Segment_flag` :
+The meaning of `Value` equal to `0` depends on `Single_Segment_flag` :
 it either means `0` (size not provided) _if_ the `Window_Descriptor` byte is present,
 or `1` (frame content size <= 255 bytes) otherwise.
 
@@ -297,20 +297,20 @@ the following ranges are reserved for future use and should not be used :
 
 ### `Frame_Content_Size`
 
-This is the original (uncompressed) size.
-This information is optional, and only present if `Single_Segment_flag` is set.
-Content size is provided using 1, 2, 4 or 8 bytes according to `Frame_Content_Size_flag`.
-Format is Little endian.
+This is the original (uncompressed) size. This information is optional.
+The `Field_Size` is provided according to value of `Frame_Content_Size_flag`.
+The `Field_Size` can be equal to 0 (not present), 1, 2, 4 or 8 bytes.
+Format is Little-endian.
 
-| Field Size |    Range   |
-| ---------- | ---------- |
-|     1      |   0 - 255  |
-|     2      | 256 - 65791|
-|     4      | 0 - 2^32-1 |
-|     8      | 0 - 2^64-1 |
+| `Field_Size` |    Range   |
+| ------------ | ---------- |
+|      1       |   0 - 255  |
+|      2       | 256 - 65791|
+|      4       | 0 - 2^32-1 |
+|      8       | 0 - 2^64-1 |
 
-When field size is 1, 4 or 8 bytes, the value is read directly.
-When field size is 2, _the offset of 256 is added_.
+When `Field_Size` is 1, 4 or 8 bytes, the value is read directly.
+When `Field_Size` is 2, _the offset of 256 is added_.
 It's allowed to represent a small size (for example `18`) using any compatible variant.
 
 In order to preserve decoder from unreasonable memory requirement,
@@ -389,7 +389,7 @@ Skippable frames defined in this specification are compatible with [LZ4] ones.
 
 __`Magic_Number`__
 
-4 Bytes, Little endian format.
+4 Bytes, Little-endian format.
 Value : 0x184D2A5X, which means any value from 0x184D2A50 to 0x184D2A5F.
 All 16 values are valid to identify a skippable frame.
 
@@ -397,7 +397,7 @@ __`Frame_Size`__
 
 This is the size, in bytes, of the following `User_Data`
 (without including the magic number nor the size field itself).
-This field is represented using 4 Bytes, Little endian format, unsigned 32-bits.
+This field is represented using 4 Bytes, Little-endian format, unsigned 32-bits.
 This means `User_Data` can’t be bigger than (2^32-1) bytes.
 
 __`User_Data`__
@@ -662,7 +662,7 @@ Regenerated size of each stream can be calculated by `(totalSize+3)/4`,
 except for last one, which can be up to 3 bytes smaller, to reach `totalSize`.
 
 Compressed size is provided explicitly : in the 4-streams variant,
-bitstreams are preceded by 3 unsigned Little Endian 16-bits values.
+bitstreams are preceded by 3 unsigned Little-Endian 16-bits values.
 Each value represents the compressed size of one stream, in order.
 The last stream size is deducted from total compressed size
 and from previously decoded stream sizes :
@@ -1127,9 +1127,9 @@ __Pre-requisites__ : a dictionary has a known length,
 | Header | DictID | Stats | Content |
 | ------ | ------ | ----- | ------- |
 
-__Header__ : 4 bytes ID, value 0xEC30A437, Little Endian format
+__Header__ : 4 bytes ID, value 0xEC30A437, Little-Endian format
 
-__Dict_ID__ : 4 bytes, stored in Little Endian format.
+__Dict_ID__ : 4 bytes, stored in Little-Endian format.
               DictID can be any value, except 0 (which means no DictID).
               It's used by decoders to check if they use the correct dictionary.
               _Reserved ranges :_
@@ -1146,7 +1146,7 @@ __Stats__ : Entropy tables, following the same format as a [compressed blocks].
             Huffman tables for literals, FSE table for offset,
             FSE table for matchLenth, and FSE table for litLength.
             It's finally followed by 3 offset values, populating recent offsets,
-            stored in order, 4-bytes little endian each, for a total of 12 bytes.
+            stored in order, 4-bytes little-endian each, for a total of 12 bytes.
 
 __Content__ : Where the actual dictionary content is.
               Content size depends on Dictionary size.

@@ -3891,7 +3891,7 @@ size_t ZSTDv07_decodeLiteralsBlock(ZSTDv07_DCtx* dctx,
     @return : nb bytes read from src,
               or an error code if it fails, testable with ZSTDv07_isError()
 */
-FORCE_INLINE size_t ZSTDv07_buildSeqTable(FSEv07_DTable* DTable, U32 type, U32 max, U32 maxLog,
+size_t ZSTDv07_buildSeqTable(FSEv07_DTable* DTable, U32 type, U32 max, U32 maxLog,
                                  const void* src, size_t srcSize,
                                  const S16* defaultNorm, U32 defaultLog, U32 flagRepeatTable)
 {

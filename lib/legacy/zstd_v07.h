@@ -131,17 +131,6 @@ ZSTDLIB_API size_t ZSTDv07_getFrameParams(ZSTDv07_frameParams* fparamsPtr, const
 
 
 
-/* ***************************************************************
-*  Compiler specifics
-*****************************************************************/
-/* ZSTDv07_DLL_EXPORT :
-*  Enable exporting of functions when building a Windows DLL */
-#if defined(_WIN32) && defined(ZSTDv07_DLL_EXPORT) && (ZSTDv07_DLL_EXPORT==1)
-#  define ZSTDLIB_API __declspec(dllexport)
-#else
-#  define ZSTDLIB_API
-#endif
-
 
 /* *************************************
 *  Streaming functions

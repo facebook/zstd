@@ -744,7 +744,7 @@ static int FIO_decompressDstFile(dRess_t ress,
     result = FIO_decompressSrcFile(ress, srcFileName);
 
     if (fclose(ress.dstFile)) EXM_THROW(38, "Write error : cannot properly close %s", dstFileName);
-    if (result != 0) if (remove(dstFileName)) EXM_THROW(39, "remove %s error : %s", dstFileName, strerror(errno));
+    if (result != 0) if (remove(dstFileName)) result=1;   /* don't do anything if remove fails */
     return result;
 }
 

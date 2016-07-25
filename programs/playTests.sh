@@ -204,8 +204,11 @@ $ZSTD -t tmp1.zst
 $ZSTD --test tmp1.zst
 $ECHO "test multiple files (*.zst) "
 $ZSTD -t *.zst
-$ECHO "test good and bad files (*) "
+$ECHO "test bad files (*) "
 $ZSTD -t * && die "bad files not detected !"
+$ZSTD -t tmp1 && die "bad file not detected !"
+cp tmp1 tmp2.zst
+$ZSTD -t tmp2.zst && die "bad file not detected !"
 $ECHO "test --rm and --test combined "
 $ZSTD -t --rm tmp1.zst
 ls -ls tmp1.zst  # check file is still present

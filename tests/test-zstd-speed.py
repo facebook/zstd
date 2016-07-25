@@ -134,13 +134,13 @@ def benchmark_and_compare(branch, commit, args, resultsFileName, testFilePath, f
         commit, csize, cspeed, dspeed = get_last_results(resultsFileName)
         text = ""
         for i in range(0, min(len(cspeed), len(last_cspeed))):
-            print("%s:%s -%d cSpeed=%6.2f cLast=%6.2f cDiff=%1.4f dSpeed=%6.2f dLast=%6.2f dDiff=%1.4f ratioDiff=%1.4f %s" % (branch, commit, i+1, cspeed[i], last_cspeed[i], cspeed[i]/last_cspeed[i], dspeed[i], last_dspeed[i], dspeed[i]/last_dspeed[i], float(csize[i])/last_csize[i], fileName))
+            print("%s:%s -%d cSpeed=%6.2f cLast=%6.2f cDiff=%1.4f dSpeed=%6.2f dLast=%6.2f dDiff=%1.4f ratioDiff=%1.4f %s" % (branch, commit, i+1, cspeed[i], last_cspeed[i], cspeed[i]/last_cspeed[i], dspeed[i], last_dspeed[i], dspeed[i]/last_dspeed[i], float(last_csize[i])/csize[i], fileName))
             if (cspeed[i]/last_cspeed[i] < args.lowerLimit):
                 text += "WARNING: -%d cSpeed=%.2f cLast=%.2f cDiff=%.4f %s\n" % (i+1, cspeed[i], last_cspeed[i], cspeed[i]/last_cspeed[i], fileName)
             if (dspeed[i]/last_dspeed[i] < args.lowerLimit):
                 text += "WARNING: -%d dSpeed=%.2f dLast=%.2f dDiff=%.4f %s\n" % (i+1, dspeed[i], last_dspeed[i], dspeed[i]/last_dspeed[i], fileName)
-            if (float(csize[i])/last_csize[i] < args.ratioLimit):
-                text += "WARNING: -%d cSize=%d last_cSize=%d diff=%.4f %s\n" % (i+1, csize[i], last_csize[i], float(csize[i])/last_csize[i], fileName)
+            if (float(last_csize[i])/csize[i] < args.ratioLimit):
+                text += "WARNING: -%d cSize=%d last_cSize=%d diff=%.4f %s\n" % (i+1, csize[i], last_csize[i], float(last_csize[i])/csize[i], fileName)
         if text:
             text = args.message + ("\nmaxLoadAvg=%s  load average at start=%s end=%s\n" % (args.maxLoadAvg, start_load, end_load)) + text
         return text

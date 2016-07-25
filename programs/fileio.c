@@ -180,7 +180,7 @@ static FILE* FIO_openSrcFile(const char* srcFileName)
     return f;
 }
 
-
+/* `dstFileName must` be non-NULL */
 static FILE* FIO_openDstFile(const char* dstFileName)
 {
     FILE* f;

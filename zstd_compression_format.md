@@ -168,12 +168,29 @@ Decoding this byte is enough to tell the size of `Frame_Header`.
 
 In this table, bit 7 is highest bit, while bit 0 is lowest.
 
+__`Frame_Content_Size_flag`__
+
+This is a 2-bits flag (`= Frame_Header_Descriptor >> 6`),
+specifying if decompressed data size is provided within the header.
+The `Value` can be converted to `Field_Size` that is number of bytes used by `Frame_Content_Size` according to the following table:
+
+|  `Value`   |  0  |  1  |  2  |  3  |
+| ---------- | --- | --- | --- | --- |
+|`Field_Size`| 0-1 |  2  |  4  |  8  |
+
+The meaning of `Value` equal 0 depends on `Single_Segment_flag` :
+it either means `0` (size not provided) _if_ the `Window_Descriptor` byte is present,
+or `1` (frame content size <= 255 bytes) otherwise.
+
 __`Single_Segment_flag`__
 
-If `Single_Segment_flag` is not set then `Window_Descriptor` is mandatory and `Frame_Content_Size_flag` will be ignored.
+If this flag is set,
+data shall be regenerated within a single continuous memory segment.
 
-If `Single_Segment_flag` is set then `Window_Descriptor` should be absent and `Frame_Content_Size_flag` will be used along with a mandatory `Frame_Content_Size` field.
-As a consequence, the decoder must allocate a single continuous memory segment of size equal or bigger than `Frame_Content_Size`.
+In this case, `Window_Descriptor` byte __is not present__,
+but `Frame_Content_Size_flag` field necessarily is.
+As a consequence, the decoder must allocate a memory segment
+of size equal or bigger than `Frame_Content_Size`.
 
 In order to preserve the decoder from unreasonable memory requirement,
 a decoder can reject a compressed frame
@@ -184,15 +201,6 @@ memory sizes of at least 8 MB.
 This is just a recommendation,
 each decoder is free to support higher or lower limits,
 depending on local limitations.
-
-__`Frame_Content_Size_flag`__
-
-This is a 2-bits flag (`= FHD >> 6`) used only if `Single_Segment_flag` is set.
-In this case Value can be converted to Field size that is number of bytes used by `Frame_Content_Size` according to the following table:
-
-|  Value   |  0  |  1  |  2  |  3  |
-|----------| --- | --- | --- | --- |
-|Field size|  1  |  2  |  4  |  8  |
 
 __`Unused_bit`__
 

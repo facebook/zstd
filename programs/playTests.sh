@@ -206,6 +206,9 @@ $ECHO "test multiple files (*.zst) "
 $ZSTD -t *.zst
 $ECHO "test good and bad files (*) "
 $ZSTD -t * && die "bad files not detected !"
+$ECHO "test --rm and --test combined "
+$ZSTD -t --rm tmp1.zst
+ls -ls tmp1.zst  # check file is still present
 
 
 $ECHO "\n**** zstd round-trip tests **** "

@@ -206,6 +206,7 @@ int main(int argCount, const char** argv)
     int argNb,
         bench=0,
         decode=0,
+        testmode=0,
         forceStdout=0,
         main_pause=0,
         nextEntryIsDictionary=0,
@@ -273,7 +274,7 @@ int main(int argCount, const char** argv)
             if (!strcmp(argument, "--no-dictID")) { FIO_setDictIDFlag(0); continue; }
             if (!strcmp(argument, "--sparse")) { FIO_setSparseWrite(2); continue; }
             if (!strcmp(argument, "--no-sparse")) { FIO_setSparseWrite(0); continue; }
-            if (!strcmp(argument, "--test")) { decode=1; outFileName=nulmark; FIO_overwriteMode(); continue; }
+            if (!strcmp(argument, "--test")) { testmode=1; decode=1; continue; }
             if (!strcmp(argument, "--train")) { dictBuild=1; outFileName=g_defaultDictName; continue; }
             if (!strcmp(argument, "--maxdict")) { nextArgumentIsMaxDict=1; continue; }
             if (!strcmp(argument, "--dictID")) { nextArgumentIsDictID=1; continue; }
@@ -337,7 +338,7 @@ int main(int argCount, const char** argv)
                     case 'C': argument++; FIO_setChecksumFlag(2); break;
 
                         /* test compressed file */
-                    case 't': decode=1; outFileName=nulmark; argument++; break;
+                    case 't': testmode=1; decode=1; argument++; break;
 
                         /* destination file name */
                     case 'o': nextArgumentIsOutFileName=1; argument++; break;
@@ -503,6 +504,7 @@ int main(int argCount, const char** argv)
 #endif
     {  /* decompression */
 #ifndef ZSTD_NODECOMPRESS
+        if (testmode) { outFileName=nulmark; FIO_setRemoveSrcFile(0); } /* test mode */
         if (filenameIdx==1 && outFileName)
             operationResult = FIO_decompressFilename(outFileName, filenameTable[0], dictFileName);
         else

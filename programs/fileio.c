@@ -698,11 +698,11 @@ static int FIO_decompressSrcFile(dRess_t ress, const char* srcFileName)
         size_t const toRead = 4;
         size_t const sizeCheck = fread(ress.srcBuffer, (size_t)1, toRead, srcFile);
         if (sizeCheck==0) {
-            if (readSomething==0) { DISPLAY("zstd: %s: unexpected end of file\n", srcFileName); return 1; }  /* srcFileName is empty */
+            if (readSomething==0) { DISPLAY("zstd: %s: unexpected end of file \n", srcFileName); fclose(srcFile); return 1; }  /* srcFileName is empty */
             break;   /* no more input */
         }
         readSomething = 1;
-        if (sizeCheck != toRead) EXM_THROW(31, "zstd: %s read error : cannot read header", srcFileName);
+        if (sizeCheck != toRead) { DISPLAY("zstd: %s: unknown header \n", srcFileName); fclose(srcFile); return 1; }  /* srcFileName is empty */
         {   U32 const magic = MEM_readLE32(ress.srcBuffer);
 #if defined(ZSTD_LEGACY_SUPPORT) && (ZSTD_LEGACY_SUPPORT>=1)
             if (ZSTD_isLegacy(ress.srcBuffer, 4)) {

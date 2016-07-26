@@ -47,9 +47,9 @@ matrix:
     - os: linux
       sudo: required
       env: PLATFORM="Ubuntu 12.04" CMD="make libc6install && make -C programs test32"
-    #- os: linux
-    #  sudo: required
-    #  env: PLATFORM="Ubuntu 12.04" CMD="make -C tests versionsTest"
+    - os: linux
+      sudo: required
+      env: PLATFORM="Ubuntu 12.04" CMD="make -C tests versionsTest"
     - os: linux
       sudo: required
       env: PLATFORM="Ubuntu 12.04" CMD="make libc6install asan32"

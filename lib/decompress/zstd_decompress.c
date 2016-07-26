@@ -204,10 +204,10 @@ static size_t ZSTD_frameHeaderSize(const void* src, size_t srcSize)
     if (srcSize < ZSTD_frameHeaderSize_min) return ERROR(srcSize_wrong);
     {   BYTE const fhd = ((const BYTE*)src)[4];
         U32 const dictID= fhd & 3;
-        U32 const directMode = (fhd >> 5) & 1;
+        U32 const singleSegment = (fhd >> 5) & 1;
         U32 const fcsId = fhd >> 6;
-        return ZSTD_frameHeaderSize_min + !directMode + ZSTD_did_fieldSize[dictID] + ZSTD_fcs_fieldSize[fcsId]
-                + (directMode && !ZSTD_fcs_fieldSize[fcsId]);
+        return ZSTD_frameHeaderSize_min + !singleSegment + ZSTD_did_fieldSize[dictID] + ZSTD_fcs_fieldSize[fcsId]
+                + (singleSegment && !ZSTD_fcs_fieldSize[fcsId]);
     }
 }
 
@@ -241,14 +241,14 @@ size_t ZSTD_getFrameParams(ZSTD_frameParams* fparamsPtr, const void* src, size_t
         size_t pos = 5;
         U32 const dictIDSizeCode = fhdByte&3;
         U32 const checksumFlag = (fhdByte>>2)&1;
-        U32 const directMode = (fhdByte>>5)&1;
+        U32 const singleSegment = (fhdByte>>5)&1;
         U32 const fcsID = fhdByte>>6;
         U32 const windowSizeMax = 1U << ZSTD_WINDOWLOG_MAX;
         U32 windowSize = 0;
         U32 dictID = 0;
         U64 frameContentSize = 0;
         if ((fhdByte & 0x08) != 0) return ERROR(frameParameter_unsupported);   /* reserved bits, which must be zero */
-        if (!directMode) {
+        if (!singleSegment) {
             BYTE const wlByte = ip[pos++];
             U32 const windowLog = (wlByte >> 3) + ZSTD_WINDOWLOG_ABSOLUTEMIN;
             if (windowLog > ZSTD_WINDOWLOG_MAX) return ERROR(frameParameter_unsupported);
@@ -267,7 +267,7 @@ size_t ZSTD_getFrameParams(ZSTD_frameParams* fparamsPtr, const void* src, size_t
         switch(fcsID)
         {
             default:   /* impossible */
-            case 0 : if (directMode) frameContentSize = ip[pos]; break;
+            case 0 : if (singleSegment) frameContentSize = ip[pos]; break;
             case 1 : frameContentSize = MEM_readLE16(ip+pos)+256; break;
             case 2 : frameContentSize = MEM_readLE32(ip+pos); break;
             case 3 : frameContentSize = MEM_readLE64(ip+pos); break;

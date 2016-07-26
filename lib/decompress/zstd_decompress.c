@@ -860,9 +860,11 @@ static size_t ZSTD_decompressFrame(ZSTD_DCtx* dctx,
 
     /* Frame Header */
     {   size_t const frameHeaderSize = ZSTD_frameHeaderSize(src, ZSTD_frameHeaderSize_min);
+        size_t result;
         if (ZSTD_isError(frameHeaderSize)) return frameHeaderSize;
         if (srcSize < frameHeaderSize+ZSTD_blockHeaderSize) return ERROR(srcSize_wrong);
-        if (ZSTD_decodeFrameHeader(dctx, src, frameHeaderSize)) return ERROR(corruption_detected);
+        result = ZSTD_decodeFrameHeader(dctx, src, frameHeaderSize);
+        if (ZSTD_isError(result)) return result;
         ip += frameHeaderSize; remainingSize -= frameHeaderSize;
     }
 

@@ -2311,19 +2311,19 @@ static size_t ZSTD_writeFrameHeader(void* dst, size_t dstCapacity,
     U32 const dictIDSizeCode = (dictID>0) + (dictID>=256) + (dictID>=65536);   /* 0-3 */
     U32 const checksumFlag = params.fParams.checksumFlag>0;
     U32 const windowSize = 1U << params.cParams.windowLog;
-    U32 const directModeFlag = params.fParams.contentSizeFlag && (windowSize > (pledgedSrcSize-1));
+    U32 const singleSegment = params.fParams.contentSizeFlag && (windowSize > (pledgedSrcSize-1));
     BYTE const windowLogByte = (BYTE)((params.cParams.windowLog - ZSTD_WINDOWLOG_ABSOLUTEMIN) << 3);
     U32 const fcsCode = params.fParams.contentSizeFlag ?
                      (pledgedSrcSize>=256) + (pledgedSrcSize>=65536+256) + (pledgedSrcSize>=0xFFFFFFFFU) :   /* 0-3 */
                       0;
-    BYTE const frameHeaderDecriptionByte = (BYTE)(dictIDSizeCode + (checksumFlag<<2) + (directModeFlag<<5) + (fcsCode<<6) );
+    BYTE const frameHeaderDecriptionByte = (BYTE)(dictIDSizeCode + (checksumFlag<<2) + (singleSegment<<5) + (fcsCode<<6) );
     size_t pos;
 
     if (dstCapacity < ZSTD_frameHeaderSize_max) return ERROR(dstSize_tooSmall);
 
     MEM_writeLE32(dst, ZSTD_MAGICNUMBER);
     op[4] = frameHeaderDecriptionByte; pos=5;
-    if (!directModeFlag) op[pos++] = windowLogByte;
+    if (!singleSegment) op[pos++] = windowLogByte;
     switch(dictIDSizeCode)
     {
         default:   /* impossible */
@@ -2335,7 +2335,7 @@ static size_t ZSTD_writeFrameHeader(void* dst, size_t dstCapacity,
     switch(fcsCode)
     {
         default:   /* impossible */
-        case 0 : if (directModeFlag) op[pos++] = (BYTE)(pledgedSrcSize); break;
+        case 0 : if (singleSegment) op[pos++] = (BYTE)(pledgedSrcSize); break;
         case 1 : MEM_writeLE16(op+pos, (U16)(pledgedSrcSize-256)); pos+=2; break;
         case 2 : MEM_writeLE32(op+pos, (U32)(pledgedSrcSize)); pos+=4; break;
         case 3 : MEM_writeLE64(op+pos, (U64)(pledgedSrcSize)); pos+=8; break;

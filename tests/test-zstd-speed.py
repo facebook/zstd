@@ -113,13 +113,13 @@ def get_last_results(resultsFileName):
     return commit, csize, cspeed, dspeed
 
 
-def benchmark_and_compare(branch, commit, args, resultsFileName, testFilePath, fileName, last_csize, last_cspeed, last_dspeed):
+def benchmark_and_compare(branch, commit, last_commit, args, executableName, resultsFileName, testFilePath, fileName, last_csize, last_cspeed, last_dspeed):
     sleepTime = 30
     while os.getloadavg()[0] > args.maxLoadAvg:
         log("WARNING: bench loadavg=%.2f is higher than %s, sleeping for %s seconds" % (os.getloadavg()[0], args.maxLoadAvg, sleepTime))
         time.sleep(sleepTime)
     start_load = str(os.getloadavg())
-    result = execute('programs/zstd -qi5b1e%s %s' % (args.lastCLevel, testFilePath), print_output=True)
+    result = execute('programs/%s -qi5b1e%s %s' % (executableName, args.lastCLevel, testFilePath), print_output=True)
     end_load = str(os.getloadavg())
     linesExpected = args.lastCLevel + 2;
     if len(result) != linesExpected:
@@ -136,13 +136,13 @@ def benchmark_and_compare(branch, commit, args, resultsFileName, testFilePath, f
         for i in range(0, min(len(cspeed), len(last_cspeed))):
             print("%s:%s -%d cSpeed=%6.2f cLast=%6.2f cDiff=%1.4f dSpeed=%6.2f dLast=%6.2f dDiff=%1.4f ratioDiff=%1.4f %s" % (branch, commit, i+1, cspeed[i], last_cspeed[i], cspeed[i]/last_cspeed[i], dspeed[i], last_dspeed[i], dspeed[i]/last_dspeed[i], float(last_csize[i])/csize[i], fileName))
             if (cspeed[i]/last_cspeed[i] < args.lowerLimit):
-                text += "WARNING: -%d cSpeed=%.2f cLast=%.2f cDiff=%.4f %s\n" % (i+1, cspeed[i], last_cspeed[i], cspeed[i]/last_cspeed[i], fileName)
+                text += "WARNING: %s -%d cSpeed=%.2f cLast=%.2f cDiff=%.4f %s\n" % (executableName, i+1, cspeed[i], last_cspeed[i], cspeed[i]/last_cspeed[i], fileName)
             if (dspeed[i]/last_dspeed[i] < args.lowerLimit):
-                text += "WARNING: -%d dSpeed=%.2f dLast=%.2f dDiff=%.4f %s\n" % (i+1, dspeed[i], last_dspeed[i], dspeed[i]/last_dspeed[i], fileName)
+                text += "WARNING: %s -%d dSpeed=%.2f dLast=%.2f dDiff=%.4f %s\n" % (executableName, i+1, dspeed[i], last_dspeed[i], dspeed[i]/last_dspeed[i], fileName)
             if (float(last_csize[i])/csize[i] < args.ratioLimit):
-                text += "WARNING: -%d cSize=%d last_cSize=%d diff=%.4f %s\n" % (i+1, csize[i], last_csize[i], float(last_csize[i])/csize[i], fileName)
+                text += "WARNING: %s -%d cSize=%d last_cSize=%d diff=%.4f %s\n" % (executableName, i+1, csize[i], last_csize[i], float(last_csize[i])/csize[i], fileName)
         if text:
-            text = args.message + ("\nmaxLoadAvg=%s  load average at start=%s end=%s\n" % (args.maxLoadAvg, start_load, end_load)) + text
+            text = args.message + ("\nmaxLoadAvg=%s  load average at start=%s end=%s  last_commit=%s\n" % (args.maxLoadAvg, start_load, end_load, last_commit)) + text
         return text
 
 
@@ -155,26 +155,36 @@ def update_config_file(branch, commit):
     return last_commit
 
 
+def double_check(branch, commit, args, executableName, resultsFileName, filePath, fileName):
+    last_commit, csize, cspeed, dspeed = get_last_results(resultsFileName)
+    if not args.dry_run:
+        text = benchmark_and_compare(branch, commit, last_commit, args, executableName, resultsFileName, filePath, fileName, csize, cspeed, dspeed)
+        if text:
+            log("WARNING: redoing tests for branch %s: commit %s" % (branch, commit))
+            text = benchmark_and_compare(branch, commit, last_commit, args, executableName, resultsFileName, filePath, fileName, csize, cspeed, dspeed)
+    return text
+
+
 def test_commit(branch, commit, last_commit, args, testFilePaths, have_mutt, have_mail):
     local_branch = string.split(branch, '/')[1]
     version = local_branch.rpartition('-')[2] + '_' + commit
     if not args.dry_run:
-        execute('make clean zstd MOREFLAGS="-DZSTD_GIT_COMMIT=%s"' % version)
+        execute('make -C programs clean zstd zstd32 MOREFLAGS="-DZSTD_GIT_COMMIT=%s"' % version)
     logFileName = working_path + "/log_" + branch.replace("/", "_") + ".txt"
     text_to_send = []
     results_files = ""
     for filePath in testFilePaths:
         fileName = filePath.rpartition('/')[2]
         resultsFileName = working_path + "/results_" + branch.replace("/", "_") + "_" + fileName.replace(".", "_") + ".txt"
-        last_commit, csize, cspeed, dspeed = get_last_results(resultsFileName)
-        if not args.dry_run:
-            text = benchmark_and_compare(branch, commit, args, resultsFileName, filePath, fileName, csize, cspeed, dspeed)
-            if text:
-                log("WARNING: redoing tests for branch %s: commit %s" % (branch, commit))
-                text = benchmark_and_compare(branch, commit, args, resultsFileName, filePath, fileName, csize, cspeed, dspeed)
-                if text:
-                    text_to_send.append(text)
-                    results_files += resultsFileName + " "
+        text = double_check(branch, commit, args, 'zstd', resultsFileName, filePath, fileName)
+        if text:
+            text_to_send.append(text)
+            results_files += resultsFileName + " "
+        resultsFileName = working_path + "/results32_" + branch.replace("/", "_") + "_" + fileName.replace(".", "_") + ".txt"
+        text = double_check(branch, commit, args, 'zstd32', resultsFileName, filePath, fileName)
+        if text:
+            text_to_send.append(text)
+            results_files += resultsFileName + " "
     if text_to_send:
         send_email_with_attachments(branch, commit, last_commit, args, text_to_send, results_files, logFileName, have_mutt, have_mail)
 

@@ -429,6 +429,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\..\lib\legacy\zstd_v07.c"
+				>
+			</File>
+			<File
 				RelativePath="..\..\..\programs\zstdcli.c"
 				>
 			</File>
@@ -536,6 +540,10 @@
 			</File>
 			<File
 				RelativePath="..\..\..\lib\legacy\zstd_v06.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\..\lib\legacy\zstd_v07.h"
 				>
 			</File>
 		</Filter>

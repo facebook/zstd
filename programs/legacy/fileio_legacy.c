@@ -548,6 +548,81 @@ unsigned long long FIOv06_decompressFrame(dRessv06_t ress,
 }
 
 
+/*=====    v0.7.x    =====*/
+
+typedef struct {
+    void*  srcBuffer;
+    size_t srcBufferSize;
+    void*  dstBuffer;
+    size_t dstBufferSize;
+    const void*  dictBuffer;
+    size_t dictBufferSize;
+    ZBUFFv07_DCtx* dctx;
+} dRessv07_t;
+
+static dRessv07_t FIOv07_createDResources(void)
+{
+    dRessv07_t ress;
+
+    /* init */
+    ress.dctx = ZBUFFv07_createDCtx();
+    if (ress.dctx==NULL) EXM_THROW(60, "Can't create ZBUFF decompression context");
+    ress.dictBuffer = NULL; ress.dictBufferSize=0;
+
+    /* Allocate Memory */
+    ress.srcBufferSize = ZBUFFv07_recommendedDInSize();
+    ress.srcBuffer = malloc(ress.srcBufferSize);
+    ress.dstBufferSize = ZBUFFv07_recommendedDOutSize();
+    ress.dstBuffer = malloc(ress.dstBufferSize);
+    if (!ress.srcBuffer || !ress.dstBuffer) EXM_THROW(61, "Allocation error : not enough memory");
+
+    return ress;
+}
+
+static void FIOv07_freeDResources(dRessv07_t ress)
+{
+    size_t const errorCode = ZBUFFv07_freeDCtx(ress.dctx);
+    if (ZBUFFv07_isError(errorCode)) EXM_THROW(69, "Error : can't free ZBUFF context resource : %s", ZBUFFv07_getErrorName(errorCode));
+    free(ress.srcBuffer);
+    free(ress.dstBuffer);
+}
+
+
+unsigned long long FIOv07_decompressFrame(dRessv07_t ress,
+                                          FILE* foutput, FILE* finput)
+{
+    U64    frameSize = 0;
+    size_t readSize  = 4;
+
+    MEM_writeLE32(ress.srcBuffer, ZSTDv07_MAGICNUMBER);
+    ZBUFFv07_decompressInitDictionary(ress.dctx, ress.dictBuffer, ress.dictBufferSize);
+
+    while (1) {
+        /* Decode */
+        size_t inSize=readSize, decodedSize=ress.dstBufferSize;
+        size_t toRead = ZBUFFv07_decompressContinue(ress.dctx, ress.dstBuffer, &decodedSize, ress.srcBuffer, &inSize);
+        if (ZBUFFv07_isError(toRead)) EXM_THROW(36, "Decoding error : %s", ZBUFFv07_getErrorName(toRead));
+        readSize -= inSize;
+
+        /* Write block */
+        { size_t const sizeCheck = fwrite(ress.dstBuffer, 1, decodedSize, foutput);
+          if (sizeCheck != decodedSize) EXM_THROW(37, "Write error : unable to write data block to destination file"); }
+        frameSize += decodedSize;
+        DISPLAYUPDATE(2, "\rDecoded : %u MB...     ", (U32)(frameSize>>20) );
+
+        if (toRead == 0) break;
+        if (readSize) EXM_THROW(38, "Decoding error : should consume entire input");
+
+        /* Fill input buffer */
+        if (toRead > ress.srcBufferSize) EXM_THROW(34, "too large block");
+        readSize = fread(ress.srcBuffer, 1, toRead, finput);
+        if (readSize != toRead) EXM_THROW(35, "Read error");
+    }
+
+    return frameSize;
+}
+
+
 /*=====   General legacy dispatcher   =====*/
 
 unsigned long long FIO_decompressLegacyFrame(FILE* foutput, FILE* finput,
@@ -582,6 +657,14 @@ unsigned long long FIO_decompressLegacyFrame(FILE* foutput, FILE* finput,
                 r.dictBufferSize = dictSize;
                 {   unsigned long long const s = FIOv06_decompressFrame(r, foutput, finput);
                     FIOv06_freeDResources(r);
+                    return s;
+            }   }
+        case ZSTDv07_MAGICNUMBER :
+            {   dRessv07_t r = FIOv07_createDResources();
+                r.dictBuffer = dictBuffer;
+                r.dictBufferSize = dictSize;
+                {   unsigned long long const s = FIOv07_decompressFrame(r, foutput, finput);
+                    FIOv07_freeDResources(r);
                     return s;
             }   }
         default :

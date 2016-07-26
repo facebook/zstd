@@ -849,7 +849,6 @@ static size_t ZSTD_decompressFrame(ZSTD_DCtx* dctx,
                                  const void* src, size_t srcSize)
 {
     const BYTE* ip = (const BYTE*)src;
-    const BYTE* const iend = ip + srcSize;
     BYTE* const ostart = (BYTE* const)dst;
     BYTE* const oend = ostart + dstCapacity;
     BYTE* op = ostart;
@@ -872,7 +871,7 @@ static size_t ZSTD_decompressFrame(ZSTD_DCtx* dctx,
     while (1) {
         size_t decodedSize;
         blockProperties_t blockProperties;
-        size_t const cBlockSize = ZSTD_getcBlockSize(ip, iend-ip, &blockProperties);
+        size_t const cBlockSize = ZSTD_getcBlockSize(ip, remainingSize, &blockProperties);
         if (ZSTD_isError(cBlockSize)) return cBlockSize;
 
         ip += ZSTD_blockHeaderSize;

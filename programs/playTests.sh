@@ -209,6 +209,8 @@ $ZSTD -t * && die "bad files not detected !"
 $ZSTD -t tmp1 && die "bad file not detected !"
 cp tmp1 tmp2.zst
 $ZSTD -t tmp2.zst && die "bad file not detected !"
+./datagen -g0 > tmp3
+$ZSTD -t tmp3 && die "bad file not detected !"   # detects 0-sized files as bad
 $ECHO "test --rm and --test combined "
 $ZSTD -t --rm tmp1.zst
 ls -ls tmp1.zst  # check file is still present

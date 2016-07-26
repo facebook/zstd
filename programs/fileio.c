@@ -683,6 +683,7 @@ static int FIO_decompressSrcFile(dRess_t ress, const char* srcFileName)
     unsigned long long filesize = 0;
     FILE* const dstFile = ress.dstFile;
     FILE* srcFile;
+    unsigned readSomething = 0;
 
     if (UTIL_isDirectory(srcFileName)) {
         DISPLAYLEVEL(1, "zstd: %s is a directory -- ignored \n", srcFileName);
@@ -697,9 +698,10 @@ static int FIO_decompressSrcFile(dRess_t ress, const char* srcFileName)
         size_t const toRead = 4;
         size_t const sizeCheck = fread(ress.srcBuffer, (size_t)1, toRead, srcFile);
         if (sizeCheck==0) {
-            if (filesize==0) { DISPLAY("zstd: %s: unexpected end of file\n", srcFileName); return 1; }  /* srcFileName is empty */
+            if (readSomething==0) { DISPLAY("zstd: %s: unexpected end of file\n", srcFileName); return 1; }  /* srcFileName is empty */
             break;   /* no more input */
         }
+        readSomething = 1;
         if (sizeCheck != toRead) EXM_THROW(31, "zstd: %s read error : cannot read header", srcFileName);
         {   U32 const magic = MEM_readLE32(ress.srcBuffer);
 #if defined(ZSTD_LEGACY_SUPPORT) && (ZSTD_LEGACY_SUPPORT>=1)

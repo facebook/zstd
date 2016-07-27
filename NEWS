@@ -1,5 +1,6 @@
 v0.8.0
 New : updated compresson format
+Improved : better speed on clang and gcc -O2, thanks to Eric Biggers
 Fixed : legacy mode with ZSTD_HEAPMODE=0, by Christopher Bergqvist
 Fixed : premature end of frame when zero-sized raw block, reported by Eric Biggers
 Fixed : checksum correctly checked in single-pass mode

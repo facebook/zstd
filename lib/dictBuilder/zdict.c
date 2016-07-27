@@ -660,7 +660,7 @@ static void ZDICT_insertSortCount(offsetCount_t table[ZSTD_REP_NUM+1], U32 val, 
 }
 
 
-#define OFFCODE_MAX 18  /* only applicable to first block */
+#define OFFCODE_MAX 30  /* only applicable to first block */
 static size_t ZDICT_analyzeEntropy(void*  dstBuffer, size_t maxDstSize,
                                  unsigned compressionLevel,
                            const void*  srcBuffer, const size_t* fileSizes, unsigned nbFiles,
@@ -670,6 +670,7 @@ static size_t ZDICT_analyzeEntropy(void*  dstBuffer, size_t maxDstSize,
     HUF_CREATE_STATIC_CTABLE(hufTable, 255);
     U32 offcodeCount[OFFCODE_MAX+1];
     short offcodeNCount[OFFCODE_MAX+1];
+    U32 offcodeMax = ZSTD_highbit32((U32)(dictBufferSize + 128 KB));
     U32 matchLengthCount[MaxML+1];
     short matchLengthNCount[MaxML+1];
     U32 litLengthCount[MaxLL+1];
@@ -686,8 +687,9 @@ static size_t ZDICT_analyzeEntropy(void*  dstBuffer, size_t maxDstSize,
     BYTE* dstPtr = (BYTE*)dstBuffer;
 
     /* init */
+    if (offcodeMax>OFFCODE_MAX) { eSize = ERROR(dictionary_wrong); goto _cleanup; }   /* too large dictionary */
     for (u=0; u<256; u++) countLit[u]=1;   /* any character must be described */
-    for (u=0; u<=OFFCODE_MAX; u++) offcodeCount[u]=1;
+    for (u=0; u<=offcodeMax; u++) offcodeCount[u]=1;
     for (u=0; u<=MaxML; u++) matchLengthCount[u]=1;
     for (u=0; u<=MaxLL; u++) litLengthCount[u]=1;
     repOffset[1] = repOffset[4] = repOffset[8] = 1;
@@ -866,8 +868,8 @@ size_t ZDICT_addEntropyTablesFromBuffer_advanced(void* dictBuffer, size_t dictCo
 
 #define DIB_MINSAMPLESSIZE 512
 /*! ZDICT_trainFromBuffer_unsafe() :
-*   `samplesBuffer` must be followed by noisy guard band.
-*   @return : size of dictionary.
+*   Warning : `samplesBuffer` must be followed by noisy guard band.
+*   @return : size of dictionary, or an error code which can be tested with ZDICT_isError()
 */
 size_t ZDICT_trainFromBuffer_unsafe(
                             void* dictBuffer, size_t maxDictSize,
@@ -973,23 +975,23 @@ size_t ZDICT_trainFromBuffer_advanced(void* dictBuffer, size_t dictBufferCapacit
                                       const void* samplesBuffer, const size_t* samplesSizes, unsigned nbSamples,
                                       ZDICT_params_t params)
 {
+    size_t result;
     void* newBuff;
-    size_t sBuffSize;
+    size_t const sBuffSize = ZDICT_totalSampleSize(samplesSizes, nbSamples);
+    if (sBuffSize < DIB_MINSAMPLESSIZE) return 0;   /* not enough content => no dictionary */
 
-    { unsigned u; for (u=0, sBuffSize=0; u<nbSamples; u++) sBuffSize += samplesSizes[u]; }
-    if (sBuffSize==0) return 0;   /* empty content => no dictionary */
     newBuff = malloc(sBuffSize + NOISELENGTH);
     if (!newBuff) return ERROR(memory_allocation);
 
     memcpy(newBuff, samplesBuffer, sBuffSize);
     ZDICT_fillNoise((char*)newBuff + sBuffSize, NOISELENGTH);   /* guard band, for end of buffer condition */
 
-    { size_t const result = ZDICT_trainFromBuffer_unsafe(
+    result = ZDICT_trainFromBuffer_unsafe(
                                         dictBuffer, dictBufferCapacity,
                                         newBuff, samplesSizes, nbSamples,
                                         params);
-      free(newBuff);
-      return result; }
+    free(newBuff);
+    return result;
 }
 
 

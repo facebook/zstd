@@ -95,6 +95,7 @@ struct ZBUFF_CCtx_s {
     size_t outBuffContentSize;
     size_t outBuffFlushedSize;
     ZBUFF_cStage stage;
+    U32    checksum;
     ZSTD_customMem customMem;
 };   /* typedef'd tp ZBUFF_CCtx within "zstd_buffered.h" */
 
@@ -164,6 +165,7 @@ size_t ZBUFF_compressInit_advanced(ZBUFF_CCtx* zbc,
     zbc->inBuffTarget = zbc->blockSize;
     zbc->outBuffContentSize = zbc->outBuffFlushedSize = 0;
     zbc->stage = ZBUFFcs_load;
+    zbc->checksum = params.fParams.checksumFlag > 0;
     return 0;   /* ready to go */
 }
 
@@ -300,11 +302,11 @@ size_t ZBUFF_compressEnd(ZBUFF_CCtx* zbc, void* dst, size_t* dstCapacityPtr)
         op += outSize;
         if (remainingToFlush) {
             *dstCapacityPtr = op-ostart;
-            return remainingToFlush + ZBUFF_endFrameSize;
+            return remainingToFlush + ZBUFF_endFrameSize + (zbc->checksum * 4);
         }
         /* create epilogue */
         zbc->stage = ZBUFFcs_final;
-        zbc->outBuffContentSize = ZSTD_compressEnd(zbc->zc, zbc->outBuff, zbc->outBuffSize); /* epilogue into outBuff */
+        zbc->outBuffContentSize = ZSTD_compressEnd(zbc->zc, zbc->outBuff, zbc->outBuffSize);  /* epilogue into outBuff */
     }
 
     /* flush epilogue */

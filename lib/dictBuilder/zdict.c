@@ -489,7 +489,7 @@ static U32 ZDICT_dictSize(const dictItem* dictList)
 static size_t ZDICT_trainBuffer(dictItem* dictList, U32 dictListSize,
                             const void* const buffer, size_t bufferSize,   /* buffer must end with noisy guard band */
                             const size_t* fileSizes, unsigned nbFiles,
-                            U32 shiftRatio, unsigned maxDictSize)
+                            U32 shiftRatio)
 {
     int* const suffix0 = (int*)malloc((bufferSize+2)*sizeof(*suffix0));
     int* const suffix = suffix0+1;
@@ -541,16 +541,6 @@ static size_t ZDICT_trainBuffer(dictItem* dictList, U32 dictListSize,
             cursor += solution.length;
             DISPLAYUPDATE(2, "\r%4.2f %% \r", (double)cursor / bufferSize * 100);
     }   }
-
-    /* limit dictionary size */
-    {   U32 const max = dictList->pos;   /* convention : nb of useful elts within dictList */
-        U32 currentSize = 0;
-        U32 n; for (n=1; n<max; n++) {
-            currentSize += dictList[n].length;
-            if (currentSize > maxDictSize) break;
-        }
-        dictList->pos = n;
-    }
 
 _cleanup:
     free(suffix0);
@@ -845,45 +835,6 @@ _cleanup:
 }
 
 
-#define DIB_FASTSEGMENTSIZE 64
-/*! ZDICT_fastSampling()  (based on an idea proposed by Giuseppe Ottaviano) :
-    Fill `dictBuffer` with stripes of size DIB_FASTSEGMENTSIZE from `samplesBuffer`,
-    up to `dictSize`.
-    Filling starts from the end of `dictBuffer`, down to maximum possible.
-    if `dictSize` is not a multiply of DIB_FASTSEGMENTSIZE, some bytes at beginning of `dictBuffer` won't be used.
-    @return : amount of data written into `dictBuffer`,
-              or an error code
-*/
-static size_t ZDICT_fastSampling(void* dictBuffer, size_t dictSize,
-                         const void* samplesBuffer, size_t samplesSize)
-{
-    char* dstPtr = (char*)dictBuffer + dictSize;
-    const char* srcPtr = (const char*)samplesBuffer;
-    size_t const nbSegments = dictSize / DIB_FASTSEGMENTSIZE;
-    size_t segNb, interSize;
-
-    if (nbSegments <= 2) return ERROR(srcSize_wrong);
-    if (samplesSize < dictSize) return ERROR(srcSize_wrong);
-
-    /* first and last segments are part of dictionary, in case they contain interesting header/footer */
-    dstPtr -= DIB_FASTSEGMENTSIZE;
-    memcpy(dstPtr, srcPtr, DIB_FASTSEGMENTSIZE);
-    dstPtr -= DIB_FASTSEGMENTSIZE;
-    memcpy(dstPtr, srcPtr+samplesSize-DIB_FASTSEGMENTSIZE, DIB_FASTSEGMENTSIZE);
-
-    /* regularly copy a segment */
-    interSize = (samplesSize - nbSegments*DIB_FASTSEGMENTSIZE) / (nbSegments-1);
-    srcPtr += DIB_FASTSEGMENTSIZE;
-    for (segNb=2; segNb < nbSegments; segNb++) {
-        srcPtr += interSize;
-        dstPtr -= DIB_FASTSEGMENTSIZE;
-        memcpy(dstPtr, srcPtr, DIB_FASTSEGMENTSIZE);
-        srcPtr += DIB_FASTSEGMENTSIZE;
-    }
-
-    return nbSegments * DIB_FASTSEGMENTSIZE;
-}
-
 size_t ZDICT_addEntropyTablesFromBuffer_advanced(void* dictBuffer, size_t dictContentSize, size_t dictBufferCapacity,
                                                  const void* samplesBuffer, const size_t* samplesSizes, unsigned nbSamples,
                                                  ZDICT_params_t params)
@@ -914,7 +865,7 @@ size_t ZDICT_addEntropyTablesFromBuffer_advanced(void* dictBuffer, size_t dictCo
 }
 
 
-#define DIB_MINSAMPLESSIZE (DIB_FASTSEGMENTSIZE*3)
+#define DIB_MINSAMPLESSIZE 512
 /*! ZDICT_trainFromBuffer_unsafe() :
 *   `samplesBuffer` must be followed by noisy guard band.
 *   @return : size of dictionary.
@@ -928,53 +879,67 @@ size_t ZDICT_trainFromBuffer_unsafe(
     dictItem* const dictList = (dictItem*)malloc(dictListSize * sizeof(*dictList));
     unsigned selectivity = params.selectivityLevel;
     size_t const targetDictSize = maxDictSize;
-    size_t sBuffSize;
+    size_t const samplesBuffSize = ZDICT_totalSampleSize(samplesSizes, nbSamples);
     size_t dictSize = 0;
 
     /* checks */
     if (!dictList) return ERROR(memory_allocation);
     if (maxDictSize <= g_provision_entropySize + g_min_fast_dictContent) { free(dictList); return ERROR(dstSize_tooSmall); }
+    if (samplesBuffSize < DIB_MINSAMPLESSIZE) { free(dictList); return 0; }   /* not enough source to create dictionary */
 
     /* init */
-    { unsigned u; for (u=0, sBuffSize=0; u<nbSamples; u++) sBuffSize += samplesSizes[u]; }
-    if (sBuffSize < DIB_MINSAMPLESSIZE) { free(dictList); return 0; }   /* not enough source to create dictionary */
     ZDICT_initDictItem(dictList);
     g_displayLevel = params.notificationLevel;
     if (selectivity==0) selectivity = g_selectivity_default;
 
     /* build dictionary */
-    if (selectivity>1) {  /* selectivity == 1 => fast mode */
-        ZDICT_trainBuffer(dictList, dictListSize,
-                        samplesBuffer, sBuffSize,
-                        samplesSizes, nbSamples,
-                        selectivity, (U32)targetDictSize);
+    ZDICT_trainBuffer(dictList, dictListSize,
+                    samplesBuffer, samplesBuffSize,
+                    samplesSizes, nbSamples,
+                    selectivity);
 
-        /* display best matches */
-        if (g_displayLevel>= 3) {
-            U32 const nb = 25;
-            U32 const dictContentSize = ZDICT_dictSize(dictList);
-            U32 u;
-            DISPLAYLEVEL(3, "\n %u segments found, of total size %u \n", dictList[0].pos, dictContentSize);
-            DISPLAYLEVEL(3, "list %u best segments \n", nb);
-            for (u=1; u<=nb; u++) {
-                U32 pos = dictList[u].pos;
-                U32 length = dictList[u].length;
-                U32 printedLength = MIN(40, length);
-                DISPLAYLEVEL(3, "%3u:%3u bytes at pos %8u, savings %7u bytes |",
-                             u, length, pos, dictList[u].savings);
-                ZDICT_printHex(3, (const char*)samplesBuffer+pos, printedLength);
-                DISPLAYLEVEL(3, "| \n");
-    }   }   }
+    /* display best matches */
+    if (g_displayLevel>= 3) {
+        U32 const nb = 25;
+        U32 const dictContentSize = ZDICT_dictSize(dictList);
+        U32 u;
+        DISPLAYLEVEL(3, "\n %u segments found, of total size %u \n", dictList[0].pos, dictContentSize);
+        DISPLAYLEVEL(3, "list %u best segments \n", nb);
+        for (u=1; u<=nb; u++) {
+            U32 pos = dictList[u].pos;
+            U32 length = dictList[u].length;
+            U32 printedLength = MIN(40, length);
+            DISPLAYLEVEL(3, "%3u:%3u bytes at pos %8u, savings %7u bytes |",
+                         u, length, pos, dictList[u].savings);
+            ZDICT_printHex(3, (const char*)samplesBuffer+pos, printedLength);
+            DISPLAYLEVEL(3, "| \n");
+    }   }
+
 
     /* create dictionary */
     {   U32 dictContentSize = ZDICT_dictSize(dictList);
-        U64 const totalSamplesSize = ZDICT_totalSampleSize(samplesSizes, nbSamples);
         if (dictContentSize < targetDictSize/2) {
             DISPLAYLEVEL(2, "!  warning : created dictionary significantly smaller than requested (%u < %u) \n", dictContentSize, (U32)maxDictSize);
             DISPLAYLEVEL(2, "!  consider increasing selectivity to produce larger dictionary (-s%u) \n", selectivity+1);
             DISPLAYLEVEL(2, "!  note : larger dictionaries are not necessarily better, test its efficiency on samples \n");
-            if (totalSamplesSize < 10 * targetDictSize)
-                DISPLAYLEVEL(2, "!  consider also increasing the number of samples (total size : %u MB)\n", (U32)(totalSamplesSize>>20));
+            if (samplesBuffSize < 10 * targetDictSize)
+                DISPLAYLEVEL(2, "!  consider also increasing the number of samples (total size : %u MB)\n", (U32)(samplesBuffSize>>20));
+        }
+
+        if (dictContentSize > targetDictSize*2) {
+            DISPLAYLEVEL(2, "!  warning : calculated dictionary significantly larger than requested (%u > %u) \n", dictContentSize, (U32)maxDictSize);
+            DISPLAYLEVEL(2, "!  consider decreasing selectivity to produce denser dictionary (-s%u) \n", selectivity-1);
+            DISPLAYLEVEL(2, "!  test its efficiency on samples \n");
+        }
+
+        /* limit dictionary size */
+        {   U32 const max = dictList->pos;   /* convention : nb of useful elts within dictList */
+            U32 currentSize = 0;
+            U32 n; for (n=1; n<max; n++) {
+                currentSize += dictList[n].length;
+                if (currentSize > targetDictSize) break;
+            }
+            dictList->pos = n;
         }
 
         /* build dict content */
@@ -986,14 +951,6 @@ size_t ZDICT_trainFromBuffer_unsafe(
                 if (ptr<(BYTE*)dictBuffer) { free(dictList); return ERROR(GENERIC); }   /* should not happen */
                 memcpy(ptr, (const char*)samplesBuffer+dictList[u].pos, l);
         }   }
-
-        /* fast mode dict content */
-        if (selectivity==1) {  /* note could also be used to complete a dictionary, but not necessarily better */
-            DISPLAYLEVEL(3, "\r%70s\r", "");   /* clean display line */
-            DISPLAYLEVEL(3, "Adding %u KB with fast sampling \n", (U32)(targetDictSize>>10));
-            dictContentSize = (U32)ZDICT_fastSampling(dictBuffer, targetDictSize,
-                                                      samplesBuffer, sBuffSize);
-        }
 
         dictSize = ZDICT_addEntropyTablesFromBuffer_advanced(dictBuffer, dictContentSize, maxDictSize,
                                                              samplesBuffer, samplesSizes, nbSamples,

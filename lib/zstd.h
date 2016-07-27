@@ -319,6 +319,7 @@ ZSTDLIB_API size_t ZSTD_copyCCtx(ZSTD_CCtx* cctx, const ZSTD_CCtx* preparedCCtx)
 
 ZSTDLIB_API size_t ZSTD_compressContinue(ZSTD_CCtx* cctx, void* dst, size_t dstCapacity, const void* src, size_t srcSize);
 ZSTDLIB_API size_t ZSTD_compressEnd(ZSTD_CCtx* cctx, void* dst, size_t dstCapacity);
+ZSTDLIB_API size_t ZSTD_compressContinueThenEnd(ZSTD_CCtx* cctx, void* dst, size_t dstCapacity, const void* src, size_t srcSize);
 
 /*
   A ZSTD_CCtx object is required to track streaming operations.
@@ -342,9 +343,9 @@ ZSTDLIB_API size_t ZSTD_compressEnd(ZSTD_CCtx* cctx, void* dst, size_t dstCapaci
   - ZSTD_compressContinue() detects that prior input has been overwritten when `src` buffer overlaps.
     In which case, it will "discard" the relevant memory section from its history.
 
-
-  Finish a frame with ZSTD_compressEnd(), which will write the epilogue.
-  Without epilogue, frames will be considered unfinished (broken) by decoders.
+  Finish a frame with ZSTD_compressEnd(), which will write the epilogue,
+  or ZSTD_compressContinueThenEnd(), which will write the last block.
+  Without last block / epilogue mark, frames will be considered unfinished (broken) by decoders.
 
   You can then reuse `ZSTD_CCtx` (ZSTD_compressBegin()) to compress some new frame.
 */
@@ -407,7 +408,7 @@ ZSTDLIB_API size_t ZSTD_decompressContinue(ZSTD_DCtx* dctx, void* dst, size_t ds
   == Special case : skippable frames ==
 
   Skippable frames allow the integration of user-defined data into a flow of concatenated frames.
-  Skippable frames will be ignored (skipped) by a decompressor. The format of skippable frame is following:
+  Skippable frames will be ignored (skipped) by a decompressor. The format of skippable frames is as follows :
   a) Skippable frame ID - 4 Bytes, Little endian format, any value from 0x184D2A50 to 0x184D2A5F
   b) Frame Size - 4 Bytes, Little endian format, unsigned 32-bits
   c) Frame Content - any content (User Data) of length equal to Frame Size

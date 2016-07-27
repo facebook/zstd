@@ -2393,11 +2393,24 @@ static size_t ZSTD_compressContinue_internal (ZSTD_CCtx* zc,
 }
 
 
-size_t ZSTD_compressContinue (ZSTD_CCtx* zc,
+size_t ZSTD_compressContinue (ZSTD_CCtx* cctx,
                               void* dst, size_t dstCapacity,
                         const void* src, size_t srcSize)
 {
-    return ZSTD_compressContinue_internal(zc, dst, dstCapacity, src, srcSize, 1, 0);
+    return ZSTD_compressContinue_internal(cctx, dst, dstCapacity, src, srcSize, 1, 0);
+}
+
+
+size_t ZSTD_compressContinueThenEnd (ZSTD_CCtx* cctx,
+                              void* dst, size_t dstCapacity,
+                        const void* src, size_t srcSize)
+{
+    size_t endResult;
+    size_t const cSize = ZSTD_compressContinue_internal(cctx, dst, dstCapacity, src, srcSize, 1, 1);
+    if (ZSTD_isError(cSize)) return cSize;
+    endResult = ZSTD_compressEnd(cctx, (char*)dst + cSize, dstCapacity-cSize);
+    if (ZSTD_isError(endResult)) return endResult;
+    return cSize + endResult;
 }
 
 

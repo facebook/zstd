@@ -145,8 +145,8 @@ static int basicUnitTests(U32 seed, double compressibility)
     DISPLAYLEVEL(4, "OK \n");
 
     DISPLAYLEVEL(4, "test%3i : decompress %u bytes : ", testNb++, (U32)CNBuffSize);
-    CHECKPLUS( r , ZSTD_decompress(decodedBuffer, CNBuffSize, compressedBuffer, cSize),
-               if (r != CNBuffSize) goto _output_error);
+    { size_t const r = ZSTD_decompress(decodedBuffer, CNBuffSize, compressedBuffer, cSize);
+      if (r != CNBuffSize) goto _output_error; }
     DISPLAYLEVEL(4, "OK \n");
 
     DISPLAYLEVEL(4, "test%3i : check decompressed result : ", testNb++);

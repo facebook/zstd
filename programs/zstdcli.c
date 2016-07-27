@@ -90,7 +90,7 @@
 
 static const char*    g_defaultDictName = "dictionary";
 static const unsigned g_defaultMaxDictSize = 110 KB;
-static const unsigned g_defaultDictCLevel = 5;
+static const int      g_defaultDictCLevel = 5;
 static const unsigned g_defaultSelectivityLevel = 9;
 
 
@@ -216,8 +216,8 @@ int main(int argCount, const char** argv)
         nextArgumentIsMaxDict=0,
         nextArgumentIsDictID=0,
         nextArgumentIsFile=0;
-    unsigned cLevel = ZSTDCLI_CLEVEL_DEFAULT;
-    unsigned cLevelLast = 1;
+    int cLevel = ZSTDCLI_CLEVEL_DEFAULT;
+    int cLevelLast = 1;
     unsigned recursive = 0;
     const char** filenameTable = (const char**)malloc(argCount * sizeof(const char*));   /* argCount >= 1 */
     unsigned filenameIdx = 0;
@@ -227,7 +227,7 @@ int main(int argCount, const char** argv)
     char* dynNameSpace = NULL;
     unsigned maxDictSize = g_defaultMaxDictSize;
     unsigned dictID = 0;
-    unsigned dictCLevel = g_defaultDictCLevel;
+    int dictCLevel = g_defaultDictCLevel;
     unsigned dictSelect = g_defaultSelectivityLevel;
 #ifdef UTIL_HAS_CREATEFILELIST
     const char** fileNamesTable = NULL;

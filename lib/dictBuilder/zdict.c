@@ -85,7 +85,7 @@
 #define PRIME2   2246822519U
 
 #define MINRATIO 4
-static const U32 g_compressionLevel_default = 5;
+static const int g_compressionLevel_default = 5;
 static const U32 g_selectivity_default = 9;
 static const size_t g_provision_entropySize = 200;
 static const size_t g_min_fast_dictContent = 192;
@@ -841,7 +841,7 @@ size_t ZDICT_addEntropyTablesFromBuffer_advanced(void* dictBuffer, size_t dictCo
                                                  ZDICT_params_t params)
 {
     size_t hSize;
-    unsigned const compressionLevel = (params.compressionLevel == 0) ? g_compressionLevel_default : params.compressionLevel;
+    int const compressionLevel = (params.compressionLevel <= 0) ? g_compressionLevel_default : params.compressionLevel;
 
     /* dictionary header */
     MEM_writeLE32(dictBuffer, ZSTD_DICT_MAGIC);

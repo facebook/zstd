@@ -2227,7 +2227,6 @@ static size_t ZSTD_compressBlock_internal(ZSTD_CCtx* zc, void* dst, size_t dstCa
 }
 
 
-
 static size_t ZSTD_compress_generic (ZSTD_CCtx* cctx,
                                      void* dst, size_t dstCapacity,
                                const void* src, size_t srcSize)
@@ -2237,7 +2236,7 @@ static size_t ZSTD_compress_generic (ZSTD_CCtx* cctx,
     const BYTE* ip = (const BYTE*)src;
     BYTE* const ostart = (BYTE*)dst;
     BYTE* op = ostart;
-    const U32 maxDist = 1 << cctx->params.cParams.windowLog;
+    U32 const maxDist = 1 << cctx->params.cParams.windowLog;
     ZSTD_stats_t* stats = &cctx->seqStore.stats;
     ZSTD_statsInit(stats);   /* debug only */
 
@@ -2305,7 +2304,7 @@ static size_t ZSTD_writeFrameHeader(void* dst, size_t dstCapacity,
         default:   /* impossible */
         case 0 : break;
         case 1 : op[pos] = (BYTE)(dictID); pos++; break;
-        case 2 : MEM_writeLE16(op+pos, (U16)(dictID)); pos+=2; break;
+        case 2 : MEM_writeLE16(op+pos, (U16)dictID); pos+=2; break;
         case 3 : MEM_writeLE32(op+pos, dictID); pos+=4; break;
     }
     switch(fcsCode)
@@ -2328,8 +2327,9 @@ static size_t ZSTD_compressContinue_internal (ZSTD_CCtx* zc,
     const BYTE* const ip = (const BYTE*) src;
     size_t fhSize = 0;
 
-    if (zc->stage==ZSTDcs_created) return ERROR(stage_wrong);
-    if (frame && (zc->stage==ZSTDcs_init)) {   /* copy saved header */
+    if (zc->stage==ZSTDcs_created) return ERROR(stage_wrong);   /* missing init (ZSTD_compressBegin) */
+
+    if (frame && (zc->stage==ZSTDcs_init)) {
         fhSize = ZSTD_writeFrameHeader(dst, dstCapacity, zc->params, zc->frameContentSize, zc->dictID);
         if (ZSTD_isError(fhSize)) return fhSize;
         dstCapacity -= fhSize;
@@ -2340,13 +2340,13 @@ static size_t ZSTD_compressContinue_internal (ZSTD_CCtx* zc,
     /* Check if blocks follow each other */
     if (src != zc->nextSrc) {
         /* not contiguous */
-        size_t const delta = zc->nextSrc - ip;
+        ptrdiff_t const delta = zc->nextSrc - ip;
         zc->lowLimit = zc->dictLimit;
         zc->dictLimit = (U32)(zc->nextSrc - zc->base);
         zc->dictBase = zc->base;
         zc->base -= delta;
         zc->nextToUpdate = zc->dictLimit;
-        if (zc->dictLimit - zc->lowLimit < 8) zc->lowLimit = zc->dictLimit;   /* too small extDict */
+        if (zc->dictLimit - zc->lowLimit < HASH_READ_SIZE) zc->lowLimit = zc->dictLimit;   /* too small extDict */
     }
 
     /* preemptive overflow correction */

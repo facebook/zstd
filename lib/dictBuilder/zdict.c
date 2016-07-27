@@ -735,8 +735,8 @@ static size_t ZDICT_analyzeEntropy(void*  dstBuffer, size_t maxDstSize,
     }
     /* note : the result of this phase should be used to better appreciate the impact on statistics */
 
-    total=0; for (u=0; u<=OFFCODE_MAX; u++) total+=offcodeCount[u];
-    errorCode = FSE_normalizeCount(offcodeNCount, Offlog, offcodeCount, total, OFFCODE_MAX);
+    total=0; for (u=0; u<=offcodeMax; u++) total+=offcodeCount[u];
+    errorCode = FSE_normalizeCount(offcodeNCount, Offlog, offcodeCount, total, offcodeMax);
     if (FSE_isError(errorCode)) {
         eSize = ERROR(GENERIC);
         DISPLAYLEVEL(1, "FSE_normalizeCount error with offcodeCount");

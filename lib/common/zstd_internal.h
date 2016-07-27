@@ -52,8 +52,9 @@
 *  Common constants
 ***************************************/
 #define ZSTD_OPT_DEBUG 0     /* 3 = compression stats;  5 = check encoded sequences;  9 = full logs */
-#include <stdio.h>
 #if defined(ZSTD_OPT_DEBUG) && ZSTD_OPT_DEBUG>=9
+    #include <stdio.h>
+    #include <stdlib.h>
     #define ZSTD_LOG_PARSER(...) printf(__VA_ARGS__)
     #define ZSTD_LOG_ENCODE(...) printf(__VA_ARGS__)
     #define ZSTD_LOG_BLOCK(...) printf(__VA_ARGS__)
@@ -66,8 +67,8 @@
 #define ZSTD_OPT_NUM    (1<<12)
 #define ZSTD_DICT_MAGIC  0xEC30A437   /* v0.7 */
 
-#define ZSTD_REP_NUM    3
-#define ZSTD_REP_INIT   ZSTD_REP_NUM
+#define ZSTD_REP_NUM    3                 /* number of repcodes */
+#define ZSTD_REP_CHECK  (ZSTD_REP_NUM-0)  /* number of repcodes to check by the optimal parser */
 #define ZSTD_REP_MOVE   (ZSTD_REP_NUM-1)
 static const U32 repStartValue[ZSTD_REP_NUM] = { 1, 4, 8 };
 
@@ -169,7 +170,7 @@ typedef struct {
     U32 off;
     U32 mlen;
     U32 litlen;
-    U32 rep[ZSTD_REP_INIT];
+    U32 rep[ZSTD_REP_NUM];
 } ZSTD_optimal_t;
 
 #if ZSTD_OPT_DEBUG == 3

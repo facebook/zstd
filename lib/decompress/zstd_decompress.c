@@ -118,7 +118,7 @@ struct ZSTD_DCtx_s
     const void* vBase;
     const void* dictEnd;
     size_t expected;
-    U32 rep[3];
+    U32 rep[ZSTD_REP_NUM];
     ZSTD_frameParams fParams;
     blockType_e bType;   /* used in ZSTD_decompressContinue(), to transfer blockType between header decoding and block decoding stages */
     ZSTD_dStage stage;
@@ -571,7 +571,7 @@ typedef struct {
     FSE_DState_t stateLL;
     FSE_DState_t stateOffb;
     FSE_DState_t stateML;
-    size_t prevOffset[ZSTD_REP_INIT];
+    size_t prevOffset[ZSTD_REP_NUM];
 } seqState_t;
 
 
@@ -751,7 +751,7 @@ static size_t ZSTD_decompressSequences(
     if (nbSeq) {
         seqState_t seqState;
         dctx->fseEntropy = 1;
-        { U32 i; for (i=0; i<ZSTD_REP_INIT; i++) seqState.prevOffset[i] = dctx->rep[i]; }
+        { U32 i; for (i=0; i<ZSTD_REP_NUM; i++) seqState.prevOffset[i] = dctx->rep[i]; }
         { size_t const errorCode = BIT_initDStream(&(seqState.DStream), ip, iend-ip);
           if (ERR_isError(errorCode)) return ERROR(corruption_detected); }
         FSE_initDState(&(seqState.stateLL), &(seqState.DStream), DTableLL);
@@ -769,7 +769,7 @@ static size_t ZSTD_decompressSequences(
         /* check if reached exact end */
         if (nbSeq) return ERROR(corruption_detected);
         /* save reps for next block */
-        { U32 i; for (i=0; i<ZSTD_REP_INIT; i++) dctx->rep[i] = (U32)(seqState.prevOffset[i]); }
+        { U32 i; for (i=0; i<ZSTD_REP_NUM; i++) dctx->rep[i] = (U32)(seqState.prevOffset[i]); }
     }
 
     /* last literal segment */

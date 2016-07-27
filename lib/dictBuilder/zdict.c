@@ -924,7 +924,7 @@ size_t ZDICT_trainFromBuffer_unsafe(
                             const void* samplesBuffer, const size_t* samplesSizes, unsigned nbSamples,
                             ZDICT_params_t params)
 {
-    U32 const dictListSize = MAX( MAX(DICTLISTSIZE, nbSamples), (U32)(maxDictSize/16));
+    U32 const dictListSize = MAX(MAX(DICTLISTSIZE, nbSamples), (U32)(maxDictSize/16));
     dictItem* const dictList = (dictItem*)malloc(dictListSize * sizeof(*dictList));
     unsigned selectivity = params.selectivityLevel;
     size_t const targetDictSize = maxDictSize;
@@ -957,17 +957,25 @@ size_t ZDICT_trainFromBuffer_unsafe(
             DISPLAYLEVEL(3, "\n %u segments found, of total size %u \n", dictList[0].pos, dictContentSize);
             DISPLAYLEVEL(3, "list %u best segments \n", nb);
             for (u=1; u<=nb; u++) {
-                U32 p = dictList[u].pos;
-                U32 l = dictList[u].length;
-                U32 d = MIN(40, l);
+                U32 pos = dictList[u].pos;
+                U32 length = dictList[u].length;
+                U32 printedLength = MIN(40, length);
                 DISPLAYLEVEL(3, "%3u:%3u bytes at pos %8u, savings %7u bytes |",
-                             u, l, p, dictList[u].savings);
-                ZDICT_printHex(3, (const char*)samplesBuffer+p, d);
+                             u, length, pos, dictList[u].savings);
+                ZDICT_printHex(3, (const char*)samplesBuffer+pos, printedLength);
                 DISPLAYLEVEL(3, "| \n");
     }   }   }
 
     /* create dictionary */
     {   U32 dictContentSize = ZDICT_dictSize(dictList);
+        U64 const totalSamplesSize = ZDICT_totalSampleSize(samplesSizes, nbSamples);
+        if (dictContentSize < targetDictSize/2) {
+            DISPLAYLEVEL(2, "!  warning : created dictionary significantly smaller than requested (%u < %u) \n", dictContentSize, (U32)maxDictSize);
+            DISPLAYLEVEL(2, "!  consider increasing selectivity to produce larger dictionary (-s%u) \n", selectivity+1);
+            DISPLAYLEVEL(2, "!  note : larger dictionaries are not necessarily better, test its efficiency on samples \n");
+            if (totalSamplesSize < 10 * targetDictSize)
+                DISPLAYLEVEL(2, "!  consider also increasing the number of samples (total size : %u MB)\n", (U32)(totalSamplesSize>>20));
+        }
 
         /* build dict content */
         {   U32 u;

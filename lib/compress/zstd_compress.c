@@ -2646,17 +2646,13 @@ static size_t ZSTD_compress_usingPreparedCCtx(ZSTD_CCtx* cctx, const ZSTD_CCtx* 
     {   size_t const errorCode = ZSTD_copyCCtx(cctx, preparedCCtx);
         if (ZSTD_isError(errorCode)) return errorCode;
     }
-    {   size_t const cSize = ZSTD_compressContinue(cctx, dst, dstCapacity, src, srcSize);
-        if (ZSTD_isError(cSize)) return cSize;
-
-        {   size_t const endSize = ZSTD_compressEnd(cctx, (char*)dst+cSize, dstCapacity-cSize);
-            if (ZSTD_isError(endSize)) return endSize;
-            return cSize + endSize;
-    }   }
+    {   size_t const cSize = ZSTD_compressContinueThenEnd(cctx, dst, dstCapacity, src, srcSize);
+        return cSize;
+    }
 }
 
 
-static size_t ZSTD_compress_internal (ZSTD_CCtx* ctx,
+static size_t ZSTD_compress_internal (ZSTD_CCtx* cctx,
                                void* dst, size_t dstCapacity,
                          const void* src, size_t srcSize,
                          const void* dict,size_t dictSize,
@@ -2666,21 +2662,12 @@ static size_t ZSTD_compress_internal (ZSTD_CCtx* ctx,
     BYTE* op = ostart;
 
     /* Init */
-    { size_t const errorCode = ZSTD_compressBegin_internal(ctx, dict, dictSize, params, srcSize);
+    { size_t const errorCode = ZSTD_compressBegin_internal(cctx, dict, dictSize, params, srcSize);
       if(ZSTD_isError(errorCode)) return errorCode; }
 
     /* body (compression) */
-    { size_t const oSize = ZSTD_compressContinue_internal(ctx, op,  dstCapacity, src, srcSize, 1, 1);
-      if(ZSTD_isError(oSize)) return oSize;
-      op += oSize;
-      dstCapacity -= oSize; }
-
-    /* Close frame */
-    { size_t const oSize = ZSTD_compressEnd(ctx, op, dstCapacity);
-      if(ZSTD_isError(oSize)) return oSize;
-      op += oSize; }
-
-    return (op - ostart);
+    { size_t const oSize = ZSTD_compressContinueThenEnd(cctx, op,  dstCapacity, src, srcSize);
+      return oSize; }
 }
 
 size_t ZSTD_compress_advanced (ZSTD_CCtx* ctx,

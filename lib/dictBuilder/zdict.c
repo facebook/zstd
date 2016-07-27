@@ -489,14 +489,13 @@ static U32 ZDICT_dictSize(const dictItem* dictList)
 static size_t ZDICT_trainBuffer(dictItem* dictList, U32 dictListSize,
                             const void* const buffer, size_t bufferSize,   /* buffer must end with noisy guard band */
                             const size_t* fileSizes, unsigned nbFiles,
-                            U32 shiftRatio)
+                            U32 minRatio)
 {
     int* const suffix0 = (int*)malloc((bufferSize+2)*sizeof(*suffix0));
     int* const suffix = suffix0+1;
     U32* reverseSuffix = (U32*)malloc((bufferSize)*sizeof(*reverseSuffix));
     BYTE* doneMarks = (BYTE*)malloc((bufferSize+16)*sizeof(*doneMarks));   /* +16 for overflow security */
     U32* filePos = (U32*)malloc(nbFiles * sizeof(*filePos));
-    U32 minRatio = nbFiles >> shiftRatio;
     size_t result = 0;
 
     /* init */
@@ -877,7 +876,8 @@ size_t ZDICT_trainFromBuffer_unsafe(
 {
     U32 const dictListSize = MAX(MAX(DICTLISTSIZE, nbSamples), (U32)(maxDictSize/16));
     dictItem* const dictList = (dictItem*)malloc(dictListSize * sizeof(*dictList));
-    unsigned selectivity = params.selectivityLevel;
+    unsigned const selectivity = params.selectivityLevel == 0 ? g_selectivity_default : params.selectivityLevel;
+    unsigned const minRep = nbSamples >> selectivity;
     size_t const targetDictSize = maxDictSize;
     size_t const samplesBuffSize = ZDICT_totalSampleSize(samplesSizes, nbSamples);
     size_t dictSize = 0;
@@ -890,13 +890,12 @@ size_t ZDICT_trainFromBuffer_unsafe(
     /* init */
     ZDICT_initDictItem(dictList);
     g_displayLevel = params.notificationLevel;
-    if (selectivity==0) selectivity = g_selectivity_default;
 
     /* build dictionary */
     ZDICT_trainBuffer(dictList, dictListSize,
                     samplesBuffer, samplesBuffSize,
                     samplesSizes, nbSamples,
-                    selectivity);
+                    minRep);
 
     /* display best matches */
     if (g_displayLevel>= 3) {
@@ -920,16 +919,20 @@ size_t ZDICT_trainFromBuffer_unsafe(
     {   U32 dictContentSize = ZDICT_dictSize(dictList);
         if (dictContentSize < targetDictSize/2) {
             DISPLAYLEVEL(2, "!  warning : created dictionary significantly smaller than requested (%u < %u) \n", dictContentSize, (U32)maxDictSize);
-            DISPLAYLEVEL(2, "!  consider increasing selectivity to produce larger dictionary (-s%u) \n", selectivity+1);
-            DISPLAYLEVEL(2, "!  note : larger dictionaries are not necessarily better, test its efficiency on samples \n");
+            if (minRep > MINRATIO) {
+                DISPLAYLEVEL(2, "!  consider increasing selectivity to produce larger dictionary (-s%u) \n", selectivity+1);
+                DISPLAYLEVEL(2, "!  note : larger dictionaries are not necessarily better, test its efficiency on samples \n");
+            }
             if (samplesBuffSize < 10 * targetDictSize)
-                DISPLAYLEVEL(2, "!  consider also increasing the number of samples (total size : %u MB)\n", (U32)(samplesBuffSize>>20));
+                DISPLAYLEVEL(2, "!  consider increasing the number of samples (total size : %u MB)\n", (U32)(samplesBuffSize>>20));
         }
 
-        if (dictContentSize > targetDictSize*2) {
-            DISPLAYLEVEL(2, "!  warning : calculated dictionary significantly larger than requested (%u > %u) \n", dictContentSize, (U32)maxDictSize);
-            DISPLAYLEVEL(2, "!  consider decreasing selectivity to produce denser dictionary (-s%u) \n", selectivity-1);
-            DISPLAYLEVEL(2, "!  test its efficiency on samples \n");
+        if ((dictContentSize > targetDictSize*2) && (nbSamples > 2*MINRATIO) && (selectivity>1)) {
+            U32 proposedSelectivity = selectivity-1;
+            while ((nbSamples >> proposedSelectivity) <= MINRATIO) { proposedSelectivity--; }
+            DISPLAYLEVEL(2, "!  note : calculated dictionary significantly larger than requested (%u > %u) \n", dictContentSize, (U32)maxDictSize);
+            DISPLAYLEVEL(2, "!  you may consider decreasing selectivity to produce denser dictionary (-s%u) \n", proposedSelectivity);
+            DISPLAYLEVEL(2, "!  but test its efficiency on samples \n");
         }
 
         /* limit dictionary size */
@@ -937,9 +940,10 @@ size_t ZDICT_trainFromBuffer_unsafe(
             U32 currentSize = 0;
             U32 n; for (n=1; n<max; n++) {
                 currentSize += dictList[n].length;
-                if (currentSize > targetDictSize) break;
+                if (currentSize > targetDictSize) { currentSize -= dictList[n].length; break; }
             }
             dictList->pos = n;
+            dictContentSize = currentSize;
         }
 
         /* build dict content */

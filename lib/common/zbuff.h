@@ -58,7 +58,9 @@ extern "C" {
 ***************************************/
 /* This is the easier "buffered" streaming API,
 *  using an internal buffer to lift all restrictions on user-provided buffers
-*  which can be any size, any place, for both input and output. */
+*  which can be any size, any place, for both input and output.
+*  ZBUFF and ZSTD are 100% interoperable,
+*  frames created by one can be decoded by the other one */
 
 typedef struct ZBUFF_CCtx_s ZBUFF_CCtx;
 ZSTDLIB_API ZBUFF_CCtx* ZBUFF_createCCtx(void);

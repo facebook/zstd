@@ -282,7 +282,7 @@ size_t ZBUFF_decompressContinue(ZBUFF_DCtx* zbd,
     *dstCapacityPtr = op-ostart;
     {   size_t nextSrcSizeHint = ZSTD_nextSrcSizeToDecompress(zbd->zd);
         if (!nextSrcSizeHint) return (zbd->outEnd != zbd->outStart);   /* return 0 only if fully flushed too */
-        if (nextSrcSizeHint > 4) nextSrcSizeHint += ZSTD_blockHeaderSize;
+        nextSrcSizeHint += ZSTD_blockHeaderSize * (ZSTD_nextInputType(zbd->zd) == ZSTDnit_block);
         if (zbd->inPos > nextSrcSizeHint) return ERROR(GENERIC);   /* should never happen */
         nextSrcSizeHint -= zbd->inPos;   /* already loaded*/
         return nextSrcSizeHint;

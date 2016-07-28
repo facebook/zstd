@@ -56,6 +56,10 @@ extern "C" {
 /* *************************************
 *  Streaming functions
 ***************************************/
+/* This is the easier "buffered" streaming API,
+*  using an internal buffer to lift all restrictions on user-provided buffers
+*  which can be any size, any place, for both input and output. */
+
 typedef struct ZBUFF_CCtx_s ZBUFF_CCtx;
 ZSTDLIB_API ZBUFF_CCtx* ZBUFF_createCCtx(void);
 ZSTDLIB_API size_t      ZBUFF_freeCCtx(ZBUFF_CCtx* cctx);
@@ -168,11 +172,11 @@ ZSTDLIB_API size_t ZBUFF_recommendedDOutSize(void);
  * ==================================================================================== */
 
 /*--- Dependency ---*/
-#define ZSTD_STATIC_LINKING_ONLY   /* ZSTD_parameters */
+#define ZSTD_STATIC_LINKING_ONLY   /* ZSTD_parameters, ZSTD_customMem */
 #include "zstd.h"
 
 
-/*--- External memory ---*/
+/*--- Custom memory allocator ---*/
 /*! ZBUFF_createCCtx_advanced() :
  *  Create a ZBUFF compression context using external alloc and free functions */
 ZSTDLIB_API ZBUFF_CCtx* ZBUFF_createCCtx_advanced(ZSTD_customMem customMem);
@@ -182,7 +186,7 @@ ZSTDLIB_API ZBUFF_CCtx* ZBUFF_createCCtx_advanced(ZSTD_customMem customMem);
 ZSTDLIB_API ZBUFF_DCtx* ZBUFF_createDCtx_advanced(ZSTD_customMem customMem);
 
 
-/*--- Advanced Streaming function ---*/
+/*--- Advanced Streaming Initialization ---*/
 ZSTDLIB_API size_t ZBUFF_compressInit_advanced(ZBUFF_CCtx* zbc,
                                                const void* dict, size_t dictSize,
                                                ZSTD_parameters params, unsigned long long pledgedSrcSize);

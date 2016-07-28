@@ -979,18 +979,12 @@ size_t ZSTD_decompress(void* dst, size_t dstCapacity, const void* src, size_t sr
 }
 
 
-/*_******************************
-*  Streaming Decompression API
-********************************/
-size_t ZSTD_nextSrcSizeToDecompress(ZSTD_DCtx* dctx)
-{
-    return dctx->expected;
-}
+/*-**********************************
+*   Streaming Decompression API
+************************************/
+size_t ZSTD_nextSrcSizeToDecompress(ZSTD_DCtx* dctx) { return dctx->expected; }
 
-int ZSTD_isSkipFrame(ZSTD_DCtx* dctx)
-{
-    return dctx->stage == ZSTDds_skipFrame;
-}
+int ZSTD_isSkipFrame(ZSTD_DCtx* dctx) { return dctx->stage == ZSTDds_skipFrame; }   /* for zbuff */
 
 /** ZSTD_decompressContinue() :
 *   @return : nb of bytes generated into `dst` (necessarily <= `dstCapacity)
@@ -1079,11 +1073,12 @@ size_t ZSTD_decompressContinue(ZSTD_DCtx* dctx, void* dst, size_t dstCapacity, c
 
             if (dctx->stage == ZSTDds_decompressLastBlock) {   /* end of frame */
                 if (dctx->fParams.checksumFlag) {  /* another round for frame checksum */
-                    dctx->expected = 0;
+                    dctx->expected = 4;
                     dctx->stage = ZSTDds_checkChecksum;
+                } else {
+                    dctx->expected = 0;   /* ends here */
+                    dctx->stage = ZSTDds_getFrameHeaderSize;
                 }
-                dctx->expected = 0;   /* ends here */
-                dctx->stage = ZSTDds_getFrameHeaderSize;
             } else {
                 dctx->stage = ZSTDds_decodeBlockHeader;
                 dctx->expected = ZSTD_blockHeaderSize;

@@ -142,8 +142,8 @@ $ECHO "\n**** multiple files tests **** "
 ./datagen -s1        > tmp1 2> $INTOVOID
 ./datagen -s2 -g100K > tmp2 2> $INTOVOID
 ./datagen -s3 -g1M   > tmp3 2> $INTOVOID
-$ZSTD -f tmp*
 $ECHO "compress tmp* : "
+$ZSTD -f tmp*
 ls -ls tmp*
 rm tmp1 tmp2 tmp3
 $ECHO "decompress tmp* : "

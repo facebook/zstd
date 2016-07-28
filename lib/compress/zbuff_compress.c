@@ -46,7 +46,7 @@
 static size_t const ZBUFF_endFrameSize = ZSTD_BLOCKHEADERSIZE;
 
 
-/*_**************************************************
+/*-***********************************************************
 *  Streaming compression
 *
 *  A ZBUFF_CCtx object is required to track streaming operation.
@@ -77,7 +77,7 @@ static size_t const ZBUFF_endFrameSize = ZSTD_BLOCKHEADERSIZE;
 *  Hint : recommended buffer sizes (not compulsory)
 *  input : ZSTD_BLOCKSIZE_MAX (128 KB), internal unit size, it improves latency to use this value.
 *  output : ZSTD_compressBound(ZSTD_BLOCKSIZE_MAX) + ZSTD_blockHeaderSize + ZBUFF_endFrameSize : ensures it's always possible to write/flush/end a full block at best speed.
-* **************************************************/
+* ***********************************************************/
 
 typedef enum { ZBUFFcs_init, ZBUFFcs_load, ZBUFFcs_flush, ZBUFFcs_final } ZBUFF_cStage;
 
@@ -96,6 +96,7 @@ struct ZBUFF_CCtx_s {
     size_t outBuffFlushedSize;
     ZBUFF_cStage stage;
     U32    checksum;
+    U32    frameEnded;
     ZSTD_customMem customMem;
 };   /* typedef'd tp ZBUFF_CCtx within "zstd_buffered.h" */
 
@@ -166,6 +167,7 @@ size_t ZBUFF_compressInit_advanced(ZBUFF_CCtx* zbc,
     zbc->outBuffContentSize = zbc->outBuffFlushedSize = 0;
     zbc->stage = ZBUFFcs_load;
     zbc->checksum = params.fParams.checksumFlag > 0;
+    zbc->frameEnded = 0;
     return 0;   /* ready to go */
 }
 
@@ -198,7 +200,7 @@ typedef enum { zbf_gather, zbf_flush, zbf_end } ZBUFF_flush_e;
 static size_t ZBUFF_compressContinue_generic(ZBUFF_CCtx* zbc,
                               void* dst, size_t* dstCapacityPtr,
                         const void* src, size_t* srcSizePtr,
-                              ZBUFF_flush_e flush)
+                              ZBUFF_flush_e const flush)
 {
     U32 someMoreWork = 1;
     const char* const istart = (const char*)src;
@@ -231,8 +233,11 @@ static size_t ZBUFF_compressContinue_generic(ZBUFF_CCtx* zbc,
                     cDst = op;   /* compress directly into output buffer (avoid flush stage) */
                 else
                     cDst = zbc->outBuff, oSize = zbc->outBuffSize;
-                cSize = ZSTD_compressContinue(zbc->zc, cDst, oSize, zbc->inBuff + zbc->inToCompress, iSize);
+                cSize = (flush == zbf_end) ?
+                        ZSTD_compressEnd(zbc->zc, cDst, oSize, zbc->inBuff + zbc->inToCompress, iSize) :
+                        ZSTD_compressContinue(zbc->zc, cDst, oSize, zbc->inBuff + zbc->inToCompress, iSize);
                 if (ZSTD_isError(cSize)) return cSize;
+                if (flush == zbf_end) zbc->frameEnded = 1;
                 /* prepare next block */
                 zbc->inBuffTarget = zbc->inBuffPos + zbc->blockSize;
                 if (zbc->inBuffTarget > zbc->inBuffSize)
@@ -266,6 +271,7 @@ static size_t ZBUFF_compressContinue_generic(ZBUFF_CCtx* zbc,
 
     *srcSizePtr = ip - istart;
     *dstCapacityPtr = op - ostart;
+    if (zbc->frameEnded) return 0;
     {   size_t hintInSize = zbc->inBuffTarget - zbc->inBuffPos;
         if (hintInSize==0) hintInSize = zbc->blockSize;
         return hintInSize;
@@ -301,16 +307,17 @@ size_t ZBUFF_compressEnd(ZBUFF_CCtx* zbc, void* dst, size_t* dstCapacityPtr)
         /* flush whatever remains */
         size_t outSize = *dstCapacityPtr;
         size_t srcSize = 0;
-        size_t const uselessHint = ZBUFF_compressContinue_generic(zbc, dst, &outSize, &srcSize, &srcSize, zbf_end);  /* use a valid address instead of NULL */
+        size_t const notEnded = ZBUFF_compressContinue_generic(zbc, dst, &outSize, &srcSize, &srcSize, zbf_end);  /* use a valid address instead of NULL */
         size_t const remainingToFlush = zbc->outBuffContentSize - zbc->outBuffFlushedSize;
-        op += outSize; (void)uselessHint;
+        op += outSize;
         if (remainingToFlush) {
             *dstCapacityPtr = op-ostart;
             return remainingToFlush + ZBUFF_endFrameSize + (zbc->checksum * 4);
         }
         /* create epilogue */
         zbc->stage = ZBUFFcs_final;
-        zbc->outBuffContentSize = ZSTD_compressEnd(zbc->zc, zbc->outBuff, zbc->outBuffSize, NULL, 0);  /* epilogue into outBuff */
+        zbc->outBuffContentSize = !notEnded ? 0 :
+            ZSTD_compressEnd(zbc->zc, zbc->outBuff, zbc->outBuffSize, NULL, 0);  /* write epilogue into outBuff */
     }
 
     /* flush epilogue */

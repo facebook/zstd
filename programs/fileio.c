@@ -636,13 +636,12 @@ unsigned long long FIO_decompressFrame(dRess_t ress,
         DISPLAYUPDATE(2, "\rDecoded : %u MB...     ", (U32)(frameSize>>20) );
 
         if (toRead == 0) break;   /* end of frame */
-        if (readSize) EXM_THROW(38, "Decoding error : should consume entire input");
+        if (readSize) EXM_THROW(37, "Decoding error : should consume entire input");
 
         /* Fill input buffer */
-        if (toRead > ress.srcBufferSize) EXM_THROW(34, "too large block");
+        if (toRead > ress.srcBufferSize) EXM_THROW(38, "too large block");
         readSize = fread(ress.srcBuffer, 1, toRead, finput);
-        if (readSize != toRead)
-            EXM_THROW(35, "Read error");
+        if (readSize == 0) EXM_THROW(39, "Read error : premature end");
     }
 
     FIO_fwriteSparseEnd(foutput, storedSkips);
@@ -710,8 +709,8 @@ static int FIO_decompressSrcFile(dRess_t ress, const char* srcFileName)
                 continue;
             }
 #endif
-            if (((magic & 0xFFFFFFF0U) != ZSTD_MAGIC_SKIPPABLE_START) && (magic != ZSTD_MAGICNUMBER)) {
-                if (g_overwrite) {  /* -df : pass-through mode */
+            if (((magic & 0xFFFFFFF0U) != ZSTD_MAGIC_SKIPPABLE_START) & (magic != ZSTD_MAGICNUMBER)) {
+                if ((g_overwrite) && !strcmp (srcFileName, stdinmark)) {  /* pass-through mode */
                     unsigned const result = FIO_passThrough(dstFile, srcFile, ress.srcBuffer, ress.srcBufferSize);
                     if (fclose(srcFile)) EXM_THROW(32, "zstd: %s close error", srcFileName);  /* error should never happen */
                     return result;

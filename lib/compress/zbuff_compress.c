@@ -306,7 +306,7 @@ size_t ZBUFF_compressEnd(ZBUFF_CCtx* zbc, void* dst, size_t* dstCapacityPtr)
         }
         /* create epilogue */
         zbc->stage = ZBUFFcs_final;
-        zbc->outBuffContentSize = ZSTD_compressEnd(zbc->zc, zbc->outBuff, zbc->outBuffSize);  /* epilogue into outBuff */
+        zbc->outBuffContentSize = ZSTD_compressEnd(zbc->zc, zbc->outBuff, zbc->outBuffSize, NULL, 0);  /* epilogue into outBuff */
     }
 
     /* flush epilogue */

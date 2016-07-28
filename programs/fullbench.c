@@ -173,12 +173,9 @@ static size_t local_ZBUFF_decompress(void* dst, size_t dstCapacity, void* buff2,
 static ZSTD_CCtx* g_zcc = NULL;
 size_t local_ZSTD_compressContinue(void* dst, size_t dstCapacity, void* buff2, const void* src, size_t srcSize)
 {
-    size_t compressedSize;
     (void)buff2;
     ZSTD_compressBegin(g_zcc, 1);
-    compressedSize = ZSTD_compressContinue(g_zcc, dst, dstCapacity, src, srcSize);
-    compressedSize += ZSTD_compressEnd(g_zcc, ((char*)dst)+compressedSize, dstCapacity-compressedSize);
-    return compressedSize;
+    return ZSTD_compressEnd(g_zcc, dst, dstCapacity, src, srcSize);
 }
 
 size_t local_ZSTD_decompressContinue(void* dst, size_t dstCapacity, void* buff2, const void* src, size_t srcSize)

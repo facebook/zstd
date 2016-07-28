@@ -2287,7 +2287,7 @@ static size_t ZSTD_compress_generic (ZSTD_CCtx* cctx,
         op += cSize;
     }
 
-    if (lastFrameChunk) cctx->stage = ZSTDcs_ending;
+    if (lastFrameChunk && (op>ostart)) cctx->stage = ZSTDcs_ending;
     ZSTD_statsPrint(stats, cctx->params.cParams.searchLength);   /* debug only */
     return op-ostart;
 }
@@ -2398,19 +2398,6 @@ size_t ZSTD_compressContinue (ZSTD_CCtx* cctx,
                         const void* src, size_t srcSize)
 {
     return ZSTD_compressContinue_internal(cctx, dst, dstCapacity, src, srcSize, 1, 0);
-}
-
-
-size_t ZSTD_compressContinueThenEnd (ZSTD_CCtx* cctx,
-                              void* dst, size_t dstCapacity,
-                        const void* src, size_t srcSize)
-{
-    size_t endResult;
-    size_t const cSize = ZSTD_compressContinue_internal(cctx, dst, dstCapacity, src, srcSize, 1, 1);
-    if (ZSTD_isError(cSize)) return cSize;
-    endResult = ZSTD_compressEnd(cctx, (char*)dst + cSize, dstCapacity-cSize);
-    if (ZSTD_isError(endResult)) return endResult;
-    return cSize + endResult;
 }
 
 
@@ -2593,10 +2580,10 @@ size_t ZSTD_compressBegin(ZSTD_CCtx* zc, int compressionLevel)
 }
 
 
-/*! ZSTD_compressEnd() :
-*   Write frame epilogue.
+/*! ZSTD_writeEpilogue() :
+*   Ends a frame.
 *   @return : nb of bytes written into dst (or an error code) */
-size_t ZSTD_compressEnd(ZSTD_CCtx* cctx, void* dst, size_t dstCapacity)
+static size_t ZSTD_writeEpilogue(ZSTD_CCtx* cctx, void* dst, size_t dstCapacity)
 {
     BYTE* const ostart = (BYTE*)dst;
     BYTE* op = ostart;
@@ -2634,6 +2621,19 @@ size_t ZSTD_compressEnd(ZSTD_CCtx* cctx, void* dst, size_t dstCapacity)
 }
 
 
+size_t ZSTD_compressEnd (ZSTD_CCtx* cctx,
+                         void* dst, size_t dstCapacity,
+                   const void* src, size_t srcSize)
+{
+    size_t endResult;
+    size_t const cSize = ZSTD_compressContinue_internal(cctx, dst, dstCapacity, src, srcSize, 1, 1);
+    if (ZSTD_isError(cSize)) return cSize;
+    endResult = ZSTD_writeEpilogue(cctx, (char*)dst + cSize, dstCapacity-cSize);
+    if (ZSTD_isError(endResult)) return endResult;
+    return cSize + endResult;
+}
+
+
 /*! ZSTD_compress_usingPreparedCCtx() :
 *   Same as ZSTD_compress_usingDict, but using a reference context `preparedCCtx`, where dictionary has been loaded.
 *   It avoids reloading the dictionary each time.
@@ -2643,12 +2643,10 @@ static size_t ZSTD_compress_usingPreparedCCtx(ZSTD_CCtx* cctx, const ZSTD_CCtx* 
                                        void* dst, size_t dstCapacity,
                                  const void* src, size_t srcSize)
 {
-    {   size_t const errorCode = ZSTD_copyCCtx(cctx, preparedCCtx);
-        if (ZSTD_isError(errorCode)) return errorCode;
-    }
-    {   size_t const cSize = ZSTD_compressContinueThenEnd(cctx, dst, dstCapacity, src, srcSize);
-        return cSize;
-    }
+    size_t const errorCode = ZSTD_copyCCtx(cctx, preparedCCtx);
+    if (ZSTD_isError(errorCode)) return errorCode;
+
+    return ZSTD_compressEnd(cctx, dst, dstCapacity, src, srcSize);
 }
 
 
@@ -2658,16 +2656,10 @@ static size_t ZSTD_compress_internal (ZSTD_CCtx* cctx,
                          const void* dict,size_t dictSize,
                                ZSTD_parameters params)
 {
-    BYTE* const ostart = (BYTE*)dst;
-    BYTE* op = ostart;
+    size_t const errorCode = ZSTD_compressBegin_internal(cctx, dict, dictSize, params, srcSize);
+    if(ZSTD_isError(errorCode)) return errorCode;
 
-    /* Init */
-    { size_t const errorCode = ZSTD_compressBegin_internal(cctx, dict, dictSize, params, srcSize);
-      if(ZSTD_isError(errorCode)) return errorCode; }
-
-    /* body (compression) */
-    { size_t const oSize = ZSTD_compressContinueThenEnd(cctx, op,  dstCapacity, src, srcSize);
-      return oSize; }
+    return ZSTD_compressEnd(cctx, dst,  dstCapacity, src, srcSize);
 }
 
 size_t ZSTD_compress_advanced (ZSTD_CCtx* ctx,

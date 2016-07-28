@@ -1,6 +1,6 @@
 v0.8.0
-New : updated compresson format
 Improved : better speed on clang and gcc -O2, thanks to Eric Biggers
+Changed : modified API : ZSTD_compressEnd()
 Fixed : legacy mode with ZSTD_HEAPMODE=0, by Christopher Bergqvist
 Fixed : premature end of frame when zero-sized raw block, reported by Eric Biggers
 Fixed : statistics for large dictionaries (> 128 KB), reported by Ilona Papava

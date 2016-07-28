@@ -138,7 +138,8 @@ ZSTDLIB_API size_t ZBUFF_decompressContinue(ZBUFF_DCtx* dctx,
 *  Note that it may not consume the entire input, in which case it's up to the caller to present remaining input again.
 *  The content of `dst` will be overwritten (up to *dstCapacityPtr) at each function call, so save its content if it matters, or change `dst`.
 *  @return : 0 when a frame is completely decoded and fully flushed,
-             >0 when decoding is not finished, with value being a suggested next input size (it's just a hint, tends to help latency),
+*            1 when there is still some data left within internal buffer to flush,
+*            >1 when more data is expected, with value being a suggested next input size (it's just a hint, which helps latency),
 *            or an error code, which can be tested using ZBUFF_isError().
 *
 *  Hint : recommended buffer sizes (not compulsory) : ZBUFF_recommendedDInSize() and ZBUFF_recommendedDOutSize()

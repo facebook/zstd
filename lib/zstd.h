@@ -370,6 +370,9 @@ ZSTDLIB_API void   ZSTD_copyDCtx(ZSTD_DCtx* dctx, const ZSTD_DCtx* preparedDCtx)
 ZSTDLIB_API size_t ZSTD_nextSrcSizeToDecompress(ZSTD_DCtx* dctx);
 ZSTDLIB_API size_t ZSTD_decompressContinue(ZSTD_DCtx* dctx, void* dst, size_t dstCapacity, const void* src, size_t srcSize);
 
+typedef enum { ZSTDnit_frameHeader, ZSTDnit_blockHeader, ZSTDnit_block, ZSTDnit_lastBlock, ZSTDnit_checksum, ZSTDnit_skippableFrame } ZSTD_nextInputType_e;
+ZSTDLIB_API ZSTD_nextInputType_e ZSTD_nextInputType(ZSTD_DCtx* dctx);
+
 /*
   Buffer-less streaming decompression (synchronous mode)
 
@@ -408,6 +411,8 @@ ZSTDLIB_API size_t ZSTD_decompressContinue(ZSTD_DCtx* dctx, void* dst, size_t ds
   A frame is fully decoded when ZSTD_nextSrcSizeToDecompress() returns zero.
   Context can then be reset to start a new decompression.
 
+  Note : it's possible to know if next input to present is a header or a block, using ZSTD_nextInputType().
+  But this information is not required to properly decode a frame.
 
   == Special case : skippable frames ==
 

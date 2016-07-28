@@ -984,6 +984,27 @@ size_t ZSTD_decompress(void* dst, size_t dstCapacity, const void* src, size_t sr
 ************************************/
 size_t ZSTD_nextSrcSizeToDecompress(ZSTD_DCtx* dctx) { return dctx->expected; }
 
+ZSTD_nextInputType_e ZSTD_nextInputType(ZSTD_DCtx* dctx) {
+    switch(dctx->stage)
+    {
+    default:   /* should not happen */
+    case ZSTDds_getFrameHeaderSize:
+    case ZSTDds_decodeFrameHeader:
+        return ZSTDnit_frameHeader;
+    case ZSTDds_decodeBlockHeader:
+        return ZSTDnit_blockHeader;
+    case ZSTDds_decompressBlock:
+        return ZSTDnit_block;
+    case ZSTDds_decompressLastBlock:
+        return ZSTDnit_lastBlock;
+    case ZSTDds_checkChecksum:
+        return ZSTDnit_checksum;
+    case ZSTDds_decodeSkippableHeader:
+    case ZSTDds_skipFrame:
+        return ZSTDnit_skippableFrame;
+    }
+}
+
 int ZSTD_isSkipFrame(ZSTD_DCtx* dctx) { return dctx->stage == ZSTDds_skipFrame; }   /* for zbuff */
 
 /** ZSTD_decompressContinue() :

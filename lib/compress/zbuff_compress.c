@@ -134,7 +134,7 @@ size_t ZBUFF_freeCCtx(ZBUFF_CCtx* zbc)
 }
 
 
-/* *** Initialization *** */
+/* ======   Initialization   ====== */
 
 size_t ZBUFF_compressInit_advanced(ZBUFF_CCtx* zbc,
                                    const void* dict, size_t dictSize,
@@ -191,14 +191,16 @@ MEM_STATIC size_t ZBUFF_limitCopy(void* dst, size_t dstCapacity, const void* src
 }
 
 
-/* *** Compression *** */
+/* ======   Compression   ====== */
+
+typedef enum { zbf_gather, zbf_flush, zbf_end } ZBUFF_flush_e;
 
 static size_t ZBUFF_compressContinue_generic(ZBUFF_CCtx* zbc,
                               void* dst, size_t* dstCapacityPtr,
                         const void* src, size_t* srcSizePtr,
-                              int flush)
+                              ZBUFF_flush_e flush)
 {
-    U32 notDone = 1;
+    U32 someMoreWork = 1;
     const char* const istart = (const char*)src;
     const char* const iend = istart + *srcSizePtr;
     const char* ip = istart;
@@ -206,7 +208,7 @@ static size_t ZBUFF_compressContinue_generic(ZBUFF_CCtx* zbc,
     char* const oend = ostart + *dstCapacityPtr;
     char* op = ostart;
 
-    while (notDone) {
+    while (someMoreWork) {
         switch(zbc->stage)
         {
         case ZBUFFcs_init: return ERROR(init_missing);   /* call ZBUFF_compressInit() first ! */
@@ -218,7 +220,7 @@ static size_t ZBUFF_compressContinue_generic(ZBUFF_CCtx* zbc,
                 zbc->inBuffPos += loaded;
                 ip += loaded;
                 if ( (zbc->inBuffPos==zbc->inToCompress) || (!flush && (toLoad != loaded)) ) {
-                    notDone = 0; break;  /* not enough input to get a full block : stop there, wait for more */
+                    someMoreWork = 0; break;  /* not enough input to get a full block : stop there, wait for more */
             }   }
             /* compress current block (note : this stage cannot be stopped in the middle) */
             {   void* cDst;
@@ -247,14 +249,14 @@ static size_t ZBUFF_compressContinue_generic(ZBUFF_CCtx* zbc,
                 size_t const flushed = ZBUFF_limitCopy(op, oend-op, zbc->outBuff + zbc->outBuffFlushedSize, toFlush);
                 op += flushed;
                 zbc->outBuffFlushedSize += flushed;
-                if (toFlush!=flushed) { notDone = 0; break; } /* dst too small to store flushed data : stop there */
+                if (toFlush!=flushed) { someMoreWork = 0; break; } /* dst too small to store flushed data : stop there */
                 zbc->outBuffContentSize = zbc->outBuffFlushedSize = 0;
                 zbc->stage = ZBUFFcs_load;
                 break;
             }
 
         case ZBUFFcs_final:
-            notDone = 0;   /* do nothing */
+            someMoreWork = 0;   /* do nothing */
             break;
 
         default:
@@ -274,17 +276,17 @@ size_t ZBUFF_compressContinue(ZBUFF_CCtx* zbc,
                               void* dst, size_t* dstCapacityPtr,
                         const void* src, size_t* srcSizePtr)
 {
-    return ZBUFF_compressContinue_generic(zbc, dst, dstCapacityPtr, src, srcSizePtr, 0);
+    return ZBUFF_compressContinue_generic(zbc, dst, dstCapacityPtr, src, srcSizePtr, zbf_gather);
 }
 
 
 
-/* *** Finalize *** */
+/* ======   Finalize   ====== */
 
 size_t ZBUFF_compressFlush(ZBUFF_CCtx* zbc, void* dst, size_t* dstCapacityPtr)
 {
     size_t srcSize = 0;
-    ZBUFF_compressContinue_generic(zbc, dst, dstCapacityPtr, &srcSize, &srcSize, 1);  /* use a valid src address instead of NULL */
+    ZBUFF_compressContinue_generic(zbc, dst, dstCapacityPtr, &srcSize, &srcSize, zbf_flush);  /* use a valid src address instead of NULL */
     return zbc->outBuffContentSize - zbc->outBuffFlushedSize;
 }
 
@@ -298,8 +300,10 @@ size_t ZBUFF_compressEnd(ZBUFF_CCtx* zbc, void* dst, size_t* dstCapacityPtr)
     if (zbc->stage != ZBUFFcs_final) {
         /* flush whatever remains */
         size_t outSize = *dstCapacityPtr;
-        size_t const remainingToFlush = ZBUFF_compressFlush(zbc, dst, &outSize);
-        op += outSize;
+        size_t srcSize = 0;
+        size_t const uselessHint = ZBUFF_compressContinue_generic(zbc, dst, &outSize, &srcSize, &srcSize, zbf_end);  /* use a valid address instead of NULL */
+        size_t const remainingToFlush = zbc->outBuffContentSize - zbc->outBuffFlushedSize;
+        op += outSize; (void)uselessHint;
         if (remainingToFlush) {
             *dstCapacityPtr = op-ostart;
             return remainingToFlush + ZBUFF_endFrameSize + (zbc->checksum * 4);

@@ -183,19 +183,22 @@ typedef struct {
     MEM_STATIC void ZSTD_statsUpdatePrices(ZSTD_stats_t* stats, size_t litLength, const BYTE* literals, size_t offset, size_t matchLength) { (void)stats; (void)litLength; (void)literals; (void)offset; (void)matchLength; }
 #endif   /* #if ZSTD_OPT_DEBUG == 3 */
 
+
+typedef struct seqDef_s {
+    U32 offset;
+    U16 litLength;
+    U16 matchLength;
+} seqDef;
+
+
 typedef struct {
-    void* buffer;
-    U32*  offsetStart;
-    U32*  offset;
-    BYTE* offCodeStart;
+    seqDef* sequences;
     BYTE* litStart;
     BYTE* lit;
-    U16*  litLengthStart;
-    U16*  litLength;
-    BYTE* llCodeStart;
-    U16*  matchLengthStart;
-    U16*  matchLength;
-    BYTE* mlCodeStart;
+    BYTE* llCode;
+    BYTE* mlCode;
+    BYTE* ofCode;
+    U32   nbSeq;
     U32   longLengthID;   /* 0 == no longLength; 1 == Lit.longLength; 2 == Match.longLength; */
     U32   longLengthPos;
     /* opt */
@@ -223,7 +226,7 @@ typedef struct {
 } seqStore_t;
 
 const seqStore_t* ZSTD_getSeqStore(const ZSTD_CCtx* ctx);
-void ZSTD_seqToCodes(const seqStore_t* seqStorePtr, size_t const nbSeq);
+void ZSTD_seqToCodes(const seqStore_t* seqStorePtr);
 int ZSTD_isSkipFrame(ZSTD_DCtx* dctx);
 
 /* custom memory allocation functions */

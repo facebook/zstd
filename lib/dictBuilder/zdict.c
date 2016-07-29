@@ -594,28 +594,28 @@ static void ZDICT_countEStats(EStats_ress_t esr, ZSTD_parameters params,
         }
 
         /* seqStats */
-        {   size_t const nbSeq = (size_t)(seqStorePtr->offset - seqStorePtr->offsetStart);
-            ZSTD_seqToCodes(seqStorePtr, nbSeq);
+        {   U32 const nbSeq = seqStorePtr->nbSeq;
+            ZSTD_seqToCodes(seqStorePtr);
 
-            {   const BYTE* codePtr = seqStorePtr->offCodeStart;
-                size_t u;
+            {   const BYTE* codePtr = seqStorePtr->ofCode;
+                U32 u;
                 for (u=0; u<nbSeq; u++) offsetcodeCount[codePtr[u]]++;
             }
 
-            {   const BYTE* codePtr = seqStorePtr->mlCodeStart;
-                size_t u;
+            {   const BYTE* codePtr = seqStorePtr->mlCode;
+                U32 u;
                 for (u=0; u<nbSeq; u++) matchlengthCount[codePtr[u]]++;
             }
 
-            {   const BYTE* codePtr = seqStorePtr->llCodeStart;
-                size_t u;
+            {   const BYTE* codePtr = seqStorePtr->llCode;
+                U32 u;
                 for (u=0; u<nbSeq; u++) litlengthCount[codePtr[u]]++;
         }   }
 
         /* rep offsets */
-        {   const U32* const offsetPtr = seqStorePtr->offsetStart;
-            U32 offset1 = offsetPtr[0] - 3;
-            U32 offset2 = offsetPtr[1] - 3;
+        {   const seqDef* const seq = seqStorePtr->sequences;
+            U32 offset1 = seq[0].offset - 3;
+            U32 offset2 = seq[1].offset - 3;
             if (offset1 >= MAXREPOFFSET) offset1 = 0;
             if (offset2 >= MAXREPOFFSET) offset2 = 0;
             repOffsets[offset1] += 3;

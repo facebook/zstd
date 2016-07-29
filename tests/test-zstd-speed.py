@@ -169,7 +169,7 @@ def test_commit(branch, commit, last_commit, args, testFilePaths, have_mutt, hav
     local_branch = string.split(branch, '/')[1]
     version = local_branch.rpartition('-')[2] + '_' + commit
     if not args.dry_run:
-        execute('make -C programs clean zstd zstd32 MOREFLAGS="-DZSTD_GIT_COMMIT=%s"' % version)
+        execute('make -C programs clean zstd MOREFLAGS="-DZSTD_GIT_COMMIT=%s" && make -B -C programs zstd32 MOREFLAGS="-DZSTD_GIT_COMMIT=%s"' % (version, version))
     logFileName = working_path + "/log_" + branch.replace("/", "_") + ".txt"
     text_to_send = []
     results_files = ""
@@ -284,6 +284,7 @@ if __name__ == '__main__':
             email_topic = '%s:%s ERROR in %s:%s' % (email_header, pid, branch, commit)
             send_email(args.emails, email_topic, stack, have_mutt, have_mail)
             print(stack)
+            time.sleep(args.sleepTime)
         except KeyboardInterrupt:
             os.unlink(pidfile)
             send_email(args.emails, email_header + ':%s test-zstd-speed.py has been stopped' % pid, args.message, have_mutt, have_mail)

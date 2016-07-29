@@ -594,7 +594,7 @@ static void ZDICT_countEStats(EStats_ress_t esr, ZSTD_parameters params,
         }
 
         /* seqStats */
-        {   U32 const nbSeq = seqStorePtr->nbSeq;
+        {   U32 const nbSeq = (U32)(seqStorePtr->sequences - seqStorePtr->sequencesStart);
             ZSTD_seqToCodes(seqStorePtr);
 
             {   const BYTE* codePtr = seqStorePtr->ofCode;

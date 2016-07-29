@@ -107,7 +107,7 @@ armtest: clean
 
 ppctest: clean
 	$(MAKE) -C $(PRGDIR) datagen   # use native, faster
-	$(MAKE) -C $(PRGDIR) test CC=powerpc-linux-gnu-gcc ZSTDRTTEST= MOREFLAGS="-static"
+	$(MAKE) -C $(PRGDIR) test CC=powerpc-linux-gnu-gcc ZSTDRTTEST= MOREFLAGS="-Werror -Wno-attributes -static"
 
 ppc64test: clean
 	$(MAKE) -C $(PRGDIR) datagen   # use native, faster

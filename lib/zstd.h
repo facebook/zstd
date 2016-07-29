@@ -81,7 +81,9 @@ ZSTDLIB_API size_t ZSTD_compress( void* dst, size_t dstCapacity,
 /*! ZSTD_getDecompressedSize() :
 *   @return : decompressed size if known, 0 otherwise.
        note 1 : decompressed size could be wrong or intentionally modified !
-                always ensure results fit within application's authorized limits !
+                Always ensure result fits within application's authorized limits !
+                Each application can set its own limit, depending on local limitations.
+                For extended interoperability, it is recommended to support at least 8 MB.
        note 2 : when `0`, if precise failure cause is needed, use ZSTD_getFrameParams() to know more. */
 unsigned long long ZSTD_getDecompressedSize(const void* src, size_t srcSize);
 
@@ -380,26 +382,30 @@ ZSTDLIB_API ZSTD_nextInputType_e ZSTD_nextInputType(ZSTD_DCtx* dctx);
   Use ZSTD_createDCtx() / ZSTD_freeDCtx() to manage it.
   A ZSTD_DCtx object can be re-used multiple times.
 
-  First optional operation is to retrieve frame parameters, using ZSTD_getFrameParams().
-  ZSTD_getFrameParams() fills a ZSTD_frameParams structure,
-  which can provide the minimum size of rolling buffer required to decompress data (`windowSize`),
-  and optionally the final size of uncompressed content.
-  (Note : content size is an optional info that may not be present. 0 means : content size unknown).
-  These information are extracted from the beginning of the compressed frame.
-  Size of data fragment must be large enough to ensure successful decoding, typically ZSTD_frameHeaderSize_max bytes.
-  @result : 0 : successful decoding, it means the ZSTD_frameParams structure is correctly filled.
-           >0 : `srcSize` is too small, please provide at least @result bytes on next try.
+  First typical operation is to retrieve frame parameters, using ZSTD_getFrameParams().
+  It fills a ZSTD_frameParams structure which provide important information to correctly decode the frame,
+  such as the minimum rolling buffer size to allocate to decompress data (`windowSize`),
+  and the dictionary ID used.
+  (Note : content size is optional, it may not be present. 0 means : content size unknown).
+  Note that these values could be wrong, either because of data malformation, or because an attacker is spoofing deliberate false information.
+  As a consequence, check that values remain within valid application range, especially `windowSize`, before allocation.
+  Each application can set its own limit, depending on local restrictions. For extended interoperability, it is recommended to support at least 8 MB.
+  Frame parameters are extracted from the beginning of the compressed frame.
+  Data fragment must be large enough to ensure successful decoding, typically `ZSTD_frameHeaderSize_max` bytes.
+  @result : 0 : successful decoding, the `ZSTD_frameParams` structure is correctly filled.
+           >0 : `srcSize` is too small, please provide at least @result bytes on next attempt.
            errorCode, which can be tested using ZSTD_isError().
 
   Start decompression, with ZSTD_decompressBegin() or ZSTD_decompressBegin_usingDict().
   Alternatively, you can copy a prepared context, using ZSTD_copyDCtx().
 
   Then use ZSTD_nextSrcSizeToDecompress() and ZSTD_decompressContinue() alternatively.
-  ZSTD_nextSrcSizeToDecompress() tells how much bytes to provide as 'srcSize' to ZSTD_decompressContinue().
-  ZSTD_decompressContinue() requires this exact amount of bytes, or it will fail.
+  ZSTD_nextSrcSizeToDecompress() tells how many bytes to provide as 'srcSize' to ZSTD_decompressContinue().
+  ZSTD_decompressContinue() requires this _exact_ amount of bytes, or it will fail.
 
   @result of ZSTD_decompressContinue() is the number of bytes regenerated within 'dst' (necessarily <= dstCapacity).
-  It can be zero, which is not an error; it just means ZSTD_decompressContinue() has decoded some header.
+  It can be zero, which is not an error; it just means ZSTD_decompressContinue() has decoded some metadata item.
+  It can also be an error code, which can be tested with ZSTD_isError().
 
   ZSTD_decompressContinue() needs previous data blocks during decompression, up to `windowSize`.
   They should preferably be located contiguously, prior to current block.
@@ -412,7 +418,7 @@ ZSTDLIB_API ZSTD_nextInputType_e ZSTD_nextInputType(ZSTD_DCtx* dctx);
   Context can then be reset to start a new decompression.
 
   Note : it's possible to know if next input to present is a header or a block, using ZSTD_nextInputType().
-  But this information is not required to properly decode a frame.
+  This information is not required to properly decode a frame.
 
   == Special case : skippable frames ==
 

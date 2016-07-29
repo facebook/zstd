@@ -782,7 +782,8 @@ void ZSTD_compressBlock_opt_extDict_generic(ZSTD_CCtx* ctx,
                 const U32 repIndex = (U32)(current - rep[i]);
                 const BYTE* const repBase = repIndex < dictLimit ? dictBase : base;
                 const BYTE* const repMatch = repBase + repIndex;
-                if ( (((U32)((dictLimit-1) - repIndex) >= 3) & (repIndex>lowestIndex))  /* intentional overflow */
+                if ((rep[i]<(U32)(ip-prefixStart))
+                   && (((U32)((dictLimit-1) - repIndex) >= 3) & (repIndex>lowestIndex))  /* intentional overflow */
                    && (MEM_readMINMATCH(ip, minMatch) == MEM_readMINMATCH(repMatch, minMatch)) ) {
                     /* repcode detected we should take it */
                     const BYTE* const repEnd = repIndex < dictLimit ? dictEnd : iend;
@@ -884,7 +885,8 @@ void ZSTD_compressBlock_opt_extDict_generic(ZSTD_CCtx* ctx,
                     const U32 repIndex = (U32)(current+cur - opt[cur].rep[i]);
                     const BYTE* const repBase = repIndex < dictLimit ? dictBase : base;
                     const BYTE* const repMatch = repBase + repIndex;
-                    if ( (((U32)((dictLimit-1) - repIndex) >= 3) & (repIndex>lowestIndex))  /* intentional overflow */
+                    if ((rep[i]<(U32)(ip-prefixStart))
+                      && (((U32)((dictLimit-1) - repIndex) >= 3) & (repIndex>lowestIndex))  /* intentional overflow */
                       && (MEM_readMINMATCH(inr, minMatch) == MEM_readMINMATCH(repMatch, minMatch)) ) {
                         /* repcode detected */
                         const BYTE* const repEnd = repIndex < dictLimit ? dictEnd : iend;
@@ -1018,7 +1020,7 @@ _storeSequence:   /* cur, last_pos, best_mlen, best_off have to be set */
                     ml2 = ZSTD_count_2segments(ip, match, iend, dictEnd, prefixStart);
                     ZSTD_LOG_PARSER("%d: ZSTD_count_2segments=%d offset=%d dictBase=%p dictEnd=%p prefixStart=%p ip=%p match=%p\n", (int)current, (int)ml2, (int)best_off, dictBase, dictEnd, prefixStart, ip, match);
                 }
-                else ml2 = (U32)ZSTD_count(ip, ip-offset, iend);
+                else ml2 = (U32)ZSTD_count(ip, ip-best_off, iend);
             }
             else ml2 = (U32)ZSTD_count(ip, ip-rep[0], iend);
             if ((offset >= 8) && (ml2 < mlen || ml2 < minMatch)) {

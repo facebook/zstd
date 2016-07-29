@@ -192,13 +192,13 @@ typedef struct seqDef_s {
 
 
 typedef struct {
+    seqDef* sequencesStart;
     seqDef* sequences;
     BYTE* litStart;
     BYTE* lit;
     BYTE* llCode;
     BYTE* mlCode;
     BYTE* ofCode;
-    U32   nbSeq;
     U32   longLengthID;   /* 0 == no longLength; 1 == Lit.longLength; 2 == Match.longLength; */
     U32   longLengthPos;
     /* opt */

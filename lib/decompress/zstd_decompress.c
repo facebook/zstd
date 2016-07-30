@@ -763,7 +763,7 @@ static size_t ZSTD_decompressSequences(
     if (nbSeq) {
         seqState_t seqState;
         dctx->fseEntropy = 1;
-        memcpy(seqState.prevOffset, dctx->rep, sizeof(seqState.prevOffset));
+        { U32 i; for (i=0; i<ZSTD_REP_NUM; i++) seqState.prevOffset[i] = dctx->rep[i]; }
         { size_t const errorCode = BIT_initDStream(&(seqState.DStream), ip, iend-ip);
           if (ERR_isError(errorCode)) return ERROR(corruption_detected); }
         FSE_initDState(&(seqState.stateLL), &(seqState.DStream), DTableLL);
@@ -781,7 +781,7 @@ static size_t ZSTD_decompressSequences(
         /* check if reached exact end */
         if (nbSeq) return ERROR(corruption_detected);
         /* save reps for next block */
-        memcpy(dctx->rep, seqState.prevOffset, sizeof(seqState.prevOffset));
+        { U32 i; for (i=0; i<ZSTD_REP_NUM; i++) dctx->rep[i] = (U32)(seqState.prevOffset[i]); }
     }
 
     /* last literal segment */

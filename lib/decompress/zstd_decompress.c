@@ -583,7 +583,7 @@ typedef struct {
     FSE_DState_t stateLL;
     FSE_DState_t stateOffb;
     FSE_DState_t stateML;
-    U32 prevOffset[ZSTD_REP_NUM];
+    size_t prevOffset[ZSTD_REP_NUM];
 } seqState_t;
 
 
@@ -629,18 +629,17 @@ static seq_t ZSTD_decodeSequence(seqState_t* seqState)
         if (ofCode <= 1) {
             if ((llCode == 0) & (offset <= 1)) offset = 1-offset;
             if (offset) {
-                U32 const temp = seqState->prevOffset[offset];
+                size_t const temp = seqState->prevOffset[offset];
                 if (offset != 1) seqState->prevOffset[2] = seqState->prevOffset[1];
                 seqState->prevOffset[1] = seqState->prevOffset[0];
-                seqState->prevOffset[0] = temp;
-                offset = temp;
+                seqState->prevOffset[0] = offset = temp;
             } else {
                 offset = seqState->prevOffset[0];
             }
         } else {
             seqState->prevOffset[2] = seqState->prevOffset[1];
             seqState->prevOffset[1] = seqState->prevOffset[0];
-            seqState->prevOffset[0] = (U32)offset;
+            seqState->prevOffset[0] = offset;
         }
         seq.offset = offset;
     }

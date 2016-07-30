@@ -632,7 +632,8 @@ static seq_t ZSTD_decodeSequence(seqState_t* seqState)
                 U32 const temp = seqState->prevOffset[offset];
                 if (offset != 1) seqState->prevOffset[2] = seqState->prevOffset[1];
                 seqState->prevOffset[1] = seqState->prevOffset[0];
-                seqState->prevOffset[0] = offset = temp;
+                seqState->prevOffset[0] = temp;
+                offset = temp;
             } else {
                 offset = seqState->prevOffset[0];
             }

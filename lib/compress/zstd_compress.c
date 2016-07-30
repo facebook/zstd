@@ -522,23 +522,23 @@ static size_t ZSTD_compressLiterals (ZSTD_CCtx* zc,
     return lhSize+cLitSize;
 }
 
-static const BYTE g_LL_Code[64] = {  0,  1,  2,  3,  4,  5,  6,  7,
-                                     8,  9, 10, 11, 12, 13, 14, 15,
-                                    16, 16, 17, 17, 18, 18, 19, 19,
-                                    20, 20, 20, 20, 21, 21, 21, 21,
-                                    22, 22, 22, 22, 22, 22, 22, 22,
-                                    23, 23, 23, 23, 23, 23, 23, 23,
-                                    24, 24, 24, 24, 24, 24, 24, 24,
-                                    24, 24, 24, 24, 24, 24, 24, 24 };
+static const BYTE LL_Code[64] = {  0,  1,  2,  3,  4,  5,  6,  7,
+                                   8,  9, 10, 11, 12, 13, 14, 15,
+                                  16, 16, 17, 17, 18, 18, 19, 19,
+                                  20, 20, 20, 20, 21, 21, 21, 21,
+                                  22, 22, 22, 22, 22, 22, 22, 22,
+                                  23, 23, 23, 23, 23, 23, 23, 23,
+                                  24, 24, 24, 24, 24, 24, 24, 24,
+                                  24, 24, 24, 24, 24, 24, 24, 24 };
 
-static const BYTE g_ML_Code[128] = { 0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15,
-                                    16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
-                                    32, 32, 33, 33, 34, 34, 35, 35, 36, 36, 36, 36, 37, 37, 37, 37,
-                                    38, 38, 38, 38, 38, 38, 38, 38, 39, 39, 39, 39, 39, 39, 39, 39,
-                                    40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40,
-                                    41, 41, 41, 41, 41, 41, 41, 41, 41, 41, 41, 41, 41, 41, 41, 41,
-                                    42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42,
-                                    42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42 };
+static const BYTE ML_Code[128] = { 0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15,
+                                  16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
+                                  32, 32, 33, 33, 34, 34, 35, 35, 36, 36, 36, 36, 37, 37, 37, 37,
+                                  38, 38, 38, 38, 38, 38, 38, 38, 39, 39, 39, 39, 39, 39, 39, 39,
+                                  40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40,
+                                  41, 41, 41, 41, 41, 41, 41, 41, 41, 41, 41, 41, 41, 41, 41, 41,
+                                  42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42,
+                                  42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42 };
 
 
 void ZSTD_seqToCodes(const seqStore_t* seqStorePtr)
@@ -554,9 +554,9 @@ void ZSTD_seqToCodes(const seqStore_t* seqStorePtr)
     for (u=0; u<nbSeq; u++) {
         U32 const llv = sequences[u].litLength;
         U32 const mlv = sequences[u].matchLength;
-        llCodeTable[u] = (llv> 63) ? (BYTE)ZSTD_highbit32(llv) + LL_deltaCode : g_LL_Code[llv];
+        llCodeTable[u] = (llv> 63) ? (BYTE)ZSTD_highbit32(llv) + LL_deltaCode : LL_Code[llv];
         ofCodeTable[u] = (BYTE)ZSTD_highbit32(sequences[u].offset);
-        mlCodeTable[u] = (mlv>127) ? (BYTE)ZSTD_highbit32(mlv) + ML_deltaCode : g_ML_Code[mlv];
+        mlCodeTable[u] = (mlv>127) ? (BYTE)ZSTD_highbit32(mlv) + ML_deltaCode : ML_Code[mlv];
     }
     if (seqStorePtr->longLengthID==1)
         llCodeTable[seqStorePtr->longLengthPos] = MaxLL;

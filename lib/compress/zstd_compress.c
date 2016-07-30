@@ -707,12 +707,12 @@ size_t ZSTD_compressSequences(ZSTD_CCtx* zc,
 
         {   size_t n;
             for (n=nbSeq-2 ; n<nbSeq ; n--) {      /* intentional underflow */
+                BYTE const llCode = llCodeTable[n];
                 BYTE const ofCode = ofCodeTable[n];
                 BYTE const mlCode = mlCodeTable[n];
-                BYTE const llCode = llCodeTable[n];
                 U32  const llBits = LL_bits[llCode];
-                U32  const mlBits = ML_bits[mlCode];
                 U32  const ofBits = ofCode;                                     /* 32b*/  /* 64b*/
+                U32  const mlBits = ML_bits[mlCode];
                                                                                 /* (7)*/  /* (7)*/
                 FSE_encodeSymbol(&blockStream, &stateOffsetBits, ofCode);       /* 15 */  /* 15 */
                 FSE_encodeSymbol(&blockStream, &stateMatchLength, mlCode);      /* 24 */  /* 24 */
@@ -724,7 +724,7 @@ size_t ZSTD_compressSequences(ZSTD_CCtx* zc,
                 if (MEM_32bits() && ((llBits+mlBits)>24)) BIT_flushBits(&blockStream);
                 BIT_addBits(&blockStream, sequences[n].matchLength, mlBits);
                 if (MEM_32bits()) BIT_flushBits(&blockStream);                  /* (7)*/
-                BIT_addBits(&blockStream, sequences[n].offset, ofBits);              /* 31 */
+                BIT_addBits(&blockStream, sequences[n].offset, ofBits);         /* 31 */
                 BIT_flushBits(&blockStream);                                    /* (7)*/
         }   }
 

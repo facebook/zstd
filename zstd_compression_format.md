@@ -1081,9 +1081,9 @@ As seen in [Offset Codes], the first 3 values define a repeated offset.
 They are sorted in recency order, with 1 meaning "most recent one".
 
 There is an exception though, when current sequence's literal length is `0`.
-In which case, 1 would just make previous match longer.
-Therefore, in such case, 1 means in fact 2, and 2 is impossible.
-Meaning of 3 is unmodified.
+In which case, the first 2 values are swapped,
+meaning `2` refers to the most recent offset,
+while `1` refers to the second most recent offset,
 
 Repeat offsets start with the following values : 1, 4 and 8 (in order).
 

@@ -583,7 +583,7 @@ typedef struct {
     FSE_DState_t stateLL;
     FSE_DState_t stateOffb;
     FSE_DState_t stateML;
-    size_t prevOffset[ZSTD_REP_NUM];
+    U32 prevOffset[ZSTD_REP_NUM];
 } seqState_t;
 
 
@@ -629,7 +629,7 @@ static seq_t ZSTD_decodeSequence(seqState_t* seqState)
         if (ofCode <= 1) {
             if ((llCode == 0) & (offset <= 1)) offset = 1-offset;
             if (offset) {
-                size_t const temp = seqState->prevOffset[offset];
+                U32 const temp = seqState->prevOffset[offset];
                 if (offset != 1) seqState->prevOffset[2] = seqState->prevOffset[1];
                 seqState->prevOffset[1] = seqState->prevOffset[0];
                 seqState->prevOffset[0] = offset = temp;
@@ -639,7 +639,7 @@ static seq_t ZSTD_decodeSequence(seqState_t* seqState)
         } else {
             seqState->prevOffset[2] = seqState->prevOffset[1];
             seqState->prevOffset[1] = seqState->prevOffset[0];
-            seqState->prevOffset[0] = offset;
+            seqState->prevOffset[0] = (U32)offset;
         }
         seq.offset = offset;
     }
@@ -763,7 +763,7 @@ static size_t ZSTD_decompressSequences(
     if (nbSeq) {
         seqState_t seqState;
         dctx->fseEntropy = 1;
-        { U32 i; for (i=0; i<ZSTD_REP_NUM; i++) seqState.prevOffset[i] = dctx->rep[i]; }
+        memcpy(seqState.prevOffset, dctx->rep, sizeof(seqState.prevOffset));
         { size_t const errorCode = BIT_initDStream(&(seqState.DStream), ip, iend-ip);
           if (ERR_isError(errorCode)) return ERROR(corruption_detected); }
         FSE_initDState(&(seqState.stateLL), &(seqState.DStream), DTableLL);
@@ -781,7 +781,7 @@ static size_t ZSTD_decompressSequences(
         /* check if reached exact end */
         if (nbSeq) return ERROR(corruption_detected);
         /* save reps for next block */
-        { U32 i; for (i=0; i<ZSTD_REP_NUM; i++) dctx->rep[i] = (U32)(seqState.prevOffset[i]); }
+        memcpy(dctx->rep, seqState.prevOffset, sizeof(seqState.prevOffset));
     }
 
     /* last literal segment */

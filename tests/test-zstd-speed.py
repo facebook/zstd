@@ -3,10 +3,9 @@
 import argparse
 import os
 import string
+import subprocess
 import time
 import traceback
-import subprocess
-import signal
 
 
 default_repo_url = 'https://github.com/Cyan4973/zstd.git'
@@ -25,7 +24,8 @@ def log(text):
 def execute(command, print_command=True, print_output=False, print_error=True, param_shell=True):
     if print_command:
         log("> " + command)
-    popen = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=param_shell, cwd=execute.cwd)
+    popen = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                             shell=param_shell, cwd=execute.cwd)
     stdout = popen.communicate()[0]
     stdout_lines = stdout.splitlines()
     if print_output:
@@ -40,8 +40,8 @@ execute.cwd = None
 
 def does_command_exist(command):
     try:
-        execute(command, verbose, False, False);
-    except Exception as e:
+        execute(command, verbose, False, False)
+    except Exception:
         return False
     return True
 
@@ -59,13 +59,17 @@ def send_email(emails, topic, text, have_mutt, have_mail):
             log("e-mail cannot be sent (mail or mutt not found)")
 
 
-def send_email_with_attachments(branch, commit, last_commit, args, text, results_files, logFileName, have_mutt, have_mail):
+def send_email_with_attachments(branch, commit, last_commit, args, text, results_files,
+                                logFileName, have_mutt, have_mail):
     with open(logFileName, "w") as myfile:
         myfile.writelines(text)
         myfile.close()
-        email_topic = '%s:%s Warning for %s:%s last_commit=%s speed<%s ratio<%s' % (email_header, pid, branch, commit, last_commit, args.lowerLimit, args.ratioLimit)
+        email_topic = '%s:%s Warning for %s:%s last_commit=%s speed<%s ratio<%s' \
+                      % (email_header, pid, branch, commit, last_commit,
+                         args.lowerLimit, args.ratioLimit)
         if have_mutt:
-            execute('mutt -s "' + email_topic + '" ' + args.emails + ' -a ' + results_files + ' < ' + logFileName)
+            execute('mutt -s "' + email_topic + '" ' + args.emails + ' -a ' + results_files
+                    + ' < ' + logFileName)
         elif have_mail:
             execute('mail -s "' + email_topic + '" ' + args.emails + ' < ' + logFileName)
         else:
@@ -98,11 +102,11 @@ def get_last_results(resultsFileName):
     csize = []
     cspeed = []
     dspeed = []
-    with open(resultsFileName,'r') as f:
+    with open(resultsFileName, 'r') as f:
         for line in f:
             words = line.split()
             if len(words) == 2:   # branch + commit
-                commit = words[1];
+                commit = words[1]
                 csize = []
                 cspeed = []
                 dspeed = []
@@ -113,15 +117,18 @@ def get_last_results(resultsFileName):
     return commit, csize, cspeed, dspeed
 
 
-def benchmark_and_compare(branch, commit, last_commit, args, executableName, resultsFileName, testFilePath, fileName, last_csize, last_cspeed, last_dspeed):
+def benchmark_and_compare(branch, commit, last_commit, args, executableName, resultsFileName,
+                          testFilePath, fileName, last_csize, last_cspeed, last_dspeed):
     sleepTime = 30
     while os.getloadavg()[0] > args.maxLoadAvg:
-        log("WARNING: bench loadavg=%.2f is higher than %s, sleeping for %s seconds" % (os.getloadavg()[0], args.maxLoadAvg, sleepTime))
+        log("WARNING: bench loadavg=%.2f is higher than %s, sleeping for %s seconds"
+            % (os.getloadavg()[0], args.maxLoadAvg, sleepTime))
         time.sleep(sleepTime)
     start_load = str(os.getloadavg())
-    result = execute('programs/%s -qi5b1e%s %s' % (executableName, args.lastCLevel, testFilePath), print_output=True)
+    result = execute('programs/%s -qi5b1e%s %s' % (executableName, args.lastCLevel, testFilePath),
+                     print_output=True)
     end_load = str(os.getloadavg())
-    linesExpected = args.lastCLevel + 2;
+    linesExpected = args.lastCLevel + 1
     if len(result) != linesExpected:
         raise RuntimeError("ERROR: number of result lines=%d is different that expected %d\n%s" % (len(result), linesExpected, '\n'.join(result)))
     with open(resultsFileName, "a") as myfile:
@@ -217,8 +224,8 @@ if __name__ == '__main__':
             exit(1)
 
     # check availability of e-mail senders
-    have_mutt = does_command_exist("mutt -h");
-    have_mail = does_command_exist("mail -V");
+    have_mutt = does_command_exist("mutt -h")
+    have_mail = does_command_exist("mail -V")
     if not have_mutt and not have_mail:
         log("ERROR: e-mail senders 'mail' or 'mutt' not found")
         exit(1)

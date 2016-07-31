@@ -1081,11 +1081,11 @@ As seen in [Offset Codes], the first 3 values define a repeated offset.
 They are sorted in recency order, with 1 meaning "most recent one".
 
 There is an exception though, when current sequence's literal length is `0`.
-In which case, the first 2 values are swapped,
-meaning `2` refers to the most recent offset,
-while `1` refers to the second most recent offset,
+In which case, repcodes are "pushed by one",
+so 1 becomes 2, 2 becomes 3,
+and 3 becomes "offset_1 - 1_byte".
 
-Repeat offsets start with the following values : 1, 4 and 8 (in order).
+On first block, offset history is populated by the following values : 1, 4 and 8 (in order).
 
 Then each block receives its start value from previous compressed block.
 Note that non-compressed blocks are skipped,
@@ -1095,14 +1095,11 @@ they do not contribute to offset history.
 
 ###### Offset updates rules
 
-When the new offset is a normal one,
-offset history is simply translated by one position,
-with the new offset taking first spot.
+New offset take the lead in offset history,
+up to its previous place if it was already present.
 
-- When repeat offset 1 (most recent) is used, history is unmodified.
-- When repeat offset 2 is used, it's swapped with offset 1.
-- When repeat offset 3 is used, it takes first spot,
-  pushing the other ones by one position.
+It means that when repeat offset 1 (most recent) is used, history is unmodified.
+When repeat offset 2 is used, it's swapped with offset 1.
 
 
 Dictionary format

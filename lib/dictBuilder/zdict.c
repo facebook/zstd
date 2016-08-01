@@ -683,10 +683,18 @@ static size_t ZDICT_analyzeEntropy(void*  dstBuffer, size_t maxDstSize,
     size_t pos = 0, errorCode;
     size_t eSize = 0;
     size_t const totalSrcSize = ZDICT_totalSampleSize(fileSizes, nbFiles);
-    size_t const averageSampleSize = totalSrcSize / nbFiles;
+    size_t const averageSampleSize = totalSrcSize / (nbFiles + !nbFiles);
     BYTE* dstPtr = (BYTE*)dstBuffer;
 
     /* init */
+    esr.ref = ZSTD_createCCtx();
+    esr.zc = ZSTD_createCCtx();
+    esr.workPlace = malloc(ZSTD_BLOCKSIZE_ABSOLUTEMAX);
+    if (!esr.ref || !esr.zc || !esr.workPlace) {
+        eSize = ERROR(memory_allocation);
+        DISPLAYLEVEL(1, "Not enough memory");
+        goto _cleanup;
+    }
     if (offcodeMax>OFFCODE_MAX) { eSize = ERROR(dictionary_wrong); goto _cleanup; }   /* too large dictionary */
     for (u=0; u<256; u++) countLit[u]=1;   /* any character must be described */
     for (u=0; u<=offcodeMax; u++) offcodeCount[u]=1;
@@ -694,14 +702,6 @@ static size_t ZDICT_analyzeEntropy(void*  dstBuffer, size_t maxDstSize,
     for (u=0; u<=MaxLL; u++) litLengthCount[u]=1;
     repOffset[1] = repOffset[4] = repOffset[8] = 1;
     memset(bestRepOffset, 0, sizeof(bestRepOffset));
-    esr.ref = ZSTD_createCCtx();
-    esr.zc = ZSTD_createCCtx();
-    esr.workPlace = malloc(ZSTD_BLOCKSIZE_ABSOLUTEMAX);
-    if (!esr.ref || !esr.zc || !esr.workPlace) {
-            eSize = ERROR(memory_allocation);
-            DISPLAYLEVEL(1, "Not enough memory");
-            goto _cleanup;
-    }
     if (compressionLevel==0) compressionLevel=g_compressionLevel_default;
     params = ZSTD_getParams(compressionLevel, averageSampleSize, dictBufferSize);
 	{	size_t const beginResult = ZSTD_compressBegin_advanced(esr.ref, dictBuffer, dictBufferSize, params, 0);

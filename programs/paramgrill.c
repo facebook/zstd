@@ -340,7 +340,7 @@ typedef struct {
 
 static void BMK_printWinners2(FILE* f, const winnerInfo_t* winners, size_t srcSize)
 {
-    unsigned cLevel;
+    int cLevel;
 
     fprintf(f, "\n /* Proposed configurations : */ \n");
     fprintf(f, "    /* W,  C,  H,  S,  L,  T, strat */ \n");
@@ -364,7 +364,7 @@ static int BMK_seed(winnerInfo_t* winners, const ZSTD_compressionParameters para
 {
     BMK_result_t testResult;
     int better = 0;
-    unsigned cLevel;
+    int cLevel;
 
     BMK_benchParam(&testResult, srcBuffer, srcSize, ctx, params);
 
@@ -618,9 +618,9 @@ static void BMK_benchMem(void* srcBuffer, size_t srcSize)
     }
 
     /* establish speed objectives (relative to level 1) */
-    {   unsigned u;
-        for (u=2; u<=ZSTD_maxCLevel(); u++)
-            g_cSpeedTarget[u] = (g_cSpeedTarget[u-1] * 25) / 32;
+    {   int i;
+        for (i=2; i<=ZSTD_maxCLevel(); i++)
+            g_cSpeedTarget[i] = (g_cSpeedTarget[i-1] * 25) / 32;
     }
 
     /* populate initial solution */

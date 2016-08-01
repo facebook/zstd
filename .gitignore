@@ -40,6 +40,7 @@ projects/cmake/
 
 # Test artefacts
 tmp*
+dictionary
 
 # tmp files
 *.swp

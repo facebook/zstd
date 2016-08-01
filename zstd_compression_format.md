@@ -100,9 +100,9 @@ General Structure of Zstandard Frame format
 -------------------------------------------
 The structure of a single Zstandard frame is following:
 
-| `Magic_Number` | `Frame_Header` |`Data_Block`| [More data blocks] |`End_Marker`|
-|:--------------:|:--------------:|:----------:| ------------------ |:----------:|
-| 4 bytes        |  2-14 bytes    | n bytes    |                    | 3 bytes    |
+| `Magic_Number` | `Frame_Header` |`Data_Block`| [More data blocks] | [`Content_Checksum`] |
+|:--------------:|:--------------:|:----------:| ------------------ |:--------------------:|
+| 4 bytes        |  2-14 bytes    | n bytes    |                    |   0-4 bytes          |
 
 __`Magic_Number`__
 
@@ -118,27 +118,13 @@ __`Data_Block`__
 Detailed in [next chapter](#the-structure-of-data_block).
 That’s where compressed data is stored.
 
-__`End_Marker`__
+__`Content_Checksum`__
 
-The flow of blocks ends when the last block header brings an _end signal_.
-This last block header may optionally host a `Content_Checksum`.
-
-##### __`Content_Checksum`__
-
-`Content_Checksum` allow to verify that frame content has been regenerated correctly.
+An optional 32-bit checksum, only present if `Content_Checksum_flag` is set.
 The content checksum is the result
 of [xxh64() hash function](https://www.xxHash.com)
 digesting the original (decoded) data as input, and a seed of zero.
-Bits from 11 to 32 (included) are extracted to form a 22 bits checksum
-stored within `End_Marker`.
-```
-mask22bits = (1<<22)-1;
-contentChecksum = (XXH64(content, size, 0) >> 11) & mask22bits;
-```
-`Content_Checksum` is only present when its associated flag
-is set in the frame descriptor.
-Its usage is optional.
-
+The low 4 bytes of the checksum are stored in little endian format.
 
 
 The structure of `Frame_Header`
@@ -172,23 +158,25 @@ __`Frame_Content_Size_flag`__
 
 This is a 2-bits flag (`= Frame_Header_Descriptor >> 6`),
 specifying if decompressed data size is provided within the header.
-The `Value` can be converted to `Field_Size` that is number of bytes used by `Frame_Content_Size` according to the following table:
+The `Flag_Value` can be converted into `Field_Size`,
+which is the number of bytes used by `Frame_Content_Size`
+according to the following table:
 
-|  `Value`   |  0  |  1  |  2  |  3  |
+|`Flag_Value`|  0  |  1  |  2  |  3  |
 | ---------- | --- | --- | --- | --- |
 |`Field_Size`| 0-1 |  2  |  4  |  8  |
 
-The meaning of `Value` equal to `0` depends on `Single_Segment_flag` :
-it either means `0` (size not provided) _if_ the `Window_Descriptor` byte is present,
-or `1` (frame content size <= 255 bytes) otherwise.
+When `Flag_Value` is `0`, `Field_Size` depends on `Single_Segment_flag` :
+if `Single_Segment_flag` is set, `Field_Size` is 1.
+Otherwise, `Field_Size` is 0 (content size not provided).
 
 __`Single_Segment_flag`__
 
 If this flag is set,
-data shall be regenerated within a single continuous memory segment.
+data must be regenerated within a single continuous memory segment.
 
-In this case, `Window_Descriptor` byte __is not present__,
-but `Frame_Content_Size_flag` field necessarily is.
+In this case, `Frame_Content_Size` is necessarily present,
+but `Window_Descriptor` byte is skipped.
 As a consequence, the decoder must allocate a memory segment
 of size equal or bigger than `Frame_Content_Size`.
 
@@ -205,7 +193,7 @@ depending on local limitations.
 __`Unused_bit`__
 
 The value of this bit should be set to zero.
-A decoder compliant with this specification version should not interpret it.
+A decoder compliant with this specification version shall not interpret it.
 It might be used in a future version,
 to signal a property which is not mandatory to properly decode the frame.
 
@@ -215,13 +203,12 @@ This bit is reserved for some future feature.
 Its value _must be zero_.
 A decoder compliant with this specification version must ensure it is not set.
 This bit may be used in a future revision,
-to signal a feature that must be interpreted in order to decode the frame.
+to signal a feature that must be interpreted to decode the frame correctly.
 
 __`Content_Checksum_flag`__
 
-If this flag is set, a content checksum will be present within `End_Marker`.
-The checksum is a 22 bits value extracted from the XXH64() of data,
-and stored within `End_Marker`. See [`Content_Checksum`](#content_checksum) .
+If this flag is set, a 32-bits `Content_Checksum` will be present at frame's end.
+See `Content_Checksum` paragraph.
 
 __`Dictionary_ID_flag`__
 
@@ -236,10 +223,10 @@ It also specifies the size of this field.
 ### `Window_Descriptor`
 
 Provides guarantees on maximum back-reference distance
-that will be present within compressed data.
-This information is useful for decoders to allocate enough memory.
+that will be used within compressed data.
+This information is important for decoders to allocate enough memory.
 
-The `Window_Descriptor` byte is optional. It should be absent if `Single_Segment_flag` is set.
+The `Window_Descriptor` byte is optional. It is absent when `Single_Segment_flag` is set.
 In this case, the maximum back-reference distance is the content size itself,
 which can be any value from 1 to 2^64-1 bytes (16 EB).
 
@@ -265,8 +252,8 @@ a decoder can refuse a compressed frame
 which requests a memory size beyond decoder's authorized range.
 
 For improved interoperability,
-decoders are recommended to be compatible with window sizes of 8 MB.
-Encoders are recommended to not request more than 8 MB.
+decoders are recommended to be compatible with window sizes of 8 MB,
+and encoders are recommended to not request more than 8 MB.
 It's merely a recommendation though,
 decoders are free to support larger or lower limits,
 depending on local limitations.
@@ -313,30 +300,34 @@ When `Field_Size` is 1, 4 or 8 bytes, the value is read directly.
 When `Field_Size` is 2, _the offset of 256 is added_.
 It's allowed to represent a small size (for example `18`) using any compatible variant.
 
-In order to preserve decoder from unreasonable memory requirement,
-a decoder can refuse a compressed frame
-which requests a memory size beyond decoder's authorized range.
-
 
 The structure of `Data_Block`
 -----------------------------
 The structure of `Data_Block` is following:
 
-| `Block_Type` | `Block_Size` | `Block_Content` |
-|:------------:|:------------:|:---------------:|
-|  2 bits      |  22 bits     |  n bytes        |
+| `Last_Block` | `Block_Type` | `Block_Size` | `Block_Content` |
+|:------------:|:------------:|:------------:|:---------------:|
+|   1 bit      |  2 bits      |  21 bits     |  n bytes        |
+
+The block header uses 3-bytes.
+
+__`Last_Block`__
+
+The lowest bit signals if this block is the last one.
+Frame ends right after this block.
+It may be followed by an optional `Content_Checksum` .
 
 __`Block_Type` and `Block_Size`__
 
-The block header uses 3-bytes, format is __little-endian__.
-The 2 highest bits represent the `Block_Type`,
-while the remaining 22 bits represent the (compressed) `Block_Size`.
+The next 2 bits represent the `Block_Type`,
+while the remaining 21 bits represent the `Block_Size`.
+Format is __little-endian__.
 
 There are 4 block types :
 
 |    Value     |      0      |     1       |  2                 |    3      |
 | ------------ | ----------- | ----------- | ------------------ | --------- |
-| `Block_Type` | `Raw_Block` | `RLE_Block` | `Compressed_Block` | `EndMark` |
+| `Block_Type` | `Raw_Block` | `RLE_Block` | `Compressed_Block` | `Reserved`|
 
 - `Raw_Block` - this is an uncompressed block.
   `Block_Size` is the number of bytes to read and copy.
@@ -348,9 +339,8 @@ There are 4 block types :
   `Block_Size` is the compressed size.
   Decompressed size is unknown,
   but its maximum possible value is guaranteed (see below)
-- `EndMark` - this is not a block. It signals the end of the frame.
-  The rest of the field may be optionally filled by a checksum
-  (see [`Content_Checksum`](#content_checksum)).
+- `Reserved` - this is not a block.
+  This value cannot be used with current version of this specification.
 
 Block sizes must respect a few rules :
 - In compressed mode, compressed size if always strictly `< decompressed size`.
@@ -1091,11 +1081,11 @@ As seen in [Offset Codes], the first 3 values define a repeated offset.
 They are sorted in recency order, with 1 meaning "most recent one".
 
 There is an exception though, when current sequence's literal length is `0`.
-In which case, 1 would just make previous match longer.
-Therefore, in such case, 1 means in fact 2, and 2 is impossible.
-Meaning of 3 is unmodified.
+In which case, repcodes are "pushed by one",
+so 1 becomes 2, 2 becomes 3,
+and 3 becomes "offset_1 - 1_byte".
 
-Repeat offsets start with the following values : 1, 4 and 8 (in order).
+On first block, offset history is populated by the following values : 1, 4 and 8 (in order).
 
 Then each block receives its start value from previous compressed block.
 Note that non-compressed blocks are skipped,
@@ -1105,14 +1095,11 @@ they do not contribute to offset history.
 
 ###### Offset updates rules
 
-When the new offset is a normal one,
-offset history is simply translated by one position,
-with the new offset taking first spot.
+New offset take the lead in offset history,
+up to its previous place if it was already present.
 
-- When repeat offset 1 (most recent) is used, history is unmodified.
-- When repeat offset 2 is used, it's swapped with offset 1.
-- When repeat offset 3 is used, it takes first spot,
-  pushing the other ones by one position.
+It means that when repeat offset 1 (most recent) is used, history is unmodified.
+When repeat offset 2 is used, it's swapped with offset 1.
 
 
 Dictionary format

@@ -43,7 +43,7 @@ VERSION?= $(LIBVER)
 
 DESTDIR?=
 PREFIX ?= /usr/local
-CPPFLAGS= -I./common
+CPPFLAGS= -I. -I./common -DXXH_NAMESPACE=ZSTD_
 CFLAGS ?= -O3
 CFLAGS += -std=c99 -Wall -Wextra -Wundef -Wshadow -Wcast-qual -Wcast-align -Wstrict-prototypes -Wstrict-aliasing=1
 FLAGS   = $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) $(MOREFLAGS)
@@ -54,7 +54,7 @@ INCLUDEDIR=$(PREFIX)/include
 ZSTDCOMP_FILES := compress/zstd_compress.c compress/fse_compress.c compress/huf_compress.c compress/zbuff_compress.c 
 ZSTDDECOMP_FILES := decompress/zstd_decompress.c common/fse_decompress.c decompress/huf_decompress.c decompress/zbuff_decompress.c
 ZSTDDICT_FILES := dictBuilder/zdict.c dictBuilder/divsufsort.c
-ZSTD_FILES := $(ZSTDDECOMP_FILES) common/entropy_common.c common/zstd_common.c $(ZSTDCOMP_FILES) $(ZSTDDICT_FILES)
+ZSTD_FILES := $(ZSTDDECOMP_FILES) common/entropy_common.c common/zstd_common.c common/xxhash.c $(ZSTDCOMP_FILES) $(ZSTDDICT_FILES)
 ZSTD_LEGACY:= legacy/zstd_v01.c legacy/zstd_v02.c legacy/zstd_v03.c legacy/zstd_v04.c legacy/zstd_v05.c
 
 ifeq ($(ZSTD_LEGACY_SUPPORT), 0)

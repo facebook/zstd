@@ -31,3 +31,4 @@ zlib_wrapper/
 
 # CMake
 contrib/cmake/
+projects/

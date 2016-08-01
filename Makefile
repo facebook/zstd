@@ -41,19 +41,19 @@ else
 VOID = /dev/null
 endif
 
-.PHONY: default all zlibwrapper zstdprogram zstd clean install uninstall travis-install test clangtest gpptest armtest usan asan uasan
+.PHONY: default all zlibwrapper zstd clean install uninstall travis-install test clangtest gpptest armtest usan asan uasan
 
-default: zstdprogram
+default: zstd
 
 all:
 	$(MAKE) -C $(ZSTDDIR) $@
 	$(MAKE) -C $(PRGDIR) $@
+	@rm -f lib/decompress/*.o
+	$(MAKE) -C $(PRGDIR) all32
 
-zstdprogram:
+zstd:
 	$(MAKE) -C $(PRGDIR)
 	cp $(PRGDIR)/zstd .
-
-zstd: zstdprogram
 
 zlibwrapper:
 	$(MAKE) -C $(ZSTDDIR) all
@@ -70,10 +70,10 @@ clean:
 	@echo Cleaning completed
 
 
-#------------------------------------------------------------------------
-#make install is validated only for Linux, OSX, kFreeBSD and Hurd targets
-#------------------------------------------------------------------------
-ifneq (,$(filter $(shell uname),Linux Darwin GNU/kFreeBSD GNU))
+#----------------------------------------------------------------------------------
+#make install is validated only for Linux, OSX, kFreeBSD, Hurd and some BSD targets
+#----------------------------------------------------------------------------------
+ifneq (,$(filter $(shell uname),Linux Darwin GNU/kFreeBSD GNU FreeBSD DragonFly))
 HOST_OS = POSIX
 install:
 	$(MAKE) -C $(ZSTDDIR) $@
@@ -87,7 +87,7 @@ travis-install:
 	$(MAKE) install PREFIX=~/install_test_dir
 
 gpptest: clean
-	$(MAKE) all CC=g++ CFLAGS="-O3 -Wall -Wextra -Wundef -Wshadow -Wcast-align -Werror"
+	$(MAKE) -C programs all CC=g++ CFLAGS="-O3 -Wall -Wextra -Wundef -Wshadow -Wcast-align -Werror"
 
 gcc5test: clean
 	gcc-5 -v
@@ -107,11 +107,11 @@ armtest: clean
 
 ppctest: clean
 	$(MAKE) -C $(PRGDIR) datagen   # use native, faster
-	$(MAKE) -C $(PRGDIR) test CC=powerpc-linux-gnu-gcc ZSTDRTTEST= MOREFLAGS="-Werror -static"
+	$(MAKE) -C $(PRGDIR) test CC=powerpc-linux-gnu-gcc ZSTDRTTEST= MOREFLAGS="-Werror -Wno-attributes -static"
 
 ppc64test: clean
 	$(MAKE) -C $(PRGDIR) datagen   # use native, faster
-	$(MAKE) -C $(PRGDIR) test CC=powerpc-linux-gnu-gcc ZSTDRTTEST= MOREFLAGS="-m64 -Werror -static"
+	$(MAKE) -C $(PRGDIR) test CC=powerpc-linux-gnu-gcc ZSTDRTTEST= MOREFLAGS="-m64 -static"
 
 usan: clean
 	$(MAKE) test CC=clang MOREFLAGS="-g -fsanitize=undefined"

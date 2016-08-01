@@ -180,7 +180,7 @@ static FILE* FIO_openSrcFile(const char* srcFileName)
     return f;
 }
 
-
+/* `dstFileName must` be non-NULL */
 static FILE* FIO_openDstFile(const char* dstFileName)
 {
     FILE* f;
@@ -636,13 +636,12 @@ unsigned long long FIO_decompressFrame(dRess_t ress,
         DISPLAYUPDATE(2, "\rDecoded : %u MB...     ", (U32)(frameSize>>20) );
 
         if (toRead == 0) break;   /* end of frame */
-        if (readSize) EXM_THROW(38, "Decoding error : should consume entire input");
+        if (readSize) EXM_THROW(37, "Decoding error : should consume entire input");
 
         /* Fill input buffer */
-        if (toRead > ress.srcBufferSize) EXM_THROW(34, "too large block");
+        if (toRead > ress.srcBufferSize) EXM_THROW(38, "too large block");
         readSize = fread(ress.srcBuffer, 1, toRead, finput);
-        if (readSize != toRead)
-            EXM_THROW(35, "Read error");
+        if (readSize == 0) EXM_THROW(39, "Read error : premature end");
     }
 
     FIO_fwriteSparseEnd(foutput, storedSkips);
@@ -683,6 +682,7 @@ static int FIO_decompressSrcFile(dRess_t ress, const char* srcFileName)
     unsigned long long filesize = 0;
     FILE* const dstFile = ress.dstFile;
     FILE* srcFile;
+    unsigned readSomething = 0;
 
     if (UTIL_isDirectory(srcFileName)) {
         DISPLAYLEVEL(1, "zstd: %s is a directory -- ignored \n", srcFileName);
@@ -696,8 +696,12 @@ static int FIO_decompressSrcFile(dRess_t ress, const char* srcFileName)
         /* check magic number -> version */
         size_t const toRead = 4;
         size_t const sizeCheck = fread(ress.srcBuffer, (size_t)1, toRead, srcFile);
-        if (sizeCheck==0) break;   /* no more input */
-        if (sizeCheck != toRead) EXM_THROW(31, "zstd: %s read error : cannot read header", srcFileName);
+        if (sizeCheck==0) {
+            if (readSomething==0) { DISPLAY("zstd: %s: unexpected end of file \n", srcFileName); fclose(srcFile); return 1; }  /* srcFileName is empty */
+            break;   /* no more input */
+        }
+        readSomething = 1;
+        if (sizeCheck != toRead) { DISPLAY("zstd: %s: unknown header \n", srcFileName); fclose(srcFile); return 1; }  /* srcFileName is empty */
         {   U32 const magic = MEM_readLE32(ress.srcBuffer);
 #if defined(ZSTD_LEGACY_SUPPORT) && (ZSTD_LEGACY_SUPPORT>=1)
             if (ZSTD_isLegacy(ress.srcBuffer, 4)) {
@@ -705,8 +709,8 @@ static int FIO_decompressSrcFile(dRess_t ress, const char* srcFileName)
                 continue;
             }
 #endif
-            if (((magic & 0xFFFFFFF0U) != ZSTD_MAGIC_SKIPPABLE_START) && (magic != ZSTD_MAGICNUMBER)) {
-                if (g_overwrite) {  /* -df : pass-through mode */
+            if (((magic & 0xFFFFFFF0U) != ZSTD_MAGIC_SKIPPABLE_START) & (magic != ZSTD_MAGICNUMBER)) {
+                if ((g_overwrite) && !strcmp (srcFileName, stdinmark)) {  /* pass-through mode */
                     unsigned const result = FIO_passThrough(dstFile, srcFile, ress.srcBuffer, ress.srcBufferSize);
                     if (fclose(srcFile)) EXM_THROW(32, "zstd: %s close error", srcFileName);  /* error should never happen */
                     return result;
@@ -744,7 +748,7 @@ static int FIO_decompressDstFile(dRess_t ress,
     result = FIO_decompressSrcFile(ress, srcFileName);
 
     if (fclose(ress.dstFile)) EXM_THROW(38, "Write error : cannot properly close %s", dstFileName);
-    if (result != 0) if (remove(dstFileName)) EXM_THROW(39, "remove %s error : %s", dstFileName, strerror(errno));
+    if (result != 0) if (remove(dstFileName)) result=1;   /* don't do anything if remove fails */
     return result;
 }
 

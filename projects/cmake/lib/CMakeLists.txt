@@ -47,10 +47,10 @@ SET(ROOT_DIR ../../..)
 
 # Define library directory, where sources and header files are located
 SET(LIBRARY_DIR ${ROOT_DIR}/lib)
-INCLUDE_DIRECTORIES(${LIBRARY_DIR}/common)
+INCLUDE_DIRECTORIES(${LIBRARY_DIR} ${LIBRARY_DIR}/common)
 
 # Read file content
-FILE(READ ${LIBRARY_DIR}/common/zstd.h HEADER_CONTENT)
+FILE(READ ${LIBRARY_DIR}/zstd.h HEADER_CONTENT)
 
 # Parse version
 GetLibraryVersion("${HEADER_CONTENT}" LIBVER_MAJOR LIBVER_MINOR LIBVER_RELEASE)
@@ -80,7 +80,7 @@ SET(Headers
         ${LIBRARY_DIR}/common/mem.h
         ${LIBRARY_DIR}/common/zbuff.h
         ${LIBRARY_DIR}/common/zstd_internal.h
-        ${LIBRARY_DIR}/common/zstd.h
+        ${LIBRARY_DIR}/zstd.h
         ${LIBRARY_DIR}/dictBuilder/zdict.h)
 
 IF (ZSTD_LEGACY_SUPPORT)
@@ -93,7 +93,8 @@ IF (ZSTD_LEGACY_SUPPORT)
             ${LIBRARY_LEGACY_DIR}/zstd_v03.c
             ${LIBRARY_LEGACY_DIR}/zstd_v04.c
             ${LIBRARY_LEGACY_DIR}/zstd_v05.c
-            ${LIBRARY_LEGACY_DIR}/zstd_v06.c)
+            ${LIBRARY_LEGACY_DIR}/zstd_v06.c
+            ${LIBRARY_LEGACY_DIR}/zstd_v07.c)
 
     SET(Headers ${Headers}
             ${LIBRARY_LEGACY_DIR}/zstd_legacy.h
@@ -102,7 +103,8 @@ IF (ZSTD_LEGACY_SUPPORT)
             ${LIBRARY_LEGACY_DIR}/zstd_v03.h
             ${LIBRARY_LEGACY_DIR}/zstd_v04.h
             ${LIBRARY_LEGACY_DIR}/zstd_v05.h
-            ${LIBRARY_LEGACY_DIR}/zstd_v06.h)
+            ${LIBRARY_LEGACY_DIR}/zstd_v06.h
+            ${LIBRARY_LEGACY_DIR}/zstd_v07.h)
 ENDIF (ZSTD_LEGACY_SUPPORT)
 
 IF (MSVC)
@@ -162,7 +164,7 @@ IF (UNIX)
     SET(INSTALL_INCLUDE_DIR ${PREFIX}/include)
 
     # install target
-    INSTALL(FILES ${LIBRARY_DIR}/common/zstd.h ${LIBRARY_DIR}/common/zbuff.h ${LIBRARY_DIR}/dictBuilder/zdict.h DESTINATION ${INSTALL_INCLUDE_DIR})
+    INSTALL(FILES ${LIBRARY_DIR}/zstd.h ${LIBRARY_DIR}/common/zbuff.h ${LIBRARY_DIR}/dictBuilder/zdict.h DESTINATION ${INSTALL_INCLUDE_DIR})
     INSTALL(TARGETS libzstd_static DESTINATION ${INSTALL_LIBRARY_DIR})
     INSTALL(TARGETS libzstd_shared LIBRARY DESTINATION ${INSTALL_LIBRARY_DIR})
 

@@ -38,10 +38,9 @@
 #include "mem.h"
 #include "error_private.h"       /* ERR_*, ERROR */
 #define FSE_STATIC_LINKING_ONLY  /* FSE_MIN_TABLELOG */
-#include "fse.h"   /* FSE_isError, FSE_getErrorName */
+#include "fse.h"
 #define HUF_STATIC_LINKING_ONLY  /* HUF_TABLELOG_ABSOLUTEMAX */
-#include "huf.h"   /* HUF_isError, HUF_getErrorName */
-
+#include "huf.h"
 
 
 /*-****************************************
@@ -63,7 +62,7 @@ const char* HUF_getErrorName(size_t code) { return ERR_getErrorName(code); }
 /*-**************************************************************
 *  FSE NCount encoding-decoding
 ****************************************************************/
-static short FSE_abs(short a) { return a<0 ? -a : a; }
+static short FSE_abs(short a) { return (short)(a<0 ? -a : a); }
 
 size_t FSE_readNCount (short* normalizedCounter, unsigned* maxSVPtr, unsigned* tableLogPtr,
                  const void* headerBuffer, size_t hbSize)
@@ -90,22 +89,22 @@ size_t FSE_readNCount (short* normalizedCounter, unsigned* maxSVPtr, unsigned* t
     threshold = 1<<nbBits;
     nbBits++;
 
-    while ((remaining>1) && (charnum<=*maxSVPtr)) {
+    while ((remaining>1) & (charnum<=*maxSVPtr)) {
         if (previous0) {
             unsigned n0 = charnum;
             while ((bitStream & 0xFFFF) == 0xFFFF) {
-                n0+=24;
+                n0 += 24;
                 if (ip < iend-5) {
-                    ip+=2;
+                    ip += 2;
                     bitStream = MEM_readLE32(ip) >> bitCount;
                 } else {
                     bitStream >>= 16;
-                    bitCount+=16;
+                    bitCount   += 16;
             }   }
             while ((bitStream & 3) == 3) {
-                n0+=3;
-                bitStream>>=2;
-                bitCount+=2;
+                n0 += 3;
+                bitStream >>= 2;
+                bitCount += 2;
             }
             n0 += bitStream & 3;
             bitCount += 2;
@@ -115,10 +114,9 @@ size_t FSE_readNCount (short* normalizedCounter, unsigned* maxSVPtr, unsigned* t
                 ip += bitCount>>3;
                 bitCount &= 7;
                 bitStream = MEM_readLE32(ip) >> bitCount;
-            }
-            else
+            } else {
                 bitStream >>= 2;
-        }
+        }   }
         {   short const max = (short)((2*threshold-1)-remaining);
             short count;
 
@@ -148,12 +146,12 @@ size_t FSE_readNCount (short* normalizedCounter, unsigned* maxSVPtr, unsigned* t
                 ip = iend - 4;
             }
             bitStream = MEM_readLE32(ip) >> (bitCount & 31);
-    }   }   /* while ((remaining>1) && (charnum<=*maxSVPtr)) */
-    if (remaining != 1) return ERROR(GENERIC);
+    }   }   /* while ((remaining>1) & (charnum<=*maxSVPtr)) */
+    if (remaining != 1) return ERROR(corruption_detected);
+    if (bitCount > 32) return ERROR(corruption_detected);
     *maxSVPtr = charnum-1;
 
     ip += (bitCount+7)>>3;
-    if ((size_t)(ip-istart) > hbSize) return ERROR(srcSize_wrong);
     return ip-istart;
 }
 
@@ -162,7 +160,7 @@ size_t FSE_readNCount (short* normalizedCounter, unsigned* maxSVPtr, unsigned* t
     Read compact Huffman tree, saved by HUF_writeCTable().
     `huffWeight` is destination buffer.
     @return : size read from `src` , or an error Code .
-    Note : Needed by HUF_readCTable() and HUF_readDTableXn() .
+    Note : Needed by HUF_readCTable() and HUF_readDTableX?() .
 */
 size_t HUF_readStats(BYTE* huffWeight, size_t hwSize, U32* rankStats,
                      U32* nbSymbolsPtr, U32* tableLogPtr,
@@ -173,26 +171,19 @@ size_t HUF_readStats(BYTE* huffWeight, size_t hwSize, U32* rankStats,
     size_t iSize = ip[0];
     size_t oSize;
 
-    //memset(huffWeight, 0, hwSize);   /* is not necessary, even though some analyzer complain ... */
+    /* memset(huffWeight, 0, hwSize);   *//* is not necessary, even though some analyzer complain ... */
 
-    if (iSize >= 128)  { /* special header */
-        if (iSize >= (242)) {  /* RLE */
-            static U32 l[14] = { 1, 2, 3, 4, 7, 8, 15, 16, 31, 32, 63, 64, 127, 128 };
-            oSize = l[iSize-242];
-            memset(huffWeight, 1, hwSize);
-            iSize = 0;
-        }
-        else {   /* Incompressible */
-            oSize = iSize - 127;
-            iSize = ((oSize+1)/2);
-            if (iSize+1 > srcSize) return ERROR(srcSize_wrong);
-            if (oSize >= hwSize) return ERROR(corruption_detected);
-            ip += 1;
-            {   U32 n;
-                for (n=0; n<oSize; n+=2) {
-                    huffWeight[n]   = ip[n/2] >> 4;
-                    huffWeight[n+1] = ip[n/2] & 15;
-    }   }   }   }
+    if (iSize >= 128) {  /* special header */
+        oSize = iSize - 127;
+        iSize = ((oSize+1)/2);
+        if (iSize+1 > srcSize) return ERROR(srcSize_wrong);
+        if (oSize >= hwSize) return ERROR(corruption_detected);
+        ip += 1;
+        {   U32 n;
+            for (n=0; n<oSize; n+=2) {
+                huffWeight[n]   = ip[n/2] >> 4;
+                huffWeight[n+1] = ip[n/2] & 15;
+    }   }   }
     else  {   /* header compressed with FSE (normal case) */
         if (iSize+1 > srcSize) return ERROR(srcSize_wrong);
         oSize = FSE_decompress(huffWeight, hwSize-1, ip+1, iSize);   /* max (hwSize-1) values decoded, as last one is implied */

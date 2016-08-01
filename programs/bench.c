@@ -202,7 +202,7 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
 
             /* overheat protection */
             if (UTIL_clockSpanMicro(coolTime, ticksPerSecond) > ACTIVEPERIOD_MICROSEC) {
-                DISPLAY("\rcooling down ...    \r");
+                DISPLAYLEVEL(2, "\rcooling down ...    \r");
                 UTIL_sleep(COOLPERIOD_SEC);
                 UTIL_getTime(&coolTime);
             }
@@ -352,7 +352,7 @@ static void BMK_benchCLevel(void* srcBuffer, size_t benchedSize,
                             const size_t* fileSizes, unsigned nbFiles,
                             const void* dictBuffer, size_t dictBufferSize)
 {
-    benchResult_t result, total;
+    benchResult_t result;
     int l;
 
     const char* pch = strrchr(displayName, '\\'); /* Windows */
@@ -362,7 +362,6 @@ static void BMK_benchCLevel(void* srcBuffer, size_t benchedSize,
     SET_HIGH_PRIORITY;
 
     memset(&result, 0, sizeof(result));
-    memset(&total, 0, sizeof(total));
 
     if (g_displayLevel == 1 && !g_additionalParam)
         DISPLAY("bench %s %s: input %u bytes, %i iterations, %u KB blocks\n", ZSTD_VERSION_STRING, ZSTD_GIT_COMMIT_STRING, (U32)benchedSize, g_nbIterations, (U32)(g_blockSize>>10));
@@ -379,18 +378,7 @@ static void BMK_benchCLevel(void* srcBuffer, size_t benchedSize,
                 DISPLAY("%-3i%11i (%5.3f) %6.2f MB/s %6.1f MB/s  %s (param=%d)\n", -l, (int)result.cSize, result.ratio, result.cSpeed, result.dSpeed, displayName, g_additionalParam);
             else
                 DISPLAY("%-3i%11i (%5.3f) %6.2f MB/s %6.1f MB/s  %s\n", -l, (int)result.cSize, result.ratio, result.cSpeed, result.dSpeed, displayName);
-            total.cSize += result.cSize;
-            total.cSpeed += result.cSpeed;
-            total.dSpeed += result.dSpeed;
-            total.ratio += result.ratio;
     }   }
-    if (g_displayLevel == 1 && cLevelLast > cLevel) {
-        total.cSize /= 1+cLevelLast-cLevel;
-        total.cSpeed /= 1+cLevelLast-cLevel;
-        total.dSpeed /= 1+cLevelLast-cLevel;
-        total.ratio /= 1+cLevelLast-cLevel;
-        DISPLAY("avg%11i (%5.3f) %6.2f MB/s %6.1f MB/s  %s\n", (int)total.cSize, total.ratio, total.cSpeed, total.dSpeed, displayName);
-    }
 }
 
 

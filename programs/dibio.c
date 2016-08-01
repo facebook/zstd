@@ -202,9 +202,16 @@ int DiB_trainFromFiles(const char* dictFileName, unsigned maxDictSize,
 
     /* Checks */
     if ((!fileSizes) || (!srcBuffer) || (!dictBuffer)) EXM_THROW(12, "not enough memory for DiB_trainFiles");   /* should not happen */
+    g_displayLevel = params.notificationLevel;
+    if (nbFiles < 5) {
+        DISPLAYLEVEL(2, "!  Warning : nb of samples too low for proper processing \n");
+        DISPLAYLEVEL(2, "!  Please provide one file per sample \n");
+        DISPLAYLEVEL(2, "!  Avoid concatenating multiple samples into a single file \n");
+        DISPLAYLEVEL(2, "!  otherwise, dictBuilder will be unable to find the beginning of each sample \n");
+        DISPLAYLEVEL(2, "!  resulting in distorted statistics \n");
+    }
 
     /* init */
-    g_displayLevel = params.notificationLevel;
     if (benchedSize < totalSizeToLoad)
         DISPLAYLEVEL(1, "Not enough memory; training on %u MB only...\n", (unsigned)(benchedSize >> 20));
 

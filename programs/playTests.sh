@@ -16,7 +16,7 @@ roundTripTest() {
     rm -f tmp1 tmp2
     $ECHO "roundTripTest: ./datagen $1 $p | $ZSTD -v$c | $ZSTD -d"
     ./datagen $1 $p | $MD5SUM > tmp1
-    ./datagen $1 $p | $ZSTD -vq$c | $ZSTD -d  | $MD5SUM > tmp2
+    ./datagen $1 $p | $ZSTD -v$c | $ZSTD -d  | $MD5SUM > tmp2
     diff -q tmp1 tmp2
 }
 
@@ -96,6 +96,13 @@ cat hello.zstd world.zstd > helloworld.zstd
 $ZSTD -dc helloworld.zstd > result.tmp
 cat result.tmp
 sdiff helloworld.tmp result.tmp
+$ECHO "frame concatenation without checksum"
+$ZSTD -c hello.tmp > hello.zstd --no-check
+$ZSTD -c world.tmp > world.zstd --no-check
+cat hello.zstd world.zstd > helloworld.zstd
+$ZSTD -dc helloworld.zstd > result.tmp
+cat result.tmp
+sdiff helloworld.tmp result.tmp
 rm ./*.tmp ./*.zstd
 $ECHO "frame concatenation tests completed"
 
@@ -142,8 +149,8 @@ $ECHO "\n**** multiple files tests **** "
 ./datagen -s1        > tmp1 2> $INTOVOID
 ./datagen -s2 -g100K > tmp2 2> $INTOVOID
 ./datagen -s3 -g1M   > tmp3 2> $INTOVOID
-$ZSTD -f tmp*
 $ECHO "compress tmp* : "
+$ZSTD -f tmp*
 ls -ls tmp*
 rm tmp1 tmp2 tmp3
 $ECHO "decompress tmp* : "
@@ -204,8 +211,16 @@ $ZSTD -t tmp1.zst
 $ZSTD --test tmp1.zst
 $ECHO "test multiple files (*.zst) "
 $ZSTD -t *.zst
-$ECHO "test good and bad files (*) "
+$ECHO "test bad files (*) "
 $ZSTD -t * && die "bad files not detected !"
+$ZSTD -t tmp1 && die "bad file not detected !"
+cp tmp1 tmp2.zst
+$ZSTD -t tmp2.zst && die "bad file not detected !"
+./datagen -g0 > tmp3
+$ZSTD -t tmp3 && die "bad file not detected !"   # detects 0-sized files as bad
+$ECHO "test --rm and --test combined "
+$ZSTD -t --rm tmp1.zst
+ls -ls tmp1.zst  # check file is still present
 
 
 $ECHO "\n**** zstd round-trip tests **** "

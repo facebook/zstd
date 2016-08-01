@@ -2,3 +2,7 @@
 zstdtest
 speedTest
 versionsTest
+
+# Local script
+startSpeedTest
+speedTest.pid

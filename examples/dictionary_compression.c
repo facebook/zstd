@@ -1,5 +1,5 @@
 /*
-  Dictionary decompression
+  Dictionary compression
   Educational program using zstd library
   Copyright (C) Yann Collet 2016
 

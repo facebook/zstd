@@ -43,7 +43,7 @@ It also features a very fast decoder, with speed > 500 MB/s per core.
 .SH OPTIONS
 .TP
 .B \-#
- # compression level [1-22] (default:1)
+ # compression level [1-22] (default:3)
 .TP
 .BR \-d ", " --decompress
  decompression
@@ -80,7 +80,8 @@ It also features a very fast decoder, with speed > 500 MB/s per core.
  verbose mode
 .TP
 .BR \-q ", " --quiet
- suppress warnings and notifications; specify twice to suppress errors too
+ suppress warnings, interactivity and notifications.
+ specify twice to suppress errors too.
 .TP
 .BR \-C ", " --check
  add integrity check computed from uncompressed data

@@ -424,23 +424,22 @@ static int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compres
                 U32 const enoughDstSize = dstBuffSize >= remainingToFlush;
                 remainingToFlush = ZBUFF_compressEnd(zc, cBuffer+cSize, &dstBuffSize);
                 CHECK (ZBUFF_isError(remainingToFlush), "flush error : %s", ZBUFF_getErrorName(remainingToFlush));
-                //DISPLAY("flush %u bytes : still within context : %i \n", (U32)dstBuffSize, (int)remainingToFlush);
-                CHECK (enoughDstSize && remainingToFlush, "ZBUFF_compressEnd() not fully flushed, but enough space available");
+                CHECK (enoughDstSize && remainingToFlush, "ZBUFF_compressEnd() not fully flushed (%u remaining), but enough space available", (U32)remainingToFlush);
                 cSize += dstBuffSize;
         }   }
         crcOrig = XXH64_digest(&xxhState);
 
         /* multi - fragments decompression test */
         ZBUFF_decompressInitDictionary(zd, dict, dictSize);
-        for (totalCSize = 0, totalGenSize = 0 ; totalCSize < cSize ; ) {
+        errorCode = 1;
+        for (totalCSize = 0, totalGenSize = 0 ; errorCode ; ) {
             size_t readCSrcSize = FUZ_randomLength(&lseed, maxSampleLog);
             size_t const randomDstSize = FUZ_randomLength(&lseed, maxSampleLog);
             size_t dstBuffSize = MIN(dstBufferSize - totalGenSize, randomDstSize);
-            size_t const decompressError = ZBUFF_decompressContinue(zd, dstBuffer+totalGenSize, &dstBuffSize, cBuffer+totalCSize, &readCSrcSize);
-            CHECK (ZBUFF_isError(decompressError), "decompression error : %s", ZBUFF_getErrorName(decompressError));
+            errorCode = ZBUFF_decompressContinue(zd, dstBuffer+totalGenSize, &dstBuffSize, cBuffer+totalCSize, &readCSrcSize);
+            CHECK (ZBUFF_isError(errorCode), "decompression error : %s", ZBUFF_getErrorName(errorCode));
             totalGenSize += dstBuffSize;
             totalCSize += readCSrcSize;
-            errorCode = decompressError;   /* needed for != 0 last test */
         }
         CHECK (errorCode != 0, "frame not fully decoded");
         CHECK (totalGenSize != totalTestSize, "decompressed data : wrong size")

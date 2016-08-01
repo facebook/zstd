@@ -441,8 +441,8 @@ int main(int argCount, const char** argv)
     if (recursive) {
         fileNamesTable = UTIL_createFileList(filenameTable, filenameIdx, &fileNamesBuf, &fileNamesNb);
         if (fileNamesTable) {
-            unsigned i;
-            for (i=0; i<fileNamesNb; i++) DISPLAYLEVEL(4, "%d %s\n", i, fileNamesTable[i]);
+            unsigned u;
+            for (u=0; u<fileNamesNb; u++) DISPLAYLEVEL(4, "%d %s\n", u, fileNamesTable[u]);
             free((void*)filenameTable);
             filenameTable = fileNamesTable;
             filenameIdx = fileNamesNb;

@@ -67,9 +67,10 @@
 #define ZSTD_OPT_NUM    (1<<12)
 #define ZSTD_DICT_MAGIC  0xEC30A437   /* v0.7+ */
 
-#define ZSTD_REP_NUM    3                 /* number of repcodes */
-#define ZSTD_REP_CHECK  (ZSTD_REP_NUM-0)  /* number of repcodes to check by the optimal parser */
-#define ZSTD_REP_MOVE   (ZSTD_REP_NUM-1)
+#define ZSTD_REP_NUM      3                 /* number of repcodes */
+#define ZSTD_REP_CHECK    (ZSTD_REP_NUM)    /* number of repcodes to check by the optimal parser */
+#define ZSTD_REP_MOVE     (ZSTD_REP_NUM-1)
+#define ZSTD_REP_MOVE_OPT (ZSTD_REP_NUM-1)
 static const U32 repStartValue[ZSTD_REP_NUM] = { 1, 4, 8 };
 
 #define KB *(1 <<10)

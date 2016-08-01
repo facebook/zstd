@@ -27,7 +27,8 @@ install:
       SET "CLANG_PARAMS=-C programs zstd fullbench fuzzer zbufftest paramgrill datagen CC=clang MOREFLAGS="--target=x86_64-w64-mingw32 -Werror -Wconversion -Wno-sign-conversion"" &&
       SET "PATH_MINGW32=c:\MinGW\bin;c:\MinGW\usr\bin" &&
       SET "PATH_MINGW64=c:\msys64\mingw64\bin;c:\msys64\usr\bin" &&
-      COPY C:\MinGW\bin\mingw32-make.exe C:\MinGW\bin\make.exe
+      COPY C:\MinGW\bin\mingw32-make.exe C:\MinGW\bin\make.exe &&
+      COPY C:\MinGW\bin\gcc.exe C:\MinGW\bin\cc.exe
     ) else (
       IF [%PLATFORM%]==[x64] (SET ADDITIONALPARAM=/p:LibraryPath="C:\Program Files\Microsoft SDKs\Windows\v7.1\lib\x64;c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\lib\amd64;C:\Program Files (x86)\Microsoft Visual Studio 10.0\;C:\Program Files (x86)\Microsoft Visual Studio 10.0\lib\amd64;")
     )
@@ -50,6 +51,8 @@ build_script:
       ECHO *** &&
       ECHO *** Building %PLATFORM% &&
       ECHO *** &&
+      make -v &&
+      cc -v &&
       ECHO make %MAKE_PARAMS% &&
       make %MAKE_PARAMS% &&
       make clean

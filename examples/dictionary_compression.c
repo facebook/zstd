@@ -163,6 +163,6 @@ int main(int argc, const char** argv)
         free(outFilename);
     }
 
-    free(dictPtr);
+    ZSTD_freeCDict(dictPtr);
     printf("All %u files compressed. \n", argc-2);
 }

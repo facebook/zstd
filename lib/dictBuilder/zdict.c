@@ -879,7 +879,7 @@ size_t ZDICT_trainFromBuffer_unsafe(
     U32 const dictListSize = MAX(MAX(DICTLISTSIZE, nbSamples), (U32)(maxDictSize/16));
     dictItem* const dictList = (dictItem*)malloc(dictListSize * sizeof(*dictList));
     unsigned const selectivity = params.selectivityLevel == 0 ? g_selectivity_default : params.selectivityLevel;
-    unsigned const minRep = (selectivity > 30) ? 1 : nbSamples >> selectivity;
+    unsigned const minRep = (selectivity > 30) ? MINRATIO : nbSamples >> selectivity;
     size_t const targetDictSize = maxDictSize;
     size_t const samplesBuffSize = ZDICT_totalSampleSize(samplesSizes, nbSamples);
     size_t dictSize = 0;

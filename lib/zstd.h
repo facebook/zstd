@@ -79,20 +79,28 @@ ZSTDLIB_API size_t ZSTD_compress( void* dst, size_t dstCapacity,
                                   int compressionLevel);
 
 /*! ZSTD_getDecompressedSize() :
-*   @return : decompressed size if known, 0 otherwise.
-*      note 1 : decompressed size could be wrong or intentionally modified !
-*               Always ensure result fits within application's authorized limits !
-*               Each application can set its own limit, depending on local restrictions.
-*               For extended interoperability, it is recommended to support at least 8 MB.
-*      note 2 : when `0`, if precise failure cause is needed, use ZSTD_getFrameParams() to know more.
-*      note 3 : when `0`, and if no external guarantee about maximum possible decompressed size,
-*               it's necessary to use "streaming mode" to decompress data. */
+*   @return : decompressed size as a 64-bits value _if known_, 0 otherwise.
+*    note 1 : decompressed size can be very large (64-bits value),
+*             potentially larger than what local system can handle as a single memory segment.
+*             In which case, it's necessary to use streaming mode to decompress data.
+*    note 2 : decompressed size is an optional field, that may not be present.
+*             When `return==0`, consider data to decompress could have any size.
+*             In which case, it's necessary to use streaming mode to decompress data,
+*             or rely on application's implied limits.
+*             (For example, it may know that its own data is necessarily cut into blocks <= 16 KB).
+*    note 3 : decompressed size could be wrong or intentionally modified !
+*             Always ensure result fits within application's authorized limits !
+*             Each application can have its own set of conditions.
+*             If the intention is to decompress public data compressed by zstd command line utility,
+*             it is recommended to support at least 8 MB for extended compatibility.
+*    note 4 : when `return==0`, if precise failure cause is needed, use ZSTD_getFrameParams() to know more. */
 unsigned long long ZSTD_getDecompressedSize(const void* src, size_t srcSize);
 
 /*! ZSTD_decompress() :
     `compressedSize` : must be the _exact_ size of compressed input, otherwise decompression will fail.
     `dstCapacity` must be equal or larger than originalSize (see ZSTD_getDecompressedSize() ).
-    If maximum possible content size is unknown, use streaming mode to decompress data.
+    If originalSize is unknown, and if there is no implied application-specific limitations,
+    it's necessary to use streaming mode to decompress data.
     @return : the number of bytes decompressed into `dst` (<= `dstCapacity`),
               or an errorCode if it fails (which can be tested using ZSTD_isError()) */
 ZSTDLIB_API size_t ZSTD_decompress( void* dst, size_t dstCapacity,

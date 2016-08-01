@@ -31,41 +31,41 @@
 #include <zstd.h>      // presumes zstd library is installed
 
 
-static off_t fsize_X(const char *filename)
+static off_t fsize_orDie(const char *filename)
 {
     struct stat st;
     if (stat(filename, &st) == 0) return st.st_size;
     /* error */
-    printf("stat: %s : %s \n", filename, strerror(errno));
+    perror(filename);
     exit(1);
 }
 
-static FILE* fopen_X(const char *filename, const char *instruction)
+static FILE* fopen_orDie(const char *filename, const char *instruction)
 {
     FILE* const inFile = fopen(filename, instruction);
     if (inFile) return inFile;
     /* error */
-    printf("fopen: %s : %s \n", filename, strerror(errno));
+    perror(filename);
     exit(2);
 }
 
-static void* malloc_X(size_t size)
+static void* malloc_orDie(size_t size)
 {
     void* const buff = malloc(size);
     if (buff) return buff;
     /* error */
-    printf("malloc: %s \n", strerror(errno));
+    perror("malloc");
     exit(3);
 }
 
-static void* loadFile_X(const char* fileName, size_t* size)
+static void* loadFile_orDie(const char* fileName, size_t* size)
 {
-    off_t const buffSize = fsize_X(fileName);
-    FILE* const inFile = fopen_X(fileName, "rb");
-    void* const buffer = malloc_X(buffSize);
+    off_t const buffSize = fsize_orDie(fileName);
+    FILE* const inFile = fopen_orDie(fileName, "rb");
+    void* const buffer = malloc_orDie(buffSize);
     size_t const readSize = fread(buffer, 1, buffSize, inFile);
     if (readSize != (size_t)buffSize) {
-        printf("fread: %s : %s \n", fileName, strerror(errno));
+        fprintf(stderr, "fread: %s : %s \n", fileName, strerror(errno));
         exit(4);
     }
     fclose(inFile);
@@ -75,12 +75,13 @@ static void* loadFile_X(const char* fileName, size_t* size)
 
 /* createDict() :
    `dictFileName` is supposed to have been created using `zstd --train` */
-static const ZSTD_DDict* createDict(const char* dictFileName)
+static ZSTD_DDict* createDict_orDie(const char* dictFileName)
 {
     size_t dictSize;
     printf("loading dictionary %s \n", dictFileName);
-    void* const dictBuffer = loadFile_X(dictFileName, &dictSize);
-    const ZSTD_DDict* const ddict = ZSTD_createDDict(dictBuffer, dictSize);
+    void* const dictBuffer = loadFile_orDie(dictFileName, &dictSize);
+    ZSTD_DDict* const ddict = ZSTD_createDDict(dictBuffer, dictSize);
+    if (ddict==NULL) { fprintf(stderr, "ZSTD_createDDict error \n"); exit(5); }
     free(dictBuffer);
     return ddict;
 }
@@ -89,19 +90,19 @@ static const ZSTD_DDict* createDict(const char* dictFileName)
 static void decompress(const char* fname, const ZSTD_DDict* ddict)
 {
     size_t cSize;
-    void* const cBuff = loadFile_X(fname, &cSize);
+    void* const cBuff = loadFile_orDie(fname, &cSize);
     unsigned long long const rSize = ZSTD_getDecompressedSize(cBuff, cSize);
     if (rSize==0) {
-        printf("%s : original size unknown \n", fname);
-        exit(5);
+        fprintf(stderr, "%s : original size unknown \n", fname);
+        exit(6);
     }
-    void* const rBuff = malloc_X(rSize);
+    void* const rBuff = malloc_orDie(rSize);
 
     ZSTD_DCtx* const dctx = ZSTD_createDCtx();
     size_t const dSize = ZSTD_decompress_usingDDict(dctx, rBuff, rSize, cBuff, cSize, ddict);
 
     if (dSize != rSize) {
-        printf("error decoding %s : %s \n", fname, ZSTD_getErrorName(dSize));
+        fprintf(stderr, "error decoding %s : %s \n", fname, ZSTD_getErrorName(dSize));
         exit(7);
     }
 
@@ -127,10 +128,11 @@ int main(int argc, const char** argv)
 
     /* load dictionary only once */
     const char* const dictName = argv[argc-1];
-    const ZSTD_DDict* const dictPtr = createDict(dictName);
+    ZSTD_DDict* const dictPtr = createDict_orDie(dictName);
 
     int u;
     for (u=1; u<argc-1; u++) decompress(argv[u], dictPtr);
 
+    ZSTD_freeDDict(dictPtr);
     printf("All %u files correctly decoded (in memory) \n", argc-2);
 }

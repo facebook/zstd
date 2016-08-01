@@ -365,13 +365,10 @@ UTIL_STATIC const char** UTIL_createFileList(const char **inputNames, unsigned i
                 pos += len + 1;
                 nbFiles++;
             }
-        }
-        else
-        {
+        } else {
             nbFiles += UTIL_prepareFileList(inputNames[i], &buf, &pos, &bufend);
             if (buf == NULL) return NULL;
-        }
-    }
+    }   }
 
     if (nbFiles == 0) { free(buf); return NULL; }
 

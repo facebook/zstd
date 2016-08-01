@@ -44,7 +44,7 @@ VERSION?= $(LIBVER)
 
 DESTDIR?=
 PREFIX ?= /usr/local
-CPPFLAGS= -I../lib/common -DZSTD_VERSION=\"$(VERSION)\" -DXXH_NAMESPACE=ZSTD_
+CPPFLAGS= -I../lib/common -DZSTD_VERSION=\"$(VERSION)\"
 CFLAGS ?= -O3  # -falign-loops=32   # not always beneficial
 CFLAGS += -std=c99 -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow -Wstrict-aliasing=1 -Wswitch-enum -Wstrict-prototypes -Wundef
 FLAGS   = $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) $(MOREFLAGS)
@@ -90,11 +90,11 @@ default: zstd
 all: zstd fullbench fuzzer zbufftest paramgrill datagen zstd32 fullbench32 fuzzer32 zbufftest32
 
 zstd  : $(ZSTD_FILES) $(ZSTD_FILES_LEGACY) $(ZBUFF_FILES) $(ZDICT_FILES) \
-        zstdcli.c fileio.c bench.c $(ZSTDDIR)/common/xxhash.c datagen.c dibio.c
+        zstdcli.c fileio.c bench.c xxhash.c datagen.c dibio.c
 	$(CC)      $(FLAGS) -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT) $^ -o $@$(EXT)
 
 zstd32: $(ZSTD_FILES) $(ZSTD_FILES_LEGACY) $(ZBUFF_FILES) $(ZDICT_FILES) \
-        zstdcli.c fileio.c bench.c $(ZSTDDIR)/common/xxhash.c datagen.c dibio.c 
+        zstdcli.c fileio.c bench.c xxhash.c datagen.c dibio.c 
 	$(CC) -m32 $(FLAGS) -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT) $^ -o $@$(EXT)
 
 zstd_nolegacy :
@@ -130,23 +130,23 @@ fullbench32: $(ZSTD_FILES) $(ZBUFF_FILES) datagen.c fullbench.c
 	$(CC) -m32 $(FLAGS) $^ -o $@$(EXT)
 
 fuzzer  : $(ZSTD_FILES) \
-      datagen.c $(ZSTDDIR)/common/xxhash.c fuzzer.c
+      datagen.c xxhash.c fuzzer.c
 	$(CC)      $(FLAGS) $^ -o $@$(EXT)
 
 fuzzer32: $(ZSTD_FILES) \
-      datagen.c $(ZSTDDIR)/common/xxhash.c fuzzer.c
+      datagen.c xxhash.c fuzzer.c
 	$(CC) -m32 $(FLAGS) $^ -o $@$(EXT)
 
 zbufftest  : $(ZSTD_FILES) $(ZBUFF_FILES) \
-      datagen.c $(ZSTDDIR)/common/xxhash.c zbufftest.c
+      datagen.c xxhash.c zbufftest.c
 	$(CC)      $(FLAGS) $^ -o $@$(EXT)
 
 zbufftest32: $(ZSTD_FILES) $(ZBUFF_FILES) \
-      datagen.c $(ZSTDDIR)/common/xxhash.c zbufftest.c
+      datagen.c xxhash.c zbufftest.c
 	$(CC) -m32 $(FLAGS) $^ -o $@$(EXT)
 
 paramgrill : $(ZSTD_FILES) \
-      datagen.c $(ZSTDDIR)/common/xxhash.c paramgrill.c
+      datagen.c xxhash.c paramgrill.c
 	$(CC)      $(FLAGS) $^ -lm -o $@$(EXT)
 
 datagen : datagen.c datagencli.c

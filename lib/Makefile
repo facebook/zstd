@@ -55,7 +55,7 @@ ZSTDCOMP_FILES := compress/zstd_compress.c compress/fse_compress.c compress/huf_
 ZSTDDECOMP_FILES := decompress/zstd_decompress.c common/fse_decompress.c decompress/huf_decompress.c decompress/zbuff_decompress.c
 ZSTDDICT_FILES := dictBuilder/zdict.c dictBuilder/divsufsort.c
 ZSTD_FILES := $(ZSTDDECOMP_FILES) common/entropy_common.c common/zstd_common.c common/xxhash.c $(ZSTDCOMP_FILES) $(ZSTDDICT_FILES)
-ZSTD_LEGACY:= legacy/zstd_v01.c legacy/zstd_v02.c legacy/zstd_v03.c legacy/zstd_v04.c legacy/zstd_v05.c
+ZSTD_LEGACY:= legacy/zstd_v01.c legacy/zstd_v02.c legacy/zstd_v03.c legacy/zstd_v04.c legacy/zstd_v05.c legacy/zstd_v07.c legacy/zstd_v08.c
 
 ifeq ($(ZSTD_LEGACY_SUPPORT), 0)
 CPPFLAGS  += -DZSTD_LEGACY_SUPPORT=0

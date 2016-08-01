@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
@@ -36,6 +36,8 @@
     <ClCompile Include="..\..\..\lib\legacy\zstd_v03.c" />
     <ClCompile Include="..\..\..\lib\legacy\zstd_v04.c" />
     <ClCompile Include="..\..\..\lib\legacy\zstd_v05.c" />
+    <ClCompile Include="..\..\..\lib\legacy\zstd_v07.c" />
+    <ClCompile Include="..\..\..\lib\legacy\zstd_v08.c" />
     <ClCompile Include="..\..\..\programs\bench.c" />
     <ClCompile Include="..\..\..\programs\datagen.c" />
     <ClCompile Include="..\..\..\programs\dibio.c" />
@@ -64,6 +66,8 @@
     <ClInclude Include="..\..\..\lib\legacy\zstd_v03.h" />
     <ClInclude Include="..\..\..\lib\legacy\zstd_v04.h" />
     <ClInclude Include="..\..\..\lib\legacy\zstd_v05.h" />
+    <ClInclude Include="..\..\..\lib\legacy\zstd_v07.h" />
+    <ClInclude Include="..\..\..\lib\legacy\zstd_v08.h" />
     <ClInclude Include="..\..\..\programs\bench.h" />
     <ClInclude Include="..\..\..\programs\datagen.h" />
     <ClInclude Include="..\..\..\programs\dibio.h" />

@@ -48,6 +48,7 @@ extern "C" {
 #include "zstd_v04.h"
 #include "zstd_v05.h"
 #include "zstd_v06.h"
+#include "zstd_v08.h"
 
 
 /** ZSTD_isLegacy() :
@@ -67,6 +68,7 @@ MEM_STATIC unsigned ZSTD_isLegacy(const void* src, size_t srcSize)
         case ZSTDv04_magicNumber : return 4;
         case ZSTDv05_MAGICNUMBER : return 5;
         case ZSTDv06_MAGICNUMBER : return 6;
+        case ZSTDv08_MAGICNUMBER : return 8;
         default : return 0;
     }
 }
@@ -87,6 +89,12 @@ MEM_STATIC unsigned long long ZSTD_getDecompressedSize_legacy(const void* src, s
         if (version==6) {
             ZSTDv06_frameParams fParams;
             size_t const frResult = ZSTDv06_getFrameParams(&fParams, src, srcSize);
+            if (frResult != 0) return 0;
+            return fParams.frameContentSize;
+        }
+        if (version==8) {
+            ZSTDv08_frameParams fParams;
+            size_t const frResult = ZSTDv08_getFrameParams(&fParams, src, srcSize);
             if (frResult != 0) return 0;
             return fParams.frameContentSize;
         }
@@ -124,6 +132,14 @@ MEM_STATIC size_t ZSTD_decompressLegacy(
                 if (zd==NULL) return ERROR(memory_allocation);
                 result = ZSTDv06_decompress_usingDict(zd, dst, dstCapacity, src, compressedSize, dict, dictSize);
                 ZSTDv06_freeDCtx(zd);
+                return result;
+            }
+        case 8 :
+            {   size_t result;
+                ZSTDv08_DCtx* const zd = ZSTDv08_createDCtx();
+                if (zd==NULL) return ERROR(memory_allocation);
+                result = ZSTDv08_decompress_usingDict(zd, dst, dstCapacity, src, compressedSize, dict, dictSize);
+                ZSTDv08_freeDCtx(zd);
                 return result;
             }
         default :

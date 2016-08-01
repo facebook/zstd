@@ -748,12 +748,13 @@ void ZSTD_compressBlock_opt_extDict_generic(ZSTD_CCtx* ctx,
         opt[0].litlen = (U32)(ip - anchor);
 
         /* check repCode */
-        {   U32 i;
-            for (i = (ip==anchor); i<ZSTD_REP_CHECK; i++) {
-                const U32 repIndex = (U32)(current - rep[i]);
+        {   U32 i, last_i = ZSTD_REP_CHECK + (ip==anchor);
+            for (i = (ip==anchor); i<last_i; i++) {
+                const S32 repCur = ((i==ZSTD_REP_MOVE_OPT) && (ip==anchor)) ? (rep[0] - 1) : rep[i];
+                const U32 repIndex = (U32)(current - repCur);
                 const BYTE* const repBase = repIndex < dictLimit ? dictBase : base;
                 const BYTE* const repMatch = repBase + repIndex;
-                if ( (rep[i] <= current)
+                if ( (repCur > 0 && repCur <= (S32)current)
                    && (((U32)((dictLimit-1) - repIndex) >= 3) & (repIndex>lowestIndex))  /* intentional overflow */
                    && (MEM_readMINMATCH(ip, minMatch) == MEM_readMINMATCH(repMatch, minMatch)) ) {
                     /* repcode detected we should take it */
@@ -844,20 +845,20 @@ void ZSTD_compressBlock_opt_extDict_generic(ZSTD_CCtx* ctx,
             } else {
                 opt[cur].rep[2] = (opt[cur].off > 1) ? opt[cur-mlen].rep[1] : opt[cur-mlen].rep[2];
                 opt[cur].rep[1] = (opt[cur].off > 0) ? opt[cur-mlen].rep[0] : opt[cur-mlen].rep[1];
-                opt[cur].rep[0] = ((opt[cur].off==3) && (mlen != 1)) ? (opt[cur-mlen].rep[0] - 1) : (opt[cur-mlen].rep[opt[cur].off]);
+                opt[cur].rep[0] = ((opt[cur].off==ZSTD_REP_MOVE_OPT) && (mlen != 1)) ? (opt[cur-mlen].rep[0] - 1) : (opt[cur-mlen].rep[opt[cur].off]);
                 ZSTD_LOG_ENCODE("%d: COPYREP_NOR cur=%d mlen=%d rep[0]=%d rep[1]=%d\n", (int)(inr-base), cur, mlen, opt[cur].rep[0], opt[cur].rep[1]);
             }
 
             ZSTD_LOG_PARSER("%d: CURRENT_Ext price[%d/%d]=%d off=%d mlen=%d litlen=%d rep[0]=%d rep[1]=%d\n", (int)(inr-base), cur, last_pos, opt[cur].price, opt[cur].off, opt[cur].mlen, opt[cur].litlen, opt[cur].rep[0], opt[cur].rep[1]);
             best_mlen = 0;
 
-            {   U32 i, last_i = ZSTD_REP_CHECK; //+(mlen != 1);
+            {   U32 i, last_i = ZSTD_REP_CHECK + (mlen != 1);
                 for (i = (mlen != 1); i<last_i; i++) {
-                    const U32 repCur = ((i==3) && (opt[cur].mlen != 1)) ? (opt[cur].rep[0]-1) : (opt[cur].rep[i]);
+                    const S32 repCur = ((i==ZSTD_REP_MOVE_OPT) && (opt[cur].mlen != 1)) ? (opt[cur].rep[0] - 1) : opt[cur].rep[i];
                     const U32 repIndex = (U32)(current+cur - repCur);
                     const BYTE* const repBase = repIndex < dictLimit ? dictBase : base;
                     const BYTE* const repMatch = repBase + repIndex;
-                    if ( (repCur > 0 && repCur <= current+cur)
+                    if ( (repCur > 0 && repCur <= (S32)(current+cur))
                       && (((U32)((dictLimit-1) - repIndex) >= 3) & (repIndex>lowestIndex))  /* intentional overflow */
                       && (MEM_readMINMATCH(inr, minMatch) == MEM_readMINMATCH(repMatch, minMatch)) ) {
                         /* repcode detected */
@@ -974,7 +975,7 @@ _storeSequence:   /* cur, last_pos, best_mlen, best_off have to be set */
                 offset--;
             } else {
                 if (offset != 0) {
-                    best_off = ((offset==3) && (litLength==0)) ? (rep[0] - 1) : (rep[offset]);
+                    best_off = ((offset==ZSTD_REP_MOVE_OPT) && (litLength==0)) ? (rep[0] - 1) : (rep[offset]);
                     if (offset != 1) rep[2] = rep[1];
                     rep[1] = rep[0];
                     rep[0] = best_off;

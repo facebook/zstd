@@ -90,7 +90,7 @@
 
 static const char*    g_defaultDictName = "dictionary";
 static const unsigned g_defaultMaxDictSize = 110 KB;
-static const unsigned g_defaultDictCLevel = 5;
+static const int      g_defaultDictCLevel = 5;
 static const unsigned g_defaultSelectivityLevel = 9;
 
 
@@ -206,6 +206,7 @@ int main(int argCount, const char** argv)
     int argNb,
         bench=0,
         decode=0,
+        testmode=0,
         forceStdout=0,
         main_pause=0,
         nextEntryIsDictionary=0,
@@ -215,8 +216,8 @@ int main(int argCount, const char** argv)
         nextArgumentIsMaxDict=0,
         nextArgumentIsDictID=0,
         nextArgumentIsFile=0;
-    unsigned cLevel = ZSTDCLI_CLEVEL_DEFAULT;
-    unsigned cLevelLast = 1;
+    int cLevel = ZSTDCLI_CLEVEL_DEFAULT;
+    int cLevelLast = 1;
     unsigned recursive = 0;
     const char** filenameTable = (const char**)malloc(argCount * sizeof(const char*));   /* argCount >= 1 */
     unsigned filenameIdx = 0;
@@ -226,7 +227,7 @@ int main(int argCount, const char** argv)
     char* dynNameSpace = NULL;
     unsigned maxDictSize = g_defaultMaxDictSize;
     unsigned dictID = 0;
-    unsigned dictCLevel = g_defaultDictCLevel;
+    int dictCLevel = g_defaultDictCLevel;
     unsigned dictSelect = g_defaultSelectivityLevel;
 #ifdef UTIL_HAS_CREATEFILELIST
     const char** fileNamesTable = NULL;
@@ -273,7 +274,7 @@ int main(int argCount, const char** argv)
             if (!strcmp(argument, "--no-dictID")) { FIO_setDictIDFlag(0); continue; }
             if (!strcmp(argument, "--sparse")) { FIO_setSparseWrite(2); continue; }
             if (!strcmp(argument, "--no-sparse")) { FIO_setSparseWrite(0); continue; }
-            if (!strcmp(argument, "--test")) { decode=1; outFileName=nulmark; FIO_overwriteMode(); continue; }
+            if (!strcmp(argument, "--test")) { testmode=1; decode=1; continue; }
             if (!strcmp(argument, "--train")) { dictBuild=1; outFileName=g_defaultDictName; continue; }
             if (!strcmp(argument, "--maxdict")) { nextArgumentIsMaxDict=1; continue; }
             if (!strcmp(argument, "--dictID")) { nextArgumentIsDictID=1; continue; }
@@ -337,7 +338,7 @@ int main(int argCount, const char** argv)
                     case 'C': argument++; FIO_setChecksumFlag(2); break;
 
                         /* test compressed file */
-                    case 't': decode=1; outFileName=nulmark; argument++; break;
+                    case 't': testmode=1; decode=1; argument++; break;
 
                         /* destination file name */
                     case 'o': nextArgumentIsOutFileName=1; argument++; break;
@@ -503,6 +504,7 @@ int main(int argCount, const char** argv)
 #endif
     {  /* decompression */
 #ifndef ZSTD_NODECOMPRESS
+        if (testmode) { outFileName=nulmark; FIO_setRemoveSrcFile(0); } /* test mode */
         if (filenameIdx==1 && outFileName)
             operationResult = FIO_decompressFilename(outFileName, filenameTable[0], dictFileName);
         else

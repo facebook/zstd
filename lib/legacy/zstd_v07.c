@@ -4060,7 +4060,7 @@ static seq_t ZSTDv07_decodeSequence(seqState_t* seqState)
 }
 
 
-FORCE_INLINE
+static
 size_t ZSTDv07_execSequence(BYTE* op,
                                 BYTE* const oend, seq_t sequence,
                                 const BYTE** litPtr, const BYTE* const litLimit_w,

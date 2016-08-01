@@ -65,7 +65,7 @@
 #endif
 
 #define ZSTD_OPT_NUM    (1<<12)
-#define ZSTD_DICT_MAGIC  0xEC30A437   /* v0.7 */
+#define ZSTD_DICT_MAGIC  0xEC30A437   /* v0.7+ */
 
 #define ZSTD_REP_NUM    3                 /* number of repcodes */
 #define ZSTD_REP_CHECK  (ZSTD_REP_NUM-0)  /* number of repcodes to check by the optimal parser */
@@ -89,7 +89,7 @@ static const size_t ZSTD_did_fieldSize[4] = { 0, 1, 2, 4 };
 
 #define ZSTD_BLOCKHEADERSIZE 3   /* C standard doesn't allow `static const` variable to be init using another `static const` variable */
 static const size_t ZSTD_blockHeaderSize = ZSTD_BLOCKHEADERSIZE;
-typedef enum { bt_raw, bt_rle, bt_compressed, bt_end } blockType_e;
+typedef enum { bt_raw, bt_rle, bt_compressed, bt_reserved } blockType_e;
 
 #define MIN_SEQUENCES_SIZE 1 /* nbSeq==0 */
 #define MIN_CBLOCK_SIZE (1 /*litCSize*/ + 1 /* RLE or RAW */ + MIN_SEQUENCES_SIZE /* nbSeq==0 */)   /* for a non-null block */
@@ -183,19 +183,22 @@ typedef struct {
     MEM_STATIC void ZSTD_statsUpdatePrices(ZSTD_stats_t* stats, size_t litLength, const BYTE* literals, size_t offset, size_t matchLength) { (void)stats; (void)litLength; (void)literals; (void)offset; (void)matchLength; }
 #endif   /* #if ZSTD_OPT_DEBUG == 3 */
 
+
+typedef struct seqDef_s {
+    U32 offset;
+    U16 litLength;
+    U16 matchLength;
+} seqDef;
+
+
 typedef struct {
-    void* buffer;
-    U32*  offsetStart;
-    U32*  offset;
-    BYTE* offCodeStart;
+    seqDef* sequencesStart;
+    seqDef* sequences;
     BYTE* litStart;
     BYTE* lit;
-    U16*  litLengthStart;
-    U16*  litLength;
-    BYTE* llCodeStart;
-    U16*  matchLengthStart;
-    U16*  matchLength;
-    BYTE* mlCodeStart;
+    BYTE* llCode;
+    BYTE* mlCode;
+    BYTE* ofCode;
     U32   longLengthID;   /* 0 == no longLength; 1 == Lit.longLength; 2 == Match.longLength; */
     U32   longLengthPos;
     /* opt */
@@ -223,12 +226,37 @@ typedef struct {
 } seqStore_t;
 
 const seqStore_t* ZSTD_getSeqStore(const ZSTD_CCtx* ctx);
-void ZSTD_seqToCodes(const seqStore_t* seqStorePtr, size_t const nbSeq);
+void ZSTD_seqToCodes(const seqStore_t* seqStorePtr);
 int ZSTD_isSkipFrame(ZSTD_DCtx* dctx);
 
 /* custom memory allocation functions */
 void* ZSTD_defaultAllocFunction(void* opaque, size_t size);
 void ZSTD_defaultFreeFunction(void* opaque, void* address);
 static const ZSTD_customMem defaultCustomMem = { ZSTD_defaultAllocFunction, ZSTD_defaultFreeFunction, NULL };
+
+/*======  common function  ======*/
+
+MEM_STATIC U32 ZSTD_highbit32(U32 val)
+{
+#   if defined(_MSC_VER)   /* Visual */
+    unsigned long r=0;
+    _BitScanReverse(&r, val);
+    return (unsigned)r;
+#   elif defined(__GNUC__) && (__GNUC__ >= 3)   /* GCC Intrinsic */
+    return 31 - __builtin_clz(val);
+#   else   /* Software version */
+    static const int DeBruijnClz[32] = { 0, 9, 1, 10, 13, 21, 2, 29, 11, 14, 16, 18, 22, 25, 3, 30, 8, 12, 20, 28, 15, 17, 24, 7, 19, 27, 23, 6, 26, 5, 4, 31 };
+    U32 v = val;
+    int r;
+    v |= v >> 1;
+    v |= v >> 2;
+    v |= v >> 4;
+    v |= v >> 8;
+    v |= v >> 16;
+    r = DeBruijnClz[(U32)(v * 0x07C4ACDDU) >> 27];
+    return r;
+#   endif
+}
+
 
 #endif   /* ZSTD_CCOMMON_H_MODULE */

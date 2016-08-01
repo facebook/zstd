@@ -145,8 +145,8 @@ static int basicUnitTests(U32 seed, double compressibility)
     DISPLAYLEVEL(4, "OK \n");
 
     DISPLAYLEVEL(4, "test%3i : decompress %u bytes : ", testNb++, (U32)CNBuffSize);
-    CHECKPLUS( r , ZSTD_decompress(decodedBuffer, CNBuffSize, compressedBuffer, cSize),
-               if (r != CNBuffSize) goto _output_error);
+    { size_t const r = ZSTD_decompress(decodedBuffer, CNBuffSize, compressedBuffer, cSize);
+      if (r != CNBuffSize) goto _output_error; }
     DISPLAYLEVEL(4, "OK \n");
 
     DISPLAYLEVEL(4, "test%3i : check decompressed result : ", testNb++);
@@ -186,10 +186,8 @@ static int basicUnitTests(U32 seed, double compressibility)
 
         DISPLAYLEVEL(4, "test%3i : compress with flat dictionary : ", testNb++);
         cSize = 0;
-        CHECKPLUS(r, ZSTD_compressContinue(ctxOrig, compressedBuffer, ZSTD_compressBound(CNBuffSize),
+        CHECKPLUS(r, ZSTD_compressEnd(ctxOrig, compressedBuffer, ZSTD_compressBound(CNBuffSize),
                                            (const char*)CNBuffer + dictSize, CNBuffSize - dictSize),
-                  cSize += r);
-        CHECKPLUS(r, ZSTD_compressEnd(ctxOrig, (char*)compressedBuffer+cSize, ZSTD_compressBound(CNBuffSize)-cSize),
                   cSize += r);
         DISPLAYLEVEL(4, "OK (%u bytes : %.2f%%)\n", (U32)cSize, (double)cSize/CNBuffSize*100);
 
@@ -204,10 +202,8 @@ static int basicUnitTests(U32 seed, double compressibility)
         DISPLAYLEVEL(4, "test%3i : compress with duplicated context : ", testNb++);
         {   size_t const cSizeOrig = cSize;
             cSize = 0;
-            CHECKPLUS(r, ZSTD_compressContinue(ctxDuplicated, compressedBuffer, ZSTD_compressBound(CNBuffSize),
+            CHECKPLUS(r, ZSTD_compressEnd(ctxDuplicated, compressedBuffer, ZSTD_compressBound(CNBuffSize),
                                                (const char*)CNBuffer + dictSize, CNBuffSize - dictSize),
-                      cSize += r);
-            CHECKPLUS(r, ZSTD_compressEnd(ctxDuplicated, (char*)compressedBuffer+cSize, ZSTD_compressBound(CNBuffSize)-cSize),
                       cSize += r);
             if (cSize != cSizeOrig) goto _output_error;   /* should be identical ==> same size */
         }
@@ -696,7 +692,7 @@ static int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, U32 const maxD
                 totalTestSize += segmentSize;
         }   }
 
-        {   size_t const flushResult = ZSTD_compressEnd(ctx, cBuffer+cSize, cBufferSize-cSize);
+        {   size_t const flushResult = ZSTD_compressEnd(ctx, cBuffer+cSize, cBufferSize-cSize, NULL, 0);
             CHECK (ZSTD_isError(flushResult), "multi-segments epilogue error : %s", ZSTD_getErrorName(flushResult));
             cSize += flushResult;
         }

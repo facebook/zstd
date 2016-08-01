@@ -1,7 +1,12 @@
 v0.8.0
-Fixed : premature end of frame when zero-sized raw block, reported by Eric Biggers
+Improved : better speed on clang and gcc -O2, thanks to Eric Biggers
+New : Build on FreeBSD and DragonFly, thanks to JrMarino
+Changed : modified API : ZSTD_compressEnd()
 Fixed : legacy mode with ZSTD_HEAPMODE=0, by Christopher Bergqvist
+Fixed : premature end of frame when zero-sized raw block, reported by Eric Biggers
+Fixed : large dictionaries (> 384 KB), reported by Ilona Papava
 Fixed : checksum correctly checked in single-pass mode
+Fixed : combined --test amd --rm, reported by Andreas M. Nilsson
 Modified : minor compression level adaptations
 Updated : compression format specification to v0.2.0
 changed : zstd.h moved to /lib directory

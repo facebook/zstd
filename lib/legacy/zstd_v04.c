@@ -4024,7 +4024,7 @@ size_t ZSTDv04_decompress(void* dst, size_t maxDstSize, const void* src, size_t 
     return regenSize;
 #else
     ZSTD_DCtx dctx;
-    return ZSTD_decompressDCtx(&dctx, dst, maxDstSize, src, srcSize);
+    return ZSTDv04_decompressDCtx(&dctx, dst, maxDstSize, src, srcSize);
 #endif
 }
 
@@ -4053,4 +4053,12 @@ size_t ZBUFFv04_decompressWithDictionary(ZBUFFv04_DCtx* dctx, const void* src, s
 size_t ZBUFFv04_decompressContinue(ZBUFFv04_DCtx* dctx, void* dst, size_t* maxDstSizePtr, const void* src, size_t* srcSizePtr)
 {
     return ZBUFF_decompressContinue(dctx, dst, maxDstSizePtr, src, srcSizePtr);
+}
+
+ZSTD_DCtx* ZSTDv04_createDCtx(void) { return ZSTD_createDCtx(); }
+size_t ZSTDv04_freeDCtx(ZSTD_DCtx* dctx) { return ZSTD_freeDCtx(dctx); }
+
+size_t ZSTDv04_getFrameParams(ZSTD_parameters* params, const void* src, size_t srcSize)
+{
+    return ZSTD_getFrameParams(params, src, srcSize);
 }

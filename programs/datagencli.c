@@ -39,7 +39,7 @@
 #define MB *(1 <<20)
 #define GB *(1U<<30)
 
-#define SIZE_DEFAULT (64 KB)
+#define SIZE_DEFAULT ((64 KB) + 1)
 #define SEED_DEFAULT 0
 #define COMPRESSIBILITY_DEFAULT 50
 
@@ -72,15 +72,13 @@ static int usage(const char* programName)
 
 int main(int argc, const char** argv)
 {
-    int argNb;
     double proba = (double)COMPRESSIBILITY_DEFAULT / 100;
     double litProba = 0.0;
     U64 size = SIZE_DEFAULT;
     U32 seed = SEED_DEFAULT;
-    const char* programName;
+    const char* const programName = argv[0];
 
-    /* Check command line */
-    programName = argv[0];
+    int argNb;
     for(argNb=1; argNb<argc; argNb++) {
         const char* argument = argv[argNb];
 

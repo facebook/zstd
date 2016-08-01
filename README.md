@@ -10,7 +10,7 @@ you can consult a list of known ports on [Zstandard homepage](http://www.zstd.ne
 |master      | [![Build Status](https://travis-ci.org/Cyan4973/zstd.svg?branch=master)](https://travis-ci.org/Cyan4973/zstd) |
 |dev         | [![Build Status](https://travis-ci.org/Cyan4973/zstd.svg?branch=dev)](https://travis-ci.org/Cyan4973/zstd) |
 
-As a reference, several fast compression algorithms were tested and compared on a Core i7-3930K CPU @ 4.5GHz, using [lzbench], an open-source in-memory benchmark by @inikep compiled with gcc 5.2.1, with the [Silesia compression corpus].
+As a reference, several fast compression algorithms were tested and compared on a Core i7-3930K CPU @ 4.5GHz, using [lzbench], an open-source in-memory benchmark by @inikep compiled with gcc 5.4.0, with the [Silesia compression corpus].
 
 [lzbench]: https://github.com/inikep/lzbench
 [Silesia compression corpus]: http://sun.aei.polsl.pl/~sdeor/index.php?page=silesia
@@ -19,9 +19,9 @@ As a reference, several fast compression algorithms were tested and compared on 
 |Name             | Ratio | C.speed | D.speed |
 |-----------------|-------|--------:|--------:|
 |                 |       |   MB/s  |  MB/s   |
-|**zstd 0.7.0 -1**|**2.877**|**325**| **930** |
+|**zstd 0.8.0 -1**|**2.877**|**330**| **930** |
 | [zlib] 1.2.8 -1 | 2.730 |    95   |   360   |
-| brotli -0       | 2.708 |   220   |   430   |
+| brotli 0.4 -0   | 2.708 |   320   |   375   |
 | QuickLZ 1.5     | 2.237 |   510   |   605   |
 | LZO 2.09        | 2.106 |   610   |   870   |
 | [LZ4] r131      | 2.101 |   620   |  3100   |
@@ -77,8 +77,8 @@ Hence, deploying one dictionary per type of data will provide the greater benefi
 
 ### Status
 
-Zstd compression format has reached "Final status". It means it is planned to become the official stable zstd format and be tagged `v1.0`. The reason it's not yet tagged `v1.0` is that it currently performs its "validation period", making sure the format holds all its promises and nothing was missed.
-Zstd library also offers legacy decoder support. Any data compressed by any version >= `v0.1` (hence including current one) remains decodable now and in the future.
+Zstd compression format has reached "Final status". It means it is planned to become the official stable zstd format tagged `v1.0`. The reason it's not yet tagged `v1.0` is that it currently performs its "validation period", making sure the format holds all its promises and nothing was missed.
+Zstd library also offers legacy decoder support. Any data compressed by any version >= `v0.1` is decodable now and in the future.
 The library has been validated using strong [fuzzer tests](https://en.wikipedia.org/wiki/Fuzz_testing), including both [internal tools](programs/fuzzer.c) and [external ones](http://lcamtuf.coredump.cx/afl). It's able to withstand hazard situations, including invalid inputs.
 As a consequence, Zstandard is considered safe for, and is currently used in, production environments.
 

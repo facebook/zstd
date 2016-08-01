@@ -1,62 +1,51 @@
 zstd - library files
 ================================
 
-The __lib__ directory contains several files, but depending on target use case, some of them may not be necessary.
-
-#### Minimal library files
-
-To build the zstd library the following files are required:
-
-- [common/bitstream.h](common/bitstream.h)
-- [common/error_private.h](common/error_private.h)
-- [common/error_public.h](common/error_public.h)
-- common/fse.h
-- common/fse_decompress.c
-- common/huf.h
-- [common/mem.h](common/mem.h)
-- [common/zstd.h]
-- common/zstd_internal.h
-- compress/fse_compress.c
-- compress/huf_compress.c
-- compress/zstd_compress.c
-- compress/zstd_opt.h
-- decompress/huf_decompress.c
-- decompress/zstd_decompress.c
-
-Stable API is exposed in [common/zstd.h].
-Advanced and experimental API can be enabled by defining `ZSTD_STATIC_LINKING_ONLY`.
-Never use them with a dynamic library, as their definition may change in future versions.
-
-[common/zstd.h]: common/zstd.h
+The __lib__ directory contains several directories.
+Depending on target use case, it's enough to include only files from relevant directories.
 
 
-#### Separate compressor and decompressor
+#### API
 
-To build a separate zstd compressor all files from `common/` and `compressor/` directories are required.
-In a similar way to build a separate zstd decompressor all files from `common/` and `decompressor/` directories are needed.
-
-
-#### Buffered streaming
-
-This complementary API makes streaming integration easier.
-It is used by `zstd` command line utility, and [7zip plugin](http://mcmilk.de/projects/7-Zip-ZStd) :
-
-- common/zbuff.h
-- compress/zbuff_compress.c
-- decompress/zbuff_decompress.c
+Zstandard's stable API is exposed within [zstd.h](zstd.h),
+at the root of `lib` directory.
 
 
-#### Dictionary builder
+#### Advanced API
 
-In order to create dictionaries from some training sets,
-it's needed to include all files from [dictBuilder directory](dictBuilder/)
+Some additional API may be useful if you're looking into advanced features :
+- common/error_public.h : transforms `size_t` function results into an `enum`,
+                          for precise error handling.
+- ZSTD_STATIC_LINKING_ONLY : if you define this macro _before_ including `zstd.h`,
+                          it will give access to advanced and experimental API.
+                          These APIs shall ___never be used with dynamic library___ !
+                          They are not "stable", their definition may change in the future.
+                          Only static linking is allowed.
 
 
-#### Legacy support
+#### Modular build
 
-Zstandard can decode previous formats, starting from v0.1.
-Support for these format is provided in [folder legacy](legacy/).
-It's also required to compile the library with `ZSTD_LEGACY_SUPPORT = 1`.
+Directory `common/` is required in all circumstances.
+You can select to support compression only, by just adding files from the `compress/` directory,
+In a similar way, you can build a decompressor-only library with the `decompress/` directory.
+
+Other optional functionalities provided are :
+
+- `dictBuilder/`  : source files to create dictionaries.
+                    The API can be consulted in `dictBuilder/zdict.h`.
+                    This module also depends on `common/` and `compress/` .
+
+- `legacy/` : source code to decompress previous versions of zstd, starting from `v0.1`.
+              This module also depends on `common/` and `decompress/` .
+              Note that it's required to compile the library with `ZSTD_LEGACY_SUPPORT = 1` .
+              The main API can be consulted in `legacy/zstd_legacy.h`.
+              Advanced API from each version can be found in its relevant header file.
+              For example, advanced API for version `v0.4` is in `zstd_v04.h` .
+
+
+#### Streaming API
+
+Streaming is currently provided by `common/zbuff.h`.
 
 
 #### Miscellaneous
@@ -64,5 +53,5 @@ It's also required to compile the library with `ZSTD_LEGACY_SUPPORT = 1`.
 The other files are not source code. There are :
 
  - LICENSE : contains the BSD license text
- - Makefile : script to compile or install zstd library (static or dynamic)
- - libzstd.pc.in : for pkg-config (make install)
+ - Makefile : script to compile or install zstd library (static and dynamic)
+ - libzstd.pc.in : for pkg-config (`make install`)

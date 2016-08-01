@@ -56,6 +56,12 @@ extern "C" {
 /* *************************************
 *  Streaming functions
 ***************************************/
+/* This is the easier "buffered" streaming API,
+*  using an internal buffer to lift all restrictions on user-provided buffers
+*  which can be any size, any place, for both input and output.
+*  ZBUFF and ZSTD are 100% interoperable,
+*  frames created by one can be decoded by the other one */
+
 typedef struct ZBUFF_CCtx_s ZBUFF_CCtx;
 ZSTDLIB_API ZBUFF_CCtx* ZBUFF_createCCtx(void);
 ZSTDLIB_API size_t      ZBUFF_freeCCtx(ZBUFF_CCtx* cctx);
@@ -133,8 +139,9 @@ ZSTDLIB_API size_t ZBUFF_decompressContinue(ZBUFF_DCtx* dctx,
 *  The function will report how many bytes were read or written by modifying *srcSizePtr and *dstCapacityPtr.
 *  Note that it may not consume the entire input, in which case it's up to the caller to present remaining input again.
 *  The content of `dst` will be overwritten (up to *dstCapacityPtr) at each function call, so save its content if it matters, or change `dst`.
-*  @return : a hint to preferred nb of bytes to use as input for next function call (it's only a hint, to help latency),
-*            or 0 when a frame is completely decoded,
+*  @return : 0 when a frame is completely decoded and fully flushed,
+*            1 when there is still some data left within internal buffer to flush,
+*            >1 when more data is expected, with value being a suggested next input size (it's just a hint, which helps latency),
 *            or an error code, which can be tested using ZBUFF_isError().
 *
 *  Hint : recommended buffer sizes (not compulsory) : ZBUFF_recommendedDInSize() and ZBUFF_recommendedDOutSize()
@@ -168,11 +175,11 @@ ZSTDLIB_API size_t ZBUFF_recommendedDOutSize(void);
  * ==================================================================================== */
 
 /*--- Dependency ---*/
-#define ZSTD_STATIC_LINKING_ONLY   /* ZSTD_parameters */
+#define ZSTD_STATIC_LINKING_ONLY   /* ZSTD_parameters, ZSTD_customMem */
 #include "zstd.h"
 
 
-/*--- External memory ---*/
+/*--- Custom memory allocator ---*/
 /*! ZBUFF_createCCtx_advanced() :
  *  Create a ZBUFF compression context using external alloc and free functions */
 ZSTDLIB_API ZBUFF_CCtx* ZBUFF_createCCtx_advanced(ZSTD_customMem customMem);
@@ -182,7 +189,7 @@ ZSTDLIB_API ZBUFF_CCtx* ZBUFF_createCCtx_advanced(ZSTD_customMem customMem);
 ZSTDLIB_API ZBUFF_DCtx* ZBUFF_createDCtx_advanced(ZSTD_customMem customMem);
 
 
-/*--- Advanced Streaming function ---*/
+/*--- Advanced Streaming Initialization ---*/
 ZSTDLIB_API size_t ZBUFF_compressInit_advanced(ZBUFF_CCtx* zbc,
                                                const void* dict, size_t dictSize,
                                                ZSTD_parameters params, unsigned long long pledgedSrcSize);

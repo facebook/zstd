@@ -284,6 +284,7 @@ UTIL_STATIC int UTIL_prepareFileList(const char *dirName, char** bufStart, size_
         return 0;
     }
 
+    errno = 0;
     while ((entry = readdir(dir)) != NULL) {
         if (strcmp (entry->d_name, "..") == 0 ||
             strcmp (entry->d_name, ".") == 0) continue;
@@ -310,8 +311,14 @@ UTIL_STATIC int UTIL_prepareFileList(const char *dirName, char** bufStart, size_
             }
          //   printf ("%s/%s nbFiles=%d left=%d\n", dirName, entry->d_name, nbFiles, (int)(bufEnd - *bufStart));
         }
+        errno = 0; // clear errno after UTIL_isDirectory, UTIL_prepareFileList
     }
 
+    if (errno != 0) {
+        fprintf(stderr, "readdir(%s) error: %s\n", dirName, strerror(errno));
+        free(*bufStart);
+        *bufStart = NULL;
+    }
     closedir(dir);
     return nbFiles;
 }

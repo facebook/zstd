@@ -11,6 +11,7 @@ zbufftest
 zbufftest32
 datagen
 paramgrill
+paramgrill32
 roundTripCrash
 
 # Object files

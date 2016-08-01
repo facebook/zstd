@@ -38,41 +38,26 @@
 extern "C" {
 #endif
 
-/*-*************************************
-*  Public functions
-***************************************/
 /*! ZDICT_trainFromBuffer() :
-    Train a dictionary from a memory buffer `samplesBuffer`,
-    where `nbSamples` samples have been stored concatenated.
-    Each sample size is provided into an orderly table `samplesSizes`.
-    Resulting dictionary will be saved into `dictBuffer`.
+    Train a dictionary from an array of samples.
+    Samples must be stored concatenated in a single flat buffer `samplesBuffer`,
+    supplied with an array of sizes `samplesSizes`, providing the size of each sample, in order.
+    The resulting dictionary will be saved into `dictBuffer`.
     @return : size of dictionary stored into `dictBuffer` (<= `dictBufferCapacity`)
-              or an error code, which can be tested by ZDICT_isError().
+              or an error code, which can be tested with ZDICT_isError().
+    Tips : In general, a reasonable dictionary has a size of ~ 100 KB.
+           It's obviously possible to target smaller or larger ones, just by specifying different `dictBufferCapacity`.
+           In general, it's recommended to provide a few thousands samples, but this can vary a lot.
+           It's recommended that total size of all samples be about ~x100 times the target size of dictionary.
 */
 size_t ZDICT_trainFromBuffer(void* dictBuffer, size_t dictBufferCapacity,
-                             const void* samplesBuffer, const size_t* samplesSizes, unsigned nbSamples);
-
-/*! ZDICT_addEntropyTablesFromBuffer() :
-
-    Given a content-only dictionary (built for example from common strings in
-    the input), add entropy tables computed from the memory buffer
-    `samplesBuffer`, where `nbSamples` samples have been stored concatenated.
-    Each sample size is provided into an orderly table `samplesSizes`.
-
-    The input dictionary is the last `dictContentSize` bytes of `dictBuffer`. The
-    resulting dictionary with added entropy tables will written back to
-    `dictBuffer`.
-    @return : size of dictionary stored into `dictBuffer` (<= `dictBufferCapacity`).
-*/
-size_t ZDICT_addEntropyTablesFromBuffer(void* dictBuffer, size_t dictContentSize, size_t dictBufferCapacity,
-                                        const void* samplesBuffer, const size_t* samplesSizes, unsigned nbSamples);
+                       const void* samplesBuffer, const size_t* samplesSizes, unsigned nbSamples);
 
 
-/*-*************************************
-*  Helper functions
-***************************************/
+/*======   Helper functions   ======*/
 unsigned ZDICT_isError(size_t errorCode);
 const char* ZDICT_getErrorName(size_t errorCode);
+
 
 
 #ifdef ZDICT_STATIC_LINKING_ONLY
@@ -85,8 +70,8 @@ const char* ZDICT_getErrorName(size_t errorCode);
  * ==================================================================================== */
 
 typedef struct {
-    unsigned selectivityLevel;   /* 0 means default; larger => bigger selection => larger dictionary */
-    unsigned compressionLevel;   /* 0 means default; target a specific zstd compression level */
+    unsigned selectivityLevel;   /* 0 means default; larger => select more => larger dictionary */
+    int      compressionLevel;   /* 0 means default; target a specific zstd compression level */
     unsigned notificationLevel;  /* Write to stderr; 0 = none (default); 1 = errors; 2 = progression; 3 = details; 4 = debug; */
     unsigned dictID;             /* 0 means auto mode (32-bits random value); other : force dictID value */
     unsigned reserved[2];        /* space for future parameters */
@@ -96,13 +81,32 @@ typedef struct {
 /*! ZDICT_trainFromBuffer_advanced() :
     Same as ZDICT_trainFromBuffer() with control over more parameters.
     `parameters` is optional and can be provided with values set to 0 to mean "default".
-    @return : size of dictionary stored into `dictBuffer` (<= `dictBufferSize`)
+    @return : size of dictionary stored into `dictBuffer` (<= `dictBufferSize`),
               or an error code, which can be tested by ZDICT_isError().
-    note : ZDICT_trainFromBuffer_advanced() will send notifications into stderr if instructed to, using ZDICT_setNotificationLevel()
+    note : ZDICT_trainFromBuffer_advanced() will send notifications into stderr if instructed to, using notificationLevel>0.
 */
 size_t ZDICT_trainFromBuffer_advanced(void* dictBuffer, size_t dictBufferCapacity,
-                             const void* samplesBuffer, const size_t* samplesSizes, unsigned nbSamples,
-                             ZDICT_params_t parameters);
+                                const void* samplesBuffer, const size_t* samplesSizes, unsigned nbSamples,
+                                ZDICT_params_t parameters);
+
+
+/*! ZDICT_addEntropyTablesFromBuffer() :
+
+    Given a content-only dictionary (built using any 3rd party algorithm),
+    add entropy tables computed from an array of samples.
+    Samples must be stored concatenated in a flat buffer `samplesBuffer`,
+    supplied with an array of sizes `samplesSizes`, providing the size of each sample in order.
+
+    The input dictionary content must be stored *at the end* of `dictBuffer`.
+    Its size is `dictContentSize`.
+    The resulting dictionary with added entropy tables will be *written back to `dictBuffer`*,
+    starting from its beginning.
+    @return : size of dictionary stored into `dictBuffer` (<= `dictBufferCapacity`).
+*/
+size_t ZDICT_addEntropyTablesFromBuffer(void* dictBuffer, size_t dictContentSize, size_t dictBufferCapacity,
+                                        const void* samplesBuffer, const size_t* samplesSizes, unsigned nbSamples);
+
+
 
 #endif   /* ZDICT_STATIC_LINKING_ONLY */
 

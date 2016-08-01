@@ -190,13 +190,18 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
     {   U64 fastestC = (U64)(-1LL), fastestD = (U64)(-1LL);
         U64 const crcOrig = XXH64(srcBuffer, srcSize, 0);
         UTIL_time_t coolTime;
-        U32 testNb;
+        U64 const maxTime = (g_nbIterations * TIMELOOP_MICROSEC) + 100;
+        U64 totalCTime=0, totalDTime=0;
+        U32 cCompleted=0, dCompleted=0;
+#       define NB_MARKS 4
+        const char* const marks[NB_MARKS] = { " |", " /", " =",  "\\" };
+        U32 markNb = 0;
         size_t cSize = 0;
         double ratio = 0.;
 
         UTIL_getTime(&coolTime);
         DISPLAYLEVEL(2, "\r%79s\r", "");
-        for (testNb = 1; testNb <= (g_nbIterations + !g_nbIterations); testNb++) {
+        while (!cCompleted | !dCompleted) {
             UTIL_time_t clockStart;
             U64 clockLoop = g_nbIterations ? TIMELOOP_MICROSEC : 1;
 
@@ -208,15 +213,14 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
             }
 
             /* Compression */
-            DISPLAYLEVEL(2, "%2i-%-17.17s :%10u ->\r", testNb, displayName, (U32)srcSize);
-            memset(compressedBuffer, 0xE5, maxCompressedSize);  /* warm up and erase result buffer */
+            DISPLAYLEVEL(2, "%2s-%-17.17s :%10u ->\r", marks[markNb], displayName, (U32)srcSize);
+            if (!cCompleted) memset(compressedBuffer, 0xE5, maxCompressedSize);  /* warm up and erase result buffer */
 
             UTIL_sleepMilli(1);  /* give processor time to other processes */
             UTIL_waitForNextTick(ticksPerSecond);
             UTIL_getTime(&clockStart);
 
-            {   //size_t const refSrcSize = (nbBlocks == 1) ? srcSize : 0;
-                //ZSTD_parameters const zparams = ZSTD_getParams(cLevel, refSrcSize, dictBufferSize);
+            if (!cCompleted) {   /* still some time to do compression tests */
                 ZSTD_parameters const zparams = ZSTD_getParams(cLevel, blockSize, dictBufferSize);
                 ZSTD_customMem const cmem = { NULL, NULL, NULL };
                 U32 nbLoops = 0;
@@ -237,13 +241,16 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
                 ZSTD_freeCDict(cdict);
                 {   U64 const clockSpan = UTIL_clockSpanMicro(clockStart, ticksPerSecond);
                     if (clockSpan < fastestC*nbLoops) fastestC = clockSpan / nbLoops;
+                    totalCTime += clockSpan;
+                    cCompleted = totalCTime>maxTime;
             }   }
 
             cSize = 0;
             { U32 blockNb; for (blockNb=0; blockNb<nbBlocks; blockNb++) cSize += blockTable[blockNb].cSize; }
             ratio = (double)srcSize / (double)cSize;
-            DISPLAYLEVEL(2, "%2i-%-17.17s :%10u ->%10u (%5.3f),%6.1f MB/s\r",
-                    testNb, displayName, (U32)srcSize, (U32)cSize, ratio,
+            markNb = (markNb+1) % NB_MARKS;
+            DISPLAYLEVEL(2, "%2s-%-17.17s :%10u ->%10u (%5.3f),%6.1f MB/s\r",
+                    marks[markNb], displayName, (U32)srcSize, (U32)cSize, ratio,
                     (double)srcSize / fastestC );
 
             (void)fastestD; (void)crcOrig;   /*  unused when decompression disabled */
@@ -255,7 +262,8 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
             UTIL_waitForNextTick(ticksPerSecond);
             UTIL_getTime(&clockStart);
 
-            {   U32 nbLoops = 0;
+            if (!dCompleted) {
+                U32 nbLoops = 0;
                 ZSTD_DDict* ddict = ZSTD_createDDict(dictBuffer, dictBufferSize);
                 if (!ddict) EXM_THROW(2, "ZSTD_createDDict() allocation failure");
                 do {
@@ -278,10 +286,13 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
                 ZSTD_freeDDict(ddict);
                 {   U64 const clockSpan = UTIL_clockSpanMicro(clockStart, ticksPerSecond);
                     if (clockSpan < fastestD*nbLoops) fastestD = clockSpan / nbLoops;
+                    totalDTime += clockSpan;
+                    dCompleted = totalDTime>maxTime;
             }   }
 
-            DISPLAYLEVEL(2, "%2i-%-17.17s :%10u ->%10u (%5.3f),%6.1f MB/s ,%6.1f MB/s\r",
-                    testNb, displayName, (U32)srcSize, (U32)cSize, ratio,
+            markNb = (markNb+1) % NB_MARKS;
+            DISPLAYLEVEL(2, "%2s-%-17.17s :%10u ->%10u (%5.3f),%6.1f MB/s ,%6.1f MB/s\r",
+                    marks[markNb], displayName, (U32)srcSize, (U32)cSize, ratio,
                     (double)srcSize / fastestC,
                     (double)srcSize / fastestD );
 

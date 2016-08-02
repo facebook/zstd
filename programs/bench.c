@@ -101,7 +101,7 @@ void BMK_setAdditionalParam(int additionalParam) { g_additionalParam=additionalP
 void BMK_SetNbIterations(unsigned nbLoops)
 {
     g_nbIterations = nbLoops;
-    DISPLAYLEVEL(2, "- %i iterations -\n", g_nbIterations);
+    DISPLAYLEVEL(3, "- test >= %i seconds per compression / decompression -\n", g_nbIterations);
 }
 
 void BMK_SetBlockSize(size_t blockSize)

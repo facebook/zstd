@@ -82,9 +82,9 @@ echo "\n**** dictionary tests **** "
 ./datagen -g1M | $ZSTD -D tmpDict | $ZSTD -D tmpDict -dvq | md5sum > tmp2
 diff -q tmp1 tmp2
 $ZSTD --train *.c *.h -o tmpDict
-$ZSTD xxhash.c -D tmpDict -of tmp
+$ZSTD paramgrill.c -D tmpDict -of tmp
 $ZSTD -d tmp -D tmpDict -of result
-diff xxhash.c result
+diff paramgrill.c result
 
 
 echo "\n**** multiple files tests **** "

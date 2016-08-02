@@ -30,6 +30,7 @@
 #include <stdlib.h>      /* malloc, free */
 #include <string.h>      /* memset */
 #include <stdio.h>       /* fprintf, fopen, ftello64 */
+#include <time.h>         /* clock_t, clock, CLOCKS_PER_SEC */
 
 #include "mem.h"
 #define ZSTD_STATIC_LINKING_ONLY
@@ -68,6 +69,13 @@ static U32 g_compressibilityDefault = 50;
 #define DISPLAY(...)         fprintf(stderr, __VA_ARGS__)
 #define DISPLAYLEVEL(l, ...) if (g_displayLevel>=l) { DISPLAY(__VA_ARGS__); }
 static U32 g_displayLevel = 2;   /* 0 : no display;   1: errors;   2 : + result + interaction + warnings;   3 : + progression;   4 : + information */
+
+#define DISPLAYUPDATE(l, ...) if (g_displayLevel>=l) { \
+            if ((clock() - g_time > refreshRate) || (g_displayLevel>=4)) \
+            { g_time = clock(); DISPLAY(__VA_ARGS__); \
+            if (g_displayLevel>=4) fflush(stdout); } }
+static const clock_t refreshRate = CLOCKS_PER_SEC * 15 / 100;
+static clock_t g_time = 0;
 
 
 /* *************************************
@@ -412,7 +420,7 @@ static void BMK_loadFiles(void* buffer, size_t bufferSize,
         }
         f = fopen(fileNamesTable[n], "rb");
         if (f==NULL) EXM_THROW(10, "impossible to open file %s", fileNamesTable[n]);
-        DISPLAYLEVEL(2, "Loading %s...       \r", fileNamesTable[n]);
+        DISPLAYUPDATE(2, "Loading %s...       \r", fileNamesTable[n]);
         if (fileSize > bufferSize-pos) fileSize = bufferSize-pos, nbFiles=n;   /* buffer too small - stop after this file */
         { size_t const readSize = fread(((char*)buffer)+pos, 1, (size_t)fileSize, f);
           if (readSize != (size_t)fileSize) EXM_THROW(11, "could not read %s", fileNamesTable[n]);

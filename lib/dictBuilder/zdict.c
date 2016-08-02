@@ -920,7 +920,7 @@ size_t ZDICT_trainFromBuffer_unsafe(
     /* create dictionary */
     {   U32 dictContentSize = ZDICT_dictSize(dictList);
         if (dictContentSize < targetDictSize/2) {
-            DISPLAYLEVEL(2, "!  warning : created dictionary significantly smaller than requested (%u < %u) \n", dictContentSize, (U32)maxDictSize);
+            DISPLAYLEVEL(2, "!  warning : selected content significantly smaller than requested (%u < %u) \n", dictContentSize, (U32)maxDictSize);
             if (minRep > MINRATIO) {
                 DISPLAYLEVEL(2, "!  consider increasing selectivity to produce larger dictionary (-s%u) \n", selectivity+1);
                 DISPLAYLEVEL(2, "!  note : larger dictionaries are not necessarily better, test its efficiency on samples \n");

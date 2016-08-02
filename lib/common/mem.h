@@ -54,7 +54,7 @@ extern "C" {
 #   include <intrin.h>  /* _byteswap_* */
 #endif
 #if defined(__GNUC__)
-#  define MEM_STATIC static __inline __attribute__((unused))
+#  define MEM_STATIC static __attribute__((unused))
 #elif defined (__cplusplus) || (defined (__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L) /* C99 */)
 #  define MEM_STATIC static inline
 #elif defined(_MSC_VER)

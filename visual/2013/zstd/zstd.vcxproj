@@ -43,7 +43,7 @@
     <ClCompile Include="..\..\..\programs\dibio.c" />
     <ClCompile Include="..\..\..\programs\fileio.c" />
     <ClCompile Include="..\..\..\programs\legacy\fileio_legacy.c" />
-    <ClCompile Include="..\..\..\programs\xxhash.c" />
+    <ClCompile Include="..\..\..\lib\common\xxhash.c" />
     <ClCompile Include="..\..\..\programs\zstdcli.c" />
   </ItemGroup>
   <ItemGroup>
@@ -73,7 +73,7 @@
     <ClInclude Include="..\..\..\programs\dibio.h" />
     <ClInclude Include="..\..\..\programs\fileio.h" />
     <ClInclude Include="..\..\..\programs\legacy\fileio_legacy.h" />
-    <ClInclude Include="..\..\..\programs\xxhash.h" />
+    <ClInclude Include="..\..\..\lib\common\xxhash.h" />
     <ClInclude Include="..\..\..\programs\util.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">

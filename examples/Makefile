@@ -56,4 +56,8 @@ test: all
 	./simple_compression tmp
 	@echo starting simple_decompression
 	./simple_decompression tmp.zst
+	@echo dictionary compression
+	./dictionary_compression tmp README.md
+	@echo dictionary decompression
+	./dictionary_decompression tmp.zst README.md
 	@echo tests completed

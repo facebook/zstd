@@ -135,4 +135,5 @@ int main(int argc, const char** argv)
 
     ZSTD_freeDDict(dictPtr);
     printf("All %u files correctly decoded (in memory) \n", argc-2);
+    return 0;
 }

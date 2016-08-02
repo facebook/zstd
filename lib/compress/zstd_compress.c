@@ -2621,22 +2621,6 @@ size_t ZSTD_compressEnd (ZSTD_CCtx* cctx,
 }
 
 
-/*! ZSTD_compress_usingPreparedCCtx() :
-*   Same as ZSTD_compress_usingDict, but using a reference context `preparedCCtx`, where dictionary has been loaded.
-*   It avoids reloading the dictionary each time.
-*   `preparedCCtx` must have been properly initialized using ZSTD_compressBegin_usingDict() or ZSTD_compressBegin_advanced().
-*   Requires 2 contexts : 1 for reference (preparedCCtx) which will not be modified, and 1 to run the compression operation (cctx) */
-static size_t ZSTD_compress_usingPreparedCCtx(ZSTD_CCtx* cctx, const ZSTD_CCtx* preparedCCtx,
-                                       void* dst, size_t dstCapacity,
-                                 const void* src, size_t srcSize)
-{
-    size_t const errorCode = ZSTD_copyCCtx(cctx, preparedCCtx);
-    if (ZSTD_isError(errorCode)) return errorCode;
-
-    return ZSTD_compressEnd(cctx, dst, dstCapacity, src, srcSize);
-}
-
-
 static size_t ZSTD_compress_internal (ZSTD_CCtx* cctx,
                                void* dst, size_t dstCapacity,
                          const void* src, size_t srcSize,
@@ -2732,9 +2716,7 @@ ZSTD_CDict* ZSTD_createCDict_advanced(const void* dict, size_t dictSize, ZSTD_pa
 ZSTD_CDict* ZSTD_createCDict(const void* dict, size_t dictSize, int compressionLevel)
 {
     ZSTD_customMem const allocator = { NULL, NULL, NULL };
-    ZSTD_parameters params;
-    memset(&params, 0, sizeof(params));
-    params.cParams = ZSTD_getCParams(compressionLevel, 0, dictSize);
+    ZSTD_parameters params = ZSTD_getParams(compressionLevel, 0, dictSize);
     params.fParams.contentSizeFlag = 1;
     return ZSTD_createCDict_advanced(dict, dictSize, params, allocator);
 }
@@ -2749,14 +2731,24 @@ size_t ZSTD_freeCDict(ZSTD_CDict* cdict)
     return 0;
 }
 
+/*! ZSTD_compress_usingCDict() :
+*   Compression using a digested Dictionary.
+*   Faster startup than ZSTD_compress_usingDict(), recommended when same dictionary is used multiple times.
+*   Note that compression level is decided during dictionary creation */
 ZSTDLIB_API size_t ZSTD_compress_usingCDict(ZSTD_CCtx* cctx,
                                            void* dst, size_t dstCapacity,
                                      const void* src, size_t srcSize,
                                      const ZSTD_CDict* cdict)
 {
-    return ZSTD_compress_usingPreparedCCtx(cctx, cdict->refContext,
-                                           dst, dstCapacity,
-                                           src, srcSize);
+    size_t const errorCode = ZSTD_copyCCtx(cctx, cdict->refContext);
+    if (ZSTD_isError(errorCode)) return errorCode;
+
+    if (cdict->refContext->params.fParams.contentSizeFlag==1) {
+        cctx->params.fParams.contentSizeFlag = 1;
+        cctx->frameContentSize = srcSize;
+    }
+
+    return ZSTD_compressEnd(cctx, dst, dstCapacity, src, srcSize);
 }
 
 

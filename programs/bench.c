@@ -151,6 +151,7 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
                         const void* dictBuffer, size_t dictBufferSize, benchResult_t *result)
 {
     size_t const blockSize = (g_blockSize>=32 ? g_blockSize : srcSize) + (!srcSize) /* avoid div by 0 */ ;
+    size_t const avgSize = MIN(g_blockSize, (srcSize / nbFiles));
     U32 const maxNbBlocks = (U32) ((srcSize + (blockSize-1)) / blockSize) + nbFiles;
     blockParam_t* const blockTable = (blockParam_t*) malloc(maxNbBlocks * sizeof(blockParam_t));
     size_t const maxCompressedSize = ZSTD_compressBound(srcSize) + (maxNbBlocks * 1024);   /* add some room for safety */
@@ -229,7 +230,7 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
             UTIL_getTime(&clockStart);
 
             if (!cCompleted) {   /* still some time to do compression tests */
-                ZSTD_parameters const zparams = ZSTD_getParams(cLevel, blockSize, dictBufferSize);
+                ZSTD_parameters const zparams = ZSTD_getParams(cLevel, avgSize, dictBufferSize);
                 ZSTD_customMem const cmem = { NULL, NULL, NULL };
                 U32 nbLoops = 0;
                 ZSTD_CDict* cdict = ZSTD_createCDict_advanced(dictBuffer, dictBufferSize, zparams, cmem);

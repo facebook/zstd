@@ -2244,6 +2244,21 @@ static size_t ZSTD_compress_generic (ZSTD_CCtx* cctx,
         if (dstCapacity < ZSTD_blockHeaderSize + MIN_CBLOCK_SIZE) return ERROR(dstSize_tooSmall);   /* not enough space to store compressed block */
         if (remaining < blockSize) blockSize = remaining;
 
+        /* preemptive overflow correction */
+        if (cctx->lowLimit > (1<<30)) {
+            U32 const btplus = (cctx->params.cParams.strategy == ZSTD_btlazy2) | (cctx->params.cParams.strategy == ZSTD_btopt);
+            U32 const chainMask = (1 << (cctx->params.cParams.chainLog - btplus)) - 1;
+            U32 const newLowLimit = cctx->lowLimit & chainMask;   /* preserve position % chainSize */
+            U32 const correction = cctx->lowLimit - newLowLimit;
+            ZSTD_reduceIndex(cctx, correction);
+            cctx->base += correction;
+            cctx->dictBase += correction;
+            cctx->lowLimit = newLowLimit;
+            cctx->dictLimit -= correction;
+            if (cctx->nextToUpdate < correction) cctx->nextToUpdate = 0;
+            else cctx->nextToUpdate -= correction;
+        }
+
         if ((U32)(ip+blockSize - cctx->base) > cctx->loadedDictEnd + maxDist) {
             /* enforce maxDist */
             U32 const newLowLimit = (U32)(ip+blockSize - cctx->base) - maxDist;
@@ -2317,7 +2332,7 @@ static size_t ZSTD_writeFrameHeader(void* dst, size_t dstCapacity,
 }
 
 
-static size_t ZSTD_compressContinue_internal (ZSTD_CCtx* zc,
+static size_t ZSTD_compressContinue_internal (ZSTD_CCtx* cctx,
                               void* dst, size_t dstCapacity,
                         const void* src, size_t srcSize,
                                U32 frame, U32 lastFrameChunk)
@@ -2325,53 +2340,40 @@ static size_t ZSTD_compressContinue_internal (ZSTD_CCtx* zc,
     const BYTE* const ip = (const BYTE*) src;
     size_t fhSize = 0;
 
-    if (zc->stage==ZSTDcs_created) return ERROR(stage_wrong);   /* missing init (ZSTD_compressBegin) */
+    if (cctx->stage==ZSTDcs_created) return ERROR(stage_wrong);   /* missing init (ZSTD_compressBegin) */
 
-    if (frame && (zc->stage==ZSTDcs_init)) {
-        fhSize = ZSTD_writeFrameHeader(dst, dstCapacity, zc->params, zc->frameContentSize, zc->dictID);
+    if (frame && (cctx->stage==ZSTDcs_init)) {
+        fhSize = ZSTD_writeFrameHeader(dst, dstCapacity, cctx->params, cctx->frameContentSize, cctx->dictID);
         if (ZSTD_isError(fhSize)) return fhSize;
         dstCapacity -= fhSize;
         dst = (char*)dst + fhSize;
-        zc->stage = ZSTDcs_ongoing;
+        cctx->stage = ZSTDcs_ongoing;
     }
 
     /* Check if blocks follow each other */
-    if (src != zc->nextSrc) {
+    if (src != cctx->nextSrc) {
         /* not contiguous */
-        ptrdiff_t const delta = zc->nextSrc - ip;
-        zc->lowLimit = zc->dictLimit;
-        zc->dictLimit = (U32)(zc->nextSrc - zc->base);
-        zc->dictBase = zc->base;
-        zc->base -= delta;
-        zc->nextToUpdate = zc->dictLimit;
-        if (zc->dictLimit - zc->lowLimit < HASH_READ_SIZE) zc->lowLimit = zc->dictLimit;   /* too small extDict */
+        ptrdiff_t const delta = cctx->nextSrc - ip;
+        cctx->lowLimit = cctx->dictLimit;
+        cctx->dictLimit = (U32)(cctx->nextSrc - cctx->base);
+        cctx->dictBase = cctx->base;
+        cctx->base -= delta;
+        cctx->nextToUpdate = cctx->dictLimit;
+        if (cctx->dictLimit - cctx->lowLimit < HASH_READ_SIZE) cctx->lowLimit = cctx->dictLimit;   /* too small extDict */
     }
 
-    /* preemptive overflow correction */
-    if (zc->lowLimit > (1<<30)) {
-        U32 const btplus = (zc->params.cParams.strategy == ZSTD_btlazy2) | (zc->params.cParams.strategy == ZSTD_btopt);
-        U32 const chainMask = (1 << (zc->params.cParams.chainLog - btplus)) - 1;
-        U32 const newLowLimit = zc->lowLimit & chainMask;   /* preserve position % chainSize */
-        U32 const correction = zc->lowLimit - newLowLimit;
-        ZSTD_reduceIndex(zc, correction);
-        zc->base += correction;
-        zc->dictBase += correction;
-        zc->lowLimit = newLowLimit;
-        zc->dictLimit -= correction;
-        if (zc->nextToUpdate < correction) zc->nextToUpdate = 0;
-        else zc->nextToUpdate -= correction;
+    /* if input and dictionary overlap : reduce dictionary (area presumed modified by input) */
+    if ((ip+srcSize > cctx->dictBase + cctx->lowLimit) & (ip < cctx->dictBase + cctx->dictLimit)) {
+        ptrdiff_t const highInputIdx = (ip + srcSize) - cctx->dictBase;
+        U32 const lowLimitMax = (highInputIdx > (ptrdiff_t)cctx->dictLimit) ? cctx->dictLimit : (U32)highInputIdx;
+        cctx->lowLimit = lowLimitMax;
     }
 
-    /* if input and dictionary overlap : reduce dictionary (presumed modified by input) */
-    if ((ip+srcSize > zc->dictBase + zc->lowLimit) && (ip < zc->dictBase + zc->dictLimit)) {
-        zc->lowLimit = (U32)(ip + srcSize - zc->dictBase);
-        if (zc->lowLimit > zc->dictLimit) zc->lowLimit = zc->dictLimit;
-    }
+    cctx->nextSrc = ip + srcSize;
 
-    zc->nextSrc = ip + srcSize;
     {   size_t const cSize = frame ?
-                             ZSTD_compress_generic (zc, dst, dstCapacity, src, srcSize, lastFrameChunk) :
-                             ZSTD_compressBlock_internal (zc, dst, dstCapacity, src, srcSize);
+                             ZSTD_compress_generic (cctx, dst, dstCapacity, src, srcSize, lastFrameChunk) :
+                             ZSTD_compressBlock_internal (cctx, dst, dstCapacity, src, srcSize);
         if (ZSTD_isError(cSize)) return cSize;
         return cSize + fhSize;
     }

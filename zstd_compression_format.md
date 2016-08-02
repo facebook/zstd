@@ -503,7 +503,7 @@ Compressed and regenerated size fields follow little-endian convention.
 
 #### Huffman Tree description
 
-This section is only present when literals block type is `Compressed` (`0`).
+This section is only present when literals block type is `Compressed` (`2`).
 
 Prefix coding represents symbols from an a priori known alphabet
 by bit sequences (codewords), one codeword for each symbol,

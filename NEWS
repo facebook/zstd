@@ -1,3 +1,7 @@
+v0.8.1
+Changed : -i# now selects benchmark time in second
+Fixed : ZSTD_compress* can now compress > 4 GB in a single pass, reported by Nick Terrell
+
 v0.8.0
 Improved : better speed on clang and gcc -O2, thanks to Eric Biggers
 New : Build on FreeBSD and DragonFly, thanks to JrMarino

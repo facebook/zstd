@@ -95,14 +95,20 @@ IF (ZSTD_LEGACY_SUPPORT)
             ${LIBRARY_LEGACY_DIR}/zstd_v01.c
             ${LIBRARY_LEGACY_DIR}/zstd_v02.c
             ${LIBRARY_LEGACY_DIR}/zstd_v03.c
-            ${LIBRARY_LEGACY_DIR}/zstd_v04.c)
+            ${LIBRARY_LEGACY_DIR}/zstd_v04.c
+            ${LIBRARY_LEGACY_DIR}/zstd_v05.c
+            ${LIBRARY_LEGACY_DIR}/zstd_v07.c
+            ${LIBRARY_LEGACY_DIR}/zstd_v08.c)
 
     SET(Headers ${Headers}
             ${LIBRARY_LEGACY_DIR}/zstd_legacy.h
             ${LIBRARY_LEGACY_DIR}/zstd_v01.h
             ${LIBRARY_LEGACY_DIR}/zstd_v02.h
             ${LIBRARY_LEGACY_DIR}/zstd_v03.h
-            ${LIBRARY_LEGACY_DIR}/zstd_v04.h)
+            ${LIBRARY_LEGACY_DIR}/zstd_v04.h
+            ${LIBRARY_LEGACY_DIR}/zstd_v05.h
+            ${LIBRARY_LEGACY_DIR}/zstd_v07.h
+            ${LIBRARY_LEGACY_DIR}/zstd_v08.h)
 ENDIF (ZSTD_LEGACY_SUPPORT)
 
 IF (MSVC)

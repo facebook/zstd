@@ -42,13 +42,17 @@ extern "C" {
 /*-****************************************
 *  Dependencies
 ******************************************/
-#include <stddef.h>    /* size_t, ptrdiff_t */
-#include <string.h>    /* memcpy */
+#include <stddef.h>     /* size_t, ptrdiff_t */
+#include <string.h>     /* memcpy */
 
 
 /*-****************************************
 *  Compiler specifics
 ******************************************/
+#if defined(_MSC_VER)   /* Visual Studio */
+#   include <stdlib.h>  /* _byteswap_ulong */
+#   include <intrin.h>  /* _byteswap_* */
+#endif
 #if defined(__GNUC__)
 #  define MEM_STATIC static __attribute__((unused))
 #elif defined (__cplusplus) || (defined (__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L) /* C99 */)
@@ -58,6 +62,10 @@ extern "C" {
 #else
 #  define MEM_STATIC static  /* this version may generate warnings for unused static functions; disable the relevant warning */
 #endif
+
+/* code only tested on 32 and 64 bits systems */
+#define MEM_STATIC_ASSERT(c)   { enum { XXH_static_assert = 1/(int)(!!(c)) }; }
+MEM_STATIC void MEM_check(void) { MEM_STATIC_ASSERT((sizeof(size_t)==4) || (sizeof(size_t)==8)); }
 
 
 /*-**************************************************************
@@ -250,6 +258,17 @@ MEM_STATIC void MEM_writeLE16(void* memPtr, U16 val)
     }
 }
 
+MEM_STATIC U32 MEM_readLE24(const void* memPtr)
+{
+    return MEM_readLE16(memPtr) + (((const BYTE*)memPtr)[2] << 16);
+}
+
+MEM_STATIC void MEM_writeLE24(void* memPtr, U32 val)
+{
+    MEM_writeLE16(memPtr, (U16)val);
+    ((BYTE*)memPtr)[2] = (BYTE)(val>>16);
+}
+
 MEM_STATIC U32 MEM_readLE32(const void* memPtr)
 {
     if (MEM_isLittleEndian())
@@ -368,4 +387,3 @@ MEM_STATIC U32 MEM_readMINMATCH(const void* memPtr, U32 length)
 #endif
 
 #endif /* MEM_H_MODULE */
-

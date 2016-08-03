@@ -403,8 +403,8 @@ in order to properly allocate destination buffer.
 See [`Data_Block`](#the-structure-of-data_block) for more details.
 
 A compressed block consists of 2 sections :
-- [Literals section](#literals-section)
-- [Sequences section](#sequences-section)
+- [Literals_Section](#literals_section)
+- [Sequences_Section](#sequences_section)
 
 ### Prerequisites
 To decode a compressed block, the following elements are necessary :
@@ -415,91 +415,92 @@ To decode a compressed block, the following elements are necessary :
   (literals, litLength, matchLength, offset).
 
 
-### Literals section
+### `Literals_Section`
 
 During sequence phase, literals will be entangled with match copy operations.
 All literals are regrouped in the first part of the block.
 They can be decoded first, and then copied during sequence operations,
 or they can be decoded on the flow, as needed by sequence commands.
 
-| Literals section header | [Huffman Tree Description] | Stream1 | [Stream2] | [Stream3] | [Stream4] |
-| ----------------------- | -------------------------- | ------- | --------- | --------- | --------- |
+| `Literals_Section_Header` | [Huffman Tree Description] | Stream1 | [Stream2] | [Stream3] | [Stream4] |
+| ------------------------- | -------------------------- | ------- | --------- | --------- | --------- |
 
 Literals can be stored uncompressed or compressed using Huffman prefix codes.
 When compressed, an optional tree description can be present,
 followed by 1 or 4 streams.
 
 
-#### Literals section header
+#### `Literals_Section_Header`
 
 Header is in charge of describing how literals are packed.
 It's a byte-aligned variable-size bitfield, ranging from 1 to 5 bytes,
 using little-endian convention.
 
-| Literals Block Type | sizes format | regenerated size | [compressed size] |
-| ------------------- | ------------ | ---------------- | ----------------- |
-|   2 bits            |  1 - 2 bits  |    5 - 20 bits   |    0 - 18 bits    |
+| `Literals_Block_Type` | `Size_Format` | `Regenerated_Size` | [`Compressed_Size`] |
+| --------------------- | ------------- | ------------------ | ----------------- |
+|   2 bits              |  1 - 2 bits   |    5 - 20 bits     |    0 - 18 bits    |
 
 In this representation, bits on the left are smallest bits.
 
-__Literals Block Type__ :
+__`Literals_Block_Type`__ :
 
 This field uses 2 lowest bits of first byte, describing 4 different block types :
 
-|       Value         |  0  |  1  |      2     |      3      |
-| ------------------- | --- | --- | ---------- | ----------- |
-| Literals Block Type | Raw | RLE | Compressed | RepeatStats |    
+|       Value           |  0  |  1  |      2     |      3      |
+| --------------------- | --- | --- | ---------- | ----------- |
+| `Literals_Block_Type` | Raw | RLE | Compressed | RepeatStats |    
 
-- Raw literals block - Literals are stored uncompressed.
-- RLE literals block - Literals consist of a single byte value repeated N times.
-- Compressed literals block - This is a standard Huffman-compressed block,
+- `Raw_Literals_Block` - Literals are stored uncompressed.
+- `RLE_Literals_Block` - Literals consist of a single byte value repeated N times.
+- `Compressed_Literals_Block` - This is a standard Huffman-compressed block,
         starting with a Huffman tree description.
         See details below.
-- Repeat Stats literals block - This is a Huffman-compressed block,
+- `Repeat_Stats_Literals_Block` - This is a Huffman-compressed block,
         using Huffman tree _from previous Huffman-compressed literals block_.
         Huffman tree description will be skipped.
 
-__Sizes format__ :
+__`Size_Format`__ :
 
-Sizes format are divided into 2 families :
+`Size_Format` is divided into 2 families :
 
-- For compressed block, it requires to decode both the compressed size
-  and the decompressed size. It will also decode the number of streams.
-- For Raw or RLE blocks, it's enough to decode the size to regenerate.
+- For `Compressed_Block`, it requires to decode both `Compressed_Size`
+  and `Regenerated_Size` (the decompressed size). It will also decode the number of streams.
+- For `Raw_Block` and `RLE_Block` it's enough to decode `Regenerated_Size`.
 
 For values spanning several bytes, convention is Little-endian.
 
-__Sizes format for Raw and RLE literals block__ :
+__Sizes format for `Raw_Literals_Block` and `RLE_Literals_Block`__ :
 
-- Value : x0 : Regenerated size uses 5 bits (0-31).
+- Value : x0 : `Regenerated_Size` uses 5 bits (0-31).
                Total literal header size is 1 byte.
                `size = h[0]>>3;`
-- Value : 01 : Regenerated size uses 12 bits (0-4095).
+- Value : 01 : `Regenerated_Size` uses 12 bits (0-4095).
                Total literal header size is 2 bytes.
                `size = (h[0]>>4) + (h[1]<<4);`
-- Value : 11 : Regenerated size uses 20 bits (0-1048575).
+- Value : 11 : `Regenerated_Size` uses 20 bits (0-1048575).
                Total literal header size is 3 bytes.
                `size = (h[0]>>4) + (h[1]<<4) + (h[2]<<12);`
 
 Note : it's allowed to represent a short value (ex : `13`)
 using a long format, accepting the reduced compacity.
 
-__Sizes format for Compressed literals block and Repeat Stats literals block__ :
+__Sizes format for `Compressed_Literals_Block` and `Repeat_Stats_Literals_Block`__ :
 
 - Value : 00 : _Single stream_.
-               Compressed and regenerated sizes use 10 bits (0-1023).
+               `Compressed_Size` and `Regenerated_Size` use 10 bits (0-1023).
                Total literal header size is 3 bytes.
 - Value : 01 : 4 streams.
-               Compressed and regenerated sizes use 10 bits (0-1023).
+               `Compressed_Size` and `Regenerated_Size` use 10 bits (0-1023).
                Total literal header size is 3 bytes.
 - Value : 10 : 4 streams.
-               Compressed and regenerated sizes use 14 bits (0-16383).
+               `Compressed_Size` and `Regenerated_Size` use 14 bits (0-16383).
                Total literal header size is 4 bytes.
 - Value : 11 : 4 streams.
-               Compressed and regenerated sizes use 18 bits (0-262143).
+               `Compressed_Size` and `Regenerated_Size` use 18 bits (0-262143).
                Total literal header size is 5 bytes.
 
-Compressed and regenerated size fields follow little-endian convention.
+`Compressed_Size` and `Regenerated_Size` size fields follow little-endian convention.
+
 
 #### Huffman Tree description
 

@@ -452,11 +452,11 @@ This field uses 2 lowest bits of first byte, describing 4 different block types 
 
 - Raw literals block - Literals are stored uncompressed.
 - RLE literals block - Literals consist of a single byte value repeated N times.
-- Compressed literals block - This is a standard huffman-compressed block,
-        starting with a huffman tree description.
+- Compressed literals block - This is a standard Huffman-compressed block,
+        starting with a Huffman tree description.
         See details below.
-- Repeat Stats literals block - This is a huffman-compressed block,
-        using huffman tree _from previous huffman-compressed literals block_.
+- Repeat Stats literals block - This is a Huffman-compressed block,
+        using Huffman tree _from previous Huffman-compressed literals block_.
         Huffman tree description will be skipped.
 
 __Sizes format__ :
@@ -533,7 +533,7 @@ by completing to the nearest power of 2.
 This power of 2 gives `maxBits`, the depth of the current tree.
 
 __Example__ :
-Let's presume the following huffman tree must be described :
+Let's presume the following Huffman tree must be described :
 
 | literal |  0  |  1  |  2  |  3  |  4  |  5  |
 | ------- | --- | --- | --- | --- | --- | --- |
@@ -575,7 +575,7 @@ which tells how to decode the list of weights.
   the serie of weights is compressed by FSE.
   The length of the FSE-compressed serie is `headerByte` (0-127).
 
-##### FSE (Finite State Entropy) compression of huffman weights
+##### FSE (Finite State Entropy) compression of Huffman weights
 
 The serie of weights is compressed using FSE compression.
 It's a single bitstream with 2 interleaved states,
@@ -590,7 +590,7 @@ and last symbol value is not represented.
 An FSE bitstream starts by a header, describing probabilities distribution.
 It will create a Decoding Table.
 Table must be pre-allocated, which requires to support a maximum accuracy.
-For a list of huffman weights, maximum accuracy is 7 bits.
+For a list of Huffman weights, maximum accuracy is 7 bits.
 
 FSE header is [described in relevant chapter](#fse-distribution-table--condensed-format),
 and so is [FSE bitstream](#bitstream).
@@ -602,7 +602,7 @@ by tracking bitStream overflow condition.
 When both states have overflowed the bitstream, end is reached.
 
 
-##### Conversion from weights to huffman prefix codes
+##### Conversion from weights to Huffman prefix codes
 
 All present symbols shall now have a `weight` value.
 It is possible to transform weights into nbBits, using this formula :
@@ -634,7 +634,7 @@ it gives the following distribution :
 ##### Bitstreams sizes
 
 As seen in a previous paragraph,
-there are 2 flavors of huffman-compressed literals :
+there are 2 flavors of Huffman-compressed literals :
 single stream, and 4-streams.
 
 4-streams is useful for CPU with multiple execution units and OoO operations.
@@ -1144,6 +1144,6 @@ __Content__ : Where the actual dictionary content is.
 Version changes
 ---------------
 - 0.2.0 : numerous format adjustments for zstd v0.8
-- 0.1.2 : limit huffman tree depth to 11 bits
+- 0.1.2 : limit Huffman tree depth to 11 bits
 - 0.1.1 : reserved dictID ranges
 - 0.1.0 : initial release

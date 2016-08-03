@@ -332,12 +332,13 @@ static dictItem ZDICT_analyzePos(
         } while (length >=MINMATCHLENGTH);
 
         /* look backward */
-        do {
-            length = ZDICT_count(b + pos, b + suffix[start-1]);
-            if (length >= LLIMIT) length = LLIMIT-1;
-            lengthList[length]++;
-            if (length >=MINMATCHLENGTH) start--;
-        } while(length >= MINMATCHLENGTH);
+		length = MINMATCHLENGTH;
+		while ((length >= MINMATCHLENGTH) & (start > 0)) {
+			length = ZDICT_count(b + pos, b + suffix[start - 1]);
+			if (length >= LLIMIT) length = LLIMIT - 1;
+			lengthList[length]++;
+			if (length >= MINMATCHLENGTH) start--;
+		}
 
         /* largest useful length */
         memset(cumulLength, 0, sizeof(cumulLength));

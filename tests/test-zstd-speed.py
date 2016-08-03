@@ -7,7 +7,7 @@ import subprocess
 import time
 import traceback
 
-
+script_version = 'v0.8.0 [2016-08-03]'
 default_repo_url = 'https://github.com/Cyan4973/zstd.git'
 working_dir_name = 'speedTest'
 working_path = os.getcwd() + '/' + working_dir_name     # /path/to/zstd/tests/speedTest
@@ -271,7 +271,7 @@ if __name__ == '__main__':
         log("ERROR: %s already exists, exiting" % pidfile)
         exit(1)
 
-    send_email(args.emails, email_header + ':%s test-zstd-speed.py has been started' % pid, args.message, have_mutt, have_mail)
+    send_email(args.emails, email_header + ':%s test-zstd-speed.py %s has been started' % (pid, script_version), args.message, have_mutt, have_mail)
     file(pidfile, 'w').write(pid)
 
     while True:
@@ -302,5 +302,5 @@ if __name__ == '__main__':
             time.sleep(args.sleepTime)
         except KeyboardInterrupt:
             os.unlink(pidfile)
-            send_email(args.emails, email_header + ':%s test-zstd-speed.py has been stopped' % pid, args.message, have_mutt, have_mail)
+            send_email(args.emails, email_header + ':%s test-zstd-speed.py %s has been stopped' % (pid, script_version), args.message, have_mutt, have_mail)
             exit(0)

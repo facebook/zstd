@@ -176,7 +176,10 @@ def test_commit(branch, commit, last_commit, args, testFilePaths, have_mutt, hav
     local_branch = string.split(branch, '/')[1]
     version = local_branch.rpartition('-')[2] + '_' + commit
     if not args.dry_run:
-        execute('make -C programs clean zstd MOREFLAGS="-DZSTD_GIT_COMMIT=%s" && make -B -C programs zstd32 MOREFLAGS="-DZSTD_GIT_COMMIT=%s"' % (version, version))
+        execute('make -C programs clean zstd CC=clang MOREFLAGS="-Werror -Wconversion -Wno-sign-conversion -DZSTD_GIT_COMMIT=%s" && ' % version +
+                'mv programs/zstd programs/zstd_clang && ' +
+                'make -C programs clean zstd MOREFLAGS="-DZSTD_GIT_COMMIT=%s" && ' % version +
+                'make -B -C programs zstd32 MOREFLAGS="-DZSTD_GIT_COMMIT=%s"' % version)
     logFileName = working_path + "/log_" + branch.replace("/", "_") + ".txt"
     text_to_send = []
     results_files = ""
@@ -189,6 +192,11 @@ def test_commit(branch, commit, last_commit, args, testFilePaths, have_mutt, hav
             results_files += resultsFileName + " "
         resultsFileName = working_path + "/results32_" + branch.replace("/", "_") + "_" + fileName.replace(".", "_") + ".txt"
         text = double_check(branch, commit, args, 'zstd32', resultsFileName, filePath, fileName)
+        if text:
+            text_to_send.append(text)
+            results_files += resultsFileName + " "
+        resultsFileName = working_path + "/resultsClang_" + branch.replace("/", "_") + "_" + fileName.replace(".", "_") + ".txt"
+        text = double_check(branch, commit, args, 'zstd_clang', resultsFileName, filePath, fileName)
         if text:
             text_to_send.append(text)
             results_files += resultsFileName + " "

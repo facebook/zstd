@@ -125,14 +125,6 @@ typedef struct
     size_t resSize;
 } blockParam_t;
 
-typedef struct
-{
-    double ratio;
-    size_t cSize;
-    double cSpeed;
-    double dSpeed;
-} benchResult_t;
-
 
 #define MIN(a,b) ((a)<(b) ? (a) : (b))
 #define MAX(a,b) ((a)>(b) ? (a) : (b))
@@ -140,7 +132,7 @@ typedef struct
 static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
                         const char* displayName, int cLevel,
                         const size_t* fileSizes, U32 nbFiles,
-                        const void* dictBuffer, size_t dictBufferSize, benchResult_t *result)
+                        const void* dictBuffer, size_t dictBufferSize)
 {
     size_t const blockSize = (g_blockSize>=32 ? g_blockSize : srcSize) + (!srcSize) /* avoid div by 0 */ ;
     U32 const maxNbBlocks = (U32) ((srcSize + (blockSize-1)) / blockSize) + nbFiles;
@@ -312,10 +304,14 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
 #endif
         }   /* for (testNb = 1; testNb <= (g_nbIterations + !g_nbIterations); testNb++) */
 
-        result->ratio = ratio;
-        result->cSize = cSize;
-        result->cSpeed = (double)srcSize / fastestC;
-        result->dSpeed = (double)srcSize / fastestD;
+        if (g_displayLevel == 1) {
+            double cSpeed = (double)srcSize / fastestC;
+            double dSpeed = (double)srcSize / fastestD;
+            if (g_additionalParam)
+                DISPLAY("-%-3i%11i (%5.3f) %6.2f MB/s %6.1f MB/s  %s (param=%d)\n", cLevel, (int)cSize, ratio, cSpeed, dSpeed, displayName, g_additionalParam);
+            else
+                DISPLAY("-%-3i%11i (%5.3f) %6.2f MB/s %6.1f MB/s  %s\n", cLevel, (int)cSize, ratio, cSpeed, dSpeed, displayName);
+        }
         DISPLAYLEVEL(2, "%2i#\n", cLevel);
     }   /* Bench */
 
@@ -352,7 +348,6 @@ static void BMK_benchCLevel(void* srcBuffer, size_t benchedSize,
                             const size_t* fileSizes, unsigned nbFiles,
                             const void* dictBuffer, size_t dictBufferSize)
 {
-    benchResult_t result;
     int l;
 
     const char* pch = strrchr(displayName, '\\'); /* Windows */
@@ -360,8 +355,6 @@ static void BMK_benchCLevel(void* srcBuffer, size_t benchedSize,
     if (pch) displayName = pch+1;
 
     SET_HIGH_PRIORITY;
-
-    memset(&result, 0, sizeof(result));
 
     if (g_displayLevel == 1 && !g_additionalParam)
         DISPLAY("bench %s %s: input %u bytes, %i iterations, %u KB blocks\n", ZSTD_VERSION_STRING, ZSTD_GIT_COMMIT_STRING, (U32)benchedSize, g_nbIterations, (U32)(g_blockSize>>10));
@@ -372,13 +365,8 @@ static void BMK_benchCLevel(void* srcBuffer, size_t benchedSize,
         BMK_benchMem(srcBuffer, benchedSize,
                      displayName, l,
                      fileSizes, nbFiles,
-                     dictBuffer, dictBufferSize, &result);
-        if (g_displayLevel == 1) {
-            if (g_additionalParam)
-                DISPLAY("%-3i%11i (%5.3f) %6.2f MB/s %6.1f MB/s  %s (param=%d)\n", -l, (int)result.cSize, result.ratio, result.cSpeed, result.dSpeed, displayName, g_additionalParam);
-            else
-                DISPLAY("%-3i%11i (%5.3f) %6.2f MB/s %6.1f MB/s  %s\n", -l, (int)result.cSize, result.ratio, result.cSpeed, result.dSpeed, displayName);
-    }   }
+                     dictBuffer, dictBufferSize);
+    }
 }
 
 

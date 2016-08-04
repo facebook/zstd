@@ -29,14 +29,15 @@
     - zstd source repository : https://github.com/Cyan4973/zstd
 */
 
-#include <stdarg.h>            /* va_list, for z_gzprintf */
+#include <stdio.h>                 /* vsprintf */
+#include <stdarg.h>                /* va_list, for z_gzprintf */
 #include <zlib.h>
 #include "zstd_zlibwrapper.h"
 #define ZSTD_STATIC_LINKING_ONLY   /* ZSTD_MAGICNUMBER */
 #include "zstd.h"
 #define ZBUFF_STATIC_LINKING_ONLY  /* ZBUFF_createCCtx_advanced */
 #include "zbuff.h"
-#include "zstd_internal.h"     /* defaultCustomMem */
+#include "zstd_internal.h"         /* defaultCustomMem */
 
 
 #define Z_INFLATE_SYNC              8

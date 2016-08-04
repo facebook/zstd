@@ -403,8 +403,8 @@ in order to properly allocate destination buffer.
 See [`Data_Block`](#the-structure-of-data_block) for more details.
 
 A compressed block consists of 2 sections :
-- [Literals_Section](#literals_section)
-- [Sequences_Section](#sequences_section)
+- [`Literals_Section`](#literals_section)
+- [`Sequences_Section`](#sequences_section)
 
 ### Prerequisites
 To decode a compressed block, the following elements are necessary :
@@ -504,7 +504,7 @@ __`Size_Format` for `Compressed_Literals_Block` and `Repeat_Stats_Literals_Block
 
 #### `Huffman_Tree_Description`
 
-This section is only present when literals block type is `Compressed_Block` (`2`).
+This section is only present when `Literals_Block_Type` type is `Compressed_Block` (`2`).
 
 Prefix coding represents symbols from an a priori known alphabet
 by bit sequences (codewords), one codeword for each symbol,

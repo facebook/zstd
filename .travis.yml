@@ -6,25 +6,16 @@ matrix:
     # Container-based Ubuntu 12.04 LTS Server Edition 64 bit (doesn't support 32-bit includes)
     - os: linux
       sudo: false
-      env: PLATFORM="Ubuntu 12.04 container" CMD="make travis-install"
+      env: PLATFORM="Ubuntu 12.04 container" CMD="make test && make clean && make travis-install"
     - os: linux
       sudo: false
-      env: PLATFORM="Ubuntu 12.04 container" CMD="make cmaketest"
-    - os: linux
-      sudo: false
-      env: PLATFORM="Ubuntu 12.04 container" CMD="make test"
-    - os: linux
-      sudo: false
-      env: PLATFORM="Ubuntu 12.04 container" CMD="make -C programs test-zstd_nolegacy"
+      env: PLATFORM="Ubuntu 12.04 container" CMD="make -C programs test-zstd_nolegacy && make clean && make zlibwrapper && make clean && make cmaketest"
     - os: linux
       sudo: false
       env: PLATFORM="Ubuntu 12.04 container" CMD="make usan"
     - os: linux
       sudo: false
       env: PLATFORM="Ubuntu 12.04 container" CMD="make asan"
-    - os: linux
-      sudo: false
-      env: PLATFORM="Ubuntu 12.04 container" CMD="make zlibwrapper"
     # Standard Ubuntu 12.04 LTS Server Edition 64 bit
     - os: linux
       sudo: required
@@ -48,19 +39,7 @@ matrix:
     - os: linux
       dist: trusty
       sudo: required
-      env: PLATFORM="Ubuntu 14.04" CMD="make gcc5install gcc5test"
-    - os: linux
-      dist: trusty
-      sudo: required
-      env: PLATFORM="Ubuntu 14.04" CMD="make gcc6install gcc6test"
-    - os: linux
-      dist: trusty
-      sudo: required
-      env: PLATFORM="Ubuntu 14.04" CMD="make ppcinstall ppctest"
-    - os: linux
-      dist: trusty
-      sudo: required
-      env: PLATFORM="Ubuntu 14.04" CMD="make zlibwrapper"
+      env: PLATFORM="Ubuntu 14.04" CMD="make zlibwrapper && make clean && make gcc5install gcc5test && make clean && make gcc6install gcc6test && make clean && make ppcinstall ppctest"
     # OS X Mavericks
     - os: osx
       env: PLATFORM="OS X Mavericks" CMD="make gnu90test && make clean && make test && make clean && make travis-install"

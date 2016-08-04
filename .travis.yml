@@ -31,16 +31,7 @@ matrix:
       env: PLATFORM="Ubuntu 12.04" CMD="make libc6install clangtest"
     - os: linux
       sudo: required
-      env: PLATFORM="Ubuntu 12.04" CMD="make gppinstall gpptest"
-    - os: linux
-      sudo: required
-      env: PLATFORM="Ubuntu 12.04" CMD="make libc6install gnu90test"
-    - os: linux
-      sudo: required
-      env: PLATFORM="Ubuntu 12.04" CMD="make libc6install c99test"
-    - os: linux
-      sudo: required
-      env: PLATFORM="Ubuntu 12.04" CMD="make libc6install gnu99test"
+      env: PLATFORM="Ubuntu 12.04" CMD="make gppinstall gpptest && make clean && make libc6install gnu90test && make clean && make libc6install c99test && make clean && make libc6install gnu99test"
     - os: linux
       sudo: required
       env: PLATFORM="Ubuntu 12.04" CMD="make arminstall armtest"
@@ -75,11 +66,7 @@ matrix:
       env: PLATFORM="Ubuntu 14.04" CMD="make zlibwrapper"
     # OS X Mavericks
     - os: osx
-      env: PLATFORM="OS X Mavericks" CMD="make travis-install"
-    - os: osx
-      env: PLATFORM="OS X Mavericks" CMD="make gnu90test"
-    - os: osx
-      env: PLATFORM="OS X Mavericks" CMD="make test"
+      env: PLATFORM="OS X Mavericks" CMD="make gnu90test && make clean && make gnu90test && make clean && make travis-install"
   exclude:
     - compiler: gcc
 

@@ -422,8 +422,8 @@ All literals are regrouped in the first part of the block.
 They can be decoded first, and then copied during sequence operations,
 or they can be decoded on the flow, as needed by sequence commands.
 
-| `Literals_Section_Header` | [Huffman Tree Description] | Stream1 | [Stream2] | [Stream3] | [Stream4] |
-| ------------------------- | -------------------------- | ------- | --------- | --------- | --------- |
+| `Literals_Section_Header` | [`Huffman_Tree_Description`] | Stream1 | [Stream2] | [Stream3] | [Stream4] |
+| ------------------------- | ---------------------------- | ------- | --------- | --------- | --------- |
 
 Literals can be stored uncompressed or compressed using Huffman prefix codes.
 When compressed, an optional tree description can be present,
@@ -499,12 +499,12 @@ __`Size_Format` for `Compressed_Literals_Block` and `Repeat_Stats_Literals_Block
                `Compressed_Size` and `Regenerated_Size` use 18 bits (0-262143).
                Total literal header size is 5 bytes.
 
-`Compressed_Size` and `Regenerated_Size` size fields follow little-endian convention.
+`Compressed_Size` and `Regenerated_Size` fields follow little-endian convention.
 
 
-#### Huffman Tree description
+#### `Huffman_Tree_Description`
 
-This section is only present when literals block type is `Compressed` (`0`).
+This section is only present when literals block type is `Compressed_Block` (`2`).
 
 Prefix coding represents symbols from an a priori known alphabet
 by bit sequences (codewords), one codeword for each symbol,
@@ -686,7 +686,7 @@ hence reaching exactly its beginning position with _all_ bits consumed,
 the decoding process is considered faulty.
 
 
-### Sequences section
+### `Sequences_Section`
 
 A compressed block is a succession of _sequences_ .
 A sequence is a literal copy command, followed by a match copy command.

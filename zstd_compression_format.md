@@ -442,13 +442,13 @@ using little-endian convention.
 
 In this representation, bits on the left are smallest bits.
 
-__`Literals_Block_Type`__ :
+__`Literals_Block_Type`__ 
 
 This field uses 2 lowest bits of first byte, describing 4 different block types :
 
-|       Value           |  0  |  1  |      2     |      3      |
-| --------------------- | --- | --- | ---------- | ----------- |
-| `Literals_Block_Type` | Raw | RLE | Compressed | RepeatStats |    
+|       Value           |  0                   |  1                   |      2                      |       3                       |
+| --------------------- | -------------------- | -------------------- | --------------------------- | ----------------------------- |
+| `Literals_Block_Type` | `Raw_Literals_Block` | `RLE_Literals_Block` | `Compressed_Literals_Block` | `Repeat_Stats_Literals_Block` |
 
 - `Raw_Literals_Block` - Literals are stored uncompressed.
 - `RLE_Literals_Block` - Literals consist of a single byte value repeated N times.
@@ -459,7 +459,7 @@ This field uses 2 lowest bits of first byte, describing 4 different block types 
         using Huffman tree _from previous Huffman-compressed literals block_.
         Huffman tree description will be skipped.
 
-__`Size_Format`__ :
+__`Size_Format`__ 
 
 `Size_Format` is divided into 2 families :
 
@@ -469,7 +469,7 @@ __`Size_Format`__ :
 
 For values spanning several bytes, convention is Little-endian.
 
-__Sizes format for `Raw_Literals_Block` and `RLE_Literals_Block`__ :
+__`Size_Format` for `Raw_Literals_Block` and `RLE_Literals_Block`__ :
 
 - Value : x0 : `Regenerated_Size` uses 5 bits (0-31).
                Total literal header size is 1 byte.
@@ -484,7 +484,7 @@ __Sizes format for `Raw_Literals_Block` and `RLE_Literals_Block`__ :
 Note : it's allowed to represent a short value (ex : `13`)
 using a long format, accepting the reduced compacity.
 
-__Sizes format for `Compressed_Literals_Block` and `Repeat_Stats_Literals_Block`__ :
+__`Size_Format` for `Compressed_Literals_Block` and `Repeat_Stats_Literals_Block`__ :
 
 - Value : 00 : _Single stream_.
                `Compressed_Size` and `Regenerated_Size` use 10 bits (0-1023).

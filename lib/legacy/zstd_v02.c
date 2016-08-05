@@ -44,6 +44,10 @@ extern "C" {
 /******************************************
 *  Compiler-specific
 ******************************************/
+#if defined(_MSC_VER)   /* Visual Studio */
+#   include <stdlib.h>  /* _byteswap_ulong */
+#   include <intrin.h>  /* _byteswap_* */
+#endif
 #if defined (__cplusplus) || (defined (__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L) /* C99 */)
 #  define ERR_STATIC static inline
 #elif defined(_MSC_VER)

@@ -3373,6 +3373,7 @@ static const ZSTDv07_customMem defaultCustomMem = { ZSTDv07_defaultAllocFunction
 #  include <intrin.h>                    /* For Visual 2005 */
 #  pragma warning(disable : 4127)        /* disable: C4127: conditional expression is constant */
 #  pragma warning(disable : 4324)        /* disable: C4324: padded structure */
+#  pragma warning(disable : 4100)        /* disable: C4100: unreferenced formal parameter */
 #else
 #  ifdef __GNUC__
 #    define FORCE_INLINE static inline __attribute__((always_inline))

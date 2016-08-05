@@ -59,11 +59,9 @@ build_script:
     )
   - if [%COMPILER%]==[visual] (
       ECHO *** &&
-      ECHO *** Building Visual Studio 2008 %PLATFORM%\%CONFIGURATION% &&
+      ECHO *** Building Visual Studio 2008 %PLATFORM%\%CONFIGURATION% in %APPVEYOR_BUILD_FOLDER% &&
       ECHO *** &&
-      ECHO %APPVEYOR_BUILD_FOLDER%
-      CD
-      msbuild "projects\VS2008\zstd.sln" /m /verbosity:minimal /property:PlatformToolset=v90 /p:ForceImportBeforeCppTargets=%APPVEYOR_BUILD_FOLDER%\projects\VS2010\CompileAsCpp.props /t:Clean,Build /p:Platform=%PLATFORM% /p:Configuration=%CONFIGURATION% /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll" &&
+      msbuild "projects\VS2008\zstd.sln" /m /verbosity:minimal /property:PlatformToolset=v90 /t:Clean,Build /p:Platform=%PLATFORM% /p:Configuration=%CONFIGURATION% /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll" &&
       DIR projects\VS2008\bin\%PLATFORM%\%CONFIGURATION%\*.exe &&
       MD5sum projects/VS2008/bin/%PLATFORM%/%CONFIGURATION%/*.exe &&
       msbuild "projects\VS2008\zstd.sln" /m /verbosity:minimal /property:PlatformToolset=v90 /t:Clean,Build /p:Platform=%PLATFORM% /p:Configuration=%CONFIGURATION% /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll" &&
@@ -73,7 +71,7 @@ build_script:
       ECHO *** &&
       ECHO *** Building Visual Studio 2010 %PLATFORM%\%CONFIGURATION% &&
       ECHO *** &&
-      msbuild "projects\VS2010\zstd.sln" %ADDITIONALPARAM% /m /verbosity:minimal /property:PlatformToolset=v100 /p:CompileAs=CompileAsCpp /t:Clean,Build /p:Platform=%PLATFORM% /p:Configuration=%CONFIGURATION% /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll" &&
+      msbuild "projects\VS2010\zstd.sln" %ADDITIONALPARAM% /m /verbosity:minimal /property:PlatformToolset=v100 /p:ForceImportBeforeCppTargets=%APPVEYOR_BUILD_FOLDER%\projects\VS2010\CompileAsCpp.props /t:Clean,Build /p:Platform=%PLATFORM% /p:Configuration=%CONFIGURATION% /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll" &&
       DIR projects\VS2010\bin\%PLATFORM%\%CONFIGURATION%\*.exe &&
       MD5sum projects/VS2010/bin/%PLATFORM%/%CONFIGURATION%/*.exe &&
       msbuild "projects\VS2010\zstd.sln" %ADDITIONALPARAM% /m /verbosity:minimal /property:PlatformToolset=v100 /t:Clean,Build /p:Platform=%PLATFORM% /p:Configuration=%CONFIGURATION% /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll" &&
@@ -83,7 +81,7 @@ build_script:
       ECHO *** &&
       ECHO *** Building Visual Studio 2012 %PLATFORM%\%CONFIGURATION% &&
       ECHO *** &&
-      msbuild "projects\VS2010\zstd.sln" /m /verbosity:minimal /property:PlatformToolset=v110 /p:CompileAs=CompileAsCpp /t:Clean,Build /p:Platform=%PLATFORM% /p:Configuration=%CONFIGURATION% /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll" &&
+      msbuild "projects\VS2010\zstd.sln" /m /verbosity:minimal /property:PlatformToolset=v110 /p:ForceImportBeforeCppTargets=%APPVEYOR_BUILD_FOLDER%\projects\VS2010\CompileAsCpp.props /t:Clean,Build /p:Platform=%PLATFORM% /p:Configuration=%CONFIGURATION% /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll" &&
       DIR projects\VS2010\bin\%PLATFORM%\%CONFIGURATION%\*.exe &&
       MD5sum projects/VS2010/bin/%PLATFORM%/%CONFIGURATION%/*.exe &&
       msbuild "projects\VS2010\zstd.sln" /m /verbosity:minimal /property:PlatformToolset=v110 /t:Clean,Build /p:Platform=%PLATFORM% /p:Configuration=%CONFIGURATION% /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll" &&
@@ -93,7 +91,7 @@ build_script:
       ECHO *** &&
       ECHO *** Building Visual Studio 2013 %PLATFORM%\%CONFIGURATION% &&
       ECHO *** &&
-      msbuild "projects\VS2010\zstd.sln" /m /verbosity:minimal /property:PlatformToolset=v120 /p:CompileAs=CompileAsCpp /t:Clean,Build /p:Platform=%PLATFORM% /p:Configuration=%CONFIGURATION% /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll" &&
+      msbuild "projects\VS2010\zstd.sln" /m /verbosity:minimal /property:PlatformToolset=v120 /p:ForceImportBeforeCppTargets=%APPVEYOR_BUILD_FOLDER%\projects\VS2010\CompileAsCpp.props /t:Clean,Build /p:Platform=%PLATFORM% /p:Configuration=%CONFIGURATION% /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll" &&
       DIR projects\VS2010\bin\%PLATFORM%\%CONFIGURATION%\*.exe &&
       MD5sum projects/VS2010/bin/%PLATFORM%/%CONFIGURATION%/*.exe &&
       msbuild "projects\VS2010\zstd.sln" /m /verbosity:minimal /property:PlatformToolset=v120 /t:Clean,Build /p:Platform=%PLATFORM% /p:Configuration=%CONFIGURATION% /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll" &&
@@ -103,7 +101,7 @@ build_script:
       ECHO *** &&
       ECHO *** Building Visual Studio 2015 %PLATFORM%\%CONFIGURATION% &&
       ECHO *** &&
-      msbuild "projects\VS2010\zstd.sln" /m /verbosity:minimal /property:PlatformToolset=v140 /p:CompileAs=CompileAsCpp /t:Clean,Build /p:Platform=%PLATFORM% /p:Configuration=%CONFIGURATION% /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll" &&
+      msbuild "projects\VS2010\zstd.sln" /m /verbosity:minimal /property:PlatformToolset=v140 /p:ForceImportBeforeCppTargets=%APPVEYOR_BUILD_FOLDER%\projects\VS2010\CompileAsCpp.props /t:Clean,Build /p:Platform=%PLATFORM% /p:Configuration=%CONFIGURATION% /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll" &&
       DIR projects\VS2010\bin\%PLATFORM%\%CONFIGURATION%\*.exe &&
       MD5sum projects/VS2010/bin/%PLATFORM%/%CONFIGURATION%/*.exe &&
       msbuild "projects\VS2010\zstd.sln" /m /verbosity:minimal /property:PlatformToolset=v140 /t:Clean,Build /p:Platform=%PLATFORM% /p:Configuration=%CONFIGURATION% /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll" &&

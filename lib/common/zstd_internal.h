@@ -154,6 +154,16 @@ MEM_STATIC void ZSTD_wildcopy(void* dst, const void* src, size_t length)
     while (op < oend);
 }
 
+MEM_STATIC void ZSTD_wildcopy_e(void* dst, const void* src, void* dstEnd)   /* should be faster for decoding, but strangely, not verified on all platform */
+{
+    const BYTE* ip = (const BYTE*)src;
+    BYTE* op = (BYTE*)dst;
+    BYTE* const oend = (BYTE*)dstEnd;
+    do
+        COPY8(op, ip)
+    while (op < oend);
+}
+
 
 /*-*******************************************
 *  Private interfaces

@@ -940,8 +940,8 @@ static void ZSTD_fillHashTable (ZSTD_CCtx* zc, const void* end, const U32 mls)
 
 FORCE_INLINE
 void ZSTD_compressBlock_fast_generic(ZSTD_CCtx* cctx,
-                                 const void* src, size_t srcSize,
-                                 const U32 mls)
+                               const void* src, size_t srcSize,
+                               const U32 mls)
 {
     U32* const hashTable = cctx->hashTable;
     U32  const hBits = cctx->params.cParams.hashLog;
@@ -973,7 +973,7 @@ void ZSTD_compressBlock_fast_generic(ZSTD_CCtx* cctx,
         const BYTE* match = base + matchIndex;
         hashTable[h] = current;   /* update hash table */
 
-        if ((offset_1 > 0) & (MEM_read32(ip+1-offset_1) == MEM_read32(ip+1))) { /* note : by construction, offset_1 <= current */
+        if ((offset_1 > 0) & (MEM_read32(ip+1-offset_1) == MEM_read32(ip+1))) {
             mLength = ZSTD_count(ip+1+4, ip+1+4-offset_1, iend) + 4;
             ip++;
             ZSTD_storeSeq(seqStorePtr, ip-anchor, anchor, 0, mLength-MINMATCH);

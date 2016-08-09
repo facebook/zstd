@@ -674,8 +674,8 @@ _storeSequence:   /* cur, last_pos, best_mlen, best_off have to be set */
 
 #if ZSTD_OPT_DEBUG >= 5
             U32 ml2;
-            if (offset > ZSTD_REP_MOVE_OPT)
-                ml2 = (U32)ZSTD_count(ip, ip-(offset-ZSTD_REP_MOVE_OPT), iend);
+            if (offset+1 > ZSTD_REP_MOVE_OPT)
+                ml2 = (U32)ZSTD_count(ip, ip-(offset+1-ZSTD_REP_MOVE_OPT), iend);
             else
                 ml2 = (U32)ZSTD_count(ip, ip-rep[0], iend);
             if ((offset >= 8) && (ml2 < mlen || ml2 < minMatch)) {
@@ -992,8 +992,8 @@ _storeSequence:   /* cur, last_pos, best_mlen, best_off have to be set */
 
 #if ZSTD_OPT_DEBUG >= 5
             U32 ml2;
-            if (offset > ZSTD_REP_MOVE_OPT) {
-                best_off = offset - ZSTD_REP_MOVE_OPT;
+            if (offset+1 > ZSTD_REP_MOVE_OPT) {
+                best_off = offset+1 - ZSTD_REP_MOVE_OPT;
                 if (best_off > (size_t)(ip - prefixStart))  {
                     const BYTE* match = dictEnd - (best_off - (ip - prefixStart));
                     ml2 = ZSTD_count_2segments(ip, match, iend, dictEnd, prefixStart);

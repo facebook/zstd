@@ -132,7 +132,7 @@ static void* XXH_memcpy(void* dest, const void* src, size_t size) { return memcp
 ***************************************/
 #ifndef MEM_MODULE
 # define MEM_MODULE
-# if defined (__STDC_VERSION__) && __STDC_VERSION__ >= 199901L   /* C99 */
+# if !defined (__VMS) && (defined (__cplusplus) || (defined (__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L) /* C99 */) )
 #   include <stdint.h>
     typedef uint8_t  BYTE;
     typedef uint16_t U16;
@@ -144,7 +144,7 @@ static void* XXH_memcpy(void* dest, const void* src, size_t size) { return memcp
     typedef unsigned short     U16;
     typedef unsigned int       U32;
     typedef   signed int       S32;
-    typedef unsigned long long U64;
+    typedef unsigned long long U64;   /* if your compiler doesn't support unsigned long long, replace by another 64-bit type here. Note that xxhash.h will also need to be updated. */
 #  endif
 #endif
 
@@ -305,6 +305,20 @@ static const U64 PRIME64_4 =  9650029242287828579ULL;
 static const U64 PRIME64_5 =  2870177450012600261ULL;
 
 XXH_PUBLIC_API unsigned XXH_versionNumber (void) { return XXH_VERSION_NUMBER; }
+
+
+/* **************************
+*  Utils
+****************************/
+XXH_PUBLIC_API void XXH32_copyState(XXH32_state_t* restrict dstState, const XXH32_state_t* restrict srcState)
+{
+    memcpy(dstState, srcState, sizeof(*dstState));
+}
+
+XXH_PUBLIC_API void XXH64_copyState(XXH64_state_t* restrict dstState, const XXH64_state_t* restrict srcState)
+{
+    memcpy(dstState, srcState, sizeof(*dstState));
+}
 
 
 /* ***************************
@@ -545,8 +559,7 @@ XXH_PUBLIC_API XXH_errorcode XXH64_freeState(XXH64_state_t* statePtr)
 XXH_PUBLIC_API XXH_errorcode XXH32_reset(XXH32_state_t* statePtr, unsigned int seed)
 {
     XXH32_state_t state;   /* using a local state to memcpy() in order to avoid strict-aliasing warnings */
-    memset(&state, 0, sizeof(state));
-    state.seed = seed;
+    memset(&state, 0, sizeof(state)-4);   /* do not write into reserved, for future removal */
     state.v1 = seed + PRIME32_1 + PRIME32_2;
     state.v2 = seed + PRIME32_2;
     state.v3 = seed + 0;
@@ -559,8 +572,7 @@ XXH_PUBLIC_API XXH_errorcode XXH32_reset(XXH32_state_t* statePtr, unsigned int s
 XXH_PUBLIC_API XXH_errorcode XXH64_reset(XXH64_state_t* statePtr, unsigned long long seed)
 {
     XXH64_state_t state;   /* using a local state to memcpy() in order to avoid strict-aliasing warnings */
-    memset(&state, 0, sizeof(state));
-    state.seed = seed;
+    memset(&state, 0, sizeof(state)-8);   /* do not write into reserved, for future removal */
     state.v1 = seed + PRIME64_1 + PRIME64_2;
     state.v2 = seed + PRIME64_2;
     state.v3 = seed + 0;
@@ -579,7 +591,8 @@ FORCE_INLINE XXH_errorcode XXH32_update_endian (XXH32_state_t* state, const void
     if (input==NULL) return XXH_ERROR;
 #endif
 
-    state->total_len += len;
+    state->total_len_32 += len;
+    state->large_len |= (len>=16) | (state->total_len_32>=16);
 
     if (state->memsize + len < 16)  {   /* fill in tmp buffer */
         XXH_memcpy((BYTE*)(state->mem32) + state->memsize, input, len);
@@ -645,13 +658,13 @@ FORCE_INLINE U32 XXH32_digest_endian (const XXH32_state_t* state, XXH_endianess 
     const BYTE* const bEnd = (const BYTE*)(state->mem32) + state->memsize;
     U32 h32;
 
-    if (state->total_len >= 16) {
+    if (state->large_len) {
         h32 = XXH_rotl32(state->v1, 1) + XXH_rotl32(state->v2, 7) + XXH_rotl32(state->v3, 12) + XXH_rotl32(state->v4, 18);
     } else {
-        h32 = state->seed + PRIME32_5;
+        h32 = state->v3 /* == seed */ + PRIME32_5;
     }
 
-    h32 += (U32) state->total_len;
+    h32 += state->total_len_32;
 
     while (p+4<=bEnd) {
         h32 += XXH_readLE32(p, endian) * PRIME32_3;
@@ -774,7 +787,7 @@ FORCE_INLINE U64 XXH64_digest_endian (const XXH64_state_t* state, XXH_endianess 
         h64 = XXH64_mergeRound(h64, v3);
         h64 = XXH64_mergeRound(h64, v4);
     } else {
-        h64  = state->seed + PRIME64_5;
+        h64  = state->v3 + PRIME64_5;
     }
 
     h64 += (U64) state->total_len;

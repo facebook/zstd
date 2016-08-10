@@ -71,6 +71,10 @@ XXH32        6.8 GB/s            6.0 GB/s
 extern "C" {
 #endif
 
+#ifndef XXH_NAMESPACE
+#  define XXH_NAMESPACE ZSTD_  /* Zstandard specific */
+#endif
+
 
 /* ****************************
 *  Definitions

@@ -25,18 +25,22 @@
 # versionstest : Compatibility test between zstd versions stored on Github (v0.1+)
 # ##########################################################################
 
-PYTHON  ?= python3
-TESTDIR := versionsTest
+PYTHON ?= python3
+TESTARTEFACT := versionsTest namespaceTest
 
-.PHONY: default all clean versionsTest
+.PHONY: default all clean namespaceTest versionsTest
 
 default: all
 
-all: versionsTest
+all: namespaceTest versionsTest
+
+namespaceTest:
+	if $(CC) namespaceTest.c ../lib/common/xxhash.c -o $@ ; then echo compilation should fail; exit 1 ; fi
+	$(RM) $@
 
 versionsTest:
 	$(PYTHON) test-zstd-versions.py
 
 clean:
-	@$(RM) -fR $(TESTDIR)
+	@$(RM) -fR $(TESTARTEFACT)
 	@echo Cleaning completed

@@ -165,7 +165,7 @@ static int usage_advanced(const char* programName)
     DISPLAY( "Benchmark arguments :\n");
     DISPLAY( " -b#    : benchmark file(s), using # compression level (default : 1) \n");
     DISPLAY( " -e#    : test all compression levels from -bX to # (default: 1)\n");
-    DISPLAY( " -i#    : iteration loops [1-9](default : 3)\n");
+    DISPLAY( " -i#    : minimum evaluation time in seconds (default : 3s)\n");
     DISPLAY( " -B#    : cut file into independent blocks of size # (default: no block)\n");
 #endif
     return 0;
@@ -441,8 +441,8 @@ int main(int argCount, const char** argv)
     if (recursive) {
         fileNamesTable = UTIL_createFileList(filenameTable, filenameIdx, &fileNamesBuf, &fileNamesNb);
         if (fileNamesTable) {
-            unsigned i;
-            for (i=0; i<fileNamesNb; i++) DISPLAYLEVEL(4, "%d %s\n", i, fileNamesTable[i]);
+            unsigned u;
+            for (u=0; u<fileNamesNb; u++) DISPLAYLEVEL(4, "%d %s\n", u, fileNamesTable[u]);
             free((void*)filenameTable);
             filenameTable = fileNamesTable;
             filenameIdx = fileNamesNb;

@@ -1,6 +1,7 @@
 # ##########################################################################
 # Zstd tests - Makefile
-# Based on LZ4 version test, by Takayuki Matsuoka - 2015-2016
+# Copyright (C) Yann Collet 2015-2016
+# All rights reserved.
 #
 # GPL v2 License
 #
@@ -24,8 +25,8 @@
 # versionstest : Compatibility test between zstd versions stored on Github (v0.1+)
 # ##########################################################################
 
-PYTHON?= python3
-TESTDIR := zstdtest
+PYTHON  ?= python3
+TESTDIR := versionsTest
 
 .PHONY: default all clean versionsTest
 
@@ -37,5 +38,5 @@ versionsTest:
 	$(PYTHON) test-zstd-versions.py
 
 clean:
-	@rm -fR $(TESTDIR)
+	@$(RM) -fR $(TESTDIR)
 	@echo Cleaning completed

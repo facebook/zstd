@@ -303,7 +303,7 @@ MEM_STATIC void MEM_check(void) { MEM_STATIC_ASSERT((sizeof(size_t)==4) || (size
 #ifndef MEM_FORCE_MEMORY_ACCESS   /* can be defined externally, on command line for example */
 #  if defined(__GNUC__) && ( defined(__ARM_ARCH_6__) || defined(__ARM_ARCH_6J__) || defined(__ARM_ARCH_6K__) || defined(__ARM_ARCH_6Z__) || defined(__ARM_ARCH_6ZK__) || defined(__ARM_ARCH_6T2__) )
 #    define MEM_FORCE_MEMORY_ACCESS 2
-#  elif defined(__INTEL_COMPILER) || \
+#  elif (defined(__INTEL_COMPILER) && !defined(WIN32)) || \
   (defined(__GNUC__) && ( defined(__ARM_ARCH_7__) || defined(__ARM_ARCH_7A__) || defined(__ARM_ARCH_7R__) || defined(__ARM_ARCH_7M__) || defined(__ARM_ARCH_7S__) ))
 #    define MEM_FORCE_MEMORY_ACCESS 1
 #  endif
@@ -3373,6 +3373,7 @@ static const ZSTDv07_customMem defaultCustomMem = { ZSTDv07_defaultAllocFunction
 #  include <intrin.h>                    /* For Visual 2005 */
 #  pragma warning(disable : 4127)        /* disable: C4127: conditional expression is constant */
 #  pragma warning(disable : 4324)        /* disable: C4324: padded structure */
+#  pragma warning(disable : 4100)        /* disable: C4100: unreferenced formal parameter */
 #else
 #  ifdef __GNUC__
 #    define FORCE_INLINE static inline __attribute__((always_inline))

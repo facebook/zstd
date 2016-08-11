@@ -323,7 +323,52 @@ ZSTDLIB_API size_t ZSTD_sizeofDCtx(const ZSTD_DCtx* dctx);
 
 
 /* ******************************************************************
-*  Buffer-less streaming functions (synchronous mode)
+*  Streaming
+********************************************************************/
+
+typedef struct ZSTD_readCursor_s {
+  const void* ptr;            /* position of cursor - update to new position */
+  size_t size;                /* remaining buffer size to read - update preserves end of buffer */
+} ZSTD_rCursor;
+
+typedef struct ZSTD_writeCursor_s {
+  void* ptr;                  /* position of cursor - update to new position */
+  size_t size;                /* remaining buffer size to write - update preserves end of buffer */
+  size_t nbBytesWritten;      /* already written bytes - update adds bytes newly written (accumulator) */
+} ZSTD_wCursor;
+
+
+/*======   compression   ======*/
+
+typedef struct ZSTD_CStream_s ZSTD_CStream;
+ZSTD_CStream* ZSTD_createCStream(void);
+size_t ZSTD_freeCStream(ZSTD_CStream* zcs);
+
+size_t ZSTD_initCStream(ZSTD_CStream* zcs, int compressionLevel);
+size_t ZSTD_compressStream(ZSTD_CStream* zcs, ZSTD_wCursor* output, ZSTD_rCursor* input);
+size_t ZSTD_flushStream(ZSTD_CStream* zcs, ZSTD_wCursor* output);
+size_t ZSTD_endStream(ZSTD_CStream* zcs, ZSTD_wCursor* output);
+
+/* advanced */
+ZSTD_CStream* ZSTD_createCStream_advanced(ZSTD_customMem customMem);
+size_t ZSTD_initCStream_usingDict(ZSTD_CStream* zcs, const void* dict, size_t dictSize, int compressionLevel);
+size_t ZSTD_initCStream_advanced(ZSTD_CStream* zcs, const void* dict, size_t dictSize,
+                                 ZSTD_parameters params, unsigned long long pledgedSrcSize);
+
+
+/*======   decompression   ======*/
+
+typedef struct ZSTD_DStream_s ZSTD_DStream;
+ZSTD_DStream* ZSTD_createDStream(void);
+size_t ZSTD_freeDStream(ZSTD_DStream* zds);
+
+size_t ZSTD_initDStream(ZSTD_DStream* zds);
+size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_wCursor* output, ZSTD_rCursor* input);
+
+
+
+/* ******************************************************************
+*  Buffer-less and synchronous inner streaming functions
 ********************************************************************/
 /* This is an advanced API, giving full control over buffer management, for users which need direct control over memory.
 *  But it's also a complex one, with a lot of restrictions (documented below).

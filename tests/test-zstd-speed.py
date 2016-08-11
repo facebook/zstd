@@ -6,15 +6,24 @@ import string
 import subprocess
 import time
 import traceback
+import hashlib
 
-
+script_version = 'v0.8.0 (2016-08-03)'
 default_repo_url = 'https://github.com/Cyan4973/zstd.git'
 working_dir_name = 'speedTest'
 working_path = os.getcwd() + '/' + working_dir_name     # /path/to/zstd/tests/speedTest
 clone_path = working_path + '/' + 'zstd'                # /path/to/zstd/tests/speedTest/zstd
-email_header = '[ZSTD_speedTest]'
+email_header = 'ZSTD_speedTest'
 pid = str(os.getpid())
 verbose = False
+
+
+
+def hashfile(hasher, fname, blocksize=65536):
+    with open(fname, "rb") as f:
+        for chunk in iter(lambda: f.read(blocksize), b""):
+            hasher.update(chunk)
+    return hasher.hexdigest()
 
 
 def log(text):
@@ -64,7 +73,7 @@ def send_email_with_attachments(branch, commit, last_commit, args, text, results
     with open(logFileName, "w") as myfile:
         myfile.writelines(text)
         myfile.close()
-        email_topic = '%s:%s Warning for %s:%s last_commit=%s speed<%s ratio<%s' \
+        email_topic = '[%s:%s] Warning for %s:%s last_commit=%s speed<%s ratio<%s' \
                       % (email_header, pid, branch, commit, last_commit,
                          args.lowerLimit, args.ratioLimit)
         if have_mutt:
@@ -117,7 +126,7 @@ def get_last_results(resultsFileName):
     return commit, csize, cspeed, dspeed
 
 
-def benchmark_and_compare(branch, commit, last_commit, args, executableName, resultsFileName,
+def benchmark_and_compare(branch, commit, last_commit, args, executableName, md5sum, resultsFileName,
                           testFilePath, fileName, last_csize, last_cspeed, last_dspeed):
     sleepTime = 30
     while os.getloadavg()[0] > args.maxLoadAvg:
@@ -149,7 +158,7 @@ def benchmark_and_compare(branch, commit, last_commit, args, executableName, res
             if (float(last_csize[i])/csize[i] < args.ratioLimit):
                 text += "WARNING: %s -%d cSize=%d last_cSize=%d diff=%.4f %s\n" % (executableName, i+1, csize[i], last_csize[i], float(last_csize[i])/csize[i], fileName)
         if text:
-            text = args.message + ("\nmaxLoadAvg=%s  load average at start=%s end=%s  last_commit=%s\n" % (args.maxLoadAvg, start_load, end_load, last_commit)) + text
+            text = args.message + ("\nmaxLoadAvg=%s  load average at start=%s end=%s  last_commit=%s  md5=%s\n" % (args.maxLoadAvg, start_load, end_load, last_commit, md5sum)) + text
         return text
 
 
@@ -162,13 +171,13 @@ def update_config_file(branch, commit):
     return last_commit
 
 
-def double_check(branch, commit, args, executableName, resultsFileName, filePath, fileName):
+def double_check(branch, commit, args, executableName, md5sum, resultsFileName, filePath, fileName):
     last_commit, csize, cspeed, dspeed = get_last_results(resultsFileName)
     if not args.dry_run:
-        text = benchmark_and_compare(branch, commit, last_commit, args, executableName, resultsFileName, filePath, fileName, csize, cspeed, dspeed)
+        text = benchmark_and_compare(branch, commit, last_commit, args, executableName, md5sum, resultsFileName, filePath, fileName, csize, cspeed, dspeed)
         if text:
             log("WARNING: redoing tests for branch %s: commit %s" % (branch, commit))
-            text = benchmark_and_compare(branch, commit, last_commit, args, executableName, resultsFileName, filePath, fileName, csize, cspeed, dspeed)
+            text = benchmark_and_compare(branch, commit, last_commit, args, executableName, md5sum, resultsFileName, filePath, fileName, csize, cspeed, dspeed)
     return text
 
 
@@ -176,19 +185,31 @@ def test_commit(branch, commit, last_commit, args, testFilePaths, have_mutt, hav
     local_branch = string.split(branch, '/')[1]
     version = local_branch.rpartition('-')[2] + '_' + commit
     if not args.dry_run:
-        execute('make -C programs clean zstd MOREFLAGS="-DZSTD_GIT_COMMIT=%s" && make -B -C programs zstd32 MOREFLAGS="-DZSTD_GIT_COMMIT=%s"' % (version, version))
+        execute('make -C programs clean zstd CC=clang MOREFLAGS="-Werror -Wconversion -Wno-sign-conversion -DZSTD_GIT_COMMIT=%s" && ' % version +
+                'mv programs/zstd programs/zstd_clang && ' +
+                'make -C programs clean zstd MOREFLAGS="-DZSTD_GIT_COMMIT=%s" && ' % version +
+                'make -B -C programs zstd32 MOREFLAGS="-DZSTD_GIT_COMMIT=%s"' % version)
+    md5_zstd = hashfile(hashlib.md5(), clone_path + '/programs/zstd')
+    md5_zstd32 = hashfile(hashlib.md5(), clone_path + '/programs/zstd32')
+    md5_zstd_clang = hashfile(hashlib.md5(), clone_path + '/programs/zstd_clang')
+    print("md5(zstd)=%s\nmd5(zstd32)=%s\nmd5(zstd32_clang)=%s" % (md5_zstd, md5_zstd32, md5_zstd_clang))
     logFileName = working_path + "/log_" + branch.replace("/", "_") + ".txt"
     text_to_send = []
     results_files = ""
     for filePath in testFilePaths:
         fileName = filePath.rpartition('/')[2]
         resultsFileName = working_path + "/results_" + branch.replace("/", "_") + "_" + fileName.replace(".", "_") + ".txt"
-        text = double_check(branch, commit, args, 'zstd', resultsFileName, filePath, fileName)
+        text = double_check(branch, commit, args, 'zstd', md5_zstd, resultsFileName, filePath, fileName)
         if text:
             text_to_send.append(text)
             results_files += resultsFileName + " "
         resultsFileName = working_path + "/results32_" + branch.replace("/", "_") + "_" + fileName.replace(".", "_") + ".txt"
-        text = double_check(branch, commit, args, 'zstd32', resultsFileName, filePath, fileName)
+        text = double_check(branch, commit, args, 'zstd32', md5_zstd32, resultsFileName, filePath, fileName)
+        if text:
+            text_to_send.append(text)
+            results_files += resultsFileName + " "
+        resultsFileName = working_path + "/resultsClang_" + branch.replace("/", "_") + "_" + fileName.replace(".", "_") + ".txt"
+        text = double_check(branch, commit, args, 'zstd_clang', md5_zstd_clang, resultsFileName, filePath, fileName)
         if text:
             text_to_send.append(text)
             results_files += resultsFileName + " "
@@ -263,7 +284,7 @@ if __name__ == '__main__':
         log("ERROR: %s already exists, exiting" % pidfile)
         exit(1)
 
-    send_email(args.emails, email_header + ':%s test-zstd-speed.py has been started' % pid, args.message, have_mutt, have_mail)
+    send_email(args.emails, '[%s:%s] test-zstd-speed.py %s has been started' % (email_header, pid, script_version), args.message, have_mutt, have_mail)
     file(pidfile, 'w').write(pid)
 
     while True:
@@ -288,11 +309,11 @@ if __name__ == '__main__':
             time.sleep(args.sleepTime)
         except Exception as e:
             stack = traceback.format_exc()
-            email_topic = '%s:%s ERROR in %s:%s' % (email_header, pid, branch, commit)
+            email_topic = '[%s:%s] ERROR in %s:%s' % (email_header, pid, branch, commit)
             send_email(args.emails, email_topic, stack, have_mutt, have_mail)
             print(stack)
             time.sleep(args.sleepTime)
         except KeyboardInterrupt:
             os.unlink(pidfile)
-            send_email(args.emails, email_header + ':%s test-zstd-speed.py has been stopped' % pid, args.message, have_mutt, have_mail)
+            send_email(args.emails, '[%s:%s] test-zstd-speed.py %s has been stopped' % (email_header, pid, script_version), args.message, have_mutt, have_mail)
             exit(0)

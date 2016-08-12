@@ -31,7 +31,8 @@ LDFLAGS+= -lzstd
 default: all
 
 all: simple_compression simple_decompression \
-	dictionary_compression dictionary_decompression
+	dictionary_compression dictionary_decompression \
+	streaming_compression
 
 simple_compression : simple_compression.c
 	$(CC) $(CPPFLAGS) $(CFLAGS) $^ $(LDFLAGS) -o $@
@@ -45,19 +46,24 @@ dictionary_compression : dictionary_compression.c
 dictionary_decompression : dictionary_decompression.c
 	$(CC) $(CPPFLAGS) $(CFLAGS) $^ $(LDFLAGS) -o $@
 
+streaming_compression : streaming_compression.c
+	$(CC) $(CPPFLAGS) $(CFLAGS) $^ $(LDFLAGS) -o $@
+
 clean:
 	@rm -f core *.o tmp* result* *.zst \
         simple_compression simple_decompression \
-		dictionary_compression dictionary_decompression
+		dictionary_compression dictionary_decompression \
+		streaming_compression
 	@echo Cleaning completed
 
 test: all
 	cp README.md tmp
+	@echo starting simple compression
 	./simple_compression tmp
-	@echo starting simple_decompression
 	./simple_decompression tmp.zst
-	@echo dictionary compression
+	@echo starting streaming compression
+	./streaming_compression tmp
+	@echo starting dictionary compression
 	./dictionary_compression tmp README.md
-	@echo dictionary decompression
 	./dictionary_decompression tmp.zst README.md
 	@echo tests completed

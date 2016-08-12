@@ -3,6 +3,7 @@ simple_compression
 simple_decompression
 dictionary_compression
 dictionary_decompression
+streaming_compression
 
 #test artefact
 tmp*

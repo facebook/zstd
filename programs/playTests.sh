@@ -47,7 +47,7 @@ $ECHO "\n**** simple tests **** "
 $ZSTD -f tmp                      # trivial compression case, creates tmp.zst
 $ZSTD -df tmp.zst                 # trivial decompression case (overwrites tmp)
 $ECHO "test : too large compression level (must fail)"
-$ZSTD -99 tmp && die "too large compression level undetected"
+$ZSTD -99 -f tmp  # too large compression level, automatic sized down
 $ECHO "test : compress to stdout"
 $ZSTD tmp -c > tmpCompressed
 $ZSTD tmp --stdout > tmpCompressed       # long command format

@@ -2758,7 +2758,9 @@ ZSTDLIB_API size_t ZSTD_compress_usingCDict(ZSTD_CCtx* cctx,
 
 
 
-/*-======  Streaming  ======-*/
+/* ******************************************************************
+*  Streaming
+********************************************************************/
 
 typedef enum { zcss_init, zcss_load, zcss_flush, zcss_final } ZSTD_cStreamStage;
 
@@ -2815,7 +2817,10 @@ size_t ZSTD_freeCStream(ZSTD_CStream* zcs)
 }
 
 
-/*  Initialization  */
+/*======   Initialization   ======*/
+
+size_t ZSTD_CStreamInSize(void)  { return ZSTD_BLOCKSIZE_ABSOLUTEMAX; }
+size_t ZSTD_CStreamOutSize(void) { return ZSTD_compressBound(ZSTD_BLOCKSIZE_ABSOLUTEMAX) + ZSTD_blockHeaderSize + 4 /* 32-bits hash */ ; }
 
 size_t ZSTD_initCStream_advanced(ZSTD_CStream* zcs,
                                  const void* dict, size_t dictSize,
@@ -2863,7 +2868,7 @@ size_t ZSTD_initCStream(ZSTD_CStream* zcs, int compressionLevel)
 }
 
 
-/*   Compression   */
+/*======   Compression   ======*/
 
 typedef enum { zsf_gather, zsf_flush, zsf_end } ZSTD_flush_e;
 
@@ -2969,7 +2974,7 @@ size_t ZSTD_compressStream(ZSTD_CStream* zcs, ZSTD_wCursor* output, ZSTD_rCursor
 }
 
 
-/*    Finalize    */
+/*======   Finalize   ======*/
 
 /*! ZSTD_flushStream() :
 *   @return : amount of data remaining to flush */

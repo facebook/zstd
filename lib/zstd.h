@@ -344,6 +344,9 @@ typedef struct ZSTD_CStream_s ZSTD_CStream;
 ZSTD_CStream* ZSTD_createCStream(void);
 size_t ZSTD_freeCStream(ZSTD_CStream* zcs);
 
+size_t ZSTD_CStreamInSize(void);    /*!< recommended size for input buffer */
+size_t ZSTD_CStreamOutSize(void);   /*!< recommended size for output buffer */
+
 size_t ZSTD_initCStream(ZSTD_CStream* zcs, int compressionLevel);
 size_t ZSTD_compressStream(ZSTD_CStream* zcs, ZSTD_wCursor* output, ZSTD_rCursor* input);
 size_t ZSTD_flushStream(ZSTD_CStream* zcs, ZSTD_wCursor* output);
@@ -362,8 +365,15 @@ typedef struct ZSTD_DStream_s ZSTD_DStream;
 ZSTD_DStream* ZSTD_createDStream(void);
 size_t ZSTD_freeDStream(ZSTD_DStream* zds);
 
+size_t ZSTD_DStreamInSize(void);    /*!< recommended size for input buffer */
+size_t ZSTD_DStreamOutSize(void);   /*!< recommended size for output buffer */
+
 size_t ZSTD_initDStream(ZSTD_DStream* zds);
 size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_wCursor* output, ZSTD_rCursor* input);
+
+/* advanced */
+ZSTD_DStream* ZSTD_createDStream_advanced(ZSTD_customMem customMem);
+size_t ZSTD_initDStream_usingDict(ZSTD_DStream* zds, const void* dict, size_t dictSize);
 
 
 

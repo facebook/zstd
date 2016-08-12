@@ -96,7 +96,7 @@ static const char*    g_defaultDictName = "dictionary";
 static const unsigned g_defaultMaxDictSize = 110 KB;
 static const int      g_defaultDictCLevel = 5;
 static const unsigned g_defaultSelectivityLevel = 9;
-
+static const int      g_defaultDisplayLevel = 2;
 
 /*-************************************
 *  Display Macros
@@ -104,7 +104,7 @@ static const unsigned g_defaultSelectivityLevel = 9;
 #define DISPLAY(...)           fprintf(displayOut, __VA_ARGS__)
 #define DISPLAYLEVEL(l, ...)   if (displayLevel>=l) { DISPLAY(__VA_ARGS__); }
 static FILE* displayOut;
-static unsigned displayLevel = 2;   /* 0 : no display,  1: errors,  2 : + result + interaction + warnings,  3 : + progression,  4 : + information */
+static unsigned displayLevel = g_defaultDisplayLevel;   /* 0 : no display,  1: errors,  2 : + result + interaction + warnings,  3 : + progression,  4 : + information */
 
 
 /*-************************************
@@ -140,7 +140,7 @@ static int usage_advanced(const char* programName)
     DISPLAY( "\n");
     DISPLAY( "Advanced arguments :\n");
     DISPLAY( " -V     : display Version number and exit\n");
-    DISPLAY( " -v     : verbose mode\n");
+    DISPLAY( " -v     : verbose mode; specify multiple times to increase log level (default:%d)\n", g_defaultDisplayLevel);
     DISPLAY( " -q     : suppress warnings; specify twice to suppress errors too\n");
     DISPLAY( " -c     : force write to standard output, even if it is the console\n");
 #ifdef UTIL_HAS_CREATEFILELIST

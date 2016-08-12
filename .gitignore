@@ -18,14 +18,6 @@ zstd
 *.out
 *.app
 
-# Visual C++
-projects/VS2008
-projects/VS2010
-projects/VS2012
-projects/VS2013
-projects/VS2015
-build/bin
-
 # IDEA solution files
 *.idea
 
@@ -34,9 +26,6 @@ build/bin
 _codelite/
 _zstdbench/
 .clang_complete
-
-# CMake
-projects/cmake/
 
 # Test artefacts
 tmp*

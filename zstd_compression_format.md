@@ -403,8 +403,8 @@ in order to properly allocate destination buffer.
 See [`Data_Block`](#the-structure-of-data_block) for more details.
 
 A compressed block consists of 2 sections :
-- [Literals section](#literals-section)
-- [Sequences section](#sequences-section)
+- [`Literals_Section`](#literals_section)
+- [`Sequences_Section`](#sequences_section)
 
 ### Prerequisites
 To decode a compressed block, the following elements are necessary :
@@ -415,95 +415,96 @@ To decode a compressed block, the following elements are necessary :
   (literals, litLength, matchLength, offset).
 
 
-### Literals section
+### `Literals_Section`
 
 During sequence phase, literals will be entangled with match copy operations.
 All literals are regrouped in the first part of the block.
 They can be decoded first, and then copied during sequence operations,
 or they can be decoded on the flow, as needed by sequence commands.
 
-| Literals section header | [Huffman Tree Description] | Stream1 | [Stream2] | [Stream3] | [Stream4] |
-| ----------------------- | -------------------------- | ------- | --------- | --------- | --------- |
+| `Literals_Section_Header` | [`Huffman_Tree_Description`] | Stream1 | [Stream2] | [Stream3] | [Stream4] |
+| ------------------------- | ---------------------------- | ------- | --------- | --------- | --------- |
 
 Literals can be stored uncompressed or compressed using Huffman prefix codes.
 When compressed, an optional tree description can be present,
 followed by 1 or 4 streams.
 
 
-#### Literals section header
+#### `Literals_Section_Header`
 
 Header is in charge of describing how literals are packed.
 It's a byte-aligned variable-size bitfield, ranging from 1 to 5 bytes,
 using little-endian convention.
 
-| Literals Block Type | sizes format | regenerated size | [compressed size] |
-| ------------------- | ------------ | ---------------- | ----------------- |
-|   2 bits            |  1 - 2 bits  |    5 - 20 bits   |    0 - 18 bits    |
+| `Literals_Block_Type` | `Size_Format` | `Regenerated_Size` | [`Compressed_Size`] |
+| --------------------- | ------------- | ------------------ | ----------------- |
+|   2 bits              |  1 - 2 bits   |    5 - 20 bits     |    0 - 18 bits    |
 
 In this representation, bits on the left are smallest bits.
 
-__Literals Block Type__ :
+__`Literals_Block_Type`__ 
 
 This field uses 2 lowest bits of first byte, describing 4 different block types :
 
-|       Value         |  0  |  1  |      2     |      3      |
-| ------------------- | --- | --- | ---------- | ----------- |
-| Literals Block Type | Raw | RLE | Compressed | RepeatStats |    
+|       Value           |  0                   |  1                   |      2                      |       3                       |
+| --------------------- | -------------------- | -------------------- | --------------------------- | ----------------------------- |
+| `Literals_Block_Type` | `Raw_Literals_Block` | `RLE_Literals_Block` | `Compressed_Literals_Block` | `Repeat_Stats_Literals_Block` |
 
-- Raw literals block - Literals are stored uncompressed.
-- RLE literals block - Literals consist of a single byte value repeated N times.
-- Compressed literals block - This is a standard huffman-compressed block,
-        starting with a huffman tree description.
+- `Raw_Literals_Block` - Literals are stored uncompressed.
+- `RLE_Literals_Block` - Literals consist of a single byte value repeated N times.
+- `Compressed_Literals_Block` - This is a standard Huffman-compressed block,
+        starting with a Huffman tree description.
         See details below.
-- Repeat Stats literals block - This is a huffman-compressed block,
-        using huffman tree _from previous huffman-compressed literals block_.
+- `Repeat_Stats_Literals_Block` - This is a Huffman-compressed block,
+        using Huffman tree _from previous Huffman-compressed literals block_.
         Huffman tree description will be skipped.
 
-__Sizes format__ :
+__`Size_Format`__ 
 
-Sizes format are divided into 2 families :
+`Size_Format` is divided into 2 families :
 
-- For compressed block, it requires to decode both the compressed size
-  and the decompressed size. It will also decode the number of streams.
-- For Raw or RLE blocks, it's enough to decode the size to regenerate.
+- For `Compressed_Block`, it requires to decode both `Compressed_Size`
+  and `Regenerated_Size` (the decompressed size). It will also decode the number of streams.
+- For `Raw_Block` and `RLE_Block` it's enough to decode `Regenerated_Size`.
 
 For values spanning several bytes, convention is Little-endian.
 
-__Sizes format for Raw and RLE literals block__ :
+__`Size_Format` for `Raw_Literals_Block` and `RLE_Literals_Block`__ :
 
-- Value : x0 : Regenerated size uses 5 bits (0-31).
+- Value : x0 : `Regenerated_Size` uses 5 bits (0-31).
                Total literal header size is 1 byte.
                `size = h[0]>>3;`
-- Value : 01 : Regenerated size uses 12 bits (0-4095).
+- Value : 01 : `Regenerated_Size` uses 12 bits (0-4095).
                Total literal header size is 2 bytes.
                `size = (h[0]>>4) + (h[1]<<4);`
-- Value : 11 : Regenerated size uses 20 bits (0-1048575).
+- Value : 11 : `Regenerated_Size` uses 20 bits (0-1048575).
                Total literal header size is 3 bytes.
                `size = (h[0]>>4) + (h[1]<<4) + (h[2]<<12);`
 
 Note : it's allowed to represent a short value (ex : `13`)
 using a long format, accepting the reduced compacity.
 
-__Sizes format for Compressed literals block and Repeat Stats literals block__ :
+__`Size_Format` for `Compressed_Literals_Block` and `Repeat_Stats_Literals_Block`__ :
 
 - Value : 00 : _Single stream_.
-               Compressed and regenerated sizes use 10 bits (0-1023).
+               `Compressed_Size` and `Regenerated_Size` use 10 bits (0-1023).
                Total literal header size is 3 bytes.
 - Value : 01 : 4 streams.
-               Compressed and regenerated sizes use 10 bits (0-1023).
+               `Compressed_Size` and `Regenerated_Size` use 10 bits (0-1023).
                Total literal header size is 3 bytes.
 - Value : 10 : 4 streams.
-               Compressed and regenerated sizes use 14 bits (0-16383).
+               `Compressed_Size` and `Regenerated_Size` use 14 bits (0-16383).
                Total literal header size is 4 bytes.
 - Value : 11 : 4 streams.
-               Compressed and regenerated sizes use 18 bits (0-262143).
+               `Compressed_Size` and `Regenerated_Size` use 18 bits (0-262143).
                Total literal header size is 5 bytes.
 
-Compressed and regenerated size fields follow little-endian convention.
+`Compressed_Size` and `Regenerated_Size` fields follow little-endian convention.
 
-#### Huffman Tree description
 
-This section is only present when literals block type is `Compressed` (`0`).
+#### `Huffman_Tree_Description`
+
+This section is only present when `Literals_Block_Type` type is `Compressed_Block` (`2`).
 
 Prefix coding represents symbols from an a priori known alphabet
 by bit sequences (codewords), one codeword for each symbol,
@@ -533,7 +534,7 @@ by completing to the nearest power of 2.
 This power of 2 gives `maxBits`, the depth of the current tree.
 
 __Example__ :
-Let's presume the following huffman tree must be described :
+Let's presume the following Huffman tree must be described :
 
 | literal |  0  |  1  |  2  |  3  |  4  |  5  |
 | ------- | --- | --- | --- | --- | --- | --- |
@@ -575,7 +576,7 @@ which tells how to decode the list of weights.
   the serie of weights is compressed by FSE.
   The length of the FSE-compressed serie is `headerByte` (0-127).
 
-##### FSE (Finite State Entropy) compression of huffman weights
+##### FSE (Finite State Entropy) compression of Huffman weights
 
 The serie of weights is compressed using FSE compression.
 It's a single bitstream with 2 interleaved states,
@@ -590,7 +591,7 @@ and last symbol value is not represented.
 An FSE bitstream starts by a header, describing probabilities distribution.
 It will create a Decoding Table.
 Table must be pre-allocated, which requires to support a maximum accuracy.
-For a list of huffman weights, maximum accuracy is 7 bits.
+For a list of Huffman weights, maximum accuracy is 7 bits.
 
 FSE header is [described in relevant chapter](#fse-distribution-table--condensed-format),
 and so is [FSE bitstream](#bitstream).
@@ -602,7 +603,7 @@ by tracking bitStream overflow condition.
 When both states have overflowed the bitstream, end is reached.
 
 
-##### Conversion from weights to huffman prefix codes
+##### Conversion from weights to Huffman prefix codes
 
 All present symbols shall now have a `weight` value.
 It is possible to transform weights into nbBits, using this formula :
@@ -634,7 +635,7 @@ it gives the following distribution :
 ##### Bitstreams sizes
 
 As seen in a previous paragraph,
-there are 2 flavors of huffman-compressed literals :
+there are 2 flavors of Huffman-compressed literals :
 single stream, and 4-streams.
 
 4-streams is useful for CPU with multiple execution units and OoO operations.
@@ -685,7 +686,7 @@ hence reaching exactly its beginning position with _all_ bits consumed,
 the decoding process is considered faulty.
 
 
-### Sequences section
+### `Sequences_Section`
 
 A compressed block is a succession of _sequences_ .
 A sequence is a literal copy command, followed by a match copy command.
@@ -1144,6 +1145,6 @@ __Content__ : Where the actual dictionary content is.
 Version changes
 ---------------
 - 0.2.0 : numerous format adjustments for zstd v0.8
-- 0.1.2 : limit huffman tree depth to 11 bits
+- 0.1.2 : limit Huffman tree depth to 11 bits
 - 0.1.1 : reserved dictID ranges
 - 0.1.0 : initial release

@@ -71,6 +71,10 @@ XXH32        6.8 GB/s            6.0 GB/s
 extern "C" {
 #endif
 
+#ifndef XXH_NAMESPACE
+#  define XXH_NAMESPACE ZSTD_  /* Zstandard specific */
+#endif
+
 
 /* ****************************
 *  Definitions
@@ -82,18 +86,21 @@ typedef enum { XXH_OK=0, XXH_ERROR } XXH_errorcode;
 /* ****************************
 *  API modifier
 ******************************/
-/*!XXH_PRIVATE_API
-*  Transforms all publics symbols within `xxhash.c` into private ones.
-*  Methodology :
-*  instead of : #include "xxhash.h"
-*  do :
+/** XXH_PRIVATE_API
+*   This is useful if you want to include xxhash functions in `static` mode
+*   in order to inline them, and remove their symbol from the public list.
+*   Methodology :
 *     #define XXH_PRIVATE_API
-*     #include "xxhash.c"   // note the .c , instead of .h
-*  also : don't compile and link xxhash.c separately
+*     #include "xxhash.h"
+*   `xxhash.c` is automatically included.
+*   It's not useful to compile and link it as a separate module anymore.
 */
 #ifdef XXH_PRIVATE_API
+#  ifndef XXH_STATIC_LINKING_ONLY
+#    define XXH_STATIC_LINKING_ONLY
+#  endif
 #  if defined(__GNUC__)
-#    define XXH_PUBLIC_API static __attribute__((unused))
+#    define XXH_PUBLIC_API static __inline __attribute__((unused))
 #  elif defined (__cplusplus) || (defined (__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L) /* C99 */)
 #    define XXH_PUBLIC_API static inline
 #  elif defined(_MSC_VER)
@@ -103,17 +110,17 @@ typedef enum { XXH_OK=0, XXH_ERROR } XXH_errorcode;
 #  endif
 #else
 #  define XXH_PUBLIC_API   /* do nothing */
-#endif
+#endif /* XXH_PRIVATE_API */
 
 /*!XXH_NAMESPACE, aka Namespace Emulation :
 
 If you want to include _and expose_ xxHash functions from within your own library,
 but also want to avoid symbol collisions with another library which also includes xxHash,
 
-you can use XXH_NAMESPACE, to automatically prefix any public symbol from `xxhash.c`
+you can use XXH_NAMESPACE, to automatically prefix any public symbol from xxhash library
 with the value of XXH_NAMESPACE (so avoid to keep it NULL and avoid numeric values).
 
-Note that no change is required within the calling program as long as it also includes `xxhash.h` :
+Note that no change is required within the calling program as long as it includes `xxhash.h` :
 regular symbol name will be automatically translated by this header.
 */
 #ifdef XXH_NAMESPACE
@@ -132,6 +139,12 @@ regular symbol name will be automatically translated by this header.
 #  define XXH64_update XXH_NAME2(XXH_NAMESPACE, XXH64_update)
 #  define XXH32_digest XXH_NAME2(XXH_NAMESPACE, XXH32_digest)
 #  define XXH64_digest XXH_NAME2(XXH_NAMESPACE, XXH64_digest)
+#  define XXH32_copyState XXH_NAME2(XXH_NAMESPACE, XXH32_copyState)
+#  define XXH64_copyState XXH_NAME2(XXH_NAMESPACE, XXH64_copyState)
+#  define XXH32_canonicalFromHash XXH_NAME2(XXH_NAMESPACE, XXH32_canonicalFromHash)
+#  define XXH64_canonicalFromHash XXH_NAME2(XXH_NAMESPACE, XXH64_canonicalFromHash)
+#  define XXH32_hashFromCanonical XXH_NAME2(XXH_NAMESPACE, XXH32_hashFromCanonical)
+#  define XXH64_hashFromCanonical XXH_NAME2(XXH_NAMESPACE, XXH64_hashFromCanonical)
 #endif
 
 
@@ -140,7 +153,7 @@ regular symbol name will be automatically translated by this header.
 ***************************************/
 #define XXH_VERSION_MAJOR    0
 #define XXH_VERSION_MINOR    6
-#define XXH_VERSION_RELEASE  0
+#define XXH_VERSION_RELEASE  2
 #define XXH_VERSION_NUMBER  (XXH_VERSION_MAJOR *100*100 + XXH_VERSION_MINOR *100 + XXH_VERSION_RELEASE)
 XXH_PUBLIC_API unsigned XXH_versionNumber (void);
 
@@ -163,7 +176,7 @@ XXH32() :
 XXH64() :
     Calculate the 64-bits hash of sequence of length "len" stored at memory address "input".
     "seed" can be used to alter the result predictably.
-    This function runs faster on 64-bits systems, but slower on 32-bits systems (see benchmark).
+    This function runs 2x faster on 64-bits systems, but slower on 32-bits systems (see benchmark).
 */
 
 
@@ -173,8 +186,7 @@ XXH64() :
 typedef struct XXH32_state_s XXH32_state_t;   /* incomplete type */
 typedef struct XXH64_state_s XXH64_state_t;   /* incomplete type */
 
-/*! Dynamic allocation of states
-    Compatible with dynamic libraries */
+/*! State allocation, compatible with dynamic libraries */
 
 XXH_PUBLIC_API XXH32_state_t* XXH32_createState(void);
 XXH_PUBLIC_API XXH_errorcode  XXH32_freeState(XXH32_state_t* statePtr);
@@ -193,26 +205,38 @@ XXH_PUBLIC_API XXH_errorcode XXH64_reset  (XXH64_state_t* statePtr, unsigned lon
 XXH_PUBLIC_API XXH_errorcode XXH64_update (XXH64_state_t* statePtr, const void* input, size_t length);
 XXH_PUBLIC_API XXH64_hash_t  XXH64_digest (const XXH64_state_t* statePtr);
 
-/*!
-These functions generate the xxHash of an input provided in multiple segments,
-as opposed to provided as a single block.
+/*
+These functions generate the xxHash of an input provided in multiple segments.
+Note that, for small input, they are slower than single-call functions, due to state management.
+For small input, prefer `XXH32()` and `XXH64()` .
 
-XXH state must first be allocated, using either static or dynamic method provided above.
+XXH state must first be allocated, using XXH*_createState() .
 
-Start a new hash by initializing state with a seed, using XXHnn_reset().
+Start a new hash by initializing state with a seed, using XXH*_reset().
 
-Then, feed the hash state by calling XXHnn_update() as many times as necessary.
-Obviously, input must be valid, hence allocated and read accessible.
+Then, feed the hash state by calling XXH*_update() as many times as necessary.
+Obviously, input must be allocated and read accessible.
 The function returns an error code, with 0 meaning OK, and any other value meaning there is an error.
 
-Finally, a hash value can be produced anytime, by using XXHnn_digest().
+Finally, a hash value can be produced anytime, by using XXH*_digest().
 This function returns the nn-bits hash as an int or long long.
 
 It's still possible to continue inserting input into the hash state after a digest,
-and later on generate some new hashes, by calling again XXHnn_digest().
+and generate some new hashes later on, by calling again XXH*_digest().
 
 When done, free XXH state space if it was allocated dynamically.
 */
+
+
+/* **************************
+*  Utils
+****************************/
+#if !(defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L))   /* ! C99 */
+#  define restrict   /* disable restrict */
+#endif
+
+XXH_PUBLIC_API void XXH32_copyState(XXH32_state_t* restrict dst_state, const XXH32_state_t* restrict src_state);
+XXH_PUBLIC_API void XXH64_copyState(XXH64_state_t* restrict dst_state, const XXH64_state_t* restrict src_state);
 
 
 /* **************************
@@ -227,43 +251,55 @@ XXH_PUBLIC_API void XXH64_canonicalFromHash(XXH64_canonical_t* dst, XXH64_hash_t
 XXH_PUBLIC_API XXH32_hash_t XXH32_hashFromCanonical(const XXH32_canonical_t* src);
 XXH_PUBLIC_API XXH64_hash_t XXH64_hashFromCanonical(const XXH64_canonical_t* src);
 
-/*! Default result type for XXH functions are primitive unsigned 32 and 64 bits.
-*   The canonical representation uses human-readable write convention, aka big-endian (large digits first).
-*   These functions allow transformation of hash result into and from its canonical format.
-*   This way, hash values can be written into a file / memory, and remain comparable on different systems and programs.
+/* Default result type for XXH functions are primitive unsigned 32 and 64 bits.
+*  The canonical representation uses human-readable write convention, aka big-endian (large digits first).
+*  These functions allow transformation of hash result into and from its canonical format.
+*  This way, hash values can be written into a file / memory, and remain comparable on different systems and programs.
 */
 
 
 #ifdef XXH_STATIC_LINKING_ONLY
 
-/* This part contains definition which shall only be used with static linking.
-   The prototypes / types defined here are not guaranteed to remain stable.
-   They could change in a future version, becoming incompatible with a different version of the library */
+/* ================================================================================================
+   This section contains definitions which are not guaranteed to remain stable.
+   They may change in future versions, becoming incompatible with a different version of the library.
+   They shall only be used with static linking.
+   Never use these definitions in association with dynamic linking !
+=================================================================================================== */
+
+/* These definitions are only meant to allow allocation of XXH state
+   statically, on stack, or in a struct for example.
+   Do not use members directly. */
 
    struct XXH32_state_s {
-       unsigned long long total_len;
-       unsigned seed;
+       unsigned total_len_32;
+       unsigned large_len;
        unsigned v1;
        unsigned v2;
        unsigned v3;
        unsigned v4;
        unsigned mem32[4];   /* buffer defined as U32 for alignment */
        unsigned memsize;
+       unsigned reserved;   /* never read nor write, will be removed in a future version */
    };   /* typedef'd to XXH32_state_t */
 
    struct XXH64_state_s {
        unsigned long long total_len;
-       unsigned long long seed;
        unsigned long long v1;
        unsigned long long v2;
        unsigned long long v3;
        unsigned long long v4;
        unsigned long long mem64[4];   /* buffer defined as U64 for alignment */
        unsigned memsize;
+       unsigned reserved[2];          /* never read nor write, will be removed in a future version */
    };   /* typedef'd to XXH64_state_t */
 
 
-#endif
+#  ifdef XXH_PRIVATE_API
+#    include "xxhash.c"   /* include xxhash functions as `static`, for inlining */
+#  endif
+
+#endif /* XXH_STATIC_LINKING_ONLY */
 
 
 #if defined (__cplusplus)

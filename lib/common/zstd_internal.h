@@ -67,9 +67,10 @@
 #define ZSTD_OPT_NUM    (1<<12)
 #define ZSTD_DICT_MAGIC  0xEC30A437   /* v0.7+ */
 
-#define ZSTD_REP_NUM    3                 /* number of repcodes */
-#define ZSTD_REP_CHECK  (ZSTD_REP_NUM-0)  /* number of repcodes to check by the optimal parser */
-#define ZSTD_REP_MOVE   (ZSTD_REP_NUM-1)
+#define ZSTD_REP_NUM      3                 /* number of repcodes */
+#define ZSTD_REP_CHECK    (ZSTD_REP_NUM)    /* number of repcodes to check by the optimal parser */
+#define ZSTD_REP_MOVE     (ZSTD_REP_NUM-1)
+#define ZSTD_REP_MOVE_OPT (ZSTD_REP_NUM)
 static const U32 repStartValue[ZSTD_REP_NUM] = { 1, 4, 8 };
 
 #define KB *(1 <<10)
@@ -149,6 +150,16 @@ MEM_STATIC void ZSTD_wildcopy(void* dst, const void* src, size_t length)
     const BYTE* ip = (const BYTE*)src;
     BYTE* op = (BYTE*)dst;
     BYTE* const oend = op + length;
+    do
+        COPY8(op, ip)
+    while (op < oend);
+}
+
+MEM_STATIC void ZSTD_wildcopy_e(void* dst, const void* src, void* dstEnd)   /* should be faster for decoding, but strangely, not verified on all platform */
+{
+    const BYTE* ip = (const BYTE*)src;
+    BYTE* op = (BYTE*)dst;
+    BYTE* const oend = (BYTE*)dstEnd;
     do
         COPY8(op, ip)
     while (op < oend);

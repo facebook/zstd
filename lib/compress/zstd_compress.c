@@ -940,8 +940,8 @@ static void ZSTD_fillHashTable (ZSTD_CCtx* zc, const void* end, const U32 mls)
 
 FORCE_INLINE
 void ZSTD_compressBlock_fast_generic(ZSTD_CCtx* cctx,
-                                 const void* src, size_t srcSize,
-                                 const U32 mls)
+                               const void* src, size_t srcSize,
+                               const U32 mls)
 {
     U32* const hashTable = cctx->hashTable;
     U32  const hBits = cctx->params.cParams.hashLog;
@@ -973,7 +973,7 @@ void ZSTD_compressBlock_fast_generic(ZSTD_CCtx* cctx,
         const BYTE* match = base + matchIndex;
         hashTable[h] = current;   /* update hash table */
 
-        if ((offset_1 > 0) & (MEM_read32(ip+1-offset_1) == MEM_read32(ip+1))) { /* note : by construction, offset_1 <= current */
+        if ((offset_1 > 0) & (MEM_read32(ip+1-offset_1) == MEM_read32(ip+1))) {
             mLength = ZSTD_count(ip+1+4, ip+1+4-offset_1, iend) + 4;
             ip++;
             ZSTD_storeSeq(seqStorePtr, ip-anchor, anchor, 0, mLength-MINMATCH);
@@ -2205,8 +2205,13 @@ static ZSTD_blockCompressor ZSTD_selectBlockCompressor(ZSTD_strategy strat, int 
 static size_t ZSTD_compressBlock_internal(ZSTD_CCtx* zc, void* dst, size_t dstCapacity, const void* src, size_t srcSize)
 {
     ZSTD_blockCompressor const blockCompressor = ZSTD_selectBlockCompressor(zc->params.cParams.strategy, zc->lowLimit < zc->dictLimit);
+    const BYTE* const base = zc->base;
+    const BYTE* const istart = (const BYTE*)src;
+    const U32 current = (U32)(istart-base);
     if (srcSize < MIN_CBLOCK_SIZE+ZSTD_blockHeaderSize+1) return 0;   /* don't even attempt compression below a certain srcSize */
     ZSTD_resetSeqStore(&(zc->seqStore));
+    if (current > zc->nextToUpdate + 384)
+        zc->nextToUpdate = current - MIN(192, (U32)(current - zc->nextToUpdate - 384));   /* update tree not updated after finding very long rep matches */
     blockCompressor(zc, src, srcSize);
     return ZSTD_compressSequences(zc, dst, dstCapacity, srcSize);
 }
@@ -2243,6 +2248,21 @@ static size_t ZSTD_compress_generic (ZSTD_CCtx* cctx,
 
         if (dstCapacity < ZSTD_blockHeaderSize + MIN_CBLOCK_SIZE) return ERROR(dstSize_tooSmall);   /* not enough space to store compressed block */
         if (remaining < blockSize) blockSize = remaining;
+
+        /* preemptive overflow correction */
+        if (cctx->lowLimit > (1<<30)) {
+            U32 const btplus = (cctx->params.cParams.strategy == ZSTD_btlazy2) | (cctx->params.cParams.strategy == ZSTD_btopt);
+            U32 const chainMask = (1 << (cctx->params.cParams.chainLog - btplus)) - 1;
+            U32 const newLowLimit = cctx->lowLimit & chainMask;   /* preserve position % chainSize */
+            U32 const correction = cctx->lowLimit - newLowLimit;
+            ZSTD_reduceIndex(cctx, correction);
+            cctx->base += correction;
+            cctx->dictBase += correction;
+            cctx->lowLimit = newLowLimit;
+            cctx->dictLimit -= correction;
+            if (cctx->nextToUpdate < correction) cctx->nextToUpdate = 0;
+            else cctx->nextToUpdate -= correction;
+        }
 
         if ((U32)(ip+blockSize - cctx->base) > cctx->loadedDictEnd + maxDist) {
             /* enforce maxDist */
@@ -2317,7 +2337,7 @@ static size_t ZSTD_writeFrameHeader(void* dst, size_t dstCapacity,
 }
 
 
-static size_t ZSTD_compressContinue_internal (ZSTD_CCtx* zc,
+static size_t ZSTD_compressContinue_internal (ZSTD_CCtx* cctx,
                               void* dst, size_t dstCapacity,
                         const void* src, size_t srcSize,
                                U32 frame, U32 lastFrameChunk)
@@ -2325,53 +2345,40 @@ static size_t ZSTD_compressContinue_internal (ZSTD_CCtx* zc,
     const BYTE* const ip = (const BYTE*) src;
     size_t fhSize = 0;
 
-    if (zc->stage==ZSTDcs_created) return ERROR(stage_wrong);   /* missing init (ZSTD_compressBegin) */
+    if (cctx->stage==ZSTDcs_created) return ERROR(stage_wrong);   /* missing init (ZSTD_compressBegin) */
 
-    if (frame && (zc->stage==ZSTDcs_init)) {
-        fhSize = ZSTD_writeFrameHeader(dst, dstCapacity, zc->params, zc->frameContentSize, zc->dictID);
+    if (frame && (cctx->stage==ZSTDcs_init)) {
+        fhSize = ZSTD_writeFrameHeader(dst, dstCapacity, cctx->params, cctx->frameContentSize, cctx->dictID);
         if (ZSTD_isError(fhSize)) return fhSize;
         dstCapacity -= fhSize;
         dst = (char*)dst + fhSize;
-        zc->stage = ZSTDcs_ongoing;
+        cctx->stage = ZSTDcs_ongoing;
     }
 
     /* Check if blocks follow each other */
-    if (src != zc->nextSrc) {
+    if (src != cctx->nextSrc) {
         /* not contiguous */
-        ptrdiff_t const delta = zc->nextSrc - ip;
-        zc->lowLimit = zc->dictLimit;
-        zc->dictLimit = (U32)(zc->nextSrc - zc->base);
-        zc->dictBase = zc->base;
-        zc->base -= delta;
-        zc->nextToUpdate = zc->dictLimit;
-        if (zc->dictLimit - zc->lowLimit < HASH_READ_SIZE) zc->lowLimit = zc->dictLimit;   /* too small extDict */
+        ptrdiff_t const delta = cctx->nextSrc - ip;
+        cctx->lowLimit = cctx->dictLimit;
+        cctx->dictLimit = (U32)(cctx->nextSrc - cctx->base);
+        cctx->dictBase = cctx->base;
+        cctx->base -= delta;
+        cctx->nextToUpdate = cctx->dictLimit;
+        if (cctx->dictLimit - cctx->lowLimit < HASH_READ_SIZE) cctx->lowLimit = cctx->dictLimit;   /* too small extDict */
     }
 
-    /* preemptive overflow correction */
-    if (zc->lowLimit > (1<<30)) {
-        U32 const btplus = (zc->params.cParams.strategy == ZSTD_btlazy2) | (zc->params.cParams.strategy == ZSTD_btopt);
-        U32 const chainMask = (1 << (zc->params.cParams.chainLog - btplus)) - 1;
-        U32 const newLowLimit = zc->lowLimit & chainMask;   /* preserve position % chainSize */
-        U32 const correction = zc->lowLimit - newLowLimit;
-        ZSTD_reduceIndex(zc, correction);
-        zc->base += correction;
-        zc->dictBase += correction;
-        zc->lowLimit = newLowLimit;
-        zc->dictLimit -= correction;
-        if (zc->nextToUpdate < correction) zc->nextToUpdate = 0;
-        else zc->nextToUpdate -= correction;
+    /* if input and dictionary overlap : reduce dictionary (area presumed modified by input) */
+    if ((ip+srcSize > cctx->dictBase + cctx->lowLimit) & (ip < cctx->dictBase + cctx->dictLimit)) {
+        ptrdiff_t const highInputIdx = (ip + srcSize) - cctx->dictBase;
+        U32 const lowLimitMax = (highInputIdx > (ptrdiff_t)cctx->dictLimit) ? cctx->dictLimit : (U32)highInputIdx;
+        cctx->lowLimit = lowLimitMax;
     }
 
-    /* if input and dictionary overlap : reduce dictionary (presumed modified by input) */
-    if ((ip+srcSize > zc->dictBase + zc->lowLimit) && (ip < zc->dictBase + zc->dictLimit)) {
-        zc->lowLimit = (U32)(ip + srcSize - zc->dictBase);
-        if (zc->lowLimit > zc->dictLimit) zc->lowLimit = zc->dictLimit;
-    }
+    cctx->nextSrc = ip + srcSize;
 
-    zc->nextSrc = ip + srcSize;
     {   size_t const cSize = frame ?
-                             ZSTD_compress_generic (zc, dst, dstCapacity, src, srcSize, lastFrameChunk) :
-                             ZSTD_compressBlock_internal (zc, dst, dstCapacity, src, srcSize);
+                             ZSTD_compress_generic (cctx, dst, dstCapacity, src, srcSize, lastFrameChunk) :
+                             ZSTD_compressBlock_internal (cctx, dst, dstCapacity, src, srcSize);
         if (ZSTD_isError(cSize)) return cSize;
         return cSize + fhSize;
     }
@@ -2619,22 +2626,6 @@ size_t ZSTD_compressEnd (ZSTD_CCtx* cctx,
 }
 
 
-/*! ZSTD_compress_usingPreparedCCtx() :
-*   Same as ZSTD_compress_usingDict, but using a reference context `preparedCCtx`, where dictionary has been loaded.
-*   It avoids reloading the dictionary each time.
-*   `preparedCCtx` must have been properly initialized using ZSTD_compressBegin_usingDict() or ZSTD_compressBegin_advanced().
-*   Requires 2 contexts : 1 for reference (preparedCCtx) which will not be modified, and 1 to run the compression operation (cctx) */
-static size_t ZSTD_compress_usingPreparedCCtx(ZSTD_CCtx* cctx, const ZSTD_CCtx* preparedCCtx,
-                                       void* dst, size_t dstCapacity,
-                                 const void* src, size_t srcSize)
-{
-    size_t const errorCode = ZSTD_copyCCtx(cctx, preparedCCtx);
-    if (ZSTD_isError(errorCode)) return errorCode;
-
-    return ZSTD_compressEnd(cctx, dst, dstCapacity, src, srcSize);
-}
-
-
 static size_t ZSTD_compress_internal (ZSTD_CCtx* cctx,
                                void* dst, size_t dstCapacity,
                          const void* src, size_t srcSize,
@@ -2730,9 +2721,7 @@ ZSTD_CDict* ZSTD_createCDict_advanced(const void* dict, size_t dictSize, ZSTD_pa
 ZSTD_CDict* ZSTD_createCDict(const void* dict, size_t dictSize, int compressionLevel)
 {
     ZSTD_customMem const allocator = { NULL, NULL, NULL };
-    ZSTD_parameters params;
-    memset(&params, 0, sizeof(params));
-    params.cParams = ZSTD_getCParams(compressionLevel, 0, dictSize);
+    ZSTD_parameters params = ZSTD_getParams(compressionLevel, 0, dictSize);
     params.fParams.contentSizeFlag = 1;
     return ZSTD_createCDict_advanced(dict, dictSize, params, allocator);
 }
@@ -2747,14 +2736,24 @@ size_t ZSTD_freeCDict(ZSTD_CDict* cdict)
     return 0;
 }
 
+/*! ZSTD_compress_usingCDict() :
+*   Compression using a digested Dictionary.
+*   Faster startup than ZSTD_compress_usingDict(), recommended when same dictionary is used multiple times.
+*   Note that compression level is decided during dictionary creation */
 ZSTDLIB_API size_t ZSTD_compress_usingCDict(ZSTD_CCtx* cctx,
                                            void* dst, size_t dstCapacity,
                                      const void* src, size_t srcSize,
                                      const ZSTD_CDict* cdict)
 {
-    return ZSTD_compress_usingPreparedCCtx(cctx, cdict->refContext,
-                                           dst, dstCapacity,
-                                           src, srcSize);
+    size_t const errorCode = ZSTD_copyCCtx(cctx, cdict->refContext);
+    if (ZSTD_isError(errorCode)) return errorCode;
+
+    if (cdict->refContext->params.fParams.contentSizeFlag==1) {
+        cctx->params.fParams.contentSizeFlag = 1;
+        cctx->frameContentSize = srcSize;
+    }
+
+    return ZSTD_compressEnd(cctx, dst, dstCapacity, src, srcSize);
 }
 
 

@@ -9,6 +9,8 @@ fuzzer
 fuzzer32
 zbufftest
 zbufftest32
+zstreamtest
+zstreamtest32
 datagen
 paramgrill
 paramgrill32

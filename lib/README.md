@@ -37,15 +37,18 @@ Other optional functionalities provided are :
 
 - `legacy/` : source code to decompress previous versions of zstd, starting from `v0.1`.
               This module also depends on `common/` and `decompress/` .
-              Note that it's required to compile the library with `ZSTD_LEGACY_SUPPORT = 1` .
+              Library compilation must include directive `ZSTD_LEGACY_SUPPORT = 1` .
               The main API can be consulted in `legacy/zstd_legacy.h`.
-              Advanced API from each version can be found in its relevant header file.
-              For example, advanced API for version `v0.4` is in `zstd_v04.h` .
+              Advanced API from each version can be found in their relevant header file.
+              For example, advanced API for version `v0.4` is in `legacy/zstd_v04.h` .
 
 
-#### Streaming API
+#### Obsolete streaming API
 
-Streaming is currently provided by `common/zbuff.h`.
+Streaming is now provided within `zstd.h`.
+Older streaming API is still provided within `common/zbuff.h`.
+It is considered obsolete, and will be removed in a future version.
+Consider migrating towards newer streaming API.
 
 
 #### Miscellaneous
@@ -55,3 +58,4 @@ The other files are not source code. There are :
  - LICENSE : contains the BSD license text
  - Makefile : script to compile or install zstd library (static and dynamic)
  - libzstd.pc.in : for pkg-config (`make install`)
+ - README.md : this file

@@ -1,4 +1,5 @@
 v0.8.1
+New streaming API
 Changed : --ultra now enables levels beyond 19
 Changed : -i# now selects benchmark time in second
 Fixed : ZSTD_compress* can now compress > 4 GB in a single pass, reported by Nick Terrell

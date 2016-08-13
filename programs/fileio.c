@@ -22,8 +22,7 @@
   - zstd homepage : http://www.zstd.net
 */
 /*
-  Note : this is stand-alone program.
-  It is not part of ZSTD compression library, it is a user program of ZSTD library.
+  Note : this file is part of zstd command line, which is not library.
   The license of ZSTD library is BSD.
   The license of this file is GPLv2.
 */
@@ -173,9 +172,8 @@ static FILE* FIO_openSrcFile(const char* srcFileName)
         SET_BINARY_MODE(stdin);
     } else {
         f = fopen(srcFileName, "rb");
+        if ( f==NULL ) DISPLAYLEVEL(1, "zstd: %s: %s \n", srcFileName, strerror(errno));
     }
-
-    if ( f==NULL ) DISPLAYLEVEL(1, "zstd: %s: %s \n", srcFileName, strerror(errno));
 
     return f;
 }
@@ -212,9 +210,9 @@ static FILE* FIO_openDstFile(const char* dstFileName)
                     while ((ch!=EOF) && (ch!='\n')) ch = getchar();  /* flush rest of input line */
         }   }   }
         f = fopen( dstFileName, "wb" );
+        if (f==NULL) DISPLAYLEVEL(1, "zstd: %s: %s\n", dstFileName, strerror(errno));
     }
 
-    if (f==NULL) DISPLAYLEVEL(1, "zstd: %s: %s\n", dstFileName, strerror(errno));
     return f;
 }
 

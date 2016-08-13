@@ -226,7 +226,7 @@ ZEXTERN int ZEXPORT z_deflate OF((z_streamp strm, int flush))
 
     if (flush == Z_FULL_FLUSH) FINISH_WITH_ERR(strm, "Z_FULL_FLUSH is not supported!");
 
-    if (flush == Z_FINISH || flush == Z_FULL_FLUSH) {
+    if (flush == Z_FINISH || flush == Z_SYNC_FLUSH) {
         size_t bytesLeft;
         size_t dstCapacity = strm->avail_out;
         if (zwc->bytesLeft) {

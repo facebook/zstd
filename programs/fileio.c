@@ -58,8 +58,6 @@
 #include "fileio.h"
 #define ZSTD_STATIC_LINKING_ONLY   /* ZSTD_magicNumber, ZSTD_frameHeaderSize_max */
 #include "zstd.h"
-#define ZBUFF_STATIC_LINKING_ONLY
-#include "zbuff.h"
 
 #if defined(ZSTD_LEGACY_SUPPORT) && (ZSTD_LEGACY_SUPPORT==1)
 #  include "zstd_legacy.h"    /* ZSTD_isLegacy */
@@ -263,7 +261,7 @@ typedef struct {
     size_t dstBufferSize;
     void*  dictBuffer;
     size_t dictBufferSize;
-    ZBUFF_CCtx* ctx;
+    ZSTD_CStream* cctx;
     FILE* dstFile;
     FILE* srcFile;
 } cRess_t;
@@ -273,11 +271,11 @@ static cRess_t FIO_createCResources(const char* dictFileName)
     cRess_t ress;
     memset(&ress, 0, sizeof(ress));
 
-    ress.ctx = ZBUFF_createCCtx();
-    if (ress.ctx == NULL) EXM_THROW(30, "zstd: allocation error : can't create ZBUFF context");
-    ress.srcBufferSize = ZBUFF_recommendedCInSize();
+    ress.cctx = ZSTD_createCStream();
+    if (ress.cctx == NULL) EXM_THROW(30, "zstd: allocation error : can't create ZSTD_CStream");
+    ress.srcBufferSize = ZSTD_CStreamInSize();
     ress.srcBuffer = malloc(ress.srcBufferSize);
-    ress.dstBufferSize = ZBUFF_recommendedCOutSize();
+    ress.dstBufferSize = ZSTD_CStreamOutSize();
     ress.dstBuffer = malloc(ress.dstBufferSize);
     if (!ress.srcBuffer || !ress.dstBuffer) EXM_THROW(31, "zstd: allocation error : not enough memory");
 
@@ -293,8 +291,8 @@ static void FIO_freeCResources(cRess_t ress)
     free(ress.srcBuffer);
     free(ress.dstBuffer);
     free(ress.dictBuffer);
-    errorCode = ZBUFF_freeCCtx(ress.ctx);
-    if (ZBUFF_isError(errorCode)) EXM_THROW(38, "zstd: error : can't release ZBUFF context resource : %s", ZBUFF_getErrorName(errorCode));
+    errorCode = ZSTD_freeCStream(ress.cctx);
+    if (ZSTD_isError(errorCode)) EXM_THROW(38, "zstd: error : can't release ZSTD_CStream : %s", ZSTD_getErrorName(errorCode));
 }
 
 
@@ -322,8 +320,8 @@ static int FIO_compressFilename_internal(cRess_t ress,
             params.cParams.windowLog = g_maxWLog;
             params.cParams = ZSTD_adjustCParams(params.cParams, fileSize, ress.dictBufferSize);
         }
-        {   size_t const errorCode = ZBUFF_compressInit_advanced(ress.ctx, ress.dictBuffer, ress.dictBufferSize, params, fileSize);
-            if (ZBUFF_isError(errorCode)) EXM_THROW(21, "Error initializing compression : %s", ZBUFF_getErrorName(errorCode));
+        {   size_t const errorCode = ZSTD_initCStream_advanced(ress.cctx, ress.dictBuffer, ress.dictBufferSize, params, fileSize);
+            if (ZSTD_isError(errorCode)) EXM_THROW(21, "Error initializing compression : %s", ZSTD_getErrorName(errorCode));
     }   }
 
     /* Main compression loop */
@@ -335,30 +333,30 @@ static int FIO_compressFilename_internal(cRess_t ress,
         DISPLAYUPDATE(2, "\rRead : %u MB  ", (U32)(readsize>>20));
 
         /* Compress using buffered streaming */
-        {   size_t usedInSize = inSize;
-            size_t cSize = ress.dstBufferSize;
-            { size_t const result = ZBUFF_compressContinue(ress.ctx, ress.dstBuffer, &cSize, ress.srcBuffer, &usedInSize);
-              if (ZBUFF_isError(result)) EXM_THROW(23, "Compression error : %s ", ZBUFF_getErrorName(result)); }
-            if (inSize != usedInSize)
+        {   ZSTD_rCursor rCursor = { ress.srcBuffer, inSize };
+            ZSTD_wCursor wCursor = { ress.dstBuffer, ress.dstBufferSize, 0 };
+            { size_t const result = ZSTD_compressStream(ress.cctx, &wCursor, &rCursor);
+              if (ZSTD_isError(result)) EXM_THROW(23, "Compression error : %s ", ZSTD_getErrorName(result)); }
+            if (rCursor.size != 0)
                 /* inBuff should be entirely consumed since buffer sizes are recommended ones */
                 EXM_THROW(24, "Compression error : input block not fully consumed");
 
             /* Write cBlock */
-            { size_t const sizeCheck = fwrite(ress.dstBuffer, 1, cSize, dstFile);
-              if (sizeCheck!=cSize) EXM_THROW(25, "Write error : cannot write compressed block into %s", dstFileName); }
-            compressedfilesize += cSize;
+            { size_t const sizeCheck = fwrite(ress.dstBuffer, 1, wCursor.nbBytesWritten, dstFile);
+              if (sizeCheck!=wCursor.nbBytesWritten) EXM_THROW(25, "Write error : cannot write compressed block into %s", dstFileName); }
+            compressedfilesize += wCursor.nbBytesWritten;
         }
         DISPLAYUPDATE(2, "\rRead : %u MB  ==> %.2f%%   ", (U32)(readsize>>20), (double)compressedfilesize/readsize*100);
     }
 
     /* End of Frame */
-    {   size_t cSize = ress.dstBufferSize;
-        size_t const result = ZBUFF_compressEnd(ress.ctx, ress.dstBuffer, &cSize);
+    {   ZSTD_wCursor wCursor = { ress.dstBuffer, ress.dstBufferSize, 0 };
+        size_t const result = ZSTD_endStream(ress.cctx, &wCursor);
         if (result!=0) EXM_THROW(26, "Compression error : cannot create frame end");
 
-        { size_t const sizeCheck = fwrite(ress.dstBuffer, 1, cSize, dstFile);
-          if (sizeCheck!=cSize) EXM_THROW(27, "Write error : cannot write frame end into %s", dstFileName); }
-        compressedfilesize += cSize;
+        { size_t const sizeCheck = fwrite(ress.dstBuffer, 1, wCursor.nbBytesWritten, dstFile);
+          if (sizeCheck!=wCursor.nbBytesWritten) EXM_THROW(27, "Write error : cannot write frame end into %s", dstFileName); }
+        compressedfilesize += wCursor.nbBytesWritten;
     }
 
     /* Status */
@@ -494,7 +492,7 @@ typedef struct {
     size_t dstBufferSize;
     void*  dictBuffer;
     size_t dictBufferSize;
-    ZBUFF_DCtx* dctx;
+    ZSTD_DStream* dctx;
     FILE*  dstFile;
 } dRess_t;
 
@@ -504,11 +502,11 @@ static dRess_t FIO_createDResources(const char* dictFileName)
     memset(&ress, 0, sizeof(ress));
 
     /* Allocation */
-    ress.dctx = ZBUFF_createDCtx();
-    if (ress.dctx==NULL) EXM_THROW(60, "Can't create ZBUFF decompression context");
-    ress.srcBufferSize = ZBUFF_recommendedDInSize();
+    ress.dctx = ZSTD_createDStream();
+    if (ress.dctx==NULL) EXM_THROW(60, "Can't create ZSTD_DStream");
+    ress.srcBufferSize = ZSTD_DStreamInSize();
     ress.srcBuffer = malloc(ress.srcBufferSize);
-    ress.dstBufferSize = ZBUFF_recommendedDOutSize();
+    ress.dstBufferSize = ZSTD_DStreamOutSize();
     ress.dstBuffer = malloc(ress.dstBufferSize);
     if (!ress.srcBuffer || !ress.dstBuffer) EXM_THROW(61, "Allocation error : not enough memory");
 
@@ -520,8 +518,8 @@ static dRess_t FIO_createDResources(const char* dictFileName)
 
 static void FIO_freeDResources(dRess_t ress)
 {
-    size_t const errorCode = ZBUFF_freeDCtx(ress.dctx);
-    if (ZBUFF_isError(errorCode)) EXM_THROW(69, "Error : can't free ZBUFF context resource : %s", ZBUFF_getErrorName(errorCode));
+    size_t const errorCode = ZSTD_freeDStream(ress.dctx);
+    if (ZSTD_isError(errorCode)) EXM_THROW(69, "Error : can't free ZSTD_DStream context resource : %s", ZSTD_getErrorName(errorCode));
     free(ress.srcBuffer);
     free(ress.dstBuffer);
     free(ress.dictBuffer);
@@ -613,7 +611,7 @@ unsigned long long FIO_decompressFrame(dRess_t ress,
     size_t readSize;
     U32 storedSkips = 0;
 
-    ZBUFF_decompressInitDictionary(ress.dctx, ress.dictBuffer, ress.dictBufferSize);
+    ZSTD_initDStream_usingDict(ress.dctx, ress.dictBuffer, ress.dictBufferSize);
 
     /* Header loading (optional, saves one loop) */
     {   size_t const toLoad = 9 - alreadyLoaded;   /* assumption : 9 >= alreadyLoaded */
@@ -623,14 +621,15 @@ unsigned long long FIO_decompressFrame(dRess_t ress,
 
     /* Main decompression Loop */
     while (1) {
-        size_t inSize=readSize, decodedSize=ress.dstBufferSize;
-        size_t const toRead = ZBUFF_decompressContinue(ress.dctx, ress.dstBuffer, &decodedSize, ress.srcBuffer, &inSize);
-        if (ZBUFF_isError(toRead)) EXM_THROW(36, "Decoding error : %s", ZBUFF_getErrorName(toRead));
-        readSize -= inSize;
+        ZSTD_rCursor rCursor = { ress.srcBuffer, readSize };
+        ZSTD_wCursor wCursor = { ress.dstBuffer, ress.dstBufferSize, 0 };
+        size_t const toRead = ZSTD_decompressStream(ress.dctx, &wCursor, &rCursor );
+        if (ZSTD_isError(toRead)) EXM_THROW(36, "Decoding error : %s", ZSTD_getErrorName(toRead));
+        readSize = rCursor.size;
 
         /* Write block */
-        storedSkips = FIO_fwriteSparse(foutput, ress.dstBuffer, decodedSize, storedSkips);
-        frameSize += decodedSize;
+        storedSkips = FIO_fwriteSparse(foutput, ress.dstBuffer, wCursor.nbBytesWritten, storedSkips);
+        frameSize += wCursor.nbBytesWritten;
         DISPLAYUPDATE(2, "\rDecoded : %u MB...     ", (U32)(frameSize>>20) );
 
         if (toRead == 0) break;   /* end of frame */

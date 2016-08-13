@@ -94,7 +94,7 @@ all32: cleano32 all
 
 $(ZSTDDIR)/decompress/zstd_decompress.o: CFLAGS += $(ALIGN_LOOP)
 
-zstd  : $(ZSTD_FILES) $(ZSTDLEGACY_FILES) $(ZBUFF_FILES) $(ZDICT_FILES) \
+zstd  : $(ZSTD_FILES) $(ZSTDLEGACY_FILES) $(ZDICT_FILES) \
         zstdcli.c fileio.c bench.c datagen.c dibio.c
 	$(CC)      $(FLAGS) -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT) $^ -o $@$(EXT)
 
@@ -116,15 +116,15 @@ zstd-pgo : clean zstd
 	rm zstd
 	$(MAKE) zstd MOREFLAGS=-fprofile-use
 
-zstd-frugal: $(ZSTD_FILES) $(ZBUFF_FILES) zstdcli.c fileio.c
+zstd-frugal: $(ZSTD_FILES) zstdcli.c fileio.c
 	$(CC)      $(FLAGS) -DZSTD_NOBENCH -DZSTD_NODICT -DZSTD_LEGACY_SUPPORT=0 $^ -o zstd$(EXT)
 
 zstd-compress: $(ZSTDCOMMON_FILES) $(ZSTDCOMP_FILES) \
-	$(ZSTDDIR)/compress/zbuff_compress.c zstdcli.c fileio.c
+	zstdcli.c fileio.c
 	$(CC)      $(FLAGS) -DZSTD_NOBENCH -DZSTD_NODICT -DZSTD_NODECOMPRESS -DZSTD_LEGACY_SUPPORT=0 $^ -o $@$(EXT)
 
 zstd-decompress: $(ZSTDCOMMON_FILES) $(ZSTDDECOMP_FILES) \
-	$(ZSTDDIR)/decompress/zbuff_decompress.c zstdcli.c fileio.c
+	zstdcli.c fileio.c
 	$(CC)      $(FLAGS) -DZSTD_NOBENCH -DZSTD_NODICT -DZSTD_NOCOMPRESS -DZSTD_LEGACY_SUPPORT=0 $^ -o $@$(EXT)
 
 zstd-small: clean
@@ -152,7 +152,7 @@ zbufftest32 : CFLAGS += -m32
 zbufftest32 : EXT := 32$(EXT)
 zbufftest32 : zbufftest
 
-zstreamtest  : $(ZSTD_FILES) $(ZBUFF_FILES) datagen.c zstreamtest.c
+zstreamtest  : $(ZSTD_FILES) datagen.c zstreamtest.c
 	$(CC)      $(FLAGS) $^ -o $@$(EXT)
 
 zstreamtest32 : CFLAGS += -m32

@@ -227,7 +227,7 @@ ZEXTERN int ZEXPORT z_deflate OF((z_streamp strm, int flush))
 
     if (flush == Z_FULL_FLUSH) FINISH_WITH_ERR(strm, "Z_FULL_FLUSH is not supported!");
 
-    if (flush == Z_FINISH || flush == Z_FULL_FLUSH) {
+    if (flush == Z_FINISH) {
         size_t bytesLeft;
         size_t dstCapacity = strm->avail_out;
         if (zwc->bytesLeft) {
@@ -244,6 +244,18 @@ ZEXTERN int ZEXPORT z_deflate OF((z_streamp strm, int flush))
         strm->total_out += dstCapacity;
         strm->avail_out -= dstCapacity;
         if (flush == Z_FINISH && bytesLeft == 0) return Z_STREAM_END;
+        zwc->bytesLeft = bytesLeft;
+    }
+    
+    if (flush == Z_SYNC_FLUSH) {
+        size_t bytesLeft;
+        size_t dstCapacity = strm->avail_out;
+        bytesLeft = ZBUFF_compressFlush(zwc->zbc, strm->next_out, &dstCapacity);
+        LOG_WRAPPER("ZBUFF_compressFlush avail_out=%d dstCapacity=%d bytesLeft=%d\n", (int)strm->avail_out, (int)dstCapacity, (int)bytesLeft);
+        if (ZSTD_isError(bytesLeft)) return Z_MEM_ERROR;
+        strm->next_out += dstCapacity;
+        strm->total_out += dstCapacity;
+        strm->avail_out -= dstCapacity;
         zwc->bytesLeft = bytesLeft;
     }
     return Z_OK;

@@ -93,18 +93,18 @@ static void compressFile_orDie(const char* fname, const char* outName, int cLeve
     if (ZSTD_isError(initResult)) { fprintf(stderr, "ZSTD_initCStream() error \n"); exit(11); }
 
     while( (read = fread_orDie(buffIn, toRead, fin)) ) {
-        ZSTD_rCursor cursin = { buffIn, read };
-        while (cursin.size) {
-            ZSTD_wCursor cursout = { buffOut, buffOutSize, 0 };
-            toRead = ZSTD_compressStream(cstream, &cursout , &cursin);
-            fwrite_orDie(buffOut, cursout.nbBytesWritten, fout);
+        ZSTD_inBuffer input = { buffIn, read, 0 };
+        while (input.pos < input.size) {
+            ZSTD_outBuffer output = { buffOut, buffOutSize, 0 };
+            toRead = ZSTD_compressStream(cstream, &output , &input);
+            fwrite_orDie(buffOut, output.pos, fout);
         }
     }
 
-    ZSTD_wCursor cursout = { buffOut, buffOutSize, 0 };
-    size_t const remainingToFlush = ZSTD_endStream(cstream, &cursout);
+    ZSTD_outBuffer output = { buffOut, buffOutSize, 0 };
+    size_t const remainingToFlush = ZSTD_endStream(cstream, &output);
     if (remainingToFlush) { fprintf(stderr, "not fully flushed"); exit(12); }
-    fwrite_orDie(buffOut, cursout.nbBytesWritten, fout);
+    fwrite_orDie(buffOut, output.pos, fout);
 
     fclose_orDie(fout);
     fclose_orDie(fin);

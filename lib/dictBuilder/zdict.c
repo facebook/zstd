@@ -611,18 +611,17 @@ static void ZDICT_countEStats(EStats_ress_t esr, ZSTD_parameters params,
             {   const BYTE* codePtr = seqStorePtr->llCode;
                 U32 u;
                 for (u=0; u<nbSeq; u++) litlengthCount[codePtr[u]]++;
-        }   }
+            }
 
-        /* rep offsets */
-        {   const seqDef* const seq = seqStorePtr->sequences;
-            U32 offset1 = seq[0].offset - 3;
-            U32 offset2 = seq[1].offset - 3;
-            if (offset1 >= MAXREPOFFSET) offset1 = 0;
-            if (offset2 >= MAXREPOFFSET) offset2 = 0;
-            repOffsets[offset1] += 3;
-            repOffsets[offset2] += 1;
-        }
-    }
+            if (nbSeq >= 2) { /* rep offsets */
+                const seqDef* const seq = seqStorePtr->sequencesStart;
+                U32 offset1 = seq[0].offset - 3;
+                U32 offset2 = seq[1].offset - 3;
+                if (offset1 >= MAXREPOFFSET) offset1 = 0;
+                if (offset2 >= MAXREPOFFSET) offset2 = 0;
+                repOffsets[offset1] += 3;
+                repOffsets[offset2] += 1;
+    }   }   }
 }
 
 /*
@@ -676,7 +675,7 @@ static size_t ZDICT_analyzeEntropy(void*  dstBuffer, size_t maxDstSize,
     short matchLengthNCount[MaxML+1];
     U32 litLengthCount[MaxLL+1];
     short litLengthNCount[MaxLL+1];
-    U32 repOffset[MAXREPOFFSET] = { 0 };
+    U32 repOffset[MAXREPOFFSET];
     offsetCount_t bestRepOffset[ZSTD_REP_NUM+1];
     EStats_ress_t esr;
     ZSTD_parameters params;
@@ -701,6 +700,7 @@ static size_t ZDICT_analyzeEntropy(void*  dstBuffer, size_t maxDstSize,
     for (u=0; u<=offcodeMax; u++) offcodeCount[u]=1;
     for (u=0; u<=MaxML; u++) matchLengthCount[u]=1;
     for (u=0; u<=MaxLL; u++) litLengthCount[u]=1;
+    memset(repOffset, 0, sizeof(repOffset));
     repOffset[1] = repOffset[4] = repOffset[8] = 1;
     memset(bestRepOffset, 0, sizeof(bestRepOffset));
     if (compressionLevel==0) compressionLevel=g_compressionLevel_default;

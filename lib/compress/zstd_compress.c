@@ -2981,7 +2981,10 @@ size_t ZSTD_flushStream(ZSTD_CStream* zcs, ZSTD_outBuffer* output)
 {
     size_t srcSize = 0;
     size_t sizeWritten = output->size - output->pos;
-    size_t const result = ZSTD_compressStream_generic(zcs, output->dst + output->pos, &sizeWritten, &srcSize, &srcSize, zsf_flush);  /* use a valid src address instead of NULL */
+    size_t const result = ZSTD_compressStream_generic(zcs,
+                                                      (char*)(output->dst) + output->pos, &sizeWritten,
+                                                      &srcSize, &srcSize, /* use a valid src address instead of NULL */
+                                                      zsf_flush);
     output->pos += sizeWritten;
     if (ZSTD_isError(result)) return result;
     return zcs->outBuffContentSize - zcs->outBuffFlushedSize;   /* remaining to flush */

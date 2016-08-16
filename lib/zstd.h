@@ -324,16 +324,17 @@ ZSTDLIB_API size_t ZSTD_sizeofDCtx(const ZSTD_DCtx* dctx);
 *  Streaming
 ********************************************************************/
 
-typedef struct ZSTD_readCursor_s {
-  const void* ptr;            /**< position of cursor - update to new position */
-  size_t size;                /**< remaining buffer size to read - update preserves end of buffer */
-} ZSTD_rCursor;
+typedef struct ZSTD_inBuffer_s {
+  const void* src;    /**< start of input buffer */
+  size_t size;        /**< size of input buffer */
+  size_t pos;         /**< position where reading stopped. Will be updated. Necessarily 0 <= pos <= size */
+} ZSTD_inBuffer;
 
-typedef struct ZSTD_writeCursor_s {
-  void* ptr;                  /**< position of cursor - update to new position */
-  size_t size;                /**< remaining buffer size to write - update preserves end of buffer */
-  size_t nbBytesWritten;      /**< already written bytes - update adds bytes newly written (accumulator) */
-} ZSTD_wCursor;
+typedef struct ZSTD_outBuffer_s {
+  void*  dst;         /**< start of output buffer */
+  size_t size;        /**< size of output buffer */
+  size_t pos;         /**< position where writing stopped. Will be updated. Necessarily 0 <= pos <= size */
+} ZSTD_outBuffer;
 
 
 /*======   compression   ======*/
@@ -350,14 +351,14 @@ typedef struct ZSTD_writeCursor_s {
 *  Use ZSTD_initCStream_usingDict() for a compression which requires a dictionary.
 *
 *  Use ZSTD_compressStream() repetitively to consume input stream.
-*  The function will automatically advance cursors.
-*  Note that it may not consume the entire input, in which case `input->size > 0`,
+*  The function will automatically update both `pos`.
+*  Note that it may not consume the entire input, in which case `pos < size`,
 *  and it's up to the caller to present again remaining data.
 *  @return : a hint to preferred nb of bytes to use as input for next function call (it's just a hint, to improve latency)
 *            or an error code, which can be tested using ZSTD_isError().
 *
 *  At any moment, it's possible to flush whatever data remains within buffer, using ZSTD_flushStream().
-*  Cursor will be updated.
+*  `output->pos` will be updated.
 *  Note some content might still be left within internal buffer if `output->size` is too small.
 *  @return : nb of bytes still present within internal buffer (0 if it's empty)
 *            or an error code, which can be tested using ZSTD_isError().
@@ -380,9 +381,9 @@ size_t ZSTD_CStreamInSize(void);    /**< recommended size for input buffer */
 size_t ZSTD_CStreamOutSize(void);   /**< recommended size for output buffer */
 
 size_t ZSTD_initCStream(ZSTD_CStream* zcs, int compressionLevel);
-size_t ZSTD_compressStream(ZSTD_CStream* zcs, ZSTD_wCursor* output, ZSTD_rCursor* input);
-size_t ZSTD_flushStream(ZSTD_CStream* zcs, ZSTD_wCursor* output);
-size_t ZSTD_endStream(ZSTD_CStream* zcs, ZSTD_wCursor* output);
+size_t ZSTD_compressStream(ZSTD_CStream* zcs, ZSTD_outBuffer* output, ZSTD_inBuffer* input);
+size_t ZSTD_flushStream(ZSTD_CStream* zcs, ZSTD_outBuffer* output);
+size_t ZSTD_endStream(ZSTD_CStream* zcs, ZSTD_outBuffer* output);
 
 /* advanced */
 ZSTD_CStream* ZSTD_createCStream_advanced(ZSTD_customMem customMem);
@@ -404,8 +405,8 @@ size_t ZSTD_initCStream_advanced(ZSTD_CStream* zcs, const void* dict, size_t dic
 *   or ZSTD_initDStream_usingDict() if decompression requires a dictionary.
 *
 *  Use ZSTD_decompressStream() repetitively to consume your input.
-*  The function will update cursors.
-*  Note that it may not consume the entire input (input->size > 0),
+*  The function will update both `pos`.
+*  Note that it may not consume the entire input (pos < size),
 *  in which case it's up to the caller to present remaining input again.
 *  @return : 0 when a frame is completely decoded and fully flushed,
 *            1 when there is still some data left within internal buffer to flush,
@@ -422,7 +423,7 @@ size_t ZSTD_DStreamInSize(void);    /*!< recommended size for input buffer */
 size_t ZSTD_DStreamOutSize(void);   /*!< recommended size for output buffer */
 
 size_t ZSTD_initDStream(ZSTD_DStream* zds);
-size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_wCursor* output, ZSTD_rCursor* input);
+size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inBuffer* input);
 
 /* advanced */
 ZSTD_DStream* ZSTD_createDStream_advanced(ZSTD_customMem customMem);

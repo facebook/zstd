@@ -336,30 +336,30 @@ static int FIO_compressFilename_internal(cRess_t ress,
         DISPLAYUPDATE(2, "\rRead : %u MB  ", (U32)(readsize>>20));
 
         /* Compress using buffered streaming */
-        {   ZSTD_rCursor rCursor = { ress.srcBuffer, inSize };
-            ZSTD_wCursor wCursor = { ress.dstBuffer, ress.dstBufferSize, 0 };
-            { size_t const result = ZSTD_compressStream(ress.cctx, &wCursor, &rCursor);
+        {   ZSTD_inBuffer  inBuff = { ress.srcBuffer, inSize, 0 };
+            ZSTD_outBuffer outBuff= { ress.dstBuffer, ress.dstBufferSize, 0 };
+            { size_t const result = ZSTD_compressStream(ress.cctx, &outBuff, &inBuff);
               if (ZSTD_isError(result)) EXM_THROW(23, "Compression error : %s ", ZSTD_getErrorName(result)); }
-            if (rCursor.size != 0)
+            if (inBuff.pos != inBuff.size)
                 /* inBuff should be entirely consumed since buffer sizes are recommended ones */
                 EXM_THROW(24, "Compression error : input block not fully consumed");
 
             /* Write cBlock */
-            { size_t const sizeCheck = fwrite(ress.dstBuffer, 1, wCursor.nbBytesWritten, dstFile);
-              if (sizeCheck!=wCursor.nbBytesWritten) EXM_THROW(25, "Write error : cannot write compressed block into %s", dstFileName); }
-            compressedfilesize += wCursor.nbBytesWritten;
+            { size_t const sizeCheck = fwrite(ress.dstBuffer, 1, outBuff.pos, dstFile);
+              if (sizeCheck!=outBuff.pos) EXM_THROW(25, "Write error : cannot write compressed block into %s", dstFileName); }
+            compressedfilesize += outBuff.pos;
         }
         DISPLAYUPDATE(2, "\rRead : %u MB  ==> %.2f%%   ", (U32)(readsize>>20), (double)compressedfilesize/readsize*100);
     }
 
     /* End of Frame */
-    {   ZSTD_wCursor wCursor = { ress.dstBuffer, ress.dstBufferSize, 0 };
-        size_t const result = ZSTD_endStream(ress.cctx, &wCursor);
+    {   ZSTD_outBuffer outBuff = { ress.dstBuffer, ress.dstBufferSize, 0 };
+        size_t const result = ZSTD_endStream(ress.cctx, &outBuff);
         if (result!=0) EXM_THROW(26, "Compression error : cannot create frame end");
 
-        { size_t const sizeCheck = fwrite(ress.dstBuffer, 1, wCursor.nbBytesWritten, dstFile);
-          if (sizeCheck!=wCursor.nbBytesWritten) EXM_THROW(27, "Write error : cannot write frame end into %s", dstFileName); }
-        compressedfilesize += wCursor.nbBytesWritten;
+        { size_t const sizeCheck = fwrite(ress.dstBuffer, 1, outBuff.pos, dstFile);
+          if (sizeCheck!=outBuff.pos) EXM_THROW(27, "Write error : cannot write frame end into %s", dstFileName); }
+        compressedfilesize += outBuff.pos;
     }
 
     /* Status */
@@ -624,19 +624,18 @@ unsigned long long FIO_decompressFrame(dRess_t ress,
 
     /* Main decompression Loop */
     while (1) {
-        ZSTD_rCursor rCursor = { ress.srcBuffer, readSize };
-        ZSTD_wCursor wCursor = { ress.dstBuffer, ress.dstBufferSize, 0 };
-        size_t const toRead = ZSTD_decompressStream(ress.dctx, &wCursor, &rCursor );
+        ZSTD_inBuffer  inBuff = { ress.srcBuffer, readSize, 0 };
+        ZSTD_outBuffer outBuff= { ress.dstBuffer, ress.dstBufferSize, 0 };
+        size_t const toRead = ZSTD_decompressStream(ress.dctx, &outBuff, &inBuff );
         if (ZSTD_isError(toRead)) EXM_THROW(36, "Decoding error : %s", ZSTD_getErrorName(toRead));
-        readSize = rCursor.size;
 
         /* Write block */
-        storedSkips = FIO_fwriteSparse(foutput, ress.dstBuffer, wCursor.nbBytesWritten, storedSkips);
-        frameSize += wCursor.nbBytesWritten;
+        storedSkips = FIO_fwriteSparse(foutput, ress.dstBuffer, outBuff.pos, storedSkips);
+        frameSize += outBuff.pos;
         DISPLAYUPDATE(2, "\rDecoded : %u MB...     ", (U32)(frameSize>>20) );
 
         if (toRead == 0) break;   /* end of frame */
-        if (readSize) EXM_THROW(37, "Decoding error : should consume entire input");
+        if (inBuff.size != inBuff.pos) EXM_THROW(37, "Decoding error : should consume entire input");
 
         /* Fill input buffer */
         if (toRead > ress.srcBufferSize) EXM_THROW(38, "too large block");

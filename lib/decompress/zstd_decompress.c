@@ -1393,13 +1393,13 @@ MEM_STATIC size_t ZSTD_limitCopy(void* dst, size_t dstCapacity, const void* src,
 }
 
 
-size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_wCursor* output, ZSTD_rCursor* input)
+size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inBuffer* input)
 {
-    const char* const istart = (const char*)(input->ptr);
-    const char* const iend = istart + input->size;
+    const char* const istart = (const char*)(input->src) + input->pos;
+    const char* const iend = (const char*)(input->src) + input->size;
     const char* ip = istart;
-    char* const ostart = (char*)(output->ptr);
-    char* const oend = ostart + output->size;
+    char* const ostart = (char*)(output->dst) + output->pos;
+    char* const oend = (char*)(output->dst) + output->size;
     char* op = ostart;
     U32 someMoreWork = 1;
 
@@ -1417,8 +1417,7 @@ size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_wCursor* output, ZSTD_rCurs
                     if (toLoad > (size_t)(iend-ip)) {   /* not enough input to load full header */
                         memcpy(zds->headerBuffer + zds->lhSize, ip, iend-ip);
                         zds->lhSize += iend-ip;
-                        input->ptr = iend;
-                        input->size = 0;
+                        input->pos = input->size;
                         return (hSize - zds->lhSize) + ZSTD_blockHeaderSize;   /* remaining header bytes + next block header */
                     }
                     memcpy(zds->headerBuffer + zds->lhSize, ip, toLoad); zds->lhSize = hSize; ip += toLoad;
@@ -1522,11 +1521,8 @@ size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_wCursor* output, ZSTD_rCurs
     }   }
 
     /* result */
-    input->ptr = ip;
-    input->size = (size_t)(iend-ip);
-    output->ptr = op;
-    output->size = (size_t) (oend-op);
-    output->nbBytesWritten += (size_t)(op-ostart);
+    input->pos += (size_t)(ip-istart);
+    output->pos += (size_t)(op-ostart);
     {   size_t nextSrcSizeHint = ZSTD_nextSrcSizeToDecompress(zds->zd);
         if (!nextSrcSizeHint) return (zds->outEnd != zds->outStart);   /* return 0 only if fully flushed too */
         nextSrcSizeHint += ZSTD_blockHeaderSize * (ZSTD_nextInputType(zds->zd) == ZSTDnit_block);

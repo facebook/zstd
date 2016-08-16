@@ -2960,16 +2960,15 @@ static size_t ZSTD_compressStream_generic(ZSTD_CStream* zcs,
     }
 }
 
-size_t ZSTD_compressStream(ZSTD_CStream* zcs, ZSTD_wCursor* output, ZSTD_rCursor* input)
+size_t ZSTD_compressStream(ZSTD_CStream* zcs, ZSTD_outBuffer* output, ZSTD_inBuffer* input)
 {
-    size_t sizeRead = input->size;
-    size_t sizeWritten = output->size;
-    size_t const result = ZSTD_compressStream_generic(zcs, output->ptr, &sizeWritten, input->ptr, &sizeRead, zsf_gather);
-    input->ptr = (const char*)(input->ptr) + sizeRead;
-    input->size -= sizeRead;
-    output->ptr = (char*)(output->ptr) + sizeWritten;
-    output->size -= sizeWritten;
-    output->nbBytesWritten += sizeWritten;
+    size_t sizeRead = input->size - input->pos;
+    size_t sizeWritten = output->size - output->pos;
+    size_t const result = ZSTD_compressStream_generic(zcs,
+                                                      (char*)(output->dst) + output->pos, &sizeWritten,
+                                                      (const char*)(input->src) + input->pos, &sizeRead, zsf_gather);
+    input->pos += sizeRead;
+    output->pos += sizeWritten;
     return result;
 }
 
@@ -2978,36 +2977,32 @@ size_t ZSTD_compressStream(ZSTD_CStream* zcs, ZSTD_wCursor* output, ZSTD_rCursor
 
 /*! ZSTD_flushStream() :
 *   @return : amount of data remaining to flush */
-size_t ZSTD_flushStream(ZSTD_CStream* zcs, ZSTD_wCursor* output)
+size_t ZSTD_flushStream(ZSTD_CStream* zcs, ZSTD_outBuffer* output)
 {
     size_t srcSize = 0;
-    size_t sizeWritten = output->size;
-    size_t const result = ZSTD_compressStream_generic(zcs, output->ptr, &sizeWritten, &srcSize, &srcSize, zsf_flush);  /* use a valid src address instead of NULL */
-    output->ptr = (char*)(output->ptr) + sizeWritten;
-    output->size -= sizeWritten;
-    output->nbBytesWritten += sizeWritten;
+    size_t sizeWritten = output->size - output->pos;
+    size_t const result = ZSTD_compressStream_generic(zcs, output->dst + output->pos, &sizeWritten, &srcSize, &srcSize, zsf_flush);  /* use a valid src address instead of NULL */
+    output->pos += sizeWritten;
     if (ZSTD_isError(result)) return result;
     return zcs->outBuffContentSize - zcs->outBuffFlushedSize;   /* remaining to flush */
 }
 
 
-size_t ZSTD_endStream(ZSTD_CStream* zcs, ZSTD_wCursor* output)
+size_t ZSTD_endStream(ZSTD_CStream* zcs, ZSTD_outBuffer* output)
 {
-    BYTE* const ostart = (BYTE*)(output->ptr);
-    BYTE* const oend = ostart + output->size;
+    BYTE* const ostart = (BYTE*)(output->dst) + output->pos;
+    BYTE* const oend = (BYTE*)(output->dst) + output->size;
     BYTE* op = ostart;
 
     if (zcs->stage != zcss_final) {
         /* flush whatever remains */
         size_t srcSize = 0;
-        size_t sizeWritten = output->size;
+        size_t sizeWritten = output->size - output->pos;
         size_t const notEnded = ZSTD_compressStream_generic(zcs, ostart, &sizeWritten, &srcSize, &srcSize, zsf_end);  /* use a valid src address instead of NULL */
         size_t const remainingToFlush = zcs->outBuffContentSize - zcs->outBuffFlushedSize;
         op += sizeWritten;
         if (remainingToFlush) {
-            output->ptr = op;
-            output->size -= sizeWritten;
-            output->nbBytesWritten += sizeWritten;
+            output->pos += sizeWritten;
             return remainingToFlush + ZSTD_BLOCKHEADERSIZE /* final empty block */ + (zcs->checksum * 4);
         }
         /* create epilogue */
@@ -3021,9 +3016,7 @@ size_t ZSTD_endStream(ZSTD_CStream* zcs, ZSTD_wCursor* output)
         size_t const flushed = ZSTD_limitCopy(op, oend-op, zcs->outBuff + zcs->outBuffFlushedSize, toFlush);
         op += flushed;
         zcs->outBuffFlushedSize += flushed;
-        output->ptr = op;
-        output->size = oend-op;
-        output->nbBytesWritten += op-ostart;
+        output->pos += op-ostart;
         if (toFlush==flushed) zcs->stage = zcss_init;  /* end reached */
         return toFlush - flushed;
     }

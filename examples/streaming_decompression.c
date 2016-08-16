@@ -83,11 +83,12 @@ static void decompressFile_orDie(const char* fname)
     if (ZSTD_isError(initResult)) { fprintf(stderr, "ZSTD_initDStream() error \n"); exit(11); }
 
     while( (read = fread_orDie(buffIn, toRead, fin)) ) {
-        ZSTD_rCursor cursin = { buffIn, read };
-        while (cursin.size) {
-            ZSTD_wCursor cursout = { buffOut, buffOutSize, 0 };
-            toRead = ZSTD_decompressStream(dstream, &cursout , &cursin);
-            /* note : data is just "sinked" into buffOut */
+        ZSTD_inBuffer input = { buffIn, read, 0 };
+        while (input.pos < input.size) {
+            ZSTD_outBuffer output = { buffOut, buffOutSize, 0 };
+            toRead = ZSTD_decompressStream(dstream, &output , &input);
+            /* note : data is just "sinked" into buffOut
+               a more complete example would write it to disk or stdout */
         }
     }
 

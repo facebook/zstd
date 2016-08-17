@@ -174,37 +174,3 @@ bmi32test: clean
 staticAnalyze: clean
 	CPPFLAGS=-g scan-build --status-bugs -v $(MAKE) all
 endif
-
-
-#------------------------------------------------------------------------
-# for Travis CI
-#------------------------------------------------------------------------
-libc6install:
-	sudo apt-get install -y -qq libc6-dev-i386
-
-gppinstall:
-	sudo apt-get install -y -qq g++-multilib
-
-gcc5install:
-	sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
-	sudo apt-get update -y -qq
-	sudo apt-get install -y -qq gcc-5-multilib
-
-gcc6install:
-	sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
-	sudo apt-get update -y -qq
-	sudo apt-get install -y -qq gcc-6-multilib
-
-arminstall: clean
-	sudo apt-get install -y -q qemu binfmt-support qemu-user-static gcc-arm-linux-gnueabi
-
-ppcinstall: clean
-	sudo apt-get install -y -q qemu-system-ppc binfmt-support qemu-user-static gcc-powerpc-linux-gnu  # doesn't work with Ubuntu 12.04
-
-ppc64install: clean   # compilation works but cannot be executed
-	sudo apt-get install -y -q qemu-system-ppc binfmt-support qemu-user-static gcc-powerpc-linux-gnu
-	update-binfmts --displ
-
-valgrindinstall:
-	echo sudo apt-get install -y -qq valgrind
-	sudo apt-get install -y -qq valgrind

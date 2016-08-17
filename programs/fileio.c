@@ -41,11 +41,12 @@
 *  Compiler Options
 ***************************************/
 #ifdef _MSC_VER   /* Visual */
-#  define _POSIX_SOURCE 1          /* enable %llu on Windows */
 #  define _CRT_SECURE_NO_WARNINGS  /* removes Visual warning on strerror() */
 #  pragma warning(disable : 4204)  /* non-constant aggregate initializer */
 #endif
-
+#if defined(__MINGW32__) && !defined(_POSIX_SOURCE)
+#  define _POSIX_SOURCE 1          /* disable %llu warnings with MinGW on Windows */ 
+#endif
 
 /*-*************************************
 *  Includes

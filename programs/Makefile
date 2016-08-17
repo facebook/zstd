@@ -122,7 +122,7 @@ zstd-pgo : clean zstd
 	rm zstd
 	$(MAKE) zstd MOREFLAGS=-fprofile-use
 
-zstd-frugal: $(ZSTD_FILES) zstdcli.c fileio.c
+zstd-frugal: $(ZSTDDECOMP_O) $(ZSTD_FILES) zstdcli.c fileio.c
 	$(CC)      $(FLAGS) -DZSTD_NOBENCH -DZSTD_NODICT -DZSTD_LEGACY_SUPPORT=0 $^ -o zstd$(EXT)
 
 zstd-compress: $(ZSTDCOMMON_FILES) $(ZSTDCOMP_FILES) \
@@ -162,13 +162,13 @@ zstreamtest  : $(ZSTDDECOMP_O) $(ZSTD_FILES) datagen.c zstreamtest.c
 zstreamtest32 : $(ZSTDDECOMP32_O) $(ZSTD_FILES) datagen.c zstreamtest.c
 	$(CC) -m32  $(FLAGS) $^ -o $@$(EXT)
 
-paramgrill : $(ZSTD_FILES) datagen.c paramgrill.c
+paramgrill : $(ZSTDDECOMP_O) $(ZSTD_FILES) datagen.c paramgrill.c
 	$(CC)      $(FLAGS) $^ -lm -o $@$(EXT)
 
 datagen : datagen.c datagencli.c
 	$(CC)      $(FLAGS) $^ -o $@$(EXT)
 
-roundTripCrash : $(ZSTD_FILES) roundTripCrash.c
+roundTripCrash : $(ZSTDDECOMP_O) $(ZSTD_FILES) roundTripCrash.c
 	$(CC)      $(FLAGS) $^ -o $@$(EXT)
 
 clean:

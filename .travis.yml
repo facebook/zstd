@@ -73,14 +73,15 @@ matrix:
           sources:
             - ubuntu-toolchain-r-test
           packages:
-            - gcc-multilib
-            - gcc-4.8-multilib-powerpc-linux-gnu
             - gcc-5-multilib
             - gcc-6-multilib
-            - binfmt-support
             - qemu-system-ppc
             - qemu-user-static
             - gcc-powerpc-linux-gnu
+            - gcc-4.8-multilib-powerpc-linux-gnu
+            - gcc-4.8-powerpc-linux-gnu
+            - binutils-powerpc-linux-gnu
+            - binfmt-support
     # OS X Mavericks
     - os: osx
       env: PLATFORM="OS X Mavericks" CMD="make gnu90test && make clean && make test && make clean && make travis-install"

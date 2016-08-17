@@ -363,9 +363,8 @@ static int FIO_compressFilename_internal(cRess_t ress,
     }
 
     /* Status */
-    if (strlen(srcFileName) > 20) srcFileName += strlen(srcFileName)-20; /* display last 20 characters */
     DISPLAYLEVEL(2, "\r%79s\r", "");
-    DISPLAYLEVEL(2,"%-20.20s :%6.2f%%   (%6llu => %6llu bytes, %s) \n", srcFileName,
+    DISPLAYLEVEL(2,"%-20s :%6.2f%%   (%6llu => %6llu bytes, %s) \n", srcFileName,
         (double)compressedfilesize/(readsize+(!readsize) /* avoid div by zero */ )*100,
         (unsigned long long)readsize, (unsigned long long) compressedfilesize,
          dstFileName);

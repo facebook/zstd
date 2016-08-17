@@ -1301,3 +1301,239 @@ ZSTDLIB_API size_t ZSTD_decompress_usingDDict(ZSTD_DCtx* dctx,
                                            dst, dstCapacity,
                                            src, srcSize);
 }
+
+
+/*=====================================
+*   Streaming decompression
+*====================================*/
+
+typedef enum { zdss_init, zdss_loadHeader,
+               zdss_read, zdss_load, zdss_flush } ZSTD_dStreamStage;
+
+/* *** Resource management *** */
+struct ZSTD_DStream_s {
+    ZSTD_DCtx* zd;
+    ZSTD_frameParams fParams;
+    ZSTD_dStreamStage stage;
+    char*  inBuff;
+    size_t inBuffSize;
+    size_t inPos;
+    char*  outBuff;
+    size_t outBuffSize;
+    size_t outStart;
+    size_t outEnd;
+    size_t blockSize;
+    BYTE headerBuffer[ZSTD_FRAMEHEADERSIZE_MAX];
+    size_t lhSize;
+    ZSTD_customMem customMem;
+};   /* typedef'd to ZSTD_DStream within "zstd.h" */
+
+
+ZSTD_DStream* ZSTD_createDStream(void)
+{
+    return ZSTD_createDStream_advanced(defaultCustomMem);
+}
+
+ZSTD_DStream* ZSTD_createDStream_advanced(ZSTD_customMem customMem)
+{
+    ZSTD_DStream* zds;
+
+    if (!customMem.customAlloc && !customMem.customFree)
+        customMem = defaultCustomMem;
+
+    if (!customMem.customAlloc || !customMem.customFree)
+        return NULL;
+
+    zds = (ZSTD_DStream*)customMem.customAlloc(customMem.opaque, sizeof(ZSTD_DStream));
+    if (zds==NULL) return NULL;
+    memset(zds, 0, sizeof(ZSTD_DStream));
+    memcpy(&zds->customMem, &customMem, sizeof(ZSTD_customMem));
+    zds->zd = ZSTD_createDCtx_advanced(customMem);
+    if (zds->zd == NULL) { ZSTD_freeDStream(zds); return NULL; }
+    zds->stage = zdss_init;
+    return zds;
+}
+
+size_t ZSTD_freeDStream(ZSTD_DStream* zds)
+{
+    if (zds==NULL) return 0;   /* support free on null */
+    ZSTD_freeDCtx(zds->zd);
+    if (zds->inBuff) zds->customMem.customFree(zds->customMem.opaque, zds->inBuff);
+    if (zds->outBuff) zds->customMem.customFree(zds->customMem.opaque, zds->outBuff);
+    zds->customMem.customFree(zds->customMem.opaque, zds);
+    return 0;
+}
+
+
+/* *** Initialization *** */
+
+size_t ZSTD_DStreamInSize(void)  { return ZSTD_BLOCKSIZE_ABSOLUTEMAX + ZSTD_blockHeaderSize; }
+size_t ZSTD_DStreamOutSize(void) { return ZSTD_BLOCKSIZE_ABSOLUTEMAX; }
+
+size_t ZSTD_initDStream_usingDict(ZSTD_DStream* zds, const void* dict, size_t dictSize)
+{
+    zds->stage = zdss_loadHeader;
+    zds->lhSize = zds->inPos = zds->outStart = zds->outEnd = 0;
+    return ZSTD_decompressBegin_usingDict(zds->zd, dict, dictSize);
+}
+
+size_t ZSTD_initDStream(ZSTD_DStream* zds)
+{
+    return ZSTD_initDStream_usingDict(zds, NULL, 0);
+}
+
+
+/* *** Decompression *** */
+
+MEM_STATIC size_t ZSTD_limitCopy(void* dst, size_t dstCapacity, const void* src, size_t srcSize)
+{
+    size_t const length = MIN(dstCapacity, srcSize);
+    memcpy(dst, src, length);
+    return length;
+}
+
+
+size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inBuffer* input)
+{
+    const char* const istart = (const char*)(input->src) + input->pos;
+    const char* const iend = (const char*)(input->src) + input->size;
+    const char* ip = istart;
+    char* const ostart = (char*)(output->dst) + output->pos;
+    char* const oend = (char*)(output->dst) + output->size;
+    char* op = ostart;
+    U32 someMoreWork = 1;
+
+    while (someMoreWork) {
+        switch(zds->stage)
+        {
+        case zdss_init :
+            return ERROR(init_missing);
+
+        case zdss_loadHeader :
+            {   size_t const hSize = ZSTD_getFrameParams(&(zds->fParams), zds->headerBuffer, zds->lhSize);
+                if (ZSTD_isError(hSize)) return hSize;
+                if (hSize != 0) {   /* need more input */
+                    size_t const toLoad = hSize - zds->lhSize;   /* if hSize!=0, hSize > zds->lhSize */
+                    if (toLoad > (size_t)(iend-ip)) {   /* not enough input to load full header */
+                        memcpy(zds->headerBuffer + zds->lhSize, ip, iend-ip);
+                        zds->lhSize += iend-ip;
+                        input->pos = input->size;
+                        return (hSize - zds->lhSize) + ZSTD_blockHeaderSize;   /* remaining header bytes + next block header */
+                    }
+                    memcpy(zds->headerBuffer + zds->lhSize, ip, toLoad); zds->lhSize = hSize; ip += toLoad;
+                    break;
+            }   }
+
+            /* Consume header */
+            {   size_t const h1Size = ZSTD_nextSrcSizeToDecompress(zds->zd);  /* == ZSTD_frameHeaderSize_min */
+                size_t const h1Result = ZSTD_decompressContinue(zds->zd, NULL, 0, zds->headerBuffer, h1Size);
+                if (ZSTD_isError(h1Result)) return h1Result;   /* should not happen : already checked */
+                if (h1Size < zds->lhSize) {   /* long header */
+                    size_t const h2Size = ZSTD_nextSrcSizeToDecompress(zds->zd);
+                    size_t const h2Result = ZSTD_decompressContinue(zds->zd, NULL, 0, zds->headerBuffer+h1Size, h2Size);
+                    if (ZSTD_isError(h2Result)) return h2Result;
+            }   }
+
+            zds->fParams.windowSize = MAX(zds->fParams.windowSize, 1U << ZSTD_WINDOWLOG_ABSOLUTEMIN);
+
+            /* Frame header instruct buffer sizes */
+            {   size_t const blockSize = MIN(zds->fParams.windowSize, ZSTD_BLOCKSIZE_ABSOLUTEMAX);
+                size_t const neededOutSize = zds->fParams.windowSize + blockSize;
+                zds->blockSize = blockSize;
+                if (zds->inBuffSize < blockSize) {
+                    zds->customMem.customFree(zds->customMem.opaque, zds->inBuff);
+                    zds->inBuffSize = blockSize;
+                    zds->inBuff = (char*)zds->customMem.customAlloc(zds->customMem.opaque, blockSize);
+                    if (zds->inBuff == NULL) return ERROR(memory_allocation);
+                }
+                if (zds->outBuffSize < neededOutSize) {
+                    zds->customMem.customFree(zds->customMem.opaque, zds->outBuff);
+                    zds->outBuffSize = neededOutSize;
+                    zds->outBuff = (char*)zds->customMem.customAlloc(zds->customMem.opaque, neededOutSize);
+                    if (zds->outBuff == NULL) return ERROR(memory_allocation);
+            }   }
+            zds->stage = zdss_read;
+            /* pass-through */
+
+        case zdss_read:
+            {   size_t const neededInSize = ZSTD_nextSrcSizeToDecompress(zds->zd);
+                if (neededInSize==0) {  /* end of frame */
+                    zds->stage = zdss_init;
+                    someMoreWork = 0;
+                    break;
+                }
+                if ((size_t)(iend-ip) >= neededInSize) {  /* decode directly from src */
+                    const int isSkipFrame = ZSTD_isSkipFrame(zds->zd);
+                    size_t const decodedSize = ZSTD_decompressContinue(zds->zd,
+                        zds->outBuff + zds->outStart, (isSkipFrame ? 0 : zds->outBuffSize - zds->outStart),
+                        ip, neededInSize);
+                    if (ZSTD_isError(decodedSize)) return decodedSize;
+                    ip += neededInSize;
+                    if (!decodedSize && !isSkipFrame) break;   /* this was just a header */
+                    zds->outEnd = zds->outStart +  decodedSize;
+                    zds->stage = zdss_flush;
+                    break;
+                }
+                if (ip==iend) { someMoreWork = 0; break; }   /* no more input */
+                zds->stage = zdss_load;
+                /* pass-through */
+            }
+
+        case zdss_load:
+            {   size_t const neededInSize = ZSTD_nextSrcSizeToDecompress(zds->zd);
+                size_t const toLoad = neededInSize - zds->inPos;   /* should always be <= remaining space within inBuff */
+                size_t loadedSize;
+                if (toLoad > zds->inBuffSize - zds->inPos) return ERROR(corruption_detected);   /* should never happen */
+                loadedSize = ZSTD_limitCopy(zds->inBuff + zds->inPos, toLoad, ip, iend-ip);
+                ip += loadedSize;
+                zds->inPos += loadedSize;
+                if (loadedSize < toLoad) { someMoreWork = 0; break; }   /* not enough input, wait for more */
+
+                /* decode loaded input */
+                {  const int isSkipFrame = ZSTD_isSkipFrame(zds->zd);
+                   size_t const decodedSize = ZSTD_decompressContinue(zds->zd,
+                        zds->outBuff + zds->outStart, zds->outBuffSize - zds->outStart,
+                        zds->inBuff, neededInSize);
+                    if (ZSTD_isError(decodedSize)) return decodedSize;
+                    zds->inPos = 0;   /* input is consumed */
+                    if (!decodedSize && !isSkipFrame) { zds->stage = zdss_read; break; }   /* this was just a header */
+                    zds->outEnd = zds->outStart +  decodedSize;
+                    zds->stage = zdss_flush;
+                    /* pass-through */
+            }   }
+
+        case zdss_flush:
+            {   size_t const toFlushSize = zds->outEnd - zds->outStart;
+                size_t const flushedSize = ZSTD_limitCopy(op, oend-op, zds->outBuff + zds->outStart, toFlushSize);
+                op += flushedSize;
+                zds->outStart += flushedSize;
+                if (flushedSize == toFlushSize) {  /* flush completed */
+                    zds->stage = zdss_read;
+                    if (zds->outStart + zds->blockSize > zds->outBuffSize)
+                        zds->outStart = zds->outEnd = 0;
+                    break;
+                }
+                /* cannot flush everything */
+                someMoreWork = 0;
+                break;
+            }
+        default: return ERROR(GENERIC);   /* impossible */
+    }   }
+
+    /* result */
+    input->pos += (size_t)(ip-istart);
+    output->pos += (size_t)(op-ostart);
+    {   size_t nextSrcSizeHint = ZSTD_nextSrcSizeToDecompress(zds->zd);
+        if (!nextSrcSizeHint) return (zds->outEnd != zds->outStart);   /* return 0 only if fully flushed too */
+        nextSrcSizeHint += ZSTD_blockHeaderSize * (ZSTD_nextInputType(zds->zd) == ZSTDnit_block);
+        if (zds->inPos > nextSrcSizeHint) return ERROR(GENERIC);   /* should never happen */
+        nextSrcSizeHint -= zds->inPos;   /* already loaded*/
+        return nextSrcSizeHint;
+    }
+}
+
+
+
+
+
+

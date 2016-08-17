@@ -1,8 +1,10 @@
 v0.8.1
+New streaming API
 Changed : --ultra now enables levels beyond 19
 Changed : -i# now selects benchmark time in second
 Fixed : ZSTD_compress* can now compress > 4 GB in a single pass, reported by Nick Terrell
 Fixed : speed regression on specific patterns (#272)
+Fixed : support for Z_SYNC_FLUSH, by Dmitry Krot (#291)
 
 v0.8.0
 Improved : better speed on clang and gcc -O2, thanks to Eric Biggers

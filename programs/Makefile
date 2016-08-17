@@ -94,7 +94,7 @@ all32: cleano32 all
 
 $(ZSTDDIR)/decompress/zstd_decompress.o: CFLAGS += $(ALIGN_LOOP)
 
-zstd  : $(ZSTD_FILES) $(ZSTDLEGACY_FILES) $(ZBUFF_FILES) $(ZDICT_FILES) \
+zstd  : $(ZSTD_FILES) $(ZSTDLEGACY_FILES) $(ZDICT_FILES) \
         zstdcli.c fileio.c bench.c datagen.c dibio.c
 	$(CC)      $(FLAGS) -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT) $^ -o $@$(EXT)
 
@@ -116,15 +116,15 @@ zstd-pgo : clean zstd
 	rm zstd
 	$(MAKE) zstd MOREFLAGS=-fprofile-use
 
-zstd-frugal: $(ZSTD_FILES) $(ZBUFF_FILES) zstdcli.c fileio.c
+zstd-frugal: $(ZSTD_FILES) zstdcli.c fileio.c
 	$(CC)      $(FLAGS) -DZSTD_NOBENCH -DZSTD_NODICT -DZSTD_LEGACY_SUPPORT=0 $^ -o zstd$(EXT)
 
 zstd-compress: $(ZSTDCOMMON_FILES) $(ZSTDCOMP_FILES) \
-	$(ZSTDDIR)/compress/zbuff_compress.c zstdcli.c fileio.c
+	zstdcli.c fileio.c
 	$(CC)      $(FLAGS) -DZSTD_NOBENCH -DZSTD_NODICT -DZSTD_NODECOMPRESS -DZSTD_LEGACY_SUPPORT=0 $^ -o $@$(EXT)
 
 zstd-decompress: $(ZSTDCOMMON_FILES) $(ZSTDDECOMP_FILES) \
-	$(ZSTDDIR)/decompress/zbuff_decompress.c zstdcli.c fileio.c
+	zstdcli.c fileio.c
 	$(CC)      $(FLAGS) -DZSTD_NOBENCH -DZSTD_NODICT -DZSTD_NOCOMPRESS -DZSTD_LEGACY_SUPPORT=0 $^ -o $@$(EXT)
 
 zstd-small: clean
@@ -151,6 +151,13 @@ zbufftest  : $(ZSTD_FILES) $(ZBUFF_FILES) datagen.c zbufftest.c
 zbufftest32 : CFLAGS += -m32
 zbufftest32 : EXT := 32$(EXT)
 zbufftest32 : zbufftest
+
+zstreamtest  : $(ZSTD_FILES) datagen.c zstreamtest.c
+	$(CC)      $(FLAGS) $^ -o $@$(EXT)
+
+zstreamtest32 : CFLAGS += -m32
+zstreamtest32 : EXT := 32$(EXT)
+zstreamtest32 : zstreamtest
 
 paramgrill : $(ZSTD_FILES) datagen.c paramgrill.c
 	$(CC)      $(FLAGS) $^ -lm -o $@$(EXT)
@@ -229,9 +236,9 @@ ifneq (,$(filter $(HOST_OS),MSYS POSIX))
 zstd-playTests: datagen
 	ZSTD=$(ZSTD) ./playTests.sh $(ZSTDRTTEST)
 
-test: test-zstd test-fullbench test-fuzzer test-zbuff
+test: test-zstd test-fullbench test-fuzzer test-zbuff test-zstream
 
-test32: test-zstd32 test-fullbench32 test-fuzzer32 test-zbuff32
+test32: test-zstd32 test-fullbench32 test-fuzzer32 test-zbuff32 test-zstream32
 
 test-all: test test32 valgrindTest
 
@@ -263,4 +270,11 @@ test-zbuff: zbufftest
 
 test-zbuff32: zbufftest32
 	./zbufftest32 $(ZBUFFTEST)
+
+test-zstream: zstreamtest
+	./zstreamtest $(ZBUFFTEST)
+
+test-zstream32: zstreamtest32
+	./zstreamtest32 $(ZBUFFTEST)
+
 endif

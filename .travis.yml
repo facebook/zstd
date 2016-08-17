@@ -67,21 +67,17 @@ matrix:
     - os: linux
       dist: trusty
       sudo: required
-      env: PLATFORM="Ubuntu 14.04" CMD="make zlibwrapper && make clean && make gcc5test && make clean && make gcc6test && make clean && make ppctest"
+      env: PLATFORM="Ubuntu 14.04" CMD="make zlibwrapper && make clean && make gcc5test && make clean && make gcc6test && sudo apt-get install -y -q qemu-system-ppc binfmt-support qemu-user-static gcc-powerpc-linux-gnu && make clean && make ppctest"
       addons:
         apt:
           sources:
             - ubuntu-toolchain-r-test
           packages:
+            - gcc-multilib
+            - gcc-5
             - gcc-5-multilib
+            - gcc-6
             - gcc-6-multilib
-            - qemu-system-ppc
-            - qemu-user-static
-            - gcc-powerpc-linux-gnu
-            - gcc-4.8-multilib-powerpc-linux-gnu
-            - gcc-4.8-powerpc-linux-gnu
-            - binutils-powerpc-linux-gnu
-            - binfmt-support
     # OS X Mavericks
     - os: osx
       env: PLATFORM="OS X Mavericks" CMD="make gnu90test && make clean && make test && make clean && make travis-install"

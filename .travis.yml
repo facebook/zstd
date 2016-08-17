@@ -19,27 +19,59 @@ matrix:
     # Standard Ubuntu 12.04 LTS Server Edition 64 bit
     - os: linux
       sudo: required
-      env: PLATFORM="Ubuntu 12.04" CMD="make gppinstall gpptest && make clean && make libc6install gnu90test && make clean && make c99test && make clean && make gnu99test && make clean && make clangtest"
+      env: PLATFORM="Ubuntu 12.04" CMD="make gpptest && make clean && make gnu90test && make clean && make c99test && make clean && make gnu99test && make clean && make clangtest"
+      addons:
+        apt:
+          packages:
+            - libc6-dev-i386
+            - g++-multilib 
     - os: linux
       sudo: required
-      env: PLATFORM="Ubuntu 12.04" CMD="make arminstall armtest"
+      env: PLATFORM="Ubuntu 12.04" CMD="make armtest"
+      addons:
+        apt:
+          packages:
+            - gcc-arm-linux-gnueabi
+            - libc6-dev-armel-cross
+            - linux-libc-dev-armel-cross
     - os: linux
       sudo: required
-      env: PLATFORM="Ubuntu 12.04" CMD="make libc6install && make -C programs test32"
+      env: PLATFORM="Ubuntu 12.04" CMD="make -C programs test32"
+      addons:
+        apt:
+          packages:
+            - libc6-dev-i386
     - os: linux
       sudo: required
       env: PLATFORM="Ubuntu 12.04" CMD="make -C tests versionsTest"
     - os: linux
       sudo: required
-      env: PLATFORM="Ubuntu 12.04" CMD="make libc6install asan32"
+      env: PLATFORM="Ubuntu 12.04" CMD="make asan32"
+      addons:
+        apt:
+          packages:
+            - libc6-dev-i386
     - os: linux
       sudo: required
-      env: PLATFORM="Ubuntu 12.04" CMD="make valgrindinstall && make -C programs valgrindTest"
+      env: PLATFORM="Ubuntu 12.04" CMD="make -C programs valgrindTest"
+      addons:
+        apt:
+          packages:
+            - valgrind
     # Ubuntu 14.04 LTS Server Edition 64 bit
     - os: linux
       dist: trusty
       sudo: required
-      env: PLATFORM="Ubuntu 14.04" CMD="make zlibwrapper && make clean && make gcc5install gcc5test && make clean && make gcc6install gcc6test && make clean && make ppcinstall ppctest"
+      env: PLATFORM="Ubuntu 14.04" CMD="make zlibwrapper && make clean && make gcc5test && make clean && make gcc6test && make clean && make ppcinstall ppctest"
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+          packages:
+            - gcc-5-multilib
+            - gcc-6-multilib
+            - qemu-system-ppc
+            - gcc-powerpc-linux-gnu
     # OS X Mavericks
     - os: osx
       env: PLATFORM="OS X Mavericks" CMD="make gnu90test && make clean && make test && make clean && make travis-install"

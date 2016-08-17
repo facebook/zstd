@@ -35,6 +35,8 @@ matrix:
             - libc6-dev-armel-cross
             - linux-libc-dev-armel-cross
             - binfmt-support
+            - qemu
+            - qemu-user-static
     - os: linux
       sudo: required
       env: PLATFORM="Ubuntu 12.04" CMD="make -C programs test32"
@@ -72,9 +74,12 @@ matrix:
             - ubuntu-toolchain-r-test
           packages:
             - gcc-multilib
+            - gcc-4.8-multilib-powerpc-linux-gnu
             - gcc-5-multilib
             - gcc-6-multilib
+            - binfmt-support
             - qemu-system-ppc
+            - qemu-user-static
             - gcc-powerpc-linux-gnu
     # OS X Mavericks
     - os: osx

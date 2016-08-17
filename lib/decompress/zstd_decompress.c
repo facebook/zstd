@@ -153,7 +153,8 @@ size_t ZSTD_decompressBegin(ZSTD_DCtx* dctx)
     dctx->hufTable[0] = (HUF_DTable)((HufLog)*0x1000001);
     dctx->litEntropy = dctx->fseEntropy = 0;
     dctx->dictID = 0;
-    { int i; for (i=0; i<ZSTD_REP_NUM; i++) dctx->rep[i] = repStartValue[i]; }
+    MEM_STATIC_ASSERT(sizeof(dctx->rep)==sizeof(repStartValue));
+    memcpy(dctx->rep, repStartValue, sizeof(repStartValue));
     return 0;
 }
 
@@ -161,15 +162,12 @@ ZSTD_DCtx* ZSTD_createDCtx_advanced(ZSTD_customMem customMem)
 {
     ZSTD_DCtx* dctx;
 
-    if (!customMem.customAlloc && !customMem.customFree)
-        customMem = defaultCustomMem;
-
-    if (!customMem.customAlloc || !customMem.customFree)
-        return NULL;
+    if (!customMem.customAlloc && !customMem.customFree) customMem = defaultCustomMem;
+    if (!customMem.customAlloc || !customMem.customFree) return NULL;
 
     dctx = (ZSTD_DCtx*) customMem.customAlloc(customMem.opaque, sizeof(ZSTD_DCtx));
     if (!dctx) return NULL;
-    memcpy(&dctx->customMem, &customMem, sizeof(ZSTD_customMem));
+    memcpy(&dctx->customMem, &customMem, sizeof(customMem));
     ZSTD_decompressBegin(dctx);
     return dctx;
 }
@@ -188,8 +186,8 @@ size_t ZSTD_freeDCtx(ZSTD_DCtx* dctx)
 
 void ZSTD_copyDCtx(ZSTD_DCtx* dstDCtx, const ZSTD_DCtx* srcDCtx)
 {
-    memcpy(dstDCtx, srcDCtx,
-           sizeof(ZSTD_DCtx) - (ZSTD_BLOCKSIZE_ABSOLUTEMAX+WILDCOPY_OVERLENGTH + ZSTD_frameHeaderSize_max));  /* no need to copy workspace */
+    size_t const workSpaceSize = (ZSTD_BLOCKSIZE_ABSOLUTEMAX+WILDCOPY_OVERLENGTH) + ZSTD_frameHeaderSize_max;
+    memcpy(dstDCtx, srcDCtx, sizeof(ZSTD_DCtx) - workSpaceSize);  /* no need to copy workspace */
 }
 
 
@@ -210,7 +208,7 @@ static size_t ZSTD_frameHeaderSize(const void* src, size_t srcSize)
         U32 const singleSegment = (fhd >> 5) & 1;
         U32 const fcsId = fhd >> 6;
         return ZSTD_frameHeaderSize_min + !singleSegment + ZSTD_did_fieldSize[dictID] + ZSTD_fcs_fieldSize[fcsId]
-                + (singleSegment && !ZSTD_fcs_fieldSize[fcsId]);
+                + (singleSegment && !fcsId);
     }
 }
 

@@ -34,6 +34,7 @@ matrix:
             - gcc-arm-linux-gnueabi
             - libc6-dev-armel-cross
             - linux-libc-dev-armel-cross
+            - binfmt-support
     - os: linux
       sudo: required
       env: PLATFORM="Ubuntu 12.04" CMD="make -C programs test32"
@@ -41,6 +42,7 @@ matrix:
         apt:
           packages:
             - libc6-dev-i386
+            - gcc-multilib
     - os: linux
       sudo: required
       env: PLATFORM="Ubuntu 12.04" CMD="make -C tests versionsTest"
@@ -51,6 +53,7 @@ matrix:
         apt:
           packages:
             - libc6-dev-i386
+            - gcc-multilib
     - os: linux
       sudo: required
       env: PLATFORM="Ubuntu 12.04" CMD="make -C programs valgrindTest"
@@ -62,12 +65,13 @@ matrix:
     - os: linux
       dist: trusty
       sudo: required
-      env: PLATFORM="Ubuntu 14.04" CMD="make zlibwrapper && make clean && make gcc5test && make clean && make gcc6test && make clean && make ppcinstall ppctest"
+      env: PLATFORM="Ubuntu 14.04" CMD="make zlibwrapper && make clean && make gcc5test && make clean && make gcc6test && make clean && make ppctest"
       addons:
         apt:
           sources:
             - ubuntu-toolchain-r-test
           packages:
+            - gcc-multilib
             - gcc-5-multilib
             - gcc-6-multilib
             - qemu-system-ppc

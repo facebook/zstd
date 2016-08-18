@@ -3,41 +3,15 @@ zstd
 zstd32
 zstd-compress
 zstd-decompress
-fullbench
-fullbench32
-fuzzer
-fuzzer32
-zbufftest
-zbufftest32
-zstreamtest
-zstreamtest32
-datagen
-paramgrill
-paramgrill32
-roundTripCrash
 
 # Object files
 *.o
 *.ko
 
-# Libraries
-*.lib
-*.a
-
-# Shared objects (inc. Windows DLLs)
-*.dll
-*.so
-*.so.*
-*.dylib
-
 # Executables
 *.exe
 *.out
 *.app
-
-# Visual solution files
-*.suo
-*.user
 
 # Default result files
 dictionary
@@ -53,5 +27,4 @@ afl
 
 # Misc files
 *.bat
-fileTests.sh
 dirTest*

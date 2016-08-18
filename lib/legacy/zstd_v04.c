@@ -168,8 +168,6 @@ MEM_STATIC U32 MEM_read32(const void* memPtr) { return *(const U32*) memPtr; }
 MEM_STATIC U64 MEM_read64(const void* memPtr) { return *(const U64*) memPtr; }
 
 MEM_STATIC void MEM_write16(void* memPtr, U16 value) { *(U16*)memPtr = value; }
-MEM_STATIC void MEM_write32(void* memPtr, U32 value) { *(U32*)memPtr = value; }
-MEM_STATIC void MEM_write64(void* memPtr, U64 value) { *(U64*)memPtr = value; }
 
 #elif defined(MEM_FORCE_MEMORY_ACCESS) && (MEM_FORCE_MEMORY_ACCESS==1)
 
@@ -182,8 +180,6 @@ MEM_STATIC U32 MEM_read32(const void* ptr) { return ((const unalign*)ptr)->u32; 
 MEM_STATIC U64 MEM_read64(const void* ptr) { return ((const unalign*)ptr)->u64; }
 
 MEM_STATIC void MEM_write16(void* memPtr, U16 value) { ((unalign*)memPtr)->u16 = value; }
-MEM_STATIC void MEM_write32(void* memPtr, U32 value) { ((unalign*)memPtr)->u32 = value; }
-MEM_STATIC void MEM_write64(void* memPtr, U64 value) { ((unalign*)memPtr)->u64 = value; }
 
 #else
 
@@ -206,16 +202,6 @@ MEM_STATIC U64 MEM_read64(const void* memPtr)
 }
 
 MEM_STATIC void MEM_write16(void* memPtr, U16 value)
-{
-    memcpy(memPtr, &value, sizeof(value));
-}
-
-MEM_STATIC void MEM_write32(void* memPtr, U32 value)
-{
-    memcpy(memPtr, &value, sizeof(value));
-}
-
-MEM_STATIC void MEM_write64(void* memPtr, U64 value)
 {
     memcpy(memPtr, &value, sizeof(value));
 }
@@ -259,21 +245,6 @@ MEM_STATIC U32 MEM_readLE32(const void* memPtr)
     }
 }
 
-MEM_STATIC void MEM_writeLE32(void* memPtr, U32 val32)
-{
-    if (MEM_isLittleEndian())
-    {
-        MEM_write32(memPtr, val32);
-    }
-    else
-    {
-        BYTE* p = (BYTE*)memPtr;
-        p[0] = (BYTE)val32;
-        p[1] = (BYTE)(val32>>8);
-        p[2] = (BYTE)(val32>>16);
-        p[3] = (BYTE)(val32>>24);
-    }
-}
 
 MEM_STATIC U64 MEM_readLE64(const void* memPtr)
 {
@@ -287,25 +258,6 @@ MEM_STATIC U64 MEM_readLE64(const void* memPtr)
     }
 }
 
-MEM_STATIC void MEM_writeLE64(void* memPtr, U64 val64)
-{
-    if (MEM_isLittleEndian())
-    {
-        MEM_write64(memPtr, val64);
-    }
-    else
-    {
-        BYTE* p = (BYTE*)memPtr;
-        p[0] = (BYTE)val64;
-        p[1] = (BYTE)(val64>>8);
-        p[2] = (BYTE)(val64>>16);
-        p[3] = (BYTE)(val64>>24);
-        p[4] = (BYTE)(val64>>32);
-        p[5] = (BYTE)(val64>>40);
-        p[6] = (BYTE)(val64>>48);
-        p[7] = (BYTE)(val64>>56);
-    }
-}
 
 MEM_STATIC size_t MEM_readLEST(const void* memPtr)
 {
@@ -315,13 +267,6 @@ MEM_STATIC size_t MEM_readLEST(const void* memPtr)
         return (size_t)MEM_readLE64(memPtr);
 }
 
-MEM_STATIC void MEM_writeLEST(void* memPtr, size_t val)
-{
-    if (MEM_32bits())
-        MEM_writeLE32(memPtr, (U32)val);
-    else
-        MEM_writeLE64(memPtr, (U64)val);
-}
 
 #if defined (__cplusplus)
 }

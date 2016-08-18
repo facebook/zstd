@@ -45,9 +45,9 @@ extern "C" {
 *  Enable exporting of functions when building a Windows DLL
 */
 #if defined(_WIN32) && defined(ZSTD_DLL_EXPORT) && (ZSTD_DLL_EXPORT==1)
-#  define ZSTDLIB_API __declspec(dllexport)
+#  define ZDICTLIB_API __declspec(dllexport)
 #else
-#  define ZSTDLIB_API
+#  define ZDICTLIB_API
 #endif
 
 
@@ -63,13 +63,13 @@ extern "C" {
            In general, it's recommended to provide a few thousands samples, but this can vary a lot.
            It's recommended that total size of all samples be about ~x100 times the target size of dictionary.
 */
-ZSTDLIB_API size_t ZDICT_trainFromBuffer(void* dictBuffer, size_t dictBufferCapacity,
+ZDICTLIB_API size_t ZDICT_trainFromBuffer(void* dictBuffer, size_t dictBufferCapacity,
                        const void* samplesBuffer, const size_t* samplesSizes, unsigned nbSamples);
 
 
 /*======   Helper functions   ======*/
-ZSTDLIB_API unsigned ZDICT_isError(size_t errorCode);
-ZSTDLIB_API const char* ZDICT_getErrorName(size_t errorCode);
+ZDICTLIB_API unsigned ZDICT_isError(size_t errorCode);
+ZDICTLIB_API const char* ZDICT_getErrorName(size_t errorCode);
 
 
 

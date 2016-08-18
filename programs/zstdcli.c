@@ -121,7 +121,7 @@ static int usage(const char* programName)
     DISPLAY( "          with no FILE, or when FILE is - , read standard input\n");
     DISPLAY( "Arguments :\n");
 #ifndef ZSTD_NOCOMPRESS
-    DISPLAY( " -#     : # compression level (1-%u, default:%u) \n", ZSTDCLI_CLEVEL_MAX, ZSTDCLI_CLEVEL_DEFAULT);
+    DISPLAY( " -#     : # compression level (1-%d, default:%d) \n", ZSTDCLI_CLEVEL_MAX, ZSTDCLI_CLEVEL_DEFAULT);
 #endif
 #ifndef ZSTD_NODECOMPRESS
     DISPLAY( " -d     : decompression \n");
@@ -207,7 +207,7 @@ static unsigned readU32FromChar(const char** stringPtr)
 
 #define CLEAN_RETURN(i) { operationResult = (i); goto _end; }
 
-int main(int argCount, const char** argv)
+int main(int argCount, char** argv)
 {
     int argNb,
         bench=0,
@@ -446,7 +446,7 @@ int main(int argCount, const char** argv)
         fileNamesTable = UTIL_createFileList(filenameTable, filenameIdx, &fileNamesBuf, &fileNamesNb);
         if (fileNamesTable) {
             unsigned u;
-            for (u=0; u<fileNamesNb; u++) DISPLAYLEVEL(4, "%d %s\n", u, fileNamesTable[u]);
+            for (u=0; u<fileNamesNb; u++) DISPLAYLEVEL(4, "%u %s\n", u, fileNamesTable[u]);
             free((void*)filenameTable);
             filenameTable = fileNamesTable;
             filenameIdx = fileNamesNb;

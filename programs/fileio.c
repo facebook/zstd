@@ -240,7 +240,7 @@ static size_t FIO_loadFile(void** bufferPtr, const char* fileName)
     if (fileSize > MAX_DICT_SIZE) {
         int seekResult;
         if (fileSize > 1 GB) EXM_THROW(32, "Dictionary file %s is too large", fileName);   /* avoid extreme cases */
-        DISPLAYLEVEL(2,"Dictionary %s is too large : using last %u bytes only \n", fileName, MAX_DICT_SIZE);
+        DISPLAYLEVEL(2,"Dictionary %s is too large : using last %u bytes only \n", fileName, (U32)MAX_DICT_SIZE);
         seekResult = fseek(fileHandle, (long int)(fileSize-MAX_DICT_SIZE), SEEK_SET);   /* use end of file */
         if (seekResult != 0) EXM_THROW(33, "zstd: %s: %s", fileName, strerror(errno));
         fileSize = MAX_DICT_SIZE;

@@ -109,7 +109,7 @@ void BMK_setAdditionalParam(int additionalParam) { g_additionalParam=additionalP
 void BMK_SetNbIterations(unsigned nbLoops)
 {
     g_nbIterations = nbLoops;
-    DISPLAYLEVEL(3, "- test >= %i seconds per compression / decompression -\n", g_nbIterations);
+    DISPLAYLEVEL(3, "- test >= %u seconds per compression / decompression -\n", g_nbIterations);
 }
 
 void BMK_SetBlockSize(size_t blockSize)
@@ -377,7 +377,7 @@ static void BMK_benchCLevel(void* srcBuffer, size_t benchedSize,
     SET_HIGH_PRIORITY;
 
     if (g_displayLevel == 1 && !g_additionalParam)
-        DISPLAY("bench %s %s: input %u bytes, %i iterations, %u KB blocks\n", ZSTD_VERSION_STRING, ZSTD_GIT_COMMIT_STRING, (U32)benchedSize, g_nbIterations, (U32)(g_blockSize>>10));
+        DISPLAY("bench %s %s: input %u bytes, %u iterations, %u KB blocks\n", ZSTD_VERSION_STRING, ZSTD_GIT_COMMIT_STRING, (U32)benchedSize, g_nbIterations, (U32)(g_blockSize>>10));
 
     if (cLevelLast < cLevel) cLevelLast = cLevel;
 

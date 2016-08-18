@@ -132,6 +132,16 @@ static int basicUnitTests(U32 seed, double compressibility)
     RDG_genBuffer(CNBuffer, CNBuffSize, compressibility, 0., seed);
 
     /* Basic tests */
+    DISPLAYLEVEL(4, "test%3i : ZSTD_getErrorName : ", testNb++);
+    {   const char* errorString = ZSTD_getErrorName(0);
+        DISPLAYLEVEL(4, "OK : %s \n", errorString);
+    }
+
+    DISPLAYLEVEL(4, "test%3i : ZSTD_getErrorName with wrong value : ", testNb++);
+    {   const char* errorString = ZSTD_getErrorName(499);
+        DISPLAYLEVEL(4, "OK : %s \n", errorString);
+    }
+
     DISPLAYLEVEL(4, "test%3i : compress %u bytes : ", testNb++, (U32)CNBuffSize);
     CHECKPLUS(r, ZSTD_compress(compressedBuffer, ZSTD_compressBound(CNBuffSize),
                                CNBuffer, CNBuffSize, 1),

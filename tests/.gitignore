@@ -2,6 +2,7 @@
 zstdtest
 speedTest
 versionsTest
+namespaceTest
 
 # Local script
 startSpeedTest

@@ -256,10 +256,6 @@ extern "C" {
 #  define MEM_STATIC static  /* this version may generate warnings for unused static functions; disable the relevant warning */
 #endif
 
-/* code only tested on 32 and 64 bits systems */
-#define MEM_STATIC_ASSERT(c)   { enum { XXH_static_assert = 1/(int)(!!(c)) }; }
-MEM_STATIC void MEM_check(void) { MEM_STATIC_ASSERT((sizeof(size_t)==4) || (sizeof(size_t)==8)); }
-
 
 /*-**************************************************************
 *  Basic Types
@@ -325,11 +321,8 @@ Only use if no other choice to achieve best performance on target platform */
 MEM_STATIC U16 MEM_read16(const void* memPtr) { return *(const U16*) memPtr; }
 MEM_STATIC U32 MEM_read32(const void* memPtr) { return *(const U32*) memPtr; }
 MEM_STATIC U64 MEM_read64(const void* memPtr) { return *(const U64*) memPtr; }
-MEM_STATIC U64 MEM_readST(const void* memPtr) { return *(const size_t*) memPtr; }
 
 MEM_STATIC void MEM_write16(void* memPtr, U16 value) { *(U16*)memPtr = value; }
-MEM_STATIC void MEM_write32(void* memPtr, U32 value) { *(U32*)memPtr = value; }
-MEM_STATIC void MEM_write64(void* memPtr, U64 value) { *(U64*)memPtr = value; }
 
 #elif defined(MEM_FORCE_MEMORY_ACCESS) && (MEM_FORCE_MEMORY_ACCESS==1)
 
@@ -340,11 +333,8 @@ typedef union { U16 u16; U32 u32; U64 u64; size_t st; } __attribute__((packed)) 
 MEM_STATIC U16 MEM_read16(const void* ptr) { return ((const unalign*)ptr)->u16; }
 MEM_STATIC U32 MEM_read32(const void* ptr) { return ((const unalign*)ptr)->u32; }
 MEM_STATIC U64 MEM_read64(const void* ptr) { return ((const unalign*)ptr)->u64; }
-MEM_STATIC U64 MEM_readST(const void* ptr) { return ((const unalign*)ptr)->st; }
 
 MEM_STATIC void MEM_write16(void* memPtr, U16 value) { ((unalign*)memPtr)->u16 = value; }
-MEM_STATIC void MEM_write32(void* memPtr, U32 value) { ((unalign*)memPtr)->u32 = value; }
-MEM_STATIC void MEM_write64(void* memPtr, U64 value) { ((unalign*)memPtr)->u64 = value; }
 
 #else
 
@@ -366,22 +356,7 @@ MEM_STATIC U64 MEM_read64(const void* memPtr)
     U64 val; memcpy(&val, memPtr, sizeof(val)); return val;
 }
 
-MEM_STATIC size_t MEM_readST(const void* memPtr)
-{
-    size_t val; memcpy(&val, memPtr, sizeof(val)); return val;
-}
-
 MEM_STATIC void MEM_write16(void* memPtr, U16 value)
-{
-    memcpy(memPtr, &value, sizeof(value));
-}
-
-MEM_STATIC void MEM_write32(void* memPtr, U32 value)
-{
-    memcpy(memPtr, &value, sizeof(value));
-}
-
-MEM_STATIC void MEM_write64(void* memPtr, U64 value)
 {
     memcpy(memPtr, &value, sizeof(value));
 }
@@ -420,13 +395,6 @@ MEM_STATIC U64 MEM_swap64(U64 in)
 #endif
 }
 
-MEM_STATIC size_t MEM_swapST(size_t in)
-{
-    if (MEM_32bits())
-        return (size_t)MEM_swap32((U32)in);
-    else
-        return (size_t)MEM_swap64((U64)in);
-}
 
 /*=== Little endian r/w ===*/
 
@@ -459,13 +427,6 @@ MEM_STATIC U32 MEM_readLE32(const void* memPtr)
         return MEM_swap32(MEM_read32(memPtr));
 }
 
-MEM_STATIC void MEM_writeLE32(void* memPtr, U32 val32)
-{
-    if (MEM_isLittleEndian())
-        MEM_write32(memPtr, val32);
-    else
-        MEM_write32(memPtr, MEM_swap32(val32));
-}
 
 MEM_STATIC U64 MEM_readLE64(const void* memPtr)
 {
@@ -473,14 +434,6 @@ MEM_STATIC U64 MEM_readLE64(const void* memPtr)
         return MEM_read64(memPtr);
     else
         return MEM_swap64(MEM_read64(memPtr));
-}
-
-MEM_STATIC void MEM_writeLE64(void* memPtr, U64 val64)
-{
-    if (MEM_isLittleEndian())
-        MEM_write64(memPtr, val64);
-    else
-        MEM_write64(memPtr, MEM_swap64(val64));
 }
 
 MEM_STATIC size_t MEM_readLEST(const void* memPtr)
@@ -491,78 +444,7 @@ MEM_STATIC size_t MEM_readLEST(const void* memPtr)
         return (size_t)MEM_readLE64(memPtr);
 }
 
-MEM_STATIC void MEM_writeLEST(void* memPtr, size_t val)
-{
-    if (MEM_32bits())
-        MEM_writeLE32(memPtr, (U32)val);
-    else
-        MEM_writeLE64(memPtr, (U64)val);
-}
 
-/*=== Big endian r/w ===*/
-
-MEM_STATIC U32 MEM_readBE32(const void* memPtr)
-{
-    if (MEM_isLittleEndian())
-        return MEM_swap32(MEM_read32(memPtr));
-    else
-        return MEM_read32(memPtr);
-}
-
-MEM_STATIC void MEM_writeBE32(void* memPtr, U32 val32)
-{
-    if (MEM_isLittleEndian())
-        MEM_write32(memPtr, MEM_swap32(val32));
-    else
-        MEM_write32(memPtr, val32);
-}
-
-MEM_STATIC U64 MEM_readBE64(const void* memPtr)
-{
-    if (MEM_isLittleEndian())
-        return MEM_swap64(MEM_read64(memPtr));
-    else
-        return MEM_read64(memPtr);
-}
-
-MEM_STATIC void MEM_writeBE64(void* memPtr, U64 val64)
-{
-    if (MEM_isLittleEndian())
-        MEM_write64(memPtr, MEM_swap64(val64));
-    else
-        MEM_write64(memPtr, val64);
-}
-
-MEM_STATIC size_t MEM_readBEST(const void* memPtr)
-{
-    if (MEM_32bits())
-        return (size_t)MEM_readBE32(memPtr);
-    else
-        return (size_t)MEM_readBE64(memPtr);
-}
-
-MEM_STATIC void MEM_writeBEST(void* memPtr, size_t val)
-{
-    if (MEM_32bits())
-        MEM_writeBE32(memPtr, (U32)val);
-    else
-        MEM_writeBE64(memPtr, (U64)val);
-}
-
-
-/* function safe only for comparisons */
-MEM_STATIC U32 MEM_readMINMATCH(const void* memPtr, U32 length)
-{
-    switch (length)
-    {
-    default :
-    case 4 : return MEM_read32(memPtr);
-    case 3 : if (MEM_isLittleEndian())
-                return MEM_read32(memPtr)<<8;
-             else
-                return MEM_read32(memPtr)>>8;
-    }
-}
 
 #if defined (__cplusplus)
 }
@@ -887,8 +769,6 @@ MEM_STATIC unsigned BITv07_highbit32 (register U32 val)
 #   endif
 }
 
-/*=====    Local Constants   =====*/
-static const unsigned BITv07_mask[] = { 0, 1, 3, 7, 0xF, 0x1F, 0x3F, 0x7F, 0xFF, 0x1FF, 0x3FF, 0x7FF, 0xFFF, 0x1FFF, 0x3FFF, 0x7FFF, 0xFFFF, 0x1FFFF, 0x3FFFF, 0x7FFFF, 0xFFFFF, 0x1FFFFF, 0x3FFFFF, 0x7FFFFF,  0xFFFFFF, 0x1FFFFFF, 0x3FFFFFF };   /* up to 26 bits */
 
 
 /*-********************************************************
@@ -934,29 +814,6 @@ MEM_STATIC size_t BITv07_initDStream(BITv07_DStream_t* bitD, const void* srcBuff
     return srcSize;
 }
 
-MEM_STATIC size_t BITv07_getUpperBits(size_t bitContainer, U32 const start)
-{
-    return bitContainer >> start;
-}
-
-MEM_STATIC size_t BITv07_getMiddleBits(size_t bitContainer, U32 const start, U32 const nbBits)
-{
-#if defined(__BMI__) && defined(__GNUC__)   /* experimental */
-#  if defined(__x86_64__)
-    if (sizeof(bitContainer)==8)
-        return _bextr_u64(bitContainer, start, nbBits);
-    else
-#  endif
-        return _bextr_u32(bitContainer, start, nbBits);
-#else
-    return (bitContainer >> start) & BITv07_mask[nbBits];
-#endif
-}
-
-MEM_STATIC size_t BITv07_getLowerBits(size_t bitContainer, U32 const nbBits)
-{
-    return bitContainer & BITv07_mask[nbBits];
-}
 
 /*! BITv07_lookBits() :
  *  Provides next n bits from local register.
@@ -967,12 +824,8 @@ MEM_STATIC size_t BITv07_getLowerBits(size_t bitContainer, U32 const nbBits)
  */
  MEM_STATIC size_t BITv07_lookBits(const BITv07_DStream_t* bitD, U32 nbBits)
 {
-#if defined(__BMI__) && defined(__GNUC__)   /* experimental; fails if bitD->bitsConsumed + nbBits > sizeof(bitD->bitContainer)*8 */
-    return BITv07_getMiddleBits(bitD->bitContainer, (sizeof(bitD->bitContainer)*8) - bitD->bitsConsumed - nbBits, nbBits);
-#else
     U32 const bitMask = sizeof(bitD->bitContainer)*8 - 1;
     return ((bitD->bitContainer << (bitD->bitsConsumed & bitMask)) >> 1) >> ((bitMask-nbBits) & bitMask);
-#endif
 }
 
 /*! BITv07_lookBitsFast() :
@@ -1236,7 +1089,6 @@ static void     FSEv07_initDState(FSEv07_DState_t* DStatePtr, BITv07_DStream_t* 
 
 static unsigned char FSEv07_decodeSymbol(FSEv07_DState_t* DStatePtr, BITv07_DStream_t* bitD);
 
-static unsigned FSEv07_endOfDState(const FSEv07_DState_t* DStatePtr);
 
 /**<
 Let's now decompose FSEv07_decompress_usingDTable() into its unitary components.
@@ -1354,11 +1206,6 @@ MEM_STATIC BYTE FSEv07_decodeSymbolFast(FSEv07_DState_t* DStatePtr, BITv07_DStre
 
     DStatePtr->state = DInfo.newState + lowBits;
     return symbol;
-}
-
-MEM_STATIC unsigned FSEv07_endOfDState(const FSEv07_DState_t* DStatePtr)
-{
-    return DStatePtr->state == 0;
 }
 
 
@@ -3269,10 +3116,6 @@ typedef struct {
 } ZSTDv07_optimal_t;
 
 struct ZSTDv07_stats_s { U32 unused; };
-MEM_STATIC void ZSTDv07_statsPrint(ZSTDv07_stats_t* stats, U32 searchLength) { (void)stats; (void)searchLength; }
-MEM_STATIC void ZSTDv07_statsInit(ZSTDv07_stats_t* stats) { (void)stats; }
-MEM_STATIC void ZSTDv07_statsResetFreqs(ZSTDv07_stats_t* stats) { (void)stats; }
-MEM_STATIC void ZSTDv07_statsUpdatePrices(ZSTDv07_stats_t* stats, size_t litLength, const BYTE* literals, size_t offset, size_t matchLength) { (void)stats; (void)litLength; (void)literals; (void)offset; (void)matchLength; }
 
 typedef struct {
     void* buffer;

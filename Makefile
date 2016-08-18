@@ -49,6 +49,7 @@ default: zstd
 all:
 	$(MAKE) -C $(ZSTDDIR) $@
 	$(MAKE) -C $(PRGDIR) $@ zstd32
+	$(MAKE) -C $(TESTDIR) $@ all32
 
 zstd:
 	$(MAKE) -C $(PRGDIR)
@@ -102,16 +103,16 @@ clangtest: clean
 	$(MAKE) all CC=clang MOREFLAGS="-Werror -Wconversion -Wno-sign-conversion"
 
 armtest: clean
-	$(MAKE) -C $(PRGDIR) datagen   # use native, faster
-	$(MAKE) -C $(PRGDIR) test CC=arm-linux-gnueabi-gcc ZSTDRTTEST= MOREFLAGS="-Werror -static"
+	$(MAKE) -C $(TESTDIR) datagen   # use native, faster
+	$(MAKE) -C $(TESTDIR) test CC=arm-linux-gnueabi-gcc ZSTDRTTEST= MOREFLAGS="-Werror -static"
 
 ppctest: clean
-	$(MAKE) -C $(PRGDIR) datagen   # use native, faster
-	$(MAKE) -C $(PRGDIR) test CC=powerpc-linux-gnu-gcc ZSTDRTTEST= MOREFLAGS="-Werror -Wno-attributes -static"
+	$(MAKE) -C $(TESTDIR) datagen   # use native, faster
+	$(MAKE) -C $(TESTDIR) test CC=powerpc-linux-gnu-gcc ZSTDRTTEST= MOREFLAGS="-Werror -Wno-attributes -static"
 
 ppc64test: clean
-	$(MAKE) -C $(PRGDIR) datagen   # use native, faster
-	$(MAKE) -C $(PRGDIR) test CC=powerpc-linux-gnu-gcc ZSTDRTTEST= MOREFLAGS="-m64 -static"
+	$(MAKE) -C $(TESTDIR) datagen   # use native, faster
+	$(MAKE) -C $(TESTDIR) test CC=powerpc-linux-gnu-gcc ZSTDRTTEST= MOREFLAGS="-m64 -static"
 
 usan: clean
 	$(MAKE) test CC=clang MOREFLAGS="-g -fsanitize=undefined"
@@ -123,7 +124,7 @@ msan: clean
 	$(MAKE) test CC=clang MOREFLAGS="-g -fsanitize=memory -fno-omit-frame-pointer"   # datagen.c fails this test for no obvious reason
 
 asan32: clean
-	$(MAKE) -C $(PRGDIR) test32 CC=clang MOREFLAGS="-g -fsanitize=address"
+	$(MAKE) -C $(TESTDIR) test32 CC=clang MOREFLAGS="-g -fsanitize=address"
 
 uasan: clean
 	$(MAKE) test CC=clang MOREFLAGS="-g -fsanitize=address -fsanitize=undefined"
@@ -163,13 +164,13 @@ c11test: clean
 	CFLAGS="-std=c11" $(MAKE) all
 
 bmix64test: clean
-	CFLAGS="-O3 -mbmi -Werror" $(MAKE) -C $(PRGDIR) test
+	CFLAGS="-O3 -mbmi -Werror" $(MAKE) -C $(TESTDIR) test
 
 bmix32test: clean
-	CFLAGS="-O3 -mbmi -mx32 -Werror" $(MAKE) -C $(PRGDIR) test
+	CFLAGS="-O3 -mbmi -mx32 -Werror" $(MAKE) -C $(TESTDIR) test
 
 bmi32test: clean
-	CFLAGS="-O3 -mbmi -m32 -Werror" $(MAKE) -C $(PRGDIR) test
+	CFLAGS="-O3 -mbmi -m32 -Werror" $(MAKE) -C $(TESTDIR) test
 
 staticAnalyze: clean
 	CPPFLAGS=-g scan-build --status-bugs -v $(MAKE) all

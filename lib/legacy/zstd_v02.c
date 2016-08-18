@@ -218,8 +218,6 @@ MEM_STATIC U32 MEM_read32(const void* memPtr) { return *(const U32*) memPtr; }
 MEM_STATIC U64 MEM_read64(const void* memPtr) { return *(const U64*) memPtr; }
 
 MEM_STATIC void MEM_write16(void* memPtr, U16 value) { *(U16*)memPtr = value; }
-MEM_STATIC void MEM_write32(void* memPtr, U32 value) { *(U32*)memPtr = value; }
-MEM_STATIC void MEM_write64(void* memPtr, U64 value) { *(U64*)memPtr = value; }
 
 #elif defined(MEM_FORCE_MEMORY_ACCESS) && (MEM_FORCE_MEMORY_ACCESS==1)
 
@@ -232,8 +230,6 @@ MEM_STATIC U32 MEM_read32(const void* ptr) { return ((const unalign*)ptr)->u32; 
 MEM_STATIC U64 MEM_read64(const void* ptr) { return ((const unalign*)ptr)->u64; }
 
 MEM_STATIC void MEM_write16(void* memPtr, U16 value) { ((unalign*)memPtr)->u16 = value; }
-MEM_STATIC void MEM_write32(void* memPtr, U32 value) { ((unalign*)memPtr)->u32 = value; }
-MEM_STATIC void MEM_write64(void* memPtr, U64 value) { ((unalign*)memPtr)->u64 = value; }
 
 #else
 
@@ -256,16 +252,6 @@ MEM_STATIC U64 MEM_read64(const void* memPtr)
 }
 
 MEM_STATIC void MEM_write16(void* memPtr, U16 value)
-{
-    memcpy(memPtr, &value, sizeof(value));
-}
-
-MEM_STATIC void MEM_write32(void* memPtr, U32 value)
-{
-    memcpy(memPtr, &value, sizeof(value));
-}
-
-MEM_STATIC void MEM_write64(void* memPtr, U64 value)
 {
     memcpy(memPtr, &value, sizeof(value));
 }
@@ -309,21 +295,6 @@ MEM_STATIC U32 MEM_readLE32(const void* memPtr)
     }
 }
 
-MEM_STATIC void MEM_writeLE32(void* memPtr, U32 val32)
-{
-    if (MEM_isLittleEndian())
-    {
-        MEM_write32(memPtr, val32);
-    }
-    else
-    {
-        BYTE* p = (BYTE*)memPtr;
-        p[0] = (BYTE)val32;
-        p[1] = (BYTE)(val32>>8);
-        p[2] = (BYTE)(val32>>16);
-        p[3] = (BYTE)(val32>>24);
-    }
-}
 
 MEM_STATIC U64 MEM_readLE64(const void* memPtr)
 {
@@ -337,25 +308,6 @@ MEM_STATIC U64 MEM_readLE64(const void* memPtr)
     }
 }
 
-MEM_STATIC void MEM_writeLE64(void* memPtr, U64 val64)
-{
-    if (MEM_isLittleEndian())
-    {
-        MEM_write64(memPtr, val64);
-    }
-    else
-    {
-        BYTE* p = (BYTE*)memPtr;
-        p[0] = (BYTE)val64;
-        p[1] = (BYTE)(val64>>8);
-        p[2] = (BYTE)(val64>>16);
-        p[3] = (BYTE)(val64>>24);
-        p[4] = (BYTE)(val64>>32);
-        p[5] = (BYTE)(val64>>40);
-        p[6] = (BYTE)(val64>>48);
-        p[7] = (BYTE)(val64>>56);
-    }
-}
 
 MEM_STATIC size_t MEM_readLEST(const void* memPtr)
 {
@@ -363,14 +315,6 @@ MEM_STATIC size_t MEM_readLEST(const void* memPtr)
         return (size_t)MEM_readLE32(memPtr);
     else
         return (size_t)MEM_readLE64(memPtr);
-}
-
-MEM_STATIC void MEM_writeLEST(void* memPtr, size_t val)
-{
-    if (MEM_32bits())
-        MEM_writeLE32(memPtr, (U32)val);
-    else
-        MEM_writeLE64(memPtr, (U64)val);
 }
 
 #if defined (__cplusplus)
@@ -2986,98 +2930,6 @@ typedef struct {
 *   tells if a return value is an error code */
 static unsigned ZSTD_isError(size_t code) { return ERR_isError(code); }
 
-
-/* *************************************
-*  Function body to include
-***************************************/
-static size_t ZSTD_read_ARCH(const void* p) { size_t r; memcpy(&r, p, sizeof(r)); return r; }
-
-MEM_STATIC unsigned ZSTD_NbCommonBytes (register size_t val)
-{
-    if (MEM_isLittleEndian())
-    {
-        if (MEM_64bits())
-        {
-#       if defined(_MSC_VER) && defined(_WIN64) && !defined(LZ4_FORCE_SW_BITCOUNT)
-            unsigned long r = 0;
-            _BitScanForward64( &r, (U64)val );
-            return (int)(r>>3);
-#       elif defined(__GNUC__) && (__GNUC__ >= 3) && !defined(LZ4_FORCE_SW_BITCOUNT)
-            return (__builtin_ctzll((U64)val) >> 3);
-#       else
-            static const int DeBruijnBytePos[64] = { 0, 0, 0, 0, 0, 1, 1, 2, 0, 3, 1, 3, 1, 4, 2, 7, 0, 2, 3, 6, 1, 5, 3, 5, 1, 3, 4, 4, 2, 5, 6, 7, 7, 0, 1, 2, 3, 3, 4, 6, 2, 6, 5, 5, 3, 4, 5, 6, 7, 1, 2, 4, 6, 4, 4, 5, 7, 2, 6, 5, 7, 6, 7, 7 };
-            return DeBruijnBytePos[((U64)((val & -(long long)val) * 0x0218A392CDABBD3FULL)) >> 58];
-#       endif
-        }
-        else /* 32 bits */
-        {
-#       if defined(_MSC_VER) && !defined(LZ4_FORCE_SW_BITCOUNT)
-            unsigned long r;
-            _BitScanForward( &r, (U32)val );
-            return (int)(r>>3);
-#       elif defined(__GNUC__) && (__GNUC__ >= 3) && !defined(LZ4_FORCE_SW_BITCOUNT)
-            return (__builtin_ctz((U32)val) >> 3);
-#       else
-            static const int DeBruijnBytePos[32] = { 0, 0, 3, 0, 3, 1, 3, 0, 3, 2, 2, 1, 3, 2, 0, 1, 3, 3, 1, 2, 2, 2, 2, 0, 3, 1, 2, 0, 1, 0, 1, 1 };
-            return DeBruijnBytePos[((U32)((val & -(S32)val) * 0x077CB531U)) >> 27];
-#       endif
-        }
-    }
-    else   /* Big Endian CPU */
-    {
-        if (MEM_32bits())
-        {
-#       if defined(_MSC_VER) && defined(_WIN64) && !defined(LZ4_FORCE_SW_BITCOUNT)
-            unsigned long r = 0;
-            _BitScanReverse64( &r, val );
-            return (unsigned)(r>>3);
-#       elif defined(__GNUC__) && (__GNUC__ >= 3) && !defined(LZ4_FORCE_SW_BITCOUNT)
-            return (__builtin_clzll(val) >> 3);
-#       else
-            unsigned r;
-            const unsigned n32 = sizeof(size_t)*4;   /* calculate this way due to compiler complaining in 32-bits mode */
-            if (!(val>>n32)) { r=4; } else { r=0; val>>=n32; }
-            if (!(val>>16)) { r+=2; val>>=8; } else { val>>=24; }
-            r += (!val);
-            return r;
-#       endif
-        }
-        else /* 32 bits */
-        {
-#       if defined(_MSC_VER) && !defined(LZ4_FORCE_SW_BITCOUNT)
-            unsigned long r = 0;
-            _BitScanReverse( &r, (unsigned long)val );
-            return (unsigned)(r>>3);
-#       elif defined(__GNUC__) && (__GNUC__ >= 3) && !defined(LZ4_FORCE_SW_BITCOUNT)
-            return (__builtin_clz((U32)val) >> 3);
-#       else
-            unsigned r;
-            if (!(val>>16)) { r=2; val>>=8; } else { r=0; val>>=24; }
-            r += (!val);
-            return r;
-#       endif
-        }
-    }
-}
-
-
-MEM_STATIC size_t ZSTD_count(const BYTE* pIn, const BYTE* pMatch, const BYTE* pInLimit)
-{
-    const BYTE* const pStart = pIn;
-
-    while ((pIn<pInLimit-(sizeof(size_t)-1)))
-    {
-        size_t diff = ZSTD_read_ARCH(pMatch) ^ ZSTD_read_ARCH(pIn);
-        if (!diff) { pIn+=sizeof(size_t); pMatch+=sizeof(size_t); continue; }
-        pIn += ZSTD_NbCommonBytes(diff);
-        return (size_t)(pIn - pStart);
-    }
-
-    if (MEM_32bits()) if ((pIn<(pInLimit-3)) && (MEM_read32(pMatch) == MEM_read32(pIn))) { pIn+=4; pMatch+=4; }
-    if ((pIn<(pInLimit-1)) && (MEM_read16(pMatch) == MEM_read16(pIn))) { pIn+=2; pMatch+=2; }
-    if ((pIn<pInLimit) && (*pMatch == *pIn)) pIn++;
-    return (size_t)(pIn - pStart);
-}
 
 
 /* *************************************************************

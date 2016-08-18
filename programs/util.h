@@ -31,6 +31,9 @@ extern "C" {
 /* **************************************
 *  Compiler Options
 ****************************************/
+#if defined(__INTEL_COMPILER)
+#  pragma warning(disable : 177)    /* disable: message #177: function was declared but never referenced */
+#endif
 #if defined(_MSC_VER)
 #  define _CRT_SECURE_NO_WARNINGS    /* Disable some Visual warning messages for fopen, strncpy */
 #  define _CRT_SECURE_NO_DEPRECATE   /* VS2005 */

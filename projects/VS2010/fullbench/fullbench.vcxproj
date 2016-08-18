@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
@@ -168,7 +168,7 @@
     <ClCompile Include="..\..\..\lib\decompress\zbuff_decompress.c" />
     <ClCompile Include="..\..\..\lib\decompress\zstd_decompress.c" />
     <ClCompile Include="..\..\..\programs\datagen.c" />
-    <ClCompile Include="..\..\..\programs\fullbench.c" />
+    <ClCompile Include="..\..\..\tests\fullbench.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\lib\common\fse.h" />

@@ -28,6 +28,7 @@
 # zbufftest32: Same as zbufftest, but forced to compile in 32-bits mode
 # fullbench  : Precisely measure speed for each zstd inner function
 # fullbench32: Same as fullbench, but forced to compile in 32-bits mode
+# versionstest : Compatibility test between zstd versions stored on Github (v0.1+)
 # ##########################################################################
 
 DESTDIR?=
@@ -36,6 +37,9 @@ BINDIR  = $(PREFIX)/bin
 MANDIR  = $(PREFIX)/share/man/man1
 ZSTDDIR = ../lib
 PRGDIR  = ../programs
+PYTHON ?= python3
+TESTARTEFACT := versionsTest namespaceTest
+
 
 CPPFLAGS= -I$(ZSTDDIR) -I$(ZSTDDIR)/common -I$(ZSTDDIR)/dictBuilder -I$(PRGDIR)
 CFLAGS ?= -O3
@@ -67,7 +71,7 @@ ZBUFFTEST = -T2mn
 FUZZERTEST= -T5mn
 ZSTDRTTEST= --test-large-data
 
-.PHONY: default all all32 clean test test32 test-all
+.PHONY: default all all32 clean test test32 test-all namespaceTest versionsTest
 
 default: fullbench
 
@@ -121,9 +125,17 @@ datagen : $(PRGDIR)/datagen.c datagencli.c
 roundTripCrash : $(ZSTD_FILES) roundTripCrash.c
 	$(CC)      $(FLAGS) $^ -o $@$(EXT)
 
+namespaceTest:
+	if $(CC) namespaceTest.c ../lib/common/xxhash.c -o $@ ; then echo compilation should fail; exit 1 ; fi
+	$(RM) $@
+
+versionsTest:
+	$(PYTHON) test-zstd-versions.py
+
 clean:
 	$(MAKE) -C ../lib clean
-	@rm -f core *.o tmp* result* *.gcda dictionary *.zst \
+	@$(RM) -fR $(TESTARTEFACT)
+	@$(RM) -f core *.o tmp* result* *.gcda dictionary *.zst \
         $(PRGDIR)/zstd$(EXT) $(PRGDIR)/zstd32$(EXT) \
         fullbench$(EXT) fullbench32$(EXT) \
         fuzzer$(EXT) fuzzer32$(EXT) zbufftest$(EXT) zbufftest32$(EXT) \

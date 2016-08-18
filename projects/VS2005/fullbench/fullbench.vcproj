@@ -348,7 +348,7 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\..\programs\fullbench.c"
+				RelativePath="..\..\..\tests\fullbench.c"
 				>
 			</File>
 			<File

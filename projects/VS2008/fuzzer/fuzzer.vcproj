@@ -349,7 +349,7 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\..\programs\fuzzer.c"
+				RelativePath="..\..\..\tests\fuzzer.c"
 				>
 			</File>
 			<File

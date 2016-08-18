@@ -92,7 +92,7 @@ ZSTDLIB_API size_t ZSTD_compress( void* dst, size_t dstCapacity,
 *             Always ensure result fits within application's authorized limits !
 *             Each application can set its own limits.
 *    note 4 : when `return==0`, if precise failure cause is needed, use ZSTD_getFrameParams() to know more. */
-unsigned long long ZSTD_getDecompressedSize(const void* src, size_t srcSize);
+ZSTDLIB_API unsigned long long ZSTD_getDecompressedSize(const void* src, size_t srcSize);
 
 /*! ZSTD_decompress() :
     `compressedSize` : must be the _exact_ size of compressed input, otherwise decompression will fail.

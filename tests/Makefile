@@ -35,14 +35,8 @@ DESTDIR?=
 PREFIX ?= /usr/local
 BINDIR  = $(PREFIX)/bin
 MANDIR  = $(PREFIX)/share/man/man1
-
 ZSTDDIR = ../lib
 
-ifeq ($(shell $(CC) -v 2>&1 | grep -c "gcc version "), 1)
-ALIGN_LOOP = -falign-loops=32
-else
-ALIGN_LOOP =
-endif
 
 CPPFLAGS= -I$(ZSTDDIR) -I$(ZSTDDIR)/common -I$(ZSTDDIR)/dictBuilder
 CFLAGS ?= -O3
@@ -58,17 +52,7 @@ ZSTDDECOMP_FILES := $(ZSTDDIR)/decompress/zstd_decompress.c $(ZSTDDIR)/decompres
 ZSTD_FILES := $(ZSTDDECOMP_FILES) $(ZSTDCOMMON_FILES) $(ZSTDCOMP_FILES)
 ZBUFF_FILES := $(ZSTDDIR)/compress/zbuff_compress.c $(ZSTDDIR)/decompress/zbuff_decompress.c
 ZDICT_FILES := $(ZSTDDIR)/dictBuilder/*.c
-ZSTDDECOMP_O = 
 
-
-ifeq ($(ZSTD_LEGACY_SUPPORT), 0)
-CPPFLAGS  += -DZSTD_LEGACY_SUPPORT=0
-ZSTDLEGACY_FILES:=
-else
-ZSTD_LEGACY_SUPPORT:=1
-CPPFLAGS  += -I$(ZSTDDIR)/legacy -I./legacy
-ZSTDLEGACY_FILES:= $(ZSTDDIR)/legacy/*.c legacy/fileio_legacy.c
-endif
 
 
 # Define *.exe as extension for Windows systems
@@ -90,46 +74,17 @@ default: zstd
 
 all: zstd fullbench fuzzer zbufftest zstreamtest paramgrill datagen
 
-all32: cleano32 zstd32 fullbench32 fuzzer32 zbufftest32 zstreamtest32
+all32: zstd32 fullbench32 fuzzer32 zbufftest32 zstreamtest32
 
 
 
-zstd  : $(ZSTD_FILES) $(ZSTDLEGACY_FILES) $(ZDICT_FILES) \
+zstd  : $(ZSTD_FILES) $(ZDICT_FILES) \
         zstdcli.c fileio.c bench.c datagen.c dibio.c
-	$(CC)      $(FLAGS) -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT) $^ -o $@$(EXT)
+	$(CC)      $(FLAGS) -DZSTD_LEGACY_SUPPORT=0 $^ -o $@$(EXT)
 
-zstd32 : $(ZSTD_FILES) $(ZSTDLEGACY_FILES) $(ZDICT_FILES) \
+zstd32 : $(ZSTD_FILES) $(ZDICT_FILES) \
         zstdcli.c fileio.c bench.c datagen.c dibio.c
-	$(CC)  -m32 $(FLAGS) -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT) $^ -o $@$(EXT)
-
-
-zstd_nolegacy :
-	$(MAKE) zstd ZSTD_LEGACY_SUPPORT=0
-
-zstd-pgo : MOREFLAGS = -fprofile-generate
-zstd-pgo : clean zstd
-	./zstd -b19i1 $(PROFILE_WITH)
-	./zstd -b16i1 $(PROFILE_WITH)
-	./zstd -b9i2 $(PROFILE_WITH)
-	./zstd -b $(PROFILE_WITH)
-	./zstd -b7i2 $(PROFILE_WITH)
-	./zstd -b5 $(PROFILE_WITH)
-	rm zstd
-	$(MAKE) zstd MOREFLAGS=-fprofile-use
-
-zstd-frugal: $(ZSTD_FILES) zstdcli.c fileio.c
-	$(CC)      $(FLAGS) -DZSTD_NOBENCH -DZSTD_NODICT -DZSTD_LEGACY_SUPPORT=0 $^ -o zstd$(EXT)
-
-zstd-compress: $(ZSTDCOMMON_FILES) $(ZSTDCOMP_FILES) \
-	zstdcli.c fileio.c
-	$(CC)      $(FLAGS) -DZSTD_NOBENCH -DZSTD_NODICT -DZSTD_NODECOMPRESS -DZSTD_LEGACY_SUPPORT=0 $^ -o $@$(EXT)
-
-zstd-decompress: $(ZSTDCOMMON_FILES) $(ZSTDDECOMP_FILES) \
-	zstdcli.c fileio.c
-	$(CC)      $(FLAGS) -DZSTD_NOBENCH -DZSTD_NODICT -DZSTD_NOCOMPRESS -DZSTD_LEGACY_SUPPORT=0 $^ -o $@$(EXT)
-
-zstd-small: clean
-	CFLAGS="-Os -s" $(MAKE) zstd-frugal
+	$(CC)  -m32 $(FLAGS) -DZSTD_LEGACY_SUPPORT=0 $^ -o $@$(EXT)
 
 fullbench  : $(ZSTD_FILES) $(ZBUFF_FILES) datagen.c fullbench.c
 	$(CC)      $(FLAGS) $^ -o $@$(EXT)
@@ -169,40 +124,18 @@ roundTripCrash : $(ZSTD_FILES) roundTripCrash.c
 clean:
 	$(MAKE) -C ../lib clean
 	@rm -f core *.o tmp* result* *.gcda dictionary *.zst \
-        zstd$(EXT) zstd32$(EXT) zstd-compress$(EXT) zstd-decompress$(EXT) \
+        zstd$(EXT) zstd32$(EXT) \
         fullbench$(EXT) fullbench32$(EXT) \
         fuzzer$(EXT) fuzzer32$(EXT) zbufftest$(EXT) zbufftest32$(EXT) \
         datagen$(EXT) paramgrill$(EXT) roundTripCrash$(EXT)
 	@echo Cleaning completed
 
-cleano32:
-	@rm -f ../lib/decompress/*.o
 
 #----------------------------------------------------------------------------------
-#make install is validated only for Linux, OSX, kFreeBSD, Hurd and some BSD targets
+#make valgrindTest is validated only for Linux, OSX, kFreeBSD, Hurd and some BSD targets
 #----------------------------------------------------------------------------------
 ifneq (,$(filter $(shell uname),Linux Darwin GNU/kFreeBSD GNU OpenBSD FreeBSD DragonFly))
 HOST_OS = POSIX
-install: zstd
-	@echo Installing binaries
-	@install -d -m 755 $(DESTDIR)$(BINDIR)/ $(DESTDIR)$(MANDIR)/
-	@install -m 755 zstd$(EXT) $(DESTDIR)$(BINDIR)/zstd$(EXT)
-	@ln -sf zstd$(EXT) $(DESTDIR)$(BINDIR)/zstdcat
-	@ln -sf zstd$(EXT) $(DESTDIR)$(BINDIR)/unzstd
-	@echo Installing man pages
-	@install -m 644 zstd.1 $(DESTDIR)$(MANDIR)/zstd.1
-	@ln -sf zstd.1 $(DESTDIR)$(MANDIR)/zstdcat.1
-	@ln -sf zstd.1 $(DESTDIR)$(MANDIR)/unzstd.1
-	@echo zstd installation completed
-
-uninstall:
-	rm -f $(DESTDIR)$(BINDIR)/zstdcat
-	rm -f $(DESTDIR)$(BINDIR)/unzstd
-	[ -x $(DESTDIR)$(BINDIR)/zstd$(EXT) ] && rm -f $(DESTDIR)$(BINDIR)/zstd$(EXT)
-	rm -f $(DESTDIR)$(MANDIR)/zstdcat.1
-	rm -f $(DESTDIR)$(MANDIR)/unzstd.1
-	[ -f $(DESTDIR)$(MANDIR)/zstd.1 ] && rm -f $(DESTDIR)$(MANDIR)/zstd.1
-	@echo zstd programs successfully uninstalled
 
 valgrindTest: VALGRIND = valgrind --leak-check=full --error-exitcode=1
 valgrindTest: zstd datagen fuzzer fullbench zbufftest

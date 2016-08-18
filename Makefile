@@ -33,6 +33,7 @@
 PRGDIR  = programs
 ZSTDDIR = lib
 ZWRAPDIR = zlibWrapper
+TESTDIR  = tests
 
 # Define nul output
 ifneq (,$(filter Windows%,$(OS)))
@@ -47,9 +48,7 @@ default: zstd
 
 all:
 	$(MAKE) -C $(ZSTDDIR) $@
-	$(MAKE) -C $(PRGDIR) $@
-	@rm -f lib/decompress/*.o
-	$(MAKE) -C $(PRGDIR) all32
+	$(MAKE) -C $(PRGDIR) $@ zstd32
 
 zstd:
 	$(MAKE) -C $(PRGDIR)
@@ -60,11 +59,12 @@ zlibwrapper:
 	$(MAKE) -C $(ZWRAPDIR) all
 
 test:
-	$(MAKE) -C $(PRGDIR) $@
+	$(MAKE) -C $(TESTDIR) $@
 
 clean:
 	@$(MAKE) -C $(ZSTDDIR) $@ > $(VOID)
 	@$(MAKE) -C $(PRGDIR) $@ > $(VOID)
+	@$(MAKE) -C $(TESTDIR) $@ > $(VOID)
 	@$(MAKE) -C $(ZWRAPDIR) $@ > $(VOID)
 	@rm -f zstd
 	@echo Cleaning completed

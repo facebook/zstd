@@ -1,5 +1,5 @@
 # ##########################################################################
-# ZSTD programs - Makefile
+# ZSTD tests - Makefile
 # Copyright (C) Yann Collet 2015-2016
 #
 # GPL v2 License
@@ -21,7 +21,6 @@
 # You can contact the author at :
 #  - zstd homepage : http://www.zstd.net/
 # ##########################################################################
-# zstd : Command Line Utility, supporting gzip-like arguments
 # datagen : Synthetic and parametrable data generator, for tests
 # fuzzer  : Test tool, to check zstd integrity on target platform
 # fuzzer32: Same as fuzzer, but forced to compile in 32-bits mode
@@ -36,9 +35,9 @@ PREFIX ?= /usr/local
 BINDIR  = $(PREFIX)/bin
 MANDIR  = $(PREFIX)/share/man/man1
 ZSTDDIR = ../lib
+PRGDIR  = ../programs
 
-
-CPPFLAGS= -I$(ZSTDDIR) -I$(ZSTDDIR)/common -I$(ZSTDDIR)/dictBuilder
+CPPFLAGS= -I$(ZSTDDIR) -I$(ZSTDDIR)/common -I$(ZSTDDIR)/dictBuilder -I$(PRGDIR)
 CFLAGS ?= -O3
 CFLAGS += -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow -Wstrict-aliasing=1 \
           -Wswitch-enum -Wdeclaration-after-statement -Wstrict-prototypes -Wundef
@@ -68,54 +67,55 @@ ZBUFFTEST = -T2mn
 FUZZERTEST= -T5mn
 ZSTDRTTEST= --test-large-data
 
-.PHONY: default all all32 clean install uninstall test test32 test-all
+.PHONY: default all all32 clean test test32 test-all
 
-default: zstd
+default: fullbench
 
-all: zstd fullbench fuzzer zbufftest zstreamtest paramgrill datagen
+all: fullbench fuzzer zbufftest zstreamtest paramgrill datagen
 
-all32: zstd32 fullbench32 fuzzer32 zbufftest32 zstreamtest32
+all32: fullbench32 fuzzer32 zbufftest32 zstreamtest32
 
 
 
-zstd  : $(ZSTD_FILES) $(ZDICT_FILES) \
-        zstdcli.c fileio.c bench.c datagen.c dibio.c
-	$(CC)      $(FLAGS) -DZSTD_LEGACY_SUPPORT=0 $^ -o $@$(EXT)
+zstd:
+	$(MAKE) -C $(PRGDIR) $@
 
-zstd32 : $(ZSTD_FILES) $(ZDICT_FILES) \
-        zstdcli.c fileio.c bench.c datagen.c dibio.c
-	$(CC)  -m32 $(FLAGS) -DZSTD_LEGACY_SUPPORT=0 $^ -o $@$(EXT)
+zstd32:
+	$(MAKE) -C $(PRGDIR) $@
 
-fullbench  : $(ZSTD_FILES) $(ZBUFF_FILES) datagen.c fullbench.c
+zstd_nolegacy:
+	$(MAKE) -C $(PRGDIR) $@
+
+fullbench  : $(ZSTD_FILES) $(ZBUFF_FILES) $(PRGDIR)/datagen.c fullbench.c
 	$(CC)      $(FLAGS) $^ -o $@$(EXT)
 
-fullbench32 : $(ZSTD_FILES) $(ZBUFF_FILES) datagen.c fullbench.c
+fullbench32 : $(ZSTD_FILES) $(ZBUFF_FILES) $(PRGDIR)/datagen.c fullbench.c
 	$(CC)  -m32  $(FLAGS) $^ -o $@$(EXT)
 
 fuzzer  : CPPFLAGS += -I$(ZSTDDIR)/dictBuilder
-fuzzer  : $(ZSTD_FILES) $(ZDICT_FILES) datagen.c fuzzer.c
+fuzzer  : $(ZSTD_FILES) $(ZDICT_FILES) $(PRGDIR)/datagen.c fuzzer.c
 	$(CC)      $(FLAGS) $^ -o $@$(EXT)
 
 fuzzer32 : CPPFLAGS += -I$(ZSTDDIR)/dictBuilder
-fuzzer32 : $(ZSTD_FILES) $(ZDICT_FILES) datagen.c fuzzer.c
+fuzzer32 : $(ZSTD_FILES) $(ZDICT_FILES) $(PRGDIR)/datagen.c fuzzer.c
 	$(CC)  -m32  $(FLAGS) $^ -o $@$(EXT)
 
-zbufftest  : $(ZSTD_FILES) $(ZBUFF_FILES) datagen.c zbufftest.c
+zbufftest  : $(ZSTD_FILES) $(ZBUFF_FILES) $(PRGDIR)/datagen.c zbufftest.c
 	$(CC)      $(FLAGS) $^ -o $@$(EXT)
 
-zbufftest32  : $(ZSTD_FILES) $(ZBUFF_FILES) datagen.c zbufftest.c
+zbufftest32  : $(ZSTD_FILES) $(ZBUFF_FILES) $(PRGDIR)/datagen.c zbufftest.c
 	$(CC)  -m32  $(FLAGS) $^ -o $@$(EXT)
 
-zstreamtest  : $(ZSTD_FILES) datagen.c zstreamtest.c
+zstreamtest  : $(ZSTD_FILES) $(PRGDIR)/datagen.c zstreamtest.c
 	$(CC)      $(FLAGS) $^ -o $@$(EXT)
 
-zstreamtest32 : $(ZSTD_FILES) datagen.c zstreamtest.c
+zstreamtest32 : $(ZSTD_FILES) $(PRGDIR)/datagen.c zstreamtest.c
 	$(CC) -m32  $(FLAGS) $^ -o $@$(EXT)
 
-paramgrill : $(ZSTD_FILES) datagen.c paramgrill.c
+paramgrill : $(ZSTD_FILES) $(PRGDIR)/datagen.c paramgrill.c
 	$(CC)      $(FLAGS) $^ -lm -o $@$(EXT)
 
-datagen : datagen.c datagencli.c
+datagen : $(PRGDIR)/datagen.c datagencli.c
 	$(CC)      $(FLAGS) $^ -o $@$(EXT)
 
 roundTripCrash : $(ZSTD_FILES) roundTripCrash.c
@@ -124,7 +124,7 @@ roundTripCrash : $(ZSTD_FILES) roundTripCrash.c
 clean:
 	$(MAKE) -C ../lib clean
 	@rm -f core *.o tmp* result* *.gcda dictionary *.zst \
-        zstd$(EXT) zstd32$(EXT) \
+        $(PRGDIR)/zstd$(EXT) $(PRGDIR)/zstd32$(EXT) \
         fullbench$(EXT) fullbench32$(EXT) \
         fuzzer$(EXT) fuzzer32$(EXT) zbufftest$(EXT) zbufftest32$(EXT) \
         datagen$(EXT) paramgrill$(EXT) roundTripCrash$(EXT)
@@ -141,12 +141,12 @@ valgrindTest: VALGRIND = valgrind --leak-check=full --error-exitcode=1
 valgrindTest: zstd datagen fuzzer fullbench zbufftest
 	@echo "\n ---- valgrind tests : memory analyzer ----"
 	$(VALGRIND) ./datagen -g50M > $(VOID)
-	$(VALGRIND) ./zstd ; if [ $$? -eq 0 ] ; then echo "zstd without argument should have failed"; false; fi
-	./datagen -g80 | $(VALGRIND) ./zstd - -c > $(VOID)
-	./datagen -g16KB | $(VALGRIND) ./zstd -vf - -o $(VOID)
-	./datagen -g2930KB | $(VALGRIND) ./zstd -5 -vf - -o tmp
-	$(VALGRIND) ./zstd -vdf tmp -o $(VOID)
-	./datagen -g64MB | $(VALGRIND) ./zstd -vf - -o $(VOID)
+	$(VALGRIND) $(PRGDIR)/zstd ; if [ $$? -eq 0 ] ; then echo "zstd without argument should have failed"; false; fi
+	./datagen -g80 | $(VALGRIND) $(PRGDIR)/zstd - -c > $(VOID)
+	./datagen -g16KB | $(VALGRIND) $(PRGDIR)/zstd -vf - -o $(VOID)
+	./datagen -g2930KB | $(VALGRIND) $(PRGDIR)/zstd -5 -vf - -o tmp
+	$(VALGRIND) $(PRGDIR)/zstd -vdf tmp -o $(VOID)
+	./datagen -g64MB | $(VALGRIND) $(PRGDIR)/zstd -vf - -o $(VOID)
 	@rm tmp
 	$(VALGRIND) ./fuzzer -T1mn -t1
 	$(VALGRIND) ./fullbench -i1
@@ -173,13 +173,13 @@ test32: test-zstd32 test-fullbench32 test-fuzzer32 test-zbuff32 test-zstream32
 
 test-all: test test32 valgrindTest
 
-test-zstd: ZSTD = ./zstd
+test-zstd: ZSTD = $(PRGDIR)/zstd
 test-zstd: zstd zstd-playTests
 
-test-zstd32: ZSTD = ./zstd32
+test-zstd32: ZSTD = $(PRGDIR)/zstd32
 test-zstd32: zstd32 zstd-playTests
 
-test-zstd_nolegacy: ZSTD = ./zstd
+test-zstd_nolegacy: ZSTD = $(PRGDIR)/zstd
 test-zstd_nolegacy: zstd_nolegacy zstd-playTests
 
 test-fullbench: fullbench datagen

@@ -1,6 +1,7 @@
 # ##########################################################################
 # Zstd tests - Makefile
-# Based on LZ4 version test, by Takayuki Matsuoka - 2015-2016
+# Copyright (C) Yann Collet 2015-2016
+# All rights reserved.
 #
 # GPL v2 License
 #
@@ -24,18 +25,22 @@
 # versionstest : Compatibility test between zstd versions stored on Github (v0.1+)
 # ##########################################################################
 
-PYTHON?= python3
-TESTDIR := zstdtest
+PYTHON ?= python3
+TESTARTEFACT := versionsTest namespaceTest
 
-.PHONY: default all clean versionsTest
+.PHONY: default all clean namespaceTest versionsTest
 
 default: all
 
-all: versionsTest
+all: namespaceTest versionsTest
+
+namespaceTest:
+	if $(CC) namespaceTest.c ../lib/common/xxhash.c -o $@ ; then echo compilation should fail; exit 1 ; fi
+	$(RM) $@
 
 versionsTest:
 	$(PYTHON) test-zstd-versions.py
 
 clean:
-	@rm -fR $(TESTDIR)
+	@$(RM) -fR $(TESTARTEFACT)
 	@echo Cleaning completed

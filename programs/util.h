@@ -31,6 +31,9 @@ extern "C" {
 /* **************************************
 *  Compiler Options
 ****************************************/
+#if defined(__INTEL_COMPILER)
+#  pragma warning(disable : 177)    /* disable: message #177: function was declared but never referenced */
+#endif
 #if defined(_MSC_VER)
 #  define _CRT_SECURE_NO_WARNINGS    /* Disable some Visual warning messages for fopen, strncpy */
 #  define _CRT_SECURE_NO_DEPRECATE   /* VS2005 */
@@ -365,13 +368,10 @@ UTIL_STATIC const char** UTIL_createFileList(const char **inputNames, unsigned i
                 pos += len + 1;
                 nbFiles++;
             }
-        }
-        else
-        {
+        } else {
             nbFiles += UTIL_prepareFileList(inputNames[i], &buf, &pos, &bufend);
             if (buf == NULL) return NULL;
-        }
-    }
+    }   }
 
     if (nbFiles == 0) { free(buf); return NULL; }
 

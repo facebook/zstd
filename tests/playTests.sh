@@ -169,30 +169,33 @@ $ZSTD -f tmp1 notHere tmp2 && die "missing file not detected!"
 
 $ECHO "\n**** dictionary tests **** "
 
+TESTFILE=../programs/zstdcli.c
 ./datagen > tmpDict
 ./datagen -g1M | $MD5SUM > tmp1
 ./datagen -g1M | $ZSTD -D tmpDict | $ZSTD -D tmpDict -dvq | $MD5SUM > tmp2
 diff -q tmp1 tmp2
 $ECHO "- Create first dictionary"
-$ZSTD --train *.c -o tmpDict
-cp fuzzer.c tmp
+$ZSTD --train *.c ../programs/*.c -o tmpDict
+cp $TESTFILE tmp
 $ZSTD -f tmp -D tmpDict
 $ZSTD -d tmp.zst -D tmpDict -of result
-diff fuzzer.c result
+diff $TESTFILE result
 $ECHO "- Create second (different) dictionary"
-$ZSTD --train *.c -o tmpDictC
+$ZSTD --train *.c ../programs/*.c ../programs/*.h -o tmpDictC
 $ZSTD -d tmp.zst -D tmpDictC -of result && die "wrong dictionary not detected!"
 $ECHO "- Create dictionary with short dictID"
-$ZSTD --train *.c --dictID 1 -o tmpDict1
+$ZSTD --train *.c ../programs/*.c --dictID 1 -o tmpDict1
 cmp tmpDict tmpDict1 && die "dictionaries should have different ID !"
 $ECHO "- Compress without dictID"
 $ZSTD -f tmp -D tmpDict1 --no-dictID
 $ZSTD -d tmp.zst -D tmpDict -of result
-diff fuzzer.c result
+diff $TESTFILE result
 $ECHO "- Compress multiple files with dictionary"
 rm -rf dirTestDict
 mkdir dirTestDict
 cp *.c dirTestDict
+cp ../programs/*.c dirTestDict
+cp ../programs/*.h dirTestDict
 cat dirTestDict/* | $MD5SUM > tmph1  # note : we expect same file order to generate same hash
 $ZSTD -f dirTestDict/* -D tmpDictC
 $ZSTD -d dirTestDict/*.zst -D tmpDictC -c | $MD5SUM > tmph2

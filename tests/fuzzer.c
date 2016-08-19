@@ -272,6 +272,12 @@ static int basicUnitTests(U32 seed, double compressibility)
         if (ZDICT_isError(dictSize)) goto _output_error;
         DISPLAYLEVEL(4, "OK, created dictionary of size %u \n", (U32)dictSize);
 
+        DISPLAYLEVEL(4, "test%3i : check dictID : ", testNb++);
+        {   U32 const dictID = ZDICT_getDictID(dictBuffer, dictSize);
+            if (dictID==0) goto _output_error;
+            DISPLAYLEVEL(4, "OK : %u \n", dictID);
+        }
+
         DISPLAYLEVEL(4, "test%3i : compress with dictionary : ", testNb++);
         cSize = ZSTD_compress_usingDict(cctx, compressedBuffer, ZSTD_compressBound(CNBuffSize),
                                         CNBuffer, CNBuffSize,

@@ -126,6 +126,13 @@ unsigned ZDICT_isError(size_t errorCode) { return ERR_isError(errorCode); }
 
 const char* ZDICT_getErrorName(size_t errorCode) { return ERR_getErrorName(errorCode); }
 
+unsigned ZDICT_getDictID(const void* dictBuffer, size_t dictSize)
+{
+    if (dictSize < 8) return 0;
+    if (MEM_readLE32(dictBuffer) != ZSTD_DICT_MAGIC) return 0;
+    return MEM_readLE32((const char*)dictBuffer + 4);
+}
+
 
 /*-********************************************************
 *  Dictionary training functions

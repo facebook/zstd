@@ -1,3 +1,7 @@
+v0.8.2
+API : ZDICT_getDictID()
+Small decompression speed improvement
+
 v0.8.1
 New streaming API
 Changed : --ultra now enables levels beyond 19

@@ -590,9 +590,9 @@ static seq_t ZSTD_decodeSequence(seqState_t* seqState)
 {
     seq_t seq;
 
-    U32 const llCode = FSE_peekSymbol(&(seqState->stateLL));
-    U32 const mlCode = FSE_peekSymbol(&(seqState->stateML));
-    U32 const ofCode = FSE_peekSymbol(&(seqState->stateOffb));   /* <= maxOff, by table construction */
+    U32 const llCode = FSE_peekSymbol(&seqState->stateLL);
+    U32 const mlCode = FSE_peekSymbol(&seqState->stateML);
+    U32 const ofCode = FSE_peekSymbol(&seqState->stateOffb);   /* <= maxOff, by table construction */
 
     U32 const llBits = LL_bits[llCode];
     U32 const mlBits = ML_bits[mlCode];
@@ -621,8 +621,8 @@ static seq_t ZSTD_decodeSequence(seqState_t* seqState)
         if (!ofCode)
             offset = 0;
         else {
-            offset = OF_base[ofCode] + BIT_readBits(&(seqState->DStream), ofBits);   /* <=  (ZSTD_WINDOWLOG_MAX-1) bits */
-            if (MEM_32bits()) BIT_reloadDStream(&(seqState->DStream));
+            offset = OF_base[ofCode] + BIT_readBits(&seqState->DStream, ofBits);   /* <=  (ZSTD_WINDOWLOG_MAX-1) bits */
+            if (MEM_32bits()) BIT_reloadDStream(&seqState->DStream);
         }
 
         if (ofCode <= 1) {
@@ -643,18 +643,18 @@ static seq_t ZSTD_decodeSequence(seqState_t* seqState)
         seq.offset = offset;
     }
 
-    seq.matchLength = ML_base[mlCode] + ((mlCode>31) ? BIT_readBits(&(seqState->DStream), mlBits) : 0);   /* <=  16 bits */
-    if (MEM_32bits() && (mlBits+llBits>24)) BIT_reloadDStream(&(seqState->DStream));
+    seq.matchLength = ML_base[mlCode] + ((mlCode>31) ? BIT_readBits(&seqState->DStream, mlBits) : 0);  /* <=  16 bits */
+    if (MEM_32bits() && (mlBits+llBits>24)) BIT_reloadDStream(&seqState->DStream);
 
-    seq.litLength = LL_base[llCode] + ((llCode>15) ? BIT_readBits(&(seqState->DStream), llBits) : 0);   /* <=  16 bits */
+    seq.litLength = LL_base[llCode] + ((llCode>15) ? BIT_readBits(&seqState->DStream, llBits) : 0);    /* <=  16 bits */
     if (MEM_32bits() ||
-       (totalBits > 64 - 7 - (LLFSELog+MLFSELog+OffFSELog)) ) BIT_reloadDStream(&(seqState->DStream));
+       (totalBits > 64 - 7 - (LLFSELog+MLFSELog+OffFSELog)) ) BIT_reloadDStream(&seqState->DStream);
 
     /* ANS state update */
-    FSE_updateState(&(seqState->stateLL), &(seqState->DStream));   /* <=  9 bits */
-    FSE_updateState(&(seqState->stateML), &(seqState->DStream));   /* <=  9 bits */
-    if (MEM_32bits()) BIT_reloadDStream(&(seqState->DStream));     /* <= 18 bits */
-    FSE_updateState(&(seqState->stateOffb), &(seqState->DStream)); /* <=  8 bits */
+    FSE_updateState(&seqState->stateLL, &seqState->DStream);    /* <=  9 bits */
+    FSE_updateState(&seqState->stateML, &seqState->DStream);    /* <=  9 bits */
+    if (MEM_32bits()) BIT_reloadDStream(&seqState->DStream);    /* <= 18 bits */
+    FSE_updateState(&seqState->stateOffb, &seqState->DStream);  /* <=  8 bits */
 
     return seq;
 }

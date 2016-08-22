@@ -61,7 +61,6 @@ static const U32 prime1 = 2654435761U;
 static const U32 prime2 = 2246822519U;
 
 
-
 /*-************************************
 *  Display Macros
 **************************************/
@@ -93,7 +92,6 @@ static U32 FUZ_GetMilliStart(void)
     return nCount;
 }
 
-
 static U32 FUZ_GetMilliSpan(U32 nTimeStart)
 {
     U32 const nCurrent = FUZ_GetMilliStart();
@@ -117,7 +115,6 @@ unsigned int FUZ_rand(unsigned int* seedPtr)
     return rand32 >> 5;
 }
 
-
 /*
 static unsigned FUZ_highbit32(U32 v32)
 {
@@ -140,6 +137,11 @@ static void freeFunction(void* opaque, void* address)
     (void)opaque;
     free(address);
 }
+
+
+/*======================================================
+*   Basic Unit tests
+======================================================*/
 
 static int basicUnitTests(U32 seed, double compressibility, ZSTD_customMem customMem)
 {
@@ -187,6 +189,12 @@ static int basicUnitTests(U32 seed, double compressibility, ZSTD_customMem custo
     cSize += outBuff.pos;
     DISPLAYLEVEL(4, "OK (%u bytes : %.2f%%)\n", (U32)cSize, (double)cSize/COMPRESSIBLE_NOISE_LENGTH*100);
 
+    DISPLAYLEVEL(4, "test%3i : check CStream size : ", testNb++);
+    { size_t const s = ZSTD_sizeofCStream(zc);
+      if (ZSTD_isError(s)) goto _output_error;
+      DISPLAYLEVEL(4, "OK (%u bytes) \n", (U32)s);
+    }
+
     /* skippable frame test */
     DISPLAYLEVEL(4, "test%3i : decompress skippable frame : ", testNb++);
     ZSTD_initDStream_usingDict(zd, CNBuffer, 128 KB);
@@ -217,6 +225,12 @@ static int basicUnitTests(U32 seed, double compressibility, ZSTD_customMem custo
             if (((BYTE*)decodedBuffer)[i] != ((BYTE*)CNBuffer)[i]) goto _output_error;
     }   }
     DISPLAYLEVEL(4, "OK \n");
+
+    DISPLAYLEVEL(4, "test%3i : check DStream size : ", testNb++);
+    { size_t const s = ZSTD_sizeofDStream(zd);
+      if (ZSTD_isError(s)) goto _output_error;
+      DISPLAYLEVEL(4, "OK (%u bytes) \n", (U32)s);
+    }
 
     /* Byte-by-byte decompression test */
     DISPLAYLEVEL(4, "test%3i : decompress byte-by-byte : ", testNb++);

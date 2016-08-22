@@ -138,7 +138,7 @@ struct ZSTD_DCtx_s
     BYTE headerBuffer[ZSTD_FRAMEHEADERSIZE_MAX];
 };  /* typedef'd to ZSTD_DCtx within "zstd_static.h" */
 
-size_t ZSTD_sizeofDCtx (const ZSTD_DCtx* dctx) { return sizeof(*dctx); }
+size_t ZSTD_sizeof_DCtx (const ZSTD_DCtx* dctx) { return sizeof(*dctx); }
 
 size_t ZSTD_estimateDCtxSize(void) { return sizeof(ZSTD_DCtx); }
 
@@ -1383,9 +1383,9 @@ size_t ZSTD_initDStream(ZSTD_DStream* zds)
     return ZSTD_initDStream_usingDict(zds, NULL, 0);
 }
 
-size_t ZSTD_sizeofDStream(const ZSTD_DStream* zds)
+size_t ZSTD_sizeof_DStream(const ZSTD_DStream* zds)
 {
-    return sizeof(*zds) + ZSTD_sizeofDCtx(zds->zd) + zds->inBuffSize + zds->outBuffSize;
+    return sizeof(*zds) + ZSTD_sizeof_DCtx(zds->zd) + zds->inBuffSize + zds->outBuffSize;
 }
 
 

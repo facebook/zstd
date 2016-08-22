@@ -245,16 +245,16 @@ typedef struct ZSTD_outBuffer_s {
 * *******************************************************************/
 
 typedef struct ZSTD_CStream_s ZSTD_CStream;
-ZSTD_CStream* ZSTD_createCStream(void);
-size_t ZSTD_freeCStream(ZSTD_CStream* zcs);
+ZSTDLIB_API ZSTD_CStream* ZSTD_createCStream(void);
+ZSTDLIB_API size_t ZSTD_freeCStream(ZSTD_CStream* zcs);
 
-size_t ZSTD_CStreamInSize(void);    /**< recommended size for input buffer */
-size_t ZSTD_CStreamOutSize(void);   /**< recommended size for output buffer */
+ZSTDLIB_API size_t ZSTD_CStreamInSize(void);    /**< recommended size for input buffer */
+ZSTDLIB_API size_t ZSTD_CStreamOutSize(void);   /**< recommended size for output buffer */
 
-size_t ZSTD_initCStream(ZSTD_CStream* zcs, int compressionLevel);
-size_t ZSTD_compressStream(ZSTD_CStream* zcs, ZSTD_outBuffer* output, ZSTD_inBuffer* input);
-size_t ZSTD_flushStream(ZSTD_CStream* zcs, ZSTD_outBuffer* output);
-size_t ZSTD_endStream(ZSTD_CStream* zcs, ZSTD_outBuffer* output);
+ZSTDLIB_API size_t ZSTD_initCStream(ZSTD_CStream* zcs, int compressionLevel);
+ZSTDLIB_API size_t ZSTD_compressStream(ZSTD_CStream* zcs, ZSTD_outBuffer* output, ZSTD_inBuffer* input);
+ZSTDLIB_API size_t ZSTD_flushStream(ZSTD_CStream* zcs, ZSTD_outBuffer* output);
+ZSTDLIB_API size_t ZSTD_endStream(ZSTD_CStream* zcs, ZSTD_outBuffer* output);
 
 
 /*======   decompression   ======*/
@@ -281,14 +281,14 @@ size_t ZSTD_endStream(ZSTD_CStream* zcs, ZSTD_outBuffer* output);
 * *******************************************************************************/
 
 typedef struct ZSTD_DStream_s ZSTD_DStream;
-ZSTD_DStream* ZSTD_createDStream(void);
-size_t ZSTD_freeDStream(ZSTD_DStream* zds);
+ZSTDLIB_API ZSTD_DStream* ZSTD_createDStream(void);
+ZSTDLIB_API size_t ZSTD_freeDStream(ZSTD_DStream* zds);
 
-size_t ZSTD_DStreamInSize(void);    /*!< recommended size for input buffer */
-size_t ZSTD_DStreamOutSize(void);   /*!< recommended size for output buffer */
+ZSTDLIB_API size_t ZSTD_DStreamInSize(void);    /*!< recommended size for input buffer */
+ZSTDLIB_API size_t ZSTD_DStreamOutSize(void);   /*!< recommended size for output buffer */
 
-size_t ZSTD_initDStream(ZSTD_DStream* zds);
-size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inBuffer* input);
+ZSTDLIB_API size_t ZSTD_initDStream(ZSTD_DStream* zds);
+ZSTDLIB_API size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inBuffer* input);
 
 
 
@@ -376,12 +376,12 @@ ZSTDLIB_API ZSTD_CDict* ZSTD_createCDict_advanced(const void* dict, size_t dictS
 
 /*! ZSTD_sizeofCCtx() :
  *  Gives the amount of memory used by a given ZSTD_CCtx */
-ZSTDLIB_API size_t ZSTD_sizeofCCtx(const ZSTD_CCtx* cctx);
+ZSTDLIB_API size_t ZSTD_sizeof_CCtx(const ZSTD_CCtx* cctx);
 
 /*! ZSTD_getParams() :
 *   same as ZSTD_getCParams(), but @return a full `ZSTD_parameters` object instead of a `ZSTD_compressionParameters`.
 *   All fields of `ZSTD_frameParameters` are set to default (0) */
-ZSTD_parameters ZSTD_getParams(int compressionLevel, unsigned long long srcSize, size_t dictSize);
+ZSTDLIB_API ZSTD_parameters ZSTD_getParams(int compressionLevel, unsigned long long srcSize, size_t dictSize);
 
 /*! ZSTD_getCParams() :
 *   @return ZSTD_compressionParameters structure for a selected compression level and srcSize.
@@ -418,7 +418,7 @@ ZSTDLIB_API ZSTD_DCtx* ZSTD_createDCtx_advanced(ZSTD_customMem customMem);
 
 /*! ZSTD_sizeofDCtx() :
  *  Gives the amount of memory used by a given ZSTD_DCtx */
-ZSTDLIB_API size_t ZSTD_sizeofDCtx(const ZSTD_DCtx* dctx);
+ZSTDLIB_API size_t ZSTD_sizeof_DCtx(const ZSTD_DCtx* dctx);
 
 
 /* ******************************************************************
@@ -427,19 +427,19 @@ ZSTDLIB_API size_t ZSTD_sizeofDCtx(const ZSTD_DCtx* dctx);
 
 /*======   compression   ======*/
 
-ZSTD_CStream* ZSTD_createCStream_advanced(ZSTD_customMem customMem);
-size_t ZSTD_initCStream_usingDict(ZSTD_CStream* zcs, const void* dict, size_t dictSize, int compressionLevel);
-size_t ZSTD_initCStream_advanced(ZSTD_CStream* zcs, const void* dict, size_t dictSize,
+ZSTDLIB_API ZSTD_CStream* ZSTD_createCStream_advanced(ZSTD_customMem customMem);
+ZSTDLIB_API size_t ZSTD_initCStream_usingDict(ZSTD_CStream* zcs, const void* dict, size_t dictSize, int compressionLevel);
+ZSTDLIB_API size_t ZSTD_initCStream_advanced(ZSTD_CStream* zcs, const void* dict, size_t dictSize,
                                  ZSTD_parameters params, unsigned long long pledgedSrcSize);
-size_t ZSTD_sizeofCStream(const ZSTD_CStream* zcs);
+ZSTDLIB_API size_t ZSTD_sizeof_CStream(const ZSTD_CStream* zcs);
 
 
 /*======   decompression   ======*/
 
 /* advanced */
-ZSTD_DStream* ZSTD_createDStream_advanced(ZSTD_customMem customMem);
-size_t ZSTD_initDStream_usingDict(ZSTD_DStream* zds, const void* dict, size_t dictSize);
-size_t ZSTD_sizeofDStream(const ZSTD_DStream* zds);
+ZSTDLIB_API ZSTD_DStream* ZSTD_createDStream_advanced(ZSTD_customMem customMem);
+ZSTDLIB_API size_t ZSTD_initDStream_usingDict(ZSTD_DStream* zds, const void* dict, size_t dictSize);
+ZSTDLIB_API size_t ZSTD_sizeof_DStream(const ZSTD_DStream* zds);
 
 
 /* ******************************************************************

@@ -2867,6 +2867,10 @@ size_t ZSTD_initCStream(ZSTD_CStream* zcs, int compressionLevel)
     return ZSTD_initCStream_usingDict(zcs, NULL, 0, compressionLevel);
 }
 
+size_t ZSTD_sizeofCStream(const ZSTD_CStream* zcs)
+{
+    return sizeof(zcs) + ZSTD_sizeofCCtx(zcs->zc) + zcs->outBuffSize + zcs->inBuffSize;
+}
 
 /*======   Compression   ======*/
 

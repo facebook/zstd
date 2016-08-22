@@ -980,9 +980,10 @@ size_t ZSTD_decompress(void* dst, size_t dstCapacity, const void* src, size_t sr
 }
 
 
-/*-**********************************
-*   Streaming Decompression API
-************************************/
+/*-**************************************
+*   Advanced Streaming Decompression API
+*   Bufferless and synchronous
+****************************************/
 size_t ZSTD_nextSrcSizeToDecompress(ZSTD_DCtx* dctx) { return dctx->expected; }
 
 ZSTD_nextInputType_e ZSTD_nextInputType(ZSTD_DCtx* dctx) {
@@ -1382,6 +1383,11 @@ size_t ZSTD_initDStream(ZSTD_DStream* zds)
     return ZSTD_initDStream_usingDict(zds, NULL, 0);
 }
 
+size_t ZSTD_sizeofDStream(const ZSTD_DStream* zds)
+{
+    return sizeof(*zds) + ZSTD_sizeofDCtx(zds->zd) + zds->inBuffSize + zds->outBuffSize;
+}
+
 
 /* *** Decompression *** */
 
@@ -1531,9 +1537,3 @@ size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inB
         return nextSrcSizeHint;
     }
 }
-
-
-
-
-
-

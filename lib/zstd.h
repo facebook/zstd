@@ -431,13 +431,15 @@ ZSTD_CStream* ZSTD_createCStream_advanced(ZSTD_customMem customMem);
 size_t ZSTD_initCStream_usingDict(ZSTD_CStream* zcs, const void* dict, size_t dictSize, int compressionLevel);
 size_t ZSTD_initCStream_advanced(ZSTD_CStream* zcs, const void* dict, size_t dictSize,
                                  ZSTD_parameters params, unsigned long long pledgedSrcSize);
+size_t ZSTD_sizeofCStream(const ZSTD_CStream* zcs);
+
 
 /*======   decompression   ======*/
 
 /* advanced */
 ZSTD_DStream* ZSTD_createDStream_advanced(ZSTD_customMem customMem);
 size_t ZSTD_initDStream_usingDict(ZSTD_DStream* zds, const void* dict, size_t dictSize);
-
+size_t ZSTD_sizeofDStream(const ZSTD_DStream* zds);
 
 
 /* ******************************************************************

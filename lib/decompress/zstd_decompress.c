@@ -50,6 +50,16 @@
 #endif
 
 
+/*!
+*  STREAM_WINDOW_MAX :
+*  maximum window size accepted by DStream.
+*  frames requiring more memory will be rejected.
+*/
+#ifndef ZSTD_STREAM_WINDOW_MAX
+#  define ZSTD_STREAM_WINDOW_MAX (257 << 20)   /* 257 MB */
+#endif
+
+
 /*-*******************************************************
 *  Dependencies
 *********************************************************/
@@ -1445,6 +1455,7 @@ size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inB
             /* Frame header instruct buffer sizes */
             {   size_t const blockSize = MIN(zds->fParams.windowSize, ZSTD_BLOCKSIZE_ABSOLUTEMAX);
                 size_t const neededOutSize = zds->fParams.windowSize + blockSize;
+                if (zds->fParams.windowSize > ZSTD_STREAM_WINDOW_MAX) return ERROR(frameParameter_unsupported);
                 zds->blockSize = blockSize;
                 if (zds->inBuffSize < blockSize) {
                     zds->customMem.customFree(zds->customMem.opaque, zds->inBuff);

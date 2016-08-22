@@ -32,7 +32,7 @@ case "$OS" in
 esac
 
 MD5SUM="md5sum"
-if [ "$TRAVIS_OS_NAME" = "osx" ]; then
+if [[ "$OSTYPE" == "darwin"* ]]; then
     MD5SUM="md5 -r"
 fi
 

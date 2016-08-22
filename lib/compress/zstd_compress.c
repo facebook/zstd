@@ -154,7 +154,7 @@ size_t ZSTD_freeCCtx(ZSTD_CCtx* cctx)
     return 0;   /* reserved as a potential error code in the future */
 }
 
-size_t ZSTD_sizeofCCtx(const ZSTD_CCtx* cctx)
+size_t ZSTD_sizeof_CCtx(const ZSTD_CCtx* cctx)
 {
     return sizeof(*cctx) + cctx->workSpaceSize;
 }
@@ -2867,9 +2867,9 @@ size_t ZSTD_initCStream(ZSTD_CStream* zcs, int compressionLevel)
     return ZSTD_initCStream_usingDict(zcs, NULL, 0, compressionLevel);
 }
 
-size_t ZSTD_sizeofCStream(const ZSTD_CStream* zcs)
+size_t ZSTD_sizeof_CStream(const ZSTD_CStream* zcs)
 {
-    return sizeof(zcs) + ZSTD_sizeofCCtx(zcs->zc) + zcs->outBuffSize + zcs->inBuffSize;
+    return sizeof(zcs) + ZSTD_sizeof_CCtx(zcs->zc) + zcs->outBuffSize + zcs->inBuffSize;
 }
 
 /*======   Compression   ======*/

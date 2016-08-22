@@ -190,7 +190,7 @@ static int basicUnitTests(U32 seed, double compressibility, ZSTD_customMem custo
     DISPLAYLEVEL(4, "OK (%u bytes : %.2f%%)\n", (U32)cSize, (double)cSize/COMPRESSIBLE_NOISE_LENGTH*100);
 
     DISPLAYLEVEL(4, "test%3i : check CStream size : ", testNb++);
-    { size_t const s = ZSTD_sizeofCStream(zc);
+    { size_t const s = ZSTD_sizeof_CStream(zc);
       if (ZSTD_isError(s)) goto _output_error;
       DISPLAYLEVEL(4, "OK (%u bytes) \n", (U32)s);
     }
@@ -227,7 +227,7 @@ static int basicUnitTests(U32 seed, double compressibility, ZSTD_customMem custo
     DISPLAYLEVEL(4, "OK \n");
 
     DISPLAYLEVEL(4, "test%3i : check DStream size : ", testNb++);
-    { size_t const s = ZSTD_sizeofDStream(zd);
+    { size_t const s = ZSTD_sizeof_DStream(zd);
       if (ZSTD_isError(s)) goto _output_error;
       DISPLAYLEVEL(4, "OK (%u bytes) \n", (U32)s);
     }

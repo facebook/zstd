@@ -87,7 +87,7 @@ ZSTDLIB_API size_t ZSTD_compress( void* dst, size_t dstCapacity,
 *             When `return==0`, data to decompress can have any size.
 *             In which case, it's necessary to use streaming mode to decompress data.
 *             Optionally, application may rely on its own implied limits.
-*             (For example, application own data could be necessarily cut into blocks <= 16 KB).
+*             (For example, application data could be necessarily cut into blocks <= 16 KB).
 *    note 3 : decompressed size could be wrong or intentionally modified !
 *             Always ensure result fits within application's authorized limits !
 *             Each application can set its own limits.
@@ -264,7 +264,7 @@ ZSTDLIB_API size_t ZSTD_endStream(ZSTD_CStream* zcs, ZSTD_outBuffer* output);
 *
 *  A ZSTD_DStream object is required to track streaming operations.
 *  Use ZSTD_createDStream() and ZSTD_freeDStream() to create/release resources.
-*  ZSTD_DStream objects can be re-init multiple times.
+*  ZSTD_DStream objects can be re-used multiple times.
 *
 *  Use ZSTD_initDStream() to start a new decompression operation,
 *   or ZSTD_initDStream_usingDict() if decompression requires a dictionary.
@@ -422,7 +422,7 @@ ZSTDLIB_API size_t ZSTD_sizeof_DCtx(const ZSTD_DCtx* dctx);
 
 
 /* ******************************************************************
-*  Advanced Streaming
+*  Advanced Streaming functions
 ********************************************************************/
 
 /*======   compression   ======*/
@@ -436,9 +436,11 @@ ZSTDLIB_API size_t ZSTD_sizeof_CStream(const ZSTD_CStream* zcs);
 
 /*======   decompression   ======*/
 
-/* advanced */
+typedef enum { ZSTDdsp_maxWindowSize } ZSTD_DStreamParameter_e;
+
 ZSTDLIB_API ZSTD_DStream* ZSTD_createDStream_advanced(ZSTD_customMem customMem);
 ZSTDLIB_API size_t ZSTD_initDStream_usingDict(ZSTD_DStream* zds, const void* dict, size_t dictSize);
+ZSTDLIB_API size_t ZSTD_setDStreamParameter(ZSTD_DStream* zds, ZSTD_DStreamParameter_e paramType, unsigned paramValue);
 ZSTDLIB_API size_t ZSTD_sizeof_DStream(const ZSTD_DStream* zds);
 
 

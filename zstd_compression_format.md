@@ -443,7 +443,7 @@ using little-endian convention.
 
 In this representation, bits on the left are smallest bits.
 
-__`Literals_Block_Type`__ 
+__`Literals_Block_Type`__
 
 This field uses 2 lowest bits of first byte, describing 4 different block types :
 
@@ -460,7 +460,7 @@ This field uses 2 lowest bits of first byte, describing 4 different block types 
         using Huffman tree _from previous Huffman-compressed literals block_.
         Huffman tree description will be skipped.
 
-__`Size_Format`__ 
+__`Size_Format`__
 
 `Size_Format` is divided into 2 families :
 
@@ -697,8 +697,13 @@ A match copy command specifies an offset and a length.
 The offset gives the position to copy from,
 which can be within a previous block.
 
-There are 3 symbol types, literals lengths, offsets and match lengths, 
-which are encoded together, interleaved in a single _bitstream_.
+When all _sequences_ are decoded,
+if there is any literal left in the _literal section_,
+these bytes are added at the end of the block.
+
+The _Sequences_Section_ regroup all symbols required to decode commands.
+There are 3 symbol types : literals lengths, offsets and match lengths.
+They are encoded together, interleaved, in a single _bitstream_.
 
 Each symbol is a _code_ in its own context,
 which specifies a baseline and a number of bits to add.
@@ -905,8 +910,8 @@ since it will be discovered and reported by the decoding process.
 
 The bitstream starts by reporting on which scale it operates.
 `Accuracy_Log = low4bits + 5`.
-Note that maximum `Accuracy_Log` for literal and match length is `9`,
-and for offsets it is `8`. Higher values are considered errors.
+Note that maximum `Accuracy_Log` for literal and match lengths is `9`,
+and for offsets is `8`. Higher values are considered errors.
 
 Then follow each symbol value, from `0` to last present one.
 The number of bits used by each field is variable.
@@ -1128,8 +1133,8 @@ _Reserved ranges :_
               However, for public distribution of compressed frames,
               the following ranges are reserved for future use and should not be used :
 
-              - low range : 1 - 32767 
-              - high range : >= (2^31) 
+              - low range : 1 - 32767
+              - high range : >= (2^31)
 
 __`Entropy_Tables`__ : following the same format as a [compressed blocks].
             They are stored in following order :

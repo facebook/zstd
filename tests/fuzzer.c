@@ -100,7 +100,6 @@ static unsigned FUZ_rand(unsigned* src)
     return rand32 >> 5;
 }
 
-
 static unsigned FUZ_highbit32(U32 v32)
 {
     unsigned nbBits = 0;
@@ -109,6 +108,10 @@ static unsigned FUZ_highbit32(U32 v32)
     return nbBits;
 }
 
+
+/*=============================================
+*   Basic Unit tests
+=============================================*/
 
 #define CHECK_V(var, fn)  size_t const var = fn; if (ZSTD_isError(var)) goto _output_error
 #define CHECK(fn)  { CHECK_V(err, fn); }
@@ -271,6 +274,12 @@ static int basicUnitTests(U32 seed, double compressibility)
                                          CNBuffer, samplesSizes, nbSamples);
         if (ZDICT_isError(dictSize)) goto _output_error;
         DISPLAYLEVEL(4, "OK, created dictionary of size %u \n", (U32)dictSize);
+
+        DISPLAYLEVEL(4, "test%3i : check dictID : ", testNb++);
+        {   U32 const dictID = ZDICT_getDictID(dictBuffer, dictSize);
+            if (dictID==0) goto _output_error;
+            DISPLAYLEVEL(4, "OK : %u \n", dictID);
+        }
 
         DISPLAYLEVEL(4, "test%3i : compress with dictionary : ", testNb++);
         cSize = ZSTD_compress_usingDict(cctx, compressedBuffer, ZSTD_compressBound(CNBuffSize),

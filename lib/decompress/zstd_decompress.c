@@ -51,12 +51,12 @@
 
 
 /*!
-*  STREAM_WINDOW_MAX :
-*  maximum window size accepted by DStream.
-*  frames requiring more memory will be rejected.
+*  MAXWINDOWSIZE_DEFAULT :
+*  maximum window size accepted by DStream, by default.
+*  Frames requiring more memory will be rejected.
 */
-#ifndef ZSTD_STREAM_WINDOW_MAX
-#  define ZSTD_STREAM_WINDOW_MAX (257 << 20)   /* 257 MB */
+#ifndef ZSTD_MAXWINDOWSIZE_DEFAULT
+#  define ZSTD_MAXWINDOWSIZE_DEFAULT (257 << 20)   /* 257 MB */
 #endif
 
 
@@ -1328,6 +1328,7 @@ struct ZSTD_DStream_s {
     char*  inBuff;
     size_t inBuffSize;
     size_t inPos;
+    size_t maxWindowSize;
     char*  outBuff;
     size_t outBuffSize;
     size_t outStart;
@@ -1361,6 +1362,7 @@ ZSTD_DStream* ZSTD_createDStream_advanced(ZSTD_customMem customMem)
     zds->zd = ZSTD_createDCtx_advanced(customMem);
     if (zds->zd == NULL) { ZSTD_freeDStream(zds); return NULL; }
     zds->stage = zdss_init;
+    zds->maxWindowSize = ZSTD_MAXWINDOWSIZE_DEFAULT;
     return zds;
 }
 
@@ -1391,6 +1393,18 @@ size_t ZSTD_initDStream(ZSTD_DStream* zds)
 {
     return ZSTD_initDStream_usingDict(zds, NULL, 0);
 }
+
+size_t ZSTD_setDStreamParameter(ZSTD_DStream* zds,
+                                ZSTD_DStreamParameter_e paramType, unsigned paramValue)
+{
+    switch(paramType)
+    {
+        default : return ERROR(parameter_unknown);
+        case ZSTDdsp_maxWindowSize : zds->maxWindowSize = paramValue; break;
+    }
+    return 0;
+}
+
 
 size_t ZSTD_sizeof_DStream(const ZSTD_DStream* zds)
 {
@@ -1450,11 +1464,11 @@ size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inB
             }   }
 
             zds->fParams.windowSize = MAX(zds->fParams.windowSize, 1U << ZSTD_WINDOWLOG_ABSOLUTEMIN);
+            if (zds->fParams.windowSize > zds->maxWindowSize) return ERROR(frameParameter_unsupported);
 
             /* Frame header instruct buffer sizes */
             {   size_t const blockSize = MIN(zds->fParams.windowSize, ZSTD_BLOCKSIZE_ABSOLUTEMAX);
                 size_t const neededOutSize = zds->fParams.windowSize + blockSize;
-                if (zds->fParams.windowSize > ZSTD_STREAM_WINDOW_MAX) return ERROR(frameParameter_unsupported);
                 zds->blockSize = blockSize;
                 if (zds->inBuffSize < blockSize) {
                     zds->customMem.customFree(zds->customMem.opaque, zds->inBuff);

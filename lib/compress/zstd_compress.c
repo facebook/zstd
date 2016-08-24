@@ -1230,9 +1230,20 @@ void ZSTD_compressBlock_doubleFast_generic(ZSTD_CCtx* cctx,
                 offset = (U32)(ip-matchLong);
                 while (((ip>anchor) & (matchLong>lowest)) && (ip[-1] == matchLong[-1])) { ip--; matchLong--; mLength++; } /* catch up */
             } else if ( (matchIndexS > lowestIndex) && (MEM_read32(match) == MEM_read32(ip)) ) {
-                mLength = ZSTD_count(ip+4, match+4, iend) + 4;
-                offset = (U32)(ip-match);
-                while (((ip>anchor) & (match>lowest)) && (ip[-1] == match[-1])) { ip--; match--; mLength++; } /* catch up */
+                size_t const h3 = ZSTD_hashPtr(ip+1, hBitsL, 8);
+                U32 const matchIndex3 = hashLong[h3];
+                const BYTE* match3 = base + matchIndex3;
+                hashLong[h3] = current + 1;
+                if ( (matchIndex3 > lowestIndex) && (MEM_read64(match3) == MEM_read64(ip+1)) ) {
+                    mLength = ZSTD_count(ip+9, match3+8, iend) + 8;
+                    ip++;
+                    offset = (U32)(ip-match3);
+                    while (((ip>anchor) & (match3>lowest)) && (ip[-1] == match3[-1])) { ip--; match3--; mLength++; } /* catch up */
+                } else {
+                    mLength = ZSTD_count(ip+4, match+4, iend) + 4;
+                    offset = (U32)(ip-match);
+                    while (((ip>anchor) & (match>lowest)) && (ip[-1] == match[-1])) { ip--; match--; mLength++; } /* catch up */
+                }
             } else {
                 ip += ((ip-anchor) >> g_searchStrength) + 1;
                 continue;
@@ -1359,16 +1370,32 @@ static void ZSTD_compressBlock_doubleFast_extDict_generic(ZSTD_CCtx* ctx,
                 offset_2 = offset_1;
                 offset_1 = offset;
                 ZSTD_storeSeq(seqStorePtr, ip-anchor, anchor, offset + ZSTD_REP_MOVE, mLength-MINMATCH);
+
             } else if ((matchIndex > lowestIndex) && (MEM_read32(match) == MEM_read32(ip))) {
-                const BYTE* matchEnd = matchIndex < dictLimit ? dictEnd : iend;
-                const BYTE* lowMatchPtr = matchIndex < dictLimit ? dictStart : lowPrefixPtr;
+                size_t const h3 = ZSTD_hashPtr(ip+1, hBitsL, 8);
+                U32 const matchIndex3 = hashLong[h3];
+                const BYTE* const match3Base = matchIndex3 < dictLimit ? dictBase : base;
+                const BYTE* match3 = match3Base + matchIndex3;
                 U32 offset;
-                mLength = ZSTD_count_2segments(ip+4, match+4, iend, matchEnd, lowPrefixPtr) + 4;
-                while (((ip>anchor) & (match>lowMatchPtr)) && (ip[-1] == match[-1])) { ip--; match--; mLength++; }   /* catch up */
-                offset = current - matchIndex;
+                hashLong[h3] = current + 1;
+                if ( (matchIndex3 > lowestIndex) && (MEM_read64(match3) == MEM_read64(ip+1)) ) {
+                    const BYTE* matchEnd = matchIndex3 < dictLimit ? dictEnd : iend;
+                    const BYTE* lowMatchPtr = matchIndex3 < dictLimit ? dictStart : lowPrefixPtr;
+                    mLength = ZSTD_count_2segments(ip+9, match3+8, iend, matchEnd, lowPrefixPtr) + 8;
+                    ip++;
+                    offset = current+1 - matchIndex3;
+                    while (((ip>anchor) & (match3>lowMatchPtr)) && (ip[-1] == match3[-1])) { ip--; match3--; mLength++; } /* catch up */
+                } else {
+                    const BYTE* matchEnd = matchIndex < dictLimit ? dictEnd : iend;
+                    const BYTE* lowMatchPtr = matchIndex < dictLimit ? dictStart : lowPrefixPtr;
+                    mLength = ZSTD_count_2segments(ip+4, match+4, iend, matchEnd, lowPrefixPtr) + 4;
+                    offset = current - matchIndex;
+                    while (((ip>anchor) & (match>lowMatchPtr)) && (ip[-1] == match[-1])) { ip--; match--; mLength++; }   /* catch up */
+                }
                 offset_2 = offset_1;
                 offset_1 = offset;
                 ZSTD_storeSeq(seqStorePtr, ip-anchor, anchor, offset + ZSTD_REP_MOVE, mLength-MINMATCH);
+
             } else {
                 ip += ((ip-anchor) >> g_searchStrength) + 1;
                 continue;
@@ -3031,7 +3058,7 @@ static const ZSTD_compressionParameters ZSTD_defaultCParameters[4][ZSTD_MAX_CLEV
     { 18, 12, 12,  1,  7, 16, ZSTD_fast    },  /* level  0 - not used */
     { 19, 13, 14,  1,  7, 16, ZSTD_fast    },  /* level  1 */
     { 19, 15, 16,  1,  6, 16, ZSTD_fast    },  /* level  2 */
-    { 20, 16, 18,  1,  5, 16, ZSTD_dfast   },  /* level  3 */
+    { 20, 16, 17,  1,  5, 16, ZSTD_dfast   },  /* level  3 */
     { 20, 13, 17,  2,  5, 16, ZSTD_greedy  },  /* level  4.*/
     { 20, 15, 18,  3,  5, 16, ZSTD_greedy  },  /* level  5 */
     { 21, 16, 19,  2,  5, 16, ZSTD_lazy    },  /* level  6 */
@@ -3054,24 +3081,24 @@ static const ZSTD_compressionParameters ZSTD_defaultCParameters[4][ZSTD_MAX_CLEV
 },
 {   /* for srcSize <= 256 KB */
     /* W,  C,  H,  S,  L,  T, strat */
-    { 18, 12, 12,  1,  7,  4, ZSTD_fast    },  /* level  0 - not used */
-    { 18, 13, 14,  1,  6,  4, ZSTD_fast    },  /* level  1 */
-    { 18, 15, 17,  1,  5,  4, ZSTD_fast    },  /* level  2 */
-    { 18, 13, 15,  1,  5,  4, ZSTD_greedy  },  /* level  3.*/
-    { 18, 15, 17,  1,  5,  4, ZSTD_greedy  },  /* level  4.*/
-    { 18, 16, 17,  4,  5,  4, ZSTD_greedy  },  /* level  5 */
-    { 18, 17, 17,  5,  5,  4, ZSTD_greedy  },  /* level  6 */
-    { 18, 17, 17,  4,  4,  4, ZSTD_lazy    },  /* level  7 */
-    { 18, 17, 17,  4,  4,  4, ZSTD_lazy2   },  /* level  8 */
-    { 18, 17, 17,  5,  4,  4, ZSTD_lazy2   },  /* level  9 */
-    { 18, 17, 17,  6,  4,  4, ZSTD_lazy2   },  /* level 10 */
-    { 18, 18, 17,  6,  4,  4, ZSTD_lazy2   },  /* level 11.*/
-    { 18, 18, 17,  7,  4,  4, ZSTD_lazy2   },  /* level 12.*/
-    { 18, 19, 17,  7,  4,  4, ZSTD_btlazy2 },  /* level 13 */
+    {  0,  0,  0,  0,  0,  0, ZSTD_fast    }, /* level  0 - not used */
+    { 18, 13, 14,  1,  6,  8, ZSTD_fast    },  /* level  1 */
+    { 18, 14, 13,  1,  5,  8, ZSTD_dfast   },  /* level  2 */
+    { 18, 16, 15,  1,  5,  8, ZSTD_dfast   },  /* level  3 */
+    { 18, 15, 17,  1,  5,  8, ZSTD_greedy  },  /* level  4.*/
+    { 18, 16, 17,  4,  5,  8, ZSTD_greedy  },  /* level  5.*/
+    { 18, 16, 17,  3,  5,  8, ZSTD_lazy    },  /* level  6.*/
+    { 18, 17, 17,  4,  4,  8, ZSTD_lazy    },  /* level  7 */
+    { 18, 17, 17,  4,  4,  8, ZSTD_lazy2   },  /* level  8 */
+    { 18, 17, 17,  5,  4,  8, ZSTD_lazy2   },  /* level  9 */
+    { 18, 17, 17,  6,  4,  8, ZSTD_lazy2   },  /* level 10 */
+    { 18, 18, 17,  6,  4,  8, ZSTD_lazy2   },  /* level 11.*/
+    { 18, 18, 17,  7,  4,  8, ZSTD_lazy2   },  /* level 12.*/
+    { 18, 19, 17,  6,  4,  8, ZSTD_btlazy2 },  /* level 13 */
     { 18, 18, 18,  4,  4, 16, ZSTD_btopt   },  /* level 14.*/
-    { 18, 18, 18,  8,  4, 24, ZSTD_btopt   },  /* level 15.*/
-    { 18, 19, 18,  8,  3, 48, ZSTD_btopt   },  /* level 16.*/
-    { 18, 19, 18,  8,  3, 96, ZSTD_btopt   },  /* level 17.*/
+    { 18, 18, 18,  4,  3, 16, ZSTD_btopt   },  /* level 15.*/
+    { 18, 19, 18,  6,  3, 32, ZSTD_btopt   },  /* level 16.*/
+    { 18, 19, 18,  8,  3, 64, ZSTD_btopt   },  /* level 17.*/
     { 18, 19, 18,  9,  3,128, ZSTD_btopt   },  /* level 18.*/
     { 18, 19, 18, 10,  3,256, ZSTD_btopt   },  /* level 19.*/
     { 18, 19, 18, 11,  3,512, ZSTD_btopt   },  /* level 20.*/

@@ -51,7 +51,6 @@
 /*-*************************************
 *  Common constants
 ***************************************/
-#define ZSTD_LOG_PARSER(...)
 #define ZSTD_LOG_ENCODE(...)
 #define ZSTD_LOG_BLOCK(...)
 

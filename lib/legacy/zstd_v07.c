@@ -2989,18 +2989,6 @@ void ZSTDv07_defaultFreeFunction(void* opaque, void* address)
 /*-*************************************
 *  Common constants
 ***************************************/
-#define ZSTDv07_OPT_DEBUG 0     /* 3 = compression stats;  5 = check encoded sequences;  9 = full logs */
-#include <stdio.h>
-#if defined(ZSTDv07_OPT_DEBUG) && ZSTDv07_OPT_DEBUG>=9
-    #define ZSTDv07_LOG_PARSER(...) printf(__VA_ARGS__)
-    #define ZSTDv07_LOG_ENCODE(...) printf(__VA_ARGS__)
-    #define ZSTDv07_LOG_BLOCK(...) printf(__VA_ARGS__)
-#else
-    #define ZSTDv07_LOG_PARSER(...)
-    #define ZSTDv07_LOG_ENCODE(...)
-    #define ZSTDv07_LOG_BLOCK(...)
-#endif
-
 #define ZSTDv07_OPT_NUM    (1<<12)
 #define ZSTDv07_DICT_MAGIC  0xEC30A437   /* v0.7 */
 

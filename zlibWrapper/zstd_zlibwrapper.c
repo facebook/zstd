@@ -44,7 +44,7 @@
 #define ZWRAP_HEADERSIZE            4
 #define ZWRAP_DEFAULT_CLEVEL        5   /* Z_DEFAULT_COMPRESSION is translated to ZWRAP_DEFAULT_CLEVEL for zstd */
 
-#define LOG_WRAPPER(...)  // printf(__VA_ARGS__)
+#define LOG_WRAPPER(...)  /* printf(__VA_ARGS__) */
 
 
 #define FINISH_WITH_GZ_ERR(msg) { \
@@ -236,8 +236,6 @@ ZEXTERN int ZEXPORT z_deflate OF((z_streamp strm, int flush))
         } else {
             bytesLeft = ZBUFF_compressEnd(zwc->zbc, strm->next_out, &dstCapacity);
             LOG_WRAPPER("ZBUFF_compressEnd dstCapacity=%d bytesLeft=%d\n", (int)dstCapacity, (int)bytesLeft);
-      //      { size_t const errorCode = ZBUFF_compressInit(zwc->zbc, 1);
-      //        if (ZSTD_isError(errorCode)) return Z_MEM_ERROR; }
         }
         if (ZSTD_isError(bytesLeft)) return Z_MEM_ERROR;
         strm->next_out += dstCapacity;
@@ -752,7 +750,6 @@ ZEXTERN int ZEXPORT z_uncompress OF((Bytef *dest,   uLongf *destLen,
                                    const Bytef *source, uLong sourceLen))
 {
     if (sourceLen < 4 || MEM_readLE32(source) != ZSTD_MAGICNUMBER)
-//    if (!g_useZSTD)
         return uncompress(dest, destLen, source, sourceLen);
 
     { size_t dstCapacity = *destLen; 
@@ -856,7 +853,6 @@ ZEXTERN int ZEXPORTVA z_gzprintf OF((gzFile file, const char *format, ...))
         va_end (args);
 
         ret = gzprintf(file, buf);
-      //  printf("gzprintf ret=%d\n", ret);
         return ret;
     }
     FINISH_WITH_GZ_ERR("gzprintf is not supported!");

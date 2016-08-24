@@ -210,7 +210,6 @@ typedef struct {
     U32  cachedPrice;
     U32  cachedLitLength;
     const BYTE* cachedLiterals;
-    ZSTD_stats_t stats;
 } seqStore_t;
 
 const seqStore_t* ZSTD_getSeqStore(const ZSTD_CCtx* ctx);

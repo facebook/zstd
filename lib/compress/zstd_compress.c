@@ -2232,7 +2232,6 @@ static size_t ZSTD_compress_generic (ZSTD_CCtx* cctx,
     BYTE* const ostart = (BYTE*)dst;
     BYTE* op = ostart;
     U32 const maxDist = 1 << cctx->params.cParams.windowLog;
-    ZSTD_stats_t* stats = &cctx->seqStore.stats;
 
     if (cctx->params.fParams.checksumFlag)
         XXH64_update(&cctx->xxhState, src, srcSize);

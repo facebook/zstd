@@ -500,7 +500,7 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
                 price = opt[cur - 1].price + ZSTD_getLiteralPrice(seqStorePtr, litlen, inr-1);
            }
 
-           if (cur > last_pos || price <= opt[cur].price) // || ((price == opt[cur].price) && (opt[cur-1].mlen == 1) && (cur != litlen)))
+           if (cur > last_pos || price <= opt[cur].price) 
                 SET_PRICE(cur, 1, 0, litlen, price);
 
            if (cur == last_pos) break;
@@ -532,7 +532,6 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
                             goto _storeSequence;
                        }
 
-                       //best_off = ((i<=1) & (opt[cur].mlen != 1)) ? 1-i : i;
                        best_off = i - (opt[cur].mlen != 1);
 
                        if (opt[cur].mlen == 1) {
@@ -585,7 +584,7 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
                         SET_PRICE(cur + mlen, mlen, matches[u].off, litlen, price);
 
                     mlen++;
-        }   }   }   // for (cur = 1; cur <= last_pos; cur++)
+        }   }   }
 
         best_mlen = opt[last_pos].mlen;
         best_off = opt[last_pos].off;
@@ -739,7 +738,7 @@ void ZSTD_compressBlock_opt_extDict_generic(ZSTD_CCtx* ctx,
 
         best_mlen = (last_pos) ? last_pos : minMatch;
 
-        // set prices using matches at position = 0
+        /* set prices using matches at position = 0 */
         for (u = 0; u < match_num; u++) {
             mlen = (u>0) ? matches[u-1].len+1 : best_mlen;
             best_mlen = matches[u].len;
@@ -752,7 +751,6 @@ void ZSTD_compressBlock_opt_extDict_generic(ZSTD_CCtx* ctx,
         }   }
 
         if (last_pos < minMatch) {
-            // ip += ((ip-anchor) >> g_searchStrength) + 1;   /* jump faster over incompressible sections */
             ip++; continue;
         }
 
@@ -771,7 +769,7 @@ void ZSTD_compressBlock_opt_extDict_generic(ZSTD_CCtx* ctx,
                 price = opt[cur - 1].price + ZSTD_getLiteralPrice(seqStorePtr, litlen, inr-1);
             }
 
-            if (cur > last_pos || price <= opt[cur].price) // || ((price == opt[cur].price) && (opt[cur-1].mlen == 1) && (cur != litlen)))
+            if (cur > last_pos || price <= opt[cur].price)
                 SET_PRICE(cur, 1, 0, litlen, price);
 
             if (cur == last_pos) break;

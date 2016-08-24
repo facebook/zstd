@@ -51,9 +51,6 @@
 /*-*************************************
 *  Common constants
 ***************************************/
-#define ZSTD_LOG_ENCODE(...)
-#define ZSTD_LOG_BLOCK(...)
-
 #define ZSTD_OPT_NUM    (1<<12)
 #define ZSTD_DICT_MAGIC  0xEC30A437   /* v0.7+ */
 

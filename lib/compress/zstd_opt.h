@@ -295,23 +295,10 @@ static U32 ZSTD_insertBtAndGetAllMatches (
         if ((!extDict) || (matchIndex+matchLength >= dictLimit)) {
             match = base + matchIndex;
             if (match[matchLength] == ip[matchLength]) {
-#if ZSTD_OPT_DEBUG >= 5
-            size_t ml;
-            if (matchIndex < dictLimit)
-                ml = ZSTD_count_2segments(ip, dictBase + matchIndex, iLimit, dictEnd, prefixStart);
-            else
-                ml = ZSTD_count(ip, match, ip+matchLength);
-            if (ml < matchLength)
-                printf("%d: ERROR_NOEXT: offset=%d matchLength=%d matchIndex=%d dictLimit=%d ml=%d\n", current, (int)(current - matchIndex), (int)matchLength, (int)matchIndex, (int)dictLimit, (int)ml), exit(0);
-#endif
                 matchLength += ZSTD_count(ip+matchLength+1, match+matchLength+1, iLimit) +1;
             }
         } else {
             match = dictBase + matchIndex;
-#if ZSTD_OPT_DEBUG >= 5
-            if (memcmp(match, ip, matchLength) != 0)
-                 printf("%d: ERROR_EXT: matchLength=%d ZSTD_count=%d\n", current, (int)matchLength, (int)ZSTD_count_2segments(ip+matchLength, match+matchLength, iLimit, dictEnd, prefixStart)), exit(0);
-#endif
             matchLength += ZSTD_count_2segments(ip+matchLength, match+matchLength, iLimit, dictEnd, prefixStart);
             ZSTD_LOG_PARSER("%d: ZSTD_INSERTBTANDGETALLMATCHES=%d offset=%d dictBase=%p dictEnd=%p prefixStart=%p ip=%p match=%p\n", (int)current, (int)matchLength, (int)(current - matchIndex), dictBase, dictEnd, prefixStart, ip, match);
             if (matchIndex+matchLength >= dictLimit)
@@ -672,20 +659,6 @@ _storeSequence:   /* cur, last_pos, best_mlen, best_off have to be set */
 
             ZSTD_LOG_ENCODE("%d/%d: ENCODE literals=%d mlen=%d off=%d rep[0]=%d rep[1]=%d\n", (int)(ip-base), (int)(iend-base), (int)(litLength), (int)mlen, (int)(offset), (int)rep[0], (int)rep[1]);
 
-#if ZSTD_OPT_DEBUG >= 5
-            U32 ml2;
-            if (offset+1 > ZSTD_REP_MOVE_OPT)
-                ml2 = (U32)ZSTD_count(ip, ip-(offset+1-ZSTD_REP_MOVE_OPT), iend);
-            else
-                ml2 = (U32)ZSTD_count(ip, ip-rep[0], iend);
-            if ((offset >= 8) && (ml2 < mlen || ml2 < minMatch)) {
-                printf("%d: ERROR_NoExt iend=%d mlen=%d offset=%d ml2=%d\n", (int)(ip - base), (int)(iend - ip), (int)mlen, (int)offset, (int)ml2); exit(0); }
-            if (ip < anchor) {
-                printf("%d: ERROR_NoExt ip < anchor iend=%d mlen=%d offset=%d\n", (int)(ip - base), (int)(iend - ip), (int)mlen, (int)offset); exit(0); }
-            if (ip + mlen > iend) {
-                printf("%d: ERROR_NoExt ip + mlen >= iend iend=%d mlen=%d offset=%d\n", (int)(ip - base), (int)(iend - ip), (int)mlen, (int)offset); exit(0); }
-#endif
-
             ZSTD_updatePrice(seqStorePtr, litLength, anchor, offset, mlen-MINMATCH);
             ZSTD_storeSeq(seqStorePtr, litLength, anchor, offset, mlen-MINMATCH);
             anchor = ip = ip + mlen;
@@ -989,26 +962,6 @@ _storeSequence:   /* cur, last_pos, best_mlen, best_off have to be set */
             }
 
             ZSTD_LOG_ENCODE("%d/%d: ENCODE literals=%d mlen=%d off=%d rep[0]=%d rep[1]=%d\n", (int)(ip-base), (int)(iend-base), (int)(litLength), (int)mlen, (int)(offset), (int)rep[0], (int)rep[1]);
-
-#if ZSTD_OPT_DEBUG >= 5
-            U32 ml2;
-            if (offset+1 > ZSTD_REP_MOVE_OPT) {
-                best_off = offset+1 - ZSTD_REP_MOVE_OPT;
-                if (best_off > (size_t)(ip - prefixStart))  {
-                    const BYTE* match = dictEnd - (best_off - (ip - prefixStart));
-                    ml2 = ZSTD_count_2segments(ip, match, iend, dictEnd, prefixStart);
-                    ZSTD_LOG_PARSER("%d: ZSTD_count_2segments=%d offset=%d dictBase=%p dictEnd=%p prefixStart=%p ip=%p match=%p\n", (int)current, (int)ml2, (int)best_off, dictBase, dictEnd, prefixStart, ip, match);
-                }
-                else ml2 = (U32)ZSTD_count(ip, ip-best_off, iend);
-            }
-            else ml2 = (U32)ZSTD_count(ip, ip-rep[0], iend);
-            if ((offset >= 8) && (ml2 < mlen || ml2 < minMatch)) {
-                printf("%d: ERROR_Ext iend=%d mlen=%d offset=%d ml2=%d\n", (int)(ip - base), (int)(iend - ip), (int)mlen, (int)offset, (int)ml2); exit(0); }
-            if (ip < anchor) {
-                printf("%d: ERROR_Ext ip < anchor iend=%d mlen=%d offset=%d\n", (int)(ip - base), (int)(iend - ip), (int)mlen, (int)offset); exit(0); }
-            if (ip + mlen > iend) {
-                printf("%d: ERROR_Ext ip + mlen >= iend iend=%d mlen=%d offset=%d\n", (int)(ip - base), (int)(iend - ip), (int)mlen, (int)offset); exit(0); }
-#endif
 
             ZSTD_updatePrice(seqStorePtr, litLength, anchor, offset, mlen-MINMATCH);
             ZSTD_storeSeq(seqStorePtr, litLength, anchor, offset, mlen-MINMATCH);

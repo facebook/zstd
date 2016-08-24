@@ -51,18 +51,9 @@
 /*-*************************************
 *  Common constants
 ***************************************/
-#define ZSTD_OPT_DEBUG 0     /* 3 = compression stats;  5 = check encoded sequences;  9 = full logs */
-#if defined(ZSTD_OPT_DEBUG) && ZSTD_OPT_DEBUG>=9
-    #include <stdio.h>
-    #include <stdlib.h>
-    #define ZSTD_LOG_PARSER(...) printf(__VA_ARGS__)
-    #define ZSTD_LOG_ENCODE(...) printf(__VA_ARGS__)
-    #define ZSTD_LOG_BLOCK(...) printf(__VA_ARGS__)
-#else
-    #define ZSTD_LOG_PARSER(...)
-    #define ZSTD_LOG_ENCODE(...)
-    #define ZSTD_LOG_BLOCK(...)
-#endif
+#define ZSTD_LOG_PARSER(...)
+#define ZSTD_LOG_ENCODE(...)
+#define ZSTD_LOG_BLOCK(...)
 
 #define ZSTD_OPT_NUM    (1<<12)
 #define ZSTD_DICT_MAGIC  0xEC30A437   /* v0.7+ */
@@ -183,16 +174,6 @@ typedef struct {
     U32 litlen;
     U32 rep[ZSTD_REP_NUM];
 } ZSTD_optimal_t;
-
-#if ZSTD_OPT_DEBUG == 3
-    #include ".debug/zstd_stats.h"
-#else
-    struct ZSTD_stats_s { U32 unused; };
-    MEM_STATIC void ZSTD_statsPrint(ZSTD_stats_t* stats, U32 searchLength) { (void)stats; (void)searchLength; }
-    MEM_STATIC void ZSTD_statsInit(ZSTD_stats_t* stats) { (void)stats; }
-    MEM_STATIC void ZSTD_statsResetFreqs(ZSTD_stats_t* stats) { (void)stats; }
-    MEM_STATIC void ZSTD_statsUpdatePrices(ZSTD_stats_t* stats, size_t litLength, const BYTE* literals, size_t offset, size_t matchLength) { (void)stats; (void)litLength; (void)literals; (void)offset; (void)matchLength; }
-#endif   /* #if ZSTD_OPT_DEBUG == 3 */
 
 
 typedef struct seqDef_s {

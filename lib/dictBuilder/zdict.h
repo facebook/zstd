@@ -38,6 +38,19 @@
 extern "C" {
 #endif
 
+
+/*======  Export for Windows  ======*/
+/*!
+*  ZSTD_DLL_EXPORT :
+*  Enable exporting of functions when building a Windows DLL
+*/
+#if defined(_WIN32) && defined(ZSTD_DLL_EXPORT) && (ZSTD_DLL_EXPORT==1)
+#  define ZDICTLIB_API __declspec(dllexport)
+#else
+#  define ZDICTLIB_API
+#endif
+
+
 /*! ZDICT_trainFromBuffer() :
     Train a dictionary from an array of samples.
     Samples must be stored concatenated in a single flat buffer `samplesBuffer`,
@@ -50,13 +63,14 @@ extern "C" {
            In general, it's recommended to provide a few thousands samples, but this can vary a lot.
            It's recommended that total size of all samples be about ~x100 times the target size of dictionary.
 */
-size_t ZDICT_trainFromBuffer(void* dictBuffer, size_t dictBufferCapacity,
+ZDICTLIB_API size_t ZDICT_trainFromBuffer(void* dictBuffer, size_t dictBufferCapacity,
                        const void* samplesBuffer, const size_t* samplesSizes, unsigned nbSamples);
 
 
 /*======   Helper functions   ======*/
-unsigned ZDICT_isError(size_t errorCode);
-const char* ZDICT_getErrorName(size_t errorCode);
+ZDICTLIB_API unsigned ZDICT_getDictID(const void* dictBuffer, size_t dictSize);  /**< extracts dictID; @return zero if error (not a valid dictionary) */
+ZDICTLIB_API unsigned ZDICT_isError(size_t errorCode);
+ZDICTLIB_API const char* ZDICT_getErrorName(size_t errorCode);
 
 
 

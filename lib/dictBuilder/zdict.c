@@ -126,6 +126,13 @@ unsigned ZDICT_isError(size_t errorCode) { return ERR_isError(errorCode); }
 
 const char* ZDICT_getErrorName(size_t errorCode) { return ERR_getErrorName(errorCode); }
 
+unsigned ZDICT_getDictID(const void* dictBuffer, size_t dictSize)
+{
+    if (dictSize < 8) return 0;
+    if (MEM_readLE32(dictBuffer) != ZSTD_DICT_MAGIC) return 0;
+    return MEM_readLE32((const char*)dictBuffer + 4);
+}
+
 
 /*-********************************************************
 *  Dictionary training functions
@@ -692,7 +699,7 @@ static size_t ZDICT_analyzeEntropy(void*  dstBuffer, size_t maxDstSize,
     esr.workPlace = malloc(ZSTD_BLOCKSIZE_ABSOLUTEMAX);
     if (!esr.ref || !esr.zc || !esr.workPlace) {
         eSize = ERROR(memory_allocation);
-        DISPLAYLEVEL(1, "Not enough memory");
+        DISPLAYLEVEL(1, "Not enough memory \n");
         goto _cleanup;
     }
     if (offcodeMax>OFFCODE_MAX) { eSize = ERROR(dictionary_wrong); goto _cleanup; }   /* too large dictionary */
@@ -708,7 +715,7 @@ static size_t ZDICT_analyzeEntropy(void*  dstBuffer, size_t maxDstSize,
 	{	size_t const beginResult = ZSTD_compressBegin_advanced(esr.ref, dictBuffer, dictBufferSize, params, 0);
 		if (ZSTD_isError(beginResult)) {
 			eSize = ERROR(GENERIC);
-			DISPLAYLEVEL(1, "error : ZSTD_compressBegin_advanced failed ");
+			DISPLAYLEVEL(1, "error : ZSTD_compressBegin_advanced failed \n");
 			goto _cleanup;
 	}	}
 
@@ -724,7 +731,7 @@ static size_t ZDICT_analyzeEntropy(void*  dstBuffer, size_t maxDstSize,
     errorCode = HUF_buildCTable (hufTable, countLit, 255, huffLog);
     if (HUF_isError(errorCode)) {
         eSize = ERROR(GENERIC);
-        DISPLAYLEVEL(1, "HUF_buildCTable error");
+        DISPLAYLEVEL(1, "HUF_buildCTable error \n");
         goto _cleanup;
     }
     huffLog = (U32)errorCode;
@@ -740,7 +747,7 @@ static size_t ZDICT_analyzeEntropy(void*  dstBuffer, size_t maxDstSize,
     errorCode = FSE_normalizeCount(offcodeNCount, Offlog, offcodeCount, total, offcodeMax);
     if (FSE_isError(errorCode)) {
         eSize = ERROR(GENERIC);
-        DISPLAYLEVEL(1, "FSE_normalizeCount error with offcodeCount");
+        DISPLAYLEVEL(1, "FSE_normalizeCount error with offcodeCount \n");
         goto _cleanup;
     }
     Offlog = (U32)errorCode;
@@ -749,7 +756,7 @@ static size_t ZDICT_analyzeEntropy(void*  dstBuffer, size_t maxDstSize,
     errorCode = FSE_normalizeCount(matchLengthNCount, mlLog, matchLengthCount, total, MaxML);
     if (FSE_isError(errorCode)) {
         eSize = ERROR(GENERIC);
-        DISPLAYLEVEL(1, "FSE_normalizeCount error with matchLengthCount");
+        DISPLAYLEVEL(1, "FSE_normalizeCount error with matchLengthCount \n");
         goto _cleanup;
     }
     mlLog = (U32)errorCode;
@@ -758,7 +765,7 @@ static size_t ZDICT_analyzeEntropy(void*  dstBuffer, size_t maxDstSize,
     errorCode = FSE_normalizeCount(litLengthNCount, llLog, litLengthCount, total, MaxLL);
     if (FSE_isError(errorCode)) {
         eSize = ERROR(GENERIC);
-        DISPLAYLEVEL(1, "FSE_normalizeCount error with litLengthCount");
+        DISPLAYLEVEL(1, "FSE_normalizeCount error with litLengthCount \n");
         goto _cleanup;
     }
     llLog = (U32)errorCode;
@@ -768,7 +775,7 @@ static size_t ZDICT_analyzeEntropy(void*  dstBuffer, size_t maxDstSize,
     {   size_t const hhSize = HUF_writeCTable(dstPtr, maxDstSize, hufTable, 255, huffLog);
         if (HUF_isError(hhSize)) {
             eSize = ERROR(GENERIC);
-            DISPLAYLEVEL(1, "HUF_writeCTable error");
+            DISPLAYLEVEL(1, "HUF_writeCTable error \n");
             goto _cleanup;
         }
         dstPtr += hhSize;
@@ -779,7 +786,7 @@ static size_t ZDICT_analyzeEntropy(void*  dstBuffer, size_t maxDstSize,
     {   size_t const ohSize = FSE_writeNCount(dstPtr, maxDstSize, offcodeNCount, OFFCODE_MAX, Offlog);
         if (FSE_isError(ohSize)) {
             eSize = ERROR(GENERIC);
-            DISPLAYLEVEL(1, "FSE_writeNCount error with offcodeNCount");
+            DISPLAYLEVEL(1, "FSE_writeNCount error with offcodeNCount \n");
             goto _cleanup;
         }
         dstPtr += ohSize;
@@ -790,7 +797,7 @@ static size_t ZDICT_analyzeEntropy(void*  dstBuffer, size_t maxDstSize,
     {   size_t const mhSize = FSE_writeNCount(dstPtr, maxDstSize, matchLengthNCount, MaxML, mlLog);
         if (FSE_isError(mhSize)) {
             eSize = ERROR(GENERIC);
-            DISPLAYLEVEL(1, "FSE_writeNCount error with matchLengthNCount");
+            DISPLAYLEVEL(1, "FSE_writeNCount error with matchLengthNCount \n");
             goto _cleanup;
         }
         dstPtr += mhSize;
@@ -801,7 +808,7 @@ static size_t ZDICT_analyzeEntropy(void*  dstBuffer, size_t maxDstSize,
     {   size_t const lhSize = FSE_writeNCount(dstPtr, maxDstSize, litLengthNCount, MaxLL, llLog);
         if (FSE_isError(lhSize)) {
             eSize = ERROR(GENERIC);
-            DISPLAYLEVEL(1, "FSE_writeNCount error with litlengthNCount");
+            DISPLAYLEVEL(1, "FSE_writeNCount error with litlengthNCount \n");
             goto _cleanup;
         }
         dstPtr += lhSize;
@@ -811,7 +818,7 @@ static size_t ZDICT_analyzeEntropy(void*  dstBuffer, size_t maxDstSize,
 
     if (maxDstSize<12) {
         eSize = ERROR(GENERIC);
-        DISPLAYLEVEL(1, "not enough space to write RepOffsets");
+        DISPLAYLEVEL(1, "not enough space to write RepOffsets \n");
         goto _cleanup;
     }
 # if 0
@@ -856,10 +863,14 @@ size_t ZDICT_addEntropyTablesFromBuffer_advanced(void* dictBuffer, size_t dictCo
     /* entropy tables */
     DISPLAYLEVEL(2, "\r%70s\r", "");   /* clean display line */
     DISPLAYLEVEL(2, "statistics ... \n");
-    hSize += ZDICT_analyzeEntropy((char*)dictBuffer+hSize, dictBufferCapacity-hSize,
+    {   size_t const eSize = ZDICT_analyzeEntropy((char*)dictBuffer+hSize, dictBufferCapacity-hSize,
                                   compressionLevel,
                                   samplesBuffer, samplesSizes, nbSamples,
                                   (char*)dictBuffer + dictBufferCapacity - dictContentSize, dictContentSize);
+        if (ZDICT_isError(eSize)) return eSize;
+        hSize += eSize;
+    }
+
 
     if (hSize + dictContentSize < dictBufferCapacity)
         memmove((char*)dictBuffer + hSize, (char*)dictBuffer + dictBufferCapacity - dictContentSize, dictContentSize);
@@ -902,7 +913,7 @@ size_t ZDICT_trainFromBuffer_unsafe(
 
     /* display best matches */
     if (g_displayLevel>= 3) {
-        U32 const nb = 25;
+        U32 const nb = MIN(25, dictList[0].pos);
         U32 const dictContentSize = ZDICT_dictSize(dictList);
         U32 u;
         DISPLAYLEVEL(3, "\n %u segments found, of total size %u \n", dictList[0].pos, dictContentSize);

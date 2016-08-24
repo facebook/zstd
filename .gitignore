@@ -18,18 +18,15 @@ zstd
 *.out
 *.app
 
-# IDEA solution files
-*.idea
+# Test artefacts
+tmp*
+dictionary
 
 # Other files
 .directory
 _codelite/
 _zstdbench/
 .clang_complete
-
-# Test artefacts
-tmp*
-dictionary
-
-# tmp files
+*.idea
 *.swp
+.DS_Store

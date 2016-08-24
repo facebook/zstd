@@ -93,6 +93,7 @@ ERR_STATIC const char* ERR_getErrorString(ERR_enum code)
     case PREFIX(no_error): return "No error detected";
     case PREFIX(GENERIC):  return "Error (generic)";
     case PREFIX(prefix_unknown): return "Unknown frame descriptor";
+    case PREFIX(parameter_unknown): return "Unknown parameter type";
     case PREFIX(frameParameter_unsupported): return "Unsupported frame parameter";
     case PREFIX(frameParameter_unsupportedBy32bits): return "Frame parameter unsupported in 32-bits mode";
     case PREFIX(compressionParameter_unsupported): return "Compression parameter is out of bound";

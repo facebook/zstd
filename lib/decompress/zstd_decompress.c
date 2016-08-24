@@ -64,7 +64,6 @@
 *  Dependencies
 *********************************************************/
 #include <string.h>      /* memcpy, memmove, memset */
-#include <stdio.h>       /* debug only : printf */
 #include "mem.h"         /* low level memory routines */
 #define XXH_STATIC_LINKING_ONLY   /* XXH64_state_t */
 #include "xxhash.h"      /* XXH64_* */

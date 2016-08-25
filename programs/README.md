@@ -29,15 +29,15 @@ Dictionary gains are mostly effective in the first few KB. Then, the compression
 will rely more and more on previously decoded content to compress the rest of the file.
 
 Usage of the dictionary builder and created dictionaries with CLI:
-1) Create the dictionary : `zstd --train FullPathToTrainingSet/* -o dictionaryName`
-2) Compress with dictionary: `zstd FILE -D dictionaryName`
-3) Decompress with dictionary: `zstd --decompress FILE.zst -D dictionaryName`
+1. Create the dictionary : `zstd --train FullPathToTrainingSet/* -o dictionaryName`
+2. Compress with dictionary: `zstd FILE -D dictionaryName`
+3. Decompress with dictionary: `zstd --decompress FILE.zst -D dictionaryName`
 
 
 
 #### Benchmark in Command Line Interface
 CLI includes in-memory compression benchmark module for zstd.
-The benchmark is conducted using given filenames which are read into memory and joined together.
+The benchmark is conducted using given filenames. The files are read into memory and joined together.
 It makes benchmark more precise as it eliminates I/O overhead.
 Many filenames can be supplied as multiple parameters, parameters with wildcards or
 names of directories can be used as parameters with the `-r` option.

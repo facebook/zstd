@@ -8,7 +8,7 @@ This directory contains the following programs and scripts:
 - `paramgrill` : parameter tester for zstd
 - `test-zstd-speed.py` : script for testing zstd speed difference between commits
 - `test-zstd-versions.py` : compatibility test between zstd versions stored on Github (v0.1+)
-- `zbufftest`  : Test tool to check ZBUFF integrity on target platform
+- `zbufftest`  : Test tool to check ZBUFF (a buffered streaming API) integrity
 - `zstreamtest` : Fuzzer test tool for zstd streaming API
 
 

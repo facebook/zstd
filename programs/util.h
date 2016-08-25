@@ -245,7 +245,7 @@ UTIL_STATIC int UTIL_prepareFileList(const char *dirName, char** bufStart, size_
         if (cFile.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
             if (strcmp (cFile.cFileName, "..") == 0 ||
                 strcmp (cFile.cFileName, ".") == 0) continue;
-         //   printf ("[%s]\n", path);
+
             nbFiles += UTIL_prepareFileList(path, bufStart, pos, bufEnd);  /* Recursively call "UTIL_prepareFileList" with the new path. */
             if (*bufStart == NULL) { FindClose(hFile); return 0; }
         }
@@ -261,7 +261,6 @@ UTIL_STATIC int UTIL_prepareFileList(const char *dirName, char** bufStart, size_
                 *pos += pathLength + 1;
                 nbFiles++;
             }
-         //   printf ("%s\\%s nbFiles=%d left=%d\n", dirName, cFile.cFileName, nbFiles, (int)(bufEnd - *bufStart));
         }
     } while (FindNextFile(hFile, &cFile));
 
@@ -297,7 +296,6 @@ UTIL_STATIC int UTIL_prepareFileList(const char *dirName, char** bufStart, size_
             continue;
         }
         if (UTIL_isDirectory(path)) {
-         //   printf ("[%s]\n", path);
             nbFiles += UTIL_prepareFileList(path, bufStart, pos, bufEnd);  /* Recursively call "UTIL_prepareFileList" with the new path. */
             if (*bufStart == NULL) { closedir(dir); return 0; }
         } else {
@@ -312,9 +310,8 @@ UTIL_STATIC int UTIL_prepareFileList(const char *dirName, char** bufStart, size_
                 *pos += pathLength + 1;
                 nbFiles++;
             }
-         //   printf ("%s/%s nbFiles=%d left=%d\n", dirName, entry->d_name, nbFiles, (int)(bufEnd - *bufStart));
         }
-        errno = 0; // clear errno after UTIL_isDirectory, UTIL_prepareFileList
+        errno = 0; /* clear errno after UTIL_isDirectory, UTIL_prepareFileList */
     }
 
     if (errno != 0) {
@@ -335,7 +332,7 @@ UTIL_STATIC int UTIL_prepareFileList(const char *dirName, char** bufStart, size_
     return 0;
 }
 
-#endif // #ifdef _WIN32
+#endif /* #ifdef _WIN32 */
 
 /*
  * UTIL_createFileList - takes a list of files and directories (params: inputNames, inputNamesNb), scans directories,

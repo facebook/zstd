@@ -669,19 +669,6 @@ ERR_STATIC const char* ERR_getErrorName(size_t code)
 /*-*************************************
 *  Common constants
 ***************************************/
-#define ZSTDv06_OPT_DEBUG 0     // 3 = compression stats;  5 = check encoded sequences;  9 = full logs
-#include <stdio.h>
-#if defined(ZSTDv06_OPT_DEBUG) && ZSTDv06_OPT_DEBUG>=9
-    #define ZSTDv06_LOG_PARSER(...) printf(__VA_ARGS__)
-    #define ZSTDv06_LOG_ENCODE(...) printf(__VA_ARGS__)
-    #define ZSTDv06_LOG_BLOCK(...) printf(__VA_ARGS__)
-#else
-    #define ZSTDv06_LOG_PARSER(...)
-    #define ZSTDv06_LOG_ENCODE(...)
-    #define ZSTDv06_LOG_BLOCK(...)
-#endif
-
-#define ZSTDv06_OPT_NUM    (1<<12)
 #define ZSTDv06_DICT_MAGIC  0xEC30A436
 
 #define ZSTDv06_REP_NUM    3

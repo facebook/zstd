@@ -2599,7 +2599,7 @@ static size_t ZSTD_writeEpilogue(ZSTD_CCtx* cctx, void* dst, size_t dstCapacity)
     BYTE* op = ostart;
     size_t fhSize = 0;
 
-    if (cctx->stage == ZSTDcs_created) return ERROR(stage_wrong);  /*< not even init ! */
+    if (cctx->stage == ZSTDcs_created) return ERROR(stage_wrong);  /* init missing */
 
     /* special case : empty frame */
     if (cctx->stage == ZSTDcs_init) {

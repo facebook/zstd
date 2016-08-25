@@ -116,7 +116,7 @@ ZSTDLIB_API const char* ZSTD_getErrorName(size_t code);     /*!< provides readab
 *  Explicit memory management
 ***************************************/
 /** Compression context */
-typedef struct ZSTD_CCtx_s ZSTD_CCtx;                       /*< incomplete type */
+typedef struct ZSTD_CCtx_s ZSTD_CCtx;
 ZSTDLIB_API ZSTD_CCtx* ZSTD_createCCtx(void);
 ZSTDLIB_API size_t     ZSTD_freeCCtx(ZSTD_CCtx* cctx);
 
@@ -125,7 +125,7 @@ ZSTDLIB_API size_t     ZSTD_freeCCtx(ZSTD_CCtx* cctx);
 ZSTDLIB_API size_t ZSTD_compressCCtx(ZSTD_CCtx* ctx, void* dst, size_t dstCapacity, const void* src, size_t srcSize, int compressionLevel);
 
 /** Decompression context */
-typedef struct ZSTD_DCtx_s ZSTD_DCtx;                       /*< incomplete type */
+typedef struct ZSTD_DCtx_s ZSTD_DCtx;
 ZSTDLIB_API ZSTD_DCtx* ZSTD_createDCtx(void);
 ZSTDLIB_API size_t     ZSTD_freeDCtx(ZSTD_DCtx* dctx);
 
@@ -328,7 +328,7 @@ static const size_t ZSTD_skippableHeaderSize = 8;  /* magic number + skippable f
 
 
 /*--- Types ---*/
-typedef enum { ZSTD_fast, ZSTD_dfast, ZSTD_greedy, ZSTD_lazy, ZSTD_lazy2, ZSTD_btlazy2, ZSTD_btopt } ZSTD_strategy;   /*< from faster to stronger */
+typedef enum { ZSTD_fast, ZSTD_dfast, ZSTD_greedy, ZSTD_lazy, ZSTD_lazy2, ZSTD_btlazy2, ZSTD_btopt } ZSTD_strategy;   /* from faster to stronger */
 
 typedef struct {
     unsigned windowLog;      /**< largest match distance : larger == more compression, more memory needed during decompression */

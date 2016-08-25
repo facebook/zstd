@@ -1383,7 +1383,7 @@ static unsigned char FSEv06_decodeSymbolFast(FSEv06_DState_t* DStatePtr, BITv06_
 *******************************************/
 
 
-/*<=====    Decompression    =====>*/
+/* ======    Decompression    ====== */
 
 typedef struct {
     U16 tableLog;

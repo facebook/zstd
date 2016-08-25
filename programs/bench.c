@@ -58,7 +58,7 @@
 #define MB *(1 <<20)
 #define GB *(1U<<30)
 
-static const size_t maxMemory = (sizeof(size_t)==4)  ?  (2 GB - 64 MB) : (size_t)(1ULL << ((sizeof(size_t)*8)-30));
+static const size_t maxMemory = (sizeof(size_t)==4)  ?  (2 GB - 64 MB) : (size_t)(1ULL << ((sizeof(size_t)*8)-31));
 
 static U32 g_compressibilityDefault = 50;
 

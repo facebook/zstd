@@ -36,8 +36,8 @@ extern "C" {
 
 /**
  * Constructs the suffix array of a given string.
- * @param T[0..n-1] The input string.
- * @param SA[0..n-1] The output array of suffixes.
+ * @param T [0..n-1] The input string.
+ * @param SA [0..n-1] The output array of suffixes.
  * @param n The length of the given string.
  * @param openMP enables OpenMP optimization.
  * @return 0 if no error occurred, -1 or -2 otherwise.
@@ -47,9 +47,9 @@ divsufsort(const unsigned char *T, int *SA, int n, int openMP);
 
 /**
  * Constructs the burrows-wheeler transformed string of a given string.
- * @param T[0..n-1] The input string.
- * @param U[0..n-1] The output string. (can be T)
- * @param A[0..n-1] The temporary array. (can be NULL)
+ * @param T [0..n-1] The input string.
+ * @param U [0..n-1] The output string. (can be T)
+ * @param A [0..n-1] The temporary array. (can be NULL)
  * @param n The length of the given string.
  * @param num_indexes The length of secondary indexes array. (can be NULL)
  * @param indexes The secondary indexes array. (can be NULL)

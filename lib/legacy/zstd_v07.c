@@ -1147,7 +1147,7 @@ static unsigned char FSEv07_decodeSymbolFast(FSEv07_DState_t* DStatePtr, BITv07_
 /* faster, but works only if nbBits is always >= 1 (otherwise, result will be corrupted) */
 
 
-/*<=====    Decompression    =====>*/
+/* ======    Decompression    ====== */
 
 typedef struct {
     U16 tableLog;

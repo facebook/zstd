@@ -478,8 +478,8 @@ int main(int argCount, char** argv)
     }
 
     /* No input filename ==> use stdin and stdout */
-    filenameIdx += !filenameIdx;   /*< default input is stdin */
-    if (!strcmp(filenameTable[0], stdinmark) && !outFileName) outFileName = stdoutmark;   /*< when input is stdin, default output is stdout */
+    filenameIdx += !filenameIdx;   /* filenameTable[0] is stdin by default */
+    if (!strcmp(filenameTable[0], stdinmark) && !outFileName) outFileName = stdoutmark;   /* when input is stdin, default output is stdout */
 
     /* Check if input/output defined as console; trigger an error in this case */
     if (!strcmp(filenameTable[0], stdinmark) && IS_CONSOLE(stdin) ) CLEAN_RETURN(badusage(programName));

@@ -3333,7 +3333,6 @@ size_t ZSTDv05_decodeSeqHeaders(int* nbSeq, const BYTE** dumpsPtr, size_t* dumps
         /* Build DTables */
         switch(LLtype)
         {
-        U32 max;
         case FSEv05_ENCODING_RLE :
             LLlog = 0;
             FSEv05_buildDTable_rle(DTableLL, *ip++);
@@ -3346,17 +3345,16 @@ size_t ZSTDv05_decodeSeqHeaders(int* nbSeq, const BYTE** dumpsPtr, size_t* dumps
             break;
         case FSEv05_ENCODING_DYNAMIC :
         default :   /* impossible */
-            max = MaxLL;
-            headerSize = FSEv05_readNCount(norm, &max, &LLlog, ip, iend-ip);
-            if (FSEv05_isError(headerSize)) return ERROR(GENERIC);
-            if (LLlog > LLFSEv05Log) return ERROR(corruption_detected);
-            ip += headerSize;
-            FSEv05_buildDTable(DTableLL, norm, max, LLlog);
-        }
+            {   U32 max = MaxLL;
+                headerSize = FSEv05_readNCount(norm, &max, &LLlog, ip, iend-ip);
+                if (FSEv05_isError(headerSize)) return ERROR(GENERIC);
+                if (LLlog > LLFSEv05Log) return ERROR(corruption_detected);
+                ip += headerSize;
+                FSEv05_buildDTable(DTableLL, norm, max, LLlog);
+        }   }
 
         switch(Offtype)
         {
-        U32 max;
         case FSEv05_ENCODING_RLE :
             Offlog = 0;
             if (ip > iend-2) return ERROR(srcSize_wrong);   /* min : "raw", hence no header, but at least xxLog bits */
@@ -3370,17 +3368,16 @@ size_t ZSTDv05_decodeSeqHeaders(int* nbSeq, const BYTE** dumpsPtr, size_t* dumps
             break;
         case FSEv05_ENCODING_DYNAMIC :
         default :   /* impossible */
-            max = MaxOff;
-            headerSize = FSEv05_readNCount(norm, &max, &Offlog, ip, iend-ip);
-            if (FSEv05_isError(headerSize)) return ERROR(GENERIC);
-            if (Offlog > OffFSEv05Log) return ERROR(corruption_detected);
-            ip += headerSize;
-            FSEv05_buildDTable(DTableOffb, norm, max, Offlog);
-        }
+            {   U32 max = MaxOff;
+                headerSize = FSEv05_readNCount(norm, &max, &Offlog, ip, iend-ip);
+                if (FSEv05_isError(headerSize)) return ERROR(GENERIC);
+                if (Offlog > OffFSEv05Log) return ERROR(corruption_detected);
+                ip += headerSize;
+                FSEv05_buildDTable(DTableOffb, norm, max, Offlog);
+        }   }
 
         switch(MLtype)
         {
-        U32 max;
         case FSEv05_ENCODING_RLE :
             MLlog = 0;
             if (ip > iend-2) return ERROR(srcSize_wrong); /* min : "raw", hence no header, but at least xxLog bits */
@@ -3394,13 +3391,13 @@ size_t ZSTDv05_decodeSeqHeaders(int* nbSeq, const BYTE** dumpsPtr, size_t* dumps
             break;
         case FSEv05_ENCODING_DYNAMIC :
         default :   /* impossible */
-            max = MaxML;
-            headerSize = FSEv05_readNCount(norm, &max, &MLlog, ip, iend-ip);
-            if (FSEv05_isError(headerSize)) return ERROR(GENERIC);
-            if (MLlog > MLFSEv05Log) return ERROR(corruption_detected);
-            ip += headerSize;
-            FSEv05_buildDTable(DTableML, norm, max, MLlog);
-    }   }
+            {   U32 max = MaxML;
+                headerSize = FSEv05_readNCount(norm, &max, &MLlog, ip, iend-ip);
+                if (FSEv05_isError(headerSize)) return ERROR(GENERIC);
+                if (MLlog > MLFSEv05Log) return ERROR(corruption_detected);
+                ip += headerSize;
+                FSEv05_buildDTable(DTableML, norm, max, MLlog);
+    }   }   }
 
     return ip-istart;
 }
@@ -4030,7 +4027,7 @@ static size_t ZBUFFv05_limitCopy(void* dst, size_t maxDstSize, const void* src, 
 *  The function will report how many bytes were read or written by modifying *srcSizePtr and *maxDstSizePtr.
 *  Note that it may not consume the entire input, in which case it's up to the caller to call again the function with remaining input.
 *  The content of dst will be overwritten (up to *maxDstSizePtr) at each function call, so save its content if it matters or change dst .
-*  @return : a hint to preferred nb of bytes to use as input for next function call (it's only a hint, to improve latency)
+*  return : a hint to preferred nb of bytes to use as input for next function call (it's only a hint, to improve latency)
 *            or 0 when a frame is completely decoded
 *            or an error code, which can be tested using ZBUFFv05_isError().
 *

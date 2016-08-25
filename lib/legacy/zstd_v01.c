@@ -1685,7 +1685,6 @@ static size_t ZSTD_decodeSeqHeaders(int* nbSeq, const BYTE** dumpsPtr, size_t* d
         /* Build DTables */
         switch(LLtype)
         {
-        U32 max;
         case bt_rle :
             LLlog = 0;
             FSE_buildDTable_rle(DTableLL, *ip++); break;
@@ -1693,17 +1692,16 @@ static size_t ZSTD_decodeSeqHeaders(int* nbSeq, const BYTE** dumpsPtr, size_t* d
             LLlog = LLbits;
             FSE_buildDTable_raw(DTableLL, LLbits); break;
         default :
-            max = MaxLL;
-            headerSize = FSE_readNCount(norm, &max, &LLlog, ip, iend-ip);
-            if (FSE_isError(headerSize)) return (size_t)-ZSTD_ERROR_GENERIC;
-            if (LLlog > LLFSELog) return (size_t)-ZSTD_ERROR_corruption;
-            ip += headerSize;
-            FSE_buildDTable(DTableLL, norm, max, LLlog);
-        }
+            {   U32 max = MaxLL;
+                headerSize = FSE_readNCount(norm, &max, &LLlog, ip, iend-ip);
+                if (FSE_isError(headerSize)) return (size_t)-ZSTD_ERROR_GENERIC;
+                if (LLlog > LLFSELog) return (size_t)-ZSTD_ERROR_corruption;
+                ip += headerSize;
+                FSE_buildDTable(DTableLL, norm, max, LLlog);
+        }   }
 
         switch(Offtype)
         {
-        U32 max;
         case bt_rle :
             Offlog = 0;
             if (ip > iend-2) return (size_t)-ZSTD_ERROR_SrcSize; /* min : "raw", hence no header, but at least xxLog bits */
@@ -1712,17 +1710,16 @@ static size_t ZSTD_decodeSeqHeaders(int* nbSeq, const BYTE** dumpsPtr, size_t* d
             Offlog = Offbits;
             FSE_buildDTable_raw(DTableOffb, Offbits); break;
         default :
-            max = MaxOff;
-            headerSize = FSE_readNCount(norm, &max, &Offlog, ip, iend-ip);
-            if (FSE_isError(headerSize)) return (size_t)-ZSTD_ERROR_GENERIC;
-            if (Offlog > OffFSELog) return (size_t)-ZSTD_ERROR_corruption;
-            ip += headerSize;
-            FSE_buildDTable(DTableOffb, norm, max, Offlog);
-        }
+            {   U32 max = MaxOff;
+                headerSize = FSE_readNCount(norm, &max, &Offlog, ip, iend-ip);
+                if (FSE_isError(headerSize)) return (size_t)-ZSTD_ERROR_GENERIC;
+                if (Offlog > OffFSELog) return (size_t)-ZSTD_ERROR_corruption;
+                ip += headerSize;
+                FSE_buildDTable(DTableOffb, norm, max, Offlog);
+        }   }
 
         switch(MLtype)
         {
-        U32 max;
         case bt_rle :
             MLlog = 0;
             if (ip > iend-2) return (size_t)-ZSTD_ERROR_SrcSize; /* min : "raw", hence no header, but at least xxLog bits */
@@ -1731,14 +1728,13 @@ static size_t ZSTD_decodeSeqHeaders(int* nbSeq, const BYTE** dumpsPtr, size_t* d
             MLlog = MLbits;
             FSE_buildDTable_raw(DTableML, MLbits); break;
         default :
-            max = MaxML;
-            headerSize = FSE_readNCount(norm, &max, &MLlog, ip, iend-ip);
-            if (FSE_isError(headerSize)) return (size_t)-ZSTD_ERROR_GENERIC;
-            if (MLlog > MLFSELog) return (size_t)-ZSTD_ERROR_corruption;
-            ip += headerSize;
-            FSE_buildDTable(DTableML, norm, max, MLlog);
-        }
-    }
+            {   U32 max = MaxML;
+                headerSize = FSE_readNCount(norm, &max, &MLlog, ip, iend-ip);
+                if (FSE_isError(headerSize)) return (size_t)-ZSTD_ERROR_GENERIC;
+                if (MLlog > MLFSELog) return (size_t)-ZSTD_ERROR_corruption;
+                ip += headerSize;
+                FSE_buildDTable(DTableML, norm, max, MLlog);
+    }   }   }
 
     return ip-istart;
 }

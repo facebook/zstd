@@ -993,7 +993,7 @@ The table has a size of `tableSize = 1 << Accuracy_Log`.
 Each cell describes the symbol decoded,
 and instructions to get the next state.
 
-Symbols are scanned in their natural order for `less than 1` probabilities.
+Symbols are scanned in their natural order for "less than 1" probabilities.
 Symbols with this probability are being attributed a single cell,
 starting from the end of the table.
 These symbols define a full state reset, reading `Accuracy_Log` bits.
@@ -1098,13 +1098,13 @@ otherwise bitstream is considered corrupted.
 
 ##### Repeat offsets
 
-As seen in [Offset Codes], the first 3 values define a repeated offset.
-They are sorted in recency order, with 1 meaning "most recent one".
+As seen in [Offset Codes], the first 3 values define a repeated offset and we will call them `Repeated_Offset1`, `Repeated_Offset2`, and `Repeated_Offset3`.
+They are sorted in recency order, with `Repeated_Offset1` meaning "most recent one".
 
 There is an exception though, when current sequence's literals length is `0`.
-In which case, repcodes are "pushed by one",
-so 1 becomes 2, 2 becomes 3,
-and 3 becomes "offset_1 - 1_byte".
+In which case, repeated offsets are "pushed by one",
+so `Repeated_Offset1` becomes `Repeated_Offset2`, `Repeated_Offset2` becomes `Repeated_Offset3`,
+and `Repeated_Offset3` becomes `Repeated_Offset1 - 1_byte`.
 
 On first block, offset history is populated by the following values : 1, 4 and 8 (in order).
 
@@ -1119,8 +1119,8 @@ they do not contribute to offset history.
 New offset take the lead in offset history,
 up to its previous place if it was already present.
 
-It means that when repeat offset 1 (most recent) is used, history is unmodified.
-When repeat offset 2 is used, it's swapped with offset 1.
+It means that when `Repeated_Offset1` (most recent) is used, history is unmodified.
+When `Repeated_Offset2` is used, it's swapped with `Repeated_Offset1`.
 
 
 Dictionary format

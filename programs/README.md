@@ -31,8 +31,8 @@ will rely more and more on previously decoded content to compress the rest of th
 Usage of the dictionary builder and created dictionaries with CLI:
 
 1. Create the dictionary : `zstd --train FullPathToTrainingSet/* -o dictionaryName`
-2. Compress with dictionary: `zstd FILE -D dictionaryName`
-3. Decompress with dictionary: `zstd --decompress FILE.zst -D dictionaryName`
+2. Compress with the dictionary: `zstd FILE -D dictionaryName`
+3. Decompress with the dictionary: `zstd --decompress FILE.zst -D dictionaryName`
 
 
 

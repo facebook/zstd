@@ -131,6 +131,7 @@ zstd-small: clean
 
 clean:
 	$(MAKE) -C ../lib clean
+	@rm -f ../lib/decompress/*.o
 	@rm -f core *.o tmp* result* *.gcda dictionary *.zst \
         zstd$(EXT) zstd32$(EXT) zstd-compress$(EXT) zstd-decompress$(EXT)
 	@echo Cleaning completed

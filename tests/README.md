@@ -1,5 +1,16 @@
-scripts for automated testing of zstd
+programs and scripts for automated testing of zstd
 ================================
+
+This directory contains the following programs and scripts:
+- datagen : Synthetic and parametrable data generator, for tests
+- fullbench  : Precisely measure speed for each zstd inner functions
+- fuzzer  : Test tool, to check zstd integrity on target platform
+- paramgrill : parameter tester for zstd
+- test-zstd-speed.py : script for testing zstd speed difference between commits
+- test-zstd-versions.py : compatibility test between zstd versions stored on Github (v0.1+)
+- zbufftest  : Test tool, to check ZBUFF integrity on target platform
+- zstreamtest : Fuzzer test tool for zstd streaming API
+
 
 #### test-zstd-versions.py - script for testing zstd interoperability between versions
 

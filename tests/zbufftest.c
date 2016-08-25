@@ -1,5 +1,5 @@
 /*
-    Fuzzer test tool for zstd_buffered
+    Fuzzer test tool for ZBUFF - a buffered streaming API for ZSTD
     Copyright (C) Yann Collet 2015-2016
 
     GPL v2 License

@@ -2248,7 +2248,6 @@ static size_t ZSTD_compressBlock_internal(ZSTD_CCtx* zc, void* dst, size_t dstCa
 *   Frame is supposed already started (header already produced)
 *   @return : compressed size, or an error code
 */
-#include <stdio.h>
 static size_t ZSTD_compress_generic (ZSTD_CCtx* cctx,
                                      void* dst, size_t dstCapacity,
                                const void* src, size_t srcSize,
@@ -2278,7 +2277,6 @@ static size_t ZSTD_compress_generic (ZSTD_CCtx* cctx,
             U32 const supLog = MAX(cctx->params.cParams.chainLog, 17 /* blockSize */);
             U32 const newLowLimit = (cctx->lowLimit & chainMask) + (1 << supLog);   /* preserve position % chainSize, ensure current-repcode doesn't underflow */
             U32 const correction = cctx->lowLimit - newLowLimit;
-            fprintf(stderr, "chainMask : %u \n", chainMask);
             ZSTD_reduceIndex(cctx, correction);
             cctx->base += correction;
             cctx->dictBase += correction;

@@ -97,6 +97,42 @@ to decode all concatenated frames in their sequential order,
 delivering the final decompressed result as if it was a single content.
 
 
+Skippable Frames
+----------------
+
+| `Magic_Number` | `Frame_Size` | `User_Data` |
+|:--------------:|:------------:|:-----------:|
+|   4 bytes      |  4 bytes     |   n bytes   |
+
+Skippable frames allow the insertion of user-defined data
+into a flow of concatenated frames.
+Its design is pretty straightforward,
+with the sole objective to allow the decoder to quickly skip
+over user-defined data and continue decoding.
+
+Skippable frames defined in this specification are compatible with [LZ4] ones.
+
+[LZ4]:http://www.lz4.org
+
+__`Magic_Number`__
+
+4 Bytes, little-endian format.
+Value : 0x184D2A5X, which means any value from 0x184D2A50 to 0x184D2A5F.
+All 16 values are valid to identify a skippable frame.
+
+__`Frame_Size`__
+
+This is the size, in bytes, of the following `User_Data`
+(without including the magic number nor the size field itself).
+This field is represented using 4 Bytes, little-endian format, unsigned 32-bits.
+This means `User_Data` can’t be bigger than (2^32-1) bytes.
+
+__`User_Data`__
+
+The `User_Data` can be anything. Data will just be skipped by the decoder.
+
+
+
 General Structure of Zstandard Frame format
 -------------------------------------------
 The structure of a single Zstandard frame is following:
@@ -163,9 +199,9 @@ The `Flag_Value` can be converted into `Field_Size`,
 which is the number of bytes used by `Frame_Content_Size`
 according to the following table:
 
-|`Flag_Value`|  0  |  1  |  2  |  3  |
-| ---------- | --- | --- | --- | --- |
-|`Field_Size`| 0-1 |  2  |  4  |  8  |
+|`Flag_Value`|    0   |  1  |  2  |  3  |
+| ---------- | ------ | --- | --- | --- |
+|`Field_Size`| 0 or 1 |  2  |  4  |  8  |
 
 When `Flag_Value` is `0`, `Field_Size` depends on `Single_Segment_flag` :
 if `Single_Segment_flag` is set, `Field_Size` is 1.
@@ -361,40 +397,6 @@ up to `Block_Maximum_Decompressed_Size`, which is the smallest of :
 - 128 KB
 
 
-Skippable Frames
-----------------
-
-| `Magic_Number` | `Frame_Size` | `User_Data` |
-|:--------------:|:------------:|:-----------:|
-|   4 bytes      |  4 bytes     |   n bytes   |
-
-Skippable frames allow the insertion of user-defined data
-into a flow of concatenated frames.
-Its design is pretty straightforward,
-with the sole objective to allow the decoder to quickly skip
-over user-defined data and continue decoding.
-
-Skippable frames defined in this specification are compatible with [LZ4] ones.
-
-[LZ4]:http://www.lz4.org
-
-__`Magic_Number`__
-
-4 Bytes, little-endian format.
-Value : 0x184D2A5X, which means any value from 0x184D2A50 to 0x184D2A5F.
-All 16 values are valid to identify a skippable frame.
-
-__`Frame_Size`__
-
-This is the size, in bytes, of the following `User_Data`
-(without including the magic number nor the size field itself).
-This field is represented using 4 Bytes, little-endian format, unsigned 32-bits.
-This means `User_Data` can’t be bigger than (2^32-1) bytes.
-
-__`User_Data`__
-
-The `User_Data` can be anything. Data will just be skipped by the decoder.
-
 
 The format of `Compressed_Block`
 --------------------------------
@@ -447,9 +449,12 @@ __`Literals_Block_Type`__
 
 This field uses 2 lowest bits of first byte, describing 4 different block types :
 
-|       Value           |  0                   |  1                   |      2                      |       3                       |
-| --------------------- | -------------------- | -------------------- | --------------------------- | ----------------------------- |
-| `Literals_Block_Type` | `Raw_Literals_Block` | `RLE_Literals_Block` | `Compressed_Literals_Block` | `Repeat_Stats_Literals_Block` |
+| `Literals_Block_Type`         | Value |
+| ----------------------------- | ----- |
+| `Raw_Literals_Block`          |   0   |
+| `RLE_Literals_Block`          |   1   |
+| `Compressed_Literals_Block`   |   2   |
+| `Repeat_Stats_Literals_Block` |   3   |
 
 - `Raw_Literals_Block` - Literals are stored uncompressed.
 - `RLE_Literals_Block` - Literals consist of a single byte value repeated N times.
@@ -466,37 +471,37 @@ __`Size_Format`__
 
 - For `Compressed_Block`, it requires to decode both `Compressed_Size`
   and `Regenerated_Size` (the decompressed size). It will also decode the number of streams.
-- For `Raw_Block` and `RLE_Block` it's enough to decode `Regenerated_Size`.
+- For `Raw_Literals_Block` and `RLE_Literals_Block` it's enough to decode `Regenerated_Size`.
 
 For values spanning several bytes, convention is little-endian.
 
 __`Size_Format` for `Raw_Literals_Block` and `RLE_Literals_Block`__ :
 
-- Value : x0 : `Regenerated_Size` uses 5 bits (0-31).
+- Value x0 : `Regenerated_Size` uses 5 bits (0-31).
                `Literals_Section_Header` has 1 byte.
                `Regenerated_Size = Header[0]>>3`
-- Value : 01 : `Regenerated_Size` uses 12 bits (0-4095).
+- Value 01 : `Regenerated_Size` uses 12 bits (0-4095).
                `Literals_Section_Header` has 2 bytes.
                `Regenerated_Size = (Header[0]>>4) + (Header[1]<<4)`
-- Value : 11 : `Regenerated_Size` uses 20 bits (0-1048575).
+- Value 11 : `Regenerated_Size` uses 20 bits (0-1048575).
                `Literals_Section_Header` has 3 bytes.
                `Regenerated_Size = (Header[0]>>4) + (Header[1]<<4) + (Header[2]<<12)`
 
-Note : it's allowed to represent a short value (ex : `13`)
-using a long format, accepting the reduced compacity.
+Note : it's allowed to represent a short value (for example `13`)
+using a long format, accepting the increased compressed data size.
 
 __`Size_Format` for `Compressed_Literals_Block` and `Repeat_Stats_Literals_Block`__ :
 
-- Value : 00 : _Single stream_.
+- Value 00 : _A single stream_.
                Both `Compressed_Size` and `Regenerated_Size` use 10 bits (0-1023).
                `Literals_Section_Header` has 3 bytes.
-- Value : 01 : 4 streams.
+- Value 01 : 4 streams.
                Both `Compressed_Size` and `Regenerated_Size` use 10 bits (0-1023).
                `Literals_Section_Header` has 3 bytes.
-- Value : 10 : 4 streams.
+- Value 10 : 4 streams.
                Both `Compressed_Size` and `Regenerated_Size` use 14 bits (0-16383).
                `Literals_Section_Header` has 4 bytes.
-- Value : 11 : 4 streams.
+- Value 11 : 4 streams.
                Both `Compressed_Size` and `Regenerated_Size` use 18 bits (0-262143).
                `Literals_Section_Header` has 5 bytes.
 

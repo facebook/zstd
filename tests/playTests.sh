@@ -198,7 +198,7 @@ cp ../programs/*.c dirTestDict
 cp ../programs/*.h dirTestDict
 $MD5SUM dirTestDict/* > tmph1
 $ZSTD -f --rm dirTestDict/* -D tmpDictC
-$ZSTD -d --rm dirTestDict/*.zst -D tmpDictC  # note : use internal checksum
+$ZSTD -d --rm dirTestDict/*.zst -D tmpDictC  # note : use internal checksum by default
 if [[ "$OSTYPE" == "darwin"* ]]; then
   $ECHO "test skipped on OS-X"  # not compatible with OS-X's md5
 else

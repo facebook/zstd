@@ -196,10 +196,14 @@ mkdir dirTestDict
 cp *.c dirTestDict
 cp ../programs/*.c dirTestDict
 cp ../programs/*.h dirTestDict
-cat dirTestDict/* | $MD5SUM > tmph1  # note : we expect same file order to generate same hash
-$ZSTD -f dirTestDict/* -D tmpDictC
-$ZSTD -d dirTestDict/*.zst -D tmpDictC -c | $MD5SUM > tmph2
-diff -q tmph1 tmph2
+$MD5SUM dirTestDict/* > tmph1
+$ZSTD -f --rm dirTestDict/* -D tmpDictC
+$ZSTD -d --rm dirTestDict/*.zst -D tmpDictC  # note : use internal checksum
+if [[ "$OSTYPE" == "darwin"* ]]; then
+  $ECHO "test skipped on OS-X"  # not compatible with OS-X's md5
+else
+  $MD5SUM -c tmph1
+fi
 rm -rf dirTestDict
 rm tmp*
 

@@ -29,6 +29,7 @@ Dictionary gains are mostly effective in the first few KB. Then, the compression
 will rely more and more on previously decoded content to compress the rest of the file.
 
 Usage of the dictionary builder and created dictionaries with CLI:
+
 1. Create the dictionary : `zstd --train FullPathToTrainingSet/* -o dictionaryName`
 2. Compress with dictionary: `zstd FILE -D dictionaryName`
 3. Decompress with dictionary: `zstd --decompress FILE.zst -D dictionaryName`

@@ -24,9 +24,9 @@
 # zstd : Command Line Utility, supporting gzip-like arguments
 # zstd32 : Same as zstd, but forced to compile in 32-bits mode
 # zstd_nolegacy : zstd without support of decompression of legacy versions
-# zstd-small: minimal zstd without dictBuilder and bench
-# zstd-compress: compressor-only version of zstd
-# zstd-decompress: decompressor-only version of zstd
+# zstd-small : minimal zstd without dictionary builder and benchmark
+# zstd-compress : compressor-only version of zstd
+# zstd-decompress : decompressor-only version of zstd
 # ##########################################################################
 
 DESTDIR?=

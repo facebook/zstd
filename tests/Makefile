@@ -22,13 +22,17 @@
 #  - zstd homepage : http://www.zstd.net/
 # ##########################################################################
 # datagen : Synthetic and parametrable data generator, for tests
+# fullbench  : Precisely measure speed for each zstd inner functions
+# fullbench32: Same as fullbench, but forced to compile in 32-bits mode
 # fuzzer  : Test tool, to check zstd integrity on target platform
 # fuzzer32: Same as fuzzer, but forced to compile in 32-bits mode
+# paramgrill : parameter tester for zstd
+# test-zstd-speed.py : script for testing zstd speed difference between commits
+# versionsTest : compatibility test between zstd versions stored on Github (v0.1+)
 # zbufftest  : Test tool, to check ZBUFF integrity on target platform
 # zbufftest32: Same as zbufftest, but forced to compile in 32-bits mode
-# fullbench  : Precisely measure speed for each zstd inner function
-# fullbench32: Same as fullbench, but forced to compile in 32-bits mode
-# versionstest : Compatibility test between zstd versions stored on Github (v0.1+)
+# zstreamtest : Fuzzer test tool for zstd streaming API
+# zbufftest32: Same as zstreamtest, but forced to compile in 32-bits mode
 # ##########################################################################
 
 DESTDIR?=

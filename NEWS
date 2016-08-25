@@ -1,6 +1,8 @@
 v0.8.2
-API : ZDICT_getDictID()
 Small decompression speed improvement
+API : ZDICT_getDictID(), ZSTD_sizeof_{CCtx, DCtx, CStream, DStream}()
+Enhanced documentation, by Przemyslaw Skibinski
+Fixed : compression fails on specific huge files, bug introduced in v0.8.1, reported by Jesse McGrew
 
 v0.8.1
 New streaming API

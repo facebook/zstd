@@ -49,7 +49,7 @@ INCLUDEDIR=$(PREFIX)/include
 CPPFLAGS= -I. -I./common
 CFLAGS ?= -O3
 CFLAGS += -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow -Wstrict-aliasing=1 \
-          -Wswitch-enum -Wdeclaration-after-statement -Wstrict-prototypes -Wundef -Wdocumentation
+          -Wswitch-enum -Wdeclaration-after-statement -Wstrict-prototypes -Wundef
 FLAGS   = $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) $(MOREFLAGS)
 
 

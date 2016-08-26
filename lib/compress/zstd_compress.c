@@ -3056,15 +3056,15 @@ int ZSTD_maxCLevel(void) { return ZSTD_MAX_CLEVEL; }
 static const ZSTD_compressionParameters ZSTD_defaultCParameters[4][ZSTD_MAX_CLEVEL+1] = {
 {   /* "default" */
     /* W,  C,  H,  S,  L, TL, strat */
-    { 18, 12, 12,  1,  7, 16, ZSTD_fast    },  /* level  0 - not used */
+    { 18, 12, 12,  1,  7, 16, ZSTD_fast    },  /* level  0 - never used */
     { 19, 13, 14,  1,  7, 16, ZSTD_fast    },  /* level  1 */
     { 19, 15, 16,  1,  6, 16, ZSTD_fast    },  /* level  2 */
-    { 20, 16, 17,  1,  5, 16, ZSTD_dfast   },  /* level  3 */
-    { 20, 13, 17,  2,  5, 16, ZSTD_greedy  },  /* level  4.*/
+    { 20, 16, 17,  1,  5, 16, ZSTD_dfast   },  /* level  3.*/
+    { 20, 18, 18,  1,  5, 16, ZSTD_dfast   },  /* level  4.*/
     { 20, 15, 18,  3,  5, 16, ZSTD_greedy  },  /* level  5 */
     { 21, 16, 19,  2,  5, 16, ZSTD_lazy    },  /* level  6 */
     { 21, 17, 20,  3,  5, 16, ZSTD_lazy    },  /* level  7 */
-    { 21, 18, 20,  3,  5, 16, ZSTD_lazy2   },  /* level  8.*/
+    { 21, 18, 20,  3,  5, 16, ZSTD_lazy2   },  /* level  8 */
     { 21, 20, 20,  3,  5, 16, ZSTD_lazy2   },  /* level  9 */
     { 21, 19, 21,  4,  5, 16, ZSTD_lazy2   },  /* level 10 */
     { 22, 20, 22,  4,  5, 16, ZSTD_lazy2   },  /* level 11 */
@@ -3073,16 +3073,16 @@ static const ZSTD_compressionParameters ZSTD_defaultCParameters[4][ZSTD_MAX_CLEV
     { 22, 21, 22,  6,  5, 16, ZSTD_lazy2   },  /* level 14 */
     { 22, 21, 21,  5,  5, 16, ZSTD_btlazy2 },  /* level 15 */
     { 23, 22, 22,  5,  5, 16, ZSTD_btlazy2 },  /* level 16 */
-    { 23, 23, 22,  5,  5, 16, ZSTD_btlazy2 },  /* level 17.*/
-    { 23, 23, 22,  6,  5, 24, ZSTD_btopt   },  /* level 18.*/
-    { 23, 23, 22,  6,  3, 48, ZSTD_btopt   },  /* level 19.*/
-    { 25, 26, 23,  7,  3, 64, ZSTD_btopt   },  /* level 20.*/
-    { 26, 26, 23,  7,  3,256, ZSTD_btopt   },  /* level 21.*/
-    { 27, 27, 25,  9,  3,512, ZSTD_btopt   },  /* level 22.*/
+    { 23, 21, 22,  4,  5, 24, ZSTD_btopt   },  /* level 17 */
+    { 23, 23, 22,  6,  5, 32, ZSTD_btopt   },  /* level 18 */
+    { 23, 23, 22,  6,  3, 48, ZSTD_btopt   },  /* level 19 */
+    { 25, 25, 23,  7,  3, 64, ZSTD_btopt   },  /* level 20 */
+    { 26, 26, 23,  7,  3,256, ZSTD_btopt   },  /* level 21 */
+    { 27, 27, 25,  9,  3,512, ZSTD_btopt   },  /* level 22 */
 },
 {   /* for srcSize <= 256 KB */
     /* W,  C,  H,  S,  L,  T, strat */
-    {  0,  0,  0,  0,  0,  0, ZSTD_fast    }, /* level  0 - not used */
+    {  0,  0,  0,  0,  0,  0, ZSTD_fast    },  /* level  0 - not used */
     { 18, 13, 14,  1,  6,  8, ZSTD_fast    },  /* level  1 */
     { 18, 14, 13,  1,  5,  8, ZSTD_dfast   },  /* level  2 */
     { 18, 16, 15,  1,  5,  8, ZSTD_dfast   },  /* level  3 */

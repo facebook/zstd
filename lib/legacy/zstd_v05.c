@@ -859,16 +859,16 @@ void        FSEv05_freeDTable(FSEv05_DTable* dt);
 /*!
 FSEv05_buildDTable():
    Builds 'dt', which must be already allocated, using FSEv05_createDTable()
-   return : 0,
-            or an errorCode, which can be tested using FSEv05_isError() */
+   @return : 0,
+             or an errorCode, which can be tested using FSEv05_isError() */
 size_t FSEv05_buildDTable (FSEv05_DTable* dt, const short* normalizedCounter, unsigned maxSymbolValue, unsigned tableLog);
 
 /*!
 FSEv05_decompress_usingDTable():
-   Decompress compressed source @cSrc of size @cSrcSize using @dt
-   into @dst which must be already allocated.
-   return : size of regenerated data (necessarily <= @dstCapacity)
-            or an errorCode, which can be tested using FSEv05_isError() */
+   Decompress compressed source @cSrc of size @cSrcSize using `dt`
+   into `dst` which must be already allocated.
+   @return : size of regenerated data (necessarily <= @dstCapacity)
+             or an errorCode, which can be tested using FSEv05_isError() */
 size_t FSEv05_decompress_usingDTable(void* dst, size_t dstCapacity, const void* cSrc, size_t cSrcSize, const FSEv05_DTable* dt);
 
 

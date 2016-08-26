@@ -185,7 +185,7 @@ static int basicUnitTests(U32 seed, double compressibility, ZSTD_customMem custo
       if (ZSTD_isError(r)) goto _output_error; }
     if (inBuff.pos != inBuff.size) goto _output_error;   /* entire input should be consumed */
     { size_t const r = ZSTD_endStream(zc, &outBuff);
-      if (r != 0) goto _output_error; }  /*< error, or some data not flushed */
+      if (r != 0) goto _output_error; }  /* error, or some data not flushed */
     cSize += outBuff.pos;
     DISPLAYLEVEL(4, "OK (%u bytes : %.2f%%)\n", (U32)cSize, (double)cSize/COMPRESSIBLE_NOISE_LENGTH*100);
 

@@ -183,7 +183,7 @@ static int basicUnitTests(U32 seed, double compressibility, ZSTD_customMem custo
     cSize += genSize;
     genSize = compressedBufferSize - cSize;
     { size_t const r = ZBUFF_compressEnd(zc, ((char*)compressedBuffer)+cSize, &genSize);
-      if (r != 0) goto _output_error; }  /*< error, or some data not flushed */
+      if (r != 0) goto _output_error; }  /* error, or some data not flushed */
     cSize += genSize;
     DISPLAYLEVEL(4, "OK (%u bytes : %.2f%%)\n", (U32)cSize, (double)cSize/COMPRESSIBLE_NOISE_LENGTH*100);
 

@@ -100,7 +100,7 @@ gcc6test: clean
 
 clangtest: clean
 	clang -v
-	$(MAKE) all CC=clang MOREFLAGS="-Werror -Wconversion -Wno-sign-conversion"
+	$(MAKE) all CC=clang MOREFLAGS="-Werror -Wconversion -Wno-sign-conversion -Wdocumentation"
 
 armtest: clean
 	$(MAKE) -C $(TESTDIR) datagen   # use native, faster

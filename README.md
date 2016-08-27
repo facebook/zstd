@@ -19,7 +19,7 @@ As a reference, several fast compression algorithms were tested and compared on 
 |Name             | Ratio | C.speed | D.speed |
 |-----------------|-------|--------:|--------:|
 |                 |       |   MB/s  |  MB/s   |
-|**zstd 0.8.0 -1**|**2.877**|**330**| **930** |
+|**zstd 0.8.2 -1**|**2.877**|**330**| **940** |
 | [zlib] 1.2.8 -1 | 2.730 |    95   |   360   |
 | brotli 0.4 -0   | 2.708 |   320   |   375   |
 | QuickLZ 1.5     | 2.237 |   510   |   605   |

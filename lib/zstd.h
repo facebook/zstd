@@ -208,7 +208,7 @@ typedef struct ZSTD_outBuffer_s {
 } ZSTD_outBuffer;
 
 
-/*======   compression   ======*/
+/*======   streaming compression   ======*/
 
 /*-***********************************************************************
 *  Streaming compression - howto
@@ -225,7 +225,9 @@ typedef struct ZSTD_outBuffer_s {
 *  The function will automatically update both `pos`.
 *  Note that it may not consume the entire input, in which case `pos < size`,
 *  and it's up to the caller to present again remaining data.
-*  @return : a hint to preferred nb of bytes to use as input for next function call (it's just a hint, to improve latency)
+*  @return : a size hint, preferred nb of bytes to use as input for next function call
+*           (it's just a hint, to help latency a little, any other value will work fine)
+*           (note : the size hint is guaranteed to be <= ZSTD_CStreamInSize() )
 *            or an error code, which can be tested using ZSTD_isError().
 *
 *  At any moment, it's possible to flush whatever data remains within buffer, using ZSTD_flushStream().

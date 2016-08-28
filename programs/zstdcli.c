@@ -1,3 +1,4 @@
+
 /*
   zstdcli - Command Line Interface (cli) for zstd
   Copyright (C) Yann Collet 2014-2016

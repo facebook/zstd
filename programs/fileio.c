@@ -29,6 +29,16 @@
 
 
 /* *************************************
+ *  Tuning options
+ ***************************************/
+#ifndef ZSTD_LEGACY_SUPPORT
+/* LEGACY_SUPPORT :
+ *  decompressor can decode older formats (starting from Zstd 0.1+) */
+#  define ZSTD_LEGACY_SUPPORT 1
+#endif
+
+
+/* *************************************
 *  Compiler Options
 ***************************************/
 #ifdef _MSC_VER   /* Visual */
@@ -53,6 +63,10 @@
 #include "fileio.h"
 #define ZSTD_STATIC_LINKING_ONLY   /* ZSTD_magicNumber, ZSTD_frameHeaderSize_max */
 #include "zstd.h"
+
+#if defined(ZSTD_LEGACY_SUPPORT) && (ZSTD_LEGACY_SUPPORT==1)
+#  include "zstd_legacy.h"    /* ZSTD_isLegacy */
+#endif
 
 
 /*-*************************************
@@ -688,7 +702,11 @@ static int FIO_decompressSrcFile(dRess_t ress, const char* srcFileName)
         readSomething = 1;
         if (sizeCheck != toRead) { DISPLAY("zstd: %s: unknown header \n", srcFileName); fclose(srcFile); return 1; }  /* srcFileName is empty */
         {   U32 const magic = MEM_readLE32(ress.srcBuffer);
-            if (((magic & 0xFFFFFFF0U) != ZSTD_MAGIC_SKIPPABLE_START) & (magic != ZSTD_MAGICNUMBER)) {
+            if (((magic & 0xFFFFFFF0U) != ZSTD_MAGIC_SKIPPABLE_START) & (magic != ZSTD_MAGICNUMBER)
+#if defined(ZSTD_LEGACY_SUPPORT) && (ZSTD_LEGACY_SUPPORT >= 1)
+                  & (!ZSTD_isLegacy(ress.srcBuffer, toRead))
+#endif
+                ) {
                 if ((g_overwrite) && !strcmp (srcFileName, stdinmark)) {  /* pass-through mode */
                     unsigned const result = FIO_passThrough(dstFile, srcFile, ress.srcBuffer, ress.srcBufferSize);
                     if (fclose(srcFile)) EXM_THROW(32, "zstd: %s close error", srcFileName);  /* error should never happen */

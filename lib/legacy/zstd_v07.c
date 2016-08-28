@@ -4643,9 +4643,9 @@ size_t ZBUFFv07_decompressContinue(ZBUFFv07_DCtx* zbd,
 
         case ZBUFFds_loadHeader :
             {   size_t const hSize = ZSTDv07_getFrameParams(&(zbd->fParams), zbd->headerBuffer, zbd->lhSize);
+                if (ZSTDv07_isError(hSize)) return hSize;
                 if (hSize != 0) {
                     size_t const toLoad = hSize - zbd->lhSize;   /* if hSize!=0, hSize > zbd->lhSize */
-                    if (ZSTDv07_isError(hSize)) return hSize;
                     if (toLoad > (size_t)(iend-ip)) {   /* not enough input to load full header */
                         memcpy(zbd->headerBuffer + zbd->lhSize, ip, iend-ip);
                         zbd->lhSize += iend-ip;
@@ -4685,6 +4685,7 @@ size_t ZBUFFv07_decompressContinue(ZBUFFv07_DCtx* zbd,
                         if (zbd->outBuff == NULL) return ERROR(memory_allocation);
             }   }   }
             zbd->stage = ZBUFFds_read;
+            /* pass-through */
 
         case ZBUFFds_read:
             {   size_t const neededInSize = ZSTDv07_nextSrcSizeToDecompress(zbd->zd);

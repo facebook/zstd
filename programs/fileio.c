@@ -27,15 +27,6 @@
   The license of this file is GPLv2.
 */
 
-/* *************************************
-*  Tuning options
-***************************************/
-#ifndef ZSTD_LEGACY_SUPPORT
-/* LEGACY_SUPPORT :
-*  decompressor can decode older formats (starting from Zstd 0.1+) */
-#  define ZSTD_LEGACY_SUPPORT 1
-#endif
-
 
 /* *************************************
 *  Compiler Options
@@ -45,7 +36,7 @@
 #  pragma warning(disable : 4204)  /* non-constant aggregate initializer */
 #endif
 #if defined(__MINGW32__) && !defined(_POSIX_SOURCE)
-#  define _POSIX_SOURCE 1          /* disable %llu warnings with MinGW on Windows */ 
+#  define _POSIX_SOURCE 1          /* disable %llu warnings with MinGW on Windows */
 #endif
 
 /*-*************************************
@@ -62,11 +53,6 @@
 #include "fileio.h"
 #define ZSTD_STATIC_LINKING_ONLY   /* ZSTD_magicNumber, ZSTD_frameHeaderSize_max */
 #include "zstd.h"
-
-#if defined(ZSTD_LEGACY_SUPPORT) && (ZSTD_LEGACY_SUPPORT==1)
-#  include "zstd_legacy.h"    /* ZSTD_isLegacy */
-#  include "fileio_legacy.h"  /* FIO_decompressLegacyFrame */
-#endif
 
 
 /*-*************************************
@@ -702,12 +688,6 @@ static int FIO_decompressSrcFile(dRess_t ress, const char* srcFileName)
         readSomething = 1;
         if (sizeCheck != toRead) { DISPLAY("zstd: %s: unknown header \n", srcFileName); fclose(srcFile); return 1; }  /* srcFileName is empty */
         {   U32 const magic = MEM_readLE32(ress.srcBuffer);
-#if defined(ZSTD_LEGACY_SUPPORT) && (ZSTD_LEGACY_SUPPORT>=1)
-            if (ZSTD_isLegacy(ress.srcBuffer, 4)) {
-                filesize += FIO_decompressLegacyFrame(dstFile, srcFile, ress.dictBuffer, ress.dictBufferSize, magic);
-                continue;
-            }
-#endif
             if (((magic & 0xFFFFFFF0U) != ZSTD_MAGIC_SKIPPABLE_START) & (magic != ZSTD_MAGICNUMBER)) {
                 if ((g_overwrite) && !strcmp (srcFileName, stdinmark)) {  /* pass-through mode */
                     unsigned const result = FIO_passThrough(dstFile, srcFile, ress.srcBuffer, ress.srcBufferSize);

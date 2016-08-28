@@ -1308,8 +1308,8 @@ ZSTDLIB_API size_t ZSTD_decompress_usingDDict(ZSTD_DCtx* dctx,
     if (ZSTD_isLegacy(src, srcSize)) return ZSTD_decompressLegacy(dst, dstCapacity, src, srcSize, ddict->dict, ddict->dictSize);
 #endif
     return ZSTD_decompress_usingPreparedDCtx(dctx, ddict->refContext,
-                                           dst, dstCapacity,
-                                           src, srcSize);
+                                             dst, dstCapacity,
+                                             src, srcSize);
 }
 
 
@@ -1337,6 +1337,11 @@ struct ZSTD_DStream_s {
     BYTE headerBuffer[ZSTD_FRAMEHEADERSIZE_MAX];
     size_t lhSize;
     ZSTD_customMem customMem;
+    void* dictContent;
+    size_t dictSize;
+    const void* dictSource;
+    void* legacyContext;
+    U32 legacyVersion;
 };   /* typedef'd to ZSTD_DStream within "zstd.h" */
 
 
@@ -1372,6 +1377,13 @@ size_t ZSTD_freeDStream(ZSTD_DStream* zds)
     ZSTD_freeDCtx(zds->zd);
     if (zds->inBuff) zds->customMem.customFree(zds->customMem.opaque, zds->inBuff);
     if (zds->outBuff) zds->customMem.customFree(zds->customMem.opaque, zds->outBuff);
+    if (zds->dictContent) zds->customMem.customFree(zds->customMem.opaque, zds->dictContent);
+#if defined(ZSTD_LEGACY_SUPPORT) && (ZSTD_LEGACY_SUPPORT >= 1)
+    if (zds->legacyContext) {
+        ZSTD_freeLegacyStreamContext(zds->legacyContext, zds->legacyVersion);
+        zds->legacyContext = NULL;
+    }
+#endif
     zds->customMem.customFree(zds->customMem.opaque, zds);
     return 0;
 }
@@ -1386,7 +1398,18 @@ size_t ZSTD_initDStream_usingDict(ZSTD_DStream* zds, const void* dict, size_t di
 {
     zds->stage = zdss_loadHeader;
     zds->lhSize = zds->inPos = zds->outStart = zds->outEnd = 0;
-    return ZSTD_decompressBegin_usingDict(zds->zd, dict, dictSize);
+    if ((dict != zds->dictSource) || (dictSize != zds->dictSize)) {   /* new dictionary */
+        if (dictSize > zds->dictSize) {
+            if (zds->dictContent) zds->customMem.customFree(zds->customMem.opaque, zds->dictContent);
+            zds->dictContent = zds->customMem.customAlloc(zds->customMem.opaque, dictSize);
+            if (zds->dictContent == NULL) return ERROR(memory_allocation);
+        }
+        memcpy(zds->dictContent, dict, dictSize);
+        zds->dictSize = dictSize;
+    }
+    if (zds->legacyContext) zds->customMem.customFree(zds->customMem.opaque, zds->dictContent);   /* legacy restarts from scratch on each call, to detect restart */
+    zds->legacyVersion = 0;
+    return 0;
 }
 
 size_t ZSTD_initDStream(ZSTD_DStream* zds)
@@ -1432,6 +1455,11 @@ size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inB
     char* op = ostart;
     U32 someMoreWork = 1;
 
+#if defined(ZSTD_LEGACY_SUPPORT) && (ZSTD_LEGACY_SUPPORT>=1)
+    if (zds->legacyVersion)
+        return ZSTD_decompressLegacyStream(&zds->legacyContext, zds->legacyVersion, output, input);
+#endif
+
     while (someMoreWork) {
         switch(zds->stage)
         {
@@ -1439,8 +1467,19 @@ size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inB
             return ERROR(init_missing);
 
         case zdss_loadHeader :
-            {   size_t const hSize = ZSTD_getFrameParams(&(zds->fParams), zds->headerBuffer, zds->lhSize);
-                if (ZSTD_isError(hSize)) return hSize;
+            {   size_t const hSize = ZSTD_getFrameParams(&zds->fParams, zds->headerBuffer, zds->lhSize);
+                if (ZSTD_isError(hSize))
+#if defined(ZSTD_LEGACY_SUPPORT) && (ZSTD_LEGACY_SUPPORT>=1)
+                {   U32 const legacyVersion = ZSTD_isLegacy(istart, iend-istart)
+                    if (legacyVersion) {
+                        zds->legacyVersion = legacyVersion;
+                        return ZSTD_decompressLegacyStream(&zds->legacyContext, zds->legacyVersion, output, input);
+                    } else {
+                        return hSize; /* error */
+                }   }
+#else
+                    return hSize;
+#endif
                 if (hSize != 0) {   /* need more input */
                     size_t const toLoad = hSize - zds->lhSize;   /* if hSize!=0, hSize > zds->lhSize */
                     if (toLoad > (size_t)(iend-ip)) {   /* not enough input to load full header */
@@ -1454,6 +1493,7 @@ size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inB
             }   }
 
             /* Consume header */
+            ZSTD_decompressBegin_usingDict(zds->zd, zds->dictContent, zds->dictSize);
             {   size_t const h1Size = ZSTD_nextSrcSizeToDecompress(zds->zd);  /* == ZSTD_frameHeaderSize_min */
                 size_t const h1Result = ZSTD_decompressContinue(zds->zd, NULL, 0, zds->headerBuffer, h1Size);
                 if (ZSTD_isError(h1Result)) return h1Result;   /* should not happen : already checked */

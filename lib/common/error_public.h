@@ -41,13 +41,14 @@ extern "C" {
 #include <stddef.h>   /* size_t */
 
 
-/* ****************************************
+/*-****************************************
 *  error codes list
 ******************************************/
 typedef enum {
   ZSTD_error_no_error,
   ZSTD_error_GENERIC,
   ZSTD_error_prefix_unknown,
+  ZSTD_error_version_unsupported,
   ZSTD_error_parameter_unknown,
   ZSTD_error_frameParameter_unsupported,
   ZSTD_error_frameParameter_unsupportedBy32bits,

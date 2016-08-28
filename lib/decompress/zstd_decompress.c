@@ -1399,7 +1399,7 @@ size_t ZSTD_initDStream_usingDict(ZSTD_DStream* zds, const void* dict, size_t di
 {
     zds->stage = zdss_loadHeader;
     zds->lhSize = zds->inPos = zds->outStart = zds->outEnd = 0;
-    if ((dict != zds->dictSource) || (dictSize != zds->dictSize)) {   /* new dictionary */
+    if ((dict != zds->dictSource) | (dictSize != zds->dictSize)) {   /* new dictionary */
         if (dictSize > zds->dictSize) {
             if (zds->dictContent) zds->customMem.customFree(zds->customMem.opaque, zds->dictContent);
             zds->dictContent = zds->customMem.customAlloc(zds->customMem.opaque, dictSize);
@@ -1457,7 +1457,7 @@ size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inB
 
 #if defined(ZSTD_LEGACY_SUPPORT) && (ZSTD_LEGACY_SUPPORT>=1)
     if (zds->legacyVersion)
-        return ZSTD_decompressLegacyStream(&zds->legacyContext, zds->legacyVersion, output, input);
+        return ZSTD_decompressLegacyStream(zds->legacyContext, zds->legacyVersion, output, input);
 #endif
 
     while (someMoreWork) {

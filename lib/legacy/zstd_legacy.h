@@ -147,22 +147,6 @@ MEM_STATIC size_t ZSTD_decompressLegacy(
 }
 
 
-MEM_STATIC void* ZSTD_createLegacyStreamContext(U32 version)
-{
-    switch(version)
-    {
-        default :
-        case 1 :
-        case 2 :
-        case 3 :
-            return NULL;
-        case 4 : return ZBUFFv04_createDCtx();
-        case 5 : return ZBUFFv05_createDCtx();
-        case 6 : return ZBUFFv06_createDCtx();
-        case 7 : return ZBUFFv07_createDCtx();
-    }
-}
-
 MEM_STATIC size_t ZSTD_freeLegacyStreamContext(void* legacyContext, U32 version)
 {
     switch(version)
@@ -180,56 +164,58 @@ MEM_STATIC size_t ZSTD_freeLegacyStreamContext(void* legacyContext, U32 version)
 }
 
 
-MEM_STATIC void ZSTD_initLegacyStream(void* legacyContext, U32 version,
-                                      const void* dict, size_t dictSize)
+MEM_STATIC size_t ZSTD_initLegacyStream(void** legacyContext, U32 prevVersion, U32 newVersion,
+                                        const void* dict, size_t dictSize)
 {
-    switch(version)
+    if (prevVersion != newVersion) ZSTD_freeLegacyStreamContext(*legacyContext, prevVersion);
+    switch(newVersion)
     {
         default :
         case 1 :
         case 2 :
         case 3 :
-            return;
+            return 0;
         case 4 :
         {
-            ZBUFFv04_DCtx* dctx = (ZBUFFv04_DCtx*) legacyContext;
+            ZBUFFv04_DCtx* dctx = (prevVersion != newVersion) ? ZBUFFv04_createDCtx() : (ZBUFFv04_DCtx*)*legacyContext;
+            if (dctx==NULL) return ERROR(memory_allocation);
             ZBUFFv04_decompressInit(dctx);
             ZBUFFv04_decompressWithDictionary(dctx, dict, dictSize);
-            return;
+            *legacyContext = dctx;
+            return 0;
         }
         case 5 :
         {
-            ZBUFFv05_DCtx* dctx = (ZBUFFv05_DCtx*) legacyContext;
+            ZBUFFv05_DCtx* dctx = (prevVersion != newVersion) ? ZBUFFv05_createDCtx() : (ZBUFFv05_DCtx*)*legacyContext;
+            if (dctx==NULL) return ERROR(memory_allocation);
             ZBUFFv05_decompressInitDictionary(dctx, dict, dictSize);
-            return;
+            *legacyContext = dctx;
+            return 0;
         }
         case 6 :
         {
-            ZBUFFv06_DCtx* dctx = (ZBUFFv06_DCtx*) legacyContext;
+            ZBUFFv06_DCtx* dctx = (prevVersion != newVersion) ? ZBUFFv06_createDCtx() : (ZBUFFv06_DCtx*)*legacyContext;
+            if (dctx==NULL) return ERROR(memory_allocation);
             ZBUFFv06_decompressInitDictionary(dctx, dict, dictSize);
-            return;
+            *legacyContext = dctx;
+            return 0;
         }
         case 7 :
         {
-            ZBUFFv07_DCtx* dctx = (ZBUFFv07_DCtx*) legacyContext;
+            ZBUFFv07_DCtx* dctx = (prevVersion != newVersion) ? ZBUFFv07_createDCtx() : (ZBUFFv07_DCtx*)*legacyContext;
+            if (dctx==NULL) return ERROR(memory_allocation);
             ZBUFFv07_decompressInitDictionary(dctx, dict, dictSize);
-            return;
+            *legacyContext = dctx;
+            return 0;
         }
     }
 }
 
 
 
-MEM_STATIC size_t ZSTD_decompressLegacyStream(void** legacyContext, U32 version,
-                                              ZSTD_outBuffer* output, ZSTD_inBuffer* input,
-                                              const void* dict, size_t dictSize)
+MEM_STATIC size_t ZSTD_decompressLegacyStream(void* legacyContext, U32 version,
+                                              ZSTD_outBuffer* output, ZSTD_inBuffer* input)
 {
-    if (*legacyContext == NULL) {
-        *legacyContext = ZSTD_createLegacyStreamContext(version);
-        if (*legacyContext==NULL) return ERROR(memory_allocation);
-        ZSTD_initLegacyStream(*legacyContext, version, dict, dictSize);
-    }
-
     switch(version)
     {
         default :
@@ -239,7 +225,7 @@ MEM_STATIC size_t ZSTD_decompressLegacyStream(void** legacyContext, U32 version,
             return ERROR(version_unsupported);
         case 4 :
             {
-                ZBUFFv04_DCtx* dctx = (ZBUFFv04_DCtx*) (*legacyContext);
+                ZBUFFv04_DCtx* dctx = (ZBUFFv04_DCtx*) legacyContext;
                 const void* src = (const char*)input->src + input->pos;
                 size_t readSize = input->size - input->pos;
                 void* dst = (char*)output->dst + output->pos;
@@ -251,7 +237,7 @@ MEM_STATIC size_t ZSTD_decompressLegacyStream(void** legacyContext, U32 version,
             }
         case 5 :
             {
-                ZBUFFv05_DCtx* dctx = (ZBUFFv05_DCtx*) (*legacyContext);
+                ZBUFFv05_DCtx* dctx = (ZBUFFv05_DCtx*) legacyContext;
                 const void* src = (const char*)input->src + input->pos;
                 size_t readSize = input->size - input->pos;
                 void* dst = (char*)output->dst + output->pos;
@@ -263,7 +249,7 @@ MEM_STATIC size_t ZSTD_decompressLegacyStream(void** legacyContext, U32 version,
             }
         case 6 :
             {
-                ZBUFFv06_DCtx* dctx = (ZBUFFv06_DCtx*) (*legacyContext);
+                ZBUFFv06_DCtx* dctx = (ZBUFFv06_DCtx*) legacyContext;
                 const void* src = (const char*)input->src + input->pos;
                 size_t readSize = input->size - input->pos;
                 void* dst = (char*)output->dst + output->pos;
@@ -275,7 +261,7 @@ MEM_STATIC size_t ZSTD_decompressLegacyStream(void** legacyContext, U32 version,
             }
         case 7 :
             {
-                ZBUFFv07_DCtx* dctx = (ZBUFFv07_DCtx*) (*legacyContext);
+                ZBUFFv07_DCtx* dctx = (ZBUFFv07_DCtx*) legacyContext;
                 const void* src = (const char*)input->src + input->pos;
                 size_t readSize = input->size - input->pos;
                 void* dst = (char*)output->dst + output->pos;

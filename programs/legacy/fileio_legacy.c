@@ -155,7 +155,6 @@ unsigned long long FIOv01_decompressFrame(FILE* foutput, FILE* finput)
     BYTE* const oend = outBuff + outBuffSize;
     U64   filesize = 0;
     size_t toRead;
-    size_t sizeCheck;
     ZSTDv01_Dctx* dctx = ZSTDv01_createDCtx();
 
 
@@ -164,8 +163,8 @@ unsigned long long FIOv01_decompressFrame(FILE* foutput, FILE* finput)
 
     /* restore header, already read from input */
     MEM_writeLE32(inBuff, ZSTDv01_magicNumberLE);
-    sizeCheck = ZSTDv01_decompressContinue(dctx, NULL, 0, inBuff, sizeof(ZSTDv01_magicNumberLE));   /* Decode frame header */
-    if (ZSTDv01_isError(sizeCheck)) EXM_THROW(42, "Error decoding legacy header");
+    { size_t const sizeCheck = ZSTDv01_decompressContinue(dctx, NULL, 0, inBuff, sizeof(ZSTDv01_magicNumberLE));   /* Decode frame header */
+      if (ZSTDv01_isError(sizeCheck)) EXM_THROW(42, "Error decoding legacy header"); }
 
     /* Main decompression Loop */
     toRead = ZSTDv01_nextSrcSizeToDecompress(dctx);
@@ -185,8 +184,8 @@ unsigned long long FIOv01_decompressFrame(FILE* foutput, FILE* finput)
 
         if (decodedSize) {  /* not a header */
             /* Write block */
-            sizeCheck = fwrite(op, 1, decodedSize, foutput);
-            if (sizeCheck != decodedSize) EXM_THROW(46, "Write error : unable to write data block to destination file");
+            { size_t const sizeCheck = fwrite(op, 1, decodedSize, foutput);
+              if (sizeCheck != decodedSize) EXM_THROW(46, "Write error : unable to write data block to destination file"); }
             filesize += decodedSize;
             op += decodedSize;
             if (op==oend) op = outBuff;

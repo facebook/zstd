@@ -1341,6 +1341,7 @@ struct ZSTD_DStream_s {
     size_t dictSize;
     const void* dictSource;
     void* legacyContext;
+    U32 previousLegacyVersion;
     U32 legacyVersion;
 };   /* typedef'd to ZSTD_DStream within "zstd.h" */
 
@@ -1380,7 +1381,7 @@ size_t ZSTD_freeDStream(ZSTD_DStream* zds)
     if (zds->dictContent) zds->customMem.customFree(zds->customMem.opaque, zds->dictContent);
 #if defined(ZSTD_LEGACY_SUPPORT) && (ZSTD_LEGACY_SUPPORT >= 1)
     if (zds->legacyContext) {
-        ZSTD_freeLegacyStreamContext(zds->legacyContext, zds->legacyVersion);
+        ZSTD_freeLegacyStreamContext(zds->legacyContext, zds->previousLegacyVersion);
         zds->legacyContext = NULL;
     }
 #endif
@@ -1407,7 +1408,6 @@ size_t ZSTD_initDStream_usingDict(ZSTD_DStream* zds, const void* dict, size_t di
         memcpy(zds->dictContent, dict, dictSize);
         zds->dictSize = dictSize;
     }
-    if (zds->legacyContext) zds->customMem.customFree(zds->customMem.opaque, zds->dictContent);   /* legacy restarts from scratch on each call, to detect restart */
     zds->legacyVersion = 0;
     return 0;
 }
@@ -1470,10 +1470,14 @@ size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inB
             {   size_t const hSize = ZSTD_getFrameParams(&zds->fParams, zds->headerBuffer, zds->lhSize);
                 if (ZSTD_isError(hSize))
 #if defined(ZSTD_LEGACY_SUPPORT) && (ZSTD_LEGACY_SUPPORT>=1)
-                {   U32 const legacyVersion = ZSTD_isLegacy(istart, iend-istart)
+                {   U32 const legacyVersion = ZSTD_isLegacy(istart, iend-istart);
                     if (legacyVersion) {
-                        zds->legacyVersion = legacyVersion;
-                        return ZSTD_decompressLegacyStream(&zds->legacyContext, zds->legacyVersion, output, input);
+                        size_t initResult;
+                        initResult = ZSTD_initLegacyStream(&zds->legacyContext, zds->previousLegacyVersion, legacyVersion,
+                                                           zds->dictContent, zds->dictSize);
+                        if (ZSTD_isError(initResult)) return initResult;
+                        zds->legacyVersion = zds->previousLegacyVersion = legacyVersion;
+                        return ZSTD_decompressLegacyStream(zds->legacyContext, zds->legacyVersion, output, input);
                     } else {
                         return hSize; /* error */
                 }   }

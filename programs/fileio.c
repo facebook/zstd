@@ -610,7 +610,7 @@ static void FIO_fwriteSparseEnd(FILE* file, unsigned storedSkips)
 unsigned long long FIO_decompressFrame(dRess_t ress,
                                        FILE* foutput, FILE* finput, size_t alreadyLoaded)
 {
-    U64    frameSize = 0;
+    U64 frameSize = 0;
     size_t readSize;
     U32 storedSkips = 0;
 
@@ -721,7 +721,7 @@ static int FIO_decompressSrcFile(dRess_t ress, const char* srcFileName)
 
     /* Final Status */
     DISPLAYLEVEL(2, "\r%79s\r", "");
-    DISPLAYLEVEL(2, "%-20.20s: %llu bytes \n", srcFileName, filesize);
+    DISPLAYLEVEL(2, "%-20s: %llu bytes \n", srcFileName, filesize);
 
     /* Close */
     if (fclose(srcFile)) EXM_THROW(33, "zstd: %s close error", srcFileName);  /* error should never happen */

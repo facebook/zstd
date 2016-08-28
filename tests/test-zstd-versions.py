@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Test zstd interoperability between versions"""
-# Based on LZ4 version test script, by Takayuki Matsuoka
+# Copyright Yann Collet, Przemyslaw Skibinski and Takayuki Matsuoka
+# License GPLv2
 
 import filecmp
 import glob
@@ -152,6 +153,7 @@ def decompress_zst(tag):
                 print('OK     ')
         else:
             print('command does not work')
+            dec_error = 1
     return dec_error
 
 
@@ -261,6 +263,6 @@ if __name__ == '__main__':
         print(zstd + ' : ' + repr(os.path.getsize(zstd)) + ', ' + sha1_of_file(zstd))
 
     if error_code != 0:
-        print('==== ERROR !!! =====')
+        print('======  ERROR !!!  =======')
 
     sys.exit(error_code)

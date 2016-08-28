@@ -86,10 +86,10 @@ all: zstd
 
 
 $(ZSTDDECOMP_O): $(ZSTDDIR)/decompress/zstd_decompress.c
-	$(CC)    $(ALIGN_LOOP) $(FLAGS) $^ -c -o $@
+	$(CC)    $(ALIGN_LOOP) $(FLAGS) -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT) $^ -c -o $@
 
 $(ZSTDDECOMP32_O): $(ZSTDDIR)/decompress/zstd_decompress.c
-	$(CC)  -m32 $(ALIGN_LOOP) $(FLAGS) $^ -c -o $@
+	$(CC)  -m32 $(ALIGN_LOOP) $(FLAGS) -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT) $^ -c -o $@
 
 zstd  : $(ZSTDDECOMP_O) $(ZSTD_FILES) $(ZSTDLEGACY_FILES) $(ZDICT_FILES) \
         zstdcli.c fileio.c bench.c datagen.c dibio.c

@@ -1,5 +1,5 @@
-zstd - Command Line Interface
-================================
+Command Line Interface for Zstandard library
+============================================
 
 Command Line Interface (CLI) can be created using the `make` command without any additional parameters.
 There are however other Makefile targets that create different variations of CLI:

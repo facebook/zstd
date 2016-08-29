@@ -89,7 +89,7 @@ unsigned HUF_optimalTableLog(unsigned maxTableLog, size_t srcSize, unsigned maxS
 struct HUF_CElt_s {
   U16  val;
   BYTE nbBits;
-};   /* typedef'd to HUF_CElt within huf_static.h */
+};   /* typedef'd to HUF_CElt within "huf.h" */
 
 typedef struct nodeElt_s {
     U32 count;

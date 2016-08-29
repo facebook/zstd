@@ -2694,7 +2694,7 @@ struct ZSTD_CDict_s {
     void* dictContent;
     size_t dictContentSize;
     ZSTD_CCtx* refContext;
-};  /* typedef'd tp ZSTD_CDict within zstd.h */
+};  /* typedef'd tp ZSTD_CDict within "zstd.h" */
 
 ZSTD_CDict* ZSTD_createCDict_advanced(const void* dict, size_t dictSize, ZSTD_parameters params, ZSTD_customMem customMem)
 {

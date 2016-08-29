@@ -28,6 +28,15 @@
     You can contact the author at :
     - zstd homepage : http://www.zstd.net/
 */
+
+/* ***************************************************************
+*  NOTES/WARNINGS
+*****************************************************************/
+/* The streaming API defined here will soon be deprecated by the
+* new one in 'zstd.h'; consider migrating towards newer streaming
+* API. See 'lib/README.md'.
+*****************************************************************/
+
 #ifndef ZSTD_BUFFERED_H_23987
 #define ZSTD_BUFFERED_H_23987
 

@@ -1,5 +1,5 @@
-projects for various integrated development environments (IDE)
-================================
+Projects for various integrated development environments (IDE)
+==============================================================
 
 #### Included projects
 

@@ -1,4 +1,4 @@
-zstd wrapper for zlib
+Zstandard wrapper for zlib
 ================================
 
 The main objective of creating a zstd wrapper for [zlib](http://zlib.net/) is to allow a quick and smooth transition to zstd for projects already using zlib.

@@ -75,17 +75,30 @@ const char* ZBUFF_getErrorName(size_t errorCode) { return ERR_getErrorName(error
 
 
 
+/*=**************************************************************
+*  Custom allocator
+****************************************************************/
+/* default uses stdlib */
 void* ZSTD_defaultAllocFunction(void* opaque, size_t size)
 {
     void* address = malloc(size);
     (void)opaque;
-    /* printf("alloc %p, %d opaque=%p \n", address, (int)size, opaque); */
     return address;
 }
 
 void ZSTD_defaultFreeFunction(void* opaque, void* address)
 {
     (void)opaque;
-    /* if (address) printf("free %p opaque=%p \n", address, opaque); */
     free(address);
+}
+
+void* ZSTD_malloc(size_t size, ZSTD_customMem customMem)
+{
+    return customMem.customAlloc(customMem.opaque, size);
+}
+
+void ZSTD_free(void* ptr, ZSTD_customMem customMem)
+{
+    if (ptr!=NULL)
+        customMem.customFree(customMem.opaque, ptr);
 }

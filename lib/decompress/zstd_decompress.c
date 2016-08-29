@@ -174,7 +174,7 @@ ZSTD_DCtx* ZSTD_createDCtx_advanced(ZSTD_customMem customMem)
     if (!customMem.customAlloc && !customMem.customFree) customMem = defaultCustomMem;
     if (!customMem.customAlloc || !customMem.customFree) return NULL;
 
-    dctx = (ZSTD_DCtx*) customMem.customAlloc(customMem.opaque, sizeof(ZSTD_DCtx));
+    dctx = (ZSTD_DCtx*) ZSTD_malloc(sizeof(ZSTD_DCtx), customMem);
     if (!dctx) return NULL;
     memcpy(&dctx->customMem, &customMem, sizeof(customMem));
     ZSTD_decompressBegin(dctx);
@@ -189,7 +189,7 @@ ZSTD_DCtx* ZSTD_createDCtx(void)
 size_t ZSTD_freeDCtx(ZSTD_DCtx* dctx)
 {
     if (dctx==NULL) return 0;   /* support free on NULL */
-    dctx->customMem.customFree(dctx->customMem.opaque, dctx);
+    ZSTD_free(dctx, dctx->customMem);
     return 0;   /* reserved as a potential error code in the future */
 }
 
@@ -1244,29 +1244,26 @@ struct ZSTD_DDict_s {
 
 ZSTD_DDict* ZSTD_createDDict_advanced(const void* dict, size_t dictSize, ZSTD_customMem customMem)
 {
-    if (!customMem.customAlloc && !customMem.customFree)
-        customMem = defaultCustomMem;
+    if (!customMem.customAlloc && !customMem.customFree) customMem = defaultCustomMem;
+    if (!customMem.customAlloc || !customMem.customFree) return NULL;
 
-    if (!customMem.customAlloc || !customMem.customFree)
-        return NULL;
-
-    {   ZSTD_DDict* const ddict = (ZSTD_DDict*) customMem.customAlloc(customMem.opaque, sizeof(*ddict));
-        void* const dictContent = customMem.customAlloc(customMem.opaque, dictSize);
+    {   ZSTD_DDict* const ddict = (ZSTD_DDict*) ZSTD_malloc(sizeof(ZSTD_DDict), customMem);
+        void* const dictContent = ZSTD_malloc(dictSize, customMem);
         ZSTD_DCtx* const dctx = ZSTD_createDCtx_advanced(customMem);
 
         if (!dictContent || !ddict || !dctx) {
-            customMem.customFree(customMem.opaque, dictContent);
-            customMem.customFree(customMem.opaque, ddict);
-            customMem.customFree(customMem.opaque, dctx);
+            ZSTD_free(dictContent, customMem);
+            ZSTD_free(ddict, customMem);
+            ZSTD_free(dctx, customMem);
             return NULL;
         }
 
         memcpy(dictContent, dict, dictSize);
         {   size_t const errorCode = ZSTD_decompressBegin_usingDict(dctx, dictContent, dictSize);
             if (ZSTD_isError(errorCode)) {
-                customMem.customFree(customMem.opaque, dictContent);
-                customMem.customFree(customMem.opaque, ddict);
-                customMem.customFree(customMem.opaque, dctx);
+                ZSTD_free(dictContent, customMem);
+                ZSTD_free(ddict, customMem);
+                ZSTD_free(dctx, customMem);
                 return NULL;
         }   }
 
@@ -1288,12 +1285,13 @@ ZSTD_DDict* ZSTD_createDDict(const void* dict, size_t dictSize)
 
 size_t ZSTD_freeDDict(ZSTD_DDict* ddict)
 {
-    ZSTD_freeFunction const cFree = ddict->refContext->customMem.customFree;
-    void* const opaque = ddict->refContext->customMem.opaque;
-    ZSTD_freeDCtx(ddict->refContext);
-    cFree(opaque, ddict->dict);
-    cFree(opaque, ddict);
-    return 0;
+    if (ddict==NULL) return 0;   /* support free on NULL */
+    {   ZSTD_customMem const cMem = ddict->refContext->customMem;
+        ZSTD_freeDCtx(ddict->refContext);
+        ZSTD_free(ddict->dict, cMem);
+        ZSTD_free(ddict, cMem);
+        return 0;
+    }
 }
 
 /*! ZSTD_decompress_usingDDict() :
@@ -1355,13 +1353,10 @@ ZSTD_DStream* ZSTD_createDStream_advanced(ZSTD_customMem customMem)
 {
     ZSTD_DStream* zds;
 
-    if (!customMem.customAlloc && !customMem.customFree)
-        customMem = defaultCustomMem;
+    if (!customMem.customAlloc && !customMem.customFree) customMem = defaultCustomMem;
+    if (!customMem.customAlloc || !customMem.customFree) return NULL;
 
-    if (!customMem.customAlloc || !customMem.customFree)
-        return NULL;
-
-    zds = (ZSTD_DStream*)customMem.customAlloc(customMem.opaque, sizeof(ZSTD_DStream));
+    zds = (ZSTD_DStream*) ZSTD_malloc(sizeof(ZSTD_DStream), customMem);
     if (zds==NULL) return NULL;
     memset(zds, 0, sizeof(ZSTD_DStream));
     memcpy(&zds->customMem, &customMem, sizeof(ZSTD_customMem));
@@ -1375,18 +1370,18 @@ ZSTD_DStream* ZSTD_createDStream_advanced(ZSTD_customMem customMem)
 size_t ZSTD_freeDStream(ZSTD_DStream* zds)
 {
     if (zds==NULL) return 0;   /* support free on null */
-    ZSTD_freeDCtx(zds->zd);
-    if (zds->inBuff) zds->customMem.customFree(zds->customMem.opaque, zds->inBuff);
-    if (zds->outBuff) zds->customMem.customFree(zds->customMem.opaque, zds->outBuff);
-    if (zds->dictContent) zds->customMem.customFree(zds->customMem.opaque, zds->dictContent);
+    {   ZSTD_customMem const cMem = zds->customMem;
+        ZSTD_freeDCtx(zds->zd);
+        ZSTD_free(zds->inBuff, cMem);
+        ZSTD_free(zds->outBuff, cMem);
+        ZSTD_free(zds->dictContent, cMem);
 #if defined(ZSTD_LEGACY_SUPPORT) && (ZSTD_LEGACY_SUPPORT >= 1)
-    if (zds->legacyContext) {
-        ZSTD_freeLegacyStreamContext(zds->legacyContext, zds->previousLegacyVersion);
-        zds->legacyContext = NULL;
-    }
+        if (zds->legacyContext)
+            ZSTD_freeLegacyStreamContext(zds->legacyContext, zds->previousLegacyVersion);
 #endif
-    zds->customMem.customFree(zds->customMem.opaque, zds);
-    return 0;
+        ZSTD_free(zds, cMem);
+        return 0;
+    }
 }
 
 
@@ -1401,8 +1396,8 @@ size_t ZSTD_initDStream_usingDict(ZSTD_DStream* zds, const void* dict, size_t di
     zds->lhSize = zds->inPos = zds->outStart = zds->outEnd = 0;
     if ((dict != zds->dictSource) | (dictSize != zds->dictSize)) {   /* new dictionary */
         if (dictSize > zds->dictSize) {
-            if (zds->dictContent) zds->customMem.customFree(zds->customMem.opaque, zds->dictContent);
-            zds->dictContent = zds->customMem.customAlloc(zds->customMem.opaque, dictSize);
+            ZSTD_free(zds->dictContent, zds->customMem);
+            zds->dictContent = ZSTD_malloc(dictSize, zds->customMem);
             if (zds->dictContent == NULL) return ERROR(memory_allocation);
         }
         memcpy(zds->dictContent, dict, dictSize);
@@ -1515,15 +1510,15 @@ size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inB
                 size_t const neededOutSize = zds->fParams.windowSize + blockSize;
                 zds->blockSize = blockSize;
                 if (zds->inBuffSize < blockSize) {
-                    zds->customMem.customFree(zds->customMem.opaque, zds->inBuff);
+                    ZSTD_free(zds->inBuff, zds->customMem);
                     zds->inBuffSize = blockSize;
-                    zds->inBuff = (char*)zds->customMem.customAlloc(zds->customMem.opaque, blockSize);
+                    zds->inBuff = (char*)ZSTD_malloc(blockSize, zds->customMem);
                     if (zds->inBuff == NULL) return ERROR(memory_allocation);
                 }
                 if (zds->outBuffSize < neededOutSize) {
-                    zds->customMem.customFree(zds->customMem.opaque, zds->outBuff);
+                    ZSTD_free(zds->outBuff, zds->customMem);
                     zds->outBuffSize = neededOutSize;
-                    zds->outBuff = (char*)zds->customMem.customAlloc(zds->customMem.opaque, neededOutSize);
+                    zds->outBuff = (char*)ZSTD_malloc(neededOutSize, zds->customMem);
                     if (zds->outBuff == NULL) return ERROR(memory_allocation);
             }   }
             zds->stage = zdss_read;

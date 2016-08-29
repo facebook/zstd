@@ -1,6 +1,7 @@
 v0.8.2
 Small decompression speed improvement
 API : ZDICT_getDictID(), ZSTD_sizeof_{CCtx, DCtx, CStream, DStream}()
+CLI Legacy support for formats v0.4+
 Enhanced documentation, by Przemyslaw Skibinski
 Fixed : compression fails on specific huge files, bug introduced in v0.8.1, reported by Jesse McGrew
 

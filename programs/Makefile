@@ -63,8 +63,8 @@ CPPFLAGS  += -DZSTD_LEGACY_SUPPORT=0
 ZSTDLEGACY_FILES:=
 else
 ZSTD_LEGACY_SUPPORT:=1
-CPPFLAGS  += -I$(ZSTDDIR)/legacy -I./legacy
-ZSTDLEGACY_FILES:= $(ZSTDDIR)/legacy/*.c legacy/fileio_legacy.c
+CPPFLAGS  += -I$(ZSTDDIR)/legacy
+ZSTDLEGACY_FILES:= $(ZSTDDIR)/legacy/*.c
 endif
 
 

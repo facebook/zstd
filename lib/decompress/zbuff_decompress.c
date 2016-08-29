@@ -40,30 +40,6 @@
 #include "zbuff.h"
 
 
-/*-***************************************************************************
-*  Streaming decompression howto
-*
-*  A ZBUFF_DCtx object is required to track streaming operations.
-*  Use ZBUFF_createDCtx() and ZBUFF_freeDCtx() to create/release resources.
-*  Use ZBUFF_decompressInit() to start a new decompression operation,
-*   or ZBUFF_decompressInitDictionary() if decompression requires a dictionary.
-*  Note that ZBUFF_DCtx objects can be re-init multiple times.
-*
-*  Use ZBUFF_decompressContinue() repetitively to consume your input.
-*  *srcSizePtr and *dstCapacityPtr can be any size.
-*  The function will report how many bytes were read or written by modifying *srcSizePtr and *dstCapacityPtr.
-*  Note that it may not consume the entire input, in which case it's up to the caller to present remaining input again.
-*  The content of @dst will be overwritten (up to *dstCapacityPtr) at each function call, so save its content if it matters, or change @dst.
-*  @return : a hint to preferred nb of bytes to use as input for next function call (it's only a hint, to help latency),
-*            or 0 when a frame is completely decoded,
-*            or an error code, which can be tested using ZBUFF_isError().
-*
-*  Hint : recommended buffer sizes (not compulsory) : ZBUFF_recommendedDInSize() and ZBUFF_recommendedDOutSize()
-*  output : ZBUFF_recommendedDOutSize==128 KB block size is the internal unit, it ensures it's always possible to write a full block when decoded.
-*  input  : ZBUFF_recommendedDInSize == 128KB + 3;
-*           just follow indications from ZBUFF_decompressContinue() to minimize latency. It should always be <= 128 KB + 3 .
-* *******************************************************************************/
-
 typedef enum { ZBUFFds_init, ZBUFFds_loadHeader,
                ZBUFFds_read, ZBUFFds_load, ZBUFFds_flush } ZBUFF_dStage;
 
@@ -83,7 +59,7 @@ struct ZBUFF_DCtx_s {
     BYTE headerBuffer[ZSTD_FRAMEHEADERSIZE_MAX];
     size_t lhSize;
     ZSTD_customMem customMem;
-};   /* typedef'd to ZBUFF_DCtx within "zstd_buffered.h" */
+};   /* typedef'd to ZBUFF_DCtx within "zbuff.h" */
 
 
 ZBUFF_DCtx* ZBUFF_createDCtx(void)

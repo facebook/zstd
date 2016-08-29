@@ -1,5 +1,5 @@
-programs and scripts for automated testing of zstd
-================================
+Programs and scripts for automated testing of Zstandard
+=======================================================
 
 This directory contains the following programs and scripts:
 - `datagen` : Synthetic and parametrable data generator, for tests

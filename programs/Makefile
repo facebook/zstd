@@ -1,25 +1,10 @@
 # ##########################################################################
-# ZSTD programs - Makefile
-# Copyright (C) Yann Collet 2015-2016
+# Copyright (c) 2016-present, Yann Collet, Facebook, Inc.
+# All rights reserved.
 #
-# GPL v2 License
-#
-# This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; either version 2 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License along
-# with this program; if not, write to the Free Software Foundation, Inc.,
-# 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
-#
-# You can contact the author at :
-#  - zstd homepage : http://www.zstd.net/
+# This source code is licensed under the BSD-style license found in the
+# LICENSE file in the root directory of this source tree. An additional grant
+# of patent rights can be found in the PATENTS file in the same directory.
 # ##########################################################################
 # zstd : Command Line Utility, supporting gzip-like arguments
 # zstd32 : Same as zstd, but forced to compile in 32-bits mode
@@ -111,7 +96,7 @@ zstd-pgo : clean zstd
 	./zstd -b $(PROFILE_WITH)
 	./zstd -b7i2 $(PROFILE_WITH)
 	./zstd -b5 $(PROFILE_WITH)
-	rm zstd
+	$(RM) zstd
 	$(MAKE) zstd MOREFLAGS=-fprofile-use
 
 zstd-frugal: $(ZSTDDECOMP_O) $(ZSTD_FILES) zstdcli.c fileio.c
@@ -131,8 +116,8 @@ zstd-small: clean
 
 clean:
 	$(MAKE) -C ../lib clean
-	@rm -f ../lib/decompress/*.o
-	@rm -f core *.o tmp* result* *.gcda dictionary *.zst \
+	@$(RM) ../lib/decompress/*.o
+	@$(RM) core *.o tmp* result* *.gcda dictionary *.zst \
         zstd$(EXT) zstd32$(EXT) zstd-compress$(EXT) zstd-decompress$(EXT)
 	@echo Cleaning completed
 
@@ -154,11 +139,11 @@ install: zstd
 	@echo zstd installation completed
 
 uninstall:
-	rm -f $(DESTDIR)$(BINDIR)/zstdcat
-	rm -f $(DESTDIR)$(BINDIR)/unzstd
-	[ -x $(DESTDIR)$(BINDIR)/zstd$(EXT) ] && rm -f $(DESTDIR)$(BINDIR)/zstd$(EXT)
-	rm -f $(DESTDIR)$(MANDIR)/zstdcat.1
-	rm -f $(DESTDIR)$(MANDIR)/unzstd.1
-	[ -f $(DESTDIR)$(MANDIR)/zstd.1 ] && rm -f $(DESTDIR)$(MANDIR)/zstd.1
+	$(RM) $(DESTDIR)$(BINDIR)/zstdcat
+	$(RM) $(DESTDIR)$(BINDIR)/unzstd
+	[ -x $(DESTDIR)$(BINDIR)/zstd$(EXT) ] && $(RM) $(DESTDIR)$(BINDIR)/zstd$(EXT)
+	$(RM) $(DESTDIR)$(MANDIR)/zstdcat.1
+	$(RM) $(DESTDIR)$(MANDIR)/unzstd.1
+	[ -f $(DESTDIR)$(MANDIR)/zstd.1 ] && $(RM) $(DESTDIR)$(MANDIR)/zstd.1
 	@echo zstd programs successfully uninstalled
 endif

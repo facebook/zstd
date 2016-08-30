@@ -124,7 +124,7 @@ struct ZSTD_DCtx_s
     size_t rleSize;
     BYTE litBuffer[ZSTD_BLOCKSIZE_ABSOLUTEMAX + WILDCOPY_OVERLENGTH];
     BYTE headerBuffer[ZSTD_FRAMEHEADERSIZE_MAX];
-};  /* typedef'd to ZSTD_DCtx within "zstd_static.h" */
+};  /* typedef'd to ZSTD_DCtx within "zstd.h" */
 
 size_t ZSTD_sizeof_DCtx (const ZSTD_DCtx* dctx) { return sizeof(*dctx); }
 
@@ -1219,7 +1219,7 @@ struct ZSTD_DDict_s {
     void* dict;
     size_t dictSize;
     ZSTD_DCtx* refContext;
-};  /* typedef'd tp ZSTD_CDict within zstd.h */
+};  /* typedef'd to ZSTD_DDict within "zstd.h" */
 
 ZSTD_DDict* ZSTD_createDDict_advanced(const void* dict, size_t dictSize, ZSTD_customMem customMem)
 {

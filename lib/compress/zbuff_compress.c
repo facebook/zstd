@@ -77,7 +77,7 @@ struct ZBUFF_CCtx_s {
     U32    checksum;
     U32    frameEnded;
     ZSTD_customMem customMem;
-};   /* typedef'd tp ZBUFF_CCtx within "zstd_buffered.h" */
+};   /* typedef'd tp ZBUFF_CCtx within "zbuff.h" */
 
 ZBUFF_CCtx* ZBUFF_createCCtx(void)
 {

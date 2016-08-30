@@ -35,6 +35,7 @@
 *  Tuning parameters
 ****************************************/
 #define ZDICT_MAX_SAMPLES_SIZE (2000U << 20)
+#define ZDICT_MIN_SAMPLES_SIZE 512
 
 
 /*-**************************************
@@ -78,11 +79,9 @@
 #define MB *(1 <<20)
 #define GB *(1U<<30)
 
-#define DICTLISTSIZE 10000
+#define DICTLISTSIZE_DEFAULT 10000
 
 #define NOISELENGTH 32
-#define PRIME1   2654435761U
-#define PRIME2   2246822519U
 
 #define MINRATIO 4
 static const int g_compressionLevel_default = 5;
@@ -560,10 +559,12 @@ _cleanup:
 
 static void ZDICT_fillNoise(void* buffer, size_t length)
 {
-    unsigned acc = PRIME1;
+    unsigned const prime1 = 2654435761U;
+    unsigned const prime2 = 2246822519U;
+    unsigned acc = prime1;
     size_t p=0;;
     for (p=0; p<length; p++) {
-        acc *= PRIME2;
+        acc *= prime2;
         ((unsigned char*)buffer)[p] = (unsigned char)(acc >> 21);
     }
 }
@@ -878,7 +879,6 @@ size_t ZDICT_addEntropyTablesFromBuffer_advanced(void* dictBuffer, size_t dictCo
 }
 
 
-#define DIB_MINSAMPLESSIZE 512
 /*! ZDICT_trainFromBuffer_unsafe() :
 *   Warning : `samplesBuffer` must be followed by noisy guard band.
 *   @return : size of dictionary, or an error code which can be tested with ZDICT_isError()
@@ -888,7 +888,7 @@ size_t ZDICT_trainFromBuffer_unsafe(
                             const void* samplesBuffer, const size_t* samplesSizes, unsigned nbSamples,
                             ZDICT_params_t params)
 {
-    U32 const dictListSize = MAX(MAX(DICTLISTSIZE, nbSamples), (U32)(maxDictSize/16));
+    U32 const dictListSize = MAX(MAX(DICTLISTSIZE_DEFAULT, nbSamples), (U32)(maxDictSize/16));
     dictItem* const dictList = (dictItem*)malloc(dictListSize * sizeof(*dictList));
     unsigned const selectivity = params.selectivityLevel == 0 ? g_selectivity_default : params.selectivityLevel;
     unsigned const minRep = (selectivity > 30) ? MINRATIO : nbSamples >> selectivity;
@@ -899,7 +899,7 @@ size_t ZDICT_trainFromBuffer_unsafe(
     /* checks */
     if (!dictList) return ERROR(memory_allocation);
     if (maxDictSize <= g_provision_entropySize + g_min_fast_dictContent) { free(dictList); return ERROR(dstSize_tooSmall); }
-    if (samplesBuffSize < DIB_MINSAMPLESSIZE) { free(dictList); return 0; }   /* not enough source to create dictionary */
+    if (samplesBuffSize < ZDICT_MIN_SAMPLES_SIZE) { free(dictList); return 0; }   /* not enough source to create dictionary */
 
     /* init */
     ZDICT_initDictItem(dictList);
@@ -990,7 +990,7 @@ size_t ZDICT_trainFromBuffer_advanced(void* dictBuffer, size_t dictBufferCapacit
     size_t result;
     void* newBuff;
     size_t const sBuffSize = ZDICT_totalSampleSize(samplesSizes, nbSamples);
-    if (sBuffSize < DIB_MINSAMPLESSIZE) return 0;   /* not enough content => no dictionary */
+    if (sBuffSize < ZDICT_MIN_SAMPLES_SIZE) return 0;   /* not enough content => no dictionary */
 
     newBuff = malloc(sBuffSize + NOISELENGTH);
     if (!newBuff) return ERROR(memory_allocation);

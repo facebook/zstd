@@ -1,3 +1,6 @@
+Command line scripts for Visual Studio compilation without IDE
+==============================================================
+
 Here are a few command lines for reference :
 
 ### Build with Visual Studio 2013 for msvcr120.dll

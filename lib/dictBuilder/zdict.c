@@ -1,40 +1,18 @@
-/*
-    dictBuilder - dictionary builder for zstd
-    Copyright (C) Yann Collet 2016
+/**
+ * Copyright (c) 2016-present, Yann Collet, Facebook, Inc.
+ * All rights reserved.
+ *
+ * This source code is licensed under the BSD-style license found in the
+ * LICENSE file in the root directory of this source tree. An additional grant
+ * of patent rights can be found in the PATENTS file in the same directory.
+ */
 
-    BSD 2-Clause License (http://www.opensource.org/licenses/bsd-license.php)
-
-    Redistribution and use in source and binary forms, with or without
-    modification, are permitted provided that the following conditions are
-    met:
-
-    * Redistributions of source code must retain the above copyright
-    notice, this list of conditions and the following disclaimer.
-    * Redistributions in binary form must reproduce the above
-    copyright notice, this list of conditions and the following disclaimer
-    in the documentation and/or other materials provided with the
-    distribution.
-
-    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-    "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-    LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-    A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-    OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-    SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-    LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-    DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-    THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-    OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-    You can contact the author at :
-    - Zstd homepage : https://www.zstd.net
-*/
 
 /*-**************************************
 *  Tuning parameters
 ****************************************/
 #define ZDICT_MAX_SAMPLES_SIZE (2000U << 20)
+#define ZDICT_MIN_SAMPLES_SIZE 512
 
 
 /*-**************************************
@@ -78,11 +56,9 @@
 #define MB *(1 <<20)
 #define GB *(1U<<30)
 
-#define DICTLISTSIZE 10000
+#define DICTLISTSIZE_DEFAULT 10000
 
 #define NOISELENGTH 32
-#define PRIME1   2654435761U
-#define PRIME2   2246822519U
 
 #define MINRATIO 4
 static const int g_compressionLevel_default = 5;
@@ -560,10 +536,12 @@ _cleanup:
 
 static void ZDICT_fillNoise(void* buffer, size_t length)
 {
-    unsigned acc = PRIME1;
+    unsigned const prime1 = 2654435761U;
+    unsigned const prime2 = 2246822519U;
+    unsigned acc = prime1;
     size_t p=0;;
     for (p=0; p<length; p++) {
-        acc *= PRIME2;
+        acc *= prime2;
         ((unsigned char*)buffer)[p] = (unsigned char)(acc >> 21);
     }
 }
@@ -878,7 +856,6 @@ size_t ZDICT_addEntropyTablesFromBuffer_advanced(void* dictBuffer, size_t dictCo
 }
 
 
-#define DIB_MINSAMPLESSIZE 512
 /*! ZDICT_trainFromBuffer_unsafe() :
 *   Warning : `samplesBuffer` must be followed by noisy guard band.
 *   @return : size of dictionary, or an error code which can be tested with ZDICT_isError()
@@ -888,7 +865,7 @@ size_t ZDICT_trainFromBuffer_unsafe(
                             const void* samplesBuffer, const size_t* samplesSizes, unsigned nbSamples,
                             ZDICT_params_t params)
 {
-    U32 const dictListSize = MAX(MAX(DICTLISTSIZE, nbSamples), (U32)(maxDictSize/16));
+    U32 const dictListSize = MAX(MAX(DICTLISTSIZE_DEFAULT, nbSamples), (U32)(maxDictSize/16));
     dictItem* const dictList = (dictItem*)malloc(dictListSize * sizeof(*dictList));
     unsigned const selectivity = params.selectivityLevel == 0 ? g_selectivity_default : params.selectivityLevel;
     unsigned const minRep = (selectivity > 30) ? MINRATIO : nbSamples >> selectivity;
@@ -899,7 +876,7 @@ size_t ZDICT_trainFromBuffer_unsafe(
     /* checks */
     if (!dictList) return ERROR(memory_allocation);
     if (maxDictSize <= g_provision_entropySize + g_min_fast_dictContent) { free(dictList); return ERROR(dstSize_tooSmall); }
-    if (samplesBuffSize < DIB_MINSAMPLESSIZE) { free(dictList); return 0; }   /* not enough source to create dictionary */
+    if (samplesBuffSize < ZDICT_MIN_SAMPLES_SIZE) { free(dictList); return 0; }   /* not enough source to create dictionary */
 
     /* init */
     ZDICT_initDictItem(dictList);
@@ -990,7 +967,7 @@ size_t ZDICT_trainFromBuffer_advanced(void* dictBuffer, size_t dictBufferCapacit
     size_t result;
     void* newBuff;
     size_t const sBuffSize = ZDICT_totalSampleSize(samplesSizes, nbSamples);
-    if (sBuffSize < DIB_MINSAMPLESSIZE) return 0;   /* not enough content => no dictionary */
+    if (sBuffSize < ZDICT_MIN_SAMPLES_SIZE) return 0;   /* not enough content => no dictionary */
 
     newBuff = malloc(sBuffSize + NOISELENGTH);
     if (!newBuff) return ERROR(memory_allocation);

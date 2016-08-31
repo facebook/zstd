@@ -1,4 +1,4 @@
-zstd - library files
+Zstandard library files
 ================================
 
 The __lib__ directory contains several directories.

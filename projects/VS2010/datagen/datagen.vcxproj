@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
@@ -66,24 +66,24 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
     <RunCodeAnalysis>false</RunCodeAnalysis>
-    <IncludePath>$(IncludePath);$(SolutionDir)..\..\programs\legacy;$(SolutionDir)..\..\lib\legacy;$(SolutionDir)..\..\lib\common;$(UniversalCRT_IncludePath);</IncludePath>
+    <IncludePath>$(IncludePath);$(SolutionDir)..\..\programs;$(SolutionDir)..\..\lib\legacy;$(SolutionDir)..\..\lib\common;$(UniversalCRT_IncludePath);</IncludePath>
     <IntDir>$(Platform)\$(Configuration)\</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
     <RunCodeAnalysis>false</RunCodeAnalysis>
-    <IncludePath>$(IncludePath);$(SolutionDir)..\..\programs\legacy;$(SolutionDir)..\..\lib\legacy;$(SolutionDir)..\..\lib\common;$(UniversalCRT_IncludePath);</IncludePath>
+    <IncludePath>$(IncludePath);$(SolutionDir)..\..\programs;$(SolutionDir)..\..\lib\legacy;$(SolutionDir)..\..\lib\common;$(UniversalCRT_IncludePath);</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
     <RunCodeAnalysis>false</RunCodeAnalysis>
-    <IncludePath>$(IncludePath);$(SolutionDir)..\..\programs\legacy;$(SolutionDir)..\..\lib\legacy;$(SolutionDir)..\..\lib\common;$(UniversalCRT_IncludePath);</IncludePath>
+    <IncludePath>$(IncludePath);$(SolutionDir)..\..\programs;$(SolutionDir)..\..\lib\legacy;$(SolutionDir)..\..\lib\common;$(UniversalCRT_IncludePath);</IncludePath>
     <IntDir>$(Platform)\$(Configuration)\</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
     <RunCodeAnalysis>false</RunCodeAnalysis>
-    <IncludePath>$(IncludePath);$(SolutionDir)..\..\programs\legacy;$(SolutionDir)..\..\lib\legacy;$(SolutionDir)..\..\lib\common;$(UniversalCRT_IncludePath);</IncludePath>
+    <IncludePath>$(IncludePath);$(SolutionDir)..\..\programs;$(SolutionDir)..\..\lib\legacy;$(SolutionDir)..\..\lib\common;$(UniversalCRT_IncludePath);</IncludePath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -157,7 +157,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\..\..\programs\datagen.c" />
-    <ClCompile Include="..\..\..\programs\datagencli.c" />
+    <ClCompile Include="..\..\..\tests\datagencli.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\programs\datagen.h" />

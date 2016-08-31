@@ -19,7 +19,7 @@ As a reference, several fast compression algorithms were tested and compared on 
 |Name             | Ratio | C.speed | D.speed |
 |-----------------|-------|--------:|--------:|
 |                 |       |   MB/s  |  MB/s   |
-|**zstd 0.8.0 -1**|**2.877**|**330**| **930** |
+|**zstd 0.8.2 -1**|**2.877**|**330**| **940** |
 | [zlib] 1.2.8 -1 | 2.730 |    95   |   360   |
 | brotli 0.4 -0   | 2.708 |   320   |   375   |
 | QuickLZ 1.5     | 2.237 |   510   |   605   |
@@ -61,8 +61,6 @@ Hence, deploying one dictionary per type of data will provide the greater benefi
 
 #### Dictionary compression How To :
 
-##### _Using the Command Line Utility_ :
-
 1) Create the dictionary
 
 `zstd --train FullPathToTrainingSet/* -o dictionaryName`
@@ -77,14 +75,19 @@ Hence, deploying one dictionary per type of data will provide the greater benefi
 
 ### Status
 
-Zstd compression format has reached "Final status". It means it is planned to become the official stable zstd format tagged `v1.0`. The reason it's not yet tagged `v1.0` is that it currently performs its "validation period", making sure the format holds all its promises and nothing was missed.
-Zstd library also offers legacy decoder support. Any data compressed by any version >= `v0.1` is decodable now and in the future.
-The library has been validated using strong [fuzzer tests](https://en.wikipedia.org/wiki/Fuzz_testing), including both [internal tools](programs/fuzzer.c) and [external ones](http://lcamtuf.coredump.cx/afl). It's able to withstand hazard situations, including invalid inputs.
-As a consequence, Zstandard is considered safe for, and is currently used in, production environments.
+Zstandard is currently deployed within Facebook. It is used daily to compress and decompress very large amount of data in multiple formats and use cases.
+Zstandard is considered safe for production environments.
 
-### Branch Policy
+### License
 
-The "dev" branch is the one where all contributions will be merged before reaching "master". If you plan to propose a patch, please commit into the "dev" branch or its own feature branch. Direct commit to "master" are not permitted.
+Zstandard is [BSD-licensed](LICENSE). We also provide an [additional patent grant](PATENTS).
+
+### Contributing
+
+The "dev" branch is the one where all contributions will be merged before reaching "master".
+If you plan to propose a patch, please commit into the "dev" branch or its own feature branch.
+Direct commit to "master" are not permitted.
+For more information, please read [CONTRIBUTING](CONTRIBUTING.md).
 
 ### Miscellaneous
 

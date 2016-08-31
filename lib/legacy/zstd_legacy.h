@@ -1,35 +1,12 @@
-/*
-    zstd_legacy - decoder for legacy format
-    Header File
-    Copyright (C) 2015-2016, Yann Collet.
+/**
+ * Copyright (c) 2016-present, Yann Collet, Facebook, Inc.
+ * All rights reserved.
+ *
+ * This source code is licensed under the BSD-style license found in the
+ * LICENSE file in the root directory of this source tree. An additional grant
+ * of patent rights can be found in the PATENTS file in the same directory.
+ */
 
-    BSD 2-Clause License (http://www.opensource.org/licenses/bsd-license.php)
-
-    Redistribution and use in source and binary forms, with or without
-    modification, are permitted provided that the following conditions are
-    met:
-    * Redistributions of source code must retain the above copyright
-    notice, this list of conditions and the following disclaimer.
-    * Redistributions in binary form must reproduce the above
-    copyright notice, this list of conditions and the following disclaimer
-    in the documentation and/or other materials provided with the
-    distribution.
-    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-    "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-    LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-    A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-    OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-    SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-    LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-    DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-    THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-    OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-    You can contact the author at :
-    - zstd source repository : https://github.com/Cyan4973/zstd
-    - ztsd public forum : https://groups.google.com/forum/#!forum/lz4c
-*/
 #ifndef ZSTD_LEGACY_H
 #define ZSTD_LEGACY_H
 
@@ -42,6 +19,7 @@ extern "C" {
 ***************************************/
 #include "mem.h"            /* MEM_STATIC */
 #include "error_private.h"  /* ERROR */
+#include "zstd.h"           /* ZSTD_inBuffer, ZSTD_outBuffer */
 #include "zstd_v01.h"
 #include "zstd_v02.h"
 #include "zstd_v03.h"
@@ -76,31 +54,29 @@ MEM_STATIC unsigned ZSTD_isLegacy(const void* src, size_t srcSize)
 
 MEM_STATIC unsigned long long ZSTD_getDecompressedSize_legacy(const void* src, size_t srcSize)
 {
-    if (srcSize < 4) return 0;
-
-    {   U32 const version = ZSTD_isLegacy(src, srcSize);
-        if (version < 5) return 0;  /* no decompressed size in frame header, or not a legacy format */
-        if (version==5) {
-            ZSTDv05_parameters fParams;
-            size_t const frResult = ZSTDv05_getFrameParams(&fParams, src, srcSize);
-            if (frResult != 0) return 0;
-            return fParams.srcSize;
-        }
-        if (version==6) {
-            ZSTDv06_frameParams fParams;
-            size_t const frResult = ZSTDv06_getFrameParams(&fParams, src, srcSize);
-            if (frResult != 0) return 0;
-            return fParams.frameContentSize;
-        }
-        if (version==7) {
-            ZSTDv07_frameParams fParams;
-            size_t const frResult = ZSTDv07_getFrameParams(&fParams, src, srcSize);
-            if (frResult != 0) return 0;
-            return fParams.frameContentSize;
-        }
-        return 0;   /* should not be possible */
+    U32 const version = ZSTD_isLegacy(src, srcSize);
+    if (version < 5) return 0;  /* no decompressed size in frame header, or not a legacy format */
+    if (version==5) {
+        ZSTDv05_parameters fParams;
+        size_t const frResult = ZSTDv05_getFrameParams(&fParams, src, srcSize);
+        if (frResult != 0) return 0;
+        return fParams.srcSize;
     }
+    if (version==6) {
+        ZSTDv06_frameParams fParams;
+        size_t const frResult = ZSTDv06_getFrameParams(&fParams, src, srcSize);
+        if (frResult != 0) return 0;
+        return fParams.frameContentSize;
+    }
+    if (version==7) {
+        ZSTDv07_frameParams fParams;
+        size_t const frResult = ZSTDv07_getFrameParams(&fParams, src, srcSize);
+        if (frResult != 0) return 0;
+        return fParams.frameContentSize;
+    }
+    return 0;   /* should not be possible */
 }
+
 
 MEM_STATIC size_t ZSTD_decompressLegacy(
                      void* dst, size_t dstCapacity,
@@ -147,6 +123,133 @@ MEM_STATIC size_t ZSTD_decompressLegacy(
     }
 }
 
+
+MEM_STATIC size_t ZSTD_freeLegacyStreamContext(void* legacyContext, U32 version)
+{
+    switch(version)
+    {
+        default :
+        case 1 :
+        case 2 :
+        case 3 :
+            return ERROR(version_unsupported);
+        case 4 : return ZBUFFv04_freeDCtx((ZBUFFv04_DCtx*)legacyContext);
+        case 5 : return ZBUFFv05_freeDCtx((ZBUFFv05_DCtx*)legacyContext);
+        case 6 : return ZBUFFv06_freeDCtx((ZBUFFv06_DCtx*)legacyContext);
+        case 7 : return ZBUFFv07_freeDCtx((ZBUFFv07_DCtx*)legacyContext);
+    }
+}
+
+
+MEM_STATIC size_t ZSTD_initLegacyStream(void** legacyContext, U32 prevVersion, U32 newVersion,
+                                        const void* dict, size_t dictSize)
+{
+    if (prevVersion != newVersion) ZSTD_freeLegacyStreamContext(*legacyContext, prevVersion);
+    switch(newVersion)
+    {
+        default :
+        case 1 :
+        case 2 :
+        case 3 :
+            return 0;
+        case 4 :
+        {
+            ZBUFFv04_DCtx* dctx = (prevVersion != newVersion) ? ZBUFFv04_createDCtx() : (ZBUFFv04_DCtx*)*legacyContext;
+            if (dctx==NULL) return ERROR(memory_allocation);
+            ZBUFFv04_decompressInit(dctx);
+            ZBUFFv04_decompressWithDictionary(dctx, dict, dictSize);
+            *legacyContext = dctx;
+            return 0;
+        }
+        case 5 :
+        {
+            ZBUFFv05_DCtx* dctx = (prevVersion != newVersion) ? ZBUFFv05_createDCtx() : (ZBUFFv05_DCtx*)*legacyContext;
+            if (dctx==NULL) return ERROR(memory_allocation);
+            ZBUFFv05_decompressInitDictionary(dctx, dict, dictSize);
+            *legacyContext = dctx;
+            return 0;
+        }
+        case 6 :
+        {
+            ZBUFFv06_DCtx* dctx = (prevVersion != newVersion) ? ZBUFFv06_createDCtx() : (ZBUFFv06_DCtx*)*legacyContext;
+            if (dctx==NULL) return ERROR(memory_allocation);
+            ZBUFFv06_decompressInitDictionary(dctx, dict, dictSize);
+            *legacyContext = dctx;
+            return 0;
+        }
+        case 7 :
+        {
+            ZBUFFv07_DCtx* dctx = (prevVersion != newVersion) ? ZBUFFv07_createDCtx() : (ZBUFFv07_DCtx*)*legacyContext;
+            if (dctx==NULL) return ERROR(memory_allocation);
+            ZBUFFv07_decompressInitDictionary(dctx, dict, dictSize);
+            *legacyContext = dctx;
+            return 0;
+        }
+    }
+}
+
+
+
+MEM_STATIC size_t ZSTD_decompressLegacyStream(void* legacyContext, U32 version,
+                                              ZSTD_outBuffer* output, ZSTD_inBuffer* input)
+{
+    switch(version)
+    {
+        default :
+        case 1 :
+        case 2 :
+        case 3 :
+            return ERROR(version_unsupported);
+        case 4 :
+            {
+                ZBUFFv04_DCtx* dctx = (ZBUFFv04_DCtx*) legacyContext;
+                const void* src = (const char*)input->src + input->pos;
+                size_t readSize = input->size - input->pos;
+                void* dst = (char*)output->dst + output->pos;
+                size_t decodedSize = output->size - output->pos;
+                size_t const hintSize = ZBUFFv04_decompressContinue(dctx, dst, &decodedSize, src, &readSize);
+                output->pos += decodedSize;
+                input->pos += readSize;
+                return hintSize;
+            }
+        case 5 :
+            {
+                ZBUFFv05_DCtx* dctx = (ZBUFFv05_DCtx*) legacyContext;
+                const void* src = (const char*)input->src + input->pos;
+                size_t readSize = input->size - input->pos;
+                void* dst = (char*)output->dst + output->pos;
+                size_t decodedSize = output->size - output->pos;
+                size_t const hintSize = ZBUFFv05_decompressContinue(dctx, dst, &decodedSize, src, &readSize);
+                output->pos += decodedSize;
+                input->pos += readSize;
+                return hintSize;
+            }
+        case 6 :
+            {
+                ZBUFFv06_DCtx* dctx = (ZBUFFv06_DCtx*) legacyContext;
+                const void* src = (const char*)input->src + input->pos;
+                size_t readSize = input->size - input->pos;
+                void* dst = (char*)output->dst + output->pos;
+                size_t decodedSize = output->size - output->pos;
+                size_t const hintSize = ZBUFFv06_decompressContinue(dctx, dst, &decodedSize, src, &readSize);
+                output->pos += decodedSize;
+                input->pos += readSize;
+                return hintSize;
+            }
+        case 7 :
+            {
+                ZBUFFv07_DCtx* dctx = (ZBUFFv07_DCtx*) legacyContext;
+                const void* src = (const char*)input->src + input->pos;
+                size_t readSize = input->size - input->pos;
+                void* dst = (char*)output->dst + output->pos;
+                size_t decodedSize = output->size - output->pos;
+                size_t const hintSize = ZBUFFv07_decompressContinue(dctx, dst, &decodedSize, src, &readSize);
+                output->pos += decodedSize;
+                input->pos += readSize;
+                return hintSize;
+            }
+    }
+}
 
 
 #if defined (__cplusplus)

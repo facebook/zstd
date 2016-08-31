@@ -9,7 +9,7 @@ matrix:
       env: PLATFORM="Ubuntu 12.04 container" CMD="make test && make clean && make travis-install"
     - os: linux
       sudo: false
-      env: PLATFORM="Ubuntu 12.04 container" CMD="make -C programs test-zstd_nolegacy && make clean && make zlibwrapper && make clean && make cmaketest"
+      env: PLATFORM="Ubuntu 12.04 container" CMD="make -C tests test-zstd_nolegacy && make clean && make zlibwrapper && make clean && make cmaketest"
     - os: linux
       sudo: false
       env: PLATFORM="Ubuntu 12.04 container" CMD="make usan"
@@ -39,7 +39,7 @@ matrix:
             - qemu-user-static
     - os: linux
       sudo: required
-      env: PLATFORM="Ubuntu 12.04" CMD="make -C programs test32"
+      env: PLATFORM="Ubuntu 12.04" CMD="make -C tests test32"
       addons:
         apt:
           packages:
@@ -58,7 +58,7 @@ matrix:
             - gcc-multilib
     - os: linux
       sudo: required
-      env: PLATFORM="Ubuntu 12.04" CMD="make -C programs valgrindTest"
+      env: PLATFORM="Ubuntu 12.04" CMD="make -C tests valgrindTest"
       addons:
         apt:
           packages:

@@ -89,7 +89,7 @@ unsigned HUF_optimalTableLog(unsigned maxTableLog, size_t srcSize, unsigned maxS
 struct HUF_CElt_s {
   U16  val;
   BYTE nbBits;
-};   /* typedef'd to HUF_CElt within huf_static.h */
+};   /* typedef'd to HUF_CElt within "huf.h" */
 
 typedef struct nodeElt_s {
     U32 count;
@@ -124,7 +124,8 @@ size_t HUF_writeCTable (void* dst, size_t maxDstSize,
         if ((size>1) & (size < maxSymbolValue/2)) {   /* FSE compressed */
             op[0] = (BYTE)size;
             return size+1;
-    }   }
+        }
+    }
 
     /* raw values */
     if (maxSymbolValue > (256-128)) return ERROR(GENERIC);   /* should not happen */
@@ -491,7 +492,7 @@ static size_t HUF_compress_internal (
     /* Scan input and build symbol stats */
     {   size_t const largest = FSE_count (count, &maxSymbolValue, (const BYTE*)src, srcSize);
         if (HUF_isError(largest)) return largest;
-        if (largest == srcSize) { *ostart = ((const BYTE*)src)[0]; return 1; }   /* rle */
+        if (largest == srcSize) { *ostart = ((const BYTE*)src)[0]; return 1; }   /* single symbol, rle */
         if (largest <= (srcSize >> 7)+1) return 0;   /* Fast heuristic : not compressible enough */
     }
 

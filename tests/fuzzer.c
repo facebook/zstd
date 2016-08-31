@@ -1,26 +1,12 @@
-/*
-    Fuzzer test tool for zstd
-    Copyright (C) Yann Collet 2014-2016
+/**
+ * Copyright (c) 2016-present, Yann Collet, Facebook, Inc.
+ * All rights reserved.
+ *
+ * This source code is licensed under the BSD-style license found in the
+ * LICENSE file in the root directory of this source tree. An additional grant
+ * of patent rights can be found in the PATENTS file in the same directory.
+ */
 
-    GPL v2 License
-
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License along
-    with this program; if not, write to the Free Software Foundation, Inc.,
-    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
-
-    You can contact the author at :
-    - ZSTD homepage : http://www.zstd.net
-*/
 
 /*-************************************
 *  Compiler specific
@@ -100,7 +86,6 @@ static unsigned FUZ_rand(unsigned* src)
     return rand32 >> 5;
 }
 
-
 static unsigned FUZ_highbit32(U32 v32)
 {
     unsigned nbBits = 0;
@@ -109,6 +94,10 @@ static unsigned FUZ_highbit32(U32 v32)
     return nbBits;
 }
 
+
+/*=============================================
+*   Basic Unit tests
+=============================================*/
 
 #define CHECK_V(var, fn)  size_t const var = fn; if (ZSTD_isError(var)) goto _output_error
 #define CHECK(fn)  { CHECK_V(err, fn); }
@@ -271,6 +260,12 @@ static int basicUnitTests(U32 seed, double compressibility)
                                          CNBuffer, samplesSizes, nbSamples);
         if (ZDICT_isError(dictSize)) goto _output_error;
         DISPLAYLEVEL(4, "OK, created dictionary of size %u \n", (U32)dictSize);
+
+        DISPLAYLEVEL(4, "test%3i : check dictID : ", testNb++);
+        {   U32 const dictID = ZDICT_getDictID(dictBuffer, dictSize);
+            if (dictID==0) goto _output_error;
+            DISPLAYLEVEL(4, "OK : %u \n", dictID);
+        }
 
         DISPLAYLEVEL(4, "test%3i : compress with dictionary : ", testNb++);
         cSize = ZSTD_compress_usingDict(cctx, compressedBuffer, ZSTD_compressBound(CNBuffSize),

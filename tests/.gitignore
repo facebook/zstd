@@ -1,3 +1,17 @@
+# local binary (Makefile)
+fullbench
+fullbench32
+fuzzer
+fuzzer32
+zbufftest
+zbufftest32
+zstreamtest
+zstreamtest32
+datagen
+paramgrill
+paramgrill32
+roundTripCrash
+
 # Tmp test directory
 zstdtest
 speedTest
@@ -7,3 +21,28 @@ namespaceTest
 # Local script
 startSpeedTest
 speedTest.pid
+
+# Object files
+*.o
+*.ko
+
+# Executables
+*.exe
+*.out
+*.app
+
+# Default result files
+dictionary
+grillResults.txt
+_*
+tmp*
+*.zst
+result
+out
+
+# fuzzer
+afl
+
+# Misc files
+*.bat
+dirTest*

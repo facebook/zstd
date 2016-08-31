@@ -46,6 +46,7 @@ ENDIF (ZSTD_LEGACY_SUPPORT)
 
 ADD_SUBDIRECTORY(lib)
 ADD_SUBDIRECTORY(programs)
+ADD_SUBDIRECTORY(tests)
 
 #-----------------------------------------------------------------------------
 # Add extra compilation flags

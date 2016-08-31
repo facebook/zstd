@@ -1,5 +1,14 @@
 #! /usr/bin/env python
 
+#
+# Copyright (c) 2016-present, Yann Collet, Facebook, Inc.
+# All rights reserved.
+#
+# This source code is licensed under the BSD-style license found in the
+# LICENSE file in the root directory of this source tree. An additional grant
+# of patent rights can be found in the PATENTS file in the same directory.
+#
+
 import argparse
 import os
 import string
@@ -192,7 +201,7 @@ def test_commit(branch, commit, last_commit, args, testFilePaths, have_mutt, hav
     md5_zstd = hashfile(hashlib.md5(), clone_path + '/programs/zstd')
     md5_zstd32 = hashfile(hashlib.md5(), clone_path + '/programs/zstd32')
     md5_zstd_clang = hashfile(hashlib.md5(), clone_path + '/programs/zstd_clang')
-    print("md5(zstd)=%s\nmd5(zstd32)=%s\nmd5(zstd32_clang)=%s" % (md5_zstd, md5_zstd32, md5_zstd_clang))
+    print("md5(zstd)=%s\nmd5(zstd32)=%s\nmd5(zstd_clang)=%s" % (md5_zstd, md5_zstd32, md5_zstd_clang))
     logFileName = working_path + "/log_" + branch.replace("/", "_") + ".txt"
     text_to_send = []
     results_files = ""

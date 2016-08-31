@@ -1,36 +1,12 @@
-/* ******************************************************************
-   zstd_v06.c
-   Decompression module for ZSTD v0.6 legacy format
-   Copyright (C) 2016, Yann Collet.
+/**
+ * Copyright (c) 2016-present, Yann Collet, Facebook, Inc.
+ * All rights reserved.
+ *
+ * This source code is licensed under the BSD-style license found in the
+ * LICENSE file in the root directory of this source tree. An additional grant
+ * of patent rights can be found in the PATENTS file in the same directory.
+ */
 
-   BSD 2-Clause License (http://www.opensource.org/licenses/bsd-license.php)
-
-   Redistribution and use in source and binary forms, with or without
-   modification, are permitted provided that the following conditions are
-   met:
-
-       * Redistributions of source code must retain the above copyright
-   notice, this list of conditions and the following disclaimer.
-       * Redistributions in binary form must reproduce the above
-   copyright notice, this list of conditions and the following disclaimer
-   in the documentation and/or other materials provided with the
-   distribution.
-
-   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-   "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-   LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-   A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-   OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-   SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-   LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-   DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-   THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-    You can contact the author at :
-    - Homepage : http://www.zstd.net/
-****************************************************************** */
 
 /*- Dependencies -*/
 #include "zstd_v06.h"
@@ -669,19 +645,6 @@ ERR_STATIC const char* ERR_getErrorName(size_t code)
 /*-*************************************
 *  Common constants
 ***************************************/
-#define ZSTDv06_OPT_DEBUG 0     // 3 = compression stats;  5 = check encoded sequences;  9 = full logs
-#include <stdio.h>
-#if defined(ZSTDv06_OPT_DEBUG) && ZSTDv06_OPT_DEBUG>=9
-    #define ZSTDv06_LOG_PARSER(...) printf(__VA_ARGS__)
-    #define ZSTDv06_LOG_ENCODE(...) printf(__VA_ARGS__)
-    #define ZSTDv06_LOG_BLOCK(...) printf(__VA_ARGS__)
-#else
-    #define ZSTDv06_LOG_PARSER(...)
-    #define ZSTDv06_LOG_ENCODE(...)
-    #define ZSTDv06_LOG_BLOCK(...)
-#endif
-
-#define ZSTDv06_OPT_NUM    (1<<12)
 #define ZSTDv06_DICT_MAGIC  0xEC30A436
 
 #define ZSTDv06_REP_NUM    3
@@ -1396,7 +1359,7 @@ static unsigned char FSEv06_decodeSymbolFast(FSEv06_DState_t* DStatePtr, BITv06_
 *******************************************/
 
 
-/*<=====    Decompression    =====>*/
+/* ======    Decompression    ====== */
 
 typedef struct {
     U16 tableLog;

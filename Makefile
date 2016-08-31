@@ -1,38 +1,16 @@
 # ################################################################
-# zstd - Makefile
-# Copyright (C) Yann Collet 2014-2016
+# Copyright (c) 2016-present, Yann Collet, Facebook, Inc.
 # All rights reserved.
 #
-# BSD license
-#
-# Redistribution and use in source and binary forms, with or without modification,
-# are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice, this
-#   list of conditions and the following disclaimer in the documentation and/or
-#   other materials provided with the distribution.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-# WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-# DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR
-# ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-# (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
-# ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-#
-# You can contact the author at :
-#  - zstd homepage : http://www.zstd.net/
+# This source code is licensed under the BSD-style license found in the
+# LICENSE file in the root directory of this source tree. An additional grant
+# of patent rights can be found in the PATENTS file in the same directory.
 # ################################################################
 
 PRGDIR  = programs
 ZSTDDIR = lib
 ZWRAPDIR = zlibWrapper
+TESTDIR  = tests
 
 # Define nul output
 ifneq (,$(filter Windows%,$(OS)))
@@ -47,9 +25,8 @@ default: zstd
 
 all:
 	$(MAKE) -C $(ZSTDDIR) $@
-	$(MAKE) -C $(PRGDIR) $@
-	@rm -f lib/decompress/*.o
-	$(MAKE) -C $(PRGDIR) all32
+	$(MAKE) -C $(PRGDIR) $@ zstd32
+	$(MAKE) -C $(TESTDIR) $@ all32
 
 zstd:
 	$(MAKE) -C $(PRGDIR)
@@ -60,11 +37,12 @@ zlibwrapper:
 	$(MAKE) -C $(ZWRAPDIR) all
 
 test:
-	$(MAKE) -C $(PRGDIR) $@
+	$(MAKE) -C $(TESTDIR) $@
 
 clean:
 	@$(MAKE) -C $(ZSTDDIR) $@ > $(VOID)
 	@$(MAKE) -C $(PRGDIR) $@ > $(VOID)
+	@$(MAKE) -C $(TESTDIR) $@ > $(VOID)
 	@$(MAKE) -C $(ZWRAPDIR) $@ > $(VOID)
 	@rm -f zstd
 	@echo Cleaning completed
@@ -99,19 +77,19 @@ gcc6test: clean
 
 clangtest: clean
 	clang -v
-	$(MAKE) all CC=clang MOREFLAGS="-Werror -Wconversion -Wno-sign-conversion"
+	$(MAKE) all CC=clang MOREFLAGS="-Werror -Wconversion -Wno-sign-conversion -Wdocumentation"
 
 armtest: clean
-	$(MAKE) -C $(PRGDIR) datagen   # use native, faster
-	$(MAKE) -C $(PRGDIR) test CC=arm-linux-gnueabi-gcc ZSTDRTTEST= MOREFLAGS="-Werror -static"
+	$(MAKE) -C $(TESTDIR) datagen   # use native, faster
+	$(MAKE) -C $(TESTDIR) test CC=arm-linux-gnueabi-gcc ZSTDRTTEST= MOREFLAGS="-Werror -static"
 
 ppctest: clean
-	$(MAKE) -C $(PRGDIR) datagen   # use native, faster
-	$(MAKE) -C $(PRGDIR) test CC=powerpc-linux-gnu-gcc ZSTDRTTEST= MOREFLAGS="-Werror -Wno-attributes -static"
+	$(MAKE) -C $(TESTDIR) datagen   # use native, faster
+	$(MAKE) -C $(TESTDIR) test CC=powerpc-linux-gnu-gcc ZSTDRTTEST= MOREFLAGS="-Werror -Wno-attributes -static"
 
 ppc64test: clean
-	$(MAKE) -C $(PRGDIR) datagen   # use native, faster
-	$(MAKE) -C $(PRGDIR) test CC=powerpc-linux-gnu-gcc ZSTDRTTEST= MOREFLAGS="-m64 -static"
+	$(MAKE) -C $(TESTDIR) datagen   # use native, faster
+	$(MAKE) -C $(TESTDIR) test CC=powerpc-linux-gnu-gcc ZSTDRTTEST= MOREFLAGS="-m64 -static"
 
 usan: clean
 	$(MAKE) test CC=clang MOREFLAGS="-g -fsanitize=undefined"
@@ -123,7 +101,7 @@ msan: clean
 	$(MAKE) test CC=clang MOREFLAGS="-g -fsanitize=memory -fno-omit-frame-pointer"   # datagen.c fails this test for no obvious reason
 
 asan32: clean
-	$(MAKE) -C $(PRGDIR) test32 CC=clang MOREFLAGS="-g -fsanitize=address"
+	$(MAKE) -C $(TESTDIR) test32 CC=clang MOREFLAGS="-g -fsanitize=address"
 
 uasan: clean
 	$(MAKE) test CC=clang MOREFLAGS="-g -fsanitize=address -fsanitize=undefined"
@@ -163,13 +141,13 @@ c11test: clean
 	CFLAGS="-std=c11" $(MAKE) all
 
 bmix64test: clean
-	CFLAGS="-O3 -mbmi -Werror" $(MAKE) -C $(PRGDIR) test
+	CFLAGS="-O3 -mbmi -Werror" $(MAKE) -C $(TESTDIR) test
 
 bmix32test: clean
-	CFLAGS="-O3 -mbmi -mx32 -Werror" $(MAKE) -C $(PRGDIR) test
+	CFLAGS="-O3 -mbmi -mx32 -Werror" $(MAKE) -C $(TESTDIR) test
 
 bmi32test: clean
-	CFLAGS="-O3 -mbmi -m32 -Werror" $(MAKE) -C $(PRGDIR) test
+	CFLAGS="-O3 -mbmi -m32 -Werror" $(MAKE) -C $(TESTDIR) test
 
 staticAnalyze: clean
 	CPPFLAGS=-g scan-build --status-bugs -v $(MAKE) all

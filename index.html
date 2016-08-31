@@ -43,7 +43,7 @@
         <!-- Collect the nav links, forms, and other content for toggling -->
         <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
           <ul class="nav navbar-nav navbar-nav">
-            <li><a href="https://github.com/Cyan4973/zstd/releases/latest">Latest Release</a></li>
+            <li><a href="https://github.com/facebook/zstd/releases/latest">Latest Release</a></li>
             <li><a href="#other-languages">Bindings</a></li>
             <li class="dropdown">
               <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-expanded="false">Index<span class="caret"></span></a>
@@ -55,8 +55,8 @@
             </li>
           </ul>
           <ul class="nav navbar-nav navbar-right">
-            <li><a href="https://github.com/Cyan4973/zstd/issues">Issue Tracker</a></li>
-            <li><a href="https://github.com/Cyan4973/zstd"><i class="fa fa-lg fa-github"></i> GitHub</a></li>
+            <li><a href="https://github.com/facebook/zstd/issues">Issue Tracker</a></li>
+            <li><a href="https://github.com/facebook/zstd"><i class="fa fa-lg fa-github"></i> GitHub</a></li>
           </ul>
         </div><!-- /.navbar-collapse -->
       </div><!-- /.container-fluid -->
@@ -118,10 +118,10 @@ compiled with gcc 5.2.1, on the [Silesia compression corpus].
 
 | Compression Speed vs Ratio | Decompression Speed |
 | ---------------------------|-------------------- |
-| <img src="https://raw.githubusercontent.com/Cyan4973/zstd/master/images/Cspeed4.png" alt="Compression Speed vs Ratio" style="height:500px;"> | <img src="https://raw.githubusercontent.com/Cyan4973/zstd/master/images/Dspeed4.png" alt="Decompression Speed" style="height:500px;">
+| <img src="https://raw.githubusercontent.com/facebook/zstd/master/images/Cspeed4.png" alt="Compression Speed vs Ratio" style="height:500px;"> | <img src="https://raw.githubusercontent.com/facebook/zstd/master/images/Dspeed4.png" alt="Decompression Speed" style="height:500px;">
 
 Several algorithms can produce higher compression ratio but at slower speed, falling outside of the graph.
-For a larger picture including very slow modes, [click on this link](https://raw.githubusercontent.com/Cyan4973/zstd/master/images/DCspeed5.png) .
+For a larger picture including very slow modes, [click on this link](https://raw.githubusercontent.com/facebook/zstd/master/images/DCspeed5.png) .
 
 <a name="small-data"></a>
 ### The case for Small Data compression
@@ -132,7 +132,7 @@ This problem is common to any compression algorithm. The reason is, compression 
 
 To solve this situation, Zstd offers a __training mode__, which can be used to tune the algorithm for a selected type of data, by providing it with a few samples. The result of the training is stored in a file called "dictionary", which can be loaded before compression and decompression. Using this dictionary, the compression ratio achievable on small data improves dramatically :
 
-<img src="https://raw.githubusercontent.com/Cyan4973/zstd/master/images/smallData.png" alt="Compressing Small Data" style="height:600px;">
+<img src="https://raw.githubusercontent.com/facebook/zstd/master/images/smallData.png" alt="Compressing Small Data" style="height:600px;">
 
 These compression gains are achieved while simultaneously providing faster compression and decompression speeds.
 

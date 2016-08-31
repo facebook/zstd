@@ -1,36 +1,12 @@
-/* ******************************************************************
-   Error codes and messages
-   Copyright (C) 2013-2015, Yann Collet
+/**
+ * Copyright (c) 2016-present, Yann Collet, Facebook, Inc.
+ * All rights reserved.
+ *
+ * This source code is licensed under the BSD-style license found in the
+ * LICENSE file in the root directory of this source tree. An additional grant
+ * of patent rights can be found in the PATENTS file in the same directory.
+ */
 
-   BSD 2-Clause License (http://www.opensource.org/licenses/bsd-license.php)
-
-   Redistribution and use in source and binary forms, with or without
-   modification, are permitted provided that the following conditions are
-   met:
-
-       * Redistributions of source code must retain the above copyright
-   notice, this list of conditions and the following disclaimer.
-       * Redistributions in binary form must reproduce the above
-   copyright notice, this list of conditions and the following disclaimer
-   in the documentation and/or other materials provided with the
-   distribution.
-
-   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-   "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-   LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-   A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-   OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-   SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-   LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-   DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-   THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-   You can contact the author at :
-   - Source repository : https://github.com/Cyan4973/FiniteStateEntropy
-   - Public forum : https://groups.google.com/forum/#!forum/lz4c
-****************************************************************** */
 #ifndef ERROR_H_MODULE
 #define ERROR_H_MODULE
 
@@ -3100,7 +3076,6 @@ static size_t ZSTD_decodeSeqHeaders(int* nbSeq, const BYTE** dumpsPtr, size_t* d
         /* Build DTables */
         switch(LLtype)
         {
-        U32 max;
         case bt_rle :
             LLlog = 0;
             FSE_buildDTable_rle(DTableLL, *ip++); break;
@@ -3108,17 +3083,16 @@ static size_t ZSTD_decodeSeqHeaders(int* nbSeq, const BYTE** dumpsPtr, size_t* d
             LLlog = LLbits;
             FSE_buildDTable_raw(DTableLL, LLbits); break;
         default :
-            max = MaxLL;
-            headerSize = FSE_readNCount(norm, &max, &LLlog, ip, iend-ip);
-            if (FSE_isError(headerSize)) return ERROR(GENERIC);
-            if (LLlog > LLFSELog) return ERROR(corruption_detected);
-            ip += headerSize;
-            FSE_buildDTable(DTableLL, norm, max, LLlog);
-        }
+            {   U32 max = MaxLL;
+                headerSize = FSE_readNCount(norm, &max, &LLlog, ip, iend-ip);
+                if (FSE_isError(headerSize)) return ERROR(GENERIC);
+                if (LLlog > LLFSELog) return ERROR(corruption_detected);
+                ip += headerSize;
+                FSE_buildDTable(DTableLL, norm, max, LLlog);
+        }   }
 
         switch(Offtype)
         {
-        U32 max;
         case bt_rle :
             Offlog = 0;
             if (ip > iend-2) return ERROR(srcSize_wrong);   /* min : "raw", hence no header, but at least xxLog bits */
@@ -3128,17 +3102,16 @@ static size_t ZSTD_decodeSeqHeaders(int* nbSeq, const BYTE** dumpsPtr, size_t* d
             Offlog = Offbits;
             FSE_buildDTable_raw(DTableOffb, Offbits); break;
         default :
-            max = MaxOff;
-            headerSize = FSE_readNCount(norm, &max, &Offlog, ip, iend-ip);
-            if (FSE_isError(headerSize)) return ERROR(GENERIC);
-            if (Offlog > OffFSELog) return ERROR(corruption_detected);
-            ip += headerSize;
-            FSE_buildDTable(DTableOffb, norm, max, Offlog);
-        }
+            {   U32 max = MaxOff;
+                headerSize = FSE_readNCount(norm, &max, &Offlog, ip, iend-ip);
+                if (FSE_isError(headerSize)) return ERROR(GENERIC);
+                if (Offlog > OffFSELog) return ERROR(corruption_detected);
+                ip += headerSize;
+                FSE_buildDTable(DTableOffb, norm, max, Offlog);
+        }   }
 
         switch(MLtype)
         {
-        U32 max;
         case bt_rle :
             MLlog = 0;
             if (ip > iend-2) return ERROR(srcSize_wrong); /* min : "raw", hence no header, but at least xxLog bits */
@@ -3147,14 +3120,13 @@ static size_t ZSTD_decodeSeqHeaders(int* nbSeq, const BYTE** dumpsPtr, size_t* d
             MLlog = MLbits;
             FSE_buildDTable_raw(DTableML, MLbits); break;
         default :
-            max = MaxML;
-            headerSize = FSE_readNCount(norm, &max, &MLlog, ip, iend-ip);
-            if (FSE_isError(headerSize)) return ERROR(GENERIC);
-            if (MLlog > MLFSELog) return ERROR(corruption_detected);
-            ip += headerSize;
-            FSE_buildDTable(DTableML, norm, max, MLlog);
-        }
-    }
+            {   U32 max = MaxML;
+                headerSize = FSE_readNCount(norm, &max, &MLlog, ip, iend-ip);
+                if (FSE_isError(headerSize)) return ERROR(GENERIC);
+                if (MLlog > MLFSELog) return ERROR(corruption_detected);
+                ip += headerSize;
+                FSE_buildDTable(DTableML, norm, max, MLlog);
+    }   }   }
 
     return ip-istart;
 }

@@ -1,33 +1,12 @@
-/*
-    Buffered version of Zstd compression library
-    Copyright (C) 2015-2016, Yann Collet.
+/**
+ * Copyright (c) 2016-present, Yann Collet, Facebook, Inc.
+ * All rights reserved.
+ *
+ * This source code is licensed under the BSD-style license found in the
+ * LICENSE file in the root directory of this source tree. An additional grant
+ * of patent rights can be found in the PATENTS file in the same directory.
+ */
 
-    BSD 2-Clause License (http://www.opensource.org/licenses/bsd-license.php)
-
-    Redistribution and use in source and binary forms, with or without
-    modification, are permitted provided that the following conditions are
-    met:
-    * Redistributions of source code must retain the above copyright
-    notice, this list of conditions and the following disclaimer.
-    * Redistributions in binary form must reproduce the above
-    copyright notice, this list of conditions and the following disclaimer
-    in the documentation and/or other materials provided with the
-    distribution.
-    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-    "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-    LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-    A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-    OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-    SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-    LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-    DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-    THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-    OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-    You can contact the author at :
-    - zstd homepage : http://www.zstd.net/
-*/
 
 
 /* *************************************
@@ -39,30 +18,6 @@
 #define ZBUFF_STATIC_LINKING_ONLY
 #include "zbuff.h"
 
-
-/*-***************************************************************************
-*  Streaming decompression howto
-*
-*  A ZBUFF_DCtx object is required to track streaming operations.
-*  Use ZBUFF_createDCtx() and ZBUFF_freeDCtx() to create/release resources.
-*  Use ZBUFF_decompressInit() to start a new decompression operation,
-*   or ZBUFF_decompressInitDictionary() if decompression requires a dictionary.
-*  Note that ZBUFF_DCtx objects can be re-init multiple times.
-*
-*  Use ZBUFF_decompressContinue() repetitively to consume your input.
-*  *srcSizePtr and *dstCapacityPtr can be any size.
-*  The function will report how many bytes were read or written by modifying *srcSizePtr and *dstCapacityPtr.
-*  Note that it may not consume the entire input, in which case it's up to the caller to present remaining input again.
-*  The content of @dst will be overwritten (up to *dstCapacityPtr) at each function call, so save its content if it matters, or change @dst.
-*  @return : a hint to preferred nb of bytes to use as input for next function call (it's only a hint, to help latency),
-*            or 0 when a frame is completely decoded,
-*            or an error code, which can be tested using ZBUFF_isError().
-*
-*  Hint : recommended buffer sizes (not compulsory) : ZBUFF_recommendedDInSize() and ZBUFF_recommendedDOutSize()
-*  output : ZBUFF_recommendedDOutSize==128 KB block size is the internal unit, it ensures it's always possible to write a full block when decoded.
-*  input  : ZBUFF_recommendedDInSize == 128KB + 3;
-*           just follow indications from ZBUFF_decompressContinue() to minimize latency. It should always be <= 128 KB + 3 .
-* *******************************************************************************/
 
 typedef enum { ZBUFFds_init, ZBUFFds_loadHeader,
                ZBUFFds_read, ZBUFFds_load, ZBUFFds_flush } ZBUFF_dStage;
@@ -83,7 +38,7 @@ struct ZBUFF_DCtx_s {
     BYTE headerBuffer[ZSTD_FRAMEHEADERSIZE_MAX];
     size_t lhSize;
     ZSTD_customMem customMem;
-};   /* typedef'd to ZBUFF_DCtx within "zstd_buffered.h" */
+};   /* typedef'd to ZBUFF_DCtx within "zbuff.h" */
 
 
 ZBUFF_DCtx* ZBUFF_createDCtx(void)

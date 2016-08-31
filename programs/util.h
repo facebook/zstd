@@ -1,26 +1,12 @@
-/* ******************************************************************
-  util.h - utility functions
-  Copyright (C) 2016, Przemyslaw Skibinski, Yann Collet.
+/**
+ * Copyright (c) 2016-present, Yann Collet, Facebook, Inc.
+ * All rights reserved.
+ *
+ * This source code is licensed under the BSD-style license found in the
+ * LICENSE file in the root directory of this source tree. An additional grant
+ * of patent rights can be found in the PATENTS file in the same directory.
+ */
 
-  GPL v2 License
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation; either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License along
-  with this program; if not, write to the Free Software Foundation, Inc.,
-  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
-
-  You can contact the author at :
-  - ZSTD homepage : http://www.zstd.net/
-*/
 #ifndef UTIL_H_MODULE
 #define UTIL_H_MODULE
 
@@ -245,7 +231,7 @@ UTIL_STATIC int UTIL_prepareFileList(const char *dirName, char** bufStart, size_
         if (cFile.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
             if (strcmp (cFile.cFileName, "..") == 0 ||
                 strcmp (cFile.cFileName, ".") == 0) continue;
-         //   printf ("[%s]\n", path);
+
             nbFiles += UTIL_prepareFileList(path, bufStart, pos, bufEnd);  /* Recursively call "UTIL_prepareFileList" with the new path. */
             if (*bufStart == NULL) { FindClose(hFile); return 0; }
         }
@@ -261,7 +247,6 @@ UTIL_STATIC int UTIL_prepareFileList(const char *dirName, char** bufStart, size_
                 *pos += pathLength + 1;
                 nbFiles++;
             }
-         //   printf ("%s\\%s nbFiles=%d left=%d\n", dirName, cFile.cFileName, nbFiles, (int)(bufEnd - *bufStart));
         }
     } while (FindNextFile(hFile, &cFile));
 
@@ -297,7 +282,6 @@ UTIL_STATIC int UTIL_prepareFileList(const char *dirName, char** bufStart, size_
             continue;
         }
         if (UTIL_isDirectory(path)) {
-         //   printf ("[%s]\n", path);
             nbFiles += UTIL_prepareFileList(path, bufStart, pos, bufEnd);  /* Recursively call "UTIL_prepareFileList" with the new path. */
             if (*bufStart == NULL) { closedir(dir); return 0; }
         } else {
@@ -312,9 +296,8 @@ UTIL_STATIC int UTIL_prepareFileList(const char *dirName, char** bufStart, size_
                 *pos += pathLength + 1;
                 nbFiles++;
             }
-         //   printf ("%s/%s nbFiles=%d left=%d\n", dirName, entry->d_name, nbFiles, (int)(bufEnd - *bufStart));
         }
-        errno = 0; // clear errno after UTIL_isDirectory, UTIL_prepareFileList
+        errno = 0; /* clear errno after UTIL_isDirectory, UTIL_prepareFileList */
     }
 
     if (errno != 0) {
@@ -335,7 +318,7 @@ UTIL_STATIC int UTIL_prepareFileList(const char *dirName, char** bufStart, size_
     return 0;
 }
 
-#endif // #ifdef _WIN32
+#endif /* #ifdef _WIN32 */
 
 /*
  * UTIL_createFileList - takes a list of files and directories (params: inputNames, inputNamesNb), scans directories,
@@ -405,4 +388,3 @@ UTIL_STATIC void UTIL_freeFileList(const char** filenameTable, char* allocatedBu
 #endif
 
 #endif /* UTIL_H_MODULE */
-

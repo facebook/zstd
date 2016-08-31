@@ -1,14 +1,25 @@
-scripts for automated testing of zstd
-================================
+Programs and scripts for automated testing of Zstandard
+=======================================================
 
-#### test-zstd-versions.py - script for testing zstd interoperability between versions
+This directory contains the following programs and scripts:
+- `datagen` : Synthetic and parametrable data generator, for tests
+- `fullbench`  : Precisely measure speed for each zstd inner functions
+- `fuzzer`  : Test tool, to check zstd integrity on target platform
+- `paramgrill` : parameter tester for zstd
+- `test-zstd-speed.py` : script for testing zstd speed difference between commits
+- `test-zstd-versions.py` : compatibility test between zstd versions stored on Github (v0.1+)
+- `zbufftest`  : Test tool to check ZBUFF (a buffered streaming API) integrity
+- `zstreamtest` : Fuzzer test tool for zstd streaming API
+
+
+#### `test-zstd-versions.py` - script for testing zstd interoperability between versions
 
 This script creates `versionsTest` directory to which zstd repository is cloned.
 Then all taged (released) versions of zstd are compiled.
 In the following step interoperability between zstd versions is checked.
 
 
-#### test-zstd-speed.py - script for testing zstd speed difference between commits
+#### `test-zstd-speed.py` - script for testing zstd speed difference between commits
 
 This script creates `speedTest` directory to which zstd repository is cloned.
 Then it compiles all branches of zstd and performs a speed benchmark for a given list of files (the `testFileNames` parameter).

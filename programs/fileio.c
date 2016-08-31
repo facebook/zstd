@@ -1,38 +1,26 @@
-/*
-  fileio.c - File i/o handler for zstd
-  Copyright (C) Yann Collet 2013-2016
+/**
+ * Copyright (c) 2016-present, Yann Collet, Facebook, Inc.
+ * All rights reserved.
+ *
+ * This source code is licensed under the BSD-style license found in the
+ * LICENSE file in the root directory of this source tree. An additional grant
+ * of patent rights can be found in the PATENTS file in the same directory.
+ */
 
-  GPL v2 License
 
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation; either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License along
-  with this program; if not, write to the Free Software Foundation, Inc.,
-  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
-
-  You can contact the author at :
-  - zstd homepage : http://www.zstd.net
-*/
 /*
   Note : this file is part of zstd command line, which is not library.
   The license of ZSTD library is BSD.
   The license of this file is GPLv2.
 */
 
+
 /* *************************************
-*  Tuning options
-***************************************/
+ *  Tuning options
+ ***************************************/
 #ifndef ZSTD_LEGACY_SUPPORT
 /* LEGACY_SUPPORT :
-*  decompressor can decode older formats (starting from Zstd 0.1+) */
+ *  decompressor can decode older formats (starting from Zstd 0.1+) */
 #  define ZSTD_LEGACY_SUPPORT 1
 #endif
 
@@ -45,7 +33,7 @@
 #  pragma warning(disable : 4204)  /* non-constant aggregate initializer */
 #endif
 #if defined(__MINGW32__) && !defined(_POSIX_SOURCE)
-#  define _POSIX_SOURCE 1          /* disable %llu warnings with MinGW on Windows */ 
+#  define _POSIX_SOURCE 1          /* disable %llu warnings with MinGW on Windows */
 #endif
 
 /*-*************************************
@@ -65,7 +53,6 @@
 
 #if defined(ZSTD_LEGACY_SUPPORT) && (ZSTD_LEGACY_SUPPORT==1)
 #  include "zstd_legacy.h"    /* ZSTD_isLegacy */
-#  include "fileio_legacy.h"  /* FIO_decompressLegacyFrame */
 #endif
 
 
@@ -610,7 +597,7 @@ static void FIO_fwriteSparseEnd(FILE* file, unsigned storedSkips)
 unsigned long long FIO_decompressFrame(dRess_t ress,
                                        FILE* foutput, FILE* finput, size_t alreadyLoaded)
 {
-    U64    frameSize = 0;
+    U64 frameSize = 0;
     size_t readSize;
     U32 storedSkips = 0;
 
@@ -702,13 +689,11 @@ static int FIO_decompressSrcFile(dRess_t ress, const char* srcFileName)
         readSomething = 1;
         if (sizeCheck != toRead) { DISPLAY("zstd: %s: unknown header \n", srcFileName); fclose(srcFile); return 1; }  /* srcFileName is empty */
         {   U32 const magic = MEM_readLE32(ress.srcBuffer);
-#if defined(ZSTD_LEGACY_SUPPORT) && (ZSTD_LEGACY_SUPPORT>=1)
-            if (ZSTD_isLegacy(ress.srcBuffer, 4)) {
-                filesize += FIO_decompressLegacyFrame(dstFile, srcFile, ress.dictBuffer, ress.dictBufferSize, magic);
-                continue;
-            }
+            if (((magic & 0xFFFFFFF0U) != ZSTD_MAGIC_SKIPPABLE_START) & (magic != ZSTD_MAGICNUMBER)
+#if defined(ZSTD_LEGACY_SUPPORT) && (ZSTD_LEGACY_SUPPORT >= 1)
+                  & (!ZSTD_isLegacy(ress.srcBuffer, toRead))
 #endif
-            if (((magic & 0xFFFFFFF0U) != ZSTD_MAGIC_SKIPPABLE_START) & (magic != ZSTD_MAGICNUMBER)) {
+                ) {
                 if ((g_overwrite) && !strcmp (srcFileName, stdinmark)) {  /* pass-through mode */
                     unsigned const result = FIO_passThrough(dstFile, srcFile, ress.srcBuffer, ress.srcBufferSize);
                     if (fclose(srcFile)) EXM_THROW(32, "zstd: %s close error", srcFileName);  /* error should never happen */
@@ -723,7 +708,7 @@ static int FIO_decompressSrcFile(dRess_t ress, const char* srcFileName)
 
     /* Final Status */
     DISPLAYLEVEL(2, "\r%79s\r", "");
-    DISPLAYLEVEL(2, "%-20.20s: %llu bytes \n", srcFileName, filesize);
+    DISPLAYLEVEL(2, "%-20s: %llu bytes \n", srcFileName, filesize);
 
     /* Close */
     if (fclose(srcFile)) EXM_THROW(33, "zstd: %s close error", srcFileName);  /* error should never happen */

@@ -1,36 +1,12 @@
-/* ******************************************************************
-   zstd_v05.c
-   Decompression module for ZSTD v0.5 legacy format
-   Copyright (C) 2016, Yann Collet.
+/**
+ * Copyright (c) 2016-present, Yann Collet, Facebook, Inc.
+ * All rights reserved.
+ *
+ * This source code is licensed under the BSD-style license found in the
+ * LICENSE file in the root directory of this source tree. An additional grant
+ * of patent rights can be found in the PATENTS file in the same directory.
+ */
 
-   BSD 2-Clause License (http://www.opensource.org/licenses/bsd-license.php)
-
-   Redistribution and use in source and binary forms, with or without
-   modification, are permitted provided that the following conditions are
-   met:
-
-       * Redistributions of source code must retain the above copyright
-   notice, this list of conditions and the following disclaimer.
-       * Redistributions in binary form must reproduce the above
-   copyright notice, this list of conditions and the following disclaimer
-   in the documentation and/or other materials provided with the
-   distribution.
-
-   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-   "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-   LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-   A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-   OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-   SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-   LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-   DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-   THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-    You can contact the author at :
-    - Homepage : http://www.zstd.net/
-****************************************************************** */
 
 /*- Dependencies -*/
 #include "zstd_v05.h"
@@ -859,16 +835,16 @@ void        FSEv05_freeDTable(FSEv05_DTable* dt);
 /*!
 FSEv05_buildDTable():
    Builds 'dt', which must be already allocated, using FSEv05_createDTable()
-   return : 0,
-            or an errorCode, which can be tested using FSEv05_isError() */
+   @return : 0,
+             or an errorCode, which can be tested using FSEv05_isError() */
 size_t FSEv05_buildDTable (FSEv05_DTable* dt, const short* normalizedCounter, unsigned maxSymbolValue, unsigned tableLog);
 
 /*!
 FSEv05_decompress_usingDTable():
-   Decompress compressed source @cSrc of size @cSrcSize using @dt
-   into @dst which must be already allocated.
-   return : size of regenerated data (necessarily <= @dstCapacity)
-            or an errorCode, which can be tested using FSEv05_isError() */
+   Decompress compressed source @cSrc of size @cSrcSize using `dt`
+   into `dst` which must be already allocated.
+   @return : size of regenerated data (necessarily <= @dstCapacity)
+             or an errorCode, which can be tested using FSEv05_isError() */
 size_t FSEv05_decompress_usingDTable(void* dst, size_t dstCapacity, const void* cSrc, size_t cSrcSize, const FSEv05_DTable* dt);
 
 
@@ -3333,7 +3309,6 @@ size_t ZSTDv05_decodeSeqHeaders(int* nbSeq, const BYTE** dumpsPtr, size_t* dumps
         /* Build DTables */
         switch(LLtype)
         {
-        U32 max;
         case FSEv05_ENCODING_RLE :
             LLlog = 0;
             FSEv05_buildDTable_rle(DTableLL, *ip++);
@@ -3346,17 +3321,16 @@ size_t ZSTDv05_decodeSeqHeaders(int* nbSeq, const BYTE** dumpsPtr, size_t* dumps
             break;
         case FSEv05_ENCODING_DYNAMIC :
         default :   /* impossible */
-            max = MaxLL;
-            headerSize = FSEv05_readNCount(norm, &max, &LLlog, ip, iend-ip);
-            if (FSEv05_isError(headerSize)) return ERROR(GENERIC);
-            if (LLlog > LLFSEv05Log) return ERROR(corruption_detected);
-            ip += headerSize;
-            FSEv05_buildDTable(DTableLL, norm, max, LLlog);
-        }
+            {   U32 max = MaxLL;
+                headerSize = FSEv05_readNCount(norm, &max, &LLlog, ip, iend-ip);
+                if (FSEv05_isError(headerSize)) return ERROR(GENERIC);
+                if (LLlog > LLFSEv05Log) return ERROR(corruption_detected);
+                ip += headerSize;
+                FSEv05_buildDTable(DTableLL, norm, max, LLlog);
+        }   }
 
         switch(Offtype)
         {
-        U32 max;
         case FSEv05_ENCODING_RLE :
             Offlog = 0;
             if (ip > iend-2) return ERROR(srcSize_wrong);   /* min : "raw", hence no header, but at least xxLog bits */
@@ -3370,17 +3344,16 @@ size_t ZSTDv05_decodeSeqHeaders(int* nbSeq, const BYTE** dumpsPtr, size_t* dumps
             break;
         case FSEv05_ENCODING_DYNAMIC :
         default :   /* impossible */
-            max = MaxOff;
-            headerSize = FSEv05_readNCount(norm, &max, &Offlog, ip, iend-ip);
-            if (FSEv05_isError(headerSize)) return ERROR(GENERIC);
-            if (Offlog > OffFSEv05Log) return ERROR(corruption_detected);
-            ip += headerSize;
-            FSEv05_buildDTable(DTableOffb, norm, max, Offlog);
-        }
+            {   U32 max = MaxOff;
+                headerSize = FSEv05_readNCount(norm, &max, &Offlog, ip, iend-ip);
+                if (FSEv05_isError(headerSize)) return ERROR(GENERIC);
+                if (Offlog > OffFSEv05Log) return ERROR(corruption_detected);
+                ip += headerSize;
+                FSEv05_buildDTable(DTableOffb, norm, max, Offlog);
+        }   }
 
         switch(MLtype)
         {
-        U32 max;
         case FSEv05_ENCODING_RLE :
             MLlog = 0;
             if (ip > iend-2) return ERROR(srcSize_wrong); /* min : "raw", hence no header, but at least xxLog bits */
@@ -3394,13 +3367,13 @@ size_t ZSTDv05_decodeSeqHeaders(int* nbSeq, const BYTE** dumpsPtr, size_t* dumps
             break;
         case FSEv05_ENCODING_DYNAMIC :
         default :   /* impossible */
-            max = MaxML;
-            headerSize = FSEv05_readNCount(norm, &max, &MLlog, ip, iend-ip);
-            if (FSEv05_isError(headerSize)) return ERROR(GENERIC);
-            if (MLlog > MLFSEv05Log) return ERROR(corruption_detected);
-            ip += headerSize;
-            FSEv05_buildDTable(DTableML, norm, max, MLlog);
-    }   }
+            {   U32 max = MaxML;
+                headerSize = FSEv05_readNCount(norm, &max, &MLlog, ip, iend-ip);
+                if (FSEv05_isError(headerSize)) return ERROR(GENERIC);
+                if (MLlog > MLFSEv05Log) return ERROR(corruption_detected);
+                ip += headerSize;
+                FSEv05_buildDTable(DTableML, norm, max, MLlog);
+    }   }   }
 
     return ip-istart;
 }
@@ -4030,7 +4003,7 @@ static size_t ZBUFFv05_limitCopy(void* dst, size_t maxDstSize, const void* src, 
 *  The function will report how many bytes were read or written by modifying *srcSizePtr and *maxDstSizePtr.
 *  Note that it may not consume the entire input, in which case it's up to the caller to call again the function with remaining input.
 *  The content of dst will be overwritten (up to *maxDstSizePtr) at each function call, so save its content if it matters or change dst .
-*  @return : a hint to preferred nb of bytes to use as input for next function call (it's only a hint, to improve latency)
+*  return : a hint to preferred nb of bytes to use as input for next function call (it's only a hint, to improve latency)
 *            or 0 when a frame is completely decoded
 *            or an error code, which can be tested using ZBUFFv05_isError().
 *

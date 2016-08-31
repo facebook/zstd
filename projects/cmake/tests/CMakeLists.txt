@@ -30,7 +30,7 @@
 #  - zstd homepage : http://www.zstd.net/
 # ################################################################
 
-PROJECT(programs)
+PROJECT(tests)
 
 SET(CMAKE_INCLUDE_CURRENT_DIR TRUE)
 
@@ -40,18 +40,22 @@ SET(ROOT_DIR ../../..)
 # Define programs directory, where sources and header files are located
 SET(LIBRARY_DIR ${ROOT_DIR}/lib)
 SET(PROGRAMS_DIR ${ROOT_DIR}/programs)
-INCLUDE_DIRECTORIES(${PROGRAMS_DIR} ${LIBRARY_DIR} ${LIBRARY_DIR}/common ${LIBRARY_DIR}/dictBuilder)
+SET(TESTS_DIR ${ROOT_DIR}/tests)
+INCLUDE_DIRECTORIES(${TESTS_DIR} ${PROGRAMS_DIR} ${LIBRARY_DIR} ${LIBRARY_DIR}/common ${LIBRARY_DIR}/dictBuilder)
 
-IF (ZSTD_LEGACY_SUPPORT)
-    SET(PROGRAMS_LEGACY_DIR ${PROGRAMS_DIR}/legacy)
-    INCLUDE_DIRECTORIES(${PROGRAMS_LEGACY_DIR} ${LIBRARY_DIR}/legacy)
-ENDIF (ZSTD_LEGACY_SUPPORT)
+ADD_EXECUTABLE(fullbench ${PROGRAMS_DIR}/datagen.c ${TESTS_DIR}/fullbench.c)
+TARGET_LINK_LIBRARIES(fullbench libzstd_static)
 
-ADD_EXECUTABLE(zstd ${PROGRAMS_DIR}/zstdcli.c ${PROGRAMS_DIR}/fileio.c ${PROGRAMS_DIR}/bench.c ${PROGRAMS_DIR}/datagen.c ${PROGRAMS_DIR}/dibio.c)
-TARGET_LINK_LIBRARIES(zstd libzstd_static)
+ADD_EXECUTABLE(fuzzer ${PROGRAMS_DIR}/datagen.c ${TESTS_DIR}/fuzzer.c)
+TARGET_LINK_LIBRARIES(fuzzer libzstd_static)
 
 IF (UNIX)
-    ADD_EXECUTABLE(zstd-frugal ${PROGRAMS_DIR}/zstdcli.c ${PROGRAMS_DIR}/fileio.c)
-    TARGET_LINK_LIBRARIES(zstd-frugal libzstd_static)
-    SET_TARGET_PROPERTIES(zstd-frugal PROPERTIES COMPILE_DEFINITIONS "ZSTD_NOBENCH;ZSTD_NODICT")
+    ADD_EXECUTABLE(zbufftest ${PROGRAMS_DIR}/datagen.c ${TESTS_DIR}/zbufftest.c)
+    TARGET_LINK_LIBRARIES(zbufftest libzstd_static)
+
+    ADD_EXECUTABLE(paramgrill ${PROGRAMS_DIR}/datagen.c ${TESTS_DIR}/paramgrill.c)
+    TARGET_LINK_LIBRARIES(paramgrill libzstd_static m) #m is math library
+
+    ADD_EXECUTABLE(datagen ${PROGRAMS_DIR}/datagen.c ${TESTS_DIR}/datagencli.c)
+    TARGET_LINK_LIBRARIES(datagen libzstd_static)
 ENDIF (UNIX)

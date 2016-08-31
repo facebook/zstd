@@ -1,34 +1,12 @@
-/*
-    zstd_internal - common functions to include
-    Header File for include
-    Copyright (C) 2014-2016, Yann Collet.
+/**
+ * Copyright (c) 2016-present, Yann Collet, Facebook, Inc.
+ * All rights reserved.
+ *
+ * This source code is licensed under the BSD-style license found in the
+ * LICENSE file in the root directory of this source tree. An additional grant
+ * of patent rights can be found in the PATENTS file in the same directory.
+ */
 
-    BSD 2-Clause License (http://www.opensource.org/licenses/bsd-license.php)
-
-    Redistribution and use in source and binary forms, with or without
-    modification, are permitted provided that the following conditions are
-    met:
-    * Redistributions of source code must retain the above copyright
-    notice, this list of conditions and the following disclaimer.
-    * Redistributions in binary form must reproduce the above
-    copyright notice, this list of conditions and the following disclaimer
-    in the documentation and/or other materials provided with the
-    distribution.
-    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-    "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-    LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-    A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-    OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-    SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-    LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-    DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-    THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-    OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-    You can contact the author at :
-    - zstd homepage : https://www.zstd.net
-*/
 #ifndef ZSTD_CCOMMON_H_MODULE
 #define ZSTD_CCOMMON_H_MODULE
 
@@ -51,19 +29,6 @@
 /*-*************************************
 *  Common constants
 ***************************************/
-#define ZSTD_OPT_DEBUG 0     /* 3 = compression stats;  5 = check encoded sequences;  9 = full logs */
-#if defined(ZSTD_OPT_DEBUG) && ZSTD_OPT_DEBUG>=9
-    #include <stdio.h>
-    #include <stdlib.h>
-    #define ZSTD_LOG_PARSER(...) printf(__VA_ARGS__)
-    #define ZSTD_LOG_ENCODE(...) printf(__VA_ARGS__)
-    #define ZSTD_LOG_BLOCK(...) printf(__VA_ARGS__)
-#else
-    #define ZSTD_LOG_PARSER(...)
-    #define ZSTD_LOG_ENCODE(...)
-    #define ZSTD_LOG_BLOCK(...)
-#endif
-
 #define ZSTD_OPT_NUM    (1<<12)
 #define ZSTD_DICT_MAGIC  0xEC30A437   /* v0.7+ */
 
@@ -184,16 +149,6 @@ typedef struct {
     U32 rep[ZSTD_REP_NUM];
 } ZSTD_optimal_t;
 
-#if ZSTD_OPT_DEBUG == 3
-    #include ".debug/zstd_stats.h"
-#else
-    struct ZSTD_stats_s { U32 unused; };
-    MEM_STATIC void ZSTD_statsPrint(ZSTD_stats_t* stats, U32 searchLength) { (void)stats; (void)searchLength; }
-    MEM_STATIC void ZSTD_statsInit(ZSTD_stats_t* stats) { (void)stats; }
-    MEM_STATIC void ZSTD_statsResetFreqs(ZSTD_stats_t* stats) { (void)stats; }
-    MEM_STATIC void ZSTD_statsUpdatePrices(ZSTD_stats_t* stats, size_t litLength, const BYTE* literals, size_t offset, size_t matchLength) { (void)stats; (void)litLength; (void)literals; (void)offset; (void)matchLength; }
-#endif   /* #if ZSTD_OPT_DEBUG == 3 */
-
 
 typedef struct seqDef_s {
     U32 offset;
@@ -233,7 +188,6 @@ typedef struct {
     U32  cachedPrice;
     U32  cachedLitLength;
     const BYTE* cachedLiterals;
-    ZSTD_stats_t stats;
 } seqStore_t;
 
 const seqStore_t* ZSTD_getSeqStore(const ZSTD_CCtx* ctx);
@@ -244,6 +198,9 @@ int ZSTD_isSkipFrame(ZSTD_DCtx* dctx);
 void* ZSTD_defaultAllocFunction(void* opaque, size_t size);
 void ZSTD_defaultFreeFunction(void* opaque, void* address);
 static const ZSTD_customMem defaultCustomMem = { ZSTD_defaultAllocFunction, ZSTD_defaultFreeFunction, NULL };
+void* ZSTD_malloc(size_t size, ZSTD_customMem customMem);
+void ZSTD_free(void* ptr, ZSTD_customMem customMem);
+
 
 /*======  common function  ======*/
 

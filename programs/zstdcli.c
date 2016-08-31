@@ -1,26 +1,13 @@
-/*
-  zstdcli - Command Line Interface (cli) for zstd
-  Copyright (C) Yann Collet 2014-2016
+/**
+ * Copyright (c) 2016-present, Yann Collet, Facebook, Inc.
+ * All rights reserved.
+ *
+ * This source code is licensed under the BSD-style license found in the
+ * LICENSE file in the root directory of this source tree. An additional grant
+ * of patent rights can be found in the PATENTS file in the same directory.
+ */
 
-  GPL v2 License
 
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation; either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License along
-  with this program; if not, write to the Free Software Foundation, Inc.,
-  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
-
-  You can contact the author at :
-  - zstd homepage : http://www.zstd.net/
-*/
 /*
   Note : this is a user program, not part of libzstd.
   The license of libzstd is BSD.
@@ -478,8 +465,8 @@ int main(int argCount, char** argv)
     }
 
     /* No input filename ==> use stdin and stdout */
-    filenameIdx += !filenameIdx;   /*< default input is stdin */
-    if (!strcmp(filenameTable[0], stdinmark) && !outFileName) outFileName = stdoutmark;   /*< when input is stdin, default output is stdout */
+    filenameIdx += !filenameIdx;   /* filenameTable[0] is stdin by default */
+    if (!strcmp(filenameTable[0], stdinmark) && !outFileName) outFileName = stdoutmark;   /* when input is stdin, default output is stdout */
 
     /* Check if input/output defined as console; trigger an error in this case */
     if (!strcmp(filenameTable[0], stdinmark) && IS_CONSOLE(stdin) ) CLEAN_RETURN(badusage(programName));

@@ -503,7 +503,7 @@ MEM_STATIC void FSE_flushCState(BIT_CStream_t* bitC, const FSE_CState_t* statePt
     BIT_flushBits(bitC);
 }
 
-/*<=====    Decompression    =====>*/
+/* ======    Decompression    ====== */
 
 typedef struct {
     U16 tableLog;

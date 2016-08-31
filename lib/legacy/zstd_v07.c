@@ -1,36 +1,12 @@
-/* ******************************************************************
-   zstd_v07.c
-   Decompression module for ZSTD v0.7 legacy format
-   Copyright (C) 2016, Yann Collet.
+/**
+ * Copyright (c) 2016-present, Yann Collet, Facebook, Inc.
+ * All rights reserved.
+ *
+ * This source code is licensed under the BSD-style license found in the
+ * LICENSE file in the root directory of this source tree. An additional grant
+ * of patent rights can be found in the PATENTS file in the same directory.
+ */
 
-   BSD 2-Clause License (http://www.opensource.org/licenses/bsd-license.php)
-
-   Redistribution and use in source and binary forms, with or without
-   modification, are permitted provided that the following conditions are
-   met:
-
-       * Redistributions of source code must retain the above copyright
-   notice, this list of conditions and the following disclaimer.
-       * Redistributions in binary form must reproduce the above
-   copyright notice, this list of conditions and the following disclaimer
-   in the documentation and/or other materials provided with the
-   distribution.
-
-   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-   "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-   LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-   A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-   OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-   SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-   LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-   DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-   THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-    You can contact the author at :
-    - Homepage : http://www.zstd.net/
-****************************************************************** */
 
 /*- Dependencies -*/
 #include <stddef.h>     /* size_t, ptrdiff_t */
@@ -1147,7 +1123,7 @@ static unsigned char FSEv07_decodeSymbolFast(FSEv07_DState_t* DStatePtr, BITv07_
 /* faster, but works only if nbBits is always >= 1 (otherwise, result will be corrupted) */
 
 
-/*<=====    Decompression    =====>*/
+/* ======    Decompression    ====== */
 
 typedef struct {
     U16 tableLog;
@@ -2989,18 +2965,6 @@ void ZSTDv07_defaultFreeFunction(void* opaque, void* address)
 /*-*************************************
 *  Common constants
 ***************************************/
-#define ZSTDv07_OPT_DEBUG 0     /* 3 = compression stats;  5 = check encoded sequences;  9 = full logs */
-#include <stdio.h>
-#if defined(ZSTDv07_OPT_DEBUG) && ZSTDv07_OPT_DEBUG>=9
-    #define ZSTDv07_LOG_PARSER(...) printf(__VA_ARGS__)
-    #define ZSTDv07_LOG_ENCODE(...) printf(__VA_ARGS__)
-    #define ZSTDv07_LOG_BLOCK(...) printf(__VA_ARGS__)
-#else
-    #define ZSTDv07_LOG_PARSER(...)
-    #define ZSTDv07_LOG_ENCODE(...)
-    #define ZSTDv07_LOG_BLOCK(...)
-#endif
-
 #define ZSTDv07_OPT_NUM    (1<<12)
 #define ZSTDv07_DICT_MAGIC  0xEC30A437   /* v0.7 */
 
@@ -4655,9 +4619,9 @@ size_t ZBUFFv07_decompressContinue(ZBUFFv07_DCtx* zbd,
 
         case ZBUFFds_loadHeader :
             {   size_t const hSize = ZSTDv07_getFrameParams(&(zbd->fParams), zbd->headerBuffer, zbd->lhSize);
+                if (ZSTDv07_isError(hSize)) return hSize;
                 if (hSize != 0) {
                     size_t const toLoad = hSize - zbd->lhSize;   /* if hSize!=0, hSize > zbd->lhSize */
-                    if (ZSTDv07_isError(hSize)) return hSize;
                     if (toLoad > (size_t)(iend-ip)) {   /* not enough input to load full header */
                         memcpy(zbd->headerBuffer + zbd->lhSize, ip, iend-ip);
                         zbd->lhSize += iend-ip;
@@ -4697,6 +4661,7 @@ size_t ZBUFFv07_decompressContinue(ZBUFFv07_DCtx* zbd,
                         if (zbd->outBuff == NULL) return ERROR(memory_allocation);
             }   }   }
             zbd->stage = ZBUFFds_read;
+            /* pass-through */
 
         case ZBUFFds_read:
             {   size_t const neededInSize = ZSTDv07_nextSrcSizeToDecompress(zbd->zd);

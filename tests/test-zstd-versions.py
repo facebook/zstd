@@ -1,6 +1,14 @@
 #!/usr/bin/env python3
 """Test zstd interoperability between versions"""
-# Based on LZ4 version test script, by Takayuki Matsuoka
+
+#
+# Copyright (c) 2016-present, Yann Collet, Facebook, Inc.
+# All rights reserved.
+#
+# This source code is licensed under the BSD-style license found in the
+# LICENSE file in the root directory of this source tree. An additional grant
+# of patent rights can be found in the PATENTS file in the same directory.
+#
 
 import filecmp
 import glob
@@ -152,6 +160,7 @@ def decompress_zst(tag):
                 print('OK     ')
         else:
             print('command does not work')
+            dec_error = 1
     return dec_error
 
 
@@ -203,7 +212,8 @@ if __name__ == '__main__':
     # Retrieve all release tags
     print('Retrieve all release tags :')
     os.chdir(clone_dir)
-    tags = get_git_tags() + [head]
+    alltags = get_git_tags() + [head]
+    tags = [t for t in alltags if t >= 'v0.4.0']
     print(tags)
 
     # Build all release zstd
@@ -261,6 +271,6 @@ if __name__ == '__main__':
         print(zstd + ' : ' + repr(os.path.getsize(zstd)) + ', ' + sha1_of_file(zstd))
 
     if error_code != 0:
-        print('==== ERROR !!! =====')
+        print('======  ERROR !!!  =======')
 
     sys.exit(error_code)

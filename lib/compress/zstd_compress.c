@@ -2806,14 +2806,13 @@ ZSTD_CStream* ZSTD_createCStream_advanced(ZSTD_customMem customMem)
     return zcs;
 }
 
-size_t ZSTD_freeCStream(ZSTD_CStream* zcs)
+void ZSTD_freeCStream(ZSTD_CStream* zcs)
 {
-    if (zcs==NULL) return 0;   /* support free on NULL */
+    if (zcs==NULL) return;   /* support free on NULL */
     ZSTD_freeCCtx(zcs->zc);
     if (zcs->inBuff) zcs->customMem.customFree(zcs->customMem.opaque, zcs->inBuff);
     if (zcs->outBuff) zcs->customMem.customFree(zcs->customMem.opaque, zcs->outBuff);
     zcs->customMem.customFree(zcs->customMem.opaque, zcs);
-    return 0;
 }
 
 

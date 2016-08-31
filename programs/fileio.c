@@ -295,8 +295,7 @@ static void FIO_freeCResources(cRess_t ress)
     free(ress.srcBuffer);
     free(ress.dstBuffer);
     free(ress.dictBuffer);
-    errorCode = ZSTD_freeCStream(ress.cctx);
-    if (ZSTD_isError(errorCode)) EXM_THROW(38, "zstd: error : can't release ZSTD_CStream : %s", ZSTD_getErrorName(errorCode));
+    ZSTD_freeCStream(ress.cctx);
 }
 
 

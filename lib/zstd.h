@@ -375,7 +375,7 @@ typedef struct ZSTD_outBuffer_s {
 
 typedef struct ZSTD_CStream_s ZSTD_CStream;
 ZSTD_CStream* ZSTD_createCStream(void);
-size_t ZSTD_freeCStream(ZSTD_CStream* zcs);
+void ZSTD_freeCStream(ZSTD_CStream* zcs);
 
 size_t ZSTD_CStreamInSize(void);    /**< recommended size for input buffer */
 size_t ZSTD_CStreamOutSize(void);   /**< recommended size for output buffer */

@@ -1,9 +1,11 @@
-v0.8.2
+v1.0.0
+Change Licensing, all project is now BSD, Copyright Facebook
 Small decompression speed improvement
-API : ZDICT_getDictID(), ZSTD_sizeof_{CCtx, DCtx, CStream, DStream}()
-CLI Legacy support for formats v0.4+
+API : Streaming API supports legacy format
+API : ZDICT_getDictID(), ZSTD_sizeof_{CCtx, DCtx, CStream, DStream}(), ZSTD_setDStreamParamter()
+CLI supports legacy formats v0.4+
+Fixed : compression fails on certain huge files, reported by Jesse McGrew
 Enhanced documentation, by Przemyslaw Skibinski
-Fixed : compression fails on specific huge files, bug introduced in v0.8.1, reported by Jesse McGrew
 
 v0.8.1
 New streaming API

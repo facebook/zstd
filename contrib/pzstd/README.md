@@ -1,6 +1,7 @@
 # Parallel Zstandard (PZstandard)
 
-Parallel Zstandard provides Zstandard format compatible compression and decompression that is able to utilize multiple cores.
+Parallel Zstandard is a Pigz-like tool for Zstandard.
+It provides Zstandard format compatible compression and decompression that is able to utilize multiple cores.
 It breaks the input up into equal sized chunks and compresses each chunk independently into a Zstandard frame.
 It then concatenates the frames together to produce the final compressed output.
 Optionally, with the `-p` option, PZstandard will write a 12 byte header for each frame that is a skippable frame in the Zstandard format, which tells PZstandard the size of the next compressed frame.
@@ -31,11 +32,11 @@ Compression Speed vs Ratio with 4 Threads | Decompression Speed with 4 Threads
 
 The test procedure was to run each of the following commands 2 times for each compression level, and take the minimum time.
 
-    time ./pzstd -# -n 4 -p -c silesia.tar > silesia.tar.zst
-    time ./pzstd -d -n 4    -c silesia.tar.zst > /dev/null
+    time pzstd -# -n 4 -p -c silesia.tar     > silesia.tar.zst
+    time pzstd -d -n 4    -c silesia.tar.zst > /dev/null
 
-    time pigz    -# -p 4 -k -c silesia.tar > silesia.tar.gz
-    time pigz    -d -p 4 -k -c silesia.tar.gz > /dev/null
+    time pigz  -# -p 4 -k -c silesia.tar     > silesia.tar.gz
+    time pigz  -d -p 4 -k -c silesia.tar.gz  > /dev/null
 
 PZstandard was tested using compression levels 1-19, and Pigz was tested using compression levels 1-9.
 Pigz cannot do parallel decompression, it simply does each of reading, decompression, and writing on separate threads.

@@ -1,3 +1,6 @@
+v1.0.1
+Fixed : CLI -d output to stdout by default when input is stdin (#322)
+
 v1.0.0
 Change Licensing, all project is now BSD, Copyright Facebook
 Small decompression speed improvement

@@ -1,6 +1,7 @@
 # Object files
 *.o
 *.ko
+*.dSYM
 
 # Libraries
 *.lib

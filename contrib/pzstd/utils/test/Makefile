@@ -7,9 +7,6 @@
 # of patent rights can be found in the PATENTS file in the same directory.
 # ##########################################################################
 
-GTEST_INC ?= -isystem googletest/googletest/include
-GTEST_LIB ?= -L googletest/build/googlemock/gtest
-
 # Define *.exe as extension for Windows systems
 ifneq (,$(filter Windows%,$(OS)))
 EXT =.exe
@@ -18,6 +15,10 @@ EXT =
 endif
 
 PZSTDDIR = ../..
+
+# Set GTEST_INC and GTEST_LIB to work with your install of gtest
+GTEST_INC ?= -isystem $(PZSTDDIR)/googletest/googletest/include
+GTEST_LIB ?= -L $(PZSTDDIR)/googletest/build/googlemock/gtest
 
 CPPFLAGS = -I$(PZSTDDIR) $(GTEST_INC) $(GTEST_LIB)
 CFLAGS  ?= -O3

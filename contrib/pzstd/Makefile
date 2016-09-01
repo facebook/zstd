@@ -59,6 +59,11 @@ main.o: main.cpp *.h utils/*.h
 pzstd: libzstd.a Pzstd.o SkippableFrame.o Options.o main.o
 	$(CXX) $(FLAGS) $^ -o $@$(EXT)
 
+googletest:
+	@git clone https://github.com/google/googletest
+	@mkdir -p googletest/build
+	@cd googletest/build && cmake .. && make
+
 test: libzstd.a Pzstd.o Options.o SkippableFrame.o
 	$(MAKE) -C utils/test test
 	$(MAKE) -C test test
@@ -67,5 +72,5 @@ clean:
 	$(MAKE) -C $(ZSTDDIR) clean
 	$(MAKE) -C utils/test clean
 	$(MAKE) -C test clean
-	@$(RM) libzstd.a *.o pzstd$(EXT)
+	@$(RM) -rf googletest/ libzstd.a *.o pzstd$(EXT)
 	@echo Cleaning completed

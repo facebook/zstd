@@ -31,7 +31,7 @@ zstd_compress(PyObject* self, PyObject* args, PyObject* kwargs)
         return PyErr_NoMemory();
 
     Py_BEGIN_ALLOW_THREADS
-    outlen = ZSTD_compress(out, buflen, in, inlen, level);
+    outlen = ZSTD_compress(out, buflen, in, (size_t)inlen, level);
     Py_END_ALLOW_THREADS
 
     if (ZSTD_isError(outlen)) {
@@ -67,7 +67,7 @@ zstd_decompress(PyObject* self, PyObject* args, PyObject* kwargs)
         return NULL;
 
     if (!buflen) {
-        buflen = ZSTD_getDecompressedSize(in, inlen);
+        buflen = ZSTD_getDecompressedSize(in, (size_t)inlen);
         if (!buflen) {
             PyErr_SetString(ZstdError, "Cannot guess decompressed size");
             return NULL;
@@ -79,7 +79,7 @@ zstd_decompress(PyObject* self, PyObject* args, PyObject* kwargs)
         return PyErr_NoMemory();
 
     Py_BEGIN_ALLOW_THREADS
-    outlen = ZSTD_decompress(out, (size_t)buflen, in, inlen);
+    outlen = ZSTD_decompress(out, (size_t)buflen, in, (size_t)inlen);
     Py_END_ALLOW_THREADS
 
     if (ZSTD_isError(outlen)) {

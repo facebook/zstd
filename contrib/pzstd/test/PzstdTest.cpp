@@ -15,17 +15,22 @@
 #include <cstddef>
 #include <cstdio>
 #include <memory>
+#include <random>
 
 using namespace std;
 using namespace pzstd;
 
 TEST(Pzstd, SmallSizes) {
+  unsigned seed = std::random_device{}();
+  std::fprintf(stderr, "Pzstd.SmallSizes seed: %u\n", seed);
+  std::mt19937 gen(seed);
+
   for (unsigned len = 1; len < 1028; ++len) {
     std::string inputFile = std::tmpnam(nullptr);
     auto guard = makeScopeGuard([&] { std::remove(inputFile.c_str()); });
     {
       static uint8_t buf[1028];
-      RDG_genBuffer(buf, len, 0.5, 0.0, 42);
+      RDG_genBuffer(buf, len, 0.5, 0.0, gen());
       auto fd = std::fopen(inputFile.c_str(), "wb");
       auto written = std::fwrite(buf, 1, len, fd);
       std::fclose(fd);
@@ -56,12 +61,16 @@ TEST(Pzstd, SmallSizes) {
 }
 
 TEST(Pzstd, LargeSizes) {
+  unsigned seed = std::random_device{}();
+  std::fprintf(stderr, "Pzstd.LargeSizes seed: %u\n", seed);
+  std::mt19937 gen(seed);
+
   for (unsigned len = 1 << 20; len <= (1 << 24); len *= 2) {
     std::string inputFile = std::tmpnam(nullptr);
     auto guard = makeScopeGuard([&] { std::remove(inputFile.c_str()); });
     {
       std::unique_ptr<uint8_t[]> buf(new uint8_t[len]);
-      RDG_genBuffer(buf.get(), len, 0.5, 0.0, 42);
+      RDG_genBuffer(buf.get(), len, 0.5, 0.0, gen());
       auto fd = std::fopen(inputFile.c_str(), "wb");
       auto written = std::fwrite(buf.get(), 1, len, fd);
       std::fclose(fd);

@@ -7,8 +7,8 @@ you can consult a list of known ports on [Zstandard homepage](http://www.zstd.ne
 
 |Branch      |Status   |
 |------------|---------|
-|master      | [![Build Status](https://travis-ci.org/Cyan4973/zstd.svg?branch=master)](https://travis-ci.org/Cyan4973/zstd) |
-|dev         | [![Build Status](https://travis-ci.org/Cyan4973/zstd.svg?branch=dev)](https://travis-ci.org/Cyan4973/zstd) |
+|master      | [![Build Status](https://travis-ci.org/facebook/zstd.svg?branch=master)](https://travis-ci.org/facebook/zstd) |
+|dev         | [![Build Status](https://travis-ci.org/facebook/zstd.svg?branch=dev)](https://travis-ci.org/facebook/zstd) |
 
 As a reference, several fast compression algorithms were tested and compared on a Core i7-3930K CPU @ 4.5GHz, using [lzbench], an open-source in-memory benchmark by @inikep compiled with gcc 5.4.0, with the [Silesia compression corpus].
 

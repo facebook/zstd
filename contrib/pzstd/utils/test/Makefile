@@ -21,10 +21,10 @@ GTEST_INC ?= -isystem $(PZSTDDIR)/googletest/googletest/include
 GTEST_LIB ?= -L $(PZSTDDIR)/googletest/build/googlemock/gtest
 
 CPPFLAGS = -I$(PZSTDDIR) $(GTEST_INC) $(GTEST_LIB)
-CFLAGS  ?= -O3
-CFLAGS  += -std=c++11
+CXXFLAGS  ?= -O3
+CXXFLAGS  += -std=c++11
 CFLAGS  += $(MOREFLAGS)
-FLAGS    = $(CPPFLAGS) $(CFLAGS) $(LDFLAGS)
+FLAGS    = $(CPPFLAGS) $(CXXFLAGS) $(LDFLAGS)
 
 %: %.cpp
 	$(CXX) $(FLAGS) -lgtest -lgtest_main $^ -o $@$(EXT)

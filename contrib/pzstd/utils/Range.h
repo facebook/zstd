@@ -16,6 +16,7 @@
 #include "utils/Likely.h"
 
 #include <cstddef>
+#include <cstring>
 #include <stdexcept>
 #include <string>
 #include <type_traits>

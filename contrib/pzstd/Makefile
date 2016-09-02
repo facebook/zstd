@@ -54,7 +54,7 @@ Options.o: Options.h Options.cpp
 main.o: main.cpp *.h utils/*.h
 	$(CXX) $(FLAGS) -c main.cpp -o $@
 
-pzstd: libzstd.a Pzstd.o SkippableFrame.o Options.o main.o
+pzstd: Pzstd.o SkippableFrame.o Options.o main.o libzstd.a 
 	$(CXX) $(FLAGS) $^ -o $@$(EXT)
 
 googletest:

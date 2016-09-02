@@ -7,7 +7,7 @@
  * of patent rights can be found in the PATENTS file in the same directory.
  */
 #include "SkippableFrame.h"
-#include "common/mem.h"
+#include "mem.h"
 #include "utils/Range.h"
 
 #include <cstdio>

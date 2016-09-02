@@ -9,7 +9,7 @@ matrix:
       env: PLATFORM="Ubuntu 12.04 container" CMD="make test && make clean && make travis-install"
     - os: linux
       sudo: false
-      env: PLATFORM="Ubuntu 12.04 container" CMD="make -C tests test-zstd_nolegacy && make clean && make zlibwrapper && make clean && make cmaketest"
+      env: PLATFORM="Ubuntu 12.04 container" CMD="make -C tests test-zstd_nolegacy && make clean && make zlibwrapper && make clean && make cmaketest && make -C contrib/pzstd googletest && make -C contrib/pzstd test && make -C contrib/pzstd clean"
     - os: linux
       sudo: false
       env: PLATFORM="Ubuntu 12.04 container" CMD="make usan"

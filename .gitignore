@@ -31,3 +31,4 @@ _zstdbench/
 *.idea
 *.swp
 .DS_Store
+googletest/

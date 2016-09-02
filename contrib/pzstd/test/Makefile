@@ -24,10 +24,10 @@ GTEST_LIB ?= -L $(PZSTDDIR)/googletest/build/googlemock/gtest
 
 CPPFLAGS = -I$(PZSTDDIR) $(GTEST_INC) $(GTEST_LIB) -I$(ZSTDDIR)/common -I$(PROGDIR)
 
-CFLAGS  ?= -O3
-CFLAGS  += -std=c++11
-CFLAGS  += $(MOREFLAGS)
-FLAGS    = $(CPPFLAGS) $(CFLAGS) $(LDFLAGS)
+CXXFLAGS  ?= -O3
+CXXFLAGS  += -std=c++11
+CXXFLAGS  += $(MOREFLAGS)
+FLAGS    = $(CPPFLAGS) $(CXXFLAGS) $(LDFLAGS)
 
 datagen.o: $(PROGDIR)/datagen.*
 	$(CXX) $(FLAGS) $(PROGDIR)/datagen.c -c -o $@

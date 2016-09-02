@@ -9,8 +9,9 @@ matrix:
       env: PLATFORM="Ubuntu 12.04 container" CMD="make test && make clean && make travis-install"
     - os: linux
       sudo: false
+      language: cpp
       install:
-        - if [ "$CXX" = "g++" ]; then export CXX="g++-4.8" CC="gcc-4.8"; fi
+        - export CXX="g++-4.8" CC="gcc-4.8"
       addons:
         apt:
           sources:

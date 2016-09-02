@@ -22,7 +22,7 @@ ZSTDDIR = ../../../lib
 GTEST_INC ?= -isystem $(PZSTDDIR)/googletest/googletest/include
 GTEST_LIB ?= -L $(PZSTDDIR)/googletest/build/googlemock/gtest
 
-CPPFLAGS = -I$(PZSTDDIR) $(GTEST_INC) $(GTEST_LIB) -I$(ZSTDDIR)/common -I$(PROGDIR)
+CPPFLAGS = -I$(PZSTDDIR) $(GTEST_INC) $(GTEST_LIB) -I$(ZSTDDIR) -I$(ZSTDDIR)/common -I$(PROGDIR) -I.
 
 CXXFLAGS  ?= -O3
 CXXFLAGS  += -std=c++11

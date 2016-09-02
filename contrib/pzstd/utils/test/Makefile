@@ -27,7 +27,7 @@ CFLAGS  += $(MOREFLAGS)
 FLAGS    = $(CPPFLAGS) $(CXXFLAGS) $(LDFLAGS)
 
 %: %.cpp
-	$(CXX) $(FLAGS) -lgtest -lgtest_main $^ -o $@$(EXT)
+	$(CXX) $(FLAGS) $^ -o $@$(EXT) -lgtest -lgtest_main -lpthread
 
 .PHONY: test clean
 

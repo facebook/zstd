@@ -146,23 +146,21 @@ bool Options::parse(int argc, const char** argv) {
   // Determine output file if not specified
   if (outputFile.empty()) {
     if (inputFile == "-") {
-      std::fprintf(
-          stderr,
-          "Invalid arguments: Reading from stdin, but -o not provided.\n");
-      return false;
-    }
-    // Attempt to add/remove zstd extension from the input file
-    if (decompress) {
-      int stemSize = inputFile.size() - zstdExtension.size();
-      if (stemSize > 0 && inputFile.substr(stemSize) == zstdExtension) {
-        outputFile = inputFile.substr(0, stemSize);
-      } else {
-        std::fprintf(
-            stderr, "Invalid argument: Unable to determine output file.\n");
-        return false;
-      }
+      outputFile = "-";
     } else {
-      outputFile = inputFile + zstdExtension;
+      // Attempt to add/remove zstd extension from the input file
+      if (decompress) {
+        int stemSize = inputFile.size() - zstdExtension.size();
+        if (stemSize > 0 && inputFile.substr(stemSize) == zstdExtension) {
+          outputFile = inputFile.substr(0, stemSize);
+        } else {
+          std::fprintf(
+              stderr, "Invalid argument: Unable to determine output file.\n");
+          return false;
+        }
+      } else {
+        outputFile = inputFile + zstdExtension;
+      }
     }
   }
   // Check compression level

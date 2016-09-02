@@ -145,6 +145,71 @@ TEST(WorkQueue, MPMC) {
   }
 }
 
+TEST(WorkQueue, BoundedSizeWorks) {
+  WorkQueue<int> queue(1);
+  int result;
+  queue.push(5);
+  queue.pop(result);
+  queue.push(5);
+  queue.pop(result);
+  queue.push(5);
+  queue.finish();
+  queue.pop(result);
+  EXPECT_EQ(5, result);
+}
+
+TEST(WorkQueue, BoundedSizePushAfterFinish) {
+  WorkQueue<int> queue(1);
+  int result;
+  queue.push(5);
+  std::thread pusher([&queue] {
+    queue.push(6);
+  });
+  // Dirtily try and make sure that pusher has run.
+  std::this_thread::sleep_for(std::chrono::seconds(1));
+  queue.finish();
+  EXPECT_TRUE(queue.pop(result));
+  EXPECT_EQ(5, result);
+  EXPECT_FALSE(queue.pop(result));
+
+  pusher.join();
+}
+
+TEST(WorkQueue, BoundedSizeMPMC) {
+  WorkQueue<int> queue(100);
+  std::vector<int> results(10000, -1);
+  std::mutex mutex;
+  std::vector<std::thread> popperThreads;
+  for (int i = 0; i < 10; ++i) {
+    popperThreads.emplace_back(Popper{&queue, results.data(), &mutex});
+  }
+
+  std::vector<std::thread> pusherThreads;
+  for (int i = 0; i < 100; ++i) {
+    auto min = i * 100;
+    auto max = (i + 1) * 100;
+    pusherThreads.emplace_back(
+        [ &queue, min, max ] {
+          for (int i = min; i < max; ++i) {
+            queue.push(i);
+          }
+        });
+  }
+
+  for (auto& thread : pusherThreads) {
+    thread.join();
+  }
+  queue.finish();
+
+  for (auto& thread : popperThreads) {
+    thread.join();
+  }
+
+  for (int i = 0; i < 10000; ++i) {
+    EXPECT_EQ(i, results[i]);
+  }
+}
+
 TEST(BufferWorkQueue, SizeCalculatedCorrectly) {
   {
     BufferWorkQueue queue;

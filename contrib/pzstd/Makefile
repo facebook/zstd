@@ -70,5 +70,5 @@ clean:
 	$(MAKE) -C $(ZSTDDIR) clean
 	$(MAKE) -C utils/test clean
 	$(MAKE) -C test clean
-	@$(RM) -rf googletest/ libzstd.a *.o pzstd$(EXT)
+	@$(RM) -rf libzstd.a *.o pzstd$(EXT)
 	@echo Cleaning completed

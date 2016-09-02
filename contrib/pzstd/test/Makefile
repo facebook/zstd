@@ -33,7 +33,7 @@ datagen.o: $(PROGDIR)/datagen.*
 	$(CXX) $(FLAGS) $(PROGDIR)/datagen.c -c -o $@
 
 %: %.cpp *.h datagen.o
-	$(CXX) $(FLAGS) -lgtest -lgtest_main $@.cpp datagen.o $(PZSTDDIR)/libzstd.a $(PZSTDDIR)/Pzstd.o $(PZSTDDIR)/SkippableFrame.o $(PZSTDDIR)/Options.o -o $@$(EXT)
+	$(CXX) $(FLAGS) $@.cpp datagen.o $(PZSTDDIR)/libzstd.a $(PZSTDDIR)/Pzstd.o $(PZSTDDIR)/SkippableFrame.o $(PZSTDDIR)/Options.o -o $@$(EXT) -lgtest -lgtest_main -lpthread
 
 .PHONY: test clean
 

@@ -9,6 +9,7 @@
 #include "Options.h"
 
 #include <cstdio>
+#include <cstring>
 
 namespace pzstd {
 

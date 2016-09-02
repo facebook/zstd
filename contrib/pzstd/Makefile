@@ -11,12 +11,10 @@ ZSTDDIR = ../../lib
 PROGDIR = ../../programs
 
 CPPFLAGS = -I$(ZSTDDIR) -I$(ZSTDDIR)/common -I$(ZSTDDIR)/dictBuilder -I$(PROGDIR) -I.
-CFLAGS  ?= -O3
-CFLAGS  += -Wall -Wextra -Wcast-qual -Wcast-align -Wstrict-aliasing=1 \
-           -Wswitch-enum -Wdeclaration-after-statement -Wstrict-prototypes -Wundef \
-		 			-std=c++11
-CFLAGS  += $(MOREFLAGS)
-FLAGS    = $(CPPFLAGS) $(CFLAGS) $(LDFLAGS)
+CXXFLAGS  ?= -O3
+CXXFLAGS  += -std=c++11
+CXXFLAGS  += $(MOREFLAGS)
+FLAGS    = $(CPPFLAGS) $(CXXFLAGS) $(LDFLAGS)
 
 
 ZSTDCOMMON_FILES := $(ZSTDDIR)/common/*.c
@@ -56,7 +54,7 @@ Options.o: Options.h Options.cpp
 main.o: main.cpp *.h utils/*.h
 	$(CXX) $(FLAGS) -c main.cpp -o $@
 
-pzstd: libzstd.a Pzstd.o SkippableFrame.o Options.o main.o
+pzstd: Pzstd.o SkippableFrame.o Options.o main.o libzstd.a 
 	$(CXX) $(FLAGS) $^ -o $@$(EXT)
 
 googletest:

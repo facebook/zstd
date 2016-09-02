@@ -9,6 +9,7 @@
 #pragma once
 
 #include <atomic>
+#include <cassert>
 #include <stdexcept>
 #include <string>
 
@@ -47,9 +48,7 @@ class ErrorHolder {
   }
 
   ~ErrorHolder() {
-    if (hasError()) {
-      throw std::logic_error(message_);
-    }
+    assert(!hasError());
   }
 };
 }

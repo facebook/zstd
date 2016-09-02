@@ -106,6 +106,16 @@ TEST(Options, ValidInputs) {
     Options expected = {
         2, 23, 3, false, "silesia.tar", "silesia.tar.pzstd", false, false};
   }
+  {
+    Options options;
+    std::array<const char*, 3> args = {{nullptr, "-n", "1"}};
+    EXPECT_TRUE(options.parse(args.size(), args.data()));
+  }
+  {
+    Options options;
+    std::array<const char*, 4> args = {{nullptr, "-", "-n", "1"}};
+    EXPECT_TRUE(options.parse(args.size(), args.data()));
+  }
 }
 
 TEST(Options, BadNumThreads) {
@@ -151,16 +161,6 @@ TEST(Options, BadOutputFile) {
   {
     Options options;
     std::array<const char*, 5> args = {{nullptr, "notzst", "-d", "-n", "1"}};
-    EXPECT_FALSE(options.parse(args.size(), args.data()));
-  }
-  {
-    Options options;
-    std::array<const char*, 3> args = {{nullptr, "-n", "1"}};
-    EXPECT_FALSE(options.parse(args.size(), args.data()));
-  }
-  {
-    Options options;
-    std::array<const char*, 4> args = {{nullptr, "-", "-n", "1"}};
     EXPECT_FALSE(options.parse(args.size(), args.data()));
   }
 }

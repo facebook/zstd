@@ -97,6 +97,7 @@ zstd-pgo : clean zstd
 	./zstd -b7i2 $(PROFILE_WITH)
 	./zstd -b5 $(PROFILE_WITH)
 	$(RM) zstd
+	$(RM) $(ZSTDDIR)/decompress/zstd_decompress.o
 	$(MAKE) zstd MOREFLAGS=-fprofile-use
 
 zstd-frugal: $(ZSTDDECOMP_O) $(ZSTD_FILES) zstdcli.c fileio.c
@@ -116,9 +117,10 @@ zstd-small: clean
 
 clean:
 	$(MAKE) -C ../lib clean
-	@$(RM) ../lib/decompress/*.o
+	@$(RM) $(ZSTDDIR)/decompress/*.o $(ZSTDDIR)/decompress/zstd_decompress.gcda
 	@$(RM) core *.o tmp* result* *.gcda dictionary *.zst \
-        zstd$(EXT) zstd32$(EXT) zstd-compress$(EXT) zstd-decompress$(EXT)
+        zstd$(EXT) zstd32$(EXT) zstd-compress$(EXT) zstd-decompress$(EXT) \
+        *.gcda default.profraw
 	@echo Cleaning completed
 
 

@@ -67,11 +67,14 @@ size_t pzstdMain(const Options& options, ErrorHolder& errorHolder) {
 
   // WorkQueue outlives ThreadPool so in the case of error we are certain
   // we don't accidently try to call push() on it after it is destroyed.
-  WorkQueue<std::shared_ptr<BufferWorkQueue>> outs;
+  WorkQueue<std::shared_ptr<BufferWorkQueue>> outs{2 * options.numThreads};
   size_t bytesWritten;
   {
-    // Initialize the thread pool with numThreads
-    ThreadPool executor(options.numThreads);
+    // Initialize the thread pool with numThreads + 1
+    // We add one because the read thread spends most of its time waiting.
+    // This also sets the minimum number of threads to 2, so the algorithm
+    // doesn't deadlock.
+    ThreadPool executor(options.numThreads + 1);
     if (!options.decompress) {
       // Add a job that reads the input and starts all the compression jobs
       executor.add(
@@ -229,6 +232,15 @@ calculateStep(size_t size, size_t numThreads, const ZSTD_parameters& params) {
 
 namespace {
 enum class FileStatus { Continue, Done, Error };
+/// Determines the status of the file descriptor `fd`.
+FileStatus fileStatus(FILE* fd) {
+  if (std::feof(fd)) {
+    return FileStatus::Done;
+  } else if (std::ferror(fd)) {
+    return FileStatus::Error;
+  }
+  return FileStatus::Continue;
+}
 } // anonymous namespace
 
 /**
@@ -243,10 +255,9 @@ readData(BufferWorkQueue& queue, size_t chunkSize, size_t size, FILE* fd) {
     auto bytesRead =
         std::fread(buffer.data(), 1, std::min(chunkSize, buffer.size()), fd);
     queue.push(buffer.splitAt(bytesRead));
-    if (std::feof(fd)) {
-      return FileStatus::Done;
-    } else if (std::ferror(fd) || bytesRead == 0) {
-      return FileStatus::Error;
+    auto status = fileStatus(fd);
+    if (status != FileStatus::Continue) {
+      return status;
     }
   }
   return FileStatus::Continue;
@@ -388,12 +399,19 @@ void asyncDecompressFrames(
       // frameSize is 0 if the frame info can't be decoded.
       Buffer buffer(SkippableFrame::kSize);
       auto bytesRead = std::fread(buffer.data(), 1, buffer.size(), fd);
+      status = fileStatus(fd);
       if (bytesRead == 0 && status != FileStatus::Continue) {
         break;
       }
       buffer.subtract(buffer.size() - bytesRead);
       frameSize = SkippableFrame::tryRead(buffer.range());
       in->push(std::move(buffer));
+    }
+    if (frameSize == 0) {
+      // We hit a non SkippableFrame, so this will be the last job.
+      // Make sure that we don't use too much memory
+      in->setMaxSize(64);
+      out->setMaxSize(64);
     }
     // Start decompression in the thread pool
     executor.add([&errorHolder, in, out] {

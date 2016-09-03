@@ -63,7 +63,9 @@ googletest:
 	@cd googletest/build && cmake .. && make
 
 test: libzstd.a Pzstd.o Options.o SkippableFrame.o
+	$(MAKE) -C utils/test clean
 	$(MAKE) -C utils/test test
+	$(MAKE) -C test clean
 	$(MAKE) -C test test
 
 clean:

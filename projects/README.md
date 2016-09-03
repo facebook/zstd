@@ -14,7 +14,7 @@ The following projects are included with the zstd distribution:
 #### How to compile zstd with Visual Studio
 
 1. Install Visual Studio e.g. VS 2015 Community Edition (it's free).
-2. Download the latest version of zstd from https://github.com/Cyan4973/zstd/releases
+2. Download the latest version of zstd from https://github.com/facebook/zstd/releases
 3. Decompress ZIP archive.
 4. Go to decompressed directory then to `projects` then `VS2010` and open `zstd.sln`
 5. Visual Studio will ask about converting VS2010 project to VS2015 and you should agree.

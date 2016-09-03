@@ -189,6 +189,6 @@ frame concatenation support
 v0.1.1
 fix compression bug
 detects write-flush errors
-git@github.com:Cyan4973/zstd.git
+
 v0.1.0
 first release

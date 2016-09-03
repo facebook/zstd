@@ -175,6 +175,27 @@ TEST(WorkQueue, BoundedSizePushAfterFinish) {
   pusher.join();
 }
 
+TEST(WorkQueue, SetMaxSize) {
+  WorkQueue<int> queue(2);
+  int result;
+  queue.push(5);
+  queue.push(6);
+  queue.setMaxSize(1);
+  std::thread pusher([&queue] {
+    queue.push(7);
+  });
+  // Dirtily try and make sure that pusher has run.
+  std::this_thread::sleep_for(std::chrono::seconds(1));
+  queue.finish();
+  EXPECT_TRUE(queue.pop(result));
+  EXPECT_EQ(5, result);
+  EXPECT_TRUE(queue.pop(result));
+  EXPECT_EQ(6, result);
+  EXPECT_FALSE(queue.pop(result));
+
+  pusher.join();
+}
+
 TEST(WorkQueue, BoundedSizeMPMC) {
   WorkQueue<int> queue(100);
   std::vector<int> results(10000, -1);

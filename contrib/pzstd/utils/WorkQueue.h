@@ -100,6 +100,19 @@ class WorkQueue {
   }
 
   /**
+   * Sets the maximum queue size.  If `maxSize == 0` then it is unbounded.
+   *
+   * @param maxSize The new maximum queue size.
+   */
+  void setMaxSize(std::size_t maxSize) {
+    {
+      std::lock_guard<std::mutex> lock(mutex_);
+      maxSize_ = maxSize;
+    }
+    writerCv_.notify_all();
+  }
+
+  /**
    * Promise that `push()` won't be called again, so once the queue is empty
    * there will never any more work.
    */
@@ -147,6 +160,10 @@ class BufferWorkQueue {
       size_.fetch_sub(buffer.size());
     }
     return result;
+  }
+
+  void setMaxSize(std::size_t maxSize) {
+    queue_.setMaxSize(maxSize);
   }
 
   void finish() {

@@ -463,12 +463,6 @@ static U32 ZDICT_dictSize(const dictItem* dictList)
 }
 
 
-#define DISPLAYUPDATE(l, ...) if (g_displayLevel>=l) { \
-            if (ZDICT_clockSpan(displayClock) > refreshRate)  \
-            { displayClock = clock(); DISPLAY(__VA_ARGS__); \
-            if (g_displayLevel>=4) fflush(stdout); } }
-static const clock_t refreshRate = CLOCKS_PER_SEC * 3 / 10;
-
 static size_t ZDICT_trainBuffer(dictItem* dictList, U32 dictListSize,
                             const void* const buffer, size_t bufferSize,   /* buffer must end with noisy guard band */
                             const size_t* fileSizes, unsigned nbFiles,
@@ -481,6 +475,12 @@ static size_t ZDICT_trainBuffer(dictItem* dictList, U32 dictListSize,
     U32* filePos = (U32*)malloc(nbFiles * sizeof(*filePos));
     size_t result = 0;
     clock_t displayClock = 0;
+    clock_t const refreshRate = CLOCKS_PER_SEC * 3 / 10;
+
+#   define DISPLAYUPDATE(l, ...) if (g_displayLevel>=l) { \
+            if (ZDICT_clockSpan(displayClock) > refreshRate)  \
+            { displayClock = clock(); DISPLAY(__VA_ARGS__); \
+            if (g_displayLevel>=4) fflush(stdout); } }
 
     /* init */
     DISPLAYLEVEL(2, "\r%70s\r", "");   /* clean display line */

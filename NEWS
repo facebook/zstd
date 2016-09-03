@@ -2,6 +2,7 @@ v1.0.1
 New : contrib/pzstd, parallel version of zstd, by Nick Terrell
 Fixed : CLI -d output to stdout by default when input is stdin (#322)
 Fixed : CLI correctly detects console on Mac OS-X
+Fixed : compatibility with OpenBSD, reported by Juan Francisco Cantero Hurtado (#319)
 Fixed : zstd-pgo, reported by octoploid (#329)
 
 v1.0.0

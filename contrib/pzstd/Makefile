@@ -10,7 +10,7 @@
 ZSTDDIR = ../../lib
 PROGDIR = ../../programs
 
-CPPFLAGS = -I$(ZSTDDIR) -I$(ZSTDDIR)/common -I$(ZSTDDIR)/dictBuilder -I$(PROGDIR) -I.
+CPPFLAGS = -I$(ZSTDDIR) -I$(ZSTDDIR)/common -I$(PROGDIR) -I.
 CXXFLAGS  ?= -O3
 CXXFLAGS  += -std=c++11
 CXXFLAGS  += $(MOREFLAGS)
@@ -55,7 +55,7 @@ main.o: main.cpp *.h utils/*.h
 	$(CXX) $(FLAGS) -c main.cpp -o $@
 
 pzstd: Pzstd.o SkippableFrame.o Options.o main.o libzstd.a 
-	$(CXX) $(FLAGS) $^ -o $@$(EXT)
+	$(CXX) $(FLAGS) $^ -o $@$(EXT) -lpthread
 
 googletest:
 	@git clone https://github.com/google/googletest
@@ -70,5 +70,5 @@ clean:
 	$(MAKE) -C $(ZSTDDIR) clean
 	$(MAKE) -C utils/test clean
 	$(MAKE) -C test clean
-	@$(RM) -rf googletest/ libzstd.a *.o pzstd$(EXT)
+	@$(RM) -rf libzstd.a *.o pzstd$(EXT)
 	@echo Cleaning completed

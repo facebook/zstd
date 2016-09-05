@@ -200,7 +200,7 @@ typedef struct ZSTD_outBuffer_s {
 *  Use ZSTD_initCStream_usingDict() for a compression which requires a dictionary.
 *
 *  Use ZSTD_compressStream() repetitively to consume input stream.
-*  The function will automatically update both `pos`.
+*  The function will automatically update both `pos` fields.
 *  Note that it may not consume the entire input, in which case `pos < size`,
 *  and it's up to the caller to present again remaining data.
 *  @return : a size hint, preferred nb of bytes to use as input for next function call
@@ -250,14 +250,15 @@ ZSTDLIB_API size_t ZSTD_endStream(ZSTD_CStream* zcs, ZSTD_outBuffer* output);
 *   or ZSTD_initDStream_usingDict() if decompression requires a dictionary.
 *
 *  Use ZSTD_decompressStream() repetitively to consume your input.
-*  The function will update both `pos`.
-*  Note that it may not consume the entire input (pos < size),
-*  in which case it's up to the caller to present remaining input again.
+*  The function will update both `pos` fields.
+*  Note that it may not consume the entire input, in which case `pos < size`,
+*  and it's up to the caller to present again remaining data.
 *  @return : 0 when a frame is completely decoded and fully flushed,
-*            1 when there is still some data left within internal buffer to flush,
-*            >1 when more data is expected, with value being a suggested next input size (it's just a hint, which helps latency, any size is accepted),
-*            or an error code, which can be tested using ZSTD_isError().
-*
+*            an error code, which can be tested using ZSTD_isError(),
+*            any value > 0, which means there is still some work to do to complete the frame.
+*            In general, the return value is a suggested next input size (merely a hint, to help latency).
+*            1 is a special value, which means either "there is still some data to flush", or "need 1 more byte as input".
+*            To deduct the meaning of "1", start by flushing. If there is nothing left to flush and result is still "1", it means "need 1 more byte".
 * *******************************************************************************/
 
 typedef struct ZSTD_DStream_s ZSTD_DStream;

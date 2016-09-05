@@ -144,7 +144,7 @@ The structure of a single Zstandard frame is following:
 __`Magic_Number`__
 
 4 Bytes, little-endian format.
-Value : 0xFD2FB527
+Value : 0xFD2FB528
 
 __`Frame_Header`__
 

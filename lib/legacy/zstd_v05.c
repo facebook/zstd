@@ -10,6 +10,7 @@
 
 /*- Dependencies -*/
 #include "zstd_v05.h"
+#include "error_private.h"
 
 
 /* ******************************************************************
@@ -254,79 +255,6 @@ MEM_STATIC size_t MEM_readLEST(const void* memPtr)
 
 #endif /* MEM_H_MODULE */
 
-/* ******************************************************************
-   Error codes list
-   Copyright (C) 2016, Yann Collet
-
-   BSD 2-Clause License (http://www.opensource.org/licenses/bsd-license.php)
-
-   Redistribution and use in source and binary forms, with or without
-   modification, are permitted provided that the following conditions are
-   met:
-
-       * Redistributions of source code must retain the above copyright
-   notice, this list of conditions and the following disclaimer.
-       * Redistributions in binary form must reproduce the above
-   copyright notice, this list of conditions and the following disclaimer
-   in the documentation and/or other materials provided with the
-   distribution.
-
-   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-   "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-   LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-   A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-   OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-   SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-   LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-   DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-   THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-   You can contact the author at :
-   - Source repository : https://github.com/Cyan4973/zstd
-****************************************************************** */
-#ifndef ERROR_PUBLIC_H_MODULE
-#define ERROR_PUBLIC_H_MODULE
-
-#if defined (__cplusplus)
-extern "C" {
-#endif
-
-
-/* ****************************************
-*  error codes list
-******************************************/
-typedef enum {
-  ZSTDv05_error_no_error,
-  ZSTDv05_error_GENERIC,
-  ZSTDv05_error_prefix_unknown,
-  ZSTDv05_error_frameParameter_unsupported,
-  ZSTDv05_error_frameParameter_unsupportedBy32bits,
-  ZSTDv05_error_init_missing,
-  ZSTDv05_error_memory_allocation,
-  ZSTDv05_error_stage_wrong,
-  ZSTDv05_error_dstSize_tooSmall,
-  ZSTDv05_error_srcSize_wrong,
-  ZSTDv05_error_corruption_detected,
-  ZSTDv05_error_tableLog_tooLarge,
-  ZSTDv05_error_maxSymbolValue_tooLarge,
-  ZSTDv05_error_maxSymbolValue_tooSmall,
-  ZSTDv05_error_dictionary_corrupted,
-  ZSTDv05_error_maxCode
-} ZSTDv05_ErrorCode;
-
-/* note : functions provide error codes in reverse negative order,
-          so compare with (size_t)(0-enum) */
-
-
-#if defined (__cplusplus)
-}
-#endif
-
-#endif /* ERROR_PUBLIC_H_MODULE */
-
-
 /*
     zstd - standard compression library
     Header File for static linking only
@@ -470,119 +398,6 @@ size_t ZSTDv05_decompressBlock(ZSTDv05_DCtx* dctx, void* dst, size_t dstCapacity
 #endif  /* ZSTDv05_STATIC_H */
 
 
-
-/* ******************************************************************
-   Error codes and messages
-   Copyright (C) 2013-2016, Yann Collet
-
-   BSD 2-Clause License (http://www.opensource.org/licenses/bsd-license.php)
-
-   Redistribution and use in source and binary forms, with or without
-   modification, are permitted provided that the following conditions are
-   met:
-
-       * Redistributions of source code must retain the above copyright
-   notice, this list of conditions and the following disclaimer.
-       * Redistributions in binary form must reproduce the above
-   copyright notice, this list of conditions and the following disclaimer
-   in the documentation and/or other materials provided with the
-   distribution.
-
-   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-   "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-   LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-   A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-   OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-   SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-   LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-   DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-   THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-   You can contact the author at :
-   - Source repository : https://github.com/Cyan4973/zstd
-****************************************************************** */
-/* Note : this module is expected to remain private, do not expose it */
-
-#ifndef ERROR_H_MODULE
-#define ERROR_H_MODULE
-
-#if defined (__cplusplus)
-extern "C" {
-#endif
-
-
-
-/* ****************************************
-*  Compiler-specific
-******************************************/
-#if defined(__GNUC__)
-#  define ERR_STATIC static __attribute__((unused))
-#elif defined (__cplusplus) || (defined (__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L) /* C99 */)
-#  define ERR_STATIC static inline
-#elif defined(_MSC_VER)
-#  define ERR_STATIC static __inline
-#else
-#  define ERR_STATIC static  /* this version may generate warnings for unused static functions; disable the relevant warning */
-#endif
-
-
-/*-****************************************
-*  Customization
-******************************************/
-typedef ZSTDv05_ErrorCode ERR_enum;
-#define PREFIX(name) ZSTDv05_error_##name
-
-
-/*-****************************************
-*  Error codes handling
-******************************************/
-#ifdef ERROR
-#  undef ERROR   /* reported already defined on VS 2015 (Rich Geldreich) */
-#endif
-#define ERROR(name) (size_t)-PREFIX(name)
-
-ERR_STATIC unsigned ERR_isError(size_t code) { return (code > ERROR(maxCode)); }
-
-ERR_STATIC ERR_enum ERR_getError(size_t code) { if (!ERR_isError(code)) return (ERR_enum)0; return (ERR_enum) (0-code); }
-
-
-/*-****************************************
-*  Error Strings
-******************************************/
-
-ERR_STATIC const char* ERR_getErrorName(size_t code)
-{
-    static const char* notErrorCode = "Unspecified error code";
-    switch( ERR_getError(code) )
-    {
-    case PREFIX(no_error): return "No error detected";
-    case PREFIX(GENERIC):  return "Error (generic)";
-    case PREFIX(prefix_unknown): return "Unknown frame descriptor";
-    case PREFIX(frameParameter_unsupported): return "Unsupported frame parameter";
-    case PREFIX(frameParameter_unsupportedBy32bits): return "Frame parameter unsupported in 32-bits mode";
-    case PREFIX(init_missing): return "Context should be init first";
-    case PREFIX(memory_allocation): return "Allocation error : not enough memory";
-    case PREFIX(stage_wrong): return "Operation not authorized at current processing stage";
-    case PREFIX(dstSize_tooSmall): return "Destination buffer is too small";
-    case PREFIX(srcSize_wrong): return "Src size incorrect";
-    case PREFIX(corruption_detected): return "Corrupted block detected";
-    case PREFIX(tableLog_tooLarge): return "tableLog requires too much memory";
-    case PREFIX(maxSymbolValue_tooLarge): return "Unsupported max possible Symbol Value : too large";
-    case PREFIX(maxSymbolValue_tooSmall): return "Specified maxSymbolValue is too small";
-    case PREFIX(dictionary_corrupted): return "Dictionary is corrupted";
-    case PREFIX(maxCode):
-    default: return notErrorCode;   /* should be impossible, due to ERR_getError() */
-    }
-}
-
-
-#if defined (__cplusplus)
-}
-#endif
-
-#endif /* ERROR_H_MODULE */
 /*
     zstd_internal - common functions to include
     Header File for include
@@ -2883,9 +2698,6 @@ static void ZSTDv05_copy4(void* dst, const void* src) { memcpy(dst, src, 4); }
 *   tells if a return value is an error code */
 unsigned ZSTDv05_isError(size_t code) { return ERR_isError(code); }
 
-/*! ZSTDv05_getError() :
-*   convert a `size_t` function result into a proper ZSTDv05_errorCode enum */
-ZSTDv05_ErrorCode ZSTDv05_getError(size_t code) { return ERR_getError(code); }
 
 /*! ZSTDv05_getErrorName() :
 *   provides error code string (useful for debugging) */

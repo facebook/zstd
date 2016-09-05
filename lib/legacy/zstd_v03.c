@@ -7,15 +7,11 @@
  * of patent rights can be found in the PATENTS file in the same directory.
  */
 
-#ifndef ERROR_H_MODULE
-#define ERROR_H_MODULE
-
-#if defined (__cplusplus)
-extern "C" {
-#endif
 
 #include <stddef.h>    /* size_t, ptrdiff_t */
 #include "zstd_v03.h"
+#include "error_private.h"
+
 
 /******************************************
 *  Compiler-specific
@@ -24,46 +20,7 @@ extern "C" {
 #   include <stdlib.h>  /* _byteswap_ulong */
 #   include <intrin.h>  /* _byteswap_* */
 #endif
-#if defined (__cplusplus) || (defined (__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L) /* C99 */)
-#  define ERR_STATIC static inline
-#elif defined(_MSC_VER)
-#  define ERR_STATIC static __inline
-#elif defined(__GNUC__)
-#  define ERR_STATIC static __attribute__((unused))
-#else
-#  define ERR_STATIC static  /* this version may generate warnings for unused static functions; disable the relevant warning */
-#endif
 
-
-/******************************************
-*  Error Management
-******************************************/
-#define PREFIX(name) ZSTD_error_##name
-
-#define ERROR(name) (size_t)-PREFIX(name)
-
-#define ERROR_LIST(ITEM) \
-        ITEM(PREFIX(No_Error)) ITEM(PREFIX(GENERIC)) \
-        ITEM(PREFIX(memory_allocation)) \
-        ITEM(PREFIX(dstSize_tooSmall)) ITEM(PREFIX(srcSize_wrong)) \
-        ITEM(PREFIX(prefix_unknown)) ITEM(PREFIX(corruption_detected)) \
-        ITEM(PREFIX(tableLog_tooLarge)) ITEM(PREFIX(maxSymbolValue_tooLarge)) ITEM(PREFIX(maxSymbolValue_tooSmall)) \
-        ITEM(PREFIX(maxCode))
-
-#define ERROR_GENERATE_ENUM(ENUM) ENUM,
-typedef enum { ERROR_LIST(ERROR_GENERATE_ENUM) } ERR_codes;  /* enum is exposed, to detect & handle specific errors; compare function result to -enum value */
-
-#define ERROR_CONVERTTOSTRING(STRING) #STRING,
-#define ERROR_GENERATE_STRING(EXPR) ERROR_CONVERTTOSTRING(EXPR)
-
-ERR_STATIC unsigned ERR_isError(size_t code) { return (code > ERROR(maxCode)); }
-
-
-#if defined (__cplusplus)
-}
-#endif
-
-#endif /* ERROR_H_MODULE */
 
 
 /* ******************************************************************

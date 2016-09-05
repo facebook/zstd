@@ -1,3 +1,10 @@
+v1.0.1
+New : contrib/pzstd, parallel version of zstd, by Nick Terrell
+Fixed : CLI -d output to stdout by default when input is stdin (#322)
+Fixed : CLI correctly detects console on Mac OS-X
+Fixed : compatibility with OpenBSD, reported by Juan Francisco Cantero Hurtado (#319)
+Fixed : zstd-pgo, reported by octoploid (#329)
+
 v1.0.0
 Change Licensing, all project is now BSD, Copyright Facebook
 Small decompression speed improvement
@@ -28,6 +35,9 @@ Fixed : combined --test amd --rm, reported by Andreas M. Nilsson
 Modified : minor compression level adaptations
 Updated : compression format specification to v0.2.0
 changed : zstd.h moved to /lib directory
+
+v0.7.5
+Transition version, supporting decoding of v0.8.x
 
 v0.7.4
 Added : homebrew for Mac, by Daniel Cade
@@ -179,6 +189,6 @@ frame concatenation support
 v0.1.1
 fix compression bug
 detects write-flush errors
-git@github.com:Cyan4973/zstd.git
+
 v0.1.0
 first release

@@ -19,7 +19,7 @@ import sys
 import subprocess
 from subprocess import Popen, PIPE
 
-repo_url = 'https://github.com/Cyan4973/zstd.git'
+repo_url = 'https://github.com/facebook/zstd.git'
 tmp_dir_name = 'tests/versionsTest'
 make_cmd = 'make'
 git_cmd = 'git'

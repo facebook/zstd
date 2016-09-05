@@ -551,7 +551,7 @@ Let's presume the following Huffman tree must be described :
 The tree depth is 4, since its smallest element uses 4 bits.
 Value `5` will not be listed, nor will values above `5`.
 Values from `0` to `4` will be listed using `Weight` instead of `Number_of_Bits`.
-Weight formula is : 
+Weight formula is :
 ```
 Weight = Number_of_Bits ? (Max_Number_of_Bits + 1 - Number_of_Bits) : 0
 ```
@@ -779,7 +779,7 @@ which specifies `Baseline` and `Number_of_Bits` to add.
 _Codes_ are FSE compressed,
 and interleaved with raw additional bits in the same bitstream.
 
-##### Literals length codes 
+##### Literals length codes
 
 Literals length codes are values ranging from `0` to `35` included.
 They define lengths from 0 to 131071 bytes.
@@ -1126,10 +1126,10 @@ When `Repeated_Offset2` is used, it's swapped with `Repeated_Offset1`.
 Dictionary format
 -----------------
 
-`zstd` is compatible with "pure content" dictionaries, free of any format restriction.
+`zstd` is compatible with "raw content" dictionaries, free of any format restriction.
 But dictionaries created by `zstd --train` follow a format, described here.
 
-__Pre-requisites__ : a dictionary has a known length,
+__Pre-requisites__ : a dictionary has a size,
                      defined either by a buffer limit, or a file size.
 
 | `Magic_Number` | `Dictionary_ID` | `Entropy_Tables` | `Content` |
@@ -1151,20 +1151,21 @@ _Reserved ranges :_
               - high range : >= (2^31)
 
 __`Entropy_Tables`__ : following the same format as a [compressed blocks].
-            They are stored in following order :
-            Huffman tables for literals, FSE table for offsets,
-            FSE table for match lengths, and FSE table for literals lengths.
-            It's finally followed by 3 offset values, populating recent offsets,
-            stored in order, 4-bytes little-endian each, for a total of 12 bytes.
+              They are stored in following order :
+              Huffman tables for literals, FSE table for offsets,
+              FSE table for match lengths, and FSE table for literals lengths.
+              It's finally followed by 3 offset values, populating recent offsets,
+              stored in order, 4-bytes little-endian each, for a total of 12 bytes.
 
-__`Content`__ : Where the actual dictionary content is.
-              Content size depends on Dictionary size.
+__`Content`__ : The rest of the dictionary is its content.
+              The content act as a "past" in front of data to compress or decompress.
 
 [compressed blocks]: #the-format-of-compressed_block
 
 
 Version changes
 ---------------
+- 0.2.1 : clarify field names, by Przemyslaw Skibinski
 - 0.2.0 : numerous format adjustments for zstd v0.8
 - 0.1.2 : limit Huffman tree depth to 11 bits
 - 0.1.1 : reserved dictID ranges

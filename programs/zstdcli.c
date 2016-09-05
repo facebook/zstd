@@ -52,7 +52,7 @@
 #  include <io.h>       /* _isatty */
 #  define IS_CONSOLE(stdStream) _isatty(_fileno(stdStream))
 #else
-#  if defined(_POSIX_C_SOURCE) || defined(_XOPEN_SOURCE) || defined(_POSIX_SOURCE)
+#  if defined(_POSIX_C_SOURCE) || defined(_XOPEN_SOURCE) || defined(_POSIX_SOURCE) || (defined(__APPLE__) && defined(__MACH__))  /* https://sourceforge.net/p/predef/wiki/OperatingSystems/ */
 #    include <unistd.h>   /* isatty */
 #    define IS_CONSOLE(stdStream) isatty(fileno(stdStream))
 #  else
@@ -83,7 +83,7 @@
 
 static const char*    g_defaultDictName = "dictionary";
 static const unsigned g_defaultMaxDictSize = 110 KB;
-static const int      g_defaultDictCLevel = 5;
+static const int      g_defaultDictCLevel = 3;
 static const unsigned g_defaultSelectivityLevel = 9;
 
 
@@ -182,7 +182,7 @@ static void waitEnter(void)
 /*! readU32FromChar() :
     @return : unsigned integer value reach from input in `char` format
     Will also modify `*stringPtr`, advancing it to position where it stopped reading.
-    Note : this function can overflow if result > MAX_UINT */
+    Note : this function can overflow if digit string > MAX_UINT */
 static unsigned readU32FromChar(const char** stringPtr)
 {
     unsigned result = 0;
@@ -289,13 +289,13 @@ int main(int argCount, char** argv)
                 argument++;
 
                 while (argument[0]!=0) {
-    #ifndef ZSTD_NOCOMPRESS
+#ifndef ZSTD_NOCOMPRESS
                     /* compression Level */
                     if ((*argument>='0') && (*argument<='9')) {
                         dictCLevel = cLevel = readU32FromChar(&argument);
                         continue;
                     }
-    #endif
+#endif
 
                     switch(argument[0])
                     {
@@ -337,7 +337,7 @@ int main(int argCount, char** argv)
                         /* recursive */
                     case 'r': recursive=1; argument++; break;
 
-    #ifndef ZSTD_NOBENCH
+#ifndef ZSTD_NOBENCH
                         /* Benchmark */
                     case 'b': bench=1; argument++; break;
 
@@ -368,7 +368,7 @@ int main(int argCount, char** argv)
                             BMK_SetBlockSize(bSize);
                         }
                         break;
-    #endif   /* ZSTD_NOBENCH */
+#endif   /* ZSTD_NOBENCH */
 
                         /* Dictionary Selection level */
                     case 's':
@@ -378,11 +378,11 @@ int main(int argCount, char** argv)
 
                         /* Pause at the end (-p) or set an additional param (-p#) (hidden option) */
                     case 'p': argument++;
-    #ifndef ZSTD_NOBENCH
+#ifndef ZSTD_NOBENCH
                         if ((*argument>='0') && (*argument<='9')) {
                             BMK_setAdditionalParam(readU32FromChar(&argument));
                         } else
-    #endif
+#endif
                             main_pause=1;
                         break;
                         /* unknown command */
@@ -470,7 +470,7 @@ int main(int argCount, char** argv)
 
     /* Check if input/output defined as console; trigger an error in this case */
     if (!strcmp(filenameTable[0], stdinmark) && IS_CONSOLE(stdin) ) CLEAN_RETURN(badusage(programName));
-    if (outFileName && !strcmp(outFileName, stdoutmark) && IS_CONSOLE(stdout) && !(forceStdout && decode))
+    if (outFileName && !strcmp(outFileName, stdoutmark) && IS_CONSOLE(stdout) && strcmp(filenameTable[0], stdinmark) && !(forceStdout && decode))
         CLEAN_RETURN(badusage(programName));
 
     /* user-selected output filename, only possible with a single file */

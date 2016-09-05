@@ -248,6 +248,7 @@ ZSTDLIB_API size_t ZSTD_endStream(ZSTD_CStream* zcs, ZSTD_outBuffer* output);
 *
 *  Use ZSTD_initDStream() to start a new decompression operation,
 *   or ZSTD_initDStream_usingDict() if decompression requires a dictionary.
+*   @return : recommended first input size
 *
 *  Use ZSTD_decompressStream() repetitively to consume your input.
 *  The function will update both `pos` fields.
@@ -303,7 +304,8 @@ ZSTDLIB_API size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* outp
 #define ZSTD_TARGETLENGTH_MAX 999
 
 #define ZSTD_FRAMEHEADERSIZE_MAX 18    /* for static allocation */
-static const size_t ZSTD_frameHeaderSize_min = 5;
+static const size_t ZSTD_frameHeaderSize_prefix = 5;
+static const size_t ZSTD_frameHeaderSize_min = 6;
 static const size_t ZSTD_frameHeaderSize_max = ZSTD_FRAMEHEADERSIZE_MAX;
 static const size_t ZSTD_skippableHeaderSize = 8;  /* magic number + skippable frame length */
 

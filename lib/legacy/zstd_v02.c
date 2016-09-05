@@ -13,6 +13,14 @@
 #include "error_private.h"
 
 
+/******************************************
+*  Compiler-specific
+******************************************/
+#if defined(_MSC_VER)   /* Visual Studio */
+#   include <stdlib.h>  /* _byteswap_ulong */
+#   include <intrin.h>  /* _byteswap_* */
+#endif
+
 
 /* ******************************************************************
    mem.h

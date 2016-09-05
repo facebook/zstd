@@ -1453,7 +1453,7 @@ unsigned ZSTDv01_isError(size_t code) { return ERR_isError(code); }
 *   Decompression code
 **************************************************************/
 
-static size_t ZSTD_getcBlockSize(const void* src, size_t srcSize, blockProperties_t* bpPtr)
+size_t ZSTDv01_getcBlockSize(const void* src, size_t srcSize, blockProperties_t* bpPtr)
 {
     const BYTE* const in = (const BYTE* const)src;
     BYTE headerFlags;
@@ -1506,7 +1506,7 @@ static size_t ZSTD_decompressLiterals(void* ctx,
 }
 
 
-static size_t ZSTD_decodeLiteralsBlock(void* ctx,
+size_t ZSTDv01_decodeLiteralsBlock(void* ctx,
                                 void* dst, size_t maxDstSize,
                           const BYTE** litStart, size_t* litSize,
                           const void* src, size_t srcSize)
@@ -1517,7 +1517,7 @@ static size_t ZSTD_decodeLiteralsBlock(void* ctx,
     BYTE* const oend = ostart + maxDstSize;
     blockProperties_t litbp;
 
-    size_t litcSize = ZSTD_getcBlockSize(src, srcSize, &litbp);
+    size_t litcSize = ZSTDv01_getcBlockSize(src, srcSize, &litbp);
     if (ZSTDv01_isError(litcSize)) return litcSize;
     if (litcSize > srcSize - ZSTD_blockHeaderSize) return ERROR(srcSize_wrong);
     ip += ZSTD_blockHeaderSize;
@@ -1914,7 +1914,7 @@ static size_t ZSTD_decompressBlock(
     size_t errorCode;
 
     /* Decode literals sub-block */
-    errorCode = ZSTD_decodeLiteralsBlock(ctx, dst, maxDstSize, &litPtr, &litSize, src, srcSize);
+    errorCode = ZSTDv01_decodeLiteralsBlock(ctx, dst, maxDstSize, &litPtr, &litSize, src, srcSize);
     if (ZSTDv01_isError(errorCode)) return errorCode;
     ip += errorCode;
     srcSize -= errorCode;
@@ -1944,7 +1944,7 @@ size_t ZSTDv01_decompressDCtx(void* ctx, void* dst, size_t maxDstSize, const voi
     /* Loop on each block */
     while (1)
     {
-        size_t blockSize = ZSTD_getcBlockSize(ip, iend-ip, &blockProperties);
+        size_t blockSize = ZSTDv01_getcBlockSize(ip, iend-ip, &blockProperties);
         if (ZSTDv01_isError(blockSize)) return blockSize;
 
         ip += ZSTD_blockHeaderSize;
@@ -2044,7 +2044,7 @@ size_t ZSTDv01_decompressContinue(ZSTDv01_Dctx* dctx, void* dst, size_t maxDstSi
     if (ctx->phase == 1)
     {
         blockProperties_t bp;
-        size_t blockSize = ZSTD_getcBlockSize(src, ZSTD_blockHeaderSize, &bp);
+        size_t blockSize = ZSTDv01_getcBlockSize(src, ZSTD_blockHeaderSize, &bp);
         if (ZSTDv01_isError(blockSize)) return blockSize;
         if (bp.blockType == bt_end)
         {

@@ -18,7 +18,7 @@ import traceback
 import hashlib
 
 script_version = 'v0.8.0 (2016-08-03)'
-default_repo_url = 'https://github.com/Cyan4973/zstd.git'
+default_repo_url = 'https://github.com/facebook/zstd.git'
 working_dir_name = 'speedTest'
 working_path = os.getcwd() + '/' + working_dir_name     # /path/to/zstd/tests/speedTest
 clone_path = working_path + '/' + 'zstd'                # /path/to/zstd/tests/speedTest/zstd

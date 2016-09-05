@@ -41,6 +41,7 @@ $ECHO "\nStarting playTests.sh isWindows=$isWindows"
 [ -n "$ZSTD" ] || die "ZSTD variable must be defined!"
 
 file $ZSTD
+
 $ECHO "\n**** simple tests **** "
 
 ./datagen > tmp
@@ -51,6 +52,8 @@ $ZSTD -99 -f tmp  # too large compression level, automatic sized down
 $ECHO "test : compress to stdout"
 $ZSTD tmp -c > tmpCompressed
 $ZSTD tmp --stdout > tmpCompressed       # long command format
+$ECHO "test : implied stdout when input is stdin"
+$ECHO bob | $ZSTD | $ZSTD -d
 $ECHO "test : null-length file roundtrip"
 $ECHO -n '' | $ZSTD - --stdout | $ZSTD -d --stdout
 $ECHO "test : decompress file with wrong suffix (must fail)"

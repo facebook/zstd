@@ -119,7 +119,7 @@ ZSTD_CCtx* ZSTD_createCCtx_advanced(ZSTD_customMem customMem)
     cctx = (ZSTD_CCtx*) ZSTD_malloc(sizeof(ZSTD_CCtx), customMem);
     if (!cctx) return NULL;
     memset(cctx, 0, sizeof(ZSTD_CCtx));
-    memcpy(&(cctx->customMem), &customMem, sizeof(ZSTD_customMem));
+    memcpy(&(cctx->customMem), &customMem, sizeof(customMem));
     return cctx;
 }
 
@@ -153,7 +153,7 @@ size_t ZSTD_checkCParams(ZSTD_compressionParameters cParams)
     CLAMPCHECK(cParams.chainLog, ZSTD_CHAINLOG_MIN, ZSTD_CHAINLOG_MAX);
     CLAMPCHECK(cParams.hashLog, ZSTD_HASHLOG_MIN, ZSTD_HASHLOG_MAX);
     CLAMPCHECK(cParams.searchLog, ZSTD_SEARCHLOG_MIN, ZSTD_SEARCHLOG_MAX);
-    { U32 const searchLengthMin = (cParams.strategy == ZSTD_fast || cParams.strategy == ZSTD_greedy) ? ZSTD_SEARCHLENGTH_MIN+1 : ZSTD_SEARCHLENGTH_MIN;
+    { U32 const searchLengthMin = ((cParams.strategy == ZSTD_fast) | (cParams.strategy == ZSTD_greedy)) ? ZSTD_SEARCHLENGTH_MIN+1 : ZSTD_SEARCHLENGTH_MIN;
       U32 const searchLengthMax = (cParams.strategy == ZSTD_fast) ? ZSTD_SEARCHLENGTH_MAX : ZSTD_SEARCHLENGTH_MAX-1;
       CLAMPCHECK(cParams.searchLength, searchLengthMin, searchLengthMax); }
     CLAMPCHECK(cParams.targetLength, ZSTD_TARGETLENGTH_MIN, ZSTD_TARGETLENGTH_MAX);
@@ -230,7 +230,8 @@ static U32 ZSTD_equivalentParams(ZSTD_parameters param1, ZSTD_parameters param2)
 {
     return (param1.cParams.hashLog  == param2.cParams.hashLog)
          & (param1.cParams.chainLog == param2.cParams.chainLog)
-         & (param1.cParams.strategy == param2.cParams.strategy);
+         & (param1.cParams.strategy == param2.cParams.strategy)
+         & ((param1.cParams.searchLength==3) == (param2.cParams.searchLength==3));
 }
 
 /*! ZSTD_continueCCtx() :

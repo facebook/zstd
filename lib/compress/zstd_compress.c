@@ -34,7 +34,7 @@
 #include <string.h>         /* memset */
 #include "mem.h"
 #define XXH_STATIC_LINKING_ONLY   /* XXH64_state_t */
-#include "xxhash.h"         /* XXH_reset, update, digest */
+#include "xxhash.h"               /* XXH_reset, update, digest */
 #define FSE_STATIC_LINKING_ONLY   /* FSE_encodeSymbol */
 #include "fse.h"
 #define HUF_STATIC_LINKING_ONLY
@@ -142,8 +142,7 @@ const seqStore_t* ZSTD_getSeqStore(const ZSTD_CCtx* ctx)   /* hidden interface *
 }
 
 
-#define CLAMP(val,min,max) { if (val<min) val=min; else if (val>max) val=max; }
-#define CLAMPCHECK(val,min,max) { if ((val<min) || (val>max)) return ERROR(compressionParameter_unsupported); }
+#define CLAMPCHECK(val,min,max) { if ((val<min) | (val>max)) return ERROR(compressionParameter_unsupported); }
 
 /** ZSTD_checkParams() :
     ensure param values remain within authorized range.
@@ -171,7 +170,7 @@ size_t ZSTD_checkCParams_advanced(ZSTD_compressionParameters cParams, U64 srcSiz
     if (cParams.windowLog < ZSTD_WINDOWLOG_ABSOLUTEMIN) return ERROR(compressionParameter_unsupported);
     if (srcSize <= (1ULL << cParams.windowLog)) cParams.windowLog = ZSTD_WINDOWLOG_MIN; /* fake value - temporary work around */
     if (srcSize <= (1ULL << cParams.chainLog)) cParams.chainLog = ZSTD_CHAINLOG_MIN;    /* fake value - temporary work around */
-    if ((srcSize <= (1ULL << cParams.hashLog)) && ((U32)cParams.strategy < (U32)ZSTD_btlazy2)) cParams.hashLog = ZSTD_HASHLOG_MIN;       /* fake value - temporary work around */
+    if ((srcSize <= (1ULL << cParams.hashLog)) & ((U32)cParams.strategy < (U32)ZSTD_btlazy2)) cParams.hashLog = ZSTD_HASHLOG_MIN;  /* fake value - temporary work around */
     return ZSTD_checkCParams(cParams);
 }
 
@@ -194,12 +193,12 @@ ZSTD_compressionParameters ZSTD_adjustCParams(ZSTD_compressionParameters cPar, u
             if (cPar.windowLog > srcLog) cPar.windowLog = srcLog;
     }   }
     if (cPar.hashLog > cPar.windowLog) cPar.hashLog = cPar.windowLog;
-    {   U32 const btPlus = (cPar.strategy == ZSTD_btlazy2) || (cPar.strategy == ZSTD_btopt);
+    {   U32 const btPlus = (cPar.strategy == ZSTD_btlazy2) | (cPar.strategy == ZSTD_btopt);
         U32 const maxChainLog = cPar.windowLog+btPlus;
         if (cPar.chainLog > maxChainLog) cPar.chainLog = maxChainLog; }   /* <= ZSTD_CHAINLOG_MAX */
 
     if (cPar.windowLog < ZSTD_WINDOWLOG_ABSOLUTEMIN) cPar.windowLog = ZSTD_WINDOWLOG_ABSOLUTEMIN;  /* required for frame header */
-    if ((cPar.hashLog  < ZSTD_HASHLOG_MIN) && ( (U32)cPar.strategy >= (U32)ZSTD_btlazy2)) cPar.hashLog = ZSTD_HASHLOG_MIN;  /* required to ensure collision resistance in bt */
+    if ((cPar.hashLog  < ZSTD_HASHLOG_MIN) & ((U32)cPar.strategy >= (U32)ZSTD_btlazy2)) cPar.hashLog = ZSTD_HASHLOG_MIN;  /* required to ensure collision resistance in bt */
 
     return cPar;
 }
@@ -255,7 +254,7 @@ static size_t ZSTD_resetCCtx_advanced (ZSTD_CCtx* zc,
             zc->workSpaceSize = neededSpace;
     }   }
 
-    if (reset) memset(zc->workSpace, 0, tableSpace );   /* reset only tables */
+    if (reset) memset(zc->workSpace, 0, tableSpace);   /* reset tables only */
     XXH64_reset(&zc->xxhState, 0);
     zc->hashLog3 = hashLog3;
     zc->hashTable = (U32*)(zc->workSpace);
@@ -2737,8 +2736,13 @@ ZSTDLIB_API size_t ZSTD_compress_usingCDict(ZSTD_CCtx* cctx,
                                      const void* src, size_t srcSize,
                                      const ZSTD_CDict* cdict)
 {
-    size_t const errorCode = ZSTD_copyCCtx(cctx, cdict->refContext);
-    if (ZSTD_isError(errorCode)) return errorCode;
+    if (cdict->dictContentSize) {
+        size_t const errorCode = ZSTD_copyCCtx(cctx, cdict->refContext);
+        if (ZSTD_isError(errorCode)) return errorCode;
+    } else {
+        size_t const errorCode = ZSTD_compressBegin_advanced(cctx, NULL, 0, cdict->refContext->params, srcSize);
+        if (ZSTD_isError(errorCode)) return errorCode;
+    }
 
     if (cdict->refContext->params.fParams.contentSizeFlag==1) {
         cctx->params.fParams.contentSizeFlag = 1;

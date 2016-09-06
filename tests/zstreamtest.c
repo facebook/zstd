@@ -242,6 +242,50 @@ static int basicUnitTests(U32 seed, double compressibility, ZSTD_customMem custo
     }   }
     DISPLAYLEVEL(4, "OK \n");
 
+    /* Complex context re-use scenario */
+    DISPLAYLEVEL(4, "test%3i : context re-use : ", testNb++);
+    ZSTD_freeCStream(zc);
+    zc = ZSTD_createCStream_advanced(customMem);
+    if (zc==NULL) goto _output_error;   /* memory allocation issue */
+    /* use 1 */
+    {   size_t const inSize = 513;
+        ZSTD_initCStream_advanced(zc, NULL, 0, ZSTD_getParams(19, inSize, 0), inSize);   /* needs btopt + search3 to trigger hashLog3 */
+        inBuff.src = CNBuffer;
+        inBuff.size = inSize;
+        inBuff.pos = 0;
+        outBuff.dst = (char*)(compressedBuffer)+cSize;
+        outBuff.size = ZSTD_compressBound(inSize);
+        outBuff.pos = 0;
+        { size_t const r = ZSTD_compressStream(zc, &outBuff, &inBuff);
+            if (ZSTD_isError(r)) goto _output_error; }
+        if (inBuff.pos != inBuff.size) goto _output_error;   /* entire input should be consumed */
+        { size_t const r = ZSTD_endStream(zc, &outBuff);
+            if (r != 0) goto _output_error; }  /* error, or some data not flushed */
+    }
+    /* use 2 */
+    {   size_t const inSize = 1025;   /* will not continue, because tables auto-adjust and are therefore different size */
+        ZSTD_initCStream_advanced(zc, NULL, 0, ZSTD_getParams(19, inSize, 0), inSize);   /* needs btopt + search3 to trigger hashLog3 */
+        inBuff.src = CNBuffer;
+        inBuff.size = inSize;
+        inBuff.pos = 0;
+        outBuff.dst = (char*)(compressedBuffer)+cSize;
+        outBuff.size = ZSTD_compressBound(inSize);
+        outBuff.pos = 0;
+        { size_t const r = ZSTD_compressStream(zc, &outBuff, &inBuff);
+            if (ZSTD_isError(r)) goto _output_error; }
+        if (inBuff.pos != inBuff.size) goto _output_error;   /* entire input should be consumed */
+        { size_t const r = ZSTD_endStream(zc, &outBuff);
+            if (r != 0) goto _output_error; }  /* error, or some data not flushed */
+    }
+    DISPLAYLEVEL(4, "OK \n");
+
+    DISPLAYLEVEL(4, "test%3i : check CStream size : ", testNb++);
+    { size_t const s = ZSTD_sizeof_CStream(zc);
+      if (ZSTD_isError(s)) goto _output_error;
+      DISPLAYLEVEL(4, "OK (%u bytes) \n", (U32)s);
+    }
+
+    /* test ZSTD_setDStreamParameter() resilience */
     DISPLAYLEVEL(4, "test%3i : wrong parameter for ZSTD_setDStreamParameter(): ", testNb++);
     { size_t const r = ZSTD_setDStreamParameter(zd, (ZSTD_DStreamParameter_e)999, 1);  /* large limit */
       if (!ZSTD_isError(r)) goto _output_error; }

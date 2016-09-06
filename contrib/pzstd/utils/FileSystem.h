@@ -20,7 +20,7 @@
 
 namespace pzstd {
 
-using file_status = struct stat;
+using file_status = struct ::stat;
 
 /// http://en.cppreference.com/w/cpp/filesystem/status
 inline file_status status(StringPiece path, std::error_code& ec) noexcept {
@@ -35,7 +35,13 @@ inline file_status status(StringPiece path, std::error_code& ec) noexcept {
 
 /// http://en.cppreference.com/w/cpp/filesystem/is_regular_file
 inline bool is_regular_file(file_status status) noexcept {
+#if defined(S_ISREG)
   return S_ISREG(status.st_mode);
+#elif !defined(S_ISREG) && defined(S_IFMT) && defined(S_IFREG)
+  return (status.st_mode & S_IFMT) == S_IFREG;
+#else
+  static_assert(false, "No POSIX stat() support.");
+#endif
 }
 
 /// http://en.cppreference.com/w/cpp/filesystem/is_regular_file

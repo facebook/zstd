@@ -733,8 +733,7 @@ static size_t ZSTD_decompressSequences(
         seqState_t seqState;
         dctx->fseEntropy = 1;
         { U32 i; for (i=0; i<ZSTD_REP_NUM; i++) seqState.prevOffset[i] = dctx->rep[i]; }
-        { size_t const errorCode = BIT_initDStream(&(seqState.DStream), ip, iend-ip);
-          if (ERR_isError(errorCode)) return ERROR(corruption_detected); }
+        CHECK_E(BIT_initDStream(&(seqState.DStream), ip, iend-ip), corruption_detected);
         FSE_initDState(&(seqState.stateLL), &(seqState.DStream), DTableLL);
         FSE_initDState(&(seqState.stateOffb), &(seqState.DStream), DTableOffb);
         FSE_initDState(&(seqState.stateML), &(seqState.DStream), DTableML);
@@ -1121,8 +1120,7 @@ static size_t ZSTD_loadEntropy(ZSTD_DCtx* dctx, const void* const dict, size_t c
         U32 offcodeMaxValue=MaxOff, offcodeLog=OffFSELog;
         size_t const offcodeHeaderSize = FSE_readNCount(offcodeNCount, &offcodeMaxValue, &offcodeLog, dictPtr, dictEnd-dictPtr);
         if (FSE_isError(offcodeHeaderSize)) return ERROR(dictionary_corrupted);
-        { size_t const errorCode = FSE_buildDTable(dctx->OffTable, offcodeNCount, offcodeMaxValue, offcodeLog);
-          if (FSE_isError(errorCode)) return ERROR(dictionary_corrupted); }
+        CHECK_E(FSE_buildDTable(dctx->OffTable, offcodeNCount, offcodeMaxValue, offcodeLog), dictionary_corrupted);
         dictPtr += offcodeHeaderSize;
     }
 
@@ -1130,8 +1128,7 @@ static size_t ZSTD_loadEntropy(ZSTD_DCtx* dctx, const void* const dict, size_t c
         unsigned matchlengthMaxValue = MaxML, matchlengthLog = MLFSELog;
         size_t const matchlengthHeaderSize = FSE_readNCount(matchlengthNCount, &matchlengthMaxValue, &matchlengthLog, dictPtr, dictEnd-dictPtr);
         if (FSE_isError(matchlengthHeaderSize)) return ERROR(dictionary_corrupted);
-        { size_t const errorCode = FSE_buildDTable(dctx->MLTable, matchlengthNCount, matchlengthMaxValue, matchlengthLog);
-          if (FSE_isError(errorCode)) return ERROR(dictionary_corrupted); }
+        CHECK_E(FSE_buildDTable(dctx->MLTable, matchlengthNCount, matchlengthMaxValue, matchlengthLog), dictionary_corrupted);
         dictPtr += matchlengthHeaderSize;
     }
 
@@ -1139,8 +1136,7 @@ static size_t ZSTD_loadEntropy(ZSTD_DCtx* dctx, const void* const dict, size_t c
         unsigned litlengthMaxValue = MaxLL, litlengthLog = LLFSELog;
         size_t const litlengthHeaderSize = FSE_readNCount(litlengthNCount, &litlengthMaxValue, &litlengthLog, dictPtr, dictEnd-dictPtr);
         if (FSE_isError(litlengthHeaderSize)) return ERROR(dictionary_corrupted);
-        { size_t const errorCode = FSE_buildDTable(dctx->LLTable, litlengthNCount, litlengthMaxValue, litlengthLog);
-          if (FSE_isError(errorCode)) return ERROR(dictionary_corrupted); }
+        CHECK_E(FSE_buildDTable(dctx->LLTable, litlengthNCount, litlengthMaxValue, litlengthLog), dictionary_corrupted);
         dictPtr += litlengthHeaderSize;
     }
 
@@ -1180,12 +1176,7 @@ static size_t ZSTD_decompress_insertDictionary(ZSTD_DCtx* dctx, const void* dict
 size_t ZSTD_decompressBegin_usingDict(ZSTD_DCtx* dctx, const void* dict, size_t dictSize)
 {
     CHECK_F(ZSTD_decompressBegin(dctx));
-
-    if (dict && dictSize) {
-        size_t const errorCode = ZSTD_decompress_insertDictionary(dctx, dict, dictSize);
-        if (ZSTD_isError(errorCode)) return ERROR(dictionary_corrupted);
-    }
-
+    if (dict && dictSize) CHECK_E(ZSTD_decompress_insertDictionary(dctx, dict, dictSize), dictionary_corrupted);
     return 0;
 }
 

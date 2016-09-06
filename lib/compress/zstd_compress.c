@@ -682,8 +682,7 @@ size_t ZSTD_compressSequences(ZSTD_CCtx* zc,
         FSE_CState_t  stateOffsetBits;
         FSE_CState_t  stateLitLength;
 
-        { size_t const errorCode = BIT_initCStream(&blockStream, op, oend-op);
-          if (ERR_isError(errorCode)) return ERROR(dstSize_tooSmall); }   /* not enough space remaining */
+        CHECK_E(BIT_initCStream(&blockStream, op, oend-op), dstSize_tooSmall); /* not enough space remaining */
 
         /* first symbols */
         FSE_initCState2(&stateMatchLength, CTable_MatchLength, mlCodeTable[nbSeq-1]);
@@ -2490,8 +2489,7 @@ static size_t ZSTD_loadDictEntropyStats(ZSTD_CCtx* cctx, const void* dict, size_
         unsigned offcodeMaxValue = MaxOff, offcodeLog = OffFSELog;
         size_t const offcodeHeaderSize = FSE_readNCount(offcodeNCount, &offcodeMaxValue, &offcodeLog, dictPtr, dictEnd-dictPtr);
         if (FSE_isError(offcodeHeaderSize)) return ERROR(dictionary_corrupted);
-        { size_t const errorCode = FSE_buildCTable(cctx->offcodeCTable, offcodeNCount, offcodeMaxValue, offcodeLog);
-          if (FSE_isError(errorCode)) return ERROR(dictionary_corrupted); }
+        CHECK_E (FSE_buildCTable(cctx->offcodeCTable, offcodeNCount, offcodeMaxValue, offcodeLog), dictionary_corrupted);
         dictPtr += offcodeHeaderSize;
     }
 
@@ -2499,8 +2497,7 @@ static size_t ZSTD_loadDictEntropyStats(ZSTD_CCtx* cctx, const void* dict, size_
         unsigned matchlengthMaxValue = MaxML, matchlengthLog = MLFSELog;
         size_t const matchlengthHeaderSize = FSE_readNCount(matchlengthNCount, &matchlengthMaxValue, &matchlengthLog, dictPtr, dictEnd-dictPtr);
         if (FSE_isError(matchlengthHeaderSize)) return ERROR(dictionary_corrupted);
-        { size_t const errorCode = FSE_buildCTable(cctx->matchlengthCTable, matchlengthNCount, matchlengthMaxValue, matchlengthLog);
-          if (FSE_isError(errorCode)) return ERROR(dictionary_corrupted); }
+        CHECK_E (FSE_buildCTable(cctx->matchlengthCTable, matchlengthNCount, matchlengthMaxValue, matchlengthLog), dictionary_corrupted);
         dictPtr += matchlengthHeaderSize;
     }
 
@@ -2508,8 +2505,7 @@ static size_t ZSTD_loadDictEntropyStats(ZSTD_CCtx* cctx, const void* dict, size_
         unsigned litlengthMaxValue = MaxLL, litlengthLog = LLFSELog;
         size_t const litlengthHeaderSize = FSE_readNCount(litlengthNCount, &litlengthMaxValue, &litlengthLog, dictPtr, dictEnd-dictPtr);
         if (FSE_isError(litlengthHeaderSize)) return ERROR(dictionary_corrupted);
-        { size_t const errorCode = FSE_buildCTable(cctx->litlengthCTable, litlengthNCount, litlengthMaxValue, litlengthLog);
-          if (FSE_isError(errorCode)) return ERROR(dictionary_corrupted); }
+        CHECK_E(FSE_buildCTable(cctx->litlengthCTable, litlengthNCount, litlengthMaxValue, litlengthLog), dictionary_corrupted);
         dictPtr += litlengthHeaderSize;
     }
 
@@ -2745,13 +2741,8 @@ ZSTDLIB_API size_t ZSTD_compress_usingCDict(ZSTD_CCtx* cctx,
                                      const void* src, size_t srcSize,
                                      const ZSTD_CDict* cdict)
 {
-    if (cdict->dictContentSize) {
-        size_t const errorCode = ZSTD_copyCCtx(cctx, cdict->refContext);
-        if (ZSTD_isError(errorCode)) return errorCode;
-    } else {
-        size_t const errorCode = ZSTD_compressBegin_advanced(cctx, NULL, 0, cdict->refContext->params, srcSize);
-        if (ZSTD_isError(errorCode)) return errorCode;
-    }
+    if (cdict->dictContentSize) CHECK_F(ZSTD_copyCCtx(cctx, cdict->refContext))
+    else CHECK_F(ZSTD_compressBegin_advanced(cctx, NULL, 0, cdict->refContext->params, srcSize));
 
     if (cdict->refContext->params.fParams.contentSizeFlag==1) {
         cctx->params.fParams.contentSizeFlag = 1;
@@ -2989,8 +2980,8 @@ size_t ZSTD_flushStream(ZSTD_CStream* zcs, ZSTD_outBuffer* output)
     size_t srcSize = 0;
     size_t sizeWritten = output->size - output->pos;
     size_t const result = ZSTD_compressStream_generic(zcs,
-                                                      (char*)(output->dst) + output->pos, &sizeWritten,
-                                                      &srcSize, &srcSize, /* use a valid src address instead of NULL */
+                                                     (char*)(output->dst) + output->pos, &sizeWritten,
+                                                     &srcSize, &srcSize, /* use a valid src address instead of NULL */
                                                       zsf_flush);
     output->pos += sizeWritten;
     if (ZSTD_isError(result)) return result;

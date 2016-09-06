@@ -10,6 +10,28 @@
 #ifndef ZSTD_CCOMMON_H_MODULE
 #define ZSTD_CCOMMON_H_MODULE
 
+/*-*******************************************************
+*  Compiler specifics
+*********************************************************/
+#ifdef _MSC_VER    /* Visual Studio */
+#  define FORCE_INLINE static __forceinline
+#  include <intrin.h>                    /* For Visual 2005 */
+#  pragma warning(disable : 4127)        /* disable: C4127: conditional expression is constant */
+#  pragma warning(disable : 4324)        /* disable: C4324: padded structure */
+#  pragma warning(disable : 4100)        /* disable: C4100: unreferenced formal parameter */
+#else
+#  if defined (__cplusplus) || defined (__STDC_VERSION__) && __STDC_VERSION__ >= 199901L   /* C99 */
+#    ifdef __GNUC__
+#      define FORCE_INLINE static inline __attribute__((always_inline))
+#    else
+#      define FORCE_INLINE static inline
+#    endif
+#  else
+#    define FORCE_INLINE static
+#  endif /* __STDC_VERSION__ */
+#endif
+
+
 /*-*************************************
 *  Dependencies
 ***************************************/

@@ -10,6 +10,7 @@
 
 #include <cstdio>
 #include <cstring>
+#include <thread>
 
 namespace pzstd {
 
@@ -103,6 +104,7 @@ bool Options::parse(int argc, const char** argv) {
         numThreads = parseUnsigned(argv[i]);
         if (numThreads == 0) {
           std::fprintf(stderr, "Invalid argument: # of threads must be > 0.\n");
+          return false;
         }
         break;
       case 'p':
@@ -169,12 +171,17 @@ bool Options::parse(int argc, const char** argv) {
     if (compressionLevel > maxCLevel) {
       std::fprintf(
           stderr, "Invalid compression level %u.\n", compressionLevel);
+      return false;
     }
   }
   // Check that numThreads is set
   if (numThreads == 0) {
-    std::fprintf(stderr, "Invalid arguments: # of threads not specified.\n");
-    return false;
+    numThreads = std::thread::hardware_concurrency();
+    if (numThreads == 0) {
+      std::fprintf(stderr, "Invalid arguments: # of threads not specified "
+                           "and unable to determine hardware concurrency.\n");
+      return false;
+    }
   }
   return true;
 }

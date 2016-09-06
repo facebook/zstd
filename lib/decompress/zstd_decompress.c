@@ -28,7 +28,6 @@
 #  define ZSTD_LEGACY_SUPPORT 0
 #endif
 
-
 /*!
 *  MAXWINDOWSIZE_DEFAULT :
 *  maximum window size accepted by DStream, by default.
@@ -123,7 +122,7 @@ size_t ZSTD_decompressBegin(ZSTD_DCtx* dctx)
     dctx->hufTable[0] = (HUF_DTable)((HufLog)*0x1000001);
     dctx->litEntropy = dctx->fseEntropy = 0;
     dctx->dictID = 0;
-    MEM_STATIC_ASSERT(sizeof(dctx->rep)==sizeof(repStartValue));
+    MEM_STATIC_ASSERT(sizeof(dctx->rep) == sizeof(repStartValue));
     memcpy(dctx->rep, repStartValue, sizeof(repStartValue));
     return 0;
 }
@@ -135,7 +134,7 @@ ZSTD_DCtx* ZSTD_createDCtx_advanced(ZSTD_customMem customMem)
     if (!customMem.customAlloc && !customMem.customFree) customMem = defaultCustomMem;
     if (!customMem.customAlloc || !customMem.customFree) return NULL;
 
-    dctx = (ZSTD_DCtx*) ZSTD_malloc(sizeof(ZSTD_DCtx), customMem);
+    dctx = (ZSTD_DCtx*)ZSTD_malloc(sizeof(ZSTD_DCtx), customMem);
     if (!dctx) return NULL;
     memcpy(&dctx->customMem, &customMem, sizeof(customMem));
     ZSTD_decompressBegin(dctx);
@@ -454,7 +453,6 @@ size_t ZSTD_decodeLiteralsBlock(ZSTD_DCtx* dctx,
         default:
             return ERROR(corruption_detected);   /* impossible */
         }
-
     }
 }
 
@@ -842,11 +840,9 @@ static size_t ZSTD_decompressFrame(ZSTD_DCtx* dctx,
 
     /* Frame Header */
     {   size_t const frameHeaderSize = ZSTD_frameHeaderSize(src, ZSTD_frameHeaderSize_prefix);
-        size_t result;
         if (ZSTD_isError(frameHeaderSize)) return frameHeaderSize;
         if (srcSize < frameHeaderSize+ZSTD_blockHeaderSize) return ERROR(srcSize_wrong);
-        result = ZSTD_decodeFrameHeader(dctx, src, frameHeaderSize);
-        if (ZSTD_isError(result)) return result;
+        CHECK_F(ZSTD_decodeFrameHeader(dctx, src, frameHeaderSize));
         ip += frameHeaderSize; remainingSize -= frameHeaderSize;
     }
 
@@ -1009,14 +1005,12 @@ size_t ZSTD_decompressContinue(ZSTD_DCtx* dctx, void* dst, size_t dstCapacity, c
         dctx->expected = 0;   /* not necessary to copy more */
 
     case ZSTDds_decodeFrameHeader:
-        {   size_t result;
-            memcpy(dctx->headerBuffer + ZSTD_frameHeaderSize_prefix, src, dctx->expected);
-            result = ZSTD_decodeFrameHeader(dctx, dctx->headerBuffer, dctx->headerSize);
-            if (ZSTD_isError(result)) return result;
-            dctx->expected = ZSTD_blockHeaderSize;
-            dctx->stage = ZSTDds_decodeBlockHeader;
-            return 0;
-        }
+        memcpy(dctx->headerBuffer + ZSTD_frameHeaderSize_prefix, src, dctx->expected);
+        CHECK_F(ZSTD_decodeFrameHeader(dctx, dctx->headerBuffer, dctx->headerSize));
+        dctx->expected = ZSTD_blockHeaderSize;
+        dctx->stage = ZSTDds_decodeBlockHeader;
+        return 0;
+
     case ZSTDds_decodeBlockHeader:
         {   blockProperties_t bp;
             size_t const cBlockSize = ZSTD_getcBlockSize(src, ZSTD_blockHeaderSize, &bp);
@@ -1185,8 +1179,7 @@ static size_t ZSTD_decompress_insertDictionary(ZSTD_DCtx* dctx, const void* dict
 
 size_t ZSTD_decompressBegin_usingDict(ZSTD_DCtx* dctx, const void* dict, size_t dictSize)
 {
-    { size_t const errorCode = ZSTD_decompressBegin(dctx);
-      if (ZSTD_isError(errorCode)) return errorCode; }
+    CHECK_F(ZSTD_decompressBegin(dctx));
 
     if (dict && dictSize) {
         size_t const errorCode = ZSTD_decompress_insertDictionary(dctx, dict, dictSize);
@@ -1428,10 +1421,8 @@ size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inB
 #if defined(ZSTD_LEGACY_SUPPORT) && (ZSTD_LEGACY_SUPPORT>=1)
                 {   U32 const legacyVersion = ZSTD_isLegacy(istart, iend-istart);
                     if (legacyVersion) {
-                        size_t initResult;
-                        initResult = ZSTD_initLegacyStream(&zds->legacyContext, zds->previousLegacyVersion, legacyVersion,
-                                                           zds->dictContent, zds->dictSize);
-                        if (ZSTD_isError(initResult)) return initResult;
+                        CHECK_F(ZSTD_initLegacyStream(&zds->legacyContext, zds->previousLegacyVersion, legacyVersion,
+                                                       zds->dictContent, zds->dictSize));
                         zds->legacyVersion = zds->previousLegacyVersion = legacyVersion;
                         return ZSTD_decompressLegacyStream(zds->legacyContext, zds->legacyVersion, output, input);
                     } else {
@@ -1455,11 +1446,9 @@ size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inB
             /* Consume header */
             ZSTD_decompressBegin_usingDict(zds->zd, zds->dictContent, zds->dictSize);
             {   size_t const h1Size = ZSTD_nextSrcSizeToDecompress(zds->zd);  /* == ZSTD_frameHeaderSize_prefix */
-                size_t const h1Result = ZSTD_decompressContinue(zds->zd, NULL, 0, zds->headerBuffer, h1Size);
-                if (ZSTD_isError(h1Result)) return h1Result;   /* should not happen : already checked */
+                CHECK_F(ZSTD_decompressContinue(zds->zd, NULL, 0, zds->headerBuffer, h1Size));
                 {   size_t const h2Size = ZSTD_nextSrcSizeToDecompress(zds->zd);
-                    size_t const h2Result = ZSTD_decompressContinue(zds->zd, NULL, 0, zds->headerBuffer+h1Size, h2Size);
-                    if (ZSTD_isError(h2Result)) return h2Result;
+                    CHECK_F(ZSTD_decompressContinue(zds->zd, NULL, 0, zds->headerBuffer+h1Size, h2Size));
             }   }
 
             zds->fParams.windowSize = MAX(zds->fParams.windowSize, 1U << ZSTD_WINDOWLOG_ABSOLUTEMIN);

@@ -247,7 +247,8 @@ static size_t ZSTD_continueCCtx(ZSTD_CCtx* cctx, ZSTD_parameters params, U64 fra
     cctx->dictID = 0;
     cctx->loadedDictEnd = 0;
     { int i; for (i=0; i<ZSTD_REP_NUM; i++) cctx->rep[i] = repStartValue[i]; }
-    cctx->seqStore.litLengthSum = 0;  /* force reset stats */
+    cctx->seqStore.litLengthSum = 0;  /* force reset of btopt stats */
+    XXH64_reset(&cctx->xxhState, 0);
     return 0;
 }
 

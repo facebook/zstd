@@ -1156,6 +1156,7 @@ __`Entropy_Tables`__ : following the same format as a [compressed blocks].
               FSE table for match lengths, and FSE table for literals lengths.
               It's finally followed by 3 offset values, populating recent offsets,
               stored in order, 4-bytes little-endian each, for a total of 12 bytes.
+              Each recent offset must have a value < dictionary size.
 
 __`Content`__ : The rest of the dictionary is its content.
               The content act as a "past" in front of data to compress or decompress.

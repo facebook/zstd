@@ -11,6 +11,7 @@
 #include "utils/Range.h"
 
 #include <sys/stat.h>
+#include <cerrno>
 #include <cstdint>
 #include <system_error>
 
@@ -20,12 +21,21 @@
 
 namespace pzstd {
 
+#if defined(_MSC_VER)
+using file_status = struct ::_stat64;
+#else
 using file_status = struct ::stat;
+#endif
 
 /// http://en.cppreference.com/w/cpp/filesystem/status
 inline file_status status(StringPiece path, std::error_code& ec) noexcept {
   file_status status;
-  if (stat(path.data(), &status)) {
+#if defined(_MSC_VER)
+  const auto error = ::_stat64(path.data(), &status);
+#else
+  const auto error = ::stat(path.data(), &status);
+#endif
+  if (error) {
     ec.assign(errno, std::generic_category());
   } else {
     ec.clear();

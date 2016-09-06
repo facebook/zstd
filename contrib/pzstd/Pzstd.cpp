@@ -41,7 +41,7 @@ size_t pzstdMain(const Options& options, ErrorHolder& errorHolder) {
       return 0;
     }
     std::error_code ec;
-    inputSize = file_size(options.inputFile, ec);
+    inputSize = static_cast<size_t>(file_size(options.inputFile, ec));
     if (ec) {
       inputSize = 0;
     }
@@ -155,7 +155,7 @@ static void compress(
     ZSTD_parameters parameters) {
   auto guard = makeScopeGuard([&] { out->finish(); });
   // Initialize the CCtx
-  std::unique_ptr<ZSTD_CStream, size_t (&)(ZSTD_CStream*)> ctx(
+  std::unique_ptr<ZSTD_CStream, size_t (*)(ZSTD_CStream*)> ctx(
       ZSTD_createCStream(), ZSTD_freeCStream);
   if (!errorHolder.check(ctx != nullptr, "Failed to allocate ZSTD_CStream")) {
     return;
@@ -311,7 +311,7 @@ static void decompress(
     std::shared_ptr<BufferWorkQueue> out) {
   auto guard = makeScopeGuard([&] { out->finish(); });
   // Initialize the DCtx
-  std::unique_ptr<ZSTD_DStream, size_t (&)(ZSTD_DStream*)> ctx(
+  std::unique_ptr<ZSTD_DStream, size_t (*)(ZSTD_DStream*)> ctx(
       ZSTD_createDStream(), ZSTD_freeDStream);
   if (!errorHolder.check(ctx != nullptr, "Failed to allocate ZSTD_DStream")) {
     return;

@@ -19,6 +19,7 @@
 #undef ZSTD_STATIC_LINKING_ONLY
 
 #include <cstddef>
+#include <cstdint>
 #include <memory>
 
 namespace pzstd {
@@ -52,7 +53,7 @@ void asyncCompressChunks(
     WorkQueue<std::shared_ptr<BufferWorkQueue>>& chunks,
     ThreadPool& executor,
     FILE* fd,
-    std::size_t size,
+    std::uintmax_t size,
     std::size_t numThreads,
     ZSTD_parameters parameters);
 

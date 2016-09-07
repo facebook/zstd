@@ -20,7 +20,7 @@
  ***************************************/
 #ifndef ZSTD_LEGACY_SUPPORT
 /* LEGACY_SUPPORT :
- *  decompressor can decode older formats (starting from Zstd 0.1+) */
+ *  decompressor can decode older formats (starting from zstd 0.1+) */
 #  define ZSTD_LEGACY_SUPPORT 1
 #endif
 
@@ -613,22 +613,22 @@ unsigned long long FIO_decompressFrame(dRess_t ress,
     while (1) {
         ZSTD_inBuffer  inBuff = { ress.srcBuffer, readSize, 0 };
         ZSTD_outBuffer outBuff= { ress.dstBuffer, ress.dstBufferSize, 0 };
-        size_t const toRead = ZSTD_decompressStream(ress.dctx, &outBuff, &inBuff );
-        if (ZSTD_isError(toRead)) EXM_THROW(36, "Decoding error : %s", ZSTD_getErrorName(toRead));
+        size_t const readSizeHint = ZSTD_decompressStream(ress.dctx, &outBuff, &inBuff );
+        if (ZSTD_isError(readSizeHint)) EXM_THROW(36, "Decoding error : %s", ZSTD_getErrorName(readSizeHint));
 
         /* Write block */
         storedSkips = FIO_fwriteSparse(foutput, ress.dstBuffer, outBuff.pos, storedSkips);
         frameSize += outBuff.pos;
         DISPLAYUPDATE(2, "\rDecoded : %u MB...     ", (U32)(frameSize>>20) );
 
-        if (toRead == 0) break;   /* end of frame */
+        if (readSizeHint == 0) break;   /* end of frame */
         if (inBuff.size != inBuff.pos) EXM_THROW(37, "Decoding error : should consume entire input");
 
         /* Fill input buffer */
-        if (toRead > ress.srcBufferSize) EXM_THROW(38, "too large block");
-        readSize = fread(ress.srcBuffer, 1, toRead, finput);
-        if (readSize == 0) EXM_THROW(39, "Read error : premature end");
-    }
+        {   size_t const toRead = MIN(readSizeHint, ress.srcBufferSize);  /* support large skippable frames */
+            readSize = fread(ress.srcBuffer, 1, toRead, finput);
+            if (readSize < toRead) EXM_THROW(39, "Read error : premature end");
+    }   }
 
     FIO_fwriteSparseEnd(foutput, storedSkips);
 
@@ -686,7 +686,7 @@ static int FIO_decompressSrcFile(dRess_t ress, const char* srcFileName)
             if (readSomething==0) { DISPLAY("zstd: %s: unexpected end of file \n", srcFileName); fclose(srcFile); return 1; }  /* srcFileName is empty */
             break;   /* no more input */
         }
-        readSomething = 1;
+        readSomething = 1;   /* there is at least >= 4 bytes in srcFile */
         if (sizeCheck != toRead) { DISPLAY("zstd: %s: unknown header \n", srcFileName); fclose(srcFile); return 1; }  /* srcFileName is empty */
         {   U32 const magic = MEM_readLE32(ress.srcBuffer);
             if (((magic & 0xFFFFFFF0U) != ZSTD_MAGIC_SKIPPABLE_START) & (magic != ZSTD_MAGICNUMBER)

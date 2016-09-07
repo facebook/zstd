@@ -299,8 +299,8 @@ ZSTDLIB_API size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* outp
 #define ZSTD_HASHLOG3_MAX      17
 #define ZSTD_SEARCHLOG_MAX    (ZSTD_WINDOWLOG_MAX-1)
 #define ZSTD_SEARCHLOG_MIN      1
-#define ZSTD_SEARCHLENGTH_MAX   7
-#define ZSTD_SEARCHLENGTH_MIN   3
+#define ZSTD_SEARCHLENGTH_MAX   7   /* only for ZSTD_fast, other strategies are limited to 6 */
+#define ZSTD_SEARCHLENGTH_MIN   3   /* only for ZSTD_btopt, other strategies are limited to 4 */
 #define ZSTD_TARGETLENGTH_MIN   4
 #define ZSTD_TARGETLENGTH_MAX 999
 

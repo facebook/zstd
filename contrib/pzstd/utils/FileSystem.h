@@ -11,6 +11,7 @@
 #include "utils/Range.h"
 
 #include <sys/stat.h>
+#include <cerrno>
 #include <cstdint>
 #include <system_error>
 
@@ -20,12 +21,21 @@
 
 namespace pzstd {
 
-using file_status = struct stat;
+#if defined(_MSC_VER)
+using file_status = struct ::_stat64;
+#else
+using file_status = struct ::stat;
+#endif
 
 /// http://en.cppreference.com/w/cpp/filesystem/status
 inline file_status status(StringPiece path, std::error_code& ec) noexcept {
   file_status status;
-  if (stat(path.data(), &status)) {
+#if defined(_MSC_VER)
+  const auto error = ::_stat64(path.data(), &status);
+#else
+  const auto error = ::stat(path.data(), &status);
+#endif
+  if (error) {
     ec.assign(errno, std::generic_category());
   } else {
     ec.clear();
@@ -35,7 +45,13 @@ inline file_status status(StringPiece path, std::error_code& ec) noexcept {
 
 /// http://en.cppreference.com/w/cpp/filesystem/is_regular_file
 inline bool is_regular_file(file_status status) noexcept {
+#if defined(S_ISREG)
   return S_ISREG(status.st_mode);
+#elif !defined(S_ISREG) && defined(S_IFMT) && defined(S_IFREG)
+  return (status.st_mode & S_IFMT) == S_IFREG;
+#else
+  static_assert(false, "No POSIX stat() support.");
+#endif
 }
 
 /// http://en.cppreference.com/w/cpp/filesystem/is_regular_file

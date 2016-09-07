@@ -118,11 +118,11 @@ TEST(Options, ValidInputs) {
   }
 }
 
-TEST(Options, BadNumThreads) {
+TEST(Options, NumThreads) {
   {
     Options options;
     std::array<const char*, 3> args = {{nullptr, "-o", "-"}};
-    EXPECT_FALSE(options.parse(args.size(), args.data()));
+    EXPECT_TRUE(options.parse(args.size(), args.data()));
   }
   {
     Options options;

@@ -735,7 +735,7 @@ static int FIO_decompressDstFile(dRess_t ress,
     if ( (result != 0)
        && strcmp(dstFileName, nulmark)  /* special case : don't remove() /dev/null (#316) */
        && remove(dstFileName) )
-        result=1;   /* don't do anything special if remove fails */
+        result=1;   /* don't do anything special if remove() fails */
     return result;
 }
 

@@ -221,7 +221,7 @@ static size_t calculateStep(
     std::uintmax_t size,
     size_t numThreads,
     const ZSTD_parameters &params) {
-  size_t step = 1ul << (params.cParams.windowLog + 2);
+  size_t step = size_t{1} << (params.cParams.windowLog + 2);
   // If file size is known, see if a smaller step will spread work more evenly
   if (size != 0) {
     const std::uintmax_t newStep = size / std::uintmax_t{numThreads};

@@ -45,7 +45,13 @@ build_script:
       ECHO make %CLANG_PARAMS% &&
       make %CLANG_PARAMS% &&
       COPY tests\fuzzer.exe tests\fuzzer_clang.exe &&
-      make clean
+      make clean &&
+      ECHO *** &&
+      ECHO *** Building pzstd for %PLATFORM% &&
+      ECHO *** &&
+      ECHO make -C contrib\pzstd pzstd &&
+      make -C contrib\pzstd pzstd &&
+      make -C contrib\pzstd clean
     )
   - if [%COMPILER%]==[gcc] (
       ECHO *** &&

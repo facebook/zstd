@@ -34,7 +34,7 @@ using std::size_t;
 size_t pzstdMain(const Options& options, ErrorHolder& errorHolder) {
   // Open the input file and attempt to determine its size
   FILE* inputFd = stdin;
-  size_t inputSize = 0;
+  std::uintmax_t inputSize = 0;
   if (options.inputFile != "-") {
     inputFd = std::fopen(options.inputFile.c_str(), "rb");
     if (!errorHolder.check(inputFd != nullptr, "Failed to open input file")) {
@@ -155,7 +155,7 @@ static void compress(
     ZSTD_parameters parameters) {
   auto guard = makeScopeGuard([&] { out->finish(); });
   // Initialize the CCtx
-  std::unique_ptr<ZSTD_CStream, size_t (&)(ZSTD_CStream*)> ctx(
+  std::unique_ptr<ZSTD_CStream, size_t (*)(ZSTD_CStream*)> ctx(
       ZSTD_createCStream(), ZSTD_freeCStream);
   if (!errorHolder.check(ctx != nullptr, "Failed to allocate ZSTD_CStream")) {
     return;
@@ -217,14 +217,17 @@ static void compress(
  * @param numThreads The number of threads available to run compression jobs on
  * @param params     The zstd parameters to be used for compression
  */
-static size_t
-calculateStep(size_t size, size_t numThreads, const ZSTD_parameters& params) {
-  size_t step = 1ul << (params.cParams.windowLog + 2);
+static size_t calculateStep(
+    std::uintmax_t size,
+    size_t numThreads,
+    const ZSTD_parameters &params) {
+  size_t step = size_t{1} << (params.cParams.windowLog + 2);
   // If file size is known, see if a smaller step will spread work more evenly
   if (size != 0) {
-    size_t newStep = size / numThreads;
-    if (newStep != 0) {
-      step = std::min(step, newStep);
+    const std::uintmax_t newStep = size / std::uintmax_t{numThreads};
+    if (newStep != 0 &&
+        newStep <= std::uintmax_t{std::numeric_limits<size_t>::max()}) {
+      step = std::min(step, size_t{newStep});
     }
   }
   return step;
@@ -268,7 +271,7 @@ void asyncCompressChunks(
     WorkQueue<std::shared_ptr<BufferWorkQueue>>& chunks,
     ThreadPool& executor,
     FILE* fd,
-    size_t size,
+    std::uintmax_t size,
     size_t numThreads,
     ZSTD_parameters params) {
   auto chunksGuard = makeScopeGuard([&] { chunks.finish(); });
@@ -311,7 +314,7 @@ static void decompress(
     std::shared_ptr<BufferWorkQueue> out) {
   auto guard = makeScopeGuard([&] { out->finish(); });
   // Initialize the DCtx
-  std::unique_ptr<ZSTD_DStream, size_t (&)(ZSTD_DStream*)> ctx(
+  std::unique_ptr<ZSTD_DStream, size_t (*)(ZSTD_DStream*)> ctx(
       ZSTD_createDStream(), ZSTD_freeDStream);
   if (!errorHolder.check(ctx != nullptr, "Failed to allocate ZSTD_DStream")) {
     return;

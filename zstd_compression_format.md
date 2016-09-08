@@ -301,6 +301,7 @@ This is a variable size field, which contains
 the ID of the dictionary required to properly decode the frame.
 Note that this field is optional. When it's not present,
 it's up to the caller to make sure it uses the correct dictionary.
+Format is little-endian.
 
 Field size depends on `Dictionary_ID_flag`.
 1 byte can represent an ID 0-255.

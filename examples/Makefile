@@ -67,7 +67,7 @@ test: all
 	./streaming_decompression tmp.zst > /dev/null
 	@echo starting streaming compression
 	./streaming_compression tmp
-	./streaming_decompression tmp.zst
+	./streaming_decompression tmp.zst > /dev/null
 	@echo starting dictionary compression
 	./dictionary_compression tmp README.md
 	./dictionary_decompression tmp.zst README.md

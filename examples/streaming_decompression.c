@@ -99,14 +99,12 @@ int main(int argc, const char** argv)
     const char* const inFilename = argv[1];
 
     if (argc!=2) {
-        printf("wrong arguments\n");
-        printf("usage:\n");
-        printf("%s FILE\n", exeName);
+        fprintf(stderr, "wrong arguments\n");
+        fprintf(stderr, "usage:\n");
+        fprintf(stderr, "%s FILE\n", exeName);
         return 1;
     }
 
     decompressFile_orDie(inFilename);
-    printf("%s correctly decoded (in memory). \n", inFilename);
-
     return 0;
 }

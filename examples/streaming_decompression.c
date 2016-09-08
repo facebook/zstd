@@ -66,17 +66,16 @@ static void decompressFile_orDie(const char* fname)
     FILE* const fin  = fopen_orDie(fname, "rb");
     size_t const buffInSize = ZSTD_DStreamInSize();
     void*  const buffIn  = malloc_orDie(buffInSize);
+    FILE* const fout = stdout;
     size_t const buffOutSize = ZSTD_DStreamOutSize();  /* Guarantee to successfully flush at least one complete compressed block in all circumstances. */
     void*  const buffOut = malloc_orDie(buffOutSize);
-    FILE* const fout = stdout;
 
     ZSTD_DStream* const dstream = ZSTD_createDStream();
     if (dstream==NULL) { fprintf(stderr, "ZSTD_createDStream() error \n"); exit(10); }
     size_t const initResult = ZSTD_initDStream(dstream);
-    if (ZSTD_isError(initResult)) { fprintf(stderr, "ZSTD_initDStream() error \n"); exit(11); }
-    size_t toRead = initResult;
+    if (ZSTD_isError(initResult)) { fprintf(stderr, "ZSTD_initDStream() error : %s \n", ZSTD_getErrorName(initResult)); exit(11); }
 
-    size_t read;
+    size_t read, toRead = initResult;
     while ( (read = fread_orDie(buffIn, toRead, fin)) ) {
         ZSTD_inBuffer input = { buffIn, read, 0 };
         while (input.pos < input.size) {

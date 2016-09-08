@@ -55,8 +55,8 @@ streaming_decompression : streaming_decompression.c
 clean:
 	@rm -f core *.o tmp* result* *.zst \
         simple_compression simple_decompression \
-		dictionary_compression dictionary_decompression \
-		streaming_compression streaming_decompression
+        dictionary_compression dictionary_decompression \
+        streaming_compression streaming_decompression
 	@echo Cleaning completed
 
 test: all
@@ -64,7 +64,7 @@ test: all
 	@echo starting simple compression
 	./simple_compression tmp
 	./simple_decompression tmp.zst
-	./streaming_decompression tmp.zst
+	./streaming_decompression tmp.zst > /dev/null
 	@echo starting streaming compression
 	./streaming_compression tmp
 	./streaming_decompression tmp.zst

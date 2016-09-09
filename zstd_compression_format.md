@@ -732,7 +732,7 @@ This size is deducted from `blockSize - literalSectionSize`.
 
 #### `Sequences_Section_Header`
 
-Consists in 2 items :
+Consists of 2 items:
 - `Number_of_Sequences`
 - Symbol compression modes
 
@@ -873,7 +873,7 @@ and can be translated into an `Offset_Value` using the following formulas :
 Offset_Value = (1 << offsetCode) + readNBits(offsetCode);
 if (Offset_Value > 3) offset = Offset_Value - 3;
 ```
-It means that maximum `Offset_Value` is `2^(N+1))-1` and it supports back-reference distance up to `2^(N+1))-4`
+It means that maximum `Offset_Value` is `(2^(N+1))-1` and it supports back-reference distance up to `(2^(N+1))-4`
 but is limited by [maximum back-reference distance](#window_descriptor).
 
 `Offset_Value` from 1 to 3 are special : they define "repeat codes",
@@ -894,7 +894,7 @@ If any sequence in the compressed block requires an offset larger than this,
 it's not possible to use the default distribution to represent it.
 
 ```
-short offsetCodes_defaultDistribution[53] =
+short offsetCodes_defaultDistribution[29] =
         { 1, 1, 1, 1, 1, 1, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1,
           1, 1, 1, 1, 1, 1, 1, 1,-1,-1,-1,-1,-1 };
 ```

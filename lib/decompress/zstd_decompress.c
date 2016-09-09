@@ -1286,6 +1286,7 @@ struct ZSTD_DStream_s {
     void* legacyContext;
     U32 previousLegacyVersion;
     U32 legacyVersion;
+    U32 hostageByte;
 };   /* typedef'd to ZSTD_DStream within "zstd.h" */
 
 
@@ -1349,6 +1350,7 @@ size_t ZSTD_initDStream_usingDict(ZSTD_DStream* zds, const void* dict, size_t di
         zds->dictSize = dictSize;
     }
     zds->legacyVersion = 0;
+    zds->hostageByte = 0;
     return ZSTD_frameHeaderSize_prefix;
 }
 
@@ -1371,11 +1373,11 @@ size_t ZSTD_setDStreamParameter(ZSTD_DStream* zds,
 
 size_t ZSTD_sizeof_DStream(const ZSTD_DStream* zds)
 {
-    return sizeof(*zds) + ZSTD_sizeof_DCtx(zds->zd) + zds->inBuffSize + zds->outBuffSize;
+    return sizeof(*zds) + ZSTD_sizeof_DCtx(zds->zd) + zds->inBuffSize + zds->outBuffSize + zds->dictSize;
 }
 
 
-/* *** Decompression *** */
+/* *****   Decompression   ***** */
 
 MEM_STATIC size_t ZSTD_limitCopy(void* dst, size_t dstCapacity, const void* src, size_t srcSize)
 {
@@ -1445,7 +1447,7 @@ size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inB
             zds->fParams.windowSize = MAX(zds->fParams.windowSize, 1U << ZSTD_WINDOWLOG_ABSOLUTEMIN);
             if (zds->fParams.windowSize > zds->maxWindowSize) return ERROR(frameParameter_unsupported);
 
-            /* Frame header instruct buffer sizes */
+            /* Adapt buffer sizes to frame header instructions */
             {   size_t const blockSize = MIN(zds->fParams.windowSize, ZSTD_BLOCKSIZE_ABSOLUTEMAX);
                 size_t const neededOutSize = zds->fParams.windowSize + blockSize;
                 zds->blockSize = blockSize;
@@ -1479,7 +1481,7 @@ size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inB
                     if (ZSTD_isError(decodedSize)) return decodedSize;
                     ip += neededInSize;
                     if (!decodedSize && !isSkipFrame) break;   /* this was just a header */
-                    zds->outEnd = zds->outStart +  decodedSize;
+                    zds->outEnd = zds->outStart + decodedSize;
                     zds->stage = zdss_flush;
                     break;
                 }
@@ -1522,7 +1524,7 @@ size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inB
                         zds->outStart = zds->outEnd = 0;
                     break;
                 }
-                /* cannot flush everything */
+                /* cannot complete flush */
                 someMoreWork = 0;
                 break;
             }
@@ -1533,8 +1535,21 @@ size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inB
     input->pos += (size_t)(ip-istart);
     output->pos += (size_t)(op-ostart);
     {   size_t nextSrcSizeHint = ZSTD_nextSrcSizeToDecompress(zds->zd);
-        if (!nextSrcSizeHint) return (zds->outEnd != zds->outStart);   /* return 0 only if fully flushed too */
-        nextSrcSizeHint += ZSTD_blockHeaderSize * (ZSTD_nextInputType(zds->zd) == ZSTDnit_block);
+        if (!nextSrcSizeHint) {   /* frame fully decoded */
+            if (zds->outEnd == zds->outStart) {  /* output fully flushed */
+                if (zds->hostageByte) {
+                    if (input->pos >= input->size) { zds->stage = zdss_read; return 1; }  /* can't release hostage (not present) */
+                    input->pos++;  /* release hostage */
+                }
+                return 0;
+            }
+            if (!zds->hostageByte) { /* output not fully flushed; keep last byte as hostage; will be released when all output is flushed */
+                input->pos--;   /* note : pos > 0, otherwise, impossible to finish reading last block */
+                zds->hostageByte=1;
+            }
+            return 1;
+        }
+        nextSrcSizeHint += ZSTD_blockHeaderSize * (ZSTD_nextInputType(zds->zd) == ZSTDnit_block);   /* preload header of next block */
         if (zds->inPos > nextSrcSizeHint) return ERROR(GENERIC);   /* should never happen */
         nextSrcSizeHint -= zds->inPos;   /* already loaded*/
         return nextSrcSizeHint;

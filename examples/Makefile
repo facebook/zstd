@@ -61,6 +61,7 @@ clean:
 
 test: all
 	cp README.md tmp
+	cp Makefile tmp2
 	@echo starting simple compression
 	./simple_compression tmp
 	./simple_decompression tmp.zst
@@ -69,6 +70,6 @@ test: all
 	./streaming_compression tmp
 	./streaming_decompression tmp.zst > /dev/null
 	@echo starting dictionary compression
-	./dictionary_compression tmp README.md
-	./dictionary_decompression tmp.zst README.md
+	./dictionary_compression tmp2 tmp README.md
+	./dictionary_decompression tmp2.zst tmp.zst README.md
 	@echo tests completed

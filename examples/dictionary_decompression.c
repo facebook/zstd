@@ -81,11 +81,11 @@ static void decompress(const char* fname, const ZSTD_DDict* ddict)
         fprintf(stderr, "%s : original size unknown \n", fname);
         exit(6);
     }
-    void* const rBuff = malloc_orDie(rSize);
+    void* const rBuff = malloc_orDie((size_t)rSize);
 
     ZSTD_DCtx* const dctx = ZSTD_createDCtx();
+    if (dctx==NULL) { fprintf(stderr, "ZSTD_createDCtx() error \n"); exit(10); }
     size_t const dSize = ZSTD_decompress_usingDDict(dctx, rBuff, rSize, cBuff, cSize, ddict);
-
     if (dSize != rSize) {
         fprintf(stderr, "error decoding %s : %s \n", fname, ZSTD_getErrorName(dSize));
         exit(7);

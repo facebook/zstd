@@ -51,7 +51,6 @@ static size_t fwrite_orDie(const void* buffer, size_t sizeToWrite, FILE* file)
     exit(5);
 }
 
-
 static size_t fclose_orDie(FILE* file)
 {
     if (!fclose(file)) return 0;
@@ -85,6 +84,7 @@ static void decompressFile_orDie(const char* fname)
         }
     }
 
+    ZSTD_freeDStream(dstream);
     fclose_orDie(fin);
     fclose_orDie(fout);
     free(buffIn);

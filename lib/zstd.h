@@ -252,15 +252,13 @@ ZSTDLIB_API size_t ZSTD_endStream(ZSTD_CStream* zcs, ZSTD_outBuffer* output);
 *
 *  Use ZSTD_decompressStream() repetitively to consume your input.
 *  The function will update both `pos` fields.
-*  If `input.pos < input.size`, some input is not consumed.
+*  If `input.pos < input.size`, some input has not been consumed.
 *  It's up to the caller to present again remaining data.
-*  If `output.pos == output.size`, there is probably some more data to flush, still stored inside internal buffers.
+*  If `output.pos < output.size`, decoder has flushed everything it could.
 *  @return : 0 when a frame is completely decoded and fully flushed,
 *            an error code, which can be tested using ZSTD_isError(),
-*            any value > 0, which means there is still some work to do to complete the frame.
-*            In general, the return value is a suggested next input size (merely a hint, to help latency).
-*            1 is a special value, which means either "there is still some data to flush", or "need 1 more byte as input".
-*            In which case, start by flushing. When flush is completed, if return value is still `1`, it means "need 1 more byte".
+*            any other value > 0, which means there is still some work to do to complete the frame.
+*            The return value is a suggested next input size (just an hint, to help latency).
 * *******************************************************************************/
 
 typedef struct ZSTD_DStream_s ZSTD_DStream;

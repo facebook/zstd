@@ -73,12 +73,12 @@ static void saveFile_orDie(const char* fileName, const void* buff, size_t buffSi
 
 /* createDict() :
    `dictFileName` is supposed to have been created using `zstd --train` */
-static ZSTD_CDict* createCDict_orDie(const char* dictFileName)
+static ZSTD_CDict* createCDict_orDie(const char* dictFileName, int cLevel)
 {
     size_t dictSize;
     printf("loading dictionary %s \n", dictFileName);
     void* const dictBuffer = loadFile_orDie(dictFileName, &dictSize);
-    ZSTD_CDict* const cdict = ZSTD_createCDict(dictBuffer, dictSize, 3);
+    ZSTD_CDict* const cdict = ZSTD_createCDict(dictBuffer, dictSize, cLevel);
     if (!cdict) {
         fprintf(stderr, "ZSTD_createCDict error \n");
         exit(7);
@@ -96,6 +96,7 @@ static void compress(const char* fname, const char* oname, const ZSTD_CDict* cdi
     void* const cBuff = malloc_orDie(cBuffSize);
 
     ZSTD_CCtx* const cctx = ZSTD_createCCtx();
+    if (cctx==NULL) { fprintf(stderr, "ZSTD_createCCtx() error \n"); exit(10); }
     size_t const cSize = ZSTD_compress_usingCDict(cctx, cBuff, cBuffSize, fBuff, fSize, cdict);
     if (ZSTD_isError(cSize)) {
         fprintf(stderr, "error compressing %s : %s \n", fname, ZSTD_getErrorName(cSize));
@@ -107,7 +108,7 @@ static void compress(const char* fname, const char* oname, const ZSTD_CDict* cdi
     /* success */
     printf("%25s : %6u -> %7u - %s \n", fname, (unsigned)fSize, (unsigned)cSize, oname);
 
-    ZSTD_freeCCtx(cctx);
+    ZSTD_freeCCtx(cctx);   /* never fails */
     free(fBuff);
     free(cBuff);
 }
@@ -127,6 +128,7 @@ static char* createOutFilename_orDie(const char* filename)
 int main(int argc, const char** argv)
 {
     const char* const exeName = argv[0];
+    int const cLevel = 3;
 
     if (argc<3) {
         fprintf(stderr, "wrong arguments\n");
@@ -137,7 +139,7 @@ int main(int argc, const char** argv)
 
     /* load dictionary only once */
     const char* const dictName = argv[argc-1];
-    ZSTD_CDict* const dictPtr = createCDict_orDie(dictName);
+    ZSTD_CDict* const dictPtr = createCDict_orDie(dictName, cLevel);
 
     int u;
     for (u=1; u<argc-1; u++) {

@@ -69,13 +69,13 @@ static void compressFile_orDie(const char* fname, const char* outName, int cLeve
     void*  const buffIn  = malloc_orDie(buffInSize);
     size_t const buffOutSize = ZSTD_CStreamOutSize();;
     void*  const buffOut = malloc_orDie(buffOutSize);
-    size_t read, toRead = buffInSize;
 
     ZSTD_CStream* const cstream = ZSTD_createCStream();
     if (cstream==NULL) { fprintf(stderr, "ZSTD_createCStream() error \n"); exit(10); }
     size_t const initResult = ZSTD_initCStream(cstream, cLevel);
     if (ZSTD_isError(initResult)) { fprintf(stderr, "ZSTD_initCStream() error \n"); exit(11); }
 
+    size_t read, toRead = buffInSize;
     while( (read = fread_orDie(buffIn, toRead, fin)) ) {
         ZSTD_inBuffer input = { buffIn, read, 0 };
         while (input.pos < input.size) {
@@ -86,10 +86,11 @@ static void compressFile_orDie(const char* fname, const char* outName, int cLeve
     }
 
     ZSTD_outBuffer output = { buffOut, buffOutSize, 0 };
-    size_t const remainingToFlush = ZSTD_endStream(cstream, &output);
+    size_t const remainingToFlush = ZSTD_endStream(cstream, &output);   /* close frame */
     if (remainingToFlush) { fprintf(stderr, "not fully flushed"); exit(12); }
     fwrite_orDie(buffOut, output.pos, fout);
 
+    ZSTD_freeCStream(cstream);
     fclose_orDie(fout);
     fclose_orDie(fin);
     free(buffIn);

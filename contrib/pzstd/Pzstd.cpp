@@ -226,7 +226,7 @@ static size_t calculateStep(
   if (size != 0) {
     const std::uintmax_t newStep = size / std::uintmax_t{numThreads};
     if (newStep != 0 &&
-        newStep <= std::uintmax_t{std::numeric_limits<size_t>::max()}) {
+        newStep <= std::uintmax_t{std::numeric_limits<size_t>::max();}) {
       step = std::min(step, size_t{newStep});
     }
   }

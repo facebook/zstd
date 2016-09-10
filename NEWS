@@ -116,7 +116,7 @@ Improved : better compression of small data
 v0.4.7
 Improved : small compression speed improvement in HC mode
 Changed : `zstd_decompress.c` has ZSTD_LEGACY_SUPPORT to 0 by default
-fix : bt search bug
+fix : bt search bugs
 
 v0.4.6
 fix : fast compression mode on Windows
@@ -190,7 +190,7 @@ v0.1.2
 frame concatenation support
 
 v0.1.1
-fix compression bug
+fix compression bugs
 detects write-flush errors
 
 v0.1.0

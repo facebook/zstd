@@ -71,7 +71,8 @@ matrix:
     - os: linux
       dist: trusty
       sudo: required
-      env: PLATFORM="Ubuntu 14.04" CMD="make asan32"
+      # env: PLATFORM="Ubuntu 14.04" CMD="make asan32"
+      env: PLATFORM="Ubuntu 14.04" CMD='make -C tests test32 CC=clang-3.8 MOREFLAGS="-g -fsanitize=address"'
       addons:
         apt:
           sources:

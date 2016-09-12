@@ -47,6 +47,8 @@ matrix:
       env: PLATFORM="Ubuntu 12.04" CMD="make asan32"
       addons:
         apt:
+          sources:
+            - ubuntu-toolchain-r-test
           packages:
             - libc6-dev-i386
             - gcc-multilib

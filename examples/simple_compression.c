@@ -53,7 +53,7 @@ static void* loadFile_orDie(const char* fileName, size_t* size)
         fprintf(stderr, "fread: %s : %s \n", fileName, strerror(errno));
         exit(4);
     }
-    fclose(inFile);
+    fclose(inFile);  /* can't fail, read only */
     *size = buffSize;
     return buffer;
 }
@@ -101,7 +101,7 @@ static const char* createOutFilename_orDie(const char* filename)
 {
     size_t const inL = strlen(filename);
     size_t const outL = inL + 5;
-    void* outSpace = malloc_orDie(outL);
+    void* const outSpace = malloc_orDie(outL);
     memset(outSpace, 0, outL);
     strcat(outSpace, filename);
     strcat(outSpace, ".zst");

@@ -44,7 +44,7 @@ clean:
 	@$(MAKE) -C $(PRGDIR) $@ > $(VOID)
 	@$(MAKE) -C $(TESTDIR) $@ > $(VOID)
 	@$(MAKE) -C $(ZWRAPDIR) $@ > $(VOID)
-	@rm -f zstd
+	@$(RM) zstd
 	@echo Cleaning completed
 
 
@@ -121,7 +121,7 @@ endif
 ifneq (,$(filter $(HOST_OS),MSYS POSIX))
 cmaketest:
 	cmake --version
-	rm -rf projects/cmake/build
+	$(RM) -r projects/cmake/build
 	mkdir projects/cmake/build
 	cd projects/cmake/build ; cmake -DPREFIX:STRING=~/install_test_dir $(CMAKE_PARAMS) .. ; $(MAKE) install ; $(MAKE) uninstall
 

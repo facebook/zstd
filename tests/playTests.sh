@@ -45,7 +45,9 @@ file $ZSTD
 $ECHO "\n**** simple tests **** "
 
 ./datagen > tmp
+$ECHO "test : basic compression "
 $ZSTD -f tmp                      # trivial compression case, creates tmp.zst
+$ECHO "test : basic decompression"
 $ZSTD -df tmp.zst                 # trivial decompression case (overwrites tmp)
 $ECHO "test : too large compression level (must fail)"
 $ZSTD -99 -f tmp  # too large compression level, automatic sized down

@@ -76,8 +76,9 @@ matrix:
       addons:
         apt:
           sources:
+            - sourceline: 'deb http://apt.llvm.org/trusty/ llvm-toolchain-trusty-3.8 main'
+            - sourceline: 'deb-src http://apt.llvm.org/trusty/ llvm-toolchain-trusty-3.8 main'
             - ubuntu-toolchain-r-test
-            - llvm-toolchain-trusty-3.8
           packages:
             - clang-3.8
             - libc6-dev-i386

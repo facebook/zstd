@@ -1,7 +1,7 @@
 #! /usr/bin/env python
 
 #
-# Copyright (c) 2016-present, Yann Collet, Facebook, Inc.
+# Copyright (c) 2016-present, Przemyslaw Skibinski, Yann Collet, Facebook, Inc.
 # All rights reserved.
 #
 # This source code is licensed under the BSD-style license found in the
@@ -17,7 +17,7 @@ import time
 import traceback
 import hashlib
 
-script_version = 'v0.8.0 (2016-08-03)'
+script_version = 'v1.0.0 (2016-09-12)'
 default_repo_url = 'https://github.com/facebook/zstd.git'
 working_dir_name = 'speedTest'
 working_path = os.getcwd() + '/' + working_dir_name     # /path/to/zstd/tests/speedTest
@@ -25,6 +25,8 @@ clone_path = working_path + '/' + 'zstd'                # /path/to/zstd/tests/sp
 email_header = 'ZSTD_speedTest'
 pid = str(os.getpid())
 verbose = False
+clang_version = "unknown"
+gcc_version = "unknown"
 
 
 
@@ -123,7 +125,7 @@ def get_last_results(resultsFileName):
     with open(resultsFileName, 'r') as f:
         for line in f:
             words = line.split()
-            if len(words) == 2:   # branch + commit
+            if len(words) <= 4:   # branch + commit + compilerVer + md5
                 commit = words[1]
                 csize = []
                 cspeed = []
@@ -135,7 +137,7 @@ def get_last_results(resultsFileName):
     return commit, csize, cspeed, dspeed
 
 
-def benchmark_and_compare(branch, commit, last_commit, args, executableName, md5sum, resultsFileName,
+def benchmark_and_compare(branch, commit, last_commit, args, executableName, md5sum, compilerVersion, resultsFileName,
                           testFilePath, fileName, last_csize, last_cspeed, last_dspeed):
     sleepTime = 30
     while os.getloadavg()[0] > args.maxLoadAvg:
@@ -150,7 +152,7 @@ def benchmark_and_compare(branch, commit, last_commit, args, executableName, md5
     if len(result) != linesExpected:
         raise RuntimeError("ERROR: number of result lines=%d is different that expected %d\n%s" % (len(result), linesExpected, '\n'.join(result)))
     with open(resultsFileName, "a") as myfile:
-        myfile.write(branch + " " + commit + "\n")
+        myfile.write('%s %s %s md5=%s\n' % (branch, commit, compilerVersion, md5sum))
         myfile.write('\n'.join(result) + '\n')
         myfile.close()
         if (last_cspeed == None):
@@ -167,7 +169,7 @@ def benchmark_and_compare(branch, commit, last_commit, args, executableName, md5
             if (float(last_csize[i])/csize[i] < args.ratioLimit):
                 text += "WARNING: %s -%d cSize=%d last_cSize=%d diff=%.4f %s\n" % (executableName, i+1, csize[i], last_csize[i], float(last_csize[i])/csize[i], fileName)
         if text:
-            text = args.message + ("\nmaxLoadAvg=%s  load average at start=%s end=%s  last_commit=%s  md5=%s\n" % (args.maxLoadAvg, start_load, end_load, last_commit, md5sum)) + text
+            text = args.message + ("\nmaxLoadAvg=%s  load average at start=%s end=%s\n%s  last_commit=%s  md5=%s\n" % (args.maxLoadAvg, start_load, end_load, compilerVersion, last_commit, md5sum)) + text
         return text
 
 
@@ -180,13 +182,13 @@ def update_config_file(branch, commit):
     return last_commit
 
 
-def double_check(branch, commit, args, executableName, md5sum, resultsFileName, filePath, fileName):
+def double_check(branch, commit, args, executableName, md5sum, compilerVersion, resultsFileName, filePath, fileName):
     last_commit, csize, cspeed, dspeed = get_last_results(resultsFileName)
     if not args.dry_run:
-        text = benchmark_and_compare(branch, commit, last_commit, args, executableName, md5sum, resultsFileName, filePath, fileName, csize, cspeed, dspeed)
+        text = benchmark_and_compare(branch, commit, last_commit, args, executableName, md5sum, compilerVersion, resultsFileName, filePath, fileName, csize, cspeed, dspeed)
         if text:
             log("WARNING: redoing tests for branch %s: commit %s" % (branch, commit))
-            text = benchmark_and_compare(branch, commit, last_commit, args, executableName, md5sum, resultsFileName, filePath, fileName, csize, cspeed, dspeed)
+            text = benchmark_and_compare(branch, commit, last_commit, args, executableName, md5sum, compilerVersion, resultsFileName, filePath, fileName, csize, cspeed, dspeed)
     return text
 
 
@@ -202,23 +204,25 @@ def test_commit(branch, commit, last_commit, args, testFilePaths, have_mutt, hav
     md5_zstd32 = hashfile(hashlib.md5(), clone_path + '/programs/zstd32')
     md5_zstd_clang = hashfile(hashlib.md5(), clone_path + '/programs/zstd_clang')
     print("md5(zstd)=%s\nmd5(zstd32)=%s\nmd5(zstd_clang)=%s" % (md5_zstd, md5_zstd32, md5_zstd_clang))
+    print("gcc_version=%s clang_version=%s" % (gcc_version, clang_version))
+
     logFileName = working_path + "/log_" + branch.replace("/", "_") + ".txt"
     text_to_send = []
     results_files = ""
     for filePath in testFilePaths:
         fileName = filePath.rpartition('/')[2]
         resultsFileName = working_path + "/results_" + branch.replace("/", "_") + "_" + fileName.replace(".", "_") + ".txt"
-        text = double_check(branch, commit, args, 'zstd', md5_zstd, resultsFileName, filePath, fileName)
+        text = double_check(branch, commit, args, 'zstd', md5_zstd, 'gcc_version='+gcc_version, resultsFileName, filePath, fileName)
         if text:
             text_to_send.append(text)
             results_files += resultsFileName + " "
         resultsFileName = working_path + "/results32_" + branch.replace("/", "_") + "_" + fileName.replace(".", "_") + ".txt"
-        text = double_check(branch, commit, args, 'zstd32', md5_zstd32, resultsFileName, filePath, fileName)
+        text = double_check(branch, commit, args, 'zstd32', md5_zstd32, 'gcc_version='+gcc_version, resultsFileName, filePath, fileName)
         if text:
             text_to_send.append(text)
             results_files += resultsFileName + " "
         resultsFileName = working_path + "/resultsClang_" + branch.replace("/", "_") + "_" + fileName.replace(".", "_") + ".txt"
-        text = double_check(branch, commit, args, 'zstd_clang', md5_zstd_clang, resultsFileName, filePath, fileName)
+        text = double_check(branch, commit, args, 'zstd_clang', md5_zstd_clang, 'clang_version='+clang_version, resultsFileName, filePath, fileName)
         if text:
             text_to_send.append(text)
             results_files += resultsFileName + " "
@@ -260,6 +264,9 @@ if __name__ == '__main__':
         log("ERROR: e-mail senders 'mail' or 'mutt' not found")
         exit(1)
 
+    clang_version = execute("clang -v 2>&1 | grep 'clang version' | sed -e 's:.*version \\([0-9.]*\\).*:\\1:' -e 's:\\.\\([0-9][0-9]\\):\\1:g'", verbose)[0];
+    gcc_version = execute("gcc -dumpversion", verbose)[0];
+            
     if verbose:
         print("PARAMETERS:\nrepoURL=%s" % args.repoURL)
         print("working_path=%s" % working_path)

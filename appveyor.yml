@@ -1,27 +1,28 @@
 version: 1.0.{build}
 environment:
   matrix:
-  - COMPILER: "visual"
-    CONFIGURATION: "Debug"
-    PLATFORM: "x64"
-  - COMPILER: "visual"
-    CONFIGURATION: "Debug"
-    PLATFORM: "Win32"
-  - COMPILER: "visual"
-    CONFIGURATION: "Release"
-    PLATFORM: "x64"
-  - COMPILER: "visual"
-    CONFIGURATION: "Release"
-    PLATFORM: "Win32"
   - COMPILER: "gcc"
     MAKE_PARAMS: "test"
     PLATFORM: "mingw64"
   - COMPILER: "gcc"
     MAKE_PARAMS: "test"
     PLATFORM: "mingw32"
+  - COMPILER: "visual"
+    CONFIGURATION: "Debug"
+    PLATFORM: "x64"
+  - COMPILER: "visual"
+    CONFIGURATION: "Debug"
+    PLATFORM: "Win32"
+  - COMPILER: "visual"
+    CONFIGURATION: "Release"
+    PLATFORM: "x64"
+  - COMPILER: "visual"
+    CONFIGURATION: "Release"
+    PLATFORM: "Win32"
 
 install:
   - ECHO Installing %COMPILER% %PLATFORM% %CONFIGURATION%
+  - MKDIR bin
   - if [%COMPILER%]==[gcc] SET PATH_ORIGINAL=%PATH%
   - if [%COMPILER%]==[gcc] (
       SET "CLANG_PARAMS=-C tests zstd fullbench fuzzer zbufftest paramgrill datagen CC=clang MOREFLAGS="--target=x86_64-w64-mingw32 -Werror -Wconversion -Wno-sign-conversion"" &&
@@ -60,9 +61,17 @@ build_script:
       make -v &&
       cc -v &&
       ECHO make %MAKE_PARAMS% &&
-      make %MAKE_PARAMS% &&
-      make clean
+      make %MAKE_PARAMS%
     )
+  - if [%COMPILER%]==[gcc] if [%PLATFORM%]==[mingw64] (
+      COPY programs\zstd.exe bin\zstd.exe &&
+      appveyor PushArtifact bin\zstd.exe
+    )
+  - if [%COMPILER%]==[gcc] if [%PLATFORM%]==[mingw32] (
+      COPY programs\zstd.exe bin\zstd32.exe &&
+      appveyor PushArtifact bin\zstd32.exe
+    )
+  - if [%COMPILER%]==[gcc] make clean
   - if [%COMPILER%]==[visual] (
       ECHO *** &&
       ECHO *** Building Visual Studio 2008 %PLATFORM%\%CONFIGURATION% in %APPVEYOR_BUILD_FOLDER% &&
@@ -132,3 +141,29 @@ test_script:
       fuzzer_VS2013_%PLATFORM%_Release.exe %FUZZERTEST% &&
       fuzzer_VS2015_%PLATFORM%_Release.exe %FUZZERTEST%
     )
+
+artifacts:
+  - path: bin\zstd.exe
+  - path: bin\zstd32.exe 
+
+deploy:
+- provider: GitHub
+  auth_token:
+    secure: LgJo8emYc3sFnlNWkGl4/VYK3nk/8+RagcsqDlAi3xeqNGNutnKjcftjg84uJoT4
+  artifact: bin\zstd.exe
+  force_update: true
+  on:
+    branch: autobuild
+    COMPILER: gcc
+    PLATFORM: "mingw64"
+    appveyor_repo_tag: true
+- provider: GitHub
+  auth_token:
+    secure: LgJo8emYc3sFnlNWkGl4/VYK3nk/8+RagcsqDlAi3xeqNGNutnKjcftjg84uJoT4
+  artifact: bin\zstd32.exe 
+  force_update: true
+  on:
+    branch: autobuild
+    COMPILER: gcc
+    PLATFORM: "mingw32"
+    appveyor_repo_tag: true

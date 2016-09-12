@@ -29,14 +29,6 @@ matrix:
     # Standard Ubuntu 12.04 LTS Server Edition 64 bit
     - os: linux
       sudo: required
-      env: PLATFORM="Ubuntu 12.04" CMD="make gpptest && make clean && make gnu90test && make clean && make c99test && make clean && make gnu99test && make clean && make clangtest"
-      addons:
-        apt:
-          packages:
-            - libc6-dev-i386
-            - g++-multilib 
-    - os: linux
-      sudo: required
       env: PLATFORM="Ubuntu 12.04" CMD="make armtest"
       addons:
         apt:
@@ -49,20 +41,14 @@ matrix:
             - qemu-user-static
     - os: linux
       sudo: required
-      env: PLATFORM="Ubuntu 12.04" CMD="make -C tests test32"
-      addons:
-        apt:
-          packages:
-            - libc6-dev-i386
-            - gcc-multilib
-    - os: linux
-      sudo: required
       env: PLATFORM="Ubuntu 12.04" CMD="make -C tests versionsTest"
     - os: linux
       sudo: required
       env: PLATFORM="Ubuntu 12.04" CMD="make asan32"
       addons:
         apt:
+          sources:
+            - ubuntu-toolchain-r-test
           packages:
             - libc6-dev-i386
             - gcc-multilib
@@ -74,6 +60,24 @@ matrix:
           packages:
             - valgrind
     # Ubuntu 14.04 LTS Server Edition 64 bit
+    - os: linux
+      dist: trusty
+      sudo: required
+      env: PLATFORM="Ubuntu 14.04" CMD="make gpptest && make clean && make gnu90test && make clean && make c99test && make clean && make gnu99test && make clean && make clangtest"
+      addons:
+        apt:
+          packages:
+            - libc6-dev-i386
+            - g++-multilib 
+    - os: linux
+      dist: trusty
+      sudo: required
+      env: PLATFORM="Ubuntu 14.04" CMD="make -C tests test32"
+      addons:
+        apt:
+          packages:
+            - libc6-dev-i386
+            - gcc-multilib
     - os: linux
       dist: trusty
       sudo: required

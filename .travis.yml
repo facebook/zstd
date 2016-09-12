@@ -80,6 +80,7 @@ matrix:
           packages:
             - clang-3.8
             - libc6-dev-i386
+            - gcc-multilib
     - os: linux
       dist: trusty
       sudo: required

@@ -53,7 +53,7 @@ static void* loadFile_X(const char* fileName, size_t* size)
         printf("fread: %s : %s \n", fileName, strerror(errno));
         exit(4);
     }
-    fclose(inFile);
+    fclose(inFile);   /* can't fail (read only) */
     *size = buffSize;
     return buffer;
 }
@@ -68,7 +68,7 @@ static void decompress(const char* fname)
         printf("%s : original size unknown \n", fname);
         exit(5);
     }
-    void* const rBuff = malloc_X(rSize);
+    void* const rBuff = malloc_X((size_t)rSize);
 
     size_t const dSize = ZSTD_decompress(rBuff, rSize, cBuff, cSize);
 

@@ -44,6 +44,14 @@ matrix:
       env: PLATFORM="Ubuntu 12.04" CMD="make -C tests versionsTest"
     - os: linux
       sudo: required
+      env: PLATFORM="Ubuntu 12.04" CMD="make asan32"
+      addons:
+        apt:
+          packages:
+            - libc6-dev-i386
+            - gcc-multilib
+    - os: linux
+      sudo: required
       env: PLATFORM="Ubuntu 12.04" CMD="make -C tests valgrindTest"
       addons:
         apt:
@@ -66,21 +74,6 @@ matrix:
       addons:
         apt:
           packages:
-            - libc6-dev-i386
-            - gcc-multilib
-    - os: linux
-      dist: trusty
-      sudo: required
-      # env: PLATFORM="Ubuntu 14.04" CMD="make asan32"
-      env: PLATFORM="Ubuntu 14.04" CMD='make -C tests test32 CC=clang-3.8 MOREFLAGS="-g -fsanitize=address"'
-      addons:
-        apt:
-          sources:
-            - sourceline: 'deb http://apt.llvm.org/trusty/ llvm-toolchain-trusty-3.8 main'
-            - sourceline: 'deb-src http://apt.llvm.org/trusty/ llvm-toolchain-trusty-3.8 main'
-            - ubuntu-toolchain-r-test
-          packages:
-            - clang-3.8
             - libc6-dev-i386
             - gcc-multilib
     - os: linux

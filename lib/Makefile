@@ -57,9 +57,9 @@ endif
 
 .PHONY: default all clean install uninstall
 
-default: clean libzstd
+default: libzstd
 
-all: clean libzstd
+all: libzstd
 
 libzstd: $(ZSTD_FILES)
 	@echo compiling static library
@@ -89,7 +89,7 @@ libzstd.pc: libzstd.pc.in
              -e 's|@VERSION@|$(VERSION)|' \
              $< >$@
 
-install: libzstd libzstd.pc
+install: libzstd.pc
 	@install -d -m 755 $(DESTDIR)$(LIBDIR)/pkgconfig/ $(DESTDIR)$(INCLUDEDIR)/
 	@install -m 755 libzstd.$(SHARED_EXT_VER) $(DESTDIR)$(LIBDIR)/libzstd.$(SHARED_EXT_VER)
 	@cp -a libzstd.$(SHARED_EXT_MAJOR) $(DESTDIR)$(LIBDIR)

@@ -50,7 +50,7 @@ ZSTDLIB_API unsigned ZSTD_versionNumber (void);
 /*! ZSTD_compress() :
     Compresses `src` content as a single zstd compressed frame into already allocated `dst`.
     Hint : compression runs faster if `dstCapacity` >=  `ZSTD_compressBound(srcSize)`.
-    @return : the number of bytes written into `dst` (<= `dstCapacity),
+    @return : compressed size written into `dst` (<= `dstCapacity),
               or an error code if it fails (which can be tested using ZSTD_isError()) */
 ZSTDLIB_API size_t ZSTD_compress( void* dst, size_t dstCapacity,
                             const void* src, size_t srcSize,

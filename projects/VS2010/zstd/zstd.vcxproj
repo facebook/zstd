@@ -69,6 +69,9 @@
     <ClInclude Include="..\..\..\programs\fileio.h" />
     <ClInclude Include="..\..\..\programs\util.h" />
   </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="zstd.rc" />
+  </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{4E52A41A-F33B-4C7A-8C36-A1A6B4F4277C}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>

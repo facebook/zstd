@@ -121,13 +121,12 @@ size_t local_ZSTD_decodeLiteralsBlock(void* dst, size_t dstSize, void* buff2, co
 }
 
 extern size_t ZSTD_getcBlockSize(const void* src, size_t srcSize, blockProperties_t* bpPtr);
-extern size_t ZSTD_decodeSeqHeaders(int* nbSeq, FSE_DTable* DTableLL, FSE_DTable* DTableML, FSE_DTable* DTableOffb, U32 tableRepeatFlag, const void* src, size_t srcSize);
+extern size_t ZSTD_decodeSeqHeaders(ZSTD_DCtx* dctx, int* nbSeq, const void* src, size_t srcSize);
 size_t local_ZSTD_decodeSeqHeaders(void* dst, size_t dstSize, void* buff2, const void* src, size_t srcSize)
 {
-    U32 DTableML[FSE_DTABLE_SIZE_U32(10)], DTableLL[FSE_DTABLE_SIZE_U32(10)], DTableOffb[FSE_DTABLE_SIZE_U32(9)];   /* MLFSELog, LLFSELog and OffFSELog are not public values */
     int nbSeq;
     (void)src; (void)srcSize; (void)dst; (void)dstSize;
-    return ZSTD_decodeSeqHeaders(&nbSeq, DTableLL, DTableML, DTableOffb, 0, buff2, g_cSize);
+    return ZSTD_decodeSeqHeaders(g_zdc, &nbSeq, buff2, g_cSize);
 }
 
 
@@ -289,6 +288,7 @@ static size_t benchMem(const void* src, size_t srcSize, U32 benchNb)
             }
             iend = ip + ZSTD_blockHeaderSize + cBlockSize;   /* End of first block */
             ip += ZSTD_blockHeaderSize;                      /* skip block header */
+            ZSTD_decompressBegin(g_zdc);
             ip += ZSTD_decodeLiteralsBlock(g_zdc, ip, iend-ip);   /* skip literal segment */
             g_cSize = iend-ip;
             memcpy(buff2, ip, g_cSize);   /* copy rest of block (it starts by SeqHeader) */

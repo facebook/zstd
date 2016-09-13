@@ -80,8 +80,12 @@ typedef enum { ZSTDds_getFrameHeaderSize, ZSTDds_decodeFrameHeader,
 
 struct ZSTD_DCtx_s
 {
+    const FSE_DTable* LLTptr;
+    const FSE_DTable* MLTptr;
+    const FSE_DTable* OFTptr;
+    const HUF_DTable* HUFptr;
     FSE_DTable LLTable[FSE_DTABLE_SIZE_U32(LLFSELog)];
-    FSE_DTable OffTable[FSE_DTABLE_SIZE_U32(OffFSELog)];
+    FSE_DTable OFTable[FSE_DTABLE_SIZE_U32(OffFSELog)];
     FSE_DTable MLTable[FSE_DTABLE_SIZE_U32(MLFSELog)];
     HUF_DTable hufTable[HUF_DTABLE_SIZE(HufLog)];  /* can accommodate HUF_decompress4X */
     const void* previousDstEnd;
@@ -119,11 +123,15 @@ size_t ZSTD_decompressBegin(ZSTD_DCtx* dctx)
     dctx->base = NULL;
     dctx->vBase = NULL;
     dctx->dictEnd = NULL;
-    dctx->hufTable[0] = (HUF_DTable)((HufLog)*0x1000001);
+    dctx->hufTable[0] = (HUF_DTable)((HufLog)*0x1000001);  /* cover both little and big endian */
     dctx->litEntropy = dctx->fseEntropy = 0;
     dctx->dictID = 0;
     MEM_STATIC_ASSERT(sizeof(dctx->rep) == sizeof(repStartValue));
-    memcpy(dctx->rep, repStartValue, sizeof(repStartValue));
+    memcpy(dctx->rep, repStartValue, sizeof(repStartValue));  /* initial repcodes */
+    dctx->LLTptr = dctx->LLTable;
+    dctx->MLTptr = dctx->MLTable;
+    dctx->OFTptr = dctx->OFTable;
+    dctx->HUFptr = dctx->hufTable;
     return 0;
 }
 
@@ -157,6 +165,25 @@ void ZSTD_copyDCtx(ZSTD_DCtx* dstDCtx, const ZSTD_DCtx* srcDCtx)
 {
     size_t const workSpaceSize = (ZSTD_BLOCKSIZE_ABSOLUTEMAX+WILDCOPY_OVERLENGTH) + ZSTD_frameHeaderSize_max;
     memcpy(dstDCtx, srcDCtx, sizeof(ZSTD_DCtx) - workSpaceSize);  /* no need to copy workspace */
+}
+
+void ZSTD_refDCtx(ZSTD_DCtx* dstDCtx, const ZSTD_DCtx* srcDCtx)
+{
+    ZSTD_decompressBegin(dstDCtx);
+    dstDCtx->dictEnd = srcDCtx->dictEnd;
+    dstDCtx->vBase = srcDCtx->vBase;
+    dstDCtx->base = srcDCtx->base;
+    dstDCtx->previousDstEnd = srcDCtx->previousDstEnd;
+    dstDCtx->dictID = srcDCtx->dictID;
+    dstDCtx->litEntropy = srcDCtx->litEntropy;
+    dstDCtx->fseEntropy = srcDCtx->fseEntropy;
+    dstDCtx->LLTptr = srcDCtx->LLTable;
+    dstDCtx->MLTptr = srcDCtx->MLTable;
+    dstDCtx->OFTptr = srcDCtx->OFTable;
+    dstDCtx->HUFptr = srcDCtx->hufTable;
+    dstDCtx->rep[0] = srcDCtx->rep[0];
+    dstDCtx->rep[1] = srcDCtx->rep[1];
+    dstDCtx->rep[2] = srcDCtx->rep[2];
 }
 
 
@@ -350,34 +377,31 @@ size_t ZSTD_decodeLiteralsBlock(ZSTD_DCtx* dctx,
                 {
                 case 0: case 1: default:   /* note : default is impossible, since lhlCode into [0..3] */
                     /* 2 - 2 - 10 - 10 */
-                    {   singleStream = !lhlCode;
-                        lhSize = 3;
-                        litSize  = (lhc >> 4) & 0x3FF;
-                        litCSize = (lhc >> 14) & 0x3FF;
-                        break;
-                    }
+                    singleStream = !lhlCode;
+                    lhSize = 3;
+                    litSize  = (lhc >> 4) & 0x3FF;
+                    litCSize = (lhc >> 14) & 0x3FF;
+                    break;
                 case 2:
                     /* 2 - 2 - 14 - 14 */
-                    {   lhSize = 4;
-                        litSize  = (lhc >> 4) & 0x3FFF;
-                        litCSize = lhc >> 18;
-                        break;
-                    }
+                    lhSize = 4;
+                    litSize  = (lhc >> 4) & 0x3FFF;
+                    litCSize = lhc >> 18;
+                    break;
                 case 3:
                     /* 2 - 2 - 18 - 18 */
-                    {   lhSize = 5;
-                        litSize  = (lhc >> 4) & 0x3FFFF;
-                        litCSize = (lhc >> 22) + (istart[4] << 10);
-                        break;
-                    }
+                    lhSize = 5;
+                    litSize  = (lhc >> 4) & 0x3FFFF;
+                    litCSize = (lhc >> 22) + (istart[4] << 10);
+                    break;
                 }
                 if (litSize > ZSTD_BLOCKSIZE_ABSOLUTEMAX) return ERROR(corruption_detected);
                 if (litCSize + lhSize > srcSize) return ERROR(corruption_detected);
 
                 if (HUF_isError((litEncType==set_repeat) ?
                                     ( singleStream ?
-                                        HUF_decompress1X_usingDTable(dctx->litBuffer, litSize, istart+lhSize, litCSize, dctx->hufTable) :
-                                        HUF_decompress4X_usingDTable(dctx->litBuffer, litSize, istart+lhSize, litCSize, dctx->hufTable) ) :
+                                        HUF_decompress1X_usingDTable(dctx->litBuffer, litSize, istart+lhSize, litCSize, dctx->HUFptr) :
+                                        HUF_decompress4X_usingDTable(dctx->litBuffer, litSize, istart+lhSize, litCSize, dctx->HUFptr) ) :
                                     ( singleStream ?
                                         HUF_decompress1X2_DCtx(dctx->hufTable, dctx->litBuffer, litSize, istart+lhSize, litCSize) :
                                         HUF_decompress4X_hufOnly (dctx->hufTable, dctx->litBuffer, litSize, istart+lhSize, litCSize)) ))
@@ -387,6 +411,7 @@ size_t ZSTD_decodeLiteralsBlock(ZSTD_DCtx* dctx,
                 dctx->litBufSize = ZSTD_BLOCKSIZE_ABSOLUTEMAX+WILDCOPY_OVERLENGTH;
                 dctx->litSize = litSize;
                 dctx->litEntropy = 1;
+                if (litEncType==set_compressed) dctx->HUFptr = dctx->hufTable;
                 return litCSize + lhSize;
             }
 
@@ -461,7 +486,7 @@ size_t ZSTD_decodeLiteralsBlock(ZSTD_DCtx* dctx,
     @return : nb bytes read from src,
               or an error code if it fails, testable with ZSTD_isError()
 */
-FORCE_INLINE size_t ZSTD_buildSeqTable(FSE_DTable* DTable, symbolEncodingType_e type, U32 max, U32 maxLog,
+static size_t ZSTD_buildSeqTable(FSE_DTable* DTable, symbolEncodingType_e type, U32 max, U32 maxLog,
                                  const void* src, size_t srcSize,
                                  const S16* defaultNorm, U32 defaultLog, U32 flagRepeatTable)
 {
@@ -491,8 +516,7 @@ FORCE_INLINE size_t ZSTD_buildSeqTable(FSE_DTable* DTable, symbolEncodingType_e 
 }
 
 
-size_t ZSTD_decodeSeqHeaders(int* nbSeqPtr,
-                             FSE_DTable* DTableLL, FSE_DTable* DTableML, FSE_DTable* DTableOffb, U32 flagRepeatTable,
+size_t ZSTD_decodeSeqHeaders(ZSTD_DCtx* dctx, int* nbSeqPtr,
                              const void* src, size_t srcSize)
 {
     const BYTE* const istart = (const BYTE* const)src;
@@ -522,16 +546,19 @@ size_t ZSTD_decodeSeqHeaders(int* nbSeqPtr,
         ip++;
 
         /* Build DTables */
-        {   size_t const llhSize = ZSTD_buildSeqTable(DTableLL, LLtype, MaxLL, LLFSELog, ip, iend-ip, LL_defaultNorm, LL_defaultNormLog, flagRepeatTable);
+        {   size_t const llhSize = ZSTD_buildSeqTable(dctx->LLTable, LLtype, MaxLL, LLFSELog, ip, iend-ip, LL_defaultNorm, LL_defaultNormLog, dctx->fseEntropy);
             if (ZSTD_isError(llhSize)) return ERROR(corruption_detected);
+            if (LLtype != set_repeat) dctx->LLTptr = dctx->LLTable;
             ip += llhSize;
         }
-        {   size_t const ofhSize = ZSTD_buildSeqTable(DTableOffb, OFtype, MaxOff, OffFSELog, ip, iend-ip, OF_defaultNorm, OF_defaultNormLog, flagRepeatTable);
+        {   size_t const ofhSize = ZSTD_buildSeqTable(dctx->OFTable, OFtype, MaxOff, OffFSELog, ip, iend-ip, OF_defaultNorm, OF_defaultNormLog, dctx->fseEntropy);
             if (ZSTD_isError(ofhSize)) return ERROR(corruption_detected);
+            if (OFtype != set_repeat) dctx->OFTptr = dctx->OFTable;
             ip += ofhSize;
         }
-        {   size_t const mlhSize = ZSTD_buildSeqTable(DTableML, MLtype, MaxML, MLFSELog, ip, iend-ip, ML_defaultNorm, ML_defaultNormLog, flagRepeatTable);
+        {   size_t const mlhSize = ZSTD_buildSeqTable(dctx->MLTable, MLtype, MaxML, MLFSELog, ip, iend-ip, ML_defaultNorm, ML_defaultNormLog, dctx->fseEntropy);
             if (ZSTD_isError(mlhSize)) return ERROR(corruption_detected);
+            if (MLtype != set_repeat) dctx->MLTptr = dctx->MLTable;
             ip += mlhSize;
     }   }
 
@@ -714,16 +741,13 @@ static size_t ZSTD_decompressSequences(
     const BYTE* litPtr = dctx->litPtr;
     const BYTE* const litLimit_w = litPtr + dctx->litBufSize - WILDCOPY_OVERLENGTH;
     const BYTE* const litEnd = litPtr + dctx->litSize;
-    FSE_DTable* DTableLL = dctx->LLTable;
-    FSE_DTable* DTableML = dctx->MLTable;
-    FSE_DTable* DTableOffb = dctx->OffTable;
     const BYTE* const base = (const BYTE*) (dctx->base);
     const BYTE* const vBase = (const BYTE*) (dctx->vBase);
     const BYTE* const dictEnd = (const BYTE*) (dctx->dictEnd);
     int nbSeq;
 
     /* Build Decoding Tables */
-    {   size_t const seqHSize = ZSTD_decodeSeqHeaders(&nbSeq, DTableLL, DTableML, DTableOffb, dctx->fseEntropy, ip, seqSize);
+    {   size_t const seqHSize = ZSTD_decodeSeqHeaders(dctx, &nbSeq, ip, seqSize);
         if (ZSTD_isError(seqHSize)) return seqHSize;
         ip += seqHSize;
     }
@@ -733,10 +757,10 @@ static size_t ZSTD_decompressSequences(
         seqState_t seqState;
         dctx->fseEntropy = 1;
         { U32 i; for (i=0; i<ZSTD_REP_NUM; i++) seqState.prevOffset[i] = dctx->rep[i]; }
-        CHECK_E(BIT_initDStream(&(seqState.DStream), ip, iend-ip), corruption_detected);
-        FSE_initDState(&(seqState.stateLL), &(seqState.DStream), DTableLL);
-        FSE_initDState(&(seqState.stateOffb), &(seqState.DStream), DTableOffb);
-        FSE_initDState(&(seqState.stateML), &(seqState.DStream), DTableML);
+        CHECK_E(BIT_initDStream(&seqState.DStream, ip, iend-ip), corruption_detected);
+        FSE_initDState(&seqState.stateLL, &seqState.DStream, dctx->LLTptr);
+        FSE_initDState(&seqState.stateOffb, &seqState.DStream, dctx->OFTptr);
+        FSE_initDState(&seqState.stateML, &seqState.DStream, dctx->MLTptr);
 
         for ( ; (BIT_reloadDStream(&(seqState.DStream)) <= BIT_DStream_completed) && nbSeq ; ) {
             nbSeq--;
@@ -895,15 +919,16 @@ static size_t ZSTD_decompressFrame(ZSTD_DCtx* dctx,
 
 
 /*! ZSTD_decompress_usingPreparedDCtx() :
-*   Same as ZSTD_decompress_usingDict, but using a reference context `preparedDCtx`, where dictionary has been loaded.
+*   Same as ZSTD_decompress_usingDict(), but using a reference context `refDCtx`, where dictionary has been loaded.
 *   It avoids reloading the dictionary each time.
-*   `preparedDCtx` must have been properly initialized using ZSTD_decompressBegin_usingDict().
+*   `refDCtx` must have been properly initialized using ZSTD_decompressBegin_usingDict().
 *   Requires 2 contexts : 1 for reference (preparedDCtx), which will not be modified, and 1 to run the decompression operation (dctx) */
-size_t ZSTD_decompress_usingPreparedDCtx(ZSTD_DCtx* dctx, const ZSTD_DCtx* refDCtx,
+static size_t ZSTD_decompress_usingPreparedDCtx(ZSTD_DCtx* dctx, const ZSTD_DCtx* refDCtx,
                                          void* dst, size_t dstCapacity,
                                    const void* src, size_t srcSize)
 {
-    ZSTD_copyDCtx(dctx, refDCtx);
+    //ZSTD_copyDCtx(dctx, refDCtx);
+    ZSTD_refDCtx(dctx, refDCtx);
     ZSTD_checkContinuity(dctx, dst);
     return ZSTD_decompressFrame(dctx, dst, dstCapacity, src, srcSize);
 }
@@ -911,8 +936,8 @@ size_t ZSTD_decompress_usingPreparedDCtx(ZSTD_DCtx* dctx, const ZSTD_DCtx* refDC
 
 size_t ZSTD_decompress_usingDict(ZSTD_DCtx* dctx,
                                  void* dst, size_t dstCapacity,
-                                 const void* src, size_t srcSize,
-                                 const void* dict, size_t dictSize)
+                           const void* src, size_t srcSize,
+                           const void* dict, size_t dictSize)
 {
 #if defined(ZSTD_LEGACY_SUPPORT) && (ZSTD_LEGACY_SUPPORT==1)
     if (ZSTD_isLegacy(src, srcSize)) return ZSTD_decompressLegacy(dst, dstCapacity, src, srcSize, dict, dictSize);
@@ -1120,7 +1145,7 @@ static size_t ZSTD_loadEntropy(ZSTD_DCtx* dctx, const void* const dict, size_t c
         U32 offcodeMaxValue=MaxOff, offcodeLog=OffFSELog;
         size_t const offcodeHeaderSize = FSE_readNCount(offcodeNCount, &offcodeMaxValue, &offcodeLog, dictPtr, dictEnd-dictPtr);
         if (FSE_isError(offcodeHeaderSize)) return ERROR(dictionary_corrupted);
-        CHECK_E(FSE_buildDTable(dctx->OffTable, offcodeNCount, offcodeMaxValue, offcodeLog), dictionary_corrupted);
+        CHECK_E(FSE_buildDTable(dctx->OFTable, offcodeNCount, offcodeMaxValue, offcodeLog), dictionary_corrupted);
         dictPtr += offcodeHeaderSize;
     }
 

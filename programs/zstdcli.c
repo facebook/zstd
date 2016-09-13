@@ -334,8 +334,10 @@ int main(int argCount, char** argv)
                         /* destination file name */
                     case 'o': nextArgumentIsOutFileName=1; argument++; break;
 
+#ifdef UTIL_HAS_CREATEFILELIST
                         /* recursive */
                     case 'r': recursive=1; argument++; break;
+#endif
 
 #ifndef ZSTD_NOBENCH
                         /* Benchmark */

@@ -16,8 +16,8 @@ LANGUAGE 9, 1
 //
 
 VS_VERSION_INFO     VERSIONINFO
-  FILEVERSION       ZSTD_LIB_VERSION
-  PRODUCTVERSION    ZSTD_LIB_VERSION
+  FILEVERSION       ZSTD_VERSION_MAJOR,ZSTD_VERSION_MINOR,ZSTD_VERSION_RELEASE,0
+  PRODUCTVERSION    ZSTD_VERSION_MAJOR,ZSTD_VERSION_MINOR,ZSTD_VERSION_RELEASE,0
  FILEFLAGSMASK VS_FFI_FILEFLAGSMASK
 #ifdef _DEBUG
  FILEFLAGS VS_FF_DEBUG
@@ -36,7 +36,7 @@ BEGIN
             VALUE "FileDescription", "Fast and efficient compression algorithm"
             VALUE "FileVersion", ZSTD_VERSION_STRING
             VALUE "InternalName", "zstdlib.dll"
-            VALUE "LegalCopyright", "Copyright (C) 2013-2015, Yann Collet"
+            VALUE "LegalCopyright", "Copyright (C) 2013-2016, Yann Collet"
             VALUE "OriginalFilename", "zstdlib.dll"
             VALUE "ProductName", "Zstandard"
             VALUE "ProductVersion", ZSTD_VERSION_STRING

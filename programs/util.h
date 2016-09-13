@@ -210,7 +210,7 @@ UTIL_STATIC int UTIL_prepareFileList(const char *dirName, char** bufStart, size_
     WIN32_FIND_DATA cFile;
     HANDLE hFile;
 
-    dirLength = strlen(dirName);
+    dirLength = (int)strlen(dirName);
     path = (char*) malloc(dirLength + 3);
     if (!path) return 0;
 
@@ -227,7 +227,7 @@ UTIL_STATIC int UTIL_prepareFileList(const char *dirName, char** bufStart, size_
     free(path);
 
     do {
-        fnameLength = strlen(cFile.cFileName);
+        fnameLength = (int)strlen(cFile.cFileName);
         path = (char*) malloc(dirLength + fnameLength + 2);
         if (!path) { FindClose(hFile); return 0; }
         memcpy(path, dirName, dirLength);
@@ -279,12 +279,12 @@ UTIL_STATIC int UTIL_prepareFileList(const char *dirName, char** bufStart, size_
         return 0;
     }
 
-    dirLength = strlen(dirName);
+    dirLength = (int)strlen(dirName);
     errno = 0;
     while ((entry = readdir(dir)) != NULL) {
         if (strcmp (entry->d_name, "..") == 0 ||
             strcmp (entry->d_name, ".") == 0) continue;
-        fnameLength = strlen(entry->d_name);
+        fnameLength = (int)strlen(entry->d_name);
         path = (char*) malloc(dirLength + fnameLength + 2);
         if (!path) { closedir(dir); return 0; }
         memcpy(path, dirName, dirLength);

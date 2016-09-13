@@ -35,9 +35,9 @@ BEGIN
             VALUE "CompanyName", "Yann Collet"
             VALUE "FileDescription", "Fast and efficient compression algorithm"
             VALUE "FileVersion", ZSTD_VERSION_STRING
-            VALUE "InternalName", "zstdlib.dll"
+            VALUE "InternalName", "zstd.exe"
             VALUE "LegalCopyright", "Copyright (C) 2013-2016, Yann Collet"
-            VALUE "OriginalFilename", "zstdlib.dll"
+            VALUE "OriginalFilename", "zstd.exe"
             VALUE "ProductName", "Zstandard"
             VALUE "ProductVersion", ZSTD_VERSION_STRING
         END

@@ -57,7 +57,13 @@ endif
 ifneq (,$(filter Windows%,$(OS)))
 EXT =.exe
 VOID = nul
-RES_FILE = ..\projects\VS2010\zstd\zstd.res
+RES64_FILE = ..\projects\VS2010\zstd\generate_res\zstd64.res
+RES32_FILE = ..\projects\VS2010\zstd\generate_res\zstd32.res
+ifneq (,$(filter x86_64%,$(shell $(CC) -dumpmachine)))
+    RES_FILE = $(RES64_FILE)
+else
+    RES_FILE = $(RES32_FILE)
+endif
 else
 EXT =
 VOID = /dev/null
@@ -83,7 +89,7 @@ zstd  : $(ZSTDDECOMP_O) $(ZSTD_FILES) $(ZSTDLEGACY_FILES) $(ZDICT_FILES) \
 
 zstd32 : $(ZSTDDECOMP32_O) $(ZSTD_FILES) $(ZSTDLEGACY_FILES) $(ZDICT_FILES) \
         zstdcli.c fileio.c bench.c datagen.c dibio.c
-	$(CC)  -m32 $(FLAGS) -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT) $^ -o $@$(EXT)
+	$(CC)  -m32 $(FLAGS) -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT) $^ $(RES32_FILE) -o $@$(EXT)
 
 
 zstd_nolegacy :

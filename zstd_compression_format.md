@@ -1049,15 +1049,23 @@ by reading the required `Number_of_Bits`, and adding the specified `Baseline`.
 
 #### Bitstream
 
-All sequences are stored in a single bitstream, read _backward_.
-It is therefore necessary to know the bitstream size,
-which is deducted from compressed block size.
+FSE bitstreams are read in reverse direction than written. In zstd,
+the compressor writes bits forward into a block and the decompressor
+must read the bitstream _backwards_.
 
-The last useful bit of the stream is followed by an end-bit-flag.
-Highest bit of last byte is this flag.
-It does not belong to the useful part of the bitstream.
-Therefore, last byte has 0-7 useful bits.
-Note that it also means that last byte cannot be `0`.
+To find the start of the bitstream it is therefore necessary to
+know the offset of the last byte of the block which can be found
+by counting `Block_Size` bytes after the block header.
+
+After writing the last bit containing information, the compressor
+writes a single `1`-bit and then fills the byte with 0-7 `0` bits of
+padding. The last byte of the compressed bitstream cannot be `0` for
+that reason.
+
+When decompressing, the last byte containing the padding is the first
+byte to read. The decompressor needs to skip 0-7 initial `0`-bits and
+the first `1`-bit it occurs. Afterwards, the useful part of the bitstream
+begins.
 
 ##### Starting states
 

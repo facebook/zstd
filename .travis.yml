@@ -3,6 +3,9 @@ compiler: gcc
 matrix:
   fast_finish: true
   include:
+    # OS X Mavericks
+    - os: osx
+      env: PLATFORM="OS X Mavericks" CMD="make gnu90test && make clean && make test && make clean && make travis-install"
     # Container-based Ubuntu 12.04 LTS Server Edition 64 bit (doesn't support 32-bit includes)
     - os: linux
       sudo: false
@@ -92,9 +95,6 @@ matrix:
             - gcc-5-multilib
             - gcc-6
             - gcc-6-multilib
-    # OS X Mavericks
-    - os: osx
-      env: PLATFORM="OS X Mavericks" CMD="make gnu90test && make clean && make test && make clean && make travis-install"
   exclude:
     - compiler: gcc
 

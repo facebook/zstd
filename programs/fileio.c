@@ -480,8 +480,6 @@ typedef struct {
     size_t srcBufferSize;
     void*  dstBuffer;
     size_t dstBufferSize;
-    void*  dictBuffer;
-    size_t dictBufferSize;
     ZSTD_DStream* dctx;
     FILE*  dstFile;
 } dRess_t;
@@ -501,7 +499,12 @@ static dRess_t FIO_createDResources(const char* dictFileName)
     if (!ress.srcBuffer || !ress.dstBuffer) EXM_THROW(61, "Allocation error : not enough memory");
 
     /* dictionary */
-    ress.dictBufferSize = FIO_loadFile(&(ress.dictBuffer), dictFileName);
+    {   void* dictBuffer;
+        size_t const dictBufferSize = FIO_loadFile(&dictBuffer, dictFileName);
+        size_t const initError = ZSTD_initDStream_usingDict(ress.dctx, dictBuffer, dictBufferSize);
+        if (ZSTD_isError(initError)) EXM_THROW(61, "ZSTD_initDStream_usingDict error : %s", ZSTD_getErrorName(initError));
+        free(dictBuffer);
+    }
 
     return ress;
 }
@@ -512,7 +515,6 @@ static void FIO_freeDResources(dRess_t ress)
     if (ZSTD_isError(errorCode)) EXM_THROW(69, "Error : can't free ZSTD_DStream context resource : %s", ZSTD_getErrorName(errorCode));
     free(ress.srcBuffer);
     free(ress.dstBuffer);
-    free(ress.dictBuffer);
 }
 
 
@@ -601,7 +603,7 @@ unsigned long long FIO_decompressFrame(dRess_t ress,
     size_t readSize;
     U32 storedSkips = 0;
 
-    ZSTD_initDStream_usingDict(ress.dctx, ress.dictBuffer, ress.dictBufferSize);
+    ZSTD_resetDStream(ress.dctx);
 
     /* Header loading (optional, saves one loop) */
     {   size_t const toLoad = 9 - alreadyLoaded;   /* assumption : 9 >= alreadyLoaded */

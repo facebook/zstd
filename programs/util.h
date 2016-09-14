@@ -344,7 +344,7 @@ UTIL_STATIC const char** UTIL_createFileList(const char **inputNames, unsigned i
 {
     size_t pos;
     unsigned i, nbFiles;
-    char *bufend, *buf;
+    char *bufend, *buf, *buftmp;
     const char** fileTable;
 
     buf = (char*)malloc(LIST_SIZE_INCREASE);
@@ -356,9 +356,15 @@ UTIL_STATIC const char** UTIL_createFileList(const char **inputNames, unsigned i
             size_t len = strlen(inputNames[i]);
             if (buf + pos + len >= bufend) {
                 ptrdiff_t newListSize = (bufend - buf) + LIST_SIZE_INCREASE;
-                buf = (char*)realloc(buf, newListSize);
-                bufend = buf + newListSize;
-                if (!buf) return NULL;
+                buftmp = (char*)realloc(buf, newListSize);
+                if (buftmp != NULL) {
+                    buf = buftmp;
+                    bufend = buf + newListSize;
+                    if (!buf) return NULL;
+                } else {
+                    free(buf);
+                    /* And handle error */
+                }
             }
             if (buf + pos + len < bufend) {
                 strncpy(buf + pos, inputNames[i], bufend - (buf + pos));

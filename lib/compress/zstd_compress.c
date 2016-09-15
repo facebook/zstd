@@ -113,6 +113,7 @@ size_t ZSTD_freeCCtx(ZSTD_CCtx* cctx)
 
 size_t ZSTD_sizeof_CCtx(const ZSTD_CCtx* cctx)
 {
+    if (cctx==NULL) return 0;   /* support sizeof on NULL */
     return sizeof(*cctx) + cctx->workSpaceSize;
 }
 
@@ -2680,6 +2681,12 @@ struct ZSTD_CDict_s {
     ZSTD_CCtx* refContext;
 };  /* typedef'd tp ZSTD_CDict within "zstd.h" */
 
+size_t ZSTD_sizeof_CDict(const ZSTD_CDict* cdict)
+{
+    if (cdict==NULL) return 0;   /* support sizeof on NULL */
+    return ZSTD_sizeof_CCtx(cdict->refContext) + cdict->dictContentSize;
+}
+
 ZSTD_CDict* ZSTD_createCDict_advanced(const void* dict, size_t dictSize, ZSTD_parameters params, ZSTD_customMem customMem)
 {
     if (!customMem.customAlloc && !customMem.customFree) customMem = defaultCustomMem;
@@ -2862,6 +2869,7 @@ size_t ZSTD_initCStream(ZSTD_CStream* zcs, int compressionLevel)
 
 size_t ZSTD_sizeof_CStream(const ZSTD_CStream* zcs)
 {
+    if (zcs==NULL) return 0;   /* support sizeof on NULL */
     return sizeof(zcs) + ZSTD_sizeof_CCtx(zcs->zc) + zcs->outBuffSize + zcs->inBuffSize;
 }
 

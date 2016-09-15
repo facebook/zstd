@@ -352,14 +352,18 @@ ZSTDLIB_API size_t ZSTD_estimateCCtxSize(ZSTD_compressionParameters cParams);
  *  Create a ZSTD compression context using external alloc and free functions */
 ZSTDLIB_API ZSTD_CCtx* ZSTD_createCCtx_advanced(ZSTD_customMem customMem);
 
+/*! ZSTD_sizeofCCtx() :
+ *  Gives the amount of memory used by a given ZSTD_CCtx */
+ZSTDLIB_API size_t ZSTD_sizeof_CCtx(const ZSTD_CCtx* cctx);
+
 /*! ZSTD_createCDict_advanced() :
  *  Create a ZSTD_CDict using external alloc and free, and customized compression parameters */
 ZSTDLIB_API ZSTD_CDict* ZSTD_createCDict_advanced(const void* dict, size_t dictSize,
                                                   ZSTD_parameters params, ZSTD_customMem customMem);
 
-/*! ZSTD_sizeofCCtx() :
- *  Gives the amount of memory used by a given ZSTD_CCtx */
-ZSTDLIB_API size_t ZSTD_sizeof_CCtx(const ZSTD_CCtx* cctx);
+/*! ZSTD_sizeof_CDict() :
+ *  Gives the amount of memory used by a given ZSTD_sizeof_CDict */
+ZSTDLIB_API size_t ZSTD_sizeof_CDict(const ZSTD_CDict* cdict);
 
 /*! ZSTD_getParams() :
 *   same as ZSTD_getCParams(), but @return a full `ZSTD_parameters` object instead of a `ZSTD_compressionParameters`.
@@ -399,7 +403,7 @@ ZSTDLIB_API size_t ZSTD_estimateDCtxSize(void);
  *  Create a ZSTD decompression context using external alloc and free functions */
 ZSTDLIB_API ZSTD_DCtx* ZSTD_createDCtx_advanced(ZSTD_customMem customMem);
 
-/*! ZSTD_sizeofDCtx() :
+/*! ZSTD_sizeof_DCtx() :
  *  Gives the amount of memory used by a given ZSTD_DCtx */
 ZSTDLIB_API size_t ZSTD_sizeof_DCtx(const ZSTD_DCtx* dctx);
 

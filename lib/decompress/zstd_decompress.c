@@ -111,7 +111,7 @@ struct ZSTD_DCtx_s
     BYTE headerBuffer[ZSTD_FRAMEHEADERSIZE_MAX];
 };  /* typedef'd to ZSTD_DCtx within "zstd.h" */
 
-size_t ZSTD_sizeof_DCtx (const ZSTD_DCtx* dctx) { return sizeof(*dctx); }
+size_t ZSTD_sizeof_DCtx (const ZSTD_DCtx* dctx) { if (dctx==NULL) return 0; return sizeof(ZSTD_DCtx); }  /* support sizeof on NULL */
 
 size_t ZSTD_estimateDCtxSize(void) { return sizeof(ZSTD_DCtx); }
 
@@ -1251,6 +1251,7 @@ size_t ZSTD_freeDDict(ZSTD_DDict* ddict)
 
 size_t ZSTD_sizeof_DDict(const ZSTD_DDict* ddict)
 {
+    if (ddict==NULL) return 0;   /* support sizeof on NULL */
     return sizeof(*ddict) + sizeof(ddict->refContext) + ddict->dictSize;
 }
 
@@ -1390,6 +1391,7 @@ size_t ZSTD_setDStreamParameter(ZSTD_DStream* zds,
 
 size_t ZSTD_sizeof_DStream(const ZSTD_DStream* zds)
 {
+    if (zds==NULL) return 0;   /* support sizeof on NULL */
     return sizeof(*zds) + ZSTD_sizeof_DCtx(zds->dctx) + ZSTD_sizeof_DDict(zds->ddict) + zds->inBuffSize + zds->outBuffSize;
 }
 

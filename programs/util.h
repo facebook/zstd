@@ -199,6 +199,18 @@ UTIL_STATIC U32 UTIL_isDirectory(const char* infilename)
     return 0;
 }
 
+/*
+ * A modified version of realloc().
+ * If UTIL_realloc() fails the original block is freed.
+*/
+UTIL_STATIC void *UTIL_realloc(void *ptr, size_t size)
+{
+    void *newptr = realloc(ptr, size);
+    if (newptr) return newptr;
+    free(ptr);
+    return NULL;
+}
+
 
 #ifdef _WIN32
 #  define UTIL_HAS_CREATEFILELIST
@@ -245,7 +257,7 @@ UTIL_STATIC int UTIL_prepareFileList(const char *dirName, char** bufStart, size_
         else if ((cFile.dwFileAttributes & FILE_ATTRIBUTE_NORMAL) || (cFile.dwFileAttributes & FILE_ATTRIBUTE_ARCHIVE) || (cFile.dwFileAttributes & FILE_ATTRIBUTE_COMPRESSED)) {
             if (*bufStart + *pos + pathLength >= *bufEnd) {
                 ptrdiff_t newListSize = (*bufEnd - *bufStart) + LIST_SIZE_INCREASE;
-                *bufStart = (char*)realloc(*bufStart, newListSize);
+                *bufStart = (char*)UTIL_realloc(*bufStart, newListSize);
                 *bufEnd = *bufStart + newListSize;
                 if (*bufStart == NULL) { free(path); FindClose(hFile); return 0; }
             }
@@ -300,7 +312,7 @@ UTIL_STATIC int UTIL_prepareFileList(const char *dirName, char** bufStart, size_
         } else {
             if (*bufStart + *pos + pathLength >= *bufEnd) {
                 ptrdiff_t newListSize = (*bufEnd - *bufStart) + LIST_SIZE_INCREASE;
-                *bufStart = (char*)realloc(*bufStart, newListSize);
+                *bufStart = (char*)UTIL_realloc(*bufStart, newListSize);
                 *bufEnd = *bufStart + newListSize;
                 if (*bufStart == NULL) { free(path); closedir(dir); return 0; }
             }
@@ -356,7 +368,7 @@ UTIL_STATIC const char** UTIL_createFileList(const char **inputNames, unsigned i
             size_t len = strlen(inputNames[i]);
             if (buf + pos + len >= bufend) {
                 ptrdiff_t newListSize = (bufend - buf) + LIST_SIZE_INCREASE;
-                buf = (char*)realloc(buf, newListSize);
+                buf = (char*)UTIL_realloc(buf, newListSize);
                 bufend = buf + newListSize;
                 if (!buf) return NULL;
             }

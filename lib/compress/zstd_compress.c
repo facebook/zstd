@@ -2817,6 +2817,7 @@ size_t ZSTD_freeCStream(ZSTD_CStream* zcs)
     if (zcs==NULL) return 0;   /* support free on NULL */
     {   ZSTD_customMem const cMem = zcs->customMem;
         ZSTD_freeCCtx(zcs->cctx);
+        ZSTD_freeCDict(zcs->cdict);
         ZSTD_free(zcs->inBuff, cMem);
         ZSTD_free(zcs->outBuff, cMem);
         ZSTD_free(zcs, cMem);

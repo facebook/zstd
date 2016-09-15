@@ -119,8 +119,6 @@ static clock_t g_time = 0;
 ***************************************/
 static U32 g_overwrite = 0;
 void FIO_overwriteMode(void) { g_overwrite=1; }
-static U32 g_maxWLog = 23;
-void FIO_setMaxWLog(unsigned maxWLog) { g_maxWLog = maxWLog; }
 static U32 g_sparseFileSupport = 1;   /* 0 : no sparse allowed; 1: auto (file yes, stdout no); 2: force sparse */
 void FIO_setSparseWrite(unsigned sparse) { g_sparseFileSupport=sparse; }
 static U32 g_dictIDFlag = 1;
@@ -167,7 +165,9 @@ static FILE* FIO_openSrcFile(const char* srcFileName)
     return f;
 }
 
-/* `dstFileName must` be non-NULL */
+/** FIO_openDstFile() :
+ * condition : `dstFileName` must be non-NULL.
+ * @result : FILE* to `dstFileName`, or NULL if it fails */
 static FILE* FIO_openDstFile(const char* dstFileName)
 {
     FILE* f;
@@ -250,14 +250,12 @@ typedef struct {
     size_t srcBufferSize;
     void*  dstBuffer;
     size_t dstBufferSize;
-    void*  dictBuffer;
-    size_t dictBufferSize;
     ZSTD_CStream* cctx;
     FILE* dstFile;
     FILE* srcFile;
 } cRess_t;
 
-static cRess_t FIO_createCResources(const char* dictFileName)
+static cRess_t FIO_createCResources(const char* dictFileName, int cLevel)
 {
     cRess_t ress;
     memset(&ress, 0, sizeof(ress));
@@ -271,19 +269,27 @@ static cRess_t FIO_createCResources(const char* dictFileName)
     if (!ress.srcBuffer || !ress.dstBuffer) EXM_THROW(31, "zstd: allocation error : not enough memory");
 
     /* dictionary */
-    ress.dictBufferSize = FIO_loadFile(&(ress.dictBuffer), dictFileName);
+    {   void* dictBuffer;
+        size_t const dictBuffSize = FIO_loadFile(&dictBuffer, dictFileName);
+        if (dictFileName && (dictBuffer==NULL)) EXM_THROW(32, "zstd: allocation error : can't create dictBuffer");
+        {   ZSTD_parameters params = ZSTD_getParams(cLevel, 0, dictBuffSize);
+            params.fParams.contentSizeFlag = 1;
+            params.fParams.checksumFlag = g_checksumFlag;
+            params.fParams.noDictIDFlag = !g_dictIDFlag;
+            {   size_t const errorCode = ZSTD_initCStream_advanced(ress.cctx, dictBuffer, dictBuffSize, params, 0);
+                if (ZSTD_isError(errorCode)) EXM_THROW(33, "Error initializing CStream : %s", ZSTD_getErrorName(errorCode));
+        }   }
+        free(dictBuffer);
+    }
 
     return ress;
 }
 
 static void FIO_freeCResources(cRess_t ress)
 {
-    size_t errorCode;
     free(ress.srcBuffer);
     free(ress.dstBuffer);
-    free(ress.dictBuffer);
-    errorCode = ZSTD_freeCStream(ress.cctx);
-    if (ZSTD_isError(errorCode)) EXM_THROW(38, "zstd: error : can't release ZSTD_CStream : %s", ZSTD_getErrorName(errorCode));
+    ZSTD_freeCStream(ress.cctx);   /* never fails */
 }
 
 
@@ -293,8 +299,7 @@ static void FIO_freeCResources(cRess_t ress)
  *            1 : missing or pb opening srcFileName
  */
 static int FIO_compressFilename_internal(cRess_t ress,
-                                         const char* dstFileName, const char* srcFileName,
-                                         int cLevel)
+                                         const char* dstFileName, const char* srcFileName)
 {
     FILE* const srcFile = ress.srcFile;
     FILE* const dstFile = ress.dstFile;
@@ -303,17 +308,9 @@ static int FIO_compressFilename_internal(cRess_t ress,
     U64 const fileSize = UTIL_getFileSize(srcFileName);
 
     /* init */
-    {   ZSTD_parameters params = ZSTD_getParams(cLevel, fileSize, ress.dictBufferSize);
-        params.fParams.contentSizeFlag = 1;
-        params.fParams.checksumFlag = g_checksumFlag;
-        params.fParams.noDictIDFlag = !g_dictIDFlag;
-        if ((g_maxWLog) && (params.cParams.windowLog > g_maxWLog)) {
-            params.cParams.windowLog = g_maxWLog;
-            params.cParams = ZSTD_adjustCParams(params.cParams, fileSize, ress.dictBufferSize);
-        }
-        {   size_t const errorCode = ZSTD_initCStream_advanced(ress.cctx, ress.dictBuffer, ress.dictBufferSize, params, fileSize);
-            if (ZSTD_isError(errorCode)) EXM_THROW(21, "Error initializing compression : %s", ZSTD_getErrorName(errorCode));
-    }   }
+    {   size_t const resetError = ZSTD_resetCStream(ress.cctx, fileSize);
+        if (ZSTD_isError(resetError)) EXM_THROW(21, "Error initializing compression : %s", ZSTD_getErrorName(resetError));
+    }
 
     /* Main compression loop */
     while (1) {
@@ -367,8 +364,7 @@ static int FIO_compressFilename_internal(cRess_t ress,
  *            1 : missing or pb opening srcFileName
  */
 static int FIO_compressFilename_srcFile(cRess_t ress,
-                                        const char* dstFileName, const char* srcFileName,
-                                        int cLevel)
+                                        const char* dstFileName, const char* srcFileName)
 {
     int result;
 
@@ -380,10 +376,10 @@ static int FIO_compressFilename_srcFile(cRess_t ress,
     ress.srcFile = FIO_openSrcFile(srcFileName);
     if (!ress.srcFile) return 1;   /* srcFile could not be opened */
 
-    result = FIO_compressFilename_internal(ress, dstFileName, srcFileName, cLevel);
+    result = FIO_compressFilename_internal(ress, dstFileName, srcFileName);
 
     fclose(ress.srcFile);
-    if ((g_removeSrcFile) && (!result)) { if (remove(srcFileName)) EXM_THROW(1, "zstd: %s: %s", srcFileName, strerror(errno)); }
+    if (g_removeSrcFile && !result) { if (remove(srcFileName)) EXM_THROW(1, "zstd: %s: %s", srcFileName, strerror(errno)); } /* remove source file : --rm */
     return result;
 }
 
@@ -393,17 +389,16 @@ static int FIO_compressFilename_srcFile(cRess_t ress,
  *            1 : pb
  */
 static int FIO_compressFilename_dstFile(cRess_t ress,
-                                        const char* dstFileName, const char* srcFileName,
-                                        int cLevel)
+                                        const char* dstFileName, const char* srcFileName)
 {
     int result;
 
     ress.dstFile = FIO_openDstFile(dstFileName);
-    if (ress.dstFile==0) return 1;
+    if (ress.dstFile==NULL) return 1;  /* could not open dstFileName */
 
-    result = FIO_compressFilename_srcFile(ress, dstFileName, srcFileName, cLevel);
+    result = FIO_compressFilename_srcFile(ress, dstFileName, srcFileName);
 
-    if (fclose(ress.dstFile)) { DISPLAYLEVEL(1, "zstd: %s: %s \n", dstFileName, strerror(errno)); result=1; }
+    if (fclose(ress.dstFile)) { DISPLAYLEVEL(1, "zstd: %s: %s \n", dstFileName, strerror(errno)); result=1; }  /* error closing dstFile */
     if (result!=0) { if (remove(dstFileName)) EXM_THROW(1, "zstd: %s: %s", dstFileName, strerror(errno)); }  /* remove operation artefact */
     return result;
 }
@@ -414,8 +409,8 @@ int FIO_compressFilename(const char* dstFileName, const char* srcFileName,
 {
     clock_t const start = clock();
 
-    cRess_t const ress = FIO_createCResources(dictFileName);
-    int const result = FIO_compressFilename_dstFile(ress, dstFileName, srcFileName, compressionLevel);
+    cRess_t const ress = FIO_createCResources(dictFileName, compressionLevel);
+    int const result = FIO_compressFilename_dstFile(ress, dstFileName, srcFileName);
 
     double const seconds = (double)(clock() - start) / CLOCKS_PER_SEC;
     DISPLAYLEVEL(4, "Completed in %.2f sec \n", seconds);
@@ -433,7 +428,7 @@ int FIO_compressMultipleFilenames(const char** inFileNamesTable, unsigned nbFile
     size_t dfnSize = FNSPACE;
     char*  dstFileName = (char*)malloc(FNSPACE);
     size_t const suffixSize = suffix ? strlen(suffix) : 0;
-    cRess_t ress = FIO_createCResources(dictFileName);
+    cRess_t ress = FIO_createCResources(dictFileName, compressionLevel);
 
     /* init */
     if (dstFileName==NULL) EXM_THROW(27, "FIO_compressMultipleFilenames : allocation error for dstFileName");
@@ -445,8 +440,7 @@ int FIO_compressMultipleFilenames(const char** inFileNamesTable, unsigned nbFile
         ress.dstFile = stdout;
         SET_BINARY_MODE(stdout);
         for (u=0; u<nbFiles; u++)
-            missed_files += FIO_compressFilename_srcFile(ress, stdoutmark,
-                                                         inFileNamesTable[u], compressionLevel);
+            missed_files += FIO_compressFilename_srcFile(ress, stdoutmark, inFileNamesTable[u]);
         if (fclose(ress.dstFile)) EXM_THROW(29, "Write error : cannot properly close %s", stdoutmark);
     } else {
         unsigned u;
@@ -455,8 +449,7 @@ int FIO_compressMultipleFilenames(const char** inFileNamesTable, unsigned nbFile
             if (dfnSize <= ifnSize+suffixSize+1) { free(dstFileName); dfnSize = ifnSize + 20; dstFileName = (char*)malloc(dfnSize); }
             strcpy(dstFileName, inFileNamesTable[u]);
             strcat(dstFileName, suffix);
-            missed_files += FIO_compressFilename_dstFile(ress, dstFileName,
-                                                         inFileNamesTable[u], compressionLevel);
+            missed_files += FIO_compressFilename_dstFile(ress, dstFileName, inFileNamesTable[u]);
     }   }
 
     /* Close & Free */

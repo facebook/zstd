@@ -16,7 +16,7 @@ Distribution of this document is unlimited.
 
 ### Version
 
-0.2.0 (22/07/16)
+0.2.2 (14/09/16)
 
 
 Introduction
@@ -1357,6 +1357,7 @@ to crosscheck that an implementation implements the decoding table generation al
 
 Version changes
 ---------------
+- 0.2.2 : added predefined codes, by Johannes Rudolph
 - 0.2.1 : clarify field names, by Przemyslaw Skibinski
 - 0.2.0 : numerous format adjustments for zstd v0.8
 - 0.1.2 : limit Huffman tree depth to 11 bits

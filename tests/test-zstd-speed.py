@@ -17,7 +17,7 @@ import time
 import traceback
 import hashlib
 
-script_version = 'v1.0.0 (2016-09-12)'
+script_version = 'v1.0.1 (2016-09-15)'
 default_repo_url = 'https://github.com/facebook/zstd.git'
 working_dir_name = 'speedTest'
 working_path = os.getcwd() + '/' + working_dir_name     # /path/to/zstd/tests/speedTest
@@ -130,7 +130,7 @@ def get_last_results(resultsFileName):
                 csize = []
                 cspeed = []
                 dspeed = []
-            if (len(words) == 8):  # results
+            if (len(words) == 8) or (len(words) == 9):  # results: "filename" or "XX files"
                 csize.append(int(words[1]))
                 cspeed.append(float(words[3]))
                 dspeed.append(float(words[5]))
@@ -145,7 +145,7 @@ def benchmark_and_compare(branch, commit, last_commit, args, executableName, md5
             % (os.getloadavg()[0], args.maxLoadAvg, sleepTime))
         time.sleep(sleepTime)
     start_load = str(os.getloadavg())
-    result = execute('programs/%s -qi5b1e%s %s' % (executableName, args.lastCLevel, testFilePath),
+    result = execute('programs/%s -rqi5b1e%s %s' % (executableName, args.lastCLevel, testFilePath),
                      print_output=True)
     end_load = str(os.getloadavg())
     linesExpected = args.lastCLevel + 1
@@ -198,8 +198,7 @@ def test_commit(branch, commit, last_commit, args, testFilePaths, have_mutt, hav
     if not args.dry_run:
         execute('make -C programs clean zstd CC=clang MOREFLAGS="-Werror -Wconversion -Wno-sign-conversion -DZSTD_GIT_COMMIT=%s" && ' % version +
                 'mv programs/zstd programs/zstd_clang && ' +
-                'make -C programs clean zstd MOREFLAGS="-DZSTD_GIT_COMMIT=%s" && ' % version +
-                'make -B -C programs zstd32 MOREFLAGS="-DZSTD_GIT_COMMIT=%s"' % version)
+                'make -C programs clean zstd zstd32 MOREFLAGS="-DZSTD_GIT_COMMIT=%s"' % version)
     md5_zstd = hashfile(hashlib.md5(), clone_path + '/programs/zstd')
     md5_zstd32 = hashfile(hashlib.md5(), clone_path + '/programs/zstd32')
     md5_zstd_clang = hashfile(hashlib.md5(), clone_path + '/programs/zstd_clang')
@@ -251,10 +250,10 @@ if __name__ == '__main__':
     testFilePaths = []
     for fileName in testFileNames:
         fileName = os.path.expanduser(fileName)
-        if os.path.isfile(fileName):
+        if os.path.isfile(fileName) or os.path.isdir(fileName):
             testFilePaths.append(os.path.abspath(fileName))
         else:
-            log("ERROR: File not found: " + fileName)
+            log("ERROR: File/directory not found: " + fileName)
             exit(1)
 
     # check availability of e-mail senders

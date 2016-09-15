@@ -245,7 +245,7 @@ def test_commit(branch, commit, last_commit, args, testFilePaths, have_mutt, hav
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('testFileNames', help='file names list for speed benchmark')
+    parser.add_argument('testFileNames', help='file or directory names list for speed benchmark')
     parser.add_argument('emails', help='list of e-mail addresses to send warnings')
     parser.add_argument('--dictionary', '-D', help='path to the dictionary')
     parser.add_argument('--message', '-m', help='attach an additional message to e-mail', default="")

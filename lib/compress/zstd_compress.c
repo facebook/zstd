@@ -2767,7 +2767,8 @@ ZSTDLIB_API size_t ZSTD_compress_usingCDict(ZSTD_CCtx* cctx,
 typedef enum { zcss_init, zcss_load, zcss_flush, zcss_final } ZSTD_cStreamStage;
 
 struct ZSTD_CStream_s {
-    ZSTD_CCtx* zc;
+    ZSTD_CCtx* cctx;
+    //ZSTD_CDict* cdict;
     char*  inBuff;
     size_t inBuffSize;
     size_t inToCompress;
@@ -2800,8 +2801,8 @@ ZSTD_CStream* ZSTD_createCStream_advanced(ZSTD_customMem customMem)
     if (zcs==NULL) return NULL;
     memset(zcs, 0, sizeof(ZSTD_CStream));
     memcpy(&zcs->customMem, &customMem, sizeof(ZSTD_customMem));
-    zcs->zc = ZSTD_createCCtx_advanced(customMem);
-    if (zcs->zc == NULL) { ZSTD_freeCStream(zcs); return NULL; }
+    zcs->cctx = ZSTD_createCCtx_advanced(customMem);
+    if (zcs->cctx == NULL) { ZSTD_freeCStream(zcs); return NULL; }
     return zcs;
 }
 
@@ -2809,7 +2810,7 @@ size_t ZSTD_freeCStream(ZSTD_CStream* zcs)
 {
     if (zcs==NULL) return 0;   /* support free on NULL */
     {   ZSTD_customMem const cMem = zcs->customMem;
-        ZSTD_freeCCtx(zcs->zc);
+        ZSTD_freeCCtx(zcs->cctx);
         ZSTD_free(zcs->inBuff, cMem);
         ZSTD_free(zcs->outBuff, cMem);
         ZSTD_free(zcs, cMem);
@@ -2844,7 +2845,7 @@ size_t ZSTD_initCStream_advanced(ZSTD_CStream* zcs,
         if (zcs->outBuff == NULL) return ERROR(memory_allocation);
     }
 
-    CHECK_F(ZSTD_compressBegin_advanced(zcs->zc, dict, dictSize, params, pledgedSrcSize));
+    CHECK_F(ZSTD_compressBegin_advanced(zcs->cctx, dict, dictSize, params, pledgedSrcSize));
 
     zcs->inToCompress = 0;
     zcs->inBuffPos = 0;
@@ -2870,7 +2871,7 @@ size_t ZSTD_initCStream(ZSTD_CStream* zcs, int compressionLevel)
 size_t ZSTD_sizeof_CStream(const ZSTD_CStream* zcs)
 {
     if (zcs==NULL) return 0;   /* support sizeof on NULL */
-    return sizeof(zcs) + ZSTD_sizeof_CCtx(zcs->zc) + zcs->outBuffSize + zcs->inBuffSize;
+    return sizeof(zcs) + ZSTD_sizeof_CCtx(zcs->cctx) + zcs->outBuffSize + zcs->inBuffSize;
 }
 
 /*======   Compression   ======*/
@@ -2921,8 +2922,8 @@ static size_t ZSTD_compressStream_generic(ZSTD_CStream* zcs,
                 else
                     cDst = zcs->outBuff, oSize = zcs->outBuffSize;
                 cSize = (flush == zsf_end) ?
-                        ZSTD_compressEnd(zcs->zc, cDst, oSize, zcs->inBuff + zcs->inToCompress, iSize) :
-                        ZSTD_compressContinue(zcs->zc, cDst, oSize, zcs->inBuff + zcs->inToCompress, iSize);
+                        ZSTD_compressEnd(zcs->cctx, cDst, oSize, zcs->inBuff + zcs->inToCompress, iSize) :
+                        ZSTD_compressContinue(zcs->cctx, cDst, oSize, zcs->inBuff + zcs->inToCompress, iSize);
                 if (ZSTD_isError(cSize)) return cSize;
                 if (flush == zsf_end) zcs->frameEnded = 1;
                 /* prepare next block */
@@ -3016,7 +3017,7 @@ size_t ZSTD_endStream(ZSTD_CStream* zcs, ZSTD_outBuffer* output)
         /* create epilogue */
         zcs->stage = zcss_final;
         zcs->outBuffContentSize = !notEnded ? 0 :
-            ZSTD_compressEnd(zcs->zc, zcs->outBuff, zcs->outBuffSize, NULL, 0);  /* write epilogue, including final empty block, into outBuff */
+            ZSTD_compressEnd(zcs->cctx, zcs->outBuff, zcs->outBuffSize, NULL, 0);  /* write epilogue, including final empty block, into outBuff */
     }
 
     /* flush epilogue */

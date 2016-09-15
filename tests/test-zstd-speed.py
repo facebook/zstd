@@ -9,6 +9,10 @@
 # of patent rights can be found in the PATENTS file in the same directory.
 #
 
+# Limitations:
+# - doesn't support filenames with spaces
+# - dir1/zstd and dir2/zstd will be merged in a single results file
+
 import argparse
 import os
 import string
@@ -145,8 +149,10 @@ def benchmark_and_compare(branch, commit, last_commit, args, executableName, md5
             % (os.getloadavg()[0], args.maxLoadAvg, sleepTime))
         time.sleep(sleepTime)
     start_load = str(os.getloadavg())
-    result = execute('programs/%s -rqi5b1e%s %s' % (executableName, args.lastCLevel, testFilePath),
-                     print_output=True)
+    if args.dictionary:
+        result = execute('programs/%s -rqi5b1e%s -D %s %s' % (executableName, args.lastCLevel, args.dictionary, testFilePath), print_output=True)
+    else:
+        result = execute('programs/%s -rqi5b1e%s %s' % (executableName, args.lastCLevel, testFilePath), print_output=True)   
     end_load = str(os.getloadavg())
     linesExpected = args.lastCLevel + 1
     if len(result) != linesExpected:
@@ -208,9 +214,17 @@ def test_commit(branch, commit, last_commit, args, testFilePaths, have_mutt, hav
     logFileName = working_path + "/log_" + branch.replace("/", "_") + ".txt"
     text_to_send = []
     results_files = ""
+    if args.dictionary:
+        dictName = args.dictionary.rpartition('/')[2]
+    else:
+        dictName = None
+
     for filePath in testFilePaths:
         fileName = filePath.rpartition('/')[2]
-        resultsFileName = working_path + "/results_" + branch.replace("/", "_") + "_" + fileName.replace(".", "_") + ".txt"
+        if dictName:
+            resultsFileName = working_path + "/" + dictName.replace(".", "_") + "_" + branch.replace("/", "_") + "_" + fileName.replace(".", "_") + ".txt"
+        else:
+            resultsFileName = working_path + "/results_" + branch.replace("/", "_") + "_" + fileName.replace(".", "_") + ".txt"
         text = double_check(branch, commit, args, 'zstd', md5_zstd, 'gcc_version='+gcc_version, resultsFileName, filePath, fileName)
         if text:
             text_to_send.append(text)
@@ -233,15 +247,16 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('testFileNames', help='file names list for speed benchmark')
     parser.add_argument('emails', help='list of e-mail addresses to send warnings')
-    parser.add_argument('--message', help='attach an additional message to e-mail', default="")
+    parser.add_argument('--dictionary', '-D', help='path to the dictionary')
+    parser.add_argument('--message', '-m', help='attach an additional message to e-mail', default="")
     parser.add_argument('--repoURL', help='changes default repository URL', default=default_repo_url)
-    parser.add_argument('--lowerLimit', type=float, help='send email if speed is lower than given limit', default=0.98)
-    parser.add_argument('--ratioLimit', type=float, help='send email if ratio is lower than given limit', default=0.999)
+    parser.add_argument('--lowerLimit', '-l', type=float, help='send email if speed is lower than given limit', default=0.98)
+    parser.add_argument('--ratioLimit', '-r', type=float, help='send email if ratio is lower than given limit', default=0.999)
     parser.add_argument('--maxLoadAvg', type=float, help='maximum load average to start testing', default=0.75)
     parser.add_argument('--lastCLevel', type=int, help='last compression level for testing', default=5)
-    parser.add_argument('--sleepTime', type=int, help='frequency of repository checking in seconds', default=300)
+    parser.add_argument('--sleepTime', '-s', type=int, help='frequency of repository checking in seconds', default=300)
     parser.add_argument('--dry-run', dest='dry_run', action='store_true', help='not build', default=False)
-    parser.add_argument('--verbose', action='store_true', help='more verbose logs', default=False)
+    parser.add_argument('--verbose', '-v', action='store_true', help='more verbose logs', default=False)
     args = parser.parse_args()
     verbose = args.verbose
 
@@ -256,6 +271,13 @@ if __name__ == '__main__':
             log("ERROR: File/directory not found: " + fileName)
             exit(1)
 
+    # check if dictionary is accessible
+    if args.dictionary:
+        args.dictionary = os.path.abspath(os.path.expanduser(args.dictionary))
+        if not os.path.isfile(args.dictionary):
+            log("ERROR: Dictionary not found: " + args.dictionary)
+            exit(1)
+
     # check availability of e-mail senders
     have_mutt = does_command_exist("mutt -h")
     have_mail = does_command_exist("mail -V")
@@ -265,7 +287,7 @@ if __name__ == '__main__':
 
     clang_version = execute("clang -v 2>&1 | grep 'clang version' | sed -e 's:.*version \\([0-9.]*\\).*:\\1:' -e 's:\\.\\([0-9][0-9]\\):\\1:g'", verbose)[0];
     gcc_version = execute("gcc -dumpversion", verbose)[0];
-            
+
     if verbose:
         print("PARAMETERS:\nrepoURL=%s" % args.repoURL)
         print("working_path=%s" % working_path)
@@ -273,6 +295,7 @@ if __name__ == '__main__':
         print("testFilePath(%s)=%s" % (len(testFilePaths), testFilePaths))
         print("message=%s" % args.message)
         print("emails=%s" % args.emails)
+        print("dictionary=%s" % args.dictionary)
         print("maxLoadAvg=%s" % args.maxLoadAvg)
         print("lowerLimit=%s" % args.lowerLimit)
         print("ratioLimit=%s" % args.ratioLimit)

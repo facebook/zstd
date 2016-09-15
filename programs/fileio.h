@@ -8,7 +8,8 @@
  */
 
 
-#pragma once
+#ifndef FILEIO_H_23981798732
+#define FILEIO_H_23981798732
 
 #if defined (__cplusplus)
 extern "C" {
@@ -69,3 +70,5 @@ int FIO_decompressMultipleFilenames(const char** srcNamesTable, unsigned nbFiles
 #if defined (__cplusplus)
 }
 #endif
+
+#endif  /* FILEIO_H_23981798732 */

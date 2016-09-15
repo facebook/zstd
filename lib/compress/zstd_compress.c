@@ -239,9 +239,9 @@ typedef enum { ZSTDcrp_continue, ZSTDcrp_noMemset, ZSTDcrp_fullReset } ZSTD_comp
     note : 'params' must be validated */
 static size_t ZSTD_resetCCtx_advanced (ZSTD_CCtx* zc,
                                        ZSTD_parameters params, U64 frameContentSize,
-                                       ZSTD_compResetPolicy_e crp)
+                                       ZSTD_compResetPolicy_e const crp)
 {
-    if (crp == ZSTDcrp_continue)   /* still some issues */
+    if (crp == ZSTDcrp_continue)
         if (ZSTD_equivalentParams(params, zc->params))
             return ZSTD_continueCCtx(zc, params, frameContentSize);
 
@@ -2738,17 +2738,23 @@ size_t ZSTD_freeCDict(ZSTD_CDict* cdict)
     }
 }
 
+size_t ZSTD_compressBegin_usingCDict(ZSTD_CCtx* cctx, const ZSTD_CDict* cdict, U64 pledgedSrcSize)
+{
+    if (cdict->dictContentSize) CHECK_F(ZSTD_copyCCtx(cctx, cdict->refContext))
+    else CHECK_F(ZSTD_compressBegin_advanced(cctx, NULL, 0, cdict->refContext->params, pledgedSrcSize));
+    return 0;
+}
+
 /*! ZSTD_compress_usingCDict() :
 *   Compression using a digested Dictionary.
 *   Faster startup than ZSTD_compress_usingDict(), recommended when same dictionary is used multiple times.
 *   Note that compression level is decided during dictionary creation */
-ZSTDLIB_API size_t ZSTD_compress_usingCDict(ZSTD_CCtx* cctx,
-                                           void* dst, size_t dstCapacity,
-                                     const void* src, size_t srcSize,
-                                     const ZSTD_CDict* cdict)
+size_t ZSTD_compress_usingCDict(ZSTD_CCtx* cctx,
+                                void* dst, size_t dstCapacity,
+                                const void* src, size_t srcSize,
+                                const ZSTD_CDict* cdict)
 {
-    if (cdict->dictContentSize) CHECK_F(ZSTD_copyCCtx(cctx, cdict->refContext))
-    else CHECK_F(ZSTD_compressBegin_advanced(cctx, NULL, 0, cdict->refContext->params, srcSize));
+    CHECK_F(ZSTD_compressBegin_usingCDict(cctx, cdict, srcSize));
 
     if (cdict->refContext->params.fParams.contentSizeFlag==1) {
         cctx->params.fParams.contentSizeFlag = 1;
@@ -2768,7 +2774,7 @@ typedef enum { zcss_init, zcss_load, zcss_flush, zcss_final } ZSTD_cStreamStage;
 
 struct ZSTD_CStream_s {
     ZSTD_CCtx* cctx;
-    //ZSTD_CDict* cdict;
+    ZSTD_CDict* cdict;
     char*  inBuff;
     size_t inBuffSize;
     size_t inToCompress;
@@ -2824,6 +2830,19 @@ size_t ZSTD_freeCStream(ZSTD_CStream* zcs)
 size_t ZSTD_CStreamInSize(void)  { return ZSTD_BLOCKSIZE_ABSOLUTEMAX; }
 size_t ZSTD_CStreamOutSize(void) { return ZSTD_compressBound(ZSTD_BLOCKSIZE_ABSOLUTEMAX) + ZSTD_blockHeaderSize + 4 /* 32-bits hash */ ; }
 
+size_t ZSTD_resetCStream(ZSTD_CStream* zcs, U64 pledgedSrcSize)
+{
+    CHECK_F(ZSTD_compressBegin_usingCDict(zcs->cctx, zcs->cdict, pledgedSrcSize));
+
+    zcs->inToCompress = 0;
+    zcs->inBuffPos = 0;
+    zcs->inBuffTarget = zcs->blockSize;
+    zcs->outBuffContentSize = zcs->outBuffFlushedSize = 0;
+    zcs->stage = zcss_load;
+    zcs->frameEnded = 0;
+    return 0;   /* ready to go */
+}
+
 size_t ZSTD_initCStream_advanced(ZSTD_CStream* zcs,
                                  const void* dict, size_t dictSize,
                                  ZSTD_parameters params, unsigned long long pledgedSrcSize)
@@ -2845,16 +2864,13 @@ size_t ZSTD_initCStream_advanced(ZSTD_CStream* zcs,
         if (zcs->outBuff == NULL) return ERROR(memory_allocation);
     }
 
-    CHECK_F(ZSTD_compressBegin_advanced(zcs->cctx, dict, dictSize, params, pledgedSrcSize));
+    ZSTD_freeCDict(zcs->cdict);
+    zcs->cdict = ZSTD_createCDict_advanced(dict, dictSize, params, zcs->customMem);
+    if (zcs->cdict == NULL) return ERROR(memory_allocation);
 
-    zcs->inToCompress = 0;
-    zcs->inBuffPos = 0;
-    zcs->inBuffTarget = zcs->blockSize;
-    zcs->outBuffContentSize = zcs->outBuffFlushedSize = 0;
-    zcs->stage = zcss_load;
     zcs->checksum = params.fParams.checksumFlag > 0;
-    zcs->frameEnded = 0;
-    return 0;   /* ready to go */
+
+    return ZSTD_resetCStream(zcs, pledgedSrcSize);
 }
 
 size_t ZSTD_initCStream_usingDict(ZSTD_CStream* zcs, const void* dict, size_t dictSize, int compressionLevel)
@@ -2871,7 +2887,7 @@ size_t ZSTD_initCStream(ZSTD_CStream* zcs, int compressionLevel)
 size_t ZSTD_sizeof_CStream(const ZSTD_CStream* zcs)
 {
     if (zcs==NULL) return 0;   /* support sizeof on NULL */
-    return sizeof(zcs) + ZSTD_sizeof_CCtx(zcs->cctx) + zcs->outBuffSize + zcs->inBuffSize;
+    return sizeof(zcs) + ZSTD_sizeof_CCtx(zcs->cctx) + ZSTD_sizeof_CDict(zcs->cdict) + zcs->outBuffSize + zcs->inBuffSize;
 }
 
 /*======   Compression   ======*/

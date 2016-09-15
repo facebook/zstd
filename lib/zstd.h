@@ -48,39 +48,40 @@ ZSTDLIB_API unsigned ZSTD_versionNumber (void);
 *  Simple API
 ***************************************/
 /*! ZSTD_compress() :
-    Compresses `src` buffer into already allocated `dst`.
+    Compresses `src` content as a single zstd compressed frame into already allocated `dst`.
     Hint : compression runs faster if `dstCapacity` >=  `ZSTD_compressBound(srcSize)`.
-    @return : the number of bytes written into `dst` (<= `dstCapacity),
+    @return : compressed size written into `dst` (<= `dstCapacity),
               or an error code if it fails (which can be tested using ZSTD_isError()) */
 ZSTDLIB_API size_t ZSTD_compress( void* dst, size_t dstCapacity,
                             const void* src, size_t srcSize,
                                   int compressionLevel);
 
-/*! ZSTD_getDecompressedSize() :
-*   @return : decompressed size as a 64-bits value _if known_, 0 otherwise.
-*    note 1 : decompressed size can be very large (64-bits value),
-*             potentially larger than what local system can handle as a single memory segment.
-*             In which case, it's necessary to use streaming mode to decompress data.
-*    note 2 : decompressed size is an optional field, that may not be present.
-*             When `return==0`, data to decompress can have any size.
-*             In which case, it's necessary to use streaming mode to decompress data.
-*             Optionally, application may rely on its own implied limits.
-*             (For example, application data could be necessarily cut into blocks <= 16 KB).
-*    note 3 : decompressed size could be wrong or intentionally modified !
-*             Always ensure result fits within application's authorized limits !
-*             Each application can set its own limits.
-*    note 4 : when `return==0`, if precise failure cause is needed, use ZSTD_getFrameParams() to know more. */
-ZSTDLIB_API unsigned long long ZSTD_getDecompressedSize(const void* src, size_t srcSize);
-
 /*! ZSTD_decompress() :
-    `compressedSize` : must be the _exact_ size of compressed input, otherwise decompression will fail.
-    `dstCapacity` must be equal or larger than originalSize (see ZSTD_getDecompressedSize() ).
-    If originalSize is unknown, and if there is no implied application-specific limitations,
-    it's preferable to use streaming mode to decompress data.
+    `compressedSize` : must be the _exact_ size of a single compressed frame.
+    `dstCapacity` is an upper bound of originalSize.
+    If user cannot imply a maximum upper bound, it's better to use streaming mode to decompress data.
     @return : the number of bytes decompressed into `dst` (<= `dstCapacity`),
               or an errorCode if it fails (which can be tested using ZSTD_isError()) */
 ZSTDLIB_API size_t ZSTD_decompress( void* dst, size_t dstCapacity,
                               const void* src, size_t compressedSize);
+
+/*! ZSTD_getDecompressedSize() :
+*   'src' is the start of a zstd compressed frame.
+*   @return : content size to be decompressed, as a 64-bits value _if known_, 0 otherwise.
+*    note 1 : decompressed size is an optional field, that may not be present, especially in streaming mode.
+*             When `return==0`, data to decompress could be any size.
+*             In which case, it's necessary to use streaming mode to decompress data.
+*             Optionally, application can still use ZSTD_decompress() while relying on implied limits.
+*             (For example, data may be necessarily cut into blocks <= 16 KB).
+*    note 2 : decompressed size is always present when compression is done with ZSTD_compress()
+*    note 3 : decompressed size can be very large (64-bits value),
+*             potentially larger than what local system can handle as a single memory segment.
+*             In which case, it's necessary to use streaming mode to decompress data.
+*    note 4 : If source is untrusted, decompressed size could be wrong or intentionally modified.
+*             Always ensure result fits within application's authorized limits.
+*             Each application can set its own limits.
+*    note 5 : when `return==0`, if precise failure cause is needed, use ZSTD_getFrameParams() to know more. */
+ZSTDLIB_API unsigned long long ZSTD_getDecompressedSize(const void* src, size_t srcSize);
 
 
 /*======  Helper functions  ======*/
@@ -351,14 +352,18 @@ ZSTDLIB_API size_t ZSTD_estimateCCtxSize(ZSTD_compressionParameters cParams);
  *  Create a ZSTD compression context using external alloc and free functions */
 ZSTDLIB_API ZSTD_CCtx* ZSTD_createCCtx_advanced(ZSTD_customMem customMem);
 
+/*! ZSTD_sizeofCCtx() :
+ *  Gives the amount of memory used by a given ZSTD_CCtx */
+ZSTDLIB_API size_t ZSTD_sizeof_CCtx(const ZSTD_CCtx* cctx);
+
 /*! ZSTD_createCDict_advanced() :
  *  Create a ZSTD_CDict using external alloc and free, and customized compression parameters */
 ZSTDLIB_API ZSTD_CDict* ZSTD_createCDict_advanced(const void* dict, size_t dictSize,
                                                   ZSTD_parameters params, ZSTD_customMem customMem);
 
-/*! ZSTD_sizeofCCtx() :
- *  Gives the amount of memory used by a given ZSTD_CCtx */
-ZSTDLIB_API size_t ZSTD_sizeof_CCtx(const ZSTD_CCtx* cctx);
+/*! ZSTD_sizeof_CDict() :
+ *  Gives the amount of memory used by a given ZSTD_sizeof_CDict */
+ZSTDLIB_API size_t ZSTD_sizeof_CDict(const ZSTD_CDict* cdict);
 
 /*! ZSTD_getParams() :
 *   same as ZSTD_getCParams(), but @return a full `ZSTD_parameters` object instead of a `ZSTD_compressionParameters`.
@@ -398,9 +403,13 @@ ZSTDLIB_API size_t ZSTD_estimateDCtxSize(void);
  *  Create a ZSTD decompression context using external alloc and free functions */
 ZSTDLIB_API ZSTD_DCtx* ZSTD_createDCtx_advanced(ZSTD_customMem customMem);
 
-/*! ZSTD_sizeofDCtx() :
+/*! ZSTD_sizeof_DCtx() :
  *  Gives the amount of memory used by a given ZSTD_DCtx */
 ZSTDLIB_API size_t ZSTD_sizeof_DCtx(const ZSTD_DCtx* dctx);
+
+/*! ZSTD_sizeof_DDict() :
+ *  Gives the amount of memory used by a given ZSTD_DDict */
+ZSTDLIB_API size_t ZSTD_sizeof_DDict(const ZSTD_DDict* ddict);
 
 
 /* ******************************************************************
@@ -412,7 +421,8 @@ ZSTDLIB_API size_t ZSTD_sizeof_DCtx(const ZSTD_DCtx* dctx);
 ZSTDLIB_API ZSTD_CStream* ZSTD_createCStream_advanced(ZSTD_customMem customMem);
 ZSTDLIB_API size_t ZSTD_initCStream_usingDict(ZSTD_CStream* zcs, const void* dict, size_t dictSize, int compressionLevel);
 ZSTDLIB_API size_t ZSTD_initCStream_advanced(ZSTD_CStream* zcs, const void* dict, size_t dictSize,
-                                 ZSTD_parameters params, unsigned long long pledgedSrcSize);
+                                             ZSTD_parameters params, unsigned long long pledgedSrcSize);  /**< pledgedSrcSize is optional and can be zero == unknown */
+ZSTDLIB_API size_t ZSTD_resetCStream(ZSTD_CStream* zcs, unsigned long long pledgedSrcSize);  /**< re-use compression parameters from previous init; saves dictionary loading */
 ZSTDLIB_API size_t ZSTD_sizeof_CStream(const ZSTD_CStream* zcs);
 
 
@@ -423,6 +433,7 @@ typedef enum { ZSTDdsp_maxWindowSize } ZSTD_DStreamParameter_e;
 ZSTDLIB_API ZSTD_DStream* ZSTD_createDStream_advanced(ZSTD_customMem customMem);
 ZSTDLIB_API size_t ZSTD_initDStream_usingDict(ZSTD_DStream* zds, const void* dict, size_t dictSize);
 ZSTDLIB_API size_t ZSTD_setDStreamParameter(ZSTD_DStream* zds, ZSTD_DStreamParameter_e paramType, unsigned paramValue);
+ZSTDLIB_API size_t ZSTD_resetDStream(ZSTD_DStream* zds);  /**< re-use decompression parameters from previous init; saves dictionary loading */
 ZSTDLIB_API size_t ZSTD_sizeof_DStream(const ZSTD_DStream* zds);
 
 

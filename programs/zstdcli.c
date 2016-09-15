@@ -262,7 +262,7 @@ int main(int argCount, char** argv)
             if (!strcmp(argument, "--verbose")) { displayLevel++; continue; }
             if (!strcmp(argument, "--quiet")) { displayLevel--; continue; }
             if (!strcmp(argument, "--stdout")) { forceStdout=1; outFileName=stdoutmark; displayLevel-=(displayLevel==2); continue; }
-            if (!strcmp(argument, "--ultra")) { ultra=1; FIO_setMaxWLog(0); continue; }
+            if (!strcmp(argument, "--ultra")) { ultra=1; continue; }
             if (!strcmp(argument, "--check")) { FIO_setChecksumFlag(2); continue; }
             if (!strcmp(argument, "--no-check")) { FIO_setChecksumFlag(0); continue; }
             if (!strcmp(argument, "--no-dictID")) { FIO_setDictIDFlag(0); continue; }
@@ -334,8 +334,10 @@ int main(int argCount, char** argv)
                         /* destination file name */
                     case 'o': nextArgumentIsOutFileName=1; argument++; break;
 
+#ifdef UTIL_HAS_CREATEFILELIST
                         /* recursive */
                     case 'r': recursive=1; argument++; break;
+#endif
 
 #ifndef ZSTD_NOBENCH
                         /* Benchmark */

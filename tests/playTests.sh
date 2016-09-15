@@ -205,7 +205,7 @@ $MD5SUM dirTestDict/* > tmph1
 $ZSTD -f --rm dirTestDict/* -D tmpDictC
 $ZSTD -d --rm dirTestDict/*.zst -D tmpDictC  # note : use internal checksum by default
 if [[ "$OSTYPE" == "darwin"* ]]; then
-  $ECHO "test skipped on OS-X"  # not compatible with OS-X's md5
+  $ECHO "md5sum -c not supported on OS-X : test skipped"  # not compatible with OS-X's md5
 else
   $MD5SUM -c tmph1
 fi

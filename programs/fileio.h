@@ -8,7 +8,8 @@
  */
 
 
-#pragma once
+#ifndef FILEIO_H_23981798732
+#define FILEIO_H_23981798732
 
 #if defined (__cplusplus)
 extern "C" {
@@ -32,7 +33,6 @@ extern "C" {
 ***************************************/
 void FIO_overwriteMode(void);
 void FIO_setNotificationLevel(unsigned level);
-void FIO_setMaxWLog(unsigned maxWLog);     /**< if `maxWLog` == 0, no max enforced */
 void FIO_setSparseWrite(unsigned sparse);  /**< 0: no sparse; 1: disable on stdout; 2: always enabled */
 void FIO_setDictIDFlag(unsigned dictIDFlag);
 void FIO_setChecksumFlag(unsigned checksumFlag);
@@ -70,3 +70,5 @@ int FIO_decompressMultipleFilenames(const char** srcNamesTable, unsigned nbFiles
 #if defined (__cplusplus)
 }
 #endif
+
+#endif  /* FILEIO_H_23981798732 */

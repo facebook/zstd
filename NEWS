@@ -4,8 +4,10 @@ added : NetBSD install target (#338)
 Improved : variable compression speed improvements on batches of small files.
 Fixed : CLI -d output to stdout by default when input is stdin (#322)
 Fixed : CLI correctly detects console on Mac OS-X
-Fixed : Legacy decoders use unified error codes (#341), reported by benrg
+Fixed : CLI supports recursive mode `-r` on Mac OS-X
+Fixed : Legacy decoders use unified error codes, reported by benrg (#341), fixed by Przemyslaw Skibinski
 Fixed : compatibility with OpenBSD, reported by Juan Francisco Cantero Hurtado (#319)
+Fixed : compatibility with Hurd, by Przemyslaw Skibinski (#365)
 Fixed : zstd-pgo, reported by octoploid (#329)
 
 v1.0.0

@@ -209,7 +209,8 @@ static int basicUnitTests(U32 seed, double compressibility, ZSTD_customMem custo
 
     /* Byte-by-byte decompression test */
     DISPLAYLEVEL(4, "test%3i : decompress byte-by-byte : ", testNb++);
-    {   size_t r = 1;
+    {   /* skippable frame */
+        size_t r = 1;
         ZSTD_initDStream_usingDict(zd, CNBuffer, 128 KB);
         inBuff.src = compressedBuffer;
         outBuff.dst = decodedBuffer;
@@ -221,9 +222,10 @@ static int basicUnitTests(U32 seed, double compressibility, ZSTD_customMem custo
             r = ZSTD_decompressStream(zd, &outBuff, &inBuff);
             if (ZSTD_isError(r)) goto _output_error;
         }
+        /* normal frame */
         ZSTD_initDStream_usingDict(zd, CNBuffer, 128 KB);
         r=1;
-        while (r) {   /* normal frame */
+        while (r) {
             inBuff.size = inBuff.pos + 1;
             outBuff.size = outBuff.pos + 1;
             r = ZSTD_decompressStream(zd, &outBuff, &inBuff);
@@ -322,6 +324,8 @@ _output_error:
 }
 
 
+/* ======   Fuzzer tests   ====== */
+
 static size_t findDiff(const void* buf1, const void* buf2, size_t max)
 {
     const BYTE* b1 = (const BYTE*)buf1;
@@ -413,8 +417,8 @@ static int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compres
         FUZ_rand(&coreSeed);
         lseed = coreSeed ^ prime1;
 
-        /* states full reset (unsynchronized) */
-        /* some issues only happen when reusing states in a specific sequence of parameters */
+        /* states full reset (deliberately not synchronized) */
+        /* some issues can only happen when reusing states */
         if ((FUZ_rand(&lseed) & 0xFF) == 131) { ZSTD_freeCStream(zc); zc = ZSTD_createCStream(); }
         if ((FUZ_rand(&lseed) & 0xFF) == 132) { ZSTD_freeDStream(zd); zd = ZSTD_createDStream(); }
 

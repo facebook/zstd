@@ -14,16 +14,14 @@
 #include "zstd_zlibwrapper.h"
 #define ZSTD_STATIC_LINKING_ONLY   /* ZSTD_MAGICNUMBER */
 #include "zstd.h"
-#define ZBUFF_STATIC_LINKING_ONLY  /* ZBUFF_createCCtx_advanced */
-#include "zbuff.h"
 #include "zstd_internal.h"         /* defaultCustomMem */
 
 
 #define Z_INFLATE_SYNC              8
-#define ZWRAP_HEADERSIZE            4
+#define ZWRAP_HEADERSIZE            8
 #define ZWRAP_DEFAULT_CLEVEL        5   /* Z_DEFAULT_COMPRESSION is translated to ZWRAP_DEFAULT_CLEVEL for zstd */
 
-#define LOG_WRAPPER(...)  /* printf(__VA_ARGS__) */
+#define LOG_WRAPPER(...)  printf(__VA_ARGS__)
 
 
 #define FINISH_WITH_GZ_ERR(msg) { \
@@ -78,18 +76,20 @@ static void ZWRAP_freeFunction(void* opaque, void* address)
 /* *** Compression *** */
 
 typedef struct {
-    ZBUFF_CCtx* zbc;
+    ZSTD_CStream* zbc;
     size_t bytesLeft;
     int compressionLevel;
     ZSTD_customMem customMem;
     z_stream allocFunc; /* copy of zalloc, zfree, opaque */
+    ZSTD_inBuffer inBuffer;
+    ZSTD_outBuffer outBuffer;
 } ZWRAP_CCtx;
 
 
 size_t ZWRAP_freeCCtx(ZWRAP_CCtx* zwc)
 {
     if (zwc==NULL) return 0;   /* support free on NULL */
-    ZBUFF_freeCCtx(zwc->zbc);
+    ZSTD_freeCStream(zwc->zbc);
     zwc->customMem.customFree(zwc->customMem.opaque, zwc);
     return 0;
 }
@@ -114,7 +114,7 @@ ZWRAP_CCtx* ZWRAP_createCCtx(z_streamp strm)
         memcpy(&zwc->customMem, &defaultCustomMem, sizeof(ZSTD_customMem));
     }
 
-    zwc->zbc = ZBUFF_createCCtx_advanced(zwc->customMem);
+    zwc->zbc = ZSTD_createCStream_advanced(zwc->customMem);
     if (zwc->zbc == NULL) { ZWRAP_freeCCtx(zwc); return NULL; }
     return zwc;
 }
@@ -137,7 +137,7 @@ ZEXTERN int ZEXPORT z_deflateInit_ OF((z_streamp strm, int level,
     if (level == Z_DEFAULT_COMPRESSION)
         level = ZWRAP_DEFAULT_CLEVEL;
 
-    { size_t const errorCode = ZBUFF_compressInit(zwc->zbc, level);
+    { size_t const errorCode = ZSTD_initCStream(zwc->zbc, level);
       if (ZSTD_isError(errorCode)) return Z_MEM_ERROR; }
 
     zwc->compressionLevel = level;
@@ -168,15 +168,23 @@ ZEXTERN int ZEXPORT z_deflateSetDictionary OF((z_streamp strm,
         return deflateSetDictionary(strm, dictionary, dictLength);
 
     {   ZWRAP_CCtx* zwc = (ZWRAP_CCtx*) strm->state;
-        LOG_WRAPPER("- deflateSetDictionary level=%d\n", (int)strm->data_type);
-        { size_t const errorCode = ZBUFF_compressInitDictionary(zwc->zbc, dictionary, dictLength, zwc->compressionLevel);
+        LOG_WRAPPER("- deflateSetDictionary level=%d\n", (int)zwc->compressionLevel);
+        { size_t const errorCode = ZSTD_initCStream_usingDict(zwc->zbc, dictionary, dictLength, zwc->compressionLevel);
           if (ZSTD_isError(errorCode)) return Z_MEM_ERROR; }
     }
 
     return Z_OK;
 }
 
-
+/*
+#define Z_NO_FLUSH      0
+#define Z_PARTIAL_FLUSH 1
+#define Z_SYNC_FLUSH    2
+#define Z_FULL_FLUSH    3
+#define Z_FINISH        4
+#define Z_BLOCK         5
+#define Z_TREES         6
+*/
 ZEXTERN int ZEXPORT z_deflate OF((z_streamp strm, int flush))
 {
     ZWRAP_CCtx* zwc;
@@ -191,48 +199,54 @@ ZEXTERN int ZEXPORT z_deflate OF((z_streamp strm, int flush))
 
     LOG_WRAPPER("deflate flush=%d avail_in=%d avail_out=%d total_in=%d total_out=%d\n", (int)flush, (int)strm->avail_in, (int)strm->avail_out, (int)strm->total_in, (int)strm->total_out);
     if (strm->avail_in > 0) {
-        size_t dstCapacity = strm->avail_out;
-        size_t srcSize = strm->avail_in;
-        size_t const errorCode = ZBUFF_compressContinue(zwc->zbc, strm->next_out, &dstCapacity, strm->next_in, &srcSize);
-        LOG_WRAPPER("ZBUFF_compressContinue srcSize=%d dstCapacity=%d\n", (int)srcSize, (int)dstCapacity);
-        if (ZSTD_isError(errorCode)) return Z_MEM_ERROR;
-        strm->next_out += dstCapacity;
-        strm->total_out += dstCapacity;
-        strm->avail_out -= dstCapacity;
-        strm->total_in += srcSize;
-        strm->next_in += srcSize;
-        strm->avail_in -= srcSize;
+        zwc->inBuffer.src = strm->next_in;
+        zwc->inBuffer.size = strm->avail_in;
+        zwc->inBuffer.pos = 0;
+        zwc->outBuffer.dst = strm->next_out;
+        zwc->outBuffer.size = strm->avail_out;
+        zwc->outBuffer.pos = 0;
+        { size_t const errorCode = ZSTD_compressStream(zwc->zbc, &zwc->outBuffer, &zwc->inBuffer);
+          LOG_WRAPPER("ZSTD_compressStream srcSize=%d dstCapacity=%d\n", (int)zwc->inBuffer.size, (int)zwc->outBuffer.size);
+          if (ZSTD_isError(errorCode)) return Z_MEM_ERROR;
+        }
+        strm->next_out += zwc->outBuffer.pos;
+        strm->total_out += zwc->outBuffer.pos;
+        strm->avail_out -= zwc->outBuffer.pos;
+        strm->total_in += zwc->inBuffer.pos;
+        strm->next_in += zwc->inBuffer.pos;
+        strm->avail_in -= zwc->inBuffer.pos;
     }
 
     if (flush == Z_FULL_FLUSH) FINISH_WITH_ERR(strm, "Z_FULL_FLUSH is not supported!");
 
     if (flush == Z_FINISH) {
         size_t bytesLeft;
-        size_t dstCapacity = strm->avail_out;
+        zwc->outBuffer.dst = strm->next_out;
+        zwc->outBuffer.size = strm->avail_out;
+        zwc->outBuffer.pos = 0;
         if (zwc->bytesLeft) {
-            bytesLeft = ZBUFF_compressFlush(zwc->zbc, strm->next_out, &dstCapacity);
-            LOG_WRAPPER("ZBUFF_compressFlush avail_out=%d dstCapacity=%d bytesLeft=%d\n", (int)strm->avail_out, (int)dstCapacity, (int)bytesLeft);
+            bytesLeft = ZSTD_flushStream(zwc->zbc, &zwc->outBuffer);
+            LOG_WRAPPER("ZSTD_flushStream dstCapacity=%d bytesLeft=%d\n", (int)strm->avail_out, (int)bytesLeft);
         } else {
-            bytesLeft = ZBUFF_compressEnd(zwc->zbc, strm->next_out, &dstCapacity);
-            LOG_WRAPPER("ZBUFF_compressEnd dstCapacity=%d bytesLeft=%d\n", (int)dstCapacity, (int)bytesLeft);
+            bytesLeft = ZSTD_endStream(zwc->zbc, &zwc->outBuffer);
+            LOG_WRAPPER("ZSTD_endStream dstCapacity=%d bytesLeft=%d\n", (int)strm->avail_out, (int)bytesLeft);
         }
         if (ZSTD_isError(bytesLeft)) return Z_MEM_ERROR;
-        strm->next_out += dstCapacity;
-        strm->total_out += dstCapacity;
-        strm->avail_out -= dstCapacity;
+        strm->next_out += zwc->outBuffer.pos;
+        strm->total_out += zwc->outBuffer.pos;
+        strm->avail_out -= zwc->outBuffer.pos;
         if (flush == Z_FINISH && bytesLeft == 0) return Z_STREAM_END;
         zwc->bytesLeft = bytesLeft;
     }
 
     if (flush == Z_SYNC_FLUSH) {
         size_t bytesLeft;
-        size_t dstCapacity = strm->avail_out;
-        bytesLeft = ZBUFF_compressFlush(zwc->zbc, strm->next_out, &dstCapacity);
-        LOG_WRAPPER("ZBUFF_compressFlush avail_out=%d dstCapacity=%d bytesLeft=%d\n", (int)strm->avail_out, (int)dstCapacity, (int)bytesLeft);
+        bytesLeft = ZSTD_flushStream(zwc->zbc, &zwc->outBuffer);
+        LOG_WRAPPER("ZSTD_flushStream dstCapacity=%d bytesLeft=%d\n", (int)strm->avail_out, (int)bytesLeft);
         if (ZSTD_isError(bytesLeft)) return Z_MEM_ERROR;
-        strm->next_out += dstCapacity;
-        strm->total_out += dstCapacity;
-        strm->avail_out -= dstCapacity;
+        strm->next_out += zwc->outBuffer.pos;
+        strm->total_out += zwc->outBuffer.pos;
+        strm->avail_out -= zwc->outBuffer.pos;
         zwc->bytesLeft = bytesLeft;
     }
     return Z_OK;
@@ -283,7 +297,7 @@ ZEXTERN int ZEXPORT z_deflateParams OF((z_streamp strm,
 /* *** Decompression *** */
 
 typedef struct {
-    ZBUFF_DCtx* zbd;
+    ZSTD_DStream* zbd;
     char headerBuf[ZWRAP_HEADERSIZE];
     int errorCount;
 
@@ -293,6 +307,8 @@ typedef struct {
     int windowBits;
     ZSTD_customMem customMem;
     z_stream allocFunc; /* copy of zalloc, zfree, opaque */
+    ZSTD_inBuffer inBuffer;
+    ZSTD_outBuffer outBuffer;
 } ZWRAP_DCtx;
 
 
@@ -322,7 +338,7 @@ ZWRAP_DCtx* ZWRAP_createDCtx(z_streamp strm)
 size_t ZWRAP_freeDCtx(ZWRAP_DCtx* zwd)
 {
     if (zwd==NULL) return 0;   /* support free on null */
-    ZBUFF_freeDCtx(zwd->zbd);
+    ZSTD_freeDStream(zwd->zbd);
     if (zwd->version) zwd->customMem.customFree(zwd->customMem.opaque, zwd->version);
     zwd->customMem.customFree(zwd->customMem.opaque, zwd);
     return 0;
@@ -373,16 +389,20 @@ ZEXTERN int ZEXPORT z_inflateSetDictionary OF((z_streamp strm,
     {   size_t errorCode;
         ZWRAP_DCtx* zwd = (ZWRAP_DCtx*) strm->state;
         if (strm->state == NULL) return Z_MEM_ERROR;
-        errorCode = ZBUFF_decompressInitDictionary(zwd->zbd, dictionary, dictLength);
+        errorCode = ZSTD_initDStream_usingDict(zwd->zbd, dictionary, dictLength);
         if (ZSTD_isError(errorCode)) { ZWRAP_freeDCtx(zwd); strm->state = NULL; return Z_MEM_ERROR; }
 
         if (strm->total_in == ZSTD_frameHeaderSize_min) {
-            size_t dstCapacity = 0;
-            size_t srcSize = strm->total_in;
-            errorCode = ZBUFF_decompressContinue(zwd->zbd, strm->next_out, &dstCapacity, zwd->headerBuf, &srcSize);
-            LOG_WRAPPER("ZBUFF_decompressContinue3 errorCode=%d srcSize=%d dstCapacity=%d\n", (int)errorCode, (int)srcSize, (int)dstCapacity);
-            if (dstCapacity > 0 || ZSTD_isError(errorCode)) {
-                LOG_WRAPPER("ERROR: ZBUFF_decompressContinue %s\n", ZSTD_getErrorName(errorCode));
+            zwd->inBuffer.src = zwd->headerBuf;
+            zwd->inBuffer.size = strm->total_in;
+            zwd->inBuffer.pos = 0;
+            zwd->outBuffer.dst = strm->next_out;
+            zwd->outBuffer.size = 0;
+            zwd->outBuffer.pos = 0;
+            errorCode = ZSTD_decompressStream(zwd->zbd, &zwd->outBuffer, &zwd->inBuffer);
+            LOG_WRAPPER("ZSTD_decompressStream3 errorCode=%d srcSize=%d dstCapacity=%d\n", (int)errorCode, (int)zwd->inBuffer.size, (int)zwd->outBuffer.size);
+            if (zwd->outBuffer.size > 0 || ZSTD_isError(errorCode)) {
+                LOG_WRAPPER("ERROR: ZSTD_decompressStream %s\n", ZSTD_getErrorName(errorCode));
                 ZWRAP_freeDCtx(zwd); strm->state = NULL;
                 return Z_MEM_ERROR;
             }
@@ -399,7 +419,7 @@ ZEXTERN int ZEXPORT z_inflate OF((z_streamp strm, int flush))
         return inflate(strm, flush);
 
     if (strm->avail_in > 0) {
-        size_t errorCode, dstCapacity, srcSize;
+        size_t errorCode, srcSize;
         ZWRAP_DCtx* zwd = (ZWRAP_DCtx*) strm->state;
         if (strm->state == NULL) return Z_MEM_ERROR;
         LOG_WRAPPER("inflate avail_in=%d avail_out=%d total_in=%d total_out=%d\n", (int)strm->avail_in, (int)strm->avail_out, (int)strm->total_in, (int)strm->total_out);
@@ -448,38 +468,46 @@ ZEXTERN int ZEXPORT z_inflate OF((z_streamp strm, int flush))
                 return inflate(strm, flush);
             }
 
-            zwd->zbd = ZBUFF_createDCtx_advanced(zwd->customMem);
+            zwd->zbd = ZSTD_createDStream_advanced(zwd->customMem);
             if (zwd->zbd == NULL) goto error;
 
-            errorCode = ZBUFF_decompressInit(zwd->zbd);
+            errorCode = ZSTD_initDStream(zwd->zbd);
             if (ZSTD_isError(errorCode)) goto error;
 
-            srcSize = ZWRAP_HEADERSIZE;
-            dstCapacity = 0;
-            errorCode = ZBUFF_decompressContinue(zwd->zbd, strm->next_out, &dstCapacity, zwd->headerBuf, &srcSize);
-            LOG_WRAPPER("ZBUFF_decompressContinue1 errorCode=%d srcSize=%d dstCapacity=%d\n", (int)errorCode, (int)srcSize, (int)dstCapacity);
+            zwd->inBuffer.src = zwd->headerBuf;
+            zwd->inBuffer.size = ZWRAP_HEADERSIZE;
+            zwd->inBuffer.pos = 0;
+            zwd->outBuffer.dst = strm->next_out;
+            zwd->outBuffer.size = 0;
+            zwd->outBuffer.pos = 0;
+            errorCode = ZSTD_decompressStream(zwd->zbd, &zwd->outBuffer, &zwd->inBuffer);
+            LOG_WRAPPER("ZSTD_decompressStream1 errorCode=%d srcSize=%d dstCapacity=%d\n", (int)errorCode, (int)zwd->inBuffer.size, (int)zwd->outBuffer.size);
             if (ZSTD_isError(errorCode)) {
-                LOG_WRAPPER("ERROR: ZBUFF_decompressContinue %s\n", ZSTD_getErrorName(errorCode));
+                LOG_WRAPPER("ERROR: ZSTD_decompressStream %s\n", ZSTD_getErrorName(errorCode));
                 goto error;
             }
             if (strm->avail_in == 0) return Z_OK;
         }
 
-        srcSize = strm->avail_in;
-        dstCapacity = strm->avail_out;
-        errorCode = ZBUFF_decompressContinue(zwd->zbd, strm->next_out, &dstCapacity, strm->next_in, &srcSize);
-        LOG_WRAPPER("ZBUFF_decompressContinue2 errorCode=%d srcSize=%d dstCapacity=%d\n", (int)errorCode, (int)srcSize, (int)dstCapacity);
+        zwd->inBuffer.src = strm->next_in;
+        zwd->inBuffer.size = strm->avail_in;
+        zwd->inBuffer.pos = 0;
+        zwd->outBuffer.dst = strm->next_out;
+        zwd->outBuffer.size = strm->avail_out;
+        zwd->outBuffer.pos = 0;
+        errorCode = ZSTD_decompressStream(zwd->zbd, &zwd->outBuffer, &zwd->inBuffer);
+        LOG_WRAPPER("ZSTD_decompressStream2 errorCode=%d srcSize=%d dstCapacity=%d\n", (int)errorCode, (int)strm->avail_in, (int)strm->avail_out);
         if (ZSTD_isError(errorCode)) {
-            LOG_WRAPPER("ERROR: ZBUFF_decompressContinue %s\n", ZSTD_getErrorName(errorCode));
+            LOG_WRAPPER("ERROR: ZSTD_decompressStream %s\n", ZSTD_getErrorName(errorCode));
             zwd->errorCount++;
             if (zwd->errorCount<=1) return Z_NEED_DICT; else goto error;
         }
-        strm->next_out += dstCapacity;
-        strm->total_out += dstCapacity;
-        strm->avail_out -= dstCapacity;
-        strm->total_in += srcSize;
-        strm->next_in += srcSize;
-        strm->avail_in -= srcSize;
+        strm->next_out += zwd->outBuffer.pos;
+        strm->total_out += zwd->outBuffer.pos;
+        strm->avail_out -= zwd->outBuffer.pos;
+        strm->total_in += zwd->inBuffer.pos;
+        strm->next_in += zwd->inBuffer.pos;
+        strm->avail_in -= zwd->inBuffer.pos;
         if (errorCode == 0) return Z_STREAM_END;
         return Z_OK;
 error:

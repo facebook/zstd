@@ -144,6 +144,7 @@ static int usage_advanced(const char* programName)
     DISPLAY( "--test  : test compressed file integrity \n");
     DISPLAY( "--[no-]sparse : sparse mode (default:enabled on file, disabled on stdout)\n");
 #endif
+    DISPLAY( "--      : All arguments after \"--\" are treated as files \n");
 #ifndef ZSTD_NODICT
     DISPLAY( "\n");
     DISPLAY( "Dictionary builder :\n");

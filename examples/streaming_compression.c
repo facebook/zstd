@@ -81,6 +81,7 @@ static void compressFile_orDie(const char* fname, const char* outName, int cLeve
         while (input.pos < input.size) {
             ZSTD_outBuffer output = { buffOut, buffOutSize, 0 };
             toRead = ZSTD_compressStream(cstream, &output , &input);   /* toRead is guaranteed to be <= ZSTD_CStreamInSize() */
+            if (toRead > buffInSize) toRead = buffInSize;   /* Safely handle when `buffInSize` is manually changed to a smaller value */
             fwrite_orDie(buffOut, output.pos, fout);
         }
     }

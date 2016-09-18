@@ -65,9 +65,9 @@ static void compressFile_orDie(const char* fname, const char* outName, int cLeve
 {
     FILE* const fin  = fopen_orDie(fname, "rb");
     FILE* const fout = fopen_orDie(outName, "wb");
-    size_t const buffInSize = ZSTD_CStreamInSize();;
+    size_t const buffInSize = ZSTD_CStreamInSize();    /* can always read one full block */
     void*  const buffIn  = malloc_orDie(buffInSize);
-    size_t const buffOutSize = ZSTD_CStreamOutSize();;
+    size_t const buffOutSize = ZSTD_CStreamOutSize();  /* can always flush a full block */
     void*  const buffOut = malloc_orDie(buffOutSize);
 
     ZSTD_CStream* const cstream = ZSTD_createCStream();
@@ -80,7 +80,7 @@ static void compressFile_orDie(const char* fname, const char* outName, int cLeve
         ZSTD_inBuffer input = { buffIn, read, 0 };
         while (input.pos < input.size) {
             ZSTD_outBuffer output = { buffOut, buffOutSize, 0 };
-            toRead = ZSTD_compressStream(cstream, &output , &input);
+            toRead = ZSTD_compressStream(cstream, &output , &input);   /* toRead is guaranteed to be <= ZSTD_CStreamInSize() */
             fwrite_orDie(buffOut, output.pos, fout);
         }
     }

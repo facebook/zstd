@@ -95,6 +95,7 @@ Unsupported methods:
 - deflateSetHeader
 - inflateGetDictionary
 - inflateCopy
+- inflateSync
 - inflateReset
 - inflateReset2
 - inflatePrime

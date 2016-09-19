@@ -160,6 +160,14 @@ ZEXTERN int ZEXPORT z_deflateInit2_ OF((z_streamp strm, int level, int method,
 }
 
 
+ZEXTERN int ZEXPORT z_deflateReset OF((z_streamp strm))
+{
+    if (!g_useZSTD)
+        return deflateReset(strm);
+    FINISH_WITH_ERR(strm, "deflateReset is not supported!");
+}
+
+
 ZEXTERN int ZEXPORT z_deflateSetDictionary OF((z_streamp strm,
                                              const Bytef *dictionary,
                                              uInt  dictLength))
@@ -217,7 +225,7 @@ ZEXTERN int ZEXPORT z_deflate OF((z_streamp strm, int flush))
         strm->avail_in -= zwc->inBuffer.pos;
     }
 
-    if (flush == Z_FULL_FLUSH) FINISH_WITH_ERR(strm, "Z_FULL_FLUSH is not supported!");
+    if (flush == Z_FULL_FLUSH || flush == Z_BLOCK || flush == Z_TREES) FINISH_WITH_ERR(strm, "Z_FULL_FLUSH, Z_BLOCK and Z_TREES are not supported!");
 
     if (flush == Z_FINISH) {
         size_t bytesLeft;
@@ -233,7 +241,7 @@ ZEXTERN int ZEXPORT z_deflate OF((z_streamp strm, int flush))
         if (bytesLeft == 0) return Z_STREAM_END;
     }
     else
-    if (flush == Z_SYNC_FLUSH) {
+    if (flush == Z_SYNC_FLUSH || flush == Z_PARTIAL_FLUSH) {
         size_t bytesLeft;
         zwc->outBuffer.dst = strm->next_out;
         zwc->outBuffer.size = strm->avail_out;
@@ -486,6 +494,8 @@ ZEXTERN int ZEXPORT z_inflate OF((z_streamp strm, int flush))
             errorCode = ZSTD_initDStream(zwd->zbd);
             if (ZSTD_isError(errorCode)) goto error;
 
+            if (flush == Z_INFLATE_SYNC) { strm->msg = "inflateSync is not supported!"; goto error; }
+
             inPos = zwd->inBuffer.pos;
             zwd->inBuffer.src = zwd->headerBuf;
             zwd->inBuffer.size = ZSTD_HEADERSIZE;
@@ -553,6 +563,9 @@ ZEXTERN int ZEXPORT z_inflateEnd OF((z_streamp strm))
 
 ZEXTERN int ZEXPORT z_inflateSync OF((z_streamp strm))
 {
+    if (!strm->reserved)
+        return z_inflateSync(strm);
+
     return z_inflate(strm, Z_INFLATE_SYNC);
 }
 
@@ -566,14 +579,6 @@ ZEXTERN int ZEXPORT z_deflateCopy OF((z_streamp dest,
     if (!g_useZSTD)
         return deflateCopy(dest, source);
     FINISH_WITH_ERR(source, "deflateCopy is not supported!");
-}
-
-
-ZEXTERN int ZEXPORT z_deflateReset OF((z_streamp strm))
-{
-    if (!g_useZSTD)
-        return deflateReset(strm);
-    FINISH_WITH_ERR(strm, "deflateReset is not supported!");
 }
 
 
@@ -622,7 +627,7 @@ ZEXTERN int ZEXPORT z_deflateSetHeader OF((z_streamp strm,
 
 
 
-/* Advanced compression functions */
+/* Advanced decompression functions */
 #if ZLIB_VERNUM >= 0x1280
 ZEXTERN int ZEXPORT z_inflateGetDictionary OF((z_streamp strm,
                                              Bytef *dictionary,

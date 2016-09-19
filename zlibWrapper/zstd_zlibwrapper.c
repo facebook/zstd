@@ -78,7 +78,6 @@ static void ZWRAP_freeFunction(void* opaque, void* address)
 
 typedef struct {
     ZSTD_CStream* zbc;
-    size_t bytesLeft;
     int compressionLevel;
     ZSTD_customMem customMem;
     z_stream allocFunc; /* copy of zalloc, zfree, opaque */
@@ -225,21 +224,15 @@ ZEXTERN int ZEXPORT z_deflate OF((z_streamp strm, int flush))
         zwc->outBuffer.dst = strm->next_out;
         zwc->outBuffer.size = strm->avail_out;
         zwc->outBuffer.pos = 0;
-        if (zwc->bytesLeft) {
-            bytesLeft = ZSTD_flushStream(zwc->zbc, &zwc->outBuffer);
-            LOG_WRAPPER("ZSTD_flushStream dstCapacity=%d bytesLeft=%d\n", (int)strm->avail_out, (int)bytesLeft);
-        } else {
-            bytesLeft = ZSTD_endStream(zwc->zbc, &zwc->outBuffer);
-            LOG_WRAPPER("ZSTD_endStream dstCapacity=%d bytesLeft=%d\n", (int)strm->avail_out, (int)bytesLeft);
-        }
+        bytesLeft = ZSTD_endStream(zwc->zbc, &zwc->outBuffer);
+        LOG_WRAPPER("ZSTD_endStream dstCapacity=%d bytesLeft=%d\n", (int)strm->avail_out, (int)bytesLeft);
         if (ZSTD_isError(bytesLeft)) return Z_MEM_ERROR;
         strm->next_out += zwc->outBuffer.pos;
         strm->total_out += zwc->outBuffer.pos;
         strm->avail_out -= zwc->outBuffer.pos;
-        if (flush == Z_FINISH && bytesLeft == 0) return Z_STREAM_END;
-        zwc->bytesLeft = bytesLeft;
+        if (bytesLeft == 0) return Z_STREAM_END;
     }
-
+    else
     if (flush == Z_SYNC_FLUSH) {
         size_t bytesLeft;
         zwc->outBuffer.dst = strm->next_out;
@@ -251,7 +244,6 @@ ZEXTERN int ZEXPORT z_deflate OF((z_streamp strm, int flush))
         strm->next_out += zwc->outBuffer.pos;
         strm->total_out += zwc->outBuffer.pos;
         strm->avail_out -= zwc->outBuffer.pos;
-        zwc->bytesLeft = bytesLeft;
     }
     return Z_OK;
 }

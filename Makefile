@@ -122,9 +122,9 @@ endif
 ifneq (,$(filter $(HOST_OS),MSYS POSIX))
 cmaketest:
 	cmake --version
-	$(RM) -r $(BUILDDIR)/cmake/build
-	mkdir $(BUILDDIR)/cmake/build
-	cd $(BUILDDIR)/cmake/build ; cmake -DPREFIX:STRING=~/install_test_dir $(CMAKE_PARAMS) .. ; $(MAKE) install ; $(MAKE) uninstall
+	$(RM) -r $(BUILDIR)/cmake/build
+	mkdir $(BUILDIR)/cmake/build
+	cd $(BUILDIR)/cmake/build ; cmake -DPREFIX:STRING=~/install_test_dir $(CMAKE_PARAMS) .. ; $(MAKE) install ; $(MAKE) uninstall
 
 c90test: clean
 	CFLAGS="-std=c90" $(MAKE) all  # will fail, due to // and long long

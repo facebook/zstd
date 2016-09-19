@@ -73,6 +73,34 @@ Hence, deploying one dictionary per type of data will provide the greatest benef
 
 `zstd --decompress FILE.zst -D dictionaryName`
 
+### Build
+
+Once you have the repository cloned, there are multiple ways provided to build Zstandard.
+
+#### Makefile
+
+If your system is compatible with `make`, you can simply run `make` at the root directory.
+It will generate `zstd` within root directory.
+
+Other available options include :
+- `make install` : create and install zstd binary, library and man page
+- `make test` : create and run `zstd` and test tools on local platform
+
+#### cmake
+
+A `cmake` project generator is provided within `build/cmake`.
+It can generate Makefiles or other build scripts
+to create `zstd` binary, and `libzstd` dynamic and static libraries.
+
+#### Visual (Windows)
+
+Going into `build` directory, you will find additional possibilities :
+- Projects for Visual Studio 2005, 2008 and 2010
+  + VS2010 project is compatible with VS2012, VS2013 and VS2015
+- Automated build scripts for Visual compiler by @KrzysFR , in `build/VS_scripts`,
+  which will build `zstd` cli and `libzstd` library without any need to open Visual Studio solution.
+
+
 ### Status
 
 Zstandard is currently deployed within Facebook. It is used daily to compress and decompress very large amounts of data in multiple formats and use cases.

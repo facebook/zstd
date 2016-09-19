@@ -108,7 +108,7 @@ IF (ZSTD_LEGACY_SUPPORT)
 ENDIF (ZSTD_LEGACY_SUPPORT)
 
 IF (MSVC)
-    SET(MSVC_RESOURCE_DIR ${ROOT_DIR}/projects/VS2010/zstdlib)
+    SET(MSVC_RESOURCE_DIR ${ROOT_DIR}/build/VS2010/zstdlib)
     SET(PlatformDependResources ${MSVC_RESOURCE_DIR}/zstdlib.rc)
 ENDIF (MSVC)
 

@@ -24,7 +24,7 @@ LDFLAGS = $(LOC)
 RM = rm -f
 
 
-all: clean test testzstd
+all: clean test testzstd testfitblk
 
 test: example
 	./example
@@ -35,8 +35,14 @@ testdll: example_d
 testzstd: example_zstd
 	./example_zstd
 
+testfitblk: fitblk
+	./fitblk 10240 <../zstd_compression_format.md
+
 .c.o:
 	$(CC) $(CFLAGS) -c -o $@ $<
+ 
+fitblk: $(EXAMPLE_PATH)/fitblk.o $(ZLIBWRAPPER_PATH)/zstd_zlibwrapper.o
+	$(CC) $(LDFLAGS) -o $@ $(EXAMPLE_PATH)/fitblk.o $(ZLIBWRAPPER_PATH)/zstdTurnedOn_zlibwrapper.o $(STATICLIB)
 
 example: $(EXAMPLE_PATH)/example.o $(ZLIBWRAPPER_PATH)/zstd_zlibwrapper.o
 	$(CC) $(LDFLAGS) -o $@ $(EXAMPLE_PATH)/example.o $(ZLIBWRAPPER_PATH)/zstd_zlibwrapper.o $(STATICLIB)
@@ -46,6 +52,9 @@ example_d: $(EXAMPLE_PATH)/example.o $(ZLIBWRAPPER_PATH)/zstd_zlibwrapper.o
 
 example_zstd: $(EXAMPLE_PATH)/example.o $(ZLIBWRAPPER_PATH)/zstdTurnedOn_zlibwrapper.o
 	$(CC) $(LDFLAGS)  -o $@ $(EXAMPLE_PATH)/example.o $(ZLIBWRAPPER_PATH)/zstdTurnedOn_zlibwrapper.o $(STATICLIB)
+
+$(EXAMPLE_PATH)/fitblk.o: $(EXAMPLE_PATH)/fitblk.c
+	$(CC) $(CFLAGS) -I. -c -o $@ $(EXAMPLE_PATH)/fitblk.c
 
 $(EXAMPLE_PATH)/example.o: $(EXAMPLE_PATH)/example.c
 	$(CC) $(CFLAGS) -I. -c -o $@ $(EXAMPLE_PATH)/example.c

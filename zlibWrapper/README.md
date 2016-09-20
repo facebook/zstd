@@ -79,6 +79,7 @@ Supported methods:
 - inflate
 - inflateSetDictionary
 - inflateReset
+- inflateReset2
 - compress
 - compress2
 - compressBound
@@ -97,7 +98,6 @@ Unsupported methods:
 - inflateGetDictionary
 - inflateCopy
 - inflateSync
-- inflateReset2
 - inflatePrime
 - inflateMark
 - inflateGetHeader

@@ -413,6 +413,7 @@ ZEXTERN int ZEXPORT z_inflateInit2_ OF((z_streamp strm, int  windowBits,
     int ret = z_inflateInit_ (strm, version, stream_size);
     if (ret == Z_OK) {
         ZWRAP_DCtx* zwd = (ZWRAP_DCtx*)strm->state;
+        if (zwd == NULL) return Z_STREAM_ERROR;
         zwd->windowBits = windowBits;
     }
     return ret;
@@ -436,6 +437,25 @@ ZEXTERN int ZEXPORT z_inflateReset OF((z_streamp strm))
     strm->total_out = 0;
     return Z_OK;
 }
+
+
+#if ZLIB_VERNUM >= 0x1240
+ZEXTERN int ZEXPORT z_inflateReset2 OF((z_streamp strm,
+                                      int windowBits))
+{
+    if (!strm->reserved)
+        return inflateReset2(strm, windowBits);
+
+    {   int ret = z_inflateReset (strm);
+        if (ret == Z_OK) {
+            ZWRAP_DCtx* zwd = (ZWRAP_DCtx*)strm->state;
+            if (zwd == NULL) return Z_STREAM_ERROR;
+            zwd->windowBits = windowBits;
+        }
+        return ret;
+    }
+}
+#endif
 
 
 ZEXTERN int ZEXPORT z_inflateSetDictionary OF((z_streamp strm,
@@ -715,17 +735,6 @@ ZEXTERN int ZEXPORT z_inflateCopy OF((z_streamp dest,
         return inflateCopy(dest, source);
     FINISH_WITH_ERR(source, "inflateCopy is not supported!");
 }
-
-
-#if ZLIB_VERNUM >= 0x1240
-ZEXTERN int ZEXPORT z_inflateReset2 OF((z_streamp strm,
-                                      int windowBits))
-{
-    if (!strm->reserved)
-        return inflateReset2(strm, windowBits);
-    FINISH_WITH_ERR(strm, "inflateReset2 is not supported!");
-}
-#endif
 
 
 #if ZLIB_VERNUM >= 0x1240

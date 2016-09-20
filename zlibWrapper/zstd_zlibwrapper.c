@@ -27,12 +27,12 @@
 
 #define FINISH_WITH_GZ_ERR(msg) { \
     (void)msg; \
-    return Z_MEM_ERROR; \
+    return Z_STREAM_ERROR; \
 }
 
 #define FINISH_WITH_ERR(strm, message) { \
     strm->msg = message; \
-    return Z_MEM_ERROR; \
+    return Z_STREAM_ERROR; \
 }
 
 #define FINISH_WITH_NULL_ERR(msg) { \
@@ -124,7 +124,7 @@ int ZWRAPC_finish_with_error(ZWRAP_CCtx* zwc, z_streamp strm, int error)
 {
     if (zwc) ZWRAP_freeCCtx(zwc);
     if (strm) strm->state = NULL;
-    return (error) ? error : Z_DATA_ERROR;
+    return (error) ? error : Z_STREAM_ERROR;
 }
 
 
@@ -172,6 +172,7 @@ ZEXTERN int ZEXPORT z_deflateReset OF((z_streamp strm))
 {
     if (!g_useZSTD)
         return deflateReset(strm);
+
     FINISH_WITH_ERR(strm, "deflateReset is not supported!");
 }
 
@@ -185,7 +186,7 @@ ZEXTERN int ZEXPORT z_deflateSetDictionary OF((z_streamp strm,
 
     {   ZWRAP_CCtx* zwc = (ZWRAP_CCtx*) strm->state;
         LOG_WRAPPER("- deflateSetDictionary level=%d\n", (int)zwc->compressionLevel);
-        if (zwc == NULL) return Z_MEM_ERROR;
+        if (zwc == NULL) return Z_STREAM_ERROR;
         { size_t const errorCode = ZSTD_initCStream_usingDict(zwc->zbc, dictionary, dictLength, zwc->compressionLevel);
           if (ZSTD_isError(errorCode)) return ZWRAPC_finish_with_error(zwc, strm, 0); }
     }
@@ -205,7 +206,7 @@ ZEXTERN int ZEXPORT z_deflate OF((z_streamp strm, int flush))
     }
 
     zwc = (ZWRAP_CCtx*) strm->state;
-    if (zwc == NULL) return Z_MEM_ERROR;
+    if (zwc == NULL) return Z_STREAM_ERROR;
 
     LOG_WRAPPER("deflate flush=%d avail_in=%d avail_out=%d total_in=%d total_out=%d\n", (int)flush, (int)strm->avail_in, (int)strm->avail_out, (int)strm->total_in, (int)strm->total_out);
     if (strm->avail_in > 0) {
@@ -269,7 +270,7 @@ ZEXTERN int ZEXPORT z_deflateEnd OF((z_streamp strm))
     {   ZWRAP_CCtx* zwc = (ZWRAP_CCtx*) strm->state;
         size_t const errorCode = ZWRAP_freeCCtx(zwc);
         strm->state = NULL;
-        if (ZSTD_isError(errorCode)) return Z_MEM_ERROR;
+        if (ZSTD_isError(errorCode)) return Z_STREAM_ERROR;
     }
     return Z_OK;
 }
@@ -358,7 +359,7 @@ int ZWRAPD_finish_with_error(ZWRAP_DCtx* zwd, z_streamp strm, int error)
 {
     if (zwd) ZWRAP_freeDCtx(zwd);
     if (strm) strm->state = NULL;
-    return (error) ? error : Z_DATA_ERROR;
+    return (error) ? error : Z_STREAM_ERROR;
 }
 
 
@@ -395,6 +396,18 @@ ZEXTERN int ZEXPORT z_inflateInit2_ OF((z_streamp strm, int  windowBits,
 }
 
 
+ZEXTERN int ZEXPORT z_inflateReset OF((z_streamp strm))
+{
+    if (!strm->reserved)
+        return inflateReset(strm);
+
+    FINISH_WITH_ERR(strm, "inflateReset is not supported!");
+    strm->total_in = 0;
+    strm->total_out = 0;
+    return Z_OK;
+}
+
+
 ZEXTERN int ZEXPORT z_inflateSetDictionary OF((z_streamp strm,
                                              const Bytef *dictionary,
                                              uInt  dictLength))
@@ -405,7 +418,7 @@ ZEXTERN int ZEXPORT z_inflateSetDictionary OF((z_streamp strm,
     LOG_WRAPPER("- inflateSetDictionary\n");
     {   size_t errorCode;
         ZWRAP_DCtx* zwd = (ZWRAP_DCtx*) strm->state;
-        if (strm->state == NULL) return Z_MEM_ERROR;
+        if (strm->state == NULL) return Z_STREAM_ERROR;
         errorCode = ZSTD_initDStream_usingDict(zwd->zbd, dictionary, dictLength);
         if (ZSTD_isError(errorCode)) return ZWRAPD_finish_with_error(zwd, strm, 0);
 
@@ -437,7 +450,7 @@ ZEXTERN int ZEXPORT z_inflate OF((z_streamp strm, int flush))
     if (strm->avail_in > 0) {
         size_t errorCode, srcSize, inPos;
         ZWRAP_DCtx* zwd = (ZWRAP_DCtx*) strm->state;
-        if (strm->state == NULL) return Z_MEM_ERROR;
+        if (strm->state == NULL) return Z_STREAM_ERROR;
         LOG_WRAPPER("inflate avail_in=%d avail_out=%d total_in=%d total_out=%d\n", (int)strm->avail_in, (int)strm->avail_out, (int)strm->total_in, (int)strm->total_out);
      //   if (((strm->avail_in < ZSTD_HEADERSIZE) || (strm->total_in > 0)) && (strm->total_in < ZLIB_HEADERSIZE))
         if (strm->total_in < ZLIB_HEADERSIZE)
@@ -571,8 +584,9 @@ ZEXTERN int ZEXPORT z_inflateEnd OF((z_streamp strm))
 
 ZEXTERN int ZEXPORT z_inflateSync OF((z_streamp strm))
 {
-    if (!strm->reserved)
-        return z_inflateSync(strm);
+    if (!strm->reserved) {
+        return inflateSync(strm);
+    }
 
     return z_inflate(strm, Z_INFLATE_SYNC);
 }
@@ -654,14 +668,6 @@ ZEXTERN int ZEXPORT z_inflateCopy OF((z_streamp dest,
     if (!g_useZSTD)
         return inflateCopy(dest, source);
     FINISH_WITH_ERR(source, "inflateCopy is not supported!");
-}
-
-
-ZEXTERN int ZEXPORT z_inflateReset OF((z_streamp strm))
-{
-    if (!strm->reserved)
-        return inflateReset(strm);
-    FINISH_WITH_ERR(strm, "inflateReset is not supported!");
 }
 
 
@@ -750,7 +756,7 @@ ZEXTERN int ZEXPORT z_compress OF((Bytef *dest,   uLongf *destLen,
     { size_t dstCapacity = *destLen;
       size_t const errorCode = ZSTD_compress(dest, dstCapacity, source, sourceLen, ZWRAP_DEFAULT_CLEVEL);
       LOG_WRAPPER("z_compress sourceLen=%d dstCapacity=%d\n", (int)sourceLen, (int)dstCapacity);
-      if (ZSTD_isError(errorCode)) return Z_MEM_ERROR;
+      if (ZSTD_isError(errorCode)) return Z_STREAM_ERROR;
       *destLen = errorCode;
     }
     return Z_OK;
@@ -766,7 +772,7 @@ ZEXTERN int ZEXPORT z_compress2 OF((Bytef *dest,   uLongf *destLen,
 
     { size_t dstCapacity = *destLen;
       size_t const errorCode = ZSTD_compress(dest, dstCapacity, source, sourceLen, level);
-      if (ZSTD_isError(errorCode)) return Z_MEM_ERROR;
+      if (ZSTD_isError(errorCode)) return Z_STREAM_ERROR;
       *destLen = errorCode;
     }
     return Z_OK;
@@ -790,7 +796,7 @@ ZEXTERN int ZEXPORT z_uncompress OF((Bytef *dest,   uLongf *destLen,
 
     { size_t dstCapacity = *destLen;
       size_t const errorCode = ZSTD_decompress(dest, dstCapacity, source, sourceLen);
-      if (ZSTD_isError(errorCode)) return Z_MEM_ERROR;
+      if (ZSTD_isError(errorCode)) return Z_STREAM_ERROR;
       *destLen = errorCode;
      }
     return Z_OK;

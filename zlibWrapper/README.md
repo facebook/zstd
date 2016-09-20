@@ -73,10 +73,12 @@ Supported methods:
 - deflate (with exception of Z_FULL_FLUSH)
 - deflateSetDictionary
 - deflateEnd
+- deflateReset
 - deflateBound
 - inflateInit
 - inflate
 - inflateSetDictionary
+- inflateReset
 - compress
 - compress2
 - compressBound
@@ -88,7 +90,6 @@ Ignored methods (they do nothing):
 Unsupported methods:
 - gzip file access functions
 - deflateCopy
-- deflateReset
 - deflateTune
 - deflatePending
 - deflatePrime
@@ -96,7 +97,6 @@ Unsupported methods:
 - inflateGetDictionary
 - inflateCopy
 - inflateSync
-- inflateReset
 - inflateReset2
 - inflatePrime
 - inflateMark

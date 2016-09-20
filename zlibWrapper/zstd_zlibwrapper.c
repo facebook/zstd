@@ -173,7 +173,16 @@ ZEXTERN int ZEXPORT z_deflateReset OF((z_streamp strm))
     if (!g_useZSTD)
         return deflateReset(strm);
 
-    FINISH_WITH_ERR(strm, "deflateReset is not supported!");
+    {   ZWRAP_CCtx* zwc = (ZWRAP_CCtx*) strm->state;
+        LOG_WRAPPER("- z_deflateReset\n");
+        if (zwc == NULL) return Z_STREAM_ERROR;
+        { size_t const errorCode = ZSTD_resetCStream(zwc->zbc, 0);
+          if (ZSTD_isError(errorCode)) return ZWRAPC_finish_with_error(zwc, strm, 0); }
+    }
+    
+    strm->total_in = 0;
+    strm->total_out = 0;
+    return Z_OK;
 }
 
 

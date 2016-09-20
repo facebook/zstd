@@ -57,6 +57,7 @@
 //#include "zlib.h"
 #include "zstd_zlibwrapper.h"
 
+#define LOG_FITBLK(...)   /*printf(__VA_ARGS__)*/
 #define local static
 
 /* print nastygram and leave */
@@ -79,14 +80,14 @@ local int partcompress(FILE *in, z_streamp def)
     flush = Z_SYNC_FLUSH;
     do {
         def->avail_in = fread(raw, 1, RAWLEN, in);
-        printf("partcompress def->avail_in=%d\n", def->avail_in);
         if (ferror(in))
             return Z_ERRNO;
         def->next_in = raw;
         if (feof(in))
             flush = Z_FINISH;
+        LOG_FITBLK("partcompress1 avail_in=%d total_in=%d avail_out=%d total_out=%d\n", (int)def->avail_in, (int)def->total_in, (int)def->avail_out, (int)def->total_out);
         ret = deflate(def, flush);
-        printf("partcompress def->avail_out=%d\n", def->avail_out);
+        LOG_FITBLK("partcompress2 avail_in=%d total_in=%d avail_out=%d total_out=%d\n", (int)def->avail_in, (int)def->total_in, (int)def->avail_out, (int)def->total_out);
         assert(ret != Z_STREAM_ERROR);
     } while (def->avail_out != 0 && flush == Z_SYNC_FLUSH);
     return ret;
@@ -105,10 +106,10 @@ local int recompress(z_streamp inf, z_streamp def)
     do {
         /* decompress */
         inf->avail_out = RAWLEN;
-        printf("recompress inf->avail_out=%d\n", inf->avail_out);
-
         inf->next_out = raw;
+        LOG_FITBLK("recompress1inflate avail_in=%d total_in=%d avail_out=%d total_out=%d\n", (int)inf->avail_in, (int)inf->total_in, (int)inf->avail_out, (int)inf->total_out);
         ret = inflate(inf, Z_NO_FLUSH);
+        LOG_FITBLK("recompress2inflate avail_in=%d total_in=%d avail_out=%d total_out=%d\n", (int)inf->avail_in, (int)inf->total_in, (int)inf->avail_out, (int)inf->total_out);
         assert(ret != Z_STREAM_ERROR && ret != Z_DATA_ERROR &&
                ret != Z_NEED_DICT);
         if (ret == Z_MEM_ERROR)
@@ -119,9 +120,10 @@ local int recompress(z_streamp inf, z_streamp def)
         def->next_in = raw;
         if (inf->avail_out != 0)
             flush = Z_FINISH;
+        LOG_FITBLK("recompress1deflate avail_in=%d total_in=%d avail_out=%d total_out=%d\n", (int)def->avail_in, (int)def->total_in, (int)def->avail_out, (int)def->total_out);
         ret = deflate(def, flush);
+        LOG_FITBLK("recompress2deflate avail_in=%d total_in=%d avail_out=%d total_out=%d\n", (int)def->avail_in, (int)def->total_in, (int)def->avail_out, (int)def->total_out);
         assert(ret != Z_STREAM_ERROR);
-        printf("recompress def->avail_out=%d ret=%d\n", def->avail_out, ret);
     } while (ret != Z_STREAM_END && def->avail_out != 0);
     return ret;
 }
@@ -149,8 +151,7 @@ int main(int argc, char **argv)
         quit("need positive size of 8 or greater");
     size = (unsigned)ret;
 
-    printf("zlib version %s = 0x%04x, compile flags = 0x%lx\n",
-            ZLIB_VERSION, ZLIB_VERNUM, zlibCompileFlags());
+    printf("zlib version %s\n", ZLIB_VERSION);
     if (isUsingZSTD()) printf("zstd version %s\n", zstdVersion());
 
     /* allocate memory for buffers and compression engine */
@@ -165,11 +166,12 @@ int main(int argc, char **argv)
     /* compress from stdin until output full, or no more input */
     def.avail_out = size + EXCESS;
     def.next_out = blk;
+    LOG_FITBLK("partcompress1 total_in=%d total_out=%d\n", (int)def.total_in, (int)def.total_out);
     ret = partcompress(stdin, &def);
+    LOG_FITBLK("partcompress2 total_in=%d total_out=%d\n", (int)def.total_in, (int)def.total_out);
     if (ret == Z_ERRNO)
         quit("error reading input");
 
-printf("partcompress def.total_out=%d ret=%d\n", (int)def.total_out, ret);
     /* if it all fit, then size was undersubscribed -- done! */
     if (ret == Z_STREAM_END && def.avail_out >= EXCESS) {
         /* write block to stdout */
@@ -205,9 +207,9 @@ printf("partcompress def.total_out=%d ret=%d\n", (int)def.total_out, ret);
     inf.next_in = blk;
     def.avail_out = size + EXCESS;
     def.next_out = tmp;
-printf("recompress1 inf.avail_in=%d def.avail_out=%d\n", inf.avail_in, def.avail_out);
+    LOG_FITBLK("recompress1 inf.total_in=%d def.total_out=%d\n", (int)inf.total_in, (int)def.total_out);
     ret = recompress(&inf, &def);
-printf("recompress1 inf.avail_in=%d def.avail_out=%d\n", inf.avail_in, def.avail_out);
+    LOG_FITBLK("recompress1 inf.total_in=%d def.total_out=%d\n", (int)inf.total_in, (int)def.total_out);
     if (ret == Z_MEM_ERROR)
         quit("out of memory");
 
@@ -222,9 +224,9 @@ printf("recompress1 inf.avail_in=%d def.avail_out=%d\n", inf.avail_in, def.avail
     inf.next_in = tmp;
     def.avail_out = size;
     def.next_out = blk;
-printf("recompress2 inf.avail_in=%d def.avail_out=%d\n", inf.avail_in, def.avail_out);
+    LOG_FITBLK("recompress2 inf.total_in=%d def.total_out=%d\n", (int)inf.total_in, (int)def.total_out);
     ret = recompress(&inf, &def);
-printf("recompress2 inf.avail_in=%d def.avail_out=%d\n", inf.avail_in, def.avail_out);
+    LOG_FITBLK("recompress2 inf.total_in=%d def.total_out=%d\n", (int)inf.total_in, (int)def.total_out);
     if (ret == Z_MEM_ERROR)
         quit("out of memory");
     assert(ret == Z_STREAM_END);    /* otherwise MARGIN too small */

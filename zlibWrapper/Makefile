@@ -37,7 +37,7 @@ testzstd: example_zstd
 
 testfitblk: fitblk
 	./fitblk 10240 <../zstd_compression_format.md
-	#./fitblk 40960 <../zstd_compression_format.md
+	./fitblk 40960 <../zstd_compression_format.md
 
 .c.o:
 	$(CC) $(CFLAGS) -c -o $@ $<

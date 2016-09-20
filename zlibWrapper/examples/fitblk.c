@@ -76,18 +76,19 @@ local int partcompress(FILE *in, z_streamp def)
     int ret, flush;
     unsigned char raw[RAWLEN];
 
-    flush = Z_NO_FLUSH;
+    flush = Z_SYNC_FLUSH;
     do {
         def->avail_in = fread(raw, 1, RAWLEN, in);
-        printf("def->avail_in=%d\n", def->avail_in);
+        printf("partcompress def->avail_in=%d\n", def->avail_in);
         if (ferror(in))
             return Z_ERRNO;
         def->next_in = raw;
         if (feof(in))
             flush = Z_FINISH;
         ret = deflate(def, flush);
+        printf("partcompress def->avail_out=%d\n", def->avail_out);
         assert(ret != Z_STREAM_ERROR);
-    } while (def->avail_out != 0 && flush == Z_NO_FLUSH);
+    } while (def->avail_out != 0 && flush == Z_SYNC_FLUSH);
     return ret;
 }
 
@@ -104,7 +105,7 @@ local int recompress(z_streamp inf, z_streamp def)
     do {
         /* decompress */
         inf->avail_out = RAWLEN;
-        printf("inf->avail_out=%d\n", inf->avail_out);
+        printf("recompress inf->avail_out=%d\n", inf->avail_out);
 
         inf->next_out = raw;
         ret = inflate(inf, Z_NO_FLUSH);
@@ -120,6 +121,7 @@ local int recompress(z_streamp inf, z_streamp def)
             flush = Z_FINISH;
         ret = deflate(def, flush);
         assert(ret != Z_STREAM_ERROR);
+        printf("recompress def->avail_out=%d ret=%d\n", def->avail_out, ret);
     } while (ret != Z_STREAM_END && def->avail_out != 0);
     return ret;
 }
@@ -167,7 +169,7 @@ int main(int argc, char **argv)
     if (ret == Z_ERRNO)
         quit("error reading input");
 
-printf("partcompress def.avail_out=%d\n", def.avail_out);
+printf("partcompress def.total_out=%d ret=%d\n", (int)def.total_out, ret);
     /* if it all fit, then size was undersubscribed -- done! */
     if (ret == Z_STREAM_END && def.avail_out >= EXCESS) {
         /* write block to stdout */

@@ -45,12 +45,12 @@
     } \
 }
 
-z_const char hello[] = "hello, hello!";
+z_const char hello[] = "hello, hello! I said hello, hello!";
 /* "hello world" would be more standard, but the repeated "hello"
  * stresses the compression code better, sorry...
  */
 
-const char dictionary[] = "hello";
+const char dictionary[] = "hello, hello!";
 uLong dictId; /* Adler32 value of the dictionary */
 
 void test_deflate       OF((Byte *compr, uLong comprLen));
@@ -156,7 +156,7 @@ void test_gzio(fname, uncompr, uncomprLen)
         fprintf(stderr, "gzputs err: %s\n", gzerror(file, &err));
         exit(1);
     }
-    if (gzprintf(file, ", %s!", "hello") != 8) {
+    if (gzprintf(file, ", %s! I said hello, hello!", "hello") != 8+21) {
         fprintf(stderr, "gzprintf err: %s\n", gzerror(file, &err));
         exit(1);
     }
@@ -182,7 +182,7 @@ void test_gzio(fname, uncompr, uncomprLen)
     }
 
     pos = gzseek(file, -8L, SEEK_CUR);
-    if (pos != 6 || gztell(file) != pos) {
+    if (pos != 6+21 || gztell(file) != pos) {
         fprintf(stderr, "gzseek error, pos=%ld, gztell=%ld\n",
                 (long)pos, (long)gztell(file));
         exit(1);
@@ -203,7 +203,7 @@ void test_gzio(fname, uncompr, uncomprLen)
         fprintf(stderr, "gzgets err after gzseek: %s\n", gzerror(file, &err));
         exit(1);
     }
-    if (strcmp((char*)uncompr, hello + 6)) {
+    if (strcmp((char*)uncompr, hello + 6+21)) {
         fprintf(stderr, "bad gzgets after gzseek\n");
         exit(1);
     } else {

@@ -165,9 +165,6 @@ int main(int argc, char **argv)
     ret = ZSTD_setPledgedSrcSize(&def, 1<<16);
     if (ret != Z_OK)
         quit("ZSTD_setPledgedSrcSize");
-    ret = deflateReset(&def);
-    if (ret != Z_OK)
-        quit("deflateReset");
 
     /* compress from stdin until output full, or no more input */
     def.avail_out = size + EXCESS;

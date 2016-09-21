@@ -293,7 +293,7 @@ Options::Status Options::parse(int argc, const char **argv) {
         notSupported("Zstd benchmarking options.");
         return Status::Failure;
       default:
-        std::fprintf(stderr, "Invalid argument: -%c\n", *options);
+        std::fprintf(stderr, "Invalid argument: %s\n", arg);
         return Status::Failure;
       }
       if (!finished) {

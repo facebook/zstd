@@ -54,6 +54,14 @@ $ZSTD -99 -f tmp  # too large compression level, automatic sized down
 $ECHO "test : compress to stdout"
 $ZSTD tmp -c > tmpCompressed
 $ZSTD tmp --stdout > tmpCompressed       # long command format
+$ECHO "test : compress to named file"
+rm tmpCompressed
+$ZSTD tmp -o tmpCompressed
+ls tmpCompressed   # must work
+$ECHO "test : -o must be followed by filename (must fail)"
+$ZSTD tmp -of tmpCompressed && die "-o must be followed by filename"
+$ECHO "test : force write, correct order"
+$ZSTD tmp -fo tmpCompressed
 $ECHO "test : implied stdout when input is stdin"
 $ECHO bob | $ZSTD | $ZSTD -d
 $ECHO "test : null-length file roundtrip"
@@ -183,18 +191,26 @@ $ECHO "- Create first dictionary"
 $ZSTD --train *.c ../programs/*.c -o tmpDict
 cp $TESTFILE tmp
 $ZSTD -f tmp -D tmpDict
-$ZSTD -d tmp.zst -D tmpDict -of result
+$ZSTD -d tmp.zst -D tmpDict -fo result
 diff $TESTFILE result
 $ECHO "- Create second (different) dictionary"
 $ZSTD --train *.c ../programs/*.c ../programs/*.h -o tmpDictC
-$ZSTD -d tmp.zst -D tmpDictC -of result && die "wrong dictionary not detected!"
+$ZSTD -d tmp.zst -D tmpDictC -fo result && die "wrong dictionary not detected!"
 $ECHO "- Create dictionary with short dictID"
 $ZSTD --train *.c ../programs/*.c --dictID 1 -o tmpDict1
 cmp tmpDict tmpDict1 && die "dictionaries should have different ID !"
+$ECHO "- Create dictionary with wrong dictID parameter order (must fail)"
+$ZSTD --train *.c ../programs/*.c --dictID -o 1 tmpDict1 && die "wrong order : --dictID must be followed by argument "
+$ECHO "- Create dictionary with size limit"
+$ZSTD --train *.c ../programs/*.c -o tmpDict2 --maxdict 4K -v
+$ECHO "- Create dictionary with wrong parameter order (must fail)"
+$ZSTD --train *.c ../programs/*.c -o tmpDict2 --maxdict -v 4K && die "wrong order : --maxdict must be followed by argument "
 $ECHO "- Compress without dictID"
 $ZSTD -f tmp -D tmpDict1 --no-dictID
-$ZSTD -d tmp.zst -D tmpDict -of result
+$ZSTD -d tmp.zst -D tmpDict -fo result
 diff $TESTFILE result
+$ECHO "- Compress with wrong argument order (must fail)"
+$ZSTD tmp -Df tmpDict1 -c > /dev/null && die "-D must be followed by dictionary name "
 $ECHO "- Compress multiple files with dictionary"
 rm -rf dirTestDict
 mkdir dirTestDict

@@ -282,9 +282,11 @@ ZEXTERN int ZEXPORT z_deflateEnd OF((z_streamp strm))
         return deflateEnd(strm);
     }
     LOG_WRAPPERC("- deflateEnd total_in=%d total_out=%d\n", (int)(strm->total_in), (int)(strm->total_out));
-    {   ZWRAP_CCtx* zwc = (ZWRAP_CCtx*) strm->state;
-        size_t const errorCode = ZWRAP_freeCCtx(zwc);
+    {   size_t errorCode;
+        ZWRAP_CCtx* zwc = (ZWRAP_CCtx*) strm->state;
+        if (zwc == NULL) return Z_OK;  /* structures are already freed */
         strm->state = NULL;
+        errorCode = ZWRAP_freeCCtx(zwc);
         if (ZSTD_isError(errorCode)) return Z_STREAM_ERROR;
     }
     return Z_OK;
@@ -468,7 +470,7 @@ ZEXTERN int ZEXPORT z_inflateSetDictionary OF((z_streamp strm,
 
     {   size_t errorCode;
         ZWRAP_DCtx* zwd = (ZWRAP_DCtx*) strm->state;
-        if (strm->state == NULL) return Z_STREAM_ERROR;
+        if (zwd == NULL) return Z_STREAM_ERROR;
         errorCode = ZSTD_initDStream_usingDict(zwd->zbd, dictionary, dictLength);
         if (ZSTD_isError(errorCode)) return ZWRAPD_finish_with_error(zwd, strm, 0);
 
@@ -505,7 +507,7 @@ ZEXTERN int ZEXPORT z_inflate OF((z_streamp strm, int flush))
     if (strm->avail_in > 0) {
         size_t errorCode, srcSize, inPos;
         ZWRAP_DCtx* zwd = (ZWRAP_DCtx*) strm->state;
-        if (strm->state == NULL) return Z_STREAM_ERROR;
+        if (zwd == NULL) return Z_STREAM_ERROR;
         LOG_WRAPPERD("- inflate1 flush=%d avail_in=%d avail_out=%d total_in=%d total_out=%d\n", (int)flush, (int)strm->avail_in, (int)strm->avail_out, (int)strm->total_in, (int)strm->total_out);
 
         if (zwd->decompState == Z_STREAM_END) return Z_STREAM_END;
@@ -634,17 +636,18 @@ finish:
 
 ZEXTERN int ZEXPORT z_inflateEnd OF((z_streamp strm))
 {
-    int ret = Z_OK;
     if (!strm->reserved)
         return inflateEnd(strm);
 
     LOG_WRAPPERD("- inflateEnd total_in=%d total_out=%d\n", (int)(strm->total_in), (int)(strm->total_out));
-    {   ZWRAP_DCtx* zwd = (ZWRAP_DCtx*) strm->state;
-        size_t const errorCode = ZWRAP_freeDCtx(zwd);
+    {   size_t errorCode;
+        ZWRAP_DCtx* zwd = (ZWRAP_DCtx*) strm->state;
+        if (zwd == NULL) return Z_OK;  /* structures are already freed */
         strm->state = NULL;
-        if (ZSTD_isError(errorCode)) return Z_MEM_ERROR;
+        errorCode = ZWRAP_freeDCtx(zwd);
+        if (ZSTD_isError(errorCode)) return Z_STREAM_ERROR;
     }
-    return ret;
+    return Z_OK;
 }
 
 

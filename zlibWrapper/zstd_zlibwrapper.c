@@ -87,7 +87,7 @@ typedef struct {
 size_t ZWRAP_freeCCtx(ZWRAP_CCtx* zwc)
 {
     if (zwc==NULL) return 0;   /* support free on NULL */
-    ZSTD_freeCStream(zwc->zbc);
+    if (zwc->zbc) ZSTD_freeCStream(zwc->zbc);
     zwc->customMem.customFree(zwc->customMem.opaque, zwc);
     return 0;
 }
@@ -112,10 +112,26 @@ ZWRAP_CCtx* ZWRAP_createCCtx(z_streamp strm)
         memcpy(&zwc->customMem, &defaultCustomMem, sizeof(ZSTD_customMem));
     }
 
-    zwc->pledgedSrcSize = 0;
-    zwc->zbc = ZSTD_createCStream_advanced(zwc->customMem);
-    if (zwc->zbc == NULL) { ZWRAP_freeCCtx(zwc); return NULL; }
     return zwc;
+}
+
+
+int ZWRAP_initializeCStream(ZWRAP_CCtx* zwc)
+{
+    if (zwc == NULL) return Z_STREAM_ERROR;
+
+    if (zwc->zbc == NULL) {
+        zwc->zbc = ZSTD_createCStream_advanced(zwc->customMem);
+        if (zwc->zbc == NULL) return Z_STREAM_ERROR;
+
+        { ZSTD_parameters const params = ZSTD_getParams(zwc->compressionLevel, zwc->pledgedSrcSize, 0);
+          size_t errorCode;
+          LOG_WRAPPERC("windowLog=%d chainLog=%d hashLog=%d searchLog=%d searchLength=%d strategy=%d\n", params.cParams.windowLog, params.cParams.chainLog, params.cParams.hashLog, params.cParams.searchLog, params.cParams.searchLength, params.cParams.strategy);
+          errorCode = ZSTD_initCStream_advanced(zwc->zbc, NULL, 0, params, zwc->pledgedSrcSize);
+          if (ZSTD_isError(errorCode)) return Z_STREAM_ERROR; }
+    }
+    
+    return Z_OK;
 }
 
 
@@ -164,12 +180,6 @@ ZEXTERN int ZEXPORT z_deflateInit_ OF((z_streamp strm, int level,
     if (level == Z_DEFAULT_COMPRESSION)
         level = ZWRAP_DEFAULT_CLEVEL;
 
-    { ZSTD_parameters const params = ZSTD_getParams(level, zwc->pledgedSrcSize, 0); /* use the 4th table which is adapted for srcSize <= 16KB */
-      size_t errorCode;
-      LOG_WRAPPERC("windowLog=%d chainLog=%d hashLog=%d searchLog=%d searchLength=%d strategy=%d\n", params.cParams.windowLog, params.cParams.chainLog, params.cParams.hashLog, params.cParams.searchLog, params.cParams.searchLength, params.cParams.strategy);
-      errorCode = ZSTD_initCStream_advanced(zwc->zbc, NULL, 0, params, zwc->pledgedSrcSize /*pledgedSrcSize*/);
-      if (ZSTD_isError(errorCode)) return ZWRAPC_finish_with_error(zwc, strm, 0); }
-
     zwc->compressionLevel = level;
     strm->state = (struct internal_state*) zwc; /* use state which in not used by user */
     strm->total_in = 0;
@@ -197,9 +207,12 @@ ZEXTERN int ZEXPORT z_deflateReset OF((z_streamp strm))
         return deflateReset(strm);
 
     {   ZWRAP_CCtx* zwc = (ZWRAP_CCtx*) strm->state;
-        if (zwc == NULL) return Z_STREAM_ERROR;
+        if (!zwc) return Z_STREAM_ERROR;
+        if (zwc->zbc == NULL) {
+            int res = ZWRAP_initializeCStream(zwc);
+            if (res != Z_OK) return ZWRAPC_finish_with_error(zwc, strm, res);
+        }
         { size_t const errorCode = ZSTD_resetCStream(zwc->zbc, zwc->pledgedSrcSize);
-        printf("zwc->pledgedSrcSize=%d\n", (int)zwc->pledgedSrcSize);
           if (ZSTD_isError(errorCode)) return ZWRAPC_finish_with_error(zwc, strm, 0); }
     }
     
@@ -220,7 +233,11 @@ ZEXTERN int ZEXPORT z_deflateSetDictionary OF((z_streamp strm,
 
     {   ZWRAP_CCtx* zwc = (ZWRAP_CCtx*) strm->state;
         LOG_WRAPPERC("- deflateSetDictionary level=%d\n", (int)zwc->compressionLevel);
-        if (zwc == NULL) return Z_STREAM_ERROR;
+        if (!zwc) return Z_STREAM_ERROR;
+        if (zwc->zbc == NULL) {
+            int res = ZWRAP_initializeCStream(zwc);
+            if (res != Z_OK) return ZWRAPC_finish_with_error(zwc, strm, res);
+        }
         { size_t const errorCode = ZSTD_initCStream_usingDict(zwc->zbc, dictionary, dictLength, zwc->compressionLevel);
           if (ZSTD_isError(errorCode)) return ZWRAPC_finish_with_error(zwc, strm, 0); }
     }
@@ -243,6 +260,11 @@ ZEXTERN int ZEXPORT z_deflate OF((z_streamp strm, int flush))
 
     zwc = (ZWRAP_CCtx*) strm->state;
     if (zwc == NULL) return Z_STREAM_ERROR;
+
+    if (zwc->zbc == NULL) {
+        int res = ZWRAP_initializeCStream(zwc);
+        if (res != Z_OK) return ZWRAPC_finish_with_error(zwc, strm, res);
+    }
 
     LOG_WRAPPERC("- deflate1 flush=%d avail_in=%d avail_out=%d total_in=%d total_out=%d\n", (int)flush, (int)strm->avail_in, (int)strm->avail_out, (int)strm->total_in, (int)strm->total_out);
     if (strm->avail_in > 0) {

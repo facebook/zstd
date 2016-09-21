@@ -162,13 +162,19 @@ int main(int argc, char **argv)
     ret = deflateInit(&def, Z_DEFAULT_COMPRESSION);
     if (ret != Z_OK || blk == NULL)
         quit("out of memory");
+    ret = ZSTD_setPledgedSrcSize(&def, 1<<16);
+    if (ret != Z_OK)
+        quit("ZSTD_setPledgedSrcSize");
+    ret = deflateReset(&def);
+    if (ret != Z_OK)
+        quit("deflateReset");
 
     /* compress from stdin until output full, or no more input */
     def.avail_out = size + EXCESS;
     def.next_out = blk;
     LOG_FITBLK("partcompress1 total_in=%d total_out=%d\n", (int)def.total_in, (int)def.total_out);
     ret = partcompress(stdin, &def);
-    LOG_FITBLK("partcompress2 total_in=%d total_out=%d\n", (int)def.total_in, (int)def.total_out);
+    printf("partcompress total_in=%d total_out=%d\n", (int)def.total_in, (int)def.total_out);
     if (ret == Z_ERRNO)
         quit("error reading input");
 

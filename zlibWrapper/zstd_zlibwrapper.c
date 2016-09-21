@@ -112,7 +112,7 @@ ZWRAP_CCtx* ZWRAP_createCCtx(z_streamp strm)
         memcpy(&zwc->customMem, &defaultCustomMem, sizeof(ZSTD_customMem));
     }
 
-    zwc->pledgedSrcSize = 1<<16;
+    zwc->pledgedSrcSize = 0;
     zwc->zbc = ZSTD_createCStream_advanced(zwc->customMem);
     if (zwc->zbc == NULL) { ZWRAP_freeCCtx(zwc); return NULL; }
     return zwc;

@@ -70,7 +70,7 @@ After enabling zstd compression not all native zlib functions are supported. Whe
 
 Supported methods:
 - deflateInit
-- deflate (with exception of Z_FULL_FLUSH)
+- deflate (with exception of Z_FULL_FLUSH, Z_BLOCK, and Z_TREES)
 - deflateSetDictionary
 - deflateEnd
 - deflateReset

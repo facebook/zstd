@@ -23,7 +23,7 @@
 #endif
 
 #ifndef ZSTDCLI_CLEVEL_MAX
-#  define ZSTDCLI_CLEVEL_MAX 19
+#  define ZSTDCLI_CLEVEL_MAX 19   /* when not using --ultra */
 #endif
 
 
@@ -51,13 +51,11 @@
 #if defined(MSDOS) || defined(OS2) || defined(WIN32) || defined(_WIN32) || defined(__CYGWIN__)
 #  include <io.h>       /* _isatty */
 #  define IS_CONSOLE(stdStream) _isatty(_fileno(stdStream))
+#elif defined(_POSIX_C_SOURCE) || defined(_XOPEN_SOURCE) || defined(_POSIX_SOURCE) || (defined(__APPLE__) && defined(__MACH__))  /* https://sourceforge.net/p/predef/wiki/OperatingSystems/ */
+#  include <unistd.h>   /* isatty */
+#  define IS_CONSOLE(stdStream) isatty(fileno(stdStream))
 #else
-#  if defined(_POSIX_C_SOURCE) || defined(_XOPEN_SOURCE) || defined(_POSIX_SOURCE) || (defined(__APPLE__) && defined(__MACH__))  /* https://sourceforge.net/p/predef/wiki/OperatingSystems/ */
-#    include <unistd.h>   /* isatty */
-#    define IS_CONSOLE(stdStream) isatty(fileno(stdStream))
-#  else
-#    define IS_CONSOLE(stdStream) 0
-#  endif
+#  define IS_CONSOLE(stdStream) 0
 #endif
 
 
@@ -195,7 +193,7 @@ static unsigned readU32FromChar(const char** stringPtr)
 
 #define CLEAN_RETURN(i) { operationResult = (i); goto _end; }
 
-int main(int argCount, char** argv)
+int main(int argCount, const char* argv[])
 {
     int argNb,
         bench=0,
@@ -219,13 +217,12 @@ int main(int argCount, char** argv)
     const char* programName = argv[0];
     const char* outFileName = NULL;
     const char* dictFileName = NULL;
-    char* dynNameSpace = NULL;
     unsigned maxDictSize = g_defaultMaxDictSize;
     unsigned dictID = 0;
     int dictCLevel = g_defaultDictCLevel;
     unsigned dictSelect = g_defaultSelectivityLevel;
 #ifdef UTIL_HAS_CREATEFILELIST
-    const char** fileNamesTable = NULL;
+    const char** extendedFileList = NULL;
     char* fileNamesBuf = NULL;
     unsigned fileNamesNb;
 #endif
@@ -432,13 +429,13 @@ int main(int argCount, char** argv)
     DISPLAYLEVEL(3, WELCOME_MESSAGE);
 
 #ifdef UTIL_HAS_CREATEFILELIST
-    if (recursive) {
-        fileNamesTable = UTIL_createFileList(filenameTable, filenameIdx, &fileNamesBuf, &fileNamesNb);
-        if (fileNamesTable) {
+    if (recursive) {  /* at this stage, filenameTable is a list of paths, which can contain both files and directories */
+        extendedFileList = UTIL_createFileList(filenameTable, filenameIdx, &fileNamesBuf, &fileNamesNb);
+        if (extendedFileList) {
             unsigned u;
-            for (u=0; u<fileNamesNb; u++) DISPLAYLEVEL(4, "%u %s\n", u, fileNamesTable[u]);
+            for (u=0; u<fileNamesNb; u++) DISPLAYLEVEL(4, "%u %s\n", u, extendedFileList[u]);
             free((void*)filenameTable);
-            filenameTable = fileNamesTable;
+            filenameTable = extendedFileList;
             filenameIdx = fileNamesNb;
         }
     }
@@ -495,14 +492,16 @@ int main(int argCount, char** argv)
 
     /* IO Stream/File */
     FIO_setNotificationLevel(displayLevel);
-#ifndef ZSTD_NOCOMPRESS
     if (!decode) {
+#ifndef ZSTD_NOCOMPRESS
         if (filenameIdx==1 && outFileName)
           operationResult = FIO_compressFilename(outFileName, filenameTable[0], dictFileName, cLevel);
         else
           operationResult = FIO_compressMultipleFilenames(filenameTable, filenameIdx, outFileName ? outFileName : ZSTD_EXTENSION, dictFileName, cLevel);
-    } else
+#else
+        DISPLAY("Compression not supported\n");
 #endif
+    } else
     {  /* decompression */
 #ifndef ZSTD_NODECOMPRESS
         if (testmode) { outFileName=nulmark; FIO_setRemoveSrcFile(0); } /* test mode */
@@ -517,10 +516,9 @@ int main(int argCount, char** argv)
 
 _end:
     if (main_pause) waitEnter();
-    free(dynNameSpace);
 #ifdef UTIL_HAS_CREATEFILELIST
-    if (fileNamesTable)
-        UTIL_freeFileList(fileNamesTable, fileNamesBuf);
+    if (extendedFileList)
+        UTIL_freeFileList(extendedFileList, fileNamesBuf);
     else
 #endif
         free((void*)filenameTable);

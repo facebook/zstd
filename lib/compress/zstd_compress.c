@@ -2730,7 +2730,7 @@ ZSTD_CDict* ZSTD_createCDict(const void* dict, size_t dictSize, int compressionL
 size_t ZSTD_freeCDict(ZSTD_CDict* cdict)
 {
     if (cdict==NULL) return 0;   /* support free on NULL */
-    {   ZSTD_customMem cMem = cdict->refContext->customMem;
+    {   ZSTD_customMem const cMem = cdict->refContext->customMem;
         ZSTD_freeCCtx(cdict->refContext);
         ZSTD_free(cdict->dictContent, cMem);
         ZSTD_free(cdict, cMem);

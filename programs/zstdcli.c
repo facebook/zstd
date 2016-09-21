@@ -505,15 +505,14 @@ int main(int argCount, const char* argv[])
     FIO_setNotificationLevel(displayLevel);
     if (!decode) {
 #ifndef ZSTD_NOCOMPRESS
-        if (filenameIdx==1 && outFileName)
+        if ((filenameIdx==1) && outFileName)
           operationResult = FIO_compressFilename(outFileName, filenameTable[0], dictFileName, cLevel);
         else
           operationResult = FIO_compressMultipleFilenames(filenameTable, filenameIdx, outFileName ? outFileName : ZSTD_EXTENSION, dictFileName, cLevel);
 #else
         DISPLAY("Compression not supported\n");
 #endif
-    } else
-    {  /* decompression */
+    } else {  /* decompression */
 #ifndef ZSTD_NODECOMPRESS
         if (testmode) { outFileName=nulmark; FIO_setRemoveSrcFile(0); } /* test mode */
         if (filenameIdx==1 && outFileName)

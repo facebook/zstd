@@ -434,6 +434,8 @@ int main(int argCount, const char* argv[])
         filenameTable[filenameIdx++] = argument;
     }
 
+    if (lastCommand) { DISPLAY("error : command must be followed by argument \n"); return 1; }  /* forgotten argument */
+
     /* Welcome message (if verbose) */
     DISPLAYLEVEL(3, WELCOME_MESSAGE);
 

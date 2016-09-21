@@ -59,9 +59,12 @@ rm tmpCompressed
 $ZSTD tmp -o tmpCompressed
 ls tmpCompressed   # must work
 $ECHO "test : -o must be followed by filename (must fail)"
-$ZSTD tmp -of tmpCompressed && die "-o must be followed by filename"
+$ZSTD tmp -of tmpCompressed && die "-o must be followed by filename "
 $ECHO "test : force write, correct order"
 $ZSTD tmp -fo tmpCompressed
+$ECHO "test : forgotten argument"
+cp tmp tmp2
+$ZSTD tmp2 -fo && die "-o must be followed by filename "
 $ECHO "test : implied stdout when input is stdin"
 $ECHO bob | $ZSTD | $ZSTD -d
 $ECHO "test : null-length file roundtrip"

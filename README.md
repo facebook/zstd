@@ -79,8 +79,9 @@ Once you have the repository cloned, there are multiple ways provided to build Z
 
 #### Makefile
 
-If your system is compatible with `make`, you can simply run `make` at the root directory.
-It will generate `zstd` within root directory. Use `gmake` on *BSD systems.
+If your system is compatible with a standard `make` (or `gmake`) binary generator,
+you can simply run it at the root directory.
+It will generate `zstd` within root directory.
 
 Other available options include :
 - `make install` : create and install zstd binary, library and man page

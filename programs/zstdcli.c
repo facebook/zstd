@@ -208,7 +208,8 @@ int main(int argCount, const char* argv[])
         nextArgumentIsMaxDict=0,
         nextArgumentIsDictID=0,
         nextArgumentIsFile=0,
-        ultra=0;
+        ultra=0,
+        lastCommand = 0;
     int cLevel = ZSTDCLI_CLEVEL_DEFAULT;
     int cLevelLast = 1;
     unsigned recursive = 0;
@@ -268,8 +269,8 @@ int main(int argCount, const char* argv[])
             if (!strcmp(argument, "--no-sparse")) { FIO_setSparseWrite(0); continue; }
             if (!strcmp(argument, "--test")) { testmode=1; decode=1; continue; }
             if (!strcmp(argument, "--train")) { dictBuild=1; outFileName=g_defaultDictName; continue; }
-            if (!strcmp(argument, "--maxdict")) { nextArgumentIsMaxDict=1; continue; }
-            if (!strcmp(argument, "--dictID")) { nextArgumentIsDictID=1; continue; }
+            if (!strcmp(argument, "--maxdict")) { nextArgumentIsMaxDict=1; lastCommand=1; continue; }
+            if (!strcmp(argument, "--dictID")) { nextArgumentIsDictID=1; lastCommand=1; continue; }
             if (!strcmp(argument, "--keep")) { FIO_setRemoveSrcFile(0); continue; }
             if (!strcmp(argument, "--rm")) { FIO_setRemoveSrcFile(1); continue; }
 
@@ -287,6 +288,10 @@ int main(int argCount, const char* argv[])
                 argument++;
 
                 while (argument[0]!=0) {
+                    if (lastCommand) {
+                        DISPLAY("error : command must be followed by argument \n");
+                        return 1;
+                    }
 #ifndef ZSTD_NOCOMPRESS
                     /* compression Level */
                     if ((*argument>='0') && (*argument<='9')) {
@@ -309,7 +314,7 @@ int main(int argCount, const char* argv[])
                     case 'c': forceStdout=1; outFileName=stdoutmark; argument++; break;
 
                         /* Use file content as dictionary */
-                    case 'D': nextEntryIsDictionary = 1; argument++; break;
+                    case 'D': nextEntryIsDictionary = 1; lastCommand = 1; argument++; break;
 
                         /* Overwrite */
                     case 'f': FIO_overwriteMode(); forceStdout=1; argument++; break;
@@ -330,7 +335,7 @@ int main(int argCount, const char* argv[])
                     case 't': testmode=1; decode=1; argument++; break;
 
                         /* destination file name */
-                    case 'o': nextArgumentIsOutFileName=1; argument++; break;
+                    case 'o': nextArgumentIsOutFileName=1; lastCommand=1; argument++; break;
 
 #ifdef UTIL_HAS_CREATEFILELIST
                         /* recursive */
@@ -394,6 +399,7 @@ int main(int argCount, const char* argv[])
 
             if (nextArgumentIsMaxDict) {
                 nextArgumentIsMaxDict = 0;
+                lastCommand = 0;
                 maxDictSize = readU32FromChar(&argument);
                 if (toupper(*argument)=='K') maxDictSize <<= 10;
                 if (toupper(*argument)=='M') maxDictSize <<= 20;
@@ -402,6 +408,7 @@ int main(int argCount, const char* argv[])
 
             if (nextArgumentIsDictID) {
                 nextArgumentIsDictID = 0;
+                lastCommand = 0;
                 dictID = readU32FromChar(&argument);
                 continue;
             }
@@ -410,12 +417,14 @@ int main(int argCount, const char* argv[])
 
         if (nextEntryIsDictionary) {
             nextEntryIsDictionary = 0;
+            lastCommand = 0;
             dictFileName = argument;
             continue;
         }
 
         if (nextArgumentIsOutFileName) {
             nextArgumentIsOutFileName = 0;
+            lastCommand = 0;
             outFileName = argument;
             if (!strcmp(outFileName, "-")) outFileName = stdoutmark;
             continue;

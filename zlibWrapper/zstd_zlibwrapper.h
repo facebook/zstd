@@ -35,7 +35,7 @@ int isUsingZSTD(void);
 /* returns a string with version of zstd library */
 const char * zstdVersion(void);
 
-/* Changes a pledged source size for a given stream.
+/* Changes a pledged source size for a given compression stream.
    The function should be called after deflateInit().
    After this function deflateReset() should be called. */
 int ZSTD_setPledgedSrcSize(z_streamp strm, unsigned long long pledgedSrcSize);

@@ -26,9 +26,19 @@ extern "C" {
 #endif
 #endif
 
+/* enables/disables zstd compression during runtime */
 void useZSTD(int turn_on);
+
+/* check if zstd compression is turned on */
 int isUsingZSTD(void);
+
+/* returns a string with version of zstd library */
 const char * zstdVersion(void);
+
+/* Changes a pledged source size for a given stream.
+   The function should be called after deflateInit().
+   After this function deflateReset() should be called. */
+int ZSTD_setPledgedSrcSize(z_streamp strm, unsigned long long pledgedSrcSize);
 
 
 #if defined (__cplusplus)

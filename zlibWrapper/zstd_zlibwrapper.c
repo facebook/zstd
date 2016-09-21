@@ -53,6 +53,7 @@ const char * zstdVersion(void) { return ZSTD_VERSION_STRING; }
 ZEXTERN const char * ZEXPORT z_zlibVersion OF((void)) { return zlibVersion();  }
 
 
+
 static void* ZWRAP_allocFunction(void* opaque, size_t size)
 {
     z_streamp strm = (z_streamp) opaque;
@@ -79,6 +80,7 @@ typedef struct {
     z_stream allocFunc; /* copy of zalloc, zfree, opaque */
     ZSTD_inBuffer inBuffer;
     ZSTD_outBuffer outBuffer;
+    unsigned long long pledgedSrcSize;
 } ZWRAP_CCtx;
 
 
@@ -110,6 +112,7 @@ ZWRAP_CCtx* ZWRAP_createCCtx(z_streamp strm)
         memcpy(&zwc->customMem, &defaultCustomMem, sizeof(ZSTD_customMem));
     }
 
+    zwc->pledgedSrcSize = 1<<16;
     zwc->zbc = ZSTD_createCStream_advanced(zwc->customMem);
     if (zwc->zbc == NULL) { ZWRAP_freeCCtx(zwc); return NULL; }
     return zwc;
@@ -135,6 +138,16 @@ int ZWRAPC_finish_with_error_message(z_streamp strm, char* message)
 }
 
 
+int ZSTD_setPledgedSrcSize(z_streamp strm, unsigned long long pledgedSrcSize)
+{
+    ZWRAP_CCtx* zwc = (ZWRAP_CCtx*) strm->state;
+    if (zwc == NULL) return Z_STREAM_ERROR;
+    
+    zwc->pledgedSrcSize = pledgedSrcSize;
+    return Z_OK;
+}
+
+
 ZEXTERN int ZEXPORT z_deflateInit_ OF((z_streamp strm, int level,
                                      const char *version, int stream_size))
 {
@@ -151,7 +164,10 @@ ZEXTERN int ZEXPORT z_deflateInit_ OF((z_streamp strm, int level,
     if (level == Z_DEFAULT_COMPRESSION)
         level = ZWRAP_DEFAULT_CLEVEL;
 
-    { size_t const errorCode = ZSTD_initCStream(zwc->zbc, level);
+    { ZSTD_parameters const params = ZSTD_getParams(level, zwc->pledgedSrcSize, 0); /* use the 4th table which is adapted for srcSize <= 16KB */
+      size_t errorCode;
+      LOG_WRAPPERC("windowLog=%d chainLog=%d hashLog=%d searchLog=%d searchLength=%d strategy=%d\n", params.cParams.windowLog, params.cParams.chainLog, params.cParams.hashLog, params.cParams.searchLog, params.cParams.searchLength, params.cParams.strategy);
+      errorCode = ZSTD_initCStream_advanced(zwc->zbc, NULL, 0, params, zwc->pledgedSrcSize /*pledgedSrcSize*/);
       if (ZSTD_isError(errorCode)) return ZWRAPC_finish_with_error(zwc, strm, 0); }
 
     zwc->compressionLevel = level;
@@ -182,7 +198,8 @@ ZEXTERN int ZEXPORT z_deflateReset OF((z_streamp strm))
 
     {   ZWRAP_CCtx* zwc = (ZWRAP_CCtx*) strm->state;
         if (zwc == NULL) return Z_STREAM_ERROR;
-        { size_t const errorCode = ZSTD_resetCStream(zwc->zbc, 0);
+        { size_t const errorCode = ZSTD_resetCStream(zwc->zbc, zwc->pledgedSrcSize);
+        printf("zwc->pledgedSrcSize=%d\n", (int)zwc->pledgedSrcSize);
           if (ZSTD_isError(errorCode)) return ZWRAPC_finish_with_error(zwc, strm, 0); }
     }
     

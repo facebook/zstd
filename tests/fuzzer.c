@@ -173,13 +173,13 @@ static int basicUnitTests(U32 seed, double compressibility)
         static const size_t dictSize = 551;
 
         DISPLAYLEVEL(4, "test%3i : copy context too soon : ", testNb++);
-        { size_t const copyResult = ZSTD_copyCCtx(ctxDuplicated, ctxOrig);
+        { size_t const copyResult = ZSTD_copyCCtx(ctxDuplicated, ctxOrig, 0);
           if (!ZSTD_isError(copyResult)) goto _output_error; }   /* error must be detected */
         DISPLAYLEVEL(4, "OK \n");
 
         DISPLAYLEVEL(4, "test%3i : load dictionary into context : ", testNb++);
         CHECK( ZSTD_compressBegin_usingDict(ctxOrig, CNBuffer, dictSize, 2) );
-        CHECK( ZSTD_copyCCtx(ctxDuplicated, ctxOrig) );
+        CHECK( ZSTD_copyCCtx(ctxDuplicated, ctxOrig, CNBuffSize - dictSize) );
         DISPLAYLEVEL(4, "OK \n");
 
         DISPLAYLEVEL(4, "test%3i : compress with flat dictionary : ", testNb++);
@@ -221,10 +221,10 @@ static int basicUnitTests(U32 seed, double compressibility)
                 p.fParams.contentSizeFlag = 1;
                 CHECK( ZSTD_compressBegin_advanced(ctxOrig, CNBuffer, dictSize, p, testSize-1) );
             }
-            CHECK( ZSTD_copyCCtx(ctxDuplicated, ctxOrig) );
+            CHECK( ZSTD_copyCCtx(ctxDuplicated, ctxOrig, testSize) );
 
-            CHECKPLUS(r, ZSTD_compressContinue(ctxDuplicated, compressedBuffer, ZSTD_compressBound(testSize),
-                                               (const char*)CNBuffer + dictSize, CNBuffSize - dictSize),
+            CHECKPLUS(r, ZSTD_compressEnd(ctxDuplicated, compressedBuffer, ZSTD_compressBound(testSize),
+                                          (const char*)CNBuffer + dictSize, testSize),
                       cSize = r);
             {   ZSTD_frameParams fp;
                 if (ZSTD_getFrameParams(&fp, compressedBuffer, cSize)) goto _output_error;
@@ -674,9 +674,9 @@ static int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, U32 const maxD
                 errorCode = ZSTD_compressBegin_advanced(refCtx, dict, dictSize, p, 0);
                 CHECK (ZSTD_isError(errorCode), "ZSTD_compressBegin_advanced error : %s", ZSTD_getErrorName(errorCode));
             }
-            { size_t const errorCode = ZSTD_copyCCtx(ctx, refCtx);
-              CHECK (ZSTD_isError(errorCode), "ZSTD_copyCCtx error : %s", ZSTD_getErrorName(errorCode)); }
-        }
+            {   size_t const errorCode = ZSTD_copyCCtx(ctx, refCtx, 0);
+                CHECK (ZSTD_isError(errorCode), "ZSTD_copyCCtx error : %s", ZSTD_getErrorName(errorCode));
+        }   }
         XXH64_reset(&xxhState, 0);
         {   U32 const nbChunks = (FUZ_rand(&lseed) & 127) + 2;
             U32 n;

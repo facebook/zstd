@@ -102,6 +102,14 @@ static FILE *openInputFile(const std::string &inputFile,
     SET_BINARY_MODE(stdin);
     return stdin;
   }
+  // Check if input file is a directory
+  {
+    std::error_code ec;
+    if (is_directory(inputFile, ec)) {
+      errorHolder.setError("Output file is a directory -- ignored");
+      return nullptr;
+    }
+  }
   auto inputFd = std::fopen(inputFile.c_str(), "rb");
   if (!errorHolder.check(inputFd != nullptr, "Failed to open input file")) {
     return nullptr;

@@ -6,14 +6,14 @@
  * LICENSE file in the root directory of this source tree. An additional grant
  * of patent rights can be found in the PATENTS file in the same directory.
  */
-#include "datagen.h"
 #include "Pzstd.h"
+#include "datagen.h"
 #include "test/RoundTrip.h"
 #include "utils/ScopeGuard.h"
 
-#include <gtest/gtest.h>
 #include <cstddef>
 #include <cstdio>
+#include <gtest/gtest.h>
 #include <memory>
 #include <random>
 
@@ -47,9 +47,8 @@ TEST(Pzstd, SmallSizes) {
             std::fprintf(stderr, "compression level: %u\n", level);
           });
           Options options;
-          options.pzstdHeaders = headers;
           options.overwrite = true;
-          options.inputFile = inputFile;
+          options.inputFiles = {inputFile};
           options.numThreads = numThreads;
           options.compressionLevel = level;
           ASSERT_TRUE(roundTrip(options));
@@ -87,9 +86,8 @@ TEST(Pzstd, LargeSizes) {
             std::fprintf(stderr, "compression level: %u\n", level);
           });
           Options options;
-          options.pzstdHeaders = headers;
           options.overwrite = true;
-          options.inputFile = inputFile;
+          options.inputFiles = {inputFile};
           options.numThreads = numThreads;
           options.compressionLevel = level;
           ASSERT_TRUE(roundTrip(options));
@@ -112,9 +110,8 @@ TEST(Pzstd, ExtremelyCompressible) {
     ASSERT_EQ(written, 10000);
   }
   Options options;
-  options.pzstdHeaders = false;
   options.overwrite = true;
-  options.inputFile = inputFile;
+  options.inputFiles = {inputFile};
   options.numThreads = 1;
   options.compressionLevel = 1;
   ASSERT_TRUE(roundTrip(options));

@@ -59,6 +59,22 @@ inline bool is_regular_file(StringPiece path, std::error_code& ec) noexcept {
   return is_regular_file(status(path, ec));
 }
 
+/// http://en.cppreference.com/w/cpp/filesystem/is_directory
+inline bool is_directory(file_status status) noexcept {
+#if defined(S_ISDIR)
+  return S_ISDIR(status.st_mode);
+#elif !defined(S_ISDIR) && defined(S_IFMT) && defined(S_IFDIR)
+  return (status.st_mode & S_IFMT) == S_IFDIR;
+#else
+  static_assert(false, "NO POSIX stat() support.");
+#endif
+}
+
+/// http://en.cppreference.com/w/cpp/filesystem/is_directory
+inline bool is_directory(StringPiece path, std::error_code& ec) noexcept {
+  return is_directory(status(path, ec));
+}
+
 /// http://en.cppreference.com/w/cpp/filesystem/file_size
 inline std::uintmax_t file_size(
     StringPiece path,

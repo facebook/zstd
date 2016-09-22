@@ -1,7 +1,7 @@
-v1.0.1
+v1.1.0
 New : contrib/pzstd, parallel version of zstd, by Nick Terrell
 added : NetBSD install target (#338)
-Improved : variable compression speed improvements on batches of small files.
+Improved : speed improvements for batches of small files.
 Fixed : CLI -d output to stdout by default when input is stdin (#322)
 Fixed : CLI correctly detects console on Mac OS-X
 Fixed : CLI supports recursive mode `-r` on Mac OS-X

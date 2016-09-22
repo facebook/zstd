@@ -152,7 +152,7 @@ int main(int argc, char **argv)
     size = (unsigned)ret;
 
     printf("zlib version %s\n", ZLIB_VERSION);
-    if (isUsingZSTD()) printf("zstd version %s\n", zstdVersion());
+    if (isUsingZSTDcompression()) printf("zstd version %s\n", zstdVersion());
 
     /* allocate memory for buffers and compression engine */
     blk = malloc(size + EXCESS);

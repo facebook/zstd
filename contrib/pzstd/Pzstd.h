@@ -28,11 +28,9 @@ namespace pzstd {
  * An error occurred if `errorHandler.hasError()`.
  *
  * @param options      The pzstd options to use for (de)compression
- * @param errorHolder  Used to report errors and coordinate early shutdown
- *                      if an error occured
- * @returns            The number of bytes written.
+ * @returns            0 upon success and non-zero on failure.
  */
-std::size_t pzstdMain(const Options& options, ErrorHolder& errorHolder);
+int pzstdMain(const Options& options);
 
 /**
  * Streams input from `fd`, breaks input up into chunks, and compresses each
@@ -79,16 +77,16 @@ void asyncDecompressFrames(
  * Streams input in from each queue in `outs` in order, and writes the data to
  * `outputFd`.
  *
- * @param errorHolder          Used to report errors and coordinate early exit
- * @param outs                 A queue of output queues, one for each
- *                              (de)compression job.
- * @param outputFd             The file descriptor to write to
- * @param writeSkippableFrames Should we write pzstd headers?
- * @returns                    The number of bytes written
+ * @param errorHolder  Used to report errors and coordinate early exit
+ * @param outs         A queue of output queues, one for each
+ *                      (de)compression job.
+ * @param outputFd     The file descriptor to write to
+ * @param decompress   Are we decompressing?
+ * @returns            The number of bytes written
  */
 std::size_t writeFile(
     ErrorHolder& errorHolder,
     WorkQueue<std::shared_ptr<BufferWorkQueue>>& outs,
     FILE* outputFd,
-    bool writeSkippableFrames);
+    bool decompress);
 }

@@ -7,7 +7,9 @@
  * of patent rights can be found in the PATENTS file in the same directory.
  */
 #include "Pzstd.h"
+extern "C" {
 #include "datagen.h"
+}
 #include "test/RoundTrip.h"
 #include "utils/ScopeGuard.h"
 
@@ -25,11 +27,14 @@ TEST(Pzstd, SmallSizes) {
   std::fprintf(stderr, "Pzstd.SmallSizes seed: %u\n", seed);
   std::mt19937 gen(seed);
 
-  for (unsigned len = 1; len < 1028; ++len) {
+  for (unsigned len = 1; len < 256; ++len) {
+    if (len % 16 == 0) {
+      std::fprintf(stderr, "%u / 16\n", len / 16);
+    }
     std::string inputFile = std::tmpnam(nullptr);
     auto guard = makeScopeGuard([&] { std::remove(inputFile.c_str()); });
     {
-      static uint8_t buf[1028];
+      static uint8_t buf[256];
       RDG_genBuffer(buf, len, 0.5, 0.0, gen());
       auto fd = std::fopen(inputFile.c_str(), "wb");
       auto written = std::fwrite(buf, 1, len, fd);
@@ -37,8 +42,8 @@ TEST(Pzstd, SmallSizes) {
       ASSERT_EQ(written, len);
     }
     for (unsigned headers = 0; headers <= 1; ++headers) {
-      for (unsigned numThreads = 1; numThreads <= 4; numThreads *= 2) {
-        for (unsigned level = 1; level <= 8; level *= 8) {
+      for (unsigned numThreads = 1; numThreads <= 2; ++numThreads) {
+        for (unsigned level = 1; level <= 4; level *= 4) {
           auto errorGuard = makeScopeGuard([&] {
             std::fprintf(stderr, "pzstd headers: %u\n", headers);
             std::fprintf(stderr, "# threads: %u\n", numThreads);
@@ -111,7 +116,10 @@ TEST(Pzstd, ExtremelyLargeSize) {
     for (size_t i = 0; i < (1 << 6) + 1; ++i) {
       RDG_genBuffer(buf.get(), kLength, 0.5, 0.0, gen());
       auto written = std::fwrite(buf.get(), 1, kLength, fd);
-      ASSERT_EQ(written, kLength);
+      if (written != kLength) {
+        std::fprintf(stderr, "Failed to write file, skipping test\n");
+        return;
+      }
     }
   }
 
@@ -119,6 +127,9 @@ TEST(Pzstd, ExtremelyLargeSize) {
   options.overwrite = true;
   options.inputFiles = {inputFile};
   options.compressionLevel = 1;
+  if (options.numThreads == 0) {
+    options.numThreads = 1;
+  }
   ASSERT_TRUE(roundTrip(options));
 }
 

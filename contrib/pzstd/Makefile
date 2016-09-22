@@ -87,6 +87,12 @@ googletest32:
 	@mkdir -p googletest/build
 	@cd googletest/build && cmake .. -DCMAKE_CXX_FLAGS=-m32 && make
 
+googletest-mingw64:
+	$(RM) -rf googletest
+	git clone https://github.com/google/googletest
+	mkdir -p googletest/build
+	cd googletest/build && cmake -G "MSYS Makefiles" .. && $(MAKE)
+
 test:
 	$(MAKE) pzstd MOREFLAGS="-Wall -Wextra -pedantic -Werror"
 	$(MAKE) -C utils/test clean

@@ -21,10 +21,11 @@
 
 namespace pzstd {
 
+// using file_status = ... causes gcc to emit a false positive warning
 #if defined(_MSC_VER)
-using file_status = struct ::_stat64;
+typedef struct ::_stat64 file_status;
 #else
-using file_status = struct ::stat;
+typedef struct ::stat file_status;
 #endif
 
 /// http://en.cppreference.com/w/cpp/filesystem/status

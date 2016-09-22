@@ -139,7 +139,7 @@ int ZWRAP_initializeCStream(ZWRAP_CCtx* zwc)
           errorCode = ZSTD_initCStream_advanced(zwc->zbc, NULL, 0, params, zwc->pledgedSrcSize);
           if (ZSTD_isError(errorCode)) return Z_STREAM_ERROR; }
     }
-    
+
     return Z_OK;
 }
 

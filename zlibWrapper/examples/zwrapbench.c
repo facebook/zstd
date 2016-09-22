@@ -23,7 +23,7 @@
 #include "datagen.h"     /* RDG_genBuffer */
 #include "xxhash.h"
 
-#include "zlib.h"
+#include "zstd_zlibwrapper.h"
 
 
 
@@ -138,7 +138,7 @@ typedef struct
     size_t resSize;
 } blockParam_t;
 
-typedef enum { BMK_ZSTD, BMK_ZLIB } BMK_compressor;
+typedef enum { BMK_ZSTD, BMK_ZSTD2, BMK_ZLIB, BMK_ZWRAP_ZLIB, BMK_ZWRAP_ZSTD } BMK_compressor;
 
 
 #define MIN(a,b) ((a)<(b) ? (a) : (b))
@@ -235,6 +235,7 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
                     ZSTD_customMem const cmem = { NULL, NULL, NULL };
                     ZSTD_CDict* cdict = ZSTD_createCDict_advanced(dictBuffer, dictBufferSize, zparams, cmem);
                     if (cdict==NULL) EXM_THROW(1, "ZSTD_createCDict_advanced() allocation failure");
+
                     do {
                         U32 blockNb;
                         for (blockNb=0; blockNb<nbBlocks; blockNb++) {
@@ -248,7 +249,37 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
                         nbLoops++;
                     } while (UTIL_clockSpanMicro(clockStart, ticksPerSecond) < clockLoop);
                     ZSTD_freeCDict(cdict);
+                } else if (compressor == BMK_ZSTD2) {
+                    ZSTD_parameters const zparams = ZSTD_getParams(cLevel, avgSize, dictBufferSize);
+                    ZSTD_inBuffer inBuffer;
+                    ZSTD_outBuffer outBuffer;
+                    ZSTD_CStream* zbc = ZSTD_createCStream();
+                    if (zbc == NULL) EXM_THROW(1, "ZSTD_createCStream() allocation failure");
+
+                    do {
+                        U32 blockNb;
+                        for (blockNb=0; blockNb<nbBlocks; blockNb++) {
+                            size_t rSize;
+                            rSize = ZSTD_initCStream_advanced(zbc, NULL, 0, zparams, avgSize);
+                            if (ZSTD_isError(rSize)) EXM_THROW(1, "ZSTD_initCStream_advanced() failed : %s", ZSTD_getErrorName(rSize));
+                            inBuffer.src = blockTable[blockNb].srcPtr;
+                            inBuffer.size = blockTable[blockNb].srcSize;
+                            inBuffer.pos = 0;
+                            outBuffer.dst = blockTable[blockNb].cPtr;
+                            outBuffer.size = blockTable[blockNb].cRoom;
+                            outBuffer.pos = 0;
+                            rSize = ZSTD_compressStream(zbc, &outBuffer, &inBuffer);
+                            if (ZSTD_isError(rSize)) EXM_THROW(1, "ZSTD_compressStream() failed : %s", ZSTD_getErrorName(rSize));
+                            rSize = ZSTD_endStream(zbc, &outBuffer);
+                            if (ZSTD_isError(rSize)) EXM_THROW(1, "ZSTD_endStream() failed : %s", ZSTD_getErrorName(rSize));
+                            blockTable[blockNb].cSize = outBuffer.pos;
+                        }
+                        nbLoops++;
+                    } while (UTIL_clockSpanMicro(clockStart, ticksPerSecond) < clockLoop);
+                    ZSTD_freeCStream(zbc);
                 } else {
+                    if (compressor == BMK_ZLIB || compressor == BMK_ZWRAP_ZLIB) useZSTDcompression(0);
+                    else useZSTDcompression(1);
                     do {
                         U32 blockNb;
                         for (blockNb=0; blockNb<nbBlocks; blockNb++) {
@@ -259,8 +290,10 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
                             def.opaque = Z_NULL;
                             ret = deflateInit(&def, cLevel);
                             if (ret != Z_OK) EXM_THROW(1, "deflateInit failure");
-                         //   ret = ZSTD_setPledgedSrcSize(&def, 0);
-                         //   if (ret != Z_OK) EXM_THROW(1, "ZSTD_setPledgedSrcSize failure");
+                            if (isUsingZSTDcompression()) {
+                                ret = ZSTD_setPledgedSrcSize(&def, avgSize);
+                                if (ret != Z_OK) EXM_THROW(1, "ZSTD_setPledgedSrcSize failure");
+                            }
                             def.next_in = (const void*) blockTable[blockNb].srcPtr;
                             def.avail_in = blockTable[blockNb].srcSize;
                             def.total_in = 0;
@@ -301,7 +334,7 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
 
             if (!dCompleted) {
                 U32 nbLoops = 0;
-                if (compressor == BMK_ZSTD) {
+                if (compressor == BMK_ZSTD || compressor == BMK_ZSTD2) {
                     ZSTD_DDict* ddict = ZSTD_createDDict(dictBuffer, dictBufferSize);
                     if (!ddict) EXM_THROW(2, "ZSTD_createDDict() allocation failure");
                     do {
@@ -323,6 +356,8 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
                     } while (UTIL_clockSpanMicro(clockStart, ticksPerSecond) < clockLoop);
                     ZSTD_freeDDict(ddict);
                 } else {
+                    if (compressor == BMK_ZLIB) setZWRAPdecompressionType(ZWRAP_FORCE_ZLIB);
+                    else setZWRAPdecompressionType(ZWRAP_AUTO);
                     do {
                         U32 blockNb;
                         for (blockNb=0; blockNb<nbBlocks; blockNb++) {
@@ -444,6 +479,33 @@ static void BMK_benchCLevel(void* srcBuffer, size_t benchedSize,
 
     if (cLevelLast < cLevel) cLevelLast = cLevel;
 
+    DISPLAY("benchmarking zstd %s (ZSTD_CCtx)\n", ZSTD_VERSION_STRING);
+    for (l=cLevel; l <= cLevelLast; l++) {
+        BMK_benchMem(srcBuffer, benchedSize,
+                     displayName, l,
+                     fileSizes, nbFiles,
+                     dictBuffer, dictBufferSize, BMK_ZSTD);
+    }
+
+    DISPLAY("benchmarking zstd %s (ZSTD_CStream)\n", ZSTD_VERSION_STRING);
+    for (l=cLevel; l <= cLevelLast; l++) {
+        BMK_benchMem(srcBuffer, benchedSize,
+                     displayName, l,
+                     fileSizes, nbFiles,
+                     dictBuffer, dictBufferSize, BMK_ZSTD2);
+    }
+
+    DISPLAY("benchmarking zlibWrapper with zstd %s\n", ZSTD_VERSION_STRING);
+    for (l=cLevel; l <= cLevelLast; l++) {
+        BMK_benchMem(srcBuffer, benchedSize,
+                     displayName, l,
+                     fileSizes, nbFiles,
+                     dictBuffer, dictBufferSize, BMK_ZWRAP_ZSTD);
+    }
+
+
+    if (cLevelLast > Z_BEST_COMPRESSION) cLevelLast = Z_BEST_COMPRESSION;
+
     DISPLAY("benchmarking zlib %s\n", ZLIB_VERSION);
     for (l=cLevel; l <= cLevelLast; l++) {
         BMK_benchMem(srcBuffer, benchedSize,
@@ -452,12 +514,12 @@ static void BMK_benchCLevel(void* srcBuffer, size_t benchedSize,
                      dictBuffer, dictBufferSize, BMK_ZLIB);
     }
 
-    DISPLAY("benchmarking zstd %s\n", ZSTD_VERSION_STRING);
+    DISPLAY("benchmarking zlibWrapper with zlib %s\n", ZLIB_VERSION);
     for (l=cLevel; l <= cLevelLast; l++) {
         BMK_benchMem(srcBuffer, benchedSize,
                      displayName, l,
                      fileSizes, nbFiles,
-                     dictBuffer, dictBufferSize, BMK_ZSTD);
+                     dictBuffer, dictBufferSize, BMK_ZWRAP_ZLIB);
     }
 }
 
@@ -602,8 +664,8 @@ static int usage(const char* programName)
 #endif
     DISPLAY( "\n");
     DISPLAY( "Benchmark arguments :\n");
-    DISPLAY( " -b#    : benchmark file(s), using # compression level (default : 1) \n");
-    DISPLAY( " -e#    : test all compression levels from -bX to # (default: 1)\n");
+    DISPLAY( " -b#    : benchmark file(s), using # compression level (default : %d) \n", ZSTDCLI_CLEVEL_DEFAULT);
+    DISPLAY( " -e#    : test all compression levels from -bX to # (default: %d)\n", ZSTDCLI_CLEVEL_DEFAULT);
     DISPLAY( " -i#    : minimum evaluation time in seconds (default : 3s)\n");
     DISPLAY( " -B#    : cut file into independent blocks of size # (default: no block)\n");
     return 0;

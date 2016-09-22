@@ -66,7 +66,7 @@ matrix:
     - os: linux
       dist: trusty
       sudo: required
-      env: PLATFORM="Ubuntu 14.04" CMD="make gpptest && make clean && make gnu90test && make clean && make c99test && make clean && make gnu99test && make clean && make clangtest && make -C contrib/pzstd pzstd32 CC="gcc-4.8" CXX="g++-4.8" && make -C contrib/pzstd googletest32 CC="gcc-4.8" CXX="g++-4.8" && make -C contrib/pzstd test32 CC="gcc-4.8" CXX="g++-4.8" && make -C contrib/pzstd clean"
+      env: PLATFORM="Ubuntu 14.04" CMD="make gpptest && make clean && make gnu90test && make clean && make c99test && make clean && make gnu99test && make clean && make clangtest && make clean && make -C contrib/pzstd pzstd32 CC="gcc-4.8" CXX="g++-4.8" && make -C contrib/pzstd googletest32 CC="gcc-4.8" CXX="g++-4.8" && make -C contrib/pzstd test32 CC="gcc-4.8" CXX="g++-4.8" && make -C contrib/pzstd clean"
       addons:
         apt:
           packages:

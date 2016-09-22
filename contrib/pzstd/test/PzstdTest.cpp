@@ -40,8 +40,6 @@ TEST(Pzstd, SmallSizes) {
       for (unsigned numThreads = 1; numThreads <= 4; numThreads *= 2) {
         for (unsigned level = 1; level <= 8; level *= 8) {
           auto errorGuard = makeScopeGuard([&] {
-            guard.dismiss();
-            std::fprintf(stderr, "file: %s\n", inputFile.c_str());
             std::fprintf(stderr, "pzstd headers: %u\n", headers);
             std::fprintf(stderr, "# threads: %u\n", numThreads);
             std::fprintf(stderr, "compression level: %u\n", level);
@@ -79,8 +77,6 @@ TEST(Pzstd, LargeSizes) {
       for (unsigned numThreads = 1; numThreads <= 16; numThreads *= 4) {
         for (unsigned level = 1; level <= 4; level *= 2) {
           auto errorGuard = makeScopeGuard([&] {
-            guard.dismiss();
-            std::fprintf(stderr, "file: %s\n", inputFile.c_str());
             std::fprintf(stderr, "pzstd headers: %u\n", headers);
             std::fprintf(stderr, "# threads: %u\n", numThreads);
             std::fprintf(stderr, "compression level: %u\n", level);
@@ -96,6 +92,34 @@ TEST(Pzstd, LargeSizes) {
       }
     }
   }
+}
+
+TEST(Pzstd, ExtremelyLargeSize) {
+  unsigned seed = std::random_device{}();
+  std::fprintf(stderr, "Pzstd.ExtremelyLargeSize seed: %u\n", seed);
+  std::mt19937 gen(seed);
+
+  std::string inputFile = std::tmpnam(nullptr);
+  auto guard = makeScopeGuard([&] { std::remove(inputFile.c_str()); });
+
+  {
+    // Write 4GB + 64 MB
+    constexpr size_t kLength = 1 << 26;
+    std::unique_ptr<uint8_t[]> buf(new uint8_t[kLength]);
+    auto fd = std::fopen(inputFile.c_str(), "wb");
+    auto closeGuard = makeScopeGuard([&] { std::fclose(fd); });
+    for (size_t i = 0; i < (1 << 6) + 1; ++i) {
+      RDG_genBuffer(buf.get(), kLength, 0.5, 0.0, gen());
+      auto written = std::fwrite(buf.get(), 1, kLength, fd);
+      ASSERT_EQ(written, kLength);
+    }
+  }
+
+  Options options;
+  options.overwrite = true;
+  options.inputFiles = {inputFile};
+  options.compressionLevel = 1;
+  ASSERT_TRUE(roundTrip(options));
 }
 
 TEST(Pzstd, ExtremelyCompressible) {

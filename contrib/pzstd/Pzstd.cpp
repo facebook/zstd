@@ -333,10 +333,9 @@ static size_t calculateStep(
   size_t step = size_t{1} << (params.cParams.windowLog + 2);
   // If file size is known, see if a smaller step will spread work more evenly
   if (size != 0) {
-    const std::uintmax_t newStep = size / std::uintmax_t{numThreads};
-    if (newStep != 0 &&
-        newStep <= std::uintmax_t{std::numeric_limits<size_t>::max()}) {
-      step = std::min(step, size_t{newStep});
+    const std::uintmax_t newStep = size / numThreads;
+    if (newStep != 0 && newStep <= std::numeric_limits<size_t>::max()) {
+      step = std::min(step, static_cast<size_t>(newStep));
     }
   }
   return step;

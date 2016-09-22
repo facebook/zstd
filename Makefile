@@ -34,7 +34,7 @@ zstd:
 
 zlibwrapper:
 	$(MAKE) -C $(ZSTDDIR) all
-	$(MAKE) -C $(ZWRAPDIR) all
+	$(MAKE) -C $(ZWRAPDIR) test test_zstd
 
 test:
 	$(MAKE) -C $(TESTDIR) $@

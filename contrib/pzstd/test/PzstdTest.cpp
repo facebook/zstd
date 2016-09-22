@@ -7,7 +7,9 @@
  * of patent rights can be found in the PATENTS file in the same directory.
  */
 #include "Pzstd.h"
+extern "C" {
 #include "datagen.h"
+}
 #include "test/RoundTrip.h"
 #include "utils/ScopeGuard.h"
 

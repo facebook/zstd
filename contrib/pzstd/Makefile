@@ -87,19 +87,19 @@ googletest32:
 	@mkdir -p googletest/build
 	@cd googletest/build && cmake .. -DCMAKE_CXX_FLAGS=-m32 && make
 
-test: libzstd.a Pzstd.o Options.o SkippableFrame.o
+test:
+	$(MAKE) pzstd MOREFLAGS="-Wall -Wextra -pedantic -Werror"
 	$(MAKE) -C utils/test clean
-	$(MAKE) -C utils/test test
+	$(MAKE) -C utils/test test MOREFLAGS="-Wall -Wextra -pedantic -Werror"
 	$(MAKE) -C test clean
-	$(MAKE) -C test test
+	$(MAKE) -C test test MOREFLAGS="-Wall -Wextra -pedantic -Werror"
 
 test32:
-	$(MAKE) clean
-	$(MAKE) pzstd MOREFLAGS="-m32"
+	$(MAKE) pzstd MOREFLAGS="-m32 -Wall -Wextra -pedantic -Werror"
 	$(MAKE) -C utils/test clean
-	$(MAKE) -C utils/test test MOREFLAGS="-m32"
+	$(MAKE) -C utils/test test MOREFLAGS="-m32 -Wall -Wextra -pedantic -Werror"
 	$(MAKE) -C test clean
-	$(MAKE) -C test test MOREFLAGS="-m32"
+	$(MAKE) -C test test MOREFLAGS="-m32 -Wall -Wextra -pedantic -Werror"
 
 
 clean:

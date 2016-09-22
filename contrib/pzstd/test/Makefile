@@ -21,19 +21,19 @@ ZSTDDIR = ../../../lib
 # Set GTEST_INC and GTEST_LIB to work with your install of gtest
 GTEST_INC ?= -isystem $(PZSTDDIR)/googletest/googletest/include
 GTEST_LIB ?= -L $(PZSTDDIR)/googletest/build/googlemock/gtest
-
-CPPFLAGS = -I$(PZSTDDIR) $(GTEST_INC) $(GTEST_LIB) -I$(ZSTDDIR) -I$(ZSTDDIR)/common -I$(PROGDIR) -I.
+GTEST_FLAGS = $(GTEST_INC) $(GTEST_LIB)
+CPPFLAGS = -I$(PZSTDDIR) -I$(ZSTDDIR) -I$(ZSTDDIR)/common -I$(PROGDIR) -I.
 
 CXXFLAGS  ?= -O3
-CXXFLAGS  += -std=c++11
+CXXFLAGS  += -std=c++11 -Wno-deprecated-declarations
 CXXFLAGS  += $(MOREFLAGS)
 FLAGS    = $(CPPFLAGS) $(CXXFLAGS) $(LDFLAGS)
 
 datagen.o: $(PROGDIR)/datagen.*
-	$(CXX) $(FLAGS) $(PROGDIR)/datagen.c -c -o $@
+	$(CC) $(CPPFLAGS) -O3 $(MOREFLAGS) $(LDFLAGS) $(PROGDIR)/datagen.c -c -o $@
 
 %: %.cpp *.h datagen.o
-	$(CXX) $(FLAGS) $@.cpp datagen.o $(PZSTDDIR)/Pzstd.o $(PZSTDDIR)/SkippableFrame.o $(PZSTDDIR)/Options.o $(PZSTDDIR)/libzstd.a -o $@$(EXT) -lgtest -lgtest_main -lpthread
+	$(CXX) $(FLAGS) $@.cpp datagen.o $(PZSTDDIR)/Pzstd.o $(PZSTDDIR)/SkippableFrame.o $(PZSTDDIR)/Options.o $(PZSTDDIR)/libzstd.a -o $@$(EXT) $(GTEST_FLAGS) -lgtest -lgtest_main -lpthread
 
 .PHONY: test clean
 

@@ -73,10 +73,7 @@ const char nullOutput[] = "nul";
 const char nullOutput[] = "/dev/null";
 #endif
 
-const auto autoMode = Options::WriteMode::Auto;
-const auto regMode = Options::WriteMode::Regular;
-const auto sparseMode = Options::WriteMode::Sparse;
-const auto success = Options::Status::Success;
+constexpr auto autoMode = Options::WriteMode::Auto;
 } // anonymous namespace
 
 #define EXPECT_SUCCESS(...) EXPECT_EQ(Options::Status::Success, __VA_ARGS__)

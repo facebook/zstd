@@ -55,7 +55,6 @@ static std::uintmax_t fileSizeOrZero(const std::string &file) {
 static size_t handleOneInput(const Options &options,
                              const std::string &inputFile,
                              FILE* inputFd,
-                             const std::string &outputFile,
                              FILE* outputFd,
                              ErrorHolder &errorHolder) {
   auto inputSize = fileSizeOrZero(inputFile);
@@ -186,7 +185,7 @@ int pzstdMain(const Options &options) {
     }
     auto closeOutputGuard = makeScopeGuard([&] { std::fclose(outputFd); });
     // (de)compress the file
-    handleOneInput(options, input, inputFd, outputFile, outputFd, errorHolder);
+    handleOneInput(options, input, inputFd, outputFd, errorHolder);
     if (errorHolder.hasError()) {
       continue;
     }

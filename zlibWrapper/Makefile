@@ -41,7 +41,7 @@ test_zstd: example_zstd fitblk_zstd zwrapbench
 	./example_zstd
 	./fitblk_zstd 10240 <../zstd_compression_format.md
 	./fitblk_zstd 40960 <../zstd_compression_format.md
-	./zwrapbench ../zstd_compression_format.md
+	./zwrapbench -qb1e5 ../zstd_compression_format.md
 
 .c.o:
 	$(CC) $(CFLAGS) -c -o $@ $<

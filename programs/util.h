@@ -31,12 +31,12 @@ extern "C" {
 
 
 /* Unix Large Files support (>4GB) */
-#if !defined(__LP64__)              /* No point defining Large file for 64 bit */
-#   define _FILE_OFFSET_BITS 64     /* turn off_t into a 64-bit type for ftello, fseeko */
-#   if defined(__sun__)             /* Sun Solaris 32-bits requires specific definitions */
-#      define _LARGEFILE_SOURCE     /* fseeko, ftello */
-#   else
-#      define _LARGEFILE64_SOURCE   /* off64_t, fseeko64, ftello64 */
+#if !defined(__LP64__)                                  /* No point defining Large file for 64 bit */
+#   define _FILE_OFFSET_BITS 64                         /* turn off_t into a 64-bit type for ftello, fseeko */
+#   if defined(__sun__) && !defined(_LARGEFILE_SOURCE)  /* Sun Solaris 32-bits requires specific definitions */ 
+#      define _LARGEFILE_SOURCE                         /* fseeko, ftello */
+#   elif !defined(_LARGEFILE64_SOURCE)
+#      define _LARGEFILE64_SOURCE                       /* off64_t, fseeko64, ftello64 */
 #   endif
 #endif
 

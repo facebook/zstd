@@ -89,7 +89,7 @@ TEST(Pzstd, LargeSizes) {
           Options options;
           options.overwrite = true;
           options.inputFiles = {inputFile};
-          options.numThreads = numThreads;
+          options.numThreads = std::min(numThreads, options.numThreads);
           options.compressionLevel = level;
           ASSERT_TRUE(roundTrip(options));
           errorGuard.dismiss();

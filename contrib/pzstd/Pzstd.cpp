@@ -19,6 +19,15 @@
 #include <memory>
 #include <string>
 
+#if defined(MSDOS) || defined(OS2) || defined(WIN32) || defined(_WIN32) || defined(__CYGWIN__)
+#  include <fcntl.h>    /* _O_BINARY */
+#  include <io.h>       /* _setmode, _isatty */
+#  define SET_BINARY_MODE(file) { if (_setmode(_fileno(file), _O_BINARY) == -1) perror("Cannot set _O_BINARY"); }
+#else
+#  include <unistd.h>   /* isatty */
+#  define SET_BINARY_MODE(file)
+#endif
+
 namespace pzstd {
 
 namespace {
@@ -31,43 +40,27 @@ const std::string nullOutput = "/dev/null";
 
 using std::size_t;
 
-size_t pzstdMain(const Options& options, ErrorHolder& errorHolder) {
-  // Open the input file and attempt to determine its size
-  FILE* inputFd = stdin;
-  std::uintmax_t inputSize = 0;
-  if (options.inputFile != "-") {
-    inputFd = std::fopen(options.inputFile.c_str(), "rb");
-    if (!errorHolder.check(inputFd != nullptr, "Failed to open input file")) {
-      return 0;
-    }
-    std::error_code ec;
-    inputSize = file_size(options.inputFile, ec);
-    if (ec) {
-      inputSize = 0;
-    }
+static std::uintmax_t fileSizeOrZero(const std::string &file) {
+  if (file == "-") {
+    return 0;
   }
-  auto closeInputGuard = makeScopeGuard([&] { std::fclose(inputFd); });
-
-  // Check if the output file exists and then open it
-  FILE* outputFd = stdout;
-  if (options.outputFile != "-") {
-    if (!options.overwrite && options.outputFile != nullOutput) {
-      outputFd = std::fopen(options.outputFile.c_str(), "rb");
-      if (!errorHolder.check(outputFd == nullptr, "Output file exists")) {
-        return 0;
-      }
-    }
-    outputFd = std::fopen(options.outputFile.c_str(), "wb");
-    if (!errorHolder.check(
-            outputFd != nullptr, "Failed to open output file")) {
-      return 0;
-    }
+  std::error_code ec;
+  auto size = file_size(file, ec);
+  if (ec) {
+    size = 0;
   }
-  auto closeOutputGuard = makeScopeGuard([&] { std::fclose(outputFd); });
+  return size;
+}
 
+static size_t handleOneInput(const Options &options,
+                             const std::string &inputFile,
+                             FILE* inputFd,
+                             FILE* outputFd,
+                             ErrorHolder &errorHolder) {
+  auto inputSize = fileSizeOrZero(inputFile);
   // WorkQueue outlives ThreadPool so in the case of error we are certain
   // we don't accidently try to call push() on it after it is destroyed.
-  WorkQueue<std::shared_ptr<BufferWorkQueue>> outs{2 * options.numThreads};
+  WorkQueue<std::shared_ptr<BufferWorkQueue>> outs{options.numThreads + 1};
   size_t bytesWritten;
   {
     // Initialize the thread pool with numThreads + 1
@@ -89,19 +82,134 @@ size_t pzstdMain(const Options& options, ErrorHolder& errorHolder) {
                 options.determineParameters());
           });
       // Start writing
-      bytesWritten =
-          writeFile(errorHolder, outs, outputFd, options.pzstdHeaders);
+      bytesWritten = writeFile(errorHolder, outs, outputFd, options.decompress);
     } else {
       // Add a job that reads the input and starts all the decompression jobs
       executor.add([&errorHolder, &outs, &executor, inputFd] {
         asyncDecompressFrames(errorHolder, outs, executor, inputFd);
       });
       // Start writing
-      bytesWritten = writeFile(
-          errorHolder, outs, outputFd, /* writeSkippableFrames */ false);
+      bytesWritten = writeFile(errorHolder, outs, outputFd, options.decompress);
     }
   }
   return bytesWritten;
+}
+
+static FILE *openInputFile(const std::string &inputFile,
+                           ErrorHolder &errorHolder) {
+  if (inputFile == "-") {
+    SET_BINARY_MODE(stdin);
+    return stdin;
+  }
+  // Check if input file is a directory
+  {
+    std::error_code ec;
+    if (is_directory(inputFile, ec)) {
+      errorHolder.setError("Output file is a directory -- ignored");
+      return nullptr;
+    }
+  }
+  auto inputFd = std::fopen(inputFile.c_str(), "rb");
+  if (!errorHolder.check(inputFd != nullptr, "Failed to open input file")) {
+    return nullptr;
+  }
+  return inputFd;
+}
+
+static FILE *openOutputFile(const Options &options,
+                            const std::string &outputFile,
+                            ErrorHolder &errorHolder) {
+  if (outputFile == "-") {
+    SET_BINARY_MODE(stdout);
+    return stdout;
+  }
+  // Check if the output file exists and then open it
+  if (!options.overwrite && outputFile != nullOutput) {
+    auto outputFd = std::fopen(outputFile.c_str(), "rb");
+    if (outputFd != nullptr) {
+      std::fclose(outputFd);
+      if (options.verbosity <= 1) {
+        errorHolder.setError("Output file exists");
+        return nullptr;
+      }
+      std::fprintf(
+          stderr,
+          "pzstd: %s already exists; do you wish to overwrite (y/n) ? ",
+          outputFile.c_str());
+      int c = getchar();
+      if (c != 'y' && c != 'Y') {
+        errorHolder.setError("Not overwritten");
+        return nullptr;
+      }
+    }
+  }
+  auto outputFd = std::fopen(outputFile.c_str(), "wb");
+  if (!errorHolder.check(
+          outputFd != nullptr, "Failed to open output file")) {
+    return 0;
+  }
+  return outputFd;
+}
+
+int pzstdMain(const Options &options) {
+  int returnCode = 0;
+  for (const auto& input : options.inputFiles) {
+    // Setup the error holder
+    ErrorHolder errorHolder;
+    auto printErrorGuard = makeScopeGuard([&] {
+      if (errorHolder.hasError()) {
+        returnCode = 1;
+        if (options.verbosity > 0) {
+          std::fprintf(stderr, "pzstd: %s: %s.\n", input.c_str(),
+                       errorHolder.getError().c_str());
+        }
+      } else {
+
+      }
+    });
+    // Open the input file
+    auto inputFd = openInputFile(input, errorHolder);
+    if (inputFd == nullptr) {
+      continue;
+    }
+    auto closeInputGuard = makeScopeGuard([&] { std::fclose(inputFd); });
+    // Open the output file
+    auto outputFile = options.getOutputFile(input);
+    if (!errorHolder.check(outputFile != "",
+                           "Input file does not have extension .zst")) {
+      continue;
+    }
+    auto outputFd = openOutputFile(options, outputFile, errorHolder);
+    if (outputFd == nullptr) {
+      continue;
+    }
+    auto closeOutputGuard = makeScopeGuard([&] { std::fclose(outputFd); });
+    // (de)compress the file
+    handleOneInput(options, input, inputFd, outputFd, errorHolder);
+    if (errorHolder.hasError()) {
+      continue;
+    }
+    // Delete the input file if necessary
+    if (!options.keepSource) {
+      // Be sure that we are done and have written everything before we delete
+      if (!errorHolder.check(std::fclose(inputFd) == 0,
+                             "Failed to close input file")) {
+        continue;
+      }
+      closeInputGuard.dismiss();
+      if (!errorHolder.check(std::fclose(outputFd) == 0,
+                             "Failed to close output file")) {
+        continue;
+      }
+      closeOutputGuard.dismiss();
+      if (std::remove(input.c_str()) != 0) {
+        errorHolder.setError("Failed to remove input file");
+        continue;
+      }
+    }
+  }
+  // Returns 1 if any of the files failed to (de)compress.
+  return returnCode;
 }
 
 /// Construct a `ZSTD_inBuffer` that points to the data in `buffer`.
@@ -224,10 +332,9 @@ static size_t calculateStep(
   size_t step = size_t{1} << (params.cParams.windowLog + 2);
   // If file size is known, see if a smaller step will spread work more evenly
   if (size != 0) {
-    const std::uintmax_t newStep = size / std::uintmax_t{numThreads};
-    if (newStep != 0 &&
-        newStep <= std::uintmax_t{std::numeric_limits<size_t>::max()}) {
-      step = std::min(step, size_t{newStep});
+    const std::uintmax_t newStep = size / numThreads;
+    if (newStep != 0 && newStep <= std::numeric_limits<size_t>::max()) {
+      step = std::min(step, static_cast<size_t>(newStep));
     }
   }
   return step;
@@ -451,12 +558,12 @@ size_t writeFile(
     ErrorHolder& errorHolder,
     WorkQueue<std::shared_ptr<BufferWorkQueue>>& outs,
     FILE* outputFd,
-    bool writeSkippableFrames) {
+    bool decompress) {
   size_t bytesWritten = 0;
   std::shared_ptr<BufferWorkQueue> out;
   // Grab the output queue for each decompression job (in order).
   while (outs.pop(out) && !errorHolder.hasError()) {
-    if (writeSkippableFrames) {
+    if (!decompress) {
       // If we are compressing and want to write skippable frames we can't
       // start writing before compression is done because we need to know the
       // compressed size.

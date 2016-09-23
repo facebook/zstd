@@ -152,7 +152,7 @@ int main(int argc, char **argv)
     size = (unsigned)ret;
 
     printf("zlib version %s\n", ZLIB_VERSION);
-    if (isUsingZSTDcompression()) printf("zstd version %s\n", zstdVersion());
+    if (ZWRAP_isUsingZSTDcompression()) printf("zstd version %s\n", zstdVersion());
 
     /* allocate memory for buffers and compression engine */
     blk = malloc(size + EXCESS);
@@ -162,9 +162,9 @@ int main(int argc, char **argv)
     ret = deflateInit(&def, Z_DEFAULT_COMPRESSION);
     if (ret != Z_OK || blk == NULL)
         quit("out of memory");
-    ret = ZSTD_setPledgedSrcSize(&def, 1<<16);
+    ret = ZWRAP_setPledgedSrcSize(&def, 1<<16);
     if (ret != Z_OK)
-        quit("ZSTD_setPledgedSrcSize");
+        quit("ZWRAP_setPledgedSrcSize");
 
     /* compress from stdin until output full, or no more input */
     def.avail_out = size + EXCESS;

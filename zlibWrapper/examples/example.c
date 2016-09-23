@@ -583,7 +583,7 @@ int main(argc, argv)
 
     printf("zlib version %s = 0x%04x, compile flags = 0x%lx\n",
             ZLIB_VERSION, ZLIB_VERNUM, zlibCompileFlags());
-    if (isUsingZSTDcompression()) printf("zstd version %s\n", zstdVersion());
+    if (ZWRAP_isUsingZSTDcompression()) printf("zstd version %s\n", zstdVersion());
 
     compr    = (Byte*)calloc((uInt)comprLen, 1);
     uncompr  = (Byte*)calloc((uInt)uncomprLen, 1);
@@ -600,7 +600,7 @@ int main(argc, argv)
 #else
     test_compress(compr, comprLen, uncompr, uncomprLen);
 
-    if (!isUsingZSTDcompression())
+    if (!ZWRAP_isUsingZSTDcompression())
         test_gzio((argc > 1 ? argv[1] : TESTFILE),
               uncompr, uncomprLen);
 #endif
@@ -611,7 +611,7 @@ int main(argc, argv)
     test_large_deflate(compr, comprLen, uncompr, uncomprLen);
     test_large_inflate(compr, comprLen, uncompr, uncomprLen);
 
-    if (!isUsingZSTDcompression()) {
+    if (!ZWRAP_isUsingZSTDcompression()) {
         test_flush(compr, &comprLen);
         test_sync(compr, comprLen, uncompr, uncomprLen);
     }

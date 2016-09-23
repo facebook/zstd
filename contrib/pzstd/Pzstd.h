@@ -84,11 +84,13 @@ std::uint64_t asyncDecompressFrames(
  *                      (de)compression job.
  * @param outputFd     The file descriptor to write to
  * @param decompress   Are we decompressing?
+ * @param verbosity    The verbosity level to log at
  * @returns            The number of bytes written
  */
 std::uint64_t writeFile(
     ErrorHolder& errorHolder,
     WorkQueue<std::shared_ptr<BufferWorkQueue>>& outs,
     FILE* outputFd,
-    bool decompress);
+    bool decompress,
+    int verbosity);
 }

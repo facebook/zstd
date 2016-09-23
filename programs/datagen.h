@@ -6,7 +6,8 @@
  * LICENSE file in the root directory of this source tree. An additional grant
  * of patent rights can be found in the PATENTS file in the same directory.
  */
-
+#ifndef DATAGEN_H
+#define DATAGEN_H
 
 #include <stddef.h>   /* size_t */
 
@@ -22,3 +23,5 @@ void RDG_genBuffer(void* buffer, size_t size, double matchProba, double litProba
    RDG_genStdout
    Same as RDG_genBuffer, but generates data into stdout
 */
+
+#endif

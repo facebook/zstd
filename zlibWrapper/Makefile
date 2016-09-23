@@ -30,31 +30,27 @@ RM = rm -f
 
 all: clean fitblk example example_d zwrapbench
 
-test: example fitblk
+test: example fitblk example_zstd fitblk_zstd zwrapbench
 	./example
+	./example_zstd
 	./fitblk 10240 <../zstd_compression_format.md
 	./fitblk 40960 <../zstd_compression_format.md
+	./fitblk_zstd 10240 <../zstd_compression_format.md
+	./fitblk_zstd 40960 <../zstd_compression_format.md
 	./zwrapbench -qb1e5 ../zstd_compression_format.md
 	./zwrapbench -qb1e5B1K ../zstd_compression_format.md
 
 test_d: example_d
 	./example_d
 
-test_zstd: example_zstd fitblk_zstd zwrapbench
-	./example_zstd
-	./fitblk_zstd 10240 <../zstd_compression_format.md
-	./fitblk_zstd 40960 <../zstd_compression_format.md
-	./zwrapbench -qb1e5 ../zstd_compression_format.md
-	./zwrapbench -qb1e5B1K ../zstd_compression_format.md
-
-valgrindTest: VALGRIND = valgrind --leak-check=full --error-exitcode=1
-valgrindTest: STATICLIB = $(IMPLIB)
+valgrindTest: VALGRIND = valgrind --track-origins=yes --leak-check=full --error-exitcode=1
+valgrindTest: STATICLIB = -lz $(ZSTDLIBDIR)/libzstd.so
 valgrindTest: clean example fitblk example_zstd fitblk_zstd zwrapbench
 	@echo "\n ---- valgrind tests ----"
 	$(VALGRIND) ./example
+	$(VALGRIND) ./example_zstd
 	$(VALGRIND) ./fitblk 10240 <../zstd_compression_format.md
 	$(VALGRIND) ./fitblk 40960 <../zstd_compression_format.md
-	$(VALGRIND) ./example_zstd
 	$(VALGRIND) ./fitblk_zstd 10240 <../zstd_compression_format.md
 	$(VALGRIND) ./fitblk_zstd 40960 <../zstd_compression_format.md
 	$(VALGRIND) ./zwrapbench -qb1e5 ../zstd_compression_format.md

@@ -22,8 +22,8 @@
 #define ZSTD_HEADERSIZE             ZSTD_frameHeaderSize_min
 #define ZWRAP_DEFAULT_CLEVEL        5   /* Z_DEFAULT_COMPRESSION is translated to ZWRAP_DEFAULT_CLEVEL for zstd */
 
-#define LOG_WRAPPERC(...)   /*printf(__VA_ARGS__)*/ 
-#define LOG_WRAPPERD(...)   /*printf(__VA_ARGS__)*/
+#define LOG_WRAPPERC(...)   /* printf(__VA_ARGS__) */
+#define LOG_WRAPPERD(...)   /* printf(__VA_ARGS__) */
 
 
 #define FINISH_WITH_GZ_ERR(msg) { \
@@ -194,6 +194,7 @@ ZEXTERN int ZEXPORT z_deflateInit_ OF((z_streamp strm, int level,
     strm->state = (struct internal_state*) zwc; /* use state which in not used by user */
     strm->total_in = 0;
     strm->total_out = 0;
+    strm->adler = 0;
     return Z_OK;
 }
 
@@ -468,6 +469,7 @@ ZEXTERN int ZEXPORT z_inflateInit_ OF((z_streamp strm,
     strm->total_in = 0;
     strm->total_out = 0;
     strm->reserved = 1; /* mark as unknown steam */
+    strm->adler = 0;
     }
 
     return Z_OK;

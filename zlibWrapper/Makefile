@@ -43,6 +43,14 @@ test_zstd: example_zstd fitblk_zstd zwrapbench
 	./fitblk_zstd 40960 <../zstd_compression_format.md
 	./zwrapbench -qb1e5 ../zstd_compression_format.md
 
+valgrindTest: VALGRIND = valgrind --leak-check=full --error-exitcode=1
+valgrindTest: example_zstd fitblk_zstd zwrapbench
+	@echo "\n ---- valgrind tests ----"
+	$(VALGRIND) ./example_zstd
+	$(VALGRIND) ./fitblk_zstd 10240 <../zstd_compression_format.md
+	$(VALGRIND) ./fitblk_zstd 40960 <../zstd_compression_format.md
+	$(VALGRIND) ./zwrapbench -qb1e5 ../zstd_compression_format.md
+
 .c.o:
 	$(CC) $(CFLAGS) -c -o $@ $<
  

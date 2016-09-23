@@ -19,16 +19,14 @@ using namespace pzstd;
 
 int main(int argc, const char** argv) {
   Options options;
-  if (!options.parse(argc, argv)) {
+  switch (options.parse(argc, argv)) {
+  case Options::Status::Failure:
     return 1;
+  case Options::Status::Message:
+    return 0;
+  default:
+    break;
   }
 
-  ErrorHolder errorHolder;
-  pzstdMain(options, errorHolder);
-
-  if (errorHolder.hasError()) {
-    std::fprintf(stderr, "Error: %s.\n", errorHolder.getError().c_str());
-    return 1;
-  }
-  return 0;
+  return pzstdMain(options);
 }

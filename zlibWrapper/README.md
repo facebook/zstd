@@ -40,6 +40,33 @@ During decompression zlib and zstd streams are automatically detected and decomp
 This behavior can be changed using `ZWRAP_setDecompressionType(ZWRAP_FORCE_ZLIB)` what will make zlib decompression slightly faster.
 
 
+#### Example
+We have take the file ```test/example.c``` from [the zlib library distribution](http://zlib.net/) and copied it to [zlibWrapper/examples/example.c](examples/example.c).
+After compilation and execution it shows the following results: 
+```
+zlib version 1.2.8 = 0x1280, compile flags = 0x65
+uncompress(): hello, hello!
+gzread(): hello, hello!
+gzgets() after gzseek:  hello!
+inflate(): hello, hello!
+large_inflate(): OK
+after inflateSync(): hello, hello!
+inflate with dictionary: hello, hello!
+```
+Then we have changed ```#include "zlib.h"``` to ```#include "zstd_zlibwrapper.h"```, compiled the [example.c](examples/example.c) file
+with ```-DZWRAP_USE_ZSTD=1``` and linked with additional ```zstd_zlibwrapper.o -lzstd```.
+We were forced to turn off the following functions: ```test_gzio```, ```test_flush```, ```test_sync``` which use currently unsupported features.
+After running it shows the following results:
+```
+zlib version 1.2.8 = 0x1280, compile flags = 0x65
+uncompress(): hello, hello!
+inflate(): hello, hello!
+large_inflate(): OK
+inflate with dictionary: hello, hello!
+```
+The script used for compilation can be found at [zlibWrapper/Makefile](Makefile).
+
+
 #### The measurement of performace of Zstandard wrapper for zlib
 
 The zstd distribution contains a tool called `zwrapbench` which can measure speed and ratio of zlib, zstd, and the wrapper.
@@ -77,7 +104,7 @@ The speed of compression can be improved with reusing a single context with foll
 To check the difference we made experiments using `zwrapbench` with zstd and zlib compression (both at level 3) with 4 KB blocks.
 The input data was git repository downloaded from https://github.com/git/git/archive/master.zip and converted to uncompressed tarball.
 The table below shows that reusing contexts has a minor influence on zlib but it gives improvement for zstd.
-In our example (the last 2 lines) is gives 15% better compression speed and 6% better decompression speed.
+In our example (the last 2 lines) it gives 15% better compression speed and 6% better decompression speed.
 
 | Compression type                                  | Compression | Decompress.| Compr. size | Ratio |
 | ------------------------------------------------- | ------------| -----------| ----------- | ----- |
@@ -89,33 +116,6 @@ In our example (the last 2 lines) is gives 15% better compression speed and 6% b
 | zstd 1.1.0 using ZSTD_CStream                     | 107.34 MB/s | 307.3 MB/s |     8981368 | 2.893 |
 | zstd 1.1.0 with zlibWrapper and reusing a context | 107.52 MB/s | 297.3 MB/s |     8981368 | 2.893 |
 | zstd 1.1.0 with zlibWrapper not reusing a context |  91.45 MB/s | 279.8 MB/s |     8981368 | 2.893 |
-
-
-#### Example
-We have take the file ```test/example.c``` from [the zlib library distribution](http://zlib.net/) and copied it to [zlibWrapper/examples/example.c](examples/example.c).
-After compilation and execution it shows the following results: 
-```
-zlib version 1.2.8 = 0x1280, compile flags = 0x65
-uncompress(): hello, hello!
-gzread(): hello, hello!
-gzgets() after gzseek:  hello!
-inflate(): hello, hello!
-large_inflate(): OK
-after inflateSync(): hello, hello!
-inflate with dictionary: hello, hello!
-```
-Then we have changed ```#include "zlib.h"``` to ```#include "zstd_zlibwrapper.h"```, compiled the [example.c](examples/example.c) file
-with ```-DZWRAP_USE_ZSTD=1``` and linked with additional ```zstd_zlibwrapper.o -lzstd```.
-We were forced to turn off the following functions: ```test_gzio```, ```test_flush```, ```test_sync``` which use currently unsupported features.
-After running it shows the following results:
-```
-zlib version 1.2.8 = 0x1280, compile flags = 0x65
-uncompress(): hello, hello!
-inflate(): hello, hello!
-large_inflate(): OK
-inflate with dictionary: hello, hello!
-```
-The script used for compilation can be found at [zlibWrapper/Makefile](Makefile).
 
 
 #### Compatibility issues

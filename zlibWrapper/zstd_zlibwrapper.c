@@ -25,20 +25,8 @@
 #define LOG_WRAPPERC(...)   /* printf(__VA_ARGS__) */
 #define LOG_WRAPPERD(...)   /* printf(__VA_ARGS__) */
 
-
-#define FINISH_WITH_GZ_ERR(msg) { \
-    (void)msg; \
-    return Z_STREAM_ERROR; \
-}
-
-#define FINISH_WITH_NULL_ERR(msg) { \
-    (void)msg; \
-    return NULL; \
-}
-
-const char * zstdVersion(void) { return ZSTD_VERSION_STRING; }
-
-ZEXTERN const char * ZEXPORT z_zlibVersion OF((void)) { return zlibVersion();  }
+#define FINISH_WITH_GZ_ERR(msg) { (void)msg; return Z_STREAM_ERROR; }
+#define FINISH_WITH_NULL_ERR(msg) { (void)msg; return NULL; }
 
 
 
@@ -60,6 +48,11 @@ void ZWRAP_setDecompressionType(ZWRAP_decompress_type type) { g_ZWRAPdecompressi
 
 ZWRAP_decompress_type ZWRAP_getDecompressionType(void) { return g_ZWRAPdecompressionType; }
 
+
+
+const char * zstdVersion(void) { return ZSTD_VERSION_STRING; }
+
+ZEXTERN const char * ZEXPORT z_zlibVersion OF((void)) { return zlibVersion();  }
 
 
 
@@ -257,7 +250,6 @@ ZEXTERN int ZEXPORT z_deflate OF((z_streamp strm, int flush))
         int res;
         LOG_WRAPPERC("- deflate1 flush=%d avail_in=%d avail_out=%d total_in=%d total_out=%d\n", (int)flush, (int)strm->avail_in, (int)strm->avail_out, (int)strm->total_in, (int)strm->total_out);
         res = deflate(strm, flush);
-        LOG_WRAPPERC("- deflate2 flush=%d avail_in=%d avail_out=%d total_in=%d total_out=%d\n", (int)flush, (int)strm->avail_in, (int)strm->avail_out, (int)strm->total_in, (int)strm->total_out);
         return res;
     }
 
@@ -396,6 +388,7 @@ void ZWRAP_initDCtx(ZWRAP_DCtx* zwd)
     zwd->outBuffer.pos = 0;
     zwd->outBuffer.size = 0;
 }
+
 
 ZWRAP_DCtx* ZWRAP_createDCtx(z_streamp strm)
 {
@@ -585,8 +578,7 @@ ZEXTERN int ZEXPORT z_inflate OF((z_streamp strm, int flush))
 
     if (strm->avail_in <= 0) return Z_OK;
 
-    {
-        size_t errorCode, srcSize;
+    {   size_t errorCode, srcSize;
         zwd = (ZWRAP_DCtx*) strm->state;
         LOG_WRAPPERD("- inflate1 flush=%d avail_in=%d avail_out=%d total_in=%d total_out=%d\n", (int)flush, (int)strm->avail_in, (int)strm->avail_out, (int)strm->total_in, (int)strm->total_out);
 
@@ -758,6 +750,7 @@ ZEXTERN int ZEXPORT z_inflateSync OF((z_streamp strm))
 
     return z_inflate(strm, Z_INFLATE_SYNC);
 }
+
 
 
 

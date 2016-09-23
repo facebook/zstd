@@ -16,6 +16,7 @@
 #include <string.h>      /* memset */
 #include <stdio.h>       /* fprintf, fopen, ftello64 */
 #include <time.h>        /* clock_t, clock, CLOCKS_PER_SEC */
+#include <ctype.h>       /* toupper */
 
 #include "mem.h"
 #define ZSTD_STATIC_LINKING_ONLY

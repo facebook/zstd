@@ -326,7 +326,7 @@ extern "C" {
 *   It avoids reloading the dictionary each time.
 *   `preparedDCtx` must have been properly initialized using ZSTDv06_decompressBegin_usingDict().
 *   Requires 2 contexts : 1 for reference (preparedDCtx), which will not be modified, and 1 to run the decompression operation (dctx) */
-ZSTDLIB_API size_t ZSTDv06_decompress_usingPreparedDCtx(
+ZSTDLIBv06_API size_t ZSTDv06_decompress_usingPreparedDCtx(
                                            ZSTDv06_DCtx* dctx, const ZSTDv06_DCtx* preparedDCtx,
                                            void* dst, size_t dstCapacity,
                                      const void* src, size_t srcSize);
@@ -337,7 +337,7 @@ ZSTDLIB_API size_t ZSTDv06_decompress_usingPreparedDCtx(
 static const size_t ZSTDv06_frameHeaderSize_min = 5;
 static const size_t ZSTDv06_frameHeaderSize_max = ZSTDv06_FRAMEHEADERSIZE_MAX;
 
-ZSTDLIB_API size_t ZSTDv06_decompressBegin(ZSTDv06_DCtx* dctx);
+ZSTDLIBv06_API size_t ZSTDv06_decompressBegin(ZSTDv06_DCtx* dctx);
 
 /*
   Streaming decompression, direct mode (bufferless)
@@ -396,7 +396,7 @@ ZSTDLIB_API size_t ZSTDv06_decompressBegin(ZSTDv06_DCtx* dctx);
 */
 
 #define ZSTDv06_BLOCKSIZE_MAX (128 * 1024)   /* define, for static allocation */
-ZSTDLIB_API size_t ZSTDv06_decompressBlock(ZSTDv06_DCtx* dctx, void* dst, size_t dstCapacity, const void* src, size_t srcSize);
+ZSTDLIBv06_API size_t ZSTDv06_decompressBlock(ZSTDv06_DCtx* dctx, void* dst, size_t dstCapacity, const void* src, size_t srcSize);
 
 
 

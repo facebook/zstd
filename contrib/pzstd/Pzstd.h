@@ -45,8 +45,9 @@ int pzstdMain(const Options& options);
  * @param size         The size of the input file if known, 0 otherwise
  * @param numThreads   The number of threads in the thread pool
  * @param parameters   The zstd parameters to use for compression
+ * @returns            The number of bytes read from the file
  */
-void asyncCompressChunks(
+std::uint64_t asyncCompressChunks(
     ErrorHolder& errorHolder,
     WorkQueue<std::shared_ptr<BufferWorkQueue>>& chunks,
     ThreadPool& executor,
@@ -66,8 +67,9 @@ void asyncCompressChunks(
  *                      as soon as it is available
  * @param executor     The thread pool to run compression jobs in
  * @param fd           The input file descriptor
+ * @returns            The number of bytes read from the file
  */
-void asyncDecompressFrames(
+std::uint64_t asyncDecompressFrames(
     ErrorHolder& errorHolder,
     WorkQueue<std::shared_ptr<BufferWorkQueue>>& frames,
     ThreadPool& executor,
@@ -84,7 +86,7 @@ void asyncDecompressFrames(
  * @param decompress   Are we decompressing?
  * @returns            The number of bytes written
  */
-std::size_t writeFile(
+std::uint64_t writeFile(
     ErrorHolder& errorHolder,
     WorkQueue<std::shared_ptr<BufferWorkQueue>>& outs,
     FILE* outputFd,

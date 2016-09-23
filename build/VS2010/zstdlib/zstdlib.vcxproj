@@ -32,6 +32,13 @@
     <ClCompile Include="..\..\..\lib\decompress\zstd_decompress.c" />
     <ClCompile Include="..\..\..\lib\dictBuilder\divsufsort.c" />
     <ClCompile Include="..\..\..\lib\dictBuilder\zdict.c" />
+    <ClCompile Include="..\..\..\lib\legacy\zstd_v01.c" />
+    <ClCompile Include="..\..\..\lib\legacy\zstd_v02.c" />
+    <ClCompile Include="..\..\..\lib\legacy\zstd_v03.c" />
+    <ClCompile Include="..\..\..\lib\legacy\zstd_v04.c" />
+    <ClCompile Include="..\..\..\lib\legacy\zstd_v05.c" />
+    <ClCompile Include="..\..\..\lib\legacy\zstd_v06.c" />
+    <ClCompile Include="..\..\..\lib\legacy\zstd_v07.c" />
     <ClInclude Include="..\..\..\lib\common\bitstream.h" />
     <ClInclude Include="..\..\..\lib\common\error_private.h" />
     <ClInclude Include="..\..\..\lib\common\error_public.h" />
@@ -40,6 +47,14 @@
     <ClInclude Include="..\..\..\lib\common\huf.h" />
     <ClInclude Include="..\..\..\lib\common\xxhash.h" />
     <ClInclude Include="..\..\..\lib\common\zbuff.h" />
+    <ClInclude Include="..\..\..\lib\legacy\zstd_legacy.h" />
+    <ClInclude Include="..\..\..\lib\legacy\zstd_v01.h" />
+    <ClInclude Include="..\..\..\lib\legacy\zstd_v02.h" />
+    <ClInclude Include="..\..\..\lib\legacy\zstd_v03.h" />
+    <ClInclude Include="..\..\..\lib\legacy\zstd_v04.h" />
+    <ClInclude Include="..\..\..\lib\legacy\zstd_v05.h" />
+    <ClInclude Include="..\..\..\lib\legacy\zstd_v06.h" />
+    <ClInclude Include="..\..\..\lib\legacy\zstd_v07.h" />
     <ClInclude Include="..\..\..\lib\zstd.h" />
     <ClInclude Include="..\..\..\lib\common\zstd_internal.h" />
     <ClInclude Include="..\..\..\lib\compress\zstd_opt.h" />
@@ -126,7 +141,7 @@
       </PrecompiledHeader>
       <WarningLevel>Level4</WarningLevel>
       <Optimization>Disabled</Optimization>
-      <PreprocessorDefinitions>ZSTD_DLL_EXPORT=1;ZSTD_HEAPMODE=0;ZSTD_LEGACY_SUPPORT=0;WIN32;_DEBUG;_CONSOLE;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>ZSTD_DLL_EXPORT=1;ZSTD_LEGACY_SUPPORT=1;WIN32;_DEBUG;_CONSOLE;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <MinimalRebuild>true</MinimalRebuild>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
@@ -146,7 +161,7 @@
       </PrecompiledHeader>
       <WarningLevel>Level4</WarningLevel>
       <Optimization>Disabled</Optimization>
-      <PreprocessorDefinitions>ZSTD_DLL_EXPORT=1;ZSTD_HEAPMODE=0;ZSTD_LEGACY_SUPPORT=0;WIN32;_DEBUG;_CONSOLE;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>ZSTD_DLL_EXPORT=1;ZSTD_LEGACY_SUPPORT=1;WIN32;_DEBUG;_CONSOLE;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <TreatWarningAsError>true</TreatWarningAsError>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
@@ -166,7 +181,7 @@
       <Optimization>MaxSpeed</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
-      <PreprocessorDefinitions>ZSTD_DLL_EXPORT=1;ZSTD_HEAPMODE=0;ZSTD_LEGACY_SUPPORT=0;WIN32;NDEBUG;_CONSOLE;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>ZSTD_DLL_EXPORT=1;ZSTD_LEGACY_SUPPORT=1;WIN32;NDEBUG;_CONSOLE;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <EnablePREfast>false</EnablePREfast>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
@@ -188,7 +203,7 @@
       <Optimization>MaxSpeed</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
-      <PreprocessorDefinitions>ZSTD_DLL_EXPORT=1;ZSTD_HEAPMODE=0;ZSTD_LEGACY_SUPPORT=0;WIN32;NDEBUG;_CONSOLE;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>ZSTD_DLL_EXPORT=1;ZSTD_LEGACY_SUPPORT=1;WIN32;NDEBUG;_CONSOLE;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <TreatWarningAsError>false</TreatWarningAsError>
       <EnablePREfast>false</EnablePREfast>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>

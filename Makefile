@@ -34,7 +34,7 @@ zstd:
 	cp $(PRGDIR)/zstd .
 
 zlibwrapper:
-	$(MAKE) -C $(ZWRAPDIR) test test_zstd
+	$(MAKE) -C $(ZWRAPDIR) test
 
 test:
 	$(MAKE) -C $(TESTDIR) $@

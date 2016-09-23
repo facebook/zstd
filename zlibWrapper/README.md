@@ -23,10 +23,10 @@ Let's assume that your project that uses zlib is compiled with:
 
 To compile the zstd wrapper with your project you have to do the following:
 - change all references with ```#include "zlib.h"``` to ```#include "zstd_zlibwrapper.h"```
-- compile your project with zlib_wrapper.c and a static or dynamic zstd library
+- compile your project with `zstd_zlibwrapper.c` and a static or dynamic zstd library
 
 The linking should be changed to:
-```gcc project.o zlib_wrapper.o -lz -lzstd```
+```gcc project.o zstd_zlibwrapper.o -lz -lzstd```
 
 
 #### Enabling zstd compression within your project
@@ -35,7 +35,29 @@ After embedding the zstd wrapper within your project the zstd library is turned 
 Your project should work as before with zlib. There are two options to enable zstd compression:
 - compilation with ```-DZWRAP_USE_ZSTD=1``` (or using ```#define ZWRAP_USE_ZSTD 1``` before ```#include "zstd_zlibwrapper.h"```)
 - using the ```void ZWRAP_useZSTDcompression(int turn_on)``` function (declared in ```#include "zstd_zlibwrapper.h"```)
-There is no switch for zstd decompression because zlib and zstd streams are automatically detected and decompressed using a proper library.
+
+During decompression zlib and zstd streams are automatically detected and decompressed using a proper library.
+This behavior can be changed using ZWRAP_setDecompressionType(ZWRAP_FORCE_ZLIB) what will make zlib decompression slightly faster.
+
+
+#### Performace of Zstandard wrapper for zlib
+
+The zstd distribution contains a tool called `zwrapbench` which can measure speed and ratio of zlib, zstd and the wrapper.
+The benchmark is conducted using given filenames or synthetic data if filenames are not provided.
+The files are read into memory and joined together. 
+It makes benchmark more precise as it eliminates I/O overhead. 
+Many filenames can be supplied as multiple parameters, parameters with wildcards or names of directories can be used as parameters with the -r option.
+One can select compression levels starting from -b and ending with -e. The -i parameter selects minimal time used for each of tested levels.
+With -B option bigger files can be divided into smaller, independently compressed blocks. 
+The benchmark tool can be compiled with `make zwrapbench` using [zlibWrapper/Makefile](this Makefile).
+
+
+#### Improving speed of streaming compression
+
+Zstandard compression can be improved by providing size of source data to compressor. By default compressor assumes that files are bigger than 256 KB but it can hurt compression speed on smaller files. 
+The zstd wrapper provides the `int ZWRAP_setPledgedSrcSize(z_streamp strm, unsigned long long pledgedSrcSize)` function that allows to change a pledged source size for a given compression stream.
+The function should be called just after deflateInit(). The function is only helpful when data is compressed in blocks. There will be no change in case of deflateInit() immediately followed by deflate(strm, Z_FINISH)
+as this case is automatically detected.
 
 
 #### Example
@@ -52,7 +74,7 @@ after inflateSync(): hello, hello!
 inflate with dictionary: hello, hello!
 ```
 Then we have changed ```#include "zlib.h"``` to ```#include "zstd_zlibwrapper.h"```, compiled the [example.c](examples/example.c) file
-with ```-DZWRAP_USE_ZSTD=1``` and linked with additional ```zlib_wrapper.o -lzstd```.
+with ```-DZWRAP_USE_ZSTD=1``` and linked with additional ```zstd_zlibwrapper.o -lzstd```.
 We were forced to turn off the following functions: ```test_gzio```, ```test_flush```, ```test_sync``` which use currently unsupported features.
 After running it shows the following results:
 ```
@@ -66,7 +88,7 @@ The script used for compilation can be found at [zlibWrapper/Makefile](Makefile)
 
 
 #### Compatibility issues
-After enabling zstd compression not all native zlib functions are supported. When calling unsupported methods they print error message and return an error value.
+After enabling zstd compression not all native zlib functions are supported. When calling unsupported methods they put error message into strm->msg and return Z_STREAM_ERROR.
 
 Supported methods:
 - deflateInit

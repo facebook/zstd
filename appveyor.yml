@@ -52,6 +52,8 @@ build_script:
       ECHO *** &&
       ECHO make -C contrib\pzstd pzstd &&
       make -C contrib\pzstd pzstd &&
+      make -C contrib\pzstd googletest-mingw64 &&
+      make -C contrib\pzstd test &&
       make -C contrib\pzstd clean
     )
   - if [%COMPILER%]==[gcc] (

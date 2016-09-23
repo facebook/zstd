@@ -261,7 +261,7 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
                     do {
                         U32 blockNb;
                         for (blockNb=0; blockNb<nbBlocks; blockNb++) {
-                            rSize = ZSTD_resetCStream(zbc, avgSize);
+                            rSize = ZSTD_resetCStream(zbc, blockTable[blockNb].srcSize);
                             if (ZSTD_isError(rSize)) EXM_THROW(1, "ZSTD_resetCStream() failed : %s", ZSTD_getErrorName(rSize));
                             inBuffer.src = blockTable[blockNb].srcPtr;
                             inBuffer.size = blockTable[blockNb].srcSize;
@@ -288,10 +288,10 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
                     def.opaque = Z_NULL;
                     ret = deflateInit(&def, cLevel);
                     if (ret != Z_OK) EXM_THROW(1, "deflateInit failure");
-                    if (ZWRAP_isUsingZSTDcompression()) {
+                 /*   if (ZWRAP_isUsingZSTDcompression()) {
                         ret = ZWRAP_setPledgedSrcSize(&def, avgSize);
                         if (ret != Z_OK) EXM_THROW(1, "ZWRAP_setPledgedSrcSize failure");
-                    }
+                    }*/
                     do {
                         U32 blockNb;
                         for (blockNb=0; blockNb<nbBlocks; blockNb++) {
@@ -324,10 +324,6 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
                             def.opaque = Z_NULL;
                             ret = deflateInit(&def, cLevel);
                             if (ret != Z_OK) EXM_THROW(1, "deflateInit failure");
-                            if (ZWRAP_isUsingZSTDcompression()) {
-                                ret = ZWRAP_setPledgedSrcSize(&def, avgSize);
-                                if (ret != Z_OK) EXM_THROW(1, "ZWRAP_setPledgedSrcSize failure");
-                            }
                             def.next_in = (const void*) blockTable[blockNb].srcPtr;
                             def.avail_in = blockTable[blockNb].srcSize;
                             def.total_in = 0;

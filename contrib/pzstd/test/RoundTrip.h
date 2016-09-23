@@ -55,7 +55,10 @@ inline bool check(std::string source, std::string decompressed) {
 }
 
 inline bool roundTrip(Options& options) {
-  std::string source = options.inputFile;
+  if (options.inputFiles.size() != 1) {
+    return false;
+  }
+  std::string source = options.inputFiles.front();
   std::string compressedFile = std::tmpnam(nullptr);
   std::string decompressedFile = std::tmpnam(nullptr);
   auto guard = makeScopeGuard([&] {
@@ -66,21 +69,15 @@ inline bool roundTrip(Options& options) {
   {
     options.outputFile = compressedFile;
     options.decompress = false;
-    ErrorHolder errorHolder;
-    pzstdMain(options, errorHolder);
-    if (errorHolder.hasError()) {
-      errorHolder.getError();
+    if (pzstdMain(options) != 0) {
       return false;
     }
   }
   {
     options.decompress = true;
-    options.inputFile = compressedFile;
+    options.inputFiles.front() = compressedFile;
     options.outputFile = decompressedFile;
-    ErrorHolder errorHolder;
-    pzstdMain(options, errorHolder);
-    if (errorHolder.hasError()) {
-      errorHolder.getError();
+    if (pzstdMain(options) != 0) {
       return false;
     }
   }

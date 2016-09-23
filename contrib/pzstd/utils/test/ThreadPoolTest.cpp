@@ -20,12 +20,12 @@ TEST(ThreadPool, Ordering) {
 
   {
     ThreadPool executor(1);
-    for (int i = 0; i < 100; ++i) {
+    for (int i = 0; i < 10; ++i) {
       executor.add([ &results, i ] { results.push_back(i); });
     }
   }
 
-  for (int i = 0; i < 100; ++i) {
+  for (int i = 0; i < 10; ++i) {
     EXPECT_EQ(i, results[i]);
   }
 }
@@ -35,7 +35,7 @@ TEST(ThreadPool, AllJobsFinished) {
   std::atomic<bool> start{false};
   {
     ThreadPool executor(5);
-    for (int i = 0; i < 1000; ++i) {
+    for (int i = 0; i < 10; ++i) {
       executor.add([ &numFinished, &start ] {
         while (!start.load()) {
           // spin
@@ -45,7 +45,7 @@ TEST(ThreadPool, AllJobsFinished) {
     }
     start.store(true);
   }
-  EXPECT_EQ(1000, numFinished.load());
+  EXPECT_EQ(10, numFinished.load());
 }
 
 TEST(ThreadPool, AddJobWhileJoining) {

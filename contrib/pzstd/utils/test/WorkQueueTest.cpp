@@ -89,14 +89,14 @@ TEST(WorkQueue, SPSC) {
 
 TEST(WorkQueue, SPMC) {
   WorkQueue<int> queue;
-  std::vector<int> results(10000, -1);
+  std::vector<int> results(50, -1);
   std::mutex mutex;
   std::vector<std::thread> threads;
-  for (int i = 0; i < 100; ++i) {
+  for (int i = 0; i < 5; ++i) {
     threads.emplace_back(Popper{&queue, results.data(), &mutex});
   }
 
-  for (int i = 0; i < 10000; ++i) {
+  for (int i = 0; i < 50; ++i) {
     queue.push(i);
   }
   queue.finish();
@@ -105,24 +105,24 @@ TEST(WorkQueue, SPMC) {
     thread.join();
   }
 
-  for (int i = 0; i < 10000; ++i) {
+  for (int i = 0; i < 50; ++i) {
     EXPECT_EQ(i, results[i]);
   }
 }
 
 TEST(WorkQueue, MPMC) {
   WorkQueue<int> queue;
-  std::vector<int> results(10000, -1);
+  std::vector<int> results(100, -1);
   std::mutex mutex;
   std::vector<std::thread> popperThreads;
-  for (int i = 0; i < 100; ++i) {
+  for (int i = 0; i < 4; ++i) {
     popperThreads.emplace_back(Popper{&queue, results.data(), &mutex});
   }
 
   std::vector<std::thread> pusherThreads;
-  for (int i = 0; i < 10; ++i) {
-    auto min = i * 1000;
-    auto max = (i + 1) * 1000;
+  for (int i = 0; i < 2; ++i) {
+    auto min = i * 50;
+    auto max = (i + 1) * 50;
     pusherThreads.emplace_back(
         [ &queue, min, max ] {
           for (int i = min; i < max; ++i) {
@@ -140,7 +140,7 @@ TEST(WorkQueue, MPMC) {
     thread.join();
   }
 
-  for (int i = 0; i < 10000; ++i) {
+  for (int i = 0; i < 100; ++i) {
     EXPECT_EQ(i, results[i]);
   }
 }
@@ -197,16 +197,16 @@ TEST(WorkQueue, SetMaxSize) {
 }
 
 TEST(WorkQueue, BoundedSizeMPMC) {
-  WorkQueue<int> queue(100);
-  std::vector<int> results(10000, -1);
+  WorkQueue<int> queue(10);
+  std::vector<int> results(200, -1);
   std::mutex mutex;
   std::vector<std::thread> popperThreads;
-  for (int i = 0; i < 10; ++i) {
+  for (int i = 0; i < 4; ++i) {
     popperThreads.emplace_back(Popper{&queue, results.data(), &mutex});
   }
 
   std::vector<std::thread> pusherThreads;
-  for (int i = 0; i < 100; ++i) {
+  for (int i = 0; i < 2; ++i) {
     auto min = i * 100;
     auto max = (i + 1) * 100;
     pusherThreads.emplace_back(
@@ -226,7 +226,7 @@ TEST(WorkQueue, BoundedSizeMPMC) {
     thread.join();
   }
 
-  for (int i = 0; i < 10000; ++i) {
+  for (int i = 0; i < 200; ++i) {
     EXPECT_EQ(i, results[i]);
   }
 }

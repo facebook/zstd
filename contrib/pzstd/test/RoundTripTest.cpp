@@ -6,7 +6,9 @@
  * LICENSE file in the root directory of this source tree. An additional grant
  * of patent rights can be found in the PATENTS file in the same directory.
  */
+extern "C" {
 #include "datagen.h"
+}
 #include "Options.h"
 #include "test/RoundTrip.h"
 #include "utils/ScopeGuard.h"
@@ -46,14 +48,12 @@ string generateInputFile(Generator& gen) {
 template <typename Generator>
 Options generateOptions(Generator& gen, const string& inputFile) {
   Options options;
-  options.inputFile = inputFile;
+  options.inputFiles = {inputFile};
   options.overwrite = true;
 
-  std::bernoulli_distribution pzstdHeaders{0.75};
   std::uniform_int_distribution<unsigned> numThreads{1, 32};
   std::uniform_int_distribution<unsigned> compressionLevel{1, 10};
 
-  options.pzstdHeaders = pzstdHeaders(gen);
   options.numThreads = numThreads(gen);
   options.compressionLevel = compressionLevel(gen);
 
@@ -61,7 +61,7 @@ Options generateOptions(Generator& gen, const string& inputFile) {
 }
 }
 
-int main(int argc, char** argv) {
+int main() {
   std::mt19937 gen(std::random_device{}());
 
   auto newlineGuard = makeScopeGuard([] { std::fprintf(stderr, "\n"); });
@@ -77,8 +77,6 @@ int main(int argc, char** argv) {
         std::fprintf(stderr, "numThreads: %u\n", options.numThreads);
         std::fprintf(stderr, "level: %u\n", options.compressionLevel);
         std::fprintf(stderr, "decompress? %u\n", (unsigned)options.decompress);
-        std::fprintf(
-            stderr, "pzstd headers? %u\n", (unsigned)options.pzstdHeaders);
         std::fprintf(stderr, "file: %s\n", inputFile.c_str());
         return 1;
       }

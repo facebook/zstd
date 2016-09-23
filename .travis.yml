@@ -66,12 +66,18 @@ matrix:
     - os: linux
       dist: trusty
       sudo: required
-      env: PLATFORM="Ubuntu 14.04" CMD="make gpptest && make clean && make gnu90test && make clean && make c99test && make clean && make gnu99test && make clean && make clangtest"
+      install:
+        - export CXX="g++-4.8" CC="gcc-4.8"
+      env: PLATFORM="Ubuntu 14.04" CMD="make gpptest && make clean && make gnu90test && make clean && make c99test && make clean && make gnu99test && make clean && make clangtest && make clean && make -C contrib/pzstd pzstd32 && make -C contrib/pzstd googletest32 && make -C contrib/pzstd test32 && make -C contrib/pzstd clean"
       addons:
         apt:
           packages:
             - libc6-dev-i386
-            - g++-multilib 
+            - g++-multilib
+            - gcc-4.8
+            - gcc-4.8-multilib
+            - g++-4.8
+            - g++-4.8-multilib
     - os: linux
       dist: trusty
       sudo: required

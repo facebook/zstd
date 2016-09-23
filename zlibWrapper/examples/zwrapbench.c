@@ -281,16 +281,16 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
                 } else if (compressor == BMK_ZWRAP_ZLIB_REUSE || compressor == BMK_ZWRAP_ZSTD_REUSE || compressor == BMK_ZLIB_REUSE) {
                     z_stream def;
                     int ret;
-                    if (compressor == BMK_ZLIB_REUSE || compressor == BMK_ZWRAP_ZLIB_REUSE) useZSTDcompression(0);
-                    else useZSTDcompression(1);
+                    if (compressor == BMK_ZLIB_REUSE || compressor == BMK_ZWRAP_ZLIB_REUSE) ZWRAP_useZSTDcompression(0);
+                    else ZWRAP_useZSTDcompression(1);
                     def.zalloc = Z_NULL;
                     def.zfree = Z_NULL;
                     def.opaque = Z_NULL;
                     ret = deflateInit(&def, cLevel);
                     if (ret != Z_OK) EXM_THROW(1, "deflateInit failure");
-                    if (isUsingZSTDcompression()) {
-                        ret = ZSTD_setPledgedSrcSize(&def, avgSize);
-                        if (ret != Z_OK) EXM_THROW(1, "ZSTD_setPledgedSrcSize failure");
+                    if (ZWRAP_isUsingZSTDcompression()) {
+                        ret = ZWRAP_setPledgedSrcSize(&def, avgSize);
+                        if (ret != Z_OK) EXM_THROW(1, "ZWRAP_setPledgedSrcSize failure");
                     }
                     do {
                         U32 blockNb;
@@ -313,8 +313,8 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
                     if (ret != Z_OK) EXM_THROW(1, "deflateEnd failure");
                 } else {
                     z_stream def;
-                    if (compressor == BMK_ZLIB || compressor == BMK_ZWRAP_ZLIB) useZSTDcompression(0);
-                    else useZSTDcompression(1);
+                    if (compressor == BMK_ZLIB || compressor == BMK_ZWRAP_ZLIB) ZWRAP_useZSTDcompression(0);
+                    else ZWRAP_useZSTDcompression(1);
                     do {
                         U32 blockNb;
                         for (blockNb=0; blockNb<nbBlocks; blockNb++) {
@@ -324,9 +324,9 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
                             def.opaque = Z_NULL;
                             ret = deflateInit(&def, cLevel);
                             if (ret != Z_OK) EXM_THROW(1, "deflateInit failure");
-                            if (isUsingZSTDcompression()) {
-                                ret = ZSTD_setPledgedSrcSize(&def, avgSize);
-                                if (ret != Z_OK) EXM_THROW(1, "ZSTD_setPledgedSrcSize failure");
+                            if (ZWRAP_isUsingZSTDcompression()) {
+                                ret = ZWRAP_setPledgedSrcSize(&def, avgSize);
+                                if (ret != Z_OK) EXM_THROW(1, "ZWRAP_setPledgedSrcSize failure");
                             }
                             def.next_in = (const void*) blockTable[blockNb].srcPtr;
                             def.avail_in = blockTable[blockNb].srcSize;
@@ -418,8 +418,8 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
                 } else if (compressor == BMK_ZWRAP_ZLIB_REUSE || compressor == BMK_ZWRAP_ZSTD_REUSE || compressor == BMK_ZLIB_REUSE) {
                     z_stream inf;
                     int ret;
-                    if (compressor == BMK_ZLIB_REUSE) setZWRAPdecompressionType(ZWRAP_FORCE_ZLIB);
-                    else setZWRAPdecompressionType(ZWRAP_AUTO);
+                    if (compressor == BMK_ZLIB_REUSE) ZWRAP_setDecompressionType(ZWRAP_FORCE_ZLIB);
+                    else ZWRAP_setDecompressionType(ZWRAP_AUTO);
                     inf.zalloc = Z_NULL;
                     inf.zfree = Z_NULL;
                     inf.opaque = Z_NULL;
@@ -446,8 +446,8 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
                     if (ret != Z_OK) EXM_THROW(1, "inflateEnd failure");
                 } else {
                     z_stream inf;
-                    if (compressor == BMK_ZLIB) setZWRAPdecompressionType(ZWRAP_FORCE_ZLIB);
-                    else setZWRAPdecompressionType(ZWRAP_AUTO);
+                    if (compressor == BMK_ZLIB) ZWRAP_setDecompressionType(ZWRAP_FORCE_ZLIB);
+                    else ZWRAP_setDecompressionType(ZWRAP_AUTO);
                     do {
                         U32 blockNb;
                         for (blockNb=0; blockNb<nbBlocks; blockNb++) {
@@ -589,29 +589,22 @@ static void BMK_benchCLevel(void* srcBuffer, size_t benchedSize,
         BMK_benchMem(srcBuffer, benchedSize,
                      displayName, l,
                      fileSizes, nbFiles,
-                     dictBuffer, dictBufferSize, BMK_ZWRAP_ZSTD);
+                     dictBuffer, dictBufferSize, BMK_ZWRAP_ZSTD_REUSE);
     }
 
-    DISPLAY("benchmarking zstd %s (zlibWrapper with reusing a context)\n", ZSTD_VERSION_STRING);
+    DISPLAY("benchmarking zstd %s (zlibWrapper not reusing a context)\n", ZSTD_VERSION_STRING);
     for (l=cLevel; l <= cLevelLast; l++) {
         BMK_benchMem(srcBuffer, benchedSize,
                      displayName, l,
                      fileSizes, nbFiles,
-                     dictBuffer, dictBufferSize, BMK_ZWRAP_ZSTD_REUSE);
+                     dictBuffer, dictBufferSize, BMK_ZWRAP_ZSTD);
     }
 
 
     if (cLevelLast > Z_BEST_COMPRESSION) cLevelLast = Z_BEST_COMPRESSION;
 
+    DISPLAY("\n");
     DISPLAY("benchmarking zlib %s\n", ZLIB_VERSION);
-    for (l=cLevel; l <= cLevelLast; l++) {
-        BMK_benchMem(srcBuffer, benchedSize,
-                     displayName, l,
-                     fileSizes, nbFiles,
-                     dictBuffer, dictBufferSize, BMK_ZLIB);
-    }
-
-    DISPLAY("benchmarking zlib %s (reusing a context)\n", ZLIB_VERSION);
     for (l=cLevel; l <= cLevelLast; l++) {
         BMK_benchMem(srcBuffer, benchedSize,
                      displayName, l,
@@ -619,20 +612,28 @@ static void BMK_benchCLevel(void* srcBuffer, size_t benchedSize,
                      dictBuffer, dictBufferSize, BMK_ZLIB_REUSE);
     }
 
+    DISPLAY("benchmarking zlib %s (zlib not reusing a context)\n", ZLIB_VERSION);
+    for (l=cLevel; l <= cLevelLast; l++) {
+        BMK_benchMem(srcBuffer, benchedSize,
+                     displayName, l,
+                     fileSizes, nbFiles,
+                     dictBuffer, dictBufferSize, BMK_ZLIB);
+    }
+
     DISPLAY("benchmarking zlib %s (using zlibWrapper)\n", ZLIB_VERSION);
     for (l=cLevel; l <= cLevelLast; l++) {
         BMK_benchMem(srcBuffer, benchedSize,
                      displayName, l,
                      fileSizes, nbFiles,
-                     dictBuffer, dictBufferSize, BMK_ZWRAP_ZLIB);
+                     dictBuffer, dictBufferSize, BMK_ZWRAP_ZLIB_REUSE);
     }
 
-    DISPLAY("benchmarking zlib %s (zlibWrapper with reusing a context)\n", ZLIB_VERSION);
+    DISPLAY("benchmarking zlib %s (zlibWrapper not reusing a context)\n", ZLIB_VERSION);
     for (l=cLevel; l <= cLevelLast; l++) {
         BMK_benchMem(srcBuffer, benchedSize,
                      displayName, l,
                      fileSizes, nbFiles,
-                     dictBuffer, dictBufferSize, BMK_ZWRAP_ZLIB_REUSE);
+                     dictBuffer, dictBufferSize, BMK_ZWRAP_ZLIB);
     }
 }
 

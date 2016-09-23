@@ -34,7 +34,7 @@ The linking should be changed to:
 After embedding the zstd wrapper within your project the zstd library is turned off by default.
 Your project should work as before with zlib. There are two options to enable zstd compression:
 - compilation with ```-DZWRAP_USE_ZSTD=1``` (or using ```#define ZWRAP_USE_ZSTD 1``` before ```#include "zstd_zlibwrapper.h"```)
-- using the ```void useZSTDcompression(int turn_on)``` function (declared in ```#include "zstd_zlibwrapper.h"```)
+- using the ```void ZWRAP_useZSTDcompression(int turn_on)``` function (declared in ```#include "zstd_zlibwrapper.h"```)
 There is no switch for zstd decompression because zlib and zstd streams are automatically detected and decompressed using a proper library.
 
 

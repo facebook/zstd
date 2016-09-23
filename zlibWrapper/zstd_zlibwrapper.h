@@ -32,25 +32,25 @@ const char * zstdVersion(void);
 
 /* COMPRESSION */
 /* enables/disables zstd compression during runtime */
-void useZSTDcompression(int turn_on);
+void ZWRAP_useZSTDcompression(int turn_on);
 
 /* check if zstd compression is turned on */
-int isUsingZSTDcompression(void);
+int ZWRAP_isUsingZSTDcompression(void);
 
 /* Changes a pledged source size for a given compression stream.
    It will change ZSTD compression parameters what may improve compression speed and/or ratio.
    The function should be called just after deflateInit(). */
-int ZSTD_setPledgedSrcSize(z_streamp strm, unsigned long long pledgedSrcSize);
+int ZWRAP_setPledgedSrcSize(z_streamp strm, unsigned long long pledgedSrcSize);
 
 
 /* DECOMPRESSION */
-typedef enum { ZWRAP_FORCE_ZLIB, ZWRAP_FORCE_ZSTD, ZWRAP_AUTO } ZWRAP_decompress_type;
+typedef enum { ZWRAP_FORCE_ZLIB, ZWRAP_AUTO } ZWRAP_decompress_type;
 
 /* enables/disables automatic recognition of zstd/zlib compressed data during runtime */
-void setZWRAPdecompressionType(ZWRAP_decompress_type type);
+void ZWRAP_setDecompressionType(ZWRAP_decompress_type type);
 
 /* check zstd decompression type */
-ZWRAP_decompress_type getZWRAPdecompressionType(void);
+ZWRAP_decompress_type ZWRAP_getDecompressionType(void);
 
 
 

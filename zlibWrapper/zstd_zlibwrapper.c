@@ -127,6 +127,7 @@ ZWRAP_CCtx* ZWRAP_createCCtx(z_streamp strm)
 
 int ZWRAP_initializeCStream(ZWRAP_CCtx* zwc, unsigned long long pledgedSrcSize)
 {
+    LOG_WRAPPERC("- ZWRAP_initializeCStream=%p\n", zwc);
     if (zwc == NULL) return Z_STREAM_ERROR;
 
     if (zwc->zbc == NULL) {
@@ -136,7 +137,7 @@ int ZWRAP_initializeCStream(ZWRAP_CCtx* zwc, unsigned long long pledgedSrcSize)
         if (!pledgedSrcSize) pledgedSrcSize = zwc->pledgedSrcSize;
         { ZSTD_parameters const params = ZSTD_getParams(zwc->compressionLevel, pledgedSrcSize, 0);
           size_t errorCode;
-          LOG_WRAPPERC("windowLog=%d chainLog=%d hashLog=%d searchLog=%d searchLength=%d strategy=%d\n", params.cParams.windowLog, params.cParams.chainLog, params.cParams.hashLog, params.cParams.searchLog, params.cParams.searchLength, params.cParams.strategy);
+          LOG_WRAPPERC("pledgedSrcSize=%d windowLog=%d chainLog=%d hashLog=%d searchLog=%d searchLength=%d strategy=%d\n", (int)pledgedSrcSize, params.cParams.windowLog, params.cParams.chainLog, params.cParams.hashLog, params.cParams.searchLog, params.cParams.searchLength, params.cParams.strategy);
           errorCode = ZSTD_initCStream_advanced(zwc->zbc, NULL, 0, params, pledgedSrcSize);
           if (ZSTD_isError(errorCode)) return Z_STREAM_ERROR; }
     }
@@ -219,6 +220,7 @@ ZEXTERN int ZEXPORT z_deflateReset OF((z_streamp strm))
     
     strm->total_in = 0;
     strm->total_out = 0;
+    strm->adler = 0;
     return Z_OK;
 }
 
@@ -260,7 +262,7 @@ ZEXTERN int ZEXPORT z_deflate OF((z_streamp strm, int flush))
     }
 
     zwc = (ZWRAP_CCtx*) strm->state;
-    if (zwc == NULL) return Z_STREAM_ERROR;
+    if (zwc == NULL) { LOG_WRAPPERC("zwc == NULL\n"); return Z_STREAM_ERROR; }
 
     if (zwc->zbc == NULL) {
         int res = ZWRAP_initializeCStream(zwc, (flush == Z_FINISH) ? strm->avail_in : 0);
@@ -268,7 +270,7 @@ ZEXTERN int ZEXPORT z_deflate OF((z_streamp strm, int flush))
     } else {
         if (strm->total_in == 0) {
             size_t const errorCode = ZSTD_resetCStream(zwc->zbc, (flush == Z_FINISH) ? strm->avail_in : zwc->pledgedSrcSize);
-            if (ZSTD_isError(errorCode)) return ZWRAPC_finishWithError(zwc, strm, 0);
+            if (ZSTD_isError(errorCode)) { LOG_WRAPPERC("ERROR: ZSTD_resetCStream errorCode=%s\n", ZSTD_getErrorName(errorCode)); return ZWRAPC_finishWithError(zwc, strm, 0); }
         }
     }
 

@@ -292,7 +292,7 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
                  /*   if (ZWRAP_isUsingZSTDcompression()) {
                         ret = ZWRAP_setPledgedSrcSize(&def, avgSize);
                         if (ret != Z_OK) EXM_THROW(1, "ZWRAP_setPledgedSrcSize failure");
-                    }*/
+                    } */
                     do {
                         U32 blockNb;
                         for (blockNb=0; blockNb<nbBlocks; blockNb++) {
@@ -305,7 +305,7 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
                             def.avail_out = blockTable[blockNb].cRoom;
                             def.total_out = 0;
                             ret = deflate(&def, Z_FINISH);
-                            if (ret != Z_STREAM_END) EXM_THROW(1, "deflate failure");
+                            if (ret != Z_STREAM_END) EXM_THROW(1, "deflate failure ret=%d srcSize=%d" , ret, (int)blockTable[blockNb].srcSize);
                             blockTable[blockNb].cSize = def.total_out;
                         }
                         nbLoops++;

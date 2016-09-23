@@ -37,27 +37,55 @@ Your project should work as before with zlib. There are two options to enable zs
 - using the ```void ZWRAP_useZSTDcompression(int turn_on)``` function (declared in ```#include "zstd_zlibwrapper.h"```)
 
 During decompression zlib and zstd streams are automatically detected and decompressed using a proper library.
-This behavior can be changed using ZWRAP_setDecompressionType(ZWRAP_FORCE_ZLIB) what will make zlib decompression slightly faster.
+This behavior can be changed using `ZWRAP_setDecompressionType(ZWRAP_FORCE_ZLIB)` what will make zlib decompression slightly faster.
 
 
-#### Performace of Zstandard wrapper for zlib
+#### The measurement of performace of Zstandard wrapper for zlib
 
-The zstd distribution contains a tool called `zwrapbench` which can measure speed and ratio of zlib, zstd and the wrapper.
+The zstd distribution contains a tool called `zwrapbench` which can measure speed and ratio of zlib, zstd, and the wrapper.
 The benchmark is conducted using given filenames or synthetic data if filenames are not provided.
 The files are read into memory and joined together. 
 It makes benchmark more precise as it eliminates I/O overhead. 
 Many filenames can be supplied as multiple parameters, parameters with wildcards or names of directories can be used as parameters with the -r option.
-One can select compression levels starting from -b and ending with -e. The -i parameter selects minimal time used for each of tested levels.
-With -B option bigger files can be divided into smaller, independently compressed blocks. 
-The benchmark tool can be compiled with `make zwrapbench` using [zlibWrapper/Makefile](this Makefile).
+One can select compression levels starting from `-b` and ending with `-e`. The `-i` parameter selects minimal time used for each of tested levels.
+With `-B` option bigger files can be divided into smaller, independently compressed blocks. 
+The benchmark tool can be compiled with `make zwrapbench` using [zlibWrapper/Makefile](Makefile).
 
 
 #### Improving speed of streaming compression
 
 Zstandard compression can be improved by providing size of source data to compressor. By default compressor assumes that files are bigger than 256 KB but it can hurt compression speed on smaller files. 
-The zstd wrapper provides the `int ZWRAP_setPledgedSrcSize(z_streamp strm, unsigned long long pledgedSrcSize)` function that allows to change a pledged source size for a given compression stream.
-The function should be called just after deflateInit(). The function is only helpful when data is compressed in blocks. There will be no change in case of deflateInit() immediately followed by deflate(strm, Z_FINISH)
+The zstd wrapper provides the `ZWRAP_setPledgedSrcSize()` function that allows to change a pledged source size for a given compression stream.
+The function should be called just after `deflateInit()`. The function is only helpful when data is compressed in blocks. There will be no change in case of `deflateInit()` immediately followed by `deflate(strm, Z_FINISH)`
 as this case is automatically detected.
+
+
+#### Reusing contexts
+
+The ordinary zlib compression of two files/streams:
+- for the 1st file calls `deflateInit`, `deflate`, `...`, `deflate`, `defalateEnd`
+- for the 2nd file calls `deflateInit`, `deflate`, `...`, `deflate`, `defalateEnd`
+
+The speed of compression can be improved with reusing a context with following steps:
+- initialize a context with `deflateInit`
+- for the 1st file call `deflate`, `...`, `deflate`
+- for the 2nd file call `deflateReset`, `deflate`, `...`, `deflate`
+- free a context with `deflateEnd`
+
+We made experiments using `zwrapbench` with zstd and zlib compression (both at level 3) in 4 KB blocks.
+The input data was decompressed git repository downloaded from https://github.com/git/git/archive/master.zip
+The table below shows that reusing contexts has minor influnce on zlib but for zstd it gives 15% better compression speed and 6% better decompression speed.
+
+| Compression type                                  | Compression | Decompress.| Compr. size | Ratio |
+| ------------------------------------------------- | ------------| -----------| ----------- | ----- |
+| zlib 1.2.8                                        |  54.77 MB/s | 176.2 MB/s |     8928115 | 2.910 |
+| zlib 1.2.8 not reusing a context                  |  54.98 MB/s | 174.6 MB/s |     8928115 | 2.910 |
+| zlib 1.2.8 using zlibWrapper                      |  55.16 MB/s | 176.8 MB/s |     8928115 | 2.910 |
+| zlib 1.2.8 with zlibWrapper not reusing a context |  54.11 MB/s | 174.5 MB/s |     8928115 | 2.910 |
+| zstd 1.1.0 using ZSTD_CCtx                        | 108.03 MB/s | 319.8 MB/s |     8962336 | 2.899 |
+| zstd 1.1.0 using ZSTD_CStream                     | 107.34 MB/s | 307.3 MB/s |     8981368 | 2.893 |
+| zstd 1.1.0 using zlibWrapper                      | 107.52 MB/s | 297.3 MB/s |     8981368 | 2.893 |
+| zstd 1.1.0 with zlibWrapper not reusing a context |  91.45 MB/s | 279.8 MB/s |     8981368 | 2.893 |
 
 
 #### Example

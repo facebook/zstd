@@ -14,6 +14,7 @@
 #include "utils/ThreadPool.h"
 #include "utils/WorkQueue.h"
 
+#include <chrono>
 #include <cstddef>
 #include <cstdio>
 #include <memory>
@@ -85,14 +86,16 @@ static std::uint64_t handleOneInput(const Options &options,
                 options.determineParameters());
           });
       // Start writing
-      bytesWritten = writeFile(errorHolder, outs, outputFd, options.decompress);
+      bytesWritten = writeFile(errorHolder, outs, outputFd, options.decompress,
+                               options.verbosity);
     } else {
       // Add a job that reads the input and starts all the decompression jobs
       executor.add([&errorHolder, &outs, &executor, inputFd, &bytesRead] {
         bytesRead = asyncDecompressFrames(errorHolder, outs, executor, inputFd);
       });
       // Start writing
-      bytesWritten = writeFile(errorHolder, outs, outputFd, options.decompress);
+      bytesWritten = writeFile(errorHolder, outs, outputFd, options.decompress,
+                               options.verbosity);
     }
   }
   if (options.verbosity > 1 && !errorHolder.hasError()) {
@@ -579,11 +582,33 @@ static bool writeData(ByteRange data, FILE* fd) {
   return true;
 }
 
+void updateWritten(int verbosity, std::uint64_t bytesWritten) {
+  if (verbosity <= 1) {
+    return;
+  }
+  using Clock = std::chrono::system_clock;
+  static Clock::time_point then;
+  constexpr std::chrono::milliseconds refreshRate{150};
+
+  auto now = Clock::now();
+  if (now - then > refreshRate) {
+    then = now;
+    std::fprintf(stderr, "\rWritten: %u MB   ",
+                 static_cast<std::uint32_t>(bytesWritten >> 20));
+  }
+}
+
 std::uint64_t writeFile(
     ErrorHolder& errorHolder,
     WorkQueue<std::shared_ptr<BufferWorkQueue>>& outs,
     FILE* outputFd,
-    bool decompress) {
+    bool decompress,
+    int verbosity) {
+  auto lineClearGuard = makeScopeGuard([verbosity] {
+    if (verbosity > 1) {
+      std::fprintf(stderr, "\r%79s\r", "");
+    }
+  });
   std::uint64_t bytesWritten = 0;
   std::shared_ptr<BufferWorkQueue> out;
   // Grab the output queue for each decompression job (in order).
@@ -608,6 +633,7 @@ std::uint64_t writeFile(
         return bytesWritten;
       }
       bytesWritten += buffer.size();
+      updateWritten(verbosity, bytesWritten);
     }
   }
   return bytesWritten;

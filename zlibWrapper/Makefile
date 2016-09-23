@@ -1,8 +1,8 @@
 # Makefile for example of using zstd wrapper for zlib
 #
-# make - compiles statically and dynamically linked examples
-# make LOC=-DZWRAP_USE_ZSTD=1 - compiles statically and dynamically linked examples with zstd compression turned on
-# make test test_d - runs statically and dynamically linked examples
+# make - compiles examples
+# make LOC=-DZWRAP_USE_ZSTD=1 - compiles examples with zstd compression turned on
+# make test - runs examples
 
 
 # Paths to static and dynamic zlib and zstd libraries
@@ -22,7 +22,7 @@ LDFLAGS = $(LOC)
 RM = rm -f
 
 
-all: clean fitblk example example_d zwrapbench
+all: clean fitblk example zwrapbench
 
 test: example fitblk example_zstd fitblk_zstd zwrapbench
 	./example
@@ -34,11 +34,8 @@ test: example fitblk example_zstd fitblk_zstd zwrapbench
 	./zwrapbench -qb1e5 ../zstd_compression_format.md
 	./zwrapbench -qb1e5B1K ../zstd_compression_format.md
 
-test_d: example_d
-	./example_d
-
+#valgrindTest: ZSTDLIBRARY = $(ZSTDLIBDIR)/libzstd.so
 valgrindTest: VALGRIND = LD_LIBRARY_PATH=$(ZSTDLIBDIR) valgrind --track-origins=yes --leak-check=full --error-exitcode=1
-valgrindTest: ZSTDLIBRARY = $(ZSTDLIBDIR)/libzstd.so
 valgrindTest: clean example fitblk example_zstd fitblk_zstd zwrapbench
 	@echo "\n ---- valgrind tests ----"
 	$(VALGRIND) ./example
@@ -83,5 +80,5 @@ $(ZSTDLIBDIR)/libzstd.so:
 	$(MAKE) -C $(ZSTDLIBDIR) all
 
 clean:
-	-$(RM) $(ZLIBWRAPPER_PATH)/*.o $(EXAMPLE_PATH)/*.o *.o *.exe foo.gz example example_d example_zstd fitblk fitblk_zstd zwrapbench
+	-$(RM) $(ZLIBWRAPPER_PATH)/*.o $(EXAMPLE_PATH)/*.o *.o *.exe foo.gz example example_zstd fitblk fitblk_zstd zwrapbench
 	@echo Cleaning completed

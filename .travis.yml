@@ -5,7 +5,7 @@ matrix:
   include:
     - os: linux
       sudo: required
-      env: PLATFORM="Ubuntu 12.04" CMD="make -C zlibWrapper test valgrindTest"
+      env: PLATFORM="Ubuntu 12.04" CMD='make -C lib all && CFLAGS="-O1 -g" make -C zlibWrapper valgrindTest'
       addons:
         apt:
           packages:

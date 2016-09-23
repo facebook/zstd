@@ -59,7 +59,7 @@ matrix:
     - os: linux
       dist: trusty
       sudo: required
-      env: PLATFORM="Ubuntu 14.04" CMD="make -C lib all && CFLAGS="-O1 -g" make -C zlibWrapper valgrindTest && make -C tests valgrindTest"
+      env: PLATFORM="Ubuntu 14.04" CMD='make -C lib all && CFLAGS="-O1 -g" make -C zlibWrapper valgrindTest && make -C tests valgrindTest'
       addons:
         apt:
           packages:

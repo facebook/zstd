@@ -581,7 +581,9 @@ ZEXTERN int ZEXPORT z_inflate OF((z_streamp strm, int flush))
         return res;
     }
 
-    if (strm->avail_in > 0) {
+    if (strm->avail_in <= 0) return Z_OK;
+
+    {
         size_t errorCode, srcSize;
         zwd = (ZWRAP_DCtx*) strm->state;
         LOG_WRAPPERD("- inflate1 flush=%d avail_in=%d avail_out=%d total_in=%d total_out=%d\n", (int)flush, (int)strm->avail_in, (int)strm->avail_out, (int)strm->total_in, (int)strm->total_out);
@@ -691,7 +693,7 @@ ZEXTERN int ZEXPORT z_inflate OF((z_streamp strm, int flush))
                     LOG_WRAPPERD("ERROR: ZSTD_decompressStream1 %s\n", ZSTD_getErrorName(errorCode));
                     goto error;
                 }
-                if (zwd->inBuffer.pos != zwd->inBuffer.size) return ZWRAPD_finishWithError(zwd, strm, 0); /* not consumed */
+                if (zwd->inBuffer.pos != zwd->inBuffer.size) goto error; /* not consumed */
             }
         }
 

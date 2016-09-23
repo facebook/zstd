@@ -44,7 +44,7 @@
 				Name="VCCLCompilerTool"
 				Optimization="0"
 				AdditionalIncludeDirectories="$(SolutionDir)..\..\lib;$(SolutionDir)..\..\lib\common;$(SolutionDir)..\..\lib\legacy;$(SolutionDir)..\..\programs\legacy;$(SolutionDir)..\..\lib\dictBuilder"
-				PreprocessorDefinitions="ZSTD_DLL_EXPORT=1;ZSTD_HEAPMODE=0;ZSTD_LEGACY_SUPPORT=0;WIN32;_DEBUG;_CONSOLE"
+				PreprocessorDefinitions="ZSTD_DLL_EXPORT=1;ZSTD_LEGACY_SUPPORT=1;WIN32;_DEBUG;_CONSOLE"
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
 				RuntimeLibrary="3"
@@ -120,7 +120,7 @@
 				EnableIntrinsicFunctions="true"
 				OmitFramePointers="true"
 				AdditionalIncludeDirectories="$(SolutionDir)..\..\lib;$(SolutionDir)..\..\lib\common;$(SolutionDir)..\..\lib\legacy;$(SolutionDir)..\..\programs\legacy;$(SolutionDir)..\..\lib\dictBuilder"
-				PreprocessorDefinitions="ZSTD_DLL_EXPORT=1;ZSTD_HEAPMODE=0;ZSTD_LEGACY_SUPPORT=0;WIN32;NDEBUG;_CONSOLE"
+				PreprocessorDefinitions="ZSTD_DLL_EXPORT=1;ZSTD_LEGACY_SUPPORT=1;WIN32;NDEBUG;_CONSOLE"
 				RuntimeLibrary="0"
 				EnableFunctionLevelLinking="true"
 				UsePrecompiledHeader="0"
@@ -194,7 +194,7 @@
 				Name="VCCLCompilerTool"
 				Optimization="0"
 				AdditionalIncludeDirectories="$(SolutionDir)..\..\lib;$(SolutionDir)..\..\lib\common;$(SolutionDir)..\..\lib\legacy;$(SolutionDir)..\..\programs\legacy;$(SolutionDir)..\..\lib\dictBuilder"
-				PreprocessorDefinitions="ZSTD_DLL_EXPORT=1;ZSTD_HEAPMODE=0;ZSTD_LEGACY_SUPPORT=0;WIN32;_DEBUG;_CONSOLE"
+				PreprocessorDefinitions="ZSTD_DLL_EXPORT=1;ZSTD_LEGACY_SUPPORT=1;WIN32;_DEBUG;_CONSOLE"
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
 				RuntimeLibrary="3"
@@ -271,7 +271,7 @@
 				EnableIntrinsicFunctions="true"
 				OmitFramePointers="true"
 				AdditionalIncludeDirectories="$(SolutionDir)..\..\lib;$(SolutionDir)..\..\lib\common;$(SolutionDir)..\..\lib\legacy;$(SolutionDir)..\..\programs\legacy;$(SolutionDir)..\..\lib\dictBuilder"
-				PreprocessorDefinitions="ZSTD_DLL_EXPORT=1;ZSTD_HEAPMODE=0;ZSTD_LEGACY_SUPPORT=0;WIN32;NDEBUG;_CONSOLE"
+				PreprocessorDefinitions="ZSTD_DLL_EXPORT=1;ZSTD_LEGACY_SUPPORT=1;WIN32;NDEBUG;_CONSOLE"
 				RuntimeLibrary="0"
 				EnableFunctionLevelLinking="true"
 				UsePrecompiledHeader="0"
@@ -379,6 +379,34 @@
 				RelativePath="..\..\..\lib\decompress\zstd_decompress.c"
 				>
 			</File>
+			<File
+				RelativePath="..\..\..\lib\legacy\zstd_v01.c"
+				>
+			</File>
+			<File
+				RelativePath="..\..\..\lib\legacy\zstd_v02.c"
+				>
+			</File>
+			<File
+				RelativePath="..\..\..\lib\legacy\zstd_v03.c"
+				>
+			</File>
+			<File
+				RelativePath="..\..\..\lib\legacy\zstd_v04.c"
+				>
+			</File>
+			<File
+				RelativePath="..\..\..\lib\legacy\zstd_v05.c"
+				>
+			</File>
+			<File
+				RelativePath="..\..\..\lib\legacy\zstd_v06.c"
+				>
+			</File>
+			<File
+				RelativePath="..\..\..\lib\legacy\zstd_v07.c"
+				>
+			</File>
 		</Filter>
 		<Filter
 			Name="Header Files"
@@ -479,6 +507,14 @@
 			</File>
 			<File
 				RelativePath="..\..\..\lib\legacy\zstd_v05.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\..\lib\legacy\zstd_v06.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\..\lib\legacy\zstd_v07.h"
 				>
 			</File>
 		</Filter>

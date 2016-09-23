@@ -21,7 +21,8 @@ ZLIBWRAPPER_PATH = .
 EXAMPLE_PATH = examples
 PROGRAMS_PATH = ../programs
 CC ?= gcc
-CFLAGS = $(LOC) -I$(PROGRAMS_PATH) -I$(ZSTDLIBDIR) -I$(ZSTDLIBDIR)/common -I$(ZLIBWRAPPER_PATH) -I$(ZLIBDIR) -O3 -std=gnu90
+CFLAGS ?= -O3 
+CFLAGS += $(LOC) -I$(PROGRAMS_PATH) -I$(ZSTDLIBDIR) -I$(ZSTDLIBDIR)/common -I$(ZLIBWRAPPER_PATH) -I$(ZLIBDIR) -std=gnu90
 CFLAGS += -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow -Wswitch-enum -Wdeclaration-after-statement -Wstrict-prototypes -Wundef
 LDFLAGS = $(LOC)
 RM = rm -f
@@ -33,6 +34,8 @@ test: example fitblk
 	./example
 	./fitblk 10240 <../zstd_compression_format.md
 	./fitblk 40960 <../zstd_compression_format.md
+	./zwrapbench -qb1e5 ../zstd_compression_format.md
+	./zwrapbench -qb1e5B1K ../zstd_compression_format.md
 
 test_d: example_d
 	./example_d
@@ -42,14 +45,20 @@ test_zstd: example_zstd fitblk_zstd zwrapbench
 	./fitblk_zstd 10240 <../zstd_compression_format.md
 	./fitblk_zstd 40960 <../zstd_compression_format.md
 	./zwrapbench -qb1e5 ../zstd_compression_format.md
+	./zwrapbench -qb1e5B1K ../zstd_compression_format.md
 
 valgrindTest: VALGRIND = valgrind --leak-check=full --error-exitcode=1
-valgrindTest: example_zstd fitblk_zstd zwrapbench
+valgrindTest: STATICLIB = $(IMPLIB)
+valgrindTest: clean example fitblk example_zstd fitblk_zstd zwrapbench
 	@echo "\n ---- valgrind tests ----"
+	$(VALGRIND) ./example
+	$(VALGRIND) ./fitblk 10240 <../zstd_compression_format.md
+	$(VALGRIND) ./fitblk 40960 <../zstd_compression_format.md
 	$(VALGRIND) ./example_zstd
 	$(VALGRIND) ./fitblk_zstd 10240 <../zstd_compression_format.md
 	$(VALGRIND) ./fitblk_zstd 40960 <../zstd_compression_format.md
 	$(VALGRIND) ./zwrapbench -qb1e5 ../zstd_compression_format.md
+	$(VALGRIND) ./zwrapbench -qb1e5B1K ../zstd_compression_format.md
 
 .c.o:
 	$(CC) $(CFLAGS) -c -o $@ $<

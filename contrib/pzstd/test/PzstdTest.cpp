@@ -54,6 +54,7 @@ TEST(Pzstd, SmallSizes) {
           options.inputFiles = {inputFile};
           options.numThreads = numThreads;
           options.compressionLevel = level;
+          options.verbosity = 1;
           ASSERT_TRUE(roundTrip(options));
           errorGuard.dismiss();
         }
@@ -91,6 +92,7 @@ TEST(Pzstd, LargeSizes) {
           options.inputFiles = {inputFile};
           options.numThreads = std::min(numThreads, options.numThreads);
           options.compressionLevel = level;
+          options.verbosity = 1;
           ASSERT_TRUE(roundTrip(options));
           errorGuard.dismiss();
         }

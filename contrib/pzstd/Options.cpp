@@ -13,6 +13,7 @@
 #include <cassert>
 #include <cstdio>
 #include <cstring>
+#include <iterator>
 #include <thread>
 #include <util.h>
 #include <vector>

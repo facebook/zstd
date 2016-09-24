@@ -358,34 +358,32 @@ static int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compres
 {
     static const U32 maxSrcLog = 24;
     static const U32 maxSampleLog = 19;
+    size_t const srcBufferSize = (size_t)1<<maxSrcLog;
     BYTE* cNoiseBuffer[5];
-    size_t srcBufferSize = (size_t)1<<maxSrcLog;
-    BYTE* copyBuffer;
-    size_t copyBufferSize= srcBufferSize + (1<<maxSampleLog);
-    BYTE* cBuffer;
-    size_t cBufferSize   = ZSTD_compressBound(srcBufferSize);
-    BYTE* dstBuffer;
-    size_t dstBufferSize = srcBufferSize;
+    size_t const copyBufferSize= srcBufferSize + (1<<maxSampleLog);
+    BYTE*  const copyBuffer = (BYTE*)malloc (copyBufferSize);
+    size_t const cBufferSize   = ZSTD_compressBound(srcBufferSize);
+    BYTE*  const cBuffer = (BYTE*)malloc (cBufferSize);
+    size_t const dstBufferSize = srcBufferSize;
+    BYTE*  const dstBuffer = (BYTE*)malloc (dstBufferSize);
     U32 result = 0;
     U32 testNb = 0;
     U32 coreSeed = seed;
-    ZSTD_CStream* zc;
-    ZSTD_DStream* zd;
-    clock_t startClock = clock();
+    ZSTD_CStream* zc = ZSTD_createCStream();   /* will be reset sometimes */
+    ZSTD_DStream* zd = ZSTD_createDStream();   /* will be reset sometimes */
+    ZSTD_DStream* const zd_noise = ZSTD_createDStream();
+    clock_t const startClock = clock();
+    const BYTE* dict=NULL;   /* can keep same dict on 2 consecutive tests */
+    size_t dictSize=0, maxTestSize=0;
 
     /* allocations */
-    zc = ZSTD_createCStream();
-    zd = ZSTD_createDStream();
     cNoiseBuffer[0] = (BYTE*)malloc (srcBufferSize);
     cNoiseBuffer[1] = (BYTE*)malloc (srcBufferSize);
     cNoiseBuffer[2] = (BYTE*)malloc (srcBufferSize);
     cNoiseBuffer[3] = (BYTE*)malloc (srcBufferSize);
     cNoiseBuffer[4] = (BYTE*)malloc (srcBufferSize);
-    copyBuffer= (BYTE*)malloc (copyBufferSize);
-    dstBuffer = (BYTE*)malloc (dstBufferSize);
-    cBuffer   = (BYTE*)malloc (cBufferSize);
     CHECK (!cNoiseBuffer[0] || !cNoiseBuffer[1] || !cNoiseBuffer[2] || !cNoiseBuffer[3] || !cNoiseBuffer[4] ||
-           !copyBuffer || !dstBuffer || !cBuffer || !zc || !zd,
+           !copyBuffer || !dstBuffer || !cBuffer || !zc || !zd || !zd_noise ,
            "Not enough memory, fuzzer tests cancelled");
 
     /* Create initial samples */
@@ -395,6 +393,7 @@ static int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compres
     RDG_genBuffer(cNoiseBuffer[3], srcBufferSize, 0.95, 0., coreSeed);    /* highly compressible */
     RDG_genBuffer(cNoiseBuffer[4], srcBufferSize, 1.00, 0., coreSeed);    /* sparse content */
     memset(copyBuffer, 0x65, copyBufferSize);                             /* make copyBuffer considered initialized */
+    ZSTD_initDStream_usingDict(zd, NULL, 0);  /* ensure at least one init */
 
     /* catch up testNb */
     for (testNb=1; testNb < startTest; testNb++)
@@ -404,12 +403,10 @@ static int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compres
     for ( ; (testNb <= nbTests) || (FUZ_GetClockSpan(startClock) < g_clockTime) ; testNb++ ) {
         U32 lseed;
         const BYTE* srcBuffer;
-        const BYTE* dict;
-        size_t maxTestSize, dictSize;
-        size_t cSize, totalTestSize, totalGenSize;
-        U32 n, nbChunks;
+        size_t totalTestSize, totalGenSize, cSize;
         XXH64_state_t xxhState;
         U64 crcOrig;
+        U32 resetAllowed = 1;
 
         /* init */
         DISPLAYUPDATE(2, "\r%6u", testNb);
@@ -419,8 +416,8 @@ static int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compres
 
         /* states full reset (deliberately not synchronized) */
         /* some issues can only happen when reusing states */
-        if ((FUZ_rand(&lseed) & 0xFF) == 131) { ZSTD_freeCStream(zc); zc = ZSTD_createCStream(); }
-        if ((FUZ_rand(&lseed) & 0xFF) == 132) { ZSTD_freeDStream(zd); zd = ZSTD_createDStream(); }
+        if ((FUZ_rand(&lseed) & 0xFF) == 131) { ZSTD_freeCStream(zc); zc = ZSTD_createCStream(); resetAllowed=0; }
+        if ((FUZ_rand(&lseed) & 0xFF) == 132) { ZSTD_freeDStream(zd); zd = ZSTD_createDStream(); ZSTD_initDStream_usingDict(zd, NULL, 0);  /* ensure at least one init */ }
 
         /* srcBuffer selection [0-4] */
         {   U32 buffNb = FUZ_rand(&lseed) & 0x7F;
@@ -438,11 +435,14 @@ static int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compres
         }
 
         /* compression init */
-        {   U32 const testLog = FUZ_rand(&lseed) % maxSrcLog;
+        if (maxTestSize /* at least one test happened */ && resetAllowed && (FUZ_rand(&lseed)&1)) {
+            ZSTD_resetCStream(zc, 0);
+        } else {
+            U32 const testLog = FUZ_rand(&lseed) % maxSrcLog;
             U32 const cLevel = (FUZ_rand(&lseed) % (ZSTD_maxCLevel() - (testLog/3))) + 1;
             maxTestSize = FUZ_rLogLength(&lseed, testLog);
-            dictSize  = ((FUZ_rand(&lseed)&63)==1) ? FUZ_randomLength(&lseed, maxSampleLog) : 0;
             /* random dictionary selection */
+            dictSize  = ((FUZ_rand(&lseed)&63)==1) ? FUZ_randomLength(&lseed, maxSampleLog) : 0;
             {   size_t const dictStart = FUZ_rand(&lseed) % (srcBufferSize - dictSize);
                 dict = srcBuffer + dictStart;
             }
@@ -455,9 +455,10 @@ static int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compres
 
         /* multi-segments compression test */
         XXH64_reset(&xxhState, 0);
-        nbChunks    = (FUZ_rand(&lseed) & 127) + 2;
-        {   ZSTD_outBuffer outBuff = { cBuffer, cBufferSize, 0 } ;
-            for (n=0, cSize=0, totalTestSize=0 ; (n<nbChunks) && (totalTestSize < maxTestSize) ; n++) {
+        {   U32 const maxNbChunks = (FUZ_rand(&lseed) & 127) + 2;
+            ZSTD_outBuffer outBuff = { cBuffer, cBufferSize, 0 } ;
+            U32 n;
+            for (n=0, cSize=0, totalTestSize=0 ; (n<maxNbChunks) && (totalTestSize < maxTestSize) ; n++) {
                 /* compress random chunk into random size dst buffer */
                 {   size_t const readChunkSize = FUZ_randomLength(&lseed, maxSampleLog);
                     size_t const srcStart = FUZ_rand(&lseed) % (srcBufferSize - readChunkSize);
@@ -499,7 +500,10 @@ static int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compres
         }
 
         /* multi - fragments decompression test */
-        ZSTD_initDStream_usingDict(zd, dict, dictSize);
+        if (!dictSize /* don't reset if dictionary : could be different */ && (FUZ_rand(&lseed) & 1)) {
+            CHECK( ZSTD_isError(ZSTD_resetDStream(zd)), "ZSTD_resetDStream failed");
+        } else
+            ZSTD_initDStream_usingDict(zd, dict, dictSize);
         {   size_t decompressionResult = 1;
             ZSTD_inBuffer  inBuff = { cBuffer, cSize, 0 };
             ZSTD_outBuffer outBuff= { dstBuffer, dstBufferSize, 0 };
@@ -533,7 +537,7 @@ static int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compres
         }   }
 
         /* try decompression on noisy data */
-        ZSTD_initDStream(zd);
+        ZSTD_initDStream(zd_noise);   /* note : no dictionary */
         {   ZSTD_inBuffer  inBuff = { cBuffer, cSize, 0 };
             ZSTD_outBuffer outBuff= { dstBuffer, dstBufferSize, 0 };
             while (outBuff.pos < dstBufferSize) {
@@ -550,6 +554,7 @@ static int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compres
 _cleanup:
     ZSTD_freeCStream(zc);
     ZSTD_freeDStream(zd);
+    ZSTD_freeDStream(zd_noise);
     free(cNoiseBuffer[0]);
     free(cNoiseBuffer[1]);
     free(cNoiseBuffer[2]);

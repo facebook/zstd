@@ -220,7 +220,7 @@ ZEXTERN int ZEXPORT z_deflate OF((z_streamp strm, int flush))
         strm->next_out += dstCapacity;
         strm->total_out += dstCapacity;
         strm->avail_out -= dstCapacity;
-        if (flush == Z_FINISH && bytesLeft == 0) return Z_STREAM_END;
+        if (bytesLeft == 0) return Z_STREAM_END;
         zwc->bytesLeft = bytesLeft;
     }
 

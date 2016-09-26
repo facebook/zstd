@@ -26,4 +26,4 @@ foo.gz
 # Misc files
 *.bat
 *.zip
-examples/example2.c
+*.txt

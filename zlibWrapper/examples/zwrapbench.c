@@ -257,7 +257,7 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
                     ZSTD_CStream* zbc = ZSTD_createCStream();
                     size_t rSize;
                     if (zbc == NULL) EXM_THROW(1, "ZSTD_createCStream() allocation failure");
-                    rSize = ZSTD_initCStream_advanced(zbc, NULL, 0, zparams, avgSize);
+                    rSize = ZSTD_initCStream_advanced(zbc, dictBuffer, dictBufferSize, zparams, avgSize);
                     if (ZSTD_isError(rSize)) EXM_THROW(1, "ZSTD_initCStream_advanced() failed : %s", ZSTD_getErrorName(rSize));
                     do {
                         U32 blockNb;
@@ -298,6 +298,10 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
                         for (blockNb=0; blockNb<nbBlocks; blockNb++) {
                             ret = deflateReset(&def);
                             if (ret != Z_OK) EXM_THROW(1, "deflateReset failure");
+                            if (dictBuffer) {
+                                ret = deflateSetDictionary(&def, dictBuffer, dictBufferSize);
+                                if (ret != Z_OK) EXM_THROW(1, "deflateSetDictionary failure");
+                            }
                             def.next_in = (const void*) blockTable[blockNb].srcPtr;
                             def.avail_in = blockTable[blockNb].srcSize;
                             def.total_in = 0;
@@ -325,6 +329,10 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
                             def.opaque = Z_NULL;
                             ret = deflateInit(&def, cLevel);
                             if (ret != Z_OK) EXM_THROW(1, "deflateInit failure");
+                            if (dictBuffer) {
+                                ret = deflateSetDictionary(&def, dictBuffer, dictBufferSize);
+                                if (ret != Z_OK) EXM_THROW(1, "deflateSetDictionary failure");
+                            }
                             def.next_in = (const void*) blockTable[blockNb].srcPtr;
                             def.avail_in = blockTable[blockNb].srcSize;
                             def.total_in = 0;
@@ -392,7 +400,7 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
                     ZSTD_DStream* zbd = ZSTD_createDStream();
                     size_t rSize;
                     if (zbd == NULL) EXM_THROW(1, "ZSTD_createDStream() allocation failure");
-                    rSize = ZSTD_initDStream(zbd);
+                    rSize = ZSTD_initDStream_usingDict(zbd, dictBuffer, dictBufferSize);
                     if (ZSTD_isError(rSize)) EXM_THROW(1, "ZSTD_initDStream() failed : %s", ZSTD_getErrorName(rSize));
                     do {
                         U32 blockNb;
@@ -434,6 +442,11 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
                             inf.avail_out = blockTable[blockNb].srcSize;
                             inf.total_out = 0;
                             ret = inflate(&inf, Z_FINISH);
+                            if (ret == Z_NEED_DICT) {
+                                ret = inflateSetDictionary(&inf, dictBuffer, dictBufferSize);
+                                if (ret != Z_OK) EXM_THROW(1, "inflateSetDictionary failure");
+                                ret = inflate(&inf, Z_FINISH);
+                            }
                             if (ret != Z_STREAM_END) EXM_THROW(1, "inflate failure");
                             blockTable[blockNb].resSize = inf.total_out;
                         }
@@ -461,6 +474,11 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
                             inf.avail_out = blockTable[blockNb].srcSize;
                             inf.total_out = 0;
                             ret = inflate(&inf, Z_FINISH);
+                            if (ret == Z_NEED_DICT) {
+                                ret = inflateSetDictionary(&inf, dictBuffer, dictBufferSize);
+                                if (ret != Z_OK) EXM_THROW(1, "inflateSetDictionary failure");
+                                ret = inflate(&inf, Z_FINISH);
+                            }
                             if (ret != Z_STREAM_END) EXM_THROW(1, "inflate failure");
                             ret = inflateEnd(&inf);
                             if (ret != Z_OK) EXM_THROW(1, "inflateEnd failure");

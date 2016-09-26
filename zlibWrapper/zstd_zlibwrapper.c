@@ -260,7 +260,7 @@ ZEXTERN int ZEXPORT z_deflate OF((z_streamp strm, int flush))
     if (zwc->zbc == NULL) {
         int res;
         zwc->zbc = ZSTD_createCStream_advanced(zwc->customMem);
-        if (zwc->zbc == NULL) return ZWRAPC_finishWithError(zwc, strm, res); 
+        if (zwc->zbc == NULL) return ZWRAPC_finishWithError(zwc, strm, 0); 
         res = ZWRAP_initializeCStream(zwc, NULL, 0, (flush == Z_FINISH) ? strm->avail_in : 0);
         if (res != Z_OK) return ZWRAPC_finishWithError(zwc, strm, res);
     } else {

@@ -102,7 +102,7 @@ The speed of compression can be improved with reusing a single context with foll
 - free the context with `deflateEnd`
 
 To check the difference we made experiments using `zwrapbench -ri6b6` with zstd and zlib compression (both at level 6).
-The input data was decompressed git repository downloaded from https://github.com/git/git/archive/master.zip that contains 2979 files.
+The input data was decompressed git repository downloaded from https://github.com/git/git/archive/master.zip which contains 2979 files.
 The table below shows that reusing contexts has a minor influence on zlib but it gives improvement for zstd.
 In our example (the last 2 lines) it gives 4% better compression speed and 5% better decompression speed.
 

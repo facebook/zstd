@@ -20,7 +20,7 @@
 #define Z_INFLATE_SYNC              8
 #define ZLIB_HEADERSIZE             4
 #define ZSTD_HEADERSIZE             ZSTD_frameHeaderSize_min
-#define ZWRAP_DEFAULT_CLEVEL        5   /* Z_DEFAULT_COMPRESSION is translated to ZWRAP_DEFAULT_CLEVEL for zstd */
+#define ZWRAP_DEFAULT_CLEVEL        3   /* Z_DEFAULT_COMPRESSION is translated to ZWRAP_DEFAULT_CLEVEL for zstd */
 
 #define LOG_WRAPPERC(...)   /* printf(__VA_ARGS__) */
 #define LOG_WRAPPERD(...)   /* printf(__VA_ARGS__) */
@@ -82,6 +82,7 @@ typedef struct {
     z_stream allocFunc; /* copy of zalloc, zfree, opaque */
     ZSTD_inBuffer inBuffer;
     ZSTD_outBuffer outBuffer;
+    int comprState;
     unsigned long long pledgedSrcSize;
 } ZWRAP_CCtx;
 
@@ -118,22 +119,17 @@ ZWRAP_CCtx* ZWRAP_createCCtx(z_streamp strm)
 }
 
 
-int ZWRAP_initializeCStream(ZWRAP_CCtx* zwc, unsigned long long pledgedSrcSize)
+int ZWRAP_initializeCStream(ZWRAP_CCtx* zwc, const void* dict, size_t dictSize, unsigned long long pledgedSrcSize)
 {
     LOG_WRAPPERC("- ZWRAP_initializeCStream=%p\n", zwc);
-    if (zwc == NULL) return Z_STREAM_ERROR;
-
-    if (zwc->zbc == NULL) {
-        zwc->zbc = ZSTD_createCStream_advanced(zwc->customMem);
-        if (zwc->zbc == NULL) return Z_STREAM_ERROR;
-
-        if (!pledgedSrcSize) pledgedSrcSize = zwc->pledgedSrcSize;
-        { ZSTD_parameters const params = ZSTD_getParams(zwc->compressionLevel, pledgedSrcSize, 0);
-          size_t errorCode;
-          LOG_WRAPPERC("pledgedSrcSize=%d windowLog=%d chainLog=%d hashLog=%d searchLog=%d searchLength=%d strategy=%d\n", (int)pledgedSrcSize, params.cParams.windowLog, params.cParams.chainLog, params.cParams.hashLog, params.cParams.searchLog, params.cParams.searchLength, params.cParams.strategy);
-          errorCode = ZSTD_initCStream_advanced(zwc->zbc, NULL, 0, params, pledgedSrcSize);
-          if (ZSTD_isError(errorCode)) return Z_STREAM_ERROR; }
-    }
+    if (zwc == NULL || zwc->zbc == NULL) return Z_STREAM_ERROR;
+    
+    if (!pledgedSrcSize) pledgedSrcSize = zwc->pledgedSrcSize;
+    { ZSTD_parameters const params = ZSTD_getParams(zwc->compressionLevel, pledgedSrcSize, dictSize);
+      size_t errorCode;
+      LOG_WRAPPERC("pledgedSrcSize=%d windowLog=%d chainLog=%d hashLog=%d searchLog=%d searchLength=%d strategy=%d\n", (int)pledgedSrcSize, params.cParams.windowLog, params.cParams.chainLog, params.cParams.hashLog, params.cParams.searchLog, params.cParams.searchLength, params.cParams.strategy);
+      errorCode = ZSTD_initCStream_advanced(zwc->zbc, dict, dictSize, params, pledgedSrcSize);
+      if (ZSTD_isError(errorCode)) return Z_STREAM_ERROR; }
 
     return Z_OK;
 }
@@ -214,6 +210,10 @@ ZEXTERN int ZEXPORT z_deflateReset OF((z_streamp strm))
     strm->total_in = 0;
     strm->total_out = 0;
     strm->adler = 0;
+
+    { ZWRAP_CCtx* zwc = (ZWRAP_CCtx*) strm->state;
+      if (zwc) zwc->comprState = 0;
+    }
     return Z_OK;
 }
 
@@ -231,11 +231,13 @@ ZEXTERN int ZEXPORT z_deflateSetDictionary OF((z_streamp strm,
         LOG_WRAPPERC("- deflateSetDictionary level=%d\n", (int)zwc->compressionLevel);
         if (!zwc) return Z_STREAM_ERROR;
         if (zwc->zbc == NULL) {
-            int res = ZWRAP_initializeCStream(zwc, 0);
+            int res;
+            zwc->zbc = ZSTD_createCStream_advanced(zwc->customMem);
+            if (zwc->zbc == NULL) return ZWRAPC_finishWithError(zwc, strm, res);
+            res = ZWRAP_initializeCStream(zwc, dictionary, dictLength, 0);
             if (res != Z_OK) return ZWRAPC_finishWithError(zwc, strm, res);
+            zwc->comprState = Z_NEED_DICT;
         }
-        { size_t const errorCode = ZSTD_initCStream_usingDict(zwc->zbc, dictionary, dictLength, zwc->compressionLevel);
-          if (ZSTD_isError(errorCode)) return ZWRAPC_finishWithError(zwc, strm, 0); }
     }
 
     return Z_OK;
@@ -257,12 +259,20 @@ ZEXTERN int ZEXPORT z_deflate OF((z_streamp strm, int flush))
     if (zwc == NULL) { LOG_WRAPPERC("zwc == NULL\n"); return Z_STREAM_ERROR; }
 
     if (zwc->zbc == NULL) {
-        int res = ZWRAP_initializeCStream(zwc, (flush == Z_FINISH) ? strm->avail_in : 0);
+        int res;
+        zwc->zbc = ZSTD_createCStream_advanced(zwc->customMem);
+        if (zwc->zbc == NULL) return ZWRAPC_finishWithError(zwc, strm, res); 
+        res = ZWRAP_initializeCStream(zwc, NULL, 0, (flush == Z_FINISH) ? strm->avail_in : 0);
         if (res != Z_OK) return ZWRAPC_finishWithError(zwc, strm, res);
     } else {
         if (strm->total_in == 0) {
-            size_t const errorCode = ZSTD_resetCStream(zwc->zbc, (flush == Z_FINISH) ? strm->avail_in : zwc->pledgedSrcSize);
-            if (ZSTD_isError(errorCode)) { LOG_WRAPPERC("ERROR: ZSTD_resetCStream errorCode=%s\n", ZSTD_getErrorName(errorCode)); return ZWRAPC_finishWithError(zwc, strm, 0); }
+            if (zwc->comprState == Z_NEED_DICT) {
+                size_t const errorCode = ZSTD_resetCStream(zwc->zbc, (flush == Z_FINISH) ? strm->avail_in : zwc->pledgedSrcSize);
+                if (ZSTD_isError(errorCode)) { LOG_WRAPPERC("ERROR: ZSTD_resetCStream errorCode=%s\n", ZSTD_getErrorName(errorCode)); return ZWRAPC_finishWithError(zwc, strm, 0); }
+            } else {
+                int res = ZWRAP_initializeCStream(zwc, NULL, 0, (flush == Z_FINISH) ? strm->avail_in : 0);
+                if (res != Z_OK) return ZWRAPC_finishWithError(zwc, strm, res);
+            }
         }
     }
 
@@ -409,6 +419,7 @@ ZWRAP_DCtx* ZWRAP_createDCtx(z_streamp strm)
         memcpy(&zwd->customMem, &defaultCustomMem, sizeof(ZSTD_customMem));
     }
 
+    MEM_STATIC_ASSERT(sizeof(zwd->headerBuf) >= ZSTD_frameHeaderSize_min);   /* if compilation fails here, assertion is false */
     ZWRAP_initDCtx(zwd);
     return zwd;
 }

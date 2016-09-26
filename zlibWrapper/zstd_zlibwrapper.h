@@ -39,7 +39,9 @@ int ZWRAP_isUsingZSTDcompression(void);
 
 /* Changes a pledged source size for a given compression stream.
    It will change ZSTD compression parameters what may improve compression speed and/or ratio.
-   The function should be called just after deflateInit(). */
+   The function should be called just after deflateInit(). It's only helpful when data is compressed in blocks. 
+   There will be no change in case of deflateInit() immediately followed by deflate(strm, Z_FINISH) 
+   as this case is automatically detected.  */
 int ZWRAP_setPledgedSrcSize(z_streamp strm, unsigned long long pledgedSrcSize);
 
 

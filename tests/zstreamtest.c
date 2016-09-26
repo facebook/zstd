@@ -436,7 +436,8 @@ static int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compres
 
         /* compression init */
         if (maxTestSize /* at least one test happened */ && resetAllowed && (FUZ_rand(&lseed)&1)) {
-            ZSTD_resetCStream(zc, 0);
+            U64 const pledgedSrcSize = (FUZ_rand(&lseed) & 3) ? 0 : maxTestSize;
+            ZSTD_resetCStream(zc, pledgedSrcSize);
         } else {
             U32 const testLog = FUZ_rand(&lseed) % maxSrcLog;
             U32 const cLevel = (FUZ_rand(&lseed) % (ZSTD_maxCLevel() - (testLog/3))) + 1;
@@ -449,22 +450,23 @@ static int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compres
             {   ZSTD_parameters params = ZSTD_getParams(cLevel, 0, dictSize);
                 params.fParams.checksumFlag = FUZ_rand(&lseed) & 1;
                 params.fParams.noDictIDFlag = FUZ_rand(&lseed) & 1;
-                {   size_t const initError = ZSTD_initCStream_advanced(zc, dict, dictSize, params, 0);
+                {   U64 const pledgedSrcSize = (FUZ_rand(&lseed) & 3) ? 0 : maxTestSize;
+                    size_t const initError = ZSTD_initCStream_advanced(zc, dict, dictSize, params, pledgedSrcSize);
                     CHECK (ZSTD_isError(initError),"ZSTD_initCStream_advanced error : %s", ZSTD_getErrorName(initError));
         }   }   }
 
         /* multi-segments compression test */
         XXH64_reset(&xxhState, 0);
-        {   U32 const maxNbChunks = (FUZ_rand(&lseed) & 127) + 2;
-            ZSTD_outBuffer outBuff = { cBuffer, cBufferSize, 0 } ;
+        {   ZSTD_outBuffer outBuff = { cBuffer, cBufferSize, 0 } ;
             U32 n;
-            for (n=0, cSize=0, totalTestSize=0 ; (n<maxNbChunks) && (totalTestSize < maxTestSize) ; n++) {
+            for (n=0, cSize=0, totalTestSize=0 ; totalTestSize < maxTestSize ; n++) {
                 /* compress random chunk into random size dst buffer */
-                {   size_t const readChunkSize = FUZ_randomLength(&lseed, maxSampleLog);
-                    size_t const srcStart = FUZ_rand(&lseed) % (srcBufferSize - readChunkSize);
+                {   size_t const randomSrcSize = FUZ_randomLength(&lseed, maxSampleLog);
+                    size_t const srcSize = MIN (maxTestSize-totalTestSize, randomSrcSize);
+                    size_t const srcStart = FUZ_rand(&lseed) % (srcBufferSize - srcSize);
                     size_t const randomDstSize = FUZ_randomLength(&lseed, maxSampleLog);
                     size_t const dstBuffSize = MIN(cBufferSize - cSize, randomDstSize);
-                    ZSTD_inBuffer inBuff = { srcBuffer+srcStart, readChunkSize, 0 };
+                    ZSTD_inBuffer inBuff = { srcBuffer+srcStart, srcSize, 0 };
                     outBuff.size = outBuff.pos + dstBuffSize;
 
                     { size_t const compressionError = ZSTD_compressStream(zc, &outBuff, &inBuff);

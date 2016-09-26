@@ -374,7 +374,8 @@ static int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compres
     ZSTD_DStream* const zd_noise = ZSTD_createDStream();
     clock_t const startClock = clock();
     const BYTE* dict=NULL;   /* can keep same dict on 2 consecutive tests */
-    size_t dictSize=0, maxTestSize=0;
+    size_t dictSize = 0;
+    U32 oldTestLog = 0;
 
     /* allocations */
     cNoiseBuffer[0] = (BYTE*)malloc (srcBufferSize);
@@ -407,6 +408,7 @@ static int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compres
         XXH64_state_t xxhState;
         U64 crcOrig;
         U32 resetAllowed = 1;
+        size_t maxTestSize;
 
         /* init */
         DISPLAYUPDATE(2, "\r%6u", testNb);
@@ -435,23 +437,29 @@ static int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compres
         }
 
         /* compression init */
-        if (maxTestSize /* at least one test happened */ && resetAllowed && (FUZ_rand(&lseed)&1)) {
-            U64 const pledgedSrcSize = (FUZ_rand(&lseed) & 3) ? 0 : maxTestSize;
-            ZSTD_resetCStream(zc, pledgedSrcSize);
+        if ((FUZ_rand(&lseed)&1) /* at beginning, to keep same nb of rand */
+            && oldTestLog /* at least one test happened */ && resetAllowed) {
+            maxTestSize = FUZ_randomLength(&lseed, oldTestLog+2);
+            if (maxTestSize >= srcBufferSize) maxTestSize = srcBufferSize-1;
+            {   U64 const pledgedSrcSize = (FUZ_rand(&lseed) & 3) ? 0 : maxTestSize;
+                size_t const resetError = ZSTD_resetCStream(zc, pledgedSrcSize);
+                CHECK(ZSTD_isError(resetError), "ZSTD_resetCStream error : %s", ZSTD_getErrorName(resetError));
+            }
         } else {
             U32 const testLog = FUZ_rand(&lseed) % maxSrcLog;
             U32 const cLevel = (FUZ_rand(&lseed) % (ZSTD_maxCLevel() - (testLog/3))) + 1;
             maxTestSize = FUZ_rLogLength(&lseed, testLog);
+            oldTestLog = testLog;
             /* random dictionary selection */
             dictSize  = ((FUZ_rand(&lseed)&63)==1) ? FUZ_randomLength(&lseed, maxSampleLog) : 0;
             {   size_t const dictStart = FUZ_rand(&lseed) % (srcBufferSize - dictSize);
                 dict = srcBuffer + dictStart;
             }
-            {   ZSTD_parameters params = ZSTD_getParams(cLevel, 0, dictSize);
+            {   U64 const pledgedSrcSize = (FUZ_rand(&lseed) & 3) ? 0 : maxTestSize;
+                ZSTD_parameters params = ZSTD_getParams(cLevel, pledgedSrcSize, dictSize);
                 params.fParams.checksumFlag = FUZ_rand(&lseed) & 1;
                 params.fParams.noDictIDFlag = FUZ_rand(&lseed) & 1;
-                {   U64 const pledgedSrcSize = (FUZ_rand(&lseed) & 3) ? 0 : maxTestSize;
-                    size_t const initError = ZSTD_initCStream_advanced(zc, dict, dictSize, params, pledgedSrcSize);
+                {   size_t const initError = ZSTD_initCStream_advanced(zc, dict, dictSize, params, pledgedSrcSize);
                     CHECK (ZSTD_isError(initError),"ZSTD_initCStream_advanced error : %s", ZSTD_getErrorName(initError));
         }   }   }
 

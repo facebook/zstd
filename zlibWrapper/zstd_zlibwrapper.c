@@ -231,13 +231,12 @@ ZEXTERN int ZEXPORT z_deflateSetDictionary OF((z_streamp strm,
         LOG_WRAPPERC("- deflateSetDictionary level=%d\n", (int)zwc->compressionLevel);
         if (!zwc) return Z_STREAM_ERROR;
         if (zwc->zbc == NULL) {
-            int res;
             zwc->zbc = ZSTD_createCStream_advanced(zwc->customMem);
-            if (zwc->zbc == NULL) return ZWRAPC_finishWithError(zwc, strm, res);
-            res = ZWRAP_initializeCStream(zwc, dictionary, dictLength, 0);
-            if (res != Z_OK) return ZWRAPC_finishWithError(zwc, strm, res);
-            zwc->comprState = Z_NEED_DICT;
+            if (zwc->zbc == NULL) return ZWRAPC_finishWithError(zwc, strm, 0);
         }
+        { int res = ZWRAP_initializeCStream(zwc, dictionary, dictLength, 0);
+          if (res != Z_OK) return ZWRAPC_finishWithError(zwc, strm, res); }
+        zwc->comprState = Z_NEED_DICT;
     }
 
     return Z_OK;

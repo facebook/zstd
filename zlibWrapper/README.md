@@ -101,21 +101,21 @@ The speed of compression can be improved with reusing a single context with foll
 - for the 2nd file call `deflateReset`, `deflate`, `...`, `deflate`
 - free the context with `deflateEnd`
 
-To check the difference we made experiments using `zwrapbench` with zstd and zlib compression (both at level 3) with 4 KB blocks.
-The input data was git repository downloaded from https://github.com/git/git/archive/master.zip and converted to uncompressed tarball.
+To check the difference we made experiments using `zwrapbench -ri6b6` with zstd and zlib compression (both at level 6).
+The input data was decompressed git repository downloaded from https://github.com/git/git/archive/master.zip that contains 2979 files.
 The table below shows that reusing contexts has a minor influence on zlib but it gives improvement for zstd.
-In our example (the last 2 lines) it gives 15% better compression speed and 6% better decompression speed.
+In our example (the last 2 lines) it gives 4% better compression speed and 5% better decompression speed.
 
 | Compression type                                  | Compression | Decompress.| Compr. size | Ratio |
 | ------------------------------------------------- | ------------| -----------| ----------- | ----- |
-| zlib 1.2.8                                        |  54.77 MB/s | 176.2 MB/s |     8928115 | 2.910 |
-| zlib 1.2.8 not reusing a context                  |  54.98 MB/s | 174.6 MB/s |     8928115 | 2.910 |
-| zlib 1.2.8 with zlibWrapper and reusing a context |  55.16 MB/s | 176.8 MB/s |     8928115 | 2.910 |
-| zlib 1.2.8 with zlibWrapper not reusing a context |  54.11 MB/s | 174.5 MB/s |     8928115 | 2.910 |
-| zstd 1.1.0 using ZSTD_CCtx                        | 108.03 MB/s | 319.8 MB/s |     8962336 | 2.899 |
-| zstd 1.1.0 using ZSTD_CStream                     | 107.34 MB/s | 307.3 MB/s |     8981368 | 2.893 |
-| zstd 1.1.0 with zlibWrapper and reusing a context | 107.52 MB/s | 297.3 MB/s |     8981368 | 2.893 |
-| zstd 1.1.0 with zlibWrapper not reusing a context |  91.45 MB/s | 279.8 MB/s |     8981368 | 2.893 |
+| zlib 1.2.8                                        |  30.51 MB/s | 219.3 MB/s |     6819783 | 3.459 |
+| zlib 1.2.8 not reusing a context                  |  30.22 MB/s | 218.1 MB/s |     6819783 | 3.459 |
+| zlib 1.2.8 with zlibWrapper and reusing a context |  30.40 MB/s | 218.9 MB/s |     6819783 | 3.459 |
+| zlib 1.2.8 with zlibWrapper not reusing a context |  30.28 MB/s | 218.1 MB/s |     6819783 | 3.459 |
+| zstd 1.1.0 using ZSTD_CCtx                        |  68.35 MB/s | 430.9 MB/s |     6868521 | 3.435 |
+| zstd 1.1.0 using ZSTD_CStream                     |  66.63 MB/s | 422.3 MB/s |     6868521 | 3.435 |
+| zstd 1.1.0 with zlibWrapper and reusing a context |  54.01 MB/s | 403.2 MB/s |     6763482 | 3.488 |
+| zstd 1.1.0 with zlibWrapper not reusing a context |  51.59 MB/s | 383.7 MB/s |     6763482 | 3.488 |
 
 
 #### Compatibility issues

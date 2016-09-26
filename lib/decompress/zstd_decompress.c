@@ -1554,6 +1554,7 @@ size_t ZSTD_initDStream(ZSTD_DStream* zds)
 
 size_t ZSTD_resetDStream(ZSTD_DStream* zds)
 {
+    if (zds->ddict == NULL) return ERROR(stage_wrong);  /* must be init at least once */
     zds->stage = zdss_loadHeader;
     zds->lhSize = zds->inPos = zds->outStart = zds->outEnd = 0;
     zds->legacyVersion = 0;

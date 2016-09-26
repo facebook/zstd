@@ -31,8 +31,8 @@ test: example fitblk example_zstd fitblk_zstd zwrapbench
 	./fitblk 40960 <../zstd_compression_format.md
 	./fitblk_zstd 10240 <../zstd_compression_format.md
 	./fitblk_zstd 40960 <../zstd_compression_format.md
-	./zwrapbench -qb1e5 ../zstd_compression_format.md
 	./zwrapbench -qb1e5B1K ../zstd_compression_format.md
+	./zwrapbench -qb1e5r ../lib ../programs ../tests
 
 #valgrindTest: ZSTDLIBRARY = $(ZSTDLIBDIR)/libzstd.so
 valgrindTest: VALGRIND = LD_LIBRARY_PATH=$(ZSTDLIBDIR) valgrind --track-origins=yes --leak-check=full --error-exitcode=1
@@ -44,8 +44,8 @@ valgrindTest: clean example fitblk example_zstd fitblk_zstd zwrapbench
 	$(VALGRIND) ./fitblk 40960 <../zstd_compression_format.md
 	$(VALGRIND) ./fitblk_zstd 10240 <../zstd_compression_format.md
 	$(VALGRIND) ./fitblk_zstd 40960 <../zstd_compression_format.md
-	$(VALGRIND) ./zwrapbench -qb1e5 ../zstd_compression_format.md
 	$(VALGRIND) ./zwrapbench -qb1e5B1K ../zstd_compression_format.md
+	$(VALGRIND) ./zwrapbench -qb1e5 ../lib ../programs ../tests
 
 .c.o:
 	$(CC) $(CFLAGS) -c -o $@ $<

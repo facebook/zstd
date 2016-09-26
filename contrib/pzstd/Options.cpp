@@ -104,7 +104,7 @@ void usage() {
   std::fprintf(stderr, "  -V, --version          : display version number and exit\n");
   std::fprintf(stderr, "  -v, --verbose          : verbose mode; specify multiple times to increase log level (default:2)\n");
   std::fprintf(stderr, "  -q, --quiet            : suppress warnings; specify twice to suppress errors too\n");
-  std::fprintf(stderr, "  -c, --stdout           : force wrtie to standard output, even if it is the console\n");
+  std::fprintf(stderr, "  -c, --stdout           : force write to standard output, even if it is the console\n");
 #ifdef UTIL_HAS_CREATEFILELIST
   std::fprintf(stderr, "  -r                     : operate recursively on directories\n");
 #endif

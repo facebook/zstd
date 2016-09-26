@@ -45,12 +45,12 @@
     } \
 }
 
-z_const char hello[] = "hello, hello!";
+z_const char hello[] = "hello, hello! I said hello, hello!";
 /* "hello world" would be more standard, but the repeated "hello"
  * stresses the compression code better, sorry...
  */
 
-const char dictionary[] = "hello";
+const char dictionary[] = "hello, hello!";
 uLong dictId; /* Adler32 value of the dictionary */
 
 void test_deflate       OF((Byte *compr, uLong comprLen));
@@ -156,7 +156,7 @@ void test_gzio(fname, uncompr, uncomprLen)
         fprintf(stderr, "gzputs err: %s\n", gzerror(file, &err));
         exit(1);
     }
-    if (gzprintf(file, ", %s!", "hello") != 8) {
+    if (gzprintf(file, ", %s! I said hello, hello!", "hello") != 8+21) {
         fprintf(stderr, "gzprintf err: %s\n", gzerror(file, &err));
         exit(1);
     }
@@ -182,7 +182,7 @@ void test_gzio(fname, uncompr, uncomprLen)
     }
 
     pos = gzseek(file, -8L, SEEK_CUR);
-    if (pos != 6 || gztell(file) != pos) {
+    if (pos != 6+21 || gztell(file) != pos) {
         fprintf(stderr, "gzseek error, pos=%ld, gztell=%ld\n",
                 (long)pos, (long)gztell(file));
         exit(1);
@@ -203,7 +203,7 @@ void test_gzio(fname, uncompr, uncomprLen)
         fprintf(stderr, "gzgets err after gzseek: %s\n", gzerror(file, &err));
         exit(1);
     }
-    if (strcmp((char*)uncompr, hello + 6)) {
+    if (strcmp((char*)uncompr, hello + 6+21)) {
         fprintf(stderr, "bad gzgets after gzseek\n");
         exit(1);
     } else {
@@ -583,7 +583,7 @@ int main(argc, argv)
 
     printf("zlib version %s = 0x%04x, compile flags = 0x%lx\n",
             ZLIB_VERSION, ZLIB_VERNUM, zlibCompileFlags());
-    if (isUsingZSTD()) printf("zstd version %s\n", zstdVersion());
+    if (ZWRAP_isUsingZSTDcompression()) printf("zstd version %s\n", zstdVersion());
 
     compr    = (Byte*)calloc((uInt)comprLen, 1);
     uncompr  = (Byte*)calloc((uInt)uncomprLen, 1);
@@ -600,7 +600,7 @@ int main(argc, argv)
 #else
     test_compress(compr, comprLen, uncompr, uncomprLen);
 
-    if (!isUsingZSTD())
+    if (!ZWRAP_isUsingZSTDcompression())
         test_gzio((argc > 1 ? argv[1] : TESTFILE),
               uncompr, uncomprLen);
 #endif
@@ -611,7 +611,7 @@ int main(argc, argv)
     test_large_deflate(compr, comprLen, uncompr, uncomprLen);
     test_large_inflate(compr, comprLen, uncompr, uncomprLen);
 
-    if (!isUsingZSTD()) {
+    if (!ZWRAP_isUsingZSTDcompression()) {
         test_flush(compr, &comprLen);
         test_sync(compr, comprLen, uncompr, uncomprLen);
     }

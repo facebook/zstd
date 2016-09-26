@@ -22,7 +22,7 @@ matrix:
           packages:
             - gcc-4.8
             - g++-4.8
-      env: PLATFORM="Ubuntu 12.04 container" CMD="make -C tests test-zstd_nolegacy && make clean && make zlibwrapper && make clean && make cmaketest && make clean && make -C contrib/pzstd pzstd && make -C contrib/pzstd googletest && make -C contrib/pzstd test && make -C contrib/pzstd clean"
+      env: PLATFORM="Ubuntu 12.04 container" CMD="make zlibwrapper && make clean && make -C tests test-zstd_nolegacy && make clean && make clean && make cmaketest && make clean && make -C contrib/pzstd pzstd && make -C contrib/pzstd googletest && make -C contrib/pzstd test && make -C contrib/pzstd clean"
     - os: linux
       sudo: false
       env: PLATFORM="Ubuntu 12.04 container" CMD="make usan"
@@ -55,14 +55,15 @@ matrix:
           packages:
             - libc6-dev-i386
             - gcc-multilib
+    # Ubuntu 14.04 LTS Server Edition 64 bit
     - os: linux
+      dist: trusty
       sudo: required
-      env: PLATFORM="Ubuntu 12.04" CMD="make -C tests valgrindTest"
+      env: PLATFORM="Ubuntu 14.04" CMD='make -C lib all && CFLAGS="-O1 -g" make -C zlibWrapper valgrindTest && make -C tests valgrindTest'
       addons:
         apt:
           packages:
             - valgrind
-    # Ubuntu 14.04 LTS Server Edition 64 bit
     - os: linux
       dist: trusty
       sudo: required
@@ -90,7 +91,7 @@ matrix:
     - os: linux
       dist: trusty
       sudo: required
-      env: PLATFORM="Ubuntu 14.04" CMD="make zlibwrapper && make clean && make gcc5test && make clean && make gcc6test && sudo apt-get install -y -q qemu-system-ppc binfmt-support qemu-user-static gcc-powerpc-linux-gnu && make clean && make ppctest"
+      env: PLATFORM="Ubuntu 14.04" CMD="make gcc5test && make clean && make gcc6test && sudo apt-get install -y -q qemu-system-ppc binfmt-support qemu-user-static gcc-powerpc-linux-gnu && make clean && make ppctest"
       addons:
         apt:
           sources:

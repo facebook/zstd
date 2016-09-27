@@ -61,7 +61,8 @@ void ZWRAP_setDecompressionType(ZWRAP_decompress_type type);
 /* checks zstd decompression type */
 ZWRAP_decompress_type ZWRAP_getDecompressionType(void);
 
-/* checks if zstd decompression is used for a given stream */
+/* Checks if zstd decompression is used for a given stream.
+   If will return 1 only when inflate() was called and zstd header was detected. */
 int ZWRAP_isUsingZSTDdecompression(z_streamp strm);
 
 /* Similar to inflateReset but preserves dictionary set using inflateSetDictionary.

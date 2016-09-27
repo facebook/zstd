@@ -298,14 +298,14 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
                         U32 blockNb;
                         for (blockNb=0; blockNb<nbBlocks; blockNb++) {
                             if (ZWRAP_isUsingZSTDcompression())
-                                ret = ZWRAP_deflateResetWithoutDict(&def); /* reuse dictionary to make compression faster */
+                                ret = ZWRAP_deflateReset_keepDict(&def); /* reuse dictionary to make compression faster */
                             else
                                 ret = deflateReset(&def);
                             if (ret != Z_OK) EXM_THROW(1, "deflateReset failure");
                             if (useSetDict) {
                                 ret = deflateSetDictionary(&def, dictBuffer, dictBufferSize);
                                 if (ret != Z_OK) EXM_THROW(1, "deflateSetDictionary failure");
-                                if (ZWRAP_isUsingZSTDcompression()) useSetDict = 0; /* zstd doesn't require deflateSetDictionary after ZWRAP_deflateResetWithoutDict */
+                                if (ZWRAP_isUsingZSTDcompression()) useSetDict = 0; /* zstd doesn't require deflateSetDictionary after ZWRAP_deflateReset_keepDict */
                             }
                             def.next_in = (const void*) blockTable[blockNb].srcPtr;
                             def.avail_in = blockTable[blockNb].srcSize;
@@ -439,7 +439,7 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
                         U32 blockNb;
                         for (blockNb=0; blockNb<nbBlocks; blockNb++) {
                             if (ZWRAP_isUsingZSTDdecompression(&inf))
-                                ret = ZWRAP_inflateResetWithoutDict(&inf); /* reuse dictionary to make decompression faster; inflate will return Z_NEED_DICT only for the first time */
+                                ret = ZWRAP_inflateReset_keepDict(&inf); /* reuse dictionary to make decompression faster; inflate will return Z_NEED_DICT only for the first time */
                             else
                                 ret = inflateReset(&inf);
                             if (ret != Z_OK) EXM_THROW(1, "inflateReset failure");

@@ -282,6 +282,7 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
                 } else if (compressor == BMK_ZWRAP_ZLIB_REUSE || compressor == BMK_ZWRAP_ZSTD_REUSE || compressor == BMK_ZLIB_REUSE) {
                     z_stream def;
                     int ret;
+                    int useSetDict = (dictBuffer != NULL);
                     if (compressor == BMK_ZLIB_REUSE || compressor == BMK_ZWRAP_ZLIB_REUSE) ZWRAP_useZSTDcompression(0);
                     else ZWRAP_useZSTDcompression(1);
                     def.zalloc = Z_NULL;
@@ -296,11 +297,15 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
                     do {
                         U32 blockNb;
                         for (blockNb=0; blockNb<nbBlocks; blockNb++) {
-                            ret = deflateReset(&def);
+                            if (ZWRAP_isUsingZSTDcompression())
+                                ret = ZWRAP_deflateReset_keepDict(&def); /* reuse dictionary to make compression faster */
+                            else
+                                ret = deflateReset(&def);
                             if (ret != Z_OK) EXM_THROW(1, "deflateReset failure");
-                            if (dictBuffer) {
+                            if (useSetDict) {
                                 ret = deflateSetDictionary(&def, dictBuffer, dictBufferSize);
                                 if (ret != Z_OK) EXM_THROW(1, "deflateSetDictionary failure");
+                                if (ZWRAP_isUsingZSTDcompression()) useSetDict = 0; /* zstd doesn't require deflateSetDictionary after ZWRAP_deflateReset_keepDict */
                             }
                             def.next_in = (const void*) blockTable[blockNb].srcPtr;
                             def.avail_in = blockTable[blockNb].srcSize;
@@ -433,7 +438,10 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
                     do {
                         U32 blockNb;
                         for (blockNb=0; blockNb<nbBlocks; blockNb++) {
-                            ret = inflateReset(&inf);
+                            if (ZWRAP_isUsingZSTDdecompression(&inf))
+                                ret = ZWRAP_inflateReset_keepDict(&inf); /* reuse dictionary to make decompression faster; inflate will return Z_NEED_DICT only for the first time */
+                            else
+                                ret = inflateReset(&inf);
                             if (ret != Z_OK) EXM_THROW(1, "inflateReset failure");
                             inf.next_in = (const void*) blockTable[blockNb].cPtr;
                             inf.avail_in = blockTable[blockNb].cSize;

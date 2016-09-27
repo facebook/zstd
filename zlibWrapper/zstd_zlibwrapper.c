@@ -205,6 +205,10 @@ ZEXTERN int ZEXPORT z_deflateInit2_ OF((z_streamp strm, int level, int method,
 
 int ZWRAP_deflateResetWithoutDict(z_streamp strm)
 {
+    LOG_WRAPPERC("- ZWRAP_deflateResetWithoutDict\n");
+    if (!g_ZWRAP_useZSTDcompression)
+        return deflateReset(strm);
+
     strm->total_in = 0;
     strm->total_out = 0;
     strm->adler = 0;
@@ -520,6 +524,10 @@ ZEXTERN int ZEXPORT z_inflateInit2_ OF((z_streamp strm, int  windowBits,
 
 int ZWRAP_inflateResetWithoutDict(z_streamp strm)
 {
+    LOG_WRAPPERD("- ZWRAP_inflateResetWithoutDict\n");
+    if (g_ZWRAPdecompressionType == ZWRAP_FORCE_ZLIB || !strm->reserved)
+        return inflateReset(strm);
+
     {   ZWRAP_DCtx* zwd = (ZWRAP_DCtx*) strm->state;
         if (zwd == NULL) return Z_STREAM_ERROR;
         if (zwd->zbd) { 

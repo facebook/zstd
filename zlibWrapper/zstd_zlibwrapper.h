@@ -45,8 +45,11 @@ int ZWRAP_isUsingZSTDcompression(void);
    as this case is automatically detected.  */
 int ZWRAP_setPledgedSrcSize(z_streamp strm, unsigned long long pledgedSrcSize);
 
-/* similar to deflateReset but preserves dictionary set using deflateSetDictionary */
+/* Similar to deflateReset but preserves dictionary set using deflateSetDictionary.
+   It should improve compression speed because there will be less calls to deflateSetDictionary 
+   When using zlib compression this method redirects to deflateReset. */
 int ZWRAP_deflateResetWithoutDict(z_streamp strm);
+
 
 
 /*** DECOMPRESSION ***/
@@ -62,7 +65,8 @@ ZWRAP_decompress_type ZWRAP_getDecompressionType(void);
 int ZWRAP_isUsingZSTDdecompression(z_streamp strm);
 
 /* Similar to inflateReset but preserves dictionary set using inflateSetDictionary.
-   inflate() will return Z_NEED_DICT only for the first time. */
+   inflate() will return Z_NEED_DICT only for the first time what will improve decompression speed.
+   For zlib streams this method redirects to inflateReset. */
 int ZWRAP_inflateResetWithoutDict(z_streamp strm);
 
 

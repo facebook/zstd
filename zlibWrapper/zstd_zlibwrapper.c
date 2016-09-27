@@ -480,6 +480,7 @@ ZEXTERN int ZEXPORT z_inflateInit_ OF((z_streamp strm,
                                      const char *version, int stream_size))
 {
     if (g_ZWRAPdecompressionType == ZWRAP_FORCE_ZLIB) {
+        strm->reserved = ZWRAP_ZLIB_STREAM; /* mark as zlib stream */
         return inflateInit(strm);
     }
 
@@ -530,10 +531,6 @@ int ZWRAP_inflateReset_keepDict(z_streamp strm)
 
     {   ZWRAP_DCtx* zwd = (ZWRAP_DCtx*) strm->state;
         if (zwd == NULL) return Z_STREAM_ERROR;
-        if (zwd->zbd) { 
-            size_t const errorCode = ZSTD_resetDStream(zwd->zbd);
-            if (ZSTD_isError(errorCode)) return ZWRAPD_finishWithError(zwd, strm, 0); 
-        }
         ZWRAP_initDCtx(zwd);
         zwd->decompState = ZWRAP_useReset;
     }
@@ -707,6 +704,7 @@ ZEXTERN int ZEXPORT z_inflate OF((z_streamp strm, int flush))
         if (!zwd->zbd) {
             zwd->zbd = ZSTD_createDStream_advanced(zwd->customMem);
             if (zwd->zbd == NULL) { LOG_WRAPPERD("ERROR: ZSTD_createDStream_advanced\n"); goto error; }
+            zwd->decompState = ZWRAP_useInit;
         }
 
         if (strm->total_in < ZSTD_HEADERSIZE)
@@ -715,6 +713,9 @@ ZEXTERN int ZEXPORT z_inflate OF((z_streamp strm, int flush))
                 if (zwd->decompState == ZWRAP_useInit) {
                     errorCode = ZSTD_initDStream(zwd->zbd);
                     if (ZSTD_isError(errorCode)) { LOG_WRAPPERD("ERROR: ZSTD_initDStream errorCode=%s\n", ZSTD_getErrorName(errorCode)); goto error; }
+                } else {
+                    errorCode = ZSTD_resetDStream(zwd->zbd);
+                    if (ZSTD_isError(errorCode)) goto error;
                 }
             } else {
                 srcSize = MIN(strm->avail_in, ZSTD_HEADERSIZE - strm->total_in);
@@ -724,8 +725,13 @@ ZEXTERN int ZEXPORT z_inflate OF((z_streamp strm, int flush))
                 strm->avail_in -= srcSize;
                 if (strm->total_in < ZSTD_HEADERSIZE) return Z_OK;
 
-                errorCode = ZSTD_initDStream(zwd->zbd);
-                if (ZSTD_isError(errorCode)) { LOG_WRAPPERD("ERROR: ZSTD_initDStream errorCode=%s\n", ZSTD_getErrorName(errorCode)); goto error; }
+                if (zwd->decompState == ZWRAP_useInit) {
+                    errorCode = ZSTD_initDStream(zwd->zbd);
+                    if (ZSTD_isError(errorCode)) { LOG_WRAPPERD("ERROR: ZSTD_initDStream errorCode=%s\n", ZSTD_getErrorName(errorCode)); goto error; }
+                } else {
+                    errorCode = ZSTD_resetDStream(zwd->zbd);
+                    if (ZSTD_isError(errorCode)) goto error;
+                }
 
                 zwd->inBuffer.src = zwd->headerBuf;
                 zwd->inBuffer.size = ZSTD_HEADERSIZE;

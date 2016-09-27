@@ -85,7 +85,7 @@ During streaming compression the compressor never knows how big is data to compr
 Zstandard compression can be improved by providing size of source data to the compressor. By default streaming compressor assumes that data is bigger than 256 KB but it can hurt compression speed on smaller data. 
 The zstd wrapper provides the `ZWRAP_setPledgedSrcSize()` function that allows to change a pledged source size for a given compression stream.
 The function will change zstd compression parameters what may improve compression speed and/or ratio.
-It should be called just after `deflateInit()`. The function is only helpful when data is compressed in blocks. There will be no change in case of `deflateInit()` immediately followed by `deflate(strm, Z_FINISH)`
+It should be called just after `deflateInit()`or `deflateReset()` and before `deflate()` or `deflateSetDictionary()`. The function is only helpful when data is compressed in blocks. There will be no change in case of `deflateInit()` or `deflateReset()`  immediately followed by `deflate(strm, Z_FINISH)`
 as this case is automatically detected.
 
 

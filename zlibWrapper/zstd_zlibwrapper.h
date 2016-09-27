@@ -30,11 +30,11 @@ extern "C" {
 const char * zstdVersion(void);
 
 
-/* COMPRESSION */
+/*** COMPRESSION ***/
 /* enables/disables zstd compression during runtime */
 void ZWRAP_useZSTDcompression(int turn_on);
 
-/* check if zstd compression is turned on */
+/* checks if zstd compression is turned on */
 int ZWRAP_isUsingZSTDcompression(void);
 
 /* Changes a pledged source size for a given compression stream.
@@ -45,18 +45,25 @@ int ZWRAP_isUsingZSTDcompression(void);
    as this case is automatically detected.  */
 int ZWRAP_setPledgedSrcSize(z_streamp strm, unsigned long long pledgedSrcSize);
 
+/* similar to deflateReset but preserves dictionary set using deflateSetDictionary */
+int ZWRAP_deflateResetWithoutDict(z_streamp strm);
 
-/* DECOMPRESSION */
+
+/*** DECOMPRESSION ***/
 typedef enum { ZWRAP_FORCE_ZLIB, ZWRAP_AUTO } ZWRAP_decompress_type;
 
 /* enables/disables automatic recognition of zstd/zlib compressed data during runtime */
 void ZWRAP_setDecompressionType(ZWRAP_decompress_type type);
 
-/* check zstd decompression type */
+/* checks zstd decompression type */
 ZWRAP_decompress_type ZWRAP_getDecompressionType(void);
 
+/* checks if zstd decompression is used for a given stream */
+int ZWRAP_isUsingZSTDdecompression(z_streamp strm);
 
-
+/* Similar to inflateReset but preserves dictionary set using inflateSetDictionary.
+   inflate() will return Z_NEED_DICT only for the first time. */
+int ZWRAP_inflateResetWithoutDict(z_streamp strm);
 
 
 #if defined (__cplusplus)

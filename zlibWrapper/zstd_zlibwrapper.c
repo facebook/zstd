@@ -74,6 +74,7 @@ static void ZWRAP_freeFunction(void* opaque, void* address)
 
 
 /* *** Compression *** */
+typedef enum { ZWRAP_useInit, ZWRAP_useReset } comprState_t;
 
 typedef struct {
     ZSTD_CStream* zbc;
@@ -82,7 +83,7 @@ typedef struct {
     z_stream allocFunc; /* copy of zalloc, zfree, opaque */
     ZSTD_inBuffer inBuffer;
     ZSTD_outBuffer outBuffer;
-    int comprState;
+    comprState_t comprState;
     unsigned long long pledgedSrcSize;
 } ZWRAP_CCtx;
 
@@ -160,6 +161,7 @@ int ZWRAP_setPledgedSrcSize(z_streamp strm, unsigned long long pledgedSrcSize)
     if (zwc == NULL) return Z_STREAM_ERROR;
     
     zwc->pledgedSrcSize = pledgedSrcSize;
+    zwc->comprState = ZWRAP_useInit;
     return Z_OK;
 }
 
@@ -210,10 +212,6 @@ ZEXTERN int ZEXPORT z_deflateReset OF((z_streamp strm))
     strm->total_in = 0;
     strm->total_out = 0;
     strm->adler = 0;
-
-    { ZWRAP_CCtx* zwc = (ZWRAP_CCtx*) strm->state;
-      if (zwc) zwc->comprState = 0;
-    }
     return Z_OK;
 }
 
@@ -236,7 +234,7 @@ ZEXTERN int ZEXPORT z_deflateSetDictionary OF((z_streamp strm,
         }
         { int res = ZWRAP_initializeCStream(zwc, dictionary, dictLength, 0);
           if (res != Z_OK) return ZWRAPC_finishWithError(zwc, strm, res); }
-        zwc->comprState = Z_NEED_DICT;
+        zwc->comprState = ZWRAP_useReset;
     }
 
     return Z_OK;
@@ -263,14 +261,16 @@ ZEXTERN int ZEXPORT z_deflate OF((z_streamp strm, int flush))
         if (zwc->zbc == NULL) return ZWRAPC_finishWithError(zwc, strm, 0); 
         res = ZWRAP_initializeCStream(zwc, NULL, 0, (flush == Z_FINISH) ? strm->avail_in : 0);
         if (res != Z_OK) return ZWRAPC_finishWithError(zwc, strm, res);
+        if (flush != Z_FINISH) zwc->comprState = ZWRAP_useReset;
     } else {
         if (strm->total_in == 0) {
-            if (zwc->comprState == Z_NEED_DICT) {
+            if (zwc->comprState == ZWRAP_useReset) {
                 size_t const errorCode = ZSTD_resetCStream(zwc->zbc, (flush == Z_FINISH) ? strm->avail_in : zwc->pledgedSrcSize);
                 if (ZSTD_isError(errorCode)) { LOG_WRAPPERC("ERROR: ZSTD_resetCStream errorCode=%s\n", ZSTD_getErrorName(errorCode)); return ZWRAPC_finishWithError(zwc, strm, 0); }
             } else {
                 int res = ZWRAP_initializeCStream(zwc, NULL, 0, (flush == Z_FINISH) ? strm->avail_in : 0);
                 if (res != Z_OK) return ZWRAPC_finishWithError(zwc, strm, res);
+                if (flush != Z_FINISH) zwc->comprState = ZWRAP_useReset;
             }
         }
     }

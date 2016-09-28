@@ -68,7 +68,7 @@ typedef struct {
     int      compressionLevel;   /* 0 means default; target a specific zstd compression level */
     unsigned notificationLevel;  /* Write to stderr; 0 = none (default); 1 = errors; 2 = progression; 3 = details; 4 = debug; */
     unsigned dictID;             /* 0 means auto mode (32-bits random value); other : force dictID value */
-    unsigned reserved[2];        /* space for future parameters */
+    unsigned reserved[2];        /* reserved space for future parameters */
 } ZDICT_params_t;
 
 

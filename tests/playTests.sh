@@ -41,16 +41,32 @@ $ECHO "\nStarting playTests.sh isWindows=$isWindows"
 [ -n "$ZSTD" ] || die "ZSTD variable must be defined!"
 
 file $ZSTD
+
 $ECHO "\n**** simple tests **** "
 
 ./datagen > tmp
+$ECHO "test : basic compression "
 $ZSTD -f tmp                      # trivial compression case, creates tmp.zst
+$ECHO "test : basic decompression"
 $ZSTD -df tmp.zst                 # trivial decompression case (overwrites tmp)
 $ECHO "test : too large compression level (must fail)"
 $ZSTD -99 -f tmp  # too large compression level, automatic sized down
 $ECHO "test : compress to stdout"
 $ZSTD tmp -c > tmpCompressed
 $ZSTD tmp --stdout > tmpCompressed       # long command format
+$ECHO "test : compress to named file"
+rm tmpCompressed
+$ZSTD tmp -o tmpCompressed
+ls tmpCompressed   # must work
+$ECHO "test : -o must be followed by filename (must fail)"
+$ZSTD tmp -of tmpCompressed && die "-o must be followed by filename "
+$ECHO "test : force write, correct order"
+$ZSTD tmp -fo tmpCompressed
+$ECHO "test : forgotten argument"
+cp tmp tmp2
+$ZSTD tmp2 -fo && die "-o must be followed by filename "
+$ECHO "test : implied stdout when input is stdin"
+$ECHO bob | $ZSTD | $ZSTD -d
 $ECHO "test : null-length file roundtrip"
 $ECHO -n '' | $ZSTD - --stdout | $ZSTD -d --stdout
 $ECHO "test : decompress file with wrong suffix (must fail)"
@@ -178,18 +194,26 @@ $ECHO "- Create first dictionary"
 $ZSTD --train *.c ../programs/*.c -o tmpDict
 cp $TESTFILE tmp
 $ZSTD -f tmp -D tmpDict
-$ZSTD -d tmp.zst -D tmpDict -of result
+$ZSTD -d tmp.zst -D tmpDict -fo result
 diff $TESTFILE result
 $ECHO "- Create second (different) dictionary"
 $ZSTD --train *.c ../programs/*.c ../programs/*.h -o tmpDictC
-$ZSTD -d tmp.zst -D tmpDictC -of result && die "wrong dictionary not detected!"
+$ZSTD -d tmp.zst -D tmpDictC -fo result && die "wrong dictionary not detected!"
 $ECHO "- Create dictionary with short dictID"
 $ZSTD --train *.c ../programs/*.c --dictID 1 -o tmpDict1
 cmp tmpDict tmpDict1 && die "dictionaries should have different ID !"
+$ECHO "- Create dictionary with wrong dictID parameter order (must fail)"
+$ZSTD --train *.c ../programs/*.c --dictID -o 1 tmpDict1 && die "wrong order : --dictID must be followed by argument "
+$ECHO "- Create dictionary with size limit"
+$ZSTD --train *.c ../programs/*.c -o tmpDict2 --maxdict 4K -v
+$ECHO "- Create dictionary with wrong parameter order (must fail)"
+$ZSTD --train *.c ../programs/*.c -o tmpDict2 --maxdict -v 4K && die "wrong order : --maxdict must be followed by argument "
 $ECHO "- Compress without dictID"
 $ZSTD -f tmp -D tmpDict1 --no-dictID
-$ZSTD -d tmp.zst -D tmpDict -of result
+$ZSTD -d tmp.zst -D tmpDict -fo result
 diff $TESTFILE result
+$ECHO "- Compress with wrong argument order (must fail)"
+$ZSTD tmp -Df tmpDict1 -c > /dev/null && die "-D must be followed by dictionary name "
 $ECHO "- Compress multiple files with dictionary"
 rm -rf dirTestDict
 mkdir dirTestDict
@@ -200,7 +224,7 @@ $MD5SUM dirTestDict/* > tmph1
 $ZSTD -f --rm dirTestDict/* -D tmpDictC
 $ZSTD -d --rm dirTestDict/*.zst -D tmpDictC  # note : use internal checksum by default
 if [[ "$OSTYPE" == "darwin"* ]]; then
-  $ECHO "test skipped on OS-X"  # not compatible with OS-X's md5
+  $ECHO "md5sum -c not supported on OS-X : test skipped"  # not compatible with OS-X's md5
 else
   $MD5SUM -c tmph1
 fi

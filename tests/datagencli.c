@@ -9,7 +9,7 @@
 
 
 /*-************************************
-*  Includes
+*  Dependencies
 **************************************/
 #include "util.h"      /* Compiler options */
 #include <stdio.h>     /* fprintf, stderr */

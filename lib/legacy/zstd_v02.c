@@ -7,15 +7,11 @@
  * of patent rights can be found in the PATENTS file in the same directory.
  */
 
-#ifndef ERROR_H_MODULE
-#define ERROR_H_MODULE
-
-#if defined (__cplusplus)
-extern "C" {
-#endif
 
 #include <stddef.h>    /* size_t, ptrdiff_t */
 #include "zstd_v02.h"
+#include "error_private.h"
+
 
 /******************************************
 *  Compiler-specific
@@ -24,46 +20,6 @@ extern "C" {
 #   include <stdlib.h>  /* _byteswap_ulong */
 #   include <intrin.h>  /* _byteswap_* */
 #endif
-#if defined (__cplusplus) || (defined (__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L) /* C99 */)
-#  define ERR_STATIC static inline
-#elif defined(_MSC_VER)
-#  define ERR_STATIC static __inline
-#elif defined(__GNUC__)
-#  define ERR_STATIC static __attribute__((unused))
-#else
-#  define ERR_STATIC static  /* this version may generate warnings for unused static functions; disable the relevant warning */
-#endif
-
-
-/******************************************
-*  Error Management
-******************************************/
-#define PREFIX(name) ZSTD_error_##name
-
-#define ERROR(name) (size_t)-PREFIX(name)
-
-#define ERROR_LIST(ITEM) \
-        ITEM(PREFIX(No_Error)) ITEM(PREFIX(GENERIC)) \
-        ITEM(PREFIX(memory_allocation)) \
-        ITEM(PREFIX(dstSize_tooSmall)) ITEM(PREFIX(srcSize_wrong)) \
-        ITEM(PREFIX(prefix_unknown)) ITEM(PREFIX(corruption_detected)) \
-        ITEM(PREFIX(tableLog_tooLarge)) ITEM(PREFIX(maxSymbolValue_tooLarge)) ITEM(PREFIX(maxSymbolValue_tooSmall)) \
-        ITEM(PREFIX(maxCode))
-
-#define ERROR_GENERATE_ENUM(ENUM) ENUM,
-typedef enum { ERROR_LIST(ERROR_GENERATE_ENUM) } ERR_codes;  /* enum is exposed, to detect & handle specific errors; compare function result to -enum value */
-
-#define ERROR_CONVERTTOSTRING(STRING) #STRING,
-#define ERROR_GENERATE_STRING(EXPR) ERROR_CONVERTTOSTRING(EXPR)
-
-ERR_STATIC unsigned ERR_isError(size_t code) { return (code > ERROR(maxCode)); }
-
-
-#if defined (__cplusplus)
-}
-#endif
-
-#endif /* ERROR_H_MODULE */
 
 
 /* ******************************************************************
@@ -1122,12 +1078,15 @@ typedef struct ZSTD_DCtx_s ZSTD_DCtx;
 #  pragma warning(disable : 4127)        /* disable: C4127: conditional expression is constant */
 #  pragma warning(disable : 4214)        /* disable: C4214: non-int bitfields */
 #else
-#  ifdef __GNUC__
-#    define GCC_VERSION (__GNUC__ * 100 + __GNUC_MINOR__)
-#    define FORCE_INLINE static inline __attribute__((always_inline))
+#  if defined (__cplusplus) || defined (__STDC_VERSION__) && __STDC_VERSION__ >= 199901L   /* C99 */
+#    ifdef __GNUC__
+#      define FORCE_INLINE static inline __attribute__((always_inline))
+#    else
+#      define FORCE_INLINE static inline
+#    endif
 #  else
-#    define FORCE_INLINE static inline
-#  endif
+#    define FORCE_INLINE static
+#  endif /* __STDC_VERSION__ */
 #endif
 
 
@@ -1595,15 +1554,7 @@ static size_t FSE_decompress(void* dst, size_t maxDstSize, const void* cSrc, siz
 
 
 #ifdef _MSC_VER    /* Visual Studio */
-#  define FORCE_INLINE static __forceinline
 #  pragma warning(disable : 4127)        /* disable: C4127: conditional expression is constant */
-#else
-#  ifdef __GNUC__
-#    define GCC_VERSION (__GNUC__ * 100 + __GNUC_MINOR__)
-#    define FORCE_INLINE static inline __attribute__((always_inline))
-#  else
-#    define FORCE_INLINE static inline
-#  endif
 #endif
 
 
@@ -2790,17 +2741,9 @@ static size_t HUF_decompress (void* dst, size_t dstSize, const void* cSrc, size_
 #endif
 
 #ifdef _MSC_VER    /* Visual Studio */
-#  define FORCE_INLINE static __forceinline
 #  include <intrin.h>                    /* For Visual 2005 */
 #  pragma warning(disable : 4127)        /* disable: C4127: conditional expression is constant */
 #  pragma warning(disable : 4324)        /* disable: C4324: padded structure */
-#else
-#  define GCC_VERSION (__GNUC__ * 100 + __GNUC_MINOR__)
-#  ifdef __GNUC__
-#    define FORCE_INLINE static inline __attribute__((always_inline))
-#  else
-#    define FORCE_INLINE static inline
-#  endif
 #endif
 
 

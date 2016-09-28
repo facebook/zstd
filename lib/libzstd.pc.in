@@ -8,7 +8,7 @@ includedir=@INCLUDEDIR@
 
 Name: zstd
 Description: lossless compression algorithm library
-URL: https://github.com/Cyan4973/zstd
+URL: https://github.com/facebook/zstd
 Version: @VERSION@
 Libs: -L@LIBDIR@ -lzstd
 Cflags: -I@INCLUDEDIR@

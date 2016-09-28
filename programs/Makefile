@@ -57,6 +57,13 @@ endif
 ifneq (,$(filter Windows%,$(OS)))
 EXT =.exe
 VOID = nul
+RES64_FILE = ..\build\VS2010\zstd\generate_res\zstd64.res
+RES32_FILE = ..\build\VS2010\zstd\generate_res\zstd32.res
+ifneq (,$(filter x86_64%,$(shell $(CC) -dumpmachine)))
+    RES_FILE = $(RES64_FILE)
+else
+    RES_FILE = $(RES32_FILE)
+endif
 else
 EXT =
 VOID = /dev/null
@@ -78,11 +85,11 @@ $(ZSTDDECOMP32_O): $(ZSTDDIR)/decompress/zstd_decompress.c
 
 zstd  : $(ZSTDDECOMP_O) $(ZSTD_FILES) $(ZSTDLEGACY_FILES) $(ZDICT_FILES) \
         zstdcli.c fileio.c bench.c datagen.c dibio.c
-	$(CC)      $(FLAGS) -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT) $^ -o $@$(EXT)
+	$(CC)      $(FLAGS) -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT) $^ $(RES_FILE) -o $@$(EXT)
 
 zstd32 : $(ZSTDDECOMP32_O) $(ZSTD_FILES) $(ZSTDLEGACY_FILES) $(ZDICT_FILES) \
         zstdcli.c fileio.c bench.c datagen.c dibio.c
-	$(CC)  -m32 $(FLAGS) -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT) $^ -o $@$(EXT)
+	$(CC)  -m32 $(FLAGS) -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT) $^ $(RES32_FILE) -o $@$(EXT)
 
 
 zstd_nolegacy :
@@ -97,6 +104,7 @@ zstd-pgo : clean zstd
 	./zstd -b7i2 $(PROFILE_WITH)
 	./zstd -b5 $(PROFILE_WITH)
 	$(RM) zstd
+	$(RM) $(ZSTDDIR)/decompress/zstd_decompress.o
 	$(MAKE) zstd MOREFLAGS=-fprofile-use
 
 zstd-frugal: $(ZSTDDECOMP_O) $(ZSTD_FILES) zstdcli.c fileio.c
@@ -116,16 +124,17 @@ zstd-small: clean
 
 clean:
 	$(MAKE) -C ../lib clean
-	@$(RM) ../lib/decompress/*.o
+	@$(RM) $(ZSTDDIR)/decompress/*.o $(ZSTDDIR)/decompress/zstd_decompress.gcda
 	@$(RM) core *.o tmp* result* *.gcda dictionary *.zst \
-        zstd$(EXT) zstd32$(EXT) zstd-compress$(EXT) zstd-decompress$(EXT)
+        zstd$(EXT) zstd32$(EXT) zstd-compress$(EXT) zstd-decompress$(EXT) \
+        *.gcda default.profraw
 	@echo Cleaning completed
 
 
 #----------------------------------------------------------------------------------
 #make install is validated only for Linux, OSX, kFreeBSD, Hurd and some BSD targets
 #----------------------------------------------------------------------------------
-ifneq (,$(filter $(shell uname),Linux Darwin GNU/kFreeBSD GNU OpenBSD FreeBSD DragonFly))
+ifneq (,$(filter $(shell uname),Linux Darwin GNU/kFreeBSD GNU OpenBSD FreeBSD DragonFly NetBSD))
 install: zstd
 	@echo Installing binaries
 	@install -d -m 755 $(DESTDIR)$(BINDIR)/ $(DESTDIR)$(MANDIR)/
@@ -141,9 +150,9 @@ install: zstd
 uninstall:
 	$(RM) $(DESTDIR)$(BINDIR)/zstdcat
 	$(RM) $(DESTDIR)$(BINDIR)/unzstd
-	[ -x $(DESTDIR)$(BINDIR)/zstd$(EXT) ] && $(RM) $(DESTDIR)$(BINDIR)/zstd$(EXT)
+	$(RM) $(DESTDIR)$(BINDIR)/zstd$(EXT)
 	$(RM) $(DESTDIR)$(MANDIR)/zstdcat.1
 	$(RM) $(DESTDIR)$(MANDIR)/unzstd.1
-	[ -f $(DESTDIR)$(MANDIR)/zstd.1 ] && $(RM) $(DESTDIR)$(MANDIR)/zstd.1
+	$(RM) $(DESTDIR)$(MANDIR)/zstd.1
 	@echo zstd programs successfully uninstalled
 endif

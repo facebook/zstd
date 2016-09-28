@@ -160,10 +160,10 @@ valgrindTest: zstd datagen fuzzer fullbench zbufftest
 	$(VALGRIND) ./datagen -g50M > $(VOID)
 	$(VALGRIND) $(PRGDIR)/zstd ; if [ $$? -eq 0 ] ; then echo "zstd without argument should have failed"; false; fi
 	./datagen -g80 | $(VALGRIND) $(PRGDIR)/zstd - -c > $(VOID)
-	./datagen -g16KB | $(VALGRIND) $(PRGDIR)/zstd -vf - -o $(VOID)
+	./datagen -g16KB | $(VALGRIND) $(PRGDIR)/zstd -vf - -c > $(VOID)
 	./datagen -g2930KB | $(VALGRIND) $(PRGDIR)/zstd -5 -vf - -o tmp
-	$(VALGRIND) $(PRGDIR)/zstd -vdf tmp -o $(VOID)
-	./datagen -g64MB | $(VALGRIND) $(PRGDIR)/zstd -vf - -o $(VOID)
+	$(VALGRIND) $(PRGDIR)/zstd -vdf tmp -c > $(VOID)
+	./datagen -g64MB | $(VALGRIND) $(PRGDIR)/zstd -vf - -c > $(VOID)
 	@rm tmp
 	$(VALGRIND) ./fuzzer -T1mn -t1
 	$(VALGRIND) ./fullbench -i1

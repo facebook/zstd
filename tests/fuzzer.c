@@ -23,7 +23,6 @@
 **************************************/
 #include <stdlib.h>       /* free */
 #include <stdio.h>        /* fgets, sscanf */
-#include <sys/timeb.h>    /* timeb */
 #include <string.h>       /* strcmp */
 #include <time.h>         /* clock_t */
 #define ZSTD_STATIC_LINKING_ONLY   /* ZSTD_compressContinue, ZSTD_compressBlock */
@@ -58,7 +57,7 @@ static U32 g_displayLevel = 2;
             if ((FUZ_clockSpan(g_displayClock) > g_refreshRate) || (g_displayLevel>=4)) \
             { g_displayClock = clock(); DISPLAY(__VA_ARGS__); \
             if (g_displayLevel>=4) fflush(stdout); } }
-static const clock_t g_refreshRate = CLOCKS_PER_SEC * 150 / 1000;
+static const clock_t g_refreshRate = CLOCKS_PER_SEC / 6;
 static clock_t g_displayClock = 0;
 
 
@@ -174,13 +173,13 @@ static int basicUnitTests(U32 seed, double compressibility)
         static const size_t dictSize = 551;
 
         DISPLAYLEVEL(4, "test%3i : copy context too soon : ", testNb++);
-        { size_t const copyResult = ZSTD_copyCCtx(ctxDuplicated, ctxOrig);
+        { size_t const copyResult = ZSTD_copyCCtx(ctxDuplicated, ctxOrig, 0);
           if (!ZSTD_isError(copyResult)) goto _output_error; }   /* error must be detected */
         DISPLAYLEVEL(4, "OK \n");
 
         DISPLAYLEVEL(4, "test%3i : load dictionary into context : ", testNb++);
         CHECK( ZSTD_compressBegin_usingDict(ctxOrig, CNBuffer, dictSize, 2) );
-        CHECK( ZSTD_copyCCtx(ctxDuplicated, ctxOrig) );
+        CHECK( ZSTD_copyCCtx(ctxDuplicated, ctxOrig, CNBuffSize - dictSize) );
         DISPLAYLEVEL(4, "OK \n");
 
         DISPLAYLEVEL(4, "test%3i : compress with flat dictionary : ", testNb++);
@@ -222,10 +221,10 @@ static int basicUnitTests(U32 seed, double compressibility)
                 p.fParams.contentSizeFlag = 1;
                 CHECK( ZSTD_compressBegin_advanced(ctxOrig, CNBuffer, dictSize, p, testSize-1) );
             }
-            CHECK( ZSTD_copyCCtx(ctxDuplicated, ctxOrig) );
+            CHECK( ZSTD_copyCCtx(ctxDuplicated, ctxOrig, testSize) );
 
-            CHECKPLUS(r, ZSTD_compressContinue(ctxDuplicated, compressedBuffer, ZSTD_compressBound(testSize),
-                                               (const char*)CNBuffer + dictSize, CNBuffSize - dictSize),
+            CHECKPLUS(r, ZSTD_compressEnd(ctxDuplicated, compressedBuffer, ZSTD_compressBound(testSize),
+                                          (const char*)CNBuffer + dictSize, testSize),
                       cSize = r);
             {   ZSTD_frameParams fp;
                 if (ZSTD_getFrameParams(&fp, compressedBuffer, cSize)) goto _output_error;
@@ -557,7 +556,7 @@ static int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, U32 const maxD
         /* compression tests */
         {   unsigned const cLevel = (FUZ_rand(&lseed) % (ZSTD_maxCLevel() - (FUZ_highbit32((U32)sampleSize)/3))) + 1;
             cSize = ZSTD_compressCCtx(ctx, cBuffer, cBufferSize, sampleBuffer, sampleSize, cLevel);
-            CHECK(ZSTD_isError(cSize), "ZSTD_compressCCtx failed");
+            CHECK(ZSTD_isError(cSize), "ZSTD_compressCCtx failed : %s", ZSTD_getErrorName(cSize));
 
             /* compression failure test : too small dest buffer */
             if (cSize > 3) {
@@ -675,9 +674,9 @@ static int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, U32 const maxD
                 errorCode = ZSTD_compressBegin_advanced(refCtx, dict, dictSize, p, 0);
                 CHECK (ZSTD_isError(errorCode), "ZSTD_compressBegin_advanced error : %s", ZSTD_getErrorName(errorCode));
             }
-            { size_t const errorCode = ZSTD_copyCCtx(ctx, refCtx);
-              CHECK (ZSTD_isError(errorCode), "ZSTD_copyCCtx error : %s", ZSTD_getErrorName(errorCode)); }
-        }
+            {   size_t const errorCode = ZSTD_copyCCtx(ctx, refCtx, 0);
+                CHECK (ZSTD_isError(errorCode), "ZSTD_copyCCtx error : %s", ZSTD_getErrorName(errorCode));
+        }   }
         XXH64_reset(&xxhState, 0);
         {   U32 const nbChunks = (FUZ_rand(&lseed) & 127) + 2;
             U32 n;

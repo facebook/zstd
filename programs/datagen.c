@@ -20,10 +20,9 @@
 /*-************************************
 *  Dependencies
 **************************************/
-#include <stdlib.h>    /* malloc */
+#include <stdlib.h>    /* malloc, free */
 #include <stdio.h>     /* FILE, fwrite, fprintf */
 #include <string.h>    /* memcpy */
-#include <errno.h>     /* errno */
 #include "mem.h"       /* U32 */
 
 
@@ -176,7 +175,7 @@ void RDG_genStdout(unsigned long long size, double matchProba, double litProba, 
     BYTE ldt[LTSIZE];   /* literals distribution table */
 
     /* init */
-    if (buff==NULL) { fprintf(stderr, "datagen: error: %s \n", strerror(errno)); exit(1); }
+    if (buff==NULL) { perror("datagen"); exit(1); }
     if (litProba<=0.0) litProba = matchProba / 4.5;
     memset(ldt, '0', sizeof(ldt));   /* yes, character '0', this is intentional */
     RDG_fillLiteralDistrib(ldt, litProba);

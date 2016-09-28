@@ -65,31 +65,34 @@ static void compressFile_orDie(const char* fname, const char* outName, int cLeve
 {
     FILE* const fin  = fopen_orDie(fname, "rb");
     FILE* const fout = fopen_orDie(outName, "wb");
-    size_t const buffInSize = ZSTD_CStreamInSize();;
+    size_t const buffInSize = ZSTD_CStreamInSize();    /* can always read one full block */
     void*  const buffIn  = malloc_orDie(buffInSize);
-    size_t const buffOutSize = ZSTD_CStreamOutSize();;
+    size_t const buffOutSize = ZSTD_CStreamOutSize();  /* can always flush a full block */
     void*  const buffOut = malloc_orDie(buffOutSize);
-    size_t read, toRead = buffInSize;
 
     ZSTD_CStream* const cstream = ZSTD_createCStream();
     if (cstream==NULL) { fprintf(stderr, "ZSTD_createCStream() error \n"); exit(10); }
     size_t const initResult = ZSTD_initCStream(cstream, cLevel);
-    if (ZSTD_isError(initResult)) { fprintf(stderr, "ZSTD_initCStream() error \n"); exit(11); }
+    if (ZSTD_isError(initResult)) { fprintf(stderr, "ZSTD_initCStream() error : %s \n", ZSTD_getErrorName(initResult)); exit(11); }
 
+    size_t read, toRead = buffInSize;
     while( (read = fread_orDie(buffIn, toRead, fin)) ) {
         ZSTD_inBuffer input = { buffIn, read, 0 };
         while (input.pos < input.size) {
             ZSTD_outBuffer output = { buffOut, buffOutSize, 0 };
-            toRead = ZSTD_compressStream(cstream, &output , &input);
+            toRead = ZSTD_compressStream(cstream, &output , &input);   /* toRead is guaranteed to be <= ZSTD_CStreamInSize() */
+            if (ZSTD_isError(toRead)) { fprintf(stderr, "ZSTD_compressStream() error : %s \n", ZSTD_getErrorName(toRead)); exit(12); }
+            if (toRead > buffInSize) toRead = buffInSize;   /* Safely handle when `buffInSize` is manually changed to a smaller value */
             fwrite_orDie(buffOut, output.pos, fout);
         }
     }
 
     ZSTD_outBuffer output = { buffOut, buffOutSize, 0 };
-    size_t const remainingToFlush = ZSTD_endStream(cstream, &output);
-    if (remainingToFlush) { fprintf(stderr, "not fully flushed"); exit(12); }
+    size_t const remainingToFlush = ZSTD_endStream(cstream, &output);   /* close frame */
+    if (remainingToFlush) { fprintf(stderr, "not fully flushed"); exit(13); }
     fwrite_orDie(buffOut, output.pos, fout);
 
+    ZSTD_freeCStream(cstream);
     fclose_orDie(fout);
     fclose_orDie(fin);
     free(buffIn);

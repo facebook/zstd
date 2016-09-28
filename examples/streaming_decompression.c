@@ -80,6 +80,7 @@ static void decompressFile_orDie(const char* fname)
         while (input.pos < input.size) {
             ZSTD_outBuffer output = { buffOut, buffOutSize, 0 };
             toRead = ZSTD_decompressStream(dstream, &output , &input);  /* toRead : size of next compressed block */
+            if (ZSTD_isError(toRead)) { fprintf(stderr, "ZSTD_decompressStream() error : %s \n", ZSTD_getErrorName(toRead)); exit(12); }
             fwrite_orDie(buffOut, output.pos, fout);
         }
     }

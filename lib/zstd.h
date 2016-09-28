@@ -32,8 +32,8 @@ extern "C" {
 
 /*=======   Version   =======*/
 #define ZSTD_VERSION_MAJOR    1
-#define ZSTD_VERSION_MINOR    0
-#define ZSTD_VERSION_RELEASE  1
+#define ZSTD_VERSION_MINOR    1
+#define ZSTD_VERSION_RELEASE  0
 
 #define ZSTD_LIB_VERSION ZSTD_VERSION_MAJOR.ZSTD_VERSION_MINOR.ZSTD_VERSION_RELEASE
 #define ZSTD_QUOTE(str) #str
@@ -290,11 +290,11 @@ ZSTDLIB_API size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* outp
 #define ZSTD_WINDOWLOG_MAX_32  25
 #define ZSTD_WINDOWLOG_MAX_64  27
 #define ZSTD_WINDOWLOG_MAX    ((U32)(MEM_32bits() ? ZSTD_WINDOWLOG_MAX_32 : ZSTD_WINDOWLOG_MAX_64))
-#define ZSTD_WINDOWLOG_MIN     18
-#define ZSTD_CHAINLOG_MAX     (ZSTD_WINDOWLOG_MAX+1)
-#define ZSTD_CHAINLOG_MIN       4
+#define ZSTD_WINDOWLOG_MIN     10
 #define ZSTD_HASHLOG_MAX       ZSTD_WINDOWLOG_MAX
-#define ZSTD_HASHLOG_MIN       12
+#define ZSTD_HASHLOG_MIN        6
+#define ZSTD_CHAINLOG_MAX     (ZSTD_WINDOWLOG_MAX+1)
+#define ZSTD_CHAINLOG_MIN      ZSTD_HASHLOG_MIN
 #define ZSTD_HASHLOG3_MAX      17
 #define ZSTD_SEARCHLOG_MAX    (ZSTD_WINDOWLOG_MAX-1)
 #define ZSTD_SEARCHLOG_MIN      1
@@ -447,7 +447,7 @@ ZSTDLIB_API size_t ZSTD_sizeof_DStream(const ZSTD_DStream* zds);
 ZSTDLIB_API size_t ZSTD_compressBegin(ZSTD_CCtx* cctx, int compressionLevel);
 ZSTDLIB_API size_t ZSTD_compressBegin_usingDict(ZSTD_CCtx* cctx, const void* dict, size_t dictSize, int compressionLevel);
 ZSTDLIB_API size_t ZSTD_compressBegin_advanced(ZSTD_CCtx* cctx, const void* dict, size_t dictSize, ZSTD_parameters params, unsigned long long pledgedSrcSize);
-ZSTDLIB_API size_t ZSTD_copyCCtx(ZSTD_CCtx* cctx, const ZSTD_CCtx* preparedCCtx);
+ZSTDLIB_API size_t ZSTD_copyCCtx(ZSTD_CCtx* cctx, const ZSTD_CCtx* preparedCCtx, unsigned long long pledgedSrcSize);
 
 ZSTDLIB_API size_t ZSTD_compressContinue(ZSTD_CCtx* cctx, void* dst, size_t dstCapacity, const void* src, size_t srcSize);
 ZSTDLIB_API size_t ZSTD_compressEnd(ZSTD_CCtx* cctx, void* dst, size_t dstCapacity, const void* src, size_t srcSize);

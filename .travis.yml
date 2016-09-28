@@ -22,7 +22,7 @@ matrix:
           packages:
             - gcc-4.8
             - g++-4.8
-      env: PLATFORM="Ubuntu 12.04 container" CMD="make -C tests test-zstd_nolegacy && make clean && make zlibwrapper && make clean && make cmaketest && make clean && make -C contrib/pzstd pzstd && make -C contrib/pzstd googletest && make -C contrib/pzstd test && make -C contrib/pzstd clean"
+      env: PLATFORM="Ubuntu 12.04 container" CMD="make zlibwrapper && make clean && make -C tests test-zstd_nolegacy && make clean && make clean && make cmaketest && make clean && make -C contrib/pzstd pzstd && make -C contrib/pzstd googletest && make -C contrib/pzstd test && make -C contrib/pzstd clean"
     - os: linux
       sudo: false
       env: PLATFORM="Ubuntu 12.04 container" CMD="make usan"
@@ -55,23 +55,30 @@ matrix:
           packages:
             - libc6-dev-i386
             - gcc-multilib
-    - os: linux
-      sudo: required
-      env: PLATFORM="Ubuntu 12.04" CMD="make -C tests valgrindTest"
-      addons:
-        apt:
-          packages:
-            - valgrind
     # Ubuntu 14.04 LTS Server Edition 64 bit
     - os: linux
       dist: trusty
       sudo: required
-      env: PLATFORM="Ubuntu 14.04" CMD="make gpptest && make clean && make gnu90test && make clean && make c99test && make clean && make gnu99test && make clean && make clangtest"
+      env: PLATFORM="Ubuntu 14.04" CMD='make -C lib all && CFLAGS="-O1 -g" make -C zlibWrapper valgrindTest && make -C tests valgrindTest'
+      addons:
+        apt:
+          packages:
+            - valgrind
+    - os: linux
+      dist: trusty
+      sudo: required
+      install:
+        - export CXX="g++-4.8" CC="gcc-4.8"
+      env: PLATFORM="Ubuntu 14.04" CMD="make gpptest && make clean && make gnu90test && make clean && make c99test && make clean && make gnu99test && make clean && make clangtest && make clean && make -C contrib/pzstd pzstd32 && make -C contrib/pzstd googletest32 && make -C contrib/pzstd test32 && make -C contrib/pzstd clean"
       addons:
         apt:
           packages:
             - libc6-dev-i386
-            - g++-multilib 
+            - g++-multilib
+            - gcc-4.8
+            - gcc-4.8-multilib
+            - g++-4.8
+            - g++-4.8-multilib
     - os: linux
       dist: trusty
       sudo: required
@@ -84,7 +91,7 @@ matrix:
     - os: linux
       dist: trusty
       sudo: required
-      env: PLATFORM="Ubuntu 14.04" CMD="make zlibwrapper && make clean && make gcc5test && make clean && make gcc6test && sudo apt-get install -y -q qemu-system-ppc binfmt-support qemu-user-static gcc-powerpc-linux-gnu && make clean && make ppctest"
+      env: PLATFORM="Ubuntu 14.04" CMD="make gcc5test && make clean && make gcc6test && sudo apt-get install -y -q qemu-system-ppc binfmt-support qemu-user-static gcc-powerpc-linux-gnu && make clean && make ppctest"
       addons:
         apt:
           sources:

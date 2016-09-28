@@ -142,21 +142,8 @@ size_t ZSTD_checkCParams(ZSTD_compressionParameters cParams)
 }
 
 
-/** ZSTD_checkCParams_advanced() :
-    temporary work-around, while the compressor compatibility remains limited regarding windowLog < 18 */
-size_t ZSTD_checkCParams_advanced(ZSTD_compressionParameters cParams, U64 srcSize)
-{
-    if (srcSize > (1ULL << ZSTD_WINDOWLOG_MIN)) return ZSTD_checkCParams(cParams);
-    if (cParams.windowLog < ZSTD_WINDOWLOG_ABSOLUTEMIN) return ERROR(compressionParameter_unsupported);
-    if (srcSize <= (1ULL << cParams.windowLog)) cParams.windowLog = ZSTD_WINDOWLOG_MIN; /* fake value - temporary work around */
-    if (srcSize <= (1ULL << cParams.chainLog)) cParams.chainLog = ZSTD_CHAINLOG_MIN;    /* fake value - temporary work around */
-    if ((srcSize <= (1ULL << cParams.hashLog)) & ((U32)cParams.strategy < (U32)ZSTD_btlazy2)) cParams.hashLog = ZSTD_HASHLOG_MIN;  /* fake value - temporary work around */
-    return ZSTD_checkCParams(cParams);
-}
-
-
 /** ZSTD_adjustCParams() :
-    optimize cPar for a given input (`srcSize` and `dictSize`).
+    optimize `cPar` for a given input (`srcSize` and `dictSize`).
     mostly downsizing to reduce memory consumption and initialization.
     Both `srcSize` and `dictSize` are optional (use 0 if unknown),
     but if both are 0, no optimization can be done.
@@ -169,7 +156,7 @@ ZSTD_compressionParameters ZSTD_adjustCParams(ZSTD_compressionParameters cPar, u
     {   U32 const minSrcSize = (srcSize==0) ? 500 : 0;
         U64 const rSize = srcSize + dictSize + minSrcSize;
         if (rSize < ((U64)1<<ZSTD_WINDOWLOG_MAX)) {
-            U32 const srcLog = MAX(4, ZSTD_highbit32((U32)(rSize)-1) + 1);
+            U32 const srcLog = MAX(ZSTD_HASHLOG_MIN, ZSTD_highbit32((U32)(rSize)-1) + 1);
             if (cPar.windowLog > srcLog) cPar.windowLog = srcLog;
     }   }
     if (cPar.hashLog > cPar.windowLog) cPar.hashLog = cPar.windowLog;
@@ -178,7 +165,6 @@ ZSTD_compressionParameters ZSTD_adjustCParams(ZSTD_compressionParameters cPar, u
         if (cPar.chainLog > maxChainLog) cPar.chainLog = maxChainLog; }   /* <= ZSTD_CHAINLOG_MAX */
 
     if (cPar.windowLog < ZSTD_WINDOWLOG_ABSOLUTEMIN) cPar.windowLog = ZSTD_WINDOWLOG_ABSOLUTEMIN;  /* required for frame header */
-    if ((cPar.hashLog  < ZSTD_HASHLOG_MIN) & ((U32)cPar.strategy >= (U32)ZSTD_btlazy2)) cPar.hashLog = ZSTD_HASHLOG_MIN;  /* required to ensure collision resistance in bt */
 
     return cPar;
 }
@@ -322,13 +308,12 @@ static size_t ZSTD_resetCCtx_advanced (ZSTD_CCtx* zc,
 *   Duplicate an existing context `srcCCtx` into another one `dstCCtx`.
 *   Only works during stage ZSTDcs_init (i.e. after creation, but before first call to ZSTD_compressContinue()).
 *   @return : 0, or an error code */
-size_t ZSTD_copyCCtx(ZSTD_CCtx* dstCCtx, const ZSTD_CCtx* srcCCtx)
+size_t ZSTD_copyCCtx(ZSTD_CCtx* dstCCtx, const ZSTD_CCtx* srcCCtx, unsigned long long pledgedSrcSize)
 {
     if (srcCCtx->stage!=ZSTDcs_init) return ERROR(stage_wrong);
 
     memcpy(&dstCCtx->customMem, &srcCCtx->customMem, sizeof(ZSTD_customMem));
-    ZSTD_resetCCtx_advanced(dstCCtx, srcCCtx->params, srcCCtx->frameContentSize, ZSTDcrp_noMemset);
-    dstCCtx->params.fParams.contentSizeFlag = 0;   /* content size different from the one set during srcCCtx init */
+    ZSTD_resetCCtx_advanced(dstCCtx, srcCCtx->params, pledgedSrcSize, ZSTDcrp_noMemset);
 
     /* copy tables */
     {   size_t const chainSize = (srcCCtx->params.cParams.strategy == ZSTD_fast) ? 0 : (1 << srcCCtx->params.cParams.chainLog);
@@ -2557,7 +2542,7 @@ size_t ZSTD_compressBegin_advanced(ZSTD_CCtx* cctx,
                                    ZSTD_parameters params, unsigned long long pledgedSrcSize)
 {
     /* compression parameters verification and optimization */
-    CHECK_F(ZSTD_checkCParams_advanced(params.cParams, pledgedSrcSize));
+    CHECK_F(ZSTD_checkCParams(params.cParams));
     return ZSTD_compressBegin_internal(cctx, dict, dictSize, params, pledgedSrcSize);
 }
 
@@ -2645,7 +2630,7 @@ size_t ZSTD_compress_advanced (ZSTD_CCtx* ctx,
                          const void* dict,size_t dictSize,
                                ZSTD_parameters params)
 {
-    CHECK_F(ZSTD_checkCParams_advanced(params.cParams, srcSize));
+    CHECK_F(ZSTD_checkCParams(params.cParams));
     return ZSTD_compress_internal(ctx, dst, dstCapacity, src, srcSize, dict, dictSize, params);
 }
 
@@ -2730,7 +2715,7 @@ ZSTD_CDict* ZSTD_createCDict(const void* dict, size_t dictSize, int compressionL
 size_t ZSTD_freeCDict(ZSTD_CDict* cdict)
 {
     if (cdict==NULL) return 0;   /* support free on NULL */
-    {   ZSTD_customMem cMem = cdict->refContext->customMem;
+    {   ZSTD_customMem const cMem = cdict->refContext->customMem;
         ZSTD_freeCCtx(cdict->refContext);
         ZSTD_free(cdict->dictContent, cMem);
         ZSTD_free(cdict, cMem);
@@ -2740,7 +2725,7 @@ size_t ZSTD_freeCDict(ZSTD_CDict* cdict)
 
 size_t ZSTD_compressBegin_usingCDict(ZSTD_CCtx* cctx, const ZSTD_CDict* cdict, U64 pledgedSrcSize)
 {
-    if (cdict->dictContentSize) CHECK_F(ZSTD_copyCCtx(cctx, cdict->refContext))
+    if (cdict->dictContentSize) CHECK_F(ZSTD_copyCCtx(cctx, cdict->refContext, pledgedSrcSize))
     else CHECK_F(ZSTD_compressBegin_advanced(cctx, NULL, 0, cdict->refContext->params, pledgedSrcSize));
     return 0;
 }
@@ -2852,7 +2837,7 @@ size_t ZSTD_initCStream_advanced(ZSTD_CStream* zcs,
     {   size_t const neededInBuffSize = (size_t)1 << params.cParams.windowLog;
         if (zcs->inBuffSize < neededInBuffSize) {
             zcs->inBuffSize = neededInBuffSize;
-            ZSTD_free(zcs->inBuff, zcs->customMem);  /* should not be necessary */
+            ZSTD_free(zcs->inBuff, zcs->customMem);
             zcs->inBuff = (char*) ZSTD_malloc(neededInBuffSize, zcs->customMem);
             if (zcs->inBuff == NULL) return ERROR(memory_allocation);
         }
@@ -2860,7 +2845,7 @@ size_t ZSTD_initCStream_advanced(ZSTD_CStream* zcs,
     }
     if (zcs->outBuffSize < ZSTD_compressBound(zcs->blockSize)+1) {
         zcs->outBuffSize = ZSTD_compressBound(zcs->blockSize)+1;
-        ZSTD_free(zcs->outBuff, zcs->customMem);   /* should not be necessary */
+        ZSTD_free(zcs->outBuff, zcs->customMem);
         zcs->outBuff = (char*) ZSTD_malloc(zcs->outBuffSize, zcs->customMem);
         if (zcs->outBuff == NULL) return ERROR(memory_allocation);
     }

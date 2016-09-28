@@ -7,8 +7,9 @@
 # of patent rights can be found in the PATENTS file in the same directory.
 # ################################################################
 
-PRGDIR  = programs
-ZSTDDIR = lib
+PRGDIR   = programs
+ZSTDDIR  = lib
+BUILDIR  = build
 ZWRAPDIR = zlibWrapper
 TESTDIR  = tests
 
@@ -33,8 +34,7 @@ zstd:
 	cp $(PRGDIR)/zstd .
 
 zlibwrapper:
-	$(MAKE) -C $(ZSTDDIR) all
-	$(MAKE) -C $(ZWRAPDIR) all
+	$(MAKE) -C $(ZWRAPDIR) test
 
 test:
 	$(MAKE) -C $(TESTDIR) $@
@@ -121,9 +121,9 @@ endif
 ifneq (,$(filter $(HOST_OS),MSYS POSIX))
 cmaketest:
 	cmake --version
-	$(RM) -r projects/cmake/build
-	mkdir projects/cmake/build
-	cd projects/cmake/build ; cmake -DPREFIX:STRING=~/install_test_dir $(CMAKE_PARAMS) .. ; $(MAKE) install ; $(MAKE) uninstall
+	$(RM) -r $(BUILDIR)/cmake/build
+	mkdir $(BUILDIR)/cmake/build
+	cd $(BUILDIR)/cmake/build ; cmake -DPREFIX:STRING=~/install_test_dir $(CMAKE_PARAMS) .. ; $(MAKE) install ; $(MAKE) uninstall
 
 c90test: clean
 	CFLAGS="-std=c90" $(MAKE) all  # will fail, due to // and long long

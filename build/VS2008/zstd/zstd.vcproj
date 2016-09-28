@@ -2,9 +2,9 @@
 <VisualStudioProject
 	ProjectType="Visual C++"
 	Version="9.00"
-	Name="zstdlib"
-	ProjectGUID="{99DE2A79-7298-4004-A0ED-030D7A3796CA}"
-	RootNamespace="zstdlib"
+	Name="zstd"
+	ProjectGUID="{1A2AB08E-5CE7-4C5B-BE55-458157C14051}"
+	RootNamespace="zstd"
 	Keyword="Win32Proj"
 	TargetFrameworkVersion="196613"
 	>
@@ -23,7 +23,7 @@
 			Name="Debug|Win32"
 			OutputDirectory="$(SolutionDir)bin\$(PlatformName)\$(ConfigurationName)"
 			IntermediateDirectory="$(PlatformName)\$(ConfigurationName)"
-			ConfigurationType="2"
+			ConfigurationType="1"
 			CharacterSet="2"
 			>
 			<Tool
@@ -44,8 +44,8 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				Optimization="0"
-				AdditionalIncludeDirectories="$(SolutionDir)..\..\lib;$(SolutionDir)..\..\lib\common;$(SolutionDir)..\..\lib\legacy;$(SolutionDir)..\..\programs\legacy;$(SolutionDir)..\..\lib\dictBuilder"
-				PreprocessorDefinitions="ZSTD_DLL_EXPORT=1;ZSTD_HEAPMODE=0;ZSTD_LEGACY_SUPPORT=0;WIN32;_DEBUG;_CONSOLE"
+				AdditionalIncludeDirectories="$(SolutionDir)..\..\lib;$(SolutionDir)..\..\lib\common;$(SolutionDir)..\..\lib\legacy;$(SolutionDir)..\..\lib\dictBuilder"
+				PreprocessorDefinitions="ZSTD_LEGACY_SUPPORT=1;WIN32;_DEBUG;_CONSOLE"
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
 				RuntimeLibrary="3"
@@ -65,6 +65,7 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
+				AdditionalDependencies="setargv.obj"
 				LinkIncremental="2"
 				GenerateDebugInformation="true"
 				SubSystem="1"
@@ -96,7 +97,7 @@
 			Name="Release|Win32"
 			OutputDirectory="$(SolutionDir)bin\$(PlatformName)\$(ConfigurationName)"
 			IntermediateDirectory="$(PlatformName)\$(ConfigurationName)"
-			ConfigurationType="2"
+			ConfigurationType="1"
 			CharacterSet="2"
 			WholeProgramOptimization="1"
 			>
@@ -120,8 +121,8 @@
 				Optimization="2"
 				EnableIntrinsicFunctions="true"
 				OmitFramePointers="true"
-				AdditionalIncludeDirectories="$(SolutionDir)..\..\lib;$(SolutionDir)..\..\lib\common;$(SolutionDir)..\..\lib\legacy;$(SolutionDir)..\..\programs\legacy;$(SolutionDir)..\..\lib\dictBuilder"
-				PreprocessorDefinitions="ZSTD_DLL_EXPORT=1;ZSTD_HEAPMODE=0;ZSTD_LEGACY_SUPPORT=0;WIN32;NDEBUG;_CONSOLE"
+				AdditionalIncludeDirectories="$(SolutionDir)..\..\lib;$(SolutionDir)..\..\lib\common;$(SolutionDir)..\..\lib\legacy;$(SolutionDir)..\..\lib\dictBuilder"
+				PreprocessorDefinitions="ZSTD_LEGACY_SUPPORT=1;WIN32;NDEBUG;_CONSOLE"
 				RuntimeLibrary="0"
 				EnableFunctionLevelLinking="true"
 				UsePrecompiledHeader="0"
@@ -139,6 +140,7 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
+				AdditionalDependencies="setargv.obj"
 				LinkIncremental="1"
 				GenerateDebugInformation="true"
 				SubSystem="1"
@@ -172,7 +174,7 @@
 			Name="Debug|x64"
 			OutputDirectory="$(SolutionDir)bin\$(PlatformName)\$(ConfigurationName)"
 			IntermediateDirectory="$(PlatformName)\$(ConfigurationName)"
-			ConfigurationType="2"
+			ConfigurationType="1"
 			CharacterSet="2"
 			>
 			<Tool
@@ -194,8 +196,8 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				Optimization="0"
-				AdditionalIncludeDirectories="$(SolutionDir)..\..\lib;$(SolutionDir)..\..\lib\common;$(SolutionDir)..\..\lib\legacy;$(SolutionDir)..\..\programs\legacy;$(SolutionDir)..\..\lib\dictBuilder"
-				PreprocessorDefinitions="ZSTD_DLL_EXPORT=1;ZSTD_HEAPMODE=0;ZSTD_LEGACY_SUPPORT=0;WIN32;_DEBUG;_CONSOLE"
+				AdditionalIncludeDirectories="$(SolutionDir)..\..\lib;$(SolutionDir)..\..\lib\common;$(SolutionDir)..\..\lib\legacy;$(SolutionDir)..\..\lib\dictBuilder"
+				PreprocessorDefinitions="ZSTD_LEGACY_SUPPORT=1;WIN32;_DEBUG;_CONSOLE"
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
 				RuntimeLibrary="3"
@@ -215,6 +217,7 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
+				AdditionalDependencies="setargv.obj"
 				LinkIncremental="2"
 				GenerateDebugInformation="true"
 				SubSystem="1"
@@ -246,7 +249,7 @@
 			Name="Release|x64"
 			OutputDirectory="$(SolutionDir)bin\$(PlatformName)\$(ConfigurationName)"
 			IntermediateDirectory="$(PlatformName)\$(ConfigurationName)"
-			ConfigurationType="2"
+			ConfigurationType="1"
 			CharacterSet="2"
 			WholeProgramOptimization="1"
 			>
@@ -271,8 +274,8 @@
 				Optimization="2"
 				EnableIntrinsicFunctions="true"
 				OmitFramePointers="true"
-				AdditionalIncludeDirectories="$(SolutionDir)..\..\lib;$(SolutionDir)..\..\lib\common;$(SolutionDir)..\..\lib\legacy;$(SolutionDir)..\..\programs\legacy;$(SolutionDir)..\..\lib\dictBuilder"
-				PreprocessorDefinitions="ZSTD_DLL_EXPORT=1;ZSTD_HEAPMODE=0;ZSTD_LEGACY_SUPPORT=0;WIN32;NDEBUG;_CONSOLE"
+				AdditionalIncludeDirectories="$(SolutionDir)..\..\lib;$(SolutionDir)..\..\lib\common;$(SolutionDir)..\..\lib\legacy;$(SolutionDir)..\..\lib\dictBuilder"
+				PreprocessorDefinitions="ZSTD_LEGACY_SUPPORT=1;WIN32;NDEBUG;_CONSOLE"
 				RuntimeLibrary="0"
 				EnableFunctionLevelLinking="true"
 				UsePrecompiledHeader="0"
@@ -290,6 +293,7 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
+				AdditionalDependencies="setargv.obj"
 				LinkIncremental="1"
 				GenerateDebugInformation="true"
 				SubSystem="1"
@@ -329,11 +333,27 @@
 			UniqueIdentifier="{4FC737F1-C7A5-4376-A066-2A32D752A2FF}"
 			>
 			<File
+				RelativePath="..\..\..\programs\bench.c"
+				>
+			</File>
+			<File
+				RelativePath="..\..\..\programs\datagen.c"
+				>
+			</File>
+			<File
+				RelativePath="..\..\..\programs\dibio.c"
+				>
+			</File>
+			<File
 				RelativePath="..\..\..\lib\dictBuilder\divsufsort.c"
 				>
 			</File>
 			<File
 				RelativePath="..\..\..\lib\common\entropy_common.c"
+				>
+			</File>
+			<File
+				RelativePath="..\..\..\programs\fileio.c"
 				>
 			</File>
 			<File
@@ -378,6 +398,38 @@
 			</File>
 			<File
 				RelativePath="..\..\..\lib\decompress\zstd_decompress.c"
+				>
+			</File>
+			<File
+				RelativePath="..\..\..\lib\legacy\zstd_v01.c"
+				>
+			</File>
+			<File
+				RelativePath="..\..\..\lib\legacy\zstd_v02.c"
+				>
+			</File>
+			<File
+				RelativePath="..\..\..\lib\legacy\zstd_v03.c"
+				>
+			</File>
+			<File
+				RelativePath="..\..\..\lib\legacy\zstd_v04.c"
+				>
+			</File>
+			<File
+				RelativePath="..\..\..\lib\legacy\zstd_v05.c"
+				>
+			</File>
+			<File
+				RelativePath="..\..\..\lib\legacy\zstd_v06.c"
+				>
+			</File>
+			<File
+				RelativePath="..\..\..\lib\legacy\zstd_v07.c"
+				>
+			</File>
+			<File
+				RelativePath="..\..\..\programs\zstdcli.c"
 				>
 			</File>
 		</Filter>
@@ -482,12 +534,14 @@
 				RelativePath="..\..\..\lib\legacy\zstd_v05.h"
 				>
 			</File>
-		</Filter>
-		<Filter
-			Name="Resource Files"
-			Filter="rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav"
-			UniqueIdentifier="{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}"
-			>
+			<File
+				RelativePath="..\..\..\lib\legacy\zstd_v06.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\..\lib\legacy\zstd_v07.h"
+				>
+			</File>
 		</Filter>
 	</Files>
 	<Globals>

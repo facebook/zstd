@@ -68,27 +68,27 @@ typedef struct { ZSTDv07_allocFunction customAlloc; ZSTDv07_freeFunction customF
 
 /*! ZSTDv07_estimateDCtxSize() :
  *  Gives the potential amount of memory allocated to create a ZSTDv07_DCtx */
-ZSTDLIB_API size_t ZSTDv07_estimateDCtxSize(void);
+ZSTDLIBv07_API size_t ZSTDv07_estimateDCtxSize(void);
 
 /*! ZSTDv07_createDCtx_advanced() :
  *  Create a ZSTD decompression context using external alloc and free functions */
-ZSTDLIB_API ZSTDv07_DCtx* ZSTDv07_createDCtx_advanced(ZSTDv07_customMem customMem);
+ZSTDLIBv07_API ZSTDv07_DCtx* ZSTDv07_createDCtx_advanced(ZSTDv07_customMem customMem);
 
 /*! ZSTDv07_sizeofDCtx() :
  *  Gives the amount of memory used by a given ZSTDv07_DCtx */
-ZSTDLIB_API size_t ZSTDv07_sizeofDCtx(const ZSTDv07_DCtx* dctx);
+ZSTDLIBv07_API size_t ZSTDv07_sizeofDCtx(const ZSTDv07_DCtx* dctx);
 
 
 /* ******************************************************************
 *  Buffer-less streaming functions (synchronous mode)
 ********************************************************************/
 
-ZSTDLIB_API size_t ZSTDv07_decompressBegin(ZSTDv07_DCtx* dctx);
-ZSTDLIB_API size_t ZSTDv07_decompressBegin_usingDict(ZSTDv07_DCtx* dctx, const void* dict, size_t dictSize);
-ZSTDLIB_API void   ZSTDv07_copyDCtx(ZSTDv07_DCtx* dctx, const ZSTDv07_DCtx* preparedDCtx);
+ZSTDLIBv07_API size_t ZSTDv07_decompressBegin(ZSTDv07_DCtx* dctx);
+ZSTDLIBv07_API size_t ZSTDv07_decompressBegin_usingDict(ZSTDv07_DCtx* dctx, const void* dict, size_t dictSize);
+ZSTDLIBv07_API void   ZSTDv07_copyDCtx(ZSTDv07_DCtx* dctx, const ZSTDv07_DCtx* preparedDCtx);
 
-ZSTDLIB_API size_t ZSTDv07_nextSrcSizeToDecompress(ZSTDv07_DCtx* dctx);
-ZSTDLIB_API size_t ZSTDv07_decompressContinue(ZSTDv07_DCtx* dctx, void* dst, size_t dstCapacity, const void* src, size_t srcSize);
+ZSTDLIBv07_API size_t ZSTDv07_nextSrcSizeToDecompress(ZSTDv07_DCtx* dctx);
+ZSTDLIBv07_API size_t ZSTDv07_decompressContinue(ZSTDv07_DCtx* dctx, void* dst, size_t dstCapacity, const void* src, size_t srcSize);
 
 /*
   Buffer-less streaming decompression (synchronous mode)
@@ -169,8 +169,8 @@ ZSTDLIB_API size_t ZSTDv07_decompressContinue(ZSTDv07_DCtx* dctx, void* dst, siz
 */
 
 #define ZSTDv07_BLOCKSIZE_ABSOLUTEMAX (128 * 1024)   /* define, for static allocation */
-ZSTDLIB_API size_t ZSTDv07_decompressBlock(ZSTDv07_DCtx* dctx, void* dst, size_t dstCapacity, const void* src, size_t srcSize);
-ZSTDLIB_API size_t ZSTDv07_insertBlock(ZSTDv07_DCtx* dctx, const void* blockStart, size_t blockSize);  /**< insert block into `dctx` history. Useful for uncompressed blocks */
+ZSTDLIBv07_API size_t ZSTDv07_decompressBlock(ZSTDv07_DCtx* dctx, void* dst, size_t dstCapacity, const void* src, size_t srcSize);
+ZSTDLIBv07_API size_t ZSTDv07_insertBlock(ZSTDv07_DCtx* dctx, const void* blockStart, size_t blockSize);  /**< insert block into `dctx` history. Useful for uncompressed blocks */
 
 
 #endif   /* ZSTDv07_STATIC_LINKING_ONLY */
@@ -650,8 +650,8 @@ MEM_STATIC size_t BITv07_readBitsFast(BITv07_DStream_t* bitD, U32 nbBits)
               if status == unfinished, internal register is filled with >= (sizeof(bitD->bitContainer)*8 - 7) bits */
 MEM_STATIC BITv07_DStream_status BITv07_reloadDStream(BITv07_DStream_t* bitD)
 {
-	if (bitD->bitsConsumed > (sizeof(bitD->bitContainer)*8))  /* should not happen => corruption detected */
-		return BITv07_DStream_overflow;
+    if (bitD->bitsConsumed > (sizeof(bitD->bitContainer)*8))  /* should not happen => corruption detected */
+        return BITv07_DStream_overflow;
 
     if (bitD->ptr >= bitD->start + sizeof(bitD->bitContainer)) {
         bitD->ptr -= bitD->bitsConsumed >> 3;
@@ -3831,7 +3831,7 @@ size_t ZSTDv07_decompressBlock(ZSTDv07_DCtx* dctx,
 
 /** ZSTDv07_insertBlock() :
     insert `src` block into `dctx` history. Useful to track uncompressed blocks. */
-ZSTDLIB_API size_t ZSTDv07_insertBlock(ZSTDv07_DCtx* dctx, const void* blockStart, size_t blockSize)
+ZSTDLIBv07_API size_t ZSTDv07_insertBlock(ZSTDv07_DCtx* dctx, const void* blockStart, size_t blockSize)
 {
     ZSTDv07_checkContinuity(dctx, blockStart);
     dctx->previousDstEnd = (const char*)blockStart + blockSize;
@@ -4233,7 +4233,7 @@ size_t ZSTDv07_freeDDict(ZSTDv07_DDict* ddict)
 /*! ZSTDv07_decompress_usingDDict() :
 *   Decompression using a pre-digested Dictionary
 *   Use dictionary without significant overhead. */
-ZSTDLIB_API size_t ZSTDv07_decompress_usingDDict(ZSTDv07_DCtx* dctx,
+ZSTDLIBv07_API size_t ZSTDv07_decompress_usingDDict(ZSTDv07_DCtx* dctx,
                                            void* dst, size_t dstCapacity,
                                      const void* src, size_t srcSize,
                                      const ZSTDv07_DDict* ddict)
@@ -4320,7 +4320,7 @@ struct ZBUFFv07_DCtx_s {
     ZSTDv07_customMem customMem;
 };   /* typedef'd to ZBUFFv07_DCtx within "zstd_buffered.h" */
 
-ZSTDLIB_API ZBUFFv07_DCtx* ZBUFFv07_createDCtx_advanced(ZSTDv07_customMem customMem);
+ZSTDLIBv07_API ZBUFFv07_DCtx* ZBUFFv07_createDCtx_advanced(ZSTDv07_customMem customMem);
 
 ZBUFFv07_DCtx* ZBUFFv07_createDCtx(void)
 {

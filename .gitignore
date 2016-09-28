@@ -21,7 +21,7 @@ zstd
 
 # Test artefacts
 tmp*
-dictionary
+dictionary*
 
 # Other files
 .directory

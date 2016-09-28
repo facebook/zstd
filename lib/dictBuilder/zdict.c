@@ -505,7 +505,8 @@ static size_t ZDICT_trainBuffer(dictItem* dictList, U32 dictListSize,
     {   size_t pos;
         for (pos=0; pos < bufferSize; pos++)
             reverseSuffix[suffix[pos]] = (U32)pos;
-        /* build file pos */
+        /* note filePos tracks borders between samples.
+           It's not used at this stage, but planned to become useful in a later update */
         filePos[0] = 0;
         for (pos=1; pos<nbFiles; pos++)
             filePos[pos] = (U32)(filePos[pos-1] + fileSizes[pos-1]);
@@ -563,7 +564,7 @@ static void ZDICT_countEStats(EStats_ress_t esr, ZSTD_parameters params,
     size_t cSize;
 
     if (srcSize > blockSizeMax) srcSize = blockSizeMax;   /* protection vs large samples */
-    {  size_t const errorCode = ZSTD_copyCCtx(esr.zc, esr.ref);
+    {  size_t const errorCode = ZSTD_copyCCtx(esr.zc, esr.ref, 0);
             if (ZSTD_isError(errorCode)) { DISPLAYLEVEL(1, "warning : ZSTD_copyCCtx failed \n"); return; }
     }
     cSize = ZSTD_compressBlock(esr.zc, esr.workPlace, ZSTD_BLOCKSIZE_ABSOLUTEMAX, src, srcSize);

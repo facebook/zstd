@@ -44,7 +44,7 @@ matrix:
             - qemu-user-static
     - os: linux
       sudo: required
-      env: PLATFORM="Ubuntu 12.04" CMD="make -C programs zstd-small && make -C programs zstd-decompress && make -C programs zstd-compress && make -C tests versionsTest"
+      env: PLATFORM="Ubuntu 12.04" CMD="make -C programs zstd-small && make -C programs zstd-decompress && make -C programs zstd-compress && make clean && make -C tests versionsTest"
     - os: linux
       sudo: required
       env: PLATFORM="Ubuntu 12.04" CMD="make asan32"

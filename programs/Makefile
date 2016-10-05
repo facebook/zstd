@@ -70,7 +70,7 @@ VOID = /dev/null
 endif
 
 
-.PHONY: default all clean install uninstall
+.PHONY: default all clean clean_decomp_o install uninstall
 
 default: zstd
 
@@ -92,7 +92,7 @@ zstd32 : $(ZSTDDECOMP32_O) $(ZSTD_FILES) $(ZSTDLEGACY_FILES) $(ZDICT_FILES) \
 	$(CC)  -m32 $(FLAGS) -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT) $^ $(RES32_FILE) -o $@$(EXT)
 
 
-zstd_nolegacy :
+zstd_nolegacy : clean_decomp_o
 	$(MAKE) zstd ZSTD_LEGACY_SUPPORT=0
 
 zstd-pgo : MOREFLAGS = -fprofile-generate
@@ -108,18 +108,19 @@ zstd-pgo : clean zstd
 	$(MAKE) zstd MOREFLAGS=-fprofile-use
 
 zstd-frugal: $(ZSTDDECOMP_O) $(ZSTD_FILES) zstdcli.c fileio.c
-	$(CC)      $(FLAGS) -DZSTD_NOBENCH -DZSTD_NODICT -DZSTD_LEGACY_SUPPORT=0 $^ -o zstd$(EXT)
+	$(CC)      $(FLAGS) -DZSTD_NOBENCH -DZSTD_NODICT $^ -o zstd$(EXT)
 
-zstd-compress: $(ZSTDCOMMON_FILES) $(ZSTDCOMP_FILES) \
-	zstdcli.c fileio.c
-	$(CC)      $(FLAGS) -DZSTD_NOBENCH -DZSTD_NODICT -DZSTD_NODECOMPRESS -DZSTD_LEGACY_SUPPORT=0 $^ -o $@$(EXT)
+zstd-small: clean_decomp_o
+	ZSTD_LEGACY_SUPPORT=0 CFLAGS="-Os -s" $(MAKE) zstd-frugal
 
-zstd-decompress: $(ZSTDCOMMON_FILES) $(ZSTDDECOMP_FILES) \
-	zstdcli.c fileio.c
-	$(CC)      $(FLAGS) -DZSTD_NOBENCH -DZSTD_NODICT -DZSTD_NOCOMPRESS -DZSTD_LEGACY_SUPPORT=0 $^ -o $@$(EXT)
+zstd-decompress-clean: $(ZSTDDECOMP_O) $(ZSTDCOMMON_FILES) $(ZSTDDECOMP_FILES) zstdcli.c fileio.c
+	$(CC)      $(FLAGS) -DZSTD_NOBENCH -DZSTD_NODICT -DZSTD_NOCOMPRESS $^ -o zstd-decompress$(EXT)
 
-zstd-small: clean
-	CFLAGS="-Os -s" $(MAKE) zstd-frugal
+zstd-decompress: clean_decomp_o
+	ZSTD_LEGACY_SUPPORT=0 $(MAKE) zstd-decompress-clean
+
+zstd-compress: $(ZSTDCOMMON_FILES) $(ZSTDCOMP_FILES) zstdcli.c fileio.c
+	$(CC)      $(FLAGS) -DZSTD_NOBENCH -DZSTD_NODICT -DZSTD_NODECOMPRESS $^ -o $@$(EXT)
 
 
 clean:
@@ -129,6 +130,10 @@ clean:
         zstd$(EXT) zstd32$(EXT) zstd-compress$(EXT) zstd-decompress$(EXT) \
         *.gcda default.profraw
 	@echo Cleaning completed
+
+clean_decomp_o:
+	@$(RM) $(ZSTDDECOMP_O)
+	@$(RM) $(ZSTDDECOMP32_O)
 
 
 #----------------------------------------------------------------------------------

@@ -1,26 +1,10 @@
-# Object files
-*.o
-*.ko
-
-# Libraries
-*.lib
-*.a
-
-# Shared objects (inc. Windows DLLs)
-*.dll
-*.so
-*.so.*
-*.dylib
-
-# Executables
-*.exe
-*.out
-*.app
-
 # Default result files
 _*
-example
-example_zstd
+example.*
+example_zstd.*
+fitblk.*
+fitblk_zstd.* 
+zwrapbench.*
 foo.gz
 
 # Misc files

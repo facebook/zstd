@@ -231,7 +231,8 @@ int main(int argCount, const char* argv[])
     /* init */
     (void)recursive; (void)cLevelLast;    /* not used when ZSTD_NOBENCH set */
     (void)dictCLevel; (void)dictSelect; (void)dictID;  /* not used when ZSTD_NODICT set */
-    (void)decode; (void)cLevel; /* not used when ZSTD_NOCOMPRESS set */
+    (void)decode; (void)cLevel; (void)testmode;/* not used when ZSTD_NOCOMPRESS set */
+    (void)ultra; /* not used when ZSTD_NODECOMPRESS set */
     if (filenameTable==NULL) { DISPLAY("zstd: %s \n", strerror(errno)); exit(1); }
     filenameTable[0] = stdinmark;
     displayOut = stderr;
@@ -490,12 +491,14 @@ int main(int argCount, const char* argv[])
         CLEAN_RETURN(filenameIdx);
     }
 
+#ifndef ZSTD_NOCOMPRESS
     /* check compression level limits */
     {   int const maxCLevel = ultra ? ZSTD_maxCLevel() : ZSTDCLI_CLEVEL_MAX;
         if (cLevel > maxCLevel) {
             DISPLAYLEVEL(2, "Warning : compression level higher than max, reduced to %i \n", maxCLevel);
             cLevel = maxCLevel;
     }   }
+#endif
 
     /* No warning message in pipe mode (stdin + stdout) or multi-files mode */
     if (!strcmp(filenameTable[0], stdinmark) && outFileName && !strcmp(outFileName,stdoutmark) && (displayLevel==2)) displayLevel=1;

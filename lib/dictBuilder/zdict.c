@@ -911,7 +911,7 @@ size_t ZDICT_trainFromBuffer_unsafe(
 
     /* create dictionary */
     {   U32 dictContentSize = ZDICT_dictSize(dictList);
-        if (dictContentSize < targetDictSize/2) {
+        if (dictContentSize < targetDictSize/3) {
             DISPLAYLEVEL(2, "!  warning : selected content significantly smaller than requested (%u < %u) \n", dictContentSize, (U32)maxDictSize);
             if (minRep > MINRATIO) {
                 DISPLAYLEVEL(2, "!  consider increasing selectivity to produce larger dictionary (-s%u) \n", selectivity+1);
@@ -921,12 +921,12 @@ size_t ZDICT_trainFromBuffer_unsafe(
                 DISPLAYLEVEL(2, "!  consider increasing the number of samples (total size : %u MB)\n", (U32)(samplesBuffSize>>20));
         }
 
-        if ((dictContentSize > targetDictSize*2) && (nbSamples > 2*MINRATIO) && (selectivity>1)) {
+        if ((dictContentSize > targetDictSize*3) && (nbSamples > 2*MINRATIO) && (selectivity>1)) {
             U32 proposedSelectivity = selectivity-1;
             while ((nbSamples >> proposedSelectivity) <= MINRATIO) { proposedSelectivity--; }
             DISPLAYLEVEL(2, "!  note : calculated dictionary significantly larger than requested (%u > %u) \n", dictContentSize, (U32)maxDictSize);
-            DISPLAYLEVEL(2, "!  you may consider decreasing selectivity to produce denser dictionary (-s%u) \n", proposedSelectivity);
-            DISPLAYLEVEL(2, "!  but test its efficiency on samples \n");
+            DISPLAYLEVEL(2, "!  consider increasing dictionary size, or produce denser dictionary (-s%u) \n", proposedSelectivity);
+            DISPLAYLEVEL(2, "!  always test dictionary efficiency on samples \n");
         }
 
         /* limit dictionary size */

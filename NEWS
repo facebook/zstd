@@ -1,7 +1,9 @@
 v1.1.0
 New : contrib/pzstd, parallel version of zstd, by Nick Terrell
 added : NetBSD install target (#338)
-Improved : speed improvements for batches of small files.
+Improved : speed for batches of small files
+Improved : speed of zlib wrapper, by Przemyslaw Skibinski
+Changed : libzstd on Windows supports legacy formats, by Christophe Chevalier
 Fixed : CLI -d output to stdout by default when input is stdin (#322)
 Fixed : CLI correctly detects console on Mac OS-X
 Fixed : CLI supports recursive mode `-r` on Mac OS-X

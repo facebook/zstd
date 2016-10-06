@@ -37,9 +37,8 @@ default: pzstd
 all: pzstd
 
 
-libzstd.a: $(ZSTD_FILES)
+$(ZSTDDIR)/libzstd.a: $(ZSTD_FILES)
 	$(MAKE) -C $(ZSTDDIR) libzstd
-	@cp $(ZSTDDIR)/libzstd.a .
 
 Pzstd.o: Pzstd.h Pzstd.cpp ErrorHolder.h utils/*.h
 	$(CXX) $(FLAGS) -c Pzstd.cpp -o $@
@@ -53,12 +52,11 @@ Options.o: Options.h Options.cpp
 main.o: main.cpp *.h utils/*.h
 	$(CXX) $(FLAGS) -c main.cpp -o $@
 
-pzstd: Pzstd.o SkippableFrame.o Options.o main.o libzstd.a
+pzstd: Pzstd.o SkippableFrame.o Options.o main.o $(ZSTDDIR)/libzstd.a
 	$(CXX) $(FLAGS) $^ -o $@$(EXT) -lpthread
 
-libzstd32.a: $(ZSTD_FILES)
+$(ZSTDDIR)/libzstd32.a: $(ZSTD_FILES)
 	$(MAKE) -C $(ZSTDDIR) libzstd MOREFLAGS="-m32"
-	@cp $(ZSTDDIR)/libzstd.a libzstd32.a
 
 Pzstd32.o: Pzstd.h Pzstd.cpp ErrorHolder.h utils/*.h
 	$(CXX) -m32 $(FLAGS) -c Pzstd.cpp -o $@
@@ -94,7 +92,7 @@ googletest-mingw64:
 	cd googletest/build && cmake -G "MSYS Makefiles" .. && $(MAKE)
 
 test:
-	$(MAKE) libzstd.a
+	$(MAKE) $(ZSTDDIR)/libzstd.a
 	$(MAKE) pzstd MOREFLAGS="-Wall -Wextra -pedantic -Werror"
 	$(MAKE) -C utils/test clean
 	$(MAKE) -C utils/test test MOREFLAGS="-Wall -Wextra -pedantic -Werror"
@@ -102,7 +100,7 @@ test:
 	$(MAKE) -C test test MOREFLAGS="-Wall -Wextra -pedantic -Werror"
 
 test32:
-	$(MAKE) libzstd.a MOREFLAGS="-m32"
+	$(MAKE) $(ZSTDDIR)/libzstd.a MOREFLAGS="-m32"
 	$(MAKE) pzstd MOREFLAGS="-m32 -Wall -Wextra -pedantic -Werror"
 	$(MAKE) -C utils/test clean
 	$(MAKE) -C utils/test test MOREFLAGS="-m32 -Wall -Wextra -pedantic -Werror"
@@ -114,5 +112,5 @@ clean:
 	$(MAKE) -C $(ZSTDDIR) clean
 	$(MAKE) -C utils/test clean
 	$(MAKE) -C test clean
-	@$(RM) -rf libzstd.a *.o pzstd$(EXT) pzstd32$(EXT)
+	@$(RM) -rf $(ZSTDDIR)/libzstd.a *.o pzstd$(EXT) pzstd32$(EXT)
 	@echo Cleaning completed

@@ -30,7 +30,29 @@ extern "C" {
 #endif
 
 
-/* =======   Version   =======*/
+/*******************************************************************************************************
+  Introduction
+
+  Zstd, short for Zstandard, is a fast lossless compression algorithm, targeting real-time compression scenarios
+  at zlib-level and better compression ratios. The zstd compression library provides in-memory compression and
+  decompression functions. The library supports compression levels from 1 up to ZSTD_maxCLevel() which is 22.
+  Levels from 20 to 22 should be used with caution as they require about 300-1300 MB for compression.
+  Compression can be done in:
+    - a single step (described as Simple API)
+    - a single step, reusing a context (described as Explicit memory management)
+    - repeated calls of the compression function (described as Streaming compression)
+  The compression ratio achievable on small data can be highly improved using compression with a dictionary in:
+    - a single step (described as Simple dictionary API)
+    - a single step, reusing a dictionary (described as Fast Dictionary API)
+
+  Advanced and experimantal functions can be accessed using #define ZSTD_STATIC_LINKING_ONLY before including zstd.h.
+  These APIs shall never be used with a dynamic library. 
+  They are not "stable", their definition may change in the future. Only static linking is allowed.
+*********************************************************************************************************/
+
+/*------   Version   ------*/
+ZSTDLIB_API unsigned ZSTD_versionNumber (void);  /**< returns version number of ZSTD */
+
 #define ZSTD_VERSION_MAJOR    1
 #define ZSTD_VERSION_MINOR    1
 #define ZSTD_VERSION_RELEASE  0
@@ -41,7 +63,6 @@ extern "C" {
 #define ZSTD_VERSION_STRING ZSTD_EXPAND_AND_QUOTE(ZSTD_LIB_VERSION)
 
 #define ZSTD_VERSION_NUMBER  (ZSTD_VERSION_MAJOR *100*100 + ZSTD_VERSION_MINOR *100 + ZSTD_VERSION_RELEASE)
-ZSTDLIB_API unsigned ZSTD_versionNumber (void);
 
 
 /***************************************
@@ -138,11 +159,15 @@ ZSTDLIB_API size_t ZSTD_decompress_usingDict(ZSTD_DCtx* dctx,
 /****************************
 *  Fast Dictionary API
 ****************************/
+typedef struct ZSTD_CDict_s ZSTD_CDict;
+
 /*! ZSTD_createCDict() :
 *   Create a digested dictionary, ready to start compression operation without startup delay.
 *   `dict` can be released after ZSTD_CDict creation */
-typedef struct ZSTD_CDict_s ZSTD_CDict;
 ZSTDLIB_API ZSTD_CDict* ZSTD_createCDict(const void* dict, size_t dictSize, int compressionLevel);
+
+/*! ZSTD_freeCDict() :
+*   Function frees memory allocated with ZSTD_createCDict() */
 ZSTDLIB_API size_t      ZSTD_freeCDict(ZSTD_CDict* CDict);
 
 /*! ZSTD_compress_usingCDict() :
@@ -154,11 +179,16 @@ ZSTDLIB_API size_t ZSTD_compress_usingCDict(ZSTD_CCtx* cctx,
                                       const void* src, size_t srcSize,
                                       const ZSTD_CDict* cdict);
 
+
+typedef struct ZSTD_DDict_s ZSTD_DDict;
+
 /*! ZSTD_createDDict() :
 *   Create a digested dictionary, ready to start decompression operation without startup delay.
 *   `dict` can be released after creation */
-typedef struct ZSTD_DDict_s ZSTD_DDict;
 ZSTDLIB_API ZSTD_DDict* ZSTD_createDDict(const void* dict, size_t dictSize);
+
+/*! ZSTD_freeDDict() :
+*   Function frees memory allocated with ZSTD_createDDict() */
 ZSTDLIB_API size_t      ZSTD_freeDDict(ZSTD_DDict* ddict);
 
 /*! ZSTD_decompress_usingDDict() :
@@ -275,7 +305,7 @@ ZSTDLIB_API size_t ZSTD_DStreamOutSize(void);   /*!< recommended size for output
 #ifdef ZSTD_STATIC_LINKING_ONLY
 
 /****************************************************************************************
- * START OF EXPERIMENTAL FUNCTIONS
+ * START OF ADVANCED AND EXPERIMENTAL FUNCTIONS
  * The definitions in this section are considered experimental.
  * They should never be used with a dynamic library, as they may change in the future.
  * They are provided for advanced usages.

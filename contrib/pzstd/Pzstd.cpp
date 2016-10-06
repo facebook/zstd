@@ -183,8 +183,6 @@ int pzstdMain(const Options &options) {
           std::fprintf(stderr, "pzstd: %s: %s.\n", input.c_str(),
                        errorHolder.getError().c_str());
         }
-      } else {
-
       }
     });
     // Open the input file

@@ -28,6 +28,7 @@ class WorkQueue {
   std::mutex mutex_;
   std::condition_variable readerCv_;
   std::condition_variable writerCv_;
+  std::condition_variable finishCv_;
 
   std::queue<T> queue_;
   bool done_;
@@ -124,19 +125,14 @@ class WorkQueue {
     }
     readerCv_.notify_all();
     writerCv_.notify_all();
+    finishCv_.notify_all();
   }
 
   /// Blocks until `finish()` has been called (but the queue may not be empty).
   void waitUntilFinished() {
     std::unique_lock<std::mutex> lock(mutex_);
     while (!done_) {
-      readerCv_.wait(lock);
-      // If we were woken by a push, we need to wake a thread waiting on pop().
-      if (!done_) {
-        lock.unlock();
-        readerCv_.notify_one();
-        lock.lock();
-      }
+      finishCv_.wait(lock);
     }
   }
 };

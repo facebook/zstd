@@ -188,7 +188,7 @@ typedef struct ZSTD_outBuffer_s {
 
 
 
-/*************************************************************************
+/*-***********************************************************************
 *  Streaming compression - howto
 *
 *  A ZSTD_CStream object is required to track streaming operation.
@@ -238,7 +238,7 @@ ZSTDLIB_API size_t ZSTD_CStreamOutSize(void);   /**< recommended size for output
 
 
 
-/*****************************************************************************
+/*-***************************************************************************
 *  Streaming decompression howto
 *
 *  A ZSTD_DStream object is required to track streaming operations.
@@ -482,7 +482,7 @@ ZSTDLIB_API size_t ZSTD_compressEnd(ZSTD_CCtx* cctx, void* dst, size_t dstCapaci
 
 
 
-/**
+/*-
   Buffer-less streaming decompression (synchronous mode)
 
   A ZSTD_DCtx object is required to track streaming operations.

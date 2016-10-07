@@ -15,6 +15,7 @@
 #include "utils/WorkQueue.h"
 
 #include <chrono>
+#include <cinttypes>
 #include <cstddef>
 #include <cstdio>
 #include <memory>
@@ -104,11 +105,12 @@ static std::uint64_t handleOneInput(const Options &options,
     if (!options.decompress) {
       double ratio = static_cast<double>(bytesWritten) /
                      static_cast<double>(bytesRead + !bytesRead);
-      std::fprintf(stderr, "%-20s :%6.2f%%   (%6llu => %6llu bytes, %s)\n",
+      std::fprintf(stderr, "%-20s :%6.2f%%   (%6" PRIu64 " => %6" PRIu64
+                   " bytes, %s)\n",
                    inputFileName.c_str(), ratio * 100, bytesRead, bytesWritten,
                    outputFileName.c_str());
     } else {
-      std::fprintf(stderr, "%-20s: %llu bytes \n",
+      std::fprintf(stderr, "%-20s: %" PRIu64 " bytes \n",
                    inputFileName.c_str(),bytesWritten);
     }
   }

@@ -55,6 +55,20 @@ matrix:
           packages:
             - libc6-dev-i386
             - gcc-multilib
+    - os: linux
+      sudo: required
+      install:
+        - export CXX="g++-6" CC="gcc-6"
+        - export LDFLAGS="-fuse-ld=gold"
+        - export TESTFLAGS='--gtest_filter=-*ExtremelyLarge*'
+      env: PLATFORM="Ubuntu 12.04" CMD='cd contrib/pzstd && make googletest && make tsan && make check && make clean && make asan && make check && make clean && cd ../..'
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+          packages:
+            - gcc-6
+            - g++-6
     # Ubuntu 14.04 LTS Server Edition 64 bit
     - os: linux
       dist: trusty

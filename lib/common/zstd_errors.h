@@ -7,8 +7,8 @@
  * of patent rights can be found in the PATENTS file in the same directory.
  */
 
-#ifndef ERROR_PUBLIC_H_MODULE
-#define ERROR_PUBLIC_H_MODULE
+#ifndef ZSTD_ERRORS_H_398273423
+#define ZSTD_ERRORS_H_398273423
 
 #if defined (__cplusplus)
 extern "C" {
@@ -56,4 +56,4 @@ const char* ZSTD_getErrorString(ZSTD_ErrorCode code);
 }
 #endif
 
-#endif /* ERROR_PUBLIC_H_MODULE */
+#endif /* ZSTD_ERRORS_H_398273423 */

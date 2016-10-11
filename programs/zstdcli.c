@@ -8,13 +8,6 @@
  */
 
 
-/*
-  Note : this is a user program, not part of libzstd.
-  The license of libzstd is BSD.
-  The license of this command line program is GPLv2.
-*/
-
-
 /*-************************************
 *  Tuning parameters
 **************************************/

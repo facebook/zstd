@@ -8,13 +8,6 @@
  */
 
 
-/*
-  Note : this file is part of zstd command line, which is not library.
-  The license of ZSTD library is BSD.
-  The license of this file is GPLv2.
-*/
-
-
 /* *************************************
  *  Tuning options
  ***************************************/

@@ -97,7 +97,7 @@ install: libzstd libzstd.pc
 	@cp -a libzstd.pc $(DESTDIR)$(LIBDIR)/pkgconfig/
 	@install -m 644 libzstd.a $(DESTDIR)$(LIBDIR)/libzstd.a
 	@install -m 644 zstd.h $(DESTDIR)$(INCLUDEDIR)/zstd.h
-	@install -m 644 zstd_errors.h $(DESTDIR)$(INCLUDEDIR)/zstd_errors.h
+	@install -m 644 common/zstd_errors.h $(DESTDIR)$(INCLUDEDIR)/zstd_errors.h
 	@install -m 644 common/zbuff.h $(DESTDIR)$(INCLUDEDIR)/zbuff.h   # Deprecated streaming functions
 	@install -m 644 dictBuilder/zdict.h $(DESTDIR)$(INCLUDEDIR)/zdict.h
 	@echo zstd static and shared library installed

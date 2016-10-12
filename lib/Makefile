@@ -103,15 +103,15 @@ install: libzstd libzstd.pc
 	@echo zstd static and shared library installed
 
 uninstall:
-	$(RM) $(DESTDIR)$(LIBDIR)/libzstd.$(SHARED_EXT)
-	$(RM) $(DESTDIR)$(LIBDIR)/libzstd.$(SHARED_EXT_MAJOR)
-	$(RM) $(DESTDIR)$(LIBDIR)/pkgconfig/libzstd.pc
-	$(RM) $(DESTDIR)$(LIBDIR)/libzstd.$(SHARED_EXT_VER)
-	$(RM) $(DESTDIR)$(LIBDIR)/libzstd.a
-	$(RM) $(DESTDIR)$(INCLUDEDIR)/zstd.h
-	$(RM) $(DESTDIR)$(INCLUDEDIR)/zstd_errors.h
-	$(RM) $(DESTDIR)$(INCLUDEDIR)/zbuff.h   # Deprecated streaming functions
-	$(RM) $(DESTDIR)$(INCLUDEDIR)/zdict.h
+	@$(RM) $(DESTDIR)$(LIBDIR)/libzstd.a
+	@$(RM) $(DESTDIR)$(LIBDIR)/libzstd.$(SHARED_EXT)
+	@$(RM) $(DESTDIR)$(LIBDIR)/libzstd.$(SHARED_EXT_MAJOR)
+	@$(RM) $(DESTDIR)$(LIBDIR)/libzstd.$(SHARED_EXT_VER)
+	@$(RM) $(DESTDIR)$(LIBDIR)/pkgconfig/libzstd.pc
+	@$(RM) $(DESTDIR)$(INCLUDEDIR)/zstd.h
+	@$(RM) $(DESTDIR)$(INCLUDEDIR)/zstd_errors.h
+	@$(RM) $(DESTDIR)$(INCLUDEDIR)/zbuff.h   # Deprecated streaming functions
+	@$(RM) $(DESTDIR)$(INCLUDEDIR)/zdict.h
 	@echo zstd libraries successfully uninstalled
 
 endif

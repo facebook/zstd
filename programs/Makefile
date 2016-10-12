@@ -153,11 +153,11 @@ install: zstd
 	@echo zstd installation completed
 
 uninstall:
-	$(RM) $(DESTDIR)$(BINDIR)/zstdcat
-	$(RM) $(DESTDIR)$(BINDIR)/unzstd
-	$(RM) $(DESTDIR)$(BINDIR)/zstd$(EXT)
-	$(RM) $(DESTDIR)$(MANDIR)/zstdcat.1
-	$(RM) $(DESTDIR)$(MANDIR)/unzstd.1
-	$(RM) $(DESTDIR)$(MANDIR)/zstd.1
+	@$(RM) $(DESTDIR)$(BINDIR)/zstdcat
+	@$(RM) $(DESTDIR)$(BINDIR)/unzstd
+	@$(RM) $(DESTDIR)$(BINDIR)/zstd$(EXT)
+	@$(RM) $(DESTDIR)$(MANDIR)/zstdcat.1
+	@$(RM) $(DESTDIR)$(MANDIR)/unzstd.1
+	@$(RM) $(DESTDIR)$(MANDIR)/zstd.1
 	@echo zstd programs successfully uninstalled
 endif

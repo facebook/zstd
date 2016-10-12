@@ -3107,8 +3107,13 @@ static size_t ZSTD_execSequence(BYTE* op,
             op = oLitEnd + length1;
             sequence.matchLength -= length1;
             match = base;
+            if (op > oend_8) {
+              memmove(op, match, sequence.matchLength);
+              return sequenceLength;
+            }
         }
     }
+    /* Requirement: op <= oend_8 */
 
     /* match within prefix */
     if (sequence.offset < 8)

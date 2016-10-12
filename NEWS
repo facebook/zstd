@@ -1,3 +1,5 @@
+v1.1.1
+
 v1.1.0
 New : contrib/pzstd, parallel version of zstd, by Nick Terrell
 added : NetBSD install target (#338)

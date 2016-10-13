@@ -173,9 +173,9 @@ static FILE *openOutputFile(const Options &options,
 
 int pzstdMain(const Options &options) {
   int returnCode = 0;
+  SharedState state(options.decompress, options.determineParameters());
   for (const auto& input : options.inputFiles) {
-    // Setup the error holder
-    SharedState state;
+    // Setup the shared state
     auto printErrorGuard = makeScopeGuard([&] {
       if (state.errorHolder.hasError()) {
         returnCode = 1;
@@ -271,24 +271,21 @@ Buffer split(Buffer& buffer, ZSTD_outBuffer& outBuffer) {
  * @param in           Queue that we `pop()` input buffers from
  * @param out          Queue that we `push()` compressed output buffers to
  * @param maxInputSize An upper bound on the size of the input
- * @param parameters   The zstd parameters to use for compression
  */
 static void compress(
     SharedState& state,
     std::shared_ptr<BufferWorkQueue> in,
     std::shared_ptr<BufferWorkQueue> out,
-    size_t maxInputSize,
-    ZSTD_parameters parameters) {
+    size_t maxInputSize) {
   auto& errorHolder = state.errorHolder;
   auto guard = makeScopeGuard([&] { out->finish(); });
   // Initialize the CCtx
-  std::unique_ptr<ZSTD_CStream, size_t (*)(ZSTD_CStream*)> ctx(
-      ZSTD_createCStream(), ZSTD_freeCStream);
+  auto ctx = state.cStreamPool->get();
   if (!errorHolder.check(ctx != nullptr, "Failed to allocate ZSTD_CStream")) {
     return;
   }
   {
-    auto err = ZSTD_initCStream_advanced(ctx.get(), nullptr, 0, parameters, 0);
+    auto err = ZSTD_resetCStream(ctx.get(), 0);
     if (!errorHolder.check(!ZSTD_isError(err), ZSTD_getErrorName(err))) {
       return;
     }
@@ -416,9 +413,9 @@ std::uint64_t asyncCompressChunks(
     // Make a new output queue that compress will put the compressed data into.
     auto out = std::make_shared<BufferWorkQueue>();
     // Start compression in the thread pool
-    executor.add([&state, in, out, step, params] {
+    executor.add([&state, in, out, step] {
       return compress(
-          state, std::move(in), std::move(out), step, params);
+          state, std::move(in), std::move(out), step);
     });
     // Pass the output queue to the writer thread.
     chunks.push(std::move(out));
@@ -445,13 +442,12 @@ static void decompress(
   auto& errorHolder = state.errorHolder;
   auto guard = makeScopeGuard([&] { out->finish(); });
   // Initialize the DCtx
-  std::unique_ptr<ZSTD_DStream, size_t (*)(ZSTD_DStream*)> ctx(
-      ZSTD_createDStream(), ZSTD_freeDStream);
+  auto ctx = state.dStreamPool->get();
   if (!errorHolder.check(ctx != nullptr, "Failed to allocate ZSTD_DStream")) {
     return;
   }
   {
-    auto err = ZSTD_initDStream(ctx.get());
+    auto err = ZSTD_resetDStream(ctx.get());
     if (!errorHolder.check(!ZSTD_isError(err), ZSTD_getErrorName(err))) {
       return;
     }

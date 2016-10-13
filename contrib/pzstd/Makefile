@@ -87,6 +87,7 @@ default: all
 check:
 	$(TESTPROG) ./utils/test/BufferTest$(EXT) $(TESTFLAGS)
 	$(TESTPROG) ./utils/test/RangeTest$(EXT) $(TESTFLAGS)
+	$(TESTPROG) ./utils/test/ResourcePoolTest$(EXT) $(TESTFLAGS)
 	$(TESTPROG) ./utils/test/ScopeGuardTest$(EXT) $(TESTFLAGS)
 	$(TESTPROG) ./utils/test/ThreadPoolTest$(EXT) $(TESTFLAGS)
 	$(TESTPROG) ./utils/test/WorkQueueTest$(EXT) $(TESTFLAGS)

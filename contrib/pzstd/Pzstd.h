@@ -35,7 +35,46 @@ int pzstdMain(const Options& options);
 
 class SharedState {
  public:
+  SharedState(bool decompress, ZSTD_parameters parameters) {
+    if (!decompress) {
+      cStreamPool.reset(new ResourcePool<ZSTD_CStream>{
+          [parameters]() -> ZSTD_CStream* {
+            auto zcs = ZSTD_createCStream();
+            if (zcs) {
+              auto err = ZSTD_initCStream_advanced(
+                  zcs, nullptr, 0, parameters, 0);
+              if (ZSTD_isError(err)) {
+                ZSTD_freeCStream(zcs);
+                return nullptr;
+              }
+            }
+            return zcs;
+          },
+          [](ZSTD_CStream *zcs) {
+            ZSTD_freeCStream(zcs);
+          }});
+    } else {
+      dStreamPool.reset(new ResourcePool<ZSTD_DStream>{
+          []() -> ZSTD_DStream* {
+            auto zds = ZSTD_createDStream();
+            if (zds) {
+              auto err = ZSTD_initDStream(zds);
+              if (ZSTD_isError(err)) {
+                ZSTD_freeDStream(zds);
+                return nullptr;
+              }
+            }
+            return zds;
+          },
+          [](ZSTD_DStream *zds) {
+            ZSTD_freeDStream(zds);
+          }});
+    }
+  }
+
   ErrorHolder errorHolder;
+  std::unique_ptr<ResourcePool<ZSTD_CStream>> cStreamPool;
+  std::unique_ptr<ResourcePool<ZSTD_DStream>> dStreamPool;
 };
 
 /**

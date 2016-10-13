@@ -23,6 +23,7 @@ const char* ERR_getErrorString(ERR_enum code)
     case PREFIX(parameter_unknown): return "Unknown parameter type";
     case PREFIX(frameParameter_unsupported): return "Unsupported frame parameter";
     case PREFIX(frameParameter_unsupportedBy32bits): return "Frame parameter unsupported in 32-bits mode";
+    case PREFIX(frameParameter_windowTooLarge): return "Frame requires too much memory for decoding";
     case PREFIX(compressionParameter_unsupported): return "Compression parameter is out of bound";
     case PREFIX(init_missing): return "Context should be init first";
     case PREFIX(memory_allocation): return "Allocation error : not enough memory";

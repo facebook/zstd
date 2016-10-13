@@ -248,7 +248,7 @@ size_t ZSTD_getFrameParams(ZSTD_frameParams* fparamsPtr, const void* src, size_t
         if (!singleSegment) {
             BYTE const wlByte = ip[pos++];
             U32 const windowLog = (wlByte >> 3) + ZSTD_WINDOWLOG_ABSOLUTEMIN;
-            if (windowLog > ZSTD_WINDOWLOG_MAX) return ERROR(frameParameter_unsupported);
+            if (windowLog > ZSTD_WINDOWLOG_MAX) return ERROR(frameParameter_windowTooLarge);  /* avoids issue with 1 << windowLog */
             windowSize = (1U << windowLog);
             windowSize += (windowSize >> 3) * (wlByte&7);
         }
@@ -270,7 +270,7 @@ size_t ZSTD_getFrameParams(ZSTD_frameParams* fparamsPtr, const void* src, size_t
             case 3 : frameContentSize = MEM_readLE64(ip+pos); break;
         }
         if (!windowSize) windowSize = (U32)frameContentSize;
-        if (windowSize > windowSizeMax) return ERROR(frameParameter_unsupported);
+        if (windowSize > windowSizeMax) return ERROR(frameParameter_windowTooLarge);
         fparamsPtr->frameContentSize = frameContentSize;
         fparamsPtr->windowSize = windowSize;
         fparamsPtr->dictID = dictID;

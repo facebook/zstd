@@ -9,6 +9,7 @@
 #pragma once
 
 #include "ErrorHolder.h"
+#include "Logging.h"
 #include "Options.h"
 #include "utils/Buffer.h"
 #include "utils/Range.h"
@@ -35,8 +36,9 @@ int pzstdMain(const Options& options);
 
 class SharedState {
  public:
-  SharedState(bool decompress, ZSTD_parameters parameters) {
-    if (!decompress) {
+  SharedState(const Options& options) : log(options.verbosity) {
+    if (!options.decompress) {
+      auto parameters = options.determineParameters();
       cStreamPool.reset(new ResourcePool<ZSTD_CStream>{
           [parameters]() -> ZSTD_CStream* {
             auto zcs = ZSTD_createCStream();
@@ -72,6 +74,7 @@ class SharedState {
     }
   }
 
+  Logger log;
   ErrorHolder errorHolder;
   std::unique_ptr<ResourcePool<ZSTD_CStream>> cStreamPool;
   std::unique_ptr<ResourcePool<ZSTD_DStream>> dStreamPool;
@@ -129,13 +132,11 @@ std::uint64_t asyncDecompressFrames(
  *                      (de)compression job.
  * @param outputFd     The file descriptor to write to
  * @param decompress   Are we decompressing?
- * @param verbosity    The verbosity level to log at
  * @returns            The number of bytes written
  */
 std::uint64_t writeFile(
     SharedState& state,
     WorkQueue<std::shared_ptr<BufferWorkQueue>>& outs,
     FILE* outputFd,
-    bool decompress,
-    int verbosity);
+    bool decompress);
 }

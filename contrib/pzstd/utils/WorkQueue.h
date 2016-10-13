@@ -54,12 +54,13 @@ class WorkQueue {
   /**
    * Push an item onto the work queue.  Notify a single thread that work is
    * available.  If `finish()` has been called, do nothing and return false.
+   * If `push()` returns false, then `item` has not been moved from.
    *
    * @param item  Item to push onto the queue.
    * @returns     True upon success, false if `finish()` has been called.  An
    *               item was pushed iff `push()` returns true.
    */
-  bool push(T item) {
+  bool push(T&& item) {
     {
       std::unique_lock<std::mutex> lock(mutex_);
       while (full() && !done_) {

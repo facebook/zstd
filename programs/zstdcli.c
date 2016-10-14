@@ -281,6 +281,16 @@ int main(int argCount, const char* argv[])
                 memLimit = readU32FromChar(&argument);
                 continue;
             }
+            if (!strncmp(argument, "--memory=", strlen("--memory="))) {
+                argument += strlen("--memory=");
+                memLimit = readU32FromChar(&argument);
+                continue;
+            }
+            if (!strncmp(argument, "--memlimit-decompress=", strlen("--memlimit-decompress="))) {
+                argument += strlen("--memlimit-decompress=");
+                memLimit = readU32FromChar(&argument);
+                continue;
+            }
 
             /* '-' means stdin/stdout */
             if (!strcmp(argument, "-")){

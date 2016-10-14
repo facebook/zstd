@@ -120,6 +120,9 @@ static U32 g_checksumFlag = 1;
 void FIO_setChecksumFlag(unsigned checksumFlag) { g_checksumFlag = checksumFlag; }
 static U32 g_removeSrcFile = 0;
 void FIO_setRemoveSrcFile(unsigned flag) { g_removeSrcFile = (flag>0); }
+static U32 g_memLimit = 0;
+void FIO_setMemLimit(unsigned memLimit) { g_memLimit = memLimit; }
+
 
 
 /*-*************************************
@@ -480,6 +483,7 @@ static dRess_t FIO_createDResources(const char* dictFileName)
     /* Allocation */
     ress.dctx = ZSTD_createDStream();
     if (ress.dctx==NULL) EXM_THROW(60, "Can't create ZSTD_DStream");
+    ZSTD_setDStreamParameter(ress.dctx, ZSTDdsp_maxWindowSize, g_memLimit);
     ress.srcBufferSize = ZSTD_DStreamInSize();
     ress.srcBuffer = malloc(ress.srcBufferSize);
     ress.dstBufferSize = ZSTD_DStreamOutSize();

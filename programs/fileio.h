@@ -15,7 +15,6 @@
 extern "C" {
 #endif
 
-
 /* *************************************
 *  Special i/o constants
 **************************************/
@@ -37,6 +36,7 @@ void FIO_setSparseWrite(unsigned sparse);  /**< 0: no sparse; 1: disable on stdo
 void FIO_setDictIDFlag(unsigned dictIDFlag);
 void FIO_setChecksumFlag(unsigned checksumFlag);
 void FIO_setRemoveSrcFile(unsigned flag);
+void FIO_setMemLimit(unsigned memLimit);
 
 
 /*-*************************************

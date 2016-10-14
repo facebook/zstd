@@ -189,6 +189,14 @@ static unsigned readU32FromChar(const char** stringPtr)
     return result;
 }
 
+static unsigned longCommandWArg(const char** stringPtr, const char* longCommand)
+{
+    size_t const comSize = strlen(longCommand);
+    unsigned const result = !strncmp(*stringPtr, longCommand, comSize);
+    if (result) *stringPtr += comSize;
+    return result;
+}
+
 
 #define CLEAN_RETURN(i) { operationResult = (i); goto _end; }
 
@@ -276,21 +284,9 @@ int main(int argCount, const char* argv[])
             if (!strcmp(argument, "--rm")) { FIO_setRemoveSrcFile(1); continue; }
 
             /* long commands with arguments */
-            if (!strncmp(argument, "--memlimit=", strlen("--memlimit="))) {
-                argument += strlen("--memlimit=");
-                memLimit = readU32FromChar(&argument);
-                continue;
-            }
-            if (!strncmp(argument, "--memory=", strlen("--memory="))) {
-                argument += strlen("--memory=");
-                memLimit = readU32FromChar(&argument);
-                continue;
-            }
-            if (!strncmp(argument, "--memlimit-decompress=", strlen("--memlimit-decompress="))) {
-                argument += strlen("--memlimit-decompress=");
-                memLimit = readU32FromChar(&argument);
-                continue;
-            }
+            if (longCommandWArg(&argument, "--memlimit=")) { memLimit = readU32FromChar(&argument); continue; }
+            if (longCommandWArg(&argument, "--memory=")) { memLimit = readU32FromChar(&argument); continue; }
+            if (longCommandWArg(&argument, "--memlimit-decompress=")) { memLimit = readU32FromChar(&argument); continue; }
 
             /* '-' means stdin/stdout */
             if (!strcmp(argument, "-")){

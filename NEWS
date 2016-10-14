@@ -1,5 +1,5 @@
 v1.1.1
-New : command -M, to limit allowed memory consumption
+New : command -M#, --memory=, --memlimit=, --memlimit-decompress= to limit allowed memory consumption
 
 v1.1.0
 New : contrib/pzstd, parallel version of zstd, by Nick Terrell

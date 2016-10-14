@@ -811,7 +811,7 @@ static size_t ZDICT_analyzeEntropy(void*  dstBuffer, size_t maxDstSize,
     MEM_writeLE32(dstPtr+4, repStartValue[1]);
     MEM_writeLE32(dstPtr+8, repStartValue[2]);
 #endif
-    dstPtr += 12;
+    //dstPtr += 12;
     eSize += 12;
 
 _cleanup:

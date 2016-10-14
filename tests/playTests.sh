@@ -83,6 +83,7 @@ $ZSTD -d    < tmp.zst > $INTOVOID   # implicit stdout when stdin is used
 $ZSTD -d  - < tmp.zst > $INTOVOID
 $ECHO "test : impose memory limitation (must fail)"
 $ZSTD -d -f tmp.zst -M2K -c > $INTOVOID && die "decompression needs more memory than allowed"
+$ZSTD -d -f tmp.zst --memlimit=2K -c > $INTOVOID && die "decompression needs more memory than allowed"  # long command
 $ECHO "test : overwrite protection"
 $ZSTD -q tmp && die "overwrite check failed!"
 $ECHO "test : force overwrite"

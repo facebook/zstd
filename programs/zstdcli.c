@@ -247,16 +247,16 @@ int main(int argCount, const char* argv[])
     if (!strcmp(programName, ZSTD_CAT)) { decode=1; forceStdout=1; displayLevel=1; outFileName=stdoutmark; }
 
     /* command switches */
-    for(argNb=1; argNb<argCount; argNb++) {
+    for (argNb=1; argNb<argCount; argNb++) {
         const char* argument = argv[argNb];
         if(!argument) continue;   /* Protection if argument empty */
 
         if (nextArgumentIsFile==0) {
 
             /* long commands (--long-word) */
-            if (!strcmp(argument, "--")) { nextArgumentIsFile=1; continue; }
+            if (!strcmp(argument, "--")) { nextArgumentIsFile=1; continue; }   /* only file names allowed from now on */
             if (!strcmp(argument, "--decompress")) { decode=1; continue; }
-            if (!strcmp(argument, "--force")) {  FIO_overwriteMode(); continue; }
+            if (!strcmp(argument, "--force")) { FIO_overwriteMode(); continue; }
             if (!strcmp(argument, "--version")) { displayOut=stdout; DISPLAY(WELCOME_MESSAGE); CLEAN_RETURN(0); }
             if (!strcmp(argument, "--help")) { displayOut=stdout; CLEAN_RETURN(usage_advanced(programName)); }
             if (!strcmp(argument, "--verbose")) { displayLevel++; continue; }
@@ -274,6 +274,13 @@ int main(int argCount, const char* argv[])
             if (!strcmp(argument, "--dictID")) { nextArgumentIsDictID=1; lastCommand=1; continue; }
             if (!strcmp(argument, "--keep")) { FIO_setRemoveSrcFile(0); continue; }
             if (!strcmp(argument, "--rm")) { FIO_setRemoveSrcFile(1); continue; }
+
+            /* long commands with arguments */
+            if (!strncmp(argument, "--memlimit=", strlen("--memlimit="))) {
+                argument += strlen("--memlimit=");
+                memLimit = readU32FromChar(&argument);
+                continue;
+            }
 
             /* '-' means stdin/stdout */
             if (!strcmp(argument, "-")){

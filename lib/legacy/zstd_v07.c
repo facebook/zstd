@@ -4104,27 +4104,30 @@ static size_t ZSTDv07_loadEntropy(ZSTDv07_DCtx* dctx, const void* const dict, si
     }
 
     {   short offcodeNCount[MaxOff+1];
-        U32 offcodeMaxValue=MaxOff, offcodeLog=OffFSELog;
+        U32 offcodeMaxValue=MaxOff, offcodeLog;
         size_t const offcodeHeaderSize = FSEv07_readNCount(offcodeNCount, &offcodeMaxValue, &offcodeLog, dictPtr, dictEnd-dictPtr);
         if (FSEv07_isError(offcodeHeaderSize)) return ERROR(dictionary_corrupted);
+        if (offcodeLog > OffFSELog) return ERROR(dictionary_corrupted);
         { size_t const errorCode = FSEv07_buildDTable(dctx->OffTable, offcodeNCount, offcodeMaxValue, offcodeLog);
           if (FSEv07_isError(errorCode)) return ERROR(dictionary_corrupted); }
         dictPtr += offcodeHeaderSize;
     }
 
     {   short matchlengthNCount[MaxML+1];
-        unsigned matchlengthMaxValue = MaxML, matchlengthLog = MLFSELog;
+        unsigned matchlengthMaxValue = MaxML, matchlengthLog;
         size_t const matchlengthHeaderSize = FSEv07_readNCount(matchlengthNCount, &matchlengthMaxValue, &matchlengthLog, dictPtr, dictEnd-dictPtr);
         if (FSEv07_isError(matchlengthHeaderSize)) return ERROR(dictionary_corrupted);
+        if (matchlengthLog > MLFSELog) return ERROR(dictionary_corrupted);
         { size_t const errorCode = FSEv07_buildDTable(dctx->MLTable, matchlengthNCount, matchlengthMaxValue, matchlengthLog);
           if (FSEv07_isError(errorCode)) return ERROR(dictionary_corrupted); }
         dictPtr += matchlengthHeaderSize;
     }
 
     {   short litlengthNCount[MaxLL+1];
-        unsigned litlengthMaxValue = MaxLL, litlengthLog = LLFSELog;
+        unsigned litlengthMaxValue = MaxLL, litlengthLog;
         size_t const litlengthHeaderSize = FSEv07_readNCount(litlengthNCount, &litlengthMaxValue, &litlengthLog, dictPtr, dictEnd-dictPtr);
         if (FSEv07_isError(litlengthHeaderSize)) return ERROR(dictionary_corrupted);
+        if (litlengthLog > LLFSELog) return ERROR(dictionary_corrupted);
         { size_t const errorCode = FSEv07_buildDTable(dctx->LLTable, litlengthNCount, litlengthMaxValue, litlengthLog);
           if (FSEv07_isError(errorCode)) return ERROR(dictionary_corrupted); }
         dictPtr += litlengthHeaderSize;

@@ -168,9 +168,11 @@ size_t HUF_readStats(BYTE* huffWeight, size_t hwSize, U32* rankStats,
 {
     U32 weightTotal;
     const BYTE* ip = (const BYTE*) src;
-    size_t iSize = ip[0];
+    size_t iSize;
     size_t oSize;
 
+    if (!srcSize) return ERROR(srcSize_wrong);
+    iSize = ip[0];
     /* memset(huffWeight, 0, hwSize);   *//* is not necessary, even though some analyzer complain ... */
 
     if (iSize >= 128) {  /* special header */

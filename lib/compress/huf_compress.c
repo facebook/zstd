@@ -155,13 +155,14 @@ size_t HUF_readCTable (HUF_CElt* CTable, U32 maxSymbolValue, const void* src, si
     }   }
 
     /* fill val */
-    {   U16 nbPerRank[HUF_TABLELOG_MAX+1] = {0};
-        U16 valPerRank[HUF_TABLELOG_MAX+1] = {0};
+    {   U16 nbPerRank[HUF_TABLELOG_MAX+2]  = {0};  /* support w=0=>n=tableLog+1 */
+        U16 valPerRank[HUF_TABLELOG_MAX+2] = {0};
         { U32 n; for (n=0; n<nbSymbols; n++) nbPerRank[CTable[n].nbBits]++; }
         /* determine stating value per rank */
+        valPerRank[tableLog+1] = 0;   /* for w==0 */
         {   U16 min = 0;
-            U32 n; for (n=HUF_TABLELOG_MAX; n>0; n--) {
-                valPerRank[n] = min;      /* get starting value within each rank */
+            U32 n; for (n=tableLog; n>0; n--) {  /* start at n=tablelog <-> w=1 */
+                valPerRank[n] = min;     /* get starting value within each rank */
                 min += nbPerRank[n];
                 min >>= 1;
         }   }

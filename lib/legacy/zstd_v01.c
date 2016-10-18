@@ -1536,6 +1536,7 @@ size_t ZSTDv01_decodeLiteralsBlock(void* ctx,
         {
             size_t rleSize = litbp.origSize;
             if (rleSize>maxDstSize) return ERROR(dstSize_tooSmall);
+            if (!srcSize) return ERROR(srcSize_wrong);
             memset(oend - rleSize, *ip, rleSize);
             *litStart = oend - rleSize;
             *litSize = rleSize;

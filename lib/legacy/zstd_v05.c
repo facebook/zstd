@@ -3388,7 +3388,6 @@ static size_t ZSTDv05_decompressSequences(
         seq_t sequence;
         seqState_t seqState;
 
-        dctx->flagStaticTables = 1;
         memset(&sequence, 0, sizeof(sequence));
         sequence.offset = REPCODE_STARTVALUE;
         seqState.dumps = dumps;

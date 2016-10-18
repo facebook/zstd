@@ -25,7 +25,6 @@
 **************************************/
 #include "util.h"     /* Compiler options, UTIL_HAS_CREATEFILELIST */
 #include <string.h>   /* strcmp, strlen */
-#include <ctype.h>    /* toupper */
 #include <errno.h>    /* errno */
 #include "fileio.h"
 #ifndef ZSTD_NOBENCH
@@ -182,10 +181,13 @@ static unsigned readU32FromChar(const char** stringPtr)
     unsigned result = 0;
     while ((**stringPtr >='0') && (**stringPtr <='9'))
         result *= 10, result += **stringPtr - '0', (*stringPtr)++ ;
-    if (toupper(**stringPtr)=='K') result <<= 10, (*stringPtr)++ ;
-    else if (toupper(**stringPtr)=='M') result <<= 20, (*stringPtr)++ ;
-    if (toupper(**stringPtr)=='i') (*stringPtr)++;
-    if (toupper(**stringPtr)=='B') (*stringPtr)++;
+    if ((**stringPtr=='K') || (**stringPtr=='M')) {
+        result <<= 10;
+        if (**stringPtr=='M') result <<= 10;
+        (*stringPtr)++ ;
+        if (**stringPtr=='i') (*stringPtr)++;
+        if (**stringPtr=='B') (*stringPtr)++;
+    }
     return result;
 }
 

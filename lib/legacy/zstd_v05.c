@@ -2967,6 +2967,7 @@ size_t ZSTDv05_decodeLiteralsBlock(ZSTDv05_DCtx* dctx,
                 break;
             }
             if (litSize > BLOCKSIZE) return ERROR(corruption_detected);
+            if (litCSize + lhSize > srcSize) return ERROR(corruption_detected);
 
             if (HUFv05_isError(singleStream ?
                             HUFv05_decompress1X2(dctx->litBuffer, litSize, istart+lhSize, litCSize) :

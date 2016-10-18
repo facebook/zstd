@@ -155,8 +155,8 @@ size_t HUF_readCTable (HUF_CElt* CTable, U32 maxSymbolValue, const void* src, si
     }   }
 
     /* fill val */
-    {   U16 nbPerRank[HUF_TABLELOG_MAX+1] = {0};
-        U16 valPerRank[HUF_TABLELOG_MAX+1] = {0};
+    {   U16 nbPerRank[HUF_TABLELOG_MAX+2] = {0};
+        U16 valPerRank[HUF_TABLELOG_MAX+2] = {0};
         { U32 n; for (n=0; n<nbSymbols; n++) nbPerRank[CTable[n].nbBits]++; }
         /* determine stating value per rank */
         {   U16 min = 0;

@@ -306,6 +306,7 @@ unsigned long long ZSTD_getDecompressedSize(const void* src, size_t srcSize)
 static size_t ZSTD_decodeFrameHeader(ZSTD_DCtx* dctx, const void* src, size_t srcSize)
 {
     size_t const result = ZSTD_getFrameParams(&(dctx->fParams), src, srcSize);
+    if (result > 0) return ERROR(srcSize_wrong);  /* Don't access fParams if call to ZSTD_getFrameParams is not successful */
     if (dctx->fParams.dictID && (dctx->dictID != dctx->fParams.dictID)) return ERROR(dictionary_wrong);
     if (dctx->fParams.checksumFlag) XXH64_reset(&dctx->xxhState, 0);
     return result;

@@ -1008,6 +1008,7 @@ static size_t HUF_readDTable (U16* DTable, const void* src, size_t srcSize)
         rankVal[huffWeight[n]]++;
         weightTotal += (1 << huffWeight[n]) >> 1;
     }
+    if (weightTotal == 0) return (size_t)-FSE_ERROR_corruptionDetected;
 
     /* get last non-null symbol weight (implied, total must be 2^n) */
     maxBits = FSE_highbit32(weightTotal) + 1;

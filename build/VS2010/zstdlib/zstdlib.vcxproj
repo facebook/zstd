@@ -20,6 +20,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\..\lib\common\entropy_common.c" />
+    <ClCompile Include="..\..\..\lib\common\error_private.c" />
     <ClCompile Include="..\..\..\lib\common\xxhash.c" />
     <ClCompile Include="..\..\..\lib\common\zstd_common.c" />
     <ClCompile Include="..\..\..\lib\common\fse_decompress.c" />
@@ -39,9 +40,11 @@
     <ClCompile Include="..\..\..\lib\legacy\zstd_v05.c" />
     <ClCompile Include="..\..\..\lib\legacy\zstd_v06.c" />
     <ClCompile Include="..\..\..\lib\legacy\zstd_v07.c" />
+  </ItemGroup>
+  <ItemGroup>    
     <ClInclude Include="..\..\..\lib\common\bitstream.h" />
     <ClInclude Include="..\..\..\lib\common\error_private.h" />
-    <ClInclude Include="..\..\..\lib\common\error_public.h" />
+    <ClInclude Include="..\..\..\lib\common\zstd_errors.h" />
     <ClInclude Include="..\..\..\lib\common\mem.h" />
     <ClInclude Include="..\..\..\lib\common\fse.h" />
     <ClInclude Include="..\..\..\lib\common\huf.h" />

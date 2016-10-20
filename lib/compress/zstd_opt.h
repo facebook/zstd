@@ -401,7 +401,7 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
     ZSTD_rescaleFreqs(seqStorePtr);
     ip += (ip==prefixStart);
     { U32 i; for (i=0; i<ZSTD_REP_NUM; i++) rep[i]=ctx->rep[i]; }
-    inr = ip;
+    //inr = ip;
 
     /* Match Loop */
     while (ip < ilimit) {
@@ -657,7 +657,7 @@ void ZSTD_compressBlock_opt_extDict_generic(ZSTD_CCtx* ctx,
     ctx->nextToUpdate3 = ctx->nextToUpdate;
     ZSTD_rescaleFreqs(seqStorePtr);
     ip += (ip==prefixStart);
-    inr = ip;
+    //inr = ip;
 
     /* Match Loop */
     while (ip < ilimit) {
@@ -666,7 +666,7 @@ void ZSTD_compressBlock_opt_extDict_generic(ZSTD_CCtx* ctx,
         U32 current = (U32)(ip-base);
         memset(opt, 0, sizeof(ZSTD_optimal_t));
         last_pos = 0;
-        inr = ip;
+        //inr = ip;
         opt[0].litlen = (U32)(ip - anchor);
 
         /* check repCode */

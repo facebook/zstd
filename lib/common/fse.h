@@ -503,6 +503,7 @@ MEM_STATIC void FSE_flushCState(BIT_CStream_t* bitC, const FSE_CState_t* statePt
     BIT_flushBits(bitC);
 }
 
+
 /* ======    Decompression    ====== */
 
 typedef struct {
@@ -581,14 +582,19 @@ MEM_STATIC unsigned FSE_endOfDState(const FSE_DState_t* DStatePtr)
 *  Increasing memory usage improves compression ratio
 *  Reduced memory usage can improve speed, due to cache effect
 *  Recommended max value is 14, for 16KB, which nicely fits into Intel x86 L1 cache */
-#define FSE_MAX_MEMORY_USAGE 14
-#define FSE_DEFAULT_MEMORY_USAGE 13
+#ifndef FSE_MAX_MEMORY_USAGE
+#  define FSE_MAX_MEMORY_USAGE 14
+#endif
+#ifndef FSE_DEFAULT_MEMORY_USAGE
+#  define FSE_DEFAULT_MEMORY_USAGE 13
+#endif
 
 /*!FSE_MAX_SYMBOL_VALUE :
 *  Maximum symbol value authorized.
 *  Required for proper stack allocation */
-#define FSE_MAX_SYMBOL_VALUE 255
-
+#ifndef FSE_MAX_SYMBOL_VALUE
+#  define FSE_MAX_SYMBOL_VALUE 255
+#endif
 
 /* **************************************************************
 *  template functions type & suffix

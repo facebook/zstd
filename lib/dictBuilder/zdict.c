@@ -371,21 +371,22 @@ static dictItem ZDICT_analyzePos(
 static U32 ZDICT_checkMerge(dictItem* table, dictItem elt, U32 eltNbToSkip)
 {
     const U32 tableSize = table->pos;
-    const U32 max = elt.pos + (elt.length-1);
+    const U32 eltEnd = elt.pos + elt.length;
 
     /* tail overlap */
     U32 u; for (u=1; u<tableSize; u++) {
         if (u==eltNbToSkip) continue;
-        if ((table[u].pos > elt.pos) && (table[u].pos < max)) {  /* overlap */
+        if ((table[u].pos > elt.pos) && (table[u].pos <= eltEnd)) {  /* overlap, existing > new */
             /* append */
             U32 addedLength = table[u].pos - elt.pos;
             table[u].length += addedLength;
             table[u].pos = elt.pos;
             table[u].savings += elt.savings * addedLength / elt.length;   /* rough approx */
-            table[u].savings += elt.length / 8;    /* rough approx */
+            table[u].savings += elt.length / 8;    /* rough approx bonus */
             elt = table[u];
+            /* sort : improve rank */
             while ((u>1) && (table[u-1].savings < elt.savings))
-                table[u] = table[u-1], u--;
+            table[u] = table[u-1], u--;
             table[u] = elt;
             return u;
     }   }
@@ -393,14 +394,15 @@ static U32 ZDICT_checkMerge(dictItem* table, dictItem elt, U32 eltNbToSkip)
     /* front overlap */
     for (u=1; u<tableSize; u++) {
         if (u==eltNbToSkip) continue;
-        if ((table[u].pos + table[u].length > elt.pos) && (table[u].pos < elt.pos)) {  /* overlap */
+        if ((table[u].pos + table[u].length >= elt.pos) && (table[u].pos < elt.pos)) {  /* overlap, existing < new */
             /* append */
-            int addedLength = (elt.pos + elt.length) - (table[u].pos + table[u].length);
-            table[u].savings += elt.length / 8;    /* rough approx */
-            if (addedLength > 0) {   /* otherwise, already included */
+            int addedLength = (int)eltEnd - (table[u].pos + table[u].length);
+            table[u].savings += elt.length / 8;    /* rough approx bonus */
+            if (addedLength > 0) {   /* otherwise, elt fully included into existing */
                 table[u].length += addedLength;
                 table[u].savings += elt.savings * addedLength / elt.length;   /* rough approx */
             }
+            /* sort : improve rank */
             elt = table[u];
             while ((u>1) && (table[u-1].savings < elt.savings))
                 table[u] = table[u-1], u--;
@@ -811,7 +813,7 @@ static size_t ZDICT_analyzeEntropy(void*  dstBuffer, size_t maxDstSize,
     MEM_writeLE32(dstPtr+4, repStartValue[1]);
     MEM_writeLE32(dstPtr+8, repStartValue[2]);
 #endif
-    dstPtr += 12;
+    //dstPtr += 12;
     eSize += 12;
 
 _cleanup:

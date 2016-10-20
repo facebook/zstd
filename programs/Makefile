@@ -76,16 +76,17 @@ default: zstd
 
 all: zstd
 
-
+$(ZSTDDECOMP_O): CPPFLAGS += -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT)
+$(ZSTDDECOMP_O): CFLAGS += $(ALIGN_LOOP)
 $(ZSTDDECOMP_O): $(ZSTDDIR)/decompress/zstd_decompress.c
-	$(CC)    $(ALIGN_LOOP) $(FLAGS) -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT) $^ -c -o $@
-
-$(ZSTDDECOMP32_O): $(ZSTDDIR)/decompress/zstd_decompress.c
-	$(CC)  -m32 $(ALIGN_LOOP) $(FLAGS) -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT) $^ -c -o $@
 
 zstd  : $(ZSTDDECOMP_O) $(ZSTD_FILES) $(ZSTDLEGACY_FILES) $(ZDICT_FILES) \
         zstdcli.c fileio.c bench.c datagen.c dibio.c
 	$(CC)      $(FLAGS) -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT) $^ $(RES_FILE) -o $@$(EXT)
+
+
+$(ZSTDDECOMP32_O): $(ZSTDDIR)/decompress/zstd_decompress.c
+	$(CC)  -m32 $(ALIGN_LOOP) $(FLAGS) -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT) $^ -c -o $@
 
 zstd32 : $(ZSTDDECOMP32_O) $(ZSTD_FILES) $(ZSTDLEGACY_FILES) $(ZDICT_FILES) \
         zstdcli.c fileio.c bench.c datagen.c dibio.c
@@ -153,11 +154,11 @@ install: zstd
 	@echo zstd installation completed
 
 uninstall:
-	$(RM) $(DESTDIR)$(BINDIR)/zstdcat
-	$(RM) $(DESTDIR)$(BINDIR)/unzstd
-	$(RM) $(DESTDIR)$(BINDIR)/zstd$(EXT)
-	$(RM) $(DESTDIR)$(MANDIR)/zstdcat.1
-	$(RM) $(DESTDIR)$(MANDIR)/unzstd.1
-	$(RM) $(DESTDIR)$(MANDIR)/zstd.1
+	@$(RM) $(DESTDIR)$(BINDIR)/zstdcat
+	@$(RM) $(DESTDIR)$(BINDIR)/unzstd
+	@$(RM) $(DESTDIR)$(BINDIR)/zstd$(EXT)
+	@$(RM) $(DESTDIR)$(MANDIR)/zstdcat.1
+	@$(RM) $(DESTDIR)$(MANDIR)/unzstd.1
+	@$(RM) $(DESTDIR)$(MANDIR)/zstd.1
 	@echo zstd programs successfully uninstalled
 endif

@@ -59,6 +59,7 @@ MESSAGE("ZSTD VERSION ${LIBVER_MAJOR}.${LIBVER_MINOR}.${LIBVER_RELEASE}")
 SET(Sources
         ${LIBRARY_DIR}/common/entropy_common.c
         ${LIBRARY_DIR}/common/zstd_common.c
+        ${LIBRARY_DIR}/common/error_private.c
         ${LIBRARY_DIR}/common/xxhash.c
         ${LIBRARY_DIR}/common/fse_decompress.c
         ${LIBRARY_DIR}/compress/fse_compress.c
@@ -74,7 +75,7 @@ SET(Sources
 SET(Headers
         ${LIBRARY_DIR}/common/bitstream.h
         ${LIBRARY_DIR}/common/error_private.h
-        ${LIBRARY_DIR}/common/error_public.h
+        ${LIBRARY_DIR}/common/zstd_errors.h
         ${LIBRARY_DIR}/common/fse.h
         ${LIBRARY_DIR}/common/huf.h
         ${LIBRARY_DIR}/common/mem.h

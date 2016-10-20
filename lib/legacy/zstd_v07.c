@@ -3691,7 +3691,7 @@ size_t ZSTDv07_execSequence(BYTE* op,
             sequence.matchLength -= length1;
             match = base;
             if (op > oend_w) {
-              memmove(op, match, sequence.matchLength);
+              while (op < oMatchEnd) *op++ = *match++;
               return sequenceLength;
             }
     }   }

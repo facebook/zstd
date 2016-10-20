@@ -22,15 +22,18 @@ endif
 
 .PHONY: default all zlibwrapper zstd clean install uninstall travis-install test clangtest gpptest armtest usan asan uasan
 
-default: zstd
+default: libzstd zstd
 
 all:
 	$(MAKE) -C $(ZSTDDIR) $@
 	$(MAKE) -C $(PRGDIR) $@ zstd32
 	$(MAKE) -C $(TESTDIR) $@ all32
 
+libzstd:
+	@$(MAKE) -C $(ZSTDDIR)
+
 zstd:
-	$(MAKE) -C $(PRGDIR)
+	@$(MAKE) -C $(PRGDIR)
 	cp $(PRGDIR)/zstd .
 
 zlibwrapper:
@@ -48,18 +51,18 @@ clean:
 	@echo Cleaning completed
 
 
-#----------------------------------------------------------------------------------
-#make install is validated only for Linux, OSX, kFreeBSD, Hurd and some BSD targets
-#----------------------------------------------------------------------------------
+#------------------------------------------------------------------------------
+# make install is validated only for Linux, OSX, Hurd and some BSD targets
+#------------------------------------------------------------------------------
 ifneq (,$(filter $(shell uname),Linux Darwin GNU/kFreeBSD GNU FreeBSD DragonFly NetBSD))
 HOST_OS = POSIX
 install:
-	$(MAKE) -C $(ZSTDDIR) $@
-	$(MAKE) -C $(PRGDIR) $@
+	@$(MAKE) -C $(ZSTDDIR) $@
+	@$(MAKE) -C $(PRGDIR) $@
 
 uninstall:
-	$(MAKE) -C $(ZSTDDIR) $@
-	$(MAKE) -C $(PRGDIR) $@
+	@$(MAKE) -C $(ZSTDDIR) $@
+	@$(MAKE) -C $(PRGDIR) $@
 
 travis-install:
 	$(MAKE) install PREFIX=~/install_test_dir

@@ -336,6 +336,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\..\lib\common\error_private.c"
+				>
+			</File>
+			<File
 				RelativePath="..\..\..\lib\compress\fse_compress.c"
 				>
 			</File>
@@ -426,7 +430,7 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\..\lib\common\error_public.h"
+				RelativePath="..\..\..\lib\common\zstd_errors.h"
 				>
 			</File>
 			<File

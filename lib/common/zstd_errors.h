@@ -7,8 +7,8 @@
  * of patent rights can be found in the PATENTS file in the same directory.
  */
 
-#ifndef ERROR_PUBLIC_H_MODULE
-#define ERROR_PUBLIC_H_MODULE
+#ifndef ZSTD_ERRORS_H_398273423
+#define ZSTD_ERRORS_H_398273423
 
 #if defined (__cplusplus)
 extern "C" {
@@ -29,6 +29,7 @@ typedef enum {
   ZSTD_error_parameter_unknown,
   ZSTD_error_frameParameter_unsupported,
   ZSTD_error_frameParameter_unsupportedBy32bits,
+  ZSTD_error_frameParameter_windowTooLarge,
   ZSTD_error_compressionParameter_unsupported,
   ZSTD_error_init_missing,
   ZSTD_error_memory_allocation,
@@ -56,4 +57,4 @@ const char* ZSTD_getErrorString(ZSTD_ErrorCode code);
 }
 #endif
 
-#endif /* ERROR_PUBLIC_H_MODULE */
+#endif /* ZSTD_ERRORS_H_398273423 */

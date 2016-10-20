@@ -2032,13 +2032,14 @@ size_t HUFv05_decompress1X2_usingDTable(
 {
     BYTE* op = (BYTE*)dst;
     BYTE* const oend = op + dstSize;
-    size_t errorCode;
     const U32 dtLog = DTable[0];
     const void* dtPtr = DTable;
     const HUFv05_DEltX2* const dt = ((const HUFv05_DEltX2*)dtPtr)+1;
     BITv05_DStream_t bitD;
-    errorCode = BITv05_initDStream(&bitD, cSrc, cSrcSize);
-    if (HUFv05_isError(errorCode)) return errorCode;
+    
+    if (dstSize <= cSrcSize) return ERROR(dstSize_tooSmall);
+    { size_t const errorCode = BITv05_initDStream(&bitD, cSrc, cSrcSize);
+      if (HUFv05_isError(errorCode)) return errorCode; }
 
     HUFv05_decodeStreamX2(op, &bitD, oend, dt, dtLog);
 
@@ -3063,7 +3064,7 @@ size_t ZSTDv05_decodeLiteralsBlock(ZSTDv05_DCtx* dctx,
 
 size_t ZSTDv05_decodeSeqHeaders(int* nbSeq, const BYTE** dumpsPtr, size_t* dumpsLengthPtr,
                          FSEv05_DTable* DTableLL, FSEv05_DTable* DTableML, FSEv05_DTable* DTableOffb,
-                         const void* src, size_t srcSize)
+                         const void* src, size_t srcSize, U32 flagStaticTable)
 {
     const BYTE* const istart = (const BYTE* const)src;
     const BYTE* ip = istart;
@@ -3118,6 +3119,7 @@ size_t ZSTDv05_decodeSeqHeaders(int* nbSeq, const BYTE** dumpsPtr, size_t* dumps
             FSEv05_buildDTable_raw(DTableLL, LLbits);
             break;
         case FSEv05_ENCODING_STATIC:
+            if (!flagStaticTable) return ERROR(corruption_detected);
             break;
         case FSEv05_ENCODING_DYNAMIC :
         default :   /* impossible */
@@ -3141,6 +3143,7 @@ size_t ZSTDv05_decodeSeqHeaders(int* nbSeq, const BYTE** dumpsPtr, size_t* dumps
             FSEv05_buildDTable_raw(DTableOffb, Offbits);
             break;
         case FSEv05_ENCODING_STATIC:
+            if (!flagStaticTable) return ERROR(corruption_detected);
             break;
         case FSEv05_ENCODING_DYNAMIC :
         default :   /* impossible */
@@ -3164,6 +3167,7 @@ size_t ZSTDv05_decodeSeqHeaders(int* nbSeq, const BYTE** dumpsPtr, size_t* dumps
             FSEv05_buildDTable_raw(DTableML, MLbits);
             break;
         case FSEv05_ENCODING_STATIC:
+            if (!flagStaticTable) return ERROR(corruption_detected);
             break;
         case FSEv05_ENCODING_DYNAMIC :
         default :   /* impossible */
@@ -3312,7 +3316,12 @@ static size_t ZSTDv05_execSequence(BYTE* op,
             op = oLitEnd + length1;
             sequence.matchLength -= length1;
             match = base;
+            if (op > oend_8) {
+              memmove(op, match, sequence.matchLength);
+              return sequenceLength;
+            }
     }   }
+    /* Requirement: op <= oend_8 */
 
     /* match within prefix */
     if (sequence.offset < 8) {
@@ -3371,7 +3380,7 @@ static size_t ZSTDv05_decompressSequences(
     /* Build Decoding Tables */
     errorCode = ZSTDv05_decodeSeqHeaders(&nbSeq, &dumps, &dumpsLength,
                                       DTableLL, DTableML, DTableOffb,
-                                      ip, seqSize);
+                                      ip, seqSize, dctx->flagStaticTables);
     if (ZSTDv05_isError(errorCode)) return errorCode;
     ip += errorCode;
 

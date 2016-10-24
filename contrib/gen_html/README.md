@@ -13,7 +13,7 @@ The format of recognized comment blocks is following:
 
 Moreover:
 - `ZSTDLIB_API` is removed to improve readability
-- `typedef`s are detected and included even if uncommented
+- `typedef` are detected and included even if uncommented
 - comments of type `/**<` and `/*!<` are detected and only function declaration is highlighted (bold)
 
 
@@ -22,4 +22,10 @@ Moreover:
 The program requires 3 parameters:
 ```
 gen_html [zstd_version] [input_file] [output_html]
+```
+
+To compile program and generate zstd manual we have used: 
+```
+make
+./gen_html.exe 1.1.1 ../../lib/zstd.h zstd_manual.html
 ```

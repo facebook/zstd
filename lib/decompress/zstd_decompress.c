@@ -191,7 +191,7 @@ static void ZSTD_refDCtx(ZSTD_DCtx* dstDCtx, const ZSTD_DCtx* srcDCtx)
 *   Decompression section
 ***************************************************************/
 
-/* See compression format details in : zstd_compression_format.md */
+/* See compression format details in : doc/zstd_compression_format.md */
 
 /** ZSTD_frameHeaderSize() :
 *   srcSize must be >= ZSTD_frameHeaderSize_prefix.

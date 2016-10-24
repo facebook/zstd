@@ -2523,9 +2523,12 @@ static size_t ZSTD_loadDictEntropyStats(ZSTD_CCtx* cctx, const void* dict, size_
     cctx->rep[2] = MEM_readLE32(dictPtr+8); if (cctx->rep[2] >= dictSize) return ERROR(dictionary_corrupted);
     dictPtr += 12;
 
-    {   size_t const maxOffset = (dictEnd - dictPtr) + 128 KB; /* The maximum offset that must be supported */
-        /* Calculate minimum offset code required to represent maxOffset */
-        unsigned const offcodeMax = ZSTD_highbit32(maxOffset);
+    {   U32 offcodeMax = MaxOff;
+        if ((size_t)(dictEnd - dictPtr) <= ((U32)-1) - 128 KB) {
+            U32 const maxOffset = (U32)(dictEnd - dictPtr) + 128 KB; /* The maximum offset that must be supported */
+            /* Calculate minimum offset code required to represent maxOffset */
+            offcodeMax = ZSTD_highbit32(maxOffset);
+        }
         /* Every possible supported offset <= dictContentSize + 128 KB must be representable */
         CHECK_F (ZSTD_checkDictNCount(offcodeNCount, offcodeMaxValue, MIN(offcodeMax, MaxOff)));
     }

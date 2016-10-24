@@ -43,7 +43,7 @@ extern "C" {
     - repeated calls of the compression function (described as Streaming compression)
   The compression ratio achievable on small data can be highly improved using compression with a dictionary in:
     - a single step (described as Simple dictionary API)
-    - a single step, reusing a dictionary (described as Fast Dictionary API)
+    - a single step, reusing a dictionary (described as Fast dictionary API)
 
   Advanced and experimantal functions can be accessed using #define ZSTD_STATIC_LINKING_ONLY before including zstd.h.
   These APIs shall never be used with a dynamic library. 
@@ -157,7 +157,7 @@ ZSTDLIB_API size_t ZSTD_decompress_usingDict(ZSTD_DCtx* dctx,
 
 
 /****************************
-*  Fast Dictionary API
+*  Fast dictionary API
 ****************************/
 typedef struct ZSTD_CDict_s ZSTD_CDict;
 
@@ -219,7 +219,7 @@ typedef struct ZSTD_outBuffer_s {
 
 
 /*-***********************************************************************
-*  Streaming compression - howto
+*  Streaming compression - HowTo
 *
 *  A ZSTD_CStream object is required to track streaming operation.
 *  Use ZSTD_createCStream() and ZSTD_freeCStream() to create/release resources.
@@ -269,7 +269,7 @@ ZSTDLIB_API size_t ZSTD_CStreamOutSize(void);   /**< recommended size for output
 
 
 /*-***************************************************************************
-*  Streaming decompression howto
+*  Streaming decompression - HowTo
 *
 *  A ZSTD_DStream object is required to track streaming operations.
 *  Use ZSTD_createDStream() and ZSTD_freeDStream() to create/release resources.
@@ -339,7 +339,7 @@ static const size_t ZSTD_frameHeaderSize_max = ZSTD_FRAMEHEADERSIZE_MAX;
 static const size_t ZSTD_skippableHeaderSize = 8;  /* magic number + skippable frame length */
 
 
-/*--- Types ---*/
+/*--- Advanced types ---*/
 typedef enum { ZSTD_fast, ZSTD_dfast, ZSTD_greedy, ZSTD_lazy, ZSTD_lazy2, ZSTD_btlazy2, ZSTD_btopt } ZSTD_strategy;   /* from faster to stronger */
 
 typedef struct {
@@ -422,7 +422,7 @@ ZSTDLIB_API size_t ZSTD_compress_advanced (ZSTD_CCtx* ctx,
                                            ZSTD_parameters params);
 
 
-/*--- Advanced Decompression functions ---*/
+/*--- Advanced decompression functions ---*/
 
 /*! ZSTD_estimateDCtxSize() :
  *  Gives the potential amount of memory allocated to create a ZSTD_DCtx */
@@ -442,7 +442,7 @@ ZSTDLIB_API size_t ZSTD_sizeof_DDict(const ZSTD_DDict* ddict);
 
 
 /********************************************************************
-*  Advanced Streaming functions
+*  Advanced streaming functions
 ********************************************************************/
 
 /*=====   Advanced Streaming compression functions  =====*/

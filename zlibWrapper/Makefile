@@ -14,6 +14,7 @@ ZSTDLIBRARY = $(ZSTDLIBDIR)/libzstd.a
 ZLIBWRAPPER_PATH = .
 EXAMPLE_PATH = examples
 PROGRAMS_PATH = ../programs
+TEST_FILE = ../doc/zstd_compression_format.md
 CC ?= gcc
 CFLAGS ?= -O3 
 CFLAGS += $(LOC) -I$(PROGRAMS_PATH) -I$(ZSTDLIBDIR) -I$(ZSTDLIBDIR)/common -I$(ZLIBWRAPPER_PATH) -std=gnu99
@@ -27,11 +28,11 @@ all: clean fitblk example zwrapbench
 test: example fitblk example_zstd fitblk_zstd zwrapbench
 	./example
 	./example_zstd
-	./fitblk 10240 <../zstd_compression_format.md
-	./fitblk 40960 <../zstd_compression_format.md
-	./fitblk_zstd 10240 <../zstd_compression_format.md
-	./fitblk_zstd 40960 <../zstd_compression_format.md
-	./zwrapbench -qb3B1K ../zstd_compression_format.md
+	./fitblk 10240 <$(TEST_FILE)
+	./fitblk 40960 <$(TEST_FILE)
+	./fitblk_zstd 10240 <$(TEST_FILE)
+	./fitblk_zstd 40960 <$(TEST_FILE)
+	./zwrapbench -qb3B1K $(TEST_FILE)
 	./zwrapbench -rqb1e5 ../lib ../programs ../tests
 
 #valgrindTest: ZSTDLIBRARY = $(ZSTDLIBDIR)/libzstd.so
@@ -40,11 +41,11 @@ valgrindTest: clean example fitblk example_zstd fitblk_zstd zwrapbench
 	@echo "\n ---- valgrind tests ----"
 	$(VALGRIND) ./example
 	$(VALGRIND) ./example_zstd
-	$(VALGRIND) ./fitblk 10240 <../zstd_compression_format.md
-	$(VALGRIND) ./fitblk 40960 <../zstd_compression_format.md
-	$(VALGRIND) ./fitblk_zstd 10240 <../zstd_compression_format.md
-	$(VALGRIND) ./fitblk_zstd 40960 <../zstd_compression_format.md
-	$(VALGRIND) ./zwrapbench -qb3B1K ../zstd_compression_format.md
+	$(VALGRIND) ./fitblk 10240 <$(TEST_FILE)
+	$(VALGRIND) ./fitblk 40960 <$(TEST_FILE)
+	$(VALGRIND) ./fitblk_zstd 10240 <$(TEST_FILE)
+	$(VALGRIND) ./fitblk_zstd 40960 <$(TEST_FILE)
+	$(VALGRIND) ./zwrapbench -qb3B1K $(TEST_FILE)
 	$(VALGRIND) ./zwrapbench -rqb1e5 ../lib ../programs ../tests
 
 .c.o:

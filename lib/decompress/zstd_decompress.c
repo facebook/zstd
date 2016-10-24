@@ -191,7 +191,7 @@ static void ZSTD_refDCtx(ZSTD_DCtx* dstDCtx, const ZSTD_DCtx* srcDCtx)
 *   Decompression section
 ***************************************************************/
 
-/* See compression format details in : zstd_compression_format.md */
+/* See compression format details in : doc/zstd_compression_format.md */
 
 /** ZSTD_frameHeaderSize() :
 *   srcSize must be >= ZSTD_frameHeaderSize_prefix.
@@ -301,14 +301,16 @@ unsigned long long ZSTD_getDecompressedSize(const void* src, size_t srcSize)
 
 
 /** ZSTD_decodeFrameHeader() :
-*   `srcSize` must be the size provided by ZSTD_frameHeaderSize().
+*   `headerSize` must be the size provided by ZSTD_frameHeaderSize().
 *   @return : 0 if success, or an error code, which can be tested using ZSTD_isError() */
-static size_t ZSTD_decodeFrameHeader(ZSTD_DCtx* dctx, const void* src, size_t srcSize)
+static size_t ZSTD_decodeFrameHeader(ZSTD_DCtx* dctx, const void* src, size_t headerSize)
 {
-    size_t const result = ZSTD_getFrameParams(&(dctx->fParams), src, srcSize);
+    size_t const result = ZSTD_getFrameParams(&(dctx->fParams), src, headerSize);
+    if (ZSTD_isError(result)) return result;  /* invalid header */
+    if (result>0) return ERROR(srcSize_wrong);   /* headerSize too small */
     if (dctx->fParams.dictID && (dctx->dictID != dctx->fParams.dictID)) return ERROR(dictionary_wrong);
     if (dctx->fParams.checksumFlag) XXH64_reset(&dctx->xxhState, 0);
-    return result;
+    return 0;
 }
 
 
@@ -810,7 +812,8 @@ static seq_t ZSTD_decodeSequence(seqState_t* seqState)
         if (ofCode <= 1) {
             offset += (llCode==0);
             if (offset) {
-                size_t const temp = (offset==3) ? seqState->prevOffset[0] - 1 : seqState->prevOffset[offset];
+                size_t temp = (offset==3) ? seqState->prevOffset[0] - 1 : seqState->prevOffset[offset];
+                temp += !temp;   /* 0 is not valid; input is corrupted; force offset to 1 */
                 if (offset != 1) seqState->prevOffset[2] = seqState->prevOffset[1];
                 seqState->prevOffset[1] = seqState->prevOffset[0];
                 seqState->prevOffset[0] = offset = temp;
@@ -882,7 +885,7 @@ size_t ZSTD_execSequence(BYTE* op,
             sequence.matchLength -= length1;
             match = base;
             if (op > oend_w) {
-              memmove(op, match, sequence.matchLength);
+              while (op < oMatchEnd) *op++ = *match++;
               return sequenceLength;
             }
     }   }

@@ -77,7 +77,7 @@ static clock_t FUZ_GetClockSpan(clock_t clockStart)
 /*! FUZ_rand() :
     @return : a 27 bits random value, from a 32-bits `seed`.
     `seed` is also modified */
-#  define FUZ_rotl32(x,r) ((x << r) | (x >> (32 - r)))
+#define FUZ_rotl32(x,r) ((x << r) | (x >> (32 - r)))
 unsigned int FUZ_rand(unsigned int* seedPtr)
 {
     U32 rand32 = *seedPtr;
@@ -280,6 +280,28 @@ static int basicUnitTests(U32 seed, double compressibility, ZSTD_customMem custo
             if (r != 0) goto _output_error; }  /* error, or some data not flushed */
     }
     DISPLAYLEVEL(4, "OK \n");
+
+    /* CDict scenario */
+    DISPLAYLEVEL(4, "test%3i : digested dictionary : ", testNb++);
+    {   ZSTD_CDict* const cdict = ZSTD_createCDict(CNBuffer, 128 KB, 1);
+        size_t const initError = ZSTD_initCStream_usingCDict(zc, cdict);
+        if (ZSTD_isError(initError)) goto _output_error;
+        cSize = 0;
+        outBuff.dst = compressedBuffer;
+        outBuff.size = compressedBufferSize;
+        outBuff.pos = 0;
+        inBuff.src = CNBuffer;
+        inBuff.size = CNBufferSize;
+        inBuff.pos = 0;
+        { size_t const r = ZSTD_compressStream(zc, &outBuff, &inBuff);
+          if (ZSTD_isError(r)) goto _output_error; }
+        if (inBuff.pos != inBuff.size) goto _output_error;   /* entire input should be consumed */
+        { size_t const r = ZSTD_endStream(zc, &outBuff);
+          if (r != 0) goto _output_error; }  /* error, or some data not flushed */
+        cSize = outBuff.pos;
+        ZSTD_freeCDict(cdict);
+        DISPLAYLEVEL(4, "OK (%u bytes : %.2f%%)\n", (U32)cSize, (double)cSize/CNBufferSize*100);
+    }
 
     DISPLAYLEVEL(4, "test%3i : check CStream size : ", testNb++);
     { size_t const s = ZSTD_sizeof_CStream(zc);
@@ -511,7 +533,7 @@ static int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compres
 
         /* multi - fragments decompression test */
         if (!dictSize /* don't reset if dictionary : could be different */ && (FUZ_rand(&lseed) & 1)) {
-            CHECK( ZSTD_isError(ZSTD_resetDStream(zd)), "ZSTD_resetDStream failed");
+            CHECK (ZSTD_isError(ZSTD_resetDStream(zd)), "ZSTD_resetDStream failed");
         } else
             ZSTD_initDStream_usingDict(zd, dict, dictSize);
         {   size_t decompressionResult = 1;

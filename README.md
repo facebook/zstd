@@ -38,10 +38,10 @@ The following tests were run on a Core i7-3930K CPU @ 4.5GHz, using [lzbench], a
 
 Compression Speed vs Ratio | Decompression Speed
 ---------------------------|--------------------
-![Compression Speed vs Ratio](images/Cspeed4.png "Compression Speed vs Ratio") | ![Decompression Speed](images/Dspeed4.png "Decompression Speed")
+![Compression Speed vs Ratio](doc/images/Cspeed4.png "Compression Speed vs Ratio") | ![Decompression Speed](doc/images/Dspeed4.png "Decompression Speed")
 
 Several algorithms can produce higher compression ratios, but at slower speeds, falling outside of the graph.
-For a larger picture including very slow modes, [click on this link](images/DCspeed5.png) .
+For a larger picture including very slow modes, [click on this link](doc/images/DCspeed5.png) .
 
 
 ### The case for Small Data compression
@@ -52,7 +52,7 @@ This problem is common to many compression algorithms. The reason is, compressio
 
 To solve this situation, Zstd offers a __training mode__, which can be used to tune the algorithm for a selected type of data, by providing it with a few samples. The result of the training is stored in a file called "dictionary", which can be loaded before compression and decompression. Using this dictionary, the compression ratio achievable on small data improves dramatically:
 
-![Compressing Small Data](images/smallData.png "Compressing Small Data")
+![Compressing Small Data](doc/images/smallData.png "Compressing Small Data")
 
 These compression gains are achieved while simultaneously providing faster compression and decompression speeds.
 

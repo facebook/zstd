@@ -57,8 +57,8 @@ endif
 ifneq (,$(filter Windows%,$(OS)))
 EXT =.exe
 VOID = nul
-RES64_FILE = ..\build\VS2010\zstd\generate_res\zstd64.res
-RES32_FILE = ..\build\VS2010\zstd\generate_res\zstd32.res
+RES64_FILE = windres\zstd64.res
+RES32_FILE = windres\zstd32.res
 ifneq (,$(filter x86_64%,$(shell $(CC) -dumpmachine)))
     RES_FILE = $(RES64_FILE)
 else

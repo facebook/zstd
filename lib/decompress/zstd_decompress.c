@@ -706,6 +706,17 @@ size_t ZSTD_decodeSeqHeaders(ZSTD_DCtx* dctx, int* nbSeqPtr,
     const BYTE* ip = istart;
 
     /* check */
+    /* This check is not enough to assure the correctness of this function.
+       Note that MIN_SEQUENCES_SIZE = 1, so srcSize could be 1 after this check,
+       but ip is potentially incremented twice in the following code block
+       
+       int nbSeq = *ip++;
+       ...
+       
+       nbSeq = ((nbSeq-0x80)<<8) + *ip++;
+       
+       and then dereferenced in the next one which will lead to heap overflow error.
+       I am not sure if increaing MIN_SEQUENCES_SIZE to 2 is the right way to fix this. */
     if (srcSize < MIN_SEQUENCES_SIZE) return ERROR(srcSize_wrong);
 
     /* SeqHead */

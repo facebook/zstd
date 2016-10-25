@@ -122,6 +122,11 @@ const seqStore_t* ZSTD_getSeqStore(const ZSTD_CCtx* ctx)   /* hidden interface *
     return &(ctx->seqStore);
 }
 
+static ZSTD_parameters ZSTD_getParamsFromCCtx(const ZSTD_CCtx* cctx)
+{
+    return cctx->params;
+}
+
 
 /** ZSTD_checkParams() :
     ensure param values remain within authorized range.
@@ -2779,6 +2784,10 @@ size_t ZSTD_freeCDict(ZSTD_CDict* cdict)
     }
 }
 
+static ZSTD_parameters ZSTD_getParamsFromCDict(const ZSTD_CDict* cdict) {
+    return ZSTD_getParamsFromCCtx(cdict->refContext);
+}
+
 size_t ZSTD_compressBegin_usingCDict(ZSTD_CCtx* cctx, const ZSTD_CDict* cdict, U64 pledgedSrcSize)
 {
     if (cdict->dictContentSize) CHECK_F(ZSTD_copyCCtx(cctx, cdict->refContext, pledgedSrcSize))
@@ -2815,7 +2824,8 @@ typedef enum { zcss_init, zcss_load, zcss_flush, zcss_final } ZSTD_cStreamStage;
 
 struct ZSTD_CStream_s {
     ZSTD_CCtx* cctx;
-    ZSTD_CDict* cdict;
+    ZSTD_CDict* cdictLocal;
+    const ZSTD_CDict* cdict;
     char*  inBuff;
     size_t inBuffSize;
     size_t inToCompress;
@@ -2858,7 +2868,7 @@ size_t ZSTD_freeCStream(ZSTD_CStream* zcs)
     if (zcs==NULL) return 0;   /* support free on NULL */
     {   ZSTD_customMem const cMem = zcs->customMem;
         ZSTD_freeCCtx(zcs->cctx);
-        ZSTD_freeCDict(zcs->cdict);
+        ZSTD_freeCDict(zcs->cdictLocal);
         ZSTD_free(zcs->inBuff, cMem);
         ZSTD_free(zcs->outBuff, cMem);
         ZSTD_free(zcs, cMem);
@@ -2906,13 +2916,23 @@ size_t ZSTD_initCStream_advanced(ZSTD_CStream* zcs,
         if (zcs->outBuff == NULL) return ERROR(memory_allocation);
     }
 
-    ZSTD_freeCDict(zcs->cdict);
-    zcs->cdict = ZSTD_createCDict_advanced(dict, dictSize, params, zcs->customMem);
-    if (zcs->cdict == NULL) return ERROR(memory_allocation);
+    ZSTD_freeCDict(zcs->cdictLocal);
+    zcs->cdictLocal = ZSTD_createCDict_advanced(dict, dictSize, params, zcs->customMem);
+    if (zcs->cdictLocal == NULL) return ERROR(memory_allocation);
+    zcs->cdict = zcs->cdictLocal;
 
     zcs->checksum = params.fParams.checksumFlag > 0;
 
     return ZSTD_resetCStream(zcs, pledgedSrcSize);
+}
+
+/* note : cdict must outlive compression session */
+size_t ZSTD_initCStream_usingCDict(ZSTD_CStream* zcs, const ZSTD_CDict* cdict)
+{
+    ZSTD_parameters const params = ZSTD_getParamsFromCDict(cdict);
+    size_t const initError =  ZSTD_initCStream_advanced(zcs, NULL, 0, params, 0);
+    zcs->cdict = cdict;
+    return initError;
 }
 
 size_t ZSTD_initCStream_usingDict(ZSTD_CStream* zcs, const void* dict, size_t dictSize, int compressionLevel)

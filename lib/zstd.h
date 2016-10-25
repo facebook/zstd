@@ -33,20 +33,20 @@ extern "C" {
 /*******************************************************************************************************
   Introduction
 
-  Zstd, short for Zstandard, is a fast lossless compression algorithm, targeting real-time compression scenarios
+  zstd, short for Zstandard, is a fast lossless compression algorithm, targeting real-time compression scenarios
   at zlib-level and better compression ratios. The zstd compression library provides in-memory compression and
   decompression functions. The library supports compression levels from 1 up to ZSTD_maxCLevel() which is 22.
-  Levels from 20 to 22 should be used with caution as they require about 300-1300 MB for compression.
+  Levels >= 20, labelled `--ultra`, should be used with caution, as they require more memory.
   Compression can be done in:
     - a single step (described as Simple API)
     - a single step, reusing a context (described as Explicit memory management)
-    - repeated calls of the compression function (described as Streaming compression)
+    - unbounded multiple steps (described as Streaming compression)
   The compression ratio achievable on small data can be highly improved using compression with a dictionary in:
     - a single step (described as Simple dictionary API)
     - a single step, reusing a dictionary (described as Fast dictionary API)
 
-  Advanced and experimantal functions can be accessed using #define ZSTD_STATIC_LINKING_ONLY before including zstd.h.
-  These APIs shall never be used with a dynamic library. 
+  Advanced experimental functions can be accessed using #define ZSTD_STATIC_LINKING_ONLY before including zstd.h.
+  These APIs shall never be used with a dynamic library.
   They are not "stable", their definition may change in the future. Only static linking is allowed.
 *********************************************************************************************************/
 
@@ -115,7 +115,11 @@ ZSTDLIB_API const char* ZSTD_getErrorName(size_t code);     /*!< provides readab
 /***************************************
 *  Explicit memory management
 ***************************************/
-/*= Compression context */
+/*= Compression context
+*   When compressing many messages / blocks,
+*   it is recommended to allocate a context just once, and re-use it for each successive compression operation.
+*   This will make the situation much easier for the system's memory.
+*   Use one context per thread for parallel execution in multi-threaded environments. */
 typedef struct ZSTD_CCtx_s ZSTD_CCtx;
 ZSTDLIB_API ZSTD_CCtx* ZSTD_createCCtx(void);
 ZSTDLIB_API size_t     ZSTD_freeCCtx(ZSTD_CCtx* cctx);
@@ -162,12 +166,14 @@ ZSTDLIB_API size_t ZSTD_decompress_usingDict(ZSTD_DCtx* dctx,
 typedef struct ZSTD_CDict_s ZSTD_CDict;
 
 /*! ZSTD_createCDict() :
-*   Create a digested dictionary, ready to start compression operation without startup delay.
+*   When compressing multiple messages / blocks with the same dictionary, it's recommended to load it just once.
+*   ZSTD_createCDict() will create a digested dictionary, ready to start future compression operations without startup delay.
+*   ZSTD_CDict can be created once and used by multiple threads concurrently, as its usage is read-only.
 *   `dict` can be released after ZSTD_CDict creation */
 ZSTDLIB_API ZSTD_CDict* ZSTD_createCDict(const void* dict, size_t dictSize, int compressionLevel);
 
 /*! ZSTD_freeCDict() :
-*   Function frees memory allocated with ZSTD_createCDict() */
+*   Function frees memory allocated by ZSTD_createCDict() */
 ZSTDLIB_API size_t      ZSTD_freeCDict(ZSTD_CDict* CDict);
 
 /*! ZSTD_compress_usingCDict() :
@@ -224,8 +230,11 @@ typedef struct ZSTD_outBuffer_s {
 *  A ZSTD_CStream object is required to track streaming operation.
 *  Use ZSTD_createCStream() and ZSTD_freeCStream() to create/release resources.
 *  ZSTD_CStream objects can be reused multiple times on consecutive compression operations.
+*  It is recommended to re-use ZSTD_CStream in situations where many streaming operations will be achieved consecutively,
+*  since it will play nicer with system's memory, by re-using already allocated memory.
+*  Use one separate ZSTD_CStream per thread for parallel execution.
 *
-*  Start by initializing ZSTD_CStream.
+*  Start a new compression by initializing ZSTD_CStream.
 *  Use ZSTD_initCStream() to start a new compression operation.
 *  Use ZSTD_initCStream_usingDict() for a compression which requires a dictionary.
 *
@@ -468,7 +477,7 @@ ZSTDLIB_API size_t ZSTD_sizeof_DStream(const ZSTD_DStream* zds);
 *
 *  This is an advanced API, giving full control over buffer management, for users which need direct control over memory.
 *  But it's also a complex one, with many restrictions (documented below).
-*  Prefer using normal streaming API for an easier experience 
+*  Prefer using normal streaming API for an easier experience
 ********************************************************************* */
 
 /**

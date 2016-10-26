@@ -309,6 +309,25 @@ static int basicUnitTests(U32 seed, double compressibility, ZSTD_customMem custo
       DISPLAYLEVEL(4, "OK (%u bytes) \n", (U32)s);
     }
 
+    /* DDict scenario */
+    DISPLAYLEVEL(4, "test%3i : decompress %u bytes with digested dictionary : ", testNb++, (U32)CNBufferSize);
+    {   ZSTD_DDict* const ddict = ZSTD_createDDict(CNBuffer, 128 KB);
+        size_t const initError = ZSTD_initDStream_usingDDict(zd, ddict);
+        if (ZSTD_isError(initError)) goto _output_error;
+        inBuff.src = compressedBuffer;
+        inBuff.size = cSize;
+        inBuff.pos = 0;
+        outBuff.dst = decodedBuffer;
+        outBuff.size = CNBufferSize;
+        outBuff.pos = 0;
+        { size_t const r = ZSTD_decompressStream(zd, &outBuff, &inBuff);
+          if (r != 0) goto _output_error; }  /* should reach end of frame == 0; otherwise, some data left, or an error */
+        if (outBuff.pos != CNBufferSize) goto _output_error;   /* should regenerate the same amount */
+        if (inBuff.pos != inBuff.size) goto _output_error;   /* should have read the entire frame */
+        ZSTD_freeDDict(ddict);
+        DISPLAYLEVEL(4, "OK \n");
+    }
+
     /* test ZSTD_setDStreamParameter() resilience */
     DISPLAYLEVEL(4, "test%3i : wrong parameter for ZSTD_setDStreamParameter(): ", testNb++);
     { size_t const r = ZSTD_setDStreamParameter(zd, (ZSTD_DStreamParameter_e)999, 1);  /* large limit */

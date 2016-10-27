@@ -887,7 +887,8 @@ size_t ZSTD_execSequence(BYTE* op,
             sequence.matchLength -= length1;
             match = base;
             if (op > oend_w) {
-              while (op < oMatchEnd) *op++ = *match++;
+              U32 i;
+              for (i = 0; i < sequence.matchLength; ++i) op[i] = match[i];
               return sequenceLength;
             }
     }   }

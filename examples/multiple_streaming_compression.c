@@ -135,7 +135,7 @@ int main(int argc, const char** argv)
         return 1;
     }
 
-    resources ress = createResources_orDie();
+    resources const ress = createResources_orDie();
     void* ofnBuffer = NULL;
     size_t ofnbSize = 0;
 

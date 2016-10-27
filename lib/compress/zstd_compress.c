@@ -2489,13 +2489,13 @@ static size_t ZSTD_checkDictNCount(short* normalizedCounter, unsigned dictMaxSym
 
 
 /* Dictionary format :
-     Magic == ZSTD_DICT_MAGIC (4 bytes)
-     HUF_writeCTable(256)
-     FSE_writeNCount(off)
-     FSE_writeNCount(ml)
-     FSE_writeNCount(ll)
-     RepOffsets
-     Dictionary content
+    Magic == ZSTD_DICT_MAGIC (4 bytes)
+    HUF_writeCTable(256)
+    FSE_writeNCount(off)
+    FSE_writeNCount(ml)
+    FSE_writeNCount(ll)
+    RepOffsets
+    Dictionary content
 */
 /*! ZSTD_loadDictEntropyStats() :
     @return : size read from dictionary
@@ -2839,6 +2839,7 @@ struct ZSTD_CStream_s {
     ZSTD_cStreamStage stage;
     U32    checksum;
     U32    frameEnded;
+    ZSTD_parameters params;
     ZSTD_customMem customMem;
 };   /* typedef'd to ZSTD_CStream within "zstd.h" */
 
@@ -2884,7 +2885,10 @@ size_t ZSTD_CStreamOutSize(void) { return ZSTD_compressBound(ZSTD_BLOCKSIZE_ABSO
 
 size_t ZSTD_resetCStream(ZSTD_CStream* zcs, unsigned long long pledgedSrcSize)
 {
-    CHECK_F(ZSTD_compressBegin_usingCDict(zcs->cctx, zcs->cdict, pledgedSrcSize));
+    if (zcs->inBuffSize==0) return ERROR(stage_wrong);   /* zcs has not been init at least once */
+
+    if (zcs->cdict) CHECK_F(ZSTD_compressBegin_usingCDict(zcs->cctx, zcs->cdict, pledgedSrcSize))
+    else CHECK_F(ZSTD_compressBegin_advanced(zcs->cctx, NULL, 0, zcs->params, pledgedSrcSize));
 
     zcs->inToCompress = 0;
     zcs->inBuffPos = 0;
@@ -2916,12 +2920,15 @@ size_t ZSTD_initCStream_advanced(ZSTD_CStream* zcs,
         if (zcs->outBuff == NULL) return ERROR(memory_allocation);
     }
 
-    ZSTD_freeCDict(zcs->cdictLocal);
-    zcs->cdictLocal = ZSTD_createCDict_advanced(dict, dictSize, params, zcs->customMem);
-    if (zcs->cdictLocal == NULL) return ERROR(memory_allocation);
-    zcs->cdict = zcs->cdictLocal;
+    if (dict) {
+        ZSTD_freeCDict(zcs->cdictLocal);
+        zcs->cdictLocal = ZSTD_createCDict_advanced(dict, dictSize, params, zcs->customMem);
+        if (zcs->cdictLocal == NULL) return ERROR(memory_allocation);
+        zcs->cdict = zcs->cdictLocal;
+    } else zcs->cdict = NULL;
 
     zcs->checksum = params.fParams.checksumFlag > 0;
+    zcs->params = params;
 
     return ZSTD_resetCStream(zcs, pledgedSrcSize);
 }

@@ -121,9 +121,6 @@ static void compressFile_orDie(resources ress, const char* fname, const char* ou
 
     fclose_orDie(fout);
     fclose_orDie(fin);
-
-    /* success */
-    printf("%-30s -> %-30s \n", fname, outName);
 }
 
 
@@ -159,5 +156,8 @@ int main(int argc, const char** argv)
     }
 
     freeResources(ress);
+    /* success */
+    printf("compressed %i files \n", argc-1);
+
     return 0;
 }

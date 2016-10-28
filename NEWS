@@ -5,6 +5,7 @@ Improved : slightly better compression ratio at --ultra levels (>= 20)
 Added : ZSTD_initCStream_usingCDict(), ZSTD_initDStream_usingDDict() (experimental section)
 Added : example/multiple_streaming_compression
 Changed : zstd_errors.h is now part of include installation
+Updated man page
 Fixed : zstd-small, zstd-compress and zstd-decompress compilation targets
 
 v1.1.0

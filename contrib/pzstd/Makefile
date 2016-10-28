@@ -24,16 +24,18 @@ TESTFLAGS ?=
 DEPFLAGS = -MMD -MP -MF $*.Td
 POSTCOMPILE = mv -f $*.Td $*.d
 
-# CFLAGS, CXXFLAGS, and LDFLAGS are for the users to override
+# CFLAGS, CXXFLAGS, CPPFLAGS, and LDFLAGS are for the users to override
 CFLAGS   ?= -O3 -Wall -Wextra
 CXXFLAGS ?= -O3 -Wall -Wextra -pedantic -std=c++11
+CPPFLAGS ?=
 LDFLAGS  ?=
 
-# Googletest default flags
+# Include flags
 PZSTD_INC  = -I$(ZSTDDIR) -I$(ZSTDDIR)/common -I$(PROGDIR) -I.
 GTEST_INC  = -isystem googletest/googletest/include
 
-PZSTD_CCXXFLAGS = $(PZSTD_INC) $(GTEST_INC)
+PZSTD_CPPFLAGS  = $(PZSTD_INC) $(GTEST_INC)
+PZSTD_CCXXFLAGS =
 PZSTD_CFLAGS    = $(PZSTD_CCXXFLAGS)
 PZSTD_CXXFLAGS  = $(PZSTD_CCXXFLAGS)
 PZSTD_LDFLAGS   =

@@ -82,6 +82,9 @@ $(ZSTDDECOMP_O): $(ZSTDDIR)/decompress/zstd_decompress.c
 
 zstd  : $(ZSTDDECOMP_O) $(ZSTD_FILES) $(ZSTDLEGACY_FILES) $(ZDICT_FILES) \
         zstdcli.c fileio.c bench.c datagen.c dibio.c
+ifneq (,$(filter Windows%,$(OS)))
+	windres\generate_res.bat
+endif
 	$(CC)      $(FLAGS) -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT) $^ $(RES_FILE) -o $@$(EXT)
 
 
@@ -90,6 +93,9 @@ $(ZSTDDECOMP32_O): $(ZSTDDIR)/decompress/zstd_decompress.c
 
 zstd32 : $(ZSTDDECOMP32_O) $(ZSTD_FILES) $(ZSTDLEGACY_FILES) $(ZDICT_FILES) \
         zstdcli.c fileio.c bench.c datagen.c dibio.c
+ifneq (,$(filter Windows%,$(OS)))
+	windres\generate_res.bat
+endif
 	$(CC)  -m32 $(FLAGS) -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT) $^ $(RES32_FILE) -o $@$(EXT)
 
 

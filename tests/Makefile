@@ -79,10 +79,10 @@ zstd32:
 zstd_nolegacy:
 	$(MAKE) -C $(PRGDIR) $@
 
-fullbench  : $(ZSTD_FILES) $(ZBUFF_FILES) $(PRGDIR)/datagen.c fullbench.c
+fullbench  : $(ZSTD_FILES) $(PRGDIR)/datagen.c fullbench.c
 	$(CC)      $(FLAGS) $^ -o $@$(EXT)
 
-fullbench32 : $(ZSTD_FILES) $(ZBUFF_FILES) $(PRGDIR)/datagen.c fullbench.c
+fullbench32 : $(ZSTD_FILES) $(PRGDIR)/datagen.c fullbench.c
 	$(CC)  -m32  $(FLAGS) $^ -o $@$(EXT)
 
 fuzzer  : CPPFLAGS += -I$(ZSTDDIR)/dictBuilder

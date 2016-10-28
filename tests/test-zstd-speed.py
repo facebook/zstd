@@ -1,4 +1,4 @@
-#! /usr/bin/env python
+#! /usr/bin/env python3
 
 #
 # Copyright (c) 2016-present, Przemyslaw Skibinski, Yann Collet, Facebook, Inc.
@@ -21,7 +21,7 @@ import time
 import traceback
 import hashlib
 
-script_version = 'v1.0.1 (2016-09-15)'
+script_version = 'v1.1.1 (2016-10-28)'
 default_repo_url = 'https://github.com/facebook/zstd.git'
 working_dir_name = 'speedTest'
 working_path = os.getcwd() + '/' + working_dir_name     # /path/to/zstd/tests/speedTest
@@ -31,7 +31,7 @@ pid = str(os.getpid())
 verbose = False
 clang_version = "unknown"
 gcc_version = "unknown"
-
+args = None
 
 
 def hashfile(hasher, fname, blocksize=65536):
@@ -48,17 +48,20 @@ def log(text):
 def execute(command, print_command=True, print_output=False, print_error=True, param_shell=True):
     if print_command:
         log("> " + command)
-    popen = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                             shell=param_shell, cwd=execute.cwd)
-    stdout = popen.communicate()[0]
-    stdout_lines = stdout.splitlines()
+    popen = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=param_shell, cwd=execute.cwd)
+    stdout_lines, stderr_lines = popen.communicate(timeout=args.timeout)
+    stderr_lines = stderr_lines.decode("utf-8")
+    stdout_lines = stdout_lines.decode("utf-8")
     if print_output:
-        print('\n'.join(stdout_lines))
+        if stdout_lines:
+            print(stdout_lines)
+        if stderr_lines:
+            print(stderr_lines)
     if popen.returncode is not None and popen.returncode != 0:
-        if not print_output and print_error:
-            print('\n'.join(stdout_lines))
-        raise RuntimeError('\n'.join(stdout_lines))
-    return stdout_lines
+        if stderr_lines and not print_output and print_error:
+            print(stderr_lines)
+        raise RuntimeError(stdout_lines + stderr_lines)
+    return (stdout_lines + stderr_lines).splitlines()
 execute.cwd = None
 
 
@@ -183,8 +186,10 @@ def update_config_file(branch, commit):
     last_commit = None
     commitFileName = working_path + "/commit_" + branch.replace("/", "_") + ".txt"
     if os.path.isfile(commitFileName):
-        last_commit = file(commitFileName, 'r').read()
-    file(commitFileName, 'w').write(commit)
+        with open(commitFileName, 'r') as infile:
+            last_commit = infile.read()
+    with open(commitFileName, 'w') as outfile:
+        outfile.write(commit)
     return last_commit
 
 
@@ -199,7 +204,7 @@ def double_check(branch, commit, args, executableName, md5sum, compilerVersion, 
 
 
 def test_commit(branch, commit, last_commit, args, testFilePaths, have_mutt, have_mail):
-    local_branch = string.split(branch, '/')[1]
+    local_branch = branch.split('/')[1]
     version = local_branch.rpartition('-')[2] + '_' + commit
     if not args.dry_run:
         execute('make -C programs clean zstd CC=clang MOREFLAGS="-Werror -Wconversion -Wno-sign-conversion -DZSTD_GIT_COMMIT=%s" && ' % version +
@@ -255,6 +260,7 @@ if __name__ == '__main__':
     parser.add_argument('--maxLoadAvg', type=float, help='maximum load average to start testing', default=0.75)
     parser.add_argument('--lastCLevel', type=int, help='last compression level for testing', default=5)
     parser.add_argument('--sleepTime', '-s', type=int, help='frequency of repository checking in seconds', default=300)
+    parser.add_argument('--timeout', '-t', type=int, help='timeout for executing shell commands', default=600)
     parser.add_argument('--dry-run', dest='dry_run', action='store_true', help='not build', default=False)
     parser.add_argument('--verbose', '-v', action='store_true', help='more verbose logs', default=False)
     args = parser.parse_args()
@@ -301,6 +307,7 @@ if __name__ == '__main__':
         print("ratioLimit=%s" % args.ratioLimit)
         print("lastCLevel=%s" % args.lastCLevel)
         print("sleepTime=%s" % args.sleepTime)
+        print("timeout=%s" % args.timeout)
         print("dry_run=%s" % args.dry_run)
         print("verbose=%s" % args.verbose)
         print("have_mutt=%s have_mail=%s" % (have_mutt, have_mail))
@@ -323,10 +330,18 @@ if __name__ == '__main__':
         exit(1)
 
     send_email(args.emails, '[%s:%s] test-zstd-speed.py %s has been started' % (email_header, pid, script_version), args.message, have_mutt, have_mail)
-    file(pidfile, 'w').write(pid)
+    with open(pidfile, 'w') as the_file:
+        the_file.write(pid)
 
+    branch = ""
+    commit = ""
+    first_time = True
     while True:
         try:
+            if first_time:
+                first_time = False
+            else:
+                time.sleep(args.sleepTime)
             loadavg = os.getloadavg()[0]
             if (loadavg <= args.maxLoadAvg):
                 branches = git_get_branches()
@@ -344,13 +359,11 @@ if __name__ == '__main__':
                 log("WARNING: main loadavg=%.2f is higher than %s" % (loadavg, args.maxLoadAvg))
             if verbose:
                 log("sleep for %s seconds" % args.sleepTime)
-            time.sleep(args.sleepTime)
         except Exception as e:
             stack = traceback.format_exc()
             email_topic = '[%s:%s] ERROR in %s:%s' % (email_header, pid, branch, commit)
             send_email(args.emails, email_topic, stack, have_mutt, have_mail)
             print(stack)
-            time.sleep(args.sleepTime)
         except KeyboardInterrupt:
             os.unlink(pidfile)
             send_email(args.emails, '[%s:%s] test-zstd-speed.py %s has been stopped' % (email_header, pid, script_version), args.message, have_mutt, have_mail)

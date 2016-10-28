@@ -260,7 +260,7 @@ if __name__ == '__main__':
     parser.add_argument('--maxLoadAvg', type=float, help='maximum load average to start testing', default=0.75)
     parser.add_argument('--lastCLevel', type=int, help='last compression level for testing', default=5)
     parser.add_argument('--sleepTime', '-s', type=int, help='frequency of repository checking in seconds', default=300)
-    parser.add_argument('--timeout', '-t', type=int, help='timeout for executing shell commands', default=600)
+    parser.add_argument('--timeout', '-t', type=int, help='timeout for executing shell commands', default=1800)
     parser.add_argument('--dry-run', dest='dry_run', action='store_true', help='not build', default=False)
     parser.add_argument('--verbose', '-v', action='store_true', help='more verbose logs', default=False)
     args = parser.parse_args()

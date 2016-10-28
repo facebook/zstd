@@ -70,7 +70,7 @@ VOID = /dev/null
 endif
 
 
-.PHONY: default all clean clean_decomp_o install uninstall
+.PHONY: default all clean clean_decomp_o install uninstall generate_res
 
 default: zstd
 
@@ -82,6 +82,9 @@ $(ZSTDDECOMP_O): $(ZSTDDIR)/decompress/zstd_decompress.c
 
 zstd  : $(ZSTDDECOMP_O) $(ZSTD_FILES) $(ZSTDLEGACY_FILES) $(ZDICT_FILES) \
         zstdcli.c fileio.c bench.c datagen.c dibio.c
+ifneq (,$(filter Windows%,$(OS)))
+	windres\generate_res.bat
+endif
 	$(CC)      $(FLAGS) -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT) $^ $(RES_FILE) -o $@$(EXT)
 
 
@@ -90,6 +93,9 @@ $(ZSTDDECOMP32_O): $(ZSTDDIR)/decompress/zstd_decompress.c
 
 zstd32 : $(ZSTDDECOMP32_O) $(ZSTD_FILES) $(ZSTDLEGACY_FILES) $(ZDICT_FILES) \
         zstdcli.c fileio.c bench.c datagen.c dibio.c
+ifneq (,$(filter Windows%,$(OS)))
+	windres\generate_res.bat
+endif
 	$(CC)  -m32 $(FLAGS) -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT) $^ $(RES32_FILE) -o $@$(EXT)
 
 
@@ -123,6 +129,8 @@ zstd-decompress: clean_decomp_o
 zstd-compress: $(ZSTDCOMMON_FILES) $(ZSTDCOMP_FILES) zstdcli.c fileio.c
 	$(CC)      $(FLAGS) -DZSTD_NOBENCH -DZSTD_NODICT -DZSTD_NODECOMPRESS $^ -o $@$(EXT)
 
+generate_res:
+	windres\generate_res.bat
 
 clean:
 	$(MAKE) -C ../lib clean

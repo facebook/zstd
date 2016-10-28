@@ -369,7 +369,7 @@ int main(int argCount, const char* argv[])
 
 #ifndef ZSTD_NOBENCH
                         /* Benchmark */
-                    case 'b': operation=zom_train; argument++; break;
+                    case 'b': operation=zom_bench; argument++; break;
 
                         /* range bench (benchmark only) */
                     case 'e':

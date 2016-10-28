@@ -258,6 +258,17 @@ $ZSTD -t --rm tmp1.zst
 ls -ls tmp1.zst  # check file is still present
 
 
+$ECHO "\n**** benchmark mode tests **** "
+
+$ECHO "bench one file"
+./datagen > tmp1
+$ZSTD -bi1 tmp1
+$ECHO "bench multiple levels"
+$ZSTD -i1b1e3 tmp1
+$ECHO "with recursive and quiet modes"
+$ZSTD -rqi1b1e3 tmp1
+
+
 $ECHO "\n**** zstd round-trip tests **** "
 
 roundTripTest

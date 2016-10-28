@@ -70,7 +70,7 @@ VOID = /dev/null
 endif
 
 
-.PHONY: default all clean clean_decomp_o install uninstall
+.PHONY: default all clean clean_decomp_o install uninstall generate_res
 
 default: zstd
 
@@ -123,6 +123,8 @@ zstd-decompress: clean_decomp_o
 zstd-compress: $(ZSTDCOMMON_FILES) $(ZSTDCOMP_FILES) zstdcli.c fileio.c
 	$(CC)      $(FLAGS) -DZSTD_NOBENCH -DZSTD_NODICT -DZSTD_NODECOMPRESS $^ -o $@$(EXT)
 
+generate_res:
+	windres\generate_res.bat
 
 clean:
 	$(MAKE) -C ../lib clean

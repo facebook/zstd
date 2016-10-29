@@ -10,7 +10,7 @@ When decompressing files compressed with Zstandard, PZstandard does IO in one th
 
 ## Usage
 
-PZstandard supports the same command line interface as Zstandard, but also provies the `-p` option to specify the number of threads.
+PZstandard supports the same command line interface as Zstandard, but also provides the `-p` option to specify the number of threads.
 Dictionary mode is not currently supported.
 
 Basic usage

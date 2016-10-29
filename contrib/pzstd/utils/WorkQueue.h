@@ -28,6 +28,7 @@ class WorkQueue {
   std::mutex mutex_;
   std::condition_variable readerCv_;
   std::condition_variable writerCv_;
+  std::condition_variable finishCv_;
 
   std::queue<T> queue_;
   bool done_;
@@ -53,12 +54,13 @@ class WorkQueue {
   /**
    * Push an item onto the work queue.  Notify a single thread that work is
    * available.  If `finish()` has been called, do nothing and return false.
+   * If `push()` returns false, then `item` has not been moved from.
    *
    * @param item  Item to push onto the queue.
    * @returns     True upon success, false if `finish()` has been called.  An
    *               item was pushed iff `push()` returns true.
    */
-  bool push(T item) {
+  bool push(T&& item) {
     {
       std::unique_lock<std::mutex> lock(mutex_);
       while (full() && !done_) {
@@ -124,19 +126,14 @@ class WorkQueue {
     }
     readerCv_.notify_all();
     writerCv_.notify_all();
+    finishCv_.notify_all();
   }
 
   /// Blocks until `finish()` has been called (but the queue may not be empty).
   void waitUntilFinished() {
     std::unique_lock<std::mutex> lock(mutex_);
     while (!done_) {
-      readerCv_.wait(lock);
-      // If we were woken by a push, we need to wake a thread waiting on pop().
-      if (!done_) {
-        lock.unlock();
-        readerCv_.notify_one();
-        lock.lock();
-      }
+      finishCv_.wait(lock);
     }
   }
 };

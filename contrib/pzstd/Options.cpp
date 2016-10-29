@@ -303,6 +303,12 @@ Options::Status Options::parse(int argc, const char **argv) {
     } // while (*options != 0);
   }   // for (int i = 1; i < argc; ++i);
 
+  // Set options for test mode
+  if (test) {
+    outputFile = nullOutput;
+    keepSource = true;
+  }
+
   // Input file defaults to standard input if not provided.
   if (localInputFiles.empty()) {
     localInputFiles.emplace_back(kStdIn);
@@ -399,11 +405,6 @@ Options::Status Options::parse(int argc, const char **argv) {
     verbosity = 1;
   }
 
-  // Set options for test mode
-  if (test) {
-    outputFile = nullOutput;
-    keepSource = true;
-  }
   return Status::Success;
 }
 

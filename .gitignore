@@ -32,3 +32,4 @@ _zstdbench/
 *.swp
 .DS_Store
 googletest/
+*.d

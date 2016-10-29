@@ -27,7 +27,7 @@ class ThreadPool {
   explicit ThreadPool(std::size_t numThreads) {
     threads_.reserve(numThreads);
     for (std::size_t i = 0; i < numThreads; ++i) {
-      threads_.emplace_back([&] {
+      threads_.emplace_back([this] {
         std::function<void()> task;
         while (tasks_.pop(task)) {
           task();

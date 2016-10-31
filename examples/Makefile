@@ -17,7 +17,8 @@ default: all
 
 all: simple_compression simple_decompression \
 	dictionary_compression dictionary_decompression \
-	streaming_compression streaming_decompression
+	streaming_compression streaming_decompression \
+	multiple_streaming_compression
 
 simple_compression : simple_compression.c
 	$(CC) $(CPPFLAGS) $(CFLAGS) $^ $(LDFLAGS) -o $@
@@ -34,6 +35,9 @@ dictionary_decompression : dictionary_decompression.c
 streaming_compression : streaming_compression.c
 	$(CC) $(CPPFLAGS) $(CFLAGS) $^ $(LDFLAGS) -o $@
 
+multiple_streaming_compression : multiple_streaming_compression.c
+	$(CC) $(CPPFLAGS) $(CFLAGS) $^ $(LDFLAGS) -o $@
+
 streaming_decompression : streaming_decompression.c
 	$(CC) $(CPPFLAGS) $(CFLAGS) $^ $(LDFLAGS) -o $@
 
@@ -41,7 +45,8 @@ clean:
 	@rm -f core *.o tmp* result* *.zst \
         simple_compression simple_decompression \
         dictionary_compression dictionary_decompression \
-        streaming_compression streaming_decompression
+        streaming_compression streaming_decompression \
+		multiple_streaming_compression
 	@echo Cleaning completed
 
 test: all
@@ -54,7 +59,10 @@ test: all
 	@echo starting streaming compression
 	./streaming_compression tmp
 	./streaming_decompression tmp.zst > /dev/null
+	@echo starting multiple streaming compression
+	./multiple_streaming_compression *.c
 	@echo starting dictionary compression
 	./dictionary_compression tmp2 tmp README.md
 	./dictionary_decompression tmp2.zst tmp.zst README.md
+	$(RM) tmp* *.zst
 	@echo tests completed

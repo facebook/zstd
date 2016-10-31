@@ -71,9 +71,12 @@ static void decompressFile_orDie(const char* fname)
 
     ZSTD_DStream* const dstream = ZSTD_createDStream();
     if (dstream==NULL) { fprintf(stderr, "ZSTD_createDStream() error \n"); exit(10); }
+
+    /* In more complex scenarios, a file may consist of multiple appended frames (ex : pzstd).
+    *  The following example decompresses only the first frame.
+    *  It is compatible with other provided streaming examples */
     size_t const initResult = ZSTD_initDStream(dstream);
     if (ZSTD_isError(initResult)) { fprintf(stderr, "ZSTD_initDStream() error : %s \n", ZSTD_getErrorName(initResult)); exit(11); }
-
     size_t read, toRead = initResult;
     while ( (read = fread_orDie(buffIn, toRead, fin)) ) {
         ZSTD_inBuffer input = { buffIn, read, 0 };

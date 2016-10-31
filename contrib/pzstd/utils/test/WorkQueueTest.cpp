@@ -10,6 +10,7 @@
 #include "utils/WorkQueue.h"
 
 #include <gtest/gtest.h>
+#include <memory>
 #include <mutex>
 #include <thread>
 #include <vector>
@@ -64,7 +65,7 @@ TEST(WorkQueue, SPSC) {
   const int max = 100;
 
   for (int i = 0; i < 10; ++i) {
-    queue.push(i);
+    queue.push(int{i});
   }
 
   std::thread thread([ &queue, max ] {
@@ -80,7 +81,7 @@ TEST(WorkQueue, SPSC) {
 
   std::this_thread::yield();
   for (int i = 10; i < max; ++i) {
-    queue.push(i);
+    queue.push(int{i});
   }
   queue.finish();
 
@@ -97,7 +98,7 @@ TEST(WorkQueue, SPMC) {
   }
 
   for (int i = 0; i < 50; ++i) {
-    queue.push(i);
+    queue.push(int{i});
   }
   queue.finish();
 
@@ -126,7 +127,7 @@ TEST(WorkQueue, MPMC) {
     pusherThreads.emplace_back(
         [ &queue, min, max ] {
           for (int i = min; i < max; ++i) {
-            queue.push(i);
+            queue.push(int{i});
           }
         });
   }
@@ -212,7 +213,7 @@ TEST(WorkQueue, BoundedSizeMPMC) {
     pusherThreads.emplace_back(
         [ &queue, min, max ] {
           for (int i = min; i < max; ++i) {
-            queue.push(i);
+            queue.push(int{i});
           }
         });
   }
@@ -229,6 +230,18 @@ TEST(WorkQueue, BoundedSizeMPMC) {
   for (int i = 0; i < 200; ++i) {
     EXPECT_EQ(i, results[i]);
   }
+}
+
+TEST(WorkQueue, FailedPush) {
+  WorkQueue<std::unique_ptr<int>> queue;
+  std::unique_ptr<int> x(new int{5});
+  EXPECT_TRUE(queue.push(std::move(x)));
+  EXPECT_EQ(nullptr, x);
+  queue.finish();
+  x.reset(new int{6});
+  EXPECT_FALSE(queue.push(std::move(x)));
+  EXPECT_NE(nullptr, x);
+  EXPECT_EQ(6, *x);
 }
 
 TEST(BufferWorkQueue, SizeCalculatedCorrectly) {

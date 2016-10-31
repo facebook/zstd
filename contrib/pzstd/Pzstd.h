@@ -9,9 +9,11 @@
 #pragma once
 
 #include "ErrorHolder.h"
+#include "Logging.h"
 #include "Options.h"
 #include "utils/Buffer.h"
 #include "utils/Range.h"
+#include "utils/ResourcePool.h"
 #include "utils/ThreadPool.h"
 #include "utils/WorkQueue.h"
 #define ZSTD_STATIC_LINKING_ONLY
@@ -32,12 +34,58 @@ namespace pzstd {
  */
 int pzstdMain(const Options& options);
 
+class SharedState {
+ public:
+  SharedState(const Options& options) : log(options.verbosity) {
+    if (!options.decompress) {
+      auto parameters = options.determineParameters();
+      cStreamPool.reset(new ResourcePool<ZSTD_CStream>{
+          [parameters]() -> ZSTD_CStream* {
+            auto zcs = ZSTD_createCStream();
+            if (zcs) {
+              auto err = ZSTD_initCStream_advanced(
+                  zcs, nullptr, 0, parameters, 0);
+              if (ZSTD_isError(err)) {
+                ZSTD_freeCStream(zcs);
+                return nullptr;
+              }
+            }
+            return zcs;
+          },
+          [](ZSTD_CStream *zcs) {
+            ZSTD_freeCStream(zcs);
+          }});
+    } else {
+      dStreamPool.reset(new ResourcePool<ZSTD_DStream>{
+          []() -> ZSTD_DStream* {
+            auto zds = ZSTD_createDStream();
+            if (zds) {
+              auto err = ZSTD_initDStream(zds);
+              if (ZSTD_isError(err)) {
+                ZSTD_freeDStream(zds);
+                return nullptr;
+              }
+            }
+            return zds;
+          },
+          [](ZSTD_DStream *zds) {
+            ZSTD_freeDStream(zds);
+          }});
+    }
+  }
+
+  Logger log;
+  ErrorHolder errorHolder;
+  std::unique_ptr<ResourcePool<ZSTD_CStream>> cStreamPool;
+  std::unique_ptr<ResourcePool<ZSTD_DStream>> dStreamPool;
+};
+
 /**
  * Streams input from `fd`, breaks input up into chunks, and compresses each
  * chunk independently.  Output of each chunk gets streamed to a queue, and
  * the output queues get put into `chunks` in order.
  *
- * @param errorHolder  Used to report errors and coordinate early shutdown
+ * @param state        The shared state
  * @param chunks       Each compression jobs output queue gets `pushed()` here
  *                      as soon as it is available
  * @param executor     The thread pool to run compression jobs in
@@ -48,7 +96,7 @@ int pzstdMain(const Options& options);
  * @returns            The number of bytes read from the file
  */
 std::uint64_t asyncCompressChunks(
-    ErrorHolder& errorHolder,
+    SharedState& state,
     WorkQueue<std::shared_ptr<BufferWorkQueue>>& chunks,
     ThreadPool& executor,
     FILE* fd,
@@ -62,7 +110,7 @@ std::uint64_t asyncCompressChunks(
  * decompression job.  Output of each frame gets streamed to a queue, and
  * the output queues get put into `frames` in order.
  *
- * @param errorHolder  Used to report errors and coordinate early shutdown
+ * @param state        The shared state
  * @param frames       Each decompression jobs output queue gets `pushed()` here
  *                      as soon as it is available
  * @param executor     The thread pool to run compression jobs in
@@ -70,7 +118,7 @@ std::uint64_t asyncCompressChunks(
  * @returns            The number of bytes read from the file
  */
 std::uint64_t asyncDecompressFrames(
-    ErrorHolder& errorHolder,
+    SharedState& state,
     WorkQueue<std::shared_ptr<BufferWorkQueue>>& frames,
     ThreadPool& executor,
     FILE* fd);
@@ -79,18 +127,16 @@ std::uint64_t asyncDecompressFrames(
  * Streams input in from each queue in `outs` in order, and writes the data to
  * `outputFd`.
  *
- * @param errorHolder  Used to report errors and coordinate early exit
+ * @param state        The shared state
  * @param outs         A queue of output queues, one for each
  *                      (de)compression job.
  * @param outputFd     The file descriptor to write to
  * @param decompress   Are we decompressing?
- * @param verbosity    The verbosity level to log at
  * @returns            The number of bytes written
  */
 std::uint64_t writeFile(
-    ErrorHolder& errorHolder,
+    SharedState& state,
     WorkQueue<std::shared_ptr<BufferWorkQueue>>& outs,
     FILE* outputFd,
-    bool decompress,
-    int verbosity);
+    bool decompress);
 }

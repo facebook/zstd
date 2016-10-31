@@ -34,7 +34,7 @@
 *  Frames requiring more memory will be rejected.
 */
 #ifndef ZSTD_MAXWINDOWSIZE_DEFAULT
-#  define ZSTD_MAXWINDOWSIZE_DEFAULT (257 << 20)   /* 257 MB */
+#  define ZSTD_MAXWINDOWSIZE_DEFAULT ((1 << ZSTD_WINDOWLOG_MAX) + 1)   /* defined within zstd.h */
 #endif
 
 
@@ -111,7 +111,7 @@ struct ZSTD_DCtx_s
     BYTE headerBuffer[ZSTD_FRAMEHEADERSIZE_MAX];
 };  /* typedef'd to ZSTD_DCtx within "zstd.h" */
 
-size_t ZSTD_sizeof_DCtx (const ZSTD_DCtx* dctx) { if (dctx==NULL) return 0; return sizeof(ZSTD_DCtx); }  /* support sizeof on NULL */
+size_t ZSTD_sizeof_DCtx (const ZSTD_DCtx* dctx) { return (dctx==NULL) ? 0 : sizeof(ZSTD_DCtx); }
 
 size_t ZSTD_estimateDCtxSize(void) { return sizeof(ZSTD_DCtx); }
 
@@ -847,6 +847,53 @@ static seq_t ZSTD_decodeSequence(seqState_t* seqState)
 }
 
 
+FORCE_NOINLINE
+size_t ZSTD_execSequenceLast7(BYTE* op,
+                              BYTE* const oend, seq_t sequence,
+                              const BYTE** litPtr, const BYTE* const litLimit_w,
+                              const BYTE* const base, const BYTE* const vBase, const BYTE* const dictEnd)
+{
+    BYTE* const oLitEnd = op + sequence.litLength;
+    size_t const sequenceLength = sequence.litLength + sequence.matchLength;
+    BYTE* const oMatchEnd = op + sequenceLength;   /* risk : address space overflow (32-bits) */
+    BYTE* const oend_w = oend - WILDCOPY_OVERLENGTH;
+    const BYTE* const iLitEnd = *litPtr + sequence.litLength;
+    const BYTE* match = oLitEnd - sequence.offset;
+
+    /* check */
+    if (oMatchEnd>oend) return ERROR(dstSize_tooSmall); /* last match must start at a minimum distance of WILDCOPY_OVERLENGTH from oend */
+    if (iLitEnd > litLimit_w) return ERROR(corruption_detected);   /* over-read beyond lit buffer */
+    if (oLitEnd <= oend_w) return ERROR(GENERIC);   /* Precondition */
+
+    /* copy literals */
+    if (op < oend_w) {
+        ZSTD_wildcopy(op, *litPtr, oend_w - op);
+        *litPtr += oend_w - op;
+        op = oend_w;
+    }
+    while (op < oLitEnd) *op++ = *(*litPtr)++;
+
+    /* copy Match */
+    if (sequence.offset > (size_t)(oLitEnd - base)) {
+        /* offset beyond prefix */
+        if (sequence.offset > (size_t)(oLitEnd - vBase)) return ERROR(corruption_detected);
+        match = dictEnd - (base-match);
+        if (match + sequence.matchLength <= dictEnd) {
+            memmove(oLitEnd, match, sequence.matchLength);
+            return sequenceLength;
+        }
+        /* span extDict & currentPrefixSegment */
+        {   size_t const length1 = dictEnd - match;
+            memmove(oLitEnd, match, length1);
+            op = oLitEnd + length1;
+            sequence.matchLength -= length1;
+            match = base;
+    }   }
+    while (op < oMatchEnd) *op++ = *match++;
+    return sequenceLength;
+}
+
+
 FORCE_INLINE
 size_t ZSTD_execSequence(BYTE* op,
                                 BYTE* const oend, seq_t sequence,
@@ -861,8 +908,9 @@ size_t ZSTD_execSequence(BYTE* op,
     const BYTE* match = oLitEnd - sequence.offset;
 
     /* check */
-    if ((oLitEnd>oend_w) | (oMatchEnd>oend)) return ERROR(dstSize_tooSmall); /* last match must start at a minimum distance of WILDCOPY_OVERLENGTH from oend */
+    if (oMatchEnd>oend) return ERROR(dstSize_tooSmall); /* last match must start at a minimum distance of WILDCOPY_OVERLENGTH from oend */
     if (iLitEnd > litLimit_w) return ERROR(corruption_detected);   /* over-read beyond lit buffer */
+    if (oLitEnd>oend_w) return ZSTD_execSequenceLast7(op, oend, sequence, litPtr, litLimit_w, base, vBase, dictEnd);
 
     /* copy Literals */
     ZSTD_copy8(op, *litPtr);
@@ -887,7 +935,8 @@ size_t ZSTD_execSequence(BYTE* op,
             sequence.matchLength -= length1;
             match = base;
             if (op > oend_w) {
-              while (op < oMatchEnd) *op++ = *match++;
+              U32 i;
+              for (i = 0; i < sequence.matchLength; ++i) op[i] = match[i];
               return sequenceLength;
             }
     }   }

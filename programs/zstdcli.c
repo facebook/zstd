@@ -199,26 +199,24 @@ static unsigned longCommandWArg(const char** stringPtr, const char* longCommand)
     return result;
 }
 
+typedef enum { zom_compress, zom_decompress, zom_test, zom_bench, zom_train } zstd_operation_mode;
 
 #define CLEAN_RETURN(i) { operationResult = (i); goto _end; }
 
 int main(int argCount, const char* argv[])
 {
     int argNb,
-        bench=0,
-        decode=0,
-        testmode=0,
         forceStdout=0,
         main_pause=0,
         nextEntryIsDictionary=0,
         operationResult=0,
-        dictBuild=0,
         nextArgumentIsOutFileName=0,
         nextArgumentIsMaxDict=0,
         nextArgumentIsDictID=0,
         nextArgumentIsFile=0,
         ultra=0,
         lastCommand = 0;
+    zstd_operation_mode operation = zom_compress;
     int cLevel = ZSTDCLI_CLEVEL_DEFAULT;
     int cLevelLast = 1;
     unsigned recursive = 0;
@@ -241,7 +239,7 @@ int main(int argCount, const char* argv[])
     /* init */
     (void)recursive; (void)cLevelLast;    /* not used when ZSTD_NOBENCH set */
     (void)dictCLevel; (void)dictSelect; (void)dictID;  /* not used when ZSTD_NODICT set */
-    (void)decode; (void)cLevel; (void)testmode; /* not used when ZSTD_NOCOMPRESS set */
+    (void)cLevel; /* not used when ZSTD_NOCOMPRESS set */
     (void)ultra; (void)memLimit;   /* not used when ZSTD_NODECOMPRESS set */
     if (filenameTable==NULL) { DISPLAY("zstd: %s \n", strerror(errno)); exit(1); }
     filenameTable[0] = stdinmark;
@@ -253,8 +251,8 @@ int main(int argCount, const char* argv[])
     }
 
     /* preset behaviors */
-    if (!strcmp(programName, ZSTD_UNZSTD)) decode=1;
-    if (!strcmp(programName, ZSTD_CAT)) { decode=1; forceStdout=1; displayLevel=1; outFileName=stdoutmark; }
+    if (!strcmp(programName, ZSTD_UNZSTD)) operation=zom_decompress;
+    if (!strcmp(programName, ZSTD_CAT)) { operation=zom_decompress; forceStdout=1; displayLevel=1; outFileName=stdoutmark; }
 
     /* command switches */
     for (argNb=1; argNb<argCount; argNb++) {
@@ -265,7 +263,9 @@ int main(int argCount, const char* argv[])
 
             /* long commands (--long-word) */
             if (!strcmp(argument, "--")) { nextArgumentIsFile=1; continue; }   /* only file names allowed from now on */
-            if (!strcmp(argument, "--decompress")) { decode=1; continue; }
+            if (!strcmp(argument, "--compress")) { operation=zom_compress; continue; }
+            if (!strcmp(argument, "--decompress")) { operation=zom_decompress; continue; }
+            if (!strcmp(argument, "--uncompress")) { operation=zom_decompress; continue; }
             if (!strcmp(argument, "--force")) { FIO_overwriteMode(); continue; }
             if (!strcmp(argument, "--version")) { displayOut=stdout; DISPLAY(WELCOME_MESSAGE); CLEAN_RETURN(0); }
             if (!strcmp(argument, "--help")) { displayOut=stdout; CLEAN_RETURN(usage_advanced(programName)); }
@@ -278,8 +278,8 @@ int main(int argCount, const char* argv[])
             if (!strcmp(argument, "--no-dictID")) { FIO_setDictIDFlag(0); continue; }
             if (!strcmp(argument, "--sparse")) { FIO_setSparseWrite(2); continue; }
             if (!strcmp(argument, "--no-sparse")) { FIO_setSparseWrite(0); continue; }
-            if (!strcmp(argument, "--test")) { testmode=1; decode=1; continue; }
-            if (!strcmp(argument, "--train")) { dictBuild=1; outFileName=g_defaultDictName; continue; }
+            if (!strcmp(argument, "--test")) { operation=zom_test; continue; }
+            if (!strcmp(argument, "--train")) { operation=zom_train; outFileName=g_defaultDictName; continue; }
             if (!strcmp(argument, "--maxdict")) { nextArgumentIsMaxDict=1; lastCommand=1; continue; }
             if (!strcmp(argument, "--dictID")) { nextArgumentIsDictID=1; lastCommand=1; continue; }
             if (!strcmp(argument, "--keep")) { FIO_setRemoveSrcFile(0); continue; }
@@ -323,8 +323,11 @@ int main(int argCount, const char* argv[])
                     case 'H':
                     case 'h': displayOut=stdout; CLEAN_RETURN(usage_advanced(programName));
 
+                         /* Compress */
+                    case 'z': operation=zom_compress; argument++; break;
+
                          /* Decoding */
-                    case 'd': decode=1; argument++; break;
+                    case 'd': operation=zom_decompress; argument++; break;
 
                         /* Force stdout, even if stdout==console */
                     case 'c': forceStdout=1; outFileName=stdoutmark; argument++; break;
@@ -348,7 +351,7 @@ int main(int argCount, const char* argv[])
                     case 'C': argument++; FIO_setChecksumFlag(2); break;
 
                         /* test compressed file */
-                    case 't': testmode=1; decode=1; argument++; break;
+                    case 't': operation=zom_test; argument++; break;
 
                         /* destination file name */
                     case 'o': nextArgumentIsOutFileName=1; lastCommand=1; argument++; break;
@@ -366,7 +369,7 @@ int main(int argCount, const char* argv[])
 
 #ifndef ZSTD_NOBENCH
                         /* Benchmark */
-                    case 'b': bench=1; argument++; break;
+                    case 'b': operation=zom_bench; argument++; break;
 
                         /* range bench (benchmark only) */
                     case 'e':
@@ -470,7 +473,7 @@ int main(int argCount, const char* argv[])
 #endif
 
     /* Check if benchmark is selected */
-    if (bench) {
+    if (operation==zom_bench) {
 #ifndef ZSTD_NOBENCH
         BMK_setNotificationLevel(displayLevel);
         BMK_benchFiles(filenameTable, filenameIdx, dictFileName, cLevel, cLevelLast);
@@ -479,7 +482,7 @@ int main(int argCount, const char* argv[])
     }
 
     /* Check if dictionary builder is selected */
-    if (dictBuild) {
+    if (operation==zom_train) {
 #ifndef ZSTD_NODICT
         ZDICT_params_t dictParams;
         memset(&dictParams, 0, sizeof(dictParams));
@@ -498,7 +501,7 @@ int main(int argCount, const char* argv[])
 
     /* Check if input/output defined as console; trigger an error in this case */
     if (!strcmp(filenameTable[0], stdinmark) && IS_CONSOLE(stdin) ) CLEAN_RETURN(badusage(programName));
-    if (outFileName && !strcmp(outFileName, stdoutmark) && IS_CONSOLE(stdout) && strcmp(filenameTable[0], stdinmark) && !(forceStdout && decode))
+    if (outFileName && !strcmp(outFileName, stdoutmark) && IS_CONSOLE(stdout) && strcmp(filenameTable[0], stdinmark) && !(forceStdout && (operation==zom_decompress)))
         CLEAN_RETURN(badusage(programName));
 
     /* user-selected output filename, only possible with a single file */
@@ -522,7 +525,7 @@ int main(int argCount, const char* argv[])
 
     /* IO Stream/File */
     FIO_setNotificationLevel(displayLevel);
-    if (!decode) {
+    if (operation==zom_compress) {
 #ifndef ZSTD_NOCOMPRESS
         if ((filenameIdx==1) && outFileName)
           operationResult = FIO_compressFilename(outFileName, filenameTable[0], dictFileName, cLevel);
@@ -531,9 +534,9 @@ int main(int argCount, const char* argv[])
 #else
         DISPLAY("Compression not supported\n");
 #endif
-    } else {  /* decompression */
+    } else {  /* decompression or test */
 #ifndef ZSTD_NODECOMPRESS
-        if (testmode) { outFileName=nulmark; FIO_setRemoveSrcFile(0); } /* test mode */
+        if (operation==zom_test) { outFileName=nulmark; FIO_setRemoveSrcFile(0); } /* test mode */
         FIO_setMemLimit(memLimit);
         if (filenameIdx==1 && outFileName)
             operationResult = FIO_decompressFilename(outFileName, filenameTable[0], dictFileName);

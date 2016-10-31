@@ -15,6 +15,11 @@ Zstandard library : usage examples
   Compress a single file.
   Introduces usage of : `ZSTD_compressStream()`
 
+- [Multiple Streaming compression](multiple_streaming_compression.c) :
+  Compress multiple files in a single command line.
+  Introduces memory usage preservation technique,
+  reducing impact of malloc()/free() and memset() by re-using existing resources.
+
 - [Streaming decompression](streaming_decompression.c) :
   Decompress a single file compressed by zstd.
   Compatible with both simple and streaming compression.

@@ -31,6 +31,16 @@
 #  endif /* __STDC_VERSION__ */
 #endif
 
+#ifdef _MSC_VER
+#  define FORCE_NOINLINE static __declspec(noinline)
+#else
+#  ifdef __GNUC__
+#    define FORCE_NOINLINE static __attribute__((__noinline__))
+#  else
+#    define FORCE_NOINLINE static
+#  endif
+#endif
+
 
 /*-*************************************
 *  Dependencies

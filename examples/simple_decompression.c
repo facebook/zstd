@@ -65,7 +65,7 @@ static void decompress(const char* fname)
     void* const cBuff = loadFile_X(fname, &cSize);
     unsigned long long const rSize = ZSTD_getDecompressedSize(cBuff, cSize);
     if (rSize==0) {
-        printf("%s : original size unknown \n", fname);
+        printf("%s : original size unknown. Use streaming decompression instead. \n", fname);
         exit(5);
     }
     void* const rBuff = malloc_X((size_t)rSize);

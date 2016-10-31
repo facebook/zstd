@@ -90,7 +90,7 @@ int main(int argc, char *argv[]) {
 
     if (argc < 4) {
         cout << "usage: " << argv[0] << " [zstd_version] [input_file] [output_html]" << endl;
-        exit(0);
+        return 1;
     }
 
     version = "zstd " + string(argv[1]) + " Manual";
@@ -98,14 +98,14 @@ int main(int argc, char *argv[]) {
     istream.open(argv[2], ifstream::in);
     if (!istream.is_open()) {
         cout << "Error opening file " << argv[2] << endl;
-        exit(0);
+        return 1;
     }
 
     ostream.open(argv[3], ifstream::out);
     if (!ostream.is_open()) {
         cout << "Error opening file " << argv[3] << endl;
-        exit(0);
-    }
+        return 1;
+   }
 
     while (getline(istream, line)) {
         input.push_back(line);

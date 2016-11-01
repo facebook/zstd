@@ -523,7 +523,7 @@ static int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, U32 const maxD
 
         /* notification */
         if (nbTests >= testNb) { DISPLAYUPDATE(2, "\r%6u/%6u    ", testNb, nbTests); }
-        else { DISPLAYUPDATE(2, "\r%6u      ", testNb); }
+        else { DISPLAYUPDATE(2, "\r%6u          ", testNb); }
 
         FUZ_rand(&coreSeed);
         { U32 const prime1 = 2654435761U; lseed = coreSeed ^ prime1; }

@@ -452,8 +452,8 @@ static int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compres
         size_t maxTestSize;
 
         /* init */
-        DISPLAYUPDATE(2, "\r%6u", testNb);
-        if (nbTests >= testNb) DISPLAYUPDATE(2, "/%6u   ", nbTests);
+        if (nbTests >= testNb) { DISPLAYUPDATE(2, "\r%6u/%6u    ", testNb, nbTests); }
+        else { DISPLAYUPDATE(2, "\r%6u          ", testNb); }
         FUZ_rand(&coreSeed);
         lseed = coreSeed ^ prime1;
 

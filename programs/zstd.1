@@ -27,16 +27,70 @@ is equivalent to
 
 .SH DESCRIPTION
 .PP
-\fBzstd\fR is a fast lossless compression algorithm.
+\fBzstd\fR is a fast lossless compression algorithm
+and data compression tool,
+with command line syntax similar to \fB gzip (1) \fR and \fB xz (1) \fR .
 It is based on the \fBLZ77\fR family, with further FSE & huff0 entropy stages.
-\fBzstd\fR offers configurable compression speed, with fast modes at > 200 MB/s per core.
-It also features a very fast decoder, with speed > 500 MB/s per core.
+\fBzstd\fR offers highly configurable compression speed,
+with fast modes at > 200 MB/s per core,
+and strong modes nearing lzma compression ratios.
+It also features a very fast decoder, with speeds > 500 MB/s per core.
 
-\fBzstd\fR command line is generally similar to gzip, but features the following differences :
- - Source files are preserved by default
-   It's possible to remove them automatically by using \fB--rm\fR command
+\fBzstd\fR command line syntax is generally similar to gzip,
+but features the following differences :
+ - Source files are preserved by default.
+   It's possible to remove them automatically by using \fB--rm\fR command.
  - When compressing a single file, \fBzstd\fR displays progress notifications and result summary by default.
-     Use \fB-q\fR to turn them off
+   Use \fB-q\fR to turn them off
+
+.PP
+.B zstd
+compresses or decompresses each
+.I file
+according to the selected operation mode.
+If no
+.I files
+are given or
+.I file
+is
+.BR \- ,
+.B zstd
+reads from standard input and writes the processed data
+to standard output.
+.B zstd
+will refuse (display an error and skip the
+.IR file )
+to write compressed data to standard output if it is a terminal.
+Similarly,
+.B zstd
+will refuse to read compressed data
+from standard input if it is a terminal.
+
+.PP
+Unless
+.B \-\-stdout
+is specified,
+.I files
+are written to a new file whose name is derived from the source
+.I file
+name:
+.IP \(bu 3
+When compressing, the suffix
+.B .zst
+is appended to the source filename to get the target filename.
+.IP \(bu 3
+When decompressing, the
+.B .zst
+suffix is removed from the filename to get the target filename.
+
+.SS "Concatenation with .zst files"
+It is possible to concatenate
+.B .zst
+files as is.
+.B zstd
+will decompress such files as if they were a single
+.B .zst
+file.
 
 
 
@@ -112,7 +166,8 @@ No files are created or removed.
 .TP
 .BR \--no-dictID
  do not store dictionary ID within frame header (dictionary compression).
- the decoder will have to rely on implicit knowledge about which dictionary to use, it won't be able to check if it's correct.
+ The decoder will have to rely on implicit knowledge about which dictionary to use,
+it won't be able to check if it's correct.
 .TP
 .B \-o file
  save result into `file` (only possible with a single INPUT-FILE)
@@ -125,6 +180,8 @@ No files are created or removed.
 .TP
 .BR \--[no-]sparse
  enable / disable sparse FS support, to make files with many zeroes smaller on disk.
+ Creating sparse files may save disk space and speed up the decompression
+by reducing the amount of disk I/O.
  default : enabled when output is into a file, and disabled when output is stdout.
  This setting overrides default and can force sparse mode over stdout.
 .TP
@@ -162,7 +219,7 @@ No files are created or removed.
  All arguments after -- are treated as files
 
 
-.SH DICTIONARY
+.SH DICTIONARY BUILDER
 .PP
 \fBzstd\fR offers \fIdictionary\fR compression, useful for very small files and messages.
 It's possible to train \fBzstd\fR with some samples, the result of which is saved into a file called `dictionary`.

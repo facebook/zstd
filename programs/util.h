@@ -50,6 +50,7 @@ extern "C" {
 #include <sys/stat.h>   /* stat */
 #include <utime.h>      /* utime */
 #include <time.h>       /* time */
+#include <unistd.h>     /* chown, stat */
 #include "mem.h"        /* U32, U64 */
 
 
@@ -144,33 +145,44 @@ UTIL_STATIC void UTIL_waitForNextTick(UTIL_time_t ticksPerSecond)
 /*-****************************************
 *  File functions
 ******************************************/
-UTIL_STATIC int UTIL_setModificationTime(const char *filename, time_t modtime)
-{
-    struct utimbuf  timebuf;
+#if defined(_MSC_VER)
+    typedef struct _stat64 stat_t;
+#else
+    typedef struct stat stat_t;
+#endif
 
-    if (modtime == 0) return -1;
+
+UTIL_STATIC int UTIL_setFileStat(const char *filename, stat_t *statbuf)
+{
+    int res = 0;
+    struct utimbuf timebuf;
+
+#if !defined(_WIN32)
+    res += chown(filename, statbuf->st_uid, statbuf->st_gid);  /* Copy ownership */
+#endif
+
+    res += chmod(filename, statbuf->st_mode & 07777);  /* Copy file permissions */
 
     timebuf.actime  = time(NULL);
-    timebuf.modtime = modtime;
+    timebuf.modtime = statbuf->st_mtime;
+    res += utime(filename, &timebuf);  /* set access and modification times */
 
-    /* On success, zero is returned. On error, -1 is returned, and errno is set appropriately. */
-    return utime(filename, &timebuf); 
+    errno = 0;
+    return -res; /* number of errors is returned */
 }
 
 
-UTIL_STATIC time_t UTIL_getModificationTime(const char* infilename)
+UTIL_STATIC int UTIL_getFileStat(const char* infilename, stat_t *statbuf)
 {
     int r;
 #if defined(_MSC_VER)
-    struct _stat64 statbuf;
-    r = _stat64(infilename, &statbuf);
-    if (r || !(statbuf.st_mode & S_IFREG)) return 0;   /* No good... */
+    r = _stat64(infilename, statbuf);
+    if (r || !(statbuf->st_mode & S_IFREG)) return 0;   /* No good... */
 #else
-    struct stat statbuf;
-    r = stat(infilename, &statbuf);
-    if (r || !S_ISREG(statbuf.st_mode)) return 0;   /* No good... */
+    r = stat(infilename, statbuf);
+    if (r || !S_ISREG(statbuf->st_mode)) return 0;   /* No good... */
 #endif
-    return statbuf.st_mtime;
+    return 1;
 }
 
 

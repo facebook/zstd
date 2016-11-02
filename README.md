@@ -1,7 +1,8 @@
- **Zstd**, short for Zstandard, is a fast lossless compression algorithm,
+ __Zstandard__, or `zstd` as short version, is a fast lossless compression algorithm,
  targeting real-time compression scenarios at zlib-level and better compression ratios.
 
-It is provided as an open-source BSD-licensed **C** library.
+It is provided as an open-source BSD-licensed **C** library,
+and a command line utility producing and decoding `.zst` compressed files.
 For other programming languages,
 you can consult a list of known ports on [Zstandard homepage](http://www.zstd.net/#other-languages).
 
@@ -16,17 +17,17 @@ As a reference, several fast compression algorithms were tested and compared on 
 [Silesia compression corpus]: http://sun.aei.polsl.pl/~sdeor/index.php?page=silesia
 
 
-|Name             | Ratio | C.speed | D.speed |
-|-----------------|-------|--------:|--------:|
-|                 |       |   MB/s  |  MB/s   |
-|**zstd 0.8.2 -1**|**2.877**|**330**| **940** |
-| [zlib] 1.2.8 -1 | 2.730 |    95   |   360   |
-| brotli 0.4 -0   | 2.708 |   320   |   375   |
-| QuickLZ 1.5     | 2.237 |   510   |   605   |
-| LZO 2.09        | 2.106 |   610   |   870   |
-| [LZ4] r131      | 2.101 |   620   |  3100   |
-| Snappy 1.1.3    | 2.091 |   480   |  1600   |
-| LZF 3.6         | 2.077 |   375   |   790   |
+| Name                    | Ratio | C.speed | D.speed |
+|-------------------------|-------|--------:|--------:|
+|                         |       |   MB/s  |  MB/s   |
+| **zstd 0.8.2 -1**     |**2.877**| **330** | **940** |
+| [zlib] 1.2.8 deflate -1 | 2.730 |    95   |   360   |
+| brotli 0.4 -0           | 2.708 |   320   |   375   |
+| QuickLZ 1.5             | 2.237 |   510   |   605   |
+| LZO 2.09                | 2.106 |   610   |   870   |
+| [LZ4] r131              | 2.101 |   620   |  3100   |
+| Snappy 1.1.3            | 2.091 |   480   |  1600   |
+| LZF 3.6                 | 2.077 |   375   |   790   |
 
 [zlib]:http://www.zlib.net/
 [LZ4]: http://www.lz4.org/
@@ -38,10 +39,10 @@ The following tests were run on a Core i7-3930K CPU @ 4.5GHz, using [lzbench], a
 
 Compression Speed vs Ratio | Decompression Speed
 ---------------------------|--------------------
-![Compression Speed vs Ratio](images/Cspeed4.png "Compression Speed vs Ratio") | ![Decompression Speed](images/Dspeed4.png "Decompression Speed")
+![Compression Speed vs Ratio](doc/images/Cspeed4.png "Compression Speed vs Ratio") | ![Decompression Speed](doc/images/Dspeed4.png "Decompression Speed")
 
 Several algorithms can produce higher compression ratios, but at slower speeds, falling outside of the graph.
-For a larger picture including very slow modes, [click on this link](images/DCspeed5.png) .
+For a larger picture including very slow modes, [click on this link](doc/images/DCspeed5.png) .
 
 
 ### The case for Small Data compression
@@ -52,7 +53,7 @@ This problem is common to many compression algorithms. The reason is, compressio
 
 To solve this situation, Zstd offers a __training mode__, which can be used to tune the algorithm for a selected type of data, by providing it with a few samples. The result of the training is stored in a file called "dictionary", which can be loaded before compression and decompression. Using this dictionary, the compression ratio achievable on small data improves dramatically:
 
-![Compressing Small Data](images/smallData.png "Compressing Small Data")
+![Compressing Small Data](doc/images/smallData.png "Compressing Small Data")
 
 These compression gains are achieved while simultaneously providing faster compression and decompression speeds.
 

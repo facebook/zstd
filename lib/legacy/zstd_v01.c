@@ -958,12 +958,15 @@ static size_t HUF_readDTable (U16* DTable, const void* src, size_t srcSize)
     U32 weightTotal;
     U32 maxBits;
     const BYTE* ip = (const BYTE*) src;
-    size_t iSize = ip[0];
+    size_t iSize;
     size_t oSize;
     U32 n;
     U32 nextRankStart;
     void* ptr = DTable+1;
     HUF_DElt* const dt = (HUF_DElt*)ptr;
+
+    if (!srcSize) return (size_t)-FSE_ERROR_srcSize_wrong;
+    iSize = ip[0];
 
     FSE_STATIC_ASSERT(sizeof(HUF_DElt) == sizeof(U16));   /* if compilation fails here, assertion is false */
     //memset(huffWeight, 0, sizeof(huffWeight));   /* should not be necessary, but some analyzer complain ... */
@@ -1005,6 +1008,7 @@ static size_t HUF_readDTable (U16* DTable, const void* src, size_t srcSize)
         rankVal[huffWeight[n]]++;
         weightTotal += (1 << huffWeight[n]) >> 1;
     }
+    if (weightTotal == 0) return (size_t)-FSE_ERROR_corruptionDetected;
 
     /* get last non-null symbol weight (implied, total must be 2^n) */
     maxBits = FSE_highbit32(weightTotal) + 1;
@@ -1533,6 +1537,7 @@ size_t ZSTDv01_decodeLiteralsBlock(void* ctx,
         {
             size_t rleSize = litbp.origSize;
             if (rleSize>maxDstSize) return ERROR(dstSize_tooSmall);
+            if (!srcSize) return ERROR(srcSize_wrong);
             memset(oend - rleSize, *ip, rleSize);
             *litStart = oend - rleSize;
             *litSize = rleSize;

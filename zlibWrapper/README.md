@@ -71,7 +71,7 @@ The script used for compilation can be found at [zlibWrapper/Makefile](Makefile)
 
 The zstd distribution contains a tool called `zwrapbench` which can measure speed and ratio of zlib, zstd, and the wrapper.
 The benchmark is conducted using given filenames or synthetic data if filenames are not provided.
-The files are read into memory and joined together. 
+The files are read into memory and processed independently.
 It makes benchmark more precise as it eliminates I/O overhead. 
 Many filenames can be supplied as multiple parameters, parameters with wildcards or names of directories can be used as parameters with the -r option.
 One can select compression levels starting from `-b` and ending with `-e`. The `-i` parameter selects minimal time used for each of tested levels.
@@ -119,7 +119,7 @@ In our example (the last 2 lines) it gives 4% better compression speed and 5% be
 
 
 #### Compatibility issues
-After enabling zstd compression not all native zlib functions are supported. When calling unsupported methods they put error message into strm->msg and return Z_STREAM_ERROR.
+After enabling zstd compression not all native zlib functions are supported. When calling unsupported methods they put error message into `strm->msg` and return Z_STREAM_ERROR.
 
 Supported methods:
 - deflateInit

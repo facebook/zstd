@@ -27,29 +27,147 @@ is equivalent to
 
 .SH DESCRIPTION
 .PP
-\fBzstd\fR is a fast lossless compression algorithm.
+\fBzstd\fR is a fast lossless compression algorithm
+and data compression tool,
+with command line syntax similar to \fB gzip (1) \fR and \fB xz (1) \fR .
 It is based on the \fBLZ77\fR family, with further FSE & huff0 entropy stages.
-\fBzstd\fR offers configurable compression speed, with fast modes at > 200 MB/s per core.
-It also features a very fast decoder, with speed > 500 MB/s per core.
+\fBzstd\fR offers highly configurable compression speed,
+with fast modes at > 200 MB/s per core,
+and strong modes nearing lzma compression ratios.
+It also features a very fast decoder, with speeds > 500 MB/s per core.
 
-\fBzstd\fR command line is generally similar to gzip, but features the following differences :
- - Source files are preserved by default
-   It's possible to remove them automatically by using \fB--rm\fR command
- - By default, when compressing a single file, \fBzstd\fR displays progress notifications and result summary.
-     Use \fB-q\fR to turn them off
+\fBzstd\fR command line syntax is generally similar to gzip,
+but features the following differences :
+ - Source files are preserved by default.
+   It's possible to remove them automatically by using \fB--rm\fR command.
+ - When compressing a single file, \fBzstd\fR displays progress notifications and result summary by default.
+   Use \fB-q\fR to turn them off
+
+.PP
+.B zstd
+compresses or decompresses each
+.I file
+according to the selected operation mode.
+If no
+.I files
+are given or
+.I file
+is
+.BR \- ,
+.B zstd
+reads from standard input and writes the processed data
+to standard output.
+.B zstd
+will refuse (display an error and skip the
+.IR file )
+to write compressed data to standard output if it is a terminal.
+Similarly,
+.B zstd
+will refuse to read compressed data
+from standard input if it is a terminal.
+
+.PP
+Unless
+.B \-\-stdout
+is specified,
+.I files
+are written to a new file whose name is derived from the source
+.I file
+name:
+.IP \(bu 3
+When compressing, the suffix
+.B .zst
+is appended to the source filename to get the target filename.
+.IP \(bu 3
+When decompressing, the
+.B .zst
+suffix is removed from the filename to get the target filename.
+
+.SS "Concatenation with .zst files"
+It is possible to concatenate
+.B .zst
+files as is.
+.B zstd
+will decompress such files as if they were a single
+.B .zst
+file.
 
 
 
 .SH OPTIONS
+
+.
+.SS "Integer suffixes and special values"
+In most places where an integer argument is expected,
+an optional suffix is supported to easily indicate large integers.
+There must be no space between the integer and the suffix.
+.TP
+.B KiB
+Multiply the integer by 1,024 (2^10).
+.BR Ki ,
+.BR K ,
+and
+.B KB
+are accepted as synonyms for
+.BR KiB .
+.TP
+.B MiB
+Multiply the integer by 1,048,576 (2^20).
+.BR Mi ,
+.BR M ,
+and
+.B MB
+are accepted as synonyms for
+.BR MiB .
+
+.
+.SS "Operation mode"
+If multiple operation mode options are given,
+the last one takes effect.
+.TP
+.BR \-z ", " \-\-compress
+Compress.
+This is the default operation mode when no operation mode option
+is specified and no other operation mode is implied from
+the command name (for example,
+.B unzstd
+implies
+.BR \-\-decompress ).
+.TP
+.BR \-d ", " \-\-decompress ", " \-\-uncompress
+Decompress.
+.TP
+.BR \-t ", " \-\-test
+Test the integrity of compressed
+.IR files .
+This option is equivalent to
+.B "\-\-decompress \-\-stdout"
+except that the decompressed data is discarded instead of being
+written to standard output.
+No files are created or removed.
+.TP
+.B \-b#
+ benchmark file(s) using compression level #
+.TP
+.B \--train FILEs
+ use FILEs as training set to create a dictionary. The training set should contain a lot of small files (> 100).
+
+.
+.SS "Operation modifiers"
 .TP
 .B \-#
- # compression level [1-22] (default:3)
+ # compression level [1-19] (default:3)
 .TP
-.BR \-d ", " --decompress
- decompression
+.BR \--ultra
+ unlocks high compression levels 20+ (maximum 22), using a lot more memory
 .TP
 .B \-D file
  use `file` as Dictionary to compress or decompress FILE(s)
+.TP
+.BR \--no-dictID
+ do not store dictionary ID within frame header (dictionary compression).
+ The decoder will have to rely on implicit knowledge about which dictionary to use,
+it won't be able to check if it's correct.
 .TP
 .B \-o file
  save result into `file` (only possible with a single INPUT-FILE)
@@ -59,6 +177,13 @@ It also features a very fast decoder, with speed > 500 MB/s per core.
 .TP
 .BR \-c ", " --stdout
  force write to standard output, even if it is the console
+.TP
+.BR \--[no-]sparse
+ enable / disable sparse FS support, to make files with many zeroes smaller on disk.
+ Creating sparse files may save disk space and speed up the decompression
+by reducing the amount of disk I/O.
+ default : enabled when output is into a file, and disabled when output is stdout.
+ This setting overrides default and can force sparse mode over stdout.
 .TP
 .BR \--rm
  remove source file(s) after successful compression or decompression
@@ -83,8 +208,8 @@ It also features a very fast decoder, with speed > 500 MB/s per core.
  suppress warnings, interactivity and notifications.
  specify twice to suppress errors too.
 .TP
-.BR \-C ", " --check
- add integrity check computed from uncompressed data
+.BR \-C ", " --[no-]check
+ add integrity check computed from uncompressed data (default : enabled)
 .TP
 .BR \-t ", " --test
  Test the integrity of compressed files. This option is equivalent to \fB--decompress --stdout > /dev/null\fR.
@@ -94,7 +219,7 @@ It also features a very fast decoder, with speed > 500 MB/s per core.
  All arguments after -- are treated as files
 
 
-.SH DICTIONARY
+.SH DICTIONARY BUILDER
 .PP
 \fBzstd\fR offers \fIdictionary\fR compression, useful for very small files and messages.
 It's possible to train \fBzstd\fR with some samples, the result of which is saved into a file called `dictionary`.
@@ -103,10 +228,8 @@ It will improve compression ratio of small files.
 Typical gains range from ~10% (at 64KB) to x5 better (at <1KB).
 .TP
 .B \--train FILEs
- use FILEs as training set to create a dictionary.
- The training set should contain a lot of small files (> 100).
- and weight typically 100x the target dictionary size
- (for example, 10 MB for a 100 KB dictionary)
+ use FILEs as training set to create a dictionary. The training set should contain a lot of small files (> 100),
+and weight typically 100x the target dictionary size (for example, 10 MB for a 100 KB dictionary)
 .TP
 .B \-o file
  dictionary saved into `file` (default: dictionary)
@@ -130,6 +253,9 @@ Typical gains range from ~10% (at 64KB) to x5 better (at <1KB).
 .TP
 .B \-b#
  benchmark file(s) using compression level #
+.TP
+.B \-e#
+ benchmark file(s) using multiple compression levels, from -b# to -e# (included).
 .TP
 .B \-i#
  minimum evaluation time, in seconds (default : 3s), benchmark mode only

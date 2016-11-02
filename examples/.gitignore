@@ -5,6 +5,7 @@ dictionary_compression
 dictionary_decompression
 streaming_compression
 streaming_decompression
+multiple_streaming_compression
 
 #test artefact
 tmp*

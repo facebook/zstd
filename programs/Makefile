@@ -57,8 +57,8 @@ endif
 ifneq (,$(filter Windows%,$(OS)))
 EXT =.exe
 VOID = nul
-RES64_FILE = ..\build\VS2010\zstd\generate_res\zstd64.res
-RES32_FILE = ..\build\VS2010\zstd\generate_res\zstd32.res
+RES64_FILE = windres\zstd64.res
+RES32_FILE = windres\zstd32.res
 ifneq (,$(filter x86_64%,$(shell $(CC) -dumpmachine)))
     RES_FILE = $(RES64_FILE)
 else
@@ -70,29 +70,36 @@ VOID = /dev/null
 endif
 
 
-.PHONY: default all clean install uninstall
+.PHONY: default all clean clean_decomp_o install uninstall generate_res
 
 default: zstd
 
 all: zstd
 
-
+$(ZSTDDECOMP_O): CPPFLAGS += -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT)
+$(ZSTDDECOMP_O): CFLAGS += $(ALIGN_LOOP)
 $(ZSTDDECOMP_O): $(ZSTDDIR)/decompress/zstd_decompress.c
-	$(CC)    $(ALIGN_LOOP) $(FLAGS) -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT) $^ -c -o $@
+
+zstd  : $(ZSTDDECOMP_O) $(ZSTD_FILES) $(ZSTDLEGACY_FILES) $(ZDICT_FILES) \
+        zstdcli.c fileio.c bench.c datagen.c dibio.c
+ifneq (,$(filter Windows%,$(OS)))
+	windres\generate_res.bat
+endif
+	$(CC)      $(FLAGS) -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT) $^ $(RES_FILE) -o $@$(EXT)
+
 
 $(ZSTDDECOMP32_O): $(ZSTDDIR)/decompress/zstd_decompress.c
 	$(CC)  -m32 $(ALIGN_LOOP) $(FLAGS) -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT) $^ -c -o $@
 
-zstd  : $(ZSTDDECOMP_O) $(ZSTD_FILES) $(ZSTDLEGACY_FILES) $(ZDICT_FILES) \
-        zstdcli.c fileio.c bench.c datagen.c dibio.c
-	$(CC)      $(FLAGS) -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT) $^ $(RES_FILE) -o $@$(EXT)
-
 zstd32 : $(ZSTDDECOMP32_O) $(ZSTD_FILES) $(ZSTDLEGACY_FILES) $(ZDICT_FILES) \
         zstdcli.c fileio.c bench.c datagen.c dibio.c
+ifneq (,$(filter Windows%,$(OS)))
+	windres\generate_res.bat
+endif
 	$(CC)  -m32 $(FLAGS) -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT) $^ $(RES32_FILE) -o $@$(EXT)
 
 
-zstd_nolegacy :
+zstd_nolegacy : clean_decomp_o
 	$(MAKE) zstd ZSTD_LEGACY_SUPPORT=0
 
 zstd-pgo : MOREFLAGS = -fprofile-generate
@@ -108,19 +115,22 @@ zstd-pgo : clean zstd
 	$(MAKE) zstd MOREFLAGS=-fprofile-use
 
 zstd-frugal: $(ZSTDDECOMP_O) $(ZSTD_FILES) zstdcli.c fileio.c
-	$(CC)      $(FLAGS) -DZSTD_NOBENCH -DZSTD_NODICT -DZSTD_LEGACY_SUPPORT=0 $^ -o zstd$(EXT)
+	$(CC)      $(FLAGS) -DZSTD_NOBENCH -DZSTD_NODICT $^ -o zstd$(EXT)
 
-zstd-compress: $(ZSTDCOMMON_FILES) $(ZSTDCOMP_FILES) \
-	zstdcli.c fileio.c
-	$(CC)      $(FLAGS) -DZSTD_NOBENCH -DZSTD_NODICT -DZSTD_NODECOMPRESS -DZSTD_LEGACY_SUPPORT=0 $^ -o $@$(EXT)
+zstd-small: clean_decomp_o
+	ZSTD_LEGACY_SUPPORT=0 CFLAGS="-Os -s" $(MAKE) zstd-frugal
 
-zstd-decompress: $(ZSTDCOMMON_FILES) $(ZSTDDECOMP_FILES) \
-	zstdcli.c fileio.c
-	$(CC)      $(FLAGS) -DZSTD_NOBENCH -DZSTD_NODICT -DZSTD_NOCOMPRESS -DZSTD_LEGACY_SUPPORT=0 $^ -o $@$(EXT)
+zstd-decompress-clean: $(ZSTDDECOMP_O) $(ZSTDCOMMON_FILES) $(ZSTDDECOMP_FILES) zstdcli.c fileio.c
+	$(CC)      $(FLAGS) -DZSTD_NOBENCH -DZSTD_NODICT -DZSTD_NOCOMPRESS $^ -o zstd-decompress$(EXT)
 
-zstd-small: clean
-	CFLAGS="-Os -s" $(MAKE) zstd-frugal
+zstd-decompress: clean_decomp_o
+	ZSTD_LEGACY_SUPPORT=0 $(MAKE) zstd-decompress-clean
 
+zstd-compress: $(ZSTDCOMMON_FILES) $(ZSTDCOMP_FILES) zstdcli.c fileio.c
+	$(CC)      $(FLAGS) -DZSTD_NOBENCH -DZSTD_NODICT -DZSTD_NODECOMPRESS $^ -o $@$(EXT)
+
+generate_res:
+	windres\generate_res.bat
 
 clean:
 	$(MAKE) -C ../lib clean
@@ -129,6 +139,10 @@ clean:
         zstd$(EXT) zstd32$(EXT) zstd-compress$(EXT) zstd-decompress$(EXT) \
         *.gcda default.profraw
 	@echo Cleaning completed
+
+clean_decomp_o:
+	@$(RM) $(ZSTDDECOMP_O)
+	@$(RM) $(ZSTDDECOMP32_O)
 
 
 #----------------------------------------------------------------------------------
@@ -148,11 +162,11 @@ install: zstd
 	@echo zstd installation completed
 
 uninstall:
-	$(RM) $(DESTDIR)$(BINDIR)/zstdcat
-	$(RM) $(DESTDIR)$(BINDIR)/unzstd
-	$(RM) $(DESTDIR)$(BINDIR)/zstd$(EXT)
-	$(RM) $(DESTDIR)$(MANDIR)/zstdcat.1
-	$(RM) $(DESTDIR)$(MANDIR)/unzstd.1
-	$(RM) $(DESTDIR)$(MANDIR)/zstd.1
+	@$(RM) $(DESTDIR)$(BINDIR)/zstdcat
+	@$(RM) $(DESTDIR)$(BINDIR)/unzstd
+	@$(RM) $(DESTDIR)$(BINDIR)/zstd$(EXT)
+	@$(RM) $(DESTDIR)$(MANDIR)/zstdcat.1
+	@$(RM) $(DESTDIR)$(MANDIR)/unzstd.1
+	@$(RM) $(DESTDIR)$(MANDIR)/zstd.1
 	@echo zstd programs successfully uninstalled
 endif

@@ -21,7 +21,7 @@ zstd
 
 # Test artefacts
 tmp*
-dictionary
+dictionary*
 
 # Other files
 .directory
@@ -32,3 +32,4 @@ _zstdbench/
 *.swp
 .DS_Store
 googletest/
+*.d

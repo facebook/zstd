@@ -1,26 +1,11 @@
-# ##########################################################################
-# ZSTD educational examples - Makefile
-# Copyright (C) Yann Collet 2016
+# ################################################################
+# Copyright (c) 2016-present, Yann Collet, Facebook, Inc.
+# All rights reserved.
 #
-# GPL v2 License
-#
-# This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; either version 2 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License along
-# with this program; if not, write to the Free Software Foundation, Inc.,
-# 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
-#
-# You can contact the author at :
-#  - zstd homepage : http://www.zstd.net/
-# ##########################################################################
+# This source code is licensed under the BSD-style license found in the
+# LICENSE file in the root directory of this source tree. An additional grant
+# of patent rights can be found in the PATENTS file in the same directory.
+# ################################################################
 
 # This Makefile presumes libzstd is installed, using `sudo make install`
 
@@ -32,7 +17,8 @@ default: all
 
 all: simple_compression simple_decompression \
 	dictionary_compression dictionary_decompression \
-	streaming_compression streaming_decompression
+	streaming_compression streaming_decompression \
+	multiple_streaming_compression
 
 simple_compression : simple_compression.c
 	$(CC) $(CPPFLAGS) $(CFLAGS) $^ $(LDFLAGS) -o $@
@@ -49,6 +35,9 @@ dictionary_decompression : dictionary_decompression.c
 streaming_compression : streaming_compression.c
 	$(CC) $(CPPFLAGS) $(CFLAGS) $^ $(LDFLAGS) -o $@
 
+multiple_streaming_compression : multiple_streaming_compression.c
+	$(CC) $(CPPFLAGS) $(CFLAGS) $^ $(LDFLAGS) -o $@
+
 streaming_decompression : streaming_decompression.c
 	$(CC) $(CPPFLAGS) $(CFLAGS) $^ $(LDFLAGS) -o $@
 
@@ -56,7 +45,8 @@ clean:
 	@rm -f core *.o tmp* result* *.zst \
         simple_compression simple_decompression \
         dictionary_compression dictionary_decompression \
-        streaming_compression streaming_decompression
+        streaming_compression streaming_decompression \
+		multiple_streaming_compression
 	@echo Cleaning completed
 
 test: all
@@ -69,7 +59,10 @@ test: all
 	@echo starting streaming compression
 	./streaming_compression tmp
 	./streaming_decompression tmp.zst > /dev/null
+	@echo starting multiple streaming compression
+	./multiple_streaming_compression *.c
 	@echo starting dictionary compression
 	./dictionary_compression tmp2 tmp README.md
 	./dictionary_decompression tmp2.zst tmp.zst README.md
+	$(RM) tmp* *.zst
 	@echo tests completed

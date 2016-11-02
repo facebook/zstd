@@ -1,3 +1,14 @@
+v1.1.1
+New : command -M#, --memory=, --memlimit=, --memlimit-decompress= to limit allowed memory consumption
+New : doc/zstd_manual.html, by Przemyslaw Skibinski
+Improved : slightly better compression ratio at --ultra levels (>= 20)
+Improved : better memory usage when using streaming compression API, thanks to @Rogier-5 report
+Added : API : ZSTD_initCStream_usingCDict(), ZSTD_initDStream_usingDDict() (experimental section)
+Added : example/multiple_streaming_compression.c
+Changed : zstd_errors.h is now installed within /include (and replaces errors_public.h)
+Updated man page
+Fixed : zstd-small, zstd-compress and zstd-decompress compilation targets
+
 v1.1.0
 New : contrib/pzstd, parallel version of zstd, by Nick Terrell
 added : NetBSD install target (#338)

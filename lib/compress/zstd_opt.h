@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2016-present, Yann Collet, Facebook, Inc.
+ * Copyright (c) 2016-present, Przemyslaw Skibinski, Yann Collet, Facebook, Inc.
  * All rights reserved.
  *
  * This source code is licensed under the BSD-style license found in the
@@ -16,6 +16,7 @@
 
 
 #define ZSTD_FREQ_DIV   5
+#define ZSTD_MAX_PRICE  (1<<30)
 
 /*-*************************************
 *  Price functions for optimal parser
@@ -120,11 +121,13 @@ FORCE_INLINE U32 ZSTD_getLiteralPrice(seqStore_t* ssPtr, U32 litLength, const BY
 }
 
 
-FORCE_INLINE U32 ZSTD_getPrice(seqStore_t* seqStorePtr, U32 litLength, const BYTE* literals, U32 offset, U32 matchLength)
+FORCE_INLINE U32 ZSTD_getPrice(seqStore_t* seqStorePtr, U32 litLength, const BYTE* literals, U32 offset, U32 matchLength, const int ultra)
 {
     /* offset */
     BYTE const offCode = (BYTE)ZSTD_highbit32(offset+1);
     U32 price = offCode + seqStorePtr->log2offCodeSum - ZSTD_highbit32(seqStorePtr->offCodeFreq[offCode]+1);
+
+    if (!ultra && offCode >= 20) price += (offCode-19)*2;
 
     /* match Length */
     {   const BYTE ML_deltaCode = 36;
@@ -171,7 +174,7 @@ MEM_STATIC void ZSTD_updatePrice(seqStore_t* seqStorePtr, U32 litLength, const B
 
 #define SET_PRICE(pos, mlen_, offset_, litlen_, price_)   \
     {                                                 \
-        while (last_pos < pos)  { opt[last_pos+1].price = 1<<30; last_pos++; } \
+        while (last_pos < pos)  { opt[last_pos+1].price = ZSTD_MAX_PRICE; last_pos++; } \
         opt[pos].mlen = mlen_;                         \
         opt[pos].off = offset_;                        \
         opt[pos].litlen = litlen_;                     \
@@ -375,7 +378,7 @@ static U32 ZSTD_BtGetAllMatches_selectMLS_extDict (
 *********************************/
 FORCE_INLINE
 void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
-                                    const void* src, size_t srcSize)
+                                    const void* src, size_t srcSize, const int ultra)
 {
     seqStore_t* seqStorePtr = &(ctx->seqStore);
     const BYTE* const istart = (const BYTE*)src;
@@ -401,7 +404,6 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
     ZSTD_rescaleFreqs(seqStorePtr);
     ip += (ip==prefixStart);
     { U32 i; for (i=0; i<ZSTD_REP_NUM; i++) rep[i]=ctx->rep[i]; }
-    inr = ip;
 
     /* Match Loop */
     while (ip < ilimit) {
@@ -424,7 +426,7 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
                     }
                     best_off = i - (ip == anchor);
                     do {
-                        price = ZSTD_getPrice(seqStorePtr, litlen, anchor, best_off, mlen - MINMATCH);
+                        price = ZSTD_getPrice(seqStorePtr, litlen, anchor, best_off, mlen - MINMATCH, ultra);
                         if (mlen > last_pos || price < opt[mlen].price)
                             SET_PRICE(mlen, mlen, i, litlen, price);   /* note : macro modifies last_pos */
                         mlen--;
@@ -449,7 +451,7 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
             mlen = (u>0) ? matches[u-1].len+1 : best_mlen;
             best_mlen = matches[u].len;
             while (mlen <= best_mlen) {
-                price = ZSTD_getPrice(seqStorePtr, litlen, anchor, matches[u].off-1, mlen - MINMATCH);
+                price = ZSTD_getPrice(seqStorePtr, litlen, anchor, matches[u].off-1, mlen - MINMATCH, ultra);
                 if (mlen > last_pos || price < opt[mlen].price)
                     SET_PRICE(mlen, mlen, matches[u].off, litlen, price);   /* note : macro modifies last_pos */
                 mlen++;
@@ -496,7 +498,7 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
                 opt[cur].rep[0] = ((opt[cur].off==ZSTD_REP_MOVE_OPT) && (mlen != 1)) ? (opt[cur-mlen].rep[0] - 1) : (opt[cur-mlen].rep[opt[cur].off]);
            }
 
-           best_mlen = minMatch;
+            best_mlen = minMatch;
             {   U32 i, last_i = ZSTD_REP_CHECK + (mlen != 1);
                 for (i=(opt[cur].mlen != 1); i<last_i; i++) {  /* check rep */
                     const S32 repCur = ((i==ZSTD_REP_MOVE_OPT) && (opt[cur].mlen != 1)) ? (opt[cur].rep[0] - 1) : opt[cur].rep[i];
@@ -510,21 +512,20 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
                        }
 
                        best_off = i - (opt[cur].mlen != 1);
+                       if (mlen > best_mlen) best_mlen = mlen;
 
-                       if (opt[cur].mlen == 1) {
-                            litlen = opt[cur].litlen;
-                            if (cur > litlen) {
-                                price = opt[cur - litlen].price + ZSTD_getPrice(seqStorePtr, litlen, inr-litlen, best_off, mlen - MINMATCH);
-                            } else
-                                price = ZSTD_getPrice(seqStorePtr, litlen, anchor, best_off, mlen - MINMATCH);
-                        } else {
-                            litlen = 0;
-                            price = opt[cur].price + ZSTD_getPrice(seqStorePtr, 0, NULL, best_off, mlen - MINMATCH);
-                        }
+                       do {
+                           if (opt[cur].mlen == 1) {
+                                litlen = opt[cur].litlen;
+                                if (cur > litlen) {
+                                    price = opt[cur - litlen].price + ZSTD_getPrice(seqStorePtr, litlen, inr-litlen, best_off, mlen - MINMATCH, ultra);
+                                } else
+                                    price = ZSTD_getPrice(seqStorePtr, litlen, anchor, best_off, mlen - MINMATCH, ultra);
+                            } else {
+                                litlen = 0;
+                                price = opt[cur].price + ZSTD_getPrice(seqStorePtr, 0, NULL, best_off, mlen - MINMATCH, ultra);
+                            }
 
-                        if (mlen > best_mlen) best_mlen = mlen;
-
-                        do {
                             if (cur + mlen > last_pos || price <= opt[cur + mlen].price)
                                 SET_PRICE(cur + mlen, mlen, i, litlen, price);
                             mlen--;
@@ -549,12 +550,12 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
                     if (opt[cur].mlen == 1) {
                         litlen = opt[cur].litlen;
                         if (cur > litlen)
-                            price = opt[cur - litlen].price + ZSTD_getPrice(seqStorePtr, litlen, ip+cur-litlen, matches[u].off-1, mlen - MINMATCH);
+                            price = opt[cur - litlen].price + ZSTD_getPrice(seqStorePtr, litlen, ip+cur-litlen, matches[u].off-1, mlen - MINMATCH, ultra);
                         else
-                            price = ZSTD_getPrice(seqStorePtr, litlen, anchor, matches[u].off-1, mlen - MINMATCH);
+                            price = ZSTD_getPrice(seqStorePtr, litlen, anchor, matches[u].off-1, mlen - MINMATCH, ultra);
                     } else {
                         litlen = 0;
-                        price = opt[cur].price + ZSTD_getPrice(seqStorePtr, 0, NULL, matches[u].off-1, mlen - MINMATCH);
+                        price = opt[cur].price + ZSTD_getPrice(seqStorePtr, 0, NULL, matches[u].off-1, mlen - MINMATCH, ultra);
                     }
 
                     if (cur + mlen > last_pos || (price < opt[cur + mlen].price))
@@ -626,7 +627,7 @@ _storeSequence:   /* cur, last_pos, best_mlen, best_off have to be set */
 
 FORCE_INLINE
 void ZSTD_compressBlock_opt_extDict_generic(ZSTD_CCtx* ctx,
-                                     const void* src, size_t srcSize)
+                                     const void* src, size_t srcSize, const int ultra)
 {
     seqStore_t* seqStorePtr = &(ctx->seqStore);
     const BYTE* const istart = (const BYTE*)src;
@@ -657,7 +658,6 @@ void ZSTD_compressBlock_opt_extDict_generic(ZSTD_CCtx* ctx,
     ctx->nextToUpdate3 = ctx->nextToUpdate;
     ZSTD_rescaleFreqs(seqStorePtr);
     ip += (ip==prefixStart);
-    inr = ip;
 
     /* Match Loop */
     while (ip < ilimit) {
@@ -666,7 +666,6 @@ void ZSTD_compressBlock_opt_extDict_generic(ZSTD_CCtx* ctx,
         U32 current = (U32)(ip-base);
         memset(opt, 0, sizeof(ZSTD_optimal_t));
         last_pos = 0;
-        inr = ip;
         opt[0].litlen = (U32)(ip - anchor);
 
         /* check repCode */
@@ -691,7 +690,7 @@ void ZSTD_compressBlock_opt_extDict_generic(ZSTD_CCtx* ctx,
                     best_off = i - (ip==anchor);
                     litlen = opt[0].litlen;
                     do {
-                        price = ZSTD_getPrice(seqStorePtr, litlen, anchor, best_off, mlen - MINMATCH);
+                        price = ZSTD_getPrice(seqStorePtr, litlen, anchor, best_off, mlen - MINMATCH, ultra);
                         if (mlen > last_pos || price < opt[mlen].price)
                             SET_PRICE(mlen, mlen, i, litlen, price);   /* note : macro modifies last_pos */
                         mlen--;
@@ -721,7 +720,7 @@ void ZSTD_compressBlock_opt_extDict_generic(ZSTD_CCtx* ctx,
             best_mlen = matches[u].len;
             litlen = opt[0].litlen;
             while (mlen <= best_mlen) {
-                price = ZSTD_getPrice(seqStorePtr, litlen, anchor, matches[u].off-1, mlen - MINMATCH);
+                price = ZSTD_getPrice(seqStorePtr, litlen, anchor, matches[u].off-1, mlen - MINMATCH, ultra);
                 if (mlen > last_pos || price < opt[mlen].price)
                     SET_PRICE(mlen, mlen, matches[u].off, litlen, price);
                 mlen++;
@@ -765,8 +764,7 @@ void ZSTD_compressBlock_opt_extDict_generic(ZSTD_CCtx* ctx,
                 opt[cur].rep[0] = ((opt[cur].off==ZSTD_REP_MOVE_OPT) && (mlen != 1)) ? (opt[cur-mlen].rep[0] - 1) : (opt[cur-mlen].rep[opt[cur].off]);
             }
 
-            best_mlen = 0;
-
+            best_mlen = minMatch;
             {   U32 i, last_i = ZSTD_REP_CHECK + (mlen != 1);
                 for (i = (mlen != 1); i<last_i; i++) {
                     const S32 repCur = ((i==ZSTD_REP_MOVE_OPT) && (opt[cur].mlen != 1)) ? (opt[cur].rep[0] - 1) : opt[cur].rep[i];
@@ -786,20 +784,20 @@ void ZSTD_compressBlock_opt_extDict_generic(ZSTD_CCtx* ctx,
                         }
 
                         best_off = i - (opt[cur].mlen != 1);
-                        if (opt[cur].mlen == 1) {
-                            litlen = opt[cur].litlen;
-                            if (cur > litlen) {
-                                price = opt[cur - litlen].price + ZSTD_getPrice(seqStorePtr, litlen, inr-litlen, best_off, mlen - MINMATCH);
-                            } else
-                                price = ZSTD_getPrice(seqStorePtr, litlen, anchor, best_off, mlen - MINMATCH);
-                        } else {
-                            litlen = 0;
-                            price = opt[cur].price + ZSTD_getPrice(seqStorePtr, 0, NULL, best_off, mlen - MINMATCH);
-                        }
-
-                        best_mlen = mlen;
+                        if (mlen > best_mlen) best_mlen = mlen;
 
                         do {
+                            if (opt[cur].mlen == 1) {
+                                litlen = opt[cur].litlen;
+                                if (cur > litlen) {
+                                    price = opt[cur - litlen].price + ZSTD_getPrice(seqStorePtr, litlen, inr-litlen, best_off, mlen - MINMATCH, ultra);
+                                } else
+                                    price = ZSTD_getPrice(seqStorePtr, litlen, anchor, best_off, mlen - MINMATCH, ultra);
+                            } else {
+                                litlen = 0;
+                                price = opt[cur].price + ZSTD_getPrice(seqStorePtr, 0, NULL, best_off, mlen - MINMATCH, ultra);
+                            }
+
                             if (cur + mlen > last_pos || price <= opt[cur + mlen].price)
                                 SET_PRICE(cur + mlen, mlen, i, litlen, price);
                             mlen--;
@@ -815,8 +813,6 @@ void ZSTD_compressBlock_opt_extDict_generic(ZSTD_CCtx* ctx,
                 goto _storeSequence;
             }
 
-            best_mlen = (best_mlen > minMatch) ? best_mlen : minMatch;
-
             /* set prices using matches at position = cur */
             for (u = 0; u < match_num; u++) {
                 mlen = (u>0) ? matches[u-1].len+1 : best_mlen;
@@ -826,12 +822,12 @@ void ZSTD_compressBlock_opt_extDict_generic(ZSTD_CCtx* ctx,
                     if (opt[cur].mlen == 1) {
                         litlen = opt[cur].litlen;
                         if (cur > litlen)
-                            price = opt[cur - litlen].price + ZSTD_getPrice(seqStorePtr, litlen, ip+cur-litlen, matches[u].off-1, mlen - MINMATCH);
+                            price = opt[cur - litlen].price + ZSTD_getPrice(seqStorePtr, litlen, ip+cur-litlen, matches[u].off-1, mlen - MINMATCH, ultra);
                         else
-                            price = ZSTD_getPrice(seqStorePtr, litlen, anchor, matches[u].off-1, mlen - MINMATCH);
+                            price = ZSTD_getPrice(seqStorePtr, litlen, anchor, matches[u].off-1, mlen - MINMATCH, ultra);
                     } else {
                         litlen = 0;
-                        price = opt[cur].price + ZSTD_getPrice(seqStorePtr, 0, NULL, matches[u].off-1, mlen - MINMATCH);
+                        price = opt[cur].price + ZSTD_getPrice(seqStorePtr, 0, NULL, matches[u].off-1, mlen - MINMATCH, ultra);
                     }
 
                     if (cur + mlen > last_pos || (price < opt[cur + mlen].price))

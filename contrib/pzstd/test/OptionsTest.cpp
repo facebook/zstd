@@ -182,12 +182,6 @@ TEST(Options, GetOutputFile) {
   }
   {
     Options options;
-    auto args = makeArray("-o-");
-    EXPECT_FAILURE(options.parse(args.size(), args.data()));
-    EXPECT_EQ("-", options.getOutputFile(options.inputFiles[0]));
-  }
-  {
-    Options options;
     auto args = makeArray("x", "y", "-o", nullOutput);
     EXPECT_SUCCESS(options.parse(args.size(), args.data()));
     EXPECT_EQ(nullOutput, options.getOutputFile(options.inputFiles[0]));

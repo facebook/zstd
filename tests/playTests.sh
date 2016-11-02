@@ -81,6 +81,11 @@ $ZSTD -dc   < tmp.zst > $INTOVOID   # combine decompression, stdin & stdout
 $ZSTD -dc - < tmp.zst > $INTOVOID
 $ZSTD -d    < tmp.zst > $INTOVOID   # implicit stdout when stdin is used
 $ZSTD -d  - < tmp.zst > $INTOVOID
+$ECHO "test : impose memory limitation (must fail)"
+$ZSTD -d -f tmp.zst -M2K -c > $INTOVOID && die "decompression needs more memory than allowed"
+$ZSTD -d -f tmp.zst --memlimit=2K -c > $INTOVOID && die "decompression needs more memory than allowed"  # long command
+$ZSTD -d -f tmp.zst --memory=2K -c > $INTOVOID && die "decompression needs more memory than allowed"  # long command
+$ZSTD -d -f tmp.zst --memlimit-decompress=2K -c > $INTOVOID && die "decompression needs more memory than allowed"  # long command
 $ECHO "test : overwrite protection"
 $ZSTD -q tmp && die "overwrite check failed!"
 $ECHO "test : force overwrite"
@@ -251,6 +256,17 @@ $ZSTD -t tmp3 && die "bad file not detected !"   # detects 0-sized files as bad
 $ECHO "test --rm and --test combined "
 $ZSTD -t --rm tmp1.zst
 ls -ls tmp1.zst  # check file is still present
+
+
+$ECHO "\n**** benchmark mode tests **** "
+
+$ECHO "bench one file"
+./datagen > tmp1
+$ZSTD -bi1 tmp1
+$ECHO "bench multiple levels"
+$ZSTD -i1b1e3 tmp1
+$ECHO "with recursive and quiet modes"
+$ZSTD -rqi1b1e3 tmp1
 
 
 $ECHO "\n**** zstd round-trip tests **** "

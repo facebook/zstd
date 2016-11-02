@@ -388,14 +388,17 @@ static int FIO_compressFilename_dstFile(cRess_t ress,
                                         const char* dstFileName, const char* srcFileName)
 {
     int result;
+    time_t modtime = 0;
 
     ress.dstFile = FIO_openDstFile(dstFileName);
     if (ress.dstFile==NULL) return 1;  /* could not open dstFileName */
 
+    if (strcmp (srcFileName, stdinmark)) modtime = UTIL_getModificationTime(srcFileName);
     result = FIO_compressFilename_srcFile(ress, dstFileName, srcFileName);
 
     if (fclose(ress.dstFile)) { DISPLAYLEVEL(1, "zstd: %s: %s \n", dstFileName, strerror(errno)); result=1; }  /* error closing dstFile */
     if (result!=0) { if (remove(dstFileName)) EXM_THROW(1, "zstd: %s: %s", dstFileName, strerror(errno)); }  /* remove operation artefact */
+    else if (strcmp (dstFileName, stdoutmark)) UTIL_setModificationTime(dstFileName, modtime);
     return result;
 }
 
@@ -720,16 +723,21 @@ static int FIO_decompressDstFile(dRess_t ress,
                                       const char* dstFileName, const char* srcFileName)
 {
     int result;
+    time_t modtime = 0;
+
     ress.dstFile = FIO_openDstFile(dstFileName);
     if (ress.dstFile==0) return 1;
 
+    if (strcmp (srcFileName, stdinmark)) modtime = UTIL_getModificationTime(srcFileName);
     result = FIO_decompressSrcFile(ress, srcFileName);
 
-    if (fclose(ress.dstFile)) EXM_THROW(38, "Write error : cannot properly close %s", dstFileName);
+    if (fclose(ress.dstFile)) EXM_THROW(38, "Write error : cannot properly close %s", dstFileName);    
+
     if ( (result != 0)
        && strcmp(dstFileName, nulmark)  /* special case : don't remove() /dev/null (#316) */
        && remove(dstFileName) )
         result=1;   /* don't do anything special if remove() fails */
+    else if (strcmp (dstFileName, stdoutmark)) UTIL_setModificationTime(dstFileName, modtime);
     return result;
 }
 

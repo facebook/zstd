@@ -1135,7 +1135,8 @@ When `Repeated_Offset2` is used, it's swapped with `Repeated_Offset1`.
 Dictionary format
 -----------------
 
-`zstd` is compatible with "raw content" dictionaries, free of any format restriction.
+`zstd` is compatible with "raw content" dictionaries, free of any format restriction,
+except that they must be at least 8 bytes.
 But dictionaries created by `zstd --train` follow a format, described here.
 
 __Pre-requisites__ : a dictionary has a size,

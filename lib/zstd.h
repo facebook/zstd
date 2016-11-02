@@ -72,7 +72,7 @@ ZSTDLIB_API unsigned ZSTD_versionNumber (void);  /**< returns version number of 
     Compresses `src` content as a single zstd compressed frame into already allocated `dst`.
     Hint : compression runs faster if `dstCapacity` >=  `ZSTD_compressBound(srcSize)`.
     @return : compressed size written into `dst` (<= `dstCapacity),
-              or an error code if it fails (which can be tested using ZSTD_isError()) */
+              or an error code if it fails (which can be tested using ZSTD_isError()). */
 ZSTDLIB_API size_t ZSTD_compress( void* dst, size_t dstCapacity,
                             const void* src, size_t srcSize,
                                   int compressionLevel);
@@ -82,7 +82,7 @@ ZSTDLIB_API size_t ZSTD_compress( void* dst, size_t dstCapacity,
     `dstCapacity` is an upper bound of originalSize.
     If user cannot imply a maximum upper bound, it's better to use streaming mode to decompress data.
     @return : the number of bytes decompressed into `dst` (<= `dstCapacity`),
-              or an errorCode if it fails (which can be tested using ZSTD_isError()) */
+              or an errorCode if it fails (which can be tested using ZSTD_isError()). */
 ZSTDLIB_API size_t ZSTD_decompress( void* dst, size_t dstCapacity,
                               const void* src, size_t compressedSize);
 
@@ -125,7 +125,7 @@ ZSTDLIB_API ZSTD_CCtx* ZSTD_createCCtx(void);
 ZSTDLIB_API size_t     ZSTD_freeCCtx(ZSTD_CCtx* cctx);
 
 /*! ZSTD_compressCCtx() :
-    Same as ZSTD_compress(), requires an allocated ZSTD_CCtx (see ZSTD_createCCtx()) */
+    Same as ZSTD_compress(), requires an allocated ZSTD_CCtx (see ZSTD_createCCtx()). */
 ZSTDLIB_API size_t ZSTD_compressCCtx(ZSTD_CCtx* ctx, void* dst, size_t dstCapacity, const void* src, size_t srcSize, int compressionLevel);
 
 /*= Decompression context */
@@ -134,7 +134,7 @@ ZSTDLIB_API ZSTD_DCtx* ZSTD_createDCtx(void);
 ZSTDLIB_API size_t     ZSTD_freeDCtx(ZSTD_DCtx* dctx);
 
 /*! ZSTD_decompressDCtx() :
-*   Same as ZSTD_decompress(), requires an allocated ZSTD_DCtx (see ZSTD_createDCtx()) */
+*   Same as ZSTD_decompress(), requires an allocated ZSTD_DCtx (see ZSTD_createDCtx()). */
 ZSTDLIB_API size_t ZSTD_decompressDCtx(ZSTD_DCtx* ctx, void* dst, size_t dstCapacity, const void* src, size_t srcSize);
 
 
@@ -143,7 +143,8 @@ ZSTDLIB_API size_t ZSTD_decompressDCtx(ZSTD_DCtx* ctx, void* dst, size_t dstCapa
 ***************************/
 /*! ZSTD_compress_usingDict() :
 *   Compression using a predefined Dictionary (see dictBuilder/zdict.h).
-*   Note : This function load the dictionary, resulting in significant startup delay. */
+*   Note : This function loads the dictionary, resulting in significant startup delay.
+*   Note : When `dict == NULL || dictSize < 8` no dictionary is used. */
 ZSTDLIB_API size_t ZSTD_compress_usingDict(ZSTD_CCtx* ctx,
                                            void* dst, size_t dstCapacity,
                                      const void* src, size_t srcSize,
@@ -153,7 +154,8 @@ ZSTDLIB_API size_t ZSTD_compress_usingDict(ZSTD_CCtx* ctx,
 /*! ZSTD_decompress_usingDict() :
 *   Decompression using a predefined Dictionary (see dictBuilder/zdict.h).
 *   Dictionary must be identical to the one used during compression.
-*   Note : This function load the dictionary, resulting in significant startup delay */
+*   Note : This function loads the dictionary, resulting in significant startup delay.
+*   Note : When `dict == NULL || dictSize < 8` no dictionary is used. */
 ZSTDLIB_API size_t ZSTD_decompress_usingDict(ZSTD_DCtx* dctx,
                                              void* dst, size_t dstCapacity,
                                        const void* src, size_t srcSize,
@@ -169,17 +171,17 @@ typedef struct ZSTD_CDict_s ZSTD_CDict;
 *   When compressing multiple messages / blocks with the same dictionary, it's recommended to load it just once.
 *   ZSTD_createCDict() will create a digested dictionary, ready to start future compression operations without startup delay.
 *   ZSTD_CDict can be created once and used by multiple threads concurrently, as its usage is read-only.
-*   `dict` can be released after ZSTD_CDict creation */
+*   `dict` can be released after ZSTD_CDict creation. */
 ZSTDLIB_API ZSTD_CDict* ZSTD_createCDict(const void* dict, size_t dictSize, int compressionLevel);
 
 /*! ZSTD_freeCDict() :
-*   Function frees memory allocated by ZSTD_createCDict() */
+*   Function frees memory allocated by ZSTD_createCDict(). */
 ZSTDLIB_API size_t      ZSTD_freeCDict(ZSTD_CDict* CDict);
 
 /*! ZSTD_compress_usingCDict() :
 *   Compression using a digested Dictionary.
 *   Faster startup than ZSTD_compress_usingDict(), recommended when same dictionary is used multiple times.
-*   Note that compression level is decided during dictionary creation */
+*   Note that compression level is decided during dictionary creation. */
 ZSTDLIB_API size_t ZSTD_compress_usingCDict(ZSTD_CCtx* cctx,
                                             void* dst, size_t dstCapacity,
                                       const void* src, size_t srcSize,
@@ -190,7 +192,7 @@ typedef struct ZSTD_DDict_s ZSTD_DDict;
 
 /*! ZSTD_createDDict() :
 *   Create a digested dictionary, ready to start decompression operation without startup delay.
-*   `dict` can be released after creation */
+*   `dict` can be released after creation. */
 ZSTDLIB_API ZSTD_DDict* ZSTD_createDDict(const void* dict, size_t dictSize);
 
 /*! ZSTD_freeDDict() :
@@ -198,7 +200,7 @@ ZSTDLIB_API ZSTD_DDict* ZSTD_createDDict(const void* dict, size_t dictSize);
 ZSTDLIB_API size_t      ZSTD_freeDDict(ZSTD_DDict* ddict);
 
 /*! ZSTD_decompress_usingDDict() :
-*   Decompression using a digested Dictionary
+*   Decompression using a digested Dictionary.
 *   Faster startup than ZSTD_decompress_usingDict(), recommended when same dictionary is used multiple times. */
 ZSTDLIB_API size_t ZSTD_decompress_usingDDict(ZSTD_DCtx* dctx,
                                               void* dst, size_t dstCapacity,

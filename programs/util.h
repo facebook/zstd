@@ -46,8 +46,10 @@ extern "C" {
 ******************************************/
 #include <stdlib.h>     /* features.h with _POSIX_C_SOURCE, malloc */
 #include <stdio.h>      /* fprintf */
-#include <sys/types.h>  /* stat */
+#include <sys/types.h>  /* stat, utime */
 #include <sys/stat.h>   /* stat */
+#include <utime.h>      /* utime */
+#include <time.h>       /* time */
 #include "mem.h"        /* U32, U64 */
 
 
@@ -142,6 +144,36 @@ UTIL_STATIC void UTIL_waitForNextTick(UTIL_time_t ticksPerSecond)
 /*-****************************************
 *  File functions
 ******************************************/
+UTIL_STATIC int UTIL_setModificationTime(const char *filename, time_t modtime)
+{
+    struct utimbuf  timebuf;
+
+    if (modtime == 0) return -1;
+
+    timebuf.actime  = time(NULL);
+    timebuf.modtime = modtime;
+
+    /* On success, zero is returned. On error, -1 is returned, and errno is set appropriately. */
+    return utime(filename, &timebuf); 
+}
+
+
+UTIL_STATIC time_t UTIL_getModificationTime(const char* infilename)
+{
+    int r;
+#if defined(_MSC_VER)
+    struct _stat64 statbuf;
+    r = _stat64(infilename, &statbuf);
+    if (r || !(statbuf.st_mode & S_IFREG)) return 0;   /* No good... */
+#else
+    struct stat statbuf;
+    r = stat(infilename, &statbuf);
+    if (r || !S_ISREG(statbuf.st_mode)) return 0;   /* No good... */
+#endif
+    return statbuf.st_mtime;
+}
+
+
 UTIL_STATIC U64 UTIL_getFileSize(const char* infilename)
 {
     int r;

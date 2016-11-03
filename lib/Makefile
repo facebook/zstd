@@ -74,8 +74,8 @@ $(LIBZSTD): $(ZSTD_FILES)
 	@echo compiling dynamic library $(LIBVER)
 	@$(CC) $(FLAGS) $^ $(LDFLAGS) $(SONAME_FLAGS) -o $@
 	@echo creating versioned links
-	@ln -sf $@.$(SHARED_EXT_VER) libzstd.$(SHARED_EXT_MAJOR)
-	@ln -sf $@.$(SHARED_EXT_VER) libzstd.$(SHARED_EXT)
+	@ln -sf $(LIBZSTD) libzstd.$(SHARED_EXT_MAJOR)
+	@ln -sf $(LIBZSTD) libzstd.$(SHARED_EXT)
 
 libzstd : $(LIBZSTD)
 

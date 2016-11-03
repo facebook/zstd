@@ -16,7 +16,7 @@ EXAMPLE_PATH = examples
 PROGRAMS_PATH = ../programs
 TEST_FILE = ../doc/zstd_compression_format.md
 CC ?= gcc
-CFLAGS ?= -O3 
+CFLAGS ?= -O3
 CFLAGS += $(LOC) -I$(PROGRAMS_PATH) -I$(ZSTDLIBDIR) -I$(ZSTDLIBDIR)/common -I$(ZLIBWRAPPER_PATH) -std=gnu99
 CFLAGS += -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow -Wswitch-enum -Wdeclaration-after-statement -Wstrict-prototypes -Wundef
 LDFLAGS = $(LOC)
@@ -50,7 +50,7 @@ valgrindTest: clean example fitblk example_zstd fitblk_zstd zwrapbench
 
 .c.o:
 	$(CC) $(CFLAGS) -c -o $@ $<
- 
+
 example: $(EXAMPLE_PATH)/example.o $(ZLIBWRAPPER_PATH)/zstd_zlibwrapper.o $(ZSTDLIBRARY)
 	$(CC) $(LDFLAGS) -o $@ $(EXAMPLE_PATH)/example.o $(ZLIBWRAPPER_PATH)/zstd_zlibwrapper.o $(ZSTDLIBRARY) $(ZLIB_LIBRARY)
 
@@ -75,10 +75,10 @@ $(ZLIBWRAPPER_PATH)/zstdTurnedOn_zlibwrapper.o: $(ZLIBWRAPPER_PATH)/zstd_zlibwra
 	$(CC) $(CFLAGS) -DZWRAP_USE_ZSTD=1 -I. -c -o $@ $(ZLIBWRAPPER_PATH)/zstd_zlibwrapper.c
 
 $(ZSTDLIBDIR)/libzstd.a:
-	$(MAKE) -C $(ZSTDLIBDIR) all
+	$(MAKE) -C $(ZSTDLIBDIR) libzstd.a
 
 $(ZSTDLIBDIR)/libzstd.so:
-	$(MAKE) -C $(ZSTDLIBDIR) all
+	$(MAKE) -C $(ZSTDLIBDIR) libzstd
 
 clean:
 	-$(RM) $(ZLIBWRAPPER_PATH)/*.o $(EXAMPLE_PATH)/*.o *.o *.exe foo.gz example example_zstd fitblk fitblk_zstd zwrapbench

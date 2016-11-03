@@ -76,7 +76,7 @@ zstd:
 zstd32:
 	$(MAKE) -C $(PRGDIR) $@
 
-zstd_nolegacy:
+zstd-nolegacy:
 	$(MAKE) -C $(PRGDIR) $@
 
 fullbench  : $(ZSTD_FILES) $(PRGDIR)/datagen.c fullbench.c
@@ -181,8 +181,8 @@ test-zstd: zstd zstd-playTests
 test-zstd32: ZSTD = $(PRGDIR)/zstd32
 test-zstd32: zstd32 zstd-playTests
 
-test-zstd_nolegacy: ZSTD = $(PRGDIR)/zstd
-test-zstd_nolegacy: zstd_nolegacy zstd-playTests
+test-zstd-nolegacy: ZSTD = $(PRGDIR)/zstd
+test-zstd-nolegacy: zstd-nolegacy zstd-playTests
 
 test-fullbench: fullbench datagen
 	./fullbench -i1

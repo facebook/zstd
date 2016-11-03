@@ -433,6 +433,13 @@ ZSTDLIB_API size_t ZSTD_compress_advanced (ZSTD_CCtx* ctx,
 
 /*--- Advanced decompression functions ---*/
 
+/*! ZSTD_isFrame() :
+ *  Tells if the content of `buffer` starts with a valid Frame Identifier.
+ *  Note : Frame Identifier is 4 bytes. If `size < 4`, @return will always be 0.
+ *  Note 2 : Legacy Frame Identifiers are considered valid only if Legacy Support is enabled.
+ *  Note 3 : Skippable Frame Identifiers are considered valid. */
+ZSTDLIB_API unsigned ZSTD_isFrame(const void* buffer, size_t size);
+
 /*! ZSTD_estimateDCtxSize() :
  *  Gives the potential amount of memory allocated to create a ZSTD_DCtx */
 ZSTDLIB_API size_t ZSTD_estimateDCtxSize(void);

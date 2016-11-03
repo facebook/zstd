@@ -20,28 +20,32 @@ else
 VOID = /dev/null
 endif
 
-.PHONY: default all zlibwrapper zstd clean install uninstall travis-install test clangtest gpptest armtest usan asan uasan
+.PHONY: default
+default: lib zstd
 
-default: libzstd zstd
-
+.PHONY: all
 all:
 	$(MAKE) -C $(ZSTDDIR) $@
 	$(MAKE) -C $(PRGDIR) $@ zstd32
 	$(MAKE) -C $(TESTDIR) $@ all32
 
-libzstd:
+.PHONY: lib
+lib:
 	@$(MAKE) -C $(ZSTDDIR)
 
 zstd:
 	@$(MAKE) -C $(PRGDIR)
 	cp $(PRGDIR)/zstd .
 
+.PHONY: zlibwrapper
 zlibwrapper:
 	$(MAKE) -C $(ZWRAPDIR) test
 
+.PHONY: test
 test:
 	$(MAKE) -C $(TESTDIR) $@
 
+.PHONY: clean
 clean:
 	@$(MAKE) -C $(ZSTDDIR) $@ > $(VOID)
 	@$(MAKE) -C $(PRGDIR) $@ > $(VOID)
@@ -56,6 +60,8 @@ clean:
 #------------------------------------------------------------------------------
 ifneq (,$(filter $(shell uname),Linux Darwin GNU/kFreeBSD GNU FreeBSD DragonFly NetBSD))
 HOST_OS = POSIX
+.PHONY: install uninstall travis-install clangtest gpptest armtest usan asan uasan
+
 install:
 	@$(MAKE) -C $(ZSTDDIR) $@
 	@$(MAKE) -C $(PRGDIR) $@

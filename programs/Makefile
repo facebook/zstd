@@ -41,7 +41,6 @@ ZSTDDECOMP_FILES := $(ZSTDDIR)/decompress/huf_decompress.c
 ZSTD_FILES := $(ZSTDDECOMP_FILES) $(ZSTDCOMMON_FILES) $(ZSTDCOMP_FILES)
 ZDICT_FILES := $(ZSTDDIR)/dictBuilder/*.c
 ZSTDDECOMP_O = $(ZSTDDIR)/decompress/zstd_decompress.o
-ZSTDDECOMP32_O = $(ZSTDDIR)/decompress/zstd_decompress32.o
 
 ifeq ($(ZSTD_LEGACY_SUPPORT), 0)
 CPPFLAGS  += -DZSTD_LEGACY_SUPPORT=0
@@ -76,30 +75,27 @@ default: zstd
 
 all: zstd
 
-$(ZSTDDECOMP_O): CPPFLAGS += -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT)
 $(ZSTDDECOMP_O): CFLAGS += $(ALIGN_LOOP)
-$(ZSTDDECOMP_O): $(ZSTDDIR)/decompress/zstd_decompress.c
 
+zstd  : CPPFLAGS += -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT)
 zstd  : $(ZSTDDECOMP_O) $(ZSTD_FILES) $(ZSTDLEGACY_FILES) $(ZDICT_FILES) \
         zstdcli.c fileio.c bench.c datagen.c dibio.c
 ifneq (,$(filter Windows%,$(OS)))
 	windres\generate_res.bat
 endif
-	$(CC)      $(FLAGS) -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT) $^ $(RES_FILE) -o $@$(EXT)
+	$(CC)      $(FLAGS) $^ $(RES_FILE) -o $@$(EXT)
 
 
-$(ZSTDDECOMP32_O): $(ZSTDDIR)/decompress/zstd_decompress.c
-	$(CC)  -m32 $(ALIGN_LOOP) $(FLAGS) -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT) $^ -c -o $@
-
-zstd32 : $(ZSTDDECOMP32_O) $(ZSTD_FILES) $(ZSTDLEGACY_FILES) $(ZDICT_FILES) \
+zstd32 : CPPFLAGS += -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT)
+zstd32 : $(ZSTDDIR)/decompress/zstd_decompress.c $(ZSTD_FILES) $(ZSTDLEGACY_FILES) $(ZDICT_FILES) \
         zstdcli.c fileio.c bench.c datagen.c dibio.c
 ifneq (,$(filter Windows%,$(OS)))
 	windres\generate_res.bat
 endif
-	$(CC)  -m32 $(FLAGS) -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT) $^ $(RES32_FILE) -o $@$(EXT)
+	$(CC)  -m32 $(FLAGS) $^ $(RES32_FILE) -o $@$(EXT)
 
 
-zstd_nolegacy : clean_decomp_o
+zstd-nolegacy : clean_decomp_o
 	$(MAKE) zstd ZSTD_LEGACY_SUPPORT=0
 
 zstd-pgo : MOREFLAGS = -fprofile-generate
@@ -111,7 +107,7 @@ zstd-pgo : clean zstd
 	./zstd -b7i2 $(PROFILE_WITH)
 	./zstd -b5 $(PROFILE_WITH)
 	$(RM) zstd
-	$(RM) $(ZSTDDIR)/decompress/zstd_decompress.o
+	$(RM) $(ZSTDDECOMP_O)
 	$(MAKE) zstd MOREFLAGS=-fprofile-use
 
 zstd-frugal: $(ZSTDDECOMP_O) $(ZSTD_FILES) zstdcli.c fileio.c
@@ -142,7 +138,6 @@ clean:
 
 clean_decomp_o:
 	@$(RM) $(ZSTDDECOMP_O)
-	@$(RM) $(ZSTDDECOMP32_O)
 
 
 #----------------------------------------------------------------------------------

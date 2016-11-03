@@ -27,7 +27,7 @@ CPPFLAGS= -I. -I./common
 CFLAGS ?= -O3
 CFLAGS += -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow -Wstrict-aliasing=1 \
           -Wswitch-enum -Wdeclaration-after-statement -Wstrict-prototypes -Wundef
-FLAGS   = $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) $(MOREFLAGS)
+FLAGS   = $(CPPFLAGS) $(CFLAGS) $(MOREFLAGS)
 
 
 ZSTD_FILES := common/*.c compress/*.c decompress/*.c dictBuilder/*.c
@@ -38,7 +38,6 @@ else
 ZSTD_FILES+= legacy/*.c
 CPPFLAGS  += -I./legacy -DZSTD_LEGACY_SUPPORT=1
 endif
-
 
 # OS X linker doesn't support -soname, and use different extension
 # see : https://developer.apple.com/library/mac/documentation/DeveloperTools/Conceptual/DynamicLibraries/100-Articles/DynamicLibraryDesignGuidelines.html
@@ -54,22 +53,32 @@ else
 	SHARED_EXT_VER = $(SHARED_EXT).$(LIBVER)
 endif
 
+LIBZSTD = libzstd.$(SHARED_EXT_VER)
+
 
 .PHONY: default all clean install uninstall
 
-default: clean libzstd
+default: lib
 
-all: clean libzstd
+all: lib
 
-libzstd: $(ZSTD_FILES)
+libzstd.a: ARFLAGS = rcs
+libzstd.a: $(ZSTD_FILES)
 	@echo compiling static library
 	@$(CC) $(FLAGS) -c $^
-	@$(AR) rcs $@.a *.o
+	@$(AR) $(ARFLAGS) $@ *.o
+
+$(LIBZSTD): LDFLAGS += -shared -fPIC
+$(LIBZSTD): $(ZSTD_FILES)
 	@echo compiling dynamic library $(LIBVER)
-	@$(CC) $(FLAGS) -shared $^ -fPIC $(SONAME_FLAGS) -o $@.$(SHARED_EXT_VER)
+	@$(CC) $(FLAGS) $^ $(LDFLAGS) $(SONAME_FLAGS) -o $@
 	@echo creating versioned links
 	@ln -sf $@.$(SHARED_EXT_VER) $@.$(SHARED_EXT_MAJOR)
 	@ln -sf $@.$(SHARED_EXT_VER) $@.$(SHARED_EXT)
+
+libzstd : $(LIBZSTD)
+
+lib: libzstd.a libzstd
 
 clean:
 	@rm -f core *.o *.a *.gcda *.$(SHARED_EXT) *.$(SHARED_EXT).* libzstd.pc
@@ -89,7 +98,7 @@ libzstd.pc: libzstd.pc.in
              -e 's|@VERSION@|$(VERSION)|' \
              $< >$@
 
-install: libzstd libzstd.pc
+install: libzstd.a libzstd libzstd.pc
 	@install -d -m 755 $(DESTDIR)$(LIBDIR)/pkgconfig/ $(DESTDIR)$(INCLUDEDIR)/
 	@install -m 755 libzstd.$(SHARED_EXT_VER) $(DESTDIR)$(LIBDIR)/libzstd.$(SHARED_EXT_VER)
 	@cp -a libzstd.$(SHARED_EXT_MAJOR) $(DESTDIR)$(LIBDIR)

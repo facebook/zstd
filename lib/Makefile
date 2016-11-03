@@ -26,7 +26,8 @@ INCLUDEDIR=$(PREFIX)/include
 CPPFLAGS= -I. -I./common
 CFLAGS ?= -O3
 CFLAGS += -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow -Wstrict-aliasing=1 \
-          -Wswitch-enum -Wdeclaration-after-statement -Wstrict-prototypes -Wundef
+          -Wswitch-enum -Wdeclaration-after-statement -Wstrict-prototypes -Wundef \
+          -Wpointer-arith
 FLAGS   = $(CPPFLAGS) $(CFLAGS) $(MOREFLAGS)
 
 
@@ -73,8 +74,8 @@ $(LIBZSTD): $(ZSTD_FILES)
 	@echo compiling dynamic library $(LIBVER)
 	@$(CC) $(FLAGS) $^ $(LDFLAGS) $(SONAME_FLAGS) -o $@
 	@echo creating versioned links
-	@ln -sf $@.$(SHARED_EXT_VER) $@.$(SHARED_EXT_MAJOR)
-	@ln -sf $@.$(SHARED_EXT_VER) $@.$(SHARED_EXT)
+	@ln -sf $@.$(SHARED_EXT_VER) libzstd.$(SHARED_EXT_MAJOR)
+	@ln -sf $@.$(SHARED_EXT_VER) libzstd.$(SHARED_EXT)
 
 libzstd : $(LIBZSTD)
 

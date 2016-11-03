@@ -30,7 +30,8 @@ endif
 CPPFLAGS= -I$(ZSTDDIR) -I$(ZSTDDIR)/common -I$(ZSTDDIR)/dictBuilder
 CFLAGS ?= -O3
 CFLAGS += -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow -Wstrict-aliasing=1 \
-          -Wswitch-enum -Wdeclaration-after-statement -Wstrict-prototypes -Wundef
+          -Wswitch-enum -Wdeclaration-after-statement -Wstrict-prototypes -Wundef \
+          -Wpointer-arith
 CFLAGS += $(MOREFLAGS)
 FLAGS   = $(CPPFLAGS) $(CFLAGS) $(LDFLAGS)
 

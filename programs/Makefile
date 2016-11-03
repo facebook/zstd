@@ -56,7 +56,6 @@ endif
 # Define *.exe as extension for Windows systems
 ifneq (,$(filter Windows%,$(OS)))
 EXT =.exe
-VOID = nul
 RES64_FILE = windres\zstd64.res
 RES32_FILE = windres\zstd32.res
 ifneq (,$(filter x86_64%,$(shell $(CC) -dumpmachine)))
@@ -66,7 +65,6 @@ else
 endif
 else
 EXT =
-VOID = /dev/null
 endif
 
 

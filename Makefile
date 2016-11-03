@@ -14,10 +14,12 @@ ZWRAPDIR = zlibWrapper
 TESTDIR  = tests
 
 # Define nul output
-ifneq (,$(filter Windows%,$(OS)))
-VOID = nul
-else
 VOID = /dev/null
+
+ifneq (,$(filter Windows%,$(OS)))
+EXT =.exe
+else
+EXT =
 endif
 
 .PHONY: default
@@ -35,7 +37,7 @@ lib:
 
 zstd:
 	@$(MAKE) -C $(PRGDIR)
-	cp $(PRGDIR)/zstd .
+	cp $(PRGDIR)/zstd$(EXT) .
 
 .PHONY: zlibwrapper
 zlibwrapper:
@@ -51,7 +53,7 @@ clean:
 	@$(MAKE) -C $(PRGDIR) $@ > $(VOID)
 	@$(MAKE) -C $(TESTDIR) $@ > $(VOID)
 	@$(MAKE) -C $(ZWRAPDIR) $@ > $(VOID)
-	@$(RM) zstd
+	@$(RM) zstd$(EXT)
 	@echo Cleaning completed
 
 

@@ -28,7 +28,7 @@
 #include <errno.h>    /* errno */
 #include "fileio.h"
 #ifndef ZSTD_NOBENCH
-#  include "bench.h"  /* BMK_benchFiles, BMK_SetNbIterations */
+#  include "bench.h"  /* BMK_benchFiles, BMK_SetNbSeconds */
 #endif
 #ifndef ZSTD_NODICT
 #  include "dibio.h"
@@ -383,7 +383,7 @@ int main(int argCount, const char* argv[])
                         argument++;
                         {   U32 const iters = readU32FromChar(&argument);
                             BMK_setNotificationLevel(displayLevel);
-                            BMK_SetNbIterations(iters);
+                            BMK_SetNbSeconds(iters);
                         }
                         break;
 

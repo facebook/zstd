@@ -238,9 +238,9 @@ int main(int argCount, const char* argv[])
 
     /* init */
     (void)recursive; (void)cLevelLast;    /* not used when ZSTD_NOBENCH set */
-    (void)dictCLevel; (void)dictSelect; (void)dictID;  /* not used when ZSTD_NODICT set */
-    (void)cLevel; /* not used when ZSTD_NOCOMPRESS set */
-    (void)ultra; (void)memLimit;   /* not used when ZSTD_NODECOMPRESS set */
+    (void)dictCLevel; (void)dictSelect; (void)dictID;  (void)maxDictSize; /* not used when ZSTD_NODICT set */
+    (void)ultra; (void)cLevel; /* not used when ZSTD_NOCOMPRESS set */
+    (void)memLimit;   /* not used when ZSTD_NODECOMPRESS set */
     if (filenameTable==NULL) { DISPLAY("zstd: %s \n", strerror(errno)); exit(1); }
     filenameTable[0] = stdinmark;
     displayOut = stderr;

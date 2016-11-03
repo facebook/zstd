@@ -443,7 +443,7 @@ int FIO_compressMultipleFilenames(const char** inFileNamesTable, unsigned nbFile
         SET_BINARY_MODE(stdout);
         for (u=0; u<nbFiles; u++)
             missed_files += FIO_compressFilename_srcFile(ress, stdoutmark, inFileNamesTable[u]);
-        if (fclose(ress.dstFile)) EXM_THROW(29, "Write error : cannot properly close %s", stdoutmark);
+        if (fclose(ress.dstFile)) EXM_THROW(29, "Write error : cannot properly close stdout");
     } else {
         unsigned u;
         for (u=0; u<nbFiles; u++) {
@@ -774,7 +774,7 @@ int FIO_decompressMultipleFilenames(const char** srcNamesTable, unsigned nbFiles
         if (ress.dstFile == 0) EXM_THROW(71, "cannot open %s", suffix);
         for (u=0; u<nbFiles; u++)
             missingFiles += FIO_decompressSrcFile(ress, srcNamesTable[u]);
-        if (fclose(ress.dstFile)) EXM_THROW(72, "Write error : cannot properly close %s", stdoutmark);
+        if (fclose(ress.dstFile)) EXM_THROW(72, "Write error : cannot properly close stdout");
     } else {
         size_t const suffixSize = strlen(suffix);
         size_t dfnSize = FNSPACE;

@@ -3,9 +3,15 @@ _*
 example.*
 example_zstd.*
 fitblk.*
-fitblk_zstd.* 
+fitblk_zstd.*
 zwrapbench.*
 foo.gz
+
+example
+example_zstd
+fitblk
+fitblk_zstd
+zwrapbench
 
 # Misc files
 *.bat

@@ -11,6 +11,7 @@
 #include <stdio.h>                 /* vsprintf */
 #include <stdarg.h>                /* va_list, for z_gzprintf */
 #define NO_DUMMY_DECL
+#define ZLIB_CONST
 #include <zlib.h>                  /* without #define Z_PREFIX */
 #include "zstd_zlibwrapper.h"
 #define ZSTD_STATIC_LINKING_ONLY   /* ZSTD_MAGICNUMBER */

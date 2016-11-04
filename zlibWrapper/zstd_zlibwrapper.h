@@ -15,16 +15,14 @@ extern "C" {
 #endif
 
 
+#define ZLIB_CONST
 #define Z_PREFIX
 #include <zlib.h>
 
 #if !defined(z_const)
-#if ZLIB_VERNUM >= 0x1260
-    #define z_const const
-#else
     #define z_const
 #endif
-#endif
+
 
 /* returns a string with version of zstd library */
 const char * zstdVersion(void);

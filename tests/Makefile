@@ -50,12 +50,11 @@ ZDICT_FILES := $(ZSTDDIR)/dictBuilder/*.c
 # Define *.exe as extension for Windows systems
 ifneq (,$(filter Windows%,$(OS)))
 EXT =.exe
-VOID = nul
 else
 EXT =
-VOID = /dev/null
 endif
 
+VOID = /dev/null
 ZBUFFTEST = -T2mn
 FUZZERTEST= -T5mn
 ZSTDRTTEST= --test-large-data

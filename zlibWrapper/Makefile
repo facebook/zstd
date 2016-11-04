@@ -19,6 +19,7 @@ CC ?= gcc
 CFLAGS ?= -O3
 CFLAGS += $(LOC) -I$(PROGRAMS_PATH) -I$(ZSTDLIBDIR) -I$(ZSTDLIBDIR)/common -I$(ZLIBWRAPPER_PATH) -std=gnu99
 CFLAGS += -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow -Wswitch-enum -Wdeclaration-after-statement -Wstrict-prototypes -Wundef
+CFLAGS += $(MOREFLAGS)
 LDFLAGS = $(LOC)
 RM = rm -f
 

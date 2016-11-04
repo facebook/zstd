@@ -130,7 +130,7 @@ void BMK_SetBlockSize(size_t blockSize)
 **********************************************************/
 typedef struct
 {
-    char* srcPtr;
+    z_const char* srcPtr;
     size_t srcSize;
     char*  cPtr;
     size_t cRoom;
@@ -145,7 +145,7 @@ typedef enum { BMK_ZSTD, BMK_ZSTD_STREAM, BMK_ZLIB, BMK_ZWRAP_ZLIB, BMK_ZWRAP_ZS
 #define MIN(a,b) ((a)<(b) ? (a) : (b))
 #define MAX(a,b) ((a)>(b) ? (a) : (b))
 
-static int BMK_benchMem(void* srcBuffer, size_t srcSize,
+static int BMK_benchMem(z_const void* srcBuffer, size_t srcSize,
                         const char* displayName, int cLevel,
                         const size_t* fileSizes, U32 nbFiles,
                         const void* dictBuffer, size_t dictBufferSize, BMK_compressor compressor)
@@ -171,7 +171,7 @@ static int BMK_benchMem(void* srcBuffer, size_t srcSize,
     UTIL_initTimer(&ticksPerSecond);
 
     /* Init blockTable data */
-    {   char* srcPtr = (char*)srcBuffer;
+    {   z_const char* srcPtr = (z_const char*)srcBuffer;
         char* cPtr = (char*)compressedBuffer;
         char* resPtr = (char*)resultBuffer;
         U32 fileNb;
@@ -307,7 +307,7 @@ static int BMK_benchMem(void* srcBuffer, size_t srcSize,
                                 if (ret != Z_OK) EXM_THROW(1, "deflateSetDictionary failure");
                                 if (ZWRAP_isUsingZSTDcompression()) useSetDict = 0; /* zstd doesn't require deflateSetDictionary after ZWRAP_deflateReset_keepDict */
                             }
-                            def.next_in = (void*) blockTable[blockNb].srcPtr;
+                            def.next_in = (z_const void*) blockTable[blockNb].srcPtr;
                             def.avail_in = blockTable[blockNb].srcSize;
                             def.total_in = 0;
                             def.next_out = (void*) blockTable[blockNb].cPtr;
@@ -338,7 +338,7 @@ static int BMK_benchMem(void* srcBuffer, size_t srcSize,
                                 ret = deflateSetDictionary(&def, dictBuffer, dictBufferSize);
                                 if (ret != Z_OK) EXM_THROW(1, "deflateSetDictionary failure");
                             }
-                            def.next_in = (void*) blockTable[blockNb].srcPtr;
+                            def.next_in = (z_const void*) blockTable[blockNb].srcPtr;
                             def.avail_in = blockTable[blockNb].srcSize;
                             def.total_in = 0;
                             def.next_out = (void*) blockTable[blockNb].cPtr;
@@ -443,7 +443,7 @@ static int BMK_benchMem(void* srcBuffer, size_t srcSize,
                             else
                                 ret = inflateReset(&inf);
                             if (ret != Z_OK) EXM_THROW(1, "inflateReset failure");
-                            inf.next_in = (void*) blockTable[blockNb].cPtr;
+                            inf.next_in = (z_const void*) blockTable[blockNb].cPtr;
                             inf.avail_in = blockTable[blockNb].cSize;
                             inf.total_in = 0;
                             inf.next_out = (void*) blockTable[blockNb].resPtr;
@@ -475,7 +475,7 @@ static int BMK_benchMem(void* srcBuffer, size_t srcSize,
                             inf.opaque = Z_NULL;
                             ret = inflateInit(&inf);
                             if (ret != Z_OK) EXM_THROW(1, "inflateInit failure");
-                            inf.next_in = (void*) blockTable[blockNb].cPtr;
+                            inf.next_in = (z_const void*) blockTable[blockNb].cPtr;
                             inf.avail_in = blockTable[blockNb].cSize;
                             inf.total_in = 0;
                             inf.next_out = (void*) blockTable[blockNb].resPtr;

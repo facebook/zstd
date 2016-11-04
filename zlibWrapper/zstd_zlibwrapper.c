@@ -10,7 +10,8 @@
 
 #include <stdio.h>                 /* vsprintf */
 #include <stdarg.h>                /* va_list, for z_gzprintf */
-#include <zlib.h>
+#define NO_DUMMY_DECL
+#include <zlib.h>                  /* without #define Z_PREFIX */
 #include "zstd_zlibwrapper.h"
 #define ZSTD_STATIC_LINKING_ONLY   /* ZSTD_MAGICNUMBER */
 #include "zstd.h"
@@ -85,7 +86,10 @@ typedef struct {
     ZSTD_outBuffer outBuffer;
     ZWRAP_state_t comprState;
     unsigned long long pledgedSrcSize;
-} ZWRAP_CCtx __attribute__ ((aligned (4)));
+} ZWRAP_CCtx;
+
+typedef ZWRAP_CCtx internal_state;
+
 
 
 size_t ZWRAP_freeCCtx(ZWRAP_CCtx* zwc)
@@ -404,7 +408,7 @@ typedef struct {
     int windowBits;
     ZSTD_customMem customMem;
     z_stream allocFunc; /* copy of zalloc, zfree, opaque */
-} ZWRAP_DCtx __attribute__ ((aligned (4)));
+} ZWRAP_DCtx;
 
 
 int ZWRAP_isUsingZSTDdecompression(z_streamp strm) 

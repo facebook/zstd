@@ -73,9 +73,11 @@ $(LIBZSTD): LDFLAGS += -shared -fPIC
 $(LIBZSTD): $(ZSTD_FILES)
 	@echo compiling dynamic library $(LIBVER)
 	@$(CC) $(FLAGS) $^ $(LDFLAGS) $(SONAME_FLAGS) -o $@
+ifeq (,$(filter Windows%,$(OS)))
 	@echo creating versioned links
 	@ln -sf $(LIBZSTD) libzstd.$(SHARED_EXT_MAJOR)
 	@ln -sf $(LIBZSTD) libzstd.$(SHARED_EXT)
+endif
 
 libzstd : $(LIBZSTD)
 

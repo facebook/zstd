@@ -33,7 +33,7 @@
 #  define ZSTD_GIT_COMMIT_STRING ZSTD_EXPAND_AND_QUOTE(ZSTD_GIT_COMMIT)
 #endif
 
-#define NBLOOPS               3
+#define NBSECONDS             3
 #define TIMELOOP_MICROSEC     1*1000000ULL /* 1 second */
 #define ACTIVEPERIOD_MICROSEC 70*1000000ULL /* 70 seconds */
 #define COOLPERIOD_SEC        10
@@ -82,7 +82,7 @@ static clock_t g_time = 0;
 /* *************************************
 *  Benchmark Parameters
 ***************************************/
-static U32 g_nbIterations = NBLOOPS;
+static U32 g_nbSeconds = NBSECONDS;
 static size_t g_blockSize = 0;
 int g_additionalParam = 0;
 
@@ -90,10 +90,10 @@ void BMK_setNotificationLevel(unsigned level) { g_displayLevel=level; }
 
 void BMK_setAdditionalParam(int additionalParam) { g_additionalParam=additionalParam; }
 
-void BMK_SetNbIterations(unsigned nbLoops)
+void BMK_SetNbSeconds(unsigned nbSeconds)
 {
-    g_nbIterations = nbLoops;
-    DISPLAYLEVEL(3, "- test >= %u seconds per compression / decompression -\n", g_nbIterations);
+    g_nbSeconds = nbSeconds;
+    DISPLAYLEVEL(3, "- test >= %u seconds per compression / decompression -\n", g_nbSeconds);
 }
 
 void BMK_SetBlockSize(size_t blockSize)
@@ -175,7 +175,7 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
     {   U64 fastestC = (U64)(-1LL), fastestD = (U64)(-1LL);
         U64 const crcOrig = XXH64(srcBuffer, srcSize, 0);
         UTIL_time_t coolTime;
-        U64 const maxTime = (g_nbIterations * TIMELOOP_MICROSEC) + 100;
+        U64 const maxTime = (g_nbSeconds * TIMELOOP_MICROSEC) + 100;
         U64 totalCTime=0, totalDTime=0;
         U32 cCompleted=0, dCompleted=0;
 #       define NB_MARKS 4
@@ -188,7 +188,7 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
         DISPLAYLEVEL(2, "\r%79s\r", "");
         while (!cCompleted | !dCompleted) {
             UTIL_time_t clockStart;
-            U64 clockLoop = g_nbIterations ? TIMELOOP_MICROSEC : 1;
+            U64 clockLoop = g_nbSeconds ? TIMELOOP_MICROSEC : 1;
 
             /* overheat protection */
             if (UTIL_clockSpanMicro(coolTime, ticksPerSecond) > ACTIVEPERIOD_MICROSEC) {
@@ -306,7 +306,7 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
                     break;
             }   }   /* CRC Checking */
 #endif
-        }   /* for (testNb = 1; testNb <= (g_nbIterations + !g_nbIterations); testNb++) */
+        }   /* for (testNb = 1; testNb <= (g_nbSeconds + !g_nbSeconds); testNb++) */
 
         if (g_displayLevel == 1) {
             double cSpeed = (double)srcSize / fastestC;
@@ -361,7 +361,7 @@ static void BMK_benchCLevel(void* srcBuffer, size_t benchedSize,
     SET_HIGH_PRIORITY;
 
     if (g_displayLevel == 1 && !g_additionalParam)
-        DISPLAY("bench %s %s: input %u bytes, %u iterations, %u KB blocks\n", ZSTD_VERSION_STRING, ZSTD_GIT_COMMIT_STRING, (U32)benchedSize, g_nbIterations, (U32)(g_blockSize>>10));
+        DISPLAY("bench %s %s: input %u bytes, %u seconds, %u KB blocks\n", ZSTD_VERSION_STRING, ZSTD_GIT_COMMIT_STRING, (U32)benchedSize, g_nbSeconds, (U32)(g_blockSize>>10));
 
     if (cLevelLast < cLevel) cLevelLast = cLevel;
 

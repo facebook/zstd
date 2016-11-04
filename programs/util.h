@@ -46,8 +46,17 @@ extern "C" {
 ******************************************/
 #include <stdlib.h>     /* features.h with _POSIX_C_SOURCE, malloc */
 #include <stdio.h>      /* fprintf */
-#include <sys/types.h>  /* stat */
+#include <sys/types.h>  /* stat, utime */
 #include <sys/stat.h>   /* stat */
+#if defined(_MSC_VER)
+	#include <sys/utime.h>   /* utime */
+	#include <io.h>          /* _chmod */
+#else
+	#include <unistd.h>     /* chown, stat */
+	#include <utime.h>      /* utime */
+#endif
+#include <time.h>       /* time */
+#include <errno.h>
 #include "mem.h"        /* U32, U64 */
 
 
@@ -142,6 +151,48 @@ UTIL_STATIC void UTIL_waitForNextTick(UTIL_time_t ticksPerSecond)
 /*-****************************************
 *  File functions
 ******************************************/
+#if defined(_MSC_VER)
+	#define chmod _chmod
+	typedef struct _stat64 stat_t;
+#else
+    typedef struct stat stat_t;
+#endif
+
+
+UTIL_STATIC int UTIL_setFileStat(const char *filename, stat_t *statbuf)
+{
+    int res = 0;
+    struct utimbuf timebuf;
+
+	timebuf.actime = time(NULL);
+	timebuf.modtime = statbuf->st_mtime;
+	res += utime(filename, &timebuf);  /* set access and modification times */
+
+#if !defined(_WIN32)
+    res += chown(filename, statbuf->st_uid, statbuf->st_gid);  /* Copy ownership */
+#endif
+
+    res += chmod(filename, statbuf->st_mode & 07777);  /* Copy file permissions */
+
+    errno = 0;
+    return -res; /* number of errors is returned */
+}
+
+
+UTIL_STATIC int UTIL_getFileStat(const char* infilename, stat_t *statbuf)
+{
+    int r;
+#if defined(_MSC_VER)
+    r = _stat64(infilename, statbuf);
+    if (r || !(statbuf->st_mode & S_IFREG)) return 0;   /* No good... */
+#else
+    r = stat(infilename, statbuf);
+    if (r || !S_ISREG(statbuf->st_mode)) return 0;   /* No good... */
+#endif
+    return 1;
+}
+
+
 UTIL_STATIC U64 UTIL_getFileSize(const char* infilename)
 {
     int r;
@@ -278,7 +329,6 @@ UTIL_STATIC int UTIL_prepareFileList(const char *dirName, char** bufStart, size_
      ((defined(__unix__) || defined(__unix) || defined(__midipix__)) && defined(_POSIX_C_SOURCE) && (_POSIX_C_SOURCE >= 200112L)) /* snprintf, opendir */
 #  define UTIL_HAS_CREATEFILELIST
 #  include <dirent.h>       /* opendir, readdir */
-#  include <errno.h>
 
 UTIL_STATIC int UTIL_prepareFileList(const char *dirName, char** bufStart, size_t* pos, char** bufEnd)
 {

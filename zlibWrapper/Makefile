@@ -1,7 +1,7 @@
 # Makefile for example of using zstd wrapper for zlib
 #
 # make - compiles examples
-# make LOC=-DZWRAP_USE_ZSTD=1 - compiles examples with zstd compression turned on
+# make MOREFLAGS=-DZWRAP_USE_ZSTD=1 - compiles examples with zstd compression turned on
 # make test - runs examples
 
 
@@ -15,13 +15,10 @@ ZLIBWRAPPER_PATH = .
 EXAMPLE_PATH = examples
 PROGRAMS_PATH = ../programs
 TEST_FILE = ../doc/zstd_compression_format.md
-CC ?= gcc
-CFLAGS ?= -O3
-CFLAGS += $(LOC) -I$(PROGRAMS_PATH) -I$(ZSTDLIBDIR) -I$(ZSTDLIBDIR)/common -I$(ZLIBWRAPPER_PATH) -std=gnu99
-CFLAGS += -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow -Wswitch-enum -Wdeclaration-after-statement -Wstrict-prototypes -Wundef
-CFLAGS += $(MOREFLAGS)
-LDFLAGS = $(LOC)
-RM = rm -f
+
+CPPFLAGS = -I$(PROGRAMS_PATH) -I$(ZSTDLIBDIR) -I$(ZSTDLIBDIR)/common -I$(ZLIBWRAPPER_PATH)
+CFLAGS  ?= $(MOREFLAGS) -O3 -std=gnu99
+CFLAGS  += -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow -Wswitch-enum -Wdeclaration-after-statement -Wstrict-prototypes -Wstrict-aliasing=1 -Wundef
 
 
 all: clean fitblk example zwrapbench
@@ -49,8 +46,8 @@ valgrindTest: clean example fitblk example_zstd fitblk_zstd zwrapbench
 	$(VALGRIND) ./zwrapbench -qb3B1K $(TEST_FILE)
 	$(VALGRIND) ./zwrapbench -rqb1e5 ../lib ../programs ../tests
 
-.c.o:
-	$(CC) $(CFLAGS) -c -o $@ $<
+#.c.o:
+#	$(CC) $(CFLAGS) $(CPPFLAGS) -c -o $@ $<
 
 example: $(EXAMPLE_PATH)/example.o $(ZLIBWRAPPER_PATH)/zstd_zlibwrapper.o $(ZSTDLIBRARY)
 	$(CC) $(LDFLAGS) -o $@ $(EXAMPLE_PATH)/example.o $(ZLIBWRAPPER_PATH)/zstd_zlibwrapper.o $(ZSTDLIBRARY) $(ZLIB_LIBRARY)
@@ -70,10 +67,10 @@ zwrapbench: $(EXAMPLE_PATH)/zwrapbench.o $(ZLIBWRAPPER_PATH)/zstd_zlibwrapper.o 
 $(EXAMPLE_PATH)/zwrapbench.o: $(EXAMPLE_PATH)/zwrapbench.c
 
 $(ZLIBWRAPPER_PATH)/zstd_zlibwrapper.o: $(ZLIBWRAPPER_PATH)/zstd_zlibwrapper.c $(ZLIBWRAPPER_PATH)/zstd_zlibwrapper.h
-	$(CC) $(CFLAGS) -I. -c -o $@ $(ZLIBWRAPPER_PATH)/zstd_zlibwrapper.c
+	$(CC) $(CFLAGS) $(CPPFLAGS) -I. -c -o $@ $(ZLIBWRAPPER_PATH)/zstd_zlibwrapper.c
 
 $(ZLIBWRAPPER_PATH)/zstdTurnedOn_zlibwrapper.o: $(ZLIBWRAPPER_PATH)/zstd_zlibwrapper.c $(ZLIBWRAPPER_PATH)/zstd_zlibwrapper.h
-	$(CC) $(CFLAGS) -DZWRAP_USE_ZSTD=1 -I. -c -o $@ $(ZLIBWRAPPER_PATH)/zstd_zlibwrapper.c
+	$(CC) $(CFLAGS) $(CPPFLAGS) -DZWRAP_USE_ZSTD=1 -I. -c -o $@ $(ZLIBWRAPPER_PATH)/zstd_zlibwrapper.c
 
 $(ZSTDLIBDIR)/libzstd.a:
 	$(MAKE) -C $(ZSTDLIBDIR) libzstd.a

@@ -85,7 +85,7 @@ typedef struct {
     ZSTD_outBuffer outBuffer;
     ZWRAP_state_t comprState;
     unsigned long long pledgedSrcSize;
-} ZWRAP_CCtx;
+} ZWRAP_CCtx __attribute__ ((aligned (4)));
 
 
 size_t ZWRAP_freeCCtx(ZWRAP_CCtx* zwc)
@@ -404,7 +404,7 @@ typedef struct {
     int windowBits;
     ZSTD_customMem customMem;
     z_stream allocFunc; /* copy of zalloc, zfree, opaque */
-} ZWRAP_DCtx;
+} ZWRAP_DCtx __attribute__ ((aligned (4)));
 
 
 int ZWRAP_isUsingZSTDdecompression(z_streamp strm) 

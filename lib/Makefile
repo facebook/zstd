@@ -75,8 +75,8 @@ $(LIBZSTD): $(ZSTD_FILES)
 	@$(CC) $(FLAGS) $^ $(LDFLAGS) $(SONAME_FLAGS) -o $@
 ifeq (,$(filter Windows%,$(OS)))
 	@echo creating versioned links
-	@ln -sf $@.$(SHARED_EXT_VER) libzstd.$(SHARED_EXT_MAJOR)
-	@ln -sf $@.$(SHARED_EXT_VER) libzstd.$(SHARED_EXT)
+	@ln -sf $(LIBZSTD) libzstd.$(SHARED_EXT_MAJOR)
+	@ln -sf $(LIBZSTD) libzstd.$(SHARED_EXT)
 endif
 
 libzstd : $(LIBZSTD)

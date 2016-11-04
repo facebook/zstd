@@ -170,8 +170,7 @@ roundtrip: test/RoundTripTest$(EXT)
 # Use the static library that zstd builds for simplicity and
 # so we get the compiler options correct
 $(ZSTDDIR)/libzstd.a: $(ZSTD_FILES)
-	$(MAKE) -C $(ZSTDDIR) libzstd CFLAGS="$(ALL_CFLAGS)" LDFLAGS="$(ALL_LDFLAGS)"
-
+	CFLAGS="$(ALL_CFLAGS)" LDFLAGS="$(ALL_LDFLAGS)" $(MAKE) -C $(ZSTDDIR) libzstd.a
 
 # Rules to build the tests
 test/RoundTripTest$(EXT): test/RoundTripTest.o $(PROGDIR)/datagen.o Options.o \

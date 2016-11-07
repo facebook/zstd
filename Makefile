@@ -35,8 +35,9 @@ all:
 lib:
 	@$(MAKE) -C $(ZSTDDIR)
 
+.PHONY: zstd
 zstd:
-	@$(MAKE) -C $(PRGDIR)
+	@$(MAKE) -C $(PRGDIR) $@
 	cp $(PRGDIR)/zstd$(EXT) .
 
 .PHONY: zlibwrapper

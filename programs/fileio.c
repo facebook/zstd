@@ -580,7 +580,8 @@ static void FIO_fwriteSparseEnd(FILE* file, unsigned storedSkips)
     @return : size of decoded frame
 */
 unsigned long long FIO_decompressFrame(dRess_t ress,
-                                       FILE* foutput, FILE* finput, size_t alreadyLoaded)
+                                       FILE* foutput, FILE* finput, size_t alreadyLoaded,
+                                       U64 alreadyDecoded)
 {
     U64 frameSize = 0;
     size_t readSize;
@@ -604,7 +605,7 @@ unsigned long long FIO_decompressFrame(dRess_t ress,
         /* Write block */
         storedSkips = FIO_fwriteSparse(foutput, ress.dstBuffer, outBuff.pos, storedSkips);
         frameSize += outBuff.pos;
-        DISPLAYUPDATE(2, "\rDecoded : %u MB...     ", (U32)(frameSize>>20) );
+        DISPLAYUPDATE(2, "\rDecoded : %u MB...     ", (U32)((alreadyDecoded+frameSize)>>20) );
 
         if (readSizeHint == 0) break;   /* end of frame */
         if (inBuff.size != inBuff.pos) EXM_THROW(37, "Decoding error : should consume entire input");
@@ -683,7 +684,7 @@ static int FIO_decompressSrcFile(dRess_t ress, const char* srcFileName)
                 fclose(srcFile);
                 return 1;
         }   }
-        filesize += FIO_decompressFrame(ress, dstFile, srcFile, toRead);
+        filesize += FIO_decompressFrame(ress, dstFile, srcFile, toRead, filesize);
     }
 
     /* Final Status */
@@ -715,7 +716,7 @@ static int FIO_decompressDstFile(dRess_t ress,
     if (strcmp (srcFileName, stdinmark) && UTIL_getFileStat(srcFileName, &statbuf)) stat_result = 1;
     result = FIO_decompressSrcFile(ress, srcFileName);
 
-    if (fclose(ress.dstFile)) EXM_THROW(38, "Write error : cannot properly close %s", dstFileName);    
+    if (fclose(ress.dstFile)) EXM_THROW(38, "Write error : cannot properly close %s", dstFileName);
 
     if ( (result != 0)
        && strcmp(dstFileName, nulmark)  /* special case : don't remove() /dev/null (#316) */

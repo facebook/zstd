@@ -124,7 +124,7 @@ void FIO_setMemLimit(unsigned memLimit) { g_memLimit = memLimit; }
     DEBUGOUTPUT("Error defined at %s, line %i : \n", __FILE__, __LINE__); \
     DISPLAYLEVEL(1, "Error %i : ", error);                                \
     DISPLAYLEVEL(1, __VA_ARGS__);                                         \
-    DISPLAYLEVEL(1, "\n");                                                \
+    DISPLAYLEVEL(1, " \n");                                               \
     exit(error);                                                          \
 }
 
@@ -132,6 +132,9 @@ void FIO_setMemLimit(unsigned memLimit) { g_memLimit = memLimit; }
 /*-*************************************
 *  Functions
 ***************************************/
+/** FIO_openSrcFile() :
+ * condition : `dstFileName` must be non-NULL.
+ * @result : FILE* to `dstFileName`, or NULL if it fails */
 static FILE* FIO_openSrcFile(const char* srcFileName)
 {
     FILE* f;

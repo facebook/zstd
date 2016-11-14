@@ -40,8 +40,6 @@ $ECHO "\nStarting playTests.sh isWindows=$isWindows ZSTD='$ZSTD'"
 
 [ -n "$ZSTD" ] || die "ZSTD variable must be defined!"
 
-file $ZSTD
-
 $ECHO "\n**** simple tests **** "
 
 ./datagen > tmp

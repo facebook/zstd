@@ -142,4 +142,5 @@ matrix:
             - gcc-6-multilib
 
 script:
-  - sh -c "$Cmd"
+  - JOB_NUMBER = $(echo $TRAVIS_JOB_NUMBER | sed -e 's:[0-9][0-9]*\.\(.*\):\1:'
+  - [ $JOB_NUMBER -eq 9 ] || [ $JOB_NUMBER -eq 10 ] && sh -c "$Cmd"

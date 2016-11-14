@@ -36,7 +36,7 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
     MD5SUM="md5 -r"
 fi
 
-$ECHO "\nStarting playTests.sh isWindows=$isWindows"
+$ECHO "\nStarting playTests.sh isWindows=$isWindows ZSTD='$ZSTD'"
 
 [ -n "$ZSTD" ] || die "ZSTD variable must be defined!"
 

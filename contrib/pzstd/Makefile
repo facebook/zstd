@@ -34,7 +34,7 @@ LDFLAGS  ?=
 PZSTD_INC  = -I$(ZSTDDIR) -I$(ZSTDDIR)/common -I$(PROGDIR) -I.
 GTEST_INC  = -isystem googletest/googletest/include
 
-PZSTD_CPPFLAGS  = $(PZSTD_INC) $(GTEST_INC)
+PZSTD_CPPFLAGS  = $(PZSTD_INC)
 PZSTD_CCXXFLAGS =
 PZSTD_CFLAGS    = $(PZSTD_CCXXFLAGS)
 PZSTD_CXXFLAGS  = $(PZSTD_CCXXFLAGS)
@@ -47,10 +47,10 @@ ALL_LDFLAGS     = $(EXTRA_FLAGS) $(LDFLAGS) $(PZSTD_LDFLAGS)
 
 # gtest libraries need to go before "-lpthread" because they depend on it.
 GTEST_LIB  = -L googletest/build/googlemock/gtest
-LIBS       = $(GTEST_LIB) -lpthread
+LIBS       =
 
 # Compilation commands
-LD_COMMAND  = $(CXX) $^          $(ALL_LDFLAGS) $(LIBS) -o $@
+LD_COMMAND  = $(CXX) $^          $(ALL_LDFLAGS) $(LIBS) -lpthread -o $@
 CC_COMMAND  = $(CC)  $(DEPFLAGS) $(ALL_CFLAGS)   -c $<  -o $@
 CXX_COMMAND = $(CXX) $(DEPFLAGS) $(ALL_CXXFLAGS) -c $<  -o $@
 
@@ -109,7 +109,7 @@ uninstall:
 # Targets for many different builds
 .PHONY: all
 all: PZSTD_CPPFLAGS += -DNDEBUG
-all: pzstd$(EXT) tests roundtrip
+all: pzstd$(EXT)
 
 .PHONY: debug
 debug: EXTRA_FLAGS += -g
@@ -130,7 +130,7 @@ ubsan: debug
 
 .PHONY: all32
 all32: EXTRA_FLAGS += -m32
-all32: all
+all32: all tests roundtrip
 
 .PHONY: debug32
 debug32: EXTRA_FLAGS += -m32
@@ -177,12 +177,14 @@ test/RoundTripTest$(EXT): test/RoundTripTest.o $(PROGDIR)/datagen.o Options.o \
                           Pzstd.o SkippableFrame.o $(ZSTDDIR)/libzstd.a
 	$(LD_COMMAND)
 
-test/%Test$(EXT): GTEST_LIB += -lgtest -lgtest_main
+test/%Test$(EXT): PZSTD_LDFLAGS += $(GTEST_LIB)
+test/%Test$(EXT): LIBS += -lgtest -lgtest_main
 test/%Test$(EXT): test/%Test.o $(PROGDIR)/datagen.o Options.o Pzstd.o  \
                   SkippableFrame.o $(ZSTDDIR)/libzstd.a
 	$(LD_COMMAND)
 
-utils/test/%Test$(EXT): GTEST_LIB += -lgtest -lgtest_main
+utils/test/%Test$(EXT): PZSTD_LDFLAGS += $(GTEST_LIB)
+utils/test/%Test$(EXT): LIBS += -lgtest -lgtest_main
 utils/test/%Test$(EXT): utils/test/%Test.o
 	$(LD_COMMAND)
 
@@ -233,10 +235,12 @@ $(PROGDIR)/%.o: $(PROGDIR)/%.c
 	$(CXX_COMMAND)
 	$(POSTCOMPILE)
 
+test/%.o: PZSTD_CPPFLAGS += $(GTEST_INC)
 test/%.o: test/%.cpp
 	$(CXX_COMMAND)
 	$(POSTCOMPILE)
 
+utils/test/%.o: PZSTD_CPPFLAGS += $(GTEST_INC)
 utils/test/%.o: utils/test/%.cpp
 	$(CXX_COMMAND)
 	$(POSTCOMPILE)

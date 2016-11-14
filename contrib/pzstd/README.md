@@ -51,5 +51,6 @@ Pigz cannot do parallel decompression, it simply does each of reading, decompres
 ## Tests
 
 Tests require that you have [gtest](https://github.com/google/googletest) installed.
-Modify `GTEST_INC` and `GTEST_LIB` in `test/Makefile` and `utils/test/Makefile` to work for your install of gtest.
-Then run `make test` in the `contrib/pzstd` directory.
+Set `GTEST_INC` and `GTEST_LIB` in `Makefile` to specify the location of the gtest headers and libraries.
+Alternatively, run `make googletest`, which will clone googletest and build it.
+Run `make tests && make check` to run tests.

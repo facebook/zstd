@@ -12,12 +12,13 @@ matrix:
       os: linux
       sudo: false
 
-    - env: Ubu=12.04cont Cmd="make zlibwrapper && make clean && make -C tests test-zstd-nolegacy && make clean && make clean && make cmaketest && make clean && make -C contrib/pzstd googletest && make -C contrib/pzstd all && make -C contrib/pzstd check && make -C contrib/pzstd clean"
+    - env: Ubu=12.04cont Cmd="make zlibwrapper && make clean && make -C tests test-zstd-nolegacy && make clean && make clean && make cmaketest && make clean && make -C contrib/pzstd googletest pzstd tests check && make -C contrib/pzstd clean"
       os: linux
       sudo: false
       language: cpp
       install:
         - export CXX="g++-4.8" CC="gcc-4.8"
+        - export TESTFLAGS='--gtest_filter=-*ExtremelyLarge*'
       addons:
         apt:
           sources:
@@ -25,11 +26,11 @@ matrix:
           packages:
             - gcc-4.8
             - g++-4.8
-    
+
     - env: Ubu=12.04cont Cmd="make usan"
       os: linux
       sudo: false
-    
+
     - env: Ubu=12.04cont Cmd="make asan"
       os: linux
       sudo: false
@@ -39,7 +40,7 @@ matrix:
     - env: Ubu=12.04 Cmd="make -C programs zstd-small && make -C programs zstd-decompress && make -C programs zstd-compress && make -C programs clean && make -C tests versionsTest"
       os: linux
       sudo: required
-    
+
     - env: Ubu=12.04 Cmd="make asan32"
       os: linux
       sudo: required
@@ -50,7 +51,7 @@ matrix:
           packages:
             - libc6-dev-i386
             - gcc-multilib
-    
+
     - env: Ubu=12.04 Cmd='cd contrib/pzstd && make googletest && make tsan && make check && make clean && make asan && make check && make clean && cd ../..'
       os: linux
       sudo: required
@@ -65,8 +66,8 @@ matrix:
           packages:
             - gcc-6
             - g++-6
-    
-    
+
+
     # Ubuntu 14.04 LTS Server Edition 64 bit
     - env: Ubu=14.04 Cmd="make armtest && make clean && make aarch64test"
       dist: trusty
@@ -99,7 +100,7 @@ matrix:
         apt:
           packages:
             - valgrind
-    
+
     - env: Ubu=14.04 Cmd="make gpptest && make clean && make gnu90test && make clean && make c99test && make clean && make gnu99test && make clean && make clangtest && make clean && make -C contrib/pzstd googletest32 && make -C contrib/pzstd all32 && make -C contrib/pzstd check && make -C contrib/pzstd clean"
       os: linux
       dist: trusty
@@ -115,7 +116,7 @@ matrix:
             - gcc-4.8-multilib
             - g++-4.8
             - g++-4.8-multilib
-    
+
     - env: Ubu=14.04 Cmd="make -C tests test32"
       os: linux
       dist: trusty
@@ -125,7 +126,7 @@ matrix:
           packages:
             - libc6-dev-i386
             - gcc-multilib
-    
+
     - env: Ubu=14.04 Cmd="make gcc5test && make clean && make gcc6test"
       os: linux
       dist: trusty

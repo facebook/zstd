@@ -166,7 +166,7 @@ endif
 #------------------------------------------------------------------------
 ifneq (,$(filter $(HOST_OS),MSYS POSIX))
 zstd-playTests: datagen
-	ZSTD=$(ZSTD) ./playTests.sh $(ZSTDRTTEST)
+	ZSTD="$(QEMU_SYS) $(ZSTD)" ./playTests.sh $(ZSTDRTTEST)
 
 test: test-zstd test-fullbench test-fuzzer test-zbuff test-zstream
 
@@ -184,29 +184,29 @@ test-zstd-nolegacy: ZSTD = $(PRGDIR)/zstd
 test-zstd-nolegacy: zstd-nolegacy zstd-playTests
 
 test-fullbench: fullbench datagen
-	./fullbench -i1
-	./fullbench -i1 -P0
+	$(QEMU_SYS) ./fullbench -i1
+	$(QEMU_SYS) ./fullbench -i1 -P0
 
 test-fullbench32: fullbench32 datagen
-	./fullbench32 -i1
-	./fullbench32 -i1 -P0
+	$(QEMU_SYS) ./fullbench32 -i1
+	$(QEMU_SYS) ./fullbench32 -i1 -P0
 
 test-fuzzer: fuzzer
-	./fuzzer $(FUZZERTEST)
+	$(QEMU_SYS) ./fuzzer $(FUZZERTEST)
 
 test-fuzzer32: fuzzer32
-	./fuzzer32 $(FUZZERTEST)
+	$(QEMU_SYS) ./fuzzer32 $(FUZZERTEST)
 
 test-zbuff: zbufftest
-	./zbufftest $(ZBUFFTEST)
+	$(QEMU_SYS) ./zbufftest $(ZBUFFTEST)
 
 test-zbuff32: zbufftest32
-	./zbufftest32 $(ZBUFFTEST)
+	$(QEMU_SYS) ./zbufftest32 $(ZBUFFTEST)
 
 test-zstream: zstreamtest
-	./zstreamtest $(ZBUFFTEST)
+	$(QEMU_SYS) ./zstreamtest $(ZBUFFTEST)
 
 test-zstream32: zstreamtest32
-	./zstreamtest32 $(ZBUFFTEST)
+	$(QEMU_SYS) ./zstreamtest32 $(ZBUFFTEST)
 
 endif

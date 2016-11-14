@@ -166,6 +166,7 @@ endif
 #------------------------------------------------------------------------
 ifneq (,$(filter $(HOST_OS),MSYS POSIX))
 zstd-playTests: datagen
+	file $(ZSTD)
 	ZSTD="$(QEMU_SYS) $(ZSTD)" ./playTests.sh $(ZSTDRTTEST)
 
 test: test-zstd test-fullbench test-fuzzer test-zbuff test-zstream

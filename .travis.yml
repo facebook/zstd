@@ -23,7 +23,7 @@ matrix:
           packages:
             - gcc-4.8
             - g++-4.8
-      env: PLATFORM="Ubuntu 12.04 container" CMD="make zlibwrapper && make clean && make -C tests test-zstd-nolegacy && make clean && make clean && make cmaketest && make clean && make -C contrib/pzstd googletest && make -C contrib/pzstd all && make -C contrib/pzstd check && make -C contrib/pzstd clean"
+      env: PLATFORM="Ubuntu 12.04 container" CMD="make zlibwrapper && make clean && make -C tests test-zstd-nolegacy && make clean && make clean && make cmaketest && make clean && make -C contrib/pzstd googletest pzstd tests check && make -C contrib/pzstd clean"
     - os: linux
       sudo: false
       env: PLATFORM="Ubuntu 12.04 container" CMD="make usan"

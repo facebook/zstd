@@ -51,7 +51,8 @@ build_script:
       ECHO *** Building pzstd for %PLATFORM% &&
       ECHO *** &&
       make -C contrib\pzstd googletest-mingw64 &&
-      make -C contrib\pzstd all &&
+      make -C contrib\pzstd pzstd.exe &&
+      make -C contrib\pzstd tests &&
       make -C contrib\pzstd check &&
       make -C contrib\pzstd clean
     )

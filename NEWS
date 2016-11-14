@@ -1,3 +1,6 @@
+v1.1.2
+New : cli : status displays total amount decoded when stream/file consists of multiple appended frames (like pzstd)
+
 v1.1.1
 New : command -M#, --memory=, --memlimit=, --memlimit-decompress= to limit allowed memory consumption
 New : doc/zstd_manual.html, by Przemyslaw Skibinski

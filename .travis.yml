@@ -143,8 +143,4 @@ matrix:
 
 script:
   - JOB_NUMBER=$(echo $TRAVIS_JOB_NUMBER | sed -e 's:[0-9][0-9]*\.\(.*\):\1:'
-  - |
-    if [ $JOB_NUMBER -eq 9 ||  $JOB_NUMBER -eq 10 ]; then
-      sh -c "$Cmd"
-    fi
-
+  - if [ $JOB_NUMBER -eq 9 ] || [ $JOB_NUMBER -eq 10 ]; then sh -c "$Cmd"; fi

@@ -3055,10 +3055,9 @@ size_t ZSTDv05_decodeLiteralsBlock(ZSTDv05_DCtx* dctx,
                 break;
             }
             if (litSize > BLOCKSIZE) return ERROR(corruption_detected);
-            memset(dctx->litBuffer, istart[lhSize], litSize);
+            memset(dctx->litBuffer, istart[lhSize], litSize + WILDCOPY_OVERLENGTH);
             dctx->litPtr = dctx->litBuffer;
             dctx->litSize = litSize;
-            memset(dctx->litBuffer + dctx->litSize, 0, WILDCOPY_OVERLENGTH);
             return lhSize+1;
         }
     default:

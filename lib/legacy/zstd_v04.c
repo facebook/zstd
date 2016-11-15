@@ -2870,10 +2870,9 @@ static size_t ZSTD_decodeLiteralsBlock(ZSTD_DCtx* dctx,
         {
             const size_t litSize = (MEM_readLE32(istart) & 0xFFFFFF) >> 2;   /* no buffer issue : srcSize >= MIN_CBLOCK_SIZE */
             if (litSize > BLOCKSIZE) return ERROR(corruption_detected);
-            memset(dctx->litBuffer, istart[3], litSize);
+            memset(dctx->litBuffer, istart[3], litSize + 8);
             dctx->litPtr = dctx->litBuffer;
             dctx->litSize = litSize;
-            memset(dctx->litBuffer + dctx->litSize, 0, 8);
             return 4;
         }
     default:

@@ -308,6 +308,9 @@ static size_t benchMem(const void* src, size_t srcSize, U32 benchNb)
             srcSize = srcSize > 128 KB ? 128 KB : srcSize;   /* speed relative to block */
             break;
         }
+#else
+    case 31:
+        goto _cleanOut;
 #endif
     case 41 :
         if (g_cstream==NULL) g_cstream = ZSTD_createCStream();

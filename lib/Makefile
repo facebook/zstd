@@ -23,7 +23,7 @@ PREFIX ?= /usr/local
 LIBDIR ?= $(PREFIX)/lib
 INCLUDEDIR=$(PREFIX)/include
 
-CPPFLAGS= -I. -I./common
+CPPFLAGS= -I. -I./common -DXXH_NAMESPACE=XXH_
 CFLAGS ?= -O3
 CFLAGS += -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow -Wstrict-aliasing=1 \
           -Wswitch-enum -Wdeclaration-after-statement -Wstrict-prototypes -Wundef \
@@ -110,6 +110,7 @@ install: libzstd.a libzstd libzstd.pc
 	@install -m 644 libzstd.a $(DESTDIR)$(LIBDIR)/libzstd.a
 	@install -m 644 zstd.h $(DESTDIR)$(INCLUDEDIR)/zstd.h
 	@install -m 644 common/zstd_errors.h $(DESTDIR)$(INCLUDEDIR)/zstd_errors.h
+	@install -m 644 common/zbuff.h $(DESTDIR)$(INCLUDEDIR)/zbuff.h
 	@install -m 644 dictBuilder/zdict.h $(DESTDIR)$(INCLUDEDIR)/zdict.h
 	@echo zstd static and shared library installed
 

@@ -341,6 +341,8 @@ static size_t calculateStep(
     std::uintmax_t size,
     size_t numThreads,
     const ZSTD_parameters &params) {
+  (void)size;
+  (void)numThreads;
   return size_t{1} << (params.cParams.windowLog + 2);
 }
 

@@ -46,9 +46,9 @@ Other optional functionalities provided are :
 #### Obsolete streaming API
 
 Streaming is now provided within `zstd.h`.
-Older streaming API is still provided within `common/zbuff.h`.
-It is considered obsolete, and will be removed in a future version.
-Consider migrating towards newer streaming API.
+Older streaming API is still available within `common/zbuff.h`.
+It is now deprecated, and will be removed in a future version.
+Consider migrating towards newer streaming API in `zstd.h`.
 
 
 #### Miscellaneous

@@ -14,10 +14,8 @@
 # paramgrill : parameter tester for zstd
 # test-zstd-speed.py : script for testing zstd speed difference between commits
 # versionsTest : compatibility test between zstd versions stored on Github (v0.1+)
-# zbufftest  : Test tool, to check ZBUFF integrity on target platform
-# zbufftest32: Same as zbufftest, but forced to compile in 32-bits mode
 # zstreamtest : Fuzzer test tool for zstd streaming API
-# zbufftest32: Same as zstreamtest, but forced to compile in 32-bits mode
+# zstreamtest32: Same as zstreamtest, but forced to compile in 32-bits mode
 # ##########################################################################
 
 DESTDIR?=
@@ -63,9 +61,9 @@ ZSTDRTTEST= --test-large-data
 
 default: fullbench
 
-all: fullbench fuzzer zbufftest zstreamtest paramgrill datagen
+all: fullbench fuzzer zstreamtest paramgrill datagen
 
-all32: fullbench32 fuzzer32 zbufftest32 zstreamtest32
+all32: fullbench32 fuzzer32 zstreamtest32
 
 
 
@@ -139,7 +137,7 @@ ifneq (,$(filter $(shell uname),Linux Darwin GNU/kFreeBSD GNU OpenBSD FreeBSD Dr
 HOST_OS = POSIX
 
 valgrindTest: VALGRIND = valgrind --leak-check=full --error-exitcode=1
-valgrindTest: zstd datagen fuzzer fullbench zbufftest
+valgrindTest: zstd datagen fuzzer fullbench
 	@echo "\n ---- valgrind tests : memory analyzer ----"
 	$(VALGRIND) ./datagen -g50M > $(VOID)
 	$(VALGRIND) $(PRGDIR)/zstd ; if [ $$? -eq 0 ] ; then echo "zstd without argument should have failed"; false; fi
@@ -151,7 +149,6 @@ valgrindTest: zstd datagen fuzzer fullbench zbufftest
 	@rm tmp
 	$(VALGRIND) ./fuzzer -T1mn -t1
 	$(VALGRIND) ./fullbench -i1
-	$(VALGRIND) ./zbufftest -T1mn
 
 endif
 
@@ -169,9 +166,9 @@ zstd-playTests: datagen
 	file $(ZSTD)
 	ZSTD="$(QEMU_SYS) $(ZSTD)" ./playTests.sh $(ZSTDRTTEST)
 
-test: test-zstd test-fullbench test-fuzzer test-zbuff test-zstream
+test: test-zstd test-fullbench test-fuzzer test-zstream
 
-test32: test-zstd32 test-fullbench32 test-fuzzer32 test-zbuff32 test-zstream32
+test32: test-zstd32 test-fullbench32 test-fuzzer32 test-zstream32
 
 test-all: test test32 valgrindTest
 

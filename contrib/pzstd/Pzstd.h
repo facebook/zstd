@@ -40,7 +40,8 @@ class SharedState {
     if (!options.decompress) {
       auto parameters = options.determineParameters();
       cStreamPool.reset(new ResourcePool<ZSTD_CStream>{
-          [parameters]() -> ZSTD_CStream* {
+          [this, parameters]() -> ZSTD_CStream* {
+            this->log(VERBOSE, "Creating new ZSTD_CStream\n");
             auto zcs = ZSTD_createCStream();
             if (zcs) {
               auto err = ZSTD_initCStream_advanced(
@@ -57,7 +58,8 @@ class SharedState {
           }});
     } else {
       dStreamPool.reset(new ResourcePool<ZSTD_DStream>{
-          []() -> ZSTD_DStream* {
+          [this]() -> ZSTD_DStream* {
+            this->log(VERBOSE, "Creating new ZSTD_DStream\n");
             auto zds = ZSTD_createDStream();
             if (zds) {
               auto err = ZSTD_initDStream(zds);
@@ -72,6 +74,12 @@ class SharedState {
             ZSTD_freeDStream(zds);
           }});
     }
+  }
+
+  ~SharedState() {
+    // The resource pools have references to this, so destroy them first.
+    cStreamPool.reset();
+    dStreamPool.reset();
   }
 
   Logger log;

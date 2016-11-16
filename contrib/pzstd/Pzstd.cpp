@@ -341,15 +341,7 @@ static size_t calculateStep(
     std::uintmax_t size,
     size_t numThreads,
     const ZSTD_parameters &params) {
-  size_t step = size_t{1} << (params.cParams.windowLog + 2);
-  // If file size is known, see if a smaller step will spread work more evenly
-  if (size != 0) {
-    const std::uintmax_t newStep = size / numThreads;
-    if (newStep != 0 && newStep <= std::numeric_limits<size_t>::max()) {
-      step = std::min(step, static_cast<size_t>(newStep));
-    }
-  }
-  return step;
+  return size_t{1} << (params.cParams.windowLog + 2);
 }
 
 namespace {
@@ -401,6 +393,7 @@ std::uint64_t asyncCompressChunks(
   // Break the input up into chunks of size `step` and compress each chunk
   // independently.
   size_t step = calculateStep(size, numThreads, params);
+  state.log(DEBUG, "Chosen frame size: %zu\n", step);
   auto status = FileStatus::Continue;
   while (status == FileStatus::Continue && !state.errorHolder.hasError()) {
     // Make a new input queue that we will put the chunk's input data into.
@@ -415,6 +408,7 @@ std::uint64_t asyncCompressChunks(
     });
     // Pass the output queue to the writer thread.
     chunks.push(std::move(out));
+    state.log(VERBOSE, "Starting a new frame\n");
     // Fill the input queue for the compression job we just started
     status = readData(*in, ZSTD_CStreamInSize(), step, fd, &bytesRead);
   }
@@ -551,11 +545,14 @@ std::uint64_t asyncDecompressFrames(
     if (frameSize == 0) {
       // We hit a non SkippableFrame ==> not compressed by pzstd or corrupted
       // Pass the rest of the source to this decompression task
+      state.log(VERBOSE,
+          "Input not in pzstd format, falling back to serial decompression\n");
       while (status == FileStatus::Continue && !state.errorHolder.hasError()) {
         status = readData(*in, chunkSize, chunkSize, fd, &totalBytesRead);
       }
       break;
     }
+    state.log(VERBOSE, "Decompressing a frame of size %zu", frameSize);
     // Fill the input queue for the decompression job we just started
     status = readData(*in, chunkSize, frameSize, fd, &totalBytesRead);
   }

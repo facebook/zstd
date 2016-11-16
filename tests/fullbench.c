@@ -112,6 +112,7 @@ size_t local_ZSTD_decompress(void* dst, size_t dstSize, void* buff2, const void*
 }
 
 static ZSTD_DCtx* g_zdc = NULL;
+#ifndef ZSTD_DLL_IMPORT
 extern size_t ZSTD_decodeLiteralsBlock(ZSTD_DCtx* ctx, const void* src, size_t srcSize);
 size_t local_ZSTD_decodeLiteralsBlock(void* dst, size_t dstSize, void* buff2, const void* src, size_t srcSize)
 {
@@ -127,7 +128,7 @@ size_t local_ZSTD_decodeSeqHeaders(void* dst, size_t dstSize, void* buff2, const
     (void)src; (void)srcSize; (void)dst; (void)dstSize;
     return ZSTD_decodeSeqHeaders(g_zdc, &nbSeq, buff2, g_cSize);
 }
-
+#endif
 
 static ZSTD_CStream* g_cstream= NULL;
 size_t local_ZSTD_compressStream(void* dst, size_t dstCapacity, void* buff2, const void* src, size_t srcSize)
@@ -222,13 +223,15 @@ static size_t benchMem(const void* src, size_t srcSize, U32 benchNb)
     case 12:
         benchFunction = local_ZSTD_decompressContinue; benchName = "ZSTD_decompressContinue";
         break;
-    case 31:
+#ifndef ZSTD_DLL_IMPORT
+	case 31:
         benchFunction = local_ZSTD_decodeLiteralsBlock; benchName = "ZSTD_decodeLiteralsBlock";
         break;
     case 32:
         benchFunction = local_ZSTD_decodeSeqHeaders; benchName = "ZSTD_decodeSeqHeaders";
         break;
-    case 41:
+#endif
+	case 41:
         benchFunction = local_ZSTD_compressStream; benchName = "ZSTD_compressStream";
         break;
     case 42:
@@ -260,6 +263,7 @@ static size_t benchMem(const void* src, size_t srcSize, U32 benchNb)
         if (g_zdc==NULL) g_zdc = ZSTD_createDCtx();
         g_cSize = ZSTD_compress(buff2, dstBuffSize, src, srcSize, 1);
         break;
+#ifndef ZSTD_DLL_IMPORT
     case 31:  /* ZSTD_decodeLiteralsBlock */
         if (g_zdc==NULL) g_zdc = ZSTD_createDCtx();
         {   blockProperties_t bp;
@@ -304,6 +308,10 @@ static size_t benchMem(const void* src, size_t srcSize, U32 benchNb)
             srcSize = srcSize > 128 KB ? 128 KB : srcSize;   /* speed relative to block */
             break;
         }
+#else
+    case 31:
+        goto _cleanOut;
+#endif
     case 41 :
         if (g_cstream==NULL) g_cstream = ZSTD_createCStream();
         break;

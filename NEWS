@@ -1,5 +1,7 @@
 v1.1.2
-New : cli : status displays total amount decoded when stream/file consists of multiple appended frames (like pzstd)
+cli : new : preserve file attributes, by Przemyslaw Skibinski
+cli : fixed : status displays total amount decoded when stream/file consists of multiple appended frames (like pzstd)
+API : changed : zbuff prototypes now generate deprecation warnings
 
 v1.1.1
 New : command -M#, --memory=, --memlimit=, --memlimit-decompress= to limit allowed memory consumption

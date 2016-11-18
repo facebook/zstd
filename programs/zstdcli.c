@@ -21,7 +21,7 @@
 
 
 /*-************************************
-*  Includes
+*  Dependencies
 **************************************/
 #include "util.h"     /* Compiler options, UTIL_HAS_CREATEFILELIST */
 #include <string.h>   /* strcmp, strlen */

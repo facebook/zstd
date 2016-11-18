@@ -33,3 +33,5 @@ _zstdbench/
 .DS_Store
 googletest/
 *.d
+
+build/VS2010/zwrapbench/zwrapbench.vcxproj

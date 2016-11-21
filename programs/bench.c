@@ -213,11 +213,18 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
                 if (cdict==NULL) EXM_THROW(1, "ZSTD_createCDict_advanced() allocation failure");
                 do {
                     U32 blockNb;
+                    size_t rSize;
                     for (blockNb=0; blockNb<nbBlocks; blockNb++) {
-                        size_t const rSize = ZSTD_compress_usingCDict(ctx,
+                        if (dictBufferSize) {
+                            rSize = ZSTD_compress_usingCDict(ctx,
                                             blockTable[blockNb].cPtr,  blockTable[blockNb].cRoom,
                                             blockTable[blockNb].srcPtr,blockTable[blockNb].srcSize,
                                             cdict);
+                        } else {
+                            rSize = ZSTD_compressCCtx (ctx,
+                                            blockTable[blockNb].cPtr,  blockTable[blockNb].cRoom,
+                                            blockTable[blockNb].srcPtr,blockTable[blockNb].srcSize, cLevel);
+                        }
                         if (ZSTD_isError(rSize)) EXM_THROW(1, "ZSTD_compress_usingCDict() failed : %s", ZSTD_getErrorName(rSize));
                         blockTable[blockNb].cSize = rSize;
                     }

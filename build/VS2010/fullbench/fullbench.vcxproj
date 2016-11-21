@@ -162,10 +162,8 @@
     <ClCompile Include="..\..\..\lib\common\fse_decompress.c" />
     <ClCompile Include="..\..\..\lib\compress\fse_compress.c" />
     <ClCompile Include="..\..\..\lib\compress\huf_compress.c" />
-    <ClCompile Include="..\..\..\lib\compress\zbuff_compress.c" />
     <ClCompile Include="..\..\..\lib\compress\zstd_compress.c" />
     <ClCompile Include="..\..\..\lib\decompress\huf_decompress.c" />
-    <ClCompile Include="..\..\..\lib\decompress\zbuff_decompress.c" />
     <ClCompile Include="..\..\..\lib\decompress\zstd_decompress.c" />
     <ClCompile Include="..\..\..\programs\datagen.c" />
     <ClCompile Include="..\..\..\tests\fullbench.c" />
@@ -174,7 +172,6 @@
     <ClInclude Include="..\..\..\lib\common\fse.h" />
     <ClInclude Include="..\..\..\lib\common\huf.h" />
     <ClInclude Include="..\..\..\lib\common\xxhash.h" />
-    <ClInclude Include="..\..\..\lib\common\zbuff.h" />
     <ClInclude Include="..\..\..\lib\common\zstd_errors.h" />
     <ClInclude Include="..\..\..\lib\zstd.h" />
     <ClInclude Include="..\..\..\lib\common\zstd_internal.h" />

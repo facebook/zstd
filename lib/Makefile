@@ -31,7 +31,10 @@ CFLAGS += -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow -Wstrict-aliasing=1 \
 FLAGS   = $(CPPFLAGS) $(CFLAGS) $(MOREFLAGS)
 
 
-ZSTD_FILES := common/*.c compress/*.c decompress/*.c dictBuilder/*.c
+ZSTD_FILES := $(wildcard common/*.c compress/*.c decompress/*.c dictBuilder/*.c)
+ZSTD_EXCLUDE := compress/zbuff_compress.c decompress/zbuff_decompress.c
+ZSTD_FILES := $(filter-out $(ZSTD_EXCLUDE), $(ZSTD_FILES))
+
 
 ifeq ($(ZSTD_LEGACY_SUPPORT), 0)
 CPPFLAGS  += -DZSTD_LEGACY_SUPPORT=0
@@ -72,8 +75,11 @@ libzstd.a: $(ZSTD_FILES)
 $(LIBZSTD): LDFLAGS += -shared -fPIC
 $(LIBZSTD): $(ZSTD_FILES)
 	@echo compiling dynamic library $(LIBVER)
+ifneq (,$(filter Windows%,$(OS)))
+	@$(CC) $(FLAGS) -DZSTD_DLL_EXPORT=1 -shared $^ -o dll\libzstd.dll
+	dlltool -D dll\libzstd.dll -d dll\libzstd.def -l dll\libzstd.lib
+else
 	@$(CC) $(FLAGS) $^ $(LDFLAGS) $(SONAME_FLAGS) -o $@
-ifeq (,$(filter Windows%,$(OS)))
 	@echo creating versioned links
 	@ln -sf $@ libzstd.$(SHARED_EXT_MAJOR)
 	@ln -sf $@ libzstd.$(SHARED_EXT)
@@ -84,8 +90,8 @@ libzstd : $(LIBZSTD)
 lib: libzstd.a libzstd
 
 clean:
-	@rm -f core *.o *.a *.gcda *.$(SHARED_EXT) *.$(SHARED_EXT).* libzstd.pc
-	@rm -f decompress/*.o
+	@$(RM) -f core *.o *.a *.gcda *.$(SHARED_EXT) *.$(SHARED_EXT).* libzstd.pc dll/libzstd.dll dll/libzstd.lib
+	@$(RM) -f decompress/*.o
 	@echo Cleaning library completed
 
 #------------------------------------------------------------------------

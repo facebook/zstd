@@ -34,4 +34,5 @@ _zstdbench/
 googletest/
 *.d
 
-build/VS2010/zwrapbench/zwrapbench.vcxproj
+# Directories
+bin/

@@ -31,7 +31,10 @@ CFLAGS += -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow -Wstrict-aliasing=1 \
 FLAGS   = $(CPPFLAGS) $(CFLAGS) $(MOREFLAGS)
 
 
-ZSTD_FILES := common/*.c compress/*.c decompress/*.c dictBuilder/*.c
+ZSTD_FILES := $(wildcard common/*.c compress/*.c decompress/*.c dictBuilder/*.c)
+ZSTD_EXCLUDE := compress/zbuff_compress.c decompress/zbuff_decompress.c
+ZSTD_FILES := $(filter-out $(ZSTD_EXCLUDE), $(ZSTD_FILES))
+
 
 ifeq ($(ZSTD_LEGACY_SUPPORT), 0)
 CPPFLAGS  += -DZSTD_LEGACY_SUPPORT=0

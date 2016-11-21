@@ -739,8 +739,8 @@ MEM_STATIC void ZSTD_storeSeq(seqStore_t* seqStorePtr, size_t litLength, const v
 {
 #if 0  /* for debug */
     static const BYTE* g_start = NULL;
-    const U32 pos = (U32)(literals - g_start);
-    if (g_start==NULL) g_start = literals;
+    const U32 pos = (U32)((const BYTE*)literals - g_start);
+    if (g_start==NULL) g_start = (const BYTE*)literals;
     //if ((pos > 1) && (pos < 50000))
         printf("Cpos %6u :%5u literals & match %3u bytes at distance %6u \n",
                pos, (U32)litLength, (U32)matchCode+MINMATCH, (U32)offsetCode);

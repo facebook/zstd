@@ -82,6 +82,14 @@ fullbench  : $(ZSTD_FILES) $(PRGDIR)/datagen.c fullbench.c
 fullbench32 : $(ZSTD_FILES) $(PRGDIR)/datagen.c fullbench.c
 	$(CC)  -m32  $(FLAGS) $^ -o $@$(EXT)
 
+fullbench-lib: $(PRGDIR)/datagen.c fullbench.c
+	$(MAKE) -C $(ZSTDDIR) libzstd.a
+	$(CC) $(FLAGS) $^ -o $@$(EXT) $(ZSTDDIR)/libzstd.a
+
+fullbench-dll: $(PRGDIR)/datagen.c fullbench.c
+	$(MAKE) -C $(ZSTDDIR) libzstd
+	$(CC) $(FLAGS) $^ -o $@$(EXT) -DZSTD_DLL_IMPORT=1 $(ZSTDDIR)/dll/libzstd.dll
+
 fuzzer  : CPPFLAGS += -I$(ZSTDDIR)/dictBuilder
 fuzzer  : $(ZSTD_FILES) $(ZDICT_FILES) $(PRGDIR)/datagen.c fuzzer.c
 	$(CC)      $(FLAGS) $^ -o $@$(EXT)
@@ -124,6 +132,7 @@ clean:
 	@$(RM) -f core *.o tmp* result* *.gcda dictionary *.zst \
         $(PRGDIR)/zstd$(EXT) $(PRGDIR)/zstd32$(EXT) \
         fullbench$(EXT) fullbench32$(EXT) \
+        fullbench-lib$(EXT) fullbench-dll$(EXT) \
         fuzzer$(EXT) fuzzer32$(EXT) zbufftest$(EXT) zbufftest32$(EXT) \
 		zstreamtest$(EXT) zstreamtest32$(EXT) \
         datagen$(EXT) paramgrill$(EXT) roundTripCrash$(EXT)

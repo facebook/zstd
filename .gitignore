@@ -33,3 +33,6 @@ _zstdbench/
 .DS_Store
 googletest/
 *.d
+
+# Directories
+bin/

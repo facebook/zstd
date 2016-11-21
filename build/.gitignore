@@ -6,6 +6,7 @@
 *.sdf
 *.suo
 *.user
+*.opendb
 
 VS2005/
 VS2008/

@@ -365,14 +365,6 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\..\lib\compress\zbuff_compress.c"
-				>
-			</File>
-			<File
-				RelativePath="..\..\..\lib\decompress\zbuff_decompress.c"
-				>
-			</File>
-			<File
 				RelativePath="..\..\..\lib\common\zstd_common.c"
 				>
 			</File>
@@ -424,10 +416,6 @@
 			</File>
 			<File
 				RelativePath="..\..\..\lib\common\mem.h"
-				>
-			</File>
-			<File
-				RelativePath="..\..\..\lib\common\zbuff_static.h"
 				>
 			</File>
 			<File

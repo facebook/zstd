@@ -82,6 +82,14 @@ fullbench  : $(ZSTD_FILES) $(PRGDIR)/datagen.c fullbench.c
 fullbench32 : $(ZSTD_FILES) $(PRGDIR)/datagen.c fullbench.c
 	$(CC)  -m32  $(FLAGS) $^ -o $@$(EXT)
 
+fullbench-lib: $(PRGDIR)/datagen.c fullbench.c
+	$(MAKE) -C $(ZSTDDIR) libzstd.a
+	$(CC) $(FLAGS) $^ -o $@$(EXT) $(ZSTDDIR)/libzstd.a
+
+fullbench-dll: $(PRGDIR)/datagen.c fullbench.c
+	$(MAKE) -C $(ZSTDDIR) libzstd
+	$(CC) $(FLAGS) $^ -o $@$(EXT) -DZSTD_DLL_IMPORT=1 $(ZSTDDIR)/dll/libzstd.dll
+
 fuzzer  : CPPFLAGS += -I$(ZSTDDIR)/dictBuilder
 fuzzer  : $(ZSTD_FILES) $(ZDICT_FILES) $(PRGDIR)/datagen.c fuzzer.c
 	$(CC)      $(FLAGS) $^ -o $@$(EXT)

@@ -39,7 +39,7 @@ The header files from `include\` and the dynamic library `dll\libzstd.dll`
 are required to compile a project using gcc/MinGW.
 The dynamic library has to be added to linking options.
 It means that if a project that uses ZSTD consists of a single `test-dll.c`
-file it should be compiled with "libzstd.dll". For example:
+file it should be linked with `dll\libzstd.dll`. For example:
 ```
     gcc $(CFLAGS) -Iinclude\ test-dll.c -o test-dll dll\libzstd.dll
 ```

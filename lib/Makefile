@@ -72,8 +72,11 @@ libzstd.a: $(ZSTD_FILES)
 $(LIBZSTD): LDFLAGS += -shared -fPIC
 $(LIBZSTD): $(ZSTD_FILES)
 	@echo compiling dynamic library $(LIBVER)
+ifneq (,$(filter Windows%,$(OS)))
+	@$(CC) $(FLAGS) -DZSTD_DLL_EXPORT=1 -shared $^ -o dll\libzstd.dll
+	dlltool -D dll\libzstd.dll -d dll\libzstd.def -l dll\libzstd.lib
+else
 	@$(CC) $(FLAGS) $^ $(LDFLAGS) $(SONAME_FLAGS) -o $@
-ifeq (,$(filter Windows%,$(OS)))
 	@echo creating versioned links
 	@ln -sf $@ libzstd.$(SHARED_EXT_MAJOR)
 	@ln -sf $@ libzstd.$(SHARED_EXT)
@@ -84,8 +87,8 @@ libzstd : $(LIBZSTD)
 lib: libzstd.a libzstd
 
 clean:
-	@rm -f core *.o *.a *.gcda *.$(SHARED_EXT) *.$(SHARED_EXT).* libzstd.pc
-	@rm -f decompress/*.o
+	@$(RM) -f core *.o *.a *.gcda *.$(SHARED_EXT) *.$(SHARED_EXT).* libzstd.pc dll/libzstd.dll dll/libzstd.lib
+	@$(RM) -f decompress/*.o
 	@echo Cleaning library completed
 
 #------------------------------------------------------------------------

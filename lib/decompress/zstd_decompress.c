@@ -775,6 +775,7 @@ typedef struct {
     size_t litLength;
     size_t matchLength;
     size_t offset;
+    const BYTE* match;
 } seq_t;
 
 typedef struct {
@@ -783,6 +784,7 @@ typedef struct {
     FSE_DState_t stateOffb;
     FSE_DState_t stateML;
     size_t prevOffset[ZSTD_REP_NUM];
+    const BYTE* ptr;
 } seqState_t;
 
 
@@ -851,11 +853,14 @@ static seq_t ZSTD_decodeSequence(seqState_t* seqState)
     if (MEM_32bits() ||
        (totalBits > 64 - 7 - (LLFSELog+MLFSELog+OffFSELog)) ) BIT_reloadDStream(&seqState->DStream);
 
+    seq.match = seqState->ptr + seq.litLength - seq.offset;   /* only for single memory segment ! */
+
     /* ANS state update */
     FSE_updateState(&seqState->stateLL, &seqState->DStream);    /* <=  9 bits */
     FSE_updateState(&seqState->stateML, &seqState->DStream);    /* <=  9 bits */
     if (MEM_32bits()) BIT_reloadDStream(&seqState->DStream);    /* <= 18 bits */
     FSE_updateState(&seqState->stateOffb, &seqState->DStream);  /* <=  8 bits */
+    seqState->ptr += seq.matchLength + seq.litLength;
 
     return seq;
 }
@@ -919,7 +924,7 @@ size_t ZSTD_execSequence(BYTE* op,
     BYTE* const oMatchEnd = op + sequenceLength;   /* risk : address space overflow (32-bits) */
     BYTE* const oend_w = oend - WILDCOPY_OVERLENGTH;
     const BYTE* const iLitEnd = *litPtr + sequence.litLength;
-    const BYTE* match = oLitEnd - sequence.offset;
+    const BYTE* match = sequence.match;
 
     /* check */
     if (oMatchEnd>oend) return ERROR(dstSize_tooSmall); /* last match must start at a minimum distance of WILDCOPY_OVERLENGTH from oend */
@@ -987,6 +992,8 @@ size_t ZSTD_execSequence(BYTE* op,
     return sequenceLength;
 }
 
+#include <xmmintrin.h>
+#define PREFETCH(ptr)   _mm_prefetch(ptr, _MM_HINT_T0);
 
 static size_t ZSTD_decompressSequences(
                                ZSTD_DCtx* dctx,
@@ -1018,6 +1025,7 @@ static size_t ZSTD_decompressSequences(
         int seqNb;
         dctx->fseEntropy = 1;
         { U32 i; for (i=0; i<ZSTD_REP_NUM; i++) seqState.prevOffset[i] = dctx->rep[i]; }
+        seqState.ptr = op;
         CHECK_E(BIT_initDStream(&seqState.DStream, ip, iend-ip), corruption_detected);
         FSE_initDState(&seqState.stateLL, &seqState.DStream, dctx->LLTptr);
         FSE_initDState(&seqState.stateOffb, &seqState.DStream, dctx->OFTptr);
@@ -1025,28 +1033,28 @@ static size_t ZSTD_decompressSequences(
 
         /* prepare in advance */
         int const seqAdvance = MIN(nbSeq, 3);
-        for (seqNb=0; (BIT_reloadDStream(&(seqState.DStream)) <= BIT_DStream_completed) && seqNb<seqAdvance; seqNb++) {
+        for (seqNb=0; (BIT_reloadDStream(&seqState.DStream) <= BIT_DStream_completed) && seqNb<seqAdvance; seqNb++) {
             sequences[seqNb] = ZSTD_decodeSequence(&seqState);
         }
         if (seqNb<seqAdvance) return ERROR(corruption_detected);
 
         /* decode and decompress */
         for ( ; (BIT_reloadDStream(&(seqState.DStream)) <= BIT_DStream_completed) && seqNb<nbSeq ; seqNb++) {
-            seq_t const sequence = ZSTD_decodeSequence(&seqState);
             size_t const oneSeqSize = ZSTD_execSequence(op, oend, sequences[(seqNb-3) & 3], &litPtr, litEnd, base, vBase, dictEnd);
             if (ZSTD_isError(oneSeqSize)) return oneSeqSize;
-            sequences[seqNb&3] = sequence;
+            sequences[seqNb&3] = ZSTD_decodeSequence(&seqState);
+            PREFETCH(sequences[seqNb&3].match);
             op += oneSeqSize;
         }
         if (seqNb<nbSeq) return ERROR(corruption_detected);
 
         /* finish queue */
-        seqNb -=seqAdvance;
+        seqNb -= seqAdvance;
         for ( ; seqNb<nbSeq ; seqNb++) {
-            {   size_t const oneSeqSize = ZSTD_execSequence(op, oend, sequences[seqNb&3], &litPtr, litEnd, base, vBase, dictEnd);
-                if (ZSTD_isError(oneSeqSize)) return oneSeqSize;
-                op += oneSeqSize;
-        }   }
+            size_t const oneSeqSize = ZSTD_execSequence(op, oend, sequences[seqNb&3], &litPtr, litEnd, base, vBase, dictEnd);
+            if (ZSTD_isError(oneSeqSize)) return oneSeqSize;
+            op += oneSeqSize;
+        }
 
         /* save reps for next block */
         { U32 i; for (i=0; i<ZSTD_REP_NUM; i++) dctx->rep[i] = (U32)(seqState.prevOffset[i]); }

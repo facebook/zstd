@@ -1013,7 +1013,9 @@ static size_t ZSTD_decompressSequences(
 
     /* Regen sequences */
     if (nbSeq) {
+        seq_t sequences[4];
         seqState_t seqState;
+        int seqNb;
         dctx->fseEntropy = 1;
         { U32 i; for (i=0; i<ZSTD_REP_NUM; i++) seqState.prevOffset[i] = dctx->rep[i]; }
         CHECK_E(BIT_initDStream(&seqState.DStream, ip, iend-ip), corruption_detected);
@@ -1021,16 +1023,31 @@ static size_t ZSTD_decompressSequences(
         FSE_initDState(&seqState.stateOffb, &seqState.DStream, dctx->OFTptr);
         FSE_initDState(&seqState.stateML, &seqState.DStream, dctx->MLTptr);
 
-        for ( ; (BIT_reloadDStream(&(seqState.DStream)) <= BIT_DStream_completed) && nbSeq ; ) {
-            nbSeq--;
-            {   seq_t const sequence = ZSTD_decodeSequence(&seqState);
-                size_t const oneSeqSize = ZSTD_execSequence(op, oend, sequence, &litPtr, litEnd, base, vBase, dictEnd);
+        /* prepare in advance */
+        int const seqAdvance = MIN(nbSeq, 3);
+        for (seqNb=0; (BIT_reloadDStream(&(seqState.DStream)) <= BIT_DStream_completed) && seqNb<seqAdvance; seqNb++) {
+            sequences[seqNb] = ZSTD_decodeSequence(&seqState);
+        }
+        if (seqNb<seqAdvance) return ERROR(corruption_detected);
+
+        /* decode and decompress */
+        for ( ; (BIT_reloadDStream(&(seqState.DStream)) <= BIT_DStream_completed) && seqNb<nbSeq ; seqNb++) {
+            seq_t const sequence = ZSTD_decodeSequence(&seqState);
+            size_t const oneSeqSize = ZSTD_execSequence(op, oend, sequences[(seqNb-3) & 3], &litPtr, litEnd, base, vBase, dictEnd);
+            if (ZSTD_isError(oneSeqSize)) return oneSeqSize;
+            sequences[seqNb&3] = sequence;
+            op += oneSeqSize;
+        }
+        if (seqNb<nbSeq) return ERROR(corruption_detected);
+
+        /* finish queue */
+        seqNb -=seqAdvance;
+        for ( ; seqNb<nbSeq ; seqNb++) {
+            {   size_t const oneSeqSize = ZSTD_execSequence(op, oend, sequences[seqNb&3], &litPtr, litEnd, base, vBase, dictEnd);
                 if (ZSTD_isError(oneSeqSize)) return oneSeqSize;
                 op += oneSeqSize;
         }   }
 
-        /* check if reached exact end */
-        if (nbSeq) return ERROR(corruption_detected);
         /* save reps for next block */
         { U32 i; for (i=0; i<ZSTD_REP_NUM; i++) dctx->rep[i] = (U32)(seqState.prevOffset[i]); }
     }

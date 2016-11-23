@@ -483,15 +483,14 @@ static void BMK_syntheticTest(int cLevel, int cLevelLast, double compressibility
     free(srcBuffer);
 }
 
-#define ZSTD_MAX_CLEVEL     22
 
 int BMK_benchFiles(const char** fileNamesTable, unsigned nbFiles,
                    const char* dictFileName, int cLevel, int cLevelLast)
 {
     double const compressibility = (double)g_compressibilityDefault / 100;
 
-    if (cLevel > ZSTD_MAX_CLEVEL) cLevel = ZSTD_MAX_CLEVEL;
-    if (cLevelLast > ZSTD_MAX_CLEVEL) cLevelLast = ZSTD_MAX_CLEVEL;
+    if (cLevel > ZSTD_maxCLevel()) cLevel = ZSTD_maxCLevel();
+    if (cLevelLast > ZSTD_maxCLevel()) cLevelLast = ZSTD_maxCLevel();
     if (cLevelLast < cLevel) cLevelLast = cLevel;
     if (cLevelLast > cLevel) DISPLAYLEVEL(2, "Benchmarking levels from %d to %d\n", cLevel, cLevelLast); 
 

@@ -420,7 +420,7 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
 
     /* init */
     ctx->nextToUpdate3 = ctx->nextToUpdate;
-    ZSTD_rescaleFreqs(seqStorePtr, src, srcSize);
+    ZSTD_rescaleFreqs(seqStorePtr, (const BYTE*)src, srcSize);
     ip += (ip==prefixStart);
     { U32 i; for (i=0; i<ZSTD_REP_NUM; i++) rep[i]=ctx->rep[i]; }
 
@@ -675,7 +675,7 @@ void ZSTD_compressBlock_opt_extDict_generic(ZSTD_CCtx* ctx,
     { U32 i; for (i=0; i<ZSTD_REP_NUM; i++) rep[i]=ctx->rep[i]; }
 
     ctx->nextToUpdate3 = ctx->nextToUpdate;
-    ZSTD_rescaleFreqs(seqStorePtr, src, srcSize);
+    ZSTD_rescaleFreqs(seqStorePtr, (const BYTE*)src, srcSize);
     ip += (ip==prefixStart);
 
     /* Match Loop */

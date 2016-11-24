@@ -489,6 +489,11 @@ int BMK_benchFiles(const char** fileNamesTable, unsigned nbFiles,
 {
     double const compressibility = (double)g_compressibilityDefault / 100;
 
+    if (cLevel > ZSTD_maxCLevel()) cLevel = ZSTD_maxCLevel();
+    if (cLevelLast > ZSTD_maxCLevel()) cLevelLast = ZSTD_maxCLevel();
+    if (cLevelLast < cLevel) cLevelLast = cLevel;
+    if (cLevelLast > cLevel) DISPLAYLEVEL(2, "Benchmarking levels from %d to %d\n", cLevel, cLevelLast); 
+
     if (nbFiles == 0)
         BMK_syntheticTest(cLevel, cLevelLast, compressibility);
     else

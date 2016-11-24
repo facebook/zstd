@@ -18,7 +18,8 @@ TEST_FILE = ../doc/zstd_compression_format.md
 
 CPPFLAGS = -DXXH_NAMESPACE=XXH_ -I$(PROGRAMS_PATH) -I$(ZSTDLIBDIR) -I$(ZSTDLIBDIR)/common -I$(ZLIBWRAPPER_PATH)
 CFLAGS  ?= $(MOREFLAGS) -O3 -std=gnu99
-CFLAGS  += -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow -Wswitch-enum -Wdeclaration-after-statement -Wstrict-prototypes -Wstrict-aliasing=1 -Wundef
+CFLAGS  += -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow -Wswitch-enum -Wdeclaration-after-statement -Wstrict-prototypes -Wundef  
+#-Wstrict-aliasing=1
 
 
 all: clean fitblk example zwrapbench
@@ -48,6 +49,9 @@ valgrindTest: clean example fitblk example_zstd fitblk_zstd zwrapbench
 
 #.c.o:
 #	$(CC) $(CFLAGS) $(CPPFLAGS) -c -o $@ $<
+
+minigzip: gzclose.c gzlib.c gzread.c gzwrite.c minigzip.c $(ZLIBWRAPPER_PATH)/zstdTurnedOn_zlibwrapper.o $(ZSTDLIBRARY)
+	$(CC) $(CFLAGS) $(CPPFLAGS) -o $@ $^ $(ZSTDLIBRARY) $(ZLIB_LIBRARY)
 
 example: $(EXAMPLE_PATH)/example.o $(ZLIBWRAPPER_PATH)/zstd_zlibwrapper.o $(ZSTDLIBRARY)
 	$(CC) $(LDFLAGS) -o $@ $(EXAMPLE_PATH)/example.o $(ZLIBWRAPPER_PATH)/zstd_zlibwrapper.o $(ZSTDLIBRARY) $(ZLIB_LIBRARY)

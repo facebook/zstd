@@ -600,9 +600,8 @@ int main(argc, argv)
 #else
     test_compress(compr, comprLen, uncompr, uncomprLen);
 
-    if (!ZWRAP_isUsingZSTDcompression())
-        test_gzio((argc > 1 ? argv[1] : TESTFILE),
-              uncompr, uncomprLen);
+    test_gzio((argc > 1 ? argv[1] : TESTFILE),
+          uncompr, uncomprLen);
 #endif
 
     test_deflate(compr, comprLen);

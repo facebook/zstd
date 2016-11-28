@@ -20,6 +20,7 @@
 
 #include <stdio.h>
 #include "zstd_zlibwrapper.h"
+#include "gzcompatibility.h"
 #ifdef STDC
 #  include <string.h>
 #  include <stdlib.h>

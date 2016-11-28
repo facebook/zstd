@@ -381,11 +381,24 @@ int ZEXPORT gzread(file, buf, len)
 }
 
 /* -- see zlib.h -- */
+#if ZLIB_VERNUM >= 0x1261
 #ifdef Z_PREFIX_SET
 #  undef z_gzgetc
 #else
 #  undef gzgetc
 #endif
+#endif
+
+#if ZLIB_VERNUM == 0x1260
+#  undef gzgetc
+#endif
+
+#if ZLIB_VERNUM <= 0x1250
+ZEXTERN int ZEXPORT gzgetc OF((gzFile file));
+ZEXTERN int ZEXPORT gzgetc_ OF((gzFile file));
+#endif
+
+
 int ZEXPORT gzgetc(file)
     gzFile file;
 {

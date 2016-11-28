@@ -137,12 +137,12 @@ Supported methods:
 - compress2
 - compressBound
 - uncompress
+- gzip file access functions
 
 Ignored methods (they do nothing):
 - deflateParams
 
 Unsupported methods:
-- gzip file access functions
 - deflateCopy
 - deflateTune
 - deflatePending

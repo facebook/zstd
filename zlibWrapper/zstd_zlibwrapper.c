@@ -321,7 +321,12 @@ ZEXTERN int ZEXPORT z_deflate OF((z_streamp strm, int flush))
         strm->avail_in -= zwc->inBuffer.pos;
     }
 
-    if (flush == Z_FULL_FLUSH || flush == Z_BLOCK || flush == Z_TREES) return ZWRAPC_finishWithErrorMsg(strm, "Z_FULL_FLUSH, Z_BLOCK and Z_TREES are not supported!");
+    if (flush == Z_FULL_FLUSH 
+#if ZLIB_VERNUM >= 0x1240
+        || flush == Z_TREES 
+#endif
+        || flush == Z_BLOCK)
+        return ZWRAPC_finishWithErrorMsg(strm, "Z_FULL_FLUSH, Z_BLOCK and Z_TREES are not supported!");
 
     if (flush == Z_FINISH) {
         size_t bytesLeft;

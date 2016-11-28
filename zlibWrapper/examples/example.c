@@ -1,8 +1,11 @@
-/* example.c -- usage example of the zlib compression library
- * the file contains minimal changes required to be compiled with zstd wrapper for zlib
- */
+/* example.c contains minimal changes required to be compiled with zlibWrapper:
+ * - #include "zlib.h" was changed to #include "zstd_zlibwrapper.h"
+ * - test_flush() and test_sync() use functions not supported by zlibWrapper
+     therefore they are disabled while zstd compression is turned on     */
 
- /*
+/* example.c -- usage example of the zlib compression library
+ */
+/*
   Copyright (c) 1995-2006, 2011 Jean-loup Gailly
 
  This software is provided 'as-is', without any express or implied

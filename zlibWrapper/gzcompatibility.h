@@ -7,9 +7,7 @@
  * of patent rights can be found in the PATENTS file in the same directory.
  */
 
-#if ZLIB_VERNUM == 0x1260 && !defined(_LARGEFILE64_SOURCE)
-  //  #define _LARGEFILE64_SOURCE 0
-#endif
+
 
 #if ZLIB_VERNUM <= 0x1240
 ZEXTERN int ZEXPORT gzclose_r OF((gzFile file));

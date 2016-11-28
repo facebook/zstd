@@ -6,7 +6,7 @@
 
 
 # Paths to static and dynamic zlib and zstd libraries
-# Use "make ZLIB_LIBRARY=path/to/zlib" to select a path to library
+# Use "make ZLIB_PATH=path/to/zlib ZLIB_LIBRARY=path/to/libz.a" to select a path to library
 ZLIB_LIBRARY ?= -lz
 
 ZSTDLIBDIR = ../lib
@@ -17,7 +17,7 @@ EXAMPLE_PATH = examples
 PROGRAMS_PATH = ../programs
 TEST_FILE = ../doc/zstd_compression_format.md
 
-CPPFLAGS = -DXXH_NAMESPACE=XXH_ -I$(PROGRAMS_PATH) -I$(ZSTDLIBDIR) -I$(ZSTDLIBDIR)/common -I$(ZLIBWRAPPER_PATH)
+CPPFLAGS = -DXXH_NAMESPACE=XXH_ -I$(ZLIB_PATH) -I$(PROGRAMS_PATH) -I$(ZSTDLIBDIR) -I$(ZSTDLIBDIR)/common -I$(ZLIBWRAPPER_PATH)
 CFLAGS  ?= $(MOREFLAGS) -O3 -std=gnu99
 CFLAGS  += -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow -Wswitch-enum -Wdeclaration-after-statement -Wstrict-prototypes -Wundef
 #-Wstrict-aliasing=1
@@ -41,8 +41,8 @@ test: example fitblk example_zstd fitblk_zstd zwrapbench minigzip_zstd
 	./fitblk_zstd 10240 <$(TEST_FILE)
 	./fitblk_zstd 40960 <$(TEST_FILE)
 	@echo ---- minigzip start ----
-	./minigzip_zstd zwrapbench$(EXT)
-	./minigzip_zstd -d zwrapbench$(EXT).gz
+	./minigzip_zstd example$(EXT)
+	./minigzip_zstd -d example$(EXT).gz
 	@echo ---- minigzip end ----
 	./zwrapbench -qb3B1K $(TEST_FILE)
 	./zwrapbench -rqb1e5 ../lib ../programs ../tests

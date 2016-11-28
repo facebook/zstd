@@ -1,3 +1,7 @@
+/* fitblk.c contains minimal changes required to be compiled with zlibWrapper:
+ * - #include "zlib.h" was changed to #include "zstd_zlibwrapper.h"
+ * - writing block to stdout was disabled                          */
+
 /* fitblk.c: example of fitting compressed output to a specified size
    Not copyrighted -- provided to the public domain
    Version 1.1  25 November 2004  Mark Adler */
@@ -54,7 +58,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
-//#include "zlib.h"
 #include "zstd_zlibwrapper.h"
 
 #define LOG_FITBLK(...)   /*printf(__VA_ARGS__)*/

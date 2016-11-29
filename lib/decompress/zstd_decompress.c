@@ -58,7 +58,7 @@
 
 #if defined(_MSC_VER)
 #  include <mmintrin.h>   /* https://msdn.microsoft.com/fr-fr/library/84szxsww(v=vs.90).aspx */
-#  define ZSTD_PREFETCH(ptr)   _mm_prefetch(ptr, _MM_HINT_T0)
+#  define ZSTD_PREFETCH(ptr)   _mm_prefetch((const char*)ptr, _MM_HINT_T0)
 #elif defined(__GNUC__)
 #  define ZSTD_PREFETCH(ptr)   __builtin_prefetch(ptr, 0, 0)
 #else

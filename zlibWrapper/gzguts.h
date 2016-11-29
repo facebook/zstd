@@ -196,7 +196,6 @@ typedef struct {
     z_stream strm;          /* stream structure in-place (not a pointer) */
 } gz_state;
 
-typedef struct gzFile_s *gzFile;    /* semi-opaque gzip file descriptor */ 
 typedef union {
     gz_state* state;
     gzFile file;

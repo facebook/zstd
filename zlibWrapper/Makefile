@@ -20,8 +20,7 @@ TEST_FILE = ../doc/zstd_compression_format.md
 
 CPPFLAGS = -DXXH_NAMESPACE=XXH_ -I$(ZLIB_PATH) -I$(PROGRAMS_PATH) -I$(ZSTDLIBDIR) -I$(ZSTDLIBDIR)/common -I$(ZLIBWRAPPER_PATH)
 CFLAGS  ?= $(MOREFLAGS) -O3 -std=gnu99
-CFLAGS  += -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow -Wswitch-enum -Wdeclaration-after-statement -Wstrict-prototypes -Wundef
-#-Wstrict-aliasing=1
+CFLAGS  += -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow -Wswitch-enum -Wdeclaration-after-statement -Wstrict-prototypes -Wundef -Wstrict-aliasing=1
 
 
 # Define *.exe as extension for Windows systems
@@ -34,7 +33,7 @@ endif
 
 all: clean fitblk example zwrapbench minigzip
 
-test: example fitblk example_zstd fitblk_zstd zwrapbench minigzip_zstd
+test: example fitblk example_zstd fitblk_zstd zwrapbench minigzip minigzip_zstd
 	./example
 	./example_zstd
 	./fitblk 10240 <$(TEST_FILE)
@@ -43,6 +42,10 @@ test: example fitblk example_zstd fitblk_zstd zwrapbench minigzip_zstd
 	./fitblk_zstd 40960 <$(TEST_FILE)
 	@echo ---- minigzip start ----
 	./minigzip_zstd example$(EXT)
+	cp example$(EXT).gz example$(EXT)_zstd.gz
+	./minigzip_zstd -d example$(EXT).gz
+	./minigzip example$(EXT)
+	cp example$(EXT).gz example$(EXT)_gz.gz
 	./minigzip_zstd -d example$(EXT).gz
 	@echo ---- minigzip end ----
 	./zwrapbench -qb3B1K $(TEST_FILE)

@@ -175,7 +175,7 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
     {   U64 fastestC = (U64)(-1LL), fastestD = (U64)(-1LL);
         U64 const crcOrig = XXH64(srcBuffer, srcSize, 0);
         UTIL_time_t coolTime;
-        U64 const maxTime = (g_nbSeconds * TIMELOOP_MICROSEC) + 100;
+        U64 const maxTime = (g_nbSeconds * TIMELOOP_MICROSEC) + 1;
         U64 totalCTime=0, totalDTime=0;
         U32 cCompleted=0, dCompleted=0;
 #       define NB_MARKS 4
@@ -234,7 +234,7 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
                 {   U64 const clockSpan = UTIL_clockSpanMicro(clockStart, ticksPerSecond);
                     if (clockSpan < fastestC*nbLoops) fastestC = clockSpan / nbLoops;
                     totalCTime += clockSpan;
-                    cCompleted = totalCTime>maxTime;
+                    cCompleted = (totalCTime >= maxTime);
             }   }
 
             cSize = 0;
@@ -279,7 +279,7 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
                 {   U64 const clockSpan = UTIL_clockSpanMicro(clockStart, ticksPerSecond);
                     if (clockSpan < fastestD*nbLoops) fastestD = clockSpan / nbLoops;
                     totalDTime += clockSpan;
-                    dCompleted = totalDTime>maxTime;
+                    dCompleted = (totalDTime >= maxTime);
             }   }
 
             markNb = (markNb+1) % NB_MARKS;

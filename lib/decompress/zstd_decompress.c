@@ -793,8 +793,8 @@ typedef struct {
     FSE_DState_t stateOffb;
     FSE_DState_t stateML;
     size_t prevOffset[ZSTD_REP_NUM];
-    const BYTE* ptr;
     const BYTE* base;
+    size_t pos;
     iPtrDiff gotoDict;
 } seqState_t;
 
@@ -864,15 +864,17 @@ static seq_t ZSTD_decodeSequenceLong(seqState_t* seqState)
     if (MEM_32bits() ||
        (totalBits > 64 - 7 - (LLFSELog+MLFSELog+OffFSELog)) ) BIT_reloadDStream(&seqState->DStream);
 
-    seq.match = seqState->ptr + seq.litLength - seq.offset;    /* single memory segment ! */
-    if (seq.match < seqState->base) seq.match += seqState->gotoDict;   /* what if seq.match underflows ? prefetch is a non issue, but match has now a wrong address */
+    {   size_t const pos = seqState->pos + seq.litLength;
+        seq.match = seqState->base + pos - seq.offset;    /* single memory segment */
+        if (seq.offset > pos) seq.match += seqState->gotoDict;   /* separate memory segment */
+        seqState->pos = pos + seq.matchLength;
+    }
 
     /* ANS state update */
     FSE_updateState(&seqState->stateLL, &seqState->DStream);    /* <=  9 bits */
     FSE_updateState(&seqState->stateML, &seqState->DStream);    /* <=  9 bits */
     if (MEM_32bits()) BIT_reloadDStream(&seqState->DStream);    /* <= 18 bits */
     FSE_updateState(&seqState->stateOffb, &seqState->DStream);  /* <=  8 bits */
-    seqState->ptr += seq.matchLength + seq.litLength;
 
     return seq;
 }
@@ -1042,8 +1044,8 @@ static size_t ZSTD_decompressSequencesLong(
         int seqNb;
         dctx->fseEntropy = 1;
         { U32 i; for (i=0; i<ZSTD_REP_NUM; i++) seqState.prevOffset[i] = dctx->rep[i]; }
-        seqState.ptr = op;
         seqState.base = base;
+        seqState.pos = (size_t)(op-base);
         seqState.gotoDict = (iPtrDiff)(dictEnd - base);
         CHECK_E(BIT_initDStream(&seqState.DStream, ip, iend-ip), corruption_detected);
         FSE_initDState(&seqState.stateLL, &seqState.DStream, dctx->LLTptr);
@@ -1194,7 +1196,7 @@ size_t ZSTD_execSequence(BYTE* op,
     if (sequence.offset > (size_t)(oLitEnd - base)) {
         /* offset beyond prefix */
         if (sequence.offset > (size_t)(oLitEnd - vBase)) return ERROR(corruption_detected);
-        match = dictEnd - (base-match);
+        match += (dictEnd-base);
         if (match + sequence.matchLength <= dictEnd) {
             memmove(oLitEnd, match, sequence.matchLength);
             return sequenceLength;

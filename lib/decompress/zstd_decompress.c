@@ -56,6 +56,15 @@
 #endif
 
 
+#if defined(_MSC_VER)
+#  include <mmintrin.h>   /* https://msdn.microsoft.com/fr-fr/library/84szxsww(v=vs.90).aspx */
+#  define ZSTD_PREFETCH(ptr)   _mm_prefetch(ptr, _MM_HINT_T0)
+#elif defined(__GNUC__)
+#  define ZSTD_PREFETCH(ptr)   __builtin_prefetch(ptr, 0, 0)
+#else
+#  define ZSTD_PREFETCH(ptr)   /* disabled */
+#endif
+
 /*-*************************************
 *  Macros
 ***************************************/
@@ -997,7 +1006,6 @@ size_t ZSTD_execSequenceLong(BYTE* op,
 }
 
 
-#define ZSTD_PREFETCH(ptr)   __builtin_prefetch(ptr, 0, 0);
 static size_t ZSTD_decompressSequencesLong(
                                ZSTD_DCtx* dctx,
                                void* dst, size_t maxDstSize,
@@ -1023,9 +1031,9 @@ static size_t ZSTD_decompressSequencesLong(
 
     /* Regen sequences */
     if (nbSeq) {
-#define STORED_SEQS 8
+#define STORED_SEQS 4
 #define STOSEQ_MASK (STORED_SEQS-1)
-#define ADVANCED_SEQS 5
+#define ADVANCED_SEQS 4
         seq_t sequences[STORED_SEQS];
         int const seqAdvance = MIN(nbSeq, ADVANCED_SEQS);
         seqState_t seqState;
@@ -1315,6 +1323,8 @@ static size_t ZSTD_decompressBlock_internal(ZSTD_DCtx* dctx,
         ip += litCSize;
         srcSize -= litCSize;
     }
+    if (dctx->fParams.windowSize > 23)
+        return ZSTD_decompressSequencesLong(dctx, dst, dstCapacity, ip, srcSize);
     return ZSTD_decompressSequences(dctx, dst, dstCapacity, ip, srcSize);
 }
 

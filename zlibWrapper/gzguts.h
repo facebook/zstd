@@ -191,7 +191,12 @@ typedef struct {
         /* zlib inflate or deflate stream */
     z_stream strm;          /* stream structure in-place (not a pointer) */
 } gz_state;
-typedef gz_state FAR *gz_statep;
+
+typedef struct gzFile_s *gzFile;    /* semi-opaque gzip file descriptor */ 
+typedef union {
+    gz_state* state;
+    gzFile file;
+} gz_statep;
 
 /* shared functions */
 void ZLIB_INTERNAL gz_error OF((gz_statep, int, const char *));

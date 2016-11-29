@@ -1,3 +1,7 @@
+/* gzguts.h contains minimal changes required to be compiled with zlibWrapper:
+ * - #include "zlib.h" was changed to #include "zstd_zlibwrapper.h"        
+ * - gz_statep was converted to union to work with -Wstrict-aliasing=1      */
+
 /* gzguts.h -- zlib internal header definitions for gz* operations
  * Copyright (C) 2004, 2005, 2010, 2011, 2012, 2013 Mark Adler
  * For conditions of distribution and use, see copyright notice in zlib.h

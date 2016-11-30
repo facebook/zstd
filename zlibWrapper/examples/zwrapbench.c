@@ -239,11 +239,18 @@ static int BMK_benchMem(z_const void* srcBuffer, size_t srcSize,
 
                     do {
                         U32 blockNb;
+                        size_t rSize;
                         for (blockNb=0; blockNb<nbBlocks; blockNb++) {
-                            size_t const rSize = ZSTD_compress_usingCDict(ctx,
+                            if (dictBufferSize) {
+                                rSize = ZSTD_compress_usingCDict(ctx,
                                                 blockTable[blockNb].cPtr,  blockTable[blockNb].cRoom,
                                                 blockTable[blockNb].srcPtr,blockTable[blockNb].srcSize,
                                                 cdict);
+                            } else {
+                                rSize = ZSTD_compressCCtx (ctx,
+                                                blockTable[blockNb].cPtr,  blockTable[blockNb].cRoom,
+                                                blockTable[blockNb].srcPtr,blockTable[blockNb].srcSize, cLevel);
+                            }
                             if (ZSTD_isError(rSize)) EXM_THROW(1, "ZSTD_compress_usingCDict() failed : %s", ZSTD_getErrorName(rSize));
                             blockTable[blockNb].cSize = rSize;
                         }
@@ -591,20 +598,20 @@ static void BMK_benchCLevel(void* srcBuffer, size_t benchedSize,
 
     if (cLevelLast < cLevel) cLevelLast = cLevel;
 
-    DISPLAY("benchmarking zstd %s (using ZSTD_CCtx)\n", ZSTD_VERSION_STRING);
-    for (l=cLevel; l <= cLevelLast; l++) {
-        BMK_benchMem(srcBuffer, benchedSize,
-                     displayName, l,
-                     fileSizes, nbFiles,
-                     dictBuffer, dictBufferSize, BMK_ZSTD);
-    }
-
     DISPLAY("benchmarking zstd %s (using ZSTD_CStream)\n", ZSTD_VERSION_STRING);
     for (l=cLevel; l <= cLevelLast; l++) {
         BMK_benchMem(srcBuffer, benchedSize,
                      displayName, l,
                      fileSizes, nbFiles,
                      dictBuffer, dictBufferSize, BMK_ZSTD_STREAM);
+    }
+
+    DISPLAY("benchmarking zstd %s (using ZSTD_CCtx)\n", ZSTD_VERSION_STRING);
+    for (l=cLevel; l <= cLevelLast; l++) {
+        BMK_benchMem(srcBuffer, benchedSize,
+                     displayName, l,
+                     fileSizes, nbFiles,
+                     dictBuffer, dictBufferSize, BMK_ZSTD);
     }
 
     DISPLAY("benchmarking zstd %s (using zlibWrapper)\n", ZSTD_VERSION_STRING);

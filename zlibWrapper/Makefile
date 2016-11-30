@@ -6,30 +6,48 @@
 
 
 # Paths to static and dynamic zlib and zstd libraries
-# Use "make ZLIB_LIBRARY=path/to/zlib" to select a path to library
+# Use "make ZLIB_PATH=path/to/zlib ZLIB_LIBRARY=path/to/libz.a" to select a path to library
 ZLIB_LIBRARY ?= -lz
+ZLIB_PATH ?= .
 
 ZSTDLIBDIR = ../lib
 ZSTDLIBRARY = $(ZSTDLIBDIR)/libzstd.a
 ZLIBWRAPPER_PATH = .
+GZFILES = gzclose.o gzlib.o gzread.o gzwrite.o 
 EXAMPLE_PATH = examples
 PROGRAMS_PATH = ../programs
 TEST_FILE = ../doc/zstd_compression_format.md
 
-CPPFLAGS = -DXXH_NAMESPACE=XXH_ -I$(PROGRAMS_PATH) -I$(ZSTDLIBDIR) -I$(ZSTDLIBDIR)/common -I$(ZLIBWRAPPER_PATH)
+CPPFLAGS = -DXXH_NAMESPACE=XXH_ -I$(ZLIB_PATH) -I$(PROGRAMS_PATH) -I$(ZSTDLIBDIR) -I$(ZSTDLIBDIR)/common -I$(ZLIBWRAPPER_PATH)
 CFLAGS  ?= $(MOREFLAGS) -O3 -std=gnu99
-CFLAGS  += -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow -Wswitch-enum -Wdeclaration-after-statement -Wstrict-prototypes -Wstrict-aliasing=1 -Wundef
+CFLAGS  += -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow -Wswitch-enum -Wdeclaration-after-statement -Wstrict-prototypes -Wundef -Wstrict-aliasing=1
 
 
-all: clean fitblk example zwrapbench
+# Define *.exe as extension for Windows systems
+ifneq (,$(filter Windows%,$(OS)))
+EXT =.exe
+else
+EXT =
+endif
 
-test: example fitblk example_zstd fitblk_zstd zwrapbench
+
+all: clean fitblk example zwrapbench minigzip
+
+test: example fitblk example_zstd fitblk_zstd zwrapbench minigzip minigzip_zstd
 	./example
 	./example_zstd
 	./fitblk 10240 <$(TEST_FILE)
 	./fitblk 40960 <$(TEST_FILE)
 	./fitblk_zstd 10240 <$(TEST_FILE)
 	./fitblk_zstd 40960 <$(TEST_FILE)
+	@echo ---- minigzip start ----
+	./minigzip_zstd example$(EXT)
+	cp example$(EXT).gz example$(EXT)_zstd.gz
+	./minigzip_zstd -d example$(EXT).gz
+	./minigzip example$(EXT)
+	cp example$(EXT).gz example$(EXT)_gz.gz
+	./minigzip_zstd -d example$(EXT).gz
+	@echo ---- minigzip end ----
 	./zwrapbench -qb3B1K $(TEST_FILE)
 	./zwrapbench -rqb1e5 ../lib ../programs ../tests
 
@@ -49,22 +67,27 @@ valgrindTest: clean example fitblk example_zstd fitblk_zstd zwrapbench
 #.c.o:
 #	$(CC) $(CFLAGS) $(CPPFLAGS) -c -o $@ $<
 
-example: $(EXAMPLE_PATH)/example.o $(ZLIBWRAPPER_PATH)/zstd_zlibwrapper.o $(ZSTDLIBRARY)
-	$(CC) $(LDFLAGS) -o $@ $(EXAMPLE_PATH)/example.o $(ZLIBWRAPPER_PATH)/zstd_zlibwrapper.o $(ZSTDLIBRARY) $(ZLIB_LIBRARY)
+minigzip: $(EXAMPLE_PATH)/minigzip.o $(ZLIBWRAPPER_PATH)/zstd_zlibwrapper.o $(GZFILES) $(ZSTDLIBRARY)
+	$(CC) $(LDFLAGS) $^ $(ZSTDLIBRARY) $(ZLIB_LIBRARY) -o $@
 
-example_zstd: $(EXAMPLE_PATH)/example.o $(ZLIBWRAPPER_PATH)/zstdTurnedOn_zlibwrapper.o $(ZSTDLIBRARY)
-	$(CC) $(LDFLAGS)  -o $@ $(EXAMPLE_PATH)/example.o $(ZLIBWRAPPER_PATH)/zstdTurnedOn_zlibwrapper.o $(ZSTDLIBRARY) $(ZLIB_LIBRARY)
+minigzip_zstd: $(EXAMPLE_PATH)/minigzip.o $(ZLIBWRAPPER_PATH)/zstdTurnedOn_zlibwrapper.o $(GZFILES) $(ZSTDLIBRARY)
+	$(CC) $(LDFLAGS) $^ $(ZSTDLIBRARY) $(ZLIB_LIBRARY) -o $@
+
+example: $(EXAMPLE_PATH)/example.o $(ZLIBWRAPPER_PATH)/zstd_zlibwrapper.o $(GZFILES) $(ZSTDLIBRARY)
+	$(CC) $(LDFLAGS) $^ $(ZLIB_LIBRARY) -o $@
+
+example_zstd: $(EXAMPLE_PATH)/example.o $(ZLIBWRAPPER_PATH)/zstdTurnedOn_zlibwrapper.o $(GZFILES) $(ZSTDLIBRARY)
+	$(CC) $(LDFLAGS) $^ $(ZLIB_LIBRARY) -o $@
 
 fitblk: $(EXAMPLE_PATH)/fitblk.o $(ZLIBWRAPPER_PATH)/zstd_zlibwrapper.o $(ZSTDLIBRARY)
-	$(CC) $(LDFLAGS) -o $@ $(EXAMPLE_PATH)/fitblk.o $(ZLIBWRAPPER_PATH)/zstd_zlibwrapper.o $(ZSTDLIBRARY) $(ZLIB_LIBRARY)
+	$(CC) $(LDFLAGS) $^ $(ZLIB_LIBRARY) -o $@
 
-fitblk_zstd: $(EXAMPLE_PATH)/fitblk.o $(ZLIBWRAPPER_PATH)/zstd_zlibwrapper.o $(ZSTDLIBRARY)
-	$(CC) $(LDFLAGS) -o $@ $(EXAMPLE_PATH)/fitblk.o $(ZLIBWRAPPER_PATH)/zstdTurnedOn_zlibwrapper.o $(ZSTDLIBRARY) $(ZLIB_LIBRARY)
+fitblk_zstd: $(EXAMPLE_PATH)/fitblk.o $(ZLIBWRAPPER_PATH)/zstdTurnedOn_zlibwrapper.o $(ZSTDLIBRARY)
+	$(CC) $(LDFLAGS) $^ $(ZLIB_LIBRARY) -o $@
 
 zwrapbench: $(EXAMPLE_PATH)/zwrapbench.o $(ZLIBWRAPPER_PATH)/zstd_zlibwrapper.o $(PROGRAMS_PATH)/datagen.o $(ZSTDLIBRARY)
-	$(CC) $(LDFLAGS) -o $@ $(EXAMPLE_PATH)/zwrapbench.o $(ZLIBWRAPPER_PATH)/zstd_zlibwrapper.o $(PROGRAMS_PATH)/datagen.o $(ZSTDLIBRARY) $(ZLIB_LIBRARY)
+	$(CC) $(LDFLAGS) $^ $(ZLIB_LIBRARY) -o $@
 
-$(EXAMPLE_PATH)/zwrapbench.o: $(EXAMPLE_PATH)/zwrapbench.c
 
 $(ZLIBWRAPPER_PATH)/zstd_zlibwrapper.o: $(ZLIBWRAPPER_PATH)/zstd_zlibwrapper.c $(ZLIBWRAPPER_PATH)/zstd_zlibwrapper.h
 	$(CC) $(CFLAGS) $(CPPFLAGS) -I. -c -o $@ $(ZLIBWRAPPER_PATH)/zstd_zlibwrapper.c
@@ -78,6 +101,7 @@ $(ZSTDLIBDIR)/libzstd.a:
 $(ZSTDLIBDIR)/libzstd.so:
 	$(MAKE) -C $(ZSTDLIBDIR) libzstd
 
+
 clean:
-	-$(RM) $(ZLIBWRAPPER_PATH)/*.o $(EXAMPLE_PATH)/*.o *.o *.exe foo.gz example example_zstd fitblk fitblk_zstd zwrapbench
+	-$(RM) $(ZLIBWRAPPER_PATH)/*.o $(EXAMPLE_PATH)/*.o *.o foo.gz example$(EXT) example_zstd$(EXT) fitblk$(EXT) fitblk_zstd$(EXT) zwrapbench$(EXT) minigzip$(EXT) minigzip_zstd$(EXT)
 	@echo Cleaning completed

@@ -197,7 +197,7 @@ typedef struct {
 } gz_state;
 
 typedef union {
-    gz_state* state;
+    gz_state FAR *state;
     gzFile file;
 } gz_statep;
 

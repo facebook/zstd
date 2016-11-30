@@ -1,4 +1,5 @@
 v1.1.2
+Improved : better decompression speed at high compression settings
 cli : new : preserve file attributes, by Przemyslaw Skibinski
 cli : fixed : status displays total amount decoded when stream/file consists of multiple appended frames (like pzstd)
 API : changed : zbuff prototypes now generate deprecation warnings

@@ -74,6 +74,7 @@
 #define MAX_DICT_SIZE (8 MB)   /* protection against large input (attack scenario) */
 
 #define FNSPACE 30
+#define GZ_EXTENSION ".gz"
 
 
 /*-*************************************
@@ -658,11 +659,20 @@ static int FIO_decompressSrcFile(dRess_t ress, const char* srcFileName)
     FILE* const dstFile = ress.dstFile;
     FILE* srcFile;
     unsigned readSomething = 0;
+    size_t const suffixSize = strlen(GZ_EXTENSION);
+    size_t const sfnSize = strlen(srcFileName);
+    const char* const suffixPtr = srcFileName + sfnSize - suffixSize;
+
+    if (sfnSize > suffixSize && strcmp(suffixPtr, GZ_EXTENSION) == 0) {
+        DISPLAYLEVEL(1, "zstd: %s: gz file cannot be uncompressed -- ignored \n", srcFileName);
+        return 1;
+    }
 
     if (UTIL_isDirectory(srcFileName)) {
         DISPLAYLEVEL(1, "zstd: %s is a directory -- ignored \n", srcFileName);
         return 1;
     }
+
     srcFile = FIO_openSrcFile(srcFileName);
     if (srcFile==0) return 1;
 
@@ -763,6 +773,7 @@ int FIO_decompressMultipleFilenames(const char** srcNamesTable, unsigned nbFiles
         if (fclose(ress.dstFile)) EXM_THROW(72, "Write error : cannot properly close stdout");
     } else {
         size_t const suffixSize = strlen(suffix);
+        size_t const gzSuffixSize = strlen(GZ_EXTENSION);
         size_t dfnSize = FNSPACE;
         unsigned u;
         char* dstFileName = (char*)malloc(FNSPACE);
@@ -771,6 +782,7 @@ int FIO_decompressMultipleFilenames(const char** srcNamesTable, unsigned nbFiles
             const char* const srcFileName = srcNamesTable[u];
             size_t const sfnSize = strlen(srcFileName);
             const char* const suffixPtr = srcFileName + sfnSize - suffixSize;
+            const char* const gzSuffixPtr = srcFileName + sfnSize - gzSuffixSize;
             if (dfnSize+suffixSize <= sfnSize+1) {
                 free(dstFileName);
                 dfnSize = sfnSize + 20;
@@ -778,12 +790,18 @@ int FIO_decompressMultipleFilenames(const char** srcNamesTable, unsigned nbFiles
                 if (dstFileName==NULL) EXM_THROW(74, "not enough memory for dstFileName");
             }
             if (sfnSize <= suffixSize || strcmp(suffixPtr, suffix) != 0) {
-                DISPLAYLEVEL(1, "zstd: %s: unknown suffix (%4s expected) -- ignored \n", srcFileName, suffix);
-                skippedFiles++;
-                continue;
+                if (sfnSize <= gzSuffixSize || strcmp(gzSuffixPtr, GZ_EXTENSION) != 0) {
+                    DISPLAYLEVEL(1, "zstd: %s: unknown suffix (%4s expected) -- ignored \n", srcFileName, suffix);
+                    skippedFiles++;
+                    continue;
+                } else {
+                    memcpy(dstFileName, srcFileName, sfnSize - gzSuffixSize);
+                    dstFileName[sfnSize-gzSuffixSize] = '\0';
+                }
+            } else {
+                memcpy(dstFileName, srcFileName, sfnSize - suffixSize);
+                dstFileName[sfnSize-suffixSize] = '\0';
             }
-            memcpy(dstFileName, srcFileName, sfnSize - suffixSize);
-            dstFileName[sfnSize-suffixSize] = '\0';
 
             missingFiles += FIO_decompressDstFile(ress, dstFileName, srcFileName);
         }

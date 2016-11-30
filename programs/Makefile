@@ -82,7 +82,7 @@ zstd  : $(ZSTDDECOMP_O) $(ZSTD_FILES) $(ZSTDLEGACY_FILES) $(ZDICT_FILES) \
 ifneq (,$(filter Windows%,$(OS)))
 	windres\generate_res.bat
 endif
-	$(CC)      $(FLAGS) $^ $(RES_FILE) -o $@$(EXT)
+	$(CC)      $(FLAGS) $^ $(RES_FILE) -o $@$(EXT) $(LDFLAGS)
 
 
 zstd32 : CPPFLAGS += -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT)
@@ -123,6 +123,9 @@ zstd-decompress: clean_decomp_o
 
 zstd-compress: $(ZSTDCOMMON_FILES) $(ZSTDCOMP_FILES) zstdcli.c fileio.c
 	$(CC)      $(FLAGS) -DZSTD_NOBENCH -DZSTD_NODICT -DZSTD_NODECOMPRESS $^ -o $@$(EXT)
+
+gzstd: clean_decomp_o
+	CFLAGS+=-DZSTD_GZDECOMPRESS LDFLAGS+=-lz $(MAKE) zstd
 
 generate_res:
 	windres\generate_res.bat

@@ -300,11 +300,24 @@ size_t FSE_countFast(unsigned* count, unsigned* maxSymbolValuePtr, const void* s
 unsigned FSE_optimalTableLog_internal(unsigned maxTableLog, size_t srcSize, unsigned maxSymbolValue, unsigned minus);
 /**< same as FSE_optimalTableLog(), which used `minus==2` */
 
+/* FSE_compress_wksp() :
+ * Same as FSE_compress2(), but using an externally allocated scratch buffer (`workSpace`).
+ * `workSpace` size must be `(1<<tableLog)`.
+ */
+size_t FSE_compress_wksp (void* dst, size_t dstSize, const void* src, size_t srcSize, unsigned maxSymbolValue, unsigned tableLog, void* workSpace);
+
 size_t FSE_buildCTable_raw (FSE_CTable* ct, unsigned nbBits);
 /**< build a fake FSE_CTable, designed to not compress an input, where each symbol uses nbBits */
 
 size_t FSE_buildCTable_rle (FSE_CTable* ct, unsigned char symbolValue);
 /**< build a fake FSE_CTable, designed to compress always the same symbolValue */
+
+/* FSE_buildCTable_wksp() :
+ * Same as FSE_buildCTable(), but using an externally allocated scratch buffer (`workSpace`).
+ * wkspSize should be sized to handle worst case situation, which is `(1<<max_tableLog) * sizeof(FSE_FUNCTION_TYPE)`.
+ * workSpace must also be properly aligned with FSE_FUNCTION_TYPE requirements.
+ */
+size_t FSE_buildCTable_wksp(FSE_CTable* ct, const short* normalizedCounter, unsigned maxSymbolValue, unsigned tableLog, void* workSpace, size_t wkspSize);
 
 size_t FSE_buildDTable_raw (FSE_DTable* dt, unsigned nbBits);
 /**< build a fake FSE_DTable, designed to read an uncompressed bitstream where each symbol uses nbBits */

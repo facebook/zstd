@@ -286,7 +286,7 @@ If there is an error, the function will return an error code, which can be teste
 #define FSE_BLOCKBOUND(size) (size + (size>>7))
 #define FSE_COMPRESSBOUND(size) (FSE_NCOUNTBOUND + FSE_BLOCKBOUND(size))   /* Macro version, useful for static allocation */
 
-/* It is possible to statically allocate FSE CTable/DTable as a table of unsigned using below macros */
+/* It is possible to statically allocate FSE CTable/DTable as a table of FSE_CTable/FSE_DTable using below macros */
 #define FSE_CTABLE_SIZE_U32(maxTableLog, maxSymbolValue)   (1 + (1<<(maxTableLog-1)) + ((maxSymbolValue+1)*2))
 #define FSE_DTABLE_SIZE_U32(maxTableLog)                   (1 + (1<<maxTableLog))
 
@@ -311,6 +311,9 @@ size_t FSE_buildDTable_raw (FSE_DTable* dt, unsigned nbBits);
 
 size_t FSE_buildDTable_rle (FSE_DTable* dt, unsigned char symbolValue);
 /**< build a fake FSE_DTable, designed to always generate the same symbolValue */
+
+size_t FSE_decompress_wksp(void* dst, size_t dstCapacity, const void* cSrc, size_t cSrcSize, FSE_DTable* workSpace, unsigned maxLog);
+/**< same as FSE_decompress(), using an externally allocated `workSpace` produced with `FSE_DTABLE_SIZE_U32(maxLog)` */
 
 
 /* *****************************************

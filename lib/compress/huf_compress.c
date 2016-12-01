@@ -92,7 +92,7 @@ size_t HUF_writeCTable (void* dst, size_t maxDstSize,
     BYTE huffWeight[HUF_SYMBOLVALUE_MAX];
     BYTE* op = (BYTE*)dst;
 #define MAX_FSE_TABLELOG_FOR_HUFF_HEADER 6
-    BYTE scratchBuffer[1<<MAX_FSE_TABLELOG_FOR_HUFF_HEADER];
+    FSE_CTable scratchBuffer[FSE_WKSP_SIZE_U32(MAX_FSE_TABLELOG_FOR_HUFF_HEADER, HUF_TABLELOG_MAX)];
     U32 n;
 
      /* check conditions */
@@ -106,7 +106,7 @@ size_t HUF_writeCTable (void* dst, size_t maxDstSize,
         huffWeight[n] = bitsToWeight[CTable[n].nbBits];
 
     /* attempt weights compression by FSE */
-    {   size_t const size = FSE_compress_wksp(op+1, maxDstSize-1, huffWeight, maxSymbolValue, HUF_TABLELOG_MAX, MAX_FSE_TABLELOG_FOR_HUFF_HEADER, scratchBuffer);
+    {   size_t const size = FSE_compress_wksp(op+1, maxDstSize-1, huffWeight, maxSymbolValue, HUF_TABLELOG_MAX, MAX_FSE_TABLELOG_FOR_HUFF_HEADER, scratchBuffer, sizeof(scratchBuffer));
         if (FSE_isError(size)) return size;
         if ((size>1) & (size < maxSymbolValue/2)) {   /* FSE compressed */
             op[0] = (BYTE)size;

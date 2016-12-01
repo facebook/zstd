@@ -71,12 +71,6 @@
 
 
 /* **************************************************************
-*  Complex types
-****************************************************************/
-typedef U32 CTable_max_t[FSE_CTABLE_SIZE_U32(FSE_MAX_TABLELOG, FSE_MAX_SYMBOL_VALUE)];
-
-
-/* **************************************************************
 *  Templates
 ****************************************************************/
 /*
@@ -442,14 +436,10 @@ size_t FSE_count(unsigned* count, unsigned* maxSymbolValuePtr,
     `FSE_symbolCompressionTransform symbolTT[maxSymbolValue+1];`  // This size is variable
 Allocation is manual (C standard does not support variable-size structures).
 */
-
 size_t FSE_sizeof_CTable (unsigned maxSymbolValue, unsigned tableLog)
 {
-    size_t size;
-    FSE_STATIC_ASSERT((size_t)FSE_CTABLE_SIZE_U32(FSE_MAX_TABLELOG, FSE_MAX_SYMBOL_VALUE)*4 >= sizeof(CTable_max_t));   /* A compilation error here means FSE_CTABLE_SIZE_U32 is not large enough */
-    if (tableLog > FSE_MAX_TABLELOG) return ERROR(GENERIC);
-    size = FSE_CTABLE_SIZE_U32 (tableLog, maxSymbolValue) * sizeof(U32);
-    return size;
+    if (tableLog > FSE_MAX_TABLELOG) return ERROR(tableLog_tooLarge);
+    return FSE_CTABLE_SIZE_U32 (tableLog, maxSymbolValue) * sizeof(U32);
 }
 
 FSE_CTable* FSE_createCTable (unsigned maxSymbolValue, unsigned tableLog)
@@ -766,9 +756,9 @@ size_t FSE_compressBound(size_t size) { return FSE_COMPRESSBOUND(size); }
 
 /* FSE_compress_wksp() :
  * Same as FSE_compress2(), but using an externally allocated scratch buffer (`workSpace`).
- * `workSpace` size must be `(1<<tableLog)`.
+ * `wkspSize` size must be `(1<<tableLog)`.
  */
-size_t FSE_compress_wksp (void* dst, size_t dstSize, const void* src, size_t srcSize, unsigned maxSymbolValue, unsigned tableLog, void* workSpace)
+size_t FSE_compress_wksp (void* dst, size_t dstSize, const void* src, size_t srcSize, unsigned maxSymbolValue, unsigned tableLog, void* workSpace, size_t wkspSize)
 {
     const BYTE* const istart = (const BYTE*) src;
     const BYTE* ip = istart;
@@ -779,9 +769,13 @@ size_t FSE_compress_wksp (void* dst, size_t dstSize, const void* src, size_t src
 
     U32   count[FSE_MAX_SYMBOL_VALUE+1];
     S16   norm[FSE_MAX_SYMBOL_VALUE+1];
-    CTable_max_t ct;
+    FSE_CTable* CTable = (FSE_CTable*)workSpace;
+    size_t const CTableSize = FSE_CTABLE_SIZE_U32(tableLog, maxSymbolValue);
+    void* scratchBuffer = (void*)(CTable + CTableSize);
+    size_t const scratchBufferSize = wkspSize - (CTableSize * sizeof(FSE_CTable));
 
     /* init conditions */
+    if (wkspSize < FSE_WKSP_SIZE_U32(tableLog, maxSymbolValue)) return ERROR(tableLog_tooLarge);
     if (srcSize <= 1) return 0;  /* Not compressible */
     if (!maxSymbolValue) maxSymbolValue = FSE_MAX_SYMBOL_VALUE;
     if (!tableLog) tableLog = FSE_DEFAULT_TABLELOG;
@@ -802,8 +796,8 @@ size_t FSE_compress_wksp (void* dst, size_t dstSize, const void* src, size_t src
     }
 
     /* Compress */
-    CHECK_F( FSE_buildCTable_wksp(ct, norm, maxSymbolValue, tableLog, workSpace, 1<<tableLog) );
-    {   CHECK_E_F(cSize, FSE_compress_usingCTable(op, oend - op, ip, srcSize, ct) );
+    CHECK_F( FSE_buildCTable_wksp(CTable, norm, maxSymbolValue, tableLog, scratchBuffer, scratchBufferSize) );
+    {   CHECK_E_F(cSize, FSE_compress_usingCTable(op, oend - op, ip, srcSize, CTable) );
         if (cSize == 0) return 0;   /* not enough space for compressed data */
         op += cSize;
     }
@@ -814,11 +808,17 @@ size_t FSE_compress_wksp (void* dst, size_t dstSize, const void* src, size_t src
     return op-ostart;
 }
 
+typedef struct {
+    FSE_CTable CTable_max[FSE_CTABLE_SIZE_U32(FSE_MAX_TABLELOG, FSE_MAX_SYMBOL_VALUE)];
+    BYTE scratchBuffer[1 << FSE_MAX_TABLELOG];
+} fseWkspMax_t;
+
 size_t FSE_compress2 (void* dst, size_t dstCapacity, const void* src, size_t srcSize, unsigned maxSymbolValue, unsigned tableLog)
 {
-    BYTE scratchBuffer[1 << FSE_MAX_TABLELOG];
+    fseWkspMax_t scratchBuffer;
+    FSE_STATIC_ASSERT(sizeof(scratchBuffer) >= FSE_WKSP_SIZE_U32(FSE_MAX_TABLELOG, FSE_MAX_SYMBOL_VALUE));   /* compilation failures here means scratchBuffer is not large enough */
     if (tableLog > FSE_MAX_TABLELOG) return ERROR(tableLog_tooLarge);
-    return FSE_compress_wksp(dst, dstCapacity, src, srcSize, maxSymbolValue, tableLog, scratchBuffer);
+    return FSE_compress_wksp(dst, dstCapacity, src, srcSize, maxSymbolValue, tableLog, &scratchBuffer, sizeof(scratchBuffer));
 }
 
 size_t FSE_compress (void* dst, size_t dstCapacity, const void* src, size_t srcSize)

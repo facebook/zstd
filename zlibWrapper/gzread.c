@@ -138,8 +138,8 @@ local int gz_look(state)
        single byte is sufficient indication that it is not a gzip file) */
     //printf("strm->next_in[0]=%d strm->next_in[1]=%d\n", strm->next_in[0], strm->next_in[1]);
     if (strm->avail_in > 1 &&
-            ((strm->next_in[0] == 31 && strm->next_in[1] == 139) 
-            || (strm->next_in[0] == 40 && strm->next_in[1] == 181))) { // zstd
+            ((strm->next_in[0] == 31 && strm->next_in[1] == 139) /* gz header */
+            || (strm->next_in[0] == 40 && strm->next_in[1] == 181))) { /* zstd header */
         inflateReset(strm);
         state.state->how = GZIP;
         state.state->direct = 0;

@@ -664,8 +664,8 @@ static unsigned long long FIO_decompressGzFile(dRess_t ress, const char* srcFile
         if (readBytes > 0) { 
             size_t const sizeCheck = fwrite(ress.dstBuffer, 1, readBytes, ress.dstFile);
             if (sizeCheck != (size_t)readBytes) EXM_THROW(34, "Write error : cannot write to output file"); 
+            filesize += readBytes;
         }
-        filesize += readBytes;
     } while ((size_t)readBytes == ress.dstBufferSize);
 
     if (gzclose(gzSrcFile) != Z_OK) { DISPLAY("zstd: %s: gzclose error \n", srcFileName); return 0; }
@@ -700,21 +700,27 @@ static int FIO_decompressSrcFile(dRess_t ress, const char* srcFileName)
 
         /* for each frame */
         for ( ; ; ) {
-            /* check magic number -> version */
-            size_t const toRead = 4;
-            size_t const sizeCheck = fread(ress.srcBuffer, (size_t)1, toRead, srcFile);
-            const BYTE* buf = (const BYTE*)ress.srcBuffer;
-            if (sizeCheck==0) {
-                if (readSomething==0) { DISPLAY("zstd: %s: unexpected end of file \n", srcFileName); fclose(srcFile); return 1; }  /* srcFileName is empty */
-                break;   /* no more input */
+            if (srcFile == stdin) {
+                int c = getc(srcFile);
+                if (c < 0) break;   /* no more input */
+                c = ungetc(c, srcFile); /* only one pushback is guaranteed */
+                if (c == 31) { /* 31,139 = gz header */
+                    unsigned long long result = FIO_decompressGzFile(ress, srcFileName, gzdopen(fileno(srcFile), "rb"));
+                    printf("result=%d\n", (int)result);
+                    if (result == 0) return 1;
+                    filesize += result;
+                    continue;
+                }
             }
-            readSomething = 1;   /* there is at least >= 4 bytes in srcFile */
-            if (sizeCheck != toRead) { DISPLAY("zstd: %s: unknown header \n", srcFileName); fclose(srcFile); return 1; }  /* srcFileName is empty */
-            if (buf[0] == 31 && buf[1] == 139) { /* gz header */
-                unsigned long long result = FIO_decompressGzFile(ress, srcFileName, gzdopen(fileno(srcFile), "rb"));
-                if (result == 0) return 1;
-                filesize += result;
-            } else {
+            /* check magic number -> version */
+            {   size_t const toRead = 4;
+                size_t const sizeCheck = fread(ress.srcBuffer, (size_t)1, toRead, srcFile);
+                if (sizeCheck==0) {
+                    if (readSomething==0) { DISPLAY("zstd: %s: unexpected end of file \n", srcFileName); fclose(srcFile); return 1; }  /* srcFileName is empty */
+                    break;   /* no more input */
+                }
+                readSomething = 1;   /* there is at least >= 4 bytes in srcFile */
+                if (sizeCheck != toRead) { DISPLAY("zstd: %s: unknown header \n", srcFileName); fclose(srcFile); return 1; }  /* srcFileName is empty */
                 if (!ZSTD_isFrame(ress.srcBuffer, toRead)) {
                     if ((g_overwrite) && !strcmp (srcFileName, stdinmark)) {  /* pass-through mode */
                         unsigned const result = FIO_passThrough(dstFile, srcFile, ress.srcBuffer, ress.srcBufferSize);

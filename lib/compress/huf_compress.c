@@ -88,13 +88,15 @@ typedef struct nodeElt_s {
 size_t HUF_writeCTable (void* dst, size_t maxDstSize,
                         const HUF_CElt* CTable, U32 maxSymbolValue, U32 huffLog)
 {
-    BYTE bitsToWeight[HUF_TABLELOG_MAX + 1];
+    BYTE bitsToWeight[HUF_TABLELOG_MAX + 1];   /* precomputed conversion table */
     BYTE huffWeight[HUF_SYMBOLVALUE_MAX];
     BYTE* op = (BYTE*)dst;
+#define MAX_FSE_TABLELOG_FOR_HUFF_HEADER 6
+    FSE_CTable scratchBuffer[FSE_WKSP_SIZE_U32(MAX_FSE_TABLELOG_FOR_HUFF_HEADER, HUF_TABLELOG_MAX)];
     U32 n;
 
      /* check conditions */
-    if (maxSymbolValue > HUF_SYMBOLVALUE_MAX) return ERROR(GENERIC);
+    if (maxSymbolValue > HUF_SYMBOLVALUE_MAX) return ERROR(maxSymbolValue_tooLarge);
 
     /* convert to weight */
     bitsToWeight[0] = 0;
@@ -103,23 +105,22 @@ size_t HUF_writeCTable (void* dst, size_t maxDstSize,
     for (n=0; n<maxSymbolValue; n++)
         huffWeight[n] = bitsToWeight[CTable[n].nbBits];
 
-    {   size_t const size = FSE_compress(op+1, maxDstSize-1, huffWeight, maxSymbolValue);
+    /* attempt weights compression by FSE */
+    {   size_t const size = FSE_compress_wksp(op+1, maxDstSize-1, huffWeight, maxSymbolValue, HUF_TABLELOG_MAX, MAX_FSE_TABLELOG_FOR_HUFF_HEADER, scratchBuffer, sizeof(scratchBuffer));
         if (FSE_isError(size)) return size;
         if ((size>1) & (size < maxSymbolValue/2)) {   /* FSE compressed */
             op[0] = (BYTE)size;
             return size+1;
-        }
-    }
+    }   }
 
     /* raw values */
-    if (maxSymbolValue > (256-128)) return ERROR(GENERIC);   /* should not happen */
+    if (maxSymbolValue > (256-128)) return ERROR(GENERIC);   /* should not happen : likely means source cannot be compressed */
     if (((maxSymbolValue+1)/2) + 1 > maxDstSize) return ERROR(dstSize_tooSmall);   /* not enough space within dst buffer */
     op[0] = (BYTE)(128 /*special case*/ + (maxSymbolValue-1));
     huffWeight[maxSymbolValue] = 0;   /* to be sure it doesn't cause issue in final combination */
     for (n=0; n<maxSymbolValue; n+=2)
         op[(n/2)+1] = (BYTE)((huffWeight[n] << 4) + huffWeight[n+1]);
     return ((maxSymbolValue+1)/2) + 1;
-
 }
 
 

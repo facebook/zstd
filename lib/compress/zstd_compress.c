@@ -566,6 +566,7 @@ size_t ZSTD_compressSequences(ZSTD_CCtx* zc,
     BYTE* op = ostart;
     size_t const nbSeq = seqStorePtr->sequences - seqStorePtr->sequencesStart;
     BYTE* seqHead;
+    BYTE scratchBuffer[1<<MAX(MLFSELog,LLFSELog)];
 
     /* Compress literals */
     {   const BYTE* const literals = seqStorePtr->litStart;
@@ -601,7 +602,7 @@ size_t ZSTD_compressSequences(ZSTD_CCtx* zc,
         } else if ((zc->flagStaticTables) && (nbSeq < MAX_SEQ_FOR_STATIC_FSE)) {
             LLtype = set_repeat;
         } else if ((nbSeq < MIN_SEQ_FOR_DYNAMIC_FSE) || (mostFrequent < (nbSeq >> (LL_defaultNormLog-1)))) {
-            FSE_buildCTable(CTable_LitLength, LL_defaultNorm, MaxLL, LL_defaultNormLog);
+            FSE_buildCTable_wksp(CTable_LitLength, LL_defaultNorm, MaxLL, LL_defaultNormLog, scratchBuffer, sizeof(scratchBuffer));
             LLtype = set_basic;
         } else {
             size_t nbSeq_1 = nbSeq;
@@ -611,7 +612,7 @@ size_t ZSTD_compressSequences(ZSTD_CCtx* zc,
             { size_t const NCountSize = FSE_writeNCount(op, oend-op, norm, max, tableLog);   /* overflow protected */
               if (FSE_isError(NCountSize)) return ERROR(GENERIC);
               op += NCountSize; }
-            FSE_buildCTable(CTable_LitLength, norm, max, tableLog);
+            FSE_buildCTable_wksp(CTable_LitLength, norm, max, tableLog, scratchBuffer, sizeof(scratchBuffer));
             LLtype = set_compressed;
     }   }
 
@@ -625,7 +626,7 @@ size_t ZSTD_compressSequences(ZSTD_CCtx* zc,
         } else if ((zc->flagStaticTables) && (nbSeq < MAX_SEQ_FOR_STATIC_FSE)) {
             Offtype = set_repeat;
         } else if ((nbSeq < MIN_SEQ_FOR_DYNAMIC_FSE) || (mostFrequent < (nbSeq >> (OF_defaultNormLog-1)))) {
-            FSE_buildCTable(CTable_OffsetBits, OF_defaultNorm, MaxOff, OF_defaultNormLog);
+            FSE_buildCTable_wksp(CTable_OffsetBits, OF_defaultNorm, MaxOff, OF_defaultNormLog, scratchBuffer, sizeof(scratchBuffer));
             Offtype = set_basic;
         } else {
             size_t nbSeq_1 = nbSeq;
@@ -635,7 +636,7 @@ size_t ZSTD_compressSequences(ZSTD_CCtx* zc,
             { size_t const NCountSize = FSE_writeNCount(op, oend-op, norm, max, tableLog);   /* overflow protected */
               if (FSE_isError(NCountSize)) return ERROR(GENERIC);
               op += NCountSize; }
-            FSE_buildCTable(CTable_OffsetBits, norm, max, tableLog);
+            FSE_buildCTable_wksp(CTable_OffsetBits, norm, max, tableLog, scratchBuffer, sizeof(scratchBuffer));
             Offtype = set_compressed;
     }   }
 
@@ -649,7 +650,7 @@ size_t ZSTD_compressSequences(ZSTD_CCtx* zc,
         } else if ((zc->flagStaticTables) && (nbSeq < MAX_SEQ_FOR_STATIC_FSE)) {
             MLtype = set_repeat;
         } else if ((nbSeq < MIN_SEQ_FOR_DYNAMIC_FSE) || (mostFrequent < (nbSeq >> (ML_defaultNormLog-1)))) {
-            FSE_buildCTable(CTable_MatchLength, ML_defaultNorm, MaxML, ML_defaultNormLog);
+            FSE_buildCTable_wksp(CTable_MatchLength, ML_defaultNorm, MaxML, ML_defaultNormLog, scratchBuffer, sizeof(scratchBuffer));
             MLtype = set_basic;
         } else {
             size_t nbSeq_1 = nbSeq;
@@ -659,7 +660,7 @@ size_t ZSTD_compressSequences(ZSTD_CCtx* zc,
             { size_t const NCountSize = FSE_writeNCount(op, oend-op, norm, max, tableLog);   /* overflow protected */
               if (FSE_isError(NCountSize)) return ERROR(GENERIC);
               op += NCountSize; }
-            FSE_buildCTable(CTable_MatchLength, norm, max, tableLog);
+            FSE_buildCTable_wksp(CTable_MatchLength, norm, max, tableLog, scratchBuffer, sizeof(scratchBuffer));
             MLtype = set_compressed;
     }   }
 

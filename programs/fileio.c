@@ -651,6 +651,30 @@ static unsigned FIO_passThrough(FILE* foutput, FILE* finput, void* buffer, size_
 }
 
 
+#ifdef ZSTD_GZDECOMPRESS
+static unsigned long long FIO_decompressGzFile(dRess_t ress, const char* srcFileName, gzFile gzSrcFile)
+{
+    unsigned long long filesize = 0;
+    int readBytes;
+    if (gzSrcFile == NULL) { DISPLAY("zstd: %s: gzopen error \n", srcFileName); return 0; }
+
+    do {
+        readBytes = gzread(gzSrcFile, ress.dstBuffer, ress.dstBufferSize);
+        if (readBytes < 0) { DISPLAY("zstd: %s: gzread error \n", srcFileName); return 0; }
+        if (readBytes > 0) { 
+            size_t const sizeCheck = fwrite(ress.dstBuffer, 1, readBytes, ress.dstFile);
+            if (sizeCheck != (size_t)readBytes) EXM_THROW(34, "Write error : cannot write to output file"); 
+        }
+        filesize += readBytes;
+    } while ((size_t)readBytes == ress.dstBufferSize);
+
+    if (gzclose(gzSrcFile) != Z_OK) { DISPLAY("zstd: %s: gzclose error \n", srcFileName); return 0; }
+    
+    return filesize;
+}
+#endif
+
+
 /** FIO_decompressSrcFile() :
     Decompression `srcFileName` into `ress.dstFile`
     @return : 0 : OK
@@ -679,23 +703,30 @@ static int FIO_decompressSrcFile(dRess_t ress, const char* srcFileName)
             /* check magic number -> version */
             size_t const toRead = 4;
             size_t const sizeCheck = fread(ress.srcBuffer, (size_t)1, toRead, srcFile);
+            const BYTE* buf = (const BYTE*)ress.srcBuffer;
             if (sizeCheck==0) {
                 if (readSomething==0) { DISPLAY("zstd: %s: unexpected end of file \n", srcFileName); fclose(srcFile); return 1; }  /* srcFileName is empty */
                 break;   /* no more input */
             }
             readSomething = 1;   /* there is at least >= 4 bytes in srcFile */
             if (sizeCheck != toRead) { DISPLAY("zstd: %s: unknown header \n", srcFileName); fclose(srcFile); return 1; }  /* srcFileName is empty */
-            if (!ZSTD_isFrame(ress.srcBuffer, toRead)) {
-                if ((g_overwrite) && !strcmp (srcFileName, stdinmark)) {  /* pass-through mode */
-                    unsigned const result = FIO_passThrough(dstFile, srcFile, ress.srcBuffer, ress.srcBufferSize);
-                    if (fclose(srcFile)) EXM_THROW(32, "zstd: %s close error", srcFileName);  /* error should never happen */
-                    return result;
-                } else {
-                    DISPLAYLEVEL(1, "zstd: %s: not in zstd format \n", srcFileName);
-                    fclose(srcFile);
-                    return 1;
-            }   }
-            filesize += FIO_decompressFrame(ress, dstFile, srcFile, toRead, filesize);
+            if (buf[0] == 31 && buf[1] == 139) { /* gz header */
+                unsigned long long result = FIO_decompressGzFile(ress, srcFileName, gzdopen(fileno(srcFile), "rb"));
+                if (result == 0) return 1;
+                filesize += result;
+            } else {
+                if (!ZSTD_isFrame(ress.srcBuffer, toRead)) {
+                    if ((g_overwrite) && !strcmp (srcFileName, stdinmark)) {  /* pass-through mode */
+                        unsigned const result = FIO_passThrough(dstFile, srcFile, ress.srcBuffer, ress.srcBufferSize);
+                        if (fclose(srcFile)) EXM_THROW(32, "zstd: %s close error", srcFileName);  /* error should never happen */
+                        return result;
+                    } else {
+                        DISPLAYLEVEL(1, "zstd: %s: not in zstd format \n", srcFileName);
+                        fclose(srcFile);
+                        return 1;
+                }   }
+                filesize += FIO_decompressFrame(ress, dstFile, srcFile, toRead, filesize);
+            }
         }
         /* Close file */
         if (fclose(srcFile)) EXM_THROW(33, "zstd: %s close error", srcFileName);  /* error should never happen */
@@ -704,21 +735,9 @@ static int FIO_decompressSrcFile(dRess_t ress, const char* srcFileName)
         DISPLAYLEVEL(1, "zstd: %s: gz file cannot be uncompressed (zstd compiled without ZSTD_GZDECOMPRESS) -- ignored \n", srcFileName);
         return 1;
 #else
-        int readBytes;
-        gzFile gzSrcFile = gzopen(srcFileName, "rb");
-        if (gzSrcFile == NULL) { DISPLAY("zstd: %s: gzopen error \n", srcFileName); return 1; }
-
-        do {
-            readBytes = gzread(gzSrcFile, ress.dstBuffer, ress.dstBufferSize);
-            if (readBytes < 0) { DISPLAY("zstd: %s: gzread error \n", srcFileName); return 1; }
-            if (readBytes > 0) { 
-                size_t const sizeCheck = fwrite(ress.dstBuffer, 1, readBytes, dstFile);
-                if (sizeCheck != (size_t)readBytes) EXM_THROW(34, "Write error : cannot write to output file"); 
-            }
-            filesize += readBytes;
-        } while ((size_t)readBytes == ress.dstBufferSize);
-
-        if (gzclose(gzSrcFile) != Z_OK) { DISPLAY("zstd: %s: gzclose error \n", srcFileName); return 1; }
+        unsigned long long result = FIO_decompressGzFile(ress, srcFileName, gzopen(srcFileName, "rb"));
+        if (result == 0) return 1;
+        filesize += result;
 #endif
     }
 

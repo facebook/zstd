@@ -56,8 +56,8 @@
 *  Error Management
 ****************************************************************/
 #define HUF_STATIC_ASSERT(c) { enum { HUF_static_assert = 1/(int)(!!(c)) }; }   /* use only *after* variable declarations */
-#define CHECK_E_F(e, f) size_t const e = f; if (ERR_isError(e)) return f
-#define CHECK_F(f)   { CHECK_E_F(_var_err__, f); }
+#define CHECK_V_F(e, f) size_t const e = f; if (ERR_isError(e)) return f
+#define CHECK_F(f)   { CHECK_V_F(_var_err__, f); }
 
 
 /* **************************************************************
@@ -97,7 +97,7 @@ size_t HUF_compressWeights (void* dst, size_t dstSize, const void* weightTable, 
     if (wtSize <= 1) return 0;  /* Not compressible */
 
     /* Scan input and build symbol stats */
-    {   CHECK_E_F(maxCount, FSE_count_simple(count, &maxSymbolValue, weightTable, wtSize) );
+    {   CHECK_V_F(maxCount, FSE_count_simple(count, &maxSymbolValue, weightTable, wtSize) );
         if (maxCount == wtSize) return 1;   /* only a single symbol in src : rle */
         if (maxCount == 1) return 0;         /* each symbol present maximum once => not compressible */
     }
@@ -106,13 +106,13 @@ size_t HUF_compressWeights (void* dst, size_t dstSize, const void* weightTable, 
     CHECK_F( FSE_normalizeCount(norm, tableLog, count, wtSize, maxSymbolValue) );
 
     /* Write table description header */
-    {   CHECK_E_F(hSize, FSE_writeNCount(op, oend-op, norm, maxSymbolValue, tableLog) );
+    {   CHECK_V_F(hSize, FSE_writeNCount(op, oend-op, norm, maxSymbolValue, tableLog) );
         op += hSize;
     }
 
     /* Compress */
     CHECK_F( FSE_buildCTable_wksp(CTable, norm, maxSymbolValue, tableLog, scratchBuffer, sizeof(scratchBuffer)) );
-    {   CHECK_E_F(cSize, FSE_compress_usingCTable(op, oend - op, weightTable, wtSize, CTable) );
+    {   CHECK_V_F(cSize, FSE_compress_usingCTable(op, oend - op, weightTable, wtSize, CTable) );
         if (cSize == 0) return 0;   /* not enough space for compressed data */
         op += cSize;
     }
@@ -148,7 +148,7 @@ size_t HUF_writeCTable (void* dst, size_t maxDstSize,
         huffWeight[n] = bitsToWeight[CTable[n].nbBits];
 
     /* attempt weights compression by FSE */
-    {   CHECK_E_F(hSize, HUF_compressWeights(op+1, maxDstSize-1, huffWeight, maxSymbolValue) );
+    {   CHECK_V_F(hSize, HUF_compressWeights(op+1, maxDstSize-1, huffWeight, maxSymbolValue) );
         if ((hSize>1) & (hSize < maxSymbolValue/2)) {   /* FSE compressed */
             op[0] = (BYTE)hSize;
             return hSize+1;
@@ -173,7 +173,7 @@ size_t HUF_readCTable (HUF_CElt* CTable, U32 maxSymbolValue, const void* src, si
     U32 nbSymbols = 0;
 
     /* get symbol weights */
-    CHECK_E_F(readSize, HUF_readStats(huffWeight, HUF_SYMBOLVALUE_MAX+1, rankVal, &nbSymbols, &tableLog, src, srcSize));
+    CHECK_V_F(readSize, HUF_readStats(huffWeight, HUF_SYMBOLVALUE_MAX+1, rankVal, &nbSymbols, &tableLog, src, srcSize));
 
     /* check result */
     if (tableLog > HUF_TABLELOG_MAX) return ERROR(tableLog_tooLarge);
@@ -424,8 +424,8 @@ size_t HUF_compress1X_usingCTable(void* dst, size_t dstSize, const void* src, si
 
     /* init */
     if (dstSize < 8) return 0;   /* not enough space to compress */
-    { size_t const errorCode = BIT_initCStream(&bitC, op, oend-op);
-      if (HUF_isError(errorCode)) return 0; }
+    { size_t const initErr = BIT_initCStream(&bitC, op, oend-op);
+      if (HUF_isError(initErr)) return 0; }
 
     n = srcSize & ~3;  /* join to mod 4 */
     switch (srcSize & 3)
@@ -468,28 +468,28 @@ size_t HUF_compress4X_usingCTable(void* dst, size_t dstSize, const void* src, si
     if (srcSize < 12) return 0;   /* no saving possible : too small input */
     op += 6;   /* jumpTable */
 
-    {   CHECK_E_F(cSize, HUF_compress1X_usingCTable(op, oend-op, ip, segmentSize, CTable) );
+    {   CHECK_V_F(cSize, HUF_compress1X_usingCTable(op, oend-op, ip, segmentSize, CTable) );
         if (cSize==0) return 0;
         MEM_writeLE16(ostart, (U16)cSize);
         op += cSize;
     }
 
     ip += segmentSize;
-    {   CHECK_E_F(cSize, HUF_compress1X_usingCTable(op, oend-op, ip, segmentSize, CTable) );
+    {   CHECK_V_F(cSize, HUF_compress1X_usingCTable(op, oend-op, ip, segmentSize, CTable) );
         if (cSize==0) return 0;
         MEM_writeLE16(ostart+2, (U16)cSize);
         op += cSize;
     }
 
     ip += segmentSize;
-    {   CHECK_E_F(cSize, HUF_compress1X_usingCTable(op, oend-op, ip, segmentSize, CTable) );
+    {   CHECK_V_F(cSize, HUF_compress1X_usingCTable(op, oend-op, ip, segmentSize, CTable) );
         if (cSize==0) return 0;
         MEM_writeLE16(ostart+4, (U16)cSize);
         op += cSize;
     }
 
     ip += segmentSize;
-    {   CHECK_E_F(cSize, HUF_compress1X_usingCTable(op, oend-op, ip, iend-ip, CTable) );
+    {   CHECK_V_F(cSize, HUF_compress1X_usingCTable(op, oend-op, ip, iend-ip, CTable) );
         if (cSize==0) return 0;
         op += cSize;
     }
@@ -523,19 +523,19 @@ static size_t HUF_compress_internal (
     if (!huffLog) huffLog = HUF_TABLELOG_DEFAULT;
 
     /* Scan input and build symbol stats */
-    {   CHECK_E_F(largest, FSE_count_wksp (table.count, &maxSymbolValue, (const BYTE*)src, srcSize, workSpace) );
+    {   CHECK_V_F(largest, FSE_count_wksp (table.count, &maxSymbolValue, (const BYTE*)src, srcSize, workSpace) );
         if (largest == srcSize) { *ostart = ((const BYTE*)src)[0]; return 1; }   /* single symbol, rle */
         if (largest <= (srcSize >> 7)+1) return 0;   /* Fast heuristic : not compressible enough */
     }
 
     /* Build Huffman Tree */
     huffLog = HUF_optimalTableLog(huffLog, srcSize, maxSymbolValue);
-    {   CHECK_E_F(maxBits, HUF_buildCTable (table.CTable, table.count, maxSymbolValue, huffLog) );
+    {   CHECK_V_F(maxBits, HUF_buildCTable (table.CTable, table.count, maxSymbolValue, huffLog) );
         huffLog = (U32)maxBits;
     }
 
     /* Write table description header */
-    {   CHECK_E_F(hSize, HUF_writeCTable (op, dstSize, table.CTable, maxSymbolValue, huffLog) );
+    {   CHECK_V_F(hSize, HUF_writeCTable (op, dstSize, table.CTable, maxSymbolValue, huffLog) );
         if (hSize + 12 >= srcSize) return 0;   /* not useful to try compression */
         op += hSize;
     }

@@ -1,0 +1,128 @@
+common/fse_decompress.c:321:8: warning: stack frame size of 16984 bytes in function 'FSE_decompress' [-Wframe-larger-than=]
+size_t FSE_decompress(void* dst, size_t dstCapacity, const void* cSrc, size_t cSrcSize)
+       ^
+1 warning generated.
+compress/fse_compress.c:185:8: warning: stack frame size of 4120 bytes in function 'FSE_buildCTable' [-Wframe-larger-than=]
+size_t FSE_buildCTable(FSE_CTable* ct, const short* normalizedCounter, unsigned maxSymbolValue, unsigned tableLog)
+       ^
+compress/fse_compress.c:423:8: warning: stack frame size of 4152 bytes in function 'FSE_countFast' [-Wframe-larger-than=]
+size_t FSE_countFast(unsigned* count, unsigned* maxSymbolValuePtr,
+       ^
+compress/fse_compress.c:442:8: warning: stack frame size of 4120 bytes in function 'FSE_count' [-Wframe-larger-than=]
+size_t FSE_count(unsigned* count, unsigned* maxSymbolValuePtr,
+       ^
+compress/fse_compress.c:784:8: warning: stack frame size of 5752 bytes in function 'FSE_compress_wksp' [-Wframe-larger-than=]
+size_t FSE_compress_wksp (void* dst, size_t dstSize, const void* src, size_t srcSize, unsigned maxSymbolValue, unsigned tableLog, void* workSpace, size_t wkspSize)
+       ^
+compress/fse_compress.c:836:8: warning: stack frame size of 14392 bytes in function 'FSE_compress2' [-Wframe-larger-than=]
+size_t FSE_compress2 (void* dst, size_t dstCapacity, const void* src, size_t srcSize, unsigned maxSymbolValue, unsigned tableLog)
+       ^
+compress/fse_compress.c:844:8: warning: stack frame size of 14392 bytes in function 'FSE_compress' [-Wframe-larger-than=]
+size_t FSE_compress (void* dst, size_t dstCapacity, const void* src, size_t srcSize)
+       ^
+6 warnings generated.
+compress/huf_compress.c:332:8: warning: stack frame size of 4472 bytes in function 'HUF_buildCTable' [-Wframe-larger-than=]
+size_t HUF_buildCTable (HUF_CElt* tree, const U32* count, U32 maxSymbolValue, U32 maxNbBits)
+       ^
+compress/huf_compress.c:567:8: warning: stack frame size of 4136 bytes in function 'HUF_compress1X' [-Wframe-larger-than=]
+size_t HUF_compress1X (void* dst, size_t dstSize,
+       ^
+compress/huf_compress.c:582:8: warning: stack frame size of 4136 bytes in function 'HUF_compress2' [-Wframe-larger-than=]
+size_t HUF_compress2 (void* dst, size_t dstSize,
+       ^
+compress/huf_compress.c:590:8: warning: stack frame size of 4136 bytes in function 'HUF_compress' [-Wframe-larger-than=]
+size_t HUF_compress (void* dst, size_t maxDstSize, const void* src, size_t srcSize)
+       ^
+4 warnings generated.
+compress/zstd_compress.c:2711:8: warning: stack frame size of 8168 bytes in function 'ZSTD_compress' [-Wframe-larger-than=]
+size_t ZSTD_compress(void* dst, size_t dstCapacity, const void* src, size_t srcSize, int compressionLevel)
+       ^
+1 warning generated.
+decompress/huf_decompress.c:224:8: warning: stack frame size of 8264 bytes in function 'HUF_decompress1X2' [-Wframe-larger-than=]
+size_t HUF_decompress1X2 (void* dst, size_t dstSize, const void* cSrc, size_t cSrcSize)
+       ^
+decompress/huf_decompress.c:347:8: warning: stack frame size of 8280 bytes in function 'HUF_decompress4X2' [-Wframe-larger-than=]
+size_t HUF_decompress4X2 (void* dst, size_t dstSize, const void* cSrc, size_t cSrcSize)
+       ^
+decompress/huf_decompress.c:445:8: warning: stack frame size of 2408 bytes in function 'HUF_readDTableX4' [-Wframe-larger-than=]
+size_t HUF_readDTableX4 (HUF_DTable* DTable, const void* src, size_t srcSize)
+       ^
+decompress/huf_decompress.c:636:8: warning: stack frame size of 16456 bytes in function 'HUF_decompress1X4' [-Wframe-larger-than=]
+size_t HUF_decompress1X4 (void* dst, size_t dstSize, const void* cSrc, size_t cSrcSize)
+       ^
+decompress/huf_decompress.c:758:8: warning: stack frame size of 16472 bytes in function 'HUF_decompress4X4' [-Wframe-larger-than=]
+size_t HUF_decompress4X4 (void* dst, size_t dstSize, const void* cSrc, size_t cSrcSize)
+       ^
+5 warnings generated.
+dictBuilder/divsufsort.c:1441:1: warning: stack frame size of 2472 bytes in function 'sort_typeBstar' [-Wframe-larger-than=]
+sort_typeBstar(const unsigned char *T, int *SA,
+^
+1 warning generated.
+dictBuilder/zdict.c:828:8: warning: stack frame size of 7176 bytes in function 'ZDICT_addEntropyTablesFromBuffer_advanced' [-Wframe-larger-than=]
+size_t ZDICT_addEntropyTablesFromBuffer_advanced(void* dictBuffer, size_t dictContentSize, size_t dictBufferCapacity,
+       ^
+1 warning generated.
+common/fse_decompress.c:321:8: warning: stack frame size of 16984 bytes in function 'FSE_decompress' [-Wframe-larger-than=]
+size_t FSE_decompress(void* dst, size_t dstCapacity, const void* cSrc, size_t cSrcSize)
+       ^
+1 warning generated.
+compress/fse_compress.c:185:8: warning: stack frame size of 4120 bytes in function 'FSE_buildCTable' [-Wframe-larger-than=]
+size_t FSE_buildCTable(FSE_CTable* ct, const short* normalizedCounter, unsigned maxSymbolValue, unsigned tableLog)
+       ^
+compress/fse_compress.c:423:8: warning: stack frame size of 4152 bytes in function 'FSE_countFast' [-Wframe-larger-than=]
+size_t FSE_countFast(unsigned* count, unsigned* maxSymbolValuePtr,
+       ^
+compress/fse_compress.c:442:8: warning: stack frame size of 4120 bytes in function 'FSE_count' [-Wframe-larger-than=]
+size_t FSE_count(unsigned* count, unsigned* maxSymbolValuePtr,
+       ^
+compress/fse_compress.c:784:8: warning: stack frame size of 5752 bytes in function 'FSE_compress_wksp' [-Wframe-larger-than=]
+size_t FSE_compress_wksp (void* dst, size_t dstSize, const void* src, size_t srcSize, unsigned maxSymbolValue, unsigned tableLog, void* workSpace, size_t wkspSize)
+       ^
+compress/fse_compress.c:836:8: warning: stack frame size of 14392 bytes in function 'FSE_compress2' [-Wframe-larger-than=]
+size_t FSE_compress2 (void* dst, size_t dstCapacity, const void* src, size_t srcSize, unsigned maxSymbolValue, unsigned tableLog)
+       ^
+compress/fse_compress.c:844:8: warning: stack frame size of 14392 bytes in function 'FSE_compress' [-Wframe-larger-than=]
+size_t FSE_compress (void* dst, size_t dstCapacity, const void* src, size_t srcSize)
+       ^
+6 warnings generated.
+compress/huf_compress.c:332:8: warning: stack frame size of 4472 bytes in function 'HUF_buildCTable' [-Wframe-larger-than=]
+size_t HUF_buildCTable (HUF_CElt* tree, const U32* count, U32 maxSymbolValue, U32 maxNbBits)
+       ^
+compress/huf_compress.c:567:8: warning: stack frame size of 4136 bytes in function 'HUF_compress1X' [-Wframe-larger-than=]
+size_t HUF_compress1X (void* dst, size_t dstSize,
+       ^
+compress/huf_compress.c:582:8: warning: stack frame size of 4136 bytes in function 'HUF_compress2' [-Wframe-larger-than=]
+size_t HUF_compress2 (void* dst, size_t dstSize,
+       ^
+compress/huf_compress.c:590:8: warning: stack frame size of 4136 bytes in function 'HUF_compress' [-Wframe-larger-than=]
+size_t HUF_compress (void* dst, size_t maxDstSize, const void* src, size_t srcSize)
+       ^
+4 warnings generated.
+compress/zstd_compress.c:2711:8: warning: stack frame size of 8168 bytes in function 'ZSTD_compress' [-Wframe-larger-than=]
+size_t ZSTD_compress(void* dst, size_t dstCapacity, const void* src, size_t srcSize, int compressionLevel)
+       ^
+1 warning generated.
+decompress/huf_decompress.c:224:8: warning: stack frame size of 8264 bytes in function 'HUF_decompress1X2' [-Wframe-larger-than=]
+size_t HUF_decompress1X2 (void* dst, size_t dstSize, const void* cSrc, size_t cSrcSize)
+       ^
+decompress/huf_decompress.c:347:8: warning: stack frame size of 8280 bytes in function 'HUF_decompress4X2' [-Wframe-larger-than=]
+size_t HUF_decompress4X2 (void* dst, size_t dstSize, const void* cSrc, size_t cSrcSize)
+       ^
+decompress/huf_decompress.c:445:8: warning: stack frame size of 2408 bytes in function 'HUF_readDTableX4' [-Wframe-larger-than=]
+size_t HUF_readDTableX4 (HUF_DTable* DTable, const void* src, size_t srcSize)
+       ^
+decompress/huf_decompress.c:636:8: warning: stack frame size of 16456 bytes in function 'HUF_decompress1X4' [-Wframe-larger-than=]
+size_t HUF_decompress1X4 (void* dst, size_t dstSize, const void* cSrc, size_t cSrcSize)
+       ^
+decompress/huf_decompress.c:758:8: warning: stack frame size of 16472 bytes in function 'HUF_decompress4X4' [-Wframe-larger-than=]
+size_t HUF_decompress4X4 (void* dst, size_t dstSize, const void* cSrc, size_t cSrcSize)
+       ^
+5 warnings generated.
+dictBuilder/divsufsort.c:1441:1: warning: stack frame size of 2472 bytes in function 'sort_typeBstar' [-Wframe-larger-than=]
+sort_typeBstar(const unsigned char *T, int *SA,
+^
+1 warning generated.
+dictBuilder/zdict.c:828:8: warning: stack frame size of 7176 bytes in function 'ZDICT_addEntropyTablesFromBuffer_advanced' [-Wframe-larger-than=]
+size_t ZDICT_addEntropyTablesFromBuffer_advanced(void* dictBuffer, size_t dictContentSize, size_t dictBufferCapacity,
+       ^
+1 warning generated.

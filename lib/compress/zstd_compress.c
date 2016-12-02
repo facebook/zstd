@@ -82,6 +82,7 @@ struct ZSTD_CCtx_s
     FSE_CTable offcodeCTable  [FSE_CTABLE_SIZE_U32(OffFSELog, MaxOff)];
     FSE_CTable matchlengthCTable[FSE_CTABLE_SIZE_U32(MLFSELog, MaxML)];
     FSE_CTable litlengthCTable  [FSE_CTABLE_SIZE_U32(LLFSELog, MaxLL)];
+    unsigned tmpCounters[1024];
 };
 
 ZSTD_CCtx* ZSTD_createCCtx(void)
@@ -470,8 +471,8 @@ static size_t ZSTD_compressLiterals (ZSTD_CCtx* zc,
         singleStream = 1;
         cLitSize = HUF_compress1X_usingCTable(ostart+lhSize, dstCapacity-lhSize, src, srcSize, zc->hufTable);
     } else {
-        cLitSize = singleStream ? HUF_compress1X(ostart+lhSize, dstCapacity-lhSize, src, srcSize, 255, 11)
-                                : HUF_compress2 (ostart+lhSize, dstCapacity-lhSize, src, srcSize, 255, 11);
+        cLitSize = singleStream ? HUF_compress1X_wksp(ostart+lhSize, dstCapacity-lhSize, src, srcSize, 255, 11, zc->tmpCounters)
+                                : HUF_compress4X_wksp(ostart+lhSize, dstCapacity-lhSize, src, srcSize, 255, 11, zc->tmpCounters);
     }
 
     if ((cLitSize==0) | (cLitSize >= srcSize - minGain))
@@ -594,7 +595,7 @@ size_t ZSTD_compressSequences(ZSTD_CCtx* zc,
 
     /* CTable for Literal Lengths */
     {   U32 max = MaxLL;
-        size_t const mostFrequent = FSE_countFast(count, &max, llCodeTable, nbSeq);
+        size_t const mostFrequent = FSE_countFast_wksp(count, &max, llCodeTable, nbSeq, zc->tmpCounters);
         if ((mostFrequent == nbSeq) && (nbSeq > 2)) {
             *op++ = llCodeTable[0];
             FSE_buildCTable_rle(CTable_LitLength, (BYTE)max);
@@ -618,7 +619,7 @@ size_t ZSTD_compressSequences(ZSTD_CCtx* zc,
 
     /* CTable for Offsets */
     {   U32 max = MaxOff;
-        size_t const mostFrequent = FSE_countFast(count, &max, ofCodeTable, nbSeq);
+        size_t const mostFrequent = FSE_countFast_wksp(count, &max, ofCodeTable, nbSeq, zc->tmpCounters);
         if ((mostFrequent == nbSeq) && (nbSeq > 2)) {
             *op++ = ofCodeTable[0];
             FSE_buildCTable_rle(CTable_OffsetBits, (BYTE)max);
@@ -642,7 +643,7 @@ size_t ZSTD_compressSequences(ZSTD_CCtx* zc,
 
     /* CTable for MatchLengths */
     {   U32 max = MaxML;
-        size_t const mostFrequent = FSE_countFast(count, &max, mlCodeTable, nbSeq);
+        size_t const mostFrequent = FSE_countFast_wksp(count, &max, mlCodeTable, nbSeq, zc->tmpCounters);
         if ((mostFrequent == nbSeq) && (nbSeq > 2)) {
             *op++ = *mlCodeTable;
             FSE_buildCTable_rle(CTable_MatchLength, (BYTE)max);

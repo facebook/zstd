@@ -62,19 +62,19 @@ size_t HUF_compress(void* dst, size_t dstCapacity,
 HUF_decompress() :
     Decompress HUF data from buffer 'cSrc', of size 'cSrcSize',
     into already allocated buffer 'dst', of minimum size 'dstSize'.
-    `dstSize` : **must** be the ***exact*** size of original (uncompressed) data.
+    `originalSize` : **must** be the ***exact*** size of original (uncompressed) data.
     Note : in contrast with FSE, HUF_decompress can regenerate
            RLE (cSrcSize==1) and uncompressed (cSrcSize==dstSize) data,
            because it knows size to regenerate.
-    @return : size of regenerated data (== dstSize),
+    @return : size of regenerated data (== originalSize),
               or an error code, which can be tested using HUF_isError()
 */
-size_t HUF_decompress(void* dst,  size_t dstSize,
+size_t HUF_decompress(void* dst,  size_t originalSize,
                 const void* cSrc, size_t cSrcSize);
 
 
 /* ***   Tool functions *** */
-#define HUF_BLOCKSIZE_MAX (128 * 1024)
+#define HUF_BLOCKSIZE_MAX (128 * 1024)       /*< maximum input size for a single block compressed with HUF_compress */
 size_t HUF_compressBound(size_t size);       /**< maximum compressed size (worst case) */
 
 /* Error Management */
@@ -85,7 +85,8 @@ const char* HUF_getErrorName(size_t code);   /**< provides error code string (us
 /* ***   Advanced function   *** */
 
 /** HUF_compress2() :
-*   Same as HUF_compress(), but offers direct control over `maxSymbolValue` and `tableLog` */
+ *   Same as HUF_compress(), but offers direct control over `maxSymbolValue` and `tableLog` .
+ *   `tableLog` must be `<= HUF_TABLELOG_MAX` . */
 size_t HUF_compress2 (void* dst, size_t dstSize, const void* src, size_t srcSize, unsigned maxSymbolValue, unsigned tableLog);
 
 /** HUF_compress4X_wksp() :
@@ -101,7 +102,7 @@ size_t HUF_compress4X_wksp (void* dst, size_t dstSize, const void* src, size_t s
 
 
 /* *** Constants *** */
-#define HUF_TABLELOG_ABSOLUTEMAX  16   /* absolute limit of HUF_MAX_TABLELOG. Beyond that value, code does not work */
+#define HUF_TABLELOG_ABSOLUTEMAX  15   /* absolute limit of HUF_MAX_TABLELOG. Beyond that value, code does not work */
 #define HUF_TABLELOG_MAX  12           /* max configured tableLog (for static allocation); can be modified up to HUF_ABSOLUTEMAX_TABLELOG */
 #define HUF_TABLELOG_DEFAULT  11       /* tableLog by default, when not specified */
 #define HUF_SYMBOLVALUE_MAX 255
@@ -128,9 +129,9 @@ size_t HUF_compress4X_wksp (void* dst, size_t dstSize, const void* src, size_t s
 typedef U32 HUF_DTable;
 #define HUF_DTABLE_SIZE(maxTableLog)   (1 + (1<<(maxTableLog)))
 #define HUF_CREATE_STATIC_DTABLEX2(DTable, maxTableLog) \
-        HUF_DTable DTable[HUF_DTABLE_SIZE((maxTableLog)-1)] = { ((U32)((maxTableLog)-1)*0x1000001) }
+        HUF_DTable DTable[HUF_DTABLE_SIZE((maxTableLog)-1)] = { ((U32)((maxTableLog)-1) * 0x01000001) }
 #define HUF_CREATE_STATIC_DTABLEX4(DTable, maxTableLog) \
-        HUF_DTable DTable[HUF_DTABLE_SIZE(maxTableLog)] = { ((U32)(maxTableLog)*0x1000001) }
+        HUF_DTable DTable[HUF_DTABLE_SIZE(maxTableLog)] = { ((U32)(maxTableLog) * 0x01000001) }
 
 
 /* ****************************************

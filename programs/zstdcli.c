@@ -191,10 +191,15 @@ static unsigned readU32FromChar(const char** stringPtr)
     return result;
 }
 
+/** longCommandWArg() :
+ *  check is *stringPtr is the same as longCommand.
+ *  If yes, @return 1 and advances *stringPtr to the position which immediately follows longCommand.
+ *  @return 0 and doesn't modify *stringPtr otherwise.
+ */
 static unsigned longCommandWArg(const char** stringPtr, const char* longCommand)
 {
     size_t const comSize = strlen(longCommand);
-    unsigned const result = !strncmp(*stringPtr, longCommand, comSize);
+    int const result = !strncmp(*stringPtr, longCommand, comSize);
     if (result) *stringPtr += comSize;
     return result;
 }
@@ -213,7 +218,7 @@ int main(int argCount, const char* argv[])
         nextArgumentIsOutFileName=0,
         nextArgumentIsMaxDict=0,
         nextArgumentIsDictID=0,
-        nextArgumentIsFile=0,
+        nextArgumentsAreFiles=0,
         ultra=0,
         lastCommand = 0;
     zstd_operation_mode operation = zom_compress;
@@ -252,45 +257,15 @@ int main(int argCount, const char* argv[])
 
     /* preset behaviors */
     if (!strcmp(programName, ZSTD_UNZSTD)) operation=zom_decompress;
-    if (!strcmp(programName, ZSTD_CAT)) { operation=zom_decompress; forceStdout=1; displayLevel=1; outFileName=stdoutmark; }
+    if (!strcmp(programName, ZSTD_CAT)) { operation=zom_decompress; forceStdout=1; FIO_overwriteMode(); outFileName=stdoutmark; displayLevel=1; }
 
     /* command switches */
     for (argNb=1; argNb<argCount; argNb++) {
         const char* argument = argv[argNb];
         if(!argument) continue;   /* Protection if argument empty */
 
-        if (nextArgumentIsFile==0) {
-
-            /* long commands (--long-word) */
-            if (!strcmp(argument, "--")) { nextArgumentIsFile=1; continue; }   /* only file names allowed from now on */
-            if (!strcmp(argument, "--compress")) { operation=zom_compress; continue; }
-            if (!strcmp(argument, "--decompress")) { operation=zom_decompress; continue; }
-            if (!strcmp(argument, "--uncompress")) { operation=zom_decompress; continue; }
-            if (!strcmp(argument, "--force")) { FIO_overwriteMode(); continue; }
-            if (!strcmp(argument, "--version")) { displayOut=stdout; DISPLAY(WELCOME_MESSAGE); CLEAN_RETURN(0); }
-            if (!strcmp(argument, "--help")) { displayOut=stdout; CLEAN_RETURN(usage_advanced(programName)); }
-            if (!strcmp(argument, "--verbose")) { displayLevel++; continue; }
-            if (!strcmp(argument, "--quiet")) { displayLevel--; continue; }
-            if (!strcmp(argument, "--stdout")) { forceStdout=1; outFileName=stdoutmark; displayLevel-=(displayLevel==2); continue; }
-            if (!strcmp(argument, "--ultra")) { ultra=1; continue; }
-            if (!strcmp(argument, "--check")) { FIO_setChecksumFlag(2); continue; }
-            if (!strcmp(argument, "--no-check")) { FIO_setChecksumFlag(0); continue; }
-            if (!strcmp(argument, "--no-dictID")) { FIO_setDictIDFlag(0); continue; }
-            if (!strcmp(argument, "--sparse")) { FIO_setSparseWrite(2); continue; }
-            if (!strcmp(argument, "--no-sparse")) { FIO_setSparseWrite(0); continue; }
-            if (!strcmp(argument, "--test")) { operation=zom_test; continue; }
-            if (!strcmp(argument, "--train")) { operation=zom_train; outFileName=g_defaultDictName; continue; }
-            if (!strcmp(argument, "--maxdict")) { nextArgumentIsMaxDict=1; lastCommand=1; continue; }
-            if (!strcmp(argument, "--dictID")) { nextArgumentIsDictID=1; lastCommand=1; continue; }
-            if (!strcmp(argument, "--keep")) { FIO_setRemoveSrcFile(0); continue; }
-            if (!strcmp(argument, "--rm")) { FIO_setRemoveSrcFile(1); continue; }
-
-            /* long commands with arguments */
-            if (longCommandWArg(&argument, "--memlimit=")) { memLimit = readU32FromChar(&argument); continue; }
-            if (longCommandWArg(&argument, "--memory=")) { memLimit = readU32FromChar(&argument); continue; }
-            if (longCommandWArg(&argument, "--memlimit-decompress=")) { memLimit = readU32FromChar(&argument); continue; }
-
-            /* '-' means stdin/stdout */
+        if (nextArgumentsAreFiles==0) {
+            /* "-" means stdin/stdout */
             if (!strcmp(argument, "-")){
                 if (!filenameIdx) {
                     filenameIdx=1, filenameTable[0]=stdinmark;
@@ -301,8 +276,40 @@ int main(int argCount, const char* argv[])
 
             /* Decode commands (note : aggregated commands are allowed) */
             if (argument[0]=='-') {
-                argument++;
 
+                if (argument[1]=='-') {
+                    /* long commands (--long-word) */
+                    if (!strcmp(argument, "--")) { nextArgumentsAreFiles=1; continue; }   /* only file names allowed from now on */
+                    if (!strcmp(argument, "--compress")) { operation=zom_compress; continue; }
+                    if (!strcmp(argument, "--decompress")) { operation=zom_decompress; continue; }
+                    if (!strcmp(argument, "--uncompress")) { operation=zom_decompress; continue; }
+                    if (!strcmp(argument, "--force")) { FIO_overwriteMode(); continue; }
+                    if (!strcmp(argument, "--version")) { displayOut=stdout; DISPLAY(WELCOME_MESSAGE); CLEAN_RETURN(0); }
+                    if (!strcmp(argument, "--help")) { displayOut=stdout; CLEAN_RETURN(usage_advanced(programName)); }
+                    if (!strcmp(argument, "--verbose")) { displayLevel++; continue; }
+                    if (!strcmp(argument, "--quiet")) { displayLevel--; continue; }
+                    if (!strcmp(argument, "--stdout")) { forceStdout=1; outFileName=stdoutmark; displayLevel-=(displayLevel==2); continue; }
+                    if (!strcmp(argument, "--ultra")) { ultra=1; continue; }
+                    if (!strcmp(argument, "--check")) { FIO_setChecksumFlag(2); continue; }
+                    if (!strcmp(argument, "--no-check")) { FIO_setChecksumFlag(0); continue; }
+                    if (!strcmp(argument, "--sparse")) { FIO_setSparseWrite(2); continue; }
+                    if (!strcmp(argument, "--no-sparse")) { FIO_setSparseWrite(0); continue; }
+                    if (!strcmp(argument, "--test")) { operation=zom_test; continue; }
+                    if (!strcmp(argument, "--train")) { operation=zom_train; outFileName=g_defaultDictName; continue; }
+                    if (!strcmp(argument, "--maxdict")) { nextArgumentIsMaxDict=1; lastCommand=1; continue; }
+                    if (!strcmp(argument, "--dictID")) { nextArgumentIsDictID=1; lastCommand=1; continue; }
+                    if (!strcmp(argument, "--no-dictID")) { FIO_setDictIDFlag(0); continue; }
+                    if (!strcmp(argument, "--keep")) { FIO_setRemoveSrcFile(0); continue; }
+                    if (!strcmp(argument, "--rm")) { FIO_setRemoveSrcFile(1); continue; }
+
+                    /* long commands with arguments */
+                    if (longCommandWArg(&argument, "--memlimit=")) { memLimit = readU32FromChar(&argument); continue; }
+                    if (longCommandWArg(&argument, "--memory=")) { memLimit = readU32FromChar(&argument); continue; }
+                    if (longCommandWArg(&argument, "--memlimit-decompress=")) { memLimit = readU32FromChar(&argument); continue; }
+                    /* fall-through, will trigger bad_usage() later on */
+                }
+
+                argument++;
                 while (argument[0]!=0) {
                     if (lastCommand) {
                         DISPLAY("error : command must be followed by argument \n");

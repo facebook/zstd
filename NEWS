@@ -1,7 +1,9 @@
 v1.1.2
 Improved : faster decompression speed at ultra compression settings and in 32-bits mode
-cli : new : preserve file attributes, by Przemyslaw Skibinski
+cli : new : gzstd, experimental version able to decode .gz files, by Przemyslaw Skibinski
+cli : new : preserve file attributes
 cli : fixed : status displays total amount decoded, even for file consisting of multiple frames (like pzstd)
+cli : fixed : zstdcat
 API : changed : zbuff prototypes now generate deprecation warnings
 Changed : reduced stack memory use
 

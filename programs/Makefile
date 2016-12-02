@@ -153,9 +153,10 @@ ifneq (,$(filter $(shell uname),Linux Darwin GNU/kFreeBSD GNU OpenBSD FreeBSD Dr
 install: zstd
 	@echo Installing binaries
 	@install -d -m 755 $(DESTDIR)$(BINDIR)/ $(DESTDIR)$(MANDIR)/
-	@install -m 755 zstd$(EXT) $(DESTDIR)$(BINDIR)/zstd$(EXT)
-	@ln -sf zstd$(EXT) $(DESTDIR)$(BINDIR)/zstdcat
-	@ln -sf zstd$(EXT) $(DESTDIR)$(BINDIR)/unzstd
+	@install -m 755 zstd $(DESTDIR)$(BINDIR)/zstd
+	@ln -sf zstd $(DESTDIR)$(BINDIR)/zstdcat
+	@ln -sf zstd $(DESTDIR)$(BINDIR)/unzstd
+	@install -m 755 zstdless $(DESTDIR)$(BINDIR)/zstdless
 	@echo Installing man pages
 	@install -m 644 zstd.1 $(DESTDIR)$(MANDIR)/zstd.1
 	@ln -sf zstd.1 $(DESTDIR)$(MANDIR)/zstdcat.1
@@ -165,7 +166,7 @@ install: zstd
 uninstall:
 	@$(RM) $(DESTDIR)$(BINDIR)/zstdcat
 	@$(RM) $(DESTDIR)$(BINDIR)/unzstd
-	@$(RM) $(DESTDIR)$(BINDIR)/zstd$(EXT)
+	@$(RM) $(DESTDIR)$(BINDIR)/zstd
 	@$(RM) $(DESTDIR)$(MANDIR)/zstdcat.1
 	@$(RM) $(DESTDIR)$(MANDIR)/unzstd.1
 	@$(RM) $(DESTDIR)$(MANDIR)/zstd.1

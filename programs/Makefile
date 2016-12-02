@@ -27,13 +27,13 @@ else
 ALIGN_LOOP =
 endif
 
-CPPFLAGS= -I$(ZSTDDIR) -I$(ZSTDDIR)/common -I$(ZSTDDIR)/dictBuilder
-CFLAGS ?= -O3
-CFLAGS += -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow -Wstrict-aliasing=1 \
+CPPFLAGS+= -I$(ZSTDDIR) -I$(ZSTDDIR)/common -I$(ZSTDDIR)/dictBuilder
+CFLAGS  ?= -O3
+CFLAGS  += -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow -Wstrict-aliasing=1 \
           -Wswitch-enum -Wdeclaration-after-statement -Wstrict-prototypes -Wundef \
           -Wpointer-arith
-CFLAGS += $(MOREFLAGS)
-FLAGS   = $(CPPFLAGS) $(CFLAGS) $(LDFLAGS)
+CFLAGS  += $(MOREFLAGS)
+FLAGS    = $(CPPFLAGS) $(CFLAGS) $(LDFLAGS)
 
 
 ZSTDCOMMON_FILES := $(ZSTDDIR)/common/*.c
@@ -82,7 +82,7 @@ zstd  : $(ZSTDDECOMP_O) $(ZSTD_FILES) $(ZSTDLEGACY_FILES) $(ZDICT_FILES) \
 ifneq (,$(filter Windows%,$(OS)))
 	windres\generate_res.bat
 endif
-	$(CC)      $(FLAGS) $^ $(RES_FILE) -o $@$(EXT) $(LDFLAGS)
+	$(CC) $(FLAGS) $^ $(RES_FILE) -o $@$(EXT) $(LDFLAGS)
 
 
 zstd32 : CPPFLAGS += -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT)
@@ -91,7 +91,7 @@ zstd32 : $(ZSTDDIR)/decompress/zstd_decompress.c $(ZSTD_FILES) $(ZSTDLEGACY_FILE
 ifneq (,$(filter Windows%,$(OS)))
 	windres\generate_res.bat
 endif
-	$(CC)  -m32 $(FLAGS) $^ $(RES32_FILE) -o $@$(EXT)
+	$(CC) -m32 $(FLAGS) $^ $(RES32_FILE) -o $@$(EXT)
 
 
 zstd-nolegacy : clean_decomp_o
@@ -110,23 +110,23 @@ zstd-pgo : clean zstd
 	$(MAKE) zstd MOREFLAGS=-fprofile-use
 
 zstd-frugal: $(ZSTDDECOMP_O) $(ZSTD_FILES) zstdcli.c fileio.c
-	$(CC)      $(FLAGS) -DZSTD_NOBENCH -DZSTD_NODICT $^ -o zstd$(EXT)
+	$(CC) $(FLAGS) -DZSTD_NOBENCH -DZSTD_NODICT $^ -o zstd$(EXT)
 
 zstd-small: clean_decomp_o
 	ZSTD_LEGACY_SUPPORT=0 CFLAGS="-Os -s" $(MAKE) zstd-frugal
 
 zstd-decompress-clean: $(ZSTDDECOMP_O) $(ZSTDCOMMON_FILES) $(ZSTDDECOMP_FILES) zstdcli.c fileio.c
-	$(CC)      $(FLAGS) -DZSTD_NOBENCH -DZSTD_NODICT -DZSTD_NOCOMPRESS $^ -o zstd-decompress$(EXT)
+	$(CC) $(FLAGS) -DZSTD_NOBENCH -DZSTD_NODICT -DZSTD_NOCOMPRESS $^ -o zstd-decompress$(EXT)
 
 zstd-decompress: clean_decomp_o
 	ZSTD_LEGACY_SUPPORT=0 $(MAKE) zstd-decompress-clean
 
 zstd-compress: $(ZSTDCOMMON_FILES) $(ZSTDCOMP_FILES) zstdcli.c fileio.c
-	$(CC)      $(FLAGS) -DZSTD_NOBENCH -DZSTD_NODICT -DZSTD_NODECOMPRESS $^ -o $@$(EXT)
+	$(CC) $(FLAGS) -DZSTD_NOBENCH -DZSTD_NODICT -DZSTD_NODECOMPRESS $^ -o $@$(EXT)
 
 gzstd: clean_decomp_o
 ifeq ($(shell ld -lz 2>/dev/null && echo -n true),true)
-	$(MAKE) zstd MOREFLAGS=-DZSTD_GZDECOMPRESS LDFLAGS="-lz" 
+	CPPFLAGS=-DZSTD_GZDECOMPRESS LDFLAGS="-lz" $(MAKE) zstd
 else
 	$(MAKE) zstd
 endif

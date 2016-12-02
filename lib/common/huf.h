@@ -74,7 +74,7 @@ size_t HUF_decompress(void* dst,  size_t originalSize,
 
 
 /* ***   Tool functions *** */
-#define HUF_BLOCKSIZE_MAX (128 * 1024)       /*< maximum input size for a single block compressed with HUF_compress */
+#define HUF_BLOCKSIZE_MAX (128 * 1024)       /**< maximum input size for a single block compressed with HUF_compress */
 size_t HUF_compressBound(size_t size);       /**< maximum compressed size (worst case) */
 
 /* Error Management */

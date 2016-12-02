@@ -733,11 +733,10 @@ static int FIO_decompressSrcFile(dRess_t ress, const char* srcFileName)
             if (buf[0] == 31 && buf[1] == 139) { /* gz header */
 #ifdef ZSTD_GZDECOMPRESS
                 size_t const result = FIO_decompressGzFile(ress, toRead, srcFileName, srcFile);
-                printf("result=%d\n", (int)result);
                 if (result == 0) return 1;
                 filesize += result;
 #else
-                DISPLAYLEVEL(1, "zstd: %s: gzip file cannot be uncompressed (zstd compiled without ZSTD_GZDECOMPRESS) -- ignored \n", srcFileName);
+                DISPLAYLEVEL(1, "zstd: %s: gzip file cannot be uncompressed -- ignored (zstd compiled without ZSTD_GZDECOMPRESS) \n", srcFileName);
                 return 1;
 #endif
             } else {
@@ -753,7 +752,6 @@ static int FIO_decompressSrcFile(dRess_t ress, const char* srcFileName)
                 }   }
                 filesize += FIO_decompressFrame(ress, dstFile, srcFile, toRead, filesize);
             }
-            printf("filesize=%d\n", (int)filesize);
         }
     }
 

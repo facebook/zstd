@@ -12,7 +12,7 @@ matrix:
       os: linux
       sudo: false
 
-    - env: Ubu=12.04cont Cmd="make zlibwrapper && make clean && make -C tests test-zstd-nolegacy && make clean && make clean && make cmaketest && make clean && make -C contrib/pzstd googletest pzstd tests check && make -C contrib/pzstd clean"
+    - env: Ubu=12.04cont Cmd="make zlibwrapper && make clean && make -C tests test-zstd-nolegacy && make clean && make cmaketest && make clean && make -C contrib/pzstd googletest pzstd tests check && make -C contrib/pzstd clean"
       os: linux
       sudo: false
       language: cpp
@@ -37,7 +37,7 @@ matrix:
 
 
     # Standard Ubuntu 12.04 LTS Server Edition 64 bit
-    - env: Ubu=12.04 Cmd="make -C programs zstd-small && make -C programs zstd-decompress && make -C programs zstd-compress && make -C programs clean && make -C tests versionsTest"
+    - env: Ubu=12.04 Cmd="make -C programs zstd-small zstd-decompress zstd-compress && make -C tests test-gzstd && make -C programs clean && make -C tests versionsTest"
       os: linux
       sudo: required
 

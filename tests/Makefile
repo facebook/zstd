@@ -76,6 +76,9 @@ zstd32:
 zstd-nolegacy:
 	$(MAKE) -C $(PRGDIR) $@
 
+gzstd:
+	$(MAKE) -C $(PRGDIR) $@
+
 fullbench  : $(ZSTD_FILES) $(PRGDIR)/datagen.c fullbench.c
 	$(CC)      $(FLAGS) $^ -o $@$(EXT)
 
@@ -189,6 +192,11 @@ test-zstd32: zstd32 zstd-playTests
 
 test-zstd-nolegacy: ZSTD = $(PRGDIR)/zstd
 test-zstd-nolegacy: zstd-nolegacy zstd-playTests
+
+test-gzstd: gzstd
+	gzip README.md test-zstd-speed.py
+	$(PRGDIR)/zstd -d README.md.gz -o README2.md
+	$(PRGDIR)/zstd -d README.md.gz test-zstd-speed.py.gz
 
 test-fullbench: fullbench datagen
 	$(QEMU_SYS) ./fullbench -i1

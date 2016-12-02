@@ -157,6 +157,7 @@ install: zstd
 	@ln -sf zstd $(DESTDIR)$(BINDIR)/zstdcat
 	@ln -sf zstd $(DESTDIR)$(BINDIR)/unzstd
 	@install -m 755 zstdless $(DESTDIR)$(BINDIR)/zstdless
+	@install -m 755 zstdgrep $(DESTDIR)$(BINDIR)/zstdgrep
 	@echo Installing man pages
 	@install -m 644 zstd.1 $(DESTDIR)$(MANDIR)/zstd.1
 	@ln -sf zstd.1 $(DESTDIR)$(MANDIR)/zstdcat.1
@@ -164,6 +165,8 @@ install: zstd
 	@echo zstd installation completed
 
 uninstall:
+	@$(RM) $(DESTDIR)$(BINDIR)/zstdgrep
+	@$(RM) $(DESTDIR)$(BINDIR)/zstdless
 	@$(RM) $(DESTDIR)$(BINDIR)/zstdcat
 	@$(RM) $(DESTDIR)$(BINDIR)/unzstd
 	@$(RM) $(DESTDIR)$(BINDIR)/zstd

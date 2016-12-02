@@ -700,7 +700,7 @@ static unsigned long long FIO_decompressGzFrame(dRess_t ress, FILE* srcFile, con
     @return : 0 : OK
               1 : operation not started
 */
-static int FIO_decompressSrcFile(dRess_t ress, const char* srcFileName)
+static int FIO_decompressSrcFile(dRess_t ress, const char* dstFileName, const char* srcFileName)
 {
     FILE* srcFile;
     unsigned readSomething = 0;
@@ -737,7 +737,7 @@ static int FIO_decompressSrcFile(dRess_t ress, const char* srcFileName)
 #endif
         } else {
             if (!ZSTD_isFrame(ress.srcBuffer, toRead)) {
-                if ((g_overwrite) && !strcmp (srcFileName, stdinmark)) {  /* pass-through mode */
+                if ((g_overwrite) && !strcmp (dstFileName, stdoutmark)) {  /* pass-through mode */
                     unsigned const result = FIO_passThrough(ress.dstFile, srcFile, ress.srcBuffer, ress.srcBufferSize);
                     if (fclose(srcFile)) EXM_THROW(32, "zstd: %s close error", srcFileName);  /* error should never happen */
                     return result;
@@ -777,7 +777,7 @@ static int FIO_decompressDstFile(dRess_t ress,
     if (ress.dstFile==0) return 1;
 
     if (strcmp (srcFileName, stdinmark) && UTIL_getFileStat(srcFileName, &statbuf)) stat_result = 1;
-    result = FIO_decompressSrcFile(ress, srcFileName);
+    result = FIO_decompressSrcFile(ress, dstFileName, srcFileName);
 
     if (fclose(ress.dstFile)) EXM_THROW(38, "Write error : cannot properly close %s", dstFileName);
 
@@ -814,12 +814,12 @@ int FIO_decompressMultipleFilenames(const char** srcNamesTable, unsigned nbFiles
 
     if (suffix==NULL) EXM_THROW(70, "zstd: decompression: unknown dst");   /* should never happen */
 
-    if (!strcmp(suffix, stdoutmark) || !strcmp(suffix, nulmark)) {
+    if (!strcmp(suffix, stdoutmark) || !strcmp(suffix, nulmark)) {  /* special cases : -c or -t */
         unsigned u;
         ress.dstFile = FIO_openDstFile(suffix);
         if (ress.dstFile == 0) EXM_THROW(71, "cannot open %s", suffix);
         for (u=0; u<nbFiles; u++)
-            missingFiles += FIO_decompressSrcFile(ress, srcNamesTable[u]);
+            missingFiles += FIO_decompressSrcFile(ress, suffix, srcNamesTable[u]);
         if (fclose(ress.dstFile)) EXM_THROW(72, "Write error : cannot properly close stdout");
     } else {
         size_t const suffixSize = strlen(suffix);

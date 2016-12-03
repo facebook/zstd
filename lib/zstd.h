@@ -299,8 +299,8 @@ ZSTDLIB_API size_t ZSTD_CStreamOutSize(void);   /**< recommended size for output
 *  If `output.pos < output.size`, decoder has flushed everything it could.
 *  @return : 0 when a frame is completely decoded and fully flushed,
 *            an error code, which can be tested using ZSTD_isError(),
-*            any other value > 0, which means there is still some work to do to complete the frame.
-*            The return value is a suggested next input size (just an hint, to help latency).
+*            any other value > 0, which means there is still some decoding to do to complete current frame.
+*            The return value is a suggested next input size (a hint to improve latency) that will never load more than the current frame.
 * *******************************************************************************/
 
 /*=====   Streaming decompression functions   =====*/

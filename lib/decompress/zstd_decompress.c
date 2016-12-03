@@ -1959,7 +1959,8 @@ size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inB
         switch(zds->stage)
         {
         case zdss_init :
-            return ERROR(init_missing);
+            ZSTD_resetDStream(zds);   /* transparent reset on starting decoding a new frame */
+            /* fall-through */
 
         case zdss_loadHeader :
             {   size_t const hSize = ZSTD_getFrameParams(&zds->fParams, zds->headerBuffer, zds->lhSize);

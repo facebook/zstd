@@ -100,8 +100,10 @@ ls tmp.zst && die "tmp.zst should not be created"
 
 
 $ECHO "\n**** Pass-Through mode **** "
-$ECHO "Hello world !" | $ZSTD -df
-$ECHO "Hello world !" | $ZSTD -dcf
+$ECHO "Hello world 1!" | $ZSTD -df
+$ECHO "Hello world 2!" | $ZSTD -dcf
+$ECHO "Hello world 3!" > tmp1
+$ZSTD -dcf tmp1
 
 
 $ECHO "\n**** frame concatenation **** "

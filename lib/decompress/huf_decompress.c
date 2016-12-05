@@ -358,13 +358,15 @@ typedef struct { U16 sequence; BYTE nbBits; BYTE length; } HUF_DEltX4;  /* doubl
 
 typedef struct { BYTE symbol; BYTE weight; } sortedSymbol_t;
 
+/* HUF_fillDTableX4Level2() :
+ * `rankValOrigin` must be a table of at least (HUF_TABLELOG_MAX + 1) U32 */
 static void HUF_fillDTableX4Level2(HUF_DEltX4* DTable, U32 sizeLog, const U32 consumed,
                            const U32* rankValOrigin, const int minWeight,
                            const sortedSymbol_t* sortedSymbols, const U32 sortedListSize,
                            U32 nbBitsBaseline, U16 baseSeq)
 {
     HUF_DEltX4 DElt;
-    U32 rankVal[HUF_TABLELOG_ABSOLUTEMAX + 1];
+    U32 rankVal[HUF_TABLELOG_MAX + 1];
 
     /* get pre-calculated rankVal */
     memcpy(rankVal, rankValOrigin, sizeof(rankVal));

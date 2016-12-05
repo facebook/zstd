@@ -35,6 +35,9 @@
 #include "zstd.h"
 #ifdef ZSTD_GZDECOMPRESS
 #include "zlib.h"
+#if !defined(z_const)
+    #define z_const
+#endif
 #endif
 
 
@@ -632,7 +635,7 @@ unsigned long long FIO_decompressFrame(dRess_t* ress,
         if (ZSTD_isError(readSizeHint)) EXM_THROW(36, "Decoding error : %s", ZSTD_getErrorName(readSizeHint));
 
         /* Write block */
-        storedSkips = FIO_fwriteSparse(ress->dstFile, ress->dstBuffer, outBuff.pos, storedSkips);
+        storedSkips = FIO_fwriteSparse(ress->dstFile, ress->dstBuffer, outBuff.pos, storedSkips);       
         frameSize += outBuff.pos;
         DISPLAYUPDATE(2, "\rDecoded : %u MB...     ", (U32)((alreadyDecoded+frameSize)>>20) );
 

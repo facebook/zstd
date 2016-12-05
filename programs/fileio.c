@@ -726,6 +726,7 @@ static int FIO_decompressSrcFile(dRess_t ress, const char* dstFileName, const ch
         }
         readSomething = 1;   /* there is at least >= 4 bytes in srcFile */
         if (sizeCheck != toRead) { DISPLAY("zstd: %s: unknown header \n", srcFileName); fclose(srcFile); return 1; }  /* srcFileName is empty */
+        printf("buf[0]=%d buf[1]=%d toRead=%d\n", buf[0], buf[1], (int)toRead);
         if (buf[0] == 31 && buf[1] == 139) { /* gz header */
 #ifdef ZSTD_GZDECOMPRESS
             unsigned long long const result = FIO_decompressGzFrame(ress, srcFile, srcFileName, toRead);
@@ -841,7 +842,7 @@ int FIO_decompressMultipleFilenames(const char** srcNamesTable, unsigned nbFiles
             }
             if (sfnSize <= suffixSize || strcmp(suffixPtr, suffix) != 0) {
                 if (sfnSize <= gzipSuffixSize || strcmp(gzipSuffixPtr, GZ_EXTENSION) != 0) {
-                    DISPLAYLEVEL(1, "zstd: %s: unknown suffix (%4s expected) -- ignored \n", srcFileName, suffix);
+                    DISPLAYLEVEL(1, "zstd: %s: unknown suffix (%s/%s expected) -- ignored \n", srcFileName, suffix, GZ_EXTENSION);
                     skippedFiles++;
                     continue;
                 } else {

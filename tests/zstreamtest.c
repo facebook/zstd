@@ -130,7 +130,7 @@ static int basicUnitTests(U32 seed, double compressibility, ZSTD_customMem custo
     U32 testNb=0;
     ZSTD_CStream* zc = ZSTD_createCStream_advanced(customMem);
     ZSTD_DStream* zd = ZSTD_createDStream_advanced(customMem);
-    ZSTD_inBuffer  inBuff;
+    ZSTD_inBuffer  inBuff, inBuff2;
     ZSTD_outBuffer outBuff;
 
     /* Create compressible test buffer */
@@ -183,12 +183,22 @@ static int basicUnitTests(U32 seed, double compressibility, ZSTD_customMem custo
     DISPLAYLEVEL(4, "OK \n");
 
     /* Basic decompression test */
+    inBuff2 = inBuff;
     DISPLAYLEVEL(4, "test%3i : decompress %u bytes : ", testNb++, COMPRESSIBLE_NOISE_LENGTH);
     ZSTD_initDStream_usingDict(zd, CNBuffer, 128 KB);
     { size_t const r = ZSTD_setDStreamParameter(zd, ZSTDdsp_maxWindowSize, 1000000000);  /* large limit */
       if (ZSTD_isError(r)) goto _output_error; }
-    { size_t const r = ZSTD_decompressStream(zd, &outBuff, &inBuff);
-      if (r != 0) goto _output_error; }  /* should reach end of frame == 0; otherwise, some data left, or an error */
+    { size_t const remaining = ZSTD_decompressStream(zd, &outBuff, &inBuff);
+      if (remaining != 0) goto _output_error; }  /* should reach end of frame == 0; otherwise, some data left, or an error */
+    if (outBuff.pos != CNBufferSize) goto _output_error;   /* should regenerate the same amount */
+    if (inBuff.pos != inBuff.size) goto _output_error;   /* should have read the entire frame */
+    DISPLAYLEVEL(4, "OK \n");
+
+    /* Re-use without init */
+    DISPLAYLEVEL(4, "test%3i : decompress again without init (re-use previous settings): ", testNb++);
+    outBuff.pos = 0;
+    { size_t const remaining = ZSTD_decompressStream(zd, &outBuff, &inBuff2);
+      if (remaining != 0) goto _output_error; }  /* should reach end of frame == 0; otherwise, some data left, or an error */
     if (outBuff.pos != CNBufferSize) goto _output_error;   /* should regenerate the same amount */
     if (inBuff.pos != inBuff.size) goto _output_error;   /* should have read the entire frame */
     DISPLAYLEVEL(4, "OK \n");
@@ -553,8 +563,9 @@ static int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compres
         /* multi - fragments decompression test */
         if (!dictSize /* don't reset if dictionary : could be different */ && (FUZ_rand(&lseed) & 1)) {
             CHECK (ZSTD_isError(ZSTD_resetDStream(zd)), "ZSTD_resetDStream failed");
-        } else
+        } else {
             ZSTD_initDStream_usingDict(zd, dict, dictSize);
+        }
         {   size_t decompressionResult = 1;
             ZSTD_inBuffer  inBuff = { cBuffer, cSize, 0 };
             ZSTD_outBuffer outBuff= { dstBuffer, dstBufferSize, 0 };

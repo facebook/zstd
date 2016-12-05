@@ -125,11 +125,8 @@ zstd-compress: $(ZSTDCOMMON_FILES) $(ZSTDCOMP_FILES) zstdcli.c fileio.c
 	$(CC) $(FLAGS) -DZSTD_NOBENCH -DZSTD_NODICT -DZSTD_NODECOMPRESS $^ -o $@$(EXT)
 
 gzstd: clean_decomp_o
-ifeq ($(shell ld -lz 2>/dev/null && echo -n true),true)
-	CPPFLAGS=-DZSTD_GZDECOMPRESS LDFLAGS="-lz" $(MAKE) zstd
-else
-	$(MAKE) zstd
-endif
+	echo "int main(){}" | $(CC) -o have_zlib -x c - -lz && echo found zlib || echo did not found zlib
+	if [ -s have_zlib ]; then echo building gzstd && rm have_zlib$(EXT) && CPPFLAGS=-DZSTD_GZDECOMPRESS LDFLAGS="-lz" $(MAKE) zstd; else echo building plain zstd && $(MAKE) zstd; fi
 
 generate_res:
 	windres\generate_res.bat

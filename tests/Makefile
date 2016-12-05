@@ -194,9 +194,20 @@ test-zstd-nolegacy: ZSTD = $(PRGDIR)/zstd
 test-zstd-nolegacy: zstd-nolegacy zstd-playTests
 
 test-gzstd: gzstd
+	$(PRGDIR)/zstd README.md test-zstd-speed.py
 	gzip README.md test-zstd-speed.py
+	cat README.md.zst test-zstd-speed.py.gz >zstd_gz.zst
+	cat README.md.gz test-zstd-speed.py.zst >gz_zstd.gz
 	$(PRGDIR)/zstd -d README.md.gz -o README2.md
 	$(PRGDIR)/zstd -d README.md.gz test-zstd-speed.py.gz
+	$(PRGDIR)/zstd -d zstd_gz.zst gz_zstd.gz
+	diff -q zstd_gz gz_zstd
+	echo Hello World ZSTD | $(PRGDIR)/zstd -c - >hello.zst
+	echo Hello World GZIP | gzip -c - >hello.gz
+	echo Hello World TEXT >hello.txt
+	cat hello.zst hello.gz hello.txt >hello_zst_gz_txt.gz
+	$(PRGDIR)/zstd -dcf hello.*
+	$(PRGDIR)/zstd -dcf - <hello_zst_gz_txt.gz
 
 test-fullbench: fullbench datagen
 	$(QEMU_SYS) ./fullbench -i1

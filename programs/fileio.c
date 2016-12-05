@@ -652,7 +652,6 @@ static unsigned FIO_passThrough(FILE* foutput, FILE* finput, void* buffer, size_
 #ifdef ZSTD_GZDECOMPRESS
 static unsigned long long FIO_decompressGzFrame(dRess_t ress, FILE* srcFile, const char* srcFileName, size_t alreadyLoaded)
 {
-    unsigned char* headBuf = (unsigned char*)ress.srcBuffer;
     unsigned long long outFileSize = 0;
     z_stream strm;
 
@@ -667,15 +666,15 @@ static unsigned long long FIO_decompressGzFrame(dRess_t ress, FILE* srcFile, con
     strm.avail_out = ress.dstBufferSize;
 
     for ( ; ; ) {
-        unsigned char in[1];
         if (alreadyLoaded) {
-            alreadyLoaded--;
-            in[0] = *headBuf++;
+            strm.avail_in = alreadyLoaded;
+            strm.next_in = (z_const unsigned char*)ress.srcBuffer;
+            alreadyLoaded = 0;
         } else {
-            if (fread(in, 1, 1, srcFile) == 0) break;
+            if (fread(ress.srcBuffer, 1, 1/*ress.srcBufferSize*/, srcFile) == 0) break;
+            strm.next_in = (z_const unsigned char*)ress.srcBuffer;
+            strm.avail_in = 1;
         }
-        strm.next_in = in;
-        strm.avail_in = 1;
         {   int const ret = inflate(&strm, Z_NO_FLUSH);
             if (ret == Z_STREAM_END) break;
             if (ret != Z_OK) { DISPLAY("zstd: %s: inflate error %d \n", srcFileName, ret); return 0; }
@@ -726,11 +725,11 @@ static int FIO_decompressSrcFile(dRess_t ress, const char* dstFileName, const ch
         }
         readSomething = 1;   /* there is at least >= 4 bytes in srcFile */
         if (sizeCheck != toRead) { DISPLAY("zstd: %s: unknown header \n", srcFileName); fclose(srcFile); return 1; }  /* srcFileName is empty */
-        printf("buf[0]=%d buf[1]=%d toRead=%d\n", buf[0], buf[1], (int)toRead);
         if (buf[0] == 31 && buf[1] == 139) { /* gz header */
 #ifdef ZSTD_GZDECOMPRESS
             unsigned long long const result = FIO_decompressGzFrame(ress, srcFile, srcFileName, toRead);
             if (result == 0) return 1;
+            printf("gzip=%d\n", (int)result);
             filesize += result;
 #else
             DISPLAYLEVEL(1, "zstd: %s: gzip file cannot be uncompressed (zstd compiled without ZSTD_GZDECOMPRESS) -- ignored \n", srcFileName);
@@ -740,6 +739,7 @@ static int FIO_decompressSrcFile(dRess_t ress, const char* dstFileName, const ch
             if (!ZSTD_isFrame(ress.srcBuffer, toRead)) {
                 if ((g_overwrite) && !strcmp (dstFileName, stdoutmark)) {  /* pass-through mode */
                     unsigned const result = FIO_passThrough(ress.dstFile, srcFile, ress.srcBuffer, ress.srcBufferSize);
+                    printf("pass-through=%d\n", (int)result);
                     if (fclose(srcFile)) EXM_THROW(32, "zstd: %s close error", srcFileName);  /* error should never happen */
                     return result;
                 } else {
@@ -748,6 +748,7 @@ static int FIO_decompressSrcFile(dRess_t ress, const char* dstFileName, const ch
                     return 1;
             }   }
             filesize += FIO_decompressFrame(ress, srcFile, toRead, filesize);
+            printf("zstd filesize=%d\n", (int)filesize);
         }
     }
 

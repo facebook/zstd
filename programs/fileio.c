@@ -589,15 +589,15 @@ static void FIO_fwriteSparseEnd(FILE* file, unsigned storedSkips)
 
 /** FIO_passThrough() : just copy input into output, for compatibility with gzip -df mode
     @return : 0 (no error) */
-static unsigned FIO_passThrough(FILE* foutput, FILE* finput, void* buffer, size_t bufferSize)
+static unsigned FIO_passThrough(FILE* foutput, FILE* finput, void* buffer, size_t bufferSize, size_t alreadyLoaded)
 {
     size_t const blockSize = MIN(64 KB, bufferSize);
     size_t readFromInput = 1;
     unsigned storedSkips = 0;
 
-    /* assumption : first 4 bytes already loaded (magic number detection), and stored within buffer */
-    { size_t const sizeCheck = fwrite(buffer, 1, 4, foutput);
-      if (sizeCheck != 4) EXM_THROW(50, "Pass-through write error"); }
+    /* assumption : ress->srcBufferLoaded bytes already loaded and stored within buffer */
+    { size_t const sizeCheck = fwrite(buffer, 1, alreadyLoaded, foutput);
+      if (sizeCheck != alreadyLoaded) EXM_THROW(50, "Pass-through write error"); }
 
     while (readFromInput) {
         readFromInput = fread(buffer, 1, blockSize, finput);
@@ -751,7 +751,7 @@ static int FIO_decompressSrcFile(dRess_t ress, const char* dstFileName, const ch
         } else {
             if (!ZSTD_isFrame(ress.srcBuffer, toRead)) {
                 if ((g_overwrite) && !strcmp (dstFileName, stdoutmark)) {  /* pass-through mode */
-                    unsigned const result = FIO_passThrough(ress.dstFile, srcFile, ress.srcBuffer, ress.srcBufferSize);
+                    unsigned const result = FIO_passThrough(ress.dstFile, srcFile, ress.srcBuffer, ress.srcBufferSize, ress.srcBufferLoaded);
                     if (fclose(srcFile)) EXM_THROW(32, "zstd: %s close error", srcFileName);  /* error should never happen */
                     return result;
                 } else {

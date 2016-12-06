@@ -7,6 +7,8 @@ cli : fixed : status displays total amount decoded, even for file consisting of 
 cli : fixed : zstdcat
 API : changed : zbuff prototypes now generate deprecation warnings
 API : changed : streaming decompression implicit reset on starting new frame
+API : added experimental : dictID retrieval functions
+zlib_wrapper : added support for gz* functions, by Przemyslaw Skibinski
 Changed : reduced stack memory use
 
 v1.1.1

@@ -63,7 +63,7 @@ extern "C" {
 #define ZSTD_VERSION_STRING ZSTD_EXPAND_AND_QUOTE(ZSTD_LIB_VERSION)
 
 #define ZSTD_VERSION_NUMBER  (ZSTD_VERSION_MAJOR *100*100 + ZSTD_VERSION_MINOR *100 + ZSTD_VERSION_RELEASE)
-ZSTDLIB_API unsigned ZSTD_versionNumber (void);
+ZSTDLIB_API unsigned ZSTD_versionNumber(void);   /**< library version number; to be used when checking dll version */
 
 
 /***************************************
@@ -117,9 +117,9 @@ ZSTDLIB_API const char* ZSTD_getErrorName(size_t code);     /*!< provides readab
 *  Explicit memory management
 ***************************************/
 /*= Compression context
-*   When compressing many messages / blocks,
+*   When compressing many times,
 *   it is recommended to allocate a context just once, and re-use it for each successive compression operation.
-*   This will make the situation much easier for the system's memory.
+*   This will make workload friendlier for system's memory.
 *   Use one context per thread for parallel execution in multi-threaded environments. */
 typedef struct ZSTD_CCtx_s ZSTD_CCtx;
 ZSTDLIB_API ZSTD_CCtx* ZSTD_createCCtx(void);

@@ -42,10 +42,10 @@ test: example fitblk example_zstd fitblk_zstd zwrapbench minigzip minigzip_zstd
 	./fitblk_zstd 40960 <$(TEST_FILE)
 	@echo ---- minigzip start ----
 	./minigzip_zstd example$(EXT)
-	cp example$(EXT).gz example$(EXT)_zstd.gz
+	#cp example$(EXT).gz example$(EXT)_zstd.gz
 	./minigzip_zstd -d example$(EXT).gz
 	./minigzip example$(EXT)
-	cp example$(EXT).gz example$(EXT)_gz.gz
+	#cp example$(EXT).gz example$(EXT)_gz.gz
 	./minigzip_zstd -d example$(EXT).gz
 	@echo ---- minigzip end ----
 	./zwrapbench -qb3B1K $(TEST_FILE)

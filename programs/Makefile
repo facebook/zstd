@@ -125,8 +125,15 @@ zstd-compress: $(ZSTDCOMMON_FILES) $(ZSTDCOMP_FILES) zstdcli.c fileio.c
 	$(CC) $(FLAGS) -DZSTD_NOBENCH -DZSTD_NODICT -DZSTD_NODECOMPRESS $^ -o $@$(EXT)
 
 gzstd: clean_decomp_o
-	echo "int main(){}" | $(CC) -o have_zlib -x c - -lz && echo found zlib || echo did not found zlib
-	if [ -s have_zlib ]; then echo building gzstd && rm have_zlib$(EXT) && CPPFLAGS=-DZSTD_GZDECOMPRESS LDFLAGS="-lz" $(MAKE) zstd; else echo building plain zstd && $(MAKE) zstd; fi
+	@echo "int main(){}" | $(CC) -o have_zlib -x c - -lz && echo found zlib || echo did not found zlib
+	@if [ -s have_zlib ]; then \
+        echo building gzstd with .gz decompression support \
+        && rm have_zlib$(EXT) \
+        && CPPFLAGS=-DZSTD_GZDECOMPRESS LDFLAGS="-lz" $(MAKE) zstd; \
+    else \
+        echo "WARNING : no zlib, building gzstd with only .zst files support : NO .gz SUPPORT !!!" \
+        && $(MAKE) zstd; \
+    fi
 
 generate_res:
 	windres\generate_res.bat

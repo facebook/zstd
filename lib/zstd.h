@@ -462,6 +462,30 @@ ZSTDLIB_API size_t ZSTD_sizeof_DCtx(const ZSTD_DCtx* dctx);
  *  Gives the amount of memory used by a given ZSTD_DDict */
 ZSTDLIB_API size_t ZSTD_sizeof_DDict(const ZSTD_DDict* ddict);
 
+/*! ZSTD_getDictID_fromDict() :
+ *  Provides the dictID stored within dictionary.
+ *  if @return == 0, the dictionary is not conformant with Zstandard specification.
+ *  It can still be loaded, but as a content-only dictionary. */
+unsigned ZSTD_getDictID_fromDict(const void* dict, size_t dictSize);
+
+/*! ZSTD_getDictID_fromDDict() :
+ *  Provides the dictID of the dictionary loaded into `ddict`.
+ *  If @return == 0, the dictionary is not conformant to Zstandard specification, or empty.
+ *  Non-conformant dictionaries can still be loaded, but as content-only dictionaries. */
+unsigned ZSTD_getDictID_fromDDict(const ZSTD_DDict* ddict);
+
+/*! ZSTD_getDictID_fromFrame() :
+ *  Provides the dictID required to decompressed the frame stored within `src`.
+ *  If @return == 0, the dictID could not be decoded.
+ *  This could for one of the following reasons :
+ *  - The frame does not require a dictionary to be decoded (most common case).
+ *  - The frame was built with dictID intentionally removed. Whatever dictionary is necessary is a hidden information.
+ *    Note : this use case also happens when using a non-conformant dictionary.
+ *  - `srcSize` is too small, and as a result, the frame header could not be decoded (only possible if `srcSize < ZSTD_FRAMEHEADERSIZE_MAX`).
+ *  - This is not a Zstandard frame.
+ *  When identifying the exact failure cause, it's possible to used ZSTD_getFrameParams(), which will provide a more precise error code. */
+unsigned ZSTD_getDictID_fromFrame(const void* src, size_t srcSize);
+
 
 /********************************************************************
 *  Advanced streaming functions

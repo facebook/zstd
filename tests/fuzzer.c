@@ -27,7 +27,7 @@
 #include <time.h>         /* clock_t */
 #define ZSTD_STATIC_LINKING_ONLY   /* ZSTD_compressContinue, ZSTD_compressBlock */
 #include "zstd.h"         /* ZSTD_VERSION_STRING */
-#include "zstd_errors.h" /* ZSTD_getErrorCode */
+#include "zstd_errors.h"  /* ZSTD_getErrorCode */
 #include "zdict.h"        /* ZDICT_trainFromBuffer */
 #include "datagen.h"      /* RDG_genBuffer */
 #include "mem.h"
@@ -272,6 +272,18 @@ static int basicUnitTests(U32 seed, double compressibility)
                                         dictBuffer, dictSize, 4);
         if (ZSTD_isError(cSize)) goto _output_error;
         DISPLAYLEVEL(4, "OK (%u bytes : %.2f%%)\n", (U32)cSize, (double)cSize/CNBuffSize*100);
+
+        DISPLAYLEVEL(4, "test%3i : retrieve dictID from dictionary : ", testNb++);
+        {   U32 const dictID = ZSTD_getDictID_fromDict(dictBuffer, dictSize);
+            if (dictID != 0) goto _output_error;   /* non-conformant (content-only) dictionary */
+        }
+        DISPLAYLEVEL(4, "OK \n");
+
+        DISPLAYLEVEL(4, "test%3i : retrieve dictID from frame : ", testNb++);
+        {   U32 const dictID = ZSTD_getDictID_fromFrame(compressedBuffer, cSize);
+            if (dictID != 0) goto _output_error;   /* non-conformant (content-only) dictionary */
+        }
+        DISPLAYLEVEL(4, "OK \n");
 
         DISPLAYLEVEL(4, "test%3i : frame built with dictionary should be decompressible : ", testNb++);
         CHECKPLUS(r, ZSTD_decompress_usingDict(dctx,

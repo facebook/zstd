@@ -10,6 +10,8 @@ To build the zstd wrapper for zlib the following files are required:
 - a static or dynamic zlib library
 - zlibWrapper/zstd_zlibwrapper.h
 - zlibWrapper/zstd_zlibwrapper.c
+- zlibWrapper/gz*.c files (gzclose.c, gzlib.c, gzread.c, gzwrite.c)
+- zlibWrapper/gz*.h files (gzcompatibility.h, gzguts.h)
 - a static or dynamic zstd library
 
 The first two files are required by all projects using zlib and they are not included with the zstd distribution.
@@ -22,26 +24,26 @@ Let's assume that your project that uses zlib is compiled with:
 ```gcc project.o -lz```
 
 To compile the zstd wrapper with your project you have to do the following:
-- change all references with ```#include "zlib.h"``` to ```#include "zstd_zlibwrapper.h"```
-- compile your project with `zstd_zlibwrapper.c` and a static or dynamic zstd library
+- change all references with `#include "zlib.h"` to `#include "zstd_zlibwrapper.h"`
+- compile your project with `zstd_zlibwrapper.c`, `gz*.c` and a static or dynamic zstd library
 
 The linking should be changed to:
-```gcc project.o zstd_zlibwrapper.o -lz -lzstd```
+```gcc project.o zstd_zlibwrapper.o gz*.c -lz -lzstd```
 
 
 #### Enabling zstd compression within your project
 
 After embedding the zstd wrapper within your project the zstd library is turned off by default.
 Your project should work as before with zlib. There are two options to enable zstd compression:
-- compilation with ```-DZWRAP_USE_ZSTD=1``` (or using ```#define ZWRAP_USE_ZSTD 1``` before ```#include "zstd_zlibwrapper.h"```)
-- using the ```void ZWRAP_useZSTDcompression(int turn_on)``` function (declared in ```#include "zstd_zlibwrapper.h"```)
+- compilation with `-DZWRAP_USE_ZSTD=1` (or using `#define ZWRAP_USE_ZSTD 1` before `#include "zstd_zlibwrapper.h"`)
+- using the `void ZWRAP_useZSTDcompression(int turn_on)` function (declared in `#include "zstd_zlibwrapper.h"`)
 
 During decompression zlib and zstd streams are automatically detected and decompressed using a proper library.
 This behavior can be changed using `ZWRAP_setDecompressionType(ZWRAP_FORCE_ZLIB)` what will make zlib decompression slightly faster.
 
 
 #### Example
-We have take the file ```test/example.c``` from [the zlib library distribution](http://zlib.net/) and copied it to [zlibWrapper/examples/example.c](examples/example.c).
+We have take the file `test/example.c` from [the zlib library distribution](http://zlib.net/) and copied it to [zlibWrapper/examples/example.c](examples/example.c).
 After compilation and execution it shows the following results: 
 ```
 zlib version 1.2.8 = 0x1280, compile flags = 0x65
@@ -53,13 +55,15 @@ large_inflate(): OK
 after inflateSync(): hello, hello!
 inflate with dictionary: hello, hello!
 ```
-Then we have changed ```#include "zlib.h"``` to ```#include "zstd_zlibwrapper.h"```, compiled the [example.c](examples/example.c) file
-with ```-DZWRAP_USE_ZSTD=1``` and linked with additional ```zstd_zlibwrapper.o -lzstd```.
-We were forced to turn off the following functions: ```test_gzio```, ```test_flush```, ```test_sync``` which use currently unsupported features.
+Then we have changed `#include "zlib.h"` to `#include "zstd_zlibwrapper.h"`, compiled the [example.c](examples/example.c) file
+with `-DZWRAP_USE_ZSTD=1` and linked with additional `zstd_zlibwrapper.o gz*.c -lzstd`.
+We were forced to turn off the following functions: `test_flush`, `test_sync` which use currently unsupported features.
 After running it shows the following results:
 ```
 zlib version 1.2.8 = 0x1280, compile flags = 0x65
 uncompress(): hello, hello!
+gzread(): hello, hello!
+gzgets() after gzseek:  hello!
 inflate(): hello, hello!
 large_inflate(): OK
 inflate with dictionary: hello, hello!

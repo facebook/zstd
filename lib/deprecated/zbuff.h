@@ -202,6 +202,7 @@ ZBUFF_DEPRECATED("use ZSTD_initDStream_usingDict") size_t ZBUFF_compressInit_adv
                                                const void* dict, size_t dictSize,
                                                ZSTD_parameters params, unsigned long long pledgedSrcSize);
 
+
 #endif /* ZBUFF_STATIC_LINKING_ONLY */
 
 

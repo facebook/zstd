@@ -35,6 +35,9 @@
 #include "zstd.h"
 #ifdef ZSTD_GZDECOMPRESS
 #include "zlib.h"
+#if !defined(z_const)
+    #define z_const
+#endif
 #endif
 
 
@@ -465,6 +468,7 @@ int FIO_compressMultipleFilenames(const char** inFileNamesTable, unsigned nbFile
 ****************************************************************************/
 typedef struct {
     void*  srcBuffer;
+    size_t srcBufferLoaded;
     size_t srcBufferSize;
     void*  dstBuffer;
     size_t dstBufferSize;
@@ -582,63 +586,18 @@ static void FIO_fwriteSparseEnd(FILE* file, unsigned storedSkips)
     }   }
 }
 
-/** FIO_decompressFrame() :
-    @return : size of decoded frame
-*/
-unsigned long long FIO_decompressFrame(dRess_t ress,
-                                       FILE* finput, size_t alreadyLoaded,
-                                       U64 alreadyDecoded)
-{
-    U64 frameSize = 0;
-    size_t readSize;
-    U32 storedSkips = 0;
-
-    ZSTD_resetDStream(ress.dctx);
-
-    /* Header loading (optional, saves one loop) */
-    {   size_t const toLoad = 9 - alreadyLoaded;   /* assumption : 9 >= alreadyLoaded */
-        size_t const loadedSize = fread(((char*)ress.srcBuffer) + alreadyLoaded, 1, toLoad, finput);
-        readSize = alreadyLoaded + loadedSize;
-    }
-
-    /* Main decompression Loop */
-    while (1) {
-        ZSTD_inBuffer  inBuff = { ress.srcBuffer, readSize, 0 };
-        ZSTD_outBuffer outBuff= { ress.dstBuffer, ress.dstBufferSize, 0 };
-        size_t const readSizeHint = ZSTD_decompressStream(ress.dctx, &outBuff, &inBuff );
-        if (ZSTD_isError(readSizeHint)) EXM_THROW(36, "Decoding error : %s", ZSTD_getErrorName(readSizeHint));
-
-        /* Write block */
-        storedSkips = FIO_fwriteSparse(ress.dstFile, ress.dstBuffer, outBuff.pos, storedSkips);
-        frameSize += outBuff.pos;
-        DISPLAYUPDATE(2, "\rDecoded : %u MB...     ", (U32)((alreadyDecoded+frameSize)>>20) );
-
-        if (readSizeHint == 0) break;   /* end of frame */
-        if (inBuff.size != inBuff.pos) EXM_THROW(37, "Decoding error : should consume entire input");
-
-        /* Fill input buffer */
-        {   size_t const toRead = MIN(readSizeHint, ress.srcBufferSize);  /* support large skippable frames */
-            readSize = fread(ress.srcBuffer, 1, toRead, finput);
-            if (readSize < toRead) EXM_THROW(39, "Read error : premature end");
-    }   }
-
-    FIO_fwriteSparseEnd(ress.dstFile, storedSkips);
-
-    return frameSize;
-}
-
 
 /** FIO_passThrough() : just copy input into output, for compatibility with gzip -df mode
     @return : 0 (no error) */
-static unsigned FIO_passThrough(FILE* foutput, FILE* finput, void* buffer, size_t bufferSize)
+static unsigned FIO_passThrough(FILE* foutput, FILE* finput, void* buffer, size_t bufferSize, size_t alreadyLoaded)
 {
     size_t const blockSize = MIN(64 KB, bufferSize);
     size_t readFromInput = 1;
     unsigned storedSkips = 0;
 
-    /* assumption : first 4 bytes already loaded (magic number detection), and stored within buffer */
-    { size_t const sizeCheck = fwrite(buffer, 1, 4, foutput);
-      if (sizeCheck != 4) EXM_THROW(50, "Pass-through write error"); }
+    /* assumption : ress->srcBufferLoaded bytes already loaded and stored within buffer */
+    { size_t const sizeCheck = fwrite(buffer, 1, alreadyLoaded, foutput);
+      if (sizeCheck != alreadyLoaded) EXM_THROW(50, "Pass-through write error"); }
 
     while (readFromInput) {
         readFromInput = fread(buffer, 1, blockSize, finput);
@@ -649,8 +608,60 @@ static unsigned FIO_passThrough(FILE* foutput, FILE* finput, void* buffer, size_
     return 0;
 }
 
+
+/** FIO_decompressFrame() :
+    @return : size of decoded frame
+*/
+unsigned long long FIO_decompressFrame(dRess_t* ress,
+                                       FILE* finput,
+                                       U64 alreadyDecoded)
+{
+    U64 frameSize = 0;
+    U32 storedSkips = 0;
+
+    ZSTD_resetDStream(ress->dctx);
+
+    /* Header loading (optional, saves one loop) */
+    {   size_t const toRead = 9;
+        if (ress->srcBufferLoaded < toRead)
+            ress->srcBufferLoaded += fread(((char*)ress->srcBuffer) + ress->srcBufferLoaded, 1, toRead - ress->srcBufferLoaded, finput);
+    }
+
+    /* Main decompression Loop */
+    while (1) {
+        ZSTD_inBuffer  inBuff = { ress->srcBuffer, ress->srcBufferLoaded, 0 };
+        ZSTD_outBuffer outBuff= { ress->dstBuffer, ress->dstBufferSize, 0 };
+        size_t const readSizeHint = ZSTD_decompressStream(ress->dctx, &outBuff, &inBuff);
+        if (ZSTD_isError(readSizeHint)) EXM_THROW(36, "Decoding error : %s", ZSTD_getErrorName(readSizeHint));
+
+        /* Write block */
+        storedSkips = FIO_fwriteSparse(ress->dstFile, ress->dstBuffer, outBuff.pos, storedSkips);       
+        frameSize += outBuff.pos;
+        DISPLAYUPDATE(2, "\rDecoded : %u MB...     ", (U32)((alreadyDecoded+frameSize)>>20) );
+
+        if (inBuff.pos > 0) {
+            memmove(ress->srcBuffer, (char*)ress->srcBuffer + inBuff.pos, inBuff.size - inBuff.pos);
+            ress->srcBufferLoaded -= inBuff.pos;
+        }
+
+        if (readSizeHint == 0) break;   /* end of frame */
+        if (inBuff.size != inBuff.pos) EXM_THROW(37, "Decoding error : should consume entire input");
+
+        /* Fill input buffer */
+        {   size_t const toRead = MIN(readSizeHint, ress->srcBufferSize);  /* support large skippable frames */
+            if (ress->srcBufferLoaded < toRead)
+                ress->srcBufferLoaded += fread(((char*)ress->srcBuffer) + ress->srcBufferLoaded, 1, toRead - ress->srcBufferLoaded, finput);
+            if (ress->srcBufferLoaded < toRead) EXM_THROW(39, "Read error : premature end");
+    }   }
+
+    FIO_fwriteSparseEnd(ress->dstFile, storedSkips);
+
+    return frameSize;
+}
+
+
 #ifdef ZSTD_GZDECOMPRESS
-static unsigned long long FIO_decompressGzFrame(dRess_t ress, FILE* srcFile, const char* srcFileName, size_t alreadyLoaded)
+static unsigned long long FIO_decompressGzFrame(dRess_t* ress, FILE* srcFile, const char* srcFileName)
 {
     unsigned long long outFileSize = 0;
     z_stream strm;
@@ -662,32 +673,34 @@ static unsigned long long FIO_decompressGzFrame(dRess_t ress, FILE* srcFile, con
     strm.avail_in = Z_NULL;
     if (inflateInit2(&strm, 15 /* maxWindowLogSize */ + 16 /* gzip only */) != Z_OK) return 0;  /* see http://www.zlib.net/manual.html */
 
-    strm.next_out = ress.dstBuffer;
-    strm.avail_out = ress.dstBufferSize;
+    strm.next_out = ress->dstBuffer;
+    strm.avail_out = ress->dstBufferSize;
+    strm.avail_in = ress->srcBufferLoaded;
+    strm.next_in = (z_const unsigned char*)ress->srcBuffer;
 
     for ( ; ; ) {
-        if (alreadyLoaded) {
-            strm.avail_in = alreadyLoaded;
-            strm.next_in = (z_const unsigned char*)ress.srcBuffer;
-            alreadyLoaded = 0;
-        } else {
-            if (fread(ress.srcBuffer, 1, 1/*ress.srcBufferSize*/, srcFile) == 0) break;
-            strm.next_in = (z_const unsigned char*)ress.srcBuffer;
-            strm.avail_in = 1;
+        int ret;
+        if (strm.avail_in == 0) {
+            ress->srcBufferLoaded = fread(ress->srcBuffer, 1, ress->srcBufferSize, srcFile);
+            if (ress->srcBufferLoaded == 0) break;
+            strm.next_in = (z_const unsigned char*)ress->srcBuffer;
+            strm.avail_in = ress->srcBufferLoaded;
         }
-        {   int const ret = inflate(&strm, Z_NO_FLUSH);
-            if (ret == Z_STREAM_END) break;
-            if (ret != Z_OK) { DISPLAY("zstd: %s: inflate error %d \n", srcFileName, ret); return 0; }
-        }
-
-        {   size_t const decompBytes = ress.dstBufferSize - strm.avail_out;
+        ret = inflate(&strm, Z_NO_FLUSH);
+        if (ret != Z_OK && ret != Z_STREAM_END) { DISPLAY("zstd: %s: inflate error %d \n", srcFileName, ret); return 0; }
+        {   size_t const decompBytes = ress->dstBufferSize - strm.avail_out;
             if (decompBytes) {
-                if (fwrite(ress.dstBuffer, 1, decompBytes, ress.dstFile) != decompBytes) EXM_THROW(31, "Write error : cannot write to output file");
+                if (fwrite(ress->dstBuffer, 1, decompBytes, ress->dstFile) != decompBytes) EXM_THROW(31, "Write error : cannot write to output file");
                 outFileSize += decompBytes;
-                strm.next_out = ress.dstBuffer;
-                strm.avail_out = ress.dstBufferSize;
-    }   }   }
+                strm.next_out = ress->dstBuffer;
+                strm.avail_out = ress->dstBufferSize;
+            }
+        }
+        if (ret == Z_STREAM_END) break;
+    }
 
+    if (strm.avail_in > 0) memmove(ress->srcBuffer, strm.next_in, strm.avail_in);
+    ress->srcBufferLoaded = strm.avail_in;
     inflateEnd(&strm);
     return outFileSize;
 }
@@ -717,19 +730,19 @@ static int FIO_decompressSrcFile(dRess_t ress, const char* dstFileName, const ch
     for ( ; ; ) {
         /* check magic number -> version */
         size_t const toRead = 4;
-        size_t const sizeCheck = fread(ress.srcBuffer, (size_t)1, toRead, srcFile);
         const BYTE* buf = (const BYTE*)ress.srcBuffer;
-        if (sizeCheck==0) {
+        if (ress.srcBufferLoaded < toRead)
+            ress.srcBufferLoaded += fread((char*)ress.srcBuffer + ress.srcBufferLoaded, (size_t)1, toRead - ress.srcBufferLoaded, srcFile);
+        if (ress.srcBufferLoaded==0) {
             if (readSomething==0) { DISPLAY("zstd: %s: unexpected end of file \n", srcFileName); fclose(srcFile); return 1; }  /* srcFileName is empty */
             break;   /* no more input */
         }
         readSomething = 1;   /* there is at least >= 4 bytes in srcFile */
-        if (sizeCheck != toRead) { DISPLAY("zstd: %s: unknown header \n", srcFileName); fclose(srcFile); return 1; }  /* srcFileName is empty */
+        if (ress.srcBufferLoaded < toRead) { DISPLAY("zstd: %s: unknown header \n", srcFileName); fclose(srcFile); return 1; }  /* srcFileName is empty */
         if (buf[0] == 31 && buf[1] == 139) { /* gz header */
 #ifdef ZSTD_GZDECOMPRESS
-            unsigned long long const result = FIO_decompressGzFrame(ress, srcFile, srcFileName, toRead);
+            unsigned long long const result = FIO_decompressGzFrame(&ress, srcFile, srcFileName);
             if (result == 0) return 1;
-            printf("gzip=%d\n", (int)result);
             filesize += result;
 #else
             DISPLAYLEVEL(1, "zstd: %s: gzip file cannot be uncompressed (zstd compiled without ZSTD_GZDECOMPRESS) -- ignored \n", srcFileName);
@@ -738,8 +751,7 @@ static int FIO_decompressSrcFile(dRess_t ress, const char* dstFileName, const ch
         } else {
             if (!ZSTD_isFrame(ress.srcBuffer, toRead)) {
                 if ((g_overwrite) && !strcmp (dstFileName, stdoutmark)) {  /* pass-through mode */
-                    unsigned const result = FIO_passThrough(ress.dstFile, srcFile, ress.srcBuffer, ress.srcBufferSize);
-                    printf("pass-through=%d\n", (int)result);
+                    unsigned const result = FIO_passThrough(ress.dstFile, srcFile, ress.srcBuffer, ress.srcBufferSize, ress.srcBufferLoaded);
                     if (fclose(srcFile)) EXM_THROW(32, "zstd: %s close error", srcFileName);  /* error should never happen */
                     return result;
                 } else {
@@ -747,8 +759,7 @@ static int FIO_decompressSrcFile(dRess_t ress, const char* dstFileName, const ch
                     fclose(srcFile);
                     return 1;
             }   }
-            filesize += FIO_decompressFrame(ress, srcFile, toRead, filesize);
-            printf("zstd filesize=%d\n", (int)filesize);
+            filesize += FIO_decompressFrame(&ress, srcFile, filesize);
         }
     }
 

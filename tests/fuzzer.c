@@ -27,7 +27,7 @@
 #include <time.h>         /* clock_t */
 #define ZSTD_STATIC_LINKING_ONLY   /* ZSTD_compressContinue, ZSTD_compressBlock */
 #include "zstd.h"         /* ZSTD_VERSION_STRING */
-#include "zstd_errors.h" /* ZSTD_getErrorCode */
+#include "zstd_errors.h"  /* ZSTD_getErrorCode */
 #include "zdict.h"        /* ZDICT_trainFromBuffer */
 #include "datagen.h"      /* RDG_genBuffer */
 #include "mem.h"
@@ -246,6 +246,7 @@ static int basicUnitTests(U32 seed, double compressibility)
         size_t const sampleUnitSize = 8 KB;
         U32 const nbSamples = (U32)(totalSampleSize / sampleUnitSize);
         size_t* const samplesSizes = (size_t*) malloc(nbSamples * sizeof(size_t));
+        U32 dictID;
 
         if (dictBuffer==NULL || samplesSizes==NULL) {
             free(dictBuffer);
@@ -261,10 +262,9 @@ static int basicUnitTests(U32 seed, double compressibility)
         DISPLAYLEVEL(4, "OK, created dictionary of size %u \n", (U32)dictSize);
 
         DISPLAYLEVEL(4, "test%3i : check dictID : ", testNb++);
-        {   U32 const dictID = ZDICT_getDictID(dictBuffer, dictSize);
-            if (dictID==0) goto _output_error;
-            DISPLAYLEVEL(4, "OK : %u \n", dictID);
-        }
+        dictID = ZDICT_getDictID(dictBuffer, dictSize);
+        if (dictID==0) goto _output_error;
+        DISPLAYLEVEL(4, "OK : %u \n", dictID);
 
         DISPLAYLEVEL(4, "test%3i : compress with dictionary : ", testNb++);
         cSize = ZSTD_compress_usingDict(cctx, compressedBuffer, ZSTD_compressBound(CNBuffSize),
@@ -272,6 +272,18 @@ static int basicUnitTests(U32 seed, double compressibility)
                                         dictBuffer, dictSize, 4);
         if (ZSTD_isError(cSize)) goto _output_error;
         DISPLAYLEVEL(4, "OK (%u bytes : %.2f%%)\n", (U32)cSize, (double)cSize/CNBuffSize*100);
+
+        DISPLAYLEVEL(4, "test%3i : retrieve dictID from dictionary : ", testNb++);
+        {   U32 const did = ZSTD_getDictID_fromDict(dictBuffer, dictSize);
+            if (did != dictID) goto _output_error;   /* non-conformant (content-only) dictionary */
+        }
+        DISPLAYLEVEL(4, "OK \n");
+
+        DISPLAYLEVEL(4, "test%3i : retrieve dictID from frame : ", testNb++);
+        {   U32 const did = ZSTD_getDictID_fromFrame(compressedBuffer, cSize);
+            if (did != dictID) goto _output_error;   /* non-conformant (content-only) dictionary */
+        }
+        DISPLAYLEVEL(4, "OK \n");
 
         DISPLAYLEVEL(4, "test%3i : frame built with dictionary should be decompressible : ", testNb++);
         CHECKPLUS(r, ZSTD_decompress_usingDict(dctx,

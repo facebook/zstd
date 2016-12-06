@@ -1811,7 +1811,7 @@ unsigned ZSTD_getDictID_fromDDict(const ZSTD_DDict* ddict)
  *  When identifying the exact failure cause, it's possible to used ZSTD_getFrameParams(), which will provide a more precise error code. */
 unsigned ZSTD_getDictID_fromFrame(const void* src, size_t srcSize)
 {
-    ZSTD_frameParams zfp;
+    ZSTD_frameParams zfp = { 0 , 0 , 0 , 0 };
     size_t const hError = ZSTD_getFrameParams(&zfp, src, srcSize);
     if (ZSTD_isError(hError)) return 0;
     return zfp.dictID;

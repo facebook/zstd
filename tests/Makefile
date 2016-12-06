@@ -37,10 +37,10 @@ FLAGS   = $(CPPFLAGS) $(CFLAGS) $(LDFLAGS)
 
 
 ZSTDCOMMON_FILES := $(ZSTDDIR)/common/*.c
-ZSTDCOMP_FILES := $(ZSTDDIR)/compress/zstd_compress.c $(ZSTDDIR)/compress/fse_compress.c $(ZSTDDIR)/compress/huf_compress.c
-ZSTDDECOMP_FILES := $(ZSTDDIR)/decompress/zstd_decompress.c $(ZSTDDIR)/decompress/huf_decompress.c
+ZSTDCOMP_FILES := $(ZSTDDIR)/compress/*.c
+ZSTDDECOMP_FILES := $(ZSTDDIR)/decompress/*.c
 ZSTD_FILES := $(ZSTDDECOMP_FILES) $(ZSTDCOMMON_FILES) $(ZSTDCOMP_FILES)
-ZBUFF_FILES := $(ZSTDDIR)/compress/zbuff_compress.c $(ZSTDDIR)/decompress/zbuff_decompress.c
+ZBUFF_FILES := $(ZSTDDIR)/deprecated/*.c
 ZDICT_FILES := $(ZSTDDIR)/dictBuilder/*.c
 
 
@@ -53,7 +53,7 @@ EXT =
 endif
 
 VOID = /dev/null
-ZBUFFTEST = -T2mn
+ZSTREAM_TESTTIME = -T2mn
 FUZZERTEST= -T5mn
 ZSTDRTTEST= --test-large-data
 
@@ -61,9 +61,9 @@ ZSTDRTTEST= --test-large-data
 
 default: fullbench
 
-all: fullbench fuzzer zstreamtest paramgrill datagen
+all: fullbench fuzzer zstreamtest paramgrill datagen zbufftest
 
-all32: fullbench32 fuzzer32 zstreamtest32
+all32: fullbench32 fuzzer32 zstreamtest32 zbufftest32
 
 
 
@@ -93,19 +93,21 @@ fullbench-dll: $(PRGDIR)/datagen.c fullbench.c
 	$(MAKE) -C $(ZSTDDIR) libzstd
 	$(CC) $(FLAGS) $^ -o $@$(EXT) -DZSTD_DLL_IMPORT=1 $(ZSTDDIR)/dll/libzstd.dll
 
-fuzzer  : CPPFLAGS += -I$(ZSTDDIR)/dictBuilder
 fuzzer  : $(ZSTD_FILES) $(ZDICT_FILES) $(PRGDIR)/datagen.c fuzzer.c
 	$(CC)      $(FLAGS) $^ -o $@$(EXT)
 
-fuzzer32 : CPPFLAGS += -I$(ZSTDDIR)/dictBuilder
 fuzzer32 : $(ZSTD_FILES) $(ZDICT_FILES) $(PRGDIR)/datagen.c fuzzer.c
 	$(CC)  -m32  $(FLAGS) $^ -o $@$(EXT)
 
-zbufftest  : $(ZSTD_FILES) $(ZBUFF_FILES) $(PRGDIR)/datagen.c zbufftest.c
-	$(CC)      $(FLAGS) $^ -o $@$(EXT)
+zbufftest : CPPFLAGS += -I$(ZSTDDIR)/deprecated
+zbufftest : CFLAGS += -Wno-deprecated-declarations
+zbufftest : $(ZSTD_FILES) $(ZBUFF_FILES) $(PRGDIR)/datagen.c zbufftest.c
+	$(CC) $(FLAGS) $^ -o $@$(EXT)   # flag required to silence deprecation warnings
 
-zbufftest32  : $(ZSTD_FILES) $(ZBUFF_FILES) $(PRGDIR)/datagen.c zbufftest.c
-	$(CC)  -m32  $(FLAGS) $^ -o $@$(EXT)
+zbufftest32 : CPPFLAGS += -I$(ZSTDDIR)/deprecated
+zbufftest32 : CFLAGS += -Wno-deprecated-declarations -m32
+zbufftest32 : $(ZSTD_FILES) $(ZBUFF_FILES) $(PRGDIR)/datagen.c zbufftest.c
+	$(CC) $(FLAGS) $^ -o $@$(EXT)
 
 zstreamtest  : $(ZSTD_FILES) $(PRGDIR)/datagen.c zstreamtest.c
 	$(CC)      $(FLAGS) $^ -o $@$(EXT)
@@ -224,15 +226,15 @@ test-fuzzer32: fuzzer32
 	$(QEMU_SYS) ./fuzzer32 $(FUZZERTEST)
 
 test-zbuff: zbufftest
-	$(QEMU_SYS) ./zbufftest $(ZBUFFTEST)
+	$(QEMU_SYS) ./zbufftest $(ZSTREAM_TESTTIME)
 
 test-zbuff32: zbufftest32
-	$(QEMU_SYS) ./zbufftest32 $(ZBUFFTEST)
+	$(QEMU_SYS) ./zbufftest32 $(ZSTREAM_TESTTIME)
 
 test-zstream: zstreamtest
-	$(QEMU_SYS) ./zstreamtest $(ZBUFFTEST)
+	$(QEMU_SYS) ./zstreamtest $(ZSTREAM_TESTTIME)
 
 test-zstream32: zstreamtest32
-	$(QEMU_SYS) ./zstreamtest32 $(ZBUFFTEST)
+	$(QEMU_SYS) ./zstreamtest32 $(ZSTREAM_TESTTIME)
 
 endif

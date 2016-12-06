@@ -23,24 +23,22 @@ PREFIX ?= /usr/local
 LIBDIR ?= $(PREFIX)/lib
 INCLUDEDIR=$(PREFIX)/include
 
-CPPFLAGS= -I. -I./common -DXXH_NAMESPACE=XXH_
-CFLAGS ?= -O3
-CFLAGS += -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow -Wstrict-aliasing=1 \
-          -Wswitch-enum -Wdeclaration-after-statement -Wstrict-prototypes -Wundef \
-          -Wpointer-arith
-FLAGS   = $(CPPFLAGS) $(CFLAGS) $(MOREFLAGS)
+CPPFLAGS+= -I. -I./common -DXXH_NAMESPACE=ZSTD_
+CFLAGS  ?= -O3
+CFLAGS  += -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow -Wstrict-aliasing=1 \
+           -Wswitch-enum -Wdeclaration-after-statement -Wstrict-prototypes -Wundef \
+           -Wpointer-arith
+CFLAGS  += $(MOREFLAGS)
+FLAGS    = $(CPPFLAGS) $(CFLAGS)
 
 
-ZSTD_FILES := $(wildcard common/*.c compress/*.c decompress/*.c dictBuilder/*.c)
-ZSTD_EXCLUDE := compress/zbuff_compress.c decompress/zbuff_decompress.c
-ZSTD_FILES := $(filter-out $(ZSTD_EXCLUDE), $(ZSTD_FILES))
-
+ZSTD_FILES := $(wildcard common/*.c compress/*.c decompress/*.c dictBuilder/*.c deprecated/*.c)
 
 ifeq ($(ZSTD_LEGACY_SUPPORT), 0)
 CPPFLAGS  += -DZSTD_LEGACY_SUPPORT=0
 else
-ZSTD_FILES+= legacy/*.c
 CPPFLAGS  += -I./legacy -DZSTD_LEGACY_SUPPORT=1
+ZSTD_FILES+= $(wildcard legacy/*.c)
 endif
 
 # OS X linker doesn't support -soname, and use different extension
@@ -90,8 +88,8 @@ libzstd : $(LIBZSTD)
 lib: libzstd.a libzstd
 
 clean:
-	@$(RM) -f core *.o *.a *.gcda *.$(SHARED_EXT) *.$(SHARED_EXT).* libzstd.pc dll/libzstd.dll dll/libzstd.lib
-	@$(RM) -f decompress/*.o
+	@$(RM) core *.o *.a *.gcda *.$(SHARED_EXT) *.$(SHARED_EXT).* libzstd.pc dll/libzstd.dll dll/libzstd.lib
+	@$(RM) decompress/*.o
 	@echo Cleaning library completed
 
 #------------------------------------------------------------------------
@@ -116,7 +114,7 @@ install: libzstd.a libzstd libzstd.pc
 	@install -m 644 libzstd.a $(DESTDIR)$(LIBDIR)/libzstd.a
 	@install -m 644 zstd.h $(DESTDIR)$(INCLUDEDIR)/zstd.h
 	@install -m 644 common/zstd_errors.h $(DESTDIR)$(INCLUDEDIR)/zstd_errors.h
-	@install -m 644 common/zbuff.h $(DESTDIR)$(INCLUDEDIR)/zbuff.h
+	@install -m 644 deprecated/zbuff.h $(DESTDIR)$(INCLUDEDIR)/zbuff.h   # prototypes generate deprecation warnings
 	@install -m 644 dictBuilder/zdict.h $(DESTDIR)$(INCLUDEDIR)/zdict.h
 	@echo zstd static and shared library installed
 

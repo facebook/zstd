@@ -360,11 +360,11 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\..\lib\compress\zbuff_compress.c"
+				RelativePath="..\..\..\lib\deprecated\zbuff_compress.c"
 				>
 			</File>
 			<File
-				RelativePath="..\..\..\lib\decompress\zbuff_decompress.c"
+				RelativePath="..\..\..\lib\deprecated\zbuff_decompress.c"
 				>
 			</File>
 			<File
@@ -459,10 +459,6 @@
 			</File>
 			<File
 				RelativePath="..\..\..\lib\common\zbuff.h"
-				>
-			</File>
-			<File
-				RelativePath="..\..\..\lib\common\zbuff_static.h"
 				>
 			</File>
 			<File

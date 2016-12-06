@@ -53,8 +53,6 @@ extern "C" {
 *********************************************************************************************************/
 
 /*------   Version   ------*/
-ZSTDLIB_API unsigned ZSTD_versionNumber (void);  /**< returns version number of ZSTD */
-
 #define ZSTD_VERSION_MAJOR    1
 #define ZSTD_VERSION_MINOR    1
 #define ZSTD_VERSION_RELEASE  2
@@ -65,6 +63,7 @@ ZSTDLIB_API unsigned ZSTD_versionNumber (void);  /**< returns version number of 
 #define ZSTD_VERSION_STRING ZSTD_EXPAND_AND_QUOTE(ZSTD_LIB_VERSION)
 
 #define ZSTD_VERSION_NUMBER  (ZSTD_VERSION_MAJOR *100*100 + ZSTD_VERSION_MINOR *100 + ZSTD_VERSION_RELEASE)
+ZSTDLIB_API unsigned ZSTD_versionNumber (void);
 
 
 /***************************************

@@ -64,25 +64,25 @@ SET(Sources
         ${LIBRARY_DIR}/common/fse_decompress.c
         ${LIBRARY_DIR}/compress/fse_compress.c
         ${LIBRARY_DIR}/compress/huf_compress.c
-        ${LIBRARY_DIR}/compress/zbuff_compress.c
         ${LIBRARY_DIR}/compress/zstd_compress.c
         ${LIBRARY_DIR}/decompress/huf_decompress.c
-        ${LIBRARY_DIR}/decompress/zbuff_decompress.c
         ${LIBRARY_DIR}/decompress/zstd_decompress.c
         ${LIBRARY_DIR}/dictBuilder/divsufsort.c
-        ${LIBRARY_DIR}/dictBuilder/zdict.c)
+        ${LIBRARY_DIR}/dictBuilder/zdict.c
+        ${LIBRARY_DIR}/deprecated/zbuff_compress.c
+        ${LIBRARY_DIR}/deprecated/zbuff_decompress.c)
 
 SET(Headers
+        ${LIBRARY_DIR}/zstd.h
         ${LIBRARY_DIR}/common/bitstream.h
         ${LIBRARY_DIR}/common/error_private.h
         ${LIBRARY_DIR}/common/zstd_errors.h
         ${LIBRARY_DIR}/common/fse.h
         ${LIBRARY_DIR}/common/huf.h
         ${LIBRARY_DIR}/common/mem.h
-        ${LIBRARY_DIR}/common/zbuff.h
         ${LIBRARY_DIR}/common/zstd_internal.h
-        ${LIBRARY_DIR}/zstd.h
-        ${LIBRARY_DIR}/dictBuilder/zdict.h)
+        ${LIBRARY_DIR}/dictBuilder/zdict.h
+        ${LIBRARY_DIR}/deprecated/zbuff.h)
 
 IF (ZSTD_LEGACY_SUPPORT)
     SET(LIBRARY_LEGACY_DIR ${LIBRARY_DIR}/legacy)

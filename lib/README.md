@@ -56,15 +56,15 @@ file it should be linked with `dll\libzstd.dll`. For example:
 ```
     gcc $(CFLAGS) -Iinclude/ test-dll.c -o test-dll dll\libzstd.dll
 ```
-The compiled executable will require ZSTD DLL which is available at `dll\libzstd.dll`. 
+The compiled executable will require ZSTD DLL which is available at `dll\libzstd.dll`.
 
 
 #### Obsolete streaming API
 
 Streaming is now provided within `zstd.h`.
-Older streaming API is still available within `common/zbuff.h`.
-It is now deprecated, and will be removed in a future version.
-Consider migrating towards newer streaming API in `zstd.h`.
+Older streaming API is still available within `deprecated/zbuff.h`.
+It will be removed in a future version.
+Consider migrating code towards newer streaming API in `zstd.h`.
 
 
 #### Miscellaneous

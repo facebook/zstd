@@ -74,7 +74,7 @@ static clock_t g_time = 0;
     DEBUGOUTPUT("Error defined at %s, line %i : \n", __FILE__, __LINE__); \
     DISPLAYLEVEL(1, "Error %i : ", error);                                \
     DISPLAYLEVEL(1, __VA_ARGS__);                                         \
-    DISPLAYLEVEL(1, "\n");                                                \
+    DISPLAYLEVEL(1, " \n");                                               \
     exit(error);                                                          \
 }
 
@@ -84,7 +84,8 @@ static clock_t g_time = 0;
 ***************************************/
 static U32 g_nbSeconds = NBSECONDS;
 static size_t g_blockSize = 0;
-int g_additionalParam = 0;
+static int g_additionalParam = 0;
+static U32 g_decodeOnly = 0;
 
 void BMK_setNotificationLevel(unsigned level) { g_displayLevel=level; }
 
@@ -102,18 +103,18 @@ void BMK_SetBlockSize(size_t blockSize)
     DISPLAYLEVEL(2, "using blocks of size %u KB \n", (U32)(blockSize>>10));
 }
 
+void BMK_setDecodeOnly(unsigned decodeFlag) { g_decodeOnly = (decodeFlag>0); }
 
 /* ********************************************************
 *  Bench functions
 **********************************************************/
-typedef struct
-{
-    const char* srcPtr;
+typedef struct {
+    const void* srcPtr;
     size_t srcSize;
-    char*  cPtr;
+    void*  cPtr;
     size_t cRoom;
     size_t cSize;
-    char*  resPtr;
+    void*  resPtr;
     size_t resSize;
 } blockParam_t;
 
@@ -132,7 +133,7 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
     blockParam_t* const blockTable = (blockParam_t*) malloc(maxNbBlocks * sizeof(blockParam_t));
     size_t const maxCompressedSize = ZSTD_compressBound(srcSize) + (maxNbBlocks * 1024);   /* add some room for safety */
     void* const compressedBuffer = malloc(maxCompressedSize);
-    void* const resultBuffer = malloc(srcSize);
+    void* resultBuffer = malloc(srcSize);
     ZSTD_CCtx* const ctx = ZSTD_createCCtx();
     ZSTD_DCtx* const dctx = ZSTD_createDCtx();
     U32 nbBlocks;
@@ -147,7 +148,8 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
     UTIL_initTimer(&ticksPerSecond);
 
     /* Init blockTable data */
-    {   const char* srcPtr = (const char*)srcBuffer;
+    if (!g_decodeOnly) {
+        const char* srcPtr = (const char*)srcBuffer;
         char* cPtr = (char*)compressedBuffer;
         char* resPtr = (char*)resultBuffer;
         U32 fileNb;
@@ -157,27 +159,45 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
             U32 const blockEnd = nbBlocks + nbBlocksforThisFile;
             for ( ; nbBlocks<blockEnd; nbBlocks++) {
                 size_t const thisBlockSize = MIN(remaining, blockSize);
-                blockTable[nbBlocks].srcPtr = srcPtr;
-                blockTable[nbBlocks].cPtr = cPtr;
-                blockTable[nbBlocks].resPtr = resPtr;
+                blockTable[nbBlocks].srcPtr = (const void*)srcPtr;
                 blockTable[nbBlocks].srcSize = thisBlockSize;
+                blockTable[nbBlocks].cPtr = (void*)cPtr;
                 blockTable[nbBlocks].cRoom = ZSTD_compressBound(thisBlockSize);
+                blockTable[nbBlocks].resPtr = (void*)resPtr;
                 srcPtr += thisBlockSize;
                 cPtr += blockTable[nbBlocks].cRoom;
                 resPtr += thisBlockSize;
                 remaining -= thisBlockSize;
-    }   }   }
+        }   }
+    } else {   /* g_decodeOnly */
+        U64 const dSize64 = ZSTD_getDecompressedSize(srcBuffer, srcSize);
+        size_t const decodedSize = (size_t)dSize64;
+        if (dSize64 > decodedSize) EXM_THROW(32, "original size is too large");
+        if (decodedSize==0) EXM_THROW(32, "Impossible to determine original size ");
+        free(resultBuffer);
+        resultBuffer = malloc(decodedSize);
+        if (!resultBuffer) EXM_THROW(33, "not enough memory");
+        nbBlocks = 1;
+        blockTable[nbBlocks].srcPtr = srcBuffer;
+        blockTable[0].srcSize = decodedSize;
+        blockTable[0].cPtr = compressedBuffer;
+        blockTable[0].cSize = srcSize;
+        blockTable[0].cRoom = maxCompressedSize;
+        blockTable[0].resPtr = resultBuffer;
+        blockTable[0].resSize = decodedSize;
+        srcSize = decodedSize;
+    }
 
     /* warmimg up memory */
     RDG_genBuffer(compressedBuffer, maxCompressedSize, 0.10, 0.50, 1);
 
     /* Bench */
     {   U64 fastestC = (U64)(-1LL), fastestD = (U64)(-1LL);
-        U64 const crcOrig = XXH64(srcBuffer, srcSize, 0);
+        U64 const crcOrig = g_decodeOnly ? 0 : XXH64(srcBuffer, srcSize, 0);
         UTIL_time_t coolTime;
         U64 const maxTime = (g_nbSeconds * TIMELOOP_MICROSEC) + 1;
         U64 totalCTime=0, totalDTime=0;
-        U32 cCompleted=0, dCompleted=0;
+        U32 cCompleted=g_decodeOnly, dCompleted=0;
 #       define NB_MARKS 4
         const char* const marks[NB_MARKS] = { " |", " /", " =",  "\\" };
         U32 markNb = 0;
@@ -186,9 +206,8 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
 
         UTIL_getTime(&coolTime);
         DISPLAYLEVEL(2, "\r%79s\r", "");
-        while (!cCompleted | !dCompleted) {
+        while (!cCompleted || !dCompleted) {
             UTIL_time_t clockStart;
-            U64 clockLoop = g_nbSeconds ? TIMELOOP_MICROSEC : 1;
 
             /* overheat protection */
             if (UTIL_clockSpanMicro(coolTime, ticksPerSecond) > ACTIVEPERIOD_MICROSEC) {
@@ -197,53 +216,58 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
                 UTIL_getTime(&coolTime);
             }
 
-            /* Compression */
-            DISPLAYLEVEL(2, "%2s-%-17.17s :%10u ->\r", marks[markNb], displayName, (U32)srcSize);
-            if (!cCompleted) memset(compressedBuffer, 0xE5, maxCompressedSize);  /* warm up and erase result buffer */
+            if (!g_decodeOnly) {
+                /* Compression */
+                DISPLAYLEVEL(2, "%2s-%-17.17s :%10u ->\r", marks[markNb], displayName, (U32)srcSize);
+                if (!cCompleted) memset(compressedBuffer, 0xE5, maxCompressedSize);  /* warm up and erase result buffer */
 
-            UTIL_sleepMilli(1);  /* give processor time to other processes */
-            UTIL_waitForNextTick(ticksPerSecond);
-            UTIL_getTime(&clockStart);
+                UTIL_sleepMilli(1);  /* give processor time to other processes */
+                UTIL_waitForNextTick(ticksPerSecond);
+                UTIL_getTime(&clockStart);
 
-            if (!cCompleted) {   /* still some time to do compression tests */
-                ZSTD_parameters const zparams = ZSTD_getParams(cLevel, avgSize, dictBufferSize);
-                ZSTD_customMem const cmem = { NULL, NULL, NULL };
-                U32 nbLoops = 0;
-                ZSTD_CDict* cdict = ZSTD_createCDict_advanced(dictBuffer, dictBufferSize, zparams, cmem);
-                if (cdict==NULL) EXM_THROW(1, "ZSTD_createCDict_advanced() allocation failure");
-                do {
-                    U32 blockNb;
-                    size_t rSize;
-                    for (blockNb=0; blockNb<nbBlocks; blockNb++) {
-                        if (dictBufferSize) {
-                            rSize = ZSTD_compress_usingCDict(ctx,
-                                            blockTable[blockNb].cPtr,  blockTable[blockNb].cRoom,
-                                            blockTable[blockNb].srcPtr,blockTable[blockNb].srcSize,
-                                            cdict);
-                        } else {
-                            rSize = ZSTD_compressCCtx (ctx,
-                                            blockTable[blockNb].cPtr,  blockTable[blockNb].cRoom,
-                                            blockTable[blockNb].srcPtr,blockTable[blockNb].srcSize, cLevel);
+                if (!cCompleted) {   /* still some time to do compression tests */
+                    ZSTD_parameters const zparams = ZSTD_getParams(cLevel, avgSize, dictBufferSize);
+                    ZSTD_customMem const cmem = { NULL, NULL, NULL };
+                    U64 clockLoop = g_nbSeconds ? TIMELOOP_MICROSEC : 1;
+                    U32 nbLoops = 0;
+                    ZSTD_CDict* const cdict = ZSTD_createCDict_advanced(dictBuffer, dictBufferSize, zparams, cmem);
+                    if (cdict==NULL) EXM_THROW(1, "ZSTD_createCDict_advanced() allocation failure");
+                    do {
+                        U32 blockNb;
+                        size_t rSize;
+                        for (blockNb=0; blockNb<nbBlocks; blockNb++) {
+                            if (dictBufferSize) {
+                                rSize = ZSTD_compress_usingCDict(ctx,
+                                                blockTable[blockNb].cPtr,  blockTable[blockNb].cRoom,
+                                                blockTable[blockNb].srcPtr,blockTable[blockNb].srcSize,
+                                                cdict);
+                            } else {
+                                rSize = ZSTD_compressCCtx (ctx,
+                                                blockTable[blockNb].cPtr,  blockTable[blockNb].cRoom,
+                                                blockTable[blockNb].srcPtr,blockTable[blockNb].srcSize, cLevel);
+                            }
+                            if (ZSTD_isError(rSize)) EXM_THROW(1, "ZSTD_compress_usingCDict() failed : %s", ZSTD_getErrorName(rSize));
+                            blockTable[blockNb].cSize = rSize;
                         }
-                        if (ZSTD_isError(rSize)) EXM_THROW(1, "ZSTD_compress_usingCDict() failed : %s", ZSTD_getErrorName(rSize));
-                        blockTable[blockNb].cSize = rSize;
-                    }
-                    nbLoops++;
-                } while (UTIL_clockSpanMicro(clockStart, ticksPerSecond) < clockLoop);
-                ZSTD_freeCDict(cdict);
-                {   U64 const clockSpan = UTIL_clockSpanMicro(clockStart, ticksPerSecond);
-                    if (clockSpan < fastestC*nbLoops) fastestC = clockSpan / nbLoops;
-                    totalCTime += clockSpan;
-                    cCompleted = (totalCTime >= maxTime);
-            }   }
+                        nbLoops++;
+                    } while (UTIL_clockSpanMicro(clockStart, ticksPerSecond) < clockLoop);
+                    ZSTD_freeCDict(cdict);
+                    {   U64 const clockSpan = UTIL_clockSpanMicro(clockStart, ticksPerSecond);
+                        if (clockSpan < fastestC*nbLoops) fastestC = clockSpan / nbLoops;
+                        totalCTime += clockSpan;
+                        cCompleted = (totalCTime >= maxTime);
+                }   }
 
-            cSize = 0;
-            { U32 blockNb; for (blockNb=0; blockNb<nbBlocks; blockNb++) cSize += blockTable[blockNb].cSize; }
-            ratio = (double)srcSize / (double)cSize;
-            markNb = (markNb+1) % NB_MARKS;
-            DISPLAYLEVEL(2, "%2s-%-17.17s :%10u ->%10u (%5.3f),%6.1f MB/s\r",
-                    marks[markNb], displayName, (U32)srcSize, (U32)cSize, ratio,
-                    (double)srcSize / fastestC );
+                cSize = 0;
+                { U32 blockNb; for (blockNb=0; blockNb<nbBlocks; blockNb++) cSize += blockTable[blockNb].cSize; }
+                ratio = (double)srcSize / (double)cSize;
+                markNb = (markNb+1) % NB_MARKS;
+                DISPLAYLEVEL(2, "%2s-%-17.17s :%10u ->%10u (%5.3f),%6.1f MB/s\r",
+                        marks[markNb], displayName, (U32)srcSize, (U32)cSize, ratio,
+                        (double)srcSize / fastestC );
+            } else {   /* g_decodeOnly */
+                memcpy(compressedBuffer, srcBuffer, blockTable[0].cSize);
+            }
 
             (void)fastestD; (void)crcOrig;   /*  unused when decompression disabled */
 #if 1
@@ -255,8 +279,9 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
             UTIL_getTime(&clockStart);
 
             if (!dCompleted) {
+                U64 clockLoop = g_nbSeconds ? TIMELOOP_MICROSEC : 1;
                 U32 nbLoops = 0;
-                ZSTD_DDict* ddict = ZSTD_createDDict(dictBuffer, dictBufferSize);
+                ZSTD_DDict* const ddict = ZSTD_createDDict(dictBuffer, dictBufferSize);
                 if (!ddict) EXM_THROW(2, "ZSTD_createDDict() allocation failure");
                 do {
                     U32 blockNb;
@@ -290,7 +315,7 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
 
             /* CRC Checking */
             {   U64 const crcCheck = XXH64(resultBuffer, srcSize, 0);
-                if (crcOrig!=crcCheck) {
+                if (!g_decodeOnly && (crcOrig!=crcCheck)) {
                     size_t u;
                     DISPLAY("!!! WARNING !!! %14s : Invalid Checksum : %x != %x   \n", displayName, (unsigned)crcOrig, (unsigned)crcCheck);
                     for (u=0; u<srcSize; u++) {
@@ -492,7 +517,7 @@ int BMK_benchFiles(const char** fileNamesTable, unsigned nbFiles,
     if (cLevel > ZSTD_maxCLevel()) cLevel = ZSTD_maxCLevel();
     if (cLevelLast > ZSTD_maxCLevel()) cLevelLast = ZSTD_maxCLevel();
     if (cLevelLast < cLevel) cLevelLast = cLevel;
-    if (cLevelLast > cLevel) DISPLAYLEVEL(2, "Benchmarking levels from %d to %d\n", cLevel, cLevelLast); 
+    if (cLevelLast > cLevel) DISPLAYLEVEL(2, "Benchmarking levels from %d to %d\n", cLevel, cLevelLast);
 
     if (nbFiles == 0)
         BMK_syntheticTest(cLevel, cLevelLast, compressibility);

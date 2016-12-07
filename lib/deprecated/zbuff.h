@@ -15,17 +15,19 @@
  * See 'lib/README.md'.
  *****************************************************************/
 
-#ifndef ZSTD_BUFFERED_H_23987
-#define ZSTD_BUFFERED_H_23987
 
 #if defined (__cplusplus)
 extern "C" {
 #endif
 
+#ifndef ZSTD_BUFFERED_H_23987
+#define ZSTD_BUFFERED_H_23987
+
 /* *************************************
 *  Dependencies
 ***************************************/
 #include <stddef.h>      /* size_t */
+#include <zstd.h>        /* ZSTD_CStream, ZSTD_DStream */
 
 
 /* ***************************************************************
@@ -48,7 +50,7 @@ extern "C" {
 #ifdef ZBUFF_DISABLE_DEPRECATE_WARNINGS
 #  define ZBUFF_DEPRECATED(message)   /* disable deprecation warnings */
 #else
-#  if (defined(__GNUC__) && (__GNUC__ >= 4)) || defined(__clang__)
+#  if (defined(__GNUC__) && (__GNUC__ >= 5)) || defined(__clang__)
 #    define ZBUFF_DEPRECATED(message) __attribute__((deprecated(message)))
 #  elif defined(__GNUC__) && (__GNUC__ >= 3)
 #    define ZBUFF_DEPRECATED(message) __attribute__((deprecated))
@@ -70,7 +72,7 @@ extern "C" {
 *  ZBUFF and ZSTD are 100% interoperable,
 *  frames created by one can be decoded by the other one */
 
-typedef struct ZBUFF_CCtx_s ZBUFF_CCtx;
+typedef ZSTD_CStream ZBUFF_CCtx;
 ZBUFF_DEPRECATED("use ZSTD_createCStream") ZBUFF_CCtx* ZBUFF_createCCtx(void);
 ZBUFF_DEPRECATED("use ZSTD_freeCStream")   size_t      ZBUFF_freeCCtx(ZBUFF_CCtx* cctx);
 
@@ -122,7 +124,7 @@ ZBUFF_DEPRECATED("use ZSTD_endStream")      size_t ZBUFF_compressEnd(ZBUFF_CCtx*
 * **************************************************/
 
 
-typedef struct ZBUFF_DCtx_s ZBUFF_DCtx;
+typedef ZSTD_DStream ZBUFF_DCtx;
 ZBUFF_DEPRECATED("use ZSTD_createDStream") ZBUFF_DCtx* ZBUFF_createDCtx(void);
 ZBUFF_DEPRECATED("use ZSTD_freeDStream")   size_t      ZBUFF_freeDCtx(ZBUFF_DCtx* dctx);
 
@@ -172,8 +174,13 @@ ZBUFF_DEPRECATED("use ZSTD_CStreamOutSize") size_t ZBUFF_recommendedCOutSize(voi
 ZBUFF_DEPRECATED("use ZSTD_DStreamInSize")  size_t ZBUFF_recommendedDInSize(void);
 ZBUFF_DEPRECATED("use ZSTD_DStreamOutSize") size_t ZBUFF_recommendedDOutSize(void);
 
+#endif  /* ZSTD_BUFFERED_H_23987 */
+
 
 #ifdef ZBUFF_STATIC_LINKING_ONLY
+
+#ifndef ZBUFF_STATIC_H_30298098432
+#define ZBUFF_STATIC_H_30298098432
 
 /* ====================================================================================
  * The definitions in this section are considered experimental.
@@ -203,11 +210,11 @@ ZBUFF_DEPRECATED("use ZSTD_initDStream_usingDict") size_t ZBUFF_compressInit_adv
                                                ZSTD_parameters params, unsigned long long pledgedSrcSize);
 
 
-#endif /* ZBUFF_STATIC_LINKING_ONLY */
+#endif    /* ZBUFF_STATIC_H_30298098432 */
+
+#endif    /* ZBUFF_STATIC_LINKING_ONLY */
 
 
 #if defined (__cplusplus)
 }
 #endif
-
-#endif  /* ZSTD_BUFFERED_H_23987 */

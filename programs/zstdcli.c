@@ -334,7 +334,11 @@ int main(int argCount, const char* argv[])
                     case 'z': operation=zom_compress; argument++; break;
 
                          /* Decoding */
-                    case 'd': operation=zom_decompress; argument++; break;
+                    case 'd':
+#ifndef ZSTD_NOBENCH
+                            if (operation==zom_bench) { BMK_setDecodeOnly(1); argument++; break; }  /* benchmark decode (hidden option) */
+#endif
+                            operation=zom_decompress; argument++; break;
 
                         /* Force stdout, even if stdout==console */
                     case 'c': forceStdout=1; outFileName=stdoutmark; argument++; break;

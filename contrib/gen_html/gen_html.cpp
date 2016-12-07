@@ -176,6 +176,7 @@ int main(int argc, char *argv[]) {
             }
             sout << "</p></pre><BR>" << endl << endl;
         } else if (exclam == '=') { /* comments of type /*= and /**= mean: use a <H3> header and show also all functions until first empty line */
+            trim(comments[0], " ");
             sout << "<h3>" << comments[0] << "</h3><pre>";
             for (l=1; l<comments.size(); l++) {
                 print_line(sout, comments[l]);

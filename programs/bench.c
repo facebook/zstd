@@ -127,7 +127,7 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
                         const size_t* fileSizes, U32 nbFiles,
                         const void* dictBuffer, size_t dictBufferSize)
 {
-    size_t const blockSize = (g_blockSize>=32 ? g_blockSize : srcSize) + (!srcSize) /* avoid div by 0 */ ;
+    size_t const blockSize = ((g_blockSize>=32 && !g_decodeOnly) ? g_blockSize : srcSize) + (!srcSize) /* avoid div by 0 */ ;
     size_t const avgSize = MIN(g_blockSize, (srcSize / nbFiles));
     U32 const maxNbBlocks = (U32) ((srcSize + (blockSize-1)) / blockSize) + nbFiles;
     blockParam_t* const blockTable = (blockParam_t*) malloc(maxNbBlocks * sizeof(blockParam_t));
@@ -136,6 +136,9 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
     void* resultBuffer = malloc(srcSize);
     ZSTD_CCtx* const ctx = ZSTD_createCCtx();
     ZSTD_DCtx* const dctx = ZSTD_createDCtx();
+    size_t const loadedCompressedSize = srcSize;
+    size_t cSize = 0;
+    double ratio = 0.;
     U32 nbBlocks;
     UTIL_time_t ticksPerSecond;
 
@@ -147,46 +150,50 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
     if (strlen(displayName)>17) displayName += strlen(displayName)-17;   /* can only display 17 characters */
     UTIL_initTimer(&ticksPerSecond);
 
+    if (g_decodeOnly) {
+        const char* srcPtr = (const char*) srcBuffer;
+        U64 dSize64 = 0;
+        U32 fileNb;
+        for (fileNb=0; fileNb<nbFiles; fileNb++) {
+            U64 const fSize64 = ZSTD_getDecompressedSize(srcPtr, fileSizes[fileNb]);
+            if (fSize64==0) EXM_THROW(32, "Impossible to determine original size ");
+            dSize64 += fSize64;
+            srcPtr += fileSizes[fileNb];
+        }
+        {   size_t const decodedSize = (size_t)dSize64;
+            if (dSize64 > decodedSize) EXM_THROW(32, "original size is too large");
+            if (decodedSize==0) EXM_THROW(32, "Impossible to determine original size ");
+            free(resultBuffer);
+            resultBuffer = malloc(decodedSize);
+            if (!resultBuffer) EXM_THROW(33, "not enough memory");
+            cSize = srcSize;
+            srcSize = decodedSize;
+            ratio = (double)srcSize / (double)cSize;
+    }   }
+
     /* Init blockTable data */
-    if (!g_decodeOnly) {
-        const char* srcPtr = (const char*)srcBuffer;
+    {   const char* srcPtr = (const char*)srcBuffer;
         char* cPtr = (char*)compressedBuffer;
         char* resPtr = (char*)resultBuffer;
         U32 fileNb;
         for (nbBlocks=0, fileNb=0; fileNb<nbFiles; fileNb++) {
             size_t remaining = fileSizes[fileNb];
-            U32 const nbBlocksforThisFile = (U32)((remaining + (blockSize-1)) / blockSize);
+            U32 const nbBlocksforThisFile = g_decodeOnly ? 1 : (U32)((remaining + (blockSize-1)) / blockSize);
             U32 const blockEnd = nbBlocks + nbBlocksforThisFile;
             for ( ; nbBlocks<blockEnd; nbBlocks++) {
                 size_t const thisBlockSize = MIN(remaining, blockSize);
                 blockTable[nbBlocks].srcPtr = (const void*)srcPtr;
                 blockTable[nbBlocks].srcSize = thisBlockSize;
                 blockTable[nbBlocks].cPtr = (void*)cPtr;
-                blockTable[nbBlocks].cRoom = ZSTD_compressBound(thisBlockSize);
+                blockTable[nbBlocks].cRoom = g_decodeOnly ? thisBlockSize : ZSTD_compressBound(thisBlockSize);
+                blockTable[nbBlocks].cSize = blockTable[nbBlocks].cRoom;
                 blockTable[nbBlocks].resPtr = (void*)resPtr;
+                blockTable[nbBlocks].resSize = g_decodeOnly ? (size_t) ZSTD_getDecompressedSize(srcPtr, thisBlockSize) : thisBlockSize;
                 srcPtr += thisBlockSize;
                 cPtr += blockTable[nbBlocks].cRoom;
                 resPtr += thisBlockSize;
                 remaining -= thisBlockSize;
-        }   }
-    } else {   /* g_decodeOnly */
-        U64 const dSize64 = ZSTD_getDecompressedSize(srcBuffer, srcSize);
-        size_t const decodedSize = (size_t)dSize64;
-        if (dSize64 > decodedSize) EXM_THROW(32, "original size is too large");
-        if (decodedSize==0) EXM_THROW(32, "Impossible to determine original size ");
-        free(resultBuffer);
-        resultBuffer = malloc(decodedSize);
-        if (!resultBuffer) EXM_THROW(33, "not enough memory");
-        nbBlocks = 1;
-        blockTable[nbBlocks].srcPtr = srcBuffer;
-        blockTable[0].srcSize = decodedSize;
-        blockTable[0].cPtr = compressedBuffer;
-        blockTable[0].cSize = srcSize;
-        blockTable[0].cRoom = maxCompressedSize;
-        blockTable[0].resPtr = resultBuffer;
-        blockTable[0].resSize = decodedSize;
-        srcSize = decodedSize;
-    }
+    }   }   }
 
     /* warmimg up memory */
     RDG_genBuffer(compressedBuffer, maxCompressedSize, 0.10, 0.50, 1);
@@ -201,8 +208,6 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
 #       define NB_MARKS 4
         const char* const marks[NB_MARKS] = { " |", " /", " =",  "\\" };
         U32 markNb = 0;
-        size_t cSize = 0;
-        double ratio = 0.;
 
         UTIL_getTime(&coolTime);
         DISPLAYLEVEL(2, "\r%79s\r", "");
@@ -266,7 +271,7 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
                         marks[markNb], displayName, (U32)srcSize, (U32)cSize, ratio,
                         (double)srcSize / fastestC );
             } else {   /* g_decodeOnly */
-                memcpy(compressedBuffer, srcBuffer, blockTable[0].cSize);
+                memcpy(compressedBuffer, srcBuffer, loadedCompressedSize);
             }
 
             (void)fastestD; (void)crcOrig;   /*  unused when decompression disabled */
@@ -287,7 +292,7 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
                     U32 blockNb;
                     for (blockNb=0; blockNb<nbBlocks; blockNb++) {
                         size_t const regenSize = ZSTD_decompress_usingDDict(dctx,
-                            blockTable[blockNb].resPtr, blockTable[blockNb].srcSize,
+                            blockTable[blockNb].resPtr, blockTable[blockNb].resSize,
                             blockTable[blockNb].cPtr, blockTable[blockNb].cSize,
                             ddict);
                         if (ZSTD_isError(regenSize)) {

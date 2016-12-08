@@ -602,7 +602,7 @@ ZSTDLIB_API size_t ZSTD_compressEnd(ZSTD_CCtx* cctx, void* dst, size_t dstCapaci
   Note : it's possible to know if next input to present is a header or a block, using ZSTD_nextInputType().
   This information is not required to properly decode a frame.
 
-  == Special case : skippable frames ==
+  == Special case : skippable frames == 
 
   Skippable frames allow integration of user-defined data into a flow of concatenated frames.
   Skippable frames will be ignored (skipped) by a decompressor. The format of skippable frames is as follows :

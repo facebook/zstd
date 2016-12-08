@@ -27,20 +27,12 @@ extern "C" {
 *  Dependencies
 ***************************************/
 #include <stddef.h>      /* size_t */
-#include <zstd.h>        /* ZSTD_CStream, ZSTD_DStream */
+#include <zstd.h>        /* ZSTD_CStream, ZSTD_DStream, ZSTDLIB_API */
 
 
 /* ***************************************************************
 *  Compiler specifics
 *****************************************************************/
-/* ZSTD_DLL_EXPORT :
-*  Enable exporting of functions when building a Windows DLL */
-#if defined(_WIN32) && defined(ZSTD_DLL_EXPORT) && (ZSTD_DLL_EXPORT==1)
-#  define ZSTDLIB_API __declspec(dllexport)
-#else
-#  define ZSTDLIB_API
-#endif
-
 /* Deprecation warnings */
 /* Should these warnings be a problem,
    it is generally possible to disable them,
@@ -48,17 +40,17 @@ extern "C" {
    or _CRT_SECURE_NO_WARNINGS in Visual.
    Otherwise, it's also possible to define ZBUFF_DISABLE_DEPRECATE_WARNINGS */
 #ifdef ZBUFF_DISABLE_DEPRECATE_WARNINGS
-#  define ZBUFF_DEPRECATED(message)   /* disable deprecation warnings */
+#  define ZBUFF_DEPRECATED(message) ZSTDLIB_API  /* disable deprecation warnings */
 #else
 #  if (defined(__GNUC__) && (__GNUC__ >= 5)) || defined(__clang__)
-#    define ZBUFF_DEPRECATED(message) __attribute__((deprecated(message)))
+#    define ZBUFF_DEPRECATED(message) ZSTDLIB_API __attribute__((deprecated(message)))
 #  elif defined(__GNUC__) && (__GNUC__ >= 3)
-#    define ZBUFF_DEPRECATED(message) __attribute__((deprecated))
+#    define ZBUFF_DEPRECATED(message) ZSTDLIB_API __attribute__((deprecated))
 #  elif defined(_MSC_VER)
-#    define ZBUFF_DEPRECATED(message) __declspec(deprecated(message))
+#    define ZBUFF_DEPRECATED(message) ZSTDLIB_API __declspec(deprecated(message))
 #  else
 #    pragma message("WARNING: You need to implement ZBUFF_DEPRECATED for this compiler")
-#    define ZBUFF_DEPRECATED(message)
+#    define ZBUFF_DEPRECATED(message) ZSTDLIB_API
 #  endif
 #endif /* ZBUFF_DISABLE_DEPRECATE_WARNINGS */
 

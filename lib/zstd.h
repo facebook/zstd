@@ -18,12 +18,10 @@ extern "C" {
 #include <stddef.h>   /* size_t */
 
 
-/* ======  Export for Windows  ======*/
-/*
-*  ZSTD_DLL_EXPORT :
-*  Enable exporting of functions when building a Windows DLL
-*/
-#if defined(ZSTD_DLL_EXPORT) && (ZSTD_DLL_EXPORT==1)
+/* =====   ZSTDLIB_API : control library symbols visibility   ===== */
+#if defined(__GNUC__) && (__GNUC__ >= 4)
+#  define ZSTDLIB_API __attribute__ ((visibility ("default")))
+#elif defined(ZSTD_DLL_EXPORT) && (ZSTD_DLL_EXPORT==1)
 #  define ZSTDLIB_API __declspec(dllexport)
 #elif defined(ZSTD_DLL_IMPORT) && (ZSTD_DLL_IMPORT==1)
 #  define ZSTDLIB_API __declspec(dllimport) /* It isn't required but allows to generate better code, saving a function pointer load from the IAT and an indirect jump.*/

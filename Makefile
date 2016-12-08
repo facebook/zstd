@@ -54,7 +54,7 @@ clean:
 	@$(MAKE) -C $(PRGDIR) $@ > $(VOID)
 	@$(MAKE) -C $(TESTDIR) $@ > $(VOID)
 	@$(MAKE) -C $(ZWRAPDIR) $@ > $(VOID)
-	@$(RM) zstd$(EXT)
+	@$(RM) zstd$(EXT) tmp*
 	@echo Cleaning completed
 
 

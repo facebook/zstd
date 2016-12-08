@@ -70,7 +70,7 @@ libzstd.a: $(ZSTD_FILES)
 	@$(CC) $(FLAGS) -c $^
 	@$(AR) $(ARFLAGS) $@ *.o
 
-$(LIBZSTD): LDFLAGS += -shared -fPIC
+$(LIBZSTD): LDFLAGS += -shared -fPIC -fvisibility=hidden
 $(LIBZSTD): $(ZSTD_FILES)
 	@echo compiling dynamic library $(LIBVER)
 ifneq (,$(filter Windows%,$(OS)))

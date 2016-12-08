@@ -56,8 +56,8 @@ endif
 # Define *.exe as extension for Windows systems
 ifneq (,$(filter Windows%,$(OS)))
 EXT =.exe
-RES64_FILE = windres\zstd64.res
-RES32_FILE = windres\zstd32.res
+RES64_FILE = windres/zstd64.res
+RES32_FILE = windres/zstd32.res
 ifneq (,$(filter x86_64%,$(shell $(CC) -dumpmachine)))
     RES_FILE = $(RES64_FILE)
 else
@@ -80,7 +80,7 @@ zstd  : CPPFLAGS += -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT)
 zstd  : $(ZSTDDECOMP_O) $(ZSTD_FILES) $(ZSTDLEGACY_FILES) $(ZDICT_FILES) \
         zstdcli.c fileio.c bench.c datagen.c dibio.c
 ifneq (,$(filter Windows%,$(OS)))
-	windres\generate_res.bat
+	windres/generate_res.bat
 endif
 	$(CC) $(FLAGS) $^ $(RES_FILE) -o $@$(EXT) $(LDFLAGS)
 
@@ -89,7 +89,7 @@ zstd32 : CPPFLAGS += -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT)
 zstd32 : $(ZSTDDIR)/decompress/zstd_decompress.c $(ZSTD_FILES) $(ZSTDLEGACY_FILES) $(ZDICT_FILES) \
         zstdcli.c fileio.c bench.c datagen.c dibio.c
 ifneq (,$(filter Windows%,$(OS)))
-	windres\generate_res.bat
+	windres/generate_res.bat
 endif
 	$(CC) -m32 $(FLAGS) $^ $(RES32_FILE) -o $@$(EXT)
 
@@ -136,7 +136,7 @@ gzstd: clean_decomp_o
     fi
 
 generate_res:
-	windres\generate_res.bat
+	windres/generate_res.bat
 
 clean:
 	$(MAKE) -C ../lib clean

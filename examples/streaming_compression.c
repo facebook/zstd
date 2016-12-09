@@ -7,11 +7,9 @@
  */
 
 
-#include <stdlib.h>    // malloc, exit
-#include <stdio.h>     // fprintf, perror, feof
-#include <string.h>    // strerror
-#include <errno.h>     // errno
-#define ZSTD_STATIC_LINKING_ONLY  // streaming API defined as "experimental" for the time being
+#include <stdlib.h>    // malloc, free, exit
+#include <stdio.h>     // fprintf, perror, feof, fopen, etc.
+#include <string.h>    // strlen, memset, strcat
 #include <zstd.h>      // presumes zstd library is installed
 
 
@@ -82,7 +80,7 @@ static void compressFile_orDie(const char* fname, const char* outName, int cLeve
             ZSTD_outBuffer output = { buffOut, buffOutSize, 0 };
             toRead = ZSTD_compressStream(cstream, &output , &input);   /* toRead is guaranteed to be <= ZSTD_CStreamInSize() */
             if (ZSTD_isError(toRead)) { fprintf(stderr, "ZSTD_compressStream() error : %s \n", ZSTD_getErrorName(toRead)); exit(12); }
-            if (toRead > buffInSize) toRead = buffInSize;   /* Safely handle when `buffInSize` is manually changed to a smaller value */
+            if (toRead > buffInSize) toRead = buffInSize;   /* Safely handle case when `buffInSize` is manually changed to a value < ZSTD_CStreamInSize()*/
             fwrite_orDie(buffOut, output.pos, fout);
         }
     }

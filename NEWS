@@ -6,7 +6,6 @@ cli : new : added zstdless and zstdgrep tools
 cli : fixed : status displays total amount decoded, even for file consisting of multiple frames (like pzstd)
 cli : fixed : zstdcat
 lib : changed : only public ZSTD_ symbols are now exposed
-lib : fixed : soname
 API : changed : zbuff prototypes now generate deprecation warnings
 API : changed : streaming decompression implicit reset on starting new frame
 API : added experimental : dictID retrieval functions

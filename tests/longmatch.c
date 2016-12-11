@@ -1,8 +1,10 @@
 #define ZSTD_STATIC_LINKING_ONLY
-#include <zstd.h>
+#include "zstd.h"
+#include "mem.h"
 #include <stdio.h>
 #include <stddef.h>
 #include <stdlib.h>
+#include <stdint.h>
 
 void compress(ZSTD_CStream *ctx, ZSTD_outBuffer out, const void *data, size_t size) {
   ZSTD_inBuffer in = { data, size, 0 };
@@ -39,8 +41,8 @@ int main() {
   rc = ZSTD_initCStream_advanced(ctx, NULL, 0, params, 0);
   if (ZSTD_isError(rc)) { return 2; }
   {
-    uint64_t compressed = 0;
-    const uint64_t toCompress = ((uint64_t)1) << 33;
+    U64 compressed = 0;
+    const U64 toCompress = ((U64)1) << 33;
     const size_t size = 1 << windowLog;
     size_t pos = 0;
     char *srcBuffer = (char*) malloc(1 << windowLog);

@@ -11,6 +11,7 @@ datagen
 paramgrill
 paramgrill32
 roundTripCrash
+longmatch
 
 # Tmp test directory
 zstdtest

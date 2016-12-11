@@ -1,10 +1,10 @@
-#define ZSTD_STATIC_LINKING_ONLY
-#include "zstd.h"
-#include "mem.h"
 #include <stdio.h>
 #include <stddef.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include "mem.h"
+#define ZSTD_STATIC_LINKING_ONLY
+#include "zstd.h"
 
 int compress(ZSTD_CStream *ctx, ZSTD_outBuffer out, const void *data, size_t size) {
   ZSTD_inBuffer in = { data, size, 0 };
@@ -57,6 +57,8 @@ int main(int argc, const char** argv) {
     const char match[] = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
     const size_t randomData = (1 << windowLog) - 2*sizeof(match);
     size_t i;
+    printf("\n ===   Long Match Test   === \n");
+    printf("Creating random data to produce long matches \n");
     for (i = 0; i < sizeof(match); ++i) {
       srcBuffer[i] = match[i];
     }
@@ -66,6 +68,7 @@ int main(int argc, const char** argv) {
     for (i = 0; i < sizeof(match); ++i) {
       srcBuffer[sizeof(match) + randomData + i] = match[i];
     }
+    printf("Compressing, trying to generate a segfault \n");
     if (compress(ctx, out, srcBuffer, size)) {
       return 1;
     }
@@ -79,6 +82,7 @@ int main(int argc, const char** argv) {
       pos += block;
       compressed += block;
     }
+    printf("Compression completed successfully (no error triggered)\n");
     free(srcBuffer);
     free(dstBuffer);
   }

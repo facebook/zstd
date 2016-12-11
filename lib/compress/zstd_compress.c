@@ -2277,7 +2277,7 @@ static size_t ZSTD_compress_generic (ZSTD_CCtx* cctx,
         if (cctx->lowLimit > (1<<30)) {
             U32 const btplus = (cctx->params.cParams.strategy == ZSTD_btlazy2) | (cctx->params.cParams.strategy == ZSTD_btopt) | (cctx->params.cParams.strategy == ZSTD_btopt2);
             U32 const chainMask = (1 << (cctx->params.cParams.chainLog - btplus)) - 1;
-            U32 const supLog = MAX(MAX(cctx->params.cParams.chainLog, 17 /* blockSize */), cctx->params.cParams.windowLog);
+            U32 const supLog = MAX(cctx->params.cParams.windowLog, 17 /* blockSize */);
             U32 const newLowLimit = (cctx->lowLimit & chainMask) + (1 << supLog);   /* preserve position % chainSize, ensure current-repcode doesn't underflow */
             U32 const correction = cctx->lowLimit - newLowLimit;
             ZSTD_reduceIndex(cctx, correction);

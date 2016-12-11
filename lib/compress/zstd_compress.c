@@ -33,6 +33,7 @@ typedef enum { ZSTDcs_created=0, ZSTDcs_init, ZSTDcs_ongoing, ZSTDcs_ending } ZS
 /*-*************************************
 *  Helper functions
 ***************************************/
+#define ZSTD_STATIC_ASSERT(c) { enum { ZSTD_static_assert = 1/(int)(!!(c)) }; }
 size_t ZSTD_compressBound(size_t srcSize) { return FSE_compressBound(srcSize) + 12; }
 
 
@@ -2274,16 +2275,17 @@ static size_t ZSTD_compress_generic (ZSTD_CCtx* cctx,
         if (remaining < blockSize) blockSize = remaining;
 
         /* preemptive overflow correction */
-        if (cctx->lowLimit > (1<<30)) {
+        if (cctx->lowLimit > (2U<<30)) {
             U32 const btplus = (cctx->params.cParams.strategy == ZSTD_btlazy2) | (cctx->params.cParams.strategy == ZSTD_btopt) | (cctx->params.cParams.strategy == ZSTD_btopt2);
             U32 const chainMask = (1 << (cctx->params.cParams.chainLog - btplus)) - 1;
-            U32 const supLog = MAX(cctx->params.cParams.windowLog, 17 /* blockSize */);
-            U32 const newLowLimit = (cctx->lowLimit & chainMask) + (1 << supLog);   /* preserve position % chainSize, ensure current-repcode doesn't underflow */
-            U32 const correction = cctx->lowLimit - newLowLimit;
+            U32 const current = (U32)(ip - cctx->base);
+            U32 const newCurrent = (current & chainMask) + (1 << cctx->params.cParams.windowLog);
+            U32 const correction = current - newCurrent;
+            ZSTD_STATIC_ASSERT(ZSTD_WINDOWLOG_MAX_64 <= 30);
             ZSTD_reduceIndex(cctx, correction);
             cctx->base += correction;
             cctx->dictBase += correction;
-            cctx->lowLimit = newLowLimit;
+            cctx->lowLimit -= correction;
             cctx->dictLimit -= correction;
             if (cctx->nextToUpdate < correction) cctx->nextToUpdate = 0;
             else cctx->nextToUpdate -= correction;

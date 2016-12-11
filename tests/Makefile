@@ -124,6 +124,9 @@ datagen : $(PRGDIR)/datagen.c datagencli.c
 roundTripCrash : $(ZSTD_FILES) roundTripCrash.c
 	$(CC)      $(FLAGS) $^ -o $@$(EXT)
 
+longmatch  : $(ZSTD_FILES) longmatch.c
+	$(CC)      $(FLAGS) $^ -o $@$(EXT)
+
 namespaceTest:
 	if $(CC) namespaceTest.c ../lib/common/xxhash.c -o $@ ; then echo compilation should fail; exit 1 ; fi
 	$(RM) $@
@@ -140,7 +143,7 @@ clean:
         fullbench-lib$(EXT) fullbench-dll$(EXT) \
         fuzzer$(EXT) fuzzer32$(EXT) zbufftest$(EXT) zbufftest32$(EXT) \
 		zstreamtest$(EXT) zstreamtest32$(EXT) \
-        datagen$(EXT) paramgrill$(EXT) roundTripCrash$(EXT)
+        datagen$(EXT) paramgrill$(EXT) roundTripCrash$(EXT) longmatch$(EXT)
 	@echo Cleaning completed
 
 
@@ -180,7 +183,7 @@ zstd-playTests: datagen
 	file $(ZSTD)
 	ZSTD="$(QEMU_SYS) $(ZSTD)" ./playTests.sh $(ZSTDRTTEST)
 
-test: test-zstd test-fullbench test-fuzzer test-zstream
+test: test-zstd test-fullbench test-fuzzer test-zstream test-longmatch
 
 test32: test-zstd32 test-fullbench32 test-fuzzer32 test-zstream32
 
@@ -236,5 +239,8 @@ test-zstream: zstreamtest
 
 test-zstream32: zstreamtest32
 	$(QEMU_SYS) ./zstreamtest32 $(ZSTREAM_TESTTIME)
+
+test-longmatch: longmatch
+	$(QEMU_SYS) ./longmatch
 
 endif

@@ -149,6 +149,14 @@ size_t ZSTD_checkCParams(ZSTD_compressionParameters cParams)
 }
 
 
+/** ZSTD_cycleLog() :
+ *  condition for correct operation : hashLog > 1 */
+static U32 ZSTD_cycleLog(U32 hashLog, ZSTD_strategy strat)
+{
+    U32 const btScale = ((U32)strat >= (U32)ZSTD_btlazy2);
+    return hashLog - btScale;
+}
+
 /** ZSTD_adjustCParams() :
     optimize `cPar` for a given input (`srcSize` and `dictSize`).
     mostly downsizing to reduce memory consumption and initialization.
@@ -167,9 +175,9 @@ ZSTD_compressionParameters ZSTD_adjustCParams(ZSTD_compressionParameters cPar, u
             if (cPar.windowLog > srcLog) cPar.windowLog = srcLog;
     }   }
     if (cPar.hashLog > cPar.windowLog) cPar.hashLog = cPar.windowLog;
-    {   U32 const btPlus = (cPar.strategy == ZSTD_btlazy2) | (cPar.strategy == ZSTD_btopt) | (cPar.strategy == ZSTD_btopt2);
-        U32 const maxChainLog = cPar.windowLog+btPlus;
-        if (cPar.chainLog > maxChainLog) cPar.chainLog = maxChainLog; }   /* <= ZSTD_CHAINLOG_MAX */
+    {   U32 const cycleLog = ZSTD_cycleLog(cPar.chainLog, cPar.strategy);
+        if (cycleLog > cPar.windowLog) cPar.chainLog -= (cycleLog - cPar.windowLog);
+    }
 
     if (cPar.windowLog < ZSTD_WINDOWLOG_ABSOLUTEMIN) cPar.windowLog = ZSTD_WINDOWLOG_ABSOLUTEMIN;  /* required for frame header */
 
@@ -2276,10 +2284,9 @@ static size_t ZSTD_compress_generic (ZSTD_CCtx* cctx,
 
         /* preemptive overflow correction */
         if (cctx->lowLimit > (2U<<30)) {
-            U32 const btplus = (cctx->params.cParams.strategy == ZSTD_btlazy2) | (cctx->params.cParams.strategy == ZSTD_btopt) | (cctx->params.cParams.strategy == ZSTD_btopt2);
-            U32 const chainMask = (1 << (cctx->params.cParams.chainLog - btplus)) - 1;
+            U32 const cycleMask = (1 << ZSTD_cycleLog(cctx->params.cParams.hashLog, cctx->params.cParams.strategy)) - 1;
             U32 const current = (U32)(ip - cctx->base);
-            U32 const newCurrent = (current & chainMask) + (1 << cctx->params.cParams.windowLog);
+            U32 const newCurrent = (current & cycleMask) + (1 << cctx->params.cParams.windowLog);
             U32 const correction = current - newCurrent;
             ZSTD_STATIC_ASSERT(ZSTD_WINDOWLOG_MAX_64 <= 30);
             ZSTD_reduceIndex(cctx, correction);

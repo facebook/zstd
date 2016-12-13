@@ -237,20 +237,20 @@ typedef struct ZSTD_outBuffer_s {
 *
 *  Start a new compression by initializing ZSTD_CStream.
 *  Use ZSTD_initCStream() to start a new compression operation.
-*  Use ZSTD_initCStream_usingDict() for a compression which requires a dictionary.
+*  Use ZSTD_initCStream_usingDict() or ZSTD_initCStream_usingCDict() for a compression which requires a dictionary (experimental section)
 *
 *  Use ZSTD_compressStream() repetitively to consume input stream.
 *  The function will automatically update both `pos` fields.
 *  Note that it may not consume the entire input, in which case `pos < size`,
 *  and it's up to the caller to present again remaining data.
 *  @return : a size hint, preferred nb of bytes to use as input for next function call
-*           (it's just a hint, to help latency a little, any other value will work fine)
-*           (note : the size hint is guaranteed to be <= ZSTD_CStreamInSize() )
 *            or an error code, which can be tested using ZSTD_isError().
+*            Note 1 : it's just a hint, to help latency a little, any other value will work fine.
+*            Note 2 : size hint is guaranteed to be <= ZSTD_CStreamInSize()
 *
-*  At any moment, it's possible to flush whatever data remains within buffer, using ZSTD_flushStream().
+*  At any moment, it's possible to flush whatever data remains within internal buffer, using ZSTD_flushStream().
 *  `output->pos` will be updated.
-*  Note some content might still be left within internal buffer if `output->size` is too small.
+*  Note that some content might still be left within internal buffer if `output->size` is too small.
 *  @return : nb of bytes still present within internal buffer (0 if it's empty)
 *            or an error code, which can be tested using ZSTD_isError().
 *
@@ -259,15 +259,15 @@ typedef struct ZSTD_outBuffer_s {
 *  The epilogue is required for decoders to consider a frame completed.
 *  Similar to ZSTD_flushStream(), it may not be able to flush the full content if `output->size` is too small.
 *  In which case, call again ZSTD_endStream() to complete the flush.
-*  @return : nb of bytes still present within internal buffer (0 if it's empty)
+*  @return : nb of bytes still present within internal buffer (0 if it's empty, hence compression completed)
 *            or an error code, which can be tested using ZSTD_isError().
 *
 * *******************************************************************/
 
-/*=====   Streaming compression functions   ======*/
 typedef struct ZSTD_CStream_s ZSTD_CStream;
 ZSTDLIB_API ZSTD_CStream* ZSTD_createCStream(void);
 ZSTDLIB_API size_t ZSTD_freeCStream(ZSTD_CStream* zcs);
+
 ZSTDLIB_API size_t ZSTD_initCStream(ZSTD_CStream* zcs, int compressionLevel);
 ZSTDLIB_API size_t ZSTD_compressStream(ZSTD_CStream* zcs, ZSTD_outBuffer* output, ZSTD_inBuffer* input);
 ZSTDLIB_API size_t ZSTD_flushStream(ZSTD_CStream* zcs, ZSTD_outBuffer* output);
@@ -300,10 +300,10 @@ ZSTDLIB_API size_t ZSTD_CStreamOutSize(void);   /**< recommended size for output
 *            The return value is a suggested next input size (a hint to improve latency) that will never load more than the current frame.
 * *******************************************************************************/
 
-/*=====   Streaming decompression functions   =====*/
 typedef struct ZSTD_DStream_s ZSTD_DStream;
 ZSTDLIB_API ZSTD_DStream* ZSTD_createDStream(void);
 ZSTDLIB_API size_t ZSTD_freeDStream(ZSTD_DStream* zds);
+
 ZSTDLIB_API size_t ZSTD_initDStream(ZSTD_DStream* zds);
 ZSTDLIB_API size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inBuffer* input);
 
@@ -490,6 +490,7 @@ unsigned ZSTD_getDictID_fromFrame(const void* src, size_t srcSize);
 
 /*=====   Advanced Streaming compression functions  =====*/
 ZSTDLIB_API ZSTD_CStream* ZSTD_createCStream_advanced(ZSTD_customMem customMem);
+ZSTDLIB_API size_t ZSTD_initCStream_srcSize(ZSTD_CStream* zcs, int compressionLevel, unsigned long long pledgedSrcSize);   /**< pledgedSrcSize must be correct */
 ZSTDLIB_API size_t ZSTD_initCStream_usingDict(ZSTD_CStream* zcs, const void* dict, size_t dictSize, int compressionLevel);
 ZSTDLIB_API size_t ZSTD_initCStream_advanced(ZSTD_CStream* zcs, const void* dict, size_t dictSize,
                                              ZSTD_parameters params, unsigned long long pledgedSrcSize);  /**< pledgedSrcSize is optional and can be zero == unknown */
@@ -602,7 +603,7 @@ ZSTDLIB_API size_t ZSTD_compressEnd(ZSTD_CCtx* cctx, void* dst, size_t dstCapaci
   Note : it's possible to know if next input to present is a header or a block, using ZSTD_nextInputType().
   This information is not required to properly decode a frame.
 
-  == Special case : skippable frames == 
+  == Special case : skippable frames ==
 
   Skippable frames allow integration of user-defined data into a flow of concatenated frames.
   Skippable frames will be ignored (skipped) by a decompressor. The format of skippable frames is as follows :

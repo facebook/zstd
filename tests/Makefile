@@ -100,9 +100,9 @@ fuzzer32 : $(ZSTD_FILES) $(ZDICT_FILES) $(PRGDIR)/datagen.c fuzzer.c
 	$(CC)  -m32  $(FLAGS) $^ -o $@$(EXT)
 
 zbufftest : CPPFLAGS += -I$(ZSTDDIR)/deprecated
-zbufftest : CFLAGS += -Wno-deprecated-declarations
+zbufftest : CFLAGS += -Wno-deprecated-declarations   # required to silence deprecation warnings
 zbufftest : $(ZSTD_FILES) $(ZBUFF_FILES) $(PRGDIR)/datagen.c zbufftest.c
-	$(CC) $(FLAGS) $^ -o $@$(EXT)   # flag required to silence deprecation warnings
+	$(CC) $(FLAGS) $^ -o $@$(EXT)
 
 zbufftest32 : CPPFLAGS += -I$(ZSTDDIR)/deprecated
 zbufftest32 : CFLAGS += -Wno-deprecated-declarations -m32

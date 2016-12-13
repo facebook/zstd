@@ -2449,7 +2449,7 @@ static void   ZSTD_copy8(void* dst, const void* src) { memcpy(dst, src, 8); }
 #define COPY8(d,s) { ZSTD_copy8(d,s); d+=8; s+=8; }
 
 /*! ZSTD_wildcopy : custom version of memcpy(), can copy up to 7-8 bytes too many */
-static void ZSTD_wildcopy(void* dst, const void* src, size_t length)
+static void ZSTD_wildcopy(void* dst, const void* src, ptrdiff_t length)
 {
     const BYTE* ip = (const BYTE*)src;
     BYTE* op = (BYTE*)dst;
@@ -2847,7 +2847,7 @@ static size_t ZSTD_execSequence(BYTE* op,
         }
         op += 8; match += 8;
 
-        if (oMatchEnd > oend-12)
+        if (oMatchEnd > oend-(16-MINMATCH))
         {
             if (op < oend_8)
             {
@@ -2859,7 +2859,7 @@ static size_t ZSTD_execSequence(BYTE* op,
         }
         else
         {
-            ZSTD_wildcopy(op, match, sequence.matchLength-8);   /* works even if matchLength < 8 */
+            ZSTD_wildcopy(op, match, (ptrdiff_t)sequence.matchLength-8);   /* works even if matchLength < 8 */
         }
     }
 

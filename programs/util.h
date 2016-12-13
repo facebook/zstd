@@ -25,7 +25,7 @@ extern "C" {
 #  define _CRT_SECURE_NO_DEPRECATE   /* VS2005 */
 #  pragma warning(disable : 4127)    /* disable: C4127: conditional expression is constant */
 #if _MSC_VER <= 1800                 /* (1800 = Visual Studio 2013) */
-    #define snprintf sprintf_s       /* snprintf unsupported by Visual <= 2013 */
+#  define snprintf sprintf_s       /* snprintf unsupported by Visual <= 2013 */
 #endif
 #endif
 
@@ -49,11 +49,11 @@ extern "C" {
 #include <sys/types.h>  /* stat, utime */
 #include <sys/stat.h>   /* stat */
 #if defined(_MSC_VER)
-	#include <sys/utime.h>   /* utime */
-	#include <io.h>          /* _chmod */
+#  include <sys/utime.h>   /* utime */
+#  include <io.h>          /* _chmod */
 #else
-	#include <unistd.h>     /* chown, stat */
-	#include <utime.h>      /* utime */
+#  include <unistd.h>     /* chown, stat */
+#  include <utime.h>      /* utime */
 #endif
 #include <time.h>       /* time */
 #include <errno.h>
@@ -98,7 +98,7 @@ extern "C" {
 #    define SET_HIGH_PRIORITY /* disabled */
 #  endif
 #  define UTIL_sleep(s) sleep(s)
-#  if defined(_POSIX_C_SOURCE) && (_POSIX_C_SOURCE >= 199309L)
+#  if defined(__DragonFly__) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || (defined(_POSIX_C_SOURCE) && (_POSIX_C_SOURCE >= 199309L))
 #      define UTIL_sleepMilli(milli) { struct timespec t; t.tv_sec=0; t.tv_nsec=milli*1000000ULL; nanosleep(&t, NULL); }
 #  else
 #      define UTIL_sleepMilli(milli) /* disabled */
@@ -408,16 +408,15 @@ UTIL_STATIC const char** UTIL_createFileList(const char **inputNames, unsigned i
 {
     size_t pos;
     unsigned i, nbFiles;
-    char *bufend, *buf;
+    char* buf = (char*)malloc(LIST_SIZE_INCREASE);
+    char* bufend = buf + LIST_SIZE_INCREASE;
     const char** fileTable;
 
-    buf = (char*)malloc(LIST_SIZE_INCREASE);
     if (!buf) return NULL;
-    bufend = buf + LIST_SIZE_INCREASE;
 
     for (i=0, pos=0, nbFiles=0; i<inputNamesNb; i++) {
         if (!UTIL_isDirectory(inputNames[i])) {
-            size_t len = strlen(inputNames[i]);
+            size_t const len = strlen(inputNames[i]);
             if (buf + pos + len >= bufend) {
                 ptrdiff_t newListSize = (bufend - buf) + LIST_SIZE_INCREASE;
                 buf = (char*)UTIL_realloc(buf, newListSize);
@@ -439,8 +438,7 @@ UTIL_STATIC const char** UTIL_createFileList(const char **inputNames, unsigned i
     fileTable = (const char**)malloc((nbFiles+1) * sizeof(const char*));
     if (!fileTable) { free(buf); return NULL; }
 
-    for (i=0, pos=0; i<nbFiles; i++)
-    {
+    for (i=0, pos=0; i<nbFiles; i++) {
         fileTable[i] = buf + pos;
         pos += strlen(fileTable[i]) + 1;
     }

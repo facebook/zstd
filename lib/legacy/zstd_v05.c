@@ -509,7 +509,7 @@ static void ZSTDv05_copy8(void* dst, const void* src) { memcpy(dst, src, 8); }
 
 /*! ZSTDv05_wildcopy() :
 *   custom version of memcpy(), can copy up to 7 bytes too many (8 bytes if length==0) */
-MEM_STATIC void ZSTDv05_wildcopy(void* dst, const void* src, size_t length)
+MEM_STATIC void ZSTDv05_wildcopy(void* dst, const void* src, ptrdiff_t length)
 {
     const BYTE* ip = (const BYTE*)src;
     BYTE* op = (BYTE*)dst;
@@ -3325,7 +3325,7 @@ static size_t ZSTDv05_execSequence(BYTE* op,
             op = oLitEnd + length1;
             sequence.matchLength -= length1;
             match = base;
-            if (op > oend_8) {
+            if (op > oend_8 || sequence.matchLength < MINMATCH) {
               while (op < oMatchEnd) *op++ = *match++;
               return sequenceLength;
             }
@@ -3348,7 +3348,7 @@ static size_t ZSTDv05_execSequence(BYTE* op,
     }
     op += 8; match += 8;
 
-    if (oMatchEnd > oend-12) {
+    if (oMatchEnd > oend-(16-MINMATCH)) {
         if (op < oend_8) {
             ZSTDv05_wildcopy(op, match, oend_8 - op);
             match += oend_8 - op;
@@ -3357,7 +3357,7 @@ static size_t ZSTDv05_execSequence(BYTE* op,
         while (op < oMatchEnd)
             *op++ = *match++;
     } else {
-        ZSTDv05_wildcopy(op, match, sequence.matchLength-8);   /* works even if matchLength < 8 */
+        ZSTDv05_wildcopy(op, match, (ptrdiff_t)sequence.matchLength-8);   /* works even if matchLength < 8 */
     }
     return sequenceLength;
 }

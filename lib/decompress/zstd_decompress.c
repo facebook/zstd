@@ -963,13 +963,13 @@ size_t ZSTD_execSequence(BYTE* op,
             op = oLitEnd + length1;
             sequence.matchLength -= length1;
             match = base;
-            if (op > oend_w) {
+            if (op > oend_w || sequence.matchLength < MINMATCH) {
               U32 i;
               for (i = 0; i < sequence.matchLength; ++i) op[i] = match[i];
               return sequenceLength;
             }
     }   }
-    /* Requirement: op <= oend_w */
+    /* Requirement: op <= oend_w && sequence.matchLength >= MINMATCH */
 
     /* match within prefix */
     if (sequence.offset < 8) {
@@ -997,7 +997,7 @@ size_t ZSTD_execSequence(BYTE* op,
         }
         while (op < oMatchEnd) *op++ = *match++;
     } else {
-        ZSTD_wildcopy(op, match, sequence.matchLength-8);   /* works even if matchLength < 8 */
+        ZSTD_wildcopy(op, match, (ptrdiff_t)sequence.matchLength-8);   /* works even if matchLength < 8 */
     }
     return sequenceLength;
 }
@@ -1183,13 +1183,13 @@ size_t ZSTD_execSequenceLong(BYTE* op,
             op = oLitEnd + length1;
             sequence.matchLength -= length1;
             match = base;
-            if (op > oend_w) {
+            if (op > oend_w || sequence.matchLength < MINMATCH) {
               U32 i;
               for (i = 0; i < sequence.matchLength; ++i) op[i] = match[i];
               return sequenceLength;
             }
     }   }
-    /* Requirement: op <= oend_w */
+    /* Requirement: op <= oend_w && sequence.matchLength >= MINMATCH */
 #endif
 
     /* match within prefix */
@@ -1218,7 +1218,7 @@ size_t ZSTD_execSequenceLong(BYTE* op,
         }
         while (op < oMatchEnd) *op++ = *match++;
     } else {
-        ZSTD_wildcopy(op, match, sequence.matchLength-8);   /* works even if matchLength < 8 */
+        ZSTD_wildcopy(op, match, (ptrdiff_t)sequence.matchLength-8);   /* works even if matchLength < 8 */
     }
     return sequenceLength;
 }

@@ -3,7 +3,7 @@
 
 /* gzwrite.c -- zlib functions for writing gzip files
  * Copyright (C) 2004, 2005, 2010, 2011, 2012, 2013 Mark Adler
- * For conditions of distribution and use, see copyright notice in zlib.h
+ * For conditions of distribution and use, see http://www.zlib.net/zlib_license.html
  */
 
 #include "gzguts.h"

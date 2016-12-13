@@ -204,6 +204,38 @@ static unsigned longCommandWArg(const char** stringPtr, const char* longCommand)
     return result;
 }
 
+
+/** parseCompressionParameters() :
+ *  reads compression parameters from *stringPtr (e.g. "--zstd=wlog=23,clog=23,hlog=22,slog=6,slen=3,tlen=48,strat=6") into *params
+ *  @return 1 means that compression parameters were correct
+ *  @return 0 in case of malformed parameters
+ */
+static unsigned parseCompressionParameters(const char* stringPtr, ZSTD_compressionParameters* params)
+{
+    for ( ; ;) {
+        DISPLAY("arg=%s\n", stringPtr);
+        if (longCommandWArg(&stringPtr, "windowLog=") || longCommandWArg(&stringPtr, "wlog=")) { params->windowLog = readU32FromChar(&stringPtr); if (stringPtr[0]==',') { stringPtr++; continue; } else break; }
+        if (longCommandWArg(&stringPtr, "chainLog=") || longCommandWArg(&stringPtr, "clog=")) { params->chainLog = readU32FromChar(&stringPtr); if (stringPtr[0]==',') { stringPtr++; continue; } else break; }
+        if (longCommandWArg(&stringPtr, "hashLog=") || longCommandWArg(&stringPtr, "hlog=")) { params->hashLog = readU32FromChar(&stringPtr); if (stringPtr[0]==',') { stringPtr++; continue; } else break; }
+        if (longCommandWArg(&stringPtr, "searchLog=") || longCommandWArg(&stringPtr, "slog=")) { params->searchLog = readU32FromChar(&stringPtr); if (stringPtr[0]==',') { stringPtr++; continue; } else break; }
+        if (longCommandWArg(&stringPtr, "searchLength=") || longCommandWArg(&stringPtr, "slen=")) { params->searchLength = readU32FromChar(&stringPtr); if (stringPtr[0]==',') { stringPtr++; continue; } else break; }
+        if (longCommandWArg(&stringPtr, "targetLength=") || longCommandWArg(&stringPtr, "tlen=")) { params->targetLength = readU32FromChar(&stringPtr); if (stringPtr[0]==',') { stringPtr++; continue; } else break; }
+        if (longCommandWArg(&stringPtr, "strategy=") || longCommandWArg(&stringPtr, "strat=")) { params->strategy = readU32FromChar(&stringPtr); if (stringPtr[0]==',') { stringPtr++; continue; } else break; }
+        return 0;
+    }
+
+    if (stringPtr[0] != 0) return 0; /* check the end of string */
+    DISPLAYLEVEL(4, "windowLog=%d\n", params->windowLog);
+    DISPLAYLEVEL(4, "chainLog=%d\n", params->chainLog);
+    DISPLAYLEVEL(4, "hashLog=%d\n", params->hashLog);
+    DISPLAYLEVEL(4, "searchLog=%d\n", params->searchLog);
+    DISPLAYLEVEL(4, "searchLength=%d\n", params->searchLength);
+    DISPLAYLEVEL(4, "targetLength=%d\n", params->targetLength);
+    DISPLAYLEVEL(4, "strategy=%d\n", params->strategy);
+    return 1;
+}
+
+
 typedef enum { zom_compress, zom_decompress, zom_test, zom_bench, zom_train } zstd_operation_mode;
 
 #define CLEAN_RETURN(i) { operationResult = (i); goto _end; }
@@ -222,6 +254,7 @@ int main(int argCount, const char* argv[])
         ultra=0,
         lastCommand = 0;
     zstd_operation_mode operation = zom_compress;
+    ZSTD_compressionParameters compressionParams;
     int cLevel = ZSTDCLI_CLEVEL_DEFAULT;
     int cLevelLast = 1;
     unsigned recursive = 0;
@@ -258,6 +291,7 @@ int main(int argCount, const char* argv[])
     /* preset behaviors */
     if (!strcmp(programName, ZSTD_UNZSTD)) operation=zom_decompress;
     if (!strcmp(programName, ZSTD_CAT)) { operation=zom_decompress; forceStdout=1; FIO_overwriteMode(); outFileName=stdoutmark; displayLevel=1; }
+    memset(&compressionParams, 0, sizeof(compressionParams));
 
     /* command switches */
     for (argNb=1; argNb<argCount; argNb++) {
@@ -306,6 +340,7 @@ int main(int argCount, const char* argv[])
                     if (longCommandWArg(&argument, "--memlimit=")) { memLimit = readU32FromChar(&argument); continue; }
                     if (longCommandWArg(&argument, "--memory=")) { memLimit = readU32FromChar(&argument); continue; }
                     if (longCommandWArg(&argument, "--memlimit-decompress=")) { memLimit = readU32FromChar(&argument); continue; }
+                    if (longCommandWArg(&argument, "--zstd=")) { if (!parseCompressionParameters(argument, &compressionParams)) CLEAN_RETURN(badusage(programName)); continue; }
                     /* fall-through, will trigger bad_usage() later on */
                 }
 

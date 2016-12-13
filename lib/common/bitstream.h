@@ -266,7 +266,7 @@ MEM_STATIC size_t BIT_initDStream(BIT_DStream_t* bitD, const void* srcBuffer, si
         bitD->ptr   = (const char*)srcBuffer + srcSize - sizeof(bitD->bitContainer);
         bitD->bitContainer = MEM_readLEST(bitD->ptr);
         { BYTE const lastByte = ((const BYTE*)srcBuffer)[srcSize-1];
-          bitD->bitsConsumed = lastByte ? 8 - BIT_highbit32(lastByte) : 0;
+          bitD->bitsConsumed = lastByte ? 8 - BIT_highbit32(lastByte) : 0;  /* ensures bitsConsumed is always set */
           if (lastByte == 0) return ERROR(GENERIC); /* endMark not present */ }
     } else {
         bitD->start = (const char*)srcBuffer;
@@ -298,7 +298,7 @@ MEM_STATIC size_t BIT_getUpperBits(size_t bitContainer, U32 const start)
 
 MEM_STATIC size_t BIT_getMiddleBits(size_t bitContainer, U32 const start, U32 const nbBits)
 {
-#if defined(__BMI__) && defined(__GNUC__)   /* experimental */
+#if defined(__BMI__) && defined(__GNUC__) && __GNUC__*1000+__GNUC_MINOR__ >= 4008  /* experimental */
 #  if defined(__x86_64__)
     if (sizeof(bitContainer)==8)
         return _bextr_u64(bitContainer, start, nbBits);
@@ -367,10 +367,10 @@ MEM_STATIC size_t BIT_readBitsFast(BIT_DStream_t* bitD, U32 nbBits)
 }
 
 /*! BIT_reloadDStream() :
-*   Refill `BIT_DStream_t` from src buffer previously defined (see BIT_initDStream() ).
+*   Refill `bitD` from buffer previously set in BIT_initDStream() .
 *   This function is safe, it guarantees it will not read beyond src buffer.
 *   @return : status of `BIT_DStream_t` internal register.
-              if status == unfinished, internal register is filled with >= (sizeof(bitD->bitContainer)*8 - 7) bits */
+              if status == BIT_DStream_unfinished, internal register is filled with >= (sizeof(bitD->bitContainer)*8 - 7) bits */
 MEM_STATIC BIT_DStream_status BIT_reloadDStream(BIT_DStream_t* bitD)
 {
 	if (bitD->bitsConsumed > (sizeof(bitD->bitContainer)*8))  /* should not happen => corruption detected */

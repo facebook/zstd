@@ -214,7 +214,6 @@ static unsigned longCommandWArg(const char** stringPtr, const char* longCommand)
 static unsigned parseCompressionParameters(const char* stringPtr, ZSTD_compressionParameters* params)
 {
     for ( ; ;) {
-        DISPLAY("arg=%s\n", stringPtr);
         if (longCommandWArg(&stringPtr, "windowLog=") || longCommandWArg(&stringPtr, "wlog=")) { params->windowLog = readU32FromChar(&stringPtr); if (stringPtr[0]==',') { stringPtr++; continue; } else break; }
         if (longCommandWArg(&stringPtr, "chainLog=") || longCommandWArg(&stringPtr, "clog=")) { params->chainLog = readU32FromChar(&stringPtr); if (stringPtr[0]==',') { stringPtr++; continue; } else break; }
         if (longCommandWArg(&stringPtr, "hashLog=") || longCommandWArg(&stringPtr, "hlog=")) { params->hashLog = readU32FromChar(&stringPtr); if (stringPtr[0]==',') { stringPtr++; continue; } else break; }
@@ -226,13 +225,8 @@ static unsigned parseCompressionParameters(const char* stringPtr, ZSTD_compressi
     }
 
     if (stringPtr[0] != 0) return 0; /* check the end of string */
-    DISPLAYLEVEL(4, "windowLog=%d\n", params->windowLog);
-    DISPLAYLEVEL(4, "chainLog=%d\n", params->chainLog);
-    DISPLAYLEVEL(4, "hashLog=%d\n", params->hashLog);
-    DISPLAYLEVEL(4, "searchLog=%d\n", params->searchLog);
-    DISPLAYLEVEL(4, "searchLength=%d\n", params->searchLength);
-    DISPLAYLEVEL(4, "targetLength=%d\n", params->targetLength);
-    DISPLAYLEVEL(4, "strategy=%d\n", params->strategy);
+    DISPLAYLEVEL(4, "windowLog=%d\nchainLog=%d\nhashLog=%d\nsearchLog=%d\n", params->windowLog, params->chainLog, params->hashLog, params->searchLog);
+    DISPLAYLEVEL(4, "searchLength=%d\ntargetLength=%d\nstrategy=%d\n", params->searchLength, params->targetLength, params->strategy);
     return 1;
 }
 
@@ -523,7 +517,7 @@ int main(int argCount, const char* argv[])
     if (operation==zom_bench) {
 #ifndef ZSTD_NOBENCH
         BMK_setNotificationLevel(displayLevel);
-        BMK_benchFiles(filenameTable, filenameIdx, dictFileName, cLevel, cLevelLast);
+        BMK_benchFiles(filenameTable, filenameIdx, dictFileName, cLevel, cLevelLast, &compressionParams);
 #endif
         goto _end;
     }

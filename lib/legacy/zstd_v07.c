@@ -3693,7 +3693,7 @@ size_t ZSTDv07_execSequence(BYTE* op,
             op = oLitEnd + length1;
             sequence.matchLength -= length1;
             match = base;
-            if (op > oend_w) {
+            if (op > oend_w || sequence.matchLength < MINMATCH) {
               while (op < oMatchEnd) *op++ = *match++;
               return sequenceLength;
             }

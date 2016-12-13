@@ -301,7 +301,7 @@ ZEXTERN int ZEXPORT z_deflate OF((z_streamp strm, int flush))
         }
     }
 
-    LOG_WRAPPERC("- deflate1 flush=%d avail_in=%d avail_out=%d total_in=%d total_out=%d\n", (int)flush, (int)strm->avail_in, (int)strm->avail_out, (int)strm->total_in, (int)strm->total_out);
+    LOG_WRAPPERC("- deflate2 flush=%d avail_in=%d avail_out=%d total_in=%d total_out=%d\n", (int)flush, (int)strm->avail_in, (int)strm->avail_out, (int)strm->total_in, (int)strm->total_out);
     if (strm->avail_in > 0) {
         zwc->inBuffer.src = strm->next_in;
         zwc->inBuffer.size = strm->avail_in;
@@ -355,7 +355,7 @@ ZEXTERN int ZEXPORT z_deflate OF((z_streamp strm, int flush))
         strm->total_out += zwc->outBuffer.pos;
         strm->avail_out -= zwc->outBuffer.pos;
     }
-    LOG_WRAPPERC("- deflate2 flush=%d avail_in=%d avail_out=%d total_in=%d total_out=%d\n", (int)flush, (int)strm->avail_in, (int)strm->avail_out, (int)strm->total_in, (int)strm->total_out);
+    LOG_WRAPPERC("- deflate3 flush=%d avail_in=%d avail_out=%d total_in=%d total_out=%d\n", (int)flush, (int)strm->avail_in, (int)strm->avail_out, (int)strm->total_in, (int)strm->total_out);
     return Z_OK;
 }
 

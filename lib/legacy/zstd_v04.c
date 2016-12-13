@@ -3107,7 +3107,7 @@ static size_t ZSTD_execSequence(BYTE* op,
             op = oLitEnd + length1;
             sequence.matchLength -= length1;
             match = base;
-            if (op > oend_8) {
+            if (op > oend_8 || sequence.matchLength < MINMATCH) {
               while (op < oMatchEnd) *op++ = *match++;
               return sequenceLength;
             }
@@ -3134,7 +3134,7 @@ static size_t ZSTD_execSequence(BYTE* op,
     }
     op += 8; match += 8;
 
-    if (oMatchEnd > oend-12)
+    if (oMatchEnd > oend-(16-MINMATCH))
     {
         if (op < oend_8)
         {

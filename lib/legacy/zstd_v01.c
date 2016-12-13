@@ -1354,7 +1354,7 @@ static void   ZSTD_copy8(void* dst, const void* src) { memcpy(dst, src, 8); }
 
 #define COPY8(d,s)    { ZSTD_copy8(d,s); d+=8; s+=8; }
 
-static void ZSTD_wildcopy(void* dst, const void* src, size_t length)
+static void ZSTD_wildcopy(void* dst, const void* src, ptrdiff_t length)
 {
     const BYTE* ip = (const BYTE*)src;
     BYTE* op = (BYTE*)dst;
@@ -1814,7 +1814,7 @@ static size_t ZSTD_execSequence(BYTE* op,
             while (op<endMatch) *op++ = *match++;
         }
         else
-            ZSTD_wildcopy(op, match, sequence.matchLength-8);   /* works even if matchLength < 8 */
+            ZSTD_wildcopy(op, match, (ptrdiff_t)sequence.matchLength-8);   /* works even if matchLength < 8 */
 
         /* restore, in case of overlap */
         if (overlapRisk) memcpy(endMatch, saved, qutt);

@@ -569,9 +569,9 @@ int main(int argCount, const char* argv[])
     if (operation==zom_compress) {
 #ifndef ZSTD_NOCOMPRESS
         if ((filenameIdx==1) && outFileName)
-          operationResult = FIO_compressFilename(outFileName, filenameTable[0], dictFileName, cLevel);
+          operationResult = FIO_compressFilename(outFileName, filenameTable[0], dictFileName, cLevel, &compressionParams);
         else
-          operationResult = FIO_compressMultipleFilenames(filenameTable, filenameIdx, outFileName ? outFileName : ZSTD_EXTENSION, dictFileName, cLevel);
+          operationResult = FIO_compressMultipleFilenames(filenameTable, filenameIdx, outFileName ? outFileName : ZSTD_EXTENSION, dictFileName, cLevel, &compressionParams);
 #else
         DISPLAY("Compression not supported\n");
 #endif

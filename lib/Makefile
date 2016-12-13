@@ -47,9 +47,9 @@ ifeq ($(shell uname), Darwin)
 	SHARED_EXT = dylib
 	SHARED_EXT_MAJOR = $(LIBVER_MAJOR).$(SHARED_EXT)
 	SHARED_EXT_VER = $(LIBVER).$(SHARED_EXT)
-	SONAME_FLAGS = -install_name $(PREFIX)/lib/$@.$(SHARED_EXT_MAJOR) -compatibility_version $(LIBVER_MAJOR) -current_version $(LIBVER)
+	SONAME_FLAGS = -install_name $(LIBDIR)/libzstd.$(SHARED_EXT_MAJOR) -compatibility_version $(LIBVER_MAJOR) -current_version $(LIBVER)
 else
-	SONAME_FLAGS = -Wl,-soname=$@.$(SHARED_EXT).$(LIBVER_MAJOR)
+	SONAME_FLAGS = -Wl,-soname=libzstd.$(SHARED_EXT).$(LIBVER_MAJOR)
 	SHARED_EXT = so
 	SHARED_EXT_MAJOR = $(SHARED_EXT).$(LIBVER_MAJOR)
 	SHARED_EXT_VER = $(SHARED_EXT).$(LIBVER)
@@ -107,15 +107,15 @@ libzstd.pc: libzstd.pc.in
 
 install: libzstd.a libzstd libzstd.pc
 	@install -d -m 755 $(DESTDIR)$(LIBDIR)/pkgconfig/ $(DESTDIR)$(INCLUDEDIR)/
-	@install -m 755 libzstd.$(SHARED_EXT_VER) $(DESTDIR)$(LIBDIR)/libzstd.$(SHARED_EXT_VER)
+	@install -m 755 libzstd.$(SHARED_EXT_VER) $(DESTDIR)$(LIBDIR)
 	@cp -a libzstd.$(SHARED_EXT_MAJOR) $(DESTDIR)$(LIBDIR)
 	@cp -a libzstd.$(SHARED_EXT) $(DESTDIR)$(LIBDIR)
 	@cp -a libzstd.pc $(DESTDIR)$(LIBDIR)/pkgconfig/
-	@install -m 644 libzstd.a $(DESTDIR)$(LIBDIR)/libzstd.a
-	@install -m 644 zstd.h $(DESTDIR)$(INCLUDEDIR)/zstd.h
-	@install -m 644 common/zstd_errors.h $(DESTDIR)$(INCLUDEDIR)/zstd_errors.h
-	@install -m 644 deprecated/zbuff.h $(DESTDIR)$(INCLUDEDIR)/zbuff.h   # prototypes generate deprecation warnings
-	@install -m 644 dictBuilder/zdict.h $(DESTDIR)$(INCLUDEDIR)/zdict.h
+	@install -m 644 libzstd.a $(DESTDIR)$(LIBDIR)
+	@install -m 644 zstd.h $(DESTDIR)$(INCLUDEDIR)
+	@install -m 644 common/zstd_errors.h $(DESTDIR)$(INCLUDEDIR)
+	@install -m 644 deprecated/zbuff.h $(DESTDIR)$(INCLUDEDIR)     # prototypes generate deprecation warnings
+	@install -m 644 dictBuilder/zdict.h $(DESTDIR)$(INCLUDEDIR)
 	@echo zstd static and shared library installed
 
 uninstall:

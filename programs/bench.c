@@ -244,7 +244,7 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
                     if (comprParams->searchLog) zparams.cParams.searchLog = comprParams->searchLog;
                     if (comprParams->searchLength) zparams.cParams.searchLength = comprParams->searchLength;
                     if (comprParams->targetLength) zparams.cParams.targetLength = comprParams->targetLength;
-                    if (comprParams->strategy) zparams.cParams.strategy = comprParams->strategy;
+                    if (comprParams->strategy) zparams.cParams.strategy = (ZSTD_strategy)(comprParams->strategy - 1);
                     do {
                         U32 blockNb;
                         size_t rSize;

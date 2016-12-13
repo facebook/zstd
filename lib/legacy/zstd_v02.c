@@ -3206,7 +3206,7 @@ static size_t ZSTD_execSequence(BYTE* op,
         }
         op += 8; match += 8;
 
-        if (oMatchEnd > oend-12)
+        if (oMatchEnd > oend-(16-MINMATCH))
         {
             if (op < oend_8)
             {

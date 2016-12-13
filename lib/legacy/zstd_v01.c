@@ -1803,7 +1803,7 @@ static size_t ZSTD_execSequence(BYTE* op,
         } else { ZSTD_copy8(op, match); }
         op += 8; match += 8;
 
-        if (endMatch > oend-12)
+        if (endMatch > oend-(16-MINMATCH))
         {
             if (op < oend-8)
             {

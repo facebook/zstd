@@ -1,18 +1,19 @@
 v1.1.2
-Improved : faster decompression speed at ultra compression settings and 32-bits mode
+API : streaming : decompression : changed : implicit reset on starting new frames without init
+API : experimental : added : dictID retrieval functions
+API : zbuff : changed : prototypes now generate deprecation warnings
+lib : improved : faster decompression speed at ultra compression settings and 32-bits mode
+lib : changed : only public ZSTD_ symbols are now exposed
+lib : changed : reduced usage  of stack memory
+lib : fixed : several corner case bugs, by Nick Terrell
 cli : new : gzstd, experimental version able to decode .gz files, by Przemyslaw Skibinski
 cli : new : preserve file attributes
 cli : new : added zstdless and zstdgrep tools
 cli : fixed : status displays total amount decoded, even for file consisting of multiple frames (like pzstd)
 cli : fixed : zstdcat
-lib : fixed : bug in streaming compression, by Nick Terrell
-lib : changed : only public ZSTD_ symbols are now exposed
-API : zbuff : changed : prototypes now generate deprecation warnings
-API : streaming : decompression : changed : implicit reset on starting new frames without init
-API : experimental : added : dictID retrieval functions
 zlib_wrapper : added support for gz* functions, by Przemyslaw Skibinski
-Changed : zbuff source files moved to lib/deprecated
-Changed : reduced stack memory use
+install : better compatibility with FreeBSD, by Dimitry Andric
+source tree : changed : zbuff source files moved to lib/deprecated
 
 v1.1.1
 New : command -M#, --memory=, --memlimit=, --memlimit-decompress= to limit allowed memory consumption

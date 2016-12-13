@@ -2852,6 +2852,8 @@ struct ZSTD_CStream_s {
     ZSTD_cStreamStage stage;
     U32    checksum;
     U32    frameEnded;
+    U64    pledgedSrcSize;
+    U64    inputProcessed;
     ZSTD_parameters params;
     ZSTD_customMem customMem;
 };   /* typedef'd to ZSTD_CStream within "zstd.h" */
@@ -2909,6 +2911,8 @@ size_t ZSTD_resetCStream(ZSTD_CStream* zcs, unsigned long long pledgedSrcSize)
     zcs->outBuffContentSize = zcs->outBuffFlushedSize = 0;
     zcs->stage = zcss_load;
     zcs->frameEnded = 0;
+    zcs->pledgedSrcSize = pledgedSrcSize;
+    zcs->inputProcessed = 0;
     return 0;   /* ready to go */
 }
 
@@ -2959,6 +2963,12 @@ size_t ZSTD_initCStream_usingDict(ZSTD_CStream* zcs, const void* dict, size_t di
 {
     ZSTD_parameters const params = ZSTD_getParams(compressionLevel, 0, dictSize);
     return ZSTD_initCStream_advanced(zcs, dict, dictSize, params, 0);
+}
+
+size_t ZSTD_initCStream_srcSize(ZSTD_CStream* zcs, int compressionLevel, unsigned long long pledgedSrcSize)
+{
+    ZSTD_parameters const params = ZSTD_getParams(compressionLevel, pledgedSrcSize, 0);
+    return ZSTD_initCStream_advanced(zcs, NULL, 0, params, pledgedSrcSize);
 }
 
 size_t ZSTD_initCStream(ZSTD_CStream* zcs, int compressionLevel)
@@ -3057,6 +3067,7 @@ static size_t ZSTD_compressStream_generic(ZSTD_CStream* zcs,
 
     *srcSizePtr = ip - istart;
     *dstCapacityPtr = op - ostart;
+    zcs->inputProcessed += *srcSizePtr;
     if (zcs->frameEnded) return 0;
     {   size_t hintInSize = zcs->inBuffTarget - zcs->inBuffPos;
         if (hintInSize==0) hintInSize = zcs->blockSize;
@@ -3100,6 +3111,9 @@ size_t ZSTD_endStream(ZSTD_CStream* zcs, ZSTD_outBuffer* output)
     BYTE* const ostart = (BYTE*)(output->dst) + output->pos;
     BYTE* const oend = (BYTE*)(output->dst) + output->size;
     BYTE* op = ostart;
+
+    if ((zcs->pledgedSrcSize) && (zcs->inputProcessed != zcs->pledgedSrcSize))
+        return ERROR(srcSize_wrong);   /* pledgedSrcSize not respected */
 
     if (zcs->stage != zcss_final) {
         /* flush whatever remains */

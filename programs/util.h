@@ -98,7 +98,7 @@ extern "C" {
 #    define SET_HIGH_PRIORITY /* disabled */
 #  endif
 #  define UTIL_sleep(s) sleep(s)
-#  if defined(_POSIX_C_SOURCE) && (_POSIX_C_SOURCE >= 199309L)
+#  if defined(__DragonFly__) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || (defined(_POSIX_C_SOURCE) && (_POSIX_C_SOURCE >= 199309L))
 #      define UTIL_sleepMilli(milli) { struct timespec t; t.tv_sec=0; t.tv_nsec=milli*1000000ULL; nanosleep(&t, NULL); }
 #  else
 #      define UTIL_sleepMilli(milli) /* disabled */

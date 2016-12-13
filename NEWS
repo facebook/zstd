@@ -1,6 +1,6 @@
 v1.1.2
-API : streaming : decompression : changed : implicit reset on starting new frames without init
-API : experimental : added : dictID retrieval functions
+API : streaming : decompression : changed : automatic implicit reset when chain-decoding new frames without init
+API : experimental : added : dictID retrieval functions, and ZSTD_initCStream_srcSize()
 API : zbuff : changed : prototypes now generate deprecation warnings
 lib : improved : faster decompression speed at ultra compression settings and 32-bits mode
 lib : changed : only public ZSTD_ symbols are now exposed

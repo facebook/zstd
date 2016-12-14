@@ -101,6 +101,15 @@ $ZSTD -f tmp && die "tmp not present : should have failed"
 ls tmp.zst && die "tmp.zst should not be created"
 
 
+$ECHO "\n**** Advanced compression parameters **** "
+$ZSTD --zstd=windowLog=21, && die "wrong parameters not detected!"
+$ZSTD --zstd=windowLok=21 && die "wrong parameters not detected!"
+$ZSTD --zstd=windowLog=21,slog= && die "wrong parameters not detected!"
+roundTripTest -g512K
+roundTripTest -g512K " --zstd=windowLog=23,chainLog=23,hashLog=22,searchLog=6,searchLength=3,targetLength=48,strategy=6"
+roundTripTest -g512K 19
+
+
 $ECHO "\n**** Pass-Through mode **** "
 $ECHO "Hello world 1!" | $ZSTD -df
 $ECHO "Hello world 2!" | $ZSTD -dcf

@@ -27,7 +27,6 @@ case "$OS" in
   Windows*)
     isWindows=true
     ECHO="echo -e"
-    INTOVOID="nul"
     ;;
 esac
 
@@ -102,9 +101,10 @@ ls tmp.zst && die "tmp.zst should not be created"
 
 
 $ECHO "\n**** Advanced compression parameters **** "
-$ZSTD --zstd=windowLog=21, && die "wrong parameters not detected!"
-$ZSTD --zstd=windowLok=21 && die "wrong parameters not detected!"
-$ZSTD --zstd=windowLog=21,slog= && die "wrong parameters not detected!"
+$ECHO "Hello world!" | $ZSTD --zstd=windowLog=21,      - -o tmp.zst && die "wrong parameters not detected!"
+$ECHO "Hello world!" | $ZSTD --zstd=windowLo=21        - -o tmp.zst && die "wrong parameters not detected!"
+$ECHO "Hello world!" | $ZSTD --zstd=windowLog=21,slog= - -o tmp.zst && die "wrong parameters not detected!"
+ls tmp.zst && die "tmp.zst should not be created"
 roundTripTest -g512K
 roundTripTest -g512K " --zstd=slen=3,tlen=48,strat=6"
 roundTripTest -g512K " --zstd=strat=6,wlog=23,clog=23,hlog=22,slog=6"

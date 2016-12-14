@@ -103,7 +103,7 @@ ls tmp.zst && die "tmp.zst should not be created"
 $ECHO "\n**** Advanced compression parameters **** "
 $ECHO "Hello world!" | $ZSTD --zstd=windowLog=21,      - -o tmp.zst && die "wrong parameters not detected!"
 $ECHO "Hello world!" | $ZSTD --zstd=windowLo=21        - -o tmp.zst && die "wrong parameters not detected!"
-$ECHO "Hello world!" | $ZSTD --zstd=windowLog=21,slog= - -o tmp.zst && die "wrong parameters not detected!"
+$ECHO "Hello world!" | $ZSTD --zstd=windowLog=21,slog  - -o tmp.zst && die "wrong parameters not detected!"
 ls tmp.zst && die "tmp.zst should not be created"
 roundTripTest -g512K
 roundTripTest -g512K " --zstd=slen=3,tlen=48,strat=6"

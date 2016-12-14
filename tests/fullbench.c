@@ -229,9 +229,12 @@ static size_t benchMem(const void* src, size_t srcSize, U32 benchNb)
         benchFunction = local_ZSTD_compressContinue; benchName = "ZSTD_compressContinue";
         break;
     case 12:
+        benchFunction = local_ZSTD_compressContinue; benchName = "ZSTD_compressContinue_extDict";
+        break;
+    case 13:
         benchFunction = local_ZSTD_decompressContinue; benchName = "ZSTD_decompressContinue";
         break;
-	case 31:
+    case 31:
         benchFunction = local_ZSTD_decodeLiteralsBlock; benchName = "ZSTD_decodeLiteralsBlock";
         break;
     case 32:
@@ -268,6 +271,13 @@ static size_t benchMem(const void* src, size_t srcSize, U32 benchNb)
         if (g_zcc==NULL) g_zcc = ZSTD_createCCtx();
         break;
     case 12 :
+        if (g_zcc==NULL) g_zcc = ZSTD_createCCtx();
+        if (g_zcc) {
+            seqStore_t* seqStorePtr = ZSTD_getSeqStore(g_zcc);
+            if (seqStorePtr) seqStorePtr->forceExtDict = 1;
+        }
+        break;
+    case 13 :
         if (g_zdc==NULL) g_zdc = ZSTD_createDCtx();
         g_cSize = ZSTD_compress(buff2, dstBuffSize, src, srcSize, 1);
         break;

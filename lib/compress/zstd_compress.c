@@ -119,7 +119,12 @@ size_t ZSTD_sizeof_CCtx(const ZSTD_CCtx* cctx)
     return sizeof(*cctx) + cctx->workSpaceSize;
 }
 
-const seqStore_t* ZSTD_getSeqStore(const ZSTD_CCtx* ctx)   /* hidden interface */
+const seqStore_t* ZSTD_getConstSeqStore(const ZSTD_CCtx* ctx)   /* hidden interface */
+{
+    return &(ctx->seqStore);
+}
+
+seqStore_t* ZSTD_getSeqStore(ZSTD_CCtx* ctx)   /* hidden interface */
 {
     return &(ctx->seqStore);
 }
@@ -2240,7 +2245,7 @@ static ZSTD_blockCompressor ZSTD_selectBlockCompressor(ZSTD_strategy strat, int 
 
 static size_t ZSTD_compressBlock_internal(ZSTD_CCtx* zc, void* dst, size_t dstCapacity, const void* src, size_t srcSize)
 {
-    ZSTD_blockCompressor const blockCompressor = ZSTD_selectBlockCompressor(zc->params.cParams.strategy, zc->lowLimit < zc->dictLimit);
+    ZSTD_blockCompressor const blockCompressor = ZSTD_selectBlockCompressor(zc->params.cParams.strategy, zc->seqStore.forceExtDict || (zc->lowLimit < zc->dictLimit));
     const BYTE* const base = zc->base;
     const BYTE* const istart = (const BYTE*)src;
     const U32 current = (U32)(istart-base);

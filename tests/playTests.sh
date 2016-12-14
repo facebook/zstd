@@ -106,6 +106,8 @@ $ZSTD --zstd=windowLog=21, && die "wrong parameters not detected!"
 $ZSTD --zstd=windowLok=21 && die "wrong parameters not detected!"
 $ZSTD --zstd=windowLog=21,slog= && die "wrong parameters not detected!"
 roundTripTest -g512K
+roundTripTest -g512K " --zstd=slen=3,tlen=48,strat=6"
+roundTripTest -g512K " --zstd=strat=6,wlog=23,clog=23,hlog=22,slog=6"
 roundTripTest -g512K " --zstd=windowLog=23,chainLog=23,hashLog=22,searchLog=6,searchLength=3,targetLength=48,strategy=6"
 roundTripTest -g512K 19
 

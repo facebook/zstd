@@ -23,22 +23,23 @@ PREFIX ?= /usr/local
 LIBDIR ?= $(PREFIX)/lib
 INCLUDEDIR=$(PREFIX)/include
 
-CPPFLAGS= -I. -I./common
-CFLAGS ?= -O3
-CFLAGS += -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow -Wstrict-aliasing=1 \
-          -Wswitch-enum -Wdeclaration-after-statement -Wstrict-prototypes -Wundef
-FLAGS   = $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) $(MOREFLAGS)
+CPPFLAGS+= -I. -I./common -DXXH_NAMESPACE=ZSTD_
+CFLAGS  ?= -O3
+CFLAGS  += -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow -Wstrict-aliasing=1 \
+           -Wswitch-enum -Wdeclaration-after-statement -Wstrict-prototypes -Wundef \
+           -Wpointer-arith
+CFLAGS  += $(MOREFLAGS)
+FLAGS    = $(CPPFLAGS) $(CFLAGS)
 
 
-ZSTD_FILES := common/*.c compress/*.c decompress/*.c dictBuilder/*.c
+ZSTD_FILES := $(wildcard common/*.c compress/*.c decompress/*.c dictBuilder/*.c deprecated/*.c)
 
 ifeq ($(ZSTD_LEGACY_SUPPORT), 0)
 CPPFLAGS  += -DZSTD_LEGACY_SUPPORT=0
 else
-ZSTD_FILES+= legacy/*.c
 CPPFLAGS  += -I./legacy -DZSTD_LEGACY_SUPPORT=1
+ZSTD_FILES+= $(wildcard legacy/*.c)
 endif
-
 
 # OS X linker doesn't support -soname, and use different extension
 # see : https://developer.apple.com/library/mac/documentation/DeveloperTools/Conceptual/DynamicLibraries/100-Articles/DynamicLibraryDesignGuidelines.html
@@ -46,34 +47,49 @@ ifeq ($(shell uname), Darwin)
 	SHARED_EXT = dylib
 	SHARED_EXT_MAJOR = $(LIBVER_MAJOR).$(SHARED_EXT)
 	SHARED_EXT_VER = $(LIBVER).$(SHARED_EXT)
-	SONAME_FLAGS = -install_name $(PREFIX)/lib/$@.$(SHARED_EXT_MAJOR) -compatibility_version $(LIBVER_MAJOR) -current_version $(LIBVER)
+	SONAME_FLAGS = -install_name $(LIBDIR)/libzstd.$(SHARED_EXT_MAJOR) -compatibility_version $(LIBVER_MAJOR) -current_version $(LIBVER)
 else
-	SONAME_FLAGS = -Wl,-soname=$@.$(SHARED_EXT).$(LIBVER_MAJOR)
+	SONAME_FLAGS = -Wl,-soname=libzstd.$(SHARED_EXT).$(LIBVER_MAJOR)
 	SHARED_EXT = so
 	SHARED_EXT_MAJOR = $(SHARED_EXT).$(LIBVER_MAJOR)
 	SHARED_EXT_VER = $(SHARED_EXT).$(LIBVER)
 endif
 
+LIBZSTD = libzstd.$(SHARED_EXT_VER)
+
 
 .PHONY: default all clean install uninstall
 
-default: clean libzstd
+default: lib
 
-all: clean libzstd
+all: lib
 
-libzstd: $(ZSTD_FILES)
+libzstd.a: ARFLAGS = rcs
+libzstd.a: $(ZSTD_FILES)
 	@echo compiling static library
 	@$(CC) $(FLAGS) -c $^
-	@$(AR) rcs $@.a *.o
+	@$(AR) $(ARFLAGS) $@ *.o
+
+$(LIBZSTD): LDFLAGS += -shared -fPIC -fvisibility=hidden
+$(LIBZSTD): $(ZSTD_FILES)
 	@echo compiling dynamic library $(LIBVER)
-	@$(CC) $(FLAGS) -shared $^ -fPIC $(SONAME_FLAGS) -o $@.$(SHARED_EXT_VER)
+ifneq (,$(filter Windows%,$(OS)))
+	@$(CC) $(FLAGS) -DZSTD_DLL_EXPORT=1 -shared $^ -o dll\libzstd.dll
+	dlltool -D dll\libzstd.dll -d dll\libzstd.def -l dll\libzstd.lib
+else
+	@$(CC) $(FLAGS) $^ $(LDFLAGS) $(SONAME_FLAGS) -o $@
 	@echo creating versioned links
-	@ln -sf $@.$(SHARED_EXT_VER) $@.$(SHARED_EXT_MAJOR)
-	@ln -sf $@.$(SHARED_EXT_VER) $@.$(SHARED_EXT)
+	@ln -sf $@ libzstd.$(SHARED_EXT_MAJOR)
+	@ln -sf $@ libzstd.$(SHARED_EXT)
+endif
+
+libzstd : $(LIBZSTD)
+
+lib: libzstd.a libzstd
 
 clean:
-	@rm -f core *.o *.a *.gcda *.$(SHARED_EXT) *.$(SHARED_EXT).* libzstd.pc
-	@rm -f decompress/*.o
+	@$(RM) core *.o *.a *.gcda *.$(SHARED_EXT) *.$(SHARED_EXT).* libzstd.pc dll/libzstd.dll dll/libzstd.lib
+	@$(RM) decompress/*.o
 	@echo Cleaning library completed
 
 #------------------------------------------------------------------------
@@ -89,17 +105,17 @@ libzstd.pc: libzstd.pc.in
              -e 's|@VERSION@|$(VERSION)|' \
              $< >$@
 
-install: libzstd libzstd.pc
+install: libzstd.a libzstd libzstd.pc
 	@install -d -m 755 $(DESTDIR)$(LIBDIR)/pkgconfig/ $(DESTDIR)$(INCLUDEDIR)/
-	@install -m 755 libzstd.$(SHARED_EXT_VER) $(DESTDIR)$(LIBDIR)/libzstd.$(SHARED_EXT_VER)
+	@install -m 755 libzstd.$(SHARED_EXT_VER) $(DESTDIR)$(LIBDIR)
 	@cp -a libzstd.$(SHARED_EXT_MAJOR) $(DESTDIR)$(LIBDIR)
 	@cp -a libzstd.$(SHARED_EXT) $(DESTDIR)$(LIBDIR)
 	@cp -a libzstd.pc $(DESTDIR)$(LIBDIR)/pkgconfig/
-	@install -m 644 libzstd.a $(DESTDIR)$(LIBDIR)/libzstd.a
-	@install -m 644 zstd.h $(DESTDIR)$(INCLUDEDIR)/zstd.h
-	@install -m 644 common/zstd_errors.h $(DESTDIR)$(INCLUDEDIR)/zstd_errors.h
-	@install -m 644 common/zbuff.h $(DESTDIR)$(INCLUDEDIR)/zbuff.h   # Deprecated streaming functions
-	@install -m 644 dictBuilder/zdict.h $(DESTDIR)$(INCLUDEDIR)/zdict.h
+	@install -m 644 libzstd.a $(DESTDIR)$(LIBDIR)
+	@install -m 644 zstd.h $(DESTDIR)$(INCLUDEDIR)
+	@install -m 644 common/zstd_errors.h $(DESTDIR)$(INCLUDEDIR)
+	@install -m 644 deprecated/zbuff.h $(DESTDIR)$(INCLUDEDIR)     # prototypes generate deprecation warnings
+	@install -m 644 dictBuilder/zdict.h $(DESTDIR)$(INCLUDEDIR)
 	@echo zstd static and shared library installed
 
 uninstall:

@@ -147,7 +147,7 @@ static void ZSTD_copy8(void* dst, const void* src) { memcpy(dst, src, 8); }
 /*! ZSTD_wildcopy() :
 *   custom version of memcpy(), can copy up to 7 bytes too many (8 bytes if length==0) */
 #define WILDCOPY_OVERLENGTH 8
-MEM_STATIC void ZSTD_wildcopy(void* dst, const void* src, size_t length)
+MEM_STATIC void ZSTD_wildcopy(void* dst, const void* src, ptrdiff_t length)
 {
     const BYTE* ip = (const BYTE*)src;
     BYTE* op = (BYTE*)dst;
@@ -222,6 +222,7 @@ typedef struct {
     U32  log2litSum;
     U32  log2offCodeSum;
     U32  factor;
+    U32  staticPrices;
     U32  cachedPrice;
     U32  cachedLitLength;
     const BYTE* cachedLiterals;
@@ -234,7 +235,9 @@ int ZSTD_isSkipFrame(ZSTD_DCtx* dctx);
 /* custom memory allocation functions */
 void* ZSTD_defaultAllocFunction(void* opaque, size_t size);
 void ZSTD_defaultFreeFunction(void* opaque, void* address);
+#ifndef ZSTD_DLL_IMPORT
 static const ZSTD_customMem defaultCustomMem = { ZSTD_defaultAllocFunction, ZSTD_defaultFreeFunction, NULL };
+#endif
 void* ZSTD_malloc(size_t size, ZSTD_customMem customMem);
 void ZSTD_free(void* ptr, ZSTD_customMem customMem);
 

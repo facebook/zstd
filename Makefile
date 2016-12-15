@@ -14,40 +14,47 @@ ZWRAPDIR = zlibWrapper
 TESTDIR  = tests
 
 # Define nul output
-ifneq (,$(filter Windows%,$(OS)))
-VOID = nul
-else
 VOID = /dev/null
+
+ifneq (,$(filter Windows%,$(OS)))
+EXT =.exe
+else
+EXT =
 endif
 
-.PHONY: default all zlibwrapper zstd clean install uninstall travis-install test clangtest gpptest armtest usan asan uasan
+.PHONY: default
+default: lib zstd
 
-default: libzstd zstd
-
+.PHONY: all
 all:
 	$(MAKE) -C $(ZSTDDIR) $@
 	$(MAKE) -C $(PRGDIR) $@ zstd32
 	$(MAKE) -C $(TESTDIR) $@ all32
 
-libzstd:
+.PHONY: lib
+lib:
 	@$(MAKE) -C $(ZSTDDIR)
 
+.PHONY: zstd
 zstd:
-	@$(MAKE) -C $(PRGDIR)
-	cp $(PRGDIR)/zstd .
+	@$(MAKE) -C $(PRGDIR) $@
+	cp $(PRGDIR)/zstd$(EXT) .
 
+.PHONY: zlibwrapper
 zlibwrapper:
 	$(MAKE) -C $(ZWRAPDIR) test
 
+.PHONY: test
 test:
 	$(MAKE) -C $(TESTDIR) $@
 
+.PHONY: clean
 clean:
 	@$(MAKE) -C $(ZSTDDIR) $@ > $(VOID)
 	@$(MAKE) -C $(PRGDIR) $@ > $(VOID)
 	@$(MAKE) -C $(TESTDIR) $@ > $(VOID)
 	@$(MAKE) -C $(ZWRAPDIR) $@ > $(VOID)
-	@$(RM) zstd
+	@$(RM) zstd$(EXT) tmp*
 	@echo Cleaning completed
 
 
@@ -56,6 +63,8 @@ clean:
 #------------------------------------------------------------------------------
 ifneq (,$(filter $(shell uname),Linux Darwin GNU/kFreeBSD GNU FreeBSD DragonFly NetBSD))
 HOST_OS = POSIX
+.PHONY: install uninstall travis-install clangtest gpptest armtest usan asan uasan
+
 install:
 	@$(MAKE) -C $(ZSTDDIR) $@
 	@$(MAKE) -C $(PRGDIR) $@
@@ -84,15 +93,19 @@ clangtest: clean
 
 armtest: clean
 	$(MAKE) -C $(TESTDIR) datagen   # use native, faster
-	$(MAKE) -C $(TESTDIR) test CC=arm-linux-gnueabi-gcc ZSTDRTTEST= MOREFLAGS="-Werror -static"
+	$(MAKE) -C $(TESTDIR) test CC=arm-linux-gnueabi-gcc QEMU_SYS=qemu-arm-static ZSTDRTTEST= MOREFLAGS="-Werror -static"
+
+aarch64test:
+	$(MAKE) -C $(TESTDIR) datagen   # use native, faster
+	$(MAKE) -C $(TESTDIR) test CC=aarch64-linux-gnu-gcc QEMU_SYS=qemu-aarch64-static ZSTDRTTEST= MOREFLAGS="-Werror -static"
 
 ppctest: clean
 	$(MAKE) -C $(TESTDIR) datagen   # use native, faster
-	$(MAKE) -C $(TESTDIR) test CC=powerpc-linux-gnu-gcc ZSTDRTTEST= MOREFLAGS="-Werror -Wno-attributes -static"
+	$(MAKE) -C $(TESTDIR) test CC=powerpc-linux-gnu-gcc QEMU_SYS=qemu-ppc-static ZSTDRTTEST= MOREFLAGS="-Werror -Wno-attributes -static"
 
 ppc64test: clean
 	$(MAKE) -C $(TESTDIR) datagen   # use native, faster
-	$(MAKE) -C $(TESTDIR) test CC=powerpc-linux-gnu-gcc ZSTDRTTEST= MOREFLAGS="-m64 -static"
+	$(MAKE) -C $(TESTDIR) test CC=powerpc-linux-gnu-gcc QEMU_SYS=qemu-ppc64-static ZSTDRTTEST= MOREFLAGS="-m64 -static"
 
 usan: clean
 	$(MAKE) test CC=clang MOREFLAGS="-g -fsanitize=undefined"

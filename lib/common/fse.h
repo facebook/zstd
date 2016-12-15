@@ -286,7 +286,7 @@ If there is an error, the function will return an error code, which can be teste
 #define FSE_BLOCKBOUND(size) (size + (size>>7))
 #define FSE_COMPRESSBOUND(size) (FSE_NCOUNTBOUND + FSE_BLOCKBOUND(size))   /* Macro version, useful for static allocation */
 
-/* It is possible to statically allocate FSE CTable/DTable as a table of unsigned using below macros */
+/* It is possible to statically allocate FSE CTable/DTable as a table of FSE_CTable/FSE_DTable using below macros */
 #define FSE_CTABLE_SIZE_U32(maxTableLog, maxSymbolValue)   (1 + (1<<(maxTableLog-1)) + ((maxSymbolValue+1)*2))
 #define FSE_DTABLE_SIZE_U32(maxTableLog)                   (1 + (1<<maxTableLog))
 
@@ -294,23 +294,62 @@ If there is an error, the function will return an error code, which can be teste
 /* *****************************************
 *  FSE advanced API
 *******************************************/
+/* FSE_count_wksp() :
+ * Same as FSE_count(), but using an externally provided scratch buffer.
+ * `workSpace` size must be table of >= `1024` unsigned
+ */
+size_t FSE_count_wksp(unsigned* count, unsigned* maxSymbolValuePtr,
+                 const void* source, size_t sourceSize, unsigned* workSpace);
+
+/** FSE_countFast() :
+ *  same as FSE_count(), but blindly trusts that all byte values within src are <= *maxSymbolValuePtr
+ */
 size_t FSE_countFast(unsigned* count, unsigned* maxSymbolValuePtr, const void* src, size_t srcSize);
-/**< same as FSE_count(), but blindly trusts that all byte values within src are <= *maxSymbolValuePtr  */
+
+/* FSE_countFast_wksp() :
+ * Same as FSE_countFast(), but using an externally provided scratch buffer.
+ * `workSpace` must be a table of minimum `1024` unsigned
+ */
+size_t FSE_countFast_wksp(unsigned* count, unsigned* maxSymbolValuePtr, const void* src, size_t srcSize, unsigned* workSpace);
+
+/*! FSE_count_simple
+ * Same as FSE_countFast(), but does not use any additional memory (not even on stack).
+ * This function is unsafe, and will segfault if any value within `src` is `> *maxSymbolValuePtr` (presuming it's also the size of `count`).
+*/
+size_t FSE_count_simple(unsigned* count, unsigned* maxSymbolValuePtr, const void* src, size_t srcSize);
+
+
 
 unsigned FSE_optimalTableLog_internal(unsigned maxTableLog, size_t srcSize, unsigned maxSymbolValue, unsigned minus);
 /**< same as FSE_optimalTableLog(), which used `minus==2` */
 
+/* FSE_compress_wksp() :
+ * Same as FSE_compress2(), but using an externally allocated scratch buffer (`workSpace`).
+ * FSE_WKSP_SIZE_U32() provides the minimum size required for `workSpace` as a table of FSE_CTable.
+ */
+#define FSE_WKSP_SIZE_U32(maxTableLog, maxSymbolValue)   ( FSE_CTABLE_SIZE_U32(maxTableLog, maxSymbolValue) + (1<<((maxTableLog>2)?(maxTableLog-2):0)) )
+size_t FSE_compress_wksp (void* dst, size_t dstSize, const void* src, size_t srcSize, unsigned maxSymbolValue, unsigned tableLog, void* workSpace, size_t wkspSize);
+
 size_t FSE_buildCTable_raw (FSE_CTable* ct, unsigned nbBits);
-/**< build a fake FSE_CTable, designed to not compress an input, where each symbol uses nbBits */
+/**< build a fake FSE_CTable, designed for a flat distribution, where each symbol uses nbBits */
 
 size_t FSE_buildCTable_rle (FSE_CTable* ct, unsigned char symbolValue);
 /**< build a fake FSE_CTable, designed to compress always the same symbolValue */
 
+/* FSE_buildCTable_wksp() :
+ * Same as FSE_buildCTable(), but using an externally allocated scratch buffer (`workSpace`).
+ * `wkspSize` must be >= `(1<<tableLog)`.
+ */
+size_t FSE_buildCTable_wksp(FSE_CTable* ct, const short* normalizedCounter, unsigned maxSymbolValue, unsigned tableLog, void* workSpace, size_t wkspSize);
+
 size_t FSE_buildDTable_raw (FSE_DTable* dt, unsigned nbBits);
-/**< build a fake FSE_DTable, designed to read an uncompressed bitstream where each symbol uses nbBits */
+/**< build a fake FSE_DTable, designed to read a flat distribution where each symbol uses nbBits */
 
 size_t FSE_buildDTable_rle (FSE_DTable* dt, unsigned char symbolValue);
 /**< build a fake FSE_DTable, designed to always generate the same symbolValue */
+
+size_t FSE_decompress_wksp(void* dst, size_t dstCapacity, const void* cSrc, size_t cSrcSize, FSE_DTable* workSpace, unsigned maxLog);
+/**< same as FSE_decompress(), using an externally allocated `workSpace` produced with `FSE_DTABLE_SIZE_U32(maxLog)` */
 
 
 /* *****************************************
@@ -318,13 +357,9 @@ size_t FSE_buildDTable_rle (FSE_DTable* dt, unsigned char symbolValue);
 *******************************************/
 /*!
    This API consists of small unitary functions, which highly benefit from being inlined.
-   You will want to enable link-time-optimization to ensure these functions are properly inlined in your binary.
-   Visual seems to do it automatically.
-   For gcc or clang, you'll need to add -flto flag at compilation and linking stages.
-   If none of these solutions is applicable, include "fse.c" directly.
+   Hence their body are included in next section.
 */
-typedef struct
-{
+typedef struct {
     ptrdiff_t   value;
     const void* stateTable;
     const void* symbolTT;
@@ -384,8 +419,7 @@ If there is an error, it returns an errorCode (which can be tested using FSE_isE
 /* *****************************************
 *  FSE symbol decompression API
 *******************************************/
-typedef struct
-{
+typedef struct {
     size_t      state;
     const void* table;   /* precise table may vary, depending on U16 */
 } FSE_DState_t;

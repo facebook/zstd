@@ -16,7 +16,7 @@ roundTripTest() {
     rm -f tmp1 tmp2
     $ECHO "roundTripTest: ./datagen $1 $p | $ZSTD -v$c | $ZSTD -d"
     ./datagen $1 $p | $MD5SUM > tmp1
-    ./datagen $1 $p | $ZSTD -v$c | $ZSTD -d  | $MD5SUM > tmp2
+    ./datagen $1 $p | $ZSTD --ultra -v$c | $ZSTD -d  | $MD5SUM > tmp2
     diff -q tmp1 tmp2
 }
 
@@ -31,16 +31,16 @@ case "$OS" in
     ;;
 esac
 
-MD5SUM="md5sum"
-if [[ "$OSTYPE" == "darwin"* ]]; then
-    MD5SUM="md5 -r"
-fi
+UNAME=$(uname)
+case "$UNAME" in
+  Darwin) MD5SUM="md5 -r" ;;
+  FreeBSD) MD5SUM="gmd5sum" ;;
+  *) MD5SUM="md5sum" ;;
+esac
 
-$ECHO "\nStarting playTests.sh isWindows=$isWindows"
+$ECHO "\nStarting playTests.sh isWindows=$isWindows ZSTD='$ZSTD'"
 
 [ -n "$ZSTD" ] || die "ZSTD variable must be defined!"
-
-file $ZSTD
 
 $ECHO "\n**** simple tests **** "
 
@@ -102,8 +102,10 @@ ls tmp.zst && die "tmp.zst should not be created"
 
 
 $ECHO "\n**** Pass-Through mode **** "
-$ECHO "Hello world !" | $ZSTD -df
-$ECHO "Hello world !" | $ZSTD -dcf
+$ECHO "Hello world 1!" | $ZSTD -df
+$ECHO "Hello world 2!" | $ZSTD -dcf
+$ECHO "Hello world 3!" > tmp1
+$ZSTD -dcf tmp1
 
 
 $ECHO "\n**** frame concatenation **** "
@@ -228,11 +230,10 @@ cp ../programs/*.h dirTestDict
 $MD5SUM dirTestDict/* > tmph1
 $ZSTD -f --rm dirTestDict/* -D tmpDictC
 $ZSTD -d --rm dirTestDict/*.zst -D tmpDictC  # note : use internal checksum by default
-if [[ "$OSTYPE" == "darwin"* ]]; then
-  $ECHO "md5sum -c not supported on OS-X : test skipped"  # not compatible with OS-X's md5
-else
-  $MD5SUM -c tmph1
-fi
+case "$UNAME" in
+  Darwin) $ECHO "md5sum -c not supported on OS-X : test skipped" ;;  # not compatible with OS-X's md5
+  *) $MD5SUM -c tmph1 ;;
+esac
 rm -rf dirTestDict
 rm tmp*
 

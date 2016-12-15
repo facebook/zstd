@@ -64,25 +64,25 @@ SET(Sources
         ${LIBRARY_DIR}/common/fse_decompress.c
         ${LIBRARY_DIR}/compress/fse_compress.c
         ${LIBRARY_DIR}/compress/huf_compress.c
-        ${LIBRARY_DIR}/compress/zbuff_compress.c
         ${LIBRARY_DIR}/compress/zstd_compress.c
         ${LIBRARY_DIR}/decompress/huf_decompress.c
-        ${LIBRARY_DIR}/decompress/zbuff_decompress.c
         ${LIBRARY_DIR}/decompress/zstd_decompress.c
         ${LIBRARY_DIR}/dictBuilder/divsufsort.c
-        ${LIBRARY_DIR}/dictBuilder/zdict.c)
+        ${LIBRARY_DIR}/dictBuilder/zdict.c
+        ${LIBRARY_DIR}/deprecated/zbuff_compress.c
+        ${LIBRARY_DIR}/deprecated/zbuff_decompress.c)
 
 SET(Headers
+        ${LIBRARY_DIR}/zstd.h
         ${LIBRARY_DIR}/common/bitstream.h
         ${LIBRARY_DIR}/common/error_private.h
         ${LIBRARY_DIR}/common/zstd_errors.h
         ${LIBRARY_DIR}/common/fse.h
         ${LIBRARY_DIR}/common/huf.h
         ${LIBRARY_DIR}/common/mem.h
-        ${LIBRARY_DIR}/common/zbuff.h
         ${LIBRARY_DIR}/common/zstd_internal.h
-        ${LIBRARY_DIR}/zstd.h
-        ${LIBRARY_DIR}/dictBuilder/zdict.h)
+        ${LIBRARY_DIR}/dictBuilder/zdict.h
+        ${LIBRARY_DIR}/deprecated/zbuff.h)
 
 IF (ZSTD_LEGACY_SUPPORT)
     SET(LIBRARY_LEGACY_DIR ${LIBRARY_DIR}/legacy)
@@ -130,19 +130,19 @@ ELSE ()
     SET(LIBRARY_BASE_NAME libzstd)
 ENDIF (MSVC)
 
-# Define static and shared library names
-SET(STATIC_LIBRARY_OUTPUT_NAME ${LIBRARY_BASE_NAME})
-SET(SHARED_LIBRARY_OUTPUT_NAME ${LIBRARY_BASE_NAME}.${LIBVER_MAJOR}.${LIBVER_MINOR}.${LIBVER_RELEASE})
-
 IF (MSVC)
     IF (CMAKE_SIZEOF_VOID_P MATCHES "8")
-        SET(STATIC_LIBRARY_OUTPUT_NAME ${STATIC_LIBRARY_OUTPUT_NAME}_x64)
-        SET(SHARED_LIBRARY_OUTPUT_NAME ${SHARED_LIBRARY_OUTPUT_NAME}_x64)
+        SET(LIBRARY_ARCH_SUFFIX "_x64")
     ELSE ()
-        SET(STATIC_LIBRARY_OUTPUT_NAME ${STATIC_LIBRARY_OUTPUT_NAME}_x86)
-        SET(SHARED_LIBRARY_OUTPUT_NAME ${SHARED_LIBRARY_OUTPUT_NAME}_x86)
+        SET(LIBRARY_ARCH_SUFFIX "_x86")
     ENDIF (CMAKE_SIZEOF_VOID_P MATCHES "8")
+ELSE ()
+    SET(LIBRARY_ARCH_SUFFIX "")
 ENDIF (MSVC)
+
+# Define static and shared library names
+SET(STATIC_LIBRARY_OUTPUT_NAME ${LIBRARY_BASE_NAME}${LIBRARY_ARCH_SUFFIX} CACHE STRING "Static library output name")
+SET(SHARED_LIBRARY_OUTPUT_NAME ${LIBRARY_BASE_NAME}.${LIBVER_MAJOR}.${LIBVER_MINOR}.${LIBVER_RELEASE}${LIBRARY_ARCH_SUFFIX} CACHE STRING "Shared library output name")
 
 SET_TARGET_PROPERTIES(
         libzstd_static
@@ -165,7 +165,7 @@ IF (UNIX)
     SET(INSTALL_INCLUDE_DIR ${PREFIX}/include)
 
     # install target
-    INSTALL(FILES ${LIBRARY_DIR}/zstd.h ${LIBRARY_DIR}/common/zbuff.h ${LIBRARY_DIR}/dictBuilder/zdict.h DESTINATION ${INSTALL_INCLUDE_DIR})
+    INSTALL(FILES ${LIBRARY_DIR}/zstd.h ${LIBRARY_DIR}/deprecated/zbuff.h ${LIBRARY_DIR}/dictBuilder/zdict.h DESTINATION ${INSTALL_INCLUDE_DIR})
     INSTALL(TARGETS libzstd_static DESTINATION ${INSTALL_LIBRARY_DIR})
     INSTALL(TARGETS libzstd_shared LIBRARY DESTINATION ${INSTALL_LIBRARY_DIR})
 

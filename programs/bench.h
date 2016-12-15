@@ -11,15 +11,16 @@
 #ifndef BENCH_H_121279284357
 #define BENCH_H_121279284357
 
-#include <stddef.h>
+#include <stddef.h>   /* size_t */
 
 int BMK_benchFiles(const char** fileNamesTable, unsigned nbFiles,
                    const char* dictFileName, int cLevel, int cLevelLast);
 
 /* Set Parameters */
-void BMK_SetNbIterations(unsigned nbLoops);
+void BMK_SetNbSeconds(unsigned nbLoops);
 void BMK_SetBlockSize(size_t blockSize);
 void BMK_setAdditionalParam(int additionalParam);
 void BMK_setNotificationLevel(unsigned level);
+void BMK_setDecodeOnly(unsigned decodeFlag);
 
- #endif   /* BENCH_H_121279284357 */
+#endif   /* BENCH_H_121279284357 */

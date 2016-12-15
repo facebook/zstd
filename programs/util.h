@@ -25,7 +25,7 @@ extern "C" {
 #  define _CRT_SECURE_NO_DEPRECATE   /* VS2005 */
 #  pragma warning(disable : 4127)    /* disable: C4127: conditional expression is constant */
 #if _MSC_VER <= 1800                 /* (1800 = Visual Studio 2013) */
-    #define snprintf sprintf_s       /* snprintf unsupported by Visual <= 2013 */
+#  define snprintf sprintf_s       /* snprintf unsupported by Visual <= 2013 */
 #endif
 #endif
 
@@ -46,8 +46,17 @@ extern "C" {
 ******************************************/
 #include <stdlib.h>     /* features.h with _POSIX_C_SOURCE, malloc */
 #include <stdio.h>      /* fprintf */
-#include <sys/types.h>  /* stat */
+#include <sys/types.h>  /* stat, utime */
 #include <sys/stat.h>   /* stat */
+#if defined(_MSC_VER)
+#  include <sys/utime.h>   /* utime */
+#  include <io.h>          /* _chmod */
+#else
+#  include <unistd.h>     /* chown, stat */
+#  include <utime.h>      /* utime */
+#endif
+#include <time.h>       /* time */
+#include <errno.h>
 #include "mem.h"        /* U32, U64 */
 
 
@@ -89,7 +98,7 @@ extern "C" {
 #    define SET_HIGH_PRIORITY /* disabled */
 #  endif
 #  define UTIL_sleep(s) sleep(s)
-#  if defined(_POSIX_C_SOURCE) && (_POSIX_C_SOURCE >= 199309L)
+#  if defined(__DragonFly__) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || (defined(_POSIX_C_SOURCE) && (_POSIX_C_SOURCE >= 199309L))
 #      define UTIL_sleepMilli(milli) { struct timespec t; t.tv_sec=0; t.tv_nsec=milli*1000000ULL; nanosleep(&t, NULL); }
 #  else
 #      define UTIL_sleepMilli(milli) /* disabled */
@@ -142,6 +151,48 @@ UTIL_STATIC void UTIL_waitForNextTick(UTIL_time_t ticksPerSecond)
 /*-****************************************
 *  File functions
 ******************************************/
+#if defined(_MSC_VER)
+	#define chmod _chmod
+	typedef struct _stat64 stat_t;
+#else
+    typedef struct stat stat_t;
+#endif
+
+
+UTIL_STATIC int UTIL_setFileStat(const char *filename, stat_t *statbuf)
+{
+    int res = 0;
+    struct utimbuf timebuf;
+
+	timebuf.actime = time(NULL);
+	timebuf.modtime = statbuf->st_mtime;
+	res += utime(filename, &timebuf);  /* set access and modification times */
+
+#if !defined(_WIN32)
+    res += chown(filename, statbuf->st_uid, statbuf->st_gid);  /* Copy ownership */
+#endif
+
+    res += chmod(filename, statbuf->st_mode & 07777);  /* Copy file permissions */
+
+    errno = 0;
+    return -res; /* number of errors is returned */
+}
+
+
+UTIL_STATIC int UTIL_getFileStat(const char* infilename, stat_t *statbuf)
+{
+    int r;
+#if defined(_MSC_VER)
+    r = _stat64(infilename, statbuf);
+    if (r || !(statbuf->st_mode & S_IFREG)) return 0;   /* No good... */
+#else
+    r = stat(infilename, statbuf);
+    if (r || !S_ISREG(statbuf->st_mode)) return 0;   /* No good... */
+#endif
+    return 1;
+}
+
+
 UTIL_STATIC U64 UTIL_getFileSize(const char* infilename)
 {
     int r;
@@ -274,11 +325,12 @@ UTIL_STATIC int UTIL_prepareFileList(const char *dirName, char** bufStart, size_
     return nbFiles;
 }
 
-#elif (defined(__APPLE__) && defined(__MACH__)) || \
-     ((defined(__unix__) || defined(__unix) || defined(__midipix__)) && defined(_POSIX_C_SOURCE) && (_POSIX_C_SOURCE >= 200112L)) /* snprintf, opendir */
+#elif (defined(_POSIX_C_SOURCE) && (_POSIX_C_SOURCE >= 200112L)) || \
+      (defined(__APPLE__) && defined(__MACH__)) || defined(__SVR4) || defined(_AIX) || defined(__hpux) || \
+       defined(__DragonFly__) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || \
+      (defined(__linux__) && defined(_POSIX_C_SOURCE)) /* opendir */
 #  define UTIL_HAS_CREATEFILELIST
 #  include <dirent.h>       /* opendir, readdir */
-#  include <errno.h>
 
 UTIL_STATIC int UTIL_prepareFileList(const char *dirName, char** bufStart, size_t* pos, char** bufEnd)
 {
@@ -356,16 +408,15 @@ UTIL_STATIC const char** UTIL_createFileList(const char **inputNames, unsigned i
 {
     size_t pos;
     unsigned i, nbFiles;
-    char *bufend, *buf;
+    char* buf = (char*)malloc(LIST_SIZE_INCREASE);
+    char* bufend = buf + LIST_SIZE_INCREASE;
     const char** fileTable;
 
-    buf = (char*)malloc(LIST_SIZE_INCREASE);
     if (!buf) return NULL;
-    bufend = buf + LIST_SIZE_INCREASE;
 
     for (i=0, pos=0, nbFiles=0; i<inputNamesNb; i++) {
         if (!UTIL_isDirectory(inputNames[i])) {
-            size_t len = strlen(inputNames[i]);
+            size_t const len = strlen(inputNames[i]);
             if (buf + pos + len >= bufend) {
                 ptrdiff_t newListSize = (bufend - buf) + LIST_SIZE_INCREASE;
                 buf = (char*)UTIL_realloc(buf, newListSize);
@@ -387,8 +438,7 @@ UTIL_STATIC const char** UTIL_createFileList(const char **inputNames, unsigned i
     fileTable = (const char**)malloc((nbFiles+1) * sizeof(const char*));
     if (!fileTable) { free(buf); return NULL; }
 
-    for (i=0, pos=0; i<nbFiles; i++)
-    {
+    for (i=0, pos=0; i<nbFiles; i++) {
         fileTable[i] = buf + pos;
         pos += strlen(fileTable[i]) + 1;
     }

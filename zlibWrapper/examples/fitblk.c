@@ -1,3 +1,7 @@
+/* fitblk.c contains minimal changes required to be compiled with zlibWrapper:
+ * - #include "zlib.h" was changed to #include "zstd_zlibwrapper.h"
+ * - writing block to stdout was disabled                          */
+
 /* fitblk.c: example of fitting compressed output to a specified size
    Not copyrighted -- provided to the public domain
    Version 1.1  25 November 2004  Mark Adler */
@@ -54,7 +58,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
-//#include "zlib.h"
 #include "zstd_zlibwrapper.h"
 
 #define LOG_FITBLK(...)   /*printf(__VA_ARGS__)*/
@@ -87,7 +90,7 @@ local int partcompress(FILE *in, z_streamp def)
             flush = Z_FINISH;
         LOG_FITBLK("partcompress1 avail_in=%d total_in=%d avail_out=%d total_out=%d\n", (int)def->avail_in, (int)def->total_in, (int)def->avail_out, (int)def->total_out);
         ret = deflate(def, flush);
-        LOG_FITBLK("partcompress2 avail_in=%d total_in=%d avail_out=%d total_out=%d\n", (int)def->avail_in, (int)def->total_in, (int)def->avail_out, (int)def->total_out);
+        LOG_FITBLK("partcompress2 ret=%d avail_in=%d total_in=%d avail_out=%d total_out=%d\n", ret, (int)def->avail_in, (int)def->total_in, (int)def->avail_out, (int)def->total_out);
         assert(ret != Z_STREAM_ERROR);
     } while (def->avail_out != 0 && flush == Z_SYNC_FLUSH);
     return ret;
@@ -103,6 +106,7 @@ local int recompress(z_streamp inf, z_streamp def)
     unsigned char raw[RAWLEN];
 
     flush = Z_NO_FLUSH;
+    LOG_FITBLK("recompress start\n");
     do {
         /* decompress */
         inf->avail_out = RAWLEN;
@@ -122,7 +126,7 @@ local int recompress(z_streamp inf, z_streamp def)
             flush = Z_FINISH;
         LOG_FITBLK("recompress1deflate avail_in=%d total_in=%d avail_out=%d total_out=%d\n", (int)def->avail_in, (int)def->total_in, (int)def->avail_out, (int)def->total_out);
         ret = deflate(def, flush);
-        LOG_FITBLK("recompress2deflate avail_in=%d total_in=%d avail_out=%d total_out=%d\n", (int)def->avail_in, (int)def->total_in, (int)def->avail_out, (int)def->total_out);
+        LOG_FITBLK("recompress2deflate ret=%d avail_in=%d total_in=%d avail_out=%d total_out=%d\n", ret, (int)def->avail_in, (int)def->total_in, (int)def->avail_out, (int)def->total_out);
         assert(ret != Z_STREAM_ERROR);
     } while (ret != Z_STREAM_END && def->avail_out != 0);
     return ret;
@@ -162,9 +166,6 @@ int main(int argc, char **argv)
     ret = deflateInit(&def, Z_DEFAULT_COMPRESSION);
     if (ret != Z_OK || blk == NULL)
         quit("out of memory");
-    ret = ZWRAP_setPledgedSrcSize(&def, 1<<16);
-    if (ret != Z_OK)
-        quit("ZWRAP_setPledgedSrcSize");
 
     /* compress from stdin until output full, or no more input */
     def.avail_out = size + EXCESS;

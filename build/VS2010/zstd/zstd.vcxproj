@@ -26,10 +26,8 @@
     <ClCompile Include="..\..\..\lib\common\fse_decompress.c" />
     <ClCompile Include="..\..\..\lib\compress\fse_compress.c" />
     <ClCompile Include="..\..\..\lib\compress\huf_compress.c" />
-    <ClCompile Include="..\..\..\lib\compress\zbuff_compress.c" />
     <ClCompile Include="..\..\..\lib\compress\zstd_compress.c" />
     <ClCompile Include="..\..\..\lib\decompress\huf_decompress.c" />
-    <ClCompile Include="..\..\..\lib\decompress\zbuff_decompress.c" />
     <ClCompile Include="..\..\..\lib\decompress\zstd_decompress.c" />
     <ClCompile Include="..\..\..\lib\dictBuilder\divsufsort.c" />
     <ClCompile Include="..\..\..\lib\dictBuilder\zdict.c" />
@@ -52,7 +50,6 @@
     <ClInclude Include="..\..\..\lib\dictBuilder\divsufsort.h" />
     <ClInclude Include="..\..\..\lib\common\fse.h" />
     <ClInclude Include="..\..\..\lib\common\huf.h" />
-    <ClInclude Include="..\..\..\lib\common\zbuff.h" />
     <ClInclude Include="..\..\..\lib\zstd.h" />
     <ClInclude Include="..\..\..\lib\common\zstd_internal.h" />
     <ClInclude Include="..\..\..\lib\common\zstd_errors.h" />
@@ -78,7 +75,8 @@
     <ProjectGuid>{4E52A41A-F33B-4C7A-8C36-A1A6B4F4277C}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
     <RootNamespace>zstd</RootNamespace>
-    <OutDir>$(SolutionDir)bin\$(Platform)\$(Configuration)\</OutDir>
+    <OutDir>$(SolutionDir)bin\$(Platform)_$(Configuration)\</OutDir>
+    <IntDir>$(SolutionDir)bin\obj\$(RootNamespace)_$(Platform)_$(Configuration)\</IntDir>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
@@ -124,7 +122,6 @@
     <IncludePath>$(IncludePath);$(SolutionDir)..\..\lib;$(SolutionDir)..\..\lib\legacy;$(SolutionDir)..\..\lib\common;$(SolutionDir)..\..\lib\dictBuilder;$(UniversalCRT_IncludePath);</IncludePath>
     <RunCodeAnalysis>false</RunCodeAnalysis>
     <LibraryPath>$(LibraryPath)</LibraryPath>
-    <IntDir>$(Platform)\$(Configuration)\</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
@@ -137,7 +134,6 @@
     <IncludePath>$(IncludePath);$(SolutionDir)..\..\lib;$(SolutionDir)..\..\lib\legacy;$(SolutionDir)..\..\lib\common;$(SolutionDir)..\..\lib\dictBuilder;$(UniversalCRT_IncludePath);</IncludePath>
     <RunCodeAnalysis>false</RunCodeAnalysis>
     <LibraryPath>$(LibraryPath)</LibraryPath>
-    <IntDir>$(Platform)\$(Configuration)\</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>

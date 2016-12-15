@@ -2808,7 +2808,7 @@ static void   ZSTD_copy8(void* dst, const void* src) { memcpy(dst, src, 8); }
 #define COPY8(d,s) { ZSTD_copy8(d,s); d+=8; s+=8; }
 
 /*! ZSTD_wildcopy : custom version of memcpy(), can copy up to 7-8 bytes too many */
-static void ZSTD_wildcopy(void* dst, const void* src, size_t length)
+static void ZSTD_wildcopy(void* dst, const void* src, ptrdiff_t length)
 {
     const BYTE* ip = (const BYTE*)src;
     BYTE* op = (BYTE*)dst;
@@ -2868,7 +2868,6 @@ struct ZSTD_DCtx_s
     blockType_t bType;
     U32 phase;
     const BYTE* litPtr;
-    size_t litBufSize;
     size_t litSize;
     BYTE litBuffer[BLOCKSIZE + 8 /* margin for wildcopy */];
 };   /* typedef'd to ZSTD_Dctx within "zstd_static.h" */
@@ -2940,8 +2939,8 @@ static size_t ZSTD_decodeLiteralsBlock(void* ctx,
             size_t litSize = BLOCKSIZE;
             const size_t readSize = ZSTD_decompressLiterals(dctx->litBuffer, &litSize, src, srcSize);
             dctx->litPtr = dctx->litBuffer;
-            dctx->litBufSize = BLOCKSIZE;
             dctx->litSize = litSize;
+            memset(dctx->litBuffer + dctx->litSize, 0, 8);
             return readSize;   /* works if it's an error too */
         }
     case IS_RAW:
@@ -2952,13 +2951,12 @@ static size_t ZSTD_decodeLiteralsBlock(void* ctx,
 				if (litSize > srcSize-3) return ERROR(corruption_detected);
 				memcpy(dctx->litBuffer, istart, litSize);
 				dctx->litPtr = dctx->litBuffer;
-				dctx->litBufSize = BLOCKSIZE;
 				dctx->litSize = litSize;
+				memset(dctx->litBuffer + dctx->litSize, 0, 8);
 				return litSize+3;
 			}
 			/* direct reference into compressed stream */
             dctx->litPtr = istart+3;
-            dctx->litBufSize = srcSize-3;
             dctx->litSize = litSize;
             return litSize+3;
         }
@@ -2966,9 +2964,8 @@ static size_t ZSTD_decodeLiteralsBlock(void* ctx,
         {
             const size_t litSize = (MEM_readLE32(istart) & 0xFFFFFF) >> 2;   /* no buffer issue : srcSize >= MIN_CBLOCK_SIZE */
             if (litSize > BLOCKSIZE) return ERROR(corruption_detected);
-            memset(dctx->litBuffer, istart[3], litSize);
+            memset(dctx->litBuffer, istart[3], litSize + 8);
             dctx->litPtr = dctx->litBuffer;
-            dctx->litBufSize = BLOCKSIZE;
             dctx->litSize = litSize;
             return 4;
         }
@@ -3175,7 +3172,7 @@ static size_t ZSTD_execSequence(BYTE* op,
     /* checks */
     if (oLitEnd > oend_8) return ERROR(dstSize_tooSmall);   /* last match must start at a minimum distance of 8 from oend */
     if (oMatchEnd > oend) return ERROR(dstSize_tooSmall);   /* overwrite beyond dst buffer */
-    if (litEnd > litLimit-8) return ERROR(corruption_detected);   /* overRead beyond lit buffer */
+    if (litEnd > litLimit) return ERROR(corruption_detected);   /* overRead beyond lit buffer */
 
     /* copy Literals */
     ZSTD_wildcopy(op, *litPtr, sequence.litLength);   /* note : oLitEnd <= oend-8 : no risk of overwrite beyond oend */
@@ -3209,7 +3206,7 @@ static size_t ZSTD_execSequence(BYTE* op,
         }
         op += 8; match += 8;
 
-        if (oMatchEnd > oend-12)
+        if (oMatchEnd > oend-(16-MINMATCH))
         {
             if (op < oend_8)
             {
@@ -3221,7 +3218,7 @@ static size_t ZSTD_execSequence(BYTE* op,
         }
         else
         {
-            ZSTD_wildcopy(op, match, sequence.matchLength-8);   /* works even if matchLength < 8 */
+            ZSTD_wildcopy(op, match, (ptrdiff_t)sequence.matchLength-8);   /* works even if matchLength < 8 */
         }
     }
 
@@ -3241,7 +3238,6 @@ static size_t ZSTD_decompressSequences(
     BYTE* const oend = ostart + maxDstSize;
     size_t errorCode, dumpsLength;
     const BYTE* litPtr = dctx->litPtr;
-    const BYTE* const litMax = litPtr + dctx->litBufSize;
     const BYTE* const litEnd = litPtr + dctx->litSize;
     int nbSeq;
     const BYTE* dumps;
@@ -3277,7 +3273,7 @@ static size_t ZSTD_decompressSequences(
             size_t oneSeqSize;
             nbSeq--;
             ZSTD_decodeSequence(&sequence, &seqState);
-            oneSeqSize = ZSTD_execSequence(op, sequence, &litPtr, litMax, base, oend);
+            oneSeqSize = ZSTD_execSequence(op, sequence, &litPtr, litEnd, base, oend);
             if (ZSTD_isError(oneSeqSize)) return oneSeqSize;
             op += oneSeqSize;
         }

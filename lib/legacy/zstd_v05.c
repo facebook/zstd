@@ -509,7 +509,7 @@ static void ZSTDv05_copy8(void* dst, const void* src) { memcpy(dst, src, 8); }
 
 /*! ZSTDv05_wildcopy() :
 *   custom version of memcpy(), can copy up to 7 bytes too many (8 bytes if length==0) */
-MEM_STATIC void ZSTDv05_wildcopy(void* dst, const void* src, size_t length)
+MEM_STATIC void ZSTDv05_wildcopy(void* dst, const void* src, ptrdiff_t length)
 {
     const BYTE* ip = (const BYTE*)src;
     BYTE* op = (BYTE*)dst;
@@ -2731,7 +2731,6 @@ struct ZSTDv05_DCtx_s
     ZSTDv05_dStage stage;
     U32 flagStaticTables;
     const BYTE* litPtr;
-    size_t litBufSize;
     size_t litSize;
     BYTE litBuffer[BLOCKSIZE + WILDCOPY_OVERLENGTH];
     BYTE headerBuffer[ZSTDv05_frameHeaderSize_max];
@@ -2978,8 +2977,8 @@ size_t ZSTDv05_decodeLiteralsBlock(ZSTDv05_DCtx* dctx,
                 return ERROR(corruption_detected);
 
             dctx->litPtr = dctx->litBuffer;
-            dctx->litBufSize = BLOCKSIZE+8;
             dctx->litSize = litSize;
+            memset(dctx->litBuffer + dctx->litSize, 0, WILDCOPY_OVERLENGTH);
             return litCSize + lhSize;
         }
     case IS_PCH:
@@ -2996,14 +2995,14 @@ size_t ZSTDv05_decodeLiteralsBlock(ZSTDv05_DCtx* dctx,
             lhSize=3;
             litSize  = ((istart[0] & 15) << 6) + (istart[1] >> 2);
             litCSize = ((istart[1] &  3) << 8) + istart[2];
-            if (litCSize + litSize > srcSize) return ERROR(corruption_detected);
+            if (litCSize + lhSize > srcSize) return ERROR(corruption_detected);
 
             errorCode = HUFv05_decompress1X4_usingDTable(dctx->litBuffer, litSize, istart+lhSize, litCSize, dctx->hufTableX4);
             if (HUFv05_isError(errorCode)) return ERROR(corruption_detected);
 
             dctx->litPtr = dctx->litBuffer;
-            dctx->litBufSize = BLOCKSIZE+WILDCOPY_OVERLENGTH;
             dctx->litSize = litSize;
+            memset(dctx->litBuffer + dctx->litSize, 0, WILDCOPY_OVERLENGTH);
             return litCSize + lhSize;
         }
     case IS_RAW:
@@ -3028,13 +3027,12 @@ size_t ZSTDv05_decodeLiteralsBlock(ZSTDv05_DCtx* dctx,
                 if (litSize+lhSize > srcSize) return ERROR(corruption_detected);
                 memcpy(dctx->litBuffer, istart+lhSize, litSize);
                 dctx->litPtr = dctx->litBuffer;
-                dctx->litBufSize = BLOCKSIZE+8;
                 dctx->litSize = litSize;
+                memset(dctx->litBuffer + dctx->litSize, 0, WILDCOPY_OVERLENGTH);
                 return lhSize+litSize;
             }
             /* direct reference into compressed stream */
             dctx->litPtr = istart+lhSize;
-            dctx->litBufSize = srcSize-lhSize;
             dctx->litSize = litSize;
             return lhSize+litSize;
         }
@@ -3057,9 +3055,8 @@ size_t ZSTDv05_decodeLiteralsBlock(ZSTDv05_DCtx* dctx,
                 break;
             }
             if (litSize > BLOCKSIZE) return ERROR(corruption_detected);
-            memset(dctx->litBuffer, istart[lhSize], litSize);
+            memset(dctx->litBuffer, istart[lhSize], litSize + WILDCOPY_OVERLENGTH);
             dctx->litPtr = dctx->litBuffer;
-            dctx->litBufSize = BLOCKSIZE+WILDCOPY_OVERLENGTH;
             dctx->litSize = litSize;
             return lhSize+1;
         }
@@ -3289,7 +3286,7 @@ static void ZSTDv05_decodeSequence(seq_t* seq, seqState_t* seqState)
 
 static size_t ZSTDv05_execSequence(BYTE* op,
                                 BYTE* const oend, seq_t sequence,
-                                const BYTE** litPtr, const BYTE* const litLimit_8,
+                                const BYTE** litPtr, const BYTE* const litLimit,
                                 const BYTE* const base, const BYTE* const vBase, const BYTE* const dictEnd)
 {
     static const int dec32table[] = { 0, 1, 2, 1, 4, 4, 4, 4 };   /* added */
@@ -3304,7 +3301,7 @@ static size_t ZSTDv05_execSequence(BYTE* op,
     /* check */
     if (oLitEnd > oend_8) return ERROR(dstSize_tooSmall);   /* last match must start at a minimum distance of 8 from oend */
     if (oMatchEnd > oend) return ERROR(dstSize_tooSmall);   /* overwrite beyond dst buffer */
-    if (litEnd > litLimit_8) return ERROR(corruption_detected);   /* risk read beyond lit buffer */
+    if (litEnd > litLimit) return ERROR(corruption_detected);   /* risk read beyond lit buffer */
 
     /* copy Literals */
     ZSTDv05_wildcopy(op, *litPtr, sequence.litLength);   /* note : oLitEnd <= oend-8 : no risk of overwrite beyond oend */
@@ -3328,7 +3325,7 @@ static size_t ZSTDv05_execSequence(BYTE* op,
             op = oLitEnd + length1;
             sequence.matchLength -= length1;
             match = base;
-            if (op > oend_8) {
+            if (op > oend_8 || sequence.matchLength < MINMATCH) {
               while (op < oMatchEnd) *op++ = *match++;
               return sequenceLength;
             }
@@ -3351,7 +3348,7 @@ static size_t ZSTDv05_execSequence(BYTE* op,
     }
     op += 8; match += 8;
 
-    if (oMatchEnd > oend-12) {
+    if (oMatchEnd > oend-(16-MINMATCH)) {
         if (op < oend_8) {
             ZSTDv05_wildcopy(op, match, oend_8 - op);
             match += oend_8 - op;
@@ -3360,7 +3357,7 @@ static size_t ZSTDv05_execSequence(BYTE* op,
         while (op < oMatchEnd)
             *op++ = *match++;
     } else {
-        ZSTDv05_wildcopy(op, match, sequence.matchLength-8);   /* works even if matchLength < 8 */
+        ZSTDv05_wildcopy(op, match, (ptrdiff_t)sequence.matchLength-8);   /* works even if matchLength < 8 */
     }
     return sequenceLength;
 }
@@ -3378,7 +3375,6 @@ static size_t ZSTDv05_decompressSequences(
     BYTE* const oend = ostart + maxDstSize;
     size_t errorCode, dumpsLength;
     const BYTE* litPtr = dctx->litPtr;
-    const BYTE* const litLimit_8 = litPtr + dctx->litBufSize - 8;
     const BYTE* const litEnd = litPtr + dctx->litSize;
     int nbSeq;
     const BYTE* dumps;
@@ -3416,7 +3412,7 @@ static size_t ZSTDv05_decompressSequences(
             size_t oneSeqSize;
             nbSeq--;
             ZSTDv05_decodeSequence(&sequence, &seqState);
-            oneSeqSize = ZSTDv05_execSequence(op, oend, sequence, &litPtr, litLimit_8, base, vBase, dictEnd);
+            oneSeqSize = ZSTDv05_execSequence(op, oend, sequence, &litPtr, litEnd, base, vBase, dictEnd);
             if (ZSTDv05_isError(oneSeqSize)) return oneSeqSize;
             op += oneSeqSize;
         }

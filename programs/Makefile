@@ -27,12 +27,13 @@ else
 ALIGN_LOOP =
 endif
 
-CPPFLAGS= -I$(ZSTDDIR) -I$(ZSTDDIR)/common -I$(ZSTDDIR)/dictBuilder
-CFLAGS ?= -O3
-CFLAGS += -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow -Wstrict-aliasing=1 \
-          -Wswitch-enum -Wdeclaration-after-statement -Wstrict-prototypes -Wundef
-CFLAGS += $(MOREFLAGS)
-FLAGS   = $(CPPFLAGS) $(CFLAGS) $(LDFLAGS)
+CPPFLAGS+= -I$(ZSTDDIR) -I$(ZSTDDIR)/common -I$(ZSTDDIR)/dictBuilder
+CFLAGS  ?= -O3
+CFLAGS  += -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow -Wstrict-aliasing=1 \
+          -Wswitch-enum -Wdeclaration-after-statement -Wstrict-prototypes -Wundef \
+          -Wpointer-arith
+CFLAGS  += $(MOREFLAGS)
+FLAGS    = $(CPPFLAGS) $(CFLAGS) $(LDFLAGS)
 
 
 ZSTDCOMMON_FILES := $(ZSTDDIR)/common/*.c
@@ -41,7 +42,6 @@ ZSTDDECOMP_FILES := $(ZSTDDIR)/decompress/huf_decompress.c
 ZSTD_FILES := $(ZSTDDECOMP_FILES) $(ZSTDCOMMON_FILES) $(ZSTDCOMP_FILES)
 ZDICT_FILES := $(ZSTDDIR)/dictBuilder/*.c
 ZSTDDECOMP_O = $(ZSTDDIR)/decompress/zstd_decompress.o
-ZSTDDECOMP32_O = $(ZSTDDIR)/decompress/zstd_decompress32.o
 
 ifeq ($(ZSTD_LEGACY_SUPPORT), 0)
 CPPFLAGS  += -DZSTD_LEGACY_SUPPORT=0
@@ -56,9 +56,8 @@ endif
 # Define *.exe as extension for Windows systems
 ifneq (,$(filter Windows%,$(OS)))
 EXT =.exe
-VOID = nul
-RES64_FILE = windres\zstd64.res
-RES32_FILE = windres\zstd32.res
+RES64_FILE = windres/zstd64.res
+RES32_FILE = windres/zstd32.res
 ifneq (,$(filter x86_64%,$(shell $(CC) -dumpmachine)))
     RES_FILE = $(RES64_FILE)
 else
@@ -66,7 +65,6 @@ else
 endif
 else
 EXT =
-VOID = /dev/null
 endif
 
 
@@ -76,30 +74,27 @@ default: zstd
 
 all: zstd
 
-$(ZSTDDECOMP_O): CPPFLAGS += -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT)
 $(ZSTDDECOMP_O): CFLAGS += $(ALIGN_LOOP)
-$(ZSTDDECOMP_O): $(ZSTDDIR)/decompress/zstd_decompress.c
 
+zstd  : CPPFLAGS += -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT)
 zstd  : $(ZSTDDECOMP_O) $(ZSTD_FILES) $(ZSTDLEGACY_FILES) $(ZDICT_FILES) \
         zstdcli.c fileio.c bench.c datagen.c dibio.c
 ifneq (,$(filter Windows%,$(OS)))
-	windres\generate_res.bat
+	windres/generate_res.bat
 endif
-	$(CC)      $(FLAGS) -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT) $^ $(RES_FILE) -o $@$(EXT)
+	$(CC) $(FLAGS) $^ $(RES_FILE) -o $@$(EXT) $(LDFLAGS)
 
 
-$(ZSTDDECOMP32_O): $(ZSTDDIR)/decompress/zstd_decompress.c
-	$(CC)  -m32 $(ALIGN_LOOP) $(FLAGS) -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT) $^ -c -o $@
-
-zstd32 : $(ZSTDDECOMP32_O) $(ZSTD_FILES) $(ZSTDLEGACY_FILES) $(ZDICT_FILES) \
+zstd32 : CPPFLAGS += -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT)
+zstd32 : $(ZSTDDIR)/decompress/zstd_decompress.c $(ZSTD_FILES) $(ZSTDLEGACY_FILES) $(ZDICT_FILES) \
         zstdcli.c fileio.c bench.c datagen.c dibio.c
 ifneq (,$(filter Windows%,$(OS)))
-	windres\generate_res.bat
+	windres/generate_res.bat
 endif
-	$(CC)  -m32 $(FLAGS) -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT) $^ $(RES32_FILE) -o $@$(EXT)
+	$(CC) -m32 $(FLAGS) $^ $(RES32_FILE) -o $@$(EXT)
 
 
-zstd_nolegacy : clean_decomp_o
+zstd-nolegacy : clean_decomp_o
 	$(MAKE) zstd ZSTD_LEGACY_SUPPORT=0
 
 zstd-pgo : MOREFLAGS = -fprofile-generate
@@ -111,26 +106,37 @@ zstd-pgo : clean zstd
 	./zstd -b7i2 $(PROFILE_WITH)
 	./zstd -b5 $(PROFILE_WITH)
 	$(RM) zstd
-	$(RM) $(ZSTDDIR)/decompress/zstd_decompress.o
+	$(RM) $(ZSTDDECOMP_O)
 	$(MAKE) zstd MOREFLAGS=-fprofile-use
 
 zstd-frugal: $(ZSTDDECOMP_O) $(ZSTD_FILES) zstdcli.c fileio.c
-	$(CC)      $(FLAGS) -DZSTD_NOBENCH -DZSTD_NODICT $^ -o zstd$(EXT)
+	$(CC) $(FLAGS) -DZSTD_NOBENCH -DZSTD_NODICT $^ -o zstd$(EXT)
 
 zstd-small: clean_decomp_o
 	ZSTD_LEGACY_SUPPORT=0 CFLAGS="-Os -s" $(MAKE) zstd-frugal
 
 zstd-decompress-clean: $(ZSTDDECOMP_O) $(ZSTDCOMMON_FILES) $(ZSTDDECOMP_FILES) zstdcli.c fileio.c
-	$(CC)      $(FLAGS) -DZSTD_NOBENCH -DZSTD_NODICT -DZSTD_NOCOMPRESS $^ -o zstd-decompress$(EXT)
+	$(CC) $(FLAGS) -DZSTD_NOBENCH -DZSTD_NODICT -DZSTD_NOCOMPRESS $^ -o zstd-decompress$(EXT)
 
 zstd-decompress: clean_decomp_o
 	ZSTD_LEGACY_SUPPORT=0 $(MAKE) zstd-decompress-clean
 
 zstd-compress: $(ZSTDCOMMON_FILES) $(ZSTDCOMP_FILES) zstdcli.c fileio.c
-	$(CC)      $(FLAGS) -DZSTD_NOBENCH -DZSTD_NODICT -DZSTD_NODECOMPRESS $^ -o $@$(EXT)
+	$(CC) $(FLAGS) -DZSTD_NOBENCH -DZSTD_NODICT -DZSTD_NODECOMPRESS $^ -o $@$(EXT)
+
+gzstd: clean_decomp_o
+	@echo "int main(){}" | $(CC) -o have_zlib -x c - -lz && echo found zlib || echo did not found zlib
+	@if [ -s have_zlib ]; then \
+        echo building gzstd with .gz decompression support \
+        && rm have_zlib$(EXT) \
+        && CPPFLAGS=-DZSTD_GZDECOMPRESS LDFLAGS="-lz" $(MAKE) zstd; \
+    else \
+        echo "WARNING : no zlib, building gzstd with only .zst files support : NO .gz SUPPORT !!!" \
+        && $(MAKE) zstd; \
+    fi
 
 generate_res:
-	windres\generate_res.bat
+	windres/generate_res.bat
 
 clean:
 	$(MAKE) -C ../lib clean
@@ -142,7 +148,6 @@ clean:
 
 clean_decomp_o:
 	@$(RM) $(ZSTDDECOMP_O)
-	@$(RM) $(ZSTDDECOMP32_O)
 
 
 #----------------------------------------------------------------------------------
@@ -152,9 +157,11 @@ ifneq (,$(filter $(shell uname),Linux Darwin GNU/kFreeBSD GNU OpenBSD FreeBSD Dr
 install: zstd
 	@echo Installing binaries
 	@install -d -m 755 $(DESTDIR)$(BINDIR)/ $(DESTDIR)$(MANDIR)/
-	@install -m 755 zstd$(EXT) $(DESTDIR)$(BINDIR)/zstd$(EXT)
-	@ln -sf zstd$(EXT) $(DESTDIR)$(BINDIR)/zstdcat
-	@ln -sf zstd$(EXT) $(DESTDIR)$(BINDIR)/unzstd
+	@install -m 755 zstd $(DESTDIR)$(BINDIR)/zstd
+	@ln -sf zstd $(DESTDIR)$(BINDIR)/zstdcat
+	@ln -sf zstd $(DESTDIR)$(BINDIR)/unzstd
+	@install -m 755 zstdless $(DESTDIR)$(BINDIR)/zstdless
+	@install -m 755 zstdgrep $(DESTDIR)$(BINDIR)/zstdgrep
 	@echo Installing man pages
 	@install -m 644 zstd.1 $(DESTDIR)$(MANDIR)/zstd.1
 	@ln -sf zstd.1 $(DESTDIR)$(MANDIR)/zstdcat.1
@@ -162,9 +169,11 @@ install: zstd
 	@echo zstd installation completed
 
 uninstall:
+	@$(RM) $(DESTDIR)$(BINDIR)/zstdgrep
+	@$(RM) $(DESTDIR)$(BINDIR)/zstdless
 	@$(RM) $(DESTDIR)$(BINDIR)/zstdcat
 	@$(RM) $(DESTDIR)$(BINDIR)/unzstd
-	@$(RM) $(DESTDIR)$(BINDIR)/zstd$(EXT)
+	@$(RM) $(DESTDIR)$(BINDIR)/zstd
 	@$(RM) $(DESTDIR)$(MANDIR)/zstdcat.1
 	@$(RM) $(DESTDIR)$(MANDIR)/unzstd.1
 	@$(RM) $(DESTDIR)$(MANDIR)/zstd.1

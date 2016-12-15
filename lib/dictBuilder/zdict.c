@@ -898,12 +898,14 @@ size_t ZDICT_trainFromBuffer_unsafe(
         U32 const nb = MIN(25, dictList[0].pos);
         U32 const dictContentSize = ZDICT_dictSize(dictList);
         U32 u;
-        DISPLAYLEVEL(3, "\n %u segments found, of total size %u \n", dictList[0].pos, dictContentSize);
-        DISPLAYLEVEL(3, "list %u best segments \n", nb);
-        for (u=1; u<=nb; u++) {
-            U32 pos = dictList[u].pos;
-            U32 length = dictList[u].length;
-            U32 printedLength = MIN(40, length);
+        DISPLAYLEVEL(3, "\n %u segments found, of total size %u \n", dictList[0].pos-1, dictContentSize);
+        DISPLAYLEVEL(3, "list %u best segments \n", nb-1);
+        for (u=1; u<nb; u++) {
+            U32 const pos = dictList[u].pos;
+            U32 const length = dictList[u].length;
+            U32 const printedLength = MIN(40, length);
+            if ((pos > samplesBuffSize) || ((pos + length) > samplesBuffSize))
+                return ERROR(GENERIC);   /* should never happen */
             DISPLAYLEVEL(3, "%3u:%3u bytes at pos %8u, savings %7u bytes |",
                          u, length, pos, dictList[u].savings);
             ZDICT_printHex((const char*)samplesBuffer+pos, printedLength);

@@ -430,10 +430,6 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\..\lib\common\zbuff_static.h"
-				>
-			</File>
-			<File
 				RelativePath="..\..\..\lib\dictBuilder\zdict.h"
 				>
 			</File>

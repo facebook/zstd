@@ -1,20 +1,24 @@
 language: c
-compiler: gcc
 matrix:
   fast_finish: true
   include:
     # OS X Mavericks
-    - os: osx
-      env: PLATFORM="OS X Mavericks" CMD="make gnu90test && make clean && make test && make clean && make travis-install"
+    - env: Ubu=OS_X_Mavericks Cmd="make gnu90test && make clean && make test && make clean && make travis-install"
+      os: osx
+
+
     # Container-based Ubuntu 12.04 LTS Server Edition 64 bit (doesn't support 32-bit includes)
-    - os: linux
+    - env: Ubu=12.04cont Cmd="make test && make clean && make travis-install"
+      os: linux
       sudo: false
-      env: PLATFORM="Ubuntu 12.04 container" CMD="make test && make clean && make travis-install"
-    - os: linux
+
+    - env: Ubu=12.04cont Cmd="make zlibwrapper && make clean && make -C tests test-zstd-nolegacy && make clean && make cmaketest && make clean && make -C contrib/pzstd googletest pzstd tests check && make -C contrib/pzstd clean"
+      os: linux
       sudo: false
       language: cpp
       install:
         - export CXX="g++-4.8" CC="gcc-4.8"
+        - export TESTFLAGS='--gtest_filter=-*ExtremelyLarge*'
       addons:
         apt:
           sources:
@@ -22,32 +26,24 @@ matrix:
           packages:
             - gcc-4.8
             - g++-4.8
-      env: PLATFORM="Ubuntu 12.04 container" CMD="make zlibwrapper && make clean && make -C tests test-zstd_nolegacy && make clean && make clean && make cmaketest && make clean && make -C contrib/pzstd googletest && make -C contrib/pzstd all && make -C contrib/pzstd check && make -C contrib/pzstd clean"
-    - os: linux
+
+    - env: Ubu=12.04cont Cmd="make usan"
+      os: linux
       sudo: false
-      env: PLATFORM="Ubuntu 12.04 container" CMD="make usan"
-    - os: linux
+
+    - env: Ubu=12.04cont Cmd="make asan"
+      os: linux
       sudo: false
-      env: PLATFORM="Ubuntu 12.04 container" CMD="make asan"
+
+
     # Standard Ubuntu 12.04 LTS Server Edition 64 bit
-    - os: linux
+    - env: Ubu=12.04 Cmd="make -C programs zstd-small zstd-decompress zstd-compress && make -C tests test-gzstd && make -C programs clean && make -C tests versionsTest"
+      os: linux
       sudo: required
-      env: PLATFORM="Ubuntu 12.04" CMD="make armtest"
-      addons:
-        apt:
-          packages:
-            - gcc-arm-linux-gnueabi
-            - libc6-dev-armel-cross
-            - linux-libc-dev-armel-cross
-            - binfmt-support
-            - qemu
-            - qemu-user-static
-    - os: linux
+
+    - env: Ubu=12.04 Cmd="make asan32"
+      os: linux
       sudo: required
-      env: PLATFORM="Ubuntu 12.04" CMD="make -C programs zstd-small && make -C programs zstd-decompress && make -C programs zstd-compress && make -C programs clean && make -C tests versionsTest"
-    - os: linux
-      sudo: required
-      env: PLATFORM="Ubuntu 12.04" CMD="make asan32"
       addons:
         apt:
           sources:
@@ -55,13 +51,14 @@ matrix:
           packages:
             - libc6-dev-i386
             - gcc-multilib
-    - os: linux
+
+    - env: Ubu=12.04 Cmd='cd contrib/pzstd && make googletest && make tsan && make check && make clean && make asan && make check && make clean && cd ../..'
+      os: linux
       sudo: required
       install:
         - export CXX="g++-6" CC="gcc-6"
         - export LDFLAGS="-fuse-ld=gold"
         - export TESTFLAGS='--gtest_filter=-*ExtremelyLarge*'
-      env: PLATFORM="Ubuntu 12.04" CMD='cd contrib/pzstd && make googletest && make tsan && make check && make clean && make asan && make check && make clean && cd ../..'
       addons:
         apt:
           sources:
@@ -69,21 +66,47 @@ matrix:
           packages:
             - gcc-6
             - g++-6
+
+
     # Ubuntu 14.04 LTS Server Edition 64 bit
-    - os: linux
+    - env: Ubu=14.04 Cmd="make armtest && make clean && make aarch64test"
       dist: trusty
       sudo: required
-      env: PLATFORM="Ubuntu 14.04" CMD='make -C lib all && CFLAGS="-O1 -g" make -C zlibWrapper valgrindTest && make -C tests valgrindTest'
+      addons:
+        apt:
+          packages:
+            - qemu-system-arm
+            - qemu-user-static
+            - gcc-arm-linux-gnueabi
+            - libc6-dev-armel-cross 
+            - gcc-aarch64-linux-gnu
+            - libc6-dev-arm64-cross
+
+    - env: Ubu=14.04 Cmd='make ppctest && make clean && make ppc64test'
+      dist: trusty
+      sudo: required
+      addons:
+        apt:
+          packages:
+            - qemu-system-ppc
+            - qemu-user-static
+            - gcc-powerpc-linux-gnu
+
+    - env: Ubu=14.04 Cmd='make -C lib all && CFLAGS="-O1 -g" make -C zlibWrapper valgrindTest && make -C tests valgrindTest'
+      os: linux
+      dist: trusty
+      sudo: required
       addons:
         apt:
           packages:
             - valgrind
-    - os: linux
+
+    - env: Ubu=14.04 Cmd="make gpptest && make clean && make gnu90test && make clean && make c99test && make clean && make gnu99test && make clean && make clangtest && make clean && make -C contrib/pzstd googletest32 && make -C contrib/pzstd all32 && make -C contrib/pzstd check && make -C contrib/pzstd clean"
+      os: linux
       dist: trusty
       sudo: required
       install:
         - export CXX="g++-4.8" CC="gcc-4.8"
-      env: PLATFORM="Ubuntu 14.04" CMD="make gpptest && make clean && make gnu90test && make clean && make c99test && make clean && make gnu99test && make clean && make clangtest && make clean && make -C contrib/pzstd googletest32 && make -C contrib/pzstd all32 && make -C contrib/pzstd check && make -C contrib/pzstd clean"
       addons:
         apt:
           packages:
@@ -93,19 +116,21 @@ matrix:
             - gcc-4.8-multilib
             - g++-4.8
             - g++-4.8-multilib
-    - os: linux
+
+    - env: Ubu=14.04 Cmd="make -C tests test32"
+      os: linux
       dist: trusty
       sudo: required
-      env: PLATFORM="Ubuntu 14.04" CMD="make -C tests test32"
       addons:
         apt:
           packages:
             - libc6-dev-i386
             - gcc-multilib
-    - os: linux
+
+    - env: Ubu=14.04 Cmd="make gcc5test && make clean && make gcc6test"
+      os: linux
       dist: trusty
       sudo: required
-      env: PLATFORM="Ubuntu 14.04" CMD="make gcc5test && make clean && make gcc6test && sudo apt-get install -y -q qemu-system-ppc binfmt-support qemu-user-static gcc-powerpc-linux-gnu && make clean && make ppctest"
       addons:
         apt:
           sources:
@@ -116,8 +141,8 @@ matrix:
             - gcc-5-multilib
             - gcc-6
             - gcc-6-multilib
-  exclude:
-    - compiler: gcc
 
 script:
-  - sh -c "$CMD"
+  - JOB_NUMBER=$(echo $TRAVIS_JOB_NUMBER | sed -e 's:[0-9][0-9]*\.\(.*\):\1:')
+  # - if [ $JOB_NUMBER -eq 9 ] || [ $JOB_NUMBER -eq 10 ]; then sh -c "$Cmd"; fi
+  - sh -c "$Cmd"

@@ -43,12 +43,28 @@ Other optional functionalities provided are :
               For example, advanced API for version `v0.4` is in `legacy/zstd_v04.h` .
 
 
+#### Using MinGW+MSYS to create DLL
+
+DLL can be created using MinGW+MSYS with the `make libzstd` command.
+This command creates `dll\libzstd.dll` and the import library `dll\libzstd.lib`.
+The import library is only required with Visual C++.
+The header file `zstd.h` and the dynamic library `dll\libzstd.dll` are required to
+compile a project using gcc/MinGW.
+The dynamic library has to be added to linking options.
+It means that if a project that uses ZSTD consists of a single `test-dll.c`
+file it should be linked with `dll\libzstd.dll`. For example:
+```
+    gcc $(CFLAGS) -Iinclude/ test-dll.c -o test-dll dll\libzstd.dll
+```
+The compiled executable will require ZSTD DLL which is available at `dll\libzstd.dll`.
+
+
 #### Obsolete streaming API
 
 Streaming is now provided within `zstd.h`.
-Older streaming API is still provided within `common/zbuff.h`.
-It is considered obsolete, and will be removed in a future version.
-Consider migrating towards newer streaming API.
+Older streaming API is still available within `deprecated/zbuff.h`.
+It will be removed in a future version.
+Consider migrating code towards newer streaming API in `zstd.h`.
 
 
 #### Miscellaneous

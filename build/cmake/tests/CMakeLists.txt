@@ -50,9 +50,6 @@ ADD_EXECUTABLE(fuzzer ${PROGRAMS_DIR}/datagen.c ${TESTS_DIR}/fuzzer.c)
 TARGET_LINK_LIBRARIES(fuzzer libzstd_static)
 
 IF (UNIX)
-    ADD_EXECUTABLE(zbufftest ${PROGRAMS_DIR}/datagen.c ${TESTS_DIR}/zbufftest.c)
-    TARGET_LINK_LIBRARIES(zbufftest libzstd_static)
-
     ADD_EXECUTABLE(paramgrill ${PROGRAMS_DIR}/datagen.c ${TESTS_DIR}/paramgrill.c)
     TARGET_LINK_LIBRARIES(paramgrill libzstd_static m) #m is math library
 

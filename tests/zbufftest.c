@@ -28,8 +28,8 @@
 #include "mem.h"
 #define ZSTD_STATIC_LINKING_ONLY   /* ZSTD_maxCLevel */
 #include "zstd.h"         /* ZSTD_compressBound */
-#define ZBUFF_STATIC_LINKING_ONLY
-#include "zbuff.h"        /* ZBUFF_createCCtx_advanced */
+#define ZBUFF_STATIC_LINKING_ONLY  /* ZBUFF_createCCtx_advanced */
+#include "zbuff.h"        /* ZBUFF_isError */
 #include "datagen.h"      /* RDG_genBuffer */
 #define XXH_STATIC_LINKING_ONLY
 #include "xxhash.h"       /* XXH64_* */
@@ -265,11 +265,11 @@ static int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compres
     static const U32 maxSrcLog = 24;
     static const U32 maxSampleLog = 19;
     BYTE* cNoiseBuffer[5];
-    size_t srcBufferSize = (size_t)1<<maxSrcLog;
+    size_t const srcBufferSize = (size_t)1<<maxSrcLog;
     BYTE* copyBuffer;
-    size_t copyBufferSize= srcBufferSize + (1<<maxSampleLog);
+    size_t const copyBufferSize= srcBufferSize + (1<<maxSampleLog);
     BYTE* cBuffer;
-    size_t cBufferSize   = ZSTD_compressBound(srcBufferSize);
+    size_t const cBufferSize   = ZSTD_compressBound(srcBufferSize);
     BYTE* dstBuffer;
     size_t dstBufferSize = srcBufferSize;
     U32 result = 0;

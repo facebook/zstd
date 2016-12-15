@@ -15,16 +15,15 @@ extern "C" {
 #endif
 
 
+#define ZLIB_CONST
 #define Z_PREFIX
+#define ZLIB_INTERNAL   /* disables gz*64 functions but fixes zlib 1.2.4 with Z_PREFIX */
 #include <zlib.h>
 
 #if !defined(z_const)
-#if ZLIB_VERNUM >= 0x1260
-    #define z_const const
-#else
     #define z_const
 #endif
-#endif
+
 
 /* returns a string with version of zstd library */
 const char * zstdVersion(void);

@@ -19,14 +19,18 @@ extern "C" {
 
 
 /* =====   ZSTDLIB_API : control library symbols visibility   ===== */
+/* =====   ZSTDLIB_API : control library symbols visibility   ===== */
 #if defined(__GNUC__) && (__GNUC__ >= 4)
-#  define ZSTDLIB_API __attribute__ ((visibility ("default")))
-#elif defined(ZSTD_DLL_EXPORT) && (ZSTD_DLL_EXPORT==1)
-#  define ZSTDLIB_API __declspec(dllexport)
-#elif defined(ZSTD_DLL_IMPORT) && (ZSTD_DLL_IMPORT==1)
-#  define ZSTDLIB_API __declspec(dllimport) /* It isn't required but allows to generate better code, saving a function pointer load from the IAT and an indirect jump.*/
+#  define ZSTDLIB_VISIBILITY __attribute__ ((visibility ("default")))
 #else
-#  define ZSTDLIB_API
+#  define ZSTDLIB_VISIBILITY
+#endif
+#if defined(ZSTD_DLL_EXPORT) && (ZSTD_DLL_EXPORT==1)
+#  define ZSTDLIB_API __declspec(dllexport) ZSTDLIB_VISIBILITY
+#elif defined(ZSTD_DLL_IMPORT) && (ZSTD_DLL_IMPORT==1)
+#  define ZSTDLIB_API __declspec(dllimport) ZSTDLIB_VISIBILITY /* It isn't required but allows to generate better code, saving a function pointer load from the IAT and an indirect jump.*/
+#else
+#  define ZSTDLIB_API ZSTDLIB_VISIBILITY
 #endif
 
 

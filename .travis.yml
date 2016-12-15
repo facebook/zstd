@@ -8,7 +8,7 @@ matrix:
 
 
     # Container-based Ubuntu 12.04 LTS Server Edition 64 bit (doesn't support 32-bit includes)
-    - env: Ubu=12.04cont Cmd="make test && make clean && make travis-install"
+    - env: Ubu=12.04cont Cmd="make test && make clean && make travis-install && make -C tests fullbench-dll fullbench-lib"
       os: linux
       sudo: false
 

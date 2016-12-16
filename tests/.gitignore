@@ -12,6 +12,7 @@ paramgrill
 paramgrill32
 roundTripCrash
 longmatch
+symbols
 
 # Tmp test directory
 zstdtest

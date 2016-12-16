@@ -43,12 +43,12 @@ extern "C" {
 #endif
 
 
-/* ***********************************************************
+/* ************************************************************
 *  Detect POSIX version
-*  PLATFORM_POSIX_VERSION = 0 for non-Unix e.g. Windows
-*  PLATFORM_POSIX_VERSION = 1 for Unix-like
-*  PLATFORM_POSIX_VERSION > 1 is equal to found _POSIX_VERSION
-**************************************************************/
+*  PLATFORM_POSIX_VERSION = -1 for non-Unix e.g. Windows
+*  PLATFORM_POSIX_VERSION = 0 for Unix-like non-POSIX
+*  PLATFORM_POSIX_VERSION >= 1 is equal to found _POSIX_VERSION
+***************************************************************/
 #if !defined(_WIN32) && (defined(__unix__) || defined(__unix) || (defined(__APPLE__) && defined(__MACH__)) || defined(__midipix__))
 	/* UNIX-style OS. ------------------------------------------- */
 #  if (defined(__APPLE__) && defined(__MACH__) || defined(__SVR4) || defined(_AIX) || defined(__hpux) \
@@ -62,13 +62,13 @@ extern "C" {
 #    if defined(_POSIX_VERSION)  /* POSIX compliant */
 #      define PLATFORM_POSIX_VERSION _POSIX_VERSION
 #    else
-#      define PLATFORM_POSIX_VERSION 1
+#      define PLATFORM_POSIX_VERSION 0
 #    endif
 #  endif
 #endif
 
 #if !defined(PLATFORM_POSIX_VERSION)
-#  define PLATFORM_POSIX_VERSION 0
+#  define PLATFORM_POSIX_VERSION -1
 #endif
 
 

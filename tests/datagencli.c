@@ -14,6 +14,7 @@
 #include "platform.h"  /* Compiler options */
 #include <stdio.h>     /* fprintf, stderr */
 #include "datagen.h"   /* RDG_generate */
+#include "mem.h"       /* U32, U64 */
 
 
 /*-************************************

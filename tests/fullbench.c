@@ -11,7 +11,8 @@
 /*_************************************
 *  Includes
 **************************************/
-#include "util.h"        /* Compiler options, UTIL_GetFileSize */
+#include "platform.h"    /* Compiler options */
+#include "util.h"        /* UTIL_GetFileSize */
 #include <stdlib.h>      /* malloc */
 #include <stdio.h>       /* fprintf, fopen, ftello64 */
 #include <time.h>        /* clock_t, clock, CLOCKS_PER_SEC */

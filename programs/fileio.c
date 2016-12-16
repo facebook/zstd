@@ -22,7 +22,8 @@
 /*-*************************************
 *  Includes
 ***************************************/
-#include "util.h"       /* Compiler options, UTIL_GetFileSize, _LARGEFILE64_SOURCE */
+#include "platform.h"   /* Compiler options */
+#include "util.h"       /* UTIL_GetFileSize, _LARGEFILE64_SOURCE */
 #include <stdio.h>      /* fprintf, fopen, fread, _fileno, stdin, stdout */
 #include <stdlib.h>     /* malloc, free */
 #include <string.h>     /* strcmp, strlen */

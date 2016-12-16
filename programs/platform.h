@@ -30,7 +30,9 @@ extern "C" {
 #endif
 
 
-/* Unix Large Files support (>4GB) */
+/* **************************************
+*  Unix Large Files support (>4GB)
+****************************************/
 #if !defined(__LP64__)                                /* No point defining Large file for 64 bit */
 #  define _FILE_OFFSET_BITS 64                        /* turn off_t into a 64-bit type for ftello, fseeko */
 #  if defined(__sun__) && !defined(_LARGEFILE_SOURCE) /* Sun Solaris 32-bits requires specific definitions */
@@ -41,6 +43,12 @@ extern "C" {
 #endif
 
 
+/* ***********************************************************
+*  Detect POSIX version
+*  PLATFORM_POSIX_VERSION = 0 for non-Unix e.g. Windows
+*  PLATFORM_POSIX_VERSION = 1 for Unix-like
+*  PLATFORM_POSIX_VERSION > 1 is equal to found _POSIX_VERSION
+**************************************************************/
 #if !defined(_WIN32) && (defined(__unix__) || defined(__unix) || (defined(__APPLE__) && defined(__MACH__)) || defined(__midipix__))
 	/* UNIX-style OS. ------------------------------------------- */
 #  if (defined(__APPLE__) && defined(__MACH__) || defined(__SVR4) || defined(_AIX) || defined(__hpux) \
@@ -53,6 +61,8 @@ extern "C" {
 #    include <unistd.h>  /* declares _POSIX_VERSION */
 #    if defined(_POSIX_VERSION)  /* POSIX compliant */
 #      define PLATFORM_POSIX_VERSION _POSIX_VERSION
+#    else
+#      define PLATFORM_POSIX_VERSION 1
 #    endif
 #  endif
 #endif
@@ -60,6 +70,7 @@ extern "C" {
 #if !defined(PLATFORM_POSIX_VERSION)
 #  define PLATFORM_POSIX_VERSION 0
 #endif
+
 
 
 #if defined (__cplusplus)

@@ -18,7 +18,7 @@ EXAMPLE_PATH = examples
 PROGRAMS_PATH = ../programs
 TEST_FILE = ../doc/zstd_compression_format.md
 
-CPPFLAGS = -DXXH_NAMESPACE=ZSTD_ -I$(ZLIB_PATH) -I$(PROGRAMS_PATH) -I$(ZSTDLIBDIR) -I$(ZSTDLIBDIR)/common -I$(ZLIBWRAPPER_PATH)
+CPPFLAGS = -DXXH_NAMESPACE=ZSTD_ -I$(ZLIB_PATH) -I$(PROGRAMS_PATH) -I$(ZSTDLIBDIR) -I$(ZSTDLIBDIR)/common -I$(ZSTDLIBDIR)/deprecated -I$(ZLIBWRAPPER_PATH)
 CFLAGS  ?= $(MOREFLAGS) -O3 -std=gnu99
 CFLAGS  += -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow -Wswitch-enum -Wdeclaration-after-statement -Wstrict-prototypes -Wundef -Wstrict-aliasing=1
 

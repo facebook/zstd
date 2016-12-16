@@ -14,37 +14,12 @@
 extern "C" {
 #endif
 
-/* **************************************
-*  Compiler Options
-****************************************/
-#if defined(__INTEL_COMPILER)
-#  pragma warning(disable : 177)    /* disable: message #177: function was declared but never referenced */
-#endif
-#if defined(_MSC_VER)
-#  define _CRT_SECURE_NO_WARNINGS    /* Disable some Visual warning messages for fopen, strncpy */
-#  define _CRT_SECURE_NO_DEPRECATE   /* VS2005 */
-#  pragma warning(disable : 4127)    /* disable: C4127: conditional expression is constant */
-#if _MSC_VER <= 1800                 /* (1800 = Visual Studio 2013) */
-#  define snprintf sprintf_s       /* snprintf unsupported by Visual <= 2013 */
-#endif
-#endif
-
-
-/* Unix Large Files support (>4GB) */
-#if !defined(__LP64__)                                  /* No point defining Large file for 64 bit */
-#   define _FILE_OFFSET_BITS 64                         /* turn off_t into a 64-bit type for ftello, fseeko */
-#   if defined(__sun__) && !defined(_LARGEFILE_SOURCE)  /* Sun Solaris 32-bits requires specific definitions */
-#      define _LARGEFILE_SOURCE                         /* fseeko, ftello */
-#   elif !defined(_LARGEFILE64_SOURCE)
-#      define _LARGEFILE64_SOURCE                       /* off64_t, fseeko64, ftello64 */
-#   endif
-#endif
-
 
 /*-****************************************
 *  Dependencies
 ******************************************/
-#include <stdlib.h>     /* features.h with _POSIX_C_SOURCE, malloc */
+#include "platform.h"   /* Compiler options, PLATFORM_POSIX_VERSION */
+#include <stdlib.h>     /* malloc */
 #include <stdio.h>      /* fprintf */
 #include <sys/types.h>  /* stat, utime */
 #include <sys/stat.h>   /* stat */

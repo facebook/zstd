@@ -11,7 +11,8 @@
 /* *************************************
 *  Includes
 ***************************************/
-#include "util.h"        /* Compiler options, UTIL_GetFileSize, UTIL_sleep */
+#include "platform.h"    /* Compiler options */
+#include "util.h"        /* UTIL_GetFileSize, UTIL_sleep */
 #include <stdlib.h>      /* malloc, free */
 #include <string.h>      /* memset */
 #include <stdio.h>       /* fprintf, fopen, ftello64 */

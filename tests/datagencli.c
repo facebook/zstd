@@ -11,7 +11,7 @@
 /*-************************************
 *  Dependencies
 **************************************/
-#include "util.h"      /* Compiler options */
+#include "platform.h"  /* Compiler options */
 #include <stdio.h>     /* fprintf, stderr */
 #include "datagen.h"   /* RDG_generate */
 

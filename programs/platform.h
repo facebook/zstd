@@ -49,10 +49,10 @@ extern "C" {
 *  PLATFORM_POSIX_VERSION = 0 for Unix-like non-POSIX
 *  PLATFORM_POSIX_VERSION >= 1 is equal to found _POSIX_VERSION
 ***************************************************************/
-#if !defined(_WIN32) && (defined(__unix__) || defined(__unix) || (defined(__APPLE__) && defined(__MACH__)) || defined(__midipix__))
+#if !defined(_WIN32) && (defined(__unix__) || defined(__unix) || (defined(__APPLE__) && defined(__MACH__)) || defined(__midipix__) || defined(__VMS))
 	/* UNIX-style OS. ------------------------------------------- */
-#  if (defined(__APPLE__) && defined(__MACH__) || defined(__SVR4) || defined(_AIX) || defined(__hpux) \
-     || defined(__DragonFly__) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) \  /* POSIX.1–2001 (SUSv3) conformant */
+#  if (defined(__APPLE__) && defined(__MACH__)) || defined(__SVR4) || defined(_AIX) || defined(__hpux) \
+     || defined(__DragonFly__) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__)  /* POSIX.1–2001 (SUSv3) conformant */
 #    define PLATFORM_POSIX_VERSION 200112L
 #  else
 #    if defined(__linux__) || defined(__linux)

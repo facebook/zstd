@@ -44,7 +44,7 @@
 #if defined(MSDOS) || defined(OS2) || defined(WIN32) || defined(_WIN32) || defined(__CYGWIN__)
 #  include <io.h>       /* _isatty */
 #  define IS_CONSOLE(stdStream) _isatty(_fileno(stdStream))
-#elif PLATFORM_POSIX_VERSION >= 200112L  /* isatty requires POSIX.1-2001 */
+#elif (defined(__linux__) && (PLATFORM_POSIX_VERSION >= 1)) || PLATFORM_POSIX_VERSION >= 200112L  /* isatty requires POSIX.1-2001 */
 #  include <unistd.h>   /* isatty */
 #  define IS_CONSOLE(stdStream) isatty(fileno(stdStream))
 #else
@@ -470,6 +470,15 @@ int main(int argCount, const char* argv[])
 
     /* Welcome message (if verbose) */
     DISPLAYLEVEL(3, WELCOME_MESSAGE);
+#ifdef _POSIX_C_SOURCE
+    DISPLAYLEVEL(4, "_POSIX_C_SOURCE defined: %ldL\n", (long) _POSIX_C_SOURCE);
+#endif
+#ifdef _POSIX_VERSION
+    DISPLAYLEVEL(4, "_POSIX_VERSION defined: %ldL\n", (long) _POSIX_VERSION);
+#endif
+#ifdef PLATFORM_POSIX_VERSION
+    DISPLAYLEVEL(4, "PLATFORM_POSIX_VERSION defined: %ldL\n", (long) PLATFORM_POSIX_VERSION);
+#endif
 
 #ifdef UTIL_HAS_CREATEFILELIST
     if (recursive) {  /* at this stage, filenameTable is a list of paths, which can contain both files and directories */

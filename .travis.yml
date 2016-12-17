@@ -112,9 +112,9 @@ matrix:
           packages:
             - valgrind
 
-    - env: Ubu=14.04 Cmd="make gpptest && make clean && make gnu90test && make clean \
-                       && make c99test && make clean && make gnu99test && make clean \
-                       && make clangtest && make clean && make -C contrib/pzstd googletest32 \
+    - env: Ubu=14.04 Cmd="make gpptest && make clean && make gnu90test && make clean
+                       && make c99test && make clean && make gnu99test && make clean
+                       && make clangtest && make clean && make -C contrib/pzstd googletest32 
                        && make -C contrib/pzstd all32 && make -C contrib/pzstd check && make -C contrib/pzstd clean"
       os: linux
       dist: trusty

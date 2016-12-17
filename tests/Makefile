@@ -57,7 +57,7 @@ ZSTREAM_TESTTIME = -T2mn
 FUZZERTEST= -T5mn
 ZSTDRTTEST= --test-large-data
 
-.PHONY: default all all32 clean test test32 test-all namespaceTest versionsTest
+.PHONY: default all all32 dll clean test test32 test-all namespaceTest versionsTest
 
 default: fullbench
 
@@ -65,7 +65,7 @@ all: fullbench fuzzer zstreamtest paramgrill datagen zbufftest
 
 all32: fullbench32 fuzzer32 zstreamtest32 zbufftest32
 
-dll: fuzzer-dll zstreamtest-dll
+dll: fuzzer-dll zstreamtest-dll zbufftest-dll
 
 
 
@@ -116,6 +116,13 @@ zbufftest32 : CFLAGS += -Wno-deprecated-declarations -m32
 zbufftest32 : $(ZSTD_FILES) $(ZBUFF_FILES) $(PRGDIR)/datagen.c zbufftest.c
 	$(CC) $(FLAGS) $^ -o $@$(EXT)
 
+zbufftest-dll : CPPFLAGS += -I$(ZSTDDIR)/deprecated
+zbufftest-dll : CFLAGS += -Wno-deprecated-declarations   # required to silence deprecation warnings
+zbufftest-dll : LDFLAGS+= -L$(ZSTDDIR) -lzstd
+zbufftest-dll : $(ZSTDDIR)/common/xxhash.c $(PRGDIR)/datagen.c zbufftest.c
+	$(MAKE) -C $(ZSTDDIR) libzstd
+	$(CC) $(CPPFLAGS) $(CFLAGS) $^ $(LDFLAGS) -o $@$(EXT)
+
 zstreamtest  : $(ZSTD_FILES) $(PRGDIR)/datagen.c zstreamtest.c
 	$(CC)      $(FLAGS) $^ -o $@$(EXT)
 
@@ -163,7 +170,7 @@ clean:
         fullbench$(EXT) fullbench32$(EXT) \
         fullbench-lib$(EXT) fullbench-dll$(EXT) \
         fuzzer$(EXT) fuzzer32$(EXT) zbufftest$(EXT) zbufftest32$(EXT) \
-        fuzzer-dll$(EXT) zstreamtest-dll$(EXT) \
+        fuzzer-dll$(EXT) zstreamtest-dll$(EXT) zbufftest-dll$(EXT)\
         zstreamtest$(EXT) zstreamtest32$(EXT) \
         datagen$(EXT) paramgrill$(EXT) roundTripCrash$(EXT) longmatch$(EXT) \
         symbols$(EXT)

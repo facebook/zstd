@@ -1,4 +1,5 @@
 v1.1.3
+cli : new : commands for advanced parameters, by Przemyslaw Skibinski
 API : fix : all symbols properly exposed in libzstd, by Nick Terrell
 
 v1.1.2

@@ -36,12 +36,11 @@
 #include <time.h>          /* clock */
 
 #include "mem.h"           /* read */
-#include "error_private.h"
 #include "fse.h"           /* FSE_normalizeCount, FSE_writeNCount */
 #define HUF_STATIC_LINKING_ONLY
-#include "huf.h"
+#include "huf.h"           /* HUF_buildCTable, HUF_writeCTable */
 #include "zstd_internal.h" /* includes zstd.h */
-#include "xxhash.h"
+#include "xxhash.h"        /* XXH64 */
 #include "divsufsort.h"
 #ifndef ZDICT_STATIC_LINKING_ONLY
 #  define ZDICT_STATIC_LINKING_ONLY

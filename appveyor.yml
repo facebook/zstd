@@ -63,7 +63,8 @@ build_script:
       make -v &&
       cc -v &&
       ECHO make %MAKE_PARAMS% &&
-      make %MAKE_PARAMS%
+      make %MAKE_PARAMS% &&
+      make -C tests test-symbols
     )
   - if [%COMPILER%]==[gcc] if [%PLATFORM%]==[mingw64] (
       COPY programs\zstd.exe bin\zstd.exe &&

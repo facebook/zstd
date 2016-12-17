@@ -19,15 +19,18 @@ extern "C" {
 #include <stddef.h>  /* size_t */
 
 
-/*======  Export for Windows  ======*/
-/*!
-*  ZSTD_DLL_EXPORT :
-*  Enable exporting of functions when building a Windows DLL
-*/
-#if defined(_WIN32) && defined(ZSTD_DLL_EXPORT) && (ZSTD_DLL_EXPORT==1)
-#  define ZDICTLIB_API __declspec(dllexport)
+/* =====   ZDICTLIB_API : control library symbols visibility   ===== */
+#if defined(__GNUC__) && (__GNUC__ >= 4)
+#  define ZDICTLIB_VISIBILITY __attribute__ ((visibility ("default")))
 #else
-#  define ZDICTLIB_API
+#  define ZDICTLIB_VISIBILITY
+#endif
+#if defined(ZSTD_DLL_EXPORT) && (ZSTD_DLL_EXPORT==1)
+#  define ZDICTLIB_API __declspec(dllexport) ZDICTLIB_VISIBILITY
+#elif defined(ZSTD_DLL_IMPORT) && (ZSTD_DLL_IMPORT==1)
+#  define ZDICTLIB_API __declspec(dllimport) ZDICTLIB_VISIBILITY /* It isn't required but allows to generate better code, saving a function pointer load from the IAT and an indirect jump.*/
+#else
+#  define ZDICTLIB_API ZDICTLIB_VISIBILITY
 #endif
 
 
@@ -79,7 +82,7 @@ typedef struct {
               or an error code, which can be tested by ZDICT_isError().
     note : ZDICT_trainFromBuffer_advanced() will send notifications into stderr if instructed to, using notificationLevel>0.
 */
-size_t ZDICT_trainFromBuffer_advanced(void* dictBuffer, size_t dictBufferCapacity,
+ZDICTLIB_API size_t ZDICT_trainFromBuffer_advanced(void* dictBuffer, size_t dictBufferCapacity,
                                 const void* samplesBuffer, const size_t* samplesSizes, unsigned nbSamples,
                                 ZDICT_params_t parameters);
 
@@ -97,7 +100,7 @@ size_t ZDICT_trainFromBuffer_advanced(void* dictBuffer, size_t dictBufferCapacit
     starting from its beginning.
     @return : size of dictionary stored into `dictBuffer` (<= `dictBufferCapacity`).
 */
-size_t ZDICT_addEntropyTablesFromBuffer(void* dictBuffer, size_t dictContentSize, size_t dictBufferCapacity,
+ZDICTLIB_API size_t ZDICT_addEntropyTablesFromBuffer(void* dictBuffer, size_t dictContentSize, size_t dictBufferCapacity,
                                         const void* samplesBuffer, const size_t* samplesSizes, unsigned nbSamples);
 
 

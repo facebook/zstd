@@ -20,13 +20,16 @@ extern "C" {
 
 /* =====   ZSTDLIB_API : control library symbols visibility   ===== */
 #if defined(__GNUC__) && (__GNUC__ >= 4)
-#  define ZSTDLIB_API __attribute__ ((visibility ("default")))
-#elif defined(ZSTD_DLL_EXPORT) && (ZSTD_DLL_EXPORT==1)
-#  define ZSTDLIB_API __declspec(dllexport)
-#elif defined(ZSTD_DLL_IMPORT) && (ZSTD_DLL_IMPORT==1)
-#  define ZSTDLIB_API __declspec(dllimport) /* It isn't required but allows to generate better code, saving a function pointer load from the IAT and an indirect jump.*/
+#  define ZSTDLIB_VISIBILITY __attribute__ ((visibility ("default")))
 #else
-#  define ZSTDLIB_API
+#  define ZSTDLIB_VISIBILITY
+#endif
+#if defined(ZSTD_DLL_EXPORT) && (ZSTD_DLL_EXPORT==1)
+#  define ZSTDLIB_API __declspec(dllexport) ZSTDLIB_VISIBILITY
+#elif defined(ZSTD_DLL_IMPORT) && (ZSTD_DLL_IMPORT==1)
+#  define ZSTDLIB_API __declspec(dllimport) ZSTDLIB_VISIBILITY /* It isn't required but allows to generate better code, saving a function pointer load from the IAT and an indirect jump.*/
+#else
+#  define ZSTDLIB_API ZSTDLIB_VISIBILITY
 #endif
 
 
@@ -463,13 +466,13 @@ ZSTDLIB_API size_t ZSTD_sizeof_DDict(const ZSTD_DDict* ddict);
  *  Provides the dictID stored within dictionary.
  *  if @return == 0, the dictionary is not conformant with Zstandard specification.
  *  It can still be loaded, but as a content-only dictionary. */
-unsigned ZSTD_getDictID_fromDict(const void* dict, size_t dictSize);
+ZSTDLIB_API unsigned ZSTD_getDictID_fromDict(const void* dict, size_t dictSize);
 
 /*! ZSTD_getDictID_fromDDict() :
  *  Provides the dictID of the dictionary loaded into `ddict`.
  *  If @return == 0, the dictionary is not conformant to Zstandard specification, or empty.
  *  Non-conformant dictionaries can still be loaded, but as content-only dictionaries. */
-unsigned ZSTD_getDictID_fromDDict(const ZSTD_DDict* ddict);
+ZSTDLIB_API unsigned ZSTD_getDictID_fromDDict(const ZSTD_DDict* ddict);
 
 /*! ZSTD_getDictID_fromFrame() :
  *  Provides the dictID required to decompressed the frame stored within `src`.
@@ -481,7 +484,7 @@ unsigned ZSTD_getDictID_fromDDict(const ZSTD_DDict* ddict);
  *  - `srcSize` is too small, and as a result, the frame header could not be decoded (only possible if `srcSize < ZSTD_FRAMEHEADERSIZE_MAX`).
  *  - This is not a Zstandard frame.
  *  When identifying the exact failure cause, it's possible to used ZSTD_getFrameParams(), which will provide a more precise error code. */
-unsigned ZSTD_getDictID_fromFrame(const void* src, size_t srcSize);
+ZSTDLIB_API unsigned ZSTD_getDictID_fromFrame(const void* src, size_t srcSize);
 
 
 /********************************************************************

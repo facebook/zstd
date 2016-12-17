@@ -69,6 +69,7 @@ SET(Sources
         ${LIBRARY_DIR}/decompress/zstd_decompress.c
         ${LIBRARY_DIR}/dictBuilder/divsufsort.c
         ${LIBRARY_DIR}/dictBuilder/zdict.c
+        ${LIBRARY_DIR}/deprecated/zbuff_common.c
         ${LIBRARY_DIR}/deprecated/zbuff_compress.c
         ${LIBRARY_DIR}/deprecated/zbuff_decompress.c)
 

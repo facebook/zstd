@@ -1,3 +1,6 @@
+v1.1.3
+API : fix : all symbols properly exposed in libzstd, by Nick Terrell
+
 v1.1.2
 API : streaming : decompression : changed : automatic implicit reset when chain-decoding new frames without init
 API : experimental : added : dictID retrieval functions, and ZSTD_initCStream_srcSize()

@@ -3,10 +3,12 @@ fullbench
 fullbench32
 fuzzer
 fuzzer32
+fuzzer-dll
 zbufftest
 zbufftest32
 zstreamtest
 zstreamtest32
+zstreamtest-dll
 datagen
 paramgrill
 paramgrill32

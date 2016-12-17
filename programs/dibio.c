@@ -183,7 +183,7 @@ int DiB_trainFromFiles(const char* dictFileName, unsigned maxDictSize,
     size_t* const fileSizes = (size_t*)malloc(nbFiles * sizeof(size_t));
     unsigned long long const totalSizeToLoad = UTIL_getTotalFileSize(fileNamesTable, nbFiles);
     size_t const maxMem =  DiB_findMaxMem(totalSizeToLoad * MEMMULT) / MEMMULT;
-    size_t benchedSize = MIN (maxMem, (size_t)totalSizeToLoad);
+    size_t benchedSize = (size_t) MIN ((unsigned long long)maxMem, totalSizeToLoad);
     void* const srcBuffer = malloc(benchedSize+NOISELENGTH);
     int result = 0;
 

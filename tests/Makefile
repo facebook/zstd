@@ -28,12 +28,12 @@ PYTHON ?= python3
 TESTARTEFACT := versionsTest namespaceTest
 
 
-CPPFLAGS= -I$(ZSTDDIR) -I$(ZSTDDIR)/common -I$(ZSTDDIR)/dictBuilder -I$(ZSTDDIR)/deprecated -I$(PRGDIR)
-CFLAGS ?= -O3
-CFLAGS += -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow -Wstrict-aliasing=1 \
+CPPFLAGS+= -I$(ZSTDDIR) -I$(ZSTDDIR)/common -I$(ZSTDDIR)/dictBuilder -I$(ZSTDDIR)/deprecated -I$(PRGDIR)
+CFLAGS  ?= -O3
+CFLAGS  += -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow -Wstrict-aliasing=1 \
           -Wswitch-enum -Wdeclaration-after-statement -Wstrict-prototypes -Wundef
-CFLAGS += $(MOREFLAGS)
-FLAGS   = $(CPPFLAGS) $(CFLAGS) $(LDFLAGS)
+CFLAGS  += $(MOREFLAGS)
+FLAGS    = $(CPPFLAGS) $(CFLAGS) $(LDFLAGS)
 
 
 ZSTDCOMMON_FILES := $(ZSTDDIR)/common/*.c
@@ -65,6 +65,8 @@ all: fullbench fuzzer zstreamtest paramgrill datagen zbufftest
 
 all32: fullbench32 fuzzer32 zstreamtest32 zbufftest32
 
+dll: fuzzer-dll zstreamtest-dll
+
 
 
 zstd:
@@ -93,11 +95,16 @@ fullbench-dll: $(PRGDIR)/datagen.c fullbench.c
 	$(MAKE) -C $(ZSTDDIR) libzstd
 	$(CC) $(FLAGS) $^ -o $@$(EXT) -DZSTD_DLL_IMPORT=1 $(ZSTDDIR)/dll/libzstd.dll
 
-fuzzer  : $(ZSTD_FILES) $(ZDICT_FILES) $(PRGDIR)/datagen.c fuzzer.c
+fuzzer   : $(ZSTD_FILES) $(ZDICT_FILES) $(PRGDIR)/datagen.c fuzzer.c
 	$(CC)      $(FLAGS) $^ -o $@$(EXT)
 
 fuzzer32 : $(ZSTD_FILES) $(ZDICT_FILES) $(PRGDIR)/datagen.c fuzzer.c
-	$(CC)  -m32  $(FLAGS) $^ -o $@$(EXT)
+	$(CC) -m32 $(FLAGS) $^ -o $@$(EXT)
+
+fuzzer-dll : LDFLAGS+= -L$(ZSTDDIR) -lzstd
+fuzzer-dll : $(ZSTDDIR)/common/xxhash.c $(PRGDIR)/datagen.c fuzzer.c
+	$(MAKE) -C $(ZSTDDIR) libzstd
+	$(CC) $(CPPFLAGS) $(CFLAGS) $^ $(LDFLAGS) -o $@$(EXT)
 
 zbufftest : CPPFLAGS += -I$(ZSTDDIR)/deprecated
 zbufftest : CFLAGS += -Wno-deprecated-declarations   # required to silence deprecation warnings
@@ -114,6 +121,11 @@ zstreamtest  : $(ZSTD_FILES) $(PRGDIR)/datagen.c zstreamtest.c
 
 zstreamtest32 : $(ZSTD_FILES) $(PRGDIR)/datagen.c zstreamtest.c
 	$(CC) -m32  $(FLAGS) $^ -o $@$(EXT)
+
+zstreamtest-dll : LDFLAGS+= -L$(ZSTDDIR) -lzstd
+zstreamtest-dll : $(ZSTDDIR)/common/xxhash.c $(PRGDIR)/datagen.c zstreamtest.c
+	$(MAKE) -C $(ZSTDDIR) libzstd
+	$(CC) $(CPPFLAGS) $(CFLAGS) $^ $(LDFLAGS) -o $@$(EXT)
 
 paramgrill : $(ZSTD_FILES) $(PRGDIR)/datagen.c paramgrill.c
 	$(CC)      $(FLAGS) $^ -lm -o $@$(EXT)
@@ -151,6 +163,7 @@ clean:
         fullbench$(EXT) fullbench32$(EXT) \
         fullbench-lib$(EXT) fullbench-dll$(EXT) \
         fuzzer$(EXT) fuzzer32$(EXT) zbufftest$(EXT) zbufftest32$(EXT) \
+        fuzzer-dll$(EXT) zstreamtest-dll$(EXT) \
         zstreamtest$(EXT) zstreamtest32$(EXT) \
         datagen$(EXT) paramgrill$(EXT) roundTripCrash$(EXT) longmatch$(EXT) \
         symbols$(EXT)

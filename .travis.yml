@@ -69,7 +69,7 @@ matrix:
 
 
     # Ubuntu 14.04 LTS Server Edition 64 bit
-    - env: Ubu=14.04 Cmd="make armtest && make clean && make aarch64test"
+    - env: Ubu=14.04 Cmd="make armtest"
       dist: trusty
       sudo: required
       addons:
@@ -78,7 +78,17 @@ matrix:
             - qemu-system-arm
             - qemu-user-static
             - gcc-arm-linux-gnueabi
-            - libc6-dev-armel-cross 
+            - libc6-dev-armel-cross
+
+    # Ubuntu 14.04 LTS Server Edition 64 bit
+    - env: Ubu=14.04 Cmd="make aarch64test"
+      dist: trusty
+      sudo: required
+      addons:
+        apt:
+          packages:
+            - qemu-system-arm
+            - qemu-user-static
             - gcc-aarch64-linux-gnu
             - libc6-dev-arm64-cross
 
@@ -91,6 +101,7 @@ matrix:
             - qemu-system-ppc
             - qemu-user-static
             - gcc-powerpc-linux-gnu
+            - libc6-dev-armel-cross
 
     - env: Ubu=14.04 Cmd='make -C lib all && CFLAGS="-O1 -g" make -C zlibWrapper valgrindTest && make -C tests valgrindTest'
       os: linux
@@ -101,7 +112,10 @@ matrix:
           packages:
             - valgrind
 
-    - env: Ubu=14.04 Cmd="make gpptest && make clean && make gnu90test && make clean && make c99test && make clean && make gnu99test && make clean && make clangtest && make clean && make -C contrib/pzstd googletest32 && make -C contrib/pzstd all32 && make -C contrib/pzstd check && make -C contrib/pzstd clean"
+    - env: Ubu=14.04 Cmd="make gpptest && make clean && make gnu90test && make clean \
+                       && make c99test && make clean && make gnu99test && make clean \
+                       && make clangtest && make clean && make -C contrib/pzstd googletest32 \
+                       && make -C contrib/pzstd all32 && make -C contrib/pzstd check && make -C contrib/pzstd clean"
       os: linux
       dist: trusty
       sudo: required
@@ -127,7 +141,7 @@ matrix:
             - libc6-dev-i386
             - gcc-multilib
 
-    - env: Ubu=14.04 Cmd="make gcc5test && make clean && make gcc6test"
+    - env: Ubu=14.04 Cmd="make gcc5test && make clean && make gcc6test && make clean && make -C tests dll"
       os: linux
       dist: trusty
       sudo: required

@@ -12,7 +12,7 @@ matrix:
       os: linux
       sudo: false
 
-    - env: Ubu=12.04cont Cmd="make zlibwrapper && make clean && make -C tests test-zstd-nolegacy && make clean && make cmaketest && make clean && make -C contrib/pzstd googletest pzstd tests check && make -C contrib/pzstd clean"
+    - env: Ubu=12.04cont Cmd="make zlibwrapper && make clean && make -C tests test-symbols && make clean && make -C tests test-zstd-nolegacy && make clean && make cmaketest && make clean && make -C contrib/pzstd googletest pzstd tests check && make -C contrib/pzstd clean"
       os: linux
       sudo: false
       language: cpp

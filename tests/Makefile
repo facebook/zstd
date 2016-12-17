@@ -28,7 +28,7 @@ PYTHON ?= python3
 TESTARTEFACT := versionsTest namespaceTest
 
 
-CPPFLAGS= -I$(ZSTDDIR) -I$(ZSTDDIR)/common -I$(ZSTDDIR)/dictBuilder -I$(PRGDIR)
+CPPFLAGS= -I$(ZSTDDIR) -I$(ZSTDDIR)/common -I$(ZSTDDIR)/dictBuilder -I$(ZSTDDIR)/deprecated -I$(PRGDIR)
 CFLAGS ?= -O3
 CFLAGS += -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow -Wstrict-aliasing=1 \
           -Wswitch-enum -Wdeclaration-after-statement -Wstrict-prototypes -Wundef
@@ -127,6 +127,15 @@ roundTripCrash : $(ZSTD_FILES) roundTripCrash.c
 longmatch  : $(ZSTD_FILES) longmatch.c
 	$(CC)      $(FLAGS) $^ -o $@$(EXT)
 
+symbols  : symbols.c
+	$(MAKE) -C $(ZSTDDIR) libzstd
+ifneq (,$(filter Windows%,$(OS)))
+	cp $(ZSTDDIR)/dll/libzstd.dll .
+	$(CC) $(FLAGS) $^ -o $@$(EXT) -DZSTD_DLL_IMPORT=1 libzstd.dll
+else
+	$(CC) $(FLAGS) $^ -o $@$(EXT) -Wl,-rpath=$(ZSTDDIR) $(ZSTDDIR)/libzstd.so
+endif
+
 namespaceTest:
 	if $(CC) namespaceTest.c ../lib/common/xxhash.c -o $@ ; then echo compilation should fail; exit 1 ; fi
 	$(RM) $@
@@ -142,8 +151,9 @@ clean:
         fullbench$(EXT) fullbench32$(EXT) \
         fullbench-lib$(EXT) fullbench-dll$(EXT) \
         fuzzer$(EXT) fuzzer32$(EXT) zbufftest$(EXT) zbufftest32$(EXT) \
-		zstreamtest$(EXT) zstreamtest32$(EXT) \
-        datagen$(EXT) paramgrill$(EXT) roundTripCrash$(EXT) longmatch$(EXT)
+        zstreamtest$(EXT) zstreamtest32$(EXT) \
+        datagen$(EXT) paramgrill$(EXT) roundTripCrash$(EXT) longmatch$(EXT) \
+        symbols$(EXT)
 	@echo Cleaning completed
 
 
@@ -242,5 +252,8 @@ test-zstream32: zstreamtest32
 
 test-longmatch: longmatch
 	$(QEMU_SYS) ./longmatch
+
+test-symbols: symbols
+	$(QEMU_SYS) ./symbols
 
 endif

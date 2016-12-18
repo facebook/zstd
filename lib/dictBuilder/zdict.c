@@ -569,7 +569,7 @@ static void ZDICT_countEStats(EStats_ress_t esr, ZSTD_parameters params,
             if (ZSTD_isError(errorCode)) { DISPLAYLEVEL(1, "warning : ZSTD_copyCCtx failed \n"); return; }
     }
     cSize = ZSTD_compressBlock(esr.zc, esr.workPlace, ZSTD_BLOCKSIZE_ABSOLUTEMAX, src, srcSize);
-    if (ZSTD_isError(cSize)) { DISPLAYLEVEL(1, "warning : could not compress sample size %u \n", (U32)srcSize); return; }
+    if (ZSTD_isError(cSize)) { DISPLAYLEVEL(3, "warning : could not compress sample size %u \n", (U32)srcSize); return; }
 
     if (cSize) {  /* if == 0; block is not compressible */
         const seqStore_t* seqStorePtr = ZSTD_getSeqStore(esr.zc);

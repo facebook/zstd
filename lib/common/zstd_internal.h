@@ -225,10 +225,12 @@ typedef struct {
     U32  staticPrices;
     U32  cachedPrice;
     U32  cachedLitLength;
+    U32  forceExtDict;
     const BYTE* cachedLiterals;
 } seqStore_t;
 
-const seqStore_t* ZSTD_getSeqStore(const ZSTD_CCtx* ctx);
+const seqStore_t* ZSTD_getConstSeqStore(const ZSTD_CCtx* ctx);
+seqStore_t* ZSTD_getSeqStore(ZSTD_CCtx* ctx);
 void ZSTD_seqToCodes(const seqStore_t* seqStorePtr);
 int ZSTD_isSkipFrame(ZSTD_DCtx* dctx);
 

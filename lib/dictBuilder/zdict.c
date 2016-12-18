@@ -572,7 +572,7 @@ static void ZDICT_countEStats(EStats_ress_t esr, ZSTD_parameters params,
     if (ZSTD_isError(cSize)) { DISPLAYLEVEL(3, "warning : could not compress sample size %u \n", (U32)srcSize); return; }
 
     if (cSize) {  /* if == 0; block is not compressible */
-        const seqStore_t* seqStorePtr = ZSTD_getSeqStore(esr.zc);
+        const seqStore_t* seqStorePtr = ZSTD_getConstSeqStore(esr.zc);
 
         /* literals stats */
         {   const BYTE* bytePtr;

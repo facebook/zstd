@@ -110,8 +110,8 @@ IF (ZSTD_LEGACY_SUPPORT)
 ENDIF (ZSTD_LEGACY_SUPPORT)
 
 IF (MSVC)
-    SET(MSVC_RESOURCE_DIR ${ROOT_DIR}/build/VS2010/zstdlib)
-    SET(PlatformDependResources ${MSVC_RESOURCE_DIR}/zstdlib.rc)
+    SET(MSVC_RESOURCE_DIR ${ROOT_DIR}/build/VS2010/libzstd-dll)
+    SET(PlatformDependResources ${MSVC_RESOURCE_DIR}/libzstd-dll.rc)
 ENDIF (MSVC)
 
 # Split project to static and shared libraries build

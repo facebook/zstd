@@ -28,6 +28,7 @@
 #include "mem.h"
 #define ZSTD_STATIC_LINKING_ONLY   /* ZSTD_maxCLevel, ZSTD_customMem */
 #include "zstd.h"         /* ZSTD_compressBound */
+#include "zstd_errors.h"  /* ZSTD_error_srcSize_wrong */
 #include "datagen.h"      /* RDG_genBuffer */
 #define XXH_STATIC_LINKING_ONLY   /* XXH64_state_t */
 #include "xxhash.h"       /* XXH64_* */
@@ -87,16 +88,6 @@ unsigned int FUZ_rand(unsigned int* seedPtr)
     *seedPtr = rand32;
     return rand32 >> 5;
 }
-
-/*
-static unsigned FUZ_highbit32(U32 v32)
-{
-    unsigned nbBits = 0;
-    if (v32==0) return 0;
-    for ( ; v32 ; v32>>=1) nbBits++;
-    return nbBits;
-}
-*/
 
 static void* allocFunction(void* opaque, size_t size)
 {
@@ -253,6 +244,42 @@ static int basicUnitTests(U32 seed, double compressibility, ZSTD_customMem custo
             if (((BYTE*)decodedBuffer)[i] != ((BYTE*)CNBuffer)[i]) goto _output_error;;
     }   }
     DISPLAYLEVEL(4, "OK \n");
+
+    /* _srcSize compression test */
+    DISPLAYLEVEL(4, "test%3i : compress_srcSize %u bytes : ", testNb++, COMPRESSIBLE_NOISE_LENGTH);
+    ZSTD_initCStream_srcSize(zc, 1, CNBufferSize);
+    outBuff.dst = (char*)(compressedBuffer);
+    outBuff.size = compressedBufferSize;
+    outBuff.pos = 0;
+    inBuff.src = CNBuffer;
+    inBuff.size = CNBufferSize;
+    inBuff.pos = 0;
+    { size_t const r = ZSTD_compressStream(zc, &outBuff, &inBuff);
+      if (ZSTD_isError(r)) goto _output_error; }
+    if (inBuff.pos != inBuff.size) goto _output_error;   /* entire input should be consumed */
+    { size_t const r = ZSTD_endStream(zc, &outBuff);
+      if (r != 0) goto _output_error; }  /* error, or some data not flushed */
+    { unsigned long long origSize = ZSTD_getDecompressedSize(outBuff.dst, outBuff.pos);
+      DISPLAY("outBuff.pos : %u \n", (U32)outBuff.pos);
+      DISPLAY("origSize = %u \n", (U32)origSize);
+      if ((size_t)origSize != CNBufferSize) goto _output_error; }  /* exact original size must be present */
+    DISPLAYLEVEL(4, "OK (%u bytes : %.2f%%)\n", (U32)cSize, (double)cSize/COMPRESSIBLE_NOISE_LENGTH*100);
+
+    /* wrong _srcSize compression test */
+    DISPLAYLEVEL(4, "test%3i : wrong srcSize : %u bytes : ", testNb++, COMPRESSIBLE_NOISE_LENGTH-1);
+    ZSTD_initCStream_srcSize(zc, 1, CNBufferSize-1);
+    outBuff.dst = (char*)(compressedBuffer);
+    outBuff.size = compressedBufferSize;
+    outBuff.pos = 0;
+    inBuff.src = CNBuffer;
+    inBuff.size = CNBufferSize;
+    inBuff.pos = 0;
+    { size_t const r = ZSTD_compressStream(zc, &outBuff, &inBuff);
+      if (ZSTD_isError(r)) goto _output_error; }
+    if (inBuff.pos != inBuff.size) goto _output_error;   /* entire input should be consumed */
+    { size_t const r = ZSTD_endStream(zc, &outBuff);
+      if (ZSTD_getErrorCode(r) != ZSTD_error_srcSize_wrong) goto _output_error;    /* must fail : wrong srcSize */
+      DISPLAYLEVEL(4, "OK (error detected : %s) \n", ZSTD_getErrorName(r)); }
 
     /* Complex context re-use scenario */
     DISPLAYLEVEL(4, "test%3i : context re-use : ", testNb++);
@@ -519,7 +546,7 @@ static int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compres
         {   ZSTD_outBuffer outBuff = { cBuffer, cBufferSize, 0 } ;
             U32 n;
             for (n=0, cSize=0, totalTestSize=0 ; totalTestSize < maxTestSize ; n++) {
-                /* compress random chunk into random size dst buffer */
+                /* compress random chunks into randomly sized dst buffers */
                 {   size_t const randomSrcSize = FUZ_randomLength(&lseed, maxSampleLog);
                     size_t const srcSize = MIN (maxTestSize-totalTestSize, randomSrcSize);
                     size_t const srcStart = FUZ_rand(&lseed) % (srcBufferSize - srcSize);

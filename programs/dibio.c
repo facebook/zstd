@@ -31,7 +31,8 @@
 #define MB *(1 <<20)
 #define GB *(1U<<30)
 
-#define MEMMULT 11
+#define SAMPLESIZE_MAX (128 KB)
+#define MEMMULT 11    /* rough estimation : memory cost to analyze 1 byte of sample */
 static const size_t maxMemory = (sizeof(size_t) == 4) ? (2 GB - 64 MB) : ((size_t)(512 MB) << sizeof(size_t));
 
 #define NOISELENGTH 32
@@ -97,7 +98,7 @@ static unsigned DiB_loadFiles(void* buffer, size_t* bufferSizePtr,
     for (n=0; n<nbFiles; n++) {
         const char* const fileName = fileNamesTable[n];
         unsigned long long const fs64 = UTIL_getFileSize(fileName);
-        size_t const fileSize = (size_t) MIN(fs64, 128 KB);
+        size_t const fileSize = (size_t) MIN(fs64, SAMPLESIZE_MAX);
         if (fileSize > *bufferSizePtr-pos) break;
         {   FILE* const f = fopen(fileName, "rb");
             if (f==NULL) EXM_THROW(10, "zstd: dictBuilder: %s %s ", fileName, strerror(errno));
@@ -163,6 +164,21 @@ static void DiB_saveDict(const char* dictFileName,
 }
 
 
+static int g_tooLargeSamples = 0;
+static U64 DiB_getTotalCappedFileSize(const char** fileNamesTable, unsigned nbFiles)
+{
+    U64 total = 0;
+    unsigned n;
+    for (n=0; n<nbFiles; n++) {
+        U64 const fileSize = UTIL_getFileSize(fileNamesTable[n]);
+        U64 const cappedFileSize = MIN(fileSize, SAMPLESIZE_MAX);
+        total += cappedFileSize;
+        g_tooLargeSamples |= (fileSize > 2*SAMPLESIZE_MAX);
+    }
+    return total;
+}
+
+
 /*! ZDICT_trainFromBuffer_unsafe() :
     Strictly Internal use only !!
     Same as ZDICT_trainFromBuffer_advanced(), but does not control `samplesBuffer`.
@@ -181,16 +197,21 @@ int DiB_trainFromFiles(const char* dictFileName, unsigned maxDictSize,
 {
     void* const dictBuffer = malloc(maxDictSize);
     size_t* const fileSizes = (size_t*)malloc(nbFiles * sizeof(size_t));
-    unsigned long long const totalSizeToLoad = UTIL_getTotalFileSize(fileNamesTable, nbFiles);
+    unsigned long long const totalSizeToLoad = DiB_getTotalCappedFileSize(fileNamesTable, nbFiles);
     size_t const maxMem =  DiB_findMaxMem(totalSizeToLoad * MEMMULT) / MEMMULT;
-    size_t benchedSize = MIN (maxMem, (size_t)totalSizeToLoad);
+    size_t benchedSize = (size_t) MIN ((unsigned long long)maxMem, totalSizeToLoad);
     void* const srcBuffer = malloc(benchedSize+NOISELENGTH);
     int result = 0;
 
     /* Checks */
     if ((!fileSizes) || (!srcBuffer) || (!dictBuffer)) EXM_THROW(12, "not enough memory for DiB_trainFiles");   /* should not happen */
     g_displayLevel = params.notificationLevel;
-    if (nbFiles < 5) {
+    if (g_tooLargeSamples) {
+        DISPLAYLEVEL(2, "!  Warning : some samples are very large \n");
+        DISPLAYLEVEL(2, "!  Note that dictionary is only useful for small files or beginning of large files. \n");
+        DISPLAYLEVEL(2, "!  As a consequence, only the first %u bytes of each file are loaded \n", SAMPLESIZE_MAX);
+    }
+    if ((nbFiles < 5) || (totalSizeToLoad < 9 * (unsigned long long)maxDictSize)) {
         DISPLAYLEVEL(2, "!  Warning : nb of samples too low for proper processing ! \n");
         DISPLAYLEVEL(2, "!  Please provide _one file per sample_. \n");
         DISPLAYLEVEL(2, "!  Do not concatenate samples together into a single file, \n");

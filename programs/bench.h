@@ -12,9 +12,11 @@
 #define BENCH_H_121279284357
 
 #include <stddef.h>   /* size_t */
+#define ZSTD_STATIC_LINKING_ONLY   /* ZSTD_compressionParameters */
+#include "zstd.h"     /* ZSTD_compressionParameters */
 
-int BMK_benchFiles(const char** fileNamesTable, unsigned nbFiles,
-                   const char* dictFileName, int cLevel, int cLevelLast);
+int BMK_benchFiles(const char** fileNamesTable, unsigned nbFiles,const char* dictFileName, 
+                   int cLevel, int cLevelLast, ZSTD_compressionParameters* compressionParams);
 
 /* Set Parameters */
 void BMK_SetNbSeconds(unsigned nbLoops);

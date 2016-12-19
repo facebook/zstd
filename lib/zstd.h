@@ -56,7 +56,7 @@ extern "C" {
 /*------   Version   ------*/
 #define ZSTD_VERSION_MAJOR    1
 #define ZSTD_VERSION_MINOR    1
-#define ZSTD_VERSION_RELEASE  2
+#define ZSTD_VERSION_RELEASE  3
 
 #define ZSTD_LIB_VERSION ZSTD_VERSION_MAJOR.ZSTD_VERSION_MINOR.ZSTD_VERSION_RELEASE
 #define ZSTD_QUOTE(str) #str
@@ -466,13 +466,13 @@ ZSTDLIB_API size_t ZSTD_sizeof_DDict(const ZSTD_DDict* ddict);
  *  Provides the dictID stored within dictionary.
  *  if @return == 0, the dictionary is not conformant with Zstandard specification.
  *  It can still be loaded, but as a content-only dictionary. */
-unsigned ZSTD_getDictID_fromDict(const void* dict, size_t dictSize);
+ZSTDLIB_API unsigned ZSTD_getDictID_fromDict(const void* dict, size_t dictSize);
 
 /*! ZSTD_getDictID_fromDDict() :
  *  Provides the dictID of the dictionary loaded into `ddict`.
  *  If @return == 0, the dictionary is not conformant to Zstandard specification, or empty.
  *  Non-conformant dictionaries can still be loaded, but as content-only dictionaries. */
-unsigned ZSTD_getDictID_fromDDict(const ZSTD_DDict* ddict);
+ZSTDLIB_API unsigned ZSTD_getDictID_fromDDict(const ZSTD_DDict* ddict);
 
 /*! ZSTD_getDictID_fromFrame() :
  *  Provides the dictID required to decompressed the frame stored within `src`.
@@ -484,7 +484,7 @@ unsigned ZSTD_getDictID_fromDDict(const ZSTD_DDict* ddict);
  *  - `srcSize` is too small, and as a result, the frame header could not be decoded (only possible if `srcSize < ZSTD_FRAMEHEADERSIZE_MAX`).
  *  - This is not a Zstandard frame.
  *  When identifying the exact failure cause, it's possible to used ZSTD_getFrameParams(), which will provide a more precise error code. */
-unsigned ZSTD_getDictID_fromFrame(const void* src, size_t srcSize);
+ZSTDLIB_API unsigned ZSTD_getDictID_fromFrame(const void* src, size_t srcSize);
 
 
 /********************************************************************

@@ -126,7 +126,8 @@ typedef struct {
 static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
                         const char* displayName, int cLevel,
                         const size_t* fileSizes, U32 nbFiles,
-                        const void* dictBuffer, size_t dictBufferSize)
+                        const void* dictBuffer, size_t dictBufferSize,
+                        ZSTD_compressionParameters *comprParams)
 {
     size_t const blockSize = ((g_blockSize>=32 && !g_decodeOnly) ? g_blockSize : srcSize) + (!srcSize) /* avoid div by 0 */ ;
     size_t const avgSize = MIN(g_blockSize, (srcSize / nbFiles));
@@ -232,12 +233,19 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
                 UTIL_getTime(&clockStart);
 
                 if (!cCompleted) {   /* still some time to do compression tests */
-                    ZSTD_parameters const zparams = ZSTD_getParams(cLevel, avgSize, dictBufferSize);
+                    ZSTD_parameters zparams = ZSTD_getParams(cLevel, avgSize, dictBufferSize);
                     ZSTD_customMem const cmem = { NULL, NULL, NULL };
                     U64 clockLoop = g_nbSeconds ? TIMELOOP_MICROSEC : 1;
                     U32 nbLoops = 0;
                     ZSTD_CDict* const cdict = ZSTD_createCDict_advanced(dictBuffer, dictBufferSize, zparams, cmem);
                     if (cdict==NULL) EXM_THROW(1, "ZSTD_createCDict_advanced() allocation failure");
+                    if (comprParams->windowLog) zparams.cParams.windowLog = comprParams->windowLog;
+                    if (comprParams->chainLog) zparams.cParams.chainLog = comprParams->chainLog;
+                    if (comprParams->hashLog) zparams.cParams.hashLog = comprParams->hashLog;
+                    if (comprParams->searchLog) zparams.cParams.searchLog = comprParams->searchLog;
+                    if (comprParams->searchLength) zparams.cParams.searchLength = comprParams->searchLength;
+                    if (comprParams->targetLength) zparams.cParams.targetLength = comprParams->targetLength;
+                    if (comprParams->strategy) zparams.cParams.strategy = (ZSTD_strategy)(comprParams->strategy - 1);
                     do {
                         U32 blockNb;
                         size_t rSize;
@@ -248,9 +256,9 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
                                                 blockTable[blockNb].srcPtr,blockTable[blockNb].srcSize,
                                                 cdict);
                             } else {
-                                rSize = ZSTD_compressCCtx (ctx,
+                                rSize = ZSTD_compress_advanced (ctx,
                                                 blockTable[blockNb].cPtr,  blockTable[blockNb].cRoom,
-                                                blockTable[blockNb].srcPtr,blockTable[blockNb].srcSize, cLevel);
+                                                blockTable[blockNb].srcPtr,blockTable[blockNb].srcSize, NULL, 0, zparams);
                             }
                             if (ZSTD_isError(rSize)) EXM_THROW(1, "ZSTD_compress_usingCDict() failed : %s", ZSTD_getErrorName(rSize));
                             blockTable[blockNb].cSize = rSize;
@@ -388,7 +396,8 @@ static size_t BMK_findMaxMem(U64 requiredMem)
 static void BMK_benchCLevel(void* srcBuffer, size_t benchedSize,
                             const char* displayName, int cLevel, int cLevelLast,
                             const size_t* fileSizes, unsigned nbFiles,
-                            const void* dictBuffer, size_t dictBufferSize)
+                            const void* dictBuffer, size_t dictBufferSize,
+                            ZSTD_compressionParameters *compressionParams)
 {
     int l;
 
@@ -407,7 +416,7 @@ static void BMK_benchCLevel(void* srcBuffer, size_t benchedSize,
         BMK_benchMem(srcBuffer, benchedSize,
                      displayName, l,
                      fileSizes, nbFiles,
-                     dictBuffer, dictBufferSize);
+                     dictBuffer, dictBufferSize, compressionParams);
     }
 }
 
@@ -444,8 +453,8 @@ static void BMK_loadFiles(void* buffer, size_t bufferSize,
     if (totalSize == 0) EXM_THROW(12, "no data to bench");
 }
 
-static void BMK_benchFileTable(const char** fileNamesTable, unsigned nbFiles,
-                               const char* dictFileName, int cLevel, int cLevelLast)
+static void BMK_benchFileTable(const char** fileNamesTable, unsigned nbFiles, const char* dictFileName, 
+                               int cLevel, int cLevelLast, ZSTD_compressionParameters *compressionParams)
 {
     void* srcBuffer;
     size_t benchedSize;
@@ -484,7 +493,7 @@ static void BMK_benchFileTable(const char** fileNamesTable, unsigned nbFiles,
         BMK_benchCLevel(srcBuffer, benchedSize,
                         displayName, cLevel, cLevelLast,
                         fileSizes, nbFiles,
-                        dictBuffer, dictBufferSize);
+                        dictBuffer, dictBufferSize, compressionParams);
     }
 
     /* clean up */
@@ -494,7 +503,7 @@ static void BMK_benchFileTable(const char** fileNamesTable, unsigned nbFiles,
 }
 
 
-static void BMK_syntheticTest(int cLevel, int cLevelLast, double compressibility)
+static void BMK_syntheticTest(int cLevel, int cLevelLast, double compressibility, ZSTD_compressionParameters* compressionParams)
 {
     char name[20] = {0};
     size_t benchedSize = 10000000;
@@ -508,15 +517,15 @@ static void BMK_syntheticTest(int cLevel, int cLevelLast, double compressibility
 
     /* Bench */
     snprintf (name, sizeof(name), "Synthetic %2u%%", (unsigned)(compressibility*100));
-    BMK_benchCLevel(srcBuffer, benchedSize, name, cLevel, cLevelLast, &benchedSize, 1, NULL, 0);
+    BMK_benchCLevel(srcBuffer, benchedSize, name, cLevel, cLevelLast, &benchedSize, 1, NULL, 0, compressionParams);
 
     /* clean up */
     free(srcBuffer);
 }
 
 
-int BMK_benchFiles(const char** fileNamesTable, unsigned nbFiles,
-                   const char* dictFileName, int cLevel, int cLevelLast)
+int BMK_benchFiles(const char** fileNamesTable, unsigned nbFiles, const char* dictFileName, 
+                   int cLevel, int cLevelLast, ZSTD_compressionParameters* compressionParams)
 {
     double const compressibility = (double)g_compressibilityDefault / 100;
 
@@ -526,8 +535,8 @@ int BMK_benchFiles(const char** fileNamesTable, unsigned nbFiles,
     if (cLevelLast > cLevel) DISPLAYLEVEL(2, "Benchmarking levels from %d to %d\n", cLevel, cLevelLast);
 
     if (nbFiles == 0)
-        BMK_syntheticTest(cLevel, cLevelLast, compressibility);
+        BMK_syntheticTest(cLevel, cLevelLast, compressibility, compressionParams);
     else
-        BMK_benchFileTable(fileNamesTable, nbFiles, dictFileName, cLevel, cLevelLast);
+        BMK_benchFileTable(fileNamesTable, nbFiles, dictFileName, cLevel, cLevelLast, compressionParams);
     return 0;
 }

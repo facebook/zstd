@@ -55,6 +55,13 @@ build_script:
       make -C contrib\pzstd tests &&
       make -C contrib\pzstd check &&
       make -C contrib\pzstd clean
+      ECHO *** &&
+      ECHO *** Building cmake for %PLATFORM% &&
+      ECHO *** &&
+      mkdir build\cmake\build &&
+      cd build\cmake\build &&
+      cmake -G "Visual Studio 14 2015 Win64" .. &&
+      cd ..\..\..
     )
   - if [%COMPILER%]==[gcc] (
       ECHO *** &&

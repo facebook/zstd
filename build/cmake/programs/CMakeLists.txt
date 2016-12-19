@@ -47,7 +47,12 @@ IF (ZSTD_LEGACY_SUPPORT)
     INCLUDE_DIRECTORIES(${PROGRAMS_LEGACY_DIR} ${LIBRARY_DIR}/legacy)
 ENDIF (ZSTD_LEGACY_SUPPORT)
 
-ADD_EXECUTABLE(zstd ${PROGRAMS_DIR}/zstdcli.c ${PROGRAMS_DIR}/fileio.c ${PROGRAMS_DIR}/bench.c ${PROGRAMS_DIR}/datagen.c ${PROGRAMS_DIR}/dibio.c)
+IF (MSVC)
+    SET(MSVC_RESOURCE_DIR ${ROOT_DIR}/build/VS2010/zstd)
+    SET(PlatformDependResources ${MSVC_RESOURCE_DIR}/zstd.rc)
+ENDIF (MSVC)
+
+ADD_EXECUTABLE(zstd ${PROGRAMS_DIR}/zstdcli.c ${PROGRAMS_DIR}/fileio.c ${PROGRAMS_DIR}/bench.c ${PROGRAMS_DIR}/datagen.c ${PROGRAMS_DIR}/dibio.c ${PlatformDependResources})
 TARGET_LINK_LIBRARIES(zstd libzstd_static)
 
 IF (UNIX)

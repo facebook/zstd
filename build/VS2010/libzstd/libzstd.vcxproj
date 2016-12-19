@@ -29,6 +29,7 @@
     <ClCompile Include="..\..\..\lib\compress\zstd_compress.c" />
     <ClCompile Include="..\..\..\lib\decompress\huf_decompress.c" />
     <ClCompile Include="..\..\..\lib\decompress\zstd_decompress.c" />
+    <ClCompile Include="..\..\..\lib\deprecated\zbuff_common.c" />
     <ClCompile Include="..\..\..\lib\deprecated\zbuff_compress.c" />
     <ClCompile Include="..\..\..\lib\deprecated\zbuff_decompress.c" />
     <ClCompile Include="..\..\..\lib\dictBuilder\divsufsort.c" />

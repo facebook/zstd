@@ -27,7 +27,7 @@ extern "C" {
 *  Dependencies
 ***************************************/
 #include <stddef.h>      /* size_t */
-#include <zstd.h>        /* ZSTD_CStream, ZSTD_DStream, ZSTDLIB_API */
+#include "zstd.h"        /* ZSTD_CStream, ZSTD_DStream, ZSTDLIB_API */
 
 
 /* ***************************************************************
@@ -170,7 +170,6 @@ ZBUFF_DEPRECATED("use ZSTD_DStreamOutSize") size_t ZBUFF_recommendedDOutSize(voi
 
 
 #ifdef ZBUFF_STATIC_LINKING_ONLY
-
 #ifndef ZBUFF_STATIC_H_30298098432
 #define ZBUFF_STATIC_H_30298098432
 
@@ -203,7 +202,6 @@ ZBUFF_DEPRECATED("use ZSTD_initDStream_usingDict") size_t ZBUFF_compressInit_adv
 
 
 #endif    /* ZBUFF_STATIC_H_30298098432 */
-
 #endif    /* ZBUFF_STATIC_LINKING_ONLY */
 
 

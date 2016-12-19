@@ -248,7 +248,8 @@ typedef struct {
     FILE* srcFile;
 } cRess_t;
 
-static cRess_t FIO_createCResources(const char* dictFileName, int cLevel, U64 srcSize)
+static cRess_t FIO_createCResources(const char* dictFileName, int cLevel, 
+                                    U64 srcSize, ZSTD_compressionParameters* comprParams)
 {
     cRess_t ress;
     memset(&ress, 0, sizeof(ress));
@@ -269,6 +270,13 @@ static cRess_t FIO_createCResources(const char* dictFileName, int cLevel, U64 sr
             params.fParams.contentSizeFlag = 1;
             params.fParams.checksumFlag = g_checksumFlag;
             params.fParams.noDictIDFlag = !g_dictIDFlag;
+            if (comprParams->windowLog) params.cParams.windowLog = comprParams->windowLog;
+            if (comprParams->chainLog) params.cParams.chainLog = comprParams->chainLog;
+            if (comprParams->hashLog) params.cParams.hashLog = comprParams->hashLog;
+            if (comprParams->searchLog) params.cParams.searchLog = comprParams->searchLog;
+            if (comprParams->searchLength) params.cParams.searchLength = comprParams->searchLength;
+            if (comprParams->targetLength) params.cParams.targetLength = comprParams->targetLength;
+            if (comprParams->strategy) params.cParams.strategy = (ZSTD_strategy)(comprParams->strategy - 1);
             {   size_t const errorCode = ZSTD_initCStream_advanced(ress.cctx, dictBuffer, dictBuffSize, params, srcSize);
                 if (ZSTD_isError(errorCode)) EXM_THROW(33, "Error initializing CStream : %s", ZSTD_getErrorName(errorCode));
         }   }
@@ -402,12 +410,12 @@ static int FIO_compressFilename_dstFile(cRess_t ress,
 
 
 int FIO_compressFilename(const char* dstFileName, const char* srcFileName,
-                         const char* dictFileName, int compressionLevel)
+                         const char* dictFileName, int compressionLevel, ZSTD_compressionParameters* comprParams)
 {
     clock_t const start = clock();
     U64 const srcSize = UTIL_getFileSize(srcFileName);
 
-    cRess_t const ress = FIO_createCResources(dictFileName, compressionLevel, srcSize);
+    cRess_t const ress = FIO_createCResources(dictFileName, compressionLevel, srcSize, comprParams);
     int const result = FIO_compressFilename_dstFile(ress, dstFileName, srcFileName);
 
     double const seconds = (double)(clock() - start) / CLOCKS_PER_SEC;
@@ -420,14 +428,15 @@ int FIO_compressFilename(const char* dstFileName, const char* srcFileName,
 
 int FIO_compressMultipleFilenames(const char** inFileNamesTable, unsigned nbFiles,
                                   const char* suffix,
-                                  const char* dictFileName, int compressionLevel)
+                                  const char* dictFileName, int compressionLevel,
+                                  ZSTD_compressionParameters* comprParams)
 {
     int missed_files = 0;
     size_t dfnSize = FNSPACE;
     char*  dstFileName = (char*)malloc(FNSPACE);
     size_t const suffixSize = suffix ? strlen(suffix) : 0;
     U64 const srcSize = (nbFiles != 1) ? 0 : UTIL_getFileSize(inFileNamesTable[0]) ;
-    cRess_t ress = FIO_createCResources(dictFileName, compressionLevel, srcSize);
+    cRess_t ress = FIO_createCResources(dictFileName, compressionLevel, srcSize, comprParams);
 
     /* init */
     if (dstFileName==NULL) EXM_THROW(27, "FIO_compressMultipleFilenames : allocation error for dstFileName");

@@ -264,6 +264,115 @@ and weight typically 100x the target dictionary size (for example, 10 MB for a 1
  cut file into independent blocks of size # (default: no block)
 
 
+.SH ADVANCED COMPRESSION OPTIONS
+.TP
+.B \--zstd[=\fIoptions\fR]
+.PD
+\fBzstd\fR provides 22 predefined compression levels. The selected or default predefined compression level can be changed with advanced compression options.
+The \fIoptions\fR are provided as a comma-separated list. You may specify only the \fIoptions\fR you want to change and the rest will be taken from the selected or default compression level.
+The list of available \fIoptions\fR:
+.RS
+
+.TP
+.BI strategy= strat
+.PD 0
+.TP
+.BI strat= strat
+.PD
+Specify a strategy used by a match finder.
+.IP ""
+There are 8 strategies numbered from 0 to 7, from faster to stronger:
+0=ZSTD_fast, 1=ZSTD_dfast, 2=ZSTD_greedy, 3=ZSTD_lazy, 4=ZSTD_lazy2, 5=ZSTD_btlazy2, 6=ZSTD_btopt, 7=ZSTD_btopt2.
+.IP ""
+
+.TP
+.BI windowLog= wlog
+.PD 0
+.TP
+.BI wlog= wlog
+.PD
+Specify the maximum number of bits for a match distance.
+.IP ""
+The higher number of bits increases the chance to find a match what usually improves compression ratio. 
+It also increases memory requirements for compressor and decompressor.
+.IP ""
+The minimum \fIwlog\fR is 10 (1 KiB) and the maximum is 25 (32 MiB) for 32-bit compilation and 27 (128 MiB) for 64-bit compilation.
+.IP ""
+
+.TP
+.BI hashLog= hlog
+.PD 0
+.TP
+.BI hlog= hlog
+.PD
+Specify the maximum number of bits for a hash table.
+.IP ""
+The bigger hash table causes less collisions what usually make compression faster but requires more memory during compression.
+.IP ""
+The minimum \fIhlog\fR is 6 (64 B) and the maximum is 25 (32 MiB) for 32-bit compilation and 27 (128 MiB) for 64-bit compilation.
+
+.TP
+.BI chainLog= clog
+.PD 0
+.TP
+.BI clog= clog
+.PD
+Specify the maximum number of bits for a hash chain or a binary tree.
+.IP ""
+The higher number of bits increases the chance to find a match what usually improves compression ratio. 
+It also slows down compression speed and increases memory requirements for compression.
+This option is ignored for the ZSTD_fast strategy.
+.IP ""
+The minimum \fIclog\fR is 6 (64 B) and the maximum is 26 (64 MiB) for 32-bit compilation and 28 (256 MiB) for 64-bit compilation.
+.IP ""
+
+.TP
+.BI searchLog= slog
+.PD 0
+.TP
+.BI slog= slog
+.PD
+Specify the maximum number of searches in a hash chain or a binary tree using logarithmic scale.
+.IP ""
+The bigger number of searches increases the chance to find a match what usually improves compression ratio but decreases compression speed.
+.IP ""
+The minimum \fIslog\fR is 1 and the maximum is 24 for 32-bit compilation and 26 for 64-bit compilation.
+.IP ""
+
+.TP
+.BI searchLength= slen
+.PD 0
+.TP
+.BI slen= slen
+.PD
+Specify the minimum searched length of a match in a hash table.
+.IP ""
+The bigger search length usually decreases compression ratio but improves decompression speed.
+.IP ""
+The minimum \fIslen\fR is 3 and the maximum is 7.
+.IP ""
+
+.TP
+.BI targetLength= tlen
+.PD 0
+.TP
+.BI tlen= tlen
+.PD
+Specify the minimum match length that causes a match finder to interrupt searching of better matches.
+.IP ""
+The bigger minimum match length usually improves compression ratio but decreases compression speed.
+This option is used only with ZSTD_btopt and ZSTD_btopt2 strategies.
+.IP ""
+The minimum \fItlen\fR is 4 and the maximum is 999.
+.IP ""
+
+.PP
+.B An example
+.br
+The following parameters sets advanced compression options to predefined level 19 for files bigger than 256 KB:
+.IP ""
+\fB--zstd=\fRwindowLog=23,chainLog=23,hashLog=22,searchLog=6,searchLength=3,targetLength=48,strategy=6
+
 .SH BUGS
 Report bugs at:- https://github.com/facebook/zstd/issues
 

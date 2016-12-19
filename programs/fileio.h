@@ -11,6 +11,9 @@
 #ifndef FILEIO_H_23981798732
 #define FILEIO_H_23981798732
 
+#define ZSTD_STATIC_LINKING_ONLY   /* ZSTD_compressionParameters */
+#include "zstd.h"     /* ZSTD_compressionParameters */
+
 #if defined (__cplusplus)
 extern "C" {
 #endif
@@ -44,7 +47,8 @@ void FIO_setMemLimit(unsigned memLimit);
 ***************************************/
 /** FIO_compressFilename() :
     @return : 0 == ok;  1 == pb with src file. */
-int FIO_compressFilename (const char* outfilename, const char* infilename, const char* dictFileName, int compressionLevel);
+int FIO_compressFilename (const char* outfilename, const char* infilename, const char* dictFileName,
+                          int compressionLevel, ZSTD_compressionParameters* comprParams);
 
 /** FIO_decompressFilename() :
     @return : 0 == ok;  1 == pb with src file. */
@@ -58,7 +62,8 @@ int FIO_decompressFilename (const char* outfilename, const char* infilename, con
     @return : nb of missing files */
 int FIO_compressMultipleFilenames(const char** srcNamesTable, unsigned nbFiles,
                                   const char* suffix,
-                                  const char* dictFileName, int compressionLevel);
+                                  const char* dictFileName, int compressionLevel,
+                                  ZSTD_compressionParameters* comprParams);
 
 /** FIO_decompressMultipleFilenames() :
     @return : nb of missing or skipped files */

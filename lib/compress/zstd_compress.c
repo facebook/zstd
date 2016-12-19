@@ -2900,7 +2900,7 @@ size_t ZSTD_CStreamOutSize(void) { return ZSTD_compressBound(ZSTD_BLOCKSIZE_ABSO
 
 size_t ZSTD_resetCStream(ZSTD_CStream* zcs, unsigned long long pledgedSrcSize)
 {
-    if (zcs->inBuffSize==0) return ERROR(stage_wrong);   /* zcs has not been init at least once */
+    if (zcs->inBuffSize==0) return ERROR(stage_wrong);   /* zcs has not been init at least once => can't reset */
 
     if (zcs->cdict) CHECK_F(ZSTD_compressBegin_usingCDict(zcs->cctx, zcs->cdict, pledgedSrcSize))
     else CHECK_F(ZSTD_compressBegin_advanced(zcs->cctx, NULL, 0, zcs->params, pledgedSrcSize));
@@ -2967,7 +2967,8 @@ size_t ZSTD_initCStream_usingDict(ZSTD_CStream* zcs, const void* dict, size_t di
 
 size_t ZSTD_initCStream_srcSize(ZSTD_CStream* zcs, int compressionLevel, unsigned long long pledgedSrcSize)
 {
-    ZSTD_parameters const params = ZSTD_getParams(compressionLevel, pledgedSrcSize, 0);
+    ZSTD_parameters params = ZSTD_getParams(compressionLevel, pledgedSrcSize, 0);
+    if (pledgedSrcSize) params.fParams.contentSizeFlag = 1;
     return ZSTD_initCStream_advanced(zcs, NULL, 0, params, pledgedSrcSize);
 }
 

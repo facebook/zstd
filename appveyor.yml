@@ -25,6 +25,7 @@ install:
   - MKDIR bin
   - if [%COMPILER%]==[gcc] SET PATH_ORIGINAL=%PATH%
   - if [%COMPILER%]==[gcc] (
+      SET "CLANG_PARAMS=-C tests zstd fullbench fuzzer paramgrill datagen CC=clang MOREFLAGS="--target=x86_64-w64-mingw32 -Werror -Wconversion -Wno-sign-conversion"" &&
       SET "PATH_MINGW32=c:\MinGW\bin;c:\MinGW\usr\bin" &&
       SET "PATH_MINGW64=c:\msys64\mingw64\bin;c:\msys64\usr\bin" &&
       COPY C:\msys64\usr\bin\make.exe C:\MinGW\bin\make.exe &&
@@ -42,7 +43,6 @@ build_script:
       ECHO *** &&
       ECHO *** Building clang &&
       ECHO *** &&
-      SET "CLANG_PARAMS=-C tests zstd fullbench fuzzer paramgrill datagen CC=clang MOREFLAGS="--target=x86_64-w64-mingw32 -Werror -Wconversion -Wno-sign-conversion"" &&
       ECHO make %CLANG_PARAMS% &&
       make %CLANG_PARAMS% &&
       COPY tests\fuzzer.exe tests\fuzzer_clang.exe &&

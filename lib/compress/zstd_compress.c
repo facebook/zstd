@@ -2557,9 +2557,9 @@ static size_t ZSTD_loadDictEntropyStats(ZSTD_CCtx* cctx, const void* dict, size_
     }
 
     if (dictPtr+12 > dictEnd) return ERROR(dictionary_corrupted);
-    cctx->rep[0] = MEM_readLE32(dictPtr+0); if (cctx->rep[0] >= dictSize) return ERROR(dictionary_corrupted);
-    cctx->rep[1] = MEM_readLE32(dictPtr+4); if (cctx->rep[1] >= dictSize) return ERROR(dictionary_corrupted);
-    cctx->rep[2] = MEM_readLE32(dictPtr+8); if (cctx->rep[2] >= dictSize) return ERROR(dictionary_corrupted);
+    cctx->rep[0] = MEM_readLE32(dictPtr+0); if (cctx->rep[0] == 0 || cctx->rep[0] >= dictSize) return ERROR(dictionary_corrupted);
+    cctx->rep[1] = MEM_readLE32(dictPtr+4); if (cctx->rep[1] == 0 || cctx->rep[1] >= dictSize) return ERROR(dictionary_corrupted);
+    cctx->rep[2] = MEM_readLE32(dictPtr+8); if (cctx->rep[2] == 0 || cctx->rep[2] >= dictSize) return ERROR(dictionary_corrupted);
     dictPtr += 12;
 
     {   U32 offcodeMax = MaxOff;

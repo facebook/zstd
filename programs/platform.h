@@ -1,11 +1,21 @@
-/**
- * Copyright (c) 2016-present, Przemyslaw Skibinski, Yann Collet, Facebook, Inc.
- * All rights reserved.
- *
- * This source code is licensed under the BSD-style license found in the
- * LICENSE file in the root directory of this source tree. An additional grant
- * of patent rights can be found in the PATENTS file in the same directory.
- */
+/*
+    platform.h - compiler and OS detection
+    Copyright (C) 2016-present, Przemyslaw Skibinski, Yann Collet
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License along
+    with this program; if not, write to the Free Software Foundation, Inc.,
+    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+*/
 
 #ifndef PLATFORM_H_MODULE
 #define PLATFORM_H_MODULE
@@ -31,6 +41,9 @@ extern "C" {
 #  if (_MSC_VER >= 1400)            /* Avoid MSVC fseek()'s 2GiB barrier */
 #    define fseek _fseeki64
 #  endif
+#endif
+#if defined(__MINGW32__) && !defined(_POSIX_SOURCE)
+#  define _POSIX_C_SOURCE 1          /* enable __VA_ARGS__ and disable %llu warnings with MinGW on Windows */
 #endif
 
 

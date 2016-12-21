@@ -8,10 +8,20 @@
  */
 
 
+
+/* **************************************
+*  Compiler Warnings
+****************************************/
+#ifdef _MSC_VER
+#  pragma warning(disable : 4127)                /* disable: C4127: conditional expression is constant */
+#endif
+
+
 /* *************************************
 *  Includes
 ***************************************/
-#include "util.h"        /* Compiler options, UTIL_GetFileSize, UTIL_sleep */
+#include "platform.h"    /* Large Files support */
+#include "util.h"        /* UTIL_getFileSize, UTIL_sleep */
 #include <stdlib.h>      /* malloc, free */
 #include <string.h>      /* memset */
 #include <stdio.h>       /* fprintf, fopen, ftello64 */

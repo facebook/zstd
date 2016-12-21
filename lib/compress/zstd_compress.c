@@ -2736,7 +2736,6 @@ struct ZSTD_CDict_s {
     void* dictBuffer;
     const void* dictContent;
     size_t dictContentSize;
-    unsigned byReference;
     ZSTD_CCtx* refContext;
 };  /* typedef'd tp ZSTD_CDict within "zstd.h" */
 
@@ -2764,14 +2763,12 @@ ZSTD_CDict* ZSTD_createCDict_advanced(const void* dictBuffer, size_t dictSize, u
         if ((byReference) || (!dictBuffer) || (!dictSize)) {
             cdict->dictBuffer = NULL;
             cdict->dictContent = dictBuffer;
-            cdict->byReference = 1;
         } else {
             void* const internalBuffer = ZSTD_malloc(dictSize, customMem);
-            if (!internalBuffer) return NULL;
+            if (!internalBuffer) { ZSTD_free(cctx, customMem); ZSTD_free(cdict, customMem); return NULL; }
             memcpy(internalBuffer, dictBuffer, dictSize);
             cdict->dictBuffer = internalBuffer;
             cdict->dictContent = internalBuffer;
-            cdict->byReference = 0;
         }
 
         {   size_t const errorCode = ZSTD_compressBegin_advanced(cctx, cdict->dictContent, dictSize, params, 0);
@@ -2809,7 +2806,7 @@ size_t ZSTD_freeCDict(ZSTD_CDict* cdict)
     if (cdict==NULL) return 0;   /* support free on NULL */
     {   ZSTD_customMem const cMem = cdict->refContext->customMem;
         ZSTD_freeCCtx(cdict->refContext);
-        if (!cdict->byReference) ZSTD_free(cdict->dictBuffer, cMem);
+        ZSTD_free(cdict->dictBuffer, cMem);
         ZSTD_free(cdict, cMem);
         return 0;
     }

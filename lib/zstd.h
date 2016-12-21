@@ -194,8 +194,8 @@ typedef struct ZSTD_DDict_s ZSTD_DDict;
 
 /*! ZSTD_createDDict() :
 *   Create a digested dictionary, ready to start decompression operation without startup delay.
-*   `dict` can be released after creation. */
-ZSTDLIB_API ZSTD_DDict* ZSTD_createDDict(const void* dict, size_t dictSize);
+*   dictBuffer can be released after DDict creation, as its content is copied inside DDict */
+ZSTDLIB_API ZSTD_DDict* ZSTD_createDDict(const void* dictBuffer, size_t dictSize);
 
 /*! ZSTD_freeDDict() :
 *   Function frees memory allocated with ZSTD_createDDict() */
@@ -328,7 +328,7 @@ ZSTDLIB_API size_t ZSTD_DStreamOutSize(void);   /*!< recommended size for output
  * ***************************************************************************************/
 
 /* --- Constants ---*/
-#define ZSTD_MAGICNUMBER            0xFD2FB528   /* v0.8 */
+#define ZSTD_MAGICNUMBER            0xFD2FB528   /* >= v0.8.0 */
 #define ZSTD_MAGIC_SKIPPABLE_START  0x184D2A50U
 
 #define ZSTD_WINDOWLOG_MAX_32  25
@@ -463,6 +463,15 @@ ZSTDLIB_API ZSTD_DCtx* ZSTD_createDCtx_advanced(ZSTD_customMem customMem);
 /*! ZSTD_sizeof_DCtx() :
  *  Gives the amount of memory used by a given ZSTD_DCtx */
 ZSTDLIB_API size_t ZSTD_sizeof_DCtx(const ZSTD_DCtx* dctx);
+
+/*! ZSTD_createDDict_byReference() :
+ *  Create a digested dictionary, ready to start decompression operation without startup delay.
+ *  Dictionary content is simply referenced, and therefore stays in dictBuffer.
+ *  It is important that dictBuffer outlives DDict, it must remain read accessible throughout the lifetime of DDict */
+ZSTDLIB_API ZSTD_DDict* ZSTD_createDDict_byReference(const void* dictBuffer, size_t dictSize);
+
+ZSTDLIB_API ZSTD_DDict* ZSTD_createDDict_advanced(const void* dict, size_t dictSize,
+                                                  unsigned byReference, ZSTD_customMem customMem);
 
 /*! ZSTD_sizeof_DDict() :
  *  Gives the amount of memory used by a given ZSTD_DDict */

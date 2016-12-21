@@ -15,6 +15,7 @@ paramgrill32
 roundTripCrash
 longmatch
 symbols
+invalidDictionaries
 
 # Tmp test directory
 zstdtest

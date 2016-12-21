@@ -115,7 +115,7 @@ IF (MSVC)
 ENDIF (MSVC)
 
 # Split project to static and shared libraries build
-ADD_LIBRARY(libzstd_static STATIC ${Sources} ${Headers} ${PlatformDependResources})
+ADD_LIBRARY(libzstd_static STATIC ${Sources} ${Headers})
 ADD_LIBRARY(libzstd_shared SHARED ${Sources} ${Headers} ${PlatformDependResources})
 
 # Add specific compile definitions for MSVC project

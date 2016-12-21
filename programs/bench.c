@@ -8,10 +8,20 @@
  */
 
 
+
+/* **************************************
+*  Compiler Warnings
+****************************************/
+#ifdef _MSC_VER
+#  pragma warning(disable : 4127)                /* disable: C4127: conditional expression is constant */
+#endif
+
+
 /* *************************************
 *  Includes
 ***************************************/
-#include "util.h"        /* Compiler options, UTIL_GetFileSize, UTIL_sleep */
+#include "platform.h"    /* Large Files support */
+#include "util.h"        /* UTIL_getFileSize, UTIL_sleep */
 #include <stdlib.h>      /* malloc, free */
 #include <string.h>      /* memset */
 #include <stdio.h>       /* fprintf, fopen, ftello64 */
@@ -236,7 +246,7 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
                     ZSTD_customMem const cmem = { NULL, NULL, NULL };
                     U64 clockLoop = g_nbSeconds ? TIMELOOP_MICROSEC : 1;
                     U32 nbLoops = 0;
-                    ZSTD_CDict* const cdict = ZSTD_createCDict_advanced(dictBuffer, dictBufferSize, zparams, cmem);
+                    ZSTD_CDict* const cdict = ZSTD_createCDict_advanced(dictBuffer, dictBufferSize, 1, zparams, cmem);
                     if (cdict==NULL) EXM_THROW(1, "ZSTD_createCDict_advanced() allocation failure");
                     if (comprParams->windowLog) zparams.cParams.windowLog = comprParams->windowLog;
                     if (comprParams->chainLog) zparams.cParams.chainLog = comprParams->chainLog;
@@ -452,7 +462,7 @@ static void BMK_loadFiles(void* buffer, size_t bufferSize,
     if (totalSize == 0) EXM_THROW(12, "no data to bench");
 }
 
-static void BMK_benchFileTable(const char** fileNamesTable, unsigned nbFiles, const char* dictFileName, 
+static void BMK_benchFileTable(const char** fileNamesTable, unsigned nbFiles, const char* dictFileName,
                                int cLevel, int cLevelLast, ZSTD_compressionParameters *compressionParams)
 {
     void* srcBuffer;
@@ -523,7 +533,7 @@ static void BMK_syntheticTest(int cLevel, int cLevelLast, double compressibility
 }
 
 
-int BMK_benchFiles(const char** fileNamesTable, unsigned nbFiles, const char* dictFileName, 
+int BMK_benchFiles(const char** fileNamesTable, unsigned nbFiles, const char* dictFileName,
                    int cLevel, int cLevelLast, ZSTD_compressionParameters* compressionParams)
 {
     double const compressibility = (double)g_compressibilityDefault / 100;

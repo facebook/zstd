@@ -46,6 +46,13 @@ build_script:
       ECHO make %CLANG_PARAMS% &&
       make %CLANG_PARAMS% &&
       COPY tests\fuzzer.exe tests\fuzzer_clang.exe &&
+      ECHO *** &&
+      ECHO *** Building cmake for %PLATFORM% &&
+      ECHO *** &&
+      mkdir build\cmake\build &&
+      cd build\cmake\build &&
+      cmake -G "Visual Studio 14 2015 Win64" .. &&
+      cd ..\..\.. &&
       make clean &&
       ECHO *** &&
       ECHO *** Building pzstd for %PLATFORM% &&

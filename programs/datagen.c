@@ -9,14 +9,6 @@
 
 
 
-/* *************************************
-*  Compiler Options
-***************************************/
-#if defined(_MSC_VER)
-#  define _CRT_SECURE_NO_WARNINGS    /* removes Visual warning on strerror() */
-#  define _CRT_SECURE_NO_DEPRECATE   /* removes VS2005 warning on strerror() */
-#endif
-
 /*-************************************
 *  Dependencies
 **************************************/

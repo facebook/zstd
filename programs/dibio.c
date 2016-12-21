@@ -13,7 +13,6 @@
 *  Compiler Warnings
 ****************************************/
 #ifdef _MSC_VER
-#  define _CRT_SECURE_NO_WARNINGS                /* fopen */
 #  pragma warning(disable : 4127)                /* disable: C4127: conditional expression is constant */
 #endif
 
@@ -21,7 +20,6 @@
 /*-*************************************
 *  Includes
 ***************************************/
-#include "platform.h"       /* Large Files support */
 #include "util.h"           /* UTIL_getFileSize, UTIL_getTotalFileSize */
 #include <stdlib.h>         /* malloc, free */
 #include <string.h>         /* memset */

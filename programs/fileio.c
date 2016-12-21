@@ -11,7 +11,7 @@
 *  Compiler Options
 ***************************************/
 #ifdef _MSC_VER   /* Visual */
-#  define _CRT_SECURE_NO_WARNINGS  /* removes Visual warning on strerror() */
+#  pragma warning(disable : 4127)  /* disable: C4127: conditional expression is constant */
 #  pragma warning(disable : 4204)  /* non-constant aggregate initializer */
 #endif
 #if defined(__MINGW32__) && !defined(_POSIX_SOURCE)
@@ -22,7 +22,6 @@
 /*-*************************************
 *  Includes
 ***************************************/
-#include "platform.h"   /* Large Files support, SET_BINARY_MODE */
 #include "util.h"       /* UTIL_getFileSize */
 #include <stdio.h>      /* fprintf, fopen, fread, _fileno, stdin, stdout */
 #include <stdlib.h>     /* malloc, free */

@@ -11,21 +11,26 @@
 *  Compiler Options
 ***************************************/
 #ifdef _MSC_VER   /* Visual */
+#  define _CRT_SECURE_NO_WARNINGS  /* removes Visual warning on strerror() */
 #  pragma warning(disable : 4204)  /* non-constant aggregate initializer */
+#endif
+#if defined(__MINGW32__) && !defined(_POSIX_SOURCE)
+#  define _POSIX_SOURCE 1          /* disable %llu warnings with MinGW on Windows */
 #endif
 
 
 /*-*************************************
 *  Includes
 ***************************************/
-#include "platform.h"   /* Compiler options */
-#include "util.h"       /* UTIL_GetFileSize, _LARGEFILE64_SOURCE */
+#include "platform.h"   /* Large Files support, SET_BINARY_MODE */
+#include "util.h"       /* UTIL_getFileSize */
 #include <stdio.h>      /* fprintf, fopen, fread, _fileno, stdin, stdout */
 #include <stdlib.h>     /* malloc, free */
 #include <string.h>     /* strcmp, strlen */
 #include <time.h>       /* clock */
 #include <errno.h>      /* errno */
 
+#include "mem.h"
 #include "fileio.h"
 #define ZSTD_STATIC_LINKING_ONLY   /* ZSTD_magicNumber, ZSTD_frameHeaderSize_max */
 #include "zstd.h"

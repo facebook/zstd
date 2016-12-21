@@ -9,17 +9,27 @@
 
 
 
+/* **************************************
+*  Compiler Warnings
+****************************************/
+#ifdef _MSC_VER
+#  define _CRT_SECURE_NO_WARNINGS                /* fopen */
+#  pragma warning(disable : 4127)                /* disable: C4127: conditional expression is constant */
+#endif
+
+
 /*-*************************************
 *  Includes
 ***************************************/
-#include "platform.h"       /* Compiler options */
-#include "util.h"           /* UTIL_GetFileSize, UTIL_getTotalFileSize */
+#include "platform.h"       /* Large Files support */
+#include "util.h"           /* UTIL_getFileSize, UTIL_getTotalFileSize */
 #include <stdlib.h>         /* malloc, free */
 #include <string.h>         /* memset */
 #include <stdio.h>          /* fprintf, fopen, ftello64 */
 #include <time.h>           /* clock_t, clock, CLOCKS_PER_SEC */
 #include <errno.h>          /* errno */
 
+#include "mem.h"            /* read */
 #include "error_private.h"
 #include "dibio.h"
 

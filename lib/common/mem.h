@@ -46,8 +46,6 @@ MEM_STATIC void MEM_check(void) { MEM_STATIC_ASSERT((sizeof(size_t)==4) || (size
 /*-**************************************************************
 *  Basic Types
 *****************************************************************/
-#ifndef BASIC_TYPES_DEFINED
-#define BASIC_TYPES_DEFINED
 #if  !defined (__VMS) && (defined (__cplusplus) || (defined (__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L) /* C99 */) )
 # include <stdint.h>
   typedef  uint8_t BYTE;
@@ -67,7 +65,6 @@ MEM_STATIC void MEM_check(void) { MEM_STATIC_ASSERT((sizeof(size_t)==4) || (size
   typedef unsigned long long  U64;
   typedef   signed long long  S64;
   typedef ptrdiff_t      iPtrDiff;
-#endif
 #endif
 
 

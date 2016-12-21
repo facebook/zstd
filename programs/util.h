@@ -25,24 +25,35 @@ extern "C" {
 #endif
 
 
+/* **************************************
+*  Compiler Options
+****************************************/
+#if defined(_MSC_VER)
+#  if (_MSC_VER <= 1800)            /* (1800 = Visual Studio 2013) */
+#    define snprintf sprintf_s      /* snprintf unsupported by Visual <= 2013 */
+#  endif
+#endif
+
+
 /*-****************************************
 *  Dependencies
 ******************************************/
-#include "platform.h"   /* Compiler options, PLATFORM_POSIX_VERSION */
-#include <stdlib.h>     /* malloc */
-#include <stddef.h>     /* size_t, ptrdiff_t */
-#include <stdio.h>      /* fprintf */
-#include <sys/types.h>  /* stat, utime */
-#include <sys/stat.h>   /* stat */
+#include "platform.h"     /* PLATFORM_POSIX_VERSION */
+#include <stdlib.h>       /* malloc */
+#include <stddef.h>       /* size_t, ptrdiff_t */
+#include <stdio.h>        /* fprintf */
+#include <sys/types.h>    /* stat, utime */
+#include <sys/stat.h>     /* stat */
 #if defined(_MSC_VER)
-#  include <sys/utime.h>   /* utime */
-#  include <io.h>          /* _chmod */
+#  include <sys/utime.h>  /* utime */
+#  include <io.h>         /* _chmod */
 #else
 #  include <unistd.h>     /* chown, stat */
 #  include <utime.h>      /* utime */
 #endif
-#include <time.h>       /* time */
+#include <time.h>         /* time */
 #include <errno.h>
+#include "mem.h"          /* U32, U64 */
 
 
 /*-****************************************
@@ -81,35 +92,12 @@ extern "C" {
 #define LIST_SIZE_INCREASE   (8*1024)
 
 
-/*-**************************************************************
-*  Basic Types
-*****************************************************************/
-#ifndef BASIC_TYPES_DEFINED
-#define BASIC_TYPES_DEFINED
-#if !defined (__VMS) && (defined (__cplusplus) || (defined (__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L) /* C99 */) )
-# include <stdint.h>
-  typedef  uint8_t BYTE;
-  typedef uint16_t U16;
-  typedef  int16_t S16;
-  typedef uint32_t U32;
-  typedef  int32_t S32;
-  typedef uint64_t U64;
-  typedef  int64_t S64;
-#else
-  typedef unsigned char       BYTE;
-  typedef unsigned short      U16;
-  typedef   signed short      S16;
-  typedef unsigned int        U32;
-  typedef   signed int        S32;
-  typedef unsigned long long  U64;
-  typedef   signed long long  S64;
-#endif
-#endif
-
-
 /*-****************************************
 *  Compiler specifics
 ******************************************/
+#if defined(__INTEL_COMPILER)
+#  pragma warning(disable : 177)    /* disable: message #177: function was declared but never referenced, useful with UTIL_STATIC */
+#endif
 #if defined(__GNUC__)
 #  define UTIL_STATIC static __attribute__((unused))
 #elif defined (__cplusplus) || (defined (__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L) /* C99 */)

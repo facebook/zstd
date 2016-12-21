@@ -11,12 +11,12 @@
 /*_************************************
 *  Includes
 **************************************/
-#include "platform.h"    /* Compiler options */
-#include "util.h"        /* U32 */
+#include "util.h"        /* Compiler options, UTIL_GetFileSize */
 #include <stdlib.h>      /* malloc */
 #include <stdio.h>       /* fprintf, fopen, ftello64 */
 #include <time.h>        /* clock_t, clock, CLOCKS_PER_SEC */
 
+#include "mem.h"
 #ifndef ZSTD_DLL_IMPORT
     #include "zstd_internal.h"   /* ZSTD_blockHeaderSize, blockType_e, KB, MB */
     #define ZSTD_STATIC_LINKING_ONLY  /* ZSTD_compressBegin, ZSTD_compressContinue, etc. */

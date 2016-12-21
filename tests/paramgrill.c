@@ -11,15 +11,14 @@
 /*-************************************
 *  Dependencies
 **************************************/
-#include "platform.h"  /* Compiler options */
-#include "util.h"      /* UTIL_getFileSize */
+#include "util.h"      /* Compiler options, UTIL_GetFileSize */
 #include <stdlib.h>    /* malloc */
 #include <stdio.h>     /* fprintf, fopen, ftello64 */
 #include <string.h>    /* strcmp */
 #include <math.h>      /* log */
 #include <time.h>      /* clock_t */
 
-#include "mem.h"       /* MEM_32bits() */
+#include "mem.h"
 #define ZSTD_STATIC_LINKING_ONLY   /* ZSTD_parameters, ZSTD_estimateCCtxSize */
 #include "zstd.h"
 #include "datagen.h"

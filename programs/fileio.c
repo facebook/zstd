@@ -30,7 +30,6 @@
 #include <time.h>       /* clock */
 #include <errno.h>      /* errno */
 
-#include "mem.h"
 #include "fileio.h"
 #define ZSTD_STATIC_LINKING_ONLY   /* ZSTD_magicNumber, ZSTD_frameHeaderSize_max */
 #include "zstd.h"
@@ -39,19 +38,6 @@
 #if !defined(z_const)
     #define z_const
 #endif
-#endif
-
-
-/*-*************************************
-*  OS-specific Includes
-***************************************/
-#if defined(MSDOS) || defined(OS2) || defined(WIN32) || defined(_WIN32) || defined(__CYGWIN__)
-#  include <fcntl.h>    /* _O_BINARY */
-#  include <io.h>       /* _setmode, _isatty */
-#  define SET_BINARY_MODE(file) { if (_setmode(_fileno(file), _O_BINARY) == -1) perror("Cannot set _O_BINARY"); }
-#else
-#  include <unistd.h>   /* isatty */
-#  define SET_BINARY_MODE(file)
 #endif
 
 

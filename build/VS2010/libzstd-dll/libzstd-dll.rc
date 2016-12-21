@@ -32,11 +32,11 @@ BEGIN
     BEGIN
         BLOCK "040904B0"
         BEGIN
-            VALUE "CompanyName", "Yann Collet"
-            VALUE "FileDescription", "Fast and efficient compression algorithm"
+            VALUE "CompanyName", "Yann Collet, Facebook, Inc."
+            VALUE "FileDescription", "Zstandard - Fast and efficient compression algorithm"
             VALUE "FileVersion", ZSTD_VERSION_STRING
             VALUE "InternalName", "libzstd.dll"
-            VALUE "LegalCopyright", "Copyright (C) 2013-2016, Yann Collet"
+            VALUE "LegalCopyright", "Copyright (c) 2013-present, Yann Collet, Facebook, Inc."
             VALUE "OriginalFilename", "libzstd.dll"
             VALUE "ProductName", "Zstandard"
             VALUE "ProductVersion", ZSTD_VERSION_STRING

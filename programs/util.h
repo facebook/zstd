@@ -1,11 +1,21 @@
-/**
- * Copyright (c) 2016-present, Przemyslaw Skibinski, Yann Collet, Facebook, Inc.
- * All rights reserved.
- *
- * This source code is licensed under the BSD-style license found in the
- * LICENSE file in the root directory of this source tree. An additional grant
- * of patent rights can be found in the PATENTS file in the same directory.
- */
+/*
+    util.h - utility functions
+    Copyright (C) 2016-present, Przemyslaw Skibinski, Yann Collet
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License along
+    with this program; if not, write to the Free Software Foundation, Inc.,
+    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+*/
 
 #ifndef UTIL_H_MODULE
 #define UTIL_H_MODULE
@@ -20,6 +30,7 @@ extern "C" {
 ******************************************/
 #include "platform.h"   /* Compiler options, PLATFORM_POSIX_VERSION */
 #include <stdlib.h>     /* malloc */
+#include <stddef.h>     /* size_t, ptrdiff_t */
 #include <stdio.h>      /* fprintf */
 #include <sys/types.h>  /* stat, utime */
 #include <sys/stat.h>   /* stat */
@@ -32,27 +43,6 @@ extern "C" {
 #endif
 #include <time.h>       /* time */
 #include <errno.h>
-#include "mem.h"        /* U32, U64 */
-
-
-/* *************************************
-*  Constants
-***************************************/
-#define LIST_SIZE_INCREASE   (8*1024)
-
-
-/*-****************************************
-*  Compiler specifics
-******************************************/
-#if defined(__GNUC__)
-#  define UTIL_STATIC static __attribute__((unused))
-#elif defined (__cplusplus) || (defined (__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L) /* C99 */)
-#  define UTIL_STATIC static inline
-#elif defined(_MSC_VER)
-#  define UTIL_STATIC static __inline
-#else
-#  define UTIL_STATIC static  /* this version may generate warnings for unused static functions; disable the relevant warning */
-#endif
 
 
 /*-****************************************
@@ -82,6 +72,49 @@ extern "C" {
 #  define SET_HIGH_PRIORITY      /* disabled */
 #  define UTIL_sleep(s)          /* disabled */
 #  define UTIL_sleepMilli(milli) /* disabled */
+#endif
+
+
+/* *************************************
+*  Constants
+***************************************/
+#define LIST_SIZE_INCREASE   (8*1024)
+
+
+/*-**************************************************************
+*  Basic Types
+*****************************************************************/
+#if  !defined (__VMS) && (defined (__cplusplus) || (defined (__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L) /* C99 */) )
+# include <stdint.h>
+  typedef  uint8_t BYTE;
+  typedef uint16_t U16;
+  typedef  int16_t S16;
+  typedef uint32_t U32;
+  typedef  int32_t S32;
+  typedef uint64_t U64;
+  typedef  int64_t S64;
+#else
+  typedef unsigned char       BYTE;
+  typedef unsigned short      U16;
+  typedef   signed short      S16;
+  typedef unsigned int        U32;
+  typedef   signed int        S32;
+  typedef unsigned long long  U64;
+  typedef   signed long long  S64;
+#endif 
+
+
+/*-****************************************
+*  Compiler specifics
+******************************************/
+#if defined(__GNUC__)
+#  define UTIL_STATIC static __attribute__((unused))
+#elif defined (__cplusplus) || (defined (__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L) /* C99 */)
+#  define UTIL_STATIC static inline
+#elif defined(_MSC_VER)
+#  define UTIL_STATIC static __inline
+#else
+#  define UTIL_STATIC static  /* this version may generate warnings for unused static functions; disable the relevant warning */
 #endif
 
 
@@ -303,6 +336,7 @@ UTIL_STATIC int UTIL_prepareFileList(const char *dirName, char** bufStart, size_
 #elif defined(__linux__) || (PLATFORM_POSIX_VERSION >= 200112L)  /* opendir, readdir require POSIX.1-2001 */
 #  define UTIL_HAS_CREATEFILELIST
 #  include <dirent.h>       /* opendir, readdir */
+#  include <string.h>       /* strerror, memcpy */
 
 UTIL_STATIC int UTIL_prepareFileList(const char *dirName, char** bufStart, size_t* pos, char** bufEnd)
 {
@@ -364,7 +398,7 @@ UTIL_STATIC int UTIL_prepareFileList(const char *dirName, char** bufStart, size_
 UTIL_STATIC int UTIL_prepareFileList(const char *dirName, char** bufStart, size_t* pos, char** bufEnd)
 {
     (void)bufStart; (void)bufEnd; (void)pos;
-    fprintf(stderr, "Directory %s ignored (zstd compiled without _WIN32 or _POSIX_C_SOURCE)\n", dirName);
+    fprintf(stderr, "Directory %s ignored (compiled without _WIN32 or _POSIX_C_SOURCE)\n", dirName);
     return 0;
 }
 

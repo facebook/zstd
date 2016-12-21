@@ -22,7 +22,8 @@
 /*-*************************************
 *  Includes
 ***************************************/
-#include "util.h"       /* SET_BINARY_MODE, UTIL_getFileSize */
+#include "platform.h"   /* Large Files support, SET_BINARY_MODE */
+#include "util.h"       /* UTIL_getFileSize */
 #include <stdio.h>      /* fprintf, fopen, fread, _fileno, stdin, stdout */
 #include <stdlib.h>     /* malloc, free */
 #include <string.h>     /* strcmp, strlen */

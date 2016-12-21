@@ -23,7 +23,8 @@
 /*-************************************
 *  Dependencies
 **************************************/
-#include "util.h"     /* IS_CONSOLE, UTIL_HAS_CREATEFILELIST, UTIL_createFileList */
+#include "platform.h" /* IS_CONSOLE, PLATFORM_POSIX_VERSION */
+#include "util.h"     /* UTIL_HAS_CREATEFILELIST, UTIL_createFileList */
 #include <string.h>   /* strcmp, strlen */
 #include <errno.h>    /* errno */
 #include "fileio.h"

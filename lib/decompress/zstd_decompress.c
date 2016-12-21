@@ -1766,6 +1766,18 @@ ZSTD_DDict* ZSTD_createDDict(const void* dict, size_t dictSize)
     return ZSTD_createDDict_advanced(dict, dictSize, 0, allocator);
 }
 
+
+/*! ZSTD_createDDict_byReference() :
+ *  Create a digested dictionary, ready to start decompression operation without startup delay.
+ *  Dictionary content is simply referenced, and therefore stays in dictBuffer.
+ *  It is important that dictBuffer outlives DDict, it must remain read accessible throughout the lifetime of DDict */
+ZSTD_DDict* ZSTD_createDDict_byReference(const void* dictBuffer, size_t dictSize)
+{
+    ZSTD_customMem const allocator = { NULL, NULL, NULL };
+    return ZSTD_createDDict_advanced(dictBuffer, dictSize, 1, allocator);
+}
+
+
 size_t ZSTD_freeDDict(ZSTD_DDict* ddict)
 {
     if (ddict==NULL) return 0;   /* support free on NULL */

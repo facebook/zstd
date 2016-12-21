@@ -22,7 +22,7 @@
 /*-*************************************
 *  Includes
 ***************************************/
-#include "util.h"       /* UTIL_getFileSize */
+#include "util.h"       /* SET_BINARY_MODE, UTIL_getFileSize */
 #include <stdio.h>      /* fprintf, fopen, fread, _fileno, stdin, stdout */
 #include <stdlib.h>     /* malloc, free */
 #include <string.h>     /* strcmp, strlen */

@@ -38,9 +38,6 @@ extern "C" {
 #  if (_MSC_VER <= 1800)            /* (1800 = Visual Studio 2013) */
 #    define snprintf sprintf_s      /* snprintf unsupported by Visual <= 2013 */
 #  endif
-#  if (_MSC_VER >= 1400)            /* Avoid MSVC fseek()'s 2GiB barrier */
-#    define fseek _fseeki64
-#  endif
 #endif
 #if defined(__MINGW32__) && !defined(_POSIX_SOURCE)
 #  define _POSIX_C_SOURCE 1          /* enable __VA_ARGS__ and disable %llu warnings with MinGW on Windows */

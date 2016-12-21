@@ -11,7 +11,6 @@
 *  Compiler Options
 ***************************************/
 #ifdef _MSC_VER   /* Visual */
-#  define _CRT_SECURE_NO_WARNINGS  /* removes Visual warning on strerror() */
 #  pragma warning(disable : 4204)  /* non-constant aggregate initializer */
 #endif
 #if defined(__MINGW32__) && !defined(_POSIX_SOURCE)

@@ -39,20 +39,6 @@
 
 
 /*-************************************
-*  OS-specific Includes
-**************************************/
-#if defined(MSDOS) || defined(OS2) || defined(WIN32) || defined(_WIN32) || defined(__CYGWIN__)
-#  include <io.h>       /* _isatty */
-#  define IS_CONSOLE(stdStream) _isatty(_fileno(stdStream))
-#elif (defined(__linux__) && (PLATFORM_POSIX_VERSION >= 1)) || (PLATFORM_POSIX_VERSION >= 200112L)  /* isatty requires POSIX.1-2001 */
-#  include <unistd.h>   /* isatty */
-#  define IS_CONSOLE(stdStream) isatty(fileno(stdStream))
-#else
-#  define IS_CONSOLE(stdStream) 0
-#endif
-
-
-/*-************************************
 *  Constants
 **************************************/
 #define COMPRESSOR_NAME "zstd command line interface"

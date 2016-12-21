@@ -18,7 +18,6 @@
 #include <stdio.h>       /* fprintf, fopen, ftello64 */
 #include <time.h>        /* clock_t, clock, CLOCKS_PER_SEC */
 
-#include "mem.h"
 #define ZSTD_STATIC_LINKING_ONLY
 #include "zstd.h"
 #include "datagen.h"     /* RDG_genBuffer */

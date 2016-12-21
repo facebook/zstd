@@ -12,8 +12,6 @@
 *  Compiler specific
 **************************************/
 #ifdef _MSC_VER    /* Visual Studio */
-#  define _CRT_SECURE_NO_WARNINGS     /* fgets */
-#  pragma warning(disable : 4127)     /* disable: C4127: conditional expression is constant */
 #  pragma warning(disable : 4204)     /* disable: C4204: non-constant aggregate initializer */
 #endif
 
@@ -21,6 +19,8 @@
 /*-************************************
 *  Includes
 **************************************/
+#include "platform.h"     /* Compiler options */
+#include "util.h"         /* U32 */
 #include <stdlib.h>       /* free */
 #include <stdio.h>        /* fgets, sscanf */
 #include <string.h>       /* strcmp */
@@ -30,7 +30,6 @@
 #include "zstd_errors.h"  /* ZSTD_getErrorCode */
 #include "zdict.h"        /* ZDICT_trainFromBuffer */
 #include "datagen.h"      /* RDG_genBuffer */
-#include "mem.h"
 #define XXH_STATIC_LINKING_ONLY
 #include "xxhash.h"       /* XXH64 */
 

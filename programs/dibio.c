@@ -20,7 +20,6 @@
 #include <time.h>           /* clock_t, clock, CLOCKS_PER_SEC */
 #include <errno.h>          /* errno */
 
-#include "mem.h"            /* read */
 #include "error_private.h"
 #include "dibio.h"
 

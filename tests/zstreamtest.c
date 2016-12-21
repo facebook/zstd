@@ -12,8 +12,6 @@
 *  Compiler specific
 **************************************/
 #ifdef _MSC_VER    /* Visual Studio */
-#  define _CRT_SECURE_NO_WARNINGS     /* fgets */
-#  pragma warning(disable : 4127)     /* disable: C4127: conditional expression is constant */
 #  pragma warning(disable : 4146)     /* disable: C4146: minus unsigned expression */
 #endif
 
@@ -21,11 +19,12 @@
 /*-************************************
 *  Includes
 **************************************/
+#include "platform.h"     /* Compiler options */
 #include <stdlib.h>       /* free */
 #include <stdio.h>        /* fgets, sscanf */
 #include <time.h>         /* clock_t, clock() */
 #include <string.h>       /* strcmp */
-#include "mem.h"
+#include "mem.h"          /* MEM_writeLE32 */
 #define ZSTD_STATIC_LINKING_ONLY   /* ZSTD_maxCLevel, ZSTD_customMem */
 #include "zstd.h"         /* ZSTD_compressBound */
 #include "zstd_errors.h"  /* ZSTD_error_srcSize_wrong */

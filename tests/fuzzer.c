@@ -12,7 +12,6 @@
 *  Compiler specific
 **************************************/
 #ifdef _MSC_VER    /* Visual Studio */
-#  define _CRT_SECURE_NO_WARNINGS     /* fgets */
 #  pragma warning(disable : 4127)     /* disable: C4127: conditional expression is constant */
 #  pragma warning(disable : 4204)     /* disable: C4204: non-constant aggregate initializer */
 #endif

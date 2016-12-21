@@ -11,7 +11,7 @@
 *  Compiler Options
 ***************************************/
 #ifdef _MSC_VER   /* Visual */
-#  define _CRT_SECURE_NO_WARNINGS  /* removes Visual warning on strerror() */
+#  pragma warning(disable : 4127)  /* disable: C4127: conditional expression is constant */
 #  pragma warning(disable : 4204)  /* non-constant aggregate initializer */
 #endif
 #if defined(__MINGW32__) && !defined(_POSIX_SOURCE)
@@ -22,7 +22,8 @@
 /*-*************************************
 *  Includes
 ***************************************/
-#include "util.h"       /* Compiler options, UTIL_GetFileSize, _LARGEFILE64_SOURCE */
+#include "platform.h"   /* Large Files support, SET_BINARY_MODE */
+#include "util.h"       /* UTIL_getFileSize */
 #include <stdio.h>      /* fprintf, fopen, fread, _fileno, stdin, stdout */
 #include <stdlib.h>     /* malloc, free */
 #include <string.h>     /* strcmp, strlen */
@@ -38,19 +39,6 @@
 #if !defined(z_const)
     #define z_const
 #endif
-#endif
-
-
-/*-*************************************
-*  OS-specific Includes
-***************************************/
-#if defined(MSDOS) || defined(OS2) || defined(WIN32) || defined(_WIN32) || defined(__CYGWIN__)
-#  include <fcntl.h>    /* _O_BINARY */
-#  include <io.h>       /* _setmode, _isatty */
-#  define SET_BINARY_MODE(file) { if (_setmode(_fileno(file), _O_BINARY) == -1) perror("Cannot set _O_BINARY"); }
-#else
-#  include <unistd.h>   /* isatty */
-#  define SET_BINARY_MODE(file)
 #endif
 
 

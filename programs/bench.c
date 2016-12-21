@@ -20,6 +20,7 @@
 /* *************************************
 *  Includes
 ***************************************/
+#include "platform.h"    /* Large Files support */
 #include "util.h"        /* UTIL_getFileSize, UTIL_sleep */
 #include <stdlib.h>      /* malloc, free */
 #include <string.h>      /* memset */

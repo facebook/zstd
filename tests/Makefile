@@ -146,6 +146,9 @@ roundTripCrash : $(ZSTD_FILES) roundTripCrash.c
 longmatch  : $(ZSTD_FILES) longmatch.c
 	$(CC)      $(FLAGS) $^ -o $@$(EXT)
 
+invalidDictionaries  : $(ZSTD_FILES) invalidDictionaries.c
+	$(CC)      $(FLAGS) $^ -o $@$(EXT)
+
 symbols  : symbols.c
 	$(MAKE) -C $(ZSTDDIR) libzstd
 ifneq (,$(filter Windows%,$(OS)))
@@ -173,7 +176,7 @@ clean:
         fuzzer-dll$(EXT) zstreamtest-dll$(EXT) zbufftest-dll$(EXT)\
         zstreamtest$(EXT) zstreamtest32$(EXT) \
         datagen$(EXT) paramgrill$(EXT) roundTripCrash$(EXT) longmatch$(EXT) \
-        symbols$(EXT)
+        symbols$(EXT) invalidDictionaries$(EXT)
 	@echo Cleaning completed
 
 
@@ -213,7 +216,7 @@ zstd-playTests: datagen
 	file $(ZSTD)
 	ZSTD="$(QEMU_SYS) $(ZSTD)" ./playTests.sh $(ZSTDRTTEST)
 
-test: test-zstd test-fullbench test-fuzzer test-zstream test-longmatch
+test: test-zstd test-fullbench test-fuzzer test-zstream test-longmatch test-invalidDictionaries
 
 test32: test-zstd32 test-fullbench32 test-fuzzer32 test-zstream32
 
@@ -272,6 +275,9 @@ test-zstream32: zstreamtest32
 
 test-longmatch: longmatch
 	$(QEMU_SYS) ./longmatch
+
+test-invalidDictionaries: invalidDictionaries
+	$(QEMU_SYS) ./invalidDictionaries
 
 test-symbols: symbols
 	$(QEMU_SYS) ./symbols

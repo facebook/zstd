@@ -2733,8 +2733,10 @@ size_t ZSTD_compress(void* dst, size_t dstCapacity, const void* src, size_t srcS
 /* =====  Dictionary API  ===== */
 
 struct ZSTD_CDict_s {
-    void* dictContent;
+    void* dictBuffer;
+    const void* dictContent;
     size_t dictContentSize;
+    unsigned byReference;
     ZSTD_CCtx* refContext;
 };  /* typedef'd tp ZSTD_CDict within "zstd.h" */
 
@@ -2744,36 +2746,44 @@ size_t ZSTD_sizeof_CDict(const ZSTD_CDict* cdict)
     return ZSTD_sizeof_CCtx(cdict->refContext) + cdict->dictContentSize;
 }
 
-ZSTD_CDict* ZSTD_createCDict_advanced(const void* dict, size_t dictSize, ZSTD_parameters params, ZSTD_customMem customMem)
+ZSTD_CDict* ZSTD_createCDict_advanced(const void* dictBuffer, size_t dictSize, unsigned byReference,
+                                      ZSTD_parameters params, ZSTD_customMem customMem)
 {
     if (!customMem.customAlloc && !customMem.customFree) customMem = defaultCustomMem;
     if (!customMem.customAlloc || !customMem.customFree) return NULL;
 
     {   ZSTD_CDict* const cdict = (ZSTD_CDict*) ZSTD_malloc(sizeof(ZSTD_CDict), customMem);
-        void* const dictContent = ZSTD_malloc(dictSize, customMem);
         ZSTD_CCtx* const cctx = ZSTD_createCCtx_advanced(customMem);
 
-        if (!dictContent || !cdict || !cctx) {
-            ZSTD_free(dictContent, customMem);
+        if (!cdict || !cctx) {
             ZSTD_free(cdict, customMem);
             ZSTD_free(cctx, customMem);
             return NULL;
         }
 
-        if (dictSize) {
-            memcpy(dictContent, dict, dictSize);
+        if ((byReference) || (!dictBuffer) || (!dictSize)) {
+            cdict->dictBuffer = NULL;
+            cdict->dictContent = dictBuffer;
+            cdict->byReference = 1;
+        } else {
+            void* const internalBuffer = ZSTD_malloc(dictSize, customMem);
+            if (!internalBuffer) return NULL;
+            memcpy(internalBuffer, dictBuffer, dictSize);
+            cdict->dictBuffer = internalBuffer;
+            cdict->dictContent = internalBuffer;
+            cdict->byReference = 0;
         }
-        {   size_t const errorCode = ZSTD_compressBegin_advanced(cctx, dictContent, dictSize, params, 0);
+
+        {   size_t const errorCode = ZSTD_compressBegin_advanced(cctx, cdict->dictContent, dictSize, params, 0);
             if (ZSTD_isError(errorCode)) {
-                ZSTD_free(dictContent, customMem);
-                ZSTD_free(cdict, customMem);
+                ZSTD_free(cdict->dictBuffer, customMem);
                 ZSTD_free(cctx, customMem);
+                ZSTD_free(cdict, customMem);
                 return NULL;
         }   }
 
-        cdict->dictContent = dictContent;
-        cdict->dictContentSize = dictSize;
         cdict->refContext = cctx;
+        cdict->dictContentSize = dictSize;
         return cdict;
     }
 }
@@ -2783,7 +2793,15 @@ ZSTD_CDict* ZSTD_createCDict(const void* dict, size_t dictSize, int compressionL
     ZSTD_customMem const allocator = { NULL, NULL, NULL };
     ZSTD_parameters params = ZSTD_getParams(compressionLevel, 0, dictSize);
     params.fParams.contentSizeFlag = 1;
-    return ZSTD_createCDict_advanced(dict, dictSize, params, allocator);
+    return ZSTD_createCDict_advanced(dict, dictSize, 0, params, allocator);
+}
+
+ZSTD_CDict* ZSTD_createCDict_byReference(const void* dict, size_t dictSize, int compressionLevel)
+{
+    ZSTD_customMem const allocator = { NULL, NULL, NULL };
+    ZSTD_parameters params = ZSTD_getParams(compressionLevel, 0, dictSize);
+    params.fParams.contentSizeFlag = 1;
+    return ZSTD_createCDict_advanced(dict, dictSize, 1, params, allocator);
 }
 
 size_t ZSTD_freeCDict(ZSTD_CDict* cdict)
@@ -2791,7 +2809,7 @@ size_t ZSTD_freeCDict(ZSTD_CDict* cdict)
     if (cdict==NULL) return 0;   /* support free on NULL */
     {   ZSTD_customMem const cMem = cdict->refContext->customMem;
         ZSTD_freeCCtx(cdict->refContext);
-        ZSTD_free(cdict->dictContent, cMem);
+        if (!cdict->byReference) ZSTD_free(cdict->dictBuffer, cMem);
         ZSTD_free(cdict, cMem);
         return 0;
     }
@@ -2939,7 +2957,7 @@ size_t ZSTD_initCStream_advanced(ZSTD_CStream* zcs,
 
     if (dict) {
         ZSTD_freeCDict(zcs->cdictLocal);
-        zcs->cdictLocal = ZSTD_createCDict_advanced(dict, dictSize, params, zcs->customMem);
+        zcs->cdictLocal = ZSTD_createCDict_advanced(dict, dictSize, 0, params, zcs->customMem);
         if (zcs->cdictLocal == NULL) return ERROR(memory_allocation);
         zcs->cdict = zcs->cdictLocal;
     } else zcs->cdict = NULL;

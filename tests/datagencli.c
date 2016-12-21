@@ -11,8 +11,7 @@
 /*-************************************
 *  Dependencies
 **************************************/
-#include "platform.h"  /* Compiler options */
-#include "util.h"      /* U32 */
+#include "util.h"      /* Compiler options */
 #include <stdio.h>     /* fprintf, stderr */
 #include "datagen.h"   /* RDG_generate */
 

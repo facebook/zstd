@@ -11,14 +11,14 @@
 /* *************************************
 *  Includes
 ***************************************/
-#include "platform.h"    /* Compiler options */
-#include "util.h"        /* U32, UTIL_GetFileSize, UTIL_sleep */
+#include "util.h"        /* Compiler options, UTIL_GetFileSize, UTIL_sleep */
 #include <stdlib.h>      /* malloc, free */
 #include <string.h>      /* memset */
 #include <stdio.h>       /* fprintf, fopen, ftello64 */
 #include <time.h>        /* clock_t, clock, CLOCKS_PER_SEC */
 #include <ctype.h>       /* toupper */
 
+#include "mem.h"
 #define ZSTD_STATIC_LINKING_ONLY
 #include "zstd.h"
 #include "datagen.h"     /* RDG_genBuffer */

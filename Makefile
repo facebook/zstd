@@ -30,6 +30,8 @@ all:
 	$(MAKE) -C $(ZSTDDIR) $@
 	$(MAKE) -C $(PRGDIR) $@ zstd32
 	$(MAKE) -C $(TESTDIR) $@ all32
+	$(MAKE) -C $(ZWRAPDIR) $@
+	CPPFLAGS=-I../lib LDFLAGS=-L../lib $(MAKE) -C examples/ $@
 
 .PHONY: lib
 lib:
@@ -54,6 +56,7 @@ clean:
 	@$(MAKE) -C $(PRGDIR) $@ > $(VOID)
 	@$(MAKE) -C $(TESTDIR) $@ > $(VOID)
 	@$(MAKE) -C $(ZWRAPDIR) $@ > $(VOID)
+	@$(MAKE) -C examples/ $@ > $(VOID)
 	@$(RM) zstd$(EXT) tmp*
 	@echo Cleaning completed
 

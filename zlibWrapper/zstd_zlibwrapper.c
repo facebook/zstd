@@ -61,7 +61,7 @@ ZEXTERN const char * ZEXPORT z_zlibVersion OF((void)) { return zlibVersion();  }
 static void* ZWRAP_allocFunction(void* opaque, size_t size)
 {
     z_streamp strm = (z_streamp) opaque;
-    void* address = strm->zalloc(strm->opaque, 1, size);
+    void* address = strm->zalloc(strm->opaque, 1, (uInt)size);
   /*  printf("ZWRAP alloc %p, %d \n", address, (int)size); */
     return address;
 }

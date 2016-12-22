@@ -30,7 +30,7 @@ local int gz_load(state, buf, len, have)
 
     *have = 0;
     do {
-        ret = read(state.state->fd, buf + *have, len - *have);
+        ret = (int)read(state.state->fd, buf + *have, len - *have);
         if (ret <= 0)
             break;
         *have += ret;
@@ -469,7 +469,7 @@ int ZEXPORT gzungetc(c, file)
     if (state.state->x.have == 0) {
         state.state->x.have = 1;
         state.state->x.next = state.state->out + (state.state->size << 1) - 1;
-        state.state->x.next[0] = c;
+        state.state->x.next[0] = (unsigned char)c;
         state.state->x.pos--;
         state.state->past = 0;
         return c;
@@ -491,7 +491,7 @@ int ZEXPORT gzungetc(c, file)
     }
     state.state->x.have++;
     state.state->x.next--;
-    state.state->x.next[0] = c;
+    state.state->x.next[0] = (unsigned char)c;
     state.state->x.pos--;
     state.state->past = 0;
     return c;

@@ -150,19 +150,16 @@ clean_decomp_o:
 #----------------------------------------------------------------------------------
 ifneq (,$(filter $(shell uname),Linux Darwin GNU/kFreeBSD GNU OpenBSD FreeBSD NetBSD DragonFly SunOS))
 
-DESTDIR?=
 ifneq (,$(filter $(shell uname),SunOS))
 PREFIX ?= /usr
+INSTALL ?= ginstall
 else
 PREFIX ?= /usr/local
+INSTALL ?= install
 endif
+DESTDIR ?=
 BINDIR  = $(PREFIX)/bin
 MANDIR  = $(PREFIX)/share/man/man1
-
-INSTALL:=install
-ifneq (,$(filter $(shell uname),SunOS))
-INSTALL:=ginstall
-endif
 
 INSTALL_PROGRAM ?= $(INSTALL) -m 755
 INSTALL_SCRIPT ?= $(INSTALL) -m 755

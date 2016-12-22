@@ -30,11 +30,16 @@ all: allmost
 	CPPFLAGS=-I../lib LDFLAGS=-L../lib $(MAKE) -C examples/ $@
 
 .PHONY: allmost
-allmost:   # without examples
-	$(MAKE) -C $(ZSTDDIR) $@
-	$(MAKE) -C $(PRGDIR) $@ zstd32
-	$(MAKE) -C $(TESTDIR) $@ all32
-	$(MAKE) -C $(ZWRAPDIR) $@
+allmost:
+	$(MAKE) -C $(ZSTDDIR) all
+	$(MAKE) -C $(PRGDIR) all
+	$(MAKE) -C $(TESTDIR) all
+	$(MAKE) -C $(ZWRAPDIR) all
+
+.PHONY: all32
+all32:
+	$(MAKE) -C $(PRGDIR) zstd32
+	$(MAKE) -C $(TESTDIR) all32
 
 .PHONY: lib
 lib:

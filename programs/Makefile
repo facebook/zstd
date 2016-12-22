@@ -14,11 +14,6 @@
 # zstd-decompress : decompressor-only version of zstd
 # ##########################################################################
 
-DESTDIR?=
-PREFIX ?= /usr/local
-BINDIR  = $(PREFIX)/bin
-MANDIR  = $(PREFIX)/share/man/man1
-
 ZSTDDIR = ../lib
 
 ifeq ($(shell $(CC) -v 2>&1 | grep -c "gcc version "), 1)
@@ -153,17 +148,36 @@ clean_decomp_o:
 #----------------------------------------------------------------------------------
 #make install is validated only for Linux, OSX, kFreeBSD, Hurd and some BSD targets
 #----------------------------------------------------------------------------------
-ifneq (,$(filter $(shell uname),Linux Darwin GNU/kFreeBSD GNU OpenBSD FreeBSD DragonFly NetBSD))
+ifneq (,$(filter $(shell uname),Linux Darwin GNU/kFreeBSD GNU OpenBSD FreeBSD NetBSD DragonFly SunOS))
+
+DESTDIR?=
+ifneq (,$(filter $(shell uname),SunOS))
+PREFIX ?= /usr
+else
+PREFIX ?= /usr/local
+endif
+BINDIR  = $(PREFIX)/bin
+MANDIR  = $(PREFIX)/share/man/man1
+
+INSTALL:=install
+ifneq (,$(filter $(shell uname),SunOS))
+INSTALL:=ginstall
+endif
+
+INSTALL_PROGRAM ?= $(INSTALL) -m 755
+INSTALL_SCRIPT ?= $(INSTALL) -m 755
+INSTALL_MAN ?= $(INSTALL) -m 644
+
 install: zstd
 	@echo Installing binaries
-	@install -d -m 755 $(DESTDIR)$(BINDIR)/ $(DESTDIR)$(MANDIR)/
-	@install -m 755 zstd $(DESTDIR)$(BINDIR)/zstd
+	@$(INSTALL) -d -m 755 $(DESTDIR)$(BINDIR)/ $(DESTDIR)$(MANDIR)/
+	@$(INSTALL_PROGRAM) zstd $(DESTDIR)$(BINDIR)/zstd
 	@ln -sf zstd $(DESTDIR)$(BINDIR)/zstdcat
 	@ln -sf zstd $(DESTDIR)$(BINDIR)/unzstd
-	@install -m 755 zstdless $(DESTDIR)$(BINDIR)/zstdless
-	@install -m 755 zstdgrep $(DESTDIR)$(BINDIR)/zstdgrep
+	@$(INSTALL_SCRIPT) zstdless $(DESTDIR)$(BINDIR)/zstdless
+	@$(INSTALL_SCRIPT) zstdgrep $(DESTDIR)$(BINDIR)/zstdgrep
 	@echo Installing man pages
-	@install -m 644 zstd.1 $(DESTDIR)$(MANDIR)/zstd.1
+	@$(INSTALL_MAN) zstd.1 $(DESTDIR)$(MANDIR)/zstd.1
 	@ln -sf zstd.1 $(DESTDIR)$(MANDIR)/zstdcat.1
 	@ln -sf zstd.1 $(DESTDIR)$(MANDIR)/unzstd.1
 	@echo zstd installation completed

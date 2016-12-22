@@ -82,7 +82,7 @@ local int partcompress(FILE *in, z_streamp def)
 
     flush = Z_SYNC_FLUSH;
     do {
-        def->avail_in = fread(raw, 1, RAWLEN, in);
+        def->avail_in = (uInt)fread(raw, 1, RAWLEN, in);
         if (ferror(in))
             return Z_ERRNO;
         def->next_in = raw;
@@ -148,7 +148,7 @@ int main(int argc, char **argv)
     /* get requested output size */
     if (argc != 2)
         quit("need one argument: size of output block");
-    ret = strtol(argv[1], argv + 1, 10);
+    ret = (int)strtol(argv[1], argv + 1, 10);
     if (argv[1][0] != 0)
         quit("argument must be a number");
     if (ret < 8)            /* 8 is minimum zlib stream size */

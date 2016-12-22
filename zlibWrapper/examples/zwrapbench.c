@@ -315,10 +315,10 @@ static int BMK_benchMem(z_const void* srcBuffer, size_t srcSize,
                                 if (ZWRAP_isUsingZSTDcompression()) useSetDict = 0; /* zstd doesn't require deflateSetDictionary after ZWRAP_deflateReset_keepDict */
                             }
                             def.next_in = (z_const void*) blockTable[blockNb].srcPtr;
-                            def.avail_in = blockTable[blockNb].srcSize;
+                            def.avail_in = (uInt)blockTable[blockNb].srcSize;
                             def.total_in = 0;
                             def.next_out = (void*) blockTable[blockNb].cPtr;
-                            def.avail_out = blockTable[blockNb].cRoom;
+                            def.avail_out = (uInt)blockTable[blockNb].cRoom;
                             def.total_out = 0;
                             ret = deflate(&def, Z_FINISH);
                             if (ret != Z_STREAM_END) EXM_THROW(1, "deflate failure ret=%d srcSize=%d" , ret, (int)blockTable[blockNb].srcSize);
@@ -346,10 +346,10 @@ static int BMK_benchMem(z_const void* srcBuffer, size_t srcSize,
                                 if (ret != Z_OK) EXM_THROW(1, "deflateSetDictionary failure");
                             }
                             def.next_in = (z_const void*) blockTable[blockNb].srcPtr;
-                            def.avail_in = blockTable[blockNb].srcSize;
+                            def.avail_in = (uInt)blockTable[blockNb].srcSize;
                             def.total_in = 0;
                             def.next_out = (void*) blockTable[blockNb].cPtr;
-                            def.avail_out = blockTable[blockNb].cRoom;
+                            def.avail_out = (uInt)blockTable[blockNb].cRoom;
                             def.total_out = 0;
                             ret = deflate(&def, Z_FINISH);
                             if (ret != Z_STREAM_END) EXM_THROW(1, "deflate failure");
@@ -451,10 +451,10 @@ static int BMK_benchMem(z_const void* srcBuffer, size_t srcSize,
                                 ret = inflateReset(&inf);
                             if (ret != Z_OK) EXM_THROW(1, "inflateReset failure");
                             inf.next_in = (z_const void*) blockTable[blockNb].cPtr;
-                            inf.avail_in = blockTable[blockNb].cSize;
+                            inf.avail_in = (uInt)blockTable[blockNb].cSize;
                             inf.total_in = 0;
                             inf.next_out = (void*) blockTable[blockNb].resPtr;
-                            inf.avail_out = blockTable[blockNb].srcSize;
+                            inf.avail_out = (uInt)blockTable[blockNb].srcSize;
                             inf.total_out = 0;
                             ret = inflate(&inf, Z_FINISH);
                             if (ret == Z_NEED_DICT) {
@@ -483,10 +483,10 @@ static int BMK_benchMem(z_const void* srcBuffer, size_t srcSize,
                             ret = inflateInit(&inf);
                             if (ret != Z_OK) EXM_THROW(1, "inflateInit failure");
                             inf.next_in = (z_const void*) blockTable[blockNb].cPtr;
-                            inf.avail_in = blockTable[blockNb].cSize;
+                            inf.avail_in = (uInt)blockTable[blockNb].cSize;
                             inf.total_in = 0;
                             inf.next_out = (void*) blockTable[blockNb].resPtr;
-                            inf.avail_out = blockTable[blockNb].srcSize;
+                            inf.avail_out = (uInt)blockTable[blockNb].srcSize;
                             inf.total_out = 0;
                             ret = inflate(&inf, Z_FINISH);
                             if (ret == Z_NEED_DICT) {

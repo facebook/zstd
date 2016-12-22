@@ -84,7 +84,7 @@ local int gz_comp(state, flush)
 
     /* write directly if requested */
     if (state.state->direct) {
-        got = write(state.state->fd, strm->next_in, strm->avail_in);
+        got = (int)write(state.state->fd, strm->next_in, strm->avail_in);
         if (got < 0 || (unsigned)got != strm->avail_in) {
             gz_error(state, Z_ERRNO, zstrerror());
             return -1;
@@ -101,7 +101,7 @@ local int gz_comp(state, flush)
         if (strm->avail_out == 0 || (flush != Z_NO_FLUSH &&
             (flush != Z_FINISH || ret == Z_STREAM_END))) {
             have = (unsigned)(strm->next_out - state.state->x.next);
-            if (have && ((got = write(state.state->fd, state.state->x.next, have)) < 0 ||
+            if (have && ((got = (int)write(state.state->fd, state.state->x.next, have)) < 0 ||
                          (unsigned)got != have)) {
                 gz_error(state, Z_ERRNO, zstrerror());
                 return -1;
@@ -278,7 +278,7 @@ int ZEXPORT gzputc(file, c)
             strm->next_in = state.state->in;
         have = (unsigned)((strm->next_in + strm->avail_in) - state.state->in);
         if (have < state.state->size) {
-            state.state->in[have] = c;
+            state.state->in[have] = (unsigned char)c;
             strm->avail_in++;
             state.state->x.pos++;
             return c & 0xff;
@@ -286,7 +286,7 @@ int ZEXPORT gzputc(file, c)
     }
 
     /* no room in buffer or not initialized, use gz_write() */
-    buf[0] = c;
+    buf[0] = (unsigned char)c;
     if (gzwrite(file, buf, 1) != 1)
         return -1;
     return c & 0xff;

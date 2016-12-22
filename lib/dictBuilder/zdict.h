@@ -87,22 +87,57 @@ ZDICTLIB_API size_t ZDICT_trainFromBuffer_advanced(void* dictBuffer, size_t dict
                                 ZDICT_params_t parameters);
 
 
-/*! ZDICT_addEntropyTablesFromBuffer() :
+/*! ZDICT_finalizeDictionary() :
 
-    Given a content-only dictionary (built using any 3rd party algorithm),
-    add entropy tables computed from an array of samples.
+    Given a custom content as a basis for dictionary, and a set of samples,
+    finalize dictionary by adding headers and statistics.
+
     Samples must be stored concatenated in a flat buffer `samplesBuffer`,
     supplied with an array of sizes `samplesSizes`, providing the size of each sample in order.
 
-    The input dictionary content must be stored *at the end* of `dictBuffer`.
-    Its size is `dictContentSize`.
-    The resulting dictionary with added entropy tables will be *written back to `dictBuffer`*,
-    starting from its beginning.
-    @return : size of dictionary stored into `dictBuffer` (<= `dictBufferCapacity`).
-*/
-ZDICTLIB_API size_t ZDICT_addEntropyTablesFromBuffer(void* dictBuffer, size_t dictContentSize, size_t dictBufferCapacity,
-                                        const void* samplesBuffer, const size_t* samplesSizes, unsigned nbSamples);
+    dictContentSize must be > ZDICT_CONTENTSIZE_MIN bytes.
+    maxDictSize must be > dictContentSize, and must be > ZDICT_DICTSIZE_MIN bytes.
 
+    @return : size of dictionary stored into `dictBuffer` (<= `dictBufferCapacity`),
+              or an error code, which can be tested by ZDICT_isError().
+    note : ZDICT_finalizeDictionary() will push notifications into stderr if instructed to, using notificationLevel>0.
+    note 2 : dictBuffer and customDictContent can overlap
+*/
+#define ZDICT_CONTENTSIZE_MIN 256
+#define ZDICT_DICTSIZE_MIN    512
+ZDICTLIB_API size_t ZDICT_finalizeDictionary(void* dictBuffer, size_t dictBufferCapacity,
+                                const void* customDictContent, size_t dictContentSize,
+                                const void* samplesBuffer, const size_t* samplesSizes, unsigned nbSamples,
+                                ZDICT_params_t parameters);
+
+
+
+/* Deprecation warnings */
+/* It is generally possible to disable deprecation warnings from compiler,
+   for example with -Wno-deprecated-declarations for gcc
+   or _CRT_SECURE_NO_WARNINGS in Visual.
+   Otherwise, it's also possible to manually define ZDICT_DISABLE_DEPRECATE_WARNINGS */
+#ifdef ZDICT_DISABLE_DEPRECATE_WARNINGS
+#  define ZDICT_DEPRECATED(message)   /* disable deprecation warnings */
+#else
+#  define ZDICT_GCC_VERSION (__GNUC__ * 100 + __GNUC_MINOR__)
+#  if defined (__cplusplus) && (__cplusplus >= 201402) /* C++14 or greater */
+#    define ZDICT_DEPRECATED(message) [[deprecated(message)]]
+#  elif (ZDICT_GCC_VERSION >= 405) || defined(__clang__)
+#    define ZDICT_DEPRECATED(message) __attribute__((deprecated(message)))
+#  elif (ZDICT_GCC_VERSION >= 301)
+#    define ZDICT_DEPRECATED(message) __attribute__((deprecated))
+#  elif defined(_MSC_VER)
+#    define ZDICT_DEPRECATED(message) __declspec(deprecated(message))
+#  else
+#    pragma message("WARNING: You need to implement ZDICT_DEPRECATED for this compiler")
+#    define ZDICT_DEPRECATED(message)
+#  endif
+#endif /* ZDICT_DISABLE_DEPRECATE_WARNINGS */
+
+ZDICT_DEPRECATED("use ZDICT_finalizeDictionary() instead")
+size_t ZDICT_addEntropyTablesFromBuffer(void* dictBuffer, size_t dictContentSize, size_t dictBufferCapacity,
+                                  const void* samplesBuffer, const size_t* samplesSizes, unsigned nbSamples);
 
 
 #endif   /* ZDICT_STATIC_LINKING_ONLY */

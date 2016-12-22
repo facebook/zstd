@@ -1,7 +1,8 @@
 v1.1.3
-cli : new : commands for advanced parameters, by Przemyslaw Skibinski
+cli : new : advanced commands for detailed parameters, by Przemyslaw Skibinski
 API : fix : all symbols properly exposed in libzstd, by Nick Terrell
 API : new : ZSTD_create?Dict_byReference(), requested by Bartosz Taudul
+API : new : ZDICT_finalizeDictionary()
 
 v1.1.2
 API : streaming : decompression : changed : automatic implicit reset when chain-decoding new frames without init

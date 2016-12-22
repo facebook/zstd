@@ -26,12 +26,15 @@ endif
 default: lib zstd
 
 .PHONY: all
-all:
+all: allmost
+	CPPFLAGS=-I../lib LDFLAGS=-L../lib $(MAKE) -C examples/ $@
+
+.PHONY: allmost
+allmost:   # without examples
 	$(MAKE) -C $(ZSTDDIR) $@
 	$(MAKE) -C $(PRGDIR) $@ zstd32
 	$(MAKE) -C $(TESTDIR) $@ all32
 	$(MAKE) -C $(ZWRAPDIR) $@
-	CPPFLAGS=-I../lib LDFLAGS=-L../lib $(MAKE) -C examples/ $@
 
 .PHONY: lib
 lib:
@@ -151,13 +154,13 @@ gnu90test: clean
 	CFLAGS="-std=gnu90" $(MAKE) all
 
 c99test: clean
-	CFLAGS="-std=c99" $(MAKE) all
+	CFLAGS="-std=c99" $(MAKE) allmost
 
 gnu99test: clean
 	CFLAGS="-std=gnu99" $(MAKE) all
 
 c11test: clean
-	CFLAGS="-std=c11" $(MAKE) all
+	CFLAGS="-std=c11" $(MAKE) allmost
 
 bmix64test: clean
 	CFLAGS="-O3 -mbmi -Werror" $(MAKE) -C $(TESTDIR) test

@@ -181,9 +181,9 @@ clean:
 
 
 #----------------------------------------------------------------------------------
-#make valgrindTest is validated only for Linux, OSX, kFreeBSD, Hurd and some BSD targets
+#make valgrindTest is validated only for Linux, OSX, BSD, Hurd and Solaris targets
 #----------------------------------------------------------------------------------
-ifneq (,$(filter $(shell uname),Linux Darwin GNU/kFreeBSD GNU OpenBSD FreeBSD DragonFly))
+ifneq (,$(filter $(shell uname),Linux Darwin GNU/kFreeBSD GNU OpenBSD FreeBSD NetBSD DragonFly SunOS))
 HOST_OS = POSIX
 
 valgrindTest: VALGRIND = valgrind --leak-check=full --error-exitcode=1
@@ -208,10 +208,16 @@ HOST_OS = MSYS
 endif
 
 
-#------------------------------------------------------------------------
-#make tests validated only for MSYS, Linux, OSX, kFreeBSD and Hurd targets
-#------------------------------------------------------------------------
+#-----------------------------------------------------------------------------
+#make tests validated only for MSYS, Linux, OSX, BSD, Hurd and Solaris targets
+#-----------------------------------------------------------------------------
 ifneq (,$(filter $(HOST_OS),MSYS POSIX))
+
+DIFF:=diff
+ifneq (,$(filter $(shell uname),SunOS))
+DIFF:=gdiff
+endif
+
 zstd-playTests: datagen
 	file $(ZSTD)
 	ZSTD="$(QEMU_SYS) $(ZSTD)" ./playTests.sh $(ZSTDRTTEST)
@@ -239,7 +245,7 @@ test-gzstd: gzstd
 	$(PRGDIR)/zstd -d README.md.gz -o README2.md
 	$(PRGDIR)/zstd -d README.md.gz test-zstd-speed.py.gz
 	$(PRGDIR)/zstd -d zstd_gz.zst gz_zstd.gz
-	diff -q zstd_gz gz_zstd
+	$(DIFF) -q zstd_gz gz_zstd
 	echo Hello World ZSTD | $(PRGDIR)/zstd -c - >hello.zst
 	echo Hello World GZIP | gzip -c - >hello.gz
 	echo Hello World TEXT >hello.txt

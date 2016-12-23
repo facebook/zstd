@@ -7,17 +7,17 @@ die() {
 
 roundTripTest() {
     if [ -n "$3" ]; then
-        local c="$3"
-        local p="$2"
+        local_c="$3"
+        local_p="$2"
     else
-        local c="$2"
+        local_c="$2"
     fi
 
     rm -f tmp1 tmp2
-    $ECHO "roundTripTest: ./datagen $1 $p | $ZSTD -v$c | $ZSTD -d"
-    ./datagen $1 $p | $MD5SUM > tmp1
-    ./datagen $1 $p | $ZSTD --ultra -v$c | $ZSTD -d  | $MD5SUM > tmp2
-    diff -q tmp1 tmp2
+    $ECHO "roundTripTest: ./datagen $1 $local_p | $ZSTD -v$local_c | $ZSTD -d"
+    ./datagen $1 $local_p | $MD5SUM > tmp1
+    ./datagen $1 $local_p | $ZSTD --ultra -v$local_c | $ZSTD -d  | $MD5SUM > tmp2
+    $DIFF -q tmp1 tmp2
 }
 
 isWindows=false
@@ -36,6 +36,12 @@ case "$UNAME" in
   FreeBSD) MD5SUM="gmd5sum" ;;
   *) MD5SUM="md5sum" ;;
 esac
+
+DIFF="diff"
+case "$UNAME" in
+  SunOS) DIFF="gdiff" ;;
+esac
+
 
 $ECHO "\nStarting playTests.sh isWindows=$isWindows ZSTD='$ZSTD'"
 
@@ -141,7 +147,7 @@ rm ./*.tmp ./*.zstd
 $ECHO "frame concatenation tests completed"
 
 
-if [ "$isWindows" = false ] ; then
+if [ "$isWindows" = false ] && [ "$UNAME" != 'SunOS' ] ; then
 $ECHO "\n**** flush write error test **** "
 
 $ECHO "$ECHO foo | $ZSTD > /dev/full"
@@ -155,14 +161,14 @@ $ECHO "\n**** test sparse file support **** "
 
 ./datagen -g5M  -P100 > tmpSparse
 $ZSTD tmpSparse -c | $ZSTD -dv -o tmpSparseRegen
-diff -s tmpSparse tmpSparseRegen
+$DIFF -s tmpSparse tmpSparseRegen
 $ZSTD tmpSparse -c | $ZSTD -dv --sparse -c > tmpOutSparse
-diff -s tmpSparse tmpOutSparse
+$DIFF -s tmpSparse tmpOutSparse
 $ZSTD tmpSparse -c | $ZSTD -dv --no-sparse -c > tmpOutNoSparse
-diff -s tmpSparse tmpOutNoSparse
+$DIFF -s tmpSparse tmpOutNoSparse
 ls -ls tmpSparse*
 ./datagen -s1 -g1200007 -P100 | $ZSTD | $ZSTD -dv --sparse -c > tmpSparseOdd   # Odd size file (to not finish on an exact nb of blocks)
-./datagen -s1 -g1200007 -P100 | diff -s - tmpSparseOdd
+./datagen -s1 -g1200007 -P100 | $DIFF -s - tmpSparseOdd
 ls -ls tmpSparseOdd
 $ECHO "\n Sparse Compatibility with Console :"
 $ECHO "Hello World 1 !" | $ZSTD | $ZSTD -d -c
@@ -174,7 +180,7 @@ $ZSTD -v -f tmpSparse1M -o tmpSparseCompressed
 $ZSTD -d -v -f tmpSparseCompressed -o tmpSparseRegenerated
 $ZSTD -d -v -f tmpSparseCompressed -c >> tmpSparseRegenerated
 ls -ls tmpSparse*
-diff tmpSparse2M tmpSparseRegenerated
+$DIFF tmpSparse2M tmpSparseRegenerated
 rm tmpSparse*
 
 
@@ -207,13 +213,13 @@ TESTFILE=../programs/zstdcli.c
 ./datagen > tmpDict
 ./datagen -g1M | $MD5SUM > tmp1
 ./datagen -g1M | $ZSTD -D tmpDict | $ZSTD -D tmpDict -dvq | $MD5SUM > tmp2
-diff -q tmp1 tmp2
+$DIFF -q tmp1 tmp2
 $ECHO "- Create first dictionary"
 $ZSTD --train *.c ../programs/*.c -o tmpDict
 cp $TESTFILE tmp
 $ZSTD -f tmp -D tmpDict
 $ZSTD -d tmp.zst -D tmpDict -fo result
-diff $TESTFILE result
+$DIFF $TESTFILE result
 $ECHO "- Create second (different) dictionary"
 $ZSTD --train *.c ../programs/*.c ../programs/*.h -o tmpDictC
 $ZSTD -d tmp.zst -D tmpDictC -fo result && die "wrong dictionary not detected!"
@@ -229,7 +235,7 @@ $ZSTD --train *.c ../programs/*.c -o tmpDict2 --maxdict -v 4K && die "wrong orde
 $ECHO "- Compress without dictID"
 $ZSTD -f tmp -D tmpDict1 --no-dictID
 $ZSTD -d tmp.zst -D tmpDict -fo result
-diff $TESTFILE result
+$DIFF $TESTFILE result
 $ECHO "- Compress with wrong argument order (must fail)"
 $ZSTD tmp -Df tmpDict1 -c > /dev/null && die "-D must be followed by dictionary name "
 $ECHO "- Compress multiple files with dictionary"

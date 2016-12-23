@@ -1792,7 +1792,7 @@ size_t ZSTD_freeDDict(ZSTD_DDict* ddict)
 size_t ZSTD_sizeof_DDict(const ZSTD_DDict* ddict)
 {
     if (ddict==NULL) return 0;   /* support sizeof on NULL */
-    return sizeof(*ddict) + sizeof(ddict->refContext) + ddict->dictSize;
+    return sizeof(*ddict) + ZSTD_sizeof_DCtx(ddict->refContext) + (ddict->dictBuffer ? ddict->dictSize : 0) ;
 }
 
 /*! ZSTD_getDictID_fromDict() :

@@ -60,7 +60,7 @@
 #define NOISELENGTH 32
 
 #define MINRATIO 4
-static const int g_compressionLevel_default = 5;
+static const int g_compressionLevel_default = 6;
 static const U32 g_selectivity_default = 9;
 static const size_t g_provision_entropySize = 200;
 static const size_t g_min_fast_dictContent = 192;

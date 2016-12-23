@@ -1,5 +1,6 @@
 v1.1.3
 cli : new : advanced commands for detailed parameters, by Przemyslaw Skibinski
+cli : fix zstdless on Mac OS-X, by Andrew Janke
 API : fix : all symbols properly exposed in libzstd, by Nick Terrell
 API : new : ZSTD_create?Dict_byReference(), requested by Bartosz Taudul
 API : new : ZDICT_finalizeDictionary()

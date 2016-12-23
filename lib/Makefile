@@ -18,11 +18,6 @@ LIBVER_PATCH := $(shell echo $(LIBVER_PATCH_SCRIPT))
 LIBVER := $(shell echo $(LIBVER_SCRIPT))
 VERSION?= $(LIBVER)
 
-DESTDIR?=
-PREFIX ?= /usr/local
-LIBDIR ?= $(PREFIX)/lib
-INCLUDEDIR=$(PREFIX)/include
-
 CPPFLAGS+= -I. -I./common -DXXH_NAMESPACE=ZSTD_
 CFLAGS  ?= -O3
 CFLAGS  += -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow -Wstrict-aliasing=1 \
@@ -92,9 +87,36 @@ clean:
 	@$(RM) decompress/*.o
 	@echo Cleaning library completed
 
-#------------------------------------------------------------------------
-#make install is validated only for Linux, OSX, kFreeBSD, Hurd and some BSD targets
-ifneq (,$(filter $(shell uname),Linux Darwin GNU/kFreeBSD GNU FreeBSD DragonFly NetBSD))
+#-----------------------------------------------------------------------------
+# make install is validated only for Linux, OSX, BSD, Hurd and Solaris targets
+#-----------------------------------------------------------------------------
+ifneq (,$(filter $(shell uname),Linux Darwin GNU/kFreeBSD GNU OpenBSD FreeBSD NetBSD DragonFly SunOS))
+
+ifneq (,$(filter $(shell uname),SunOS))
+INSTALL ?= ginstall
+else
+INSTALL ?= install
+endif
+
+ifneq (,$(filter $(shell uname),OpenBSD FreeBSD NetBSD DragonFly SunOS))
+PREFIX  ?= /usr
+else
+PREFIX  ?= /usr/local
+endif
+
+DESTDIR    ?=
+LIBDIR     ?= $(PREFIX)/lib
+INCLUDEDIR ?= $(PREFIX)/include
+
+ifneq (,$(filter $(shell uname),OpenBSD FreeBSD NetBSD DragonFly))
+PKGCONFIGDIR ?= $(PREFIX)/libdata/pkgconfig
+else
+PKGCONFIGDIR ?= $(LIBDIR)/pkgconfig
+endif
+
+INSTALL_LIB  ?= $(INSTALL) -m 755
+INSTALL_DATA ?= $(INSTALL) -m 644
+
 
 libzstd.pc:
 libzstd.pc: libzstd.pc.in
@@ -106,16 +128,18 @@ libzstd.pc: libzstd.pc.in
              $< >$@
 
 install: libzstd.a libzstd libzstd.pc
-	@install -d -m 755 $(DESTDIR)$(LIBDIR)/pkgconfig/ $(DESTDIR)$(INCLUDEDIR)/
-	@install -m 755 libzstd.$(SHARED_EXT_VER) $(DESTDIR)$(LIBDIR)
-	@cp -a libzstd.$(SHARED_EXT_MAJOR) $(DESTDIR)$(LIBDIR)
-	@cp -a libzstd.$(SHARED_EXT) $(DESTDIR)$(LIBDIR)
-	@cp -a libzstd.pc $(DESTDIR)$(LIBDIR)/pkgconfig/
-	@install -m 644 libzstd.a $(DESTDIR)$(LIBDIR)
-	@install -m 644 zstd.h $(DESTDIR)$(INCLUDEDIR)
-	@install -m 644 common/zstd_errors.h $(DESTDIR)$(INCLUDEDIR)
-	@install -m 644 deprecated/zbuff.h $(DESTDIR)$(INCLUDEDIR)     # prototypes generate deprecation warnings
-	@install -m 644 dictBuilder/zdict.h $(DESTDIR)$(INCLUDEDIR)
+	@$(INSTALL) -d -m 755 $(DESTDIR)$(PKGCONFIGDIR)/ $(DESTDIR)$(INCLUDEDIR)/
+	@$(INSTALL_DATA) libzstd.pc $(DESTDIR)$(PKGCONFIGDIR)/
+	@echo Installing libraries
+	@$(INSTALL_LIB) libzstd.a $(DESTDIR)$(LIBDIR)
+	@$(INSTALL_LIB) libzstd.$(SHARED_EXT_VER) $(DESTDIR)$(LIBDIR)
+	@ln -sf libzstd.$(SHARED_EXT_VER) $(DESTDIR)$(LIBDIR)/libzstd.$(SHARED_EXT_MAJOR)
+	@ln -sf libzstd.$(SHARED_EXT_VER) $(DESTDIR)$(LIBDIR)/libzstd.$(SHARED_EXT)
+	@echo Installing includes
+	@$(INSTALL_DATA) zstd.h $(DESTDIR)$(INCLUDEDIR)
+	@$(INSTALL_DATA) common/zstd_errors.h $(DESTDIR)$(INCLUDEDIR)
+	@$(INSTALL_DATA) deprecated/zbuff.h $(DESTDIR)$(INCLUDEDIR)     # prototypes generate deprecation warnings
+	@$(INSTALL_DATA) dictBuilder/zdict.h $(DESTDIR)$(INCLUDEDIR)
 	@echo zstd static and shared library installed
 
 uninstall:
@@ -123,7 +147,7 @@ uninstall:
 	@$(RM) $(DESTDIR)$(LIBDIR)/libzstd.$(SHARED_EXT)
 	@$(RM) $(DESTDIR)$(LIBDIR)/libzstd.$(SHARED_EXT_MAJOR)
 	@$(RM) $(DESTDIR)$(LIBDIR)/libzstd.$(SHARED_EXT_VER)
-	@$(RM) $(DESTDIR)$(LIBDIR)/pkgconfig/libzstd.pc
+	@$(RM) $(DESTDIR)$(PKGCONFIGDIR)/libzstd.pc
 	@$(RM) $(DESTDIR)$(INCLUDEDIR)/zstd.h
 	@$(RM) $(DESTDIR)$(INCLUDEDIR)/zstd_errors.h
 	@$(RM) $(DESTDIR)$(INCLUDEDIR)/zbuff.h   # Deprecated streaming functions

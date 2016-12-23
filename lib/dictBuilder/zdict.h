@@ -118,20 +118,20 @@ ZDICTLIB_API size_t ZDICT_finalizeDictionary(void* dictBuffer, size_t dictBuffer
    or _CRT_SECURE_NO_WARNINGS in Visual.
    Otherwise, it's also possible to manually define ZDICT_DISABLE_DEPRECATE_WARNINGS */
 #ifdef ZDICT_DISABLE_DEPRECATE_WARNINGS
-#  define ZDICT_DEPRECATED(message)   /* disable deprecation warnings */
+#  define ZDICT_DEPRECATED(message) ZDICTLIB_API   /* disable deprecation warnings */
 #else
 #  define ZDICT_GCC_VERSION (__GNUC__ * 100 + __GNUC_MINOR__)
 #  if defined (__cplusplus) && (__cplusplus >= 201402) /* C++14 or greater */
-#    define ZDICT_DEPRECATED(message) [[deprecated(message)]]
+#    define ZDICT_DEPRECATED(message) ZDICTLIB_API [[deprecated(message)]]
 #  elif (ZDICT_GCC_VERSION >= 405) || defined(__clang__)
-#    define ZDICT_DEPRECATED(message) __attribute__((deprecated(message)))
+#    define ZDICT_DEPRECATED(message) ZDICTLIB_API __attribute__((deprecated(message)))
 #  elif (ZDICT_GCC_VERSION >= 301)
-#    define ZDICT_DEPRECATED(message) __attribute__((deprecated))
+#    define ZDICT_DEPRECATED(message) ZDICTLIB_API __attribute__((deprecated))
 #  elif defined(_MSC_VER)
-#    define ZDICT_DEPRECATED(message) __declspec(deprecated(message))
+#    define ZDICT_DEPRECATED(message) ZDICTLIB_API __declspec(deprecated(message))
 #  else
 #    pragma message("WARNING: You need to implement ZDICT_DEPRECATED for this compiler")
-#    define ZDICT_DEPRECATED(message)
+#    define ZDICT_DEPRECATED(message) ZDICTLIB_API
 #  endif
 #endif /* ZDICT_DISABLE_DEPRECATE_WARNINGS */
 

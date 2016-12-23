@@ -837,7 +837,7 @@ size_t ZDICT_finalizeDictionary(void* dictBuffer, size_t dictBufferCapacity,
     U32 const notificationLevel = params.notificationLevel;
 
     /* check conditions */
-    if (dictBufferCapacity <= dictContentSize) return ERROR(dstSize_tooSmall);
+    if (dictBufferCapacity < dictContentSize) return ERROR(dstSize_tooSmall);
     if (dictContentSize < ZDICT_CONTENTSIZE_MIN) return ERROR(srcSize_wrong);
     if (dictBufferCapacity < ZDICT_DICTSIZE_MIN) return ERROR(dstSize_tooSmall);
 
@@ -863,7 +863,7 @@ size_t ZDICT_finalizeDictionary(void* dictBuffer, size_t dictBufferCapacity,
     }
 
     /* copy elements in final buffer ; note : src and dst buffer can overlap */
-    if (hSize + dictContentSize < dictBufferCapacity) dictContentSize = dictBufferCapacity - hSize;
+    if (hSize + dictContentSize > dictBufferCapacity) dictContentSize = dictBufferCapacity - hSize;
     {   size_t const dictSize = hSize + dictContentSize;
         char* dictEnd = (char*)dictBuffer + dictSize;
         memmove(dictEnd - dictContentSize, customDictContent, dictContentSize);

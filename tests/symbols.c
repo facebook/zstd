@@ -5,6 +5,7 @@
 #define ZBUFF_DISABLE_DEPRECATE_WARNINGS
 #define ZBUFF_STATIC_LINKING_ONLY
 #include "zbuff.h"
+#define ZDICT_DISABLE_DEPRECATE_WARNINGS
 #define ZDICT_STATIC_LINKING_ONLY
 #include "zdict.h"
 

@@ -145,25 +145,30 @@ clean_decomp_o:
 	@$(RM) $(ZSTDDECOMP_O)
 
 
-#----------------------------------------------------------------------------------
-#make install is validated only for Linux, OSX, kFreeBSD, Hurd and some BSD targets
-#----------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------
+# make install is validated only for Linux, OSX, BSD, Hurd and Solaris targets
+#-----------------------------------------------------------------------------
 ifneq (,$(filter $(shell uname),Linux Darwin GNU/kFreeBSD GNU OpenBSD FreeBSD NetBSD DragonFly SunOS))
 
 ifneq (,$(filter $(shell uname),SunOS))
-PREFIX ?= /usr
 INSTALL ?= ginstall
 else
-PREFIX ?= /usr/local
 INSTALL ?= install
 endif
+
+ifneq (,$(filter $(shell uname),OpenBSD FreeBSD NetBSD DragonFly SunOS))
+PREFIX  ?= /usr
+else
+PREFIX  ?= /usr/local
+endif
+
 DESTDIR ?=
-BINDIR  = $(PREFIX)/bin
-MANDIR  = $(PREFIX)/share/man/man1
+BINDIR  ?= $(PREFIX)/bin
+MANDIR  ?= $(PREFIX)/share/man/man1
 
 INSTALL_PROGRAM ?= $(INSTALL) -m 755
-INSTALL_SCRIPT ?= $(INSTALL) -m 755
-INSTALL_MAN ?= $(INSTALL) -m 644
+INSTALL_SCRIPT  ?= $(INSTALL) -m 755
+INSTALL_MAN     ?= $(INSTALL) -m 644
 
 install: zstd
 	@echo Installing binaries

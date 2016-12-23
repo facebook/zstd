@@ -87,20 +87,26 @@ clean:
 	@$(RM) decompress/*.o
 	@echo Cleaning library completed
 
-#------------------------------------------------------------------------
-#make install is validated only for Linux, OSX, kFreeBSD, Hurd and some BSD targets
+#-----------------------------------------------------------------------------
+# make install is validated only for Linux, OSX, BSD, Hurd and Solaris targets
+#-----------------------------------------------------------------------------
 ifneq (,$(filter $(shell uname),Linux Darwin GNU/kFreeBSD GNU OpenBSD FreeBSD NetBSD DragonFly SunOS))
 
 ifneq (,$(filter $(shell uname),SunOS))
-PREFIX ?= /usr
 INSTALL ?= ginstall
 else
-PREFIX ?= /usr/local
 INSTALL ?= install
 endif
-DESTDIR ?=
-LIBDIR ?= $(PREFIX)/lib
-INCLUDEDIR=$(PREFIX)/include
+
+ifneq (,$(filter $(shell uname),OpenBSD FreeBSD NetBSD DragonFly SunOS))
+PREFIX  ?= /usr
+else
+PREFIX  ?= /usr/local
+endif
+
+DESTDIR    ?=
+LIBDIR     ?= $(PREFIX)/lib
+INCLUDEDIR ?= $(PREFIX)/include
 
 ifneq (,$(filter $(shell uname),OpenBSD FreeBSD NetBSD DragonFly))
 PKGCONFIGDIR ?= $(PREFIX)/libdata/pkgconfig
@@ -108,8 +114,9 @@ else
 PKGCONFIGDIR ?= $(LIBDIR)/pkgconfig
 endif
 
-INSTALL_LIB ?= $(INSTALL) -m 755
+INSTALL_LIB  ?= $(INSTALL) -m 755
 INSTALL_DATA ?= $(INSTALL) -m 644
+
 
 libzstd.pc:
 libzstd.pc: libzstd.pc.in

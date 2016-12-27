@@ -115,6 +115,7 @@ void BMK_SetBlockSize(size_t blockSize)
 
 void BMK_setDecodeOnly(unsigned decodeFlag) { g_decodeOnly = (decodeFlag>0); }
 
+
 /* ********************************************************
 *  Bench functions
 **********************************************************/
@@ -131,6 +132,8 @@ typedef struct {
 
 #define MIN(a,b) ((a)<(b) ? (a) : (b))
 #define MAX(a,b) ((a)>(b) ? (a) : (b))
+
+#include "compress/zstdmt_compress.h"
 
 static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
                         const char* displayName, int cLevel,
@@ -152,6 +155,8 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
     double ratio = 0.;
     U32 nbBlocks;
     UTIL_time_t ticksPerSecond;
+
+    ZSTDMT_CCtx* const mtcctx = ZSTDMT_createCCtx(1);
 
     /* checks */
     if (!compressedBuffer || !resultBuffer || !blockTable || !ctx || !dctx)
@@ -264,6 +269,11 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
                                                 blockTable[blockNb].cPtr,  blockTable[blockNb].cRoom,
                                                 blockTable[blockNb].srcPtr,blockTable[blockNb].srcSize,
                                                 cdict);
+                            } else if (1) {
+                                rSize = ZSTDMT_compressCCtx(mtcctx,
+                                                blockTable[blockNb].cPtr,  blockTable[blockNb].cRoom,
+                                                blockTable[blockNb].srcPtr,blockTable[blockNb].srcSize,
+                                                cLevel);
                             } else {
                                 rSize = ZSTD_compress_advanced (ctx,
                                                 blockTable[blockNb].cPtr,  blockTable[blockNb].cRoom,
@@ -292,8 +302,10 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
                 memcpy(compressedBuffer, srcBuffer, loadedCompressedSize);
             }
 
-            (void)fastestD; (void)crcOrig;   /*  unused when decompression disabled */
 #if 1
+            dCompleted=1;
+            (void)totalDTime; (void)fastestD; (void)crcOrig;   /*  unused when decompression disabled */
+#else
             /* Decompression */
             if (!dCompleted) memset(resultBuffer, 0xD6, srcSize);  /* warm result buffer */
 

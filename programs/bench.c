@@ -96,6 +96,7 @@ static U32 g_nbSeconds = NBSECONDS;
 static size_t g_blockSize = 0;
 static int g_additionalParam = 0;
 static U32 g_decodeOnly = 0;
+static U32 g_nbThreads = 1;
 
 void BMK_setNotificationLevel(unsigned level) { g_displayLevel=level; }
 
@@ -113,7 +114,9 @@ void BMK_SetBlockSize(size_t blockSize)
     DISPLAYLEVEL(2, "using blocks of size %u KB \n", (U32)(blockSize>>10));
 }
 
-void BMK_setDecodeOnly(unsigned decodeFlag) { g_decodeOnly = (decodeFlag>0); }
+void BMK_setDecodeOnlyMode(unsigned decodeFlag) { g_decodeOnly = (decodeFlag>0); }
+
+void BMK_SetNbThreads(unsigned nbThreads) { g_nbThreads = nbThreads; }
 
 
 /* ********************************************************
@@ -156,7 +159,7 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
     U32 nbBlocks;
     UTIL_time_t ticksPerSecond;
 
-    ZSTDMT_CCtx* const mtcctx = ZSTDMT_createCCtx(1);
+    ZSTDMT_CCtx* const mtcctx = ZSTDMT_createCCtx(g_nbThreads);
 
     /* checks */
     if (!compressedBuffer || !resultBuffer || !blockTable || !ctx || !dctx)

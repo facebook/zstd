@@ -235,13 +235,16 @@ struct ZSTDMT_CCtx_s {
 static void* ZSTDMT_compressionThread(void* arg)
 {
     if (arg==NULL) return NULL;   /* error : should not be possible */
-    ZSTDMT_CCtx* const cctx = (ZSTDMT_CCtx*) arg;
-    ZSTDMT_jobAgency* const jobAgency = &cctx->jobAgency;
-    ZSTDMT_bufferPool* const pool = &cctx->bufferPool;
+    ZSTDMT_CCtx* const mtctx = (ZSTDMT_CCtx*) arg;
+    ZSTDMT_jobAgency* const jobAgency = &mtctx->jobAgency;
+    ZSTDMT_bufferPool* const pool = &mtctx->bufferPool;
+    ZSTD_CCtx* const cctx = ZSTD_createCCtx();
+    if (cctx==NULL) return NULL;   /* allocation failure : thread not started */
     for (;;) {
         ZSTDMT_jobDescription const job = ZSTDMT_getjob(jobAgency);
         if (job.src == NULL) {
-            DEBUGLOG(4, "thread exit  ")
+            DEBUGLOG(4, "thread exit  ");
+            ZSTD_freeCCtx(cctx);
             return NULL;
         }
         ZSTDMT_dstBufferManager* dstBufferManager = job.dstManager;
@@ -249,7 +252,8 @@ static void* ZSTDMT_compressionThread(void* arg)
         DEBUGLOG(4, "requesting a dstBuffer for frame %u", job.frameNumber);
         buffer_t const dstBuffer = job.frameNumber ? ZSTDMT_getBuffer(pool, dstBufferCapacity) : ZSTDMT_getDstBuffer(dstBufferManager);  /* lack params */
         DEBUGLOG(4, "start compressing frame %u", job.frameNumber);
-        size_t const cSize = ZSTD_compress(dstBuffer.start, dstBuffer.bufferSize, job.src, job.srcSize, job.compressionLevel);
+        //size_t const cSize = ZSTD_compress(dstBuffer.start, dstBuffer.bufferSize, job.src, job.srcSize, job.compressionLevel);
+        size_t const cSize = ZSTD_compressCCtx(cctx, dstBuffer.start, dstBuffer.bufferSize, job.src, job.srcSize, job.compressionLevel);
         if (ZSTD_isError(cSize)) return (void*)(cSize);   /* error */
         size_t const writeError = ZSTDMT_tryWriteFrame(dstBufferManager, dstBuffer.start, cSize, job.frameNumber, job.isLastFrame);   /* pas clair */
         if (ZSTD_isError(writeError)) return (void*)writeError;

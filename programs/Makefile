@@ -156,15 +156,15 @@ else
 INSTALL ?= install
 endif
 
-ifneq (,$(filter $(shell uname),OpenBSD FreeBSD NetBSD DragonFly SunOS))
-PREFIX  ?= /usr
-else
 PREFIX  ?= /usr/local
-endif
-
 DESTDIR ?=
 BINDIR  ?= $(PREFIX)/bin
+
+ifneq (,$(filter $(shell uname),OpenBSD FreeBSD NetBSD DragonFly SunOS))
+MANDIR  ?= $(PREFIX)/man/man1
+else
 MANDIR  ?= $(PREFIX)/share/man/man1
+endif 
 
 INSTALL_PROGRAM ?= $(INSTALL) -m 755
 INSTALL_SCRIPT  ?= $(INSTALL) -m 755

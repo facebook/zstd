@@ -98,12 +98,7 @@ else
 INSTALL ?= install
 endif
 
-ifneq (,$(filter $(shell uname),OpenBSD FreeBSD NetBSD DragonFly SunOS))
-PREFIX  ?= /usr
-else
-PREFIX  ?= /usr/local
-endif
-
+PREFIX     ?= /usr/local
 DESTDIR    ?=
 LIBDIR     ?= $(PREFIX)/lib
 INCLUDEDIR ?= $(PREFIX)/include

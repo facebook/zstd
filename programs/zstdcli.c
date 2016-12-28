@@ -352,7 +352,7 @@ int main(int argCount, const char* argv[])
                          /* Decoding */
                     case 'd':
 #ifndef ZSTD_NOBENCH
-                            if (operation==zom_bench) { BMK_setDecodeOnly(1); argument++; break; }  /* benchmark decode (hidden option) */
+                            if (operation==zom_bench) { BMK_setDecodeOnlyMode(1); argument++; break; }  /* benchmark decode (hidden option) */
 #endif
                             operation=zom_decompress; argument++; break;
 
@@ -428,6 +428,12 @@ int main(int argCount, const char* argv[])
                     case 's':
                         argument++;
                         dictSelect = readU32FromChar(&argument);
+                        break;
+
+                        /* nb of threads (hidden option) */
+                    case 'T':
+                        argument++;
+                        BMK_SetNbThreads(readU32FromChar(&argument));
                         break;
 
                         /* Pause at the end (-p) or set an additional param (-p#) (hidden option) */

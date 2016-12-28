@@ -15,14 +15,15 @@
 #define ZSTD_STATIC_LINKING_ONLY   /* ZSTD_compressionParameters */
 #include "zstd.h"     /* ZSTD_compressionParameters */
 
-int BMK_benchFiles(const char** fileNamesTable, unsigned nbFiles,const char* dictFileName, 
+int BMK_benchFiles(const char** fileNamesTable, unsigned nbFiles,const char* dictFileName,
                    int cLevel, int cLevelLast, ZSTD_compressionParameters* compressionParams);
 
 /* Set Parameters */
 void BMK_SetNbSeconds(unsigned nbLoops);
 void BMK_SetBlockSize(size_t blockSize);
-void BMK_setAdditionalParam(int additionalParam);
+void BMK_SetNbThreads(unsigned nbThreads);
 void BMK_setNotificationLevel(unsigned level);
-void BMK_setDecodeOnly(unsigned decodeFlag);
+void BMK_setAdditionalParam(int additionalParam);
+void BMK_setDecodeOnlyMode(unsigned decodeFlag);
 
 #endif   /* BENCH_H_121279284357 */

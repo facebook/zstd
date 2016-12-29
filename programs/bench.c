@@ -159,8 +159,6 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
     U32 nbBlocks;
     UTIL_time_t ticksPerSecond;
 
-    ZSTDMT_CCtx* const mtcctx = ZSTDMT_createCCtx(g_nbThreads);
-
     /* checks */
     if (!compressedBuffer || !resultBuffer || !blockTable || !ctx || !dctx)
         EXM_THROW(31, "allocation error : not enough memory");
@@ -227,6 +225,8 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
 #       define NB_MARKS 4
         const char* const marks[NB_MARKS] = { " |", " /", " =",  "\\" };
         U32 markNb = 0;
+
+        ZSTDMT_CCtx* const mtcctx = ZSTDMT_createCCtx(g_nbThreads);
 
         UTIL_getTime(&coolTime);
         DISPLAYLEVEL(2, "\r%79s\r", "");

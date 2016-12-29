@@ -60,7 +60,7 @@
 #define NOISELENGTH 32
 
 #define MINRATIO 4
-static const int g_compressionLevel_default = 5;
+static const int g_compressionLevel_default = 6;
 static const U32 g_selectivity_default = 9;
 static const size_t g_provision_entropySize = 200;
 static const size_t g_min_fast_dictContent = 192;
@@ -821,6 +821,55 @@ _cleanup:
     free(esr.workPlace);
 
     return eSize;
+}
+
+
+
+size_t ZDICT_finalizeDictionary(void* dictBuffer, size_t dictBufferCapacity,
+                          const void* customDictContent, size_t dictContentSize,
+                          const void* samplesBuffer, const size_t* samplesSizes, unsigned nbSamples,
+                          ZDICT_params_t params)
+{
+    size_t hSize;
+#define HBUFFSIZE 256
+    BYTE header[HBUFFSIZE];
+    int const compressionLevel = (params.compressionLevel <= 0) ? g_compressionLevel_default : params.compressionLevel;
+    U32 const notificationLevel = params.notificationLevel;
+
+    /* check conditions */
+    if (dictBufferCapacity < dictContentSize) return ERROR(dstSize_tooSmall);
+    if (dictContentSize < ZDICT_CONTENTSIZE_MIN) return ERROR(srcSize_wrong);
+    if (dictBufferCapacity < ZDICT_DICTSIZE_MIN) return ERROR(dstSize_tooSmall);
+
+    /* dictionary header */
+    MEM_writeLE32(header, ZSTD_DICT_MAGIC);
+    {   U64 const randomID = XXH64(customDictContent, dictContentSize, 0);
+        U32 const compliantID = (randomID % ((1U<<31)-32768)) + 32768;
+        U32 const dictID = params.dictID ? params.dictID : compliantID;
+        MEM_writeLE32(header+4, dictID);
+    }
+    hSize = 8;
+
+    /* entropy tables */
+    DISPLAYLEVEL(2, "\r%70s\r", "");   /* clean display line */
+    DISPLAYLEVEL(2, "statistics ... \n");
+    {   size_t const eSize = ZDICT_analyzeEntropy(header+hSize, HBUFFSIZE-hSize,
+                                  compressionLevel,
+                                  samplesBuffer, samplesSizes, nbSamples,
+                                  customDictContent, dictContentSize,
+                                  notificationLevel);
+        if (ZDICT_isError(eSize)) return eSize;
+        hSize += eSize;
+    }
+
+    /* copy elements in final buffer ; note : src and dst buffer can overlap */
+    if (hSize + dictContentSize > dictBufferCapacity) dictContentSize = dictBufferCapacity - hSize;
+    {   size_t const dictSize = hSize + dictContentSize;
+        char* dictEnd = (char*)dictBuffer + dictSize;
+        memmove(dictEnd - dictContentSize, customDictContent, dictContentSize);
+        memcpy(dictBuffer, header, hSize);
+        return dictSize;
+    }
 }
 
 

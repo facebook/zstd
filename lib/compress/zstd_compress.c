@@ -51,8 +51,7 @@ static void ZSTD_resetSeqStore(seqStore_t* ssPtr)
 /*-*************************************
 *  Context memory management
 ***************************************/
-struct ZSTD_CCtx_s
-{
+struct ZSTD_CCtx_s {
     const BYTE* nextSrc;    /* next block here to continue on current prefix */
     const BYTE* base;       /* All regular indexes relative to this position */
     const BYTE* dictBase;   /* extDict indexes relative to this position */
@@ -2742,7 +2741,7 @@ struct ZSTD_CDict_s {
 size_t ZSTD_sizeof_CDict(const ZSTD_CDict* cdict)
 {
     if (cdict==NULL) return 0;   /* support sizeof on NULL */
-    return ZSTD_sizeof_CCtx(cdict->refContext) + cdict->dictContentSize;
+    return ZSTD_sizeof_CCtx(cdict->refContext) + (cdict->dictBuffer ? cdict->dictContentSize : 0) + sizeof(*cdict);
 }
 
 ZSTD_CDict* ZSTD_createCDict_advanced(const void* dictBuffer, size_t dictSize, unsigned byReference,

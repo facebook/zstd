@@ -158,6 +158,9 @@ else
 	$(CC) $(FLAGS) $^ -o $@$(EXT) -Wl,-rpath=$(ZSTDDIR) $(ZSTDDIR)/libzstd.so
 endif
 
+pool  : pool.c $(ZSTDDIR)/common/pool.c
+	$(CC)    $(FLAGS) -pthread -DZSTD_PTHREAD $^ -o $@$(EXT)
+
 namespaceTest:
 	if $(CC) namespaceTest.c ../lib/common/xxhash.c -o $@ ; then echo compilation should fail; exit 1 ; fi
 	$(RM) $@
@@ -176,7 +179,7 @@ clean:
         fuzzer-dll$(EXT) zstreamtest-dll$(EXT) zbufftest-dll$(EXT)\
         zstreamtest$(EXT) zstreamtest32$(EXT) \
         datagen$(EXT) paramgrill$(EXT) roundTripCrash$(EXT) longmatch$(EXT) \
-        symbols$(EXT) invalidDictionaries$(EXT)
+        symbols$(EXT) invalidDictionaries$(EXT) pool$(EXT)
 	@echo Cleaning completed
 
 
@@ -287,5 +290,8 @@ test-invalidDictionaries: invalidDictionaries
 
 test-symbols: symbols
 	$(QEMU_SYS) ./symbols
+
+test-pool: pool
+	$(QEMU_SYS) ./pool
 
 endif

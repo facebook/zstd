@@ -60,9 +60,8 @@ static void *POOL_thread(void *opaque) {
             if (pthread_mutex_unlock(&ctx->queueMutex)) { return NULL; }
             return opaque;
         }
-        {
-            /* Pop a job off the queue */
-            POOL_job job = ctx->queue[ctx->queueHead];
+        /* Pop a job off the queue */
+        {   POOL_job job = ctx->queue[ctx->queueHead];
             ctx->queueHead = (ctx->queueHead + 1) % ctx->queueSize;
             /* Unlock the mutex, signal a pusher, and run the job */
             if (pthread_mutex_unlock(&ctx->queueMutex)) { return NULL; }
@@ -105,8 +104,7 @@ POOL_ctx *POOL_create(size_t numThreads, size_t queueSize) {
                 ctx->numThreads = i;
                 POOL_free(ctx);
                 return NULL;
-            }
-        }
+        }   }
         ctx->numThreads = numThreads;
     }
     return ctx;
@@ -127,8 +125,7 @@ static void POOL_join(POOL_ctx *ctx) {
     {   size_t i;
         for (i = 0; i < ctx->numThreads; ++i) {
             pthread_join(ctx->threads[i], NULL);
-        }
-    }
+    }   }
 }
 
 void POOL_free(POOL_ctx *ctx) {
@@ -147,8 +144,7 @@ void POOL_add(void *ctxVoid, POOL_function function, void *opaque) {
     if (!ctx) { return; }
 
     pthread_mutex_lock(&ctx->queueMutex);
-    {
-        POOL_job job = {function, opaque};
+    {   POOL_job const job = {function, opaque};
         /* Wait until there is space in the queue for the new job */
         size_t newTail = (ctx->queueTail + 1) % ctx->queueSize;
         while (ctx->queueHead == newTail && !ctx->shutdown) {

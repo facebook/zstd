@@ -24,7 +24,7 @@
 #include "util.h"        /* UTIL_getFileSize, UTIL_sleep */
 #include <stdlib.h>      /* malloc, free */
 #include <string.h>      /* memset */
-#include <stdio.h>       /* fprintf, fopen, ftello64 */
+#include <stdio.h>       /* fprintf, fopen */
 #include <time.h>        /* clock_t, clock, CLOCKS_PER_SEC */
 
 #include "mem.h"
@@ -86,6 +86,23 @@ static clock_t g_time = 0;
     DISPLAYLEVEL(1, __VA_ARGS__);                                         \
     DISPLAYLEVEL(1, " \n");                                               \
     exit(error);                                                          \
+}
+
+/* *************************************
+*  Time
+***************************************/
+/* for posix only - proper detection macros to setup */
+#include <unistd.h>
+#include <sys/times.h>
+
+typedef unsigned long long clock_us_t;
+static clock_us_t BMK_clockMicroSec()
+{
+   static clock_t _ticksPerSecond = 0;
+   if (_ticksPerSecond <= 0) _ticksPerSecond = sysconf(_SC_CLK_TCK);
+
+   struct tms junk; clock_t newTicks = (clock_t) times(&junk); (void)junk;
+   return ((((clock_us_t)newTicks)*(1000000))/_ticksPerSecond);
 }
 
 
@@ -231,7 +248,6 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
         UTIL_getTime(&coolTime);
         DISPLAYLEVEL(2, "\r%79s\r", "");
         while (!cCompleted || !dCompleted) {
-            UTIL_time_t clockStart;
 
             /* overheat protection */
             if (UTIL_clockSpanMicro(coolTime, ticksPerSecond) > ACTIVEPERIOD_MICROSEC) {
@@ -241,13 +257,14 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
             }
 
             if (!g_decodeOnly) {
+                clock_us_t clockStart;
                 /* Compression */
                 DISPLAYLEVEL(2, "%2s-%-17.17s :%10u ->\r", marks[markNb], displayName, (U32)srcSize);
                 if (!cCompleted) memset(compressedBuffer, 0xE5, maxCompressedSize);  /* warm up and erase result buffer */
 
                 UTIL_sleepMilli(1);  /* give processor time to other processes */
                 UTIL_waitForNextTick(ticksPerSecond);
-                UTIL_getTime(&clockStart);
+                clockStart = BMK_clockMicroSec();
 
                 if (!cCompleted) {   /* still some time to do compression tests */
                     ZSTD_parameters zparams = ZSTD_getParams(cLevel, avgSize, dictBufferSize);
@@ -286,11 +303,11 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
                             blockTable[blockNb].cSize = rSize;
                         }
                         nbLoops++;
-                    } while (UTIL_clockSpanMicro(clockStart, ticksPerSecond) < clockLoop);
+                    } while (BMK_clockMicroSec() - clockStart < clockLoop);
                     ZSTD_freeCDict(cdict);
-                    {   U64 const clockSpan = UTIL_clockSpanMicro(clockStart, ticksPerSecond);
-                        if (clockSpan < fastestC*nbLoops) fastestC = clockSpan / nbLoops;
-                        totalCTime += clockSpan;
+                    {   clock_us_t const clockSpanMicro = BMK_clockMicroSec() - clockStart;
+                        if (clockSpanMicro < fastestC*nbLoops) fastestC = clockSpanMicro / nbLoops;
+                        totalCTime += clockSpanMicro;
                         cCompleted = (totalCTime >= maxTime);
                 }   }
 

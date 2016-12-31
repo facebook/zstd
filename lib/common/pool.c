@@ -46,8 +46,8 @@ struct POOL_ctx_s {
    Waits for jobs and executes them.
    @returns : NULL on failure else non-null.
 */
-static void *POOL_thread(void *opaque) {
-    POOL_ctx *ctx = (POOL_ctx *)opaque;
+static void* POOL_thread(void* opaque) {
+    POOL_ctx* const ctx = (POOL_ctx*)opaque;
     if (!ctx) { return NULL; }
     for (;;) {
         /* Lock the mutex and wait for a non-empty queue or until shutdown */
@@ -61,7 +61,7 @@ static void *POOL_thread(void *opaque) {
             return opaque;
         }
         /* Pop a job off the queue */
-        {   POOL_job job = ctx->queue[ctx->queueHead];
+        {   POOL_job const job = ctx->queue[ctx->queueHead];
             ctx->queueHead = (ctx->queueHead + 1) % ctx->queueSize;
             /* Unlock the mutex, signal a pusher, and run the job */
             if (pthread_mutex_unlock(&ctx->queueMutex)) { return NULL; }

@@ -13,7 +13,7 @@
 
 #ifdef ZSTD_PTHREAD
 
-#include <pthread.h>
+#include <threading.h>
 
 /* A job is a function and an opaque argument */
 typedef struct POOL_job_s {
@@ -161,7 +161,8 @@ void POOL_add(void *ctxVoid, POOL_function function, void *opaque) {
     pthread_cond_signal(&ctx->queuePopCond);
 }
 
-#else
+#else  /* ZSTD_PTHREAD  not defined */
+/* No multi-threading support */
 
 /* We don't need any data, but if it is empty malloc() might return NULL. */
 struct POOL_ctx_s {
@@ -183,4 +184,4 @@ void POOL_add(void *ctx, POOL_function function, void *opaque) {
   function(opaque);
 }
 
-#endif
+#endif  /* ZSTD_PTHREAD */

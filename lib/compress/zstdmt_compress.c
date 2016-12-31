@@ -1,6 +1,6 @@
 #include <stdlib.h>   /* malloc */
 #include <pool.h>     /* threadpool */
-#include <pthread.h>  /* mutex */
+#include "threading.h"  /* mutex */
 #include "zstd_internal.h"   /* MIN, ERROR */
 #include "zstdmt_compress.h"
 

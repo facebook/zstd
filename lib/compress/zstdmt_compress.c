@@ -322,16 +322,16 @@ size_t ZSTDMT_freeCCtx(ZSTDMT_CCtx* cctx)
     return 0;
 }
 
-size_t ZSTDMT_compressCCtx(ZSTDMT_CCtx* cctx,
+size_t ZSTDMT_compressCCtx(ZSTDMT_CCtx* mtctx,
                            void* dst, size_t dstCapacity,
                      const void* src, size_t srcSize,
                            int compressionLevel)
 {
-    ZSTDMT_jobAgency* jobAgency = &cctx->jobAgency;
+    ZSTDMT_jobAgency* jobAgency = &mtctx->jobAgency;
     ZSTD_parameters const params = ZSTD_getParams(compressionLevel, srcSize, 0);
     size_t const frameSizeTarget = (size_t)1 << (params.cParams.windowLog + 2);
     unsigned const nbFramesMax = (unsigned)(srcSize / frameSizeTarget) + (srcSize < frameSizeTarget) /* min 1 */;
-    unsigned const nbFrames = MIN(nbFramesMax, cctx->nbThreads);
+    unsigned const nbFrames = MIN(nbFramesMax, mtctx->nbThreads);
     size_t const avgFrameSize = (srcSize + (nbFrames-1)) / nbFrames;
     size_t remainingSrcSize = srcSize;
     const char* const srcStart = (const char*)src;

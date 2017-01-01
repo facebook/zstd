@@ -86,6 +86,58 @@ ZDICTLIB_API size_t ZDICT_trainFromBuffer_advanced(void* dictBuffer, size_t dict
                                 const void* samplesBuffer, const size_t* samplesSizes, unsigned nbSamples,
                                 ZDICT_params_t parameters);
 
+/*! COVER_params_t :
+    For all values 0 means default.
+    kMin and d are the only required parameters.
+*/
+typedef struct {
+    unsigned d;                  /* dmer size : constraint: <= kMin : Should probably be in the range [6, 16]. */
+    unsigned kMin;               /* Minimum segment size : constraint: > 0 */
+    unsigned kStep;              /* Try kStep segment lengths uniformly distributed in the range [kMin, kMax] : 0 (default) only if kMax == 0 */
+    unsigned kMax;               /* Maximum segment size : 0 = kMin (default) : constraint : 0 or >= kMin */
+    unsigned smoothing;          /* Higher smoothing => larger segments are selected.  Only useful if kMax > kMin. */
+
+    unsigned notificationLevel;  /* Write to stderr; 0 = none (default); 1 = errors; 2 = progression; 3 = details; 4 = debug; */
+    unsigned dictID;             /* 0 means auto mode (32-bits random value); other : force dictID value */
+    int      compressionLevel;   /* 0 means default; target a specific zstd compression level */
+} COVER_params_t;
+
+
+/*! COVER_trainFromBuffer() :
+    Train a dictionary from an array of samples using the COVER algorithm.
+    Samples must be stored concatenated in a single flat buffer `samplesBuffer`,
+    supplied with an array of sizes `samplesSizes`, providing the size of each sample, in order.
+    The resulting dictionary will be saved into `dictBuffer`.
+    @return : size of dictionary stored into `dictBuffer` (<= `dictBufferCapacity`)
+              or an error code, which can be tested with ZDICT_isError().
+    Tips : In general, a reasonable dictionary has a size of ~ 100 KB.
+           It's obviously possible to target smaller or larger ones, just by specifying different `dictBufferCapacity`.
+           In general, it's recommended to provide a few thousands samples, but this can vary a lot.
+           It's recommended that total size of all samples be about ~x100 times the target size of dictionary.
+*/
+ZDICTLIB_API size_t COVER_trainFromBuffer(void* dictBuffer, size_t dictBufferCapacity,
+                              const void* samplesBuffer, const size_t* samplesSizes, unsigned nbSamples,
+                              COVER_params_t parameters);
+
+/*! COVER_optimizeTrainFromBuffer() :
+    The same requirements as above hold for all the parameters except `parameters`.
+    This function tries many parameter combinations and picks the best parameters.
+    `*parameters` is filled with the best parameters found, and the dictionary
+    constructed with those parameters is stored in `dictBuffer`.
+
+    All of the {d, kMin, kStep, kMax} are optional, and smoothing is ignored.
+    If d is non-zero then we don't check multiple values of d, otherwise we check d = {6, 8, 10, 12, 14, 16}.
+    If kStep is non-zero then it is used, otherwise we pick 8.
+    If kMin and kMax are non-zero, then they limit the search space for kMin and kMax,
+    otherwise we check kMin and kMax values in the range [32, 1024].
+
+    @return : size of dictionary stored into `dictBuffer` (<= `dictBufferCapacity`)
+              or an error code, which can be tested with ZDICT_isError().
+              On success `*parameters` contains the parameters selected.
+*/
+ZDICTLIB_API size_t COVER_optimizeTrainFromBuffer(void* dictBuffer, size_t dictBufferCapacity,
+                                     const void* samplesBuffer, const size_t *samplesSizes, unsigned nbSamples,
+                                     COVER_params_t *parameters);
 
 /*! ZDICT_finalizeDictionary() :
 

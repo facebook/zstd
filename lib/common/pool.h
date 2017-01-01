@@ -39,6 +39,7 @@ typedef void (*POOL_add_function)(void *, POOL_function, void *);
 /*! POOL_add() :
     Add the job `function(opaque)` to the thread pool.
     Possibly blocks until there is room in the queue.
+    Note : The function may be executed asynchronously, so `opaque` must live until the function has been completed.
 */
 void POOL_add(void *ctx, POOL_function function, void *opaque);
 

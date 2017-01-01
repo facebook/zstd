@@ -15,7 +15,7 @@
  * This file will hold wrapper for systems, which do not support Pthreads
  */
 
-#ifdef _WIN32
+#if defined(ZSTD_PTHREAD) && defined(_WIN32)
 
 /**
  * Windows minimalist Pthread Wrapper, based on :

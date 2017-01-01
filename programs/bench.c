@@ -91,12 +91,12 @@ static clock_t g_time = 0;
 /* *************************************
 *  Time
 ***************************************/
-/* for posix only - proper detection macros to setup */
+/* for posix only - needs proper detection macros to setup */
 #include <unistd.h>
 #include <sys/times.h>
 
 typedef unsigned long long clock_us_t;
-static clock_us_t BMK_clockMicroSec()
+static clock_us_t BMK_clockMicroSec(void)
 {
    static clock_t _ticksPerSecond = 0;
    if (_ticksPerSecond <= 0) _ticksPerSecond = sysconf(_SC_CLK_TCK);
@@ -235,7 +235,7 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
     /* Bench */
     {   U64 fastestC = (U64)(-1LL), fastestD = (U64)(-1LL);
         U64 const crcOrig = g_decodeOnly ? 0 : XXH64(srcBuffer, srcSize, 0);
-        UTIL_time_t coolTime;
+        clock_us_t coolTime = BMK_clockMicroSec();
         U64 const maxTime = (g_nbSeconds * TIMELOOP_MICROSEC) + 1;
         U64 totalCTime=0, totalDTime=0;
         U32 cCompleted=g_decodeOnly, dCompleted=0;
@@ -245,15 +245,14 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
 
         ZSTDMT_CCtx* const mtcctx = ZSTDMT_createCCtx(g_nbThreads);
 
-        UTIL_getTime(&coolTime);
         DISPLAYLEVEL(2, "\r%79s\r", "");
         while (!cCompleted || !dCompleted) {
 
             /* overheat protection */
-            if (UTIL_clockSpanMicro(coolTime, ticksPerSecond) > ACTIVEPERIOD_MICROSEC) {
+            if (BMK_clockMicroSec() - coolTime > ACTIVEPERIOD_MICROSEC) {
                 DISPLAYLEVEL(2, "\rcooling down ...    \r");
                 UTIL_sleep(COOLPERIOD_SEC);
-                UTIL_getTime(&coolTime);
+                coolTime = BMK_clockMicroSec();
             }
 
             if (!g_decodeOnly) {

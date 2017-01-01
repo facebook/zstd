@@ -123,12 +123,12 @@ void ZSTDMT_compressFrame(void* jobDescription)
 {
     DEBUGLOG(5, "Entering ZSTDMT_compressFrame() ");
     ZSTDMT_jobDescription* const job = (ZSTDMT_jobDescription*)jobDescription;
-    DEBUGLOG(5, "compressing %u bytes with ZSTD_compressCCtx : ", (unsigned)job->srcSize);
+    DEBUGLOG(5, "compressing %u bytes from frame %u with ZSTD_compressCCtx : ", (unsigned)job->srcSize, job->jobCompleted);
     job->cSize = ZSTD_compressCCtx(job->cctx, job->dstBuff.start, job->dstBuff.size, job->srcStart, job->srcSize, job->compressionLevel);
     DEBUGLOG(5, "compressed to %u bytes  ", (unsigned)job->cSize);
-    job->jobCompleted = 1;
     DEBUGLOG(5, "sending jobCompleted signal");
     pthread_mutex_lock(job->jobCompleted_mutex);
+    job->jobCompleted = 1;
     pthread_cond_signal(job->jobCompleted_cond);
     pthread_mutex_unlock(job->jobCompleted_mutex);
     DEBUGLOG(5, "ZSTDMT_compressFrame completed");
@@ -215,6 +215,7 @@ size_t ZSTDMT_freeCCtx(ZSTDMT_CCtx* mtctx)  /* incompleted ! */
     ZSTDMT_freeBufferPool(mtctx->buffPool);
     ZSTDMT_freeCCtxPool(mtctx->cctxPool);
     pthread_mutex_destroy(&mtctx->jobCompleted_mutex);
+    pthread_cond_destroy(&mtctx->jobCompleted_cond);
     free(mtctx);
     return 0;
 }

@@ -1,5 +1,5 @@
 #include "pool.h"
-#include <pthread.h>
+#include "threading.h"
 #include <stddef.h>
 #include <stdio.h>
 
@@ -31,7 +31,7 @@ int testOrder(size_t numThreads, size_t queueLog) {
   POOL_ctx *ctx = POOL_create(numThreads, queueLog);
   ASSERT_TRUE(ctx);
   data.i = 0;
-  ASSERT_FALSE(pthread_mutex_init(&data.mutex, NULL));
+  pthread_mutex_init(&data.mutex, NULL);
   {
     size_t i;
     for (i = 0; i < 1024; ++i) {
@@ -46,7 +46,7 @@ int testOrder(size_t numThreads, size_t queueLog) {
       ASSERT_EQ(i, data.data[i]);
     }
   }
-  ASSERT_FALSE(pthread_mutex_destroy(&data.mutex));
+  pthread_mutex_destroy(&data.mutex);
   return 0;
 }
 

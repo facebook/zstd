@@ -361,137 +361,103 @@ typedef struct {
  * Segments of are scored according to the function:
  *
  * Let F(d) be the frequency of dmer d.
- * Let L(S) be the length of segment S.
- * Let S_i be the dmer at position i of segment S.
+ * Let S_i be the dmer at position i of segment S which has length k.
  *
- *                 F(S_1) + F(S_2) + ... + F(S_{L(S)-d+1})
- *     Score(S) = --------------------------------------
- *                          smoothing + L(S)
+ *     Score(S) = F(S_1) + F(S_2) + ... + F(S_{k-d+1})
  *
- * We try kStep segment lengths in the range [kMin, kMax].
- * For each segment length we find the best segment according to Score.
- * We then take the best segment overall according to Score and return it.
- *
- * The difference from the paper is that we try multiple segment lengths.
- * We want to fit the segment length closer to the length of the useful part.
- * Longer segments allow longer matches, so they are worth more than shorter
- * ones.  However, if the extra length isn't high frequency it hurts us.
- * We add the smoothing in to give an advantage to longer segments.
- * The larger smoothing is, the more longer matches are favored.
+ * Once the dmer d is in the dictionay we set F(d) = 0.
  */
 static COVER_segment_t COVER_selectSegment(const COVER_ctx_t *ctx, U32 *freqs,
                                            COVER_map_t *activeDmers, U32 begin,
                                            U32 end, COVER_params_t parameters) {
-  /* Saves the best segment of any length tried */
-  COVER_segment_t globalBestSegment = {0, 0, 0};
-  /* For each segment length */
-  U32 k;
-  U32 step = MAX((parameters.kMax - parameters.kMin) / parameters.kStep, 1);
-  for (k = parameters.kMin; k <= parameters.kMax; k += step) {
-    /* Save the best segment of this length */
-    COVER_segment_t bestSegment = {0, 0, 0};
-    COVER_segment_t activeSegment;
-    const size_t dmersInK = k - ctx->d + 1;
-    /* Reset the activeDmers in the segment */
-    COVER_map_clear(activeDmers);
-    activeSegment.begin = begin;
-    activeSegment.end = begin;
-    activeSegment.score = 0;
-    /* Slide the active segment through the whole epoch.
-     * Save the best segment in bestSegment.
-     */
-    while (activeSegment.end < end) {
-      /* The dmerId for the dmer at the next position */
-      U32 newDmer = ctx->dmerAt[activeSegment.end];
-      /* The entry in activeDmers for this dmerId */
-      U32 *newDmerOcc = COVER_map_at(activeDmers, newDmer);
-      /* If the dmer isn't already present in the segment add its score. */
-      if (*newDmerOcc == 0) {
-        /* The paper suggest using the L-0.5 norm, but experiments show that it
-         * doesn't help.
-         */
-        activeSegment.score += freqs[newDmer];
-      }
-      /* Add the dmer to the segment */
-      activeSegment.end += 1;
-      *newDmerOcc += 1;
+  /* Constants */
+  const U32 k = parameters.k;
+  const U32 d = parameters.d;
+  const U32 dmersInK = k - d + 1;
+  /* Try each segment (activeSegment) and save the best (bestSegment) */
+  COVER_segment_t bestSegment = {0, 0, 0};
+  COVER_segment_t activeSegment;
+  /* Reset the activeDmers in the segment */
+  COVER_map_clear(activeDmers);
+  /* The activeSegment starts at the beginning of the epoch. */
+  activeSegment.begin = begin;
+  activeSegment.end = begin;
+  activeSegment.score = 0;
+  /* Slide the activeSegment through the whole epoch.
+   * Save the best segment in bestSegment.
+   */
+  while (activeSegment.end < end) {
+    /* The dmerId for the dmer at the next position */
+    U32 newDmer = ctx->dmerAt[activeSegment.end];
+    /* The entry in activeDmers for this dmerId */
+    U32 *newDmerOcc = COVER_map_at(activeDmers, newDmer);
+    /* If the dmer isn't already present in the segment add its score. */
+    if (*newDmerOcc == 0) {
+      /* The paper suggest using the L-0.5 norm, but experiments show that it
+       * doesn't help.
+       */
+      activeSegment.score += freqs[newDmer];
+    }
+    /* Add the dmer to the segment */
+    activeSegment.end += 1;
+    *newDmerOcc += 1;
 
-      /* If the window is now too large, drop the first position */
-      if (activeSegment.end - activeSegment.begin == dmersInK + 1) {
-        U32 delDmer = ctx->dmerAt[activeSegment.begin];
-        U32 *delDmerOcc = COVER_map_at(activeDmers, delDmer);
-        activeSegment.begin += 1;
-        *delDmerOcc -= 1;
-        /* If this is the last occurence of the dmer, subtract its score */
-        if (*delDmerOcc == 0) {
-          COVER_map_remove(activeDmers, delDmer);
-          activeSegment.score -= freqs[delDmer];
-        }
-      }
-
-      /* If this segment is the best so far save it */
-      if (activeSegment.score > bestSegment.score) {
-        bestSegment = activeSegment;
+    /* If the window is now too large, drop the first position */
+    if (activeSegment.end - activeSegment.begin == dmersInK + 1) {
+      U32 delDmer = ctx->dmerAt[activeSegment.begin];
+      U32 *delDmerOcc = COVER_map_at(activeDmers, delDmer);
+      activeSegment.begin += 1;
+      *delDmerOcc -= 1;
+      /* If this is the last occurence of the dmer, subtract its score */
+      if (*delDmerOcc == 0) {
+        COVER_map_remove(activeDmers, delDmer);
+        activeSegment.score -= freqs[delDmer];
       }
     }
-    {
-      /* Trim off the zero frequency head and tail from the segment. */
-      U32 newBegin = bestSegment.end;
-      U32 newEnd = bestSegment.begin;
-      U32 pos;
-      for (pos = bestSegment.begin; pos != bestSegment.end; ++pos) {
-        U32 freq = freqs[ctx->dmerAt[pos]];
-        if (freq != 0) {
-          newBegin = MIN(newBegin, pos);
-          newEnd = pos + 1;
-        }
-      }
-      bestSegment.begin = newBegin;
-      bestSegment.end = newEnd;
-      /* Calculate the final score normalizing for segment length */
-      bestSegment.score /=
-          (parameters.smoothing + (bestSegment.end - bestSegment.begin));
-    }
-    /* If this segment is the best so far for any length save it */
-    if (bestSegment.score > globalBestSegment.score) {
-      globalBestSegment = bestSegment;
+
+    /* If this segment is the best so far save it */
+    if (activeSegment.score > bestSegment.score) {
+      bestSegment = activeSegment;
     }
   }
   {
+    /* Trim off the zero frequency head and tail from the segment. */
+    U32 newBegin = bestSegment.end;
+    U32 newEnd = bestSegment.begin;
+    U32 pos;
+    for (pos = bestSegment.begin; pos != bestSegment.end; ++pos) {
+      U32 freq = freqs[ctx->dmerAt[pos]];
+      if (freq != 0) {
+        newBegin = MIN(newBegin, pos);
+        newEnd = pos + 1;
+      }
+    }
+    bestSegment.begin = newBegin;
+    bestSegment.end = newEnd;
+  }
+  {
     /* Zero out the frequency of each dmer covered by the chosen segment. */
-    size_t pos;
-    for (pos = globalBestSegment.begin; pos != globalBestSegment.end; ++pos) {
+    U32 pos;
+    for (pos = bestSegment.begin; pos != bestSegment.end; ++pos) {
       freqs[ctx->dmerAt[pos]] = 0;
     }
   }
-  return globalBestSegment;
+  return bestSegment;
 }
 
 /**
  * Check the validity of the parameters.
- * If the parameters are valid and any are default, set them to the correct
- * values.
- * Returns 1 on success, 0 on failure.
+ * Returns non-zero if the parameters are valid and 0 otherwise.
  */
-static int COVER_defaultParameters(COVER_params_t *parameters) {
-  /* kMin and d are required parameters */
-  if (parameters->d == 0 || parameters->kMin == 0) {
+static int COVER_checkParameters(COVER_params_t parameters) {
+  /* k and d are required parameters */
+  if (parameters.d == 0 || parameters.k == 0) {
     return 0;
   }
-  /* d <= kMin */
-  if (parameters->d > parameters->kMin) {
+  /* d <= k */
+  if (parameters.d > parameters.k) {
     return 0;
   }
-  /* If kMax is set (non-zero) then kMin <= kMax */
-  if (parameters->kMax != 0 && parameters->kMax < parameters->kMin) {
-    return 0;
-  }
-  /* If kMax is set, then kStep must be as well */
-  if (parameters->kMax != 0 && parameters->kStep == 0) {
-    return 0;
-  }
-  parameters->kMax = MAX(parameters->kMin, parameters->kMax);
-  parameters->kStep = MAX(1, parameters->kStep);
   return 1;
 }
 
@@ -607,17 +573,22 @@ static size_t COVER_buildDictionary(const COVER_ctx_t *ctx, U32 *freqs,
   /* Divide the data up into epochs of equal size.
    * We will select at least one segment from each epoch.
    */
-  const U32 epochs = (U32)(dictBufferCapacity / parameters.kMax);
+  const U32 epochs = (U32)(dictBufferCapacity / parameters.k);
   const U32 epochSize = (U32)(ctx->suffixSize / epochs);
   size_t epoch;
   DISPLAYLEVEL(2, "Breaking content into %u epochs of size %u\n", epochs,
                epochSize);
+  /* Loop through the epochs until there are no more segments or the dictionary
+   * is full.
+   */
   for (epoch = 0; tail > 0; epoch = (epoch + 1) % epochs) {
     const U32 epochBegin = (U32)(epoch * epochSize);
     const U32 epochEnd = epochBegin + epochSize;
     size_t segmentSize;
+    /* Select a segment */
     COVER_segment_t segment = COVER_selectSegment(
         ctx, freqs, activeDmers, epochBegin, epochEnd, parameters);
+    /* Trim the segment if necessary and if it is empty then we are done */
     segmentSize = MIN(segment.end - segment.begin + parameters.d - 1, tail);
     if (segmentSize == 0) {
       break;
@@ -661,9 +632,8 @@ ZDICTLIB_API size_t COVER_trainFromBuffer(
   BYTE *const dict = (BYTE *)dictBuffer;
   COVER_ctx_t ctx;
   COVER_map_t activeDmers;
-  size_t rc;
   /* Checks */
-  if (!COVER_defaultParameters(&parameters)) {
+  if (!COVER_checkParameters(parameters)) {
     DISPLAYLEVEL(1, "Cover parameters incorrect\n");
     return ERROR(GENERIC);
   }
@@ -672,6 +642,8 @@ ZDICTLIB_API size_t COVER_trainFromBuffer(
     return ERROR(GENERIC);
   }
   if (dictBufferCapacity < ZDICT_DICTSIZE_MIN) {
+    DISPLAYLEVEL(1, "dictBufferCapacity must be at least %u\n",
+                 ZDICT_DICTSIZE_MIN);
     return ERROR(dstSize_tooSmall);
   }
   /* Initialize global data */
@@ -682,7 +654,7 @@ ZDICTLIB_API size_t COVER_trainFromBuffer(
     DISPLAYLEVEL(1, "Failed to initialize context\n");
     return ERROR(GENERIC);
   }
-  if (!COVER_map_init(&activeDmers, parameters.kMax - parameters.d + 1)) {
+  if (!COVER_map_init(&activeDmers, parameters.k - parameters.d + 1)) {
     DISPLAYLEVEL(1, "Failed to allocate dmer map: out of memory\n");
     COVER_ctx_destroy(&ctx);
     return ERROR(GENERIC);
@@ -694,18 +666,17 @@ ZDICTLIB_API size_t COVER_trainFromBuffer(
         COVER_buildDictionary(&ctx, ctx.freqs, &activeDmers, dictBuffer,
                               dictBufferCapacity, parameters);
     ZDICT_params_t zdictParams = COVER_translateParams(parameters);
-    DISPLAYLEVEL(2, "Dictionary content size: %u",
-                 (U32)(dictBufferCapacity - tail));
-    rc = ZDICT_finalizeDictionary(dict, dictBufferCapacity, dict + tail,
-                                  dictBufferCapacity - tail, samplesBuffer,
-                                  samplesSizes, nbSamples, zdictParams);
+    const size_t dictionarySize = ZDICT_finalizeDictionary(
+        dict, dictBufferCapacity, dict + tail, dictBufferCapacity - tail,
+        samplesBuffer, samplesSizes, nbSamples, zdictParams);
+    if (!ZSTD_isError(dictionarySize)) {
+      DISPLAYLEVEL(2, "Constructed dictionary of size %u\n",
+                   (U32)dictionarySize);
+    }
+    COVER_ctx_destroy(&ctx);
+    COVER_map_destroy(&activeDmers);
+    return dictionarySize;
   }
-  if (!ZSTD_isError(rc)) {
-    DISPLAYLEVEL(2, "Constructed dictionary of size %u\n", (U32)rc);
-  }
-  COVER_ctx_destroy(&ctx);
-  COVER_map_destroy(&activeDmers);
-  return rc;
 }
 
 /**
@@ -713,7 +684,8 @@ ZDICTLIB_API size_t COVER_trainFromBuffer(
  * 1. Synchronizing threads.
  * 2. Saving the best parameters and dictionary.
  *
- * All of the methods are thread safe if `ZSTD_PTHREAD` is defined.
+ * All of the methods except COVER_best_init() are thread safe if zstd is
+ * compiled with multithreaded support.
  */
 typedef struct COVER_best_s {
 #ifdef ZSTD_PTHREAD
@@ -852,26 +824,26 @@ typedef struct COVER_tryParameters_data_s {
 
 /**
  * Tries a set of parameters and upates the COVER_best_t with the results.
- * This function is thread safe if ZSTD_PTHREAD is defined.
+ * This function is thread safe if zstd is compiled with multithreaded support.
  * It takes its parameters as an *OWNING* opaque pointer to support threading.
  */
 static void COVER_tryParameters(void *opaque) {
   /* Save parameters as local variables */
-  COVER_tryParameters_data_t *data = (COVER_tryParameters_data_t *)opaque;
-  const COVER_ctx_t *ctx = data->ctx;
-  COVER_params_t parameters = data->parameters;
+  COVER_tryParameters_data_t *const data = (COVER_tryParameters_data_t *)opaque;
+  const COVER_ctx_t *const ctx = data->ctx;
+  const COVER_params_t parameters = data->parameters;
   size_t dictBufferCapacity = data->dictBufferCapacity;
   size_t totalCompressedSize = ERROR(GENERIC);
   /* Allocate space for hash table, dict, and freqs */
   COVER_map_t activeDmers;
   BYTE *const dict = (BYTE * const)malloc(dictBufferCapacity);
   U32 *freqs = (U32 *)malloc(ctx->suffixSize * sizeof(U32));
-  if (!COVER_map_init(&activeDmers, parameters.kMax - parameters.d + 1)) {
+  if (!COVER_map_init(&activeDmers, parameters.k - parameters.d + 1)) {
     DISPLAYLEVEL(1, "Failed to allocate dmer map: out of memory\n");
     goto _cleanup;
   }
   if (!dict || !freqs) {
-    DISPLAYLEVEL(1, "Failed to allocate dictionary buffer\n");
+    DISPLAYLEVEL(1, "Failed to allocate buffers: out of memory\n");
     goto _cleanup;
   }
   /* Copy the frequencies because we need to modify them */
@@ -880,7 +852,7 @@ static void COVER_tryParameters(void *opaque) {
   {
     const size_t tail = COVER_buildDictionary(ctx, freqs, &activeDmers, dict,
                                               dictBufferCapacity, parameters);
-    ZDICT_params_t zdictParams = COVER_translateParams(parameters);
+    const ZDICT_params_t zdictParams = COVER_translateParams(parameters);
     dictBufferCapacity = ZDICT_finalizeDictionary(
         dict, dictBufferCapacity, dict + tail, dictBufferCapacity - tail,
         ctx->samples, ctx->samplesSizes, (unsigned)ctx->nbSamples, zdictParams);
@@ -954,27 +926,42 @@ ZDICTLIB_API size_t COVER_optimizeTrainFromBuffer(void *dictBuffer,
                                                   unsigned nbSamples,
                                                   COVER_params_t *parameters) {
   /* constants */
-  const unsigned dMin = parameters->d == 0 ? 6 : parameters->d;
-  const unsigned dMax = parameters->d == 0 ? 16 : parameters->d;
-  const unsigned min = parameters->kMin == 0 ? 32 : parameters->kMin;
-  const unsigned max = parameters->kMax == 0 ? 1024 : parameters->kMax;
-  const unsigned kStep = parameters->kStep == 0 ? 8 : parameters->kStep;
-  const unsigned step = MAX((max - min) / kStep, 1);
+  const unsigned kMinD = parameters->d == 0 ? 6 : parameters->d;
+  const unsigned kMaxD = parameters->d == 0 ? 16 : parameters->d;
+  const unsigned kMinK = parameters->k == 0 ? kMaxD : parameters->k;
+  const unsigned kMaxK = parameters->k == 0 ? 2048 : parameters->k;
+  const unsigned kSteps = parameters->steps == 0 ? 256 : parameters->steps;
+  const unsigned kStepSize = MAX((kMaxK - kMinK) / kSteps, 1);
+  const unsigned kIterations =
+      (1 + (kMaxD - kMinD) / 2) * (1 + (kMaxK - kMinK) / kStepSize);
   /* Local variables */
-  unsigned iteration = 1;
-  const unsigned iterations =
-      (1 + (dMax - dMin) / 2) * (((1 + kStep) * (2 + kStep)) / 2) * 4;
   const int displayLevel = parameters->notificationLevel;
+  unsigned iteration = 1;
   unsigned d;
+  unsigned k;
   COVER_best_t best;
+  /* Checks */
+  if (kMinK < kMaxD || kMaxK < kMinK) {
+    LOCALDISPLAYLEVEL(displayLevel, 1, "Incorrect parameters\n");
+    return ERROR(GENERIC);
+  }
+  if (nbSamples == 0) {
+    DISPLAYLEVEL(1, "Cover must have at least one input file\n");
+    return ERROR(GENERIC);
+  }
+  if (dictBufferCapacity < ZDICT_DICTSIZE_MIN) {
+    DISPLAYLEVEL(1, "dictBufferCapacity must be at least %u\n",
+                 ZDICT_DICTSIZE_MIN);
+    return ERROR(dstSize_tooSmall);
+  }
+  /* Initialization */
   COVER_best_init(&best);
-  /* Turn down display level to clean up display at level 2 and below */
+  /* Turn down global display level to clean up display at level 2 and below */
   g_displayLevel = parameters->notificationLevel - 1;
   /* Loop through d first because each new value needs a new context */
-  LOCALDISPLAYLEVEL(displayLevel, 3, "Trying %u different sets of parameters\n",
-                    iterations);
-  for (d = dMin; d <= dMax; d += 2) {
-    unsigned kMin;
+  LOCALDISPLAYLEVEL(displayLevel, 2, "Trying %u different sets of parameters\n",
+                    kIterations);
+  for (d = kMinD; d <= kMaxD; d += 2) {
     /* Initialize the context for this value of d */
     COVER_ctx_t ctx;
     LOCALDISPLAYLEVEL(displayLevel, 3, "d=%u\n", d);
@@ -983,44 +970,37 @@ ZDICTLIB_API size_t COVER_optimizeTrainFromBuffer(void *dictBuffer,
       COVER_best_destroy(&best);
       return ERROR(GENERIC);
     }
-    /* Loop through the rest of the parameters reusing the same context */
-    for (kMin = min; kMin <= max; kMin += step) {
-      unsigned kMax;
-      LOCALDISPLAYLEVEL(displayLevel, 3, "kMin=%u\n", kMin);
-      for (kMax = kMin; kMax <= max; kMax += step) {
-        unsigned smoothing;
-        LOCALDISPLAYLEVEL(displayLevel, 3, "kMax=%u\n", kMax);
-        for (smoothing = kMin / 4; smoothing <= kMin * 2; smoothing *= 2) {
-          /* Prepare the arguments */
-          COVER_tryParameters_data_t *data =
-              (COVER_tryParameters_data_t *)malloc(
-                  sizeof(COVER_tryParameters_data_t));
-          LOCALDISPLAYLEVEL(displayLevel, 3, "smoothing=%u\n", smoothing);
-          if (!data) {
-            LOCALDISPLAYLEVEL(displayLevel, 1,
-                              "Failed to allocate parameters\n");
-            COVER_best_destroy(&best);
-            COVER_ctx_destroy(&ctx);
-            return ERROR(GENERIC);
-          }
-          data->ctx = &ctx;
-          data->best = &best;
-          data->dictBufferCapacity = dictBufferCapacity;
-          data->parameters = *parameters;
-          data->parameters.d = d;
-          data->parameters.kMin = kMin;
-          data->parameters.kStep = kStep;
-          data->parameters.kMax = kMax;
-          data->parameters.smoothing = smoothing;
-          /* Call the function and pass ownership of data to it */
-          COVER_best_start(&best);
-          COVER_tryParameters(data);
-          /* Print status */
-          LOCALDISPLAYUPDATE(displayLevel, 2, "\r%u%%       ",
-                             (U32)((iteration * 100) / iterations));
-          ++iteration;
-        }
+    /* Loop through k reusing the same context */
+    for (k = kMinK; k <= kMaxK; k += kStepSize) {
+      /* Prepare the arguments */
+      COVER_tryParameters_data_t *data = (COVER_tryParameters_data_t *)malloc(
+          sizeof(COVER_tryParameters_data_t));
+      LOCALDISPLAYLEVEL(displayLevel, 3, "k=%u\n", k);
+      if (!data) {
+        LOCALDISPLAYLEVEL(displayLevel, 1, "Failed to allocate parameters\n");
+        COVER_best_destroy(&best);
+        COVER_ctx_destroy(&ctx);
+        return ERROR(GENERIC);
       }
+      data->ctx = &ctx;
+      data->best = &best;
+      data->dictBufferCapacity = dictBufferCapacity;
+      data->parameters = *parameters;
+      data->parameters.k = k;
+      data->parameters.d = d;
+      data->parameters.steps = kSteps;
+      /* Check the parameters */
+      if (!COVER_checkParameters(data->parameters)) {
+        DISPLAYLEVEL(1, "Cover parameters incorrect\n");
+        continue;
+      }
+      /* Call the function and pass ownership of data to it */
+      COVER_best_start(&best);
+      COVER_tryParameters(data);
+      /* Print status */
+      LOCALDISPLAYUPDATE(displayLevel, 2, "\r%u%%       ",
+                         (U32)((iteration * 100) / kIterations));
+      ++iteration;
     }
     COVER_best_wait(&best);
     COVER_ctx_destroy(&ctx);

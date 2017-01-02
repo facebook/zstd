@@ -80,13 +80,13 @@ int _pthread_join(pthread_t* thread, void** value_ptr);
 #else  /* ZSTD_PTHREAD not defined */
 /* No multithreading support */
 
-typedef int pthread_mutex_t;
+#define pthread_mutex_t int   /* #define rather than typedef, as sometimes pthread support is implicit, resulting in duplicated symbols */
 #define pthread_mutex_init(a,b)
 #define pthread_mutex_destroy(a)
 #define pthread_mutex_lock(a)
 #define pthread_mutex_unlock(a)
 
-typedef int pthread_cond_t;
+#define pthread_cond_t int
 #define pthread_cond_init(a,b)
 #define pthread_cond_destroy(a)
 #define pthread_cond_wait(a,b)

@@ -1,5 +1,5 @@
 # ##########################################################################
-# Copyright (c) 2016-present, Yann Collet, Facebook, Inc.
+# Copyright (c) 2015-present, Yann Collet, Facebook, Inc.
 # All rights reserved.
 #
 # This source code is licensed under the BSD-style license found in the
@@ -33,7 +33,7 @@ FLAGS    = $(CPPFLAGS) $(CFLAGS) $(LDFLAGS)
 
 ZSTDCOMMON_FILES := $(ZSTDDIR)/common/*.c
 ZSTDCOMP_FILES := $(ZSTDDIR)/compress/*.c
-ZSTDDECOMP_FILES := $(ZSTDDIR)/decompress/huf_decompress.c
+ZSTDDECOMP_FILES := $(ZSTDDIR)/decompress/*.c
 ZSTD_FILES := $(ZSTDDECOMP_FILES) $(ZSTDCOMMON_FILES) $(ZSTDCOMP_FILES)
 ZDICT_FILES := $(ZSTDDIR)/dictBuilder/*.c
 ZSTDDECOMP_O = $(ZSTDDIR)/decompress/zstd_decompress.o
@@ -47,6 +47,8 @@ CPPFLAGS  += -I$(ZSTDDIR)/legacy
 ZSTDLEGACY_FILES:= $(ZSTDDIR)/legacy/*.c
 endif
 
+ZSTDLIB_FILES := $(wildcard $(ZSTD_FILES)) $(wildcard $(ZSTDLEGACY_FILES)) $(wildcard $(ZDICT_FILES))
+ZSTDLIB_OBJ   := $(patsubst %.c,%.o,$(ZSTDLIB_FILES))
 
 # Define *.exe as extension for Windows systems
 ifneq (,$(filter Windows%,$(OS)))
@@ -72,8 +74,7 @@ all: zstd
 $(ZSTDDECOMP_O): CFLAGS += $(ALIGN_LOOP)
 
 zstd  : CPPFLAGS += -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT)
-zstd  : $(ZSTDDECOMP_O) $(ZSTD_FILES) $(ZSTDLEGACY_FILES) $(ZDICT_FILES) \
-        zstdcli.c fileio.c bench.c datagen.c dibio.c
+zstd  : $(ZSTDLIB_OBJ) zstdcli.o fileio.o bench.o datagen.o dibio.o
 ifneq (,$(filter Windows%,$(OS)))
 	windres/generate_res.bat
 endif
@@ -81,8 +82,7 @@ endif
 
 
 zstd32 : CPPFLAGS += -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT)
-zstd32 : $(ZSTDDIR)/decompress/zstd_decompress.c $(ZSTD_FILES) $(ZSTDLEGACY_FILES) $(ZDICT_FILES) \
-        zstdcli.c fileio.c bench.c datagen.c dibio.c
+zstd32 : $(ZSTDLIB_FILES) zstdcli.c fileio.c bench.c datagen.c dibio.c
 ifneq (,$(filter Windows%,$(OS)))
 	windres/generate_res.bat
 endif
@@ -104,26 +104,23 @@ zstd-pgo : clean zstd
 	$(RM) $(ZSTDDECOMP_O)
 	$(MAKE) zstd MOREFLAGS=-fprofile-use
 
-zstd-frugal: $(ZSTDDECOMP_O) $(ZSTD_FILES) zstdcli.c fileio.c
+zstd-frugal: $(ZSTD_FILES) zstdcli.c fileio.c
 	$(CC) $(FLAGS) -DZSTD_NOBENCH -DZSTD_NODICT $^ -o zstd$(EXT)
 
-zstd-small: clean_decomp_o
-	ZSTD_LEGACY_SUPPORT=0 CFLAGS="-Os -s" $(MAKE) zstd-frugal
+zstd-small:
+	CFLAGS="-Os -s" $(MAKE) zstd-frugal
 
-zstd-decompress-clean: $(ZSTDDECOMP_O) $(ZSTDCOMMON_FILES) $(ZSTDDECOMP_FILES) zstdcli.c fileio.c
-	$(CC) $(FLAGS) -DZSTD_NOBENCH -DZSTD_NODICT -DZSTD_NOCOMPRESS $^ -o zstd-decompress$(EXT)
-
-zstd-decompress: clean_decomp_o
-	ZSTD_LEGACY_SUPPORT=0 $(MAKE) zstd-decompress-clean
+zstd-decompress: $(ZSTDCOMMON_FILES) $(ZSTDDECOMP_FILES) zstdcli.c fileio.c
+	$(CC) $(FLAGS) -DZSTD_NOBENCH -DZSTD_NODICT -DZSTD_NOCOMPRESS $^ -o $@$(EXT)
 
 zstd-compress: $(ZSTDCOMMON_FILES) $(ZSTDCOMP_FILES) zstdcli.c fileio.c
 	$(CC) $(FLAGS) -DZSTD_NOBENCH -DZSTD_NODICT -DZSTD_NODECOMPRESS $^ -o $@$(EXT)
 
-gzstd: clean_decomp_o
+gzstd:
 	@echo "int main(){}" | $(CC) -o have_zlib -x c - -lz && echo found zlib || echo did not found zlib
 	@if [ -s have_zlib ]; then \
         echo building gzstd with .gz decompression support \
-        && rm have_zlib$(EXT) \
+        && $(RM) have_zlib$(EXT) fileio.o \
         && CPPFLAGS=-DZSTD_GZDECOMPRESS LDFLAGS="-lz" $(MAKE) zstd; \
     else \
         echo "WARNING : no zlib, building gzstd with only .zst files support : NO .gz SUPPORT !!!" \
@@ -132,7 +129,7 @@ gzstd: clean_decomp_o
 
 zstdmt: CPPFLAGS += -DZSTD_PTHREAD
 zstdmt: LDFLAGS += -lpthread
-zstdmt: zstd
+zstdmt: clean zstd
 
 generate_res:
 	windres/generate_res.bat

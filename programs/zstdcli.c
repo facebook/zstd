@@ -422,18 +422,18 @@ int main(int argCount, const char* argv[])
                             BMK_SetBlockSize(bSize);
                         }
                         break;
+
+                        /* nb of threads (hidden option) */
+                    case 'T':
+                        argument++;
+                        BMK_SetNbThreads(readU32FromChar(&argument));
+                        break;
 #endif   /* ZSTD_NOBENCH */
 
                         /* Dictionary Selection level */
                     case 's':
                         argument++;
                         dictSelect = readU32FromChar(&argument);
-                        break;
-
-                        /* nb of threads (hidden option) */
-                    case 'T':
-                        argument++;
-                        BMK_SetNbThreads(readU32FromChar(&argument));
                         break;
 
                         /* Pause at the end (-p) or set an additional param (-p#) (hidden option) */

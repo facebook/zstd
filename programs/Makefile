@@ -130,6 +130,10 @@ gzstd: clean_decomp_o
         && $(MAKE) zstd; \
     fi
 
+zstdmt: CPPFLAGS += -DZSTD_PTHREAD
+zstdmt: LDFLAGS += -lpthread
+zstdmt: zstd
+
 generate_res:
 	windres/generate_res.bat
 
@@ -164,7 +168,7 @@ ifneq (,$(filter $(shell uname),OpenBSD FreeBSD NetBSD DragonFly SunOS))
 MANDIR  ?= $(PREFIX)/man/man1
 else
 MANDIR  ?= $(PREFIX)/share/man/man1
-endif 
+endif
 
 INSTALL_PROGRAM ?= $(INSTALL) -m 755
 INSTALL_SCRIPT  ?= $(INSTALL) -m 755

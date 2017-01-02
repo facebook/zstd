@@ -78,18 +78,18 @@ static void ZSTDMT_freeBufferPool(ZSTDMT_bufferPool* bufPool)
 static buffer_t ZSTDMT_getBuffer(ZSTDMT_bufferPool* pool, size_t bSize)
 {
     if (pool->nbBuffers) {   /* try to use an existing buffer */
-        pool->nbBuffers--;
-        buffer_t const buf = pool->bTable[pool->nbBuffers];
+        buffer_t const buf = pool->bTable[--(pool->nbBuffers)];
         size_t const availBufferSize = buf.size;
         if ((availBufferSize >= bSize) & (availBufferSize <= 10*bSize))   /* large enough, but not too much */
             return buf;
         free(buf.start);   /* size conditions not respected : create a new buffer */
     }
     /* create new buffer */
-    buffer_t buf;
-    buf.size = bSize;
-    buf.start = malloc(bSize);
-    return buf;
+    {   buffer_t buf;
+        buf.size = bSize;
+        buf.start = malloc(bSize);
+        return buf;
+    }
 }
 
 /* effectively store buffer for later re-use, up to pool capacity */
@@ -121,9 +121,8 @@ typedef struct {
 /* ZSTDMT_compressFrame() : POOL_function type */
 void ZSTDMT_compressFrame(void* jobDescription)
 {
-    DEBUGLOG(5, "Entering ZSTDMT_compressFrame() ");
     ZSTDMT_jobDescription* const job = (ZSTDMT_jobDescription*)jobDescription;
-    DEBUGLOG(5, "compressing %u bytes from frame %u with ZSTD_compressCCtx : ", (unsigned)job->srcSize, job->jobCompleted);
+    DEBUGLOG(5, "thread : compressing %u bytes from frame %u with ZSTD_compressCCtx : ", (unsigned)job->srcSize, job->jobCompleted);
     job->cSize = ZSTD_compressCCtx(job->cctx, job->dstBuff.start, job->dstBuff.size, job->srcStart, job->srcSize, job->compressionLevel);
     DEBUGLOG(5, "compressed to %u bytes  ", (unsigned)job->cSize);
     DEBUGLOG(5, "sending jobCompleted signal");
@@ -197,8 +196,9 @@ struct ZSTDMT_CCtx_s {
 
 ZSTDMT_CCtx *ZSTDMT_createCCtx(unsigned nbThreads)
 {
+    ZSTDMT_CCtx* cctx;
     if ((nbThreads < 1) | (nbThreads > ZSTDMT_NBTHREADS_MAX)) return NULL;
-    ZSTDMT_CCtx* const cctx = (ZSTDMT_CCtx*) calloc(1, sizeof(ZSTDMT_CCtx) + nbThreads*sizeof(ZSTDMT_jobDescription));
+    cctx = (ZSTDMT_CCtx*) calloc(1, sizeof(ZSTDMT_CCtx) + nbThreads*sizeof(ZSTDMT_jobDescription));
     if (!cctx) return NULL;
     cctx->nbThreads = nbThreads;
     cctx->factory = POOL_create(nbThreads, 1);

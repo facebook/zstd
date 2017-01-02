@@ -101,8 +101,8 @@ static clock_us_t BMK_clockMicroSec(void)
    static clock_t _ticksPerSecond = 0;
    if (_ticksPerSecond <= 0) _ticksPerSecond = sysconf(_SC_CLK_TCK);
 
-   struct tms junk; clock_t newTicks = (clock_t) times(&junk); (void)junk;
-   return ((((clock_us_t)newTicks)*(1000000))/_ticksPerSecond);
+   { struct tms junk; clock_t newTicks = (clock_t) times(&junk); (void)junk;
+     return ((((clock_us_t)newTicks)*(1000000))/_ticksPerSecond); }
 }
 
 

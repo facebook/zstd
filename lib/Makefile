@@ -36,6 +36,8 @@ CPPFLAGS  += -I./legacy -DZSTD_LEGACY_SUPPORT=1
 ZSTD_FILES+= $(wildcard legacy/*.c)
 endif
 
+ZSTD_OBJ   := $(patsubst %.c,%.o,$(ZSTD_FILES))
+
 # OS X linker doesn't support -soname, and use different extension
 # see : https://developer.apple.com/library/mac/documentation/DeveloperTools/Conceptual/DynamicLibraries/100-Articles/DynamicLibraryDesignGuidelines.html
 ifeq ($(shell uname), Darwin)
@@ -60,10 +62,9 @@ default: lib
 all: lib
 
 libzstd.a: ARFLAGS = rcs
-libzstd.a: $(ZSTD_FILES)
+libzstd.a: $(ZSTD_OBJ)
 	@echo compiling static library
-	@$(CC) $(FLAGS) -c $^
-	@$(AR) $(ARFLAGS) $@ *.o
+	@$(AR) $(ARFLAGS) $@ $^
 
 $(LIBZSTD): LDFLAGS += -shared -fPIC -fvisibility=hidden
 $(LIBZSTD): $(ZSTD_FILES)
@@ -84,7 +85,7 @@ lib: libzstd.a libzstd
 
 clean:
 	@$(RM) core *.o *.a *.gcda *.$(SHARED_EXT) *.$(SHARED_EXT).* libzstd.pc dll/libzstd.dll dll/libzstd.lib
-	@$(RM) decompress/*.o
+	@$(RM) common/*.o compress/*.o decompress/*.o dictBuilder/*.o legacy/*.o deprecated/*.o
 	@echo Cleaning library completed
 
 #-----------------------------------------------------------------------------

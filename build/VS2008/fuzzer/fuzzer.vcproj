@@ -333,6 +333,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\..\lib\dictBuilder\cover.c"
+				>
+			</File>
+			<File
 				RelativePath="..\..\..\lib\dictBuilder\divsufsort.c"
 				>
 			</File>

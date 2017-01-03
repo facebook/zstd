@@ -255,6 +255,27 @@ rm -rf dirTestDict
 rm tmp*
 
 
+$ECHO "\n**** cover dictionary tests **** "
+
+TESTFILE=../programs/zstdcli.c
+./datagen > tmpDict
+$ECHO "- Create first dictionary"
+$ZSTD --train --cover=k=46,d=8 *.c ../programs/*.c -o tmpDict
+cp $TESTFILE tmp
+$ZSTD -f tmp -D tmpDict
+$ZSTD -d tmp.zst -D tmpDict -fo result
+$DIFF $TESTFILE result
+$ECHO "- Create second (different) dictionary"
+$ZSTD --train --cover=k=56,d=8 *.c ../programs/*.c ../programs/*.h -o tmpDictC
+$ZSTD -d tmp.zst -D tmpDictC -fo result && die "wrong dictionary not detected!"
+$ECHO "- Create dictionary with short dictID"
+$ZSTD --train --cover=k=46,d=8 *.c ../programs/*.c --dictID 1 -o tmpDict1
+cmp tmpDict tmpDict1 && die "dictionaries should have different ID !"
+$ECHO "- Create dictionary with size limit"
+$ZSTD --train --optimize-cover=steps=8 *.c ../programs/*.c -o tmpDict2 --maxdict 4K
+rm tmp*
+
+
 $ECHO "\n**** integrity tests **** "
 
 $ECHO "test one file (tmp1.zst) "

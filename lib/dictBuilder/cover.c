@@ -28,7 +28,7 @@
 /*-*************************************
 *  Constants
 ***************************************/
-#define COVER_MAX_SAMPLES_SIZE ((U32)-1)
+#define COVER_MAX_SAMPLES_SIZE (sizeof(size_t) == 8 ? ((U32)-1) : ((U32)1 GB))
 
 /*-*************************************
 *  Console display
@@ -500,7 +500,9 @@ static int COVER_ctx_init(COVER_ctx_t *ctx, const void *samplesBuffer,
   const size_t totalSamplesSize = COVER_sum(samplesSizes, nbSamples);
   /* Checks */
   if (totalSamplesSize < d ||
-      totalSamplesSize > (size_t)COVER_MAX_SAMPLES_SIZE) {
+      totalSamplesSize >= (size_t)COVER_MAX_SAMPLES_SIZE) {
+    DISPLAYLEVEL(1, "Total samples size is too large, maximum size is %u MB\n",
+                 (COVER_MAX_SAMPLES_SIZE >> 20));
     return 0;
   }
   /* Zero the context */
@@ -518,6 +520,7 @@ static int COVER_ctx_init(COVER_ctx_t *ctx, const void *samplesBuffer,
   /* The offsets of each file */
   ctx->offsets = (size_t *)malloc((nbSamples + 1) * sizeof(size_t));
   if (!ctx->suffix || !ctx->dmerAt || !ctx->offsets) {
+    DISPLAYLEVEL(1, "Failed to allocate scratch buffers\n");
     COVER_ctx_destroy(ctx);
     return 0;
   }
@@ -651,7 +654,6 @@ ZDICTLIB_API size_t COVER_trainFromBuffer(
   /* Initialize context and activeDmers */
   if (!COVER_ctx_init(&ctx, samplesBuffer, samplesSizes, nbSamples,
                       parameters.d)) {
-    DISPLAYLEVEL(1, "Failed to initialize context\n");
     return ERROR(GENERIC);
   }
   if (!COVER_map_init(&activeDmers, parameters.k - parameters.d + 1)) {

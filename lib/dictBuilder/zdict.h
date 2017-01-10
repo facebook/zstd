@@ -108,6 +108,7 @@ typedef struct {
     The resulting dictionary will be saved into `dictBuffer`.
     @return : size of dictionary stored into `dictBuffer` (<= `dictBufferCapacity`)
               or an error code, which can be tested with ZDICT_isError().
+    Note : COVER_trainFromBuffer() requires about 9 bytes of memory for each input byte.
     Tips : In general, a reasonable dictionary has a size of ~ 100 KB.
            It's obviously possible to target smaller or larger ones, just by specifying different `dictBufferCapacity`.
            In general, it's recommended to provide a few thousands samples, but this can vary a lot.
@@ -131,6 +132,7 @@ ZDICTLIB_API size_t COVER_trainFromBuffer(void* dictBuffer, size_t dictBufferCap
     @return : size of dictionary stored into `dictBuffer` (<= `dictBufferCapacity`)
               or an error code, which can be tested with ZDICT_isError().
               On success `*parameters` contains the parameters selected.
+    Note : COVER_optimizeTrainFromBuffer() requires about 9 bytes of memory for each input byte.
 */
 ZDICTLIB_API size_t COVER_optimizeTrainFromBuffer(void* dictBuffer, size_t dictBufferCapacity,
                                      const void* samplesBuffer, const size_t *samplesSizes, unsigned nbSamples,

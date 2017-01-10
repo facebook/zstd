@@ -235,7 +235,8 @@ int DiB_trainFromFiles(const char* dictFileName, unsigned maxDictSize,
     void* const dictBuffer = malloc(maxDictSize);
     size_t* const fileSizes = (size_t*)malloc(nbFiles * sizeof(size_t));
     unsigned long long const totalSizeToLoad = DiB_getTotalCappedFileSize(fileNamesTable, nbFiles);
-    size_t const maxMem =  DiB_findMaxMem(totalSizeToLoad * MEMMULT) / MEMMULT;
+    size_t const memMult = params ? MEMMULT : COVER_MEMMULT;
+    size_t const maxMem =  DiB_findMaxMem(totalSizeToLoad * memMult) / memMult;
     size_t benchedSize = (size_t) MIN ((unsigned long long)maxMem, totalSizeToLoad);
     void* const srcBuffer = malloc(benchedSize+NOISELENGTH);
     int result = 0;

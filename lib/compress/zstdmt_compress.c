@@ -141,6 +141,15 @@ typedef struct {
 
 /* assumption : CCtxPool invocation only from main thread */
 
+/* note : all CCtx borrowed from the pool should be released back to the pool _before_ freeing the pool */
+static void ZSTDMT_freeCCtxPool(ZSTDMT_CCtxPool* pool)
+{
+    unsigned u;
+    for (u=0; u<pool->availCCtx; u++)  /* note : availCCtx is supposed == totalCCtx; otherwise, some CCtx are still in use */
+        ZSTD_freeCCtx(pool->cctx[u]);
+    free(pool);
+}
+
 static ZSTDMT_CCtxPool* ZSTDMT_createCCtxPool(unsigned nbThreads)
 {
     ZSTDMT_CCtxPool* const cctxPool = (ZSTDMT_CCtxPool*) calloc(1, sizeof(ZSTDMT_CCtxPool) + nbThreads*sizeof(ZSTD_CCtx*));
@@ -149,10 +158,8 @@ static ZSTDMT_CCtxPool* ZSTDMT_createCCtxPool(unsigned nbThreads)
         for (threadNb=0; threadNb<nbThreads; threadNb++) {
             cctxPool->cctx[threadNb] = ZSTD_createCCtx();
             if (cctxPool->cctx[threadNb]==NULL) {   /* failed cctx allocation : abort cctxPool creation */
-                unsigned u;
-                for (u=0; u<threadNb; u++)
-                    free(cctxPool->cctx[u]);
-                free(cctxPool);
+                cctxPool->totalCCtx = cctxPool->availCCtx = threadNb;
+                ZSTDMT_freeCCtxPool(cctxPool);
                 return NULL;
     }   }   }
     cctxPool->totalCCtx = cctxPool->availCCtx = nbThreads;
@@ -165,7 +172,7 @@ static ZSTD_CCtx* ZSTDMT_getCCtx(ZSTDMT_CCtxPool* pool)
         pool->availCCtx--;
         return pool->cctx[pool->availCCtx];
     }
-    /* should not be possible, since totalCCtx==nbThreads */
+    /* note : should not be possible, since totalCCtx==nbThreads */
     return ZSTD_createCCtx();
 }
 
@@ -174,16 +181,8 @@ static void ZSTDMT_releaseCCtx(ZSTDMT_CCtxPool* pool, ZSTD_CCtx* cctx)
     if (pool->availCCtx < pool->totalCCtx)
         pool->cctx[pool->availCCtx++] = cctx;
     else
-    /* should not be possible, since totalCCtx==nbThreads */
+    /* note : should not be possible, since totalCCtx==nbThreads */
         ZSTD_freeCCtx(cctx);
-}
-
-static void ZSTDMT_freeCCtxPool(ZSTDMT_CCtxPool* pool)
-{
-    unsigned u;
-    for (u=0; u<pool->totalCCtx; u++)
-        ZSTD_freeCCtx(pool->cctx[u]);
-    free(pool);
 }
 
 

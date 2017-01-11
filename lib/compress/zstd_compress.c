@@ -2408,12 +2408,14 @@ static size_t ZSTD_compressContinue_internal (ZSTD_CCtx* cctx,
 
     cctx->nextSrc = ip + srcSize;
 
-    {   size_t const cSize = frame ?
+    if (srcSize) {
+        size_t const cSize = frame ?
                              ZSTD_compress_generic (cctx, dst, dstCapacity, src, srcSize, lastFrameChunk) :
                              ZSTD_compressBlock_internal (cctx, dst, dstCapacity, src, srcSize);
         if (ZSTD_isError(cSize)) return cSize;
         return cSize + fhSize;
-    }
+    } else
+        return fhSize;
 }
 
 

@@ -206,12 +206,16 @@ ZSTDMT_CCtx *ZSTDMT_createCCtx(unsigned nbThreads)
     cctx->factory = POOL_create(nbThreads, 1);
     cctx->buffPool = ZSTDMT_createBufferPool(nbThreads);
     cctx->cctxPool = ZSTDMT_createCCtxPool(nbThreads);
-    pthread_mutex_init(&cctx->jobCompleted_mutex, NULL);
+    if (!cctx->factory | !cctx->buffPool | !cctx->cctxPool) {  /* one object was not created */
+        ZSTDMT_freeCCtx(cctx);
+        return NULL;
+    }
+    pthread_mutex_init(&cctx->jobCompleted_mutex, NULL);   /* Todo : check init function return */
     pthread_cond_init(&cctx->jobCompleted_cond, NULL);
     return cctx;
 }
 
-size_t ZSTDMT_freeCCtx(ZSTDMT_CCtx* mtctx)  /* incompleted ! */
+size_t ZSTDMT_freeCCtx(ZSTDMT_CCtx* mtctx)
 {
     POOL_free(mtctx->factory);
     ZSTDMT_freeBufferPool(mtctx->buffPool);

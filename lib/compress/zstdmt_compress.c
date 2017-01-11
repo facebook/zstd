@@ -74,7 +74,7 @@ static void ZSTDMT_freeBufferPool(ZSTDMT_bufferPool* bufPool)
     free(bufPool);
 }
 
-/* note : invocation only from main thread ! */
+/* assumption : invocation from main thread only ! */
 static buffer_t ZSTDMT_getBuffer(ZSTDMT_bufferPool* pool, size_t bSize)
 {
     if (pool->nbBuffers) {   /* try to use an existing buffer */
@@ -92,7 +92,7 @@ static buffer_t ZSTDMT_getBuffer(ZSTDMT_bufferPool* pool, size_t bSize)
     }
 }
 
-/* effectively store buffer for later re-use, up to pool capacity */
+/* store buffer for later re-use, up to pool capacity */
 static void ZSTDMT_releaseBuffer(ZSTDMT_bufferPool* pool, buffer_t buf)
 {
     if (pool->nbBuffers < pool->totalBuffers) {
@@ -122,15 +122,12 @@ typedef struct {
 void ZSTDMT_compressFrame(void* jobDescription)
 {
     ZSTDMT_jobDescription* const job = (ZSTDMT_jobDescription*)jobDescription;
-    DEBUGLOG(5, "thread : compressing %u bytes from frame %u with ZSTD_compressCCtx : ", (unsigned)job->srcSize, job->jobCompleted);
     job->cSize = ZSTD_compressCCtx(job->cctx, job->dstBuff.start, job->dstBuff.size, job->srcStart, job->srcSize, job->compressionLevel);
-    DEBUGLOG(5, "compressed to %u bytes  ", (unsigned)job->cSize);
-    DEBUGLOG(5, "sending jobCompleted signal");
+    DEBUGLOG(5, "frame %u : compressed %u bytes into %u bytes  ", (unsigned)job->frameID, (unsigned)job->srcSize, (unsigned)job->cSize);
     pthread_mutex_lock(job->jobCompleted_mutex);
     job->jobCompleted = 1;
     pthread_cond_signal(job->jobCompleted_cond);
     pthread_mutex_unlock(job->jobCompleted_mutex);
-    DEBUGLOG(5, "ZSTDMT_compressFrame completed");
 }
 
 
@@ -142,16 +139,22 @@ typedef struct {
     ZSTD_CCtx* cctx[1];   /* variable size */
 } ZSTDMT_CCtxPool;
 
-/* note : CCtxPool invocation only from main thread */
+/* assumption : CCtxPool invocation only from main thread */
 
 static ZSTDMT_CCtxPool* ZSTDMT_createCCtxPool(unsigned nbThreads)
 {
     ZSTDMT_CCtxPool* const cctxPool = (ZSTDMT_CCtxPool*) calloc(1, sizeof(ZSTDMT_CCtxPool) + nbThreads*sizeof(ZSTD_CCtx*));
     if (!cctxPool) return NULL;
-    {   unsigned u;
-        for (u=0; u<nbThreads; u++)
-            cctxPool->cctx[u] = ZSTD_createCCtx();   /* check for NULL result ! */
-    }
+    {   unsigned threadNb;
+        for (threadNb=0; threadNb<nbThreads; threadNb++) {
+            cctxPool->cctx[threadNb] = ZSTD_createCCtx();
+            if (cctxPool->cctx[threadNb]==NULL) {   /* failed cctx allocation : abort cctxPool creation */
+                unsigned u;
+                for (u=0; u<threadNb; u++)
+                    free(cctxPool->cctx[u]);
+                free(cctxPool);
+                return NULL;
+    }   }   }
     cctxPool->totalCCtx = cctxPool->availCCtx = nbThreads;
     return cctxPool;
 }

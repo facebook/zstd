@@ -28,8 +28,8 @@ if (g_debugLevel>=MUTEX_WAIT_TIME_DLEVEL) { \
    unsigned long long afterTime = GetCurrentClockTimeMicroseconds(); \
    unsigned long long elapsedTime = (afterTime-beforeTime); \
    if (elapsedTime > 1000) {  /* or whatever threshold you like; I'm using 1 millisecond here */ \
-      DEBUGLOG(MUTEX_WAIT_TIME_DLEVEL, "Thread %li took %llu microseconds to acquire mutex %s \n", \
-                (long int) pthread_self(), elapsedTime, #mutex); \
+      DEBUGLOG(MUTEX_WAIT_TIME_DLEVEL, "Thread took %llu microseconds to acquire mutex %s \n", \
+               elapsedTime, #mutex); \
   } \
 } else pthread_mutex_lock(mutex);
 
@@ -112,6 +112,7 @@ typedef struct {
     buffer_t dstBuff;
     int compressionLevel;
     unsigned frameID;
+    unsigned long long fullFrameSize;
     size_t cSize;
     unsigned jobCompleted;
     pthread_mutex_t* jobCompleted_mutex;
@@ -122,9 +123,26 @@ typedef struct {
 void ZSTDMT_compressFrame(void* jobDescription)
 {
     ZSTDMT_jobDescription* const job = (ZSTDMT_jobDescription*)jobDescription;
-    job->cSize = ZSTD_compressCCtx(job->cctx, job->dstBuff.start, job->dstBuff.size, job->srcStart, job->srcSize, job->compressionLevel);
+    buffer_t dstBuff = job->dstBuff;
+    ZSTD_parameters const params = ZSTD_getParams(job->compressionLevel, job->fullFrameSize, 0);
+    size_t hSize = ZSTD_compressBegin_advanced(job->cctx, NULL, 0, params, job->fullFrameSize);
+    if (ZSTD_isError(hSize)) { job->cSize = hSize; goto _endJob; }
+    hSize = ZSTD_compressContinue(job->cctx, dstBuff.start, dstBuff.size, job->srcStart, 0);   /* flush frame header */
+    if (ZSTD_isError(hSize)) { job->cSize = hSize; goto _endJob; }
+    if ((job->frameID & 1) == 0) {   /* preserve frame header when it is first beginning of frame */
+        dstBuff.start = (char*)dstBuff.start + hSize;
+        dstBuff.size -= hSize;
+    } else
+        hSize = 0;
+
+    job->cSize = (job->frameID>=2) ?   /* last chunk signal */
+                 ZSTD_compressEnd(job->cctx, dstBuff.start, dstBuff.size, job->srcStart, job->srcSize) :
+                 ZSTD_compressContinue(job->cctx, dstBuff.start, dstBuff.size, job->srcStart, job->srcSize);
+    if (!ZSTD_isError(job->cSize)) job->cSize += hSize;
     DEBUGLOG(5, "frame %u : compressed %u bytes into %u bytes  ", (unsigned)job->frameID, (unsigned)job->srcSize, (unsigned)job->cSize);
-    pthread_mutex_lock(job->jobCompleted_mutex);
+
+_endJob:
+    PTHREAD_MUTEX_LOCK(job->jobCompleted_mutex);
     job->jobCompleted = 1;
     pthread_cond_signal(job->jobCompleted_cond);
     pthread_mutex_unlock(job->jobCompleted_mutex);
@@ -254,10 +272,11 @@ size_t ZSTDMT_compressCCtx(ZSTDMT_CCtx* mtctx,
 
             mtctx->jobs[u].srcStart = srcStart + frameStartPos;
             mtctx->jobs[u].srcSize = frameSize;
+            mtctx->jobs[u].fullFrameSize = srcSize;
             mtctx->jobs[u].compressionLevel = compressionLevel;
             mtctx->jobs[u].dstBuff = dstBuffer;
             mtctx->jobs[u].cctx = cctx;
-            mtctx->jobs[u].frameID = u;
+            mtctx->jobs[u].frameID = (u>0) | ((u==nbFrames-1)<<1);
             mtctx->jobs[u].jobCompleted = 0;
             mtctx->jobs[u].jobCompleted_mutex = &mtctx->jobCompleted_mutex;
             mtctx->jobs[u].jobCompleted_cond = &mtctx->jobCompleted_cond;
@@ -275,7 +294,7 @@ size_t ZSTDMT_compressCCtx(ZSTDMT_CCtx* mtctx,
         for (frameID=0; frameID<nbFrames; frameID++) {
             DEBUGLOG(3, "ready to write frame %u ", frameID);
 
-            pthread_mutex_lock(&mtctx->jobCompleted_mutex);
+            PTHREAD_MUTEX_LOCK(&mtctx->jobCompleted_mutex);
             while (mtctx->jobs[frameID].jobCompleted==0) {
                 DEBUGLOG(4, "waiting for jobCompleted signal from frame %u", frameID);
                 pthread_cond_wait(&mtctx->jobCompleted_cond, &mtctx->jobCompleted_mutex);

@@ -129,7 +129,7 @@ gzstd:
 
 zstdmt: CPPFLAGS += -DZSTD_PTHREAD
 zstdmt: LDFLAGS += -lpthread
-zstdmt: clean zstd
+zstdmt: zstd
 
 generate_res:
 	windres/generate_res.bat

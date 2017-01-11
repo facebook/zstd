@@ -561,10 +561,10 @@ ZSTDLIB_API size_t ZSTD_sizeof_DStream(const ZSTD_DStream* zds);
     In which case, it will "discard" the relevant memory section from its history.
 
   Finish a frame with ZSTD_compressEnd(), which will write the last block(s) and optional checksum.
-  It's possible to use a NULL,0 src content, in which case, it will write a final empty block to end the frame,
-  Without last block mark, frames will be considered unfinished (broken) by decoders.
+  It's possible to use srcSize==0, in which case, it will write a final empty block to end the frame.
+  Without last block mark, frames will be considered unfinished (corrupted) by decoders.
 
-  You can then reuse `ZSTD_CCtx` (ZSTD_compressBegin()) to compress some new frame.
+  `ZSTD_CCtx` object can be re-used (ZSTD_compressBegin()) to compress some new frame.
 */
 
 /*=====   Buffer-less streaming compression functions  =====*/

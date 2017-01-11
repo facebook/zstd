@@ -321,7 +321,7 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
                 memcpy(compressedBuffer, srcBuffer, loadedCompressedSize);
             }
 
-#if 1
+#if 0       /* disable decompression test */
             dCompleted=1;
             (void)totalDTime; (void)fastestD; (void)crcOrig;   /*  unused when decompression disabled */
 #else
@@ -330,13 +330,14 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
 
             UTIL_sleepMilli(1); /* give processor time to other processes */
             UTIL_waitForNextTick(ticksPerSecond);
-            UTIL_getTime(&clockStart);
 
             if (!dCompleted) {
                 U64 clockLoop = g_nbSeconds ? TIMELOOP_MICROSEC : 1;
                 U32 nbLoops = 0;
+                clock_us_t clockStart;
                 ZSTD_DDict* const ddict = ZSTD_createDDict(dictBuffer, dictBufferSize);
                 if (!ddict) EXM_THROW(2, "ZSTD_createDDict() allocation failure");
+                clockStart = BMK_clockMicroSec();
                 do {
                     U32 blockNb;
                     for (blockNb=0; blockNb<nbBlocks; blockNb++) {
@@ -345,19 +346,19 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
                             blockTable[blockNb].cPtr, blockTable[blockNb].cSize,
                             ddict);
                         if (ZSTD_isError(regenSize)) {
-                            DISPLAY("ZSTD_decompress_usingDDict() failed on block %u : %s  \n",
-                                      blockNb, ZSTD_getErrorName(regenSize));
+                            DISPLAY("ZSTD_decompress_usingDDict() failed on block %u of size %u : %s  \n",
+                                      blockNb, (U32)blockTable[blockNb].cSize, ZSTD_getErrorName(regenSize));
                             clockLoop = 0;   /* force immediate test end */
                             break;
                         }
                         blockTable[blockNb].resSize = regenSize;
                     }
                     nbLoops++;
-                } while (UTIL_clockSpanMicro(clockStart, ticksPerSecond) < clockLoop);
+                } while (BMK_clockMicroSec() - clockStart < clockLoop);
                 ZSTD_freeDDict(ddict);
-                {   U64 const clockSpan = UTIL_clockSpanMicro(clockStart, ticksPerSecond);
-                    if (clockSpan < fastestD*nbLoops) fastestD = clockSpan / nbLoops;
-                    totalDTime += clockSpan;
+                {   clock_us_t const clockSpanMicro = BMK_clockMicroSec() - clockStart;
+                    if (clockSpanMicro < fastestD*nbLoops) fastestD = clockSpanMicro / nbLoops;
+                    totalDTime += clockSpanMicro;
                     dCompleted = (totalDTime >= maxTime);
             }   }
 

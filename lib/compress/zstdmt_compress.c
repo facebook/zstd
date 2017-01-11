@@ -277,21 +277,21 @@ size_t ZSTDMT_compressCCtx(ZSTDMT_CCtx* mtctx,
 
             pthread_mutex_lock(&mtctx->jobCompleted_mutex);
             while (mtctx->jobs[frameID].jobCompleted==0) {
-                DEBUGLOG(4, "waiting for jobCompleted signal for frame %u", frameID);
+                DEBUGLOG(4, "waiting for jobCompleted signal from frame %u", frameID);
                 pthread_cond_wait(&mtctx->jobCompleted_cond, &mtctx->jobCompleted_mutex);
             }
             pthread_mutex_unlock(&mtctx->jobCompleted_mutex);
 
+            ZSTDMT_releaseCCtx(mtctx->cctxPool, mtctx->jobs[frameID].cctx);
             {   size_t const cSize = mtctx->jobs[frameID].cSize;
                 if (ZSTD_isError(cSize)) return cSize;
                 if (dstPos + cSize > dstCapacity) return ERROR(dstSize_tooSmall);
-                if (frameID) {
+                if (frameID) {   /* note : frame 0 is already written directly into dst */
                     memcpy((char*)dst + dstPos, mtctx->jobs[frameID].dstBuff.start, cSize);
                     ZSTDMT_releaseBuffer(mtctx->buffPool, mtctx->jobs[frameID].dstBuff);
                 }
                 dstPos += cSize ;
             }
-            ZSTDMT_releaseCCtx(mtctx->cctxPool, mtctx->jobs[frameID].cctx);
         }
         DEBUGLOG(3, "compressed size : %u  ", (U32)dstPos);
         return dstPos;

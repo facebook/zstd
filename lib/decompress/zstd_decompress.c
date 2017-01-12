@@ -1444,7 +1444,7 @@ size_t ZSTD_decompress_usingDict(ZSTD_DCtx* dctx,
 #if defined(ZSTD_LEGACY_SUPPORT) && (ZSTD_LEGACY_SUPPORT==1)
     if (ZSTD_isLegacy(src, srcSize)) return ZSTD_decompressLegacy(dst, dstCapacity, src, srcSize, dict, dictSize);
 #endif
-    ZSTD_decompressBegin_usingDict(dctx, dict, dictSize);
+    CHECK_F(ZSTD_decompressBegin_usingDict(dctx, dict, dictSize));
     ZSTD_checkContinuity(dctx, dst);
     return ZSTD_decompressFrame(dctx, dst, dstCapacity, src, srcSize);
 }

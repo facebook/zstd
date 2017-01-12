@@ -95,6 +95,7 @@ static buffer_t ZSTDMT_getBuffer(ZSTDMT_bufferPool* pool, size_t bSize)
 /* store buffer for later re-use, up to pool capacity */
 static void ZSTDMT_releaseBuffer(ZSTDMT_bufferPool* pool, buffer_t buf)
 {
+    if (buf.start == NULL) return;   /* release on NULL */
     if (pool->nbBuffers < pool->totalBuffers) {
         pool->bTable[pool->nbBuffers++] = buf;   /* store for later re-use */
         return;
@@ -187,10 +188,10 @@ void ZSTDMT_compressChunk(void* jobDescription)
     if (ZSTD_isError(hSize)) { job->cSize = hSize; goto _endJob; }
     hSize = ZSTD_compressContinue(job->cctx, dstBuff.start, dstBuff.size, job->srcStart, 0);   /* flush frame header */
     if (ZSTD_isError(hSize)) { job->cSize = hSize; goto _endJob; }
-    if (job->firstChunk) {   /* preserve frame header when it is first chunk - otherwise, overwrite */
+    if (job->firstChunk) {   /* preserve frame header when it is first chunk */
         dstBuff.start = (char*)dstBuff.start + hSize;
         dstBuff.size -= hSize;
-    } else
+    } else                  /* otherwise, overwrite */
         hSize = 0;
 
     job->cSize = (job->lastChunk) ?   /* last chunk signal */
@@ -258,7 +259,7 @@ size_t ZSTDMT_compressCCtx(ZSTDMT_CCtx* mtctx,
     ZSTD_parameters params = ZSTD_getParams(compressionLevel, srcSize, 0);
     size_t const chunkTargetSize = (size_t)1 << (params.cParams.windowLog + 2);
     unsigned const nbChunksMax = (unsigned)(srcSize / chunkTargetSize) + (srcSize < chunkTargetSize) /* min 1 */;
-    unsigned const nbChunks = MIN(nbChunksMax, mtctx->nbThreads);
+    unsigned nbChunks = MIN(nbChunksMax, mtctx->nbThreads);
     size_t const proposedChunkSize = (srcSize + (nbChunks-1)) / nbChunks;
     size_t const avgChunkSize = ((proposedChunkSize & 0x1FFFF) < 0xFFFF) ? proposedChunkSize + 0xFFFF : proposedChunkSize;   /* avoid too small last block */
     size_t remainingSrcSize = srcSize;
@@ -274,7 +275,14 @@ size_t ZSTDMT_compressCCtx(ZSTDMT_CCtx* mtctx,
             size_t const chunkSize = MIN(remainingSrcSize, avgChunkSize);
             size_t const dstBufferCapacity = u ? ZSTD_compressBound(chunkSize) : dstCapacity;
             buffer_t const dstBuffer = u ? ZSTDMT_getBuffer(mtctx->buffPool, dstBufferCapacity) : (buffer_t){ dst, dstCapacity };
-            ZSTD_CCtx* const cctx = ZSTDMT_getCCtx(mtctx->cctxPool);   /* should check for NULL ! */
+            ZSTD_CCtx* const cctx = ZSTDMT_getCCtx(mtctx->cctxPool);
+
+            if ((cctx==NULL) || (dstBuffer.start==NULL)) {
+                mtctx->jobs[u].cSize = ERROR(memory_allocation);   /* job result */
+                mtctx->jobs[u].jobCompleted = 1;
+                nbChunks = u+1;
+                break;   /* let's wait for previous jobs to complete, but don't start new ones */
+            }
 
             mtctx->jobs[u].srcStart = srcStart + frameStartPos;
             mtctx->jobs[u].srcSize = chunkSize;
@@ -310,8 +318,8 @@ size_t ZSTDMT_compressCCtx(ZSTDMT_CCtx* mtctx,
 
             ZSTDMT_releaseCCtx(mtctx->cctxPool, mtctx->jobs[chunkID].cctx);
             {   size_t const cSize = mtctx->jobs[chunkID].cSize;
-                if (ZSTD_isError(cSize)) return cSize;
-                if (dstPos + cSize > dstCapacity) return ERROR(dstSize_tooSmall);
+                if (ZSTD_isError(cSize)) return cSize;  /* leaving here : later ressources won't be released */
+                if (dstPos + cSize > dstCapacity) return ERROR(dstSize_tooSmall);   /* leaving here : later ressources won't be released */
                 if (chunkID) {   /* note : chunk 0 is already written directly into dst */
                     memcpy((char*)dst + dstPos, mtctx->jobs[chunkID].dstBuff.start, cSize);
                     ZSTDMT_releaseBuffer(mtctx->buffPool, mtctx->jobs[chunkID].dstBuff);

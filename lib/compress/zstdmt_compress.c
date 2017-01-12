@@ -305,7 +305,7 @@ size_t ZSTDMT_compressCCtx(ZSTDMT_CCtx* mtctx,
     /* note : since nbChunks <= nbThreads, all jobs should be running immediately in parallel */
 
     {   unsigned chunkID;
-        size_t dstPos = 0;
+        size_t error = 0, dstPos = 0;
         for (chunkID=0; chunkID<nbChunks; chunkID++) {
             DEBUGLOG(3, "ready to write chunk %u ", chunkID);
 
@@ -318,17 +318,17 @@ size_t ZSTDMT_compressCCtx(ZSTDMT_CCtx* mtctx,
 
             ZSTDMT_releaseCCtx(mtctx->cctxPool, mtctx->jobs[chunkID].cctx);
             {   size_t const cSize = mtctx->jobs[chunkID].cSize;
-                if (ZSTD_isError(cSize)) return cSize;  /* leaving here : later ressources won't be released */
-                if (dstPos + cSize > dstCapacity) return ERROR(dstSize_tooSmall);   /* leaving here : later ressources won't be released */
+                if (ZSTD_isError(cSize)) error = cSize;
+                if ((!error) && (dstPos + cSize > dstCapacity)) error = ERROR(dstSize_tooSmall);
                 if (chunkID) {   /* note : chunk 0 is already written directly into dst */
-                    memcpy((char*)dst + dstPos, mtctx->jobs[chunkID].dstBuff.start, cSize);
+                    if (!error) memcpy((char*)dst + dstPos, mtctx->jobs[chunkID].dstBuff.start, cSize);
                     ZSTDMT_releaseBuffer(mtctx->buffPool, mtctx->jobs[chunkID].dstBuff);
                 }
                 dstPos += cSize ;
             }
         }
-        DEBUGLOG(3, "compressed size : %u  ", (U32)dstPos);
-        return dstPos;
+        if (!error) DEBUGLOG(3, "compressed size : %u  ", (U32)dstPos);
+        return error ? error : dstPos;
     }
 
 }

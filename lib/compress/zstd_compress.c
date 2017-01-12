@@ -2627,9 +2627,9 @@ size_t ZSTD_compressBegin_usingDict(ZSTD_CCtx* cctx, const void* dict, size_t di
 }
 
 
-size_t ZSTD_compressBegin(ZSTD_CCtx* zc, int compressionLevel)
+size_t ZSTD_compressBegin(ZSTD_CCtx* cctx, int compressionLevel)
 {
-    return ZSTD_compressBegin_usingDict(zc, NULL, 0, compressionLevel);
+    return ZSTD_compressBegin_usingDict(cctx, NULL, 0, compressionLevel);
 }
 
 

@@ -319,6 +319,7 @@ static int basicUnitTests(U32 seed, double compressibility)
               "\x37\xa4\x30\xec\x11\x22\x33\x44", 8);
           if (ZSTD_getErrorCode(ret) != ZSTD_error_dictionary_corrupted) goto _output_error;
         }
+        DISPLAYLEVEL(4, "OK \n");
 
         ZSTD_freeCCtx(cctx);
         ZSTD_freeDCtx(dctx);

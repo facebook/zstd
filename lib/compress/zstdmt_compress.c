@@ -36,7 +36,7 @@ if (g_debugLevel>=MUTEX_WAIT_TIME_DLEVEL) { \
 
 #else
 
-#  define DEBUGLOG(l, ...)   /* disabled */
+#  define DEBUGLOG(l, ...)      {}    /* disabled */
 #  define PTHREAD_MUTEX_LOCK(m) pthread_mutex_lock(m)
 
 #endif

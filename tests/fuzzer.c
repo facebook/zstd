@@ -312,6 +312,14 @@ static int basicUnitTests(U32 seed, double compressibility)
                   if (r != CNBuffSize) goto _output_error);
         DISPLAYLEVEL(4, "OK \n");
 
+        DISPLAYLEVEL(4, "test%3i : dictionary containing only header should return error : ", testNb++);
+        {
+          const size_t ret = ZSTD_decompress_usingDict(
+              dctx, decodedBuffer, CNBuffSize, compressedBuffer, cSize,
+              "\x37\xa4\x30\xec\x11\x22\x33\x44", 8);
+          if (ZSTD_getErrorCode(ret) != ZSTD_error_dictionary_corrupted) goto _output_error;
+        }
+
         ZSTD_freeCCtx(cctx);
         ZSTD_freeDCtx(dctx);
         free(dictBuffer);

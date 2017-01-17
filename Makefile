@@ -88,7 +88,7 @@ travis-install:
 	$(MAKE) install PREFIX=~/install_test_dir
 
 gpptest: clean
-	$(MAKE) -C programs all CC=g++ CFLAGS="-O3 -Wall -Wextra -Wundef -Wshadow -Wcast-align -Werror"
+	CC=g++ $(MAKE) -C programs all CFLAGS="-O3 -Wall -Wextra -Wundef -Wshadow -Wcast-align -Werror"
 
 gcc5test: clean
 	gcc-5 -v

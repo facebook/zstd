@@ -20,10 +20,6 @@
 # zstreamtest32: Same as zstreamtest, but forced to compile in 32-bits mode
 # ##########################################################################
 
-DESTDIR?=
-PREFIX ?= /usr/local
-BINDIR  = $(PREFIX)/bin
-MANDIR  = $(PREFIX)/share/man/man1
 ZSTDDIR = ../lib
 PRGDIR  = ../programs
 PYTHON ?= python3
@@ -125,10 +121,10 @@ zbufftest-dll : $(ZSTDDIR)/common/xxhash.c $(PRGDIR)/datagen.c zbufftest.c
 	$(MAKE) -C $(ZSTDDIR) libzstd
 	$(CC) $(CPPFLAGS) $(CFLAGS) $^ $(LDFLAGS) -o $@$(EXT)
 
-zstreamtest  : $(ZSTD_FILES) $(PRGDIR)/datagen.c zstreamtest.c
+zstreamtest  : $(ZSTD_FILES) $(ZDICT_FILES) $(PRGDIR)/datagen.c zstreamtest.c
 	$(CC)      $(FLAGS) $^ -o $@$(EXT)
 
-zstreamtest32 : $(ZSTD_FILES) $(PRGDIR)/datagen.c zstreamtest.c
+zstreamtest32 : $(ZSTD_FILES) $(ZDICT_FILES) $(PRGDIR)/datagen.c zstreamtest.c
 	$(CC) -m32  $(FLAGS) $^ -o $@$(EXT)
 
 zstreamtest-dll : LDFLAGS+= -L$(ZSTDDIR) -lzstd

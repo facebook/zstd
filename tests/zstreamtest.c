@@ -26,9 +26,10 @@
 #include <time.h>         /* clock_t, clock() */
 #include <string.h>       /* strcmp */
 #include "mem.h"
-#define ZSTD_STATIC_LINKING_ONLY   /* ZSTD_maxCLevel, ZSTD_customMem */
+#define ZSTD_STATIC_LINKING_ONLY   /* ZSTD_maxCLevel, ZSTD_customMem, ZSTD_getDictID_fromFrame */
 #include "zstd.h"         /* ZSTD_compressBound */
 #include "zstd_errors.h"  /* ZSTD_error_srcSize_wrong */
+#include "zdict.h"        /* ZDICT_trainFromBuffer */
 #include "datagen.h"      /* RDG_genBuffer */
 #define XXH_STATIC_LINKING_ONLY   /* XXH64_state_t */
 #include "xxhash.h"       /* XXH64_* */
@@ -44,8 +45,7 @@
 static const U32 nbTestsDefault = 10000;
 #define COMPRESSIBLE_NOISE_LENGTH (10 MB)
 #define FUZ_COMPRESSIBILITY_DEFAULT 50
-static const U32 prime1 = 2654435761U;
-static const U32 prime2 = 2246822519U;
+static const U32 prime32 = 2654435761U;
 
 
 /*-************************************
@@ -81,8 +81,9 @@ static clock_t FUZ_GetClockSpan(clock_t clockStart)
 #define FUZ_rotl32(x,r) ((x << r) | (x >> (32 - r)))
 unsigned int FUZ_rand(unsigned int* seedPtr)
 {
+    static const U32 prime2 = 2246822519U;
     U32 rand32 = *seedPtr;
-    rand32 *= prime1;
+    rand32 *= prime32;
     rand32 += prime2;
     rand32  = FUZ_rotl32(rand32, 13);
     *seedPtr = rand32;
@@ -107,6 +108,41 @@ static void freeFunction(void* opaque, void* address)
 *   Basic Unit tests
 ======================================================*/
 
+typedef struct {
+    void* start;
+    size_t size;
+    size_t filled;
+} buffer_t;
+
+static const buffer_t g_nullBuffer = { NULL, 0 , 0 };
+
+static buffer_t FUZ_createDictionary(const void* src, size_t srcSize, size_t blockSize, size_t requestedDictSize)
+{
+    buffer_t dict = { NULL, 0, 0 };
+    size_t const nbBlocks = (srcSize + (blockSize-1)) / blockSize;
+    size_t* const blockSizes = (size_t*) malloc(nbBlocks * sizeof(size_t));
+    if (!blockSizes) return dict;
+    dict.start = malloc(requestedDictSize);
+    if (!dict.start) { free(blockSizes); return dict; }
+    {   size_t nb;
+        for (nb=0; nb<nbBlocks-1; nb++) blockSizes[nb] = blockSize;
+        blockSizes[nbBlocks-1] = srcSize - (blockSize * (nbBlocks-1));
+    }
+    {   size_t const dictSize = ZDICT_trainFromBuffer(dict.start, requestedDictSize, src, blockSizes, (unsigned)nbBlocks);
+        free(blockSizes);
+        if (ZDICT_isError(dictSize)) { free(dict.start); return (buffer_t){ NULL, 0, 0 }; }
+        dict.size = requestedDictSize;
+        dict.filled = dictSize;
+        return dict;   /* how to return dictSize ? */
+    }
+}
+
+static void FUZ_freeDictionary(buffer_t dict)
+{
+    free(dict.start);
+}
+
+
 static int basicUnitTests(U32 seed, double compressibility, ZSTD_customMem customMem)
 {
     size_t const CNBufferSize = COMPRESSIBLE_NOISE_LENGTH;
@@ -123,13 +159,24 @@ static int basicUnitTests(U32 seed, double compressibility, ZSTD_customMem custo
     ZSTD_DStream* zd = ZSTD_createDStream_advanced(customMem);
     ZSTD_inBuffer  inBuff, inBuff2;
     ZSTD_outBuffer outBuff;
+    buffer_t dictionary = g_nullBuffer;
+    unsigned dictID = 0;
 
     /* Create compressible test buffer */
     if (!CNBuffer || !compressedBuffer || !decodedBuffer || !zc || !zd) {
-        DISPLAY("Not enough memory, aborting\n");
+        DISPLAY("Not enough memory, aborting \n");
         goto _output_error;
     }
     RDG_genBuffer(CNBuffer, CNBufferSize, compressibility, 0., seed);
+
+    /* Create dictionary */
+    MEM_STATIC_ASSERT(COMPRESSIBLE_NOISE_LENGTH >= 4 MB);
+    dictionary = FUZ_createDictionary(CNBuffer, 4 MB, 4 KB, 40 KB);
+    if (!dictionary.start) {
+        DISPLAY("Error creating dictionary, aborting \n");
+        goto _output_error;
+    }
+    dictID = ZDICT_getDictID(dictionary.start, dictionary.filled);
 
     /* generate skippable frame */
     MEM_writeLE32(compressedBuffer, ZSTD_MAGIC_SKIPPABLE_START);
@@ -260,8 +307,6 @@ static int basicUnitTests(U32 seed, double compressibility, ZSTD_customMem custo
     { size_t const r = ZSTD_endStream(zc, &outBuff);
       if (r != 0) goto _output_error; }  /* error, or some data not flushed */
     { unsigned long long origSize = ZSTD_getDecompressedSize(outBuff.dst, outBuff.pos);
-      DISPLAY("outBuff.pos : %u \n", (U32)outBuff.pos);
-      DISPLAY("origSize = %u \n", (U32)origSize);
       if ((size_t)origSize != CNBufferSize) goto _output_error; }  /* exact original size must be present */
     DISPLAYLEVEL(4, "OK (%u bytes : %.2f%%)\n", (U32)cSize, (double)cSize/COMPRESSIBLE_NOISE_LENGTH*100);
 
@@ -320,7 +365,7 @@ static int basicUnitTests(U32 seed, double compressibility, ZSTD_customMem custo
 
     /* CDict scenario */
     DISPLAYLEVEL(4, "test%3i : digested dictionary : ", testNb++);
-    {   ZSTD_CDict* const cdict = ZSTD_createCDict(CNBuffer, 128 KB, 1);
+    {   ZSTD_CDict* const cdict = ZSTD_createCDict(dictionary.start, dictionary.filled, 1);
         size_t const initError = ZSTD_initCStream_usingCDict(zc, cdict);
         if (ZSTD_isError(initError)) goto _output_error;
         cSize = 0;
@@ -346,9 +391,15 @@ static int basicUnitTests(U32 seed, double compressibility, ZSTD_customMem custo
       DISPLAYLEVEL(4, "OK (%u bytes) \n", (U32)s);
     }
 
+    DISPLAYLEVEL(4, "test%3i : check Dictionary ID : ", testNb++);
+    { unsigned const dID = ZSTD_getDictID_fromFrame(compressedBuffer, cSize);
+      if (dID != dictID) goto _output_error;
+      DISPLAYLEVEL(4, "OK (%u) \n", dID);
+    }
+
     /* DDict scenario */
     DISPLAYLEVEL(4, "test%3i : decompress %u bytes with digested dictionary : ", testNb++, (U32)CNBufferSize);
-    {   ZSTD_DDict* const ddict = ZSTD_createDDict(CNBuffer, 128 KB);
+    {   ZSTD_DDict* const ddict = ZSTD_createDDict(dictionary.start, dictionary.filled);
         size_t const initError = ZSTD_initDStream_usingDDict(zd, ddict);
         if (ZSTD_isError(initError)) goto _output_error;
         inBuff.src = compressedBuffer;
@@ -388,6 +439,7 @@ static int basicUnitTests(U32 seed, double compressibility, ZSTD_customMem custo
 
 
 _end:
+    FUZ_freeDictionary(dictionary);
     ZSTD_freeCStream(zc);
     ZSTD_freeDStream(zd);
     free(CNBuffer);
@@ -492,7 +544,7 @@ static int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compres
         if (nbTests >= testNb) { DISPLAYUPDATE(2, "\r%6u/%6u    ", testNb, nbTests); }
         else { DISPLAYUPDATE(2, "\r%6u          ", testNb); }
         FUZ_rand(&coreSeed);
-        lseed = coreSeed ^ prime1;
+        lseed = coreSeed ^ prime32;
 
         /* states full reset (deliberately not synchronized) */
         /* some issues can only happen when reusing states */

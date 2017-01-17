@@ -69,6 +69,8 @@ from standard input if it is a terminal.
 .PP
 Unless
 .B \-\-stdout
+or
+.B \-o
 is specified,
 .I files
 are written to a new file whose name is derived from the source
@@ -159,7 +161,8 @@ No files are created or removed.
  # compression level [1-19] (default:3)
 .TP
 .BR \--ultra
- unlocks high compression levels 20+ (maximum 22), using a lot more memory
+ unlocks high compression levels 20+ (maximum 22), using a lot more memory.
+Note that decompression will also require more memory when using these levels.
 .TP
 .B \-D file
  use `file` as Dictionary to compress or decompress FILE(s)
@@ -293,7 +296,7 @@ There are 8 strategies numbered from 0 to 7, from faster to stronger:
 .PD
 Specify the maximum number of bits for a match distance.
 .IP ""
-The higher number of bits increases the chance to find a match what usually improves compression ratio. 
+The higher number of bits increases the chance to find a match what usually improves compression ratio.
 It also increases memory requirements for compressor and decompressor.
 .IP ""
 The minimum \fIwlog\fR is 10 (1 KiB) and the maximum is 25 (32 MiB) for 32-bit compilation and 27 (128 MiB) for 64-bit compilation.
@@ -319,7 +322,7 @@ The minimum \fIhlog\fR is 6 (64 B) and the maximum is 25 (32 MiB) for 32-bit com
 .PD
 Specify the maximum number of bits for a hash chain or a binary tree.
 .IP ""
-The higher number of bits increases the chance to find a match what usually improves compression ratio. 
+The higher number of bits increases the chance to find a match what usually improves compression ratio.
 It also slows down compression speed and increases memory requirements for compression.
 This option is ignored for the ZSTD_fast strategy.
 .IP ""

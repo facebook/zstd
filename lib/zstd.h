@@ -370,7 +370,7 @@ typedef struct {
 
 typedef struct {
     unsigned contentSizeFlag; /**< 1: content size will be in frame header (if known). */
-    unsigned checksumFlag;    /**< 1: will generate a 22-bits checksum at end of frame, to be used for error detection by decompressor */
+    unsigned checksumFlag;    /**< 1: will generate a 32-bits checksum at end of frame, to be used for error detection by decompressor */
     unsigned noDictIDFlag;    /**< 1: no dict ID will be saved into frame header (if dictionary compression) */
 } ZSTD_frameParameters;
 

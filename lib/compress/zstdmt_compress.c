@@ -122,8 +122,8 @@ typedef struct {
 static void ZSTDMT_freeCCtxPool(ZSTDMT_CCtxPool* pool)
 {
     unsigned u;
-    for (u=0; u<pool->availCCtx; u++)  /* note : availCCtx is supposed == totalCCtx; otherwise, some CCtx are still in use */
-        ZSTD_freeCCtx(pool->cctx[u]);
+    for (u=0; u<pool->totalCCtx; u++)
+        ZSTD_freeCCtx(pool->cctx[u]);  /* note : compatible with free on NULL */
     free(pool);
 }
 
@@ -131,15 +131,8 @@ static ZSTDMT_CCtxPool* ZSTDMT_createCCtxPool(unsigned nbThreads)
 {
     ZSTDMT_CCtxPool* const cctxPool = (ZSTDMT_CCtxPool*) calloc(1, sizeof(ZSTDMT_CCtxPool) + nbThreads*sizeof(ZSTD_CCtx*));
     if (!cctxPool) return NULL;
-    {   unsigned threadNb;
-        for (threadNb=0; threadNb<nbThreads; threadNb++) {
-            cctxPool->cctx[threadNb] = ZSTD_createCCtx();
-            if (cctxPool->cctx[threadNb]==NULL) {   /* failed cctx allocation : abort cctxPool creation */
-                cctxPool->totalCCtx = cctxPool->availCCtx = threadNb;
-                ZSTDMT_freeCCtxPool(cctxPool);
-                return NULL;
-    }   }   }
-    cctxPool->totalCCtx = cctxPool->availCCtx = nbThreads;
+    cctxPool->totalCCtx = nbThreads;
+    cctxPool->availCCtx = 0;
     return cctxPool;
 }
 
@@ -149,17 +142,16 @@ static ZSTD_CCtx* ZSTDMT_getCCtx(ZSTDMT_CCtxPool* pool)
         pool->availCCtx--;
         return pool->cctx[pool->availCCtx];
     }
-    /* note : should not be possible, since totalCCtx==nbThreads */
-    return ZSTD_createCCtx();   /* note : can be NULL is creation fails ! */
+    return ZSTD_createCCtx();   /* note : can be NULL, when creation fails ! */
 }
 
 static void ZSTDMT_releaseCCtx(ZSTDMT_CCtxPool* pool, ZSTD_CCtx* cctx)
 {
-    if (cctx==NULL) return;   /* release on NULL */
+    if (cctx==NULL) return;   /* compatibility with release on NULL */
     if (pool->availCCtx < pool->totalCCtx)
         pool->cctx[pool->availCCtx++] = cctx;
     else
-    /* note : should not be possible, since totalCCtx==nbThreads */
+        /* pool overflow : should not happen, since totalCCtx==nbThreads */
         ZSTD_freeCCtx(cctx);
 }
 

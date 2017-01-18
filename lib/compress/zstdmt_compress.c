@@ -52,7 +52,7 @@ typedef struct buffer_s {
     size_t size;
 } buffer_t;
 
-static const buffer_t g_nullBuffer = (buffer_t) { NULL, 0 };
+static const buffer_t g_nullBuffer = { NULL, 0 };
 
 typedef struct ZSTDMT_bufferPool_s {
     unsigned totalBuffers;;
@@ -277,6 +277,8 @@ static void ZSTDMT_releaseAllJobResources(ZSTDMT_CCtx* mtctx)
         ZSTDMT_releaseCCtx(mtctx->cctxPool, mtctx->jobs[jobID].cctx);
         mtctx->jobs[jobID].cctx = NULL;
     }
+    ZSTDMT_releaseBuffer(mtctx->buffPool, mtctx->inBuff.buffer);
+    mtctx->inBuff.buffer = g_nullBuffer;
 }
 
 size_t ZSTDMT_freeCCtx(ZSTDMT_CCtx* mtctx)
@@ -402,7 +404,8 @@ size_t ZSTDMT_initCStream(ZSTDMT_CCtx* zcs, int compressionLevel) {
     zcs->params = ZSTD_getParams(compressionLevel, 0, 0);
     zcs->targetSectionSize = (size_t)1 << (zcs->params.cParams.windowLog + 2);
     zcs->inBuffSize = 5 * (1 << zcs->params.cParams.windowLog);
-    zcs->inBuff.buffer = ZSTDMT_getBuffer(zcs->buffPool, zcs->inBuffSize);   /* check for NULL ! */
+    zcs->inBuff.buffer = ZSTDMT_getBuffer(zcs->buffPool, zcs->inBuffSize);
+    if (zcs->inBuff.buffer.start == NULL) return ERROR(memory_allocation);
     zcs->inBuff.filled = 0;
     zcs->doneJobID = 0;
     zcs->nextJobID = 0;
@@ -413,7 +416,7 @@ size_t ZSTDMT_initCStream(ZSTDMT_CCtx* zcs, int compressionLevel) {
 
 size_t ZSTDMT_compressStream(ZSTDMT_CCtx* zcs, ZSTD_outBuffer* output, ZSTD_inBuffer* input)
 {
-    if (zcs->frameEnded) return ERROR(stage_wrong);
+    if (zcs->frameEnded) return ERROR(stage_wrong);   /* current frame being ended. Finish it and restart a new one */
 
     /* fill input buffer */
     {   size_t const toLoad = MIN(input->size - input->pos, zcs->inBuffSize - zcs->inBuff.filled);

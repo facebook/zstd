@@ -543,6 +543,8 @@ static size_t ZSTDMT_flushStream_internal(ZSTDMT_CCtx* zcs, ZSTD_outBuffer* outp
                 return ERROR(memory_allocation);
             }
         } else {
+            zcs->inBuff.buffer = g_nullBuffer;
+            zcs->inBuff.filled = 0;
             zcs->frameEnded = 1;
         }
 

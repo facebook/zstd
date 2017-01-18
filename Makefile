@@ -50,6 +50,11 @@ zstd:
 	@$(MAKE) -C $(PRGDIR) $@
 	cp $(PRGDIR)/zstd$(EXT) .
 
+.PHONY: zstdmt
+zstdmt:
+	@$(MAKE) -C $(PRGDIR) $@
+	cp $(PRGDIR)/zstd$(EXT) ./zstdmt$(EXT)
+
 .PHONY: zlibwrapper
 zlibwrapper:
 	$(MAKE) -C $(ZWRAPDIR) test

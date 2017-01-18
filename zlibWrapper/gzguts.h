@@ -3,7 +3,7 @@
  * - gz_statep was converted to union to work with -Wstrict-aliasing=1      */
 
 /* gzguts.h -- zlib internal header definitions for gz* operations
- * Copyright (C) 2004, 2005, 2010, 2011, 2012, 2013 Mark Adler
+ * Copyright (C) 2004, 2005, 2010, 2011, 2012, 2013, 2016 Mark Adler
  * For conditions of distribution and use, see http://www.zlib.net/zlib_license.html
  */
 
@@ -30,6 +30,10 @@
 #  include <stdlib.h>
 #  include <limits.h>
 #endif
+
+#ifndef _POSIX_SOURCE
+#  define _POSIX_SOURCE
+#endif
 #include <fcntl.h>
 
 #ifdef _WIN32
@@ -38,6 +42,10 @@
 
 #if defined(__TURBOC__) || defined(_MSC_VER) || defined(_WIN32)
 #  include <io.h>
+#endif
+
+#if defined(_WIN32) || defined(__CYGWIN__)
+#  define WIDECHAR
 #endif
 
 #ifdef WINAPI_FAMILY
@@ -100,18 +108,19 @@
 #  endif
 #endif
 
-/* unlike snprintf (which is required in C99, yet still not supported by
-   Microsoft more than a decade later!), _snprintf does not guarantee null
-   termination of the result -- however this is only used in gzlib.c where
+/* unlike snprintf (which is required in C99), _snprintf does not guarantee
+   null termination of the result -- however this is only used in gzlib.c where
    the result is assured to fit in the space provided */
-#ifdef _MSC_VER
+#if defined(_MSC_VER) && _MSC_VER < 1900
 #  define snprintf _snprintf
 #endif
 
 #ifndef local
 #  define local static
 #endif
-/* compile with -Dlocal if your debugger can't find static symbols */
+/* since "static" is used to mean two completely different things in C, we
+   define "local" for the non-static meaning of "static", for readability
+   (compile with -Dlocal if your debugger can't find static symbols) */
 
 /* gz* functions always use library allocation functions */
 #ifndef STDC
@@ -175,7 +184,7 @@ typedef struct {
     char *path;             /* path or fd for error messages */
     unsigned size;          /* buffer size, zero if not allocated yet */
     unsigned want;          /* requested buffer size, default is GZBUFSIZE */
-    unsigned char *in;      /* input buffer */
+    unsigned char *in;      /* input buffer (double-sized when writing) */
     unsigned char *out;     /* output buffer (double-sized when reading) */
     int direct;             /* 0 if processing gzip, 1 if transparent */
         /* just for reading */

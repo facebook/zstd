@@ -89,7 +89,7 @@ local int gz_comp(state, flush)
     if (state.state->direct) {
         while (strm->avail_in) {
             put = strm->avail_in > max ? max : strm->avail_in;
-            writ = write(state.state->fd, strm->next_in, put);
+            writ = (int)write(state.state->fd, strm->next_in, put);
             if (writ < 0) {
                 gz_error(state, Z_ERRNO, zstrerror());
                 return -1;
@@ -110,7 +110,7 @@ local int gz_comp(state, flush)
             while (strm->next_out > state.state->x.next) {
                 put = strm->next_out - state.state->x.next > (int)max ? max :
                       (unsigned)(strm->next_out - state.state->x.next);
-                writ = write(state.state->fd, state.state->x.next, put);
+                writ = (int)write(state.state->fd, state.state->x.next, put);
                 if (writ < 0) {
                     gz_error(state, Z_ERRNO, zstrerror());
                     return -1;
@@ -204,7 +204,7 @@ local z_size_t gz_write(state, buf, len)
     if (len < state.state->size) {
         /* copy to input buffer, compress when full */
         do {
-            unsigned have, copy;
+            z_size_t have, copy;
 
             if (state.state->strm.avail_in == 0)
                 state.state->strm.next_in = state.state->in;
@@ -230,10 +230,10 @@ local z_size_t gz_write(state, buf, len)
         /* directly compress user buffer to file */
         state.state->strm.next_in = (z_const Bytef *)buf;
         do {
-            unsigned n = (unsigned)-1;
+            z_size_t n = (unsigned)-1;
             if (n > len)
                 n = len;
-            state.state->strm.avail_in = n;
+            state.state->strm.avail_in = (z_uInt)n;
             state.state->x.pos += n;
             if (gz_comp(state, Z_NO_FLUSH) == -1)
                 return 0;
@@ -371,7 +371,7 @@ int ZEXPORT gzputs(file, str)
 
     /* write string */
     len = strlen(str);
-    ret = gz_write(state, str, len);
+    ret = (int)gz_write(state, str, len);
     return ret == 0 && len != 0 ? -1 : ret;
 }
 

@@ -1043,6 +1043,20 @@ ZEXTERN uLong ZEXPORT z_crc32   OF((uLong crc, const Bytef *buf, uInt len))
     return crc32(crc, buf, len);
 }
 
+
+#if ZLIB_VERNUM >= 0x12B0
+ZEXTERN uLong ZEXPORT z_adler32_z OF((uLong adler, const Bytef *buf, z_size_t len))
+{
+    return adler32_z(adler, buf, len);
+}
+
+ZEXTERN uLong ZEXPORT z_crc32_z OF((uLong crc, const Bytef *buf, z_size_t len))
+{
+    return crc32_z(crc, buf, len);
+}
+#endif
+
+
 #if ZLIB_VERNUM >= 0x1270
 ZEXTERN const z_crc_t FAR * ZEXPORT z_get_crc_table    OF((void))
 {

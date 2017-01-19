@@ -561,7 +561,7 @@ int main(int argCount, const char* argv[])
     }   }
 #endif
 
-    /* No warning message in pipe mode (stdin + stdout) or multi-files mode */
+    /* No status message in pipe mode (stdin - stdout) or multi-files mode */
     if (!strcmp(filenameTable[0], stdinmark) && outFileName && !strcmp(outFileName,stdoutmark) && (displayLevel==2)) displayLevel=1;
     if ((filenameIdx>1) & (displayLevel==2)) displayLevel=1;
 

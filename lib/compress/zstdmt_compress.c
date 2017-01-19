@@ -176,10 +176,10 @@ typedef struct {
     ZSTD_CCtx* cctx;
     buffer_t src;
     const void* srcStart;
-    size_t srcSize;
+    size_t   srcSize;
     buffer_t dstBuff;
-    size_t cSize;
-    size_t dstFlushed;
+    size_t   cSize;
+    size_t   dstFlushed;
     unsigned long long fullFrameSize;
     unsigned firstChunk;
     unsigned lastChunk;
@@ -196,9 +196,10 @@ void ZSTDMT_compressChunk(void* jobDescription)
     buffer_t const dstBuff = job->dstBuff;
     size_t const initError = ZSTD_compressBegin_advanced(job->cctx, NULL, 0, job->params, job->fullFrameSize);
     if (ZSTD_isError(initError)) { job->cSize = initError; goto _endJob; }
-    if (!job->firstChunk) {
-        size_t const hSize = ZSTD_compressContinue(job->cctx, dstBuff.start, dstBuff.size, job->srcStart, 0);   /* flush frame header */
+    if (!job->firstChunk) {  /* flush frame header */
+        size_t const hSize = ZSTD_compressContinue(job->cctx, dstBuff.start, dstBuff.size, job->srcStart, 0);
         if (ZSTD_isError(hSize)) { job->cSize = hSize; goto _endJob; }
+        ZSTD_invalidateRepCodes(job->cctx);
     }
 
     DEBUGLOG(3, "Compressing : ");

@@ -317,6 +317,14 @@ static size_t ZSTD_resetCCtx_advanced (ZSTD_CCtx* zc,
     }
 }
 
+/* ZSTD_invalidateRepCodes() :
+ * ensures next compression will not use repcodes from previous block.
+ * Note : only works with regular variant;
+ *        do not use with extDict variant ! */
+void ZSTD_invalidateRepCodes(ZSTD_CCtx* cctx) {
+    int i;
+    for (i=0; i<ZSTD_REP_NUM; i++) cctx->rep[i] = 0;
+}
 
 /*! ZSTD_copyCCtx() :
 *   Duplicate an existing context `srcCCtx` into another one `dstCCtx`.

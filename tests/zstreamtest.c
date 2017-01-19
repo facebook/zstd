@@ -769,13 +769,9 @@ static int fuzzerTests_MT(U32 seed, U32 nbTests, unsigned startTest, double comp
             /* random dictionary selection */
             dictSize  = 0;
             dict = NULL;
-            {   U64 const pledgedSrcSize = (FUZ_rand(&lseed) & 3) ? 0 : maxTestSize;
-                ZSTD_parameters params = ZSTD_getParams(cLevel, pledgedSrcSize, dictSize);
-                params.fParams.checksumFlag = FUZ_rand(&lseed) & 1;
-                params.fParams.noDictIDFlag = FUZ_rand(&lseed) & 1;
-                {   size_t const initError = ZSTDMT_initCStream(zc, cLevel);
-                    CHECK (ZSTD_isError(initError),"ZSTD_initCStream_advanced error : %s", ZSTD_getErrorName(initError));
-        }   }   }
+            {   size_t const initError = ZSTDMT_initCStream(zc, cLevel);
+                CHECK (ZSTD_isError(initError),"ZSTD_initCStream_advanced error : %s", ZSTD_getErrorName(initError));
+        }   }
 
         /* multi-segments compression test */
         XXH64_reset(&xxhState, 0);

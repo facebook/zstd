@@ -12,10 +12,10 @@
  */
 
 /**
- * This file will hold wrapper for systems, which do not support Pthreads
+ * This file will hold wrapper for systems, which do not support pthreads
  */
 
-#if defined(ZSTD_PTHREAD) && defined(_WIN32)
+#if defined(ZSTD_MULTITHREAD) && defined(_WIN32)
 
 /**
  * Windows minimalist Pthread Wrapper, based on :
@@ -70,4 +70,4 @@ int _pthread_join(pthread_t * thread, void **value_ptr)
     }
 }
 
-#endif
+#endif   /* ZSTD_MULTITHREAD */

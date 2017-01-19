@@ -1,3 +1,12 @@
+
+
+/* ======   Tuning parameters   ====== */
+#ifndef ZSTDMT_SECTION_LOGSIZE_MIN
+#define ZSTDMT_SECTION_LOGSIZE_MIN 20   /*< minimum size for a full compression job (20==2^20==1 MB) */
+#endif
+
+/* ======   Dependencies   ====== */
+
 #include <stdlib.h>   /* malloc */
 #include <string.h>   /* memcpy */
 #include <pool.h>     /* threadpool */
@@ -180,13 +189,15 @@ typedef struct {
     buffer_t dstBuff;
     size_t   cSize;
     size_t   dstFlushed;
-    unsigned long long fullFrameSize;
     unsigned firstChunk;
     unsigned lastChunk;
     unsigned jobCompleted;
     pthread_mutex_t* jobCompleted_mutex;
     pthread_cond_t* jobCompleted_cond;
     ZSTD_parameters params;
+    const void* dict;
+    size_t dictSize;
+    unsigned long long fullFrameSize;
 } ZSTDMT_jobDescription;
 
 /* ZSTDMT_compressChunk() : POOL_function type */
@@ -194,7 +205,7 @@ void ZSTDMT_compressChunk(void* jobDescription)
 {
     ZSTDMT_jobDescription* const job = (ZSTDMT_jobDescription*)jobDescription;
     buffer_t const dstBuff = job->dstBuff;
-    size_t const initError = ZSTD_compressBegin_advanced(job->cctx, NULL, 0, job->params, job->fullFrameSize);
+    size_t const initError = ZSTD_compressBegin_advanced(job->cctx, job->dict, job->dictSize, job->params, job->fullFrameSize);
     if (ZSTD_isError(initError)) { job->cSize = initError; goto _endJob; }
     if (!job->firstChunk) {  /* flush frame header */
         size_t const hSize = ZSTD_compressContinue(job->cctx, dstBuff.start, dstBuff.size, job->srcStart, 0);
@@ -237,6 +248,9 @@ struct ZSTDMT_CCtx_s {
     unsigned nextJobID;
     unsigned frameEnded;
     unsigned allJobsCompleted;
+    unsigned long long frameContentSize;
+    const void* dict;
+    size_t dictSize;
     ZSTDMT_jobDescription jobs[1];   /* variable size (must lies at the end) */
 };
 
@@ -405,15 +419,20 @@ static void ZSTDMT_waitForAllJobsCompleted(ZSTDMT_CCtx* zcs) {
     }
 }
 
-size_t ZSTDMT_initCStream(ZSTDMT_CCtx* zcs, int compressionLevel) {
+size_t ZSTDMT_initCStream_advanced(ZSTDMT_CCtx* zcs, const void* dict, size_t dictSize,
+                                   ZSTD_parameters params, unsigned long long pledgedSrcSize) {
     if (zcs->allJobsCompleted == 0) {   /* previous job not correctly finished */
         ZSTDMT_waitForAllJobsCompleted(zcs);
         ZSTDMT_releaseAllJobResources(zcs);
         zcs->allJobsCompleted = 1;
     }
-    zcs->params = ZSTD_getParams(compressionLevel, 0, 0);
-    zcs->targetSectionSize = (size_t)1 << (zcs->params.cParams.windowLog + 2);
-    zcs->inBuffSize = 5 * (1 << zcs->params.cParams.windowLog);
+    params.fParams.checksumFlag = 0;   /* current limitation : no checksum (to be lifted in a later version) */
+    zcs->params = params;
+    zcs->dict = dict;
+    zcs->dictSize = dictSize;
+    zcs->frameContentSize = pledgedSrcSize;
+    zcs->targetSectionSize = (size_t)1 << MAX(ZSTDMT_SECTION_LOGSIZE_MIN, (zcs->params.cParams.windowLog + 2));
+    zcs->inBuffSize = zcs->targetSectionSize + (1 << zcs->params.cParams.windowLog);
     zcs->inBuff.buffer = ZSTDMT_getBuffer(zcs->buffPool, zcs->inBuffSize);
     if (zcs->inBuff.buffer.start == NULL) return ERROR(memory_allocation);
     zcs->inBuff.filled = 0;
@@ -422,6 +441,11 @@ size_t ZSTDMT_initCStream(ZSTDMT_CCtx* zcs, int compressionLevel) {
     zcs->frameEnded = 0;
     zcs->allJobsCompleted = 0;
     return 0;
+}
+
+size_t ZSTDMT_initCStream(ZSTDMT_CCtx* zcs, int compressionLevel) {
+    ZSTD_parameters const params = ZSTD_getParams(compressionLevel, 0, 0);
+    return ZSTDMT_initCStream_advanced(zcs, NULL, 0, params, 0);
 }
 
 
@@ -455,8 +479,10 @@ size_t ZSTDMT_compressStream(ZSTDMT_CCtx* zcs, ZSTD_outBuffer* output, ZSTD_inBu
         zcs->jobs[jobID].src = zcs->inBuff.buffer;
         zcs->jobs[jobID].srcStart = zcs->inBuff.buffer.start;
         zcs->jobs[jobID].srcSize = zcs->targetSectionSize;
-        zcs->jobs[jobID].fullFrameSize = 0;
         zcs->jobs[jobID].params = zcs->params;
+        zcs->jobs[jobID].dict = zcs->nextJobID == 0 ? zcs->dict : NULL;
+        zcs->jobs[jobID].dictSize = zcs->nextJobID == 0 ? zcs->dictSize : 0;
+        zcs->jobs[jobID].fullFrameSize = zcs->frameContentSize;
         zcs->jobs[jobID].dstBuff = dstBuffer;
         zcs->jobs[jobID].cctx = cctx;
         zcs->jobs[jobID].firstChunk = (zcs->nextJobID==0);
@@ -539,8 +565,10 @@ static size_t ZSTDMT_flushStream_internal(ZSTDMT_CCtx* zcs, ZSTD_outBuffer* outp
         zcs->jobs[jobID].src = zcs->inBuff.buffer;
         zcs->jobs[jobID].srcStart = zcs->inBuff.buffer.start;
         zcs->jobs[jobID].srcSize = srcSize;
-        zcs->jobs[jobID].fullFrameSize = 0;
         zcs->jobs[jobID].params = zcs->params;
+        zcs->jobs[jobID].dict = zcs->nextJobID == 0 ? zcs->dict : NULL;
+        zcs->jobs[jobID].dictSize = zcs->nextJobID == 0 ? zcs->dictSize : 0;
+        zcs->jobs[jobID].fullFrameSize = zcs->frameContentSize;
         zcs->jobs[jobID].dstBuff = dstBuffer;
         zcs->jobs[jobID].cctx = cctx;
         zcs->jobs[jobID].firstChunk = (zcs->nextJobID==0);

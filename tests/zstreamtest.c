@@ -759,7 +759,7 @@ static int fuzzerTests_MT(U32 seed, U32 nbTests, unsigned startTest, double comp
             if (maxTestSize >= srcBufferSize) maxTestSize = srcBufferSize-1;
             {   int const compressionLevel = (FUZ_rand(&lseed) % 5) + 1;
                 size_t const resetError = ZSTDMT_initCStream(zc, compressionLevel);
-                CHECK(ZSTD_isError(resetError), "ZSTD_resetCStream error : %s", ZSTD_getErrorName(resetError));
+                CHECK(ZSTD_isError(resetError), "ZSTDMT_initCStream error : %s", ZSTD_getErrorName(resetError));
             }
         } else {
             U32 const testLog = FUZ_rand(&lseed) % maxSrcLog;
@@ -767,11 +767,18 @@ static int fuzzerTests_MT(U32 seed, U32 nbTests, unsigned startTest, double comp
             maxTestSize = FUZ_rLogLength(&lseed, testLog);
             oldTestLog = testLog;
             /* random dictionary selection */
-            dictSize  = 0;
-            dict = NULL;
-            {   size_t const initError = ZSTDMT_initCStream(zc, cLevel);
-                CHECK (ZSTD_isError(initError),"ZSTD_initCStream_advanced error : %s", ZSTD_getErrorName(initError));
-        }   }
+            dictSize  = ((FUZ_rand(&lseed)&63)==1) ? FUZ_randomLength(&lseed, maxSampleLog) : 0;
+            {   size_t const dictStart = FUZ_rand(&lseed) % (srcBufferSize - dictSize);
+                dict = srcBuffer + dictStart;
+            }
+            {   U64 const pledgedSrcSize = (FUZ_rand(&lseed) & 3) ? 0 : maxTestSize;
+                ZSTD_parameters params = ZSTD_getParams(cLevel, pledgedSrcSize, dictSize);
+                DISPLAYLEVEL(5, "Init with windowLog = %u \n", params.cParams.windowLog);
+                params.fParams.checksumFlag = FUZ_rand(&lseed) & 1;
+                params.fParams.noDictIDFlag = FUZ_rand(&lseed) & 1;
+                {   size_t const initError = ZSTDMT_initCStream_advanced(zc, dict, dictSize, params, pledgedSrcSize);
+                    CHECK (ZSTD_isError(initError),"ZSTDMT_initCStream_advanced error : %s", ZSTD_getErrorName(initError));
+        }   }   }
 
         /* multi-segments compression test */
         XXH64_reset(&xxhState, 0);
@@ -790,6 +797,7 @@ static int fuzzerTests_MT(U32 seed, U32 nbTests, unsigned startTest, double comp
                     DISPLAYLEVEL(5, "Sending %u bytes to compress \n", (U32)srcSize);
                     { size_t const compressionError = ZSTDMT_compressStream(zc, &outBuff, &inBuff);
                       CHECK (ZSTD_isError(compressionError), "compression error : %s", ZSTD_getErrorName(compressionError)); }
+                    DISPLAYLEVEL(5, "%u bytes read by ZSTDMT_compressStream \n", (U32)inBuff.pos);
 
                     XXH64_update(&xxhState, srcBuffer+srcStart, inBuff.pos);
                     memcpy(copyBuffer+totalTestSize, srcBuffer+srcStart, inBuff.pos);
@@ -924,8 +932,9 @@ int main(int argc, const char** argv)
     int testNb = 0;
     int proba = FUZ_COMPRESSIBILITY_DEFAULT;
     int result=0;
-    U32 mainPause = 0;
-    const char* programName = argv[0];
+    int mainPause = 0;
+    int mtOnly = 0;
+    const char* const programName = argv[0];
     ZSTD_customMem customMem = { allocFunction, freeFunction, NULL };
     ZSTD_customMem customNULL = { NULL, NULL, NULL };
 
@@ -936,8 +945,10 @@ int main(int argc, const char** argv)
 
         /* Parsing commands. Aggregated commands are allowed */
         if (argument[0]=='-') {
-            argument++;
 
+            if (!strcmp(argument, "--mt")) { mtOnly=1; continue; }
+
+            argument++;
             while (*argument!=0) {
                 switch(*argument)
                 {
@@ -1041,7 +1052,7 @@ int main(int argc, const char** argv)
             result = basicUnitTests(0, ((double)proba) / 100, customMem);  /* use custom memory allocation functions */
     }   }
 
-    if (!result) result = fuzzerTests(seed, nbTests, testNb, ((double)proba) / 100);
+    if (!result && !mtOnly) result = fuzzerTests(seed, nbTests, testNb, ((double)proba) / 100);
     if (!result) result = fuzzerTests_MT(seed, nbTests, testNb, ((double)proba) / 100);
 
     if (mainPause) {

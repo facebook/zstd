@@ -127,7 +127,7 @@ gzstd:
         && $(MAKE) zstd; \
     fi
 
-zstdmt: CPPFLAGS += -DZSTD_PTHREAD
+zstdmt: CPPFLAGS += -DZSTD_MULTITHREAD
 zstdmt: LDFLAGS += -lpthread
 zstdmt: zstd
 

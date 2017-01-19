@@ -11,7 +11,7 @@
 #include <stddef.h>  /* size_t */
 #include <stdlib.h>  /* malloc, calloc, free */
 
-#ifdef ZSTD_PTHREAD
+#ifdef ZSTD_MULTITHREAD
 
 #include <threading.h>
 
@@ -160,7 +160,7 @@ void POOL_add(void *ctxVoid, POOL_function function, void *opaque) {
     pthread_cond_signal(&ctx->queuePopCond);
 }
 
-#else  /* ZSTD_PTHREAD  not defined */
+#else  /* ZSTD_MULTITHREAD  not defined */
 /* No multi-threading support */
 
 /* We don't need any data, but if it is empty malloc() might return NULL. */
@@ -183,4 +183,4 @@ void POOL_add(void *ctx, POOL_function function, void *opaque) {
   function(opaque);
 }
 
-#endif  /* ZSTD_PTHREAD */
+#endif  /* ZSTD_MULTITHREAD */

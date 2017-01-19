@@ -44,10 +44,10 @@ ZDICT_FILES := $(ZSTDDIR)/dictBuilder/*.c
 # Define *.exe as extension for Windows systems
 ifneq (,$(filter Windows%,$(OS)))
 EXT =.exe
-PTHREAD = -DZSTD_PTHREAD
+MULTITHREAD = -DZSTD_MULTITHREAD
 else
 EXT =
-PTHREAD = -pthread -DZSTD_PTHREAD
+MULTITHREAD = -pthread -DZSTD_MULTITHREAD
 endif
 
 VOID = /dev/null
@@ -122,10 +122,10 @@ zbufftest-dll : $(ZSTDDIR)/common/xxhash.c $(PRGDIR)/datagen.c zbufftest.c
 	$(CC) $(CPPFLAGS) $(CFLAGS) $^ $(LDFLAGS) -o $@$(EXT)
 
 zstreamtest  : $(ZSTD_FILES) $(PRGDIR)/datagen.c zstreamtest.c
-	$(CC)      $(FLAGS) $^ -o $@$(EXT)
+	$(CC)      $(FLAGS) $(MULTITHREAD) $^ -o $@$(EXT)
 
 zstreamtest32 : $(ZSTD_FILES) $(PRGDIR)/datagen.c zstreamtest.c
-	$(CC) -m32  $(FLAGS) $^ -o $@$(EXT)
+	$(CC) -m32  $(FLAGS) $(MULTITHREAD) $^ -o $@$(EXT)
 
 zstreamtest-dll : LDFLAGS+= -L$(ZSTDDIR) -lzstd
 zstreamtest-dll : $(ZSTDDIR)/common/xxhash.c $(PRGDIR)/datagen.c zstreamtest.c
@@ -157,7 +157,7 @@ else
 endif
 
 pool  : pool.c $(ZSTDDIR)/common/pool.c $(ZSTDDIR)/common/threading.c
-	$(CC)    $(FLAGS) $(PTHREAD) $^ -o $@$(EXT)
+	$(CC)    $(FLAGS) $(MULTITHREAD) $^ -o $@$(EXT)
 
 namespaceTest:
 	if $(CC) namespaceTest.c ../lib/common/xxhash.c -o $@ ; then echo compilation should fail; exit 1 ; fi

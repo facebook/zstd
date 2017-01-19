@@ -385,6 +385,17 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
                             pos = (U32)(u - bacc);
                             bNb = pos / (128 KB);
                             DISPLAY("(block %u, sub %u, pos %u) \n", segNb, bNb, pos);
+                            if (u>5) {
+                                int n;
+                                for (n=-5; n<0; n++) DISPLAY("%02X ", ((const BYTE*)srcBuffer)[u+n]);
+                                DISPLAY(" :%02X:  ", ((const BYTE*)srcBuffer)[u]);
+                                for (n=1; n<3; n++) DISPLAY("%02X ", ((const BYTE*)srcBuffer)[u+n]);
+                                DISPLAY(" \n");
+                                for (n=-5; n<0; n++) DISPLAY("%02X ", ((const BYTE*)resultBuffer)[u+n]);
+                                DISPLAY(" :%02X:  ", ((const BYTE*)resultBuffer)[u]);
+                                for (n=1; n<3; n++) DISPLAY("%02X ", ((const BYTE*)resultBuffer)[u+n]);
+                                DISPLAY(" \n");
+                            }
                             break;
                         }
                         if (u==srcSize-1) {  /* should never happen */

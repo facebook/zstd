@@ -20,3 +20,6 @@ zwrapbench
 *.bat
 *.zip
 *.txt
+
+# Directories
+minizip/

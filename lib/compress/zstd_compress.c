@@ -2951,7 +2951,7 @@ size_t ZSTD_initCStream_advanced(ZSTD_CStream* zcs,
         if (zcs->outBuff == NULL) return ERROR(memory_allocation);
     }
 
-    if (dict) {
+    if (dict && dictSize >= 8) {
         ZSTD_freeCDict(zcs->cdictLocal);
         zcs->cdictLocal = ZSTD_createCDict_advanced(dict, dictSize, 0, params, zcs->customMem);
         if (zcs->cdictLocal == NULL) return ERROR(memory_allocation);

@@ -63,7 +63,7 @@ struct ZSTD_CCtx_s {
     U32   loadedDictEnd;
     ZSTD_compressionStage_e stage;
     U32   rep[ZSTD_REP_NUM];
-    U32   savedRep[ZSTD_REP_NUM];
+    U32   repToConfirm[ZSTD_REP_NUM];
     U32   dictID;
     ZSTD_parameters params;
     void* workSpace;
@@ -742,7 +742,7 @@ _check_compressibility:
       if ((size_t)(op-ostart) >= maxCSize) return 0; }
 
     /* confirm repcodes */
-    { int i; for (i=0; i<ZSTD_REP_NUM; i++) zc->rep[i] = zc->savedRep[i]; }
+    { int i; for (i=0; i<ZSTD_REP_NUM; i++) zc->rep[i] = zc->repToConfirm[i]; }
 
     return op - ostart;
 }
@@ -1011,8 +1011,8 @@ void ZSTD_compressBlock_fast_generic(ZSTD_CCtx* cctx,
     }   }   }
 
     /* save reps for next block */
-    cctx->savedRep[0] = offset_1 ? offset_1 : offsetSaved;
-    cctx->savedRep[1] = offset_2 ? offset_2 : offsetSaved;
+    cctx->repToConfirm[0] = offset_1 ? offset_1 : offsetSaved;
+    cctx->repToConfirm[1] = offset_2 ? offset_2 : offsetSaved;
 
     /* Last Literals */
     {   size_t const lastLLSize = iend - anchor;
@@ -1126,7 +1126,7 @@ static void ZSTD_compressBlock_fast_extDict_generic(ZSTD_CCtx* ctx,
     }   }   }
 
     /* save reps for next block */
-    ctx->savedRep[0] = offset_1; ctx->savedRep[1] = offset_2;
+    ctx->repToConfirm[0] = offset_1; ctx->repToConfirm[1] = offset_2;
 
     /* Last Literals */
     {   size_t const lastLLSize = iend - anchor;
@@ -1280,8 +1280,8 @@ void ZSTD_compressBlock_doubleFast_generic(ZSTD_CCtx* cctx,
     }   }   }
 
     /* save reps for next block */
-    cctx->savedRep[0] = offset_1 ? offset_1 : offsetSaved;
-    cctx->savedRep[1] = offset_2 ? offset_2 : offsetSaved;
+    cctx->repToConfirm[0] = offset_1 ? offset_1 : offsetSaved;
+    cctx->repToConfirm[1] = offset_2 ? offset_2 : offsetSaved;
 
     /* Last Literals */
     {   size_t const lastLLSize = iend - anchor;
@@ -1430,7 +1430,7 @@ static void ZSTD_compressBlock_doubleFast_extDict_generic(ZSTD_CCtx* ctx,
     }   }   }
 
     /* save reps for next block */
-    ctx->savedRep[0] = offset_1; ctx->savedRep[1] = offset_2;
+    ctx->repToConfirm[0] = offset_1; ctx->repToConfirm[1] = offset_2;
 
     /* Last Literals */
     {   size_t const lastLLSize = iend - anchor;
@@ -1962,8 +1962,8 @@ _storeSequence:
     }   }
 
     /* Save reps for next block */
-    ctx->savedRep[0] = offset_1 ? offset_1 : savedOffset;
-    ctx->savedRep[1] = offset_2 ? offset_2 : savedOffset;
+    ctx->repToConfirm[0] = offset_1 ? offset_1 : savedOffset;
+    ctx->repToConfirm[1] = offset_2 ? offset_2 : savedOffset;
 
     /* Last Literals */
     {   size_t const lastLLSize = iend - anchor;
@@ -2157,7 +2157,7 @@ _storeSequence:
     }   }
 
     /* Save reps for next block */
-    ctx->savedRep[0] = offset_1; ctx->savedRep[1] = offset_2;
+    ctx->repToConfirm[0] = offset_1; ctx->repToConfirm[1] = offset_2;
 
     /* Last Literals */
     {   size_t const lastLLSize = iend - anchor;

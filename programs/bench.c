@@ -180,6 +180,7 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
     size_t const maxCompressedSize = ZSTD_compressBound(srcSize) + (maxNbBlocks * 1024);   /* add some room for safety */
     void* const compressedBuffer = malloc(maxCompressedSize);
     void* resultBuffer = malloc(srcSize);
+    ZSTDMT_CCtx* const mtctx = ZSTDMT_createCCtx(g_nbThreads);
     ZSTD_CCtx* const ctx = ZSTD_createCCtx();
     ZSTD_DCtx* const dctx = ZSTD_createDCtx();
     size_t const loadedCompressedSize = srcSize;
@@ -255,8 +256,6 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
         const char* const marks[NB_MARKS] = { " |", " /", " =",  "\\" };
         U32 markNb = 0;
 
-        ZSTDMT_CCtx* const mtcctx = ZSTDMT_createCCtx(g_nbThreads);
-
         DISPLAYLEVEL(2, "\r%79s\r", "");
         while (!cCompleted || !dCompleted) {
 
@@ -300,15 +299,17 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
                                                 blockTable[blockNb].cPtr,  blockTable[blockNb].cRoom,
                                                 blockTable[blockNb].srcPtr,blockTable[blockNb].srcSize,
                                                 cdict);
-                            } else if (1) {
-                                rSize = ZSTDMT_compressCCtx(mtcctx,
+                            } else {
+#ifdef ZSTD_MULTITHREAD         /* note : limitation : MT single-pass does not support compression with dictionary */
+                                rSize = ZSTDMT_compressCCtx(mtctx,
                                                 blockTable[blockNb].cPtr,  blockTable[blockNb].cRoom,
                                                 blockTable[blockNb].srcPtr,blockTable[blockNb].srcSize,
                                                 cLevel);
-                            } else {
+#else
                                 rSize = ZSTD_compress_advanced (ctx,
                                                 blockTable[blockNb].cPtr,  blockTable[blockNb].cRoom,
                                                 blockTable[blockNb].srcPtr,blockTable[blockNb].srcSize, NULL, 0, zparams);
+#endif
                             }
                             if (ZSTD_isError(rSize)) EXM_THROW(1, "ZSTD_compress_usingCDict() failed : %s", ZSTD_getErrorName(rSize));
                             blockTable[blockNb].cSize = rSize;
@@ -433,6 +434,7 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
     free(blockTable);
     free(compressedBuffer);
     free(resultBuffer);
+    ZSTDMT_freeCCtx(mtctx);
     ZSTD_freeCCtx(ctx);
     ZSTD_freeDCtx(dctx);
     return 0;

@@ -7,13 +7,21 @@
  * of patent rights can be found in the PATENTS file in the same directory.
  */
 
-#include "pool.h"
+
+/* ======   Dependencies   ======= */
 #include <stddef.h>  /* size_t */
 #include <stdlib.h>  /* malloc, calloc, free */
+#include "pool.h"
+
+/* ======   Compiler specifics   ====== */
+#if defined(_MSC_VER)
+#  pragma warning(disable : 4204)        /* disable: C4204: non-constant aggregate initializer */
+#endif
+
 
 #ifdef ZSTD_MULTITHREAD
 
-#include <threading.h>
+#include <threading.h>   /* pthread adaptation */
 
 /* A job is a function and an opaque argument */
 typedef struct POOL_job_s {

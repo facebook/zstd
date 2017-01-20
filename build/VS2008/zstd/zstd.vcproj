@@ -377,6 +377,14 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\..\lib\common\pool.c"
+				>
+			</File>
+			<File
+				RelativePath="..\..\..\lib\common\threading.c"
+				>
+			</File>
+			<File
 				RelativePath="..\..\..\lib\common\xxhash.c"
 				>
 			</File>
@@ -428,6 +436,10 @@
 				RelativePath="..\..\..\programs\zstdcli.c"
 				>
 			</File>
+			<File
+				RelativePath="..\..\..\lib\compress\zstdmt_compress.c"
+				>
+			</File>
 		</Filter>
 		<Filter
 			Name="Header Files"
@@ -444,10 +456,6 @@
 			</File>
 			<File
 				RelativePath="..\..\..\lib\common\error_private.h"
-				>
-			</File>
-			<File
-				RelativePath="..\..\..\lib\common\zstd_errors.h"
 				>
 			</File>
 			<File
@@ -471,6 +479,14 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\..\lib\common\pool.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\..\lib\common\threading.h"
+				>
+			</File>
+			<File
 				RelativePath="..\..\..\lib\common\xxhash.h"
 				>
 			</File>
@@ -484,6 +500,10 @@
 			</File>
 			<File
 				RelativePath="..\..\..\lib\zstd.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\..\lib\common\zstd_errors.h"
 				>
 			</File>
 			<File
@@ -528,6 +548,10 @@
 			</File>
 			<File
 				RelativePath="..\..\..\lib\legacy\zstd_v07.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\..\lib\compress\zstdmt_compress.h"
 				>
 			</File>
 		</Filter>

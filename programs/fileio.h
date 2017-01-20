@@ -40,6 +40,7 @@ void FIO_setDictIDFlag(unsigned dictIDFlag);
 void FIO_setChecksumFlag(unsigned checksumFlag);
 void FIO_setRemoveSrcFile(unsigned flag);
 void FIO_setMemLimit(unsigned memLimit);
+void FIO_setNbThreads(unsigned nbThreads);
 
 
 /*-*************************************

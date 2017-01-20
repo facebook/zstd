@@ -443,6 +443,13 @@ size_t ZSTDMT_initCStream_advanced(ZSTDMT_CCtx* zcs, const void* dict, size_t di
     return 0;
 }
 
+/* ZSTDMT_resetCStream() :
+ * pledgedSrcSize is optional and can be zero == unknown */
+size_t ZSTDMT_resetCStream(ZSTDMT_CCtx* zcs, unsigned long long pledgedSrcSize)
+{
+    return ZSTDMT_initCStream_advanced(zcs, zcs->dict, zcs->dictSize, zcs->params, pledgedSrcSize);
+}
+
 size_t ZSTDMT_initCStream(ZSTDMT_CCtx* zcs, int compressionLevel) {
     ZSTD_parameters const params = ZSTD_getParams(compressionLevel, 0, 0);
     return ZSTDMT_initCStream_advanced(zcs, NULL, 0, params, 0);

@@ -95,23 +95,6 @@ static clock_t g_time = 0;
     exit(error);                                                          \
 }
 
-/* *************************************
-*  Time
-***************************************/
-/* for posix only - needs proper detection macros to setup */
-#include <unistd.h>
-#include <sys/times.h>
-
-typedef unsigned long long clock_us_t;
-static clock_us_t BMK_clockMicroSec(void)
-{
-   static clock_t _ticksPerSecond = 0;
-   if (_ticksPerSecond <= 0) _ticksPerSecond = sysconf(_SC_CLK_TCK);
-
-   { struct tms junk; clock_t newTicks = (clock_t) times(&junk); (void)junk;
-     return ((((clock_us_t)newTicks)*(1000000))/_ticksPerSecond); }
-}
-
 
 /* *************************************
 *  Benchmark Parameters
@@ -248,7 +231,7 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
     /* Bench */
     {   U64 fastestC = (U64)(-1LL), fastestD = (U64)(-1LL);
         U64 const crcOrig = g_decodeOnly ? 0 : XXH64(srcBuffer, srcSize, 0);
-        clock_us_t coolTime = BMK_clockMicroSec();
+        UTIL_time_t coolTime, coolTick;
         U64 const maxTime = (g_nbSeconds * TIMELOOP_MICROSEC) + 1;
         U64 totalCTime=0, totalDTime=0;
         U32 cCompleted=g_decodeOnly, dCompleted=0;
@@ -256,25 +239,28 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
         const char* const marks[NB_MARKS] = { " |", " /", " =",  "\\" };
         U32 markNb = 0;
 
+		UTIL_initTimer(&coolTick);
+		UTIL_getTime(&coolTime);
         DISPLAYLEVEL(2, "\r%79s\r", "");
         while (!cCompleted || !dCompleted) {
 
             /* overheat protection */
-            if (BMK_clockMicroSec() - coolTime > ACTIVEPERIOD_MICROSEC) {
+			if (UTIL_clockSpanMicro(coolTime, coolTick) > ACTIVEPERIOD_MICROSEC) {
                 DISPLAYLEVEL(2, "\rcooling down ...    \r");
                 UTIL_sleep(COOLPERIOD_SEC);
-                coolTime = BMK_clockMicroSec();
+                UTIL_getTime(&coolTime);
             }
 
             if (!g_decodeOnly) {
-                clock_us_t clockStart;
+				UTIL_time_t clockTick, clockStart;
                 /* Compression */
                 DISPLAYLEVEL(2, "%2s-%-17.17s :%10u ->\r", marks[markNb], displayName, (U32)srcSize);
                 if (!cCompleted) memset(compressedBuffer, 0xE5, maxCompressedSize);  /* warm up and erase result buffer */
 
                 UTIL_sleepMilli(1);  /* give processor time to other processes */
                 UTIL_waitForNextTick(ticksPerSecond);
-                clockStart = BMK_clockMicroSec();
+				UTIL_initTimer(&clockTick);
+				UTIL_getTime(&clockStart);
 
                 if (!cCompleted) {   /* still some time to do compression tests */
                     ZSTD_parameters zparams = ZSTD_getParams(cLevel, avgSize, dictBufferSize);
@@ -315,9 +301,9 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
                             blockTable[blockNb].cSize = rSize;
                         }
                         nbLoops++;
-                    } while (BMK_clockMicroSec() - clockStart < clockLoop);
+					} while (UTIL_clockSpanMicro(clockStart, clockTick) < clockLoop);
                     ZSTD_freeCDict(cdict);
-                    {   clock_us_t const clockSpanMicro = BMK_clockMicroSec() - clockStart;
+					{   U64 const clockSpanMicro = UTIL_clockSpanMicro(clockStart, clockTick);
                         if (clockSpanMicro < fastestC*nbLoops) fastestC = clockSpanMicro / nbLoops;
                         totalCTime += clockSpanMicro;
                         cCompleted = (totalCTime >= maxTime);
@@ -347,10 +333,11 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
             if (!dCompleted) {
                 U64 clockLoop = g_nbSeconds ? TIMELOOP_MICROSEC : 1;
                 U32 nbLoops = 0;
-                clock_us_t clockStart;
+                UTIL_time_t clockStart, clockTick;
                 ZSTD_DDict* const ddict = ZSTD_createDDict(dictBuffer, dictBufferSize);
                 if (!ddict) EXM_THROW(2, "ZSTD_createDDict() allocation failure");
-                clockStart = BMK_clockMicroSec();
+				UTIL_initTimer(&clockTick);
+				UTIL_getTime(&clockStart);
                 do {
                     U32 blockNb;
                     for (blockNb=0; blockNb<nbBlocks; blockNb++) {
@@ -367,9 +354,9 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
                         blockTable[blockNb].resSize = regenSize;
                     }
                     nbLoops++;
-                } while (BMK_clockMicroSec() - clockStart < clockLoop);
+				} while (UTIL_clockSpanMicro(clockStart, clockTick) < clockLoop);
                 ZSTD_freeDDict(ddict);
-                {   clock_us_t const clockSpanMicro = BMK_clockMicroSec() - clockStart;
+                {   U64 const clockSpanMicro = UTIL_clockSpanMicro(clockStart, clockTick);
                     if (clockSpanMicro < fastestD*nbLoops) fastestD = clockSpanMicro / nbLoops;
                     totalDTime += clockSpanMicro;
                     dCompleted = (totalDTime >= maxTime);

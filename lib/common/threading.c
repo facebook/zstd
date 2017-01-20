@@ -15,6 +15,12 @@
  * This file will hold wrapper for systems, which do not support pthreads
  */
 
+/* ======   Compiler specifics   ====== */
+#if defined(_MSC_VER)
+#  pragma warning(disable : 4206)        /* disable: C4206: translation unit is empty (when ZSTD_MULTITHREAD is not defined) */
+#endif
+
+
 #if defined(ZSTD_MULTITHREAD) && defined(_WIN32)
 
 /**

@@ -1,8 +1,16 @@
+/**
+ * Copyright (c) 2016-present, Yann Collet, Facebook, Inc.
+ * All rights reserved.
+ *
+ * This source code is licensed under the BSD-style license found in the
+ * LICENSE file in the root directory of this source tree. An additional grant
+ * of patent rights can be found in the PATENTS file in the same directory.
+ */
 
 
 /* ======   Tuning parameters   ====== */
 #ifndef ZSTDMT_SECTION_LOGSIZE_MIN
-#  define ZSTDMT_SECTION_LOGSIZE_MIN 20   /*< minimum size for a full compression job (20==2^20==1 MB) */
+#  define ZSTDMT_SECTION_LOGSIZE_MIN 20   /* minimum size for a full compression job (20==2^20==1 MB) */
 #endif
 
 
@@ -444,7 +452,7 @@ size_t ZSTDMT_initCStream_advanced(ZSTDMT_CCtx* zcs, const void* dict, size_t di
     zcs->dictSize = dictSize;
     zcs->frameContentSize = pledgedSrcSize;
     zcs->targetSectionSize = (size_t)1 << MAX(ZSTDMT_SECTION_LOGSIZE_MIN, (zcs->params.cParams.windowLog + 2));
-    zcs->inBuffSize = zcs->targetSectionSize + (1 << zcs->params.cParams.windowLog);
+    zcs->inBuffSize = zcs->targetSectionSize + ((size_t)1 << zcs->params.cParams.windowLog);
     zcs->inBuff.buffer = ZSTDMT_getBuffer(zcs->buffPool, zcs->inBuffSize);
     if (zcs->inBuff.buffer.start == NULL) return ERROR(memory_allocation);
     zcs->inBuff.filled = 0;

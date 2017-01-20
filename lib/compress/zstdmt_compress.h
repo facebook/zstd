@@ -20,6 +20,7 @@ size_t ZSTDMT_compressCCtx(ZSTDMT_CCtx* cctx,
 /* ===   Streaming functions   === */
 
 size_t ZSTDMT_initCStream(ZSTDMT_CCtx* zcs, int compressionLevel);
+size_t ZSTDMT_resetCStream(ZSTDMT_CCtx* zcs, unsigned long long pledgedSrcSize);   /**< pledgedSrcSize is optional and can be zero == unknown */
 size_t ZSTDMT_initCStream_advanced(ZSTDMT_CCtx* zcs, const void* dict, size_t dictSize,
                                    ZSTD_parameters params, unsigned long long pledgedSrcSize);  /**< pledgedSrcSize is optional and can be zero == unknown ; current limitation : no checksum */
 

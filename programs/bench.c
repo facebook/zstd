@@ -10,6 +10,14 @@
 
 
 /* **************************************
+*  Tuning parameters
+****************************************/
+#ifndef BMK_TIMETEST_DEFAULT_S   /* default minimum time per test */
+#define BMK_TIMETEST_DEFAULT_S 3
+#endif
+
+
+/* **************************************
 *  Compiler Warnings
 ****************************************/
 #ifdef _MSC_VER
@@ -43,7 +51,6 @@
 #  define ZSTD_GIT_COMMIT_STRING ZSTD_EXPAND_AND_QUOTE(ZSTD_GIT_COMMIT)
 #endif
 
-#define NBSECONDS             3
 #define TIMELOOP_MICROSEC     1*1000000ULL /* 1 second */
 #define ACTIVEPERIOD_MICROSEC 70*1000000ULL /* 70 seconds */
 #define COOLPERIOD_SEC        10
@@ -109,31 +116,36 @@ static clock_us_t BMK_clockMicroSec(void)
 /* *************************************
 *  Benchmark Parameters
 ***************************************/
-static U32 g_nbSeconds = NBSECONDS;
-static size_t g_blockSize = 0;
 static int g_additionalParam = 0;
 static U32 g_decodeOnly = 0;
-static U32 g_nbThreads = 1;
 
 void BMK_setNotificationLevel(unsigned level) { g_displayLevel=level; }
 
 void BMK_setAdditionalParam(int additionalParam) { g_additionalParam=additionalParam; }
 
-void BMK_SetNbSeconds(unsigned nbSeconds)
+static U32 g_nbSeconds = BMK_TIMETEST_DEFAULT_S;
+void BMK_setNbSeconds(unsigned nbSeconds)
 {
     g_nbSeconds = nbSeconds;
-    DISPLAYLEVEL(3, "- test >= %u seconds per compression / decompression -\n", g_nbSeconds);
+    DISPLAYLEVEL(3, "- test >= %u seconds per compression / decompression - \n", g_nbSeconds);
 }
 
-void BMK_SetBlockSize(size_t blockSize)
+static size_t g_blockSize = 0;
+void BMK_setBlockSize(size_t blockSize)
 {
     g_blockSize = blockSize;
-    DISPLAYLEVEL(2, "using blocks of size %u KB \n", (U32)(blockSize>>10));
+    if (g_blockSize) DISPLAYLEVEL(2, "using blocks of size %u KB \n", (U32)(blockSize>>10));
 }
 
 void BMK_setDecodeOnlyMode(unsigned decodeFlag) { g_decodeOnly = (decodeFlag>0); }
 
-void BMK_SetNbThreads(unsigned nbThreads) { g_nbThreads = nbThreads; }
+static U32 g_nbThreads = 1;
+void BMK_setNbThreads(unsigned nbThreads) {
+#ifndef ZSTD_MULTITHREAD
+    if (nbThreads > 1) DISPLAYLEVEL(2, "Note : multi-threading is disabled \n");
+#endif
+    g_nbThreads = nbThreads;
+}
 
 
 /* ********************************************************

@@ -2,11 +2,17 @@
 
 /* ======   Tuning parameters   ====== */
 #ifndef ZSTDMT_SECTION_LOGSIZE_MIN
-#define ZSTDMT_SECTION_LOGSIZE_MIN 20   /*< minimum size for a full compression job (20==2^20==1 MB) */
+#  define ZSTDMT_SECTION_LOGSIZE_MIN 20   /*< minimum size for a full compression job (20==2^20==1 MB) */
 #endif
 
-/* ======   Dependencies   ====== */
 
+/* ======   Compiler specifics   ====== */
+#if defined(_MSC_VER)
+#  pragma warning(disable : 4204)        /* disable: C4204: non-constant aggregate initializer */
+#endif
+
+
+/* ======   Dependencies   ====== */
 #include <stdlib.h>   /* malloc */
 #include <string.h>   /* memcpy */
 #include <pool.h>     /* threadpool */
@@ -14,6 +20,8 @@
 #include "zstd_internal.h"   /* MIN, ERROR, ZSTD_*, ZSTD_highbit32 */
 #include "zstdmt_compress.h"
 
+
+/* ======   Debug   ====== */
 #if 0
 
 #  include <stdio.h>
@@ -73,7 +81,7 @@ typedef struct buffer_s {
 static const buffer_t g_nullBuffer = { NULL, 0 };
 
 typedef struct ZSTDMT_bufferPool_s {
-    unsigned totalBuffers;;
+    unsigned totalBuffers;
     unsigned nbBuffers;
     buffer_t bTable[1];   /* variable size */
 } ZSTDMT_bufferPool;
@@ -107,10 +115,13 @@ static buffer_t ZSTDMT_getBuffer(ZSTDMT_bufferPool* pool, size_t bSize)
         free(buf.start);   /* size conditions not respected : scratch this buffer and create a new one */
     }
     /* create new buffer */
-    {   void* const start = malloc(bSize);
+    {   buffer_t buffer;
+		void* const start = malloc(bSize);
         if (start==NULL) bSize = 0;
-        return (buffer_t) { start, bSize };   /* note : start can be NULL if malloc fails ! */
-    }
+		buffer.start = start;   /* note : start can be NULL if malloc fails ! */
+		buffer.size = bSize;
+		return buffer;
+	}
 }
 
 /* store buffer for later re-use, up to pool capacity */
@@ -336,7 +347,8 @@ size_t ZSTDMT_compressCCtx(ZSTDMT_CCtx* mtctx,
         for (u=0; u<nbChunks; u++) {
             size_t const chunkSize = MIN(remainingSrcSize, avgChunkSize);
             size_t const dstBufferCapacity = u ? ZSTD_compressBound(chunkSize) : dstCapacity;
-            buffer_t const dstBuffer = u ? ZSTDMT_getBuffer(mtctx->buffPool, dstBufferCapacity) : (buffer_t){ dst, dstCapacity };
+			buffer_t const dstAsBuffer = { dst, dstCapacity };
+            buffer_t const dstBuffer = u ? ZSTDMT_getBuffer(mtctx->buffPool, dstBufferCapacity) : dstAsBuffer;
             ZSTD_CCtx* const cctx = ZSTDMT_getCCtx(mtctx->cctxPool);
 
             if ((cctx==NULL) || (dstBuffer.start==NULL)) {

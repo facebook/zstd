@@ -70,7 +70,7 @@ clean:
 	@$(MAKE) -C $(TESTDIR) $@ > $(VOID)
 	@$(MAKE) -C $(ZWRAPDIR) $@ > $(VOID)
 	@$(MAKE) -C examples/ $@ > $(VOID)
-	@$(RM) zstd$(EXT) tmp*
+	@$(RM) zstd$(EXT) zstdmt$(EXT) tmp*
 	@echo Cleaning completed
 
 

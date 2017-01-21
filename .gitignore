@@ -15,6 +15,7 @@
 
 # Executables
 zstd
+zstdmt
 *.exe
 *.out
 *.app

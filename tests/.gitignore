@@ -6,6 +6,7 @@ fuzzer32
 fuzzer-dll
 zbufftest
 zbufftest32
+zbufftest-dll
 zstreamtest
 zstreamtest32
 zstreamtest-dll

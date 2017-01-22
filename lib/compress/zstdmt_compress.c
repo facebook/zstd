@@ -13,6 +13,8 @@
 #  define ZSTDMT_SECTION_LOGSIZE_MIN 20   /* minimum size for a full compression job (20==2^20==1 MB) */
 #endif
 
+#define ZSTDMT_NBTHREADS_MAX 128
+
 
 /* ======   Compiler specifics   ====== */
 #if defined(_MSC_VER)
@@ -77,8 +79,6 @@ if (g_debugLevel>=MUTEX_WAIT_TIME_DLEVEL) { \
 #endif
 
 
-#define ZSTDMT_NBTHREADS_MAX 128
-
 /* =====   Buffer Pool   ===== */
 
 typedef struct buffer_s {
@@ -97,9 +97,10 @@ typedef struct ZSTDMT_bufferPool_s {
 static ZSTDMT_bufferPool* ZSTDMT_createBufferPool(unsigned nbThreads)
 {
     unsigned const maxNbBuffers = 2*nbThreads + 2;
-    ZSTDMT_bufferPool* const bufPool = (ZSTDMT_bufferPool*)calloc(1, sizeof(ZSTDMT_bufferPool) + maxNbBuffers * sizeof(buffer_t));
+    ZSTDMT_bufferPool* const bufPool = (ZSTDMT_bufferPool*)calloc(1, sizeof(ZSTDMT_bufferPool) + (maxNbBuffers-1) * sizeof(buffer_t));
     if (bufPool==NULL) return NULL;
     bufPool->totalBuffers = maxNbBuffers;
+    bufPool->nbBuffers = 0;
     return bufPool;
 }
 
@@ -164,9 +165,11 @@ static void ZSTDMT_freeCCtxPool(ZSTDMT_CCtxPool* pool)
     free(pool);
 }
 
+/* ZSTDMT_createCCtxPool() :
+ * implies nbThreads >= 1 , checked by caller ZSTDMT_createCCtx() */
 static ZSTDMT_CCtxPool* ZSTDMT_createCCtxPool(unsigned nbThreads)
 {
-    ZSTDMT_CCtxPool* const cctxPool = (ZSTDMT_CCtxPool*) calloc(1, sizeof(ZSTDMT_CCtxPool) + nbThreads*sizeof(ZSTD_CCtx*));
+    ZSTDMT_CCtxPool* const cctxPool = (ZSTDMT_CCtxPool*) calloc(1, sizeof(ZSTDMT_CCtxPool) + (nbThreads-1)*sizeof(ZSTD_CCtx*));
     if (!cctxPool) return NULL;
     cctxPool->totalCCtx = nbThreads;
     cctxPool->availCCtx = 0;

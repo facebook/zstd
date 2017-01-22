@@ -124,12 +124,12 @@ static buffer_t ZSTDMT_getBuffer(ZSTDMT_bufferPool* pool, size_t bSize)
     }
     /* create new buffer */
     {   buffer_t buffer;
-		void* const start = malloc(bSize);
+        void* const start = malloc(bSize);
         if (start==NULL) bSize = 0;
-		buffer.start = start;   /* note : start can be NULL if malloc fails ! */
-		buffer.size = bSize;
-		return buffer;
-	}
+        buffer.start = start;   /* note : start can be NULL if malloc fails ! */
+        buffer.size = bSize;
+        return buffer;
+    }
 }
 
 /* store buffer for later re-use, up to pool capacity */
@@ -355,7 +355,7 @@ size_t ZSTDMT_compressCCtx(ZSTDMT_CCtx* mtctx,
         for (u=0; u<nbChunks; u++) {
             size_t const chunkSize = MIN(remainingSrcSize, avgChunkSize);
             size_t const dstBufferCapacity = u ? ZSTD_compressBound(chunkSize) : dstCapacity;
-			buffer_t const dstAsBuffer = { dst, dstCapacity };
+            buffer_t const dstAsBuffer = { dst, dstCapacity };
             buffer_t const dstBuffer = u ? ZSTDMT_getBuffer(mtctx->buffPool, dstBufferCapacity) : dstAsBuffer;
             ZSTD_CCtx* const cctx = ZSTDMT_getCCtx(mtctx->cctxPool);
 

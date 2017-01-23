@@ -565,6 +565,10 @@ size_t ZSTDMT_compressStream(ZSTDMT_CCtx* zcs, ZSTD_outBuffer* output, ZSTD_inBu
     {   unsigned const jobID = zcs->doneJobID & zcs->jobIDMask;
         unsigned jobCompleted;
         pthread_mutex_lock(&zcs->jobCompleted_mutex);
+        while (zcs->jobs[jobID].jobCompleted == 0 && zcs->inBuff.filled == zcs->inBuffSize) {
+            /* when no new job could be started, block until there is something to flush, ensuring forward progress */
+            pthread_cond_wait(&zcs->jobCompleted_cond, &zcs->jobCompleted_mutex);
+        }
         jobCompleted = zcs->jobs[jobID].jobCompleted;
         pthread_mutex_unlock(&zcs->jobCompleted_mutex);
         if (jobCompleted) {

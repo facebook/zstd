@@ -2603,7 +2603,6 @@ static size_t ZSTD_compress_insertDictionary(ZSTD_CCtx* zc, const void* dict, si
     }
 }
 
-
 /*! ZSTD_compressBegin_internal() :
 *   @return : 0, or an error code */
 static size_t ZSTD_compressBegin_internal(ZSTD_CCtx* cctx,
@@ -2825,7 +2824,7 @@ static ZSTD_parameters ZSTD_getParamsFromCDict(const ZSTD_CDict* cdict) {
     return ZSTD_getParamsFromCCtx(cdict->refContext);
 }
 
-size_t ZSTD_compressBegin_usingCDict(ZSTD_CCtx* cctx, const ZSTD_CDict* cdict, U64 pledgedSrcSize)
+size_t ZSTD_compressBegin_usingCDict(ZSTD_CCtx* cctx, const ZSTD_CDict* cdict, unsigned long long pledgedSrcSize)
 {
     if (cdict->dictContentSize) CHECK_F(ZSTD_copyCCtx(cctx, cdict->refContext, pledgedSrcSize))
     else CHECK_F(ZSTD_compressBegin_advanced(cctx, NULL, 0, cdict->refContext->params, pledgedSrcSize));

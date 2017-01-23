@@ -360,6 +360,15 @@ size_t ZSTDMT_compressCCtx(ZSTDMT_CCtx* mtctx,
     DEBUGLOG(2, "nbChunks  : %2u   (chunkSize : %u bytes)   ", nbChunks, (U32)avgChunkSize);
     params.fParams.contentSizeFlag = 1;
 
+    if (nbChunks==1) {   /* fallback to single-thread mode */
+        size_t result;
+        ZSTD_CCtx* const cctx = ZSTDMT_getCCtx(mtctx->cctxPool);
+        if (!cctx) return ERROR(memory_allocation);
+        result = ZSTD_compressCCtx(mtctx->cctxPool->cctx[0], dst, dstCapacity, src, srcSize, compressionLevel);
+        ZSTDMT_releaseCCtx(mtctx->cctxPool, cctx);
+        return result;
+    }
+
     {   unsigned u;
         for (u=0; u<nbChunks; u++) {
             size_t const chunkSize = MIN(remainingSrcSize, avgChunkSize);
@@ -432,8 +441,6 @@ size_t ZSTDMT_compressCCtx(ZSTDMT_CCtx* mtctx,
 /* ====================================== */
 /* =======      Streaming API     ======= */
 /* ====================================== */
-
-#if 1
 
 static void ZSTDMT_waitForAllJobsCompleted(ZSTDMT_CCtx* zcs) {
     while (zcs->doneJobID < zcs->nextJobID) {
@@ -708,6 +715,3 @@ size_t ZSTDMT_endStream(ZSTDMT_CCtx* zcs, ZSTD_outBuffer* output)
 {
     return ZSTDMT_flushStream_internal(zcs, output, 1);
 }
-
-
-#endif

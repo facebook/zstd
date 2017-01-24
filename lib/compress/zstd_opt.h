@@ -825,7 +825,7 @@ void ZSTD_compressBlock_opt_extDict_generic(ZSTD_CCtx* ctx,
 
             match_num = ZSTD_BtGetAllMatches_selectMLS_extDict(ctx, inr, iend, maxSearches, mls, matches, minMatch);
 
-            if (match_num > 0 && matches[match_num-1].len > sufficient_len) {
+            if (match_num > 0 && (matches[match_num-1].len > sufficient_len || cur + matches[match_num-1].len >= ZSTD_OPT_NUM)) {
                 best_mlen = matches[match_num-1].len;
                 best_off = matches[match_num-1].off;
                 last_pos = cur + 1;
@@ -835,7 +835,7 @@ void ZSTD_compressBlock_opt_extDict_generic(ZSTD_CCtx* ctx,
             /* set prices using matches at position = cur */
             for (u = 0; u < match_num; u++) {
                 mlen = (u>0) ? matches[u-1].len+1 : best_mlen;
-                best_mlen = (cur + matches[u].len < ZSTD_OPT_NUM) ? matches[u].len : ZSTD_OPT_NUM - cur;
+                best_mlen = matches[u].len;
 
                 while (mlen <= best_mlen) {
                     if (opt[cur].mlen == 1) {

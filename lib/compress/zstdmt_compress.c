@@ -9,10 +9,6 @@
 
 
 /* ======   Tuning parameters   ====== */
-#ifndef ZSTDMT_SECTION_LOGSIZE_MIN
-#  define ZSTDMT_SECTION_LOGSIZE_MIN 20   /* minimum size for a full compression job (20==2^20==1 MB) */
-#endif
-
 #define ZSTDMT_NBTHREADS_MAX 128
 
 
@@ -285,6 +281,7 @@ struct ZSTDMT_CCtx_s {
     unsigned frameEnded;
     unsigned allJobsCompleted;
     unsigned long long frameContentSize;
+    size_t sectionSize;
     ZSTD_CDict* cdict;
     ZSTD_CStream* cstream;
     ZSTDMT_jobDescription jobs[1];   /* variable size (must lies at the end) */
@@ -304,6 +301,7 @@ ZSTDMT_CCtx *ZSTDMT_createCCtx(unsigned nbThreads)
     cctx->nbThreads = nbThreads;
     cctx->jobIDMask = nbJobs - 1;
     cctx->allJobsCompleted = 1;
+    cctx->sectionSize = 0;
     cctx->factory = POOL_create(nbThreads, 1);
     cctx->buffPool = ZSTDMT_createBufferPool(nbThreads);
     cctx->cctxPool = ZSTDMT_createCCtxPool(nbThreads);
@@ -356,6 +354,22 @@ size_t ZSTDMT_freeCCtx(ZSTDMT_CCtx* mtctx)
     return 0;
 }
 
+unsigned ZSTDMT_setMTCtxParameter(ZSTDMT_CCtx* mtctx, ZSDTMT_parameter parameter, unsigned value)
+{
+    switch(parameter)
+    {
+    case ZSTDMT_p_sectionSize :
+        mtctx->sectionSize = value;
+        return 0;
+    default :
+        return ERROR(compressionParameter_unsupported);
+    }
+}
+
+
+/* ------------------------------------------ */
+/* =====   Multi-threaded compression   ===== */
+/* ------------------------------------------ */
 
 size_t ZSTDMT_compressCCtx(ZSTDMT_CCtx* mtctx,
                            void* dst, size_t dstCapacity,
@@ -487,7 +501,8 @@ static size_t ZSTDMT_initCStream_internal(ZSTDMT_CCtx* zcs,
             if (zcs->cdict == NULL) return ERROR(memory_allocation);
     }   }
     zcs->frameContentSize = pledgedSrcSize;
-    zcs->targetSectionSize = (size_t)1 << MAX(ZSTDMT_SECTION_LOGSIZE_MIN, (zcs->params.cParams.windowLog + 2));
+    zcs->targetSectionSize = zcs->sectionSize ? zcs->sectionSize : (size_t)1 << (zcs->params.cParams.windowLog + 2);
+    zcs->targetSectionSize = MAX(ZSTDMT_SECTION_SIZE_MIN, zcs->targetSectionSize);
     zcs->inBuffSize = zcs->targetSectionSize + ((size_t)1 << zcs->params.cParams.windowLog);
     zcs->inBuff.buffer = ZSTDMT_getBuffer(zcs->buffPool, zcs->inBuffSize);
     if (zcs->inBuff.buffer.start == NULL) return ERROR(memory_allocation);

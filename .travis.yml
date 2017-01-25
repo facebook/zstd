@@ -76,7 +76,6 @@ matrix:
             - gcc-arm-linux-gnueabi
             - libc6-dev-armel-cross
 
-    # Ubuntu 14.04 LTS Server Edition 64 bit
     - env: Ubu=14.04 Cmd="make aarch64test"
       dist: trusty
       sudo: required
@@ -108,6 +107,23 @@ matrix:
           packages:
             - valgrind
 
+
+
+    # other feature branches => short tests
+    - env: Ubu=12.04cont Cmd="make test && make clean && make travis-install"
+      os: linux
+      sudo: false
+
+    - env: Ubu=14.04 Cmd="make -C tests test32"
+      os: linux
+      dist: trusty
+      sudo: required
+      addons:
+        apt:
+          packages:
+            - libc6-dev-i386
+            - gcc-multilib
+
     - env: Ubu=14.04 Cmd="make gpptest && make clean && make gnu90test && make clean
                        && make c99test && make clean && make gnu99test && make clean
                        && make clangtest && make clean && make -C contrib/pzstd googletest32 
@@ -127,16 +143,6 @@ matrix:
             - g++-4.8
             - g++-4.8-multilib
 
-    - env: Ubu=14.04 Cmd="make -C tests test32"
-      os: linux
-      dist: trusty
-      sudo: required
-      addons:
-        apt:
-          packages:
-            - libc6-dev-i386
-            - gcc-multilib
-
     - env: Ubu=14.04 Cmd="make gcc5test && make clean && make gcc6test && make clean && make -C tests dll"
       os: linux
       dist: trusty
@@ -152,12 +158,9 @@ matrix:
             - gcc-6
             - gcc-6-multilib
 
-    # Container-based Ubuntu 12.04 LTS Server Edition 64 bit (doesn't support 32-bit includes)
-    - env: Ubu=12.04cont Cmd="make test && make clean && make travis-install"
-      os: linux
-      sudo: false
-
 script:
   - JOB_NUMBER=$(echo $TRAVIS_JOB_NUMBER | sed -e 's:[0-9][0-9]*\.\(.*\):\1:')
-  # - if [ $JOB_NUMBER -eq 9 ] || [ $JOB_NUMBER -eq 10 ]; then sh -c "$Cmd"; fi
-  - if [ "$TRAVIS_PULL_REQUEST" = "true" ] || [ "$TRAVIS_BRANCH" = "master" ] || [ "$TRAVIS_BRANCH" = "dev" ] || [ $JOB_NUMBER -gt 11 ]; then sh -c "$Cmd"; fi
+  #  dev => normal tests;  other feature branches => short tests (number > 11)
+  - if [ "$TRAVIS_PULL_REQUEST" = "true" ] || [ "$TRAVIS_BRANCH" = "dev" ] || [ $JOB_NUMBER -gt 11 ]; then sh -c "$Cmd"; fi
+  #  master => long tests, as this is the final step towards a Release
+  - if [ "$TRAVIS_PULL_REQUEST" = "false" ] && [ "$TRAVIS_BRANCH" = "master" ]; then FUZZERTEST=-T10mn sh -c "$Cmd"; fi

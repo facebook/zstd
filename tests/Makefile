@@ -52,8 +52,8 @@ endif
 
 VOID = /dev/null
 ZSTREAM_TESTTIME = -T2mn
-FUZZERTEST= -T5mn
-ZSTDRTTEST= --test-large-data
+FUZZERTEST ?= -T5mn
+ZSTDRTTEST = --test-large-data
 
 .PHONY: default all all32 dll clean test test32 test-all namespaceTest versionsTest
 

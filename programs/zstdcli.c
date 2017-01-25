@@ -118,6 +118,7 @@ static int usage_advanced(const char* programName)
     DISPLAY( "--[no-]check : integrity check (default:enabled) \n");
 #ifdef ZSTD_MULTITHREAD
     DISPLAY( " -T#    : use # threads for compression (default:1) \n");
+    DISPLAY( " -B#    : select size of independent sections (default:0==automatic) \n");
 #endif
 #endif
 #ifndef ZSTD_NODECOMPRESS
@@ -625,6 +626,7 @@ int main(int argCount, const char* argv[])
     if (operation==zom_compress) {
 #ifndef ZSTD_NOCOMPRESS
         FIO_setNbThreads(nbThreads);
+        FIO_setBlockSize((U32)blockSize);
         if ((filenameIdx==1) && outFileName)
           operationResult = FIO_compressFilename(outFileName, filenameTable[0], dictFileName, cLevel, &compressionParams);
         else

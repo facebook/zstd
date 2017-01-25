@@ -113,6 +113,16 @@ void FIO_setNbThreads(unsigned nbThreads) {
 #endif
     g_nbThreads = nbThreads;
 }
+static U32 g_blockSize = 0;
+void FIO_setBlockSize(unsigned blockSize) {
+    if (blockSize && g_nbThreads==1)
+        DISPLAYLEVEL(2, "Setting block size is useless in single-thread mode \n");
+#ifdef ZSTD_MULTITHREAD
+    if (blockSize-1 < ZSTDMT_SECTION_SIZE_MIN-1)   /* intentional underflow */
+        DISPLAYLEVEL(2, "Note : minimum block size is %u KB \n", (ZSTDMT_SECTION_SIZE_MIN>>10));
+#endif
+    g_blockSize = blockSize;
+}
 
 
 /*-*************************************
@@ -283,10 +293,12 @@ static cRess_t FIO_createCResources(const char* dictFileName, int cLevel,
             if (comprParams->strategy) params.cParams.strategy = (ZSTD_strategy)(comprParams->strategy - 1);
 #ifdef ZSTD_MULTITHREAD
             {   size_t const errorCode = ZSTDMT_initCStream_advanced(ress.cctx, dictBuffer, dictBuffSize, params, srcSize);
+                if (ZSTD_isError(errorCode)) EXM_THROW(33, "Error initializing CStream : %s", ZSTD_getErrorName(errorCode));
+                ZSTDMT_setMTCtxParameter(ress.cctx, ZSTDMT_p_sectionSize, g_blockSize);
 #else
             {   size_t const errorCode = ZSTD_initCStream_advanced(ress.cctx, dictBuffer, dictBuffSize, params, srcSize);
-#endif
                 if (ZSTD_isError(errorCode)) EXM_THROW(33, "Error initializing CStream : %s", ZSTD_getErrorName(errorCode));
+#endif
         }   }
         free(dictBuffer);
     }

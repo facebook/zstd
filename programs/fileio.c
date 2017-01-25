@@ -349,23 +349,22 @@ static int FIO_compressFilename_internal(cRess_t ress,
         readsize += inSize;
         DISPLAYUPDATE(2, "\rRead : %u MB  ", (U32)(readsize>>20));
 
-        /* Compress using buffered streaming */
         {   ZSTD_inBuffer  inBuff = { ress.srcBuffer, inSize, 0 };
-            ZSTD_outBuffer outBuff= { ress.dstBuffer, ress.dstBufferSize, 0 };
             while (inBuff.pos != inBuff.size) {   /* note : is there any possibility of endless loop ? for example, if outBuff is not large enough ? */
+                ZSTD_outBuffer outBuff= { ress.dstBuffer, ress.dstBufferSize, 0 };
 #ifdef ZSTD_MULTITHREAD
                 size_t const result = ZSTDMT_compressStream(ress.cctx, &outBuff, &inBuff);
 #else
                 size_t const result = ZSTD_compressStream(ress.cctx, &outBuff, &inBuff);
 #endif
                 if (ZSTD_isError(result)) EXM_THROW(23, "Compression error : %s ", ZSTD_getErrorName(result));
-            }
 
-            /* Write cBlock */
-            { size_t const sizeCheck = fwrite(ress.dstBuffer, 1, outBuff.pos, dstFile);
-              if (sizeCheck!=outBuff.pos) EXM_THROW(25, "Write error : cannot write compressed block into %s", dstFileName); }
-            compressedfilesize += outBuff.pos;
-        }
+                /* Write compressed stream */
+                if (outBuff.pos) {
+                    size_t const sizeCheck = fwrite(ress.dstBuffer, 1, outBuff.pos, dstFile);
+                    if (sizeCheck!=outBuff.pos) EXM_THROW(25, "Write error : cannot write compressed block into %s", dstFileName);
+                    compressedfilesize += outBuff.pos;
+        }   }   }
         DISPLAYUPDATE(2, "\rRead : %u MB  ==> %.2f%%   ", (U32)(readsize>>20), (double)compressedfilesize/readsize*100);
     }
 

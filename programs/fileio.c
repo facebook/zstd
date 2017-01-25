@@ -414,6 +414,11 @@ static int FIO_compressFilename_srcFile(cRess_t ress,
         DISPLAYLEVEL(1, "zstd: %s is a directory -- ignored \n", srcFileName);
         return 1;
     }
+    if (!UTIL_doesFileExists(srcFileName)) {
+        DISPLAYLEVEL(1, "zstd: %s is not a regular file -- ignored \n", srcFileName);
+        return 1;
+    }
+
     ress.srcFile = FIO_openSrcFile(srcFileName);
     if (!ress.srcFile) return 1;   /* srcFile could not be opened */
 
@@ -770,6 +775,10 @@ static int FIO_decompressSrcFile(dRess_t ress, const char* dstFileName, const ch
 
     if (UTIL_isDirectory(srcFileName)) {
         DISPLAYLEVEL(1, "zstd: %s is a directory -- ignored \n", srcFileName);
+        return 1;
+    }
+    if (!UTIL_doesFileExists(srcFileName)) {
+        DISPLAYLEVEL(1, "zstd: %s is not a regular file -- ignored \n", srcFileName);
         return 1;
     }
 

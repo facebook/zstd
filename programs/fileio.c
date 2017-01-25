@@ -158,6 +158,10 @@ static FILE* FIO_openSrcFile(const char* srcFileName)
         f = stdin;
         SET_BINARY_MODE(stdin);
     } else {
+        if (!UTIL_doesFileExists(srcFileName)) {
+            DISPLAYLEVEL(1, "zstd: %s is not a regular file -- ignored \n", srcFileName);
+            return NULL;
+        }
         f = fopen(srcFileName, "rb");
         if ( f==NULL ) DISPLAYLEVEL(1, "zstd: %s: %s \n", srcFileName, strerror(errno));
     }
@@ -412,10 +416,6 @@ static int FIO_compressFilename_srcFile(cRess_t ress,
     /* File check */
     if (UTIL_isDirectory(srcFileName)) {
         DISPLAYLEVEL(1, "zstd: %s is a directory -- ignored \n", srcFileName);
-        return 1;
-    }
-    if (!UTIL_doesFileExists(srcFileName)) {
-        DISPLAYLEVEL(1, "zstd: %s is not a regular file -- ignored \n", srcFileName);
         return 1;
     }
 
@@ -775,10 +775,6 @@ static int FIO_decompressSrcFile(dRess_t ress, const char* dstFileName, const ch
 
     if (UTIL_isDirectory(srcFileName)) {
         DISPLAYLEVEL(1, "zstd: %s is a directory -- ignored \n", srcFileName);
-        return 1;
-    }
-    if (!UTIL_doesFileExists(srcFileName)) {
-        DISPLAYLEVEL(1, "zstd: %s is not a regular file -- ignored \n", srcFileName);
         return 1;
     }
 

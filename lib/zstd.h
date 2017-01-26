@@ -369,9 +369,9 @@ typedef struct {
 } ZSTD_compressionParameters;
 
 typedef struct {
-    unsigned contentSizeFlag; /**< 1: content size will be in frame header (if known). */
-    unsigned checksumFlag;    /**< 1: will generate a 32-bits checksum at end of frame, to be used for error detection by decompressor */
-    unsigned noDictIDFlag;    /**< 1: no dict ID will be saved into frame header (if dictionary compression) */
+    unsigned contentSizeFlag; /**< 1: content size will be in frame header (when known) */
+    unsigned checksumFlag;    /**< 1: generate a 32-bits checksum at end of frame, for error detection */
+    unsigned noDictIDFlag;    /**< 1: no dictID will be saved into frame header (if dictionary compression) */
 } ZSTD_frameParameters;
 
 typedef struct {
@@ -400,6 +400,14 @@ ZSTDLIB_API ZSTD_CCtx* ZSTD_createCCtx_advanced(ZSTD_customMem customMem);
 /*! ZSTD_sizeofCCtx() :
  *  Gives the amount of memory used by a given ZSTD_CCtx */
 ZSTDLIB_API size_t ZSTD_sizeof_CCtx(const ZSTD_CCtx* cctx);
+
+typedef enum {
+    ZSTD_p_forceWindow   /* Force back-references to remain < windowSize, even when referencing Dictionary content (default:0)*/
+} ZSTD_CCtxParameter;
+/*! ZSTD_setCCtxParameter() :
+ *  Set advanced parameters, selected through enum ZSTD_CCtxParameter
+ *  @result : 0, or an error code (which can be tested with ZSTD_isError()) */
+ZSTDLIB_API size_t ZSTD_setCCtxParameter(ZSTD_CCtx* cctx, ZSTD_CCtxParameter param, unsigned value);
 
 /*! ZSTD_createCDict_byReference() :
  *  Create a digested dictionary for compression
@@ -519,7 +527,7 @@ ZSTDLIB_API size_t ZSTD_sizeof_CStream(const ZSTD_CStream* zcs);
 
 
 /*=====   Advanced Streaming decompression functions  =====*/
-typedef enum { ZSTDdsp_maxWindowSize } ZSTD_DStreamParameter_e;
+typedef enum { DStream_p_maxWindowSize } ZSTD_DStreamParameter_e;
 ZSTDLIB_API ZSTD_DStream* ZSTD_createDStream_advanced(ZSTD_customMem customMem);
 ZSTDLIB_API size_t ZSTD_initDStream_usingDict(ZSTD_DStream* zds, const void* dict, size_t dictSize); /**< note: a dict will not be used if dict == NULL or dictSize < 8 */
 ZSTDLIB_API size_t ZSTD_setDStreamParameter(ZSTD_DStream* zds, ZSTD_DStreamParameter_e paramType, unsigned paramValue);
@@ -561,10 +569,10 @@ ZSTDLIB_API size_t ZSTD_sizeof_DStream(const ZSTD_DStream* zds);
     In which case, it will "discard" the relevant memory section from its history.
 
   Finish a frame with ZSTD_compressEnd(), which will write the last block(s) and optional checksum.
-  It's possible to use a NULL,0 src content, in which case, it will write a final empty block to end the frame,
-  Without last block mark, frames will be considered unfinished (broken) by decoders.
+  It's possible to use srcSize==0, in which case, it will write a final empty block to end the frame.
+  Without last block mark, frames will be considered unfinished (corrupted) by decoders.
 
-  You can then reuse `ZSTD_CCtx` (ZSTD_compressBegin()) to compress some new frame.
+  `ZSTD_CCtx` object can be re-used (ZSTD_compressBegin()) to compress some new frame.
 */
 
 /*=====   Buffer-less streaming compression functions  =====*/
@@ -572,6 +580,7 @@ ZSTDLIB_API size_t ZSTD_compressBegin(ZSTD_CCtx* cctx, int compressionLevel);
 ZSTDLIB_API size_t ZSTD_compressBegin_usingDict(ZSTD_CCtx* cctx, const void* dict, size_t dictSize, int compressionLevel);
 ZSTDLIB_API size_t ZSTD_compressBegin_advanced(ZSTD_CCtx* cctx, const void* dict, size_t dictSize, ZSTD_parameters params, unsigned long long pledgedSrcSize);
 ZSTDLIB_API size_t ZSTD_copyCCtx(ZSTD_CCtx* cctx, const ZSTD_CCtx* preparedCCtx, unsigned long long pledgedSrcSize);
+ZSTDLIB_API size_t ZSTD_compressBegin_usingCDict(ZSTD_CCtx* cctx, const ZSTD_CDict* cdict, unsigned long long pledgedSrcSize);
 ZSTDLIB_API size_t ZSTD_compressContinue(ZSTD_CCtx* cctx, void* dst, size_t dstCapacity, const void* src, size_t srcSize);
 ZSTDLIB_API size_t ZSTD_compressEnd(ZSTD_CCtx* cctx, void* dst, size_t dstCapacity, const void* src, size_t srcSize);
 

@@ -267,4 +267,13 @@ MEM_STATIC U32 ZSTD_highbit32(U32 val)
 }
 
 
+/* hidden functions */
+
+/* ZSTD_invalidateRepCodes() :
+ * ensures next compression will not use repcodes from previous block.
+ * Note : only works with regular variant;
+ *        do not use with extDict variant ! */
+void ZSTD_invalidateRepCodes(ZSTD_CCtx* cctx);
+
+
 #endif   /* ZSTD_CCOMMON_H_MODULE */

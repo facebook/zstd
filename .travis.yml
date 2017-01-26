@@ -92,7 +92,7 @@ matrix:
             - gcc-aarch64-linux-gnu
             - libc6-dev-arm64-cross
 
-    - env: Ubu=14.04 Cmd='make ppctest && make clean && make ppc64test'
+    - env: Ubu=14.04 Cmd='make ppctest'
       dist: trusty
       sudo: required
       addons:
@@ -101,7 +101,16 @@ matrix:
             - qemu-system-ppc
             - qemu-user-static
             - gcc-powerpc-linux-gnu
-            - libc6-dev-armel-cross
+
+    - env: Ubu=14.04 Cmd='make ppc64test'
+      dist: trusty
+      sudo: required
+      addons:
+        apt:
+          packages:
+            - qemu-system-ppc
+            - qemu-user-static
+            - gcc-powerpc-linux-gnu
 
     - env: Ubu=14.04 Cmd='make -C lib all && CFLAGS="-O1 -g" make -C zlibWrapper valgrindTest && make -C tests valgrindTest'
       os: linux
@@ -114,7 +123,7 @@ matrix:
 
     - env: Ubu=14.04 Cmd="make gpptest && make clean && make gnu90test && make clean
                        && make c99test && make clean && make gnu99test && make clean
-                       && make clangtest && make clean && make -C contrib/pzstd googletest32 
+                       && make clangtest && make clean && make -C contrib/pzstd googletest32
                        && make -C contrib/pzstd all32 && make -C contrib/pzstd check && make -C contrib/pzstd clean"
       os: linux
       dist: trusty

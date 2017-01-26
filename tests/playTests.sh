@@ -135,14 +135,14 @@ $ZSTD -c world.tmp > world.zstd
 cat hello.zstd world.zstd > helloworld.zstd
 $ZSTD -dc helloworld.zstd > result.tmp
 cat result.tmp
-sdiff helloworld.tmp result.tmp
+$DIFF helloworld.tmp result.tmp
 $ECHO "frame concatenation without checksum"
 $ZSTD -c hello.tmp > hello.zstd --no-check
 $ZSTD -c world.tmp > world.zstd --no-check
 cat hello.zstd world.zstd > helloworld.zstd
 $ZSTD -dc helloworld.zstd > result.tmp
 cat result.tmp
-sdiff helloworld.tmp result.tmp
+$DIFF helloworld.tmp result.tmp
 rm ./*.tmp ./*.zstd
 $ECHO "frame concatenation tests completed"
 

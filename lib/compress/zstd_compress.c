@@ -123,7 +123,7 @@ size_t ZSTD_setCCtxParameter(ZSTD_CCtx* cctx, ZSTD_CCtxParameter param, unsigned
 {
     switch(param)
     {
-    case ZSTD_p_forceWindow : cctx->forceWindow = value; return 0;
+    case ZSTD_p_forceWindow : cctx->forceWindow = value>0; cctx->loadedDictEnd = 0; return 0;
     default: return ERROR(parameter_unknown);
     }
 }
@@ -2323,7 +2323,7 @@ static size_t ZSTD_compress_generic (ZSTD_CCtx* cctx,
             else cctx->nextToUpdate -= correction;
         }
 
-        if ((U32)(ip+blockSize - cctx->base) > (cctx->forceWindow ? 0 : cctx->loadedDictEnd) + maxDist) {
+        if ((U32)(ip+blockSize - cctx->base) > cctx->loadedDictEnd + maxDist) {
             /* enforce maxDist */
             U32 const newLowLimit = (U32)(ip+blockSize - cctx->base) - maxDist;
             if (cctx->lowLimit < newLowLimit) cctx->lowLimit = newLowLimit;
@@ -2477,7 +2477,7 @@ static size_t ZSTD_loadDictionaryContent(ZSTD_CCtx* zc, const void* src, size_t 
     zc->dictBase = zc->base;
     zc->base += ip - zc->nextSrc;
     zc->nextToUpdate = zc->dictLimit;
-    zc->loadedDictEnd = (U32)(iend - zc->base);
+    zc->loadedDictEnd = zc->forceWindow ? 0 : (U32)(iend - zc->base);
 
     zc->nextSrc = iend;
     if (srcSize <= HASH_READ_SIZE) return 0;

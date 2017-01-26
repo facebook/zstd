@@ -51,8 +51,9 @@ ZSTDLIB_API size_t ZSTDMT_initCStream_advanced(ZSTDMT_CCtx* mtctx, const void* d
 
 /* ZSDTMT_parameter :
  * List of parameters that can be set using ZSTDMT_setMTCtxParameter() */
-typedef enum { ZSTDMT_p_sectionSize    /* size of input "section". Each section is compressed in parallel. 0 means default, which is dynamically determined within compression functions */
-    } ZSDTMT_parameter;
+typedef enum {
+    ZSTDMT_p_sectionSize    /* size of input "section". Each section is compressed in parallel. 0 means default, which is dynamically determined within compression functions */
+} ZSDTMT_parameter;
 
 /* ZSTDMT_setMTCtxParameter() :
  * allow setting individual parameters, one at a time, among a list of enums defined in ZSTDMT_parameter.

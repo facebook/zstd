@@ -755,6 +755,7 @@ static int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, U32 const maxD
                 CHECK (ZSTD_isError(errorCode), "ZSTD_copyCCtx error : %s", ZSTD_getErrorName(errorCode));
         }   }
         XXH64_reset(&xxhState, 0);
+        ZSTD_setCCtxParameter(ctx, ZSTD_p_forceWindow, FUZ_rand(&lseed) & 1);
         {   U32 const nbChunks = (FUZ_rand(&lseed) & 127) + 2;
             U32 n;
             for (totalTestSize=0, cSize=0, n=0 ; n<nbChunks ; n++) {

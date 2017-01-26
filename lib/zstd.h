@@ -407,7 +407,7 @@ typedef enum {
 /*! ZSTD_setCCtxParameter() :
  *  Set advanced parameters, selected through enum ZSTD_CCtxParameter
  *  @result : 0, or an error code (which can be tested with ZSTD_isError()) */
-size_t ZSTD_setCCtxParameter(ZSTD_CCtx* cctx, ZSTD_CCtxParameter param, unsigned value);
+ZSTDLIB_API size_t ZSTD_setCCtxParameter(ZSTD_CCtx* cctx, ZSTD_CCtxParameter param, unsigned value);
 
 /*! ZSTD_createCDict_byReference() :
  *  Create a digested dictionary for compression

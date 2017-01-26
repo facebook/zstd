@@ -225,7 +225,7 @@ static int basicUnitTests(U32 seed, double compressibility, ZSTD_customMem custo
     inBuff2 = inBuff;
     DISPLAYLEVEL(3, "test%3i : decompress %u bytes : ", testNb++, COMPRESSIBLE_NOISE_LENGTH);
     ZSTD_initDStream_usingDict(zd, CNBuffer, 128 KB);
-    { size_t const r = ZSTD_setDStreamParameter(zd, ZSTDdsp_maxWindowSize, 1000000000);  /* large limit */
+    { size_t const r = ZSTD_setDStreamParameter(zd, DStream_p_maxWindowSize, 1000000000);  /* large limit */
       if (ZSTD_isError(r)) goto _output_error; }
     { size_t const remaining = ZSTD_decompressStream(zd, &outBuff, &inBuff);
       if (remaining != 0) goto _output_error; }  /* should reach end of frame == 0; otherwise, some data left, or an error */
@@ -426,7 +426,7 @@ static int basicUnitTests(U32 seed, double compressibility, ZSTD_customMem custo
     /* Memory restriction */
     DISPLAYLEVEL(3, "test%3i : maxWindowSize < frame requirement : ", testNb++);
     ZSTD_initDStream_usingDict(zd, CNBuffer, 128 KB);
-    { size_t const r = ZSTD_setDStreamParameter(zd, ZSTDdsp_maxWindowSize, 1000);  /* too small limit */
+    { size_t const r = ZSTD_setDStreamParameter(zd, DStream_p_maxWindowSize, 1000);  /* too small limit */
       if (ZSTD_isError(r)) goto _output_error; }
     inBuff.src = compressedBuffer;
     inBuff.size = cSize;
@@ -466,6 +466,10 @@ static size_t findDiff(const void* buf1, const void* buf2, size_t max)
         if (b1[u] != b2[u]) break;
     }
     DISPLAY("Error at position %u / %u \n", (U32)u, (U32)max);
+    DISPLAY(" %02X %02X %02X  :%02X:  %02X %02X %02X %02X %02X \n",
+            b1[u-3], b1[u-2], b1[u-1], b1[u-0], b1[u+1], b1[u+2], b1[u+3], b1[u+4], b1[u+5]);
+    DISPLAY(" %02X %02X %02X  :%02X:  %02X %02X %02X %02X %02X \n",
+            b2[u-3], b2[u-2], b2[u-1], b2[u-0], b2[u+1], b2[u+2], b2[u+3], b2[u+4], b2[u+5]);
     return u;
 }
 
@@ -902,9 +906,8 @@ static int fuzzerTests_MT(U32 seed, U32 nbTests, unsigned startTest, double comp
                 decompressionResult = ZSTD_decompressStream(zd, &outBuff, &inBuff);
                 CHECK (ZSTD_isError(decompressionResult), "decompression error : %s", ZSTD_getErrorName(decompressionResult));
             }
-            CHECK (decompressionResult != 0, "frame not fully decoded");
-            CHECK (outBuff.pos != totalTestSize, "decompressed data : wrong size")
-            CHECK (inBuff.pos != cSize, "compressed data should be fully read")
+            CHECK (outBuff.pos != totalTestSize, "decompressed data : wrong size (%u != %u)", (U32)outBuff.pos, (U32)totalTestSize);
+            CHECK (inBuff.pos != cSize, "compressed data should be fully read (%u != %u)", (U32)inBuff.pos, (U32)cSize);
             {   U64 const crcDest = XXH64(dstBuffer, totalTestSize, 0);
                 if (crcDest!=crcOrig) findDiff(copyBuffer, dstBuffer, totalTestSize);
                 CHECK (crcDest!=crcOrig, "decompressed data corrupted");

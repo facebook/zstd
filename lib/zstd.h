@@ -401,6 +401,12 @@ ZSTDLIB_API ZSTD_CCtx* ZSTD_createCCtx_advanced(ZSTD_customMem customMem);
  *  Gives the amount of memory used by a given ZSTD_CCtx */
 ZSTDLIB_API size_t ZSTD_sizeof_CCtx(const ZSTD_CCtx* cctx);
 
+/*! ZSTD_setCCtxParameter() :
+ *  Set advanced parameters, selected through enum ZSTD_CCtxParameter
+ *  @result : 0, or an error code (which can be tested with ZSTD_isError()) */
+typedef enum { ZSTD_p_forceWindow } ZSTD_CCtxParameter;
+size_t ZSTD_setCCtxParameter(ZSTD_CCtx* cctx, ZSTD_CCtxParameter param, unsigned value);
+
 /*! ZSTD_createCDict_byReference() :
  *  Create a digested dictionary for compression
  *  Dictionary content is simply referenced, and therefore stays in dictBuffer.
@@ -519,7 +525,7 @@ ZSTDLIB_API size_t ZSTD_sizeof_CStream(const ZSTD_CStream* zcs);
 
 
 /*=====   Advanced Streaming decompression functions  =====*/
-typedef enum { ZSTDdsp_maxWindowSize } ZSTD_DStreamParameter_e;
+typedef enum { DStream_p_maxWindowSize } ZSTD_DStreamParameter_e;
 ZSTDLIB_API ZSTD_DStream* ZSTD_createDStream_advanced(ZSTD_customMem customMem);
 ZSTDLIB_API size_t ZSTD_initDStream_usingDict(ZSTD_DStream* zds, const void* dict, size_t dictSize); /**< note: a dict will not be used if dict == NULL or dictSize < 8 */
 ZSTDLIB_API size_t ZSTD_setDStreamParameter(ZSTD_DStream* zds, ZSTD_DStreamParameter_e paramType, unsigned paramValue);

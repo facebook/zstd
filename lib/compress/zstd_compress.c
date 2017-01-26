@@ -60,7 +60,8 @@ struct ZSTD_CCtx_s {
     U32   nextToUpdate;     /* index from which to continue dictionary update */
     U32   nextToUpdate3;    /* index from which to continue dictionary update */
     U32   hashLog3;         /* dispatch table : larger == faster, more memory */
-    U32   loadedDictEnd;
+    U32   loadedDictEnd;    /* index of end of dictionary */
+    U32   forceWindow;      /* force back-references to respect limit of 1<<wLog, even for dictionary */
     ZSTD_compressionStage_e stage;
     U32   rep[ZSTD_REP_NUM];
     U32   repToConfirm[ZSTD_REP_NUM];
@@ -100,7 +101,7 @@ ZSTD_CCtx* ZSTD_createCCtx_advanced(ZSTD_customMem customMem)
     cctx = (ZSTD_CCtx*) ZSTD_malloc(sizeof(ZSTD_CCtx), customMem);
     if (!cctx) return NULL;
     memset(cctx, 0, sizeof(ZSTD_CCtx));
-    memcpy(&(cctx->customMem), &customMem, sizeof(customMem));
+    cctx->customMem = customMem;
     return cctx;
 }
 
@@ -116,6 +117,15 @@ size_t ZSTD_sizeof_CCtx(const ZSTD_CCtx* cctx)
 {
     if (cctx==NULL) return 0;   /* support sizeof on NULL */
     return sizeof(*cctx) + cctx->workSpaceSize;
+}
+
+size_t ZSTD_setCCtxParameter(ZSTD_CCtx* cctx, ZSTD_CCtxParameter param, unsigned value)
+{
+    switch(param)
+    {
+    case ZSTD_p_forceWindow : cctx->forceWindow = value; return 0;
+    default: return ERROR(parameter_unknown);
+    }
 }
 
 const seqStore_t* ZSTD_getSeqStore(const ZSTD_CCtx* ctx)   /* hidden interface */
@@ -748,6 +758,13 @@ _check_compressibility:
 }
 
 
+#if 0 /* for debug */
+#  define STORESEQ_DEBUG
+#include <stdio.h>   /* fprintf */
+U32 g_startDebug = 0;
+const BYTE* g_start = NULL;
+#endif
+
 /*! ZSTD_storeSeq() :
     Store a sequence (literal length, literals, offset code and match length code) into seqStore_t.
     `offsetCode` : distance to match, or 0 == repCode.
@@ -755,13 +772,14 @@ _check_compressibility:
 */
 MEM_STATIC void ZSTD_storeSeq(seqStore_t* seqStorePtr, size_t litLength, const void* literals, U32 offsetCode, size_t matchCode)
 {
-#if 0  /* for debug */
-    static const BYTE* g_start = NULL;
-    const U32 pos = (U32)((const BYTE*)literals - g_start);
-    if (g_start==NULL) g_start = (const BYTE*)literals;
-    //if ((pos > 1) && (pos < 50000))
-        printf("Cpos %6u :%5u literals & match %3u bytes at distance %6u \n",
-               pos, (U32)litLength, (U32)matchCode+MINMATCH, (U32)offsetCode);
+#ifdef STORESEQ_DEBUG
+    if (g_startDebug) {
+        const U32 pos = (U32)((const BYTE*)literals - g_start);
+        if (g_start==NULL) g_start = (const BYTE*)literals;
+        if ((pos > 1895000) && (pos < 1895300))
+            fprintf(stderr, "Cpos %6u :%5u literals & match %3u bytes at distance %6u \n",
+                   pos, (U32)litLength, (U32)matchCode+MINMATCH, (U32)offsetCode);
+    }
 #endif
     /* copy Literals */
     ZSTD_wildcopy(seqStorePtr->lit, literals, litLength);
@@ -2305,7 +2323,7 @@ static size_t ZSTD_compress_generic (ZSTD_CCtx* cctx,
             else cctx->nextToUpdate -= correction;
         }
 
-        if ((U32)(ip+blockSize - cctx->base) > cctx->loadedDictEnd + maxDist) {
+        if ((U32)(ip+blockSize - cctx->base) > (cctx->forceWindow ? 0 : cctx->loadedDictEnd) + maxDist) {
             /* enforce maxDist */
             U32 const newLowLimit = (U32)(ip+blockSize - cctx->base) - maxDist;
             if (cctx->lowLimit < newLowLimit) cctx->lowLimit = newLowLimit;

@@ -380,9 +380,9 @@ There are 4 block types :
   This value cannot be used with current version of this specification.
 
 Block sizes must respect a few rules :
-- In compressed mode, `compressed size` is always strictly `< decompressed size`.
-- Block decompressed size is always <= maximum back-reference distance .
-- Block decompressed size is always <= 128 KB
+- In compressed mode, compressed size is always strictly less than decompressed size.
+- Block decompressed size is always <= maximum back-reference distance.
+- Block decompressed size is always <= 128 KB.
 
 
 __`Block_Content`__
@@ -580,7 +580,7 @@ which describes how to decode the list of weights.
 - if `headerByte` >= 128 : this is a direct representation,
   where each `Weight` is written directly as a 4 bits field (0-15).
   They are encoded forward, 2 weights to a byte with the first weight taking
-  the top 4 bits and the second taking the bottom two (e.g.
+  the top four bits and the second taking the bottom four (e.g.
   `Weight[0] = (Byte[0] >> 4), Weight[1] = (Byte[0] & 0xf)`, etc.).
   The full representation occupies `((Number_of_Symbols+1)/2)` bytes,
   meaning it uses a last full byte even if `Number_of_Symbols` is odd.

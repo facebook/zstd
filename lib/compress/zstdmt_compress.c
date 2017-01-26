@@ -238,6 +238,7 @@ void ZSTDMT_compressChunk(void* jobDescription)
     } else {
         size_t const initError = ZSTD_compressBegin_advanced(job->cctx, job->srcStart, job->dictSize, job->params, job->fullFrameSize);
         if (ZSTD_isError(initError)) { job->cSize = initError; goto _endJob; }
+        ZSTD_setCCtxParameter(job->cctx, ZSTD_p_forceWindow, 1);
     }
     if (!job->firstChunk) {  /* flush frame header */
         size_t const hSize = ZSTD_compressContinue(job->cctx, dstBuff.start, dstBuff.size, src, 0);

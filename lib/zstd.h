@@ -401,12 +401,12 @@ ZSTDLIB_API ZSTD_CCtx* ZSTD_createCCtx_advanced(ZSTD_customMem customMem);
  *  Gives the amount of memory used by a given ZSTD_CCtx */
 ZSTDLIB_API size_t ZSTD_sizeof_CCtx(const ZSTD_CCtx* cctx);
 
-/*! ZSTD_setCCtxParameter() :
- *  Set advanced parameters, selected through enum ZSTD_CCtxParameter
- *  @result : 0, or an error code (which can be tested with ZSTD_isError()) */
 typedef enum {
     ZSTD_p_forceWindow   /* Force back-references to remain < windowSize, even when referencing Dictionary content (default:0)*/
 } ZSTD_CCtxParameter;
+/*! ZSTD_setCCtxParameter() :
+ *  Set advanced parameters, selected through enum ZSTD_CCtxParameter
+ *  @result : 0, or an error code (which can be tested with ZSTD_isError()) */
 size_t ZSTD_setCCtxParameter(ZSTD_CCtx* cctx, ZSTD_CCtxParameter param, unsigned value);
 
 /*! ZSTD_createCDict_byReference() :

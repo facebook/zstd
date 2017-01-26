@@ -7,6 +7,7 @@
  * of patent rights can be found in the PATENTS file in the same directory.
  */
 
+
 /* *************************************
 *  Compiler Options
 ***************************************/
@@ -266,10 +267,13 @@ static cRess_t FIO_createCResources(const char* dictFileName, int cLevel,
 
 #ifdef ZSTD_MULTITHREAD
     ress.cctx = ZSTDMT_createCCtx(g_nbThreads);
+    if (ress.cctx == NULL) EXM_THROW(30, "zstd: allocation error : can't create ZSTD_CStream");
+    if (cLevel==ZSTD_maxCLevel())
+        ZSTDMT_setMTCtxParameter(ress.cctx, ZSTDMT_p_overlapSectionRLog, 0);   /* use complete window for overlap */
 #else
     ress.cctx = ZSTD_createCStream();
-#endif
     if (ress.cctx == NULL) EXM_THROW(30, "zstd: allocation error : can't create ZSTD_CStream");
+#endif
     ress.srcBufferSize = ZSTD_CStreamInSize();
     ress.srcBuffer = malloc(ress.srcBufferSize);
     ress.dstBufferSize = ZSTD_CStreamOutSize();

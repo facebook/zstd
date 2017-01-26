@@ -992,8 +992,8 @@ int main(int argc, const char** argv)
     int mainPause = 0;
     int mtOnly = 0;
     const char* const programName = argv[0];
-    ZSTD_customMem customMem = { allocFunction, freeFunction, NULL };
-    ZSTD_customMem customNULL = { NULL, NULL, NULL };
+    ZSTD_customMem const customMem = { allocFunction, freeFunction, NULL };
+    ZSTD_customMem const customNULL = { NULL, NULL, NULL };
 
     /* Check command line */
     for(argNb=1; argNb<argc; argNb++) {

@@ -52,7 +52,8 @@ ZSTDLIB_API size_t ZSTDMT_initCStream_advanced(ZSTDMT_CCtx* mtctx, const void* d
 /* ZSDTMT_parameter :
  * List of parameters that can be set using ZSTDMT_setMTCtxParameter() */
 typedef enum {
-    ZSTDMT_p_sectionSize    /* size of input "section". Each section is compressed in parallel. 0 means default, which is dynamically determined within compression functions */
+    ZSTDMT_p_sectionSize,        /* size of input "section". Each section is compressed in parallel. 0 means default, which is dynamically determined within compression functions */
+    ZSTDMT_p_overlapSectionRLog  /* reverse log of overlapped section; 0 == use a complete window, 3(default) == use 1/8th of window, values >=10 means no overlap */
 } ZSDTMT_parameter;
 
 /* ZSTDMT_setMTCtxParameter() :

@@ -116,7 +116,7 @@ Skippable frames defined in this specification are compatible with [LZ4] ones.
 __`Magic_Number`__
 
 4 Bytes, little-endian format.
-Value : 0x184D2A5X, which means any value from 0x184D2A50 to 0x184D2A5F.
+Value : 0x184D2A5?, which means any value from 0x184D2A50 to 0x184D2A5F.
 All 16 values are valid to identify a skippable frame.
 
 __`Frame_Size`__
@@ -477,13 +477,16 @@ For values spanning several bytes, convention is little-endian.
 
 __`Size_Format` for `Raw_Literals_Block` and `RLE_Literals_Block`__ :
 
-- Value X0 : `Size_Format` uses 1 bit, `Regenerated_Size` uses 5 bits (0-31).
+- Value ?0 : `Size_Format` uses 1 bit.
+               `Regenerated_Size` uses 5 bits (0-31).
                `Literals_Section_Header` has 1 byte.
                `Regenerated_Size = Header[0]>>3`
-- Value 01 : `Regenerated_Size` uses 12 bits (0-4095).
+- Value 01 : `Size_Format` uses 2 bits.
+               `Regenerated_Size` uses 12 bits (0-4095).
                `Literals_Section_Header` has 2 bytes.
                `Regenerated_Size = (Header[0]>>4) + (Header[1]<<4)`
-- Value 11 : `Regenerated_Size` uses 20 bits (0-1048575).
+- Value 11 : `Size_Format` uses 2 bits.
+               `Regenerated_Size` uses 20 bits (0-1048575).
                `Literals_Section_Header` has 3 bytes.
                `Regenerated_Size = (Header[0]>>4) + (Header[1]<<4) + (Header[2]<<12)`
 
@@ -580,7 +583,8 @@ which describes how to decode the list of weights.
 - if `headerByte` >= 128 : this is a direct representation,
   where each `Weight` is written directly as a 4 bits field (0-15).
   They are encoded forward, 2 weights to a byte with the first weight taking
-  the top four bits and the second taking the bottom four (e.g.
+  the top four bits and the second taking the bottom four (e.g. the following
+  operations could be used to read the weights:
   `Weight[0] = (Byte[0] >> 4), Weight[1] = (Byte[0] & 0xf)`, etc.).
   The full representation occupies `((Number_of_Symbols+1)/2)` bytes,
   meaning it uses a last full byte even if `Number_of_Symbols` is odd.

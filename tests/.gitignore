@@ -6,6 +6,7 @@ fuzzer32
 fuzzer-dll
 zbufftest
 zbufftest32
+zbufftest-dll
 zstreamtest
 zstreamtest32
 zstreamtest-dll
@@ -15,6 +16,7 @@ paramgrill32
 roundTripCrash
 longmatch
 symbols
+pool
 invalidDictionaries
 
 # Tmp test directory

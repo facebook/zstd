@@ -1936,7 +1936,7 @@ size_t ZSTD_initDStream_usingDict(ZSTD_DStream* zds, const void* dict, size_t di
     zds->stage = zdss_loadHeader;
     zds->lhSize = zds->inPos = zds->outStart = zds->outEnd = 0;
     ZSTD_freeDDict(zds->ddictLocal);
-    if (dict) {
+    if (dict && dictSize >= 8) {
         zds->ddictLocal = ZSTD_createDDict(dict, dictSize);
         if (zds->ddictLocal == NULL) return ERROR(memory_allocation);
     } else zds->ddictLocal = NULL;
@@ -1973,7 +1973,7 @@ size_t ZSTD_setDStreamParameter(ZSTD_DStream* zds,
     switch(paramType)
     {
         default : return ERROR(parameter_unknown);
-        case ZSTDdsp_maxWindowSize : zds->maxWindowSize = paramValue ? paramValue : (U32)(-1); break;
+        case DStream_p_maxWindowSize : zds->maxWindowSize = paramValue ? paramValue : (U32)(-1); break;
     }
     return 0;
 }

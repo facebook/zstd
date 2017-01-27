@@ -26,10 +26,10 @@ PYTHON ?= python3
 TESTARTEFACT := versionsTest namespaceTest
 
 
-CPPFLAGS+= -I$(ZSTDDIR) -I$(ZSTDDIR)/common -I$(ZSTDDIR)/dictBuilder -I$(ZSTDDIR)/deprecated -I$(PRGDIR)
+CPPFLAGS+= -I$(ZSTDDIR) -I$(ZSTDDIR)/common -I$(ZSTDDIR)/compress -I$(ZSTDDIR)/dictBuilder -I$(ZSTDDIR)/deprecated -I$(PRGDIR)
 CFLAGS  ?= -O3
-CFLAGS  += -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow -Wstrict-aliasing=1 \
-          -Wswitch-enum -Wdeclaration-after-statement -Wstrict-prototypes -Wundef
+CFLAGS  += -g -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow -Wstrict-aliasing=1 \
+           -Wswitch-enum -Wdeclaration-after-statement -Wstrict-prototypes -Wundef
 CFLAGS  += $(MOREFLAGS)
 FLAGS    = $(CPPFLAGS) $(CFLAGS) $(LDFLAGS)
 
@@ -46,8 +46,10 @@ ZDICT_FILES := $(ZSTDDIR)/dictBuilder/*.c
 # Define *.exe as extension for Windows systems
 ifneq (,$(filter Windows%,$(OS)))
 EXT =.exe
+MULTITHREAD = -DZSTD_MULTITHREAD
 else
 EXT =
+MULTITHREAD = -pthread -DZSTD_MULTITHREAD
 endif
 
 VOID = /dev/null
@@ -122,10 +124,10 @@ zbufftest-dll : $(ZSTDDIR)/common/xxhash.c $(PRGDIR)/datagen.c zbufftest.c
 	$(CC) $(CPPFLAGS) $(CFLAGS) $^ $(LDFLAGS) -o $@$(EXT)
 
 zstreamtest  : $(ZSTD_FILES) $(ZDICT_FILES) $(PRGDIR)/datagen.c zstreamtest.c
-	$(CC)      $(FLAGS) $^ -o $@$(EXT)
+	$(CC)      $(FLAGS) $(MULTITHREAD) $^ -o $@$(EXT)
 
 zstreamtest32 : $(ZSTD_FILES) $(ZDICT_FILES) $(PRGDIR)/datagen.c zstreamtest.c
-	$(CC) -m32  $(FLAGS) $^ -o $@$(EXT)
+	$(CC) -m32  $(FLAGS) $(MULTITHREAD) $^ -o $@$(EXT)
 
 zstreamtest-dll : LDFLAGS+= -L$(ZSTDDIR) -lzstd
 zstreamtest-dll : $(ZSTDDIR)/common/xxhash.c $(PRGDIR)/datagen.c zstreamtest.c
@@ -156,6 +158,9 @@ else
 	$(CC) $(FLAGS) $^ -o $@$(EXT) -Wl,-rpath=$(ZSTDDIR) $(ZSTDDIR)/libzstd.so
 endif
 
+pool  : pool.c $(ZSTDDIR)/common/pool.c $(ZSTDDIR)/common/threading.c
+	$(CC)    $(FLAGS) $(MULTITHREAD) $^ -o $@$(EXT)
+
 namespaceTest:
 	if $(CC) namespaceTest.c ../lib/common/xxhash.c -o $@ ; then echo compilation should fail; exit 1 ; fi
 	$(RM) $@
@@ -174,7 +179,7 @@ clean:
         fuzzer-dll$(EXT) zstreamtest-dll$(EXT) zbufftest-dll$(EXT)\
         zstreamtest$(EXT) zstreamtest32$(EXT) \
         datagen$(EXT) paramgrill$(EXT) roundTripCrash$(EXT) longmatch$(EXT) \
-        symbols$(EXT) invalidDictionaries$(EXT)
+        symbols$(EXT) invalidDictionaries$(EXT) pool$(EXT)
 	@echo Cleaning completed
 
 
@@ -220,7 +225,7 @@ zstd-playTests: datagen
 	file $(ZSTD)
 	ZSTD="$(QEMU_SYS) $(ZSTD)" ./playTests.sh $(ZSTDRTTEST)
 
-test: test-zstd test-fullbench test-fuzzer test-zstream test-longmatch test-invalidDictionaries
+test: test-zstd test-fullbench test-fuzzer test-zstream test-longmatch test-invalidDictionaries test-pool
 
 test32: test-zstd32 test-fullbench32 test-fuzzer32 test-zstream32
 
@@ -285,5 +290,8 @@ test-invalidDictionaries: invalidDictionaries
 
 test-symbols: symbols
 	$(QEMU_SYS) ./symbols
+
+test-pool: pool
+	$(QEMU_SYS) ./pool
 
 endif

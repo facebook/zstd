@@ -341,6 +341,14 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\..\lib\common\pool.c"
+				>
+			</File>
+			<File
+				RelativePath="..\..\..\lib\common\threading.c"
+				>
+			</File>
+			<File
 				RelativePath="..\..\..\lib\common\entropy_common.c"
 				>
 			</File>
@@ -381,6 +389,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\..\lib\compress\zstdmt_compress.c"
+				>
+			</File>
+			<File
 				RelativePath="..\..\..\lib\compress\zstd_compress.c"
 				>
 			</File>
@@ -400,6 +412,14 @@
 			</File>
 			<File
 				RelativePath="..\..\..\lib\dictBuilder\divsufsort.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\..\lib\common\pool.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\..\lib\common\threading.h"
 				>
 			</File>
 			<File
@@ -448,6 +468,10 @@
 			</File>
 			<File
 				RelativePath="..\..\..\lib\common\zstd_internal.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\..\lib\compress\zstdmt_compress.h"
 				>
 			</File>
 			<File

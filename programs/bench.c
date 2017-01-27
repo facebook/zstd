@@ -40,6 +40,7 @@
 #include "zstd.h"
 #include "datagen.h"     /* RDG_genBuffer */
 #include "xxhash.h"
+#include "zstdmt_compress.h"
 
 
 /* *************************************
@@ -147,8 +148,6 @@ typedef struct {
 
 #define MIN(a,b) ((a)<(b) ? (a) : (b))
 #define MAX(a,b) ((a)>(b) ? (a) : (b))
-
-#include "compress/zstdmt_compress.h"
 
 static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
                         const char* displayName, int cLevel,

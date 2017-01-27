@@ -21,7 +21,7 @@
 
 #ifdef ZSTD_MULTITHREAD
 
-#include <threading.h>   /* pthread adaptation */
+#include "threading.h"   /* pthread adaptation */
 
 /* A job is a function and an opaque argument */
 typedef struct POOL_job_s {

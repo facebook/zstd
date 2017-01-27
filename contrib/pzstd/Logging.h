@@ -37,8 +37,8 @@ class Logger {
     return level <= level_;
   }
 
-  template <typename... Args>
-  void operator()(int level, const char *fmt, Args... args) {
+  template <typename String, typename... Args>
+  void operator()(int level, String fmt, Args... args) {
     if (level > level_) {
       return;
     }

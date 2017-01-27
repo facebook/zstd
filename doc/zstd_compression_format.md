@@ -16,7 +16,7 @@ Distribution of this document is unlimited.
 
 ### Version
 
-0.2.2 (14/09/16)
+0.2.3 (27/01/17)
 
 
 Introduction
@@ -1402,6 +1402,7 @@ to crosscheck that an implementation implements the decoding table generation al
 
 Version changes
 ---------------
+- 0.2.3 : clarified several details, by Sean Purcell
 - 0.2.2 : added predefined codes, by Johannes Rudolph
 - 0.2.1 : clarify field names, by Przemyslaw Skibinski
 - 0.2.0 : numerous format adjustments for zstd v0.8

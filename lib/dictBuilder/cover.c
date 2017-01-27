@@ -14,11 +14,10 @@
 #include <stdlib.h> /* malloc, free, qsort */
 #include <string.h> /* memset */
 #include <time.h>   /* clock */
-#ifdef ZSTD_PTHREAD
-#include "threading.h"
-#endif
 
-#include "mem.h"           /* read */
+#include "mem.h" /* read */
+#include "pool.h"
+#include "threading.h"
 #include "zstd_internal.h" /* includes zstd.h */
 #ifndef ZDICT_STATIC_LINKING_ONLY
 #define ZDICT_STATIC_LINKING_ONLY
@@ -690,11 +689,9 @@ ZDICTLIB_API size_t COVER_trainFromBuffer(
  * compiled with multithreaded support.
  */
 typedef struct COVER_best_s {
-#ifdef ZSTD_PTHREAD
   pthread_mutex_t mutex;
   pthread_cond_t cond;
   size_t liveJobs;
-#endif
   void *dict;
   size_t dictSize;
   COVER_params_t parameters;
@@ -708,11 +705,9 @@ static void COVER_best_init(COVER_best_t *best) {
   if (!best) {
     return;
   }
-#ifdef ZSTD_PTHREAD
   pthread_mutex_init(&best->mutex, NULL);
   pthread_cond_init(&best->cond, NULL);
   best->liveJobs = 0;
-#endif
   best->dict = NULL;
   best->dictSize = 0;
   best->compressedSize = (size_t)-1;
@@ -726,13 +721,11 @@ static void COVER_best_wait(COVER_best_t *best) {
   if (!best) {
     return;
   }
-#ifdef ZSTD_PTHREAD
   pthread_mutex_lock(&best->mutex);
   while (best->liveJobs != 0) {
     pthread_cond_wait(&best->cond, &best->mutex);
   }
   pthread_mutex_unlock(&best->mutex);
-#endif
 }
 
 /**
@@ -746,10 +739,8 @@ static void COVER_best_destroy(COVER_best_t *best) {
   if (best->dict) {
     free(best->dict);
   }
-#ifdef ZSTD_PTHREAD
   pthread_mutex_destroy(&best->mutex);
   pthread_cond_destroy(&best->cond);
-#endif
 }
 
 /**
@@ -760,11 +751,9 @@ static void COVER_best_start(COVER_best_t *best) {
   if (!best) {
     return;
   }
-#ifdef ZSTD_PTHREAD
   pthread_mutex_lock(&best->mutex);
   ++best->liveJobs;
   pthread_mutex_unlock(&best->mutex);
-#endif
 }
 
 /**
@@ -779,12 +768,10 @@ static void COVER_best_finish(COVER_best_t *best, size_t compressedSize,
     return;
   }
   {
-#ifdef ZSTD_PTHREAD
     size_t liveJobs;
     pthread_mutex_lock(&best->mutex);
     --best->liveJobs;
     liveJobs = best->liveJobs;
-#endif
     /* If the new dictionary is better */
     if (compressedSize < best->compressedSize) {
       /* Allocate space if necessary */
@@ -805,12 +792,10 @@ static void COVER_best_finish(COVER_best_t *best, size_t compressedSize,
       best->parameters = parameters;
       best->compressedSize = compressedSize;
     }
-#ifdef ZSTD_PTHREAD
     pthread_mutex_unlock(&best->mutex);
     if (liveJobs == 0) {
       pthread_cond_broadcast(&best->cond);
     }
-#endif
   }
 }
 
@@ -928,11 +913,12 @@ ZDICTLIB_API size_t COVER_optimizeTrainFromBuffer(void *dictBuffer,
                                                   unsigned nbSamples,
                                                   COVER_params_t *parameters) {
   /* constants */
+  const unsigned nbThreads = parameters->nbThreads;
   const unsigned kMinD = parameters->d == 0 ? 6 : parameters->d;
   const unsigned kMaxD = parameters->d == 0 ? 16 : parameters->d;
   const unsigned kMinK = parameters->k == 0 ? kMaxD : parameters->k;
   const unsigned kMaxK = parameters->k == 0 ? 2048 : parameters->k;
-  const unsigned kSteps = parameters->steps == 0 ? 256 : parameters->steps;
+  const unsigned kSteps = parameters->steps == 0 ? 32 : parameters->steps;
   const unsigned kStepSize = MAX((kMaxK - kMinK) / kSteps, 1);
   const unsigned kIterations =
       (1 + (kMaxD - kMinD) / 2) * (1 + (kMaxK - kMinK) / kStepSize);
@@ -942,6 +928,7 @@ ZDICTLIB_API size_t COVER_optimizeTrainFromBuffer(void *dictBuffer,
   unsigned d;
   unsigned k;
   COVER_best_t best;
+  POOL_ctx *pool = NULL;
   /* Checks */
   if (kMinK < kMaxD || kMaxK < kMinK) {
     LOCALDISPLAYLEVEL(displayLevel, 1, "Incorrect parameters\n");
@@ -955,6 +942,12 @@ ZDICTLIB_API size_t COVER_optimizeTrainFromBuffer(void *dictBuffer,
     DISPLAYLEVEL(1, "dictBufferCapacity must be at least %u\n",
                  ZDICT_DICTSIZE_MIN);
     return ERROR(dstSize_tooSmall);
+  }
+  if (nbThreads > 1) {
+    pool = POOL_create(nbThreads, 1);
+    if (!pool) {
+      return ERROR(memory_allocation);
+    }
   }
   /* Initialization */
   COVER_best_init(&best);
@@ -998,7 +991,11 @@ ZDICTLIB_API size_t COVER_optimizeTrainFromBuffer(void *dictBuffer,
       }
       /* Call the function and pass ownership of data to it */
       COVER_best_start(&best);
-      COVER_tryParameters(data);
+      if (pool) {
+        POOL_add(pool, &COVER_tryParameters, data);
+      } else {
+        COVER_tryParameters(data);
+      }
       /* Print status */
       LOCALDISPLAYUPDATE(displayLevel, 2, "\r%u%%       ",
                          (U32)((iteration * 100) / kIterations));
@@ -1018,6 +1015,7 @@ ZDICTLIB_API size_t COVER_optimizeTrainFromBuffer(void *dictBuffer,
     *parameters = best.parameters;
     memcpy(dictBuffer, best.dict, dictSize);
     COVER_best_destroy(&best);
+    POOL_free(pool);
     return dictSize;
   }
 }

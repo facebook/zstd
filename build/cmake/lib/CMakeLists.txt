@@ -66,6 +66,7 @@ SET(Headers
         ${LIBRARY_DIR}/common/huf.h
         ${LIBRARY_DIR}/common/mem.h
         ${LIBRARY_DIR}/common/zstd_internal.h
+        ${LIBRARY_DIR}/compress/zstdmt_compress.h
         ${LIBRARY_DIR}/dictBuilder/zdict.h
         ${LIBRARY_DIR}/deprecated/zbuff.h)
 

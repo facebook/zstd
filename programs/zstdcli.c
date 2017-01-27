@@ -20,6 +20,7 @@
 #endif
 
 
+
 /*-************************************
 *  Dependencies
 **************************************/
@@ -110,12 +111,16 @@ static int usage_advanced(const char* programName)
     DISPLAY( " -q     : suppress warnings; specify twice to suppress errors too\n");
     DISPLAY( " -c     : force write to standard output, even if it is the console\n");
 #ifdef UTIL_HAS_CREATEFILELIST
-    DISPLAY( " -r     : operate recursively on directories\n");
+    DISPLAY( " -r     : operate recursively on directories \n");
 #endif
 #ifndef ZSTD_NOCOMPRESS
     DISPLAY( "--ultra : enable levels beyond %i, up to %i (requires more memory)\n", ZSTDCLI_CLEVEL_MAX, ZSTD_maxCLevel());
     DISPLAY( "--no-dictID : don't write dictID into header (dictionary compression)\n");
-    DISPLAY( "--[no-]check : integrity check (default:enabled)\n");
+    DISPLAY( "--[no-]check : integrity check (default:enabled) \n");
+#ifdef ZSTD_MULTITHREAD
+    DISPLAY( " -T#    : use # threads for compression (default:1) \n");
+    DISPLAY( " -B#    : select size of independent sections (default:0==automatic) \n");
+#endif
 #endif
 #ifndef ZSTD_NODECOMPRESS
     DISPLAY( "--test  : test compressed file integrity \n");
@@ -256,7 +261,10 @@ int main(int argCount, const char* argv[])
         nextArgumentIsDictID=0,
         nextArgumentsAreFiles=0,
         ultra=0,
-        lastCommand = 0;
+        lastCommand = 0,
+        nbThreads = 1;
+    unsigned bench_nbSeconds = 3;   /* would be better if this value was synchronized from bench */
+    size_t blockSize = 0;
     zstd_operation_mode operation = zom_compress;
     ZSTD_compressionParameters compressionParams;
     int cLevel = ZSTDCLI_CLEVEL_DEFAULT;
@@ -393,7 +401,7 @@ int main(int argCount, const char* argv[])
                          /* Decoding */
                     case 'd':
 #ifndef ZSTD_NOBENCH
-                            if (operation==zom_bench) { BMK_setDecodeOnly(1); argument++; break; }  /* benchmark decode (hidden option) */
+                            if (operation==zom_bench) { BMK_setDecodeOnlyMode(1); argument++; break; }  /* benchmark decode (hidden option) */
 #endif
                             operation=zom_decompress; argument++; break;
 
@@ -437,33 +445,37 @@ int main(int argCount, const char* argv[])
 
 #ifndef ZSTD_NOBENCH
                         /* Benchmark */
-                    case 'b': operation=zom_bench; argument++; break;
+                    case 'b':
+                        operation=zom_bench;
+                        argument++;
+                        break;
 
                         /* range bench (benchmark only) */
                     case 'e':
-                            /* compression Level */
-                            argument++;
-                            cLevelLast = readU32FromChar(&argument);
-                            break;
+                        /* compression Level */
+                        argument++;
+                        cLevelLast = readU32FromChar(&argument);
+                        break;
 
                         /* Modify Nb Iterations (benchmark only) */
                     case 'i':
                         argument++;
-                        {   U32 const iters = readU32FromChar(&argument);
-                            BMK_setNotificationLevel(displayLevel);
-                            BMK_SetNbSeconds(iters);
-                        }
+                        bench_nbSeconds = readU32FromChar(&argument);
                         break;
 
                         /* cut input into blocks (benchmark only) */
                     case 'B':
                         argument++;
-                        {   size_t const bSize = readU32FromChar(&argument);
-                            BMK_setNotificationLevel(displayLevel);
-                            BMK_SetBlockSize(bSize);
-                        }
+                        blockSize = readU32FromChar(&argument);
                         break;
+
 #endif   /* ZSTD_NOBENCH */
+
+                        /* nb of threads (hidden option) */
+                    case 'T':
+                        argument++;
+                        nbThreads = readU32FromChar(&argument);
+                        break;
 
                         /* Dictionary Selection level */
                     case 's':
@@ -553,6 +565,9 @@ int main(int argCount, const char* argv[])
     if (operation==zom_bench) {
 #ifndef ZSTD_NOBENCH
         BMK_setNotificationLevel(displayLevel);
+        BMK_setBlockSize(blockSize);
+        BMK_setNbThreads(nbThreads);
+        BMK_setNbSeconds(bench_nbSeconds);
         BMK_benchFiles(filenameTable, filenameIdx, dictFileName, cLevel, cLevelLast, &compressionParams);
 #endif
         goto _end;
@@ -603,7 +618,7 @@ int main(int argCount, const char* argv[])
     }   }
 #endif
 
-    /* No warning message in pipe mode (stdin + stdout) or multi-files mode */
+    /* No status message in pipe mode (stdin - stdout) or multi-files mode */
     if (!strcmp(filenameTable[0], stdinmark) && outFileName && !strcmp(outFileName,stdoutmark) && (displayLevel==2)) displayLevel=1;
     if ((filenameIdx>1) & (displayLevel==2)) displayLevel=1;
 
@@ -611,6 +626,8 @@ int main(int argCount, const char* argv[])
     FIO_setNotificationLevel(displayLevel);
     if (operation==zom_compress) {
 #ifndef ZSTD_NOCOMPRESS
+        FIO_setNbThreads(nbThreads);
+        FIO_setBlockSize((U32)blockSize);
         if ((filenameIdx==1) && outFileName)
           operationResult = FIO_compressFilename(outFileName, filenameTable[0], dictFileName, cLevel, &compressionParams);
         else

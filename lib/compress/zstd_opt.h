@@ -38,7 +38,7 @@ MEM_STATIC void ZSTD_rescaleFreqs(seqStore_t* ssPtr, const BYTE* src, size_t src
 
     ssPtr->cachedLiterals = NULL;
     ssPtr->cachedPrice = ssPtr->cachedLitLength = 0;
-    ssPtr->staticPrices = 0; 
+    ssPtr->staticPrices = 0;
 
     if (ssPtr->litLengthSum == 0) {
         if (srcSize <= 1024) ssPtr->staticPrices = 1;
@@ -56,7 +56,7 @@ MEM_STATIC void ZSTD_rescaleFreqs(seqStore_t* ssPtr, const BYTE* src, size_t src
 
         for (u=0; u<=MaxLit; u++) {
             ssPtr->litFreq[u] = 1 + (ssPtr->litFreq[u]>>ZSTD_FREQ_DIV);
-            ssPtr->litSum += ssPtr->litFreq[u]; 
+            ssPtr->litSum += ssPtr->litFreq[u];
         }
         for (u=0; u<=MaxLL; u++)
             ssPtr->litLengthFreq[u] = 1;
@@ -634,7 +634,7 @@ _storeSequence:   /* cur, last_pos, best_mlen, best_off have to be set */
     }    }   /* for (cur=0; cur < last_pos; ) */
 
     /* Save reps for next block */
-    { int i; for (i=0; i<ZSTD_REP_NUM; i++) ctx->savedRep[i] = rep[i]; }
+    { int i; for (i=0; i<ZSTD_REP_NUM; i++) ctx->repToConfirm[i] = rep[i]; }
 
     /* Last Literals */
     {   size_t const lastLLSize = iend - anchor;
@@ -907,7 +907,7 @@ _storeSequence:   /* cur, last_pos, best_mlen, best_off have to be set */
     }    }   /* for (cur=0; cur < last_pos; ) */
 
     /* Save reps for next block */
-    { int i; for (i=0; i<ZSTD_REP_NUM; i++) ctx->savedRep[i] = rep[i]; }
+    { int i; for (i=0; i<ZSTD_REP_NUM; i++) ctx->repToConfirm[i] = rep[i]; }
 
     /* Last Literals */
     {   size_t lastLLSize = iend - anchor;

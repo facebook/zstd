@@ -46,9 +46,9 @@
     <ClCompile Include="..\..\..\lib\legacy\zstd_v06.c" />
     <ClCompile Include="..\..\..\lib\legacy\zstd_v07.c" />
   </ItemGroup>
-  <ItemGroup>    
-    <ClCompile Include="..\..\..\lib\common\pool.h" />
-    <ClCompile Include="..\..\..\lib\common\threading.h" />
+  <ItemGroup>
+    <ClInclude Include="..\..\..\lib\common\pool.h" />
+    <ClInclude Include="..\..\..\lib\common\threading.h" />
     <ClInclude Include="..\..\..\lib\common\bitstream.h" />
     <ClInclude Include="..\..\..\lib\common\error_private.h" />
     <ClInclude Include="..\..\..\lib\common\zstd_errors.h" />

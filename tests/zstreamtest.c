@@ -691,10 +691,13 @@ static int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compres
                 size_t const randomCSrcSize = FUZ_randomLength(&lseed, maxSampleLog);
                 size_t const randomDstSize = FUZ_randomLength(&lseed, maxSampleLog);
                 size_t const adjustedDstSize = MIN(dstBufferSize - outBuff.pos, randomDstSize);
+                size_t const adjustedCSrcSize = MIN(cSize - inBuff.pos, randomCSrcSize);
                 outBuff.size = outBuff.pos + adjustedDstSize;
-                inBuff.size  = inBuff.pos + randomCSrcSize;
+                inBuff.size  = inBuff.pos + adjustedCSrcSize;
                 {   size_t const decompressError = ZSTD_decompressStream(zd, &outBuff, &inBuff);
                     if (ZSTD_isError(decompressError)) break;   /* error correctly detected */
+                    /* No forward progress possible */
+                    if (outBuff.pos < outBuff.size && inBuff.pos == cSize) break;
     }   }   }   }
     DISPLAY("\r%u fuzzer tests completed   \n", testNb);
 

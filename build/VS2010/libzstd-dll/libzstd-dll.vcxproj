@@ -19,8 +19,8 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\..\lib\common\pool.c" />
-    <ClInclude Include="..\..\..\lib\common\threading.c" />
+    <ClCompile Include="..\..\..\lib\common\pool.c" />
+    <ClCompile Include="..\..\..\lib\common\threading.c" />
     <ClCompile Include="..\..\..\lib\common\entropy_common.c" />
     <ClCompile Include="..\..\..\lib\common\error_private.c" />
     <ClCompile Include="..\..\..\lib\common\xxhash.c" />
@@ -46,7 +46,7 @@
     <ClCompile Include="..\..\..\lib\legacy\zstd_v06.c" />
     <ClCompile Include="..\..\..\lib\legacy\zstd_v07.c" />
   </ItemGroup>
-  <ItemGroup>    
+  <ItemGroup>
     <ClInclude Include="..\..\..\lib\common\pool.h" />
     <ClInclude Include="..\..\..\lib\common\threading.h" />
     <ClInclude Include="..\..\..\lib\common\bitstream.h" />
@@ -68,7 +68,7 @@
     <ClInclude Include="..\..\..\lib\zstd.h" />
     <ClInclude Include="..\..\..\lib\common\zstd_internal.h" />
     <ClInclude Include="..\..\..\lib\compress\zstd_opt.h" />
-    <ClCompile Include="..\..\..\lib\compress\zstdmt_compress.h" />
+    <ClInclude Include="..\..\..\lib\compress\zstdmt_compress.h" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="libzstd-dll.rc" />

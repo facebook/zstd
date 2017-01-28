@@ -133,7 +133,7 @@ ZDICTLIB_API size_t COVER_trainFromBuffer(void* dictBuffer, size_t dictBufferCap
     @return : size of dictionary stored into `dictBuffer` (<= `dictBufferCapacity`)
               or an error code, which can be tested with ZDICT_isError().
               On success `*parameters` contains the parameters selected.
-    Note : COVER_optimizeTrainFromBuffer() requires about 4 bytes of memory for each input byte and additionally another 4 bytes of memory for each byte of memory for each tread.
+    Note : COVER_optimizeTrainFromBuffer() requires about 8 bytes of memory for each input byte and additionally another 5 bytes of memory for each byte of memory for each thread.
 */
 ZDICTLIB_API size_t COVER_optimizeTrainFromBuffer(void* dictBuffer, size_t dictBufferCapacity,
                                      const void* samplesBuffer, const size_t *samplesSizes, unsigned nbSamples,

@@ -124,6 +124,13 @@ void FIO_setBlockSize(unsigned blockSize) {
 #endif
     g_blockSize = blockSize;
 }
+static const U32 g_overlapLogNotSet = 9999;
+static U32 g_overlapLog = g_overlapLogNotSet;
+void FIO_setOverlapLog(unsigned overlapLog){
+    if (overlapLog && g_nbThreads==1)
+        DISPLAYLEVEL(2, "Setting overlapLog is useless in single-thread mode \n");
+    g_overlapLog = overlapLog;
+}
 
 
 /*-*************************************
@@ -272,8 +279,10 @@ static cRess_t FIO_createCResources(const char* dictFileName, int cLevel,
 #ifdef ZSTD_MULTITHREAD
     ress.cctx = ZSTDMT_createCCtx(g_nbThreads);
     if (ress.cctx == NULL) EXM_THROW(30, "zstd: allocation error : can't create ZSTD_CStream");
-    if (cLevel==ZSTD_maxCLevel())
-        ZSTDMT_setMTCtxParameter(ress.cctx, ZSTDMT_p_overlapSectionRLog, 0);   /* use complete window for overlap */
+    if ((cLevel==ZSTD_maxCLevel()) && (g_overlapLog==g_overlapLogNotSet))
+        ZSTDMT_setMTCtxParameter(ress.cctx, ZSTDMT_p_overlapSectionLog, 0);   /* use complete window for overlap */
+    if (g_overlapLog != g_overlapLogNotSet)
+        ZSTDMT_setMTCtxParameter(ress.cctx, ZSTDMT_p_overlapSectionLog, g_overlapLog);
 #else
     ress.cctx = ZSTD_createCStream();
     if (ress.cctx == NULL) EXM_THROW(30, "zstd: allocation error : can't create ZSTD_CStream");
@@ -355,7 +364,6 @@ static int FIO_compressFilename_internal(cRess_t ress,
         size_t const inSize = fread(ress.srcBuffer, (size_t)1, ress.srcBufferSize, srcFile);
         if (inSize==0) break;
         readsize += inSize;
-        DISPLAYUPDATE(2, "\rRead : %u MB  ", (U32)(readsize>>20));
 
         {   ZSTD_inBuffer  inBuff = { ress.srcBuffer, inSize, 0 };
             while (inBuff.pos != inBuff.size) {   /* note : is there any possibility of endless loop ? for example, if outBuff is not large enough ? */

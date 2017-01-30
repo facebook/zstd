@@ -63,6 +63,8 @@ static const char*    g_defaultDictName = "dictionary";
 static const unsigned g_defaultMaxDictSize = 110 KB;
 static const int      g_defaultDictCLevel = 3;
 static const unsigned g_defaultSelectivityLevel = 9;
+#define OVERLAP_LOG_DEFAULT 9999
+static U32 g_overlapLog = OVERLAP_LOG_DEFAULT;
 
 
 /*-************************************
@@ -222,8 +224,6 @@ static unsigned parseCoverParameters(const char* stringPtr, COVER_params_t *para
 #endif
 
 
-static const U32 g_overlapLogDefault = 9999;
-static U32 g_overlapLog = g_overlapLogDefault;
 /** parseCompressionParameters() :
  *  reads compression parameters from *stringPtr (e.g. "--zstd=wlog=23,clog=23,hlog=22,slog=6,slen=3,tlen=48,strat=6") into *params
  *  @return 1 means that compression parameters were correct
@@ -634,7 +634,7 @@ int main(int argCount, const char* argv[])
 #ifndef ZSTD_NOCOMPRESS
         FIO_setNbThreads(nbThreads);
         FIO_setBlockSize((U32)blockSize);
-        if (g_overlapLog!=g_overlapLogDefault) FIO_setOverlapLog(g_overlapLog);
+        if (g_overlapLog!=OVERLAP_LOG_DEFAULT) FIO_setOverlapLog(g_overlapLog);
         if ((filenameIdx==1) && outFileName)
           operationResult = FIO_compressFilename(outFileName, filenameTable[0], dictFileName, cLevel, &compressionParams);
         else

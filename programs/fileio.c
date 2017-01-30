@@ -124,8 +124,8 @@ void FIO_setBlockSize(unsigned blockSize) {
 #endif
     g_blockSize = blockSize;
 }
-static const U32 g_overlapLogNotSet = 9999;
-static U32 g_overlapLog = g_overlapLogNotSet;
+#define FIO_OVERLAP_LOG_NOTSET 9999
+static U32 g_overlapLog = FIO_OVERLAP_LOG_NOTSET;
 void FIO_setOverlapLog(unsigned overlapLog){
     if (overlapLog && g_nbThreads==1)
         DISPLAYLEVEL(2, "Setting overlapLog is useless in single-thread mode \n");
@@ -279,9 +279,9 @@ static cRess_t FIO_createCResources(const char* dictFileName, int cLevel,
 #ifdef ZSTD_MULTITHREAD
     ress.cctx = ZSTDMT_createCCtx(g_nbThreads);
     if (ress.cctx == NULL) EXM_THROW(30, "zstd: allocation error : can't create ZSTD_CStream");
-    if ((cLevel==ZSTD_maxCLevel()) && (g_overlapLog==g_overlapLogNotSet))
+    if ((cLevel==ZSTD_maxCLevel()) && (g_overlapLog==FIO_OVERLAP_LOG_NOTSET))
         ZSTDMT_setMTCtxParameter(ress.cctx, ZSTDMT_p_overlapSectionLog, 9);   /* use complete window for overlap */
-    if (g_overlapLog != g_overlapLogNotSet)
+    if (g_overlapLog != FIO_OVERLAP_LOG_NOTSET)
         ZSTDMT_setMTCtxParameter(ress.cctx, ZSTDMT_p_overlapSectionLog, g_overlapLog);
 #else
     ress.cctx = ZSTD_createCStream();

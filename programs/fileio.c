@@ -280,7 +280,7 @@ static cRess_t FIO_createCResources(const char* dictFileName, int cLevel,
     ress.cctx = ZSTDMT_createCCtx(g_nbThreads);
     if (ress.cctx == NULL) EXM_THROW(30, "zstd: allocation error : can't create ZSTD_CStream");
     if ((cLevel==ZSTD_maxCLevel()) && (g_overlapLog==g_overlapLogNotSet))
-        ZSTDMT_setMTCtxParameter(ress.cctx, ZSTDMT_p_overlapSectionLog, 0);   /* use complete window for overlap */
+        ZSTDMT_setMTCtxParameter(ress.cctx, ZSTDMT_p_overlapSectionLog, 9);   /* use complete window for overlap */
     if (g_overlapLog != g_overlapLogNotSet)
         ZSTDMT_setMTCtxParameter(ress.cctx, ZSTDMT_p_overlapSectionLog, g_overlapLog);
 #else

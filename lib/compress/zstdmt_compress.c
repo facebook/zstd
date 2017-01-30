@@ -370,6 +370,7 @@ size_t ZSTDMT_setMTCtxParameter(ZSTDMT_CCtx* mtctx, ZSDTMT_parameter parameter, 
         mtctx->sectionSize = value;
         return 0;
     case ZSTDMT_p_overlapSectionLog :
+    DEBUGLOG(4, "ZSTDMT_p_overlapSectionLog : %u", value);
         mtctx->overlapRLog = (value >= 9) ? 0 : 9 - value;
         return 0;
     default :
@@ -513,10 +514,14 @@ static size_t ZSTDMT_initCStream_internal(ZSTDMT_CCtx* zcs,
             if (zcs->cdict == NULL) return ERROR(memory_allocation);
     }   }
     zcs->frameContentSize = pledgedSrcSize;
+    zcs->targetDictSize = (size_t)1 << (zcs->params.cParams.windowLog - zcs->overlapRLog);
+    DEBUGLOG(4, "overlapRLog : %u ", zcs->overlapRLog);
+    DEBUGLOG(3, "overlap Size : %u KB", (U32)(zcs->targetDictSize>>10));
     zcs->targetSectionSize = zcs->sectionSize ? zcs->sectionSize : (size_t)1 << (zcs->params.cParams.windowLog + 2);
     zcs->targetSectionSize = MAX(ZSTDMT_SECTION_SIZE_MIN, zcs->targetSectionSize);
+    zcs->targetSectionSize = MAX(zcs->targetDictSize, zcs->targetSectionSize);
+    DEBUGLOG(3, "Section Size : %u KB", (U32)(zcs->targetSectionSize>>10));
     zcs->marginSize = zcs->targetSectionSize >> 2;
-    zcs->targetDictSize = (size_t)1 << (zcs->params.cParams.windowLog - zcs->overlapRLog);
     zcs->inBuffSize = zcs->targetDictSize + zcs->targetSectionSize + zcs->marginSize;
     zcs->inBuff.buffer = ZSTDMT_getBuffer(zcs->buffPool, zcs->inBuffSize);
     if (zcs->inBuff.buffer.start == NULL) return ERROR(memory_allocation);

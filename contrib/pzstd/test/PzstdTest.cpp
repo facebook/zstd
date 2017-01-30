@@ -41,23 +41,20 @@ TEST(Pzstd, SmallSizes) {
       std::fclose(fd);
       ASSERT_EQ(written, len);
     }
-    for (unsigned headers = 0; headers <= 1; ++headers) {
-      for (unsigned numThreads = 1; numThreads <= 2; ++numThreads) {
-        for (unsigned level = 1; level <= 4; level *= 4) {
-          auto errorGuard = makeScopeGuard([&] {
-            std::fprintf(stderr, "pzstd headers: %u\n", headers);
-            std::fprintf(stderr, "# threads: %u\n", numThreads);
-            std::fprintf(stderr, "compression level: %u\n", level);
-          });
-          Options options;
-          options.overwrite = true;
-          options.inputFiles = {inputFile};
-          options.numThreads = numThreads;
-          options.compressionLevel = level;
-          options.verbosity = 1;
-          ASSERT_TRUE(roundTrip(options));
-          errorGuard.dismiss();
-        }
+    for (unsigned numThreads = 1; numThreads <= 2; ++numThreads) {
+      for (unsigned level = 1; level <= 4; level *= 4) {
+        auto errorGuard = makeScopeGuard([&] {
+          std::fprintf(stderr, "# threads: %u\n", numThreads);
+          std::fprintf(stderr, "compression level: %u\n", level);
+        });
+        Options options;
+        options.overwrite = true;
+        options.inputFiles = {inputFile};
+        options.numThreads = numThreads;
+        options.compressionLevel = level;
+        options.verbosity = 1;
+        ASSERT_TRUE(roundTrip(options));
+        errorGuard.dismiss();
       }
     }
   }
@@ -79,29 +76,26 @@ TEST(Pzstd, LargeSizes) {
       std::fclose(fd);
       ASSERT_EQ(written, len);
     }
-    for (unsigned headers = 0; headers <= 1; ++headers) {
-      for (unsigned numThreads = 1; numThreads <= 16; numThreads *= 4) {
-        for (unsigned level = 1; level <= 4; level *= 2) {
-          auto errorGuard = makeScopeGuard([&] {
-            std::fprintf(stderr, "pzstd headers: %u\n", headers);
-            std::fprintf(stderr, "# threads: %u\n", numThreads);
-            std::fprintf(stderr, "compression level: %u\n", level);
-          });
-          Options options;
-          options.overwrite = true;
-          options.inputFiles = {inputFile};
-          options.numThreads = std::min(numThreads, options.numThreads);
-          options.compressionLevel = level;
-          options.verbosity = 1;
-          ASSERT_TRUE(roundTrip(options));
-          errorGuard.dismiss();
-        }
+    for (unsigned numThreads = 1; numThreads <= 16; numThreads *= 4) {
+      for (unsigned level = 1; level <= 4; level *= 4) {
+        auto errorGuard = makeScopeGuard([&] {
+          std::fprintf(stderr, "# threads: %u\n", numThreads);
+          std::fprintf(stderr, "compression level: %u\n", level);
+        });
+        Options options;
+        options.overwrite = true;
+        options.inputFiles = {inputFile};
+        options.numThreads = std::min(numThreads, options.numThreads);
+        options.compressionLevel = level;
+        options.verbosity = 1;
+        ASSERT_TRUE(roundTrip(options));
+        errorGuard.dismiss();
       }
     }
   }
 }
 
-TEST(Pzstd, ExtremelyLargeSize) {
+TEST(Pzstd, DISABLED_ExtremelyLargeSize) {
   unsigned seed = std::random_device{}();
   std::fprintf(stderr, "Pzstd.ExtremelyLargeSize seed: %u\n", seed);
   std::mt19937 gen(seed);

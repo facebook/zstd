@@ -186,7 +186,7 @@ static unsigned readU32FromChar(const char** stringPtr)
 }
 
 /** longCommandWArg() :
- *  check is *stringPtr is the same as longCommand.
+ *  check if *stringPtr is the same as longCommand.
  *  If yes, @return 1 and advances *stringPtr to the position which immediately follows longCommand.
  *  @return 0 and doesn't modify *stringPtr otherwise.
  */
@@ -220,6 +220,10 @@ static unsigned parseCoverParameters(const char* stringPtr, COVER_params_t *para
     return 1;
 }
 #endif
+
+
+static const U32 g_overlapLogDefault = 9999;
+static U32 g_overlapLog = g_overlapLogDefault;
 /** parseCompressionParameters() :
  *  reads compression parameters from *stringPtr (e.g. "--zstd=wlog=23,clog=23,hlog=22,slog=6,slen=3,tlen=48,strat=6") into *params
  *  @return 1 means that compression parameters were correct
@@ -235,6 +239,7 @@ static unsigned parseCompressionParameters(const char* stringPtr, ZSTD_compressi
         if (longCommandWArg(&stringPtr, "searchLength=") || longCommandWArg(&stringPtr, "slen=")) { params->searchLength = readU32FromChar(&stringPtr); if (stringPtr[0]==',') { stringPtr++; continue; } else break; }
         if (longCommandWArg(&stringPtr, "targetLength=") || longCommandWArg(&stringPtr, "tlen=")) { params->targetLength = readU32FromChar(&stringPtr); if (stringPtr[0]==',') { stringPtr++; continue; } else break; }
         if (longCommandWArg(&stringPtr, "strategy=") || longCommandWArg(&stringPtr, "strat=")) { params->strategy = (ZSTD_strategy)(1 + readU32FromChar(&stringPtr)); if (stringPtr[0]==',') { stringPtr++; continue; } else break; }
+        if (longCommandWArg(&stringPtr, "overlapLog=") || longCommandWArg(&stringPtr, "ovlog=")) { g_overlapLog = readU32FromChar(&stringPtr); if (stringPtr[0]==',') { stringPtr++; continue; } else break; }
         return 0;
     }
 
@@ -629,6 +634,7 @@ int main(int argCount, const char* argv[])
 #ifndef ZSTD_NOCOMPRESS
         FIO_setNbThreads(nbThreads);
         FIO_setBlockSize((U32)blockSize);
+        if (g_overlapLog!=g_overlapLogDefault) FIO_setOverlapLog(g_overlapLog);
         if ((filenameIdx==1) && outFileName)
           operationResult = FIO_compressFilename(outFileName, filenameTable[0], dictFileName, cLevel, &compressionParams);
         else

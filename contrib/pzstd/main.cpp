@@ -9,11 +9,6 @@
 #include "ErrorHolder.h"
 #include "Options.h"
 #include "Pzstd.h"
-#include "utils/FileSystem.h"
-#include "utils/Range.h"
-#include "utils/ScopeGuard.h"
-#include "utils/ThreadPool.h"
-#include "utils/WorkQueue.h"
 
 using namespace pzstd;
 

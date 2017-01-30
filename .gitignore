@@ -37,3 +37,5 @@ googletest/
 
 # Directories
 bin/
+.buckd/
+buck-out/

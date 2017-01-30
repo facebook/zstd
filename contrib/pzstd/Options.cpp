@@ -7,6 +7,7 @@
  * of patent rights can be found in the PATENTS file in the same directory.
  */
 #include "Options.h"
+#include "util.h"
 #include "utils/ScopeGuard.h"
 
 #include <algorithm>
@@ -15,7 +16,6 @@
 #include <cstring>
 #include <iterator>
 #include <thread>
-#include <util.h>
 #include <vector>
 
 #if defined(MSDOS) || defined(OS2) || defined(WIN32) || defined(_WIN32) ||     \

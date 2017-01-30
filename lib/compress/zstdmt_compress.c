@@ -286,7 +286,7 @@ struct ZSTDMT_CCtx_s {
     unsigned nextJobID;
     unsigned frameEnded;
     unsigned allJobsCompleted;
-    unsigned overlapWrLog;
+    unsigned overlapRLog;
     unsigned long long frameContentSize;
     size_t sectionSize;
     ZSTD_CDict* cdict;
@@ -309,7 +309,7 @@ ZSTDMT_CCtx *ZSTDMT_createCCtx(unsigned nbThreads)
     cctx->jobIDMask = nbJobs - 1;
     cctx->allJobsCompleted = 1;
     cctx->sectionSize = 0;
-    cctx->overlapWrLog = 3;
+    cctx->overlapRLog = 3;
     cctx->factory = POOL_create(nbThreads, 1);
     cctx->buffPool = ZSTDMT_createBufferPool(nbThreads);
     cctx->cctxPool = ZSTDMT_createCCtxPool(nbThreads);
@@ -369,8 +369,8 @@ size_t ZSTDMT_setMTCtxParameter(ZSTDMT_CCtx* mtctx, ZSDTMT_parameter parameter, 
     case ZSTDMT_p_sectionSize :
         mtctx->sectionSize = value;
         return 0;
-    case ZSTDMT_p_overlapSectionRLog :
-        mtctx->overlapWrLog = value;
+    case ZSTDMT_p_overlapSectionLog :
+        mtctx->overlapRLog = (value >= 9) ? 0 : 9 - value;
         return 0;
     default :
         return ERROR(compressionParameter_unsupported);
@@ -516,7 +516,7 @@ static size_t ZSTDMT_initCStream_internal(ZSTDMT_CCtx* zcs,
     zcs->targetSectionSize = zcs->sectionSize ? zcs->sectionSize : (size_t)1 << (zcs->params.cParams.windowLog + 2);
     zcs->targetSectionSize = MAX(ZSTDMT_SECTION_SIZE_MIN, zcs->targetSectionSize);
     zcs->marginSize = zcs->targetSectionSize >> 2;
-    zcs->targetDictSize = zcs->overlapWrLog < 10 ? (size_t)1 << (zcs->params.cParams.windowLog - zcs->overlapWrLog) : 0;
+    zcs->targetDictSize = (size_t)1 << (zcs->params.cParams.windowLog - zcs->overlapRLog);
     zcs->inBuffSize = zcs->targetDictSize + zcs->targetSectionSize + zcs->marginSize;
     zcs->inBuff.buffer = ZSTDMT_getBuffer(zcs->buffPool, zcs->inBuffSize);
     if (zcs->inBuff.buffer.start == NULL) return ERROR(memory_allocation);

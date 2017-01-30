@@ -1,3 +1,12 @@
+/*
+ * Copyright (c) 2017-present, Facebook, Inc.
+ * All rights reserved.
+ *
+ * This source code is licensed under the BSD-style license found in the
+ * LICENSE file in the root directory of this source tree. An additional grant
+ * of patent rights can be found in the PATENTS file in the same directory.
+ */
+
 /// Zstandard educational decoder implementation
 /// See https://github.com/facebook/zstd/blob/dev/doc/zstd_compression_format.md
 
@@ -21,10 +30,13 @@ size_t ZSTD_decompress_with_dict(void *dst, size_t dst_len, const void *src,
 size_t ZSTD_get_decompressed_size(const void *src, size_t src_len);
 
 /******* UTILITY MACROS AND TYPES *********************************************/
-#define MAX_WINDOW_SIZE ((size_t)512 << 20)
+// Specification recommends supporting at least 8MB.  The maximum possible value
+// is 1.875TB, but this implementation limits it to 512MB to avoid allocating
+// too much memory.
+#define MAX_WINDOW_SIZE ((size_t)512 * 1024 * 1024)
 // Max block size decompressed size is 128 KB and literal blocks must be smaller
 // than that
-#define MAX_LITERALS_SIZE ((size_t)(1024 * 128))
+#define MAX_LITERALS_SIZE ((size_t)128 * 1024)
 
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
@@ -2071,6 +2083,10 @@ static void FSE_init_dtable(FSE_dtable *dtable, const i16 *norm_freqs,
     dtable->num_bits = malloc(size * sizeof(u8));
     dtable->new_state_base = malloc(size * sizeof(u16));
 
+    if (!dtable->symbols || !dtable->num_bits || !dtable->new_state_base) {
+        BAD_ALLOC();
+    }
+
     // Used to determine how many bits need to be read for each state,
     // and where the destination range should start
     // Needs to be u16 because max value is 2 * max number of symbols,
@@ -2206,6 +2222,10 @@ static void FSE_init_dtable_rle(FSE_dtable *dtable, u8 symb) {
     dtable->symbols = malloc(sizeof(u8));
     dtable->num_bits = malloc(sizeof(u8));
     dtable->new_state_base = malloc(sizeof(u16));
+
+    if (!dtable->symbols || !dtable->num_bits || !dtable->new_state_base) {
+        BAD_ALLOC();
+    }
 
     // This setup will always have a state of 0, always return symbol `symb`,
     // and never consume any bits

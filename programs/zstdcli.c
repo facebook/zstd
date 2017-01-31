@@ -577,6 +577,7 @@ int main(int argCount, const char* argv[])
     if (operation==zom_train) {
 #ifndef ZSTD_NODICT
         if (cover) {
+            coverParams.nbThreads = nbThreads;
             coverParams.compressionLevel = dictCLevel;
             coverParams.notificationLevel = displayLevel;
             coverParams.dictID = dictID;

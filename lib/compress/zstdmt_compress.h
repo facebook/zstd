@@ -7,6 +7,13 @@
  * of patent rights can be found in the PATENTS file in the same directory.
  */
 
+ #ifndef ZSTDMT_COMPRESS_H
+ #define ZSTDMT_COMPRESS_H
+
+ #if defined (__cplusplus)
+ extern "C" {
+ #endif
+
 
 /* Note : All prototypes defined in this file shall be considered experimental.
  *        There is no guarantee of API continuity (yet) on any of these prototypes */
@@ -62,3 +69,10 @@ typedef enum {
  * Parameters not explicitly reset by ZSTDMT_init*() remain the same in consecutive compression sessions.
  * @return : 0, or an error code (which can be tested using ZSTD_isError()) */
 ZSTDLIB_API size_t ZSTDMT_setMTCtxParameter(ZSTDMT_CCtx* mtctx, ZSDTMT_parameter parameter, unsigned value);
+
+
+#if defined (__cplusplus)
+}
+#endif
+
+#endif   /* ZSTDMT_COMPRESS_H */

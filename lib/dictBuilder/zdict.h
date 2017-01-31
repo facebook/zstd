@@ -93,8 +93,9 @@ ZDICTLIB_API size_t ZDICT_trainFromBuffer_advanced(void* dictBuffer, size_t dict
 typedef struct {
     unsigned k;                  /* Segment size : constraint: 0 < k : Reasonable range [16, 2048+] */
     unsigned d;                  /* dmer size : constraint: 0 < d <= k : Reasonable range [6, 16] */
-    unsigned steps;              /* Number of steps : Only used for optimization : 0 means default (256) : Higher means more parameters checked */
+    unsigned steps;              /* Number of steps : Only used for optimization : 0 means default (32) : Higher means more parameters checked */
 
+    unsigned nbThreads;          /* Number of threads : constraint: 0 < nbThreads : 1 means single-threaded : Only used for optimization : Ignored if ZSTD_MULTITHREAD is not defined */
     unsigned notificationLevel;  /* Write to stderr; 0 = none (default); 1 = errors; 2 = progression; 3 = details; 4 = debug; */
     unsigned dictID;             /* 0 means auto mode (32-bits random value); other : force dictID value */
     int      compressionLevel;   /* 0 means default; target a specific zstd compression level */
@@ -132,7 +133,7 @@ ZDICTLIB_API size_t COVER_trainFromBuffer(void* dictBuffer, size_t dictBufferCap
     @return : size of dictionary stored into `dictBuffer` (<= `dictBufferCapacity`)
               or an error code, which can be tested with ZDICT_isError().
               On success `*parameters` contains the parameters selected.
-    Note : COVER_optimizeTrainFromBuffer() requires about 9 bytes of memory for each input byte.
+    Note : COVER_optimizeTrainFromBuffer() requires about 8 bytes of memory for each input byte and additionally another 5 bytes of memory for each byte of memory for each thread.
 */
 ZDICTLIB_API size_t COVER_optimizeTrainFromBuffer(void* dictBuffer, size_t dictBufferCapacity,
                                      const void* samplesBuffer, const size_t *samplesSizes, unsigned nbSamples,

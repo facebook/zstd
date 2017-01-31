@@ -9,6 +9,11 @@
 #ifndef POOL_H
 #define POOL_H
 
+#if defined (__cplusplus)
+extern "C" {
+#endif
+
+
 #include <stddef.h>   /* size_t */
 
 typedef struct POOL_ctx_s POOL_ctx;
@@ -42,5 +47,10 @@ typedef void (*POOL_add_function)(void *, POOL_function, void *);
     Note : The function may be executed asynchronously, so `opaque` must live until the function has been completed.
 */
 void POOL_add(void *ctx, POOL_function function, void *opaque);
+
+
+#if defined (__cplusplus)
+}
+#endif
 
 #endif

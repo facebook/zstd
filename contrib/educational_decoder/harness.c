@@ -88,7 +88,7 @@ int main(int argc, char **argv) {
         decompressed_size = MAX_COMPRESSION_RATIO * input_size;
         fprintf(stderr, "WARNING: Compressed data does contain decompressed "
                         "size, going to assume the compression ratio is at "
-                        "most %d (decompressed size of at most %lld\n",
+                        "most %d (decompressed size of at most %zu)\n",
                 MAX_COMPRESSION_RATIO, decompressed_size);
     }
     output = malloc(decompressed_size);

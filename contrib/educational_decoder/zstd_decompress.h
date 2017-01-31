@@ -7,10 +7,10 @@
  * of patent rights can be found in the PATENTS file in the same directory.
  */
 
-size_t ZSTD_decompress(void *dst, size_t dst_len, const void *src,
-                       size_t src_len);
-size_t ZSTD_decompress_with_dict(void *dst, size_t dst_len, const void *src,
-                                 size_t src_len, const void *dict,
-                                 size_t dict_len);
-size_t ZSTD_get_decompressed_size(const void *src, size_t src_len);
+size_t ZSTD_decompress(void *const dst, const size_t dst_len,
+                       const void *const src, const size_t src_len);
+size_t ZSTD_decompress_with_dict(void *const dst, const size_t dst_len,
+                                 const void *const src, const size_t src_len,
+                                 const void *const dict, const size_t dict_len);
+size_t ZSTD_get_decompressed_size(const void *const src, const size_t src_len);
 

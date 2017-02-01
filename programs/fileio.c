@@ -78,14 +78,14 @@
 *  Macros
 ***************************************/
 #define DISPLAY(...)         fprintf(stderr, __VA_ARGS__)
-#define DISPLAYLEVEL(l, ...) if (g_displayLevel>=l) { DISPLAY(__VA_ARGS__); }
+#define DISPLAYLEVEL(l, ...) { if (g_displayLevel>=l) { DISPLAY(__VA_ARGS__); } }
 static U32 g_displayLevel = 2;   /* 0 : no display;   1: errors;   2 : + result + interaction + warnings;   3 : + progression;   4 : + information */
 void FIO_setNotificationLevel(unsigned level) { g_displayLevel=level; }
 
-#define DISPLAYUPDATE(l, ...) if (g_displayLevel>=l) { \
+#define DISPLAYUPDATE(l, ...) { if (g_displayLevel>=l) { \
             if ((clock() - g_time > refreshRate) || (g_displayLevel>=4)) \
             { g_time = clock(); DISPLAY(__VA_ARGS__); \
-            if (g_displayLevel>=4) fflush(stdout); } }
+            if (g_displayLevel>=4) fflush(stdout); } } }
 static const clock_t refreshRate = CLOCKS_PER_SEC * 15 / 100;
 static clock_t g_time = 0;
 
@@ -123,6 +123,13 @@ void FIO_setBlockSize(unsigned blockSize) {
         DISPLAYLEVEL(2, "Note : minimum block size is %u KB \n", (ZSTDMT_SECTION_SIZE_MIN>>10));
 #endif
     g_blockSize = blockSize;
+}
+#define FIO_OVERLAP_LOG_NOTSET 9999
+static U32 g_overlapLog = FIO_OVERLAP_LOG_NOTSET;
+void FIO_setOverlapLog(unsigned overlapLog){
+    if (overlapLog && g_nbThreads==1)
+        DISPLAYLEVEL(2, "Setting overlapLog is useless in single-thread mode \n");
+    g_overlapLog = overlapLog;
 }
 
 
@@ -272,8 +279,10 @@ static cRess_t FIO_createCResources(const char* dictFileName, int cLevel,
 #ifdef ZSTD_MULTITHREAD
     ress.cctx = ZSTDMT_createCCtx(g_nbThreads);
     if (ress.cctx == NULL) EXM_THROW(30, "zstd: allocation error : can't create ZSTD_CStream");
-    if (cLevel==ZSTD_maxCLevel())
-        ZSTDMT_setMTCtxParameter(ress.cctx, ZSTDMT_p_overlapSectionRLog, 0);   /* use complete window for overlap */
+    if ((cLevel==ZSTD_maxCLevel()) && (g_overlapLog==FIO_OVERLAP_LOG_NOTSET))
+        ZSTDMT_setMTCtxParameter(ress.cctx, ZSTDMT_p_overlapSectionLog, 9);   /* use complete window for overlap */
+    if (g_overlapLog != FIO_OVERLAP_LOG_NOTSET)
+        ZSTDMT_setMTCtxParameter(ress.cctx, ZSTDMT_p_overlapSectionLog, g_overlapLog);
 #else
     ress.cctx = ZSTD_createCStream();
     if (ress.cctx == NULL) EXM_THROW(30, "zstd: allocation error : can't create ZSTD_CStream");
@@ -355,7 +364,6 @@ static int FIO_compressFilename_internal(cRess_t ress,
         size_t const inSize = fread(ress.srcBuffer, (size_t)1, ress.srcBufferSize, srcFile);
         if (inSize==0) break;
         readsize += inSize;
-        DISPLAYUPDATE(2, "\rRead : %u MB  ", (U32)(readsize>>20));
 
         {   ZSTD_inBuffer  inBuff = { ress.srcBuffer, inSize, 0 };
             while (inBuff.pos != inBuff.size) {   /* note : is there any possibility of endless loop ? for example, if outBuff is not large enough ? */
@@ -373,7 +381,13 @@ static int FIO_compressFilename_internal(cRess_t ress,
                     if (sizeCheck!=outBuff.pos) EXM_THROW(25, "Write error : cannot write compressed block into %s", dstFileName);
                     compressedfilesize += outBuff.pos;
         }   }   }
-        DISPLAYUPDATE(2, "\rRead : %u MB  ==> %.2f%%   ", (U32)(readsize>>20), (double)compressedfilesize/readsize*100);
+#ifdef ZSTD_MULTITHREAD
+        if (!fileSize) DISPLAYUPDATE(2, "\rRead : %u MB", (U32)(readsize>>20))
+        else DISPLAYUPDATE(2, "\rRead : %u / %u MB", (U32)(readsize>>20), (U32)(fileSize>>20));
+#else
+        if (!fileSize) DISPLAYUPDATE(2, "\rRead : %u MB ==> %.2f%%", (U32)(readsize>>20), (double)compressedfilesize/readsize*100)
+        else DISPLAYUPDATE(2, "\rRead : %u / %u MB ==> %.2f%%", (U32)(readsize>>20), (U32)(fileSize>>20), (double)compressedfilesize/readsize*100);
+#endif
     }
 
     /* End of Frame */

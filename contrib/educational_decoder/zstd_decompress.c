@@ -1331,6 +1331,8 @@ static void execute_sequences(io_streams_t *const streams,
                 }
                 match_length -= dict_copy;
             }
+        } else if (offset > ctx->header.window_size) {
+            CORRUPTION();
         }
 
         // We must copy byte by byte because the match length might be larger

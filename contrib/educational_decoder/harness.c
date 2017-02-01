@@ -98,7 +98,7 @@ int main(int argc, char **argv) {
     }
 
     size_t decompressed =
-        ZSTD_decompress_with_dict(output, input_size * MAX_COMPRESSION_RATIO,
+        ZSTD_decompress_with_dict(output, decompressed_size,
                                   input, input_size, dict, dict_size);
 
     write_file(argv[2], output, decompressed);

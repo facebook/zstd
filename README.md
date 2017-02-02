@@ -2,7 +2,7 @@
  targeting real-time compression scenarios at zlib-level and better compression ratios.
 
 It is provided as an open-source BSD-licensed **C** library,
-and a command line utility producing and decoding `.zst` compressed files.
+and a command line utility producing and decoding `.zst` and `.gz` files.
 For other programming languages,
 you can consult a list of known ports on [Zstandard homepage](http://www.zstd.net/#other-languages).
 
@@ -47,18 +47,27 @@ For a larger picture including very slow modes, [click on this link](doc/images/
 
 ### The case for Small Data compression
 
-Previous charts provide results applicable to typical file and stream scenarios (several MB). Small data comes with different perspectives. The smaller the amount of data to compress, the more difficult it is to achieve any significant compression.
+Previous charts provide results applicable to typical file and stream scenarios (several MB). Small data comes with different perspectives.
 
-This problem is common to many compression algorithms. The reason is, compression algorithms learn from past data how to compress future data. But at the beginning of a new file, there is no "past" to build upon.
+The smaller the amount of data to compress, the more difficult it is to compress. This problem is common to all compression algorithms, and reason is, compression algorithms learn from past data how to compress future data. But at the beginning of a new data set, there is no "past" to build upon.
 
-To solve this situation, Zstd offers a __training mode__, which can be used to tune the algorithm for a selected type of data, by providing it with a few samples. The result of the training is stored in a file called "dictionary", which can be loaded before compression and decompression. Using this dictionary, the compression ratio achievable on small data improves dramatically:
+To solve this situation, Zstd offers a __training mode__, which can be used to tune the algorithm for a selected type of data.
+Training Zstandard is achieved by provide it with a few samples (one file per sample). The result of this training is stored in a file called "dictionary", which must be loaded before compression and decompression.
+Using this dictionary, the compression ratio achievable on small data improves dramatically.
 
-![Compressing Small Data](doc/images/smallData.png "Compressing Small Data")
+The following example uses the `github-users` [sample set](https://www.dropbox.com/s/mnktkomhkjbf1i2/github_users.tar.zst?dl=0), created from [github public API](https://developer.github.com/v3/users/#get-all-users).
+It consists of roughly 10K records weighting about 1KB each.
 
-These compression gains are achieved while simultaneously providing faster compression and decompression speeds.
+Compression Ratio | Compression Speed | Decompression Speed
+------------------|-------------------|--------------------
+![Compression Ratio](doc/images/dict-cr.png "Compression Ratio") | ![Compression Speed](doc/images/dict-cs.png "Compression Speed") | ![Decompression Speed](doc/images/dict-ds.png "Decompression Speed")
 
-Dictionary works if there is some correlation in a family of small data (there is no _universal dictionary_).
-Hence, deploying one dictionary per type of data will provide the greatest benefits. Dictionary gains are mostly effective in the first few KB. Then, the compression algorithm will rely more and more on previously decoded content to compress the rest of the file.
+
+These compression gains are achieved while simultaneously providing _faster_ compression and decompression speeds.
+
+Training works if there is some correlation in a family of small data samples. The more data-specific a dictionary is, the more efficient it is (there is no _universal dictionary_).
+Hence, deploying one dictionary per type of data will provide the greatest benefits.
+Dictionary gains are mostly effective in the first few KB. Then, the compression algorithm will gradually use previously decoded content to better compress the rest of the file.
 
 #### Dictionary compression How To :
 
@@ -68,11 +77,12 @@ Hence, deploying one dictionary per type of data will provide the greatest benef
 
 2) Compress with dictionary
 
-`zstd FILE -D dictionaryName`
+`zstd -D dictionaryName FILE`
 
 3) Decompress with dictionary
 
-`zstd --decompress FILE.zst -D dictionaryName`
+`zstd -D dictionaryName --decompress FILE.zst`
+
 
 ### Build
 

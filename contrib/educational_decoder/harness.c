@@ -18,6 +18,9 @@ typedef unsigned char u8;
 // compression ratio is at most 16
 #define MAX_COMPRESSION_RATIO (16)
 
+// Protect against allocating too much memory for output
+#define MAX_OUTPUT_SIZE ((size_t)1024 * 1024 * 1024)
+
 u8 *input;
 u8 *output;
 u8 *dict;
@@ -86,10 +89,16 @@ int main(int argc, char **argv) {
     size_t decompressed_size = ZSTD_get_decompressed_size(input, input_size);
     if (decompressed_size == -1) {
         decompressed_size = MAX_COMPRESSION_RATIO * input_size;
-        fprintf(stderr, "WARNING: Compressed data does contain decompressed "
-                        "size, going to assume the compression ratio is at "
-                        "most %d (decompressed size of at most %zu)\n",
+        fprintf(stderr, "WARNING: Compressed data does not contain "
+                        "decompressed size, going to assume the compression "
+                        "ratio is at most %d (decompressed size of at most "
+                        "%zu)\n",
                 MAX_COMPRESSION_RATIO, decompressed_size);
+    }
+    if (decompressed_size > MAX_OUTPUT_SIZE) {
+        fprintf(stderr,
+                "Required output size too large for this implementation\n");
+        return 1;
     }
     output = malloc(decompressed_size);
     if (!output) {

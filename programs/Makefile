@@ -139,7 +139,9 @@ zstd-compress: $(ZSTDCOMMON_FILES) $(ZSTDCOMP_FILES) zstdcli.c fileio.c
 	$(CC) $(FLAGS) -DZSTD_NOBENCH -DZSTD_NODICT -DZSTD_NODECOMPRESS $^ -o $@$(EXT)
 
 zstdmt: CPPFLAGS += -DZSTD_MULTITHREAD
+ifeq (,$(filter Windows%,$(OS)))
 zstdmt: LDFLAGS += -lpthread
+endif
 zstdmt: zstd
 
 generate_res:

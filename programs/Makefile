@@ -26,10 +26,10 @@ endif
 
 CPPFLAGS+= -I$(ZSTDDIR) -I$(ZSTDDIR)/common -I$(ZSTDDIR)/compress -I$(ZSTDDIR)/dictBuilder
 CFLAGS  ?= -O3
-CFLAGS  += -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow -Wstrict-aliasing=1 \
-          -Wswitch-enum -Wdeclaration-after-statement -Wstrict-prototypes -Wundef \
-          -Wpointer-arith
-CFLAGS  += $(MOREFLAGS)
+DEBUGFLAGS = -g -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow \
+          -Wstrict-aliasing=1 -Wswitch-enum -Wdeclaration-after-statement \
+          -Wstrict-prototypes -Wundef -Wpointer-arith
+CFLAGS  += $(DEBUGFLAGS) $(MOREFLAGS)
 FLAGS    = $(CPPFLAGS) $(CFLAGS) $(LDFLAGS)
 
 
@@ -74,7 +74,7 @@ endif
 
 .PHONY: default all clean clean_decomp_o install uninstall generate_res
 
-default: zstd
+default: zstd-release
 
 all: zstd
 
@@ -92,12 +92,15 @@ ifneq (,$(filter Windows%,$(OS)))
 endif
 	$(CC) $(FLAGS) $^ $(RES_FILE) -o zstd$(EXT) $(LDFLAGS)
 
+zstd-nogz : HAVE_ZLIB=0
+zstd-nogz : zstd-internal
+
 zstd : CPPFLAGS += $(ZLIBCPP)
 zstd : LDFLAGS += $(ZLIBLD)
 zstd : zstd-internal
 
-zstd-nogz : HAVE_ZLIB=0
-zstd-nogz : zstd-internal
+zstd-release: DEBUGFLAGS :=
+zstd-release: zstd
 
 zstd32 : CPPFLAGS += -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT)
 zstd32 : $(ZSTDLIB_FILES) zstdcli.c fileio.c bench.c datagen.c dibio.c

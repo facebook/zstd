@@ -41,7 +41,6 @@ ZDICT_FILES := $(ZSTDDIR)/dictBuilder/*.c
 ZSTDDECOMP_O = $(ZSTDDIR)/decompress/zstd_decompress.o
 
 ifeq ($(ZSTD_LEGACY_SUPPORT), 0)
-CPPFLAGS  += -DZSTD_LEGACY_SUPPORT=0
 ZSTDLEGACY_FILES:=
 else
 ZSTD_LEGACY_SUPPORT:=1
@@ -66,6 +65,12 @@ else
 EXT =
 endif
 
+# zlib detection
+HAVE_ZLIB := $(shell echo "int main(){}" | $(CC) -o have_zlib -x c - -lz && echo 1 || echo 0)
+ifeq ($(HAVE_ZLIB), 1)
+ZLIBCPP = -DZSTD_GZDECOMPRESS
+ZLIBLD = -lz
+endif
 
 .PHONY: default all clean clean_decomp_o install uninstall generate_res
 
@@ -75,13 +80,24 @@ all: zstd
 
 $(ZSTDDECOMP_O): CFLAGS += $(ALIGN_LOOP)
 
-zstd  : CPPFLAGS += -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT)
-zstd  : $(ZSTDLIB_OBJ) zstdcli.o fileio.o bench.o datagen.o dibio.o
+zstd-internal : CPPFLAGS += -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT)
+zstd-internal : $(ZSTDLIB_OBJ) zstdcli.o fileio.o bench.o datagen.o dibio.o
+ifeq ($(HAVE_ZLIB), 1)
+	@echo "==> building zstd with .gz decompression support "
+else
+	@echo "==> no zlib, building zstd with .zst support only (no .gz support) "
+endif
 ifneq (,$(filter Windows%,$(OS)))
 	windres/generate_res.bat
 endif
-	$(CC) $(FLAGS) $^ $(RES_FILE) -o $@$(EXT) $(LDFLAGS)
+	$(CC) $(FLAGS) $^ $(RES_FILE) -o zstd$(EXT) $(LDFLAGS)
 
+zstd : CPPFLAGS += $(ZLIBCPP)
+zstd : LDFLAGS += $(ZLIBLD)
+zstd : zstd-internal
+
+zstd-nogz : HAVE_ZLIB=0
+zstd-nogz : zstd-internal
 
 zstd32 : CPPFLAGS += -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT)
 zstd32 : $(ZSTDLIB_FILES) zstdcli.c fileio.c bench.c datagen.c dibio.c
@@ -118,17 +134,6 @@ zstd-decompress: $(ZSTDCOMMON_FILES) $(ZSTDDECOMP_FILES) zstdcli.c fileio.c
 zstd-compress: $(ZSTDCOMMON_FILES) $(ZSTDCOMP_FILES) zstdcli.c fileio.c
 	$(CC) $(FLAGS) -DZSTD_NOBENCH -DZSTD_NODICT -DZSTD_NODECOMPRESS $^ -o $@$(EXT)
 
-gzstd:
-	@echo "int main(){}" | $(CC) -o have_zlib -x c - -lz && echo found zlib || echo did not found zlib
-	@if [ -s have_zlib ]; then \
-        echo building gzstd with .gz decompression support \
-        && $(RM) have_zlib$(EXT) fileio.o \
-        && CPPFLAGS=-DZSTD_GZDECOMPRESS LDFLAGS="-lz" $(MAKE) zstd; \
-    else \
-        echo "WARNING : no zlib, building gzstd with only .zst files support : NO .gz SUPPORT !!!" \
-        && $(MAKE) zstd; \
-    fi
-
 zstdmt: CPPFLAGS += -DZSTD_MULTITHREAD
 zstdmt: LDFLAGS += -lpthread
 zstdmt: zstd
@@ -141,7 +146,7 @@ clean:
 	@$(RM) $(ZSTDDIR)/decompress/*.o $(ZSTDDIR)/decompress/zstd_decompress.gcda
 	@$(RM) core *.o tmp* result* *.gcda dictionary *.zst \
         zstd$(EXT) zstd32$(EXT) zstd-compress$(EXT) zstd-decompress$(EXT) \
-        *.gcda default.profraw
+        *.gcda default.profraw have_zlib
 	@echo Cleaning completed
 
 clean_decomp_o:

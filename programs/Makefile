@@ -65,14 +65,7 @@ else
 EXT =
 endif
 
-# zlib detection
-HAVE_ZLIB := $(shell echo "int main(){}" | $(CC) -o have_zlib -x c - -lz && echo 1 || echo 0)
-ifeq ($(HAVE_ZLIB), 1)
-ZLIBCPP = -DZSTD_GZDECOMPRESS
-ZLIBLD = -lz
-endif
-
-.PHONY: default all clean clean_decomp_o install uninstall generate_res
+.PHONY: default zstd all clean clean_decomp_o install uninstall generate_res
 
 default: zstd-release
 
@@ -80,7 +73,6 @@ all: zstd
 
 $(ZSTDDECOMP_O): CFLAGS += $(ALIGN_LOOP)
 
-zstd-internal : CPPFLAGS += -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT)
 zstd-internal : $(ZSTDLIB_OBJ) zstdcli.o fileio.o bench.o datagen.o dibio.o
 ifeq ($(HAVE_ZLIB), 1)
 	@echo "==> building zstd with .gz decompression support "
@@ -92,12 +84,19 @@ ifneq (,$(filter Windows%,$(OS)))
 endif
 	$(CC) $(FLAGS) $^ $(RES_FILE) -o zstd$(EXT) $(LDFLAGS)
 
+zstd-nogz : CPPFLAGS += -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT)
 zstd-nogz : HAVE_ZLIB=0
 zstd-nogz : zstd-internal
 
-zstd : CPPFLAGS += $(ZLIBCPP)
-zstd : LDFLAGS += $(ZLIBLD)
-zstd : zstd-internal
+zstd : CPPFLAGS += -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT)
+zstd :
+	@echo "int main(){}" | $(CC) -o have_zlib -x c - -lz && echo zlib found || echo zlib not found
+	@if [ -s have_zlib ]; then \
+         $(RM) have_zlib$(EXT) fileio.o \
+         && $(MAKE) zstd-internal HAVE_ZLIB=1 CFLAGS="$(CFLAGS)" CPPFLAGS="$(CPPFLAGS) -DZSTD_GZDECOMPRESS " LDFLAGS="$(LDFLAGS) -lz" ; \
+     else \
+         $(MAKE) zstd-internal HAVE_ZLIB=0 CFLAGS="$(CFLAGS)" CPPFLAGS="$(CPPFLAGS)" LDFLAGS="$(LDFLAGS)"; \
+     fi
 
 zstd-release: DEBUGFLAGS :=
 zstd-release: zstd
@@ -138,7 +137,9 @@ zstd-compress: $(ZSTDCOMMON_FILES) $(ZSTDCOMP_FILES) zstdcli.c fileio.c
 	$(CC) $(FLAGS) -DZSTD_NOBENCH -DZSTD_NODICT -DZSTD_NODECOMPRESS $^ -o $@$(EXT)
 
 zstdmt: CPPFLAGS += -DZSTD_MULTITHREAD
+ifeq (,$(filter Windows%,$(OS)))
 zstdmt: LDFLAGS += -lpthread
+endif
 zstdmt: zstd
 
 generate_res:

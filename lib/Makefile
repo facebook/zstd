@@ -22,10 +22,10 @@ VERSION?= $(LIBVER)
 
 CPPFLAGS+= -I. -I./common -DXXH_NAMESPACE=ZSTD_
 CFLAGS  ?= -O3
-CFLAGS  += -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow -Wstrict-aliasing=1 \
-           -Wswitch-enum -Wdeclaration-after-statement -Wstrict-prototypes -Wundef \
-           -Wpointer-arith
-CFLAGS  += $(MOREFLAGS)
+DEBUGFLAGS = -g -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow \
+           -Wstrict-aliasing=1 -Wswitch-enum -Wdeclaration-after-statement \
+           -Wstrict-prototypes -Wundef -Wpointer-arith
+CFLAGS  += $(DEBUGFLAGS) $(MOREFLAGS)
 FLAGS    = $(CPPFLAGS) $(CFLAGS)
 
 
@@ -59,7 +59,7 @@ LIBZSTD = libzstd.$(SHARED_EXT_VER)
 
 .PHONY: default all clean install uninstall
 
-default: lib
+default: lib-release
 
 all: lib
 
@@ -84,6 +84,9 @@ endif
 libzstd : $(LIBZSTD)
 
 lib: libzstd.a libzstd
+
+lib-release: DEBUGFLAGS :=
+lib-release: lib
 
 clean:
 	@$(RM) core *.o *.a *.gcda *.$(SHARED_EXT) *.$(SHARED_EXT).* libzstd.pc dll/libzstd.dll dll/libzstd.lib

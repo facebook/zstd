@@ -576,6 +576,7 @@ int main(int argCount, const char* argv[])
         BMK_setNbSeconds(bench_nbSeconds);
         BMK_benchFiles(filenameTable, filenameIdx, dictFileName, cLevel, cLevelLast, &compressionParams);
 #endif
+        (void)bench_nbSeconds;
         goto _end;
     }
 

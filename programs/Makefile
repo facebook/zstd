@@ -66,7 +66,8 @@ EXT =
 endif
 
 # zlib detection
-HAVE_ZLIB := $(shell echo "int main(){}" | $(CC) -o have_zlib -x c - -lz && echo 1 || echo 0)
+VOID = /dev/null
+HAVE_ZLIB := $(shell echo "int main(){}" | $(CC) -o $(VOID) -x c - -lz && echo 1 || echo 0)
 ifeq ($(HAVE_ZLIB), 1)
 ZLIBCPP = -DZSTD_GZDECOMPRESS
 ZLIBLD = -lz

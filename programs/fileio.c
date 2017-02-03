@@ -742,7 +742,7 @@ static unsigned long long FIO_decompressGzFrame(dRess_t* ress, FILE* srcFile, co
     strm.avail_in = Z_NULL;
     if (inflateInit2(&strm, 15 /* maxWindowLogSize */ + 16 /* gzip only */) != Z_OK) return 0;  /* see http://www.zlib.net/manual.html */
 
-    strm.next_out = ress->dstBuffer;
+    strm.next_out = (Bytef*)ress->dstBuffer;
     strm.avail_out = (uInt)ress->dstBufferSize;
     strm.avail_in = (uInt)ress->srcBufferLoaded;
     strm.next_in = (z_const unsigned char*)ress->srcBuffer;
@@ -761,7 +761,7 @@ static unsigned long long FIO_decompressGzFrame(dRess_t* ress, FILE* srcFile, co
             if (decompBytes) {
                 if (fwrite(ress->dstBuffer, 1, decompBytes, ress->dstFile) != decompBytes) EXM_THROW(31, "Write error : cannot write to output file");
                 outFileSize += decompBytes;
-                strm.next_out = ress->dstBuffer;
+                strm.next_out = (Bytef*)ress->dstBuffer;
                 strm.avail_out = (uInt)ress->dstBufferSize;
             }
         }

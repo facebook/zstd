@@ -251,6 +251,30 @@ and weight typically 100x the target dictionary size (for example, 10 MB for a 1
 .B \-s#
  dictionary selectivity level (default: 9)
  the smaller the value, the denser the dictionary, improving its efficiency but reducing its possible maximum size.
+.TP
+.B \--cover=k=#,d=#
+ Use alternate dictionary builder algorithm named cover with parameters \fIk\fR and \fId\fR with \fId\fR <= \fIk\fR.
+ Selects segments of size \fIk\fR with the highest score to put in the dictionary.
+ The score of a segment is computed by the sum of the frequencies of all the subsegments of of size \fId\fR.
+ Generally \fId\fR should be in the range [6, 24].
+ Good values for \fIk\fR vary widely based on the input data, but a safe range is [32, 2048].
+ Example: \fB--train --cover=k=64,d=8 FILEs\fR.
+.TP
+.B \--optimize-cover[=steps=#,k=#,d=#]
+ If \fIsteps\fR is not specified, the default value of 32 is used.
+ If \fIk\fR is not specified, \fIsteps\fR values in [16, 2048] are checked for each value of \fId\fR.
+ If \fId\fR is not specified, the values checked are [6, 8, ..., 16].
+
+ Runs the cover dictionary builder for each parameter set saves the optimal parameters and dictionary.
+ Prints the optimal parameters and writes the optimal dictionary to the output file.
+ Supports multithreading if \fBzstd\fR is compiled with threading support.
+
+ The parameter \fIk\fR is more sensitve than \fId\fR, and is faster to optimize over.
+ Suggested use is to run with a \fIsteps\fR <= 32 with neither \fIk\fR nor \fId\fR set.
+ Once it completes, use the value of \fId\fR it selects with a higher \fIsteps\fR (in the range [256, 1024]).
+ \fBzstd --train --optimize-cover FILEs
+ \fBzstd --train --optimize-cover=d=d,steps=512 FILEs
+.TP
 
 .SH BENCHMARK
 .TP

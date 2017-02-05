@@ -89,7 +89,9 @@ lib-release: DEBUGFLAGS :=
 lib-release: lib
 
 clean:
-	@$(RM) core *.o *.a *.gcda *.$(SHARED_EXT) *.$(SHARED_EXT).* libzstd.pc dll/libzstd.dll dll/libzstd.lib
+	@$(RM) -r *.dSYM   # Mac OS-X specific
+	@$(RM) core *.o *.a *.gcda *.$(SHARED_EXT) *.$(SHARED_EXT).* libzstd.pc
+	@$(RM) dll/libzstd.dll dll/libzstd.lib
 	@$(RM) common/*.o compress/*.o decompress/*.o dictBuilder/*.o legacy/*.o deprecated/*.o
 	@echo Cleaning library completed
 

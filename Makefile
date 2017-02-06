@@ -23,7 +23,7 @@ EXT =
 endif
 
 .PHONY: default
-default: lib zstd
+default: lib zstd-release
 
 .PHONY: all
 all: allmost
@@ -48,6 +48,11 @@ lib:
 .PHONY: zstd
 zstd:
 	@$(MAKE) -C $(PRGDIR) $@
+	cp $(PRGDIR)/zstd$(EXT) .
+
+.PHONY: zstd-release
+zstd-release:
+	@$(MAKE) -C $(PRGDIR)
 	cp $(PRGDIR)/zstd$(EXT) .
 
 .PHONY: zstdmt

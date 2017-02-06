@@ -43,10 +43,6 @@ ZSTD_ErrorCode ZSTD_getErrorCode(size_t code) { return ERR_getErrorCode(code); }
 *   provides error code string from enum */
 const char* ZSTD_getErrorString(ZSTD_ErrorCode code) { return ERR_getErrorName(code); }
 
-/* ---   ZBUFF Error Management  (deprecated)   --- */
-unsigned ZBUFF_isError(size_t errorCode) { return ERR_isError(errorCode); }
-const char* ZBUFF_getErrorName(size_t errorCode) { return ERR_getErrorName(errorCode); }
-
 
 /*=**************************************************************
 *  Custom allocator

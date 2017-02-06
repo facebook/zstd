@@ -3012,21 +3012,19 @@ static void ZSTD_decodeSequence(seq_t* seq, seqState_t* seqState)
     /* Literal length */
     litLength = FSE_decodeSymbol(&(seqState->stateLL), &(seqState->DStream));
     prevOffset = litLength ? seq->offset : seqState->prevOffset;
-    if (litLength == MaxLL)
-    {
+    if (litLength == MaxLL) {
         U32 add = *dumps++;
         if (add < 255) litLength += add;
-        else
-        {
-            litLength = MEM_readLE32(dumps) & 0xFFFFFF;  /* no pb : dumps is always followed by seq tables > 1 byte */
+        else {
+            litLength = dumps[0] + (dumps[1]<<8) + (dumps[2]<<16);
             dumps += 3;
         }
-        if (dumps >= de) dumps = de-1;   /* late correction, to avoid read overflow (data is now corrupted anyway) */
+        if (dumps > de) { litLength = MaxLL+255; }  /* late correction, to avoid using uninitialized memory */
+        if (dumps >= de) { dumps = de-1; }  /* late correction, to avoid read overflow (data is now corrupted anyway) */
     }
 
     /* Offset */
-    {
-        static const U32 offsetPrefix[MaxOff+1] = {
+    {   static const U32 offsetPrefix[MaxOff+1] = {
                 1 /*fake*/, 1, 2, 4, 8, 16, 32, 64, 128, 256,
                 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536, 131072, 262144,
                 524288, 1048576, 2097152, 4194304, 8388608, 16777216, 33554432, /*fake*/ 1, 1, 1, 1, 1 };
@@ -3043,16 +3041,15 @@ static void ZSTD_decodeSequence(seq_t* seq, seqState_t* seqState)
 
     /* MatchLength */
     matchLength = FSE_decodeSymbol(&(seqState->stateML), &(seqState->DStream));
-    if (matchLength == MaxML)
-    {
+    if (matchLength == MaxML) {
         U32 add = *dumps++;
         if (add < 255) matchLength += add;
-        else
-        {
-            matchLength = MEM_readLE32(dumps) & 0xFFFFFF;  /* no pb : dumps is always followed by seq tables > 1 byte */
+        else {
+            matchLength = dumps[0] + (dumps[1]<<8) + (dumps[2]<<16);
             dumps += 3;
         }
-        if (dumps >= de) dumps = de-1;   /* late correction, to avoid read overflow (data is now corrupted anyway) */
+        if (dumps > de) { matchLength = MaxML+255; }  /* late correction, to avoid using uninitialized memory */
+        if (dumps >= de) { dumps = de-1; }  /* late correction, to avoid read overflow (data is now corrupted anyway) */
     }
     matchLength += MINMATCH;
 
@@ -3116,8 +3113,7 @@ static size_t ZSTD_execSequence(BYTE* op,
     /* Requirement: op <= oend_8 */
 
     /* match within prefix */
-    if (sequence.offset < 8)
-    {
+    if (sequence.offset < 8) {
         /* close range match, overlap */
         const int sub2 = dec64table[sequence.offset];
         op[0] = match[0];
@@ -3127,9 +3123,7 @@ static size_t ZSTD_execSequence(BYTE* op,
         match += dec32table[sequence.offset];
         ZSTD_copy4(op+4, match);
         match -= sub2;
-    }
-    else
-    {
+    } else {
         ZSTD_copy8(op, match);
     }
     op += 8; match += 8;

@@ -69,6 +69,8 @@ from standard input if it is a terminal.
 .PP
 Unless
 .B \-\-stdout
+or
+.B \-o
 is specified,
 .I files
 are written to a new file whose name is derived from the source
@@ -159,7 +161,8 @@ No files are created or removed.
  # compression level [1-19] (default:3)
 .TP
 .BR \--ultra
- unlocks high compression levels 20+ (maximum 22), using a lot more memory
+ unlocks high compression levels 20+ (maximum 22), using a lot more memory.
+Note that decompression will also require more memory when using these levels.
 .TP
 .B \-D file
  use `file` as Dictionary to compress or decompress FILE(s)
@@ -248,6 +251,30 @@ and weight typically 100x the target dictionary size (for example, 10 MB for a 1
 .B \-s#
  dictionary selectivity level (default: 9)
  the smaller the value, the denser the dictionary, improving its efficiency but reducing its possible maximum size.
+.TP
+.B \--cover=k=#,d=#
+ Use alternate dictionary builder algorithm named cover with parameters \fIk\fR and \fId\fR with \fId\fR <= \fIk\fR.
+ Selects segments of size \fIk\fR with the highest score to put in the dictionary.
+ The score of a segment is computed by the sum of the frequencies of all the subsegments of of size \fId\fR.
+ Generally \fId\fR should be in the range [6, 24].
+ Good values for \fIk\fR vary widely based on the input data, but a safe range is [32, 2048].
+ Example: \fB--train --cover=k=64,d=8 FILEs\fR.
+.TP
+.B \--optimize-cover[=steps=#,k=#,d=#]
+ If \fIsteps\fR is not specified, the default value of 32 is used.
+ If \fIk\fR is not specified, \fIsteps\fR values in [16, 2048] are checked for each value of \fId\fR.
+ If \fId\fR is not specified, the values checked are [6, 8, ..., 16].
+
+ Runs the cover dictionary builder for each parameter set saves the optimal parameters and dictionary.
+ Prints the optimal parameters and writes the optimal dictionary to the output file.
+ Supports multithreading if \fBzstd\fR is compiled with threading support.
+
+ The parameter \fIk\fR is more sensitve than \fId\fR, and is faster to optimize over.
+ Suggested use is to run with a \fIsteps\fR <= 32 with neither \fIk\fR nor \fId\fR set.
+ Once it completes, use the value of \fId\fR it selects with a higher \fIsteps\fR (in the range [256, 1024]).
+ \fBzstd --train --optimize-cover FILEs
+ \fBzstd --train --optimize-cover=d=d,steps=512 FILEs
+.TP
 
 .SH BENCHMARK
 .TP
@@ -263,6 +290,115 @@ and weight typically 100x the target dictionary size (for example, 10 MB for a 1
 .B \-B#
  cut file into independent blocks of size # (default: no block)
 
+
+.SH ADVANCED COMPRESSION OPTIONS
+.TP
+.B \--zstd[=\fIoptions\fR]
+.PD
+\fBzstd\fR provides 22 predefined compression levels. The selected or default predefined compression level can be changed with advanced compression options.
+The \fIoptions\fR are provided as a comma-separated list. You may specify only the \fIoptions\fR you want to change and the rest will be taken from the selected or default compression level.
+The list of available \fIoptions\fR:
+.RS
+
+.TP
+.BI strategy= strat
+.PD 0
+.TP
+.BI strat= strat
+.PD
+Specify a strategy used by a match finder.
+.IP ""
+There are 8 strategies numbered from 0 to 7, from faster to stronger:
+0=ZSTD_fast, 1=ZSTD_dfast, 2=ZSTD_greedy, 3=ZSTD_lazy, 4=ZSTD_lazy2, 5=ZSTD_btlazy2, 6=ZSTD_btopt, 7=ZSTD_btopt2.
+.IP ""
+
+.TP
+.BI windowLog= wlog
+.PD 0
+.TP
+.BI wlog= wlog
+.PD
+Specify the maximum number of bits for a match distance.
+.IP ""
+The higher number of bits increases the chance to find a match what usually improves compression ratio.
+It also increases memory requirements for compressor and decompressor.
+.IP ""
+The minimum \fIwlog\fR is 10 (1 KiB) and the maximum is 25 (32 MiB) for 32-bit compilation and 27 (128 MiB) for 64-bit compilation.
+.IP ""
+
+.TP
+.BI hashLog= hlog
+.PD 0
+.TP
+.BI hlog= hlog
+.PD
+Specify the maximum number of bits for a hash table.
+.IP ""
+The bigger hash table causes less collisions what usually make compression faster but requires more memory during compression.
+.IP ""
+The minimum \fIhlog\fR is 6 (64 B) and the maximum is 25 (32 MiB) for 32-bit compilation and 27 (128 MiB) for 64-bit compilation.
+
+.TP
+.BI chainLog= clog
+.PD 0
+.TP
+.BI clog= clog
+.PD
+Specify the maximum number of bits for a hash chain or a binary tree.
+.IP ""
+The higher number of bits increases the chance to find a match what usually improves compression ratio.
+It also slows down compression speed and increases memory requirements for compression.
+This option is ignored for the ZSTD_fast strategy.
+.IP ""
+The minimum \fIclog\fR is 6 (64 B) and the maximum is 26 (64 MiB) for 32-bit compilation and 28 (256 MiB) for 64-bit compilation.
+.IP ""
+
+.TP
+.BI searchLog= slog
+.PD 0
+.TP
+.BI slog= slog
+.PD
+Specify the maximum number of searches in a hash chain or a binary tree using logarithmic scale.
+.IP ""
+The bigger number of searches increases the chance to find a match what usually improves compression ratio but decreases compression speed.
+.IP ""
+The minimum \fIslog\fR is 1 and the maximum is 24 for 32-bit compilation and 26 for 64-bit compilation.
+.IP ""
+
+.TP
+.BI searchLength= slen
+.PD 0
+.TP
+.BI slen= slen
+.PD
+Specify the minimum searched length of a match in a hash table.
+.IP ""
+The bigger search length usually decreases compression ratio but improves decompression speed.
+.IP ""
+The minimum \fIslen\fR is 3 and the maximum is 7.
+.IP ""
+
+.TP
+.BI targetLength= tlen
+.PD 0
+.TP
+.BI tlen= tlen
+.PD
+Specify the minimum match length that causes a match finder to interrupt searching of better matches.
+.IP ""
+The bigger minimum match length usually improves compression ratio but decreases compression speed.
+This option is used only with ZSTD_btopt and ZSTD_btopt2 strategies.
+.IP ""
+The minimum \fItlen\fR is 4 and the maximum is 999.
+.IP ""
+
+.PP
+.B An example
+.br
+The following parameters sets advanced compression options to predefined level 19 for files bigger than 256 KB:
+.IP ""
+\fB--zstd=\fRwindowLog=23,chainLog=23,hashLog=22,searchLog=6,searchLength=3,targetLength=48,strategy=6
 
 .SH BUGS
 Report bugs at:- https://github.com/facebook/zstd/issues

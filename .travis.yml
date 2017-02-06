@@ -8,11 +8,7 @@ matrix:
 
 
     # Container-based Ubuntu 12.04 LTS Server Edition 64 bit (doesn't support 32-bit includes)
-    - env: Ubu=12.04cont Cmd="make test && make clean && make travis-install"
-      os: linux
-      sudo: false
-
-    - env: Ubu=12.04cont Cmd="make zlibwrapper && make clean && make -C tests test-zstd-nolegacy && make clean && make cmaketest && make clean && make -C contrib/pzstd googletest pzstd tests check && make -C contrib/pzstd clean"
+    - env: Ubu=12.04cont Cmd="make zlibwrapper && make clean && make -C tests test-symbols && make clean && make -C tests test-zstd-nolegacy && make clean && make cmaketest && make clean && make -C contrib/pzstd googletest pzstd tests check && make -C contrib/pzstd clean"
       os: linux
       sudo: false
       language: cpp
@@ -37,7 +33,7 @@ matrix:
 
 
     # Standard Ubuntu 12.04 LTS Server Edition 64 bit
-    - env: Ubu=12.04 Cmd="make -C programs zstd-small zstd-decompress zstd-compress && make -C tests test-gzstd && make -C programs clean && make -C tests versionsTest"
+    - env: Ubu=12.04 Cmd="make -C programs zstd-small zstd-decompress zstd-compress && make -C programs clean && make -C tests versionsTest"
       os: linux
       sudo: required
 
@@ -69,7 +65,7 @@ matrix:
 
 
     # Ubuntu 14.04 LTS Server Edition 64 bit
-    - env: Ubu=14.04 Cmd="make armtest && make clean && make aarch64test"
+    - env: Ubu=14.04 Cmd="make armtest"
       dist: trusty
       sudo: required
       addons:
@@ -78,11 +74,30 @@ matrix:
             - qemu-system-arm
             - qemu-user-static
             - gcc-arm-linux-gnueabi
-            - libc6-dev-armel-cross 
+            - libc6-dev-armel-cross
+
+    - env: Ubu=14.04 Cmd="make aarch64test"
+      dist: trusty
+      sudo: required
+      addons:
+        apt:
+          packages:
+            - qemu-system-arm
+            - qemu-user-static
             - gcc-aarch64-linux-gnu
             - libc6-dev-arm64-cross
 
-    - env: Ubu=14.04 Cmd='make ppctest && make clean && make ppc64test'
+    - env: Ubu=14.04 Cmd='make ppctest'
+      dist: trusty
+      sudo: required
+      addons:
+        apt:
+          packages:
+            - qemu-system-ppc
+            - qemu-user-static
+            - gcc-powerpc-linux-gnu
+
+    - env: Ubu=14.04 Cmd='make ppc64test'
       dist: trusty
       sudo: required
       addons:
@@ -101,7 +116,27 @@ matrix:
           packages:
             - valgrind
 
-    - env: Ubu=14.04 Cmd="make gpptest && make clean && make gnu90test && make clean && make c99test && make clean && make gnu99test && make clean && make clangtest && make clean && make -C contrib/pzstd googletest32 && make -C contrib/pzstd all32 && make -C contrib/pzstd check && make -C contrib/pzstd clean"
+
+
+    # other feature branches => short tests
+    - env: Ubu=12.04cont Cmd="make test && make clean && make travis-install"
+      os: linux
+      sudo: false
+
+    - env: Ubu=14.04 Cmd="make -C tests test32"
+      os: linux
+      dist: trusty
+      sudo: required
+      addons:
+        apt:
+          packages:
+            - libc6-dev-i386
+            - gcc-multilib
+
+    - env: Ubu=14.04 Cmd="make gpptest && make clean && make gnu90test && make clean
+                       && make c99test && make clean && make gnu99test && make clean
+                       && make clangtest && make clean && make -C contrib/pzstd googletest32
+                       && make -C contrib/pzstd all32 && make -C contrib/pzstd check && make -C contrib/pzstd clean"
       os: linux
       dist: trusty
       sudo: required
@@ -117,17 +152,7 @@ matrix:
             - g++-4.8
             - g++-4.8-multilib
 
-    - env: Ubu=14.04 Cmd="make -C tests test32"
-      os: linux
-      dist: trusty
-      sudo: required
-      addons:
-        apt:
-          packages:
-            - libc6-dev-i386
-            - gcc-multilib
-
-    - env: Ubu=14.04 Cmd="make gcc5test && make clean && make gcc6test"
+    - env: Ubu=14.04 Cmd="make gcc5test && make clean && make gcc6test && make clean && make -C tests dll"
       os: linux
       dist: trusty
       sudo: required
@@ -144,5 +169,7 @@ matrix:
 
 script:
   - JOB_NUMBER=$(echo $TRAVIS_JOB_NUMBER | sed -e 's:[0-9][0-9]*\.\(.*\):\1:')
-  # - if [ $JOB_NUMBER -eq 9 ] || [ $JOB_NUMBER -eq 10 ]; then sh -c "$Cmd"; fi
-  - sh -c "$Cmd"
+  #  dev => normal tests;  other feature branches => short tests (number > 11)
+  - if [ "$TRAVIS_PULL_REQUEST" = "true" ] || [ $JOB_NUMBER -gt 11 ] || [ "$TRAVIS_BRANCH" = "dev" ] && [ "$TRAVIS_BRANCH" != "master" ]; then sh -c "$Cmd"; fi
+  #  master => long tests, as this is the final step towards a Release
+  - if [ "$TRAVIS_BRANCH" = "master" ]; then FUZZERTEST=-T10mn sh -c "$Cmd"; fi

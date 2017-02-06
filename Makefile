@@ -23,13 +23,23 @@ EXT =
 endif
 
 .PHONY: default
-default: lib zstd
+default: lib zstd-release
 
 .PHONY: all
-all:
-	$(MAKE) -C $(ZSTDDIR) $@
-	$(MAKE) -C $(PRGDIR) $@ zstd32
-	$(MAKE) -C $(TESTDIR) $@ all32
+all: allmost
+	CPPFLAGS=-I../lib LDFLAGS=-L../lib $(MAKE) -C examples/ $@
+
+.PHONY: allmost
+allmost:
+	$(MAKE) -C $(ZSTDDIR) all
+	$(MAKE) -C $(PRGDIR) all
+	$(MAKE) -C $(TESTDIR) all
+	$(MAKE) -C $(ZWRAPDIR) all
+
+.PHONY: all32
+all32:
+	$(MAKE) -C $(PRGDIR) zstd32
+	$(MAKE) -C $(TESTDIR) all32
 
 .PHONY: lib
 lib:
@@ -39,6 +49,16 @@ lib:
 zstd:
 	@$(MAKE) -C $(PRGDIR) $@
 	cp $(PRGDIR)/zstd$(EXT) .
+
+.PHONY: zstd-release
+zstd-release:
+	@$(MAKE) -C $(PRGDIR)
+	cp $(PRGDIR)/zstd$(EXT) .
+
+.PHONY: zstdmt
+zstdmt:
+	@$(MAKE) -C $(PRGDIR) $@
+	cp $(PRGDIR)/zstd$(EXT) ./zstdmt$(EXT)
 
 .PHONY: zlibwrapper
 zlibwrapper:
@@ -54,7 +74,8 @@ clean:
 	@$(MAKE) -C $(PRGDIR) $@ > $(VOID)
 	@$(MAKE) -C $(TESTDIR) $@ > $(VOID)
 	@$(MAKE) -C $(ZWRAPDIR) $@ > $(VOID)
-	@$(RM) zstd$(EXT) tmp*
+	@$(MAKE) -C examples/ $@ > $(VOID)
+	@$(RM) zstd$(EXT) zstdmt$(EXT) tmp*
 	@echo Cleaning completed
 
 
@@ -77,7 +98,7 @@ travis-install:
 	$(MAKE) install PREFIX=~/install_test_dir
 
 gpptest: clean
-	$(MAKE) -C programs all CC=g++ CFLAGS="-O3 -Wall -Wextra -Wundef -Wshadow -Wcast-align -Werror"
+	CC=g++ $(MAKE) -C programs all CFLAGS="-O3 -Wall -Wextra -Wundef -Wshadow -Wcast-align -Werror"
 
 gcc5test: clean
 	gcc-5 -v
@@ -148,13 +169,13 @@ gnu90test: clean
 	CFLAGS="-std=gnu90" $(MAKE) all
 
 c99test: clean
-	CFLAGS="-std=c99" $(MAKE) all
+	CFLAGS="-std=c99" $(MAKE) allmost
 
 gnu99test: clean
 	CFLAGS="-std=gnu99" $(MAKE) all
 
 c11test: clean
-	CFLAGS="-std=c11" $(MAKE) all
+	CFLAGS="-std=c11" $(MAKE) allmost
 
 bmix64test: clean
 	CFLAGS="-O3 -mbmi -Werror" $(MAKE) -C $(TESTDIR) test

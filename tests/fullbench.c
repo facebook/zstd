@@ -179,6 +179,23 @@ size_t local_ZSTD_compressContinue(void* dst, size_t dstCapacity, void* buff2, c
     return ZSTD_compressEnd(g_zcc, dst, dstCapacity, src, srcSize);
 }
 
+#define FIRST_BLOCK_SIZE 8
+size_t local_ZSTD_compressContinue_extDict(void* dst, size_t dstCapacity, void* buff2, const void* src, size_t srcSize)
+{
+    BYTE firstBlockBuf[FIRST_BLOCK_SIZE];
+
+    (void)buff2;
+    memcpy(firstBlockBuf, src, FIRST_BLOCK_SIZE);
+    ZSTD_compressBegin(g_zcc, 1);
+
+    {   size_t const compressResult = ZSTD_compressContinue(g_zcc, dst, dstCapacity, firstBlockBuf, FIRST_BLOCK_SIZE);
+        if (ZSTD_isError(compressResult)) { DISPLAY("local_ZSTD_compressContinue_extDict error : %s\n", ZSTD_getErrorName(compressResult)); return compressResult; }
+        dst = (BYTE*)dst + compressResult;
+        dstCapacity -= compressResult;
+    }
+    return ZSTD_compressEnd(g_zcc, dst, dstCapacity, (const BYTE*)src + FIRST_BLOCK_SIZE, srcSize - FIRST_BLOCK_SIZE);
+}
+
 size_t local_ZSTD_decompressContinue(void* dst, size_t dstCapacity, void* buff2, const void* src, size_t srcSize)
 {
     size_t regeneratedSize = 0;
@@ -229,6 +246,9 @@ static size_t benchMem(const void* src, size_t srcSize, U32 benchNb)
         benchFunction = local_ZSTD_compressContinue; benchName = "ZSTD_compressContinue";
         break;
     case 12:
+        benchFunction = local_ZSTD_compressContinue_extDict; benchName = "ZSTD_compressContinue_extDict";
+        break;
+    case 13:
         benchFunction = local_ZSTD_decompressContinue; benchName = "ZSTD_decompressContinue";
         break;
 	case 31:
@@ -268,6 +288,9 @@ static size_t benchMem(const void* src, size_t srcSize, U32 benchNb)
         if (g_zcc==NULL) g_zcc = ZSTD_createCCtx();
         break;
     case 12 :
+        if (g_zcc==NULL) g_zcc = ZSTD_createCCtx();
+        break;
+    case 13 :
         if (g_zdc==NULL) g_zdc = ZSTD_createDCtx();
         g_cSize = ZSTD_compress(buff2, dstBuffSize, src, srcSize, 1);
         break;

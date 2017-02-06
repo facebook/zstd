@@ -328,7 +328,19 @@
 			UniqueIdentifier="{4FC737F1-C7A5-4376-A066-2A32D752A2FF}"
 			>
 			<File
+				RelativePath="..\..\..\lib\dictBuilder\cover.c"
+				>
+			</File>
+			<File
 				RelativePath="..\..\..\lib\dictBuilder\divsufsort.c"
+				>
+			</File>
+			<File
+				RelativePath="..\..\..\lib\common\pool.c"
+				>
+			</File>
+			<File
+				RelativePath="..\..\..\lib\common\threading.c"
 				>
 			</File>
 			<File
@@ -360,6 +372,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\..\lib\deprecated\zbuff_common.c"
+				>
+			</File>
+			<File
 				RelativePath="..\..\..\lib\deprecated\zbuff_compress.c"
 				>
 			</File>
@@ -373,6 +389,10 @@
 			</File>
 			<File
 				RelativePath="..\..\..\lib\common\zstd_common.c"
+				>
+			</File>
+			<File
+				RelativePath="..\..\..\lib\compress\zstdmt_compress.c"
 				>
 			</File>
 			<File
@@ -423,6 +443,14 @@
 			</File>
 			<File
 				RelativePath="..\..\..\lib\dictBuilder\divsufsort.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\..\lib\common\pool.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\..\lib\common\threading.h"
 				>
 			</File>
 			<File
@@ -483,6 +511,10 @@
 			</File>
 			<File
 				RelativePath="..\..\..\lib\compress\zstd_opt.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\..\lib\compress\zstdmt_compress.h"
 				>
 			</File>
 			<File

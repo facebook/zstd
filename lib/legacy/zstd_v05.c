@@ -3230,7 +3230,8 @@ static void ZSTDv05_decodeSequence(seq_t* seq, seqState_t* seqState)
             if (litLength&1) litLength>>=1, dumps += 3;
             else litLength = (U16)(litLength)>>1, dumps += 2;
         }
-        if (dumps >= de) dumps = de-1;   /* late correction, to avoid read overflow (data is now corrupted anyway) */
+        if (dumps > de) { litLength = MaxLL+255; }  /* late correction, to avoid using uninitialized memory */
+        if (dumps >= de) { dumps = de-1; }  /* late correction, to avoid read overflow (data is now corrupted anyway) */
     }
 
     /* Offset */
@@ -3263,7 +3264,8 @@ static void ZSTDv05_decodeSequence(seq_t* seq, seqState_t* seqState)
             if (matchLength&1) matchLength>>=1, dumps += 3;
             else matchLength = (U16)(matchLength)>>1, dumps += 2;
         }
-        if (dumps >= de) dumps = de-1;   /* late correction, to avoid read overflow (data is now corrupted anyway) */
+        if (dumps > de) { matchLength = MaxML+255; }  /* late correction, to avoid using uninitialized memory */
+        if (dumps >= de) { dumps = de-1; }  /* late correction, to avoid read overflow (data is now corrupted anyway) */
     }
     matchLength += MINMATCH;
 

@@ -1,4 +1,6 @@
 /**
+ * util.h - utility functions
+ * 
  * Copyright (c) 2016-present, Przemyslaw Skibinski, Yann Collet, Facebook, Inc.
  * All rights reserved.
  *
@@ -14,50 +16,57 @@
 extern "C" {
 #endif
 
-/* **************************************
-*  Compiler Options
-****************************************/
-#if defined(__INTEL_COMPILER)
-#  pragma warning(disable : 177)    /* disable: message #177: function was declared but never referenced */
-#endif
-#if defined(_MSC_VER)
-#  define _CRT_SECURE_NO_WARNINGS    /* Disable some Visual warning messages for fopen, strncpy */
-#  define _CRT_SECURE_NO_DEPRECATE   /* VS2005 */
-#  pragma warning(disable : 4127)    /* disable: C4127: conditional expression is constant */
-#if _MSC_VER <= 1800                 /* (1800 = Visual Studio 2013) */
-#  define snprintf sprintf_s       /* snprintf unsupported by Visual <= 2013 */
-#endif
-#endif
-
-
-/* Unix Large Files support (>4GB) */
-#if !defined(__LP64__)                                  /* No point defining Large file for 64 bit */
-#   define _FILE_OFFSET_BITS 64                         /* turn off_t into a 64-bit type for ftello, fseeko */
-#   if defined(__sun__) && !defined(_LARGEFILE_SOURCE)  /* Sun Solaris 32-bits requires specific definitions */
-#      define _LARGEFILE_SOURCE                         /* fseeko, ftello */
-#   elif !defined(_LARGEFILE64_SOURCE)
-#      define _LARGEFILE64_SOURCE                       /* off64_t, fseeko64, ftello64 */
-#   endif
-#endif
 
 
 /*-****************************************
 *  Dependencies
 ******************************************/
-#include <stdlib.h>     /* features.h with _POSIX_C_SOURCE, malloc */
-#include <stdio.h>      /* fprintf */
-#include <sys/types.h>  /* stat, utime */
-#include <sys/stat.h>   /* stat */
+#include "platform.h"     /* PLATFORM_POSIX_VERSION */
+#include <stdlib.h>       /* malloc */
+#include <stddef.h>       /* size_t, ptrdiff_t */
+#include <stdio.h>        /* fprintf */
+#include <sys/types.h>    /* stat, utime */
+#include <sys/stat.h>     /* stat */
 #if defined(_MSC_VER)
-#  include <sys/utime.h>   /* utime */
-#  include <io.h>          /* _chmod */
+#  include <sys/utime.h>  /* utime */
+#  include <io.h>         /* _chmod */
 #else
 #  include <unistd.h>     /* chown, stat */
 #  include <utime.h>      /* utime */
 #endif
-#include <time.h>       /* time */
+#include <time.h>         /* time */
 #include <errno.h>
-#include "mem.h"        /* U32, U64 */
+#include "mem.h"          /* U32, U64 */
+
+
+/*-****************************************
+*  Sleep functions: Windows - Posix - others
+******************************************/
+#if defined(_WIN32)
+#  include <windows.h>
+#  define SET_HIGH_PRIORITY SetPriorityClass(GetCurrentProcess(), REALTIME_PRIORITY_CLASS)
+#  define UTIL_sleep(s) Sleep(1000*s)
+#  define UTIL_sleepMilli(milli) Sleep(milli)
+#elif PLATFORM_POSIX_VERSION >= 0 /* Unix-like operating system */
+#  include <unistd.h>
+#  include <sys/resource.h> /* setpriority */
+#  include <time.h>         /* clock_t, nanosleep, clock, CLOCKS_PER_SEC */
+#  if defined(PRIO_PROCESS)
+#    define SET_HIGH_PRIORITY setpriority(PRIO_PROCESS, 0, -20)
+#  else
+#    define SET_HIGH_PRIORITY /* disabled */
+#  endif
+#  define UTIL_sleep(s) sleep(s)
+#  if (defined(__linux__) && (PLATFORM_POSIX_VERSION >= 199309L)) || (PLATFORM_POSIX_VERSION >= 200112L)  /* nanosleep requires POSIX.1-2001 */
+#      define UTIL_sleepMilli(milli) { struct timespec t; t.tv_sec=0; t.tv_nsec=milli*1000000ULL; nanosleep(&t, NULL); }
+#  else
+#      define UTIL_sleepMilli(milli) /* disabled */
+#  endif
+#else
+#  define SET_HIGH_PRIORITY      /* disabled */
+#  define UTIL_sleep(s)          /* disabled */
+#  define UTIL_sleepMilli(milli) /* disabled */
+#endif
 
 
 /* *************************************
@@ -69,6 +78,9 @@ extern "C" {
 /*-****************************************
 *  Compiler specifics
 ******************************************/
+#if defined(__INTEL_COMPILER)
+#  pragma warning(disable : 177)    /* disable: message #177: function was declared but never referenced, useful with UTIL_STATIC */
+#endif
 #if defined(__GNUC__)
 #  define UTIL_STATIC static __attribute__((unused))
 #elif defined (__cplusplus) || (defined (__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L) /* C99 */)
@@ -81,50 +93,28 @@ extern "C" {
 
 
 /*-****************************************
-*  Sleep functions: Windows - Posix - others
-******************************************/
-#if defined(_WIN32)
-#  include <windows.h>
-#  define SET_HIGH_PRIORITY SetPriorityClass(GetCurrentProcess(), REALTIME_PRIORITY_CLASS)
-#  define UTIL_sleep(s) Sleep(1000*s)
-#  define UTIL_sleepMilli(milli) Sleep(milli)
-#elif (defined(__unix__) || defined(__unix) || defined(__VMS) || defined(__midipix__) || (defined(__APPLE__) && defined(__MACH__)))
-#  include <unistd.h>
-#  include <sys/resource.h> /* setpriority */
-#  include <time.h>         /* clock_t, nanosleep, clock, CLOCKS_PER_SEC */
-#  if defined(PRIO_PROCESS)
-#    define SET_HIGH_PRIORITY setpriority(PRIO_PROCESS, 0, -20)
-#  else
-#    define SET_HIGH_PRIORITY /* disabled */
-#  endif
-#  define UTIL_sleep(s) sleep(s)
-#  if defined(__DragonFly__) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || (defined(_POSIX_C_SOURCE) && (_POSIX_C_SOURCE >= 199309L))
-#      define UTIL_sleepMilli(milli) { struct timespec t; t.tv_sec=0; t.tv_nsec=milli*1000000ULL; nanosleep(&t, NULL); }
-#  else
-#      define UTIL_sleepMilli(milli) /* disabled */
-#  endif
-#else
-#  define SET_HIGH_PRIORITY      /* disabled */
-#  define UTIL_sleep(s)          /* disabled */
-#  define UTIL_sleepMilli(milli) /* disabled */
-#endif
-
-
-/*-****************************************
 *  Time functions
 ******************************************/
-#if !defined(_WIN32)
-   typedef clock_t UTIL_time_t;
-   UTIL_STATIC void UTIL_initTimer(UTIL_time_t* ticksPerSecond) { *ticksPerSecond=0; }
-   UTIL_STATIC void UTIL_getTime(UTIL_time_t* x) { *x = clock(); }
-   UTIL_STATIC U64 UTIL_getSpanTimeMicro(UTIL_time_t ticksPerSecond, UTIL_time_t clockStart, UTIL_time_t clockEnd) { (void)ticksPerSecond; return 1000000ULL * (clockEnd - clockStart) / CLOCKS_PER_SEC; }
-   UTIL_STATIC U64 UTIL_getSpanTimeNano(UTIL_time_t ticksPerSecond, UTIL_time_t clockStart, UTIL_time_t clockEnd) { (void)ticksPerSecond; return 1000000000ULL * (clockEnd - clockStart) / CLOCKS_PER_SEC; }
-#else
+#if (PLATFORM_POSIX_VERSION >= 1)
+#include <unistd.h>
+#include <sys/times.h>   /* times */
+   typedef U64 UTIL_time_t;
+   UTIL_STATIC void UTIL_initTimer(UTIL_time_t* ticksPerSecond) { *ticksPerSecond=sysconf(_SC_CLK_TCK); }
+   UTIL_STATIC void UTIL_getTime(UTIL_time_t* x) { struct tms junk; clock_t newTicks = (clock_t) times(&junk); (void)junk; *x = (UTIL_time_t)newTicks; }
+   UTIL_STATIC U64 UTIL_getSpanTimeMicro(UTIL_time_t ticksPerSecond, UTIL_time_t clockStart, UTIL_time_t clockEnd) { return 1000000ULL * (clockEnd - clockStart) / ticksPerSecond; }
+   UTIL_STATIC U64 UTIL_getSpanTimeNano(UTIL_time_t ticksPerSecond, UTIL_time_t clockStart, UTIL_time_t clockEnd) { return 1000000000ULL * (clockEnd - clockStart) / ticksPerSecond; }
+#elif defined(_WIN32)   /* Windows */
    typedef LARGE_INTEGER UTIL_time_t;
    UTIL_STATIC void UTIL_initTimer(UTIL_time_t* ticksPerSecond) { if (!QueryPerformanceFrequency(ticksPerSecond)) fprintf(stderr, "ERROR: QueryPerformance not present\n"); }
    UTIL_STATIC void UTIL_getTime(UTIL_time_t* x) { QueryPerformanceCounter(x); }
    UTIL_STATIC U64 UTIL_getSpanTimeMicro(UTIL_time_t ticksPerSecond, UTIL_time_t clockStart, UTIL_time_t clockEnd) { return 1000000ULL*(clockEnd.QuadPart - clockStart.QuadPart)/ticksPerSecond.QuadPart; }
    UTIL_STATIC U64 UTIL_getSpanTimeNano(UTIL_time_t ticksPerSecond, UTIL_time_t clockStart, UTIL_time_t clockEnd) { return 1000000000ULL*(clockEnd.QuadPart - clockStart.QuadPart)/ticksPerSecond.QuadPart; }
+#else   /* relies on standard C (note : clock_t measurements can be wrong when using multi-threading) */
+   typedef clock_t UTIL_time_t;
+   UTIL_STATIC void UTIL_initTimer(UTIL_time_t* ticksPerSecond) { *ticksPerSecond=0; }
+   UTIL_STATIC void UTIL_getTime(UTIL_time_t* x) { *x = clock(); }
+   UTIL_STATIC U64 UTIL_getSpanTimeMicro(UTIL_time_t ticksPerSecond, UTIL_time_t clockStart, UTIL_time_t clockEnd) { (void)ticksPerSecond; return 1000000ULL * (clockEnd - clockStart) / CLOCKS_PER_SEC; }
+   UTIL_STATIC U64 UTIL_getSpanTimeNano(UTIL_time_t ticksPerSecond, UTIL_time_t clockStart, UTIL_time_t clockEnd) { (void)ticksPerSecond; return 1000000000ULL * (clockEnd - clockStart) / CLOCKS_PER_SEC; }
 #endif
 
 
@@ -325,12 +315,10 @@ UTIL_STATIC int UTIL_prepareFileList(const char *dirName, char** bufStart, size_
     return nbFiles;
 }
 
-#elif (defined(_POSIX_C_SOURCE) && (_POSIX_C_SOURCE >= 200112L)) || \
-      (defined(__APPLE__) && defined(__MACH__)) || defined(__SVR4) || defined(_AIX) || defined(__hpux) || \
-       defined(__DragonFly__) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || \
-      (defined(__linux__) && defined(_POSIX_C_SOURCE)) /* opendir */
+#elif defined(__linux__) || (PLATFORM_POSIX_VERSION >= 200112L)  /* opendir, readdir require POSIX.1-2001 */
 #  define UTIL_HAS_CREATEFILELIST
 #  include <dirent.h>       /* opendir, readdir */
+#  include <string.h>       /* strerror, memcpy */
 
 UTIL_STATIC int UTIL_prepareFileList(const char *dirName, char** bufStart, size_t* pos, char** bufEnd)
 {
@@ -392,7 +380,7 @@ UTIL_STATIC int UTIL_prepareFileList(const char *dirName, char** bufStart, size_
 UTIL_STATIC int UTIL_prepareFileList(const char *dirName, char** bufStart, size_t* pos, char** bufEnd)
 {
     (void)bufStart; (void)bufEnd; (void)pos;
-    fprintf(stderr, "Directory %s ignored (zstd compiled without _WIN32 or _POSIX_C_SOURCE)\n", dirName);
+    fprintf(stderr, "Directory %s ignored (compiled without _WIN32 or _POSIX_C_SOURCE)\n", dirName);
     return 0;
 }
 

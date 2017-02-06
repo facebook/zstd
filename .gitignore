@@ -15,6 +15,7 @@
 
 # Executables
 zstd
+zstdmt
 *.exe
 *.out
 *.app
@@ -36,3 +37,5 @@ googletest/
 
 # Directories
 bin/
+.buckd/
+buck-out/

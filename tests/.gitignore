@@ -3,15 +3,21 @@ fullbench
 fullbench32
 fuzzer
 fuzzer32
+fuzzer-dll
 zbufftest
 zbufftest32
+zbufftest-dll
 zstreamtest
 zstreamtest32
+zstreamtest-dll
 datagen
 paramgrill
 paramgrill32
 roundTripCrash
 longmatch
+symbols
+pool
+invalidDictionaries
 
 # Tmp test directory
 zstdtest

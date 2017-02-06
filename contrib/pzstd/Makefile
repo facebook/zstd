@@ -26,7 +26,7 @@ POSTCOMPILE = mv -f $*.Td $*.d
 
 # CFLAGS, CXXFLAGS, CPPFLAGS, and LDFLAGS are for the users to override
 CFLAGS   ?= -O3 -Wall -Wextra
-CXXFLAGS ?= -O3 -Wall -Wextra -pedantic -std=c++11
+CXXFLAGS ?= -O3 -Wall -Wextra -pedantic
 CPPFLAGS ?=
 LDFLAGS  ?=
 
@@ -37,7 +37,7 @@ GTEST_INC  = -isystem googletest/googletest/include
 PZSTD_CPPFLAGS  = $(PZSTD_INC)
 PZSTD_CCXXFLAGS =
 PZSTD_CFLAGS    = $(PZSTD_CCXXFLAGS)
-PZSTD_CXXFLAGS  = $(PZSTD_CCXXFLAGS)
+PZSTD_CXXFLAGS  = $(PZSTD_CCXXFLAGS) -std=c++11
 PZSTD_LDFLAGS   =
 EXTRA_FLAGS     =
 ALL_CFLAGS      = $(EXTRA_FLAGS) $(CPPFLAGS) $(PZSTD_CPPFLAGS) $(CFLAGS)   $(PZSTD_CFLAGS)

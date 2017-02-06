@@ -332,6 +332,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\..\lib\dictBuilder\cover.c"
+				>
+			</File>
+			<File
 				RelativePath="..\..\..\lib\dictBuilder\divsufsort.c"
 				>
 			</File>
@@ -340,7 +344,19 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\..\lib\common\pool.c"
+				>
+			</File>
+			<File
+				RelativePath="..\..\..\lib\common\threading.c"
+				>
+			</File>
+			<File
 				RelativePath="..\..\..\lib\common\error_private.c"
+				>
+			</File>
+			<File
+				RelativePath="..\..\..\lib\compress\zstdmt_compress.c"
 				>
 			</File>
 			<File
@@ -389,6 +405,14 @@
 			Filter="h;hpp;hxx;hm;inl;inc;xsd"
 			UniqueIdentifier="{93995380-89BD-4b04-88EB-625FBE52EBFB}"
 			>
+			<File
+				RelativePath="..\..\..\lib\common\pool.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\..\lib\common\threading.h"
+				>
+			</File>
 			<File
 				RelativePath="..\..\..\lib\common\bitstream.h"
 				>
@@ -443,6 +467,10 @@
 			</File>
 			<File
 				RelativePath="..\..\..\lib\common\zstd_internal.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\..\lib\compress\zstdmt_compress.h"
 				>
 			</File>
 			<File

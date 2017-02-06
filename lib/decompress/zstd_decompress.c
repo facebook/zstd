@@ -1444,7 +1444,7 @@ size_t ZSTD_decompress_usingDict(ZSTD_DCtx* dctx,
 #if defined(ZSTD_LEGACY_SUPPORT) && (ZSTD_LEGACY_SUPPORT==1)
     if (ZSTD_isLegacy(src, srcSize)) return ZSTD_decompressLegacy(dst, dstCapacity, src, srcSize, dict, dictSize);
 #endif
-    ZSTD_decompressBegin_usingDict(dctx, dict, dictSize);
+    CHECK_F(ZSTD_decompressBegin_usingDict(dctx, dict, dictSize));
     ZSTD_checkContinuity(dctx, dst);
     return ZSTD_decompressFrame(dctx, dst, dstCapacity, src, srcSize);
 }
@@ -1671,9 +1671,9 @@ static size_t ZSTD_loadEntropy(ZSTD_DCtx* dctx, const void* const dict, size_t c
     }
 
     if (dictPtr+12 > dictEnd) return ERROR(dictionary_corrupted);
-    dctx->rep[0] = MEM_readLE32(dictPtr+0); if (dctx->rep[0] >= dictSize) return ERROR(dictionary_corrupted);
-    dctx->rep[1] = MEM_readLE32(dictPtr+4); if (dctx->rep[1] >= dictSize) return ERROR(dictionary_corrupted);
-    dctx->rep[2] = MEM_readLE32(dictPtr+8); if (dctx->rep[2] >= dictSize) return ERROR(dictionary_corrupted);
+    dctx->rep[0] = MEM_readLE32(dictPtr+0); if (dctx->rep[0] == 0 || dctx->rep[0] >= dictSize) return ERROR(dictionary_corrupted);
+    dctx->rep[1] = MEM_readLE32(dictPtr+4); if (dctx->rep[1] == 0 || dctx->rep[1] >= dictSize) return ERROR(dictionary_corrupted);
+    dctx->rep[2] = MEM_readLE32(dictPtr+8); if (dctx->rep[2] == 0 || dctx->rep[2] >= dictSize) return ERROR(dictionary_corrupted);
     dictPtr += 12;
 
     dctx->litEntropy = dctx->fseEntropy = 1;
@@ -1713,39 +1713,44 @@ size_t ZSTD_decompressBegin_usingDict(ZSTD_DCtx* dctx, const void* dict, size_t 
 /* ======   ZSTD_DDict   ====== */
 
 struct ZSTD_DDict_s {
-    void* dict;
+    void* dictBuffer;
+    const void* dictContent;
     size_t dictSize;
     ZSTD_DCtx* refContext;
 };  /* typedef'd to ZSTD_DDict within "zstd.h" */
 
-ZSTD_DDict* ZSTD_createDDict_advanced(const void* dict, size_t dictSize, ZSTD_customMem customMem)
+ZSTD_DDict* ZSTD_createDDict_advanced(const void* dict, size_t dictSize, unsigned byReference, ZSTD_customMem customMem)
 {
     if (!customMem.customAlloc && !customMem.customFree) customMem = defaultCustomMem;
     if (!customMem.customAlloc || !customMem.customFree) return NULL;
 
     {   ZSTD_DDict* const ddict = (ZSTD_DDict*) ZSTD_malloc(sizeof(ZSTD_DDict), customMem);
-        void* const dictContent = ZSTD_malloc(dictSize, customMem);
         ZSTD_DCtx* const dctx = ZSTD_createDCtx_advanced(customMem);
 
-        if (!dictContent || !ddict || !dctx) {
-            ZSTD_free(dictContent, customMem);
+        if (!ddict || !dctx) {
             ZSTD_free(ddict, customMem);
             ZSTD_free(dctx, customMem);
             return NULL;
         }
 
-        if (dictSize) {
-            memcpy(dictContent, dict, dictSize);
+        if ((byReference) || (!dict) || (!dictSize)) {
+            ddict->dictBuffer = NULL;
+            ddict->dictContent = dict;
+        } else {
+            void* const internalBuffer = ZSTD_malloc(dictSize, customMem);
+            if (!internalBuffer) { ZSTD_free(dctx, customMem); ZSTD_free(ddict, customMem); return NULL; }
+            memcpy(internalBuffer, dict, dictSize);
+            ddict->dictBuffer = internalBuffer;
+            ddict->dictContent = internalBuffer;
         }
-        {   size_t const errorCode = ZSTD_decompressBegin_usingDict(dctx, dictContent, dictSize);
+        {   size_t const errorCode = ZSTD_decompressBegin_usingDict(dctx, ddict->dictContent, dictSize);
             if (ZSTD_isError(errorCode)) {
-                ZSTD_free(dictContent, customMem);
+                ZSTD_free(ddict->dictBuffer, customMem);
                 ZSTD_free(ddict, customMem);
                 ZSTD_free(dctx, customMem);
                 return NULL;
         }   }
 
-        ddict->dict = dictContent;
         ddict->dictSize = dictSize;
         ddict->refContext = dctx;
         return ddict;
@@ -1758,15 +1763,27 @@ ZSTD_DDict* ZSTD_createDDict_advanced(const void* dict, size_t dictSize, ZSTD_cu
 ZSTD_DDict* ZSTD_createDDict(const void* dict, size_t dictSize)
 {
     ZSTD_customMem const allocator = { NULL, NULL, NULL };
-    return ZSTD_createDDict_advanced(dict, dictSize, allocator);
+    return ZSTD_createDDict_advanced(dict, dictSize, 0, allocator);
 }
+
+
+/*! ZSTD_createDDict_byReference() :
+ *  Create a digested dictionary, ready to start decompression operation without startup delay.
+ *  Dictionary content is simply referenced, and therefore stays in dictBuffer.
+ *  It is important that dictBuffer outlives DDict, it must remain read accessible throughout the lifetime of DDict */
+ZSTD_DDict* ZSTD_createDDict_byReference(const void* dictBuffer, size_t dictSize)
+{
+    ZSTD_customMem const allocator = { NULL, NULL, NULL };
+    return ZSTD_createDDict_advanced(dictBuffer, dictSize, 1, allocator);
+}
+
 
 size_t ZSTD_freeDDict(ZSTD_DDict* ddict)
 {
     if (ddict==NULL) return 0;   /* support free on NULL */
     {   ZSTD_customMem const cMem = ddict->refContext->customMem;
         ZSTD_freeDCtx(ddict->refContext);
-        ZSTD_free(ddict->dict, cMem);
+        ZSTD_free(ddict->dictBuffer, cMem);
         ZSTD_free(ddict, cMem);
         return 0;
     }
@@ -1775,7 +1792,7 @@ size_t ZSTD_freeDDict(ZSTD_DDict* ddict)
 size_t ZSTD_sizeof_DDict(const ZSTD_DDict* ddict)
 {
     if (ddict==NULL) return 0;   /* support sizeof on NULL */
-    return sizeof(*ddict) + sizeof(ddict->refContext) + ddict->dictSize;
+    return sizeof(*ddict) + ZSTD_sizeof_DCtx(ddict->refContext) + (ddict->dictBuffer ? ddict->dictSize : 0) ;
 }
 
 /*! ZSTD_getDictID_fromDict() :
@@ -1796,7 +1813,7 @@ unsigned ZSTD_getDictID_fromDict(const void* dict, size_t dictSize)
 unsigned ZSTD_getDictID_fromDDict(const ZSTD_DDict* ddict)
 {
     if (ddict==NULL) return 0;
-    return ZSTD_getDictID_fromDict(ddict->dict, ddict->dictSize);
+    return ZSTD_getDictID_fromDict(ddict->dictContent, ddict->dictSize);
 }
 
 /*! ZSTD_getDictID_fromFrame() :
@@ -1827,7 +1844,7 @@ size_t ZSTD_decompress_usingDDict(ZSTD_DCtx* dctx,
                             const ZSTD_DDict* ddict)
 {
 #if defined(ZSTD_LEGACY_SUPPORT) && (ZSTD_LEGACY_SUPPORT==1)
-    if (ZSTD_isLegacy(src, srcSize)) return ZSTD_decompressLegacy(dst, dstCapacity, src, srcSize, ddict->dict, ddict->dictSize);
+    if (ZSTD_isLegacy(src, srcSize)) return ZSTD_decompressLegacy(dst, dstCapacity, src, srcSize, ddict->dictContent, ddict->dictSize);
 #endif
     ZSTD_refDCtx(dctx, ddict->refContext);
     ZSTD_checkContinuity(dctx, dst);
@@ -1919,7 +1936,7 @@ size_t ZSTD_initDStream_usingDict(ZSTD_DStream* zds, const void* dict, size_t di
     zds->stage = zdss_loadHeader;
     zds->lhSize = zds->inPos = zds->outStart = zds->outEnd = 0;
     ZSTD_freeDDict(zds->ddictLocal);
-    if (dict) {
+    if (dict && dictSize >= 8) {
         zds->ddictLocal = ZSTD_createDDict(dict, dictSize);
         if (zds->ddictLocal == NULL) return ERROR(memory_allocation);
     } else zds->ddictLocal = NULL;
@@ -1956,7 +1973,7 @@ size_t ZSTD_setDStreamParameter(ZSTD_DStream* zds,
     switch(paramType)
     {
         default : return ERROR(parameter_unknown);
-        case ZSTDdsp_maxWindowSize : zds->maxWindowSize = paramValue ? paramValue : (U32)(-1); break;
+        case DStream_p_maxWindowSize : zds->maxWindowSize = paramValue ? paramValue : (U32)(-1); break;
     }
     return 0;
 }
@@ -2007,7 +2024,7 @@ size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inB
 #if defined(ZSTD_LEGACY_SUPPORT) && (ZSTD_LEGACY_SUPPORT>=1)
                 {   U32 const legacyVersion = ZSTD_isLegacy(istart, iend-istart);
                     if (legacyVersion) {
-                        const void* const dict = zds->ddict ? zds->ddict->dict : NULL;
+                        const void* const dict = zds->ddict ? zds->ddict->dictContent : NULL;
                         size_t const dictSize = zds->ddict ? zds->ddict->dictSize : 0;
                         CHECK_F(ZSTD_initLegacyStream(&zds->legacyContext, zds->previousLegacyVersion, legacyVersion,
                                                        dict, dictSize));

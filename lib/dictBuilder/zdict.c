@@ -36,12 +36,11 @@
 #include <time.h>          /* clock */
 
 #include "mem.h"           /* read */
-#include "error_private.h"
 #include "fse.h"           /* FSE_normalizeCount, FSE_writeNCount */
 #define HUF_STATIC_LINKING_ONLY
-#include "huf.h"
+#include "huf.h"           /* HUF_buildCTable, HUF_writeCTable */
 #include "zstd_internal.h" /* includes zstd.h */
-#include "xxhash.h"
+#include "xxhash.h"        /* XXH64 */
 #include "divsufsort.h"
 #ifndef ZDICT_STATIC_LINKING_ONLY
 #  define ZDICT_STATIC_LINKING_ONLY
@@ -61,7 +60,7 @@
 #define NOISELENGTH 32
 
 #define MINRATIO 4
-static const int g_compressionLevel_default = 5;
+static const int g_compressionLevel_default = 6;
 static const U32 g_selectivity_default = 9;
 static const size_t g_provision_entropySize = 200;
 static const size_t g_min_fast_dictContent = 192;
@@ -307,13 +306,13 @@ static dictItem ZDICT_analyzePos(
         } while (length >=MINMATCHLENGTH);
 
         /* look backward */
-		length = MINMATCHLENGTH;
-		while ((length >= MINMATCHLENGTH) & (start > 0)) {
-			length = ZDICT_count(b + pos, b + suffix[start - 1]);
-			if (length >= LLIMIT) length = LLIMIT - 1;
-			lengthList[length]++;
-			if (length >= MINMATCHLENGTH) start--;
-		}
+        length = MINMATCHLENGTH;
+        while ((length >= MINMATCHLENGTH) & (start > 0)) {
+        	length = ZDICT_count(b + pos, b + suffix[start - 1]);
+        	if (length >= LLIMIT) length = LLIMIT - 1;
+        	lengthList[length]++;
+        	if (length >= MINMATCHLENGTH) start--;
+        }
 
         /* largest useful length */
         memset(cumulLength, 0, sizeof(cumulLength));
@@ -570,7 +569,7 @@ static void ZDICT_countEStats(EStats_ress_t esr, ZSTD_parameters params,
             if (ZSTD_isError(errorCode)) { DISPLAYLEVEL(1, "warning : ZSTD_copyCCtx failed \n"); return; }
     }
     cSize = ZSTD_compressBlock(esr.zc, esr.workPlace, ZSTD_BLOCKSIZE_ABSOLUTEMAX, src, srcSize);
-    if (ZSTD_isError(cSize)) { DISPLAYLEVEL(1, "warning : could not compress sample size %u \n", (U32)srcSize); return; }
+    if (ZSTD_isError(cSize)) { DISPLAYLEVEL(3, "warning : could not compress sample size %u \n", (U32)srcSize); return; }
 
     if (cSize) {  /* if == 0; block is not compressible */
         const seqStore_t* seqStorePtr = ZSTD_getSeqStore(esr.zc);
@@ -822,6 +821,55 @@ _cleanup:
     free(esr.workPlace);
 
     return eSize;
+}
+
+
+
+size_t ZDICT_finalizeDictionary(void* dictBuffer, size_t dictBufferCapacity,
+                          const void* customDictContent, size_t dictContentSize,
+                          const void* samplesBuffer, const size_t* samplesSizes, unsigned nbSamples,
+                          ZDICT_params_t params)
+{
+    size_t hSize;
+#define HBUFFSIZE 256
+    BYTE header[HBUFFSIZE];
+    int const compressionLevel = (params.compressionLevel <= 0) ? g_compressionLevel_default : params.compressionLevel;
+    U32 const notificationLevel = params.notificationLevel;
+
+    /* check conditions */
+    if (dictBufferCapacity < dictContentSize) return ERROR(dstSize_tooSmall);
+    if (dictContentSize < ZDICT_CONTENTSIZE_MIN) return ERROR(srcSize_wrong);
+    if (dictBufferCapacity < ZDICT_DICTSIZE_MIN) return ERROR(dstSize_tooSmall);
+
+    /* dictionary header */
+    MEM_writeLE32(header, ZSTD_DICT_MAGIC);
+    {   U64 const randomID = XXH64(customDictContent, dictContentSize, 0);
+        U32 const compliantID = (randomID % ((1U<<31)-32768)) + 32768;
+        U32 const dictID = params.dictID ? params.dictID : compliantID;
+        MEM_writeLE32(header+4, dictID);
+    }
+    hSize = 8;
+
+    /* entropy tables */
+    DISPLAYLEVEL(2, "\r%70s\r", "");   /* clean display line */
+    DISPLAYLEVEL(2, "statistics ... \n");
+    {   size_t const eSize = ZDICT_analyzeEntropy(header+hSize, HBUFFSIZE-hSize,
+                                  compressionLevel,
+                                  samplesBuffer, samplesSizes, nbSamples,
+                                  customDictContent, dictContentSize,
+                                  notificationLevel);
+        if (ZDICT_isError(eSize)) return eSize;
+        hSize += eSize;
+    }
+
+    /* copy elements in final buffer ; note : src and dst buffer can overlap */
+    if (hSize + dictContentSize > dictBufferCapacity) dictContentSize = dictBufferCapacity - hSize;
+    {   size_t const dictSize = hSize + dictContentSize;
+        char* dictEnd = (char*)dictBuffer + dictSize;
+        memmove(dictEnd - dictContentSize, customDictContent, dictContentSize);
+        memcpy(dictBuffer, header, hSize);
+        return dictSize;
+    }
 }
 
 

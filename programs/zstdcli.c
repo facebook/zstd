@@ -267,7 +267,8 @@ int main(int argCount, const char* argv[])
         nextArgumentsAreFiles=0,
         ultra=0,
         lastCommand = 0,
-        nbThreads = 1;
+        nbThreads = 1,
+        setRealTimePrio = 0;
     unsigned bench_nbSeconds = 3;   /* would be better if this value was synchronized from bench */
     size_t blockSize = 0;
     zstd_operation_mode operation = zom_compress;
@@ -356,6 +357,7 @@ int main(int argCount, const char* argv[])
                     if (!strcmp(argument, "--no-dictID")) { FIO_setDictIDFlag(0); continue; }
                     if (!strcmp(argument, "--keep")) { FIO_setRemoveSrcFile(0); continue; }
                     if (!strcmp(argument, "--rm")) { FIO_setRemoveSrcFile(1); continue; }
+                    if (!strcmp(argument, "--rt-prio")) { setRealTimePrio = 1; continue; }
 
                     /* long commands with arguments */
 #ifndef  ZSTD_NODICT
@@ -574,7 +576,7 @@ int main(int argCount, const char* argv[])
         BMK_setBlockSize(blockSize);
         BMK_setNbThreads(nbThreads);
         BMK_setNbSeconds(bench_nbSeconds);
-        BMK_benchFiles(filenameTable, filenameIdx, dictFileName, cLevel, cLevelLast, &compressionParams);
+        BMK_benchFiles(filenameTable, filenameIdx, dictFileName, cLevel, cLevelLast, &compressionParams, setRealTimePrio);
 #endif
         (void)bench_nbSeconds;
         goto _end;

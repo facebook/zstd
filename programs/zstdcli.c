@@ -357,7 +357,7 @@ int main(int argCount, const char* argv[])
                     if (!strcmp(argument, "--no-dictID")) { FIO_setDictIDFlag(0); continue; }
                     if (!strcmp(argument, "--keep")) { FIO_setRemoveSrcFile(0); continue; }
                     if (!strcmp(argument, "--rm")) { FIO_setRemoveSrcFile(1); continue; }
-                    if (!strcmp(argument, "--rt-prio")) { setRealTimePrio = 1; continue; }
+                    if (!strcmp(argument, "--priority=rt")) { setRealTimePrio = 1; continue; }
 
                     /* long commands with arguments */
 #ifndef  ZSTD_NODICT

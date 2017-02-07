@@ -307,7 +307,7 @@ static int basicUnitTests(U32 seed, double compressibility, ZSTD_customMem custo
     if (inBuff.pos != inBuff.size) goto _output_error;   /* entire input should be consumed */
     { size_t const r = ZSTD_endStream(zc, &outBuff);
       if (r != 0) goto _output_error; }  /* error, or some data not flushed */
-    { unsigned long long origSize = ZSTD_getDecompressedSize(outBuff.dst, outBuff.pos);
+    { unsigned long long origSize = ZSTD_findDecompressedSize(outBuff.dst, outBuff.pos);
       if ((size_t)origSize != CNBufferSize) goto _output_error; }  /* exact original size must be present */
     DISPLAYLEVEL(3, "OK (%u bytes : %.2f%%)\n", (U32)cSize, (double)cSize/COMPRESSIBLE_NOISE_LENGTH*100);
 

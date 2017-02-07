@@ -138,7 +138,7 @@ static int basicUnitTests(U32 seed, double compressibility)
     DISPLAYLEVEL(4, "OK (%u bytes : %.2f%%)\n", (U32)cSize, (double)cSize/CNBuffSize*100);
 
     DISPLAYLEVEL(4, "test%3i : decompressed size test : ", testNb++);
-    {   unsigned long long const rSize = ZSTD_getDecompressedSize(compressedBuffer, cSize);
+    {   unsigned long long const rSize = ZSTD_findDecompressedSize(compressedBuffer, cSize);
         if (rSize != CNBuffSize) goto _output_error;
     }
     DISPLAYLEVEL(4, "OK \n");
@@ -648,7 +648,7 @@ static int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, U32 const maxD
         }   }
 
         /* Decompressed size test */
-        {   unsigned long long const rSize = ZSTD_getDecompressedSize(cBuffer, cSize);
+        {   unsigned long long const rSize = ZSTD_findDecompressedSize(cBuffer, cSize);
             CHECK(rSize != sampleSize, "decompressed size incorrect");
         }
 

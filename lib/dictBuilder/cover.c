@@ -7,6 +7,16 @@
  * of patent rights can be found in the PATENTS file in the same directory.
  */
 
+/* *****************************************************************************
+ * Constructs a dictionary using a heuristic based on the following paper:
+ *
+ * Liao, Petri, Moffat, Wirth
+ * Effective Construction of Relative Lempel-Ziv Dictionaries
+ * Published in WWW 2016.
+ *
+ * Adapted from code originally written by @ot (Giuseppe Ottaviano).
+ ******************************************************************************/
+
 /*-*************************************
 *  Dependencies
 ***************************************/
@@ -621,13 +631,6 @@ static ZDICT_params_t COVER_translateParams(COVER_params_t parameters) {
   return zdictParams;
 }
 
-/**
- * Constructs a dictionary using a heuristic based on the following paper:
- *
- * Liao, Petri, Moffat, Wirth
- * Effective Construction of Relative Lempel-Ziv Dictionaries
- * Published in WWW 2016.
- */
 ZDICTLIB_API size_t COVER_trainFromBuffer(
     void *dictBuffer, size_t dictBufferCapacity, const void *samplesBuffer,
     const size_t *samplesSizes, unsigned nbSamples, COVER_params_t parameters) {

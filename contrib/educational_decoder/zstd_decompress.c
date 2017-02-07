@@ -1258,7 +1258,7 @@ static void decode_seq_table(istream_t *const in, FSE_dtable *const table,
     }
     case seq_rle: {
         // "RLE_Mode : it's a single code, repeated Number_of_Sequences times."
-        const u8 symb = IO_read_bits(in, 8);
+        const u8 symb = IO_read_bytes(in, 1)[0];
         FSE_init_dtable_rle(table, symb);
         break;
     }
@@ -1572,8 +1572,8 @@ static void free_dictionary(dictionary_t *const dict) {
 #define UNALIGNED() ERROR("Attempting to operate on a non-byte aligned stream")
 /// Reads `num` bits from a bitstream, and updates the internal offset
 static inline u64 IO_read_bits(istream_t *const in, const int num) {
-    if (num > 64) {
-        return -1;
+    if (num > 64 || num <= 0) {
+        ERROR("Attempt to read an invalid number of bits");
     }
 
     const size_t bytes = (num + in->bit_offset + 7) / 8;
@@ -1710,7 +1710,7 @@ static inline istream_t IO_make_sub_istream(istream_t *const in, size_t len) {
 static inline u64 read_bits_LE(const u8 *src, const int num,
                                const size_t offset) {
     if (num > 64) {
-        return -1;
+        ERROR("Attempt to read an invalid number of bits");
     }
 
     // Skip over bytes that aren't in range
@@ -1871,6 +1871,11 @@ static size_t HUF_decompress_4stream(const HUF_dtable *const dtable,
     return total_output;
 }
 
+/// Initializes a Huffman table using canonical Huffman codes
+/// For more explanation on canonical Huffman codes see
+/// http://www.cs.uofs.edu/~mccloske/courses/cmps340/huff_canonical_dec2015.html
+/// Codes within a level are allocated in symbol order (i.e. smaller symbols get
+/// earlier codes)
 static void HUF_init_dtable(HUF_dtable *const table, const u8 *const bits,
                             const int num_symbs) {
     memset(table, 0, sizeof(HUF_dtable));
@@ -2004,6 +2009,9 @@ static void HUF_copy_dtable(HUF_dtable *const dst,
 /******* END HUFFMAN PRIMITIVES ***********************************************/
 
 /******* FSE PRIMITIVES *******************************************************/
+/// For more description of FSE see
+/// https://github.com/Cyan4973/FiniteStateEntropy/
+
 /// Allow a symbol to be decoded without updating state
 static inline u8 FSE_peek_symbol(const FSE_dtable *const dtable,
                                  const u16 state) {

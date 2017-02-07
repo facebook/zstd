@@ -12,7 +12,7 @@ API : new : ZDICT_finalizeDictionary()
 API : fix : ZSTD_initCStream_usingCDict() properly writes dictID into frame header, by Gregory Szorc (#511)
 API : fix : all symbols properly exposed in libzstd, by Nick Terrell
 build : support for Solaris target, by Przemyslaw Skibinski
-doc : clarified specification, by Andrew Purcell
+doc : clarified specification, by Sean Purcell
 
 v1.1.2
 API : streaming : decompression : changed : automatic implicit reset when chain-decoding new frames without init

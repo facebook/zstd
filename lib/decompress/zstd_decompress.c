@@ -306,6 +306,100 @@ size_t ZSTD_getFrameParams(ZSTD_frameParams* fparamsPtr, const void* src, size_t
     return 0;
 }
 
+static size_t ZSTD_frameSrcSize(const void* src, size_t srcSize);
+
+/** ZSTD_getFrameContentSize() :
+*   compatible with legacy mode
+*   @return : decompressed size of the single frame pointed to be `src` if known, otherwise
+*             - ZSTD_CONTENTSIZE_UNKNOWN if the size cannot be determined
+*             - ZSTD_CONTENTSIZE_ERROR if an error occured (e.g. invalid magic number, srcSize too small) */
+unsigned long long ZSTD_getFrameContentSize(const void *src, size_t srcSize)
+{
+#if defined(ZSTD_LEGACY_SUPPORT) && (ZSTD_LEGACY_SUPPORT==1)
+    if (ZSTD_isLegacy(src, srcSize)) {
+        unsigned long long const ret = ZSTD_getDecompressedSize_legacy(src, srcSize);
+        return ret == 0 ? ZSTD_CONTENTSIZE_UNKNOWN : ret;
+    }
+#endif
+    {
+        ZSTD_frameParams fParams;
+        if (ZSTD_getFrameParams(&fParams, src, srcSize) != 0) return ZSTD_CONTENTSIZE_ERROR;
+        if (fParams.windowSize == 0) {
+            /* Either skippable or empty frame, size == 0 either way */
+            return 0;
+        } else if (fParams.frameContentSize != 0) {
+            return fParams.frameContentSize;
+        } else {
+            return ZSTD_CONTENTSIZE_UNKNOWN;
+        }
+    }
+}
+
+/** ZSTD_findDecompressedSize() :
+ *  compatible with legacy mode
+ *  `srcSize` must be the exact length of some number of ZSTD compressed and/or
+ *      skippable frames
+ *  @return : decompressed size of the frames contained */
+unsigned long long ZSTD_findDecompressedSize(const void* src, size_t srcSize)
+{
+    {
+        unsigned long long totalDstSize = 0;
+        while (srcSize >= ZSTD_frameHeaderSize_prefix) {
+            const U32 magicNumber = MEM_readLE32(src);
+
+            if ((magicNumber & 0xFFFFFFF0U) == ZSTD_MAGIC_SKIPPABLE_START) {
+                size_t skippableSize;
+                if (srcSize < ZSTD_skippableHeaderSize)
+                    return ERROR(srcSize_wrong);
+                skippableSize = MEM_readLE32((const BYTE *)src + 4) +
+                                ZSTD_skippableHeaderSize;
+                if (srcSize < skippableSize) {
+                    /* srcSize_wrong */
+                    return 0;
+                }
+
+                src = (const BYTE *)src + skippableSize;
+                srcSize -= skippableSize;
+                continue;
+            }
+
+            {
+                unsigned long long const ret = ZSTD_getFrameContentSize(src, srcSize);
+                if (ret >= ZSTD_CONTENTSIZE_ERROR) return ret;
+
+                /* check for overflow */
+                if (totalDstSize + ret < totalDstSize) return ZSTD_CONTENTSIZE_ERROR;
+                totalDstSize += ret;
+            }
+            {
+                size_t frameSrcSize;
+#if defined(ZSTD_LEGACY_SUPPORT) && (ZSTD_LEGACY_SUPPORT==1)
+                if (ZSTD_isLegacy(src, srcSize))
+                {
+                    frameSrcSize = ZSTD_frameSrcSizeLegacy(src, srcSize);
+                }
+                else
+#endif
+                {
+                    frameSrcSize = ZSTD_frameSrcSize(src, srcSize);
+                }
+                if (ZSTD_isError(frameSrcSize)) {
+                    return 0;
+                }
+
+                src = (const BYTE *)src + frameSrcSize;
+                srcSize -= frameSrcSize;
+            }
+        }
+
+        if (srcSize) {
+            /* srcSize_wrong */
+            return 0;
+        }
+
+        return totalDstSize;
+    }
+}
 
 /** ZSTD_getDecompressedSize() :
 *   compatible with legacy mode
@@ -316,14 +410,8 @@ size_t ZSTD_getFrameParams(ZSTD_frameParams* fparamsPtr, const void* src, size_t
                    - frame header not complete (`srcSize` too small) */
 unsigned long long ZSTD_getDecompressedSize(const void* src, size_t srcSize)
 {
-#if defined(ZSTD_LEGACY_SUPPORT) && (ZSTD_LEGACY_SUPPORT==1)
-    if (ZSTD_isLegacy(src, srcSize)) return ZSTD_getDecompressedSize_legacy(src, srcSize);
-#endif
-    {   ZSTD_frameParams fparams;
-        size_t const frResult = ZSTD_getFrameParams(&fparams, src, srcSize);
-        if (frResult!=0) return 0;
-        return fparams.frameContentSize;
-    }
+    unsigned long long const ret = ZSTD_getFrameContentSize(src, srcSize);
+    return ret >= ZSTD_CONTENTSIZE_ERROR ? 0 : ret;
 }
 
 
@@ -1363,6 +1451,48 @@ size_t ZSTD_generateNxBytes(void* dst, size_t dstCapacity, BYTE byte, size_t len
     return length;
 }
 
+static size_t ZSTD_frameSrcSize(const void *src, size_t srcSize)
+{
+    const BYTE* ip = (const BYTE*)src;
+    const BYTE* const ipstart = ip;
+    size_t remainingSize = srcSize;
+    ZSTD_frameParams fParams;
+
+    size_t const headerSize = ZSTD_frameHeaderSize(ip, remainingSize);
+    if (ZSTD_isError(headerSize)) return headerSize;
+
+    /* Frame Header */
+    {
+        size_t const ret = ZSTD_getFrameParams(&fParams, ip, remainingSize);
+        if (ZSTD_isError(ret)) return ret;
+        if (ret > 0) return ERROR(srcSize_wrong);
+    }
+
+    ip += headerSize;
+    remainingSize -= headerSize;
+
+    /* Loop on each block */
+    while (1) {
+        blockProperties_t blockProperties;
+        size_t const cBlockSize = ZSTD_getcBlockSize(ip, remainingSize, &blockProperties);
+        if (ZSTD_isError(cBlockSize)) return cBlockSize;
+
+        if (ZSTD_blockHeaderSize + cBlockSize > remainingSize) return ERROR(srcSize_wrong);
+
+        ip += ZSTD_blockHeaderSize + cBlockSize;
+        remainingSize -= ZSTD_blockHeaderSize + cBlockSize;
+
+        if (blockProperties.lastBlock) break;
+    }
+
+    if (fParams.checksumFlag) {   /* Frame content checksum verification */
+        if (remainingSize < 4) return ERROR(srcSize_wrong);
+        ip += 4;
+        remainingSize -= 4;
+    }
+
+    return ip - ipstart;
+}
 
 /*! ZSTD_decompressFrame() :
 *   `dctx` must be properly initialized */

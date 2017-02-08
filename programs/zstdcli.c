@@ -148,6 +148,7 @@ static int usage_advanced(const char* programName)
     DISPLAY( " -e#    : test all compression levels from -bX to # (default: 1)\n");
     DISPLAY( " -i#    : minimum evaluation time in seconds (default : 3s)\n");
     DISPLAY( " -B#    : cut file into independent blocks of size # (default: no block)\n");
+    DISPLAY( "--priority=rt : set process priority to real-time\n");
 #endif
     return 0;
 }

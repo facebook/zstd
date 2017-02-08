@@ -419,10 +419,11 @@ static int FIO_compressFilename_internal(cRess_t ress,
 #ifdef ZSTD_GZCOMPRESS
         compressedfilesize = FIO_compressGzFrame(&ress, srcFileName, fileSize, compressionLevel, &readsize);
      //   printf("g_compresionType=%d compressionLevel=%d compressedfilesize=%d\n", g_compresionType, compressionLevel, (int)compressedfilesize);
-        goto finish;
 #else
+        (void)compressionLevel;
         EXM_THROW(20, "zstd: %s: file cannot be compressed as gzip (zstd compiled without ZSTD_GZCOMPRESS) -- ignored \n", srcFileName);
 #endif
+        goto finish;
     }
 
     /* init */

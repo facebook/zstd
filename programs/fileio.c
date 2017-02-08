@@ -39,7 +39,7 @@
 #  include "zstdmt_compress.h"
 #endif
 #ifdef ZSTD_GZDECOMPRESS
-#  include "zlib.h"
+#  include <zlib.h>
 #  if !defined(z_const)
 #    define z_const
 #  endif

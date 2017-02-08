@@ -67,7 +67,7 @@ endif
 
 # zlib detection
 VOID = /dev/null
-HAVE_ZLIB := $(shell echo "int main(){}" | $(CC) -o $(VOID) -x c - -lz 2> $(VOID) && echo 1 || echo 0)
+HAVE_ZLIB := $(shell echo "\#include <zlib.h>\nint main(){}" | $(CC) -o $(VOID) -x c - -lz 2> $(VOID) && echo 1 || echo 0)
 ifeq ($(HAVE_ZLIB), 1)
 ZLIBCPP = -DZSTD_GZDECOMPRESS
 ZLIBLD = -lz

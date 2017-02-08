@@ -55,7 +55,7 @@ To solve this situation, Zstd offers a __training mode__, which can be used to t
 Training Zstandard is achieved by provide it with a few samples (one file per sample). The result of this training is stored in a file called "dictionary", which must be loaded before compression and decompression.
 Using this dictionary, the compression ratio achievable on small data improves dramatically.
 
-The following example uses the `github-users` [sample set](https://www.dropbox.com/s/mnktkomhkjbf1i2/github_users.tar.zst?dl=0), created from [github public API](https://developer.github.com/v3/users/#get-all-users).
+The following example uses the `github-users` [sample set](https://github.com/facebook/zstd/releases/tag/v1.1.3), created from [github public API](https://developer.github.com/v3/users/#get-all-users).
 It consists of roughly 10K records weighting about 1KB each.
 
 Compression Ratio | Compression Speed | Decompression Speed

@@ -125,7 +125,7 @@ static int usage_advanced(const char* programName)
     DISPLAY( " -B#    : select size of independent sections (default:0==automatic) \n");
 #endif
 #ifdef ZSTD_GZCOMPRESS
-    DISPLAY( "--format=gzip : output .gz files \n");
+    DISPLAY( "--format=gzip : compress files to the .gz format \n");
 #endif
 #endif
 #ifndef ZSTD_NODECOMPRESS

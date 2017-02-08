@@ -32,8 +32,15 @@ extern "C" {
 
 
 /*-*************************************
+*  Types
+***************************************/
+typedef enum { FIO_zstdCompression, FIO_gzipCompression } FIO_compresionType_t;
+
+
+/*-*************************************
 *  Parameters
 ***************************************/
+void FIO_setCompresionType(FIO_compresionType_t compresionType);
 void FIO_overwriteMode(void);
 void FIO_setNotificationLevel(unsigned level);
 void FIO_setSparseWrite(unsigned sparse);  /**< 0: no sparse; 1: disable on stdout; 2: always enabled */

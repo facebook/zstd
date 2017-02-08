@@ -72,7 +72,7 @@ ifeq ($(HAVE_ZLIB), 1)
 TEMP := $(shell rm have_zlib$(EXT))
 endif
 ifeq ($(HAVE_ZLIB), 1)
-ZLIBCPP = -DZSTD_GZDECOMPRESS
+ZLIBCPP = -DZSTD_GZCOMPRESS -DZSTD_GZDECOMPRESS
 ZLIBLD = -lz
 endif
 

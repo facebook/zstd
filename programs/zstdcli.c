@@ -123,6 +123,9 @@ static int usage_advanced(const char* programName)
     DISPLAY( " -T#    : use # threads for compression (default:1) \n");
     DISPLAY( " -B#    : select size of independent sections (default:0==automatic) \n");
 #endif
+#ifdef ZSTD_GZCOMPRESS
+    DISPLAY( "--format=gzip : output .gz files \n");
+#endif
 #endif
 #ifndef ZSTD_NODECOMPRESS
     DISPLAY( "--test  : test compressed file integrity \n");
@@ -359,6 +362,7 @@ int main(int argCount, const char* argv[])
                     if (!strcmp(argument, "--keep")) { FIO_setRemoveSrcFile(0); continue; }
                     if (!strcmp(argument, "--rm")) { FIO_setRemoveSrcFile(1); continue; }
                     if (!strcmp(argument, "--priority=rt")) { setRealTimePrio = 1; continue; }
+                    if (!strcmp(argument, "--format=gzip")) { FIO_setCompresionType(FIO_gzipCompression); continue; }
 
                     /* long commands with arguments */
 #ifndef  ZSTD_NODICT

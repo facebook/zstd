@@ -342,20 +342,21 @@ static unsigned long long FIO_compressGzFrame(cRess_t* ress, const char* srcFile
 {
     unsigned long long inFileSize = 0, outFileSize = 0;
     z_stream strm;
+    int ret;
 
     strm.zalloc = Z_NULL;
     strm.zfree = Z_NULL;
     strm.opaque = Z_NULL;
+
+    if (deflateInit2(&strm, compressionLevel, Z_DEFLATED, 15 /* maxWindowLogSize */ + 16 /* gzip only */, 8, Z_DEFAULT_STRATEGY) != Z_OK) 
+        EXM_THROW(71, "zstd: %s: deflateInit2 error %d \n", srcFileName, ret);  /* see http://www.zlib.net/manual.html */
+
     strm.next_in = 0;
     strm.avail_in = Z_NULL;
-    if (deflateInit2(&strm, compressionLevel, Z_DEFLATED, 15 /* maxWindowLogSize */ + 16 /* gzip only */, 8, Z_DEFAULT_STRATEGY) != Z_OK) 
-        EXM_THROW(70, "deflateInit2 error");  /* see http://www.zlib.net/manual.html */
-
     strm.next_out = (Bytef*)ress->dstBuffer;
     strm.avail_out = (uInt)ress->dstBufferSize;
 
     while (1) {
-        int ret;
         if (strm.avail_in == 0) {
             size_t const inSize = fread(ress->srcBuffer, 1, ress->srcBufferSize, ress->srcFile);
             if (inSize == 0) break;
@@ -364,7 +365,7 @@ static unsigned long long FIO_compressGzFrame(cRess_t* ress, const char* srcFile
             strm.avail_in = (uInt)inSize;
         }
         ret = deflate(&strm, Z_NO_FLUSH);
-        if (ret != Z_OK) EXM_THROW(71, "zstd: %s: deflate error %d \n", srcFileName, ret);
+        if (ret != Z_OK) EXM_THROW(72, "zstd: %s: deflate error %d \n", srcFileName, ret);
         {   size_t const decompBytes = ress->dstBufferSize - strm.avail_out;
             if (decompBytes) {
                 if (fwrite(ress->dstBuffer, 1, decompBytes, ress->dstFile) != decompBytes) EXM_THROW(73, "Write error : cannot write to output file");
@@ -378,20 +379,21 @@ static unsigned long long FIO_compressGzFrame(cRess_t* ress, const char* srcFile
     }
 
     while (1) {
-        int ret = deflate(&strm, Z_FINISH);
-        if (ret != Z_OK && ret != Z_STREAM_END) EXM_THROW(75, "zstd: %s: deflate error %d \n", srcFileName, ret);
+        ret = deflate(&strm, Z_FINISH);
         {   size_t const decompBytes = ress->dstBufferSize - strm.avail_out;
             if (decompBytes) {
-                if (fwrite(ress->dstBuffer, 1, decompBytes, ress->dstFile) != decompBytes) EXM_THROW(77, "Write error : cannot write to output file");
+                if (fwrite(ress->dstBuffer, 1, decompBytes, ress->dstFile) != decompBytes) EXM_THROW(75, "Write error : cannot write to output file");
                 outFileSize += decompBytes;
                 strm.next_out = (Bytef*)ress->dstBuffer;
                 strm.avail_out = (uInt)ress->dstBufferSize;
             }
         }
         if (ret == Z_STREAM_END) break;
+        if (ret != Z_BUF_ERROR) EXM_THROW(77, "zstd: %s: deflate error %d \n", srcFileName, ret);
     }
 
-    deflateEnd(&strm);
+    ret = deflateEnd(&strm);
+    if (ret != Z_OK) EXM_THROW(79, "zstd: %s: deflateEnd error %d \n", srcFileName, ret);
     *readsize = inFileSize;
 
     return outFileSize;
@@ -414,9 +416,13 @@ static int FIO_compressFilename_internal(cRess_t ress,
     U64 const fileSize = UTIL_getFileSize(srcFileName);
 
     if (g_compresionType) {
+#ifdef ZSTD_GZCOMPRESS
         compressedfilesize = FIO_compressGzFrame(&ress, srcFileName, fileSize, compressionLevel, &readsize);
      //   printf("g_compresionType=%d compressionLevel=%d compressedfilesize=%d\n", g_compresionType, compressionLevel, (int)compressedfilesize);
         goto finish;
+#else
+        EXM_THROW(20, "zstd: %s: file cannot be compressed as gzip (zstd compiled without ZSTD_GZCOMPRESS) -- ignored \n", srcFileName);
+#endif
     }
 
     /* init */

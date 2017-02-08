@@ -49,6 +49,7 @@
 #define AUTHOR "Yann Collet"
 #define WELCOME_MESSAGE "*** %s %i-bits %s, by %s ***\n", COMPRESSOR_NAME, (int)(sizeof(size_t)*8), ZSTD_VERSION, AUTHOR
 
+#define GZ_EXTENSION ".gz"
 #define ZSTD_EXTENSION ".zst"
 #define ZSTD_CAT "zstdcat"
 #define ZSTD_UNZSTD "unzstd"
@@ -286,6 +287,7 @@ int main(int argCount, const char* argv[])
     const char* programName = argv[0];
     const char* outFileName = NULL;
     const char* dictFileName = NULL;
+    const char* suffix = ZSTD_EXTENSION;
     unsigned maxDictSize = g_defaultMaxDictSize;
     unsigned dictID = 0;
     int dictCLevel = g_defaultDictCLevel;
@@ -362,7 +364,7 @@ int main(int argCount, const char* argv[])
                     if (!strcmp(argument, "--keep")) { FIO_setRemoveSrcFile(0); continue; }
                     if (!strcmp(argument, "--rm")) { FIO_setRemoveSrcFile(1); continue; }
                     if (!strcmp(argument, "--priority=rt")) { setRealTimePrio = 1; continue; }
-                    if (!strcmp(argument, "--format=gzip")) { FIO_setCompresionType(FIO_gzipCompression); continue; }
+                    if (!strcmp(argument, "--format=gzip")) { suffix = GZ_EXTENSION; FIO_setCompresionType(FIO_gzipCompression); continue; }
 
                     /* long commands with arguments */
 #ifndef  ZSTD_NODICT
@@ -647,7 +649,7 @@ int main(int argCount, const char* argv[])
         if ((filenameIdx==1) && outFileName)
           operationResult = FIO_compressFilename(outFileName, filenameTable[0], dictFileName, cLevel, &compressionParams);
         else
-          operationResult = FIO_compressMultipleFilenames(filenameTable, filenameIdx, outFileName ? outFileName : ZSTD_EXTENSION, dictFileName, cLevel, &compressionParams);
+          operationResult = FIO_compressMultipleFilenames(filenameTable, filenameIdx, outFileName ? outFileName : suffix, dictFileName, cLevel, &compressionParams);
 #else
         DISPLAY("Compression not supported\n");
 #endif

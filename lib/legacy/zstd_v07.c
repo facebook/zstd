@@ -3992,6 +3992,9 @@ size_t ZSTDv07_frameSrcSize(const void* src, size_t srcSize)
 
         ip += ZSTDv07_blockHeaderSize;
         remainingSize -= ZSTDv07_blockHeaderSize;
+
+        if (blockProperties.blockType == bt_end) break;
+
         if (cBlockSize > remainingSize) return ERROR(srcSize_wrong);
 
         ip += cBlockSize;

@@ -167,6 +167,46 @@ static int basicUnitTests(U32 seed, double compressibility)
       if (ZSTD_getErrorCode(r) != ZSTD_error_srcSize_wrong) goto _output_error; }
     DISPLAYLEVEL(4, "OK \n");
 
+    /* Simple API multiframe test */
+    DISPLAYLEVEL(4, "test%3i : compress multiple frames : ", testNb++);
+    {   size_t off = 0;
+        int i;
+        int const segs = 4;
+        /* only use the first half so we don't push against size limit of compressedBuffer */
+        size_t const segSize = (CNBuffSize / 2) / segs;
+        for (i = 0; i < segs; i++) {
+            CHECK_V(r,
+                    ZSTD_compress(
+                            (BYTE *)compressedBuffer + off, CNBuffSize - off,
+                            (BYTE *)CNBuffer + segSize * i,
+                            segSize, 5));
+            off += r;
+            if (i == segs/2) {
+                /* insert skippable frame */
+                const U32 skipLen = 128 KB;
+                MEM_writeLE32((BYTE*)compressedBuffer + off, ZSTD_MAGIC_SKIPPABLE_START);
+                MEM_writeLE32((BYTE*)compressedBuffer + off + 4, skipLen);
+                off += skipLen + ZSTD_skippableHeaderSize;
+            }
+        }
+        cSize = off;
+    }
+    DISPLAYLEVEL(4, "OK \n");
+
+    DISPLAYLEVEL(4, "test%3i : get decompressed size of multiple frames : ", testNb++);
+    {   unsigned long long const r = ZSTD_findDecompressedSize(compressedBuffer, cSize);
+        if (r != CNBuffSize / 2) goto _output_error; }
+    DISPLAYLEVEL(4, "OK \n");
+
+    DISPLAYLEVEL(4, "test%3i : decompress multiple frames : ", testNb++);
+    {   CHECK_V(r, ZSTD_decompress(decodedBuffer, CNBuffSize, compressedBuffer, cSize));
+        if (r != CNBuffSize / 2) goto _output_error; }
+    DISPLAYLEVEL(4, "OK \n");
+
+    DISPLAYLEVEL(4, "test%3i : check decompressed result : ", testNb++);
+    if (memcmp(decodedBuffer, CNBuffer, CNBuffSize / 2) != 0) goto _output_error;
+    DISPLAYLEVEL(4, "OK \n");
+
     /* Dictionary and CCtx Duplication tests */
     {   ZSTD_CCtx* const ctxOrig = ZSTD_createCCtx();
         ZSTD_CCtx* const ctxDuplicated = ZSTD_createCCtx();

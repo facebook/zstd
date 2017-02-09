@@ -89,11 +89,14 @@ ZSTDLIB_API size_t ZSTD_decompress( void* dst, size_t dstCapacity,
                               const void* src, size_t compressedSize);
 
 /*! ZSTD_getDecompressedSize() :
-*   NOTE: This function is planned to be obsolete, in favour of ZSTD_findDecompressedSize,
-*   or for single frames, ZSTD_getFrameContentSize.  Both of the new functions return more
-*   descriptive return values, disambiguating empty frames from size unknown or errors.
-*   Additionally, ZSTD_findDecompressedSize handles multi-frame inputs, returning the total
-*   size of all frames put together.
+*   NOTE: This function is planned to be obsolete, in favour of ZSTD_getFrameContentSize.
+*   ZSTD_getFrameContentSize functions the same way, returning the decompressed size of a single
+*   frame, but distinguishes empty frames from frames with an unknown size, or errors.
+*
+*   Additionally, ZSTD_findDecompressedSize can be used instead.  It can handle multiple
+*   concatenated frames in one buffer, and so is more general.
+*   As a result however, it requires more computation and entire frames to be passed to it,
+*   as opposed to ZSTD_getFrameContentSize which requires only a single frame's header.
 *
 *   'src' is the start of a zstd compressed frame.
 *   @return : content size to be decompressed, as a 64-bits value _if known_, 0 otherwise.
@@ -398,6 +401,8 @@ typedef struct { ZSTD_allocFunction customAlloc; ZSTD_freeFunction customFree; v
 ***************************************/
 /*! ZSTD_getFrameContentSize() :
 *   `src` should point to the start of a ZSTD encoded frame
+*   `srcSize` must be at least as large as the frame header.  A value greater than or equal
+*       to `ZSTD_frameHeaderSize_max` is guaranteed to be large enough in all cases.
 *   @return : decompressed size of the frame pointed to be `src` if known, otherwise
 *             - ZSTD_CONTENTSIZE_UNKNOWN if the size cannot be determined
 *             - ZSTD_CONTENTSIZE_ERROR if an error occured (e.g. invalid magic number, srcSize too small) */

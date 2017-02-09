@@ -1,6 +1,6 @@
 /**
  * platform.h - compiler and OS detection
- * 
+ *
  * Copyright (c) 2016-present, Przemyslaw Skibinski, Yann Collet, Facebook, Inc.
  * All rights reserved.
  *
@@ -23,7 +23,7 @@ extern "C" {
 ****************************************/
 #if defined(_MSC_VER)
 #  define _CRT_SECURE_NO_WARNINGS   /* Disable Visual Studio warning messages for fopen, strncpy, strerror */
-#  define _CRT_SECURE_NO_DEPRECATE  /* VS2005 - must be declared before <io.h> and <windows.h> */ 
+#  define _CRT_SECURE_NO_DEPRECATE  /* VS2005 - must be declared before <io.h> and <windows.h> */
 #  if (_MSC_VER <= 1800)            /* (1800 = Visual Studio 2013) */
 #    define snprintf sprintf_s      /* snprintf unsupported by Visual <= 2013 */
 #  endif
@@ -52,7 +52,7 @@ extern "C" {
 *  Turn on Large Files support (>4GB) for 32-bit Linux/Unix
 ***********************************************************/
 #if !defined(__64BIT__)                               /* No point defining Large file for 64 bit */
-#  if !defined(_FILE_OFFSET_BITS)   
+#  if !defined(_FILE_OFFSET_BITS)
 #    define _FILE_OFFSET_BITS 64                      /* turn off_t into a 64-bit type for ftello, fseeko */
 #  endif
 #  if !defined(_LARGEFILE_SOURCE)                     /* obsolete macro, replaced with _FILE_OFFSET_BITS */
@@ -77,6 +77,9 @@ extern "C" {
 #    define PLATFORM_POSIX_VERSION 200112L
 #  else
 #    if defined(__linux__) || defined(__linux)
+#      ifdef _POSIX_C_SOURCE
+#        undef _POSIX_C_SOURCE
+#      endif
 #      define _POSIX_C_SOURCE 200112L  /* use feature test macro */
 #    endif
 #    include <unistd.h>  /* declares _POSIX_VERSION */

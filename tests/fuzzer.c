@@ -220,7 +220,7 @@ static int basicUnitTests(U32 seed, double compressibility)
 
         DISPLAYLEVEL(4, "test%3i : load dictionary into context : ", testNb++);
         CHECK( ZSTD_compressBegin_usingDict(ctxOrig, CNBuffer, dictSize, 2) );
-        CHECK( ZSTD_copyCCtx(ctxDuplicated, ctxOrig, CNBuffSize - dictSize) );
+        CHECK( ZSTD_copyCCtx(ctxDuplicated, ctxOrig, 0) ); /* Begin_usingDict implies unknown srcSize, so match that */
         DISPLAYLEVEL(4, "OK \n");
 
         DISPLAYLEVEL(4, "test%3i : compress with flat dictionary : ", testNb++);

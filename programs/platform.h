@@ -77,10 +77,9 @@ extern "C" {
 #    define PLATFORM_POSIX_VERSION 200112L
 #  else
 #    if defined(__linux__) || defined(__linux)
-#      ifdef _POSIX_C_SOURCE
-#        undef _POSIX_C_SOURCE
+#      ifndef _POSIX_C_SOURCE
+#        define _POSIX_C_SOURCE 200112L  /* use feature test macro */
 #      endif
-#      define _POSIX_C_SOURCE 200112L  /* use feature test macro */
 #    endif
 #    include <unistd.h>  /* declares _POSIX_VERSION */
 #    if defined(_POSIX_VERSION)  /* POSIX compliant */

@@ -438,6 +438,34 @@ static int basicUnitTests(U32 seed, double compressibility, ZSTD_customMem custo
       if (!ZSTD_isError(r)) goto _output_error;  /* must fail : frame requires > 100 bytes */
       DISPLAYLEVEL(3, "OK (%s)\n", ZSTD_getErrorName(r)); }
 
+    /* Unknown srcSize */
+    DISPLAYLEVEL(3, "test%3i : pledgedSrcSize == 0 behaves properly : ", testNb++);
+    {   ZSTD_parameters params = ZSTD_getParams(5, 0, 0);
+        params.fParams.contentSizeFlag = 1;
+        ZSTD_initCStream_advanced(zc, NULL, 0, params, 0); } /* cstream advanced should write the 0 size field */
+    inBuff.src = CNBuffer;
+    inBuff.size = 0;
+    inBuff.pos = 0;
+    outBuff.dst = compressedBuffer;
+    outBuff.size = compressedBufferSize;
+    outBuff.pos = 0;
+    if (ZSTD_isError(ZSTD_compressStream(zc, &outBuff, &inBuff))) goto _output_error;
+    if (ZSTD_endStream(zc, &outBuff) != 0) goto _output_error;
+    cSize = outBuff.pos;
+    if (ZSTD_findDecompressedSize(compressedBuffer, cSize) != 0) goto _output_error;
+
+    ZSTD_resetCStream(zc, 0); /* resetCStream should treat 0 as unknown */
+    inBuff.src = CNBuffer;
+    inBuff.size = 0;
+    inBuff.pos = 0;
+    outBuff.dst = compressedBuffer;
+    outBuff.size = compressedBufferSize;
+    outBuff.pos = 0;
+    if (ZSTD_isError(ZSTD_compressStream(zc, &outBuff, &inBuff))) goto _output_error;
+    if (ZSTD_endStream(zc, &outBuff) != 0) goto _output_error;
+    cSize = outBuff.pos;
+    if (ZSTD_findDecompressedSize(compressedBuffer, cSize) != ZSTD_CONTENTSIZE_UNKNOWN) goto _output_error;
+    DISPLAYLEVEL(3, "OK \n");
 
 _end:
     FUZ_freeDictionary(dictionary);

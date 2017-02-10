@@ -44,7 +44,7 @@ extern "C" {
 ******************************************/
 #if defined(_WIN32)
 #  include <windows.h>
-#  define SET_HIGH_PRIORITY SetPriorityClass(GetCurrentProcess(), REALTIME_PRIORITY_CLASS)
+#  define SET_REALTIME_PRIORITY SetPriorityClass(GetCurrentProcess(), REALTIME_PRIORITY_CLASS)
 #  define UTIL_sleep(s) Sleep(1000*s)
 #  define UTIL_sleepMilli(milli) Sleep(milli)
 #elif PLATFORM_POSIX_VERSION >= 0 /* Unix-like operating system */
@@ -52,9 +52,9 @@ extern "C" {
 #  include <sys/resource.h> /* setpriority */
 #  include <time.h>         /* clock_t, nanosleep, clock, CLOCKS_PER_SEC */
 #  if defined(PRIO_PROCESS)
-#    define SET_HIGH_PRIORITY setpriority(PRIO_PROCESS, 0, -20)
+#    define SET_REALTIME_PRIORITY setpriority(PRIO_PROCESS, 0, -20)
 #  else
-#    define SET_HIGH_PRIORITY /* disabled */
+#    define SET_REALTIME_PRIORITY /* disabled */
 #  endif
 #  define UTIL_sleep(s) sleep(s)
 #  if (defined(__linux__) && (PLATFORM_POSIX_VERSION >= 199309L)) || (PLATFORM_POSIX_VERSION >= 200112L)  /* nanosleep requires POSIX.1-2001 */
@@ -63,7 +63,7 @@ extern "C" {
 #      define UTIL_sleepMilli(milli) /* disabled */
 #  endif
 #else
-#  define SET_HIGH_PRIORITY      /* disabled */
+#  define SET_REALTIME_PRIORITY      /* disabled */
 #  define UTIL_sleep(s)          /* disabled */
 #  define UTIL_sleepMilli(milli) /* disabled */
 #endif

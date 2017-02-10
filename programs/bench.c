@@ -449,7 +449,7 @@ static void BMK_benchCLevel(void* srcBuffer, size_t benchedSize,
                             const char* displayName, int cLevel, int cLevelLast,
                             const size_t* fileSizes, unsigned nbFiles,
                             const void* dictBuffer, size_t dictBufferSize,
-                            ZSTD_compressionParameters *compressionParams)
+                            ZSTD_compressionParameters *compressionParams, int setRealTimePrio)
 {
     int l;
 
@@ -457,7 +457,10 @@ static void BMK_benchCLevel(void* srcBuffer, size_t benchedSize,
     if (!pch) pch = strrchr(displayName, '/'); /* Linux */
     if (pch) displayName = pch+1;
 
-    SET_HIGH_PRIORITY;
+    if (setRealTimePrio) {
+        DISPLAYLEVEL(2, "Note : switching to a real-time priority \n");
+        SET_REALTIME_PRIORITY;
+    }
 
     if (g_displayLevel == 1 && !g_additionalParam)
         DISPLAY("bench %s %s: input %u bytes, %u seconds, %u KB blocks\n", ZSTD_VERSION_STRING, ZSTD_GIT_COMMIT_STRING, (U32)benchedSize, g_nbSeconds, (U32)(g_blockSize>>10));
@@ -505,8 +508,8 @@ static void BMK_loadFiles(void* buffer, size_t bufferSize,
     if (totalSize == 0) EXM_THROW(12, "no data to bench");
 }
 
-static void BMK_benchFileTable(const char** fileNamesTable, unsigned nbFiles, const char* dictFileName,
-                               int cLevel, int cLevelLast, ZSTD_compressionParameters *compressionParams)
+static void BMK_benchFileTable(const char** fileNamesTable, unsigned nbFiles, const char* dictFileName, int cLevel,
+                               int cLevelLast, ZSTD_compressionParameters *compressionParams, int setRealTimePrio)
 {
     void* srcBuffer;
     size_t benchedSize;
@@ -545,7 +548,7 @@ static void BMK_benchFileTable(const char** fileNamesTable, unsigned nbFiles, co
         BMK_benchCLevel(srcBuffer, benchedSize,
                         displayName, cLevel, cLevelLast,
                         fileSizes, nbFiles,
-                        dictBuffer, dictBufferSize, compressionParams);
+                        dictBuffer, dictBufferSize, compressionParams, setRealTimePrio);
     }
 
     /* clean up */
@@ -555,7 +558,7 @@ static void BMK_benchFileTable(const char** fileNamesTable, unsigned nbFiles, co
 }
 
 
-static void BMK_syntheticTest(int cLevel, int cLevelLast, double compressibility, ZSTD_compressionParameters* compressionParams)
+static void BMK_syntheticTest(int cLevel, int cLevelLast, double compressibility, ZSTD_compressionParameters* compressionParams, int setRealTimePrio)
 {
     char name[20] = {0};
     size_t benchedSize = 10000000;
@@ -569,7 +572,7 @@ static void BMK_syntheticTest(int cLevel, int cLevelLast, double compressibility
 
     /* Bench */
     snprintf (name, sizeof(name), "Synthetic %2u%%", (unsigned)(compressibility*100));
-    BMK_benchCLevel(srcBuffer, benchedSize, name, cLevel, cLevelLast, &benchedSize, 1, NULL, 0, compressionParams);
+    BMK_benchCLevel(srcBuffer, benchedSize, name, cLevel, cLevelLast, &benchedSize, 1, NULL, 0, compressionParams, setRealTimePrio);
 
     /* clean up */
     free(srcBuffer);
@@ -577,7 +580,7 @@ static void BMK_syntheticTest(int cLevel, int cLevelLast, double compressibility
 
 
 int BMK_benchFiles(const char** fileNamesTable, unsigned nbFiles, const char* dictFileName,
-                   int cLevel, int cLevelLast, ZSTD_compressionParameters* compressionParams)
+                   int cLevel, int cLevelLast, ZSTD_compressionParameters* compressionParams, int setRealTimePrio)
 {
     double const compressibility = (double)g_compressibilityDefault / 100;
 
@@ -587,8 +590,8 @@ int BMK_benchFiles(const char** fileNamesTable, unsigned nbFiles, const char* di
     if (cLevelLast > cLevel) DISPLAYLEVEL(2, "Benchmarking levels from %d to %d\n", cLevel, cLevelLast);
 
     if (nbFiles == 0)
-        BMK_syntheticTest(cLevel, cLevelLast, compressibility, compressionParams);
+        BMK_syntheticTest(cLevel, cLevelLast, compressibility, compressionParams, setRealTimePrio);
     else
-        BMK_benchFileTable(fileNamesTable, nbFiles, dictFileName, cLevel, cLevelLast, compressionParams);
+        BMK_benchFileTable(fileNamesTable, nbFiles, dictFileName, cLevel, cLevelLast, compressionParams, setRealTimePrio);
     return 0;
 }

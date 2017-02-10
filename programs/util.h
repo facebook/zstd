@@ -141,9 +141,9 @@ UTIL_STATIC void UTIL_waitForNextTick(UTIL_time_t ticksPerSecond)
 /*-****************************************
 *  File functions
 ******************************************/
-#if defined(_MSC_VER) || defined(__MINGW32__) && _WIN32_WINNT >= _WIN32_WINNT_WIN2K
+#if defined(_MSC_VER) || defined(__MINGW32__) && defined(__MSVCRT__) && _WIN32_WINNT >= _WIN32_WINNT_WIN2K
 	#define chmod _chmod
-	typedef struct _stat64 stat_t;
+	typedef struct __stat64 stat_t;
 #else
     typedef struct stat stat_t;
 #endif
@@ -172,7 +172,7 @@ UTIL_STATIC int UTIL_setFileStat(const char *filename, stat_t *statbuf)
 UTIL_STATIC int UTIL_getFileStat(const char* infilename, stat_t *statbuf)
 {
     int r;
-#if defined(_MSC_VER) || defined(__MINGW32__) && _WIN32_WINNT >= _WIN32_WINNT_WIN2K
+#if defined(_MSC_VER) || defined(__MINGW32__) && defined(__MSVCRT__) && _WIN32_WINNT >= _WIN32_WINNT_WIN2K
     r = _stat64(infilename, statbuf);
     if (r || !(statbuf->st_mode & S_IFREG)) return 0;   /* No good... */
 #else
@@ -186,8 +186,8 @@ UTIL_STATIC int UTIL_getFileStat(const char* infilename, stat_t *statbuf)
 UTIL_STATIC U64 UTIL_getFileSize(const char* infilename)
 {
     int r;
-#if defined(_MSC_VER) || defined(__MINGW32__) && _WIN32_WINNT >= _WIN32_WINNT_WIN2K
-    struct _stat64 statbuf;
+#if defined(_MSC_VER) || defined(__MINGW32__) && defined(__MSVCRT__) && _WIN32_WINNT >= _WIN32_WINNT_WIN2K
+    struct __stat64 statbuf;
     r = _stat64(infilename, &statbuf);
     if (r || !(statbuf.st_mode & S_IFREG)) return 0;   /* No good... */
 #else
@@ -212,8 +212,8 @@ UTIL_STATIC U64 UTIL_getTotalFileSize(const char** fileNamesTable, unsigned nbFi
 UTIL_STATIC int UTIL_doesFileExists(const char* infilename)
 {
     int r;
-#if defined(_MSC_VER) || defined(__MINGW32__) && _WIN32_WINNT >= _WIN32_WINNT_WIN2K
-    struct _stat64 statbuf;
+#if defined(_MSC_VER) || defined(__MINGW32__) && defined(__MSVCRT__) && _WIN32_WINNT >= _WIN32_WINNT_WIN2K
+    struct __stat64 statbuf;
     r = _stat64(infilename, &statbuf);
     if (r || !(statbuf.st_mode & S_IFREG)) return 0;   /* No good... */
 #else
@@ -228,8 +228,8 @@ UTIL_STATIC int UTIL_doesFileExists(const char* infilename)
 UTIL_STATIC U32 UTIL_isDirectory(const char* infilename)
 {
     int r;
-#if defined(_MSC_VER) || defined(__MINGW32__) && _WIN32_WINNT >= _WIN32_WINNT_WIN2K
-    struct _stat64 statbuf;
+#if defined(_MSC_VER) || defined(__MINGW32__) && defined(__MSVCRT__) && _WIN32_WINNT >= _WIN32_WINNT_WIN2K
+    struct __stat64 statbuf;
     r = _stat64(infilename, &statbuf);
     if (!r && (statbuf.st_mode & _S_IFDIR)) return 1;
 #else

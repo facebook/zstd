@@ -2,14 +2,14 @@ version: 1.0.{build}
 environment:
   matrix:
   - COMPILER: "gcc"
-    MAKE_PARAMS: '"make -C tests zstd fullbench fuzzer paramgrill datagen CC=clang MOREFLAGS="--target=x86_64-w64-mingw32 -Werror -Wconversion -Wno-sign-conversion""'
     PLATFORM: "clang"
+    MAKE_PARAMS: '"make -C tests zstd fullbench fuzzer paramgrill datagen CC=clang MOREFLAGS="--target=x86_64-w64-mingw32 -Werror -Wconversion -Wno-sign-conversion""'
   - COMPILER: "gcc"
-    MAKE_PARAMS: '"make test && make lib && make -C tests test-symbols fullbench-dll fullbench-lib"'
     PLATFORM: "mingw64"
+    MAKE_PARAMS: '"make test && make lib && make -C tests test-symbols fullbench-dll fullbench-lib"'
   - COMPILER: "gcc"
-    MAKE_PARAMS: '"make test"'
     PLATFORM: "mingw32"
+    MAKE_PARAMS: '"make -C test-zstd test-fullbench test-fuzzer test-invalidDictionaries"'
   - COMPILER: "visual"
     CONFIGURATION: "Debug"
     PLATFORM: "x64"

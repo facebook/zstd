@@ -5,7 +5,7 @@ environment:
     MAKE_PARAMS: '"make test && make lib && make -C tests test-symbols fullbench-dll fullbench-lib"'
     PLATFORM: "mingw64"
   - COMPILER: "gcc"
-    MAKE_PARAMS: "make test"
+    MAKE_PARAMS: '"make test"'
     PLATFORM: "mingw32"
   - COMPILER: "visual"
     CONFIGURATION: "Debug"

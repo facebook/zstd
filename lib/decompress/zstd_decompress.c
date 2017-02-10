@@ -306,8 +306,6 @@ size_t ZSTD_getFrameParams(ZSTD_frameParams* fparamsPtr, const void* src, size_t
     return 0;
 }
 
-static size_t ZSTD_frameSrcSize(const void* src, size_t srcSize);
-
 /** ZSTD_getFrameContentSize() :
 *   compatible with legacy mode
 *   @return : decompressed size of the single frame pointed to be `src` if known, otherwise
@@ -371,17 +369,7 @@ unsigned long long ZSTD_findDecompressedSize(const void* src, size_t srcSize)
                 totalDstSize += ret;
             }
             {
-                size_t frameSrcSize;
-#if defined(ZSTD_LEGACY_SUPPORT) && (ZSTD_LEGACY_SUPPORT==1)
-                if (ZSTD_isLegacy(src, srcSize))
-                {
-                    frameSrcSize = ZSTD_frameSrcSizeLegacy(src, srcSize);
-                }
-                else
-#endif
-                {
-                    frameSrcSize = ZSTD_frameSrcSize(src, srcSize);
-                }
+                size_t const frameSrcSize = ZSTD_getFrameCompressedSize(src, srcSize);
                 if (ZSTD_isError(frameSrcSize)) {
                     return ZSTD_CONTENTSIZE_ERROR;
                 }
@@ -1449,47 +1437,57 @@ size_t ZSTD_generateNxBytes(void* dst, size_t dstCapacity, BYTE byte, size_t len
     return length;
 }
 
-static size_t ZSTD_frameSrcSize(const void *src, size_t srcSize)
+/** ZSTD_getFrameCompressedSize() :
+ *  compatible with legacy mode
+ *  `src` must point to the start of a ZSTD or ZSTD legacy frame
+ *  `srcSize` must be at least as large as the frame contained
+ *  @return : the compressed size of the frame starting at `src` */
+size_t ZSTD_getFrameCompressedSize(const void *src, size_t srcSize)
 {
-    const BYTE* ip = (const BYTE*)src;
-    const BYTE* const ipstart = ip;
-    size_t remainingSize = srcSize;
-    ZSTD_frameParams fParams;
-
-    size_t const headerSize = ZSTD_frameHeaderSize(ip, remainingSize);
-    if (ZSTD_isError(headerSize)) return headerSize;
-
-    /* Frame Header */
+#if defined(ZSTD_LEGACY_SUPPORT) && (ZSTD_LEGACY_SUPPORT==1)
+    if (ZSTD_isLegacy(src, srcSize)) return ZSTD_getFrameCompressedSizeLegacy(src, srcSize);
+#endif
     {
-        size_t const ret = ZSTD_getFrameParams(&fParams, ip, remainingSize);
-        if (ZSTD_isError(ret)) return ret;
-        if (ret > 0) return ERROR(srcSize_wrong);
+        const BYTE* ip = (const BYTE*)src;
+        const BYTE* const ipstart = ip;
+        size_t remainingSize = srcSize;
+        ZSTD_frameParams fParams;
+
+        size_t const headerSize = ZSTD_frameHeaderSize(ip, remainingSize);
+        if (ZSTD_isError(headerSize)) return headerSize;
+
+        /* Frame Header */
+        {
+            size_t const ret = ZSTD_getFrameParams(&fParams, ip, remainingSize);
+            if (ZSTD_isError(ret)) return ret;
+            if (ret > 0) return ERROR(srcSize_wrong);
+        }
+
+        ip += headerSize;
+        remainingSize -= headerSize;
+
+        /* Loop on each block */
+        while (1) {
+            blockProperties_t blockProperties;
+            size_t const cBlockSize = ZSTD_getcBlockSize(ip, remainingSize, &blockProperties);
+            if (ZSTD_isError(cBlockSize)) return cBlockSize;
+
+            if (ZSTD_blockHeaderSize + cBlockSize > remainingSize) return ERROR(srcSize_wrong);
+
+            ip += ZSTD_blockHeaderSize + cBlockSize;
+            remainingSize -= ZSTD_blockHeaderSize + cBlockSize;
+
+            if (blockProperties.lastBlock) break;
+        }
+
+        if (fParams.checksumFlag) {   /* Frame content checksum */
+            if (remainingSize < 4) return ERROR(srcSize_wrong);
+            ip += 4;
+            remainingSize -= 4;
+        }
+
+        return ip - ipstart;
     }
-
-    ip += headerSize;
-    remainingSize -= headerSize;
-
-    /* Loop on each block */
-    while (1) {
-        blockProperties_t blockProperties;
-        size_t const cBlockSize = ZSTD_getcBlockSize(ip, remainingSize, &blockProperties);
-        if (ZSTD_isError(cBlockSize)) return cBlockSize;
-
-        if (ZSTD_blockHeaderSize + cBlockSize > remainingSize) return ERROR(srcSize_wrong);
-
-        ip += ZSTD_blockHeaderSize + cBlockSize;
-        remainingSize -= ZSTD_blockHeaderSize + cBlockSize;
-
-        if (blockProperties.lastBlock) break;
-    }
-
-    if (fParams.checksumFlag) {   /* Frame content checksum verification */
-        if (remainingSize < 4) return ERROR(srcSize_wrong);
-        ip += 4;
-        remainingSize -= 4;
-    }
-
-    return ip - ipstart;
 }
 
 /*! ZSTD_decompressFrame() :
@@ -1578,7 +1576,7 @@ static size_t ZSTD_decompressMultiFrame(ZSTD_DCtx* dctx,
 
 #if defined(ZSTD_LEGACY_SUPPORT) && (ZSTD_LEGACY_SUPPORT >= 1)
         if (ZSTD_isLegacy(src, srcSize)) {
-            size_t const frameSize = ZSTD_frameSrcSizeLegacy(src, srcSize);
+            size_t const frameSize = ZSTD_getFrameCompressedSizeLegacy(src, srcSize);
             size_t decodedSize;
             if (ZSTD_isError(frameSize)) return frameSize;
 

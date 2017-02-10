@@ -505,6 +505,16 @@ static int basicUnitTests(U32 seed, double compressibility)
       if (r != _3BYTESTESTLENGTH) goto _output_error; }
     DISPLAYLEVEL(4, "OK \n");
 
+    /* error string tests */
+    DISPLAYLEVEL(4, "test%3i : testing ZSTD error code strings : ", testNb++);
+    if (strcmp("No error detected", ZSTD_getErrorName((ZSTD_ErrorCode)(0-ZSTD_error_no_error))) != 0) goto _output_error;
+    if (strcmp("No error detected", ZSTD_getErrorString(ZSTD_error_no_error)) != 0) goto _output_error;
+    if (strcmp("Unspecified error code", ZSTD_getErrorString((ZSTD_ErrorCode)(0-ZSTD_error_GENERIC))) != 0) goto _output_error;
+    if (strcmp("Error (generic)", ZSTD_getErrorName((size_t)0-ZSTD_error_GENERIC)) != 0) goto _output_error;
+    if (strcmp("Error (generic)", ZSTD_getErrorString(ZSTD_error_GENERIC)) != 0) goto _output_error;
+    if (strcmp("No error detected", ZSTD_getErrorName(ZSTD_error_GENERIC)) != 0) goto _output_error;
+    DISPLAYLEVEL(4, "OK \n");
+
 _end:
     free(CNBuffer);
     free(compressedBuffer);

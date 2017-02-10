@@ -148,6 +148,7 @@ static int usage_advanced(const char* programName)
     DISPLAY( " -e#    : test all compression levels from -bX to # (default: 1)\n");
     DISPLAY( " -i#    : minimum evaluation time in seconds (default : 3s)\n");
     DISPLAY( " -B#    : cut file into independent blocks of size # (default: no block)\n");
+    DISPLAY( "--priority=rt : set process priority to real-time\n");
 #endif
     return 0;
 }
@@ -267,7 +268,8 @@ int main(int argCount, const char* argv[])
         nextArgumentsAreFiles=0,
         ultra=0,
         lastCommand = 0,
-        nbThreads = 1;
+        nbThreads = 1,
+        setRealTimePrio = 0;
     unsigned bench_nbSeconds = 3;   /* would be better if this value was synchronized from bench */
     size_t blockSize = 0;
     zstd_operation_mode operation = zom_compress;
@@ -356,6 +358,7 @@ int main(int argCount, const char* argv[])
                     if (!strcmp(argument, "--no-dictID")) { FIO_setDictIDFlag(0); continue; }
                     if (!strcmp(argument, "--keep")) { FIO_setRemoveSrcFile(0); continue; }
                     if (!strcmp(argument, "--rm")) { FIO_setRemoveSrcFile(1); continue; }
+                    if (!strcmp(argument, "--priority=rt")) { setRealTimePrio = 1; continue; }
 
                     /* long commands with arguments */
 #ifndef  ZSTD_NODICT
@@ -574,7 +577,7 @@ int main(int argCount, const char* argv[])
         BMK_setBlockSize(blockSize);
         BMK_setNbThreads(nbThreads);
         BMK_setNbSeconds(bench_nbSeconds);
-        BMK_benchFiles(filenameTable, filenameIdx, dictFileName, cLevel, cLevelLast, &compressionParams);
+        BMK_benchFiles(filenameTable, filenameIdx, dictFileName, cLevel, cLevelLast, &compressionParams, setRealTimePrio);
 #endif
         (void)bench_nbSeconds;
         goto _end;

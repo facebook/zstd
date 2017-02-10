@@ -42,7 +42,9 @@ extern "C" {
 #ifdef ZBUFF_DISABLE_DEPRECATE_WARNINGS
 #  define ZBUFF_DEPRECATED(message) ZSTDLIB_API  /* disable deprecation warnings */
 #else
-#  if (defined(__GNUC__) && (__GNUC__ >= 5)) || defined(__clang__)
+#  if defined (__cplusplus) && (__cplusplus >= 201402) /* C++14 or greater */
+#    define ZBUFF_DEPRECATED(message) [[deprecated(message)]] ZSTDLIB_API
+#  elif (defined(__GNUC__) && (__GNUC__ >= 5)) || defined(__clang__)
 #    define ZBUFF_DEPRECATED(message) ZSTDLIB_API __attribute__((deprecated(message)))
 #  elif defined(__GNUC__) && (__GNUC__ >= 3)
 #    define ZBUFF_DEPRECATED(message) ZSTDLIB_API __attribute__((deprecated))

@@ -41,7 +41,7 @@ ZSTD_ErrorCode ZSTD_getErrorCode(size_t code) { return ERR_getErrorCode(code); }
 
 /*! ZSTD_getErrorString() :
 *   provides error code string from enum */
-const char* ZSTD_getErrorString(ZSTD_ErrorCode code) { return ERR_getErrorName(code); }
+const char* ZSTD_getErrorString(ZSTD_ErrorCode code) { return ERR_getErrorString(code); }
 
 
 /*=**************************************************************

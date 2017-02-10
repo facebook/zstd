@@ -141,9 +141,9 @@ UTIL_STATIC void UTIL_waitForNextTick(UTIL_time_t ticksPerSecond)
 /*-****************************************
 *  File functions
 ******************************************/
-#if defined(_MSC_VER) || defined(__MINGW32__)
+#if defined(_MSC_VER)
 	#define chmod _chmod
-	typedef struct __stat64 stat_t;
+	typedef struct _stat64 stat_t;
 #else
     typedef struct stat stat_t;
 #endif
@@ -172,7 +172,7 @@ UTIL_STATIC int UTIL_setFileStat(const char *filename, stat_t *statbuf)
 UTIL_STATIC int UTIL_getFileStat(const char* infilename, stat_t *statbuf)
 {
     int r;
-#if defined(_MSC_VER) || defined(__MINGW32__)
+#if defined(_MSC_VER)
     r = _stat64(infilename, statbuf);
     if (r || !(statbuf->st_mode & S_IFREG)) return 0;   /* No good... */
 #else
@@ -186,8 +186,8 @@ UTIL_STATIC int UTIL_getFileStat(const char* infilename, stat_t *statbuf)
 UTIL_STATIC U64 UTIL_getFileSize(const char* infilename)
 {
     int r;
-#if defined(_MSC_VER) || defined(__MINGW32__)
-    struct __stat64 statbuf;
+#if defined(_MSC_VER)
+    struct _stat64 statbuf;
     r = _stat64(infilename, &statbuf);
     if (r || !(statbuf.st_mode & S_IFREG)) return 0;   /* No good... */
 #else

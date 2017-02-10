@@ -4,6 +4,7 @@ COPY tests\fullbench.c bin\example\
 COPY programs\datagen.c bin\example\
 COPY programs\datagen.h bin\example\
 COPY programs\util.h bin\example\
+COPY programs\platform.h bin\example\
 COPY lib\common\mem.h bin\example\
 COPY lib\common\zstd_errors.h bin\example\
 COPY lib\common\zstd_internal.h bin\example\

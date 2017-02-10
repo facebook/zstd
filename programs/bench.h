@@ -16,7 +16,7 @@
 #include "zstd.h"     /* ZSTD_compressionParameters */
 
 int BMK_benchFiles(const char** fileNamesTable, unsigned nbFiles,const char* dictFileName,
-                   int cLevel, int cLevelLast, ZSTD_compressionParameters* compressionParams);
+                   int cLevel, int cLevelLast, ZSTD_compressionParameters* compressionParams, int setRealTimePrio);
 
 /* Set Parameters */
 void BMK_setNbSeconds(unsigned nbLoops);

@@ -3019,7 +3019,7 @@ static size_t ZSTD_decompress(void* dst, size_t maxDstSize, const void* src, siz
     return ZSTD_decompressDCtx(&ctx, dst, maxDstSize, src, srcSize);
 }
 
-static size_t ZSTD_frameSrcSize(const void* src, size_t srcSize)
+static size_t ZSTD_getFrameCompressedSize(const void* src, size_t srcSize)
 {
     const BYTE* ip = (const BYTE*)src;
     size_t remainingSize = srcSize;
@@ -3165,9 +3165,9 @@ size_t ZSTDv03_decompress( void* dst, size_t maxOriginalSize,
 	return ZSTD_decompress(dst, maxOriginalSize, src, compressedSize);
 }
 
-size_t ZSTDv03_frameSrcSize(const void* src, size_t srcSize)
+size_t ZSTDv03_getFrameCompressedSize(const void* src, size_t srcSize)
 {
-    return ZSTD_frameSrcSize(src, srcSize);
+    return ZSTD_getFrameCompressedSize(src, srcSize);
 }
 
 ZSTDv03_Dctx* ZSTDv03_createDCtx(void)

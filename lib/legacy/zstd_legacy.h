@@ -123,26 +123,26 @@ MEM_STATIC size_t ZSTD_decompressLegacy(
     }
 }
 
-MEM_STATIC size_t ZSTD_frameSrcSizeLegacy(const void *src,
+MEM_STATIC size_t ZSTD_getFrameCompressedSizeLegacy(const void *src,
                                              size_t compressedSize)
 {
     U32 const version = ZSTD_isLegacy(src, compressedSize);
     switch(version)
     {
         case 1 :
-            return ZSTDv01_frameSrcSize(src, compressedSize);
+            return ZSTDv01_getFrameCompressedSize(src, compressedSize);
         case 2 :
-            return ZSTDv02_frameSrcSize(src, compressedSize);
+            return ZSTDv02_getFrameCompressedSize(src, compressedSize);
         case 3 :
-            return ZSTDv03_frameSrcSize(src, compressedSize);
+            return ZSTDv03_getFrameCompressedSize(src, compressedSize);
         case 4 :
-            return ZSTDv04_frameSrcSize(src, compressedSize);
+            return ZSTDv04_getFrameCompressedSize(src, compressedSize);
         case 5 :
-            return ZSTDv05_frameSrcSize(src, compressedSize);
+            return ZSTDv05_getFrameCompressedSize(src, compressedSize);
         case 6 :
-            return ZSTDv06_frameSrcSize(src, compressedSize);
+            return ZSTDv06_getFrameCompressedSize(src, compressedSize);
         case 7 :
-            return ZSTDv07_frameSrcSize(src, compressedSize);
+            return ZSTDv07_getFrameCompressedSize(src, compressedSize);
         default :
             return ERROR(prefix_unknown);
     }

@@ -174,7 +174,7 @@ ZDICTLIB_API size_t ZDICT_finalizeDictionary(void* dictBuffer, size_t dictBuffer
 #else
 #  define ZDICT_GCC_VERSION (__GNUC__ * 100 + __GNUC_MINOR__)
 #  if defined (__cplusplus) && (__cplusplus >= 201402) /* C++14 or greater */
-#    define ZDICT_DEPRECATED(message) ZDICTLIB_API [[deprecated(message)]]
+#    define ZDICT_DEPRECATED(message) [[deprecated(message)]] ZDICTLIB_API
 #  elif (ZDICT_GCC_VERSION >= 405) || defined(__clang__)
 #    define ZDICT_DEPRECATED(message) ZDICTLIB_API __attribute__((deprecated(message)))
 #  elif (ZDICT_GCC_VERSION >= 301)

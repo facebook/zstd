@@ -67,8 +67,9 @@ endif
 
 # zlib detection
 VOID = /dev/null
-HAVE_ZLIB := $(shell echo "\#include <zlib.h>\nint main(){}" | $(CC) -o $(VOID) -x c - -lz 2> $(VOID) && echo 1 || echo 0)
+HAVE_ZLIB := $(shell printf '\#include <zlib.h>\nint main(){}' | $(CC) -o have_zlib -x c - -lz 2> $(VOID) && echo 1 || echo 0)
 ifeq ($(HAVE_ZLIB), 1)
+TEMP := $(shell rm have_zlib$(EXT))
 ZLIBCPP = -DZSTD_GZDECOMPRESS
 ZLIBLD = -lz
 endif
@@ -152,7 +153,7 @@ clean:
 	@$(RM) $(ZSTDDIR)/decompress/*.o $(ZSTDDIR)/decompress/zstd_decompress.gcda
 	@$(RM) core *.o tmp* result* *.gcda dictionary *.zst \
         zstd$(EXT) zstd32$(EXT) zstd-compress$(EXT) zstd-decompress$(EXT) \
-        *.gcda default.profraw have_zlib
+        *.gcda default.profraw have_zlib$(EXT)
 	@echo Cleaning completed
 
 clean_decomp_o:

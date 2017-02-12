@@ -52,7 +52,7 @@ extern "C" {
 *  Turn on Large Files support (>4GB) for 32-bit Linux/Unix
 ***********************************************************/
 #if !defined(__64BIT__)                               /* No point defining Large file for 64 bit */
-#  if !defined(_FILE_OFFSET_BITS)
+#  if !defined(_FILE_OFFSET_BITS)   
 #    define _FILE_OFFSET_BITS 64                      /* turn off_t into a 64-bit type for ftello, fseeko */
 #  endif
 #  if !defined(_LARGEFILE_SOURCE)                     /* obsolete macro, replaced with _FILE_OFFSET_BITS */

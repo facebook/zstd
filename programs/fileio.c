@@ -109,9 +109,9 @@ static clock_t g_time = 0;
             method = FILE_BEGIN;
 
         if (SetFilePointerEx((HANDLE) _get_osfhandle(_fileno(file)), off, NULL, method))
-                return 0;
+            return 0;
         else
-                return -1;
+            return -1;
     }
 #else
 #   define LONG_SEEK fseek

@@ -344,8 +344,12 @@ size_t ZSTD_copyCCtx(ZSTD_CCtx* dstCCtx, const ZSTD_CCtx* srcCCtx, unsigned long
 {
     if (srcCCtx->stage!=ZSTDcs_init) return ERROR(stage_wrong);
 
+
     memcpy(&dstCCtx->customMem, &srcCCtx->customMem, sizeof(ZSTD_customMem));
-    ZSTD_resetCCtx_advanced(dstCCtx, srcCCtx->params, pledgedSrcSize, ZSTDcrp_noMemset);
+    {   ZSTD_parameters params = srcCCtx->params;
+        params.fParams.contentSizeFlag = (pledgedSrcSize > 0);
+        ZSTD_resetCCtx_advanced(dstCCtx, params, pledgedSrcSize, ZSTDcrp_noMemset);
+    }
 
     /* copy tables */
     {   size_t const chainSize = (srcCCtx->params.cParams.strategy == ZSTD_fast) ? 0 : (1 << srcCCtx->params.cParams.chainLog);
@@ -2362,7 +2366,7 @@ static size_t ZSTD_writeFrameHeader(void* dst, size_t dstCapacity,
     U32   const dictIDSizeCode = (dictID>0) + (dictID>=256) + (dictID>=65536);   /* 0-3 */
     U32   const checksumFlag = params.fParams.checksumFlag>0;
     U32   const windowSize = 1U << params.cParams.windowLog;
-    U32   const singleSegment = params.fParams.contentSizeFlag && (windowSize > (pledgedSrcSize-1));
+    U32   const singleSegment = params.fParams.contentSizeFlag && (windowSize >= pledgedSrcSize);
     BYTE  const windowLogByte = (BYTE)((params.cParams.windowLog - ZSTD_WINDOWLOG_ABSOLUTEMIN) << 3);
     U32   const fcsCode = params.fParams.contentSizeFlag ?
                      (pledgedSrcSize>=256) + (pledgedSrcSize>=65536+256) + (pledgedSrcSize>=0xFFFFFFFFU) :   /* 0-3 */
@@ -2845,7 +2849,11 @@ static ZSTD_parameters ZSTD_getParamsFromCDict(const ZSTD_CDict* cdict) {
 size_t ZSTD_compressBegin_usingCDict(ZSTD_CCtx* cctx, const ZSTD_CDict* cdict, unsigned long long pledgedSrcSize)
 {
     if (cdict->dictContentSize) CHECK_F(ZSTD_copyCCtx(cctx, cdict->refContext, pledgedSrcSize))
-    else CHECK_F(ZSTD_compressBegin_advanced(cctx, NULL, 0, cdict->refContext->params, pledgedSrcSize));
+    else {
+        ZSTD_parameters params = cdict->refContext->params;
+        params.fParams.contentSizeFlag = (pledgedSrcSize > 0);
+        CHECK_F(ZSTD_compressBegin_advanced(cctx, NULL, 0, params, pledgedSrcSize));
+    }
     return 0;
 }
 
@@ -2939,7 +2947,7 @@ size_t ZSTD_freeCStream(ZSTD_CStream* zcs)
 size_t ZSTD_CStreamInSize(void)  { return ZSTD_BLOCKSIZE_ABSOLUTEMAX; }
 size_t ZSTD_CStreamOutSize(void) { return ZSTD_compressBound(ZSTD_BLOCKSIZE_ABSOLUTEMAX) + ZSTD_blockHeaderSize + 4 /* 32-bits hash */ ; }
 
-size_t ZSTD_resetCStream(ZSTD_CStream* zcs, unsigned long long pledgedSrcSize)
+static size_t ZSTD_resetCStream_internal(ZSTD_CStream* zcs, unsigned long long pledgedSrcSize)
 {
     if (zcs->inBuffSize==0) return ERROR(stage_wrong);   /* zcs has not been init at least once => can't reset */
 
@@ -2955,6 +2963,14 @@ size_t ZSTD_resetCStream(ZSTD_CStream* zcs, unsigned long long pledgedSrcSize)
     zcs->pledgedSrcSize = pledgedSrcSize;
     zcs->inputProcessed = 0;
     return 0;   /* ready to go */
+}
+
+size_t ZSTD_resetCStream(ZSTD_CStream* zcs, unsigned long long pledgedSrcSize)
+{
+
+    zcs->params.fParams.contentSizeFlag = (pledgedSrcSize > 0);
+
+    return ZSTD_resetCStream_internal(zcs, pledgedSrcSize);
 }
 
 size_t ZSTD_initCStream_advanced(ZSTD_CStream* zcs,
@@ -2988,7 +3004,7 @@ size_t ZSTD_initCStream_advanced(ZSTD_CStream* zcs,
     zcs->checksum = params.fParams.checksumFlag > 0;
     zcs->params = params;
 
-    return ZSTD_resetCStream(zcs, pledgedSrcSize);
+    return ZSTD_resetCStream_internal(zcs, pledgedSrcSize);
 }
 
 /* note : cdict must outlive compression session */

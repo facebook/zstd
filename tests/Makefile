@@ -149,6 +149,11 @@ longmatch  : $(ZSTD_FILES) longmatch.c
 invalidDictionaries  : $(ZSTD_FILES) invalidDictionaries.c
 	$(CC)      $(FLAGS) $^ -o $@$(EXT)
 
+legacy : CFLAGS+= -DZSTD_LEGACY_SUPPORT=1
+legacy : CPPFLAGS+= -I$(ZSTDDIR)/legacy
+legacy : $(ZSTD_FILES) $(wildcard $(ZSTDDIR)/legacy/*.c) legacy.c
+	$(CC)      $(FLAGS) $^ -o $@$(EXT)
+
 symbols  : symbols.c
 	$(MAKE) -C $(ZSTDDIR) libzstd
 ifneq (,$(filter Windows%,$(OS)))
@@ -225,7 +230,7 @@ zstd-playTests: datagen
 	file $(ZSTD)
 	ZSTD="$(QEMU_SYS) $(ZSTD)" ./playTests.sh $(ZSTDRTTEST)
 
-test: test-zstd test-fullbench test-fuzzer test-zstream test-invalidDictionaries
+test: test-zstd test-fullbench test-fuzzer test-zstream test-invalidDictionaries test-legacy
 ifneq ($(QEMU_SYS),qemu-ppc64-static)
 test: test-pool
 endif
@@ -293,6 +298,9 @@ test-invalidDictionaries: invalidDictionaries
 
 test-symbols: symbols
 	$(QEMU_SYS) ./symbols
+
+test-legacy: legacy
+	$(QEMU_SYS) ./legacy
 
 test-pool: pool
 	$(QEMU_SYS) ./pool

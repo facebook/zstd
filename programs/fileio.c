@@ -376,8 +376,8 @@ static unsigned long long FIO_compressGzFrame(cRess_t* ress, const char* srcFile
     strm.zfree = Z_NULL;
     strm.opaque = Z_NULL;
 
-    if (deflateInit2(&strm, compressionLevel, Z_DEFLATED, 15 /* maxWindowLogSize */ + 16 /* gzip only */, 8, Z_DEFAULT_STRATEGY) != Z_OK) 
-        EXM_THROW(71, "zstd: %s: deflateInit2 error %d \n", srcFileName, ret);  /* see http://www.zlib.net/manual.html */
+    ret = deflateInit2(&strm, compressionLevel, Z_DEFLATED, 15 /* maxWindowLogSize */ + 16 /* gzip only */, 8, Z_DEFAULT_STRATEGY);
+    if (ret != Z_OK) EXM_THROW(71, "zstd: %s: deflateInit2 error %d \n", srcFileName, ret);  /* see http://www.zlib.net/manual.html */
 
     strm.next_in = 0;
     strm.avail_in = Z_NULL;

@@ -91,6 +91,32 @@ static clock_t g_time = 0;
 
 #define MIN(a,b)    ((a) < (b) ? (a) : (b))
 
+#if defined(_MSC_VER) && _MSC_VER >= 1400
+#   define LONG_SEEK _fseeki64
+#elif defined(__MINGW32__) && !defined(__STRICT_ANSI__) && !defined(__NO_MINGW_LFS) && defined(__MSVCRT__)
+#   define LONG_SEEK fseeko64
+#elif defined(_WIN32) && !defined(__DJGPP__)
+#   include <windows.h>
+    static int LONG_SEEK(FILE* file, __int64 offset, int origin) {
+        LARGE_INTEGER off;
+        DWORD method;
+        off.QuadPart = offset;
+        if (origin == SEEK_END)
+            method = FILE_END;
+        else if (origin == SEEK_CUR)
+            method = FILE_CURRENT;
+        else
+            method = FILE_BEGIN;
+
+        if (SetFilePointerEx((HANDLE) _get_osfhandle(_fileno(file)), off, NULL, method))
+            return 0;
+        else
+            return -1;
+    }
+#else
+#   define LONG_SEEK fseek
+#endif
+
 
 /*-*************************************
 *  Local Parameters - Not thread safe
@@ -273,8 +299,8 @@ typedef struct {
 } cRess_t;
 
 static cRess_t FIO_createCResources(const char* dictFileName, int cLevel,
-                                    U64 srcSize, ZSTD_compressionParameters* comprParams)
-{
+                                    U64 srcSize, int srcRegFile,
+                                    ZSTD_compressionParameters* comprParams) {
     cRess_t ress;
     memset(&ress, 0, sizeof(ress));
 
@@ -300,7 +326,7 @@ static cRess_t FIO_createCResources(const char* dictFileName, int cLevel,
         size_t const dictBuffSize = FIO_loadFile(&dictBuffer, dictFileName);
         if (dictFileName && (dictBuffer==NULL)) EXM_THROW(32, "zstd: allocation error : can't create dictBuffer");
         {   ZSTD_parameters params = ZSTD_getParams(cLevel, srcSize, dictBuffSize);
-            params.fParams.contentSizeFlag = 1;
+            params.fParams.contentSizeFlag = srcRegFile;
             params.fParams.checksumFlag = g_checksumFlag;
             params.fParams.noDictIDFlag = !g_dictIDFlag;
             if (comprParams->windowLog) params.cParams.windowLog = comprParams->windowLog;
@@ -553,8 +579,9 @@ int FIO_compressFilename(const char* dstFileName, const char* srcFileName,
 {
     clock_t const start = clock();
     U64 const srcSize = UTIL_getFileSize(srcFileName);
+    int const regFile = UTIL_isRegFile(srcFileName);
 
-    cRess_t const ress = FIO_createCResources(dictFileName, compressionLevel, srcSize, comprParams);
+    cRess_t const ress = FIO_createCResources(dictFileName, compressionLevel, srcSize, regFile, comprParams);
     int const result = FIO_compressFilename_dstFile(ress, dstFileName, srcFileName, compressionLevel);
 
     double const seconds = (double)(clock() - start) / CLOCKS_PER_SEC;
@@ -575,7 +602,8 @@ int FIO_compressMultipleFilenames(const char** inFileNamesTable, unsigned nbFile
     char*  dstFileName = (char*)malloc(FNSPACE);
     size_t const suffixSize = suffix ? strlen(suffix) : 0;
     U64 const srcSize = (nbFiles != 1) ? 0 : UTIL_getFileSize(inFileNamesTable[0]) ;
-    cRess_t ress = FIO_createCResources(dictFileName, compressionLevel, srcSize, comprParams);
+    int const regFile = (nbFiles != 1) ? 0 : UTIL_isRegFile(inFileNamesTable[0]);
+    cRess_t ress = FIO_createCResources(dictFileName, compressionLevel, srcSize, regFile, comprParams);
 
     /* init */
     if (dstFileName==NULL) EXM_THROW(27, "FIO_compressMultipleFilenames : allocation error for dstFileName");
@@ -678,7 +706,7 @@ static unsigned FIO_fwriteSparse(FILE* file, const void* buffer, size_t bufferSi
 
     /* avoid int overflow */
     if (storedSkips > 1 GB) {
-        int const seekResult = fseek(file, 1 GB, SEEK_CUR);
+        int const seekResult = LONG_SEEK(file, 1 GB, SEEK_CUR);
         if (seekResult != 0) EXM_THROW(71, "1 GB skip error (sparse file support)");
         storedSkips -= 1 GB;
     }
@@ -694,7 +722,7 @@ static unsigned FIO_fwriteSparse(FILE* file, const void* buffer, size_t bufferSi
         storedSkips += (unsigned)(nb0T * sizeof(size_t));
 
         if (nb0T != seg0SizeT) {   /* not all 0s */
-            int const seekResult = fseek(file, storedSkips, SEEK_CUR);
+            int const seekResult = LONG_SEEK(file, storedSkips, SEEK_CUR);
             if (seekResult) EXM_THROW(72, "Sparse skip error ; try --no-sparse");
             storedSkips = 0;
             seg0SizeT -= nb0T;
@@ -714,7 +742,7 @@ static unsigned FIO_fwriteSparse(FILE* file, const void* buffer, size_t bufferSi
             for ( ; (restPtr < restEnd) && (*restPtr == 0); restPtr++) ;
             storedSkips += (unsigned) (restPtr - restStart);
             if (restPtr != restEnd) {
-                int seekResult = fseek(file, storedSkips, SEEK_CUR);
+                int seekResult = LONG_SEEK(file, storedSkips, SEEK_CUR);
                 if (seekResult) EXM_THROW(74, "Sparse skip error ; try --no-sparse");
                 storedSkips = 0;
                 {   size_t const sizeCheck = fwrite(restPtr, 1, restEnd - restPtr, file);
@@ -727,7 +755,7 @@ static unsigned FIO_fwriteSparse(FILE* file, const void* buffer, size_t bufferSi
 static void FIO_fwriteSparseEnd(FILE* file, unsigned storedSkips)
 {
     if (storedSkips-->0) {   /* implies g_sparseFileSupport>0 */
-        int const seekResult = fseek(file, storedSkips, SEEK_CUR);
+        int const seekResult = LONG_SEEK(file, storedSkips, SEEK_CUR);
         if (seekResult != 0) EXM_THROW(69, "Final skip error (sparse file)\n");
         {   const char lastZeroByte[1] = { 0 };
             size_t const sizeCheck = fwrite(lastZeroByte, 1, 1, file);

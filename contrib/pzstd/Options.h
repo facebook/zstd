@@ -54,7 +54,7 @@ struct Options {
 
   ZSTD_parameters determineParameters() const {
     ZSTD_parameters params = ZSTD_getParams(compressionLevel, 0, 0);
-    params.fParams.contentSizeFlag = 1;
+    params.fParams.contentSizeFlag = 0;
     params.fParams.checksumFlag = checksum;
     if (maxWindowLog != 0 && params.cParams.windowLog > maxWindowLog) {
       params.cParams.windowLog = maxWindowLog;

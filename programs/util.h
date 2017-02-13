@@ -187,7 +187,7 @@ UTIL_STATIC U64 UTIL_getFileSize(const char* infilename)
 {
     int r;
 #if defined(_MSC_VER)
-    struct _stat64 statbuf;
+    struct __stat64 statbuf;
     r = _stat64(infilename, &statbuf);
     if (r || !(statbuf.st_mode & S_IFREG)) return 0;   /* No good... */
 #elif defined(__MINGW32__) && defined (__MSVCRT__)

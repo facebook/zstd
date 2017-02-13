@@ -344,6 +344,8 @@ static unsigned long long FIO_compressGzFrame(cRess_t* ress, const char* srcFile
     z_stream strm;
     int ret;
 
+    if (compressionLevel > Z_BEST_COMPRESSION) compressionLevel = Z_BEST_COMPRESSION;
+
     strm.zalloc = Z_NULL;
     strm.zfree = Z_NULL;
     strm.opaque = Z_NULL;

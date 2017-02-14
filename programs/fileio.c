@@ -121,8 +121,8 @@ static clock_t g_time = 0;
 /*-*************************************
 *  Local Parameters - Not thread safe
 ***************************************/
-static FIO_compresionType_t g_compresionType = FIO_zstdCompression;
-void FIO_setCompresionType(FIO_compresionType_t compresionType) { g_compresionType = compresionType; }
+static FIO_compressionType_t g_compressionType = FIO_zstdCompression;
+void FIO_setCompressionType(FIO_compressionType_t compressionType) { g_compressionType = compressionType; }
 static U32 g_overwrite = 0;
 void FIO_overwriteMode(void) { g_overwrite=1; }
 static U32 g_sparseFileSupport = 1;   /* 0 : no sparse allowed; 1: auto (file yes, stdout no); 2: force sparse */
@@ -376,8 +376,8 @@ static unsigned long long FIO_compressGzFrame(cRess_t* ress, const char* srcFile
     strm.zfree = Z_NULL;
     strm.opaque = Z_NULL;
 
-    ret = deflateInit2(&strm, compressionLevel, Z_DEFLATED, 15 /* maxWindowLogSize */ + 16 /* gzip only */, 8, Z_DEFAULT_STRATEGY);
-    if (ret != Z_OK) EXM_THROW(71, "zstd: %s: deflateInit2 error %d \n", srcFileName, ret);  /* see http://www.zlib.net/manual.html */
+    ret = deflateInit2(&strm, compressionLevel, Z_DEFLATED, 15 /* maxWindowLogSize */ + 16 /* gzip only */, 8, Z_DEFAULT_STRATEGY); /* see http://www.zlib.net/manual.html */
+    if (ret != Z_OK) EXM_THROW(71, "zstd: %s: deflateInit2 error %d \n", srcFileName, ret);
 
     strm.next_in = 0;
     strm.avail_in = Z_NULL;
@@ -443,10 +443,9 @@ static int FIO_compressFilename_internal(cRess_t ress,
     U64 compressedfilesize = 0;
     U64 const fileSize = UTIL_getFileSize(srcFileName);
 
-    if (g_compresionType) {
+    if (g_compressionType) {
 #ifdef ZSTD_GZCOMPRESS
         compressedfilesize = FIO_compressGzFrame(&ress, srcFileName, fileSize, compressionLevel, &readsize);
-     //   printf("g_compresionType=%d compressionLevel=%d compressedfilesize=%d\n", g_compresionType, compressionLevel, (int)compressedfilesize);
 #else
         (void)compressionLevel;
         EXM_THROW(20, "zstd: %s: file cannot be compressed as gzip (zstd compiled without ZSTD_GZCOMPRESS) -- ignored \n", srcFileName);

@@ -1,3 +1,11 @@
+v1.1.4
+cli : new : can compress in *.gz format, using --format=gzip command, by Przemyslaw Skibinski
+cli : new : advanced benchmark command --priority=rt
+cli : fix : write on sparse-enabled file systems in 32-bits mode, by @ds77
+API : new : ZSTD_getFrameCompressedSize(), ZSTD_getFrameContentSize(), ZSTD_findDecompressedSize(), by Sean Purcell
+API : change : ZSTD_compress*() with srcSize==0 create an empty-frame of known size
+doc : new : educational decoder, by Sean Purcell
+
 v1.1.3
 cli : zstd can decompress .gz files (can be disabled with `make zstd-nogz` or `make HAVE_ZLIB=0`)
 cli : new : experimental target `make zstdmt`, with multi-threading support

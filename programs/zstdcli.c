@@ -51,8 +51,11 @@
 
 #define GZ_EXTENSION ".gz"
 #define ZSTD_EXTENSION ".zst"
-#define ZSTD_CAT "zstdcat"
 #define ZSTD_UNZSTD "unzstd"
+#define ZSTD_CAT "zstdcat"
+#define ZSTD_GZ "gzip"
+#define ZSTD_GUNZIP "gunzip"
+#define ZSTD_GZCAT "gzcat"
 
 #define KB *(1 <<10)
 #define MB *(1 <<20)
@@ -319,6 +322,9 @@ int main(int argCount, const char* argv[])
     /* preset behaviors */
     if (!strcmp(programName, ZSTD_UNZSTD)) operation=zom_decompress;
     if (!strcmp(programName, ZSTD_CAT)) { operation=zom_decompress; forceStdout=1; FIO_overwriteMode(); outFileName=stdoutmark; displayLevel=1; }
+    if (!strcmp(programName, ZSTD_GZ)) { suffix = GZ_EXTENSION; FIO_setCompressionType(FIO_gzipCompression); FIO_setRemoveSrcFile(1); }    /* behave like gzip */
+    if (!strcmp(programName, ZSTD_GUNZIP)) { operation=zom_decompress; FIO_setRemoveSrcFile(1); }                                          /* behave like gunzip */
+    if (!strcmp(programName, ZSTD_GZCAT)) { operation=zom_decompress; forceStdout=1; FIO_overwriteMode(); outFileName=stdoutmark; displayLevel=1; }  /* behave like gzcat */
     memset(&compressionParams, 0, sizeof(compressionParams));
 
     /* command switches */

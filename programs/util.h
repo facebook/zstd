@@ -182,11 +182,28 @@ UTIL_STATIC int UTIL_getFileStat(const char* infilename, stat_t *statbuf)
     return 1;
 }
 
+
 UTIL_STATIC int UTIL_isRegFile(const char* infilename)
 {
     stat_t statbuf;
     return UTIL_getFileStat(infilename, &statbuf); /* Only need to know whether it is a regular file */
 }
+
+
+UTIL_STATIC U32 UTIL_isDirectory(const char* infilename)
+{
+    int r;
+    stat_t statbuf;
+#if defined(_MSC_VER)
+    r = _stat64(infilename, &statbuf);
+    if (!r && (statbuf.st_mode & _S_IFDIR)) return 1;
+#else
+    r = stat(infilename, &statbuf);
+    if (!r && S_ISDIR(statbuf.st_mode)) return 1;
+#endif
+    return 0;
+}
+
 
 UTIL_STATIC U64 UTIL_getFileSize(const char* infilename)
 {
@@ -217,37 +234,6 @@ UTIL_STATIC U64 UTIL_getTotalFileSize(const char** fileNamesTable, unsigned nbFi
     return total;
 }
 
-
-UTIL_STATIC int UTIL_doesFileExists(const char* infilename)
-{
-    int r;
-#if defined(_MSC_VER)
-    struct __stat64 statbuf;
-    r = _stat64(infilename, &statbuf);
-    if (r || !(statbuf.st_mode & S_IFREG)) return 0;   /* No good... */
-#else
-    struct stat statbuf;
-    r = stat(infilename, &statbuf);
-    if (r || !S_ISREG(statbuf.st_mode)) return 0;   /* No good... */
-#endif
-    return 1;
-}
-
-
-UTIL_STATIC U32 UTIL_isDirectory(const char* infilename)
-{
-    int r;
-#if defined(_MSC_VER)
-    struct __stat64 statbuf;
-    r = _stat64(infilename, &statbuf);
-    if (!r && (statbuf.st_mode & _S_IFDIR)) return 1;
-#else
-    struct stat statbuf;
-    r = stat(infilename, &statbuf);
-    if (!r && S_ISDIR(statbuf.st_mode)) return 1;
-#endif
-    return 0;
-}
 
 /*
  * A modified version of realloc().

@@ -191,7 +191,7 @@ static FILE* FIO_openSrcFile(const char* srcFileName)
         f = stdin;
         SET_BINARY_MODE(stdin);
     } else {
-        if (!UTIL_doesFileExists(srcFileName)) {
+        if (!UTIL_isRegFile(srcFileName)) {
             DISPLAYLEVEL(1, "zstd: %s is not a regular file -- ignored \n", srcFileName);
             return NULL;
         }

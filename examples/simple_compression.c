@@ -127,6 +127,6 @@ int main(int argc, const char** argv)
 
     const char* const outFilename = createOutFilename_orDie(inFilename);
     compress_orDie(inFilename, outFilename);
-
+    free(outFilename);
     return 0;
 }

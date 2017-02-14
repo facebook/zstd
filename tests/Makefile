@@ -184,7 +184,7 @@ clean:
         fuzzer-dll$(EXT) zstreamtest-dll$(EXT) zbufftest-dll$(EXT)\
         zstreamtest$(EXT) zstreamtest32$(EXT) \
         datagen$(EXT) paramgrill$(EXT) roundTripCrash$(EXT) longmatch$(EXT) \
-        symbols$(EXT) invalidDictionaries$(EXT) pool$(EXT)
+        symbols$(EXT) invalidDictionaries$(EXT) legacy$(EXT) pool$(EXT)
 	@echo Cleaning completed
 
 

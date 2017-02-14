@@ -231,7 +231,7 @@ zstd-playTests: datagen
 	ZSTD="$(QEMU_SYS) $(ZSTD)" ./playTests.sh $(ZSTDRTTEST)
 
 test: test-zstd test-fullbench test-fuzzer test-zstream test-invalidDictionaries test-legacy
-ifneq ($(QEMU_SYS),qemu-ppc64-static)
+ifeq ($(QEMU_SYS),)
 test: test-pool
 endif
 

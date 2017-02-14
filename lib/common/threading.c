@@ -15,10 +15,11 @@
  * This file will hold wrapper for systems, which do not support pthreads
  */
 
-/* ======   Compiler specifics   ====== */
-#if defined(_MSC_VER)
-#  pragma warning(disable : 4206)        /* disable: C4206: translation unit is empty (when ZSTD_MULTITHREAD is not defined) */
-#endif
+/* When ZSTD_MULTITHREAD is not defined, this file would become an empty translation unit.
+* Include some ISO C header code to prevent this and portably avoid related warnings.
+* (Visual C++: C4206 / GCC: -Wpedantic / Clang: -Wempty-translation-unit)
+*/
+#include <stddef.h>
 
 
 #if defined(ZSTD_MULTITHREAD) && defined(_WIN32)

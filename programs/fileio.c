@@ -91,8 +91,13 @@ static clock_t g_time = 0;
 
 #define MIN(a,b)    ((a) < (b) ? (a) : (b))
 
+/* ************************************************************
+* Avoid fseek()'s 2GiB barrier with MSVC, MacOS, *BSD, MinGW
+***************************************************************/
 #if defined(_MSC_VER) && _MSC_VER >= 1400
 #   define LONG_SEEK _fseeki64
+#elif !defined(__64BIT__) && (PLATFORM_POSIX_VERSION >= 200112L) /* No point defining Large file for 64 bit */
+#  define LONG_SEEK fseeko
 #elif defined(__MINGW32__) && !defined(__STRICT_ANSI__) && !defined(__NO_MINGW_LFS) && defined(__MSVCRT__)
 #   define LONG_SEEK fseeko64
 #elif defined(_WIN32) && !defined(__DJGPP__)
@@ -193,7 +198,7 @@ static FILE* FIO_openSrcFile(const char* srcFileName)
         f = stdin;
         SET_BINARY_MODE(stdin);
     } else {
-        if (!UTIL_doesFileExists(srcFileName)) {
+        if (!UTIL_isRegFile(srcFileName)) {
             DISPLAYLEVEL(1, "zstd: %s is not a regular file -- ignored \n", srcFileName);
             return NULL;
         }

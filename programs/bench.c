@@ -184,7 +184,7 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
         U64 dSize64 = 0;
         U32 fileNb;
         for (fileNb=0; fileNb<nbFiles; fileNb++) {
-            U64 const fSize64 = ZSTD_getDecompressedSize(srcPtr, fileSizes[fileNb]);
+            U64 const fSize64 = ZSTD_findDecompressedSize(srcPtr, fileSizes[fileNb]);
             if (fSize64==0) EXM_THROW(32, "Impossible to determine original size ");
             dSize64 += fSize64;
             srcPtr += fileSizes[fileNb];
@@ -217,7 +217,7 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
                 blockTable[nbBlocks].cRoom = g_decodeOnly ? thisBlockSize : ZSTD_compressBound(thisBlockSize);
                 blockTable[nbBlocks].cSize = blockTable[nbBlocks].cRoom;
                 blockTable[nbBlocks].resPtr = (void*)resPtr;
-                blockTable[nbBlocks].resSize = g_decodeOnly ? (size_t) ZSTD_getDecompressedSize(srcPtr, thisBlockSize) : thisBlockSize;
+                blockTable[nbBlocks].resSize = g_decodeOnly ? (size_t) ZSTD_findDecompressedSize(srcPtr, thisBlockSize) : thisBlockSize;
                 srcPtr += thisBlockSize;
                 cPtr += blockTable[nbBlocks].cRoom;
                 resPtr += thisBlockSize;

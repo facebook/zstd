@@ -201,8 +201,6 @@ size_t FSE_NCountWriteBound(unsigned maxSymbolValue, unsigned tableLog)
     return maxSymbolValue ? maxHeaderSize : FSE_NCOUNTBOUND;  /* maxSymbolValue==0 ? use default */
 }
 
-static short FSE_abs(short a) { return (short)(a<0 ? -a : a); }
-
 static size_t FSE_writeNCount_generic (void* header, size_t headerBufferSize,
                                        const short* normalizedCounter, unsigned maxSymbolValue, unsigned tableLog,
                                        unsigned writeIsSafe)
@@ -258,16 +256,16 @@ static size_t FSE_writeNCount_generic (void* header, size_t headerBufferSize,
                 bitStream >>= 16;
                 bitCount -= 16;
         }   }
-        {   short count = normalizedCounter[charnum++];
-            const short max = (short)((2*threshold-1)-remaining);
-            remaining -= FSE_abs(count);
-            if (remaining<1) return ERROR(GENERIC);
+        {   int count = normalizedCounter[charnum++];
+            int const max = (2*threshold-1)-remaining;
+            remaining -= count < 0 ? -count : count;
             count++;   /* +1 for extra accuracy */
             if (count>=threshold) count += max;   /* [0..max[ [max..threshold[ (...) [threshold+max 2*threshold[ */
             bitStream += count << bitCount;
             bitCount  += nbBits;
             bitCount  -= (count<max);
             previous0  = (count==1);
+            if (remaining<1) return ERROR(GENERIC);
             while (remaining<threshold) nbBits--, threshold>>=1;
         }
         if (bitCount>16) {

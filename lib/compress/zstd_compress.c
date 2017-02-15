@@ -2512,7 +2512,7 @@ static size_t ZSTD_loadDictionaryContent(ZSTD_CCtx* zc, const void* src, size_t 
         return ERROR(GENERIC);   /* strategy doesn't exist; impossible */
     }
 
-    zc->nextToUpdate = zc->loadedDictEnd;
+    zc->nextToUpdate = (U32)(iend - zc->base);
     return 0;
 }
 

@@ -269,7 +269,7 @@ UTIL_STATIC int UTIL_prepareFileList(const char *dirName, char** bufStart, size_
 {
     char* path;
     int dirLength, fnameLength, pathLength, nbFiles = 0;
-    WIN32_FIND_DATA cFile;
+    WIN32_FIND_DATAA cFile;
     HANDLE hFile;
 
     dirLength = (int)strlen(dirName);
@@ -281,7 +281,7 @@ UTIL_STATIC int UTIL_prepareFileList(const char *dirName, char** bufStart, size_
     path[dirLength+1] = '*';
     path[dirLength+2] = 0;
 
-    hFile=FindFirstFile(path, &cFile);
+    hFile=FindFirstFileA(path, &cFile);
     if (hFile == INVALID_HANDLE_VALUE) {
         fprintf(stderr, "Cannot open directory '%s'\n", dirName);
         return 0;
@@ -318,7 +318,7 @@ UTIL_STATIC int UTIL_prepareFileList(const char *dirName, char** bufStart, size_
             }
         }
         free(path);
-    } while (FindNextFile(hFile, &cFile));
+    } while (FindNextFileA(hFile, &cFile));
 
     FindClose(hFile);
     return nbFiles;

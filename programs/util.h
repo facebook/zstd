@@ -39,6 +39,20 @@ extern "C" {
 #include "mem.h"          /* U32, U64 */
 
 
+/* ************************************************************
+* Avoid fseek()'s 2GiB barrier with MSVC, MacOS, *BSD, MinGW
+***************************************************************/
+#if defined(_MSC_VER) && (_MSC_VER >= 1400)
+#   define UTIL_fseek _fseeki64
+#elif !defined(__64BIT__) && (PLATFORM_POSIX_VERSION >= 200112L) /* No point defining Large file for 64 bit */
+#  define UTIL_fseek fseeko
+#elif defined(__MINGW32__) && defined(__MSVCRT__) && !defined(__STRICT_ANSI__) && !defined(__NO_MINGW_LFS)
+#   define UTIL_fseek fseeko64
+#else
+#   define UTIL_fseek fseek
+#endif
+
+
 /*-****************************************
 *  Sleep functions: Windows - Posix - others
 ******************************************/

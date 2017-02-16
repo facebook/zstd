@@ -14,17 +14,17 @@ dependencies:
         gcc -v; make gnu90test
         gcc -v; make c99test
         gcc -v; make gnu99test
-        make gcc5test
+        gcc-5 -v; make gcc5test
         gcc-6 -v; make gcc6test
         make cmaketest
         make travis-install
         make lib
-        make -C programs zstd-small zstd-decompress zstd-compress;
+        make -C programs zstd-small zstd-decompress zstd-compress
+        make -C tests test-fuzzer
       fi
       if [[ "$CIRCLE_NODE_TOTAL" < "2" ]] || [[ "$CIRCLE_NODE_INDEX" == "1" ]]; then
         make -C tests test-zstd
         make -C tests test-fullbench
-        make -C tests test-fuzzer
         make -C tests test-zstream
         make -C tests test-legacy
         make -C tests test-symbols
@@ -32,6 +32,10 @@ dependencies:
         make -C tests test-invalidDictionaries
         make -C tests dll
       fi
+
+test:
+  override:
+    - echo Circle CI tests finished
 
   # Longer tests
     #- make -C tests test-zstd-nolegacy && make clean

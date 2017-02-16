@@ -22,8 +22,7 @@ dependencies:
     - if [[ "$CIRCLE_NODE_INDEX" == "0" ]]; then  make -C programs zstd-small zstd-decompress zstd-compress  && make clean; fi
 
     # Tests for thread 1 (when CIRCLE_NODE_TOTAL=1) or thread 2
-    - |
-      [[ "$CIRCLE_NODE_TOTAL" < "2" ]] || [[ "$CIRCLE_NODE_INDEX" == "1" ]] && make -C tests test-zstd && make clean
+    - if [[ "$CIRCLE_NODE_TOTAL" < "2" ]] || [[ "$CIRCLE_NODE_INDEX" == "1" ]]; then make -C tests test-zstd      && make clean; fi
     - if [[ "$CIRCLE_NODE_TOTAL" < "2" ]] || [[ "$CIRCLE_NODE_INDEX" == "1" ]]; then make -C tests test-fullbench && make clean; fi
     - if [[ "$CIRCLE_NODE_TOTAL" < "2" ]] || [[ "$CIRCLE_NODE_INDEX" == "1" ]]; then make -C tests test-fuzzer    && make clean; fi
     - if [[ "$CIRCLE_NODE_TOTAL" < "2" ]] || [[ "$CIRCLE_NODE_INDEX" == "1" ]]; then make -C tests test-zstream   && make clean; fi

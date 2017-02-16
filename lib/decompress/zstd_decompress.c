@@ -2260,7 +2260,7 @@ size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inB
 
             /* Adapt buffer sizes to frame header instructions */
             {   size_t const blockSize = MIN(zds->fParams.windowSize, ZSTD_BLOCKSIZE_ABSOLUTEMAX);
-                size_t const neededOutSize = zds->fParams.windowSize + blockSize;
+                size_t const neededOutSize = zds->fParams.windowSize + blockSize + WILDCOPY_OVERLENGTH;
                 zds->blockSize = blockSize;
                 if (zds->inBuffSize < blockSize) {
                     ZSTD_free(zds->inBuff, zds->customMem);

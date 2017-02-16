@@ -1,0 +1,1 @@
+option('legacy_support', type: 'boolean', value: false)

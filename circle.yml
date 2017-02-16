@@ -7,29 +7,31 @@ dependencies:
 
   # use default "parallel: true" for commands in the machine, checkout, dependencies and database build phase
   post:
-    # Tests for thread 1
-    - if [[ "$CIRCLE_NODE_INDEX" == "0" ]]; then  clang -v; make clangtest && make clean; fi
-    - if [[ "$CIRCLE_NODE_INDEX" == "0" ]]; then  g++ -v; make gpptest     && make clean; fi
-    - if [[ "$CIRCLE_NODE_INDEX" == "0" ]]; then  gcc -v; make gnu90test   && make clean; fi
-    - if [[ "$CIRCLE_NODE_INDEX" == "0" ]]; then  gcc -v; make c99test     && make clean; fi
-    - if [[ "$CIRCLE_NODE_INDEX" == "0" ]]; then  gcc -v; make gnu99test   && make clean; fi
-    - if [[ "$CIRCLE_NODE_INDEX" == "0" ]]; then  gcc-5 -v; make gcc5test  && make clean; fi
-    - if [[ "$CIRCLE_NODE_INDEX" == "0" ]]; then  gcc-6 -v; make gcc6test  && make clean; fi
-    - if [[ "$CIRCLE_NODE_INDEX" == "0" ]]; then  make cmaketest           && make clean; fi
-    - if [[ "$CIRCLE_NODE_INDEX" == "0" ]]; then  make travis-install      && make clean; fi
-    - if [[ "$CIRCLE_NODE_INDEX" == "0" ]]; then  make lib                 && make clean; fi
-    - if [[ "$CIRCLE_NODE_INDEX" == "0" ]]; then  make -C programs zstd-small zstd-decompress zstd-compress  && make clean; fi
-
-    # Tests for thread 1 (when CIRCLE_NODE_TOTAL=1) or thread 2
-    - if [[ "$CIRCLE_NODE_TOTAL" < "2" ]] || [[ "$CIRCLE_NODE_INDEX" == "1" ]]; then make -C tests test-zstd      && make clean; fi
-    - if [[ "$CIRCLE_NODE_TOTAL" < "2" ]] || [[ "$CIRCLE_NODE_INDEX" == "1" ]]; then make -C tests test-fullbench && make clean; fi
-    - if [[ "$CIRCLE_NODE_TOTAL" < "2" ]] || [[ "$CIRCLE_NODE_INDEX" == "1" ]]; then make -C tests test-fuzzer    && make clean; fi
-    - if [[ "$CIRCLE_NODE_TOTAL" < "2" ]] || [[ "$CIRCLE_NODE_INDEX" == "1" ]]; then make -C tests test-zstream   && make clean; fi
-    - if [[ "$CIRCLE_NODE_TOTAL" < "2" ]] || [[ "$CIRCLE_NODE_INDEX" == "1" ]]; then make -C tests test-legacy    && make clean; fi
-    - if [[ "$CIRCLE_NODE_TOTAL" < "2" ]] || [[ "$CIRCLE_NODE_INDEX" == "1" ]]; then make -C tests test-symbols   && make clean; fi
-    - if [[ "$CIRCLE_NODE_TOTAL" < "2" ]] || [[ "$CIRCLE_NODE_INDEX" == "1" ]]; then make -C tests test-longmatch && make clean; fi
-    - if [[ "$CIRCLE_NODE_TOTAL" < "2" ]] || [[ "$CIRCLE_NODE_INDEX" == "1" ]]; then make -C tests test-invalidDictionaries && make clean; fi
-    - if [[ "$CIRCLE_NODE_TOTAL" < "2" ]] || [[ "$CIRCLE_NODE_INDEX" == "1" ]]; then make -C tests dll            && make clean; fi
+    - |
+      if [[ "$CIRCLE_NODE_INDEX" == "0" ]]; then
+        clang -v; make clangtest
+        g++ -v; make gpptest
+        gcc -v; make gnu90test
+        gcc -v; make c99test
+        gcc -v; make gnu99test
+        make gcc5test
+        gcc-6 -v; make gcc6test
+        make cmaketest
+        make travis-install
+        make lib
+        make -C programs zstd-small zstd-decompress zstd-compress;
+      fi
+      if [[ "$CIRCLE_NODE_TOTAL" < "2" ]] || [[ "$CIRCLE_NODE_INDEX" == "1" ]]; then
+        make -C tests test-zstd
+        make -C tests test-fullbench
+        make -C tests test-fuzzer
+        make -C tests test-zstream
+        make -C tests test-legacy
+        make -C tests test-symbols
+        make -C tests test-longmatch
+        make -C tests test-invalidDictionaries
+        make -C tests dll
+      fi
 
   # Longer tests
     #- make -C tests test-zstd-nolegacy && make clean

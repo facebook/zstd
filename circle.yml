@@ -16,27 +16,31 @@ test:
     - gcc-5 -v; make gcc5test  && make clean
     - gcc-6 -v; make gcc6test  && make clean
   # Shorter tests
-    - make cmaketest           && make clean
-    - make zlibwrapper         && make clean
-    - make -C lib all          && make clean
-    - make -C tests dll        && make clean
-    - make -C tests test-symbols && make clean
-    - make -C tests test-zstd-nolegacy && make clean
+    - make cmaketest               && make clean
+    - make -C lib all              && make clean
+    - make -C tests dll            && make clean
+    - make -C tests test-zstd      && make clean
+    - make -C tests test-fullbench && make clean
+    - make -C tests test-fuzzer    && make clean
+    - make -C tests test-zstream   && make clean
+    - make -C tests test-invalidDictionaries    && make clean
+    - make -C tests test-legacy    && make clean
+    - make -C tests test-symbols   && make clean
     - make -C tests test-longmatch && make clean
-    - pyenv global 3.4.4; make -C tests versionsTest && make clean
     - make -C programs zstd-small zstd-decompress zstd-compress && make -C programs clean
     - make travis-install      && make clean
   # Longer tests
-    - make test                && make clean 
-    - gcc -v; make -C tests test32 MOREFLAGS="-I/usr/include/x86_64-linux-gnu" && make clean
-    - make usan                && make clean
-    - make asan                && make clean
-    - make asan32              && make clean
+    #- make -C tests test-zstd-nolegacy && make clean
+    #- pyenv global 3.4.4; make -C tests versionsTest && make clean
+    #- make zlibwrapper         && make clean
+    #- gcc -v; make -C tests test32 MOREFLAGS="-I/usr/include/x86_64-linux-gnu" && make clean
+    #- make uasan               && make clean
+    #- make asan32              && make clean
   # Valgrind tests
-    - CFLAGS="-O1 -g" make -C zlibWrapper valgrindTest && make clean
-    - make -C tests valgrindTest && make clean
+    #- CFLAGS="-O1 -g" make -C zlibWrapper valgrindTest && make clean
+    #- make -C tests valgrindTest && make clean
   # ARM, AArch64, PowerPC, PowerPC64 tests
-    - make ppctest             && make clean
-    - make ppc64test           && make clean
-    - make armtest             && make clean
-    - make aarch64test         && make clean
+    #- make ppctest             && make clean
+    #- make ppc64test           && make clean
+    #- make armtest             && make clean
+    #- make aarch64test         && make clean

@@ -138,7 +138,7 @@ msan: clean
 	$(MAKE) test CC=clang MOREFLAGS="-g -fsanitize=memory -fno-omit-frame-pointer"   # datagen.c fails this test for no obvious reason
 
 asan32: clean
-	$(MAKE) -C $(TESTDIR) test32 CC=clang MOREFLAGS="-g -fsanitize=address -I/usr/include/x86_64-linux-gnu"
+	$(MAKE) -C $(TESTDIR) test32 CC=clang MOREFLAGS="-g -fsanitize=address"
 
 uasan: clean
 	$(MAKE) test CC=clang MOREFLAGS="-g -fsanitize=address -fsanitize=undefined"

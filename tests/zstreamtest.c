@@ -467,6 +467,30 @@ static int basicUnitTests(U32 seed, double compressibility, ZSTD_customMem custo
     if (ZSTD_findDecompressedSize(compressedBuffer, cSize) != ZSTD_CONTENTSIZE_UNKNOWN) goto _output_error;
     DISPLAYLEVEL(3, "OK \n");
 
+    /* Overlen overwriting window data bug */
+    DISPLAYLEVEL(3, "test%3i : wildcopy doesn't overwrite potential match data : ", testNb++);
+    {   const char* testCase =
+            "\x28\xB5\x2F\xFD\x04\x00\x4C\x00\x00\x10\x61\x61\x01\x00\xFC\x2A"
+            "\xC0\x02\x44\x00\x00\x08\x62\x01\x00\xFC\x2A\x10\x02\x00\x00\x00"
+            "\x4D\x00\x00\x00\x02\x40\x00\x01\x64\xE0\xE6\x19\xC1\xFB\x54\x9E";
+        ZSTD_DStream* zds = ZSTD_createDStream();
+
+        ZSTD_initDStream(zds);
+        inBuff.src = testCase;
+        inBuff.size = 48;
+        inBuff.pos = 0;
+        outBuff.dst = decodedBuffer;
+        outBuff.size = CNBufferSize;
+        outBuff.pos = 0;
+
+        while (inBuff.pos < inBuff.size) {
+            size_t const r = ZSTD_decompressStream(zds, &outBuff, &inBuff);
+            /* Bug will cause checksum to fail */
+            if (ZSTD_isError(r)) goto _output_error;
+        }
+    }
+    DISPLAYLEVEL(3, "OK \n");
+
 _end:
     FUZ_freeDictionary(dictionary);
     ZSTD_freeCStream(zc);

@@ -4108,7 +4108,7 @@ size_t ZBUFFv06_decompressContinue(ZBUFFv06_DCtx* zbd,
                     zbd->inBuff = (char*)malloc(blockSize);
                     if (zbd->inBuff == NULL) return ERROR(memory_allocation);
                 }
-                {   size_t const neededOutSize = ((size_t)1 << zbd->fParams.windowLog) + blockSize;
+                {   size_t const neededOutSize = ((size_t)1 << zbd->fParams.windowLog) + blockSize + WILDCOPY_OVERLENGTH;
                     if (zbd->outBuffSize < neededOutSize) {
                         free(zbd->outBuff);
                         zbd->outBuffSize = neededOutSize;

@@ -8,18 +8,22 @@ dependencies:
 test:
   override:
   # Tests compilers and C standards
-    - [[ "$CIRCLE_NODE_INDEX" == "0" ]] && clang -v && make clangtest && make clean
+    - |
+      [[ "$CIRCLE_NODE_INDEX" == "0" ]] && clang -v && make clangtest && make clean
         parallel: true
-    #- g++ -v; make gpptest     && make clean
+    - if [[ "$CIRCLE_NODE_INDEX" == "0" ]]; then g++ -v; make gpptest && make clean; fi
+        parallel: true
     #- gcc -v; make gnu90test   && make clean
     #- gcc -v; make c99test     && make clean
     #- gcc -v; make gnu99test   && make clean
     #- gcc-5 -v; make gcc5test  && make clean
     #- gcc-6 -v; make gcc6test  && make clean
   # Shorter tests
-    - if [[ "$CIRCLE_NODE_TOTAL" < "2" ] || [ "$CIRCLE_NODE_INDEX" == "1" ]] && make cmaketest && make clean
+    - |
+      [[ "$CIRCLE_NODE_TOTAL" < "2" ] || [ "$CIRCLE_NODE_INDEX" == "1" ]] && make cmaketest && make clean
         parallel: true
-    #- make -C lib all              && make clean
+    - if [[ "$CIRCLE_NODE_TOTAL" < "2" ] || [ "$CIRCLE_NODE_INDEX" == "1" ]]; then make -C lib all && make clean; fi
+        parallel: true
     #- make -C tests dll            && make clean
     #- make -C tests test-zstd      && make clean
     #- make -C tests test-fullbench && make clean

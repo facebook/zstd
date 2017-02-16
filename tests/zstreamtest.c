@@ -469,15 +469,23 @@ static int basicUnitTests(U32 seed, double compressibility, ZSTD_customMem custo
 
     /* Overlen overwriting window data bug */
     DISPLAYLEVEL(3, "test%3i : wildcopy doesn't overwrite potential match data : ", testNb++);
-    {   const char* testCase =
-            "\x28\xB5\x2F\xFD\x04\x00\x4C\x00\x00\x10\x61\x61\x01\x00\xFC\x2A"
-            "\xC0\x02\x44\x00\x00\x08\x62\x01\x00\xFC\x2A\x10\x02\x00\x00\x00"
-            "\x4D\x00\x00\x00\x02\x40\x00\x01\x64\xE0\xE6\x19\xC1\xFB\x54\x9E";
+    {   /* This test has a window size of 1024 bytes and consists of 3 blocks:
+            1. 'a' repeated 517 times
+            2. 'b' repeated 516 times
+            3. a compressed block with no literals and 3 sequence commands:
+                litlength = 0, offset = 24, match length = 24
+                litlength = 0, offset = 24, match length = 3 (this one creates an overlength write of length 2*WILDCOPY_OVERLENGTH - 3)
+                litlength = 0, offset = 1021, match length = 3 (this one will try to read from overwritten data if the buffer is too small) */
+
+        const char* testCase =
+            "\x28\xB5\x2F\xFD\x04\x00\x4C\x00\x00\x10\x61\x61\x01\x00\x00\x2A"
+            "\x80\x05\x44\x00\x00\x08\x62\x01\x00\x00\x2A\x20\x04\x5D\x00\x00"
+            "\x00\x03\x40\x00\x00\x64\x60\x27\xB0\xE0\x0C\x67\x62\xCE\xE0";
         ZSTD_DStream* zds = ZSTD_createDStream();
 
         ZSTD_initDStream(zds);
         inBuff.src = testCase;
-        inBuff.size = 48;
+        inBuff.size = 47;
         inBuff.pos = 0;
         outBuff.dst = decodedBuffer;
         outBuff.size = CNBufferSize;

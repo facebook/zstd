@@ -13,6 +13,7 @@
 #include <string.h>    // strerror
 #include <errno.h>     // errno
 #include <sys/stat.h>  // stat
+#define ZSTD_STATIC_LINKING_ONLY   // ZSTD_findDecompressedSize
 #include <zstd.h>      // presumes zstd library is installed
 
 

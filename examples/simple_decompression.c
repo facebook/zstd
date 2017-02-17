@@ -6,17 +6,16 @@
  * LICENSE-examples file in the root directory of this source tree.
  */
 
-
-
 #include <stdlib.h>    // malloc, exit
 #include <stdio.h>     // printf
 #include <string.h>    // strerror
 #include <errno.h>     // errno
 #include <sys/stat.h>  // stat
+#define ZSTD_STATIC_LINKING_ONLY   // ZSTD_findDecompressedSize
 #include <zstd.h>      // presumes zstd library is installed
 
 
-static off_t fsize_X(const char *filename)
+static off_t fsize_orDie(const char *filename)
 {
     struct stat st;
     if (stat(filename, &st) == 0) return st.st_size;
@@ -25,7 +24,7 @@ static off_t fsize_X(const char *filename)
     exit(1);
 }
 
-static FILE* fopen_X(const char *filename, const char *instruction)
+static FILE* fopen_orDie(const char *filename, const char *instruction)
 {
     FILE* const inFile = fopen(filename, instruction);
     if (inFile) return inFile;
@@ -34,7 +33,7 @@ static FILE* fopen_X(const char *filename, const char *instruction)
     exit(2);
 }
 
-static void* malloc_X(size_t size)
+static void* malloc_orDie(size_t size)
 {
     void* const buff = malloc(size);
     if (buff) return buff;
@@ -43,11 +42,11 @@ static void* malloc_X(size_t size)
     exit(3);
 }
 
-static void* loadFile_X(const char* fileName, size_t* size)
+static void* loadFile_orDie(const char* fileName, size_t* size)
 {
-    off_t const buffSize = fsize_X(fileName);
-    FILE* const inFile = fopen_X(fileName, "rb");
-    void* const buffer = malloc_X(buffSize);
+    off_t const buffSize = fsize_orDie(fileName);
+    FILE* const inFile = fopen_orDie(fileName, "rb");
+    void* const buffer = malloc_orDie(buffSize);
     size_t const readSize = fread(buffer, 1, buffSize, inFile);
     if (readSize != (size_t)buffSize) {
         printf("fread: %s : %s \n", fileName, strerror(errno));
@@ -62,13 +61,13 @@ static void* loadFile_X(const char* fileName, size_t* size)
 static void decompress(const char* fname)
 {
     size_t cSize;
-    void* const cBuff = loadFile_X(fname, &cSize);
+    void* const cBuff = loadFile_orDie(fname, &cSize);
     unsigned long long const rSize = ZSTD_findDecompressedSize(cBuff, cSize);
     if (rSize==0) {
         printf("%s : original size unknown. Use streaming decompression instead. \n", fname);
         exit(5);
     }
-    void* const rBuff = malloc_X((size_t)rSize);
+    void* const rBuff = malloc_orDie((size_t)rSize);
 
     size_t const dSize = ZSTD_decompress(rBuff, rSize, cBuff, cSize);
 

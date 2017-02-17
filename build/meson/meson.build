@@ -25,6 +25,7 @@ else
 endif
 
 if get_option('multithread')
+    message('Enabling multi-threading support')
     add_global_arguments('-DZSTD_MULTITHREAD', language: 'c')
     libzstd_deps = [dependency('threads')]
 else

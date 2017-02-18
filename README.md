@@ -106,7 +106,7 @@ to create `zstd` binary, and `libzstd` dynamic and static libraries.
 
 #### Meson
 
-A Meson project is provided within `build/meson`.
+A Meson project is provided within `contrib/meson`.
 
 #### Visual (Windows)
 

@@ -104,6 +104,10 @@ A `cmake` project generator is provided within `build/cmake`.
 It can generate Makefiles or other build scripts
 to create `zstd` binary, and `libzstd` dynamic and static libraries.
 
+#### Meson
+
+A Meson project is provided within `contrib/meson`.
+
 #### Visual (Windows)
 
 Going into `build` directory, you will find additional possibilities :

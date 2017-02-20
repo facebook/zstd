@@ -51,6 +51,7 @@
                 <li><a href="#benchmarks">Benchmarks</a></li>
                 <li><a href="#GUI">GUI</a></li>
                 <li><a href="#other-languages">Bindings</a></li>
+                <li><a href="#references">Reference usages</a></li>
               </ul>
             </li>
           </ul>
@@ -65,7 +66,8 @@
     <a name="summary"></a>
     <div class="container">
       <div class="page-header jumbotron text-justify" style="padding-top:1em;padding-bottom:2em;">
-        <h1>Zstandard</h1>
+        <!-- <h1><img src="images/zstd.png"/> Zstandard</h1> -->
+        <h1><img src="images/zstd85.png"/> Zstandard</h1>
         <iframe src="https://ghbtns.com/github-btn.html?user=facebook&repo=zstd&type=star&count=true&size=large&v=2" frameborder="0" scrolling="0" width="160px" height="30px"></iframe>
         <p>
         Zstandard is a real-time compression algorithm,
@@ -180,12 +182,13 @@ here is a list of known bindings and their authors :
 | __Node.js__ streams | albertdb     | https://www.npmjs.com/package/node-zstandard
 | __Node.js__ buffers | Zwb          | https://www.npmjs.com/package/node-zstd
 | __PHP__      | Kamijo              | https://github.com/kjdev/php-ext-zstd |
-| __Perl__     | Jiro Nishiguchi     | https://metacpan.org/release/Compress-Zstd |
+| __Perl__     | Jiro Nishiguchi     | https://metacpan.org/release/Compress-Zstd
 | __Swift__    | Anatoli Peredera    | https://github.com/omniprog/SwiftZSTD |
 | __Go__       | Vianney Tran        | https://github.com/DataDog/zstd       |
 | __Ruby__     | Jarred Holman       | https://github.com/jarredholman/ruby-zstd
 | __D__        | Masahiro Nakagawa   | https://code.dlang.org/packages/zstd  |
 | __Ada__      | John Marino         | https://github.com/jrmarino/zstd-ada  |
+| __Lua__      | Soojin Nam          | https://github.com/sjnam/lua-resty-zstd
 | __Haskell__  | Bryan O'Sullivan    | https://github.com/facebookexperimental/hs-zstd
 | __Erlang__   | Yuki Ito            | https://hex.pm/packages/zstd          |
 | __Visual Basic 6__ | Tanner_H      | http://www.vbforums.com/showthread.php?840413-Compression-in-VB6-modern-solutions
@@ -202,6 +205,67 @@ Tino Reichardt has developed and hosts a version of [7-zip archive manager
 with Zstandard](https://mcmilk.de/projects/7-Zip-ZStd/).
 
 <img src="https://mcmilk.de/projects/7-Zip-ZStd/7-Zip_02.png" alt="7-zip with Zstandard" style="height:500px;">
+
+
+<br/>
+<a name="references"></a>
+## Zstandard is used by :
+
+#### Cloud solutions
+<div class="container">
+  <ul class="list-inline">
+    <li><a href="https://aws.amazon.com/redshift/" ><img src="images/aws.png"   /></a> [Redshift](https://aws.amazon.com/about-aws/whats-new/2017/01/amazon-redshift-now-supports-the-zstandard-high-data-compression-encoding-and-two-new-aggregate-functions/) </li>
+    <li><a href="https://www.mercurial-scm.org/"   ><img src="images/mercurial.png"/></a> [Mercurial](http://blog.deveo.com/whats-new-in-mercurial-hg-4-1/)</li>
+    <li><a href="https://docs.taskcluster.net/"    ><img src="images/taskc2.png"/></a> [TaskCluster](https://github.com/taskcluster/taskcluster-worker/pull/114)</li>
+    <li><a href="http://ceph.com/"                 ><img src="images/ceph.png"  /></a> [Ceph](https://github.com/ceph/ceph/tree/master/src/compressor/zstd)</li>
+  </ul>
+</div>
+
+#### Databases
+<div class="container">
+  <ul class="list-inline">
+    <li><a href="https://hadoop.apache.org/"       ><img src="images/hadoop.png" /></a> [Hadoop](https://issues.apache.org/jira/browse/HADOOP-13578) </li>
+    <li><a href="http://rocksdb.org/"              ><img src="images/rocksdb.png"/></a> [RocksDB](https://twitter.com/rocksdb/status/771387757306388480) </li>
+    <li><a href="http://www.wiredtiger.com/"       ><img src="images/wt.png"     /></a> [WiredTiger](https://github.com/wiredtiger/wiredtiger/tree/master/ext/compressors/zstd) </li>
+    <li><a href="https://redis.io/"                ><img src="images/redis.png"  /></a> [Redis](https://github.com/chadnickbok/redis-zstd-module) </li>
+    <li><a href="https://clickhouse.yandex/"       ><img src="images/clickhouse.png"/></a> [Clickhouse](https://github.com/yandex/ClickHouse/tree/master/contrib/libzstd) </li>
+    <li><a href="http://groonga.org/"              ><img src="images/groonga.png"/></a> [Groonga](http://groonga.org/en/blog/2016/11/29/groonga-6.1.1.html) </li>
+    <li><a href="https://tarantool.org/"           ><img src="images/tarantool.png"/></a> [Tarantool](https://github.com/tarantool/tarantool/blob/1.8/cmake/BuildZSTD.cmake) </li>
+  </ul>
+</div>
+
+#### Serialization
+<div class="container">
+  <ul class="list-inline">
+    <li><a href="http://www.fstpackage.org/"       ><img src="images/fst.png"    /></a> [FST](https://github.com/fstpackage/fst/tree/master/src/ZSTD) </li>
+    <li><a href="http://www.blosc.org/"            ><img src="images/blosc.png"  /></a> [Blosc](http://www.blosc.org/blog/zstd-has-just-landed-in-blosc.html) </li>
+    <li><a href="http://bcolz.blosc.org/en/latest/"><img src="images/bcolz.png"  /></a> [bcolz](https://github.com/Blosc/bcolz/tree/master/c-blosc/internal-complibs/zstd-1.1.2) </li>
+    <li><a href="https://pypi.python.org/pypi/mrcz"><img src="images/mrc.png"    /></a> [mrcz](https://github.com/em-MRCZ/c-mrcz) </li>
+    <li><a href="http://www.well.ox.ac.uk/~gav/bgen_format/bgen_format.html"><img src="images/oxford.png" /></a> [bgen](http://www.well.ox.ac.uk/~gav/bgen_format/bgen_format.html) </li>
+    <li><a href="https://developer.mozilla.org/en-US/docs/Mozilla/Gecko"><img src="images/gecko.png"    /></a> [Gecko](https://bug635044.bugzilla.mozilla.org/show_bug.cgi?id=1316183) </li>
+    <li><a href="https://support.hdfgroup.org/HDF5"><img src="images/hdf.png"    /></a> [HDF5](https://github.com/aparamon/HDF5Plugin-Zstandard) </li>
+    <li><a href="https://github.com/Sereal/Sereal" ><img src="images/sereal.png" /></a> [Sereal](https://github.com/Sereal/Sereal/tree/master/Perl/shared/zstd) </li>
+  </ul>
+</div>
+
+#### Network
+<div class="container">
+  <ul class="list-inline">
+    <li><a href="https://code.facebook.com/projects/1410559149202582/fbthrift/"><img src="images/thrift.png"/></a> [fbthrift](https://github.com/facebook/fbthrift/commit/ec42813f0ced737617d4614900ef3a96c1f3d17f) </li>
+    <li><a href="https://code.facebook.com/projects/676603015770415/proxygen/"><img src="images/proxygen.png"/></a> [proxygen](https://github.com/facebook/proxygen/blob/master/proxygen/lib/utils/ZstdStreamDecompressor.h) </li>
+    <li><a href="https://code.facebook.com/projects/470946523057396/mcrouter/"><img src="images/mcrouter.png"/></a> [mcrouter](https://github.com/facebook/mcrouter/blob/master/mcrouter/lib/ZstdCompressionCodec.h) </li>
+    <li><a href="https://rspamd.com/"              ><img src="images/rspamd.png"  /></a> [Rspamd](https://rspamd.com/announce/2016/11/21/rspamd-1.4.0.html) </li>
+  </ul>
+</div>
+
+#### Other
+<div class="container">
+  <ul class="list-inline">
+    <li><a href="https://code.facebook.com/projects/527543867323997/folly/"><img src="images/folly.png"/></a> [folly](https://github.com/facebook/folly/blob/master/folly/io/Compression.cpp#L39) </li>
+    <li><a href="http://www.ultimatepp.org/"       ><img src="images/uppframe.png"/></a> [U++](http://www.ultimatepp.org/www$uppweb$Roadmap$en-us.html) </li>
+    <li><a href="https://github.com/MarekKowalski/LiveScan3D"><img src="images/blank.png"/></a> [LiveScan3D](https://github.com/MarekKowalski/LiveScan3D/pull/14) </li>
+  </ul>
+</div>
 
 
 ---

@@ -127,7 +127,7 @@ struct HUF_CElt_s {
 };   /* typedef'd to HUF_CElt within "huf.h" */
 
 /*! HUF_writeCTable() :
-    `CTable` : huffman tree to save, using huf representation.
+    `CTable` : Huffman tree to save, using huf representation.
     @return : size of saved CTable */
 size_t HUF_writeCTable (void* dst, size_t maxDstSize,
                         const HUF_CElt* CTable, U32 maxSymbolValue, U32 huffLog)

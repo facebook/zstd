@@ -160,7 +160,7 @@ static int BMK_benchMem(z_const void* srcBuffer, size_t srcSize,
     ZSTD_CCtx* const ctx = ZSTD_createCCtx();
     ZSTD_DCtx* const dctx = ZSTD_createDCtx();
     U32 nbBlocks;
-    UTIL_time_t ticksPerSecond;
+    UTIL_freq_t ticksPerSecond;
 
     /* checks */
     if (!compressedBuffer || !resultBuffer || !blockTable || !ctx || !dctx)

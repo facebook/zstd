@@ -169,7 +169,7 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
     size_t cSize = 0;
     double ratio = 0.;
     U32 nbBlocks;
-    UTIL_time_t ticksPerSecond;
+    UTIL_freq_t ticksPerSecond;
 
     /* checks */
     if (!compressedBuffer || !resultBuffer || !blockTable || !ctx || !dctx)

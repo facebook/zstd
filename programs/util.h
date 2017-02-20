@@ -109,20 +109,18 @@ extern "C" {
 /*-****************************************
 *  Time functions
 ******************************************/
-#if (PLATFORM_POSIX_VERSION >= 1)
-#include <unistd.h>
-#include <sys/times.h>   /* times */
-   typedef U64 UTIL_time_t;
-   UTIL_STATIC void UTIL_initTimer(UTIL_time_t* ticksPerSecond) { *ticksPerSecond=sysconf(_SC_CLK_TCK); }
-   UTIL_STATIC void UTIL_getTime(UTIL_time_t* x) { struct tms junk; clock_t newTicks = (clock_t) times(&junk); (void)junk; *x = (UTIL_time_t)newTicks; }
-   UTIL_STATIC U64 UTIL_getSpanTimeMicro(UTIL_time_t ticksPerSecond, UTIL_time_t clockStart, UTIL_time_t clockEnd) { return 1000000ULL * (clockEnd - clockStart) / ticksPerSecond; }
-   UTIL_STATIC U64 UTIL_getSpanTimeNano(UTIL_time_t ticksPerSecond, UTIL_time_t clockStart, UTIL_time_t clockEnd) { return 1000000000ULL * (clockEnd - clockStart) / ticksPerSecond; }
-#elif defined(_WIN32)   /* Windows */
+#if defined(_WIN32)   /* Windows */
    typedef LARGE_INTEGER UTIL_time_t;
    UTIL_STATIC void UTIL_initTimer(UTIL_time_t* ticksPerSecond) { if (!QueryPerformanceFrequency(ticksPerSecond)) fprintf(stderr, "ERROR: QueryPerformance not present\n"); }
    UTIL_STATIC void UTIL_getTime(UTIL_time_t* x) { QueryPerformanceCounter(x); }
    UTIL_STATIC U64 UTIL_getSpanTimeMicro(UTIL_time_t ticksPerSecond, UTIL_time_t clockStart, UTIL_time_t clockEnd) { return 1000000ULL*(clockEnd.QuadPart - clockStart.QuadPart)/ticksPerSecond.QuadPart; }
    UTIL_STATIC U64 UTIL_getSpanTimeNano(UTIL_time_t ticksPerSecond, UTIL_time_t clockStart, UTIL_time_t clockEnd) { return 1000000000ULL*(clockEnd.QuadPart - clockStart.QuadPart)/ticksPerSecond.QuadPart; }
+#elif (_POSIX_TIMERS > 0) && defined(_POSIX_MONOTONIC_CLOCK)  /* defined in <unistd.h> */
+   typedef struct timespec UTIL_time_t;
+   UTIL_STATIC void UTIL_initTimer(UTIL_time_t* clockResolution) { clock_getres(CLOCK_MONOTONIC, clockResolution); }
+   UTIL_STATIC void UTIL_getTime(UTIL_time_t* x) { if (clock_gettime(CLOCK_MONOTONIC, x) == -1) { fprintf(stderr, "clock_gettime error"); }; }
+   UTIL_STATIC U64 UTIL_getSpanTimeMicro(UTIL_time_t ticksPerSecond, UTIL_time_t clockStart, UTIL_time_t clockEnd) { return (1000000000ULL * (clockEnd.tv_sec - clockStart.tv_sec) + (clockEnd.tv_nsec - clockStart.tv_nsec))/1000ULL; }
+   UTIL_STATIC U64 UTIL_getSpanTimeNano(UTIL_time_t ticksPerSecond, UTIL_time_t clockStart, UTIL_time_t clockEnd) { return 1000000000ULL * (clockEnd.tv_sec - clockStart.tv_sec) + (clockEnd.tv_nsec - clockStart.tv_nsec); }
 #else   /* relies on standard C (note : clock_t measurements can be wrong when using multi-threading) */
    typedef clock_t UTIL_time_t;
    UTIL_STATIC void UTIL_initTimer(UTIL_time_t* ticksPerSecond) { *ticksPerSecond=0; }

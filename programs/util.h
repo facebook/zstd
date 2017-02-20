@@ -116,6 +116,14 @@ extern "C" {
    UTIL_STATIC void UTIL_getTime(UTIL_time_t* x) { QueryPerformanceCounter(x); }
    UTIL_STATIC U64 UTIL_getSpanTimeMicro(UTIL_freq_t ticksPerSecond, UTIL_time_t clockStart, UTIL_time_t clockEnd) { return 1000000ULL*(clockEnd.QuadPart - clockStart.QuadPart)/ticksPerSecond.QuadPart; }
    UTIL_STATIC U64 UTIL_getSpanTimeNano(UTIL_freq_t ticksPerSecond, UTIL_time_t clockStart, UTIL_time_t clockEnd) { return 1000000000ULL*(clockEnd.QuadPart - clockStart.QuadPart)/ticksPerSecond.QuadPart; }
+#elif defined(__APPLE__) && defined(__MACH__)
+   #include <mach/mach_time.h>
+   typedef mach_timebase_info_data_t UTIL_freq_t;
+   typedef U64 UTIL_time_t;
+   UTIL_STATIC void UTIL_initTimer(UTIL_freq_t* rate) { mach_timebase_info(&rate); }
+   UTIL_STATIC void UTIL_getTime(UTIL_time_t* x) { *x = mach_absolute_time(); }
+   UTIL_STATIC U64 UTIL_getSpanTimeMicro(UTIL_freq_t rate, UTIL_time_t clockStart, UTIL_time_t clockEnd) { return (((clockEnd - clockStart) * (U64)rate.numer) / ((U64)rate.denom))/1000ULL; }
+   UTIL_STATIC U64 UTIL_getSpanTimeNano(UTIL_freq_t rate, UTIL_time_t clockStart, UTIL_time_t clockEnd) { return ((clockEnd - clockStart) * (U64)rate.numer) / ((U64)rate.denom); }
 #elif (_POSIX_TIMERS > 0) && defined(_POSIX_MONOTONIC_CLOCK)  /* defined in <unistd.h> */
    typedef struct timespec UTIL_freq_t;
    typedef struct timespec UTIL_time_t;

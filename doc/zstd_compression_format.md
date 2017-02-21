@@ -776,13 +776,44 @@ For details on how to convert this distribution into a decoding table, see the [
 
 [FSE section]: #from-normalized-distribution-to-decoding-tables
 
+##### Literals Length
+The decoding table uses an accuracy log of 6 bits (64 states).
+```
+short literalsLength_defaultDistribution[36] =
+        { 4, 3, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 1, 1,
+          2, 2, 2, 2, 2, 2, 2, 2, 2, 3, 2, 1, 1, 1, 1, 1,
+         -1,-1,-1,-1 };
+```
+
+##### Match Length
+The decoding table uses an accuracy log of 6 bits (64 states).
+```
+short matchLengths_defaultDistribution[53] =
+        { 1, 4, 3, 2, 2, 2, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1,
+          1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+          1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,-1,-1,
+         -1,-1,-1,-1,-1 };
+```
+
+##### Offset Codes
+The decoding table uses an accuracy log of 5 bits (32 states),
+and supports a maximum `N` value of 28, allowing offset values up to 536,870,908 .
+
+If any sequence in the compressed block requires a larger offset than this,
+it's not possible to use the default distribution to represent it.
+```
+short offsetCodes_defaultDistribution[29] =
+        { 1, 1, 1, 1, 1, 1, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1,
+          1, 1, 1, 1, 1, 1, 1, 1,-1,-1,-1,-1,-1 };
+```
+
 Sequence Execution
 ------------------
 Once literals and sequences have been decoded,
 they are combined to produce the decoded content of a block.
 
 Each sequence consists of a tuple of (`literals_length`, `offset_value`, `match_length`),
-decoded as described in the [Sequences Section)[#sequences-section].
+decoded as described in the [Sequences Section](#sequences-section).
 To execute a sequence, first copy `literals_length` bytes from the literals section
 to the output.
 
@@ -1266,7 +1297,6 @@ __`Entropy_Tables`__ : following the same format as the tables in compressed blo
               FSE table for match lengths, and FSE table for literals lengths.
               These tables populate the Repeat Stats literals mode and
               Repeat distribution mode for sequence decoding.
-
               It's finally followed by 3 offset values, populating recent offsets (instead of using `{1,4,8}`),
               stored in order, 4-bytes little-endian each, for a total of 12 bytes.
               Each recent offset must have a value < dictionary size.

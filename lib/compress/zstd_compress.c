@@ -1752,7 +1752,7 @@ static size_t ZSTD_BtFindBestMatch_selectMLS_extDict (
 #define NEXT_IN_CHAIN(d, mask)   chainTable[(d) & mask]
 
 /* Update chains up to ip (excluded)
-   Assumption : always within prefix (ie. not within extDict) */
+   Assumption : always within prefix (i.e. not within extDict) */
 FORCE_INLINE
 U32 ZSTD_insertAndFindFirstIndex (ZSTD_CCtx* zc, const BYTE* ip, U32 mls)
 {

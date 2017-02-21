@@ -39,7 +39,7 @@ extern "C" {
   zstd, short for Zstandard, is a fast lossless compression algorithm, targeting real-time compression scenarios
   at zlib-level and better compression ratios. The zstd compression library provides in-memory compression and
   decompression functions. The library supports compression levels from 1 up to ZSTD_maxCLevel() which is 22.
-  Levels >= 20, labelled `--ultra`, should be used with caution, as they require more memory.
+  Levels >= 20, labeled `--ultra`, should be used with caution, as they require more memory.
   Compression can be done in:
     - a single step (described as Simple API)
     - a single step, reusing a context (described as Explicit memory management)
@@ -416,7 +416,7 @@ ZSTDLIB_API size_t ZSTD_getFrameCompressedSize(const void* src, size_t srcSize);
 *       to `ZSTD_frameHeaderSize_max` is guaranteed to be large enough in all cases.
 *   @return : decompressed size of the frame pointed to be `src` if known, otherwise
 *             - ZSTD_CONTENTSIZE_UNKNOWN if the size cannot be determined
-*             - ZSTD_CONTENTSIZE_ERROR if an error occured (e.g. invalid magic number, srcSize too small) */
+*             - ZSTD_CONTENTSIZE_ERROR if an error occurred (e.g. invalid magic number, srcSize too small) */
 ZSTDLIB_API unsigned long long ZSTD_getFrameContentSize(const void *src, size_t srcSize);
 
 /*! ZSTD_findDecompressedSize() :

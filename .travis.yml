@@ -7,38 +7,34 @@ matrix:
       os: osx
 
 
-    # Container-based Ubuntu 12.04 LTS Server Edition 64 bit (doesn't support 32-bit includes)
-    - env: Ubu=12.04cont Cmd="make uasan"
-      os: linux
-      sudo: false
-
-    - env: Ubu=14.04 Cmd='make test CC=clang-4.0 MOREFLAGS="-g -fsanitize=address -fsanitize=undefined"'
+    # Ubuntu 14.04 LTS Server Edition 64 bit
+    - env: Ubu=14.04 Cmd='make test CC=gcc-6 MOREFLAGS="-g -fsanitize=address -fsanitize=undefined"'
       os: linux
       dist: trusty
       sudo: required
       addons:
         apt:
           sources:
-            - llvm-toolchain-trusty-4.0
+            - ubuntu-toolchain-r-test
           packages:
-            - clang-4.0
+            - gcc-6
+            - gcc-6-multilib
 
-    - env: Ubu=14.04 Cmd='make -C tests test32 CC=clang-4.0 MOREFLAGS="-g -fsanitize=address"'
+    - env: Ubu=14.04 Cmd='make -C tests test32 CC=gcc-6 MOREFLAGS="-g -fsanitize=address"'
       os: linux
       dist: trusty
       sudo: required
       addons:
         apt:
           sources:
-            - llvm-toolchain-trusty-4.0
+            - ubuntu-toolchain-r-test
           packages:
             - libc6-dev-i386
             - gcc-multilib
-            - clang-4.0
+            - gcc-6
+            - gcc-6-multilib
 
-
-    # Ubuntu 14.04 LTS Server Edition 64 bit
-    - env: Ubu=14.04 Cmd='cd contrib/pzstd && make test-pzstd && make test-pzstd32 && make test-pzstd-tsan && test-pzstd-asan'
+    - env: Ubu=14.04 Cmd='cd contrib/pzstd && make test-pzstd && make test-pzstd32 && make test-pzstd-tsan && make test-pzstd-asan'
       os: linux
       dist: trusty
       sudo: required

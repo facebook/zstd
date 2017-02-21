@@ -8,21 +8,6 @@ matrix:
 
 
     # Container-based Ubuntu 12.04 LTS Server Edition 64 bit (doesn't support 32-bit includes)
-    - env: Ubu=12.04cont Cmd="make -C contrib/pzstd googletest pzstd tests check && make -C contrib/pzstd clean"
-      os: linux
-      sudo: false
-      language: cpp
-      install:
-        - export CXX="g++-4.8" CC="gcc-4.8"
-        - export TESTFLAGS='--gtest_filter=-*ExtremelyLarge*'
-      addons:
-        apt:
-          sources:
-            - ubuntu-toolchain-r-test
-          packages:
-            - gcc-4.8
-            - g++-4.8
-
     - env: Ubu=12.04cont Cmd="make usan"
       os: linux
       sudo: false
@@ -61,8 +46,8 @@ matrix:
 
 
     # Ubuntu 14.04 LTS Server Edition 64 bit
-    - env: Ubu=14.04 Cmd="make -C contrib/pzstd googletest32
-                       && make -C contrib/pzstd all32 && make -C contrib/pzstd check && make -C contrib/pzstd clean"
+    - env: Ubu=14.04 Cmd="make -C contrib/pzstd googletest pzstd tests check && make -C contrib/pzstd clean
+                       && make -C contrib/pzstd googletest32 && make -C contrib/pzstd all32 && make -C contrib/pzstd check && make -C contrib/pzstd clean"
       os: linux
       dist: trusty
       sudo: required
@@ -77,7 +62,7 @@ matrix:
             - gcc-4.8-multilib
             - g++-4.8
             - g++-4.8-multilib
-            
+
     - env: Ubu=14.04 Cmd="make armtest"
       dist: trusty
       sudo: required
@@ -122,7 +107,7 @@ matrix:
 
 
     # other feature branches => short tests
-    - env: Ubu=14.04 Cmd='make -C lib all && CFLAGS="-O1 -g" make -C zlibWrapper valgrindTest && make -C tests valgrindTest'
+    - env: Ubu=14.04 Cmd='make lib && CFLAGS="-O1 -g" make -C zlibWrapper valgrindTest && make -C tests valgrindTest'
       os: linux
       dist: trusty
       sudo: required

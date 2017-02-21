@@ -203,7 +203,7 @@ MEM_STATIC void ZSTD_updatePrice(seqStore_t* seqStorePtr, U32 litLength, const B
 
 
 /* Update hashTable3 up to ip (excluded)
-   Assumption : always within prefix (ie. not within extDict) */
+   Assumption : always within prefix (i.e. not within extDict) */
 FORCE_INLINE
 U32 ZSTD_insertAndFindFirstIndexHash3 (ZSTD_CCtx* zc, const BYTE* ip)
 {

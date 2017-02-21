@@ -8,14 +8,6 @@ matrix:
 
 
     # Container-based Ubuntu 12.04 LTS Server Edition 64 bit (doesn't support 32-bit includes)
-    - env: Ubu=12.04cont Cmd="make usan"
-      os: linux
-      sudo: false
-
-    - env: Ubu=12.04cont Cmd="make asan"
-      os: linux
-      sudo: false
-
     - env: Ubu=12.04cont Cmd="make uasan"
       os: linux
       sudo: false
@@ -46,17 +38,12 @@ matrix:
 
 
     # Ubuntu 14.04 LTS Server Edition 64 bit
-    - env: Ubu=14.04 Cmd='cd contrib/pzstd && make googletest pzstd tests check && make clean
-                                           && make googletest32 all32 check && make clean
-                                           && make googletest tsan check && make clean
-                                           && make asan check && make clean'
+    - env: Ubu=14.04 Cmd='cd contrib/pzstd && make test-pzstd && make test-pzstd32 && make test-pzstd-tsan && test-pzstd-asan'
       os: linux
       dist: trusty
       sudo: required
       install:
         - export CXX="g++-6" CC="gcc-6"
-        - export LDFLAGS="-fuse-ld=gold"
-        - export TESTFLAGS='--gtest_filter=-*ExtremelyLarge*'
       addons:
         apt:
           sources:

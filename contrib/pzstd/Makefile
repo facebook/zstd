@@ -85,6 +85,23 @@ endif
 .PHONY: default
 default: all
 
+.PHONY: test-pzstd
+test-pzstd: TESTFLAGS='--gtest_filter=-*ExtremelyLarge*'
+test-pzstd: clean googletest pzstd tests check
+
+.PHONY: test-pzstd32
+test-pzstd32: clean googletest32 all32 check
+
+.PHONY: test-pzstd-tsan
+test-pzstd-tsan: LDFLAGS="-fuse-ld=gold"
+test-pzstd-tsan: TESTFLAGS='--gtest_filter=-*ExtremelyLarge*'
+test-pzstd-tsan: clean googletest tsan check
+
+.PHONY: test-pzstd-asan
+test-pzstd-asan: LDFLAGS="-fuse-ld=gold"
+test-pzstd-asan: TESTFLAGS='--gtest_filter=-*ExtremelyLarge*'
+test-pzstd-asan: clean asan check
+
 .PHONY: check
 check:
 	$(TESTPROG) ./utils/test/BufferTest$(EXT) $(TESTFLAGS)

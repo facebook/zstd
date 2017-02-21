@@ -39,6 +39,20 @@ extern "C" {
 #include "mem.h"          /* U32, U64 */
 
 
+/* ************************************************************
+* Avoid fseek()'s 2GiB barrier with MSVC, MacOS, *BSD, MinGW
+***************************************************************/
+#if defined(_MSC_VER) && (_MSC_VER >= 1400)
+#   define UTIL_fseek _fseeki64
+#elif !defined(__64BIT__) && (PLATFORM_POSIX_VERSION >= 200112L) /* No point defining Large file for 64 bit */
+#  define UTIL_fseek fseeko
+#elif defined(__MINGW32__) && defined(__MSVCRT__) && !defined(__STRICT_ANSI__) && !defined(__NO_MINGW_LFS)
+#   define UTIL_fseek fseeko64
+#else
+#   define UTIL_fseek fseek
+#endif
+
+
 /*-****************************************
 *  Sleep functions: Windows - Posix - others
 ******************************************/
@@ -255,7 +269,7 @@ UTIL_STATIC int UTIL_prepareFileList(const char *dirName, char** bufStart, size_
 {
     char* path;
     int dirLength, fnameLength, pathLength, nbFiles = 0;
-    WIN32_FIND_DATA cFile;
+    WIN32_FIND_DATAA cFile;
     HANDLE hFile;
 
     dirLength = (int)strlen(dirName);
@@ -267,7 +281,7 @@ UTIL_STATIC int UTIL_prepareFileList(const char *dirName, char** bufStart, size_
     path[dirLength+1] = '*';
     path[dirLength+2] = 0;
 
-    hFile=FindFirstFile(path, &cFile);
+    hFile=FindFirstFileA(path, &cFile);
     if (hFile == INVALID_HANDLE_VALUE) {
         fprintf(stderr, "Cannot open directory '%s'\n", dirName);
         return 0;
@@ -304,7 +318,7 @@ UTIL_STATIC int UTIL_prepareFileList(const char *dirName, char** bufStart, size_
             }
         }
         free(path);
-    } while (FindNextFile(hFile, &cFile));
+    } while (FindNextFileA(hFile, &cFile));
 
     FindClose(hFile);
     return nbFiles;

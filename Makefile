@@ -143,6 +143,9 @@ asan32: clean
 uasan: clean
 	$(MAKE) test CC=clang MOREFLAGS="-g -fsanitize=address -fsanitize=undefined"
 
+uasan-%: clean
+	LDFLAGS=-fuse-ld=gold CFLAGS="-Og -fsanitize=address -fsanitize=undefined" $(MAKE) -C $(TESTDIR) $*
+
 endif
 
 

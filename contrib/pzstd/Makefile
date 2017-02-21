@@ -134,7 +134,7 @@ debug: pzstd$(EXT) tests roundtrip
 
 .PHONY: tsan
 tsan: PZSTD_CCXXFLAGS += -fsanitize=thread -fPIC
-tsan: PZSTD_LDFLAGS   += -fsanitize=thread -pie
+tsan: PZSTD_LDFLAGS   += -fsanitize=thread
 tsan: debug
 
 .PHONY: asan

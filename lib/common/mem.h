@@ -76,11 +76,11 @@ MEM_STATIC void MEM_check(void) { MEM_STATIC_ASSERT((sizeof(size_t)==4) || (size
  * Unfortunately, on some target/compiler combinations, the generated assembly is sub-optimal.
  * The below switch allow to select different access method for improved performance.
  * Method 0 (default) : use `memcpy()`. Safe and portable.
- * Method 1 : `__packed` statement. It depends on compiler extension (ie, not portable).
+ * Method 1 : `__packed` statement. It depends on compiler extension (i.e., not portable).
  *            This method is safe if your compiler supports it, and *generally* as fast or faster than `memcpy`.
  * Method 2 : direct access. This method is portable but violate C standard.
  *            It can generate buggy code on targets depending on alignment.
- *            In some circumstances, it's the only known way to get the most performance (ie GCC + ARMv6)
+ *            In some circumstances, it's the only known way to get the most performance (i.e. GCC + ARMv6)
  * See http://fastcompression.blogspot.fr/2015/08/accessing-unaligned-memory.html for details.
  * Prefer these methods in priority order (0 > 1 > 2)
  */

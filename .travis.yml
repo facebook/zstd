@@ -28,6 +28,8 @@ matrix:
           packages:
             - libc6-dev-i386
             - gcc-multilib
+            - libclang-3.5-dev
+            - libclang-common-3.5-dev
 
 
     # Standard Ubuntu 12.04 LTS Server Edition 64 bit

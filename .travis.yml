@@ -8,33 +8,7 @@ matrix:
 
 
     # Ubuntu 14.04 LTS Server Edition 64 bit
-    - env: Ubu=14.04 Cmd='LDFLAGS=-fuse-ld=gold CFLAGS=-Og make test CC=gcc-6 MOREFLAGS="-fsanitize=address -fsanitize=undefined"'
-      os: linux
-      dist: trusty
-      sudo: required
-      addons:
-        apt:
-          sources:
-            - ubuntu-toolchain-r-test
-          packages:
-            - gcc-6
-
-    - env: Ubu=14.04 Cmd='LDFLAGS=-fuse-ld=gold CFLAGS=-Og make -C tests test32 CC=gcc-6 MOREFLAGS="-fsanitize=address -fsanitize=undefined"'
-      os: linux
-      dist: trusty
-      sudo: required
-      addons:
-        apt:
-          sources:
-            - ubuntu-toolchain-r-test
-          packages:
-            - libc6-dev-i386
-            - gcc-multilib
-            - gcc-6
-            - gcc-6-multilib
-
-    - env: Ubu=14.04 Cmd='cd contrib/pzstd && make test-pzstd && make test-pzstd32 && make test-pzstd-tsan && make test-pzstd-asan'
-      os: linux
+    - env: Ubu=14.04 Cmd='make uasan-test && cd contrib/pzstd && make test-pzstd && make test-pzstd32 && make test-pzstd-tsan && make test-pzstd-asan'
       dist: trusty
       sudo: required
       install:
@@ -47,9 +21,19 @@ matrix:
             - libc6-dev-i386
             - g++-multilib
             - gcc-6
-            - gcc-6-multilib
             - g++-6
-            - g++-6-multilib
+
+    - env: Ubu=14.04 Cmd='CC=gcc-6 make uasan-test32 && make clean zlibwrapper && make -C tests clean test-zstd-nolegacy versionsTest'
+      dist: trusty
+      sudo: required
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+          packages:
+            - libc6-dev-i386
+            - gcc-multilib
+            - gcc-6
 
     - env: Ubu=14.04 Cmd="make armtest && make clean && make aarch64test"
       dist: trusty
@@ -76,7 +60,6 @@ matrix:
 
     # other feature branches => short tests
     - env: Ubu=14.04 Cmd='make lib && CFLAGS="-O1 -g" make -C zlibWrapper valgrindTest && make -C tests valgrindTest'
-      os: linux
       dist: trusty
       sudo: required
       addons:
@@ -84,8 +67,7 @@ matrix:
           packages:
             - valgrind
 
-    - env: Ubu=14.04 Cmd="make zlibwrapper && make clean && make -C tests test-zstd-nolegacy && make clean && make -C tests test32 versionsTest"
-      os: linux
+    - env: Ubu=14.04 Cmd="make -C tests test32"
       dist: trusty
       sudo: required
       addons:

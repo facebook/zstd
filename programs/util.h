@@ -120,7 +120,7 @@ extern "C" {
    #include <mach/mach_time.h>
    typedef mach_timebase_info_data_t UTIL_freq_t;
    typedef U64 UTIL_time_t;
-   UTIL_STATIC void UTIL_initTimer(UTIL_freq_t* rate) { mach_timebase_info(&rate); }
+   UTIL_STATIC void UTIL_initTimer(UTIL_freq_t* rate) { mach_timebase_info(rate); }
    UTIL_STATIC void UTIL_getTime(UTIL_time_t* x) { *x = mach_absolute_time(); }
    UTIL_STATIC U64 UTIL_getSpanTimeMicro(UTIL_freq_t rate, UTIL_time_t clockStart, UTIL_time_t clockEnd) { return (((clockEnd - clockStart) * (U64)rate.numer) / ((U64)rate.denom))/1000ULL; }
    UTIL_STATIC U64 UTIL_getSpanTimeNano(UTIL_freq_t rate, UTIL_time_t clockStart, UTIL_time_t clockEnd) { return ((clockEnd - clockStart) * (U64)rate.numer) / ((U64)rate.denom); }

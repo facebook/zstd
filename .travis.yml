@@ -8,7 +8,7 @@ matrix:
 
 
     # Ubuntu 14.04 LTS Server Edition 64 bit
-    - env: Ubu=14.04 Cmd='make uasan-test && cd contrib/pzstd && make test-pzstd && make test-pzstd32 && make test-pzstd-tsan && make test-pzstd-asan'
+    - env: Ubu=14.04 Cmd='LDFLAGS=-fuse-ld=gold make uasan-test && cd contrib/pzstd && make test-pzstd && make test-pzstd32 && make test-pzstd-tsan && make test-pzstd-asan'
       dist: trusty
       sudo: required
       install:
@@ -22,6 +22,7 @@ matrix:
             - g++-multilib
             - gcc-6
             - g++-6
+            - g++-6-multilib
 
     - env: Ubu=14.04 Cmd='CC=gcc-6 make uasan-test32 && make clean zlibwrapper && make -C tests clean test-zstd-nolegacy versionsTest'
       dist: trusty
@@ -83,11 +84,11 @@ script:
 
   #  cron & master          => long tests, as this is the final step towards a Release
   #  dev                    => normal tests
-  #  other feature branches => short tests (number > 10)
+  #  other feature branches => short tests (number > 5)
   - if [ "$TRAVIS_EVENT_TYPE" = "cron" ] || [ "$TRAVIS_BRANCH" = "asan" ]; then
         FUZZERTEST=-T10mn sh -c "$Cmd" || travis_terminate 1;
     else
-        if [ "$TRAVIS_PULL_REQUEST" = "true" ] || [ $JOB_NUMBER -gt 10 ] || [ "$TRAVIS_BRANCH" = "dev" ]; then
+        if [ "$TRAVIS_PULL_REQUEST" = "true" ] || [ $JOB_NUMBER -gt 5 ] || [ "$TRAVIS_BRANCH" = "dev" ]; then
             sh -c "$Cmd" || travis_terminate 1;
         fi
     fi

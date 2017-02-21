@@ -78,7 +78,7 @@ static void decompress(const char* fname, const ZSTD_DDict* ddict)
     size_t cSize;
     void* const cBuff = loadFile_orDie(fname, &cSize);
     unsigned long long const rSize = ZSTD_findDecompressedSize(cBuff, cSize);
-    if (rSize==0) {
+    if (rSize==ZSTD_CONTENTSIZE_UNKNOWN) {
         fprintf(stderr, "%s : original size unknown \n", fname);
         exit(6);
     }

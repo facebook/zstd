@@ -63,7 +63,7 @@ static void decompress(const char* fname)
     size_t cSize;
     void* const cBuff = loadFile_orDie(fname, &cSize);
     unsigned long long const rSize = ZSTD_findDecompressedSize(cBuff, cSize);
-    if (rSize==0) {
+    if (rSize==ZSTD_CONTENTSIZE_UNKNOWN) {
         printf("%s : original size unknown. Use streaming decompression instead. \n", fname);
         exit(5);
     }

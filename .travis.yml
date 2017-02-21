@@ -8,7 +8,7 @@ matrix:
 
 
     # Ubuntu 14.04 LTS Server Edition 64 bit
-    - env: Ubu=14.04 Cmd='make test CC=gcc-6 MOREFLAGS="-g -fsanitize=address -fsanitize=undefined" LDFLAGS=-fuse-ld=gold'
+    - env: Ubu=14.04 Cmd='LDFLAGS=-fuse-ld=gold CFLAGS=-Og make test CC=gcc-6 MOREFLAGS="-fsanitize=address -fsanitize=undefined"'
       os: linux
       dist: trusty
       sudo: required
@@ -19,7 +19,7 @@ matrix:
           packages:
             - gcc-6
 
-    - env: Ubu=14.04 Cmd='make -C tests test32 CC=gcc-6 MOREFLAGS="-g -fsanitize=address" LDFLAGS=-fuse-ld=gold'
+    - env: Ubu=14.04 Cmd='LDFLAGS=-fuse-ld=gold CFLAGS=-Og make -C tests test32 CC=gcc-6 MOREFLAGS="-fsanitize=address -fsanitize=undefined"'
       os: linux
       dist: trusty
       sudo: required

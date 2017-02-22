@@ -9,7 +9,7 @@
 
 # This Makefile presumes libzstd is installed, using `sudo make install`
 
-LDFLAGS+= -lzstd
+LDFLAGS += -lzstd
 
 .PHONY: default all clean test
 
@@ -52,16 +52,23 @@ clean:
 test: all
 	cp README.md tmp
 	cp Makefile tmp2
-	@echo starting simple compression
+	@echo -- Simple compression tests
 	./simple_compression tmp
 	./simple_decompression tmp.zst
 	./streaming_decompression tmp.zst > /dev/null
-	@echo starting streaming compression
+	@echo -- Streaming compression tests
 	./streaming_compression tmp
 	./streaming_decompression tmp.zst > /dev/null
-	@echo starting multiple streaming compression
+	@echo -- Edge cases detection
+	! ./streaming_decompression tmp    # invalid input, must fail
+	! ./simple_decompression tmp       # invalid input, must fail
+	! ./simple_decompression tmp.zst   # unknown input size, must fail
+	touch tmpNull                      # create 0-size file
+	./simple_compression tmpNull
+	./simple_decompression tmpNull.zst # 0-size frame : must work
+	@echo -- Multiple streaming tests
 	./multiple_streaming_compression *.c
-	@echo starting dictionary compression
+	@echo -- Dictionary compression tests
 	./dictionary_compression tmp2 tmp README.md
 	./dictionary_decompression tmp2.zst tmp.zst README.md
 	$(RM) tmp* *.zst

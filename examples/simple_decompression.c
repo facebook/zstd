@@ -35,7 +35,7 @@ static FILE* fopen_orDie(const char *filename, const char *instruction)
 
 static void* malloc_orDie(size_t size)
 {
-    void* const buff = malloc(size);
+    void* const buff = malloc(size + !size);   /* avoid allocating size of 0 : may return NULL (implementation dependent) */
     if (buff) return buff;
     /* error */
     fprintf(stderr, "malloc: %s \n", strerror(errno));

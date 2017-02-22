@@ -8,7 +8,7 @@ matrix:
 
 
     # Ubuntu 14.04 LTS Server Edition 64 bit
-    - env: Ubu=14.04 Cmd='LDFLAGS=-fuse-ld=gold make uasan-test && cd contrib/pzstd && make test-pzstd && make test-pzstd32 && make test-pzstd-tsan && make test-pzstd-asan'
+    - env: Ubu=14.04 Cmd='make uasan-test && cd contrib/pzstd && make test-pzstd && make test-pzstd32 && make test-pzstd-tsan && make test-pzstd-asan'
       dist: trusty
       sudo: required
       install:
@@ -35,6 +35,7 @@ matrix:
             - libc6-dev-i386
             - gcc-multilib
             - gcc-6
+            - gcc-6-multilib
 
     - env: Ubu=14.04 Cmd="make armtest && make clean && make aarch64test"
       dist: trusty

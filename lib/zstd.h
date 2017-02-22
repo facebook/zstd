@@ -401,7 +401,7 @@ typedef struct { ZSTD_allocFunction customAlloc; ZSTD_freeFunction customFree; v
 ***************************************/
 
 /*! ZSTD_findFrameCompressedSize() :
- *  `src` should point to the start of a ZSTD encoded frame
+ *  `src` should point to the start of a ZSTD encoded frame or skippable frame
  *  `srcSize` must be at least as large as the frame
  *  @return : the compressed size of the frame pointed to by `src`, suitable to pass to
  *      `ZSTD_decompress` or similar, or an error code if given invalid input. */

@@ -1439,7 +1439,7 @@ size_t ZSTD_generateNxBytes(void* dst, size_t dstCapacity, BYTE byte, size_t len
 
 /** ZSTD_findFrameCompressedSize() :
  *  compatible with legacy mode
- *  `src` must point to the start of a ZSTD or ZSTD legacy frame
+ *  `src` must point to the start of a ZSTD frame, ZSTD legacy frame, or skippable frame
  *  `srcSize` must be at least as large as the frame contained
  *  @return : the compressed size of the frame starting at `src` */
 size_t ZSTD_findFrameCompressedSize(const void *src, size_t srcSize)

@@ -6,77 +6,27 @@ matrix:
     - env: Ubu=OS_X_Mavericks Cmd="make gnu90test && make clean && make test && make clean && make travis-install"
       os: osx
 
-
     # Ubuntu 14.04 LTS Server Edition 64 bit
-    - env: Ubu=14.04 Cmd='make uasan-test && cd contrib/pzstd && make test-pzstd && make test-pzstd32 && make test-pzstd-tsan && make test-pzstd-asan'
+    - env: Ubu=14.04 Cmd='make gpp6install uasan-test && cd contrib/pzstd && make test-pzstd && make test-pzstd32 && make test-pzstd-tsan && make test-pzstd-asan'
       dist: trusty
-      sudo: required
       install:
         - export CXX="g++-6" CC="gcc-6"
-      addons:
-        apt:
-          sources:
-            - ubuntu-toolchain-r-test
-          packages:
-            - libc6-dev-i386
-            - g++-multilib
-            - gcc-6
-            - g++-6
-            - g++-6-multilib
 
-    - env: Ubu=14.04 Cmd='CC=gcc-6 make uasan-test32 && make clean zlibwrapper && make -C tests clean test-zstd-nolegacy versionsTest'
+    - env: Ubu=14.04 Cmd='CC=gcc-6 make gcc6install uasan-test32 && make clean zlibwrapper && make -C tests clean test-zstd-nolegacy versionsTest'
       dist: trusty
-      sudo: required
-      addons:
-        apt:
-          sources:
-            - ubuntu-toolchain-r-test
-          packages:
-            - libc6-dev-i386
-            - gcc-multilib
-            - gcc-6
-            - gcc-6-multilib
 
-    - env: Ubu=14.04 Cmd="make armtest && make clean && make aarch64test"
+    - env: Ubu=14.04 Cmd="make arminstall armtest && make clean && make aarch64test"
       dist: trusty
-      sudo: required
-      addons:
-        apt:
-          packages:
-            - qemu-system-arm
-            - qemu-user-static
-            - gcc-arm-linux-gnueabi
-            - libc6-dev-armel-cross
-            - gcc-aarch64-linux-gnu
-            - libc6-dev-arm64-cross
 
-    - env: Ubu=14.04 Cmd='make ppctest && make clean && make ppc64test'
+    - env: Ubu=14.04 Cmd='make ppcinstall ppctest && make clean && make ppc64test'
       dist: trusty
-      sudo: required
-      addons:
-        apt:
-          packages:
-            - qemu-system-ppc
-            - qemu-user-static
-            - gcc-powerpc-linux-gnu
 
     # other feature branches => short tests
-    - env: Ubu=14.04 Cmd='make lib && CFLAGS="-O1 -g" make -C zlibWrapper valgrindTest && make -C tests valgrindTest'
+    - env: Ubu=14.04 Cmd='make valgrindinstall lib && CFLAGS="-O1 -g" make -C zlibWrapper valgrindTest && make -C tests valgrindTest'
       dist: trusty
-      sudo: required
-      addons:
-        apt:
-          packages:
-            - valgrind
 
-    - env: Ubu=14.04 Cmd="make -C tests test32"
+    - env: Ubu=14.04 Cmd="make libc6install && make -C tests test32"
       dist: trusty
-      sudo: required
-      addons:
-        apt:
-          packages:
-            - libc6-dev-i386
-            - gcc-multilib
 
 
 
@@ -87,7 +37,7 @@ script:
   #  dev                    => normal tests
   #  other feature branches => short tests (number > 5)
   - if [ "$TRAVIS_EVENT_TYPE" = "cron" ] || [ "$TRAVIS_BRANCH" = "asan" ]; then
-        FUZZERTEST=-T10mn sh -c "$Cmd" || travis_terminate 1;
+        FUZZERTEST=-T5mn sh -c "$Cmd" || travis_terminate 1;
     else
         if [ "$TRAVIS_PULL_REQUEST" = "true" ] || [ $JOB_NUMBER -gt 5 ] || [ "$TRAVIS_BRANCH" = "dev" ]; then
             sh -c "$Cmd" || travis_terminate 1;

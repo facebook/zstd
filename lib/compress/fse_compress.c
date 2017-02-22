@@ -506,6 +506,7 @@ unsigned FSE_optimalTableLog(unsigned maxTableLog, size_t srcSize, unsigned maxS
 
 static size_t FSE_normalizeM2(short* norm, U32 tableLog, const unsigned* count, size_t total, U32 maxSymbolValue)
 {
+    short const NOT_YET_ASSIGNED = -2;
     U32 s;
     U32 distributed = 0;
     U32 ToDistribute;
@@ -531,7 +532,8 @@ static size_t FSE_normalizeM2(short* norm, U32 tableLog, const unsigned* count, 
             total -= count[s];
             continue;
         }
-        norm[s]=-2;
+
+        norm[s]=NOT_YET_ASSIGNED;
     }
     ToDistribute = (1 << tableLog) - distributed;
 
@@ -539,7 +541,7 @@ static size_t FSE_normalizeM2(short* norm, U32 tableLog, const unsigned* count, 
         /* risk of rounding to zero */
         lowOne = (U32)((total * 3) / (ToDistribute * 2));
         for (s=0; s<=maxSymbolValue; s++) {
-            if ((norm[s] == -2) && (count[s] <= lowOne)) {
+            if ((norm[s] == NOT_YET_ASSIGNED) && (count[s] <= lowOne)) {
                 norm[s] = 1;
                 distributed++;
                 total -= count[s];
@@ -559,12 +561,19 @@ static size_t FSE_normalizeM2(short* norm, U32 tableLog, const unsigned* count, 
         return 0;
     }
 
+    if (total == 0) {
+        /* all of the symbols were low enough for the lowOne or lowThreshold */
+        for (s=0; ToDistribute > 0; s = (s+1)%(maxSymbolValue+1))
+            if (norm[s] > 0) ToDistribute--, norm[s]++;
+        return 0;
+    }
+
     {   U64 const vStepLog = 62 - tableLog;
         U64 const mid = (1ULL << (vStepLog-1)) - 1;
         U64 const rStep = ((((U64)1<<vStepLog) * ToDistribute) + mid) / total;   /* scale on remaining */
         U64 tmpTotal = mid;
         for (s=0; s<=maxSymbolValue; s++) {
-            if (norm[s]==-2) {
+            if (norm[s]==NOT_YET_ASSIGNED) {
                 U64 const end = tmpTotal + (count[s] * rStep);
                 U32 const sStart = (U32)(tmpTotal >> vStepLog);
                 U32 const sEnd = (U32)(end >> vStepLog);

@@ -26,8 +26,7 @@ endif
 default: lib zstd-release
 
 .PHONY: all
-all: allmost
-	CPPFLAGS=-I../lib LDFLAGS=-L../lib $(MAKE) -C examples/ $@
+all: | allmost examples manual
 
 .PHONY: allmost
 allmost:
@@ -67,6 +66,14 @@ zlibwrapper:
 .PHONY: test
 test:
 	$(MAKE) -C $(TESTDIR) $@
+
+.PHONY: examples
+examples:
+	CPPFLAGS=-I../lib LDFLAGS=-L../lib $(MAKE) -C examples/ all
+
+.PHONY: manual
+manual:
+	$(MAKE) -C contrib/gen_html $@
 
 .PHONY: clean
 clean:

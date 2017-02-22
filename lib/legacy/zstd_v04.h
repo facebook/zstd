@@ -40,7 +40,7 @@ ZSTDv04_getFrameSrcSize() : get the source length of a ZSTD frame compliant with
     return : the number of bytes that would be read to decompress this frame
              or an errorCode if it fails (which can be tested using ZSTDv04_isError())
 */
-size_t ZSTDv04_getFrameCompressedSize(const void* src, size_t compressedSize);
+size_t ZSTDv04_findFrameCompressedSize(const void* src, size_t compressedSize);
 
 /**
 ZSTDv04_isError() : tells if the result of ZSTDv04_decompress() is an error

@@ -545,6 +545,13 @@ static int basicUnitTests(U32 seed, double compressibility)
       if (r != _3BYTESTESTLENGTH) goto _output_error; }
     DISPLAYLEVEL(4, "OK \n");
 
+    /* findFrameCompressedSize on skippable frames */
+    DISPLAYLEVEL(4, "test%3i : frame compressed size of skippable frame : ", testNb++);
+    {   const char* frame = "\x50\x2a\x4d\x18\x05\x0\x0\0abcde";
+        size_t const frameSrcSize = 13;
+        if (ZSTD_findFrameCompressedSize(frame, frameSrcSize) != frameSrcSize) goto _output_error; }
+    DISPLAYLEVEL(4, "OK \n");
+
     /* error string tests */
     DISPLAYLEVEL(4, "test%3i : testing ZSTD error code strings : ", testNb++);
     if (strcmp("No error detected", ZSTD_getErrorName((ZSTD_ErrorCode)(0-ZSTD_error_no_error))) != 0) goto _output_error;

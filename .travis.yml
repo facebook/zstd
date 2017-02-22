@@ -12,7 +12,7 @@ matrix:
     - env: Ubu=14.04 Cmd='make gpp6install uasan-test && cd contrib/pzstd && make test-pzstd && make test-pzstd32 && make test-pzstd-tsan && make test-pzstd-asan'
       install:
         - export CXX="g++-6" CC="gcc-6"
-    - env: Ubu=14.04 Cmd='CC=gcc-6 make gcc6install uasan-test32 && make clean zlibwrapper && make -C tests clean test-zstd-nolegacy versionsTest'
+    - env: Ubu=14.04 Cmd='CC=gcc-6 make gcc6install uasan-test32 && make clean zlibwrapper && make -C tests clean test-zstd-nolegacy && make -C tests versionsTest'
     - env: Ubu=14.04 Cmd="make arminstall armtest && make clean && make aarch64test"
     - env: Ubu=14.04 Cmd='make ppcinstall ppctest && make clean && make ppc64test'
 

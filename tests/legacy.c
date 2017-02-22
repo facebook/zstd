@@ -65,6 +65,7 @@ int testSimpleAPI(void)
         return 1;
     }
 
+    free(output);
     DISPLAY("Simple API OK\n");
     return 0;
 }
@@ -118,6 +119,8 @@ int testStreamingAPI(void)
         }
     }
 
+    free(outBuff);
+    ZSTD_freeDStream(stream);
     DISPLAY("Streaming API OK\n");
     return 0;
 }

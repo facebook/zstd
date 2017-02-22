@@ -496,6 +496,8 @@ static int basicUnitTests(U32 seed, double compressibility, ZSTD_customMem custo
             /* Bug will cause checksum to fail */
             if (ZSTD_isError(r)) goto _output_error;
         }
+
+        ZSTD_freeDStream(zds);
     }
     DISPLAYLEVEL(3, "OK \n");
 

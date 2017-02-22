@@ -700,6 +700,9 @@ ZSTDLIB_API size_t ZSTD_compressEnd(ZSTD_CCtx* cctx, void* dst, size_t dstCapaci
   c) Frame Content - any content (User Data) of length equal to Frame Size
   For skippable frames ZSTD_decompressContinue() always returns 0.
   For skippable frames ZSTD_getFrameParams() returns fparamsPtr->windowLog==0 what means that a frame is skippable.
+    Note : If fparamsPtr->frameContentSize==0, it is ambiguous: the frame might actually be a Zstd encoded frame with no content.
+           For purposes of decompression, it is valid in both cases to skip the frame using
+           ZSTD_findFrameCompressedSize to find its size in bytes.
   It also returns Frame Size as fparamsPtr->frameContentSize.
 */
 

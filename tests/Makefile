@@ -170,7 +170,7 @@ namespaceTest:
 	if $(CC) namespaceTest.c ../lib/common/xxhash.c -o $@ ; then echo compilation should fail; exit 1 ; fi
 	$(RM) $@
 
-versionsTest:
+versionsTest: clean
 	$(PYTHON) test-zstd-versions.py
 
 clean:

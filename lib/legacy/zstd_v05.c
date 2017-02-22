@@ -3583,7 +3583,7 @@ size_t ZSTDv05_decompress(void* dst, size_t maxDstSize, const void* src, size_t 
 #endif
 }
 
-size_t ZSTDv05_getFrameCompressedSize(const void *src, size_t srcSize)
+size_t ZSTDv05_findFrameCompressedSize(const void *src, size_t srcSize)
 {
     const BYTE* ip = (const BYTE*)src;
     size_t remainingSize = srcSize;

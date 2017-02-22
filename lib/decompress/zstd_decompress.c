@@ -369,7 +369,7 @@ unsigned long long ZSTD_findDecompressedSize(const void* src, size_t srcSize)
                 totalDstSize += ret;
             }
             {
-                size_t const frameSrcSize = ZSTD_getFrameCompressedSize(src, srcSize);
+                size_t const frameSrcSize = ZSTD_findFrameCompressedSize(src, srcSize);
                 if (ZSTD_isError(frameSrcSize)) {
                     return ZSTD_CONTENTSIZE_ERROR;
                 }
@@ -1437,17 +1437,20 @@ size_t ZSTD_generateNxBytes(void* dst, size_t dstCapacity, BYTE byte, size_t len
     return length;
 }
 
-/** ZSTD_getFrameCompressedSize() :
+/** ZSTD_findFrameCompressedSize() :
  *  compatible with legacy mode
  *  `src` must point to the start of a ZSTD or ZSTD legacy frame
  *  `srcSize` must be at least as large as the frame contained
  *  @return : the compressed size of the frame starting at `src` */
-size_t ZSTD_getFrameCompressedSize(const void *src, size_t srcSize)
+size_t ZSTD_findFrameCompressedSize(const void *src, size_t srcSize)
 {
 #if defined(ZSTD_LEGACY_SUPPORT) && (ZSTD_LEGACY_SUPPORT==1)
-    if (ZSTD_isLegacy(src, srcSize)) return ZSTD_getFrameCompressedSizeLegacy(src, srcSize);
+    if (ZSTD_isLegacy(src, srcSize)) return ZSTD_findFrameCompressedSizeLegacy(src, srcSize);
 #endif
-    {
+    if (srcSize >= ZSTD_skippableHeaderSize &&
+            (MEM_readLE32(src) & 0xFFFFFFFF0U) == ZSTD_MAGIC_SKIPPABLE_START) {
+        return ZSTD_skippableHeaderSize + MEM_readLE32((const BYTE*)src + 4);
+    } else {
         const BYTE* ip = (const BYTE*)src;
         const BYTE* const ipstart = ip;
         size_t remainingSize = srcSize;
@@ -1576,7 +1579,7 @@ static size_t ZSTD_decompressMultiFrame(ZSTD_DCtx* dctx,
 
 #if defined(ZSTD_LEGACY_SUPPORT) && (ZSTD_LEGACY_SUPPORT >= 1)
         if (ZSTD_isLegacy(src, srcSize)) {
-            size_t const frameSize = ZSTD_getFrameCompressedSizeLegacy(src, srcSize);
+            size_t const frameSize = ZSTD_findFrameCompressedSizeLegacy(src, srcSize);
             size_t decodedSize;
             if (ZSTD_isError(frameSize)) return frameSize;
 

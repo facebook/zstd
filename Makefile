@@ -146,6 +146,31 @@ uasan: clean
 uasan-%: clean
 	LDFLAGS=-fuse-ld=gold CFLAGS="-Og -fsanitize=address -fsanitize=undefined" $(MAKE) -C $(TESTDIR) $*
 
+apt-install:
+	sudo apt-get -yq --no-install-suggests --no-install-recommends --force-yes install $(APT_PACKAGES)
+
+apt-add-repo:
+	sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
+	sudo apt-get update -y -qq
+
+ppcinstall:
+	APT_PACKAGES="qemu-system-ppc qemu-user-static gcc-powerpc-linux-gnu" $(MAKE) apt-install
+
+arminstall:
+	APT_PACKAGES="qemu-system-arm qemu-user-static gcc-powerpc-linux-gnu gcc-arm-linux-gnueabi libc6-dev-armel-cross gcc-aarch64-linux-gnu libc6-dev-arm64-cross" $(MAKE) apt-install
+
+valgrindinstall: 
+	APT_PACKAGES="valgrind" $(MAKE) apt-install
+
+libc6install:
+	APT_PACKAGES="libc6-dev-i386 gcc-multilib" $(MAKE) apt-install
+
+gcc6install: apt-add-repo
+	APT_PACKAGES="libc6-dev-i386 gcc-multilib gcc-6 gcc-6-multilib" $(MAKE) apt-install
+
+gpp6install: apt-add-repo
+	APT_PACKAGES="libc6-dev-i386 g++-multilib gcc-6 g++-6 g++-6-multilib" $(MAKE) apt-install
+
 endif
 
 

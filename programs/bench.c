@@ -169,7 +169,7 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
     size_t cSize = 0;
     double ratio = 0.;
     U32 nbBlocks;
-    UTIL_time_t ticksPerSecond;
+    UTIL_freq_t ticksPerSecond;
 
     /* checks */
     if (!compressedBuffer || !resultBuffer || !blockTable || !ctx || !dctx)
@@ -230,7 +230,7 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
     /* Bench */
     {   U64 fastestC = (U64)(-1LL), fastestD = (U64)(-1LL);
         U64 const crcOrig = g_decodeOnly ? 0 : XXH64(srcBuffer, srcSize, 0);
-        UTIL_time_t coolTime, coolTick;
+        UTIL_time_t coolTime;
         U64 const maxTime = (g_nbSeconds * TIMELOOP_MICROSEC) + 1;
         U64 totalCTime=0, totalDTime=0;
         U32 cCompleted=g_decodeOnly, dCompleted=0;
@@ -238,27 +238,25 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
         const char* const marks[NB_MARKS] = { " |", " /", " =",  "\\" };
         U32 markNb = 0;
 
-        UTIL_initTimer(&coolTick);
         UTIL_getTime(&coolTime);
         DISPLAYLEVEL(2, "\r%79s\r", "");
         while (!cCompleted || !dCompleted) {
 
             /* overheat protection */
-            if (UTIL_clockSpanMicro(coolTime, coolTick) > ACTIVEPERIOD_MICROSEC) {
+            if (UTIL_clockSpanMicro(coolTime, ticksPerSecond) > ACTIVEPERIOD_MICROSEC) {
                 DISPLAYLEVEL(2, "\rcooling down ...    \r");
                 UTIL_sleep(COOLPERIOD_SEC);
                 UTIL_getTime(&coolTime);
             }
 
             if (!g_decodeOnly) {
-                UTIL_time_t clockTick, clockStart;
+                UTIL_time_t clockStart;
                 /* Compression */
                 DISPLAYLEVEL(2, "%2s-%-17.17s :%10u ->\r", marks[markNb], displayName, (U32)srcSize);
                 if (!cCompleted) memset(compressedBuffer, 0xE5, maxCompressedSize);  /* warm up and erase result buffer */
 
                 UTIL_sleepMilli(1);  /* give processor time to other processes */
                 UTIL_waitForNextTick(ticksPerSecond);
-                UTIL_initTimer(&clockTick);
                 UTIL_getTime(&clockStart);
 
                 if (!cCompleted) {   /* still some time to do compression tests */
@@ -300,9 +298,9 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
                             blockTable[blockNb].cSize = rSize;
                         }
                         nbLoops++;
-                    } while (UTIL_clockSpanMicro(clockStart, clockTick) < clockLoop);
+                    } while (UTIL_clockSpanMicro(clockStart, ticksPerSecond) < clockLoop);
                     ZSTD_freeCDict(cdict);
-                    {   U64 const clockSpanMicro = UTIL_clockSpanMicro(clockStart, clockTick);
+                    {   U64 const clockSpanMicro = UTIL_clockSpanMicro(clockStart, ticksPerSecond);
                         if (clockSpanMicro < fastestC*nbLoops) fastestC = clockSpanMicro / nbLoops;
                         totalCTime += clockSpanMicro;
                         cCompleted = (totalCTime >= maxTime);
@@ -332,10 +330,9 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
             if (!dCompleted) {
                 U64 clockLoop = g_nbSeconds ? TIMELOOP_MICROSEC : 1;
                 U32 nbLoops = 0;
-                UTIL_time_t clockStart, clockTick;
+                UTIL_time_t clockStart;
                 ZSTD_DDict* const ddict = ZSTD_createDDict(dictBuffer, dictBufferSize);
                 if (!ddict) EXM_THROW(2, "ZSTD_createDDict() allocation failure");
-                UTIL_initTimer(&clockTick);
                 UTIL_getTime(&clockStart);
                 do {
                     U32 blockNb;
@@ -353,9 +350,9 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
                         blockTable[blockNb].resSize = regenSize;
                     }
                     nbLoops++;
-                } while (UTIL_clockSpanMicro(clockStart, clockTick) < clockLoop);
+                } while (UTIL_clockSpanMicro(clockStart, ticksPerSecond) < clockLoop);
                 ZSTD_freeDDict(ddict);
-                {   U64 const clockSpanMicro = UTIL_clockSpanMicro(clockStart, clockTick);
+                {   U64 const clockSpanMicro = UTIL_clockSpanMicro(clockStart, ticksPerSecond);
                     if (clockSpanMicro < fastestD*nbLoops) fastestD = clockSpanMicro / nbLoops;
                     totalDTime += clockSpanMicro;
                     dCompleted = (totalDTime >= maxTime);

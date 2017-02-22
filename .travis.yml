@@ -1,4 +1,6 @@
 language: c
+sudo: required
+dist: trusty
 matrix:
   fast_finish: true
   include:
@@ -8,27 +10,15 @@ matrix:
 
     # Ubuntu 14.04 LTS Server Edition 64 bit
     - env: Ubu=14.04 Cmd='make gpp6install uasan-test && cd contrib/pzstd && make test-pzstd && make test-pzstd32 && make test-pzstd-tsan && make test-pzstd-asan'
-      dist: trusty
       install:
         - export CXX="g++-6" CC="gcc-6"
-
     - env: Ubu=14.04 Cmd='CC=gcc-6 make gcc6install uasan-test32 && make clean zlibwrapper && make -C tests clean test-zstd-nolegacy versionsTest'
-      dist: trusty
-
     - env: Ubu=14.04 Cmd="make arminstall armtest && make clean && make aarch64test"
-      dist: trusty
-
     - env: Ubu=14.04 Cmd='make ppcinstall ppctest && make clean && make ppc64test'
-      dist: trusty
 
     # other feature branches => short tests
     - env: Ubu=14.04 Cmd='make valgrindinstall lib && CFLAGS="-O1 -g" make -C zlibWrapper valgrindTest && make -C tests valgrindTest'
-      dist: trusty
-
     - env: Ubu=14.04 Cmd="make libc6install && make -C tests test32"
-      dist: trusty
-
-
 
 script:
   - JOB_NUMBER=$(echo $TRAVIS_JOB_NUMBER | sed -e 's:[0-9][0-9]*\.\(.*\):\1:')

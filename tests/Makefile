@@ -174,7 +174,7 @@ versionsTest: clean
 	$(PYTHON) test-zstd-versions.py
 
 clean:
-	$(MAKE) -C ../lib clean
+	$(MAKE) -C $(ZSTDDIR) clean
 	@$(RM) -fR $(TESTARTEFACT)
 	@$(RM) -f core *.o tmp* result* *.gcda dictionary *.zst \
         $(PRGDIR)/zstd$(EXT) $(PRGDIR)/zstd32$(EXT) \

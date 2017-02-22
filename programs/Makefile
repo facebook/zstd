@@ -148,7 +148,7 @@ generate_res:
 	windres/generate_res.bat
 
 clean:
-	$(MAKE) -C ../lib clean
+	$(MAKE) -C $(ZSTDDIR) clean
 	@$(RM) $(ZSTDDIR)/decompress/*.o $(ZSTDDIR)/decompress/zstd_decompress.gcda
 	@$(RM) core *.o tmp* result* *.gcda dictionary *.zst \
         zstd$(EXT) zstd32$(EXT) zstd-compress$(EXT) zstd-decompress$(EXT) \

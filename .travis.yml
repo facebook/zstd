@@ -17,7 +17,7 @@ matrix:
     - env: Ubu=14.04 Cmd='make ppcinstall ppctest && make clean && make ppc64test'
 
     # other feature branches => short tests
-    - env: Ubu=14.04 Cmd='make valgrindinstall lib && CFLAGS="-O1 -g" make -C zlibWrapper valgrindTest && make -C tests valgrindTest'
+    - env: Ubu=14.04 Cmd='make arminstall ppcinstall arm-ppc-compilation && make valgrindinstall lib && CFLAGS="-O1 -g" make -C zlibWrapper valgrindTest && make -C tests valgrindTest'
     - env: Ubu=14.04 Cmd="make libc6install && make -C tests test32"
 
 script:

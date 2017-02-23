@@ -30,7 +30,13 @@ const char * zstdVersion(void);
 
 
 /*** COMPRESSION ***/
-/* enables/disables zstd compression during runtime */
+/* ZWRAP_useZSTDcompression() enables/disables zstd compression during runtime.
+   By default zstd compression is disabled. To enable zstd compression please use one of the methods:
+   - compilation with the additional option -DZWRAP_USE_ZSTD=1 
+   - using '#define ZWRAP_USE_ZSTD 1' in source code before '#include "zstd_zlibwrapper.h"'
+   - calling ZWRAP_useZSTDcompression(1)
+   All above-mentioned methods will enable zstd compression for all threads.
+   Be aware that ZWRAP_useZSTDcompression() is not thread-safe and may lead to a race condition. */
 void ZWRAP_useZSTDcompression(int turn_on);
 
 /* checks if zstd compression is turned on */
@@ -54,7 +60,11 @@ int ZWRAP_deflateReset_keepDict(z_streamp strm);
 /*** DECOMPRESSION ***/
 typedef enum { ZWRAP_FORCE_ZLIB, ZWRAP_AUTO } ZWRAP_decompress_type;
 
-/* enables/disables automatic recognition of zstd/zlib compressed data during runtime */
+/* ZWRAP_setDecompressionType() enables/disables automatic recognition of zstd/zlib compressed data during runtime.
+   By default auto-detection of zstd and zlib streams in enabled (ZWRAP_AUTO).
+   Forcing zlib decompression with ZWRAP_setDecompressionType(ZWRAP_FORCE_ZLIB) slightly improves
+   decompression speed of zlib-encoded streams.
+   Be aware that ZWRAP_setDecompressionType() is not thread-safe and may lead to a race condition. */
 void ZWRAP_setDecompressionType(ZWRAP_decompress_type type);
 
 /* checks zstd decompression type */

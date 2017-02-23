@@ -10,12 +10,14 @@ This directory contains the following programs and scripts:
 - `test-zstd-versions.py` : compatibility test between zstd versions stored on Github (v0.1+)
 - `zbufftest`  : Test tool to check ZBUFF (a buffered streaming API) integrity
 - `zstreamtest` : Fuzzer test tool for zstd streaming API
+- `legacy` : Test tool to test decoding of legacy zstd frames
+- `decodecorpus` : Tool to generate valid Zstandard frames, for verifying decoder implementations
 
 
 #### `test-zstd-versions.py` - script for testing zstd interoperability between versions
 
 This script creates `versionsTest` directory to which zstd repository is cloned.
-Then all taged (released) versions of zstd are compiled.
+Then all tagged (released) versions of zstd are compiled.
 In the following step interoperability between zstd versions is checked.
 
 
@@ -64,3 +66,25 @@ optional arguments:
   --sleepTime SLEEPTIME
                         frequency of repository checking in seconds
 ```
+
+#### `decodecorpus` - tool to generate Zstandard frames for decoder testing
+Command line tool to generate test .zst files.
+
+This tool will generate .zst files with checksums,
+as well as optionally output the corresponding correct uncompressed data for
+extra verfication.
+
+Example:
+```
+./decodecorpus -ptestfiles -otestfiles -n10000 -s5
+```
+will generate 10,000 sample .zst files using a seed of 5 in the `testfiles` directory,
+with the zstd checksum field set,
+as well as the 10,000 original files for more detailed comparison of decompression results.
+
+```
+./decodecorpus -t -T1mn
+```
+will choose a random seed, and for 1 minute,
+generate random test frames and ensure that the
+zstd library correctly decompresses them in both simple and streaming modes.

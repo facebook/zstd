@@ -20,7 +20,7 @@ static off_t fsize_orDie(const char *filename)
     struct stat st;
     if (stat(filename, &st) == 0) return st.st_size;
     /* error */
-    printf("stat: %s : %s \n", filename, strerror(errno));
+    fprintf(stderr, "stat: %s : %s \n", filename, strerror(errno));
     exit(1);
 }
 
@@ -29,16 +29,16 @@ static FILE* fopen_orDie(const char *filename, const char *instruction)
     FILE* const inFile = fopen(filename, instruction);
     if (inFile) return inFile;
     /* error */
-    printf("fopen: %s : %s \n", filename, strerror(errno));
+    fprintf(stderr, "fopen: %s : %s \n", filename, strerror(errno));
     exit(2);
 }
 
 static void* malloc_orDie(size_t size)
 {
-    void* const buff = malloc(size);
+    void* const buff = malloc(size + !size);   /* avoid allocating size of 0 : may return NULL (implementation dependent) */
     if (buff) return buff;
     /* error */
-    printf("malloc: %s \n", strerror(errno));
+    fprintf(stderr, "malloc: %s \n", strerror(errno));
     exit(3);
 }
 
@@ -49,7 +49,7 @@ static void* loadFile_orDie(const char* fileName, size_t* size)
     void* const buffer = malloc_orDie(buffSize);
     size_t const readSize = fread(buffer, 1, buffSize, inFile);
     if (readSize != (size_t)buffSize) {
-        printf("fread: %s : %s \n", fileName, strerror(errno));
+        fprintf(stderr, "fread: %s : %s \n", fileName, strerror(errno));
         exit(4);
     }
     fclose(inFile);   /* can't fail (read only) */
@@ -63,16 +63,21 @@ static void decompress(const char* fname)
     size_t cSize;
     void* const cBuff = loadFile_orDie(fname, &cSize);
     unsigned long long const rSize = ZSTD_findDecompressedSize(cBuff, cSize);
-    if (rSize==0) {
-        printf("%s : original size unknown. Use streaming decompression instead. \n", fname);
+    if (rSize==ZSTD_CONTENTSIZE_ERROR) {
+        fprintf(stderr, "%s : it was not compressed by zstd.\n", fname);
         exit(5);
+    } else if (rSize==ZSTD_CONTENTSIZE_UNKNOWN) {
+        fprintf(stderr,
+                "%s : original size unknown. Use streaming decompression instead.\n", fname);
+        exit(6);
     }
+
     void* const rBuff = malloc_orDie((size_t)rSize);
 
     size_t const dSize = ZSTD_decompress(rBuff, rSize, cBuff, cSize);
 
     if (dSize != rSize) {
-        printf("error decoding %s : %s \n", fname, ZSTD_getErrorName(dSize));
+        fprintf(stderr, "error decoding %s : %s \n", fname, ZSTD_getErrorName(dSize));
         exit(7);
     }
 

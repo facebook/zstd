@@ -56,6 +56,7 @@ VOID = /dev/null
 ZSTREAM_TESTTIME = -T2mn
 FUZZERTEST ?= -T5mn
 ZSTDRTTEST = --test-large-data
+DECODECORPUS_TESTTIME = -T30
 
 .PHONY: default all all32 dll clean test test32 test-all namespaceTest versionsTest
 
@@ -154,6 +155,9 @@ legacy : CPPFLAGS+= -I$(ZSTDDIR)/legacy
 legacy : $(ZSTD_FILES) $(wildcard $(ZSTDDIR)/legacy/*.c) legacy.c
 	$(CC)      $(FLAGS) $^ -o $@$(EXT)
 
+decodecorpus	: $(filter-out $(ZSTDDIR)/compress/zstd_compress.c, $(wildcard $(ZSTD_FILES))) decodecorpus.c
+	$(CC)      $(FLAGS) $^ -o $@$(EXT) -lm
+
 symbols  : symbols.c
 	$(MAKE) -C $(ZSTDDIR) libzstd
 ifneq (,$(filter Windows%,$(OS)))
@@ -184,7 +188,8 @@ clean:
         fuzzer-dll$(EXT) zstreamtest-dll$(EXT) zbufftest-dll$(EXT)\
         zstreamtest$(EXT) zstreamtest32$(EXT) \
         datagen$(EXT) paramgrill$(EXT) roundTripCrash$(EXT) longmatch$(EXT) \
-        symbols$(EXT) invalidDictionaries$(EXT) legacy$(EXT) pool$(EXT)
+        symbols$(EXT) invalidDictionaries$(EXT) legacy$(EXT) pool$(EXT) \
+	decodecorpus$(EXT)
 	@echo Cleaning completed
 
 
@@ -230,7 +235,7 @@ zstd-playTests: datagen
 	file $(ZSTD)
 	ZSTD="$(QEMU_SYS) $(ZSTD)" ./playTests.sh $(ZSTDRTTEST)
 
-test: test-zstd test-fullbench test-fuzzer test-zstream test-invalidDictionaries test-legacy
+test: test-zstd test-fullbench test-fuzzer test-zstream test-invalidDictionaries test-legacy test-decodecorpus
 ifeq ($(QEMU_SYS),)
 test: test-pool
 endif
@@ -301,6 +306,9 @@ test-symbols: symbols
 
 test-legacy: legacy
 	$(QEMU_SYS) ./legacy
+
+test-decodecorpus: decodecorpus
+	$(QEMU_SYS) ./decodecorpus -t $(DECODECORPUS_TESTTIME)
 
 test-pool: pool
 	$(QEMU_SYS) ./pool

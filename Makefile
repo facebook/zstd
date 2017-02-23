@@ -26,8 +26,7 @@ endif
 default: lib zstd-release
 
 .PHONY: all
-all: allmost
-	CPPFLAGS=-I../lib LDFLAGS=-L../lib $(MAKE) -C examples/ $@
+all: | allmost examples manual
 
 .PHONY: allmost
 allmost:
@@ -68,6 +67,14 @@ zlibwrapper:
 test:
 	$(MAKE) -C $(TESTDIR) $@
 
+.PHONY: examples
+examples:
+	CPPFLAGS=-I../lib LDFLAGS=-L../lib $(MAKE) -C examples/ all
+
+.PHONY: manual
+manual:
+	$(MAKE) -C contrib/gen_html $@
+
 .PHONY: clean
 clean:
 	@$(MAKE) -C $(ZSTDDIR) $@ > $(VOID)
@@ -75,6 +82,7 @@ clean:
 	@$(MAKE) -C $(TESTDIR) $@ > $(VOID)
 	@$(MAKE) -C $(ZWRAPDIR) $@ > $(VOID)
 	@$(MAKE) -C examples/ $@ > $(VOID)
+	@$(MAKE) -C contrib/gen_html $@ > $(VOID)
 	@$(RM) zstd$(EXT) zstdmt$(EXT) tmp*
 	@echo Cleaning completed
 
@@ -197,16 +205,16 @@ cmaketest:
 	cd $(BUILDIR)/cmake/build ; cmake -DPREFIX:STRING=~/install_test_dir $(CMAKE_PARAMS) .. ; $(MAKE) install ; $(MAKE) uninstall
 
 c90test: clean
-	CFLAGS="-std=c90" $(MAKE) all  # will fail, due to // and long long
+	CFLAGS="-std=c90" $(MAKE) allmost  # will fail, due to missing support for `long long`
 
 gnu90test: clean
-	CFLAGS="-std=gnu90" $(MAKE) all
+	CFLAGS="-std=gnu90" $(MAKE) allmost
 
 c99test: clean
 	CFLAGS="-std=c99" $(MAKE) allmost
 
 gnu99test: clean
-	CFLAGS="-std=gnu99" $(MAKE) all
+	CFLAGS="-std=gnu99" $(MAKE) allmost
 
 c11test: clean
 	CFLAGS="-std=c11" $(MAKE) allmost

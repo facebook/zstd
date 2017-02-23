@@ -16,6 +16,7 @@ static const void *symbols[] = {
   &ZSTD_decompress,
   &ZSTD_getDecompressedSize,
   &ZSTD_findDecompressedSize,
+  &ZSTD_findFrameCompressedSize,
   &ZSTD_getFrameContentSize,
   &ZSTD_maxCLevel,
   &ZSTD_compressBound,

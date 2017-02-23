@@ -1,0 +1,21 @@
+<!doctype html>
+
+<head>
+</head>
+<body>
+    <script>
+httpRequest = new XMLHttpRequest();
+httpRequest.onreadystatechange = function() {
+    if (httpRequest.readyState != XMLHttpRequest.DONE) {
+        return;
+    }
+    if (httpRequest.status == 200) {
+        document.body.innerHTML = httpRequest.responseText;
+    } else {
+        document.body.innerHTML = "An error occurred loading the Zstandard manual";
+    }
+};
+httpRequest.open('GET', 'https://raw.githubusercontent.com/facebook/zstd/master/doc/zstd_manual.html', true);
+httpRequest.send();
+    </script>
+</body>

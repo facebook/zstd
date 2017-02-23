@@ -235,12 +235,16 @@ typedef struct {
 *  Generator Functions
 *********************************************************/
 
+struct {
+    int contentSize; /* force the content size to be present */
+} opts; /* advanced options on generation */
+
 /* Generate and write a random frame header */
 static void writeFrameHeader(U32* seed, frame_t* frame)
 {
     BYTE* const op = frame->data;
     size_t pos = 0;
-    frameHeader_t fl;
+    frameHeader_t fh;
 
     BYTE windowByte = 0;
 
@@ -248,7 +252,7 @@ static void writeFrameHeader(U32* seed, frame_t* frame)
     int contentSizeFlag = 0;
     int fcsCode = 0;
 
-    memset(&fl, 0, sizeof(fl));
+    memset(&fh, 0, sizeof(fh));
 
     /* generate window size */
     {
@@ -256,8 +260,8 @@ static void writeFrameHeader(U32* seed, frame_t* frame)
         int const exponent = RAND(seed) % (MAX_WINDOW_LOG - 10);
         int const mantissa = RAND(seed) % 8;
         windowByte = (exponent << 3) | mantissa;
-        fl.windowSize = (1U << (exponent + 10));
-        fl.windowSize += fl.windowSize / 8 * mantissa;
+        fh.windowSize = (1U << (exponent + 10));
+        fh.windowSize += fh.windowSize / 8 * mantissa;
     }
 
     {
@@ -273,28 +277,28 @@ static void writeFrameHeader(U32* seed, frame_t* frame)
             /* 0 size frame */
             highBit = 0;
         }
-        fl.contentSize = highBit ? highBit + (RAND(seed) % highBit) : 0;
+        fh.contentSize = highBit ? highBit + (RAND(seed) % highBit) : 0;
 
         /* provide size sometimes */
-        contentSizeFlag = RAND(seed) & 1;
+        contentSizeFlag = opts.contentSize | (RAND(seed) & 1);
 
-        if (contentSizeFlag && !(RAND(seed) & 7)) {
+        if (contentSizeFlag && (fh.contentSize == 0 || !(RAND(seed) & 7))) {
             /* do single segment sometimes */
-            fl.windowSize = fl.contentSize;
+            fh.windowSize = fh.contentSize;
             singleSegment = 1;
         }
     }
 
     if (contentSizeFlag) {
         /* Determine how large fcs field has to be */
-        int minFcsCode = (fl.contentSize >= 256) +
-                               (fl.contentSize >= 65536 + 256) +
-                               (fl.contentSize > 0xFFFFFFFFU);
+        int minFcsCode = (fh.contentSize >= 256) +
+                               (fh.contentSize >= 65536 + 256) +
+                               (fh.contentSize > 0xFFFFFFFFU);
         if (!singleSegment && !minFcsCode) {
             minFcsCode = 1;
         }
         fcsCode = minFcsCode + (RAND(seed) % (4 - minFcsCode));
-        if (fcsCode == 1 && fl.contentSize < 256) fcsCode++;
+        if (fcsCode == 1 && fh.contentSize < 256) fcsCode++;
     }
 
     /* write out the header */
@@ -314,20 +318,20 @@ static void writeFrameHeader(U32* seed, frame_t* frame)
     if (contentSizeFlag) {
         switch (fcsCode) {
         default: /* Impossible */
-        case 0: op[pos++] = fl.contentSize; break;
-        case 1: MEM_writeLE16(op + pos, fl.contentSize - 256); pos += 2; break;
-        case 2: MEM_writeLE32(op + pos, fl.contentSize); pos += 4; break;
-        case 3: MEM_writeLE64(op + pos, fl.contentSize); pos += 8; break;
+        case 0: op[pos++] = fh.contentSize; break;
+        case 1: MEM_writeLE16(op + pos, fh.contentSize - 256); pos += 2; break;
+        case 2: MEM_writeLE32(op + pos, fh.contentSize); pos += 4; break;
+        case 3: MEM_writeLE64(op + pos, fh.contentSize); pos += 8; break;
         }
     }
 
-    DISPLAYLEVEL(2, " frame content size:\t%zu\n", fl.contentSize);
-    DISPLAYLEVEL(2, " frame window size:\t%u\n", fl.windowSize);
+    DISPLAYLEVEL(2, " frame content size:\t%zu\n", fh.contentSize);
+    DISPLAYLEVEL(2, " frame window size:\t%u\n", fh.windowSize);
     DISPLAYLEVEL(2, " content size flag:\t%d\n", contentSizeFlag);
     DISPLAYLEVEL(2, " single segment flag:\t%d\n", singleSegment);
 
     frame->data = op + pos;
-    frame->header = fl;
+    frame->header = fh;
 }
 
 /* Write a literal block in either raw or RLE form, return the literals size */
@@ -1245,6 +1249,8 @@ static int generateFile(U32 seed, const char* const path,
 {
     frame_t fr;
 
+    DISPLAY("seed: %u\n", seed);
+
     generateFrame(seed, &fr);
 
     outputBuffer(fr.dataStart, (BYTE*)fr.data - (BYTE*)fr.dataStart, path);
@@ -1259,11 +1265,6 @@ static int generateCorpus(U32 seed, unsigned numFiles, const char* const path,
 {
     char outPath[MAX_PATH];
     unsigned fnum;
-
-    if (!path) {
-        DISPLAY("Error: valid path is required in multiple files mode\n");
-        return 1;
-    }
 
     DISPLAY("seed: %u\n", seed);
 
@@ -1330,7 +1331,15 @@ static void usage(const char* programName)
     DISPLAY( " -t       : activate test mode (test files against libzstd instead of outputting them)\n");
     DISPLAY( " -T#      : length of time to run tests for\n");
     DISPLAY( " -v       : increase verbosity level (default:0, max:7)\n");
-    DISPLAY( " -h       : display help and exit\n");
+    DISPLAY( " -h/H     : display help/long help and exit\n");
+}
+
+static void advancedUsage(const char* programName)
+{
+    usage(programName);
+    DISPLAY( "\n");
+    DISPLAY( "Advanced arguments :\n");
+    DISPLAY( " --content-size    : always include the content size in the frame header\n");
 }
 
 int main(int argc, char** argv)
@@ -1358,6 +1367,9 @@ int main(int argc, char** argv)
                 {
                 case 'h':
                     usage(argv[0]);
+                    return 0;
+                case 'H':
+                    advancedUsage(argv[0]);
                     return 0;
                 case 'v':
                     argument++;
@@ -1395,6 +1407,16 @@ int main(int argc, char** argv)
                     argument++;
                     testMode = 1;
                     break;
+                case '-':
+                    argument++;
+                    if (strcmp(argument, "content-size") == 0) {
+                        opts.contentSize = 1;
+                    } else {
+                        advancedUsage(argv[0]);
+                        return 1;
+                    }
+                    argument += strlen(argument);
+                    break;
                 default:
                     usage(argv[0]);
                     return 1;
@@ -1414,11 +1436,15 @@ int main(int argc, char** argv)
         }
     }
 
+    if (!path) {
+        DISPLAY("Error: path is required in file generation mode\n");
+        usage(argv[0]);
+        return 1;
+    }
+
     if (numFiles == 0) {
         return generateFile(seed, path, origPath);
     } else {
         return generateCorpus(seed, numFiles, path, origPath);
     }
-
-    return 0;
 }

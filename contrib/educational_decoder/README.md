@@ -17,3 +17,13 @@ It also contains implementations of Huffman and FSE table decoding.
 
     harness <input-file> <output-file> [dictionary]
 
+As an additional resource to be used with this decoder,
+see the `decodecorpus` tool in the [tests] directory.
+It generates valid Zstandard frames that can be used to verify
+a Zstandard decoder implementation.
+Note that to use the tool to verify this decoder implementation,
+the --content-size flag should be set,
+as this decoder does not handle streaming decoding,
+and so it must know the decompressed size in advance.
+
+[tests]: https://github.com/facebook/zstd/blob/dev/tests/

@@ -462,7 +462,8 @@ ZSTDLIB_API ZSTD_CCtx* ZSTD_createCCtx_advanced(ZSTD_customMem customMem);
 ZSTDLIB_API size_t ZSTD_sizeof_CCtx(const ZSTD_CCtx* cctx);
 
 typedef enum {
-    ZSTD_p_forceWindow   /* Force back-references to remain < windowSize, even when referencing Dictionary content (default:0) */
+    ZSTD_p_forceWindow,   /* Force back-references to remain < windowSize, even when referencing Dictionary content (default:0) */
+    ZSTD_p_forceRawDict   /* Force loading dictionary in "content-only" mode (no header analysis) */
 } ZSTD_CCtxParameter;
 /*! ZSTD_setCCtxParameter() :
  *  Set advanced parameters, selected through enum ZSTD_CCtxParameter

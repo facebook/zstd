@@ -609,17 +609,16 @@ static U32 generateSequences(U32* seed, frame_t* frame, seqStore_t* seqStore,
 {
     /* The total length of all the matches */
     size_t const remainingMatch = contentSize - literalsSize;
-    size_t excessMatch;
+    size_t excessMatch = 0;
+    U32 numSequences = 0;
+
     U32 i;
 
-    U32 numSequences;
 
     const BYTE* literals = LITERAL_BUFFER;
     BYTE* srcPtr = frame->src;
 
-    if (literalsSize == contentSize) {
-        numSequences = 0;
-    } else {
+    if (literalsSize != contentSize) {
         /* each match must be at least MIN_SEQ_LEN, so this is the maximum
          * number of sequences we can have */
         U32 const maxSequences = (U32)remainingMatch / MIN_SEQ_LEN;

@@ -799,7 +799,7 @@ static size_t decode_literals_simple(istream_t *const in, u8 **const literals,
     case 2:
         // "Size_Format uses 1 bit. Regenerated_Size uses 5 bits (0-31)."
         IO_rewind_bits(in, 1);
-        size = IO_read_bits(in, 2);
+        size = IO_read_bits(in, 5);
         break;
     case 1:
         // "Size_Format uses 2 bits. Regenerated_Size uses 12 bits (0-4095)."
@@ -881,7 +881,7 @@ static size_t decode_literals_compressed(frame_context_t *const ctx,
         IMPOSSIBLE();
     }
     if (regenerated_size > MAX_LITERALS_SIZE ||
-        compressed_size > regenerated_size) {
+        compressed_size >= regenerated_size) {
         CORRUPTION();
     }
 
@@ -1654,7 +1654,7 @@ static inline const u8 *IO_read_bytes(istream_t *const in, size_t len) {
 /// Returns a pointer to write `len` bytes to, and advances the internal state
 static inline u8 *IO_write_bytes(ostream_t *const out, size_t len) {
     if (len > out->len) {
-        INP_SIZE();
+        OUT_SIZE();
     }
     u8 *const ptr = out->ptr;
     out->ptr += len;

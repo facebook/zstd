@@ -62,6 +62,7 @@ struct ZSTD_CCtx_s {
     U32   hashLog3;         /* dispatch table : larger == faster, more memory */
     U32   loadedDictEnd;    /* index of end of dictionary */
     U32   forceWindow;      /* force back-references to respect limit of 1<<wLog, even for dictionary */
+    U32   forceRawDict;     /* Force loading dictionary in "content-only" mode (no header analysis) */
     ZSTD_compressionStage_e stage;
     U32   rep[ZSTD_REP_NUM];
     U32   repToConfirm[ZSTD_REP_NUM];
@@ -124,6 +125,7 @@ size_t ZSTD_setCCtxParameter(ZSTD_CCtx* cctx, ZSTD_CCtxParameter param, unsigned
     switch(param)
     {
     case ZSTD_p_forceWindow : cctx->forceWindow = value>0; cctx->loadedDictEnd = 0; return 0;
+    case ZSTD_p_forceRawDict : cctx->forceRawDict = value>0; return 0;
     default: return ERROR(parameter_unknown);
     }
 }
@@ -2613,8 +2615,9 @@ static size_t ZSTD_compress_insertDictionary(ZSTD_CCtx* zc, const void* dict, si
 {
     if ((dict==NULL) || (dictSize<=8)) return 0;
 
-    /* default : dict is pure content */
-    if (MEM_readLE32(dict) != ZSTD_DICT_MAGIC) return ZSTD_loadDictionaryContent(zc, dict, dictSize);
+    /* dict as pure content */
+    if ((MEM_readLE32(dict) != ZSTD_DICT_MAGIC) || (zc->forceRawDict))
+        return ZSTD_loadDictionaryContent(zc, dict, dictSize);
     zc->dictID = zc->params.fParams.noDictIDFlag ? 0 :  MEM_readLE32((const char*)dict+4);
 
     /* known magic number : dict is parsed for entropy stats and content */

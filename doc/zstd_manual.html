@@ -365,7 +365,8 @@ typedef struct { ZSTD_allocFunction customAlloc; ZSTD_freeFunction customFree; v
 </p></pre><BR>
 
 <pre><b>typedef enum {
-    ZSTD_p_forceWindow   </b>/* Force back-references to remain < windowSize, even when referencing Dictionary content (default:0) */<b>
+    ZSTD_p_forceWindow,   </b>/* Force back-references to remain < windowSize, even when referencing Dictionary content (default:0) */<b>
+    ZSTD_p_forceRawDict   </b>/* Force loading dictionary in "content-only" mode (no header analysis) */<b>
 } ZSTD_CCtxParameter;
 </b></pre><BR>
 <pre><b>size_t ZSTD_setCCtxParameter(ZSTD_CCtx* cctx, ZSTD_CCtxParameter param, unsigned value);

@@ -1,0 +1,7 @@
+gzip -l in
+
+gzip: in: not in gzip format
+gzip -9 in
+gzip -l in.gz
+gzip -l in.gz
+PASS list (exit status: 0)

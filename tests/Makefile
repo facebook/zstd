@@ -35,22 +35,28 @@ FLAGS    = $(CPPFLAGS) $(CFLAGS) $(LDFLAGS)
 
 
 ZSTDCOMMON_FILES := $(ZSTDDIR)/common/*.c
-ZSTDCOMP_FILES := $(ZSTDDIR)/compress/*.c
+ZSTDCOMP_FILES   := $(ZSTDDIR)/compress/*.c
 ZSTDDECOMP_FILES := $(ZSTDDIR)/decompress/*.c
-ZSTD_FILES := $(ZSTDDECOMP_FILES) $(ZSTDCOMMON_FILES) $(ZSTDCOMP_FILES)
+ZSTD_FILES  := $(ZSTDDECOMP_FILES) $(ZSTDCOMMON_FILES) $(ZSTDCOMP_FILES)
 ZBUFF_FILES := $(ZSTDDIR)/deprecated/*.c
 ZDICT_FILES := $(ZSTDDIR)/dictBuilder/*.c
 
+ZSTD_OBJ  := $(patsubst %.c,%.o, $(wildcard $(ZSTD_FILES)) )
+ZBUFF_OBJ := $(patsubst %.c,%.o, $(wildcard $(ZBUFF_FILES)) )
+ZDICT_OBJ := $(patsubst %.c,%.o, $(wildcard $(ZDICT_FILES)) )
 
 
 # Define *.exe as extension for Windows systems
 ifneq (,$(filter Windows%,$(OS)))
 EXT =.exe
-MULTITHREAD = -DZSTD_MULTITHREAD
+MULTITHREAD_CPP = -DZSTD_MULTITHREAD
+MULTITHREAD_LD  =
 else
 EXT =
-MULTITHREAD = -pthread -DZSTD_MULTITHREAD
+MULTITHREAD_CPP = -DZSTD_MULTITHREAD
+MULTITHREAD_LD  = -lpthread
 endif
+MULTITHREAD = $(MULTITHREAD_CPP) $(MULTITHREAD_LD)
 
 VOID = /dev/null
 ZSTREAM_TESTTIME = -T2mn
@@ -124,11 +130,23 @@ zbufftest-dll : $(ZSTDDIR)/common/xxhash.c $(PRGDIR)/datagen.c zbufftest.c
 	$(MAKE) -C $(ZSTDDIR) libzstd
 	$(CC) $(CPPFLAGS) $(CFLAGS) $^ $(LDFLAGS) -o $@$(EXT)
 
-zstreamtest  : $(ZSTD_FILES) $(ZDICT_FILES) $(PRGDIR)/datagen.c zstreamtest.c
-	$(CC)      $(FLAGS) $(MULTITHREAD) $^ -o $@$(EXT)
+ZSTREAMFILES := $(ZSTD_FILES) $(ZDICT_FILES) $(PRGDIR)/datagen.c zstreamtest.c
+zstreamtest : CPPFLAGS += $(MULTITHREAD_CPP)
+zstreamtest : LDFLAGS += $(MULTITHREAD_LD)
+zstreamtest : $(ZSTREAMFILES)
+	$(CC) $(FLAGS) $^ -o $@$(EXT)
 
-zstreamtest32 : $(ZSTD_FILES) $(ZDICT_FILES) $(PRGDIR)/datagen.c zstreamtest.c
-	$(CC) -m32  $(FLAGS) $(MULTITHREAD) $^ -o $@$(EXT)
+zstreamtest32 : CFLAGS += -m32
+zstreamtest32 : $(ZSTREAMFILES)
+	$(CC) $(FLAGS) $(MULTITHREAD) $^ -o $@$(EXT)
+
+zstreamtest_asan : CFLAGS += -fsanitize=address
+zstreamtest_asan : $(ZSTREAMFILES)
+	$(CC) $(FLAGS) $(MULTITHREAD) $^ -o $@$(EXT)
+
+zstreamtest_tsan : CFLAGS += -fsanitize=thread
+zstreamtest_tsan : $(ZSTREAMFILES)
+	$(CC) $(FLAGS) $(MULTITHREAD) $^ -o $@$(EXT)
 
 zstreamtest-dll : LDFLAGS+= -L$(ZSTDDIR) -lzstd
 zstreamtest-dll : $(ZSTDDIR)/common/xxhash.c $(PRGDIR)/datagen.c zstreamtest.c

@@ -661,7 +661,7 @@ static U32 generateSequences(U32* seed, frame_t* frame, seqStore_t* seqStore,
                 /* do a normal offset */
                 offset = (RAND(seed) %
                           MIN(frame->header.windowSize,
-                              (BYTE*)srcPtr - (BYTE*)frame->srcStart)) +
+                              (size_t)((BYTE*)srcPtr - (BYTE*)frame->srcStart))) +
                          1;
                 offsetCode = offset + ZSTD_REP_MOVE;
                 repIndex = 2;
@@ -678,7 +678,7 @@ static U32 generateSequences(U32* seed, frame_t* frame, seqStore_t* seqStore,
                     repIndex = MIN(2, offsetCode + 1);
                 }
             }
-        } while (offset > (BYTE*)srcPtr - (BYTE*)frame->srcStart || offset == 0);
+        } while (offset > (size_t)((BYTE*)srcPtr - (BYTE*)frame->srcStart) || offset == 0);
 
         {   size_t j;
             for (j = 0; j < matchLen; j++) {
@@ -695,7 +695,7 @@ static U32 generateSequences(U32* seed, frame_t* frame, seqStore_t* seqStore,
         }
 
         DISPLAYLEVEL(6, "      LL: %5u OF: %5u ML: %5u", literalLen, offset, matchLen);
-        DISPLAYLEVEL(7, " srcPos: %8zu seqNb: %3u",
+        DISPLAYLEVEL(7, " srcPos: %8tu seqNb: %3u",
                      (BYTE*)srcPtr - (BYTE*)frame->srcStart, i);
         DISPLAYLEVEL(6, "\n");
         if (offsetCode < 3) {
@@ -713,7 +713,7 @@ static U32 generateSequences(U32* seed, frame_t* frame, seqStore_t* seqStore,
     memcpy(srcPtr, literals, literalsSize);
     srcPtr += literalsSize;
     DISPLAYLEVEL(6, "      excess literals: %5zu", literalsSize);
-    DISPLAYLEVEL(7, " srcPos: %8zu", (BYTE*)srcPtr - (BYTE*)frame->srcStart);
+    DISPLAYLEVEL(7, " srcPos: %8tu", (BYTE*)srcPtr - (BYTE*)frame->srcStart);
     DISPLAYLEVEL(6, "\n");
 
     return numSequences;

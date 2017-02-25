@@ -609,7 +609,7 @@ static U32 generateSequences(U32* seed, frame_t* frame, seqStore_t* seqStore,
 {
     /* The total length of all the matches */
     size_t const remainingMatch = contentSize - literalsSize;
-    size_t excessMatch;
+    size_t excessMatch = 0;
     U32 i;
 
     U32 numSequences;

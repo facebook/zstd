@@ -97,10 +97,10 @@ struct ZSTD_DCtx_s
     FSE_DTable OFTable[FSE_DTABLE_SIZE_U32(OffFSELog)];
     FSE_DTable MLTable[FSE_DTABLE_SIZE_U32(MLFSELog)];
     HUF_DTable hufTable[HUF_DTABLE_SIZE(HufLog)];  /* can accommodate HUF_decompress4X */
-    const void* previousDstEnd;
-    const void* base;
-    const void* vBase;
-    const void* dictEnd;
+    const void* previousDstEnd;   /* detect continuity */
+    const void* base;             /* start of current segment */
+    const void* vBase;            /* virtual start of previous segment if it was just before current one */
+    const void* dictEnd;          /* end of previous segment */
     size_t expected;
     U32 rep[ZSTD_REP_NUM];
     ZSTD_frameParams fParams;
@@ -999,9 +999,9 @@ static seq_t ZSTD_decodeSequence(seqState_t* seqState)
 
 FORCE_INLINE
 size_t ZSTD_execSequence(BYTE* op,
-                                BYTE* const oend, seq_t sequence,
-                                const BYTE** litPtr, const BYTE* const litLimit,
-                                const BYTE* const base, const BYTE* const vBase, const BYTE* const dictEnd)
+                         BYTE* const oend, seq_t sequence,
+                         const BYTE** litPtr, const BYTE* const litLimit,
+                         const BYTE* const base, const BYTE* const vBase, const BYTE* const dictEnd)
 {
     BYTE* const oLitEnd = op + sequence.litLength;
     size_t const sequenceLength = sequence.litLength + sequence.matchLength;
@@ -1579,8 +1579,8 @@ static size_t ZSTD_decompressMultiFrame(ZSTD_DCtx* dctx,
 
 #if defined(ZSTD_LEGACY_SUPPORT) && (ZSTD_LEGACY_SUPPORT >= 1)
         if (ZSTD_isLegacy(src, srcSize)) {
-            size_t const frameSize = ZSTD_findFrameCompressedSizeLegacy(src, srcSize);
             size_t decodedSize;
+            size_t const frameSize = ZSTD_findFrameCompressedSizeLegacy(src, srcSize);
             if (ZSTD_isError(frameSize)) return frameSize;
 
             decodedSize = ZSTD_decompressLegacy(dst, dstCapacity, src, frameSize, dict, dictSize);
@@ -1625,8 +1625,7 @@ static size_t ZSTD_decompressMultiFrame(ZSTD_DCtx* dctx,
         }
         ZSTD_checkContinuity(dctx, dst);
 
-        {
-            const size_t res = ZSTD_decompressFrame(dctx, dst, dstCapacity,
+        {   const size_t res = ZSTD_decompressFrame(dctx, dst, dstCapacity,
                                                     &src, &srcSize);
             if (ZSTD_isError(res)) return res;
             /* don't need to bounds check this, ZSTD_decompressFrame will have
@@ -1636,9 +1635,7 @@ static size_t ZSTD_decompressMultiFrame(ZSTD_DCtx* dctx,
         }
     }
 
-    if (srcSize) {
-        return ERROR(srcSize_wrong);
-    }
+    if (srcSize) return ERROR(srcSize_wrong); /* input not entirely consumed */
 
     return (BYTE*)dst - (BYTE*)dststart;
 }
@@ -1835,18 +1832,24 @@ static size_t ZSTD_refDictContent(ZSTD_DCtx* dctx, const void* dict, size_t dict
     return 0;
 }
 
+/* ZSTD_loadEntropy() :
+ * dict : must point at beginning of dictionary
+ * @return : size of entropy tables read */
 static size_t ZSTD_loadEntropy(ZSTD_DCtx* dctx, const void* const dict, size_t const dictSize)
 {
     const BYTE* dictPtr = (const BYTE*)dict;
     const BYTE* const dictEnd = dictPtr + dictSize;
 
-    {   size_t const hSize = HUF_readDTableX4(dctx->hufTable, dict, dictSize);
+    if (dictSize <= 8) return ERROR(dictionary_corrupted);
+    dictPtr += 8;   /* skip header = magic + dictID */
+
+    {   size_t const hSize = HUF_readDTableX4(dctx->hufTable, dictPtr, dictEnd-dictPtr);
         if (HUF_isError(hSize)) return ERROR(dictionary_corrupted);
         dictPtr += hSize;
     }
 
     {   short offcodeNCount[MaxOff+1];
-        U32 offcodeMaxValue=MaxOff, offcodeLog;
+        U32 offcodeMaxValue = MaxOff, offcodeLog;
         size_t const offcodeHeaderSize = FSE_readNCount(offcodeNCount, &offcodeMaxValue, &offcodeLog, dictPtr, dictEnd-dictPtr);
         if (FSE_isError(offcodeHeaderSize)) return ERROR(dictionary_corrupted);
         if (offcodeLog > OffFSELog) return ERROR(dictionary_corrupted);
@@ -1892,8 +1895,6 @@ static size_t ZSTD_decompress_insertDictionary(ZSTD_DCtx* dctx, const void* dict
     dctx->dictID = MEM_readLE32((const char*)dict + 4);
 
     /* load entropy tables */
-    dict = (const char*)dict + 8;
-    dictSize -= 8;
     {   size_t const eSize = ZSTD_loadEntropy(dctx, dict, dictSize);
         if (ZSTD_isError(eSize)) return ERROR(dictionary_corrupted);
         dict = (const char*)dict + eSize;
@@ -1934,27 +1935,27 @@ ZSTD_DDict* ZSTD_createDDict_advanced(const void* dict, size_t dictSize, unsigne
             ZSTD_free(dctx, customMem);
             return NULL;
         }
+        ddict->refContext = dctx;
 
         if ((byReference) || (!dict) || (!dictSize)) {
             ddict->dictBuffer = NULL;
             ddict->dictContent = dict;
         } else {
             void* const internalBuffer = ZSTD_malloc(dictSize, customMem);
-            if (!internalBuffer) { ZSTD_free(dctx, customMem); ZSTD_free(ddict, customMem); return NULL; }
+            if (!internalBuffer) { ZSTD_freeDDict(ddict); return NULL; }
             memcpy(internalBuffer, dict, dictSize);
             ddict->dictBuffer = internalBuffer;
             ddict->dictContent = internalBuffer;
         }
-        {   size_t const errorCode = ZSTD_decompressBegin_usingDict(dctx, ddict->dictContent, dictSize);
+        /* parse dictionary content */
+        {   //size_t const errorCode = ZSTD_decompressBegin_usingDict(dctx, ddict->dictContent, dictSize);
+            size_t const errorCode = ZSTD_decompress_insertDictionary(dctx, ddict->dictContent, dictSize);
             if (ZSTD_isError(errorCode)) {
-                ZSTD_free(ddict->dictBuffer, customMem);
-                ZSTD_free(ddict, customMem);
-                ZSTD_free(dctx, customMem);
+                ZSTD_freeDDict(ddict);
                 return NULL;
         }   }
 
         ddict->dictSize = dictSize;
-        ddict->refContext = dctx;
         return ddict;
     }
 }

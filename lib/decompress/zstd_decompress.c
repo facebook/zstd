@@ -1839,7 +1839,7 @@ static size_t ZSTD_refDictContent(ZSTD_DCtx* dctx, const void* dict, size_t dict
 /* ZSTD_loadEntropy() :
  * dict : must point at beginning of dictionary
  * @return : size of entropy tables read */
-static size_t ZSTD_loadEntropy(ZSTD_DCtx* dctx, const void* const dict, size_t const dictSize)
+static size_t ZSTD_loadEntropy(ZSTD_entropyTables_t* entropy, const void* const dict, size_t const dictSize)
 {
     const BYTE* dictPtr = (const BYTE*)dict;
     const BYTE* const dictEnd = dictPtr + dictSize;
@@ -1847,7 +1847,7 @@ static size_t ZSTD_loadEntropy(ZSTD_DCtx* dctx, const void* const dict, size_t c
     if (dictSize <= 8) return ERROR(dictionary_corrupted);
     dictPtr += 8;   /* skip header = magic + dictID */
 
-    {   size_t const hSize = HUF_readDTableX4(dctx->entropy.hufTable, dictPtr, dictEnd-dictPtr);
+    {   size_t const hSize = HUF_readDTableX4(entropy->hufTable, dictPtr, dictEnd-dictPtr);
         if (HUF_isError(hSize)) return ERROR(dictionary_corrupted);
         dictPtr += hSize;
     }
@@ -1857,7 +1857,7 @@ static size_t ZSTD_loadEntropy(ZSTD_DCtx* dctx, const void* const dict, size_t c
         size_t const offcodeHeaderSize = FSE_readNCount(offcodeNCount, &offcodeMaxValue, &offcodeLog, dictPtr, dictEnd-dictPtr);
         if (FSE_isError(offcodeHeaderSize)) return ERROR(dictionary_corrupted);
         if (offcodeLog > OffFSELog) return ERROR(dictionary_corrupted);
-        CHECK_E(FSE_buildDTable(dctx->entropy.OFTable, offcodeNCount, offcodeMaxValue, offcodeLog), dictionary_corrupted);
+        CHECK_E(FSE_buildDTable(entropy->OFTable, offcodeNCount, offcodeMaxValue, offcodeLog), dictionary_corrupted);
         dictPtr += offcodeHeaderSize;
     }
 
@@ -1866,7 +1866,7 @@ static size_t ZSTD_loadEntropy(ZSTD_DCtx* dctx, const void* const dict, size_t c
         size_t const matchlengthHeaderSize = FSE_readNCount(matchlengthNCount, &matchlengthMaxValue, &matchlengthLog, dictPtr, dictEnd-dictPtr);
         if (FSE_isError(matchlengthHeaderSize)) return ERROR(dictionary_corrupted);
         if (matchlengthLog > MLFSELog) return ERROR(dictionary_corrupted);
-        CHECK_E(FSE_buildDTable(dctx->entropy.MLTable, matchlengthNCount, matchlengthMaxValue, matchlengthLog), dictionary_corrupted);
+        CHECK_E(FSE_buildDTable(entropy->MLTable, matchlengthNCount, matchlengthMaxValue, matchlengthLog), dictionary_corrupted);
         dictPtr += matchlengthHeaderSize;
     }
 
@@ -1875,7 +1875,7 @@ static size_t ZSTD_loadEntropy(ZSTD_DCtx* dctx, const void* const dict, size_t c
         size_t const litlengthHeaderSize = FSE_readNCount(litlengthNCount, &litlengthMaxValue, &litlengthLog, dictPtr, dictEnd-dictPtr);
         if (FSE_isError(litlengthHeaderSize)) return ERROR(dictionary_corrupted);
         if (litlengthLog > LLFSELog) return ERROR(dictionary_corrupted);
-        CHECK_E(FSE_buildDTable(dctx->entropy.LLTable, litlengthNCount, litlengthMaxValue, litlengthLog), dictionary_corrupted);
+        CHECK_E(FSE_buildDTable(entropy->LLTable, litlengthNCount, litlengthMaxValue, litlengthLog), dictionary_corrupted);
         dictPtr += litlengthHeaderSize;
     }
 
@@ -1884,7 +1884,7 @@ static size_t ZSTD_loadEntropy(ZSTD_DCtx* dctx, const void* const dict, size_t c
         for (i=0; i<3; i++) {
             U32 const rep = MEM_readLE32(dictPtr); dictPtr += 4;
             if (rep==0 || rep >= dictSize) return ERROR(dictionary_corrupted);
-            dctx->entropy.rep[i] = rep;
+            entropy->rep[i] = rep;
     }   }
 
     return dictPtr - (const BYTE*)dict;
@@ -1900,7 +1900,7 @@ static size_t ZSTD_decompress_insertDictionary(ZSTD_DCtx* dctx, const void* dict
     dctx->dictID = MEM_readLE32((const char*)dict + 4);
 
     /* load entropy tables */
-    {   size_t const eSize = ZSTD_loadEntropy(dctx, dict, dictSize);
+    {   size_t const eSize = ZSTD_loadEntropy(&dctx->entropy, dict, dictSize);
         if (ZSTD_isError(eSize)) return ERROR(dictionary_corrupted);
         dict = (const char*)dict + eSize;
         dictSize -= eSize;

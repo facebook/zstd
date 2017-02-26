@@ -257,7 +257,7 @@ static int basicUnitTests(U32 seed, double compressibility)
         DISPLAYLEVEL(4, "OK \n");
 
         DISPLAYLEVEL(4, "test%3i : decompress with DDict : ", testNb++);
-        {   ZSTD_DDict* const ddict = ZSTD_createDDict(CNBuffer, dictSize);
+        {   ZSTD_DDict* const ddict = ZSTD_createDDict_byReference(CNBuffer, dictSize);
             size_t const r = ZSTD_decompress_usingDDict(dctx, decodedBuffer, CNBuffSize, compressedBuffer, cSize, ddict);
             if (r != CNBuffSize - dictSize) goto _output_error;
             DISPLAYLEVEL(4, "OK (size of DDict : %u) \n", (U32)ZSTD_sizeof_DDict(ddict));

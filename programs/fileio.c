@@ -549,7 +549,10 @@ static int FIO_compressFilename_srcFile(cRess_t ress,
     result = FIO_compressFilename_internal(ress, dstFileName, srcFileName, compressionLevel);
 
     fclose(ress.srcFile);
-    if (g_removeSrcFile && !result) { if (remove(srcFileName)) EXM_THROW(1, "zstd: %s: %s", srcFileName, strerror(errno)); } /* remove source file : --rm */
+    if (g_removeSrcFile /* --rm */ && !result && strcmp(srcFileName, stdinmark)) {
+        if (remove(srcFileName))
+            EXM_THROW(1, "zstd: %s: %s", srcFileName, strerror(errno));
+    }
     return result;
 }
 

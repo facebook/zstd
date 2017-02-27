@@ -36,7 +36,6 @@ ifneq (,$(filter $(shell uname),Linux Darwin GNU/kFreeBSD GNU FreeBSD DragonFly 
 #.PHONY: test-gzip-env test-helin-segv test-hufts test-keep test-list test-memcpy-abuse test-mixed test-null-suffix-clobber test-stdin test-trailing-nul test-unpack-invalid test-zdiff test-zgrep-context test-zgrep-f test-zgrep-signal test-znew-k test-z-suffix 
 
 test-%: zstd
-	@./test-driver.sh --test-name $* --log-file $*.log --trs-file $*.trs --expect-failure "no" --color-tests "yes" --enable-hard-errors "yes" ./$* || echo error
-#|| exit 1
+	@./test-driver.sh --test-name $* --log-file $*.log --trs-file $*.trs --expect-failure "no" --color-tests "yes" --enable-hard-errors "yes" ./$*.sh
 
 endif

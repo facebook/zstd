@@ -108,7 +108,7 @@ to create `zstd` binary, and `libzstd` dynamic and static libraries.
 
 A Meson project is provided within `contrib/meson`.
 
-#### Visual (Windows)
+#### Visual Studio (Windows)
 
 Going into `build` directory, you will find additional possibilities :
 - Projects for Visual Studio 2005, 2008 and 2010

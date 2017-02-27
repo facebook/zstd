@@ -248,7 +248,7 @@ static size_t ZSTD_continueCCtx(ZSTD_CCtx* cctx, ZSTD_parameters params, U64 fra
 typedef enum { ZSTDcrp_continue, ZSTDcrp_noMemset, ZSTDcrp_fullReset } ZSTD_compResetPolicy_e;
 
 /*! ZSTD_resetCCtx_advanced() :
-    note : 'params' must be validated */
+    note : @params must be validated */
 static size_t ZSTD_resetCCtx_advanced (ZSTD_CCtx* zc,
                                        ZSTD_parameters params, U64 frameContentSize,
                                        ZSTD_compResetPolicy_e const crp)

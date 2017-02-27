@@ -17,7 +17,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 # limit so don't run it by default.
 
-. "${srcdir=.}/init.sh"; path_prepend_ ..
+. "${srcdir=.}/init.sh"; path_prepend_ .
 
 printf a | gzip > in || framework_failure_
 printf aaa > exp || framework_failure_

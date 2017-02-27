@@ -17,7 +17,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 # limit so don't run it by default.
 
-. "${srcdir=.}/init.sh"; path_prepend_ ..
+. "${srcdir=.}/init.sh"; path_prepend_ .
 
 printf anything > F && cp F G || framework_failure_
 gzip -Sz F || fail=1

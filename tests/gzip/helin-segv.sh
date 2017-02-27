@@ -17,7 +17,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 # limit so don't run it by default.
 
-. "${srcdir=.}/init.sh"; path_prepend_ ..
+. "${srcdir=.}/init.sh"; path_prepend_ .
 
 # This test case was provided by Aki Helin.
 printf '\037\235\220\0\0\0\304' > helin.gz || framework_failure_

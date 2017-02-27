@@ -18,7 +18,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 # limit so don't run it by default.
 
-. "${srcdir=.}/init.sh"; path_prepend_ ..
+. "${srcdir=.}/init.sh"; path_prepend_ .
 
 echo a > a || framework_failure_
 echo b > b || framework_failure_

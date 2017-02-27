@@ -18,7 +18,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 # limit so don't run it by default.
 
-. "${srcdir=.}/init.sh"; path_prepend_ ..
+. "${srcdir=.}/init.sh"; path_prepend_ .
 
 for input in \
   '\037\036\000\000\037\213\010\000\000\000\000\000\002\003\036\000\000\000\002\003\037\213\010\000\000\000\000\000\002\003\355\301\001\015\000\000\000\302\240\037\000\302\240\037\213\010\000\000\000\000\000\002\003\355\301' \

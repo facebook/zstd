@@ -9,7 +9,7 @@
 
 PRGDIR = ../../programs
 VOID   = /dev/null
-
+export PATH := .:$(PATH)
 
 .PHONY: all
 all: test-gzip-env test-helin-segv test-hufts test-keep test-list test-memcpy-abuse test-mixed test-null-suffix-clobber test-stdin test-trailing-nul test-unpack-invalid test-zdiff test-zgrep-context test-zgrep-f test-zgrep-signal test-znew-k test-z-suffix 
@@ -18,8 +18,8 @@ all: test-gzip-env test-helin-segv test-hufts test-keep test-list test-memcpy-ab
 .PHONY: zstd
 zstd:
 	$(MAKE) -C $(PRGDIR) zstd
-	#alias gzip='$(PRGDIR)/zstd --format=gzip'
-	#ln -sf /drive_d/GitHub/zstd/programs/zstd /usr/local/bin/gzip
+	ln -sf $(PRGDIR)/zstd gzip
+	@echo PATH=$(PATH)
 	gzip --version
 
 .PHONY: clean
@@ -33,9 +33,9 @@ clean:
 # validated only for Linux, OSX, Hurd and some BSD targets
 #------------------------------------------------------------------------------
 ifneq (,$(filter $(shell uname),Linux Darwin GNU/kFreeBSD GNU FreeBSD DragonFly NetBSD))
-#.PHONY: test-gzip-env test-helin-segv test-hufts test-keep test-list test-memcpy-abuse test-mixed test-null-suffix-clobber test-stdin test-trailing-nul test-unpack-invalid test-zdiff test-zgrep-context test-zgrep-f test-zgrep-signal test-znew-k test-z-suffix 
 
 test-%: zstd
-	@./test-driver.sh --test-name $* --log-file $*.log --trs-file $*.trs --expect-failure "no" --color-tests "yes" --enable-hard-errors "yes" ./$*.sh
+	@./test-driver.sh --test-name $* --log-file $*.log --trs-file $*.trs --expect-failure "no" --color-tests "yes" --enable-hard-errors "yes" ./$*.sh 
+	# || echo ignoring error
 
 endif

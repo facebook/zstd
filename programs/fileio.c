@@ -385,7 +385,7 @@ static unsigned long long FIO_compressGzFrame(cRess_t* ress, const char* srcFile
     if (ret != Z_OK) EXM_THROW(71, "zstd: %s: deflateInit2 error %d \n", srcFileName, ret);
 
     strm.next_in = 0;
-    strm.avail_in = Z_NULL;
+    strm.avail_in = 0;
     strm.next_out = (Bytef*)ress->dstBuffer;
     strm.avail_out = (uInt)ress->dstBufferSize;
 
@@ -846,12 +846,13 @@ static unsigned long long FIO_decompressGzFrame(dRess_t* ress, FILE* srcFile, co
 {
     unsigned long long outFileSize = 0;
     z_stream strm;
+    int ret;
 
     strm.zalloc = Z_NULL;
     strm.zfree = Z_NULL;
     strm.opaque = Z_NULL;
     strm.next_in = 0;
-    strm.avail_in = Z_NULL;
+    strm.avail_in = 0;
     if (inflateInit2(&strm, 15 /* maxWindowLogSize */ + 16 /* gzip only */) != Z_OK) return 0;  /* see http://www.zlib.net/manual.html */
 
     strm.next_out = (Bytef*)ress->dstBuffer;
@@ -860,7 +861,6 @@ static unsigned long long FIO_decompressGzFrame(dRess_t* ress, FILE* srcFile, co
     strm.next_in = (z_const unsigned char*)ress->srcBuffer;
 
     for ( ; ; ) {
-        int ret;
         if (strm.avail_in == 0) {
             ress->srcBufferLoaded = fread(ress->srcBuffer, 1, ress->srcBufferSize, srcFile);
             if (ress->srcBufferLoaded == 0) break;
@@ -882,7 +882,8 @@ static unsigned long long FIO_decompressGzFrame(dRess_t* ress, FILE* srcFile, co
 
     if (strm.avail_in > 0) memmove(ress->srcBuffer, strm.next_in, strm.avail_in);
     ress->srcBufferLoaded = strm.avail_in;
-    inflateEnd(&strm);
+    ret = inflateEnd(&strm);
+    if (ret != Z_OK) EXM_THROW(32, "zstd: %s: inflateEnd error %d \n", srcFileName, ret);
     return outFileSize;
 }
 #endif

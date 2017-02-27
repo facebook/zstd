@@ -34,7 +34,7 @@
   zstd, short for Zstandard, is a fast lossless compression algorithm, targeting real-time compression scenarios
   at zlib-level and better compression ratios. The zstd compression library provides in-memory compression and
   decompression functions. The library supports compression levels from 1 up to ZSTD_maxCLevel() which is 22.
-  Levels >= 20, labelled `--ultra`, should be used with caution, as they require more memory.
+  Levels >= 20, labeled `--ultra`, should be used with caution, as they require more memory.
   Compression can be done in:
     - a single step (described as Simple API)
     - a single step, reusing a context (described as Explicit memory management)
@@ -306,8 +306,8 @@ typedef struct { ZSTD_allocFunction customAlloc; ZSTD_freeFunction customFree; v
 </pre></b><BR>
 <a name="Chapter12"></a><h2>Compressed size functions</h2><pre></pre>
 
-<pre><b>size_t ZSTD_getFrameCompressedSize(const void* src, size_t srcSize);
-</b><p>  `src` should point to the start of a ZSTD encoded frame
+<pre><b>size_t ZSTD_findFrameCompressedSize(const void* src, size_t srcSize);
+</b><p>  `src` should point to the start of a ZSTD encoded frame or skippable frame
   `srcSize` must be at least as large as the frame
   @return : the compressed size of the frame pointed to by `src`, suitable to pass to
       `ZSTD_decompress` or similar, or an error code if given invalid input. 
@@ -321,7 +321,7 @@ typedef struct { ZSTD_allocFunction customAlloc; ZSTD_freeFunction customFree; v
        to `ZSTD_frameHeaderSize_max` is guaranteed to be large enough in all cases.
    @return : decompressed size of the frame pointed to be `src` if known, otherwise
              - ZSTD_CONTENTSIZE_UNKNOWN if the size cannot be determined
-             - ZSTD_CONTENTSIZE_ERROR if an error occured (e.g. invalid magic number, srcSize too small) 
+             - ZSTD_CONTENTSIZE_ERROR if an error occurred (e.g. invalid magic number, srcSize too small) 
 </p></pre><BR>
 
 <pre><b>unsigned long long ZSTD_findDecompressedSize(const void* src, size_t srcSize);
@@ -365,7 +365,8 @@ typedef struct { ZSTD_allocFunction customAlloc; ZSTD_freeFunction customFree; v
 </p></pre><BR>
 
 <pre><b>typedef enum {
-    ZSTD_p_forceWindow   </b>/* Force back-references to remain < windowSize, even when referencing Dictionary content (default:0)*/<b>
+    ZSTD_p_forceWindow,   </b>/* Force back-references to remain < windowSize, even when referencing Dictionary content (default:0) */<b>
+    ZSTD_p_forceRawDict   </b>/* Force loading dictionary in "content-only" mode (no header analysis) */<b>
 } ZSTD_CCtxParameter;
 </b></pre><BR>
 <pre><b>size_t ZSTD_setCCtxParameter(ZSTD_CCtx* cctx, ZSTD_CCtxParameter param, unsigned value);
@@ -585,6 +586,9 @@ size_t ZSTD_compressEnd(ZSTD_CCtx* cctx, void* dst, size_t dstCapacity, const vo
   c) Frame Content - any content (User Data) of length equal to Frame Size
   For skippable frames ZSTD_decompressContinue() always returns 0.
   For skippable frames ZSTD_getFrameParams() returns fparamsPtr->windowLog==0 what means that a frame is skippable.
+    Note : If fparamsPtr->frameContentSize==0, it is ambiguous: the frame might actually be a Zstd encoded frame with no content.
+           For purposes of decompression, it is valid in both cases to skip the frame using
+           ZSTD_findFrameCompressedSize to find its size in bytes.
   It also returns Frame Size as fparamsPtr->frameContentSize.
 <BR></pre>
 

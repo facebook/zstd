@@ -1842,7 +1842,7 @@ static size_t ZSTD_refDictContent(ZSTD_DCtx* dctx, const void* dict, size_t dict
 }
 
 /* ZSTD_loadEntropy() :
- * dict : must point at beginning of dictionary
+ * dict : must point at beginning of a valid zstd dictionary
  * @return : size of entropy tables read */
 static size_t ZSTD_loadEntropy(ZSTD_entropyTables_t* entropy, const void* const dict, size_t const dictSize)
 {
@@ -1851,6 +1851,7 @@ static size_t ZSTD_loadEntropy(ZSTD_entropyTables_t* entropy, const void* const 
 
     if (dictSize <= 8) return ERROR(dictionary_corrupted);
     dictPtr += 8;   /* skip header = magic + dictID */
+
 
     {   size_t const hSize = HUF_readDTableX4(entropy->hufTable, dictPtr, dictEnd-dictPtr);
         if (HUF_isError(hSize)) return ERROR(dictionary_corrupted);
@@ -1931,9 +1932,10 @@ struct ZSTD_DDict_s {
     void* dictBuffer;
     const void* dictContent;
     size_t dictSize;
-    ZSTD_DCtx* refContext;
+    ZSTD_entropyTables_t entropy;
     U32 dictID;
     U32 entropyPresent;
+    ZSTD_customMem cMem;
 };  /* typedef'd to ZSTD_DDict within "zstd.h" */
 
 static void ZSTD_refDDict(ZSTD_DCtx* dstDCtx, const ZSTD_DDict* ddict)
@@ -1948,13 +1950,13 @@ static void ZSTD_refDDict(ZSTD_DCtx* dstDCtx, const ZSTD_DDict* ddict)
         if (ddict->entropyPresent) {
             dstDCtx->litEntropy = 1;
             dstDCtx->fseEntropy = 1;
-            dstDCtx->LLTptr = ddict->refContext->entropy.LLTable;
-            dstDCtx->MLTptr = ddict->refContext->entropy.MLTable;
-            dstDCtx->OFTptr = ddict->refContext->entropy.OFTable;
-            dstDCtx->HUFptr = ddict->refContext->entropy.hufTable;
-            dstDCtx->entropy.rep[0] = ddict->refContext->entropy.rep[0];
-            dstDCtx->entropy.rep[1] = ddict->refContext->entropy.rep[1];
-            dstDCtx->entropy.rep[2] = ddict->refContext->entropy.rep[2];
+            dstDCtx->LLTptr = ddict->entropy.LLTable;
+            dstDCtx->MLTptr = ddict->entropy.MLTable;
+            dstDCtx->OFTptr = ddict->entropy.OFTable;
+            dstDCtx->HUFptr = ddict->entropy.hufTable;
+            dstDCtx->entropy.rep[0] = ddict->entropy.rep[0];
+            dstDCtx->entropy.rep[1] = ddict->entropy.rep[1];
+            dstDCtx->entropy.rep[2] = ddict->entropy.rep[2];
         } else {
             dstDCtx->litEntropy = 0;
             dstDCtx->fseEntropy = 0;
@@ -1972,10 +1974,11 @@ static size_t ZSTD_loadEntropy_inDDict(ZSTD_DDict* ddict)
     ddict->dictID = MEM_readLE32((const char*)ddict->dictContent + 4);
 
     /* load entropy tables */
-    CHECK_E( ZSTD_loadEntropy(&ddict->refContext->entropy, ddict->dictContent, ddict->dictSize), dictionary_corrupted );
+    CHECK_E( ZSTD_loadEntropy(&ddict->entropy, ddict->dictContent, ddict->dictSize), dictionary_corrupted );
     ddict->entropyPresent = 1;
     return 0;
 }
+
 
 ZSTD_DDict* ZSTD_createDDict_advanced(const void* dict, size_t dictSize, unsigned byReference, ZSTD_customMem customMem)
 {
@@ -1983,14 +1986,8 @@ ZSTD_DDict* ZSTD_createDDict_advanced(const void* dict, size_t dictSize, unsigne
     if (!customMem.customAlloc || !customMem.customFree) return NULL;
 
     {   ZSTD_DDict* const ddict = (ZSTD_DDict*) ZSTD_malloc(sizeof(ZSTD_DDict), customMem);
-        ZSTD_DCtx* const dctx = ZSTD_createDCtx_advanced(customMem);
-
-        if (!ddict || !dctx) {
-            ZSTD_free(ddict, customMem);
-            ZSTD_free(dctx, customMem);
-            return NULL;
-        }
-        ddict->refContext = dctx;
+        if (!ddict) return NULL;
+        ddict->cMem = customMem;
 
         if ((byReference) || (!dict) || (!dictSize)) {
             ddict->dictBuffer = NULL;
@@ -2003,6 +2000,7 @@ ZSTD_DDict* ZSTD_createDDict_advanced(const void* dict, size_t dictSize, unsigne
             ddict->dictContent = internalBuffer;
         }
         ddict->dictSize = dictSize;
+        ddict->entropy.hufTable[0] = (HUF_DTable)((HufLog)*0x1000001);  /* cover both little and big endian */
         /* parse dictionary content */
         {   size_t const errorCode = ZSTD_loadEntropy_inDDict(ddict);
             if (ZSTD_isError(errorCode)) {
@@ -2039,8 +2037,7 @@ ZSTD_DDict* ZSTD_createDDict_byReference(const void* dictBuffer, size_t dictSize
 size_t ZSTD_freeDDict(ZSTD_DDict* ddict)
 {
     if (ddict==NULL) return 0;   /* support free on NULL */
-    {   ZSTD_customMem const cMem = ddict->refContext->customMem;
-        ZSTD_freeDCtx(ddict->refContext);
+    {   ZSTD_customMem const cMem = ddict->cMem;
         ZSTD_free(ddict->dictBuffer, cMem);
         ZSTD_free(ddict, cMem);
         return 0;
@@ -2050,7 +2047,7 @@ size_t ZSTD_freeDDict(ZSTD_DDict* ddict)
 size_t ZSTD_sizeof_DDict(const ZSTD_DDict* ddict)
 {
     if (ddict==NULL) return 0;   /* support sizeof on NULL */
-    return sizeof(*ddict) + ZSTD_sizeof_DCtx(ddict->refContext) + (ddict->dictBuffer ? ddict->dictSize : 0) ;
+    return sizeof(*ddict) + (ddict->dictBuffer ? ddict->dictSize : 0) ;
 }
 
 /*! ZSTD_getDictID_fromDict() :

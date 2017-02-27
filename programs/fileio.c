@@ -905,7 +905,7 @@ static int FIO_decompressSrcFile(dRess_t ress, const char* dstFileName, const ch
     }
 
     srcFile = FIO_openSrcFile(srcFileName);
-    if (srcFile==0) return 1;
+    if (srcFile==NULL) return 1;
 
     /* for each frame */
     for ( ; ; ) {

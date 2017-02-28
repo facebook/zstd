@@ -24,7 +24,7 @@
     #define KB *(1 <<10)
     #define MB *(1 <<20)
     #define GB *(1U<<30)
-    typedef enum { bt_raw, bt_rle, bt_compressed, bt_reserved } blockType_e; 
+    typedef enum { bt_raw, bt_rle, bt_compressed, bt_reserved } blockType_e;
 #endif
 #include "zstd.h"            /* ZSTD_VERSION_STRING */
 #include "datagen.h"
@@ -359,14 +359,13 @@ static size_t benchMem(const void* src, size_t srcSize, U32 benchNb)
     { size_t i; for (i=0; i<dstBuffSize; i++) dstBuff[i]=(BYTE)i; }     /* warming up memory */
 
     {   U32 loopNb;
+        DISPLAY("%2i- %-30.30s : \r", benchNb, benchName);
         for (loopNb = 1; loopNb <= g_nbIterations; loopNb++) {
             clock_t const timeLoop = TIMELOOP_S * CLOCKS_PER_SEC;
             clock_t clockStart;
             U32 nbRounds;
             size_t benchResult=0;
             double averageTime;
-
-            DISPLAY("%2i- %-30.30s : \r", loopNb, benchName);
 
             clockStart = clock();
             while (clock() == clockStart);

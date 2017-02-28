@@ -59,7 +59,6 @@
 ****************************************************************/
 #include <stdlib.h>     /* malloc, free, qsort */
 #include <string.h>     /* memcpy, memset */
-#include <stdio.h>      /* printf (debug) */
 #include "bitstream.h"
 #define FSE_STATIC_LINKING_ONLY
 #include "fse.h"

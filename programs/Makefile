@@ -72,6 +72,12 @@ ifeq ($(HAVE_ZLIB), 1)
 ZLIBCPP = -DZSTD_GZCOMPRESS -DZSTD_GZDECOMPRESS
 ZLIBLD = -lz
 endif
+# lzma detection
+HAVE_LZMA := $(shell printf '\#include <lzma.h>\nint main(){}' | $(CC) -o have_lzma -x c - -lz 2> $(VOID) && rm have_lzma$(EXT) && echo 1 || echo 0)
+ifeq ($(HAVE_LZMA), 1)
+LZMACPP = -DZSTD_LZMACOMPRESS -DZSTD_LZMADECOMPRESS
+LZMALD = -llzma
+endif
 
 .PHONY: default all clean clean_decomp_o install uninstall generate_res
 
@@ -84,9 +90,14 @@ $(ZSTDDECOMP_O): CFLAGS += $(ALIGN_LOOP)
 zstd-internal : CPPFLAGS += -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT)
 zstd-internal : $(ZSTDLIB_OBJ) zstdcli.o fileio.o bench.o datagen.o dibio.o
 ifeq ($(HAVE_ZLIB), 1)
-	@echo "==> building zstd with .gz decompression support "
+	@echo "==> building zstd with .gz compression support "
 else
-	@echo "==> no zlib, building zstd with .zst support only (no .gz support) "
+	@echo "==> no zlib, building zstd without .gz support "
+endif
+ifeq ($(HAVE_LZMA), 1)
+	@echo "==> building zstd with .xz/.lzma compression support "
+else
+	@echo "==> no liblzma, building zstd without .xz/.lzma support "
 endif
 ifneq (,$(filter Windows%,$(OS)))
 	windres/generate_res.bat
@@ -94,10 +105,11 @@ endif
 	$(CC) $(FLAGS) $^ $(RES_FILE) -o zstd$(EXT) $(LDFLAGS)
 
 zstd-nogz : HAVE_ZLIB=0
+zstd-nogz : HAVE_LZMA=0
 zstd-nogz : zstd-internal
 
-zstd : CPPFLAGS += $(ZLIBCPP)
-zstd : LDFLAGS += $(ZLIBLD)
+zstd : CPPFLAGS += $(ZLIBCPP) $(LZMACPP)
+zstd : LDFLAGS += $(ZLIBLD) $(LZMALD)
 zstd : zstd-internal
 
 zstd-release: DEBUGFLAGS :=

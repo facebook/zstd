@@ -211,18 +211,19 @@ $ZSTD -f tmp1 notHere tmp2 && die "missing file not detected!"
 
 $ECHO "\n**** dictionary tests **** "
 
-TESTFILE=../programs/zstdcli.c
+$ECHO "- test with raw dict (content only) "
 ./datagen > tmpDict
 ./datagen -g1M | $MD5SUM > tmp1
 ./datagen -g1M | $ZSTD -D tmpDict | $ZSTD -D tmpDict -dvq | $MD5SUM > tmp2
 $DIFF -q tmp1 tmp2
-$ECHO "- Create first dictionary"
+$ECHO "- Create first dictionary "
+TESTFILE=../programs/zstdcli.c
 $ZSTD --train *.c ../programs/*.c -o tmpDict
 cp $TESTFILE tmp
 $ZSTD -f tmp -D tmpDict
 $ZSTD -d tmp.zst -D tmpDict -fo result
 $DIFF $TESTFILE result
-$ECHO "- Create second (different) dictionary"
+$ECHO "- Create second (different) dictionary "
 $ZSTD --train *.c ../programs/*.c ../programs/*.h -o tmpDictC
 $ZSTD -d tmp.zst -D tmpDictC -fo result && die "wrong dictionary not detected!"
 $ECHO "- Create dictionary with short dictID"

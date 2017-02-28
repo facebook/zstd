@@ -29,7 +29,7 @@ script:
   - if [ "$TRAVIS_EVENT_TYPE" = "cron" ] || [ "$TRAVIS_BRANCH" = "master" ]; then
         FUZZERTEST=-T7mn sh -c "$Cmd" || travis_terminate 1;
     else
-        if [ "$TRAVIS_PULL_REQUEST" = "true" ] && [ $JOB_NUMBER -lt 4 ]; then
+        if [ "$TRAVIS_EVENT_TYPE" = "pull_request" ] && [ $JOB_NUMBER -lt 4 ]; then
             sh -c "$Cmd" || travis_terminate 1;
         else
             if [ $JOB_NUMBER -lt 3 ]; then

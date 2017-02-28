@@ -101,6 +101,8 @@ $ZSTD -f --rm tmp
 ls tmp && die "tmp should no longer be present"
 $ZSTD -f -d --rm tmp.zst
 ls tmp.zst && die "tmp.zst should no longer be present"
+$ECHO "test : --rm on stdin"
+$ECHO a | $ZSTD --rm > $INTOVOID   # --rm should remain silent
 rm tmp
 $ZSTD -f tmp && die "tmp not present : should have failed"
 ls tmp.zst && die "tmp.zst should not be created"

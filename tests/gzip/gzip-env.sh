@@ -17,13 +17,10 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 # limit so don't run it by default.
 
-echo XXX=$PATH
-gzip --version
-
 . "${srcdir=.}/init.sh"; path_prepend_ .
 
-echo XXX=$PATH
-gzip --version
+#echo PATH=$PATH
+#gzip --version
 
 echo a >exp || framework_failure_
 gzip <exp >in || framework_failure_

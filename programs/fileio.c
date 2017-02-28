@@ -511,10 +511,12 @@ static int FIO_compressFilename_internal(cRess_t ress,
     switch (g_compressionType) {
         case FIO_zstdCompression:
             break;
-#ifdef ZSTD_GZCOMPRESS
         case FIO_gzipCompression:
+#ifdef ZSTD_GZCOMPRESS
             compressedfilesize = FIO_compressGzFrame(&ress, srcFileName, fileSize, compressionLevel, &readsize);
             goto finish;
+#else
+            EXM_THROW(20, "zstd: %s: file cannot be compressed as gzip (zstd compiled without ZSTD_GZCOMPRESS) -- ignored \n", srcFileName);
 #endif
         case FIO_xzCompression:
         case FIO_lzmaCompression:
@@ -524,7 +526,7 @@ static int FIO_compressFilename_internal(cRess_t ress,
 #endif
         default:
             (void)compressionLevel;
-            EXM_THROW(20, "zstd: %s: file cannot be compressed as gzip/xz/lzma (zstd compiled without ZSTD_GZCOMPRESS or ZSTD_LZMACOMPRESS) -- ignored \n", srcFileName);
+            EXM_THROW(20, "zstd: %s: file cannot be compressed as xz/lzma (zstd compiled without ZSTD_LZMACOMPRESS) -- ignored \n", srcFileName);
             goto finish;
     }
 
@@ -967,15 +969,18 @@ static unsigned long long FIO_decompressLzmaFrame(dRess_t* ress, FILE* srcFile, 
 {
     unsigned long long outFileSize = 0;
     lzma_stream strm = LZMA_STREAM_INIT; 
-	lzma_action action = LZMA_RUN;
+    lzma_action action = LZMA_RUN;
+    lzma_ret ret;
 
     strm.next_in = 0;
     strm.avail_in = 0;
     if (plain_lzma) {
-        if (lzma_alone_decoder(&strm, UINT64_MAX) != LZMA_OK) return 0;
+        ret = lzma_alone_decoder(&strm, UINT64_MAX); /* LZMA */
     } else {
-        if (lzma_stream_decoder(&strm, UINT64_MAX, LZMA_CONCATENATED) != LZMA_OK) return 0; /* XZ */
+        ret = lzma_stream_decoder(&strm, UINT64_MAX, LZMA_CONCATENATED); /* XZ */
     }
+
+    if (ret != LZMA_OK) EXM_THROW(71, "zstd: %s: lzma_alone_decoder/lzma_stream_decoder error %d \n", srcFileName, ret);
 
     strm.next_out = ress->dstBuffer;
     strm.avail_out = ress->dstBufferSize;
@@ -983,7 +988,6 @@ static unsigned long long FIO_decompressLzmaFrame(dRess_t* ress, FILE* srcFile, 
     strm.next_in = ress->srcBuffer;
 
     for ( ; ; ) {
-        lzma_ret ret;
         if (strm.avail_in == 0) {
             ress->srcBufferLoaded = fread(ress->srcBuffer, 1, ress->srcBufferSize, srcFile);
             if (ress->srcBufferLoaded == 0) break;

@@ -2307,8 +2307,9 @@ size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inB
                 if (cSize <= (size_t)(iend-istart)) {
                     size_t const decompressedSize = ZSTD_decompress_usingDDict(zds->dctx, op, oend-op, istart, cSize, zds->ddict);
                     if (ZSTD_isError(decompressedSize)) return decompressedSize;
-                    ip += cSize;
+                    ip = istart + cSize;
                     op += decompressedSize;
+                    zds->dctx->expected = 0;
                     zds->stage = zdss_init;
                     someMoreWork = 0;
                     break;

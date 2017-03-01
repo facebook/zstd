@@ -25,8 +25,6 @@
 #include "threading.h"  /* mutex */
 #include "zstd_internal.h"   /* MIN, ERROR, ZSTD_*, ZSTD_highbit32 */
 #include "zstdmt_compress.h"
-#define XXH_STATIC_LINKING_ONLY   /* XXH64_state_t */
-#include "xxhash.h"
 
 
 /* ======   Debug   ====== */

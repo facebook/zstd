@@ -43,8 +43,6 @@
 *********************************************************/
 #include <string.h>      /* memcpy, memmove, memset */
 #include "mem.h"         /* low level memory routines */
-#define XXH_STATIC_LINKING_ONLY   /* XXH64_state_t */
-#include "xxhash.h"      /* XXH64_* */
 #define FSE_STATIC_LINKING_ONLY
 #include "fse.h"
 #define HUF_STATIC_LINKING_ONLY

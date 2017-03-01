@@ -218,7 +218,7 @@ static int basicUnitTests(U32 seed, double compressibility, ZSTD_customMem custo
     outBuff.pos = 0;
     { size_t const r = ZSTD_decompressStream(zd, &outBuff, &inBuff);
       if (r != 0) goto _output_error; }
-    if (outBuff.pos != 0) goto _output_error;   /* skippable frame len is 0 */
+    if (outBuff.pos != 0) goto _output_error;   /* skippable frame output len is 0 */
     DISPLAYLEVEL(3, "OK \n");
 
     /* Basic decompression test */

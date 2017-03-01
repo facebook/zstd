@@ -49,13 +49,13 @@
 #define AUTHOR "Yann Collet"
 #define WELCOME_MESSAGE "*** %s %i-bits %s, by %s ***\n", COMPRESSOR_NAME, (int)(sizeof(size_t)*8), ZSTD_VERSION, AUTHOR
 
-#define GZ_EXTENSION ".gz"
-#define ZSTD_EXTENSION ".zst"
 #define ZSTD_UNZSTD "unzstd"
 #define ZSTD_CAT "zstdcat"
 #define ZSTD_GZ "gzip"
 #define ZSTD_GUNZIP "gunzip"
 #define ZSTD_GZCAT "gzcat"
+#define ZSTD_LZMA "lzma"
+#define ZSTD_XZ "xz"
 
 #define KB *(1 <<10)
 #define MB *(1 <<20)
@@ -129,6 +129,10 @@ static int usage_advanced(const char* programName)
 #endif
 #ifdef ZSTD_GZCOMPRESS
     DISPLAY( "--format=gzip : compress files to the .gz format \n");
+#endif
+#ifdef ZSTD_LZMACOMPRESS
+    DISPLAY( "--format=xz : compress files to the .xz format \n");
+    DISPLAY( "--format=lzma : compress files to the .lzma format \n");
 #endif
 #endif
 #ifndef ZSTD_NODECOMPRESS
@@ -325,6 +329,8 @@ int main(int argCount, const char* argv[])
     if (!strcmp(programName, ZSTD_GZ)) { suffix = GZ_EXTENSION; FIO_setCompressionType(FIO_gzipCompression); FIO_setRemoveSrcFile(1); }    /* behave like gzip */
     if (!strcmp(programName, ZSTD_GUNZIP)) { operation=zom_decompress; FIO_setRemoveSrcFile(1); }                                          /* behave like gunzip */
     if (!strcmp(programName, ZSTD_GZCAT)) { operation=zom_decompress; forceStdout=1; FIO_overwriteMode(); outFileName=stdoutmark; displayLevel=1; }  /* behave like gzcat */
+    if (!strcmp(programName, ZSTD_LZMA)) { suffix = LZMA_EXTENSION; FIO_setCompressionType(FIO_lzmaCompression); FIO_setRemoveSrcFile(1); }    /* behave like gzip */
+    if (!strcmp(programName, ZSTD_XZ)) { suffix = XZ_EXTENSION; FIO_setCompressionType(FIO_xzCompression); FIO_setRemoveSrcFile(1); }    /* behave like xz */
     memset(&compressionParams, 0, sizeof(compressionParams));
 
     /* command switches */
@@ -371,6 +377,8 @@ int main(int argCount, const char* argv[])
                     if (!strcmp(argument, "--rm")) { FIO_setRemoveSrcFile(1); continue; }
                     if (!strcmp(argument, "--priority=rt")) { setRealTimePrio = 1; continue; }
                     if (!strcmp(argument, "--format=gzip")) { suffix = GZ_EXTENSION; FIO_setCompressionType(FIO_gzipCompression); continue; }
+                    if (!strcmp(argument, "--format=lzma")) { suffix = LZMA_EXTENSION; FIO_setCompressionType(FIO_lzmaCompression);  continue; }
+                    if (!strcmp(argument, "--format=xz")) { suffix = XZ_EXTENSION; FIO_setCompressionType(FIO_xzCompression);  continue; }
 
                     /* long commands with arguments */
 #ifndef  ZSTD_NODICT

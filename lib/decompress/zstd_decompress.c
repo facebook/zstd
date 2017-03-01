@@ -1144,7 +1144,7 @@ static size_t ZSTD_decompressSequences(
 }
 
 
-static seq_t ZSTD_decodeSequenceLong(seqState_t* seqState)
+FORCE_INLINE seq_t ZSTD_decodeSequenceLong_generic(seqState_t* seqState, int const longOffsets)
 {
     seq_t seq;
 
@@ -1179,8 +1179,15 @@ static seq_t ZSTD_decodeSequenceLong(seqState_t* seqState)
         if (!ofCode)
             offset = 0;
         else {
-            offset = OF_base[ofCode] + BIT_readBitsFast(&seqState->DStream, ofBits);   /* <=  (ZSTD_WINDOWLOG_MAX-1) bits */
-            if (MEM_32bits()) BIT_reloadDStream(&seqState->DStream);
+            if (longOffsets) {
+                int const extraBits = ofBits - MIN(ofBits, STREAM_ACCUMULATOR_MIN);
+                offset = OF_base[ofCode] + (BIT_readBitsFast(&seqState->DStream, ofBits - extraBits) << extraBits);
+                if (MEM_32bits() || extraBits) BIT_reloadDStream(&seqState->DStream);
+                if (extraBits) offset += BIT_readBitsFast(&seqState->DStream, extraBits);
+            } else {
+                offset = OF_base[ofCode] + BIT_readBitsFast(&seqState->DStream, ofBits);   /* <=  (ZSTD_WINDOWLOG_MAX-1) bits */
+                if (MEM_32bits()) BIT_reloadDStream(&seqState->DStream);
+            }
         }
 
         if (ofCode <= 1) {
@@ -1222,6 +1229,14 @@ static seq_t ZSTD_decodeSequenceLong(seqState_t* seqState)
     FSE_updateState(&seqState->stateOffb, &seqState->DStream);  /* <=  8 bits */
 
     return seq;
+}
+
+static seq_t ZSTD_decodeSequenceLong(seqState_t* seqState, unsigned const windowSize) {
+    if (ZSTD_highbit32(windowSize) > STREAM_ACCUMULATOR_MIN) {
+        return ZSTD_decodeSequenceLong_generic(seqState, 1);
+    } else {
+        return ZSTD_decodeSequenceLong_generic(seqState, 0);
+    }
 }
 
 FORCE_INLINE
@@ -1321,6 +1336,7 @@ static size_t ZSTD_decompressSequencesLong(
     const BYTE* const base = (const BYTE*) (dctx->base);
     const BYTE* const vBase = (const BYTE*) (dctx->vBase);
     const BYTE* const dictEnd = (const BYTE*) (dctx->dictEnd);
+    unsigned const windowSize = dctx->fParams.windowSize;
     int nbSeq;
 
     /* Build Decoding Tables */
@@ -1350,13 +1366,13 @@ static size_t ZSTD_decompressSequencesLong(
 
         /* prepare in advance */
         for (seqNb=0; (BIT_reloadDStream(&seqState.DStream) <= BIT_DStream_completed) && seqNb<seqAdvance; seqNb++) {
-            sequences[seqNb] = ZSTD_decodeSequenceLong(&seqState);
+            sequences[seqNb] = ZSTD_decodeSequenceLong(&seqState, windowSize);
         }
         if (seqNb<seqAdvance) return ERROR(corruption_detected);
 
         /* decode and decompress */
         for ( ; (BIT_reloadDStream(&(seqState.DStream)) <= BIT_DStream_completed) && seqNb<nbSeq ; seqNb++) {
-            seq_t const sequence = ZSTD_decodeSequenceLong(&seqState);
+            seq_t const sequence = ZSTD_decodeSequenceLong(&seqState, windowSize);
             size_t const oneSeqSize = ZSTD_execSequenceLong(op, oend, sequences[(seqNb-ADVANCED_SEQS) & STOSEQ_MASK], &litPtr, litEnd, base, vBase, dictEnd);
             if (ZSTD_isError(oneSeqSize)) return oneSeqSize;
             ZSTD_PREFETCH(sequence.match);

@@ -1469,8 +1469,7 @@ size_t ZSTD_findFrameCompressedSize(const void *src, size_t srcSize)
         if (ZSTD_isError(headerSize)) return headerSize;
 
         /* Frame Header */
-        {
-            size_t const ret = ZSTD_getFrameParams(&fParams, ip, remainingSize);
+        {   size_t const ret = ZSTD_getFrameParams(&fParams, ip, remainingSize);
             if (ZSTD_isError(ret)) return ret;
             if (ret > 0) return ERROR(srcSize_wrong);
         }
@@ -1503,7 +1502,7 @@ size_t ZSTD_findFrameCompressedSize(const void *src, size_t srcSize)
 }
 
 /*! ZSTD_decompressFrame() :
-*   `dctx` must be properly initialized */
+*   @dctx must be properly initialized */
 static size_t ZSTD_decompressFrame(ZSTD_DCtx* dctx,
                                  void* dst, size_t dstCapacity,
                                  const void** srcPtr, size_t *srcSizePtr)
@@ -1570,7 +1569,7 @@ static size_t ZSTD_decompressFrame(ZSTD_DCtx* dctx,
         remainingSize -= 4;
     }
 
-    // Allow caller to get size read
+    /* Allow caller to get size read */
     *srcPtr = ip;
     *srcSizePtr = remainingSize;
     return op-ostart;
@@ -2100,7 +2099,7 @@ size_t ZSTD_decompress_usingDDict(ZSTD_DCtx* dctx,
 {
     /* pass content and size in case legacy frames are encountered */
     return ZSTD_decompressMultiFrame(dctx, dst, dstCapacity, src, srcSize,
-                                     ddict->dictContent, ddict->dictSize,
+                                     NULL, 0,
                                      ddict);
 }
 
@@ -2298,6 +2297,21 @@ size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inB
                         return (MAX(ZSTD_frameHeaderSize_min, hSize) - zds->lhSize) + ZSTD_blockHeaderSize;   /* remaining header bytes + next block header */
                     }
                     memcpy(zds->headerBuffer + zds->lhSize, ip, toLoad); zds->lhSize = hSize; ip += toLoad;
+                    break;
+            }   }
+
+            /* check for single-pass mode opportunity */
+            if (zds->fParams.frameContentSize && zds->fParams.windowSize /* skippable frame if == 0 */
+                && (U64)(size_t)(oend-op) >= zds->fParams.frameContentSize) {
+                size_t const cSize = ZSTD_findFrameCompressedSize(istart, iend-istart);
+                if (cSize <= (size_t)(iend-istart)) {
+                    size_t const decompressedSize = ZSTD_decompress_usingDDict(zds->dctx, op, oend-op, istart, cSize, zds->ddict);
+                    if (ZSTD_isError(decompressedSize)) return decompressedSize;
+                    ip = istart + cSize;
+                    op += decompressedSize;
+                    zds->dctx->expected = 0;
+                    zds->stage = zdss_init;
+                    someMoreWork = 0;
                     break;
             }   }
 

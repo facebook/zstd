@@ -3,9 +3,11 @@ cli : new : can compress in *.gz format, using --format=gzip command, by Przemys
 cli : new : advanced benchmark command --priority=rt
 cli : fix : write on sparse-enabled file systems in 32-bits mode, by @ds77
 cli : fix : --rm remains silent when input is stdin
+speed : improved decompression speed in streaming mode for single shot scenarios (+5%)
+memory : DDict (decompression dictionary) memory usage down from 150 KB to 20 KB
 API : new : ZSTD_findFrameCompressedSize(), ZSTD_getFrameContentSize(), ZSTD_findDecompressedSize(), by Sean Purcell
-API : change : ZSTD_compress*() with srcSize==0 create an empty-frame of known size
-build:new : meson build system in contrib/meson, by Dima Krasner
+build: new: meson build system in contrib/meson, by Dima Krasner
+build: improved cmake script, by @Majlen
 doc : new : educational decoder, by Sean Purcell
 
 v1.1.3

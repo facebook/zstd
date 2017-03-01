@@ -579,9 +579,9 @@ void ZSTD_seqToCodes(const seqStore_t* seqStorePtr)
 }
 
 
-size_t ZSTD_compressSequences(ZSTD_CCtx* zc,
+FORCE_INLINE size_t ZSTD_compressSequences_generic (ZSTD_CCtx* zc,
                               void* dst, size_t dstCapacity,
-                              size_t srcSize)
+                              size_t srcSize, int const longOffsets)
 {
     const seqStore_t* seqStorePtr = &(zc->seqStore);
     U32 count[MaxSeq+1];
@@ -716,7 +716,18 @@ size_t ZSTD_compressSequences(ZSTD_CCtx* zc,
         if (MEM_32bits()) BIT_flushBits(&blockStream);
         BIT_addBits(&blockStream, sequences[nbSeq-1].matchLength, ML_bits[mlCodeTable[nbSeq-1]]);
         if (MEM_32bits()) BIT_flushBits(&blockStream);
-        BIT_addBits(&blockStream, sequences[nbSeq-1].offset, ofCodeTable[nbSeq-1]);
+        if (longOffsets) {
+            U32 const ofBits = ofCodeTable[nbSeq-1];
+            int const extraBits = ofBits - MIN(ofBits, STREAM_ACCUMULATOR_MIN-1);
+            if (extraBits) {
+                BIT_addBits(&blockStream, sequences[nbSeq-1].offset, extraBits);
+                BIT_flushBits(&blockStream);
+            }
+            BIT_addBits(&blockStream, sequences[nbSeq-1].offset >> extraBits,
+                        ofBits - extraBits);
+        } else {
+            BIT_addBits(&blockStream, sequences[nbSeq-1].offset, ofCodeTable[nbSeq-1]);
+        }
         BIT_flushBits(&blockStream);
 
         {   size_t n;
@@ -738,7 +749,17 @@ size_t ZSTD_compressSequences(ZSTD_CCtx* zc,
                 if (MEM_32bits() && ((llBits+mlBits)>24)) BIT_flushBits(&blockStream);
                 BIT_addBits(&blockStream, sequences[n].matchLength, mlBits);
                 if (MEM_32bits()) BIT_flushBits(&blockStream);                  /* (7)*/
-                BIT_addBits(&blockStream, sequences[n].offset, ofBits);         /* 31 */
+                if (longOffsets) {
+                    int const extraBits = ofBits - MIN(ofBits, STREAM_ACCUMULATOR_MIN-1);
+                    if (extraBits) {
+                        BIT_addBits(&blockStream, sequences[n].offset, extraBits);
+                        BIT_flushBits(&blockStream);                            /* (7)*/
+                    }
+                    BIT_addBits(&blockStream, sequences[n].offset >> extraBits,
+                                ofBits - extraBits);                            /* 31 */
+                } else {
+                    BIT_addBits(&blockStream, sequences[n].offset, ofBits);     /* 31 */
+                }
                 BIT_flushBits(&blockStream);                                    /* (7)*/
         }   }
 
@@ -763,6 +784,16 @@ _check_compressibility:
     return op - ostart;
 }
 
+FORCE_INLINE size_t ZSTD_compressSequences (ZSTD_CCtx* zc,
+                              void* dst, size_t dstCapacity,
+                              size_t srcSize)
+{
+    if (zc->params.cParams.windowLog > STREAM_ACCUMULATOR_MIN) {
+        return ZSTD_compressSequences_generic(zc, dst, dstCapacity, srcSize, 1);
+    } else {
+        return ZSTD_compressSequences_generic(zc, dst, dstCapacity, srcSize, 0);
+    }
+}
 
 #if 0 /* for debug */
 #  define STORESEQ_DEBUG

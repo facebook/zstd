@@ -13,12 +13,14 @@
 #include <string.h>     /* memcpy */
 #include <stdlib.h>     /* malloc, free, qsort */
 
-#define XXH_STATIC_LINKING_ONLY   /* XXH64_state_t */
-#include "xxhash.h"      /* XXH64_* */
+#ifndef XXH_STATIC_LINKING_ONLY
+#  define XXH_STATIC_LINKING_ONLY    /* XXH64_state_t */
+#endif
+#include "xxhash.h"                  /* XXH64_* */
 #include "zstd_v07.h"
 
-#define FSEv07_STATIC_LINKING_ONLY  /* FSEv07_MIN_TABLELOG */
-#define HUFv07_STATIC_LINKING_ONLY  /* HUFv07_TABLELOG_ABSOLUTEMAX */
+#define FSEv07_STATIC_LINKING_ONLY   /* FSEv07_MIN_TABLELOG */
+#define HUFv07_STATIC_LINKING_ONLY   /* HUFv07_TABLELOG_ABSOLUTEMAX */
 #define ZSTDv07_STATIC_LINKING_ONLY
 
 #include "error_private.h"
@@ -4536,7 +4538,8 @@ size_t ZBUFFv07_decompressContinue(ZBUFFv07_DCtx* zbd,
                     if (!decodedSize && !isSkipFrame) { zbd->stage = ZBUFFds_read; break; }   /* this was just a header */
                     zbd->outEnd = zbd->outStart +  decodedSize;
                     zbd->stage = ZBUFFds_flush;
-                    // break; /* ZBUFFds_flush follows */
+                    /* break; */
+                    /* pass-through */
             }   }
 
         case ZBUFFds_flush:

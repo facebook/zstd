@@ -576,11 +576,11 @@ void ZSTD_seqToCodes(const seqStore_t* seqStorePtr)
         mlCodeTable[seqStorePtr->longLengthPos] = MaxML;
 }
 
-
-FORCE_INLINE size_t ZSTD_compressSequences_generic (ZSTD_CCtx* zc,
+MEM_STATIC size_t ZSTD_compressSequences (ZSTD_CCtx* zc,
                               void* dst, size_t dstCapacity,
-                              size_t srcSize, int const longOffsets)
+                              size_t srcSize)
 {
+    const int longOffsets = zc->params.cParams.windowLog > STREAM_ACCUMULATOR_MIN;
     const seqStore_t* seqStorePtr = &(zc->seqStore);
     U32 count[MaxSeq+1];
     S16 norm[MaxSeq+1];
@@ -780,17 +780,6 @@ _check_compressibility:
     { int i; for (i=0; i<ZSTD_REP_NUM; i++) zc->rep[i] = zc->repToConfirm[i]; }
 
     return op - ostart;
-}
-
-FORCE_INLINE size_t ZSTD_compressSequences (ZSTD_CCtx* zc,
-                              void* dst, size_t dstCapacity,
-                              size_t srcSize)
-{
-    if (zc->params.cParams.windowLog > STREAM_ACCUMULATOR_MIN) {
-        return ZSTD_compressSequences_generic(zc, dst, dstCapacity, srcSize, 1);
-    } else {
-        return ZSTD_compressSequences_generic(zc, dst, dstCapacity, srcSize, 0);
-    }
 }
 
 #if 0 /* for debug */

@@ -1989,6 +1989,7 @@ static void ZSTD_refDDict(ZSTD_DCtx* dstDCtx, const ZSTD_DDict* ddict)
 
 static size_t ZSTD_loadEntropy_inDDict(ZSTD_DDict* ddict)
 {
+    ddict->dictID = 0;
     ddict->entropyPresent = 0;
     if (ddict->dictSize < 8) return 0;
     {   U32 const magic = MEM_readLE32(ddict->dictContent);

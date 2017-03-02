@@ -35,6 +35,13 @@ allmost:
 	$(MAKE) -C $(TESTDIR) all
 	$(MAKE) -C $(ZWRAPDIR) all
 
+#skip zwrapper, can't build that on alternate architectures without the proper zlib installed
+.PHONY: allarch
+allarch:
+	$(MAKE) -C $(ZSTDDIR) all
+	$(MAKE) -C $(PRGDIR) all
+	$(MAKE) -C $(TESTDIR) all
+
 .PHONY: all32
 all32:
 	$(MAKE) -C $(PRGDIR) zstd32
@@ -94,7 +101,6 @@ clean:
 	@$(RM) zstd$(EXT) zstdmt$(EXT) tmp*
 	@echo Cleaning completed
 
-
 #------------------------------------------------------------------------------
 # make install is validated only for Linux, OSX, Hurd and some BSD targets
 #------------------------------------------------------------------------------
@@ -113,8 +119,40 @@ uninstall:
 travis-install:
 	$(MAKE) install PREFIX=~/install_test_dir
 
-gpptest: clean
+gppbuild: clean
+	g++ -v
 	CC=g++ $(MAKE) -C programs all CFLAGS="-O3 -Wall -Wextra -Wundef -Wshadow -Wcast-align -Werror"
+
+gcc5build: clean
+	gcc-5 -v
+	CC=gcc-5 $(MAKE) all MOREFLAGS="-Werror"
+
+gcc6build: clean
+	gcc-6 -v
+	CC=gcc-6 $(MAKE) all MOREFLAGS="-Werror"
+
+clangbuild: clean
+	clang -v
+	CXX=clang++ CC=clang $(MAKE) all MOREFLAGS="-Werror -Wconversion -Wno-sign-conversion -Wdocumentation"
+
+m32build: clean
+	gcc -v
+	$(MAKE) all32
+
+armbuild: clean
+	CC=arm-linux-gnueabi-gcc CFLAGS="-Werror" $(MAKE) allarch
+
+aarch64build: clean
+	CC=aarch64-linux-gnu-gcc CFLAGS="-Werror" $(MAKE) allarch
+
+ppcbuild: clean
+	CC=powerpc-linux-gnu-gcc CLAGS="-m32 -Wno-attributes -Werror" $(MAKE) allarch
+
+ppc64build: clean
+	CC=powerpc-linux-gnu-gcc CFLAGS="-m64 -Werror" $(MAKE) allarch
+
+gpptest: clean
+	CC=g++ $(MAKE) -C $(PRGDIR) all CFLAGS="-O3 -Wall -Wextra -Wundef -Wshadow -Wcast-align -Werror"
 
 gcc5test: clean
 	gcc-5 -v
@@ -126,7 +164,7 @@ gcc6test: clean
 
 clangtest: clean
 	clang -v
-	$(MAKE) all CC=clang MOREFLAGS="-Werror -Wconversion -Wno-sign-conversion -Wdocumentation"
+	$(MAKE) all CXX=clang-++ CC=clang MOREFLAGS="-Werror -Wconversion -Wno-sign-conversion -Wdocumentation"
 
 armtest: clean
 	$(MAKE) -C $(TESTDIR) datagen   # use native, faster
@@ -206,36 +244,45 @@ endif
 #make tests validated only for MSYS, Linux, OSX, kFreeBSD and Hurd targets
 #------------------------------------------------------------------------
 ifneq (,$(filter $(HOST_OS),MSYS POSIX))
-cmaketest:
+cmakebuild:
 	cmake --version
 	$(RM) -r $(BUILDIR)/cmake/build
 	mkdir $(BUILDIR)/cmake/build
 	cd $(BUILDIR)/cmake/build ; cmake -DPREFIX:STRING=~/install_test_dir $(CMAKE_PARAMS) .. ; $(MAKE) install ; $(MAKE) uninstall
 
-c90test: clean
+c90build: clean
+	gcc -v
 	CFLAGS="-std=c90" $(MAKE) allmost  # will fail, due to missing support for `long long`
 
-gnu90test: clean
+gnu90build: clean
+	gcc -v
 	CFLAGS="-std=gnu90" $(MAKE) allmost
 
-c99test: clean
+c99build: clean
+	gcc -v
 	CFLAGS="-std=c99" $(MAKE) allmost
 
-gnu99test: clean
+gnu99build: clean
+	gcc -v
 	CFLAGS="-std=gnu99" $(MAKE) allmost
 
-c11test: clean
+c11build: clean
+	gcc -v
 	CFLAGS="-std=c11" $(MAKE) allmost
 
-bmix64test: clean
+bmix64build: clean
+	gcc -v
 	CFLAGS="-O3 -mbmi -Werror" $(MAKE) -C $(TESTDIR) test
 
-bmix32test: clean
+bmix32build: clean
+	gcc -v
 	CFLAGS="-O3 -mbmi -mx32 -Werror" $(MAKE) -C $(TESTDIR) test
 
-bmi32test: clean
+bmi32build: clean
+	gcc -v
 	CFLAGS="-O3 -mbmi -m32 -Werror" $(MAKE) -C $(TESTDIR) test
 
 staticAnalyze: clean
+	gcc -v
 	CPPFLAGS=-g scan-build --status-bugs -v $(MAKE) all
 endif

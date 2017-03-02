@@ -63,6 +63,10 @@ zstdmt:
 zlibwrapper:
 	$(MAKE) -C $(ZWRAPDIR) test
 
+.PHONY: shortest
+shortest:
+	$(MAKE) -C $(TESTDIR) $@
+
 .PHONY: test
 test:
 	$(MAKE) -C $(TESTDIR) $@
@@ -173,7 +177,7 @@ ppcinstall:
 arminstall:
 	APT_PACKAGES="qemu-system-arm qemu-user-static gcc-powerpc-linux-gnu gcc-arm-linux-gnueabi libc6-dev-armel-cross gcc-aarch64-linux-gnu libc6-dev-arm64-cross" $(MAKE) apt-install
 
-valgrindinstall: 
+valgrindinstall:
 	APT_PACKAGES="valgrind" $(MAKE) apt-install
 
 libc6install:

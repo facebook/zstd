@@ -316,8 +316,9 @@ $ECHO "\n**** gzip compatibility tests **** "
 GZIPMODE=1
 $ZSTD --format=gzip -V || GZIPMODE=0
 if [ $GZIPMODE -eq 1 ]; then
+    $ECHO "gzip support detected"
     GZIPEXE=1
-    which gzip || GZIPEXE=0
+    gzip -V || GZIPEXE=0
     if [ $GZIPEXE -eq 1 ]; then
         ./datagen > tmp
         $ZSTD --format=gzip -f tmp

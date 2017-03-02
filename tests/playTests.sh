@@ -304,11 +304,33 @@ $ECHO "\n**** benchmark mode tests **** "
 
 $ECHO "bench one file"
 ./datagen > tmp1
-$ZSTD -bi1 tmp1
+$ZSTD -bi0 tmp1
 $ECHO "bench multiple levels"
-$ZSTD -i1b1e3 tmp1
+$ZSTD -i0b0e3 tmp1
 $ECHO "with recursive and quiet modes"
-$ZSTD -rqi1b1e3 tmp1
+$ZSTD -rqi1b1e2 tmp1
+
+
+$ECHO "\n**** gzip compatibility tests **** "
+
+GZIPMODE=1
+$ZSTD --format=gzip -V || GZIPMODE=0
+if [ $GZIPMODE -eq 1 ]; then
+    $ECHO "gzip support detected"
+    GZIPEXE=1
+    gzip -V || GZIPEXE=0
+    if [ $GZIPEXE -eq 1 ]; then
+        ./datagen > tmp
+        $ZSTD --format=gzip -f tmp
+        gzip -t -v tmp.gz
+        gzip -f tmp
+        $ZSTD -d -f -v tmp.gz
+    else
+        $ECHO "gzip binary not detected"
+    fi
+else
+    $ECHO "gzip mode not supported"
+fi
 
 
 $ECHO "\n**** zstd round-trip tests **** "
@@ -317,10 +339,10 @@ roundTripTest
 roundTripTest -g15K       # TableID==3
 roundTripTest -g127K      # TableID==2
 roundTripTest -g255K      # TableID==1
-roundTripTest -g513K      # TableID==0
-roundTripTest -g512K 6    # greedy, hash chain
-roundTripTest -g512K 16   # btlazy2
-roundTripTest -g512K 19   # btopt
+roundTripTest -g522K      # TableID==0
+roundTripTest -g519K 6    # greedy, hash chain
+roundTripTest -g517K 16   # btlazy2
+roundTripTest -g516K 19   # btopt
 
 rm tmp*
 

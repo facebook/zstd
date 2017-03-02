@@ -43,8 +43,6 @@
 *********************************************************/
 #include <string.h>      /* memcpy, memmove, memset */
 #include "mem.h"         /* low level memory routines */
-#define XXH_STATIC_LINKING_ONLY   /* XXH64_state_t */
-#include "xxhash.h"      /* XXH64_* */
 #define FSE_STATIC_LINKING_ONLY
 #include "fse.h"
 #define HUF_STATIC_LINKING_ONLY
@@ -1485,8 +1483,7 @@ size_t ZSTD_findFrameCompressedSize(const void *src, size_t srcSize)
         if (ZSTD_isError(headerSize)) return headerSize;
 
         /* Frame Header */
-        {
-            size_t const ret = ZSTD_getFrameParams(&fParams, ip, remainingSize);
+        {   size_t const ret = ZSTD_getFrameParams(&fParams, ip, remainingSize);
             if (ZSTD_isError(ret)) return ret;
             if (ret > 0) return ERROR(srcSize_wrong);
         }
@@ -1519,7 +1516,7 @@ size_t ZSTD_findFrameCompressedSize(const void *src, size_t srcSize)
 }
 
 /*! ZSTD_decompressFrame() :
-*   `dctx` must be properly initialized */
+*   @dctx must be properly initialized */
 static size_t ZSTD_decompressFrame(ZSTD_DCtx* dctx,
                                  void* dst, size_t dstCapacity,
                                  const void** srcPtr, size_t *srcSizePtr)
@@ -1586,11 +1583,14 @@ static size_t ZSTD_decompressFrame(ZSTD_DCtx* dctx,
         remainingSize -= 4;
     }
 
-    // Allow caller to get size read
+    /* Allow caller to get size read */
     *srcPtr = ip;
     *srcSizePtr = remainingSize;
     return op-ostart;
 }
+
+static const void* ZSTD_DDictDictContent(const ZSTD_DDict* ddict);
+static size_t ZSTD_DDictDictSize(const ZSTD_DDict* ddict);
 
 static size_t ZSTD_decompressMultiFrame(ZSTD_DCtx* dctx,
                                         void* dst, size_t dstCapacity,
@@ -1599,6 +1599,17 @@ static size_t ZSTD_decompressMultiFrame(ZSTD_DCtx* dctx,
                                   const ZSTD_DDict* ddict)
 {
     void* const dststart = dst;
+
+    if (ddict) {
+        if (dict) {
+            /* programmer error, these two cases should be mutually exclusive */
+            return ERROR(GENERIC);
+        }
+
+        dict = ZSTD_DDictDictContent(ddict);
+        dictSize = ZSTD_DDictDictSize(ddict);
+    }
+
     while (srcSize >= ZSTD_frameHeaderSize_prefix) {
         U32 magicNumber;
 
@@ -1954,6 +1965,16 @@ struct ZSTD_DDict_s {
     ZSTD_customMem cMem;
 };  /* typedef'd to ZSTD_DDict within "zstd.h" */
 
+static const void* ZSTD_DDictDictContent(const ZSTD_DDict* ddict)
+{
+    return ddict->dictContent;
+}
+
+static size_t ZSTD_DDictDictSize(const ZSTD_DDict* ddict)
+{
+    return ddict->dictSize;
+}
+
 static void ZSTD_refDDict(ZSTD_DCtx* dstDCtx, const ZSTD_DDict* ddict)
 {
     ZSTD_decompressBegin(dstDCtx);  /* init */
@@ -1982,6 +2003,7 @@ static void ZSTD_refDDict(ZSTD_DCtx* dstDCtx, const ZSTD_DDict* ddict)
 
 static size_t ZSTD_loadEntropy_inDDict(ZSTD_DDict* ddict)
 {
+    ddict->dictID = 0;
     ddict->entropyPresent = 0;
     if (ddict->dictSize < 8) return 0;
     {   U32 const magic = MEM_readLE32(ddict->dictContent);
@@ -2116,7 +2138,7 @@ size_t ZSTD_decompress_usingDDict(ZSTD_DCtx* dctx,
 {
     /* pass content and size in case legacy frames are encountered */
     return ZSTD_decompressMultiFrame(dctx, dst, dstCapacity, src, srcSize,
-                                     ddict->dictContent, ddict->dictSize,
+                                     NULL, 0,
                                      ddict);
 }
 
@@ -2314,6 +2336,21 @@ size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inB
                         return (MAX(ZSTD_frameHeaderSize_min, hSize) - zds->lhSize) + ZSTD_blockHeaderSize;   /* remaining header bytes + next block header */
                     }
                     memcpy(zds->headerBuffer + zds->lhSize, ip, toLoad); zds->lhSize = hSize; ip += toLoad;
+                    break;
+            }   }
+
+            /* check for single-pass mode opportunity */
+            if (zds->fParams.frameContentSize && zds->fParams.windowSize /* skippable frame if == 0 */
+                && (U64)(size_t)(oend-op) >= zds->fParams.frameContentSize) {
+                size_t const cSize = ZSTD_findFrameCompressedSize(istart, iend-istart);
+                if (cSize <= (size_t)(iend-istart)) {
+                    size_t const decompressedSize = ZSTD_decompress_usingDDict(zds->dctx, op, oend-op, istart, cSize, zds->ddict);
+                    if (ZSTD_isError(decompressedSize)) return decompressedSize;
+                    ip = istart + cSize;
+                    op += decompressedSize;
+                    zds->dctx->expected = 0;
+                    zds->stage = zdss_init;
+                    someMoreWork = 0;
                     break;
             }   }
 

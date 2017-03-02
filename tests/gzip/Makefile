@@ -12,7 +12,10 @@ VOID   = /dev/null
 export PATH := .:$(PATH)
 
 .PHONY: all
-all: test-gzip-env test-helin-segv test-hufts test-keep test-list test-memcpy-abuse test-mixed test-null-suffix-clobber test-stdin test-trailing-nul test-unpack-invalid test-zdiff test-zgrep-context test-zgrep-f test-zgrep-signal test-znew-k test-z-suffix 
+#all: test-gzip-env 
+all: test-helin-segv test-hufts test-keep test-list test-memcpy-abuse test-mixed
+all: test-null-suffix-clobber test-stdin test-trailing-nul test-unpack-invalid
+all: test-zdiff test-zgrep-context test-zgrep-f test-zgrep-signal test-znew-k test-z-suffix
 	@echo Testing completed
 
 .PHONY: zstd
@@ -35,7 +38,7 @@ clean:
 ifneq (,$(filter $(shell uname),Linux Darwin GNU/kFreeBSD GNU FreeBSD DragonFly NetBSD))
 
 test-%: zstd
-	@./test-driver.sh --test-name $* --log-file $*.log --trs-file $*.trs --expect-failure "no" --color-tests "yes" --enable-hard-errors "yes" ./$*.sh 
+	@./test-driver.sh --test-name $* --log-file $*.log --trs-file $*.trs --expect-failure "no" --color-tests "yes" --enable-hard-errors "yes" ./$*.sh
 	# || echo ignoring error
 
 endif

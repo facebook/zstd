@@ -370,10 +370,12 @@ int main(int argCount, const char* argv[])
                     if (!strcmp(argument, "--keep")) { FIO_setRemoveSrcFile(0); continue; }
                     if (!strcmp(argument, "--rm")) { FIO_setRemoveSrcFile(1); continue; }
                     if (!strcmp(argument, "--priority=rt")) { setRealTimePrio = 1; continue; }
+#ifdef ZSTD_GZCOMPRESS
                     if (!strcmp(argument, "--format=gzip")) { suffix = GZ_EXTENSION; FIO_setCompressionType(FIO_gzipCompression); continue; }
+#endif
 
                     /* long commands with arguments */
-#ifndef  ZSTD_NODICT
+#ifndef ZSTD_NODICT
                     if (longCommandWArg(&argument, "--cover=")) {
                       cover=1; if (!parseCoverParameters(argument, &coverParams)) CLEAN_RETURN(badusage(programName));
                       continue;

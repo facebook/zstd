@@ -558,17 +558,26 @@ static size_t HUF_compress_internal (
     BYTE* const oend = ostart + dstSize;
     BYTE* op = ostart;
 
-    U32 count[HUF_SYMBOLVALUE_MAX+1];
-    HUF_CElt CTable[HUF_SYMBOLVALUE_MAX+1];
+    U32* count;
+    size_t const countSize = sizeof(U32) * (HUF_SYMBOLVALUE_MAX + 1);
+    HUF_CElt* CTable;
+    size_t const CTableSize = sizeof(HUF_CElt) * (HUF_SYMBOLVALUE_MAX + 1);
 
     /* checks & inits */
-    if (wkspSize < sizeof(huffNodeTable)) return ERROR(GENERIC);
+    if (wkspSize < sizeof(huffNodeTable) + countSize + CTableSize) return ERROR(GENERIC);
     if (!srcSize) return 0;  /* Uncompressed (note : 1 means rle, so first byte must be correct) */
     if (!dstSize) return 0;  /* cannot fit within dst budget */
     if (srcSize > HUF_BLOCKSIZE_MAX) return ERROR(srcSize_wrong);   /* current block size limit */
     if (huffLog > HUF_TABLELOG_MAX) return ERROR(tableLog_tooLarge);
     if (!maxSymbolValue) maxSymbolValue = HUF_SYMBOLVALUE_MAX;
     if (!huffLog) huffLog = HUF_TABLELOG_DEFAULT;
+
+    count = (U32*)workSpace;
+    workSpace = (BYTE*)workSpace + countSize;
+    wkspSize -= countSize;
+    CTable = (HUF_CElt*)workSpace;
+    workSpace = (BYTE*)workSpace + CTableSize;
+    wkspSize -= CTableSize;
 
     /* Heuristic : If we don't need to check the validity of the old table use the old table for small inputs */
     if (srcSize <= 1024 && repeat && *repeat == HUF_repeat_valid) {
@@ -595,7 +604,7 @@ static size_t HUF_compress_internal (
     {   CHECK_V_F(maxBits, HUF_buildCTable_wksp (CTable, count, maxSymbolValue, huffLog, workSpace, wkspSize) );
         huffLog = (U32)maxBits;
         /* Zero the unused symbols so we can check it for validity */
-        memset(CTable + maxSymbolValue + 1, 0, sizeof(CTable) - (maxSymbolValue + 1) * sizeof(HUF_CElt));
+        memset(CTable + maxSymbolValue + 1, 0, CTableSize - (maxSymbolValue + 1) * sizeof(HUF_CElt));
     }
 
     /* Write table description header */
@@ -612,7 +621,7 @@ static size_t HUF_compress_internal (
         if (hSize + 12ul >= srcSize) { return 0; }
         op += hSize;
         if (repeat) { *repeat = HUF_repeat_none; }
-        if (oldHufTable) { memcpy(oldHufTable, CTable, sizeof(CTable)); } /* Save the new table */
+        if (oldHufTable) { memcpy(oldHufTable, CTable, CTableSize); } /* Save the new table */
     }
     return HUF_compressCTable_internal(ostart, op, oend, src, srcSize, singleStream, CTable);
 }

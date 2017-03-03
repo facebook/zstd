@@ -85,7 +85,7 @@ struct ZSTD_CCtx_s {
     FSE_CTable offcodeCTable  [FSE_CTABLE_SIZE_U32(OffFSELog, MaxOff)];
     FSE_CTable matchlengthCTable[FSE_CTABLE_SIZE_U32(MLFSELog, MaxML)];
     FSE_CTable litlengthCTable  [FSE_CTABLE_SIZE_U32(LLFSELog, MaxLL)];
-    unsigned tmpCounters[1024];
+    unsigned tmpCounters[HUF_WORKSPACE_SIZE_U32];
 };
 
 ZSTD_CCtx* ZSTD_createCCtx(void)

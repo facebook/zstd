@@ -410,7 +410,7 @@ std::uint64_t asyncCompressChunks(
     });
     // Pass the output queue to the writer thread.
     chunks.push(std::move(out));
-    state.log(VERBOSE, "Starting a new frame\n");
+    state.log(VERBOSE, "%s\n", "Starting a new frame");
     // Fill the input queue for the compression job we just started
     status = readData(*in, ZSTD_CStreamInSize(), step, fd, &bytesRead);
   }
@@ -547,8 +547,8 @@ std::uint64_t asyncDecompressFrames(
     if (frameSize == 0) {
       // We hit a non SkippableFrame ==> not compressed by pzstd or corrupted
       // Pass the rest of the source to this decompression task
-      state.log(VERBOSE,
-          "Input not in pzstd format, falling back to serial decompression\n");
+      state.log(VERBOSE, "%s\n",
+          "Input not in pzstd format, falling back to serial decompression");
       while (status == FileStatus::Continue && !state.errorHolder.hasError()) {
         status = readData(*in, chunkSize, chunkSize, fd, &totalBytesRead);
       }

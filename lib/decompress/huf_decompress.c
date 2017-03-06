@@ -108,10 +108,10 @@ size_t HUF_readDTableX2 (HUF_DTable* DTable, const void* src, size_t srcSize)
         memcpy(DTable, &dtd, sizeof(dtd));
     }
 
-    /* Prepare ranks */
+    /* Calculate starting value for each rank */
     {   U32 n, nextRankStart = 0;
         for (n=1; n<tableLog+1; n++) {
-            U32 current = nextRankStart;
+            U32 const current = nextRankStart;
             nextRankStart += (rankVal[n] << (n-1));
             rankVal[n] = current;
     }   }
@@ -121,11 +121,11 @@ size_t HUF_readDTableX2 (HUF_DTable* DTable, const void* src, size_t srcSize)
         for (n=0; n<nbSymbols; n++) {
             U32 const w = huffWeight[n];
             U32 const length = (1 << w) >> 1;
-            U32 i;
+            U32 u;
             HUF_DEltX2 D;
             D.byte = (BYTE)n; D.nbBits = (BYTE)(tableLog + 1 - w);
-            for (i = rankVal[w]; i < rankVal[w] + length; i++)
-                dt[i] = D;
+            for (u = rankVal[w]; u < rankVal[w] + length; u++)
+                dt[u] = D;
             rankVal[w] += length;
     }   }
 

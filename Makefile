@@ -23,7 +23,7 @@ EXT =
 endif
 
 .PHONY: default
-default: lib zstd-release
+default: lib-release zstd-release
 
 .PHONY: all
 all: | allmost examples manual
@@ -42,6 +42,10 @@ all32:
 
 .PHONY: lib
 lib:
+	@$(MAKE) -C $(ZSTDDIR) $@
+
+.PHONY: lib-release
+lib-release:
 	@$(MAKE) -C $(ZSTDDIR)
 
 .PHONY: zstd

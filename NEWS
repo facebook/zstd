@@ -9,6 +9,7 @@ arch : 32-bits variant able to generate and decode very long matches (>32 MB), b
 API : new : ZSTD_findFrameCompressedSize(), ZSTD_getFrameContentSize(), ZSTD_findDecompressedSize()
 build: new: meson build system in contrib/meson, by Dima Krasner
 build: improved cmake script, by @Majlen
+build: added -Wformat-security flag, as recommended by Padraig Brady
 doc : new : educational decoder, by Sean Purcell
 
 v1.1.3

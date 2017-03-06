@@ -28,8 +28,9 @@ TESTARTEFACT := versionsTest namespaceTest
 
 CPPFLAGS+= -I$(ZSTDDIR) -I$(ZSTDDIR)/common -I$(ZSTDDIR)/compress -I$(ZSTDDIR)/dictBuilder -I$(ZSTDDIR)/deprecated -I$(PRGDIR)
 CFLAGS  ?= -O3
-CFLAGS  += -g -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow -Wstrict-aliasing=1 \
-           -Wswitch-enum -Wdeclaration-after-statement -Wstrict-prototypes -Wundef
+CFLAGS  += -g -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow \
+           -Wstrict-aliasing=1 -Wswitch-enum -Wdeclaration-after-statement \
+           -Wstrict-prototypes -Wundef -Wformat-security
 CFLAGS  += $(MOREFLAGS)
 FLAGS    = $(CPPFLAGS) $(CFLAGS) $(LDFLAGS)
 

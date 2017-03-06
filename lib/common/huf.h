@@ -102,10 +102,11 @@ size_t HUF_compress4X_wksp (void* dst, size_t dstSize, const void* src, size_t s
 
 
 /* *** Constants *** */
-#define HUF_TABLELOG_ABSOLUTEMAX  15   /* absolute limit of HUF_MAX_TABLELOG. Beyond that value, code does not work */
-#define HUF_TABLELOG_MAX  12           /* max configured tableLog (for static allocation); can be modified up to HUF_ABSOLUTEMAX_TABLELOG */
+#define HUF_TABLELOG_MAX      12       /* max configured tableLog (for static allocation); can be modified up to HUF_ABSOLUTEMAX_TABLELOG */
 #define HUF_TABLELOG_DEFAULT  11       /* tableLog by default, when not specified */
-#define HUF_SYMBOLVALUE_MAX 255
+#define HUF_SYMBOLVALUE_MAX  255
+
+#define HUF_TABLELOG_ABSOLUTEMAX  15   /* absolute limit of HUF_MAX_TABLELOG. Beyond that value, code does not work */
 #if (HUF_TABLELOG_MAX > HUF_TABLELOG_ABSOLUTEMAX)
 #  error "HUF_TABLELOG_MAX is too large !"
 #endif

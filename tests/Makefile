@@ -75,8 +75,6 @@ all32: fullbench32 fuzzer32 zstreamtest32 zbufftest32
 
 dll: fuzzer-dll zstreamtest-dll zbufftest-dll
 
-
-
 zstd:
 	$(MAKE) -C $(PRGDIR) $@
 
@@ -256,6 +254,8 @@ zstd-playTests: datagen
 
 shortest: ZSTDRTTEST=
 shortest: test-zstd
+
+fuzztest: test-fuzzer test-zstream test-decodecorpus
 
 test: test-zstd test-fullbench test-fuzzer test-zstream test-invalidDictionaries test-legacy test-decodecorpus
 ifeq ($(QEMU_SYS),)

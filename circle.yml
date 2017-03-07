@@ -6,38 +6,55 @@ dependencies:
     - sudo apt-get -y install libstdc++-6-dev clang gcc g++ gcc-5 gcc-6
     - sudo apt-get -y install linux-libc-dev:i386 libc6-dev-i386
 
-  # use default "parallel: true" for commands in the machine, checkout, dependencies and database build phase
-  post:
-    - |
-      if [[ "$CIRCLE_NODE_INDEX" == "0" ]]                                    ; then cc -v; make all   && make clean; fi &&
-      if [[ "$CIRCLE_NODE_TOTAL" < "2" ]] || [[ "$CIRCLE_NODE_INDEX" == "1" ]]; then make gnu90build   && make clean; fi
-    - |
-      if [[ "$CIRCLE_NODE_INDEX" == "0" ]]                                    ; then make c99build     && make clean; fi &&
-      if [[ "$CIRCLE_NODE_TOTAL" < "2" ]] || [[ "$CIRCLE_NODE_INDEX" == "1" ]]; then make gnu99build   && make clean; fi
-    - |
-      if [[ "$CIRCLE_NODE_INDEX" == "0" ]]                                    ; then make c11build     && make clean; fi &&
-      if [[ "$CIRCLE_NODE_TOTAL" < "2" ]] || [[ "$CIRCLE_NODE_INDEX" == "1" ]]; then make cmakebuild   && make clean; fi
-    - |
-      if [[ "$CIRCLE_NODE_INDEX" == "0" ]]                                    ; then make gppbuild     && make clean; fi &&
-      if [[ "$CIRCLE_NODE_TOTAL" < "2" ]] || [[ "$CIRCLE_NODE_INDEX" == "1" ]]; then make gcc5build    && make clean; fi
-    - |
-      if [[ "$CIRCLE_NODE_INDEX" == "0" ]]                                    ; then make gcc6build    && make clean; fi &&
-      if [[ "$CIRCLE_NODE_TOTAL" < "2" ]] || [[ "$CIRCLE_NODE_INDEX" == "1" ]]; then make clangbuild   && make clean; fi
-    - |
-      if [[ "$CIRCLE_NODE_INDEX" == "0" ]]                                    ; then make m32build     && make clean; fi &&
-      if [[ "$CIRCLE_NODE_TOTAL" < "2" ]] || [[ "$CIRCLE_NODE_INDEX" == "1" ]]; then make armbuild     && make clean; fi
-    - |
-      if [[ "$CIRCLE_NODE_INDEX" == "0" ]]                                    ; then make aarch64build && make clean; fi &&
-      if [[ "$CIRCLE_NODE_TOTAL" < "2" ]] || [[ "$CIRCLE_NODE_INDEX" == "1" ]]; then make ppcbuild     && make clean; fi
-    - |
-      if [[ "$CIRCLE_NODE_INDEX" == "0" ]]                                    ; then make ppc64build   && make clean; fi &&
-      if [[ "$CIRCLE_NODE_TOTAL" < "2" ]] || [[ "$CIRCLE_NODE_INDEX" == "1" ]]; then true              && make clean; fi #could add another test here
-    - |
-      if [[ "$CIRCLE_NODE_INDEX" == "0" ]]                                    ; then make shortest     && make clean; fi &&
-      if [[ "$CIRCLE_NODE_TOTAL" < "2" ]] || [[ "$CIRCLE_NODE_INDEX" == "1" ]]; then make -C tests test-legacy test-longmatch test-symbols && make clean; fi
-
 test:
   override:
+    - ? |
+        if [[ "$CIRCLE_NODE_INDEX" == "0" ]]                                    ; then cc -v; make all   && make clean; fi &&
+        if [[ "$CIRCLE_NODE_TOTAL" < "2" ]] || [[ "$CIRCLE_NODE_INDEX" == "1" ]]; then make gnu90build   && make clean; fi
+      :
+        parallel: true
+    - ? |
+        if [[ "$CIRCLE_NODE_INDEX" == "0" ]]                                    ; then make c99build     && make clean; fi &&
+        if [[ "$CIRCLE_NODE_TOTAL" < "2" ]] || [[ "$CIRCLE_NODE_INDEX" == "1" ]]; then make gnu99build   && make clean; fi
+      :
+        parallel: true
+    - ? |
+        if [[ "$CIRCLE_NODE_INDEX" == "0" ]]                                    ; then make c11build     && make clean; fi &&
+        if [[ "$CIRCLE_NODE_TOTAL" < "2" ]] || [[ "$CIRCLE_NODE_INDEX" == "1" ]]; then make cmakebuild   && make clean; fi
+      :
+        parallel: true
+    - ? |
+        if [[ "$CIRCLE_NODE_INDEX" == "0" ]]                                    ; then make gppbuild     && make clean; fi &&
+        if [[ "$CIRCLE_NODE_TOTAL" < "2" ]] || [[ "$CIRCLE_NODE_INDEX" == "1" ]]; then make gcc5build    && make clean; fi
+      :
+        parallel: true
+    - ? |
+        if [[ "$CIRCLE_NODE_INDEX" == "0" ]]                                    ; then make gcc6build    && make clean; fi &&
+        if [[ "$CIRCLE_NODE_TOTAL" < "2" ]] || [[ "$CIRCLE_NODE_INDEX" == "1" ]]; then make clangbuild   && make clean; fi
+      :
+        parallel: true
+    - ? |
+        if [[ "$CIRCLE_NODE_INDEX" == "0" ]]                                    ; then make m32build     && make clean; fi &&
+        if [[ "$CIRCLE_NODE_TOTAL" < "2" ]] || [[ "$CIRCLE_NODE_INDEX" == "1" ]]; then make armbuild     && make clean; fi
+      :
+        parallel: true
+    - ? |
+        if [[ "$CIRCLE_NODE_INDEX" == "0" ]]                                    ; then make aarch64build && make clean; fi &&
+        if [[ "$CIRCLE_NODE_TOTAL" < "2" ]] || [[ "$CIRCLE_NODE_INDEX" == "1" ]]; then make ppcbuild     && make clean; fi
+      :
+        parallel: true
+    - ? |
+        if [[ "$CIRCLE_NODE_INDEX" == "0" ]]                                    ; then make ppc64build   && make clean; fi &&
+        if [[ "$CIRCLE_NODE_TOTAL" < "2" ]] || [[ "$CIRCLE_NODE_INDEX" == "1" ]]; then true              && make clean; fi #could add another test here
+      :
+        parallel: true
+    - ? |
+        if [[ "$CIRCLE_NODE_INDEX" == "0" ]]                                    ; then make shortest     && make clean; fi &&
+        if [[ "$CIRCLE_NODE_TOTAL" < "2" ]] || [[ "$CIRCLE_NODE_INDEX" == "1" ]]; then make -C tests test-legacy test-longmatch test-symbols && make clean; fi
+      :
+        parallel: true
+
+  post:
     - echo Circle CI tests finished
 
   # Longer tests

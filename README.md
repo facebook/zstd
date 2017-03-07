@@ -13,7 +13,7 @@ you can consult a list of known ports on [Zstandard homepage](http://www.zstd.ne
 
 As a reference, several fast compression algorithms were tested and compared on a server running Linux Mint Debian Edition (`Linux version 4.8.0-1-amd64`), with a Core i7-6700K CPU @ 4.0GHz, using [lzbench v1.6], an open-source in-memory benchmark by @inikep compiled with GCC 6.3.0, with the [Silesia compression corpus].
 
-[lzbench]: https://github.com/inikep/lzbench
+[lzbench v1.6]: https://github.com/inikep/lzbench
 [Silesia compression corpus]: http://sun.aei.polsl.pl/~sdeor/index.php?page=silesia
 
 | Compressor name         | Ratio | Compression| Decompress.|

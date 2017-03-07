@@ -18,7 +18,6 @@ As a reference, several fast compression algorithms were tested and compared on 
 
 | Compressor name         | Ratio | Compression| Decompress.|
 | ---------------         | ------| -----------| ---------- |
-| memcpy                  | 1.000 | 13958 MB/s | 13932 MB/s |
 | **zstd 1.1.3 -1**       | 2.877 |   430 MB/s |  1110 MB/s |
 | zlib 1.2.8 -1           | 2.743 |   110 MB/s |   400 MB/s |
 | brotli 0.5.2 -0         | 2.708 |   400 MB/s |   430 MB/s |

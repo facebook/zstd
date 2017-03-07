@@ -17,7 +17,7 @@ matrix:
         - export CXX="g++-6" CC="gcc-6"
 
     # OS X Mavericks
-    - env: Cmd="make gnu90test && make clean && make test && make clean && make travis-install"
+    - env: Cmd="make gnu90build && make clean && make test && make clean && make travis-install"
       os: osx
 
 script:

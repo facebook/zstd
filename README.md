@@ -11,7 +11,12 @@ you can consult a list of known ports on [Zstandard homepage](http://www.zstd.ne
 |master      | [![Build Status](https://travis-ci.org/facebook/zstd.svg?branch=master)](https://travis-ci.org/facebook/zstd) |
 |dev         | [![Build Status](https://travis-ci.org/facebook/zstd.svg?branch=dev)](https://travis-ci.org/facebook/zstd) |
 
-As a reference, several fast compression algorithms were tested and compared on a server running Linux Mint Debian Edition (`Linux version 4.8.0-1-amd64`), with a Core i7-6700K CPU @ 4.0GHz, using [lzbench v1.6], an open-source in-memory benchmark by @inikep compiled with GCC 6.3.0, with the [Silesia compression corpus].
+As a reference, several fast compression algorithms were tested and compared
+on a server running Linux Mint Debian Edition (`Linux version 4.8.0-1-amd64`),
+with a Core i7-6700K CPU @ 4.0GHz,
+using [lzbench v1.6], an open-source in-memory benchmark by @inikep
+compiled with GCC 6.3.0,
+on the [Silesia compression corpus].
 
 [lzbench v1.6]: https://github.com/inikep/lzbench
 [Silesia compression corpus]: http://sun.aei.polsl.pl/~sdeor/index.php?page=silesia

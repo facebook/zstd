@@ -2347,7 +2347,7 @@ static size_t ZSTD_compress_generic (ZSTD_CCtx* cctx,
         if (remaining < blockSize) blockSize = remaining;
 
         /* preemptive overflow correction */
-        if (cctx->lowLimit > (2U<<30)) {
+        if (cctx->lowLimit > (3U<<29)) {
             U32 const cycleMask = (1 << ZSTD_cycleLog(cctx->params.cParams.hashLog, cctx->params.cParams.strategy)) - 1;
             U32 const current = (U32)(ip - cctx->base);
             U32 const newCurrent = (current & cycleMask) + (1 << cctx->params.cParams.windowLog);

@@ -310,7 +310,7 @@ The list of available \fIoptions\fR:
 Specify a strategy used by a match finder.
 .IP ""
 There are 8 strategies numbered from 0 to 7, from faster to stronger:
-0=ZSTD_fast, 1=ZSTD_dfast, 2=ZSTD_greedy, 3=ZSTD_lazy, 4=ZSTD_lazy2, 5=ZSTD_btlazy2, 6=ZSTD_btopt, 7=ZSTD_btopt2.
+0=ZSTD_fast, 1=ZSTD_dfast, 2=ZSTD_greedy, 3=ZSTD_lazy, 4=ZSTD_lazy2, 5=ZSTD_btlazy2, 6=ZSTD_btopt, 7=ZSTD_btultra.
 .IP ""
 
 .TP
@@ -389,7 +389,7 @@ The minimum \fIslen\fR is 3 and the maximum is 7.
 Specify the minimum match length that causes a match finder to interrupt searching of better matches.
 .IP ""
 The bigger minimum match length usually improves compression ratio but decreases compression speed.
-This option is used only with ZSTD_btopt and ZSTD_btopt2 strategies.
+This option is used only with ZSTD_btopt and ZSTD_btultra strategies.
 .IP ""
 The minimum \fItlen\fR is 4 and the maximum is 999.
 .IP ""

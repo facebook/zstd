@@ -1462,8 +1462,8 @@ static void ZSTD_compressBlock_doubleFast_extDict_generic(ZSTD_CCtx* ctx,
 
         if (ip <= ilimit) {
             /* Fill Table */
-			hashSmall[ZSTD_hashPtr(base+current+2, hBitsS, mls)] = current+2;
-			hashLong[ZSTD_hashPtr(base+current+2, hBitsL, 8)] = current+2;
+            hashSmall[ZSTD_hashPtr(base+current+2, hBitsS, mls)] = current+2;
+            hashLong[ZSTD_hashPtr(base+current+2, hBitsL, 8)] = current+2;
             hashSmall[ZSTD_hashPtr(ip-2, hBitsS, mls)] = (U32)(ip-2-base);
             hashLong[ZSTD_hashPtr(ip-2, hBitsL, 8)] = (U32)(ip-2-base);
             /* check immediate repcode */
@@ -1588,7 +1588,7 @@ static U32 ZSTD_insertBt1(ZSTD_CCtx* zc, const BYTE* const ip, const U32 mls, co
             match = dictBase + matchIndex;
             matchLength += ZSTD_count_2segments(ip+matchLength, match+matchLength, iend, dictEnd, prefixStart);
             if (matchIndex+matchLength >= dictLimit)
-				match = base + matchIndex;   /* to prepare for next usage of match[matchLength] */
+                match = base + matchIndex;   /* to prepare for next usage of match[matchLength] */
         }
 
         if (matchLength > bestLength) {
@@ -1667,7 +1667,7 @@ static size_t ZSTD_insertBtAndFindBestMatch (
             match = dictBase + matchIndex;
             matchLength += ZSTD_count_2segments(ip+matchLength, match+matchLength, iend, dictEnd, prefixStart);
             if (matchIndex+matchLength >= dictLimit)
-				match = base + matchIndex;   /* to prepare for next usage of match[matchLength] */
+                match = base + matchIndex;   /* to prepare for next usage of match[matchLength] */
         }
 
         if (matchLength > bestLength) {

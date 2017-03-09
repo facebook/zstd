@@ -120,7 +120,7 @@ MEM_STATIC void MEM_write64(void* memPtr, U64 value) { *(U64*)memPtr = value; }
 /* __pack instructions are safer, but compiler specific, hence potentially problematic for some compilers */
 /* currently only defined for gcc and icc */
 #if defined(_MSC_VER) || (defined(__INTEL_COMPILER) && defined(WIN32))
-	__pragma( pack(push, 1) )
+    __pragma( pack(push, 1) )
     typedef union { U16 u16; U32 u32; U64 u64; size_t st; } unalign;
     __pragma( pack(pop) )
 #else

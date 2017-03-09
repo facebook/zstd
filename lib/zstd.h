@@ -345,7 +345,7 @@ ZSTDLIB_API size_t ZSTD_DStreamOutSize(void);   /*!< recommended size for output
 
 #define ZSTD_WINDOWLOG_MAX_32  27
 #define ZSTD_WINDOWLOG_MAX_64  27
-#define ZSTD_WINDOWLOG_MAX    ((U32)(MEM_32bits() ? ZSTD_WINDOWLOG_MAX_32 : ZSTD_WINDOWLOG_MAX_64))
+#define ZSTD_WINDOWLOG_MAX    ((unsigned)(sizeof(size_t) == 4 ? ZSTD_WINDOWLOG_MAX_32 : ZSTD_WINDOWLOG_MAX_64))
 #define ZSTD_WINDOWLOG_MIN     10
 #define ZSTD_HASHLOG_MAX       ZSTD_WINDOWLOG_MAX
 #define ZSTD_HASHLOG_MIN        6

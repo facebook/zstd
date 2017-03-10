@@ -876,7 +876,7 @@ typedef struct {
     size_t prevOffset[ZSTD_REP_NUM];
     const BYTE* base;
     size_t pos;
-    iPtrDiff gotoDict;
+    uPtrDiff gotoDict;
 } seqState_t;
 
 
@@ -1216,7 +1216,7 @@ FORCE_INLINE seq_t ZSTD_decodeSequenceLong_generic(seqState_t* seqState, int con
 
     {   size_t const pos = seqState->pos + seq.litLength;
         seq.match = seqState->base + pos - seq.offset;    /* single memory segment */
-        if (seq.offset > pos) seq.match += (uPtrDiff)seqState->gotoDict;   /* separate memory segment */
+        if (seq.offset > pos) seq.match += seqState->gotoDict;   /* separate memory segment */
         seqState->pos = pos + seq.matchLength;
     }
 
@@ -1356,7 +1356,7 @@ static size_t ZSTD_decompressSequencesLong(
         { U32 i; for (i=0; i<ZSTD_REP_NUM; i++) seqState.prevOffset[i] = dctx->entropy.rep[i]; }
         seqState.base = base;
         seqState.pos = (size_t)(op-base);
-        seqState.gotoDict = (iPtrDiff)((uPtrDiff)dictEnd - (uPtrDiff)base); /* cast to avoid undefined behaviour */
+        seqState.gotoDict = (uPtrDiff)dictEnd - (uPtrDiff)base; /* cast to avoid undefined behaviour */
         CHECK_E(BIT_initDStream(&seqState.DStream, ip, iend-ip), corruption_detected);
         FSE_initDState(&seqState.stateLL, &seqState.DStream, dctx->LLTptr);
         FSE_initDState(&seqState.stateOffb, &seqState.DStream, dctx->OFTptr);

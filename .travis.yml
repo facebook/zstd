@@ -1,175 +1,52 @@
+# Long tests: run on commits to master branch/cron builds
+
 language: c
+sudo: required
+dist: trusty
 matrix:
-  fast_finish: true
   include:
-    # OS X Mavericks
-    - env: Ubu=OS_X_Mavericks Cmd="make gnu90test && make clean && make test && make clean && make travis-install"
-      os: osx
+    # Ubuntu 14.04
+    - env: Cmd='make gcc6install && CC=gcc-6 make clean uasan-test'
+    - env: Cmd='make gcc6install libc6install && CC=gcc-6 make clean uasan-test32'
+    - env: Cmd='make clang38install && CC=clang-3.8 make clean msan-test'
+    - env: Cmd='make clang38install && CC=clang-3.8 make clean tsan-test-zstream'
+    - env: Cmd='make valgrindinstall && make -C tests clean valgrindTest'
+
+    - env: Cmd='make arminstall && make armtest'
+    - env: Cmd='make arminstall && make aarch64test'
+    - env: Cmd='make ppcinstall && make ppctest'
+    - env: Cmd='make ppcinstall && make ppc64test'
 
 
-    # Container-based Ubuntu 12.04 LTS Server Edition 64 bit (doesn't support 32-bit includes)
-    - env: Ubu=12.04cont Cmd="make zlibwrapper && make clean && make -C tests test-symbols && make clean && make -C tests test-zstd-nolegacy && make clean && make cmaketest && make clean && make -C contrib/pzstd googletest pzstd tests check && make -C contrib/pzstd clean"
-      os: linux
-      sudo: false
-      language: cpp
-      install:
-        - export CXX="g++-4.8" CC="gcc-4.8"
-        - export TESTFLAGS='--gtest_filter=-*ExtremelyLarge*'
-      addons:
-        apt:
-          sources:
-            - ubuntu-toolchain-r-test
-          packages:
-            - gcc-4.8
-            - g++-4.8
 
-    - env: Ubu=12.04cont Cmd="make usan"
-      os: linux
-      sudo: false
-
-    - env: Ubu=12.04cont Cmd="make asan"
-      os: linux
-      sudo: false
-
-
-    # Standard Ubuntu 12.04 LTS Server Edition 64 bit
-    - env: Ubu=12.04 Cmd="make -C programs zstd-small zstd-decompress zstd-compress && make -C programs clean && make -C tests versionsTest"
-      os: linux
-      sudo: required
-
-    - env: Ubu=12.04 Cmd="make asan32"
-      os: linux
-      sudo: required
-      addons:
-        apt:
-          sources:
-            - ubuntu-toolchain-r-test
-          packages:
-            - libc6-dev-i386
-            - gcc-multilib
-
-    - env: Ubu=12.04 Cmd='cd contrib/pzstd && make googletest && make tsan && make check && make clean && make asan && make check && make clean && cd ../..'
-      os: linux
-      sudo: required
+    - env: Cmd='make gpp6install valgrindinstall && make -C zlibWrapper test && make -C zlibWrapper valgrindTest'
+    - env: Cmd='make -C tests versionsTest'
+    - env: Cmd='make gpp6install && cd contrib/pzstd && make test-pzstd && make test-pzstd32 && make test-pzstd-tsan && make test-pzstd-asan'
       install:
         - export CXX="g++-6" CC="gcc-6"
-        - export LDFLAGS="-fuse-ld=gold"
-        - export TESTFLAGS='--gtest_filter=-*ExtremelyLarge*'
-      addons:
-        apt:
-          sources:
-            - ubuntu-toolchain-r-test
-          packages:
-            - gcc-6
-            - g++-6
+    - env: Cmd='make gcc6install && CC=gcc-6 make uasan-test-zstd-nolegacy'
+    - env: Cmd='make gcc6install && CC=gcc-6 make uasan-test-zbuff'
 
+    # OS X Mavericks
+    - env: Cmd="make gnu90build && make clean && make test && make clean && make travis-install"
+      os: osx
 
-    # Ubuntu 14.04 LTS Server Edition 64 bit
-    - env: Ubu=14.04 Cmd="make armtest"
-      dist: trusty
-      sudo: required
-      addons:
-        apt:
-          packages:
-            - qemu-system-arm
-            - qemu-user-static
-            - gcc-arm-linux-gnueabi
-            - libc6-dev-armel-cross
+git:
+  depth: 1
 
-    - env: Ubu=14.04 Cmd="make aarch64test"
-      dist: trusty
-      sudo: required
-      addons:
-        apt:
-          packages:
-            - qemu-system-arm
-            - qemu-user-static
-            - gcc-aarch64-linux-gnu
-            - libc6-dev-arm64-cross
-
-    - env: Ubu=14.04 Cmd='make ppctest'
-      dist: trusty
-      sudo: required
-      addons:
-        apt:
-          packages:
-            - qemu-system-ppc
-            - qemu-user-static
-            - gcc-powerpc-linux-gnu
-
-    - env: Ubu=14.04 Cmd='make ppc64test'
-      dist: trusty
-      sudo: required
-      addons:
-        apt:
-          packages:
-            - qemu-system-ppc
-            - qemu-user-static
-            - gcc-powerpc-linux-gnu
-
-    - env: Ubu=14.04 Cmd='make -C lib all && CFLAGS="-O1 -g" make -C zlibWrapper valgrindTest && make -C tests valgrindTest'
-      os: linux
-      dist: trusty
-      sudo: required
-      addons:
-        apt:
-          packages:
-            - valgrind
-
-
-
-    # other feature branches => short tests
-    - env: Ubu=12.04cont Cmd="make test && make clean && make travis-install"
-      os: linux
-      sudo: false
-
-    - env: Ubu=14.04 Cmd="make -C tests test32"
-      os: linux
-      dist: trusty
-      sudo: required
-      addons:
-        apt:
-          packages:
-            - libc6-dev-i386
-            - gcc-multilib
-
-    - env: Ubu=14.04 Cmd="make gpptest && make clean && make gnu90test && make clean
-                       && make c99test && make clean && make gnu99test && make clean
-                       && make clangtest && make clean && make -C contrib/pzstd googletest32
-                       && make -C contrib/pzstd all32 && make -C contrib/pzstd check && make -C contrib/pzstd clean"
-      os: linux
-      dist: trusty
-      sudo: required
-      install:
-        - export CXX="g++-4.8" CC="gcc-4.8"
-      addons:
-        apt:
-          packages:
-            - libc6-dev-i386
-            - g++-multilib
-            - gcc-4.8
-            - gcc-4.8-multilib
-            - g++-4.8
-            - g++-4.8-multilib
-
-    - env: Ubu=14.04 Cmd="make gcc5test && make clean && make gcc6test && make clean && make -C tests dll"
-      os: linux
-      dist: trusty
-      sudo: required
-      addons:
-        apt:
-          sources:
-            - ubuntu-toolchain-r-test
-          packages:
-            - gcc-multilib
-            - gcc-5
-            - gcc-5-multilib
-            - gcc-6
-            - gcc-6-multilib
+branches:
+  only:
+  - dev
+  - master
 
 script:
   - JOB_NUMBER=$(echo $TRAVIS_JOB_NUMBER | sed -e 's:[0-9][0-9]*\.\(.*\):\1:')
-  #  dev => normal tests;  other feature branches => short tests (number > 11)
-  - if [ "$TRAVIS_PULL_REQUEST" = "true" ] || [ $JOB_NUMBER -gt 11 ] || [ "$TRAVIS_BRANCH" = "dev" ] && [ "$TRAVIS_BRANCH" != "master" ]; then sh -c "$Cmd"; fi
-  #  master => long tests, as this is the final step towards a Release
-  - if [ "$TRAVIS_BRANCH" = "master" ]; then FUZZERTEST=-T10mn sh -c "$Cmd"; fi
+  - echo JOB_NUMBER=$JOB_NUMBER TRAVIS_BRANCH=$TRAVIS_BRANCH TRAVIS_EVENT_TYPE=$TRAVIS_EVENT_TYPE TRAVIS_PULL_REQUEST=$TRAVIS_PULL_REQUEST
+  - export FUZZERTEST=-T5mn;
+    export ZSTREAM_TESTTIME=-T5mn;
+    export DECODECORPUS_TESTTIME=-T1mn;
+    if [ "$TRAVIS_EVENT_TYPE" = "cron" ]; then
+        git fetch origin dev;
+        git checkout -f FETCH_HEAD;
+    fi;
+    sh -c "$Cmd" || travis_terminate 1;

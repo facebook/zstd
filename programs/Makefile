@@ -83,8 +83,11 @@ all: zstd
 
 $(ZSTDDECOMP_O): CFLAGS += $(ALIGN_LOOP)
 
-zstd-internal : CPPFLAGS += -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT)
-zstd-internal : $(ZSTDLIB_OBJ) zstdcli.o fileio.o bench.o datagen.o dibio.o
+zstd : CPPFLAGS += $(ZLIBCPP)
+zstd : LDFLAGS += $(ZLIBLD)
+zstd-nogz : HAVE_ZLIB=0
+zstd zstd-nogz : CPPFLAGS += -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT)
+zstd zstd-nogz : $(ZSTDLIB_OBJ) zstdcli.o fileio.o bench.o datagen.o dibio.o
 ifeq ($(HAVE_ZLIB), 1)
 	@echo "==> building zstd with .gz decompression support "
 else
@@ -94,13 +97,6 @@ ifneq (,$(filter Windows%,$(OS)))
 	windres/generate_res.bat
 endif
 	$(CC) $(FLAGS) $^ $(RES_FILE) -o zstd$(EXT) $(LDFLAGS)
-
-zstd-nogz : HAVE_ZLIB=0
-zstd-nogz : zstd-internal
-
-zstd : CPPFLAGS += $(ZLIBCPP)
-zstd : LDFLAGS += $(ZLIBLD)
-zstd : zstd-internal
 
 zstd-release: DEBUGFLAGS :=
 zstd-release: zstd

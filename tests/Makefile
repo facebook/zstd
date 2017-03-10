@@ -60,10 +60,10 @@ endif
 MULTITHREAD = $(MULTITHREAD_CPP) $(MULTITHREAD_LD)
 
 VOID = /dev/null
-ZSTREAM_TESTTIME = -T2mn
+ZSTREAM_TESTTIME ?= -T2mn
 FUZZERTEST ?= -T5mn
 ZSTDRTTEST = --test-large-data
-DECODECORPUS_TESTTIME = -T30
+DECODECORPUS_TESTTIME ?= -T30
 
 .PHONY: default all all32 dll clean test test32 test-all namespaceTest versionsTest
 
@@ -74,8 +74,6 @@ all: fullbench fuzzer zstreamtest paramgrill datagen zbufftest
 all32: fullbench32 fuzzer32 zstreamtest32 zbufftest32
 
 dll: fuzzer-dll zstreamtest-dll zbufftest-dll
-
-
 
 zstd:
 	$(MAKE) -C $(PRGDIR) $@
@@ -256,6 +254,8 @@ zstd-playTests: datagen
 
 shortest: ZSTDRTTEST=
 shortest: test-zstd
+
+fuzztest: test-fuzzer test-zstream test-decodecorpus
 
 test: test-zstd test-fullbench test-fuzzer test-zstream test-invalidDictionaries test-legacy test-decodecorpus
 ifeq ($(QEMU_SYS),)

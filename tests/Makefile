@@ -60,10 +60,10 @@ endif
 MULTITHREAD = $(MULTITHREAD_CPP) $(MULTITHREAD_LD)
 
 VOID = /dev/null
-ZSTREAM_TESTTIME = -T2mn
+ZSTREAM_TESTTIME ?= -T2mn
 FUZZERTEST ?= -T5mn
 ZSTDRTTEST = --test-large-data
-DECODECORPUS_TESTTIME = -T30
+DECODECORPUS_TESTTIME ?= -T30
 
 .PHONY: default all all32 dll clean test test32 test-all namespaceTest versionsTest
 

@@ -200,11 +200,18 @@ arm-ppc-compilation:
 	$(MAKE) -C $(PRGDIR) clean zstd CC=powerpc-linux-gnu-gcc QEMU_SYS=qemu-ppc-static ZSTDRTTEST= MOREFLAGS="-Werror -Wno-attributes -static"
 	$(MAKE) -C $(PRGDIR) clean zstd CC=powerpc-linux-gnu-gcc QEMU_SYS=qemu-ppc64-static ZSTDRTTEST= MOREFLAGS="-m64 -static"
 
+# run UBsan with -fsanitize-recover=signed-integer-overflow
+# due to a bug in UBsan when doing pointer subtraction
+# https://gcc.gnu.org/bugzilla/show_bug.cgi?id=63303
+
 usan: clean
-	$(MAKE) test CC=clang MOREFLAGS="-g -fno-sanitize-recover=all -fsanitize=undefined"
+	$(MAKE) test CC=clang MOREFLAGS="-g -fno-sanitize-recover=all -fsanitize-recover=signed-integer-overflow -fsanitize=undefined"
 
 asan: clean
 	$(MAKE) test CC=clang MOREFLAGS="-g -fsanitize=address"
+
+asan-%: clean
+	LDFLAGS=-fuse-ld=gold MOREFLAGS="-g -fno-sanitize-recover=all -fsanitize=address" $(MAKE) -C $(TESTDIR) $*
 
 msan: clean
 	$(MAKE) test CC=clang MOREFLAGS="-g -fsanitize=memory -fno-omit-frame-pointer"   # datagen.c fails this test for no obvious reason
@@ -216,10 +223,10 @@ asan32: clean
 	$(MAKE) -C $(TESTDIR) test32 CC=clang MOREFLAGS="-g -fsanitize=address"
 
 uasan: clean
-	$(MAKE) test CC=clang MOREFLAGS="-g -fno-sanitize-recover=all -fsanitize=address,undefined"
+	$(MAKE) test CC=clang MOREFLAGS="-g -fno-sanitize-recover=all -fsanitize-recover=signed-integer-overflow -fsanitize=address,undefined"
 
 uasan-%: clean
-	LDFLAGS=-fuse-ld=gold MOREFLAGS="-Og -fno-sanitize-recover=all -fsanitize=address,undefined" $(MAKE) -C $(TESTDIR) $*
+	LDFLAGS=-fuse-ld=gold MOREFLAGS="-Og -fno-sanitize-recover=all -fsanitize-recover=signed-integer-overflow -fsanitize=address,undefined" $(MAKE) -C $(TESTDIR) $*
 
 tsan-%: clean
 	LDFLAGS=-fuse-ld=gold MOREFLAGS="-g -fno-sanitize-recover=all -fsanitize=thread" $(MAKE) -C $(TESTDIR) $*

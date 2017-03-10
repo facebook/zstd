@@ -876,7 +876,7 @@ typedef struct {
     size_t prevOffset[ZSTD_REP_NUM];
     const BYTE* base;
     size_t pos;
-    iPtrDiff gotoDict;
+    uPtrDiff gotoDict;
 } seqState_t;
 
 
@@ -1033,7 +1033,7 @@ size_t ZSTD_execSequence(BYTE* op,
     if (sequence.offset > (size_t)(oLitEnd - base)) {
         /* offset beyond prefix */
         if (sequence.offset > (size_t)(oLitEnd - vBase)) return ERROR(corruption_detected);
-        match += (dictEnd-base);
+        match = dictEnd + (match - base);
         if (match + sequence.matchLength <= dictEnd) {
             memmove(oLitEnd, match, sequence.matchLength);
             return sequenceLength;
@@ -1356,7 +1356,7 @@ static size_t ZSTD_decompressSequencesLong(
         { U32 i; for (i=0; i<ZSTD_REP_NUM; i++) seqState.prevOffset[i] = dctx->entropy.rep[i]; }
         seqState.base = base;
         seqState.pos = (size_t)(op-base);
-        seqState.gotoDict = (iPtrDiff)(dictEnd - base);
+        seqState.gotoDict = (uPtrDiff)dictEnd - (uPtrDiff)base; /* cast to avoid undefined behaviour */
         CHECK_E(BIT_initDStream(&seqState.DStream, ip, iend-ip), corruption_detected);
         FSE_initDState(&seqState.stateLL, &seqState.DStream, dctx->LLTptr);
         FSE_initDState(&seqState.stateOffb, &seqState.DStream, dctx->OFTptr);

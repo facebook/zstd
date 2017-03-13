@@ -31,7 +31,7 @@ FLAGS    = $(CPPFLAGS) $(CFLAGS)
 
 ZSTD_FILES := $(wildcard common/*.c compress/*.c decompress/*.c dictBuilder/*.c deprecated/*.c)
 
-ZSTD_LEGACY_SUPPORT ?= 1
+ZSTD_LEGACY_SUPPORT ?= 4
 
 ifneq ($(ZSTD_LEGACY_SUPPORT), 0)
 ifeq ($(shell test $(ZSTD_LEGACY_SUPPORT) -lt 8; echo $$?), 0)

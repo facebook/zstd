@@ -31,12 +31,15 @@ FLAGS    = $(CPPFLAGS) $(CFLAGS)
 
 ZSTD_FILES := $(wildcard common/*.c compress/*.c decompress/*.c dictBuilder/*.c deprecated/*.c)
 
-ifeq ($(ZSTD_LEGACY_SUPPORT), 0)
-CPPFLAGS  += -DZSTD_LEGACY_SUPPORT=0
-else
-CPPFLAGS  += -I./legacy -DZSTD_LEGACY_SUPPORT=1
-ZSTD_FILES+= $(wildcard legacy/*.c)
+ZSTD_LEGACY_SUPPORT ?= 1
+
+ifneq ($(ZSTD_LEGACY_SUPPORT), 0)
+ifeq ($(shell test $(ZSTD_LEGACY_SUPPORT) -lt 8; echo $$?), 0)
+	ZSTD_FILES += $(shell ls legacy/*.c | grep 'v0[$(ZSTD_LEGACY_SUPPORT)-7]')
 endif
+	CPPFLAGS += -I./legacy
+endif
+CPPFLAGS  += -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT)
 
 ZSTD_OBJ   := $(patsubst %.c,%.o,$(ZSTD_FILES))
 

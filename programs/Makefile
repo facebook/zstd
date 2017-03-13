@@ -42,12 +42,14 @@ ZSTD_FILES := $(ZSTDDECOMP_FILES) $(ZSTDCOMMON_FILES) $(ZSTDCOMP_FILES)
 ZDICT_FILES := $(ZSTDDIR)/dictBuilder/*.c
 ZSTDDECOMP_O = $(ZSTDDIR)/decompress/zstd_decompress.o
 
-ifeq ($(ZSTD_LEGACY_SUPPORT), 0)
+ZSTD_LEGACY_SUPPORT ?= 1
 ZSTDLEGACY_FILES:=
+ifneq ($(ZSTD_LEGACY_SUPPORT), 0)
+ifeq ($(shell test $(ZSTD_LEGACY_SUPPORT) -lt 8; echo $$?), 0)
+	ZSTDLEGACY_FILES += $(shell ls $(ZSTDDIR)/legacy/*.c | grep 'v0[$(ZSTD_LEGACY_SUPPORT)-7]')
+endif
+	CPPFLAGS += -I$(ZSTDDIR)/legacy
 else
-ZSTD_LEGACY_SUPPORT:=1
-CPPFLAGS  += -I$(ZSTDDIR)/legacy
-ZSTDLEGACY_FILES:= $(ZSTDDIR)/legacy/*.c
 endif
 
 ZSTDLIB_FILES := $(wildcard $(ZSTD_FILES)) $(wildcard $(ZSTDLEGACY_FILES)) $(wildcard $(ZDICT_FILES))

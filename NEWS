@@ -3,10 +3,12 @@ cli : new : can compress in *.gz format, using --format=gzip command, by Przemys
 cli : new : advanced benchmark command --priority=rt
 cli : fix : write on sparse-enabled file systems in 32-bits mode, by @ds77
 cli : fix : --rm remains silent when input is stdin
+cli : experimental : xzstd, with support for xz/lzma decoding, by Przemyslaw Skibinski
 speed : improved decompression speed in streaming mode for single shot scenarios (+5%)
 memory : DDict (decompression dictionary) memory usage down from 150 KB to 20 KB
 arch : 32-bits variant able to generate and decode very long matches (>32 MB), by Sean Purcell
 API : new : ZSTD_findFrameCompressedSize(), ZSTD_getFrameContentSize(), ZSTD_findDecompressedSize()
+API : changed : dropped support of legacy versions <= v0.3 (can be changed by modifying ZSTD_LEGACY_SUPPORT value)
 build: new: meson build system in contrib/meson, by Dima Krasner
 build: improved cmake script, by @Majlen
 build: added -Wformat-security flag, as recommended by Padraig Brady

@@ -139,7 +139,11 @@ ZSTDLIB_API size_t     ZSTD_freeCCtx(ZSTD_CCtx* cctx);
     Same as ZSTD_compress(), requires an allocated ZSTD_CCtx (see ZSTD_createCCtx()). */
 ZSTDLIB_API size_t ZSTD_compressCCtx(ZSTD_CCtx* ctx, void* dst, size_t dstCapacity, const void* src, size_t srcSize, int compressionLevel);
 
-/*= Decompression context */
+/*= Decompression context
+*   When decompressing many times,
+*   it is recommended to allocate a context just once, and re-use it for each successive compression operation.
+*   This will make workload friendlier for system's memory.
+*   Use one context per thread for parallel execution in multi-threaded environments. */
 typedef struct ZSTD_DCtx_s ZSTD_DCtx;
 ZSTDLIB_API ZSTD_DCtx* ZSTD_createDCtx(void);
 ZSTDLIB_API size_t     ZSTD_freeDCtx(ZSTD_DCtx* dctx);
@@ -277,9 +281,11 @@ typedef struct ZSTD_outBuffer_s {
 * *******************************************************************/
 
 typedef struct ZSTD_CStream_s ZSTD_CStream;
+/*===== ZSTD_CStream management functions =====*/
 ZSTDLIB_API ZSTD_CStream* ZSTD_createCStream(void);
 ZSTDLIB_API size_t ZSTD_freeCStream(ZSTD_CStream* zcs);
 
+/*===== Streaming compression functions =====*/
 ZSTDLIB_API size_t ZSTD_initCStream(ZSTD_CStream* zcs, int compressionLevel);
 ZSTDLIB_API size_t ZSTD_compressStream(ZSTD_CStream* zcs, ZSTD_outBuffer* output, ZSTD_inBuffer* input);
 ZSTDLIB_API size_t ZSTD_flushStream(ZSTD_CStream* zcs, ZSTD_outBuffer* output);
@@ -313,9 +319,11 @@ ZSTDLIB_API size_t ZSTD_CStreamOutSize(void);   /**< recommended size for output
 * *******************************************************************************/
 
 typedef struct ZSTD_DStream_s ZSTD_DStream;
+/*===== ZSTD_DStream management functions =====*/
 ZSTDLIB_API ZSTD_DStream* ZSTD_createDStream(void);
 ZSTDLIB_API size_t ZSTD_freeDStream(ZSTD_DStream* zds);
 
+/*===== Streaming decompression functions =====*/
 ZSTDLIB_API size_t ZSTD_initDStream(ZSTD_DStream* zds);
 ZSTDLIB_API size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inBuffer* input);
 
@@ -540,6 +548,8 @@ ZSTDLIB_API size_t ZSTD_sizeof_DCtx(const ZSTD_DCtx* dctx);
  *  It is important that dictBuffer outlives DDict, it must remain read accessible throughout the lifetime of DDict */
 ZSTDLIB_API ZSTD_DDict* ZSTD_createDDict_byReference(const void* dictBuffer, size_t dictSize);
 
+/*! ZSTD_createDDict_advanced() :
+ *  Create a ZSTD_DDict using external alloc and free, optionally by reference */
 ZSTDLIB_API ZSTD_DDict* ZSTD_createDDict_advanced(const void* dict, size_t dictSize,
                                                   unsigned byReference, ZSTD_customMem customMem);
 

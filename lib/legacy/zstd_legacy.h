@@ -20,15 +20,9 @@ extern "C" {
 #include "mem.h"            /* MEM_STATIC */
 #include "error_private.h"  /* ERROR */
 #include "zstd.h"           /* ZSTD_inBuffer, ZSTD_outBuffer */
-#include "zstd_v01.h"
-#include "zstd_v02.h"
-#include "zstd_v03.h"
-#include "zstd_v04.h"
-#include "zstd_v05.h"
-#include "zstd_v06.h"
-#include "zstd_v07.h"
 
-#ifndef ZSTD_LEGACY_SUPPORT
+#if !defined (ZSTD_LEGACY_SUPPORT) || (ZSTD_LEGACY_SUPPORT == 0)
+#  undef ZSTD_LEGACY_SUPPORT
 #  define ZSTD_LEGACY_SUPPORT 8
 #endif
 

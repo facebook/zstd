@@ -15,7 +15,7 @@ libzstd_includes = [include_directories(common_dir, dictbuilder_dir, compress_di
 
 if get_option('legacy_support')
     message('Enabling legacy support')
-    libzstd_cflags = ['-DZSTD_LEGACY_SUPPORT=1']
+    libzstd_cflags = ['-DZSTD_LEGACY_SUPPORT=4']
 
     legacy_dir = join_paths(lib_dir, 'legacy')
     libzstd_includes += [include_directories(legacy_dir)]

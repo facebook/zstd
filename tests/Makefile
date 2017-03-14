@@ -167,7 +167,7 @@ longmatch  : $(ZSTD_FILES) longmatch.c
 invalidDictionaries  : $(ZSTD_FILES) invalidDictionaries.c
 	$(CC)      $(FLAGS) $^ -o $@$(EXT)
 
-legacy : CFLAGS+= -DZSTD_LEGACY_SUPPORT=1
+legacy : CFLAGS+= -DZSTD_LEGACY_SUPPORT=4
 legacy : CPPFLAGS+= -I$(ZSTDDIR)/legacy
 legacy : $(ZSTD_FILES) $(wildcard $(ZSTDDIR)/legacy/*.c) legacy.c
 	$(CC)      $(FLAGS) $^ -o $@$(EXT)

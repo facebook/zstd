@@ -325,11 +325,69 @@ if [ $GZIPMODE -eq 1 ]; then
         gzip -t -v tmp.gz
         gzip -f tmp
         $ZSTD -d -f -v tmp.gz
+        rm tmp*
     else
         $ECHO "gzip binary not detected"
     fi
 else
     $ECHO "gzip mode not supported"
+fi
+
+
+$ECHO "\n**** gzip frame tests **** "
+
+if [ $GZIPMODE -eq 1 ]; then
+    ./datagen > tmp
+    $ZSTD -f --format=gzip tmp
+    $ZSTD -f tmp
+    cat tmp.gz tmp.zst tmp.gz tmp.zst | $ZSTD -d -f -o tmp
+    head -c -1 tmp.gz | $ZSTD -t && die "incomplete frame not detected !"
+    rm tmp*
+else
+    $ECHO "gzip mode not supported"
+fi
+
+
+$ECHO "\n**** xz compatibility tests **** "
+
+LZMAMODE=1
+$ZSTD --format=xz -V || LZMAMODE=0
+if [ $LZMAMODE -eq 1 ]; then
+    $ECHO "xz support detected"
+    XZEXE=1
+    xz -V && lzma -V || XZEXE=0
+    if [ $XZEXE -eq 1 ]; then
+        ./datagen > tmp
+        $ZSTD --format=lzma -f tmp
+        $ZSTD --format=xz -f tmp
+        xz -t -v tmp.xz
+        xz -t -v tmp.lzma
+        xz -f -k tmp
+        lzma -f -k --lzma1 tmp
+        $ZSTD -d -f -v tmp.xz
+        $ZSTD -d -f -v tmp.lzma
+        rm tmp*
+    else
+        $ECHO "xz binary not detected"
+    fi
+else
+    $ECHO "xz mode not supported"
+fi
+
+
+$ECHO "\n**** xz frame tests **** "
+
+if [ $LZMAMODE -eq 1 ]; then
+    ./datagen > tmp
+    $ZSTD -f --format=xz tmp
+    $ZSTD -f --format=lzma tmp
+    $ZSTD -f tmp
+    cat tmp.xz tmp.lzma tmp.zst tmp.lzma tmp.xz tmp.zst | $ZSTD -d -f -o tmp
+    head -c -1 tmp.xz | $ZSTD -t && die "incomplete frame not detected !"
+    head -c -1 tmp.lzma | $ZSTD -t && die "incomplete frame not detected !"
+    rm tmp*
+else
+    $ECHO "xz mode not supported"
 fi
 
 

@@ -29,12 +29,16 @@ extern "C" {
 #else
 #  define nulmark "/dev/null"
 #endif
+#define LZMA_EXTENSION  ".lzma"
+#define XZ_EXTENSION    ".xz"
+#define GZ_EXTENSION    ".gz"
+#define ZSTD_EXTENSION  ".zst"
 
 
 /*-*************************************
 *  Types
 ***************************************/
-typedef enum { FIO_zstdCompression, FIO_gzipCompression } FIO_compressionType_t;
+typedef enum { FIO_zstdCompression, FIO_gzipCompression, FIO_xzCompression, FIO_lzmaCompression } FIO_compressionType_t;
 
 
 /*-*************************************

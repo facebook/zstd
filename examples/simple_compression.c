@@ -102,7 +102,7 @@ static void compress_orDie(const char* fname, const char* oname)
 }
 
 
-static const char* createOutFilename_orDie(const char* filename)
+static char* createOutFilename_orDie(const char* filename)
 {
     size_t const inL = strlen(filename);
     size_t const outL = inL + 5;
@@ -110,7 +110,7 @@ static const char* createOutFilename_orDie(const char* filename)
     memset(outSpace, 0, outL);
     strcat(outSpace, filename);
     strcat(outSpace, ".zst");
-    return (const char*)outSpace;
+    return (char*)outSpace;
 }
 
 int main(int argc, const char** argv)
@@ -125,8 +125,8 @@ int main(int argc, const char** argv)
         return 1;
     }
 
-    const char* const outFilename = createOutFilename_orDie(inFilename);
+    char* const outFilename = createOutFilename_orDie(inFilename);
     compress_orDie(inFilename, outFilename);
-
+    free(outFilename);
     return 0;
 }

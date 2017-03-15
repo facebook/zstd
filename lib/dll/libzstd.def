@@ -58,6 +58,8 @@ EXPORTS
     ZSTD_getBlockSizeMax
     ZSTD_getCParams
     ZSTD_getDecompressedSize
+    ZSTD_findDecompressedSize
+    ZSTD_getFrameContentSize
     ZSTD_getErrorName
     ZSTD_getFrameParams
     ZSTD_getParams

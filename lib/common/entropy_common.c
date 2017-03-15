@@ -43,27 +43,21 @@
 #include "huf.h"
 
 
-/*-****************************************
-*  FSE Error Management
-******************************************/
-unsigned FSE_isError(size_t code) { return ERR_isError(code); }
+/*===   Version   ===*/
+unsigned FSE_versionNumber(void) { return FSE_VERSION_NUMBER; }
 
+
+/*===   Error Management   ===*/
+unsigned FSE_isError(size_t code) { return ERR_isError(code); }
 const char* FSE_getErrorName(size_t code) { return ERR_getErrorName(code); }
 
-
-/* **************************************************************
-*  HUF Error Management
-****************************************************************/
 unsigned HUF_isError(size_t code) { return ERR_isError(code); }
-
 const char* HUF_getErrorName(size_t code) { return ERR_getErrorName(code); }
 
 
 /*-**************************************************************
 *  FSE NCount encoding-decoding
 ****************************************************************/
-static short FSE_abs(short a) { return (short)(a<0 ? -a : a); }
-
 size_t FSE_readNCount (short* normalizedCounter, unsigned* maxSVPtr, unsigned* tableLogPtr,
                  const void* headerBuffer, size_t hbSize)
 {
@@ -117,21 +111,21 @@ size_t FSE_readNCount (short* normalizedCounter, unsigned* maxSVPtr, unsigned* t
             } else {
                 bitStream >>= 2;
         }   }
-        {   short const max = (short)((2*threshold-1)-remaining);
-            short count;
+        {   int const max = (2*threshold-1) - remaining;
+            int count;
 
             if ((bitStream & (threshold-1)) < (U32)max) {
-                count = (short)(bitStream & (threshold-1));
-                bitCount   += nbBits-1;
+                count = bitStream & (threshold-1);
+                bitCount += nbBits-1;
             } else {
-                count = (short)(bitStream & (2*threshold-1));
+                count = bitStream & (2*threshold-1);
                 if (count >= threshold) count -= max;
-                bitCount   += nbBits;
+                bitCount += nbBits;
             }
 
             count--;   /* extra accuracy */
-            remaining -= FSE_abs(count);
-            normalizedCounter[charnum++] = count;
+            remaining -= count < 0 ? -count : count;   /* -1 means +1 */
+            normalizedCounter[charnum++] = (short)count;
             previous0 = !count;
             while (remaining < threshold) {
                 nbBits--;

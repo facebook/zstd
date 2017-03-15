@@ -2,11 +2,14 @@ version: 1.0.{build}
 environment:
   matrix:
   - COMPILER: "gcc"
-    MAKE_PARAMS: '"make test && make lib && make -C tests test-symbols fullbench-dll fullbench-lib"'
     PLATFORM: "mingw64"
+    MAKE_PARAMS: '"make test && make lib && make -C tests test-symbols fullbench-dll fullbench-lib"'
   - COMPILER: "gcc"
-    MAKE_PARAMS: "make test"
     PLATFORM: "mingw32"
+    MAKE_PARAMS: '"make -C tests test-zstd test-fullbench test-fuzzer test-invalidDictionaries"'
+  - COMPILER: "gcc"
+    PLATFORM: "clang"
+    MAKE_PARAMS: '"make -C tests zstd fullbench fuzzer paramgrill datagen CC=clang MOREFLAGS="--target=x86_64-w64-mingw32 -Werror -Wconversion -Wno-sign-conversion""'
   - COMPILER: "visual"
     CONFIGURATION: "Debug"
     PLATFORM: "x64"
@@ -25,7 +28,6 @@ install:
   - MKDIR bin
   - if [%COMPILER%]==[gcc] SET PATH_ORIGINAL=%PATH%
   - if [%COMPILER%]==[gcc] (
-      SET "CLANG_PARAMS=-C tests zstd fullbench fuzzer paramgrill datagen CC=clang MOREFLAGS="--target=x86_64-w64-mingw32 -Werror -Wconversion -Wno-sign-conversion"" &&
       SET "PATH_MINGW32=c:\MinGW\bin;c:\MinGW\usr\bin" &&
       SET "PATH_MINGW64=c:\msys64\mingw64\bin;c:\msys64\usr\bin" &&
       COPY C:\msys64\usr\bin\make.exe C:\MinGW\bin\make.exe &&
@@ -38,31 +40,7 @@ build_script:
   - ECHO Building %COMPILER% %PLATFORM% %CONFIGURATION%
   - if [%PLATFORM%]==[mingw32] SET PATH=%PATH_MINGW32%;%PATH_ORIGINAL%
   - if [%PLATFORM%]==[mingw64] SET PATH=%PATH_MINGW64%;%PATH_ORIGINAL%
-  - if [%PLATFORM%]==[mingw64] (
-      make clean &&
-      ECHO *** &&
-      ECHO *** Building clang &&
-      ECHO *** &&
-      ECHO make %CLANG_PARAMS% &&
-      make %CLANG_PARAMS% &&
-      COPY tests\fuzzer.exe tests\fuzzer_clang.exe &&
-      ECHO *** &&
-      ECHO *** Building cmake for %PLATFORM% &&
-      ECHO *** &&
-      mkdir build\cmake\build &&
-      cd build\cmake\build &&
-      cmake -G "Visual Studio 14 2015 Win64" .. &&
-      cd ..\..\.. &&
-      make clean &&
-      ECHO *** &&
-      ECHO *** Building pzstd for %PLATFORM% &&
-      ECHO *** &&
-      make -C contrib\pzstd googletest-mingw64 &&
-      make -C contrib\pzstd pzstd.exe &&
-      make -C contrib\pzstd tests &&
-      make -C contrib\pzstd check &&
-      make -C contrib\pzstd clean
-    )
+  - if [%PLATFORM%]==[clang] SET PATH=%PATH_MINGW64%;%PATH_ORIGINAL%
   - if [%COMPILER%]==[gcc] (
       ECHO *** &&
       ECHO *** Building %PLATFORM% &&
@@ -72,6 +50,7 @@ build_script:
       ECHO %MAKE_PARAMS% &&
       sh -c %MAKE_PARAMS%
     )
+  - if [%PLATFORM%]==[clang] COPY tests\fuzzer.exe tests\fuzzer_clang.exe
   - if [%COMPILER%]==[gcc] if [%PLATFORM%]==[mingw64] (
       COPY programs\zstd.exe bin\zstd.exe &&
       appveyor PushArtifact bin\zstd.exe
@@ -135,8 +114,24 @@ build_script:
 test_script:
   - ECHO Testing %COMPILER% %PLATFORM% %CONFIGURATION%
   - SET FUZZERTEST=-T1mn
-  - if [%COMPILER%]==[gcc] (
-      if [%PLATFORM%]==[mingw64] tests\fuzzer_clang.exe %FUZZERTEST%
+  - if [%COMPILER%]==[gcc] if [%PLATFORM%]==[clang] (
+      tests\fuzzer_clang.exe %FUZZERTEST% &&
+      ECHO *** &&
+      ECHO *** Building cmake for %PLATFORM% &&
+      ECHO *** &&
+      mkdir build\cmake\build &&
+      cd build\cmake\build &&
+      cmake -G "Visual Studio 14 2015 Win64" .. &&
+      cd ..\..\.. &&
+      make clean &&
+      ECHO *** &&
+      ECHO *** Building pzstd for %PLATFORM% &&
+      ECHO *** &&
+      make -C contrib\pzstd googletest-mingw64 &&
+      make -C contrib\pzstd pzstd.exe &&
+      make -C contrib\pzstd tests &&
+      make -C contrib\pzstd check &&
+      make -C contrib\pzstd clean
     )
   - if [%COMPILER%]==[visual] if [%CONFIGURATION%]==[Release] (
       CD tests &&
@@ -150,6 +145,11 @@ test_script:
       fuzzer_VS2013_%PLATFORM%_Release.exe %FUZZERTEST% &&
       fuzzer_VS2015_%PLATFORM%_Release.exe %FUZZERTEST%
     )
+
+branches:
+  only:
+  - dev
+  - master
 
 artifacts:
   - path: bin\zstd.exe

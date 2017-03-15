@@ -218,7 +218,7 @@ static int basicUnitTests(U32 seed, double compressibility, ZSTD_customMem custo
     outBuff.pos = 0;
     { size_t const r = ZSTD_decompressStream(zd, &outBuff, &inBuff);
       if (r != 0) goto _output_error; }
-    if (outBuff.pos != 0) goto _output_error;   /* skippable frame len is 0 */
+    if (outBuff.pos != 0) goto _output_error;   /* skippable frame output len is 0 */
     DISPLAYLEVEL(3, "OK \n");
 
     /* Basic decompression test */
@@ -307,7 +307,7 @@ static int basicUnitTests(U32 seed, double compressibility, ZSTD_customMem custo
     if (inBuff.pos != inBuff.size) goto _output_error;   /* entire input should be consumed */
     { size_t const r = ZSTD_endStream(zc, &outBuff);
       if (r != 0) goto _output_error; }  /* error, or some data not flushed */
-    { unsigned long long origSize = ZSTD_getDecompressedSize(outBuff.dst, outBuff.pos);
+    { unsigned long long origSize = ZSTD_findDecompressedSize(outBuff.dst, outBuff.pos);
       if ((size_t)origSize != CNBufferSize) goto _output_error; }  /* exact original size must be present */
     DISPLAYLEVEL(3, "OK (%u bytes : %.2f%%)\n", (U32)cSize, (double)cSize/COMPRESSIBLE_NOISE_LENGTH*100);
 
@@ -438,6 +438,68 @@ static int basicUnitTests(U32 seed, double compressibility, ZSTD_customMem custo
       if (!ZSTD_isError(r)) goto _output_error;  /* must fail : frame requires > 100 bytes */
       DISPLAYLEVEL(3, "OK (%s)\n", ZSTD_getErrorName(r)); }
 
+    /* Unknown srcSize */
+    DISPLAYLEVEL(3, "test%3i : pledgedSrcSize == 0 behaves properly : ", testNb++);
+    {   ZSTD_parameters params = ZSTD_getParams(5, 0, 0);
+        params.fParams.contentSizeFlag = 1;
+        ZSTD_initCStream_advanced(zc, NULL, 0, params, 0); } /* cstream advanced should write the 0 size field */
+    inBuff.src = CNBuffer;
+    inBuff.size = 0;
+    inBuff.pos = 0;
+    outBuff.dst = compressedBuffer;
+    outBuff.size = compressedBufferSize;
+    outBuff.pos = 0;
+    if (ZSTD_isError(ZSTD_compressStream(zc, &outBuff, &inBuff))) goto _output_error;
+    if (ZSTD_endStream(zc, &outBuff) != 0) goto _output_error;
+    cSize = outBuff.pos;
+    if (ZSTD_findDecompressedSize(compressedBuffer, cSize) != 0) goto _output_error;
+
+    ZSTD_resetCStream(zc, 0); /* resetCStream should treat 0 as unknown */
+    inBuff.src = CNBuffer;
+    inBuff.size = 0;
+    inBuff.pos = 0;
+    outBuff.dst = compressedBuffer;
+    outBuff.size = compressedBufferSize;
+    outBuff.pos = 0;
+    if (ZSTD_isError(ZSTD_compressStream(zc, &outBuff, &inBuff))) goto _output_error;
+    if (ZSTD_endStream(zc, &outBuff) != 0) goto _output_error;
+    cSize = outBuff.pos;
+    if (ZSTD_findDecompressedSize(compressedBuffer, cSize) != ZSTD_CONTENTSIZE_UNKNOWN) goto _output_error;
+    DISPLAYLEVEL(3, "OK \n");
+
+    /* Overlen overwriting window data bug */
+    DISPLAYLEVEL(3, "test%3i : wildcopy doesn't overwrite potential match data : ", testNb++);
+    {   /* This test has a window size of 1024 bytes and consists of 3 blocks:
+            1. 'a' repeated 517 times
+            2. 'b' repeated 516 times
+            3. a compressed block with no literals and 3 sequence commands:
+                litlength = 0, offset = 24, match length = 24
+                litlength = 0, offset = 24, match length = 3 (this one creates an overlength write of length 2*WILDCOPY_OVERLENGTH - 3)
+                litlength = 0, offset = 1021, match length = 3 (this one will try to read from overwritten data if the buffer is too small) */
+
+        const char* testCase =
+            "\x28\xB5\x2F\xFD\x04\x00\x4C\x00\x00\x10\x61\x61\x01\x00\x00\x2A"
+            "\x80\x05\x44\x00\x00\x08\x62\x01\x00\x00\x2A\x20\x04\x5D\x00\x00"
+            "\x00\x03\x40\x00\x00\x64\x60\x27\xB0\xE0\x0C\x67\x62\xCE\xE0";
+        ZSTD_DStream* zds = ZSTD_createDStream();
+
+        ZSTD_initDStream(zds);
+        inBuff.src = testCase;
+        inBuff.size = 47;
+        inBuff.pos = 0;
+        outBuff.dst = decodedBuffer;
+        outBuff.size = CNBufferSize;
+        outBuff.pos = 0;
+
+        while (inBuff.pos < inBuff.size) {
+            size_t const r = ZSTD_decompressStream(zds, &outBuff, &inBuff);
+            /* Bug will cause checksum to fail */
+            if (ZSTD_isError(r)) goto _output_error;
+        }
+
+        ZSTD_freeDStream(zds);
+    }
+    DISPLAYLEVEL(3, "OK \n");
 
 _end:
     FUZ_freeDictionary(dictionary);

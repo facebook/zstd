@@ -13,12 +13,14 @@
 #include <string.h>     /* memcpy */
 #include <stdlib.h>     /* malloc, free, qsort */
 
-#define XXH_STATIC_LINKING_ONLY   /* XXH64_state_t */
-#include "xxhash.h"      /* XXH64_* */
+#ifndef XXH_STATIC_LINKING_ONLY
+#  define XXH_STATIC_LINKING_ONLY    /* XXH64_state_t */
+#endif
+#include "xxhash.h"                  /* XXH64_* */
 #include "zstd_v07.h"
 
-#define FSEv07_STATIC_LINKING_ONLY  /* FSEv07_MIN_TABLELOG */
-#define HUFv07_STATIC_LINKING_ONLY  /* HUFv07_TABLELOG_ABSOLUTEMAX */
+#define FSEv07_STATIC_LINKING_ONLY   /* FSEv07_MIN_TABLELOG */
+#define HUFv07_STATIC_LINKING_ONLY   /* HUFv07_TABLELOG_ABSOLUTEMAX */
 #define ZSTDv07_STATIC_LINKING_ONLY
 
 #include "error_private.h"
@@ -3968,6 +3970,41 @@ size_t ZSTDv07_decompress(void* dst, size_t dstCapacity, const void* src, size_t
 #endif
 }
 
+size_t ZSTDv07_findFrameCompressedSize(const void* src, size_t srcSize)
+{
+    const BYTE* ip = (const BYTE*)src;
+    size_t remainingSize = srcSize;
+
+    /* check */
+    if (srcSize < ZSTDv07_frameHeaderSize_min+ZSTDv07_blockHeaderSize) return ERROR(srcSize_wrong);
+
+    /* Frame Header */
+    {   size_t const frameHeaderSize = ZSTDv07_frameHeaderSize(src, ZSTDv07_frameHeaderSize_min);
+        if (ZSTDv07_isError(frameHeaderSize)) return frameHeaderSize;
+        if (MEM_readLE32(src) != ZSTDv07_MAGICNUMBER) return ERROR(prefix_unknown);
+        if (srcSize < frameHeaderSize+ZSTDv07_blockHeaderSize) return ERROR(srcSize_wrong);
+        ip += frameHeaderSize; remainingSize -= frameHeaderSize;
+    }
+
+    /* Loop on each block */
+    while (1) {
+        blockProperties_t blockProperties;
+        size_t const cBlockSize = ZSTDv07_getcBlockSize(ip, remainingSize, &blockProperties);
+        if (ZSTDv07_isError(cBlockSize)) return cBlockSize;
+
+        ip += ZSTDv07_blockHeaderSize;
+        remainingSize -= ZSTDv07_blockHeaderSize;
+
+        if (blockProperties.blockType == bt_end) break;
+
+        if (cBlockSize > remainingSize) return ERROR(srcSize_wrong);
+
+        ip += cBlockSize;
+        remainingSize -= cBlockSize;
+    }
+
+    return ip - (const BYTE*)src;
+}
 
 /*_******************************
 *  Streaming Decompression API
@@ -4448,7 +4485,7 @@ size_t ZBUFFv07_decompressContinue(ZBUFFv07_DCtx* zbd,
                     zbd->inBuff = (char*)zbd->customMem.customAlloc(zbd->customMem.opaque, blockSize);
                     if (zbd->inBuff == NULL) return ERROR(memory_allocation);
                 }
-                {   size_t const neededOutSize = zbd->fParams.windowSize + blockSize;
+                {   size_t const neededOutSize = zbd->fParams.windowSize + blockSize + WILDCOPY_OVERLENGTH * 2;
                     if (zbd->outBuffSize < neededOutSize) {
                         zbd->customMem.customFree(zbd->customMem.opaque, zbd->outBuff);
                         zbd->outBuffSize = neededOutSize;
@@ -4501,7 +4538,8 @@ size_t ZBUFFv07_decompressContinue(ZBUFFv07_DCtx* zbd,
                     if (!decodedSize && !isSkipFrame) { zbd->stage = ZBUFFds_read; break; }   /* this was just a header */
                     zbd->outEnd = zbd->outStart +  decodedSize;
                     zbd->stage = ZBUFFds_flush;
-                    // break; /* ZBUFFds_flush follows */
+                    /* break; */
+                    /* pass-through */
             }   }
 
         case ZBUFFds_flush:

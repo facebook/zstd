@@ -49,9 +49,13 @@
 #define AUTHOR "Yann Collet"
 #define WELCOME_MESSAGE "*** %s %i-bits %s, by %s ***\n", COMPRESSOR_NAME, (int)(sizeof(size_t)*8), ZSTD_VERSION, AUTHOR
 
-#define ZSTD_EXTENSION ".zst"
-#define ZSTD_CAT "zstdcat"
 #define ZSTD_UNZSTD "unzstd"
+#define ZSTD_CAT "zstdcat"
+#define ZSTD_GZ "gzip"
+#define ZSTD_GUNZIP "gunzip"
+#define ZSTD_GZCAT "gzcat"
+#define ZSTD_LZMA "lzma"
+#define ZSTD_XZ "xz"
 
 #define KB *(1 <<10)
 #define MB *(1 <<20)
@@ -123,6 +127,13 @@ static int usage_advanced(const char* programName)
     DISPLAY( " -T#    : use # threads for compression (default:1) \n");
     DISPLAY( " -B#    : select size of independent sections (default:0==automatic) \n");
 #endif
+#ifdef ZSTD_GZCOMPRESS
+    DISPLAY( "--format=gzip : compress files to the .gz format \n");
+#endif
+#ifdef ZSTD_LZMACOMPRESS
+    DISPLAY( "--format=xz : compress files to the .xz format \n");
+    DISPLAY( "--format=lzma : compress files to the .lzma format \n");
+#endif
 #endif
 #ifndef ZSTD_NODECOMPRESS
     DISPLAY( "--test  : test compressed file integrity \n");
@@ -148,6 +159,7 @@ static int usage_advanced(const char* programName)
     DISPLAY( " -e#    : test all compression levels from -bX to # (default: 1)\n");
     DISPLAY( " -i#    : minimum evaluation time in seconds (default : 3s)\n");
     DISPLAY( " -B#    : cut file into independent blocks of size # (default: no block)\n");
+    DISPLAY( "--priority=rt : set process priority to real-time\n");
 #endif
     return 0;
 }
@@ -267,7 +279,8 @@ int main(int argCount, const char* argv[])
         nextArgumentsAreFiles=0,
         ultra=0,
         lastCommand = 0,
-        nbThreads = 1;
+        nbThreads = 1,
+        setRealTimePrio = 0;
     unsigned bench_nbSeconds = 3;   /* would be better if this value was synchronized from bench */
     size_t blockSize = 0;
     zstd_operation_mode operation = zom_compress;
@@ -281,6 +294,7 @@ int main(int argCount, const char* argv[])
     const char* programName = argv[0];
     const char* outFileName = NULL;
     const char* dictFileName = NULL;
+    const char* suffix = ZSTD_EXTENSION;
     unsigned maxDictSize = g_defaultMaxDictSize;
     unsigned dictID = 0;
     int dictCLevel = g_defaultDictCLevel;
@@ -312,6 +326,11 @@ int main(int argCount, const char* argv[])
     /* preset behaviors */
     if (!strcmp(programName, ZSTD_UNZSTD)) operation=zom_decompress;
     if (!strcmp(programName, ZSTD_CAT)) { operation=zom_decompress; forceStdout=1; FIO_overwriteMode(); outFileName=stdoutmark; displayLevel=1; }
+    if (!strcmp(programName, ZSTD_GZ)) { suffix = GZ_EXTENSION; FIO_setCompressionType(FIO_gzipCompression); FIO_setRemoveSrcFile(1); }    /* behave like gzip */
+    if (!strcmp(programName, ZSTD_GUNZIP)) { operation=zom_decompress; FIO_setRemoveSrcFile(1); }                                          /* behave like gunzip */
+    if (!strcmp(programName, ZSTD_GZCAT)) { operation=zom_decompress; forceStdout=1; FIO_overwriteMode(); outFileName=stdoutmark; displayLevel=1; }  /* behave like gzcat */
+    if (!strcmp(programName, ZSTD_LZMA)) { suffix = LZMA_EXTENSION; FIO_setCompressionType(FIO_lzmaCompression); FIO_setRemoveSrcFile(1); }    /* behave like lzma */
+    if (!strcmp(programName, ZSTD_XZ)) { suffix = XZ_EXTENSION; FIO_setCompressionType(FIO_xzCompression); FIO_setRemoveSrcFile(1); }    /* behave like xz */
     memset(&compressionParams, 0, sizeof(compressionParams));
 
     /* command switches */
@@ -356,9 +375,17 @@ int main(int argCount, const char* argv[])
                     if (!strcmp(argument, "--no-dictID")) { FIO_setDictIDFlag(0); continue; }
                     if (!strcmp(argument, "--keep")) { FIO_setRemoveSrcFile(0); continue; }
                     if (!strcmp(argument, "--rm")) { FIO_setRemoveSrcFile(1); continue; }
+                    if (!strcmp(argument, "--priority=rt")) { setRealTimePrio = 1; continue; }
+#ifdef ZSTD_GZCOMPRESS
+                    if (!strcmp(argument, "--format=gzip")) { suffix = GZ_EXTENSION; FIO_setCompressionType(FIO_gzipCompression); continue; }
+#endif
+#ifdef ZSTD_LZMACOMPRESS
+                    if (!strcmp(argument, "--format=lzma")) { suffix = LZMA_EXTENSION; FIO_setCompressionType(FIO_lzmaCompression);  continue; }
+                    if (!strcmp(argument, "--format=xz")) { suffix = XZ_EXTENSION; FIO_setCompressionType(FIO_xzCompression);  continue; }
+#endif
 
                     /* long commands with arguments */
-#ifndef  ZSTD_NODICT
+#ifndef ZSTD_NODICT
                     if (longCommandWArg(&argument, "--cover=")) {
                       cover=1; if (!parseCoverParameters(argument, &coverParams)) CLEAN_RETURN(badusage(programName));
                       continue;
@@ -384,7 +411,7 @@ int main(int argCount, const char* argv[])
                 while (argument[0]!=0) {
                     if (lastCommand) {
                         DISPLAY("error : command must be followed by argument \n");
-                        return 1;
+                        CLEAN_RETURN(1);
                     }
 #ifndef ZSTD_NOCOMPRESS
                     /* compression Level */
@@ -540,7 +567,7 @@ int main(int argCount, const char* argv[])
         filenameTable[filenameIdx++] = argument;
     }
 
-    if (lastCommand) { DISPLAY("error : command must be followed by argument \n"); return 1; }  /* forgotten argument */
+    if (lastCommand) { DISPLAY("error : command must be followed by argument \n"); CLEAN_RETURN(1); }  /* forgotten argument */
 
     /* Welcome message (if verbose) */
     DISPLAYLEVEL(3, WELCOME_MESSAGE);
@@ -574,7 +601,7 @@ int main(int argCount, const char* argv[])
         BMK_setBlockSize(blockSize);
         BMK_setNbThreads(nbThreads);
         BMK_setNbSeconds(bench_nbSeconds);
-        BMK_benchFiles(filenameTable, filenameIdx, dictFileName, cLevel, cLevelLast, &compressionParams);
+        BMK_benchFiles(filenameTable, filenameIdx, dictFileName, cLevel, cLevelLast, &compressionParams, setRealTimePrio);
 #endif
         (void)bench_nbSeconds;
         goto _end;
@@ -640,7 +667,7 @@ int main(int argCount, const char* argv[])
         if ((filenameIdx==1) && outFileName)
           operationResult = FIO_compressFilename(outFileName, filenameTable[0], dictFileName, cLevel, &compressionParams);
         else
-          operationResult = FIO_compressMultipleFilenames(filenameTable, filenameIdx, outFileName ? outFileName : ZSTD_EXTENSION, dictFileName, cLevel, &compressionParams);
+          operationResult = FIO_compressMultipleFilenames(filenameTable, filenameIdx, outFileName ? outFileName : suffix, dictFileName, cLevel, &compressionParams);
 #else
         DISPLAY("Compression not supported\n");
 #endif

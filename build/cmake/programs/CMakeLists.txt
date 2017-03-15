@@ -34,9 +34,17 @@ ENDIF (MSVC)
 
 ADD_EXECUTABLE(zstd ${PROGRAMS_DIR}/zstdcli.c ${PROGRAMS_DIR}/fileio.c ${PROGRAMS_DIR}/bench.c ${PROGRAMS_DIR}/datagen.c ${PROGRAMS_DIR}/dibio.c ${PlatformDependResources})
 TARGET_LINK_LIBRARIES(zstd libzstd_static)
-
 IF (UNIX)
     ADD_EXECUTABLE(zstd-frugal ${PROGRAMS_DIR}/zstdcli.c ${PROGRAMS_DIR}/fileio.c)
     TARGET_LINK_LIBRARIES(zstd-frugal libzstd_static)
     SET_TARGET_PROPERTIES(zstd-frugal PROPERTIES COMPILE_DEFINITIONS "ZSTD_NOBENCH;ZSTD_NODICT")
 ENDIF (UNIX)
+
+IF (ZSTD_MULTITHREAD_SUPPORT)
+    ADD_EXECUTABLE(zstdmt ${PROGRAMS_DIR}/zstdcli.c ${PROGRAMS_DIR}/fileio.c ${PROGRAMS_DIR}/bench.c ${PROGRAMS_DIR}/datagen.c ${PROGRAMS_DIR}/dibio.c ${PlatformDependResources})
+    SET_TARGET_PROPERTIES(zstdmt PROPERTIES COMPILE_DEFINITIONS "ZSTD_MULTITHREAD")
+    TARGET_LINK_LIBRARIES(zstdmt libzstd_static)
+    IF (UNIX)
+        TARGET_LINK_LIBRARIES(zstdmt pthread)
+    ENDIF (UNIX)
+ENDIF (ZSTD_MULTITHREAD_SUPPORT)

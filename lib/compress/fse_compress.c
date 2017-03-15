@@ -201,8 +201,6 @@ size_t FSE_NCountWriteBound(unsigned maxSymbolValue, unsigned tableLog)
     return maxSymbolValue ? maxHeaderSize : FSE_NCOUNTBOUND;  /* maxSymbolValue==0 ? use default */
 }
 
-static short FSE_abs(short a) { return (short)(a<0 ? -a : a); }
-
 static size_t FSE_writeNCount_generic (void* header, size_t headerBufferSize,
                                        const short* normalizedCounter, unsigned maxSymbolValue, unsigned tableLog,
                                        unsigned writeIsSafe)
@@ -258,16 +256,16 @@ static size_t FSE_writeNCount_generic (void* header, size_t headerBufferSize,
                 bitStream >>= 16;
                 bitCount -= 16;
         }   }
-        {   short count = normalizedCounter[charnum++];
-            const short max = (short)((2*threshold-1)-remaining);
-            remaining -= FSE_abs(count);
-            if (remaining<1) return ERROR(GENERIC);
+        {   int count = normalizedCounter[charnum++];
+            int const max = (2*threshold-1)-remaining;
+            remaining -= count < 0 ? -count : count;
             count++;   /* +1 for extra accuracy */
             if (count>=threshold) count += max;   /* [0..max[ [max..threshold[ (...) [threshold+max 2*threshold[ */
             bitStream += count << bitCount;
             bitCount  += nbBits;
             bitCount  -= (count<max);
             previous0  = (count==1);
+            if (remaining<1) return ERROR(GENERIC);
             while (remaining<threshold) nbBits--, threshold>>=1;
         }
         if (bitCount>16) {
@@ -508,6 +506,7 @@ unsigned FSE_optimalTableLog(unsigned maxTableLog, size_t srcSize, unsigned maxS
 
 static size_t FSE_normalizeM2(short* norm, U32 tableLog, const unsigned* count, size_t total, U32 maxSymbolValue)
 {
+    short const NOT_YET_ASSIGNED = -2;
     U32 s;
     U32 distributed = 0;
     U32 ToDistribute;
@@ -533,7 +532,8 @@ static size_t FSE_normalizeM2(short* norm, U32 tableLog, const unsigned* count, 
             total -= count[s];
             continue;
         }
-        norm[s]=-2;
+
+        norm[s]=NOT_YET_ASSIGNED;
     }
     ToDistribute = (1 << tableLog) - distributed;
 
@@ -541,7 +541,7 @@ static size_t FSE_normalizeM2(short* norm, U32 tableLog, const unsigned* count, 
         /* risk of rounding to zero */
         lowOne = (U32)((total * 3) / (ToDistribute * 2));
         for (s=0; s<=maxSymbolValue; s++) {
-            if ((norm[s] == -2) && (count[s] <= lowOne)) {
+            if ((norm[s] == NOT_YET_ASSIGNED) && (count[s] <= lowOne)) {
                 norm[s] = 1;
                 distributed++;
                 total -= count[s];
@@ -561,12 +561,19 @@ static size_t FSE_normalizeM2(short* norm, U32 tableLog, const unsigned* count, 
         return 0;
     }
 
+    if (total == 0) {
+        /* all of the symbols were low enough for the lowOne or lowThreshold */
+        for (s=0; ToDistribute > 0; s = (s+1)%(maxSymbolValue+1))
+            if (norm[s] > 0) ToDistribute--, norm[s]++;
+        return 0;
+    }
+
     {   U64 const vStepLog = 62 - tableLog;
         U64 const mid = (1ULL << (vStepLog-1)) - 1;
         U64 const rStep = ((((U64)1<<vStepLog) * ToDistribute) + mid) / total;   /* scale on remaining */
         U64 tmpTotal = mid;
         for (s=0; s<=maxSymbolValue; s++) {
-            if (norm[s]==-2) {
+            if (norm[s]==NOT_YET_ASSIGNED) {
                 U64 const end = tmpTotal + (count[s] * rStep);
                 U32 const sStart = (U32)(tmpTotal >> vStepLog);
                 U32 const sEnd = (U32)(end >> vStepLog);

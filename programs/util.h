@@ -39,12 +39,26 @@ extern "C" {
 #include "mem.h"          /* U32, U64 */
 
 
+/* ************************************************************
+* Avoid fseek()'s 2GiB barrier with MSVC, MacOS, *BSD, MinGW
+***************************************************************/
+#if defined(_MSC_VER) && (_MSC_VER >= 1400)
+#   define UTIL_fseek _fseeki64
+#elif !defined(__64BIT__) && (PLATFORM_POSIX_VERSION >= 200112L) /* No point defining Large file for 64 bit */
+#  define UTIL_fseek fseeko
+#elif defined(__MINGW32__) && defined(__MSVCRT__) && !defined(__STRICT_ANSI__) && !defined(__NO_MINGW_LFS)
+#   define UTIL_fseek fseeko64
+#else
+#   define UTIL_fseek fseek
+#endif
+
+
 /*-****************************************
 *  Sleep functions: Windows - Posix - others
 ******************************************/
 #if defined(_WIN32)
 #  include <windows.h>
-#  define SET_HIGH_PRIORITY SetPriorityClass(GetCurrentProcess(), REALTIME_PRIORITY_CLASS)
+#  define SET_REALTIME_PRIORITY SetPriorityClass(GetCurrentProcess(), REALTIME_PRIORITY_CLASS)
 #  define UTIL_sleep(s) Sleep(1000*s)
 #  define UTIL_sleepMilli(milli) Sleep(milli)
 #elif PLATFORM_POSIX_VERSION >= 0 /* Unix-like operating system */
@@ -52,9 +66,9 @@ extern "C" {
 #  include <sys/resource.h> /* setpriority */
 #  include <time.h>         /* clock_t, nanosleep, clock, CLOCKS_PER_SEC */
 #  if defined(PRIO_PROCESS)
-#    define SET_HIGH_PRIORITY setpriority(PRIO_PROCESS, 0, -20)
+#    define SET_REALTIME_PRIORITY setpriority(PRIO_PROCESS, 0, -20)
 #  else
-#    define SET_HIGH_PRIORITY /* disabled */
+#    define SET_REALTIME_PRIORITY /* disabled */
 #  endif
 #  define UTIL_sleep(s) sleep(s)
 #  if (defined(__linux__) && (PLATFORM_POSIX_VERSION >= 199309L)) || (PLATFORM_POSIX_VERSION >= 200112L)  /* nanosleep requires POSIX.1-2001 */
@@ -63,7 +77,7 @@ extern "C" {
 #      define UTIL_sleepMilli(milli) /* disabled */
 #  endif
 #else
-#  define SET_HIGH_PRIORITY      /* disabled */
+#  define SET_REALTIME_PRIORITY      /* disabled */
 #  define UTIL_sleep(s)          /* disabled */
 #  define UTIL_sleepMilli(milli) /* disabled */
 #endif
@@ -95,31 +109,41 @@ extern "C" {
 /*-****************************************
 *  Time functions
 ******************************************/
-#if (PLATFORM_POSIX_VERSION >= 1)
-#include <unistd.h>
-#include <sys/times.h>   /* times */
-   typedef U64 UTIL_time_t;
-   UTIL_STATIC void UTIL_initTimer(UTIL_time_t* ticksPerSecond) { *ticksPerSecond=sysconf(_SC_CLK_TCK); }
-   UTIL_STATIC void UTIL_getTime(UTIL_time_t* x) { struct tms junk; clock_t newTicks = (clock_t) times(&junk); (void)junk; *x = (UTIL_time_t)newTicks; }
-   UTIL_STATIC U64 UTIL_getSpanTimeMicro(UTIL_time_t ticksPerSecond, UTIL_time_t clockStart, UTIL_time_t clockEnd) { return 1000000ULL * (clockEnd - clockStart) / ticksPerSecond; }
-   UTIL_STATIC U64 UTIL_getSpanTimeNano(UTIL_time_t ticksPerSecond, UTIL_time_t clockStart, UTIL_time_t clockEnd) { return 1000000000ULL * (clockEnd - clockStart) / ticksPerSecond; }
-#elif defined(_WIN32)   /* Windows */
+#if defined(_WIN32)   /* Windows */
+   typedef LARGE_INTEGER UTIL_freq_t;
    typedef LARGE_INTEGER UTIL_time_t;
-   UTIL_STATIC void UTIL_initTimer(UTIL_time_t* ticksPerSecond) { if (!QueryPerformanceFrequency(ticksPerSecond)) fprintf(stderr, "ERROR: QueryPerformance not present\n"); }
+   UTIL_STATIC void UTIL_initTimer(UTIL_freq_t* ticksPerSecond) { if (!QueryPerformanceFrequency(ticksPerSecond)) fprintf(stderr, "ERROR: QueryPerformance not present\n"); }
    UTIL_STATIC void UTIL_getTime(UTIL_time_t* x) { QueryPerformanceCounter(x); }
-   UTIL_STATIC U64 UTIL_getSpanTimeMicro(UTIL_time_t ticksPerSecond, UTIL_time_t clockStart, UTIL_time_t clockEnd) { return 1000000ULL*(clockEnd.QuadPart - clockStart.QuadPart)/ticksPerSecond.QuadPart; }
-   UTIL_STATIC U64 UTIL_getSpanTimeNano(UTIL_time_t ticksPerSecond, UTIL_time_t clockStart, UTIL_time_t clockEnd) { return 1000000000ULL*(clockEnd.QuadPart - clockStart.QuadPart)/ticksPerSecond.QuadPart; }
+   UTIL_STATIC U64 UTIL_getSpanTimeMicro(UTIL_freq_t ticksPerSecond, UTIL_time_t clockStart, UTIL_time_t clockEnd) { return 1000000ULL*(clockEnd.QuadPart - clockStart.QuadPart)/ticksPerSecond.QuadPart; }
+   UTIL_STATIC U64 UTIL_getSpanTimeNano(UTIL_freq_t ticksPerSecond, UTIL_time_t clockStart, UTIL_time_t clockEnd) { return 1000000000ULL*(clockEnd.QuadPart - clockStart.QuadPart)/ticksPerSecond.QuadPart; }
+#elif defined(__APPLE__) && defined(__MACH__)
+   #include <mach/mach_time.h>
+   typedef mach_timebase_info_data_t UTIL_freq_t;
+   typedef U64 UTIL_time_t;
+   UTIL_STATIC void UTIL_initTimer(UTIL_freq_t* rate) { mach_timebase_info(rate); }
+   UTIL_STATIC void UTIL_getTime(UTIL_time_t* x) { *x = mach_absolute_time(); }
+   UTIL_STATIC U64 UTIL_getSpanTimeMicro(UTIL_freq_t rate, UTIL_time_t clockStart, UTIL_time_t clockEnd) { return (((clockEnd - clockStart) * (U64)rate.numer) / ((U64)rate.denom))/1000ULL; }
+   UTIL_STATIC U64 UTIL_getSpanTimeNano(UTIL_freq_t rate, UTIL_time_t clockStart, UTIL_time_t clockEnd) { return ((clockEnd - clockStart) * (U64)rate.numer) / ((U64)rate.denom); }
+#elif (PLATFORM_POSIX_VERSION >= 200112L)
+    #include <sys/times.h>   /* times */
+   typedef U64 UTIL_freq_t;
+   typedef U64 UTIL_time_t;
+   UTIL_STATIC void UTIL_initTimer(UTIL_freq_t* ticksPerSecond) { *ticksPerSecond=sysconf(_SC_CLK_TCK); }
+   UTIL_STATIC void UTIL_getTime(UTIL_time_t* x) { struct tms junk; clock_t newTicks = (clock_t) times(&junk); (void)junk; *x = (UTIL_time_t)newTicks; }
+   UTIL_STATIC U64 UTIL_getSpanTimeMicro(UTIL_freq_t ticksPerSecond, UTIL_time_t clockStart, UTIL_time_t clockEnd) { return 1000000ULL * (clockEnd - clockStart) / ticksPerSecond; }
+   UTIL_STATIC U64 UTIL_getSpanTimeNano(UTIL_freq_t ticksPerSecond, UTIL_time_t clockStart, UTIL_time_t clockEnd) { return 1000000000ULL * (clockEnd - clockStart) / ticksPerSecond; }
 #else   /* relies on standard C (note : clock_t measurements can be wrong when using multi-threading) */
+   typedef clock_t UTIL_freq_t;
    typedef clock_t UTIL_time_t;
-   UTIL_STATIC void UTIL_initTimer(UTIL_time_t* ticksPerSecond) { *ticksPerSecond=0; }
+   UTIL_STATIC void UTIL_initTimer(UTIL_freq_t* ticksPerSecond) { *ticksPerSecond=0; }
    UTIL_STATIC void UTIL_getTime(UTIL_time_t* x) { *x = clock(); }
-   UTIL_STATIC U64 UTIL_getSpanTimeMicro(UTIL_time_t ticksPerSecond, UTIL_time_t clockStart, UTIL_time_t clockEnd) { (void)ticksPerSecond; return 1000000ULL * (clockEnd - clockStart) / CLOCKS_PER_SEC; }
-   UTIL_STATIC U64 UTIL_getSpanTimeNano(UTIL_time_t ticksPerSecond, UTIL_time_t clockStart, UTIL_time_t clockEnd) { (void)ticksPerSecond; return 1000000000ULL * (clockEnd - clockStart) / CLOCKS_PER_SEC; }
+   UTIL_STATIC U64 UTIL_getSpanTimeMicro(UTIL_freq_t ticksPerSecond, UTIL_time_t clockStart, UTIL_time_t clockEnd) { (void)ticksPerSecond; return 1000000ULL * (clockEnd - clockStart) / CLOCKS_PER_SEC; }
+   UTIL_STATIC U64 UTIL_getSpanTimeNano(UTIL_freq_t ticksPerSecond, UTIL_time_t clockStart, UTIL_time_t clockEnd) { (void)ticksPerSecond; return 1000000000ULL * (clockEnd - clockStart) / CLOCKS_PER_SEC; }
 #endif
 
 
 /* returns time span in microseconds */
-UTIL_STATIC U64 UTIL_clockSpanMicro( UTIL_time_t clockStart, UTIL_time_t ticksPerSecond )
+UTIL_STATIC U64 UTIL_clockSpanMicro( UTIL_time_t clockStart, UTIL_freq_t ticksPerSecond )
 {
     UTIL_time_t clockEnd;
     UTIL_getTime(&clockEnd);
@@ -127,7 +151,7 @@ UTIL_STATIC U64 UTIL_clockSpanMicro( UTIL_time_t clockStart, UTIL_time_t ticksPe
 }
 
 
-UTIL_STATIC void UTIL_waitForNextTick(UTIL_time_t ticksPerSecond)
+UTIL_STATIC void UTIL_waitForNextTick(UTIL_freq_t ticksPerSecond)
 {
     UTIL_time_t clockStart, clockEnd;
     UTIL_getTime(&clockStart);
@@ -143,7 +167,7 @@ UTIL_STATIC void UTIL_waitForNextTick(UTIL_time_t ticksPerSecond)
 ******************************************/
 #if defined(_MSC_VER)
 	#define chmod _chmod
-	typedef struct _stat64 stat_t;
+	typedef struct __stat64 stat_t;
 #else
     typedef struct stat stat_t;
 #endif
@@ -183,12 +207,38 @@ UTIL_STATIC int UTIL_getFileStat(const char* infilename, stat_t *statbuf)
 }
 
 
+UTIL_STATIC int UTIL_isRegFile(const char* infilename)
+{
+    stat_t statbuf;
+    return UTIL_getFileStat(infilename, &statbuf); /* Only need to know whether it is a regular file */
+}
+
+
+UTIL_STATIC U32 UTIL_isDirectory(const char* infilename)
+{
+    int r;
+    stat_t statbuf;
+#if defined(_MSC_VER)
+    r = _stat64(infilename, &statbuf);
+    if (!r && (statbuf.st_mode & _S_IFDIR)) return 1;
+#else
+    r = stat(infilename, &statbuf);
+    if (!r && S_ISDIR(statbuf.st_mode)) return 1;
+#endif
+    return 0;
+}
+
+
 UTIL_STATIC U64 UTIL_getFileSize(const char* infilename)
 {
     int r;
 #if defined(_MSC_VER)
-    struct _stat64 statbuf;
+    struct __stat64 statbuf;
     r = _stat64(infilename, &statbuf);
+    if (r || !(statbuf.st_mode & S_IFREG)) return 0;   /* No good... */
+#elif defined(__MINGW32__) && defined (__MSVCRT__)
+    struct _stati64 statbuf;
+    r = _stati64(infilename, &statbuf);
     if (r || !(statbuf.st_mode & S_IFREG)) return 0;   /* No good... */
 #else
     struct stat statbuf;
@@ -208,37 +258,6 @@ UTIL_STATIC U64 UTIL_getTotalFileSize(const char** fileNamesTable, unsigned nbFi
     return total;
 }
 
-
-UTIL_STATIC int UTIL_doesFileExists(const char* infilename)
-{
-    int r;
-#if defined(_MSC_VER)
-    struct _stat64 statbuf;
-    r = _stat64(infilename, &statbuf);
-    if (r || !(statbuf.st_mode & S_IFREG)) return 0;   /* No good... */
-#else
-    struct stat statbuf;
-    r = stat(infilename, &statbuf);
-    if (r || !S_ISREG(statbuf.st_mode)) return 0;   /* No good... */
-#endif
-    return 1;
-}
-
-
-UTIL_STATIC U32 UTIL_isDirectory(const char* infilename)
-{
-    int r;
-#if defined(_MSC_VER)
-    struct _stat64 statbuf;
-    r = _stat64(infilename, &statbuf);
-    if (!r && (statbuf.st_mode & _S_IFDIR)) return 1;
-#else
-    struct stat statbuf;
-    r = stat(infilename, &statbuf);
-    if (!r && S_ISDIR(statbuf.st_mode)) return 1;
-#endif
-    return 0;
-}
 
 /*
  * A modified version of realloc().
@@ -260,7 +279,7 @@ UTIL_STATIC int UTIL_prepareFileList(const char *dirName, char** bufStart, size_
 {
     char* path;
     int dirLength, fnameLength, pathLength, nbFiles = 0;
-    WIN32_FIND_DATA cFile;
+    WIN32_FIND_DATAA cFile;
     HANDLE hFile;
 
     dirLength = (int)strlen(dirName);
@@ -272,7 +291,7 @@ UTIL_STATIC int UTIL_prepareFileList(const char *dirName, char** bufStart, size_
     path[dirLength+1] = '*';
     path[dirLength+2] = 0;
 
-    hFile=FindFirstFile(path, &cFile);
+    hFile=FindFirstFileA(path, &cFile);
     if (hFile == INVALID_HANDLE_VALUE) {
         fprintf(stderr, "Cannot open directory '%s'\n", dirName);
         return 0;
@@ -309,7 +328,7 @@ UTIL_STATIC int UTIL_prepareFileList(const char *dirName, char** bufStart, size_
             }
         }
         free(path);
-    } while (FindNextFile(hFile, &cFile));
+    } while (FindNextFileA(hFile, &cFile));
 
     FindClose(hFile);
     return nbFiles;

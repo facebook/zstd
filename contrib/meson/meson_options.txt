@@ -1,0 +1,2 @@
+option('multithread', type: 'boolean', value: false)
+option('legacy_support', type: 'boolean', value: false)

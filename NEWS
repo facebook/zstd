@@ -1,7 +1,23 @@
+v1.1.4
+cli : new : can compress in *.gz format, using --format=gzip command, by Przemyslaw Skibinski
+cli : new : advanced benchmark command --priority=rt
+cli : fix : write on sparse-enabled file systems in 32-bits mode, by @ds77
+cli : fix : --rm remains silent when input is stdin
+cli : experimental : xzstd, with support for xz/lzma decoding, by Przemyslaw Skibinski
+speed : improved decompression speed in streaming mode for single shot scenarios (+5%)
+memory : DDict (decompression dictionary) memory usage down from 150 KB to 20 KB
+arch : 32-bits variant able to generate and decode very long matches (>32 MB), by Sean Purcell
+API : new : ZSTD_findFrameCompressedSize(), ZSTD_getFrameContentSize(), ZSTD_findDecompressedSize()
+API : changed : dropped support of legacy versions <= v0.3 (can be changed by modifying ZSTD_LEGACY_SUPPORT value)
+build: new: meson build system in contrib/meson, by Dima Krasner
+build: improved cmake script, by @Majlen
+build: added -Wformat-security flag, as recommended by Padraig Brady
+doc : new : educational decoder, by Sean Purcell
+
 v1.1.3
 cli : zstd can decompress .gz files (can be disabled with `make zstd-nogz` or `make HAVE_ZLIB=0`)
 cli : new : experimental target `make zstdmt`, with multi-threading support
-cli : new : improved dictionary builder "cover" (experimental), by Nick Terrell
+cli : new : improved dictionary builder "cover" (experimental), by Nick Terrell, based on prior work by Giuseppe Ottaviano.
 cli : new : advanced commands for detailed parameters, by Przemyslaw Skibinski
 cli : fix zstdless on Mac OS-X, by Andrew Janke
 cli : fix #232 "compress non-files"
@@ -12,7 +28,7 @@ API : new : ZDICT_finalizeDictionary()
 API : fix : ZSTD_initCStream_usingCDict() properly writes dictID into frame header, by Gregory Szorc (#511)
 API : fix : all symbols properly exposed in libzstd, by Nick Terrell
 build : support for Solaris target, by Przemyslaw Skibinski
-doc : clarified specification, by Andrew Purcell
+doc : clarified specification, by Sean Purcell
 
 v1.1.2
 API : streaming : decompression : changed : automatic implicit reset when chain-decoding new frames without init

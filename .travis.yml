@@ -18,7 +18,6 @@ matrix:
     - env: Cmd='make ppcinstall && make ppc64test'
 
 
-
     - env: Cmd='make gpp6install valgrindinstall && make -C zlibWrapper test && make -C zlibWrapper valgrindTest'
     - env: Cmd='make -C tests versionsTest'
     - env: Cmd='make gpp6install && cd contrib/pzstd && make test-pzstd && make test-pzstd32 && make test-pzstd-tsan && make test-pzstd-asan'

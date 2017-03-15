@@ -25,8 +25,6 @@
 #include "threading.h"  /* mutex */
 #include "zstd_internal.h"   /* MIN, ERROR, ZSTD_*, ZSTD_highbit32 */
 #include "zstdmt_compress.h"
-#define XXH_STATIC_LINKING_ONLY   /* XXH64_state_t */
-#include "xxhash.h"
 
 
 /* ======   Debug   ====== */
@@ -231,16 +229,17 @@ void ZSTDMT_compressChunk(void* jobDescription)
     const void* const src = (const char*)job->srcStart + job->dictSize;
     buffer_t const dstBuff = job->dstBuff;
     DEBUGLOG(3, "job (first:%u) (last:%u) : dictSize %u, srcSize %u", job->firstChunk, job->lastChunk, (U32)job->dictSize, (U32)job->srcSize);
-    if (job->cdict) {
+    if (job->cdict) {  /* should only happen for first segment */
         size_t const initError = ZSTD_compressBegin_usingCDict(job->cctx, job->cdict, job->fullFrameSize);
         if (job->cdict) DEBUGLOG(3, "using CDict ");
         if (ZSTD_isError(initError)) { job->cSize = initError; goto _endJob; }
-    } else {
-        size_t const initError = ZSTD_compressBegin_advanced(job->cctx, job->srcStart, job->dictSize, job->params, job->fullFrameSize);
-        if (ZSTD_isError(initError)) { job->cSize = initError; goto _endJob; }
+    } else {  /* srcStart points at reloaded section */
+        size_t const dictModeError = ZSTD_setCCtxParameter(job->cctx, ZSTD_p_forceRawDict, 1);  /* Force loading dictionary in "content-only" mode (no header analysis) */
+        size_t const initError = ZSTD_compressBegin_advanced(job->cctx, job->srcStart, job->dictSize, job->params, 0);
+        if (ZSTD_isError(initError) || ZSTD_isError(dictModeError)) { job->cSize = initError; goto _endJob; }
         ZSTD_setCCtxParameter(job->cctx, ZSTD_p_forceWindow, 1);
     }
-    if (!job->firstChunk) {  /* flush frame header */
+    if (!job->firstChunk) {  /* flush and overwrite frame header when it's not first segment */
         size_t const hSize = ZSTD_compressContinue(job->cctx, dstBuff.start, dstBuff.size, src, 0);
         if (ZSTD_isError(hSize)) { job->cSize = hSize; goto _endJob; }
         ZSTD_invalidateRepCodes(job->cctx);
@@ -248,7 +247,7 @@ void ZSTDMT_compressChunk(void* jobDescription)
 
     DEBUGLOG(4, "Compressing : ");
     DEBUG_PRINTHEX(4, job->srcStart, 12);
-    job->cSize = (job->lastChunk) ?   /* last chunk signal */
+    job->cSize = (job->lastChunk) ?
                  ZSTD_compressEnd     (job->cctx, dstBuff.start, dstBuff.size, src, job->srcSize) :
                  ZSTD_compressContinue(job->cctx, dstBuff.start, dstBuff.size, src, job->srcSize);
     DEBUGLOG(3, "compressed %u bytes into %u bytes   (first:%u) (last:%u)", (unsigned)job->srcSize, (unsigned)job->cSize, job->firstChunk, job->lastChunk);

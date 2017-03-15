@@ -73,7 +73,7 @@ int _pthread_join(pthread_t* thread, void** value_ptr);
  */
 
 
-#elif defined(ZSTD_MULTITHREAD)   /* posix assumed ; need a better detection mathod */
+#elif defined(ZSTD_MULTITHREAD)   /* posix assumed ; need a better detection method */
 /* ===   POSIX Systems   === */
 #  include <pthread.h>
 

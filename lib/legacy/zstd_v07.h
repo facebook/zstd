@@ -48,6 +48,14 @@ unsigned long long ZSTDv07_getDecompressedSize(const void* src, size_t srcSize);
 ZSTDLIBv07_API size_t ZSTDv07_decompress( void* dst, size_t dstCapacity,
                                     const void* src, size_t compressedSize);
 
+/**
+ZSTDv07_getFrameSrcSize() : get the source length of a ZSTD frame
+    compressedSize : The size of the 'src' buffer, at least as large as the frame pointed to by 'src'
+    return : the number of bytes that would be read to decompress this frame
+             or an errorCode if it fails (which can be tested using ZSTDv07_isError())
+*/
+size_t ZSTDv07_findFrameCompressedSize(const void* src, size_t compressedSize);
+
 /*======  Helper functions  ======*/
 ZSTDLIBv07_API unsigned    ZSTDv07_isError(size_t code);          /*!< tells if a `size_t` function result is an error code */
 ZSTDLIBv07_API const char* ZSTDv07_getErrorName(size_t code);     /*!< provides readable string from an error code */

@@ -35,16 +35,19 @@
 /* **************************************************************
 *  Compiler specifics
 ****************************************************************/
-#if defined (__cplusplus) || (defined (__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L) /* C99 */)
-/* inline is defined */
-#elif defined(_MSC_VER) || defined(__GNUC__)
-#  define inline __inline
-#else
-#  define inline /* disable inline */
-#endif
-
 #ifdef _MSC_VER    /* Visual Studio */
+#  define FORCE_INLINE static __forceinline
 #  pragma warning(disable : 4127)        /* disable: C4127: conditional expression is constant */
+#else
+#  if defined (__cplusplus) || defined (__STDC_VERSION__) && __STDC_VERSION__ >= 199901L   /* C99 */
+#    ifdef __GNUC__
+#      define FORCE_INLINE static inline __attribute__((always_inline))
+#    else
+#      define FORCE_INLINE static inline
+#    endif
+#  else
+#    define FORCE_INLINE static
+#  endif /* __STDC_VERSION__ */
 #endif
 
 
@@ -102,16 +105,16 @@ size_t HUF_readDTableX2 (HUF_DTable* DTable, const void* src, size_t srcSize)
 
     /* Table header */
     {   DTableDesc dtd = HUF_getDTableDesc(DTable);
-        if (tableLog > (U32)(dtd.maxTableLog+1)) return ERROR(tableLog_tooLarge);   /* DTable too small, huffman tree cannot fit in */
+        if (tableLog > (U32)(dtd.maxTableLog+1)) return ERROR(tableLog_tooLarge);   /* DTable too small, Huffman tree cannot fit in */
         dtd.tableType = 0;
         dtd.tableLog = (BYTE)tableLog;
         memcpy(DTable, &dtd, sizeof(dtd));
     }
 
-    /* Prepare ranks */
+    /* Calculate starting value for each rank */
     {   U32 n, nextRankStart = 0;
         for (n=1; n<tableLog+1; n++) {
-            U32 current = nextRankStart;
+            U32 const current = nextRankStart;
             nextRankStart += (rankVal[n] << (n-1));
             rankVal[n] = current;
     }   }
@@ -121,11 +124,11 @@ size_t HUF_readDTableX2 (HUF_DTable* DTable, const void* src, size_t srcSize)
         for (n=0; n<nbSymbols; n++) {
             U32 const w = huffWeight[n];
             U32 const length = (1 << w) >> 1;
-            U32 i;
+            U32 u;
             HUF_DEltX2 D;
             D.byte = (BYTE)n; D.nbBits = (BYTE)(tableLog + 1 - w);
-            for (i = rankVal[w]; i < rankVal[w] + length; i++)
-                dt[i] = D;
+            for (u = rankVal[w]; u < rankVal[w] + length; u++)
+                dt[u] = D;
             rankVal[w] += length;
     }   }
 
@@ -152,7 +155,7 @@ static BYTE HUF_decodeSymbolX2(BIT_DStream_t* Dstream, const HUF_DEltX2* dt, con
     if (MEM_64bits()) \
         HUF_DECODE_SYMBOLX2_0(ptr, DStreamPtr)
 
-static inline size_t HUF_decodeStreamX2(BYTE* p, BIT_DStream_t* const bitDPtr, BYTE* const pEnd, const HUF_DEltX2* const dt, const U32 dtLog)
+FORCE_INLINE size_t HUF_decodeStreamX2(BYTE* p, BIT_DStream_t* const bitDPtr, BYTE* const pEnd, const HUF_DEltX2* const dt, const U32 dtLog)
 {
     BYTE* const pStart = p;
 
@@ -459,7 +462,7 @@ size_t HUF_readDTableX4 (HUF_DTable* DTable, const void* src, size_t srcSize)
     void* dtPtr = DTable+1;   /* force compiler to avoid strict-aliasing */
     HUF_DEltX4* const dt = (HUF_DEltX4*)dtPtr;
 
-    HUF_STATIC_ASSERT(sizeof(HUF_DEltX4) == sizeof(HUF_DTable));   /* if compilation fails here, assertion is false */
+    HUF_STATIC_ASSERT(sizeof(HUF_DEltX4) == sizeof(HUF_DTable));   /* if compiler fails here, assertion is wrong */
     if (maxTableLog > HUF_TABLELOG_MAX) return ERROR(tableLog_tooLarge);
     /* memset(weightList, 0, sizeof(weightList)); */  /* is not necessary, even though some analyzer complain ... */
 
@@ -559,7 +562,7 @@ static U32 HUF_decodeLastSymbolX4(void* op, BIT_DStream_t* DStream, const HUF_DE
     if (MEM_64bits()) \
         ptr += HUF_decodeSymbolX4(ptr, DStreamPtr, dt, dtLog)
 
-static inline size_t HUF_decodeStreamX4(BYTE* p, BIT_DStream_t* bitDPtr, BYTE* const pEnd, const HUF_DEltX4* const dt, const U32 dtLog)
+FORCE_INLINE size_t HUF_decodeStreamX4(BYTE* p, BIT_DStream_t* bitDPtr, BYTE* const pEnd, const HUF_DEltX4* const dt, const U32 dtLog)
 {
     BYTE* const pStart = p;
 

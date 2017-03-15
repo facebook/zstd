@@ -9,6 +9,8 @@ zbufftest32
 zbufftest-dll
 zstreamtest
 zstreamtest32
+zstreamtest_asan
+zstreamtest_tsan
 zstreamtest-dll
 datagen
 paramgrill
@@ -16,6 +18,8 @@ paramgrill32
 roundTripCrash
 longmatch
 symbols
+legacy
+decodecorpus
 pool
 invalidDictionaries
 

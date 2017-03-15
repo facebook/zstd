@@ -29,11 +29,22 @@ extern "C" {
 #else
 #  define nulmark "/dev/null"
 #endif
+#define LZMA_EXTENSION  ".lzma"
+#define XZ_EXTENSION    ".xz"
+#define GZ_EXTENSION    ".gz"
+#define ZSTD_EXTENSION  ".zst"
+
+
+/*-*************************************
+*  Types
+***************************************/
+typedef enum { FIO_zstdCompression, FIO_gzipCompression, FIO_xzCompression, FIO_lzmaCompression } FIO_compressionType_t;
 
 
 /*-*************************************
 *  Parameters
 ***************************************/
+void FIO_setCompressionType(FIO_compressionType_t compressionType);
 void FIO_overwriteMode(void);
 void FIO_setNotificationLevel(unsigned level);
 void FIO_setSparseWrite(unsigned sparse);  /**< 0: no sparse; 1: disable on stdout; 2: always enabled */

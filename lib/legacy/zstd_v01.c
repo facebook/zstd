@@ -1992,6 +1992,37 @@ size_t ZSTDv01_decompress(void* dst, size_t maxDstSize, const void* src, size_t 
     return ZSTDv01_decompressDCtx(&ctx, dst, maxDstSize, src, srcSize);
 }
 
+size_t ZSTDv01_findFrameCompressedSize(const void* src, size_t srcSize)
+{
+    const BYTE* ip = (const BYTE*)src;
+    size_t remainingSize = srcSize;
+    U32 magicNumber;
+    blockProperties_t blockProperties;
+
+    /* Frame Header */
+    if (srcSize < ZSTD_frameHeaderSize+ZSTD_blockHeaderSize) return ERROR(srcSize_wrong);
+    magicNumber = ZSTD_readBE32(src);
+    if (magicNumber != ZSTD_magicNumber) return ERROR(prefix_unknown);
+    ip += ZSTD_frameHeaderSize; remainingSize -= ZSTD_frameHeaderSize;
+
+    /* Loop on each block */
+    while (1)
+    {
+        size_t blockSize = ZSTDv01_getcBlockSize(ip, remainingSize, &blockProperties);
+        if (ZSTDv01_isError(blockSize)) return blockSize;
+
+        ip += ZSTD_blockHeaderSize;
+        remainingSize -= ZSTD_blockHeaderSize;
+        if (blockSize > remainingSize) return ERROR(srcSize_wrong);
+
+        if (blockSize == 0) break;   /* bt_end */
+
+        ip += blockSize;
+        remainingSize -= blockSize;
+    }
+
+    return ip - (const BYTE*)src;
+}
 
 /*******************************
 *  Streaming Decompression API

@@ -24,11 +24,13 @@ else
 ALIGN_LOOP =
 endif
 
-CPPFLAGS+= -I$(ZSTDDIR) -I$(ZSTDDIR)/common -I$(ZSTDDIR)/compress -I$(ZSTDDIR)/dictBuilder
+CPPFLAGS+= -I$(ZSTDDIR) -I$(ZSTDDIR)/common -I$(ZSTDDIR)/compress \
+           -I$(ZSTDDIR)/dictBuilder \
+           -DXXH_NAMESPACE=ZSTD_   # because xxhash.o already compiled with this macro from library
 CFLAGS  ?= -O3
 DEBUGFLAGS = -g -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow \
           -Wstrict-aliasing=1 -Wswitch-enum -Wdeclaration-after-statement \
-          -Wstrict-prototypes -Wundef -Wpointer-arith
+          -Wstrict-prototypes -Wundef -Wpointer-arith -Wformat-security
 CFLAGS  += $(DEBUGFLAGS) $(MOREFLAGS)
 FLAGS    = $(CPPFLAGS) $(CFLAGS) $(LDFLAGS)
 
@@ -40,12 +42,14 @@ ZSTD_FILES := $(ZSTDDECOMP_FILES) $(ZSTDCOMMON_FILES) $(ZSTDCOMP_FILES)
 ZDICT_FILES := $(ZSTDDIR)/dictBuilder/*.c
 ZSTDDECOMP_O = $(ZSTDDIR)/decompress/zstd_decompress.o
 
-ifeq ($(ZSTD_LEGACY_SUPPORT), 0)
+ZSTD_LEGACY_SUPPORT ?= 4
 ZSTDLEGACY_FILES:=
+ifneq ($(ZSTD_LEGACY_SUPPORT), 0)
+ifeq ($(shell test $(ZSTD_LEGACY_SUPPORT) -lt 8; echo $$?), 0)
+	ZSTDLEGACY_FILES += $(shell ls $(ZSTDDIR)/legacy/*.c | grep 'v0[$(ZSTD_LEGACY_SUPPORT)-7]')
+endif
+	CPPFLAGS += -I$(ZSTDDIR)/legacy
 else
-ZSTD_LEGACY_SUPPORT:=1
-CPPFLAGS  += -I$(ZSTDDIR)/legacy
-ZSTDLEGACY_FILES:= $(ZSTDDIR)/legacy/*.c
 endif
 
 ZSTDLIB_FILES := $(wildcard $(ZSTD_FILES)) $(wildcard $(ZSTDLEGACY_FILES)) $(wildcard $(ZDICT_FILES))
@@ -66,12 +70,27 @@ EXT =
 endif
 
 # zlib detection
+NO_ZLIB_MSG := ==> no zlib, building zstd without .gz support
 VOID = /dev/null
-HAVE_ZLIB := $(shell echo "int main(){}" | $(CC) -o $(VOID) -x c - -lz 2> $(VOID) && echo 1 || echo 0)
+HAVE_ZLIB := $(shell printf '\#include <zlib.h>\nint main(){}' | $(CC) -o have_zlib -x c - -lz 2> $(VOID) && rm have_zlib$(EXT) && echo 1 || echo 0)
 ifeq ($(HAVE_ZLIB), 1)
-ZLIBCPP = -DZSTD_GZDECOMPRESS
+ZLIB_MSG := ==> building zstd with .gz compression support
+ZLIBCPP = -DZSTD_GZCOMPRESS -DZSTD_GZDECOMPRESS
 ZLIBLD = -lz
+else
+ZLIB_MSG := $(NO_ZLIB_MSG)
 endif
+# lzma detection
+NO_LZMA_MSG := ==> no liblzma, building zstd without .xz/.lzma support
+HAVE_LZMA := $(shell printf '\#include <lzma.h>\nint main(){}' | $(CC) -o have_lzma -x c - -llzma 2> $(VOID) && rm have_lzma$(EXT) && echo 1 || echo 0)
+ifeq ($(HAVE_LZMA), 1)
+LZMA_MSG := ==> building zstd with .xz/.lzma compression support
+LZMACPP = -DZSTD_LZMACOMPRESS -DZSTD_LZMADECOMPRESS
+LZMALD = -llzma
+else
+LZMA_MSG := $(NO_LZMA_MSG)
+endif
+
 
 .PHONY: default all clean clean_decomp_o install uninstall generate_res
 
@@ -81,24 +100,21 @@ all: zstd
 
 $(ZSTDDECOMP_O): CFLAGS += $(ALIGN_LOOP)
 
-zstd-internal : CPPFLAGS += -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT)
-zstd-internal : $(ZSTDLIB_OBJ) zstdcli.o fileio.o bench.o datagen.o dibio.o
-ifeq ($(HAVE_ZLIB), 1)
-	@echo "==> building zstd with .gz decompression support "
-else
-	@echo "==> no zlib, building zstd with .zst support only (no .gz support) "
-endif
+zstd : CPPFLAGS += $(ZLIBCPP)
+zstd : LDFLAGS += $(ZLIBLD)
+zstd : LZMA_MSG := $(NO_LZMA_MSG)
+zstd-nogz : ZLIB_MSG := $(NO_ZLIB_MSG)
+zstd-nogz : LZMA_MSG := $(NO_LZMA_MSG)
+xzstd : CPPFLAGS += $(ZLIBCPP) $(LZMACPP)
+xzstd : LDFLAGS += $(ZLIBLD) $(LZMALD)
+zstd zstd-nogz xzstd : CPPFLAGS += -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT)
+zstd zstd-nogz xzstd : $(ZSTDLIB_OBJ) zstdcli.o fileio.o bench.o datagen.o dibio.o
+	@echo "$(ZLIB_MSG)"
+	@echo "$(LZMA_MSG)"
 ifneq (,$(filter Windows%,$(OS)))
 	windres/generate_res.bat
 endif
 	$(CC) $(FLAGS) $^ $(RES_FILE) -o zstd$(EXT) $(LDFLAGS)
-
-zstd-nogz : HAVE_ZLIB=0
-zstd-nogz : zstd-internal
-
-zstd : CPPFLAGS += $(ZLIBCPP)
-zstd : LDFLAGS += $(ZLIBLD)
-zstd : zstd-internal
 
 zstd-release: DEBUGFLAGS :=
 zstd-release: zstd
@@ -148,11 +164,11 @@ generate_res:
 	windres/generate_res.bat
 
 clean:
-	$(MAKE) -C ../lib clean
+	$(MAKE) -C $(ZSTDDIR) clean
 	@$(RM) $(ZSTDDIR)/decompress/*.o $(ZSTDDIR)/decompress/zstd_decompress.gcda
 	@$(RM) core *.o tmp* result* *.gcda dictionary *.zst \
         zstd$(EXT) zstd32$(EXT) zstd-compress$(EXT) zstd-decompress$(EXT) \
-        *.gcda default.profraw have_zlib
+        *.gcda default.profraw have_zlib$(EXT)
 	@echo Cleaning completed
 
 clean_decomp_o:

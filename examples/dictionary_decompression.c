@@ -13,6 +13,7 @@
 #include <string.h>    // strerror
 #include <errno.h>     // errno
 #include <sys/stat.h>  // stat
+#define ZSTD_STATIC_LINKING_ONLY   // ZSTD_findDecompressedSize
 #include <zstd.h>      // presumes zstd library is installed
 
 
@@ -76,11 +77,15 @@ static void decompress(const char* fname, const ZSTD_DDict* ddict)
 {
     size_t cSize;
     void* const cBuff = loadFile_orDie(fname, &cSize);
-    unsigned long long const rSize = ZSTD_getDecompressedSize(cBuff, cSize);
-    if (rSize==0) {
+    unsigned long long const rSize = ZSTD_findDecompressedSize(cBuff, cSize);
+    if (rSize==ZSTD_CONTENTSIZE_ERROR) {
+        fprintf(stderr, "%s : it was not compressed by zstd.\n", fname);
+        exit(5);
+    } else if (rSize==ZSTD_CONTENTSIZE_UNKNOWN) {
         fprintf(stderr, "%s : original size unknown \n", fname);
         exit(6);
     }
+
     void* const rBuff = malloc_orDie((size_t)rSize);
 
     ZSTD_DCtx* const dctx = ZSTD_createDCtx();

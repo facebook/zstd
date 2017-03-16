@@ -275,7 +275,7 @@ cmakebuild:
 	cmake --version
 	$(RM) -r $(BUILDIR)/cmake/build
 	mkdir $(BUILDIR)/cmake/build
-	cd $(BUILDIR)/cmake/build ; cmake -DPREFIX:STRING=~/install_test_dir $(CMAKE_PARAMS) .. ; $(MAKE) install ; $(MAKE) uninstall
+	cd $(BUILDIR)/cmake/build ; cmake -DCMAKE_INSTALL_PREFIX:PATH=~/install_test_dir $(CMAKE_PARAMS) .. ; $(MAKE) install ; $(MAKE) uninstall
 
 c90build: clean
 	gcc -v

@@ -10,15 +10,8 @@
 #  - zstd homepage : http://www.zstd.net/
 # ################################################################
 
-# Get library version based on information from input content (use regular exp)
-function(GetLibraryVersion _content _outputVar1 _outputVar2 _outputVar3)
-    string(REGEX MATCHALL ".*define ZSTD_VERSION_MAJOR+.* ([0-9]+).*define ZSTD_VERSION_MINOR+.* ([0-9]+).*define ZSTD_VERSION_RELEASE+.* ([0-9]+)" VERSION_REGEX "${_content}")
-    SET(${_outputVar1} ${CMAKE_MATCH_1} PARENT_SCOPE)
-    SET(${_outputVar2} ${CMAKE_MATCH_2} PARENT_SCOPE)
-    SET(${_outputVar3} ${CMAKE_MATCH_3} PARENT_SCOPE)
-endfunction()
-
 PROJECT(libzstd)
+INCLUDE(${CMAKE_SOURCE_DIR}/CMakeModules/GetLibraryVersion.cmake)
 
 SET(CMAKE_INCLUDE_CURRENT_DIR TRUE)
 
@@ -26,11 +19,8 @@ SET(CMAKE_INCLUDE_CURRENT_DIR TRUE)
 SET(LIBRARY_DIR ${ZSTD_SOURCE_DIR}/lib)
 INCLUDE_DIRECTORIES(${LIBRARY_DIR} ${LIBRARY_DIR}/common)
 
-# Read file content
-FILE(READ ${LIBRARY_DIR}/zstd.h HEADER_CONTENT)
-
 # Parse version
-GetLibraryVersion("${HEADER_CONTENT}" LIBVER_MAJOR LIBVER_MINOR LIBVER_RELEASE)
+GetLibraryVersion(${LIBRARY_DIR}/zstd.h LIBVER_MAJOR LIBVER_MINOR LIBVER_RELEASE)
 MESSAGE("ZSTD VERSION ${LIBVER_MAJOR}.${LIBVER_MINOR}.${LIBVER_RELEASE}")
 
 SET(Sources

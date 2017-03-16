@@ -18,6 +18,19 @@
 
 ZSTDDIR = ../lib
 
+# Version numbers
+LIBVER_SRC := $(ZSTDDIR)/zstd.h
+LIBVER_MAJOR_SCRIPT:=`sed -n '/define ZSTD_VERSION_MAJOR/s/.*[[:blank:]]\([0-9][0-9]*\).*/\1/p' < $(LIBVER_SRC)`
+LIBVER_MINOR_SCRIPT:=`sed -n '/define ZSTD_VERSION_MINOR/s/.*[[:blank:]]\([0-9][0-9]*\).*/\1/p' < $(LIBVER_SRC)`
+LIBVER_PATCH_SCRIPT:=`sed -n '/define ZSTD_VERSION_RELEASE/s/.*[[:blank:]]\([0-9][0-9]*\).*/\1/p' < $(LIBVER_SRC)`
+LIBVER_SCRIPT:= $(LIBVER_MAJOR_SCRIPT).$(LIBVER_MINOR_SCRIPT).$(LIBVER_PATCH_SCRIPT)
+LIBVER_MAJOR := $(shell echo $(LIBVER_MAJOR_SCRIPT))
+LIBVER_MINOR := $(shell echo $(LIBVER_MINOR_SCRIPT))
+LIBVER_PATCH := $(shell echo $(LIBVER_PATCH_SCRIPT))
+LIBVER  := $(shell echo $(LIBVER_SCRIPT))
+
+ZSTD_VERSION=$(LIBVER)
+
 ifeq ($(shell $(CC) -v 2>&1 | grep -c "gcc version "), 1)
 ALIGN_LOOP = -falign-loops=32
 else
@@ -91,6 +104,8 @@ else
 LZMA_MSG := $(NO_LZMA_MSG)
 endif
 
+MD2ROFF  =ronn
+MD2ROFF_FLAGS  = --roff --warnings --manual="User Commands" --organization="zstd $(ZSTD_VERSION)"
 
 .PHONY: default all clean clean_decomp_o install uninstall generate_res
 
@@ -174,6 +189,16 @@ clean:
 clean_decomp_o:
 	@$(RM) $(ZSTDDECOMP_O)
 
+zstd.1: zstd.1.md
+	cat $^ | $(MD2ROFF) $(MD2ROFF_FLAGS) | sed -n '/^\.\\\".*/!p' > $@
+
+man: zstd.1
+
+clean-man:
+	rm zstd.1
+
+preview-man: clean-man man
+	man ./zstd.1
 
 #-----------------------------------------------------------------------------
 # make install is validated only for Linux, OSX, BSD, Hurd and Solaris targets

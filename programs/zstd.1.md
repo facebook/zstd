@@ -7,7 +7,9 @@ SYNOPSIS
 `zstd` [*OPTIONS*] [-|&lt;INPUT-FILE&gt;] [-o &lt;OUTPUT-FILE&gt;]
 
 `unzstd` is equivalent to `zstd -d`
+
 `zstdcat` is equivalent to `zstd -dcf`
+
 
 DESCRIPTION
 -----------
@@ -27,15 +29,19 @@ but features the following differences :
   - When compressing a single file, `zstd` displays progress notifications
     and result summary by default.
     Use `-q` to turn them off.
+  - `zstd` does not accept input from console,
+    but it properly accepts `stdin` when it's not the console.
+  - `zstd` displays a short help page when command line is an error.
+    Use `-q` to turn it off.
 
 `zstd` compresses or decompresses each _file_ according to the selected
 operation mode.
 If no _files_ are given or _file_ is `-`, `zstd` reads from standard input
 and writes the processed data to standard output.
-`zstd` will refuse to (display an error and skip the _file_) to write
-compressed data to standard output if it is a terminal.
-Similarly, `zstd` will refuse to read compressed data from standard input if it
-is a terminal.
+`zstd` will refuse to write compressed data to standard output
+if it is a terminal : it will display an error message and skip the _file_.
+Similarly, `zstd` will refuse to read compressed data from standard input
+if it is a terminal.
 
 Unless `--stdout` or `-o` is specified, _files_ are written to a new file
 whose name is derived from the source _file_ name:
@@ -162,8 +168,8 @@ Typical gains range from 10% (at 64KB) to x5 better (at <1KB).
     compressed frame header, and an ID < 65536 will only need 2 bytes.
     This compares favorably to 4 bytes default.
     However, it's up to the dictionary manager to not assign twice the same ID to
-    2 different dictionaries. 
-* `-s#`: 
+    2 different dictionaries.
+* `-s#`:
     dictionary selectivity level (default: 9)
     the smaller the value, the denser the dictionary,
     improving its efficiency but reducing its possible maximum size.
@@ -194,7 +200,7 @@ Typical gains range from 10% (at 64KB) to x5 better (at <1KB).
     Once it completes, use the value of _d_ it selects with a higher _steps_
     (in the range [256, 1024]).
 
-    `zstd --train --optimize-cover FILEs` <br /> 
+    `zstd --train --optimize-cover FILEs` <br />
     `zstd --train --optimize-cover=d=d,steps=512 FILEs`
 
 
@@ -226,7 +232,7 @@ The list of available _options_:
 - `strategy`=_strat_, `strat`=_strat_:
     Specify a strategy used by a match finder.
 
-    There are 8 strategies numbered from 0 to 7, from faster to stronger: 
+    There are 8 strategies numbered from 0 to 7, from faster to stronger:
     0=ZSTD\_fast, 1=ZSTD\_dfast, 2=ZSTD\_greedy, 3=ZSTD\_lazy,
     4=ZSTD\_lazy2, 5=ZSTD\_btlazy2, 6=ZSTD\_btopt, 7=ZSTD\_btopt2.
 

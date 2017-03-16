@@ -167,7 +167,7 @@ static int usage_advanced(const char* programName)
 static int badusage(const char* programName)
 {
     DISPLAYLEVEL(1, "Incorrect parameters\n");
-    if (displayLevel >= 1) usage(programName);
+    if (displayLevel >= 2) usage(programName);
     return 1;
 }
 

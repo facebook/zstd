@@ -8,7 +8,10 @@
 \fBzstd\fR [\fIOPTIONS\fR] [\-|<INPUT\-FILE>] [\-o <OUTPUT\-FILE>]
 .
 .P
-\fBunzstd\fR is equivalent to \fBzstd \-d\fR \fBzstdcat\fR is equivalent to \fBzstd \-dcf\fR
+\fBunzstd\fR is equivalent to \fBzstd \-d\fR
+.
+.P
+\fBzstdcat\fR is equivalent to \fBzstd \-dcf\fR
 .
 .SH "DESCRIPTION"
 \fBzstd\fR is a fast lossless compression algorithm and data compression tool, with command line syntax similar to \fBgzip (1)\fR and \fBxz (1)\fR\. It is based on the \fBLZ77\fR family, with further FSE & huff0 entropy stages\. \fBzstd\fR offers highly configurable compression speed, with fast modes at > 200 MB/s per code, and strong modes nearing lzma compression ratios\. It also features a very fast decoder, with speeds > 500 MB/s per core\.
@@ -22,10 +25,16 @@ Source files are preserved by default\. It\'s possible to remove them automatica
 .IP "\(bu" 4
 When compressing a single file, \fBzstd\fR displays progress notifications and result summary by default\. Use \fB\-q\fR to turn them off\.
 .
+.IP "\(bu" 4
+\fBzstd\fR does not accept input from console, but it properly accepts \fBstdin\fR when it\'s not the console\.
+.
+.IP "\(bu" 4
+\fBzstd\fR displays a short help page when command line is an error\. Use \fB\-q\fR to turn it off\.
+.
 .IP "" 0
 .
 .P
-\fBzstd\fR compresses or decompresses each \fIfile\fR according to the selected operation mode\. If no \fIfiles\fR are given or \fIfile\fR is \fB\-\fR, \fBzstd\fR reads from standard input and writes the processed data to standard output\. \fBzstd\fR will refuse to (display an error and skip the \fIfile\fR) to write compressed data to standard output if it is a terminal\. Similarly, \fBzstd\fR will refuse to read compressed data from standard input if it is a terminal\.
+\fBzstd\fR compresses or decompresses each \fIfile\fR according to the selected operation mode\. If no \fIfiles\fR are given or \fIfile\fR is \fB\-\fR, \fBzstd\fR reads from standard input and writes the processed data to standard output\. \fBzstd\fR will refuse to write compressed data to standard output if it is a terminal : it will display an error message and skip the \fIfile\fR\. Similarly, \fBzstd\fR will refuse to read compressed data from standard input if it is a terminal\.
 .
 .P
 Unless \fB\-\-stdout\fR or \fB\-o\fR is specified, \fIfiles\fR are written to a new file whose name is derived from the source \fIfile\fR name:

@@ -66,6 +66,7 @@ static clock_t g_displayClock = 0;
 *  Fuzzer functions
 *********************************************************/
 #define MIN(a,b) ((a)<(b)?(a):(b))
+#define MAX(a,b) ((a)>(b)?(a):(b))
 
 static clock_t FUZ_clockSpan(clock_t cStart)
 {
@@ -799,11 +800,12 @@ static int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, U32 const maxD
         /*=====   Streaming compression test, scattered segments and dictionary   =====*/
 
         {   U32 const testLog = FUZ_rand(&lseed) % maxSrcLog;
-            int const cLevel = (FUZ_rand(&lseed) % (ZSTD_maxCLevel() - (testLog/3))) + 1;
+            U32 const dictLog = FUZ_rand(&lseed) % maxSrcLog;
+            int const cLevel = (FUZ_rand(&lseed) % (ZSTD_maxCLevel() - (MAX(testLog, dictLog)/3))) + 1;
             maxTestSize = FUZ_rLogLength(&lseed, testLog);
             if (maxTestSize >= dstBufferSize) maxTestSize = dstBufferSize-1;
 
-            dictSize = FUZ_randomLength(&lseed, maxSampleLog);   /* needed also for decompression */
+            dictSize = FUZ_rLogLength(&lseed, dictLog);   /* needed also for decompression */
             dict = srcBuffer + (FUZ_rand(&lseed) % (srcBufferSize - dictSize));
 
             if (FUZ_rand(&lseed) & 0xF) {

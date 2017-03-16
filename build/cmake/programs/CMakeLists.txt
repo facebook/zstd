@@ -14,12 +14,9 @@ PROJECT(programs)
 
 SET(CMAKE_INCLUDE_CURRENT_DIR TRUE)
 
-# Define project root directory
-SET(ROOT_DIR ../../..)
-
 # Define programs directory, where sources and header files are located
-SET(LIBRARY_DIR ${ROOT_DIR}/lib)
-SET(PROGRAMS_DIR ${ROOT_DIR}/programs)
+SET(LIBRARY_DIR ${ZSTD_SOURCE_DIR}/lib)
+SET(PROGRAMS_DIR ${ZSTD_SOURCE_DIR}/programs)
 INCLUDE_DIRECTORIES(${PROGRAMS_DIR} ${LIBRARY_DIR} ${LIBRARY_DIR}/common ${LIBRARY_DIR}/compress ${LIBRARY_DIR}/dictBuilder)
 
 IF (ZSTD_LEGACY_SUPPORT)
@@ -28,7 +25,7 @@ IF (ZSTD_LEGACY_SUPPORT)
 ENDIF (ZSTD_LEGACY_SUPPORT)
 
 IF (MSVC)
-    SET(MSVC_RESOURCE_DIR ${ROOT_DIR}/build/VS2010/zstd)
+    SET(MSVC_RESOURCE_DIR ${ZSTD_SOURCE_DIR}/build/VS2010/zstd)
     SET(PlatformDependResources ${MSVC_RESOURCE_DIR}/zstd.rc)
 ENDIF (MSVC)
 

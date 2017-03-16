@@ -22,11 +22,8 @@ PROJECT(libzstd)
 
 SET(CMAKE_INCLUDE_CURRENT_DIR TRUE)
 
-# Define project root directory
-SET(ROOT_DIR ../../..)
-
 # Define library directory, where sources and header files are located
-SET(LIBRARY_DIR ${ROOT_DIR}/lib)
+SET(LIBRARY_DIR ${ZSTD_SOURCE_DIR}/lib)
 INCLUDE_DIRECTORIES(${LIBRARY_DIR} ${LIBRARY_DIR}/common)
 
 # Read file content
@@ -97,7 +94,7 @@ IF (ZSTD_LEGACY_SUPPORT)
 ENDIF (ZSTD_LEGACY_SUPPORT)
 
 IF (MSVC)
-    SET(MSVC_RESOURCE_DIR ${ROOT_DIR}/build/VS2010/libzstd-dll)
+    SET(MSVC_RESOURCE_DIR ${ZSTD_SOURCE_DIR}/build/VS2010/libzstd-dll)
     SET(PlatformDependResources ${MSVC_RESOURCE_DIR}/libzstd-dll.rc)
 ENDIF (MSVC)
 

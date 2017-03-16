@@ -635,7 +635,7 @@ int main(int argCount, const char* argv[])
 
     /* Check if input/output defined as console; trigger an error in this case */
     if (!strcmp(filenameTable[0], stdinmark) && IS_CONSOLE(stdin) ) CLEAN_RETURN(badusage(programName));
-    if (outFileName && !strcmp(outFileName, stdoutmark) && IS_CONSOLE(stdout) && strcmp(filenameTable[0], stdinmark) && !(forceStdout && (operation==zom_decompress)))
+    if (outFileName && !strcmp(outFileName, stdoutmark) && IS_CONSOLE(stdout) && !strcmp(filenameTable[0], stdinmark) && !forceStdout && operation!=zom_decompress)
         CLEAN_RETURN(badusage(programName));
 
     /* user-selected output filename, only possible with a single file */

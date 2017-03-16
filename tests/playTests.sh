@@ -72,6 +72,10 @@ cp tmp tmp2
 $ZSTD tmp2 -fo && die "-o must be followed by filename "
 $ECHO "test : implied stdout when input is stdin"
 $ECHO bob | $ZSTD | $ZSTD -d
+$ECHO "test : compressed data to terminal"
+$ECHO bob | $ZSTD && die "should have refused : compressed data to terminal"
+$ECHO "test : compressed data from terminal (a hang here is a test fail, zstd is wrongly waiting on data from terminal)"
+$ZSTD -d > $INTOVOID && die "should have refused : compressed data from terminal"
 $ECHO "test : null-length file roundtrip"
 $ECHO -n '' | $ZSTD - --stdout | $ZSTD -d --stdout
 $ECHO "test : decompress file with wrong suffix (must fail)"

@@ -11,6 +11,15 @@ PROJECT(zstd)
 CMAKE_MINIMUM_REQUIRED(VERSION 2.8.7)
 SET(ZSTD_SOURCE_DIR "${CMAKE_SOURCE_DIR}/../..")
 
+#-----------------------------------------------------------------------------
+# Add extra compilation flags
+#-----------------------------------------------------------------------------
+INCLUDE(CMakeModules/AddExtraCompilationFlags.cmake)
+ADD_EXTRA_COMPILATION_FLAGS()
+
+#-----------------------------------------------------------------------------
+# Options
+#-----------------------------------------------------------------------------
 OPTION(ZSTD_LEGACY_SUPPORT "LEGACY SUPPORT" OFF)
 OPTION(ZSTD_MULTITHREAD_SUPPORT "MULTITHREADING SUPPORT" ON)
 OPTION(ZSTD_BUILD_CONTRIB "BUILD CONTRIB" OFF)
@@ -23,6 +32,9 @@ ELSE (ZSTD_LEGACY_SUPPORT)
     ADD_DEFINITIONS(-DZSTD_LEGACY_SUPPORT=0)
 ENDIF (ZSTD_LEGACY_SUPPORT)
 
+#-----------------------------------------------------------------------------
+# Add source directories
+#-----------------------------------------------------------------------------
 ADD_SUBDIRECTORY(lib)
 ADD_SUBDIRECTORY(programs)
 ADD_SUBDIRECTORY(tests)
@@ -31,11 +43,8 @@ IF (ZSTD_BUILD_CONTRIB)
 ENDIF (ZSTD_BUILD_CONTRIB)
 
 #-----------------------------------------------------------------------------
-# Add extra compilation flags
+# Add clean-all target
 #-----------------------------------------------------------------------------
-INCLUDE(CMakeModules/AddExtraCompilationFlags.cmake)
-ADD_EXTRA_COMPILATION_FLAGS()
-
 ADD_CUSTOM_TARGET(clean-all
    COMMAND ${CMAKE_BUILD_TOOL} clean
    COMMAND rm -rf ${CMAKE_BINARY_DIR}/

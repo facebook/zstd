@@ -20,6 +20,12 @@ roundTripTest() {
     $DIFF -q tmp1 tmp2
 }
 
+isTerminal=false
+if [ -t 0 ] && [ -t 1 ]
+then
+    isTerminal=true
+fi
+
 isWindows=false
 ECHO="echo"
 INTOVOID="/dev/null"
@@ -27,6 +33,7 @@ case "$OS" in
   Windows*)
     isWindows=true
     ECHO="echo -e"
+    INTOVOID="NUL"
     ;;
 esac
 
@@ -72,10 +79,12 @@ cp tmp tmp2
 $ZSTD tmp2 -fo && die "-o must be followed by filename "
 $ECHO "test : implied stdout when input is stdin"
 $ECHO bob | $ZSTD | $ZSTD -d
+if [ "$isTerminal" = true ]; then
 $ECHO "test : compressed data to terminal"
 $ECHO bob | $ZSTD && die "should have refused : compressed data to terminal"
 $ECHO "test : compressed data from terminal (a hang here is a test fail, zstd is wrongly waiting on data from terminal)"
 $ZSTD -d > $INTOVOID && die "should have refused : compressed data from terminal"
+fi
 $ECHO "test : null-length file roundtrip"
 $ECHO -n '' | $ZSTD - --stdout | $ZSTD -d --stdout
 $ECHO "test : decompress file with wrong suffix (must fail)"
@@ -244,7 +253,7 @@ $ZSTD -f tmp -D tmpDict1 --no-dictID
 $ZSTD -d tmp.zst -D tmpDict -fo result
 $DIFF $TESTFILE result
 $ECHO "- Compress with wrong argument order (must fail)"
-$ZSTD tmp -Df tmpDict1 -c > /dev/null && die "-D must be followed by dictionary name "
+$ZSTD tmp -Df tmpDict1 -c > $INTOVOID && die "-D must be followed by dictionary name "
 $ECHO "- Compress multiple files with dictionary"
 rm -rf dirTestDict
 mkdir dirTestDict

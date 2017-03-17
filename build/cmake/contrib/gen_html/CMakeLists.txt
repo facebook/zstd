@@ -29,3 +29,5 @@ SET(LIBVERSION "${VMAJOR}.${VMINOR}.${VRELEASE}")
 ADD_CUSTOM_TARGET(zstd_manual.html ALL
                   ${GENHTML_BINARY} "${LIBVERSION}" "${LIBRARY_DIR}/zstd.h" "${PROJECT_BINARY_DIR}/zstd_manual.html"
                   DEPENDS gen_html COMMENT "Update zstd manual")
+
+INSTALL(FILES "${PROJECT_BINARY_DIR}/zstd_manual.html" DESTINATION "share/doc")

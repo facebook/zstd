@@ -12,7 +12,7 @@ you can consult a list of known ports on [Zstandard homepage](http://www.zstd.ne
 |dev         | [![Build Status](https://travis-ci.org/facebook/zstd.svg?branch=dev)](https://travis-ci.org/facebook/zstd) |
 
 As a reference, several fast compression algorithms were tested and compared
-on a server running Linux Mint Debian Edition (`Linux version 4.8.0-1-amd64`),
+on a server running Linux Debian (`Linux version 4.8.0-1-amd64`),
 with a Core i7-6700K CPU @ 4.0GHz,
 using [lzbench], an open-source in-memory benchmark by @inikep
 compiled with GCC 6.3.0,
@@ -39,7 +39,7 @@ Zstd can also offer stronger compression ratios at the cost of compression speed
 Speed vs Compression trade-off is configurable by small increments. Decompression speed is preserved and remains roughly the same at all settings, a property shared by most LZ compression algorithms, such as [zlib] or lzma.
 
 The following tests were run
-on a server running Linux Mint Debian Edition (`Linux version 4.8.0-1-amd64`)
+on a server running Linux Debian (`Linux version 4.8.0-1-amd64`)
 with a Core i7-6700K CPU @ 4.0GHz,
 using [lzbench], an open-source in-memory benchmark by @inikep
 compiled with GCC 6.3.0,

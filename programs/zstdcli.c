@@ -49,13 +49,13 @@
 #define AUTHOR "Yann Collet"
 #define WELCOME_MESSAGE "*** %s %i-bits %s, by %s ***\n", COMPRESSOR_NAME, (int)(sizeof(size_t)*8), ZSTD_VERSION, AUTHOR
 
-#define GZ_EXTENSION ".gz"
-#define ZSTD_EXTENSION ".zst"
 #define ZSTD_UNZSTD "unzstd"
 #define ZSTD_CAT "zstdcat"
 #define ZSTD_GZ "gzip"
 #define ZSTD_GUNZIP "gunzip"
 #define ZSTD_GZCAT "gzcat"
+#define ZSTD_LZMA "lzma"
+#define ZSTD_XZ "xz"
 
 #define KB *(1 <<10)
 #define MB *(1 <<20)
@@ -130,6 +130,10 @@ static int usage_advanced(const char* programName)
 #ifdef ZSTD_GZCOMPRESS
     DISPLAY( "--format=gzip : compress files to the .gz format \n");
 #endif
+#ifdef ZSTD_LZMACOMPRESS
+    DISPLAY( "--format=xz : compress files to the .xz format \n");
+    DISPLAY( "--format=lzma : compress files to the .lzma format \n");
+#endif
 #endif
 #ifndef ZSTD_NODECOMPRESS
     DISPLAY( "--test  : test compressed file integrity \n");
@@ -163,7 +167,7 @@ static int usage_advanced(const char* programName)
 static int badusage(const char* programName)
 {
     DISPLAYLEVEL(1, "Incorrect parameters\n");
-    if (displayLevel >= 1) usage(programName);
+    if (displayLevel >= 2) usage(programName);
     return 1;
 }
 
@@ -325,6 +329,8 @@ int main(int argCount, const char* argv[])
     if (!strcmp(programName, ZSTD_GZ)) { suffix = GZ_EXTENSION; FIO_setCompressionType(FIO_gzipCompression); FIO_setRemoveSrcFile(1); }    /* behave like gzip */
     if (!strcmp(programName, ZSTD_GUNZIP)) { operation=zom_decompress; FIO_setRemoveSrcFile(1); }                                          /* behave like gunzip */
     if (!strcmp(programName, ZSTD_GZCAT)) { operation=zom_decompress; forceStdout=1; FIO_overwriteMode(); outFileName=stdoutmark; displayLevel=1; }  /* behave like gzcat */
+    if (!strcmp(programName, ZSTD_LZMA)) { suffix = LZMA_EXTENSION; FIO_setCompressionType(FIO_lzmaCompression); FIO_setRemoveSrcFile(1); }    /* behave like lzma */
+    if (!strcmp(programName, ZSTD_XZ)) { suffix = XZ_EXTENSION; FIO_setCompressionType(FIO_xzCompression); FIO_setRemoveSrcFile(1); }    /* behave like xz */
     memset(&compressionParams, 0, sizeof(compressionParams));
 
     /* command switches */
@@ -370,10 +376,16 @@ int main(int argCount, const char* argv[])
                     if (!strcmp(argument, "--keep")) { FIO_setRemoveSrcFile(0); continue; }
                     if (!strcmp(argument, "--rm")) { FIO_setRemoveSrcFile(1); continue; }
                     if (!strcmp(argument, "--priority=rt")) { setRealTimePrio = 1; continue; }
+#ifdef ZSTD_GZCOMPRESS
                     if (!strcmp(argument, "--format=gzip")) { suffix = GZ_EXTENSION; FIO_setCompressionType(FIO_gzipCompression); continue; }
+#endif
+#ifdef ZSTD_LZMACOMPRESS
+                    if (!strcmp(argument, "--format=lzma")) { suffix = LZMA_EXTENSION; FIO_setCompressionType(FIO_lzmaCompression);  continue; }
+                    if (!strcmp(argument, "--format=xz")) { suffix = XZ_EXTENSION; FIO_setCompressionType(FIO_xzCompression);  continue; }
+#endif
 
                     /* long commands with arguments */
-#ifndef  ZSTD_NODICT
+#ifndef ZSTD_NODICT
                     if (longCommandWArg(&argument, "--cover=")) {
                       cover=1; if (!parseCoverParameters(argument, &coverParams)) CLEAN_RETURN(badusage(programName));
                       continue;
@@ -623,7 +635,7 @@ int main(int argCount, const char* argv[])
 
     /* Check if input/output defined as console; trigger an error in this case */
     if (!strcmp(filenameTable[0], stdinmark) && IS_CONSOLE(stdin) ) CLEAN_RETURN(badusage(programName));
-    if (outFileName && !strcmp(outFileName, stdoutmark) && IS_CONSOLE(stdout) && strcmp(filenameTable[0], stdinmark) && !(forceStdout && (operation==zom_decompress)))
+    if (outFileName && !strcmp(outFileName, stdoutmark) && IS_CONSOLE(stdout) && !strcmp(filenameTable[0], stdinmark) && !forceStdout && operation!=zom_decompress)
         CLEAN_RETURN(badusage(programName));
 
     /* user-selected output filename, only possible with a single file */

@@ -28,8 +28,9 @@ TESTARTEFACT := versionsTest namespaceTest
 
 CPPFLAGS+= -I$(ZSTDDIR) -I$(ZSTDDIR)/common -I$(ZSTDDIR)/compress -I$(ZSTDDIR)/dictBuilder -I$(ZSTDDIR)/deprecated -I$(PRGDIR)
 CFLAGS  ?= -O3
-CFLAGS  += -g -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow -Wstrict-aliasing=1 \
-           -Wswitch-enum -Wdeclaration-after-statement -Wstrict-prototypes -Wundef
+CFLAGS  += -g -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow \
+           -Wstrict-aliasing=1 -Wswitch-enum -Wdeclaration-after-statement \
+           -Wstrict-prototypes -Wundef -Wformat-security
 CFLAGS  += $(MOREFLAGS)
 FLAGS    = $(CPPFLAGS) $(CFLAGS) $(LDFLAGS)
 
@@ -59,10 +60,10 @@ endif
 MULTITHREAD = $(MULTITHREAD_CPP) $(MULTITHREAD_LD)
 
 VOID = /dev/null
-ZSTREAM_TESTTIME = -T2mn
+ZSTREAM_TESTTIME ?= -T2mn
 FUZZERTEST ?= -T5mn
 ZSTDRTTEST = --test-large-data
-DECODECORPUS_TESTTIME = -T30
+DECODECORPUS_TESTTIME ?= -T30
 
 .PHONY: default all all32 dll clean test test32 test-all namespaceTest versionsTest
 
@@ -73,8 +74,6 @@ all: fullbench fuzzer zstreamtest paramgrill datagen zbufftest
 all32: fullbench32 fuzzer32 zstreamtest32 zbufftest32
 
 dll: fuzzer-dll zstreamtest-dll zbufftest-dll
-
-
 
 zstd:
 	$(MAKE) -C $(PRGDIR) $@
@@ -168,7 +167,7 @@ longmatch  : $(ZSTD_FILES) longmatch.c
 invalidDictionaries  : $(ZSTD_FILES) invalidDictionaries.c
 	$(CC)      $(FLAGS) $^ -o $@$(EXT)
 
-legacy : CFLAGS+= -DZSTD_LEGACY_SUPPORT=1
+legacy : CFLAGS+= -DZSTD_LEGACY_SUPPORT=4
 legacy : CPPFLAGS+= -I$(ZSTDDIR)/legacy
 legacy : $(ZSTD_FILES) $(wildcard $(ZSTDDIR)/legacy/*.c) legacy.c
 	$(CC)      $(FLAGS) $^ -o $@$(EXT)
@@ -252,6 +251,11 @@ endif
 zstd-playTests: datagen
 	file $(ZSTD)
 	ZSTD="$(QEMU_SYS) $(ZSTD)" ./playTests.sh $(ZSTDRTTEST)
+
+shortest: ZSTDRTTEST=
+shortest: test-zstd
+
+fuzztest: test-fuzzer test-zstream test-decodecorpus
 
 test: test-zstd test-fullbench test-fuzzer test-zstream test-invalidDictionaries test-legacy test-decodecorpus
 ifeq ($(QEMU_SYS),)

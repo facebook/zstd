@@ -18,17 +18,32 @@
 
 ZSTDDIR = ../lib
 
+# Version numbers
+LIBVER_SRC := $(ZSTDDIR)/zstd.h
+LIBVER_MAJOR_SCRIPT:=`sed -n '/define ZSTD_VERSION_MAJOR/s/.*[[:blank:]]\([0-9][0-9]*\).*/\1/p' < $(LIBVER_SRC)`
+LIBVER_MINOR_SCRIPT:=`sed -n '/define ZSTD_VERSION_MINOR/s/.*[[:blank:]]\([0-9][0-9]*\).*/\1/p' < $(LIBVER_SRC)`
+LIBVER_PATCH_SCRIPT:=`sed -n '/define ZSTD_VERSION_RELEASE/s/.*[[:blank:]]\([0-9][0-9]*\).*/\1/p' < $(LIBVER_SRC)`
+LIBVER_SCRIPT:= $(LIBVER_MAJOR_SCRIPT).$(LIBVER_MINOR_SCRIPT).$(LIBVER_PATCH_SCRIPT)
+LIBVER_MAJOR := $(shell echo $(LIBVER_MAJOR_SCRIPT))
+LIBVER_MINOR := $(shell echo $(LIBVER_MINOR_SCRIPT))
+LIBVER_PATCH := $(shell echo $(LIBVER_PATCH_SCRIPT))
+LIBVER  := $(shell echo $(LIBVER_SCRIPT))
+
+ZSTD_VERSION=$(LIBVER)
+
 ifeq ($(shell $(CC) -v 2>&1 | grep -c "gcc version "), 1)
 ALIGN_LOOP = -falign-loops=32
 else
 ALIGN_LOOP =
 endif
 
-CPPFLAGS+= -I$(ZSTDDIR) -I$(ZSTDDIR)/common -I$(ZSTDDIR)/compress -I$(ZSTDDIR)/dictBuilder
+CPPFLAGS+= -I$(ZSTDDIR) -I$(ZSTDDIR)/common -I$(ZSTDDIR)/compress \
+           -I$(ZSTDDIR)/dictBuilder \
+           -DXXH_NAMESPACE=ZSTD_   # because xxhash.o already compiled with this macro from library
 CFLAGS  ?= -O3
 DEBUGFLAGS = -g -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow \
           -Wstrict-aliasing=1 -Wswitch-enum -Wdeclaration-after-statement \
-          -Wstrict-prototypes -Wundef -Wpointer-arith
+          -Wstrict-prototypes -Wundef -Wpointer-arith -Wformat-security
 CFLAGS  += $(DEBUGFLAGS) $(MOREFLAGS)
 FLAGS    = $(CPPFLAGS) $(CFLAGS) $(LDFLAGS)
 
@@ -40,12 +55,14 @@ ZSTD_FILES := $(ZSTDDECOMP_FILES) $(ZSTDCOMMON_FILES) $(ZSTDCOMP_FILES)
 ZDICT_FILES := $(ZSTDDIR)/dictBuilder/*.c
 ZSTDDECOMP_O = $(ZSTDDIR)/decompress/zstd_decompress.o
 
-ifeq ($(ZSTD_LEGACY_SUPPORT), 0)
+ZSTD_LEGACY_SUPPORT ?= 4
 ZSTDLEGACY_FILES:=
+ifneq ($(ZSTD_LEGACY_SUPPORT), 0)
+ifeq ($(shell test $(ZSTD_LEGACY_SUPPORT) -lt 8; echo $$?), 0)
+	ZSTDLEGACY_FILES += $(shell ls $(ZSTDDIR)/legacy/*.c | grep 'v0[$(ZSTD_LEGACY_SUPPORT)-7]')
+endif
+	CPPFLAGS += -I$(ZSTDDIR)/legacy
 else
-ZSTD_LEGACY_SUPPORT:=1
-CPPFLAGS  += -I$(ZSTDDIR)/legacy
-ZSTDLEGACY_FILES:= $(ZSTDDIR)/legacy/*.c
 endif
 
 ZSTDLIB_FILES := $(wildcard $(ZSTD_FILES)) $(wildcard $(ZSTDLEGACY_FILES)) $(wildcard $(ZDICT_FILES))
@@ -66,12 +83,29 @@ EXT =
 endif
 
 # zlib detection
+NO_ZLIB_MSG := ==> no zlib, building zstd without .gz support
 VOID = /dev/null
 HAVE_ZLIB := $(shell printf '\#include <zlib.h>\nint main(){}' | $(CC) -o have_zlib -x c - -lz 2> $(VOID) && rm have_zlib$(EXT) && echo 1 || echo 0)
 ifeq ($(HAVE_ZLIB), 1)
+ZLIB_MSG := ==> building zstd with .gz compression support
 ZLIBCPP = -DZSTD_GZCOMPRESS -DZSTD_GZDECOMPRESS
 ZLIBLD = -lz
+else
+ZLIB_MSG := $(NO_ZLIB_MSG)
 endif
+# lzma detection
+NO_LZMA_MSG := ==> no liblzma, building zstd without .xz/.lzma support
+HAVE_LZMA := $(shell printf '\#include <lzma.h>\nint main(){}' | $(CC) -o have_lzma -x c - -llzma 2> $(VOID) && rm have_lzma$(EXT) && echo 1 || echo 0)
+ifeq ($(HAVE_LZMA), 1)
+LZMA_MSG := ==> building zstd with .xz/.lzma compression support
+LZMACPP = -DZSTD_LZMACOMPRESS -DZSTD_LZMADECOMPRESS
+LZMALD = -llzma
+else
+LZMA_MSG := $(NO_LZMA_MSG)
+endif
+
+MD2ROFF  =ronn
+MD2ROFF_FLAGS  = --roff --warnings --manual="User Commands" --organization="zstd $(ZSTD_VERSION)"
 
 .PHONY: default all clean clean_decomp_o install uninstall generate_res
 
@@ -81,24 +115,21 @@ all: zstd
 
 $(ZSTDDECOMP_O): CFLAGS += $(ALIGN_LOOP)
 
-zstd-internal : CPPFLAGS += -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT)
-zstd-internal : $(ZSTDLIB_OBJ) zstdcli.o fileio.o bench.o datagen.o dibio.o
-ifeq ($(HAVE_ZLIB), 1)
-	@echo "==> building zstd with .gz decompression support "
-else
-	@echo "==> no zlib, building zstd with .zst support only (no .gz support) "
-endif
+zstd : CPPFLAGS += $(ZLIBCPP)
+zstd : LDFLAGS += $(ZLIBLD)
+zstd : LZMA_MSG := $(NO_LZMA_MSG)
+zstd-nogz : ZLIB_MSG := $(NO_ZLIB_MSG)
+zstd-nogz : LZMA_MSG := $(NO_LZMA_MSG)
+xzstd : CPPFLAGS += $(ZLIBCPP) $(LZMACPP)
+xzstd : LDFLAGS += $(ZLIBLD) $(LZMALD)
+zstd zstd-nogz xzstd : CPPFLAGS += -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT)
+zstd zstd-nogz xzstd : $(ZSTDLIB_OBJ) zstdcli.o fileio.o bench.o datagen.o dibio.o
+	@echo "$(ZLIB_MSG)"
+	@echo "$(LZMA_MSG)"
 ifneq (,$(filter Windows%,$(OS)))
 	windres/generate_res.bat
 endif
 	$(CC) $(FLAGS) $^ $(RES_FILE) -o zstd$(EXT) $(LDFLAGS)
-
-zstd-nogz : HAVE_ZLIB=0
-zstd-nogz : zstd-internal
-
-zstd : CPPFLAGS += $(ZLIBCPP)
-zstd : LDFLAGS += $(ZLIBLD)
-zstd : zstd-internal
 
 zstd-release: DEBUGFLAGS :=
 zstd-release: zstd
@@ -158,6 +189,16 @@ clean:
 clean_decomp_o:
 	@$(RM) $(ZSTDDECOMP_O)
 
+zstd.1: zstd.1.md
+	cat $^ | $(MD2ROFF) $(MD2ROFF_FLAGS) | sed -n '/^\.\\\".*/!p' > $@
+
+man: zstd.1
+
+clean-man:
+	rm zstd.1
+
+preview-man: clean-man man
+	man ./zstd.1
 
 #-----------------------------------------------------------------------------
 # make install is validated only for Linux, OSX, BSD, Hurd and Solaris targets

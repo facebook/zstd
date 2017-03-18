@@ -20,6 +20,12 @@ roundTripTest() {
     $DIFF -q tmp1 tmp2
 }
 
+isTerminal=false
+if [ -t 0 ] && [ -t 1 ]
+then
+    isTerminal=true
+fi
+
 isWindows=false
 ECHO="echo"
 INTOVOID="/dev/null"
@@ -27,6 +33,7 @@ case "$OS" in
   Windows*)
     isWindows=true
     ECHO="echo -e"
+    INTOVOID="NUL"
     ;;
 esac
 
@@ -72,6 +79,12 @@ cp tmp tmp2
 $ZSTD tmp2 -fo && die "-o must be followed by filename "
 $ECHO "test : implied stdout when input is stdin"
 $ECHO bob | $ZSTD | $ZSTD -d
+if [ "$isTerminal" = true ]; then
+$ECHO "test : compressed data to terminal"
+$ECHO bob | $ZSTD && die "should have refused : compressed data to terminal"
+$ECHO "test : compressed data from terminal (a hang here is a test fail, zstd is wrongly waiting on data from terminal)"
+$ZSTD -d > $INTOVOID && die "should have refused : compressed data from terminal"
+fi
 $ECHO "test : null-length file roundtrip"
 $ECHO -n '' | $ZSTD - --stdout | $ZSTD -d --stdout
 $ECHO "test : decompress file with wrong suffix (must fail)"
@@ -240,7 +253,7 @@ $ZSTD -f tmp -D tmpDict1 --no-dictID
 $ZSTD -d tmp.zst -D tmpDict -fo result
 $DIFF $TESTFILE result
 $ECHO "- Compress with wrong argument order (must fail)"
-$ZSTD tmp -Df tmpDict1 -c > /dev/null && die "-D must be followed by dictionary name "
+$ZSTD tmp -Df tmpDict1 -c > $INTOVOID && die "-D must be followed by dictionary name "
 $ECHO "- Compress multiple files with dictionary"
 rm -rf dirTestDict
 mkdir dirTestDict
@@ -304,11 +317,91 @@ $ECHO "\n**** benchmark mode tests **** "
 
 $ECHO "bench one file"
 ./datagen > tmp1
-$ZSTD -bi1 tmp1
+$ZSTD -bi0 tmp1
 $ECHO "bench multiple levels"
-$ZSTD -i1b1e3 tmp1
+$ZSTD -i0b0e3 tmp1
 $ECHO "with recursive and quiet modes"
-$ZSTD -rqi1b1e3 tmp1
+$ZSTD -rqi1b1e2 tmp1
+
+
+$ECHO "\n**** gzip compatibility tests **** "
+
+GZIPMODE=1
+$ZSTD --format=gzip -V || GZIPMODE=0
+if [ $GZIPMODE -eq 1 ]; then
+    $ECHO "gzip support detected"
+    GZIPEXE=1
+    gzip -V || GZIPEXE=0
+    if [ $GZIPEXE -eq 1 ]; then
+        ./datagen > tmp
+        $ZSTD --format=gzip -f tmp
+        gzip -t -v tmp.gz
+        gzip -f tmp
+        $ZSTD -d -f -v tmp.gz
+        rm tmp*
+    else
+        $ECHO "gzip binary not detected"
+    fi
+else
+    $ECHO "gzip mode not supported"
+fi
+
+
+$ECHO "\n**** gzip frame tests **** "
+
+if [ $GZIPMODE -eq 1 ]; then
+    ./datagen > tmp
+    $ZSTD -f --format=gzip tmp
+    $ZSTD -f tmp
+    cat tmp.gz tmp.zst tmp.gz tmp.zst | $ZSTD -d -f -o tmp
+    head -c -1 tmp.gz | $ZSTD -t && die "incomplete frame not detected !"
+    rm tmp*
+else
+    $ECHO "gzip mode not supported"
+fi
+
+
+$ECHO "\n**** xz compatibility tests **** "
+
+LZMAMODE=1
+$ZSTD --format=xz -V || LZMAMODE=0
+if [ $LZMAMODE -eq 1 ]; then
+    $ECHO "xz support detected"
+    XZEXE=1
+    xz -V && lzma -V || XZEXE=0
+    if [ $XZEXE -eq 1 ]; then
+        ./datagen > tmp
+        $ZSTD --format=lzma -f tmp
+        $ZSTD --format=xz -f tmp
+        xz -t -v tmp.xz
+        xz -t -v tmp.lzma
+        xz -f -k tmp
+        lzma -f -k --lzma1 tmp
+        $ZSTD -d -f -v tmp.xz
+        $ZSTD -d -f -v tmp.lzma
+        rm tmp*
+    else
+        $ECHO "xz binary not detected"
+    fi
+else
+    $ECHO "xz mode not supported"
+fi
+
+
+$ECHO "\n**** xz frame tests **** "
+
+if [ $LZMAMODE -eq 1 ]; then
+    ./datagen > tmp
+    $ZSTD -f --format=xz tmp
+    $ZSTD -f --format=lzma tmp
+    $ZSTD -f tmp
+    cat tmp.xz tmp.lzma tmp.zst tmp.lzma tmp.xz tmp.zst | $ZSTD -d -f -o tmp
+    head -c -1 tmp.xz | $ZSTD -t && die "incomplete frame not detected !"
+    head -c -1 tmp.lzma | $ZSTD -t && die "incomplete frame not detected !"
+    rm tmp*
+else
+    $ECHO "xz mode not supported"
+fi
 
 
 $ECHO "\n**** zstd round-trip tests **** "
@@ -317,10 +410,10 @@ roundTripTest
 roundTripTest -g15K       # TableID==3
 roundTripTest -g127K      # TableID==2
 roundTripTest -g255K      # TableID==1
-roundTripTest -g513K      # TableID==0
-roundTripTest -g512K 6    # greedy, hash chain
-roundTripTest -g512K 16   # btlazy2
-roundTripTest -g512K 19   # btopt
+roundTripTest -g522K      # TableID==0
+roundTripTest -g519K 6    # greedy, hash chain
+roundTripTest -g517K 16   # btlazy2
+roundTripTest -g516K 19   # btopt
 
 rm tmp*
 

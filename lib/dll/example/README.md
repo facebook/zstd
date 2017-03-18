@@ -4,11 +4,11 @@ ZSTD Windows binary package
 #### The package contents
 
 - `zstd.exe`                  : Command Line Utility, supporting gzip-like arguments
-- `dll\libzstd.dll`           : The DLL of ZSTD library
-- `dll\libzstd.lib`           : The import library of ZSTD library for Visual C++
-- `example\`                  : The example of usage of ZSTD library
-- `include\`                  : Header files required with ZSTD library
-- `static\libzstd_static.lib` : The static ZSTD library
+- `dll\libzstd.dll`           : The ZSTD dynamic library (DLL)
+- `dll\libzstd.lib`           : The import library of the ZSTD dynamic library (DLL) for Visual C++
+- `example\`                  : The example of usage of the ZSTD library
+- `include\`                  : Header files required by the ZSTD library
+- `static\libzstd_static.lib` : The static ZSTD library (LIB)
 
 
 #### Usage of Command Line Interface

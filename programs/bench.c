@@ -581,6 +581,7 @@ int BMK_benchFiles(const char** fileNamesTable, unsigned nbFiles, const char* di
 {
     double const compressibility = (double)g_compressibilityDefault / 100;
 
+    if (cLevel < 1) cLevel = 1;   /* minimum compression level */
     if (cLevel > ZSTD_maxCLevel()) cLevel = ZSTD_maxCLevel();
     if (cLevelLast > ZSTD_maxCLevel()) cLevelLast = ZSTD_maxCLevel();
     if (cLevelLast < cLevel) cLevelLast = cLevel;

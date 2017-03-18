@@ -1,42 +1,60 @@
 dependencies:
   override:
+    - sudo dpkg --add-architecture i386
     - sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test; sudo apt-get -y -qq update
-    #- sudo apt-get -y install qemu-system-ppc qemu-user-static gcc-powerpc-linux-gnu valgrind
-    #- sudo apt-get -y install qemu-system-arm gcc-arm-linux-gnueabi libc6-dev-armel-cross gcc-aarch64-linux-gnu libc6-dev-arm64-cross
-    - sudo apt-get -y install libc6-dev-i386 clang gcc-5 gcc-6
-
-  # use default "parallel: true" for commands in the machine, checkout, dependencies and database build phase
-  post:
-    - |
-      if [[ "$CIRCLE_NODE_INDEX" == "0" ]]; then make cmaketest           && make clean; fi
-      if [[ "$CIRCLE_NODE_TOTAL" < "2" ]] || [[ "$CIRCLE_NODE_INDEX" == "1" ]]; then make -C tests test-invalidDictionaries && make clean; fi
-    - |
-      if [[ "$CIRCLE_NODE_INDEX" == "0" ]]; then g++ -v; make gpptest     && make clean; fi
-      if [[ "$CIRCLE_NODE_TOTAL" < "2" ]] || [[ "$CIRCLE_NODE_INDEX" == "1" ]]; then make -C tests test-legacy test-decodecorpus && make clean; fi
-    - |
-      if [[ "$CIRCLE_NODE_INDEX" == "0" ]]; then gcc -v; make gnu90test   && make clean; fi
-      if [[ "$CIRCLE_NODE_TOTAL" < "2" ]] || [[ "$CIRCLE_NODE_INDEX" == "1" ]]; then make -C tests test-symbols             && make clean; fi
-    - |
-      if [[ "$CIRCLE_NODE_INDEX" == "0" ]]; then gcc -v; make c99test     && make clean; fi
-      if [[ "$CIRCLE_NODE_TOTAL" < "2" ]] || [[ "$CIRCLE_NODE_INDEX" == "1" ]]; then make -C tests test-longmatch           && make clean; fi
-    - |
-      if [[ "$CIRCLE_NODE_INDEX" == "0" ]]; then gcc -v; make gnu99test   && make clean; fi
-      if [[ "$CIRCLE_NODE_TOTAL" < "2" ]] || [[ "$CIRCLE_NODE_INDEX" == "1" ]]; then make -C tests dll                      && make clean; fi
-    - |
-      if [[ "$CIRCLE_NODE_INDEX" == "0" ]]; then clang -v; make clangtest && make clean; fi
-      if [[ "$CIRCLE_NODE_TOTAL" < "2" ]] || [[ "$CIRCLE_NODE_INDEX" == "1" ]]; then make -C programs zstd-small zstd-decompress zstd-compress zstd32 MOREFLAGS="-I/usr/include/x86_64-linux-gnu" && make clean lib && make clean; fi
-    - |
-      if [[ "$CIRCLE_NODE_INDEX" == "0" ]]; then make travis-install      && make clean; fi
-      if [[ "$CIRCLE_NODE_TOTAL" < "2" ]] || [[ "$CIRCLE_NODE_INDEX" == "1" ]]; then make -C tests test-fullbench           && make clean; fi
-    - |
-      if [[ "$CIRCLE_NODE_INDEX" == "0" ]]; then gcc-5 -v; make gcc5test  && gcc-6 -v && make gcc6test && make clean; fi
-      if [[ "$CIRCLE_NODE_TOTAL" < "2" ]] || [[ "$CIRCLE_NODE_INDEX" == "1" ]]; then make -C tests test-zstream             && make clean; fi
-    - |
-      if [[ "$CIRCLE_NODE_INDEX" == "0" ]]; then make -C tests test-zstd  && make clean; fi
-      if [[ "$CIRCLE_NODE_TOTAL" < "2" ]] || [[ "$CIRCLE_NODE_INDEX" == "1" ]]; then make -C tests test-fuzzer FUZZERTEST=-T4mn && make clean; fi
+    - sudo apt-get -y install gcc-powerpc-linux-gnu gcc-arm-linux-gnueabi libc6-dev-armel-cross gcc-aarch64-linux-gnu libc6-dev-arm64-cross
+    - sudo apt-get -y install libstdc++-6-dev clang gcc g++ gcc-5 gcc-6
+    - sudo apt-get -y install linux-libc-dev:i386 libc6-dev-i386
 
 test:
   override:
+    - ? |
+        if [[ "$CIRCLE_NODE_INDEX" == "0" ]]                                    ; then cc -v; make all   && make clean; fi &&
+        if [[ "$CIRCLE_NODE_TOTAL" < "2" ]] || [[ "$CIRCLE_NODE_INDEX" == "1" ]]; then make gnu90build   && make clean; fi
+      :
+        parallel: true
+    - ? |
+        if [[ "$CIRCLE_NODE_INDEX" == "0" ]]                                    ; then make c99build     && make clean; fi &&
+        if [[ "$CIRCLE_NODE_TOTAL" < "2" ]] || [[ "$CIRCLE_NODE_INDEX" == "1" ]]; then make gnu99build   && make clean; fi
+      :
+        parallel: true
+    - ? |
+        if [[ "$CIRCLE_NODE_INDEX" == "0" ]]                                    ; then make c11build     && make clean; fi &&
+        if [[ "$CIRCLE_NODE_TOTAL" < "2" ]] || [[ "$CIRCLE_NODE_INDEX" == "1" ]]; then make cmakebuild   && make clean; fi
+      :
+        parallel: true
+    - ? |
+        if [[ "$CIRCLE_NODE_INDEX" == "0" ]]                                    ; then make gppbuild     && make clean; fi &&
+        if [[ "$CIRCLE_NODE_TOTAL" < "2" ]] || [[ "$CIRCLE_NODE_INDEX" == "1" ]]; then make gcc5build    && make clean; fi
+      :
+        parallel: true
+    - ? |
+        if [[ "$CIRCLE_NODE_INDEX" == "0" ]]                                    ; then make gcc6build    && make clean; fi &&
+        if [[ "$CIRCLE_NODE_TOTAL" < "2" ]] || [[ "$CIRCLE_NODE_INDEX" == "1" ]]; then make clangbuild   && make clean; fi
+      :
+        parallel: true
+    - ? |
+        if [[ "$CIRCLE_NODE_INDEX" == "0" ]]                                    ; then make m32build     && make clean; fi &&
+        if [[ "$CIRCLE_NODE_TOTAL" < "2" ]] || [[ "$CIRCLE_NODE_INDEX" == "1" ]]; then make armbuild     && make clean; fi
+      :
+        parallel: true
+    - ? |
+        if [[ "$CIRCLE_NODE_INDEX" == "0" ]]                                    ; then make aarch64build && make clean; fi &&
+        if [[ "$CIRCLE_NODE_TOTAL" < "2" ]] || [[ "$CIRCLE_NODE_INDEX" == "1" ]]; then make ppcbuild     && make clean; fi
+      :
+        parallel: true
+    - ? |
+        if [[ "$CIRCLE_NODE_INDEX" == "0" ]]                                    ; then make ppc64build   && make clean; fi &&
+        if [[ "$CIRCLE_NODE_TOTAL" < "2" ]] || [[ "$CIRCLE_NODE_INDEX" == "1" ]]; then true              && make clean; fi #could add another test here
+      :
+        parallel: true
+    - ? |
+        if [[ "$CIRCLE_NODE_INDEX" == "0" ]]                                    ; then make shortest     && make clean; fi &&
+        if [[ "$CIRCLE_NODE_TOTAL" < "2" ]] || [[ "$CIRCLE_NODE_INDEX" == "1" ]]; then make -C tests test-legacy test-longmatch test-symbols && make clean; fi
+      :
+        parallel: true
+
+  post:
     - echo Circle CI tests finished
 
   # Longer tests

@@ -11,23 +11,26 @@ you can consult a list of known ports on [Zstandard homepage](http://www.zstd.ne
 |master      | [![Build Status](https://travis-ci.org/facebook/zstd.svg?branch=master)](https://travis-ci.org/facebook/zstd) |
 |dev         | [![Build Status](https://travis-ci.org/facebook/zstd.svg?branch=dev)](https://travis-ci.org/facebook/zstd) |
 
-As a reference, several fast compression algorithms were tested and compared on a Core i7-3930K CPU @ 4.5GHz, using [lzbench], an open-source in-memory benchmark by @inikep compiled with GCC 5.4.0, with the [Silesia compression corpus].
+As a reference, several fast compression algorithms were tested and compared
+on a server running Linux Debian (`Linux version 4.8.0-1-amd64`),
+with a Core i7-6700K CPU @ 4.0GHz,
+using [lzbench], an open-source in-memory benchmark by @inikep
+compiled with GCC 6.3.0,
+on the [Silesia compression corpus].
 
 [lzbench]: https://github.com/inikep/lzbench
 [Silesia compression corpus]: http://sun.aei.polsl.pl/~sdeor/index.php?page=silesia
 
-
-| Name                    | Ratio | C.speed | D.speed |
-|-------------------------|-------|--------:|--------:|
-|                         |       |   MB/s  |  MB/s   |
-| **zstd 0.8.2 -1**     |**2.877**| **330** | **940** |
-| [zlib] 1.2.8 deflate -1 | 2.730 |    95   |   360   |
-| brotli 0.4 -0           | 2.708 |   320   |   375   |
-| QuickLZ 1.5             | 2.237 |   510   |   605   |
-| LZO 2.09                | 2.106 |   610   |   870   |
-| [LZ4] r131              | 2.101 |   620   |  3100   |
-| Snappy 1.1.3            | 2.091 |   480   |  1600   |
-| LZF 3.6                 | 2.077 |   375   |   790   |
+| Compressor name         | Ratio | Compression| Decompress.|
+| ---------------         | ------| -----------| ---------- |
+| **zstd 1.1.3 -1**       | 2.877 |   430 MB/s |  1110 MB/s |
+| zlib 1.2.8 -1           | 2.743 |   110 MB/s |   400 MB/s |
+| brotli 0.5.2 -0         | 2.708 |   400 MB/s |   430 MB/s |
+| quicklz 1.5.0 -1        | 2.238 |   550 MB/s |   710 MB/s |
+| lzo1x 2.09 -1           | 2.108 |   650 MB/s |   830 MB/s |
+| lz4 1.7.5               | 2.101 |   720 MB/s |  3600 MB/s |
+| snappy 1.1.3            | 2.091 |   500 MB/s |  1650 MB/s |
+| lzf 3.6 -1              | 2.077 |   400 MB/s |   860 MB/s |
 
 [zlib]:http://www.zlib.net/
 [LZ4]: http://www.lz4.org/
@@ -35,7 +38,12 @@ As a reference, several fast compression algorithms were tested and compared on 
 Zstd can also offer stronger compression ratios at the cost of compression speed.
 Speed vs Compression trade-off is configurable by small increments. Decompression speed is preserved and remains roughly the same at all settings, a property shared by most LZ compression algorithms, such as [zlib] or lzma.
 
-The following tests were run on a Core i7-3930K CPU @ 4.5GHz, using [lzbench], an open-source in-memory benchmark by @inikep compiled with GCC 5.2.1, on the [Silesia compression corpus].
+The following tests were run
+on a server running Linux Debian (`Linux version 4.8.0-1-amd64`)
+with a Core i7-6700K CPU @ 4.0GHz,
+using [lzbench], an open-source in-memory benchmark by @inikep
+compiled with GCC 6.3.0,
+on the [Silesia compression corpus].
 
 Compression Speed vs Ratio | Decompression Speed
 ---------------------------|--------------------

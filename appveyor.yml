@@ -146,6 +146,11 @@ test_script:
       fuzzer_VS2015_%PLATFORM%_Release.exe %FUZZERTEST%
     )
 
+branches:
+  only:
+  - dev
+  - master
+
 artifacts:
   - path: bin\zstd.exe
   - path: bin\zstd32.exe

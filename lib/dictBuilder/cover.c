@@ -966,6 +966,7 @@ ZDICTLIB_API size_t COVER_optimizeTrainFromBuffer(void *dictBuffer,
     if (!COVER_ctx_init(&ctx, samplesBuffer, samplesSizes, nbSamples, d)) {
       LOCALDISPLAYLEVEL(displayLevel, 1, "Failed to initialize context\n");
       COVER_best_destroy(&best);
+      POOL_free(pool);
       return ERROR(GENERIC);
     }
     /* Loop through k reusing the same context */
@@ -978,6 +979,7 @@ ZDICTLIB_API size_t COVER_optimizeTrainFromBuffer(void *dictBuffer,
         LOCALDISPLAYLEVEL(displayLevel, 1, "Failed to allocate parameters\n");
         COVER_best_destroy(&best);
         COVER_ctx_destroy(&ctx);
+        POOL_free(pool);
         return ERROR(GENERIC);
       }
       data->ctx = &ctx;
@@ -990,6 +992,7 @@ ZDICTLIB_API size_t COVER_optimizeTrainFromBuffer(void *dictBuffer,
       /* Check the parameters */
       if (!COVER_checkParameters(data->parameters)) {
         DISPLAYLEVEL(1, "Cover parameters incorrect\n");
+        free(data);
         continue;
       }
       /* Call the function and pass ownership of data to it */
@@ -1012,8 +1015,10 @@ ZDICTLIB_API size_t COVER_optimizeTrainFromBuffer(void *dictBuffer,
   {
     const size_t dictSize = best.dictSize;
     if (ZSTD_isError(best.compressedSize)) {
+      const size_t compressedSize = best.compressedSize;
       COVER_best_destroy(&best);
-      return best.compressedSize;
+      POOL_free(pool);
+      return compressedSize;
     }
     *parameters = best.parameters;
     memcpy(dictBuffer, best.dict, dictSize);

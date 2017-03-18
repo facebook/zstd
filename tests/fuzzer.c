@@ -66,6 +66,7 @@ static clock_t g_displayClock = 0;
 *  Fuzzer functions
 *********************************************************/
 #define MIN(a,b) ((a)<(b)?(a):(b))
+#define MAX(a,b) ((a)>(b)?(a):(b))
 
 static clock_t FUZ_clockSpan(clock_t cStart)
 {
@@ -108,6 +109,7 @@ static int basicUnitTests(U32 seed, double compressibility)
     void* const CNBuffer = malloc(CNBuffSize);
     void* const compressedBuffer = malloc(ZSTD_compressBound(CNBuffSize));
     void* const decodedBuffer = malloc(CNBuffSize);
+    ZSTD_DCtx* dctx = ZSTD_createDCtx();
     int testResult = 0;
     U32 testNb=0;
     size_t cSize;
@@ -153,6 +155,16 @@ static int basicUnitTests(U32 seed, double compressibility)
         for (u=0; u<CNBuffSize; u++) {
             if (((BYTE*)decodedBuffer)[u] != ((BYTE*)CNBuffer)[u]) goto _output_error;;
     }   }
+    DISPLAYLEVEL(4, "OK \n");
+
+    DISPLAYLEVEL(4, "test%3i : decompress with null dict : ", testNb++);
+    { size_t const r = ZSTD_decompress_usingDict(dctx, decodedBuffer, CNBuffSize, compressedBuffer, cSize, NULL, 0);
+      if (r != CNBuffSize) goto _output_error; }
+    DISPLAYLEVEL(4, "OK \n");
+
+    DISPLAYLEVEL(4, "test%3i : decompress with null DDict : ", testNb++);
+    { size_t const r = ZSTD_decompress_usingDDict(dctx, decodedBuffer, CNBuffSize, compressedBuffer, cSize, NULL);
+      if (r != CNBuffSize) goto _output_error; }
     DISPLAYLEVEL(4, "OK \n");
 
     DISPLAYLEVEL(4, "test%3i : decompress with 1 missing byte : ", testNb++);
@@ -210,7 +222,6 @@ static int basicUnitTests(U32 seed, double compressibility)
     /* Dictionary and CCtx Duplication tests */
     {   ZSTD_CCtx* const ctxOrig = ZSTD_createCCtx();
         ZSTD_CCtx* const ctxDuplicated = ZSTD_createCCtx();
-        ZSTD_DCtx* const dctx = ZSTD_createDCtx();
         static const size_t dictSize = 551;
 
         DISPLAYLEVEL(4, "test%3i : copy context too soon : ", testNb++);
@@ -283,12 +294,10 @@ static int basicUnitTests(U32 seed, double compressibility)
 
         ZSTD_freeCCtx(ctxOrig);
         ZSTD_freeCCtx(ctxDuplicated);
-        ZSTD_freeDCtx(dctx);
     }
 
     /* Dictionary and dictBuilder tests */
     {   ZSTD_CCtx* const cctx = ZSTD_createCCtx();
-        ZSTD_DCtx* const dctx = ZSTD_createDCtx();
         size_t dictSize = 16 KB;
         void* dictBuffer = malloc(dictSize);
         size_t const totalSampleSize = 1 MB;
@@ -370,14 +379,12 @@ static int basicUnitTests(U32 seed, double compressibility)
         DISPLAYLEVEL(4, "OK \n");
 
         ZSTD_freeCCtx(cctx);
-        ZSTD_freeDCtx(dctx);
         free(dictBuffer);
         free(samplesSizes);
     }
 
     /* COVER dictionary builder tests */
     {   ZSTD_CCtx* const cctx = ZSTD_createCCtx();
-        ZSTD_DCtx* const dctx = ZSTD_createDCtx();
         size_t dictSize = 16 KB;
         size_t optDictSize = dictSize;
         void* dictBuffer = malloc(dictSize);
@@ -414,7 +421,7 @@ static int basicUnitTests(U32 seed, double compressibility)
         memset(&params, 0, sizeof(params));
         params.steps = 4;
         optDictSize = COVER_optimizeTrainFromBuffer(dictBuffer, optDictSize,
-                                                    CNBuffer, samplesSizes, nbSamples,
+                                                    CNBuffer, samplesSizes, nbSamples / 4,
                                                     &params);
         if (ZDICT_isError(optDictSize)) goto _output_error;
         DISPLAYLEVEL(4, "OK, created dictionary of size %u \n", (U32)optDictSize);
@@ -425,7 +432,6 @@ static int basicUnitTests(U32 seed, double compressibility)
         DISPLAYLEVEL(4, "OK : %u \n", dictID);
 
         ZSTD_freeCCtx(cctx);
-        ZSTD_freeDCtx(dctx);
         free(dictBuffer);
         free(samplesSizes);
     }
@@ -445,7 +451,6 @@ static int basicUnitTests(U32 seed, double compressibility)
 
     /* block API tests */
     {   ZSTD_CCtx* const cctx = ZSTD_createCCtx();
-        ZSTD_DCtx* const dctx = ZSTD_createDCtx();
         static const size_t dictSize = 65 KB;
         static const size_t blockSize = 100 KB;   /* won't cause pb with small dict size */
         size_t cSize2;
@@ -795,11 +800,12 @@ static int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, U32 const maxD
         /*=====   Streaming compression test, scattered segments and dictionary   =====*/
 
         {   U32 const testLog = FUZ_rand(&lseed) % maxSrcLog;
-            int const cLevel = (FUZ_rand(&lseed) % (ZSTD_maxCLevel() - (testLog/3))) + 1;
+            U32 const dictLog = FUZ_rand(&lseed) % maxSrcLog;
+            int const cLevel = (FUZ_rand(&lseed) % (ZSTD_maxCLevel() - (MAX(testLog, dictLog)/3))) + 1;
             maxTestSize = FUZ_rLogLength(&lseed, testLog);
             if (maxTestSize >= dstBufferSize) maxTestSize = dstBufferSize-1;
 
-            dictSize = FUZ_randomLength(&lseed, maxSampleLog);   /* needed also for decompression */
+            dictSize = FUZ_rLogLength(&lseed, dictLog);   /* needed also for decompression */
             dict = srcBuffer + (FUZ_rand(&lseed) % (srcBufferSize - dictSize));
 
             if (FUZ_rand(&lseed) & 0xF) {

@@ -19,7 +19,7 @@ void trim(string& s, string characters)
 {
     size_t p = s.find_first_not_of(characters);
     s.erase(0, p);
- 
+
     p = s.find_last_not_of(characters);
     if (string::npos != p)
        s.erase(p+1);
@@ -48,7 +48,7 @@ vector<string> get_lines(vector<string>& input, int& linenum, string terminator)
         line = input[linenum];
 
         if (terminator.empty() && line.empty()) { linenum--; break; }
-        
+
         epos = line.find(terminator);
         if (!terminator.empty() && epos!=string::npos) {
             out.push_back(line);
@@ -168,7 +168,11 @@ int main(int argc, char *argv[]) {
             sout << "<pre><b>";
             for (l=0; l<lines.size(); l++) {
               //  fprintf(stderr, "line[%d]=%s\n", l, lines[l].c_str());
-                print_line(sout, lines[l]);
+                string fline = lines[l];
+                if (fline.substr(0, 12) == "ZSTDLIB_API " ||
+                    fline.substr(0, 12) == string(12, ' '))
+                  fline = fline.substr(12);
+                print_line(sout, fline);
             }
             sout << "</b><p>";
             for (l=0; l<comments.size(); l++) {

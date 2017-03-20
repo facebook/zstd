@@ -34,6 +34,8 @@ TARGET_LINK_LIBRARIES(zstd libzstd_shared)
 INSTALL(TARGETS zstd RUNTIME DESTINATION "bin")
 
 IF (UNIX)
+    INSTALL(FILES ${PROGRAMS_DIR}/zstd.1 DESTINATION "share/man/man1")
+
     ADD_EXECUTABLE(zstd-frugal ${PROGRAMS_DIR}/zstdcli.c ${PROGRAMS_DIR}/fileio.c)
     TARGET_LINK_LIBRARIES(zstd-frugal libzstd_shared)
     SET_TARGET_PROPERTIES(zstd-frugal PROPERTIES COMPILE_DEFINITIONS "ZSTD_NOBENCH;ZSTD_NODICT")
@@ -51,4 +53,6 @@ IF (ZSTD_MULTITHREAD_SUPPORT)
     ELSE()
         MESSAGE(SEND_ERROR "ZSTD currently does not support thread libraries other than pthreads")
     ENDIF()
+
+    INSTALL(TARGETS zstdmt RUNTIME DESTINATION "bin")
 ENDIF (ZSTD_MULTITHREAD_SUPPORT)

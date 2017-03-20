@@ -552,7 +552,7 @@ static size_t FUZ_randomLength(U32* seed, U32 maxLog)
 #define CHECK(cond, ...) if (cond) { DISPLAY("Error => "); DISPLAY(__VA_ARGS__); \
                          DISPLAY(" (seed %u, test nb %u)  \n", seed, testNb); goto _output_error; }
 
-static int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compressibility)
+static int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compressibility, int bigTests)
 {
     static const U32 maxSrcLog = 24;
     static const U32 maxSampleLog = 19;
@@ -574,6 +574,7 @@ static int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compres
     const BYTE* dict=NULL;   /* can keep same dict on 2 consecutive tests */
     size_t dictSize = 0;
     U32 oldTestLog = 0;
+    int const cLevelLimiter = bigTests ? 3 : 2;
 
     /* allocations */
     cNoiseBuffer[0] = (BYTE*)malloc (srcBufferSize);
@@ -646,7 +647,10 @@ static int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compres
         } else {
             U32 const testLog = FUZ_rand(&lseed) % maxSrcLog;
             U32 const dictLog = FUZ_rand(&lseed) % maxSrcLog;
-            U32 const cLevel = (FUZ_rand(&lseed) % (ZSTD_maxCLevel() - (MAX(testLog, dictLog)/3))) + 1;
+            U32 const cLevel = (FUZ_rand(&lseed) %
+                                (ZSTD_maxCLevel() -
+                                 (MAX(testLog, dictLog) / cLevelLimiter))) +
+                               1;
             maxTestSize = FUZ_rLogLength(&lseed, testLog);
             oldTestLog = testLog;
             /* random dictionary selection */
@@ -785,7 +789,7 @@ _output_error:
 
 
 /* Multi-threading version of fuzzer Tests */
-static int fuzzerTests_MT(U32 seed, U32 nbTests, unsigned startTest, double compressibility)
+static int fuzzerTests_MT(U32 seed, U32 nbTests, unsigned startTest, double compressibility, int bigTests)
 {
     static const U32 maxSrcLog = 24;
     static const U32 maxSampleLog = 19;
@@ -807,6 +811,7 @@ static int fuzzerTests_MT(U32 seed, U32 nbTests, unsigned startTest, double comp
     const BYTE* dict=NULL;   /* can keep same dict on 2 consecutive tests */
     size_t dictSize = 0;
     U32 oldTestLog = 0;
+    int const cLevelLimiter = bigTests ? 3 : 2;
 
     /* allocations */
     cNoiseBuffer[0] = (BYTE*)malloc (srcBufferSize);
@@ -888,7 +893,10 @@ static int fuzzerTests_MT(U32 seed, U32 nbTests, unsigned startTest, double comp
         } else {
             U32 const testLog = FUZ_rand(&lseed) % maxSrcLog;
             U32 const dictLog = FUZ_rand(&lseed) % maxSrcLog;
-            U32 const cLevel = (FUZ_rand(&lseed) % (ZSTD_maxCLevel() - (MAX(testLog, dictLog)/3))) + 1;
+            U32 const cLevel = (FUZ_rand(&lseed) %
+                                (ZSTD_maxCLevel() -
+                                 (MAX(testLog, dictLog) / cLevelLimiter))) +
+                               1;
             maxTestSize = FUZ_rLogLength(&lseed, testLog);
             oldTestLog = testLog;
             /* random dictionary selection */
@@ -1063,6 +1071,7 @@ int main(int argc, const char** argv)
     int result=0;
     int mainPause = 0;
     int mtOnly = 0;
+    int bigTests = 1;
     const char* const programName = argv[0];
     ZSTD_customMem const customMem = { allocFunction, freeFunction, NULL };
     ZSTD_customMem const customNULL = { NULL, NULL, NULL };
@@ -1076,6 +1085,7 @@ int main(int argc, const char** argv)
         if (argument[0]=='-') {
 
             if (!strcmp(argument, "--mt")) { mtOnly=1; continue; }
+            if (!strcmp(argument, "--no-big-tests")) { bigTests=0; continue; }
 
             argument++;
             while (*argument!=0) {
@@ -1181,8 +1191,8 @@ int main(int argc, const char** argv)
             result = basicUnitTests(0, ((double)proba) / 100, customMem);  /* use custom memory allocation functions */
     }   }
 
-    if (!result && !mtOnly) result = fuzzerTests(seed, nbTests, testNb, ((double)proba) / 100);
-    if (!result) result = fuzzerTests_MT(seed, nbTests, testNb, ((double)proba) / 100);
+    if (!result && !mtOnly) result = fuzzerTests(seed, nbTests, testNb, ((double)proba) / 100, bigTests);
+    if (!result) result = fuzzerTests_MT(seed, nbTests, testNb, ((double)proba) / 100, bigTests);
 
     if (mainPause) {
         int unused;

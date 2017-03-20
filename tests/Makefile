@@ -300,10 +300,10 @@ test-fullbench32: fullbench32 datagen
 	$(QEMU_SYS) ./fullbench32 -i1 -P0
 
 test-fuzzer: fuzzer
-	$(QEMU_SYS) ./fuzzer $(FUZZERTEST)
+	$(QEMU_SYS) ./fuzzer $(FUZZERTEST) $(FUZZER_FLAGS)
 
 test-fuzzer32: fuzzer32
-	$(QEMU_SYS) ./fuzzer32 $(FUZZERTEST)
+	$(QEMU_SYS) ./fuzzer32 $(FUZZERTEST) $(FUZZER_FLAGS)
 
 test-zbuff: zbufftest
 	$(QEMU_SYS) ./zbufftest $(ZSTREAM_TESTTIME)
@@ -312,10 +312,10 @@ test-zbuff32: zbufftest32
 	$(QEMU_SYS) ./zbufftest32 $(ZSTREAM_TESTTIME)
 
 test-zstream: zstreamtest
-	$(QEMU_SYS) ./zstreamtest $(ZSTREAM_TESTTIME)
+	$(QEMU_SYS) ./zstreamtest $(ZSTREAM_TESTTIME) $(FUZZER_FLAGS)
 
 test-zstream32: zstreamtest32
-	$(QEMU_SYS) ./zstreamtest32 $(ZSTREAM_TESTTIME)
+	$(QEMU_SYS) ./zstreamtest32 $(ZSTREAM_TESTTIME) $(FUZZER_FLAGS)
 
 test-longmatch: longmatch
 	$(QEMU_SYS) ./longmatch

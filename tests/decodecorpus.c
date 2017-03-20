@@ -98,7 +98,7 @@ static void RAND_bufferMaxSymb(U32* seed, void* ptr, size_t size, int maxSymb)
     BYTE* op = ptr;
 
     for (i = 0; i < size; i++) {
-        op[i] = RAND(seed) % (maxSymb + 1);
+        op[i] = (BYTE) (RAND(seed) % (maxSymb + 1));
     }
 }
 
@@ -134,8 +134,8 @@ static void RAND_genDist(U32* seed, BYTE* dist, double weight)
 {
     size_t i = 0;
     size_t statesLeft = DISTSIZE;
-    BYTE symb = RAND(seed) % 256;
-    BYTE step = (RAND(seed) % 256) | 1; /* force it to be odd so it's relatively prime to 256 */
+    BYTE symb = (BYTE) (RAND(seed) % 256);
+    BYTE step = (BYTE) ((RAND(seed) % 256) | 1); /* force it to be odd so it's relatively prime to 256 */
 
     while (i < DISTSIZE) {
         size_t states = ((size_t)(weight * statesLeft)) + 1;
@@ -259,7 +259,7 @@ static void writeFrameHeader(U32* seed, frame_t* frame)
         /* Follow window algorithm from specification */
         int const exponent = RAND(seed) % (MAX_WINDOW_LOG - 10);
         int const mantissa = RAND(seed) % 8;
-        windowByte = (exponent << 3) | mantissa;
+        windowByte = (BYTE) ((exponent << 3) | mantissa);
         fh.windowSize = (1U << (exponent + 10));
         fh.windowSize += fh.windowSize / 8 * mantissa;
     }
@@ -284,7 +284,7 @@ static void writeFrameHeader(U32* seed, frame_t* frame)
 
         if (contentSizeFlag && (fh.contentSize == 0 || !(RAND(seed) & 7))) {
             /* do single segment sometimes */
-            fh.windowSize = fh.contentSize;
+            fh.windowSize = (U32) fh.contentSize;
             singleSegment = 1;
         }
     }
@@ -307,7 +307,7 @@ static void writeFrameHeader(U32* seed, frame_t* frame)
 
     {
         BYTE const frameHeaderDescriptor =
-                (fcsCode << 6) | (singleSegment << 5) | (1 << 2);
+                (BYTE) ((fcsCode << 6) | (singleSegment << 5) | (1 << 2));
         op[pos++] = frameHeaderDescriptor;
     }
 
@@ -318,10 +318,10 @@ static void writeFrameHeader(U32* seed, frame_t* frame)
     if (contentSizeFlag) {
         switch (fcsCode) {
         default: /* Impossible */
-        case 0: op[pos++] = fh.contentSize; break;
-        case 1: MEM_writeLE16(op + pos, fh.contentSize - 256); pos += 2; break;
-        case 2: MEM_writeLE32(op + pos, fh.contentSize); pos += 4; break;
-        case 3: MEM_writeLE64(op + pos, fh.contentSize); pos += 8; break;
+        case 0: op[pos++] = (BYTE) fh.contentSize; break;
+        case 1: MEM_writeLE16(op + pos, (U16) (fh.contentSize - 256)); pos += 2; break;
+        case 2: MEM_writeLE32(op + pos, (U32) fh.contentSize); pos += 4; break;
+        case 3: MEM_writeLE64(op + pos, (U64) fh.contentSize); pos += 8; break;
         }
     }
 
@@ -385,7 +385,7 @@ static size_t writeLiteralsBlockSimple(U32* seed, frame_t* frame, size_t content
         op += litSize;
     } else {
         /* RLE literals */
-        BYTE const symb = RAND(seed) % 256;
+        BYTE const symb = (BYTE) (RAND(seed) % 256);
 
         DISPLAYLEVEL(4, "   rle literals: 0x%02x\n", (U32)symb);
 
@@ -647,10 +647,10 @@ static U32 generateSequences(U32* seed, frame_t* frame, seqStore_t* seqStore,
         U32 offset, offsetCode, repIndex;
 
         /* bounds checks */
-        matchLen = MIN(matchLen, excessMatch + MIN_SEQ_LEN);
-        literalLen = MIN(literalLen, literalsSize);
+        matchLen = (U32) MIN(matchLen, excessMatch + MIN_SEQ_LEN);
+        literalLen = MIN(literalLen, (U32) literalsSize);
         if (i == 0 && srcPtr == frame->srcStart && literalLen == 0) literalLen = 1;
-        if (i + 1 == numSequences) matchLen = MIN_SEQ_LEN + excessMatch;
+        if (i + 1 == numSequences) matchLen = MIN_SEQ_LEN + (U32) excessMatch;
 
         memcpy(srcPtr, literals, literalLen);
         srcPtr += literalLen;
@@ -1027,8 +1027,8 @@ static void writeBlock(U32* seed, frame_t* frame, size_t contentSize,
     DISPLAYLEVEL(3, "  block type: %s\n", BLOCK_TYPES[blockType]);
     DISPLAYLEVEL(3, "  block size field: %u\n", (U32)blockSize);
 
-    header[0] = (lastBlock | (blockType << 1) | (blockSize << 3)) & 0xff;
-    MEM_writeLE16(header + 1, blockSize >> 5);
+    header[0] = (BYTE) ((lastBlock | (blockType << 1) | (blockSize << 3)) & 0xff);
+    MEM_writeLE16(header + 1, (U16) (blockSize >> 5));
 
     frame->data = op;
 }
@@ -1300,7 +1300,7 @@ static int generateCorpus(U32 seed, unsigned numFiles, const char* const path,
 *********************************************************/
 static U32 makeSeed(void)
 {
-    U32 t = time(NULL);
+    U32 t = (U32) time(NULL);
     return XXH32(&t, sizeof(t), 0) % 65536;
 }
 

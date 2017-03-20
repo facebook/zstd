@@ -14,6 +14,7 @@ PROJECT(libzstd)
 INCLUDE(${CMAKE_SOURCE_DIR}/CMakeModules/GetLibraryVersion.cmake)
 
 SET(CMAKE_INCLUDE_CURRENT_DIR TRUE)
+OPTION(ZSTD_BUILD_STATIC "BUILD STATIC LIBRARIES" OFF)
 
 # Define library directory, where sources and header files are located
 SET(LIBRARY_DIR ${ZSTD_SOURCE_DIR}/lib)
@@ -89,13 +90,17 @@ IF (MSVC)
 ENDIF (MSVC)
 
 # Split project to static and shared libraries build
-ADD_LIBRARY(libzstd_static STATIC ${Sources} ${Headers})
 ADD_LIBRARY(libzstd_shared SHARED ${Sources} ${Headers} ${PlatformDependResources})
+IF (ZSTD_BUILD_STATIC)
+    ADD_LIBRARY(libzstd_static STATIC ${Sources} ${Headers})
+ENDIF (ZSTD_BUILD_STATIC)
 
 # Add specific compile definitions for MSVC project
 IF (MSVC)
-    SET_TARGET_PROPERTIES(libzstd_static PROPERTIES COMPILE_DEFINITIONS "ZSTD_HEAPMODE=0;_CRT_SECURE_NO_WARNINGS")
     SET_TARGET_PROPERTIES(libzstd_shared PROPERTIES COMPILE_DEFINITIONS "ZSTD_DLL_EXPORT=1;ZSTD_HEAPMODE=0;_CONSOLE;_CRT_SECURE_NO_WARNINGS")
+    IF (ZSTD_BUILD_STATIC)
+        SET_TARGET_PROPERTIES(libzstd_static PROPERTIES COMPILE_DEFINITIONS "ZSTD_HEAPMODE=0;_CRT_SECURE_NO_WARNINGS")
+    ENDIF (ZSTD_BUILD_STATIC)
 ENDIF (MSVC)
 
 # Define library base name
@@ -112,21 +117,25 @@ ENDIF (MSVC)
 
 # Define static and shared library names
 SET_TARGET_PROPERTIES(
-        libzstd_static
-        PROPERTIES
-        OUTPUT_NAME ${LIBRARY_BASE_NAME})
-
-SET_TARGET_PROPERTIES(
         libzstd_shared
         PROPERTIES
         OUTPUT_NAME ${LIBRARY_BASE_NAME}
         SOVERSION ${LIBVER_MAJOR}.${LIBVER_MINOR}.${LIBVER_RELEASE})
 
+IF (ZSTD_BUILD_STATIC)
+    SET_TARGET_PROPERTIES(
+            libzstd_static
+            PROPERTIES
+            OUTPUT_NAME ${LIBRARY_BASE_NAME})
+ENDIF (ZSTD_BUILD_STATIC)
+
 IF (UNIX)
     # install target
     INSTALL(FILES ${LIBRARY_DIR}/zstd.h ${LIBRARY_DIR}/deprecated/zbuff.h ${LIBRARY_DIR}/dictBuilder/zdict.h DESTINATION "include")
-    INSTALL(TARGETS libzstd_static ARCHIVE DESTINATION "lib")
     INSTALL(TARGETS libzstd_shared LIBRARY DESTINATION "lib")
+    IF (ZSTD_BUILD_STATIC)
+        INSTALL(TARGETS libzstd_static ARCHIVE DESTINATION "lib")
+    ENDIF (ZSTD_BUILD_STATIC)
 
     # uninstall target
     CONFIGURE_FILE(

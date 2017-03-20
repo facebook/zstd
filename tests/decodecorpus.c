@@ -325,7 +325,7 @@ static void writeFrameHeader(U32* seed, frame_t* frame)
         }
     }
 
-    DISPLAYLEVEL(2, " frame content size:\t%zu\n", fh.contentSize);
+    DISPLAYLEVEL(2, " frame content size:\t%u\n", (U32)fh.contentSize);
     DISPLAYLEVEL(2, " frame window size:\t%u\n", fh.windowSize);
     DISPLAYLEVEL(2, " content size flag:\t%d\n", contentSizeFlag);
     DISPLAYLEVEL(2, " single segment flag:\t%d\n", singleSegment);
@@ -542,8 +542,8 @@ static size_t writeLiteralsBlockCompressed(U32* seed, frame_t* frame, size_t con
         op += compressedSize;
 
         compressedSize += hufHeaderSize;
-        DISPLAYLEVEL(5, "    regenerated size: %zu\n", litSize);
-        DISPLAYLEVEL(5, "    compressed size: %zu\n", compressedSize);
+        DISPLAYLEVEL(5, "    regenerated size: %u\n", (U32)litSize);
+        DISPLAYLEVEL(5, "    compressed size: %u\n", (U32)compressedSize);
         if (compressedSize >= litSize) {
             DISPLAYLEVEL(5, "     trying again\n");
             /* if we have to try again, reset the stats so we don't accidentally
@@ -611,7 +611,7 @@ static U32 generateSequences(U32* seed, frame_t* frame, seqStore_t* seqStore,
     size_t const remainingMatch = contentSize - literalsSize;
     size_t excessMatch = 0;
     U32 numSequences = 0;
-  
+
     U32 i;
 
 
@@ -628,7 +628,7 @@ static U32 generateSequences(U32* seed, frame_t* frame, seqStore_t* seqStore,
         excessMatch = remainingMatch - numSequences * MIN_SEQ_LEN;
     }
 
-    DISPLAYLEVEL(5, "    total match lengths: %zu\n", remainingMatch);
+    DISPLAYLEVEL(5, "    total match lengths: %u\n", (U32)remainingMatch);
 
     for (i = 0; i < numSequences; i++) {
         /* Generate match and literal lengths by exponential distribution to
@@ -694,8 +694,8 @@ static U32 generateSequences(U32* seed, frame_t* frame, seqStore_t* seqStore,
         }
 
         DISPLAYLEVEL(6, "      LL: %5u OF: %5u ML: %5u", literalLen, offset, matchLen);
-        DISPLAYLEVEL(7, " srcPos: %8tu seqNb: %3u",
-                     (BYTE*)srcPtr - (BYTE*)frame->srcStart, i);
+        DISPLAYLEVEL(7, " srcPos: %8u seqNb: %3u",
+                     (U32)((BYTE*)srcPtr - (BYTE*)frame->srcStart), i);
         DISPLAYLEVEL(6, "\n");
         if (offsetCode < 3) {
             DISPLAYLEVEL(7, "        repeat offset: %d\n", repIndex);
@@ -711,8 +711,8 @@ static U32 generateSequences(U32* seed, frame_t* frame, seqStore_t* seqStore,
 
     memcpy(srcPtr, literals, literalsSize);
     srcPtr += literalsSize;
-    DISPLAYLEVEL(6, "      excess literals: %5zu", literalsSize);
-    DISPLAYLEVEL(7, " srcPos: %8tu", (BYTE*)srcPtr - (BYTE*)frame->srcStart);
+    DISPLAYLEVEL(6, "      excess literals: %5u", (U32)literalsSize);
+    DISPLAYLEVEL(7, " srcPos: %8u", (U32)((BYTE*)srcPtr - (BYTE*)frame->srcStart));
     DISPLAYLEVEL(6, "\n");
 
     return numSequences;
@@ -957,11 +957,11 @@ static size_t writeCompressedBlock(U32* seed, frame_t* frame, size_t contentSize
 
     literalsSize = writeLiteralsBlock(seed, frame, contentSize);
 
-    DISPLAYLEVEL(4, "   literals size: %zu\n", literalsSize);
+    DISPLAYLEVEL(4, "   literals size: %u\n", (U32)literalsSize);
 
     nbSeq = writeSequencesBlock(seed, frame, contentSize, literalsSize);
 
-    DISPLAYLEVEL(4, "   number of sequences: %zu\n", nbSeq);
+    DISPLAYLEVEL(4, "   number of sequences: %u\n", (U32)nbSeq);
 
     return (BYTE*)frame->data - blockStart;
 }
@@ -977,7 +977,7 @@ static void writeBlock(U32* seed, frame_t* frame, size_t contentSize,
     BYTE *op = header + 3;
 
     DISPLAYLEVEL(3, " block:\n");
-    DISPLAYLEVEL(3, "  block content size: %zu\n", contentSize);
+    DISPLAYLEVEL(3, "  block content size: %u\n", (U32)contentSize);
     DISPLAYLEVEL(3, "  last block: %s\n", lastBlock ? "yes" : "no");
 
     if (blockTypeDesc == 0) {
@@ -1025,7 +1025,7 @@ static void writeBlock(U32* seed, frame_t* frame, size_t contentSize,
     frame->src = (BYTE*)frame->src + contentSize;
 
     DISPLAYLEVEL(3, "  block type: %s\n", BLOCK_TYPES[blockType]);
-    DISPLAYLEVEL(3, "  block size field: %zu\n", blockSize);
+    DISPLAYLEVEL(3, "  block size field: %u\n", (U32)blockSize);
 
     header[0] = (lastBlock | (blockType << 1) | (blockSize << 3)) & 0xff;
     MEM_writeLE16(header + 1, blockSize >> 5);

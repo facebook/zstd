@@ -616,7 +616,7 @@ static size_t FUZ_randomLength(U32* seed, U32 maxLog)
 #define CHECK(cond, ...) if (cond) { DISPLAY("Error => "); DISPLAY(__VA_ARGS__); \
                          DISPLAY(" (seed %u, test nb %u)  \n", seed, testNb); goto _output_error; }
 
-static int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, U32 const maxDurationS, double compressibility)
+static int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, U32 const maxDurationS, double compressibility, int bigTests)
 {
     static const U32 maxSrcLog = 23;
     static const U32 maxSampleLog = 22;
@@ -636,6 +636,7 @@ static int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, U32 const maxD
     U32 coreSeed = seed, lseed = 0;
     clock_t const startClock = clock();
     clock_t const maxClockSpan = maxDurationS * CLOCKS_PER_SEC;
+    int const cLevelLimiter = bigTests ? 3 : 2;
 
     /* allocation */
     cNoiseBuffer[0] = (BYTE*)malloc (srcBufferSize);
@@ -701,7 +702,12 @@ static int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, U32 const maxD
         crcOrig = XXH64(sampleBuffer, sampleSize, 0);
 
         /* compression tests */
-        {   unsigned const cLevel = (FUZ_rand(&lseed) % (ZSTD_maxCLevel() - (FUZ_highbit32((U32)sampleSize)/3))) + 1;
+        {
+            unsigned const cLevel =
+                    (FUZ_rand(&lseed) %
+                     (ZSTD_maxCLevel() -
+                      (FUZ_highbit32((U32)sampleSize) / cLevelLimiter))) +
+                    1;
             cSize = ZSTD_compressCCtx(ctx, cBuffer, cBufferSize, sampleBuffer, sampleSize, cLevel);
             CHECK(ZSTD_isError(cSize), "ZSTD_compressCCtx failed : %s", ZSTD_getErrorName(cSize));
 
@@ -801,7 +807,10 @@ static int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, U32 const maxD
 
         {   U32 const testLog = FUZ_rand(&lseed) % maxSrcLog;
             U32 const dictLog = FUZ_rand(&lseed) % maxSrcLog;
-            int const cLevel = (FUZ_rand(&lseed) % (ZSTD_maxCLevel() - (MAX(testLog, dictLog)/3))) + 1;
+            int const cLevel = (FUZ_rand(&lseed) %
+                                (ZSTD_maxCLevel() -
+                                 (MAX(testLog, dictLog) / cLevelLimiter))) +
+                               1;
             maxTestSize = FUZ_rLogLength(&lseed, testLog);
             if (maxTestSize >= dstBufferSize) maxTestSize = dstBufferSize-1;
 
@@ -927,6 +936,7 @@ int main(int argc, const char** argv)
     int result=0;
     U32 mainPause = 0;
     U32 maxDuration = 0;
+    int bigTests = 1;
     const char* programName = argv[0];
 
     /* Check command line */
@@ -936,6 +946,9 @@ int main(int argc, const char** argv)
 
         /* Handle commands. Aggregated commands are allowed */
         if (argument[0]=='-') {
+
+            if (!strcmp(argument, "--no-big-tests")) { bigTests=0; continue; }
+
             argument++;
             while (*argument!=0) {
                 switch(*argument)
@@ -1030,7 +1043,7 @@ int main(int argc, const char** argv)
     if (testNb==0)
         result = basicUnitTests(0, ((double)proba) / 100);  /* constant seed for predictability */
     if (!result)
-        result = fuzzerTests(seed, nbTests, testNb, maxDuration, ((double)proba) / 100);
+        result = fuzzerTests(seed, nbTests, testNb, maxDuration, ((double)proba) / 100, bigTests);
     if (mainPause) {
         int unused;
         DISPLAY("Press Enter \n");

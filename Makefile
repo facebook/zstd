@@ -152,16 +152,16 @@ ppc64build: clean
 	CC=powerpc-linux-gnu-gcc CFLAGS="-m64 -Werror" $(MAKE) allarch
 
 armfuzz: clean
-	CC=arm-linux-gnueabi-gcc QEMU_SYS=qemu-arm-static MOREFLAGS="-static" $(MAKE) -C $(TESTDIR) fuzztest
+	CC=arm-linux-gnueabi-gcc QEMU_SYS=qemu-arm-static MOREFLAGS="-static" FUZZER_FLAGS=--no-big-tests $(MAKE) -C $(TESTDIR) fuzztest
 
 aarch64fuzz: clean
-	CC=aarch64-linux-gnu-gcc QEMU_SYS=qemu-aarch64-static MOREFLAGS="-static" $(MAKE) -C $(TESTDIR) fuzztest
+	CC=aarch64-linux-gnu-gcc QEMU_SYS=qemu-aarch64-static MOREFLAGS="-static" FUZZER_FLAGS=--no-big-tests $(MAKE) -C $(TESTDIR) fuzztest
 
 ppcfuzz: clean
-	CC=powerpc-linux-gnu-gcc QEMU_SYS=qemu-ppc-static MOREFLAGS="-static" $(MAKE) -C $(TESTDIR) fuzztest
+	CC=powerpc-linux-gnu-gcc QEMU_SYS=qemu-ppc-static MOREFLAGS="-static" FUZZER_FLAGS=--no-big-tests $(MAKE) -C $(TESTDIR) fuzztest
 
 ppc64fuzz: clean
-	CC=powerpc-linux-gnu-gcc QEMU_SYS=qemu-ppc64-static MOREFLAGS="-m64 -static" $(MAKE) -C $(TESTDIR) fuzztest
+	CC=powerpc-linux-gnu-gcc QEMU_SYS=qemu-ppc64-static MOREFLAGS="-m64 -static" FUZZER_FLAGS=--no-big-tests $(MAKE) -C $(TESTDIR) fuzztest
 
 gpptest: clean
 	CC=g++ $(MAKE) -C $(PRGDIR) all CFLAGS="-O3 -Wall -Wextra -Wundef -Wshadow -Wcast-align -Werror"
@@ -180,19 +180,19 @@ clangtest: clean
 
 armtest: clean
 	$(MAKE) -C $(TESTDIR) datagen   # use native, faster
-	$(MAKE) -C $(TESTDIR) test CC=arm-linux-gnueabi-gcc QEMU_SYS=qemu-arm-static ZSTDRTTEST= MOREFLAGS="-Werror -static"
+	$(MAKE) -C $(TESTDIR) test CC=arm-linux-gnueabi-gcc QEMU_SYS=qemu-arm-static ZSTDRTTEST= MOREFLAGS="-Werror -static" FUZZER_FLAGS=--no-big-tests
 
 aarch64test:
 	$(MAKE) -C $(TESTDIR) datagen   # use native, faster
-	$(MAKE) -C $(TESTDIR) test CC=aarch64-linux-gnu-gcc QEMU_SYS=qemu-aarch64-static ZSTDRTTEST= MOREFLAGS="-Werror -static"
+	$(MAKE) -C $(TESTDIR) test CC=aarch64-linux-gnu-gcc QEMU_SYS=qemu-aarch64-static ZSTDRTTEST= MOREFLAGS="-Werror -static" FUZZER_FLAGS=--no-big-tests
 
 ppctest: clean
 	$(MAKE) -C $(TESTDIR) datagen   # use native, faster
-	$(MAKE) -C $(TESTDIR) test CC=powerpc-linux-gnu-gcc QEMU_SYS=qemu-ppc-static ZSTDRTTEST= MOREFLAGS="-Werror -Wno-attributes -static"
+	$(MAKE) -C $(TESTDIR) test CC=powerpc-linux-gnu-gcc QEMU_SYS=qemu-ppc-static ZSTDRTTEST= MOREFLAGS="-Werror -Wno-attributes -static" FUZZER_FLAGS=--no-big-tests
 
 ppc64test: clean
 	$(MAKE) -C $(TESTDIR) datagen   # use native, faster
-	$(MAKE) -C $(TESTDIR) test CC=powerpc-linux-gnu-gcc QEMU_SYS=qemu-ppc64-static ZSTDRTTEST= MOREFLAGS="-m64 -static"
+	$(MAKE) -C $(TESTDIR) test CC=powerpc-linux-gnu-gcc QEMU_SYS=qemu-ppc64-static ZSTDRTTEST= MOREFLAGS="-m64 -static" FUZZER_FLAGS=--no-big-tests
 
 arm-ppc-compilation:
 	$(MAKE) -C $(PRGDIR) clean zstd CC=arm-linux-gnueabi-gcc QEMU_SYS=qemu-arm-static ZSTDRTTEST= MOREFLAGS="-Werror -static"

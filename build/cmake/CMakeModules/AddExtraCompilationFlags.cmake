@@ -20,7 +20,7 @@ function(EnableCompilerFlag _flag _C _CXX)
 endfunction()
 
 MACRO(ADD_EXTRA_COMPILATION_FLAGS)
-    if (CMAKE_COMPILER_IS_GNUCXX OR MINGW) #Not only UNIX but also WIN32 for MinGW
+    if (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang" OR MINGW) #Not only UNIX but also WIN32 for MinGW
         #Set c++11 by default
         EnableCompilerFlag("-std=c++11" false true)
         #Set c99 by default

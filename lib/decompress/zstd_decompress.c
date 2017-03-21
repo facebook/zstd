@@ -2209,9 +2209,13 @@ size_t ZSTD_freeDStream(ZSTD_DStream* zds)
     if (zds==NULL) return 0;   /* support free on null */
     {   ZSTD_customMem const cMem = zds->customMem;
         ZSTD_freeDCtx(zds->dctx);
+        zds->dctx = NULL;
         ZSTD_freeDDict(zds->ddictLocal);
+        zds->ddictLocal = NULL;
         ZSTD_free(zds->inBuff, cMem);
+        zds->inBuff = NULL;
         ZSTD_free(zds->outBuff, cMem);
+        zds->outBuff = NULL;
 #if defined(ZSTD_LEGACY_SUPPORT) && (ZSTD_LEGACY_SUPPORT >= 1)
         if (zds->legacyContext)
             ZSTD_freeLegacyStreamContext(zds->legacyContext, zds->previousLegacyVersion);

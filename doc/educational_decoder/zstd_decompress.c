@@ -1598,11 +1598,16 @@ static inline void IO_rewind_bits(istream_t *const in, int num) {
         ERROR("Attempting to rewind stream by a negative number of bits");
     }
 
+    /* move the offset back by `num` bits */
     const int new_offset = in->bit_offset - num;
-    const i64 bytes = (new_offset - 7) / 8;
+    /* determine the number of whole bytes we have to rewind, rounding up to an
+     * integer number (e.g. if `new_offset == -5`, `bytes == 1`) */
+    const i64 bytes = -(new_offset - 7) / 8;
 
-    in->ptr += bytes;
-    in->len -= bytes;
+    in->ptr -= bytes;
+    in->len += bytes;
+    /* make sure the resulting `bit_offset` is positive, as mod in C does not
+     * convert numbers from negative to positive (e.g. -22 % 8 == -6) */
     in->bit_offset = ((new_offset % 8) + 8) % 8;
 }
 

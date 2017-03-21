@@ -13,4 +13,5 @@
 PROJECT(contrib)
 
 ADD_SUBDIRECTORY(pzstd)
+ADD_SUBDIRECTORY(gen_html)
 

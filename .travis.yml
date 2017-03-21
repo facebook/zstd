@@ -27,7 +27,7 @@ matrix:
     - env: Cmd='make gcc6install && CC=gcc-6 make uasan-test-zbuff'
 
     # OS X Mavericks
-    - env: Cmd="make gnu90build && make clean && make test && make clean && make travis-install"
+    - env: Cmd="make gnu90build && make clean && make test && make clean && make cmakebuild && make travis-install"
       os: osx
 
 git:

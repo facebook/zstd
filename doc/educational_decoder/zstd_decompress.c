@@ -87,9 +87,9 @@ typedef struct {
 /// non-byte aligned
 
 /// Reads `num` bits from a bitstream, and updates the internal offset
-static inline u64 IO_read_bits(istream_t *const in, const int num);
+static inline u64 IO_read_bits(istream_t *const in, const int num_bits);
 /// Rewinds the stream by `num` bits
-static inline void IO_rewind_bits(istream_t *const in, const int num);
+static inline void IO_rewind_bits(istream_t *const in, const int num_bits);
 /// If the remaining bits in a byte will be unused, advance to the end of the
 /// byte
 static inline void IO_align_stream(istream_t *const in);
@@ -124,7 +124,7 @@ static inline istream_t IO_make_sub_istream(istream_t *const in, size_t len);
 
 /*** BITSTREAM OPERATIONS *************/
 /// Read `num` bits (up to 64) from `src + offset`, where `offset` is in bits
-static inline u64 read_bits_LE(const u8 *src, const int num,
+static inline u64 read_bits_LE(const u8 *src, const int num_bits,
                                const size_t offset);
 
 /// Read bits from the end of a HUF or FSE bitstream.  `offset` is in bits, so
@@ -136,9 +136,8 @@ static inline u64 STREAM_read_bits(const u8 *src, const int bits,
 /*** END BITSTREAM OPERATIONS *********/
 
 /*** BIT COUNTING OPERATIONS **********/
-/// Returns `x`, where `2^x` is the largest power of 2 less than or equal to
-/// `num`, or `-1` if `num == 0`.
-static inline int log2inf(const u64 num);
+/// Returns the index of the highest set bit in `num`, or `-1` if `num == 0`
+static inline int highest_set_bit(const u64 num);
 /*** END BIT COUNTING OPERATIONS ******/
 
 /*** HUFFMAN PRIMITIVES ***************/
@@ -1157,7 +1156,7 @@ static void decompress_sequences(frame_context_t *const ctx, istream_t *in,
 
     // "After writing the last bit containing information, the compressor writes
     // a single 1-bit and then fills the byte with 0-7 0 bits of padding."
-    const int padding = 8 - log2inf(src[len - 1]);
+    const int padding = 8 - highest_set_bit(src[len - 1]);
     i64 offset = len * 8 - padding;
 
     // "The bitstream starts with initial state values, each using the required
@@ -1571,20 +1570,20 @@ static void free_dictionary(dictionary_t *const dict) {
 /******* IO STREAM OPERATIONS *************************************************/
 #define UNALIGNED() ERROR("Attempting to operate on a non-byte aligned stream")
 /// Reads `num` bits from a bitstream, and updates the internal offset
-static inline u64 IO_read_bits(istream_t *const in, const int num) {
-    if (num > 64 || num <= 0) {
+static inline u64 IO_read_bits(istream_t *const in, const int num_bits) {
+    if (num_bits > 64 || num_bits <= 0) {
         ERROR("Attempt to read an invalid number of bits");
     }
 
-    const size_t bytes = (num + in->bit_offset + 7) / 8;
-    const size_t full_bytes = (num + in->bit_offset) / 8;
+    const size_t bytes = (num_bits + in->bit_offset + 7) / 8;
+    const size_t full_bytes = (num_bits + in->bit_offset) / 8;
     if (bytes > in->len) {
         INP_SIZE();
     }
 
-    const u64 result = read_bits_LE(in->ptr, num, in->bit_offset);
+    const u64 result = read_bits_LE(in->ptr, num_bits, in->bit_offset);
 
-    in->bit_offset = (num + in->bit_offset) % 8;
+    in->bit_offset = (num_bits + in->bit_offset) % 8;
     in->ptr += full_bytes;
     in->len -= full_bytes;
 
@@ -1593,16 +1592,21 @@ static inline u64 IO_read_bits(istream_t *const in, const int num) {
 
 /// If a non-zero number of bits have been read from the current byte, advance
 /// the offset to the next byte
-static inline void IO_rewind_bits(istream_t *const in, int num) {
-    if (num < 0) {
+static inline void IO_rewind_bits(istream_t *const in, int num_bits) {
+    if (num_bits < 0) {
         ERROR("Attempting to rewind stream by a negative number of bits");
     }
 
-    const int new_offset = in->bit_offset - num;
-    const i64 bytes = (new_offset - 7) / 8;
+    // move the offset back by `num_bits` bits
+    const int new_offset = in->bit_offset - num_bits;
+    // determine the number of whole bytes we have to rewind, rounding up to an
+    // integer number (e.g. if `new_offset == -5`, `bytes == 1`)
+    const i64 bytes = -(new_offset - 7) / 8;
 
-    in->ptr += bytes;
-    in->len -= bytes;
+    in->ptr -= bytes;
+    in->len += bytes;
+    // make sure the resulting `bit_offset` is positive, as mod in C does not
+    // convert numbers from negative to positive (e.g. -22 % 8 == -6)
     in->bit_offset = ((new_offset % 8) + 8) % 8;
 }
 
@@ -1707,9 +1711,9 @@ static inline istream_t IO_make_sub_istream(istream_t *const in, size_t len) {
 
 /******* BITSTREAM OPERATIONS *************************************************/
 /// Read `num` bits (up to 64) from `src + offset`, where `offset` is in bits
-static inline u64 read_bits_LE(const u8 *src, const int num,
+static inline u64 read_bits_LE(const u8 *src, const int num_bits,
                                const size_t offset) {
-    if (num > 64) {
+    if (num_bits > 64) {
         ERROR("Attempt to read an invalid number of bits");
     }
 
@@ -1719,7 +1723,7 @@ static inline u64 read_bits_LE(const u8 *src, const int num,
     u64 res = 0;
 
     int shift = 0;
-    int left = num;
+    int left = num_bits;
     while (left > 0) {
         u64 mask = left >= 8 ? 0xff : (((u64)1 << left) - 1);
         // Dead the next byte, shift it to account for the offset, and then mask
@@ -1761,7 +1765,7 @@ static inline u64 STREAM_read_bits(const u8 *const src, const int bits,
 /******* BIT COUNTING OPERATIONS **********************************************/
 /// Returns `x`, where `2^x` is the largest power of 2 less than or equal to
 /// `num`, or `-1` if `num == 0`.
-static inline int log2inf(const u64 num) {
+static inline int highest_set_bit(const u64 num) {
     for (int i = 63; i >= 0; i--) {
         if (((u64)1 << i) <= num) {
             return i;
@@ -1813,7 +1817,7 @@ static size_t HUF_decompress_1stream(const HUF_dtable *const dtable,
     // final-bit-flag. Consequently, a last byte of 0 is not possible. And the
     // final-bit-flag itself is not part of the useful bitstream. Hence, the
     // last byte contains between 0 and 7 useful bits."
-    const int padding = 8 - log2inf(src[len - 1]);
+    const int padding = 8 - highest_set_bit(src[len - 1]);
 
     i64 offset = len * 8 - padding;
     u16 state;
@@ -1960,7 +1964,7 @@ static void HUF_init_dtable_usingweights(HUF_dtable *const table,
     }
 
     // Find the first power of 2 larger than the sum
-    const int max_bits = log2inf(weight_sum) + 1;
+    const int max_bits = highest_set_bit(weight_sum) + 1;
     const u64 left_over = ((u64)1 << max_bits) - weight_sum;
     // If the left over isn't a power of 2, the weights are invalid
     if (left_over & (left_over - 1)) {
@@ -1969,7 +1973,7 @@ static void HUF_init_dtable_usingweights(HUF_dtable *const table,
 
     // left_over is used to find the last weight as it's not transmitted
     // by inverting 2^(weight - 1) we can determine the value of last_weight
-    const int last_weight = log2inf(left_over) + 1;
+    const int last_weight = highest_set_bit(left_over) + 1;
 
     for (int i = 0; i < num_symbs; i++) {
         // "Number_of_Bits = Number_of_Bits ? Max_Number_of_Bits + 1 - Weight : 0"
@@ -2063,7 +2067,7 @@ static size_t FSE_decompress_interleaved2(const FSE_dtable *const dtable,
     // final-bit-flag. Consequently, a last byte of 0 is not possible. And the
     // final-bit-flag itself is not part of the useful bitstream. Hence, the
     // last byte contains between 0 and 7 useful bits."
-    const int padding = 8 - log2inf(src[len - 1]);
+    const int padding = 8 - highest_set_bit(src[len - 1]);
     i64 offset = len * 8 - padding;
 
     u16 state1, state2;
@@ -2184,7 +2188,7 @@ static void FSE_init_dtable(FSE_dtable *const dtable,
         u16 next_state_desc = state_desc[symbol]++;
         // Fills in the table appropriately, next_state_desc increases by symbol
         // over time, decreasing number of bits
-        dtable->num_bits[i] = (u8)(accuracy_log - log2inf(next_state_desc));
+        dtable->num_bits[i] = (u8)(accuracy_log - highest_set_bit(next_state_desc));
         // Baseline increases until the bit threshold is passed, at which point
         // it resets to 0
         dtable->new_state_base[i] =
@@ -2235,7 +2239,7 @@ static void FSE_decode_header(FSE_dtable *const dtable, istream_t *const in,
     int symb = 0;
     while (remaining > 0 && symb < FSE_MAX_SYMBS) {
         // Log of the number of possible values we could read
-        int bits = log2inf(remaining + 1) + 1;
+        int bits = highest_set_bit(remaining + 1) + 1;
 
         u16 val = IO_read_bits(in, bits);
 

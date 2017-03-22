@@ -24,6 +24,12 @@ zstdmt
 tmp*
 dictionary*
 
+# Build artefacts
+projects/
+bin/
+.buckd/
+buck-out/
+
 # Other files
 .directory
 _codelite/
@@ -34,8 +40,3 @@ _zstdbench/
 .DS_Store
 googletest/
 *.d
-
-# Directories
-bin/
-.buckd/
-buck-out/

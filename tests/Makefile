@@ -65,13 +65,15 @@ FUZZERTEST ?= -T5mn
 ZSTDRTTEST = --test-large-data
 DECODECORPUS_TESTTIME ?= -T30
 
-.PHONY: default all all32 dll clean test test32 test-all namespaceTest versionsTest
+.PHONY: default all all32 allnothread dll clean test test32 test-all namespaceTest versionsTest
 
 default: fullbench
 
-all: fullbench fuzzer zstreamtest paramgrill datagen zbufftest
+all: fullbench fuzzer zstreamtest paramgrill datagen zbufftest decodecorpus
 
 all32: fullbench32 fuzzer32 zstreamtest32 zbufftest32
+
+allnothread: fullbench fuzzer paramgrill datagen zbufftest decodecorpus
 
 dll: fuzzer-dll zstreamtest-dll zbufftest-dll
 

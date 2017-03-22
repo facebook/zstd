@@ -85,7 +85,7 @@ endif
 # zlib detection
 NO_ZLIB_MSG := ==> no zlib, building zstd without .gz support
 VOID = /dev/null
-HAVE_ZLIB := $(shell printf '\#include <zlib.h>\nint main(void) { return 0; }' | $(CC) $(FLAGS) -o have_zlib -x c - -lz 2> $(VOID) && rm have_zlib$(EXT) && echo 1 || echo 0)
+HAVE_ZLIB := $(shell printf '\#include <zlib.h>\nint main(void) { return 0; }' | $(CC) $(FLAGS) -o have_zlib$(EXT) -x c - -lz 2> $(VOID) && rm have_zlib$(EXT) && echo 1 || echo 0)
 ifeq ($(HAVE_ZLIB), 1)
 ZLIB_MSG := ==> building zstd with .gz compression support
 ZLIBCPP = -DZSTD_GZCOMPRESS -DZSTD_GZDECOMPRESS
@@ -95,7 +95,7 @@ ZLIB_MSG := $(NO_ZLIB_MSG)
 endif
 # lzma detection
 NO_LZMA_MSG := ==> no liblzma, building zstd without .xz/.lzma support
-HAVE_LZMA := $(shell printf '\#include <lzma.h>\nint main(void) { return 0; }' | $(CC) $(FLAGS) -o have_lzma -x c - -llzma 2> $(VOID) && rm have_lzma$(EXT) && echo 1 || echo 0)
+HAVE_LZMA := $(shell printf '\#include <lzma.h>\nint main(void) { return 0; }' | $(CC) $(FLAGS) -o have_lzma$(EXT) -x c - -llzma 2> $(VOID) && rm have_lzma$(EXT) && echo 1 || echo 0)
 ifeq ($(HAVE_LZMA), 1)
 LZMA_MSG := ==> building zstd with .xz/.lzma compression support
 LZMACPP = -DZSTD_LZMACOMPRESS -DZSTD_LZMADECOMPRESS

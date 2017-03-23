@@ -108,7 +108,7 @@ the last one takes effect.
 * `-o file`:
     save result into `file` (only possible with a single INPUT-FILE)
 * `-f`, `--force`:
-    overwrite output without prompting
+    overwrite output without prompting, and (de)compress symbolic links
 * `-c`, `--stdout`:
     force write to standard output, even if it is the console
 * `--[no-]sparse`:

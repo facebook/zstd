@@ -74,10 +74,10 @@ static U32 g_overlapLog = OVERLAP_LOG_DEFAULT;
 /*-************************************
 *  Display Macros
 **************************************/
-#define DISPLAY(...)           fprintf(displayOut, __VA_ARGS__)
-#define DISPLAYLEVEL(l, ...)   if (displayLevel>=l) { DISPLAY(__VA_ARGS__); }
-static FILE* displayOut;
-static unsigned displayLevel = DEFAULT_DISPLAY_LEVEL;   /* 0 : no display,  1: errors,  2 : + result + interaction + warnings,  3 : + progression,  4 : + information */
+#define DISPLAY(...)         fprintf(g_displayOut, __VA_ARGS__)
+#define DISPLAYLEVEL(l, ...) { if (g_displayLevel>=l) { DISPLAY(__VA_ARGS__); } }
+static int g_displayLevel = DEFAULT_DISPLAY_LEVEL;   /* 0 : no display,  1: errors,  2 : + result + interaction + warnings,  3 : + progression,  4 : + information */
+static FILE* g_displayOut;
 
 
 /*-************************************
@@ -99,7 +99,7 @@ static int usage(const char* programName)
 #endif
     DISPLAY( " -D file: use `file` as Dictionary \n");
     DISPLAY( " -o file: result stored into `file` (only if 1 input file) \n");
-    DISPLAY( " -f     : overwrite output without prompting \n");
+    DISPLAY( " -f     : overwrite output without prompting and (de)compress links \n");
     DISPLAY( "--rm    : remove source file(s) after successful de/compression \n");
     DISPLAY( " -k     : preserve source file(s) (default) \n");
     DISPLAY( " -h/-H  : display help/long help and exit\n");
@@ -167,7 +167,7 @@ static int usage_advanced(const char* programName)
 static int badusage(const char* programName)
 {
     DISPLAYLEVEL(1, "Incorrect parameters\n");
-    if (displayLevel >= 2) usage(programName);
+    if (g_displayLevel >= 2) usage(programName);
     return 1;
 }
 
@@ -270,6 +270,7 @@ int main(int argCount, const char* argv[])
 {
     int argNb,
         forceStdout=0,
+        followLinks=0,
         main_pause=0,
         nextEntryIsDictionary=0,
         operationResult=0,
@@ -316,7 +317,7 @@ int main(int argCount, const char* argv[])
     (void)memLimit;   /* not used when ZSTD_NODECOMPRESS set */
     if (filenameTable==NULL) { DISPLAY("zstd: %s \n", strerror(errno)); exit(1); }
     filenameTable[0] = stdinmark;
-    displayOut = stderr;
+    g_displayOut = stderr;
     /* Pick out program name from path. Don't rely on stdlib because of conflicting behavior */
     {   size_t pos;
         for (pos = (int)strlen(programName); pos > 0; pos--) { if (programName[pos] == '/') { pos++; break; } }
@@ -325,10 +326,10 @@ int main(int argCount, const char* argv[])
 
     /* preset behaviors */
     if (!strcmp(programName, ZSTD_UNZSTD)) operation=zom_decompress;
-    if (!strcmp(programName, ZSTD_CAT)) { operation=zom_decompress; forceStdout=1; FIO_overwriteMode(); outFileName=stdoutmark; displayLevel=1; }
+    if (!strcmp(programName, ZSTD_CAT)) { operation=zom_decompress; forceStdout=1; FIO_overwriteMode(); outFileName=stdoutmark; g_displayLevel=1; }
     if (!strcmp(programName, ZSTD_GZ)) { suffix = GZ_EXTENSION; FIO_setCompressionType(FIO_gzipCompression); FIO_setRemoveSrcFile(1); }    /* behave like gzip */
     if (!strcmp(programName, ZSTD_GUNZIP)) { operation=zom_decompress; FIO_setRemoveSrcFile(1); }                                          /* behave like gunzip */
-    if (!strcmp(programName, ZSTD_GZCAT)) { operation=zom_decompress; forceStdout=1; FIO_overwriteMode(); outFileName=stdoutmark; displayLevel=1; }  /* behave like gzcat */
+    if (!strcmp(programName, ZSTD_GZCAT)) { operation=zom_decompress; forceStdout=1; FIO_overwriteMode(); outFileName=stdoutmark; g_displayLevel=1; }  /* behave like gzcat */
     if (!strcmp(programName, ZSTD_LZMA)) { suffix = LZMA_EXTENSION; FIO_setCompressionType(FIO_lzmaCompression); FIO_setRemoveSrcFile(1); }    /* behave like lzma */
     if (!strcmp(programName, ZSTD_XZ)) { suffix = XZ_EXTENSION; FIO_setCompressionType(FIO_xzCompression); FIO_setRemoveSrcFile(1); }    /* behave like xz */
     memset(&compressionParams, 0, sizeof(compressionParams));
@@ -344,7 +345,7 @@ int main(int argCount, const char* argv[])
                 if (!filenameIdx) {
                     filenameIdx=1, filenameTable[0]=stdinmark;
                     outFileName=stdoutmark;
-                    displayLevel-=(displayLevel==2);
+                    g_displayLevel-=(g_displayLevel==2);
                     continue;
             }   }
 
@@ -357,12 +358,12 @@ int main(int argCount, const char* argv[])
                     if (!strcmp(argument, "--compress")) { operation=zom_compress; continue; }
                     if (!strcmp(argument, "--decompress")) { operation=zom_decompress; continue; }
                     if (!strcmp(argument, "--uncompress")) { operation=zom_decompress; continue; }
-                    if (!strcmp(argument, "--force")) { FIO_overwriteMode(); continue; }
-                    if (!strcmp(argument, "--version")) { displayOut=stdout; DISPLAY(WELCOME_MESSAGE); CLEAN_RETURN(0); }
-                    if (!strcmp(argument, "--help")) { displayOut=stdout; CLEAN_RETURN(usage_advanced(programName)); }
-                    if (!strcmp(argument, "--verbose")) { displayLevel++; continue; }
-                    if (!strcmp(argument, "--quiet")) { displayLevel--; continue; }
-                    if (!strcmp(argument, "--stdout")) { forceStdout=1; outFileName=stdoutmark; displayLevel-=(displayLevel==2); continue; }
+                    if (!strcmp(argument, "--force")) { FIO_overwriteMode(); forceStdout=1; followLinks=1; continue; }
+                    if (!strcmp(argument, "--version")) { g_displayOut=stdout; DISPLAY(WELCOME_MESSAGE); CLEAN_RETURN(0); }
+                    if (!strcmp(argument, "--help")) { g_displayOut=stdout; CLEAN_RETURN(usage_advanced(programName)); }
+                    if (!strcmp(argument, "--verbose")) { g_displayLevel++; continue; }
+                    if (!strcmp(argument, "--quiet")) { g_displayLevel--; continue; }
+                    if (!strcmp(argument, "--stdout")) { forceStdout=1; outFileName=stdoutmark; g_displayLevel-=(g_displayLevel==2); continue; }
                     if (!strcmp(argument, "--ultra")) { ultra=1; continue; }
                     if (!strcmp(argument, "--check")) { FIO_setChecksumFlag(2); continue; }
                     if (!strcmp(argument, "--no-check")) { FIO_setChecksumFlag(0); continue; }
@@ -424,9 +425,9 @@ int main(int argCount, const char* argv[])
                     switch(argument[0])
                     {
                         /* Display help */
-                    case 'V': displayOut=stdout; DISPLAY(WELCOME_MESSAGE); CLEAN_RETURN(0);   /* Version Only */
+                    case 'V': g_displayOut=stdout; DISPLAY(WELCOME_MESSAGE); CLEAN_RETURN(0);   /* Version Only */
                     case 'H':
-                    case 'h': displayOut=stdout; CLEAN_RETURN(usage_advanced(programName));
+                    case 'h': g_displayOut=stdout; CLEAN_RETURN(usage_advanced(programName));
 
                          /* Compress */
                     case 'z': operation=zom_compress; argument++; break;
@@ -445,13 +446,13 @@ int main(int argCount, const char* argv[])
                     case 'D': nextEntryIsDictionary = 1; lastCommand = 1; argument++; break;
 
                         /* Overwrite */
-                    case 'f': FIO_overwriteMode(); forceStdout=1; argument++; break;
+                    case 'f': FIO_overwriteMode(); forceStdout=1; followLinks=1; argument++; break;
 
                         /* Verbose mode */
-                    case 'v': displayLevel++; argument++; break;
+                    case 'v': g_displayLevel++; argument++; break;
 
                         /* Quiet mode */
-                    case 'q': displayLevel--; argument++; break;
+                    case 'q': g_displayLevel--; argument++; break;
 
                         /* keep source file (default); for gzip/xz compatibility */
                     case 'k': FIO_setRemoveSrcFile(0); argument++; break;
@@ -581,9 +582,22 @@ int main(int argCount, const char* argv[])
     DISPLAYLEVEL(4, "PLATFORM_POSIX_VERSION defined: %ldL\n", (long) PLATFORM_POSIX_VERSION);
 #endif
 
+
+    g_utilDisplayLevel = g_displayLevel;
+    if (!followLinks) {
+        unsigned u;
+        for (u=0, fileNamesNb=0; u<filenameIdx; u++) {
+            if (UTIL_isLink(filenameTable[u])) {
+                DISPLAYLEVEL(2, "Warning : %s is a symbolic link, ignoring\n", filenameTable[u]);
+            } else {
+                filenameTable[fileNamesNb++] = filenameTable[u];
+            }
+        }
+        filenameIdx = fileNamesNb;
+    }
 #ifdef UTIL_HAS_CREATEFILELIST
     if (recursive) {  /* at this stage, filenameTable is a list of paths, which can contain both files and directories */
-        extendedFileList = UTIL_createFileList(filenameTable, filenameIdx, &fileNamesBuf, &fileNamesNb);
+        extendedFileList = UTIL_createFileList(filenameTable, filenameIdx, &fileNamesBuf, &fileNamesNb, followLinks);
         if (extendedFileList) {
             unsigned u;
             for (u=0; u<fileNamesNb; u++) DISPLAYLEVEL(4, "%u %s\n", u, extendedFileList[u]);
@@ -597,7 +611,7 @@ int main(int argCount, const char* argv[])
     /* Check if benchmark is selected */
     if (operation==zom_bench) {
 #ifndef ZSTD_NOBENCH
-        BMK_setNotificationLevel(displayLevel);
+        BMK_setNotificationLevel(g_displayLevel);
         BMK_setBlockSize(blockSize);
         BMK_setNbThreads(nbThreads);
         BMK_setNbSeconds(bench_nbSeconds);
@@ -613,7 +627,7 @@ int main(int argCount, const char* argv[])
         if (cover) {
             coverParams.nbThreads = nbThreads;
             coverParams.compressionLevel = dictCLevel;
-            coverParams.notificationLevel = displayLevel;
+            coverParams.notificationLevel = g_displayLevel;
             coverParams.dictID = dictID;
             DiB_trainFromFiles(outFileName, maxDictSize, filenameTable, filenameIdx, NULL, &coverParams, cover - 1);
         } else {
@@ -621,7 +635,7 @@ int main(int argCount, const char* argv[])
             memset(&dictParams, 0, sizeof(dictParams));
             dictParams.compressionLevel = dictCLevel;
             dictParams.selectivityLevel = dictSelect;
-            dictParams.notificationLevel = displayLevel;
+            dictParams.notificationLevel = g_displayLevel;
             dictParams.dictID = dictID;
             DiB_trainFromFiles(outFileName, maxDictSize, filenameTable, filenameIdx, &dictParams, NULL, 0);
         }
@@ -654,11 +668,11 @@ int main(int argCount, const char* argv[])
 #endif
 
     /* No status message in pipe mode (stdin - stdout) or multi-files mode */
-    if (!strcmp(filenameTable[0], stdinmark) && outFileName && !strcmp(outFileName,stdoutmark) && (displayLevel==2)) displayLevel=1;
-    if ((filenameIdx>1) & (displayLevel==2)) displayLevel=1;
+    if (!strcmp(filenameTable[0], stdinmark) && outFileName && !strcmp(outFileName,stdoutmark) && (g_displayLevel==2)) g_displayLevel=1;
+    if ((filenameIdx>1) & (g_displayLevel==2)) g_displayLevel=1;
 
     /* IO Stream/File */
-    FIO_setNotificationLevel(displayLevel);
+    FIO_setNotificationLevel(g_displayLevel);
     if (operation==zom_compress) {
 #ifndef ZSTD_NOCOMPRESS
         FIO_setNbThreads(nbThreads);

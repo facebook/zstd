@@ -1,5 +1,5 @@
 .
-.TH "ZSTD" "1" "March 2017" "zstd 1.1.4" "User Commands"
+.TH "ZSTD" "1" "March 2017" "zstd 1.1.5" "User Commands"
 .
 .SH "NAME"
 \fBzstd\fR \- zstd, unzstd, zstdcat \- Compress or decompress \.zst files
@@ -110,7 +110,7 @@ save result into \fBfile\fR (only possible with a single INPUT\-FILE)
 .
 .TP
 \fB\-f\fR, \fB\-\-force\fR
-overwrite output without prompting
+overwrite output without prompting, and (de)compress symbolic links
 .
 .TP
 \fB\-c\fR, \fB\-\-stdout\fR

@@ -59,8 +59,6 @@ static int g_displayLevel = 2;
     if ((clock() - g_time > refreshRate) || (displayLevel >= 4)) {             \
       g_time = clock();                                                        \
       DISPLAY(__VA_ARGS__);                                                    \
-      if (displayLevel >= 4)                                                   \
-        fflush(stdout);                                                        \
     }                                                                          \
   }
 #define DISPLAYUPDATE(l, ...) LOCALDISPLAYUPDATE(g_displayLevel, l, __VA_ARGS__)

@@ -91,7 +91,7 @@ void usage() {
   std::fprintf(stderr, "  -#                     : # compression level (1-%d, default:%d)\n", kMaxNonUltraCompressionLevel, kDefaultCompressionLevel);
   std::fprintf(stderr, "  -d, --decompress       : decompression\n");
   std::fprintf(stderr, "  -o                file : result stored into `file` (only if 1 input file)\n");
-  std::fprintf(stderr, "  -f, --force            : overwrite output without prompting\n");
+  std::fprintf(stderr, "  -f, --force            : overwrite output without prompting, (de)compress links\n");
   std::fprintf(stderr, "      --rm               : remove source file(s) after successful (de)compression\n");
   std::fprintf(stderr, "  -k, --keep             : preserve source file(s) (default)\n");
   std::fprintf(stderr, "  -h, --help             : display help and exit\n");
@@ -121,6 +121,7 @@ Options::Status Options::parse(int argc, const char **argv) {
   bool recursive = false;
   bool ultra = false;
   bool forceStdout = false;
+  bool followLinks = false;
   // Local copy of input files, which are pointers into argv.
   std::vector<const char *> localInputFiles;
   for (int i = 1; i < argc; ++i) {
@@ -255,6 +256,7 @@ Options::Status Options::parse(int argc, const char **argv) {
       case 'f':
         overwrite = true;
         forceStdout = true;
+        followLinks = true;
         break;
       case 't':
         test = true;
@@ -328,13 +330,29 @@ Options::Status Options::parse(int argc, const char **argv) {
     }
   }
 
+  g_utilDisplayLevel = verbosity;
+  // Remove local input files that are symbolic links
+  if (!followLinks) {
+      std::remove_if(localInputFiles.begin(), localInputFiles.end(),
+                     [&](const char *path) {
+                        bool isLink = UTIL_isLink(path);
+                        if (isLink && verbosity >= 2) {
+                            std::fprintf(
+                                    stderr,
+                                    "Warning : %s is symbolic link, ignoring\n",
+                                    path);
+                        }
+                        return isLink;
+                    });
+  }
+
   // Translate input files/directories into files to (de)compress
   if (recursive) {
     char *scratchBuffer = nullptr;
     unsigned numFiles = 0;
     const char **files =
         UTIL_createFileList(localInputFiles.data(), localInputFiles.size(),
-                            &scratchBuffer, &numFiles);
+                            &scratchBuffer, &numFiles, followLinks);
     if (files == nullptr) {
       std::fprintf(stderr, "Error traversing directories\n");
       return Status::Failure;

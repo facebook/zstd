@@ -583,6 +583,7 @@ int main(int argCount, const char* argv[])
 #endif
 
 
+    g_utilDisplayLevel = g_displayLevel;
     if (!followLinks) {
         unsigned u;
         for (u=0, fileNamesNb=0; u<filenameIdx; u++) {

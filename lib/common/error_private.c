@@ -37,6 +37,7 @@ const char* ERR_getErrorString(ERR_enum code)
     case PREFIX(maxSymbolValue_tooSmall): return "Specified maxSymbolValue is too small";
     case PREFIX(dictionary_corrupted): return "Dictionary is corrupted";
     case PREFIX(dictionary_wrong): return "Dictionary mismatch";
+    case PREFIX(dictionaryCreation_failed): return "Cannot create Dictionary from provided samples";
     case PREFIX(maxCode):
     default: return notErrorCode;
     }

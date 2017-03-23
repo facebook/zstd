@@ -62,8 +62,9 @@
 #define MINRATIO 4
 static const int g_compressionLevel_default = 6;
 static const U32 g_selectivity_default = 9;
-static const size_t g_provision_entropySize = 200;
+static const size_t g_provision_entropySize = 192;
 static const size_t g_min_fast_dictContent = 192;
+static const size_t g_dictContentSize_min = 32;
 
 
 /*-*************************************
@@ -929,8 +930,8 @@ size_t ZDICT_trainFromBuffer_unsafe(
 
     /* checks */
     if (!dictList) return ERROR(memory_allocation);
-    if (maxDictSize <= g_provision_entropySize + g_min_fast_dictContent) { free(dictList); return ERROR(dstSize_tooSmall); }
-    if (samplesBuffSize < ZDICT_MIN_SAMPLES_SIZE) { free(dictList); return 0; }   /* not enough source to create dictionary */
+    if (maxDictSize <= g_provision_entropySize + g_min_fast_dictContent) { free(dictList); return ERROR(dstSize_tooSmall); }   /* requested dictionary size is too small */
+    if (samplesBuffSize < ZDICT_MIN_SAMPLES_SIZE) { free(dictList); return ERROR(dictionaryCreation_failed); }   /* not enough source to create dictionary */
 
     /* init */
     ZDICT_initDictItem(dictList);
@@ -963,6 +964,7 @@ size_t ZDICT_trainFromBuffer_unsafe(
 
     /* create dictionary */
     {   U32 dictContentSize = ZDICT_dictSize(dictList);
+        if (dictContentSize < g_dictContentSize_min) { free(dictList); return ERROR(dictionaryCreation_failed); }   /* dictionary content too small */
         if (dictContentSize < targetDictSize/3) {
             DISPLAYLEVEL(2, "!  warning : selected content significantly smaller than requested (%u < %u) \n", dictContentSize, (U32)maxDictSize);
             if (minRep > MINRATIO) {

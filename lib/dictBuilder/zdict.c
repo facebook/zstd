@@ -480,7 +480,7 @@ static size_t ZDICT_trainBuffer(dictItem* dictList, U32 dictListSize,
 #   define DISPLAYUPDATE(l, ...) if (notificationLevel>=l) { \
             if (ZDICT_clockSpan(displayClock) > refreshRate)  \
             { displayClock = clock(); DISPLAY(__VA_ARGS__); \
-            if (notificationLevel>=4) fflush(stdout); } }
+            if (notificationLevel>=4) fflush(stderr); } }
 
     /* init */
     DISPLAYLEVEL(2, "\r%70s\r", "");   /* clean display line */

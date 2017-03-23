@@ -169,6 +169,19 @@ $ECHO "$ECHO foo | $ZSTD > /dev/full"
 $ECHO foo | $ZSTD > /dev/full && die "write error not detected!"
 $ECHO "$ECHO foo | $ZSTD | $ZSTD -d > /dev/full"
 $ECHO foo | $ZSTD | $ZSTD -d > /dev/full && die "write error not detected!"
+
+$ECHO "\n**** symbolic link test **** "
+
+rm -f hello.tmp world.tmp hello.tmp.zst world.tmp.zst
+$ECHO "hello world" > hello.tmp
+ln -s hello.tmp world.tmp
+$ZSTD world.tmp hello.tmp
+ls hello.tmp.zst || die "regular file should have been compressed!"
+ls world.tmp.zst && die "symbolic link should not have been compressed!"
+$ZSTD world.tmp hello.tmp -f
+ls world.tmp.zst || die "symbol link should have been compressed with --force"
+rm -f hello.tmp world.tmp hello.tmp.zst world.tmp.zst
+
 fi
 
 

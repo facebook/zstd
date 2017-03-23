@@ -1,6 +1,6 @@
 /**
  * util.h - utility functions
- * 
+ *
  * Copyright (c) 2016-present, Przemyslaw Skibinski, Yann Collet, Facebook, Inc.
  * All rights reserved.
  *
@@ -228,6 +228,20 @@ UTIL_STATIC U32 UTIL_isDirectory(const char* infilename)
     return 0;
 }
 
+UTIL_STATIC U32 UTIL_isLink(const char* infilename)
+{
+#if defined(_WIN32)
+    /* no symlinks on windows */
+    (void)infilename;
+#else
+    int r;
+    stat_t statbuf;
+    r = lstat(infilename, &statbuf);
+    if (!r && S_ISLNK(statbuf.st_mode)) return 1;
+#endif
+    return 0;
+}
+
 
 UTIL_STATIC U64 UTIL_getFileSize(const char* infilename)
 {
@@ -271,11 +285,10 @@ UTIL_STATIC void *UTIL_realloc(void *ptr, size_t size)
     return NULL;
 }
 
-
 #ifdef _WIN32
 #  define UTIL_HAS_CREATEFILELIST
 
-UTIL_STATIC int UTIL_prepareFileList(const char *dirName, char** bufStart, size_t* pos, char** bufEnd)
+UTIL_STATIC int UTIL_prepareFileList(const char *dirName, char** bufStart, size_t* pos, char** bufEnd, int followLinks)
 {
     char* path;
     int dirLength, fnameLength, pathLength, nbFiles = 0;
@@ -311,7 +324,7 @@ UTIL_STATIC int UTIL_prepareFileList(const char *dirName, char** bufStart, size_
             if (strcmp (cFile.cFileName, "..") == 0 ||
                 strcmp (cFile.cFileName, ".") == 0) continue;
 
-            nbFiles += UTIL_prepareFileList(path, bufStart, pos, bufEnd);  /* Recursively call "UTIL_prepareFileList" with the new path. */
+            nbFiles += UTIL_prepareFileList(path, bufStart, pos, bufEnd, followLinks);  /* Recursively call "UTIL_prepareFileList" with the new path. */
             if (*bufStart == NULL) { free(path); FindClose(hFile); return 0; }
         }
         else if ((cFile.dwFileAttributes & FILE_ATTRIBUTE_NORMAL) || (cFile.dwFileAttributes & FILE_ATTRIBUTE_ARCHIVE) || (cFile.dwFileAttributes & FILE_ATTRIBUTE_COMPRESSED)) {
@@ -339,7 +352,11 @@ UTIL_STATIC int UTIL_prepareFileList(const char *dirName, char** bufStart, size_
 #  include <dirent.h>       /* opendir, readdir */
 #  include <string.h>       /* strerror, memcpy */
 
-UTIL_STATIC int UTIL_prepareFileList(const char *dirName, char** bufStart, size_t* pos, char** bufEnd)
+static int g_displayLevel;
+#define UTIL_DISPLAY(...)         fprintf(stderr, __VA_ARGS__)
+#define UTIL_DISPLAYLEVEL(l, ...) { if (g_displayLevel>=l) { UTIL_DISPLAY(__VA_ARGS__); } }
+
+UTIL_STATIC int UTIL_prepareFileList(const char *dirName, char** bufStart, size_t* pos, char** bufEnd, int followLinks)
 {
     DIR *dir;
     struct dirent *entry;
@@ -360,13 +377,19 @@ UTIL_STATIC int UTIL_prepareFileList(const char *dirName, char** bufStart, size_
         path = (char*) malloc(dirLength + fnameLength + 2);
         if (!path) { closedir(dir); return 0; }
         memcpy(path, dirName, dirLength);
+
         path[dirLength] = '/';
         memcpy(path+dirLength+1, entry->d_name, fnameLength);
         pathLength = dirLength+1+fnameLength;
         path[pathLength] = 0;
 
+        if (!followLinks && UTIL_isLink(path)) {
+            UTIL_DISPLAYLEVEL(2, "Warning : %s is a symbolic link, ignoring\n", path);
+            continue;
+        }
+
         if (UTIL_isDirectory(path)) {
-            nbFiles += UTIL_prepareFileList(path, bufStart, pos, bufEnd);  /* Recursively call "UTIL_prepareFileList" with the new path. */
+            nbFiles += UTIL_prepareFileList(path, bufStart, pos, bufEnd, followLinks);  /* Recursively call "UTIL_prepareFileList" with the new path. */
             if (*bufStart == NULL) { free(path); closedir(dir); return 0; }
         } else {
             if (*bufStart + *pos + pathLength >= *bufEnd) {
@@ -396,7 +419,7 @@ UTIL_STATIC int UTIL_prepareFileList(const char *dirName, char** bufStart, size_
 
 #else
 
-UTIL_STATIC int UTIL_prepareFileList(const char *dirName, char** bufStart, size_t* pos, char** bufEnd)
+UTIL_STATIC int UTIL_prepareFileList(const char *dirName, char** bufStart, size_t* pos, char** bufEnd, int followLinks)
 {
     (void)bufStart; (void)bufEnd; (void)pos;
     fprintf(stderr, "Directory %s ignored (compiled without _WIN32 or _POSIX_C_SOURCE)\n", dirName);
@@ -411,7 +434,7 @@ UTIL_STATIC int UTIL_prepareFileList(const char *dirName, char** bufStart, size_
  * After finishing usage of the list the structures should be freed with UTIL_freeFileList(params: return value, allocatedBuffer)
  * In case of error UTIL_createFileList returns NULL and UTIL_freeFileList should not be called.
  */
-UTIL_STATIC const char** UTIL_createFileList(const char **inputNames, unsigned inputNamesNb, char** allocatedBuffer, unsigned* allocatedNamesNb)
+UTIL_STATIC const char** UTIL_createFileList(const char **inputNames, unsigned inputNamesNb, char** allocatedBuffer, unsigned* allocatedNamesNb, int followLinks)
 {
     size_t pos;
     unsigned i, nbFiles;
@@ -436,7 +459,7 @@ UTIL_STATIC const char** UTIL_createFileList(const char **inputNames, unsigned i
                 nbFiles++;
             }
         } else {
-            nbFiles += UTIL_prepareFileList(inputNames[i], &buf, &pos, &bufend);
+            nbFiles += UTIL_prepareFileList(inputNames[i], &buf, &pos, &bufend, followLinks);
             if (buf == NULL) return NULL;
     }   }
 

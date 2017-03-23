@@ -2567,18 +2567,15 @@ static size_t ZSTD_checkDictNCount(short* normalizedCounter, unsigned dictMaxSym
 
 
 /* Dictionary format :
-    Magic == ZSTD_DICT_MAGIC (4 bytes)
-    HUF_writeCTable(256)
-    FSE_writeNCount(off)
-    FSE_writeNCount(ml)
-    FSE_writeNCount(ll)
-    RepOffsets
-    Dictionary content
-*/
-/*! ZSTD_loadDictEntropyStats() :
-    @return : size read from dictionary
-    note : magic number supposed already checked */
-static size_t ZSTD_loadDictEntropyStats(ZSTD_CCtx* cctx, const void* dict, size_t dictSize)
+ * See :
+ * https://github.com/facebook/zstd/blob/master/doc/zstd_compression_format.md#dictionary-format
+ */
+/*! ZSTD_loadDictionary() :
+ * @return : size read from dictionary
+ *  note : magic number supposed already checked
+ *         dictSize supposed > 8
+ */
+static size_t ZSTD_loadDictionary(ZSTD_CCtx* cctx, const void* dict, size_t dictSize)
 {
     const BYTE* dictPtr = (const BYTE*)dict;
     const BYTE* const dictEnd = dictPtr + dictSize;
@@ -2586,7 +2583,11 @@ static size_t ZSTD_loadDictEntropyStats(ZSTD_CCtx* cctx, const void* dict, size_
     unsigned offcodeMaxValue = MaxOff;
     BYTE scratchBuffer[1<<MAX(MLFSELog,LLFSELog)];
 
-    {   size_t const hufHeaderSize = HUF_readCTable(cctx->hufTable, 255, dict, dictSize);
+    dictPtr += 4;   /* skip magic number */
+    cctx->dictID = cctx->params.fParams.noDictIDFlag ? 0 :  MEM_readLE32(dictPtr);
+    dictPtr += 4;
+
+    {   size_t const hufHeaderSize = HUF_readCTable(cctx->hufTable, 255, dictPtr, dictEnd-dictPtr);
         if (HUF_isError(hufHeaderSize)) return ERROR(dictionary_corrupted);
         dictPtr += hufHeaderSize;
     }
@@ -2628,15 +2629,20 @@ static size_t ZSTD_loadDictEntropyStats(ZSTD_CCtx* cctx, const void* dict, size_
     cctx->rep[2] = MEM_readLE32(dictPtr+8); if (cctx->rep[2] == 0 || cctx->rep[2] >= dictSize) return ERROR(dictionary_corrupted);
     dictPtr += 12;
 
-    {   U32 offcodeMax = MaxOff;
-        if ((size_t)(dictEnd - dictPtr) <= ((U32)-1) - 128 KB) {
-            U32 const maxOffset = (U32)(dictEnd - dictPtr) + 128 KB; /* The maximum offset that must be supported */
-            /* Calculate minimum offset code required to represent maxOffset */
-            offcodeMax = ZSTD_highbit32(maxOffset);
+    {   size_t const dictContentSize = (size_t)(dictEnd - dictPtr);
+        U32 offcodeMax = MaxOff;
+        if (dictContentSize <= ((U32)-1) - 128 KB) {
+            U32 const maxOffset = (U32)dictContentSize + 128 KB; /* The maximum offset that must be supported */
+            offcodeMax = ZSTD_highbit32(maxOffset); /* Calculate minimum offset code required to represent maxOffset */
         }
-        /* Every possible supported offset <= dictContentSize + 128 KB must be representable */
+        /* All offset values <= dictContentSize + 128 KB must be representable */
         CHECK_F (ZSTD_checkDictNCount(offcodeNCount, offcodeMaxValue, MIN(offcodeMax, MaxOff)));
-    }
+        /* All repCodes must be <= dictContentSize and != 0*/
+        {   U32 u;
+            for (u=0; u<3; u++) {
+                if (cctx->rep[u] == 0) return ERROR(dictionary_corrupted);
+                if (cctx->rep[u] > dictContentSize) return ERROR(dictionary_corrupted);
+    }   }   }
 
     cctx->flagStaticTables = 1;
     cctx->flagStaticHufTable = HUF_repeat_valid;
@@ -2652,14 +2658,9 @@ static size_t ZSTD_compress_insertDictionary(ZSTD_CCtx* zc, const void* dict, si
     /* dict as pure content */
     if ((MEM_readLE32(dict) != ZSTD_DICT_MAGIC) || (zc->forceRawDict))
         return ZSTD_loadDictionaryContent(zc, dict, dictSize);
-    zc->dictID = zc->params.fParams.noDictIDFlag ? 0 :  MEM_readLE32((const char*)dict+4);
 
-    /* known magic number : dict is parsed for entropy stats and content */
-    {   size_t const loadError = ZSTD_loadDictEntropyStats(zc, (const char*)dict+8 /* skip dictHeader */, dictSize-8);
-        size_t const eSize = loadError + 8;
-        if (ZSTD_isError(loadError)) return loadError;
-        return ZSTD_loadDictionaryContent(zc, (const char*)dict+eSize, dictSize-eSize);
-    }
+    /* dict as zstd dictionary */
+    return ZSTD_loadDictionary(zc, dict, dictSize);
 }
 
 /*! ZSTD_compressBegin_internal() :

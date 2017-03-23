@@ -285,6 +285,10 @@ UTIL_STATIC void *UTIL_realloc(void *ptr, size_t size)
     return NULL;
 }
 
+static int g_utilDisplayLevel;
+#define UTIL_DISPLAY(...)         fprintf(stderr, __VA_ARGS__)
+#define UTIL_DISPLAYLEVEL(l, ...) { if (g_utilDisplayLevel>=l) { UTIL_DISPLAY(__VA_ARGS__); } }
+
 #ifdef _WIN32
 #  define UTIL_HAS_CREATEFILELIST
 
@@ -351,10 +355,6 @@ UTIL_STATIC int UTIL_prepareFileList(const char *dirName, char** bufStart, size_
 #  define UTIL_HAS_CREATEFILELIST
 #  include <dirent.h>       /* opendir, readdir */
 #  include <string.h>       /* strerror, memcpy */
-
-static int g_displayLevel;
-#define UTIL_DISPLAY(...)         fprintf(stderr, __VA_ARGS__)
-#define UTIL_DISPLAYLEVEL(l, ...) { if (g_displayLevel>=l) { UTIL_DISPLAY(__VA_ARGS__); } }
 
 UTIL_STATIC int UTIL_prepareFileList(const char *dirName, char** bufStart, size_t* pos, char** bufEnd, int followLinks)
 {

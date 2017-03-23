@@ -99,7 +99,7 @@ static int usage(const char* programName)
 #endif
     DISPLAY( " -D file: use `file` as Dictionary \n");
     DISPLAY( " -o file: result stored into `file` (only if 1 input file) \n");
-    DISPLAY( " -f     : overwrite output without prompting \n");
+    DISPLAY( " -f     : overwrite output without prompting and (de)compress links \n");
     DISPLAY( "--rm    : remove source file(s) after successful de/compression \n");
     DISPLAY( " -k     : preserve source file(s) (default) \n");
     DISPLAY( " -h/-H  : display help/long help and exit\n");
@@ -270,6 +270,7 @@ int main(int argCount, const char* argv[])
 {
     int argNb,
         forceStdout=0,
+        followLinks=0,
         main_pause=0,
         nextEntryIsDictionary=0,
         operationResult=0,
@@ -357,7 +358,7 @@ int main(int argCount, const char* argv[])
                     if (!strcmp(argument, "--compress")) { operation=zom_compress; continue; }
                     if (!strcmp(argument, "--decompress")) { operation=zom_decompress; continue; }
                     if (!strcmp(argument, "--uncompress")) { operation=zom_decompress; continue; }
-                    if (!strcmp(argument, "--force")) { FIO_overwriteMode(); continue; }
+                    if (!strcmp(argument, "--force")) { FIO_overwriteMode(); forceStdout=1; followLinks=1; continue; }
                     if (!strcmp(argument, "--version")) { g_displayOut=stdout; DISPLAY(WELCOME_MESSAGE); CLEAN_RETURN(0); }
                     if (!strcmp(argument, "--help")) { g_displayOut=stdout; CLEAN_RETURN(usage_advanced(programName)); }
                     if (!strcmp(argument, "--verbose")) { g_displayLevel++; continue; }
@@ -445,7 +446,7 @@ int main(int argCount, const char* argv[])
                     case 'D': nextEntryIsDictionary = 1; lastCommand = 1; argument++; break;
 
                         /* Overwrite */
-                    case 'f': FIO_overwriteMode(); forceStdout=1; argument++; break;
+                    case 'f': FIO_overwriteMode(); forceStdout=1; followLinks=1; argument++; break;
 
                         /* Verbose mode */
                     case 'v': g_displayLevel++; argument++; break;
@@ -581,9 +582,21 @@ int main(int argCount, const char* argv[])
     DISPLAYLEVEL(4, "PLATFORM_POSIX_VERSION defined: %ldL\n", (long) PLATFORM_POSIX_VERSION);
 #endif
 
+
+    if (!followLinks) {
+        unsigned u;
+        for (u=0, fileNamesNb=0; u<filenameIdx; u++) {
+            if (UTIL_isLink(filenameTable[u])) {
+                DISPLAYLEVEL(2, "Warning : %s is a symbolic link, ignoring\n", filenameTable[u]);
+            } else {
+                filenameTable[fileNamesNb++] = filenameTable[u];
+            }
+        }
+        filenameIdx = fileNamesNb;
+    }
 #ifdef UTIL_HAS_CREATEFILELIST
     if (recursive) {  /* at this stage, filenameTable is a list of paths, which can contain both files and directories */
-        extendedFileList = UTIL_createFileList(filenameTable, filenameIdx, &fileNamesBuf, &fileNamesNb);
+        extendedFileList = UTIL_createFileList(filenameTable, filenameIdx, &fileNamesBuf, &fileNamesNb, followLinks);
         if (extendedFileList) {
             unsigned u;
             for (u=0; u<fileNamesNb; u++) DISPLAYLEVEL(4, "%u %s\n", u, extendedFileList[u]);

@@ -291,7 +291,7 @@ static size_t FSE_writeNCount_generic (void* header, size_t headerBufferSize,
 
 size_t FSE_writeNCount (void* buffer, size_t bufferSize, const short* normalizedCounter, unsigned maxSymbolValue, unsigned tableLog)
 {
-    if (tableLog > FSE_MAX_TABLELOG) return ERROR(GENERIC);   /* Unsupported */
+    if (tableLog > FSE_MAX_TABLELOG) return ERROR(tableLog_tooLarge);   /* Unsupported */
     if (tableLog < FSE_MIN_TABLELOG) return ERROR(GENERIC);   /* Unsupported */
 
     if (bufferSize < FSE_NCountWriteBound(maxSymbolValue, tableLog))

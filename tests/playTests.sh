@@ -281,6 +281,11 @@ case "$UNAME" in
   *) $MD5SUM -c tmph1 ;;
 esac
 rm -rf dirTestDict
+$ECHO "- dictionary builder on bogus input"
+$ECHO "Hello World" > tmp
+$ZSTD --train -q tmp && die "Dictionary training should fail : not enough input source"
+./datagen -P0 -g10M > tmp
+$ZSTD --train -q tmp && die "Dictionary training should fail : source is pure noise"
 rm tmp*
 
 

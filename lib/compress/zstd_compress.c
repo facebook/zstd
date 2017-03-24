@@ -653,7 +653,7 @@ MEM_STATIC size_t ZSTD_compressSequences (ZSTD_CCtx* zc,
             if (count[llCodeTable[nbSeq-1]]>1) { count[llCodeTable[nbSeq-1]]--; nbSeq_1--; }
             FSE_normalizeCount(norm, tableLog, count, nbSeq_1, max);
             { size_t const NCountSize = FSE_writeNCount(op, oend-op, norm, max, tableLog);   /* overflow protected */
-              if (FSE_isError(NCountSize)) return ERROR(GENERIC);
+              if (FSE_isError(NCountSize)) return NCountSize;
               op += NCountSize; }
             FSE_buildCTable_wksp(CTable_LitLength, norm, max, tableLog, scratchBuffer, sizeof(scratchBuffer));
             LLtype = set_compressed;
@@ -677,7 +677,7 @@ MEM_STATIC size_t ZSTD_compressSequences (ZSTD_CCtx* zc,
             if (count[ofCodeTable[nbSeq-1]]>1) { count[ofCodeTable[nbSeq-1]]--; nbSeq_1--; }
             FSE_normalizeCount(norm, tableLog, count, nbSeq_1, max);
             { size_t const NCountSize = FSE_writeNCount(op, oend-op, norm, max, tableLog);   /* overflow protected */
-              if (FSE_isError(NCountSize)) return ERROR(GENERIC);
+              if (FSE_isError(NCountSize)) return NCountSize;
               op += NCountSize; }
             FSE_buildCTable_wksp(CTable_OffsetBits, norm, max, tableLog, scratchBuffer, sizeof(scratchBuffer));
             Offtype = set_compressed;
@@ -701,7 +701,7 @@ MEM_STATIC size_t ZSTD_compressSequences (ZSTD_CCtx* zc,
             if (count[mlCodeTable[nbSeq-1]]>1) { count[mlCodeTable[nbSeq-1]]--; nbSeq_1--; }
             FSE_normalizeCount(norm, tableLog, count, nbSeq_1, max);
             { size_t const NCountSize = FSE_writeNCount(op, oend-op, norm, max, tableLog);   /* overflow protected */
-              if (FSE_isError(NCountSize)) return ERROR(GENERIC);
+              if (FSE_isError(NCountSize)) return NCountSize;
               op += NCountSize; }
             FSE_buildCTable_wksp(CTable_MatchLength, norm, max, tableLog, scratchBuffer, sizeof(scratchBuffer));
             MLtype = set_compressed;

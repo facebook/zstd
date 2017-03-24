@@ -11,8 +11,9 @@
 /*-**************************************
 *  Tuning parameters
 ****************************************/
+#define MINRATIO 4   /* minimum nb of apparition to be selected in dictionary */
 #define ZDICT_MAX_SAMPLES_SIZE (2000U << 20)
-#define ZDICT_MIN_SAMPLES_SIZE 512
+#define ZDICT_MIN_SAMPLES_SIZE (ZDICT_CONTENTSIZE_MIN * MINRATIO)
 
 
 /*-**************************************
@@ -59,12 +60,8 @@
 
 #define NOISELENGTH 32
 
-#define MINRATIO 4
 static const int g_compressionLevel_default = 6;
 static const U32 g_selectivity_default = 9;
-static const size_t g_provision_entropySize = 192;
-static const size_t g_min_fast_dictContent = 192;
-static const size_t g_dictContentSize_min = 32;
 
 
 /*-*************************************
@@ -930,7 +927,7 @@ size_t ZDICT_trainFromBuffer_unsafe(
 
     /* checks */
     if (!dictList) return ERROR(memory_allocation);
-    if (maxDictSize <= g_provision_entropySize + g_min_fast_dictContent) { free(dictList); return ERROR(dstSize_tooSmall); }   /* requested dictionary size is too small */
+    if (maxDictSize < ZDICT_DICTSIZE_MIN) { free(dictList); return ERROR(dstSize_tooSmall); }   /* requested dictionary size is too small */
     if (samplesBuffSize < ZDICT_MIN_SAMPLES_SIZE) { free(dictList); return ERROR(dictionaryCreation_failed); }   /* not enough source to create dictionary */
 
     /* init */
@@ -964,15 +961,15 @@ size_t ZDICT_trainFromBuffer_unsafe(
 
     /* create dictionary */
     {   U32 dictContentSize = ZDICT_dictSize(dictList);
-        if (dictContentSize < g_dictContentSize_min) { free(dictList); return ERROR(dictionaryCreation_failed); }   /* dictionary content too small */
-        if (dictContentSize < targetDictSize/3) {
+        if (dictContentSize < ZDICT_CONTENTSIZE_MIN) { free(dictList); return ERROR(dictionaryCreation_failed); }   /* dictionary content too small */
+        if (dictContentSize < targetDictSize/4) {
             DISPLAYLEVEL(2, "!  warning : selected content significantly smaller than requested (%u < %u) \n", dictContentSize, (U32)maxDictSize);
+            if (samplesBuffSize < 10 * targetDictSize)
+                DISPLAYLEVEL(2, "!  consider increasing the number of samples (total size : %u MB)\n", (U32)(samplesBuffSize>>20));
             if (minRep > MINRATIO) {
                 DISPLAYLEVEL(2, "!  consider increasing selectivity to produce larger dictionary (-s%u) \n", selectivity+1);
                 DISPLAYLEVEL(2, "!  note : larger dictionaries are not necessarily better, test its efficiency on samples \n");
             }
-            if (samplesBuffSize < 10 * targetDictSize)
-                DISPLAYLEVEL(2, "!  consider increasing the number of samples (total size : %u MB)\n", (U32)(samplesBuffSize>>20));
         }
 
         if ((dictContentSize > targetDictSize*3) && (nbSamples > 2*MINRATIO) && (selectivity>1)) {
@@ -980,7 +977,7 @@ size_t ZDICT_trainFromBuffer_unsafe(
             while ((nbSamples >> proposedSelectivity) <= MINRATIO) { proposedSelectivity--; }
             DISPLAYLEVEL(2, "!  note : calculated dictionary significantly larger than requested (%u > %u) \n", dictContentSize, (U32)maxDictSize);
             DISPLAYLEVEL(2, "!  consider increasing dictionary size, or produce denser dictionary (-s%u) \n", proposedSelectivity);
-            DISPLAYLEVEL(2, "!  always test dictionary efficiency on samples \n");
+            DISPLAYLEVEL(2, "!  always test dictionary efficiency on real samples \n");
         }
 
         /* limit dictionary size */

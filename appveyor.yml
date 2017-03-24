@@ -11,15 +11,18 @@
       PLATFORM: "x64"
       SCRIPT:   "make allarch && make -C tests test-symbols fullbench-dll fullbench-lib"
       ARTIFACT: "true"
+      BUILD:    "true"
     - COMPILER: "gcc"
       HOST:     "mingw"
       PLATFORM: "x86"
       SCRIPT:   "make lib && make zstd && make -C tests allnothread"
       ARTIFACT: "true"
+      BUILD:    "true"
     - COMPILER: "clang"
       HOST:     "mingw"
       PLATFORM: "x64"
       SCRIPT:   "MOREFLAGS='--target=x86_64-w64-mingw32 -Werror -Wconversion -Wno-sign-conversion' make allarch"
+      BUILD:    "true"
 
     - COMPILER: "gcc"
       HOST:     "mingw"
@@ -69,10 +72,19 @@
         SET "PATH=%PATH_MINGW64%;%PATH_ORIGINAL%"
       ) else if [%PLATFORM%]==[x86] (
         SET "PATH=%PATH_MINGW32%;%PATH_ORIGINAL%"
-      ) ) &&
+      ) )
+    )
+  - if [%HOST%]==[mingw] if [%BUILD%]==[true] (
       make -v &&
       sh -c "%COMPILER% -v" &&
-      sh -c "CC=%COMPILER% %SCRIPT%" &&
+      ECHO Building zlib to static link &&
+      SET "CC=%COMPILER%" &&
+      sh -c "cd .. && git clone --depth 1 --branch v1.2.11 https://github.com/madler/zlib" &&
+      sh -c "cd ../zlib && make -f win32/Makefile.gcc libz.a"
+      ECHO Building zstd &&
+      SET "CPPFLAGS=-I../../zlib" &&
+      SET "LDFLAGS=../../zlib/libz.a" &&
+      sh -c "%SCRIPT%" &&
       ( if [%COMPILER%]==[gcc] if [%ARTIFACT%]==[true] COPY programs\zstd.exe zstd_%PLATFORM%.exe && appveyor PushArtifact zstd_%PLATFORM%.exe )
     )
   - if [%HOST%]==[visual] (
@@ -158,10 +170,6 @@
 
 -
   version: 1.0.{build}
-  branches:
-    except:
-    - dev
-    - master
   environment:
     matrix:
     - COMPILER: "gcc"

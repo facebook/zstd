@@ -427,7 +427,7 @@ static void ZDICT_insertDictItem(dictItem* table, U32 maxSize, dictItem elt)
 {
     /* merge if possible */
     U32 mergeId = ZDICT_tryMerge(table, elt, 0);
-    if (mergeId) {
+    if (mergeId) {  /* recursive : re-merge the newly merged elt */
         U32 newMerge = 1;
         while (newMerge) {
             newMerge = ZDICT_tryMerge(table, table[mergeId], mergeId);  /* merge existing elt */

@@ -361,14 +361,28 @@ static dictItem ZDICT_analyzePos(
 }
 
 
+static int isIncluded(const void* in, const void* container, size_t length)
+{
+    const char* const ip = (const char*) in;
+    const char* const into = (const char*) container;
+    size_t u;
+
+    for (u=0; u<length; u++) {
+        if (ip[u] != into[u]) break;
+    }
+
+    return u==length;
+}
+
 /*! ZDICT_checkMerge
     check if dictItem can be merged, do it if possible
     @return : id of destination elt, 0 if not merged
 */
-static U32 ZDICT_checkMerge(dictItem* table, dictItem elt, U32 eltNbToSkip)
+static U32 ZDICT_checkMerge(dictItem* table, dictItem elt, U32 eltNbToSkip, const void* buffer)
 {
     const U32 tableSize = table->pos;
     const U32 eltEnd = elt.pos + elt.length;
+    const char* const buf = buffer;
 
     /* tail overlap */
     U32 u; for (u=1; u<tableSize; u++) {
@@ -391,6 +405,7 @@ static U32 ZDICT_checkMerge(dictItem* table, dictItem elt, U32 eltNbToSkip)
     /* front overlap */
     for (u=1; u<tableSize; u++) {
         if (u==eltNbToSkip) continue;
+
         if ((table[u].pos + table[u].length >= elt.pos) && (table[u].pos < elt.pos)) {  /* overlap, existing < new */
             /* append */
             int addedLength = (int)eltEnd - (table[u].pos + table[u].length);
@@ -405,7 +420,18 @@ static U32 ZDICT_checkMerge(dictItem* table, dictItem elt, U32 eltNbToSkip)
                 table[u] = table[u-1], u--;
             table[u] = elt;
             return u;
-    }   }
+        }
+
+        if (MEM_read64(buf + table[u].pos) == MEM_read64(buf + elt.pos + 1)) {
+            if (isIncluded(buf + table[u].pos, buf + elt.pos + 1, table[u].length)) {
+                size_t const addedLength = MAX( (int)elt.length - (int)table[u].length , 1 );
+                table[u].pos = elt.pos;
+                table[u].savings += elt.savings * addedLength / elt.length;
+                table[u].length = MIN(elt.length, table[u].length + 1);
+                return u;
+            }
+        }
+    }
 
     return 0;
 }
@@ -423,14 +449,14 @@ static void ZDICT_removeDictItem(dictItem* table, U32 id)
 }
 
 
-static void ZDICT_insertDictItem(dictItem* table, U32 maxSize, dictItem elt)
+static void ZDICT_insertDictItem(dictItem* table, U32 maxSize, dictItem elt, const void* buffer)
 {
     /* merge if possible */
-    U32 mergeId = ZDICT_checkMerge(table, elt, 0);
+    U32 mergeId = ZDICT_checkMerge(table, elt, 0, buffer);
     if (mergeId) {
         U32 newMerge = 1;
         while (newMerge) {
-            newMerge = ZDICT_checkMerge(table, table[mergeId], mergeId);
+            newMerge = ZDICT_checkMerge(table, table[mergeId], mergeId, buffer);
             if (newMerge) ZDICT_removeDictItem(table, mergeId);
             mergeId = newMerge;
         }
@@ -519,7 +545,7 @@ static size_t ZDICT_trainBuffer(dictItem* dictList, U32 dictListSize,
             if (doneMarks[cursor]) { cursor++; continue; }
             solution = ZDICT_analyzePos(doneMarks, suffix, reverseSuffix[cursor], buffer, minRatio, notificationLevel);
             if (solution.length==0) { cursor++; continue; }
-            ZDICT_insertDictItem(dictList, dictListSize, solution);
+            ZDICT_insertDictItem(dictList, dictListSize, solution, buffer);
             cursor += solution.length;
             DISPLAYUPDATE(2, "\r%4.2f %% \r", (double)cursor / bufferSize * 100);
     }   }

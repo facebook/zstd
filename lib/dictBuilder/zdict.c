@@ -389,7 +389,7 @@ static U32 ZDICT_checkMerge(dictItem* table, dictItem elt, U32 eltNbToSkip, cons
         if (u==eltNbToSkip) continue;
         if ((table[u].pos > elt.pos) && (table[u].pos <= eltEnd)) {  /* overlap, existing > new */
             /* append */
-            U32 addedLength = table[u].pos - elt.pos;
+            U32 const addedLength = table[u].pos - elt.pos;
             table[u].length += addedLength;
             table[u].pos = elt.pos;
             table[u].savings += elt.savings * addedLength / elt.length;   /* rough approx */
@@ -408,7 +408,7 @@ static U32 ZDICT_checkMerge(dictItem* table, dictItem elt, U32 eltNbToSkip, cons
 
         if ((table[u].pos + table[u].length >= elt.pos) && (table[u].pos < elt.pos)) {  /* overlap, existing < new */
             /* append */
-            int addedLength = (int)eltEnd - (table[u].pos + table[u].length);
+            int const addedLength = (int)eltEnd - (table[u].pos + table[u].length);
             table[u].savings += elt.length / 8;    /* rough approx bonus */
             if (addedLength > 0) {   /* otherwise, elt fully included into existing */
                 table[u].length += addedLength;
@@ -422,13 +422,14 @@ static U32 ZDICT_checkMerge(dictItem* table, dictItem elt, U32 eltNbToSkip, cons
             return u;
         }
 
-        if ( (MEM_read64(buf + table[u].pos) == MEM_read64(buf + elt.pos + 1))
-            && (isIncluded(buf + table[u].pos, buf + elt.pos + 1, table[u].length)) ) {
-            size_t const addedLength = MAX( (int)elt.length - (int)table[u].length , 1 );
-            table[u].pos = elt.pos;
-            table[u].savings += (U32)(elt.savings * addedLength / elt.length);
-            table[u].length = MIN(elt.length, table[u].length + 1);
-            return u;
+        if (MEM_read64(buf + table[u].pos) == MEM_read64(buf + elt.pos + 1)) {
+            if (isIncluded(buf + table[u].pos, buf + elt.pos + 1, table[u].length)) {
+                size_t const addedLength = MAX( (int)elt.length - (int)table[u].length , 1 );
+                table[u].pos = elt.pos;
+                table[u].savings += (U32)(elt.savings * addedLength / elt.length);
+                table[u].length = MIN(elt.length, table[u].length + 1);
+                return u;
+            }
         }
     }
 

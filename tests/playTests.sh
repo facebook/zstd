@@ -253,12 +253,12 @@ $ECHO "- Create second (different) dictionary "
 $ZSTD --train *.c ../programs/*.c ../programs/*.h -o tmpDictC
 $ZSTD -d tmp.zst -D tmpDictC -fo result && die "wrong dictionary not detected!"
 $ECHO "- Create dictionary with short dictID"
-$ZSTD --train *.c ../programs/*.c --dictID 1 -o tmpDict1
+$ZSTD --train *.c ../programs/*.c --dictID=1 -o tmpDict1
 cmp tmpDict tmpDict1 && die "dictionaries should have different ID !"
 $ECHO "- Create dictionary with wrong dictID parameter order (must fail)"
 $ZSTD --train *.c ../programs/*.c --dictID -o 1 tmpDict1 && die "wrong order : --dictID must be followed by argument "
 $ECHO "- Create dictionary with size limit"
-$ZSTD --train *.c ../programs/*.c -o tmpDict2 --maxdict 4K -v
+$ZSTD --train *.c ../programs/*.c -o tmpDict2 --maxdict=4K -v
 $ECHO "- Create dictionary with wrong parameter order (must fail)"
 $ZSTD --train *.c ../programs/*.c -o tmpDict2 --maxdict -v 4K && die "wrong order : --maxdict must be followed by argument "
 $ECHO "- Compress without dictID"
@@ -303,10 +303,10 @@ $ECHO "- Create second (different) dictionary"
 $ZSTD --train --cover=k=56,d=8 *.c ../programs/*.c ../programs/*.h -o tmpDictC
 $ZSTD -d tmp.zst -D tmpDictC -fo result && die "wrong dictionary not detected!"
 $ECHO "- Create dictionary with short dictID"
-$ZSTD --train --cover=k=46,d=8 *.c ../programs/*.c --dictID 1 -o tmpDict1
+$ZSTD --train --cover=k=46,d=8 *.c ../programs/*.c --dictID=1 -o tmpDict1
 cmp tmpDict tmpDict1 && die "dictionaries should have different ID !"
 $ECHO "- Create dictionary with size limit"
-$ZSTD --train --optimize-cover=steps=8 *.c ../programs/*.c -o tmpDict2 --maxdict 4K
+$ZSTD --train --optimize-cover=steps=8 *.c ../programs/*.c -o tmpDict2 --maxdict=4K
 rm tmp*
 
 

@@ -157,9 +157,9 @@ Typical gains range from 10% (at 64KB) to x5 better (at <1KB).
     (for example, 10 MB for a 100 KB dictionary).
 * `-o file`:
     dictionary saved into `file` (default: dictionary)
-* `--maxdict #`:
+* `--maxdict=#`:
     limit dictionary to specified size (default : (112640)
-* `--dictID #`:
+* `--dictID=#`:
     A dictionary ID is a locally unique ID that a decoder can use to verify it is
     using the right dictionary.
     By default, zstd will create a 4-bytes random number ID.

@@ -382,7 +382,7 @@ static U32 ZDICT_checkMerge(dictItem* table, dictItem elt, U32 eltNbToSkip, cons
 {
     const U32 tableSize = table->pos;
     const U32 eltEnd = elt.pos + elt.length;
-    const char* const buf = buffer;
+    const char* const buf = (const char*) buffer;
 
     /* tail overlap */
     U32 u; for (u=1; u<tableSize; u++) {
@@ -426,7 +426,7 @@ static U32 ZDICT_checkMerge(dictItem* table, dictItem elt, U32 eltNbToSkip, cons
             if (isIncluded(buf + table[u].pos, buf + elt.pos + 1, table[u].length)) {
                 size_t const addedLength = MAX( (int)elt.length - (int)table[u].length , 1 );
                 table[u].pos = elt.pos;
-                table[u].savings += elt.savings * addedLength / elt.length;
+                table[u].savings += (U32)(elt.savings * addedLength / elt.length);
                 table[u].length = MIN(elt.length, table[u].length + 1);
                 return u;
             }

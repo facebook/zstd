@@ -361,11 +361,11 @@ static dictItem ZDICT_analyzePos(
 }
 
 
-/*! ZDICT_checkMerge
-    check if dictItem can be merged, do it if possible
-    @return : id of destination elt, 0 if not merged
-*/
-static U32 ZDICT_checkMerge(dictItem* table, dictItem elt, U32 eltNbToSkip)
+/*! ZDICT_tryMerge() :
+ *  check if dictItem can be merged, do it if possible
+ *  @return : id of destination elt, 0 if not merged
+ */
+static U32 ZDICT_tryMerge(dictItem* table, dictItem elt, U32 eltNbToSkip)
 {
     const U32 tableSize = table->pos;
     const U32 eltEnd = elt.pos + elt.length;
@@ -426,11 +426,11 @@ static void ZDICT_removeDictItem(dictItem* table, U32 id)
 static void ZDICT_insertDictItem(dictItem* table, U32 maxSize, dictItem elt)
 {
     /* merge if possible */
-    U32 mergeId = ZDICT_checkMerge(table, elt, 0);
-    if (mergeId) {
+    U32 mergeId = ZDICT_tryMerge(table, elt, 0);
+    if (mergeId) {  /* recursive : re-merge the newly merged elt */
         U32 newMerge = 1;
         while (newMerge) {
-            newMerge = ZDICT_checkMerge(table, table[mergeId], mergeId);
+            newMerge = ZDICT_tryMerge(table, table[mergeId], mergeId);  /* merge existing elt */
             if (newMerge) ZDICT_removeDictItem(table, mergeId);
             mergeId = newMerge;
         }
@@ -810,7 +810,6 @@ static size_t ZDICT_analyzeEntropy(void*  dstBuffer, size_t maxDstSize,
     MEM_writeLE32(dstPtr+4, repStartValue[1]);
     MEM_writeLE32(dstPtr+8, repStartValue[2]);
 #endif
-    //dstPtr += 12;
     eSize += 12;
 
 _cleanup:
@@ -829,7 +828,7 @@ size_t ZDICT_finalizeDictionary(void* dictBuffer, size_t dictBufferCapacity,
                           ZDICT_params_t params)
 {
     size_t hSize;
-#define HBUFFSIZE 256
+#define HBUFFSIZE 256   /* should prove large enough for all entropy headers */
     BYTE header[HBUFFSIZE];
     int const compressionLevel = (params.compressionLevel <= 0) ? g_compressionLevel_default : params.compressionLevel;
     U32 const notificationLevel = params.notificationLevel;

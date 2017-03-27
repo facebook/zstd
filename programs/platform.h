@@ -107,7 +107,7 @@ extern "C" {
 #  include <io.h>      /* _isatty */
 #  include <windows.h> /* DeviceIoControl, HANDLE, FSCTL_SET_SPARSE */
 #  include <stdio.h>   /* FILE */
-static inline int IS_CONSOLE(FILE* stdStream)
+static __inline int IS_CONSOLE(FILE* stdStream)
 {
     DWORD dummy;
     return _isatty(_fileno(stdStream)) && GetConsoleMode((HANDLE)_get_osfhandle(_fileno(stdStream)), &dummy);

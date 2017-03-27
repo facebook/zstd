@@ -14,14 +14,15 @@
 # - dir1/zstd and dir2/zstd will be merged in a single results file
 
 import argparse
-import os
+import os           # getloadavg
 import string
 import subprocess
-import time
+import time         # strftime
 import traceback
 import hashlib
+import platform     # system
 
-script_version = 'v1.1.1 (2016-10-28)'
+script_version = 'v1.1.2 (2017-03-26)'
 default_repo_url = 'https://github.com/facebook/zstd.git'
 working_dir_name = 'speedTest'
 working_path = os.getcwd() + '/' + working_dir_name     # /path/to/zstd/tests/speedTest
@@ -152,10 +153,15 @@ def benchmark_and_compare(branch, commit, last_commit, args, executableName, md5
             % (os.getloadavg()[0], args.maxLoadAvg, sleepTime))
         time.sleep(sleepTime)
     start_load = str(os.getloadavg())
-    if args.dictionary:
-        result = execute('programs/%s -rqi5b1e%s -D %s %s' % (executableName, args.lastCLevel, args.dictionary, testFilePath), print_output=True)
+    osType = platform.system()
+    if osType == 'Linux':
+        cpuSelector = "taskset --cpu-list 0"
     else:
-        result = execute('programs/%s -rqi5b1e%s %s' % (executableName, args.lastCLevel, testFilePath), print_output=True)   
+        cpuSelector = ""
+    if args.dictionary:
+        result = execute('%s programs/%s -rqi5b1e%s -D %s %s' % (cpuSelector, executableName, args.lastCLevel, args.dictionary, testFilePath), print_output=True)
+    else:
+        result = execute('%s programs/%s -rqi5b1e%s %s' % (cpuSelector, executableName, args.lastCLevel, testFilePath), print_output=True)
     end_load = str(os.getloadavg())
     linesExpected = args.lastCLevel + 1
     if len(result) != linesExpected:
@@ -291,7 +297,7 @@ if __name__ == '__main__':
         log("ERROR: e-mail senders 'mail' or 'mutt' not found")
         exit(1)
 
-    clang_version = execute("clang -v 2>&1 | grep 'clang version' | sed -e 's:.*version \\([0-9.]*\\).*:\\1:' -e 's:\\.\\([0-9][0-9]\\):\\1:g'", verbose)[0];
+    clang_version = execute("clang -v 2>&1 | grep ' version ' | sed -e 's:.*version \\([0-9.]*\\).*:\\1:' -e 's:\\.\\([0-9][0-9]\\):\\1:g'", verbose)[0];
     gcc_version = execute("gcc -dumpversion", verbose)[0];
 
     if verbose:

@@ -962,7 +962,7 @@ static size_t ZSTD_hashPtr(const void* p, U32 hBits, U32 mls)
 {
     switch(mls)
     {
-    default:
+    default: /* includes case 3 */
     case 4: return ZSTD_hash4Ptr(p, hBits);
     case 5: return ZSTD_hash5Ptr(p, hBits);
     case 6: return ZSTD_hash6Ptr(p, hBits);
@@ -1085,7 +1085,7 @@ static void ZSTD_compressBlock_fast(ZSTD_CCtx* ctx,
     const U32 mls = ctx->params.cParams.searchLength;
     switch(mls)
     {
-    default:
+    default: /* includes case 3 */
     case 4 :
         ZSTD_compressBlock_fast_generic(ctx, src, srcSize, 4); return;
     case 5 :
@@ -1199,7 +1199,7 @@ static void ZSTD_compressBlock_fast_extDict(ZSTD_CCtx* ctx,
     U32 const mls = ctx->params.cParams.searchLength;
     switch(mls)
     {
-    default:
+    default: /* includes case 3 */
     case 4 :
         ZSTD_compressBlock_fast_extDict_generic(ctx, src, srcSize, 4); return;
     case 5 :
@@ -1353,7 +1353,7 @@ static void ZSTD_compressBlock_doubleFast(ZSTD_CCtx* ctx, const void* src, size_
     const U32 mls = ctx->params.cParams.searchLength;
     switch(mls)
     {
-    default:
+    default: /* includes case 3 */
     case 4 :
         ZSTD_compressBlock_doubleFast_generic(ctx, src, srcSize, 4); return;
     case 5 :
@@ -1503,7 +1503,7 @@ static void ZSTD_compressBlock_doubleFast_extDict(ZSTD_CCtx* ctx,
     U32 const mls = ctx->params.cParams.searchLength;
     switch(mls)
     {
-    default:
+    default: /* includes case 3 */
     case 4 :
         ZSTD_compressBlock_doubleFast_extDict_generic(ctx, src, srcSize, 4); return;
     case 5 :
@@ -1733,9 +1733,10 @@ static size_t ZSTD_BtFindBestMatch_selectMLS (
 {
     switch(matchLengthSearch)
     {
-    default :
+    default : /* includes case 3 */
     case 4 : return ZSTD_BtFindBestMatch(zc, ip, iLimit, offsetPtr, maxNbAttempts, 4);
     case 5 : return ZSTD_BtFindBestMatch(zc, ip, iLimit, offsetPtr, maxNbAttempts, 5);
+    case 7 :
     case 6 : return ZSTD_BtFindBestMatch(zc, ip, iLimit, offsetPtr, maxNbAttempts, 6);
     }
 }
@@ -1772,9 +1773,10 @@ static size_t ZSTD_BtFindBestMatch_selectMLS_extDict (
 {
     switch(matchLengthSearch)
     {
-    default :
+    default : /* includes case 3 */
     case 4 : return ZSTD_BtFindBestMatch_extDict(zc, ip, iLimit, offsetPtr, maxNbAttempts, 4);
     case 5 : return ZSTD_BtFindBestMatch_extDict(zc, ip, iLimit, offsetPtr, maxNbAttempts, 5);
+    case 7 :
     case 6 : return ZSTD_BtFindBestMatch_extDict(zc, ip, iLimit, offsetPtr, maxNbAttempts, 6);
     }
 }
@@ -1868,9 +1870,10 @@ FORCE_INLINE size_t ZSTD_HcFindBestMatch_selectMLS (
 {
     switch(matchLengthSearch)
     {
-    default :
+    default : /* includes case 3 */
     case 4 : return ZSTD_HcFindBestMatch_generic(zc, ip, iLimit, offsetPtr, maxNbAttempts, 4, 0);
     case 5 : return ZSTD_HcFindBestMatch_generic(zc, ip, iLimit, offsetPtr, maxNbAttempts, 5, 0);
+    case 7 :
     case 6 : return ZSTD_HcFindBestMatch_generic(zc, ip, iLimit, offsetPtr, maxNbAttempts, 6, 0);
     }
 }
@@ -1884,9 +1887,10 @@ FORCE_INLINE size_t ZSTD_HcFindBestMatch_extDict_selectMLS (
 {
     switch(matchLengthSearch)
     {
-    default :
+    default : /* includes case 3 */
     case 4 : return ZSTD_HcFindBestMatch_generic(zc, ip, iLimit, offsetPtr, maxNbAttempts, 4, 1);
     case 5 : return ZSTD_HcFindBestMatch_generic(zc, ip, iLimit, offsetPtr, maxNbAttempts, 5, 1);
+    case 7 :
     case 6 : return ZSTD_HcFindBestMatch_generic(zc, ip, iLimit, offsetPtr, maxNbAttempts, 6, 1);
     }
 }

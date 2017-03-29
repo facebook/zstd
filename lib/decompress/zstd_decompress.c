@@ -1476,7 +1476,7 @@ size_t ZSTD_findFrameCompressedSize(const void *src, size_t srcSize)
     if (ZSTD_isLegacy(src, srcSize)) return ZSTD_findFrameCompressedSizeLegacy(src, srcSize);
 #endif
     if (srcSize >= ZSTD_skippableHeaderSize &&
-            (MEM_readLE32(src) & 0xFFFFFFFF0U) == ZSTD_MAGIC_SKIPPABLE_START) {
+            (MEM_readLE32(src) & 0xFFFFFFF0U) == ZSTD_MAGIC_SKIPPABLE_START) {
         return ZSTD_skippableHeaderSize + MEM_readLE32((const BYTE*)src + 4);
     } else {
         const BYTE* ip = (const BYTE*)src;

@@ -150,9 +150,7 @@ size_t ZSTD_checkCParams(ZSTD_compressionParameters cParams)
     CLAMPCHECK(cParams.chainLog, ZSTD_CHAINLOG_MIN, ZSTD_CHAINLOG_MAX);
     CLAMPCHECK(cParams.hashLog, ZSTD_HASHLOG_MIN, ZSTD_HASHLOG_MAX);
     CLAMPCHECK(cParams.searchLog, ZSTD_SEARCHLOG_MIN, ZSTD_SEARCHLOG_MAX);
-    { U32 const searchLengthMin = ((cParams.strategy == ZSTD_fast) | (cParams.strategy == ZSTD_greedy)) ? ZSTD_SEARCHLENGTH_MIN+1 : ZSTD_SEARCHLENGTH_MIN;
-      U32 const searchLengthMax = (cParams.strategy == ZSTD_fast) ? ZSTD_SEARCHLENGTH_MAX : ZSTD_SEARCHLENGTH_MAX-1;
-      CLAMPCHECK(cParams.searchLength, searchLengthMin, searchLengthMax); }
+    CLAMPCHECK(cParams.searchLength, ZSTD_SEARCHLENGTH_MIN, ZSTD_SEARCHLENGTH_MAX);
     CLAMPCHECK(cParams.targetLength, ZSTD_TARGETLENGTH_MIN, ZSTD_TARGETLENGTH_MAX);
     if ((U32)(cParams.strategy) > (U32)ZSTD_btopt2) return ERROR(compressionParameter_unsupported);
     return 0;
@@ -962,7 +960,8 @@ static size_t ZSTD_hashPtr(const void* p, U32 hBits, U32 mls)
 {
     switch(mls)
     {
-    default: /* includes case 3 */
+    //case 3: return ZSTD_hash3Ptr(p, hBits);
+    default:
     case 4: return ZSTD_hash4Ptr(p, hBits);
     case 5: return ZSTD_hash5Ptr(p, hBits);
     case 6: return ZSTD_hash6Ptr(p, hBits);

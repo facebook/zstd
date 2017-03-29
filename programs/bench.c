@@ -156,7 +156,7 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
                         ZSTD_compressionParameters *comprParams)
 {
     size_t const blockSize = ((g_blockSize>=32 && !g_decodeOnly) ? g_blockSize : srcSize) + (!srcSize) /* avoid div by 0 */ ;
-    size_t const avgSize = MIN(g_blockSize, (srcSize / nbFiles));
+    size_t const avgSize = MIN(blockSize, (srcSize / nbFiles));
     U32 const maxNbBlocks = (U32) ((srcSize + (blockSize-1)) / blockSize) + nbFiles;
     blockParam_t* const blockTable = (blockParam_t*) malloc(maxNbBlocks * sizeof(blockParam_t));
     size_t const maxCompressedSize = ZSTD_compressBound(srcSize) + (maxNbBlocks * 1024);   /* add some room for safety */
@@ -179,7 +179,7 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
     if (strlen(displayName)>17) displayName += strlen(displayName)-17;   /* can only display 17 characters */
     UTIL_initTimer(&ticksPerSecond);
 
-    if (g_decodeOnly) {
+    if (g_decodeOnly) {  /* benchmark only decompression : source must be already compressed */
         const char* srcPtr = (const char*) srcBuffer;
         U64 dSize64 = 0;
         U32 fileNb;

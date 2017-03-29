@@ -147,6 +147,8 @@
 
   test_script:
   - ECHO Testing %COMPILER% %PLATFORM% %CONFIGURATION%
+  - SET "CC=gcc"
+  - SET "CXX=g++"
   - if [%TEST%]==[cmake] (
       mkdir build\cmake\build &&
       cd build\cmake\build &&

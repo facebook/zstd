@@ -62,8 +62,8 @@ typedef enum {
 } ZSTD_ErrorCode;
 
 /*! ZSTD_getErrorCode() :
-    convert a `size_t` function result into a `ZSTD_ErrorCode` enum type,
-    which can be used to compare directly with enum list published into "error_public.h" */
+	convert a `size_t` function result into a `ZSTD_ErrorCode` enum type,
+	which can be used to compare directly with enum list published into "error_public.h" */
 ZSTDERRORLIB_API ZSTD_ErrorCode ZSTD_getErrorCode(size_t functionResult);
 ZSTDERRORLIB_API const char* ZSTD_getErrorString(ZSTD_ErrorCode code);
 

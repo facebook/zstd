@@ -66,7 +66,7 @@ const char* ERR_getErrorString(ERR_enum code);   /* error_private.c */
 
 ERR_STATIC const char* ERR_getErrorName(size_t code)
 {
-    return ERR_getErrorString(ERR_getErrorCode(code));
+	return ERR_getErrorString(ERR_getErrorCode(code));
 }
 
 #if defined (__cplusplus)

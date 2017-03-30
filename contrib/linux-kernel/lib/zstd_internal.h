@@ -117,27 +117,27 @@ typedef enum { set_basic, set_rle, set_compressed, set_repeat } symbolEncodingTy
 #define OffFSELog   8
 
 static const U32 LL_bits[MaxLL+1] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                                      1, 1, 1, 1, 2, 2, 3, 3, 4, 6, 7, 8, 9,10,11,12,
-                                     13,14,15,16 };
+									  1, 1, 1, 1, 2, 2, 3, 3, 4, 6, 7, 8, 9,10,11,12,
+									 13,14,15,16 };
 static const S16 LL_defaultNorm[MaxLL+1] = { 4, 3, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 1, 1,
-                                             2, 2, 2, 2, 2, 2, 2, 2, 2, 3, 2, 1, 1, 1, 1, 1,
-                                            -1,-1,-1,-1 };
+											 2, 2, 2, 2, 2, 2, 2, 2, 2, 3, 2, 1, 1, 1, 1, 1,
+											-1,-1,-1,-1 };
 #define LL_DEFAULTNORMLOG 6  /* for static allocation */
 static const U32 LL_defaultNormLog = LL_DEFAULTNORMLOG;
 
 static const U32 ML_bits[MaxML+1] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                                      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                                      1, 1, 1, 1, 2, 2, 3, 3, 4, 4, 5, 7, 8, 9,10,11,
-                                     12,13,14,15,16 };
+									  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+									  1, 1, 1, 1, 2, 2, 3, 3, 4, 4, 5, 7, 8, 9,10,11,
+									 12,13,14,15,16 };
 static const S16 ML_defaultNorm[MaxML+1] = { 1, 4, 3, 2, 2, 2, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1,
-                                             1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-                                             1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,-1,-1,
-                                            -1,-1,-1,-1,-1 };
+											 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+											 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,-1,-1,
+											-1,-1,-1,-1,-1 };
 #define ML_DEFAULTNORMLOG 6  /* for static allocation */
 static const U32 ML_defaultNormLog = ML_DEFAULTNORMLOG;
 
 static const S16 OF_defaultNorm[MaxOff+1] = { 1, 1, 1, 1, 1, 1, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1,
-                                              1, 1, 1, 1, 1, 1, 1, 1,-1,-1,-1,-1,-1 };
+											  1, 1, 1, 1, 1, 1, 1, 1,-1,-1,-1,-1,-1 };
 #define OF_DEFAULTNORMLOG 5  /* for static allocation */
 static const U32 OF_defaultNormLog = OF_DEFAULTNORMLOG;
 
@@ -153,22 +153,22 @@ static void ZSTD_copy8(void* dst, const void* src) { memcpy(dst, src, 8); }
 #define WILDCOPY_OVERLENGTH 8
 MEM_STATIC void ZSTD_wildcopy(void* dst, const void* src, ptrdiff_t length)
 {
-    const BYTE* ip = (const BYTE*)src;
-    BYTE* op = (BYTE*)dst;
-    BYTE* const oend = op + length;
-    do
-        COPY8(op, ip)
-    while (op < oend);
+	const BYTE* ip = (const BYTE*)src;
+	BYTE* op = (BYTE*)dst;
+	BYTE* const oend = op + length;
+	do
+		COPY8(op, ip)
+	while (op < oend);
 }
 
 MEM_STATIC void ZSTD_wildcopy_e(void* dst, const void* src, void* dstEnd)   /* should be faster for decoding, but strangely, not verified on all platform */
 {
-    const BYTE* ip = (const BYTE*)src;
-    BYTE* op = (BYTE*)dst;
-    BYTE* const oend = (BYTE*)dstEnd;
-    do
-        COPY8(op, ip)
-    while (op < oend);
+	const BYTE* ip = (const BYTE*)src;
+	BYTE* op = (BYTE*)dst;
+	BYTE* const oend = (BYTE*)dstEnd;
+	do
+		COPY8(op, ip)
+	while (op < oend);
 }
 
 
@@ -178,58 +178,58 @@ MEM_STATIC void ZSTD_wildcopy_e(void* dst, const void* src, void* dstEnd)   /* s
 typedef struct ZSTD_stats_s ZSTD_stats_t;
 
 typedef struct {
-    U32 off;
-    U32 len;
+	U32 off;
+	U32 len;
 } ZSTD_match_t;
 
 typedef struct {
-    U32 price;
-    U32 off;
-    U32 mlen;
-    U32 litlen;
-    U32 rep[ZSTD_REP_NUM];
+	U32 price;
+	U32 off;
+	U32 mlen;
+	U32 litlen;
+	U32 rep[ZSTD_REP_NUM];
 } ZSTD_optimal_t;
 
 
 typedef struct seqDef_s {
-    U32 offset;
-    U16 litLength;
-    U16 matchLength;
+	U32 offset;
+	U16 litLength;
+	U16 matchLength;
 } seqDef;
 
 
 typedef struct {
-    seqDef* sequencesStart;
-    seqDef* sequences;
-    BYTE* litStart;
-    BYTE* lit;
-    BYTE* llCode;
-    BYTE* mlCode;
-    BYTE* ofCode;
-    U32   longLengthID;   /* 0 == no longLength; 1 == Lit.longLength; 2 == Match.longLength; */
-    U32   longLengthPos;
-    /* opt */
-    ZSTD_optimal_t* priceTable;
-    ZSTD_match_t* matchTable;
-    U32* matchLengthFreq;
-    U32* litLengthFreq;
-    U32* litFreq;
-    U32* offCodeFreq;
-    U32  matchLengthSum;
-    U32  matchSum;
-    U32  litLengthSum;
-    U32  litSum;
-    U32  offCodeSum;
-    U32  log2matchLengthSum;
-    U32  log2matchSum;
-    U32  log2litLengthSum;
-    U32  log2litSum;
-    U32  log2offCodeSum;
-    U32  factor;
-    U32  staticPrices;
-    U32  cachedPrice;
-    U32  cachedLitLength;
-    const BYTE* cachedLiterals;
+	seqDef* sequencesStart;
+	seqDef* sequences;
+	BYTE* litStart;
+	BYTE* lit;
+	BYTE* llCode;
+	BYTE* mlCode;
+	BYTE* ofCode;
+	U32   longLengthID;   /* 0 == no longLength; 1 == Lit.longLength; 2 == Match.longLength; */
+	U32   longLengthPos;
+	/* opt */
+	ZSTD_optimal_t* priceTable;
+	ZSTD_match_t* matchTable;
+	U32* matchLengthFreq;
+	U32* litLengthFreq;
+	U32* litFreq;
+	U32* offCodeFreq;
+	U32  matchLengthSum;
+	U32  matchSum;
+	U32  litLengthSum;
+	U32  litSum;
+	U32  offCodeSum;
+	U32  log2matchLengthSum;
+	U32  log2matchSum;
+	U32  log2litLengthSum;
+	U32  log2litSum;
+	U32  log2offCodeSum;
+	U32  factor;
+	U32  staticPrices;
+	U32  cachedPrice;
+	U32  cachedLitLength;
+	const BYTE* cachedLiterals;
 } seqStore_t;
 
 const seqStore_t* ZSTD_getSeqStore(const ZSTD_CCtx* ctx);
@@ -251,22 +251,22 @@ void ZSTD_free(void* ptr, ZSTD_customMem customMem);
 MEM_STATIC U32 ZSTD_highbit32(U32 val)
 {
 #   if defined(_MSC_VER)   /* Visual */
-    unsigned long r=0;
-    _BitScanReverse(&r, val);
-    return (unsigned)r;
+	unsigned long r=0;
+	_BitScanReverse(&r, val);
+	return (unsigned)r;
 #   elif defined(__GNUC__) && (__GNUC__ >= 3)   /* GCC Intrinsic */
-    return 31 - __builtin_clz(val);
+	return 31 - __builtin_clz(val);
 #   else   /* Software version */
-    static const int DeBruijnClz[32] = { 0, 9, 1, 10, 13, 21, 2, 29, 11, 14, 16, 18, 22, 25, 3, 30, 8, 12, 20, 28, 15, 17, 24, 7, 19, 27, 23, 6, 26, 5, 4, 31 };
-    U32 v = val;
-    int r;
-    v |= v >> 1;
-    v |= v >> 2;
-    v |= v >> 4;
-    v |= v >> 8;
-    v |= v >> 16;
-    r = DeBruijnClz[(U32)(v * 0x07C4ACDDU) >> 27];
-    return r;
+	static const int DeBruijnClz[32] = { 0, 9, 1, 10, 13, 21, 2, 29, 11, 14, 16, 18, 22, 25, 3, 30, 8, 12, 20, 28, 15, 17, 24, 7, 19, 27, 23, 6, 26, 5, 4, 31 };
+	U32 v = val;
+	int r;
+	v |= v >> 1;
+	v |= v >> 2;
+	v |= v >> 4;
+	v |= v >> 8;
+	v |= v >> 16;
+	r = DeBruijnClz[(U32)(v * 0x07C4ACDDU) >> 27];
+	return r;
 #   endif
 }
 

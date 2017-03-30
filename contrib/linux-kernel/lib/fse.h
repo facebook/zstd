@@ -34,10 +34,6 @@
 #ifndef FSE_H
 #define FSE_H
 
-#if defined (__cplusplus)
-extern "C" {
-#endif
-
 
 /*-*****************************************
 *  Dependencies
@@ -48,15 +44,7 @@ extern "C" {
 /*-*****************************************
 *  FSE_PUBLIC_API : control library symbols visibility
 ******************************************/
-#if defined(FSE_DLL_EXPORT) && (FSE_DLL_EXPORT==1) && defined(__GNUC__) && (__GNUC__ >= 4)
-#  define FSE_PUBLIC_API __attribute__ ((visibility ("default")))
-#elif defined(FSE_DLL_EXPORT) && (FSE_DLL_EXPORT==1)   /* Visual expected */
-#  define FSE_PUBLIC_API __declspec(dllexport)
-#elif defined(FSE_DLL_IMPORT) && (FSE_DLL_IMPORT==1)
-#  define FSE_PUBLIC_API __declspec(dllimport) /* It isn't required but allows to generate better code, saving a function pointer load from the IAT and an indirect jump.*/
-#else
-#  define FSE_PUBLIC_API
-#endif
+#define FSE_PUBLIC_API
 
 /*------   Version   ------*/
 #define FSE_VERSION_MAJOR    0
@@ -686,9 +674,5 @@ MEM_STATIC unsigned FSE_endOfDState(const FSE_DState_t* DStatePtr)
 
 #endif /* FSE_STATIC_LINKING_ONLY */
 
-
-#if defined (__cplusplus)
-}
-#endif
 
 #endif  /* FSE_H */

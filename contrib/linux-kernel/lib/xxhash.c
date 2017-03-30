@@ -36,28 +36,6 @@
 /* *************************************
 *  Tuning parameters
 ***************************************/
-/*!XXH_FORCE_MEMORY_ACCESS :
- * By default, access to unaligned memory is controlled by `memcpy()`, which is safe and portable.
- * Unfortunately, on some target/compiler combinations, the generated assembly is sub-optimal.
- * The below switch allow to select different access method for improved performance.
- * Method 0 (default) : use `memcpy()`. Safe and portable.
- * Method 1 : `__packed` statement. It depends on compiler extension (ie, not portable).
- *            This method is safe if your compiler supports it, and *generally* as fast or faster than `memcpy`.
- * Method 2 : direct access. This method doesn't depend on compiler but violate C standard.
- *            It can generate buggy code on targets which do not support unaligned memory accesses.
- *            But in some circumstances, it's the only known way to get the most performance (ie GCC + ARMv6)
- * See http://stackoverflow.com/a/32095106/646947 for details.
- * Prefer these methods in priority order (0 > 1 > 2)
- */
-#ifndef XXH_FORCE_MEMORY_ACCESS   /* can be defined externally, on command line for example */
-#  if defined(__GNUC__) && ( defined(__ARM_ARCH_6__) || defined(__ARM_ARCH_6J__) || defined(__ARM_ARCH_6K__) || defined(__ARM_ARCH_6Z__) || defined(__ARM_ARCH_6ZK__) || defined(__ARM_ARCH_6T2__) )
-#    define XXH_FORCE_MEMORY_ACCESS 2
-#  elif (defined(__INTEL_COMPILER) && !defined(WIN32)) || \
-  (defined(__GNUC__) && ( defined(__ARM_ARCH_7__) || defined(__ARM_ARCH_7A__) || defined(__ARM_ARCH_7R__) || defined(__ARM_ARCH_7M__) || defined(__ARM_ARCH_7S__) ))
-#    define XXH_FORCE_MEMORY_ACCESS 1
-#  endif
-#endif
-
 /*!XXH_ACCEPT_NULL_INPUT_POINTER :
  * If the input pointer is a null pointer, xxHash default behavior is to trigger a memory access error, since it is a bad pointer.
  * When this option is enabled, xxHash output for null input pointers will be the same as a null-length input.
@@ -73,9 +51,7 @@
  * to improve speed for Big-endian CPU.
  * This option has no impact on Little_Endian CPU.
  */
-#ifndef XXH_FORCE_NATIVE_FORMAT   /* can be defined externally */
-#  define XXH_FORCE_NATIVE_FORMAT 0
-#endif
+#define XXH_FORCE_NATIVE_FORMAT 0
 
 /*!XXH_FORCE_ALIGN_CHECK :
  * This is a minor performance trick, only useful with lots of very small keys.
@@ -83,13 +59,7 @@
  * The check costs one initial branch per hash; set to 0 when the input data
  * is guaranteed to be aligned.
  */
-#ifndef XXH_FORCE_ALIGN_CHECK /* can be defined externally */
-#  if defined(__i386) || defined(_M_IX86) || defined(__x86_64__) || defined(_M_X64)
-#    define XXH_FORCE_ALIGN_CHECK 0
-#  else
-#    define XXH_FORCE_ALIGN_CHECK 1
-#  endif
-#endif
+#define XXH_FORCE_ALIGN_CHECK 0
 
 
 /* *************************************
@@ -108,127 +78,40 @@ static void* XXH_memcpy(void* dest, const void* src, size_t size) { return memcp
 #  define XXH_STATIC_LINKING_ONLY
 #endif
 #include "xxhash.h"
+#include "mem.h"
 
 
 /* *************************************
 *  Compiler Specific Options
 ***************************************/
-#ifdef _MSC_VER    /* Visual Studio */
-#  pragma warning(disable : 4127)      /* disable: C4127: conditional expression is constant */
-#  define FORCE_INLINE static __forceinline
-#else
-#  if defined (__cplusplus) || defined (__STDC_VERSION__) && __STDC_VERSION__ >= 199901L   /* C99 */
-#    ifdef __GNUC__
-#      define FORCE_INLINE static inline __attribute__((always_inline))
-#    else
-#      define FORCE_INLINE static inline
-#    endif
-#  else
-#    define FORCE_INLINE static
-#  endif /* __STDC_VERSION__ */
-#endif
+#define FORCE_INLINE static __attribute__((always_inline))
 
-
-/* *************************************
-*  Basic Types
-***************************************/
-#ifndef MEM_MODULE
-# define MEM_MODULE
-# if !defined (__VMS) && (defined (__cplusplus) || (defined (__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L) /* C99 */) )
-#   include <stdint.h>
-	typedef uint8_t  BYTE;
-	typedef uint16_t U16;
-	typedef uint32_t U32;
-	typedef  int32_t S32;
-	typedef uint64_t U64;
-#  else
-	typedef unsigned char      BYTE;
-	typedef unsigned short     U16;
-	typedef unsigned int       U32;
-	typedef   signed int       S32;
-	typedef unsigned long long U64;   /* if your compiler doesn't support unsigned long long, replace by another 64-bit type here. Note that xxhash.h will also need to be updated. */
-#  endif
-#endif
-
-
-#if (defined(XXH_FORCE_MEMORY_ACCESS) && (XXH_FORCE_MEMORY_ACCESS==2))
-
-/* Force direct memory access. Only works on CPU which support unaligned memory access in hardware */
-static U32 XXH_read32(const void* memPtr) { return *(const U32*) memPtr; }
-static U64 XXH_read64(const void* memPtr) { return *(const U64*) memPtr; }
-
-#elif (defined(XXH_FORCE_MEMORY_ACCESS) && (XXH_FORCE_MEMORY_ACCESS==1))
-
-/* __pack instructions are safer, but compiler specific, hence potentially problematic for some compilers */
-/* currently only defined for gcc and icc */
-typedef union { U32 u32; U64 u64; } __attribute__((packed)) unalign;
-
-static U32 XXH_read32(const void* ptr) { return ((const unalign*)ptr)->u32; }
-static U64 XXH_read64(const void* ptr) { return ((const unalign*)ptr)->u64; }
-
-#else
-
-/* portable and safe solution. Generally efficient.
- * see : http://stackoverflow.com/a/32095106/646947
- */
 
 static U32 XXH_read32(const void* memPtr)
 {
-	U32 val;
-	memcpy(&val, memPtr, sizeof(val));
-	return val;
+	return MEM_read32(memPtr);
 }
 
 static U64 XXH_read64(const void* memPtr)
 {
-	U64 val;
-	memcpy(&val, memPtr, sizeof(val));
-	return val;
+	return MEM_read64(memPtr);
 }
-
-#endif   /* XXH_FORCE_DIRECT_MEMORY_ACCESS */
 
 
 /* ****************************************
 *  Compiler-specific Functions and Macros
 ******************************************/
-#define GCC_VERSION (__GNUC__ * 100 + __GNUC_MINOR__)
+#define XXH_rotl32(x,r) ((x << r) | (x >> (32 - r)))
+#define XXH_rotl64(x,r) ((x << r) | (x >> (64 - r)))
 
-/* Note : although _rotl exists for minGW (GCC under windows), performance seems poor */
-#if defined(_MSC_VER)
-#  define XXH_rotl32(x,r) _rotl(x,r)
-#  define XXH_rotl64(x,r) _rotl64(x,r)
-#else
-#  define XXH_rotl32(x,r) ((x << r) | (x >> (32 - r)))
-#  define XXH_rotl64(x,r) ((x << r) | (x >> (64 - r)))
-#endif
-
-#if defined(_MSC_VER)     /* Visual Studio */
-#  define XXH_swap32 _byteswap_ulong
-#  define XXH_swap64 _byteswap_uint64
-#elif GCC_VERSION >= 403
-#  define XXH_swap32 __builtin_bswap32
-#  define XXH_swap64 __builtin_bswap64
-#else
 static U32 XXH_swap32 (U32 x)
 {
-	return  ((x << 24) & 0xff000000 ) |
-			((x <<  8) & 0x00ff0000 ) |
-			((x >>  8) & 0x0000ff00 ) |
-			((x >> 24) & 0x000000ff );
+	return MEM_swap32(x);
 }
 static U64 XXH_swap64 (U64 x)
 {
-	return  ((x << 56) & 0xff00000000000000ULL) |
-			((x << 40) & 0x00ff000000000000ULL) |
-			((x << 24) & 0x0000ff0000000000ULL) |
-			((x << 8)  & 0x000000ff00000000ULL) |
-			((x >> 8)  & 0x00000000ff000000ULL) |
-			((x >> 24) & 0x0000000000ff0000ULL) |
-			((x >> 40) & 0x000000000000ff00ULL) |
-			((x >> 56) & 0x00000000000000ffULL);
+	return  MEM_swap64(x);
 }
-#endif
 
 
 /* *************************************

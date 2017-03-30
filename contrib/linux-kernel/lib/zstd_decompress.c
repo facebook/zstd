@@ -12,23 +12,6 @@
 *  Tuning parameters
 *****************************************************************/
 /*!
- * HEAPMODE :
- * Select how default decompression function ZSTD_decompress() will allocate memory,
- * in memory stack (0), or in memory heap (1, requires malloc())
- */
-#ifndef ZSTD_HEAPMODE
-#  define ZSTD_HEAPMODE 1
-#endif
-
-/*!
-*  LEGACY_SUPPORT :
-*  if set to 1, ZSTD_decompress() can decode older formats (v0.1+)
-*/
-#ifndef ZSTD_LEGACY_SUPPORT
-#  define ZSTD_LEGACY_SUPPORT 0
-#endif
-
-/*!
 *  MAXWINDOWSIZE_DEFAULT :
 *  maximum window size accepted by DStream, by default.
 *  Frames requiring more memory will be rejected.
@@ -49,19 +32,7 @@
 #include "huf.h"
 #include "zstd_internal.h"
 
-#if defined(ZSTD_LEGACY_SUPPORT) && (ZSTD_LEGACY_SUPPORT>=1)
-#  include "zstd_legacy.h"
-#endif
-
-
-#if defined(_MSC_VER)
-#  include <mmintrin.h>   /* https://msdn.microsoft.com/fr-fr/library/84szxsww(v=vs.90).aspx */
-#  define ZSTD_PREFETCH(ptr)   _mm_prefetch((const char*)ptr, _MM_HINT_T0)
-#elif defined(__GNUC__)
-#  define ZSTD_PREFETCH(ptr)   __builtin_prefetch(ptr, 0, 0)
-#else
-#  define ZSTD_PREFETCH(ptr)   /* disabled */
-#endif
+#define ZSTD_PREFETCH(ptr)   __builtin_prefetch(ptr, 0, 0)
 
 /*-*************************************
 *  Macros
@@ -220,9 +191,6 @@ unsigned ZSTD_isFrame(const void* buffer, size_t size)
 		if (magic == ZSTD_MAGICNUMBER) return 1;
 		if ((magic & 0xFFFFFFF0U) == ZSTD_MAGIC_SKIPPABLE_START) return 1;
 	}
-#if defined(ZSTD_LEGACY_SUPPORT) && (ZSTD_LEGACY_SUPPORT >= 1)
-	if (ZSTD_isLegacy(buffer, size)) return 1;
-#endif
 	return 0;
 }
 
@@ -320,12 +288,6 @@ size_t ZSTD_getFrameParams(ZSTD_frameParams* fparamsPtr, const void* src, size_t
 *             - ZSTD_CONTENTSIZE_ERROR if an error occurred (e.g. invalid magic number, srcSize too small) */
 unsigned long long ZSTD_getFrameContentSize(const void *src, size_t srcSize)
 {
-#if defined(ZSTD_LEGACY_SUPPORT) && (ZSTD_LEGACY_SUPPORT >= 1)
-	if (ZSTD_isLegacy(src, srcSize)) {
-		unsigned long long const ret = ZSTD_getDecompressedSize_legacy(src, srcSize);
-		return ret == 0 ? ZSTD_CONTENTSIZE_UNKNOWN : ret;
-	}
-#endif
 	{
 		ZSTD_frameParams fParams;
 		if (ZSTD_getFrameParams(&fParams, src, srcSize) != 0) return ZSTD_CONTENTSIZE_ERROR;
@@ -1472,9 +1434,6 @@ size_t ZSTD_generateNxBytes(void* dst, size_t dstCapacity, BYTE byte, size_t len
  *  @return : the compressed size of the frame starting at `src` */
 size_t ZSTD_findFrameCompressedSize(const void *src, size_t srcSize)
 {
-#if defined(ZSTD_LEGACY_SUPPORT) && (ZSTD_LEGACY_SUPPORT >= 1)
-	if (ZSTD_isLegacy(src, srcSize)) return ZSTD_findFrameCompressedSizeLegacy(src, srcSize);
-#endif
 	if (srcSize >= ZSTD_skippableHeaderSize &&
 			(MEM_readLE32(src) & 0xFFFFFFF0U) == ZSTD_MAGIC_SKIPPABLE_START) {
 		return ZSTD_skippableHeaderSize + MEM_readLE32((const BYTE*)src + 4);
@@ -1618,24 +1577,6 @@ static size_t ZSTD_decompressMultiFrame(ZSTD_DCtx* dctx,
 	while (srcSize >= ZSTD_frameHeaderSize_prefix) {
 		U32 magicNumber;
 
-#if defined(ZSTD_LEGACY_SUPPORT) && (ZSTD_LEGACY_SUPPORT >= 1)
-		if (ZSTD_isLegacy(src, srcSize)) {
-			size_t decodedSize;
-			size_t const frameSize = ZSTD_findFrameCompressedSizeLegacy(src, srcSize);
-			if (ZSTD_isError(frameSize)) return frameSize;
-
-			decodedSize = ZSTD_decompressLegacy(dst, dstCapacity, src, frameSize, dict, dictSize);
-
-			dst = (BYTE*)dst + decodedSize;
-			dstCapacity -= decodedSize;
-
-			src = (const BYTE*)src + frameSize;
-			srcSize -= frameSize;
-
-			continue;
-		}
-#endif
-
 		magicNumber = MEM_readLE32(src);
 		if (magicNumber != ZSTD_MAGICNUMBER) {
 			if ((magicNumber & 0xFFFFFFF0U) == ZSTD_MAGIC_SKIPPABLE_START) {
@@ -1698,17 +1639,8 @@ size_t ZSTD_decompressDCtx(ZSTD_DCtx* dctx, void* dst, size_t dstCapacity, const
 
 size_t ZSTD_decompress(void* dst, size_t dstCapacity, const void* src, size_t srcSize)
 {
-#if defined(ZSTD_HEAPMODE) && (ZSTD_HEAPMODE==1)
-	size_t regenSize;
-	ZSTD_DCtx* const dctx = ZSTD_createDCtx();
-	if (dctx==NULL) return ERROR(memory_allocation);
-	regenSize = ZSTD_decompressDCtx(dctx, dst, dstCapacity, src, srcSize);
-	ZSTD_freeDCtx(dctx);
-	return regenSize;
-#else   /* stack mode */
 	ZSTD_DCtx dctx;
 	return ZSTD_decompressDCtx(&dctx, dst, dstCapacity, src, srcSize);
-#endif
 }
 
 
@@ -2216,10 +2148,6 @@ size_t ZSTD_freeDStream(ZSTD_DStream* zds)
 		zds->inBuff = NULL;
 		ZSTD_free(zds->outBuff, cMem);
 		zds->outBuff = NULL;
-#if defined(ZSTD_LEGACY_SUPPORT) && (ZSTD_LEGACY_SUPPORT >= 1)
-		if (zds->legacyContext)
-			ZSTD_freeLegacyStreamContext(zds->legacyContext, zds->previousLegacyVersion);
-#endif
 		ZSTD_free(zds, cMem);
 		return 0;
 	}
@@ -2306,11 +2234,6 @@ size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inB
 	char* op = ostart;
 	U32 someMoreWork = 1;
 
-#if defined(ZSTD_LEGACY_SUPPORT) && (ZSTD_LEGACY_SUPPORT>=1)
-	if (zds->legacyVersion)
-		return ZSTD_decompressLegacyStream(zds->legacyContext, zds->legacyVersion, output, input);
-#endif
-
 	while (someMoreWork) {
 		switch(zds->stage)
 		{
@@ -2321,21 +2244,7 @@ size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inB
 		case zdss_loadHeader :
 			{   size_t const hSize = ZSTD_getFrameParams(&zds->fParams, zds->headerBuffer, zds->lhSize);
 				if (ZSTD_isError(hSize))
-#if defined(ZSTD_LEGACY_SUPPORT) && (ZSTD_LEGACY_SUPPORT>=1)
-				{   U32 const legacyVersion = ZSTD_isLegacy(istart, iend-istart);
-					if (legacyVersion) {
-						const void* const dict = zds->ddict ? zds->ddict->dictContent : NULL;
-						size_t const dictSize = zds->ddict ? zds->ddict->dictSize : 0;
-						CHECK_F(ZSTD_initLegacyStream(&zds->legacyContext, zds->previousLegacyVersion, legacyVersion,
-													   dict, dictSize));
-						zds->legacyVersion = zds->previousLegacyVersion = legacyVersion;
-						return ZSTD_decompressLegacyStream(zds->legacyContext, zds->legacyVersion, output, input);
-					} else {
-						return hSize; /* error */
-				}   }
-#else
 				return hSize;
-#endif
 				if (hSize != 0) {   /* need more input */
 					size_t const toLoad = hSize - zds->lhSize;   /* if hSize!=0, hSize > zds->lhSize */
 					if (toLoad > (size_t)(iend-ip)) {   /* not enough input to load full header */

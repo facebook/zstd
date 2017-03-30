@@ -7,10 +7,6 @@
  * of patent rights can be found in the PATENTS file in the same directory.
  */
 
-#if defined (__cplusplus)
-extern "C" {
-#endif
-
 #ifndef ZSTD_H_235446
 #define ZSTD_H_235446
 
@@ -19,18 +15,7 @@ extern "C" {
 
 
 /* =====   ZSTDLIB_API : control library symbols visibility   ===== */
-#if defined(__GNUC__) && (__GNUC__ >= 4)
-#  define ZSTDLIB_VISIBILITY __attribute__ ((visibility ("default")))
-#else
-#  define ZSTDLIB_VISIBILITY
-#endif
-#if defined(ZSTD_DLL_EXPORT) && (ZSTD_DLL_EXPORT==1)
-#  define ZSTDLIB_API __declspec(dllexport) ZSTDLIB_VISIBILITY
-#elif defined(ZSTD_DLL_IMPORT) && (ZSTD_DLL_IMPORT==1)
-#  define ZSTDLIB_API __declspec(dllimport) ZSTDLIB_VISIBILITY /* It isn't required but allows to generate better code, saving a function pointer load from the IAT and an indirect jump.*/
-#else
-#  define ZSTDLIB_API ZSTDLIB_VISIBILITY
-#endif
+#define ZSTDLIB_API
 
 
 /*******************************************************************************************************
@@ -769,7 +754,3 @@ ZSTDLIB_API size_t ZSTD_insertBlock(ZSTD_DCtx* dctx, const void* blockStart, siz
 
 
 #endif   /* ZSTD_H_ZSTD_STATIC_LINKING_ONLY */
-
-#if defined (__cplusplus)
-}
-#endif

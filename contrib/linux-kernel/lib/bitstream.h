@@ -35,11 +35,6 @@
 #ifndef BITSTREAM_H_MODULE
 #define BITSTREAM_H_MODULE
 
-#if defined (__cplusplus)
-extern "C" {
-#endif
-
-
 /*
 *  This API consists of small unitary functions, which must be inlined for best performance.
 *  Since link-time-optimization is not available for all compilers,
@@ -56,10 +51,6 @@ extern "C" {
 /*=========================================
 *  Target specific
 =========================================*/
-#if defined(__BMI__) && defined(__GNUC__)
-#  include <immintrin.h>   /* support for bextr (experimental) */
-#endif
-
 #define STREAM_ACCUMULATOR_MIN_32  25
 #define STREAM_ACCUMULATOR_MIN_64  57
 #define STREAM_ACCUMULATOR_MIN    ((U32)(MEM_32bits() ? STREAM_ACCUMULATOR_MIN_32 : STREAM_ACCUMULATOR_MIN_64))
@@ -301,16 +292,7 @@ MEM_STATIC size_t BIT_getUpperBits(size_t bitContainer, U32 const start)
 
 MEM_STATIC size_t BIT_getMiddleBits(size_t bitContainer, U32 const start, U32 const nbBits)
 {
-#if defined(__BMI__) && defined(__GNUC__) && __GNUC__*1000+__GNUC_MINOR__ >= 4008  /* experimental */
-#  if defined(__x86_64__)
-	if (sizeof(bitContainer)==8)
-		return _bextr_u64(bitContainer, start, nbBits);
-	else
-#  endif
-		return _bextr_u32(bitContainer, start, nbBits);
-#else
 	return (bitContainer >> start) & BIT_mask[nbBits];
-#endif
 }
 
 MEM_STATIC size_t BIT_getLowerBits(size_t bitContainer, U32 const nbBits)
@@ -327,12 +309,8 @@ MEM_STATIC size_t BIT_getLowerBits(size_t bitContainer, U32 const nbBits)
  */
  MEM_STATIC size_t BIT_lookBits(const BIT_DStream_t* bitD, U32 nbBits)
 {
-#if defined(__BMI__) && defined(__GNUC__)   /* experimental; fails if bitD->bitsConsumed + nbBits > sizeof(bitD->bitContainer)*8 */
-	return BIT_getMiddleBits(bitD->bitContainer, (sizeof(bitD->bitContainer)*8) - bitD->bitsConsumed - nbBits, nbBits);
-#else
 	U32 const bitMask = sizeof(bitD->bitContainer)*8 - 1;
 	return ((bitD->bitContainer << (bitD->bitsConsumed & bitMask)) >> 1) >> ((bitMask-nbBits) & bitMask);
-#endif
 }
 
 /*! BIT_lookBitsFast() :
@@ -409,9 +387,5 @@ MEM_STATIC unsigned BIT_endOfDStream(const BIT_DStream_t* DStream)
 {
 	return ((DStream->ptr == DStream->start) && (DStream->bitsConsumed == sizeof(DStream->bitContainer)*8));
 }
-
-#if defined (__cplusplus)
-}
-#endif
 
 #endif /* BITSTREAM_H_MODULE */

@@ -64,10 +64,6 @@ XXH64       13.8 GB/s            1.9 GB/s
 XXH32        6.8 GB/s            6.0 GB/s
 */
 
-#if defined (__cplusplus)
-extern "C" {
-#endif
-
 #ifndef XXHASH_H_5627135585666179
 #define XXHASH_H_5627135585666179 1
 
@@ -91,22 +87,7 @@ typedef enum { XXH_OK=0, XXH_ERROR } XXH_errorcode;
 *   `xxhash.c` is automatically included.
 *   It's not useful to compile and link it as a separate module anymore.
 */
-#ifdef XXH_PRIVATE_API
-#  ifndef XXH_STATIC_LINKING_ONLY
-#    define XXH_STATIC_LINKING_ONLY
-#  endif
-#  if defined(__GNUC__)
-#    define XXH_PUBLIC_API static __inline __attribute__((unused))
-#  elif defined (__cplusplus) || (defined (__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L) /* C99 */)
-#    define XXH_PUBLIC_API static inline
-#  elif defined(_MSC_VER)
-#    define XXH_PUBLIC_API static __inline
-#  else
-#    define XXH_PUBLIC_API static   /* this version may generate warnings for unused static functions; disable the relevant warning */
-#  endif
-#else
-#  define XXH_PUBLIC_API   /* do nothing */
-#endif /* XXH_PRIVATE_API */
+#define XXH_PUBLIC_API   /* do nothing */
 
 /*!XXH_NAMESPACE, aka Namespace Emulation :
 
@@ -119,29 +100,6 @@ with the value of XXH_NAMESPACE (so avoid to keep it NULL and avoid numeric valu
 Note that no change is required within the calling program as long as it includes `xxhash.h` :
 regular symbol name will be automatically translated by this header.
 */
-#ifdef XXH_NAMESPACE
-#  define XXH_CAT(A,B) A##B
-#  define XXH_NAME2(A,B) XXH_CAT(A,B)
-#  define XXH32 XXH_NAME2(XXH_NAMESPACE, XXH32)
-#  define XXH64 XXH_NAME2(XXH_NAMESPACE, XXH64)
-#  define XXH_versionNumber XXH_NAME2(XXH_NAMESPACE, XXH_versionNumber)
-#  define XXH32_createState XXH_NAME2(XXH_NAMESPACE, XXH32_createState)
-#  define XXH64_createState XXH_NAME2(XXH_NAMESPACE, XXH64_createState)
-#  define XXH32_freeState XXH_NAME2(XXH_NAMESPACE, XXH32_freeState)
-#  define XXH64_freeState XXH_NAME2(XXH_NAMESPACE, XXH64_freeState)
-#  define XXH32_reset XXH_NAME2(XXH_NAMESPACE, XXH32_reset)
-#  define XXH64_reset XXH_NAME2(XXH_NAMESPACE, XXH64_reset)
-#  define XXH32_update XXH_NAME2(XXH_NAMESPACE, XXH32_update)
-#  define XXH64_update XXH_NAME2(XXH_NAMESPACE, XXH64_update)
-#  define XXH32_digest XXH_NAME2(XXH_NAMESPACE, XXH32_digest)
-#  define XXH64_digest XXH_NAME2(XXH_NAMESPACE, XXH64_digest)
-#  define XXH32_copyState XXH_NAME2(XXH_NAMESPACE, XXH32_copyState)
-#  define XXH64_copyState XXH_NAME2(XXH_NAMESPACE, XXH64_copyState)
-#  define XXH32_canonicalFromHash XXH_NAME2(XXH_NAMESPACE, XXH32_canonicalFromHash)
-#  define XXH64_canonicalFromHash XXH_NAME2(XXH_NAMESPACE, XXH64_canonicalFromHash)
-#  define XXH32_hashFromCanonical XXH_NAME2(XXH_NAMESPACE, XXH32_hashFromCanonical)
-#  define XXH64_hashFromCanonical XXH_NAME2(XXH_NAMESPACE, XXH64_hashFromCanonical)
-#endif
 
 
 /* *************************************
@@ -227,10 +185,6 @@ When done, free XXH state space if it was allocated dynamically.
 /* **************************
 *  Utils
 ****************************/
-#if !(defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L))   /* ! C99 */
-#  define restrict   /* disable restrict */
-#endif
-
 XXH_PUBLIC_API void XXH32_copyState(XXH32_state_t* restrict dst_state, const XXH32_state_t* restrict src_state);
 XXH_PUBLIC_API void XXH64_copyState(XXH64_state_t* restrict dst_state, const XXH64_state_t* restrict src_state);
 
@@ -292,14 +246,4 @@ XXH_PUBLIC_API XXH64_hash_t XXH64_hashFromCanonical(const XXH64_canonical_t* src
 	   unsigned reserved[2];          /* never read nor write, will be removed in a future version */
    };   /* typedef'd to XXH64_state_t */
 
-
-#  ifdef XXH_PRIVATE_API
-#    include "xxhash.c"   /* include xxhash functions as `static`, for inlining */
-#  endif
-
 #endif /* XXH_STATIC_LINKING_ONLY && XXH_STATIC_H_3543687687345 */
-
-
-#if defined (__cplusplus)
-}
-#endif

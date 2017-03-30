@@ -35,26 +35,13 @@
 /* **************************************************************
 *  Compiler specifics
 ****************************************************************/
-#ifdef _MSC_VER    /* Visual Studio */
-#  define FORCE_INLINE static __forceinline
-#  pragma warning(disable : 4127)        /* disable: C4127: conditional expression is constant */
-#else
-#  if defined (__cplusplus) || defined (__STDC_VERSION__) && __STDC_VERSION__ >= 199901L   /* C99 */
-#    ifdef __GNUC__
-#      define FORCE_INLINE static inline __attribute__((always_inline))
-#    else
-#      define FORCE_INLINE static inline
-#    endif
-#  else
-#    define FORCE_INLINE static
-#  endif /* __STDC_VERSION__ */
-#endif
+#define FORCE_INLINE static __attribute__((always_inline))
 
 
 /* **************************************************************
 *  Dependencies
 ****************************************************************/
-#include <string.h>     /* memcpy, memset */
+#include <linux/string.h>     /* memcpy, memset */
 #include "bitstream.h"  /* BIT_* */
 #include "fse.h"        /* header compression */
 #define HUF_STATIC_LINKING_ONLY

@@ -1432,7 +1432,7 @@ typedef struct ZSTD_Cctx_s
 #else
     U32 hashTable[HASH_TABLESIZE];
 #endif
-	BYTE buffer[WORKPLACESIZE];
+    BYTE buffer[WORKPLACESIZE];
 } cctxi_t;
 
 

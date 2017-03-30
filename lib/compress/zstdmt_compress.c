@@ -44,26 +44,26 @@
     DEBUGLOGRAW(l, " \n");       \
 }
 
-static unsigned long long GetCurrentClockTimeMicroseconds()
+static unsigned long long GetCurrentClockTimeMicroseconds(void)
 {
    static clock_t _ticksPerSecond = 0;
    if (_ticksPerSecond <= 0) _ticksPerSecond = sysconf(_SC_CLK_TCK);
 
-   struct tms junk; clock_t newTicks = (clock_t) times(&junk);
-   return ((((unsigned long long)newTicks)*(1000000))/_ticksPerSecond);
+   { struct tms junk; clock_t newTicks = (clock_t) times(&junk);
+     return ((((unsigned long long)newTicks)*(1000000))/_ticksPerSecond); }
 }
 
 #define MUTEX_WAIT_TIME_DLEVEL 5
 #define PTHREAD_MUTEX_LOCK(mutex) \
 if (g_debugLevel>=MUTEX_WAIT_TIME_DLEVEL) { \
-   unsigned long long beforeTime = GetCurrentClockTimeMicroseconds(); \
-   pthread_mutex_lock(mutex); \
-   unsigned long long afterTime = GetCurrentClockTimeMicroseconds(); \
-   unsigned long long elapsedTime = (afterTime-beforeTime); \
-   if (elapsedTime > 1000) {  /* or whatever threshold you like; I'm using 1 millisecond here */ \
-      DEBUGLOG(MUTEX_WAIT_TIME_DLEVEL, "Thread took %llu microseconds to acquire mutex %s \n", \
+    unsigned long long const beforeTime = GetCurrentClockTimeMicroseconds(); \
+    pthread_mutex_lock(mutex); \
+    {   unsigned long long const afterTime = GetCurrentClockTimeMicroseconds(); \
+        unsigned long long const elapsedTime = (afterTime-beforeTime); \
+        if (elapsedTime > 1000) {  /* or whatever threshold you like; I'm using 1 millisecond here */ \
+            DEBUGLOG(MUTEX_WAIT_TIME_DLEVEL, "Thread took %llu microseconds to acquire mutex %s \n", \
                elapsedTime, #mutex); \
-  } \
+    }   } \
 } else pthread_mutex_lock(mutex);
 
 #else

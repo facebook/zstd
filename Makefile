@@ -90,6 +90,10 @@ examples:
 manual:
 	$(MAKE) -C contrib/gen_html $@
 
+.PHONY: cleanTabs
+cleanTabs:
+	cd contrib; ./cleanTabs
+
 .PHONY: clean
 clean:
 	@$(MAKE) -C $(ZSTDDIR) $@ > $(VOID)

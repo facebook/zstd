@@ -228,7 +228,8 @@ void ZSTDMT_compressChunk(void* jobDescription)
     ZSTDMT_jobDescription* const job = (ZSTDMT_jobDescription*)jobDescription;
     const void* const src = (const char*)job->srcStart + job->dictSize;
     buffer_t const dstBuff = job->dstBuff;
-    DEBUGLOG(3, "job (first:%u) (last:%u) : dictSize %u, srcSize %u", job->firstChunk, job->lastChunk, (U32)job->dictSize, (U32)job->srcSize);
+    DEBUGLOG(3, "job (first:%u) (last:%u) : dictSize %u, srcSize %u",
+                 job->firstChunk, job->lastChunk, (U32)job->dictSize, (U32)job->srcSize);
     if (job->cdict) {  /* should only happen for first segment */
         size_t const initError = ZSTD_compressBegin_usingCDict(job->cctx, job->cdict, job->fullFrameSize);
         if (job->cdict) DEBUGLOG(3, "using CDict ");
@@ -250,7 +251,8 @@ void ZSTDMT_compressChunk(void* jobDescription)
     job->cSize = (job->lastChunk) ?
                  ZSTD_compressEnd     (job->cctx, dstBuff.start, dstBuff.size, src, job->srcSize) :
                  ZSTD_compressContinue(job->cctx, dstBuff.start, dstBuff.size, src, job->srcSize);
-    DEBUGLOG(3, "compressed %u bytes into %u bytes   (first:%u) (last:%u)", (unsigned)job->srcSize, (unsigned)job->cSize, job->firstChunk, job->lastChunk);
+    DEBUGLOG(3, "compressed %u bytes into %u bytes   (first:%u) (last:%u)",
+                (unsigned)job->srcSize, (unsigned)job->cSize, job->firstChunk, job->lastChunk);
 
 _endJob:
     PTHREAD_MUTEX_LOCK(job->jobCompleted_mutex);
@@ -388,8 +390,9 @@ size_t ZSTDMT_compressCCtx(ZSTDMT_CCtx* mtctx,
                            int compressionLevel)
 {
     ZSTD_parameters params = ZSTD_getParams(compressionLevel, srcSize, 0);
+    size_t const overlapSize = (size_t)1 << (params.cParams.windowLog - 3);
     size_t const chunkTargetSize = (size_t)1 << (params.cParams.windowLog + 2);
-    unsigned const nbChunksMax = (unsigned)(srcSize / chunkTargetSize) + (srcSize < chunkTargetSize) /* min 1 */;
+    unsigned const nbChunksMax = (unsigned)(srcSize / chunkTargetSize) + 1;
     unsigned nbChunks = MIN(nbChunksMax, mtctx->nbThreads);
     size_t const proposedChunkSize = (srcSize + (nbChunks-1)) / nbChunks;
     size_t const avgChunkSize = ((proposedChunkSize & 0x1FFFF) < 0xFFFF) ? proposedChunkSize + 0xFFFF : proposedChunkSize;   /* avoid too small last block */
@@ -413,6 +416,7 @@ size_t ZSTDMT_compressCCtx(ZSTDMT_CCtx* mtctx,
             buffer_t const dstAsBuffer = { dst, dstCapacity };
             buffer_t const dstBuffer = u ? ZSTDMT_getBuffer(mtctx->buffPool, dstBufferCapacity) : dstAsBuffer;
             ZSTD_CCtx* const cctx = ZSTDMT_getCCtx(mtctx->cctxPool);
+            size_t dictSize = u ? overlapSize : 0;
 
             if ((cctx==NULL) || (dstBuffer.start==NULL)) {
                 mtctx->jobs[u].cSize = ERROR(memory_allocation);   /* job result */
@@ -421,7 +425,8 @@ size_t ZSTDMT_compressCCtx(ZSTDMT_CCtx* mtctx,
                 break;   /* let's wait for previous jobs to complete, but don't start new ones */
             }
 
-            mtctx->jobs[u].srcStart = srcStart + frameStartPos;
+            mtctx->jobs[u].srcStart = srcStart + frameStartPos - dictSize;
+            mtctx->jobs[u].dictSize = dictSize;
             mtctx->jobs[u].srcSize = chunkSize;
             mtctx->jobs[u].fullFrameSize = srcSize;
             mtctx->jobs[u].params = params;

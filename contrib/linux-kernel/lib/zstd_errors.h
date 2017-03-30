@@ -11,7 +11,7 @@
 #define ZSTD_ERRORS_H_398273423
 
 /*===== dependency =====*/
-#include <stddef.h>   /* size_t */
+#include <linux/types.h>   /* size_t */
 
 
 /* =====   ZSTDERRORLIB_API : control library symbols visibility   ===== */

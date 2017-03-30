@@ -36,7 +36,7 @@
 
 
 /* *** Dependencies *** */
-#include <stddef.h>    /* size_t */
+#include <linux/types.h>    /* size_t */
 
 
 /* *** simple functions *** */

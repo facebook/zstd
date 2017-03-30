@@ -11,7 +11,7 @@
 #define ZSTD_H_235446
 
 /* ======   Dependency   ======*/
-#include <stddef.h>   /* size_t */
+#include <linux/types.h>   /* size_t */
 
 
 /* =====   ZSTDLIB_API : control library symbols visibility   ===== */

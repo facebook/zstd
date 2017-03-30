@@ -12,7 +12,6 @@
 /*-*************************************
 *  Dependencies
 ***************************************/
-#include <stdlib.h>         /* malloc */
 #include "error_private.h"
 #define ZSTD_STATIC_LINKING_ONLY
 #include "zstd.h"           /* declaration of ZSTD_isError, ZSTD_getErrorName, ZSTD_getErrorCode, ZSTD_getErrorString, ZSTD_versionNumber */

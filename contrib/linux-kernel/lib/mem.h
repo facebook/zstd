@@ -13,8 +13,8 @@
 /*-****************************************
 *  Dependencies
 ******************************************/
-#include <stddef.h>     /* size_t, ptrdiff_t */
-#include <string.h>     /* memcpy */
+#include <linux/types.h>     /* size_t, ptrdiff_t */
+#include <linux/string.h>     /* memcpy */
 
 
 /*-****************************************
@@ -30,7 +30,6 @@ MEM_STATIC void MEM_check(void) { MEM_STATIC_ASSERT((sizeof(size_t)==4) || (size
 /*-**************************************************************
 *  Basic Types
 *****************************************************************/
-#include <stdint.h>
 typedef   uint8_t BYTE;
 typedef  uint16_t U16;
 typedef   int16_t S16;

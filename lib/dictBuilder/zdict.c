@@ -306,10 +306,10 @@ static dictItem ZDICT_analyzePos(
         /* look backward */
         length = MINMATCHLENGTH;
         while ((length >= MINMATCHLENGTH) & (start > 0)) {
-        	length = ZDICT_count(b + pos, b + suffix[start - 1]);
-        	if (length >= LLIMIT) length = LLIMIT - 1;
-        	lengthList[length]++;
-        	if (length >= MINMATCHLENGTH) start--;
+            length = ZDICT_count(b + pos, b + suffix[start - 1]);
+            if (length >= LLIMIT) length = LLIMIT - 1;
+            lengthList[length]++;
+            if (length >= MINMATCHLENGTH) start--;
         }
 
         /* largest useful length */

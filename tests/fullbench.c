@@ -251,14 +251,14 @@ static size_t benchMem(const void* src, size_t srcSize, U32 benchNb)
     case 13:
         benchFunction = local_ZSTD_decompressContinue; benchName = "ZSTD_decompressContinue";
         break;
-	case 31:
+    case 31:
         benchFunction = local_ZSTD_decodeLiteralsBlock; benchName = "ZSTD_decodeLiteralsBlock";
         break;
     case 32:
         benchFunction = local_ZSTD_decodeSeqHeaders; benchName = "ZSTD_decodeSeqHeaders";
         break;
 #endif
-	case 41:
+    case 41:
         benchFunction = local_ZSTD_compressStream; benchName = "ZSTD_compressStream";
         break;
     case 42:

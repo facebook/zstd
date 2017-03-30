@@ -71,7 +71,7 @@ XXH32        6.8 GB/s            6.0 GB/s
 /* ****************************
 *  Definitions
 ******************************/
-#include <stddef.h>   /* size_t */
+#include <linux/types.h>   /* size_t */
 typedef enum { XXH_OK=0, XXH_ERROR } XXH_errorcode;
 
 

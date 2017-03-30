@@ -42,8 +42,7 @@
 /* **************************************************************
 *  Includes
 ****************************************************************/
-#include <stdlib.h>     /* malloc, free, qsort */
-#include <string.h>     /* memcpy, memset */
+#include <linux/string.h>     /* memcpy, memset */
 #include "bitstream.h"
 #define FSE_STATIC_LINKING_ONLY
 #include "fse.h"

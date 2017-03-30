@@ -11,7 +11,7 @@
 /*-*************************************
 *  Dependencies
 ***************************************/
-#include <string.h>         /* memset */
+#include <linux/string.h>         /* memset */
 #include "mem.h"
 #define FSE_STATIC_LINKING_ONLY   /* FSE_encodeSymbol */
 #include "fse.h"

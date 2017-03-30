@@ -190,7 +190,7 @@ static int basicUnitTests(U32 seed, double compressibility)
     DISPLAYLEVEL(4, "OK \n");
 
 
-    /* ZSTDMT Multi-threading test */
+    /* ZSTDMT simple MT compression test */
     DISPLAYLEVEL(4, "test%3i : create ZSTDMT CCtx : ", testNb++);
     {   ZSTDMT_CCtx* mtctx = ZSTDMT_createCCtx(2);
         if (mtctx==NULL) {

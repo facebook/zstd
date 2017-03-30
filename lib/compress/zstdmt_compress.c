@@ -390,7 +390,8 @@ size_t ZSTDMT_compressCCtx(ZSTDMT_CCtx* mtctx,
                            int compressionLevel)
 {
     ZSTD_parameters params = ZSTD_getParams(compressionLevel, srcSize, 0);
-    size_t const overlapSize = (size_t)1 << (params.cParams.windowLog - 3);
+    U32 const overlapLog = (compressionLevel >= ZSTD_maxCLevel()) ? 0 : 3;
+    size_t const overlapSize = (size_t)1 << (params.cParams.windowLog - overlapLog);
     size_t const chunkTargetSize = (size_t)1 << (params.cParams.windowLog + 2);
     unsigned const nbChunksMax = (unsigned)(srcSize / chunkTargetSize) + 1;
     unsigned nbChunks = MIN(nbChunksMax, mtctx->nbThreads);

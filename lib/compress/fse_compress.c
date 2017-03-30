@@ -476,20 +476,20 @@ void FSE_freeCTable (FSE_CTable* ct) { free(ct); }
 /* provides the minimum logSize to safely represent a distribution */
 static unsigned FSE_minTableLog(size_t srcSize, unsigned maxSymbolValue)
 {
-	U32 minBitsSrc = BIT_highbit32((U32)(srcSize - 1)) + 1;
-	U32 minBitsSymbols = BIT_highbit32(maxSymbolValue) + 2;
-	U32 minBits = minBitsSrc < minBitsSymbols ? minBitsSrc : minBitsSymbols;
-	return minBits;
+    U32 minBitsSrc = BIT_highbit32((U32)(srcSize - 1)) + 1;
+    U32 minBitsSymbols = BIT_highbit32(maxSymbolValue) + 2;
+    U32 minBits = minBitsSrc < minBitsSymbols ? minBitsSrc : minBitsSymbols;
+    return minBits;
 }
 
 unsigned FSE_optimalTableLog_internal(unsigned maxTableLog, size_t srcSize, unsigned maxSymbolValue, unsigned minus)
 {
-	U32 maxBitsSrc = BIT_highbit32((U32)(srcSize - 1)) - minus;
+    U32 maxBitsSrc = BIT_highbit32((U32)(srcSize - 1)) - minus;
     U32 tableLog = maxTableLog;
-	U32 minBits = FSE_minTableLog(srcSize, maxSymbolValue);
+    U32 minBits = FSE_minTableLog(srcSize, maxSymbolValue);
     if (tableLog==0) tableLog = FSE_DEFAULT_TABLELOG;
-	if (maxBitsSrc < tableLog) tableLog = maxBitsSrc;   /* Accuracy can be reduced */
-	if (minBits > tableLog) tableLog = minBits;   /* Need a minimum to safely represent all symbol values */
+    if (maxBitsSrc < tableLog) tableLog = maxBitsSrc;   /* Accuracy can be reduced */
+    if (minBits > tableLog) tableLog = minBits;   /* Need a minimum to safely represent all symbol values */
     if (tableLog < FSE_MIN_TABLELOG) tableLog = FSE_MIN_TABLELOG;
     if (tableLog > FSE_MAX_TABLELOG) tableLog = FSE_MAX_TABLELOG;
     return tableLog;

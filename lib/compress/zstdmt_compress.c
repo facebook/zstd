@@ -33,7 +33,7 @@
 #  include <stdio.h>
 #  include <unistd.h>
 #  include <sys/times.h>
-   static unsigned g_debugLevel = 3;
+   static unsigned g_debugLevel = 2;
 #  define DEBUGLOGRAW(l, ...) if (l<=g_debugLevel) { fprintf(stderr, __VA_ARGS__); }
 #  define DEBUGLOG(l, ...) if (l<=g_debugLevel) { fprintf(stderr, __FILE__ ": "); fprintf(stderr, __VA_ARGS__); fprintf(stderr, " \n"); }
 
@@ -235,7 +235,7 @@ void ZSTDMT_compressChunk(void* jobDescription)
         if (ZSTD_isError(initError)) { job->cSize = initError; goto _endJob; }
     } else {  /* srcStart points at reloaded section */
         size_t const dictModeError = ZSTD_setCCtxParameter(job->cctx, ZSTD_p_forceRawDict, 1);  /* Force loading dictionary in "content-only" mode (no header analysis) */
-        size_t const initError = ZSTD_compressBegin_advanced(job->cctx, job->srcStart, job->dictSize, job->params, 0);
+        size_t const initError = ZSTD_compressBegin_advanced(job->cctx, job->srcStart, job->dictSize, job->params, job->fullFrameSize);
         if (ZSTD_isError(initError) || ZSTD_isError(dictModeError)) { job->cSize = initError; goto _endJob; }
         ZSTD_setCCtxParameter(job->cctx, ZSTD_p_forceWindow, 1);
     }

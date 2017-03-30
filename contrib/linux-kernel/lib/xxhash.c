@@ -103,16 +103,6 @@ static U64 XXH_read64(const void* memPtr)
 #define XXH_rotl32(x,r) ((x << r) | (x >> (32 - r)))
 #define XXH_rotl64(x,r) ((x << r) | (x >> (64 - r)))
 
-static U32 XXH_swap32 (U32 x)
-{
-	return MEM_swap32(x);
-}
-static U64 XXH_swap64 (U64 x)
-{
-	return  MEM_swap64(x);
-}
-
-
 /* *************************************
 *  Architecture Macros
 ***************************************/
@@ -120,8 +110,7 @@ typedef enum { XXH_bigEndian=0, XXH_littleEndian=1 } XXH_endianess;
 
 /* XXH_CPU_LITTLE_ENDIAN can be defined externally, for example on the compiler command line */
 #ifndef XXH_CPU_LITTLE_ENDIAN
-	static const int g_one = 1;
-#   define XXH_CPU_LITTLE_ENDIAN   (*(const char*)(&g_one))
+#   define XXH_CPU_LITTLE_ENDIAN   MEM_LITTLE_ENDIAN
 #endif
 
 
@@ -130,12 +119,9 @@ typedef enum { XXH_bigEndian=0, XXH_littleEndian=1 } XXH_endianess;
 *****************************/
 typedef enum { XXH_aligned, XXH_unaligned } XXH_alignment;
 
-FORCE_INLINE U32 XXH_readLE32_align(const void* ptr, XXH_endianess endian, XXH_alignment align)
+FORCE_INLINE U32 XXH_readLE32_align(const void* ptr, XXH_endianess, XXH_alignment)
 {
-	if (align==XXH_unaligned)
-		return endian==XXH_littleEndian ? XXH_read32(ptr) : XXH_swap32(XXH_read32(ptr));
-	else
-		return endian==XXH_littleEndian ? *(const U32*)ptr : XXH_swap32(*(const U32*)ptr);
+	return MEM_readLE32(ptr);
 }
 
 FORCE_INLINE U32 XXH_readLE32(const void* ptr, XXH_endianess endian)
@@ -145,15 +131,12 @@ FORCE_INLINE U32 XXH_readLE32(const void* ptr, XXH_endianess endian)
 
 static U32 XXH_readBE32(const void* ptr)
 {
-	return XXH_CPU_LITTLE_ENDIAN ? XXH_swap32(XXH_read32(ptr)) : XXH_read32(ptr);
+	return MEM_readBE32(ptr);
 }
 
 FORCE_INLINE U64 XXH_readLE64_align(const void* ptr, XXH_endianess endian, XXH_alignment align)
 {
-	if (align==XXH_unaligned)
-		return endian==XXH_littleEndian ? XXH_read64(ptr) : XXH_swap64(XXH_read64(ptr));
-	else
-		return endian==XXH_littleEndian ? *(const U64*)ptr : XXH_swap64(*(const U64*)ptr);
+	return MEM_readLE64(ptr);
 }
 
 FORCE_INLINE U64 XXH_readLE64(const void* ptr, XXH_endianess endian)
@@ -163,7 +146,7 @@ FORCE_INLINE U64 XXH_readLE64(const void* ptr, XXH_endianess endian)
 
 static U64 XXH_readBE64(const void* ptr)
 {
-	return XXH_CPU_LITTLE_ENDIAN ? XXH_swap64(XXH_read64(ptr)) : XXH_read64(ptr);
+	return MEM_readBE64(ptr);
 }
 
 
@@ -729,15 +712,13 @@ XXH_PUBLIC_API unsigned long long XXH64_digest (const XXH64_state_t* state_in)
 XXH_PUBLIC_API void XXH32_canonicalFromHash(XXH32_canonical_t* dst, XXH32_hash_t hash)
 {
 	XXH_STATIC_ASSERT(sizeof(XXH32_canonical_t) == sizeof(XXH32_hash_t));
-	if (XXH_CPU_LITTLE_ENDIAN) hash = XXH_swap32(hash);
-	memcpy(dst, &hash, sizeof(*dst));
+	MEM_writeBE32(dst, hash);
 }
 
 XXH_PUBLIC_API void XXH64_canonicalFromHash(XXH64_canonical_t* dst, XXH64_hash_t hash)
 {
 	XXH_STATIC_ASSERT(sizeof(XXH64_canonical_t) == sizeof(XXH64_hash_t));
-	if (XXH_CPU_LITTLE_ENDIAN) hash = XXH_swap64(hash);
-	memcpy(dst, &hash, sizeof(*dst));
+	MEM_writeBE64(dst, hash);
 }
 
 XXH_PUBLIC_API XXH32_hash_t XXH32_hashFromCanonical(const XXH32_canonical_t* src)

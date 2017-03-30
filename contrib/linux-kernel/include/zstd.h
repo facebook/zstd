@@ -315,11 +315,6 @@ ZSTDLIB_API size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* outp
 ZSTDLIB_API size_t ZSTD_DStreamInSize(void);    /*!< recommended size for input buffer */
 ZSTDLIB_API size_t ZSTD_DStreamOutSize(void);   /*!< recommended size for output buffer. Guarantee to successfully flush at least one complete block in all circumstances. */
 
-#endif  /* ZSTD_H_235446 */
-
-
-#if defined(ZSTD_STATIC_LINKING_ONLY) && !defined(ZSTD_H_ZSTD_STATIC_LINKING_ONLY)
-#define ZSTD_H_ZSTD_STATIC_LINKING_ONLY
 
 /****************************************************************************************
  * START OF ADVANCED AND EXPERIMENTAL FUNCTIONS
@@ -753,4 +748,4 @@ ZSTDLIB_API size_t ZSTD_decompressBlock(ZSTD_DCtx* dctx, void* dst, size_t dstCa
 ZSTDLIB_API size_t ZSTD_insertBlock(ZSTD_DCtx* dctx, const void* blockStart, size_t blockSize);  /**< insert block into `dctx` history. Useful for uncompressed blocks */
 
 
-#endif   /* ZSTD_H_ZSTD_STATIC_LINKING_ONLY */
+#endif  /* ZSTD_H_235446 */

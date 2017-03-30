@@ -38,9 +38,7 @@
 ****************************************************************/
 #include <linux/string.h>     /* memcpy, memset */
 #include "bitstream.h"
-#define FSE_STATIC_LINKING_ONLY   /* FSE_optimalTableLog_internal */
 #include "fse.h"        /* header compression */
-#define HUF_STATIC_LINKING_ONLY
 #include "huf.h"
 
 

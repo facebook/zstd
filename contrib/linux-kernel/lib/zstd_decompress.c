@@ -26,9 +26,7 @@
 *********************************************************/
 #include <linux/string.h>      /* memcpy, memmove, memset */
 #include "mem.h"         /* low level memory routines */
-#define FSE_STATIC_LINKING_ONLY
 #include "fse.h"
-#define HUF_STATIC_LINKING_ONLY
 #include "huf.h"
 #include "zstd_internal.h"
 

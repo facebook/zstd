@@ -13,9 +13,7 @@
 ***************************************/
 #include <linux/string.h>         /* memset */
 #include "mem.h"
-#define FSE_STATIC_LINKING_ONLY   /* FSE_encodeSymbol */
 #include "fse.h"
-#define HUF_STATIC_LINKING_ONLY
 #include "huf.h"
 #include "zstd_internal.h"  /* includes zstd.h */
 

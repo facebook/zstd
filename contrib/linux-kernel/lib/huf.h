@@ -91,8 +91,6 @@ size_t HUF_compress4X_wksp (void* dst, size_t dstSize, const void* src, size_t s
 
 
 
-#ifdef HUF_STATIC_LINKING_ONLY
-
 /* *** Dependencies *** */
 #include "mem.h"   /* U32 */
 
@@ -245,7 +243,5 @@ size_t HUF_decompress1X4_DCtx(HUF_DTable* dctx, void* dst, size_t dstSize, const
 size_t HUF_decompress1X_usingDTable(void* dst, size_t maxDstSize, const void* cSrc, size_t cSrcSize, const HUF_DTable* DTable);   /**< automatic selection of sing or double symbol decoder, based on DTable */
 size_t HUF_decompress1X2_usingDTable(void* dst, size_t maxDstSize, const void* cSrc, size_t cSrcSize, const HUF_DTable* DTable);
 size_t HUF_decompress1X4_usingDTable(void* dst, size_t maxDstSize, const void* cSrc, size_t cSrcSize, const HUF_DTable* DTable);
-
-#endif /* HUF_STATIC_LINKING_ONLY */
 
 #endif   /* HUF_H_298734234 */

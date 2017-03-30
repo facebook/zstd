@@ -43,7 +43,6 @@
 ****************************************************************/
 #include <linux/string.h>     /* memcpy, memset */
 #include "bitstream.h"
-#define FSE_STATIC_LINKING_ONLY
 #include "fse.h"
 
 

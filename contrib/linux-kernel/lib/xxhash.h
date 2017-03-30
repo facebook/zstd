@@ -9,9 +9,9 @@
    modification, are permitted provided that the following conditions are
    met:
 
-       * Redistributions of source code must retain the above copyright
+	   * Redistributions of source code must retain the above copyright
    notice, this list of conditions and the following disclaimer.
-       * Redistributions in binary form must reproduce the above
+	   * Redistributions in binary form must reproduce the above
    copyright notice, this list of conditions and the following disclaimer
    in the documentation and/or other materials provided with the
    distribution.
@@ -165,14 +165,14 @@ XXH_PUBLIC_API XXH64_hash_t XXH64 (const void* input, size_t length, unsigned lo
 
 /*!
 XXH32() :
-    Calculate the 32-bits hash of sequence "length" bytes stored at memory address "input".
-    The memory between input & input+length must be valid (allocated and read-accessible).
-    "seed" can be used to alter the result predictably.
-    Speed on Core 2 Duo @ 3 GHz (single thread, SMHasher benchmark) : 5.4 GB/s
+	Calculate the 32-bits hash of sequence "length" bytes stored at memory address "input".
+	The memory between input & input+length must be valid (allocated and read-accessible).
+	"seed" can be used to alter the result predictably.
+	Speed on Core 2 Duo @ 3 GHz (single thread, SMHasher benchmark) : 5.4 GB/s
 XXH64() :
-    Calculate the 64-bits hash of sequence of length "len" stored at memory address "input".
-    "seed" can be used to alter the result predictably.
-    This function runs 2x faster on 64-bits systems, but slower on 32-bits systems (see benchmark).
+	Calculate the 64-bits hash of sequence of length "len" stored at memory address "input".
+	"seed" can be used to alter the result predictably.
+	This function runs 2x faster on 64-bits systems, but slower on 32-bits systems (see benchmark).
 */
 
 
@@ -270,26 +270,26 @@ XXH_PUBLIC_API XXH64_hash_t XXH64_hashFromCanonical(const XXH64_canonical_t* src
    Do not use members directly. */
 
    struct XXH32_state_s {
-       unsigned total_len_32;
-       unsigned large_len;
-       unsigned v1;
-       unsigned v2;
-       unsigned v3;
-       unsigned v4;
-       unsigned mem32[4];   /* buffer defined as U32 for alignment */
-       unsigned memsize;
-       unsigned reserved;   /* never read nor write, will be removed in a future version */
+	   unsigned total_len_32;
+	   unsigned large_len;
+	   unsigned v1;
+	   unsigned v2;
+	   unsigned v3;
+	   unsigned v4;
+	   unsigned mem32[4];   /* buffer defined as U32 for alignment */
+	   unsigned memsize;
+	   unsigned reserved;   /* never read nor write, will be removed in a future version */
    };   /* typedef'd to XXH32_state_t */
 
    struct XXH64_state_s {
-       unsigned long long total_len;
-       unsigned long long v1;
-       unsigned long long v2;
-       unsigned long long v3;
-       unsigned long long v4;
-       unsigned long long mem64[4];   /* buffer defined as U64 for alignment */
-       unsigned memsize;
-       unsigned reserved[2];          /* never read nor write, will be removed in a future version */
+	   unsigned long long total_len;
+	   unsigned long long v1;
+	   unsigned long long v2;
+	   unsigned long long v3;
+	   unsigned long long v4;
+	   unsigned long long mem64[4];   /* buffer defined as U64 for alignment */
+	   unsigned memsize;
+	   unsigned reserved[2];          /* never read nor write, will be removed in a future version */
    };   /* typedef'd to XXH64_state_t */
 
 

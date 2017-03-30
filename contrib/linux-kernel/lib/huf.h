@@ -34,10 +34,6 @@
 #ifndef HUF_H_298734234
 #define HUF_H_298734234
 
-#if defined (__cplusplus)
-extern "C" {
-#endif
-
 
 /* *** Dependencies *** */
 #include <stddef.h>    /* size_t */
@@ -251,10 +247,5 @@ size_t HUF_decompress1X2_usingDTable(void* dst, size_t maxDstSize, const void* c
 size_t HUF_decompress1X4_usingDTable(void* dst, size_t maxDstSize, const void* cSrc, size_t cSrcSize, const HUF_DTable* DTable);
 
 #endif /* HUF_STATIC_LINKING_ONLY */
-
-
-#if defined (__cplusplus)
-}
-#endif
 
 #endif   /* HUF_H_298734234 */

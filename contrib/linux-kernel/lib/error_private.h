@@ -12,11 +12,6 @@
 #ifndef ERROR_H_MODULE
 #define ERROR_H_MODULE
 
-#if defined (__cplusplus)
-extern "C" {
-#endif
-
-
 /* ****************************************
 *  Dependencies
 ******************************************/
@@ -27,15 +22,7 @@ extern "C" {
 /* ****************************************
 *  Compiler-specific
 ******************************************/
-#if defined(__GNUC__)
-#  define ERR_STATIC static __attribute__((unused))
-#elif defined (__cplusplus) || (defined (__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L) /* C99 */)
-#  define ERR_STATIC static inline
-#elif defined(_MSC_VER)
-#  define ERR_STATIC static __inline
-#else
-#  define ERR_STATIC static  /* this version may generate warnings for unused static functions; disable the relevant warning */
-#endif
+#define ERR_STATIC static __attribute__((unused))
 
 
 /*-****************************************
@@ -48,9 +35,6 @@ typedef ZSTD_ErrorCode ERR_enum;
 /*-****************************************
 *  Error codes handling
 ******************************************/
-#ifdef ERROR
-#  undef ERROR   /* reported already defined on VS 2015 (Rich Geldreich) */
-#endif
 #define ERROR(name) ((size_t)-PREFIX(name))
 
 ERR_STATIC unsigned ERR_isError(size_t code) { return (code > ERROR(maxCode)); }
@@ -68,9 +52,5 @@ ERR_STATIC const char* ERR_getErrorName(size_t code)
 {
 	return ERR_getErrorString(ERR_getErrorCode(code));
 }
-
-#if defined (__cplusplus)
-}
-#endif
 
 #endif /* ERROR_H_MODULE */

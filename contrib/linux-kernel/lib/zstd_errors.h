@@ -10,27 +10,12 @@
 #ifndef ZSTD_ERRORS_H_398273423
 #define ZSTD_ERRORS_H_398273423
 
-#if defined (__cplusplus)
-extern "C" {
-#endif
-
 /*===== dependency =====*/
 #include <stddef.h>   /* size_t */
 
 
 /* =====   ZSTDERRORLIB_API : control library symbols visibility   ===== */
-#if defined(__GNUC__) && (__GNUC__ >= 4)
-#  define ZSTDERRORLIB_VISIBILITY __attribute__ ((visibility ("default")))
-#else
-#  define ZSTDERRORLIB_VISIBILITY
-#endif
-#if defined(ZSTD_DLL_EXPORT) && (ZSTD_DLL_EXPORT==1)
-#  define ZSTDERRORLIB_API __declspec(dllexport) ZSTDERRORLIB_VISIBILITY
-#elif defined(ZSTD_DLL_IMPORT) && (ZSTD_DLL_IMPORT==1)
-#  define ZSTDERRORLIB_API __declspec(dllimport) ZSTDERRORLIB_VISIBILITY /* It isn't required but allows to generate better code, saving a function pointer load from the IAT and an indirect jump.*/
-#else
-#  define ZSTDERRORLIB_API ZSTDERRORLIB_VISIBILITY
-#endif
+#define ZSTDERRORLIB_API
 
 /*-****************************************
 *  error codes list
@@ -66,10 +51,5 @@ typedef enum {
 	which can be used to compare directly with enum list published into "error_public.h" */
 ZSTDERRORLIB_API ZSTD_ErrorCode ZSTD_getErrorCode(size_t functionResult);
 ZSTDERRORLIB_API const char* ZSTD_getErrorString(ZSTD_ErrorCode code);
-
-
-#if defined (__cplusplus)
-}
-#endif
 
 #endif /* ZSTD_ERRORS_H_398273423 */

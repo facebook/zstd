@@ -57,10 +57,10 @@
   - ECHO Installing %COMPILER% %PLATFORM% %CONFIGURATION%
   - SET PATH_ORIGINAL=%PATH%
   - if [%HOST%]==[mingw] (
-      SET "PATH_MINGW32=C:\MinGW\bin;C:\MinGW\usr\bin" &&
-      SET "PATH_MINGW64=C:\msys64\mingw64\bin;C:\msys64\usr\bin" &&
-      COPY C:\msys64\usr\bin\make.exe C:\MinGW\bin\make.exe &&
-      COPY C:\MinGW\bin\gcc.exe C:\MinGW\bin\cc.exe
+      SET "PATH_MINGW32=C:\mingw-w64\i686-6.3.0-posix-dwarf-rt_v5-rev1\mingw32\bin" &&
+      SET "PATH_MINGW64=C:\mingw-w64\x86_64-6.3.0-posix-seh-rt_v5-rev1\mingw64\bin" &&
+      COPY C:\msys64\usr\bin\make.exe C:\mingw-w64\i686-6.3.0-posix-dwarf-rt_v5-rev1\mingw32\bin\make.exe &&
+      COPY C:\msys64\usr\bin\make.exe C:\mingw-w64\x86_64-6.3.0-posix-seh-rt_v5-rev1\mingw64\bin\make.exe
     )
   - IF [%HOST%]==[visual] IF [%PLATFORM%]==[x64] (
       SET ADDITIONALPARAM=/p:LibraryPath="C:\Program Files\Microsoft SDKs\Windows\v7.1\lib\x64;c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\lib\amd64;C:\Program Files (x86)\Microsoft Visual Studio 10.0\;C:\Program Files (x86)\Microsoft Visual Studio 10.0\lib\amd64;"
@@ -85,7 +85,14 @@
       SET "CPPFLAGS=-I../../zlib" &&
       SET "LDFLAGS=../../zlib/libz.a" &&
       sh -c "%SCRIPT%" &&
-      ( if [%COMPILER%]==[gcc] if [%ARTIFACT%]==[true] COPY programs\zstd.exe zstd_%PLATFORM%.exe && appveyor PushArtifact zstd_%PLATFORM%.exe )
+      ( if [%COMPILER%]==[gcc] if [%ARTIFACT%]==[true] COPY programs\zstd.exe zstd_%PLATFORM%.exe && appveyor PushArtifact zstd_%PLATFORM%.exe ) &&
+      ( if [%COMPILER%]==[gcc] if [%ARTIFACT%]==[true]
+          lib\dll\example\build_package.bat &&
+          make -C programs DEBUGFLAGS= clean zstdmt &&
+          cp programs\zstd.exe bin\zstdmt.exe &&
+          cd bin\ && 7z a -tzip zstd-win-release-%PLATFORM%.zip * &&
+          appveyor PushArtifact zstd-win-release-%PLATFORM%.zip
+      )
     )
   - if [%HOST%]==[visual] (
       ECHO *** &&
@@ -140,6 +147,8 @@
 
   test_script:
   - ECHO Testing %COMPILER% %PLATFORM% %CONFIGURATION%
+  - SET "CC=gcc"
+  - SET "CXX=g++"
   - if [%TEST%]==[cmake] (
       mkdir build\cmake\build &&
       cd build\cmake\build &&

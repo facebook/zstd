@@ -22,11 +22,7 @@
 ***************************************/
 #include "mem.h"
 #include "error_private.h"
-#define ZSTD_STATIC_LINKING_ONLY
 #include "zstd.h"
-#ifndef XXH_STATIC_LINKING_ONLY
-#  define XXH_STATIC_LINKING_ONLY   /* XXH64_state_t */
-#endif
 #include "xxhash.h"               /* XXH_reset, update, digest */
 
 

@@ -286,8 +286,6 @@ If there is an error, the function will return an error code, which can be teste
 */
 
 
-#ifdef FSE_STATIC_LINKING_ONLY
-
 /* *** Dependency *** */
 #include "bitstream.h"
 
@@ -670,9 +668,6 @@ MEM_STATIC unsigned FSE_endOfDState(const FSE_DState_t* DStatePtr)
 #endif
 
 #define FSE_TABLESTEP(tableSize) ((tableSize>>1) + (tableSize>>3) + 3)
-
-
-#endif /* FSE_STATIC_LINKING_ONLY */
 
 
 #endif  /* FSE_H */

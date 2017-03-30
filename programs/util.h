@@ -166,8 +166,8 @@ UTIL_STATIC void UTIL_waitForNextTick(UTIL_freq_t ticksPerSecond)
 *  File functions
 ******************************************/
 #if defined(_MSC_VER)
-	#define chmod _chmod
-	typedef struct __stat64 stat_t;
+    #define chmod _chmod
+    typedef struct __stat64 stat_t;
 #else
     typedef struct stat stat_t;
 #endif
@@ -178,9 +178,9 @@ UTIL_STATIC int UTIL_setFileStat(const char *filename, stat_t *statbuf)
     int res = 0;
     struct utimbuf timebuf;
 
-	timebuf.actime = time(NULL);
-	timebuf.modtime = statbuf->st_mtime;
-	res += utime(filename, &timebuf);  /* set access and modification times */
+    timebuf.actime = time(NULL);
+    timebuf.modtime = statbuf->st_mtime;
+    res += utime(filename, &timebuf);  /* set access and modification times */
 
 #if !defined(_WIN32)
     res += chown(filename, statbuf->st_uid, statbuf->st_gid);  /* Copy ownership */

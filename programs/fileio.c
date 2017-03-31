@@ -227,6 +227,9 @@ static FILE* FIO_openDstFile(const char* dstFileName)
             DISPLAYLEVEL(4, "Sparse File Support is automatically disabled on stdout ; try --sparse \n");
         }
     } else {
+        if (g_sparseFileSupport == 1) {
+            g_sparseFileSupport = ZSTD_SPARSE_DEFAULT;
+        }
         if (!g_overwrite && strcmp (dstFileName, nulmark)) {  /* Check if destination file already exists */
             f = fopen( dstFileName, "rb" );
             if (f != 0) {  /* dest file exists, prompt for overwrite authorization */

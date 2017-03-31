@@ -231,8 +231,8 @@ This information is important for decoders to allocate enough memory.
 
 The `Window_Descriptor` byte is optional.
 When `Single_Segment_flag` is set, `Window_Descriptor` is not present.
-In this case, the required buffer size is the frame content size itself,
-which can be any value from 0 to 2^64-1 bytes (16 EB).
+In this case, `Window_Size` is `Frame_Content_Size`,
+which can be any value from 0 to 2^64-1 bytes (16 ExaBytes).
 
 | Bit numbers |     7-3    |     2-0    |
 | ----------- | ---------- | ---------- |
@@ -284,7 +284,7 @@ If the frame is going to be distributed in a private environment,
 any dictionary ID can be used.
 However, for public distribution of compressed frames using a dictionary,
 the following ranges are reserved and shall not be used :
-- low range : `<= 32767`
+- low range  : `<= 32767`
 - high range : `>= (1 << 31)`
 
 #### `Frame_Content_Size`
@@ -311,23 +311,22 @@ It's allowed to represent a small size (for example `18`) using any compatible v
 Blocks
 -------
 
-After the magic number and header of each block,
-there are some number of blocks.
-Each frame must have at least one block  but there is no upper limit
-on the number of blocks per frame.
+After `Magic_Number` and `Frame_Header`, there are some number of blocks.
+Each frame must have at least one block,
+but there is no upper limit on the number of blocks per frame.
 
 The structure of a block is as follows:
 
 | `Block_Header` | `Block_Content` |
 |:--------------:|:---------------:|
-|    3 bytes     |   n bytes       |
+|    3 bytes     |     n bytes     |
 
 `Block_Header` uses 3 bytes, written using __little-endian__ convention.
 It contains 3 fields :
 
-| `Block_Size` | `Block_Type` | `Last_Block` |
+| `Last_Block` | `Block_Type` | `Block_Size` |
 |:------------:|:------------:|:------------:|
-|  bits 3-23   |  bits 1-2    |    bit 0     |
+|    bit 0     |  bits 1-2    |  bits 3-23   |
 
 __`Last_Block`__
 
@@ -442,7 +441,7 @@ This field uses 2 lowest bits of first byte, describing 4 different block types 
 - `Treeless_Literals_Block` - This is a Huffman-compressed block,
         using Huffman tree _from previous Huffman-compressed literals block_.
         `Huffman_Tree_Description` will be skipped.
-        Note: If this mode is triggering without any previous Huffman-table in the frame
+        Note: If this mode is triggered without any previous Huffman-table in the frame
         (or [dictionary](#dictionary-format)), this should be treated as data corruption.
 
 __`Size_Format`__
@@ -514,7 +513,7 @@ This section is only present when `Literals_Block_Type` type is `Compressed_Lite
 The format of the Huffman tree description can be found at [Huffman Tree description](#huffman-tree-description).
 The size of `Huffman_Tree_Description` is determined during decoding process,
 it must be used to determine where streams begin.
-`Total_Streams_Size = Compress_Size - Huffman_Tree_Description_Size`.
+`Total_Streams_Size = Compressed_Size - Huffman_Tree_Description_Size`.
 
 For `Treeless_Literals_Block`,
 the Huffman table comes from previously compressed literals block.
@@ -527,14 +526,14 @@ remaining portion of the literals block, encoded as described within
 
 If there are four streams, the literals section header only provides enough
 information to know the decompressed and compressed sizes of all four streams _combined_.
-The decompressed size of each stream is equal to `(totalSize+3)/4`,
+The decompressed size of each stream is equal to `(Regenerated_Size+3)/4`,
 except for the last stream which may be up to 3 bytes smaller,
 to reach a total decompressed size as specified in `Regenerated_Size`.
 
 The compressed size of each stream is provided explicitly:
 the first 6 bytes of the compressed data consist of three 2-byte __little-endian__ fields,
 describing the compressed sizes of the first three streams.
-Stream4 size is computed from total `Total_Streams_Size` minus sizes of other streams.
+`Stream4_Size` is computed from total `Total_Streams_Size` minus sizes of other streams.
 
 `Stream4_Size = Total_Streams_Size - 6 - Stream1_Size - Stream2_Size - Stream3_Size`.
 
@@ -550,11 +549,11 @@ Sequences Section
 A compressed block is a succession of _sequences_ .
 A sequence is a literal copy command, followed by a match copy command.
 A literal copy command specifies a length.
-It is the number of bytes to be copied (or extracted) from the [Literals Section].
+It is the number of bytes to be copied (or extracted) from the Literals Section.
 A match copy command specifies an offset and a length.
 
 When all _sequences_ are decoded,
-if there is are any literals left in the _literal section_,
+if there are literals left in the _literal section_,
 these bytes are added at the end of the block.
 
 This is described in more detail in [Sequence Execution](#sequence-execution)
@@ -586,7 +585,7 @@ This is a variable size field using between 1 and 3 bytes.
 Let's call its first byte `byte0`.
 - `if (byte0 == 0)` : there are no sequences.
             The sequence section stops there.
-            Decompressed content is defined entirely as [Literals Section] content.
+            Decompressed content is defined entirely as Literals Section content.
 - `if (byte0 < 128)` : `Number_of_Sequences = byte0` . Uses 1 byte.
 - `if (byte0 < 255)` : `Number_of_Sequences = ((byte0-128) << 8) + byte1` . Uses 2 bytes.
 - `if (byte0 == 255)`: `Number_of_Sequences = byte1 + (byte2<<8) + 0x7F00` . Uses 3 bytes.
@@ -622,7 +621,7 @@ They follow the same enumeration :
           (or [dictionary](#dictionary-format)) to repeat, this should be treated as corruption.
 - `FSE_Compressed_Mode` : standard FSE compression.
           A distribution table will be present.
-          The format of this distribution table is described in (FSE Table Description)[#fse-table-description].
+          The format of this distribution table is described in [FSE Table Description](#fse-table-description).
           Note that the maximum allowed accuracy log for literals length and match length tables is 9,
           and the maximum accuracy log for the offsets table is 8.
 

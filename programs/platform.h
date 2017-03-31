@@ -138,6 +138,14 @@ static __inline int IS_CONSOLE(FILE* stdStream)
 #endif
 
 
+#ifndef ZSTD_SPARSE_DEFAULT
+#  if (defined(__APPLE__) && defined(__MACH__))
+#    define ZSTD_SPARSE_DEFAULT 0
+#  else
+#    define ZSTD_SPARSE_DEFAULT 1
+#  endif
+#endif
+
 
 #if defined (__cplusplus)
 }

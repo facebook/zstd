@@ -35,12 +35,13 @@
 /* **************************************************************
 *  Compiler specifics
 ****************************************************************/
-#define FORCE_INLINE static __attribute__((always_inline))
+#define FORCE_INLINE static __always_inline
 
 
 /* **************************************************************
 *  Includes
 ****************************************************************/
+#include <linux/compiler.h>
 #include <linux/string.h>     /* memcpy, memset */
 #include "bitstream.h"
 #include "fse.h"
@@ -162,14 +163,6 @@ size_t FSE_buildCTable_wksp(FSE_CTable* ct, const short* normalizedCounter, unsi
 
 	return 0;
 }
-
-
-size_t FSE_buildCTable(FSE_CTable* ct, const short* normalizedCounter, unsigned maxSymbolValue, unsigned tableLog)
-{
-	FSE_FUNCTION_TYPE tableSymbol[FSE_MAX_TABLESIZE];   /* memset() is not necessary, even if static analyzer complain about it */
-	return FSE_buildCTable_wksp(ct, normalizedCounter, maxSymbolValue, tableLog, tableSymbol, sizeof(tableSymbol));
-}
-
 
 
 #ifndef FSE_COMMONDEFS_ONLY
@@ -399,14 +392,6 @@ size_t FSE_countFast_wksp(unsigned* count, unsigned* maxSymbolValuePtr,
 	return FSE_count_parallel_wksp(count, maxSymbolValuePtr, source, sourceSize, 0, workSpace);
 }
 
-/* fast variant (unsafe : won't check if src contains values beyond count[] limit) */
-size_t FSE_countFast(unsigned* count, unsigned* maxSymbolValuePtr,
-					 const void* source, size_t sourceSize)
-{
-	unsigned tmpCounters[1024];
-	return FSE_countFast_wksp(count, maxSymbolValuePtr, source, sourceSize, tmpCounters);
-}
-
 /* FSE_count_wksp() :
  * Same as FSE_count(), but using an externally provided scratch buffer.
  * `workSpace` size must be table of >= `1024` unsigned */
@@ -444,16 +429,6 @@ size_t FSE_sizeof_CTable (unsigned maxSymbolValue, unsigned tableLog)
 	if (tableLog > FSE_MAX_TABLELOG) return ERROR(tableLog_tooLarge);
 	return FSE_CTABLE_SIZE_U32 (tableLog, maxSymbolValue) * sizeof(U32);
 }
-
-FSE_CTable* FSE_createCTable (unsigned maxSymbolValue, unsigned tableLog)
-{
-	size_t size;
-	if (tableLog > FSE_TABLELOG_ABSOLUTE_MAX) tableLog = FSE_TABLELOG_ABSOLUTE_MAX;
-	size = FSE_CTABLE_SIZE_U32 (tableLog, maxSymbolValue) * sizeof(U32);
-	return (FSE_CTable*)malloc(size);
-}
-
-void FSE_freeCTable (FSE_CTable* ct) { free(ct); }
 
 /* provides the minimum logSize to safely represent a distribution */
 static unsigned FSE_minTableLog(size_t srcSize, unsigned maxSymbolValue)
@@ -815,24 +790,6 @@ size_t FSE_compress_wksp (void* dst, size_t dstSize, const void* src, size_t src
 	if ( (size_t)(op-ostart) >= srcSize-1 ) return 0;
 
 	return op-ostart;
-}
-
-typedef struct {
-	FSE_CTable CTable_max[FSE_CTABLE_SIZE_U32(FSE_MAX_TABLELOG, FSE_MAX_SYMBOL_VALUE)];
-	BYTE scratchBuffer[1 << FSE_MAX_TABLELOG];
-} fseWkspMax_t;
-
-size_t FSE_compress2 (void* dst, size_t dstCapacity, const void* src, size_t srcSize, unsigned maxSymbolValue, unsigned tableLog)
-{
-	fseWkspMax_t scratchBuffer;
-	FSE_STATIC_ASSERT(sizeof(scratchBuffer) >= FSE_WKSP_SIZE_U32(FSE_MAX_TABLELOG, FSE_MAX_SYMBOL_VALUE));   /* compilation failures here means scratchBuffer is not large enough */
-	if (tableLog > FSE_MAX_TABLELOG) return ERROR(tableLog_tooLarge);
-	return FSE_compress_wksp(dst, dstCapacity, src, srcSize, maxSymbolValue, tableLog, &scratchBuffer, sizeof(scratchBuffer));
-}
-
-size_t FSE_compress (void* dst, size_t dstCapacity, const void* src, size_t srcSize)
-{
-	return FSE_compress2(dst, dstCapacity, src, srcSize, FSE_MAX_SYMBOL_VALUE, FSE_DEFAULT_TABLELOG);
 }
 
 

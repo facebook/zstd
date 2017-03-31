@@ -13,13 +13,15 @@
 /*-*******************************************************
 *  Compiler specifics
 *********************************************************/
-#define FORCE_INLINE static __attribute__((always_inline))
-#define FORCE_NOINLINE static __attribute__((__noinline__))
+#define FORCE_INLINE static __always_inline
+#define FORCE_NOINLINE static noinline
 
 
 /*-*************************************
 *  Dependencies
 ***************************************/
+#include <linux/compiler.h>
+#include <linux/kernel.h>
 #include "mem.h"
 #include "error_private.h"
 #include "zstd.h"
@@ -207,25 +209,35 @@ const seqStore_t* ZSTD_getSeqStore(const ZSTD_CCtx* ctx);
 void ZSTD_seqToCodes(const seqStore_t* seqStorePtr);
 int ZSTD_isSkipFrame(ZSTD_DCtx* dctx);
 
-/* custom memory allocation functions */
-void* ZSTD_defaultAllocFunction(void* opaque, size_t size);
-void ZSTD_defaultFreeFunction(void* opaque, void* address);
-#ifndef ZSTD_DLL_IMPORT
-static const ZSTD_customMem defaultCustomMem = { ZSTD_defaultAllocFunction, ZSTD_defaultFreeFunction, NULL };
-#endif
+/*= Custom memory allocation functions */
+typedef void* (*ZSTD_allocFunction) (void* opaque, size_t size);
+typedef void  (*ZSTD_freeFunction) (void* opaque, void* address);
+typedef struct { ZSTD_allocFunction customAlloc; ZSTD_freeFunction customFree; void* opaque; } ZSTD_customMem;
+
 void* ZSTD_malloc(size_t size, ZSTD_customMem customMem);
 void ZSTD_free(void* ptr, ZSTD_customMem customMem);
+
+/*====== stack allocation  ======*/
+
+typedef struct {
+	void* ptr;
+	const void* end;
+} ZSTD_stack;
+
+#define ZSTD_ALIGN(x) ALIGN(x, sizeof(size_t))
+#define ZSTD_PTR_ALIGN(p) PTR_ALIGN(p, sizeof(size_t))
+
+ZSTD_customMem ZSTD_initStack(void* workspace, size_t workspaceSize);
+
+void* ZSTD_stackAlloc(void* opaque, size_t size);
+void ZSTD_stackFree(void* opaque, void* address);
 
 
 /*======  common function  ======*/
 
 MEM_STATIC U32 ZSTD_highbit32(U32 val)
 {
-#   if defined(_MSC_VER)   /* Visual */
-	unsigned long r=0;
-	_BitScanReverse(&r, val);
-	return (unsigned)r;
-#   elif defined(__GNUC__) && (__GNUC__ >= 3)   /* GCC Intrinsic */
+#   if defined(__GNUC__) && (__GNUC__ >= 3)   /* GCC Intrinsic */
 	return 31 - __builtin_clz(val);
 #   else   /* Software version */
 	static const int DeBruijnClz[32] = { 0, 9, 1, 10, 13, 21, 2, 29, 11, 14, 16, 18, 22, 25, 3, 30, 8, 12, 20, 28, 15, 17, 24, 7, 19, 27, 23, 6, 26, 5, 4, 31 };
@@ -249,6 +261,13 @@ MEM_STATIC U32 ZSTD_highbit32(U32 val)
  * Note : only works with regular variant;
  *        do not use with extDict variant ! */
 void ZSTD_invalidateRepCodes(ZSTD_CCtx* cctx);
+
+size_t ZSTD_freeCCtx(ZSTD_CCtx* cctx);
+size_t ZSTD_freeDCtx(ZSTD_DCtx* dctx);
+size_t ZSTD_freeCDict(ZSTD_CDict* cdict);
+size_t ZSTD_freeDDict(ZSTD_DDict* cdict);
+size_t ZSTD_freeCStream(ZSTD_CStream* zcs);
+size_t ZSTD_freeDStream(ZSTD_DStream* zds);
 
 
 #endif   /* ZSTD_CCOMMON_H_MODULE */

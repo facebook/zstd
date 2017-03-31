@@ -635,14 +635,6 @@ size_t HUF_compress1X_repeat (void* dst, size_t dstSize,
 	return HUF_compress_internal(dst, dstSize, src, srcSize, maxSymbolValue, huffLog, 1 /* single stream */, workSpace, wkspSize, hufTable, repeat, preferRepeat);
 }
 
-size_t HUF_compress1X (void* dst, size_t dstSize,
-				 const void* src, size_t srcSize,
-				 unsigned maxSymbolValue, unsigned huffLog)
-{
-	unsigned workSpace[1024];
-	return HUF_compress1X_wksp(dst, dstSize, src, srcSize, maxSymbolValue, huffLog, workSpace, sizeof(workSpace));
-}
-
 size_t HUF_compress4X_wksp (void* dst, size_t dstSize,
 					  const void* src, size_t srcSize,
 					  unsigned maxSymbolValue, unsigned huffLog,
@@ -658,17 +650,4 @@ size_t HUF_compress4X_repeat (void* dst, size_t dstSize,
 					  HUF_CElt* hufTable, HUF_repeat* repeat, int preferRepeat)
 {
 	return HUF_compress_internal(dst, dstSize, src, srcSize, maxSymbolValue, huffLog, 0 /* 4 streams */, workSpace, wkspSize, hufTable, repeat, preferRepeat);
-}
-
-size_t HUF_compress2 (void* dst, size_t dstSize,
-				const void* src, size_t srcSize,
-				unsigned maxSymbolValue, unsigned huffLog)
-{
-	unsigned workSpace[1024];
-	return HUF_compress4X_wksp(dst, dstSize, src, srcSize, maxSymbolValue, huffLog, workSpace, sizeof(workSpace));
-}
-
-size_t HUF_compress (void* dst, size_t maxDstSize, const void* src, size_t srcSize)
-{
-	return HUF_compress2(dst, maxDstSize, src, (U32)srcSize, 255, HUF_TABLELOG_DEFAULT);
 }

@@ -36,12 +36,13 @@
 /* **************************************************************
 *  Compiler specifics
 ****************************************************************/
-#define FORCE_INLINE static __attribute__((always_inline))
+#define FORCE_INLINE static __always_inline
 
 
 /* **************************************************************
 *  Includes
 ****************************************************************/
+#include <linux/compiler.h>
 #include <linux/string.h>     /* memcpy, memset */
 #include "bitstream.h"
 #include "fse.h"
@@ -81,16 +82,6 @@
 
 
 /* Function templates */
-FSE_DTable* FSE_createDTable (unsigned tableLog)
-{
-	if (tableLog > FSE_TABLELOG_ABSOLUTE_MAX) tableLog = FSE_TABLELOG_ABSOLUTE_MAX;
-	return (FSE_DTable*)malloc( FSE_DTABLE_SIZE_U32(tableLog) * sizeof (U32) );
-}
-
-void FSE_freeDTable (FSE_DTable* dt)
-{
-	free(dt);
-}
 
 size_t FSE_buildDTable(FSE_DTable* dt, const short* normalizedCounter, unsigned maxSymbolValue, unsigned tableLog)
 {
@@ -296,16 +287,6 @@ size_t FSE_decompress_wksp(void* dst, size_t dstCapacity, const void* cSrc, size
 
 	return FSE_decompress_usingDTable (dst, dstCapacity, ip, cSrcSize, workSpace);   /* always return, even if it is an error code */
 }
-
-
-typedef FSE_DTable DTable_max_t[FSE_DTABLE_SIZE_U32(FSE_MAX_TABLELOG)];
-
-size_t FSE_decompress(void* dst, size_t dstCapacity, const void* cSrc, size_t cSrcSize)
-{
-	DTable_max_t dt;   /* Static analyzer seems unable to understand this table will be properly initialized later */
-	return FSE_decompress_wksp(dst, dstCapacity, cSrc, cSrcSize, dt, FSE_MAX_TABLELOG);
-}
-
 
 
 #endif   /* FSE_COMMONDEFS_ONLY */

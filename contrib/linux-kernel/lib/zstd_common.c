@@ -13,7 +13,8 @@
 *  Dependencies
 ***************************************/
 #include "error_private.h"
-#include "zstd.h"           /* declaration of ZSTD_isError, ZSTD_getErrorName, ZSTD_getErrorCode, ZSTD_getErrorString, ZSTD_versionNumber */
+#include "zstd_internal.h"           /* declaration of ZSTD_isError, ZSTD_getErrorName, ZSTD_getErrorCode, ZSTD_getErrorString, ZSTD_versionNumber */
+#include <linux/kernel.h>
 
 
 /*-****************************************
@@ -22,41 +23,38 @@
 unsigned ZSTD_versionNumber (void) { return ZSTD_VERSION_NUMBER; }
 
 
-/*-****************************************
-*  ZSTD Error Management
-******************************************/
-/*! ZSTD_isError() :
-*   tells if a return value is an error code */
-unsigned ZSTD_isError(size_t code) { return ERR_isError(code); }
-
-/*! ZSTD_getErrorName() :
-*   provides error code string from function result (useful for debugging) */
-const char* ZSTD_getErrorName(size_t code) { return ERR_getErrorName(code); }
-
-/*! ZSTD_getError() :
-*   convert a `size_t` function result into a proper ZSTD_errorCode enum */
-ZSTD_ErrorCode ZSTD_getErrorCode(size_t code) { return ERR_getErrorCode(code); }
-
-/*! ZSTD_getErrorString() :
-*   provides error code string from enum */
-const char* ZSTD_getErrorString(ZSTD_ErrorCode code) { return ERR_getErrorString(code); }
-
-
 /*=**************************************************************
 *  Custom allocator
 ****************************************************************/
-/* default uses stdlib */
-void* ZSTD_defaultAllocFunction(void* opaque, size_t size)
-{
-	void* address = malloc(size);
-	(void)opaque;
-	return address;
+
+#define stack_push(stack, size) ({                                             \
+		void* const ptr = ZSTD_PTR_ALIGN((stack)->ptr);                            \
+		(stack)->ptr = (char*)ptr + (size);                                        \
+		(stack)->ptr <= (stack)->end ? ptr : NULL;                                 \
+	})
+
+ZSTD_customMem ZSTD_initStack(void* workspace, size_t workspaceSize) {
+	ZSTD_customMem stackMem = { ZSTD_stackAlloc, ZSTD_stackFree, workspace };
+	ZSTD_stack* stack = (ZSTD_stack*) workspace;
+	/* Verify preconditions */
+	if (!workspace || workspaceSize < sizeof(ZSTD_stack) || workspace != ZSTD_PTR_ALIGN(workspace)) {
+		ZSTD_customMem error = {NULL, NULL, NULL};
+		return error;
+	}
+	/* Initialize the stack */
+	stack->ptr = workspace;
+	stack->end = (char*)workspace + workspaceSize;
+	stack_push(stack, sizeof(ZSTD_stack));
+	return stackMem;
 }
 
-void ZSTD_defaultFreeFunction(void* opaque, void* address)
-{
+void* ZSTD_stackAlloc(void* opaque, size_t size) {
+	ZSTD_stack* stack = (ZSTD_stack*)opaque;
+	return stack_push(stack, size);
+}
+void ZSTD_stackFree(void* opaque, void* address) {
 	(void)opaque;
-	free(address);
+	(void)address;
 }
 
 void* ZSTD_malloc(size_t size, ZSTD_customMem customMem)

@@ -90,9 +90,10 @@ struct ZSTD_DCtx_s
 	BYTE headerBuffer[ZSTD_FRAMEHEADERSIZE_MAX];
 };  /* typedef'd to ZSTD_DCtx within "zstd.h" */
 
-size_t ZSTD_sizeof_DCtx (const ZSTD_DCtx* dctx) { return (dctx==NULL) ? 0 : sizeof(ZSTD_DCtx); }
-
-size_t ZSTD_estimateDCtxSize(void) { return sizeof(ZSTD_DCtx); }
+size_t ZSTD_DCtxWorkspaceBound(void)
+{
+	return ZSTD_ALIGN(sizeof(ZSTD_stack)) + ZSTD_ALIGN(sizeof(ZSTD_DCtx));
+}
 
 size_t ZSTD_decompressBegin(ZSTD_DCtx* dctx)
 {
@@ -118,7 +119,6 @@ ZSTD_DCtx* ZSTD_createDCtx_advanced(ZSTD_customMem customMem)
 {
 	ZSTD_DCtx* dctx;
 
-	if (!customMem.customAlloc && !customMem.customFree) customMem = defaultCustomMem;
 	if (!customMem.customAlloc || !customMem.customFree) return NULL;
 
 	dctx = (ZSTD_DCtx*)ZSTD_malloc(sizeof(ZSTD_DCtx), customMem);
@@ -128,9 +128,10 @@ ZSTD_DCtx* ZSTD_createDCtx_advanced(ZSTD_customMem customMem)
 	return dctx;
 }
 
-ZSTD_DCtx* ZSTD_createDCtx(void)
+ZSTD_DCtx* ZSTD_createDCtx(void* workspace, size_t workspaceSize)
 {
-	return ZSTD_createDCtx_advanced(defaultCustomMem);
+	ZSTD_customMem const stackMem = ZSTD_initStack(workspace, workspaceSize);
+	return ZSTD_createDCtx_advanced(stackMem);
 }
 
 size_t ZSTD_freeDCtx(ZSTD_DCtx* dctx)
@@ -353,20 +354,6 @@ unsigned long long ZSTD_findDecompressedSize(const void* src, size_t srcSize)
 		return totalDstSize;
 	}
 }
-
-/** ZSTD_getDecompressedSize() :
-*   compatible with legacy mode
-*   @return : decompressed size if known, 0 otherwise
-			  note : 0 can mean any of the following :
-				   - decompressed size is not present within frame header
-				   - frame header unknown / not supported
-				   - frame header not complete (`srcSize` too small) */
-unsigned long long ZSTD_getDecompressedSize(const void* src, size_t srcSize)
-{
-	unsigned long long const ret = ZSTD_getFrameContentSize(src, srcSize);
-	return ret >= ZSTD_CONTENTSIZE_ERROR ? 0 : ret;
-}
-
 
 /** ZSTD_decodeFrameHeader() :
 *   `headerSize` must be the size provided by ZSTD_frameHeaderSize().
@@ -1620,10 +1607,7 @@ static size_t ZSTD_decompressMultiFrame(ZSTD_DCtx* dctx,
 	return (BYTE*)dst - (BYTE*)dststart;
 }
 
-size_t ZSTD_decompress_usingDict(ZSTD_DCtx* dctx,
-								 void* dst, size_t dstCapacity,
-						   const void* src, size_t srcSize,
-						   const void* dict, size_t dictSize)
+size_t ZSTD_decompress_usingDict(ZSTD_DCtx* dctx, void* dst, size_t dstCapacity, const void* src, size_t srcSize, const void *dict, size_t dictSize)
 {
 	return ZSTD_decompressMultiFrame(dctx, dst, dstCapacity, src, srcSize, dict, dictSize, NULL);
 }
@@ -1632,13 +1616,6 @@ size_t ZSTD_decompress_usingDict(ZSTD_DCtx* dctx,
 size_t ZSTD_decompressDCtx(ZSTD_DCtx* dctx, void* dst, size_t dstCapacity, const void* src, size_t srcSize)
 {
 	return ZSTD_decompress_usingDict(dctx, dst, dstCapacity, src, srcSize, NULL, 0);
-}
-
-
-size_t ZSTD_decompress(void* dst, size_t dstCapacity, const void* src, size_t srcSize)
-{
-	ZSTD_DCtx dctx;
-	return ZSTD_decompressDCtx(&dctx, dst, dstCapacity, src, srcSize);
 }
 
 
@@ -1900,6 +1877,11 @@ struct ZSTD_DDict_s {
 	ZSTD_customMem cMem;
 };  /* typedef'd to ZSTD_DDict within "zstd.h" */
 
+size_t ZSTD_DDictWorkspaceBound(void)
+{
+	return ZSTD_ALIGN(sizeof(ZSTD_stack)) + ZSTD_ALIGN(sizeof(ZSTD_DDict));
+}
+
 static const void* ZSTD_DDictDictContent(const ZSTD_DDict* ddict)
 {
 	return ddict->dictContent;
@@ -1953,9 +1935,8 @@ static size_t ZSTD_loadEntropy_inDDict(ZSTD_DDict* ddict)
 }
 
 
-ZSTD_DDict* ZSTD_createDDict_advanced(const void* dict, size_t dictSize, unsigned byReference, ZSTD_customMem customMem)
+static ZSTD_DDict* ZSTD_createDDict_advanced(const void* dict, size_t dictSize, unsigned byReference, ZSTD_customMem customMem)
 {
-	if (!customMem.customAlloc && !customMem.customFree) customMem = defaultCustomMem;
 	if (!customMem.customAlloc || !customMem.customFree) return NULL;
 
 	{   ZSTD_DDict* const ddict = (ZSTD_DDict*) ZSTD_malloc(sizeof(ZSTD_DDict), customMem);
@@ -1989,21 +1970,10 @@ ZSTD_DDict* ZSTD_createDDict_advanced(const void* dict, size_t dictSize, unsigne
 *   Create a digested dictionary, to start decompression without startup delay.
 *   `dict` content is copied inside DDict.
 *   Consequently, `dict` can be released after `ZSTD_DDict` creation */
-ZSTD_DDict* ZSTD_createDDict(const void* dict, size_t dictSize)
+ZSTD_DDict* ZSTD_createDDict(const void* dict, size_t dictSize, void* workspace, size_t workspaceSize)
 {
-	ZSTD_customMem const allocator = { NULL, NULL, NULL };
-	return ZSTD_createDDict_advanced(dict, dictSize, 0, allocator);
-}
-
-
-/*! ZSTD_createDDict_byReference() :
- *  Create a digested dictionary, to start decompression without startup delay.
- *  Dictionary content is simply referenced, it will be accessed during decompression.
- *  Warning : dictBuffer must outlive DDict (DDict must be freed before dictBuffer) */
-ZSTD_DDict* ZSTD_createDDict_byReference(const void* dictBuffer, size_t dictSize)
-{
-	ZSTD_customMem const allocator = { NULL, NULL, NULL };
-	return ZSTD_createDDict_advanced(dictBuffer, dictSize, 1, allocator);
+	ZSTD_customMem const stackMem = ZSTD_initStack(workspace, workspaceSize);
+	return ZSTD_createDDict_advanced(dict, dictSize, 1, stackMem);
 }
 
 
@@ -2015,12 +1985,6 @@ size_t ZSTD_freeDDict(ZSTD_DDict* ddict)
 		ZSTD_free(ddict, cMem);
 		return 0;
 	}
-}
-
-size_t ZSTD_sizeof_DDict(const ZSTD_DDict* ddict)
-{
-	if (ddict==NULL) return 0;   /* support sizeof on NULL */
-	return sizeof(*ddict) + (ddict->dictBuffer ? ddict->dictSize : 0) ;
 }
 
 /*! ZSTD_getDictID_fromDict() :
@@ -2110,17 +2074,17 @@ struct ZSTD_DStream_s {
 	U32 hostageByte;
 };   /* typedef'd to ZSTD_DStream within "zstd.h" */
 
-
-ZSTD_DStream* ZSTD_createDStream(void)
-{
-	return ZSTD_createDStream_advanced(defaultCustomMem);
+size_t ZSTD_DStreamWorkspaceBound(size_t maxWindowSize) {
+	size_t const blockSize = MIN(maxWindowSize, ZSTD_BLOCKSIZE_ABSOLUTEMAX);
+	size_t const inBuffSize = blockSize;
+	size_t const outBuffSize = maxWindowSize + blockSize + WILDCOPY_OVERLENGTH * 2;
+	return ZSTD_DCtxWorkspaceBound() + ZSTD_ALIGN(sizeof(ZSTD_DStream)) + ZSTD_ALIGN(inBuffSize) + ZSTD_ALIGN(outBuffSize);
 }
 
-ZSTD_DStream* ZSTD_createDStream_advanced(ZSTD_customMem customMem)
+static ZSTD_DStream* ZSTD_createDStream_advanced(ZSTD_customMem customMem)
 {
 	ZSTD_DStream* zds;
 
-	if (!customMem.customAlloc && !customMem.customFree) customMem = defaultCustomMem;
 	if (!customMem.customAlloc || !customMem.customFree) return NULL;
 
 	zds = (ZSTD_DStream*) ZSTD_malloc(sizeof(ZSTD_DStream), customMem);
@@ -2132,6 +2096,12 @@ ZSTD_DStream* ZSTD_createDStream_advanced(ZSTD_customMem customMem)
 	zds->stage = zdss_init;
 	zds->maxWindowSize = ZSTD_MAXWINDOWSIZE_DEFAULT;
 	return zds;
+}
+
+ZSTD_DStream* ZSTD_createDStream(void* workspace, size_t workspaceSize)
+{
+	ZSTD_customMem const stackMem = ZSTD_initStack(workspace, workspaceSize);
+	return ZSTD_createDStream_advanced(stackMem);
 }
 
 size_t ZSTD_freeDStream(ZSTD_DStream* zds)
@@ -2157,29 +2127,22 @@ size_t ZSTD_freeDStream(ZSTD_DStream* zds)
 size_t ZSTD_DStreamInSize(void)  { return ZSTD_BLOCKSIZE_ABSOLUTEMAX + ZSTD_blockHeaderSize; }
 size_t ZSTD_DStreamOutSize(void) { return ZSTD_BLOCKSIZE_ABSOLUTEMAX; }
 
-size_t ZSTD_initDStream_usingDict(ZSTD_DStream* zds, const void* dict, size_t dictSize)
+size_t ZSTD_initDStream(ZSTD_DStream* zds, size_t maxWindowSize)
 {
+	zds->maxWindowSize = maxWindowSize;
 	zds->stage = zdss_loadHeader;
 	zds->lhSize = zds->inPos = zds->outStart = zds->outEnd = 0;
 	ZSTD_freeDDict(zds->ddictLocal);
-	if (dict && dictSize >= 8) {
-		zds->ddictLocal = ZSTD_createDDict(dict, dictSize);
-		if (zds->ddictLocal == NULL) return ERROR(memory_allocation);
-	} else zds->ddictLocal = NULL;
+	zds->ddictLocal = NULL;
 	zds->ddict = zds->ddictLocal;
 	zds->legacyVersion = 0;
 	zds->hostageByte = 0;
 	return ZSTD_frameHeaderSize_prefix;
 }
 
-size_t ZSTD_initDStream(ZSTD_DStream* zds)
+size_t ZSTD_initDStream_usingDDict(ZSTD_DStream* zds, size_t maxWindowSize, const ZSTD_DDict* ddict)  /**< note : ddict will just be referenced, and must outlive decompression session */
 {
-	return ZSTD_initDStream_usingDict(zds, NULL, 0);
-}
-
-size_t ZSTD_initDStream_usingDDict(ZSTD_DStream* zds, const ZSTD_DDict* ddict)  /**< note : ddict will just be referenced, and must outlive decompression session */
-{
-	size_t const initResult = ZSTD_initDStream(zds);
+	size_t const initResult = ZSTD_initDStream(zds, maxWindowSize);
 	zds->ddict = ddict;
 	return initResult;
 }
@@ -2192,25 +2155,6 @@ size_t ZSTD_resetDStream(ZSTD_DStream* zds)
 	zds->hostageByte = 0;
 	return ZSTD_frameHeaderSize_prefix;
 }
-
-size_t ZSTD_setDStreamParameter(ZSTD_DStream* zds,
-								ZSTD_DStreamParameter_e paramType, unsigned paramValue)
-{
-	switch(paramType)
-	{
-		default : return ERROR(parameter_unknown);
-		case DStream_p_maxWindowSize : zds->maxWindowSize = paramValue ? paramValue : (U32)(-1); break;
-	}
-	return 0;
-}
-
-
-size_t ZSTD_sizeof_DStream(const ZSTD_DStream* zds)
-{
-	if (zds==NULL) return 0;   /* support sizeof on NULL */
-	return sizeof(*zds) + ZSTD_sizeof_DCtx(zds->dctx) + ZSTD_sizeof_DDict(zds->ddictLocal) + zds->inBuffSize + zds->outBuffSize;
-}
-
 
 /* *****   Decompression   ***** */
 

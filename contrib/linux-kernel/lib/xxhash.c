@@ -66,9 +66,6 @@
 *  Includes & Memory related functions
 ***************************************/
 /* Modify the local functions below should you wish to use some other memory routines */
-/* for malloc(), free() */
-static void* XXH_malloc(size_t s) { return malloc(s); }
-static void  XXH_free  (void* p)  { free(p); }
 /* for memcpy() */
 #include <linux/string.h>
 static void* XXH_memcpy(void* dest, const void* src, size_t size) { return memcpy(dest,src,size); }
@@ -80,7 +77,8 @@ static void* XXH_memcpy(void* dest, const void* src, size_t size) { return memcp
 /* *************************************
 *  Compiler Specific Options
 ***************************************/
-#define FORCE_INLINE static __attribute__((always_inline))
+#include <linux/compiler.h>
+#define FORCE_INLINE static __always_inline
 
 
 static U32 XXH_read32(const void* memPtr)
@@ -116,8 +114,10 @@ typedef enum { XXH_bigEndian=0, XXH_littleEndian=1 } XXH_endianess;
 *****************************/
 typedef enum { XXH_aligned, XXH_unaligned } XXH_alignment;
 
-FORCE_INLINE U32 XXH_readLE32_align(const void* ptr, XXH_endianess, XXH_alignment)
+FORCE_INLINE U32 XXH_readLE32_align(const void* ptr, XXH_endianess endian, XXH_alignment align)
 {
+	(void)endian;
+	(void)align;
 	return MEM_readLE32(ptr);
 }
 
@@ -133,6 +133,8 @@ static U32 XXH_readBE32(const void* ptr)
 
 FORCE_INLINE U64 XXH_readLE64_align(const void* ptr, XXH_endianess endian, XXH_alignment align)
 {
+	(void)endian;
+	(void)align;
 	return MEM_readLE64(ptr);
 }
 
@@ -396,26 +398,6 @@ XXH_PUBLIC_API unsigned long long XXH64 (const void* input, size_t len, unsigned
 /* **************************************************
 *  Advanced Hash Functions
 ****************************************************/
-
-XXH_PUBLIC_API XXH32_state_t* XXH32_createState(void)
-{
-	return (XXH32_state_t*)XXH_malloc(sizeof(XXH32_state_t));
-}
-XXH_PUBLIC_API XXH_errorcode XXH32_freeState(XXH32_state_t* statePtr)
-{
-	XXH_free(statePtr);
-	return XXH_OK;
-}
-
-XXH_PUBLIC_API XXH64_state_t* XXH64_createState(void)
-{
-	return (XXH64_state_t*)XXH_malloc(sizeof(XXH64_state_t));
-}
-XXH_PUBLIC_API XXH_errorcode XXH64_freeState(XXH64_state_t* statePtr)
-{
-	XXH_free(statePtr);
-	return XXH_OK;
-}
 
 
 /*** Hash feed ***/

@@ -35,12 +35,13 @@
 /* **************************************************************
 *  Compiler specifics
 ****************************************************************/
-#define FORCE_INLINE static __attribute__((always_inline))
+#define FORCE_INLINE static __always_inline
 
 
 /* **************************************************************
 *  Dependencies
 ****************************************************************/
+#include <linux/compiler.h>
 #include <linux/string.h>     /* memcpy, memset */
 #include "bitstream.h"  /* BIT_* */
 #include "fse.h"        /* header compression */
@@ -210,12 +211,6 @@ size_t HUF_decompress1X2_DCtx (HUF_DTable* DCtx, void* dst, size_t dstSize, cons
 	return HUF_decompress1X2_usingDTable_internal (dst, dstSize, ip, cSrcSize, DCtx);
 }
 
-size_t HUF_decompress1X2 (void* dst, size_t dstSize, const void* cSrc, size_t cSrcSize)
-{
-	HUF_CREATE_STATIC_DTABLEX2(DTable, HUF_TABLELOG_MAX);
-	return HUF_decompress1X2_DCtx (DTable, dst, dstSize, cSrc, cSrcSize);
-}
-
 
 static size_t HUF_decompress4X2_usingDTable_internal(
 		  void* dst,  size_t dstSize,
@@ -332,13 +327,6 @@ size_t HUF_decompress4X2_DCtx (HUF_DTable* dctx, void* dst, size_t dstSize, cons
 
 	return HUF_decompress4X2_usingDTable_internal (dst, dstSize, ip, cSrcSize, dctx);
 }
-
-size_t HUF_decompress4X2 (void* dst, size_t dstSize, const void* cSrc, size_t cSrcSize)
-{
-	HUF_CREATE_STATIC_DTABLEX2(DTable, HUF_TABLELOG_MAX);
-	return HUF_decompress4X2_DCtx(DTable, dst, dstSize, cSrc, cSrcSize);
-}
-
 
 /* *************************/
 /* double-symbols decoding */
@@ -624,12 +612,6 @@ size_t HUF_decompress1X4_DCtx (HUF_DTable* DCtx, void* dst, size_t dstSize, cons
 	return HUF_decompress1X4_usingDTable_internal (dst, dstSize, ip, cSrcSize, DCtx);
 }
 
-size_t HUF_decompress1X4 (void* dst, size_t dstSize, const void* cSrc, size_t cSrcSize)
-{
-	HUF_CREATE_STATIC_DTABLEX4(DTable, HUF_TABLELOG_MAX);
-	return HUF_decompress1X4_DCtx(DTable, dst, dstSize, cSrc, cSrcSize);
-}
-
 static size_t HUF_decompress4X4_usingDTable_internal(
 		  void* dst,  size_t dstSize,
 	const void* cSrc, size_t cSrcSize,
@@ -746,12 +728,6 @@ size_t HUF_decompress4X4_DCtx (HUF_DTable* dctx, void* dst, size_t dstSize, cons
 	return HUF_decompress4X4_usingDTable_internal(dst, dstSize, ip, cSrcSize, dctx);
 }
 
-size_t HUF_decompress4X4 (void* dst, size_t dstSize, const void* cSrc, size_t cSrcSize)
-{
-	HUF_CREATE_STATIC_DTABLEX4(DTable, HUF_TABLELOG_MAX);
-	return HUF_decompress4X4_DCtx(DTable, dst, dstSize, cSrc, cSrcSize);
-}
-
 
 /* ********************************/
 /* Generic decompression selector */
@@ -817,21 +793,6 @@ U32 HUF_selectDecoder (size_t dstSize, size_t cSrcSize)
 
 
 typedef size_t (*decompressionAlgo)(void* dst, size_t dstSize, const void* cSrc, size_t cSrcSize);
-
-size_t HUF_decompress (void* dst, size_t dstSize, const void* cSrc, size_t cSrcSize)
-{
-	static const decompressionAlgo decompress[2] = { HUF_decompress4X2, HUF_decompress4X4 };
-
-	/* validation checks */
-	if (dstSize == 0) return ERROR(dstSize_tooSmall);
-	if (cSrcSize > dstSize) return ERROR(corruption_detected);   /* invalid */
-	if (cSrcSize == dstSize) { memcpy(dst, cSrc, dstSize); return dstSize; }   /* not compressed */
-	if (cSrcSize == 1) { memset(dst, *(const BYTE*)cSrc, dstSize); return dstSize; }   /* RLE */
-
-	{   U32 const algoNb = HUF_selectDecoder(dstSize, cSrcSize);
-		return decompress[algoNb](dst, dstSize, cSrc, cSrcSize);
-	}
-}
 
 size_t HUF_decompress4X_DCtx (HUF_DTable* dctx, void* dst, size_t dstSize, const void* cSrc, size_t cSrcSize)
 {

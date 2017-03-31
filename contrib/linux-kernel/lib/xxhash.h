@@ -140,14 +140,6 @@ XXH64() :
 typedef struct XXH32_state_s XXH32_state_t;   /* incomplete type */
 typedef struct XXH64_state_s XXH64_state_t;   /* incomplete type */
 
-/*! State allocation, compatible with dynamic libraries */
-
-XXH_PUBLIC_API XXH32_state_t* XXH32_createState(void);
-XXH_PUBLIC_API XXH_errorcode  XXH32_freeState(XXH32_state_t* statePtr);
-
-XXH_PUBLIC_API XXH64_state_t* XXH64_createState(void);
-XXH_PUBLIC_API XXH_errorcode  XXH64_freeState(XXH64_state_t* statePtr);
-
 
 /* hash streaming */
 

@@ -59,34 +59,6 @@
 #define FSE_VERSION_NUMBER  (FSE_VERSION_MAJOR *100*100 + FSE_VERSION_MINOR *100 + FSE_VERSION_RELEASE)
 FSE_PUBLIC_API unsigned FSE_versionNumber(void);   /**< library version number; to be used when checking dll version */
 
-/*-****************************************
-*  FSE simple functions
-******************************************/
-/*! FSE_compress() :
-	Compress content of buffer 'src', of size 'srcSize', into destination buffer 'dst'.
-	'dst' buffer must be already allocated. Compression runs faster is dstCapacity >= FSE_compressBound(srcSize).
-	@return : size of compressed data (<= dstCapacity).
-	Special values : if return == 0, srcData is not compressible => Nothing is stored within dst !!!
-					 if return == 1, srcData is a single byte symbol * srcSize times. Use RLE compression instead.
-					 if FSE_isError(return), compression failed (more details using FSE_getErrorName())
-*/
-FSE_PUBLIC_API size_t FSE_compress(void* dst, size_t dstCapacity,
-							 const void* src, size_t srcSize);
-
-/*! FSE_decompress():
-	Decompress FSE data from buffer 'cSrc', of size 'cSrcSize',
-	into already allocated destination buffer 'dst', of size 'dstCapacity'.
-	@return : size of regenerated data (<= maxDstSize),
-			  or an error code, which can be tested using FSE_isError() .
-
-	** Important ** : FSE_decompress() does not decompress non-compressible nor RLE data !!!
-	Why ? : making this distinction requires a header.
-	Header management is intentionally delegated to the user layer, which can better manage special cases.
-*/
-FSE_PUBLIC_API size_t FSE_decompress(void* dst,  size_t dstCapacity,
-							   const void* cSrc, size_t cSrcSize);
-
-
 /*-*****************************************
 *  Tool functions
 ******************************************/
@@ -95,20 +67,6 @@ FSE_PUBLIC_API size_t FSE_compressBound(size_t size);       /* maximum compresse
 /* Error Management */
 FSE_PUBLIC_API unsigned    FSE_isError(size_t code);        /* tells if a return value is an error code */
 FSE_PUBLIC_API const char* FSE_getErrorName(size_t code);   /* provides error code string (useful for debugging) */
-
-
-/*-*****************************************
-*  FSE advanced functions
-******************************************/
-/*! FSE_compress2() :
-	Same as FSE_compress(), but allows the selection of 'maxSymbolValue' and 'tableLog'
-	Both parameters can be defined as '0' to mean : use default value
-	@return : size of compressed data
-	Special values : if return == 0, srcData is not compressible => Nothing is stored within cSrc !!!
-					 if return == 1, srcData is a single byte symbol * srcSize times. Use RLE compression.
-					 if FSE_isError(return), it's an error code.
-*/
-FSE_PUBLIC_API size_t FSE_compress2 (void* dst, size_t dstSize, const void* src, size_t srcSize, unsigned maxSymbolValue, unsigned tableLog);
 
 
 /*-*****************************************
@@ -133,16 +91,6 @@ or to save and provide normalized distribution using external method.
 */
 
 /* *** COMPRESSION *** */
-
-/*! FSE_count():
-	Provides the precise count of each byte within a table 'count'.
-	'count' is a table of unsigned int, of minimum size (*maxSymbolValuePtr+1).
-	*maxSymbolValuePtr will be updated if detected smaller than initial value.
-	@return : the count of the most frequent symbol (which is not identified).
-			  if return == srcSize, there is only one symbol.
-			  Can also return an error code, which can be tested with FSE_isError(). */
-FSE_PUBLIC_API size_t FSE_count(unsigned* count, unsigned* maxSymbolValuePtr, const void* src, size_t srcSize);
-
 /*! FSE_optimalTableLog():
 	dynamically downsize 'tableLog' when conditions are met.
 	It saves CPU time, by using smaller tables, while preserving or even improving compression ratio.
@@ -171,13 +119,6 @@ FSE_PUBLIC_API size_t FSE_writeNCount (void* buffer, size_t bufferSize, const sh
 /*! Constructor and Destructor of FSE_CTable.
 	Note that FSE_CTable size depends on 'tableLog' and 'maxSymbolValue' */
 typedef unsigned FSE_CTable;   /* don't allocate that. It's only meant to be more restrictive than void* */
-FSE_PUBLIC_API FSE_CTable* FSE_createCTable (unsigned tableLog, unsigned maxSymbolValue);
-FSE_PUBLIC_API void        FSE_freeCTable (FSE_CTable* ct);
-
-/*! FSE_buildCTable():
-	Builds `ct`, which must be already allocated, using FSE_createCTable().
-	@return : 0, or an errorCode, which can be tested using FSE_isError() */
-FSE_PUBLIC_API size_t FSE_buildCTable(FSE_CTable* ct, const short* normalizedCounter, unsigned maxSymbolValue, unsigned tableLog);
 
 /*! FSE_compress_usingCTable():
 	Compress `src` using `ct` into `dst` which must be already allocated.
@@ -242,8 +183,6 @@ FSE_PUBLIC_API size_t FSE_readNCount (short* normalizedCounter, unsigned* maxSym
 /*! Constructor and Destructor of FSE_DTable.
 	Note that its size depends on 'tableLog' */
 typedef unsigned FSE_DTable;   /* don't allocate that. It's just a way to be more restrictive than void* */
-FSE_PUBLIC_API FSE_DTable* FSE_createDTable(unsigned tableLog);
-FSE_PUBLIC_API void        FSE_freeDTable(FSE_DTable* dt);
 
 /*! FSE_buildDTable():
 	Builds 'dt', which must be already allocated, using FSE_createDTable().
@@ -312,11 +251,6 @@ If there is an error, the function will return an error code, which can be teste
  */
 size_t FSE_count_wksp(unsigned* count, unsigned* maxSymbolValuePtr,
 				 const void* source, size_t sourceSize, unsigned* workSpace);
-
-/** FSE_countFast() :
- *  same as FSE_count(), but blindly trusts that all byte values within src are <= *maxSymbolValuePtr
- */
-size_t FSE_countFast(unsigned* count, unsigned* maxSymbolValuePtr, const void* src, size_t srcSize);
 
 /* FSE_countFast_wksp() :
  * Same as FSE_countFast(), but using an externally provided scratch buffer.

@@ -137,7 +137,11 @@ static int usage_advanced(const char* programName)
 #endif
 #ifndef ZSTD_NODECOMPRESS
     DISPLAY( "--test  : test compressed file integrity \n");
+#if ZSTD_SPARSE_DEFAULT
     DISPLAY( "--[no-]sparse : sparse mode (default:enabled on file, disabled on stdout)\n");
+#else
+    DISPLAY( "--[no-]sparse : sparse mode (default:disabled)\n");
+#endif
 #endif
     DISPLAY( " -M#    : Set a memory usage limit for decompression \n");
     DISPLAY( "--      : All arguments after \"--\" are treated as files \n");

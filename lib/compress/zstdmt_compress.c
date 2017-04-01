@@ -33,7 +33,7 @@
 #  include <stdio.h>
 #  include <unistd.h>
 #  include <sys/times.h>
-   static unsigned g_debugLevel = 2;
+   static unsigned g_debugLevel = 5;
 #  define DEBUGLOGRAW(l, ...) if (l<=g_debugLevel) { fprintf(stderr, __VA_ARGS__); }
 #  define DEBUGLOG(l, ...) if (l<=g_debugLevel) { fprintf(stderr, __FILE__ ": "); fprintf(stderr, __VA_ARGS__); fprintf(stderr, " \n"); }
 
@@ -253,6 +253,7 @@ void ZSTDMT_compressChunk(void* jobDescription)
                  ZSTD_compressContinue(job->cctx, dstBuff.start, dstBuff.size, src, job->srcSize);
     DEBUGLOG(3, "compressed %u bytes into %u bytes   (first:%u) (last:%u)",
                 (unsigned)job->srcSize, (unsigned)job->cSize, job->firstChunk, job->lastChunk);
+    DEBUGLOG(5, "dstBuff.size : %u ; => %s", (U32)dstBuff.size, ZSTD_getErrorName(job->cSize));
 
 _endJob:
     PTHREAD_MUTEX_LOCK(job->jobCompleted_mutex);
@@ -399,7 +400,8 @@ size_t ZSTDMT_compressCCtx(ZSTDMT_CCtx* mtctx,
     size_t const avgChunkSize = ((proposedChunkSize & 0x1FFFF) < 0xFFFF) ? proposedChunkSize + 0xFFFF : proposedChunkSize;   /* avoid too small last block */
     size_t remainingSrcSize = srcSize;
     const char* const srcStart = (const char*)src;
-    size_t frameStartPos = 0;
+    unsigned const compressWithinDst = (dstCapacity >= ZSTD_compressBound(srcSize)) ? nbChunks : (unsigned)(dstCapacity / ZSTD_compressBound(avgChunkSize));  /* presumes avgChunkSize >= 256 KB, which should be the case */
+    size_t frameStartPos = 0, dstBufferPos = 0;
 
     DEBUGLOG(3, "windowLog : %2u => chunkTargetSize : %u bytes  ", params.cParams.windowLog, (U32)chunkTargetSize);
     DEBUGLOG(2, "nbChunks  : %2u   (chunkSize : %u bytes)   ", nbChunks, (U32)avgChunkSize);
@@ -413,9 +415,9 @@ size_t ZSTDMT_compressCCtx(ZSTDMT_CCtx* mtctx,
     {   unsigned u;
         for (u=0; u<nbChunks; u++) {
             size_t const chunkSize = MIN(remainingSrcSize, avgChunkSize);
-            size_t const dstBufferCapacity = u ? ZSTD_compressBound(chunkSize) : dstCapacity;
-            buffer_t const dstAsBuffer = { dst, dstCapacity };
-            buffer_t const dstBuffer = u ? ZSTDMT_getBuffer(mtctx->buffPool, dstBufferCapacity) : dstAsBuffer;
+            size_t const dstBufferCapacity = ZSTD_compressBound(chunkSize);
+            buffer_t const dstAsBuffer = { (char*)dst + dstBufferPos, dstBufferCapacity };
+            buffer_t const dstBuffer = u < compressWithinDst ? dstAsBuffer : ZSTDMT_getBuffer(mtctx->buffPool, dstBufferCapacity);
             ZSTD_CCtx* const cctx = ZSTDMT_getCCtx(mtctx->cctxPool);
             size_t dictSize = u ? overlapSize : 0;
 
@@ -444,6 +446,7 @@ size_t ZSTDMT_compressCCtx(ZSTDMT_CCtx* mtctx,
             POOL_add(mtctx->factory, ZSTDMT_compressChunk, &mtctx->jobs[u]);
 
             frameStartPos += chunkSize;
+            dstBufferPos += dstBufferCapacity;
             remainingSrcSize -= chunkSize;
     }   }
     /* note : since nbChunks <= nbThreads, all jobs should be running immediately in parallel */
@@ -467,8 +470,10 @@ size_t ZSTDMT_compressCCtx(ZSTDMT_CCtx* mtctx,
                 if (ZSTD_isError(cSize)) error = cSize;
                 if ((!error) && (dstPos + cSize > dstCapacity)) error = ERROR(dstSize_tooSmall);
                 if (chunkID) {   /* note : chunk 0 is already written directly into dst */
-                    if (!error) memcpy((char*)dst + dstPos, mtctx->jobs[chunkID].dstBuff.start, cSize);
-                    ZSTDMT_releaseBuffer(mtctx->buffPool, mtctx->jobs[chunkID].dstBuff);
+                    if (!error)
+                        memmove((char*)dst + dstPos, mtctx->jobs[chunkID].dstBuff.start, cSize);  /* may overlap if chunk decompressed within dst */
+                    if (chunkID >= compressWithinDst)   /* otherwise, it decompresses within dst */
+                        ZSTDMT_releaseBuffer(mtctx->buffPool, mtctx->jobs[chunkID].dstBuff);
                     mtctx->jobs[chunkID].dstBuff = g_nullBuffer;
                 }
                 dstPos += cSize ;

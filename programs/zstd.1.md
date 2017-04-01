@@ -99,6 +99,9 @@ the last one takes effect.
 * `--ultra`:
     unlocks high compression levels 20+ (maximum 22), using a lot more memory.
     Note that decompression will also require more memory when using these levels.
+* `-T#`:
+    Compress using # threads (default: 1).
+    This modifier is only available if `zstd` was compiled with multithreading support.
 * `-D file`:
     use `file` as Dictionary to compress or decompress FILE(s)
 * `--nodictID`:
@@ -123,7 +126,7 @@ the last one takes effect.
     remove source file(s) after successful compression or decompression
 * `-k`, `--keep`:
     keep source file(s) after successful compression or decompression.
-    This is the default behaviour.
+    This is the default behavior.
 * `-r`:
     operate recursively on dictionaries
 * `-h`/`-H`, `--help`:
@@ -136,9 +139,10 @@ the last one takes effect.
     suppress warnings, interactivity, and notifications.
     specify twice to suppress errors too.
 * `-C`, `--[no-]check`:
-    add integrety check computed from uncompressed data (default : enabled)
+    add integrity check computed from uncompressed data (default : enabled)
 * `--`:
     All arguments after `--` are treated as files
+
 
 DICTIONARY BUILDER
 ------------------
@@ -218,8 +222,17 @@ BENCHMARK
 * `--priority=rt`:
     set process priority to real-time
 
+
 ADVANCED COMPRESSION OPTIONS
 ----------------------------
+### -B#:
+Select the size of each compression job.
+This parameter is available only when multi-threading is enabled.
+Default value is `4 * windowSize`, which means it varies depending on compression level.
+`-B#` makes it possible to select a custom value.
+Note that job size must respect a minimum value which is enforced transparently.
+This minimum is either 1 MB, or `overlapSize`, whichever is largest.
+
 ### --zstd[=options]:
 `zstd` provides 22 predefined compression levels.
 The selected or default predefined compression level can be changed with
@@ -289,6 +302,19 @@ The list of available _options_:
     This option is only used with strategies ZSTD_btopt and ZSTD_btopt2.
 
     The minimum _tlen_ is 4 and the maximum is 999.
+
+- `overlapLog`=_ovlog_,  `ovlog`=_ovlog_:
+    Select the amount of data reloaded from previous job into next one.
+    Reloading more data improves compression ratio, but decreases speed.
+    This parameter is only available if multithreading is enabled.
+
+    The minimum _ovlog_ is 0, and the maximum is 9.
+    0 means "no overlap", hence completely independent jobs.
+    9 means "full overlap", meaning up to `windowSize` is reloaded from previous job.
+    Reducing _ovlog_ by 1 reduces the amount of reload by a factor 2.
+    Default _ovlog_ is 6, which means "reload `windowSize / 8`".
+    Exception : the maximum compression level (22) has a default _ovlog_ of 9.
+
 
 ### Example
 The following parameters sets advanced compression options to those of

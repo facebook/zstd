@@ -33,7 +33,8 @@ typedef enum { ZSTDcs_created=0, ZSTDcs_init, ZSTDcs_ongoing, ZSTDcs_ending } ZS
 ***************************************/
 #define ZSTD_STATIC_ASSERT(c) { enum { ZSTD_static_assert = 1/(int)(!!(c)) }; }
 size_t ZSTD_compressBound(size_t srcSize) {
-    size_t const margin = (srcSize < 512 KB) ? 16 : 0;
+    size_t const lowLimit = 256 KB;
+    size_t const margin = (srcSize < lowLimit) ? (lowLimit-srcSize) >> 12 : 0;  /* from 64 to 0 */
     return srcSize + (srcSize >> 8) + margin;
 }
 

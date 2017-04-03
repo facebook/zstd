@@ -229,6 +229,7 @@ typedef struct {
 
 ZSTD_customMem ZSTD_initStack(void* workspace, size_t workspaceSize);
 
+void* ZSTD_stackAllocAll(void* opaque, size_t* size);
 void* ZSTD_stackAlloc(void* opaque, size_t size);
 void ZSTD_stackFree(void* opaque, void* address);
 

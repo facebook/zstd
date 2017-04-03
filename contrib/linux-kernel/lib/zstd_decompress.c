@@ -2098,10 +2098,30 @@ static ZSTD_DStream* ZSTD_createDStream_advanced(ZSTD_customMem customMem)
 	return zds;
 }
 
-ZSTD_DStream* ZSTD_createDStream(void* workspace, size_t workspaceSize)
+ZSTD_DStream* ZSTD_createDStream(size_t maxWindowSize, void* workspace, size_t workspaceSize)
 {
 	ZSTD_customMem const stackMem = ZSTD_initStack(workspace, workspaceSize);
-	return ZSTD_createDStream_advanced(stackMem);
+	ZSTD_DStream* zds = ZSTD_createDStream_advanced(stackMem);
+	if (!zds) { return NULL; }
+
+	zds->maxWindowSize = maxWindowSize;
+	zds->stage = zdss_loadHeader;
+	zds->lhSize = zds->inPos = zds->outStart = zds->outEnd = 0;
+	ZSTD_freeDDict(zds->ddictLocal);
+	zds->ddictLocal = NULL;
+	zds->ddict = zds->ddictLocal;
+	zds->legacyVersion = 0;
+	zds->hostageByte = 0;
+	return zds;
+}
+
+ZSTD_DStream* ZSTD_createDStream_usingDDict(size_t maxWindowSize, const ZSTD_DDict* ddict, void* workspace, size_t workspaceSize)
+{
+	ZSTD_DStream* zds = ZSTD_createDStream(maxWindowSize, workspace, workspaceSize);
+	if (zds) {
+		zds->ddict = ddict;
+	}
+	return zds;
 }
 
 size_t ZSTD_freeDStream(ZSTD_DStream* zds)
@@ -2126,26 +2146,6 @@ size_t ZSTD_freeDStream(ZSTD_DStream* zds)
 
 size_t ZSTD_DStreamInSize(void)  { return ZSTD_BLOCKSIZE_ABSOLUTEMAX + ZSTD_blockHeaderSize; }
 size_t ZSTD_DStreamOutSize(void) { return ZSTD_BLOCKSIZE_ABSOLUTEMAX; }
-
-size_t ZSTD_initDStream(ZSTD_DStream* zds, size_t maxWindowSize)
-{
-	zds->maxWindowSize = maxWindowSize;
-	zds->stage = zdss_loadHeader;
-	zds->lhSize = zds->inPos = zds->outStart = zds->outEnd = 0;
-	ZSTD_freeDDict(zds->ddictLocal);
-	zds->ddictLocal = NULL;
-	zds->ddict = zds->ddictLocal;
-	zds->legacyVersion = 0;
-	zds->hostageByte = 0;
-	return ZSTD_frameHeaderSize_prefix;
-}
-
-size_t ZSTD_initDStream_usingDDict(ZSTD_DStream* zds, size_t maxWindowSize, const ZSTD_DDict* ddict)  /**< note : ddict will just be referenced, and must outlive decompression session */
-{
-	size_t const initResult = ZSTD_initDStream(zds, maxWindowSize);
-	zds->ddict = ddict;
-	return initResult;
-}
 
 size_t ZSTD_resetDStream(ZSTD_DStream* zds)
 {

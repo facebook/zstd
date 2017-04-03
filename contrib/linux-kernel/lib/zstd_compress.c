@@ -115,7 +115,11 @@ static ZSTD_CCtx* ZSTD_createCCtx_advanced(ZSTD_customMem customMem)
 ZSTD_CCtx* ZSTD_createCCtx(void* workspace, size_t workspaceSize)
 {
 	ZSTD_customMem const stackMem = ZSTD_initStack(workspace, workspaceSize);
-	return ZSTD_createCCtx_advanced(stackMem);
+	ZSTD_CCtx* cctx = ZSTD_createCCtx_advanced(stackMem);
+	if (cctx) {
+		cctx->workSpace = ZSTD_stackAllocAll(cctx->customMem.opaque, &cctx->workSpaceSize);
+	}
+	return cctx;
 }
 
 size_t ZSTD_freeCCtx(ZSTD_CCtx* cctx)
@@ -2917,12 +2921,6 @@ ZSTD_CStream* ZSTD_createCStream_advanced(ZSTD_customMem customMem)
 	return zcs;
 }
 
-ZSTD_CStream* ZSTD_createCStream(void* workspace, size_t workspaceSize)
-{
-	ZSTD_customMem const stackMem = ZSTD_initStack(workspace, workspaceSize);
-	return ZSTD_createCStream_advanced(stackMem);
-}
-
 size_t ZSTD_freeCStream(ZSTD_CStream* zcs)
 {
 	if (zcs==NULL) return 0;   /* support free on NULL */
@@ -3006,18 +3004,25 @@ static size_t ZSTD_initCStream_advanced(ZSTD_CStream* zcs,
 	return ZSTD_resetCStream_internal(zcs, pledgedSrcSize);
 }
 
-/* note : cdict must outlive compression session */
-size_t ZSTD_initCStream_usingCDict(ZSTD_CStream* zcs, ZSTD_parameters params, const ZSTD_CDict* cdict, unsigned long long pledgedSrcSize)
+ZSTD_CStream* ZSTD_createCStream(ZSTD_parameters params, unsigned long long pledgedSrcSize, void* workspace, size_t workspaceSize)
 {
-	size_t const initError = ZSTD_initCStream_advanced(zcs, NULL, 0, params, pledgedSrcSize);
-	zcs->cdict = cdict;
-	zcs->cctx->dictID = params.fParams.noDictIDFlag ? 0 : cdict->refContext->dictID;
-	return initError;
+	ZSTD_customMem const stackMem = ZSTD_initStack(workspace, workspaceSize);
+	ZSTD_CStream* const zcs = ZSTD_createCStream_advanced(stackMem);
+	if (zcs) {
+		size_t const code = ZSTD_initCStream_advanced(zcs, NULL, 0, params, pledgedSrcSize);
+		if (ZSTD_isError(code)) { return NULL; }
+	}
+	return zcs;
 }
 
-size_t ZSTD_initCStream(ZSTD_CStream* zcs, ZSTD_parameters params, unsigned long long pledgedSrcSize)
+ZSTD_CStream* ZSTD_createCStream_usingCDict(ZSTD_parameters params, const ZSTD_CDict* cdict, unsigned long long pledgedSrcSize, void* workspace, size_t workspaceSize)
 {
-	return ZSTD_initCStream_advanced(zcs, NULL, 0, params, pledgedSrcSize);
+	ZSTD_CStream* const zcs = ZSTD_createCStream(params, pledgedSrcSize, workspace, workspaceSize);
+	if (zcs) {
+		zcs->cdict = cdict;
+		zcs->cctx->dictID = params.fParams.noDictIDFlag ? 0 : cdict->refContext->dictID;
+	}
+	return zcs;
 }
 
 /*======   Compression   ======*/

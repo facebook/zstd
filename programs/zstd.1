@@ -302,7 +302,7 @@ The minimum \fItlen\fR is 4 and the maximum is 999\.
 .
 .TP
 \fBoverlapLog\fR=\fIovlog\fR, \fBovlog\fR=\fIovlog\fR
-Select the amount of data reloaded from previous job into next one\. Reloading more data improves compression ratio, but decreases speed\. This parameter is only available if multithreading is enabled\.
+Determine \fBoverlapSize\fR, amount of data reloaded from previous job\. This parameter is only available when multithreading is enabled\. Reloading more data improves compression ratio, but decreases speed\.
 .
 .IP
 The minimum \fIovlog\fR is 0, and the maximum is 9\. 0 means "no overlap", hence completely independent jobs\. 9 means "full overlap", meaning up to \fBwindowSize\fR is reloaded from previous job\. Reducing \fIovlog\fR by 1 reduces the amount of reload by a factor 2\. Default \fIovlog\fR is 6, which means "reload \fBwindowSize / 8\fR"\. Exception : the maximum compression level (22) has a default \fIovlog\fR of 9\.

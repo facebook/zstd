@@ -45,7 +45,6 @@ size_t HUF_compressBound(size_t size);       /**< maximum compressed size (worst
 
 /* Error Management */
 unsigned    HUF_isError(size_t code);        /**< tells if a return value is an error code */
-const char* HUF_getErrorName(size_t code);   /**< provides error code string (useful for debugging) */
 
 
 /* ***   Advanced function   *** */

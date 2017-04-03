@@ -41,16 +41,4 @@ ERR_STATIC unsigned ERR_isError(size_t code) { return (code > ERROR(maxCode)); }
 
 ERR_STATIC ERR_enum ERR_getErrorCode(size_t code) { if (!ERR_isError(code)) return (ERR_enum)0; return (ERR_enum) (0-code); }
 
-
-/*-****************************************
-*  Error Strings
-******************************************/
-
-const char* ERR_getErrorString(ERR_enum code);   /* error_private.c */
-
-ERR_STATIC const char* ERR_getErrorName(size_t code)
-{
-	return ERR_getErrorString(ERR_getErrorCode(code));
-}
-
 #endif /* ERROR_H_MODULE */

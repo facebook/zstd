@@ -66,7 +66,6 @@ FSE_PUBLIC_API size_t FSE_compressBound(size_t size);       /* maximum compresse
 
 /* Error Management */
 FSE_PUBLIC_API unsigned    FSE_isError(size_t code);        /* tells if a return value is an error code */
-FSE_PUBLIC_API const char* FSE_getErrorName(size_t code);   /* provides error code string (useful for debugging) */
 
 
 /*-*****************************************

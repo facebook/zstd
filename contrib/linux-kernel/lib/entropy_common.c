@@ -47,10 +47,8 @@ unsigned FSE_versionNumber(void) { return FSE_VERSION_NUMBER; }
 
 /*===   Error Management   ===*/
 unsigned FSE_isError(size_t code) { return ERR_isError(code); }
-const char* FSE_getErrorName(size_t code) { return ERR_getErrorName(code); }
 
 unsigned HUF_isError(size_t code) { return ERR_isError(code); }
-const char* HUF_getErrorName(size_t code) { return ERR_getErrorName(code); }
 
 
 /*-**************************************************************

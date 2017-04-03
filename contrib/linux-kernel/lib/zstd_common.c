@@ -48,6 +48,12 @@ ZSTD_customMem ZSTD_initStack(void* workspace, size_t workspaceSize) {
 	return stackMem;
 }
 
+void* ZSTD_stackAllocAll(void* opaque, size_t* size) {
+	ZSTD_stack* stack = (ZSTD_stack*)opaque;
+	*size = stack->end - ZSTD_PTR_ALIGN(stack->ptr);
+	return stack_push(stack, *size);
+}
+
 void* ZSTD_stackAlloc(void* opaque, size_t size) {
 	ZSTD_stack* stack = (ZSTD_stack*)opaque;
 	return stack_push(stack, size);

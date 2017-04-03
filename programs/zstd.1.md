@@ -304,9 +304,9 @@ The list of available _options_:
     The minimum _tlen_ is 4 and the maximum is 999.
 
 - `overlapLog`=_ovlog_,  `ovlog`=_ovlog_:
-    Select the amount of data reloaded from previous job into next one.
+    Determine `overlapSize`, amount of data reloaded from previous job.
+    This parameter is only available when multithreading is enabled.
     Reloading more data improves compression ratio, but decreases speed.
-    This parameter is only available if multithreading is enabled.
 
     The minimum _ovlog_ is 0, and the maximum is 9.
     0 means "no overlap", hence completely independent jobs.

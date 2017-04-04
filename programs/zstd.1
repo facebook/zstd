@@ -1,5 +1,5 @@
 .
-.TH "ZSTD" "1" "March 2017" "zstd 1.1.5" "User Commands"
+.TH "ZSTD" "1" "April 2017" "zstd 1.1.5" "User Commands"
 .
 .SH "NAME"
 \fBzstd\fR \- zstd, unzstd, zstdcat \- Compress or decompress \.zst files
@@ -97,6 +97,10 @@ Use FILEs as a training set to create a dictionary\. The training set should con
 unlocks high compression levels 20+ (maximum 22), using a lot more memory\. Note that decompression will also require more memory when using these levels\.
 .
 .TP
+\fB\-T#\fR
+Compress using # threads (default: 1)\. This modifier is only available if \fBzstd\fR was compiled with multithreading support\.
+.
+.TP
 \fB\-D file\fR
 use \fBfile\fR as Dictionary to compress or decompress FILE(s)
 .
@@ -126,7 +130,7 @@ remove source file(s) after successful compression or decompression
 .
 .TP
 \fB\-k\fR, \fB\-\-keep\fR
-keep source file(s) after successful compression or decompression\. This is the default behaviour\.
+keep source file(s) after successful compression or decompression\. This is the default behavior\.
 .
 .TP
 \fB\-r\fR
@@ -150,7 +154,7 @@ suppress warnings, interactivity, and notifications\. specify twice to suppress 
 .
 .TP
 \fB\-C\fR, \fB\-\-[no\-]check\fR
-add integrety check computed from uncompressed data (default : enabled)
+add integrity check computed from uncompressed data (default : enabled)
 .
 .TP
 \fB\-\-\fR
@@ -226,6 +230,9 @@ set process priority to real\-time
 .
 .SH "ADVANCED COMPRESSION OPTIONS"
 .
+.SS "\-B#:"
+Select the size of each compression job\. This parameter is available only when multi\-threading is enabled\. Default value is \fB4 * windowSize\fR, which means it varies depending on compression level\. \fB\-B#\fR makes it possible to select a custom value\. Note that job size must respect a minimum value which is enforced transparently\. This minimum is either 1 MB, or \fBoverlapSize\fR, whichever is largest\.
+.
 .SS "\-\-zstd[=options]:"
 \fBzstd\fR provides 22 predefined compression levels\. The selected or default predefined compression level can be changed with advanced compression options\. The \fIoptions\fR are provided as a comma\-separated list\. You may specify only the options you want to change and the rest will be taken from the selected or default compression level\. The list of available \fIoptions\fR:
 .
@@ -292,6 +299,13 @@ A larger minimum match length usually improves compression ratio but decreases c
 .
 .IP
 The minimum \fItlen\fR is 4 and the maximum is 999\.
+.
+.TP
+\fBoverlapLog\fR=\fIovlog\fR, \fBovlog\fR=\fIovlog\fR
+Determine \fBoverlapSize\fR, amount of data reloaded from previous job\. This parameter is only available when multithreading is enabled\. Reloading more data improves compression ratio, but decreases speed\.
+.
+.IP
+The minimum \fIovlog\fR is 0, and the maximum is 9\. 0 means "no overlap", hence completely independent jobs\. 9 means "full overlap", meaning up to \fBwindowSize\fR is reloaded from previous job\. Reducing \fIovlog\fR by 1 reduces the amount of reload by a factor 2\. Default \fIovlog\fR is 6, which means "reload \fBwindowSize / 8\fR"\. Exception : the maximum compression level (22) has a default \fIovlog\fR of 9\.
 .
 .SS "Example"
 The following parameters sets advanced compression options to those of predefined level 19 for files bigger than 256 KB:

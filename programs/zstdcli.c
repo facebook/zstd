@@ -113,19 +113,20 @@ static int usage_advanced(const char* programName)
     DISPLAY( "\n");
     DISPLAY( "Advanced arguments :\n");
     DISPLAY( " -V     : display Version number and exit\n");
-    DISPLAY( " -v     : verbose mode; specify multiple times to increase log level (default:%d)\n", DEFAULT_DISPLAY_LEVEL);
+    DISPLAY( " -v     : verbose mode; specify multiple times to increase verbosity\n");
     DISPLAY( " -q     : suppress warnings; specify twice to suppress errors too\n");
     DISPLAY( " -c     : force write to standard output, even if it is the console\n");
-#ifdef UTIL_HAS_CREATEFILELIST
-    DISPLAY( " -r     : operate recursively on directories \n");
-#endif
 #ifndef ZSTD_NOCOMPRESS
     DISPLAY( "--ultra : enable levels beyond %i, up to %i (requires more memory)\n", ZSTDCLI_CLEVEL_MAX, ZSTD_maxCLevel());
-    DISPLAY( "--no-dictID : don't write dictID into header (dictionary compression)\n");
-    DISPLAY( "--[no-]check : integrity check (default:enabled) \n");
 #ifdef ZSTD_MULTITHREAD
     DISPLAY( " -T#    : use # threads for compression (default:1) \n");
-    DISPLAY( " -B#    : select size of independent sections (default:0==automatic) \n");
+    DISPLAY( " -B#    : select size of each job (default:0==automatic) \n");
+#endif
+    DISPLAY( "--no-dictID : don't write dictID into header (dictionary compression)\n");
+    DISPLAY( "--[no-]check : integrity check (default:enabled) \n");
+#endif
+#ifdef UTIL_HAS_CREATEFILELIST
+    DISPLAY( " -r     : operate recursively on directories \n");
 #endif
 #ifdef ZSTD_GZCOMPRESS
     DISPLAY( "--format=gzip : compress files to the .gz format \n");
@@ -133,7 +134,6 @@ static int usage_advanced(const char* programName)
 #ifdef ZSTD_LZMACOMPRESS
     DISPLAY( "--format=xz : compress files to the .xz format \n");
     DISPLAY( "--format=lzma : compress files to the .lzma format \n");
-#endif
 #endif
 #ifndef ZSTD_NODECOMPRESS
     DISPLAY( "--test  : test compressed file integrity \n");

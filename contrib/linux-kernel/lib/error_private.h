@@ -16,7 +16,7 @@
 *  Dependencies
 ******************************************/
 #include <linux/types.h>        /* size_t */
-#include "zstd.h"  /* enum list */
+#include <linux/zstd.h>  /* enum list */
 
 
 /* ****************************************

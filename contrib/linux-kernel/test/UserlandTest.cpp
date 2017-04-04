@@ -1,5 +1,5 @@
 extern "C" {
-#include <zstd.h>
+#include <linux/zstd.h>
 }
 #include <gtest/gtest.h>
 #include <memory>

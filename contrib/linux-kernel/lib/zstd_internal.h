@@ -22,9 +22,9 @@
 ***************************************/
 #include <linux/compiler.h>
 #include <linux/kernel.h>
+#include <linux/zstd.h>
 #include "mem.h"
 #include "error_private.h"
-#include "zstd.h"
 #include "xxhash.h"               /* XXH_reset, update, digest */
 
 

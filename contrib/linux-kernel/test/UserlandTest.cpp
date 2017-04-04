@@ -477,3 +477,78 @@ TEST(Stream, Flush) {
   }
   EXPECT_EQ(kData, decompressed);
 }
+
+#define TEST_SYMBOL(symbol)                                                    \
+  do {                                                                         \
+    extern void *__##symbol;                                                   \
+    EXPECT_NE((void *)0, __##symbol);                                          \
+  } while (0)
+
+TEST(API, Symbols) {
+  TEST_SYMBOL(ZSTD_CCtxWorkspaceBound);
+  TEST_SYMBOL(ZSTD_createCCtx);
+  TEST_SYMBOL(ZSTD_compressCCtx);
+  TEST_SYMBOL(ZSTD_compress_usingDict);
+  TEST_SYMBOL(ZSTD_DCtxWorkspaceBound);
+  TEST_SYMBOL(ZSTD_createDCtx);
+  TEST_SYMBOL(ZSTD_decompressDCtx);
+  TEST_SYMBOL(ZSTD_decompress_usingDict);
+
+  TEST_SYMBOL(ZSTD_CDictWorkspaceBound);
+  TEST_SYMBOL(ZSTD_createCDict);
+  TEST_SYMBOL(ZSTD_compress_usingCDict);
+  TEST_SYMBOL(ZSTD_DDictWorkspaceBound);
+  TEST_SYMBOL(ZSTD_createDDict);
+  TEST_SYMBOL(ZSTD_decompress_usingDDict);
+
+  TEST_SYMBOL(ZSTD_CStreamWorkspaceBound);
+  TEST_SYMBOL(ZSTD_createCStream);
+  TEST_SYMBOL(ZSTD_createCStream_usingCDict);
+  TEST_SYMBOL(ZSTD_resetCStream);
+  TEST_SYMBOL(ZSTD_compressStream);
+  TEST_SYMBOL(ZSTD_flushStream);
+  TEST_SYMBOL(ZSTD_endStream);
+  TEST_SYMBOL(ZSTD_CStreamInSize);
+  TEST_SYMBOL(ZSTD_CStreamOutSize);
+  TEST_SYMBOL(ZSTD_DStreamWorkspaceBound);
+  TEST_SYMBOL(ZSTD_createDStream);
+  TEST_SYMBOL(ZSTD_createDStream_usingDDict);
+  TEST_SYMBOL(ZSTD_resetDStream);
+  TEST_SYMBOL(ZSTD_decompressStream);
+  TEST_SYMBOL(ZSTD_DStreamInSize);
+  TEST_SYMBOL(ZSTD_DStreamOutSize);
+
+  TEST_SYMBOL(ZSTD_findFrameCompressedSize);
+  TEST_SYMBOL(ZSTD_getFrameContentSize);
+  TEST_SYMBOL(ZSTD_findDecompressedSize);
+
+  TEST_SYMBOL(ZSTD_getCParams);
+  TEST_SYMBOL(ZSTD_getParams);
+  TEST_SYMBOL(ZSTD_checkCParams);
+  TEST_SYMBOL(ZSTD_adjustCParams);
+
+  TEST_SYMBOL(ZSTD_isFrame);
+  TEST_SYMBOL(ZSTD_getDictID_fromDict);
+  TEST_SYMBOL(ZSTD_getDictID_fromDDict);
+  TEST_SYMBOL(ZSTD_getDictID_fromFrame);
+
+  TEST_SYMBOL(ZSTD_compressBegin);
+  TEST_SYMBOL(ZSTD_compressBegin_usingDict);
+  TEST_SYMBOL(ZSTD_compressBegin_advanced);
+  TEST_SYMBOL(ZSTD_copyCCtx);
+  TEST_SYMBOL(ZSTD_compressBegin_usingCDict);
+  TEST_SYMBOL(ZSTD_compressContinue);
+  TEST_SYMBOL(ZSTD_compressEnd);
+  TEST_SYMBOL(ZSTD_getFrameParams);
+  TEST_SYMBOL(ZSTD_decompressBegin);
+  TEST_SYMBOL(ZSTD_decompressBegin_usingDict);
+  TEST_SYMBOL(ZSTD_copyDCtx);
+  TEST_SYMBOL(ZSTD_nextSrcSizeToDecompress);
+  TEST_SYMBOL(ZSTD_decompressContinue);
+  TEST_SYMBOL(ZSTD_nextInputType);
+
+  TEST_SYMBOL(ZSTD_getBlockSizeMax);
+  TEST_SYMBOL(ZSTD_compressBlock);
+  TEST_SYMBOL(ZSTD_decompressBlock);
+  TEST_SYMBOL(ZSTD_insertBlock);
+}

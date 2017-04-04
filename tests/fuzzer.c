@@ -404,6 +404,39 @@ static int basicUnitTests(U32 seed, double compressibility)
                   if (r != CNBuffSize) goto _output_error);
         DISPLAYLEVEL(4, "OK \n");
 
+        DISPLAYLEVEL(4, "test%3i : compress with preprocessed dictionary : ", testNb++);
+        {   ZSTD_parameters params = ZSTD_getParams(1, CNBuffSize, dictSize);
+            params.fParams.contentSizeFlag = 0;
+            {   ZSTD_customMem customMem = { NULL, NULL, NULL };
+                ZSTD_CDict* cdict = ZSTD_createCDict_advanced(dictBuffer, dictSize, 1, params, customMem);
+                cSize = ZSTD_compress_usingCDict(cctx, compressedBuffer, ZSTD_compressBound(CNBuffSize),
+                                                 CNBuffer, CNBuffSize, cdict);
+                ZSTD_freeCDict(cdict);
+                if (ZSTD_isError(cSize)) goto _output_error;
+            }
+        }
+        DISPLAYLEVEL(4, "OK (%u bytes : %.2f%%)\n", (U32)cSize, (double)cSize/CNBuffSize*100);
+
+        DISPLAYLEVEL(4, "test%3i : retrieve dictID from frame : ", testNb++);
+        {   U32 const did = ZSTD_getDictID_fromFrame(compressedBuffer, cSize);
+            if (did != dictID) goto _output_error;   /* non-conformant (content-only) dictionary */
+        }
+        DISPLAYLEVEL(4, "OK \n");
+
+        DISPLAYLEVEL(4, "test%3i : frame should not have content size : ", testNb++);
+        {   unsigned long long const contentSize = ZSTD_findDecompressedSize(compressedBuffer, cSize);
+            if (contentSize != ZSTD_CONTENTSIZE_UNKNOWN)  goto _output_error;  /* cdict contentSizeFlag not used */
+        }
+        DISPLAYLEVEL(4, "OK \n");
+
+        DISPLAYLEVEL(4, "test%3i : frame built with dictionary should be decompressible : ", testNb++);
+        CHECKPLUS(r, ZSTD_decompress_usingDict(dctx,
+                                       decodedBuffer, CNBuffSize,
+                                       compressedBuffer, cSize,
+                                       dictBuffer, dictSize),
+                  if (r != CNBuffSize) goto _output_error);
+        DISPLAYLEVEL(4, "OK \n");
+
         DISPLAYLEVEL(4, "test%3i : compress without dictID : ", testNb++);
         {   ZSTD_parameters p = ZSTD_getParams(3, CNBuffSize, dictSize);
             p.fParams.noDictIDFlag = 1;

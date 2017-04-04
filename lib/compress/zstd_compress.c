@@ -3069,7 +3069,6 @@ size_t ZSTD_initCStream_usingCDict(ZSTD_CStream* zcs, const ZSTD_CDict* cdict)
     ZSTD_parameters const params = ZSTD_getParamsFromCDict(cdict);
     size_t const initError =  ZSTD_initCStream_advanced(zcs, NULL, 0, params, 0);
     zcs->cdict = cdict;
-    zcs->cctx->dictID = params.fParams.noDictIDFlag ? 0 : cdict->refContext->dictID;
     if (ZSTD_isError(initError)) return initError;
     return ZSTD_resetCStream_internal(zcs, 0);
 }

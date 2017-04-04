@@ -129,7 +129,7 @@ U32 FUZ_rand(U32* src)
 *********************************************************/
 typedef struct {
     size_t cSize;
-    double cSpeed;
+    double cSpeed;   /* bytes / sec */
     double dSpeed;
 } BMK_result_t;
 
@@ -210,7 +210,6 @@ static size_t BMK_benchParam(BMK_result_t* resultPtr,
         size_t cSize = 0;
         double fastestC = 100000000., fastestD = 100000000.;
         double ratio = 0.;
-        U64 crcCheck = 0;
         clock_t const benchStart = clock();
 
         DISPLAY("\r%79s\r", "");
@@ -246,8 +245,8 @@ static size_t BMK_benchParam(BMK_result_t* resultPtr,
             cSize = 0;
             for (blockNb=0; blockNb<nbBlocks; blockNb++)
                 cSize += blockTable[blockNb].cSize;
-            if ((double)roundClock < fastestC * CLOCKS_PER_SEC * nbLoops) fastestC = ((double)roundClock / CLOCKS_PER_SEC) / nbLoops;
             ratio = (double)srcSize / (double)cSize;
+            if ((double)roundClock < fastestC * CLOCKS_PER_SEC * nbLoops) fastestC = ((double)roundClock / CLOCKS_PER_SEC) / nbLoops;
             DISPLAY("\r");
             DISPLAY("%1u-%s : %9u ->", loopNb, name, (U32)srcSize);
             DISPLAY(" %9u (%4.3f),%7.1f MB/s", (U32)cSize, ratio, (double)srcSize / fastestC / 1000000.);
@@ -277,18 +276,18 @@ static size_t BMK_benchParam(BMK_result_t* resultPtr,
             resultPtr->dSpeed = (double)srcSize / fastestD;
 
             /* CRC Checking */
-            crcCheck = XXH64(resultBuffer, srcSize, 0);
-            if (crcOrig!=crcCheck) {
-                unsigned u;
-                unsigned eBlockSize = (unsigned)(MIN(65536*2, blockSize));
-                DISPLAY("\n!!! WARNING !!! Invalid Checksum : %x != %x\n", (unsigned)crcOrig, (unsigned)crcCheck);
-                for (u=0; u<srcSize; u++) {
-                    if (((const BYTE*)srcBuffer)[u] != ((BYTE*)resultBuffer)[u]) {
-                        printf("Decoding error at pos %u (block %u, pos %u) \n", u, u / eBlockSize, u % eBlockSize);
-                        break;
-                }   }
-                break;
-            }
+            {   U64 const crcCheck = XXH64(resultBuffer, srcSize, 0);
+                if (crcOrig!=crcCheck) {
+                    unsigned u;
+                    unsigned eBlockSize = (unsigned)(MIN(65536*2, blockSize));
+                    DISPLAY("\n!!! WARNING !!! Invalid Checksum : %x != %x\n", (unsigned)crcOrig, (unsigned)crcCheck);
+                    for (u=0; u<srcSize; u++) {
+                        if (((const BYTE*)srcBuffer)[u] != ((BYTE*)resultBuffer)[u]) {
+                            printf("Decoding error at pos %u (block %u, pos %u) \n", u, u / eBlockSize, u % eBlockSize);
+                            break;
+                    }   }
+                    break;
+            }   }
 #endif
     }   }
 
@@ -715,6 +714,8 @@ int benchFiles(const char** fileNamesTable, int nbFiles)
 }
 
 
+/* optimizeForSize():
+ * targetSpeed : expressed in MB/s */
 int optimizeForSize(const char* inFileName, U32 targetSpeed)
 {
     FILE* const inFile = fopen( inFileName, "rb" );
@@ -727,8 +728,11 @@ int optimizeForSize(const char* inFileName, U32 targetSpeed)
 
     /* Memory allocation & restrictions */
     if ((U64)benchedSize > inFileSize) benchedSize = (size_t)inFileSize;
-    if (benchedSize < inFileSize)
-        DISPLAY("Not enough memory for '%s' full size; testing %i MB only...\n", inFileName, (int)(benchedSize>>20));
+    if (benchedSize < inFileSize) {
+        DISPLAY("Not enough memory for '%s' \n", inFileName);
+        fclose(inFile);
+        return 11;
+    }
 
     /* Alloc */
     origBuff = malloc(benchedSize);
@@ -751,10 +755,9 @@ int optimizeForSize(const char* inFileName, U32 targetSpeed)
     /* bench */
     DISPLAY("\r%79s\r", "");
     DISPLAY("optimizing for %s - limit speed %u MB/s \n", inFileName, targetSpeed);
-    targetSpeed *= 1000;
+    targetSpeed *= 1000000;
 
     {   ZSTD_CCtx* const ctx = ZSTD_createCCtx();
-        ZSTD_compressionParameters params;
         winnerInfo_t winner;
         BMK_result_t candidate;
         const size_t blockSize = g_blockSize ? g_blockSize : benchedSize;
@@ -768,14 +771,14 @@ int optimizeForSize(const char* inFileName, U32 targetSpeed)
         {   const int maxSeeds = g_noSeed ? 1 : ZSTD_maxCLevel();
             int i;
             for (i=1; i<=maxSeeds; i++) {
-                params = ZSTD_getCParams(i, blockSize, 0);
-                BMK_benchParam(&candidate, origBuff, benchedSize, ctx, params);
+                ZSTD_compressionParameters const CParams = ZSTD_getCParams(i, blockSize, 0);
+                BMK_benchParam(&candidate, origBuff, benchedSize, ctx, CParams);
                 if (candidate.cSpeed < targetSpeed)
                     break;
                 if ( (candidate.cSize < winner.result.cSize)
                    | ((candidate.cSize == winner.result.cSize) & (candidate.cSpeed > winner.result.cSpeed)) )
                 {
-                    winner.params = params;
+                    winner.params = CParams;
                     winner.result = candidate;
                     BMK_printWinner(stdout, i, winner.result, winner.params, benchedSize);
             }   }
@@ -785,9 +788,9 @@ int optimizeForSize(const char* inFileName, U32 targetSpeed)
         /* start tests */
         {   time_t const grillStart = time(NULL);
             do {
-                params = winner.params;
+                ZSTD_compressionParameters params = winner.params;
                 paramVariation(&params);
-                if ((FUZ_rand(&g_rand) & 15) == 3) params = randomParams();
+                if ((FUZ_rand(&g_rand) & 31) == 3) params = randomParams();  /* totally random config to improve search space */
 
                 /* exclude faster if already played set of params */
                 if (FUZ_rand(&g_rand) & ((1 << NB_TESTS_PLAYED(params))-1)) continue;
@@ -837,7 +840,7 @@ static int usage_advanced(void)
     DISPLAY( " -T#    : set level 1 speed objective \n");
     DISPLAY( " -B#    : cut input into blocks of size # (default : single block) \n");
     DISPLAY( " -i#    : iteration loops [1-9](default : %i) \n", NBLOOPS);
-    DISPLAY( " -O#    : find Optimized parameters for # target speed (default : 0) \n");
+    DISPLAY( " -O#    : find Optimized parameters for # MB/s compression speed (default : 0) \n");
     DISPLAY( " -S     : Single run \n");
     DISPLAY( " -P#    : generated sample compressibility (default : %.1f%%) \n", COMPRESSIBILITY_DEFAULT * 100);
     return 0;

@@ -169,6 +169,11 @@ static size_t BMK_benchParam(BMK_result_t* resultPtr,
     char name[30] = { 0 };
     U64 crcOrig;
 
+    /* init result for early exit */
+    resultPtr->cSize = srcSize;
+    resultPtr->cSpeed = 0.;
+    resultPtr->dSpeed = 0.;
+
     /* Memory allocation & restrictions */
     snprintf(name, 30, "Sw%02uc%02uh%02us%02ul%1ut%03uS%1u", Wlog, Clog, Hlog, Slog, Slength, Tlength, strat);
     if (!compressedBuffer || !resultBuffer || !blockTable) {
@@ -791,6 +796,7 @@ int optimizeForSize(const char* inFileName, U32 targetSpeed)
                 ZSTD_compressionParameters params = winner.params;
                 paramVariation(&params);
                 if ((FUZ_rand(&g_rand) & 31) == 3) params = randomParams();  /* totally random config to improve search space */
+                params = ZSTD_adjustCParams(params, blockSize, 0);
 
                 /* exclude faster if already played set of params */
                 if (FUZ_rand(&g_rand) & ((1 << NB_TESTS_PLAYED(params))-1)) continue;

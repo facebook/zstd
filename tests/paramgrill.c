@@ -719,6 +719,12 @@ int benchFiles(const char** fileNamesTable, int nbFiles)
 }
 
 
+static void BMK_translateAdvancedParams(ZSTD_compressionParameters params)
+{
+    DISPLAY("--zstd=windowLog=%u,chainLog=%u,hashLog=%u,searchLog=%u,searchLength=%u,targetLength=%u,strategy=%u \n",
+             params.windowLog, params.chainLog, params.hashLog, params.searchLog, params.searchLength, params.targetLength, (U32)(params.strategy));
+}
+
 /* optimizeForSize():
  * targetSpeed : expressed in MB/s */
 int optimizeForSize(const char* inFileName, U32 targetSpeed)
@@ -789,6 +795,7 @@ int optimizeForSize(const char* inFileName, U32 targetSpeed)
             }   }
         }
         BMK_printWinner(stdout, 99, winner.result, winner.params, benchedSize);
+        BMK_translateAdvancedParams(winner.params);
 
         /* start tests */
         {   time_t const grillStart = time(NULL);
@@ -813,6 +820,7 @@ int optimizeForSize(const char* inFileName, U32 targetSpeed)
                     winner.params = params;
                     winner.result = candidate;
                     BMK_printWinner(stdout, 99, winner.result, winner.params, benchedSize);
+                    BMK_translateAdvancedParams(winner.params);
                 }
             } while (BMK_timeSpan(grillStart) < g_grillDuration_s);
         }

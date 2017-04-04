@@ -24,6 +24,8 @@
 /*-*******************************************************
 *  Dependencies
 *********************************************************/
+#include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/string.h>      /* memcpy, memmove, memset */
 #include "mem.h"         /* low level memory routines */
 #include "fse.h"
@@ -2333,3 +2335,43 @@ size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inB
 		return nextSrcSizeHint;
 	}
 }
+
+EXPORT_SYMBOL(ZSTD_DCtxWorkspaceBound);
+EXPORT_SYMBOL(ZSTD_createDCtx);
+EXPORT_SYMBOL(ZSTD_decompressDCtx);
+EXPORT_SYMBOL(ZSTD_decompress_usingDict);
+
+EXPORT_SYMBOL(ZSTD_DDictWorkspaceBound);
+EXPORT_SYMBOL(ZSTD_createDDict);
+EXPORT_SYMBOL(ZSTD_decompress_usingDDict);
+
+EXPORT_SYMBOL(ZSTD_DStreamWorkspaceBound);
+EXPORT_SYMBOL(ZSTD_createDStream);
+EXPORT_SYMBOL(ZSTD_createDStream_usingDDict);
+EXPORT_SYMBOL(ZSTD_resetDStream);
+EXPORT_SYMBOL(ZSTD_decompressStream);
+EXPORT_SYMBOL(ZSTD_DStreamInSize);
+EXPORT_SYMBOL(ZSTD_DStreamOutSize);
+
+EXPORT_SYMBOL(ZSTD_findFrameCompressedSize);
+EXPORT_SYMBOL(ZSTD_getFrameContentSize);
+EXPORT_SYMBOL(ZSTD_findDecompressedSize);
+
+EXPORT_SYMBOL(ZSTD_isFrame);
+EXPORT_SYMBOL(ZSTD_getDictID_fromDict);
+EXPORT_SYMBOL(ZSTD_getDictID_fromDDict);
+EXPORT_SYMBOL(ZSTD_getDictID_fromFrame);
+
+EXPORT_SYMBOL(ZSTD_getFrameParams);
+EXPORT_SYMBOL(ZSTD_decompressBegin);
+EXPORT_SYMBOL(ZSTD_decompressBegin_usingDict);
+EXPORT_SYMBOL(ZSTD_copyDCtx);
+EXPORT_SYMBOL(ZSTD_nextSrcSizeToDecompress);
+EXPORT_SYMBOL(ZSTD_decompressContinue);
+EXPORT_SYMBOL(ZSTD_nextInputType);
+
+EXPORT_SYMBOL(ZSTD_decompressBlock);
+EXPORT_SYMBOL(ZSTD_insertBlock);
+
+MODULE_LICENSE("BSD");
+MODULE_DESCRIPTION("Zstd Decompressor");

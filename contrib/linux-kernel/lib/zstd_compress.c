@@ -12,6 +12,7 @@
 *  Dependencies
 ***************************************/
 #include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/string.h>         /* memset */
 #include "mem.h"
 #include "fse.h"
@@ -3337,3 +3338,44 @@ ZSTD_parameters ZSTD_getParams(int compressionLevel, unsigned long long srcSize,
 	params.cParams = cParams;
 	return params;
 }
+
+EXPORT_SYMBOL(ZSTD_maxCLevel);
+EXPORT_SYMBOL(ZSTD_compressBound);
+
+EXPORT_SYMBOL(ZSTD_CCtxWorkspaceBound);
+EXPORT_SYMBOL(ZSTD_createCCtx);
+EXPORT_SYMBOL(ZSTD_compressCCtx);
+EXPORT_SYMBOL(ZSTD_compress_usingDict);
+
+EXPORT_SYMBOL(ZSTD_CDictWorkspaceBound);
+EXPORT_SYMBOL(ZSTD_createCDict);
+EXPORT_SYMBOL(ZSTD_compress_usingCDict);
+
+EXPORT_SYMBOL(ZSTD_CStreamWorkspaceBound);
+EXPORT_SYMBOL(ZSTD_createCStream);
+EXPORT_SYMBOL(ZSTD_createCStream_usingCDict);
+EXPORT_SYMBOL(ZSTD_resetCStream);
+EXPORT_SYMBOL(ZSTD_compressStream);
+EXPORT_SYMBOL(ZSTD_flushStream);
+EXPORT_SYMBOL(ZSTD_endStream);
+EXPORT_SYMBOL(ZSTD_CStreamInSize);
+EXPORT_SYMBOL(ZSTD_CStreamOutSize);
+
+EXPORT_SYMBOL(ZSTD_getCParams);
+EXPORT_SYMBOL(ZSTD_getParams);
+EXPORT_SYMBOL(ZSTD_checkCParams);
+EXPORT_SYMBOL(ZSTD_adjustCParams);
+
+EXPORT_SYMBOL(ZSTD_compressBegin);
+EXPORT_SYMBOL(ZSTD_compressBegin_usingDict);
+EXPORT_SYMBOL(ZSTD_compressBegin_advanced);
+EXPORT_SYMBOL(ZSTD_copyCCtx);
+EXPORT_SYMBOL(ZSTD_compressBegin_usingCDict);
+EXPORT_SYMBOL(ZSTD_compressContinue);
+EXPORT_SYMBOL(ZSTD_compressEnd);
+
+EXPORT_SYMBOL(ZSTD_getBlockSizeMax);
+EXPORT_SYMBOL(ZSTD_compressBlock);
+
+MODULE_LICENSE("BSD");
+MODULE_DESCRIPTION("Zstd Compressor");

@@ -89,7 +89,7 @@ static clock_t g_time = 0;
 #define DEBUGOUTPUT(...) if (DEBUG) DISPLAY(__VA_ARGS__);
 #define EXM_THROW(error, ...)                                             \
 {                                                                         \
-    DEBUGOUTPUT("Error defined at %s, line %i : \n", __FILE__, __LINE__); \
+    DEBUGOUTPUT("%s: %i: \n", __FILE__, __LINE__); \
     DISPLAYLEVEL(1, "Error %i : ", error);                                \
     DISPLAYLEVEL(1, __VA_ARGS__);                                         \
     DISPLAYLEVEL(1, " \n");                                               \
@@ -190,8 +190,7 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
             srcPtr += fileSizes[fileNb];
         }
         {   size_t const decodedSize = (size_t)dSize64;
-            if (dSize64 > decodedSize) EXM_THROW(32, "original size is too large");
-            if (decodedSize==0) EXM_THROW(32, "Impossible to determine original size ");
+            if (dSize64 > decodedSize) EXM_THROW(32, "original size is too large");   /* size_t overflow */
             free(resultBuffer);
             resultBuffer = malloc(decodedSize);
             if (!resultBuffer) EXM_THROW(33, "not enough memory");

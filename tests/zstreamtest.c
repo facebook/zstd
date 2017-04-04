@@ -438,6 +438,34 @@ static int basicUnitTests(U32 seed, double compressibility, ZSTD_customMem custo
       if (!ZSTD_isError(r)) goto _output_error;  /* must fail : frame requires > 100 bytes */
       DISPLAYLEVEL(3, "OK (%s)\n", ZSTD_getErrorName(r)); }
 
+    DISPLAYLEVEL(3, "test%3i : check dictionary used : ", testNb++);
+    {   ZSTD_parameters params = ZSTD_getParams(1, CNBufferSize, dictionary.filled);
+        ZSTD_CDict* cdict;
+        params.fParams.noDictIDFlag = 1;
+        cdict = ZSTD_createCDict_advanced(dictionary.start, dictionary.filled, 1, params, customMem);
+        { size_t const initError = ZSTD_initCStream_usingCDict(zc, cdict);
+          if (ZSTD_isError(initError)) goto _output_error; }
+        cSize = 0;
+        outBuff.dst = compressedBuffer;
+        outBuff.size = compressedBufferSize;
+        outBuff.pos = 0;
+        inBuff.src = CNBuffer;
+        inBuff.size = CNBufferSize;
+        inBuff.pos = 0;
+        { size_t const r = ZSTD_compressStream(zc, &outBuff, &inBuff);
+          if (ZSTD_isError(r)) goto _output_error; }
+        if (inBuff.pos != inBuff.size) goto _output_error;   /* entire input should be consumed */
+        { size_t const r = ZSTD_endStream(zc, &outBuff);
+          if (r != 0) goto _output_error; }  /* error, or some data not flushed */
+        cSize = outBuff.pos;
+        ZSTD_freeCDict(cdict);
+        DISPLAYLEVEL(3, "OK (%u bytes : %.2f%%)\n", (U32)cSize, (double)cSize/CNBufferSize*100);
+
+        { size_t const r = ZSTD_decompress(decodedBuffer, CNBufferSize, compressedBuffer, cSize);
+          if (!ZSTD_isError(r)) goto _output_error; /* must fail : dictionary not used */
+          DISPLAYLEVEL(3, "OK (%s)\n", ZSTD_getErrorName(r)); }
+    }
+
     /* Unknown srcSize */
     DISPLAYLEVEL(3, "test%3i : pledgedSrcSize == 0 behaves properly : ", testNb++);
     {   ZSTD_parameters params = ZSTD_getParams(5, 0, 0);

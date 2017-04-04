@@ -153,7 +153,7 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
                         const char* displayName, int cLevel,
                         const size_t* fileSizes, U32 nbFiles,
                         const void* dictBuffer, size_t dictBufferSize,
-                        ZSTD_compressionParameters *comprParams)
+                        const ZSTD_compressionParameters* comprParams)
 {
     size_t const blockSize = ((g_blockSize>=32 && !g_decodeOnly) ? g_blockSize : srcSize) + (!srcSize) /* avoid div by 0 */ ;
     size_t const avgSize = MIN(blockSize, (srcSize / nbFiles));
@@ -176,21 +176,21 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
         EXM_THROW(31, "allocation error : not enough memory");
 
     /* init */
-    if (strlen(displayName)>17) displayName += strlen(displayName)-17;   /* can only display 17 characters */
+    if (strlen(displayName)>17) displayName += strlen(displayName)-17;   /* display last 17 characters */
     UTIL_initTimer(&ticksPerSecond);
 
     if (g_decodeOnly) {  /* benchmark only decompression : source must be already compressed */
-        const char* srcPtr = (const char*) srcBuffer;
-        U64 dSize64 = 0;
+        const char* srcPtr = (const char*)srcBuffer;
+        U64 totalDSize64 = 0;
         U32 fileNb;
         for (fileNb=0; fileNb<nbFiles; fileNb++) {
             U64 const fSize64 = ZSTD_findDecompressedSize(srcPtr, fileSizes[fileNb]);
             if (fSize64==0) EXM_THROW(32, "Impossible to determine original size ");
-            dSize64 += fSize64;
+            totalDSize64 += fSize64;
             srcPtr += fileSizes[fileNb];
         }
-        {   size_t const decodedSize = (size_t)dSize64;
-            if (dSize64 > decodedSize) EXM_THROW(32, "original size is too large");   /* size_t overflow */
+        {   size_t const decodedSize = (size_t)totalDSize64;
+            if (totalDSize64 > decodedSize) EXM_THROW(32, "original size is too large");   /* size_t overflow */
             free(resultBuffer);
             resultBuffer = malloc(decodedSize);
             if (!resultBuffer) EXM_THROW(33, "not enough memory");
@@ -259,12 +259,11 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
                 UTIL_getTime(&clockStart);
 
                 if (!cCompleted) {   /* still some time to do compression tests */
-                    ZSTD_parameters zparams = ZSTD_getParams(cLevel, avgSize, dictBufferSize);
                     ZSTD_customMem const cmem = { NULL, NULL, NULL };
-                    U64 clockLoop = g_nbSeconds ? TIMELOOP_MICROSEC : 1;
+                    U64 const clockLoop = g_nbSeconds ? TIMELOOP_MICROSEC : 1;
                     U32 nbLoops = 0;
-                    ZSTD_CDict* const cdict = ZSTD_createCDict_advanced(dictBuffer, dictBufferSize, 1, zparams, cmem);
-                    if (cdict==NULL) EXM_THROW(1, "ZSTD_createCDict_advanced() allocation failure");
+                    ZSTD_parameters zparams = ZSTD_getParams(cLevel, avgSize, dictBufferSize);
+                    ZSTD_CDict* cdict;
                     if (comprParams->windowLog) zparams.cParams.windowLog = comprParams->windowLog;
                     if (comprParams->chainLog) zparams.cParams.chainLog = comprParams->chainLog;
                     if (comprParams->hashLog) zparams.cParams.hashLog = comprParams->hashLog;
@@ -272,6 +271,8 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
                     if (comprParams->searchLength) zparams.cParams.searchLength = comprParams->searchLength;
                     if (comprParams->targetLength) zparams.cParams.targetLength = comprParams->targetLength;
                     if (comprParams->strategy) zparams.cParams.strategy = (ZSTD_strategy)(comprParams->strategy - 1);
+                    cdict = ZSTD_createCDict_advanced(dictBuffer, dictBufferSize, 1, zparams, cmem);
+                    if (cdict==NULL) EXM_THROW(1, "ZSTD_createCDict_advanced() allocation failure");
                     do {
                         U32 blockNb;
                         size_t rSize;

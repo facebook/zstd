@@ -38,7 +38,7 @@ typedef  uint32_t U32;
 typedef   int32_t S32;
 typedef  uint64_t U64;
 typedef   int64_t S64;
-typedef  intptr_t iPtrDiff;
+typedef ptrdiff_t iPtrDiff;
 typedef uintptr_t uPtrDiff;
 
 

@@ -257,7 +257,7 @@ size_t ZSTD_DStreamWorkspaceBound(size_t maxWindowSize);
 typedef struct ZSTD_CStream_s ZSTD_CStream;
 /*===== ZSTD_CStream management functions =====*/
 ZSTDLIB_API ZSTD_CStream* ZSTD_createCStream(ZSTD_parameters params, unsigned long long pledgedSrcSize, void* workspace, size_t workspaceSize);
-ZSTDLIB_API ZSTD_CStream* ZSTD_createCStream_usingCDict(ZSTD_parameters params, const ZSTD_CDict* cdict, unsigned long long pledgedSrcSize, void* workspace, size_t workspaceSize);
+ZSTDLIB_API ZSTD_CStream* ZSTD_createCStream_usingCDict(const ZSTD_CDict* cdict, unsigned long long pledgedSrcSize, void* workspace, size_t workspaceSize);
 
 /*===== Streaming compression functions =====*/
 ZSTDLIB_API size_t ZSTD_resetCStream(ZSTD_CStream* zcs, unsigned long long pledgedSrcSize);  /**< re-use compression parameters from previous init; skip dictionary loading stage; zcs must be init at least once before. note: pledgedSrcSize must be correct, a size of 0 means unknown.  for a frame size of 0 use initCStream_advanced */

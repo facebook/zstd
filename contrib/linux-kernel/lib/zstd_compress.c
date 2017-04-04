@@ -2861,6 +2861,8 @@ size_t ZSTD_compress_usingCDict(ZSTD_CCtx* cctx,
 	if (cdict->refContext->params.fParams.contentSizeFlag==1) {
 		cctx->params.fParams.contentSizeFlag = 1;
 		cctx->frameContentSize = srcSize;
+	} else {
+		cctx->params.fParams.contentSizeFlag = 0;
 	}
 
 	return ZSTD_compressEnd(cctx, dst, dstCapacity, src, srcSize);
@@ -3015,12 +3017,15 @@ ZSTD_CStream* ZSTD_createCStream(ZSTD_parameters params, unsigned long long pled
 	return zcs;
 }
 
-ZSTD_CStream* ZSTD_createCStream_usingCDict(ZSTD_parameters params, const ZSTD_CDict* cdict, unsigned long long pledgedSrcSize, void* workspace, size_t workspaceSize)
+ZSTD_CStream* ZSTD_createCStream_usingCDict(const ZSTD_CDict* cdict, unsigned long long pledgedSrcSize, void* workspace, size_t workspaceSize)
 {
+	ZSTD_parameters const params = ZSTD_getParamsFromCDict(cdict);
 	ZSTD_CStream* const zcs = ZSTD_createCStream(params, pledgedSrcSize, workspace, workspaceSize);
 	if (zcs) {
 		zcs->cdict = cdict;
-		zcs->cctx->dictID = params.fParams.noDictIDFlag ? 0 : cdict->refContext->dictID;
+		if (ZSTD_isError(ZSTD_resetCStream_internal(zcs, pledgedSrcSize))) {
+			return NULL;
+		}
 	}
 	return zcs;
 }

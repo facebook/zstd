@@ -1,7 +1,7 @@
 
-IFLAGS := -isystem include/ -I ../include/ -I ../lib/ -isystem googletest/googletest/include
+IFLAGS := -isystem include/ -I ../include/ -I ../lib/zstd/ -isystem googletest/googletest/include
 
-SOURCES := $(wildcard ../lib/*.c)
+SOURCES := $(wildcard ../lib/zstd/*.c)
 OBJECTS := $(patsubst %.c,%.o,$(SOURCES))
 
 ARFLAGS := rcs
@@ -9,10 +9,10 @@ CXXFLAGS += -std=c++11
 CFLAGS += -g -O0
 CPPFLAGS += $(IFLAGS)
 
-../lib/libzstd.a: $(OBJECTS)
+../lib/zstd/libzstd.a: $(OBJECTS)
 	$(AR) $(ARFLAGS) $@ $^
 
-UserlandTest: UserlandTest.cpp ../lib/libzstd.a
+UserlandTest: UserlandTest.cpp ../lib/zstd/libzstd.a
 	$(CXX) $(CXXFLAGS) $(CFLAGS) $(CPPFLAGS) $^ googletest/build/googlemock/gtest/libgtest.a googletest/build/googlemock/gtest/libgtest_main.a -o $@
 
 # Install googletest
@@ -24,4 +24,4 @@ googletest:
 	@cd googletest/build && cmake .. && $(MAKE)
 
 clean:
-	$(RM) -f *.{o,a} ../lib/*.{o,a}
+	$(RM) -f *.{o,a} ../lib/zstd/*.{o,a}

@@ -2921,6 +2921,8 @@ size_t ZSTD_compress_usingCDict(ZSTD_CCtx* cctx,
     if (cdict->refContext->params.fParams.contentSizeFlag==1) {
         cctx->params.fParams.contentSizeFlag = 1;
         cctx->frameContentSize = srcSize;
+    } else {
+        cctx->params.fParams.contentSizeFlag = 0;
     }
 
     return ZSTD_compressEnd(cctx, dst, dstCapacity, src, srcSize);

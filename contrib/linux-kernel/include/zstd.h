@@ -49,7 +49,6 @@
 #define ZSTD_VERSION_STRING ZSTD_EXPAND_AND_QUOTE(ZSTD_LIB_VERSION)
 
 #define ZSTD_VERSION_NUMBER  (ZSTD_VERSION_MAJOR *100*100 + ZSTD_VERSION_MINOR *100 + ZSTD_VERSION_RELEASE)
-ZSTDLIB_API unsigned ZSTD_versionNumber(void);   /**< library version number; to be used when checking dll version */
 
 
 /*======  Helper functions  ======*/
@@ -123,7 +122,6 @@ typedef struct {
 } ZSTD_parameters;
 
 size_t ZSTD_CCtxWorkspaceBound(ZSTD_compressionParameters params);
-size_t ZSTD_DCtxWorkspaceBound(void);
 
 /*= Compression context
 *   When compressing many times,
@@ -138,6 +136,8 @@ ZSTDLIB_API ZSTD_CCtx* ZSTD_createCCtx(void* workspace, size_t workspaceSize);
 ZSTDLIB_API size_t ZSTD_compressCCtx(ZSTD_CCtx* ctx, void* dst, size_t dstCapacity, const void* src, size_t srcSize, ZSTD_parameters params);
 
 ZSTDLIB_API size_t ZSTD_compress_usingDict(ZSTD_CCtx* ctx, void* dst, size_t dstCapacity, const void* src, size_t srcSize, const void *dict, size_t dictSize, ZSTD_parameters params);
+
+size_t ZSTD_DCtxWorkspaceBound(void);
 
 /*= Decompression context
 *   When decompressing many times,
@@ -157,7 +157,6 @@ ZSTDLIB_API size_t ZSTD_decompress_usingDict(ZSTD_DCtx* ctx, void* dst, size_t d
 *  Fast dictionary API
 ****************************/
 size_t ZSTD_CDictWorkspaceBound(ZSTD_compressionParameters params);
-size_t ZSTD_DDictWorkspaceBound(void);
 
 typedef struct ZSTD_CDict_s ZSTD_CDict;
 
@@ -177,6 +176,8 @@ ZSTDLIB_API size_t ZSTD_compress_usingCDict(ZSTD_CCtx* cctx,
 									  const void* src, size_t srcSize,
 									  const ZSTD_CDict* cdict);
 
+
+size_t ZSTD_DDictWorkspaceBound(void);
 
 typedef struct ZSTD_DDict_s ZSTD_DDict;
 
@@ -252,7 +253,6 @@ typedef struct ZSTD_outBuffer_s {
 * *******************************************************************/
 
 size_t ZSTD_CStreamWorkspaceBound(ZSTD_compressionParameters params);
-size_t ZSTD_DStreamWorkspaceBound(size_t maxWindowSize);
 
 typedef struct ZSTD_CStream_s ZSTD_CStream;
 /*===== ZSTD_CStream management functions =====*/
@@ -291,6 +291,8 @@ ZSTDLIB_API size_t ZSTD_CStreamOutSize(void);   /**< recommended size for output
 *            any other value > 0, which means there is still some decoding to do to complete current frame.
 *            The return value is a suggested next input size (a hint to improve latency) that will never load more than the current frame.
 * *******************************************************************************/
+
+size_t ZSTD_DStreamWorkspaceBound(size_t maxWindowSize);
 
 typedef struct ZSTD_DStream_s ZSTD_DStream;
 /*===== ZSTD_DStream management functions =====*/

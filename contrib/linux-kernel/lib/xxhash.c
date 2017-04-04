@@ -81,17 +81,6 @@ static void* XXH_memcpy(void* dest, const void* src, size_t size) { return memcp
 #define FORCE_INLINE static __always_inline
 
 
-static U32 XXH_read32(const void* memPtr)
-{
-	return MEM_read32(memPtr);
-}
-
-static U64 XXH_read64(const void* memPtr)
-{
-	return MEM_read64(memPtr);
-}
-
-
 /* ****************************************
 *  Compiler-specific Functions and Macros
 ******************************************/

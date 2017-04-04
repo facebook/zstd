@@ -106,7 +106,11 @@ static size_t BMK_findMaxMem(U64 requiredMem)
 }
 
 
-#  define FUZ_rotl32(x,r) ((x << r) | (x >> (32 - r)))
+static U32 FUZ_rotl32(U32 x, U32 r)
+{
+    return ((x << r) | (x >> (32 - r)));
+}
+
 U32 FUZ_rand(U32* src)
 {
     const U32 prime1 = 2654435761U;

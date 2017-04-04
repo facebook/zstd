@@ -404,14 +404,6 @@ size_t FSE_count_wksp(unsigned* count, unsigned* maxSymbolValuePtr,
 	return FSE_countFast_wksp(count, maxSymbolValuePtr, source, sourceSize, workSpace);
 }
 
-size_t FSE_count(unsigned* count, unsigned* maxSymbolValuePtr,
-				 const void* src, size_t srcSize)
-{
-	unsigned tmpCounters[1024];
-	return FSE_count_wksp(count, maxSymbolValuePtr, src, srcSize, tmpCounters);
-}
-
-
 
 /*-**************************************************************
 *  FSE Compression Code
@@ -765,7 +757,7 @@ size_t FSE_compress_wksp (void* dst, size_t dstSize, const void* src, size_t src
 	if (!tableLog) tableLog = FSE_DEFAULT_TABLELOG;
 
 	/* Scan input and build symbol stats */
-	{   CHECK_V_F(maxCount, FSE_count(count, &maxSymbolValue, src, srcSize) );
+	{   CHECK_V_F(maxCount, FSE_count_wksp(count, &maxSymbolValue, src, srcSize, scratchBuffer) );
 		if (maxCount == srcSize) return 1;   /* only a single symbol in src : rle */
 		if (maxCount == 1) return 0;         /* each symbol present maximum once => not compressible */
 		if (maxCount < (srcSize >> 7)) return 0;   /* Heuristic : not compressible enough */

@@ -2898,6 +2898,7 @@ static ZSTD_parameters ZSTD_getParamsFromCDict(const ZSTD_CDict* cdict) {
 
 size_t ZSTD_compressBegin_usingCDict(ZSTD_CCtx* cctx, const ZSTD_CDict* cdict, unsigned long long pledgedSrcSize)
 {
+    if (cdict==NULL) return ERROR(GENERIC);  /* does not support NULL cdict */
     if (cdict->dictContentSize) CHECK_F(ZSTD_copyCCtx(cctx, cdict->refContext, pledgedSrcSize))
     else {
         ZSTD_parameters params = cdict->refContext->params;
@@ -2916,9 +2917,9 @@ size_t ZSTD_compress_usingCDict(ZSTD_CCtx* cctx,
                                 const void* src, size_t srcSize,
                                 const ZSTD_CDict* cdict)
 {
-    CHECK_F(ZSTD_compressBegin_usingCDict(cctx, cdict, srcSize));
+    CHECK_F(ZSTD_compressBegin_usingCDict(cctx, cdict, srcSize));  /* will check if cdict != NULL */
 
-    if (cdict->refContext->params.fParams.contentSizeFlag==1) {
+    if (cdict->refContext->params.fParams.contentSizeFlag == 1) {
         cctx->params.fParams.contentSizeFlag = 1;
         cctx->frameContentSize = srcSize;
     } else {

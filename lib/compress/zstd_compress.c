@@ -3037,18 +3037,21 @@ size_t ZSTD_initCStream_advanced(ZSTD_CStream* zcs,
     /* allocate buffers */
     {   size_t const neededInBuffSize = (size_t)1 << params.cParams.windowLog;
         if (zcs->inBuffSize < neededInBuffSize) {
-            zcs->inBuffSize = neededInBuffSize;
+            zcs->inBuffSize = 0;
             ZSTD_free(zcs->inBuff, zcs->customMem);
             zcs->inBuff = (char*) ZSTD_malloc(neededInBuffSize, zcs->customMem);
             if (zcs->inBuff == NULL) return ERROR(memory_allocation);
+            zcs->inBuffSize = neededInBuffSize;
         }
         zcs->blockSize = MIN(ZSTD_BLOCKSIZE_ABSOLUTEMAX, neededInBuffSize);
     }
     if (zcs->outBuffSize < ZSTD_compressBound(zcs->blockSize)+1) {
-        zcs->outBuffSize = ZSTD_compressBound(zcs->blockSize)+1;
+        size_t const outBuffSize = ZSTD_compressBound(zcs->blockSize)+1;
+        zcs->outBuffSize = 0;
         ZSTD_free(zcs->outBuff, zcs->customMem);
-        zcs->outBuff = (char*) ZSTD_malloc(zcs->outBuffSize, zcs->customMem);
+        zcs->outBuff = (char*) ZSTD_malloc(outBuffSize, zcs->customMem);
         if (zcs->outBuff == NULL) return ERROR(memory_allocation);
+        zcs->outBuffSize = outBuffSize;
     }
 
     if (dict && dictSize >= 8) {

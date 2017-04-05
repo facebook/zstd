@@ -1,0 +1,17 @@
+diff --git a/lib/Kconfig b/lib/Kconfig
+index 260a80e..39d9347 100644
+--- a/lib/Kconfig
++++ b/lib/Kconfig
+@@ -239,6 +239,12 @@ config LZ4HC_COMPRESS
+ config LZ4_DECOMPRESS
+ 	tristate
+ 
++config ZSTD_COMPRESS
++	tristate
++
++config ZSTD_DECOMPRESS
++	tristate
++
+ source "lib/xz/Kconfig"
+ 
+ #

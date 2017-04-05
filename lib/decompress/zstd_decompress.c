@@ -2380,15 +2380,17 @@ size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inB
                 zds->blockSize = blockSize;
                 if (zds->inBuffSize < blockSize) {
                     ZSTD_free(zds->inBuff, zds->customMem);
-                    zds->inBuffSize = blockSize;
+                    zds->inBuffSize = 0;
                     zds->inBuff = (char*)ZSTD_malloc(blockSize, zds->customMem);
                     if (zds->inBuff == NULL) return ERROR(memory_allocation);
+                    zds->inBuffSize = blockSize;
                 }
                 if (zds->outBuffSize < neededOutSize) {
                     ZSTD_free(zds->outBuff, zds->customMem);
-                    zds->outBuffSize = neededOutSize;
+                    zds->outBuffSize = 0;
                     zds->outBuff = (char*)ZSTD_malloc(neededOutSize, zds->customMem);
                     if (zds->outBuff == NULL) return ERROR(memory_allocation);
+                    zds->outBuffSize = neededOutSize;
             }   }
             zds->stage = zdss_read;
             /* pass-through */

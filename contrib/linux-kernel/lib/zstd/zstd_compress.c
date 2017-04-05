@@ -19,6 +19,9 @@
 #include "huf.h"
 #include "zstd_internal.h"  /* includes zstd.h */
 
+#ifdef current
+#  undef current
+#endif
 
 /*-*************************************
 *  Constants

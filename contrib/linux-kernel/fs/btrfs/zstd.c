@@ -270,9 +270,9 @@ static int zstd_decompress_biovec(struct list_head *ws, struct page **pages_in,
 
 	while (1) {
 		const size_t rc = ZSTD_decompressStream(stream, &out_buf, &in_buf);
-		if (zstd_is_error(rc)) {
+		if (ZSTD_isError(rc)) {
 			pr_debug("BTRFS: ZSTD_decompressStream returned %d\n",
-					zstd_get_error_code(rc));
+					ZSTD_getErrorCode(rc));
 			ret = -EIO;
 			goto done;
 		}

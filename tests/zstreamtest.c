@@ -667,7 +667,8 @@ static int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compres
         if ((FUZ_rand(&lseed)&1) /* at beginning, to keep same nb of rand */
             && oldTestLog /* at least one test happened */ && resetAllowed) {
             maxTestSize = FUZ_randomLength(&lseed, oldTestLog+2);
-            if (maxTestSize >= srcBufferSize) maxTestSize = srcBufferSize-1;
+            if (maxTestSize >= srcBufferSize)
+                maxTestSize = srcBufferSize-1;
             {   U64 const pledgedSrcSize = (FUZ_rand(&lseed) & 3) ? 0 : maxTestSize;
                 size_t const resetError = ZSTD_resetCStream(zc, pledgedSrcSize);
                 CHECK(ZSTD_isError(resetError), "ZSTD_resetCStream error : %s", ZSTD_getErrorName(resetError));
@@ -675,14 +676,14 @@ static int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compres
         } else {
             U32 const testLog = FUZ_rand(&lseed) % maxSrcLog;
             U32 const dictLog = FUZ_rand(&lseed) % maxSrcLog;
-            U32 const cLevel = (FUZ_rand(&lseed) %
+            U32 const cLevel = ( FUZ_rand(&lseed) %
                                 (ZSTD_maxCLevel() -
-                                 (MAX(testLog, dictLog) / cLevelLimiter))) +
-                               1;
+                                (MAX(testLog, dictLog) / cLevelLimiter)))
+                                 + 1;
             maxTestSize = FUZ_rLogLength(&lseed, testLog);
             oldTestLog = testLog;
             /* random dictionary selection */
-            dictSize  = ((FUZ_rand(&lseed)&63)==1) ? FUZ_rLogLength(&lseed, dictLog) : 0;
+            dictSize  = ((FUZ_rand(&lseed)&1)==1) ? FUZ_rLogLength(&lseed, dictLog) : 0;
             {   size_t const dictStart = FUZ_rand(&lseed) % (srcBufferSize - dictSize);
                 dict = srcBuffer + dictStart;
             }
@@ -935,9 +936,11 @@ static int fuzzerTests_MT(U32 seed, U32 nbTests, unsigned startTest, double comp
             }
             {   U64 const pledgedSrcSize = (FUZ_rand(&lseed) & 3) ? 0 : maxTestSize;
                 ZSTD_parameters params = ZSTD_getParams(cLevel, pledgedSrcSize, dictSize);
-                DISPLAYLEVEL(5, "Init with windowLog = %u \n", params.cParams.windowLog);
+                DISPLAYLEVEL(5, "Init with windowLog = %u and pledgedSrcSize = %u \n",
+                    params.cParams.windowLog, (U32)pledgedSrcSize);
                 params.fParams.checksumFlag = FUZ_rand(&lseed) & 1;
                 params.fParams.noDictIDFlag = FUZ_rand(&lseed) & 1;
+                params.fParams.contentSizeFlag = pledgedSrcSize>0;
                 { size_t const initError = ZSTDMT_initCStream_advanced(zc, dict, dictSize, params, pledgedSrcSize);
                   CHECK (ZSTD_isError(initError),"ZSTDMT_initCStream_advanced error : %s", ZSTD_getErrorName(initError)); }
                 ZSTDMT_setMTCtxParameter(zc, ZSTDMT_p_overlapSectionLog, FUZ_rand(&lseed) % 12);
@@ -1009,6 +1012,7 @@ static int fuzzerTests_MT(U32 seed, U32 nbTests, unsigned startTest, double comp
                 size_t const dstBuffSize = MIN(dstBufferSize - totalGenSize, randomDstSize);
                 inBuff.size = inBuff.pos + readCSrcSize;
                 outBuff.size = inBuff.pos + dstBuffSize;
+                DISPLAYLEVEL(5, "ZSTD_decompressStream input %u bytes \n", (U32)readCSrcSize);
                 decompressionResult = ZSTD_decompressStream(zd, &outBuff, &inBuff);
                 CHECK (ZSTD_isError(decompressionResult), "decompression error : %s", ZSTD_getErrorName(decompressionResult));
             }

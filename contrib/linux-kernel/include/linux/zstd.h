@@ -32,10 +32,6 @@
   The compression ratio achievable on small data can be highly improved using compression with a dictionary in:
 	- a single step (described as Simple dictionary API)
 	- a single step, reusing a dictionary (described as Fast dictionary API)
-
-  Advanced experimental functions can be accessed using #define ZSTD_STATIC_LINKING_ONLY before including zstd.h.
-  These APIs shall never be used with a dynamic library.
-  They are not "stable", their definition may change in the future. Only static linking is allowed.
 *********************************************************************************************************/
 
 /*------   Version   ------*/
@@ -121,28 +117,51 @@ typedef struct {
 	ZSTD_frameParameters fParams;
 } ZSTD_parameters;
 
-size_t ZSTD_CCtxWorkspaceBound(ZSTD_compressionParameters params);
+/*! ZSTD_getCParams() :
+*   @return ZSTD_compressionParameters structure for a selected compression level and estimated srcSize.
+*   `estimatedSrcSize` value is optional, select 0 if not known */
+ZSTDLIB_API ZSTD_compressionParameters ZSTD_getCParams(int compressionLevel, unsigned long long estimatedSrcSize, size_t dictSize);
+
+/*! ZSTD_getParams() :
+*   same as ZSTD_getCParams(), but @return a full `ZSTD_parameters` object instead of sub-component `ZSTD_compressionParameters`.
+*   All fields of `ZSTD_frameParameters` are set to default (0) */
+ZSTDLIB_API ZSTD_parameters ZSTD_getParams(int compressionLevel, unsigned long long estimatedSrcSize, size_t dictSize);
+
+
+/*! ZSTD_CCtxWorkspaceBound() :
+*   Returns the minimum amount of memory that needs to be passed to ZSTD_createCCtx() in order to compress with `params.cParams`
+*   or a `cdict` created with `params.cParams`. */
+size_t ZSTD_CCtxWorkspaceBound(ZSTD_compressionParameters cParams);
 
 /*= Compression context
 *   When compressing many times,
 *   it is recommended to allocate a context just once, and re-use it for each successive compression operation.
-*   This will make workload friendlier for system's memory.
+*   The context pointer is placed in `workspace`, which must outlive the returned context.
 *   Use one context per thread for parallel execution in multi-threaded environments. */
 typedef struct ZSTD_CCtx_s ZSTD_CCtx;
 ZSTDLIB_API ZSTD_CCtx* ZSTD_createCCtx(void* workspace, size_t workspaceSize);
 
 /*! ZSTD_compressCCtx() :
-	Same as ZSTD_compress(), requires an allocated ZSTD_CCtx (see ZSTD_createCCtx()). */
+*    Same as ZSTD_compress(), requires an allocated ZSTD_CCtx (see ZSTD_createCCtx()).
+*    Note : The workspace passed to ZSTD_createCCtx() must have been at least ZSTD_CCtxWorkspaceBound(params.cParams) bytes. */
 ZSTDLIB_API size_t ZSTD_compressCCtx(ZSTD_CCtx* ctx, void* dst, size_t dstCapacity, const void* src, size_t srcSize, ZSTD_parameters params);
 
+/*! ZSTD_compress_usingDict() :
+*   Compression using a predefined Dictionary (see dictBuilder/zdict.h).
+*   Note : The workspace passed to ZSTD_createCCtx() must have been at least ZSTD_CCtxWorkspaceBound(params.cParams) bytes.
+*   Note : This function loads the dictionary, resulting in significant startup delay.
+*   Note : When `dict == NULL || dictSize < 8` no dictionary is used. */
 ZSTDLIB_API size_t ZSTD_compress_usingDict(ZSTD_CCtx* ctx, void* dst, size_t dstCapacity, const void* src, size_t srcSize, const void *dict, size_t dictSize, ZSTD_parameters params);
 
+/*! ZSTD_DCtxWorkspaceBound() :
+ *  Returns the minimum amount of memory that needs to be passed to ZSTD_createDCtx(). */
 size_t ZSTD_DCtxWorkspaceBound(void);
 
 /*= Decompression context
 *   When decompressing many times,
 *   it is recommended to allocate a context just once, and re-use it for each successive compression operation.
-*   This will make workload friendlier for system's memory.
+*   The context pointer is placed in `workspace`, which must outlive the returned context.
+*   `workspace` must be at least ZSTD_DCtxWorkspaceBound() bytes.
 *   Use one context per thread for parallel execution in multi-threaded environments. */
 typedef struct ZSTD_DCtx_s ZSTD_DCtx;
 ZSTDLIB_API ZSTD_DCtx* ZSTD_createDCtx(void* workspace, size_t workspaceSize);
@@ -151,12 +170,19 @@ ZSTDLIB_API ZSTD_DCtx* ZSTD_createDCtx(void* workspace, size_t workspaceSize);
 *   Same as ZSTD_decompress(), requires an allocated ZSTD_DCtx (see ZSTD_createDCtx()). */
 ZSTDLIB_API size_t ZSTD_decompressDCtx(ZSTD_DCtx* ctx, void* dst, size_t dstCapacity, const void* src, size_t srcSize);
 
+/*! ZSTD_decompress_usingDict() :
+*   Decompression using a predefined Dictionary (see dictBuilder/zdict.h).
+*   Dictionary must be identical to the one used during compression.
+*   Note : This function loads the dictionary, resulting in significant startup delay.
+*   Note : When `dict == NULL || dictSize < 8` no dictionary is used. */
 ZSTDLIB_API size_t ZSTD_decompress_usingDict(ZSTD_DCtx* ctx, void* dst, size_t dstCapacity, const void* src, size_t srcSize, const void *dict, size_t dictSize);
 
 /****************************
 *  Fast dictionary API
 ****************************/
-size_t ZSTD_CDictWorkspaceBound(ZSTD_compressionParameters params);
+/*! ZSTD_CDictWorkspaceBound() :
+ *  Returns the minimum amount of memory that needs to be passed to ZSTD_createCDict() when called with the given `params.cParams`. */
+size_t ZSTD_CDictWorkspaceBound(ZSTD_compressionParameters cParams);
 
 typedef struct ZSTD_CDict_s ZSTD_CDict;
 
@@ -164,7 +190,9 @@ typedef struct ZSTD_CDict_s ZSTD_CDict;
 *   When compressing multiple messages / blocks with the same dictionary, it's recommended to load it just once.
 *   ZSTD_createCDict() will create a digested dictionary, ready to start future compression operations without startup delay.
 *   ZSTD_CDict can be created once and used by multiple threads concurrently, as its usage is read-only.
-*   `dictBuffer` content is referenced, and it must remain accessible throughout the lifetime of the CDict */
+*   `dictBuffer` content is referenced, and it must remain accessible throughout the lifetime of the CDict.
+*   The cdict pointer is placed in `workspace`, which must outlive the returned cdict.
+*   `workspace` must be at least ZSTD_CDictWorkspaceBound(params.cParams) bytes. */
 ZSTDLIB_API ZSTD_CDict* ZSTD_createCDict(const void* dictBuffer, size_t dictSize, ZSTD_parameters params, void* workspace, size_t workspaceSize);
 
 /*! ZSTD_compress_usingCDict() :
@@ -177,13 +205,17 @@ ZSTDLIB_API size_t ZSTD_compress_usingCDict(ZSTD_CCtx* cctx,
 									  const ZSTD_CDict* cdict);
 
 
+/*! ZSTD_DDictWorkspaceBound() :
+ *  Returns the minimum amount of memory that needs to be passed to ZSTD_createDDict(). */
 size_t ZSTD_DDictWorkspaceBound(void);
 
 typedef struct ZSTD_DDict_s ZSTD_DDict;
 
 /*! ZSTD_createDDict() :
 *   Create a digested dictionary, ready to start decompression operation without startup delay.
-*   `dictBuffer` content is referenced, and it must remain accessible throughout the lifetime of the DDict */
+*   `dictBuffer` content is referenced, and it must remain accessible throughout the lifetime of the DDict.
+*   The ddict pointer is placed in `workspace`, which must outlive the returned ddict.
+*   `workspace` must be at least ZSTD_DDictWorkspaceBound() bytes. */
 ZSTDLIB_API ZSTD_DDict* ZSTD_createDDict(const void* dictBuffer, size_t dictSize, void* workspace, size_t workspaceSize);
 
 /*! ZSTD_decompress_usingDDict() :
@@ -219,13 +251,12 @@ typedef struct ZSTD_outBuffer_s {
 *  A ZSTD_CStream object is required to track streaming operation.
 *  Use ZSTD_createCStream() and ZSTD_freeCStream() to create/release resources.
 *  ZSTD_CStream objects can be reused multiple times on consecutive compression operations.
-*  It is recommended to re-use ZSTD_CStream in situations where many streaming operations will be achieved consecutively,
-*  since it will play nicer with system's memory, by re-using already allocated memory.
+*  It is recommended to re-use ZSTD_CStream in situations where many streaming operations will be achieved consecutively.
 *  Use one separate ZSTD_CStream per thread for parallel execution.
 *
 *  Start a new compression by initializing ZSTD_CStream.
 *  Use ZSTD_initCStream() to start a new compression operation.
-*  Use ZSTD_initCStream_usingDict() or ZSTD_initCStream_usingCDict() for a compression which requires a dictionary (experimental section)
+*  Use  ZSTD_initCStream_usingCDict() for a compression which requires a dictionary.
 *
 *  Use ZSTD_compressStream() repetitively to consume input stream.
 *  The function will automatically update both `pos` fields.
@@ -252,11 +283,22 @@ typedef struct ZSTD_outBuffer_s {
 *
 * *******************************************************************/
 
-size_t ZSTD_CStreamWorkspaceBound(ZSTD_compressionParameters params);
+/*! ZSTD_CStreamWorkspaceBound() :
+ *  Returns the minimum amount of memory that needs to be passed to ZSTD_createCStream() or ZSTD_createCStream_usingCDict()
+ *  when called with the given `params.cParams` or `cdict` created with `params.cParams`. */
+size_t ZSTD_CStreamWorkspaceBound(ZSTD_compressionParameters cParams);
 
 typedef struct ZSTD_CStream_s ZSTD_CStream;
 /*===== ZSTD_CStream management functions =====*/
+/*! ZSTD_createCStream() :
+*   Creates a cstream using params.
+*   Callers may optionally provide the size of the source they intend to compress, or pass 0 if unknown.
+*   The stream is placed in `workspace`, which must outlive the returned stream.
+*   `workspace` must be at least ZSTD_CStreamWorkspaceBound(params.cParams) bytes. */
 ZSTDLIB_API ZSTD_CStream* ZSTD_createCStream(ZSTD_parameters params, unsigned long long pledgedSrcSize, void* workspace, size_t workspaceSize);
+/*! ZSTD_createCStream_usingCDict() :
+*   Similar to ZSTD_createCStream(), but use the given preprocessed dictionary.
+*/
 ZSTDLIB_API ZSTD_CStream* ZSTD_createCStream_usingCDict(const ZSTD_CDict* cdict, unsigned long long pledgedSrcSize, void* workspace, size_t workspaceSize);
 
 /*===== Streaming compression functions =====*/
@@ -292,11 +334,19 @@ ZSTDLIB_API size_t ZSTD_CStreamOutSize(void);   /**< recommended size for output
 *            The return value is a suggested next input size (a hint to improve latency) that will never load more than the current frame.
 * *******************************************************************************/
 
+/*! ZSTD_DStreamWorkspaceBound() :
+ *  Returns the minimum amount of memory that needs to be passed to ZSTD_createDStream() to decompress frames with windowSize <= maxWindowSize. */
 size_t ZSTD_DStreamWorkspaceBound(size_t maxWindowSize);
 
 typedef struct ZSTD_DStream_s ZSTD_DStream;
 /*===== ZSTD_DStream management functions =====*/
+/*! ZSTD_createDStream() :
+*   Creates a dstream that can decompress frames with windowSize up to maxWindowSize.
+*   The stream is placed in `workspace`, which must outlive the returned stream.
+*   `workspace` must be at least ZSTD_DStreamWorkspaceBound(maxWindowSize) bytes. */
 ZSTDLIB_API ZSTD_DStream* ZSTD_createDStream(size_t maxWindowSize, void* workspace, size_t workspaceSize);
+/*! ZSTD_createDStream_usingDDict() :
+*   Similar to ZSTD_createCStream(), but use the given preprocessed dictionary. */
 ZSTDLIB_API ZSTD_DStream* ZSTD_createDStream_usingDDict(size_t maxWindowSize, const ZSTD_DDict* ddict, void* workspace, size_t workspaceSize);
 
 /*===== Streaming decompression functions =====*/
@@ -306,14 +356,6 @@ ZSTDLIB_API size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* outp
 ZSTDLIB_API size_t ZSTD_DStreamInSize(void);    /*!< recommended size for input buffer */
 ZSTDLIB_API size_t ZSTD_DStreamOutSize(void);   /*!< recommended size for output buffer. Guarantee to successfully flush at least one complete block in all circumstances. */
 
-
-/****************************************************************************************
- * START OF ADVANCED AND EXPERIMENTAL FUNCTIONS
- * The definitions in this section are considered experimental.
- * They should never be used with a dynamic library, as they may change in the future.
- * They are provided for advanced usages.
- * Use them only in association with static linking.
- * ***************************************************************************************/
 
 /* --- Constants ---*/
 #define ZSTD_MAGICNUMBER            0xFD2FB528   /* >= v0.8.0 */
@@ -397,16 +439,6 @@ ZSTDLIB_API unsigned long long ZSTD_findDecompressedSize(const void* src, size_t
 /***************************************
 *  Advanced compression functions
 ***************************************/
-/*! ZSTD_getCParams() :
-*   @return ZSTD_compressionParameters structure for a selected compression level and estimated srcSize.
-*   `estimatedSrcSize` value is optional, select 0 if not known */
-ZSTDLIB_API ZSTD_compressionParameters ZSTD_getCParams(int compressionLevel, unsigned long long estimatedSrcSize, size_t dictSize);
-
-/*! ZSTD_getParams() :
-*   same as ZSTD_getCParams(), but @return a full `ZSTD_parameters` object instead of sub-component `ZSTD_compressionParameters`.
-*   All fields of `ZSTD_frameParameters` are set to default (0) */
-ZSTDLIB_API ZSTD_parameters ZSTD_getParams(int compressionLevel, unsigned long long estimatedSrcSize, size_t dictSize);
-
 /*! ZSTD_checkCParams() :
 *   Ensure param values remain within authorized range */
 ZSTDLIB_API size_t ZSTD_checkCParams(ZSTD_compressionParameters params);

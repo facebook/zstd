@@ -85,9 +85,12 @@
       SET "CPPFLAGS=-I../../zlib" &&
       SET "LDFLAGS=../../zlib/libz.a" &&
       sh -c "%SCRIPT%" &&
-      ( if [%COMPILER%]==[gcc] if [%ARTIFACT%]==[true] COPY programs\zstd.exe zstd_%PLATFORM%.exe && appveyor PushArtifact zstd_%PLATFORM%.exe ) &&
       ( if [%COMPILER%]==[gcc] if [%ARTIFACT%]==[true]
           lib\dll\example\build_package.bat &&
+          make -C programs DEBUGFLAGS= clean zstd &&
+          cp programs\zstd.exe zstd_%PLATFORM%.exe &&
+          appveyor PushArtifact zstd_%PLATFORM%.exe &&
+          cp programs\zstd.exe bin\zstd.exe &&
           make -C programs DEBUGFLAGS= clean zstdmt &&
           cp programs\zstd.exe bin\zstdmt.exe &&
           cd bin\ && 7z a -tzip zstd-win-release-%PLATFORM%.zip * &&

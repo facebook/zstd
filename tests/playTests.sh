@@ -109,6 +109,14 @@ $ZSTD -q tmp && die "overwrite check failed!"
 $ECHO "test : force overwrite"
 $ZSTD -q -f tmp
 $ZSTD -q --force tmp
+$ECHO "test : overwrite readonly file"
+rm -f tmpro tmpro.zst
+$ECHO foo > tmpro.zst
+$ECHO foo > tmpro
+chmod 400 tmpro.zst
+$ZSTD -q tmpro && die "should have refused to overwrite read-only file"
+$ZSTD -q -f tmpro
+rm -f tmpro tmpro.zst
 $ECHO "test : file removal"
 $ZSTD -f --rm tmp
 ls tmp && die "tmp should no longer be present"

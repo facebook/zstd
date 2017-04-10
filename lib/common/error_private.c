@@ -38,6 +38,8 @@ const char* ERR_getErrorString(ERR_enum code)
     case PREFIX(dictionary_corrupted): return "Dictionary is corrupted";
     case PREFIX(dictionary_wrong): return "Dictionary mismatch";
     case PREFIX(dictionaryCreation_failed): return "Cannot create Dictionary from provided samples";
+    case PREFIX(chunkIndex_tooLarge): return "Chunk index is too large";
+    case PREFIX(needSeek): return "Wrong file position, a seek is required to continue";
     case PREFIX(maxCode):
     default: return notErrorCode;
     }

@@ -207,6 +207,16 @@ static int basicUnitTests(U32 seed, double compressibility, ZSTD_customMem custo
       DISPLAYLEVEL(3, "OK (%u bytes) \n", (U32)s);
     }
 
+    /* Attempt bad compression parameters */
+    DISPLAYLEVEL(3, "test%3i : use bad compression parameters : ", testNb++);
+    {   size_t r;
+        ZSTD_parameters params = ZSTD_getParams(1, 0, 0);
+        params.cParams.searchLength = 2;
+        r = ZSTD_initCStream_advanced(zc, NULL, 0, params, 0);
+        if (!ZSTD_isError(r)) goto _output_error;
+        DISPLAYLEVEL(3, "init error : %s \n", ZSTD_getErrorName(r));
+    }
+
     /* skippable frame test */
     DISPLAYLEVEL(3, "test%3i : decompress skippable frame : ", testNb++);
     ZSTD_initDStream_usingDict(zd, CNBuffer, 128 KB);

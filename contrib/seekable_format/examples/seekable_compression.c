@@ -12,6 +12,8 @@
 #define ZSTD_STATIC_LINKING_ONLY
 #include <zstd.h>      // presumes zstd library is installed
 
+#include "zstd_seekable.h"
+
 static void* malloc_orDie(size_t size)
 {
     void* const buff = malloc(size);

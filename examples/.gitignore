@@ -6,8 +6,6 @@ dictionary_decompression
 streaming_compression
 streaming_decompression
 multiple_streaming_compression
-seekable_compression
-seekable_decompression
 
 #test artefact
 tmp*

@@ -10,10 +10,11 @@
 #include <stdlib.h>     /* malloc, free */
 
 #define XXH_STATIC_LINKING_ONLY
+#define XXH_NAMESPACE ZSTD_
 #include "xxhash.h"
 
 #include "zstd_internal.h" /* includes zstd.h */
-#include "seekable.h"
+#include "zstd_seekable.h"
 
 typedef struct {
     U32 cSize;

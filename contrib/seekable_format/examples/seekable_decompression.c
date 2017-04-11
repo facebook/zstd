@@ -15,6 +15,8 @@
 #include <zstd.h>      // presumes zstd library is installed
 #include <zstd_errors.h>
 
+#include "zstd_seekable.h"
+
 
 static void* malloc_orDie(size_t size)
 {

@@ -18,8 +18,7 @@ default: all
 all: simple_compression simple_decompression \
 	dictionary_compression dictionary_decompression \
 	streaming_compression streaming_decompression \
-	multiple_streaming_compression \
-	seekable_compression seekable_decompression
+	multiple_streaming_compression
 
 simple_compression : simple_compression.c
 	$(CC) $(CPPFLAGS) $(CFLAGS) $^ $(LDFLAGS) -o $@
@@ -40,12 +39,6 @@ multiple_streaming_compression : multiple_streaming_compression.c
 	$(CC) $(CPPFLAGS) $(CFLAGS) $^ $(LDFLAGS) -o $@
 
 streaming_decompression : streaming_decompression.c
-	$(CC) $(CPPFLAGS) $(CFLAGS) $^ $(LDFLAGS) -o $@
-
-seekable_compression : seekable_compression.c
-	$(CC) $(CPPFLAGS) $(CFLAGS) $^ $(LDFLAGS) -o $@
-
-seekable_decompression : seekable_decompression.c
 	$(CC) $(CPPFLAGS) $(CFLAGS) $^ $(LDFLAGS) -o $@
 
 clean:

@@ -807,6 +807,8 @@ typedef struct ZSTD_seekable_DStream_s ZSTD_seekable_DStream;
 *  for a new compression operation.
 *  `maxChunkSize` indicates the size at which to automatically start a new
 *  seekable frame.  `maxChunkSize == 0` implies the default maximum size.
+*  `checksumFlag` indicates whether or not the seek table should include chunk
+*  checksums on the uncompressed data for verification.
 *  @return : a size hint for input to provide for compression, or an error code
 *            checkable with ZSTD_isError()
 *
@@ -836,7 +838,7 @@ ZSTDLIB_API ZSTD_seekable_CStream* ZSTD_seekable_createCStream(void);
 ZSTDLIB_API size_t ZSTD_seekable_freeCStream(ZSTD_seekable_CStream* zcs);
 
 /*===== Seekable compression functions =====*/
-ZSTDLIB_API size_t ZSTD_seekable_initCStream(ZSTD_seekable_CStream* zcs, int compressionLevel, unsigned maxChunkSize);
+ZSTDLIB_API size_t ZSTD_seekable_initCStream(ZSTD_seekable_CStream* zcs, int compressionLevel, int checksumFlag, unsigned maxChunkSize);
 ZSTDLIB_API size_t ZSTD_seekable_compressStream(ZSTD_seekable_CStream* zcs, ZSTD_outBuffer* output, ZSTD_inBuffer* input);
 ZSTDLIB_API size_t ZSTD_seekable_endChunk(ZSTD_seekable_CStream* zcs, ZSTD_outBuffer* output);
 ZSTDLIB_API size_t ZSTD_seekable_endStream(ZSTD_seekable_CStream* zcs, ZSTD_outBuffer* output);

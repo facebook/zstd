@@ -68,7 +68,7 @@ static void compressFile_orDie(const char* fname, const char* outName, int cLeve
 
     ZSTD_seekable_CStream* const cstream = ZSTD_seekable_createCStream();
     if (cstream==NULL) { fprintf(stderr, "ZSTD_seekable_createCStream() error \n"); exit(10); }
-    size_t const initResult = ZSTD_seekable_initCStream(cstream, cLevel, chunkSize);
+    size_t const initResult = ZSTD_seekable_initCStream(cstream, cLevel, 1, chunkSize);
     if (ZSTD_isError(initResult)) { fprintf(stderr, "ZSTD_seekable_initCStream() error : %s \n", ZSTD_getErrorName(initResult)); exit(11); }
 
     size_t read, toRead = buffInSize;
@@ -77,15 +77,16 @@ static void compressFile_orDie(const char* fname, const char* outName, int cLeve
         while (input.pos < input.size) {
             ZSTD_outBuffer output = { buffOut, buffOutSize, 0 };
             toRead = ZSTD_seekable_compressStream(cstream, &output , &input);   /* toRead is guaranteed to be <= ZSTD_CStreamInSize() */
-            if (ZSTD_isError(toRead)) { fprintf(stderr, "ZSTD_compressStream() error : %s \n", ZSTD_getErrorName(toRead)); exit(12); }
+            if (ZSTD_isError(toRead)) { fprintf(stderr, "ZSTD_seekable_compressStream() error : %s \n", ZSTD_getErrorName(toRead)); exit(12); }
             if (toRead > buffInSize) toRead = buffInSize;   /* Safely handle case when `buffInSize` is manually changed to a value < ZSTD_CStreamInSize()*/
             fwrite_orDie(buffOut, output.pos, fout);
         }
     }
 
-    ZSTD_outBuffer output = { buffOut, buffOutSize, 0 };
     while (1) {
+        ZSTD_outBuffer output = { buffOut, buffOutSize, 0 };
         size_t const remainingToFlush = ZSTD_seekable_endStream(cstream, &output);   /* close stream */
+        if (ZSTD_isError(remainingToFlush)) { fprintf(stderr, "ZSTD_seekable_endStream() error : %s \n", ZSTD_getErrorName(remainingToFlush)); exit(13); }
         fwrite_orDie(buffOut, output.pos, fout);
         if (!remainingToFlush) break;
     }
@@ -123,4 +124,6 @@ int main(int argc, const char** argv) {
         const char* const outFileName = createOutFilename_orDie(inFileName);
         compressFile_orDie(inFileName, outFileName, 5, chunkSize);
     }
+
+    return 0;
 }

@@ -143,6 +143,7 @@ static void decompressFile_orDie(const char* fname, unsigned startOffset, unsign
                 toRead = result;
             }
             fwrite_orDie(buffOut, output.pos, fout);
+            if (toRead > buffInSize) toRead = buffInSize;
         }
     } while (result > 0);
 
@@ -171,5 +172,6 @@ int main(int argc, const char** argv)
         unsigned const endOffset = (unsigned) atoi(argv[3]);
         decompressFile_orDie(inFilename, startOffset, endOffset);
     }
+
     return 0;
 }

@@ -1,8 +1,7 @@
 # Linux Kernel Patch
 
 There are two pieces, the `zstd_compress` and `zstd_decompress` kernel modules, and the BtrFS patch.
-The patches are based off of the linux kernel version 4.9.
-The BtrFS patch is not present in its entirety yet.
+The patches are based off of the linux kernel master branch (version 4.10).
 
 ## Zstd Kernel modules
 
@@ -21,6 +20,7 @@ The BtrFS patch is not present in its entirety yet.
 
 ## BtrFS
 
-* `fs/btrfs/zstd.c` is provided.
-* Some more glue is required to integrate it with BtrFS, but I haven't included the patches yet.
-  In the meantime see https://github.com/terrelln/linux/commit/1914f7d4ca6c539369c84853eafa4ac104883047 if you're interested.
+* The patch is located in `btrfs.diff`.
+* Additionally `fs/btrfs/zstd.c` is provided as a source for convenience.
+* The patch seems to be working, it doesn't crash the kernel, and compresses at speeds and ratios athat are expected.
+  It can still use some more testing for fringe features, like printing options.

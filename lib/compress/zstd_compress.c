@@ -3077,7 +3077,8 @@ static size_t ZSTD_initCStream_stage2(ZSTD_CStream* zcs,
 size_t ZSTD_initCStream_usingCDict(ZSTD_CStream* zcs, const ZSTD_CDict* cdict)
 {
     if (!cdict) return ERROR(GENERIC);   /* cannot handle NULL cdict (does not know what to do) */
-    {   ZSTD_parameters const params = ZSTD_getParamsFromCDict(cdict);
+    {   ZSTD_parameters params = ZSTD_getParamsFromCDict(cdict);
+        params.fParams.contentSizeFlag = 0;
         zcs->cdict = cdict;
         return ZSTD_initCStream_stage2(zcs, params, 0);
     }

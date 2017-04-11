@@ -19,7 +19,7 @@ all: simple_compression simple_decompression \
 	dictionary_compression dictionary_decompression \
 	streaming_compression streaming_decompression \
 	multiple_streaming_compression \
-	seekable_compression
+	seekable_compression seekable_decompression
 
 simple_compression : simple_compression.c
 	$(CC) $(CPPFLAGS) $(CFLAGS) $^ $(LDFLAGS) -o $@

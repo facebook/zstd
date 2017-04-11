@@ -448,10 +448,11 @@ static int basicUnitTests(U32 seed, double compressibility, ZSTD_customMem custo
       if (!ZSTD_isError(r)) goto _output_error;  /* must fail : frame requires > 100 bytes */
       DISPLAYLEVEL(3, "OK (%s)\n", ZSTD_getErrorName(r)); }
 
-    DISPLAYLEVEL(3, "test%3i : check dictionary used : ", testNb++);
+    DISPLAYLEVEL(3, "test%3i : dictionary compression with masked dictID : ", testNb++);
     {   ZSTD_parameters params = ZSTD_getParams(1, CNBufferSize, dictionary.filled);
         ZSTD_CDict* cdict;
         params.fParams.noDictIDFlag = 1;
+        params.fParams.contentSizeFlag = 1;  /* test contentSize, should be disabled with initCStream_usingCDict */
         cdict = ZSTD_createCDict_advanced(dictionary.start, dictionary.filled, 1, params, customMem);
         { size_t const initError = ZSTD_initCStream_usingCDict(zc, cdict);
           if (ZSTD_isError(initError)) goto _output_error; }
@@ -470,17 +471,20 @@ static int basicUnitTests(U32 seed, double compressibility, ZSTD_customMem custo
         cSize = outBuff.pos;
         ZSTD_freeCDict(cdict);
         DISPLAYLEVEL(3, "OK (%u bytes : %.2f%%)\n", (U32)cSize, (double)cSize/CNBufferSize*100);
+    }
 
-        { size_t const r = ZSTD_decompress(decodedBuffer, CNBufferSize, compressedBuffer, cSize);
-          if (!ZSTD_isError(r)) goto _output_error; /* must fail : dictionary not used */
-          DISPLAYLEVEL(3, "OK (%s)\n", ZSTD_getErrorName(r)); }
+    DISPLAYLEVEL(3, "test%3i : decompress without dictionary : ", testNb++);
+    {   size_t const r = ZSTD_decompress(decodedBuffer, CNBufferSize, compressedBuffer, cSize);
+        if (!ZSTD_isError(r)) goto _output_error;  /* must fail : dictionary not used */
+        DISPLAYLEVEL(3, "OK (%s)\n", ZSTD_getErrorName(r));
     }
 
     /* Unknown srcSize */
     DISPLAYLEVEL(3, "test%3i : pledgedSrcSize == 0 behaves properly : ", testNb++);
     {   ZSTD_parameters params = ZSTD_getParams(5, 0, 0);
         params.fParams.contentSizeFlag = 1;
-        ZSTD_initCStream_advanced(zc, NULL, 0, params, 0); } /* cstream advanced should write the 0 size field */
+        ZSTD_initCStream_advanced(zc, NULL, 0, params, 0);
+    } /* cstream advanced shall write content size = 0 */
     inBuff.src = CNBuffer;
     inBuff.size = 0;
     inBuff.pos = 0;

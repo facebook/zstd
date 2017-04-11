@@ -28,6 +28,10 @@ typedef struct {
     int checksumFlag;
 } seekTable_t;
 
+/** ZSTD_seekable_offsetToChunk() :
+ *  Performs a binary search to find the last chunk with a decompressed offset
+ *  <= pos
+ *  @return : the chunk's index */
 static U32 ZSTD_seekable_offsetToChunk(const seekTable_t* table, U64 pos)
 {
     U32 lo = 0;
@@ -44,8 +48,9 @@ static U32 ZSTD_seekable_offsetToChunk(const seekTable_t* table, U64 pos)
     return lo;
 }
 
+/* Stream decompressor state machine stages */
 enum ZSTD_seekable_DStream_stage {
-    zsds_init,
+    zsds_init = 0,
     zsds_seek,
     zsds_decompress,
     zsds_done,
@@ -75,6 +80,7 @@ ZSTD_seekable_DStream* ZSTD_seekable_createDStream(void)
 
     if (zds == NULL) return NULL;
 
+    /* also initializes stage to zsds_init */
     memset(zds, 0, sizeof(*zds));
 
     zds->dstream = ZSTD_createDStream();
@@ -88,7 +94,7 @@ ZSTD_seekable_DStream* ZSTD_seekable_createDStream(void)
 
 size_t ZSTD_seekable_freeDStream(ZSTD_seekable_DStream* zds)
 {
-    if (zds == NULL) return 0;
+    if (zds == NULL) return 0; /* support free on null */
     ZSTD_freeDStream(zds->dstream);
     free(zds->seekTable.entries);
     free(zds);
@@ -105,6 +111,7 @@ size_t ZSTD_seekable_loadSeekTable(ZSTD_seekable_DStream* zds, const void* src, 
 
     U32 sizePerEntry;
 
+    /* footer is fixed size */
     if (srcSize < ZSTD_seekTableFooterSize)
         return ZSTD_seekTableFooterSize;
 
@@ -112,14 +119,12 @@ size_t ZSTD_seekable_loadSeekTable(ZSTD_seekable_DStream* zds, const void* src, 
         return ERROR(prefix_unknown);
     }
 
-    {
-        BYTE const sfd = ip[-5];
+    {   BYTE const sfd = ip[-5];
         checksumFlag = sfd >> 7;
-
-        numChunks = MEM_readLE32(ip-9);
-
-        sizePerEntry = 8 + (checksumFlag?4:0);
     }
+
+    numChunks = MEM_readLE32(ip-9);
+    sizePerEntry = 8 + (checksumFlag?4:0);
 
     {   U32 const tableSize = sizePerEntry * numChunks;
         U32 const frameSize = tableSize + ZSTD_seekTableFooterSize + ZSTD_skippableHeaderSize;
@@ -151,6 +156,7 @@ size_t ZSTD_seekable_loadSeekTable(ZSTD_seekable_DStream* zds, const void* src, 
                 return ERROR(memory_allocation);
             }
 
+            /* compute cumulative positions */
             for (idx = 0, pos = 0; idx < numChunks; idx++) {
                 entries[idx].cOffset = cOffset;
                 entries[idx].dOffset = dOffset;
@@ -175,7 +181,8 @@ size_t ZSTD_seekable_loadSeekTable(ZSTD_seekable_DStream* zds, const void* src, 
 
 size_t ZSTD_seekable_initDStream(ZSTD_seekable_DStream* zds, U64 rangeStart, U64 rangeEnd)
 {
-    /* restrict range to the end of the file, and not before the range start */
+    /* restrict range to the end of the file, of non-negative size */
+    rangeStart = MIN(rangeStart, zds->seekTable.entries[zds->seekTable.tableLen].dOffset);
     rangeEnd = MIN(rangeEnd, zds->seekTable.entries[zds->seekTable.tableLen].dOffset);
     rangeEnd = MAX(rangeEnd, rangeStart);
 
@@ -191,6 +198,8 @@ size_t ZSTD_seekable_initDStream(ZSTD_seekable_DStream* zds, U64 rangeStart, U64
     if (zds->seekTable.checksumFlag) {
         XXH64_reset(&zds->xxhState, 0);
     }
+
+    if (rangeStart == rangeEnd) zds->stage = zsds_done;
 
     {   const size_t ret = ZSTD_initDStream(zds->dstream);
         if (ZSTD_isError(ret)) return ret; }
@@ -222,7 +231,7 @@ size_t ZSTD_seekable_decompressStream(ZSTD_seekable_DStream* zds, ZSTD_outBuffer
     while (1) {
         switch (zds->stage) {
         case zsds_init:
-            return ERROR(init_missing);
+            return ERROR(init_missing); /* ZSTD_seekable_initDStream should be called first */
         case zsds_decompress: {
             BYTE* const outBase = (BYTE*)output->dst + output->pos;
             size_t const outLen = output->size - output->pos;
@@ -248,7 +257,7 @@ size_t ZSTD_seekable_decompressStream(ZSTD_seekable_DStream* zds, ZSTD_outBuffer
                 zds->compressedOffset += input->pos - prevInputPos;
                 zds->decompressedOffset += outTmp.pos;
 
-                if (zds->seekTable.checksumFlag) {
+                if (jt->checksumFlag) {
                     XXH64_update(&zds->xxhState, outTmp.dst, outTmp.pos);
                 }
 
@@ -256,7 +265,7 @@ size_t ZSTD_seekable_decompressStream(ZSTD_seekable_DStream* zds, ZSTD_outBuffer
                     /* need more input */
                     return MIN(
                             ZSTD_DStreamInSize(),
-                            (size_t)(zds->seekTable.entries[zds->curChunk + 1]
+                            (size_t)(jt->entries[zds->curChunk + 1]
                                              .cOffset -
                                      zds->compressedOffset));
                 }
@@ -285,11 +294,11 @@ size_t ZSTD_seekable_decompressStream(ZSTD_seekable_DStream* zds, ZSTD_outBuffer
 
                 output->pos += outTmp.pos;
 
-                if (zds->seekTable.checksumFlag) {
+                if (jt->checksumFlag) {
                     XXH64_update(&zds->xxhState, outTmp.dst, outTmp.pos);
                     if (ret == 0) {
                         /* verify the checksum */
-                        U32 const digest = XXH64_digest(&zds->xxhState);
+                        U32 const digest = XXH64_digest(&zds->xxhState) & 0xFFFFFFFFU;
                         if (digest != jt->entries[zds->curChunk].checksum) {
                             return ERROR(checksum_wrong);
                         }
@@ -306,17 +315,21 @@ size_t ZSTD_seekable_decompressStream(ZSTD_seekable_DStream* zds, ZSTD_outBuffer
 
                 if (ret == 0) {
                     /* frame is done */
+                    /* make sure this lines up with the expected frame border */
+                    if (zds->decompressedOffset !=
+                                jt->entries[zds->curChunk + 1].dOffset ||
+                        zds->compressedOffset !=
+                                jt->entries[zds->curChunk + 1].cOffset)
+                        return ERROR(corruption_detected);
                     ZSTD_resetDStream(zds->dstream);
                     zds->stage = zsds_seek;
                     break;
                 }
 
                 /* need more input */
-                return MIN(
-                        ZSTD_DStreamInSize(),
-                        (size_t)(zds->seekTable.entries[zds->curChunk + 1]
-                                         .cOffset -
-                                 zds->compressedOffset));
+                return MIN(ZSTD_DStreamInSize(), (size_t)(
+                        jt->entries[zds->curChunk + 1].cOffset -
+                        zds->compressedOffset));
             }
         }
         case zsds_seek: {
@@ -338,6 +351,7 @@ size_t ZSTD_seekable_decompressStream(ZSTD_seekable_DStream* zds, ZSTD_outBuffer
 
             zds->nextSeek = jt->entries[targetChunk].cOffset;
             zds->decompressedOffset = jt->entries[targetChunk].dOffset;
+            /* signal to user that a seek is required */
             return ERROR(needSeek);
         }
         case zsds_done:

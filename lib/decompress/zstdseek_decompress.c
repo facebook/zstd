@@ -121,6 +121,11 @@ size_t ZSTD_seekable_loadSeekTable(ZSTD_seekable_DStream* zds, const void* src, 
 
     {   BYTE const sfd = ip[-5];
         checksumFlag = sfd >> 7;
+
+        /* check reserved bits */
+        if ((checksumFlag >> 2) & 0x1f) {
+            return ERROR(corruption_detected);
+        }
     }
 
     numChunks = MEM_readLE32(ip-9);

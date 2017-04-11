@@ -2690,6 +2690,7 @@ static size_t ZSTD_compressBegin_internal(ZSTD_CCtx* cctx,
                                    ZSTD_parameters params, U64 pledgedSrcSize)
 {
     ZSTD_compResetPolicy_e const crp = dictSize ? ZSTDcrp_fullReset : ZSTDcrp_continue;
+    assert(!ZSTD_isError(ZSTD_checkCParams(params.cParams)));
     CHECK_F(ZSTD_resetCCtx_advanced(cctx, params, pledgedSrcSize, crp));
     return ZSTD_compress_insertDictionary(cctx, dict, dictSize);
 }
@@ -2911,7 +2912,7 @@ size_t ZSTD_compressBegin_usingCDict(ZSTD_CCtx* cctx, const ZSTD_CDict* cdict, u
     else {
         ZSTD_parameters params = cdict->refContext->params;
         params.fParams.contentSizeFlag = (pledgedSrcSize > 0);
-        CHECK_F(ZSTD_compressBegin_advanced(cctx, NULL, 0, params, pledgedSrcSize));
+        CHECK_F(ZSTD_compressBegin_internal(cctx, NULL, 0, params, pledgedSrcSize));
     }
     return 0;
 }
@@ -3017,7 +3018,7 @@ static size_t ZSTD_resetCStream_internal(ZSTD_CStream* zcs, unsigned long long p
     if (zcs->inBuffSize==0) return ERROR(stage_wrong);   /* zcs has not been init at least once => can't reset */
 
     if (zcs->cdict) CHECK_F(ZSTD_compressBegin_usingCDict(zcs->cctx, zcs->cdict, pledgedSrcSize))
-    else CHECK_F(ZSTD_compressBegin_advanced(zcs->cctx, NULL, 0, zcs->params, pledgedSrcSize));
+    else CHECK_F(ZSTD_compressBegin_internal(zcs->cctx, NULL, 0, zcs->params, pledgedSrcSize));
 
     zcs->inToCompress = 0;
     zcs->inBuffPos = 0;

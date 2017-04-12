@@ -2971,7 +2971,6 @@ struct ZSTD_CStream_s {
     U32    checksum;
     U32    frameEnded;
     U64    pledgedSrcSize;
-    U64    inputProcessed;
     ZSTD_parameters params;
     ZSTD_customMem customMem;
 };   /* typedef'd to ZSTD_CStream within "zstd.h" */
@@ -3034,7 +3033,6 @@ static size_t ZSTD_resetCStream_internal(ZSTD_CStream* zcs, unsigned long long p
     zcs->stage = zcss_load;
     zcs->frameEnded = 0;
     zcs->pledgedSrcSize = pledgedSrcSize;
-    zcs->inputProcessed = 0;
     return 0;   /* ready to go */
 }
 
@@ -3226,7 +3224,6 @@ static size_t ZSTD_compressStream_generic(ZSTD_CStream* zcs,
 
     *srcSizePtr = ip - istart;
     *dstCapacityPtr = op - ostart;
-    zcs->inputProcessed += *srcSizePtr;
     if (zcs->frameEnded) return 0;
     {   size_t hintInSize = zcs->inBuffTarget - zcs->inBuffPos;
         if (hintInSize==0) hintInSize = zcs->blockSize;
@@ -3271,9 +3268,6 @@ size_t ZSTD_endStream(ZSTD_CStream* zcs, ZSTD_outBuffer* output)
     BYTE* const oend = (BYTE*)(output->dst) + output->size;
     BYTE* op = ostart;
 
-    if ((zcs->pledgedSrcSize) && (zcs->inputProcessed != zcs->pledgedSrcSize))
-        return ERROR(srcSize_wrong);   /* pledgedSrcSize not respected */
-
     if (zcs->stage != zcss_final) {
         /* flush whatever remains */
         size_t srcSize = 0;
@@ -3289,6 +3283,7 @@ size_t ZSTD_endStream(ZSTD_CStream* zcs, ZSTD_outBuffer* output)
         zcs->stage = zcss_final;
         zcs->outBuffContentSize = !notEnded ? 0 :
             ZSTD_compressEnd(zcs->cctx, zcs->outBuff, zcs->outBuffSize, NULL, 0);  /* write epilogue, including final empty block, into outBuff */
+        if (ZSTD_isError(zcs->outBuffContentSize)) return zcs->outBuffContentSize;
     }
 
     /* flush epilogue */

@@ -1399,7 +1399,7 @@ size_t ZSTD_decompressBlock(ZSTD_DCtx* dctx,
 
 /** ZSTD_insertBlock() :
 	insert `src` block into `dctx` history. Useful to track uncompressed blocks. */
-ZSTDLIB_API size_t ZSTD_insertBlock(ZSTD_DCtx* dctx, const void* blockStart, size_t blockSize)
+size_t ZSTD_insertBlock(ZSTD_DCtx* dctx, const void* blockStart, size_t blockSize)
 {
 	ZSTD_checkContinuity(dctx, blockStart);
 	dctx->previousDstEnd = (const char*)blockStart + blockSize;

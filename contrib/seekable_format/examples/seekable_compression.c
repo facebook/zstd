@@ -59,7 +59,7 @@ static size_t fclose_orDie(FILE* file)
     exit(6);
 }
 
-static void compressFile_orDie(const char* fname, const char* outName, int cLevel, unsigned chunkSize)
+static void compressFile_orDie(const char* fname, const char* outName, int cLevel, unsigned frameSize)
 {
     FILE* const fin  = fopen_orDie(fname, "rb");
     FILE* const fout = fopen_orDie(outName, "wb");
@@ -70,7 +70,7 @@ static void compressFile_orDie(const char* fname, const char* outName, int cLeve
 
     ZSTD_seekable_CStream* const cstream = ZSTD_seekable_createCStream();
     if (cstream==NULL) { fprintf(stderr, "ZSTD_seekable_createCStream() error \n"); exit(10); }
-    size_t const initResult = ZSTD_seekable_initCStream(cstream, cLevel, 1, chunkSize);
+    size_t const initResult = ZSTD_seekable_initCStream(cstream, cLevel, 1, frameSize);
     if (ZSTD_isError(initResult)) { fprintf(stderr, "ZSTD_seekable_initCStream() error : %s \n", ZSTD_getErrorName(initResult)); exit(11); }
 
     size_t read, toRead = buffInSize;
@@ -116,15 +116,15 @@ int main(int argc, const char** argv) {
     if (argc!=3) {
         printf("wrong arguments\n");
         printf("usage:\n");
-        printf("%s FILE CHUNK_SIZE\n", exeName);
+        printf("%s FILE FRAME_SIZE\n", exeName);
         return 1;
     }
 
     {   const char* const inFileName = argv[1];
-        unsigned const chunkSize = (unsigned)atoi(argv[2]);
+        unsigned const frameSize = (unsigned)atoi(argv[2]);
 
         const char* const outFileName = createOutFilename_orDie(inFileName);
-        compressFile_orDie(inFileName, outFileName, 5, chunkSize);
+        compressFile_orDie(inFileName, outFileName, 5, frameSize);
     }
 
     return 0;

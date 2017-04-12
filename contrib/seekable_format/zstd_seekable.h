@@ -9,17 +9,17 @@ static const unsigned ZSTD_seekTableFooterSize = 9;
 
 #define ZSTD_SEEKABLE_MAGICNUMBER 0x8F92EAB1
 
-#define ZSTD_SEEKABLE_MAXCHUNKS 0x8000000U
+#define ZSTD_SEEKABLE_MAXFRAMES 0x8000000U
 
 /* 0xFE03F607 is the largest number x such that ZSTD_compressBound(x) fits in a 32-bit integer */
-#define ZSTD_SEEKABLE_MAX_CHUNK_DECOMPRESSED_SIZE 0xFE03F607
+#define ZSTD_SEEKABLE_MAX_FRAME_DECOMPRESSED_SIZE 0xFE03F607
 
 /*-****************************************************************************
 *  Seekable Format
 *
-*  The seekable format splits the compressed data into a series of "chunks",
+*  The seekable format splits the compressed data into a series of "frames",
 *  each compressed individually so that decompression of a section in the
-*  middle of an archive only requires zstd to decompress at most a chunk's
+*  middle of an archive only requires zstd to decompress at most a frame's
 *  worth of extra data, instead of the entire archive.
 ******************************************************************************/
 
@@ -37,15 +37,15 @@ typedef struct ZSTD_seekable_DStream_s ZSTD_seekable_DStream;
 *  compressor.
 *
 *  Data streamed to the seekable compressor will automatically be split into
-*  chunks of size `maxChunkSize` (provided in ZSTD_seekable_initCStream()),
-*  or if none is provided, will be cut off whenver ZSTD_endChunk() is called
-*  or when the default maximum chunk size is reached (approximately 4GB).
+*  frames of size `maxFrameSize` (provided in ZSTD_seekable_initCStream()),
+*  or if none is provided, will be cut off whenver ZSTD_endFrame() is called
+*  or when the default maximum frame size is reached (approximately 4GB).
 *
 *  Use ZSTD_seekable_initCStream() to initialize a ZSTD_seekable_CStream object
 *  for a new compression operation.
-*  `maxChunkSize` indicates the size at which to automatically start a new
-*  seekable frame.  `maxChunkSize == 0` implies the default maximum size.
-*  `checksumFlag` indicates whether or not the seek table should include chunk
+*  `maxFrameSize` indicates the size at which to automatically start a new
+*  seekable frame.  `maxFrameSize == 0` implies the default maximum size.
+*  `checksumFlag` indicates whether or not the seek table should include frame
 *  checksums on the uncompressed data for verification.
 *  @return : a size hint for input to provide for compression, or an error code
 *            checkable with ZSTD_isError()
@@ -61,14 +61,14 @@ typedef struct ZSTD_seekable_DStream_s ZSTD_seekable_DStream;
 *                     value will work fine.
 *            Note 2 : size hint is guaranteed to be <= ZSTD_CStreamInSize()
 *
-*  At any time, call ZSTD_seekable_endChunk() to end the current chunk and
+*  At any time, call ZSTD_seekable_endFrame() to end the current frame and
 *  start a new one.
 *
-*  ZSTD_endStream() will end the current chunk, and then write the seek table
-*  so that decompressors can efficiently find compressed chunks.
-*  ZSTD_endStream() may return a number > 0 if it was unable to flush all the
-*  necessary data to `output`.  In this case, it should be called again until
-*  all remaining data is flushed out and 0 is returned.
+*  ZSTD_seekable_endStream() will end the current frame, and then write the seek
+*  table so that decompressors can efficiently find compressed frames.
+*  ZSTD_seekable_endStream() may return a number > 0 if it was unable to flush
+*  all the necessary data to `output`.  In this case, it should be called again
+*  until all remaining data is flushed out and 0 is returned.
 ******************************************************************************/
 
 /*===== Seekable compressor management =====*/
@@ -76,9 +76,9 @@ ZSTDLIB_API ZSTD_seekable_CStream* ZSTD_seekable_createCStream(void);
 ZSTDLIB_API size_t ZSTD_seekable_freeCStream(ZSTD_seekable_CStream* zcs);
 
 /*===== Seekable compression functions =====*/
-ZSTDLIB_API size_t ZSTD_seekable_initCStream(ZSTD_seekable_CStream* zcs, int compressionLevel, int checksumFlag, unsigned maxChunkSize);
+ZSTDLIB_API size_t ZSTD_seekable_initCStream(ZSTD_seekable_CStream* zcs, int compressionLevel, int checksumFlag, unsigned maxFrameSize);
 ZSTDLIB_API size_t ZSTD_seekable_compressStream(ZSTD_seekable_CStream* zcs, ZSTD_outBuffer* output, ZSTD_inBuffer* input);
-ZSTDLIB_API size_t ZSTD_seekable_endChunk(ZSTD_seekable_CStream* zcs, ZSTD_outBuffer* output);
+ZSTDLIB_API size_t ZSTD_seekable_endFrame(ZSTD_seekable_CStream* zcs, ZSTD_outBuffer* output);
 ZSTDLIB_API size_t ZSTD_seekable_endStream(ZSTD_seekable_CStream* zcs, ZSTD_outBuffer* output);
 
 /*-****************************************************************************

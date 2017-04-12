@@ -23,11 +23,11 @@ default: all
 
 all: seekable_compression seekable_decompression
 
-seekable_compression : seekable_compression.c
-	$(CC) $(CPPFLAGS) $(CFLAGS) $(SEEKABLE_OBJS) $^ $(LDFLAGS) -o $@
+seekable_compression : seekable_compression.c $(SEEKABLE_OBJS)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $^ $(LDFLAGS) -o $@
 
-seekable_decompression : seekable_decompression.c
-	$(CC) $(CPPFLAGS) $(CFLAGS) $(SEEKABLE_OBJS) $^ $(LDFLAGS) -o $@
+seekable_decompression : seekable_decompression.c $(SEEKABLE_OBJS)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $^ $(LDFLAGS) -o $@
 
 clean:
 	@rm -f core *.o tmp* result* *.zst \

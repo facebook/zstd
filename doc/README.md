@@ -17,3 +17,4 @@ __`zstd_manual.html`__ : Documentation on the functions found in `zstd.h`.
 See [http://zstd.net/zstd_manual.html](http://zstd.net/zstd_manual.html) for
 the manual released with the latest official `zstd` release.
 
+

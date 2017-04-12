@@ -39,7 +39,7 @@ static U32 ZSTD_seekable_offsetToChunk(const seekTable_t* table, U64 pos)
     U32 hi = table->tableLen;
 
     while (lo + 1 < hi) {
-        U32 mid = lo + ((hi - lo) >> 1);
+        U32 const mid = lo + ((hi - lo) >> 1);
         if (table->entries[mid].dOffset <= pos) {
             lo = mid;
         } else {
@@ -139,7 +139,7 @@ size_t ZSTD_seekable_loadSeekTable(ZSTD_seekable_DStream* zds, const void* src, 
 
         if (srcSize < frameSize) return frameSize;
 
-        if ((MEM_readLE32(base) & 0xFFFFFFF0U) != ZSTD_MAGIC_SKIPPABLE_START) {
+        if (MEM_readLE32(base) != (ZSTD_MAGIC_SKIPPABLE_START | 0xE)) {
             return ERROR(prefix_unknown);
         }
         if (MEM_readLE32(base+4) + ZSTD_skippableHeaderSize != frameSize) {

@@ -42,13 +42,16 @@ The structure of the seek table frame is as follows:
 
 __`Skippable_Magic_Number`__
 
-Value : 0x184D2A5?, which means any value from 0x184D2A50 to 0x184D2A5F.
-All 16 values are valid to identify a skippable frame.
+Value : 0x184D2A5E.
 This is for compatibility with [Zstandard skippable frames].
+Since it is legal for other Zstandard skippable frames to use the same
+magic number, it is not recommended for a decoder to recognize frames
+solely on this.
 
 __`Frame_Size`__
 
-The total size of the skippable frame, not including the `Skippable_Magic_Number` or `Frame_Size`.  This is for compatibility with [Zstandard skippable frames].
+The total size of the skippable frame, not including the `Skippable_Magic_Number` or `Frame_Size`.
+This is for compatibility with [Zstandard skippable frames].
 
 [Zstandard skippable frames]: https://github.com/facebook/zstd/blob/master/doc/zstd_compression_format.md#skippable-frames
 
@@ -58,6 +61,12 @@ The seek table footer format is as follows:
 |`Number_Of_Chunks`|`Seek_Table_Descriptor`|`Seekable_Magic_Number`|
 |------------------|-----------------------|-----------------------|
 | 4 bytes          | 1 byte                | 4 bytes               |
+
+__`Seekable_Magic_Number`__
+
+Value : 0x8F92EAB1.
+This value must be the last bytes present in the compressed file so that decoders
+can efficiently find it and determine if there is an actual seek table present.
 
 __`Number_Of_Chunks`__
 

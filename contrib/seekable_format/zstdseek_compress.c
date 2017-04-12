@@ -247,7 +247,7 @@ static size_t ZSTD_seekable_writeSeekTable(ZSTD_seekable_CStream* zcs, ZSTD_outB
         }                                                                      \
     } while (0)
 
-    st_write32(ZSTD_MAGIC_SKIPPABLE_START, 0);
+    st_write32(ZSTD_MAGIC_SKIPPABLE_START | 0xE, 0);
     st_write32(seekTableLen - ZSTD_skippableHeaderSize, 4);
 
     while (zcs->chunkDSize < zcs->chunklog.size) {

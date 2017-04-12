@@ -31,7 +31,7 @@ fileRoundTripTest() {
     fi
 
     rm -f tmp.zstd tmp.md5.1 tmp.md5.2
-    $ECHO "fileRoundTripTest: ./datagen $1 $local_p > tmp1 && $ZSTD -v$local_c -c | $ZSTD -d | $MD5SUM > tmp.md5.2"
+    $ECHO "fileRoundTripTest: ./datagen $1 $local_p > tmp && $ZSTD -v$local_c -c | $ZSTD -d"
     ./datagen $1 $local_p > tmp
     cat tmp | $MD5SUM > tmp.md5.1
     $ZSTD --ultra -v$local_c -c tmp | $ZSTD -d | $MD5SUM > tmp.md5.2

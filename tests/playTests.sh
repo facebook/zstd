@@ -11,6 +11,7 @@ roundTripTest() {
         local_p="$2"
     else
         local_c="$2"
+        local_p=""
     fi
 
     rm -f tmp1 tmp2
@@ -18,6 +19,23 @@ roundTripTest() {
     ./datagen $1 $local_p | $MD5SUM > tmp1
     ./datagen $1 $local_p | $ZSTD --ultra -v$local_c | $ZSTD -d  | $MD5SUM > tmp2
     $DIFF -q tmp1 tmp2
+}
+
+fileRoundTripTest() {
+    if [ -n "$3" ]; then
+        local_c="$3"
+        local_p="$2"
+    else
+        local_c="$2"
+        local_p=""
+    fi
+
+    rm -f tmp.zstd tmp.md5.1 tmp.md5.2
+    $ECHO "fileRoundTripTest: ./datagen $1 $local_p > tmp && $ZSTD -v$local_c -c | $ZSTD -d"
+    ./datagen $1 $local_p > tmp
+    cat tmp | $MD5SUM > tmp.md5.1
+    $ZSTD --ultra -v$local_c -c tmp | $ZSTD -d | $MD5SUM > tmp.md5.2
+    $DIFF -q tmp.md5.1 tmp.md5.2
 }
 
 isTerminal=false
@@ -441,6 +459,8 @@ roundTripTest -g519K 6    # greedy, hash chain
 roundTripTest -g517K 16   # btlazy2
 roundTripTest -g516K 19   # btopt
 
+fileRoundTripTest -g500K
+
 rm tmp*
 
 if [ "$1" != "--test-large-data" ]; then
@@ -475,5 +495,7 @@ roundTripTest -g50000000 -P94 19
 
 roundTripTest -g99000000 -P99 20
 roundTripTest -g6000000000 -P99 1
+
+fileRoundTripTest -g4193M -P99 1
 
 rm tmp*

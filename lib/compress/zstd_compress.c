@@ -81,6 +81,7 @@ struct ZSTD_CCtx_s {
     size_t workSpaceSize;
     size_t blockSize;
     U64 frameContentSize;
+    U64 consumedSrcSize;
     XXH64_state_t xxhState;
     ZSTD_customMem customMem;
 
@@ -241,6 +242,7 @@ static size_t ZSTD_continueCCtx(ZSTD_CCtx* cctx, ZSTD_parameters params, U64 fra
     U32 const end = (U32)(cctx->nextSrc - cctx->base);
     cctx->params = params;
     cctx->frameContentSize = frameContentSize;
+    cctx->consumedSrcSize = 0;
     cctx->lowLimit = end;
     cctx->dictLimit = end;
     cctx->nextToUpdate = end+1;
@@ -313,6 +315,7 @@ static size_t ZSTD_resetCCtx_advanced (ZSTD_CCtx* zc,
         zc->params = params;
         zc->blockSize = blockSize;
         zc->frameContentSize = frameContentSize;
+        zc->consumedSrcSize = 0;
         { int i; for (i=0; i<ZSTD_REP_NUM; i++) zc->rep[i] = repStartValue[i]; }
 
         if ((params.cParams.strategy == ZSTD_btopt) || (params.cParams.strategy == ZSTD_btopt2)) {
@@ -2493,6 +2496,7 @@ static size_t ZSTD_compressContinue_internal (ZSTD_CCtx* cctx,
                              ZSTD_compress_generic (cctx, dst, dstCapacity, src, srcSize, lastFrameChunk) :
                              ZSTD_compressBlock_internal (cctx, dst, dstCapacity, src, srcSize);
         if (ZSTD_isError(cSize)) return cSize;
+        cctx->consumedSrcSize += srcSize;
         return cSize + fhSize;
     } else
         return fhSize;
@@ -2503,7 +2507,7 @@ size_t ZSTD_compressContinue (ZSTD_CCtx* cctx,
                               void* dst, size_t dstCapacity,
                         const void* src, size_t srcSize)
 {
-    return ZSTD_compressContinue_internal(cctx, dst, dstCapacity, src, srcSize, 1, 0);
+    return ZSTD_compressContinue_internal(cctx, dst, dstCapacity, src, srcSize, 1 /* frame mode */, 0 /* last chunk */);
 }
 
 
@@ -2516,7 +2520,7 @@ size_t ZSTD_compressBlock(ZSTD_CCtx* cctx, void* dst, size_t dstCapacity, const 
 {
     size_t const blockSizeMax = ZSTD_getBlockSizeMax(cctx);
     if (srcSize > blockSizeMax) return ERROR(srcSize_wrong);
-    return ZSTD_compressContinue_internal(cctx, dst, dstCapacity, src, srcSize, 0, 0);
+    return ZSTD_compressContinue_internal(cctx, dst, dstCapacity, src, srcSize, 0 /* frame mode */, 0 /* last chunk */);
 }
 
 /*! ZSTD_loadDictionaryContent() :
@@ -2767,10 +2771,13 @@ size_t ZSTD_compressEnd (ZSTD_CCtx* cctx,
                    const void* src, size_t srcSize)
 {
     size_t endResult;
-    size_t const cSize = ZSTD_compressContinue_internal(cctx, dst, dstCapacity, src, srcSize, 1, 1);
+    size_t const cSize = ZSTD_compressContinue_internal(cctx, dst, dstCapacity, src, srcSize, 1 /* frame mode */, 1 /* last chunk */);
     if (ZSTD_isError(cSize)) return cSize;
     endResult = ZSTD_writeEpilogue(cctx, (char*)dst + cSize, dstCapacity-cSize);
     if (ZSTD_isError(endResult)) return endResult;
+    if (cctx->params.fParams.contentSizeFlag) {  /* control src size */
+        if (cctx->frameContentSize != cctx->consumedSrcSize) return ERROR(srcSize_wrong);
+    }
     return cSize + endResult;
 }
 

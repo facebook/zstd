@@ -569,7 +569,8 @@ UTIL_STATIC int UTIL_countPhysicalCores(void)
     static S32 numPhysicalCores; /* apple specifies int32_t */
     if (numPhysicalCores != 0) return numPhysicalCores;
 
-    {   int const ret = sysctlbyname("hw.physicalcpu", &numPhysicalCores, sizeof(int), NULL, 0);
+    {   size_t size = sizeof(S32);
+        int const ret = sysctlbyname("hw.physicalcpu", &numPhysicalCores, &size, NULL, 0);
         if (ret != 0) {
             if (errno == ENOENT) {
                 /* entry not present, fall back on 1 */

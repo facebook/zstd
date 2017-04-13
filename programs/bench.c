@@ -146,8 +146,13 @@ typedef struct {
 } blockParam_t;
 
 
-#define MIN(a,b) ((a)<(b) ? (a) : (b))
-#define MAX(a,b) ((a)>(b) ? (a) : (b))
+
+#ifndef MIN
+#   define MIN(a,b)    ((a) < (b) ? (a) : (b))
+#endif
+#ifndef MAX
+#   define MAX(a,b)    ((a) > (b) ? (a) : (b))
+#endif
 
 static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
                         const char* displayName, int cLevel,

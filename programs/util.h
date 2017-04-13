@@ -536,12 +536,16 @@ UTIL_STATIC int UTIL_countPhysicalCores(void)
             }
         }
 
-        while (byteOffset + sizeof(SYSTEM_LOGICAL_PROCESSOR_INFORMATION) <= returnLength) {
-            ptr = buffer;
+        ptr = buffer;
 
-            if (ptr->RelationShip == RelationProcessorCore) {
+        while (byteOffset + sizeof(SYSTEM_LOGICAL_PROCESSOR_INFORMATION) <= returnLength) {
+
+            if (ptr->Relationship == RelationProcessorCore) {
                 numPhysicalCores++;
             }
+
+            ptr++;
+            byteOffset += sizeof(SYSTEM_LOGICAL_PROCESSOR_INFORMATION);
         }
 
         free(buffer);
@@ -551,10 +555,11 @@ UTIL_STATIC int UTIL_countPhysicalCores(void)
 
 failed:
     /* try to fall back on GetSystemInfo */
-    SYSTEM_INFO sysinfo;
-    GetSystemInfo(&sysinfo);
-    numPhysicalCores = sysinfo.dwNumberOfProcessors;
-    if (numPhysicalCores == 0) numPhysicalCores = 1; /* just in case */
+    {   SYSTEM_INFO sysinfo;
+        GetSystemInfo(&sysinfo);
+        numPhysicalCores = sysinfo.dwNumberOfProcessors;
+        if (numPhysicalCores == 0) numPhysicalCores = 1; /* just in case */
+    }
     return numPhysicalCores;
 }
 

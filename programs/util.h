@@ -601,7 +601,7 @@ UTIL_STATIC int UTIL_countPhysicalCores(void)
 
     if (numPhysicalCores != 0) return numPhysicalCores;
 
-    numPhysicalCores = sysconf(_SC_NPROCESSORS_ONLN);
+    numPhysicalCores = (int)sysconf(_SC_NPROCESSORS_ONLN);
     if (numPhysicalCores == -1) {
         /* value not queryable, fall back on 1 */
         return numPhysicalCores = 1;

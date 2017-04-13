@@ -498,7 +498,7 @@ typedef BOOL(WINAPI* LPFN_GLPI)(PSYSTEM_LOGICAL_PROCESSOR_INFORMATION, PDWORD);
 
 UTIL_STATIC int UTIL_countPhysicalCores(void)
 {
-    static int numPhysicalCores;
+    static int numPhysicalCores = 0;
     if (numPhysicalCores != 0) return numPhysicalCores;
 
     {   LPFN_GLPI glpi;
@@ -571,7 +571,7 @@ failed:
  * see: man 3 sysctl */
 UTIL_STATIC int UTIL_countPhysicalCores(void)
 {
-    static S32 numPhysicalCores; /* apple specifies int32_t */
+    static S32 numPhysicalCores = 0; /* apple specifies int32_t */
     if (numPhysicalCores != 0) return numPhysicalCores;
 
     {   size_t size = sizeof(S32);
@@ -597,7 +597,7 @@ UTIL_STATIC int UTIL_countPhysicalCores(void)
  * otherwise fall back on sysconf */
 UTIL_STATIC int UTIL_countPhysicalCores(void)
 {
-    static int numPhysicalCores;
+    static int numPhysicalCores = 0;
 
     if (numPhysicalCores != 0) return numPhysicalCores;
 

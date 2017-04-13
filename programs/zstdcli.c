@@ -602,6 +602,11 @@ int main(int argCount, const char* argv[])
     DISPLAYLEVEL(4, "PLATFORM_POSIX_VERSION defined: %ldL\n", (long) PLATFORM_POSIX_VERSION);
 #endif
 
+    if (nbThreads == 0) {
+        /* try to guess */
+        nbThreads = UTIL_countPhysicalCores();
+        DISPLAYLEVEL(3, "Note: %d physical core(s) detected\n", nbThreads);
+    }
 
     g_utilDisplayLevel = g_displayLevel;
     if (!followLinks) {

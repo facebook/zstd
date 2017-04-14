@@ -549,7 +549,9 @@ static int basicUnitTests(U32 seed, double compressibility)
             if (!ZSTD_isError(result)) goto _output_error;
             if (ZSTD_getErrorCode(result) != ZSTD_error_srcSize_wrong) goto _output_error;
             DISPLAYLEVEL(4, "OK : %s \n", ZSTD_getErrorName(result));
-    }   }
+        }
+        ZSTD_freeCCtx(cctx);
+    }
 
     /* block API tests */
     {   ZSTD_CCtx* const cctx = ZSTD_createCCtx();

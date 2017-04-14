@@ -15,7 +15,7 @@
     - COMPILER: "gcc"
       HOST:     "mingw"
       PLATFORM: "x86"
-      SCRIPT:   "make lib && make zstd && make -C tests allnothread"
+      SCRIPT:   "make allarch"
       ARTIFACT: "true"
       BUILD:    "true"
     - COMPILER: "clang"
@@ -191,7 +191,7 @@
     - COMPILER: "gcc"
       HOST:     "mingw"
       PLATFORM: "x86"
-      SCRIPT:   "make lib && make zstd && make -C tests allnothread"
+      SCRIPT:   "make allarch"
     - COMPILER: "clang"
       HOST:     "mingw"
       PLATFORM: "x64"
@@ -237,7 +237,8 @@
       ) ) &&
       make -v &&
       sh -c "%COMPILER% -v" &&
-      sh -c "CC=%COMPILER% %SCRIPT%"
+      set "CC=%COMPILER%" &&
+      sh -c "%SCRIPT%"
     )
   - if [%HOST%]==[visual] (
       ECHO *** &&

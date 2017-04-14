@@ -49,6 +49,7 @@
 #define AUTHOR "Yann Collet"
 #define WELCOME_MESSAGE "*** %s %i-bits %s, by %s ***\n", COMPRESSOR_NAME, (int)(sizeof(size_t)*8), ZSTD_VERSION, AUTHOR
 
+#define ZSTD_ZSTDMT "zstdmt"
 #define ZSTD_UNZSTD "unzstd"
 #define ZSTD_CAT "zstdcat"
 #define ZSTD_GZ "gzip"
@@ -343,6 +344,7 @@ int main(int argCount, const char* argv[])
     programName = lastNameFromPath(programName);
 
     /* preset behaviors */
+    if (exeNameMatch(programName, ZSTD_ZSTDMT)) nbThreads=0;
     if (exeNameMatch(programName, ZSTD_UNZSTD)) operation=zom_decompress;
     if (exeNameMatch(programName, ZSTD_CAT)) { operation=zom_decompress; forceStdout=1; FIO_overwriteMode(); outFileName=stdoutmark; g_displayLevel=1; }
     if (exeNameMatch(programName, ZSTD_GZ)) { suffix = GZ_EXTENSION; FIO_setCompressionType(FIO_gzipCompression); FIO_setRemoveSrcFile(1); }    /* behave like gzip */

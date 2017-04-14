@@ -82,9 +82,22 @@ else
 EXT =
 endif
 
+VOID = /dev/null
+
+# thread detection
+NO_THREAD_MSG := ==> no threads, building without multithreading support
+HAVE_PTHREAD := $(shell printf '\#include <pthread.h>\nint main(void) { return 0; }' | $(CC) $(FLAGS) -o have_pthread$(EXT) -x c - -pthread 2> $(VOID) && rm have_pthread$(EXT) && echo 1 || echo 0)
+HAVE_THREAD := $(shell [ "$(HAVE_PTHREAD)" -eq "1" -o -n "$(filter Windows%,$(OS))" ] && echo 1 || echo 0)
+ifeq ($(HAVE_THREAD), 1)
+THREAD_MSG := ==> building with threading support
+THREAD_CPP := -DZSTD_MULTITHREAD
+THREAD_LD := -pthread
+else
+THREAD_MSG := NO_THREAD_MSG
+endif
+
 # zlib detection
 NO_ZLIB_MSG := ==> no zlib, building zstd without .gz support
-VOID = /dev/null
 HAVE_ZLIB := $(shell printf '\#include <zlib.h>\nint main(void) { return 0; }' | $(CC) $(FLAGS) -o have_zlib$(EXT) -x c - -lz 2> $(VOID) && rm have_zlib$(EXT) && echo 1 || echo 0)
 ifeq ($(HAVE_ZLIB), 1)
 ZLIB_MSG := ==> building zstd with .gz compression support
@@ -115,8 +128,8 @@ all: zstd
 
 $(ZSTDDECOMP_O): CFLAGS += $(ALIGN_LOOP)
 
-zstd : CPPFLAGS += $(ZLIBCPP)
-zstd : LDFLAGS += $(ZLIBLD)
+zstd : CPPFLAGS += $(ZLIBCPP) $(THREAD_CPP)
+zstd : LDFLAGS += $(ZLIBLD) $(THREAD_LD)
 zstd : LZMA_MSG := $(NO_LZMA_MSG)
 zstd-nogz : ZLIB_MSG := $(NO_ZLIB_MSG)
 zstd-nogz : LZMA_MSG := $(NO_LZMA_MSG)
@@ -124,6 +137,7 @@ xzstd : CPPFLAGS += $(ZLIBCPP) $(LZMACPP)
 xzstd : LDFLAGS += $(ZLIBLD) $(LZMALD)
 zstd zstd-nogz xzstd : CPPFLAGS += -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT)
 zstd zstd-nogz xzstd : $(ZSTDLIB_OBJ) zstdcli.o fileio.o bench.o datagen.o dibio.o
+	@echo "$(THREAD_MSG)"
 	@echo "$(ZLIB_MSG)"
 	@echo "$(LZMA_MSG)"
 ifneq (,$(filter Windows%,$(OS)))
@@ -144,6 +158,11 @@ endif
 
 zstd-nolegacy : clean_decomp_o
 	$(MAKE) zstd ZSTD_LEGACY_SUPPORT=0
+
+zstd-nomt : THREAD_CPP :=
+zstd-nomt : THREAD_LD :=
+zstd-nomt : THREAD_MSG := NO_THREAD_MSG
+zstd-nomt : zstd
 
 zstd-pgo : MOREFLAGS = -fprofile-generate
 zstd-pgo : clean zstd
@@ -169,10 +188,6 @@ zstd-decompress: $(ZSTDCOMMON_FILES) $(ZSTDDECOMP_FILES) zstdcli.c fileio.c
 zstd-compress: $(ZSTDCOMMON_FILES) $(ZSTDCOMP_FILES) zstdcli.c fileio.c
 	$(CC) $(FLAGS) -DZSTD_NOBENCH -DZSTD_NODICT -DZSTD_NODECOMPRESS $^ -o $@$(EXT)
 
-zstdmt: CPPFLAGS += -DZSTD_MULTITHREAD
-ifeq (,$(filter Windows%,$(OS)))
-zstdmt: LDFLAGS += -lpthread
-endif
 zstdmt: zstd
 
 generate_res:
@@ -231,6 +246,9 @@ install: zstd
 	@$(INSTALL_PROGRAM) zstd $(DESTDIR)$(BINDIR)/zstd
 	@ln -sf zstd $(DESTDIR)$(BINDIR)/zstdcat
 	@ln -sf zstd $(DESTDIR)$(BINDIR)/unzstd
+ifeq ($(HAVE_THREAD),1)
+	@ln -sf zstd $(DESTDIR)$(BINDIR)/zstdmt
+endif
 	@$(INSTALL_SCRIPT) zstdless $(DESTDIR)$(BINDIR)/zstdless
 	@$(INSTALL_SCRIPT) zstdgrep $(DESTDIR)$(BINDIR)/zstdgrep
 	@echo Installing man pages

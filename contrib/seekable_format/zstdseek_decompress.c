@@ -13,8 +13,19 @@
 #define XXH_NAMESPACE ZSTD_
 #include "xxhash.h"
 
-#include "zstd_internal.h" /* includes zstd.h */
+#define ZSTD_STATIC_LINKING_ONLY
+#include "zstd.h"
+#include "zstd_errors.h"
+#include "mem.h" /* includes zstd.h */
 #include "zstd_seekable.h"
+
+#undef ERROR
+#define ERROR(name) ((size_t)-ZSTD_error_##name)
+
+#undef MIN
+#undef MAX
+#define MIN(a, b) ((a) < (b) ? (a) : (b))
+#define MAX(a, b) ((a) > (b) ? (a) : (b))
 
 typedef struct {
     U64 cOffset;
@@ -107,10 +118,7 @@ size_t ZSTD_seekable_loadSeekTable(ZSTD_seekable_DStream* zds, const void* src, 
 {
     const BYTE* ip = (const BYTE*)src + srcSize;
 
-    U32 numFrames;
     int checksumFlag;
-
-    U32 sizePerEntry;
 
     /* footer is fixed size */
     if (srcSize < ZSTD_seekTableFooterSize)
@@ -129,10 +137,9 @@ size_t ZSTD_seekable_loadSeekTable(ZSTD_seekable_DStream* zds, const void* src, 
         }
     }
 
-    numFrames = MEM_readLE32(ip-9);
-    sizePerEntry = 8 + (checksumFlag?4:0);
-
-    {   U32 const tableSize = sizePerEntry * numFrames;
+    {   U32 const numFrames = MEM_readLE32(ip-9);
+        U32 const sizePerEntry = 8 + (checksumFlag?4:0);
+        U32 const tableSize = sizePerEntry * numFrames;
         U32 const frameSize = tableSize + ZSTD_seekTableFooterSize + ZSTD_skippableHeaderSize;
 
         const BYTE* base = ip - frameSize;
@@ -148,7 +155,8 @@ size_t ZSTD_seekable_loadSeekTable(ZSTD_seekable_DStream* zds, const void* src, 
 
         {   /* Allocate an extra entry at the end so that we can do size
              * computations on the last element without special case */
-            seekEntry_t* entries = malloc(sizeof(seekEntry_t) * (numFrames + 1));
+            seekEntry_t* entries =
+                    (seekEntry_t*)malloc(sizeof(seekEntry_t) * (numFrames + 1));
             const BYTE* tableBase = base + ZSTD_skippableHeaderSize;
 
             U32 idx;
@@ -167,8 +175,10 @@ size_t ZSTD_seekable_loadSeekTable(ZSTD_seekable_DStream* zds, const void* src, 
                 entries[idx].cOffset = cOffset;
                 entries[idx].dOffset = dOffset;
 
-                cOffset += MEM_readLE32(tableBase + pos); pos += 4;
-                dOffset += MEM_readLE32(tableBase + pos); pos += 4;
+                cOffset += MEM_readLE32(tableBase + pos);
+                pos += 4;
+                dOffset += MEM_readLE32(tableBase + pos);
+                pos += 4;
                 if (checksumFlag) {
                     entries[idx].checksum = MEM_readLE32(tableBase + pos);
                     pos += 4;
@@ -188,18 +198,17 @@ size_t ZSTD_seekable_loadSeekTable(ZSTD_seekable_DStream* zds, const void* src, 
 size_t ZSTD_seekable_initDStream(ZSTD_seekable_DStream* zds, U64 rangeStart, U64 rangeEnd)
 {
     /* restrict range to the end of the file, of non-negative size */
-    rangeStart = MIN(rangeStart, zds->seekTable.entries[zds->seekTable.tableLen].dOffset);
     rangeEnd = MIN(rangeEnd, zds->seekTable.entries[zds->seekTable.tableLen].dOffset);
-    rangeEnd = MAX(rangeEnd, rangeStart);
+    rangeStart = MIN(rangeStart, rangeEnd);
 
     zds->targetStart = rangeStart;
     zds->targetEnd = rangeEnd;
     zds->stage = zsds_seek;
 
     /* force a seek first */
-    zds->curFrame = (U32) -1;
-    zds->compressedOffset = (U64) -1;
-    zds->decompressedOffset = (U64) -1;
+    zds->curFrame = (U32)-1;
+    zds->compressedOffset = (U64)-1;
+    zds->decompressedOffset = (U64)-1;
 
     if (zds->seekTable.checksumFlag) {
         XXH64_reset(&zds->xxhState, 0);
@@ -247,9 +256,7 @@ size_t ZSTD_seekable_decompressStream(ZSTD_seekable_DStream* zds, ZSTD_outBuffer
                 size_t const prevInputPos = input->pos;
 
                 ZSTD_outBuffer outTmp = {
-                        .dst = outBase,
-                        .size = (size_t)MIN((U64)outLen, toDecompress),
-                        .pos = 0};
+                        outBase, (size_t)MIN((U64)outLen, toDecompress), 0};
 
                 size_t const ret =
                         ZSTD_decompressStream(zds->dstream, &outTmp, input);
@@ -286,9 +293,7 @@ size_t ZSTD_seekable_decompressStream(ZSTD_seekable_DStream* zds, ZSTD_outBuffer
                 size_t const prevInputPos = input->pos;
 
                 ZSTD_outBuffer outTmp = {
-                        .dst = outBase,
-                        .size = (size_t)MIN((U64)outLen, toDecompress),
-                        .pos = 0};
+                        outBase, (size_t)MIN((U64)outLen, toDecompress), 0};
 
                 size_t const ret =
                         ZSTD_decompressStream(zds->dstream, &outTmp, input);

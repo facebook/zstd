@@ -38,8 +38,8 @@ typedef struct ZSTD_seekable_DStream_s ZSTD_seekable_DStream;
 *
 *  Data streamed to the seekable compressor will automatically be split into
 *  frames of size `maxFrameSize` (provided in ZSTD_seekable_initCStream()),
-*  or if none is provided, will be cut off whenver ZSTD_endFrame() is called
-*  or when the default maximum frame size is reached (approximately 4GB).
+*  or if none is provided, will be cut off whenever ZSTD_seekable_endFrame() is
+*  called or when the default maximum frame size (2GB) is reached.
 *
 *  Use ZSTD_seekable_initCStream() to initialize a ZSTD_seekable_CStream object
 *  for a new compression operation.
@@ -59,7 +59,6 @@ typedef struct ZSTD_seekable_DStream_s ZSTD_seekable_DStream;
 *            ZSTD_isError().
 *            Note 1 : it's just a hint, to help latency a little, any other
 *                     value will work fine.
-*            Note 2 : size hint is guaranteed to be <= ZSTD_CStreamInSize()
 *
 *  At any time, call ZSTD_seekable_endFrame() to end the current frame and
 *  start a new one.
@@ -98,8 +97,8 @@ ZSTDLIB_API size_t ZSTD_seekable_endStream(ZSTD_seekable_CStream* zcs, ZSTD_outB
 *            small, a size hint for how much data to provide.
 *            An error code may also be returned, checkable with ZSTD_isError()
 *
-*  Use ZSTD_initDStream to prepare for a new decompression operation using the
-*  seektable loaded with ZSTD_seekable_loadSeekTable().
+*  Use ZSTD_seekable_initDStream to prepare for a new decompression operation
+*  using the seektable loaded with ZSTD_seekable_loadSeekTable().
 *  Data in the range [rangeStart, rangeEnd) will be decompressed.
 *
 *  Call ZSTD_seekable_decompressStream() repetitively to consume input stream.

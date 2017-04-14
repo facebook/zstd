@@ -13,8 +13,21 @@
 #define XXH_NAMESPACE ZSTD_
 #include "xxhash.h"
 
-#include "zstd_internal.h" /* includes zstd.h */
+#define ZSTD_STATIC_LINKING_ONLY
+#include "zstd.h"
+#include "zstd_errors.h"
+#include "mem.h"
 #include "zstd_seekable.h"
+
+#define CHECK_Z(f) { size_t const ret = (f); if (ret != 0) return ret; }
+
+#undef ERROR
+#define ERROR(name) ((size_t)-ZSTD_error_##name)
+
+#undef MIN
+#undef MAX
+#define MIN(a, b) ((a) < (b) ? (a) : (b))
+#define MAX(a, b) ((a) > (b) ? (a) : (b))
 
 typedef struct {
     U32 cSize;
@@ -42,6 +55,8 @@ struct ZSTD_seekable_CStream_s {
     int checksumFlag;
 
     int writingSeekTable;
+    U32 seekTablePos;
+    U32 seekTableIndex;
 };
 
 ZSTD_seekable_CStream* ZSTD_seekable_createCStream()
@@ -57,8 +72,8 @@ ZSTD_seekable_CStream* ZSTD_seekable_createCStream()
 
     /* allocate some initial space */
     {   size_t const FRAMELOG_STARTING_CAPACITY = 16;
-        zcs->framelog.entries =
-                malloc(sizeof(framelogEntry_t) * FRAMELOG_STARTING_CAPACITY);
+        zcs->framelog.entries = (framelogEntry_t*)malloc(
+                sizeof(framelogEntry_t) * FRAMELOG_STARTING_CAPACITY);
         if (zcs->framelog.entries == NULL) goto failed2;
         zcs->framelog.capacity = FRAMELOG_STARTING_CAPACITY;
     }
@@ -105,6 +120,8 @@ size_t ZSTD_seekable_initCStream(ZSTD_seekable_CStream* zcs,
         XXH64_reset(&zcs->xxhState, 0);
     }
 
+    zcs->seekTablePos = 0;
+    zcs->seekTableIndex = 0;
     zcs->writingSeekTable = 0;
 
     return ZSTD_initCStream(zcs->cstream, compressionLevel);
@@ -115,17 +132,6 @@ static size_t ZSTD_seekable_logFrame(ZSTD_seekable_CStream* zcs)
     if (zcs->framelog.size == ZSTD_SEEKABLE_MAXFRAMES)
         return ERROR(frameIndex_tooLarge);
 
-    zcs->framelog.entries[zcs->framelog.size] = (framelogEntry_t)
-        {
-            .cSize = zcs->frameCSize,
-            .dSize = zcs->frameDSize,
-        };
-    if (zcs->checksumFlag)
-        zcs->framelog.entries[zcs->framelog.size].checksum =
-                /* take lower 32 bits of digest */
-                XXH64_digest(&zcs->xxhState) & 0xFFFFFFFFU;
-
-    zcs->framelog.size++;
     /* grow the buffer if required */
     if (zcs->framelog.size == zcs->framelog.capacity) {
         /* exponential size increase for constant amortized runtime */
@@ -138,6 +144,15 @@ static size_t ZSTD_seekable_logFrame(ZSTD_seekable_CStream* zcs)
         zcs->framelog.entries = newEntries;
         zcs->framelog.capacity = newCapacity;
     }
+
+    zcs->framelog.entries[zcs->framelog.size] = (framelogEntry_t){
+            zcs->frameCSize, zcs->frameDSize,
+    };
+    if (zcs->checksumFlag)
+        zcs->framelog.entries[zcs->framelog.size].checksum =
+                XXH64_digest(&zcs->xxhState) & 0xFFFFFFFFU; /* take lower 32 bits of digest */
+
+    zcs->framelog.size++;
 
     return 0;
 }
@@ -208,7 +223,7 @@ size_t ZSTD_seekable_compressStream(ZSTD_seekable_CStream* zcs, ZSTD_outBuffer* 
     return (size_t)(zcs->maxFrameSize - zcs->frameDSize);
 }
 
-static size_t ZSTD_seekable_seekTableSize(ZSTD_seekable_CStream* zcs)
+static inline size_t ZSTD_seekable_seekTableSize(ZSTD_seekable_CStream const* zcs)
 {
     size_t const sizePerFrame = 8 + (zcs->checksumFlag?4:0);
     size_t const seekTableLen = ZSTD_skippableHeaderSize +
@@ -218,14 +233,29 @@ static size_t ZSTD_seekable_seekTableSize(ZSTD_seekable_CStream* zcs)
     return seekTableLen;
 }
 
+static inline size_t ZSTD_stwrite32(ZSTD_seekable_CStream* zcs,
+                                    ZSTD_outBuffer* output, U32 const value,
+                                    U32 const offset)
+{
+    if (zcs->seekTablePos < offset + 4) {
+        BYTE tmp[4]; /* so that we can work with buffers too small to write a whole word to */
+        size_t const lenWrite =
+                MIN(output->size - output->pos, offset + 4 - zcs->seekTablePos);
+        MEM_writeLE32(tmp, value);
+        memcpy((BYTE*)output->dst + output->pos,
+               tmp + (zcs->seekTablePos - offset), lenWrite);
+        output->pos += lenWrite;
+        zcs->seekTablePos += lenWrite;
+
+        if (lenWrite < 4) return ZSTD_seekable_seekTableSize(zcs) - zcs->seekTablePos;
+    }
+    return 0;
+}
+
 static size_t ZSTD_seekable_writeSeekTable(ZSTD_seekable_CStream* zcs, ZSTD_outBuffer* output)
 {
-    BYTE* op = (BYTE*) output->dst;
-    BYTE tmp[4]; /* so that we can work with buffers too small to write a whole word to */
-
-    /* repurpose
-     * zcs->frameDSize: the current index in the table and
-     * zcs->frameCSize: the amount of the table written so far
+    /* seekTableIndex: the current index in the table and
+     * seekTableSize: the amount of the table written so far
      *
      * This function is written this way so that if it has to return early
      * because of a small buffer, it can keep going where it left off.
@@ -234,53 +264,48 @@ static size_t ZSTD_seekable_writeSeekTable(ZSTD_seekable_CStream* zcs, ZSTD_outB
     size_t const sizePerFrame = 8 + (zcs->checksumFlag?4:0);
     size_t const seekTableLen = ZSTD_seekable_seekTableSize(zcs);
 
-#define st_write32(x, o)                                                       \
-    do {                                                                       \
-        if (zcs->frameCSize < (o) + 4) {                                       \
-            size_t const lenWrite = MIN(output->size - output->pos,            \
-                                        (o) + 4 - zcs->frameCSize);            \
-            MEM_writeLE32(tmp, (x));                                           \
-            memcpy(op + output->pos, tmp + (zcs->frameCSize - (o)), lenWrite); \
-            zcs->frameCSize += lenWrite;                                       \
-            output->pos += lenWrite;                                           \
-            if (lenWrite < 4) return seekTableLen - zcs->frameCSize;           \
-        }                                                                      \
-    } while (0)
+    CHECK_Z(ZSTD_stwrite32(zcs, output, ZSTD_MAGIC_SKIPPABLE_START | 0xE, 0));
+    CHECK_Z(ZSTD_stwrite32(zcs, output, seekTableLen - ZSTD_skippableHeaderSize,
+                           4));
 
-    st_write32(ZSTD_MAGIC_SKIPPABLE_START | 0xE, 0);
-    st_write32(seekTableLen - ZSTD_skippableHeaderSize, 4);
+    while (zcs->seekTableIndex < zcs->framelog.size) {
+        CHECK_Z(ZSTD_stwrite32(
+                zcs, output, zcs->framelog.entries[zcs->seekTableIndex].cSize,
+                ZSTD_skippableHeaderSize + sizePerFrame * zcs->seekTableIndex));
 
-    while (zcs->frameDSize < zcs->framelog.size) {
-        st_write32(zcs->framelog.entries[zcs->frameDSize].cSize,
-                   ZSTD_skippableHeaderSize + sizePerFrame * zcs->frameDSize);
-        st_write32(zcs->framelog.entries[zcs->frameDSize].dSize,
-                   ZSTD_skippableHeaderSize + sizePerFrame * zcs->frameDSize + 4);
+        CHECK_Z(ZSTD_stwrite32(
+                zcs, output, zcs->framelog.entries[zcs->seekTableIndex].dSize,
+                ZSTD_skippableHeaderSize + sizePerFrame * zcs->seekTableIndex + 4));
+
         if (zcs->checksumFlag) {
-            st_write32(zcs->framelog.entries[zcs->frameDSize].checksum,
-                       ZSTD_skippableHeaderSize + sizePerFrame * zcs->frameDSize + 8);
+            CHECK_Z(ZSTD_stwrite32(
+                    zcs, output,
+                    zcs->framelog.entries[zcs->seekTableIndex].checksum,
+                    ZSTD_skippableHeaderSize + sizePerFrame * zcs->seekTableIndex +
+                            8));
         }
 
-        zcs->frameDSize++;
+        zcs->seekTableIndex++;
     }
 
-    st_write32(zcs->framelog.size, seekTableLen - ZSTD_seekTableFooterSize);
+    CHECK_Z(ZSTD_stwrite32(zcs, output, zcs->framelog.size,
+                           seekTableLen - ZSTD_seekTableFooterSize));
 
-    if (output->size - output->pos < 1) return seekTableLen - zcs->frameCSize;
-    if (zcs->frameCSize < seekTableLen - 4) {
+    if (output->size - output->pos < 1) return seekTableLen - zcs->seekTablePos;
+    if (zcs->seekTablePos < seekTableLen - 4) {
         BYTE sfd = 0;
         sfd |= (zcs->checksumFlag) << 7;
 
-        op[output->pos] = sfd;
+        ((BYTE*)output->dst)[output->pos] = sfd;
         output->pos++;
-        zcs->frameCSize++;
+        zcs->seekTablePos++;
     }
 
-    st_write32(ZSTD_SEEKABLE_MAGICNUMBER, seekTableLen - 4);
+    CHECK_Z(ZSTD_stwrite32(zcs, output, ZSTD_SEEKABLE_MAGICNUMBER,
+                           seekTableLen - 4));
 
-    if (zcs->frameCSize != seekTableLen) return ERROR(GENERIC);
+    if (zcs->seekTablePos != seekTableLen) return ERROR(GENERIC);
     return 0;
-
-#undef st_write32
 }
 
 size_t ZSTD_seekable_endStream(ZSTD_seekable_CStream* zcs, ZSTD_outBuffer* output)

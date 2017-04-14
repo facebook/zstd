@@ -96,6 +96,7 @@ void FIO_setNotificationLevel(unsigned level) { g_displayLevel=level; }
 static const clock_t refreshRate = CLOCKS_PER_SEC * 15 / 100;
 static clock_t g_time = 0;
 
+#undef MIN
 #define MIN(a,b)    ((a) < (b) ? (a) : (b))
 
 /* ************************************************************

@@ -12,7 +12,7 @@
 LDFLAGS += -L../../../lib/ -lzstd
 CPPFLAGS += -I../ -I../../../lib -I../../../lib/common
 
-CFLAGS = -O3
+CFLAGS ?= -O3
 CFLAGS += -g
 
 SEEKABLE_OBJS = ../zstdseek_compress.c ../zstdseek_decompress.c

@@ -657,6 +657,24 @@ failed:
     }
 }
 
+#elif defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__)
+
+/* Use apple-provided syscall
+ * see: man 3 sysctl */
+UTIL_STATIC int UTIL_countPhysicalCores(void)
+{
+    static int numPhysicalCores = 0;
+
+    if (numPhysicalCores != 0) return numPhysicalCores;
+
+    numPhysicalCores = (int)sysconf(_SC_NPROCESSORS_ONLN);
+    if (numPhysicalCores == -1) {
+        /* value not queryable, fall back on 1 */
+        return numPhysicalCores = 1;
+    }
+    return numPhysicalCores;
+}
+
 #else
 
 UTIL_STATIC int UTIL_countPhysicalCores(void)

@@ -31,7 +31,7 @@ fileRoundTripTest() {
     fi
 
     rm -f tmp.zstd tmp.md5.1 tmp.md5.2
-    $ECHO "fileRoundTripTest: ./datagen $1 $local_p > tmp && $ZSTD -v$local_c -c | $ZSTD -d"
+    $ECHO "fileRoundTripTest: ./datagen $1 $local_p > tmp && $ZSTD -v$local_c -c tmp | $ZSTD -d"
     ./datagen $1 $local_p > tmp
     cat tmp | $MD5SUM > tmp.md5.1
     $ZSTD --ultra -v$local_c -c tmp | $ZSTD -d | $MD5SUM > tmp.md5.2
@@ -45,12 +45,11 @@ then
 fi
 
 isWindows=false
-ECHO="echo"
+ECHO="echo -e"
 INTOVOID="/dev/null"
 case "$OS" in
   Windows*)
     isWindows=true
-    ECHO="echo -e"
     INTOVOID="NUL"
     ;;
 esac
@@ -67,10 +66,16 @@ case "$UNAME" in
   SunOS) DIFF="gdiff" ;;
 esac
 
-
 $ECHO "\nStarting playTests.sh isWindows=$isWindows ZSTD='$ZSTD'"
 
 [ -n "$ZSTD" ] || die "ZSTD variable must be defined!"
+
+if [ -n "$(echo hello | $ZSTD -v -T2 2>&1 > $INTOVOID | grep 'multi-threading is disabled')" ]
+then
+    hasMT=""
+else
+    hasMT="true"
+fi
 
 $ECHO "\n**** simple tests **** "
 
@@ -461,6 +466,16 @@ roundTripTest -g516K 19   # btopt
 
 fileRoundTripTest -g500K
 
+if [ -n "$hasMT" ]
+then
+    $ECHO "\n**** zstdmt round-trip tests **** "
+    roundTripTest -g516K "16 -T0"
+    roundTripTest -g516K "19 -T2"
+    fileRoundTripTest -g500K " -T2"
+else
+    $ECHO "\n**** no multithreading, skipping zstdmt tests **** "
+fi
+
 rm tmp*
 
 if [ "$1" != "--test-large-data" ]; then
@@ -497,5 +512,15 @@ roundTripTest -g99000000 -P99 20
 roundTripTest -g6000000000 -P99 1
 
 fileRoundTripTest -g4193M -P99 1
+
+if [ -n "$hasMT" ]
+then
+    $ECHO "\n**** zstdmt long round-trip tests **** "
+    roundTripTest -g99000000 -P99 "20 -T2"
+    roundTripTest -g6000000000 -P99 "1 -T2"
+    fileRoundTripTest -g4193M -P98 " -T0"
+else
+    $ECHO "\n**** no multithreading, skipping zstdmt tests **** "
+fi
 
 rm tmp*

@@ -2,10 +2,13 @@
 .TH "ZSTD" "1" "April 2017" "zstd 1.1.5" "User Commands"
 .
 .SH "NAME"
-\fBzstd\fR \- zstd, unzstd, zstdcat \- Compress or decompress \.zst files
+\fBzstd\fR \- zstd, zstdmt, unzstd, zstdcat \- Compress or decompress \.zst files
 .
 .SH "SYNOPSIS"
 \fBzstd\fR [\fIOPTIONS\fR] [\-|<INPUT\-FILE>] [\-o <OUTPUT\-FILE>]
+.
+.P
+\fBzstdmt\fR is equivalent to \fBzstd \-T0\fR
 .
 .P
 \fBunzstd\fR is equivalent to \fBzstd \-d\fR
@@ -98,7 +101,7 @@ unlocks high compression levels 20+ (maximum 22), using a lot more memory\. Note
 .
 .TP
 \fB\-T#\fR
-Compress using # threads (default: 1)\. This modifier is only available if \fBzstd\fR was compiled with multithreading support\.
+Compress using # threads (default: 1)\. If \fB#\fR is 0, attempt to detect the number of physical CPU cores and compress with that many threads\. This modifier is only available if \fBzstd\fR was compiled with multithreading support\.
 .
 .TP
 \fB\-D file\fR

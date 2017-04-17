@@ -469,9 +469,9 @@ fileRoundTripTest -g500K
 if [ -n "$hasMT" ]
 then
     $ECHO "\n**** zstdmt round-trip tests **** "
-    roundTripTest -g516K "16 -T0"
-    roundTripTest -g516K "19 -T2"
-    fileRoundTripTest -g500K " -T2"
+    roundTripTest -g4M "1 -T0"
+    roundTripTest -g8M "3 -T2"
+    fileRoundTripTest -g4M "19 -T2 -B1M"
 else
     $ECHO "\n**** no multithreading, skipping zstdmt tests **** "
 fi

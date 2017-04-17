@@ -304,7 +304,7 @@ static size_t ZSTD_resetCCtx_advanced (ZSTD_CCtx* zc,
         zc->hufTable = (HUF_CElt*)ptr;
         zc->flagStaticTables = 0;
         zc->flagStaticHufTable = HUF_repeat_none;
-        ptr = ((U32*)ptr) + 256;  /* note : HUF_CElt* is incomplete type, size is simulated using U32 */
+        ptr = ((U32*)ptr) + HUF_CTABLE_SIZE_U32(255);  /* note : HUF_CElt* is incomplete type, size is simulated using U32 */
 
         zc->nextToUpdate = 1;
         zc->nextSrc = NULL;
@@ -362,7 +362,6 @@ size_t ZSTD_copyCCtx(ZSTD_CCtx* dstCCtx, const ZSTD_CCtx* srcCCtx, unsigned long
 {
     if (srcCCtx->stage!=ZSTDcs_init) return ERROR(stage_wrong);
 
-
     memcpy(&dstCCtx->customMem, &srcCCtx->customMem, sizeof(ZSTD_customMem));
     {   ZSTD_parameters params = srcCCtx->params;
         params.fParams.contentSizeFlag = (pledgedSrcSize > 0);
@@ -397,7 +396,7 @@ size_t ZSTD_copyCCtx(ZSTD_CCtx* dstCCtx, const ZSTD_CCtx* srcCCtx, unsigned long
         memcpy(dstCCtx->offcodeCTable, srcCCtx->offcodeCTable, sizeof(dstCCtx->offcodeCTable));
     }
     if (srcCCtx->flagStaticHufTable) {
-        memcpy(dstCCtx->hufTable, srcCCtx->hufTable, 256*4);
+        memcpy(dstCCtx->hufTable, srcCCtx->hufTable, HUF_CTABLE_SIZE(255));
     }
 
     return 0;

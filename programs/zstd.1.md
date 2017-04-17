@@ -1,10 +1,12 @@
-zstd(1) -- zstd, unzstd, zstdcat - Compress or decompress .zst files
-====================================================================
+zstd(1) -- zstd, zstdmt, unzstd, zstdcat - Compress or decompress .zst files
+============================================================================
 
 SYNOPSIS
 --------
 
 `zstd` [*OPTIONS*] [-|&lt;INPUT-FILE&gt;] [-o &lt;OUTPUT-FILE&gt;]
+
+`zstdmt` is equivalent to `zstd -T0`
 
 `unzstd` is equivalent to `zstd -d`
 
@@ -101,6 +103,8 @@ the last one takes effect.
     Note that decompression will also require more memory when using these levels.
 * `-T#`:
     Compress using # threads (default: 1).
+    If `#` is 0, attempt to detect the number of physical CPU cores and compress with
+    that many threads.
     This modifier is only available if `zstd` was compiled with multithreading support.
 * `-D file`:
     use `file` as Dictionary to compress or decompress FILE(s)

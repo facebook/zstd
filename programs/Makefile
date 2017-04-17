@@ -246,9 +246,7 @@ install: zstd
 	@$(INSTALL_PROGRAM) zstd $(DESTDIR)$(BINDIR)/zstd
 	@ln -sf zstd $(DESTDIR)$(BINDIR)/zstdcat
 	@ln -sf zstd $(DESTDIR)$(BINDIR)/unzstd
-ifeq ($(HAVE_THREAD),1)
 	@ln -sf zstd $(DESTDIR)$(BINDIR)/zstdmt
-endif
 	@$(INSTALL_SCRIPT) zstdless $(DESTDIR)$(BINDIR)/zstdless
 	@$(INSTALL_SCRIPT) zstdgrep $(DESTDIR)$(BINDIR)/zstdgrep
 	@echo Installing man pages

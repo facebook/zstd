@@ -194,9 +194,10 @@ ZSTDLIB_API ZSTD_CDict* ZSTD_createCDict(const void* dictBuffer, size_t dictSize
 ZSTDLIB_API size_t      ZSTD_freeCDict(ZSTD_CDict* CDict);
 
 /*! ZSTD_compress_usingCDict() :
-*   Compression using a digested Dictionary.
-*   Faster startup than ZSTD_compress_usingDict(), recommended when same dictionary is used multiple times.
-*   Note that compression level is decided during dictionary creation. */
+ *  Compression using a digested Dictionary.
+ *  Faster startup than ZSTD_compress_usingDict(), recommended when same dictionary is used multiple times.
+ *  Note that compression level is decided during dictionary creation.
+ *  Frame parameters are hardcoded (dictID=yes, contentSize=yes, checksum=no) */
 ZSTDLIB_API size_t ZSTD_compress_usingCDict(ZSTD_CCtx* cctx,
                                             void* dst, size_t dstCapacity,
                                       const void* src, size_t srcSize,

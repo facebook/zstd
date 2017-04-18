@@ -2911,36 +2911,45 @@ static ZSTD_parameters ZSTD_getParamsFromCDict(const ZSTD_CDict* cdict) {
     return ZSTD_getParamsFromCCtx(cdict->refContext);
 }
 
-size_t ZSTD_compressBegin_usingCDict(ZSTD_CCtx* cctx, const ZSTD_CDict* cdict, unsigned long long pledgedSrcSize)
+/* ZSTD_compressBegin_usingCDict_internal() :
+ * cdict must be != NULL */
+static size_t ZSTD_compressBegin_usingCDict_internal(
+    ZSTD_CCtx* const cctx, const ZSTD_CDict* const cdict,
+    ZSTD_frameParameters const fParams, unsigned long long const pledgedSrcSize)
 {
     if (cdict==NULL) return ERROR(GENERIC);  /* does not support NULL cdict */
-    if (cdict->dictContentSize) CHECK_F(ZSTD_copyCCtx(cctx, cdict->refContext, pledgedSrcSize))
+    if (cdict->dictContentSize)
+        CHECK_F(ZSTD_copyCCtx(cctx, cdict->refContext, pledgedSrcSize))  /* to be changed, to consider fParams */
     else {
         ZSTD_parameters params = cdict->refContext->params;
-        params.fParams.contentSizeFlag = (pledgedSrcSize > 0);
+        params.fParams = fParams;
         CHECK_F(ZSTD_compressBegin_internal(cctx, NULL, 0, params, pledgedSrcSize));
     }
     return 0;
 }
 
+/* ZSTD_compressBegin_usingCDict() :
+ * pledgedSrcSize=0 means "unknown"
+ * if pledgedSrcSize>0, it will enable contentSizeFlag */
+size_t ZSTD_compressBegin_usingCDict(ZSTD_CCtx* cctx, const ZSTD_CDict* cdict, unsigned long long pledgedSrcSize)
+{
+    ZSTD_frameParameters fParams = { 1 /*content*/, 0 /*checksum*/, 0 /*noDictID*/ };
+    fParams.contentSizeFlag = (pledgedSrcSize > 0);
+    return ZSTD_compressBegin_usingCDict_internal(cctx, cdict, fParams, pledgedSrcSize);
+}
+
 /*! ZSTD_compress_usingCDict() :
-*   Compression using a digested Dictionary.
-*   Faster startup than ZSTD_compress_usingDict(), recommended when same dictionary is used multiple times.
-*   Note that compression level is decided during dictionary creation */
+ *  Compression using a digested Dictionary.
+ *  Faster startup than ZSTD_compress_usingDict(), recommended when same dictionary is used multiple times.
+ *  Note that compression parameters are decided at CDict creation time
+ *  while frame parameters are hardcoded */
 size_t ZSTD_compress_usingCDict(ZSTD_CCtx* cctx,
                                 void* dst, size_t dstCapacity,
                                 const void* src, size_t srcSize,
                                 const ZSTD_CDict* cdict)
 {
-    CHECK_F(ZSTD_compressBegin_usingCDict(cctx, cdict, srcSize));  /* will check if cdict != NULL */
-
-    if (cdict->refContext->params.fParams.contentSizeFlag == 1) {
-        cctx->params.fParams.contentSizeFlag = 1;
-        cctx->frameContentSize = srcSize;
-    } else {
-        cctx->params.fParams.contentSizeFlag = 0;
-    }
-
+    ZSTD_frameParameters const fParams = { 1 /*content*/, 0 /*checksum*/, 0 /*noDictID*/ };
+    CHECK_F (ZSTD_compressBegin_usingCDict_internal(cctx, cdict, fParams, srcSize));   /* will check if cdict != NULL */
     return ZSTD_compressEnd(cctx, dst, dstCapacity, src, srcSize);
 }
 
@@ -3022,7 +3031,7 @@ static size_t ZSTD_resetCStream_internal(ZSTD_CStream* zcs, unsigned long long p
 {
     if (zcs->inBuffSize==0) return ERROR(stage_wrong);   /* zcs has not been init at least once => can't reset */
 
-    if (zcs->cdict) CHECK_F(ZSTD_compressBegin_usingCDict(zcs->cctx, zcs->cdict, pledgedSrcSize))
+    if (zcs->cdict) CHECK_F(ZSTD_compressBegin_usingCDict_internal(zcs->cctx, zcs->cdict, zcs->params.fParams, pledgedSrcSize))
     else CHECK_F(ZSTD_compressBegin_internal(zcs->cctx, NULL, 0, zcs->params, pledgedSrcSize));
 
     zcs->inToCompress = 0;

@@ -136,7 +136,7 @@ zstd-nogz : LZMA_MSG := $(NO_LZMA_MSG)
 xzstd : CPPFLAGS += $(ZLIBCPP) $(LZMACPP)
 xzstd : LDFLAGS += $(ZLIBLD) $(LZMALD)
 zstd zstd-nogz xzstd : CPPFLAGS += -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT)
-zstd zstd-nogz xzstd : $(ZSTDLIB_OBJ) zstdcli.o fileio.o bench.o datagen.o dibio.o
+zstd zstd-nogz xzstd : $(ZSTDLIB_FILES) zstdcli.o fileio.o bench.o datagen.o dibio.o
 	@echo "$(THREAD_MSG)"
 	@echo "$(ZLIB_MSG)"
 	@echo "$(LZMA_MSG)"

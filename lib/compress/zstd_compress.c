@@ -2911,9 +2911,9 @@ static ZSTD_parameters ZSTD_getParamsFromCDict(const ZSTD_CDict* cdict) {
     return ZSTD_getParamsFromCCtx(cdict->refContext);
 }
 
-/* ZSTD_compressBegin_usingCDict_internal() :
+/* ZSTD_compressBegin_usingCDict_advanced() :
  * cdict must be != NULL */
-static size_t ZSTD_compressBegin_usingCDict_internal(
+size_t ZSTD_compressBegin_usingCDict_advanced(
     ZSTD_CCtx* const cctx, const ZSTD_CDict* const cdict,
     ZSTD_frameParameters const fParams, unsigned long long const pledgedSrcSize)
 {
@@ -2935,7 +2935,7 @@ size_t ZSTD_compressBegin_usingCDict(ZSTD_CCtx* cctx, const ZSTD_CDict* cdict, u
 {
     ZSTD_frameParameters fParams = { 1 /*content*/, 0 /*checksum*/, 0 /*noDictID*/ };
     fParams.contentSizeFlag = (pledgedSrcSize > 0);
-    return ZSTD_compressBegin_usingCDict_internal(cctx, cdict, fParams, pledgedSrcSize);
+    return ZSTD_compressBegin_usingCDict_advanced(cctx, cdict, fParams, pledgedSrcSize);
 }
 
 /*! ZSTD_compress_usingCDict() :
@@ -2949,7 +2949,7 @@ size_t ZSTD_compress_usingCDict(ZSTD_CCtx* cctx,
                                 const ZSTD_CDict* cdict)
 {
     ZSTD_frameParameters const fParams = { 1 /*content*/, 0 /*checksum*/, 0 /*noDictID*/ };
-    CHECK_F (ZSTD_compressBegin_usingCDict_internal(cctx, cdict, fParams, srcSize));   /* will check if cdict != NULL */
+    CHECK_F (ZSTD_compressBegin_usingCDict_advanced(cctx, cdict, fParams, srcSize));   /* will check if cdict != NULL */
     return ZSTD_compressEnd(cctx, dst, dstCapacity, src, srcSize);
 }
 
@@ -3031,7 +3031,7 @@ static size_t ZSTD_resetCStream_internal(ZSTD_CStream* zcs, unsigned long long p
 {
     if (zcs->inBuffSize==0) return ERROR(stage_wrong);   /* zcs has not been init at least once => can't reset */
 
-    if (zcs->cdict) CHECK_F(ZSTD_compressBegin_usingCDict_internal(zcs->cctx, zcs->cdict, zcs->params.fParams, pledgedSrcSize))
+    if (zcs->cdict) CHECK_F(ZSTD_compressBegin_usingCDict_advanced(zcs->cctx, zcs->cdict, zcs->params.fParams, pledgedSrcSize))
     else CHECK_F(ZSTD_compressBegin_internal(zcs->cctx, NULL, 0, zcs->params, pledgedSrcSize));
 
     zcs->inToCompress = 0;

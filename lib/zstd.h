@@ -754,19 +754,20 @@ ZSTDLIB_API ZSTD_nextInputType_e ZSTD_nextInputType(ZSTD_DCtx* dctx);
     - Compressing and decompressing require a context structure
       + Use ZSTD_createCCtx() and ZSTD_createDCtx()
     - It is necessary to init context before starting
-      + compression : ZSTD_compressBegin()
-      + decompression : ZSTD_decompressBegin()
-      + variants _usingDict() are also allowed
-      + copyCCtx() and copyDCtx() work too
-    - Block size is limited, it must be <= ZSTD_getBlockSizeMax()
-      + If you need to compress more, cut data into multiple blocks
-      + Consider using the regular ZSTD_compress() instead, as frame metadata costs become negligible when source size is large.
+      + compression : any ZSTD_compressBegin*() variant, including with dictionary
+      + decompression : any ZSTD_decompressBegin*() variant, including with dictionary
+      + copyCCtx() and copyDCtx() can be used too
+    - Block size is limited, it must be <= ZSTD_getBlockSizeMax() <= ZSTD_BLOCKSIZE_ABSOLUTEMAX
+      + If input is larger than a block size, it's necessary to split input data into multiple blocks
+      + For inputs larger than a single block size, consider using the regular ZSTD_compress() instead.
+        Frame metadata is not that costly, and quickly becomes negligible as source size grows larger.
     - When a block is considered not compressible enough, ZSTD_compressBlock() result will be zero.
       In which case, nothing is produced into `dst`.
       + User must test for such outcome and deal directly with uncompressed data
       + ZSTD_decompressBlock() doesn't accept uncompressed data as input !!!
-      + In case of multiple successive blocks, decoder must be informed of uncompressed block existence to follow proper history.
-        Use ZSTD_insertBlock() in such a case.
+      + In case of multiple successive blocks, should some of them be uncompressed,
+        decoder must be informed of their existence in order to follow proper history.
+        Use ZSTD_insertBlock() for such a case.
 */
 
 #define ZSTD_BLOCKSIZE_ABSOLUTEMAX (128 * 1024)   /* define, for static allocation */

@@ -105,7 +105,7 @@ the last one takes effect.
     Compress using # threads (default: 1).
     If `#` is 0, attempt to detect the number of physical CPU cores and compress with
     that many threads.
-    This modifier is only available if `zstd` was compiled with multithreading support.
+    This modified does nothing if `zstd` was compiled without multithread support.
 * `-D file`:
     use `file` as Dictionary to compress or decompress FILE(s)
 * `--nodictID`:

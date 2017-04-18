@@ -257,9 +257,9 @@ static size_t ZSTD_continueCCtx(ZSTD_CCtx* cctx, ZSTD_parameters params, U64 fra
 
 typedef enum { ZSTDcrp_continue, ZSTDcrp_noMemset, ZSTDcrp_fullReset } ZSTD_compResetPolicy_e;
 
-/*! ZSTD_resetCCtx_advanced() :
+/*! ZSTD_resetCCtx_internal() :
     note : `params` must be validated */
-static size_t ZSTD_resetCCtx_advanced (ZSTD_CCtx* zc,
+static size_t ZSTD_resetCCtx_internal (ZSTD_CCtx* zc,
                                        ZSTD_parameters params, U64 frameContentSize,
                                        ZSTD_compResetPolicy_e const crp)
 {
@@ -365,7 +365,7 @@ size_t ZSTD_copyCCtx(ZSTD_CCtx* dstCCtx, const ZSTD_CCtx* srcCCtx, unsigned long
     memcpy(&dstCCtx->customMem, &srcCCtx->customMem, sizeof(ZSTD_customMem));
     {   ZSTD_parameters params = srcCCtx->params;
         params.fParams.contentSizeFlag = (pledgedSrcSize > 0);
-        ZSTD_resetCCtx_advanced(dstCCtx, params, pledgedSrcSize, ZSTDcrp_noMemset);
+        ZSTD_resetCCtx_internal(dstCCtx, params, pledgedSrcSize, ZSTDcrp_noMemset);
     }
 
     /* copy tables */
@@ -2694,7 +2694,7 @@ static size_t ZSTD_compressBegin_internal(ZSTD_CCtx* cctx,
 {
     ZSTD_compResetPolicy_e const crp = dictSize ? ZSTDcrp_fullReset : ZSTDcrp_continue;
     assert(!ZSTD_isError(ZSTD_checkCParams(params.cParams)));
-    CHECK_F(ZSTD_resetCCtx_advanced(cctx, params, pledgedSrcSize, crp));
+    CHECK_F(ZSTD_resetCCtx_internal(cctx, params, pledgedSrcSize, crp));
     return ZSTD_compress_insertDictionary(cctx, dict, dictSize);
 }
 

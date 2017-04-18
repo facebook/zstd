@@ -17,6 +17,7 @@
 
 #include "zstd_seekable.h"
 
+#define MIN(a, b) ((a) < (b) ? (a) : (b))
 
 static void* malloc_orDie(size_t size)
 {
@@ -85,74 +86,31 @@ static void fseek_orDie(FILE* file, long int offset, int origin) {
 static void decompressFile_orDie(const char* fname, unsigned startOffset, unsigned endOffset)
 {
     FILE* const fin  = fopen_orDie(fname, "rb");
-    size_t const buffInSize = ZSTD_DStreamInSize();
-    void*  const buffIn  = malloc_orDie(buffInSize);
     FILE* const fout = stdout;
     size_t const buffOutSize = ZSTD_DStreamOutSize();  /* Guarantee to successfully flush at least one complete compressed block in all circumstances. */
     void*  const buffOut = malloc_orDie(buffOutSize);
 
-    ZSTD_seekable_DStream* const dstream = ZSTD_seekable_createDStream();
-    if (dstream==NULL) { fprintf(stderr, "ZSTD_seekable_createDStream() error \n"); exit(10); }
+    ZSTD_seekable* const seekable = ZSTD_seekable_create();
+    if (seekable==NULL) { fprintf(stderr, "ZSTD_seekable_create() error \n"); exit(10); }
 
-    {   size_t sizeNeeded = 0;
-        void* buffSeekTable = NULL;
+    size_t const initResult = ZSTD_seekable_initFile(seekable, fin);
+    if (ZSTD_isError(initResult)) { fprintf(stderr, "ZSTD_seekable_init() error : %s \n", ZSTD_getErrorName(initResult)); exit(11); }
 
-        do {
-            sizeNeeded = ZSTD_seekable_loadSeekTable(dstream, buffSeekTable, sizeNeeded);
-            if (!sizeNeeded) break;
+    while (startOffset < endOffset) {
+        size_t const result = ZSTD_seekable_decompress(seekable, buffOut, MIN(endOffset - startOffset, buffOutSize), startOffset);
 
-            if (ZSTD_isError(sizeNeeded)) {
-                fprintf(stderr, "ZSTD_seekable_loadSeekTable() error : %s \n",
-                        ZSTD_getErrorName(sizeNeeded));
-                exit(11);
-            }
-
-            fseek_orDie(fin, -(long) sizeNeeded, SEEK_END);
-            buffSeekTable = realloc_orDie(buffSeekTable, sizeNeeded);
-            fread_orDie(buffSeekTable, sizeNeeded, fin);
-        } while (sizeNeeded > 0);
-
-        free(buffSeekTable);
+        if (ZSTD_isError(result)) {
+            fprintf(stderr, "ZSTD_seekable_decompress() error : %s \n",
+                    ZSTD_getErrorName(result));
+            exit(12);
+        }
+        fwrite_orDie(buffOut, result, fout);
+        startOffset += result;
     }
 
-    /* In more complex scenarios, a file may consist of multiple appended frames (ex : pzstd).
-    *  The following example decompresses only the first frame.
-    *  It is compatible with other provided streaming examples */
-    size_t const initResult = ZSTD_seekable_initDStream(dstream, startOffset, endOffset);
-    if (ZSTD_isError(initResult)) { fprintf(stderr, "ZSTD_seekable_initDStream() error : %s \n", ZSTD_getErrorName(initResult)); exit(11); }
-
-    size_t result, read, toRead = 0;
-
-    do {
-        read = fread_orDie(buffIn, toRead, fin);
-        {   ZSTD_inBuffer input = { buffIn, read, 0 };
-            ZSTD_outBuffer output = { buffOut, buffOutSize, 0 };
-            result = ZSTD_seekable_decompressStream(dstream, &output, &input);
-
-            if (ZSTD_isError(result)) {
-                if (ZSTD_getErrorCode(result) == ZSTD_error_needSeek) {
-                    unsigned long long const offset = ZSTD_seekable_getSeekOffset(dstream);
-                    fseek_orDie(fin, offset, SEEK_SET);
-                    ZSTD_seekable_updateOffset(dstream, offset);
-                    toRead = 0;
-                } else {
-                    fprintf(stderr,
-                            "ZSTD_seekable_decompressStream() error : %s \n",
-                            ZSTD_getErrorName(result));
-                    exit(12);
-                }
-            } else {
-                toRead = result;
-            }
-            fwrite_orDie(buffOut, output.pos, fout);
-            if (toRead > buffInSize) toRead = buffInSize;
-        }
-    } while (result > 0);
-
-    ZSTD_seekable_freeDStream(dstream);
+    ZSTD_seekable_free(seekable);
     fclose_orDie(fin);
     fclose_orDie(fout);
-    free(buffIn);
     free(buffOut);
 }
 

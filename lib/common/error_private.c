@@ -39,7 +39,7 @@ const char* ERR_getErrorString(ERR_enum code)
     case PREFIX(dictionary_wrong): return "Dictionary mismatch";
     case PREFIX(dictionaryCreation_failed): return "Cannot create Dictionary from provided samples";
     case PREFIX(frameIndex_tooLarge): return "Frame index is too large";
-    case PREFIX(needSeek): return "Wrong file position, a seek is required to continue";
+    case PREFIX(seekableIO): return "An I/O error occurred when reading/seeking";
     case PREFIX(maxCode):
     default: return notErrorCode;
     }

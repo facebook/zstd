@@ -93,7 +93,7 @@ THREAD_MSG := ==> building with threading support
 THREAD_CPP := -DZSTD_MULTITHREAD
 THREAD_LD := -pthread
 else
-THREAD_MSG := NO_THREAD_MSG
+THREAD_MSG := $(NO_THREAD_MSG)
 endif
 
 # zlib detection
@@ -161,7 +161,7 @@ zstd-nolegacy : clean_decomp_o
 
 zstd-nomt : THREAD_CPP :=
 zstd-nomt : THREAD_LD :=
-zstd-nomt : THREAD_MSG := NO_THREAD_MSG
+zstd-nomt : THREAD_MSG := $(NO_THREAD_MSG)
 zstd-nomt : zstd
 
 zstd-pgo : MOREFLAGS = -fprofile-generate

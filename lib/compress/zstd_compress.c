@@ -354,17 +354,20 @@ void ZSTD_invalidateRepCodes(ZSTD_CCtx* cctx) {
     for (i=0; i<ZSTD_REP_NUM; i++) cctx->rep[i] = 0;
 }
 
-/*! ZSTD_copyCCtx() :
-*   Duplicate an existing context `srcCCtx` into another one `dstCCtx`.
-*   Only works during stage ZSTDcs_init (i.e. after creation, but before first call to ZSTD_compressContinue()).
-*   @return : 0, or an error code */
-size_t ZSTD_copyCCtx(ZSTD_CCtx* dstCCtx, const ZSTD_CCtx* srcCCtx, unsigned long long pledgedSrcSize)
+
+/*! ZSTD_copyCCtx_internal() :
+ *  Duplicate an existing context `srcCCtx` into another one `dstCCtx`.
+ *  Only works during stage ZSTDcs_init (i.e. after creation, but before first call to ZSTD_compressContinue()).
+ *  pledgedSrcSize=0 means "empty" if fParams.contentSizeFlag=1
+ *  @return : 0, or an error code */
+size_t ZSTD_copyCCtx_internal(ZSTD_CCtx* dstCCtx, const ZSTD_CCtx* srcCCtx,
+                              ZSTD_frameParameters fParams, unsigned long long pledgedSrcSize)
 {
     if (srcCCtx->stage!=ZSTDcs_init) return ERROR(stage_wrong);
 
     memcpy(&dstCCtx->customMem, &srcCCtx->customMem, sizeof(ZSTD_customMem));
     {   ZSTD_parameters params = srcCCtx->params;
-        params.fParams.contentSizeFlag = (pledgedSrcSize > 0);
+        params.fParams = fParams;
         ZSTD_resetCCtx_internal(dstCCtx, params, pledgedSrcSize, ZSTDcrp_noMemset);
     }
 
@@ -402,9 +405,22 @@ size_t ZSTD_copyCCtx(ZSTD_CCtx* dstCCtx, const ZSTD_CCtx* srcCCtx, unsigned long
     return 0;
 }
 
+/*! ZSTD_copyCCtx() :
+ *  Duplicate an existing context `srcCCtx` into another one `dstCCtx`.
+ *  Only works during stage ZSTDcs_init (i.e. after creation, but before first call to ZSTD_compressContinue()).
+ *  pledgedSrcSize==0 means "unknown".
+*   @return : 0, or an error code */
+size_t ZSTD_copyCCtx(ZSTD_CCtx* dstCCtx, const ZSTD_CCtx* srcCCtx, unsigned long long pledgedSrcSize)
+{
+    ZSTD_frameParameters fParams = { 1 /*content*/, 0 /*checksum*/, 0 /*noDictID*/ };
+    fParams.contentSizeFlag = pledgedSrcSize>0;
+
+    return ZSTD_copyCCtx_internal(dstCCtx, srcCCtx, fParams, pledgedSrcSize);
+}
+
 
 /*! ZSTD_reduceTable() :
-*   reduce table indexes by `reducerValue` */
+ *  reduce table indexes by `reducerValue` */
 static void ZSTD_reduceTable (U32* const table, U32 const size, U32 const reducerValue)
 {
     U32 u;
@@ -2919,7 +2935,7 @@ size_t ZSTD_compressBegin_usingCDict_advanced(
 {
     if (cdict==NULL) return ERROR(GENERIC);  /* does not support NULL cdict */
     if (cdict->dictContentSize)
-        CHECK_F(ZSTD_copyCCtx(cctx, cdict->refContext, pledgedSrcSize))  /* to be changed, to consider fParams */
+        CHECK_F( ZSTD_copyCCtx_internal(cctx, cdict->refContext, fParams, pledgedSrcSize) )
     else {
         ZSTD_parameters params = cdict->refContext->params;
         params.fParams = fParams;

@@ -479,7 +479,24 @@ static int basicUnitTests(U32 seed, double compressibility, ZSTD_customMem custo
         DISPLAYLEVEL(3, "OK (%s)\n", ZSTD_getErrorName(r));
     }
 
-    /* Unknown srcSize */
+    /* Empty srcSize */
+    DISPLAYLEVEL(3, "test%3i : ZSTD_initCStream_advanced with pledgedSrcSize=0 and dict : ", testNb++);
+    {   ZSTD_parameters params = ZSTD_getParams(5, 0, 0);
+        params.fParams.contentSizeFlag = 1;
+        ZSTD_initCStream_advanced(zc, dictionary.start, dictionary.filled, params, 0);
+    } /* cstream advanced shall write content size = 0 */
+    inBuff.src = CNBuffer;
+    inBuff.size = 0;
+    inBuff.pos = 0;
+    outBuff.dst = compressedBuffer;
+    outBuff.size = compressedBufferSize;
+    outBuff.pos = 0;
+    if (ZSTD_isError(ZSTD_compressStream(zc, &outBuff, &inBuff))) goto _output_error;
+    if (ZSTD_endStream(zc, &outBuff) != 0) goto _output_error;
+    cSize = outBuff.pos;
+    if (ZSTD_findDecompressedSize(compressedBuffer, cSize) != 0) goto _output_error;
+    DISPLAYLEVEL(3, "OK \n");
+
     DISPLAYLEVEL(3, "test%3i : pledgedSrcSize == 0 behaves properly : ", testNb++);
     {   ZSTD_parameters params = ZSTD_getParams(5, 0, 0);
         params.fParams.contentSizeFlag = 1;

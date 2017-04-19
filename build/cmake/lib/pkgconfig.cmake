@@ -1,0 +1,1 @@
+CONFIGURE_FILE("${IN}" "${OUT}" @ONLY)

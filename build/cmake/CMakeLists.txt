@@ -8,7 +8,7 @@
 # ################################################################
 
 PROJECT(zstd)
-CMAKE_MINIMUM_REQUIRED(VERSION 2.8.7)
+CMAKE_MINIMUM_REQUIRED(VERSION 2.8.9)
 SET(ZSTD_SOURCE_DIR "${CMAKE_SOURCE_DIR}/../..")
 
 #-----------------------------------------------------------------------------

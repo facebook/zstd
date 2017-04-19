@@ -131,7 +131,7 @@ static buffer_t FUZ_createDictionary(const void* src, size_t srcSize, size_t blo
     }
     {   size_t const dictSize = ZDICT_trainFromBuffer(dict.start, requestedDictSize, src, blockSizes, (unsigned)nbBlocks);
         free(blockSizes);
-        if (ZDICT_isError(dictSize)) { free(dict.start); return (buffer_t){ NULL, 0, 0 }; }
+        if (ZDICT_isError(dictSize)) { free(dict.start); return g_nullBuffer; }
         dict.size = requestedDictSize;
         dict.filled = dictSize;
         return dict;   /* how to return dictSize ? */
@@ -972,6 +972,7 @@ static int fuzzerTests_MT(U32 seed, U32 nbTests, unsigned startTest, double comp
                 params.fParams.checksumFlag = FUZ_rand(&lseed) & 1;
                 params.fParams.noDictIDFlag = FUZ_rand(&lseed) & 1;
                 params.fParams.contentSizeFlag = pledgedSrcSize>0;
+                DISPLAYLEVEL(5, "checksumFlag : %u \n", params.fParams.checksumFlag);
                 { size_t const initError = ZSTDMT_initCStream_advanced(zc, dict, dictSize, params, pledgedSrcSize);
                   CHECK (ZSTD_isError(initError),"ZSTDMT_initCStream_advanced error : %s", ZSTD_getErrorName(initError)); }
                 ZSTDMT_setMTCtxParameter(zc, ZSTDMT_p_overlapSectionLog, FUZ_rand(&lseed) % 12);
@@ -1023,9 +1024,9 @@ static int fuzzerTests_MT(U32 seed, U32 nbTests, unsigned startTest, double comp
                     CHECK (ZSTD_isError(remainingToFlush), "ZSTDMT_endStream error : %s", ZSTD_getErrorName(remainingToFlush));
                     DISPLAYLEVEL(5, "endStream : remainingToFlush : %u \n", (U32)remainingToFlush);
             }   }
-            DISPLAYLEVEL(5, "Frame completed \n");
             crcOrig = XXH64_digest(&xxhState);
             cSize = outBuff.pos;
+            DISPLAYLEVEL(5, "Frame completed : %u bytes \n", (U32)cSize);
         }
 
         /* multi - fragments decompression test */
@@ -1046,6 +1047,7 @@ static int fuzzerTests_MT(U32 seed, U32 nbTests, unsigned startTest, double comp
                 DISPLAYLEVEL(5, "ZSTD_decompressStream input %u bytes \n", (U32)readCSrcSize);
                 decompressionResult = ZSTD_decompressStream(zd, &outBuff, &inBuff);
                 CHECK (ZSTD_isError(decompressionResult), "decompression error : %s", ZSTD_getErrorName(decompressionResult));
+                DISPLAYLEVEL(5, "inBuff.pos = %u \n", (U32)readCSrcSize);
             }
             CHECK (outBuff.pos != totalTestSize, "decompressed data : wrong size (%u != %u)", (U32)outBuff.pos, (U32)totalTestSize);
             CHECK (inBuff.pos != cSize, "compressed data should be fully read (%u != %u)", (U32)inBuff.pos, (U32)cSize);

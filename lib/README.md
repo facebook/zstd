@@ -22,6 +22,14 @@ Some additional API may be useful if you're looking into advanced features :
                           They are not "stable", their definition may change in the future.
                           Only static linking is allowed.
 
+#### ZSTDMT API
+
+To enable building the multithreaded compression API, use the `make lib-mt` target.
+The header file zstdmt_compress.h (in compress/) provides the prototypes for the API.
+If linking a program that uses the ZSTDMT API against libzstd.a on a POSIX system,
+the -pthread flag must be provided to the compiler at link time.
+Note that these prototypes may still be used in a version built without multithread support,
+but they will be single threaded (i.e. no benefits will be given over the standard ZSTD API).
 
 #### Modular build
 

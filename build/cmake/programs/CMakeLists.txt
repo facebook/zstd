@@ -31,16 +31,18 @@ ENDIF (MSVC)
 
 ADD_EXECUTABLE(zstd ${PROGRAMS_DIR}/zstdcli.c ${PROGRAMS_DIR}/fileio.c ${PROGRAMS_DIR}/bench.c ${PROGRAMS_DIR}/datagen.c ${PROGRAMS_DIR}/dibio.c ${PlatformDependResources})
 TARGET_LINK_LIBRARIES(zstd libzstd_shared)
-ADD_CUSTOM_COMMAND(TARGET zstd POST_BUILD COMMAND ${CMAKE_COMMAND} -E create_symlink zstd zstdcat COMMENT "Creating zstdcat symlink")
-ADD_CUSTOM_COMMAND(TARGET zstd POST_BUILD COMMAND ${CMAKE_COMMAND} -E create_symlink zstd unzstd COMMENT "Creating unzstd symlink")
+ADD_CUSTOM_TARGET(zstdcat ALL ${CMAKE_COMMAND} -E create_symlink zstd zstdcat DEPENDS zstd COMMENT "Creating zstdcat symlink")
+ADD_CUSTOM_TARGET(unzstd ALL ${CMAKE_COMMAND} -E create_symlink zstd unzstd DEPENDS zstd COMMENT "Creating unzstd symlink")
 INSTALL(TARGETS zstd RUNTIME DESTINATION "bin")
 INSTALL(FILES ${CMAKE_CURRENT_BINARY_DIR}/zstdcat DESTINATION "bin")
 INSTALL(FILES ${CMAKE_CURRENT_BINARY_DIR}/unzstd DESTINATION "bin")
 
 IF (UNIX)
-    FILE(COPY ${PROGRAMS_DIR}/zstd.1 DESTINATION .)
-    ADD_CUSTOM_COMMAND(TARGET zstd POST_BUILD COMMAND ${CMAKE_COMMAND} -E create_symlink zstd.1 zstdcat.1 COMMENT "Creating zstdcat.1 symlink")
-    ADD_CUSTOM_COMMAND(TARGET zstd POST_BUILD COMMAND ${CMAKE_COMMAND} -E create_symlink zstd.1 unzstd.1 COMMENT "Creating unzstd.1 symlink")
+    ADD_CUSTOM_TARGET(zstd.1 ALL
+        ${CMAKE_COMMAND} -E copy ${PROGRAMS_DIR}/zstd.1 .
+        COMMENT "Copying manpage zstd.1")
+    ADD_CUSTOM_TARGET(zstdcat.1 ALL ${CMAKE_COMMAND} -E create_symlink zstd.1 zstdcat.1 DEPENDS zstd.1 COMMENT "Creating zstdcat.1 symlink")
+    ADD_CUSTOM_TARGET(unzstd.1 ALL ${CMAKE_COMMAND} -E create_symlink zstd.1 unzstd.1 DEPENDS zstd.1 COMMENT "Creating unzstd.1 symlink")
     INSTALL(FILES ${CMAKE_CURRENT_BINARY_DIR}/zstd.1 DESTINATION "share/man/man1")
     INSTALL(FILES ${CMAKE_CURRENT_BINARY_DIR}/zstdcat.1 DESTINATION "share/man/man1")
     INSTALL(FILES ${CMAKE_CURRENT_BINARY_DIR}/unzstd.1 DESTINATION "share/man/man1")
@@ -61,7 +63,7 @@ IF (ZSTD_MULTITHREAD_SUPPORT)
         MESSAGE(SEND_ERROR "ZSTD currently does not support thread libraries other than pthreads")
     ENDIF()
 
-    ADD_CUSTOM_COMMAND(TARGET zstd POST_BUILD COMMAND ${CMAKE_COMMAND} -E create_symlink zstd zstdmt COMMENT "Creating zstdmt symlink")
+    ADD_CUSTOM_TARGET(zstdmt ALL ${CMAKE_COMMAND} -E create_symlink zstd zstdmt DEPENDS zstd COMMENT "Creating zstdmt symlink")
     INSTALL(FILES ${CMAKE_CURRENT_BINARY_DIR}/zstdmt DESTINATION "bin")
 ENDIF (ZSTD_MULTITHREAD_SUPPORT)
 

@@ -510,8 +510,10 @@ static size_t ZSTD_compressLiterals (ZSTD_CCtx* zc,
     {   HUF_repeat repeat = zc->flagStaticHufTable;
         int const preferRepeat = zc->params.cParams.strategy < ZSTD_lazy ? srcSize <= 1024 : 0;
         if (repeat == HUF_repeat_valid && lhSize == 3) singleStream = 1;
-        cLitSize = singleStream ? HUF_compress1X_repeat(ostart+lhSize, dstCapacity-lhSize, src, srcSize, 255, 11, zc->tmpCounters, sizeof(zc->tmpCounters), zc->hufTable, &repeat, preferRepeat)
-                                : HUF_compress4X_repeat(ostart+lhSize, dstCapacity-lhSize, src, srcSize, 255, 11, zc->tmpCounters, sizeof(zc->tmpCounters), zc->hufTable, &repeat, preferRepeat);
+        cLitSize = singleStream ? HUF_compress1X_repeat(ostart+lhSize, dstCapacity-lhSize, src, srcSize, 255, 11,
+                                      zc->tmpCounters, sizeof(zc->tmpCounters), zc->hufTable, &repeat, preferRepeat)
+                                : HUF_compress4X_repeat(ostart+lhSize, dstCapacity-lhSize, src, srcSize, 255, 11,
+                                      zc->tmpCounters, sizeof(zc->tmpCounters), zc->hufTable, &repeat, preferRepeat);
         if (repeat != HUF_repeat_none) { hType = set_repeat; }    /* reused the existing table */
         else { zc->flagStaticHufTable = HUF_repeat_check; }       /* now have a table to reuse */
     }
@@ -856,7 +858,14 @@ static unsigned ZSTD_NbCommonBytes (register size_t val)
 #       elif defined(__GNUC__) && (__GNUC__ >= 3)
             return (__builtin_ctzll((U64)val) >> 3);
 #       else
-            static const int DeBruijnBytePos[64] = { 0, 0, 0, 0, 0, 1, 1, 2, 0, 3, 1, 3, 1, 4, 2, 7, 0, 2, 3, 6, 1, 5, 3, 5, 1, 3, 4, 4, 2, 5, 6, 7, 7, 0, 1, 2, 3, 3, 4, 6, 2, 6, 5, 5, 3, 4, 5, 6, 7, 1, 2, 4, 6, 4, 4, 5, 7, 2, 6, 5, 7, 6, 7, 7 };
+            static const int DeBruijnBytePos[64] = { 0, 0, 0, 0, 0, 1, 1, 2,
+                                                     0, 3, 1, 3, 1, 4, 2, 7,
+                                                     0, 2, 3, 6, 1, 5, 3, 5,
+                                                     1, 3, 4, 4, 2, 5, 6, 7,
+                                                     7, 0, 1, 2, 3, 3, 4, 6,
+                                                     2, 6, 5, 5, 3, 4, 5, 6,
+                                                     7, 1, 2, 4, 6, 4, 4, 5,
+                                                     7, 2, 6, 5, 7, 6, 7, 7 };
             return DeBruijnBytePos[((U64)((val & -(long long)val) * 0x0218A392CDABBD3FULL)) >> 58];
 #       endif
         } else { /* 32 bits */
@@ -867,7 +876,10 @@ static unsigned ZSTD_NbCommonBytes (register size_t val)
 #       elif defined(__GNUC__) && (__GNUC__ >= 3)
             return (__builtin_ctz((U32)val) >> 3);
 #       else
-            static const int DeBruijnBytePos[32] = { 0, 0, 3, 0, 3, 1, 3, 0, 3, 2, 2, 1, 3, 2, 0, 1, 3, 3, 1, 2, 2, 2, 2, 0, 3, 1, 2, 0, 1, 0, 1, 1 };
+            static const int DeBruijnBytePos[32] = { 0, 0, 3, 0, 3, 1, 3, 0,
+                                                     3, 2, 2, 1, 3, 2, 0, 1,
+                                                     3, 3, 1, 2, 2, 2, 2, 0,
+                                                     3, 1, 2, 0, 1, 0, 1, 1 };
             return DeBruijnBytePos[((U32)((val & -(S32)val) * 0x077CB531U)) >> 27];
 #       endif
         }

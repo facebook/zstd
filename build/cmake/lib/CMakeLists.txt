@@ -138,7 +138,7 @@ IF (UNIX)
     ADD_CUSTOM_TARGET(libzstd.pc ALL
             ${CMAKE_COMMAND} -DIN="${LIBRARY_DIR}/libzstd.pc.in" -DOUT="libzstd.pc"
             -DPREFIX="${PREFIX}" -DLIBDIR="${LIBDIR}" -DINCLUDEDIR="${INCLUDEDIR}" -DVERSION="${VERSION}"
-            -P "${CMAKE_SOURCE_DIR}/lib/pkgconfig.cmake"
+            -P "${CMAKE_CURRENT_SOURCE_DIR}/pkgconfig.cmake"
             COMMENT "Creating pkg-config file")
 
     # install target
@@ -151,10 +151,10 @@ IF (UNIX)
 
     # uninstall target
     CONFIGURE_FILE(
-            "${CMAKE_SOURCE_DIR}/cmake_uninstall.cmake.in"
-            "${CMAKE_BINARY_DIR}/cmake_uninstall.cmake"
+            "${CMAKE_CURRENT_SOURCE_DIR}/cmake_uninstall.cmake.in"
+            "${CMAKE_CURRENT_BINARY_DIR}/cmake_uninstall.cmake"
             IMMEDIATE @ONLY)
 
     ADD_CUSTOM_TARGET(uninstall
-            COMMAND ${CMAKE_COMMAND} -P ${CMAKE_BINARY_DIR}/cmake_uninstall.cmake)
+            COMMAND ${CMAKE_COMMAND} -P ${CMAKE_CURRENT_BINARY_DIR}/cmake_uninstall.cmake)
 ENDIF (UNIX)

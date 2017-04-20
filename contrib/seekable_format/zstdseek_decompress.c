@@ -192,11 +192,11 @@ size_t ZSTD_seekable_free(ZSTD_seekable* zs)
     return 0;
 }
 
-/** ZSTD_seekable_offsetToFrame() :
+/** ZSTD_seekable_offsetToFrameIndex() :
  *  Performs a binary search to find the last frame with a decompressed offset
  *  <= pos
  *  @return : the frame's index */
-U32 ZSTD_seekable_offsetToFrame(ZSTD_seekable* const zs, U64 pos)
+U32 ZSTD_seekable_offsetToFrameIndex(ZSTD_seekable* const zs, U64 pos)
 {
     U32 lo = 0;
     U32 hi = zs->seekTable.tableLen;
@@ -373,7 +373,7 @@ size_t ZSTD_seekable_initAdvanced(ZSTD_seekable* zs, ZSTD_seekable_customFile sr
 
 size_t ZSTD_seekable_decompress(ZSTD_seekable* zs, void* dst, size_t len, U64 offset)
 {
-    U32 targetFrame = ZSTD_seekable_offsetToFrame(zs, offset);
+    U32 targetFrame = ZSTD_seekable_offsetToFrameIndex(zs, offset);
     do {
         /* check if we can continue from a previous decompress job */
         if (targetFrame != zs->curFrame || offset != zs->decompressedOffset) {
@@ -422,7 +422,7 @@ size_t ZSTD_seekable_decompress(ZSTD_seekable* zs, void* dst, size_t len, U64 of
 
                 if (zs->decompressedOffset < offset + len) {
                     /* go back to the start and force a reset of the stream */
-                    targetFrame = ZSTD_seekable_offsetToFrame(zs, zs->decompressedOffset);
+                    targetFrame = ZSTD_seekable_offsetToFrameIndex(zs, zs->decompressedOffset);
                 }
                 break;
             }

@@ -9,7 +9,7 @@
 
 PROJECT(zstd)
 CMAKE_MINIMUM_REQUIRED(VERSION 2.8.9)
-SET(ZSTD_SOURCE_DIR "${CMAKE_SOURCE_DIR}/../..")
+SET(ZSTD_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../..")
 
 #-----------------------------------------------------------------------------
 # Add extra compilation flags

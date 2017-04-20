@@ -406,7 +406,6 @@ static int basicUnitTests(U32 seed, double compressibility)
 
         DISPLAYLEVEL(4, "test%3i : compress with preprocessed dictionary : ", testNb++);
         {   ZSTD_parameters params = ZSTD_getParams(1, CNBuffSize, dictSize);
-            params.fParams.contentSizeFlag = 0;
             {   ZSTD_customMem customMem = { NULL, NULL, NULL };
                 ZSTD_CDict* cdict = ZSTD_createCDict_advanced(dictBuffer, dictSize, 1, params, customMem);
                 cSize = ZSTD_compress_usingCDict(cctx, compressedBuffer, ZSTD_compressBound(CNBuffSize),
@@ -420,12 +419,6 @@ static int basicUnitTests(U32 seed, double compressibility)
         DISPLAYLEVEL(4, "test%3i : retrieve dictID from frame : ", testNb++);
         {   U32 const did = ZSTD_getDictID_fromFrame(compressedBuffer, cSize);
             if (did != dictID) goto _output_error;   /* non-conformant (content-only) dictionary */
-        }
-        DISPLAYLEVEL(4, "OK \n");
-
-        DISPLAYLEVEL(4, "test%3i : frame should not have content size : ", testNb++);
-        {   unsigned long long const contentSize = ZSTD_findDecompressedSize(compressedBuffer, cSize);
-            if (contentSize != ZSTD_CONTENTSIZE_UNKNOWN)  goto _output_error;  /* cdict contentSizeFlag not used */
         }
         DISPLAYLEVEL(4, "OK \n");
 
@@ -524,9 +517,9 @@ static int basicUnitTests(U32 seed, double compressibility)
 
     /* Decompression defense tests */
     DISPLAYLEVEL(4, "test%3i : Check input length for magic number : ", testNb++);
-    { size_t const r = ZSTD_decompress(decodedBuffer, CNBuffSize, CNBuffer, 3);
+    { size_t const r = ZSTD_decompress(decodedBuffer, CNBuffSize, CNBuffer, 3);   /* too small input */
       if (!ZSTD_isError(r)) goto _output_error;
-      if (r != (size_t)-ZSTD_error_srcSize_wrong) goto _output_error; }
+      if (ZSTD_getErrorCode(r) != ZSTD_error_srcSize_wrong) goto _output_error; }
     DISPLAYLEVEL(4, "OK \n");
 
     DISPLAYLEVEL(4, "test%3i : Check magic Number : ", testNb++);
@@ -534,6 +527,24 @@ static int basicUnitTests(U32 seed, double compressibility)
     { size_t const r = ZSTD_decompress(decodedBuffer, CNBuffSize, CNBuffer, 4);
       if (!ZSTD_isError(r)) goto _output_error; }
     DISPLAYLEVEL(4, "OK \n");
+
+    /* content size verification test */
+    DISPLAYLEVEL(4, "test%3i : Content size verification : ", testNb++);
+    {   ZSTD_CCtx* const cctx = ZSTD_createCCtx();
+        size_t const srcSize = 5000;
+        size_t const wrongSrcSize = (srcSize + 1000);
+        ZSTD_parameters params = ZSTD_getParams(1, wrongSrcSize, 0);
+        params.fParams.contentSizeFlag = 1;
+        {   size_t const result = ZSTD_compressBegin_advanced(cctx, NULL, 0, params, wrongSrcSize);
+            if (ZSTD_isError(result)) goto _output_error;
+        }
+        {   size_t const result = ZSTD_compressEnd(cctx, decodedBuffer, CNBuffSize, CNBuffer, srcSize);
+            if (!ZSTD_isError(result)) goto _output_error;
+            if (ZSTD_getErrorCode(result) != ZSTD_error_srcSize_wrong) goto _output_error;
+            DISPLAYLEVEL(4, "OK : %s \n", ZSTD_getErrorName(result));
+        }
+        ZSTD_freeCCtx(cctx);
+    }
 
     /* block API tests */
     {   ZSTD_CCtx* const cctx = ZSTD_createCCtx();
@@ -788,12 +799,10 @@ static int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, U32 const maxD
         crcOrig = XXH64(sampleBuffer, sampleSize, 0);
 
         /* compression tests */
-        {
-            unsigned const cLevel =
-                    (FUZ_rand(&lseed) %
-                     (ZSTD_maxCLevel() -
-                      (FUZ_highbit32((U32)sampleSize) / cLevelLimiter))) +
-                    1;
+        {   unsigned const cLevel =
+                    ( FUZ_rand(&lseed) %
+                     (ZSTD_maxCLevel() - (FUZ_highbit32((U32)sampleSize) / cLevelLimiter)) )
+                     + 1;
             cSize = ZSTD_compressCCtx(ctx, cBuffer, cBufferSize, sampleBuffer, sampleSize, cLevel);
             CHECK(ZSTD_isError(cSize), "ZSTD_compressCCtx failed : %s", ZSTD_getErrorName(cSize));
 

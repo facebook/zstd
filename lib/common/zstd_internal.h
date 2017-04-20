@@ -58,6 +58,8 @@
 /*-*************************************
 *  shared macros
 ***************************************/
+#undef MIN
+#undef MAX
 #define MIN(a,b) ((a)<(b) ? (a) : (b))
 #define MAX(a,b) ((a)>(b) ? (a) : (b))
 #define CHECK_F(f) { size_t const errcod = f; if (ERR_isError(errcod)) return errcod; }  /* check and Forward error code */

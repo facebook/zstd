@@ -11,7 +11,7 @@
 # ################################################################
 
 PROJECT(gen_html)
-INCLUDE(${CMAKE_SOURCE_DIR}/CMakeModules/GetLibraryVersion.cmake)
+INCLUDE(GetZstdLibraryVersion)
 
 SET(CMAKE_INCLUDE_CURRENT_DIR TRUE)
 
@@ -24,7 +24,7 @@ INCLUDE_DIRECTORIES(${PROGRAMS_DIR} ${LIBRARY_DIR} ${LIBRARY_DIR}/common ${GENHT
 
 ADD_EXECUTABLE(gen_html ${GENHTML_DIR}/gen_html.cpp)
 
-GetLibraryVersion(${LIBRARY_DIR}/zstd.h VMAJOR VMINOR VRELEASE)
+GetZstdLibraryVersion(${LIBRARY_DIR}/zstd.h VMAJOR VMINOR VRELEASE)
 SET(LIBVERSION "${VMAJOR}.${VMINOR}.${VRELEASE}")
 ADD_CUSTOM_TARGET(zstd_manual.html ALL
                   ${GENHTML_BINARY} "${LIBVERSION}" "${LIBRARY_DIR}/zstd.h" "${PROJECT_BINARY_DIR}/zstd_manual.html"

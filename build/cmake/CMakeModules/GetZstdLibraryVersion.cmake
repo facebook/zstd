@@ -1,4 +1,4 @@
-function(GetLibraryVersion _header _major _minor _release)
+function(GetZstdLibraryVersion _header _major _minor _release)
     # Read file content
     FILE(READ ${_header} CONTENT)
 

@@ -58,6 +58,11 @@ static const int g_maxNbVariations = 64;
 **************************************/
 #define DISPLAY(...)  fprintf(stderr, __VA_ARGS__)
 
+#undef MIN
+#undef MAX
+#define MIN(a,b)   ( (a) < (b) ? (a) : (b) )
+#define MAX(a,b)   ( (a) > (b) ? (a) : (b) )
+
 
 /*-************************************
 *  Benchmark Parameters
@@ -144,8 +149,6 @@ typedef struct
     size_t resSize;
 } blockParam_t;
 
-
-#define MIN(a,b)  ( (a) < (b) ? (a) : (b) )
 
 static size_t BMK_benchParam(BMK_result_t* resultPtr,
                              const void* srcBuffer, size_t srcSize,
@@ -512,8 +515,6 @@ static BYTE g_alreadyTested[PARAMTABLESIZE] = {0};   /* init to zero */
 #define NB_TESTS_PLAYED(p) \
     g_alreadyTested[(XXH64(sanitizeParams(p), sizeof(p), 0) >> 3) & PARAMTABLEMASK]
 
-
-#define MAX(a,b)   ( (a) > (b) ? (a) : (b) )
 
 static void playAround(FILE* f, winnerInfo_t* winners,
                        ZSTD_compressionParameters params,

@@ -294,6 +294,12 @@ static size_t ZSTD_resetCCtx_internal (ZSTD_CCtx* zc,
                 zc->workSpace = ZSTD_malloc(neededSpace, zc->customMem);
                 if (zc->workSpace == NULL) return ERROR(memory_allocation);
                 zc->workSpaceSize = neededSpace;
+                ptr = zc->workSpace;
+
+                /* entropy space */
+                zc->hufTable = (HUF_CElt*)ptr;
+                ptr = (U32*)zc->hufTable + HUF_CTABLE_SIZE_U32(255);  /* note : HUF_CElt* is incomplete type, size is estimated via macro */
+
         }   }
 
         /* init params */
@@ -318,10 +324,6 @@ static size_t ZSTD_resetCCtx_internal (ZSTD_CCtx* zc,
         zc->hashLog3 = hashLog3;
         zc->seqStore.litLengthSum = 0;
 
-        ptr = zc->workSpace;
-
-        /* entropy space */
-        zc->hufTable = (HUF_CElt*)ptr;
         ptr = (U32*)zc->hufTable + HUF_CTABLE_SIZE_U32(255);  /* note : HUF_CElt* is incomplete type, size is estimated via macro */
 
         /* opt parser space */

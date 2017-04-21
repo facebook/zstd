@@ -32,7 +32,7 @@ static size_t const hufCTable_size = HUF_CTABLE_SIZE(255);
 static size_t const litlengthCTable_size = FSE_CTABLE_SIZE_U32(LLFSELog, MaxLL) * sizeof(FSE_CTable);
 static size_t const offcodeCTable_size = FSE_CTABLE_SIZE_U32(OffFSELog, MaxOff) * sizeof(FSE_CTable);
 static size_t const matchlengthCTable_size = FSE_CTABLE_SIZE_U32(MLFSELog, MaxML) * sizeof(FSE_CTable);
-static size_t const entropyScratchSpace = HUF_WORKSPACE_SIZE;
+static size_t const entropyScratchSpace_size = HUF_WORKSPACE_SIZE;
 
 
 /*-*************************************
@@ -102,7 +102,7 @@ struct ZSTD_CCtx_s {
     FSE_CTable* offcodeCTable;
     FSE_CTable* matchlengthCTable;
     FSE_CTable* litlengthCTable;
-    unsigned tmpCounters[HUF_WORKSPACE_SIZE_U32];
+    unsigned* tmpCounters;
 };
 
 ZSTD_CCtx* ZSTD_createCCtx(void)
@@ -225,7 +225,7 @@ size_t ZSTD_estimateCCtxSize(ZSTD_compressionParameters cParams)
     size_t const h3Size = ((size_t)1) << hashLog3;
     size_t const entropySpace = hufCTable_size + litlengthCTable_size
                               + offcodeCTable_size + matchlengthCTable_size
-                              + entropyScratchSpace;
+                              + entropyScratchSpace_size;
     size_t const tableSpace = (chainSize + hSize + h3Size) * sizeof(U32);
 
     size_t const optSpace = ((MaxML+1) + (MaxLL+1) + (MaxOff+1) + (1<<Litbits))*sizeof(U32)
@@ -294,7 +294,7 @@ static size_t ZSTD_resetCCtx_internal (ZSTD_CCtx* zc,
         /* Check if workSpace is large enough, alloc a new one if needed */
         {   size_t const entropySpace = hufCTable_size + litlengthCTable_size
                                   + offcodeCTable_size + matchlengthCTable_size
-                                  + entropyScratchSpace;
+                                  + entropyScratchSpace_size;
             size_t const optPotentialSpace = ((MaxML+1) + (MaxLL+1) + (MaxOff+1) + (1<<Litbits)) * sizeof(U32)
                                   + (ZSTD_OPT_NUM+1) * (sizeof(ZSTD_match_t)+sizeof(ZSTD_optimal_t));
             size_t const optSpace = ((params.cParams.strategy == ZSTD_btopt) || (params.cParams.strategy == ZSTD_btopt2)) ? optPotentialSpace : 0;
@@ -312,9 +312,12 @@ static size_t ZSTD_resetCCtx_internal (ZSTD_CCtx* zc,
                 ptr = (char*)zc->hufCTable + hufCTable_size;  /* note : HUF_CElt* is incomplete type, size is estimated via macro */
                 zc->offcodeCTable = (FSE_CTable*) ptr;
                 ptr = (char*)ptr + offcodeCTable_size;
-                zc->matchlengthCTable = ptr;
+                zc->matchlengthCTable = (FSE_CTable*) ptr;
                 ptr = (char*)ptr + matchlengthCTable_size;
-                zc->litlengthCTable = ptr;
+                zc->litlengthCTable = (FSE_CTable*) ptr;
+                ptr = (char*)ptr + litlengthCTable_size;
+                assert(((size_t)ptr & 3) == 0);   /* ensure correct alignment */
+                zc->tmpCounters = (unsigned*) ptr;
         }   }
 
         /* init params */
@@ -344,7 +347,8 @@ static size_t ZSTD_resetCCtx_internal (ZSTD_CCtx* zc,
         assert((char*)zc->offcodeCTable == (char*)zc->hufCTable + hufCTable_size);
         assert((char*)zc->matchlengthCTable == (char*)zc->offcodeCTable + offcodeCTable_size);
         assert((char*)zc->litlengthCTable == (char*)zc->matchlengthCTable + matchlengthCTable_size);
-        ptr = (char*)zc->litlengthCTable + litlengthCTable_size;
+        assert((char*)zc->tmpCounters == (char*)zc->litlengthCTable + litlengthCTable_size);
+        ptr = (char*)zc->tmpCounters + entropyScratchSpace_size;
 
         /* opt parser space */
         if ((params.cParams.strategy == ZSTD_btopt) || (params.cParams.strategy == ZSTD_btopt2)) {
@@ -573,9 +577,9 @@ static size_t ZSTD_compressLiterals (ZSTD_CCtx* zc,
         int const preferRepeat = zc->params.cParams.strategy < ZSTD_lazy ? srcSize <= 1024 : 0;
         if (repeat == HUF_repeat_valid && lhSize == 3) singleStream = 1;
         cLitSize = singleStream ? HUF_compress1X_repeat(ostart+lhSize, dstCapacity-lhSize, src, srcSize, 255, 11,
-                                      zc->tmpCounters, sizeof(zc->tmpCounters), zc->hufCTable, &repeat, preferRepeat)
+                                      zc->tmpCounters, entropyScratchSpace_size, zc->hufCTable, &repeat, preferRepeat)
                                 : HUF_compress4X_repeat(ostart+lhSize, dstCapacity-lhSize, src, srcSize, 255, 11,
-                                      zc->tmpCounters, sizeof(zc->tmpCounters), zc->hufCTable, &repeat, preferRepeat);
+                                      zc->tmpCounters, entropyScratchSpace_size, zc->hufCTable, &repeat, preferRepeat);
         if (repeat != HUF_repeat_none) { hType = set_repeat; }    /* reused the existing table */
         else { zc->hufCTable_repeatMode = HUF_repeat_check; }       /* now have a table to reuse */
     }

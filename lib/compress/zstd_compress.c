@@ -32,6 +32,7 @@ static size_t const hufCTable_size = HUF_CTABLE_SIZE(255);
 static size_t const litlengthCTable_size = FSE_CTABLE_SIZE_U32(LLFSELog, MaxLL) * sizeof(FSE_CTable);
 static size_t const offcodeCTable_size = FSE_CTABLE_SIZE_U32(OffFSELog, MaxOff) * sizeof(FSE_CTable);
 static size_t const matchlengthCTable_size = FSE_CTABLE_SIZE_U32(MLFSELog, MaxML) * sizeof(FSE_CTable);
+static size_t const entropyScratchSpace = HUF_WORKSPACE_SIZE;
 
 
 /*-*************************************
@@ -223,7 +224,8 @@ size_t ZSTD_estimateCCtxSize(ZSTD_compressionParameters cParams)
     U32    const hashLog3 = (cParams.searchLength>3) ? 0 : MIN(ZSTD_HASHLOG3_MAX, cParams.windowLog);
     size_t const h3Size = ((size_t)1) << hashLog3;
     size_t const entropySpace = hufCTable_size + litlengthCTable_size
-                              + offcodeCTable_size + matchlengthCTable_size;
+                              + offcodeCTable_size + matchlengthCTable_size
+                              + entropyScratchSpace;
     size_t const tableSpace = (chainSize + hSize + h3Size) * sizeof(U32);
 
     size_t const optSpace = ((MaxML+1) + (MaxLL+1) + (MaxOff+1) + (1<<Litbits))*sizeof(U32)
@@ -291,7 +293,8 @@ static size_t ZSTD_resetCCtx_internal (ZSTD_CCtx* zc,
 
         /* Check if workSpace is large enough, alloc a new one if needed */
         {   size_t const entropySpace = hufCTable_size + litlengthCTable_size
-                                  + offcodeCTable_size + matchlengthCTable_size;
+                                  + offcodeCTable_size + matchlengthCTable_size
+                                  + entropyScratchSpace;
             size_t const optPotentialSpace = ((MaxML+1) + (MaxLL+1) + (MaxOff+1) + (1<<Litbits)) * sizeof(U32)
                                   + (ZSTD_OPT_NUM+1) * (sizeof(ZSTD_match_t)+sizeof(ZSTD_optimal_t));
             size_t const optSpace = ((params.cParams.strategy == ZSTD_btopt) || (params.cParams.strategy == ZSTD_btopt2)) ? optPotentialSpace : 0;

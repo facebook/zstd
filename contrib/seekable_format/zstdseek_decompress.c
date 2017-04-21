@@ -406,7 +406,8 @@ size_t ZSTD_seekable_decompress(ZSTD_seekable* zs, void* dst, size_t len, U64 of
             }
 
             if (zs->seekTable.checksumFlag) {
-                XXH64_update(&zs->xxhState, outTmp.dst, outTmp.pos);
+                XXH64_update(&zs->xxhState, (BYTE*)outTmp.dst + prevOutPos,
+                             outTmp.pos - prevOutPos);
             }
             zs->decompressedOffset += outTmp.pos - prevOutPos;
 
@@ -454,7 +455,7 @@ size_t ZSTD_seekable_decompressFrame(ZSTD_seekable* zs, void* dst, size_t dstSiz
             return ERROR(dstSize_tooSmall);
         }
         return ZSTD_seekable_decompress(
-                zs, dst, zs->seekTable.entries[frameIndex].dOffset,
-                decompressedSize);
+                zs, dst, decompressedSize,
+                zs->seekTable.entries[frameIndex].dOffset);
     }
 }

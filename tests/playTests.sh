@@ -471,6 +471,7 @@ then
     $ECHO "\n**** zstdmt round-trip tests **** "
     roundTripTest -g4M "1 -T0"
     roundTripTest -g8M "3 -T2"
+    roundTripTest -g8000K "2 --threads=2"
     fileRoundTripTest -g4M "19 -T2 -B1M"
 else
     $ECHO "\n**** no multithreading, skipping zstdmt tests **** "

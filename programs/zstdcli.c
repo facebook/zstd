@@ -420,6 +420,7 @@ int main(int argCount, const char* argv[])
                       continue;
                     }
 #endif
+                    if (longCommandWArg(&argument, "--threads=")) { nbThreads = readU32FromChar(&argument); continue; }
                     if (longCommandWArg(&argument, "--memlimit=")) { memLimit = readU32FromChar(&argument); continue; }
                     if (longCommandWArg(&argument, "--memory=")) { memLimit = readU32FromChar(&argument); continue; }
                     if (longCommandWArg(&argument, "--memlimit-decompress=")) { memLimit = readU32FromChar(&argument); continue; }

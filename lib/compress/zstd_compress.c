@@ -164,7 +164,7 @@ size_t ZSTD_checkCParams(ZSTD_compressionParameters cParams)
     CLAMPCHECK(cParams.searchLog, ZSTD_SEARCHLOG_MIN, ZSTD_SEARCHLOG_MAX);
     CLAMPCHECK(cParams.searchLength, ZSTD_SEARCHLENGTH_MIN, ZSTD_SEARCHLENGTH_MAX);
     CLAMPCHECK(cParams.targetLength, ZSTD_TARGETLENGTH_MIN, ZSTD_TARGETLENGTH_MAX);
-    if ((U32)(cParams.strategy) > (U32)ZSTD_btopt2) return ERROR(compressionParameter_unsupported);
+    CLAMPCHECK(cParams.strategy, ZSTD_fast, ZSTD_btopt2);
     return 0;
 }
 

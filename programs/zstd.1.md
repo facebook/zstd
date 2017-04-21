@@ -4,7 +4,7 @@ zstd(1) -- zstd, zstdmt, unzstd, zstdcat - Compress or decompress .zst files
 SYNOPSIS
 --------
 
-`zstd` [*OPTIONS*] [-|&lt;INPUT-FILE&gt;] [-o &lt;OUTPUT-FILE&gt;]
+`zstd` [*OPTIONS*] [-|_INPUT-FILE_] [-o _OUTPUT-FILE_]
 
 `zstdmt` is equivalent to `zstd -T0`
 
@@ -101,11 +101,10 @@ the last one takes effect.
 * `--ultra`:
     unlocks high compression levels 20+ (maximum 22), using a lot more memory.
     Note that decompression will also require more memory when using these levels.
-* `-T#`:
-    Compress using # threads (default: 1).
-    If `#` is 0, attempt to detect the number of physical CPU cores and compress with
-    that many threads.
-    This modified does nothing if `zstd` was compiled without multithread support.
+* `-T#`, `--threads=#`:
+    Compress using `#` threads (default: 1).
+    If `#` is 0, attempt to detect and use the number of physical CPU cores.
+    This modifier does nothing if `zstd` is compiled without multithread support.
 * `-D file`:
     use `file` as Dictionary to compress or decompress FILE(s)
 * `--nodictID`:
@@ -113,7 +112,7 @@ the last one takes effect.
     The decoder will have to rely on implicit knowledge about which dictionary to use,
     it won't be able to check if it's correct.
 * `-o file`:
-    save result into `file` (only possible with a single INPUT-FILE)
+    save result into `file` (only possible with a single _INPUT-FILE_)
 * `-f`, `--force`:
     overwrite output without prompting, and (de)compress symbolic links
 * `-c`, `--stdout`:
@@ -164,7 +163,7 @@ Typical gains range from 10% (at 64KB) to x5 better (at <1KB).
     and weight typically 100x the target dictionary size
     (for example, 10 MB for a 100 KB dictionary).
 * `-o file`:
-    dictionary saved into `file` (default: dictionary)
+    dictionary saved into `file` (default name: dictionary)
 * `--maxdict=#`:
     limit dictionary to specified size (default : (112640)
 * `--dictID=#`:
@@ -198,9 +197,9 @@ Typical gains range from 10% (at 64KB) to x5 better (at <1KB).
     value of _d_.
     If _d_ is not specified, the values checked are [6, 8, ..., 16].
 
-    Runs the cover dictionary builder for each parameter set and saves the
-    optimal parameters and dictionary.
-    Prints the optimal parameters and writes the optimal dictionary to the output file.
+    Runs the cover dictionary builder for each parameter set
+    and saves the optimal parameters and dictionary.
+    Prints optimal parameters and writes optimal dictionary into output file.
     Supports multithreading if `zstd` is compiled with threading support.
 
     The parameter _k_ is more sensitive than _d_, and is faster to optimize over.
@@ -208,7 +207,10 @@ Typical gains range from 10% (at 64KB) to x5 better (at <1KB).
     Once it completes, use the value of _d_ it selects with a higher _steps_
     (in the range [256, 1024]).
 
-    `zstd --train --optimize-cover FILEs` <br />
+    Examples :
+
+    `zstd --train --optimize-cover FILEs`
+
     `zstd --train --optimize-cover=d=d,steps=512 FILEs`
 
 
@@ -229,14 +231,6 @@ BENCHMARK
 
 ADVANCED COMPRESSION OPTIONS
 ----------------------------
-### -B#:
-Select the size of each compression job.
-This parameter is available only when multi-threading is enabled.
-Default value is `4 * windowSize`, which means it varies depending on compression level.
-`-B#` makes it possible to select a custom value.
-Note that job size must respect a minimum value which is enforced transparently.
-This minimum is either 1 MB, or `overlapSize`, whichever is largest.
-
 ### --zstd[=options]:
 `zstd` provides 22 predefined compression levels.
 The selected or default predefined compression level can be changed with
@@ -319,6 +313,13 @@ The list of available _options_:
     Default _ovlog_ is 6, which means "reload `windowSize / 8`".
     Exception : the maximum compression level (22) has a default _ovlog_ of 9.
 
+### -B#:
+Select the size of each compression job.
+This parameter is available only when multi-threading is enabled.
+Default value is `4 * windowSize`, which means it varies depending on compression level.
+`-B#` makes it possible to select a custom value.
+Note that job size must respect a minimum value which is enforced transparently.
+This minimum is either 1 MB, or `overlapSize`, whichever is largest.
 
 ### Example
 The following parameters sets advanced compression options to those of

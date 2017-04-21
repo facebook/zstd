@@ -1,11 +1,15 @@
 /**
- * Copyright 2016-present, Yann Collet, Facebook, Inc.
+ * Copyright 2017-present, Facebook, Inc.
  * All rights reserved.
  *
  * This source code is licensed under the license found in the
  * LICENSE-examples file in the root directory of this source tree.
  */
 
+/*
+ * A simple demo that sums up all the bytes in the file in parallel using
+ * seekable decompression and the zstd thread pool
+ */
 
 #include <stdlib.h>    // malloc, exit
 #include <stdio.h>     // fprintf, perror, feof
@@ -14,6 +18,15 @@
 #define ZSTD_STATIC_LINKING_ONLY
 #include <zstd.h>      // presumes zstd library is installed
 #include <zstd_errors.h>
+#if defined(WIN32) || defined(_WIN32)
+#  include <windows.h>
+#  define SLEEP(x) Sleep(x)
+#else
+#  include <unistd.h>
+#  define SLEEP(x) usleep(x * 1000)
+#endif
+
+#include "pool.h"      // use zstd thread pool for demo
 
 #include "zstd_seekable.h"
 
@@ -82,13 +95,21 @@ static void fseek_orDie(FILE* file, long int offset, int origin) {
     exit(7);
 }
 
+static const char* filename;
 
-static void decompressFile_orDie(const char* fname, unsigned startOffset, unsigned endOffset)
+struct sum_job {
+    const char* fname;
+    unsigned long long sum;
+    unsigned frameNb;
+    int done;
+};
+
+static void sumFrame(void* opaque)
 {
-    FILE* const fin  = fopen_orDie(fname, "rb");
-    FILE* const fout = stdout;
-    size_t const buffOutSize = ZSTD_DStreamOutSize();  /* Guarantee to successfully flush at least one complete compressed block in all circumstances. */
-    void*  const buffOut = malloc_orDie(buffOutSize);
+    struct sum_job* job = (struct sum_job*)opaque;
+    job->done = 0;
+
+    FILE* const fin = fopen_orDie(job->fname, "rb");
 
     ZSTD_seekable* const seekable = ZSTD_seekable_create();
     if (seekable==NULL) { fprintf(stderr, "ZSTD_seekable_create() error \n"); exit(10); }
@@ -96,22 +117,60 @@ static void decompressFile_orDie(const char* fname, unsigned startOffset, unsign
     size_t const initResult = ZSTD_seekable_initFile(seekable, fin);
     if (ZSTD_isError(initResult)) { fprintf(stderr, "ZSTD_seekable_init() error : %s \n", ZSTD_getErrorName(initResult)); exit(11); }
 
-    while (startOffset < endOffset) {
-        size_t const result = ZSTD_seekable_decompress(seekable, buffOut, MIN(endOffset - startOffset, buffOutSize), startOffset);
+    size_t const frameSize = ZSTD_seekable_getFrameDecompressedSize(seekable, job->frameNb);
+    unsigned char* data = malloc_orDie(frameSize);
 
-        if (ZSTD_isError(result)) {
-            fprintf(stderr, "ZSTD_seekable_decompress() error : %s \n",
-                    ZSTD_getErrorName(result));
-            exit(12);
-        }
-        fwrite_orDie(buffOut, result, fout);
-        startOffset += result;
+    size_t result = ZSTD_seekable_decompressFrame(seekable, data, frameSize, job->frameNb);
+    if (ZSTD_isError(result)) { fprintf(stderr, "ZSTD_seekable_decompressFrame() error : %s \n", ZSTD_getErrorName(result)); exit(12); }
+
+    unsigned long long sum = 0;
+    size_t i;
+    for (i = 0; i < frameSize; i++) {
+        sum += data[i];
+    }
+    job->sum = sum;
+    job->done = 1;
+
+    fclose(fin);
+    ZSTD_seekable_free(seekable);
+    free(data);
+}
+
+static void sumFile_orDie(const char* fname, int nbThreads)
+{
+    POOL_ctx* pool = POOL_create(nbThreads, nbThreads);
+    if (pool == NULL) { fprintf(stderr, "POOL_create() error \n"); exit(9); }
+
+    FILE* const fin = fopen_orDie(fname, "rb");
+
+    ZSTD_seekable* const seekable = ZSTD_seekable_create();
+    if (seekable==NULL) { fprintf(stderr, "ZSTD_seekable_create() error \n"); exit(10); }
+
+    size_t const initResult = ZSTD_seekable_initFile(seekable, fin);
+    if (ZSTD_isError(initResult)) { fprintf(stderr, "ZSTD_seekable_init() error : %s \n", ZSTD_getErrorName(initResult)); exit(11); }
+
+    size_t const numFrames = ZSTD_seekable_getNumFrames(seekable);
+    struct sum_job* jobs = (struct sum_job*)malloc(numFrames * sizeof(struct sum_job));
+
+    size_t i;
+    for (i = 0; i < numFrames; i++) {
+        jobs[i] = (struct sum_job){ fname, 0, i, 0 };
+        POOL_add(pool, sumFrame, &jobs[i]);
     }
 
+    unsigned long long total = 0;
+
+    for (i = 0; i < numFrames; i++) {
+        while (!jobs[i].done) SLEEP(5); /* wake up every 5 milliseconds to check */
+        total += jobs[i].sum;
+    }
+
+    printf("Sum: %llu\n", total);
+
+    POOL_free(pool);
     ZSTD_seekable_free(seekable);
-    fclose_orDie(fin);
-    fclose_orDie(fout);
-    free(buffOut);
+    fclose(fin);
+    free(jobs);
 }
 
 
@@ -119,18 +178,17 @@ int main(int argc, const char** argv)
 {
     const char* const exeName = argv[0];
 
-    if (argc!=4) {
+    if (argc!=3) {
         fprintf(stderr, "wrong arguments\n");
         fprintf(stderr, "usage:\n");
-        fprintf(stderr, "%s FILE START END\n", exeName);
+        fprintf(stderr, "%s FILE NB_THREADS\n", exeName);
         return 1;
     }
 
     {
         const char* const inFilename = argv[1];
-        unsigned const startOffset = (unsigned) atoi(argv[2]);
-        unsigned const endOffset = (unsigned) atoi(argv[3]);
-        decompressFile_orDie(inFilename, startOffset, endOffset);
+        int const nbThreads = atoi(argv[2]);
+        sumFile_orDie(inFilename, nbThreads);
     }
 
     return 0;

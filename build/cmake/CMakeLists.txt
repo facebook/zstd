@@ -9,13 +9,14 @@
 
 PROJECT(zstd)
 CMAKE_MINIMUM_REQUIRED(VERSION 2.8.9)
-SET(ZSTD_SOURCE_DIR "${CMAKE_SOURCE_DIR}/../..")
+SET(ZSTD_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../..")
+LIST(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/CMakeModules")
 
 #-----------------------------------------------------------------------------
 # Add extra compilation flags
 #-----------------------------------------------------------------------------
-INCLUDE(CMakeModules/AddExtraCompilationFlags.cmake)
-ADD_EXTRA_COMPILATION_FLAGS()
+INCLUDE(AddZstdCompilationFlags)
+ADD_ZSTD_COMPILATION_FLAGS()
 
 #-----------------------------------------------------------------------------
 # Options

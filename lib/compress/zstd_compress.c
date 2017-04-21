@@ -27,10 +27,11 @@ static const U32 g_searchStrength = 8;   /* control skip over incompressible dat
 #define HASH_READ_SIZE 8
 typedef enum { ZSTDcs_created=0, ZSTDcs_init, ZSTDcs_ongoing, ZSTDcs_ending } ZSTD_compressionStage_e;
 
+/* entropy tables always have same size */
+static size_t const hufCTable_size = HUF_CTABLE_SIZE(255);
+static size_t const litlengthCTable_size = FSE_CTABLE_SIZE_U32(LLFSELog, MaxLL) * sizeof(FSE_CTable);
 static size_t const offcodeCTable_size = FSE_CTABLE_SIZE_U32(OffFSELog, MaxOff) * sizeof(FSE_CTable);
 static size_t const matchlengthCTable_size = FSE_CTABLE_SIZE_U32(MLFSELog, MaxML) * sizeof(FSE_CTable);
-static size_t const litlengthCTable_size = FSE_CTABLE_SIZE_U32(LLFSELog, MaxLL) * sizeof(FSE_CTable);
-
 
 
 /*-*************************************
@@ -94,9 +95,9 @@ struct ZSTD_CCtx_s {
     U32* hashTable;
     U32* hashTable3;
     U32* chainTable;
-    HUF_CElt* hufTable;
-    U32 flagStaticTables;
-    HUF_repeat flagStaticHufTable;
+    HUF_repeat hufCTable_repeatMode;
+    HUF_CElt* hufCTable;
+    U32 fseCTables_ready;
     FSE_CTable offcodeCTable  [FSE_CTABLE_SIZE_U32(OffFSELog, MaxOff)];
     FSE_CTable matchlengthCTable[FSE_CTABLE_SIZE_U32(MLFSELog, MaxML)];
     FSE_CTable litlengthCTable  [FSE_CTABLE_SIZE_U32(LLFSELog, MaxLL)];
@@ -221,11 +222,13 @@ size_t ZSTD_estimateCCtxSize(ZSTD_compressionParameters cParams)
     size_t const hSize = ((size_t)1) << cParams.hashLog;
     U32    const hashLog3 = (cParams.searchLength>3) ? 0 : MIN(ZSTD_HASHLOG3_MAX, cParams.windowLog);
     size_t const h3Size = ((size_t)1) << hashLog3;
+    size_t const entropySpace = hufCTable_size + litlengthCTable_size
+                              + offcodeCTable_size + matchlengthCTable_size;
     size_t const tableSpace = (chainSize + hSize + h3Size) * sizeof(U32);
 
     size_t const optSpace = ((MaxML+1) + (MaxLL+1) + (MaxOff+1) + (1<<Litbits))*sizeof(U32)
                           + (ZSTD_OPT_NUM+1)*(sizeof(ZSTD_match_t) + sizeof(ZSTD_optimal_t));
-    size_t const neededSpace = tableSpace + (256*sizeof(U32)) /* huffTable */ + tokenSpace
+    size_t const neededSpace = entropySpace + tableSpace + tokenSpace
                              + (((cParams.strategy == ZSTD_btopt) || (cParams.strategy == ZSTD_btopt2)) ? optSpace : 0);
 
     return sizeof(ZSTD_CCtx) + neededSpace;
@@ -270,8 +273,8 @@ static size_t ZSTD_resetCCtx_internal (ZSTD_CCtx* zc,
 {
     if (crp == ZSTDcrp_continue)
         if (ZSTD_equivalentParams(params, zc->params)) {
-            zc->flagStaticTables = 0;
-            zc->flagStaticHufTable = HUF_repeat_none;
+            zc->fseCTables_ready = 0;
+            zc->hufCTable_repeatMode = HUF_repeat_none;
             return ZSTD_continueCCtx(zc, params, frameContentSize);
         }
 
@@ -287,12 +290,12 @@ static size_t ZSTD_resetCCtx_internal (ZSTD_CCtx* zc,
         void* ptr;
 
         /* Check if workSpace is large enough, alloc a new one if needed */
-        {   size_t const optSpace = ((MaxML+1) + (MaxLL+1) + (MaxOff+1) + (1<<Litbits)) * sizeof(U32)
+        {   size_t const entropySpace = hufCTable_size + litlengthCTable_size
+                                  + offcodeCTable_size + matchlengthCTable_size;
+            size_t const optPotentialSpace = ((MaxML+1) + (MaxLL+1) + (MaxOff+1) + (1<<Litbits)) * sizeof(U32)
                                   + (ZSTD_OPT_NUM+1) * (sizeof(ZSTD_match_t)+sizeof(ZSTD_optimal_t));
-            size_t const neededSpace = tableSpace
-                                  + HUF_CTABLE_SIZE(255)
-                                  + tokenSpace
-                                  + (((params.cParams.strategy == ZSTD_btopt) || (params.cParams.strategy == ZSTD_btopt2)) ? optSpace : 0);
+            size_t const optSpace = ((params.cParams.strategy == ZSTD_btopt) || (params.cParams.strategy == ZSTD_btopt2)) ? optPotentialSpace : 0;
+            size_t const neededSpace = entropySpace + optSpace + tableSpace + tokenSpace;
             if (zc->workSpaceSize < neededSpace) {
                 zc->workSpaceSize = 0;
                 ZSTD_free(zc->workSpace, zc->customMem);
@@ -302,8 +305,8 @@ static size_t ZSTD_resetCCtx_internal (ZSTD_CCtx* zc,
                 ptr = zc->workSpace;
 
                 /* entropy space */
-                zc->hufTable = (HUF_CElt*)ptr;
-                ptr = (U32*)zc->hufTable + HUF_CTABLE_SIZE_U32(255);  /* note : HUF_CElt* is incomplete type, size is estimated via macro */
+                zc->hufCTable = (HUF_CElt*)ptr;
+                ptr = (char*)zc->hufCTable + hufCTable_size;  /* note : HUF_CElt* is incomplete type, size is estimated via macro */
 
         }   }
 
@@ -317,8 +320,8 @@ static size_t ZSTD_resetCCtx_internal (ZSTD_CCtx* zc,
         zc->stage = ZSTDcs_init;
         zc->dictID = 0;
         zc->loadedDictEnd = 0;
-        zc->flagStaticTables = 0;
-        zc->flagStaticHufTable = HUF_repeat_none;
+        zc->fseCTables_ready = 0;
+        zc->hufCTable_repeatMode = HUF_repeat_none;
         zc->nextToUpdate = 1;
         zc->nextSrc = NULL;
         zc->base = NULL;
@@ -329,7 +332,7 @@ static size_t ZSTD_resetCCtx_internal (ZSTD_CCtx* zc,
         zc->hashLog3 = hashLog3;
         zc->seqStore.litLengthSum = 0;
 
-        ptr = (U32*)zc->hufTable + HUF_CTABLE_SIZE_U32(255);  /* note : HUF_CElt* is incomplete type, size is estimated via macro */
+        ptr = (char*)zc->hufCTable + hufCTable_size;  /* note : HUF_CElt* is incomplete type, size is estimated via macro */
 
         /* opt parser space */
         if ((params.cParams.strategy == ZSTD_btopt) || (params.cParams.strategy == ZSTD_btopt2)) {
@@ -413,15 +416,15 @@ size_t ZSTD_copyCCtx_internal(ZSTD_CCtx* dstCCtx, const ZSTD_CCtx* srcCCtx,
     dstCCtx->dictID       = srcCCtx->dictID;
 
     /* copy entropy tables */
-    dstCCtx->flagStaticTables = srcCCtx->flagStaticTables;
-    if (srcCCtx->flagStaticTables) {
+    dstCCtx->fseCTables_ready = srcCCtx->fseCTables_ready;
+    if (srcCCtx->fseCTables_ready) {
         memcpy(dstCCtx->litlengthCTable, srcCCtx->litlengthCTable, litlengthCTable_size);
         memcpy(dstCCtx->matchlengthCTable, srcCCtx->matchlengthCTable, matchlengthCTable_size);
         memcpy(dstCCtx->offcodeCTable, srcCCtx->offcodeCTable, offcodeCTable_size);
     }
-    dstCCtx->flagStaticHufTable = srcCCtx->flagStaticHufTable;
-    if (srcCCtx->flagStaticHufTable) {
-        memcpy(dstCCtx->hufTable, srcCCtx->hufTable, HUF_CTABLE_SIZE(255));
+    dstCCtx->hufCTable_repeatMode = srcCCtx->hufCTable_repeatMode;
+    if (srcCCtx->hufCTable_repeatMode) {
+        memcpy(dstCCtx->hufCTable, srcCCtx->hufCTable, hufCTable_size);
     }
 
     return 0;
@@ -549,28 +552,28 @@ static size_t ZSTD_compressLiterals (ZSTD_CCtx* zc,
 
     /* small ? don't even attempt compression (speed opt) */
 #   define LITERAL_NOENTROPY 63
-    {   size_t const minLitSize = zc->flagStaticHufTable == HUF_repeat_valid ? 6 : LITERAL_NOENTROPY;
+    {   size_t const minLitSize = zc->hufCTable_repeatMode == HUF_repeat_valid ? 6 : LITERAL_NOENTROPY;
         if (srcSize <= minLitSize) return ZSTD_noCompressLiterals(dst, dstCapacity, src, srcSize);
     }
 
     if (dstCapacity < lhSize+1) return ERROR(dstSize_tooSmall);   /* not enough space for compression */
-    {   HUF_repeat repeat = zc->flagStaticHufTable;
+    {   HUF_repeat repeat = zc->hufCTable_repeatMode;
         int const preferRepeat = zc->params.cParams.strategy < ZSTD_lazy ? srcSize <= 1024 : 0;
         if (repeat == HUF_repeat_valid && lhSize == 3) singleStream = 1;
         cLitSize = singleStream ? HUF_compress1X_repeat(ostart+lhSize, dstCapacity-lhSize, src, srcSize, 255, 11,
-                                      zc->tmpCounters, sizeof(zc->tmpCounters), zc->hufTable, &repeat, preferRepeat)
+                                      zc->tmpCounters, sizeof(zc->tmpCounters), zc->hufCTable, &repeat, preferRepeat)
                                 : HUF_compress4X_repeat(ostart+lhSize, dstCapacity-lhSize, src, srcSize, 255, 11,
-                                      zc->tmpCounters, sizeof(zc->tmpCounters), zc->hufTable, &repeat, preferRepeat);
+                                      zc->tmpCounters, sizeof(zc->tmpCounters), zc->hufCTable, &repeat, preferRepeat);
         if (repeat != HUF_repeat_none) { hType = set_repeat; }    /* reused the existing table */
-        else { zc->flagStaticHufTable = HUF_repeat_check; }       /* now have a table to reuse */
+        else { zc->hufCTable_repeatMode = HUF_repeat_check; }       /* now have a table to reuse */
     }
 
     if ((cLitSize==0) | (cLitSize >= srcSize - minGain)) {
-        zc->flagStaticHufTable = HUF_repeat_none;
+        zc->hufCTable_repeatMode = HUF_repeat_none;
         return ZSTD_noCompressLiterals(dst, dstCapacity, src, srcSize);
     }
     if (cLitSize==1) {
-        zc->flagStaticHufTable = HUF_repeat_none;
+        zc->hufCTable_repeatMode = HUF_repeat_none;
         return ZSTD_compressRleLiteralsBlock(dst, dstCapacity, src, srcSize);
     }
 
@@ -694,7 +697,7 @@ MEM_STATIC size_t ZSTD_compressSequences (ZSTD_CCtx* zc,
             *op++ = llCodeTable[0];
             FSE_buildCTable_rle(CTable_LitLength, (BYTE)max);
             LLtype = set_rle;
-        } else if ((zc->flagStaticTables) && (nbSeq < MAX_SEQ_FOR_STATIC_FSE)) {
+        } else if ((zc->fseCTables_ready) && (nbSeq < MAX_SEQ_FOR_STATIC_FSE)) {
             LLtype = set_repeat;
         } else if ((nbSeq < MIN_SEQ_FOR_DYNAMIC_FSE) || (mostFrequent < (nbSeq >> (LL_defaultNormLog-1)))) {
             FSE_buildCTable_wksp(CTable_LitLength, LL_defaultNorm, MaxLL, LL_defaultNormLog, scratchBuffer, sizeof(scratchBuffer));
@@ -718,7 +721,7 @@ MEM_STATIC size_t ZSTD_compressSequences (ZSTD_CCtx* zc,
             *op++ = ofCodeTable[0];
             FSE_buildCTable_rle(CTable_OffsetBits, (BYTE)max);
             Offtype = set_rle;
-        } else if ((zc->flagStaticTables) && (nbSeq < MAX_SEQ_FOR_STATIC_FSE)) {
+        } else if ((zc->fseCTables_ready) && (nbSeq < MAX_SEQ_FOR_STATIC_FSE)) {
             Offtype = set_repeat;
         } else if ((nbSeq < MIN_SEQ_FOR_DYNAMIC_FSE) || (mostFrequent < (nbSeq >> (OF_defaultNormLog-1)))) {
             FSE_buildCTable_wksp(CTable_OffsetBits, OF_defaultNorm, MaxOff, OF_defaultNormLog, scratchBuffer, sizeof(scratchBuffer));
@@ -742,7 +745,7 @@ MEM_STATIC size_t ZSTD_compressSequences (ZSTD_CCtx* zc,
             *op++ = *mlCodeTable;
             FSE_buildCTable_rle(CTable_MatchLength, (BYTE)max);
             MLtype = set_rle;
-        } else if ((zc->flagStaticTables) && (nbSeq < MAX_SEQ_FOR_STATIC_FSE)) {
+        } else if ((zc->fseCTables_ready) && (nbSeq < MAX_SEQ_FOR_STATIC_FSE)) {
             MLtype = set_repeat;
         } else if ((nbSeq < MIN_SEQ_FOR_DYNAMIC_FSE) || (mostFrequent < (nbSeq >> (ML_defaultNormLog-1)))) {
             FSE_buildCTable_wksp(CTable_MatchLength, ML_defaultNorm, MaxML, ML_defaultNormLog, scratchBuffer, sizeof(scratchBuffer));
@@ -760,7 +763,7 @@ MEM_STATIC size_t ZSTD_compressSequences (ZSTD_CCtx* zc,
     }   }
 
     *seqHead = (BYTE)((LLtype<<6) + (Offtype<<4) + (MLtype<<2));
-    zc->flagStaticTables = 0;
+    zc->fseCTables_ready = 0;
 
     /* Encoding Sequences */
     {   BIT_CStream_t blockStream;
@@ -839,7 +842,7 @@ _check_compressibility:
     {   size_t const minGain = ZSTD_minGain(srcSize);
         size_t const maxCSize = srcSize - minGain;
         if ((size_t)(op-ostart) >= maxCSize) {
-            zc->flagStaticHufTable = HUF_repeat_none;
+            zc->hufCTable_repeatMode = HUF_repeat_none;
             return 0;
     }   }
 
@@ -2678,7 +2681,7 @@ static size_t ZSTD_loadZstdDictionary(ZSTD_CCtx* cctx, const void* dict, size_t 
     cctx->dictID = cctx->params.fParams.noDictIDFlag ? 0 :  MEM_readLE32(dictPtr);
     dictPtr += 4;
 
-    {   size_t const hufHeaderSize = HUF_readCTable(cctx->hufTable, 255, dictPtr, dictEnd-dictPtr);
+    {   size_t const hufHeaderSize = HUF_readCTable(cctx->hufCTable, 255, dictPtr, dictEnd-dictPtr);
         if (HUF_isError(hufHeaderSize)) return ERROR(dictionary_corrupted);
         dictPtr += hufHeaderSize;
     }
@@ -2738,8 +2741,8 @@ static size_t ZSTD_loadZstdDictionary(ZSTD_CCtx* cctx, const void* dict, size_t 
                 if (cctx->rep[u] > dictContentSize) return ERROR(dictionary_corrupted);
         }   }
 
-        cctx->flagStaticTables = 1;
-        cctx->flagStaticHufTable = HUF_repeat_valid;
+        cctx->fseCTables_ready = 1;
+        cctx->hufCTable_repeatMode = HUF_repeat_valid;
         return ZSTD_loadDictionaryContent(cctx, dictPtr, dictContentSize);
     }
 }

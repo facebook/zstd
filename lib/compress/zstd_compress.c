@@ -27,6 +27,11 @@ static const U32 g_searchStrength = 8;   /* control skip over incompressible dat
 #define HASH_READ_SIZE 8
 typedef enum { ZSTDcs_created=0, ZSTDcs_init, ZSTDcs_ongoing, ZSTDcs_ending } ZSTD_compressionStage_e;
 
+static size_t const offcodeCTable_size = FSE_CTABLE_SIZE_U32(OffFSELog, MaxOff) * sizeof(FSE_CTable);
+static size_t const matchlengthCTable_size = FSE_CTABLE_SIZE_U32(MLFSELog, MaxML) * sizeof(FSE_CTable);
+static size_t const litlengthCTable_size = FSE_CTABLE_SIZE_U32(LLFSELog, MaxLL) * sizeof(FSE_CTable);
+
+
 
 /*-*************************************
 *  Helper functions
@@ -410,9 +415,9 @@ size_t ZSTD_copyCCtx_internal(ZSTD_CCtx* dstCCtx, const ZSTD_CCtx* srcCCtx,
     /* copy entropy tables */
     dstCCtx->flagStaticTables = srcCCtx->flagStaticTables;
     if (srcCCtx->flagStaticTables) {
-        memcpy(dstCCtx->litlengthCTable, srcCCtx->litlengthCTable, sizeof(dstCCtx->litlengthCTable));  /* depends on litlengthCTable being a table and not a pointer */
-        memcpy(dstCCtx->matchlengthCTable, srcCCtx->matchlengthCTable, sizeof(dstCCtx->matchlengthCTable));
-        memcpy(dstCCtx->offcodeCTable, srcCCtx->offcodeCTable, sizeof(dstCCtx->offcodeCTable));
+        memcpy(dstCCtx->litlengthCTable, srcCCtx->litlengthCTable, litlengthCTable_size);
+        memcpy(dstCCtx->matchlengthCTable, srcCCtx->matchlengthCTable, matchlengthCTable_size);
+        memcpy(dstCCtx->offcodeCTable, srcCCtx->offcodeCTable, offcodeCTable_size);
     }
     dstCCtx->flagStaticHufTable = srcCCtx->flagStaticHufTable;
     if (srcCCtx->flagStaticHufTable) {

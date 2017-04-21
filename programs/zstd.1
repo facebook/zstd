@@ -2,10 +2,13 @@
 .TH "ZSTD" "1" "April 2017" "zstd 1.1.5" "User Commands"
 .
 .SH "NAME"
-\fBzstd\fR \- zstd, unzstd, zstdcat \- Compress or decompress \.zst files
+\fBzstd\fR \- zstd, zstdmt, unzstd, zstdcat \- Compress or decompress \.zst files
 .
 .SH "SYNOPSIS"
-\fBzstd\fR [\fIOPTIONS\fR] [\-|<INPUT\-FILE>] [\-o <OUTPUT\-FILE>]
+\fBzstd\fR [\fIOPTIONS\fR] [\-|\fIINPUT\-FILE\fR] [\-o \fIOUTPUT\-FILE\fR]
+.
+.P
+\fBzstdmt\fR is equivalent to \fBzstd \-T0\fR
 .
 .P
 \fBunzstd\fR is equivalent to \fBzstd \-d\fR
@@ -97,8 +100,8 @@ Use FILEs as a training set to create a dictionary\. The training set should con
 unlocks high compression levels 20+ (maximum 22), using a lot more memory\. Note that decompression will also require more memory when using these levels\.
 .
 .TP
-\fB\-T#\fR
-Compress using # threads (default: 1)\. This modifier is only available if \fBzstd\fR was compiled with multithreading support\.
+\fB\-T#\fR, \fB\-\-threads=#\fR
+Compress using \fB#\fR threads (default: 1)\. If \fB#\fR is 0, attempt to detect and use the number of physical CPU cores\. This modifier does nothing if \fBzstd\fR is compiled without multithread support\.
 .
 .TP
 \fB\-D file\fR
@@ -110,7 +113,7 @@ do not store dictionary ID within frame header (dictionary compression)\. The de
 .
 .TP
 \fB\-o file\fR
-save result into \fBfile\fR (only possible with a single INPUT\-FILE)
+save result into \fBfile\fR (only possible with a single \fIINPUT\-FILE\fR)
 .
 .TP
 \fB\-f\fR, \fB\-\-force\fR
@@ -169,7 +172,7 @@ use FILEs as training set to create a dictionary\. The training set should conta
 .
 .TP
 \fB\-o file\fR
-dictionary saved into \fBfile\fR (default: dictionary)
+dictionary saved into \fBfile\fR (default name: dictionary)
 .
 .TP
 \fB\-\-maxdict=#\fR
@@ -195,15 +198,18 @@ Example: \fB\-\-train \-\-cover=k=64,d=8 FILEs\fR\.
 If \fIsteps\fR is not specified, the default value of 32 is used\. If \fIk\fR is not specified, the \fIk\fR values in [16, 2048] are checked for each value of \fId\fR\. If \fId\fR is not specified, the values checked are [6, 8, \.\.\., 16]\.
 .
 .IP
-Runs the cover dictionary builder for each parameter set and saves the optimal parameters and dictionary\. Prints the optimal parameters and writes the optimal dictionary to the output file\. Supports multithreading if \fBzstd\fR is compiled with threading support\.
+Runs the cover dictionary builder for each parameter set and saves the optimal parameters and dictionary\. Prints optimal parameters and writes optimal dictionary into output file\. Supports multithreading if \fBzstd\fR is compiled with threading support\.
 .
 .IP
 The parameter \fIk\fR is more sensitive than \fId\fR, and is faster to optimize over\. Suggested use is to run with a \fIsteps\fR <= 32 with neither \fIk\fR nor \fId\fR set\. Once it completes, use the value of \fId\fR it selects with a higher \fIsteps\fR (in the range [256, 1024])\.
 .
 .IP
+Examples :
+.
+.IP
 \fBzstd \-\-train \-\-optimize\-cover FILEs\fR
 .
-.br
+.IP
 \fBzstd \-\-train \-\-optimize\-cover=d=d,steps=512 FILEs\fR
 .
 .SH "BENCHMARK"
@@ -229,9 +235,6 @@ cut file into independent blocks of size # (default: no block)
 set process priority to real\-time
 .
 .SH "ADVANCED COMPRESSION OPTIONS"
-.
-.SS "\-B#:"
-Select the size of each compression job\. This parameter is available only when multi\-threading is enabled\. Default value is \fB4 * windowSize\fR, which means it varies depending on compression level\. \fB\-B#\fR makes it possible to select a custom value\. Note that job size must respect a minimum value which is enforced transparently\. This minimum is either 1 MB, or \fBoverlapSize\fR, whichever is largest\.
 .
 .SS "\-\-zstd[=options]:"
 \fBzstd\fR provides 22 predefined compression levels\. The selected or default predefined compression level can be changed with advanced compression options\. The \fIoptions\fR are provided as a comma\-separated list\. You may specify only the options you want to change and the rest will be taken from the selected or default compression level\. The list of available \fIoptions\fR:
@@ -306,6 +309,9 @@ Determine \fBoverlapSize\fR, amount of data reloaded from previous job\. This pa
 .
 .IP
 The minimum \fIovlog\fR is 0, and the maximum is 9\. 0 means "no overlap", hence completely independent jobs\. 9 means "full overlap", meaning up to \fBwindowSize\fR is reloaded from previous job\. Reducing \fIovlog\fR by 1 reduces the amount of reload by a factor 2\. Default \fIovlog\fR is 6, which means "reload \fBwindowSize / 8\fR"\. Exception : the maximum compression level (22) has a default \fIovlog\fR of 9\.
+.
+.SS "\-B#:"
+Select the size of each compression job\. This parameter is available only when multi\-threading is enabled\. Default value is \fB4 * windowSize\fR, which means it varies depending on compression level\. \fB\-B#\fR makes it possible to select a custom value\. Note that job size must respect a minimum value which is enforced transparently\. This minimum is either 1 MB, or \fBoverlapSize\fR, whichever is largest\.
 .
 .SS "Example"
 The following parameters sets advanced compression options to those of predefined level 19 for files bigger than 256 KB:

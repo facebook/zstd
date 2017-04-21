@@ -15,7 +15,7 @@
     - COMPILER: "gcc"
       HOST:     "mingw"
       PLATFORM: "x86"
-      SCRIPT:   "make lib && make zstd && make -C tests allnothread"
+      SCRIPT:   "make allarch"
       ARTIFACT: "true"
       BUILD:    "true"
     - COMPILER: "clang"
@@ -191,7 +191,7 @@
     - COMPILER: "gcc"
       HOST:     "mingw"
       PLATFORM: "x86"
-      SCRIPT:   "make lib && make zstd && make -C tests allnothread"
+      SCRIPT:   "make allarch"
     - COMPILER: "clang"
       HOST:     "mingw"
       PLATFORM: "x64"
@@ -218,10 +218,10 @@
   - ECHO Installing %COMPILER% %PLATFORM% %CONFIGURATION%
   - SET PATH_ORIGINAL=%PATH%
   - if [%HOST%]==[mingw] (
-      SET "PATH_MINGW32=C:\MinGW\bin;C:\MinGW\usr\bin" &&
-      SET "PATH_MINGW64=C:\msys64\mingw64\bin;C:\msys64\usr\bin" &&
-      COPY C:\msys64\usr\bin\make.exe C:\MinGW\bin\make.exe &&
-      COPY C:\MinGW\bin\gcc.exe C:\MinGW\bin\cc.exe
+      SET "PATH_MINGW32=C:\mingw-w64\i686-6.3.0-posix-dwarf-rt_v5-rev1\mingw32\bin" &&
+      SET "PATH_MINGW64=C:\mingw-w64\x86_64-6.3.0-posix-seh-rt_v5-rev1\mingw64\bin" &&
+      COPY C:\msys64\usr\bin\make.exe C:\mingw-w64\i686-6.3.0-posix-dwarf-rt_v5-rev1\mingw32\bin\make.exe &&
+      COPY C:\msys64\usr\bin\make.exe C:\mingw-w64\x86_64-6.3.0-posix-seh-rt_v5-rev1\mingw64\bin\make.exe
     )
   - IF [%HOST%]==[visual] IF [%PLATFORM%]==[x64] (
       SET ADDITIONALPARAM=/p:LibraryPath="C:\Program Files\Microsoft SDKs\Windows\v7.1\lib\x64;c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\lib\amd64;C:\Program Files (x86)\Microsoft Visual Studio 10.0\;C:\Program Files (x86)\Microsoft Visual Studio 10.0\lib\amd64;"
@@ -237,7 +237,8 @@
       ) ) &&
       make -v &&
       sh -c "%COMPILER% -v" &&
-      sh -c "CC=%COMPILER% %SCRIPT%"
+      set "CC=%COMPILER%" &&
+      sh -c "%SCRIPT%"
     )
   - if [%HOST%]==[visual] (
       ECHO *** &&

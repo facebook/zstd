@@ -76,7 +76,7 @@
 
 #define CACHELINE 64
 
-#define MAX_DICT_SIZE (8 MB)   /* protection against large input (attack scenario) */
+#define DICTSIZE_MAX (32 MB)   /* protection against large input (attack scenario) */
 
 #define FNSPACE 30
 
@@ -96,6 +96,7 @@ void FIO_setNotificationLevel(unsigned level) { g_displayLevel=level; }
 static const clock_t refreshRate = CLOCKS_PER_SEC * 15 / 100;
 static clock_t g_time = 0;
 
+#undef MIN
 #define MIN(a,b)    ((a) < (b) ? (a) : (b))
 
 /* ************************************************************
@@ -278,13 +279,13 @@ static FILE* FIO_openDstFile(const char* dstFileName)
 }
 
 
-/*! FIO_loadFile() :
-*   creates a buffer, pointed by `*bufferPtr`,
-*   loads `filename` content into it,
-*   up to MAX_DICT_SIZE bytes.
-*   @return : loaded size
-*/
-static size_t FIO_loadFile(void** bufferPtr, const char* fileName)
+/*! FIO_createDictBuffer() :
+ *  creates a buffer, pointed by `*bufferPtr`,
+ *  loads `filename` content into it, up to DICTSIZE_MAX bytes.
+ *  @return : loaded size
+ *  if fileName==NULL, returns 0 and a NULL pointer
+ */
+static size_t FIO_createDictBuffer(void** bufferPtr, const char* fileName)
 {
     FILE* fileHandle;
     U64 fileSize;
@@ -296,14 +297,7 @@ static size_t FIO_loadFile(void** bufferPtr, const char* fileName)
     fileHandle = fopen(fileName, "rb");
     if (fileHandle==0) EXM_THROW(31, "zstd: %s: %s", fileName, strerror(errno));
     fileSize = UTIL_getFileSize(fileName);
-    if (fileSize > MAX_DICT_SIZE) {
-        int seekResult;
-        if (fileSize > 1 GB) EXM_THROW(32, "Dictionary file %s is too large", fileName);   /* avoid extreme cases */
-        DISPLAYLEVEL(2,"Dictionary %s is too large : using last %u bytes only \n", fileName, (U32)MAX_DICT_SIZE);
-        seekResult = fseek(fileHandle, (long int)(fileSize-MAX_DICT_SIZE), SEEK_SET);   /* use end of file */
-        if (seekResult != 0) EXM_THROW(33, "zstd: %s: %s", fileName, strerror(errno));
-        fileSize = MAX_DICT_SIZE;
-    }
+    if (fileSize > DICTSIZE_MAX) EXM_THROW(32, "Dictionary file %s is too large (> %u MB)", fileName, DICTSIZE_MAX >> 20);   /* avoid extreme cases */
     *bufferPtr = malloc((size_t)fileSize);
     if (*bufferPtr==NULL) EXM_THROW(34, "zstd: %s", strerror(errno));
     { size_t const readSize = fread(*bufferPtr, 1, (size_t)fileSize, fileHandle);
@@ -356,7 +350,7 @@ static cRess_t FIO_createCResources(const char* dictFileName, int cLevel,
 
     /* dictionary */
     {   void* dictBuffer;
-        size_t const dictBuffSize = FIO_loadFile(&dictBuffer, dictFileName);
+        size_t const dictBuffSize = FIO_createDictBuffer(&dictBuffer, dictFileName);   /* works with dictFileName==NULL */
         if (dictFileName && (dictBuffer==NULL)) EXM_THROW(32, "zstd: allocation error : can't create dictBuffer");
         {   ZSTD_parameters params = ZSTD_getParams(cLevel, srcSize, dictBuffSize);
             params.fParams.contentSizeFlag = srcRegFile;
@@ -368,7 +362,7 @@ static cRess_t FIO_createCResources(const char* dictFileName, int cLevel,
             if (comprParams->searchLog) params.cParams.searchLog = comprParams->searchLog;
             if (comprParams->searchLength) params.cParams.searchLength = comprParams->searchLength;
             if (comprParams->targetLength) params.cParams.targetLength = comprParams->targetLength;
-            if (comprParams->strategy) params.cParams.strategy = (ZSTD_strategy)(comprParams->strategy - 1);
+            if (comprParams->strategy) params.cParams.strategy = (ZSTD_strategy)(comprParams->strategy - 1);   /* 0 means : do not change */
 #ifdef ZSTD_MULTITHREAD
             {   size_t const errorCode = ZSTDMT_initCStream_advanced(ress.cctx, dictBuffer, dictBuffSize, params, srcSize);
                 if (ZSTD_isError(errorCode)) EXM_THROW(33, "Error initializing CStream : %s", ZSTD_getErrorName(errorCode));
@@ -574,8 +568,8 @@ static int FIO_compressFilename_internal(cRess_t ress,
         readsize += inSize;
 
         {   ZSTD_inBuffer  inBuff = { ress.srcBuffer, inSize, 0 };
-            while (inBuff.pos != inBuff.size) {   /* note : is there any possibility of endless loop ? for example, if outBuff is not large enough ? */
-                ZSTD_outBuffer outBuff= { ress.dstBuffer, ress.dstBufferSize, 0 };
+            while (inBuff.pos != inBuff.size) {
+                ZSTD_outBuffer outBuff = { ress.dstBuffer, ress.dstBufferSize, 0 };
 #ifdef ZSTD_MULTITHREAD
                 size_t const result = ZSTDMT_compressStream(ress.cctx, &outBuff, &inBuff);
 #else
@@ -589,13 +583,13 @@ static int FIO_compressFilename_internal(cRess_t ress,
                     if (sizeCheck!=outBuff.pos) EXM_THROW(25, "Write error : cannot write compressed block into %s", dstFileName);
                     compressedfilesize += outBuff.pos;
         }   }   }
-#ifdef ZSTD_MULTITHREAD
-        if (!fileSize) DISPLAYUPDATE(2, "\rRead : %u MB", (U32)(readsize>>20))
-        else DISPLAYUPDATE(2, "\rRead : %u / %u MB", (U32)(readsize>>20), (U32)(fileSize>>20));
-#else
-        if (!fileSize) DISPLAYUPDATE(2, "\rRead : %u MB ==> %.2f%%", (U32)(readsize>>20), (double)compressedfilesize/readsize*100)
-        else DISPLAYUPDATE(2, "\rRead : %u / %u MB ==> %.2f%%", (U32)(readsize>>20), (U32)(fileSize>>20), (double)compressedfilesize/readsize*100);
-#endif
+        if (g_nbThreads > 1) {
+            if (!fileSize) DISPLAYUPDATE(2, "\rRead : %u MB", (U32)(readsize>>20))
+            else DISPLAYUPDATE(2, "\rRead : %u / %u MB", (U32)(readsize>>20), (U32)(fileSize>>20));
+        } else {
+            if (!fileSize) DISPLAYUPDATE(2, "\rRead : %u MB ==> %.2f%%", (U32)(readsize>>20), (double)compressedfilesize/readsize*100)
+            else DISPLAYUPDATE(2, "\rRead : %u / %u MB ==> %.2f%%", (U32)(readsize>>20), (U32)(fileSize>>20), (double)compressedfilesize/readsize*100);
+        }
     }
 
     /* End of Frame */
@@ -776,7 +770,7 @@ static dRess_t FIO_createDResources(const char* dictFileName)
 
     /* dictionary */
     {   void* dictBuffer;
-        size_t const dictBufferSize = FIO_loadFile(&dictBuffer, dictFileName);
+        size_t const dictBufferSize = FIO_createDictBuffer(&dictBuffer, dictFileName);
         size_t const initError = ZSTD_initDStream_usingDict(ress.dctx, dictBuffer, dictBufferSize);
         if (ZSTD_isError(initError)) EXM_THROW(61, "ZSTD_initDStream_usingDict error : %s", ZSTD_getErrorName(initError));
         free(dictBuffer);

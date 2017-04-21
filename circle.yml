@@ -3,7 +3,7 @@ dependencies:
     - sudo dpkg --add-architecture i386
     - sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test; sudo apt-get -y -qq update
     - sudo apt-get -y install gcc-powerpc-linux-gnu gcc-arm-linux-gnueabi libc6-dev-armel-cross gcc-aarch64-linux-gnu libc6-dev-arm64-cross
-    - sudo apt-get -y install libstdc++-6-dev clang gcc g++ gcc-5 gcc-6
+    - sudo apt-get -y install libstdc++-6-dev clang gcc g++ gcc-5 gcc-6 zlib1g-dev liblzma-dev
     - sudo apt-get -y install linux-libc-dev:i386 libc6-dev-i386
 
 test:

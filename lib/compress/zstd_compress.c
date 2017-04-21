@@ -98,9 +98,9 @@ struct ZSTD_CCtx_s {
     HUF_repeat hufCTable_repeatMode;
     HUF_CElt* hufCTable;
     U32 fseCTables_ready;
-    FSE_CTable offcodeCTable  [FSE_CTABLE_SIZE_U32(OffFSELog, MaxOff)];
-    FSE_CTable matchlengthCTable[FSE_CTABLE_SIZE_U32(MLFSELog, MaxML)];
-    FSE_CTable litlengthCTable  [FSE_CTABLE_SIZE_U32(LLFSELog, MaxLL)];
+    FSE_CTable* offcodeCTable;
+    FSE_CTable* matchlengthCTable;
+    FSE_CTable* litlengthCTable;
     unsigned tmpCounters[HUF_WORKSPACE_SIZE_U32];
 };
 
@@ -307,7 +307,11 @@ static size_t ZSTD_resetCCtx_internal (ZSTD_CCtx* zc,
                 /* entropy space */
                 zc->hufCTable = (HUF_CElt*)ptr;
                 ptr = (char*)zc->hufCTable + hufCTable_size;  /* note : HUF_CElt* is incomplete type, size is estimated via macro */
-
+                zc->offcodeCTable = (FSE_CTable*) ptr;
+                ptr = (char*)ptr + offcodeCTable_size;
+                zc->matchlengthCTable = ptr;
+                ptr = (char*)ptr + matchlengthCTable_size;
+                zc->litlengthCTable = ptr;
         }   }
 
         /* init params */
@@ -332,7 +336,12 @@ static size_t ZSTD_resetCCtx_internal (ZSTD_CCtx* zc,
         zc->hashLog3 = hashLog3;
         zc->seqStore.litLengthSum = 0;
 
-        ptr = (char*)zc->hufCTable + hufCTable_size;  /* note : HUF_CElt* is incomplete type, size is estimated via macro */
+        /* ensure entropy tables are close together at the beginning */
+        assert((void*)zc->hufCTable == zc->workSpace);
+        assert((char*)zc->offcodeCTable == (char*)zc->hufCTable + hufCTable_size);
+        assert((char*)zc->matchlengthCTable == (char*)zc->offcodeCTable + offcodeCTable_size);
+        assert((char*)zc->litlengthCTable == (char*)zc->matchlengthCTable + matchlengthCTable_size);
+        ptr = (char*)zc->litlengthCTable + litlengthCTable_size;
 
         /* opt parser space */
         if ((params.cParams.strategy == ZSTD_btopt) || (params.cParams.strategy == ZSTD_btopt2)) {

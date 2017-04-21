@@ -121,8 +121,10 @@ size_t HUF_compress4X_wksp (void* dst, size_t dstSize, const void* src, size_t s
 #define HUF_COMPRESSBOUND(size) (HUF_CTABLEBOUND + HUF_BLOCKBOUND(size))   /* Macro version, useful for static allocation */
 
 /* static allocation of HUF's Compression Table */
+#define HUF_CTABLE_SIZE_U32(maxSymbolValue)   ((maxSymbolValue)+1)   /* Use tables of U32, for proper alignment */
+#define HUF_CTABLE_SIZE(maxSymbolValue)       (HUF_CTABLE_SIZE_U32(maxSymbolValue) * sizeof(U32))
 #define HUF_CREATE_STATIC_CTABLE(name, maxSymbolValue) \
-    U32 name##hb[maxSymbolValue+1]; \
+    U32 name##hb[HUF_CTABLE_SIZE_U32(maxSymbolValue)]; \
     void* name##hv = &(name##hb); \
     HUF_CElt* name = (HUF_CElt*)(name##hv)   /* no final ; */
 

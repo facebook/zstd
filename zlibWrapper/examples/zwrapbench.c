@@ -128,6 +128,11 @@ void BMK_SetBlockSize(size_t blockSize)
 /* ********************************************************
 *  Bench functions
 **********************************************************/
+#undef MIN
+#undef MAX
+#define MIN(a,b) ((a)<(b) ? (a) : (b))
+#define MAX(a,b) ((a)>(b) ? (a) : (b))
+
 typedef struct
 {
     z_const char* srcPtr;
@@ -141,9 +146,6 @@ typedef struct
 
 typedef enum { BMK_ZSTD, BMK_ZSTD_STREAM, BMK_ZLIB, BMK_ZWRAP_ZLIB, BMK_ZWRAP_ZSTD, BMK_ZLIB_REUSE, BMK_ZWRAP_ZLIB_REUSE, BMK_ZWRAP_ZSTD_REUSE } BMK_compressor;
 
-
-#define MIN(a,b) ((a)<(b) ? (a) : (b))
-#define MAX(a,b) ((a)>(b) ? (a) : (b))
 
 static int BMK_benchMem(z_const void* srcBuffer, size_t srcSize,
                         const char* displayName, int cLevel,

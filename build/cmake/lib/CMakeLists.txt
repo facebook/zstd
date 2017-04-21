@@ -11,7 +11,6 @@
 # ################################################################
 
 PROJECT(libzstd)
-INCLUDE(${CMAKE_SOURCE_DIR}/CMakeModules/GetLibraryVersion.cmake)
 
 SET(CMAKE_INCLUDE_CURRENT_DIR TRUE)
 OPTION(ZSTD_BUILD_STATIC "BUILD STATIC LIBRARIES" OFF)
@@ -21,7 +20,8 @@ SET(LIBRARY_DIR ${ZSTD_SOURCE_DIR}/lib)
 INCLUDE_DIRECTORIES(${LIBRARY_DIR} ${LIBRARY_DIR}/common)
 
 # Parse version
-GetLibraryVersion(${LIBRARY_DIR}/zstd.h LIBVER_MAJOR LIBVER_MINOR LIBVER_RELEASE)
+INCLUDE(GetZstdLibraryVersion)
+GetZstdLibraryVersion(${LIBRARY_DIR}/zstd.h LIBVER_MAJOR LIBVER_MINOR LIBVER_RELEASE)
 MESSAGE("ZSTD VERSION ${LIBVER_MAJOR}.${LIBVER_MINOR}.${LIBVER_RELEASE}")
 
 SET(Sources
@@ -97,9 +97,9 @@ ENDIF (ZSTD_BUILD_STATIC)
 
 # Add specific compile definitions for MSVC project
 IF (MSVC)
-    SET_TARGET_PROPERTIES(libzstd_shared PROPERTIES COMPILE_DEFINITIONS "ZSTD_DLL_EXPORT=1;ZSTD_HEAPMODE=0;_CONSOLE;_CRT_SECURE_NO_WARNINGS")
+    SET_PROPERTY(TARGET libzstd_shared APPEND PROPERTY COMPILE_DEFINITIONS "ZSTD_DLL_EXPORT=1;ZSTD_HEAPMODE=0;_CONSOLE;_CRT_SECURE_NO_WARNINGS")
     IF (ZSTD_BUILD_STATIC)
-        SET_TARGET_PROPERTIES(libzstd_static PROPERTIES COMPILE_DEFINITIONS "ZSTD_HEAPMODE=0;_CRT_SECURE_NO_WARNINGS")
+        SET_PROPERTY(TARGET libzstd_static APPEND PROPERTY COMPILE_DEFINITIONS "ZSTD_HEAPMODE=0;_CRT_SECURE_NO_WARNINGS")
     ENDIF (ZSTD_BUILD_STATIC)
 ENDIF (MSVC)
 
@@ -130,8 +130,20 @@ IF (ZSTD_BUILD_STATIC)
 ENDIF (ZSTD_BUILD_STATIC)
 
 IF (UNIX)
+    # pkg-config
+    SET(PREFIX "${CMAKE_INSTALL_PREFIX}")
+    SET(LIBDIR "${CMAKE_INSTALL_PREFIX}/lib")
+    SET(INCLUDEDIR "${CMAKE_INSTALL_PREFIX}/include")
+    SET(VERSION "${LIBVER_MAJOR}.${LIBVER_MINOR}.${LIBVER_RELEASE}")
+    ADD_CUSTOM_TARGET(libzstd.pc ALL
+            ${CMAKE_COMMAND} -DIN="${LIBRARY_DIR}/libzstd.pc.in" -DOUT="libzstd.pc"
+            -DPREFIX="${PREFIX}" -DLIBDIR="${LIBDIR}" -DINCLUDEDIR="${INCLUDEDIR}" -DVERSION="${VERSION}"
+            -P "${CMAKE_CURRENT_SOURCE_DIR}/pkgconfig.cmake"
+            COMMENT "Creating pkg-config file")
+
     # install target
     INSTALL(FILES ${LIBRARY_DIR}/zstd.h ${LIBRARY_DIR}/deprecated/zbuff.h ${LIBRARY_DIR}/dictBuilder/zdict.h DESTINATION "include")
+    INSTALL(FILES "${CMAKE_CURRENT_BINARY_DIR}/libzstd.pc" DESTINATION "share/pkgconfig")
     INSTALL(TARGETS libzstd_shared LIBRARY DESTINATION "lib")
     IF (ZSTD_BUILD_STATIC)
         INSTALL(TARGETS libzstd_static ARCHIVE DESTINATION "lib")
@@ -139,10 +151,10 @@ IF (UNIX)
 
     # uninstall target
     CONFIGURE_FILE(
-            "${CMAKE_SOURCE_DIR}/cmake_uninstall.cmake.in"
-            "${CMAKE_BINARY_DIR}/cmake_uninstall.cmake"
+            "${CMAKE_CURRENT_SOURCE_DIR}/cmake_uninstall.cmake.in"
+            "${CMAKE_CURRENT_BINARY_DIR}/cmake_uninstall.cmake"
             IMMEDIATE @ONLY)
 
     ADD_CUSTOM_TARGET(uninstall
-            COMMAND ${CMAKE_COMMAND} -P ${CMAKE_BINARY_DIR}/cmake_uninstall.cmake)
+            COMMAND ${CMAKE_COMMAND} -P ${CMAKE_CURRENT_BINARY_DIR}/cmake_uninstall.cmake)
 ENDIF (UNIX)

@@ -89,7 +89,8 @@ unsigned DiB_isError(size_t errorCode) { return ERR_isError(errorCode); }
 
 const char* DiB_getErrorName(size_t errorCode) { return ERR_getErrorName(errorCode); }
 
-#define MIN(a,b)   ( (a) < (b) ? (a) : (b) )
+#undef MIN
+#define MIN(a,b)    ((a) < (b) ? (a) : (b))
 
 
 /* ********************************************************

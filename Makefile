@@ -109,10 +109,15 @@ clean:
 # make install is validated only for Linux, OSX, Hurd and some BSD targets
 #------------------------------------------------------------------------------
 ifneq (,$(filter $(shell uname),Linux Darwin GNU/kFreeBSD GNU FreeBSD DragonFly NetBSD))
-HOST_OS = POSIX
-CMAKE_PARAMS = -DZSTD_BUILD_CONTRIB:BOOL=ON -DZSTD_BUILD_STATIC:BOOL=ON -DZSTD_BUILD_TESTS:BOOL=ON
-.PHONY: install uninstall travis-install clangtest gpptest armtest usan asan uasan
 
+HOST_OS = POSIX
+CMAKE_PARAMS = -DZSTD_BUILD_CONTRIB:BOOL=ON -DZSTD_BUILD_STATIC:BOOL=ON -DZSTD_BUILD_TESTS:BOOL=ON -DZSTD_ZLIB_SUPPORT:BOOL=ON -DZSTD_LZMA_SUPPORT:BOOL=ON
+
+.PHONY: list
+list:
+	@$(MAKE) -pRrq -f $(lastword $(MAKEFILE_LIST)) : 2>/dev/null | awk -v RS= -F: '/^# File/,/^# Finished Make data base/ {if ($$1 !~ "^[#.]") {print $$1}}' | sort | egrep -v -e '^[^[:alnum:]]' -e '^$@$$' | xargs
+
+.PHONY: install uninstall travis-install clangtest gpptest armtest usan asan uasan
 install:
 	@$(MAKE) -C $(ZSTDDIR) $@
 	@$(MAKE) -C $(PRGDIR) $@

@@ -71,6 +71,9 @@ libzstd.a: $(ZSTD_OBJ)
 	@echo compiling static library
 	@$(AR) $(ARFLAGS) $@ $^
 
+libzstd.a-mt: CPPFLAGS += -DZSTD_MULTHREAD
+libzstd.a-mt: libzstd.a
+
 $(LIBZSTD): LDFLAGS += -shared -fPIC -fvisibility=hidden
 $(LIBZSTD): $(ZSTD_FILES)
 	@echo compiling dynamic library $(LIBVER)
@@ -86,10 +89,17 @@ endif
 
 libzstd : $(LIBZSTD)
 
+libzstd-mt : CPPFLAGS += -DZSTD_MULTITHREAD
+libzstd-mt : libzstd
+
 lib: libzstd.a libzstd
 
-lib-release: DEBUGFLAGS :=
+lib-mt: CPPFLAGS += -DZSTD_MULTITHREAD
+lib-mt: lib
+
+lib-release lib-release-mt: DEBUGFLAGS :=
 lib-release: lib
+lib-release-mt: lib-mt
 
 clean:
 	@$(RM) -r *.dSYM   # Mac OS-X specific

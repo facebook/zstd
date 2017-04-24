@@ -136,6 +136,9 @@ static int usage_advanced(const char* programName)
     DISPLAY( "--format=xz : compress files to the .xz format \n");
     DISPLAY( "--format=lzma : compress files to the .lzma format \n");
 #endif
+#ifdef ZSTD_LZ4COMPRESS
+    DISPLAY( "--format=lz4 : compress files to the .lz4 format \n");
+#endif
 #ifndef ZSTD_NODECOMPRESS
     DISPLAY( "--test  : test compressed file integrity \n");
 #if ZSTD_SPARSE_DEFAULT
@@ -403,6 +406,9 @@ int main(int argCount, const char* argv[])
 #ifdef ZSTD_LZMACOMPRESS
                     if (!strcmp(argument, "--format=lzma")) { suffix = LZMA_EXTENSION; FIO_setCompressionType(FIO_lzmaCompression);  continue; }
                     if (!strcmp(argument, "--format=xz")) { suffix = XZ_EXTENSION; FIO_setCompressionType(FIO_xzCompression);  continue; }
+#endif
+#ifdef ZSTD_LZ4COMPRESS
+                    if (!strcmp(argument, "--format=lz4")) { suffix = LZ4_EXTENSION; FIO_setCompressionType(FIO_lz4Compression);  continue; }
 #endif
 
                     /* long commands with arguments */

@@ -403,7 +403,7 @@ if [ $GZIPMODE -eq 1 ]; then
     $ZSTD -f --format=gzip tmp
     $ZSTD -f tmp
     cat tmp.gz tmp.zst tmp.gz tmp.zst | $ZSTD -d -f -o tmp
-    head -c -1 tmp.gz | $ZSTD -t && die "incomplete frame not detected !"
+    head -c -1 tmp.gz | $ZSTD -t > $INTOVOID && die "incomplete frame not detected !"
     rm tmp*
 else
     $ECHO "gzip mode not supported"
@@ -445,13 +445,48 @@ if [ $LZMAMODE -eq 1 ]; then
     $ZSTD -f --format=lzma tmp
     $ZSTD -f tmp
     cat tmp.xz tmp.lzma tmp.zst tmp.lzma tmp.xz tmp.zst | $ZSTD -d -f -o tmp
-    head -c -1 tmp.xz | $ZSTD -t && die "incomplete frame not detected !"
-    head -c -1 tmp.lzma | $ZSTD -t && die "incomplete frame not detected !"
+    head -c -1 tmp.xz | $ZSTD -t > $INTOVOID && die "incomplete frame not detected !"
+    head -c -1 tmp.lzma | $ZSTD -t > $INTOVOID && die "incomplete frame not detected !"
     rm tmp*
 else
     $ECHO "xz mode not supported"
 fi
 
+$ECHO "\n**** lz4 compatibility tests **** "
+
+LZ4MODE=1
+$ZSTD --format=lz4 -V || LZ4MODE=0
+if [ $LZ4MODE -eq 1 ]; then
+    $ECHO "lz4 support detected"
+    LZ4EXE=1
+    lz4 -V || LZ4EXE=0
+    if [ $LZ4EXE -eq 1 ]; then
+        ./datagen > tmp
+        $ZSTD --format=lz4 -f tmp
+        lz4 -t -v tmp.lz4
+        lz4 -f tmp
+        $ZSTD -d -f -v tmp.lz4
+        rm tmp*
+    else
+        $ECHO "lz4 binary not detected"
+    fi
+else
+    $ECHO "lz4 mode not supported"
+fi
+
+
+$ECHO "\n**** lz4 frame tests **** "
+
+if [ $LZ4MODE -eq 1 ]; then
+    ./datagen > tmp
+    $ZSTD -f --format=lz4 tmp
+    $ZSTD -f tmp
+    cat tmp.lz4 tmp.zst tmp.lz4 tmp.zst | $ZSTD -d -f -o tmp
+    head -c -1 tmp.lz4 | $ZSTD -t > $INTOVOID && die "incomplete frame not detected !"
+    rm tmp*
+else
+    $ECHO "lz4 mode not supported"
+fi
 
 $ECHO "\n**** zstd round-trip tests **** "
 

@@ -56,6 +56,7 @@
 #define LZ4_MAGICNUMBER 0x184D2204
 #if defined(ZSTD_LZ4COMPRESS) || defined(ZSTD_LZ4DECOMPRESS)
 #  include <lz4frame.h>
+#  include <lz4.h>
 #endif
 
 
@@ -526,7 +527,7 @@ static unsigned long long FIO_compressLz4Frame(cRess_t* ress, const char* srcFil
     unsigned long long inFileSize = 0, outFileSize = 0;
 
     LZ4F_preferences_t prefs;
-    LZ4F_cctx* ctx;
+    LZ4F_compressionContext_t ctx;
 
     LZ4F_errorCode_t const errorCode = LZ4F_createCompressionContext(&ctx, LZ4F_VERSION);
     if (LZ4F_isError(errorCode)) EXM_THROW(31, "zstd: failed to create lz4 compression context");
@@ -535,13 +536,15 @@ static unsigned long long FIO_compressLz4Frame(cRess_t* ress, const char* srcFil
 
     prefs.autoFlush = 1;
     prefs.compressionLevel = compressionLevel;
-    prefs.frameInfo.blockMode = LZ4F_blockIndependent; /* stick to defaults for lz4 cli */
-    prefs.frameInfo.blockSizeID = LZ4F_max4MB;
-    prefs.frameInfo.contentChecksumFlag = (LZ4F_contentChecksum_t)g_checksumFlag;
+    prefs.frameInfo.blockMode = blockIndependent; /* stick to defaults for lz4 cli */
+    prefs.frameInfo.blockSizeID = max4MB;
+    prefs.frameInfo.contentChecksumFlag = (contentChecksum_t)g_checksumFlag;
+#if LZ4_VERSION_NUMBER >= 10600
     prefs.frameInfo.contentSize = srcFileSize;
+#endif
 
     {
-        size_t blockSize = FIO_LZ4_GetBlockSize_FromBlockId(LZ4F_max4MB);
+        size_t blockSize = FIO_LZ4_GetBlockSize_FromBlockId(max4MB);
         size_t readSize;
         size_t headerSize = LZ4F_compressBegin(ctx, ress->dstBuffer, ress->dstBufferSize, &prefs);
         if (LZ4F_isError(headerSize)) EXM_THROW(33, "File header generation failed : %s", LZ4F_getErrorName(headerSize));
@@ -1127,7 +1130,7 @@ static unsigned long long FIO_decompressLz4Frame(dRess_t* ress, FILE* srcFile, c
 {
     unsigned long long filesize = 0;
     LZ4F_errorCode_t nextToLoad;
-    LZ4F_dctx* dCtx;
+    LZ4F_decompressionContext_t dCtx;
     LZ4F_errorCode_t const errorCode = LZ4F_createDecompressionContext(&dCtx, LZ4F_VERSION);
 
     if (LZ4F_isError(errorCode)) EXM_THROW(61, "zstd: failed to create lz4 decompression context");

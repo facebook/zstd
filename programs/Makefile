@@ -118,7 +118,7 @@ LZMA_MSG := $(NO_LZMA_MSG)
 endif
 # lz4 detection
 NO_LZ4_MSG := ==> no liblz4, building zstd without .lz4 support
-HAVE_LZ4 := $(shell printf '\#include <lz4.h>\nint main(void) { return 0; }' | $(CC) $(FLAGS) -o have_lz4$(EXT) -x c - -llz4 2> $(VOID) && rm have_lz4$(EXT) && echo 1 || echo 0)
+HAVE_LZ4 := $(shell printf '\#include <lz4frame.h>\n\#include <lz4.h>\nint main(void) { return 0; }' | $(CC) $(FLAGS) -o have_lz4$(EXT) -x c - -llz4 2> $(VOID) && rm have_lz4$(EXT) && echo 1 || echo 0)
 ifeq ($(HAVE_LZ4), 1)
 LZ4_MSG := ==> building zstd with .lz4 compression support
 LZ4CPP = -DZSTD_LZ4COMPRESS -DZSTD_LZ4DECOMPRESS

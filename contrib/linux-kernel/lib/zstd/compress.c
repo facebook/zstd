@@ -116,7 +116,7 @@ static ZSTD_CCtx* ZSTD_createCCtx_advanced(ZSTD_customMem customMem)
 	return cctx;
 }
 
-ZSTD_CCtx* ZSTD_createCCtx(void* workspace, size_t workspaceSize)
+ZSTD_CCtx* ZSTD_initCCtx(void* workspace, size_t workspaceSize)
 {
 	ZSTD_customMem const stackMem = ZSTD_initStack(workspace, workspaceSize);
 	ZSTD_CCtx* cctx = ZSTD_createCCtx_advanced(stackMem);
@@ -2819,7 +2819,7 @@ static ZSTD_CDict* ZSTD_createCDict_advanced(const void* dictBuffer, size_t dict
 	}
 }
 
-ZSTD_CDict* ZSTD_createCDict(const void* dict, size_t dictSize, ZSTD_parameters params, void* workspace, size_t workspaceSize)
+ZSTD_CDict* ZSTD_initCDict(const void* dict, size_t dictSize, ZSTD_parameters params, void* workspace, size_t workspaceSize)
 {
 	ZSTD_customMem const stackMem = ZSTD_initStack(workspace, workspaceSize);
 	return ZSTD_createCDict_advanced(dict, dictSize, 1, params, stackMem);
@@ -3010,7 +3010,7 @@ static size_t ZSTD_initCStream_advanced(ZSTD_CStream* zcs,
 	return ZSTD_resetCStream_internal(zcs, pledgedSrcSize);
 }
 
-ZSTD_CStream* ZSTD_createCStream(ZSTD_parameters params, unsigned long long pledgedSrcSize, void* workspace, size_t workspaceSize)
+ZSTD_CStream* ZSTD_initCStream(ZSTD_parameters params, unsigned long long pledgedSrcSize, void* workspace, size_t workspaceSize)
 {
 	ZSTD_customMem const stackMem = ZSTD_initStack(workspace, workspaceSize);
 	ZSTD_CStream* const zcs = ZSTD_createCStream_advanced(stackMem);
@@ -3021,10 +3021,10 @@ ZSTD_CStream* ZSTD_createCStream(ZSTD_parameters params, unsigned long long pled
 	return zcs;
 }
 
-ZSTD_CStream* ZSTD_createCStream_usingCDict(const ZSTD_CDict* cdict, unsigned long long pledgedSrcSize, void* workspace, size_t workspaceSize)
+ZSTD_CStream* ZSTD_initCStream_usingCDict(const ZSTD_CDict* cdict, unsigned long long pledgedSrcSize, void* workspace, size_t workspaceSize)
 {
 	ZSTD_parameters const params = ZSTD_getParamsFromCDict(cdict);
-	ZSTD_CStream* const zcs = ZSTD_createCStream(params, pledgedSrcSize, workspace, workspaceSize);
+	ZSTD_CStream* const zcs = ZSTD_initCStream(params, pledgedSrcSize, workspace, workspaceSize);
 	if (zcs) {
 		zcs->cdict = cdict;
 		if (ZSTD_isError(ZSTD_resetCStream_internal(zcs, pledgedSrcSize))) {
@@ -3346,17 +3346,17 @@ EXPORT_SYMBOL(ZSTD_maxCLevel);
 EXPORT_SYMBOL(ZSTD_compressBound);
 
 EXPORT_SYMBOL(ZSTD_CCtxWorkspaceBound);
-EXPORT_SYMBOL(ZSTD_createCCtx);
+EXPORT_SYMBOL(ZSTD_initCCtx);
 EXPORT_SYMBOL(ZSTD_compressCCtx);
 EXPORT_SYMBOL(ZSTD_compress_usingDict);
 
 EXPORT_SYMBOL(ZSTD_CDictWorkspaceBound);
-EXPORT_SYMBOL(ZSTD_createCDict);
+EXPORT_SYMBOL(ZSTD_initCDict);
 EXPORT_SYMBOL(ZSTD_compress_usingCDict);
 
 EXPORT_SYMBOL(ZSTD_CStreamWorkspaceBound);
-EXPORT_SYMBOL(ZSTD_createCStream);
-EXPORT_SYMBOL(ZSTD_createCStream_usingCDict);
+EXPORT_SYMBOL(ZSTD_initCStream);
+EXPORT_SYMBOL(ZSTD_initCStream_usingCDict);
 EXPORT_SYMBOL(ZSTD_resetCStream);
 EXPORT_SYMBOL(ZSTD_compressStream);
 EXPORT_SYMBOL(ZSTD_flushStream);

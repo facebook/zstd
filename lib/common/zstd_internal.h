@@ -106,7 +106,6 @@ typedef enum { set_basic, set_rle, set_compressed, set_repeat } symbolEncodingTy
 #define LONGNBSEQ 0x7F00
 
 #define MINMATCH 3
-#define EQUAL_READ32 4
 
 #define Litbits  8
 #define MaxLit ((1<<Litbits) - 1)

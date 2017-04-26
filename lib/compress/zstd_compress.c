@@ -3023,11 +3023,10 @@ size_t ZSTD_compressBegin_usingCDict_advanced(
 /* ZSTD_compressBegin_usingCDict() :
  * pledgedSrcSize=0 means "unknown"
  * if pledgedSrcSize>0, it will enable contentSizeFlag */
-size_t ZSTD_compressBegin_usingCDict(ZSTD_CCtx* cctx, const ZSTD_CDict* cdict, unsigned long long pledgedSrcSize)
+size_t ZSTD_compressBegin_usingCDict(ZSTD_CCtx* cctx, const ZSTD_CDict* cdict)
 {
-    ZSTD_frameParameters fParams = { 1 /*content*/, 0 /*checksum*/, 0 /*noDictID*/ };
-    fParams.contentSizeFlag = (pledgedSrcSize > 0);
-    return ZSTD_compressBegin_usingCDict_advanced(cctx, cdict, fParams, pledgedSrcSize);
+    ZSTD_frameParameters const fParams = { 0 /*content*/, 0 /*checksum*/, 0 /*noDictID*/ };
+    return ZSTD_compressBegin_usingCDict_advanced(cctx, cdict, fParams, 0);
 }
 
 /*! ZSTD_compress_usingCDict() :

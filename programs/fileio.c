@@ -534,17 +534,22 @@ static unsigned long long FIO_compressLz4Frame(cRess_t* ress, const char* srcFil
 
     memset(&prefs, 0, sizeof(prefs));
 
+#if LZ4_VERSION_NUMBER <= 10600
+#define LZ4F_blockIndependent blockIndependent
+#define LZ4F_max4MB max4MB
+#endif
+
     prefs.autoFlush = 1;
     prefs.compressionLevel = compressionLevel;
-    prefs.frameInfo.blockMode = blockIndependent; /* stick to defaults for lz4 cli */
-    prefs.frameInfo.blockSizeID = max4MB;
+    prefs.frameInfo.blockMode = LZ4F_blockIndependent; /* stick to defaults for lz4 cli */
+    prefs.frameInfo.blockSizeID = LZ4F_max4MB;
     prefs.frameInfo.contentChecksumFlag = (contentChecksum_t)g_checksumFlag;
 #if LZ4_VERSION_NUMBER >= 10600
     prefs.frameInfo.contentSize = srcFileSize;
 #endif
 
     {
-        size_t blockSize = FIO_LZ4_GetBlockSize_FromBlockId(max4MB);
+        size_t blockSize = FIO_LZ4_GetBlockSize_FromBlockId(LZ4F_max4MB);
         size_t readSize;
         size_t headerSize = LZ4F_compressBegin(ctx, ress->dstBuffer, ress->dstBufferSize, &prefs);
         if (LZ4F_isError(headerSize)) EXM_THROW(33, "File header generation failed : %s", LZ4F_getErrorName(headerSize));

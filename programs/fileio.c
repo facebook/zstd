@@ -53,6 +53,12 @@
 #  include <lzma.h>
 #endif
 
+#define LZ4_MAGICNUMBER 0x184D2204
+#if defined(ZSTD_LZ4COMPRESS) || defined(ZSTD_LZ4DECOMPRESS)
+#  include <lz4frame.h>
+#  include <lz4.h>
+#endif
+
 
 /*-*************************************
 *  Constants
@@ -514,6 +520,79 @@ static unsigned long long FIO_compressLzmaFrame(cRess_t* ress, const char* srcFi
 }
 #endif
 
+#ifdef ZSTD_LZ4COMPRESS
+static int FIO_LZ4_GetBlockSize_FromBlockId (int id) { return (1 << (8 + (2 * id))); }
+static unsigned long long FIO_compressLz4Frame(cRess_t* ress, const char* srcFileName, U64 const srcFileSize, int compressionLevel, U64* readsize)
+{
+    unsigned long long inFileSize = 0, outFileSize = 0;
+
+    LZ4F_preferences_t prefs;
+    LZ4F_compressionContext_t ctx;
+
+    LZ4F_errorCode_t const errorCode = LZ4F_createCompressionContext(&ctx, LZ4F_VERSION);
+    if (LZ4F_isError(errorCode)) EXM_THROW(31, "zstd: failed to create lz4 compression context");
+
+    memset(&prefs, 0, sizeof(prefs));
+
+    prefs.autoFlush = 1;
+    prefs.compressionLevel = compressionLevel;
+    prefs.frameInfo.blockMode = blockIndependent; /* stick to defaults for lz4 cli */
+    prefs.frameInfo.blockSizeID = max4MB;
+    prefs.frameInfo.contentChecksumFlag = (contentChecksum_t)g_checksumFlag;
+#if LZ4_VERSION_NUMBER >= 10600
+    prefs.frameInfo.contentSize = srcFileSize;
+#endif
+
+    {
+        size_t blockSize = FIO_LZ4_GetBlockSize_FromBlockId(max4MB);
+        size_t readSize;
+        size_t headerSize = LZ4F_compressBegin(ctx, ress->dstBuffer, ress->dstBufferSize, &prefs);
+        if (LZ4F_isError(headerSize)) EXM_THROW(33, "File header generation failed : %s", LZ4F_getErrorName(headerSize));
+        { size_t const sizeCheck = fwrite(ress->dstBuffer, 1, headerSize, ress->dstFile);
+          if (sizeCheck!=headerSize) EXM_THROW(34, "Write error : cannot write header"); }
+        outFileSize += headerSize;
+
+        /* Read first block */
+        readSize  = fread(ress->srcBuffer, (size_t)1, (size_t)blockSize, ress->srcFile);
+        inFileSize += readSize;
+
+        /* Main Loop */
+        while (readSize>0) {
+            size_t outSize;
+
+            /* Compress Block */
+            outSize = LZ4F_compressUpdate(ctx, ress->dstBuffer, ress->dstBufferSize, ress->srcBuffer, readSize, NULL);
+            if (LZ4F_isError(outSize)) EXM_THROW(35, "zstd: %s: lz4 compression failed : %s", srcFileName, LZ4F_getErrorName(outSize));
+            outFileSize += outSize;
+            if (!srcFileSize) DISPLAYUPDATE(2, "\rRead : %u MB ==> %.2f%%", (U32)(inFileSize>>20), (double)outFileSize/inFileSize*100)
+            else DISPLAYUPDATE(2, "\rRead : %u / %u MB ==> %.2f%%", (U32)(inFileSize>>20), (U32)(srcFileSize>>20), (double)outFileSize/inFileSize*100);
+
+            /* Write Block */
+            { size_t const sizeCheck = fwrite(ress->dstBuffer, 1, outSize, ress->dstFile);
+              if (sizeCheck!=outSize) EXM_THROW(36, "Write error : cannot write compressed block"); }
+
+            /* Read next block */
+            readSize  = fread(ress->srcBuffer, (size_t)1, (size_t)blockSize, ress->srcFile);
+            inFileSize += readSize;
+        }
+        if (ferror(ress->srcFile)) EXM_THROW(37, "Error reading %s ", srcFileName);
+
+        /* End of Stream mark */
+        headerSize = LZ4F_compressEnd(ctx, ress->dstBuffer, ress->dstBufferSize, NULL);
+        if (LZ4F_isError(headerSize)) EXM_THROW(38, "zstd: %s: lz4 end of file generation failed : %s", srcFileName, LZ4F_getErrorName(headerSize));
+
+        { size_t const sizeCheck = fwrite(ress->dstBuffer, 1, headerSize, ress->dstFile);
+          if (sizeCheck!=headerSize) EXM_THROW(39, "Write error : cannot write end of stream"); }
+        outFileSize += headerSize;
+    }
+
+    *readsize = inFileSize;
+    LZ4F_freeCompressionContext(ctx);
+
+    return outFileSize;
+}
+#endif
+
 
 /*! FIO_compressFilename_internal() :
  *  same as FIO_compressFilename_extRess(), with `ress.desFile` already opened.
@@ -547,6 +626,13 @@ static int FIO_compressFilename_internal(cRess_t ress,
 #else
             (void)compressionLevel;
             EXM_THROW(20, "zstd: %s: file cannot be compressed as xz/lzma (zstd compiled without ZSTD_LZMACOMPRESS) -- ignored \n", srcFileName);
+#endif
+        case FIO_lz4Compression:
+#ifdef ZSTD_LZ4COMPRESS
+            compressedfilesize = FIO_compressLz4Frame(&ress, srcFileName, fileSize, compressionLevel, &readsize);
+#else
+            (void)compressionLevel;
+            EXM_THROW(20, "zstd: %s: file cannot be compressed as lz4 (zstd compiled without ZSTD_LZ4COMPRESS) -- ignored \n", srcFileName);
 #endif
             goto finish;
     }
@@ -1039,6 +1125,66 @@ static unsigned long long FIO_decompressLzmaFrame(dRess_t* ress, FILE* srcFile, 
 }
 #endif
 
+#ifdef ZSTD_LZ4DECOMPRESS
+static unsigned long long FIO_decompressLz4Frame(dRess_t* ress, FILE* srcFile, const char* srcFileName)
+{
+    unsigned long long filesize = 0;
+    LZ4F_errorCode_t nextToLoad;
+    LZ4F_decompressionContext_t dCtx;
+    LZ4F_errorCode_t const errorCode = LZ4F_createDecompressionContext(&dCtx, LZ4F_VERSION);
+
+    if (LZ4F_isError(errorCode)) EXM_THROW(61, "zstd: failed to create lz4 decompression context");
+
+    /* Init feed with magic number (already consumed from FILE* sFile) */
+    {   size_t inSize = 4;
+        size_t outSize= 0;
+        MEM_writeLE32(ress->srcBuffer, LZ4_MAGICNUMBER);
+        nextToLoad = LZ4F_decompress(dCtx, ress->dstBuffer, &outSize, ress->srcBuffer, &inSize, NULL);
+        if (LZ4F_isError(nextToLoad)) EXM_THROW(62, "zstd: %s: lz4 header error : %s", srcFileName, LZ4F_getErrorName(nextToLoad));
+    }
+
+    /* Main Loop */
+    for (;nextToLoad;) {
+        size_t readSize;
+        size_t pos = 0;
+        size_t decodedBytes = ress->dstBufferSize;
+
+        /* Read input */
+        if (nextToLoad > ress->srcBufferSize) nextToLoad = ress->srcBufferSize;
+        readSize = fread(ress->srcBuffer, 1, nextToLoad, srcFile);
+        if (!readSize) break;   /* reached end of file or stream */
+
+        while ((pos < readSize) || (decodedBytes == ress->dstBufferSize)) {  /* still to read, or still to flush */
+            /* Decode Input (at least partially) */
+            size_t remaining = readSize - pos;
+            decodedBytes = ress->dstBufferSize;
+            nextToLoad = LZ4F_decompress(dCtx, ress->dstBuffer, &decodedBytes, (char*)(ress->srcBuffer)+pos, &remaining, NULL);
+            if (LZ4F_isError(nextToLoad)) EXM_THROW(66, "zstd: %s: decompression error : %s", srcFileName, LZ4F_getErrorName(nextToLoad));
+            pos += remaining;
+
+            /* Write Block */
+            if (decodedBytes) {
+                if (fwrite(ress->dstBuffer, 1, decodedBytes, ress->dstFile) != decodedBytes) EXM_THROW(63, "Write error : cannot write to output file");
+                filesize += decodedBytes;
+                DISPLAYUPDATE(2, "\rDecompressed : %u MB  ", (unsigned)(filesize>>20));
+            }
+
+            if (!nextToLoad) break;
+        }
+    }
+    /* can be out because readSize == 0, which could be an fread() error */
+    if (ferror(srcFile)) EXM_THROW(67, "zstd: %s: read error", srcFileName);
+
+    if (nextToLoad!=0) EXM_THROW(68, "zstd: %s: unfinished stream", srcFileName);
+
+    LZ4F_freeDecompressionContext(dCtx);
+    ress->srcBufferLoaded = 0; /* LZ4F will go to the frame boundary */
+
+    return filesize;
+}
+#endif
+
+
 
 /** FIO_decompressSrcFile() :
     Decompression `srcFileName` into `ress.dstFile`
@@ -1089,6 +1235,15 @@ static int FIO_decompressSrcFile(dRess_t ress, const char* dstFileName, const ch
             filesize += result;
 #else
             DISPLAYLEVEL(1, "zstd: %s: xz/lzma file cannot be uncompressed (zstd compiled without ZSTD_LZMADECOMPRESS) -- ignored \n", srcFileName);
+            return 1;
+#endif
+        } else if (MEM_readLE32(buf) == LZ4_MAGICNUMBER) {
+#ifdef ZSTD_LZ4DECOMPRESS
+            unsigned long long const result = FIO_decompressLz4Frame(&ress, srcFile, srcFileName);
+            if (result == 0) return 1;
+            filesize += result;
+#else
+            DISPLAYLEVEL(1, "zstd: %s: lz4 file cannot be uncompressed (zstd compiled without ZSTD_LZ4DECOMPRESS) -- ignored \n", srcFileName);
             return 1;
 #endif
         } else {
@@ -1199,7 +1354,7 @@ int FIO_decompressMultipleFilenames(const char** srcNamesTable, unsigned nbFiles
                 dstFileName = (char*)malloc(dfnSize);
                 if (dstFileName==NULL) EXM_THROW(74, "not enough memory for dstFileName");
             }
-            if (sfnSize <= suffixSize || (strcmp(suffixPtr, GZ_EXTENSION) && strcmp(suffixPtr, XZ_EXTENSION) && strcmp(suffixPtr, ZSTD_EXTENSION) && strcmp(suffixPtr, LZMA_EXTENSION))) {
+            if (sfnSize <= suffixSize || (strcmp(suffixPtr, GZ_EXTENSION) && strcmp(suffixPtr, XZ_EXTENSION) && strcmp(suffixPtr, ZSTD_EXTENSION) && strcmp(suffixPtr, LZMA_EXTENSION) && strcmp(suffixPtr, LZ4_EXTENSION))) {
                 DISPLAYLEVEL(1, "zstd: %s: unknown suffix (%s/%s/%s/%s expected) -- ignored \n", srcFileName, GZ_EXTENSION, XZ_EXTENSION, ZSTD_EXTENSION, LZMA_EXTENSION);
                 skippedFiles++;
                 continue;

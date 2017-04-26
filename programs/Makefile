@@ -116,6 +116,16 @@ LZMALD = -llzma
 else
 LZMA_MSG := $(NO_LZMA_MSG)
 endif
+# lz4 detection
+NO_LZ4_MSG := ==> no liblz4, building zstd without .lz4 support
+HAVE_LZ4 := $(shell printf '\#include <lz4frame.h>\n\#include <lz4.h>\nint main(void) { return 0; }' | $(CC) $(FLAGS) -o have_lz4$(EXT) -x c - -llz4 2> $(VOID) && rm have_lz4$(EXT) && echo 1 || echo 0)
+ifeq ($(HAVE_LZ4), 1)
+LZ4_MSG := ==> building zstd with .lz4 compression support
+LZ4CPP = -DZSTD_LZ4COMPRESS -DZSTD_LZ4DECOMPRESS
+LZ4LD = -llz4
+else
+LZ4_MSG := $(NO_LZ4_MSG)
+endif
 
 MD2ROFF  =ronn
 MD2ROFF_FLAGS  = --roff --warnings --manual="User Commands" --organization="zstd $(ZSTD_VERSION)"
@@ -135,11 +145,16 @@ zstd-nogz : ZLIB_MSG := $(NO_ZLIB_MSG)
 zstd-nogz : LZMA_MSG := $(NO_LZMA_MSG)
 xzstd : CPPFLAGS += $(ZLIBCPP) $(LZMACPP)
 xzstd : LDFLAGS += $(ZLIBLD) $(LZMALD)
-zstd zstd-nogz xzstd : CPPFLAGS += -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT)
-zstd zstd-nogz xzstd : $(ZSTDLIB_FILES) zstdcli.o fileio.o bench.o datagen.o dibio.o
+xzstd : LZ4_MSG := $(NO_LZMA_MSG)
+zstd4 : CPPFLAGS += $(ZLIBCPP) $(LZ4CPP)
+zstd4 : LDFLAGS += $(ZLIBLD) $(LZ4LD)
+zstd4 : LZMA_MSG := $(NO_LZMA_MSG)
+zstd zstd-nogz xzstd zstd4 : CPPFLAGS += -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT)
+zstd zstd-nogz xzstd zstd4 : $(ZSTDLIB_FILES) zstdcli.o fileio.o bench.o datagen.o dibio.o
 	@echo "$(THREAD_MSG)"
 	@echo "$(ZLIB_MSG)"
 	@echo "$(LZMA_MSG)"
+	@echo "$(LZ4_MSG)"
 ifneq (,$(filter Windows%,$(OS)))
 	windres/generate_res.bat
 endif

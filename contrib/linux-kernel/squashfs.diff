@@ -1,6 +1,6 @@
-commit 7289653483a0579c3b63a06abf008210c8cc6c8b
+commit 47ba72b36506f91c3774c0bb1fa3c7a5dcfe3ea1
 Author: Sean Purcell <me@seanp.xyz>
-Date:   Thu Apr 27 14:56:25 2017 -0700
+Date:   Thu Apr 27 16:50:53 2017 -0700
 
     Add zstd support to kernel squashfs
 
@@ -90,10 +90,10 @@ index 506f4ba..24d12fd 100644
  	__le32			s_magic;
 diff --git a/fs/squashfs/zstd_wrapper.c b/fs/squashfs/zstd_wrapper.c
 new file mode 100644
-index 0000000..81f4b5a
+index 0000000..af72c7b
 --- /dev/null
 +++ b/fs/squashfs/zstd_wrapper.c
-@@ -0,0 +1,146 @@
+@@ -0,0 +1,147 @@
 +/*
 + * Squashfs - a compressed read only filesystem for Linux
 + *
@@ -197,12 +197,13 @@ index 0000000..81f4b5a
 +
 +		if (out_buf.pos == out_buf.size) {
 +			out_buf.dst = squashfs_next_page(output);
-+			out_buf.pos = 0;
-+			if (out_buf.dst != NULL) {
-+				out_buf.size = PAGE_SIZE;
-+			} else {
-+				out_buf.size = 0;
++			if (out_buf.dst == NULL) {
++				/* shouldn't run out of pages before stream is
++				 * done */
++				goto out;
 +			}
++			out_buf.pos = 0;
++			out_buf.size = PAGE_SIZE;
 +		}
 +
 +		total_out -= out_buf.pos;
@@ -223,7 +224,7 @@ index 0000000..81f4b5a
 +	if (k < b)
 +		goto out;
 +
-+	return total_out;
++	return (int)total_out;
 +
 +out:
 +	for (; k < b; k++)

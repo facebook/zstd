@@ -2975,9 +2975,7 @@ ZSTD_CDict* ZSTD_createCDict_advanced(const void* dictBuffer, size_t dictSize, u
         }
 
         {   ZSTD_frameParameters const fParams = { 0 /* contentSizeFlag */, 0 /* checksumFlag */, 0 /* noDictIDFlag */ };   /* dummy */
-            ZSTD_parameters params;
-            params.cParams = cParams;
-            params.fParams = fParams;
+            ZSTD_parameters const params = { cParams, fParams };
             size_t const errorCode = ZSTD_compressBegin_advanced(cctx, cdict->dictContent, dictSize, params, 0);
             if (ZSTD_isError(errorCode)) {
                 ZSTD_free(cdict->dictBuffer, customMem);

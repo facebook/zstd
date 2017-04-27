@@ -697,6 +697,14 @@ static size_t findDiff(const void* buf1, const void* buf2, size_t max)
 }
 
 
+static ZSTD_parameters FUZ_makeParams(ZSTD_compressionParameters cParams, ZSTD_frameParameters fParams)
+{
+    ZSTD_parameters params;
+    params.cParams = cParams;
+    params.fParams = fParams;
+    return params;
+}
+
 static size_t FUZ_rLogLength(U32* seed, U32 logLength)
 {
     size_t const lengthMask = ((size_t)1 << logLength) - 1;
@@ -919,7 +927,7 @@ static int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, U32 const maxD
                 ZSTD_frameParameters const fPar = { FUZ_rand(&lseed)&1 /* contentSizeFlag */,
                                                     !(FUZ_rand(&lseed)&3) /* contentChecksumFlag*/,
                                                     0 /*NodictID*/ };   /* note : since dictionary is fake, dictIDflag has no impact */
-                ZSTD_parameters const p = { cPar, fPar };
+                ZSTD_parameters const p = FUZ_makeParams(cPar, fPar);
                 size_t const errorCode = ZSTD_compressBegin_advanced(refCtx, dict, dictSize, p, 0);
                 CHECK (ZSTD_isError(errorCode), "ZSTD_compressBegin_advanced error : %s", ZSTD_getErrorName(errorCode));
             }

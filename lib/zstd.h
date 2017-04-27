@@ -514,12 +514,19 @@ ZSTDLIB_API size_t ZSTD_checkCParams(ZSTD_compressionParameters params);
 ZSTDLIB_API ZSTD_compressionParameters ZSTD_adjustCParams(ZSTD_compressionParameters cPar, unsigned long long srcSize, size_t dictSize);
 
 /*! ZSTD_compress_advanced() :
-*   Same as ZSTD_compress_usingDict(), with fine-tune control of each compression parameter */
-ZSTDLIB_API size_t ZSTD_compress_advanced (ZSTD_CCtx* ctx,
-                                           void* dst, size_t dstCapacity,
-                                     const void* src, size_t srcSize,
-                                     const void* dict,size_t dictSize,
-                                           ZSTD_parameters params);
+*   Same as ZSTD_compress_usingDict(), with fine-tune control over each compression parameter */
+ZSTDLIB_API size_t ZSTD_compress_advanced (ZSTD_CCtx* cctx,
+                                  void* dst, size_t dstCapacity,
+                            const void* src, size_t srcSize,
+                            const void* dict,size_t dictSize,
+                                  ZSTD_parameters params);
+
+/*! ZSTD_compress_usingCDict_advanced() :
+*   Same as ZSTD_compress_usingCDict(), with fine-tune control over frame parameters */
+ZSTDLIB_API size_t ZSTD_compress_usingCDict_advanced(ZSTD_CCtx* cctx,
+                                  void* dst, size_t dstCapacity,
+                            const void* src, size_t srcSize,
+                            const ZSTD_CDict* cdict, ZSTD_frameParameters fParams);
 
 
 /*--- Advanced decompression functions ---*/

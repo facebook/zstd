@@ -427,12 +427,19 @@ typedef struct { ZSTD_allocFunction customAlloc; ZSTD_freeFunction customFree; v
    both values are optional, select `0` if unknown. 
 </p></pre><BR>
 
-<pre><b>size_t ZSTD_compress_advanced (ZSTD_CCtx* ctx,
-                               void* dst, size_t dstCapacity,
-                         const void* src, size_t srcSize,
-                         const void* dict,size_t dictSize,
-                               ZSTD_parameters params);
-</b><p>   Same as ZSTD_compress_usingDict(), with fine-tune control of each compression parameter 
+<pre><b>size_t ZSTD_compress_advanced (ZSTD_CCtx* cctx,
+                      void* dst, size_t dstCapacity,
+                const void* src, size_t srcSize,
+                const void* dict,size_t dictSize,
+                      ZSTD_parameters params);
+</b><p>   Same as ZSTD_compress_usingDict(), with fine-tune control over each compression parameter 
+</p></pre><BR>
+
+<pre><b>size_t ZSTD_compress_usingCDict_advanced(ZSTD_CCtx* cctx,
+                      void* dst, size_t dstCapacity,
+                const void* src, size_t srcSize,
+                const ZSTD_CDict* cdict, ZSTD_frameParameters fParams);
+</b><p>   Same as ZSTD_compress_usingDict_advanced(), with fine-tune control over frame parameters 
 </p></pre><BR>
 
 <a name="Chapter15"></a><h2>Advanced decompression functions</h2><pre></pre>

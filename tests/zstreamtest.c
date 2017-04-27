@@ -453,7 +453,7 @@ static int basicUnitTests(U32 seed, double compressibility, ZSTD_customMem custo
         ZSTD_CDict* cdict;
         params.fParams.noDictIDFlag = 1;
         params.fParams.contentSizeFlag = 1;  /* test contentSize, should be disabled with initCStream_usingCDict */
-        cdict = ZSTD_createCDict_advanced(dictionary.start, dictionary.filled, 1, params, customMem);
+        cdict = ZSTD_createCDict_advanced(dictionary.start, dictionary.filled, 1, params.cParams, customMem);
         { size_t const initError = ZSTD_initCStream_usingCDict(zc, cdict);
           if (ZSTD_isError(initError)) goto _output_error; }
         cSize = 0;

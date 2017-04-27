@@ -407,7 +407,7 @@ static int basicUnitTests(U32 seed, double compressibility)
         DISPLAYLEVEL(4, "test%3i : compress with preprocessed dictionary : ", testNb++);
         {   ZSTD_parameters params = ZSTD_getParams(1, CNBuffSize, dictSize);
             {   ZSTD_customMem customMem = { NULL, NULL, NULL };
-                ZSTD_CDict* cdict = ZSTD_createCDict_advanced(dictBuffer, dictSize, 1, params, customMem);
+                ZSTD_CDict* cdict = ZSTD_createCDict_advanced(dictBuffer, dictSize, 1, params.cParams, customMem);
                 cSize = ZSTD_compress_usingCDict(cctx, compressedBuffer, ZSTD_compressBound(CNBuffSize),
                                                  CNBuffer, CNBuffSize, cdict);
                 ZSTD_freeCDict(cdict);

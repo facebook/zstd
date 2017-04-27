@@ -400,7 +400,7 @@ typedef struct { ZSTD_allocFunction customAlloc; ZSTD_freeFunction customFree; v
 </p></pre><BR>
 
 <pre><b>ZSTD_CDict* ZSTD_createCDict_advanced(const void* dict, size_t dictSize, unsigned byReference,
-                                      ZSTD_parameters params, ZSTD_customMem customMem);
+                                      ZSTD_compressionParameters cParams, ZSTD_customMem customMem);
 </b><p>  Create a ZSTD_CDict using external alloc and free, and customized compression parameters 
 </p></pre><BR>
 

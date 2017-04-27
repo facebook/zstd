@@ -521,7 +521,7 @@ static size_t ZSTDMT_initCStream_internal(ZSTDMT_CCtx* zcs,
     if (updateDict) {
         ZSTD_freeCDict(zcs->cdict); zcs->cdict = NULL;
         if (dict && dictSize) {
-            zcs->cdict = ZSTD_createCDict_advanced(dict, dictSize, 0, params, cmem);
+            zcs->cdict = ZSTD_createCDict_advanced(dict, dictSize, 0, params.cParams, cmem);
             if (zcs->cdict == NULL) return ERROR(memory_allocation);
     }   }
     zcs->frameContentSize = pledgedSrcSize;

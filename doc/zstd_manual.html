@@ -439,7 +439,7 @@ typedef struct { ZSTD_allocFunction customAlloc; ZSTD_freeFunction customFree; v
                       void* dst, size_t dstCapacity,
                 const void* src, size_t srcSize,
                 const ZSTD_CDict* cdict, ZSTD_frameParameters fParams);
-</b><p>   Same as ZSTD_compress_usingDict_advanced(), with fine-tune control over frame parameters 
+</b><p>   Same as ZSTD_compress_usingCDict(), with fine-tune control over frame parameters 
 </p></pre><BR>
 
 <a name="Chapter15"></a><h2>Advanced decompression functions</h2><pre></pre>
@@ -511,6 +511,7 @@ size_t ZSTD_initCStream_usingDict(ZSTD_CStream* zcs, const void* dict, size_t di
 size_t ZSTD_initCStream_advanced(ZSTD_CStream* zcs, const void* dict, size_t dictSize,
                                              ZSTD_parameters params, unsigned long long pledgedSrcSize);  </b>/**< pledgedSrcSize is optional and can be 0 (meaning unknown). note: if the contentSizeFlag is set, pledgedSrcSize == 0 means the source size is actually 0 */<b>
 size_t ZSTD_initCStream_usingCDict(ZSTD_CStream* zcs, const ZSTD_CDict* cdict);  </b>/**< note : cdict will just be referenced, and must outlive compression session */<b>
+size_t ZSTD_initCStream_usingCDict_advanced(ZSTD_CStream* zcs, const ZSTD_CDict* cdict, unsigned long long pledgedSrcSize, ZSTD_frameParameters fParams);  </b>/**< same as ZSTD_initCStream_usingCDict(), with control over frame parameters */<b>
 </pre></b><BR>
 <pre><b>size_t ZSTD_resetCStream(ZSTD_CStream* zcs, unsigned long long pledgedSrcSize);
 </b><p>  start a new compression job, using same parameters from previous job.

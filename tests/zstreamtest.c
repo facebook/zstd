@@ -448,14 +448,12 @@ static int basicUnitTests(U32 seed, double compressibility, ZSTD_customMem custo
       if (!ZSTD_isError(r)) goto _output_error;  /* must fail : frame requires > 100 bytes */
       DISPLAYLEVEL(3, "OK (%s)\n", ZSTD_getErrorName(r)); }
 
-    DISPLAYLEVEL(3, "test%3i : dictionary compression with masked dictID : ", testNb++);
-    {   ZSTD_parameters params = ZSTD_getParams(1, CNBufferSize, dictionary.filled);
-        ZSTD_CDict* cdict;
-        params.fParams.noDictIDFlag = 1;
-        params.fParams.contentSizeFlag = 1;  /* test contentSize, should be disabled with initCStream_usingCDict */
-        cdict = ZSTD_createCDict_advanced(dictionary.start, dictionary.filled, 1, params.cParams, customMem);
-        { size_t const initError = ZSTD_initCStream_usingCDict(zc, cdict);
-          if (ZSTD_isError(initError)) goto _output_error; }
+    DISPLAYLEVEL(3, "test%3i : ZSTD_initCStream_usingCDict_advanced with masked dictID : ", testNb++);
+    {   ZSTD_compressionParameters const cParams = ZSTD_getCParams(1, CNBufferSize, dictionary.filled);
+        ZSTD_frameParameters const fParams = { 1 /* contentSize */, 1 /* checksum */, 1 /* noDictID */};
+        ZSTD_CDict* const cdict = ZSTD_createCDict_advanced(dictionary.start, dictionary.filled, 1, cParams, customMem);
+        size_t const initError = ZSTD_initCStream_usingCDict_advanced(zc, cdict, CNBufferSize, fParams);
+        if (ZSTD_isError(initError)) goto _output_error;
         cSize = 0;
         outBuff.dst = compressedBuffer;
         outBuff.size = compressedBufferSize;

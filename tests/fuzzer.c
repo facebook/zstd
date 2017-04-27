@@ -405,9 +405,9 @@ static int basicUnitTests(U32 seed, double compressibility)
         DISPLAYLEVEL(4, "OK \n");
 
         DISPLAYLEVEL(4, "test%3i : compress with preprocessed dictionary : ", testNb++);
-        {   ZSTD_parameters params = ZSTD_getParams(1, CNBuffSize, dictSize);
+        {   ZSTD_compressionParameters cParams = ZSTD_getCParams(1, CNBuffSize, dictSize);
             {   ZSTD_customMem customMem = { NULL, NULL, NULL };
-                ZSTD_CDict* cdict = ZSTD_createCDict_advanced(dictBuffer, dictSize, 1, params.cParams, customMem);
+                ZSTD_CDict* cdict = ZSTD_createCDict_advanced(dictBuffer, dictSize, 1, cParams, customMem);
                 cSize = ZSTD_compress_usingCDict(cctx, compressedBuffer, ZSTD_compressBound(CNBuffSize),
                                                  CNBuffer, CNBuffSize, cdict);
                 ZSTD_freeCDict(cdict);
@@ -760,7 +760,6 @@ static int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, U32 const maxD
     for ( ; (testNb <= nbTests) || (FUZ_clockSpan(startClock) < maxClockSpan); testNb++ ) {
         size_t sampleSize, maxTestSize, totalTestSize;
         size_t cSize, totalCSize, totalGenSize;
-        XXH64_state_t xxhState;
         U64 crcOrig;
         BYTE* sampleBuffer;
         const BYTE* dict;
@@ -917,22 +916,22 @@ static int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, U32 const maxD
                 CHECK (ZSTD_isError(errorCode), "ZSTD_compressBegin_usingDict error : %s", ZSTD_getErrorName(errorCode));
             } else {
                 ZSTD_compressionParameters const cPar = ZSTD_getCParams(cLevel, 0, dictSize);
-                ZSTD_frameParameters const fpar = { FUZ_rand(&lseed)&1 /* contentSizeFlag */,
+                ZSTD_frameParameters const fPar = { FUZ_rand(&lseed)&1 /* contentSizeFlag */,
                                                     !(FUZ_rand(&lseed)&3) /* contentChecksumFlag*/,
                                                     0 /*NodictID*/ };   /* note : since dictionary is fake, dictIDflag has no impact */
-                ZSTD_parameters p;
-                size_t errorCode;
-                p.cParams = cPar; p.fParams = fpar;
-                errorCode = ZSTD_compressBegin_advanced(refCtx, dict, dictSize, p, 0);
+                ZSTD_parameters const p = { cPar, fPar };
+                size_t const errorCode = ZSTD_compressBegin_advanced(refCtx, dict, dictSize, p, 0);
                 CHECK (ZSTD_isError(errorCode), "ZSTD_compressBegin_advanced error : %s", ZSTD_getErrorName(errorCode));
             }
             {   size_t const errorCode = ZSTD_copyCCtx(ctx, refCtx, 0);
                 CHECK (ZSTD_isError(errorCode), "ZSTD_copyCCtx error : %s", ZSTD_getErrorName(errorCode));
         }   }
-        XXH64_reset(&xxhState, 0);
         ZSTD_setCCtxParameter(ctx, ZSTD_p_forceWindow, FUZ_rand(&lseed) & 1);
+
         {   U32 const nbChunks = (FUZ_rand(&lseed) & 127) + 2;
             U32 n;
+            XXH64_state_t xxhState;
+            XXH64_reset(&xxhState, 0);
             for (totalTestSize=0, cSize=0, n=0 ; n<nbChunks ; n++) {
                 size_t const segmentSize = FUZ_randomLength(&lseed, maxSampleLog);
                 size_t const segmentStart = FUZ_rand(&lseed) % (srcBufferSize - segmentSize);
@@ -947,13 +946,14 @@ static int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, U32 const maxD
                 XXH64_update(&xxhState, srcBuffer+segmentStart, segmentSize);
                 memcpy(mirrorBuffer + totalTestSize, srcBuffer+segmentStart, segmentSize);
                 totalTestSize += segmentSize;
-        }   }
+            }
 
-        {   size_t const flushResult = ZSTD_compressEnd(ctx, cBuffer+cSize, cBufferSize-cSize, NULL, 0);
-            CHECK (ZSTD_isError(flushResult), "multi-segments epilogue error : %s", ZSTD_getErrorName(flushResult));
-            cSize += flushResult;
+            {   size_t const flushResult = ZSTD_compressEnd(ctx, cBuffer+cSize, cBufferSize-cSize, NULL, 0);
+                CHECK (ZSTD_isError(flushResult), "multi-segments epilogue error : %s", ZSTD_getErrorName(flushResult));
+                cSize += flushResult;
+            }
+            crcOrig = XXH64_digest(&xxhState);
         }
-        crcOrig = XXH64_digest(&xxhState);
 
         /* streaming decompression test */
         if (dictSize<8) dictSize=0, dict=NULL;   /* disable dictionary */

@@ -2948,6 +2948,14 @@ size_t ZSTD_sizeof_CDict(const ZSTD_CDict* cdict)
     return ZSTD_sizeof_CCtx(cdict->refContext) + (cdict->dictBuffer ? cdict->dictContentSize : 0) + sizeof(*cdict);
 }
 
+static ZSTD_parameters ZSTD_makeParams(ZSTD_compressionParameters cParams, ZSTD_frameParameters fParams)
+{
+    ZSTD_parameters params;
+    params.cParams = cParams;
+    params.fParams = fParams;
+    return params;
+}
+
 ZSTD_CDict* ZSTD_createCDict_advanced(const void* dictBuffer, size_t dictSize, unsigned byReference,
                                       ZSTD_compressionParameters cParams, ZSTD_customMem customMem)
 {
@@ -2975,7 +2983,7 @@ ZSTD_CDict* ZSTD_createCDict_advanced(const void* dictBuffer, size_t dictSize, u
         }
 
         {   ZSTD_frameParameters const fParams = { 0 /* contentSizeFlag */, 0 /* checksumFlag */, 0 /* noDictIDFlag */ };   /* dummy */
-            ZSTD_parameters const params = { cParams, fParams };
+            ZSTD_parameters const params = ZSTD_makeParams(cParams, fParams);
             size_t const errorCode = ZSTD_compressBegin_advanced(cctx, cdict->dictContent, dictSize, params, 0);
             if (ZSTD_isError(errorCode)) {
                 ZSTD_free(cdict->dictBuffer, customMem);

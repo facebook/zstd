@@ -55,8 +55,8 @@ extern "C" {
 
 /*------   Version   ------*/
 #define ZSTD_VERSION_MAJOR    1
-#define ZSTD_VERSION_MINOR    1
-#define ZSTD_VERSION_RELEASE  5
+#define ZSTD_VERSION_MINOR    2
+#define ZSTD_VERSION_RELEASE  0
 
 #define ZSTD_LIB_VERSION ZSTD_VERSION_MAJOR.ZSTD_VERSION_MINOR.ZSTD_VERSION_RELEASE
 #define ZSTD_QUOTE(str) #str

@@ -166,7 +166,7 @@
       make -C contrib\pzstd check &&
       make -C contrib\pzstd clean
     )
-  - SET "FUZZERTEST=-T1mn"
+  - SET "FUZZERTEST=-T30s"
   - if [%HOST%]==[visual] if [%CONFIGURATION%]==[Release] (
       CD tests &&
       SET ZSTD=./zstd.exe &&

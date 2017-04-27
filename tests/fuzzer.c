@@ -1003,7 +1003,7 @@ _output_error:
 /*_*******************************************************
 *  Command line
 *********************************************************/
-int FUZ_usage(const char* programName)
+static int FUZ_usage(const char* programName)
 {
     DISPLAY( "Usage :\n");
     DISPLAY( "      %s [args]\n", programName);
@@ -1019,20 +1019,39 @@ int FUZ_usage(const char* programName)
     return 0;
 }
 
+/*! readU32FromChar() :
+    @return : unsigned integer value read from input in `char` format
+    allows and interprets K, KB, KiB, M, MB and MiB suffix.
+    Will also modify `*stringPtr`, advancing it to position where it stopped reading.
+    Note : function result can overflow if digit string > MAX_UINT */
+static unsigned readU32FromChar(const char** stringPtr)
+{
+    unsigned result = 0;
+    while ((**stringPtr >='0') && (**stringPtr <='9'))
+        result *= 10, result += **stringPtr - '0', (*stringPtr)++ ;
+    if ((**stringPtr=='K') || (**stringPtr=='M')) {
+        result <<= 10;
+        if (**stringPtr=='M') result <<= 10;
+        (*stringPtr)++ ;
+        if (**stringPtr=='i') (*stringPtr)++;
+        if (**stringPtr=='B') (*stringPtr)++;
+    }
+    return result;
+}
 
 int main(int argc, const char** argv)
 {
-    U32 seed=0;
-    int seedset=0;
+    U32 seed = 0;
+    int seedset = 0;
     int argNb;
     int nbTests = nbTestsDefault;
     int testNb = 0;
     U32 proba = FUZ_compressibility_default;
-    int result=0;
+    int result = 0;
     U32 mainPause = 0;
     U32 maxDuration = 0;
     int bigTests = 1;
-    const char* programName = argv[0];
+    const char* const programName = argv[0];
 
     /* Check command line */
     for (argNb=1; argNb<argc; argNb++) {
@@ -1050,75 +1069,55 @@ int main(int argc, const char** argv)
                 {
                 case 'h':
                     return FUZ_usage(programName);
+
                 case 'v':
                     argument++;
-                    g_displayLevel=4;
+                    g_displayLevel = 4;
                     break;
+
                 case 'q':
                     argument++;
                     g_displayLevel--;
                     break;
+
                 case 'p': /* pause at the end */
                     argument++;
                     mainPause = 1;
                     break;
 
                 case 'i':
-                    argument++; maxDuration=0;
-                    nbTests=0;
-                    while ((*argument>='0') && (*argument<='9')) {
-                        nbTests *= 10;
-                        nbTests += *argument - '0';
-                        argument++;
-                    }
+                    argument++; maxDuration = 0;
+                    nbTests = readU32FromChar(&argument);
                     break;
 
                 case 'T':
                     argument++;
-                    nbTests=0; maxDuration=0;
-                    while ((*argument>='0') && (*argument<='9')) {
-                        maxDuration *= 10;
-                        maxDuration += *argument - '0';
-                        argument++;
-                    }
-                    if (*argument=='m') maxDuration *=60, argument++;
+                    nbTests = 0;
+                    maxDuration = readU32FromChar(&argument);
+                    if (*argument=='s') argument++;   /* seconds */
+                    if (*argument=='m') maxDuration *= 60, argument++;   /* minutes */
                     if (*argument=='n') argument++;
                     break;
 
                 case 's':
                     argument++;
-                    seed=0;
-                    seedset=1;
-                    while ((*argument>='0') && (*argument<='9')) {
-                        seed *= 10;
-                        seed += *argument - '0';
-                        argument++;
-                    }
+                    seedset = 1;
+                    seed = readU32FromChar(&argument);
                     break;
 
                 case 't':
                     argument++;
-                    testNb=0;
-                    while ((*argument>='0') && (*argument<='9')) {
-                        testNb *= 10;
-                        testNb += *argument - '0';
-                        argument++;
-                    }
+                    testNb = readU32FromChar(&argument);
                     break;
 
                 case 'P':   /* compressibility % */
                     argument++;
-                    proba=0;
-                    while ((*argument>='0') && (*argument<='9')) {
-                        proba *= 10;
-                        proba += *argument - '0';
-                        argument++;
-                    }
-                    if (proba>100) proba=100;
+                    proba = readU32FromChar(&argument);
+                    if (proba>100) proba = 100;
                     break;
 
                 default:
-                    return FUZ_usage(programName);
+                    return (FUZ_usage(programName), 1);
     }   }   }   }   /* for (argNb=1; argNb<argc; argNb++) */
 
     /* Get Seed */

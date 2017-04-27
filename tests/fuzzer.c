@@ -405,14 +405,13 @@ static int basicUnitTests(U32 seed, double compressibility)
         DISPLAYLEVEL(4, "OK \n");
 
         DISPLAYLEVEL(4, "test%3i : compress with preprocessed dictionary : ", testNb++);
-        {   ZSTD_compressionParameters cParams = ZSTD_getCParams(1, CNBuffSize, dictSize);
-            {   ZSTD_customMem customMem = { NULL, NULL, NULL };
-                ZSTD_CDict* cdict = ZSTD_createCDict_advanced(dictBuffer, dictSize, 1, cParams, customMem);
-                cSize = ZSTD_compress_usingCDict(cctx, compressedBuffer, ZSTD_compressBound(CNBuffSize),
+        {   ZSTD_compressionParameters const cParams = ZSTD_getCParams(1, CNBuffSize, dictSize);
+            ZSTD_customMem customMem = { NULL, NULL, NULL };
+            ZSTD_CDict* cdict = ZSTD_createCDict_advanced(dictBuffer, dictSize, 1, cParams, customMem);
+            cSize = ZSTD_compress_usingCDict(cctx, compressedBuffer, ZSTD_compressBound(CNBuffSize),
                                                  CNBuffer, CNBuffSize, cdict);
-                ZSTD_freeCDict(cdict);
-                if (ZSTD_isError(cSize)) goto _output_error;
-            }
+            ZSTD_freeCDict(cdict);
+            if (ZSTD_isError(cSize)) goto _output_error;
         }
         DISPLAYLEVEL(4, "OK (%u bytes : %.2f%%)\n", (U32)cSize, (double)cSize/CNBuffSize*100);
 
@@ -430,7 +429,33 @@ static int basicUnitTests(U32 seed, double compressibility)
                   if (r != CNBuffSize) goto _output_error);
         DISPLAYLEVEL(4, "OK \n");
 
-        DISPLAYLEVEL(4, "test%3i : compress without dictID : ", testNb++);
+        DISPLAYLEVEL(4, "test%3i : ZSTD_compress_usingCDict_advanced, no contentSize, no dictID : ", testNb++);
+        {   ZSTD_frameParameters const fParams = { 0 /* frameSize */, 1 /* checksum */, 1 /* noDictID*/ };
+            ZSTD_compressionParameters const cParams = ZSTD_getCParams(1, CNBuffSize, dictSize);
+            ZSTD_customMem const customMem = { NULL, NULL, NULL };
+            ZSTD_CDict* const cdict = ZSTD_createCDict_advanced(dictBuffer, dictSize, 1, cParams, customMem);
+            cSize = ZSTD_compress_usingCDict_advanced(cctx, compressedBuffer, ZSTD_compressBound(CNBuffSize),
+                                                 CNBuffer, CNBuffSize, cdict, fParams);
+            ZSTD_freeCDict(cdict);
+            if (ZSTD_isError(cSize)) goto _output_error;
+        }
+        DISPLAYLEVEL(4, "OK (%u bytes : %.2f%%)\n", (U32)cSize, (double)cSize/CNBuffSize*100);
+
+        DISPLAYLEVEL(4, "test%3i : try retrieving contentSize from frame : ", testNb++);
+        {   U64 const contentSize = ZSTD_getFrameContentSize(compressedBuffer, cSize);
+            if (contentSize != ZSTD_CONTENTSIZE_UNKNOWN) goto _output_error;
+        }
+        DISPLAYLEVEL(4, "OK (unknown)\n");
+
+        DISPLAYLEVEL(4, "test%3i : frame built without dictID should be decompressible : ", testNb++);
+        CHECKPLUS(r, ZSTD_decompress_usingDict(dctx,
+                                       decodedBuffer, CNBuffSize,
+                                       compressedBuffer, cSize,
+                                       dictBuffer, dictSize),
+                  if (r != CNBuffSize) goto _output_error);
+        DISPLAYLEVEL(4, "OK \n");
+
+        DISPLAYLEVEL(4, "test%3i : ZSTD_compress_advanced, no dictID : ", testNb++);
         {   ZSTD_parameters p = ZSTD_getParams(3, CNBuffSize, dictSize);
             p.fParams.noDictIDFlag = 1;
             cSize = ZSTD_compress_advanced(cctx, compressedBuffer, ZSTD_compressBound(CNBuffSize),

@@ -3211,15 +3211,23 @@ static size_t ZSTD_initCStream_stage2(ZSTD_CStream* zcs,
     return ZSTD_resetCStream_internal(zcs, pledgedSrcSize);
 }
 
-/* note : cdict must outlive compression session */
-size_t ZSTD_initCStream_usingCDict(ZSTD_CStream* zcs, const ZSTD_CDict* cdict)
+/* ZSTD_initCStream_usingCDict_advanced() :
+ * same as ZSTD_initCStream_usingCDict(), with control over frame parameters */
+size_t ZSTD_initCStream_usingCDict_advanced(ZSTD_CStream* zcs, const ZSTD_CDict* cdict, unsigned long long pledgedSrcSize, ZSTD_frameParameters fParams)
 {
     if (!cdict) return ERROR(GENERIC);   /* cannot handle NULL cdict (does not know what to do) */
     {   ZSTD_parameters params = ZSTD_getParamsFromCDict(cdict);
-        params.fParams.contentSizeFlag = 0;
+        params.fParams = fParams;
         zcs->cdict = cdict;
-        return ZSTD_initCStream_stage2(zcs, params, 0);
+        return ZSTD_initCStream_stage2(zcs, params, pledgedSrcSize);
     }
+}
+
+/* note : cdict must outlive compression session */
+size_t ZSTD_initCStream_usingCDict(ZSTD_CStream* zcs, const ZSTD_CDict* cdict)
+{
+    ZSTD_frameParameters const fParams = { 0 /* content */, 0 /* checksum */, 0 /* noDictID */ };
+    return ZSTD_initCStream_usingCDict_advanced(zcs, cdict, 0, fParams);
 }
 
 static size_t ZSTD_initCStream_internal(ZSTD_CStream* zcs,

@@ -586,7 +586,7 @@ ZSTDLIB_API unsigned ZSTD_getDictID_fromDDict(const ZSTD_DDict* ddict);
  *    Note : this use case also happens when using a non-conformant dictionary.
  *  - `srcSize` is too small, and as a result, the frame header could not be decoded (only possible if `srcSize < ZSTD_FRAMEHEADERSIZE_MAX`).
  *  - This is not a Zstandard frame.
- *  When identifying the exact failure cause, it's possible to used ZSTD_getFrameParams(), which will provide a more precise error code. */
+ *  When identifying the exact failure cause, it's possible to use ZSTD_getFrameParams(), which will provide a more precise error code. */
 ZSTDLIB_API unsigned ZSTD_getDictID_fromFrame(const void* src, size_t srcSize);
 
 

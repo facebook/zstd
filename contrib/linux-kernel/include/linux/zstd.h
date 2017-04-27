@@ -202,7 +202,7 @@ ZSTD_parameters ZSTD_getParams(int compressionLevel,
  **************************************/
 
 /**
- * ZSTD_CCtxWorkspaceBound() - the amount of memory needed to create a ZSTD_CCtx
+ * ZSTD_CCtxWorkspaceBound() - amount of memory needed to initialize a ZSTD_CCtx
  * @cParams: The compression parameters to be used for compression.
  *
  * If multiple compression parameters might be used, the caller must call
@@ -210,7 +210,7 @@ ZSTD_parameters ZSTD_getParams(int compressionLevel,
  * size.
  *
  * Return:   A lower bound on the size of the workspace that is passed to
- *           ZSTD_createCCtx().
+ *           ZSTD_initCCtx().
  */
 size_t ZSTD_CCtxWorkspaceBound(ZSTD_compressionParameters cParams);
 
@@ -222,7 +222,7 @@ size_t ZSTD_CCtxWorkspaceBound(ZSTD_compressionParameters cParams);
  */
 typedef struct ZSTD_CCtx_s ZSTD_CCtx;
 /**
- * ZSTD_createCCtx() - create a zstd compression context
+ * ZSTD_initCCtx() - initialize a zstd compression context
  * @workspace:     The workspace to emplace the context into. It must outlive
  *                 the returned context.
  * @workspaceSize: The size of workspace. Use ZSTD_CCtxWorkspaceBound() to
@@ -230,12 +230,12 @@ typedef struct ZSTD_CCtx_s ZSTD_CCtx;
  *
  * Return:         A compression context emplaced into workspace.
  */
-ZSTD_CCtx *ZSTD_createCCtx(void *workspace, size_t workspaceSize);
+ZSTD_CCtx *ZSTD_initCCtx(void *workspace, size_t workspaceSize);
 
 /**
  * ZSTD_compressCCtx() - compress src into dst
- * @ctx:         The context. Must have been created with a workspace at least
- *               as large as ZSTD_CCtxWorkspaceBound(params.cParams).
+ * @ctx:         The context. Must have been initialized with a workspace at
+ *               least as large as ZSTD_CCtxWorkspaceBound(params.cParams).
  * @dst:         The buffer to compress src into.
  * @dstCapacity: The size of the destination buffer. May be any size, but
  *               ZSTD_compressBound(srcSize) is guaranteed to be large enough.
@@ -250,10 +250,10 @@ size_t ZSTD_compressCCtx(ZSTD_CCtx *ctx, void *dst, size_t dstCapacity,
 	const void *src, size_t srcSize, ZSTD_parameters params);
 
 /**
- * ZSTD_DCtxWorkspaceBound() - the amount of memory needed to create a ZSTD_DCtx
+ * ZSTD_DCtxWorkspaceBound() - amount of memory needed to initialize a ZSTD_DCtx
  *
  * Return: A lower bound on the size of the workspace that is passed to
- *         ZSTD_createDCtx().
+ *         ZSTD_initDCtx().
  */
 size_t ZSTD_DCtxWorkspaceBound(void);
 
@@ -265,7 +265,7 @@ size_t ZSTD_DCtxWorkspaceBound(void);
  */
 typedef struct ZSTD_DCtx_s ZSTD_DCtx;
 /**
- * ZSTD_createDCtx() - create a zstd decompression context
+ * ZSTD_initDCtx() - initialize a zstd decompression context
  * @workspace:     The workspace to emplace the context into. It must outlive
  *                 the returned context.
  * @workspaceSize: The size of workspace. Use ZSTD_DCtxWorkspaceBound() to
@@ -273,7 +273,7 @@ typedef struct ZSTD_DCtx_s ZSTD_DCtx;
  *
  * Return:         A decompression context emplaced into workspace.
  */
-ZSTD_DCtx *ZSTD_createDCtx(void *workspace, size_t workspaceSize);
+ZSTD_DCtx *ZSTD_initDCtx(void *workspace, size_t workspaceSize);
 
 /**
  * ZSTD_decompressDCtx() - decompress zstd compressed src into dst
@@ -298,8 +298,8 @@ size_t ZSTD_decompressDCtx(ZSTD_DCtx *ctx, void *dst, size_t dstCapacity,
 
 /**
  * ZSTD_compress_usingDict() - compress src into dst using a dictionary
- * @ctx:         The context. Must have been created with a workspace at least
- *               as large as ZSTD_CCtxWorkspaceBound(params.cParams).
+ * @ctx:         The context. Must have been initialized with a workspace at
+ *               least as large as ZSTD_CCtxWorkspaceBound(params.cParams).
  * @dst:         The buffer to compress src into.
  * @dstCapacity: The size of the destination buffer. May be any size, but
  *               ZSTD_compressBound(srcSize) is guaranteed to be large enough.
@@ -344,11 +344,11 @@ size_t ZSTD_decompress_usingDict(ZSTD_DCtx *ctx, void *dst, size_t dstCapacity,
  ***************************/
 
 /**
- * ZSTD_CDictWorkspaceBound() - amount of memory needed to create a ZSTD_CDict
+ * ZSTD_CDictWorkspaceBound() - memory needed to initialize a ZSTD_CDict
  * @cParams: The compression parameters to be used for compression.
  *
  * Return:   A lower bound on the size of the workspace that is passed to
- *           ZSTD_createCDict().
+ *           ZSTD_initCDict().
  */
 size_t ZSTD_CDictWorkspaceBound(ZSTD_compressionParameters cParams);
 
@@ -358,7 +358,7 @@ size_t ZSTD_CDictWorkspaceBound(ZSTD_compressionParameters cParams);
 typedef struct ZSTD_CDict_s ZSTD_CDict;
 
 /**
- * ZSTD_createCDict() - create a digested dictionary for compression
+ * ZSTD_initCDict() - initialize a digested dictionary for compression
  * @dictBuffer:    The dictionary to digest. The buffer is referenced by the
  *                 ZSTD_CDict so it must outlive the returned ZSTD_CDict.
  * @dictSize:      The size of the dictionary.
@@ -373,14 +373,15 @@ typedef struct ZSTD_CDict_s ZSTD_CDict;
  *
  * Return:         The digested dictionary emplaced into workspace.
  */
-ZSTD_CDict *ZSTD_createCDict(const void *dictBuffer, size_t dictSize,
+ZSTD_CDict *ZSTD_initCDict(const void *dictBuffer, size_t dictSize,
 	ZSTD_parameters params, void *workspace, size_t workspaceSize);
 
 /**
  * ZSTD_compress_usingCDict() - compress src into dst using a ZSTD_CDict
- * @ctx:         The context. Must have been created with a workspace at least
- *               as large as ZSTD_CCtxWorkspaceBound(cParams) where cParams are
- *               the compression parameters used to create cdict.
+ * @ctx:         The context. Must have been initialized with a workspace at
+ *               least as large as ZSTD_CCtxWorkspaceBound(cParams) where
+ *               cParams are the compression parameters used to initialize the
+ *               cdict.
  * @dst:         The buffer to compress src into.
  * @dstCapacity: The size of the destination buffer. May be any size, but
  *               ZSTD_compressBound(srcSize) is guaranteed to be large enough.
@@ -400,10 +401,10 @@ size_t ZSTD_compress_usingCDict(ZSTD_CCtx *cctx, void *dst, size_t dstCapacity,
 
 
 /**
- * ZSTD_DDictWorkspaceBound() - amount of memory needed to create a ZSTD_DDict
+ * ZSTD_DDictWorkspaceBound() - memory needed to initialize a ZSTD_DDict
  *
  * Return:  A lower bound on the size of the workspace that is passed to
- *          ZSTD_createDDict().
+ *          ZSTD_initDDict().
  */
 size_t ZSTD_DDictWorkspaceBound(void);
 
@@ -413,7 +414,7 @@ size_t ZSTD_DDictWorkspaceBound(void);
 typedef struct ZSTD_DDict_s ZSTD_DDict;
 
 /**
- * ZSTD_createDDict() - create a digested dictionary for decompression
+ * ZSTD_initDDict() - initialize a digested dictionary for decompression
  * @dictBuffer:    The dictionary to digest. The buffer is referenced by the
  *                 ZSTD_DDict so it must outlive the returned ZSTD_DDict.
  * @dictSize:      The size of the dictionary.
@@ -427,7 +428,7 @@ typedef struct ZSTD_DDict_s ZSTD_DDict;
  *
  * Return:         The digested dictionary emplaced into workspace.
  */
-ZSTD_DDict *ZSTD_createDDict(const void *dictBuffer, size_t dictSize,
+ZSTD_DDict *ZSTD_initDDict(const void *dictBuffer, size_t dictSize,
 	void *workspace, size_t workspaceSize);
 
 /**
@@ -487,7 +488,7 @@ typedef struct ZSTD_outBuffer_s {
  * Streaming compression - HowTo
  *
  * A ZSTD_CStream object is required to track streaming operation.
- * Use ZSTD_createCStream() to create and initialize a ZSTD_CStream object.
+ * Use ZSTD_initCStream() to initialize a ZSTD_CStream object.
  * ZSTD_CStream objects can be reused multiple times on consecutive compression
  * operations. It is recommended to re-use ZSTD_CStream in situations where many
  * streaming operations will be achieved consecutively. Use one separate
@@ -515,11 +516,11 @@ typedef struct ZSTD_outBuffer_s {
  ******************************************************************************/
 
 /**
- * ZSTD_CStreamWorkspaceBound() - memory needed to create a ZSTD_CStream
+ * ZSTD_CStreamWorkspaceBound() - memory needed to initialize a ZSTD_CStream
  * @cParams: The compression parameters to be used for compression.
  *
  * Return:   A lower bound on the size of the workspace that is passed to
- *           ZSTD_createCStream() and ZSTD_createCStream_usingCDict().
+ *           ZSTD_initCStream() and ZSTD_initCStream_usingCDict().
  */
 size_t ZSTD_CStreamWorkspaceBound(ZSTD_compressionParameters cParams);
 
@@ -530,7 +531,7 @@ typedef struct ZSTD_CStream_s ZSTD_CStream;
 
 /*===== ZSTD_CStream management functions =====*/
 /**
- * ZSTD_createCStream() - create a zstd streaming compression context
+ * ZSTD_initCStream() - initialize a zstd streaming compression context
  * @params:         The zstd compression parameters.
  * @pledgedSrcSize: If params.fParams.contentSizeFlag == 1 then the caller must
  *                  pass the source size (zero means empty source). Otherwise,
@@ -544,23 +545,23 @@ typedef struct ZSTD_CStream_s ZSTD_CStream;
  *
  * Return:          The zstd streaming compression context.
  */
-ZSTD_CStream *ZSTD_createCStream(ZSTD_parameters params,
+ZSTD_CStream *ZSTD_initCStream(ZSTD_parameters params,
 	unsigned long long pledgedSrcSize, void *workspace,
 	size_t workspaceSize);
 
 /**
- * ZSTD_createCStream_usingCDict() - create a zstd streaming compression context
+ * ZSTD_initCStream_usingCDict() - initialize a streaming compression context
  * @cdict:          The digested dictionary to use for compression.
  * @pledgedSrcSize: Optionally the source size, or zero if unknown.
  * @workspace:      The workspace to emplace the context into. It must outlive
  *                  the returned context.
  * @workspaceSize:  The size of workspace. Call ZSTD_CStreamWorkspaceBound()
- *                  with the cParams used to create the cdict to determine how
- *                  large the workspace must be.
+ *                  with the cParams used to initialize the cdict to determine
+ *                  how large the workspace must be.
  *
  * Return:          The zstd streaming compression context.
  */
-ZSTD_CStream *ZSTD_createCStream_usingCDict(const ZSTD_CDict *cdict,
+ZSTD_CStream *ZSTD_initCStream_usingCDict(const ZSTD_CDict *cdict,
 	unsigned long long pledgedSrcSize, void *workspace,
 	size_t workspaceSize);
 
@@ -646,7 +647,7 @@ size_t ZSTD_CStreamOutSize(void);
  * Streaming decompression - HowTo
  *
  * A ZSTD_DStream object is required to track streaming operations.
- * Use ZSTD_createDStream() to initialize a ZSTD_DStream object.
+ * Use ZSTD_initDStream() to initialize a ZSTD_DStream object.
  * ZSTD_DStream objects can be re-used multiple times.
  *
  * Use ZSTD_decompressStream() repetitively to consume your input.
@@ -660,11 +661,11 @@ size_t ZSTD_CStreamOutSize(void);
  ******************************************************************************/
 
 /**
- * ZSTD_DStreamWorkspaceBound() - memory needed to create a ZSTD_DStream
+ * ZSTD_DStreamWorkspaceBound() - memory needed to initialize a ZSTD_DStream
  * @maxWindowSize: The maximum window size allowed for compressed frames.
  *
  * Return:         A lower bound on the size of the workspace that is passed to
- *                 ZSTD_createDStream() and ZSTD_createDStream_usingDDict().
+ *                 ZSTD_initDStream() and ZSTD_initDStream_usingDDict().
  */
 size_t ZSTD_DStreamWorkspaceBound(size_t maxWindowSize);
 
@@ -674,7 +675,7 @@ size_t ZSTD_DStreamWorkspaceBound(size_t maxWindowSize);
 typedef struct ZSTD_DStream_s ZSTD_DStream;
 /*===== ZSTD_DStream management functions =====*/
 /**
- * ZSTD_createDStream() - create a zstd streaming decompression context
+ * ZSTD_initDStream() - initialize a zstd streaming decompression context
  * @maxWindowSize: The maximum window size allowed for compressed frames.
  * @workspace:     The workspace to emplace the context into. It must outlive
  *                 the returned context.
@@ -684,10 +685,10 @@ typedef struct ZSTD_DStream_s ZSTD_DStream;
  *
  * Return:         The zstd streaming decompression context.
  */
-ZSTD_DStream *ZSTD_createDStream(size_t maxWindowSize, void *workspace,
+ZSTD_DStream *ZSTD_initDStream(size_t maxWindowSize, void *workspace,
 	size_t workspaceSize);
 /**
- * ZSTD_createDStream_usingDDict() - create zstd streaming decompression context
+ * ZSTD_initDStream_usingDDict() - initialize streaming decompression context
  * @maxWindowSize: The maximum window size allowed for compressed frames.
  * @ddict:         The digested dictionary to use for decompression.
  * @workspace:     The workspace to emplace the context into. It must outlive
@@ -698,7 +699,7 @@ ZSTD_DStream *ZSTD_createDStream(size_t maxWindowSize, void *workspace,
  *
  * Return:         The zstd streaming decompression context.
  */
-ZSTD_DStream *ZSTD_createDStream_usingDDict(size_t maxWindowSize,
+ZSTD_DStream *ZSTD_initDStream_usingDDict(size_t maxWindowSize,
 	const ZSTD_DDict *ddict, void *workspace, size_t workspaceSize);
 
 /*===== Streaming decompression functions =====*/
@@ -953,7 +954,7 @@ size_t ZSTD_getFrameParams(ZSTD_frameParams *fparamsPtr, const void *src,
  * Buffer-less streaming compression (synchronous mode)
  *
  * A ZSTD_CCtx object is required to track streaming operations.
- * Use ZSTD_createCCtx() to create a context.
+ * Use ZSTD_initCCtx() to initialize a context.
  * ZSTD_CCtx object can be re-used multiple times within successive compression
  * operations.
  *
@@ -1015,7 +1016,7 @@ size_t ZSTD_compressEnd(ZSTD_CCtx *cctx, void *dst, size_t dstCapacity,
  * Buffer-less streaming decompression (synchronous mode)
  *
  * A ZSTD_DCtx object is required to track streaming operations.
- * Use ZSTD_createDCtx() to create a context.
+ * Use ZSTD_initDCtx() to initialize a context.
  * A ZSTD_DCtx object can be re-used multiple times.
  *
  * First typical operation is to retrieve frame parameters, using
@@ -1116,7 +1117,7 @@ ZSTD_nextInputType_e ZSTD_nextInputType(ZSTD_DCtx *dctx);
  *
  * A few rules to respect:
  * - Compressing and decompressing require a context structure
- *   + Use ZSTD_createCCtx() and ZSTD_createDCtx()
+ *   + Use ZSTD_initCCtx() and ZSTD_initDCtx()
  * - It is necessary to init context before starting
  *   + compression : ZSTD_compressBegin()
  *   + decompression : ZSTD_decompressBegin()

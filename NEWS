@@ -2,6 +2,7 @@ v1.2.0
 cli : changed : Multithreading enabled by default (use target zstd-nomt or HAVE_THREAD=0 to disable)
 cli : new : command -T0 means "detect and use nb of cores", by Sean Purcell
 cli : new : zstdmt symlink hardwired to `zstd -T0`
+cli : new : command --threads=# (#671)
 cli : new : experimental target `zstd4`, with support for lz4 format, by Sean Purcell
 cli : fix : does not output compressed data on console
 cli : fix : ignore symbolic links unless --force specified,

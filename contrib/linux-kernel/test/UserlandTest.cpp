@@ -20,7 +20,7 @@ createCCtx(ZSTD_compressionParameters cParams) {
   size_t const workspaceSize = ZSTD_CCtxWorkspaceBound(cParams);
   void *workspace = malloc(workspaceSize);
   std::unique_ptr<ZSTD_CCtx, WorkspaceDeleter> cctx{
-      ZSTD_createCCtx(workspace, workspaceSize), WorkspaceDeleter{workspace}};
+      ZSTD_initCCtx(workspace, workspaceSize), WorkspaceDeleter{workspace}};
   if (!cctx) {
     throw std::runtime_error{"Bad cctx"};
   }
@@ -39,7 +39,7 @@ createDCtx() {
   size_t const workspaceSize = ZSTD_DCtxWorkspaceBound();
   void *workspace = malloc(workspaceSize);
   std::unique_ptr<ZSTD_DCtx, WorkspaceDeleter> dctx{
-      ZSTD_createDCtx(workspace, workspaceSize), WorkspaceDeleter{workspace}};
+      ZSTD_initDCtx(workspace, workspaceSize), WorkspaceDeleter{workspace}};
   if (!dctx) {
     throw std::runtime_error{"Bad dctx"};
   }
@@ -51,8 +51,8 @@ createCDict(std::string const& dict, ZSTD_parameters params) {
   size_t const workspaceSize = ZSTD_CDictWorkspaceBound(params.cParams);
   void *workspace = malloc(workspaceSize);
   std::unique_ptr<ZSTD_CDict, WorkspaceDeleter> cdict{
-      ZSTD_createCDict(dict.data(), dict.size(), params, workspace,
-                       workspaceSize),
+      ZSTD_initCDict(dict.data(), dict.size(), params, workspace,
+                     workspaceSize),
       WorkspaceDeleter{workspace}};
   if (!cdict) {
     throw std::runtime_error{"Bad cdict"};
@@ -71,7 +71,7 @@ createDDict(std::string const& dict) {
   size_t const workspaceSize = ZSTD_DDictWorkspaceBound();
   void *workspace = malloc(workspaceSize);
   std::unique_ptr<ZSTD_DDict, WorkspaceDeleter> ddict{
-      ZSTD_createDDict(dict.data(), dict.size(), workspace, workspaceSize),
+      ZSTD_initDDict(dict.data(), dict.size(), workspace, workspaceSize),
       WorkspaceDeleter{workspace}};
   if (!ddict) {
     throw std::runtime_error{"Bad ddict"};
@@ -84,7 +84,7 @@ createCStream(ZSTD_parameters params, unsigned long long pledgedSrcSize = 0) {
   size_t const workspaceSize = ZSTD_CStreamWorkspaceBound(params.cParams);
   void *workspace = malloc(workspaceSize);
   std::unique_ptr<ZSTD_CStream, WorkspaceDeleter> zcs{
-      ZSTD_createCStream(params, pledgedSrcSize, workspace, workspaceSize)};
+      ZSTD_initCStream(params, pledgedSrcSize, workspace, workspaceSize)};
   if (!zcs) {
     throw std::runtime_error{"bad cstream"};
   }
@@ -97,8 +97,8 @@ createCStream(ZSTD_compressionParameters cParams, ZSTD_CDict const &cdict,
   size_t const workspaceSize = ZSTD_CStreamWorkspaceBound(cParams);
   void *workspace = malloc(workspaceSize);
   std::unique_ptr<ZSTD_CStream, WorkspaceDeleter> zcs{
-      ZSTD_createCStream_usingCDict(&cdict, pledgedSrcSize, workspace,
-                                    workspaceSize)};
+      ZSTD_initCStream_usingCDict(&cdict, pledgedSrcSize, workspace,
+                                  workspaceSize)};
   if (!zcs) {
     throw std::runtime_error{"bad cstream"};
   }
@@ -118,9 +118,9 @@ createDStream(size_t maxWindowSize = (1ULL << ZSTD_WINDOWLOG_MAX),
   void *workspace = malloc(workspaceSize);
   std::unique_ptr<ZSTD_DStream, WorkspaceDeleter> zds{
       ddict == nullptr
-          ? ZSTD_createDStream(maxWindowSize, workspace, workspaceSize)
-          : ZSTD_createDStream_usingDDict(maxWindowSize, ddict, workspace,
-                                          workspaceSize)};
+          ? ZSTD_initDStream(maxWindowSize, workspace, workspaceSize)
+          : ZSTD_initDStream_usingDDict(maxWindowSize, ddict, workspace,
+                                        workspaceSize)};
   if (!zds) {
     throw std::runtime_error{"bad dstream"};
   }
@@ -333,7 +333,7 @@ TEST(Block, PreprocessedZstdDict) {
   EXPECT_EQ(kData, decompressed);
 }
 
-TEST(Block, RecreateCCtx) {
+TEST(Block, ReinitializeCCtx) {
   auto cctx = createCCtx(1);
   {
     auto const compressed = compress(*cctx, kData, 1);
@@ -346,7 +346,7 @@ TEST(Block, RecreateCCtx) {
   auto raw = cctx.release();
   auto params = ZSTD_getParams(1, 0, 0);
   cctx.reset(
-      ZSTD_createCCtx(d.memory, ZSTD_CCtxWorkspaceBound(params.cParams)));
+      ZSTD_initCCtx(d.memory, ZSTD_CCtxWorkspaceBound(params.cParams)));
   // Repeat
   {
     auto const compressed = compress(*cctx, kData, 1);
@@ -356,7 +356,7 @@ TEST(Block, RecreateCCtx) {
   }
 }
 
-TEST(Block, RecreateDCtx) {
+TEST(Block, ReinitializeDCtx) {
   auto dctx = createDCtx();
   {
     auto cctx = createCCtx(1);
@@ -367,7 +367,7 @@ TEST(Block, RecreateDCtx) {
   // Create the cctx with the same memory
   auto d = dctx.get_deleter();
   auto raw = dctx.release();
-  dctx.reset(ZSTD_createDCtx(d.memory, ZSTD_DCtxWorkspaceBound()));
+  dctx.reset(ZSTD_initDCtx(d.memory, ZSTD_DCtxWorkspaceBound()));
   // Repeat
   {
     auto cctx = createCCtx(1);
@@ -486,24 +486,24 @@ TEST(Stream, Flush) {
 
 TEST(API, Symbols) {
   TEST_SYMBOL(ZSTD_CCtxWorkspaceBound);
-  TEST_SYMBOL(ZSTD_createCCtx);
+  TEST_SYMBOL(ZSTD_initCCtx);
   TEST_SYMBOL(ZSTD_compressCCtx);
   TEST_SYMBOL(ZSTD_compress_usingDict);
   TEST_SYMBOL(ZSTD_DCtxWorkspaceBound);
-  TEST_SYMBOL(ZSTD_createDCtx);
+  TEST_SYMBOL(ZSTD_initDCtx);
   TEST_SYMBOL(ZSTD_decompressDCtx);
   TEST_SYMBOL(ZSTD_decompress_usingDict);
 
   TEST_SYMBOL(ZSTD_CDictWorkspaceBound);
-  TEST_SYMBOL(ZSTD_createCDict);
+  TEST_SYMBOL(ZSTD_initCDict);
   TEST_SYMBOL(ZSTD_compress_usingCDict);
   TEST_SYMBOL(ZSTD_DDictWorkspaceBound);
-  TEST_SYMBOL(ZSTD_createDDict);
+  TEST_SYMBOL(ZSTD_initDDict);
   TEST_SYMBOL(ZSTD_decompress_usingDDict);
 
   TEST_SYMBOL(ZSTD_CStreamWorkspaceBound);
-  TEST_SYMBOL(ZSTD_createCStream);
-  TEST_SYMBOL(ZSTD_createCStream_usingCDict);
+  TEST_SYMBOL(ZSTD_initCStream);
+  TEST_SYMBOL(ZSTD_initCStream_usingCDict);
   TEST_SYMBOL(ZSTD_resetCStream);
   TEST_SYMBOL(ZSTD_compressStream);
   TEST_SYMBOL(ZSTD_flushStream);
@@ -511,8 +511,8 @@ TEST(API, Symbols) {
   TEST_SYMBOL(ZSTD_CStreamInSize);
   TEST_SYMBOL(ZSTD_CStreamOutSize);
   TEST_SYMBOL(ZSTD_DStreamWorkspaceBound);
-  TEST_SYMBOL(ZSTD_createDStream);
-  TEST_SYMBOL(ZSTD_createDStream_usingDDict);
+  TEST_SYMBOL(ZSTD_initDStream);
+  TEST_SYMBOL(ZSTD_initDStream_usingDDict);
   TEST_SYMBOL(ZSTD_resetDStream);
   TEST_SYMBOL(ZSTD_decompressStream);
   TEST_SYMBOL(ZSTD_DStreamInSize);

@@ -1,8 +1,8 @@
-commit 47ba72b36506f91c3774c0bb1fa3c7a5dcfe3ea1
+commit 16bb6b9fd684eadba41a36223d67805d7ea741e7
 Author: Sean Purcell <me@seanp.xyz>
-Date:   Thu Apr 27 16:50:53 2017 -0700
+Date:   Thu Apr 27 17:17:58 2017 -0700
 
-    Add zstd support to kernel squashfs
+    Add zstd support to squashfs
 
 diff --git a/fs/squashfs/Kconfig b/fs/squashfs/Kconfig
 index ffb093e..1adb334 100644
@@ -90,10 +90,10 @@ index 506f4ba..24d12fd 100644
  	__le32			s_magic;
 diff --git a/fs/squashfs/zstd_wrapper.c b/fs/squashfs/zstd_wrapper.c
 new file mode 100644
-index 0000000..af72c7b
+index 0000000..7cc9303
 --- /dev/null
 +++ b/fs/squashfs/zstd_wrapper.c
-@@ -0,0 +1,147 @@
+@@ -0,0 +1,149 @@
 +/*
 + * Squashfs - a compressed read only filesystem for Linux
 + *
@@ -200,6 +200,7 @@ index 0000000..af72c7b
 +			if (out_buf.dst == NULL) {
 +				/* shouldn't run out of pages before stream is
 +				 * done */
++				squashfs_finish_page(output);
 +				goto out;
 +			}
 +			out_buf.pos = 0;
@@ -214,12 +215,13 @@ index 0000000..af72c7b
 +			put_bh(bh[k++]);
 +	} while (zstd_err != 0 && !ZSTD_isError(zstd_err));
 +
++	squashfs_finish_page(output);
++
 +	if (ZSTD_isError(zstd_err)) {
 +		ERROR("zstd decompression error: %d\n",
 +				(int)ZSTD_getErrorCode(zstd_err));
++		goto out;
 +	}
-+
-+	squashfs_finish_page(output);
 +
 +	if (k < b)
 +		goto out;

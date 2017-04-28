@@ -104,6 +104,7 @@ static int zstd_uncompress(struct squashfs_sb_info *msblk, void *strm,
 			if (out_buf.dst == NULL) {
 				/* shouldn't run out of pages before stream is
 				 * done */
+				squashfs_finish_page(output);
 				goto out;
 			}
 			out_buf.pos = 0;
@@ -118,12 +119,13 @@ static int zstd_uncompress(struct squashfs_sb_info *msblk, void *strm,
 			put_bh(bh[k++]);
 	} while (zstd_err != 0 && !ZSTD_isError(zstd_err));
 
+	squashfs_finish_page(output);
+
 	if (ZSTD_isError(zstd_err)) {
 		ERROR("zstd decompression error: %d\n",
 				(int)ZSTD_getErrorCode(zstd_err));
+		goto out;
 	}
-
-	squashfs_finish_page(output);
 
 	if (k < b)
 		goto out;

@@ -1,7 +1,7 @@
 # Linux Kernel Patch
 
-There are two pieces, the `zstd_compress` and `zstd_decompress` kernel modules, and the BtrFS patch.
-The patches are based off of the linux kernel master branch (version 4.10).
+There are three pieces, the `zstd_compress` and `zstd_decompress` kernel modules, the BtrFS patch, and the SquashFS patch.
+The patches are based off of the linux kernel master branch, the first two on version 4.10, and the last on version 4.11.
 
 ## Zstd Kernel modules
 
@@ -22,7 +22,7 @@ The patches are based off of the linux kernel master branch (version 4.10).
 
 * The patch is located in `btrfs.diff`.
 * Additionally `fs/btrfs/zstd.c` is provided as a source for convenience.
-* The patch seems to be working, it doesn't crash the kernel, and compresses at speeds and ratios athat are expected.
+* The patch seems to be working, it doesn't crash the kernel, and compresses at speeds and ratios that are expected.
   It can still use some more testing for fringe features, like printing options.
 
 ### Benchmarks
@@ -50,3 +50,9 @@ See `btrfs-benchmark.sh` for details.
 | zstd 9    | 2.92              | 43 MB/s           | 406 MB/s            |
 | zstd 12   | 2.93              | 21 MB/s           | 408 MB/s            |
 | zstd 15   | 3.01              | 11 MB/s           | 354 MB/s            |
+
+## SquashFS
+
+* The patch is located in `squashfs.diff`
+* Additionally `fs/squashfs/zstd_wrapper.c` is provided as a source for convenience.
+* The patch has been tested on a 4.6 kernel, and it builds successfully on the 4.11 source tree.

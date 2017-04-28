@@ -82,6 +82,29 @@ ZSTDLIB_API size_t ZSTD_seekable_compressStream(ZSTD_seekable_CStream* zcs, ZSTD
 ZSTDLIB_API size_t ZSTD_seekable_endFrame(ZSTD_seekable_CStream* zcs, ZSTD_outBuffer* output);
 ZSTDLIB_API size_t ZSTD_seekable_endStream(ZSTD_seekable_CStream* zcs, ZSTD_outBuffer* output);
 
+/*= Raw seek table API
+ *  These functions allow for the seek table to be constructed directly.
+ *  This table can then be appended to a file of concatenated frames.
+ *  This allows the frames to be compressed independently, even in parallel,
+ *  and compiled together afterward into a seekable archive.
+ *
+ *  Use ZSTD_seekable_createFrameLog() to allocate and initialize a tracking
+ *  structure.
+ *
+ *  Call ZSTD_seekable_logFrame() once for each frame in the archive.
+ *  checksum is optional, and will not be used if checksumFlag was 0 when the
+ *  frame log was created.  If present, it should be the least significant 32
+ *  bits of the XXH64 hash of the uncompressed data.
+ *
+ *  Call ZSTD_seekable_writeSeekTable to serialize the data into a seek table.
+ *  If the entire table was written, the return value will be 0.  Otherwise,
+ *  it will be equal to the number of bytes left to write. */
+typedef struct ZSTD_frameLog_s ZSTD_frameLog;
+ZSTDLIB_API ZSTD_frameLog* ZSTD_seekable_createFrameLog(int checksumFlag);
+ZSTDLIB_API size_t ZSTD_seekable_freeFrameLog(ZSTD_frameLog* fl);
+ZSTDLIB_API size_t ZSTD_seekable_logFrame(ZSTD_frameLog* fl, unsigned compressedSize, unsigned decompressedSize, unsigned checksum);
+ZSTDLIB_API size_t ZSTD_seekable_writeSeekTable(ZSTD_frameLog* fl, ZSTD_outBuffer* output);
+
 /*-****************************************************************************
 *  Seekable decompression - HowTo
 *  A ZSTD_seekable object is required to tracking the seekTable.

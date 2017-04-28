@@ -26,12 +26,12 @@ PYTHON ?= python3
 TESTARTEFACT := versionsTest namespaceTest
 
 
-DEBUGFLAG= -DZSTD_DEBUG=1
+DEBUGFLAGS=-g -DZSTD_DEBUG=1
 CPPFLAGS+= -I$(ZSTDDIR) -I$(ZSTDDIR)/common -I$(ZSTDDIR)/compress \
            -I$(ZSTDDIR)/dictBuilder -I$(ZSTDDIR)/deprecated -I$(PRGDIR) \
            $(DEBUGFLAG)
 CFLAGS  ?= -O3
-CFLAGS  += -g -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow \
+CFLAGS  += -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow \
            -Wstrict-aliasing=1 -Wswitch-enum -Wdeclaration-after-statement \
            -Wstrict-prototypes -Wundef -Wformat-security
 CFLAGS  += $(MOREFLAGS)

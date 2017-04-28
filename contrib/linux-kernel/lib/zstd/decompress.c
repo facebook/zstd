@@ -130,7 +130,7 @@ ZSTD_DCtx* ZSTD_createDCtx_advanced(ZSTD_customMem customMem)
 	return dctx;
 }
 
-ZSTD_DCtx* ZSTD_createDCtx(void* workspace, size_t workspaceSize)
+ZSTD_DCtx* ZSTD_initDCtx(void* workspace, size_t workspaceSize)
 {
 	ZSTD_customMem const stackMem = ZSTD_initStack(workspace, workspaceSize);
 	return ZSTD_createDCtx_advanced(stackMem);
@@ -1968,11 +1968,11 @@ static ZSTD_DDict* ZSTD_createDDict_advanced(const void* dict, size_t dictSize, 
 	}
 }
 
-/*! ZSTD_createDDict() :
+/*! ZSTD_initDDict() :
 *   Create a digested dictionary, to start decompression without startup delay.
 *   `dict` content is copied inside DDict.
 *   Consequently, `dict` can be released after `ZSTD_DDict` creation */
-ZSTD_DDict* ZSTD_createDDict(const void* dict, size_t dictSize, void* workspace, size_t workspaceSize)
+ZSTD_DDict* ZSTD_initDDict(const void* dict, size_t dictSize, void* workspace, size_t workspaceSize)
 {
 	ZSTD_customMem const stackMem = ZSTD_initStack(workspace, workspaceSize);
 	return ZSTD_createDDict_advanced(dict, dictSize, 1, stackMem);
@@ -2100,7 +2100,7 @@ static ZSTD_DStream* ZSTD_createDStream_advanced(ZSTD_customMem customMem)
 	return zds;
 }
 
-ZSTD_DStream* ZSTD_createDStream(size_t maxWindowSize, void* workspace, size_t workspaceSize)
+ZSTD_DStream* ZSTD_initDStream(size_t maxWindowSize, void* workspace, size_t workspaceSize)
 {
 	ZSTD_customMem const stackMem = ZSTD_initStack(workspace, workspaceSize);
 	ZSTD_DStream* zds = ZSTD_createDStream_advanced(stackMem);
@@ -2117,9 +2117,9 @@ ZSTD_DStream* ZSTD_createDStream(size_t maxWindowSize, void* workspace, size_t w
 	return zds;
 }
 
-ZSTD_DStream* ZSTD_createDStream_usingDDict(size_t maxWindowSize, const ZSTD_DDict* ddict, void* workspace, size_t workspaceSize)
+ZSTD_DStream* ZSTD_initDStream_usingDDict(size_t maxWindowSize, const ZSTD_DDict* ddict, void* workspace, size_t workspaceSize)
 {
-	ZSTD_DStream* zds = ZSTD_createDStream(maxWindowSize, workspace, workspaceSize);
+	ZSTD_DStream* zds = ZSTD_initDStream(maxWindowSize, workspace, workspaceSize);
 	if (zds) {
 		zds->ddict = ddict;
 	}
@@ -2337,17 +2337,17 @@ size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inB
 }
 
 EXPORT_SYMBOL(ZSTD_DCtxWorkspaceBound);
-EXPORT_SYMBOL(ZSTD_createDCtx);
+EXPORT_SYMBOL(ZSTD_initDCtx);
 EXPORT_SYMBOL(ZSTD_decompressDCtx);
 EXPORT_SYMBOL(ZSTD_decompress_usingDict);
 
 EXPORT_SYMBOL(ZSTD_DDictWorkspaceBound);
-EXPORT_SYMBOL(ZSTD_createDDict);
+EXPORT_SYMBOL(ZSTD_initDDict);
 EXPORT_SYMBOL(ZSTD_decompress_usingDDict);
 
 EXPORT_SYMBOL(ZSTD_DStreamWorkspaceBound);
-EXPORT_SYMBOL(ZSTD_createDStream);
-EXPORT_SYMBOL(ZSTD_createDStream_usingDDict);
+EXPORT_SYMBOL(ZSTD_initDStream);
+EXPORT_SYMBOL(ZSTD_initDStream_usingDDict);
 EXPORT_SYMBOL(ZSTD_resetDStream);
 EXPORT_SYMBOL(ZSTD_decompressStream);
 EXPORT_SYMBOL(ZSTD_DStreamInSize);

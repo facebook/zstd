@@ -95,8 +95,6 @@ static void fseek_orDie(FILE* file, long int offset, int origin) {
     exit(7);
 }
 
-static const char* filename;
-
 struct sum_job {
     const char* fname;
     unsigned long long sum;

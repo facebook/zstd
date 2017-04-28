@@ -9,7 +9,7 @@
 
 # This Makefile presumes libzstd is built, using `make` in / or /lib/
 
-LDFLAGS += -L../../../lib/ -lzstd
+LDFLAGS += ../../../lib/libzstd.a
 CPPFLAGS += -I../ -I../../../lib -I../../../lib/common
 
 CFLAGS ?= -O3
@@ -32,7 +32,11 @@ seekable_decompression : seekable_decompression.c $(SEEKABLE_OBJS)
 parallel_processing : parallel_processing.c $(SEEKABLE_OBJS)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $^ $(LDFLAGS) -o $@ -pthread
 
+parallel_compression : parallel_compression.c $(SEEKABLE_OBJS)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $^ $(LDFLAGS) -o $@ -pthread
+
 clean:
 	@rm -f core *.o tmp* result* *.zst \
-		seekable_compression seekable_decompression parallel_processing
+		seekable_compression seekable_decompression \
+		parallel_processing parallel_compression
 	@echo Cleaning completed

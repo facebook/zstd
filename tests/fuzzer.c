@@ -405,14 +405,13 @@ static int basicUnitTests(U32 seed, double compressibility)
         DISPLAYLEVEL(4, "OK \n");
 
         DISPLAYLEVEL(4, "test%3i : compress with preprocessed dictionary : ", testNb++);
-        {   ZSTD_parameters params = ZSTD_getParams(1, CNBuffSize, dictSize);
-            {   ZSTD_customMem customMem = { NULL, NULL, NULL };
-                ZSTD_CDict* cdict = ZSTD_createCDict_advanced(dictBuffer, dictSize, 1, params, customMem);
-                cSize = ZSTD_compress_usingCDict(cctx, compressedBuffer, ZSTD_compressBound(CNBuffSize),
+        {   ZSTD_compressionParameters const cParams = ZSTD_getCParams(1, CNBuffSize, dictSize);
+            ZSTD_customMem customMem = { NULL, NULL, NULL };
+            ZSTD_CDict* cdict = ZSTD_createCDict_advanced(dictBuffer, dictSize, 1, cParams, customMem);
+            cSize = ZSTD_compress_usingCDict(cctx, compressedBuffer, ZSTD_compressBound(CNBuffSize),
                                                  CNBuffer, CNBuffSize, cdict);
-                ZSTD_freeCDict(cdict);
-                if (ZSTD_isError(cSize)) goto _output_error;
-            }
+            ZSTD_freeCDict(cdict);
+            if (ZSTD_isError(cSize)) goto _output_error;
         }
         DISPLAYLEVEL(4, "OK (%u bytes : %.2f%%)\n", (U32)cSize, (double)cSize/CNBuffSize*100);
 
@@ -430,7 +429,33 @@ static int basicUnitTests(U32 seed, double compressibility)
                   if (r != CNBuffSize) goto _output_error);
         DISPLAYLEVEL(4, "OK \n");
 
-        DISPLAYLEVEL(4, "test%3i : compress without dictID : ", testNb++);
+        DISPLAYLEVEL(4, "test%3i : ZSTD_compress_usingCDict_advanced, no contentSize, no dictID : ", testNb++);
+        {   ZSTD_frameParameters const fParams = { 0 /* frameSize */, 1 /* checksum */, 1 /* noDictID*/ };
+            ZSTD_compressionParameters const cParams = ZSTD_getCParams(1, CNBuffSize, dictSize);
+            ZSTD_customMem const customMem = { NULL, NULL, NULL };
+            ZSTD_CDict* const cdict = ZSTD_createCDict_advanced(dictBuffer, dictSize, 1, cParams, customMem);
+            cSize = ZSTD_compress_usingCDict_advanced(cctx, compressedBuffer, ZSTD_compressBound(CNBuffSize),
+                                                 CNBuffer, CNBuffSize, cdict, fParams);
+            ZSTD_freeCDict(cdict);
+            if (ZSTD_isError(cSize)) goto _output_error;
+        }
+        DISPLAYLEVEL(4, "OK (%u bytes : %.2f%%)\n", (U32)cSize, (double)cSize/CNBuffSize*100);
+
+        DISPLAYLEVEL(4, "test%3i : try retrieving contentSize from frame : ", testNb++);
+        {   U64 const contentSize = ZSTD_getFrameContentSize(compressedBuffer, cSize);
+            if (contentSize != ZSTD_CONTENTSIZE_UNKNOWN) goto _output_error;
+        }
+        DISPLAYLEVEL(4, "OK (unknown)\n");
+
+        DISPLAYLEVEL(4, "test%3i : frame built without dictID should be decompressible : ", testNb++);
+        CHECKPLUS(r, ZSTD_decompress_usingDict(dctx,
+                                       decodedBuffer, CNBuffSize,
+                                       compressedBuffer, cSize,
+                                       dictBuffer, dictSize),
+                  if (r != CNBuffSize) goto _output_error);
+        DISPLAYLEVEL(4, "OK \n");
+
+        DISPLAYLEVEL(4, "test%3i : ZSTD_compress_advanced, no dictID : ", testNb++);
         {   ZSTD_parameters p = ZSTD_getParams(3, CNBuffSize, dictSize);
             p.fParams.noDictIDFlag = 1;
             cSize = ZSTD_compress_advanced(cctx, compressedBuffer, ZSTD_compressBound(CNBuffSize),
@@ -697,6 +722,14 @@ static size_t findDiff(const void* buf1, const void* buf2, size_t max)
 }
 
 
+static ZSTD_parameters FUZ_makeParams(ZSTD_compressionParameters cParams, ZSTD_frameParameters fParams)
+{
+    ZSTD_parameters params;
+    params.cParams = cParams;
+    params.fParams = fParams;
+    return params;
+}
+
 static size_t FUZ_rLogLength(U32* seed, U32 logLength)
 {
     size_t const lengthMask = ((size_t)1 << logLength) - 1;
@@ -760,7 +793,6 @@ static int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, U32 const maxD
     for ( ; (testNb <= nbTests) || (FUZ_clockSpan(startClock) < maxClockSpan); testNb++ ) {
         size_t sampleSize, maxTestSize, totalTestSize;
         size_t cSize, totalCSize, totalGenSize;
-        XXH64_state_t xxhState;
         U64 crcOrig;
         BYTE* sampleBuffer;
         const BYTE* dict;
@@ -917,22 +949,22 @@ static int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, U32 const maxD
                 CHECK (ZSTD_isError(errorCode), "ZSTD_compressBegin_usingDict error : %s", ZSTD_getErrorName(errorCode));
             } else {
                 ZSTD_compressionParameters const cPar = ZSTD_getCParams(cLevel, 0, dictSize);
-                ZSTD_frameParameters const fpar = { FUZ_rand(&lseed)&1 /* contentSizeFlag */,
+                ZSTD_frameParameters const fPar = { FUZ_rand(&lseed)&1 /* contentSizeFlag */,
                                                     !(FUZ_rand(&lseed)&3) /* contentChecksumFlag*/,
                                                     0 /*NodictID*/ };   /* note : since dictionary is fake, dictIDflag has no impact */
-                ZSTD_parameters p;
-                size_t errorCode;
-                p.cParams = cPar; p.fParams = fpar;
-                errorCode = ZSTD_compressBegin_advanced(refCtx, dict, dictSize, p, 0);
+                ZSTD_parameters const p = FUZ_makeParams(cPar, fPar);
+                size_t const errorCode = ZSTD_compressBegin_advanced(refCtx, dict, dictSize, p, 0);
                 CHECK (ZSTD_isError(errorCode), "ZSTD_compressBegin_advanced error : %s", ZSTD_getErrorName(errorCode));
             }
             {   size_t const errorCode = ZSTD_copyCCtx(ctx, refCtx, 0);
                 CHECK (ZSTD_isError(errorCode), "ZSTD_copyCCtx error : %s", ZSTD_getErrorName(errorCode));
         }   }
-        XXH64_reset(&xxhState, 0);
         ZSTD_setCCtxParameter(ctx, ZSTD_p_forceWindow, FUZ_rand(&lseed) & 1);
+
         {   U32 const nbChunks = (FUZ_rand(&lseed) & 127) + 2;
             U32 n;
+            XXH64_state_t xxhState;
+            XXH64_reset(&xxhState, 0);
             for (totalTestSize=0, cSize=0, n=0 ; n<nbChunks ; n++) {
                 size_t const segmentSize = FUZ_randomLength(&lseed, maxSampleLog);
                 size_t const segmentStart = FUZ_rand(&lseed) % (srcBufferSize - segmentSize);
@@ -947,13 +979,14 @@ static int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, U32 const maxD
                 XXH64_update(&xxhState, srcBuffer+segmentStart, segmentSize);
                 memcpy(mirrorBuffer + totalTestSize, srcBuffer+segmentStart, segmentSize);
                 totalTestSize += segmentSize;
-        }   }
+            }
 
-        {   size_t const flushResult = ZSTD_compressEnd(ctx, cBuffer+cSize, cBufferSize-cSize, NULL, 0);
-            CHECK (ZSTD_isError(flushResult), "multi-segments epilogue error : %s", ZSTD_getErrorName(flushResult));
-            cSize += flushResult;
+            {   size_t const flushResult = ZSTD_compressEnd(ctx, cBuffer+cSize, cBufferSize-cSize, NULL, 0);
+                CHECK (ZSTD_isError(flushResult), "multi-segments epilogue error : %s", ZSTD_getErrorName(flushResult));
+                cSize += flushResult;
+            }
+            crcOrig = XXH64_digest(&xxhState);
         }
-        crcOrig = XXH64_digest(&xxhState);
 
         /* streaming decompression test */
         if (dictSize<8) dictSize=0, dict=NULL;   /* disable dictionary */

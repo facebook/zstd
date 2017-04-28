@@ -400,7 +400,7 @@ typedef struct { ZSTD_allocFunction customAlloc; ZSTD_freeFunction customFree; v
 </p></pre><BR>
 
 <pre><b>ZSTD_CDict* ZSTD_createCDict_advanced(const void* dict, size_t dictSize, unsigned byReference,
-                                      ZSTD_parameters params, ZSTD_customMem customMem);
+                                      ZSTD_compressionParameters cParams, ZSTD_customMem customMem);
 </b><p>  Create a ZSTD_CDict using external alloc and free, and customized compression parameters 
 </p></pre><BR>
 
@@ -427,12 +427,19 @@ typedef struct { ZSTD_allocFunction customAlloc; ZSTD_freeFunction customFree; v
    both values are optional, select `0` if unknown. 
 </p></pre><BR>
 
-<pre><b>size_t ZSTD_compress_advanced (ZSTD_CCtx* ctx,
-                               void* dst, size_t dstCapacity,
-                         const void* src, size_t srcSize,
-                         const void* dict,size_t dictSize,
-                               ZSTD_parameters params);
-</b><p>   Same as ZSTD_compress_usingDict(), with fine-tune control of each compression parameter 
+<pre><b>size_t ZSTD_compress_advanced (ZSTD_CCtx* cctx,
+                      void* dst, size_t dstCapacity,
+                const void* src, size_t srcSize,
+                const void* dict,size_t dictSize,
+                      ZSTD_parameters params);
+</b><p>   Same as ZSTD_compress_usingDict(), with fine-tune control over each compression parameter 
+</p></pre><BR>
+
+<pre><b>size_t ZSTD_compress_usingCDict_advanced(ZSTD_CCtx* cctx,
+                      void* dst, size_t dstCapacity,
+                const void* src, size_t srcSize,
+                const ZSTD_CDict* cdict, ZSTD_frameParameters fParams);
+</b><p>   Same as ZSTD_compress_usingCDict(), with fine-tune control over frame parameters 
 </p></pre><BR>
 
 <a name="Chapter15"></a><h2>Advanced decompression functions</h2><pre></pre>
@@ -504,6 +511,7 @@ size_t ZSTD_initCStream_usingDict(ZSTD_CStream* zcs, const void* dict, size_t di
 size_t ZSTD_initCStream_advanced(ZSTD_CStream* zcs, const void* dict, size_t dictSize,
                                              ZSTD_parameters params, unsigned long long pledgedSrcSize);  </b>/**< pledgedSrcSize is optional and can be 0 (meaning unknown). note: if the contentSizeFlag is set, pledgedSrcSize == 0 means the source size is actually 0 */<b>
 size_t ZSTD_initCStream_usingCDict(ZSTD_CStream* zcs, const ZSTD_CDict* cdict);  </b>/**< note : cdict will just be referenced, and must outlive compression session */<b>
+size_t ZSTD_initCStream_usingCDict_advanced(ZSTD_CStream* zcs, const ZSTD_CDict* cdict, unsigned long long pledgedSrcSize, ZSTD_frameParameters fParams);  </b>/**< same as ZSTD_initCStream_usingCDict(), with control over frame parameters */<b>
 </pre></b><BR>
 <pre><b>size_t ZSTD_resetCStream(ZSTD_CStream* zcs, unsigned long long pledgedSrcSize);
 </b><p>  start a new compression job, using same parameters from previous job.
@@ -561,7 +569,7 @@ size_t ZSTD_sizeof_DStream(const ZSTD_DStream* zds);
 <h3>Buffer-less streaming compression functions</h3><pre></pre><b><pre>size_t ZSTD_compressBegin(ZSTD_CCtx* cctx, int compressionLevel);
 size_t ZSTD_compressBegin_usingDict(ZSTD_CCtx* cctx, const void* dict, size_t dictSize, int compressionLevel);
 size_t ZSTD_compressBegin_advanced(ZSTD_CCtx* cctx, const void* dict, size_t dictSize, ZSTD_parameters params, unsigned long long pledgedSrcSize); </b>/**< pledgedSrcSize is optional and can be 0 (meaning unknown). note: if the contentSizeFlag is set, pledgedSrcSize == 0 means the source size is actually 0 */<b>
-size_t ZSTD_compressBegin_usingCDict(ZSTD_CCtx* cctx, const ZSTD_CDict* cdict, unsigned long long pledgedSrcSize); </b>/**< note: fail if cdict==NULL. pledgedSrcSize can be 0, indicating unknown size.  For 0 size frames, use compressBegin_advanced */<b>
+size_t ZSTD_compressBegin_usingCDict(ZSTD_CCtx* cctx, const ZSTD_CDict* cdict); </b>/**< note: fails if cdict==NULL */<b>
 size_t ZSTD_compressBegin_usingCDict_advanced(ZSTD_CCtx* const cctx, const ZSTD_CDict* const cdict, ZSTD_frameParameters const fParams, unsigned long long const pledgedSrcSize);   </b>/* compression parameters are already set within cdict. pledgedSrcSize=0 means null-size */<b>
 size_t ZSTD_copyCCtx(ZSTD_CCtx* cctx, const ZSTD_CCtx* preparedCCtx, unsigned long long pledgedSrcSize); </b>/**<  note: if pledgedSrcSize can be 0, indicating unknown size.  if it is non-zero, it must be accurate.  for 0 size frames, use compressBegin_advanced */<b>
 </pre></b><BR>

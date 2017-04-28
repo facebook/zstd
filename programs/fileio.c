@@ -105,6 +105,7 @@ static clock_t g_time = 0;
 #undef MIN
 #define MIN(a,b)    ((a) < (b) ? (a) : (b))
 
+
 /* ************************************************************
 * Avoid fseek()'s 2GiB barrier with MSVC, MacOS, *BSD, MinGW
 ***************************************************************/

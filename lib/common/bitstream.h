@@ -2,7 +2,7 @@
    bitstream
    Part of FSE library
    header file (to include)
-   Copyright (C) 2013-2016, Yann Collet.
+   Copyright (C) 2013-2017, Yann Collet.
 
    BSD 2-Clause License (http://www.opensource.org/licenses/bsd-license.php)
 
@@ -51,6 +51,16 @@ extern "C" {
 ******************************************/
 #include "mem.h"            /* unaligned access routines */
 #include "error_private.h"  /* error codes and messages */
+
+
+/*-*************************************
+*  Debug
+***************************************/
+#if defined(BIT_DEBUG) && (BIT_DEBUG>=1)
+#  include <assert.h>
+#else
+#  define assert(condition) ((void)0)
+#endif
 
 
 /*=========================================
@@ -209,6 +219,7 @@ MEM_STATIC void BIT_addBits(BIT_CStream_t* bitC, size_t value, unsigned nbBits)
  *  works only if `value` is _clean_, meaning all high bits above nbBits are 0 */
 MEM_STATIC void BIT_addBitsFast(BIT_CStream_t* bitC, size_t value, unsigned nbBits)
 {
+    assert((value>>nbBits) == 0);
     bitC->bitContainer |= value << bitC->bitPos;
     bitC->bitPos += nbBits;
 }
@@ -336,10 +347,11 @@ MEM_STATIC size_t BIT_getLowerBits(size_t bitContainer, U32 const nbBits)
 }
 
 /*! BIT_lookBitsFast() :
-*   unsafe version; only works only if nbBits >= 1 */
+ *  unsafe version; only works if nbBits >= 1 */
 MEM_STATIC size_t BIT_lookBitsFast(const BIT_DStream_t* bitD, U32 nbBits)
 {
     U32 const bitMask = sizeof(bitD->bitContainer)*8 - 1;
+    assert(nbBits >= 1);
     return (bitD->bitContainer << (bitD->bitsConsumed & bitMask)) >> (((bitMask+1)-nbBits) & bitMask);
 }
 
@@ -365,6 +377,7 @@ MEM_STATIC size_t BIT_readBits(BIT_DStream_t* bitD, U32 nbBits)
 MEM_STATIC size_t BIT_readBitsFast(BIT_DStream_t* bitD, U32 nbBits)
 {
     size_t const value = BIT_lookBitsFast(bitD, nbBits);
+    assert(nbBits >= 1);
     BIT_skipBits(bitD, nbBits);
     return value;
 }

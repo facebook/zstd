@@ -499,7 +499,7 @@ typedef struct { ZSTD_allocFunction customAlloc; ZSTD_freeFunction customFree; v
     Note : this use case also happens when using a non-conformant dictionary.
   - `srcSize` is too small, and as a result, the frame header could not be decoded (only possible if `srcSize < ZSTD_FRAMEHEADERSIZE_MAX`).
   - This is not a Zstandard frame.
-  When identifying the exact failure cause, it's possible to used ZSTD_getFrameParams(), which will provide a more precise error code. 
+  When identifying the exact failure cause, it's possible to use ZSTD_getFrameParams(), which will provide a more precise error code. 
 </p></pre><BR>
 
 <a name="Chapter16"></a><h2>Advanced streaming functions</h2><pre></pre>

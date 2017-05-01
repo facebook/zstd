@@ -234,9 +234,21 @@ static size_t COVER_sum(const size_t *samplesSizes, unsigned nbSamples) {
  * Returns 1 if the dmer at lp is greater than the dmer at rp.
  */
 static int COVER_cmp(COVER_ctx_t *ctx, const void *lp, const void *rp) {
-  const U32 lhs = *(const U32 *)lp;
-  const U32 rhs = *(const U32 *)rp;
+  U32 const lhs = *(U32 const *)lp;
+  U32 const rhs = *(U32 const *)rp;
   return memcmp(ctx->samples + lhs, ctx->samples + rhs, ctx->d);
+}
+/**
+ * Faster version for d <= 8.
+ */
+static int COVER_cmp8(COVER_ctx_t *ctx, const void *lp, const void *rp) {
+  U64 const mask = (ctx->d == 8) ? (U64)-1 : (((U64)1 << (8 * ctx->d)) - 1);
+  U64 const lhs = MEM_readLE64(ctx->samples + *(U32 const *)lp) & mask;
+  U64 const rhs = MEM_readLE64(ctx->samples + *(U32 const *)rp) & mask;
+  if (lhs < rhs) {
+    return -1;
+  }
+  return (lhs > rhs);
 }
 
 /**
@@ -246,6 +258,16 @@ static int COVER_cmp(COVER_ctx_t *ctx, const void *lp, const void *rp) {
  */
 static int COVER_strict_cmp(const void *lp, const void *rp) {
   int result = COVER_cmp(g_ctx, lp, rp);
+  if (result == 0) {
+    result = lp < rp ? -1 : 1;
+  }
+  return result;
+}
+/**
+ * Faster version for d <= 8.
+ */
+static int COVER_strict_cmp8(const void *lp, const void *rp) {
+  int result = COVER_cmp8(g_ctx, lp, rp);
   if (result == 0) {
     result = lp < rp ? -1 : 1;
   }
@@ -506,7 +528,7 @@ static int COVER_ctx_init(COVER_ctx_t *ctx, const void *samplesBuffer,
   const BYTE *const samples = (const BYTE *)samplesBuffer;
   const size_t totalSamplesSize = COVER_sum(samplesSizes, nbSamples);
   /* Checks */
-  if (totalSamplesSize < d ||
+  if (totalSamplesSize < MAX(d, sizeof(U64)) ||
       totalSamplesSize >= (size_t)COVER_MAX_SAMPLES_SIZE) {
     DISPLAYLEVEL(1, "Total samples size is too large, maximum size is %u MB\n",
                  (COVER_MAX_SAMPLES_SIZE >> 20));
@@ -520,7 +542,7 @@ static int COVER_ctx_init(COVER_ctx_t *ctx, const void *samplesBuffer,
   ctx->samplesSizes = samplesSizes;
   ctx->nbSamples = nbSamples;
   /* Partial suffix array */
-  ctx->suffixSize = totalSamplesSize - d + 1;
+  ctx->suffixSize = totalSamplesSize - MAX(d, sizeof(U64)) + 1;
   ctx->suffix = (U32 *)malloc(ctx->suffixSize * sizeof(U32));
   /* Maps index to the dmerID */
   ctx->dmerAt = (U32 *)malloc(ctx->suffixSize * sizeof(U32));
@@ -554,7 +576,8 @@ static int COVER_ctx_init(COVER_ctx_t *ctx, const void *samplesBuffer,
     }
     /* qsort doesn't take an opaque pointer, so pass as a global */
     g_ctx = ctx;
-    qsort(ctx->suffix, ctx->suffixSize, sizeof(U32), &COVER_strict_cmp);
+    qsort(ctx->suffix, ctx->suffixSize, sizeof(U32),
+          (ctx->d <= 8 ? &COVER_strict_cmp8 : &COVER_strict_cmp));
   }
   DISPLAYLEVEL(2, "Computing frequencies\n");
   /* For each dmer group (group of positions with the same first d bytes):
@@ -564,8 +587,8 @@ static int COVER_ctx_init(COVER_ctx_t *ctx, const void *samplesBuffer,
    * 2. We calculate how many samples the dmer occurs in and save it in
    *    freqs[dmerId].
    */
-  COVER_groupBy(ctx->suffix, ctx->suffixSize, sizeof(U32), ctx, &COVER_cmp,
-                &COVER_group);
+  COVER_groupBy(ctx->suffix, ctx->suffixSize, sizeof(U32), ctx,
+                (ctx->d <= 8 ? &COVER_cmp8 : &COVER_cmp), &COVER_group);
   ctx->freqs = ctx->suffix;
   ctx->suffix = NULL;
   return 1;

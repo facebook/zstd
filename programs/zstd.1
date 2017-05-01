@@ -1,5 +1,5 @@
 .
-.TH "ZSTD" "1" "April 2017" "zstd 1.1.5" "User Commands"
+.TH "ZSTD" "1" "May 2017" "zstd 1.2.0" "User Commands"
 .
 .SH "NAME"
 \fBzstd\fR \- zstd, zstdmt, unzstd, zstdcat \- Compress or decompress \.zst files
@@ -188,7 +188,7 @@ dictionary selectivity level (default: 9) the smaller the value, the denser the 
 .
 .TP
 \fB\-\-cover=k#,d=#\fR
-Use alternate dictionary builder algorithm named cover with parameters \fIk\fR and \fId\fR with \fId\fR <= \fIk\fR\. Selects segments of size \fIk\fR with the highest score to put in the dictionary\. The score of a segment is computed by the sum of the frequencies of all the subsegments of of size \fId\fR\. Generally \fId\fR should be in the range [6, 24]\. Good values for \fIk\fR vary widely based on the input data, but a safe range is [32, 2048]\.
+Use alternate dictionary builder algorithm named cover with parameters \fIk\fR and \fId\fR with \fId\fR <= \fIk\fR\. Selects segments of size \fIk\fR with the highest score to put in the dictionary\. The score of a segment is computed by the sum of the frequencies of all the subsegments of of size \fId\fR\. Generally \fId\fR should be in the range [6, 8], but no more than 24\. When \fId\fR <= 8, the dictionary builder will run significantly faster\. Good values for \fIk\fR vary widely based on the input data, but a safe range is [32, 2048]\.
 .
 .br
 Example: \fB\-\-train \-\-cover=k=64,d=8 FILEs\fR\.

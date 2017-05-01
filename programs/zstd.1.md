@@ -186,7 +186,8 @@ Typical gains range from 10% (at 64KB) to x5 better (at <1KB).
     Selects segments of size _k_ with the highest score to put in the dictionary.
     The score of a segment is computed by the sum of the frequencies of all the
     subsegments of of size _d_.
-    Generally _d_ should be in the range [6, 24].
+    Generally _d_ should be in the range [6, 8], but no more than 24.
+    When _d_ <= 8, the dictionary builder will run significantly faster.
     Good values for _k_ vary widely based on the input data,
     but a safe range is [32, 2048].<br />
     Example: `--train --cover=k=64,d=8 FILEs`.

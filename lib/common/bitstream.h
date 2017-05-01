@@ -203,7 +203,7 @@ static const unsigned BIT_mask[] = { 0, 1, 3, 7, 0xF, 0x1F, 0x3F, 0x7F,
  *  @return : 0 if success,
               otherwise an error code (can be tested using ERR_isError() ) */
 MEM_STATIC size_t BIT_initCStream(BIT_CStream_t* bitC,
-                                  void* const startPtr, size_t const dstCapacity)
+                                  void* startPtr, size_t dstCapacity)
 {
     bitC->bitContainer = 0;
     bitC->bitPos = 0;
@@ -218,7 +218,7 @@ MEM_STATIC size_t BIT_initCStream(BIT_CStream_t* bitC,
     can add up to 26 bits into `bitC`.
     Does not check for register overflow ! */
 MEM_STATIC void BIT_addBits(BIT_CStream_t* bitC,
-                            size_t const value, unsigned const nbBits)
+                            size_t value, unsigned nbBits)
 {
     bitC->bitContainer |= (value & BIT_mask[nbBits]) << bitC->bitPos;
     bitC->bitPos += nbBits;
@@ -227,7 +227,7 @@ MEM_STATIC void BIT_addBits(BIT_CStream_t* bitC,
 /*! BIT_addBitsFast() :
  *  works only if `value` is _clean_, meaning all high bits above nbBits are 0 */
 MEM_STATIC void BIT_addBitsFast(BIT_CStream_t* bitC,
-                                size_t const value, unsigned const nbBits)
+                                size_t value, unsigned nbBits)
 {
     assert((value>>nbBits) == 0);
     bitC->bitContainer |= value << bitC->bitPos;
@@ -251,7 +251,8 @@ MEM_STATIC void BIT_flushBitsFast(BIT_CStream_t* bitC)
 /*! BIT_flushBits() :
  *  assumption : bitContainer has not overflowed
  *  safe version; check for buffer overflow, and prevents it.
- *  note : does not signal buffer overflow. This will be revealed later on using BIT_closeCStream() */
+ *  note : does not signal buffer overflow.
+ *  overflow will be revealed later on using BIT_closeCStream() */
 MEM_STATIC void BIT_flushBits(BIT_CStream_t* bitC)
 {
     size_t const nbBytes = bitC->bitPos >> 3;
@@ -260,7 +261,7 @@ MEM_STATIC void BIT_flushBits(BIT_CStream_t* bitC)
     bitC->ptr += nbBytes;
     if (bitC->ptr > bitC->endPtr) bitC->ptr = bitC->endPtr;
     bitC->bitPos &= 7;
-    bitC->bitContainer >>= nbBytes*8;   /* if bitPos >= sizeof(bitContainer)*8 --> undefined behavior */
+    bitC->bitContainer >>= nbBytes*8;
 }
 
 /*! BIT_closeCStream() :
@@ -270,9 +271,7 @@ MEM_STATIC size_t BIT_closeCStream(BIT_CStream_t* bitC)
 {
     BIT_addBitsFast(bitC, 1, 1);   /* endMark */
     BIT_flushBits(bitC);
-
-    if (bitC->ptr >= bitC->endPtr) return 0; /* doesn't fit within authorized budget : cancel */
-
+    if (bitC->ptr >= bitC->endPtr) return 0; /* overflow detected */
     return (bitC->ptr - bitC->startPtr) + (bitC->bitPos > 0);
 }
 

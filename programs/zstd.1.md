@@ -158,14 +158,19 @@ It will improve compression ratio of small files.
 Typical gains range from 10% (at 64KB) to x5 better (at <1KB).
 
 * `--train FILEs`:
-    use FILEs as training set to create a dictionary.
+    Use FILEs as training set to create a dictionary.
     The training set should contain a lot of small files (> 100),
     and weight typically 100x the target dictionary size
     (for example, 10 MB for a 100 KB dictionary).
+
+    Supports multithreading if `zstd` is compiled with threading support.
+    Additional parameters can be specified with `--train-cover`.
+    The legacy dictionary builder can be accessed with `--train-legacy`.
+    Equivalent to `--train-cover=d=8,steps=4`.
 * `-o file`:
-    dictionary saved into `file` (default name: dictionary)
+    Dictionary saved into `file` (default name: dictionary).
 * `--maxdict=#`:
-    limit dictionary to specified size (default : (112640)
+    Limit dictionary to specified size (default: 112640).
 * `--dictID=#`:
     A dictionary ID is a locally unique ID that a decoder can use to verify it is
     using the right dictionary.
@@ -176,40 +181,44 @@ Typical gains range from 10% (at 64KB) to x5 better (at <1KB).
     This compares favorably to 4 bytes default.
     However, it's up to the dictionary manager to not assign twice the same ID to
     2 different dictionaries.
-* `-s#`:
-    dictionary selectivity level (default: 9)
-    the smaller the value, the denser the dictionary,
-    improving its efficiency but reducing its possible maximum size.
-* `--cover=k#,d=#`:
-    Use alternate dictionary builder algorithm named cover with parameters
-    _k_ and _d_ with _d_ <= _k_.
-    Selects segments of size _k_ with the highest score to put in the dictionary.
+* `--train-cover[=k#,d=#,steps=#]`:
+    Select parameters for the default dictionary builder algorithm named cover.
+    If _d_ is not specified, then it tries _d_ = 6 and _d_ = 8.
+    If _k_ is not specified, then it tries _steps_ values in the range [50, 2000].
+    If _steps_ is not specified, then the default value of 40 is used.
+    Requires that _d_ <= _k_.
+
+    Selects segments of size _k_ with highest score to put in the dictionary.
     The score of a segment is computed by the sum of the frequencies of all the
-    subsegments of of size _d_.
-    Generally _d_ should be in the range [6, 8], but no more than 24.
-    When _d_ <= 8, the dictionary builder will run significantly faster.
-    Good values for _k_ vary widely based on the input data,
-    but a safe range is [32, 2048].<br />
-    Example: `--train --cover=k=64,d=8 FILEs`.
-
-* `--optimize-cover[=steps=#,k=#,d=#]`:
-    If _steps_ is not specified, the default value of 32 is used.
-    If _k_ is not specified, the _k_ values in [48, 2048] are checked for each
-    value of _d_.
-    If _d_ is not specified, the values checked are [6, 8].
-
-    Runs the cover dictionary builder for each parameter set
-    and saves the optimal parameters and dictionary.
-    Prints optimal parameters and writes optimal dictionary into output file.
+    subsegments of size _d_.
+    Generally _d_ should be in the range [6, 8], occasionally up to 16, but the
+    algorithm will run faster with d <= _8_.
+    Good values for _k_ vary widely based on the input data, but a safe range is
+    [2 * _d_, 2000].
     Supports multithreading if `zstd` is compiled with threading support.
 
-    The parameter _k_ is more sensitive than _d_, and is faster to optimize over.
+    Examples:
 
-    Examples :
+    `zstd --train-cover FILEs`
 
-    `zstd --train --optimize-cover FILEs`
+    `zstd --train-cover=k=50,d=8 FILEs`
 
-    `zstd --train --optimize-cover=d=8,steps=512 FILEs`
+    `zstd --train-cover=d=8,steps=500 FILEs`
+
+    `zstd --train-cover=k=50 FILEs`
+
+* `--train-legacy[=selectivity=#]`:
+    Use legacy dictionary builder algorithm with the given dictionary
+    _selectivity_ (default: 9).
+    The smaller the _selectivity_ value, the denser the dictionary,
+    improving its efficiency but reducing its possible maximum size.
+    `--train-legacy=s=#` is also accepted.
+
+    Examples:
+
+    `zstd --train-legacy FILEs`
+
+    `zstd --train-legacy=selectivity=8 FILEs`
 
 
 BENCHMARK

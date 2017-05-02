@@ -193,7 +193,7 @@ index 1f157fb..b0dec90 100644
  	BTRFS_FEAT_ATTR_PTR(raid56),
 diff --git a/fs/btrfs/zstd.c b/fs/btrfs/zstd.c
 new file mode 100644
-index 0000000..b7f319e
+index 0000000..010548c
 --- /dev/null
 +++ b/fs/btrfs/zstd.c
 @@ -0,0 +1,415 @@
@@ -291,10 +291,10 @@ index 0000000..b7f319e
 +	*total_in = 0;
 +
 +	/* Initialize the stream */
-+	stream = ZSTD_createCStream(params, len, workspace->mem,
++	stream = ZSTD_initCStream(params, len, workspace->mem,
 +			workspace->size);
 +	if (!stream) {
-+		pr_warn("BTRFS: ZSTD_createStream failed\n");
++		pr_warn("BTRFS: ZSTD_initCStream failed\n");
 +		ret = -EIO;
 +		goto out;
 +	}
@@ -458,10 +458,10 @@ index 0000000..b7f319e
 +	ZSTD_inBuffer in_buf = { NULL, 0, 0 };
 +	ZSTD_outBuffer out_buf = { NULL, 0, 0 };
 +
-+	stream = ZSTD_createDStream(
++	stream = ZSTD_initDStream(
 +			ZSTD_BTRFS_MAX_INPUT, workspace->mem, workspace->size);
 +	if (!stream) {
-+		pr_debug("BTRFS: ZSTD_createDStream failed\n");
++		pr_debug("BTRFS: ZSTD_initDStream failed\n");
 +		ret = -EIO;
 +		goto done;
 +	}
@@ -536,10 +536,10 @@ index 0000000..b7f319e
 +	unsigned long pg_offset = 0;
 +	char *kaddr;
 +
-+	stream = ZSTD_createDStream(
++	stream = ZSTD_initDStream(
 +			ZSTD_BTRFS_MAX_INPUT, workspace->mem, workspace->size);
 +	if (!stream) {
-+		pr_warn("BTRFS: ZSTD_createDStream failed\n");
++		pr_warn("BTRFS: ZSTD_initDStream failed\n");
 +		ret = -EIO;
 +		goto finish;
 +	}

@@ -95,7 +95,7 @@ static int zstd_compress_pages(struct list_head *ws,
 	stream = ZSTD_initCStream(params, len, workspace->mem,
 			workspace->size);
 	if (!stream) {
-		pr_warn("BTRFS: ZSTD_initStream failed\n");
+		pr_warn("BTRFS: ZSTD_initCStream failed\n");
 		ret = -EIO;
 		goto out;
 	}

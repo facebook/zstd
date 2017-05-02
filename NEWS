@@ -3,6 +3,8 @@ cli : changed : Multithreading enabled by default (use target zstd-nomt or HAVE_
 cli : new : command -T0 means "detect and use nb of cores", by Sean Purcell
 cli : new : zstdmt symlink hardwired to `zstd -T0`
 cli : new : command --threads=# (#671)
+cli : changed : cover dictionary builder by default, for improved quality, by Nick Terrell
+cli : new : commands --train-cover and --train-legacy, to select dictionary algorithm and parameters
 cli : new : experimental target `zstd4`, with support for lz4 format, by Sean Purcell
 cli : fix : does not output compressed data on console
 cli : fix : ignore symbolic links unless --force specified,
@@ -11,8 +13,8 @@ API : added : prototypes ZSTD_*_usingCDict_advanced(), for direct control over f
 API : improved: ZSTDMT_compressCCtx() reduced memory usage
 API : fix : ZSTDMT_compressCCtx() now provides srcSize in header (#634)
 API : fix : src size stored in frame header is controlled at end of frame
-API : fix : enforced consistent rules for pledgedSrcSize==0
-API : fix : ensure error code "dstSizeTooSmall" is generated when dst size is too small
+API : fix : enforced consistent rules for pledgedSrcSize==0 (#641)
+API : fix : error code "GENERIC" replaced by "dstSizeTooSmall" when appropriate
 build: improved cmake script, by @Majlen
 build: enabled Multi-threading support for *BSD, by Baptiste Daroussin
 tools: updated Paramgrill. Command -O# provides best parameters for sample and speed target.

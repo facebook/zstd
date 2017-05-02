@@ -294,7 +294,7 @@ index 0000000..010548c
 +	stream = ZSTD_initCStream(params, len, workspace->mem,
 +			workspace->size);
 +	if (!stream) {
-+		pr_warn("BTRFS: ZSTD_initStream failed\n");
++		pr_warn("BTRFS: ZSTD_initCStream failed\n");
 +		ret = -EIO;
 +		goto out;
 +	}

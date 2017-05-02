@@ -88,7 +88,7 @@ ZDICTLIB_API size_t ZDICT_trainFromBuffer_advanced(void* dictBuffer, size_t dict
 
 /*! COVER_params_t :
     For all values 0 means default.
-    kMin and d are the only required parameters.
+    k and d are the only required parameters.
 */
 typedef struct {
     unsigned k;                  /* Segment size : constraint: 0 < k : Reasonable range [16, 2048+] */

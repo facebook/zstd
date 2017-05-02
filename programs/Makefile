@@ -140,15 +140,13 @@ $(ZSTDDECOMP_O): CFLAGS += $(ALIGN_LOOP)
 
 zstd : CPPFLAGS += $(ZLIBCPP) $(THREAD_CPP)
 zstd : LDFLAGS += $(ZLIBLD) $(THREAD_LD)
-zstd : LZMA_MSG := $(NO_LZMA_MSG)
+zstd zstd-nogz zstd4 : LZMA_MSG := ""
+zstd zstd-nogz xzstd : LZ4_MSG := ""
 zstd-nogz : ZLIB_MSG := $(NO_ZLIB_MSG)
-zstd-nogz : LZMA_MSG := $(NO_LZMA_MSG)
 xzstd : CPPFLAGS += $(ZLIBCPP) $(LZMACPP)
 xzstd : LDFLAGS += $(ZLIBLD) $(LZMALD)
-xzstd : LZ4_MSG := $(NO_LZ4_MSG)
 zstd4 : CPPFLAGS += $(ZLIBCPP) $(LZ4CPP)
 zstd4 : LDFLAGS += $(ZLIBLD) $(LZ4LD)
-zstd4 : LZMA_MSG := $(NO_LZMA_MSG)
 zstd zstd-nogz xzstd zstd4 : CPPFLAGS += -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT)
 zstd zstd-nogz xzstd zstd4 : $(ZSTDLIB_FILES) zstdcli.o fileio.o bench.o datagen.o dibio.o
 	@echo "$(THREAD_MSG)"

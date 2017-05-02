@@ -92,10 +92,10 @@ static int zstd_compress_pages(struct list_head *ws,
 	*total_in = 0;
 
 	/* Initialize the stream */
-	stream = ZSTD_createCStream(params, len, workspace->mem,
+	stream = ZSTD_initCStream(params, len, workspace->mem,
 			workspace->size);
 	if (!stream) {
-		pr_warn("BTRFS: ZSTD_createStream failed\n");
+		pr_warn("BTRFS: ZSTD_initStream failed\n");
 		ret = -EIO;
 		goto out;
 	}
@@ -259,10 +259,10 @@ static int zstd_decompress_bio(struct list_head *ws, struct page **pages_in,
 	ZSTD_inBuffer in_buf = { NULL, 0, 0 };
 	ZSTD_outBuffer out_buf = { NULL, 0, 0 };
 
-	stream = ZSTD_createDStream(
+	stream = ZSTD_initDStream(
 			ZSTD_BTRFS_MAX_INPUT, workspace->mem, workspace->size);
 	if (!stream) {
-		pr_debug("BTRFS: ZSTD_createDStream failed\n");
+		pr_debug("BTRFS: ZSTD_initDStream failed\n");
 		ret = -EIO;
 		goto done;
 	}
@@ -337,10 +337,10 @@ static int zstd_decompress(struct list_head *ws, unsigned char *data_in,
 	unsigned long pg_offset = 0;
 	char *kaddr;
 
-	stream = ZSTD_createDStream(
+	stream = ZSTD_initDStream(
 			ZSTD_BTRFS_MAX_INPUT, workspace->mem, workspace->size);
 	if (!stream) {
-		pr_warn("BTRFS: ZSTD_createDStream failed\n");
+		pr_warn("BTRFS: ZSTD_initDStream failed\n");
 		ret = -EIO;
 		goto finish;
 	}

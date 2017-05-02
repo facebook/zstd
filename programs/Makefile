@@ -138,17 +138,17 @@ all: zstd
 
 $(ZSTDDECOMP_O): CFLAGS += $(ALIGN_LOOP)
 
-zstd : CPPFLAGS += $(ZLIBCPP) $(THREAD_CPP)
-zstd : LDFLAGS += $(ZLIBLD) $(THREAD_LD)
+zstd-nogz zstd xzstd zstd4 xzstd4 : CPPFLAGS += $(THREAD_CPP)
+zstd-nogz zstd xzstd zstd4 xzstd4 : LDFLAGS += $(THREAD_LD)
+zstd xzstd zstd4 xzstd4 : CPPFLAGS += $(ZLIBCPP)
+zstd xzstd zstd4 xzstd4 : LDFLAGS += $(ZLIBLD)
+xzstd xzstd4 : CPPFLAGS += $(LZMACPP)
+xzstd xzstd4 : LDFLAGS += $(LZMALD)
+zstd4 xzstd4 : CPPFLAGS += $(LZ4CPP)
+zstd4 xzstd4 : LDFLAGS += $(LZ4LD)
+zstd-nogz : ZLIB_MSG := - gzip support is disabled
 zstd zstd-nogz zstd4 : LZMA_MSG := - xz/lzma support is disabled
 zstd zstd-nogz xzstd : LZ4_MSG := - lz4 support is disabled
-zstd-nogz : ZLIB_MSG := - gzip support is disabled
-xzstd : CPPFLAGS += $(ZLIBCPP) $(LZMACPP)
-xzstd : LDFLAGS += $(ZLIBLD) $(LZMALD)
-zstd4 : CPPFLAGS += $(ZLIBCPP) $(LZ4CPP)
-zstd4 : LDFLAGS += $(ZLIBLD) $(LZ4LD)
-xzstd4 : CPPFLAGS += $(ZLIBCPP) $(LZMACPP) $(LZ4CPP)
-xzstd4 : LDFLAGS += $(ZLIBLD) $(LZMALD) $(LZ4LD)
 zstd zstd-nogz xzstd zstd4 xzstd4 : CPPFLAGS += -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT)
 zstd zstd-nogz xzstd zstd4 xzstd4 : $(ZSTDLIB_FILES) zstdcli.o fileio.o bench.o datagen.o dibio.o
 	@echo "$(THREAD_MSG)"
@@ -176,7 +176,7 @@ zstd-nolegacy : clean_decomp_o
 
 zstd-nomt : THREAD_CPP :=
 zstd-nomt : THREAD_LD :=
-zstd-nomt : THREAD_MSG := $(NO_THREAD_MSG)
+zstd-nomt : THREAD_MSG := - multi-threading disabled
 zstd-nomt : zstd
 
 zstd-pgo : MOREFLAGS = -fprofile-generate
@@ -191,11 +191,10 @@ zstd-pgo : clean zstd
 	$(RM) $(ZSTDDECOMP_O)
 	$(MAKE) zstd MOREFLAGS=-fprofile-use
 
-zstd-frugal: $(ZSTD_FILES) zstdcli.c fileio.c
+# minimal target, with only zstd compression and decompression. no bench. no legacy.
+zstd-small: CFLAGS = "-Os -s"
+zstd-frugal zstd-small: $(ZSTD_FILES) zstdcli.c fileio.c
 	$(CC) $(FLAGS) -DZSTD_NOBENCH -DZSTD_NODICT $^ -o zstd$(EXT)
-
-zstd-small:
-	CFLAGS="-Os -s" $(MAKE) zstd-frugal
 
 zstd-decompress: $(ZSTDCOMMON_FILES) $(ZSTDDECOMP_FILES) zstdcli.c fileio.c
 	$(CC) $(FLAGS) -DZSTD_NOBENCH -DZSTD_NODICT -DZSTD_NOCOMPRESS $^ -o $@$(EXT)
@@ -203,6 +202,7 @@ zstd-decompress: $(ZSTDCOMMON_FILES) $(ZSTDDECOMP_FILES) zstdcli.c fileio.c
 zstd-compress: $(ZSTDCOMMON_FILES) $(ZSTDCOMP_FILES) zstdcli.c fileio.c
 	$(CC) $(FLAGS) -DZSTD_NOBENCH -DZSTD_NODICT -DZSTD_NODECOMPRESS $^ -o $@$(EXT)
 
+# zstd is now built with Multi-threading by default
 zstdmt: zstd
 
 generate_res:

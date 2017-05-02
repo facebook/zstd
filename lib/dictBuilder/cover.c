@@ -939,8 +939,8 @@ ZDICTLIB_API size_t COVER_optimizeTrainFromBuffer(void *dictBuffer,
   /* constants */
   const unsigned nbThreads = parameters->nbThreads;
   const unsigned kMinD = parameters->d == 0 ? 6 : parameters->d;
-  const unsigned kMaxD = parameters->d == 0 ? 16 : parameters->d;
-  const unsigned kMinK = parameters->k == 0 ? kMaxD : parameters->k;
+  const unsigned kMaxD = parameters->d == 0 ? 8 : parameters->d;
+  const unsigned kMinK = parameters->k == 0 ? 40 + kMaxD : parameters->k;
   const unsigned kMaxK = parameters->k == 0 ? 2048 : parameters->k;
   const unsigned kSteps = parameters->steps == 0 ? 32 : parameters->steps;
   const unsigned kStepSize = MAX((kMaxK - kMinK) / kSteps, 1);

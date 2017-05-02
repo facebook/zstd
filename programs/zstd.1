@@ -1,5 +1,5 @@
 .
-.TH "ZSTD" "1" "April 2017" "zstd 1.1.5" "User Commands"
+.TH "ZSTD" "1" "May 2017" "zstd 1.2.0" "User Commands"
 .
 .SH "NAME"
 \fBzstd\fR \- zstd, zstdmt, unzstd, zstdcat \- Compress or decompress \.zst files
@@ -168,49 +168,57 @@ All arguments after \fB\-\-\fR are treated as files
 .
 .TP
 \fB\-\-train FILEs\fR
-use FILEs as training set to create a dictionary\. The training set should contain a lot of small files (> 100), and weight typically 100x the target dictionary size (for example, 10 MB for a 100 KB dictionary)\.
+Use FILEs as training set to create a dictionary\. The training set should contain a lot of small files (> 100), and weight typically 100x the target dictionary size (for example, 10 MB for a 100 KB dictionary)\.
+.
+.IP
+Supports multithreading if \fBzstd\fR is compiled with threading support\. Additional parameters can be specified with \fB\-\-train\-cover\fR\. The legacy dictionary builder can be accessed with \fB\-\-train\-legacy\fR\. Equivalent to \fB\-\-train\-cover=d=8,steps=4\fR\.
 .
 .TP
 \fB\-o file\fR
-dictionary saved into \fBfile\fR (default name: dictionary)
+Dictionary saved into \fBfile\fR (default name: dictionary)\.
 .
 .TP
 \fB\-\-maxdict=#\fR
-limit dictionary to specified size (default : (112640)
+Limit dictionary to specified size (default: 112640)\.
 .
 .TP
 \fB\-\-dictID=#\fR
 A dictionary ID is a locally unique ID that a decoder can use to verify it is using the right dictionary\. By default, zstd will create a 4\-bytes random number ID\. It\'s possible to give a precise number instead\. Short numbers have an advantage : an ID < 256 will only need 1 byte in the compressed frame header, and an ID < 65536 will only need 2 bytes\. This compares favorably to 4 bytes default\. However, it\'s up to the dictionary manager to not assign twice the same ID to 2 different dictionaries\.
 .
 .TP
-\fB\-s#\fR
-dictionary selectivity level (default: 9) the smaller the value, the denser the dictionary, improving its efficiency but reducing its possible maximum size\.
+\fB\-\-train\-cover[=k#,d=#,steps=#]\fR
+Select parameters for the default dictionary builder algorithm named cover\. If \fId\fR is not specified, then it tries \fId\fR = 6 and \fId\fR = 8\. If \fIk\fR is not specified, then it tries \fIsteps\fR values in the range [50, 2000]\. If \fIsteps\fR is not specified, then the default value of 40 is used\. Requires that \fId\fR <= \fIk\fR\.
+.
+.IP
+Selects segments of size \fIk\fR with highest score to put in the dictionary\. The score of a segment is computed by the sum of the frequencies of all the subsegments of size \fId\fR\. Generally \fId\fR should be in the range [6, 8], occasionally up to 16, but the algorithm will run faster with d <= \fI8\fR\. Good values for \fIk\fR vary widely based on the input data, but a safe range is [2 * \fId\fR, 2000]\. Supports multithreading if \fBzstd\fR is compiled with threading support\.
+.
+.IP
+Examples:
+.
+.IP
+\fBzstd \-\-train\-cover FILEs\fR
+.
+.IP
+\fBzstd \-\-train\-cover=k=50,d=8 FILEs\fR
+.
+.IP
+\fBzstd \-\-train\-cover=d=8,steps=500 FILEs\fR
+.
+.IP
+\fBzstd \-\-train\-cover=k=50 FILEs\fR
 .
 .TP
-\fB\-\-cover=k#,d=#\fR
-Use alternate dictionary builder algorithm named cover with parameters \fIk\fR and \fId\fR with \fId\fR <= \fIk\fR\. Selects segments of size \fIk\fR with the highest score to put in the dictionary\. The score of a segment is computed by the sum of the frequencies of all the subsegments of of size \fId\fR\. Generally \fId\fR should be in the range [6, 24]\. Good values for \fIk\fR vary widely based on the input data, but a safe range is [32, 2048]\.
-.
-.br
-Example: \fB\-\-train \-\-cover=k=64,d=8 FILEs\fR\.
-.
-.TP
-\fB\-\-optimize\-cover[=steps=#,k=#,d=#]\fR
-If \fIsteps\fR is not specified, the default value of 32 is used\. If \fIk\fR is not specified, the \fIk\fR values in [16, 2048] are checked for each value of \fId\fR\. If \fId\fR is not specified, the values checked are [6, 8, \.\.\., 16]\.
+\fB\-\-train\-legacy[=selectivity=#]\fR
+Use legacy dictionary builder algorithm with the given dictionary \fIselectivity\fR (default: 9)\. The smaller the \fIselectivity\fR value, the denser the dictionary, improving its efficiency but reducing its possible maximum size\. \fB\-\-train\-legacy=s=#\fR is also accepted\.
 .
 .IP
-Runs the cover dictionary builder for each parameter set and saves the optimal parameters and dictionary\. Prints optimal parameters and writes optimal dictionary into output file\. Supports multithreading if \fBzstd\fR is compiled with threading support\.
+Examples:
 .
 .IP
-The parameter \fIk\fR is more sensitive than \fId\fR, and is faster to optimize over\. Suggested use is to run with a \fIsteps\fR <= 32 with neither \fIk\fR nor \fId\fR set\. Once it completes, use the value of \fId\fR it selects with a higher \fIsteps\fR (in the range [256, 1024])\.
+\fBzstd \-\-train\-legacy FILEs\fR
 .
 .IP
-Examples :
-.
-.IP
-\fBzstd \-\-train \-\-optimize\-cover FILEs\fR
-.
-.IP
-\fBzstd \-\-train \-\-optimize\-cover=d=d,steps=512 FILEs\fR
+\fBzstd \-\-train\-legacy=selectivity=8 FILEs\fR
 .
 .SH "BENCHMARK"
 .

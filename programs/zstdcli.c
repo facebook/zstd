@@ -153,11 +153,10 @@ static int usage_advanced(const char* programName)
     DISPLAY( "\n");
     DISPLAY( "Dictionary builder :\n");
     DISPLAY( "--train ## : create a dictionary from a training set of files \n");
-    DISPLAY( "--cover=k=#,d=# : use the cover algorithm with parameters k and d \n");
-    DISPLAY( "--optimize-cover[=steps=#,k=#,d=#] : optimize cover parameters with optional parameters\n");
+    DISPLAY( "--train-cover[=k=#,d=#,steps=#] : use the cover algorithm with optional args\n");
+    DISPLAY( "--train-legacy[=s=#] : use the legacy algorithm with selectivity (default: %u)\n", g_defaultSelectivityLevel);
     DISPLAY( " -o file : `file` is dictionary name (default: %s) \n", g_defaultDictName);
     DISPLAY( "--maxdict=# : limit dictionary to specified size (default : %u) \n", g_defaultMaxDictSize);
-    DISPLAY( " -s#    : dictionary selectivity level (default: %u)\n", g_defaultSelectivityLevel);
     DISPLAY( "--dictID=# : force dictionary ID to specified value (default: random)\n");
 #endif
 #ifndef ZSTD_NOBENCH
@@ -241,11 +240,11 @@ static unsigned longCommandWArg(const char** stringPtr, const char* longCommand)
 #ifndef ZSTD_NODICT
 /**
  * parseCoverParameters() :
- * reads cover parameters from *stringPtr (e.g. "--cover=smoothing=100,kmin=48,kstep=4,kmax=64,d=8") into *params
+ * reads cover parameters from *stringPtr (e.g. "--train-cover=k=48,d=8,steps=32") into *params
  * @return 1 means that cover parameters were correct
  * @return 0 in case of malformed parameters
  */
-static unsigned parseCoverParameters(const char* stringPtr, COVER_params_t *params)
+static unsigned parseCoverParameters(const char* stringPtr, COVER_params_t* params)
 {
     memset(params, 0, sizeof(*params));
     for (; ;) {
@@ -255,8 +254,32 @@ static unsigned parseCoverParameters(const char* stringPtr, COVER_params_t *para
         return 0;
     }
     if (stringPtr[0] != 0) return 0;
-    DISPLAYLEVEL(4, "k=%u\nd=%u\nsteps=%u\n", params->k, params->d, params->steps);
+    DISPLAYLEVEL(4, "cover: k=%u\nd=%u\nsteps=%u\n", params->k, params->d, params->steps);
     return 1;
+}
+
+/**
+ * parseLegacyParameters() :
+ * reads legacy dictioanry builter parameters from *stringPtr (e.g. "--train-legacy=selectivity=8") into *selectivity
+ * @return 1 means that legacy dictionary builder parameters were correct
+ * @return 0 in case of malformed parameters
+ */
+static unsigned parseLegacyParameters(const char* stringPtr, unsigned* selectivity)
+{
+    if (!longCommandWArg(&stringPtr, "s=") && !longCommandWArg(&stringPtr, "selectivity=")) { return 0; }
+    *selectivity = readU32FromChar(&stringPtr);
+    if (stringPtr[0] != 0) return 0;
+    DISPLAYLEVEL(4, "legacy: selectivity=%u\n", *selectivity);
+    return 1;
+}
+
+static COVER_params_t defaultCoverParams(void)
+{
+    COVER_params_t params;
+    memset(&params, 0, sizeof(params));
+    params.d = 8;
+    params.steps = 4;
+    return params;
 }
 #endif
 
@@ -331,8 +354,8 @@ int main(int argCount, const char* argv[])
     unsigned fileNamesNb;
 #endif
 #ifndef ZSTD_NODICT
-    COVER_params_t coverParams;
-    int cover = 0;
+    COVER_params_t coverParams = defaultCoverParams();
+    int cover = 1;
 #endif
 
     /* init */
@@ -413,16 +436,24 @@ int main(int argCount, const char* argv[])
 
                     /* long commands with arguments */
 #ifndef ZSTD_NODICT
-                    if (longCommandWArg(&argument, "--cover=")) {
-                      cover=1; if (!parseCoverParameters(argument, &coverParams)) CLEAN_RETURN(badusage(programName));
-                      continue;
-                    }
-                    if (longCommandWArg(&argument, "--optimize-cover")) {
-                      cover=2;
+                    if (longCommandWArg(&argument, "--train-cover")) {
+                      operation = zom_train;
+                      outFileName = g_defaultDictName;
+                      cover = 1;
                       /* Allow optional arguments following an = */
                       if (*argument == 0) { memset(&coverParams, 0, sizeof(coverParams)); }
                       else if (*argument++ != '=') { CLEAN_RETURN(badusage(programName)); }
                       else if (!parseCoverParameters(argument, &coverParams)) { CLEAN_RETURN(badusage(programName)); }
+                      continue;
+                    }
+                    if (longCommandWArg(&argument, "--train-legacy")) {
+                      operation = zom_train;
+                      outFileName = g_defaultDictName;
+                      cover = 0;
+                      /* Allow optional arguments following an = */
+                      if (*argument == 0) { continue; }
+                      else if (*argument++ != '=') { CLEAN_RETURN(badusage(programName)); }
+                      else if (!parseLegacyParameters(argument, &dictSelect)) { CLEAN_RETURN(badusage(programName)); }
                       continue;
                     }
 #endif
@@ -659,11 +690,12 @@ int main(int argCount, const char* argv[])
     if (operation==zom_train) {
 #ifndef ZSTD_NODICT
         if (cover) {
+            int const optimize = !coverParams.k || !coverParams.d;
             coverParams.nbThreads = nbThreads;
             coverParams.compressionLevel = dictCLevel;
             coverParams.notificationLevel = g_displayLevel;
             coverParams.dictID = dictID;
-            operationResult = DiB_trainFromFiles(outFileName, maxDictSize, filenameTable, filenameIdx, NULL, &coverParams, cover - 1);
+            operationResult = DiB_trainFromFiles(outFileName, maxDictSize, filenameTable, filenameIdx, NULL, &coverParams, optimize);
         } else {
             ZDICT_params_t dictParams;
             memset(&dictParams, 0, sizeof(dictParams));

@@ -194,9 +194,9 @@ Typical gains range from 10% (at 64KB) to x5 better (at <1KB).
 
 * `--optimize-cover[=steps=#,k=#,d=#]`:
     If _steps_ is not specified, the default value of 32 is used.
-    If _k_ is not specified, the _k_ values in [16, 2048] are checked for each
+    If _k_ is not specified, the _k_ values in [48, 2048] are checked for each
     value of _d_.
-    If _d_ is not specified, the values checked are [6, 8, ..., 16].
+    If _d_ is not specified, the values checked are [6, 8].
 
     Runs the cover dictionary builder for each parameter set
     and saves the optimal parameters and dictionary.
@@ -204,15 +204,12 @@ Typical gains range from 10% (at 64KB) to x5 better (at <1KB).
     Supports multithreading if `zstd` is compiled with threading support.
 
     The parameter _k_ is more sensitive than _d_, and is faster to optimize over.
-    Suggested use is to run with a _steps_ <= 32 with neither _k_ nor _d_ set.
-    Once it completes, use the value of _d_ it selects with a higher _steps_
-    (in the range [256, 1024]).
 
     Examples :
 
     `zstd --train --optimize-cover FILEs`
 
-    `zstd --train --optimize-cover=d=d,steps=512 FILEs`
+    `zstd --train --optimize-cover=d=8,steps=512 FILEs`
 
 
 BENCHMARK

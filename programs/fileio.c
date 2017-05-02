@@ -617,6 +617,7 @@ static int FIO_compressFilename_internal(cRess_t ress,
     switch (g_compressionType) {
         case FIO_zstdCompression:
             break;
+
         case FIO_gzipCompression:
 #ifdef ZSTD_GZCOMPRESS
             compressedfilesize = FIO_compressGzFrame(&ress, srcFileName, fileSize, compressionLevel, &readsize);
@@ -625,6 +626,7 @@ static int FIO_compressFilename_internal(cRess_t ress,
             EXM_THROW(20, "zstd: %s: file cannot be compressed as gzip (zstd compiled without ZSTD_GZCOMPRESS) -- ignored \n", srcFileName);
 #endif
             goto finish;
+
         case FIO_xzCompression:
         case FIO_lzmaCompression:
 #ifdef ZSTD_LZMACOMPRESS
@@ -633,6 +635,8 @@ static int FIO_compressFilename_internal(cRess_t ress,
             (void)compressionLevel;
             EXM_THROW(20, "zstd: %s: file cannot be compressed as xz/lzma (zstd compiled without ZSTD_LZMACOMPRESS) -- ignored \n", srcFileName);
 #endif
+            goto finish;
+
         case FIO_lz4Compression:
 #ifdef ZSTD_LZ4COMPRESS
             compressedfilesize = FIO_compressLz4Frame(&ress, srcFileName, fileSize, compressionLevel, &readsize);

@@ -514,11 +514,11 @@ int main(int argCount, const char* argv[])
                         /* Quiet mode */
                     case 'q': g_displayLevel--; argument++; break;
 
-                        /* keep source file (default); for gzip/xz compatibility */
+                        /* keep source file (default) */
                     case 'k': FIO_setRemoveSrcFile(0); argument++; break;
 
                         /* Checksum */
-                    case 'C': argument++; FIO_setChecksumFlag(2); break;
+                    case 'C': FIO_setChecksumFlag(2); argument++; break;
 
                         /* test compressed file */
                     case 't': operation=zom_test; argument++; break;

@@ -106,6 +106,7 @@ ZLIBLD = -lz
 else
 ZLIB_MSG := $(NO_ZLIB_MSG)
 endif
+
 # lzma detection
 NO_LZMA_MSG := ==> no liblzma, building zstd without .xz/.lzma support
 HAVE_LZMA := $(shell printf '\#include <lzma.h>\nint main(void) { return 0; }' | $(CC) $(FLAGS) -o have_lzma$(EXT) -x c - -llzma 2> $(VOID) && rm have_lzma$(EXT) && echo 1 || echo 0)
@@ -116,6 +117,7 @@ LZMALD = -llzma
 else
 LZMA_MSG := $(NO_LZMA_MSG)
 endif
+
 # lz4 detection
 NO_LZ4_MSG := ==> no liblz4, building zstd without .lz4 support
 HAVE_LZ4 := $(shell printf '\#include <lz4frame.h>\n\#include <lz4.h>\nint main(void) { return 0; }' | $(CC) $(FLAGS) -o have_lz4$(EXT) -x c - -llz4 2> $(VOID) && rm have_lz4$(EXT) && echo 1 || echo 0)
@@ -126,9 +128,6 @@ LZ4LD = -llz4
 else
 LZ4_MSG := $(NO_LZ4_MSG)
 endif
-
-MD2ROFF  =ronn
-MD2ROFF_FLAGS  = --roff --warnings --manual="User Commands" --organization="zstd $(ZSTD_VERSION)"
 
 .PHONY: default all clean clean_decomp_o install uninstall generate_res
 
@@ -220,6 +219,9 @@ clean:
 
 clean_decomp_o:
 	@$(RM) $(ZSTDDECOMP_O)
+
+MD2ROFF = ronn
+MD2ROFF_FLAGS = --roff --warnings --manual="User Commands" --organization="zstd $(ZSTD_VERSION)"
 
 zstd.1: zstd.1.md
 	cat $^ | $(MD2ROFF) $(MD2ROFF_FLAGS) | sed -n '/^\.\\\".*/!p' > $@

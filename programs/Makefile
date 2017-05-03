@@ -138,19 +138,16 @@ all: zstd
 
 $(ZSTDDECOMP_O): CFLAGS += $(ALIGN_LOOP)
 
-zstd-nogz zstd xzstd zstd4 xzstd4 : CPPFLAGS += $(THREAD_CPP)
-zstd-nogz zstd xzstd zstd4 xzstd4 : LDFLAGS += $(THREAD_LD)
-zstd xzstd zstd4 xzstd4 : CPPFLAGS += $(ZLIBCPP)
-zstd xzstd zstd4 xzstd4 : LDFLAGS += $(ZLIBLD)
+zstd xzstd zstd4 xzstd4 : CPPFLAGS += $(THREAD_CPP) $(ZLIBCPP)
+zstd xzstd zstd4 xzstd4 : LDFLAGS += $(THREAD_LD) $(ZLIBLD)
 xzstd xzstd4 : CPPFLAGS += $(LZMACPP)
 xzstd xzstd4 : LDFLAGS += $(LZMALD)
 zstd4 xzstd4 : CPPFLAGS += $(LZ4CPP)
 zstd4 xzstd4 : LDFLAGS += $(LZ4LD)
-zstd-nogz : ZLIB_MSG := - gzip support is disabled
-zstd zstd-nogz zstd4 : LZMA_MSG := - xz/lzma support is disabled
-zstd zstd-nogz xzstd : LZ4_MSG := - lz4 support is disabled
-zstd zstd-nogz xzstd zstd4 xzstd4 : CPPFLAGS += -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT)
-zstd zstd-nogz xzstd zstd4 xzstd4 : $(ZSTDLIB_FILES) zstdcli.o fileio.o bench.o datagen.o dibio.o
+zstd zstd4 : LZMA_MSG := - xz/lzma support is disabled
+zstd xzstd : LZ4_MSG := - lz4 support is disabled
+zstd xzstd zstd4 xzstd4 : CPPFLAGS += -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT)
+zstd xzstd zstd4 xzstd4 : $(ZSTDLIB_FILES) zstdcli.o fileio.o bench.o datagen.o dibio.o
 	@echo "$(THREAD_MSG)"
 	@echo "$(ZLIB_MSG)"
 	@echo "$(LZMA_MSG)"
@@ -170,7 +167,6 @@ ifneq (,$(filter Windows%,$(OS)))
 endif
 	$(CC) -m32 $(FLAGS) $^ $(RES32_FILE) -o $@$(EXT)
 
-
 zstd-nolegacy : clean_decomp_o
 	$(MAKE) zstd ZSTD_LEGACY_SUPPORT=0
 
@@ -178,6 +174,12 @@ zstd-nomt : THREAD_CPP :=
 zstd-nomt : THREAD_LD :=
 zstd-nomt : THREAD_MSG := - multi-threading disabled
 zstd-nomt : zstd
+
+zstd-nogz : ZLIBCPP :=
+zstd-nogz : ZLIBLD :=
+zstd-nogz : ZLIB_MSG := - gzip support is disabled
+zstd-nogz : zstd
+
 
 zstd-pgo : MOREFLAGS = -fprofile-generate
 zstd-pgo : clean zstd

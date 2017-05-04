@@ -29,7 +29,7 @@ const char* ERR_getErrorString(ERR_enum code)
     case PREFIX(memory_allocation): return "Allocation error : not enough memory";
     case PREFIX(stage_wrong): return "Operation not authorized at current processing stage";
     case PREFIX(dstSize_tooSmall): return "Destination buffer is too small";
-    case PREFIX(srcSize_wrong): return "Src size incorrect";
+    case PREFIX(srcSize_wrong): return "Src size is incorrect";
     case PREFIX(corruption_detected): return "Corrupted block detected";
     case PREFIX(checksum_wrong): return "Restored data doesn't match checksum";
     case PREFIX(tableLog_tooLarge): return "tableLog requires too much memory : unsupported";
@@ -37,6 +37,7 @@ const char* ERR_getErrorString(ERR_enum code)
     case PREFIX(maxSymbolValue_tooSmall): return "Specified maxSymbolValue is too small";
     case PREFIX(dictionary_corrupted): return "Dictionary is corrupted";
     case PREFIX(dictionary_wrong): return "Dictionary mismatch";
+    case PREFIX(dictionaryCreation_failed): return "Cannot create Dictionary from provided samples";
     case PREFIX(maxCode):
     default: return notErrorCode;
     }

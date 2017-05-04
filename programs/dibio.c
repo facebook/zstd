@@ -53,12 +53,12 @@ static const size_t maxMemory = (sizeof(size_t) == 4) ? (2 GB - 64 MB) : ((size_
 ***************************************/
 #define DISPLAY(...)         fprintf(stderr, __VA_ARGS__)
 #define DISPLAYLEVEL(l, ...) if (g_displayLevel>=l) { DISPLAY(__VA_ARGS__); }
-static unsigned g_displayLevel = 0;   /* 0 : no display;   1: errors;   2: default;  4: full information */
+static int g_displayLevel = 0;   /* 0 : no display;   1: errors;   2: default;  4: full information */
 
 #define DISPLAYUPDATE(l, ...) if (g_displayLevel>=l) { \
             if ((DIB_clockSpan(g_time) > refreshRate) || (g_displayLevel>=4)) \
             { g_time = clock(); DISPLAY(__VA_ARGS__); \
-            if (g_displayLevel>=4) fflush(stdout); } }
+            if (g_displayLevel>=4) fflush(stderr); } }
 static const clock_t refreshRate = CLOCKS_PER_SEC * 2 / 10;
 static clock_t g_time = 0;
 
@@ -89,7 +89,8 @@ unsigned DiB_isError(size_t errorCode) { return ERR_isError(errorCode); }
 
 const char* DiB_getErrorName(size_t errorCode) { return ERR_getErrorName(errorCode); }
 
-#define MIN(a,b)   ( (a) < (b) ? (a) : (b) )
+#undef MIN
+#define MIN(a,b)    ((a) < (b) ? (a) : (b))
 
 
 /* ********************************************************

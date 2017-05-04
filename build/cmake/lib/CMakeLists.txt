@@ -10,30 +10,18 @@
 #  - zstd homepage : http://www.zstd.net/
 # ################################################################
 
-# Get library version based on information from input content (use regular exp)
-function(GetLibraryVersion _content _outputVar1 _outputVar2 _outputVar3)
-    string(REGEX MATCHALL ".*define ZSTD_VERSION_MAJOR+.* ([0-9]+).*define ZSTD_VERSION_MINOR+.* ([0-9]+).*define ZSTD_VERSION_RELEASE+.* ([0-9]+)" VERSION_REGEX "${_content}")
-    SET(${_outputVar1} ${CMAKE_MATCH_1} PARENT_SCOPE)
-    SET(${_outputVar2} ${CMAKE_MATCH_2} PARENT_SCOPE)
-    SET(${_outputVar3} ${CMAKE_MATCH_3} PARENT_SCOPE)
-endfunction()
-
 PROJECT(libzstd)
 
 SET(CMAKE_INCLUDE_CURRENT_DIR TRUE)
-
-# Define project root directory
-SET(ROOT_DIR ../../..)
+OPTION(ZSTD_BUILD_STATIC "BUILD STATIC LIBRARIES" OFF)
 
 # Define library directory, where sources and header files are located
-SET(LIBRARY_DIR ${ROOT_DIR}/lib)
+SET(LIBRARY_DIR ${ZSTD_SOURCE_DIR}/lib)
 INCLUDE_DIRECTORIES(${LIBRARY_DIR} ${LIBRARY_DIR}/common)
 
-# Read file content
-FILE(READ ${LIBRARY_DIR}/zstd.h HEADER_CONTENT)
-
 # Parse version
-GetLibraryVersion("${HEADER_CONTENT}" LIBVER_MAJOR LIBVER_MINOR LIBVER_RELEASE)
+INCLUDE(GetZstdLibraryVersion)
+GetZstdLibraryVersion(${LIBRARY_DIR}/zstd.h LIBVER_MAJOR LIBVER_MINOR LIBVER_RELEASE)
 MESSAGE("ZSTD VERSION ${LIBVER_MAJOR}.${LIBVER_MINOR}.${LIBVER_RELEASE}")
 
 SET(Sources
@@ -97,96 +85,76 @@ IF (ZSTD_LEGACY_SUPPORT)
 ENDIF (ZSTD_LEGACY_SUPPORT)
 
 IF (MSVC)
-    SET(MSVC_RESOURCE_DIR ${ROOT_DIR}/build/VS2010/libzstd-dll)
+    SET(MSVC_RESOURCE_DIR ${ZSTD_SOURCE_DIR}/build/VS2010/libzstd-dll)
     SET(PlatformDependResources ${MSVC_RESOURCE_DIR}/libzstd-dll.rc)
 ENDIF (MSVC)
 
 # Split project to static and shared libraries build
-ADD_LIBRARY(libzstd_static STATIC ${Sources} ${Headers})
 ADD_LIBRARY(libzstd_shared SHARED ${Sources} ${Headers} ${PlatformDependResources})
+IF (ZSTD_BUILD_STATIC)
+    ADD_LIBRARY(libzstd_static STATIC ${Sources} ${Headers})
+ENDIF (ZSTD_BUILD_STATIC)
 
 # Add specific compile definitions for MSVC project
 IF (MSVC)
-    SET_TARGET_PROPERTIES(libzstd_static PROPERTIES COMPILE_DEFINITIONS "ZSTD_HEAPMODE=0;_CRT_SECURE_NO_WARNINGS")
-    SET_TARGET_PROPERTIES(libzstd_shared PROPERTIES COMPILE_DEFINITIONS "ZSTD_DLL_EXPORT=1;ZSTD_HEAPMODE=0;_CONSOLE;_CRT_SECURE_NO_WARNINGS")
+    SET_PROPERTY(TARGET libzstd_shared APPEND PROPERTY COMPILE_DEFINITIONS "ZSTD_DLL_EXPORT=1;ZSTD_HEAPMODE=0;_CONSOLE;_CRT_SECURE_NO_WARNINGS")
+    IF (ZSTD_BUILD_STATIC)
+        SET_PROPERTY(TARGET libzstd_static APPEND PROPERTY COMPILE_DEFINITIONS "ZSTD_HEAPMODE=0;_CRT_SECURE_NO_WARNINGS")
+    ENDIF (ZSTD_BUILD_STATIC)
 ENDIF (MSVC)
 
 # Define library base name
 IF (MSVC)
-    SET(LIBRARY_BASE_NAME zstdlib)
-ELSE ()
-    SET(LIBRARY_BASE_NAME libzstd)
-ENDIF (MSVC)
 
-IF (MSVC)
     IF (CMAKE_SIZEOF_VOID_P MATCHES "8")
-        SET(LIBRARY_ARCH_SUFFIX "_x64")
+        SET(LIBRARY_BASE_NAME "zstdlib_x64")
     ELSE ()
-        SET(LIBRARY_ARCH_SUFFIX "_x86")
+        SET(LIBRARY_BASE_NAME "zstdlib_x86")
     ENDIF (CMAKE_SIZEOF_VOID_P MATCHES "8")
 ELSE ()
-    SET(LIBRARY_ARCH_SUFFIX "")
+    SET(LIBRARY_BASE_NAME zstd)
 ENDIF (MSVC)
 
 # Define static and shared library names
-SET(STATIC_LIBRARY_OUTPUT_NAME ${LIBRARY_BASE_NAME}${LIBRARY_ARCH_SUFFIX} CACHE STRING "Static library output name")
-SET(SHARED_LIBRARY_OUTPUT_NAME ${LIBRARY_BASE_NAME}.${LIBVER_MAJOR}.${LIBVER_MINOR}.${LIBVER_RELEASE}${LIBRARY_ARCH_SUFFIX} CACHE STRING "Shared library output name")
-
-SET_TARGET_PROPERTIES(
-        libzstd_static
-        PROPERTIES
-        PREFIX ""
-        OUTPUT_NAME ${STATIC_LIBRARY_OUTPUT_NAME})
-
 SET_TARGET_PROPERTIES(
         libzstd_shared
         PROPERTIES
-        PREFIX ""
-        OUTPUT_NAME ${SHARED_LIBRARY_OUTPUT_NAME})
+        OUTPUT_NAME ${LIBRARY_BASE_NAME}
+        SOVERSION ${LIBVER_MAJOR}.${LIBVER_MINOR}.${LIBVER_RELEASE})
+
+IF (ZSTD_BUILD_STATIC)
+    SET_TARGET_PROPERTIES(
+            libzstd_static
+            PROPERTIES
+            OUTPUT_NAME ${LIBRARY_BASE_NAME})
+ENDIF (ZSTD_BUILD_STATIC)
 
 IF (UNIX)
-    IF ("${PREFIX}" STREQUAL "")
-        SET(PREFIX /usr/local)
-    ENDIF()
-    MESSAGE("the variable PREFIX=${PREFIX}")
-    SET(INSTALL_LIBRARY_DIR ${PREFIX}/lib)
-    SET(INSTALL_INCLUDE_DIR ${PREFIX}/include)
+    # pkg-config
+    SET(PREFIX "${CMAKE_INSTALL_PREFIX}")
+    SET(LIBDIR "${CMAKE_INSTALL_PREFIX}/lib")
+    SET(INCLUDEDIR "${CMAKE_INSTALL_PREFIX}/include")
+    SET(VERSION "${LIBVER_MAJOR}.${LIBVER_MINOR}.${LIBVER_RELEASE}")
+    ADD_CUSTOM_TARGET(libzstd.pc ALL
+            ${CMAKE_COMMAND} -DIN="${LIBRARY_DIR}/libzstd.pc.in" -DOUT="libzstd.pc"
+            -DPREFIX="${PREFIX}" -DLIBDIR="${LIBDIR}" -DINCLUDEDIR="${INCLUDEDIR}" -DVERSION="${VERSION}"
+            -P "${CMAKE_CURRENT_SOURCE_DIR}/pkgconfig.cmake"
+            COMMENT "Creating pkg-config file")
 
     # install target
-    INSTALL(FILES ${LIBRARY_DIR}/zstd.h ${LIBRARY_DIR}/deprecated/zbuff.h ${LIBRARY_DIR}/dictBuilder/zdict.h DESTINATION ${INSTALL_INCLUDE_DIR})
-    INSTALL(TARGETS libzstd_static DESTINATION ${INSTALL_LIBRARY_DIR})
-    INSTALL(TARGETS libzstd_shared LIBRARY DESTINATION ${INSTALL_LIBRARY_DIR})
-
-    # Create symlinks and setup this files
-    SET(SHARED_LIBRARY_LINK ${SHARED_LIBRARY_OUTPUT_NAME}${CMAKE_SHARED_LIBRARY_SUFFIX})
-    SET(SHARED_LIBRARY_SYMLINK1 ${LIBRARY_BASE_NAME}${CMAKE_SHARED_LIBRARY_SUFFIX})
-    SET(SHARED_LIBRARY_SYMLINK2 ${LIBRARY_BASE_NAME}${CMAKE_SHARED_LIBRARY_SUFFIX}.${LIBVER_MAJOR})
-
-    SET(SHARED_LIBRARY_LINK_PATH ${CMAKE_CURRENT_BINARY_DIR}/${SHARED_LIBRARY_LINK})
-    SET(SHARED_LIBRARY_SYMLINK1_PATH ${CMAKE_CURRENT_BINARY_DIR}/${SHARED_LIBRARY_SYMLINK1})
-    SET(SHARED_LIBRARY_SYMLINK2_PATH ${CMAKE_CURRENT_BINARY_DIR}/${SHARED_LIBRARY_SYMLINK2})
-
-    ADD_CUSTOM_COMMAND(TARGET libzstd_shared POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E create_symlink ${SHARED_LIBRARY_LINK} ${SHARED_LIBRARY_SYMLINK1}
-            DEPENDS  ${SHARED_LIBRARY_LINK_PATH}
-            COMMENT "Generating symbolic link ${SHARED_LIBRARY_LINK} -> ${SHARED_LIBRARY_SYMLINK1}")
-
-    ADD_CUSTOM_COMMAND(TARGET libzstd_shared POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E create_symlink ${SHARED_LIBRARY_LINK} ${SHARED_LIBRARY_SYMLINK2}
-            DEPENDS  ${SHARED_LIBRARY_LINK_PATH}
-            COMMENT "Generating symbolic link ${SHARED_LIBRARY_LINK} -> ${SHARED_LIBRARY_SYMLINK2}")
-
-    SET_DIRECTORY_PROPERTIES(PROPERTIES ADDITIONAL_MAKE_CLEAN_FILES "${SHARED_LIBRARY_SYMLINK1};${SHARED_LIBRARY_SYMLINK2}")
-
-    INSTALL(FILES ${SHARED_LIBRARY_SYMLINK1_PATH} DESTINATION ${INSTALL_LIBRARY_DIR})
-    INSTALL(FILES ${SHARED_LIBRARY_SYMLINK2_PATH} DESTINATION ${INSTALL_LIBRARY_DIR})
+    INSTALL(FILES ${LIBRARY_DIR}/zstd.h ${LIBRARY_DIR}/deprecated/zbuff.h ${LIBRARY_DIR}/dictBuilder/zdict.h DESTINATION "include")
+    INSTALL(FILES "${CMAKE_CURRENT_BINARY_DIR}/libzstd.pc" DESTINATION "share/pkgconfig")
+    INSTALL(TARGETS libzstd_shared LIBRARY DESTINATION "lib")
+    IF (ZSTD_BUILD_STATIC)
+        INSTALL(TARGETS libzstd_static ARCHIVE DESTINATION "lib")
+    ENDIF (ZSTD_BUILD_STATIC)
 
     # uninstall target
     CONFIGURE_FILE(
-            "${CMAKE_SOURCE_DIR}/cmake_uninstall.cmake.in"
-            "${CMAKE_BINARY_DIR}/cmake_uninstall.cmake"
+            "${CMAKE_CURRENT_SOURCE_DIR}/cmake_uninstall.cmake.in"
+            "${CMAKE_CURRENT_BINARY_DIR}/cmake_uninstall.cmake"
             IMMEDIATE @ONLY)
 
     ADD_CUSTOM_TARGET(uninstall
-            COMMAND ${CMAKE_COMMAND} -P ${CMAKE_BINARY_DIR}/cmake_uninstall.cmake)
+            COMMAND ${CMAKE_COMMAND} -P ${CMAKE_CURRENT_BINARY_DIR}/cmake_uninstall.cmake)
 ENDIF (UNIX)

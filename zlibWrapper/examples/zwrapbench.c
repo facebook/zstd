@@ -73,13 +73,13 @@ static U32 g_compressibilityDefault = 50;
 #define DEFAULT_DISPLAY_LEVEL 2
 #define DISPLAY(...)         fprintf(displayOut, __VA_ARGS__)
 #define DISPLAYLEVEL(l, ...) if (g_displayLevel>=l) { DISPLAY(__VA_ARGS__); }
-static U32 g_displayLevel = DEFAULT_DISPLAY_LEVEL;   /* 0 : no display;   1: errors;   2 : + result + interaction + warnings;   3 : + progression;   4 : + information */
+static int g_displayLevel = DEFAULT_DISPLAY_LEVEL;   /* 0 : no display;   1: errors;   2 : + result + interaction + warnings;   3 : + progression;   4 : + information */
 static FILE* displayOut;
 
 #define DISPLAYUPDATE(l, ...) if (g_displayLevel>=l) { \
             if ((clock() - g_time > refreshRate) || (g_displayLevel>=4)) \
             { g_time = clock(); DISPLAY(__VA_ARGS__); \
-            if (g_displayLevel>=4) fflush(stdout); } }
+            if (g_displayLevel>=4) fflush(displayOut); } }
 static const clock_t refreshRate = CLOCKS_PER_SEC * 15 / 100;
 static clock_t g_time = 0;
 
@@ -128,6 +128,11 @@ void BMK_SetBlockSize(size_t blockSize)
 /* ********************************************************
 *  Bench functions
 **********************************************************/
+#undef MIN
+#undef MAX
+#define MIN(a,b) ((a)<(b) ? (a) : (b))
+#define MAX(a,b) ((a)>(b) ? (a) : (b))
+
 typedef struct
 {
     z_const char* srcPtr;
@@ -141,9 +146,6 @@ typedef struct
 
 typedef enum { BMK_ZSTD, BMK_ZSTD_STREAM, BMK_ZLIB, BMK_ZWRAP_ZLIB, BMK_ZWRAP_ZSTD, BMK_ZLIB_REUSE, BMK_ZWRAP_ZLIB_REUSE, BMK_ZWRAP_ZSTD_REUSE } BMK_compressor;
 
-
-#define MIN(a,b) ((a)<(b) ? (a) : (b))
-#define MAX(a,b) ((a)>(b) ? (a) : (b))
 
 static int BMK_benchMem(z_const void* srcBuffer, size_t srcSize,
                         const char* displayName, int cLevel,
@@ -234,7 +236,7 @@ static int BMK_benchMem(z_const void* srcBuffer, size_t srcSize,
                 if (compressor == BMK_ZSTD) {
                     ZSTD_parameters const zparams = ZSTD_getParams(cLevel, avgSize, dictBufferSize);
                     ZSTD_customMem const cmem = { NULL, NULL, NULL };
-                    ZSTD_CDict* cdict = ZSTD_createCDict_advanced(dictBuffer, dictBufferSize, 1, zparams, cmem);
+                    ZSTD_CDict* const cdict = ZSTD_createCDict_advanced(dictBuffer, dictBufferSize, 1, zparams.cParams, cmem);
                     if (cdict==NULL) EXM_THROW(1, "ZSTD_createCDict_advanced() allocation failure");
 
                     do {
@@ -982,7 +984,7 @@ int main(int argCount, char** argv)
 
 #ifdef UTIL_HAS_CREATEFILELIST
     if (recursive) {
-        fileNamesTable = UTIL_createFileList(filenameTable, filenameIdx, &fileNamesBuf, &fileNamesNb);
+        fileNamesTable = UTIL_createFileList(filenameTable, filenameIdx, &fileNamesBuf, &fileNamesNb, 1);
         if (fileNamesTable) {
             unsigned u;
             for (u=0; u<fileNamesNb; u++) DISPLAYLEVEL(4, "%u %s\n", u, fileNamesTable[u]);

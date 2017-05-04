@@ -177,30 +177,6 @@ void ZSTD_copyDCtx(ZSTD_DCtx* dstDCtx, const ZSTD_DCtx* srcDCtx)
     memcpy(dstDCtx, srcDCtx, sizeof(ZSTD_DCtx) - workSpaceSize);  /* no need to copy workspace */
 }
 
-#if 0
-/* deprecated */
-static void ZSTD_refDCtx(ZSTD_DCtx* dstDCtx, const ZSTD_DCtx* srcDCtx)
-{
-    ZSTD_decompressBegin(dstDCtx);  /* init */
-    if (srcDCtx) {   /* support refDCtx on NULL */
-        dstDCtx->dictEnd = srcDCtx->dictEnd;
-        dstDCtx->vBase = srcDCtx->vBase;
-        dstDCtx->base = srcDCtx->base;
-        dstDCtx->previousDstEnd = srcDCtx->previousDstEnd;
-        dstDCtx->dictID = srcDCtx->dictID;
-        dstDCtx->litEntropy = srcDCtx->litEntropy;
-        dstDCtx->fseEntropy = srcDCtx->fseEntropy;
-        dstDCtx->LLTptr = srcDCtx->entropy.LLTable;
-        dstDCtx->MLTptr = srcDCtx->entropy.MLTable;
-        dstDCtx->OFTptr = srcDCtx->entropy.OFTable;
-        dstDCtx->HUFptr = srcDCtx->entropy.hufTable;
-        dstDCtx->entropy.rep[0] = srcDCtx->entropy.rep[0];
-        dstDCtx->entropy.rep[1] = srcDCtx->entropy.rep[1];
-        dstDCtx->entropy.rep[2] = srcDCtx->entropy.rep[2];
-    }
-}
-#endif
-
 static void ZSTD_refDDict(ZSTD_DCtx* dstDCtx, const ZSTD_DDict* ddict);
 
 
@@ -431,7 +407,8 @@ typedef struct
 
 /*! ZSTD_getcBlockSize() :
 *   Provides the size of compressed block from block header `src` */
-size_t ZSTD_getcBlockSize(const void* src, size_t srcSize, blockProperties_t* bpPtr)
+size_t ZSTD_getcBlockSize(const void* src, size_t srcSize,
+                          blockProperties_t* bpPtr)
 {
     if (srcSize < ZSTD_blockHeaderSize) return ERROR(srcSize_wrong);
     {   U32 const cBlockHeader = MEM_readLE24(src);
@@ -446,7 +423,8 @@ size_t ZSTD_getcBlockSize(const void* src, size_t srcSize, blockProperties_t* bp
 }
 
 
-static size_t ZSTD_copyRawBlock(void* dst, size_t dstCapacity, const void* src, size_t srcSize)
+static size_t ZSTD_copyRawBlock(void* dst, size_t dstCapacity,
+                          const void* src, size_t srcSize)
 {
     if (srcSize > dstCapacity) return ERROR(dstSize_tooSmall);
     memcpy(dst, src, srcSize);
@@ -454,7 +432,9 @@ static size_t ZSTD_copyRawBlock(void* dst, size_t dstCapacity, const void* src, 
 }
 
 
-static size_t ZSTD_setRleBlock(void* dst, size_t dstCapacity, const void* src, size_t srcSize, size_t regenSize)
+static size_t ZSTD_setRleBlock(void* dst, size_t dstCapacity,
+                         const void* src, size_t srcSize,
+                               size_t regenSize)
 {
     if (srcSize != 1) return ERROR(srcSize_wrong);
     if (regenSize > dstCapacity) return ERROR(dstSize_tooSmall);
@@ -595,176 +575,70 @@ typedef union {
     U32 alignedBy4;
 } FSE_decode_t4;
 
+/* Default FSE distribution table for Literal Lengths */
 static const FSE_decode_t4 LL_defaultDTable[(1<<LL_DEFAULTNORMLOG)+1] = {
     { { LL_DEFAULTNORMLOG, 1, 1 } }, /* header : tableLog, fastMode, fastMode */
-    { {  0,  0,  4 } },              /* 0 : base, symbol, bits */
-    { { 16,  0,  4 } },
-    { { 32,  1,  5 } },
-    { {  0,  3,  5 } },
-    { {  0,  4,  5 } },
-    { {  0,  6,  5 } },
-    { {  0,  7,  5 } },
-    { {  0,  9,  5 } },
-    { {  0, 10,  5 } },
-    { {  0, 12,  5 } },
-    { {  0, 14,  6 } },
-    { {  0, 16,  5 } },
-    { {  0, 18,  5 } },
-    { {  0, 19,  5 } },
-    { {  0, 21,  5 } },
-    { {  0, 22,  5 } },
-    { {  0, 24,  5 } },
-    { { 32, 25,  5 } },
-    { {  0, 26,  5 } },
-    { {  0, 27,  6 } },
-    { {  0, 29,  6 } },
-    { {  0, 31,  6 } },
-    { { 32,  0,  4 } },
-    { {  0,  1,  4 } },
-    { {  0,  2,  5 } },
-    { { 32,  4,  5 } },
-    { {  0,  5,  5 } },
-    { { 32,  7,  5 } },
-    { {  0,  8,  5 } },
-    { { 32, 10,  5 } },
-    { {  0, 11,  5 } },
-    { {  0, 13,  6 } },
-    { { 32, 16,  5 } },
-    { {  0, 17,  5 } },
-    { { 32, 19,  5 } },
-    { {  0, 20,  5 } },
-    { { 32, 22,  5 } },
-    { {  0, 23,  5 } },
-    { {  0, 25,  4 } },
-    { { 16, 25,  4 } },
-    { { 32, 26,  5 } },
-    { {  0, 28,  6 } },
-    { {  0, 30,  6 } },
-    { { 48,  0,  4 } },
-    { { 16,  1,  4 } },
-    { { 32,  2,  5 } },
-    { { 32,  3,  5 } },
-    { { 32,  5,  5 } },
-    { { 32,  6,  5 } },
-    { { 32,  8,  5 } },
-    { { 32,  9,  5 } },
-    { { 32, 11,  5 } },
-    { { 32, 12,  5 } },
-    { {  0, 15,  6 } },
-    { { 32, 17,  5 } },
-    { { 32, 18,  5 } },
-    { { 32, 20,  5 } },
-    { { 32, 21,  5 } },
-    { { 32, 23,  5 } },
-    { { 32, 24,  5 } },
-    { {  0, 35,  6 } },
-    { {  0, 34,  6 } },
-    { {  0, 33,  6 } },
-    { {  0, 32,  6 } },
+     /* base, symbol, bits */
+    { {  0,  0,  4 } }, { { 16,  0,  4 } }, { { 32,  1,  5 } }, { {  0,  3,  5 } },
+    { {  0,  4,  5 } }, { {  0,  6,  5 } }, { {  0,  7,  5 } }, { {  0,  9,  5 } },
+    { {  0, 10,  5 } }, { {  0, 12,  5 } }, { {  0, 14,  6 } }, { {  0, 16,  5 } },
+    { {  0, 18,  5 } }, { {  0, 19,  5 } }, { {  0, 21,  5 } }, { {  0, 22,  5 } },
+    { {  0, 24,  5 } }, { { 32, 25,  5 } }, { {  0, 26,  5 } }, { {  0, 27,  6 } },
+    { {  0, 29,  6 } }, { {  0, 31,  6 } }, { { 32,  0,  4 } }, { {  0,  1,  4 } },
+    { {  0,  2,  5 } }, { { 32,  4,  5 } }, { {  0,  5,  5 } }, { { 32,  7,  5 } },
+    { {  0,  8,  5 } }, { { 32, 10,  5 } }, { {  0, 11,  5 } }, { {  0, 13,  6 } },
+    { { 32, 16,  5 } }, { {  0, 17,  5 } }, { { 32, 19,  5 } }, { {  0, 20,  5 } },
+    { { 32, 22,  5 } }, { {  0, 23,  5 } }, { {  0, 25,  4 } }, { { 16, 25,  4 } },
+    { { 32, 26,  5 } }, { {  0, 28,  6 } }, { {  0, 30,  6 } }, { { 48,  0,  4 } },
+    { { 16,  1,  4 } }, { { 32,  2,  5 } }, { { 32,  3,  5 } }, { { 32,  5,  5 } },
+    { { 32,  6,  5 } }, { { 32,  8,  5 } }, { { 32,  9,  5 } }, { { 32, 11,  5 } },
+    { { 32, 12,  5 } }, { {  0, 15,  6 } }, { { 32, 17,  5 } }, { { 32, 18,  5 } },
+    { { 32, 20,  5 } }, { { 32, 21,  5 } }, { { 32, 23,  5 } }, { { 32, 24,  5 } },
+    { {  0, 35,  6 } }, { {  0, 34,  6 } }, { {  0, 33,  6 } }, { {  0, 32,  6 } },
 };   /* LL_defaultDTable */
 
+/* Default FSE distribution table for Match Lengths */
 static const FSE_decode_t4 ML_defaultDTable[(1<<ML_DEFAULTNORMLOG)+1] = {
     { { ML_DEFAULTNORMLOG, 1, 1 } }, /* header : tableLog, fastMode, fastMode */
-    { {  0,  0,  6 } },              /* 0 : base, symbol, bits */
-    { {  0,  1,  4 } },
-    { { 32,  2,  5 } },
-    { {  0,  3,  5 } },
-    { {  0,  5,  5 } },
-    { {  0,  6,  5 } },
-    { {  0,  8,  5 } },
-    { {  0, 10,  6 } },
-    { {  0, 13,  6 } },
-    { {  0, 16,  6 } },
-    { {  0, 19,  6 } },
-    { {  0, 22,  6 } },
-    { {  0, 25,  6 } },
-    { {  0, 28,  6 } },
-    { {  0, 31,  6 } },
-    { {  0, 33,  6 } },
-    { {  0, 35,  6 } },
-    { {  0, 37,  6 } },
-    { {  0, 39,  6 } },
-    { {  0, 41,  6 } },
-    { {  0, 43,  6 } },
-    { {  0, 45,  6 } },
-    { { 16,  1,  4 } },
-    { {  0,  2,  4 } },
-    { { 32,  3,  5 } },
-    { {  0,  4,  5 } },
-    { { 32,  6,  5 } },
-    { {  0,  7,  5 } },
-    { {  0,  9,  6 } },
-    { {  0, 12,  6 } },
-    { {  0, 15,  6 } },
-    { {  0, 18,  6 } },
-    { {  0, 21,  6 } },
-    { {  0, 24,  6 } },
-    { {  0, 27,  6 } },
-    { {  0, 30,  6 } },
-    { {  0, 32,  6 } },
-    { {  0, 34,  6 } },
-    { {  0, 36,  6 } },
-    { {  0, 38,  6 } },
-    { {  0, 40,  6 } },
-    { {  0, 42,  6 } },
-    { {  0, 44,  6 } },
-    { { 32,  1,  4 } },
-    { { 48,  1,  4 } },
-    { { 16,  2,  4 } },
-    { { 32,  4,  5 } },
-    { { 32,  5,  5 } },
-    { { 32,  7,  5 } },
-    { { 32,  8,  5 } },
-    { {  0, 11,  6 } },
-    { {  0, 14,  6 } },
-    { {  0, 17,  6 } },
-    { {  0, 20,  6 } },
-    { {  0, 23,  6 } },
-    { {  0, 26,  6 } },
-    { {  0, 29,  6 } },
-    { {  0, 52,  6 } },
-    { {  0, 51,  6 } },
-    { {  0, 50,  6 } },
-    { {  0, 49,  6 } },
-    { {  0, 48,  6 } },
-    { {  0, 47,  6 } },
-    { {  0, 46,  6 } },
+    /* base, symbol, bits */
+    { {  0,  0,  6 } }, { {  0,  1,  4 } }, { { 32,  2,  5 } }, { {  0,  3,  5 } },
+    { {  0,  5,  5 } }, { {  0,  6,  5 } }, { {  0,  8,  5 } }, { {  0, 10,  6 } },
+    { {  0, 13,  6 } }, { {  0, 16,  6 } }, { {  0, 19,  6 } }, { {  0, 22,  6 } },
+    { {  0, 25,  6 } }, { {  0, 28,  6 } }, { {  0, 31,  6 } }, { {  0, 33,  6 } },
+    { {  0, 35,  6 } }, { {  0, 37,  6 } }, { {  0, 39,  6 } }, { {  0, 41,  6 } },
+    { {  0, 43,  6 } }, { {  0, 45,  6 } }, { { 16,  1,  4 } }, { {  0,  2,  4 } },
+    { { 32,  3,  5 } }, { {  0,  4,  5 } }, { { 32,  6,  5 } }, { {  0,  7,  5 } },
+    { {  0,  9,  6 } }, { {  0, 12,  6 } }, { {  0, 15,  6 } }, { {  0, 18,  6 } },
+    { {  0, 21,  6 } }, { {  0, 24,  6 } }, { {  0, 27,  6 } }, { {  0, 30,  6 } },
+    { {  0, 32,  6 } }, { {  0, 34,  6 } }, { {  0, 36,  6 } }, { {  0, 38,  6 } },
+    { {  0, 40,  6 } }, { {  0, 42,  6 } }, { {  0, 44,  6 } }, { { 32,  1,  4 } },
+    { { 48,  1,  4 } }, { { 16,  2,  4 } }, { { 32,  4,  5 } }, { { 32,  5,  5 } },
+    { { 32,  7,  5 } }, { { 32,  8,  5 } }, { {  0, 11,  6 } }, { {  0, 14,  6 } },
+    { {  0, 17,  6 } }, { {  0, 20,  6 } }, { {  0, 23,  6 } }, { {  0, 26,  6 } },
+    { {  0, 29,  6 } }, { {  0, 52,  6 } }, { {  0, 51,  6 } }, { {  0, 50,  6 } },
+    { {  0, 49,  6 } }, { {  0, 48,  6 } }, { {  0, 47,  6 } }, { {  0, 46,  6 } },
 };   /* ML_defaultDTable */
 
+/* Default FSE distribution table for Offset Codes */
 static const FSE_decode_t4 OF_defaultDTable[(1<<OF_DEFAULTNORMLOG)+1] = {
     { { OF_DEFAULTNORMLOG, 1, 1 } }, /* header : tableLog, fastMode, fastMode */
-    { {  0,  0,  5 } },              /* 0 : base, symbol, bits */
-    { {  0,  6,  4 } },
-    { {  0,  9,  5 } },
-    { {  0, 15,  5 } },
-    { {  0, 21,  5 } },
-    { {  0,  3,  5 } },
-    { {  0,  7,  4 } },
-    { {  0, 12,  5 } },
-    { {  0, 18,  5 } },
-    { {  0, 23,  5 } },
-    { {  0,  5,  5 } },
-    { {  0,  8,  4 } },
-    { {  0, 14,  5 } },
-    { {  0, 20,  5 } },
-    { {  0,  2,  5 } },
-    { { 16,  7,  4 } },
-    { {  0, 11,  5 } },
-    { {  0, 17,  5 } },
-    { {  0, 22,  5 } },
-    { {  0,  4,  5 } },
-    { { 16,  8,  4 } },
-    { {  0, 13,  5 } },
-    { {  0, 19,  5 } },
-    { {  0,  1,  5 } },
-    { { 16,  6,  4 } },
-    { {  0, 10,  5 } },
-    { {  0, 16,  5 } },
-    { {  0, 28,  5 } },
-    { {  0, 27,  5 } },
-    { {  0, 26,  5 } },
-    { {  0, 25,  5 } },
-    { {  0, 24,  5 } },
+    /* base, symbol, bits */
+    { {  0,  0,  5 } }, { {  0,  6,  4 } },
+    { {  0,  9,  5 } }, { {  0, 15,  5 } },
+    { {  0, 21,  5 } }, { {  0,  3,  5 } },
+    { {  0,  7,  4 } }, { {  0, 12,  5 } },
+    { {  0, 18,  5 } }, { {  0, 23,  5 } },
+    { {  0,  5,  5 } }, { {  0,  8,  4 } },
+    { {  0, 14,  5 } }, { {  0, 20,  5 } },
+    { {  0,  2,  5 } }, { { 16,  7,  4 } },
+    { {  0, 11,  5 } }, { {  0, 17,  5 } },
+    { {  0, 22,  5 } }, { {  0,  4,  5 } },
+    { { 16,  8,  4 } }, { {  0, 13,  5 } },
+    { {  0, 19,  5 } }, { {  0,  1,  5 } },
+    { { 16,  6,  4 } }, { {  0, 10,  5 } },
+    { {  0, 16,  5 } }, { {  0, 28,  5 } },
+    { {  0, 27,  5 } }, { {  0, 26,  5 } },
+    { {  0, 25,  5 } }, { {  0, 24,  5 } },
 };   /* OF_defaultDTable */
 
 /*! ZSTD_buildSeqTable() :
@@ -927,8 +801,6 @@ size_t ZSTD_execSequenceLast7(BYTE* op,
 }
 
 
-
-
 static seq_t ZSTD_decodeSequence(seqState_t* seqState)
 {
     seq_t seq;
@@ -943,21 +815,26 @@ static seq_t ZSTD_decodeSequence(seqState_t* seqState)
     U32 const totalBits = llBits+mlBits+ofBits;
 
     static const U32 LL_base[MaxLL+1] = {
-                             0,  1,  2,  3,  4,  5,  6,  7,  8,  9,   10,    11,    12,    13,    14,     15,
-                            16, 18, 20, 22, 24, 28, 32, 40, 48, 64, 0x80, 0x100, 0x200, 0x400, 0x800, 0x1000,
+                             0,    1,    2,     3,     4,     5,     6,      7,
+                             8,    9,   10,    11,    12,    13,    14,     15,
+                            16,   18,   20,    22,    24,    28,    32,     40,
+                            48,   64, 0x80, 0x100, 0x200, 0x400, 0x800, 0x1000,
                             0x2000, 0x4000, 0x8000, 0x10000 };
 
     static const U32 ML_base[MaxML+1] = {
-                             3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13,   14,    15,    16,    17,    18,
-                            19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29,   30,    31,    32,    33,    34,
-                            35, 37, 39, 41, 43, 47, 51, 59, 67, 83, 99, 0x83, 0x103, 0x203, 0x403, 0x803,
+                             3,  4,  5,    6,     7,     8,     9,    10,
+                            11, 12, 13,   14,    15,    16,    17,    18,
+                            19, 20, 21,   22,    23,    24,    25,    26,
+                            27, 28, 29,   30,    31,    32,    33,    34,
+                            35, 37, 39,   41,    43,    47,    51,    59,
+                            67, 83, 99, 0x83, 0x103, 0x203, 0x403, 0x803,
                             0x1003, 0x2003, 0x4003, 0x8003, 0x10003 };
 
     static const U32 OF_base[MaxOff+1] = {
-                             0,        1,       1,       5,     0xD,     0x1D,     0x3D,     0x7D,
-                             0xFD,   0x1FD,   0x3FD,   0x7FD,   0xFFD,   0x1FFD,   0x3FFD,   0x7FFD,
-                             0xFFFD, 0x1FFFD, 0x3FFFD, 0x7FFFD, 0xFFFFD, 0x1FFFFD, 0x3FFFFD, 0x7FFFFD,
-                             0xFFFFFD, 0x1FFFFFD, 0x3FFFFFD, 0x7FFFFFD, 0xFFFFFFD };
+                     0,        1,       1,       5,     0xD,     0x1D,     0x3D,     0x7D,
+                     0xFD,   0x1FD,   0x3FD,   0x7FD,   0xFFD,   0x1FFD,   0x3FFD,   0x7FFD,
+                     0xFFFD, 0x1FFFD, 0x3FFFD, 0x7FFFD, 0xFFFFD, 0x1FFFFD, 0x3FFFFD, 0x7FFFFD,
+                     0xFFFFFD, 0x1FFFFFD, 0x3FFFFFD, 0x7FFFFFD, 0xFFFFFFD };
 
     /* sequence */
     {   size_t offset;
@@ -1031,7 +908,7 @@ size_t ZSTD_execSequence(BYTE* op,
 
     /* copy Match */
     if (sequence.offset > (size_t)(oLitEnd - base)) {
-        /* offset beyond prefix */
+        /* offset beyond prefix -> go into extDict */
         if (sequence.offset > (size_t)(oLitEnd - vBase)) return ERROR(corruption_detected);
         match = dictEnd + (match - base);
         if (match + sequence.matchLength <= dictEnd) {
@@ -1156,21 +1033,26 @@ FORCE_INLINE seq_t ZSTD_decodeSequenceLong_generic(seqState_t* seqState, int con
     U32 const totalBits = llBits+mlBits+ofBits;
 
     static const U32 LL_base[MaxLL+1] = {
-                             0,  1,  2,  3,  4,  5,  6,  7,  8,  9,   10,    11,    12,    13,    14,     15,
-                            16, 18, 20, 22, 24, 28, 32, 40, 48, 64, 0x80, 0x100, 0x200, 0x400, 0x800, 0x1000,
+                             0,  1,    2,     3,     4,     5,     6,      7,
+                             8,  9,   10,    11,    12,    13,    14,     15,
+                            16, 18,   20,    22,    24,    28,    32,     40,
+                            48, 64, 0x80, 0x100, 0x200, 0x400, 0x800, 0x1000,
                             0x2000, 0x4000, 0x8000, 0x10000 };
 
     static const U32 ML_base[MaxML+1] = {
-                             3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13,   14,    15,    16,    17,    18,
-                            19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29,   30,    31,    32,    33,    34,
-                            35, 37, 39, 41, 43, 47, 51, 59, 67, 83, 99, 0x83, 0x103, 0x203, 0x403, 0x803,
+                             3,  4,  5,    6,     7,     8,     9,    10,
+                            11, 12, 13,   14,    15,    16,    17,    18,
+                            19, 20, 21,   22,    23,    24,    25,    26,
+                            27, 28, 29,   30,    31,    32,    33,    34,
+                            35, 37, 39,   41,    43,    47,    51,    59,
+                            67, 83, 99, 0x83, 0x103, 0x203, 0x403, 0x803,
                             0x1003, 0x2003, 0x4003, 0x8003, 0x10003 };
 
     static const U32 OF_base[MaxOff+1] = {
-                             0,        1,       1,       5,     0xD,     0x1D,     0x3D,     0x7D,
-                             0xFD,   0x1FD,   0x3FD,   0x7FD,   0xFFD,   0x1FFD,   0x3FFD,   0x7FFD,
-                             0xFFFD, 0x1FFFD, 0x3FFFD, 0x7FFFD, 0xFFFFD, 0x1FFFFD, 0x3FFFFD, 0x7FFFFD,
-                             0xFFFFFD, 0x1FFFFFD, 0x3FFFFFD, 0x7FFFFFD, 0xFFFFFFD };
+                     0,        1,       1,       5,     0xD,     0x1D,     0x3D,     0x7D,
+                     0xFD,   0x1FD,   0x3FD,   0x7FD,   0xFFD,   0x1FFD,   0x3FFD,   0x7FFD,
+                     0xFFFD, 0x1FFFD, 0x3FFFD, 0x7FFFD, 0xFFFFD, 0x1FFFFD, 0x3FFFFD, 0x7FFFFD,
+                     0xFFFFFD, 0x1FFFFFD, 0x3FFFFFD, 0x7FFFFFD, 0xFFFFFFD };
 
     /* sequence */
     {   size_t offset;
@@ -1476,7 +1358,7 @@ size_t ZSTD_findFrameCompressedSize(const void *src, size_t srcSize)
     if (ZSTD_isLegacy(src, srcSize)) return ZSTD_findFrameCompressedSizeLegacy(src, srcSize);
 #endif
     if (srcSize >= ZSTD_skippableHeaderSize &&
-            (MEM_readLE32(src) & 0xFFFFFFFF0U) == ZSTD_MAGIC_SKIPPABLE_START) {
+            (MEM_readLE32(src) & 0xFFFFFFF0U) == ZSTD_MAGIC_SKIPPABLE_START) {
         return ZSTD_skippableHeaderSize + MEM_readLE32((const BYTE*)src + 4);
     } else {
         const BYTE* ip = (const BYTE*)src;
@@ -2115,15 +1997,18 @@ unsigned ZSTD_getDictID_fromDDict(const ZSTD_DDict* ddict)
 }
 
 /*! ZSTD_getDictID_fromFrame() :
- *  Provides the dictID required to decompressed the frame stored within `src`.
+ *  Provides the dictID required to decompresse frame stored within `src`.
  *  If @return == 0, the dictID could not be decoded.
  *  This could for one of the following reasons :
- *  - The frame does not require a dictionary to be decoded (most common case).
- *  - The frame was built with dictID intentionally removed. Whatever dictionary is necessary is a hidden information.
+ *  - The frame does not require a dictionary (most common case).
+ *  - The frame was built with dictID intentionally removed.
+ *    Needed dictionary is a hidden information.
  *    Note : this use case also happens when using a non-conformant dictionary.
- *  - `srcSize` is too small, and as a result, the frame header could not be decoded (only possible if `srcSize < ZSTD_FRAMEHEADERSIZE_MAX`).
+ *  - `srcSize` is too small, and as a result, frame header could not be decoded.
+ *    Note : possible if `srcSize < ZSTD_FRAMEHEADERSIZE_MAX`.
  *  - This is not a Zstandard frame.
- *  When identifying the exact failure cause, it's possible to used ZSTD_getFrameParams(), which will provide a more precise error code. */
+ *  When identifying the exact failure cause, it's possible to use
+ *  ZSTD_getFrameParams(), which will provide a more precise error code. */
 unsigned ZSTD_getDictID_fromFrame(const void* src, size_t srcSize)
 {
     ZSTD_frameParams zfp = { 0 , 0 , 0 , 0 };
@@ -2209,9 +2094,13 @@ size_t ZSTD_freeDStream(ZSTD_DStream* zds)
     if (zds==NULL) return 0;   /* support free on null */
     {   ZSTD_customMem const cMem = zds->customMem;
         ZSTD_freeDCtx(zds->dctx);
+        zds->dctx = NULL;
         ZSTD_freeDDict(zds->ddictLocal);
+        zds->ddictLocal = NULL;
         ZSTD_free(zds->inBuff, cMem);
+        zds->inBuff = NULL;
         ZSTD_free(zds->outBuff, cMem);
+        zds->outBuff = NULL;
 #if defined(ZSTD_LEGACY_SUPPORT) && (ZSTD_LEGACY_SUPPORT >= 1)
         if (zds->legacyContext)
             ZSTD_freeLegacyStreamContext(zds->legacyContext, zds->previousLegacyVersion);
@@ -2247,7 +2136,9 @@ size_t ZSTD_initDStream(ZSTD_DStream* zds)
     return ZSTD_initDStream_usingDict(zds, NULL, 0);
 }
 
-size_t ZSTD_initDStream_usingDDict(ZSTD_DStream* zds, const ZSTD_DDict* ddict)  /**< note : ddict will just be referenced, and must outlive decompression session */
+/* ZSTD_initDStream_usingDDict() :
+ * ddict will just be referenced, and must outlive decompression session */
+size_t ZSTD_initDStream_usingDDict(ZSTD_DStream* zds, const ZSTD_DDict* ddict)
 {
     size_t const initResult = ZSTD_initDStream(zds);
     zds->ddict = ddict;
@@ -2277,8 +2168,11 @@ size_t ZSTD_setDStreamParameter(ZSTD_DStream* zds,
 
 size_t ZSTD_sizeof_DStream(const ZSTD_DStream* zds)
 {
-    if (zds==NULL) return 0;   /* support sizeof on NULL */
-    return sizeof(*zds) + ZSTD_sizeof_DCtx(zds->dctx) + ZSTD_sizeof_DDict(zds->ddictLocal) + zds->inBuffSize + zds->outBuffSize;
+    if (zds==NULL) return 0;   /* support sizeof NULL */
+    return sizeof(*zds)
+           + ZSTD_sizeof_DCtx(zds->dctx)
+           + ZSTD_sizeof_DDict(zds->ddictLocal)
+           + zds->inBuffSize + zds->outBuffSize;
 }
 
 
@@ -2376,15 +2270,17 @@ size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inB
                 zds->blockSize = blockSize;
                 if (zds->inBuffSize < blockSize) {
                     ZSTD_free(zds->inBuff, zds->customMem);
-                    zds->inBuffSize = blockSize;
+                    zds->inBuffSize = 0;
                     zds->inBuff = (char*)ZSTD_malloc(blockSize, zds->customMem);
                     if (zds->inBuff == NULL) return ERROR(memory_allocation);
+                    zds->inBuffSize = blockSize;
                 }
                 if (zds->outBuffSize < neededOutSize) {
                     ZSTD_free(zds->outBuff, zds->customMem);
-                    zds->outBuffSize = neededOutSize;
+                    zds->outBuffSize = 0;
                     zds->outBuff = (char*)ZSTD_malloc(neededOutSize, zds->customMem);
                     if (zds->outBuff == NULL) return ERROR(memory_allocation);
+                    zds->outBuffSize = neededOutSize;
             }   }
             zds->stage = zdss_read;
             /* pass-through */

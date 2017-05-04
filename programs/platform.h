@@ -100,9 +100,18 @@ extern "C" {
 #if (defined(__linux__) && (PLATFORM_POSIX_VERSION >= 1)) || (PLATFORM_POSIX_VERSION >= 200112L) || defined(__DJGPP__)
 #  include <unistd.h>   /* isatty */
 #  define IS_CONSOLE(stdStream) isatty(fileno(stdStream))
-#elif defined(MSDOS) || defined(OS2) || defined(WIN32) || defined(_WIN32) || defined(__CYGWIN__)
+#elif defined(MSDOS) || defined(OS2) || defined(__CYGWIN__)
 #  include <io.h>       /* _isatty */
 #  define IS_CONSOLE(stdStream) _isatty(_fileno(stdStream))
+#elif defined(WIN32) || defined(_WIN32)
+#  include <io.h>      /* _isatty */
+#  include <windows.h> /* DeviceIoControl, HANDLE, FSCTL_SET_SPARSE */
+#  include <stdio.h>   /* FILE */
+static __inline int IS_CONSOLE(FILE* stdStream)
+{
+    DWORD dummy;
+    return _isatty(_fileno(stdStream)) && GetConsoleMode((HANDLE)_get_osfhandle(_fileno(stdStream)), &dummy);
+}
 #else
 #  define IS_CONSOLE(stdStream) 0
 #endif
@@ -128,6 +137,14 @@ extern "C" {
 #  define SET_SPARSE_FILE_MODE(file)
 #endif
 
+
+#ifndef ZSTD_SPARSE_DEFAULT
+#  if (defined(__APPLE__) && defined(__MACH__))
+#    define ZSTD_SPARSE_DEFAULT 0
+#  else
+#    define ZSTD_SPARSE_DEFAULT 1
+#  endif
+#endif
 
 
 #if defined (__cplusplus)

@@ -175,10 +175,10 @@ MEM_STATIC void ZSTD_updatePrice(seqStore_t* seqStorePtr, U32 litLength, const B
     }
 
     /* match offset */
-	{   BYTE const offCode = (BYTE)ZSTD_highbit32(offset+1);
-		seqStorePtr->offCodeSum++;
-		seqStorePtr->offCodeFreq[offCode]++;
-	}
+    {   BYTE const offCode = (BYTE)ZSTD_highbit32(offset+1);
+        seqStorePtr->offCodeSum++;
+        seqStorePtr->offCodeFreq[offCode]++;
+    }
 
     /* match Length */
     {   const BYTE ML_deltaCode = 36;
@@ -360,6 +360,7 @@ static U32 ZSTD_BtGetAllMatches_selectMLS (
     default :
     case 4 : return ZSTD_BtGetAllMatches(zc, ip, iHighLimit, maxNbAttempts, 4, matches, minMatchLen);
     case 5 : return ZSTD_BtGetAllMatches(zc, ip, iHighLimit, maxNbAttempts, 5, matches, minMatchLen);
+    case 7 :
     case 6 : return ZSTD_BtGetAllMatches(zc, ip, iHighLimit, maxNbAttempts, 6, matches, minMatchLen);
     }
 }
@@ -387,6 +388,7 @@ static U32 ZSTD_BtGetAllMatches_selectMLS_extDict (
     default :
     case 4 : return ZSTD_BtGetAllMatches_extDict(zc, ip, iHighLimit, maxNbAttempts, 4, matches, minMatchLen);
     case 5 : return ZSTD_BtGetAllMatches_extDict(zc, ip, iHighLimit, maxNbAttempts, 5, matches, minMatchLen);
+    case 7 :
     case 6 : return ZSTD_BtGetAllMatches_extDict(zc, ip, iHighLimit, maxNbAttempts, 6, matches, minMatchLen);
     }
 }

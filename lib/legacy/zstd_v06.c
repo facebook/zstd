@@ -982,8 +982,8 @@ MEM_STATIC size_t BITv06_readBitsFast(BITv06_DStream_t* bitD, U32 nbBits)
               if status == unfinished, internal register is filled with >= (sizeof(bitD->bitContainer)*8 - 7) bits */
 MEM_STATIC BITv06_DStream_status BITv06_reloadDStream(BITv06_DStream_t* bitD)
 {
-	if (bitD->bitsConsumed > (sizeof(bitD->bitContainer)*8))  /* should never happen */
-		return BITv06_DStream_overflow;
+    if (bitD->bitsConsumed > (sizeof(bitD->bitContainer)*8))  /* should never happen */
+        return BITv06_DStream_overflow;
 
     if (bitD->ptr >= bitD->start + sizeof(bitD->bitContainer)) {
         bitD->ptr -= bitD->bitsConsumed >> 3;

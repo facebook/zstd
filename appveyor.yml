@@ -1,66 +1,103 @@
-version: 1.0.{build}
-environment:
-  matrix:
-  - COMPILER: "gcc"
-    PLATFORM: "mingw64"
-    MAKE_PARAMS: '"make test && make lib && make -C tests test-symbols fullbench-dll fullbench-lib"'
-  - COMPILER: "gcc"
-    PLATFORM: "mingw32"
-    MAKE_PARAMS: '"make -C tests test-zstd test-fullbench test-fuzzer test-invalidDictionaries"'
-  - COMPILER: "gcc"
-    PLATFORM: "clang"
-    MAKE_PARAMS: '"make -C tests zstd fullbench fuzzer paramgrill datagen CC=clang MOREFLAGS="--target=x86_64-w64-mingw32 -Werror -Wconversion -Wno-sign-conversion""'
-  - COMPILER: "visual"
-    CONFIGURATION: "Debug"
-    PLATFORM: "x64"
-  - COMPILER: "visual"
-    CONFIGURATION: "Debug"
-    PLATFORM: "Win32"
-  - COMPILER: "visual"
-    CONFIGURATION: "Release"
-    PLATFORM: "x64"
-  - COMPILER: "visual"
-    CONFIGURATION: "Release"
-    PLATFORM: "Win32"
+-
+  version: 1.0.{build}
+  branches:
+    only:
+    - dev
+    - master
+  environment:
+    matrix:
+    - COMPILER: "gcc"
+      HOST:     "mingw"
+      PLATFORM: "x64"
+      SCRIPT:   "make allarch && make -C tests test-symbols fullbench-dll fullbench-lib"
+      ARTIFACT: "true"
+      BUILD:    "true"
+    - COMPILER: "gcc"
+      HOST:     "mingw"
+      PLATFORM: "x86"
+      SCRIPT:   "make allarch"
+      ARTIFACT: "true"
+      BUILD:    "true"
+    - COMPILER: "clang"
+      HOST:     "mingw"
+      PLATFORM: "x64"
+      SCRIPT:   "MOREFLAGS='--target=x86_64-w64-mingw32 -Werror -Wconversion -Wno-sign-conversion' make allarch"
+      BUILD:    "true"
 
-install:
+    - COMPILER: "gcc"
+      HOST:     "mingw"
+      PLATFORM: "x64"
+      SCRIPT:   ""
+      TEST:     "cmake"
+
+    - COMPILER: "gcc"
+      HOST:     "mingw"
+      PLATFORM: "x64"
+      SCRIPT:   ""
+      TEST:     "pzstd"
+
+    - COMPILER: "visual"
+      HOST:     "visual"
+      PLATFORM: "x64"
+      CONFIGURATION: "Debug"
+    - COMPILER: "visual"
+      HOST:     "visual"
+      PLATFORM: "Win32"
+      CONFIGURATION: "Debug"
+    - COMPILER: "visual"
+      HOST:     "visual"
+      PLATFORM: "x64"
+      CONFIGURATION: "Release"
+    - COMPILER: "visual"
+      HOST:     "visual"
+      PLATFORM: "Win32"
+      CONFIGURATION: "Release"
+
+  install:
   - ECHO Installing %COMPILER% %PLATFORM% %CONFIGURATION%
-  - MKDIR bin
-  - if [%COMPILER%]==[gcc] SET PATH_ORIGINAL=%PATH%
-  - if [%COMPILER%]==[gcc] (
-      SET "PATH_MINGW32=c:\MinGW\bin;c:\MinGW\usr\bin" &&
-      SET "PATH_MINGW64=c:\msys64\mingw64\bin;c:\msys64\usr\bin" &&
-      COPY C:\msys64\usr\bin\make.exe C:\MinGW\bin\make.exe &&
-      COPY C:\MinGW\bin\gcc.exe C:\MinGW\bin\cc.exe
-    ) else (
-      IF [%PLATFORM%]==[x64] (SET ADDITIONALPARAM=/p:LibraryPath="C:\Program Files\Microsoft SDKs\Windows\v7.1\lib\x64;c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\lib\amd64;C:\Program Files (x86)\Microsoft Visual Studio 10.0\;C:\Program Files (x86)\Microsoft Visual Studio 10.0\lib\amd64;")
+  - SET PATH_ORIGINAL=%PATH%
+  - if [%HOST%]==[mingw] (
+      SET "PATH_MINGW32=C:\mingw-w64\i686-6.3.0-posix-dwarf-rt_v5-rev1\mingw32\bin" &&
+      SET "PATH_MINGW64=C:\mingw-w64\x86_64-6.3.0-posix-seh-rt_v5-rev1\mingw64\bin" &&
+      COPY C:\msys64\usr\bin\make.exe C:\mingw-w64\i686-6.3.0-posix-dwarf-rt_v5-rev1\mingw32\bin\make.exe &&
+      COPY C:\msys64\usr\bin\make.exe C:\mingw-w64\x86_64-6.3.0-posix-seh-rt_v5-rev1\mingw64\bin\make.exe
+    )
+  - IF [%HOST%]==[visual] IF [%PLATFORM%]==[x64] (
+      SET ADDITIONALPARAM=/p:LibraryPath="C:\Program Files\Microsoft SDKs\Windows\v7.1\lib\x64;c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\lib\amd64;C:\Program Files (x86)\Microsoft Visual Studio 10.0\;C:\Program Files (x86)\Microsoft Visual Studio 10.0\lib\amd64;"
     )
 
-build_script:
-  - ECHO Building %COMPILER% %PLATFORM% %CONFIGURATION%
-  - if [%PLATFORM%]==[mingw32] SET PATH=%PATH_MINGW32%;%PATH_ORIGINAL%
-  - if [%PLATFORM%]==[mingw64] SET PATH=%PATH_MINGW64%;%PATH_ORIGINAL%
-  - if [%PLATFORM%]==[clang] SET PATH=%PATH_MINGW64%;%PATH_ORIGINAL%
-  - if [%COMPILER%]==[gcc] (
-      ECHO *** &&
-      ECHO *** Building %PLATFORM% &&
-      ECHO *** &&
+  build_script:
+  - if [%HOST%]==[mingw] (
+      ( if [%PLATFORM%]==[x64] (
+        SET "PATH=%PATH_MINGW64%;%PATH_ORIGINAL%"
+      ) else if [%PLATFORM%]==[x86] (
+        SET "PATH=%PATH_MINGW32%;%PATH_ORIGINAL%"
+      ) )
+    )
+  - if [%HOST%]==[mingw] if [%BUILD%]==[true] (
       make -v &&
-      cc -v &&
-      ECHO %MAKE_PARAMS% &&
-      sh -c %MAKE_PARAMS%
+      sh -c "%COMPILER% -v" &&
+      ECHO Building zlib to static link &&
+      SET "CC=%COMPILER%" &&
+      sh -c "cd .. && git clone --depth 1 --branch v1.2.11 https://github.com/madler/zlib" &&
+      sh -c "cd ../zlib && make -f win32/Makefile.gcc libz.a"
+      ECHO Building zstd &&
+      SET "CPPFLAGS=-I../../zlib" &&
+      SET "LDFLAGS=../../zlib/libz.a" &&
+      sh -c "%SCRIPT%" &&
+      ( if [%COMPILER%]==[gcc] if [%ARTIFACT%]==[true]
+          lib\dll\example\build_package.bat &&
+          make -C programs DEBUGFLAGS= clean zstd &&
+          cp programs\zstd.exe zstd_%PLATFORM%.exe &&
+          appveyor PushArtifact zstd_%PLATFORM%.exe &&
+          cp programs\zstd.exe bin\zstd.exe &&
+          make -C programs DEBUGFLAGS= clean zstdmt &&
+          cp programs\zstd.exe bin\zstdmt.exe &&
+          cd bin\ && 7z a -tzip zstd-win-release-%PLATFORM%.zip * &&
+          appveyor PushArtifact zstd-win-release-%PLATFORM%.zip
+      )
     )
-  - if [%PLATFORM%]==[clang] COPY tests\fuzzer.exe tests\fuzzer_clang.exe
-  - if [%COMPILER%]==[gcc] if [%PLATFORM%]==[mingw64] (
-      COPY programs\zstd.exe bin\zstd.exe &&
-      appveyor PushArtifact bin\zstd.exe
-    )
-  - if [%COMPILER%]==[gcc] if [%PLATFORM%]==[mingw32] (
-      COPY programs\zstd.exe bin\zstd32.exe &&
-      appveyor PushArtifact bin\zstd32.exe
-    )
-  - if [%COMPILER%]==[gcc] make clean
-  - if [%COMPILER%]==[visual] (
+  - if [%HOST%]==[visual] (
       ECHO *** &&
       ECHO *** Building Visual Studio 2008 %PLATFORM%\%CONFIGURATION% in %APPVEYOR_BUILD_FOLDER% &&
       ECHO *** &&
@@ -111,29 +148,26 @@ build_script:
       COPY build\VS2010\bin\%PLATFORM%_%CONFIGURATION%\*.exe tests\
     )
 
-test_script:
+  test_script:
   - ECHO Testing %COMPILER% %PLATFORM% %CONFIGURATION%
-  - SET FUZZERTEST=-T1mn
-  - if [%COMPILER%]==[gcc] if [%PLATFORM%]==[clang] (
-      tests\fuzzer_clang.exe %FUZZERTEST% &&
-      ECHO *** &&
-      ECHO *** Building cmake for %PLATFORM% &&
-      ECHO *** &&
+  - SET "CC=gcc"
+  - SET "CXX=g++"
+  - if [%TEST%]==[cmake] (
       mkdir build\cmake\build &&
       cd build\cmake\build &&
       cmake -G "Visual Studio 14 2015 Win64" .. &&
       cd ..\..\.. &&
-      make clean &&
-      ECHO *** &&
-      ECHO *** Building pzstd for %PLATFORM% &&
-      ECHO *** &&
+      make clean
+    )
+  - if [%TEST%]==[pzstd] (
       make -C contrib\pzstd googletest-mingw64 &&
       make -C contrib\pzstd pzstd.exe &&
       make -C contrib\pzstd tests &&
       make -C contrib\pzstd check &&
       make -C contrib\pzstd clean
     )
-  - if [%COMPILER%]==[visual] if [%CONFIGURATION%]==[Release] (
+  - SET "FUZZERTEST=-T30s"
+  - if [%HOST%]==[visual] if [%CONFIGURATION%]==[Release] (
       CD tests &&
       SET ZSTD=./zstd.exe &&
       sh -e playTests.sh --test-large-data &&
@@ -146,33 +180,76 @@ test_script:
       fuzzer_VS2015_%PLATFORM%_Release.exe %FUZZERTEST%
     )
 
-branches:
-  only:
-  - dev
-  - master
+-
+  version: 1.0.{build}
+  environment:
+    matrix:
+    - COMPILER: "gcc"
+      HOST:     "mingw"
+      PLATFORM: "x64"
+      SCRIPT:   "make allarch"
+    - COMPILER: "gcc"
+      HOST:     "mingw"
+      PLATFORM: "x86"
+      SCRIPT:   "make allarch"
+    - COMPILER: "clang"
+      HOST:     "mingw"
+      PLATFORM: "x64"
+      SCRIPT:   "MOREFLAGS='--target=x86_64-w64-mingw32 -Werror -Wconversion -Wno-sign-conversion' make allarch"
 
-artifacts:
-  - path: bin\zstd.exe
-  - path: bin\zstd32.exe
+    - COMPILER: "visual"
+      HOST:     "visual"
+      PLATFORM: "x64"
+      CONFIGURATION: "Debug"
+    - COMPILER: "visual"
+      HOST:     "visual"
+      PLATFORM: "Win32"
+      CONFIGURATION: "Debug"
+    - COMPILER: "visual"
+      HOST:     "visual"
+      PLATFORM: "x64"
+      CONFIGURATION: "Release"
+    - COMPILER: "visual"
+      HOST:     "visual"
+      PLATFORM: "Win32"
+      CONFIGURATION: "Release"
 
-deploy:
-- provider: GitHub
-  auth_token:
-    secure: LgJo8emYc3sFnlNWkGl4/VYK3nk/8+RagcsqDlAi3xeqNGNutnKjcftjg84uJoT4
-  artifact: bin\zstd.exe
-  force_update: true
-  on:
-    branch: autobuild
-    COMPILER: gcc
-    PLATFORM: "mingw64"
-    appveyor_repo_tag: true
-- provider: GitHub
-  auth_token:
-    secure: LgJo8emYc3sFnlNWkGl4/VYK3nk/8+RagcsqDlAi3xeqNGNutnKjcftjg84uJoT4
-  artifact: bin\zstd32.exe
-  force_update: true
-  on:
-    branch: autobuild
-    COMPILER: gcc
-    PLATFORM: "mingw32"
-    appveyor_repo_tag: true
+  install:
+  - ECHO Installing %COMPILER% %PLATFORM% %CONFIGURATION%
+  - SET PATH_ORIGINAL=%PATH%
+  - if [%HOST%]==[mingw] (
+      SET "PATH_MINGW32=C:\mingw-w64\i686-6.3.0-posix-dwarf-rt_v5-rev1\mingw32\bin" &&
+      SET "PATH_MINGW64=C:\mingw-w64\x86_64-6.3.0-posix-seh-rt_v5-rev1\mingw64\bin" &&
+      COPY C:\msys64\usr\bin\make.exe C:\mingw-w64\i686-6.3.0-posix-dwarf-rt_v5-rev1\mingw32\bin\make.exe &&
+      COPY C:\msys64\usr\bin\make.exe C:\mingw-w64\x86_64-6.3.0-posix-seh-rt_v5-rev1\mingw64\bin\make.exe
+    )
+  - IF [%HOST%]==[visual] IF [%PLATFORM%]==[x64] (
+      SET ADDITIONALPARAM=/p:LibraryPath="C:\Program Files\Microsoft SDKs\Windows\v7.1\lib\x64;c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\lib\amd64;C:\Program Files (x86)\Microsoft Visual Studio 10.0\;C:\Program Files (x86)\Microsoft Visual Studio 10.0\lib\amd64;"
+    )
+
+  build_script:
+  - ECHO Building %COMPILER% %PLATFORM% %CONFIGURATION%
+  - if [%HOST%]==[mingw] (
+      ( if [%PLATFORM%]==[x64] (
+        SET "PATH=%PATH_MINGW64%;%PATH_ORIGINAL%"
+      ) else if [%PLATFORM%]==[x86] (
+        SET "PATH=%PATH_MINGW32%;%PATH_ORIGINAL%"
+      ) ) &&
+      make -v &&
+      sh -c "%COMPILER% -v" &&
+      set "CC=%COMPILER%" &&
+      sh -c "%SCRIPT%"
+    )
+  - if [%HOST%]==[visual] (
+      ECHO *** &&
+      ECHO *** Building Visual Studio 2015 %PLATFORM%\%CONFIGURATION% &&
+      ECHO *** &&
+      msbuild "build\VS2010\zstd.sln" /m /verbosity:minimal /property:PlatformToolset=v140 /p:ForceImportBeforeCppTargets=%APPVEYOR_BUILD_FOLDER%\build\VS2010\CompileAsCpp.props /t:Clean,Build /p:Platform=%PLATFORM% /p:Configuration=%CONFIGURATION% /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll" &&
+      DIR build\VS2010\bin\%PLATFORM%_%CONFIGURATION%\*.exe &&
+      MD5sum build/VS2010/bin/%PLATFORM%_%CONFIGURATION%/*.exe &&
+      msbuild "build\VS2010\zstd.sln" /m /verbosity:minimal /property:PlatformToolset=v140 /t:Clean,Build /p:Platform=%PLATFORM% /p:Configuration=%CONFIGURATION% /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll" &&
+      DIR build\VS2010\bin\%PLATFORM%_%CONFIGURATION%\*.exe &&
+      MD5sum build/VS2010/bin/%PLATFORM%_%CONFIGURATION%/*.exe &&
+      COPY build\VS2010\bin\%PLATFORM%_%CONFIGURATION%\fuzzer.exe tests\fuzzer_VS2015_%PLATFORM%_%CONFIGURATION%.exe &&
+      COPY build\VS2010\bin\%PLATFORM%_%CONFIGURATION%\*.exe tests\
+    )

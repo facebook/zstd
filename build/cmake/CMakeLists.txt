@@ -8,11 +8,28 @@
 # ################################################################
 
 PROJECT(zstd)
-CMAKE_MINIMUM_REQUIRED(VERSION 2.8.7)
+CMAKE_MINIMUM_REQUIRED(VERSION 2.8.9)
+SET(ZSTD_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../..")
+LIST(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/CMakeModules")
 
+#-----------------------------------------------------------------------------
+# Add extra compilation flags
+#-----------------------------------------------------------------------------
+INCLUDE(AddZstdCompilationFlags)
+ADD_ZSTD_COMPILATION_FLAGS()
+
+#-----------------------------------------------------------------------------
+# Options
+#-----------------------------------------------------------------------------
 OPTION(ZSTD_LEGACY_SUPPORT "LEGACY SUPPORT" OFF)
-OPTION(ZSTD_MULTITHREAD_SUPPORT "MULTITHREADING SUPPORT" ON)
+IF (UNIX)
+    OPTION(ZSTD_MULTITHREAD_SUPPORT "MULTITHREADING SUPPORT" ON)
+ELSE (UNIX)
+    OPTION(ZSTD_MULTITHREAD_SUPPORT "MULTITHREADING SUPPORT" OFF)
+ENDIF (UNIX)
+OPTION(ZSTD_BUILD_PROGRAMS "BUILD PROGRAMS" ON)
 OPTION(ZSTD_BUILD_CONTRIB "BUILD CONTRIB" OFF)
+OPTION(ZSTD_BUILD_TESTS "BUILD TESTS" OFF)
 
 IF (ZSTD_LEGACY_SUPPORT)
     MESSAGE(STATUS "ZSTD_LEGACY_SUPPORT defined!")
@@ -22,19 +39,30 @@ ELSE (ZSTD_LEGACY_SUPPORT)
     ADD_DEFINITIONS(-DZSTD_LEGACY_SUPPORT=0)
 ENDIF (ZSTD_LEGACY_SUPPORT)
 
+#-----------------------------------------------------------------------------
+# Add source directories
+#-----------------------------------------------------------------------------
 ADD_SUBDIRECTORY(lib)
-ADD_SUBDIRECTORY(programs)
-ADD_SUBDIRECTORY(tests)
+
+IF (ZSTD_BUILD_PROGRAMS)
+    ADD_SUBDIRECTORY(programs)
+ENDIF (ZSTD_BUILD_PROGRAMS)
+
+IF (ZSTD_BUILD_TESTS)
+    IF (NOT ZSTD_BUILD_STATIC)
+        MESSAGE(SEND_ERROR "You need to build static library to build tests")
+    ENDIF (NOT ZSTD_BUILD_STATIC)
+
+    ADD_SUBDIRECTORY(tests)
+ENDIF (ZSTD_BUILD_TESTS)
+
 IF (ZSTD_BUILD_CONTRIB)
     ADD_SUBDIRECTORY(contrib)
 ENDIF (ZSTD_BUILD_CONTRIB)
 
 #-----------------------------------------------------------------------------
-# Add extra compilation flags
+# Add clean-all target
 #-----------------------------------------------------------------------------
-INCLUDE(CMakeModules/AddExtraCompilationFlags.cmake)
-ADD_EXTRA_COMPILATION_FLAGS()
-
 ADD_CUSTOM_TARGET(clean-all
    COMMAND ${CMAKE_BUILD_TOOL} clean
    COMMAND rm -rf ${CMAKE_BINARY_DIR}/

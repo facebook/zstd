@@ -291,7 +291,7 @@ static size_t FSE_writeNCount_generic (void* header, size_t headerBufferSize,
 
 size_t FSE_writeNCount (void* buffer, size_t bufferSize, const short* normalizedCounter, unsigned maxSymbolValue, unsigned tableLog)
 {
-    if (tableLog > FSE_MAX_TABLELOG) return ERROR(GENERIC);   /* Unsupported */
+    if (tableLog > FSE_MAX_TABLELOG) return ERROR(tableLog_tooLarge);   /* Unsupported */
     if (tableLog < FSE_MIN_TABLELOG) return ERROR(GENERIC);   /* Unsupported */
 
     if (bufferSize < FSE_NCountWriteBound(maxSymbolValue, tableLog))
@@ -476,20 +476,20 @@ void FSE_freeCTable (FSE_CTable* ct) { free(ct); }
 /* provides the minimum logSize to safely represent a distribution */
 static unsigned FSE_minTableLog(size_t srcSize, unsigned maxSymbolValue)
 {
-	U32 minBitsSrc = BIT_highbit32((U32)(srcSize - 1)) + 1;
-	U32 minBitsSymbols = BIT_highbit32(maxSymbolValue) + 2;
-	U32 minBits = minBitsSrc < minBitsSymbols ? minBitsSrc : minBitsSymbols;
-	return minBits;
+    U32 minBitsSrc = BIT_highbit32((U32)(srcSize - 1)) + 1;
+    U32 minBitsSymbols = BIT_highbit32(maxSymbolValue) + 2;
+    U32 minBits = minBitsSrc < minBitsSymbols ? minBitsSrc : minBitsSymbols;
+    return minBits;
 }
 
 unsigned FSE_optimalTableLog_internal(unsigned maxTableLog, size_t srcSize, unsigned maxSymbolValue, unsigned minus)
 {
-	U32 maxBitsSrc = BIT_highbit32((U32)(srcSize - 1)) - minus;
+    U32 maxBitsSrc = BIT_highbit32((U32)(srcSize - 1)) - minus;
     U32 tableLog = maxTableLog;
-	U32 minBits = FSE_minTableLog(srcSize, maxSymbolValue);
+    U32 minBits = FSE_minTableLog(srcSize, maxSymbolValue);
     if (tableLog==0) tableLog = FSE_DEFAULT_TABLELOG;
-	if (maxBitsSrc < tableLog) tableLog = maxBitsSrc;   /* Accuracy can be reduced */
-	if (minBits > tableLog) tableLog = minBits;   /* Need a minimum to safely represent all symbol values */
+    if (maxBitsSrc < tableLog) tableLog = maxBitsSrc;   /* Accuracy can be reduced */
+    if (minBits > tableLog) tableLog = minBits;   /* Need a minimum to safely represent all symbol values */
     if (tableLog < FSE_MIN_TABLELOG) tableLog = FSE_MIN_TABLELOG;
     if (tableLog > FSE_MAX_TABLELOG) tableLog = FSE_MAX_TABLELOG;
     return tableLog;
@@ -808,7 +808,7 @@ size_t FSE_compress_wksp (void* dst, size_t dstSize, const void* src, size_t src
     if (!tableLog) tableLog = FSE_DEFAULT_TABLELOG;
 
     /* Scan input and build symbol stats */
-    {   CHECK_V_F(maxCount, FSE_count(count, &maxSymbolValue, src, srcSize) );
+    {   CHECK_V_F(maxCount, FSE_count_wksp(count, &maxSymbolValue, src, srcSize, (unsigned*)scratchBuffer) );
         if (maxCount == srcSize) return 1;   /* only a single symbol in src : rle */
         if (maxCount == 1) return 0;         /* each symbol present maximum once => not compressible */
         if (maxCount < (srcSize >> 7)) return 0;   /* Heuristic : not compressible enough */

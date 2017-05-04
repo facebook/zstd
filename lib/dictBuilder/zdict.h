@@ -88,7 +88,7 @@ ZDICTLIB_API size_t ZDICT_trainFromBuffer_advanced(void* dictBuffer, size_t dict
 
 /*! COVER_params_t :
     For all values 0 means default.
-    kMin and d are the only required parameters.
+    k and d are the only required parameters.
 */
 typedef struct {
     unsigned k;                  /* Segment size : constraint: 0 < k : Reasonable range [16, 2048+] */
@@ -147,18 +147,18 @@ ZDICTLIB_API size_t COVER_optimizeTrainFromBuffer(void* dictBuffer, size_t dictB
     Samples must be stored concatenated in a flat buffer `samplesBuffer`,
     supplied with an array of sizes `samplesSizes`, providing the size of each sample in order.
 
-    dictContentSize must be > ZDICT_CONTENTSIZE_MIN bytes.
-    maxDictSize must be >= dictContentSize, and must be > ZDICT_DICTSIZE_MIN bytes.
+    dictContentSize must be >= ZDICT_CONTENTSIZE_MIN bytes.
+    maxDictSize must be >= dictContentSize, and must be >= ZDICT_DICTSIZE_MIN bytes.
 
     @return : size of dictionary stored into `dictBuffer` (<= `dictBufferCapacity`),
               or an error code, which can be tested by ZDICT_isError().
     note : ZDICT_finalizeDictionary() will push notifications into stderr if instructed to, using notificationLevel>0.
-    note 2 : dictBuffer and customDictContent can overlap
+    note 2 : dictBuffer and dictContent can overlap
 */
-#define ZDICT_CONTENTSIZE_MIN 256
-#define ZDICT_DICTSIZE_MIN    512
+#define ZDICT_CONTENTSIZE_MIN 128
+#define ZDICT_DICTSIZE_MIN    256
 ZDICTLIB_API size_t ZDICT_finalizeDictionary(void* dictBuffer, size_t dictBufferCapacity,
-                                const void* customDictContent, size_t dictContentSize,
+                                const void* dictContent, size_t dictContentSize,
                                 const void* samplesBuffer, const size_t* samplesSizes, unsigned nbSamples,
                                 ZDICT_params_t parameters);
 

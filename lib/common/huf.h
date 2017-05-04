@@ -43,6 +43,21 @@ extern "C" {
 #include <stddef.h>    /* size_t */
 
 
+/* *** library symbols visibility *** */
+/* Note : when linking with -fvisibility=hidden on gcc, or by default on Visual,
+ *        HUF symbols remain "private" (internal symbols for library only).
+ *        Set macro FSE_DLL_EXPORT to 1 if you want HUF symbols visible on DLL interface */
+#if defined(FSE_DLL_EXPORT) && (FSE_DLL_EXPORT==1) && defined(__GNUC__) && (__GNUC__ >= 4)
+#  define HUF_PUBLIC_API __attribute__ ((visibility ("default")))
+#elif defined(FSE_DLL_EXPORT) && (FSE_DLL_EXPORT==1)   /* Visual expected */
+#  define HUF_PUBLIC_API __declspec(dllexport)
+#elif defined(FSE_DLL_IMPORT) && (FSE_DLL_IMPORT==1)
+#  define HUF_PUBLIC_API __declspec(dllimport)  /* not required, just to generate faster code (saves a function pointer load from IAT and an indirect jump) */
+#else
+#  define HUF_PUBLIC_API
+#endif
+
+
 /* *** simple functions *** */
 /**
 HUF_compress() :
@@ -55,8 +70,8 @@ HUF_compress() :
                      if return == 1, srcData is a single repeated byte symbol (RLE compression).
                      if HUF_isError(return), compression failed (more details using HUF_getErrorName())
 */
-size_t HUF_compress(void* dst, size_t dstCapacity,
-              const void* src, size_t srcSize);
+HUF_PUBLIC_API size_t HUF_compress(void* dst, size_t dstCapacity,
+                             const void* src, size_t srcSize);
 
 /**
 HUF_decompress() :
@@ -69,32 +84,42 @@ HUF_decompress() :
     @return : size of regenerated data (== originalSize),
               or an error code, which can be tested using HUF_isError()
 */
-size_t HUF_decompress(void* dst,  size_t originalSize,
-                const void* cSrc, size_t cSrcSize);
+HUF_PUBLIC_API size_t HUF_decompress(void* dst,  size_t originalSize,
+                               const void* cSrc, size_t cSrcSize);
 
 
 /* ***   Tool functions *** */
-#define HUF_BLOCKSIZE_MAX (128 * 1024)       /**< maximum input size for a single block compressed with HUF_compress */
-size_t HUF_compressBound(size_t size);       /**< maximum compressed size (worst case) */
+#define HUF_BLOCKSIZE_MAX (128 * 1024)                  /**< maximum input size for a single block compressed with HUF_compress */
+HUF_PUBLIC_API size_t HUF_compressBound(size_t size);   /**< maximum compressed size (worst case) */
 
 /* Error Management */
-unsigned    HUF_isError(size_t code);        /**< tells if a return value is an error code */
-const char* HUF_getErrorName(size_t code);   /**< provides error code string (useful for debugging) */
+HUF_PUBLIC_API unsigned    HUF_isError(size_t code);       /**< tells if a return value is an error code */
+HUF_PUBLIC_API const char* HUF_getErrorName(size_t code);  /**< provides error code string (useful for debugging) */
 
 
 /* ***   Advanced function   *** */
 
 /** HUF_compress2() :
- *   Same as HUF_compress(), but offers direct control over `maxSymbolValue` and `tableLog` .
- *   `tableLog` must be `<= HUF_TABLELOG_MAX` . */
-size_t HUF_compress2 (void* dst, size_t dstSize, const void* src, size_t srcSize, unsigned maxSymbolValue, unsigned tableLog);
+ *  Same as HUF_compress(), but offers direct control over `maxSymbolValue` and `tableLog`.
+ *  `tableLog` must be `<= HUF_TABLELOG_MAX` . */
+HUF_PUBLIC_API size_t HUF_compress2 (void* dst, size_t dstCapacity, const void* src, size_t srcSize, unsigned maxSymbolValue, unsigned tableLog);
 
 /** HUF_compress4X_wksp() :
-*   Same as HUF_compress2(), but uses externally allocated `workSpace`, which must be a table of >= 1024 unsigned */
-size_t HUF_compress4X_wksp (void* dst, size_t dstSize, const void* src, size_t srcSize, unsigned maxSymbolValue, unsigned tableLog, void* workSpace, size_t wkspSize);  /**< `workSpace` must be a table of at least HUF_WORKSPACE_SIZE_U32 unsigned */
+ *  Same as HUF_compress2(), but uses externally allocated `workSpace`.
+ *  `workspace` must have minimum alignment of 4, and be at least as large as following macro */
+#define HUF_WORKSPACE_SIZE (6 << 10)
+#define HUF_WORKSPACE_SIZE_U32 (HUF_WORKSPACE_SIZE / sizeof(U32))
+HUF_PUBLIC_API size_t HUF_compress4X_wksp (void* dst, size_t dstCapacity, const void* src, size_t srcSize, unsigned maxSymbolValue, unsigned tableLog, void* workSpace, size_t wkspSize);
 
 
 
+/* ******************************************************************
+ *  WARNING !!
+ *  The following section contains advanced and experimental definitions
+ *  which shall never be used in the context of dll
+ *  because they are not guaranteed to remain stable in the future.
+ *  Only consider them in association with static linking.
+ *******************************************************************/
 #ifdef HUF_STATIC_LINKING_ONLY
 
 /* *** Dependencies *** */
@@ -117,12 +142,14 @@ size_t HUF_compress4X_wksp (void* dst, size_t dstSize, const void* src, size_t s
 ******************************************/
 /* HUF buffer bounds */
 #define HUF_CTABLEBOUND 129
-#define HUF_BLOCKBOUND(size) (size + (size>>8) + 8)   /* only true if incompressible pre-filtered with fast heuristic */
+#define HUF_BLOCKBOUND(size) (size + (size>>8) + 8)   /* only true when incompressible is pre-filtered with fast heuristic */
 #define HUF_COMPRESSBOUND(size) (HUF_CTABLEBOUND + HUF_BLOCKBOUND(size))   /* Macro version, useful for static allocation */
 
 /* static allocation of HUF's Compression Table */
+#define HUF_CTABLE_SIZE_U32(maxSymbolValue)   ((maxSymbolValue)+1)   /* Use tables of U32, for proper alignment */
+#define HUF_CTABLE_SIZE(maxSymbolValue)       (HUF_CTABLE_SIZE_U32(maxSymbolValue) * sizeof(U32))
 #define HUF_CREATE_STATIC_CTABLE(name, maxSymbolValue) \
-    U32 name##hb[maxSymbolValue+1]; \
+    U32 name##hb[HUF_CTABLE_SIZE_U32(maxSymbolValue)]; \
     void* name##hv = &(name##hb); \
     HUF_CElt* name = (HUF_CElt*)(name##hv)   /* no final ; */
 
@@ -133,10 +160,6 @@ typedef U32 HUF_DTable;
         HUF_DTable DTable[HUF_DTABLE_SIZE((maxTableLog)-1)] = { ((U32)((maxTableLog)-1) * 0x01000001) }
 #define HUF_CREATE_STATIC_DTABLEX4(DTable, maxTableLog) \
         HUF_DTable DTable[HUF_DTABLE_SIZE(maxTableLog)] = { ((U32)(maxTableLog) * 0x01000001) }
-
-/* The workspace must have alignment at least 4 and be at least this large */
-#define HUF_WORKSPACE_SIZE (6 << 10)
-#define HUF_WORKSPACE_SIZE_U32 (HUF_WORKSPACE_SIZE / sizeof(U32))
 
 
 /* ****************************************

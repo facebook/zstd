@@ -8,12 +8,14 @@ you can consult a list of known ports on [Zstandard homepage](http://www.zstd.ne
 
 | dev branch status |
 |-------------------|
-| [![Build Status][travisDevBadge]][travisLink]    [![Build status][AppveyorDevBadge]][AppveyorLink]                                         |
+| [![Build Status][travisDevBadge]][travisLink]   [![Build status][AppveyorDevBadge]][AppveyorLink]   [![Build status][CircleDevBadge]][CircleLink]
 
 [travisDevBadge]: https://travis-ci.org/facebook/zstd.svg?branch=dev "Continuous Integration test suite"
 [travisLink]: https://travis-ci.org/facebook/zstd
 [AppveyorDevBadge]: https://ci.appveyor.com/api/projects/status/xt38wbdxjk5mrbem/branch/dev?svg=true "Windows test suite"
 [AppveyorLink]: https://ci.appveyor.com/project/YannCollet/zstd-p0yf0
+[CircleDevBadge]: https://circleci.com/gh/facebook/zstd/tree/dev.svg?style=shield "Short test suite"
+[CircleLink]: https://circleci.com/gh/facebook/zstd
 
 
 As a reference, several fast compression algorithms were tested and compared

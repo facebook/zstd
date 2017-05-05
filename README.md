@@ -6,10 +6,9 @@ and a command line utility producing and decoding `.zst` and `.gz` files.
 For other programming languages,
 you can consult a list of known ports on [Zstandard homepage](http://www.zstd.net/#other-languages).
 
-|Branch      |Status   |
-|------------|---------|
-|master      | [![Build Status](https://travis-ci.org/facebook/zstd.svg?branch=master)](https://travis-ci.org/facebook/zstd) |
-|dev         | [![Build Status](https://travis-ci.org/facebook/zstd.svg?branch=dev)](https://travis-ci.org/facebook/zstd) |
+| dev branch status |
+|----------------------|
+| [![Build Status](https://travis-ci.org/facebook/zstd.svg?branch=dev)](https://travis-ci.org/facebook/zstd)
 
 As a reference, several fast compression algorithms were tested and compared
 on a server running Linux Debian (`Linux version 4.8.0-1-amd64`),

@@ -7,8 +7,14 @@ For other programming languages,
 you can consult a list of known ports on [Zstandard homepage](http://www.zstd.net/#other-languages).
 
 | dev branch status |
-|----------------------|
-| [![Build Status](https://travis-ci.org/facebook/zstd.svg?branch=dev)](https://travis-ci.org/facebook/zstd)
+|-------------------|
+| [![Build Status][travisDevBadge]][travisLink]    [![Build status][AppveyorDevBadge]][AppveyorLink]                                         |
+
+[travisDevBadge]: https://travis-ci.org/facebook/zstd.svg?branch=dev "Continuous Integration test suite"
+[travisLink]: https://travis-ci.org/facebook/zstd
+[AppveyorDevBadge]: https://ci.appveyor.com/api/projects/status/xt38wbdxjk5mrbem/branch/dev?svg=true "Windows test suite"
+[AppveyorLink]: https://ci.appveyor.com/project/YannCollet/zstd-p0yf0
+
 
 As a reference, several fast compression algorithms were tested and compared
 on a server running Linux Debian (`Linux version 4.8.0-1-amd64`),

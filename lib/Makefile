@@ -22,7 +22,7 @@ VERSION?= $(LIBVER)
 
 CPPFLAGS+= -I. -I./common -DXXH_NAMESPACE=ZSTD_
 CFLAGS  ?= -O3
-DEBUGFLAGS = -g -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow \
+DEBUGFLAGS = -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow \
            -Wstrict-aliasing=1 -Wswitch-enum -Wdeclaration-after-statement \
            -Wstrict-prototypes -Wundef -Wpointer-arith -Wformat-security
 CFLAGS  += $(DEBUGFLAGS) $(MOREFLAGS)

@@ -53,13 +53,15 @@ static const U32 prime32 = 2654435761U;
 *  Display Macros
 **************************************/
 #define DISPLAY(...)          fprintf(stderr, __VA_ARGS__)
-#define DISPLAYLEVEL(l, ...)  if (g_displayLevel>=l) { DISPLAY(__VA_ARGS__); }
+#define DISPLAYLEVEL(l, ...)  if (g_displayLevel>=l) {                     \
+                                  DISPLAY(__VA_ARGS__);                    \
+                                  if (g_displayLevel>=4) fflush(stderr); }
 static U32 g_displayLevel = 2;
 
 #define DISPLAYUPDATE(l, ...) if (g_displayLevel>=l) { \
             if ((FUZ_GetClockSpan(g_displayClock) > g_refreshRate) || (g_displayLevel>=4)) \
             { g_displayClock = clock(); DISPLAY(__VA_ARGS__); \
-            if (g_displayLevel>=4) fflush(stderr); } }
+              if (g_displayLevel>=4) fflush(stderr); } }
 static const clock_t g_refreshRate = CLOCKS_PER_SEC / 6;
 static clock_t g_displayClock = 0;
 
@@ -155,7 +157,7 @@ static int basicUnitTests(U32 seed, double compressibility, ZSTD_customMem custo
     void* decodedBuffer = malloc(decodedBufferSize);
     size_t cSize;
     int testResult = 0;
-    U32 testNb=0;
+    U32 testNb = 1;
     ZSTD_CStream* zc = ZSTD_createCStream_advanced(customMem);
     ZSTD_DStream* zd = ZSTD_createDStream_advanced(customMem);
     ZSTD_inBuffer  inBuff, inBuff2;
@@ -344,6 +346,7 @@ static int basicUnitTests(U32 seed, double compressibility, ZSTD_customMem custo
     if (zc==NULL) goto _output_error;   /* memory allocation issue */
     /* use 1 */
     {   size_t const inSize = 513;
+        DISPLAYLEVEL(5, "use1 ");
         ZSTD_initCStream_advanced(zc, NULL, 0, ZSTD_getParams(19, inSize, 0), inSize);   /* needs btopt + search3 to trigger hashLog3 */
         inBuff.src = CNBuffer;
         inBuff.size = inSize;
@@ -351,14 +354,17 @@ static int basicUnitTests(U32 seed, double compressibility, ZSTD_customMem custo
         outBuff.dst = (char*)(compressedBuffer)+cSize;
         outBuff.size = ZSTD_compressBound(inSize);
         outBuff.pos = 0;
+        DISPLAYLEVEL(5, "compress1 ");
         { size_t const r = ZSTD_compressStream(zc, &outBuff, &inBuff);
             if (ZSTD_isError(r)) goto _output_error; }
         if (inBuff.pos != inBuff.size) goto _output_error;   /* entire input should be consumed */
+        DISPLAYLEVEL(5, "end1 ");
         { size_t const r = ZSTD_endStream(zc, &outBuff);
             if (r != 0) goto _output_error; }  /* error, or some data not flushed */
     }
     /* use 2 */
     {   size_t const inSize = 1025;   /* will not continue, because tables auto-adjust and are therefore different size */
+        DISPLAYLEVEL(5, "use2 ");
         ZSTD_initCStream_advanced(zc, NULL, 0, ZSTD_getParams(19, inSize, 0), inSize);   /* needs btopt + search3 to trigger hashLog3 */
         inBuff.src = CNBuffer;
         inBuff.size = inSize;
@@ -366,9 +372,11 @@ static int basicUnitTests(U32 seed, double compressibility, ZSTD_customMem custo
         outBuff.dst = (char*)(compressedBuffer)+cSize;
         outBuff.size = ZSTD_compressBound(inSize);
         outBuff.pos = 0;
+        DISPLAYLEVEL(5, "compress2 ");
         { size_t const r = ZSTD_compressStream(zc, &outBuff, &inBuff);
             if (ZSTD_isError(r)) goto _output_error; }
         if (inBuff.pos != inBuff.size) goto _output_error;   /* entire input should be consumed */
+        DISPLAYLEVEL(5, "end2 ");
         { size_t const r = ZSTD_endStream(zc, &outBuff);
             if (r != 0) goto _output_error; }  /* error, or some data not flushed */
     }
@@ -770,7 +778,9 @@ static int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compres
                     outBuff.size = outBuff.pos + adjustedDstSize;
                     remainingToFlush = ZSTD_endStream(zc, &outBuff);
                     CHECK (ZSTD_isError(remainingToFlush), "flush error : %s", ZSTD_getErrorName(remainingToFlush));
-                    CHECK (enoughDstSize && remainingToFlush, "ZSTD_endStream() not fully flushed (%u remaining), but enough space available", (U32)remainingToFlush);
+                    CHECK (enoughDstSize && remainingToFlush,
+                           "ZSTD_endStream() not fully flushed (%u remaining), but enough space available (%u)",
+                           (U32)remainingToFlush, (U32)adjustedDstSize);
             }   }
             crcOrig = XXH64_digest(&xxhState);
             cSize = outBuff.pos;

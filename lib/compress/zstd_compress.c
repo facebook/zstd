@@ -165,7 +165,9 @@ size_t ZSTD_freeCCtx(ZSTD_CCtx* cctx)
 size_t ZSTD_sizeof_CCtx(const ZSTD_CCtx* cctx)
 {
     if (cctx==NULL) return 0;   /* support sizeof on NULL */
-    return sizeof(*cctx) + cctx->workSpaceSize;
+    return sizeof(*cctx) + cctx->workSpaceSize
+           + ZSTD_sizeof_CDict(cctx->cdictLocal)
+           + cctx->outBuffSize + cctx->inBuffSize;
 }
 
 size_t ZSTD_setCCtxParameter(ZSTD_CCtx* cctx, ZSTD_CCtxParameter param, unsigned value)
@@ -3285,8 +3287,7 @@ size_t ZSTD_initCStream(ZSTD_CStream* zcs, int compressionLevel)
 
 size_t ZSTD_sizeof_CStream(const ZSTD_CStream* zcs)
 {
-    if (zcs==NULL) return 0;   /* support sizeof on NULL */
-    return sizeof(*zcs) + ZSTD_sizeof_CDict(zcs->cdictLocal) + zcs->outBuffSize + zcs->inBuffSize;
+    return ZSTD_sizeof_CCtx(zcs);   /* same object */
 }
 
 /*======   Compression   ======*/

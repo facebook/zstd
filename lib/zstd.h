@@ -468,7 +468,7 @@ ZSTDLIB_API size_t ZSTD_estimateCCtxSize(ZSTD_compressionParameters cParams);
 ZSTDLIB_API ZSTD_CCtx* ZSTD_createCCtx_advanced(ZSTD_customMem customMem);
 
 /*! ZSTD_sizeofCCtx() :
- *  Gives the amount of memory used by a given ZSTD_CCtx */
+ *  amount of used memory is variable, depending primarily on compression level */
 ZSTDLIB_API size_t ZSTD_sizeof_CCtx(const ZSTD_CCtx* cctx);
 
 typedef enum {
@@ -597,7 +597,7 @@ ZSTDLIB_API unsigned ZSTD_getDictID_fromFrame(const void* src, size_t srcSize);
 
 /*=====   Advanced Streaming compression functions  =====*/
 ZSTDLIB_API ZSTD_CStream* ZSTD_createCStream_advanced(ZSTD_customMem customMem);
-ZSTDLIB_API size_t ZSTD_sizeof_CStream(const ZSTD_CStream* zcs);   /**< size of CStream is variable, depending primarily on compression level */
+ZSTDLIB_API size_t ZSTD_sizeof_CStream(const ZSTD_CStream* zcs);   /**< same as ZSTD_sizeof_CCtx */
 ZSTDLIB_API size_t ZSTD_initCStream_srcSize(ZSTD_CStream* zcs, int compressionLevel, unsigned long long pledgedSrcSize);   /**< pledgedSrcSize must be correct, a size of 0 means unknown.  for a frame size of 0 use initCStream_advanced */
 ZSTDLIB_API size_t ZSTD_initCStream_usingDict(ZSTD_CStream* zcs, const void* dict, size_t dictSize, int compressionLevel); /**< note: a dict will not be used if dict == NULL or dictSize < 8 */
 ZSTDLIB_API size_t ZSTD_initCStream_advanced(ZSTD_CStream* zcs, const void* dict, size_t dictSize,

@@ -281,7 +281,8 @@ typedef struct ZSTD_outBuffer_s {
 *
 * *******************************************************************/
 
-typedef struct ZSTD_CStream_s ZSTD_CStream;
+typedef ZSTD_CCtx ZSTD_CStream;  /**< CCtx and CStream are effectively same object */
+                                 /* Continue due distinghish them for compatibility with versions <= v1.2.0 */
 /*===== ZSTD_CStream management functions =====*/
 ZSTDLIB_API ZSTD_CStream* ZSTD_createCStream(void);
 ZSTDLIB_API size_t ZSTD_freeCStream(ZSTD_CStream* zcs);

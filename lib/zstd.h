@@ -458,16 +458,16 @@ ZSTDLIB_API unsigned long long ZSTD_findDecompressedSize(const void* src, size_t
 /***************************************
 *  Advanced compression functions
 ***************************************/
-/*! ZSTD_estimateCCtxSize() :
- *  Gives the amount of memory allocated for a ZSTD_CCtx given a set of compression parameters.
- *  Set streaming to 1 if the CCtx will be used for streaming (CStream)
- *  Note : this function is currently unable to estimate additional memory allocation needed to create an internal CDict
- *         which can only happen when starting with ZSTD_initCStream_usingDict() */
-ZSTDLIB_API size_t ZSTD_estimateCCtxSize(ZSTD_compressionParameters cParams, unsigned streaming);
-
 /*! ZSTD_createCCtx_advanced() :
  *  Create a ZSTD compression context using external alloc and free functions */
 ZSTDLIB_API ZSTD_CCtx* ZSTD_createCCtx_advanced(ZSTD_customMem customMem);
+
+/*! ZSTD_estimateCCtxSize() :
+ *  Provides amount of memory needed to allocate ZSTD_CCtx with a set of compression parameters.
+ *  Set streaming to 1 if the CCtx will be used for streaming (CStream).
+ *  Special case : when using ZSTD_initCStream_usingDict(), init will transparently create an internal CDict.
+ *         Use ZSTD_estimateCDictSize() and add this value to estimate total CCtx size */
+ZSTDLIB_API size_t ZSTD_estimateCCtxSize(ZSTD_compressionParameters cParams, unsigned streaming);
 
 /*! ZSTD_sizeofCCtx() :
  *  amount of used memory is variable, depending primarily on compression level */
@@ -492,6 +492,11 @@ ZSTDLIB_API ZSTD_CDict* ZSTD_createCDict_byReference(const void* dictBuffer, siz
  *  Create a ZSTD_CDict using external alloc and free, and customized compression parameters */
 ZSTDLIB_API ZSTD_CDict* ZSTD_createCDict_advanced(const void* dict, size_t dictSize, unsigned byReference,
                                                   ZSTD_compressionParameters cParams, ZSTD_customMem customMem);
+
+/*! ZSTD_estimateCDictSize() :
+ *  Estimate amount of memory that will be needed to create a dictionary with following arguments
+ *  Note : if dictionary is created "byReference", reduce this amount by dictSize */
+ZSTDLIB_API size_t ZSTD_estimateCDictSize(ZSTD_compressionParameters cParams, size_t dictSize);
 
 /*! ZSTD_sizeof_CDict() :
  *  Gives the amount of memory used by a given ZSTD_sizeof_CDict */
@@ -563,6 +568,11 @@ ZSTDLIB_API ZSTD_DDict* ZSTD_createDDict_byReference(const void* dictBuffer, siz
  *  Create a ZSTD_DDict using external alloc and free, optionally by reference */
 ZSTDLIB_API ZSTD_DDict* ZSTD_createDDict_advanced(const void* dict, size_t dictSize,
                                                   unsigned byReference, ZSTD_customMem customMem);
+
+/*! ZSTD_estimateDDictSize() :
+ *  Estimate amount of memory that will be needed to create a dictionary for decompression.
+ *  Note : if dictionary is created "byReference", reduce this amount by dictSize */
+ZSTDLIB_API size_t ZSTD_estimateDDictSize(size_t dictSize);
 
 /*! ZSTD_sizeof_DDict() :
  *  Gives the amount of memory used by a given ZSTD_DDict */

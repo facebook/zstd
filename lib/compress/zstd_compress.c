@@ -2984,6 +2984,14 @@ struct ZSTD_CDict_s {
     ZSTD_CCtx* refContext;
 };  /* typedef'd tp ZSTD_CDict within "zstd.h" */
 
+/*! ZSTD_estimateCDictSize() :
+ *  Estimate amount of memory that will be needed to create a dictionary with following arguments */
+size_t ZSTD_estimateCDictSize(ZSTD_compressionParameters cParams, size_t dictSize)
+{
+    cParams = ZSTD_adjustCParams(cParams, 0, dictSize);
+    return sizeof(ZSTD_CDict) + dictSize + ZSTD_estimateCCtxSize(cParams, 0);
+}
+
 size_t ZSTD_sizeof_CDict(const ZSTD_CDict* cdict)
 {
     if (cdict==NULL) return 0;   /* support sizeof on NULL */

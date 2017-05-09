@@ -244,7 +244,7 @@ ZSTD_compressionParameters ZSTD_adjustCParams(ZSTD_compressionParameters cPar, u
 }
 
 
-size_t ZSTD_estimateCCtxSize(ZSTD_compressionParameters cParams)
+size_t ZSTD_estimateCCtxSize(ZSTD_compressionParameters cParams, unsigned streaming)
 {
     size_t const blockSize = MIN(ZSTD_BLOCKSIZE_ABSOLUTEMAX, (size_t)1 << cParams.windowLog);
     U32    const divider = (cParams.searchLength==3) ? 3 : 4;
@@ -260,12 +260,17 @@ size_t ZSTD_estimateCCtxSize(ZSTD_compressionParameters cParams)
                               + entropyScratchSpace_size;
     size_t const tableSpace = (chainSize + hSize + h3Size) * sizeof(U32);
 
-    size_t const optSpace = ((MaxML+1) + (MaxLL+1) + (MaxOff+1) + (1<<Litbits))*sizeof(U32)
+    size_t const optBudget = ((MaxML+1) + (MaxLL+1) + (MaxOff+1) + (1<<Litbits))*sizeof(U32)
                           + (ZSTD_OPT_NUM+1)*(sizeof(ZSTD_match_t) + sizeof(ZSTD_optimal_t));
-    size_t const neededSpace = entropySpace + tableSpace + tokenSpace
-                             + (((cParams.strategy == ZSTD_btopt) || (cParams.strategy == ZSTD_btopt2)) ? optSpace : 0);
+    size_t const optSpace = ((cParams.strategy == ZSTD_btopt) || (cParams.strategy == ZSTD_btopt2)) ? optBudget : 0;
+    size_t const neededSpace = entropySpace + tableSpace + tokenSpace + optSpace;
 
-    return sizeof(ZSTD_CCtx) + neededSpace;
+    size_t const inBuffSize = ((size_t)1 << cParams.windowLog) + blockSize;
+    size_t const outBuffSize = ZSTD_compressBound(blockSize) + 1;
+    size_t const streamingBudget = inBuffSize + outBuffSize;
+    size_t const streamingSize = streaming ? streamingBudget : 0;
+
+    return sizeof(ZSTD_CCtx) + neededSpace + streamingSize;
 }
 
 
@@ -3194,23 +3199,23 @@ static size_t ZSTD_initCStream_stage2(ZSTD_CStream* zcs,
                                 unsigned long long pledgedSrcSize)
 {
     assert(!ZSTD_isError(ZSTD_checkCParams(params.cParams)));
+    zcs->blockSize = MIN(ZSTD_BLOCKSIZE_ABSOLUTEMAX, (size_t)1 << params.cParams.windowLog);
 
     /* allocate buffers */
-    {   size_t const neededInBuffSize = (size_t)1 << params.cParams.windowLog;
+    {   size_t const neededInBuffSize = ((size_t)1 << params.cParams.windowLog) + zcs->blockSize;
         if (zcs->inBuffSize < neededInBuffSize) {
             zcs->inBuffSize = 0;
             ZSTD_free(zcs->inBuff, zcs->customMem);
-            zcs->inBuff = (char*) ZSTD_malloc(neededInBuffSize, zcs->customMem);
+            zcs->inBuff = (char*)ZSTD_malloc(neededInBuffSize, zcs->customMem);
             if (zcs->inBuff == NULL) return ERROR(memory_allocation);
             zcs->inBuffSize = neededInBuffSize;
         }
-        zcs->blockSize = MIN(ZSTD_BLOCKSIZE_ABSOLUTEMAX, neededInBuffSize);
     }
     if (zcs->outBuffSize < ZSTD_compressBound(zcs->blockSize)+1) {
         size_t const outBuffSize = ZSTD_compressBound(zcs->blockSize)+1;
         zcs->outBuffSize = 0;
         ZSTD_free(zcs->outBuff, zcs->customMem);
-        zcs->outBuff = (char*) ZSTD_malloc(outBuffSize, zcs->customMem);
+        zcs->outBuff = (char*)ZSTD_malloc(outBuffSize, zcs->customMem);
         if (zcs->outBuff == NULL) return ERROR(memory_allocation);
         zcs->outBuffSize = outBuffSize;
     }

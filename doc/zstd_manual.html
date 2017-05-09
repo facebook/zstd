@@ -372,7 +372,7 @@ typedef struct { ZSTD_allocFunction customAlloc; ZSTD_freeFunction customFree; v
 
 <a name="Chapter14"></a><h2>Advanced compression functions</h2><pre></pre>
 
-<pre><b>size_t ZSTD_estimateCCtxSize(ZSTD_compressionParameters cParams);
+<pre><b>size_t ZSTD_estimateCCtxSize(ZSTD_compressionParameters cParams, unsigned streaming);
 </b><p>  Gives the amount of memory allocated for a ZSTD_CCtx given a set of compression parameters.
   `frameContentSize` is an optional parameter, provide `0` if unknown 
 </p></pre><BR>
@@ -382,7 +382,7 @@ typedef struct { ZSTD_allocFunction customAlloc; ZSTD_freeFunction customFree; v
 </p></pre><BR>
 
 <pre><b>size_t ZSTD_sizeof_CCtx(const ZSTD_CCtx* cctx);
-</b><p>  Gives the amount of memory used by a given ZSTD_CCtx 
+</b><p>  amount of used memory is variable, depending primarily on compression level 
 </p></pre><BR>
 
 <pre><b>typedef enum {
@@ -507,7 +507,7 @@ typedef struct { ZSTD_allocFunction customAlloc; ZSTD_freeFunction customFree; v
 <a name="Chapter16"></a><h2>Advanced streaming functions</h2><pre></pre>
 
 <h3>Advanced Streaming compression functions</h3><pre></pre><b><pre>ZSTD_CStream* ZSTD_createCStream_advanced(ZSTD_customMem customMem);
-size_t ZSTD_sizeof_CStream(const ZSTD_CStream* zcs);   </b>/**< size of CStream is variable, depending primarily on compression level */<b>
+size_t ZSTD_sizeof_CStream(const ZSTD_CStream* zcs);   </b>/**< same as ZSTD_sizeof_CCtx */<b>
 size_t ZSTD_initCStream_srcSize(ZSTD_CStream* zcs, int compressionLevel, unsigned long long pledgedSrcSize);   </b>/**< pledgedSrcSize must be correct, a size of 0 means unknown.  for a frame size of 0 use initCStream_advanced */<b>
 size_t ZSTD_initCStream_usingDict(ZSTD_CStream* zcs, const void* dict, size_t dictSize, int compressionLevel); </b>/**< note: a dict will not be used if dict == NULL or dictSize < 8 */<b>
 size_t ZSTD_initCStream_advanced(ZSTD_CStream* zcs, const void* dict, size_t dictSize,

@@ -460,8 +460,10 @@ ZSTDLIB_API unsigned long long ZSTD_findDecompressedSize(const void* src, size_t
 ***************************************/
 /*! ZSTD_estimateCCtxSize() :
  *  Gives the amount of memory allocated for a ZSTD_CCtx given a set of compression parameters.
- *  `frameContentSize` is an optional parameter, provide `0` if unknown */
-ZSTDLIB_API size_t ZSTD_estimateCCtxSize(ZSTD_compressionParameters cParams);
+ *  Set streaming to 1 if the CCtx will be used for streaming (CStream)
+ *  Note : this function is currently unable to estimate additional memory allocation needed to create an internal CDict
+ *         which can only happen when starting with ZSTD_initCStream_usingDict() */
+ZSTDLIB_API size_t ZSTD_estimateCCtxSize(ZSTD_compressionParameters cParams, unsigned streaming);
 
 /*! ZSTD_createCCtx_advanced() :
  *  Create a ZSTD compression context using external alloc and free functions */
@@ -599,7 +601,7 @@ ZSTDLIB_API unsigned ZSTD_getDictID_fromFrame(const void* src, size_t srcSize);
 ZSTDLIB_API ZSTD_CStream* ZSTD_createCStream_advanced(ZSTD_customMem customMem);
 ZSTDLIB_API size_t ZSTD_sizeof_CStream(const ZSTD_CStream* zcs);   /**< same as ZSTD_sizeof_CCtx */
 ZSTDLIB_API size_t ZSTD_initCStream_srcSize(ZSTD_CStream* zcs, int compressionLevel, unsigned long long pledgedSrcSize);   /**< pledgedSrcSize must be correct, a size of 0 means unknown.  for a frame size of 0 use initCStream_advanced */
-ZSTDLIB_API size_t ZSTD_initCStream_usingDict(ZSTD_CStream* zcs, const void* dict, size_t dictSize, int compressionLevel); /**< note: a dict will not be used if dict == NULL or dictSize < 8 */
+ZSTDLIB_API size_t ZSTD_initCStream_usingDict(ZSTD_CStream* zcs, const void* dict, size_t dictSize, int compressionLevel); /**< note: a dict will not be used if dict == NULL or dictSize < 8. This result in the creation of an internal CDict */
 ZSTDLIB_API size_t ZSTD_initCStream_advanced(ZSTD_CStream* zcs, const void* dict, size_t dictSize,
                                              ZSTD_parameters params, unsigned long long pledgedSrcSize);  /**< pledgedSrcSize is optional and can be 0 (meaning unknown). note: if the contentSizeFlag is set, pledgedSrcSize == 0 means the source size is actually 0 */
 ZSTDLIB_API size_t ZSTD_initCStream_usingCDict(ZSTD_CStream* zcs, const ZSTD_CDict* cdict);  /**< note : cdict will just be referenced, and must outlive compression session */

@@ -398,6 +398,13 @@ typedef struct {
     ZSTD_frameParameters fParams;
 } ZSTD_parameters;
 
+typedef struct {
+    unsigned long long frameContentSize;
+    unsigned windowSize;
+    unsigned dictID;
+    unsigned checksumFlag;
+} ZSTD_frameHeader;
+
 /*= Custom memory allocation functions */
 typedef void* (*ZSTD_allocFunction) (void* opaque, size_t size);
 typedef void  (*ZSTD_freeFunction) (void* opaque, void* address);
@@ -479,6 +486,7 @@ ZSTDLIB_API size_t ZSTD_estimateDCtxSize(void);
  *         an internal ?Dict will be created, which size is not estimated.
  *         In this case, get additional size by using ZSTD_estimate?DictSize */
 ZSTDLIB_API size_t ZSTD_estimateCStreamSize(ZSTD_compressionParameters cParams);
+ZSTDLIB_API size_t ZSTD_estimateDStreamSize(ZSTD_frameHeader fHeader);
 
 /*! ZSTD_estimate?DictSize() :
  *  Note : if dictionary is created "byReference", reduce estimation by dictSize */
@@ -740,13 +748,6 @@ ZSTDLIB_API size_t ZSTD_compressEnd(ZSTD_CCtx* cctx, void* dst, size_t dstCapaci
            ZSTD_findFrameCompressedSize to find its size in bytes.
   It also returns Frame Size as fparamsPtr->frameContentSize.
 */
-
-typedef struct {
-    unsigned long long frameContentSize;
-    unsigned windowSize;
-    unsigned dictID;
-    unsigned checksumFlag;
-} ZSTD_frameHeader;
 
 /*=====   Buffer-less streaming decompression functions  =====*/
 ZSTDLIB_API size_t ZSTD_getFrameHeader(ZSTD_frameHeader* fparamsPtr, const void* src, size_t srcSize);   /**< doesn't consume input, see details below */

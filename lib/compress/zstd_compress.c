@@ -251,7 +251,7 @@ ZSTD_compressionParameters ZSTD_adjustCParams(ZSTD_compressionParameters cPar, u
 }
 
 
-size_t ZSTD_estimateCCtxSize(ZSTD_compressionParameters cParams, unsigned streaming)
+size_t ZSTD_estimateCCtxSize(ZSTD_compressionParameters cParams)
 {
     size_t const blockSize = MIN(ZSTD_BLOCKSIZE_ABSOLUTEMAX, (size_t)1 << cParams.windowLog);
     U32    const divider = (cParams.searchLength==3) ? 3 : 4;
@@ -272,12 +272,7 @@ size_t ZSTD_estimateCCtxSize(ZSTD_compressionParameters cParams, unsigned stream
     size_t const optSpace = ((cParams.strategy == ZSTD_btopt) || (cParams.strategy == ZSTD_btopt2)) ? optBudget : 0;
     size_t const neededSpace = entropySpace + tableSpace + tokenSpace + optSpace;
 
-    size_t const inBuffSize = ((size_t)1 << cParams.windowLog) + blockSize;
-    size_t const outBuffSize = ZSTD_compressBound(blockSize) + 1;
-    size_t const streamingBudget = inBuffSize + outBuffSize;
-    size_t const streamingSize = streaming ? streamingBudget : 0;
-
-    return sizeof(ZSTD_CCtx) + neededSpace + streamingSize;
+    return sizeof(ZSTD_CCtx) + neededSpace;
 }
 
 
@@ -2989,7 +2984,7 @@ struct ZSTD_CDict_s {
 size_t ZSTD_estimateCDictSize(ZSTD_compressionParameters cParams, size_t dictSize)
 {
     cParams = ZSTD_adjustCParams(cParams, 0, dictSize);
-    return sizeof(ZSTD_CDict) + dictSize + ZSTD_estimateCCtxSize(cParams, 0);
+    return sizeof(ZSTD_CDict) + dictSize + ZSTD_estimateCCtxSize(cParams);
 }
 
 size_t ZSTD_sizeof_CDict(const ZSTD_CDict* cdict)
@@ -3156,6 +3151,17 @@ ZSTD_CStream* ZSTD_createCStream_advanced(ZSTD_customMem customMem)
 size_t ZSTD_freeCStream(ZSTD_CStream* zcs)
 {
     return ZSTD_freeCCtx(zcs);   /* same object */
+}
+
+size_t ZSTD_estimateCStreamSize(ZSTD_compressionParameters cParams)
+{
+    size_t const CCtxSize = ZSTD_estimateCCtxSize(cParams);
+    size_t const blockSize = MIN(ZSTD_BLOCKSIZE_ABSOLUTEMAX, (size_t)1 << cParams.windowLog);
+    size_t const inBuffSize = ((size_t)1 << cParams.windowLog) + blockSize;
+    size_t const outBuffSize = ZSTD_compressBound(blockSize) + 1;
+    size_t const streamingSize = inBuffSize + outBuffSize;
+
+    return sizeof(ZSTD_CCtx) + CCtxSize + streamingSize;
 }
 
 

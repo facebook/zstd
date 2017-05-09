@@ -463,11 +463,8 @@ ZSTDLIB_API unsigned long long ZSTD_findDecompressedSize(const void* src, size_t
 ZSTDLIB_API ZSTD_CCtx* ZSTD_createCCtx_advanced(ZSTD_customMem customMem);
 
 /*! ZSTD_estimateCCtxSize() :
- *  Provides amount of memory needed to allocate ZSTD_CCtx with a set of compression parameters.
- *  Set streaming to 1 if the CCtx will be used for streaming (CStream).
- *  Special case : when using ZSTD_initCStream_usingDict(), init will transparently create an internal CDict.
- *         Use ZSTD_estimateCDictSize() and add this value to estimate total CCtx size */
-ZSTDLIB_API size_t ZSTD_estimateCCtxSize(ZSTD_compressionParameters cParams, unsigned streaming);
+ *  Provides amount of memory needed to allocate ZSTD_CCtx with a set of compression parameters. */
+ZSTDLIB_API size_t ZSTD_estimateCCtxSize(ZSTD_compressionParameters cParams);
 
 /*! ZSTD_sizeofCCtx() :
  *  amount of used memory is variable, depending primarily on compression level */
@@ -609,6 +606,11 @@ ZSTDLIB_API unsigned ZSTD_getDictID_fromFrame(const void* src, size_t srcSize);
 
 /*=====   Advanced Streaming compression functions  =====*/
 ZSTDLIB_API ZSTD_CStream* ZSTD_createCStream_advanced(ZSTD_customMem customMem);
+/*! ZSTD_estimateCStreamSize() :
+ *  Provides amount of memory needed to allocate ZSTD_CStream with a set of compression parameters.
+ *  Special case : when using ZSTD_initCStream_usingDict(), init will transparently create an internal CDict.
+ *         Use ZSTD_estimateCDictSize() to estimate its size, and add for total CStream size */
+ZSTDLIB_API size_t ZSTD_estimateCStreamSize(ZSTD_compressionParameters cParams);
 ZSTDLIB_API size_t ZSTD_sizeof_CStream(const ZSTD_CStream* zcs);   /**< same as ZSTD_sizeof_CCtx */
 ZSTDLIB_API size_t ZSTD_initCStream_srcSize(ZSTD_CStream* zcs, int compressionLevel, unsigned long long pledgedSrcSize);   /**< pledgedSrcSize must be correct, a size of 0 means unknown.  for a frame size of 0 use initCStream_advanced */
 ZSTDLIB_API size_t ZSTD_initCStream_usingDict(ZSTD_CStream* zcs, const void* dict, size_t dictSize, int compressionLevel); /**< note: a dict will not be used if dict == NULL or dictSize < 8. This result in the creation of an internal CDict */

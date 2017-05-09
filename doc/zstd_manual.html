@@ -1,10 +1,10 @@
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
-<title>zstd 1.2.0 Manual</title>
+<title>zstd 1.3.0 Manual</title>
 </head>
 <body>
-<h1>zstd 1.2.0 Manual</h1>
+<h1>zstd 1.3.0 Manual</h1>
 <hr>
 <a name="Contents"></a><h2>Contents</h2>
 <ol>
@@ -376,11 +376,8 @@ typedef struct { ZSTD_allocFunction customAlloc; ZSTD_freeFunction customFree; v
 </b><p>  Create a ZSTD compression context using external alloc and free functions 
 </p></pre><BR>
 
-<pre><b>size_t ZSTD_estimateCCtxSize(ZSTD_compressionParameters cParams, unsigned streaming);
-</b><p>  Provides amount of memory needed to allocate ZSTD_CCtx with a set of compression parameters.
-  Set streaming to 1 if the CCtx will be used for streaming (CStream).
-  Special case : when using ZSTD_initCStream_usingDict(), init will transparently create an internal CDict.
-         Use ZSTD_estimateCDictSize() and add this value to estimate total CCtx size 
+<pre><b>size_t ZSTD_estimateCCtxSize(ZSTD_compressionParameters cParams);
+</b><p>  Provides amount of memory needed to allocate ZSTD_CCtx with a set of compression parameters. 
 </p></pre><BR>
 
 <pre><b>size_t ZSTD_sizeof_CCtx(const ZSTD_CCtx* cctx);
@@ -519,6 +516,11 @@ typedef struct { ZSTD_allocFunction customAlloc; ZSTD_freeFunction customFree; v
 <a name="Chapter16"></a><h2>Advanced streaming functions</h2><pre></pre>
 
 <h3>Advanced Streaming compression functions</h3><pre></pre><b><pre>ZSTD_CStream* ZSTD_createCStream_advanced(ZSTD_customMem customMem);
+</b>/*! ZSTD_estimateCStreamSize() :<b>
+ *  Provides amount of memory needed to allocate ZSTD_CStream with a set of compression parameters.
+ *  Special case : when using ZSTD_initCStream_usingDict(), init will transparently create an internal CDict.
+ *         Use ZSTD_estimateCDictSize() to estimate its size, and add for total CStream size */
+size_t ZSTD_estimateCStreamSize(ZSTD_compressionParameters cParams);
 size_t ZSTD_sizeof_CStream(const ZSTD_CStream* zcs);   </b>/**< same as ZSTD_sizeof_CCtx */<b>
 size_t ZSTD_initCStream_srcSize(ZSTD_CStream* zcs, int compressionLevel, unsigned long long pledgedSrcSize);   </b>/**< pledgedSrcSize must be correct, a size of 0 means unknown.  for a frame size of 0 use initCStream_advanced */<b>
 size_t ZSTD_initCStream_usingDict(ZSTD_CStream* zcs, const void* dict, size_t dictSize, int compressionLevel); </b>/**< note: a dict will not be used if dict == NULL or dictSize < 8. This result in the creation of an internal CDict */<b>

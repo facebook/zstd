@@ -442,14 +442,26 @@ size_t HUF_compress1X_usingCTable(void* dst, size_t dstSize, const void* src, si
     n = srcSize & ~3;  /* join to mod 4 */
     switch (srcSize & 3)
     {
-        case 3 : HUF_encodeSymbol(&bitC, ip[n+ 2], CTable);
-                 HUF_FLUSHBITS_2(&bitC);
-        case 2 : HUF_encodeSymbol(&bitC, ip[n+ 1], CTable);
-                 HUF_FLUSHBITS_1(&bitC);
-        case 1 : HUF_encodeSymbol(&bitC, ip[n+ 0], CTable);
-                 HUF_FLUSHBITS(&bitC);
-        case 0 :
-        default: ;
+    case 3 : {
+      HUF_encodeSymbol(&bitC, ip[n+ 2], CTable);
+      HUF_FLUSHBITS_2(&bitC);
+      break;
+    }
+    case 2 : {
+      HUF_encodeSymbol(&bitC, ip[n+ 1], CTable);
+      HUF_FLUSHBITS_1(&bitC);
+      break;
+    }
+    case 1 : {
+      HUF_encodeSymbol(&bitC, ip[n+ 0], CTable);
+      HUF_FLUSHBITS(&bitC);
+      break;
+    }
+    case 0 : {
+      break;
+    }
+    default:
+      break;
     }
 
     for (; n>0; n-=4) {  /* note : n&3==0 at this stage */

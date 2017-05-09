@@ -158,6 +158,13 @@ size_t ZSTD_freeCCtx(ZSTD_CCtx* cctx)
 {
     if (cctx==NULL) return 0;   /* support free on NULL */
     ZSTD_free(cctx->workSpace, cctx->customMem);
+    cctx->workSpace = NULL;
+    ZSTD_freeCDict(cctx->cdictLocal);
+    cctx->cdictLocal = NULL;
+    ZSTD_free(cctx->inBuff, cctx->customMem);
+    cctx->inBuff = NULL;
+    ZSTD_free(cctx->outBuff, cctx->customMem);
+    cctx->outBuff = NULL;
     ZSTD_free(cctx, cctx->customMem);
     return 0;   /* reserved as a potential error code in the future */
 }
@@ -3140,17 +3147,7 @@ ZSTD_CStream* ZSTD_createCStream_advanced(ZSTD_customMem customMem)
 
 size_t ZSTD_freeCStream(ZSTD_CStream* zcs)
 {
-    if (zcs==NULL) return 0;   /* support free on NULL */
-    {   ZSTD_customMem const cMem = zcs->customMem;
-        ZSTD_freeCDict(zcs->cdictLocal);
-        zcs->cdictLocal = NULL;
-        ZSTD_free(zcs->inBuff, cMem);
-        zcs->inBuff = NULL;
-        ZSTD_free(zcs->outBuff, cMem);
-        zcs->outBuff = NULL;
-        ZSTD_free(zcs, cMem);
-        return 0;
-    }
+    return ZSTD_freeCCtx(zcs);   /* same object */
 }
 
 

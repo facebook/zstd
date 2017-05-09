@@ -221,20 +221,21 @@ static size_t ZSTD_frameHeaderSize(const void* src, size_t srcSize)
 
 /** ZSTD_getFrameHeader() :
 *   decode Frame Header, or require larger `srcSize`.
-*   @return : 0, `fparamsPtr` is correctly filled,
+*   @return : 0, `fhiPtr` is correctly filled,
 *            >0, `srcSize` is too small, result is expected `srcSize`,
 *             or an error code, which can be tested using ZSTD_isError() */
-size_t ZSTD_getFrameHeader(ZSTD_frameHeader* fparamsPtr, const void* src, size_t srcSize)
+size_t ZSTD_getFrameHeader(ZSTD_frameHeader* fhiPtr, const void* src, size_t srcSize)
 {
     const BYTE* ip = (const BYTE*)src;
-
     if (srcSize < ZSTD_frameHeaderSize_prefix) return ZSTD_frameHeaderSize_prefix;
+
     if (MEM_readLE32(src) != ZSTD_MAGICNUMBER) {
         if ((MEM_readLE32(src) & 0xFFFFFFF0U) == ZSTD_MAGIC_SKIPPABLE_START) {
+            /* skippable frame */
             if (srcSize < ZSTD_skippableHeaderSize) return ZSTD_skippableHeaderSize; /* magic number + skippable frame length */
-            memset(fparamsPtr, 0, sizeof(*fparamsPtr));
-            fparamsPtr->frameContentSize = MEM_readLE32((const char *)src + 4);
-            fparamsPtr->windowSize = 0; /* windowSize==0 means a frame is skippable */
+            memset(fhiPtr, 0, sizeof(*fhiPtr));
+            fhiPtr->frameContentSize = MEM_readLE32((const char *)src + 4);
+            fhiPtr->windowSize = 0; /* windowSize==0 means a frame is skippable */
             return 0;
         }
         return ERROR(prefix_unknown);
@@ -281,10 +282,10 @@ size_t ZSTD_getFrameHeader(ZSTD_frameHeader* fparamsPtr, const void* src, size_t
         }
         if (!windowSize) windowSize = (U32)frameContentSize;
         if (windowSize > windowSizeMax) return ERROR(frameParameter_windowTooLarge);
-        fparamsPtr->frameContentSize = frameContentSize;
-        fparamsPtr->windowSize = windowSize;
-        fparamsPtr->dictID = dictID;
-        fparamsPtr->checksumFlag = checksumFlag;
+        fhiPtr->frameContentSize = frameContentSize;
+        fhiPtr->windowSize = windowSize;
+        fhiPtr->dictID = dictID;
+        fhiPtr->checksumFlag = checksumFlag;
     }
     return 0;
 }
@@ -2180,6 +2181,15 @@ size_t ZSTD_sizeof_DStream(const ZSTD_DStream* zds)
            + ZSTD_sizeof_DCtx(zds->dctx)
            + ZSTD_sizeof_DDict(zds->ddictLocal)
            + zds->inBuffSize + zds->outBuffSize;
+}
+
+size_t ZSTD_estimateDStreamSize(ZSTD_frameHeader fHeader)
+{
+    size_t const windowSize = fHeader.windowSize;
+    size_t const blockSize = MIN(windowSize, ZSTD_BLOCKSIZE_ABSOLUTEMAX);
+    size_t const inBuffSize = blockSize;  /* no block can be larger */
+    size_t const outBuffSize = windowSize + blockSize + (WILDCOPY_OVERLENGTH * 2);
+    return sizeof(ZSTD_DStream) + ZSTD_estimateDCtxSize() + inBuffSize + outBuffSize;
 }
 
 

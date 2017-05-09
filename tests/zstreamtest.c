@@ -262,7 +262,20 @@ static int basicUnitTests(U32 seed, double compressibility, ZSTD_customMem custo
     }   }
     DISPLAYLEVEL(3, "OK \n");
 
-    DISPLAYLEVEL(3, "test%3i : check DStream size : ", testNb++);
+    /* context size functions */
+    DISPLAYLEVEL(3, "test%3i : estimate DStream size : ", testNb++);
+    {   ZSTD_frameHeader fhi;
+        const void* cStart = (char*)compressedBuffer + (skippableFrameSize + 8);
+        size_t const gfhError = ZSTD_getFrameHeader(&fhi, cStart, cSize);
+        if (gfhError!=0) goto _output_error;
+        DISPLAYLEVEL(5, " (windowSize : %u) ", fhi.windowSize);
+        {   size_t const s = ZSTD_estimateDStreamSize(fhi)
+                           + ZSTD_estimateDDictSize(128 KB);  /* uses ZSTD_initDStream_usingDict() */
+            if (ZSTD_isError(s)) goto _output_error;
+            DISPLAYLEVEL(3, "OK (%u bytes) \n", (U32)s);
+    }   }
+
+    DISPLAYLEVEL(3, "test%3i : check actual DStream size : ", testNb++);
     { size_t const s = ZSTD_sizeof_DStream(zd);
       if (ZSTD_isError(s)) goto _output_error;
       DISPLAYLEVEL(3, "OK (%u bytes) \n", (U32)s);

@@ -1969,6 +1969,14 @@ size_t ZSTD_freeDDict(ZSTD_DDict* ddict)
     }
 }
 
+/*! ZSTD_estimateDDictSize() :
+ *  Estimate amount of memory that will be needed to create a dictionary for decompression.
+ *  Note : if dictionary is created "byReference", reduce this amount by dictSize */
+size_t ZSTD_estimateDDictSize(size_t dictSize)
+{
+    return dictSize + sizeof(ZSTD_DDict);
+}
+
 size_t ZSTD_sizeof_DDict(const ZSTD_DDict* ddict)
 {
     if (ddict==NULL) return 0;   /* support sizeof on NULL */

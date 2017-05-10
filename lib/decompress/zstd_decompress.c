@@ -221,10 +221,10 @@ static size_t ZSTD_frameHeaderSize(const void* src, size_t srcSize)
 
 /** ZSTD_getFrameHeader() :
 *   decode Frame Header, or require larger `srcSize`.
-*   @return : 0, `fhiPtr` is correctly filled,
+*   @return : 0, `zfhPtr` is correctly filled,
 *            >0, `srcSize` is too small, result is expected `srcSize`,
 *             or an error code, which can be tested using ZSTD_isError() */
-size_t ZSTD_getFrameHeader(ZSTD_frameHeader* fhiPtr, const void* src, size_t srcSize)
+size_t ZSTD_getFrameHeader(ZSTD_frameHeader* zfhPtr, const void* src, size_t srcSize)
 {
     const BYTE* ip = (const BYTE*)src;
     if (srcSize < ZSTD_frameHeaderSize_prefix) return ZSTD_frameHeaderSize_prefix;
@@ -233,9 +233,9 @@ size_t ZSTD_getFrameHeader(ZSTD_frameHeader* fhiPtr, const void* src, size_t src
         if ((MEM_readLE32(src) & 0xFFFFFFF0U) == ZSTD_MAGIC_SKIPPABLE_START) {
             /* skippable frame */
             if (srcSize < ZSTD_skippableHeaderSize) return ZSTD_skippableHeaderSize; /* magic number + skippable frame length */
-            memset(fhiPtr, 0, sizeof(*fhiPtr));
-            fhiPtr->frameContentSize = MEM_readLE32((const char *)src + 4);
-            fhiPtr->windowSize = 0; /* windowSize==0 means a frame is skippable */
+            memset(zfhPtr, 0, sizeof(*zfhPtr));
+            zfhPtr->frameContentSize = MEM_readLE32((const char *)src + 4);
+            zfhPtr->windowSize = 0; /* windowSize==0 means a frame is skippable */
             return 0;
         }
         return ERROR(prefix_unknown);
@@ -282,10 +282,10 @@ size_t ZSTD_getFrameHeader(ZSTD_frameHeader* fhiPtr, const void* src, size_t src
         }
         if (!windowSize) windowSize = (U32)frameContentSize;
         if (windowSize > windowSizeMax) return ERROR(frameParameter_windowTooLarge);
-        fhiPtr->frameContentSize = frameContentSize;
-        fhiPtr->windowSize = windowSize;
-        fhiPtr->dictID = dictID;
-        fhiPtr->checksumFlag = checksumFlag;
+        zfhPtr->frameContentSize = frameContentSize;
+        zfhPtr->windowSize = windowSize;
+        zfhPtr->dictID = dictID;
+        zfhPtr->checksumFlag = checksumFlag;
     }
     return 0;
 }

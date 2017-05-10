@@ -750,7 +750,7 @@ ZSTDLIB_API size_t ZSTD_compressEnd(ZSTD_CCtx* cctx, void* dst, size_t dstCapaci
 */
 
 /*=====   Buffer-less streaming decompression functions  =====*/
-ZSTDLIB_API size_t ZSTD_getFrameHeader(ZSTD_frameHeader* fparamsPtr, const void* src, size_t srcSize);   /**< doesn't consume input, see details below */
+ZSTDLIB_API size_t ZSTD_getFrameHeader(ZSTD_frameHeader* zfhPtr, const void* src, size_t srcSize);   /**< doesn't consume input, see details below */
 ZSTDLIB_API size_t ZSTD_decompressBegin(ZSTD_DCtx* dctx);
 ZSTDLIB_API size_t ZSTD_decompressBegin_usingDict(ZSTD_DCtx* dctx, const void* dict, size_t dictSize);
 ZSTDLIB_API void   ZSTD_copyDCtx(ZSTD_DCtx* dctx, const ZSTD_DCtx* preparedDCtx);

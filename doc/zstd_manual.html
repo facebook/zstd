@@ -646,7 +646,7 @@ size_t ZSTD_copyCCtx(ZSTD_CCtx* cctx, const ZSTD_CCtx* preparedCCtx, unsigned lo
   It also returns Frame Size as fparamsPtr->frameContentSize.
 <BR></pre>
 
-<h3>Buffer-less streaming decompression functions</h3><pre></pre><b><pre>size_t ZSTD_getFrameHeader(ZSTD_frameHeader* fparamsPtr, const void* src, size_t srcSize);   </b>/**< doesn't consume input, see details below */<b>
+<h3>Buffer-less streaming decompression functions</h3><pre></pre><b><pre>size_t ZSTD_getFrameHeader(ZSTD_frameHeader* zfhPtr, const void* src, size_t srcSize);   </b>/**< doesn't consume input, see details below */<b>
 size_t ZSTD_decompressBegin(ZSTD_DCtx* dctx);
 size_t ZSTD_decompressBegin_usingDict(ZSTD_DCtx* dctx, const void* dict, size_t dictSize);
 void   ZSTD_copyDCtx(ZSTD_DCtx* dctx, const ZSTD_DCtx* preparedDCtx);

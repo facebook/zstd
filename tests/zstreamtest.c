@@ -163,6 +163,7 @@ static int basicUnitTests(U32 seed, double compressibility, ZSTD_customMem custo
     ZSTD_inBuffer  inBuff, inBuff2;
     ZSTD_outBuffer outBuff;
     buffer_t dictionary = g_nullBuffer;
+    size_t const dictSize = 128 KB;
     unsigned dictID = 0;
 
     /* Create compressible test buffer */
@@ -188,7 +189,7 @@ static int basicUnitTests(U32 seed, double compressibility, ZSTD_customMem custo
 
     /* Basic compression test */
     DISPLAYLEVEL(3, "test%3i : compress %u bytes : ", testNb++, COMPRESSIBLE_NOISE_LENGTH);
-    ZSTD_initCStream_usingDict(zc, CNBuffer, 128 KB, 1);
+    ZSTD_initCStream_usingDict(zc, CNBuffer, dictSize, 1);
     outBuff.dst = (char*)(compressedBuffer)+cSize;
     outBuff.size = compressedBufferSize;
     outBuff.pos = 0;
@@ -203,7 +204,16 @@ static int basicUnitTests(U32 seed, double compressibility, ZSTD_customMem custo
     cSize += outBuff.pos;
     DISPLAYLEVEL(3, "OK (%u bytes : %.2f%%)\n", (U32)cSize, (double)cSize/COMPRESSIBLE_NOISE_LENGTH*100);
 
-    DISPLAYLEVEL(3, "test%3i : check CStream size : ", testNb++);
+    /* context size functions */
+    DISPLAYLEVEL(3, "test%3i : estimate CStream size : ", testNb++);
+    {   ZSTD_compressionParameters const cParams = ZSTD_getCParams(1, CNBufferSize, dictSize);
+        size_t const s = ZSTD_estimateCStreamSize(cParams)
+                       + ZSTD_estimateCDictSize(cParams, dictSize);  /* uses ZSTD_initCStream_usingDict() */
+            if (ZSTD_isError(s)) goto _output_error;
+            DISPLAYLEVEL(3, "OK (%u bytes) \n", (U32)s);
+    }
+
+    DISPLAYLEVEL(3, "test%3i : check actual CStream size : ", testNb++);
     { size_t const s = ZSTD_sizeof_CStream(zc);
       if (ZSTD_isError(s)) goto _output_error;
       DISPLAYLEVEL(3, "OK (%u bytes) \n", (U32)s);
@@ -221,7 +231,7 @@ static int basicUnitTests(U32 seed, double compressibility, ZSTD_customMem custo
 
     /* skippable frame test */
     DISPLAYLEVEL(3, "test%3i : decompress skippable frame : ", testNb++);
-    ZSTD_initDStream_usingDict(zd, CNBuffer, 128 KB);
+    ZSTD_initDStream_usingDict(zd, CNBuffer, dictSize);
     inBuff.src = compressedBuffer;
     inBuff.size = cSize;
     inBuff.pos = 0;
@@ -236,7 +246,7 @@ static int basicUnitTests(U32 seed, double compressibility, ZSTD_customMem custo
     /* Basic decompression test */
     inBuff2 = inBuff;
     DISPLAYLEVEL(3, "test%3i : decompress %u bytes : ", testNb++, COMPRESSIBLE_NOISE_LENGTH);
-    ZSTD_initDStream_usingDict(zd, CNBuffer, 128 KB);
+    ZSTD_initDStream_usingDict(zd, CNBuffer, dictSize);
     { size_t const r = ZSTD_setDStreamParameter(zd, DStream_p_maxWindowSize, 1000000000);  /* large limit */
       if (ZSTD_isError(r)) goto _output_error; }
     { size_t const remaining = ZSTD_decompressStream(zd, &outBuff, &inBuff);
@@ -270,7 +280,7 @@ static int basicUnitTests(U32 seed, double compressibility, ZSTD_customMem custo
         if (gfhError!=0) goto _output_error;
         DISPLAYLEVEL(5, " (windowSize : %u) ", fhi.windowSize);
         {   size_t const s = ZSTD_estimateDStreamSize(fhi)
-                           + ZSTD_estimateDDictSize(128 KB);  /* uses ZSTD_initDStream_usingDict() */
+                           + ZSTD_estimateDDictSize(dictSize);  /* uses ZSTD_initDStream_usingDict() */
             if (ZSTD_isError(s)) goto _output_error;
             DISPLAYLEVEL(3, "OK (%u bytes) \n", (U32)s);
     }   }
@@ -285,7 +295,7 @@ static int basicUnitTests(U32 seed, double compressibility, ZSTD_customMem custo
     DISPLAYLEVEL(3, "test%3i : decompress byte-by-byte : ", testNb++);
     {   /* skippable frame */
         size_t r = 1;
-        ZSTD_initDStream_usingDict(zd, CNBuffer, 128 KB);
+        ZSTD_initDStream_usingDict(zd, CNBuffer, dictSize);
         inBuff.src = compressedBuffer;
         outBuff.dst = decodedBuffer;
         inBuff.pos = 0;
@@ -297,7 +307,7 @@ static int basicUnitTests(U32 seed, double compressibility, ZSTD_customMem custo
             if (ZSTD_isError(r)) goto _output_error;
         }
         /* normal frame */
-        ZSTD_initDStream_usingDict(zd, CNBuffer, 128 KB);
+        ZSTD_initDStream_usingDict(zd, CNBuffer, dictSize);
         r=1;
         while (r) {
             inBuff.size = inBuff.pos + 1;
@@ -456,7 +466,7 @@ static int basicUnitTests(U32 seed, double compressibility, ZSTD_customMem custo
 
     /* Memory restriction */
     DISPLAYLEVEL(3, "test%3i : maxWindowSize < frame requirement : ", testNb++);
-    ZSTD_initDStream_usingDict(zd, CNBuffer, 128 KB);
+    ZSTD_initDStream_usingDict(zd, CNBuffer, dictSize);
     { size_t const r = ZSTD_setDStreamParameter(zd, DStream_p_maxWindowSize, 1000);  /* too small limit */
       if (ZSTD_isError(r)) goto _output_error; }
     inBuff.src = compressedBuffer;

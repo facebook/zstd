@@ -88,7 +88,7 @@ static const void *symbols[] = {
   &ZSTD_copyCCtx,
   &ZSTD_compressContinue,
   &ZSTD_compressEnd,
-  &ZSTD_getFrameParams,
+  &ZSTD_getFrameHeader,
   &ZSTD_decompressBegin,
   &ZSTD_decompressBegin_usingDict,
   &ZSTD_copyDCtx,

@@ -3153,7 +3153,7 @@ size_t ZSTD_estimateCStreamSize(ZSTD_compressionParameters cParams)
     size_t const outBuffSize = ZSTD_compressBound(blockSize) + 1;
     size_t const streamingSize = inBuffSize + outBuffSize;
 
-    return sizeof(ZSTD_CCtx) + CCtxSize + streamingSize;
+    return CCtxSize + streamingSize;
 }
 
 

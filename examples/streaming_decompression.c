@@ -99,7 +99,6 @@ static void decompressFile_orDie(const char* fname)
 int main(int argc, const char** argv)
 {
     const char* const exeName = argv[0];
-    const char* const inFilename = argv[1];
 
     if (argc!=2) {
         fprintf(stderr, "wrong arguments\n");
@@ -107,6 +106,8 @@ int main(int argc, const char** argv)
         fprintf(stderr, "%s FILE\n", exeName);
         return 1;
     }
+
+    const char* const inFilename = argv[1];
 
     decompressFile_orDie(inFilename);
     return 0;

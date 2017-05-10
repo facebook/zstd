@@ -10,6 +10,7 @@
 #include "utils/WorkQueue.h"
 
 #include <gtest/gtest.h>
+#include <iostream>
 #include <memory>
 #include <mutex>
 #include <thread>
@@ -201,11 +202,13 @@ TEST(WorkQueue, BoundedSizeMPMC) {
   WorkQueue<int> queue(10);
   std::vector<int> results(200, -1);
   std::mutex mutex;
+  std::cerr << "Creating popperThreads" << std::endl;
   std::vector<std::thread> popperThreads;
   for (int i = 0; i < 4; ++i) {
     popperThreads.emplace_back(Popper{&queue, results.data(), &mutex});
   }
 
+  std::cerr << "Creating pusherThreads" << std::endl;
   std::vector<std::thread> pusherThreads;
   for (int i = 0; i < 2; ++i) {
     auto min = i * 100;
@@ -218,15 +221,19 @@ TEST(WorkQueue, BoundedSizeMPMC) {
         });
   }
 
+  std::cerr << "Joining pusherThreads" << std::endl;
   for (auto& thread : pusherThreads) {
     thread.join();
   }
+  std::cerr << "Finishing queue" << std::endl;
   queue.finish();
 
+  std::cerr << "Joining popperThreads" << std::endl;
   for (auto& thread : popperThreads) {
     thread.join();
   }
 
+  std::cerr << "Inspecting results" << std::endl;
   for (int i = 0; i < 200; ++i) {
     EXPECT_EQ(i, results[i]);
   }

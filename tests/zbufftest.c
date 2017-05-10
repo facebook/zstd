@@ -60,7 +60,7 @@ static U32 g_displayLevel = 2;
 #define DISPLAYUPDATE(l, ...) if (g_displayLevel>=l) { \
             if ((FUZ_GetClockSpan(g_displayClock) > g_refreshRate) || (g_displayLevel>=4)) \
             { g_displayClock = clock(); DISPLAY(__VA_ARGS__); \
-            if (g_displayLevel>=4) fflush(stdout); } }
+            if (g_displayLevel>=4) fflush(stderr); } }
 static const clock_t g_refreshRate = CLOCKS_PER_SEC * 15 / 100;
 static clock_t g_displayClock = 0;
 

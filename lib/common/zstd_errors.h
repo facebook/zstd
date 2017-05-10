@@ -57,6 +57,9 @@ typedef enum {
   ZSTD_error_maxSymbolValue_tooSmall,
   ZSTD_error_dictionary_corrupted,
   ZSTD_error_dictionary_wrong,
+  ZSTD_error_dictionaryCreation_failed,
+  ZSTD_error_frameIndex_tooLarge,
+  ZSTD_error_seekableIO,
   ZSTD_error_maxCode
 } ZSTD_ErrorCode;
 

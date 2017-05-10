@@ -33,7 +33,7 @@
 #  include <stdio.h>
 #  include <unistd.h>
 #  include <sys/times.h>
-   static unsigned g_debugLevel = 3;
+   static unsigned g_debugLevel = 5;
 #  define DEBUGLOGRAW(l, ...) if (l<=g_debugLevel) { fprintf(stderr, __VA_ARGS__); }
 #  define DEBUGLOG(l, ...) if (l<=g_debugLevel) { fprintf(stderr, __FILE__ ": "); fprintf(stderr, __VA_ARGS__); fprintf(stderr, " \n"); }
 
@@ -44,26 +44,26 @@
     DEBUGLOGRAW(l, " \n");       \
 }
 
-static unsigned long long GetCurrentClockTimeMicroseconds()
+static unsigned long long GetCurrentClockTimeMicroseconds(void)
 {
    static clock_t _ticksPerSecond = 0;
    if (_ticksPerSecond <= 0) _ticksPerSecond = sysconf(_SC_CLK_TCK);
 
-   struct tms junk; clock_t newTicks = (clock_t) times(&junk);
-   return ((((unsigned long long)newTicks)*(1000000))/_ticksPerSecond);
+   { struct tms junk; clock_t newTicks = (clock_t) times(&junk);
+     return ((((unsigned long long)newTicks)*(1000000))/_ticksPerSecond); }
 }
 
 #define MUTEX_WAIT_TIME_DLEVEL 5
 #define PTHREAD_MUTEX_LOCK(mutex) \
 if (g_debugLevel>=MUTEX_WAIT_TIME_DLEVEL) { \
-   unsigned long long beforeTime = GetCurrentClockTimeMicroseconds(); \
-   pthread_mutex_lock(mutex); \
-   unsigned long long afterTime = GetCurrentClockTimeMicroseconds(); \
-   unsigned long long elapsedTime = (afterTime-beforeTime); \
-   if (elapsedTime > 1000) {  /* or whatever threshold you like; I'm using 1 millisecond here */ \
-      DEBUGLOG(MUTEX_WAIT_TIME_DLEVEL, "Thread took %llu microseconds to acquire mutex %s \n", \
+    unsigned long long const beforeTime = GetCurrentClockTimeMicroseconds(); \
+    pthread_mutex_lock(mutex); \
+    {   unsigned long long const afterTime = GetCurrentClockTimeMicroseconds(); \
+        unsigned long long const elapsedTime = (afterTime-beforeTime); \
+        if (elapsedTime > 1000) {  /* or whatever threshold you like; I'm using 1 millisecond here */ \
+            DEBUGLOG(MUTEX_WAIT_TIME_DLEVEL, "Thread took %llu microseconds to acquire mutex %s \n", \
                elapsedTime, #mutex); \
-  } \
+    }   } \
 } else pthread_mutex_lock(mutex);
 
 #else
@@ -228,17 +228,19 @@ void ZSTDMT_compressChunk(void* jobDescription)
     ZSTDMT_jobDescription* const job = (ZSTDMT_jobDescription*)jobDescription;
     const void* const src = (const char*)job->srcStart + job->dictSize;
     buffer_t const dstBuff = job->dstBuff;
-    DEBUGLOG(3, "job (first:%u) (last:%u) : dictSize %u, srcSize %u", job->firstChunk, job->lastChunk, (U32)job->dictSize, (U32)job->srcSize);
+    DEBUGLOG(3, "job (first:%u) (last:%u) : dictSize %u, srcSize %u",
+                 job->firstChunk, job->lastChunk, (U32)job->dictSize, (U32)job->srcSize);
     if (job->cdict) {  /* should only happen for first segment */
-        size_t const initError = ZSTD_compressBegin_usingCDict(job->cctx, job->cdict, job->fullFrameSize);
+        size_t const initError = ZSTD_compressBegin_usingCDict_advanced(job->cctx, job->cdict, job->params.fParams, job->fullFrameSize);
         if (job->cdict) DEBUGLOG(3, "using CDict ");
         if (ZSTD_isError(initError)) { job->cSize = initError; goto _endJob; }
     } else {  /* srcStart points at reloaded section */
-        size_t const dictModeError = ZSTD_setCCtxParameter(job->cctx, ZSTD_p_forceRawDict, 1);  /* Force loading dictionary in "content-only" mode (no header analysis) */
-        size_t const initError = ZSTD_compressBegin_advanced(job->cctx, job->srcStart, job->dictSize, job->params, 0);
-        if (ZSTD_isError(initError) || ZSTD_isError(dictModeError)) { job->cSize = initError; goto _endJob; }
-        ZSTD_setCCtxParameter(job->cctx, ZSTD_p_forceWindow, 1);
-    }
+        if (!job->firstChunk) job->params.fParams.contentSizeFlag = 0;  /* ensure no srcSize control */
+        {   size_t const dictModeError = ZSTD_setCCtxParameter(job->cctx, ZSTD_p_forceRawDict, 1);  /* Force loading dictionary in "content-only" mode (no header analysis) */
+            size_t const initError = ZSTD_compressBegin_advanced(job->cctx, job->srcStart, job->dictSize, job->params, job->fullFrameSize);
+            if (ZSTD_isError(initError) || ZSTD_isError(dictModeError)) { job->cSize = initError; goto _endJob; }
+            ZSTD_setCCtxParameter(job->cctx, ZSTD_p_forceWindow, 1);
+    }   }
     if (!job->firstChunk) {  /* flush and overwrite frame header when it's not first segment */
         size_t const hSize = ZSTD_compressContinue(job->cctx, dstBuff.start, dstBuff.size, src, 0);
         if (ZSTD_isError(hSize)) { job->cSize = hSize; goto _endJob; }
@@ -250,7 +252,9 @@ void ZSTDMT_compressChunk(void* jobDescription)
     job->cSize = (job->lastChunk) ?
                  ZSTD_compressEnd     (job->cctx, dstBuff.start, dstBuff.size, src, job->srcSize) :
                  ZSTD_compressContinue(job->cctx, dstBuff.start, dstBuff.size, src, job->srcSize);
-    DEBUGLOG(3, "compressed %u bytes into %u bytes   (first:%u) (last:%u)", (unsigned)job->srcSize, (unsigned)job->cSize, job->firstChunk, job->lastChunk);
+    DEBUGLOG(3, "compressed %u bytes into %u bytes   (first:%u) (last:%u)",
+                (unsigned)job->srcSize, (unsigned)job->cSize, job->firstChunk, job->lastChunk);
+    DEBUGLOG(5, "dstBuff.size : %u ; => %s", (U32)dstBuff.size, ZSTD_getErrorName(job->cSize));
 
 _endJob:
     PTHREAD_MUTEX_LOCK(job->jobCompleted_mutex);
@@ -388,14 +392,17 @@ size_t ZSTDMT_compressCCtx(ZSTDMT_CCtx* mtctx,
                            int compressionLevel)
 {
     ZSTD_parameters params = ZSTD_getParams(compressionLevel, srcSize, 0);
+    U32 const overlapLog = (compressionLevel >= ZSTD_maxCLevel()) ? 0 : 3;
+    size_t const overlapSize = (size_t)1 << (params.cParams.windowLog - overlapLog);
     size_t const chunkTargetSize = (size_t)1 << (params.cParams.windowLog + 2);
-    unsigned const nbChunksMax = (unsigned)(srcSize / chunkTargetSize) + (srcSize < chunkTargetSize) /* min 1 */;
+    unsigned const nbChunksMax = (unsigned)(srcSize / chunkTargetSize) + 1;
     unsigned nbChunks = MIN(nbChunksMax, mtctx->nbThreads);
     size_t const proposedChunkSize = (srcSize + (nbChunks-1)) / nbChunks;
     size_t const avgChunkSize = ((proposedChunkSize & 0x1FFFF) < 0xFFFF) ? proposedChunkSize + 0xFFFF : proposedChunkSize;   /* avoid too small last block */
     size_t remainingSrcSize = srcSize;
     const char* const srcStart = (const char*)src;
-    size_t frameStartPos = 0;
+    unsigned const compressWithinDst = (dstCapacity >= ZSTD_compressBound(srcSize)) ? nbChunks : (unsigned)(dstCapacity / ZSTD_compressBound(avgChunkSize));  /* presumes avgChunkSize >= 256 KB, which should be the case */
+    size_t frameStartPos = 0, dstBufferPos = 0;
 
     DEBUGLOG(3, "windowLog : %2u => chunkTargetSize : %u bytes  ", params.cParams.windowLog, (U32)chunkTargetSize);
     DEBUGLOG(2, "nbChunks  : %2u   (chunkSize : %u bytes)   ", nbChunks, (U32)avgChunkSize);
@@ -409,10 +416,11 @@ size_t ZSTDMT_compressCCtx(ZSTDMT_CCtx* mtctx,
     {   unsigned u;
         for (u=0; u<nbChunks; u++) {
             size_t const chunkSize = MIN(remainingSrcSize, avgChunkSize);
-            size_t const dstBufferCapacity = u ? ZSTD_compressBound(chunkSize) : dstCapacity;
-            buffer_t const dstAsBuffer = { dst, dstCapacity };
-            buffer_t const dstBuffer = u ? ZSTDMT_getBuffer(mtctx->buffPool, dstBufferCapacity) : dstAsBuffer;
+            size_t const dstBufferCapacity = ZSTD_compressBound(chunkSize);
+            buffer_t const dstAsBuffer = { (char*)dst + dstBufferPos, dstBufferCapacity };
+            buffer_t const dstBuffer = u < compressWithinDst ? dstAsBuffer : ZSTDMT_getBuffer(mtctx->buffPool, dstBufferCapacity);
             ZSTD_CCtx* const cctx = ZSTDMT_getCCtx(mtctx->cctxPool);
+            size_t dictSize = u ? overlapSize : 0;
 
             if ((cctx==NULL) || (dstBuffer.start==NULL)) {
                 mtctx->jobs[u].cSize = ERROR(memory_allocation);   /* job result */
@@ -421,7 +429,8 @@ size_t ZSTDMT_compressCCtx(ZSTDMT_CCtx* mtctx,
                 break;   /* let's wait for previous jobs to complete, but don't start new ones */
             }
 
-            mtctx->jobs[u].srcStart = srcStart + frameStartPos;
+            mtctx->jobs[u].srcStart = srcStart + frameStartPos - dictSize;
+            mtctx->jobs[u].dictSize = dictSize;
             mtctx->jobs[u].srcSize = chunkSize;
             mtctx->jobs[u].fullFrameSize = srcSize;
             mtctx->jobs[u].params = params;
@@ -438,6 +447,7 @@ size_t ZSTDMT_compressCCtx(ZSTDMT_CCtx* mtctx,
             POOL_add(mtctx->factory, ZSTDMT_compressChunk, &mtctx->jobs[u]);
 
             frameStartPos += chunkSize;
+            dstBufferPos += dstBufferCapacity;
             remainingSrcSize -= chunkSize;
     }   }
     /* note : since nbChunks <= nbThreads, all jobs should be running immediately in parallel */
@@ -461,8 +471,10 @@ size_t ZSTDMT_compressCCtx(ZSTDMT_CCtx* mtctx,
                 if (ZSTD_isError(cSize)) error = cSize;
                 if ((!error) && (dstPos + cSize > dstCapacity)) error = ERROR(dstSize_tooSmall);
                 if (chunkID) {   /* note : chunk 0 is already written directly into dst */
-                    if (!error) memcpy((char*)dst + dstPos, mtctx->jobs[chunkID].dstBuff.start, cSize);
-                    ZSTDMT_releaseBuffer(mtctx->buffPool, mtctx->jobs[chunkID].dstBuff);
+                    if (!error)
+                        memmove((char*)dst + dstPos, mtctx->jobs[chunkID].dstBuff.start, cSize);  /* may overlap if chunk decompressed within dst */
+                    if (chunkID >= compressWithinDst)   /* otherwise, it decompresses within dst */
+                        ZSTDMT_releaseBuffer(mtctx->buffPool, mtctx->jobs[chunkID].dstBuff);
                     mtctx->jobs[chunkID].dstBuff = g_nullBuffer;
                 }
                 dstPos += cSize ;
@@ -509,7 +521,7 @@ static size_t ZSTDMT_initCStream_internal(ZSTDMT_CCtx* zcs,
     if (updateDict) {
         ZSTD_freeCDict(zcs->cdict); zcs->cdict = NULL;
         if (dict && dictSize) {
-            zcs->cdict = ZSTD_createCDict_advanced(dict, dictSize, 0, params, cmem);
+            zcs->cdict = ZSTD_createCDict_advanced(dict, dictSize, 0, params.cParams, cmem);
             if (zcs->cdict == NULL) return ERROR(memory_allocation);
     }   }
     zcs->frameContentSize = pledgedSrcSize;

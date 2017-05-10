@@ -16,9 +16,9 @@
 #ifdef _MSC_VER    /* Visual Studio */
 #  define FORCE_INLINE static __forceinline
 #  include <intrin.h>                    /* For Visual 2005 */
+#  pragma warning(disable : 4100)        /* disable: C4100: unreferenced formal parameter */
 #  pragma warning(disable : 4127)        /* disable: C4127: conditional expression is constant */
 #  pragma warning(disable : 4324)        /* disable: C4324: padded structure */
-#  pragma warning(disable : 4100)        /* disable: C4100: unreferenced formal parameter */
 #else
 #  if defined (__cplusplus) || defined (__STDC_VERSION__) && __STDC_VERSION__ >= 199901L   /* C99 */
 #    ifdef __GNUC__
@@ -58,6 +58,8 @@
 /*-*************************************
 *  shared macros
 ***************************************/
+#undef MIN
+#undef MAX
 #define MIN(a,b) ((a)<(b) ? (a) : (b))
 #define MAX(a,b) ((a)>(b) ? (a) : (b))
 #define CHECK_F(f) { size_t const errcod = f; if (ERR_isError(errcod)) return errcod; }  /* check and Forward error code */
@@ -104,7 +106,6 @@ typedef enum { set_basic, set_rle, set_compressed, set_repeat } symbolEncodingTy
 #define LONGNBSEQ 0x7F00
 
 #define MINMATCH 3
-#define EQUAL_READ32 4
 
 #define Litbits  8
 #define MaxLit ((1<<Litbits) - 1)

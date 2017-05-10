@@ -1,6 +1,6 @@
 /**
  * util.h - utility functions
- * 
+ *
  * Copyright (c) 2016-present, Przemyslaw Skibinski, Yann Collet, Facebook, Inc.
  * All rights reserved.
  *
@@ -25,6 +25,7 @@ extern "C" {
 #include <stdlib.h>       /* malloc */
 #include <stddef.h>       /* size_t, ptrdiff_t */
 #include <stdio.h>        /* fprintf */
+#include <string.h>       /* strncmp */
 #include <sys/types.h>    /* stat, utime */
 #include <sys/stat.h>     /* stat */
 #if defined(_MSC_VER)
@@ -166,8 +167,8 @@ UTIL_STATIC void UTIL_waitForNextTick(UTIL_freq_t ticksPerSecond)
 *  File functions
 ******************************************/
 #if defined(_MSC_VER)
-	#define chmod _chmod
-	typedef struct __stat64 stat_t;
+    #define chmod _chmod
+    typedef struct __stat64 stat_t;
 #else
     typedef struct stat stat_t;
 #endif
@@ -178,9 +179,9 @@ UTIL_STATIC int UTIL_setFileStat(const char *filename, stat_t *statbuf)
     int res = 0;
     struct utimbuf timebuf;
 
-	timebuf.actime = time(NULL);
-	timebuf.modtime = statbuf->st_mtime;
-	res += utime(filename, &timebuf);  /* set access and modification times */
+    timebuf.actime = time(NULL);
+    timebuf.modtime = statbuf->st_mtime;
+    res += utime(filename, &timebuf);  /* set access and modification times */
 
 #if !defined(_WIN32)
     res += chown(filename, statbuf->st_uid, statbuf->st_gid);  /* Copy ownership */
@@ -228,6 +229,20 @@ UTIL_STATIC U32 UTIL_isDirectory(const char* infilename)
     return 0;
 }
 
+UTIL_STATIC U32 UTIL_isLink(const char* infilename)
+{
+#if defined(_WIN32)
+    /* no symlinks on windows */
+    (void)infilename;
+#else
+    int r;
+    stat_t statbuf;
+    r = lstat(infilename, &statbuf);
+    if (!r && S_ISLNK(statbuf.st_mode)) return 1;
+#endif
+    return 0;
+}
+
 
 UTIL_STATIC U64 UTIL_getFileSize(const char* infilename)
 {
@@ -271,11 +286,14 @@ UTIL_STATIC void *UTIL_realloc(void *ptr, size_t size)
     return NULL;
 }
 
+static int g_utilDisplayLevel;
+#define UTIL_DISPLAY(...)         fprintf(stderr, __VA_ARGS__)
+#define UTIL_DISPLAYLEVEL(l, ...) { if (g_utilDisplayLevel>=l) { UTIL_DISPLAY(__VA_ARGS__); } }
 
 #ifdef _WIN32
 #  define UTIL_HAS_CREATEFILELIST
 
-UTIL_STATIC int UTIL_prepareFileList(const char *dirName, char** bufStart, size_t* pos, char** bufEnd)
+UTIL_STATIC int UTIL_prepareFileList(const char *dirName, char** bufStart, size_t* pos, char** bufEnd, int followLinks)
 {
     char* path;
     int dirLength, fnameLength, pathLength, nbFiles = 0;
@@ -311,7 +329,7 @@ UTIL_STATIC int UTIL_prepareFileList(const char *dirName, char** bufStart, size_
             if (strcmp (cFile.cFileName, "..") == 0 ||
                 strcmp (cFile.cFileName, ".") == 0) continue;
 
-            nbFiles += UTIL_prepareFileList(path, bufStart, pos, bufEnd);  /* Recursively call "UTIL_prepareFileList" with the new path. */
+            nbFiles += UTIL_prepareFileList(path, bufStart, pos, bufEnd, followLinks);  /* Recursively call "UTIL_prepareFileList" with the new path. */
             if (*bufStart == NULL) { free(path); FindClose(hFile); return 0; }
         }
         else if ((cFile.dwFileAttributes & FILE_ATTRIBUTE_NORMAL) || (cFile.dwFileAttributes & FILE_ATTRIBUTE_ARCHIVE) || (cFile.dwFileAttributes & FILE_ATTRIBUTE_COMPRESSED)) {
@@ -339,7 +357,7 @@ UTIL_STATIC int UTIL_prepareFileList(const char *dirName, char** bufStart, size_
 #  include <dirent.h>       /* opendir, readdir */
 #  include <string.h>       /* strerror, memcpy */
 
-UTIL_STATIC int UTIL_prepareFileList(const char *dirName, char** bufStart, size_t* pos, char** bufEnd)
+UTIL_STATIC int UTIL_prepareFileList(const char *dirName, char** bufStart, size_t* pos, char** bufEnd, int followLinks)
 {
     DIR *dir;
     struct dirent *entry;
@@ -360,13 +378,19 @@ UTIL_STATIC int UTIL_prepareFileList(const char *dirName, char** bufStart, size_
         path = (char*) malloc(dirLength + fnameLength + 2);
         if (!path) { closedir(dir); return 0; }
         memcpy(path, dirName, dirLength);
+
         path[dirLength] = '/';
         memcpy(path+dirLength+1, entry->d_name, fnameLength);
         pathLength = dirLength+1+fnameLength;
         path[pathLength] = 0;
 
+        if (!followLinks && UTIL_isLink(path)) {
+            UTIL_DISPLAYLEVEL(2, "Warning : %s is a symbolic link, ignoring\n", path);
+            continue;
+        }
+
         if (UTIL_isDirectory(path)) {
-            nbFiles += UTIL_prepareFileList(path, bufStart, pos, bufEnd);  /* Recursively call "UTIL_prepareFileList" with the new path. */
+            nbFiles += UTIL_prepareFileList(path, bufStart, pos, bufEnd, followLinks);  /* Recursively call "UTIL_prepareFileList" with the new path. */
             if (*bufStart == NULL) { free(path); closedir(dir); return 0; }
         } else {
             if (*bufStart + *pos + pathLength >= *bufEnd) {
@@ -396,7 +420,7 @@ UTIL_STATIC int UTIL_prepareFileList(const char *dirName, char** bufStart, size_
 
 #else
 
-UTIL_STATIC int UTIL_prepareFileList(const char *dirName, char** bufStart, size_t* pos, char** bufEnd)
+UTIL_STATIC int UTIL_prepareFileList(const char *dirName, char** bufStart, size_t* pos, char** bufEnd, int followLinks)
 {
     (void)bufStart; (void)bufEnd; (void)pos;
     fprintf(stderr, "Directory %s ignored (compiled without _WIN32 or _POSIX_C_SOURCE)\n", dirName);
@@ -411,7 +435,7 @@ UTIL_STATIC int UTIL_prepareFileList(const char *dirName, char** bufStart, size_
  * After finishing usage of the list the structures should be freed with UTIL_freeFileList(params: return value, allocatedBuffer)
  * In case of error UTIL_createFileList returns NULL and UTIL_freeFileList should not be called.
  */
-UTIL_STATIC const char** UTIL_createFileList(const char **inputNames, unsigned inputNamesNb, char** allocatedBuffer, unsigned* allocatedNamesNb)
+UTIL_STATIC const char** UTIL_createFileList(const char **inputNames, unsigned inputNamesNb, char** allocatedBuffer, unsigned* allocatedNamesNb, int followLinks)
 {
     size_t pos;
     unsigned i, nbFiles;
@@ -436,7 +460,7 @@ UTIL_STATIC const char** UTIL_createFileList(const char **inputNames, unsigned i
                 nbFiles++;
             }
         } else {
-            nbFiles += UTIL_prepareFileList(inputNames[i], &buf, &pos, &bufend);
+            nbFiles += UTIL_prepareFileList(inputNames[i], &buf, &pos, &bufend, followLinks);
             if (buf == NULL) return NULL;
     }   }
 
@@ -465,6 +489,201 @@ UTIL_STATIC void UTIL_freeFileList(const char** filenameTable, char* allocatedBu
     if (filenameTable) free((void*)filenameTable);
 }
 
+/* count the number of physical cores */
+#if defined(_WIN32) || defined(WIN32)
+
+#include <windows.h>
+
+typedef BOOL(WINAPI* LPFN_GLPI)(PSYSTEM_LOGICAL_PROCESSOR_INFORMATION, PDWORD);
+
+UTIL_STATIC int UTIL_countPhysicalCores(void)
+{
+    static int numPhysicalCores = 0;
+    if (numPhysicalCores != 0) return numPhysicalCores;
+
+    {   LPFN_GLPI glpi;
+        BOOL done = FALSE;
+        PSYSTEM_LOGICAL_PROCESSOR_INFORMATION buffer = NULL;
+        PSYSTEM_LOGICAL_PROCESSOR_INFORMATION ptr = NULL;
+        DWORD returnLength = 0;
+        size_t byteOffset = 0;
+
+        glpi = (LPFN_GLPI)GetProcAddress(GetModuleHandle(TEXT("kernel32")),
+                                         "GetLogicalProcessorInformation");
+
+        if (glpi == NULL) {
+            goto failed;
+        }
+
+        while(!done) {
+            DWORD rc = glpi(buffer, &returnLength);
+            if (FALSE == rc) {
+                if (GetLastError() == ERROR_INSUFFICIENT_BUFFER) {
+                    if (buffer)
+                        free(buffer);
+                    buffer = (PSYSTEM_LOGICAL_PROCESSOR_INFORMATION)malloc(returnLength);
+
+                    if (buffer == NULL) {
+                        perror("zstd");
+                        exit(1);
+                    }
+                } else {
+                    /* some other error */
+                    goto failed;
+                }
+            } else {
+                done = TRUE;
+            }
+        }
+
+        ptr = buffer;
+
+        while (byteOffset + sizeof(SYSTEM_LOGICAL_PROCESSOR_INFORMATION) <= returnLength) {
+
+            if (ptr->Relationship == RelationProcessorCore) {
+                numPhysicalCores++;
+            }
+
+            ptr++;
+            byteOffset += sizeof(SYSTEM_LOGICAL_PROCESSOR_INFORMATION);
+        }
+
+        free(buffer);
+
+        return numPhysicalCores;
+    }
+
+failed:
+    /* try to fall back on GetSystemInfo */
+    {   SYSTEM_INFO sysinfo;
+        GetSystemInfo(&sysinfo);
+        numPhysicalCores = sysinfo.dwNumberOfProcessors;
+        if (numPhysicalCores == 0) numPhysicalCores = 1; /* just in case */
+    }
+    return numPhysicalCores;
+}
+
+#elif defined(__APPLE__)
+
+#include <sys/sysctl.h>
+
+/* Use apple-provided syscall
+ * see: man 3 sysctl */
+UTIL_STATIC int UTIL_countPhysicalCores(void)
+{
+    static S32 numPhysicalCores = 0; /* apple specifies int32_t */
+    if (numPhysicalCores != 0) return numPhysicalCores;
+
+    {   size_t size = sizeof(S32);
+        int const ret = sysctlbyname("hw.physicalcpu", &numPhysicalCores, &size, NULL, 0);
+        if (ret != 0) {
+            if (errno == ENOENT) {
+                /* entry not present, fall back on 1 */
+                numPhysicalCores = 1;
+            } else {
+                perror("zstd: can't get number of physical cpus");
+                exit(1);
+            }
+        }
+
+        return numPhysicalCores;
+    }
+}
+
+#elif defined(__linux__)
+
+/* parse /proc/cpuinfo
+ * siblings / cpu cores should give hyperthreading ratio
+ * otherwise fall back on sysconf */
+UTIL_STATIC int UTIL_countPhysicalCores(void)
+{
+    static int numPhysicalCores = 0;
+
+    if (numPhysicalCores != 0) return numPhysicalCores;
+
+    numPhysicalCores = (int)sysconf(_SC_NPROCESSORS_ONLN);
+    if (numPhysicalCores == -1) {
+        /* value not queryable, fall back on 1 */
+        return numPhysicalCores = 1;
+    }
+
+    /* try to determine if there's hyperthreading */
+    {   FILE* const cpuinfo = fopen("/proc/cpuinfo", "r");
+        size_t const BUF_SIZE = 80;
+        char buff[BUF_SIZE];
+
+        int siblings = 0;
+        int cpu_cores = 0;
+        int ratio = 1;
+
+        if (cpuinfo == NULL) {
+            /* fall back on the sysconf value */
+            return numPhysicalCores;
+        }
+
+        /* assume the cpu cores/siblings values will be constant across all
+         * present processors */
+        while (!feof(cpuinfo)) {
+            if (fgets(buff, BUF_SIZE, cpuinfo) != NULL) {
+                if (strncmp(buff, "siblings", 8) == 0) {
+                    const char* const sep = strchr(buff, ':');
+                    if (*sep == '\0') {
+                        /* formatting was broken? */
+                        goto failed;
+                    }
+
+                    siblings = atoi(sep + 1);
+                }
+                if (strncmp(buff, "cpu cores", 9) == 0) {
+                    const char* const sep = strchr(buff, ':');
+                    if (*sep == '\0') {
+                        /* formatting was broken? */
+                        goto failed;
+                    }
+
+                    cpu_cores = atoi(sep + 1);
+                }
+            } else if (ferror(cpuinfo)) {
+                /* fall back on the sysconf value */
+                goto failed;
+            }
+        }
+        if (siblings && cpu_cores) {
+            ratio = siblings / cpu_cores;
+        }
+failed:
+        fclose(cpuinfo);
+        return numPhysicalCores = numPhysicalCores / ratio;
+    }
+}
+
+#elif defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__)
+
+/* Use apple-provided syscall
+ * see: man 3 sysctl */
+UTIL_STATIC int UTIL_countPhysicalCores(void)
+{
+    static int numPhysicalCores = 0;
+
+    if (numPhysicalCores != 0) return numPhysicalCores;
+
+    numPhysicalCores = (int)sysconf(_SC_NPROCESSORS_ONLN);
+    if (numPhysicalCores == -1) {
+        /* value not queryable, fall back on 1 */
+        return numPhysicalCores = 1;
+    }
+    return numPhysicalCores;
+}
+
+#else
+
+UTIL_STATIC int UTIL_countPhysicalCores(void)
+{
+    /* assume 1 */
+    return 1;
+}
+
+#endif
 
 #if defined (__cplusplus)
 }

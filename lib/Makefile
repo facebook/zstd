@@ -22,7 +22,7 @@ VERSION?= $(LIBVER)
 
 CPPFLAGS+= -I. -I./common -DXXH_NAMESPACE=ZSTD_
 CFLAGS  ?= -O3
-DEBUGFLAGS = -g -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow \
+DEBUGFLAGS = -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow \
            -Wstrict-aliasing=1 -Wswitch-enum -Wdeclaration-after-statement \
            -Wstrict-prototypes -Wundef -Wpointer-arith -Wformat-security
 CFLAGS  += $(DEBUGFLAGS) $(MOREFLAGS)
@@ -31,12 +31,15 @@ FLAGS    = $(CPPFLAGS) $(CFLAGS)
 
 ZSTD_FILES := $(wildcard common/*.c compress/*.c decompress/*.c dictBuilder/*.c deprecated/*.c)
 
-ifeq ($(ZSTD_LEGACY_SUPPORT), 0)
-CPPFLAGS  += -DZSTD_LEGACY_SUPPORT=0
-else
-CPPFLAGS  += -I./legacy -DZSTD_LEGACY_SUPPORT=1
-ZSTD_FILES+= $(wildcard legacy/*.c)
+ZSTD_LEGACY_SUPPORT ?= 4
+
+ifneq ($(ZSTD_LEGACY_SUPPORT), 0)
+ifeq ($(shell test $(ZSTD_LEGACY_SUPPORT) -lt 8; echo $$?), 0)
+	ZSTD_FILES += $(shell ls legacy/*.c | grep 'v0[$(ZSTD_LEGACY_SUPPORT)-7]')
 endif
+	CPPFLAGS += -I./legacy
+endif
+CPPFLAGS  += -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT)
 
 ZSTD_OBJ   := $(patsubst %.c,%.o,$(ZSTD_FILES))
 
@@ -68,6 +71,9 @@ libzstd.a: $(ZSTD_OBJ)
 	@echo compiling static library
 	@$(AR) $(ARFLAGS) $@ $^
 
+libzstd.a-mt: CPPFLAGS += -DZSTD_MULTHREAD
+libzstd.a-mt: libzstd.a
+
 $(LIBZSTD): LDFLAGS += -shared -fPIC -fvisibility=hidden
 $(LIBZSTD): $(ZSTD_FILES)
 	@echo compiling dynamic library $(LIBVER)
@@ -83,10 +89,17 @@ endif
 
 libzstd : $(LIBZSTD)
 
+libzstd-mt : CPPFLAGS += -DZSTD_MULTITHREAD
+libzstd-mt : libzstd
+
 lib: libzstd.a libzstd
 
-lib-release: DEBUGFLAGS :=
+lib-mt: CPPFLAGS += -DZSTD_MULTITHREAD
+lib-mt: lib
+
+lib-release lib-release-mt: DEBUGFLAGS :=
 lib-release: lib
+lib-release-mt: lib-mt
 
 clean:
 	@$(RM) -r *.dSYM   # Mac OS-X specific

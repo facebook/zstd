@@ -882,8 +882,8 @@ MEM_STATIC size_t BIT_readBitsFast(BIT_DStream_t* bitD, U32 nbBits)
 
 MEM_STATIC BIT_DStream_status BIT_reloadDStream(BIT_DStream_t* bitD)
 {
-	if (bitD->bitsConsumed > (sizeof(bitD->bitContainer)*8))  /* should never happen */
-		return BIT_DStream_overflow;
+    if (bitD->bitsConsumed > (sizeof(bitD->bitContainer)*8))  /* should never happen */
+        return BIT_DStream_overflow;
 
     if (bitD->ptr >= bitD->start + sizeof(bitD->bitContainer))
     {
@@ -1451,8 +1451,8 @@ static size_t FSE_readNCount (short* normalizedCounter, unsigned* maxSVPtr, unsi
                 else
                 {
                     bitCount -= (int)(8 * (iend - 4 - ip));
-					ip = iend - 4;
-				}
+                    ip = iend - 4;
+                }
                 bitStream = MEM_readLE32(ip) >> (bitCount & 31);
             }
         }

@@ -26,9 +26,12 @@ PYTHON ?= python3
 TESTARTEFACT := versionsTest namespaceTest
 
 
-CPPFLAGS+= -I$(ZSTDDIR) -I$(ZSTDDIR)/common -I$(ZSTDDIR)/compress -I$(ZSTDDIR)/dictBuilder -I$(ZSTDDIR)/deprecated -I$(PRGDIR)
+DEBUGFLAGS=-g -DZSTD_DEBUG=1
+CPPFLAGS+= -I$(ZSTDDIR) -I$(ZSTDDIR)/common -I$(ZSTDDIR)/compress \
+           -I$(ZSTDDIR)/dictBuilder -I$(ZSTDDIR)/deprecated -I$(PRGDIR) \
+           $(DEBUGFLAG)
 CFLAGS  ?= -O3
-CFLAGS  += -g -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow \
+CFLAGS  += -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow \
            -Wstrict-aliasing=1 -Wswitch-enum -Wdeclaration-after-statement \
            -Wstrict-prototypes -Wundef -Wformat-security
 CFLAGS  += $(MOREFLAGS)
@@ -60,22 +63,22 @@ endif
 MULTITHREAD = $(MULTITHREAD_CPP) $(MULTITHREAD_LD)
 
 VOID = /dev/null
-ZSTREAM_TESTTIME = -T2mn
+ZSTREAM_TESTTIME ?= -T2mn
 FUZZERTEST ?= -T5mn
 ZSTDRTTEST = --test-large-data
-DECODECORPUS_TESTTIME = -T30
+DECODECORPUS_TESTTIME ?= -T30
 
-.PHONY: default all all32 dll clean test test32 test-all namespaceTest versionsTest
+.PHONY: default all all32 allnothread dll clean test test32 test-all namespaceTest versionsTest
 
 default: fullbench
 
-all: fullbench fuzzer zstreamtest paramgrill datagen zbufftest
+all: fullbench fuzzer zstreamtest paramgrill datagen zbufftest decodecorpus
 
 all32: fullbench32 fuzzer32 zstreamtest32 zbufftest32
 
+allnothread: fullbench fuzzer paramgrill datagen zbufftest decodecorpus
+
 dll: fuzzer-dll zstreamtest-dll zbufftest-dll
-
-
 
 zstd:
 	$(MAKE) -C $(PRGDIR) $@
@@ -154,6 +157,7 @@ zstreamtest-dll : $(ZSTDDIR)/common/xxhash.c $(PRGDIR)/datagen.c zstreamtest.c
 	$(MAKE) -C $(ZSTDDIR) libzstd
 	$(CC) $(CPPFLAGS) $(CFLAGS) $^ $(LDFLAGS) -o $@$(EXT)
 
+paramgrill : DEBUGFLAG =
 paramgrill : $(ZSTD_FILES) $(PRGDIR)/datagen.c paramgrill.c
 	$(CC)      $(FLAGS) $^ -lm -o $@$(EXT)
 
@@ -169,7 +173,7 @@ longmatch  : $(ZSTD_FILES) longmatch.c
 invalidDictionaries  : $(ZSTD_FILES) invalidDictionaries.c
 	$(CC)      $(FLAGS) $^ -o $@$(EXT)
 
-legacy : CFLAGS+= -DZSTD_LEGACY_SUPPORT=1
+legacy : CFLAGS+= -DZSTD_LEGACY_SUPPORT=4
 legacy : CPPFLAGS+= -I$(ZSTDDIR)/legacy
 legacy : $(ZSTD_FILES) $(wildcard $(ZSTDDIR)/legacy/*.c) legacy.c
 	$(CC)      $(FLAGS) $^ -o $@$(EXT)
@@ -257,6 +261,8 @@ zstd-playTests: datagen
 shortest: ZSTDRTTEST=
 shortest: test-zstd
 
+fuzztest: test-fuzzer test-zstream test-decodecorpus
+
 test: test-zstd test-fullbench test-fuzzer test-zstream test-invalidDictionaries test-legacy test-decodecorpus
 ifeq ($(QEMU_SYS),)
 test: test-pool
@@ -300,10 +306,10 @@ test-fullbench32: fullbench32 datagen
 	$(QEMU_SYS) ./fullbench32 -i1 -P0
 
 test-fuzzer: fuzzer
-	$(QEMU_SYS) ./fuzzer $(FUZZERTEST)
+	$(QEMU_SYS) ./fuzzer $(FUZZERTEST) $(FUZZER_FLAGS)
 
 test-fuzzer32: fuzzer32
-	$(QEMU_SYS) ./fuzzer32 $(FUZZERTEST)
+	$(QEMU_SYS) ./fuzzer32 $(FUZZERTEST) $(FUZZER_FLAGS)
 
 test-zbuff: zbufftest
 	$(QEMU_SYS) ./zbufftest $(ZSTREAM_TESTTIME)
@@ -312,10 +318,10 @@ test-zbuff32: zbufftest32
 	$(QEMU_SYS) ./zbufftest32 $(ZSTREAM_TESTTIME)
 
 test-zstream: zstreamtest
-	$(QEMU_SYS) ./zstreamtest $(ZSTREAM_TESTTIME)
+	$(QEMU_SYS) ./zstreamtest $(ZSTREAM_TESTTIME) $(FUZZER_FLAGS)
 
 test-zstream32: zstreamtest32
-	$(QEMU_SYS) ./zstreamtest32 $(ZSTREAM_TESTTIME)
+	$(QEMU_SYS) ./zstreamtest32 $(ZSTREAM_TESTTIME) $(FUZZER_FLAGS)
 
 test-longmatch: longmatch
 	$(QEMU_SYS) ./longmatch

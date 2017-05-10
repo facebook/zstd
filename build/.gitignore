@@ -17,4 +17,4 @@ VS2013/bin/
 VS2015/bin/
 
 # CMake
-cmake/
+cmake/build/

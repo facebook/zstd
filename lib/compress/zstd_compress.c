@@ -3136,16 +3136,8 @@ ZSTD_CStream* ZSTD_createCStream(void)
 
 ZSTD_CStream* ZSTD_createCStream_advanced(ZSTD_customMem customMem)
 {
-    ZSTD_CStream* zcs;
-
-    if (!customMem.customAlloc && !customMem.customFree) customMem = defaultCustomMem;
-    if (!customMem.customAlloc || !customMem.customFree) return NULL;
-
-    zcs = (ZSTD_CStream*)ZSTD_malloc(sizeof(ZSTD_CStream), customMem);
-    if (zcs==NULL) return NULL;
-    memset(zcs, 0, sizeof(ZSTD_CStream));
-    memcpy(&zcs->customMem, &customMem, sizeof(ZSTD_customMem));
-    return zcs;
+    /* CStream and CCtx are now same object */
+    return ZSTD_createCCtx_advanced(customMem);
 }
 
 size_t ZSTD_freeCStream(ZSTD_CStream* zcs)

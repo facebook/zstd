@@ -3498,9 +3498,9 @@ static const ZSTD_compressionParameters ZSTD_defaultCParameters[4][ZSTD_MAX_CLEV
     { 23, 21, 22,  4,  5, 24, ZSTD_btopt   },  /* level 17 */
     { 23, 22, 22,  5,  4, 32, ZSTD_btopt   },  /* level 18 */
     { 23, 23, 22,  6,  3, 48, ZSTD_btopt   },  /* level 19 */
-    { 25, 25, 23,  7,  3, 64, ZSTD_btultra  },  /* level 20 */
-    { 26, 26, 23,  7,  3,256, ZSTD_btultra  },  /* level 21 */
-    { 27, 27, 25,  9,  3,512, ZSTD_btultra  },  /* level 22 */
+    { 25, 25, 23,  7,  3, 64, ZSTD_btultra },  /* level 20 */
+    { 26, 26, 23,  7,  3,256, ZSTD_btultra },  /* level 21 */
+    { 27, 27, 25,  9,  3,512, ZSTD_btultra },  /* level 22 */
 },
 {   /* for srcSize <= 256 KB */
     /* W,  C,  H,  S,  L,  T, strat */
@@ -3524,9 +3524,9 @@ static const ZSTD_compressionParameters ZSTD_defaultCParameters[4][ZSTD_MAX_CLEV
     { 18, 19, 18,  8,  3, 64, ZSTD_btopt   },  /* level 17.*/
     { 18, 19, 18,  9,  3,128, ZSTD_btopt   },  /* level 18.*/
     { 18, 19, 18, 10,  3,256, ZSTD_btopt   },  /* level 19.*/
-    { 18, 19, 18, 11,  3,512, ZSTD_btultra  },  /* level 20.*/
-    { 18, 19, 18, 12,  3,512, ZSTD_btultra  },  /* level 21.*/
-    { 18, 19, 18, 13,  3,512, ZSTD_btultra  },  /* level 22.*/
+    { 18, 19, 18, 11,  3,512, ZSTD_btultra },  /* level 20.*/
+    { 18, 19, 18, 12,  3,512, ZSTD_btultra },  /* level 21.*/
+    { 18, 19, 18, 13,  3,512, ZSTD_btultra },  /* level 22.*/
 },
 {   /* for srcSize <= 128 KB */
     /* W,  C,  H,  S,  L,  T, strat */
@@ -3550,9 +3550,9 @@ static const ZSTD_compressionParameters ZSTD_defaultCParameters[4][ZSTD_MAX_CLEV
     { 17, 18, 17,  7,  3, 64, ZSTD_btopt   },  /* level 17.*/
     { 17, 18, 17,  7,  3,256, ZSTD_btopt   },  /* level 18.*/
     { 17, 18, 17,  8,  3,256, ZSTD_btopt   },  /* level 19.*/
-    { 17, 18, 17,  9,  3,256, ZSTD_btultra  },  /* level 20.*/
-    { 17, 18, 17, 10,  3,256, ZSTD_btultra  },  /* level 21.*/
-    { 17, 18, 17, 11,  3,512, ZSTD_btultra  },  /* level 22.*/
+    { 17, 18, 17,  9,  3,256, ZSTD_btultra },  /* level 20.*/
+    { 17, 18, 17, 10,  3,256, ZSTD_btultra },  /* level 21.*/
+    { 17, 18, 17, 11,  3,512, ZSTD_btultra },  /* level 22.*/
 },
 {   /* for srcSize <= 16 KB */
     /* W,  C,  H,  S,  L,  T, strat */
@@ -3576,9 +3576,9 @@ static const ZSTD_compressionParameters ZSTD_defaultCParameters[4][ZSTD_MAX_CLEV
     { 14, 15, 15,  6,  3,128, ZSTD_btopt   },  /* level 17.*/
     { 14, 15, 15,  6,  3,256, ZSTD_btopt   },  /* level 18.*/
     { 14, 15, 15,  7,  3,256, ZSTD_btopt   },  /* level 19.*/
-    { 14, 15, 15,  8,  3,256, ZSTD_btultra  },  /* level 20.*/
-    { 14, 15, 15,  9,  3,256, ZSTD_btultra  },  /* level 21.*/
-    { 14, 15, 15, 10,  3,256, ZSTD_btultra  },  /* level 22.*/
+    { 14, 15, 15,  8,  3,256, ZSTD_btultra },  /* level 20.*/
+    { 14, 15, 15,  9,  3,256, ZSTD_btultra },  /* level 21.*/
+    { 14, 15, 15, 10,  3,256, ZSTD_btultra },  /* level 22.*/
 },
 };
 

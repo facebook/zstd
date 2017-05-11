@@ -298,7 +298,7 @@ size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inB
 
 <a name="Chapter11"></a><h2>Advanced types</h2><pre></pre>
 
-<pre><b>typedef enum { ZSTD_fast, ZSTD_dfast, ZSTD_greedy, ZSTD_lazy, ZSTD_lazy2, ZSTD_btlazy2, ZSTD_btopt, ZSTD_btopt2 } ZSTD_strategy;   </b>/* from faster to stronger */<b>
+<pre><b>typedef enum { ZSTD_fast, ZSTD_dfast, ZSTD_greedy, ZSTD_lazy, ZSTD_lazy2, ZSTD_btlazy2, ZSTD_btopt, ZSTD_btultra } ZSTD_strategy;   </b>/* from faster to stronger */<b>
 </b></pre><BR>
 <pre><b>typedef struct {
     unsigned windowLog;      </b>/**< largest match distance : larger == more compression, more memory needed during decompression */<b>

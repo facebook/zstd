@@ -3365,7 +3365,7 @@ static size_t ZSTD_compressStream_generic(ZSTD_CStream* zcs,
                 zcs->outBuffFlushedSize = 0;
                 zcs->streamStage = zcss_flush;   /* pass-through to flush stage */
             }
-
+	    /* fall-through */
         case zcss_flush:
             DEBUGLOG(5, "flush stage \n");
             {   size_t const toFlush = zcs->outBuffContentSize - zcs->outBuffFlushedSize;

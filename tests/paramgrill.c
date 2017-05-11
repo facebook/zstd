@@ -307,14 +307,14 @@ static size_t BMK_benchParam(BMK_result_t* resultPtr,
 }
 
 
-const char* g_stratName[] = { "ZSTD_fast   ",
-                              "ZSTD_dfast  ",
-                              "ZSTD_greedy ",
-                              "ZSTD_lazy   ",
-                              "ZSTD_lazy2  ",
-                              "ZSTD_btlazy2",
-                              "ZSTD_btopt  ",
-                              "ZSTD_btopt2 "};
+const char* g_stratName[] = { "ZSTD_fast    ",
+                              "ZSTD_dfast   ",
+                              "ZSTD_greedy  ",
+                              "ZSTD_lazy    ",
+                              "ZSTD_lazy2   ",
+                              "ZSTD_btlazy2 ",
+                              "ZSTD_btopt   ",
+                              "ZSTD_btultra "};
 
 static void BMK_printWinner(FILE* f, U32 cLevel, BMK_result_t result, ZSTD_compressionParameters params, size_t srcSize)
 {
@@ -454,7 +454,7 @@ static ZSTD_compressionParameters* sanitizeParams(ZSTD_compressionParameters par
         g_params.chainLog = 0, g_params.searchLog = 0;
     if (params.strategy == ZSTD_dfast)
         g_params.searchLog = 0;
-    if (params.strategy != ZSTD_btopt && params.strategy != ZSTD_btopt2)
+    if (params.strategy != ZSTD_btopt && params.strategy != ZSTD_btultra)
         g_params.targetLength = 0;
     return &g_params;
 }
@@ -558,7 +558,7 @@ static ZSTD_compressionParameters randomParams(void)
         p.windowLog  = FUZ_rand(&g_rand) % (ZSTD_WINDOWLOG_MAX+1 - ZSTD_WINDOWLOG_MIN) + ZSTD_WINDOWLOG_MIN;
         p.searchLength=FUZ_rand(&g_rand) % (ZSTD_SEARCHLENGTH_MAX+1 - ZSTD_SEARCHLENGTH_MIN) + ZSTD_SEARCHLENGTH_MIN;
         p.targetLength=FUZ_rand(&g_rand) % (ZSTD_TARGETLENGTH_MAX+1 - ZSTD_TARGETLENGTH_MIN) + ZSTD_TARGETLENGTH_MIN;
-        p.strategy   = (ZSTD_strategy) (FUZ_rand(&g_rand) % (ZSTD_btopt2 +1));
+        p.strategy   = (ZSTD_strategy) (FUZ_rand(&g_rand) % (ZSTD_btultra +1));
         validated = !ZSTD_isError(ZSTD_checkCParams(p));
     }
     return p;

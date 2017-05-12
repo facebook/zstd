@@ -574,13 +574,13 @@ size_t ZSTD_estimateDDictSize(size_t dictSize);
 size_t ZSTD_CDict_setParameter(ZSTD_CDict* cdict, ZSTD_cParameter param, unsigned value);  </b>/* Not ready yet ! */<b>
 size_t ZSTD_CDict_loadDictionary(ZSTD_CDict* cdict, const void* dict, size_t dictSize);    </b>/* Not ready yet ! */<b>
 </b><p>  Create a CDict object which is still mutable after creation.
-  It allows usage of ZSTD_CDict_setParameter().
+  It's the only one case allowing usage of ZSTD_CDict_setParameter().
   Once all compression parameters are selected,
   it's possible to load the target dictionary, using ZSTD_CDict_loadDictionary().
-  Dictionary content will be copied internally, except if ZSTD_p_refDictContent is used.
+  Dictionary content will be copied internally (except if ZSTD_p_refDictContent is set).
   After loading the dictionary, no more change is possible.
   The only remaining operation is to free CDict object.
-  Note : An unfinished CDict behaves the same as a NULL CDict when referenced into a CCtx.
+  Note : An unfinished CDict behaves the same as a NULL CDict if referenced into a CCtx.
  
 </p></pre><BR>
 

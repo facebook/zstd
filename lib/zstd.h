@@ -36,9 +36,10 @@ extern "C" {
 /*******************************************************************************************************
   Introduction
 
-  zstd, short for Zstandard, is a fast lossless compression algorithm, targeting real-time compression scenarios
-  at zlib-level and better compression ratios. The zstd compression library provides in-memory compression and
-  decompression functions. The library supports compression levels from 1 up to ZSTD_maxCLevel() which is 22.
+  zstd, short for Zstandard, is a fast lossless compression algorithm,
+  targeting real-time compression scenarios at zlib-level and better compression ratios.
+  The zstd compression library provides in-memory compression and decompression functions.
+  The library supports compression levels from 1 up to ZSTD_maxCLevel() which is currently 22.
   Levels >= 20, labeled `--ultra`, should be used with caution, as they require more memory.
   Compression can be done in:
     - a single step (described as Simple API)
@@ -89,21 +90,17 @@ ZSTDLIB_API size_t ZSTD_decompress( void* dst, size_t dstCapacity,
                               const void* src, size_t compressedSize);
 
 /*! ZSTD_getDecompressedSize() :
- *  NOTE: This function is planned to be obsolete, in favour of ZSTD_getFrameContentSize.
- *  ZSTD_getFrameContentSize functions the same way, returning the decompressed size of a single
- *  frame, but distinguishes empty frames from frames with an unknown size, or errors.
- *
- *  Additionally, ZSTD_findDecompressedSize can be used instead.  It can handle multiple
- *  concatenated frames in one buffer, and so is more general.
- *  As a result however, it requires more computation and entire frames to be passed to it,
- *  as opposed to ZSTD_getFrameContentSize which requires only a single frame's header.
+ *  NOTE: This function is planned to be obsolete, in favor of ZSTD_getFrameContentSize().
+ *  ZSTD_getFrameContentSize() works the same way,
+ *  returning the decompressed size of a single frame,
+ *  but distinguishes empty frames from frames with an unknown size, or errors.
  *
  *  'src' is the start of a zstd compressed frame.
  *  @return : content size to be decompressed, as a 64-bits value _if known_, 0 otherwise.
- *   note 1 : decompressed size is an optional field, that may not be present, especially in streaming mode.
+ *   note 1 : decompressed size is an optional field, it may not be present, typically in streaming mode.
  *            When `return==0`, data to decompress could be any size.
  *            In which case, it's necessary to use streaming mode to decompress data.
- *            Optionally, application can still use ZSTD_decompress() while relying on implied limits.
+ *            Optionally, application can use ZSTD_decompress() while relying on implied limits.
  *            (For example, data may be necessarily cut into blocks <= 16 KB).
  *   note 2 : decompressed size is always present when compression is done with ZSTD_compress()
  *   note 3 : decompressed size can be very large (64-bits value),
@@ -137,20 +134,26 @@ ZSTDLIB_API size_t     ZSTD_freeCCtx(ZSTD_CCtx* cctx);
 
 /*! ZSTD_compressCCtx() :
  *  Same as ZSTD_compress(), requires an allocated ZSTD_CCtx (see ZSTD_createCCtx()). */
-ZSTDLIB_API size_t ZSTD_compressCCtx(ZSTD_CCtx* ctx, void* dst, size_t dstCapacity, const void* src, size_t srcSize, int compressionLevel);
+ZSTDLIB_API size_t ZSTD_compressCCtx(ZSTD_CCtx* ctx,
+                                     void* dst, size_t dstCapacity,
+                               const void* src, size_t srcSize,
+                                     int compressionLevel);
 
 /*= Decompression context
  *  When decompressing many times,
- *  it is recommended to allocate a context just once, and re-use it for each successive compression operation.
+ *  it is recommended to allocate a context only once,
+ *  and re-use it for each successive compression operation.
  *  This will make workload friendlier for system's memory.
- *  Use one context per thread for parallel execution in multi-threaded environments. */
+ *  Use one context per thread for parallel execution. */
 typedef struct ZSTD_DCtx_s ZSTD_DCtx;
 ZSTDLIB_API ZSTD_DCtx* ZSTD_createDCtx(void);
 ZSTDLIB_API size_t     ZSTD_freeDCtx(ZSTD_DCtx* dctx);
 
 /*! ZSTD_decompressDCtx() :
- *  Same as ZSTD_decompress(), requires an allocated ZSTD_DCtx (see ZSTD_createDCtx()). */
-ZSTDLIB_API size_t ZSTD_decompressDCtx(ZSTD_DCtx* ctx, void* dst, size_t dstCapacity, const void* src, size_t srcSize);
+ *  Same as ZSTD_decompress(), requires an allocated ZSTD_DCtx (see ZSTD_createDCtx()) */
+ZSTDLIB_API size_t ZSTD_decompressDCtx(ZSTD_DCtx* ctx,
+                                       void* dst, size_t dstCapacity,
+                                 const void* src, size_t srcSize);
 
 
 /**************************
@@ -187,7 +190,8 @@ typedef struct ZSTD_CDict_s ZSTD_CDict;
 *   ZSTD_createCDict() will create a digested dictionary, ready to start future compression operations without startup delay.
 *   ZSTD_CDict can be created once and used by multiple threads concurrently, as its usage is read-only.
 *   `dictBuffer` can be released after ZSTD_CDict creation, as its content is copied within CDict */
-ZSTDLIB_API ZSTD_CDict* ZSTD_createCDict(const void* dictBuffer, size_t dictSize, int compressionLevel);
+ZSTDLIB_API ZSTD_CDict* ZSTD_createCDict(const void* dictBuffer, size_t dictSize,
+                                         int compressionLevel);
 
 /*! ZSTD_freeCDict() :
 *   Function frees memory allocated by ZSTD_createCDict(). */
@@ -375,7 +379,8 @@ static const size_t ZSTD_skippableHeaderSize = 8;  /* magic number + skippable f
 
 
 /*--- Advanced types ---*/
-typedef enum { ZSTD_fast, ZSTD_dfast, ZSTD_greedy, ZSTD_lazy, ZSTD_lazy2, ZSTD_btlazy2, ZSTD_btopt, ZSTD_btultra } ZSTD_strategy;   /* from faster to stronger */
+typedef enum { ZSTD_fast=1, ZSTD_dfast, ZSTD_greedy, ZSTD_lazy, ZSTD_lazy2,
+               ZSTD_btlazy2, ZSTD_btopt, ZSTD_btultra } ZSTD_strategy;   /* from faster to stronger */
 
 typedef struct {
     unsigned windowLog;      /**< largest match distance : larger == more compression, more memory needed during decompression */
@@ -623,7 +628,8 @@ typedef enum {
     ZSTD_p_compressionStrategy, /* See ZSTD_strategy enum definition.
                               * Cast selected strategy as unsigned for ZSTD_CCtx_setParameter() compatibility.
                               * The higher the value of selected strategy, the more complex it is,
-                              * resulting in stronger and slower compression. */
+                              * resulting in stronger and slower compression.
+                              * Special: value 0 means "do not change strategy". */
 #if 0
     ZSTD_p_windowSize,       /* Maximum allowed back-reference distance.
                               * Can be set to a more precise value than windowLog.

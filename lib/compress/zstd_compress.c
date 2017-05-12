@@ -273,7 +273,8 @@ size_t ZSTD_CCtx_setParameter(ZSTD_CCtx* cctx, ZSTD_cParameter param, unsigned v
             return 0;
 
     case ZSTD_p_compressionStrategy :
-            if (value > (unsigned)ZSTD_btultra) return ERROR(compressionParameter_unsupported);
+            if (value == 0) return 0;  /* special value : 0 means "don't change anything" */
+            CLAMPCHECK(value, (unsigned)ZSTD_fast, (unsigned)ZSTD_btultra);
             ZSTD_cLevelToCParams(cctx);
             cctx->params.cParams.strategy = (ZSTD_strategy)value;
             return 0;
@@ -2575,14 +2576,17 @@ typedef void (*ZSTD_blockCompressor) (ZSTD_CCtx* ctx, const void* src, size_t sr
 
 static ZSTD_blockCompressor ZSTD_selectBlockCompressor(ZSTD_strategy strat, int extDict)
 {
-    static const ZSTD_blockCompressor blockCompressor[2][8] = {
-        { ZSTD_compressBlock_fast, ZSTD_compressBlock_doubleFast, ZSTD_compressBlock_greedy,
+    static const ZSTD_blockCompressor blockCompressor[2][(unsigned)ZSTD_btultra+1] = {
+        { NULL,
+          ZSTD_compressBlock_fast, ZSTD_compressBlock_doubleFast, ZSTD_compressBlock_greedy,
           ZSTD_compressBlock_lazy, ZSTD_compressBlock_lazy2, ZSTD_compressBlock_btlazy2,
           ZSTD_compressBlock_btopt, ZSTD_compressBlock_btultra },
-        { ZSTD_compressBlock_fast_extDict, ZSTD_compressBlock_doubleFast_extDict, ZSTD_compressBlock_greedy_extDict,
+        { NULL,
+          ZSTD_compressBlock_fast_extDict, ZSTD_compressBlock_doubleFast_extDict, ZSTD_compressBlock_greedy_extDict,
           ZSTD_compressBlock_lazy_extDict,ZSTD_compressBlock_lazy2_extDict, ZSTD_compressBlock_btlazy2_extDict,
           ZSTD_compressBlock_btopt_extDict, ZSTD_compressBlock_btultra_extDict }
     };
+    ZSTD_STATIC_ASSERT((unsigned)ZSTD_fast == 1);
 
     return blockCompressor[extDict][(U32)strat];
 }

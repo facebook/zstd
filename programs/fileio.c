@@ -369,7 +369,7 @@ static cRess_t FIO_createCResources(const char* dictFileName, int cLevel,
             if (comprParams->searchLog) params.cParams.searchLog = comprParams->searchLog;
             if (comprParams->searchLength) params.cParams.searchLength = comprParams->searchLength;
             if (comprParams->targetLength) params.cParams.targetLength = comprParams->targetLength;
-            if (comprParams->strategy) params.cParams.strategy = (ZSTD_strategy)(comprParams->strategy - 1);   /* 0 means : do not change */
+            if (comprParams->strategy) params.cParams.strategy = (ZSTD_strategy) comprParams->strategy;
 #ifdef ZSTD_MULTITHREAD
             {   size_t const errorCode = ZSTDMT_initCStream_advanced(ress.cctx, dictBuffer, dictBuffSize, params, srcSize);
                 if (ZSTD_isError(errorCode)) EXM_THROW(33, "Error initializing CStream : %s", ZSTD_getErrorName(errorCode));

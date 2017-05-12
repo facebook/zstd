@@ -177,6 +177,7 @@ size_t ZSTD_sizeof_CCtx(const ZSTD_CCtx* cctx)
            + cctx->outBuffSize + cctx->inBuffSize;
 }
 
+/* older variant; will be deprecated */
 size_t ZSTD_setCCtxParameter(ZSTD_CCtx* cctx, ZSTD_CCtxParameter param, unsigned value)
 {
     switch(param)
@@ -3078,7 +3079,7 @@ size_t ZSTD_compressBegin_usingCDict_advanced(
     ZSTD_CCtx* const cctx, const ZSTD_CDict* const cdict,
     ZSTD_frameParameters const fParams, unsigned long long const pledgedSrcSize)
 {
-    if (cdict==NULL) return ERROR(GENERIC);  /* does not support NULL cdict */
+    if (cdict==NULL) return ERROR(dictionary_wrong);  /* does not support NULL cdict */
     DEBUGLOG(5, "ZSTD_compressBegin_usingCDict_advanced : dictIDFlag == %u \n", !fParams.noDictIDFlag);
     if (cdict->dictContentSize)
         CHECK_F( ZSTD_copyCCtx_internal(cctx, cdict->refContext, fParams, pledgedSrcSize) )
@@ -3231,7 +3232,7 @@ static size_t ZSTD_initCStream_stage2(ZSTD_CStream* zcs,
  * same as ZSTD_initCStream_usingCDict(), with control over frame parameters */
 size_t ZSTD_initCStream_usingCDict_advanced(ZSTD_CStream* zcs, const ZSTD_CDict* cdict, unsigned long long pledgedSrcSize, ZSTD_frameParameters fParams)
 {
-    if (!cdict) return ERROR(GENERIC);   /* cannot handle NULL cdict (does not know what to do) */
+    if (!cdict) return ERROR(dictionary_wrong);  /* cannot handle NULL cdict (does not know what to do) */
     {   ZSTD_parameters params = ZSTD_getParamsFromCDict(cdict);
         params.fParams = fParams;
         zcs->cdict = cdict;
@@ -3242,7 +3243,7 @@ size_t ZSTD_initCStream_usingCDict_advanced(ZSTD_CStream* zcs, const ZSTD_CDict*
 /* note : cdict must outlive compression session */
 size_t ZSTD_initCStream_usingCDict(ZSTD_CStream* zcs, const ZSTD_CDict* cdict)
 {
-    ZSTD_frameParameters const fParams = { 0 /* content */, 0 /* checksum */, 0 /* noDictID */ };
+    ZSTD_frameParameters const fParams = { 0 /* contentSize */, 0 /* checksum */, 0 /* hideDictID */ };
     return ZSTD_initCStream_usingCDict_advanced(zcs, cdict, 0, fParams);
 }
 

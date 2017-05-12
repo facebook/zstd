@@ -474,7 +474,9 @@ size_t ZSTD_estimateDDictSize(size_t dictSize);
 <h3>New experimental advanced parameters API</h3><pre></pre><b><pre></pre></b><BR>
 <pre><b>typedef enum {
     </b>/* compression parameters */<b>
-    ZSTD_p_compressionLevel=100, </b>/* Update all compression parameters according to pre-defined cLevel table (default:3) */<b>
+    ZSTD_p_compressionLevel=100, </b>/* Update all compression parameters according to pre-defined cLevel table<b>
+                              * Default level is 3.
+                              * Special: value 0 means "do not change cLevel". */
     ZSTD_p_windowLog,        </b>/* Maximum allowed back-reference distance, expressed as power of 2.<b>
                               * Must be clamped between ZSTD_WINDOWLOG_MIN and ZSTD_WINDOWLOG_MAX.
                               * default value : set through compressionLevel */
@@ -491,7 +493,7 @@ size_t ZSTD_estimateDDictSize(size_t dictSize);
                               * More attempts result in better and slower compression.
                               * This parameter is useless when using "fast" and "dFast" strategies */
     ZSTD_p_minMatchLength,   </b>/* Minimum match size (except for repeat-matches, which limit is hard-coded).<b>
-                              * Larger values make compression and decompression faster, but decrease compression ratio
+                              * Larger values make faster compression and decompression, but decrease ratio.
                               * Must be clamped between ZSTD_SEARCHLENGTH_MIN and ZSTD_SEARCHLENGTH_MAX.
                               * Note that currently, for all strategies < btopt, effective minimum is 4.
                               * Note that currently, for all strategies > fast, effective maximum is 6. */
@@ -499,7 +501,7 @@ size_t ZSTD_estimateDDictSize(size_t dictSize);
                               * Length of Match considered "good enough" to stop search.
                               * Larger values make compression stronger and slower. */
     ZSTD_p_compressionStrategy, </b>/* See ZSTD_strategy enum definition.<b>
-                              * Cast selected strategy into unsigned for ZSTD_CCtx_setParameter() compatibility.
+                              * Cast selected strategy as unsigned for ZSTD_CCtx_setParameter() compatibility.
                               * The higher the value of selected strategy, the more complex it is,
                               * resulting in stronger and slower compression */
 #if 0
@@ -622,7 +624,8 @@ size_t ZSTD_CDict_loadDictionary(ZSTD_CDict* cdict, const void* dict, size_t dic
  
 </p></pre><BR>
 
-<pre><b>size_t ZSTD_CCtx_reset(ZSTD_CCtx* cctx);
+<pre><b>// Not ready yet !!!
+size_t ZSTD_CCtx_reset(ZSTD_CCtx* cctx);
 </b><p>  Return a CCtx to clean state.
   Useful after an error, or to interrupt an ongoing compression job and start a new one.
   It's allowed to change compression parameters after a reset.

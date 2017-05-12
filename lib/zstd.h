@@ -588,7 +588,9 @@ ZSTDLIB_API size_t ZSTD_compress_usingCDict_advanced(ZSTD_CCtx* cctx,
 
 typedef enum {
     /* compression parameters */
-    ZSTD_p_compressionLevel=100, /* Update all compression parameters according to pre-defined cLevel table (default:3) */
+    ZSTD_p_compressionLevel=100, /* Update all compression parameters according to pre-defined cLevel table
+                              * Default level is 3.
+                              * Special: value 0 means "do not change cLevel". */
     ZSTD_p_windowLog,        /* Maximum allowed back-reference distance, expressed as power of 2.
                               * Must be clamped between ZSTD_WINDOWLOG_MIN and ZSTD_WINDOWLOG_MAX.
                               * default value : set through compressionLevel */
@@ -605,7 +607,7 @@ typedef enum {
                               * More attempts result in better and slower compression.
                               * This parameter is useless when using "fast" and "dFast" strategies */
     ZSTD_p_minMatchLength,   /* Minimum match size (except for repeat-matches, which limit is hard-coded).
-                              * Larger values make compression and decompression faster, but decrease compression ratio
+                              * Larger values make faster compression and decompression, but decrease ratio.
                               * Must be clamped between ZSTD_SEARCHLENGTH_MIN and ZSTD_SEARCHLENGTH_MAX.
                               * Note that currently, for all strategies < btopt, effective minimum is 4.
                               * Note that currently, for all strategies > fast, effective maximum is 6. */
@@ -613,7 +615,7 @@ typedef enum {
                               * Length of Match considered "good enough" to stop search.
                               * Larger values make compression stronger and slower. */
     ZSTD_p_compressionStrategy, /* See ZSTD_strategy enum definition.
-                              * Cast selected strategy into unsigned for ZSTD_CCtx_setParameter() compatibility.
+                              * Cast selected strategy as unsigned for ZSTD_CCtx_setParameter() compatibility.
                               * The higher the value of selected strategy, the more complex it is,
                               * resulting in stronger and slower compression */
 #if 0

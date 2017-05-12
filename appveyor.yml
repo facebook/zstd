@@ -88,12 +88,10 @@
       ( if [%COMPILER%]==[gcc] if [%ARTIFACT%]==[true]
           lib\dll\example\build_package.bat &&
           make -C programs DEBUGFLAGS= clean zstd &&
-          cp programs\zstd.exe zstd_%PLATFORM%.exe &&
-          appveyor PushArtifact zstd_%PLATFORM%.exe &&
-          cp programs\zstd.exe bin\zstd.exe &&
-          make -C programs DEBUGFLAGS= clean zstdmt &&
-          cp programs\zstd.exe bin\zstdmt.exe &&
-          cd bin\ && 7z a -tzip zstd-win-release-%PLATFORM%.zip * &&
+          cd programs\ && 7z a -tzip -mx9 zstd-win-binary-%PLATFORM%.zip zstd.exe &&
+          appveyor PushArtifact zstd-win-binary-%PLATFORM%.zip &&
+          cp zstd.exe ..\bin\zstd.exe &&
+          cd ..\bin\ && 7z a -tzip -mx9 zstd-win-release-%PLATFORM%.zip * &&
           appveyor PushArtifact zstd-win-release-%PLATFORM%.zip
       )
     )

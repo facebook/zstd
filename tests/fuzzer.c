@@ -339,8 +339,8 @@ static int basicUnitTests(U32 seed, double compressibility)
             CHECKPLUS(r, ZSTD_compressEnd(ctxDuplicated, compressedBuffer, ZSTD_compressBound(testSize),
                                           (const char*)CNBuffer + dictSize, testSize),
                       cSize = r);
-            {   ZSTD_frameParams fp;
-                if (ZSTD_getFrameParams(&fp, compressedBuffer, cSize)) goto _output_error;
+            {   ZSTD_frameHeader fp;
+                if (ZSTD_getFrameHeader(&fp, compressedBuffer, cSize)) goto _output_error;
                 if ((fp.frameContentSize != testSize) && (fp.frameContentSize != 0)) goto _output_error;
         }   }
         DISPLAYLEVEL(4, "OK \n");
@@ -403,6 +403,12 @@ static int basicUnitTests(U32 seed, double compressibility)
                                        dictBuffer, dictSize),
                   if (r != CNBuffSize) goto _output_error);
         DISPLAYLEVEL(4, "OK \n");
+
+        DISPLAYLEVEL(4, "test%3i : estimate CDict size : ", testNb++);
+        {   ZSTD_compressionParameters const cParams = ZSTD_getCParams(1, CNBuffSize, dictSize);
+            size_t const estimatedSize = ZSTD_estimateCDictSize(cParams, dictSize);
+            DISPLAYLEVEL(4, "OK : %u \n", (U32)estimatedSize);
+        }
 
         DISPLAYLEVEL(4, "test%3i : compress with preprocessed dictionary : ", testNb++);
         {   ZSTD_compressionParameters const cParams = ZSTD_getCParams(1, CNBuffSize, dictSize);
@@ -856,8 +862,8 @@ static int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, U32 const maxD
         }
 
         /* frame header decompression test */
-        {   ZSTD_frameParams dParams;
-            size_t const check = ZSTD_getFrameParams(&dParams, cBuffer, cSize);
+        {   ZSTD_frameHeader dParams;
+            size_t const check = ZSTD_getFrameHeader(&dParams, cBuffer, cSize);
             CHECK(ZSTD_isError(check), "Frame Parameters extraction failed");
             CHECK(dParams.frameContentSize != sampleSize, "Frame content size incorrect");
         }

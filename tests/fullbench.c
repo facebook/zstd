@@ -297,10 +297,10 @@ static size_t benchMem(const void* src, size_t srcSize, U32 benchNb)
     case 31:  /* ZSTD_decodeLiteralsBlock */
         if (g_zdc==NULL) g_zdc = ZSTD_createDCtx();
         {   blockProperties_t bp;
-            ZSTD_frameParams zfp;
+            ZSTD_frameHeader zfp;
             size_t frameHeaderSize, skippedSize;
             g_cSize = ZSTD_compress(dstBuff, dstBuffSize, src, srcSize, 1);
-            frameHeaderSize = ZSTD_getFrameParams(&zfp, dstBuff, ZSTD_frameHeaderSize_min);
+            frameHeaderSize = ZSTD_getFrameHeader(&zfp, dstBuff, ZSTD_frameHeaderSize_min);
             if (frameHeaderSize==0) frameHeaderSize = ZSTD_frameHeaderSize_min;
             ZSTD_getcBlockSize(dstBuff+frameHeaderSize, dstBuffSize, &bp);  /* Get 1st block type */
             if (bp.blockType != bt_compressed) {
@@ -315,13 +315,13 @@ static size_t benchMem(const void* src, size_t srcSize, U32 benchNb)
     case 32:   /* ZSTD_decodeSeqHeaders */
         if (g_zdc==NULL) g_zdc = ZSTD_createDCtx();
         {   blockProperties_t bp;
-            ZSTD_frameParams zfp;
+            ZSTD_frameHeader zfp;
             const BYTE* ip = dstBuff;
             const BYTE* iend;
             size_t frameHeaderSize, cBlockSize;
             ZSTD_compress(dstBuff, dstBuffSize, src, srcSize, 1);   /* it would be better to use direct block compression here */
             g_cSize = ZSTD_compress(dstBuff, dstBuffSize, src, srcSize, 1);
-            frameHeaderSize = ZSTD_getFrameParams(&zfp, dstBuff, ZSTD_frameHeaderSize_min);
+            frameHeaderSize = ZSTD_getFrameHeader(&zfp, dstBuff, ZSTD_frameHeaderSize_min);
             if (frameHeaderSize==0) frameHeaderSize = ZSTD_frameHeaderSize_min;
             ip += frameHeaderSize;   /* Skip frame Header */
             cBlockSize = ZSTD_getcBlockSize(ip, dstBuffSize, &bp);   /* Get 1st block type */

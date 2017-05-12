@@ -202,15 +202,23 @@ size_t ZSTD_setCCtxParameter(ZSTD_CCtx* cctx, ZSTD_CCtxParameter param, unsigned
     }
 }
 
+
+static void ZSTD_cLevelToCParams(ZSTD_CCtx* cctx)
+{
+    if (cctx->compressionLevel==0)  return;
+    cctx->params.cParams = ZSTD_getCParams(cctx->compressionLevel,
+                                           cctx->frameContentSize, 0);
+    cctx->compressionLevel = 0;
+}
+
 size_t ZSTD_CCtx_setParameter(ZSTD_CCtx* cctx, ZSTD_cParameter param, unsigned value)
 {
 #   define CLAMPCHECK(val,min,max) { if ((val<min) | (val>max)) return ERROR(compressionParameter_unsupported); }
-#   define LOADCPARAMS(cParams) \
-            if (cctx->compressionLevel!=0)  {               \
-                cParams = ZSTD_getCParams(                  \
-                    cctx->compressionLevel,                 \
-                    cctx->frameContentSize, 0);   /* dictSize unknown at this stage */ \
-                cctx->compressionLevel = 0;                 \
+#   define LOADCPARAMS(cctx)                                        \
+            if (cctx->compressionLevel!=0)  {                          \
+                cctx->params.cParams = ZSTD_getCParams( cctx->compressionLevel,     \
+                                           cctx->frameContentSize, 0); \
+                cctx->compressionLevel = 0;                            \
             }
 
 
@@ -223,44 +231,50 @@ size_t ZSTD_CCtx_setParameter(ZSTD_CCtx* cctx, ZSTD_cParameter param, unsigned v
             return 0;
 
     case ZSTD_p_windowLog :
+            if (value == 0) return 0;  /* special value : 0 means "don't change anything" */
             CLAMPCHECK(value, ZSTD_WINDOWLOG_MIN, ZSTD_WINDOWLOG_MAX);
-            LOADCPARAMS(cctx->params.cParams);
+            ZSTD_cLevelToCParams(cctx);
             cctx->params.cParams.windowLog = value;
             return 0;
 
     case ZSTD_p_hashLog :
+            if (value == 0) return 0;  /* special value : 0 means "don't change anything" */
             CLAMPCHECK(value, ZSTD_HASHLOG_MIN, ZSTD_HASHLOG_MAX);
-            LOADCPARAMS(cctx->params.cParams);
+            ZSTD_cLevelToCParams(cctx);
             cctx->params.cParams.hashLog = value;
             return 0;
 
     case ZSTD_p_chainLog :
+            if (value == 0) return 0;  /* special value : 0 means "don't change anything" */
             CLAMPCHECK(value, ZSTD_CHAINLOG_MIN, ZSTD_CHAINLOG_MAX);
-            LOADCPARAMS(cctx->params.cParams);
+            ZSTD_cLevelToCParams(cctx);
             cctx->params.cParams.chainLog = value;
             return 0;
 
     case ZSTD_p_searchLog :
+            if (value == 0) return 0;  /* special value : 0 means "don't change anything" */
             CLAMPCHECK(value, ZSTD_SEARCHLOG_MIN, ZSTD_SEARCHLOG_MAX);
-            LOADCPARAMS(cctx->params.cParams);
+            ZSTD_cLevelToCParams(cctx);
             cctx->params.cParams.searchLog = value;
             return 0;
 
     case ZSTD_p_minMatchLength :
+            if (value == 0) return 0;  /* special value : 0 means "don't change anything" */
             CLAMPCHECK(value, ZSTD_SEARCHLENGTH_MIN, ZSTD_SEARCHLENGTH_MAX);
-            LOADCPARAMS(cctx->params.cParams);
+            ZSTD_cLevelToCParams(cctx);
             cctx->params.cParams.searchLength = value;
             return 0;
 
     case ZSTD_p_targetLength :
+            if (value == 0) return 0;  /* special value : 0 means "don't change anything" */
             CLAMPCHECK(value, ZSTD_TARGETLENGTH_MIN, ZSTD_TARGETLENGTH_MAX);
-            LOADCPARAMS(cctx->params.cParams);
+            ZSTD_cLevelToCParams(cctx);
             cctx->params.cParams.targetLength = value;
             return 0;
 
     case ZSTD_p_compressionStrategy :
             if (value > (unsigned)ZSTD_btultra) return ERROR(compressionParameter_unsupported);
-            LOADCPARAMS(cctx->params.cParams);
+            ZSTD_cLevelToCParams(cctx);
             cctx->params.cParams.strategy = (ZSTD_strategy)value;
             return 0;
 
@@ -325,7 +339,6 @@ ZSTDLIB_API size_t ZSTD_CCtx_refCDict(ZSTD_CCtx* cctx, const ZSTD_CDict* cdict)
     @return : 0, or an error code if one value is beyond authorized range */
 size_t ZSTD_checkCParams(ZSTD_compressionParameters cParams)
 {
-#   define CLAMPCHECK(val,min,max) { if ((val<min) | (val>max)) return ERROR(compressionParameter_unsupported); }
     CLAMPCHECK(cParams.windowLog, ZSTD_WINDOWLOG_MIN, ZSTD_WINDOWLOG_MAX);
     CLAMPCHECK(cParams.chainLog, ZSTD_CHAINLOG_MIN, ZSTD_CHAINLOG_MAX);
     CLAMPCHECK(cParams.hashLog, ZSTD_HASHLOG_MIN, ZSTD_HASHLOG_MAX);

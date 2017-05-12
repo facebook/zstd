@@ -593,31 +593,37 @@ typedef enum {
                               * Special: value 0 means "do not change cLevel". */
     ZSTD_p_windowLog,        /* Maximum allowed back-reference distance, expressed as power of 2.
                               * Must be clamped between ZSTD_WINDOWLOG_MIN and ZSTD_WINDOWLOG_MAX.
-                              * default value : set through compressionLevel */
+                              * default value : set through compressionLevel.
+                              * Special: value 0 means "do not change windowLog". */
     ZSTD_p_hashLog,          /* Size of the probe table, as a power of 2.
                               * Resulting table size is (1 << (hashLog+2)).
                               * Must be clamped between ZSTD_HASHLOG_MIN and ZSTD_HASHLOG_MAX.
                               * Larger tables improve compression ratio of strategies <= dFast,
-                              * and improve speed of strategies > dFast */
+                              * and improve speed of strategies > dFast.
+                              * Special: value 0 means "do not change hashLog". */
     ZSTD_p_chainLog,         /* Size of the full-search table, as a power of 2.
                               * Resulting table size is (1 << (chainLog+2)).
                               * Larger tables result in better and slower compression.
-                              * This parameter is useless when using "fast" strategy */
+                              * This parameter is useless when using "fast" strategy.
+                              * Special: value 0 means "do not change chainLog". */
     ZSTD_p_searchLog,        /* Number of search attempts, as a power of 2.
                               * More attempts result in better and slower compression.
-                              * This parameter is useless when using "fast" and "dFast" strategies */
+                              * This parameter is useless when using "fast" and "dFast" strategies.
+                              * Special: value 0 means "do not change searchLog". */
     ZSTD_p_minMatchLength,   /* Minimum match size (except for repeat-matches, which limit is hard-coded).
                               * Larger values make faster compression and decompression, but decrease ratio.
                               * Must be clamped between ZSTD_SEARCHLENGTH_MIN and ZSTD_SEARCHLENGTH_MAX.
                               * Note that currently, for all strategies < btopt, effective minimum is 4.
-                              * Note that currently, for all strategies > fast, effective maximum is 6. */
+                              * Note that currently, for all strategies > fast, effective maximum is 6.
+                              * Special: value 0 means "do not change minMatchLength". */
     ZSTD_p_targetLength,     /* Only useful for strategies >= btopt.
                               * Length of Match considered "good enough" to stop search.
-                              * Larger values make compression stronger and slower. */
+                              * Larger values make compression stronger and slower.
+                              * Special: value 0 means "do not change targetLength". */
     ZSTD_p_compressionStrategy, /* See ZSTD_strategy enum definition.
                               * Cast selected strategy as unsigned for ZSTD_CCtx_setParameter() compatibility.
                               * The higher the value of selected strategy, the more complex it is,
-                              * resulting in stronger and slower compression */
+                              * resulting in stronger and slower compression. */
 #if 0
     ZSTD_p_windowSize,       /* Maximum allowed back-reference distance.
                               * Can be set to a more precise value than windowLog.

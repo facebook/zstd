@@ -688,13 +688,13 @@ ZSTDLIB_API size_t ZSTD_CCtx_refPrefix(ZSTD_CCtx* cctx, const void* prefix, size
 
 /*! ZSTD_CDict_createEmpty() :
  *  Create a CDict object which is still mutable after creation.
- *  It allows usage of ZSTD_CDict_setParameter().
+ *  It's the only one case allowing usage of ZSTD_CDict_setParameter().
  *  Once all compression parameters are selected,
  *  it's possible to load the target dictionary, using ZSTD_CDict_loadDictionary().
- *  Dictionary content will be copied internally, except if ZSTD_p_refDictContent is used.
+ *  Dictionary content will be copied internally (except if ZSTD_p_refDictContent is set).
  *  After loading the dictionary, no more change is possible.
  *  The only remaining operation is to free CDict object.
- *  Note : An unfinished CDict behaves the same as a NULL CDict when referenced into a CCtx.
+ *  Note : An unfinished CDict behaves the same as a NULL CDict if referenced into a CCtx.
  */
 ZSTDLIB_API ZSTD_CDict* ZSTD_CDict_createEmpty(void);   /* Not ready yet ! */
 ZSTDLIB_API size_t ZSTD_CDict_setParameter(ZSTD_CDict* cdict, ZSTD_cParameter param, unsigned value);  /* Not ready yet ! */
@@ -714,7 +714,6 @@ ZSTDLIB_API size_t ZSTD_CDict_loadDictionary(ZSTD_CDict* cdict, const void* dict
 ZSTDLIB_API size_t ZSTD_CCtx_refCDict(ZSTD_CCtx* cctx, const ZSTD_CDict* cdict);  /* Not ready yet ! */
 
 
-#if 0
 // Target advanced compression API
 // Not ready yet !!!
 
@@ -749,9 +748,9 @@ ZSTDLIB_API size_t ZSTD_compress_generic (ZSTD_CCtx* cctx,
  *  It's allowed to change compression parameters after a reset.
  *  Any internal data not yet flushed is cancelled.
  */
+// Not ready yet !!!
 ZSTDLIB_API size_t ZSTD_CCtx_reset(ZSTD_CCtx* cctx);
 
-#endif
 
 
 /*--- Advanced decompression functions ---*/

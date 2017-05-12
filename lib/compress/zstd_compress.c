@@ -2468,14 +2468,14 @@ static size_t ZSTD_compressBlock_internal(ZSTD_CCtx* zc, void* dst, size_t dstCa
 }
 
 
-/*! ZSTD_compress_generic() :
+/*! ZSTD_compress_frameChunk() :
 *   Compress a chunk of data into one or multiple blocks.
 *   All blocks will be terminated, all input will be consumed.
 *   Function will issue an error if there is not enough `dstCapacity` to hold the compressed content.
 *   Frame is supposed already started (header already produced)
 *   @return : compressed size, or an error code
 */
-static size_t ZSTD_compress_generic (ZSTD_CCtx* cctx,
+static size_t ZSTD_compress_frameChunk (ZSTD_CCtx* cctx,
                                      void* dst, size_t dstCapacity,
                                const void* src, size_t srcSize,
                                      U32 lastFrameChunk)
@@ -2630,7 +2630,7 @@ static size_t ZSTD_compressContinue_internal (ZSTD_CCtx* cctx,
 
     if (srcSize) {
         size_t const cSize = frame ?
-                             ZSTD_compress_generic (cctx, dst, dstCapacity, src, srcSize, lastFrameChunk) :
+                             ZSTD_compress_frameChunk (cctx, dst, dstCapacity, src, srcSize, lastFrameChunk) :
                              ZSTD_compressBlock_internal (cctx, dst, dstCapacity, src, srcSize);
         if (ZSTD_isError(cSize)) return cSize;
         cctx->consumedSrcSize += srcSize;

@@ -84,7 +84,7 @@ Training works if there is some correlation in a family of small data samples. T
 Hence, deploying one dictionary per type of data will provide the greatest benefits.
 Dictionary gains are mostly effective in the first few KB. Then, the compression algorithm will gradually use previously decoded content to better compress the rest of the file.
 
-#### Dictionary compression How To :
+#### Dictionary compression example:
 
 1) Create the dictionary
 

@@ -46,7 +46,7 @@ clean:
         simple_compression simple_decompression \
         dictionary_compression dictionary_decompression \
         streaming_compression streaming_decompression \
-		multiple_streaming_compression
+        multiple_streaming_compression
 	@echo Cleaning completed
 
 test: all

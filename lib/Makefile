@@ -24,7 +24,9 @@ CPPFLAGS+= -I. -I./common -DXXH_NAMESPACE=ZSTD_
 CFLAGS  ?= -O3
 DEBUGFLAGS = -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow \
            -Wstrict-aliasing=1 -Wswitch-enum -Wdeclaration-after-statement \
-           -Wstrict-prototypes -Wundef -Wpointer-arith -Wformat-security
+           -Wstrict-prototypes -Wundef -Wpointer-arith -Wformat-security \
+           -Wvla -Wformat=2 -Winit-self -Wfloat-equal -Wwrite-strings \
+           -Wbad-function-cast -Wredundant-decls
 CFLAGS  += $(DEBUGFLAGS) $(MOREFLAGS)
 FLAGS    = $(CPPFLAGS) $(CFLAGS)
 

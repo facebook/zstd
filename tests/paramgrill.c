@@ -38,7 +38,7 @@
 #define GB *(1ULL<<30)
 
 #define NBLOOPS    2
-#define TIMELOOP   (2 * CLOCKS_PER_SEC)
+#define TIMELOOP  (2 * CLOCKS_PER_SEC)
 
 #define NB_LEVELS_TRACKED 30
 
@@ -47,7 +47,7 @@ static const size_t maxMemory = (sizeof(size_t)==4)  ?  (2 GB - 64 MB) : (size_t
 #define COMPRESSIBILITY_DEFAULT 0.50
 static const size_t sampleSize = 10000000;
 
-static const U32 g_grillDuration_s = 60000;   /* about 16 hours */
+static const double g_grillDuration_s = 90000;   /* about 24 hours */
 static const clock_t g_maxParamTime = 15 * CLOCKS_PER_SEC;
 static const clock_t g_maxVariationTime = 60 * CLOCKS_PER_SEC;
 static const int g_maxNbVariations = 64;
@@ -87,9 +87,11 @@ void BMK_SetNbIterations(int nbLoops)
 *  Private functions
 *********************************************************/
 
-static clock_t BMK_clockSpan(clock_t cStart) { return clock() - cStart; }  /* works even if overflow ; max span ~ 30 mn */
+/* works even if overflow ; max span ~ 30 mn */
+static clock_t BMK_clockSpan(clock_t cStart) { return clock() - cStart; }
 
-static U32 BMK_timeSpan(time_t tStart) { return (U32)difftime(time(NULL), tStart); }  /* accuracy in seconds only, span can be multiple years */
+/* accuracy in seconds only, span can be multiple years */
+static double BMK_timeSpan(time_t tStart) { return difftime(time(NULL), tStart); }
 
 
 static size_t BMK_findMaxMem(U64 requiredMem)

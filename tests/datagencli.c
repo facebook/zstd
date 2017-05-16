@@ -48,7 +48,8 @@ static int usage(const char* programName)
     DISPLAY( "Arguments :\n");
     DISPLAY( " -g#    : generate # data (default:%i)\n", SIZE_DEFAULT);
     DISPLAY( " -s#    : Select seed (default:%i)\n", SEED_DEFAULT);
-    DISPLAY( " -P#    : Select compressibility in %% (default:%i%%)\n", COMPRESSIBILITY_DEFAULT);
+    DISPLAY( " -P#    : Select compressibility in %% (default:%i%%)\n",
+                        COMPRESSIBILITY_DEFAULT);
     DISPLAY( " -h     : display help and exit\n");
     return 0;
 }
@@ -56,7 +57,7 @@ static int usage(const char* programName)
 
 int main(int argc, const char** argv)
 {
-    double proba = (double)COMPRESSIBILITY_DEFAULT / 100;
+    unsigned probaU32 = COMPRESSIBILITY_DEFAULT;
     double litProba = 0.0;
     U64 size = SIZE_DEFAULT;
     U32 seed = SEED_DEFAULT;
@@ -94,11 +95,10 @@ int main(int argc, const char** argv)
                     break;
                 case 'P':
                     argument++;
-                    proba=0.0;
+                    probaU32 = 0;
                     while ((*argument>='0') && (*argument<='9'))
-                        proba *= 10, proba += *argument++ - '0';
-                    if (proba>100.) proba=100.;
-                    proba /= 100.;
+                        probaU32 *= 10, probaU32 += *argument++ - '0';
+                    if (probaU32>100) probaU32 = 100;
                     break;
                 case 'L':   /* hidden argument : Literal distribution probability */
                     argument++;
@@ -117,11 +117,12 @@ int main(int argc, const char** argv)
                 }
     }   }   }   /* for(argNb=1; argNb<argc; argNb++) */
 
-    DISPLAYLEVEL(4, "Data Generator \n");
+    DISPLAYLEVEL(4, "Compressible data Generator \n");
+    if (probaU32!=COMPRESSIBILITY_DEFAULT)
+        DISPLAYLEVEL(3, "Compressibility : %i%%\n", probaU32);
     DISPLAYLEVEL(3, "Seed = %u \n", seed);
-    if (proba!=COMPRESSIBILITY_DEFAULT) DISPLAYLEVEL(3, "Compressibility : %i%%\n", (U32)(proba*100));
 
-    RDG_genStdout(size, proba, litProba, seed);
+    RDG_genStdout(size, (double)probaU32/100, litProba, seed);
     DISPLAYLEVEL(1, "\n");
 
     return 0;

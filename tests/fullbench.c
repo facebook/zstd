@@ -363,9 +363,8 @@ static size_t benchMem(const void* src, size_t srcSize, U32 benchNb)
         for (loopNb = 1; loopNb <= g_nbIterations; loopNb++) {
             clock_t const timeLoop = TIMELOOP_S * CLOCKS_PER_SEC;
             clock_t clockStart;
-            U32 nbRounds;
             size_t benchResult=0;
-            double averageTime;
+            U32 nbRounds;
 
             clockStart = clock();
             while (clock() == clockStart);
@@ -374,10 +373,11 @@ static size_t benchMem(const void* src, size_t srcSize, U32 benchNb)
                 benchResult = benchFunction(dstBuff, dstBuffSize, buff2, src, srcSize);
                 if (ZSTD_isError(benchResult)) { DISPLAY("ERROR ! %s() => %s !! \n", benchName, ZSTD_getErrorName(benchResult)); exit(1); }
             }
-            averageTime = (((double)BMK_clockSpan(clockStart)) / CLOCKS_PER_SEC) / nbRounds;
-            if (averageTime < bestTime) bestTime = averageTime;
-            DISPLAY("%2i- %-30.30s : %7.1f MB/s  (%9u)\r", loopNb, benchName, (double)srcSize / (1 MB) / bestTime, (U32)benchResult);
-    }   }
+            {   clock_t const clockTotal = BMK_clockSpan(clockStart);
+                double const averageTime = (double)clockTotal / CLOCKS_PER_SEC / nbRounds;
+                if (averageTime < bestTime) bestTime = averageTime;
+                DISPLAY("%2i- %-30.30s : %7.1f MB/s  (%9u)\r", loopNb, benchName, (double)srcSize / (1 MB) / bestTime, (U32)benchResult);
+    }   }   }
     DISPLAY("%2u\n", benchNb);
 
 _cleanOut:

@@ -1,5 +1,5 @@
 
-IFLAGS := -isystem include/ -I ../include/ -I ../lib/zstd/ -isystem googletest/googletest/include
+IFLAGS := -isystem include/ -I ../include/ -I ../lib/zstd/ -isystem googletest/googletest/include -isystem ../../../lib/common/
 
 SOURCES := $(wildcard ../lib/zstd/*.c)
 OBJECTS := $(patsubst %.c,%.o,$(SOURCES))
@@ -13,6 +13,15 @@ CPPFLAGS += $(IFLAGS)
 	$(AR) $(ARFLAGS) $@ $^
 
 UserlandTest: UserlandTest.cpp ../lib/zstd/libzstd.a
+	$(CXX) $(CXXFLAGS) $(CFLAGS) $(CPPFLAGS) $^ googletest/build/googlemock/gtest/libgtest.a googletest/build/googlemock/gtest/libgtest_main.a -o $@
+
+../lib/zstd/xxhash.o: ../lib/zstd/xxhash.c
+	$(CC) $(CFLAGS) -c $^ -o $@
+
+../../../lib/common/xxhash.o: ../../../lib/common/xxhash.c
+	$(CC) $(CFLAGS) -c $^ -o $@
+
+XXHashUserlandTest: XXHashUserlandTest.cpp ../lib/xxhash.o ../../../lib/common/xxhash.o
 	$(CXX) $(CXXFLAGS) $(CFLAGS) $(CPPFLAGS) $^ googletest/build/googlemock/gtest/libgtest.a googletest/build/googlemock/gtest/libgtest_main.a -o $@
 
 # Install googletest

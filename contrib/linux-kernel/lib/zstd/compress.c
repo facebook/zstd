@@ -73,7 +73,7 @@ struct ZSTD_CCtx_s {
 	size_t workSpaceSize;
 	size_t blockSize;
 	U64 frameContentSize;
-	XXH64_state_t xxhState;
+	struct xxh64_state xxhState;
 	ZSTD_customMem customMem;
 
 	seqStore_t seqStore;    /* sequences storage ptrs */
@@ -221,7 +221,7 @@ static size_t ZSTD_continueCCtx(ZSTD_CCtx* cctx, ZSTD_parameters params, U64 fra
 	cctx->loadedDictEnd = 0;
 	{ int i; for (i=0; i<ZSTD_REP_NUM; i++) cctx->rep[i] = repStartValue[i]; }
 	cctx->seqStore.litLengthSum = 0;  /* force reset of btopt stats */
-	XXH64_reset(&cctx->xxhState, 0);
+	xxh64_reset(&cctx->xxhState, 0);
 	return 0;
 }
 
@@ -264,7 +264,7 @@ static size_t ZSTD_resetCCtx_advanced (ZSTD_CCtx* zc,
 		}   }
 
 		if (crp!=ZSTDcrp_noMemset) memset(zc->workSpace, 0, tableSpace);   /* reset tables only */
-		XXH64_reset(&zc->xxhState, 0);
+		xxh64_reset(&zc->xxhState, 0);
 		zc->hashLog3 = hashLog3;
 		zc->hashTable = (U32*)(zc->workSpace);
 		zc->chainTable = zc->hashTable + hSize;
@@ -2322,7 +2322,7 @@ static size_t ZSTD_compress_generic (ZSTD_CCtx* cctx,
 	U32 const maxDist = 1 << cctx->params.cParams.windowLog;
 
 	if (cctx->params.fParams.checksumFlag && srcSize)
-		XXH64_update(&cctx->xxhState, src, srcSize);
+		xxh64_update(&cctx->xxhState, src, srcSize);
 
 	while (remaining) {
 		U32 const lastBlock = lastFrameChunk & (blockSize >= remaining);
@@ -2720,7 +2720,7 @@ static size_t ZSTD_writeEpilogue(ZSTD_CCtx* cctx, void* dst, size_t dstCapacity)
 	}
 
 	if (cctx->params.fParams.checksumFlag) {
-		U32 const checksum = (U32) XXH64_digest(&cctx->xxhState);
+		U32 const checksum = (U32) xxh64_digest(&cctx->xxhState);
 		if (dstCapacity<4) return ERROR(dstSize_tooSmall);
 		MEM_writeLE32(op, checksum);
 		op += 4;

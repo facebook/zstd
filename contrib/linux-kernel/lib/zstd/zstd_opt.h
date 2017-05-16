@@ -127,7 +127,7 @@ FORCE_INLINE U32 ZSTD_getLiteralPrice(seqStore_t* ssPtr, U32 litLength, const BY
 	}
 
 	/* literal Length */
-	{   const BYTE LL_deltaCode = 19;
+	{	const BYTE LL_deltaCode = 19;
 		const BYTE llCode = (litLength>63) ? (BYTE)ZSTD_highbit32(litLength) + LL_deltaCode : LL_Code[litLength];
 		price += LL_bits[llCode] + ssPtr->log2litLengthSum - ZSTD_highbit32(ssPtr->litLengthFreq[llCode]+1);
 	}
@@ -149,7 +149,7 @@ FORCE_INLINE U32 ZSTD_getPrice(seqStore_t* seqStorePtr, U32 litLength, const BYT
 	if (!ultra && offCode >= 20) price += (offCode-19)*2;
 
 	/* match Length */
-	{   const BYTE ML_deltaCode = 36;
+	{	const BYTE ML_deltaCode = 36;
 		const BYTE mlCode = (matchLength>127) ? (BYTE)ZSTD_highbit32(matchLength) + ML_deltaCode : ML_Code[matchLength];
 		price += ML_bits[mlCode] + seqStorePtr->log2matchLengthSum - ZSTD_highbit32(seqStorePtr->matchLengthFreq[mlCode]+1);
 	}
@@ -168,20 +168,20 @@ MEM_STATIC void ZSTD_updatePrice(seqStore_t* seqStorePtr, U32 litLength, const B
 		seqStorePtr->litFreq[literals[u]] += ZSTD_LITFREQ_ADD;
 
 	/* literal Length */
-	{   const BYTE LL_deltaCode = 19;
+	{	const BYTE LL_deltaCode = 19;
 		const BYTE llCode = (litLength>63) ? (BYTE)ZSTD_highbit32(litLength) + LL_deltaCode : LL_Code[litLength];
 		seqStorePtr->litLengthFreq[llCode]++;
 		seqStorePtr->litLengthSum++;
 	}
 
 	/* match offset */
-	{   BYTE const offCode = (BYTE)ZSTD_highbit32(offset+1);
+	{	BYTE const offCode = (BYTE)ZSTD_highbit32(offset+1);
 		seqStorePtr->offCodeSum++;
 		seqStorePtr->offCodeFreq[offCode]++;
 	}
 
 	/* match Length */
-	{   const BYTE ML_deltaCode = 36;
+	{	const BYTE ML_deltaCode = 36;
 		const BYTE mlCode = (matchLength>127) ? (BYTE)ZSTD_highbit32(matchLength) + ML_deltaCode : ML_Code[matchLength];
 		seqStorePtr->matchLengthFreq[mlCode]++;
 		seqStorePtr->matchLengthSum++;
@@ -192,7 +192,7 @@ MEM_STATIC void ZSTD_updatePrice(seqStore_t* seqStorePtr, U32 litLength, const B
 
 
 #define SET_PRICE(pos, mlen_, offset_, litlen_, price_)   \
-	{                                                 \
+	{	                                              \
 		while (last_pos < pos)  { opt[last_pos+1].price = ZSTD_MAX_PRICE; last_pos++; } \
 		opt[pos].mlen = mlen_;                         \
 		opt[pos].off = offset_;                        \
@@ -435,7 +435,7 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
 		litlen = (U32)(ip - anchor);
 
 		/* check repCode */
-		{   U32 i, last_i = ZSTD_REP_CHECK + (ip==anchor);
+		{	U32 i, last_i = ZSTD_REP_CHECK + (ip==anchor);
 			for (i=(ip == anchor); i<last_i; i++) {
 				const S32 repCur = (i==ZSTD_REP_MOVE_OPT) ? (rep[0] - 1) : rep[i];
 				if ( (repCur > 0) && (repCur < (S32)(ip-prefixStart))
@@ -520,7 +520,7 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
 		   }
 
 			best_mlen = minMatch;
-			{   U32 i, last_i = ZSTD_REP_CHECK + (mlen != 1);
+			{	U32 i, last_i = ZSTD_REP_CHECK + (mlen != 1);
 				for (i=(opt[cur].mlen != 1); i<last_i; i++) {  /* check rep */
 					const S32 repCur = (i==ZSTD_REP_MOVE_OPT) ? (opt[cur].rep[0] - 1) : opt[cur].rep[i];
 					if ( (repCur > 0) && (repCur < (S32)(inr-prefixStart))
@@ -639,7 +639,7 @@ _storeSequence:   /* cur, last_pos, best_mlen, best_off have to be set */
 	{ int i; for (i=0; i<ZSTD_REP_NUM; i++) ctx->repToConfirm[i] = rep[i]; }
 
 	/* Last Literals */
-	{   size_t const lastLLSize = iend - anchor;
+	{	size_t const lastLLSize = iend - anchor;
 		memcpy(seqStorePtr->lit, anchor, lastLLSize);
 		seqStorePtr->lit += lastLLSize;
 	}
@@ -690,7 +690,7 @@ void ZSTD_compressBlock_opt_extDict_generic(ZSTD_CCtx* ctx,
 		opt[0].litlen = (U32)(ip - anchor);
 
 		/* check repCode */
-		{   U32 i, last_i = ZSTD_REP_CHECK + (ip==anchor);
+		{	U32 i, last_i = ZSTD_REP_CHECK + (ip==anchor);
 			for (i = (ip==anchor); i<last_i; i++) {
 				const S32 repCur = (i==ZSTD_REP_MOVE_OPT) ? (rep[0] - 1) : rep[i];
 				const U32 repIndex = (U32)(curr - repCur);
@@ -786,7 +786,7 @@ void ZSTD_compressBlock_opt_extDict_generic(ZSTD_CCtx* ctx,
 			}
 
 			best_mlen = minMatch;
-			{   U32 i, last_i = ZSTD_REP_CHECK + (mlen != 1);
+			{	U32 i, last_i = ZSTD_REP_CHECK + (mlen != 1);
 				for (i = (mlen != 1); i<last_i; i++) {
 					const S32 repCur = (i==ZSTD_REP_MOVE_OPT) ? (opt[cur].rep[0] - 1) : opt[cur].rep[i];
 					const U32 repIndex = (U32)(curr+cur - repCur);
@@ -912,7 +912,7 @@ _storeSequence:   /* cur, last_pos, best_mlen, best_off have to be set */
 	{ int i; for (i=0; i<ZSTD_REP_NUM; i++) ctx->repToConfirm[i] = rep[i]; }
 
 	/* Last Literals */
-	{   size_t lastLLSize = iend - anchor;
+	{	size_t lastLLSize = iend - anchor;
 		memcpy(seqStorePtr->lit, anchor, lastLLSize);
 		seqStorePtr->lit += lastLLSize;
 	}

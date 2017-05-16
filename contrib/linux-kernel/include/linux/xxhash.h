@@ -78,7 +78,7 @@
 /**
  * xxh32() - calculate the 32-bit hash of the input with a given seed.
  *
- * @input:  The data to hash. Must not be NULL.
+ * @input:  The data to hash.
  * @length: The length of the data to hash.
  * @seed:   The seed can be used to alter the result predictably.
  *
@@ -89,9 +89,9 @@
 uint32_t xxh32(const void *input, size_t length, uint32_t seed);
 
 /**
- * xxh32() - calculate the 64-bit hash of the input with a given seed.
+ * xxh64() - calculate the 64-bit hash of the input with a given seed.
  *
- * @input:  The data to hash. Must not be NULL.
+ * @input:  The data to hash.
  * @length: The length of the data to hash.
  * @seed:   The seed can be used to alter the result predictably.
  *
@@ -152,7 +152,7 @@ void xxh32_reset(struct xxh32_state *state, uint32_t seed);
  * xxh32_update() - hash the data given and update the xxh32 state
  *
  * @state:  The xxh32 state to update.
- * @input:  The data to hash. Must not be NULL.
+ * @input:  The data to hash.
  * @length: The length of the data to hash.
  *
  * After calling xxh32_reset() call xxh32_update() as many times as necessary.
@@ -177,7 +177,7 @@ uint32_t xxh32_digest(const struct xxh32_state *state);
 /**
  * xxh64_reset() - reset the xxh64 state to start a new hashing operation
  *
- * @state: The xxh32 state to reset.
+ * @state: The xxh64 state to reset.
  * @seed:  Initialize the hash state with this seed.
  */
 void xxh64_reset(struct xxh64_state *state, uint64_t seed);
@@ -185,7 +185,7 @@ void xxh64_reset(struct xxh64_state *state, uint64_t seed);
 /**
  * xxh64_update() - hash the data given and update the xxh64 state
  * @state:  The xxh64 state to update.
- * @input:  The data to hash. Must not be NULL.
+ * @input:  The data to hash.
  * @length: The length of the data to hash.
  *
  * After calling xxh64_reset() call xxh64_update() as many times as necessary.

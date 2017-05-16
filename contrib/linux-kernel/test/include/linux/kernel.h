@@ -11,4 +11,6 @@
 
 #define PTR_ALIGN(p, a) (typeof(p))ALIGN((unsigned long long)(p), (a))
 
+#define current Something that doesn't compile :)
+
 #endif // LINUX_KERNEL_H_

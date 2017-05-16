@@ -72,8 +72,8 @@ struct ZSTD_DCtx_s
 	const HUF_DTable* HUFptr;
 	ZSTD_entropyTables_t entropy;
 	const void* previousDstEnd;   /* detect continuity */
-	const void* base;             /* start of current segment */
-	const void* vBase;            /* virtual start of previous segment if it was just before current one */
+	const void* base;             /* start of curr segment */
+	const void* vBase;            /* virtual start of previous segment if it was just before curr one */
 	const void* dictEnd;          /* end of previous segment */
 	size_t expected;
 	ZSTD_frameParams fParams;
@@ -864,7 +864,7 @@ size_t ZSTD_execSequenceLast7(BYTE* op,
 			memmove(oLitEnd, match, sequence.matchLength);
 			return sequenceLength;
 		}
-		/* span extDict & currentPrefixSegment */
+		/* span extDict & currPrefixSegment */
 		{   size_t const length1 = dictEnd - match;
 			memmove(oLitEnd, match, length1);
 			op = oLitEnd + length1;
@@ -987,7 +987,7 @@ size_t ZSTD_execSequence(BYTE* op,
 			memmove(oLitEnd, match, sequence.matchLength);
 			return sequenceLength;
 		}
-		/* span extDict & currentPrefixSegment */
+		/* span extDict & currPrefixSegment */
 		{   size_t const length1 = dictEnd - match;
 			memmove(oLitEnd, match, length1);
 			op = oLitEnd + length1;
@@ -1222,7 +1222,7 @@ size_t ZSTD_execSequenceLong(BYTE* op,
 			memmove(oLitEnd, match, sequence.matchLength);
 			return sequenceLength;
 		}
-		/* span extDict & currentPrefixSegment */
+		/* span extDict & currPrefixSegment */
 		{   size_t const length1 = dictEnd - match;
 			memmove(oLitEnd, match, length1);
 			op = oLitEnd + length1;

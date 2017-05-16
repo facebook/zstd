@@ -81,7 +81,7 @@ struct ZSTD_DCtx_s
 	ZSTD_dStage stage;
 	U32 litEntropy;
 	U32 fseEntropy;
-	XXH64_state_t xxhState;
+	struct xxh64_state xxhState;
 	size_t headerSize;
 	U32 dictID;
 	const BYTE* litPtr;
@@ -366,7 +366,7 @@ static size_t ZSTD_decodeFrameHeader(ZSTD_DCtx* dctx, const void* src, size_t he
 	if (ZSTD_isError(result)) return result;  /* invalid header */
 	if (result>0) return ERROR(srcSize_wrong);   /* headerSize too small */
 	if (dctx->fParams.dictID && (dctx->dictID != dctx->fParams.dictID)) return ERROR(dictionary_wrong);
-	if (dctx->fParams.checksumFlag) XXH64_reset(&dctx->xxhState, 0);
+	if (dctx->fParams.checksumFlag) xxh64_reset(&dctx->xxhState, 0);
 	return 0;
 }
 
@@ -1517,7 +1517,7 @@ static size_t ZSTD_decompressFrame(ZSTD_DCtx* dctx,
 		}
 
 		if (ZSTD_isError(decodedSize)) return decodedSize;
-		if (dctx->fParams.checksumFlag) XXH64_update(&dctx->xxhState, op, decodedSize);
+		if (dctx->fParams.checksumFlag) xxh64_update(&dctx->xxhState, op, decodedSize);
 		op += decodedSize;
 		ip += cBlockSize;
 		remainingSize -= cBlockSize;
@@ -1525,7 +1525,7 @@ static size_t ZSTD_decompressFrame(ZSTD_DCtx* dctx,
 	}
 
 	if (dctx->fParams.checksumFlag) {   /* Frame content checksum verification */
-		U32 const checkCalc = (U32)XXH64_digest(&dctx->xxhState);
+		U32 const checkCalc = (U32)xxh64_digest(&dctx->xxhState);
 		U32 checkRead;
 		if (remainingSize<4) return ERROR(checksum_wrong);
 		checkRead = MEM_readLE32(ip);
@@ -1731,7 +1731,7 @@ size_t ZSTD_decompressContinue(ZSTD_DCtx* dctx, void* dst, size_t dstCapacity, c
 				return ERROR(corruption_detected);
 			}
 			if (ZSTD_isError(rSize)) return rSize;
-			if (dctx->fParams.checksumFlag) XXH64_update(&dctx->xxhState, dst, rSize);
+			if (dctx->fParams.checksumFlag) xxh64_update(&dctx->xxhState, dst, rSize);
 
 			if (dctx->stage == ZSTDds_decompressLastBlock) {   /* end of frame */
 				if (dctx->fParams.checksumFlag) {  /* another round for frame checksum */
@@ -1749,7 +1749,7 @@ size_t ZSTD_decompressContinue(ZSTD_DCtx* dctx, void* dst, size_t dstCapacity, c
 			return rSize;
 		}
 	case ZSTDds_checkChecksum:
-		{   U32 const h32 = (U32)XXH64_digest(&dctx->xxhState);
+		{   U32 const h32 = (U32)xxh64_digest(&dctx->xxhState);
 			U32 const check32 = MEM_readLE32(src);   /* srcSize == 4, guaranteed by dctx->expected */
 			if (check32 != h32) return ERROR(checksum_wrong);
 			dctx->expected = 0;

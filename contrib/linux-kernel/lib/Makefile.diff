@@ -1,8 +1,8 @@
 diff --git a/lib/Makefile b/lib/Makefile
-index 50144a3..b30a998 100644
+index e16f94a..0cfd529 100644
 --- a/lib/Makefile
 +++ b/lib/Makefile
-@@ -106,6 +106,8 @@ obj-$(CONFIG_LZO_DECOMPRESS) += lzo/
+@@ -115,6 +115,8 @@ obj-$(CONFIG_LZO_DECOMPRESS) += lzo/
  obj-$(CONFIG_LZ4_COMPRESS) += lz4/
  obj-$(CONFIG_LZ4HC_COMPRESS) += lz4/
  obj-$(CONFIG_LZ4_DECOMPRESS) += lz4/

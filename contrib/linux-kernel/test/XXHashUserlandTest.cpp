@@ -26,18 +26,6 @@ const std::array<std::string, 11> kTestInputs = {
   "0123456789abcdef0123456789abcdef0",
   "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
 };
-char const kEmpty[] = "";
-char const kOne[] = "0";
-char const kFive[] = "01234";
-char const kFifteen[] = "0123456789abcde";
-char const kSixteen[] = "0123456789abcdef";
-char const kSeventeen[] = "0123456789abcdef0";
-char const kTwenty[] = "0123456789abcdef0123";
-char const kThirtyOne[] = "0123456789abcdef0123456789abcde";
-char const kThirtyTwo[] = "0123456789abcdef0123456789abcdef";
-char const kThirtyThree[] = "0123456789abcdef0123456789abcdef0";
-char const kSixtyFour[] = "0123456789abcdef0123456789abcdef"
-                          "0123456789abcdef0123456789abcdef";
 
 bool testXXH32(const void *input, const size_t length, uint32_t seed) {
   return XXH32(input, length, seed) == xxh32(input, length, seed);

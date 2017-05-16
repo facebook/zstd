@@ -609,7 +609,7 @@ UTIL_STATIC int UTIL_countPhysicalCores(void)
 
     /* try to determine if there's hyperthreading */
     {   FILE* const cpuinfo = fopen("/proc/cpuinfo", "r");
-        size_t const BUF_SIZE = 80;
+#define BUF_SIZE 80
         char buff[BUF_SIZE];
 
         int siblings = 0;

@@ -101,9 +101,9 @@ size_t HUF_readDTableX2 (HUF_DTable* DTable, const void* src, size_t srcSize)
 	/* Calculate starting value for each rank */
 	{   U32 n, nextRankStart = 0;
 		for (n=1; n<tableLog+1; n++) {
-			U32 const current = nextRankStart;
+			U32 const curr = nextRankStart;
 			nextRankStart += (rankVal[n] << (n-1));
-			rankVal[n] = current;
+			rankVal[n] = curr;
 	}   }
 
 	/* fill DTable */
@@ -452,9 +452,9 @@ size_t HUF_readDTableX4 (HUF_DTable* DTable, const void* src, size_t srcSize)
 	/* Get start index of each weight */
 	{   U32 w, nextRankStart = 0;
 		for (w=1; w<maxW+1; w++) {
-			U32 current = nextRankStart;
+			U32 curr = nextRankStart;
 			nextRankStart += rankStats[w];
-			rankStart[w] = current;
+			rankStart[w] = curr;
 		}
 		rankStart[0] = nextRankStart;   /* put all 0w symbols at the end of sorted list*/
 		sizeOfSort = nextRankStart;
@@ -477,9 +477,9 @@ size_t HUF_readDTableX4 (HUF_DTable* DTable, const void* src, size_t srcSize)
 			U32 nextRankVal = 0;
 			U32 w;
 			for (w=1; w<maxW+1; w++) {
-				U32 current = nextRankVal;
+				U32 curr = nextRankVal;
 				nextRankVal += rankStats[w] << (w+rescale);
-				rankVal0[w] = current;
+				rankVal0[w] = curr;
 		}   }
 		{   U32 const minBits = tableLog+1 - maxW;
 			U32 consumed;

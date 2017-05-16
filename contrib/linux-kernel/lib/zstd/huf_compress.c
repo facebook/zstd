@@ -172,9 +172,9 @@ size_t HUF_readCTable (HUF_CElt* CTable, U32 maxSymbolValue, const void* src, si
 	/* Prepare base value per rank */
 	{   U32 n, nextRankStart = 0;
 		for (n=1; n<=tableLog; n++) {
-			U32 current = nextRankStart;
+			U32 curr = nextRankStart;
 			nextRankStart += (rankVal[n] << (n-1));
-			rankVal[n] = current;
+			rankVal[n] = curr;
 	}   }
 
 	/* fill nbBits */
@@ -237,11 +237,11 @@ static U32 HUF_setMaxHeight(nodeElt* huffNode, U32 lastNonNull, U32 maxNbBits)
 
 			/* Get pos of last (smallest) symbol per rank */
 			memset(rankLast, 0xF0, sizeof(rankLast));
-			{   U32 currentNbBits = maxNbBits;
+			{   U32 currNbBits = maxNbBits;
 				for (pos=n ; pos >= 0; pos--) {
-					if (huffNode[pos].nbBits >= currentNbBits) continue;
-					currentNbBits = huffNode[pos].nbBits;   /* < maxNbBits */
-					rankLast[maxNbBits-currentNbBits] = pos;
+					if (huffNode[pos].nbBits >= currNbBits) continue;
+					currNbBits = huffNode[pos].nbBits;   /* < maxNbBits */
+					rankLast[maxNbBits-currNbBits] = pos;
 			}   }
 
 			while (totalCost > 0) {
@@ -289,7 +289,7 @@ static U32 HUF_setMaxHeight(nodeElt* huffNode, U32 lastNonNull, U32 maxNbBits)
 
 typedef struct {
 	U32 base;
-	U32 current;
+	U32 curr;
 } rankPos;
 
 static void HUF_sort(nodeElt* huffNode, const U32* count, U32 maxSymbolValue)
@@ -303,11 +303,11 @@ static void HUF_sort(nodeElt* huffNode, const U32* count, U32 maxSymbolValue)
 		rank[r].base ++;
 	}
 	for (n=30; n>0; n--) rank[n-1].base += rank[n].base;
-	for (n=0; n<32; n++) rank[n].current = rank[n].base;
+	for (n=0; n<32; n++) rank[n].curr = rank[n].base;
 	for (n=0; n<=maxSymbolValue; n++) {
 		U32 const c = count[n];
 		U32 const r = BIT_highbit32(c+1) + 1;
-		U32 pos = rank[r].current++;
+		U32 pos = rank[r].curr++;
 		while ((pos > rank[r].base) && (c > huffNode[pos-1].count)) huffNode[pos]=huffNode[pos-1], pos--;
 		huffNode[pos].count = c;
 		huffNode[pos].byte  = (BYTE)n;
@@ -549,7 +549,7 @@ static size_t HUF_compress_internal (
 	if (wkspSize < sizeof(huffNodeTable) + countSize + CTableSize) return ERROR(GENERIC);
 	if (!srcSize) return 0;  /* Uncompressed (note : 1 means rle, so first byte must be correct) */
 	if (!dstSize) return 0;  /* cannot fit within dst budget */
-	if (srcSize > HUF_BLOCKSIZE_MAX) return ERROR(srcSize_wrong);   /* current block size limit */
+	if (srcSize > HUF_BLOCKSIZE_MAX) return ERROR(srcSize_wrong);   /* curr block size limit */
 	if (huffLog > HUF_TABLELOG_MAX) return ERROR(tableLog_tooLarge);
 	if (!maxSymbolValue) maxSymbolValue = HUF_SYMBOLVALUE_MAX;
 	if (!huffLog) huffLog = HUF_TABLELOG_DEFAULT;

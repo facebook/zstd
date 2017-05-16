@@ -233,7 +233,7 @@ static U32 ZSTD_insertBtAndGetAllMatches (
 						U32 extDict, ZSTD_match_t* matches, const U32 minMatchLen)
 {
 	const BYTE* const base = zc->base;
-	const U32 current = (U32)(ip-base);
+	const U32 curr = (U32)(ip-base);
 	const U32 hashLog = zc->params.cParams.hashLog;
 	const size_t h  = ZSTD_hashPtr(ip, hashLog, mls);
 	U32* const hashTable = zc->hashTable;
@@ -246,11 +246,11 @@ static U32 ZSTD_insertBtAndGetAllMatches (
 	const U32 dictLimit = zc->dictLimit;
 	const BYTE* const dictEnd = dictBase + dictLimit;
 	const BYTE* const prefixStart = base + dictLimit;
-	const U32 btLow = btMask >= current ? 0 : current - btMask;
+	const U32 btLow = btMask >= curr ? 0 : curr - btMask;
 	const U32 windowLow = zc->lowLimit;
-	U32* smallerPtr = bt + 2*(current&btMask);
-	U32* largerPtr  = bt + 2*(current&btMask) + 1;
-	U32 matchEndIdx = current+8;
+	U32* smallerPtr = bt + 2*(curr&btMask);
+	U32* largerPtr  = bt + 2*(curr&btMask) + 1;
+	U32 matchEndIdx = curr+8;
 	U32 dummy32;   /* to be nullified at the end */
 	U32 mnum = 0;
 
@@ -259,31 +259,31 @@ static U32 ZSTD_insertBtAndGetAllMatches (
 
 	if (minMatch == 3) { /* HC3 match finder */
 		U32 const matchIndex3 = ZSTD_insertAndFindFirstIndexHash3 (zc, ip);
-		if (matchIndex3>windowLow && (current - matchIndex3 < (1<<18))) {
+		if (matchIndex3>windowLow && (curr - matchIndex3 < (1<<18))) {
 			const BYTE* match;
-			size_t currentMl=0;
+			size_t currMl=0;
 			if ((!extDict) || matchIndex3 >= dictLimit) {
 				match = base + matchIndex3;
-				if (match[bestLength] == ip[bestLength]) currentMl = ZSTD_count(ip, match, iLimit);
+				if (match[bestLength] == ip[bestLength]) currMl = ZSTD_count(ip, match, iLimit);
 			} else {
 				match = dictBase + matchIndex3;
 				if (MEM_readMINMATCH(match, MINMATCH) == MEM_readMINMATCH(ip, MINMATCH))    /* assumption : matchIndex3 <= dictLimit-4 (by table construction) */
-					currentMl = ZSTD_count_2segments(ip+MINMATCH, match+MINMATCH, iLimit, dictEnd, prefixStart) + MINMATCH;
+					currMl = ZSTD_count_2segments(ip+MINMATCH, match+MINMATCH, iLimit, dictEnd, prefixStart) + MINMATCH;
 			}
 
 			/* save best solution */
-			if (currentMl > bestLength) {
-				bestLength = currentMl;
-				matches[mnum].off = ZSTD_REP_MOVE_OPT + current - matchIndex3;
-				matches[mnum].len = (U32)currentMl;
+			if (currMl > bestLength) {
+				bestLength = currMl;
+				matches[mnum].off = ZSTD_REP_MOVE_OPT + curr - matchIndex3;
+				matches[mnum].len = (U32)currMl;
 				mnum++;
-				if (currentMl > ZSTD_OPT_NUM) goto update;
-				if (ip+currentMl == iLimit) goto update; /* best possible, and avoid read overflow*/
+				if (currMl > ZSTD_OPT_NUM) goto update;
+				if (ip+currMl == iLimit) goto update; /* best possible, and avoid read overflow*/
 			}
 		}
 	}
 
-	hashTable[h] = current;   /* Update Hash Table */
+	hashTable[h] = curr;   /* Update Hash Table */
 
 	while (nbCompares-- && (matchIndex > windowLow)) {
 		U32* nextPtr = bt + 2*(matchIndex & btMask);
@@ -305,7 +305,7 @@ static U32 ZSTD_insertBtAndGetAllMatches (
 		if (matchLength > bestLength) {
 			if (matchLength > matchEndIdx - matchIndex) matchEndIdx = matchIndex + (U32)matchLength;
 			bestLength = matchLength;
-			matches[mnum].off = ZSTD_REP_MOVE_OPT + current - matchIndex;
+			matches[mnum].off = ZSTD_REP_MOVE_OPT + curr - matchIndex;
 			matches[mnum].len = (U32)matchLength;
 			mnum++;
 			if (matchLength > ZSTD_OPT_NUM) break;
@@ -314,14 +314,14 @@ static U32 ZSTD_insertBtAndGetAllMatches (
 		}
 
 		if (match[matchLength] < ip[matchLength]) {
-			/* match is smaller than current */
+			/* match is smaller than curr */
 			*smallerPtr = matchIndex;             /* update smaller idx */
 			commonLengthSmaller = matchLength;    /* all smaller will now have at least this guaranteed common length */
 			if (matchIndex <= btLow) { smallerPtr=&dummy32; break; }   /* beyond tree size, stop the search */
 			smallerPtr = nextPtr+1;               /* new "smaller" => larger of match */
-			matchIndex = nextPtr[1];              /* new matchIndex larger than previous (closer to current) */
+			matchIndex = nextPtr[1];              /* new matchIndex larger than previous (closer to curr) */
 		} else {
-			/* match is larger than current */
+			/* match is larger than curr */
 			*largerPtr = matchIndex;
 			commonLengthLarger = matchLength;
 			if (matchIndex <= btLow) { largerPtr=&dummy32; break; }   /* beyond tree size, stop the search */
@@ -332,7 +332,7 @@ static U32 ZSTD_insertBtAndGetAllMatches (
 	*smallerPtr = *largerPtr = 0;
 
 update:
-	zc->nextToUpdate = (matchEndIdx > current + 8) ? matchEndIdx - 8 : current+1;
+	zc->nextToUpdate = (matchEndIdx > curr + 8) ? matchEndIdx - 8 : curr+1;
 	return mnum;
 }
 
@@ -684,7 +684,7 @@ void ZSTD_compressBlock_opt_extDict_generic(ZSTD_CCtx* ctx,
 	while (ip < ilimit) {
 		U32 cur, match_num, last_pos, litlen, price;
 		U32 u, mlen, best_mlen, best_off, litLength;
-		U32 current = (U32)(ip-base);
+		U32 curr = (U32)(ip-base);
 		memset(opt, 0, sizeof(ZSTD_optimal_t));
 		last_pos = 0;
 		opt[0].litlen = (U32)(ip - anchor);
@@ -693,10 +693,10 @@ void ZSTD_compressBlock_opt_extDict_generic(ZSTD_CCtx* ctx,
 		{   U32 i, last_i = ZSTD_REP_CHECK + (ip==anchor);
 			for (i = (ip==anchor); i<last_i; i++) {
 				const S32 repCur = (i==ZSTD_REP_MOVE_OPT) ? (rep[0] - 1) : rep[i];
-				const U32 repIndex = (U32)(current - repCur);
+				const U32 repIndex = (U32)(curr - repCur);
 				const BYTE* const repBase = repIndex < dictLimit ? dictBase : base;
 				const BYTE* const repMatch = repBase + repIndex;
-				if ( (repCur > 0 && repCur <= (S32)current)
+				if ( (repCur > 0 && repCur <= (S32)curr)
 				   && (((U32)((dictLimit-1) - repIndex) >= 3) & (repIndex>lowestIndex))  /* intentional overflow */
 				   && (MEM_readMINMATCH(ip, minMatch) == MEM_readMINMATCH(repMatch, minMatch)) ) {
 					/* repcode detected we should take it */
@@ -789,10 +789,10 @@ void ZSTD_compressBlock_opt_extDict_generic(ZSTD_CCtx* ctx,
 			{   U32 i, last_i = ZSTD_REP_CHECK + (mlen != 1);
 				for (i = (mlen != 1); i<last_i; i++) {
 					const S32 repCur = (i==ZSTD_REP_MOVE_OPT) ? (opt[cur].rep[0] - 1) : opt[cur].rep[i];
-					const U32 repIndex = (U32)(current+cur - repCur);
+					const U32 repIndex = (U32)(curr+cur - repCur);
 					const BYTE* const repBase = repIndex < dictLimit ? dictBase : base;
 					const BYTE* const repMatch = repBase + repIndex;
-					if ( (repCur > 0 && repCur <= (S32)(current+cur))
+					if ( (repCur > 0 && repCur <= (S32)(curr+cur))
 					  && (((U32)((dictLimit-1) - repIndex) >= 3) & (repIndex>lowestIndex))  /* intentional overflow */
 					  && (MEM_readMINMATCH(inr, minMatch) == MEM_readMINMATCH(repMatch, minMatch)) ) {
 						/* repcode detected */

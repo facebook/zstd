@@ -42,8 +42,10 @@ CPPFLAGS+= -I$(ZSTDDIR) -I$(ZSTDDIR)/common -I$(ZSTDDIR)/compress \
            -DXXH_NAMESPACE=ZSTD_   # because xxhash.o already compiled with this macro from library
 CFLAGS  ?= -O3
 DEBUGFLAGS = -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow \
-          -Wstrict-aliasing=1 -Wswitch-enum -Wdeclaration-after-statement \
-          -Wstrict-prototypes -Wundef -Wpointer-arith -Wformat-security
+            -Wstrict-aliasing=1 -Wswitch-enum -Wdeclaration-after-statement \
+            -Wstrict-prototypes -Wundef -Wpointer-arith -Wformat-security \
+            -Wvla -Wformat=2 -Winit-self -Wfloat-equal -Wwrite-strings \
+            -Wredundant-decls
 CFLAGS  += $(DEBUGFLAGS) $(MOREFLAGS)
 FLAGS    = $(CPPFLAGS) $(CFLAGS) $(LDFLAGS)
 
@@ -56,7 +58,7 @@ ZDICT_FILES := $(ZSTDDIR)/dictBuilder/*.c
 ZSTDDECOMP_O = $(ZSTDDIR)/decompress/zstd_decompress.o
 
 ZSTD_LEGACY_SUPPORT ?= 4
-ZSTDLEGACY_FILES:=
+ZSTDLEGACY_FILES :=
 ifneq ($(ZSTD_LEGACY_SUPPORT), 0)
 ifeq ($(shell test $(ZSTD_LEGACY_SUPPORT) -lt 8; echo $$?), 0)
 	ZSTDLEGACY_FILES += $(shell ls $(ZSTDDIR)/legacy/*.c | grep 'v0[$(ZSTD_LEGACY_SUPPORT)-7]')

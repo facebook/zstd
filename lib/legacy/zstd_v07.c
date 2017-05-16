@@ -2920,8 +2920,6 @@ typedef struct {
 void ZSTDv07_seqToCodes(const seqStore_t* seqStorePtr, size_t const nbSeq);
 
 /* custom memory allocation functions */
-void* ZSTDv07_defaultAllocFunction(void* opaque, size_t size);
-void ZSTDv07_defaultFreeFunction(void* opaque, void* address);
 static const ZSTDv07_customMem defaultCustomMem = { ZSTDv07_defaultAllocFunction, ZSTDv07_defaultFreeFunction, NULL };
 
 #endif   /* ZSTDv07_CCOMMON_H_MODULE */

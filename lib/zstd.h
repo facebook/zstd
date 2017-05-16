@@ -59,13 +59,14 @@ extern "C" {
 #define ZSTD_VERSION_MINOR    3
 #define ZSTD_VERSION_RELEASE  0
 
+#define ZSTD_VERSION_NUMBER  (ZSTD_VERSION_MAJOR *100*100 + ZSTD_VERSION_MINOR *100 + ZSTD_VERSION_RELEASE)
+ZSTDLIB_API unsigned ZSTD_versionNumber(void);   /**< to be used when checking dll version */
+
 #define ZSTD_LIB_VERSION ZSTD_VERSION_MAJOR.ZSTD_VERSION_MINOR.ZSTD_VERSION_RELEASE
 #define ZSTD_QUOTE(str) #str
 #define ZSTD_EXPAND_AND_QUOTE(str) ZSTD_QUOTE(str)
 #define ZSTD_VERSION_STRING ZSTD_EXPAND_AND_QUOTE(ZSTD_LIB_VERSION)
-
-#define ZSTD_VERSION_NUMBER  (ZSTD_VERSION_MAJOR *100*100 + ZSTD_VERSION_MINOR *100 + ZSTD_VERSION_RELEASE)
-ZSTDLIB_API unsigned ZSTD_versionNumber(void);   /**< library version number; to be used when checking dll version */
+ZSTDLIB_API const char* ZSTD_versionString(void);
 
 
 /***************************************
@@ -921,7 +922,8 @@ ZSTDLIB_API size_t ZSTD_compressEnd(ZSTD_CCtx* cctx, void* dst, size_t dstCapaci
            >0 : `srcSize` is too small, please provide at least @result bytes on next attempt.
            errorCode, which can be tested using ZSTD_isError().
 
-  Start decompression, with ZSTD_decompressBegin() or ZSTD_decompressBegin_usingDict().
+  Start decompression, with ZSTD_decompressBegin().
+  If decompression requires a dictionary, use ZSTD_decompressBegin_usingDict() or ZSTD_decompressBegin_usingDDict().
   Alternatively, you can copy a prepared context, using ZSTD_copyDCtx().
 
   Then use ZSTD_nextSrcSizeToDecompress() and ZSTD_decompressContinue() alternatively.
@@ -964,7 +966,9 @@ ZSTDLIB_API size_t ZSTD_compressEnd(ZSTD_CCtx* cctx, void* dst, size_t dstCapaci
 ZSTDLIB_API size_t ZSTD_getFrameHeader(ZSTD_frameHeader* zfhPtr, const void* src, size_t srcSize);   /**< doesn't consume input, see details below */
 ZSTDLIB_API size_t ZSTD_decompressBegin(ZSTD_DCtx* dctx);
 ZSTDLIB_API size_t ZSTD_decompressBegin_usingDict(ZSTD_DCtx* dctx, const void* dict, size_t dictSize);
+ZSTDLIB_API size_t ZSTD_decompressBegin_usingDDict(ZSTD_DCtx* dctx, const ZSTD_DDict* ddict);
 ZSTDLIB_API void   ZSTD_copyDCtx(ZSTD_DCtx* dctx, const ZSTD_DCtx* preparedDCtx);
+
 ZSTDLIB_API size_t ZSTD_nextSrcSizeToDecompress(ZSTD_DCtx* dctx);
 ZSTDLIB_API size_t ZSTD_decompressContinue(ZSTD_DCtx* dctx, void* dst, size_t dstCapacity, const void* src, size_t srcSize);
 typedef enum { ZSTDnit_frameHeader, ZSTDnit_blockHeader, ZSTDnit_block, ZSTDnit_lastBlock, ZSTDnit_checksum, ZSTDnit_skippableFrame } ZSTD_nextInputType_e;

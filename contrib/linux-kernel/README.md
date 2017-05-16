@@ -1,21 +1,33 @@
 # Linux Kernel Patch
 
-There are three pieces, the `zstd_compress` and `zstd_decompress` kernel modules, the BtrFS patch, and the SquashFS patch.
+There are four pieces, the `xxhash` kernel module, the `zstd_compress` and `zstd_decompress` kernel modules, the BtrFS patch, and the SquashFS patch.
 The patches are based off of the linux kernel master branch (version 4.10).
+
+## xxHash kernel module
+
+* The patch is locaed in `xxhash.diff`.
+* The header is in `include/linux/xxhash.h`.
+* The source is in `lib/xxhash.c`.
+* `test/XXHashUserLandTest.cpp` contains tests for the patch in userland by mocking the kernel headers.
+  I tested the tests by commenting a line of of each branch in `xxhash.c` one line at a time, and made sure the tests failed.
+  It can be run with the following commands:
+  ```
+  cd test && make googletest && make XXHashUserLandTest && ./XXHashUserLandTest
+  ```
+* I also benchmarked the `xxhash` module against upstream xxHash, and made sure that they ran at the same speed.
 
 ## Zstd Kernel modules
 
+* The (large) patch is locaed in `zstd.diff`, which depends on `xxhash.diff`.
 * The header is in `include/linux/zstd.h`.
 * It is split up into `zstd_compress` and `zstd_decompress`, which can be loaded independently.
 * Source files are in `lib/zstd/`.
 * `lib/Kconfig` and `lib/Makefile` need to be modified by applying `lib/Kconfig.diff` and `lib/Makefile.diff` respectively.
+  These changes are also included in the `zstd.diff`.
 * `test/UserlandTest.cpp` contains tests for the patch in userland by mocking the kernel headers.
   It can be run with the following commands:
   ```
-  cd test
-  make googletest
-  make UserlandTest
-  ./UserlandTest
+  cd test && make googletest && make UserlandTest && ./UserlandTest
   ```
 
 ## BtrFS

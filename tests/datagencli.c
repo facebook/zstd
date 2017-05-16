@@ -95,10 +95,10 @@ int main(int argc, const char** argv)
                     break;
                 case 'P':
                     argument++;
-                    probaU32=0.0;
+                    probaU32 = 0;
                     while ((*argument>='0') && (*argument<='9'))
                         probaU32 *= 10, probaU32 += *argument++ - '0';
-                    if (probaU32>100.) probaU32=100.;
+                    if (probaU32>100) probaU32 = 100;
                     break;
                 case 'L':   /* hidden argument : Literal distribution probability */
                     argument++;

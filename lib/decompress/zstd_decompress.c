@@ -2270,7 +2270,7 @@ size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inB
             }   }
 
             /* Consume header */
-            ZSTD_decompressBegin_usingDDict(zds->dctx, zds->ddict);
+            CHECK_F(ZSTD_decompressBegin_usingDDict(zds->dctx, zds->ddict));
             {   size_t const h1Size = ZSTD_nextSrcSizeToDecompress(zds->dctx);  /* == ZSTD_frameHeaderSize_prefix */
                 CHECK_F(ZSTD_decompressContinue(zds->dctx, NULL, 0, zds->headerBuffer, h1Size));
                 {   size_t const h2Size = ZSTD_nextSrcSizeToDecompress(zds->dctx);

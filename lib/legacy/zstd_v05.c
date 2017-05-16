@@ -326,13 +326,6 @@ size_t ZSTDv05_decompress_usingPreparedDCtx(
 *  Streaming functions (direct mode)
 ****************************************/
 size_t ZSTDv05_decompressBegin(ZSTDv05_DCtx* dctx);
-size_t ZSTDv05_decompressBegin_usingDict(ZSTDv05_DCtx* dctx, const void* dict, size_t dictSize);
-void   ZSTDv05_copyDCtx(ZSTDv05_DCtx* dctx, const ZSTDv05_DCtx* preparedDCtx);
-
-size_t ZSTDv05_getFrameParams(ZSTDv05_parameters* params, const void* src, size_t srcSize);
-
-size_t ZSTDv05_nextSrcSizeToDecompress(ZSTDv05_DCtx* dctx);
-size_t ZSTDv05_decompressContinue(ZSTDv05_DCtx* dctx, void* dst, size_t dstCapacity, const void* src, size_t srcSize);
 
 /*
   Streaming decompression, direct mode (bufferless)

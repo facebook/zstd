@@ -367,7 +367,7 @@ MEM_STATIC BIT_DStream_status BIT_reloadDStream(BIT_DStream_t* bitD)
 		if (bitD->bitsConsumed < sizeof(bitD->bitContainer)*8) return BIT_DStream_endOfBuffer;
 		return BIT_DStream_completed;
 	}
-	{   U32 nbBytes = bitD->bitsConsumed >> 3;
+	{	U32 nbBytes = bitD->bitsConsumed >> 3;
 		BIT_DStream_status result = BIT_DStream_unfinished;
 		if (bitD->ptr - nbBytes < bitD->start) {
 			nbBytes = (U32)(bitD->ptr - bitD->start);  /* ptr > start */

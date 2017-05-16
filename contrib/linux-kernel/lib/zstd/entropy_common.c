@@ -107,7 +107,7 @@ size_t FSE_readNCount (short* normalizedCounter, unsigned* maxSVPtr, unsigned* t
 			} else {
 				bitStream >>= 2;
 		}   }
-		{   int const max = (2*threshold-1) - remaining;
+		{	int const max = (2*threshold-1) - remaining;
 			int count;
 
 			if ((bitStream & (threshold-1)) < (U32)max) {
@@ -172,7 +172,7 @@ size_t HUF_readStats(BYTE* huffWeight, size_t hwSize, U32* rankStats,
 		if (iSize+1 > srcSize) return ERROR(srcSize_wrong);
 		if (oSize >= hwSize) return ERROR(corruption_detected);
 		ip += 1;
-		{   U32 n;
+		{	U32 n;
 			for (n=0; n<oSize; n+=2) {
 				huffWeight[n]   = ip[n/2] >> 4;
 				huffWeight[n+1] = ip[n/2] & 15;
@@ -187,7 +187,7 @@ size_t HUF_readStats(BYTE* huffWeight, size_t hwSize, U32* rankStats,
 	/* collect weight stats */
 	memset(rankStats, 0, (HUF_TABLELOG_MAX + 1) * sizeof(U32));
 	weightTotal = 0;
-	{   U32 n; for (n=0; n<oSize; n++) {
+	{	U32 n; for (n=0; n<oSize; n++) {
 			if (huffWeight[n] >= HUF_TABLELOG_MAX) return ERROR(corruption_detected);
 			rankStats[huffWeight[n]]++;
 			weightTotal += (1 << huffWeight[n]) >> 1;
@@ -195,11 +195,11 @@ size_t HUF_readStats(BYTE* huffWeight, size_t hwSize, U32* rankStats,
 	if (weightTotal == 0) return ERROR(corruption_detected);
 
 	/* get last non-null symbol weight (implied, total must be 2^n) */
-	{   U32 const tableLog = BIT_highbit32(weightTotal) + 1;
+	{	U32 const tableLog = BIT_highbit32(weightTotal) + 1;
 		if (tableLog > HUF_TABLELOG_MAX) return ERROR(corruption_detected);
 		*tableLogPtr = tableLog;
 		/* determine last weight */
-		{   U32 const total = 1 << tableLog;
+		{	U32 const total = 1 << tableLog;
 			U32 const rest = total - weightTotal;
 			U32 const verif = 1 << BIT_highbit32(rest);
 			U32 const lastWeight = BIT_highbit32(rest) + 1;

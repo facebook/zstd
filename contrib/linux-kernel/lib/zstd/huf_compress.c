@@ -87,7 +87,7 @@ size_t HUF_compressWeights (void* dst, size_t dstSize, const void* weightTable, 
 	if (wtSize <= 1) return 0;  /* Not compressible */
 
 	/* Scan input and build symbol stats */
-	{   CHECK_V_F(maxCount, FSE_count_simple(count, &maxSymbolValue, weightTable, wtSize) );
+	{	CHECK_V_F(maxCount, FSE_count_simple(count, &maxSymbolValue, weightTable, wtSize) );
 		if (maxCount == wtSize) return 1;   /* only a single symbol in src : rle */
 		if (maxCount == 1) return 0;         /* each symbol present maximum once => not compressible */
 	}
@@ -96,13 +96,13 @@ size_t HUF_compressWeights (void* dst, size_t dstSize, const void* weightTable, 
 	CHECK_F( FSE_normalizeCount(norm, tableLog, count, wtSize, maxSymbolValue) );
 
 	/* Write table description header */
-	{   CHECK_V_F(hSize, FSE_writeNCount(op, oend-op, norm, maxSymbolValue, tableLog) );
+	{	CHECK_V_F(hSize, FSE_writeNCount(op, oend-op, norm, maxSymbolValue, tableLog) );
 		op += hSize;
 	}
 
 	/* Compress */
 	CHECK_F( FSE_buildCTable_wksp(CTable, norm, maxSymbolValue, tableLog, scratchBuffer, sizeof(scratchBuffer)) );
-	{   CHECK_V_F(cSize, FSE_compress_usingCTable(op, oend - op, weightTable, wtSize, CTable) );
+	{	CHECK_V_F(cSize, FSE_compress_usingCTable(op, oend - op, weightTable, wtSize, CTable) );
 		if (cSize == 0) return 0;   /* not enough space for compressed data */
 		op += cSize;
 	}
@@ -138,7 +138,7 @@ size_t HUF_writeCTable (void* dst, size_t maxDstSize,
 		huffWeight[n] = bitsToWeight[CTable[n].nbBits];
 
 	/* attempt weights compression by FSE */
-	{   CHECK_V_F(hSize, HUF_compressWeights(op+1, maxDstSize-1, huffWeight, maxSymbolValue) );
+	{	CHECK_V_F(hSize, HUF_compressWeights(op+1, maxDstSize-1, huffWeight, maxSymbolValue) );
 		if ((hSize>1) & (hSize < maxSymbolValue/2)) {   /* FSE compressed */
 			op[0] = (BYTE)hSize;
 			return hSize+1;
@@ -170,7 +170,7 @@ size_t HUF_readCTable (HUF_CElt* CTable, U32 maxSymbolValue, const void* src, si
 	if (nbSymbols > maxSymbolValue+1) return ERROR(maxSymbolValue_tooSmall);
 
 	/* Prepare base value per rank */
-	{   U32 n, nextRankStart = 0;
+	{	U32 n, nextRankStart = 0;
 		for (n=1; n<=tableLog; n++) {
 			U32 curr = nextRankStart;
 			nextRankStart += (rankVal[n] << (n-1));
@@ -178,18 +178,18 @@ size_t HUF_readCTable (HUF_CElt* CTable, U32 maxSymbolValue, const void* src, si
 	}   }
 
 	/* fill nbBits */
-	{   U32 n; for (n=0; n<nbSymbols; n++) {
+	{	U32 n; for (n=0; n<nbSymbols; n++) {
 			const U32 w = huffWeight[n];
 			CTable[n].nbBits = (BYTE)(tableLog + 1 - w);
 	}   }
 
 	/* fill val */
-	{   U16 nbPerRank[HUF_TABLELOG_MAX+2]  = {0};  /* support w=0=>n=tableLog+1 */
+	{	U16 nbPerRank[HUF_TABLELOG_MAX+2]  = {0};  /* support w=0=>n=tableLog+1 */
 		U16 valPerRank[HUF_TABLELOG_MAX+2] = {0};
 		{ U32 n; for (n=0; n<nbSymbols; n++) nbPerRank[CTable[n].nbBits]++; }
 		/* determine stating value per rank */
 		valPerRank[tableLog+1] = 0;   /* for w==0 */
-		{   U16 min = 0;
+		{	U16 min = 0;
 			U32 n; for (n=tableLog; n>0; n--) {  /* start at n=tablelog <-> w=1 */
 				valPerRank[n] = min;     /* get starting value within each rank */
 				min += nbPerRank[n];
@@ -216,7 +216,7 @@ static U32 HUF_setMaxHeight(nodeElt* huffNode, U32 lastNonNull, U32 maxNbBits)
 	if (largestBits <= maxNbBits) return largestBits;   /* early exit : no elt > maxNbBits */
 
 	/* there are several too large elements (at least >= 2) */
-	{   int totalCost = 0;
+	{	int totalCost = 0;
 		const U32 baseCost = 1 << (largestBits - maxNbBits);
 		U32 n = lastNonNull;
 
@@ -231,13 +231,13 @@ static U32 HUF_setMaxHeight(nodeElt* huffNode, U32 lastNonNull, U32 maxNbBits)
 		totalCost >>= (largestBits - maxNbBits);  /* note : totalCost is necessarily a multiple of baseCost */
 
 		/* repay normalized cost */
-		{   U32 const noSymbol = 0xF0F0F0F0;
+		{	U32 const noSymbol = 0xF0F0F0F0;
 			U32 rankLast[HUF_TABLELOG_MAX+2];
 			int pos;
 
 			/* Get pos of last (smallest) symbol per rank */
 			memset(rankLast, 0xF0, sizeof(rankLast));
-			{   U32 currNbBits = maxNbBits;
+			{	U32 currNbBits = maxNbBits;
 				for (pos=n ; pos >= 0; pos--) {
 					if (huffNode[pos].nbBits >= currNbBits) continue;
 					currNbBits = huffNode[pos].nbBits;   /* < maxNbBits */
@@ -251,7 +251,7 @@ static U32 HUF_setMaxHeight(nodeElt* huffNode, U32 lastNonNull, U32 maxNbBits)
 					U32 lowPos = rankLast[nBitsToDecrease-1];
 					if (highPos == noSymbol) continue;
 					if (lowPos == noSymbol) break;
-					{   U32 const highTotal = huffNode[highPos].count;
+					{	U32 const highTotal = huffNode[highPos].count;
 						U32 const lowTotal = 2 * huffNode[lowPos].count;
 						if (highTotal <= lowTotal) break;
 				}   }
@@ -369,13 +369,13 @@ size_t HUF_buildCTable_wksp (HUF_CElt* tree, const U32* count, U32 maxSymbolValu
 	maxNbBits = HUF_setMaxHeight(huffNode, nonNullRank, maxNbBits);
 
 	/* fill result into tree (val, nbBits) */
-	{   U16 nbPerRank[HUF_TABLELOG_MAX+1] = {0};
+	{	U16 nbPerRank[HUF_TABLELOG_MAX+1] = {0};
 		U16 valPerRank[HUF_TABLELOG_MAX+1] = {0};
 		if (maxNbBits > HUF_TABLELOG_MAX) return ERROR(GENERIC);   /* check fit into table */
 		for (n=0; n<=nonNullRank; n++)
 			nbPerRank[huffNode[n].nbBits]++;
 		/* determine stating value per rank */
-		{   U16 min = 0;
+		{	U16 min = 0;
 			for (n=maxNbBits; n>0; n--) {
 				valPerRank[n] = min;      /* get starting value within each rank */
 				min += nbPerRank[n];
@@ -480,28 +480,28 @@ size_t HUF_compress4X_usingCTable(void* dst, size_t dstSize, const void* src, si
 	if (srcSize < 12) return 0;   /* no saving possible : too small input */
 	op += 6;   /* jumpTable */
 
-	{   CHECK_V_F(cSize, HUF_compress1X_usingCTable(op, oend-op, ip, segmentSize, CTable) );
+	{	CHECK_V_F(cSize, HUF_compress1X_usingCTable(op, oend-op, ip, segmentSize, CTable) );
 		if (cSize==0) return 0;
 		MEM_writeLE16(ostart, (U16)cSize);
 		op += cSize;
 	}
 
 	ip += segmentSize;
-	{   CHECK_V_F(cSize, HUF_compress1X_usingCTable(op, oend-op, ip, segmentSize, CTable) );
+	{	CHECK_V_F(cSize, HUF_compress1X_usingCTable(op, oend-op, ip, segmentSize, CTable) );
 		if (cSize==0) return 0;
 		MEM_writeLE16(ostart+2, (U16)cSize);
 		op += cSize;
 	}
 
 	ip += segmentSize;
-	{   CHECK_V_F(cSize, HUF_compress1X_usingCTable(op, oend-op, ip, segmentSize, CTable) );
+	{	CHECK_V_F(cSize, HUF_compress1X_usingCTable(op, oend-op, ip, segmentSize, CTable) );
 		if (cSize==0) return 0;
 		MEM_writeLE16(ostart+4, (U16)cSize);
 		op += cSize;
 	}
 
 	ip += segmentSize;
-	{   CHECK_V_F(cSize, HUF_compress1X_usingCTable(op, oend-op, ip, iend-ip, CTable) );
+	{	CHECK_V_F(cSize, HUF_compress1X_usingCTable(op, oend-op, ip, iend-ip, CTable) );
 		if (cSize==0) return 0;
 		op += cSize;
 	}
@@ -567,7 +567,7 @@ static size_t HUF_compress_internal (
 	}
 
 	/* Scan input and build symbol stats */
-	{   CHECK_V_F(largest, FSE_count_wksp (count, &maxSymbolValue, (const BYTE*)src, srcSize, (U32*)workSpace) );
+	{	CHECK_V_F(largest, FSE_count_wksp (count, &maxSymbolValue, (const BYTE*)src, srcSize, (U32*)workSpace) );
 		if (largest == srcSize) { *ostart = ((const BYTE*)src)[0]; return 1; }   /* single symbol, rle */
 		if (largest <= (srcSize >> 7)+1) return 0;   /* Fast heuristic : not compressible enough */
 	}
@@ -583,14 +583,14 @@ static size_t HUF_compress_internal (
 
 	/* Build Huffman Tree */
 	huffLog = HUF_optimalTableLog(huffLog, srcSize, maxSymbolValue);
-	{   CHECK_V_F(maxBits, HUF_buildCTable_wksp (CTable, count, maxSymbolValue, huffLog, workSpace, wkspSize) );
+	{	CHECK_V_F(maxBits, HUF_buildCTable_wksp (CTable, count, maxSymbolValue, huffLog, workSpace, wkspSize) );
 		huffLog = (U32)maxBits;
 		/* Zero the unused symbols so we can check it for validity */
 		memset(CTable + maxSymbolValue + 1, 0, CTableSize - (maxSymbolValue + 1) * sizeof(HUF_CElt));
 	}
 
 	/* Write table description header */
-	{   CHECK_V_F(hSize, HUF_writeCTable (op, dstSize, CTable, maxSymbolValue, huffLog) );
+	{	CHECK_V_F(hSize, HUF_writeCTable (op, dstSize, CTable, maxSymbolValue, huffLog) );
 		/* Check if using the previous table will be beneficial */
 		if (repeat && *repeat != HUF_repeat_none) {
 			size_t const oldSize = HUF_estimateCompressedSize(oldHufTable, count, maxSymbolValue);

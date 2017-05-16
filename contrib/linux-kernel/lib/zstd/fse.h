@@ -459,7 +459,7 @@ MEM_STATIC void FSE_initCState(FSE_CState_t* statePtr, const FSE_CTable* ct)
 MEM_STATIC void FSE_initCState2(FSE_CState_t* statePtr, const FSE_CTable* ct, U32 symbol)
 {
 	FSE_initCState(statePtr, ct);
-	{   const FSE_symbolCompressionTransform symbolTT = ((const FSE_symbolCompressionTransform*)(statePtr->symbolTT))[symbol];
+	{	const FSE_symbolCompressionTransform symbolTT = ((const FSE_symbolCompressionTransform*)(statePtr->symbolTT))[symbol];
 		const U16* stateTable = (const U16*)(statePtr->stateTable);
 		U32 nbBitsOut  = (U32)((symbolTT.deltaNbBits + (1<<15)) >> 16);
 		statePtr->value = (nbBitsOut << 16) - symbolTT.deltaNbBits;

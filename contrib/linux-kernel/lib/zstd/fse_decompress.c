@@ -98,10 +98,10 @@ size_t FSE_buildDTable(FSE_DTable* dt, const short* normalizedCounter, unsigned 
 	if (tableLog > FSE_MAX_TABLELOG) return ERROR(tableLog_tooLarge);
 
 	/* Init, lay down lowprob symbols */
-	{   FSE_DTableHeader DTableH;
+	{	FSE_DTableHeader DTableH;
 		DTableH.tableLog = (U16)tableLog;
 		DTableH.fastMode = 1;
-		{   S16 const largeLimit= (S16)(1 << (tableLog-1));
+		{	S16 const largeLimit= (S16)(1 << (tableLog-1));
 			U32 s;
 			for (s=0; s<maxSV1; s++) {
 				if (normalizedCounter[s]==-1) {
@@ -115,7 +115,7 @@ size_t FSE_buildDTable(FSE_DTable* dt, const short* normalizedCounter, unsigned 
 	}
 
 	/* Spread symbols */
-	{   U32 const tableMask = tableSize-1;
+	{	U32 const tableMask = tableSize-1;
 		U32 const step = FSE_TABLESTEP(tableSize);
 		U32 s, position = 0;
 		for (s=0; s<maxSV1; s++) {
@@ -129,7 +129,7 @@ size_t FSE_buildDTable(FSE_DTable* dt, const short* normalizedCounter, unsigned 
 	}
 
 	/* Build Decoding table */
-	{   U32 u;
+	{	U32 u;
 		for (u=0; u<tableSize; u++) {
 			FSE_FUNCTION_TYPE const symbol = (FSE_FUNCTION_TYPE)(tableDecode[u].symbol);
 			U16 nextState = symbolNext[symbol]++;

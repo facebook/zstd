@@ -177,8 +177,6 @@ void ZSTD_copyDCtx(ZSTD_DCtx* dstDCtx, const ZSTD_DCtx* srcDCtx)
     memcpy(dstDCtx, srcDCtx, sizeof(ZSTD_DCtx) - workSpaceSize);  /* no need to copy workspace */
 }
 
-static void ZSTD_refDDict(ZSTD_DCtx* dstDCtx, const ZSTD_DDict* ddict);
-
 
 /*-*************************************************************
 *   Decompression section
@@ -1540,7 +1538,7 @@ static size_t ZSTD_decompressMultiFrame(ZSTD_DCtx* dctx,
 
         if (ddict) {
             /* we were called from ZSTD_decompress_usingDDict */
-            ZSTD_refDDict(dctx, ddict);
+            CHECK_F(ZSTD_decompressBegin_usingDDict(dctx, ddict));
         } else {
             /* this will initialize correctly with no dict if dict == NULL, so
              * use this in all cases but ddict */
@@ -1862,10 +1860,10 @@ static size_t ZSTD_DDictDictSize(const ZSTD_DDict* ddict)
     return ddict->dictSize;
 }
 
-static void ZSTD_refDDict(ZSTD_DCtx* dstDCtx, const ZSTD_DDict* ddict)
+size_t ZSTD_decompressBegin_usingDDict(ZSTD_DCtx* dstDCtx, const ZSTD_DDict* ddict)
 {
-    ZSTD_decompressBegin(dstDCtx);  /* init */
-    if (ddict) {   /* support refDDict on NULL */
+    CHECK_F(ZSTD_decompressBegin(dstDCtx));
+    if (ddict) {   /* support begin on NULL */
         dstDCtx->dictID = ddict->dictID;
         dstDCtx->base = ddict->dictContent;
         dstDCtx->vBase = ddict->dictContent;
@@ -1886,6 +1884,7 @@ static void ZSTD_refDDict(ZSTD_DCtx* dstDCtx, const ZSTD_DDict* ddict)
             dstDCtx->fseEntropy = 0;
         }
     }
+    return 0;
 }
 
 static size_t ZSTD_loadEntropy_inDDict(ZSTD_DDict* ddict)
@@ -2271,7 +2270,7 @@ size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inB
             }   }
 
             /* Consume header */
-            ZSTD_refDDict(zds->dctx, zds->ddict);
+            CHECK_F(ZSTD_decompressBegin_usingDDict(zds->dctx, zds->ddict));
             {   size_t const h1Size = ZSTD_nextSrcSizeToDecompress(zds->dctx);  /* == ZSTD_frameHeaderSize_prefix */
                 CHECK_F(ZSTD_decompressContinue(zds->dctx, NULL, 0, zds->headerBuffer, h1Size));
                 {   size_t const h2Size = ZSTD_nextSrcSizeToDecompress(zds->dctx);

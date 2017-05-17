@@ -567,14 +567,14 @@ ZSTDLIB_API size_t ZSTD_compress_usingCDict_advanced(ZSTD_CCtx* cctx,
 /*===   New experimental advanced parameters API   ===*/
 
 /* notes on API design :
- *   In below proposal, parameters are pushed one by one into an existing CCtx,
+ *   In this proposal, parameters are pushed one by one into an existing CCtx,
  *   and then applied on all following compression jobs.
  *   When no parameter is ever provided, CCtx is created with compression level 3.
  *
  *   Another approach could be to load parameters into an intermediate _opaque_ object.
  *   The object would then be loaded into CCtx (like ZSTD_compress_advanced())
  *   This approach would be compatible with ZSTD_createCDict_advanced().
- *   But it's a bit more cumbersome for CCtx, because it requires to manage an additional object.
+ *   But it's more cumbersome for CCtx, as it requires to manage an additional object.
  *
  *   Below proposal push parameters directly into CCtx.
  *   It's a bit more complex for CDict, as advanced version now requires 3 steps.
@@ -583,13 +583,13 @@ ZSTDLIB_API size_t ZSTD_compress_usingCDict_advanced(ZSTD_CCtx* cctx,
  */
 
 /* notes on naming convention :
- *   Initially, the API favored naming like ZSTD_setCCtxParameter() .
- *   In this proposal, this is changed into ZSTD_CCtx_setParameter() .
+ *   Initially, the API favored names like ZSTD_setCCtxParameter() .
+ *   In this proposal, convention is changed towards ZSTD_CCtx_setParameter() .
  *   The main idea is that it identifies more clearly the target object type.
  *   It feels clearer when considering other potential variants :
  *   ZSTD_CDict_setParameter() (rather than ZSTD_setCDictParameter())
  *   ZSTD_DCtx_setParameter()  (rather than ZSTD_setDCtxParameter() )
- *   The first verion looks clearer.
+ *   The left variant looks clearer.
  */
 
 typedef enum {
@@ -673,7 +673,8 @@ typedef enum {
 
 /*! ZSTD_CCtx_setParameter() :
  *  Set one compression parameter, selected by enum ZSTD_cParameter.
- *  @result : 0, or an error code (which can be tested with ZSTD_isError()) */
+ *  Note : when `value` is an enum, cast it to unsigned for proper type checking.
+ *  @result : 0, or an error code (which can be tested with ZSTD_isError()). */
 ZSTDLIB_API size_t ZSTD_CCtx_setParameter(ZSTD_CCtx* cctx, ZSTD_cParameter param, unsigned value);
 
 /*! ZSTD_CCtx_setPledgedSrcSize() :
@@ -719,7 +720,7 @@ ZSTDLIB_API size_t ZSTD_CDict_loadDictionary(ZSTD_CDict* cdict, const void* dict
  *  Add a prepared dictionary to cctx, it will used for next compression jobs.
  *  Note that compression parameters will be enforced from within CDict.
  *  Currently, they supercede any compression parameter previously set within CCtx.
- *  The dictionary will remain valid for all future compression jobs performed using the same cctx.
+ *  The dictionary will remain valid for future compression jobs using same cctx.
  * @result : 0, or an error code (which can be tested with ZSTD_isError()).
  *  Special : adding a NULL CDict means "return to no-dictionary mode".
  *  Note 1 : Currently, only one dictionary can be managed.
@@ -734,7 +735,7 @@ ZSTDLIB_API size_t ZSTD_CCtx_refCDict(ZSTD_CCtx* cctx, const ZSTD_CDict* cdict);
 
 typedef enum {
     ZSTD_e_continue,  /* continue sending data, encoder transparently decides when to output result, depending on optimal conditions */
-    ZSTD_e_flush,     /* flush any data provided and buffered so far - frame will continue, future data can still reference previous data for better compression */
+    ZSTD_e_flush,     /* flush any data provided, compressed and buffered so far - frame will continue, future data can still reference previous data for better compression */
     ZSTD_e_end        /* flush any remaining data and ends current frame. Any future compression starts a new frame. */
 } ZSTD_EndDirective;
 
@@ -744,14 +745,15 @@ typedef enum {
  *  - Compression parameters cannot be changed once compression is started.
  *  - *dstPos must be <= dstCapacity, *srcPos must be <= srcSize
  *  - *dspPos and *srcPos will be updated. They are guaranteed to remain below their respective limit.
- *  - @return provides the amount of data ready to flush and still within internal buffers
+ *  - @return provides the amount of data ready to flush within internal buffers
  *            or an error code, which can be tested using ZSTD_isError().
- *            if @return != 0, flush is not fully completed, so it must be called again to empty internal buffers.
+ *            if @return != 0, flush is not fully completed, and must be called again to empty internal buffers.
  *  - after a ZSTD_e_end directive, if internal buffer is not fully flushed,
  *            only ZSTD_e_end and ZSTD_e_flush operations are allowed.
  *            It is necessary to fully flush internal buffers
  *            before changing compression parameters or start a new compression job.
  */
+// Not ready yet !!!
 ZSTDLIB_API size_t ZSTD_compress_generic (ZSTD_CCtx* cctx,
                                           void* dst, size_t dstCapacity, size_t* dstPos,
                                     const void* src, size_t srcSize, size_t* srcPos,
@@ -763,7 +765,6 @@ ZSTDLIB_API size_t ZSTD_compress_generic (ZSTD_CCtx* cctx,
  *  It's allowed to change compression parameters after a reset.
  *  Any internal data not yet flushed is cancelled.
  */
-// Not ready yet !!!
 ZSTDLIB_API size_t ZSTD_CCtx_reset(ZSTD_CCtx* cctx);
 
 

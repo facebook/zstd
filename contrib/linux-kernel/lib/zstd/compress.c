@@ -774,12 +774,6 @@ _check_compressibility:
 	return op - ostart;
 }
 
-#if 0 /* for debug */
-#  define STORESEQ_DEBUG
-U32 g_startDebug = 0;
-const BYTE* g_start = NULL;
-#endif
-
 /*! ZSTD_storeSeq() :
 	Store a sequence (literal length, literals, offset code and match length code) into seqStore_t.
 	`offsetCode` : distance to match, or 0 == repCode.
@@ -787,15 +781,6 @@ const BYTE* g_start = NULL;
 */
 MEM_STATIC void ZSTD_storeSeq(seqStore_t* seqStorePtr, size_t litLength, const void* literals, U32 offsetCode, size_t matchCode)
 {
-#ifdef STORESEQ_DEBUG
-	if (g_startDebug) {
-		const U32 pos = (U32)((const BYTE*)literals - g_start);
-		if (g_start==NULL) g_start = (const BYTE*)literals;
-		if ((pos > 1895000) && (pos < 1895300))
-			fprintf(stderr, "Cpos %6u :%5u literals & match %3u bytes at distance %6u \n",
-				   pos, (U32)litLength, (U32)matchCode+MINMATCH, (U32)offsetCode);
-	}
-#endif
 	/* copy Literals */
 	ZSTD_wildcopy(seqStorePtr->lit, literals, litLength);
 	seqStorePtr->lit += litLength;
@@ -822,57 +807,15 @@ static unsigned ZSTD_NbCommonBytes (register size_t val)
 {
 	if (MEM_isLittleEndian()) {
 		if (MEM_64bits()) {
-#       if defined(_MSC_VER) && defined(_WIN64)
-			unsigned long r = 0;
-			_BitScanForward64( &r, (U64)val );
-			return (unsigned)(r>>3);
-#       elif defined(__GNUC__) && (__GNUC__ >= 3)
 			return (__builtin_ctzll((U64)val) >> 3);
-#       else
-			static const int DeBruijnBytePos[64] = { 0, 0, 0, 0, 0, 1, 1, 2, 0, 3, 1, 3, 1, 4, 2, 7, 0, 2, 3, 6, 1, 5, 3, 5, 1, 3, 4, 4, 2, 5, 6, 7, 7, 0, 1, 2, 3, 3, 4, 6, 2, 6, 5, 5, 3, 4, 5, 6, 7, 1, 2, 4, 6, 4, 4, 5, 7, 2, 6, 5, 7, 6, 7, 7 };
-			return DeBruijnBytePos[((U64)((val & -(long long)val) * 0x0218A392CDABBD3FULL)) >> 58];
-#       endif
 		} else { /* 32 bits */
-#       if defined(_MSC_VER)
-			unsigned long r=0;
-			_BitScanForward( &r, (U32)val );
-			return (unsigned)(r>>3);
-#       elif defined(__GNUC__) && (__GNUC__ >= 3)
 			return (__builtin_ctz((U32)val) >> 3);
-#       else
-			static const int DeBruijnBytePos[32] = { 0, 0, 3, 0, 3, 1, 3, 0, 3, 2, 2, 1, 3, 2, 0, 1, 3, 3, 1, 2, 2, 2, 2, 0, 3, 1, 2, 0, 1, 0, 1, 1 };
-			return DeBruijnBytePos[((U32)((val & -(S32)val) * 0x077CB531U)) >> 27];
-#       endif
 		}
 	} else {  /* Big Endian CPU */
 		if (MEM_64bits()) {
-#       if defined(_MSC_VER) && defined(_WIN64)
-			unsigned long r = 0;
-			_BitScanReverse64( &r, val );
-			return (unsigned)(r>>3);
-#       elif defined(__GNUC__) && (__GNUC__ >= 3)
 			return (__builtin_clzll(val) >> 3);
-#       else
-			unsigned r;
-			const unsigned n32 = sizeof(size_t)*4;   /* calculate this way due to compiler complaining in 32-bits mode */
-			if (!(val>>n32)) { r=4; } else { r=0; val>>=n32; }
-			if (!(val>>16)) { r+=2; val>>=8; } else { val>>=24; }
-			r += (!val);
-			return r;
-#       endif
 		} else { /* 32 bits */
-#       if defined(_MSC_VER)
-			unsigned long r = 0;
-			_BitScanReverse( &r, (unsigned long)val );
-			return (unsigned)(r>>3);
-#       elif defined(__GNUC__) && (__GNUC__ >= 3)
 			return (__builtin_clz((U32)val) >> 3);
-#       else
-			unsigned r;
-			if (!(val>>16)) { r=2; val>>=8; } else { r=0; val>>=24; }
-			r += (!val);
-			return r;
-#       endif
 	}   }
 }
 
@@ -1524,12 +1467,6 @@ static U32 ZSTD_insertBt1(ZSTD_CCtx* zc, const BYTE* const ip, const U32 mls, co
 	U32 const windowLow = zc->lowLimit;
 	U32 matchEndIdx = curr+8;
 	size_t bestLength = 8;
-#ifdef ZSTD_C_PREDICT
-	U32 predictedSmall = *(bt + 2*((curr-1)&btMask) + 0);
-	U32 predictedLarge = *(bt + 2*((curr-1)&btMask) + 1);
-	predictedSmall += (predictedSmall>0);
-	predictedLarge += (predictedLarge>0);
-#endif /* ZSTD_C_PREDICT */
 
 	hashTable[h] = curr;   /* Update Hash Table */
 
@@ -1537,26 +1474,6 @@ static U32 ZSTD_insertBt1(ZSTD_CCtx* zc, const BYTE* const ip, const U32 mls, co
 		U32* const nextPtr = bt + 2*(matchIndex & btMask);
 		size_t matchLength = MIN(commonLengthSmaller, commonLengthLarger);   /* guaranteed minimum nb of common bytes */
 
-#ifdef ZSTD_C_PREDICT   /* note : can create issues when hlog small <= 11 */
-		const U32* predictPtr = bt + 2*((matchIndex-1) & btMask);   /* written this way, as bt is a roll buffer */
-		if (matchIndex == predictedSmall) {
-			/* no need to check length, result known */
-			*smallerPtr = matchIndex;
-			if (matchIndex <= btLow) { smallerPtr=&dummy32; break; }   /* beyond tree size, stop the search */
-			smallerPtr = nextPtr+1;               /* new "smaller" => larger of match */
-			matchIndex = nextPtr[1];              /* new matchIndex larger than previous (closer to curr) */
-			predictedSmall = predictPtr[1] + (predictPtr[1]>0);
-			continue;
-		}
-		if (matchIndex == predictedLarge) {
-			*largerPtr = matchIndex;
-			if (matchIndex <= btLow) { largerPtr=&dummy32; break; }   /* beyond tree size, stop the search */
-			largerPtr = nextPtr;
-			matchIndex = nextPtr[0];
-			predictedLarge = predictPtr[0] + (predictPtr[0]>0);
-			continue;
-		}
-#endif
 		if ((!extDict) || (matchIndex+matchLength >= dictLimit)) {
 			match = base + matchIndex;
 			if (match[matchLength] == ip[matchLength])

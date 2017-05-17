@@ -39,7 +39,7 @@ FORCE_INLINE void ZSTD_setLog2Prices(seqStore_t* ssPtr)
 }
 
 
-MEM_STATIC void ZSTD_rescaleFreqs(seqStore_t* ssPtr, const BYTE* src, size_t srcSize)
+ZSTD_STATIC void ZSTD_rescaleFreqs(seqStore_t* ssPtr, const BYTE* src, size_t srcSize)
 {
 	unsigned u;
 
@@ -165,7 +165,7 @@ FORCE_INLINE U32 ZSTD_getPrice(seqStore_t* seqStorePtr, U32 litLength, const BYT
 }
 
 
-MEM_STATIC void ZSTD_updatePrice(seqStore_t* seqStorePtr, U32 litLength, const BYTE* literals, U32 offset, U32 matchLength)
+ZSTD_STATIC void ZSTD_updatePrice(seqStore_t* seqStorePtr, U32 litLength, const BYTE* literals, U32 offset, U32 matchLength)
 {
 	U32 u;
 
@@ -274,7 +274,7 @@ static U32 ZSTD_insertBtAndGetAllMatches (
 				if (match[bestLength] == ip[bestLength]) currMl = ZSTD_count(ip, match, iLimit);
 			} else {
 				match = dictBase + matchIndex3;
-				if (MEM_readMINMATCH(match, MINMATCH) == MEM_readMINMATCH(ip, MINMATCH))    /* assumption : matchIndex3 <= dictLimit-4 (by table construction) */
+				if (ZSTD_readMINMATCH(match, MINMATCH) == ZSTD_readMINMATCH(ip, MINMATCH))    /* assumption : matchIndex3 <= dictLimit-4 (by table construction) */
 					currMl = ZSTD_count_2segments(ip+MINMATCH, match+MINMATCH, iLimit, dictEnd, prefixStart) + MINMATCH;
 			}
 
@@ -446,7 +446,7 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
 			for (i=(ip == anchor); i<last_i; i++) {
 				const S32 repCur = (i==ZSTD_REP_MOVE_OPT) ? (rep[0] - 1) : rep[i];
 				if ( (repCur > 0) && (repCur < (S32)(ip-prefixStart))
-					&& (MEM_readMINMATCH(ip, minMatch) == MEM_readMINMATCH(ip - repCur, minMatch))) {
+					&& (ZSTD_readMINMATCH(ip, minMatch) == ZSTD_readMINMATCH(ip - repCur, minMatch))) {
 					mlen = (U32)ZSTD_count(ip+minMatch, ip+minMatch-repCur, iend) + minMatch;
 					if (mlen > sufficient_len || mlen >= ZSTD_OPT_NUM) {
 						best_mlen = mlen; best_off = i; cur = 0; last_pos = 1;
@@ -531,7 +531,7 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
 				for (i=(opt[cur].mlen != 1); i<last_i; i++) {  /* check rep */
 					const S32 repCur = (i==ZSTD_REP_MOVE_OPT) ? (opt[cur].rep[0] - 1) : opt[cur].rep[i];
 					if ( (repCur > 0) && (repCur < (S32)(inr-prefixStart))
-					   && (MEM_readMINMATCH(inr, minMatch) == MEM_readMINMATCH(inr - repCur, minMatch))) {
+					   && (ZSTD_readMINMATCH(inr, minMatch) == ZSTD_readMINMATCH(inr - repCur, minMatch))) {
 					   mlen = (U32)ZSTD_count(inr+minMatch, inr+minMatch - repCur, iend) + minMatch;
 
 					   if (mlen > sufficient_len || cur + mlen >= ZSTD_OPT_NUM) {
@@ -705,7 +705,7 @@ void ZSTD_compressBlock_opt_extDict_generic(ZSTD_CCtx* ctx,
 				const BYTE* const repMatch = repBase + repIndex;
 				if ( (repCur > 0 && repCur <= (S32)curr)
 				   && (((U32)((dictLimit-1) - repIndex) >= 3) & (repIndex>lowestIndex))  /* intentional overflow */
-				   && (MEM_readMINMATCH(ip, minMatch) == MEM_readMINMATCH(repMatch, minMatch)) ) {
+				   && (ZSTD_readMINMATCH(ip, minMatch) == ZSTD_readMINMATCH(repMatch, minMatch)) ) {
 					/* repcode detected we should take it */
 					const BYTE* const repEnd = repIndex < dictLimit ? dictEnd : iend;
 					mlen = (U32)ZSTD_count_2segments(ip+minMatch, repMatch+minMatch, iend, repEnd, prefixStart) + minMatch;
@@ -801,7 +801,7 @@ void ZSTD_compressBlock_opt_extDict_generic(ZSTD_CCtx* ctx,
 					const BYTE* const repMatch = repBase + repIndex;
 					if ( (repCur > 0 && repCur <= (S32)(curr+cur))
 					  && (((U32)((dictLimit-1) - repIndex) >= 3) & (repIndex>lowestIndex))  /* intentional overflow */
-					  && (MEM_readMINMATCH(inr, minMatch) == MEM_readMINMATCH(repMatch, minMatch)) ) {
+					  && (ZSTD_readMINMATCH(inr, minMatch) == ZSTD_readMINMATCH(repMatch, minMatch)) ) {
 						/* repcode detected */
 						const BYTE* const repEnd = repIndex < dictLimit ? dictEnd : iend;
 						mlen = (U32)ZSTD_count_2segments(inr+minMatch, repMatch+minMatch, iend, repEnd, prefixStart) + minMatch;

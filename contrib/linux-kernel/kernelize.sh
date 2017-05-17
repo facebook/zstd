@@ -2,6 +2,8 @@
 set -e
 
 # Constants
+SED_COMMANDS="commands.tmp"
+CLANG_FORMAT="clang-format-3.9"
 INCLUDE='include/linux/'
 LIB='lib/zstd/'
 SPACES='    '
@@ -18,6 +20,14 @@ function prompt() {
         * ) echo "Please answer yes or no.";;
     esac
 done
+}
+
+function check_not_present() {
+  grep "$1" $INCLUDE*.h ${LIB}*.{h,c} && exit 1 || true
+}
+
+function check_not_present_in_file() {
+  grep "$1" "$2" && exit 1 || true
 }
 
 echo "Files: " $INCLUDE*.h $LIB*.{h,c}
@@ -49,8 +59,44 @@ then
   sed -i '' "s/$TAB{   /$TAB{$TAB/g" $INCLUDE*.h $LIB*.{h,c}
 fi
 
-prompt "Do you wish to replace 'current' with 'curr'?"
+rm -f $SED_COMMANDS
+cat > $SED_COMMANDS <<EOF
+s/current/curr/g
+s/MEM_STATIC/ZSTD_STATIC/g
+s/MEM_check/ZSTD_check/g
+s/MEM_32bits/ZSTD_32bits/g
+s/MEM_64bits/ZSTD_64bits/g
+s/MEM_LITTLE_ENDIAN/ZSTD_LITTLE_ENDIAN/g
+s/MEM_isLittleEndian/ZSTD_isLittleEndian/g
+s/MEM_read/ZSTD_read/g
+s/MEM_write/ZSTD_write/g
+EOF
+
+prompt "Do you wish to run these sed commands $(cat $SED_COMMANDS)?"
 if [ ! -z "$yes" ]
 then
-  sed -i '' "s/current/curr/g" $LIB*.{h,c}
+  sed -i '' -f $SED_COMMANDS $LIB*.{h,c}
+fi
+rm -f $SED_COMMANDS
+
+prompt "Do you wish to clang-format $LIB*.{h,c}?"
+if [ ! -z "$yes" ]
+then
+  $CLANG_FORMAT -i ${LIB}*.{h,c}
+fi
+
+prompt "Do you wish to run some checks?"
+if [ ! -z "$yes" ]
+then
+  check_not_present_in_file STATIC_ASSERT ${LIB}mem.h
+  check_not_present "#if 0"
+  check_not_present "#if 1"
+  check_not_present _MSC_VER
+  check_not_present __cplusplus
+  check_not_present __STDC_VERSION__
+  check_not_present __VMS
+  check_not_present __GNUC__
+  check_not_present __INTEL_COMPILER
+  check_not_present FORCE_MEMORY_ACCESS
+  check_not_present STATIC_LINKING_ONLY
 fi

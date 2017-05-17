@@ -28,11 +28,7 @@
 /*-****************************************
 *  Compiler specifics
 ******************************************/
-#define MEM_STATIC static __inline __attribute__((unused))
-
-/* code only tested on 32 and 64 bits systems */
-#define MEM_STATIC_ASSERT(c)   { enum { MEM_static_assert = 1/(int)(!!(c)) }; }
-MEM_STATIC void MEM_check(void) { MEM_STATIC_ASSERT((sizeof(size_t)==4) || (sizeof(size_t)==8)); }
+#define ZSTD_STATIC static __inline __attribute__((unused))
 
 
 /*-**************************************************************
@@ -52,164 +48,164 @@ typedef uintptr_t uPtrDiff;
 /*-**************************************************************
 *  Memory I/O
 *****************************************************************/
-MEM_STATIC unsigned MEM_32bits(void) { return sizeof(size_t)==4; }
-MEM_STATIC unsigned MEM_64bits(void) { return sizeof(size_t)==8; }
+ZSTD_STATIC unsigned ZSTD_32bits(void) { return sizeof(size_t)==4; }
+ZSTD_STATIC unsigned ZSTD_64bits(void) { return sizeof(size_t)==8; }
 
 #if defined(__LITTLE_ENDIAN)
-#   define MEM_LITTLE_ENDIAN 1
+#   define ZSTD_LITTLE_ENDIAN 1
 #else
-#   define MEM_LITTLE_ENDIAN 0
+#   define ZSTD_LITTLE_ENDIAN 0
 #endif
 
-MEM_STATIC unsigned MEM_isLittleEndian(void)
+ZSTD_STATIC unsigned ZSTD_isLittleEndian(void)
 {
-	return MEM_LITTLE_ENDIAN;
+	return ZSTD_LITTLE_ENDIAN;
 }
 
-MEM_STATIC U16 MEM_read16(const void* memPtr)
+ZSTD_STATIC U16 ZSTD_read16(const void* memPtr)
 {
 	return get_unaligned((const U16*)memPtr);
 }
 
-MEM_STATIC U32 MEM_read32(const void* memPtr)
+ZSTD_STATIC U32 ZSTD_read32(const void* memPtr)
 {
 	return get_unaligned((const U32*)memPtr);
 }
 
-MEM_STATIC U64 MEM_read64(const void* memPtr)
+ZSTD_STATIC U64 ZSTD_read64(const void* memPtr)
 {
 	return get_unaligned((const U64*)memPtr);
 }
 
-MEM_STATIC size_t MEM_readST(const void* memPtr)
+ZSTD_STATIC size_t ZSTD_readST(const void* memPtr)
 {
 	return get_unaligned((const size_t*)memPtr);
 }
 
-MEM_STATIC void MEM_write16(void* memPtr, U16 value)
+ZSTD_STATIC void ZSTD_write16(void* memPtr, U16 value)
 {
 	put_unaligned(value, (U16*)memPtr);
 }
 
-MEM_STATIC void MEM_write32(void* memPtr, U32 value)
+ZSTD_STATIC void ZSTD_write32(void* memPtr, U32 value)
 {
 	put_unaligned(value, (U32*)memPtr);
 }
 
-MEM_STATIC void MEM_write64(void* memPtr, U64 value)
+ZSTD_STATIC void ZSTD_write64(void* memPtr, U64 value)
 {
 	put_unaligned(value, (U64*)memPtr);
 }
 
 /*=== Little endian r/w ===*/
 
-MEM_STATIC U16 MEM_readLE16(const void* memPtr)
+ZSTD_STATIC U16 ZSTD_readLE16(const void* memPtr)
 {
 	return get_unaligned_le16(memPtr);
 }
 
-MEM_STATIC void MEM_writeLE16(void* memPtr, U16 val)
+ZSTD_STATIC void ZSTD_writeLE16(void* memPtr, U16 val)
 {
 	put_unaligned_le16(val, memPtr);
 }
 
-MEM_STATIC U32 MEM_readLE24(const void* memPtr)
+ZSTD_STATIC U32 ZSTD_readLE24(const void* memPtr)
 {
-	return MEM_readLE16(memPtr) + (((const BYTE*)memPtr)[2] << 16);
+	return ZSTD_readLE16(memPtr) + (((const BYTE*)memPtr)[2] << 16);
 }
 
-MEM_STATIC void MEM_writeLE24(void* memPtr, U32 val)
+ZSTD_STATIC void ZSTD_writeLE24(void* memPtr, U32 val)
 {
-	MEM_writeLE16(memPtr, (U16)val);
+	ZSTD_writeLE16(memPtr, (U16)val);
 	((BYTE*)memPtr)[2] = (BYTE)(val>>16);
 }
 
-MEM_STATIC U32 MEM_readLE32(const void* memPtr)
+ZSTD_STATIC U32 ZSTD_readLE32(const void* memPtr)
 {
 	return get_unaligned_le32(memPtr);
 }
 
-MEM_STATIC void MEM_writeLE32(void* memPtr, U32 val32)
+ZSTD_STATIC void ZSTD_writeLE32(void* memPtr, U32 val32)
 {
 	put_unaligned_le32(val32, memPtr);
 }
 
-MEM_STATIC U64 MEM_readLE64(const void* memPtr)
+ZSTD_STATIC U64 ZSTD_readLE64(const void* memPtr)
 {
 	return get_unaligned_le64(memPtr);
 }
 
-MEM_STATIC void MEM_writeLE64(void* memPtr, U64 val64)
+ZSTD_STATIC void ZSTD_writeLE64(void* memPtr, U64 val64)
 {
 	put_unaligned_le64(val64, memPtr);
 }
 
-MEM_STATIC size_t MEM_readLEST(const void* memPtr)
+ZSTD_STATIC size_t ZSTD_readLEST(const void* memPtr)
 {
-	if (MEM_32bits())
-		return (size_t)MEM_readLE32(memPtr);
+	if (ZSTD_32bits())
+		return (size_t)ZSTD_readLE32(memPtr);
 	else
-		return (size_t)MEM_readLE64(memPtr);
+		return (size_t)ZSTD_readLE64(memPtr);
 }
 
-MEM_STATIC void MEM_writeLEST(void* memPtr, size_t val)
+ZSTD_STATIC void ZSTD_writeLEST(void* memPtr, size_t val)
 {
-	if (MEM_32bits())
-		MEM_writeLE32(memPtr, (U32)val);
+	if (ZSTD_32bits())
+		ZSTD_writeLE32(memPtr, (U32)val);
 	else
-		MEM_writeLE64(memPtr, (U64)val);
+		ZSTD_writeLE64(memPtr, (U64)val);
 }
 
 /*=== Big endian r/w ===*/
 
-MEM_STATIC U32 MEM_readBE32(const void* memPtr)
+ZSTD_STATIC U32 ZSTD_readBE32(const void* memPtr)
 {
 	return get_unaligned_be32(memPtr);
 }
 
-MEM_STATIC void MEM_writeBE32(void* memPtr, U32 val32)
+ZSTD_STATIC void ZSTD_writeBE32(void* memPtr, U32 val32)
 {
 	put_unaligned_be32(val32, memPtr);
 }
 
-MEM_STATIC U64 MEM_readBE64(const void* memPtr)
+ZSTD_STATIC U64 ZSTD_readBE64(const void* memPtr)
 {
 	return get_unaligned_be64(memPtr);
 }
 
-MEM_STATIC void MEM_writeBE64(void* memPtr, U64 val64)
+ZSTD_STATIC void ZSTD_writeBE64(void* memPtr, U64 val64)
 {
 	put_unaligned_be64(val64, memPtr);
 }
 
-MEM_STATIC size_t MEM_readBEST(const void* memPtr)
+ZSTD_STATIC size_t ZSTD_readBEST(const void* memPtr)
 {
-	if (MEM_32bits())
-		return (size_t)MEM_readBE32(memPtr);
+	if (ZSTD_32bits())
+		return (size_t)ZSTD_readBE32(memPtr);
 	else
-		return (size_t)MEM_readBE64(memPtr);
+		return (size_t)ZSTD_readBE64(memPtr);
 }
 
-MEM_STATIC void MEM_writeBEST(void* memPtr, size_t val)
+ZSTD_STATIC void ZSTD_writeBEST(void* memPtr, size_t val)
 {
-	if (MEM_32bits())
-		MEM_writeBE32(memPtr, (U32)val);
+	if (ZSTD_32bits())
+		ZSTD_writeBE32(memPtr, (U32)val);
 	else
-		MEM_writeBE64(memPtr, (U64)val);
+		ZSTD_writeBE64(memPtr, (U64)val);
 }
 
 
 /* function safe only for comparisons */
-MEM_STATIC U32 MEM_readMINMATCH(const void* memPtr, U32 length)
+ZSTD_STATIC U32 ZSTD_readMINMATCH(const void* memPtr, U32 length)
 {
 	switch (length)
 	{
 	default :
-	case 4 : return MEM_read32(memPtr);
-	case 3 : if (MEM_isLittleEndian())
-				return MEM_read32(memPtr)<<8;
+	case 4 : return ZSTD_read32(memPtr);
+	case 3 : if (ZSTD_isLittleEndian())
+				return ZSTD_read32(memPtr)<<8;
 			 else
-				return MEM_read32(memPtr)>>8;
+				return ZSTD_read32(memPtr)>>8;
 	}
 }
 

@@ -131,7 +131,7 @@ static void ZSTD_copy8(void* dst, const void* src) { memcpy(dst, src, 8); }
 /*! ZSTD_wildcopy() :
 *   custom version of memcpy(), can copy up to 7 bytes too many (8 bytes if length==0) */
 #define WILDCOPY_OVERLENGTH 8
-MEM_STATIC void ZSTD_wildcopy(void* dst, const void* src, ptrdiff_t length)
+ZSTD_STATIC void ZSTD_wildcopy(void* dst, const void* src, ptrdiff_t length)
 {
 	const BYTE* ip = (const BYTE*)src;
 	BYTE* op = (BYTE*)dst;
@@ -141,7 +141,7 @@ MEM_STATIC void ZSTD_wildcopy(void* dst, const void* src, ptrdiff_t length)
 	while (op < oend);
 }
 
-MEM_STATIC void ZSTD_wildcopy_e(void* dst, const void* src, void* dstEnd)   /* should be faster for decoding, but strangely, not verified on all platform */
+ZSTD_STATIC void ZSTD_wildcopy_e(void* dst, const void* src, void* dstEnd)   /* should be faster for decoding, but strangely, not verified on all platform */
 {
 	const BYTE* ip = (const BYTE*)src;
 	BYTE* op = (BYTE*)dst;
@@ -243,7 +243,7 @@ void ZSTD_stackFree(void* opaque, void* address);
 
 /*======  common function  ======*/
 
-MEM_STATIC U32 ZSTD_highbit32(U32 val)
+ZSTD_STATIC U32 ZSTD_highbit32(U32 val)
 {
 	return 31 - __builtin_clz(val);
 }

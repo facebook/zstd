@@ -1,16 +1,23 @@
 diff --git a/include/linux/zstd.h b/include/linux/zstd.h
 new file mode 100644
-index 0000000..ee7bd82
+index 0000000..249575e
 --- /dev/null
 +++ b/include/linux/zstd.h
-@@ -0,0 +1,1150 @@
+@@ -0,0 +1,1157 @@
 +/*
 + * Copyright (c) 2016-present, Yann Collet, Facebook, Inc.
 + * All rights reserved.
 + *
 + * This source code is licensed under the BSD-style license found in the
-+ * LICENSE file in the root directory of this source tree. An additional grant
-+ * of patent rights can be found in the PATENTS file in the same directory.
++ * LICENSE file in the root directory of https://github.com/facebook/zstd.
++ * An additional grant of patent rights can be found in the PATENTS file in the
++ * same directory.
++ *
++ * This program is free software; you can redistribute it and/or modify it under
++ * the terms of the GNU General Public License version 2 as published by the
++ * Free Software Foundation. This program is dual-licensed; you may select
++ * either version 2 of the GNU General Public License ("GPL") or BSD license
++ * ("BSD").
 + */
 +
 +#ifndef ZSTD_H
@@ -1203,44 +1210,50 @@ index 0000000..aa5eb4d
 +				huf_decompress.o decompress.o
 diff --git a/lib/zstd/bitstream.h b/lib/zstd/bitstream.h
 new file mode 100644
-index 0000000..9b5d2bc
+index 0000000..2f6e76c
 --- /dev/null
 +++ b/lib/zstd/bitstream.h
-@@ -0,0 +1,376 @@
-+/* ******************************************************************
-+   bitstream
-+   Part of FSE library
-+   header file (to include)
-+   Copyright (C) 2013-2016, Yann Collet.
-+
-+   BSD 2-Clause License (http://www.opensource.org/licenses/bsd-license.php)
-+
-+   Redistribution and use in source and binary forms, with or without
-+   modification, are permitted provided that the following conditions are
-+   met:
-+
-+	   * Redistributions of source code must retain the above copyright
-+   notice, this list of conditions and the following disclaimer.
-+	   * Redistributions in binary form must reproduce the above
-+   copyright notice, this list of conditions and the following disclaimer
-+   in the documentation and/or other materials provided with the
-+   distribution.
-+
-+   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-+   "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-+   LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-+   A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-+   OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-+   SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-+   LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-+   DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-+   THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-+   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-+   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-+
-+   You can contact the author at :
-+   - Source repository : https://github.com/Cyan4973/FiniteStateEntropy
-+****************************************************************** */
+@@ -0,0 +1,382 @@
++/*
++ * bitstream
++ * Part of FSE library
++ * header file (to include)
++ * Copyright (C) 2013-2016, Yann Collet.
++ *
++ * BSD 2-Clause License (http://www.opensource.org/licenses/bsd-license.php)
++ *
++ * Redistribution and use in source and binary forms, with or without
++ * modification, are permitted provided that the following conditions are
++ * met:
++ *
++ *   * Redistributions of source code must retain the above copyright
++ * notice, this list of conditions and the following disclaimer.
++ *   * Redistributions in binary form must reproduce the above
++ * copyright notice, this list of conditions and the following disclaimer
++ * in the documentation and/or other materials provided with the
++ * distribution.
++ *
++ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
++ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
++ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
++ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
++ * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
++ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
++ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
++ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
++ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
++ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
++ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
++ *
++ * This program is free software; you can redistribute it and/or modify it under
++ * the terms of the GNU General Public License version 2 as published by the
++ * Free Software Foundation. This program is dual-licensed; you may select
++ * either version 2 of the GNU General Public License ("GPL") or BSD license
++ * ("BSD").
++ *
++ * You can contact the author at :
++ * - Source repository : https://github.com/Cyan4973/FiniteStateEntropy
++ */
 +#ifndef BITSTREAM_H_MODULE
 +#define BITSTREAM_H_MODULE
 +
@@ -1585,17 +1598,24 @@ index 0000000..9b5d2bc
 +#endif /* BITSTREAM_H_MODULE */
 diff --git a/lib/zstd/compress.c b/lib/zstd/compress.c
 new file mode 100644
-index 0000000..4f1e184
+index 0000000..a078969
 --- /dev/null
 +++ b/lib/zstd/compress.c
-@@ -0,0 +1,3297 @@
+@@ -0,0 +1,3304 @@
 +/**
 + * Copyright (c) 2016-present, Yann Collet, Facebook, Inc.
 + * All rights reserved.
 + *
 + * This source code is licensed under the BSD-style license found in the
-+ * LICENSE file in the root directory of this source tree. An additional grant
-+ * of patent rights can be found in the PATENTS file in the same directory.
++ * LICENSE file in the root directory of https://github.com/facebook/zstd.
++ * An additional grant of patent rights can be found in the PATENTS file in the
++ * same directory.
++ *
++ * This program is free software; you can redistribute it and/or modify it under
++ * the terms of the GNU General Public License version 2 as published by the
++ * Free Software Foundation. This program is dual-licensed; you may select
++ * either version 2 of the GNU General Public License ("GPL") or BSD license
++ * ("BSD").
 + */
 +
 +
@@ -4884,21 +4904,28 @@ index 0000000..4f1e184
 +EXPORT_SYMBOL(ZSTD_getBlockSizeMax);
 +EXPORT_SYMBOL(ZSTD_compressBlock);
 +
-+MODULE_LICENSE("BSD");
++MODULE_LICENSE("Dual BSD/GPL");
 +MODULE_DESCRIPTION("Zstd Compressor");
 diff --git a/lib/zstd/decompress.c b/lib/zstd/decompress.c
 new file mode 100644
-index 0000000..378d2c5
+index 0000000..bd76a75
 --- /dev/null
 +++ b/lib/zstd/decompress.c
-@@ -0,0 +1,2349 @@
+@@ -0,0 +1,2356 @@
 +/**
 + * Copyright (c) 2016-present, Yann Collet, Facebook, Inc.
 + * All rights reserved.
 + *
 + * This source code is licensed under the BSD-style license found in the
-+ * LICENSE file in the root directory of this source tree. An additional grant
-+ * of patent rights can be found in the PATENTS file in the same directory.
++ * LICENSE file in the root directory of https://github.com/facebook/zstd.
++ * An additional grant of patent rights can be found in the PATENTS file in the
++ * same directory.
++ *
++ * This program is free software; you can redistribute it and/or modify it under
++ * the terms of the GNU General Public License version 2 as published by the
++ * Free Software Foundation. This program is dual-licensed; you may select
++ * either version 2 of the GNU General Public License ("GPL") or BSD license
++ * ("BSD").
 + */
 +
 +
@@ -7239,47 +7266,52 @@ index 0000000..378d2c5
 +EXPORT_SYMBOL(ZSTD_decompressBlock);
 +EXPORT_SYMBOL(ZSTD_insertBlock);
 +
-+MODULE_LICENSE("BSD");
++MODULE_LICENSE("Dual BSD/GPL");
 +MODULE_DESCRIPTION("Zstd Decompressor");
 diff --git a/lib/zstd/entropy_common.c b/lib/zstd/entropy_common.c
 new file mode 100644
-index 0000000..36ad266
+index 0000000..b13fb99
 --- /dev/null
 +++ b/lib/zstd/entropy_common.c
-@@ -0,0 +1,217 @@
+@@ -0,0 +1,222 @@
 +/*
-+   Common functions of New Generation Entropy library
-+   Copyright (C) 2016, Yann Collet.
-+
-+   BSD 2-Clause License (http://www.opensource.org/licenses/bsd-license.php)
-+
-+   Redistribution and use in source and binary forms, with or without
-+   modification, are permitted provided that the following conditions are
-+   met:
-+
-+	   * Redistributions of source code must retain the above copyright
-+   notice, this list of conditions and the following disclaimer.
-+	   * Redistributions in binary form must reproduce the above
-+   copyright notice, this list of conditions and the following disclaimer
-+   in the documentation and/or other materials provided with the
-+   distribution.
-+
-+   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-+   "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-+   LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-+   A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-+   OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-+   SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-+   LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-+   DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-+   THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-+   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-+   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-+
-+	You can contact the author at :
-+	- FSE+HUF source repository : https://github.com/Cyan4973/FiniteStateEntropy
-+	- Public forum : https://groups.google.com/forum/#!forum/lz4c
-+*************************************************************************** */
++ * Common functions of New Generation Entropy library
++ * Copyright (C) 2016, Yann Collet.
++ *
++ * BSD 2-Clause License (http://www.opensource.org/licenses/bsd-license.php)
++ *
++ * Redistribution and use in source and binary forms, with or without
++ * modification, are permitted provided that the following conditions are
++ * met:
++ *
++ *   * Redistributions of source code must retain the above copyright
++ * notice, this list of conditions and the following disclaimer.
++ *   * Redistributions in binary form must reproduce the above
++ * copyright notice, this list of conditions and the following disclaimer
++ * in the documentation and/or other materials provided with the
++ * distribution.
++ *
++ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
++ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
++ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
++ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
++ * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
++ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
++ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
++ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
++ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
++ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
++ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
++ *
++ * This program is free software; you can redistribute it and/or modify it under
++ * the terms of the GNU General Public License version 2 as published by the
++ * Free Software Foundation. This program is dual-licensed; you may select
++ * either version 2 of the GNU General Public License ("GPL") or BSD license
++ * ("BSD").
++ *
++ * You can contact the author at :
++ * - Source repository : https://github.com/Cyan4973/FiniteStateEntropy
++ */
 +
 +/* *************************************
 +*  Dependencies
@@ -7466,17 +7498,24 @@ index 0000000..36ad266
 +}
 diff --git a/lib/zstd/error_private.h b/lib/zstd/error_private.h
 new file mode 100644
-index 0000000..8cf148b
+index 0000000..fd1f4ff
 --- /dev/null
 +++ b/lib/zstd/error_private.h
-@@ -0,0 +1,44 @@
+@@ -0,0 +1,51 @@
 +/**
 + * Copyright (c) 2016-present, Yann Collet, Facebook, Inc.
 + * All rights reserved.
 + *
 + * This source code is licensed under the BSD-style license found in the
-+ * LICENSE file in the root directory of this source tree. An additional grant
-+ * of patent rights can be found in the PATENTS file in the same directory.
++ * LICENSE file in the root directory of https://github.com/facebook/zstd.
++ * An additional grant of patent rights can be found in the PATENTS file in the
++ * same directory.
++ *
++ * This program is free software; you can redistribute it and/or modify it under
++ * the terms of the GNU General Public License version 2 as published by the
++ * Free Software Foundation. This program is dual-licensed; you may select
++ * either version 2 of the GNU General Public License ("GPL") or BSD license
++ * ("BSD").
 + */
 +
 +/* Note : this module is expected to remain private, do not expose it */
@@ -7516,43 +7555,49 @@ index 0000000..8cf148b
 +#endif /* ERROR_H_MODULE */
 diff --git a/lib/zstd/fse.h b/lib/zstd/fse.h
 new file mode 100644
-index 0000000..6a78957
+index 0000000..a042154
 --- /dev/null
 +++ b/lib/zstd/fse.h
-@@ -0,0 +1,606 @@
-+/* ******************************************************************
-+   FSE : Finite State Entropy codec
-+   Public Prototypes declaration
-+   Copyright (C) 2013-2016, Yann Collet.
-+
-+   BSD 2-Clause License (http://www.opensource.org/licenses/bsd-license.php)
-+
-+   Redistribution and use in source and binary forms, with or without
-+   modification, are permitted provided that the following conditions are
-+   met:
-+
-+	   * Redistributions of source code must retain the above copyright
-+   notice, this list of conditions and the following disclaimer.
-+	   * Redistributions in binary form must reproduce the above
-+   copyright notice, this list of conditions and the following disclaimer
-+   in the documentation and/or other materials provided with the
-+   distribution.
-+
-+   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-+   "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-+   LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-+   A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-+   OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-+   SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-+   LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-+   DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-+   THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-+   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-+   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-+
-+   You can contact the author at :
-+   - Source repository : https://github.com/Cyan4973/FiniteStateEntropy
-+****************************************************************** */
+@@ -0,0 +1,612 @@
++/*
++ * FSE : Finite State Entropy codec
++ * Public Prototypes declaration
++ * Copyright (C) 2013-2016, Yann Collet.
++ *
++ * BSD 2-Clause License (http://www.opensource.org/licenses/bsd-license.php)
++ *
++ * Redistribution and use in source and binary forms, with or without
++ * modification, are permitted provided that the following conditions are
++ * met:
++ *
++ *   * Redistributions of source code must retain the above copyright
++ * notice, this list of conditions and the following disclaimer.
++ *   * Redistributions in binary form must reproduce the above
++ * copyright notice, this list of conditions and the following disclaimer
++ * in the documentation and/or other materials provided with the
++ * distribution.
++ *
++ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
++ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
++ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
++ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
++ * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
++ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
++ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
++ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
++ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
++ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
++ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
++ *
++ * This program is free software; you can redistribute it and/or modify it under
++ * the terms of the GNU General Public License version 2 as published by the
++ * Free Software Foundation. This program is dual-licensed; you may select
++ * either version 2 of the GNU General Public License ("GPL") or BSD license
++ * ("BSD").
++ *
++ * You can contact the author at :
++ * - Source repository : https://github.com/Cyan4973/FiniteStateEntropy
++ */
 +#ifndef FSE_H
 +#define FSE_H
 +
@@ -8128,43 +8173,48 @@ index 0000000..6a78957
 +#endif  /* FSE_H */
 diff --git a/lib/zstd/fse_compress.c b/lib/zstd/fse_compress.c
 new file mode 100644
-index 0000000..d0b5673
+index 0000000..d13f00d
 --- /dev/null
 +++ b/lib/zstd/fse_compress.c
-@@ -0,0 +1,774 @@
-+/* ******************************************************************
-+   FSE : Finite State Entropy encoder
-+   Copyright (C) 2013-2015, Yann Collet.
-+
-+   BSD 2-Clause License (http://www.opensource.org/licenses/bsd-license.php)
-+
-+   Redistribution and use in source and binary forms, with or without
-+   modification, are permitted provided that the following conditions are
-+   met:
-+
-+	   * Redistributions of source code must retain the above copyright
-+   notice, this list of conditions and the following disclaimer.
-+	   * Redistributions in binary form must reproduce the above
-+   copyright notice, this list of conditions and the following disclaimer
-+   in the documentation and/or other materials provided with the
-+   distribution.
-+
-+   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-+   "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-+   LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-+   A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-+   OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-+   SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-+   LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-+   DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-+   THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-+   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-+   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-+
-+	You can contact the author at :
-+	- FSE source repository : https://github.com/Cyan4973/FiniteStateEntropy
-+	- Public forum : https://groups.google.com/forum/#!forum/lz4c
-+****************************************************************** */
+@@ -0,0 +1,779 @@
++/*
++ * FSE : Finite State Entropy encoder
++ * Copyright (C) 2013-2015, Yann Collet.
++ *
++ * BSD 2-Clause License (http://www.opensource.org/licenses/bsd-license.php)
++ *
++ * Redistribution and use in source and binary forms, with or without
++ * modification, are permitted provided that the following conditions are
++ * met:
++ *
++ *   * Redistributions of source code must retain the above copyright
++ * notice, this list of conditions and the following disclaimer.
++ *   * Redistributions in binary form must reproduce the above
++ * copyright notice, this list of conditions and the following disclaimer
++ * in the documentation and/or other materials provided with the
++ * distribution.
++ *
++ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
++ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
++ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
++ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
++ * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
++ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
++ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
++ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
++ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
++ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
++ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
++ *
++ * This program is free software; you can redistribute it and/or modify it under
++ * the terms of the GNU General Public License version 2 as published by the
++ * Free Software Foundation. This program is dual-licensed; you may select
++ * either version 2 of the GNU General Public License ("GPL") or BSD license
++ * ("BSD").
++ *
++ * You can contact the author at :
++ * - Source repository : https://github.com/Cyan4973/FiniteStateEntropy
++ */
 +
 +/* **************************************************************
 +*  Compiler specifics
@@ -8908,43 +8958,48 @@ index 0000000..d0b5673
 +#endif   /* FSE_COMMONDEFS_ONLY */
 diff --git a/lib/zstd/fse_decompress.c b/lib/zstd/fse_decompress.c
 new file mode 100644
-index 0000000..6de5411
+index 0000000..6d2c367
 --- /dev/null
 +++ b/lib/zstd/fse_decompress.c
-@@ -0,0 +1,292 @@
-+/* ******************************************************************
-+   FSE : Finite State Entropy decoder
-+   Copyright (C) 2013-2015, Yann Collet.
-+
-+   BSD 2-Clause License (http://www.opensource.org/licenses/bsd-license.php)
-+
-+   Redistribution and use in source and binary forms, with or without
-+   modification, are permitted provided that the following conditions are
-+   met:
-+
-+	   * Redistributions of source code must retain the above copyright
-+   notice, this list of conditions and the following disclaimer.
-+	   * Redistributions in binary form must reproduce the above
-+   copyright notice, this list of conditions and the following disclaimer
-+   in the documentation and/or other materials provided with the
-+   distribution.
-+
-+   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-+   "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-+   LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-+   A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-+   OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-+   SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-+   LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-+   DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-+   THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-+   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-+   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-+
-+	You can contact the author at :
-+	- FSE source repository : https://github.com/Cyan4973/FiniteStateEntropy
-+	- Public forum : https://groups.google.com/forum/#!forum/lz4c
-+****************************************************************** */
+@@ -0,0 +1,297 @@
++/*
++ * FSE : Finite State Entropy decoder
++ * Copyright (C) 2013-2015, Yann Collet.
++ *
++ * BSD 2-Clause License (http://www.opensource.org/licenses/bsd-license.php)
++ *
++ * Redistribution and use in source and binary forms, with or without
++ * modification, are permitted provided that the following conditions are
++ * met:
++ *
++ *   * Redistributions of source code must retain the above copyright
++ * notice, this list of conditions and the following disclaimer.
++ *   * Redistributions in binary form must reproduce the above
++ * copyright notice, this list of conditions and the following disclaimer
++ * in the documentation and/or other materials provided with the
++ * distribution.
++ *
++ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
++ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
++ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
++ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
++ * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
++ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
++ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
++ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
++ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
++ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
++ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
++ *
++ * This program is free software; you can redistribute it and/or modify it under
++ * the terms of the GNU General Public License version 2 as published by the
++ * Free Software Foundation. This program is dual-licensed; you may select
++ * either version 2 of the GNU General Public License ("GPL") or BSD license
++ * ("BSD").
++ *
++ * You can contact the author at :
++ * - Source repository : https://github.com/Cyan4973/FiniteStateEntropy
++ */
 +
 +
 +/* **************************************************************
@@ -9206,43 +9261,49 @@ index 0000000..6de5411
 +#endif   /* FSE_COMMONDEFS_ONLY */
 diff --git a/lib/zstd/huf.h b/lib/zstd/huf.h
 new file mode 100644
-index 0000000..f36aded
+index 0000000..b157675
 --- /dev/null
 +++ b/lib/zstd/huf.h
-@@ -0,0 +1,203 @@
-+/* ******************************************************************
-+   Huffman coder, part of New Generation Entropy library
-+   header file
-+   Copyright (C) 2013-2016, Yann Collet.
-+
-+   BSD 2-Clause License (http://www.opensource.org/licenses/bsd-license.php)
-+
-+   Redistribution and use in source and binary forms, with or without
-+   modification, are permitted provided that the following conditions are
-+   met:
-+
-+	   * Redistributions of source code must retain the above copyright
-+   notice, this list of conditions and the following disclaimer.
-+	   * Redistributions in binary form must reproduce the above
-+   copyright notice, this list of conditions and the following disclaimer
-+   in the documentation and/or other materials provided with the
-+   distribution.
-+
-+   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-+   "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-+   LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-+   A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-+   OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-+   SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-+   LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-+   DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-+   THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-+   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-+   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-+
-+   You can contact the author at :
-+   - Source repository : https://github.com/Cyan4973/FiniteStateEntropy
-+****************************************************************** */
+@@ -0,0 +1,209 @@
++/*
++ * Huffman coder, part of New Generation Entropy library
++ * header file
++ * Copyright (C) 2013-2016, Yann Collet.
++ *
++ * BSD 2-Clause License (http://www.opensource.org/licenses/bsd-license.php)
++ *
++ * Redistribution and use in source and binary forms, with or without
++ * modification, are permitted provided that the following conditions are
++ * met:
++ *
++ *   * Redistributions of source code must retain the above copyright
++ * notice, this list of conditions and the following disclaimer.
++ *   * Redistributions in binary form must reproduce the above
++ * copyright notice, this list of conditions and the following disclaimer
++ * in the documentation and/or other materials provided with the
++ * distribution.
++ *
++ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
++ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
++ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
++ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
++ * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
++ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
++ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
++ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
++ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
++ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
++ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
++ *
++ * This program is free software; you can redistribute it and/or modify it under
++ * the terms of the GNU General Public License version 2 as published by the
++ * Free Software Foundation. This program is dual-licensed; you may select
++ * either version 2 of the GNU General Public License ("GPL") or BSD license
++ * ("BSD").
++ *
++ * You can contact the author at :
++ * - Source repository : https://github.com/Cyan4973/FiniteStateEntropy
++ */
 +#ifndef HUF_H_298734234
 +#define HUF_H_298734234
 +
@@ -9415,43 +9476,48 @@ index 0000000..f36aded
 +#endif   /* HUF_H_298734234 */
 diff --git a/lib/zstd/huf_compress.c b/lib/zstd/huf_compress.c
 new file mode 100644
-index 0000000..41b9ce0
+index 0000000..ee03de9
 --- /dev/null
 +++ b/lib/zstd/huf_compress.c
-@@ -0,0 +1,644 @@
-+/* ******************************************************************
-+   Huffman encoder, part of New Generation Entropy library
-+   Copyright (C) 2013-2016, Yann Collet.
-+
-+   BSD 2-Clause License (http://www.opensource.org/licenses/bsd-license.php)
-+
-+   Redistribution and use in source and binary forms, with or without
-+   modification, are permitted provided that the following conditions are
-+   met:
-+
-+	   * Redistributions of source code must retain the above copyright
-+   notice, this list of conditions and the following disclaimer.
-+	   * Redistributions in binary form must reproduce the above
-+   copyright notice, this list of conditions and the following disclaimer
-+   in the documentation and/or other materials provided with the
-+   distribution.
-+
-+   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-+   "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-+   LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-+   A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-+   OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-+   SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-+   LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-+   DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-+   THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-+   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-+   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-+
-+	You can contact the author at :
-+	- FSE+HUF source repository : https://github.com/Cyan4973/FiniteStateEntropy
-+	- Public forum : https://groups.google.com/forum/#!forum/lz4c
-+****************************************************************** */
+@@ -0,0 +1,649 @@
++/*
++ * Huffman encoder, part of New Generation Entropy library
++ * Copyright (C) 2013-2016, Yann Collet.
++ *
++ * BSD 2-Clause License (http://www.opensource.org/licenses/bsd-license.php)
++ *
++ * Redistribution and use in source and binary forms, with or without
++ * modification, are permitted provided that the following conditions are
++ * met:
++ *
++ *   * Redistributions of source code must retain the above copyright
++ * notice, this list of conditions and the following disclaimer.
++ *   * Redistributions in binary form must reproduce the above
++ * copyright notice, this list of conditions and the following disclaimer
++ * in the documentation and/or other materials provided with the
++ * distribution.
++ *
++ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
++ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
++ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
++ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
++ * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
++ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
++ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
++ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
++ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
++ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
++ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
++ *
++ * This program is free software; you can redistribute it and/or modify it under
++ * the terms of the GNU General Public License version 2 as published by the
++ * Free Software Foundation. This program is dual-licensed; you may select
++ * either version 2 of the GNU General Public License ("GPL") or BSD license
++ * ("BSD").
++ *
++ * You can contact the author at :
++ * - Source repository : https://github.com/Cyan4973/FiniteStateEntropy
++ */
 +
 +
 +/* **************************************************************
@@ -10065,43 +10131,48 @@ index 0000000..41b9ce0
 +}
 diff --git a/lib/zstd/huf_decompress.c b/lib/zstd/huf_decompress.c
 new file mode 100644
-index 0000000..2d9b33b
+index 0000000..1ed6826
 --- /dev/null
 +++ b/lib/zstd/huf_decompress.c
-@@ -0,0 +1,835 @@
-+/* ******************************************************************
-+   Huffman decoder, part of New Generation Entropy library
-+   Copyright (C) 2013-2016, Yann Collet.
-+
-+   BSD 2-Clause License (http://www.opensource.org/licenses/bsd-license.php)
-+
-+   Redistribution and use in source and binary forms, with or without
-+   modification, are permitted provided that the following conditions are
-+   met:
-+
-+	   * Redistributions of source code must retain the above copyright
-+   notice, this list of conditions and the following disclaimer.
-+	   * Redistributions in binary form must reproduce the above
-+   copyright notice, this list of conditions and the following disclaimer
-+   in the documentation and/or other materials provided with the
-+   distribution.
-+
-+   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-+   "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-+   LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-+   A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-+   OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-+   SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-+   LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-+   DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-+   THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-+   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-+   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-+
-+	You can contact the author at :
-+	- FSE+HUF source repository : https://github.com/Cyan4973/FiniteStateEntropy
-+	- Public forum : https://groups.google.com/forum/#!forum/lz4c
-+****************************************************************** */
+@@ -0,0 +1,840 @@
++/*
++ * Huffman decoder, part of New Generation Entropy library
++ * Copyright (C) 2013-2016, Yann Collet.
++ *
++ * BSD 2-Clause License (http://www.opensource.org/licenses/bsd-license.php)
++ *
++ * Redistribution and use in source and binary forms, with or without
++ * modification, are permitted provided that the following conditions are
++ * met:
++ *
++ *   * Redistributions of source code must retain the above copyright
++ * notice, this list of conditions and the following disclaimer.
++ *   * Redistributions in binary form must reproduce the above
++ * copyright notice, this list of conditions and the following disclaimer
++ * in the documentation and/or other materials provided with the
++ * distribution.
++ *
++ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
++ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
++ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
++ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
++ * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
++ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
++ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
++ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
++ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
++ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
++ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
++ *
++ * This program is free software; you can redistribute it and/or modify it under
++ * the terms of the GNU General Public License version 2 as published by the
++ * Free Software Foundation. This program is dual-licensed; you may select
++ * either version 2 of the GNU General Public License ("GPL") or BSD license
++ * ("BSD").
++ *
++ * You can contact the author at :
++ * - Source repository : https://github.com/Cyan4973/FiniteStateEntropy
++ */
 +
 +/* **************************************************************
 +*  Compiler specifics
@@ -10906,17 +10977,24 @@ index 0000000..2d9b33b
 +}
 diff --git a/lib/zstd/mem.h b/lib/zstd/mem.h
 new file mode 100644
-index 0000000..76cae04
+index 0000000..e656a0e
 --- /dev/null
 +++ b/lib/zstd/mem.h
-@@ -0,0 +1,209 @@
+@@ -0,0 +1,216 @@
 +/**
 + * Copyright (c) 2016-present, Yann Collet, Facebook, Inc.
 + * All rights reserved.
 + *
 + * This source code is licensed under the BSD-style license found in the
-+ * LICENSE file in the root directory of this source tree. An additional grant
-+ * of patent rights can be found in the PATENTS file in the same directory.
++ * LICENSE file in the root directory of https://github.com/facebook/zstd.
++ * An additional grant of patent rights can be found in the PATENTS file in the
++ * same directory.
++ *
++ * This program is free software; you can redistribute it and/or modify it under
++ * the terms of the GNU General Public License version 2 as published by the
++ * Free Software Foundation. This program is dual-licensed; you may select
++ * either version 2 of the GNU General Public License ("GPL") or BSD license
++ * ("BSD").
 + */
 +
 +#ifndef MEM_H_MODULE
@@ -11121,17 +11199,24 @@ index 0000000..76cae04
 +#endif /* MEM_H_MODULE */
 diff --git a/lib/zstd/zstd_common.c b/lib/zstd/zstd_common.c
 new file mode 100644
-index 0000000..106f540
+index 0000000..4ff3cc8
 --- /dev/null
 +++ b/lib/zstd/zstd_common.c
-@@ -0,0 +1,69 @@
+@@ -0,0 +1,76 @@
 +/**
 + * Copyright (c) 2016-present, Yann Collet, Facebook, Inc.
 + * All rights reserved.
 + *
 + * This source code is licensed under the BSD-style license found in the
-+ * LICENSE file in the root directory of this source tree. An additional grant
-+ * of patent rights can be found in the PATENTS file in the same directory.
++ * LICENSE file in the root directory of https://github.com/facebook/zstd.
++ * An additional grant of patent rights can be found in the PATENTS file in the
++ * same directory.
++ *
++ * This program is free software; you can redistribute it and/or modify it under
++ * the terms of the GNU General Public License version 2 as published by the
++ * Free Software Foundation. This program is dual-licensed; you may select
++ * either version 2 of the GNU General Public License ("GPL") or BSD license
++ * ("BSD").
 + */
 +
 +
@@ -11196,17 +11281,24 @@ index 0000000..106f540
 +}
 diff --git a/lib/zstd/zstd_internal.h b/lib/zstd/zstd_internal.h
 new file mode 100644
-index 0000000..5ed5419
+index 0000000..91365ea
 --- /dev/null
 +++ b/lib/zstd/zstd_internal.h
-@@ -0,0 +1,261 @@
+@@ -0,0 +1,268 @@
 +/**
 + * Copyright (c) 2016-present, Yann Collet, Facebook, Inc.
 + * All rights reserved.
 + *
 + * This source code is licensed under the BSD-style license found in the
-+ * LICENSE file in the root directory of this source tree. An additional grant
-+ * of patent rights can be found in the PATENTS file in the same directory.
++ * LICENSE file in the root directory of https://github.com/facebook/zstd.
++ * An additional grant of patent rights can be found in the PATENTS file in the
++ * same directory.
++ *
++ * This program is free software; you can redistribute it and/or modify it under
++ * the terms of the GNU General Public License version 2 as published by the
++ * Free Software Foundation. This program is dual-licensed; you may select
++ * either version 2 of the GNU General Public License ("GPL") or BSD license
++ * ("BSD").
 + */
 +
 +#ifndef ZSTD_CCOMMON_H_MODULE
@@ -11463,17 +11555,24 @@ index 0000000..5ed5419
 +#endif   /* ZSTD_CCOMMON_H_MODULE */
 diff --git a/lib/zstd/zstd_opt.h b/lib/zstd/zstd_opt.h
 new file mode 100644
-index 0000000..9bd5303
+index 0000000..6855e3c
 --- /dev/null
 +++ b/lib/zstd/zstd_opt.h
-@@ -0,0 +1,921 @@
+@@ -0,0 +1,928 @@
 +/**
 + * Copyright (c) 2016-present, Przemyslaw Skibinski, Yann Collet, Facebook, Inc.
 + * All rights reserved.
 + *
 + * This source code is licensed under the BSD-style license found in the
-+ * LICENSE file in the root directory of this source tree. An additional grant
-+ * of patent rights can be found in the PATENTS file in the same directory.
++ * LICENSE file in the root directory of https://github.com/facebook/zstd.
++ * An additional grant of patent rights can be found in the PATENTS file in the
++ * same directory.
++ *
++ * This program is free software; you can redistribute it and/or modify it under
++ * the terms of the GNU General Public License version 2 as published by the
++ * Free Software Foundation. This program is dual-licensed; you may select
++ * either version 2 of the GNU General Public License ("GPL") or BSD license
++ * ("BSD").
 + */
 +
 +

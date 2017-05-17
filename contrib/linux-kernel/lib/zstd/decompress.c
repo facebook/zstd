@@ -149,30 +149,6 @@ void ZSTD_copyDCtx(ZSTD_DCtx* dstDCtx, const ZSTD_DCtx* srcDCtx)
 	memcpy(dstDCtx, srcDCtx, sizeof(ZSTD_DCtx) - workSpaceSize);  /* no need to copy workspace */
 }
 
-#if 0
-/* deprecated */
-static void ZSTD_refDCtx(ZSTD_DCtx* dstDCtx, const ZSTD_DCtx* srcDCtx)
-{
-	ZSTD_decompressBegin(dstDCtx);  /* init */
-	if (srcDCtx) {   /* support refDCtx on NULL */
-		dstDCtx->dictEnd = srcDCtx->dictEnd;
-		dstDCtx->vBase = srcDCtx->vBase;
-		dstDCtx->base = srcDCtx->base;
-		dstDCtx->previousDstEnd = srcDCtx->previousDstEnd;
-		dstDCtx->dictID = srcDCtx->dictID;
-		dstDCtx->litEntropy = srcDCtx->litEntropy;
-		dstDCtx->fseEntropy = srcDCtx->fseEntropy;
-		dstDCtx->LLTptr = srcDCtx->entropy.LLTable;
-		dstDCtx->MLTptr = srcDCtx->entropy.MLTable;
-		dstDCtx->OFTptr = srcDCtx->entropy.OFTable;
-		dstDCtx->HUFptr = srcDCtx->entropy.hufTable;
-		dstDCtx->entropy.rep[0] = srcDCtx->entropy.rep[0];
-		dstDCtx->entropy.rep[1] = srcDCtx->entropy.rep[1];
-		dstDCtx->entropy.rep[2] = srcDCtx->entropy.rep[2];
-	}
-}
-#endif
-
 static void ZSTD_refDDict(ZSTD_DCtx* dstDCtx, const ZSTD_DDict* ddict);
 
 
@@ -1200,11 +1176,9 @@ size_t ZSTD_execSequenceLong(BYTE* op,
 	const BYTE* match = sequence.match;
 
 	/* check */
-#if 1
 	if (oMatchEnd>oend) return ERROR(dstSize_tooSmall); /* last match must start at a minimum distance of WILDCOPY_OVERLENGTH from oend */
 	if (iLitEnd > litLimit) return ERROR(corruption_detected);   /* over-read beyond lit buffer */
 	if (oLitEnd>oend_w) return ZSTD_execSequenceLast7(op, oend, sequence, litPtr, litLimit, base, vBase, dictEnd);
-#endif
 
 	/* copy Literals */
 	ZSTD_copy8(op, *litPtr);
@@ -1214,7 +1188,6 @@ size_t ZSTD_execSequenceLong(BYTE* op,
 	*litPtr = iLitEnd;   /* update for next sequence */
 
 	/* copy Match */
-#if 1
 	if (sequence.offset > (size_t)(oLitEnd - base)) {
 		/* offset beyond prefix */
 		if (sequence.offset > (size_t)(oLitEnd - vBase)) return ERROR(corruption_detected);
@@ -1235,7 +1208,6 @@ size_t ZSTD_execSequenceLong(BYTE* op,
 			}
 	}   }
 	/* Requirement: op <= oend_w && sequence.matchLength >= MINMATCH */
-#endif
 
 	/* match within prefix */
 	if (sequence.offset < 8) {

@@ -77,7 +77,7 @@
 #define BLOCKSIZE      (128 KB)
 #define ROLLBUFFERSIZE (BLOCKSIZE*8*64)
 
-#define FIO_FRAMEHEADERSIZE  5        /* as a define, because needed to allocated table on stack */
+#define FIO_FRAMEHEADERSIZE  5    /* as a define, because needed to allocated table on stack */
 #define FSE_CHECKSUM_SEED    0
 
 #define CACHELINE 64
@@ -92,7 +92,7 @@
 ***************************************/
 #define DISPLAY(...)         fprintf(stderr, __VA_ARGS__)
 #define DISPLAYLEVEL(l, ...) { if (g_displayLevel>=l) { DISPLAY(__VA_ARGS__); } }
-static int g_displayLevel = 2;   /* 0 : no display;   1: errors;   2 : + result + interaction + warnings;   3 : + progression;   4 : + information */
+static int g_displayLevel = 2;   /* 0 : no display;  1: errors;  2: + result + interaction + warnings;  3: + progression;  4: + information */
 void FIO_setNotificationLevel(unsigned level) { g_displayLevel=level; }
 
 #define DISPLAYUPDATE(l, ...) { if (g_displayLevel>=l) { \
@@ -102,7 +102,7 @@ void FIO_setNotificationLevel(unsigned level) { g_displayLevel=level; }
 static const clock_t refreshRate = CLOCKS_PER_SEC * 15 / 100;
 static clock_t g_time = 0;
 
-#undef MIN
+#undef MIN  /* in case it would be already defined */
 #define MIN(a,b)    ((a) < (b) ? (a) : (b))
 
 
@@ -226,11 +226,13 @@ static FILE* FIO_openSrcFile(const char* srcFileName)
         SET_BINARY_MODE(stdin);
     } else {
         if (!UTIL_isRegFile(srcFileName)) {
-            DISPLAYLEVEL(1, "zstd: %s is not a regular file -- ignored \n", srcFileName);
+            DISPLAYLEVEL(1, "zstd: %s is not a regular file -- ignored \n",
+                            srcFileName);
             return NULL;
         }
         f = fopen(srcFileName, "rb");
-        if ( f==NULL ) DISPLAYLEVEL(1, "zstd: %s: %s \n", srcFileName, strerror(errno));
+        if ( f==NULL )
+            DISPLAYLEVEL(1, "zstd: %s: %s \n", srcFileName, strerror(errno));
     }
 
     return f;
@@ -255,26 +257,28 @@ static FILE* FIO_openDstFile(const char* dstFileName)
         if (g_sparseFileSupport == 1) {
             g_sparseFileSupport = ZSTD_SPARSE_DEFAULT;
         }
-        if (strcmp (dstFileName, nulmark)) {  /* Check if destination file already exists */
+        if (strcmp (dstFileName, nulmark)) {
+            /* Check if destination file already exists */
             f = fopen( dstFileName, "rb" );
-            if (f != 0) {  /* dest file exists, prompt for overwrite authorization */
+            if (f != 0) {  /* dst file exists, prompt for overwrite authorization */
                 fclose(f);
                 if (!g_overwrite) {
                     if (g_displayLevel <= 1) {
                         /* No interaction possible */
-                        DISPLAY("zstd: %s already exists; not overwritten  \n", dstFileName);
+                        DISPLAY("zstd: %s already exists; not overwritten  \n",
+                                dstFileName);
                         return NULL;
                     }
-                    DISPLAY("zstd: %s already exists; do you wish to overwrite (y/N) ? ", dstFileName);
+                    DISPLAY("zstd: %s already exists; do you wish to overwrite (y/N) ? ",
+                            dstFileName);
                     {   int ch = getchar();
                         if ((ch!='Y') && (ch!='y')) {
                             DISPLAY("    not overwritten  \n");
                             return NULL;
                         }
-                        while ((ch!=EOF) && (ch!='\n')) ch = getchar();  /* flush rest of input line */
-                    }
-                }
-
+                        /* flush rest of input line */
+                        while ((ch!=EOF) && (ch!='\n')) ch = getchar();
+                }   }
                 /* need to unlink */
                 FIO_remove(dstFileName);
         }   }
@@ -304,7 +308,9 @@ static size_t FIO_createDictBuffer(void** bufferPtr, const char* fileName)
     fileHandle = fopen(fileName, "rb");
     if (fileHandle==0) EXM_THROW(31, "zstd: %s: %s", fileName, strerror(errno));
     fileSize = UTIL_getFileSize(fileName);
-    if (fileSize > DICTSIZE_MAX) EXM_THROW(32, "Dictionary file %s is too large (> %u MB)", fileName, DICTSIZE_MAX >> 20);   /* avoid extreme cases */
+    if (fileSize > DICTSIZE_MAX)
+        EXM_THROW(32, "Dictionary file %s is too large (> %u MB)",
+                        fileName, DICTSIZE_MAX >> 20);   /* avoid extreme cases */
     *bufferPtr = malloc((size_t)fileSize);
     if (*bufferPtr==NULL) EXM_THROW(34, "zstd: %s", strerror(errno));
     { size_t const readSize = fread(*bufferPtr, 1, (size_t)fileSize, fileHandle);

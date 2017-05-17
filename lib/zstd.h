@@ -647,7 +647,7 @@ typedef enum {
     /* dictionary parameters */
     ZSTD_p_refDictContent=300, /* Content of dictionary content will be referenced, instead of copied (default:0).
                               * This avoids duplicating dictionary content.
-                              * But it also requires that dictionary buffer outlives its user (CCtx or CDict) */
+                              * But it also requires that dictionary buffer outlives its user (CDict) */
                              /* Not ready yet ! */
     ZSTD_p_rawContentDict,   /* load dictionary in "content-only" mode (no header analysis) (default:0) */
                              /* question : should there be an option to load dictionary only in zstd format, rejecting others with an error code ? */
@@ -717,7 +717,7 @@ ZSTDLIB_API size_t ZSTD_CDict_setParameter(ZSTD_CDict* cdict, ZSTD_cParameter pa
 ZSTDLIB_API size_t ZSTD_CDict_loadDictionary(ZSTD_CDict* cdict, const void* dict, size_t dictSize);    /* Not ready yet ! */
 
 /*! ZSTD_CCtx_refCDict() :
- *  Add a prepared dictionary to cctx, it will used for next compression jobs.
+ *  Add a prepared dictionary to cctx, to be used for next compression jobs.
  *  Note that compression parameters will be enforced from within CDict.
  *  Currently, they supercede any compression parameter previously set within CCtx.
  *  The dictionary will remain valid for future compression jobs using same cctx.

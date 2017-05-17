@@ -140,7 +140,6 @@ struct ZSTD_CCtx_s {
     size_t outBuffFlushedSize;
     ZSTD_cStreamStage streamStage;
     U32    frameEnded;
-    U64    pledgedSrcSize;
 };
 
 ZSTD_CCtx* ZSTD_createCCtx(void)
@@ -3320,7 +3319,6 @@ static size_t ZSTD_resetCStream_internal(ZSTD_CStream* zcs, ZSTD_parameters para
     zcs->outBuffContentSize = zcs->outBuffFlushedSize = 0;
     zcs->streamStage = zcss_load;
     zcs->frameEnded = 0;
-    zcs->pledgedSrcSize = pledgedSrcSize;
     return 0;   /* ready to go */
 }
 

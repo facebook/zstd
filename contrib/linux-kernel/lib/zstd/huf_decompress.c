@@ -140,11 +140,11 @@ static BYTE HUF_decodeSymbolX2(BIT_DStream_t* Dstream, const HUF_DEltX2* dt, con
 	*ptr++ = HUF_decodeSymbolX2(DStreamPtr, dt, dtLog)
 
 #define HUF_DECODE_SYMBOLX2_1(ptr, DStreamPtr) \
-	if (MEM_64bits() || (HUF_TABLELOG_MAX<=12)) \
+	if (ZSTD_64bits() || (HUF_TABLELOG_MAX<=12)) \
 		HUF_DECODE_SYMBOLX2_0(ptr, DStreamPtr)
 
 #define HUF_DECODE_SYMBOLX2_2(ptr, DStreamPtr) \
-	if (MEM_64bits()) \
+	if (ZSTD_64bits()) \
 		HUF_DECODE_SYMBOLX2_0(ptr, DStreamPtr)
 
 FORCE_INLINE size_t HUF_decodeStreamX2(BYTE* p, BIT_DStream_t* const bitDPtr, BYTE* const pEnd, const HUF_DEltX2* const dt, const U32 dtLog)
@@ -236,9 +236,9 @@ static size_t HUF_decompress4X2_usingDTable_internal(
 		BIT_DStream_t bitD2;
 		BIT_DStream_t bitD3;
 		BIT_DStream_t bitD4;
-		size_t const length1 = MEM_readLE16(istart);
-		size_t const length2 = MEM_readLE16(istart+2);
-		size_t const length3 = MEM_readLE16(istart+4);
+		size_t const length1 = ZSTD_readLE16(istart);
+		size_t const length2 = ZSTD_readLE16(istart+2);
+		size_t const length3 = ZSTD_readLE16(istart+4);
 		size_t const length4 = cSrcSize - (length1 + length2 + length3 + 6);
 		const BYTE* const istart1 = istart + 6;  /* jumpTable */
 		const BYTE* const istart2 = istart1 + length1;
@@ -356,7 +356,7 @@ static void HUF_fillDTableX4Level2(HUF_DEltX4* DTable, U32 sizeLog, const U32 co
 	/* fill skipped values */
 	if (minWeight>1) {
 		U32 i, skipSize = rankVal[minWeight];
-		MEM_writeLE16(&(DElt.sequence), baseSeq);
+		ZSTD_writeLE16(&(DElt.sequence), baseSeq);
 		DElt.nbBits   = (BYTE)(consumed);
 		DElt.length   = 1;
 		for (i = 0; i < skipSize; i++)
@@ -373,7 +373,7 @@ static void HUF_fillDTableX4Level2(HUF_DEltX4* DTable, U32 sizeLog, const U32 co
 			U32 i = start;
 			const U32 end = start + length;
 
-			MEM_writeLE16(&(DElt.sequence), (U16)(baseSeq + (symbol << 8)));
+			ZSTD_writeLE16(&(DElt.sequence), (U16)(baseSeq + (symbol << 8)));
 			DElt.nbBits = (BYTE)(nbBits + consumed);
 			DElt.length = 2;
 			do { DTable[i++] = DElt; } while (i<end);   /* since length >= 1 */
@@ -415,7 +415,7 @@ static void HUF_fillDTableX4(HUF_DEltX4* DTable, const U32 targetLog,
 						   nbBitsBaseline, symbol);
 		} else {
 			HUF_DEltX4 DElt;
-			MEM_writeLE16(&(DElt.sequence), symbol);
+			ZSTD_writeLE16(&(DElt.sequence), symbol);
 			DElt.nbBits = (BYTE)(nbBits);
 			DElt.length = 1;
 			{	U32 const end = start + length;
@@ -534,11 +534,11 @@ static U32 HUF_decodeLastSymbolX4(void* op, BIT_DStream_t* DStream, const HUF_DE
 	ptr += HUF_decodeSymbolX4(ptr, DStreamPtr, dt, dtLog)
 
 #define HUF_DECODE_SYMBOLX4_1(ptr, DStreamPtr) \
-	if (MEM_64bits() || (HUF_TABLELOG_MAX<=12)) \
+	if (ZSTD_64bits() || (HUF_TABLELOG_MAX<=12)) \
 		ptr += HUF_decodeSymbolX4(ptr, DStreamPtr, dt, dtLog)
 
 #define HUF_DECODE_SYMBOLX4_2(ptr, DStreamPtr) \
-	if (MEM_64bits()) \
+	if (ZSTD_64bits()) \
 		ptr += HUF_decodeSymbolX4(ptr, DStreamPtr, dt, dtLog)
 
 FORCE_INLINE size_t HUF_decodeStreamX4(BYTE* p, BIT_DStream_t* bitDPtr, BYTE* const pEnd, const HUF_DEltX4* const dt, const U32 dtLog)
@@ -635,9 +635,9 @@ static size_t HUF_decompress4X4_usingDTable_internal(
 		BIT_DStream_t bitD2;
 		BIT_DStream_t bitD3;
 		BIT_DStream_t bitD4;
-		size_t const length1 = MEM_readLE16(istart);
-		size_t const length2 = MEM_readLE16(istart+2);
-		size_t const length3 = MEM_readLE16(istart+4);
+		size_t const length1 = ZSTD_readLE16(istart);
+		size_t const length2 = ZSTD_readLE16(istart+2);
+		size_t const length3 = ZSTD_readLE16(istart+4);
 		size_t const length4 = cSrcSize - (length1 + length2 + length3 + 6);
 		const BYTE* const istart1 = istart + 6;  /* jumpTable */
 		const BYTE* const istart2 = istart1 + length1;

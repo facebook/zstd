@@ -487,21 +487,21 @@ size_t HUF_compress4X_usingCTable(void* dst, size_t dstSize, const void* src, si
 
 	{	CHECK_V_F(cSize, HUF_compress1X_usingCTable(op, oend-op, ip, segmentSize, CTable) );
 		if (cSize==0) return 0;
-		MEM_writeLE16(ostart, (U16)cSize);
+		ZSTD_writeLE16(ostart, (U16)cSize);
 		op += cSize;
 	}
 
 	ip += segmentSize;
 	{	CHECK_V_F(cSize, HUF_compress1X_usingCTable(op, oend-op, ip, segmentSize, CTable) );
 		if (cSize==0) return 0;
-		MEM_writeLE16(ostart+2, (U16)cSize);
+		ZSTD_writeLE16(ostart+2, (U16)cSize);
 		op += cSize;
 	}
 
 	ip += segmentSize;
 	{	CHECK_V_F(cSize, HUF_compress1X_usingCTable(op, oend-op, ip, segmentSize, CTable) );
 		if (cSize==0) return 0;
-		MEM_writeLE16(ostart+4, (U16)cSize);
+		ZSTD_writeLE16(ostart+4, (U16)cSize);
 		op += cSize;
 	}
 

@@ -74,7 +74,7 @@ size_t FSE_readNCount (short* normalizedCounter, unsigned* maxSVPtr, unsigned* t
 	int previous0 = 0;
 
 	if (hbSize < 4) return ERROR(srcSize_wrong);
-	bitStream = MEM_readLE32(ip);
+	bitStream = ZSTD_readLE32(ip);
 	nbBits = (bitStream & 0xF) + FSE_MIN_TABLELOG;   /* extract tableLog */
 	if (nbBits > FSE_TABLELOG_ABSOLUTE_MAX) return ERROR(tableLog_tooLarge);
 	bitStream >>= 4;
@@ -91,7 +91,7 @@ size_t FSE_readNCount (short* normalizedCounter, unsigned* maxSVPtr, unsigned* t
 				n0 += 24;
 				if (ip < iend-5) {
 					ip += 2;
-					bitStream = MEM_readLE32(ip) >> bitCount;
+					bitStream = ZSTD_readLE32(ip) >> bitCount;
 				} else {
 					bitStream >>= 16;
 					bitCount   += 16;
@@ -108,7 +108,7 @@ size_t FSE_readNCount (short* normalizedCounter, unsigned* maxSVPtr, unsigned* t
 			if ((ip <= iend-7) || (ip + (bitCount>>3) <= iend-4)) {
 				ip += bitCount>>3;
 				bitCount &= 7;
-				bitStream = MEM_readLE32(ip) >> bitCount;
+				bitStream = ZSTD_readLE32(ip) >> bitCount;
 			} else {
 				bitStream >>= 2;
 		}   }
@@ -140,7 +140,7 @@ size_t FSE_readNCount (short* normalizedCounter, unsigned* maxSVPtr, unsigned* t
 				bitCount -= (int)(8 * (iend - 4 - ip));
 				ip = iend - 4;
 			}
-			bitStream = MEM_readLE32(ip) >> (bitCount & 31);
+			bitStream = ZSTD_readLE32(ip) >> (bitCount & 31);
 	}   }   /* while ((remaining>1) & (charnum<=*maxSVPtr)) */
 	if (remaining != 1) return ERROR(corruption_detected);
 	if (bitCount > 32) return ERROR(corruption_detected);

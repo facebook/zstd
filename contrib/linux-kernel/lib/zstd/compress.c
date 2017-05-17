@@ -1796,10 +1796,11 @@ U32 ZSTD_insertAndFindFirstIndex(ZSTD_CCtx *zc, const BYTE *ip, U32 mls)
 	return hashTable[ZSTD_hashPtr(ip, hashLog, mls)];
 }
 
-FORCE_INLINE /* inlining is important to hardwire a hot branch (template emulation) */
-    size_t
-    ZSTD_HcFindBestMatch_generic(ZSTD_CCtx *zc, /* Index table will be updated */
-				 const BYTE *const ip, const BYTE *const iLimit, size_t *offsetPtr, const U32 maxNbAttempts, const U32 mls, const U32 extDict)
+/* inlining is important to hardwire a hot branch (template emulation) */
+FORCE_INLINE
+size_t ZSTD_HcFindBestMatch_generic(ZSTD_CCtx *zc, /* Index table will be updated */
+				    const BYTE *const ip, const BYTE *const iLimit, size_t *offsetPtr, const U32 maxNbAttempts, const U32 mls,
+				    const U32 extDict)
 {
 	U32 *const chainTable = zc->chainTable;
 	const U32 chainSize = (1 << zc->params.cParams.chainLog);

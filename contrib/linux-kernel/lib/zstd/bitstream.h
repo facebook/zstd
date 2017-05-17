@@ -113,7 +113,7 @@ typedef enum {
 	BIT_DStream_completed = 2,
 	BIT_DStream_overflow = 3
 } BIT_DStream_status; /* result of BIT_reloadDStream() */
-		      /* 1,2,4,8 would be better for bitmap combinations, but slows down performance a bit ... :( */
+/* 1,2,4,8 would be better for bitmap combinations, but slows down performance a bit ... :( */
 
 ZSTD_STATIC size_t BIT_initDStream(BIT_DStream_t *bitD, const void *srcBuffer, size_t srcSize);
 ZSTD_STATIC size_t BIT_readBits(BIT_DStream_t *bitD, unsigned nbBits);

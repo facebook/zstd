@@ -35,10 +35,6 @@ typedef enum { ZSTDcs_created = 0, ZSTDcs_init, ZSTDcs_ongoing, ZSTDcs_ending } 
 /*-*************************************
 *  Helper functions
 ***************************************/
-#define ZSTD_STATIC_ASSERT(c)                                   \
-	{                                                       \
-		enum { ZSTD_static_assert = 1 / (int)(!!(c)) }; \
-	}
 size_t ZSTD_compressBound(size_t srcSize) { return FSE_compressBound(srcSize) + 12; }
 
 /*-*************************************

@@ -50,6 +50,10 @@
 		if (ERR_isError(errcod)) \
 			return ERROR(e); \
 	} /* check and send Error code */
+#define ZSTD_STATIC_ASSERT(c)                                   \
+	{                                                       \
+		enum { ZSTD_static_assert = 1 / (int)(!!(c)) }; \
+	}
 
 /*-*************************************
 *  Common constants

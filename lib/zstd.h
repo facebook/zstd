@@ -616,7 +616,7 @@ typedef enum {
                               * More attempts result in better and slower compression.
                               * This parameter is useless when using "fast" and "dFast" strategies.
                               * Special: value 0 means "do not change searchLog". */
-    ZSTD_p_minMatchLength,   /* Minimum match size (except for repeat-matches, which limit is hard-coded).
+    ZSTD_p_minMatch,         /* Minimum size of searched matches (note : repCode matches can be smaller).
                               * Larger values make faster compression and decompression, but decrease ratio.
                               * Must be clamped between ZSTD_SEARCHLENGTH_MIN and ZSTD_SEARCHLENGTH_MAX.
                               * Note that currently, for all strategies < btopt, effective minimum is 4.
@@ -641,7 +641,7 @@ typedef enum {
 
     /* frame parameters */
     ZSTD_p_contentSizeFlag=200, /* Content size is written into frame header _whenever known_ (default:1) */
-    ZSTD_p_contentChecksumFlag, /* A 32-bits content checksum is calculated and written at end of frame (default:0) */
+    ZSTD_p_checksumFlag,     /* A 32-bits checksum of content is written at end of frame (default:0) */
     ZSTD_p_dictIDFlag,       /* When applicable, dictID of dictionary is provided in frame header (default:1) */
 
     /* dictionary parameters */
@@ -688,17 +688,32 @@ ZSTDLIB_API size_t ZSTD_CCtx_setParameter(ZSTD_CCtx* cctx, ZSTD_cParameter param
  *           this value is overriden by srcSize instead. */
 ZSTDLIB_API size_t ZSTD_CCtx_setPledgedSrcSize(ZSTD_CCtx* cctx, unsigned long long pledgedSrcSize);
 
+/*! ZSTD_CCtx_loadDictionary() :
+ *  Create an internal CDict from dict buffer.
+ *  Decompression will have to use same buffer.
+ * @result : 0, or an error code (which can be tested with ZSTD_isError()).
+ *  Special : Adding a NULL (or 0-size) dictionary invalidates any previous prefix,
+ *            meaning "return to no-dictionary mode".
+ *  Note 1 : Dictionary content will be copied internally,
+ *           except if ZSTD_p_refDictContent is set.
+ *  Note 2 : Loading a dictionary involves building tables, which are dependent on compression parameters.
+ *           For this reason, compression parameters cannot be changed anymore after loading a prefix.
+ *           It's also a CPU-heavy operation, with non-negligible impact on latency.
+ *  Note 3 : Dictionary will be used for all future compression jobs.
+ *           To return to "no-dictionary" situation, load a NULL dictionary */
+ZSTDLIB_API size_t ZSTD_CCtx_loadDictionary(ZSTD_CCtx* cctx, const void* dict, size_t dictSize);   /* Not ready yet ! */
+
 /*! ZSTD_CCtx_refPrefix() :
  *  Reference a prefix (content-only dictionary) to bootstrap next compression job.
  *  Decompression will have to use same prefix.
  * @result : 0, or an error code (which can be tested with ZSTD_isError()).
  *  Special : Adding a NULL (or 0-size) dictionary invalidates any previous prefix, meaning "return to no-dictionary mode".
- *  Note 1 : Prefix content is referenced. It must outlive compression job.
+ *  Note 1 : Prefix buffer is referenced. It must outlive compression job.
+ *  Note 3 : Prefix is only used once. Tables are discarded at end of compression job.
+ *           If there is a need to use same prefix multiple times, consider embedding it into a ZSTD_CDict.
  *  Note 2 : Referencing a prefix involves building tables, which are dependent on compression parameters.
  *           For this reason, compression parameters cannot be changed anymore after loading a prefix.
- *           It's also a CPU-heavy operation, with non-negligible impact on latency.
- *  Note 3 : Prefix is only used once. Tables are discarded at end of compression job.
- *           If there is a need to use same prefix multiple times, consider embedding it into a ZSTD_CDict */
+ *           It's also a CPU-heavy operation, with non-negligible impact on latency. */
 ZSTDLIB_API size_t ZSTD_CCtx_refPrefix(ZSTD_CCtx* cctx, const void* prefix, size_t prefixSize);   /* Not ready yet ! */
 
 
@@ -730,13 +745,11 @@ ZSTDLIB_API size_t ZSTD_CDict_loadDictionary(ZSTD_CDict* cdict, const void* dict
 ZSTDLIB_API size_t ZSTD_CCtx_refCDict(ZSTD_CCtx* cctx, const ZSTD_CDict* cdict);  /* Not ready yet ! */
 
 
-// Target advanced compression API
-// Not ready yet !!!
 
 typedef enum {
-    ZSTD_e_continue,  /* continue sending data, encoder transparently decides when to output result, depending on optimal conditions */
-    ZSTD_e_flush,     /* flush any data provided, compressed and buffered so far - frame will continue, future data can still reference previous data for better compression */
-    ZSTD_e_end        /* flush any remaining data and ends current frame. Any future compression starts a new frame. */
+    ZSTD_e_continue=0, /* collect more data, encoder transparently decides when to output result, for optimal conditions */
+    ZSTD_e_flush,      /* flush any data provided so far - frame will continue, future data can still reference previous data for better compression */
+    ZSTD_e_end         /* flush any remaining data and ends current frame. Any future compression starts a new frame. */
 } ZSTD_EndDirective;
 
 /*! ZSTD_compressStream_generic() :
@@ -753,19 +766,18 @@ typedef enum {
  *            It is necessary to fully flush internal buffers
  *            before changing compression parameters or start a new compression job.
  */
-// Not ready yet !!!
 ZSTDLIB_API size_t ZSTD_compress_generic (ZSTD_CCtx* cctx,
-                                          void* dst, size_t dstCapacity, size_t* dstPos,
-                                    const void* src, size_t srcSize, size_t* srcPos,
+                                          ZSTD_outBuffer* output,
+                                          ZSTD_inBuffer* input,
                                           ZSTD_EndDirective endOp);
 
 /*! ZSTD_CCtx_reset() :
  *  Return a CCtx to clean state.
  *  Useful after an error, or to interrupt an ongoing compression job and start a new one.
- *  It's allowed to change compression parameters after a reset.
+ *  It's possible to modify compression parameters after a reset.
  *  Any internal data not yet flushed is cancelled.
  */
-ZSTDLIB_API size_t ZSTD_CCtx_reset(ZSTD_CCtx* cctx);
+ZSTDLIB_API size_t ZSTD_CCtx_reset(ZSTD_CCtx* cctx);   /* Not ready yet ! */
 
 
 

@@ -3660,9 +3660,6 @@ size_t ZSTD_endStream(ZSTD_CStream* zcs, ZSTD_outBuffer* output)
     size_t srcSize = 0;
     size_t sizeWritten = output->size - output->pos;
 
-    DEBUGLOG(5, "calling ZSTD_endStream with outBuff=%u bytes",
-                (unsigned)sizeWritten);
-
     size_t const result = ZSTD_compressStream_generic(zcs,
                                 ostart, &sizeWritten,
                                 &srcSize /* valid address */, &srcSize,
@@ -3670,7 +3667,7 @@ size_t ZSTD_endStream(ZSTD_CStream* zcs, ZSTD_outBuffer* output)
     output->pos += sizeWritten;
     if (ZSTD_isError(result)) return result;
 
-    DEBUGLOG(5, "remaining to flush : %u",
+    DEBUGLOG(5, "ZSTD_endStream : remaining to flush : %u",
             (unsigned)(zcs->outBuffContentSize - zcs->outBuffFlushedSize));
 
     return zcs->outBuffContentSize - zcs->outBuffFlushedSize;

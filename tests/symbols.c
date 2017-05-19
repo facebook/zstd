@@ -95,7 +95,7 @@ static const void *symbols[] = {
   &ZSTD_nextSrcSizeToDecompress,
   &ZSTD_decompressContinue,
   &ZSTD_nextInputType,
-  &ZSTD_getBlockSizeMax,
+  &ZSTD_getBlockSize,
   &ZSTD_compressBlock,
   &ZSTD_decompressBlock,
   &ZSTD_insertBlock,

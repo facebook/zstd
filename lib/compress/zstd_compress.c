@@ -223,7 +223,14 @@ static void ZSTD_cLevelToCParams(ZSTD_CCtx* cctx)
 
 size_t ZSTD_CCtx_setParameter(ZSTD_CCtx* cctx, ZSTD_cParameter param, unsigned value)
 {
-#   define CLAMPCHECK(val,min,max) { if ((val<min) | (val>max)) return ERROR(compressionParameter_unsupported); }
+#   define CLAMPCHECK(val,min,max) {                         \
+        if ((val<min) | (val>max)) {                         \
+            return ERROR(compressionParameter_unsupported);  \
+    }   }
+
+    if (cctx->streamStage != zcss_init) {
+        return ERROR(stage_wrong);
+    }
 
     switch(param)
     {

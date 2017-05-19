@@ -410,7 +410,7 @@ ZSTD_compressionParameters ZSTD_adjustCParams(ZSTD_compressionParameters cPar, u
 
 size_t ZSTD_estimateCCtxSize(ZSTD_compressionParameters cParams)
 {
-    size_t const blockSize = MIN(ZSTD_BLOCKSIZE_ABSOLUTEMAX, (size_t)1 << cParams.windowLog);
+    size_t const blockSize = MIN(ZSTD_BLOCKSIZE_MAX, (size_t)1 << cParams.windowLog);
     U32    const divider = (cParams.searchLength==3) ? 3 : 4;
     size_t const maxNbSeq = blockSize / divider;
     size_t const tokenSpace = blockSize + 11*maxNbSeq;
@@ -436,8 +436,8 @@ size_t ZSTD_estimateCCtxSize(ZSTD_compressionParameters cParams)
 static U32 ZSTD_equivalentParams(ZSTD_compressionParameters cParams1,
                                  ZSTD_compressionParameters cParams2)
 {
-    U32 bslog1 = MIN(cParams1.windowLog, 17);
-    U32 bslog2 = MIN(cParams2.windowLog, 17);
+    U32 bslog1 = MIN(cParams1.windowLog, ZSTD_BLOCKSIZELOG_MAX);
+    U32 bslog2 = MIN(cParams2.windowLog, ZSTD_BLOCKSIZELOG_MAX);
     return (bslog1 == bslog2)   /* same block size */
          & (cParams1.hashLog  == cParams2.hashLog)
          & (cParams1.chainLog == cParams2.chainLog)
@@ -484,7 +484,7 @@ static size_t ZSTD_resetCCtx_internal (ZSTD_CCtx* zc,
             return ZSTD_continueCCtx(zc, params, frameContentSize);
         }
 
-    {   size_t const blockSize = MIN(ZSTD_BLOCKSIZE_ABSOLUTEMAX, (size_t)1 << params.cParams.windowLog);
+    {   size_t const blockSize = MIN(ZSTD_BLOCKSIZE_MAX, (size_t)1 << params.cParams.windowLog);
         U32    const divider = (params.cParams.searchLength==3) ? 3 : 4;
         size_t const maxNbSeq = blockSize / divider;
         size_t const tokenSpace = blockSize + 11*maxNbSeq;
@@ -2807,14 +2807,18 @@ size_t ZSTD_compressContinue (ZSTD_CCtx* cctx,
 }
 
 
-size_t ZSTD_getBlockSizeMax(ZSTD_CCtx* cctx)
+size_t ZSTD_getBlockSize(const ZSTD_CCtx* cctx)
 {
-    return MIN (ZSTD_BLOCKSIZE_ABSOLUTEMAX, 1 << cctx->params.cParams.windowLog);
+    U32 const cLevel = cctx->compressionLevel;
+    ZSTD_compressionParameters cParams = (cLevel == ZSTD_CLEVEL_CUSTOM) ?
+                                        cctx->params.cParams :
+                                        ZSTD_getCParams(cLevel, 0, 0);
+    return MIN (ZSTD_BLOCKSIZE_MAX, 1 << cParams.windowLog);
 }
 
 size_t ZSTD_compressBlock(ZSTD_CCtx* cctx, void* dst, size_t dstCapacity, const void* src, size_t srcSize)
 {
-    size_t const blockSizeMax = ZSTD_getBlockSizeMax(cctx);
+    size_t const blockSizeMax = ZSTD_getBlockSize(cctx);
     if (srcSize > blockSizeMax) return ERROR(srcSize_wrong);
     return ZSTD_compressContinue_internal(cctx, dst, dstCapacity, src, srcSize, 0 /* frame mode */, 0 /* last chunk */);
 }
@@ -3308,7 +3312,7 @@ size_t ZSTD_freeCStream(ZSTD_CStream* zcs)
 size_t ZSTD_estimateCStreamSize(ZSTD_compressionParameters cParams)
 {
     size_t const CCtxSize = ZSTD_estimateCCtxSize(cParams);
-    size_t const blockSize = MIN(ZSTD_BLOCKSIZE_ABSOLUTEMAX, (size_t)1 << cParams.windowLog);
+    size_t const blockSize = MIN(ZSTD_BLOCKSIZE_MAX, (size_t)1 << cParams.windowLog);
     size_t const inBuffSize = ((size_t)1 << cParams.windowLog) + blockSize;
     size_t const outBuffSize = ZSTD_compressBound(blockSize) + 1;
     size_t const streamingSize = inBuffSize + outBuffSize;
@@ -3319,11 +3323,11 @@ size_t ZSTD_estimateCStreamSize(ZSTD_compressionParameters cParams)
 
 /*======   Initialization   ======*/
 
-size_t ZSTD_CStreamInSize(void)  { return ZSTD_BLOCKSIZE_ABSOLUTEMAX; }
+size_t ZSTD_CStreamInSize(void)  { return ZSTD_BLOCKSIZE_MAX; }
 
 size_t ZSTD_CStreamOutSize(void)
 {
-    return ZSTD_compressBound(ZSTD_BLOCKSIZE_ABSOLUTEMAX) + ZSTD_blockHeaderSize + 4 /* 32-bits hash */ ;
+    return ZSTD_compressBound(ZSTD_BLOCKSIZE_MAX) + ZSTD_blockHeaderSize + 4 /* 32-bits hash */ ;
 }
 
 static size_t ZSTD_resetCStream_internal(ZSTD_CStream* zcs, ZSTD_parameters params, unsigned long long pledgedSrcSize)
@@ -3350,7 +3354,7 @@ static size_t ZSTD_initCStream_stage2(ZSTD_CStream* zcs,
                                 unsigned long long pledgedSrcSize)
 {
     assert(!ZSTD_isError(ZSTD_checkCParams(params.cParams)));
-    zcs->blockSize = MIN(ZSTD_BLOCKSIZE_ABSOLUTEMAX, (size_t)1 << params.cParams.windowLog);
+    zcs->blockSize = MIN(ZSTD_BLOCKSIZE_MAX, (size_t)1 << params.cParams.windowLog);
 
     /* allocate buffers */
     {   size_t const neededInBuffSize = ((size_t)1 << params.cParams.windowLog) + zcs->blockSize;

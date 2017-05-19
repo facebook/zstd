@@ -279,9 +279,11 @@ typedef struct ZSTD_outBuffer_s {
 *  ZSTD_endStream() instructs to finish a frame.
 *  It will perform a flush and write frame epilogue.
 *  The epilogue is required for decoders to consider a frame completed.
-*  Similar to ZSTD_flushStream(), it may not be able to flush the full content if `output->size` is too small.
+*  ZSTD_endStream() may not be able to flush full data if `output->size` is too small.
 *  In which case, call again ZSTD_endStream() to complete the flush.
-*  @return : nb of bytes still present within internal buffer (0 if it's empty, hence compression completed)
+*  @return : 0 if frame fully completed and fully flushed,
+             or >0 if some data is still present within internal buffer
+                  (value is minimum size estimation for remaining data to flush, but it could be more)
 *            or an error code, which can be tested using ZSTD_isError().
 *
 * *******************************************************************/

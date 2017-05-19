@@ -189,7 +189,8 @@ static int basicUnitTests(U32 seed, double compressibility, ZSTD_customMem custo
 
     /* Basic compression test */
     DISPLAYLEVEL(3, "test%3i : compress %u bytes : ", testNb++, COMPRESSIBLE_NOISE_LENGTH);
-    ZSTD_initCStream_usingDict(zc, CNBuffer, dictSize, 1);
+    { size_t const r = ZSTD_initCStream_usingDict(zc, CNBuffer, dictSize, 1);
+      if (ZSTD_isError(r)) goto _output_error; }
     outBuff.dst = (char*)(compressedBuffer)+cSize;
     outBuff.size = compressedBufferSize;
     outBuff.pos = 0;
@@ -797,13 +798,9 @@ static int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compres
                 while (remainingToFlush) {
                     size_t const randomDstSize = FUZ_randomLength(&lseed, maxSampleLog);
                     size_t const adjustedDstSize = MIN(cBufferSize - cSize, randomDstSize);
-                    U32 const enoughDstSize = (adjustedDstSize >= remainingToFlush);
                     outBuff.size = outBuff.pos + adjustedDstSize;
                     remainingToFlush = ZSTD_endStream(zc, &outBuff);
-                    CHECK (ZSTD_isError(remainingToFlush), "flush error : %s", ZSTD_getErrorName(remainingToFlush));
-                    CHECK (enoughDstSize && remainingToFlush,
-                           "ZSTD_endStream() not fully flushed (%u remaining), but enough space available (%u)",
-                           (U32)remainingToFlush, (U32)adjustedDstSize);
+                    CHECK (ZSTD_isError(remainingToFlush), "end error : %s", ZSTD_getErrorName(remainingToFlush));
             }   }
             crcOrig = XXH64_digest(&xxhState);
             cSize = outBuff.pos;

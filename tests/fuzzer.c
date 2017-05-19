@@ -586,6 +586,7 @@ static int basicUnitTests(U32 seed, double compressibility)
         /* basic block compression */
         DISPLAYLEVEL(4, "test%3i : Block compression test : ", testNb++);
         CHECK( ZSTD_compressBegin(cctx, 5) );
+        CHECK( ZSTD_getBlockSize(cctx) >= blockSize);
         cSize = ZSTD_compressBlock(cctx, compressedBuffer, ZSTD_compressBound(blockSize), CNBuffer, blockSize);
         if (ZSTD_isError(cSize)) goto _output_error;
         DISPLAYLEVEL(4, "OK \n");

@@ -240,9 +240,11 @@ size_t     ZSTD_freeDCtx(ZSTD_DCtx* dctx);
   ZSTD_endStream() instructs to finish a frame.
   It will perform a flush and write frame epilogue.
   The epilogue is required for decoders to consider a frame completed.
-  Similar to ZSTD_flushStream(), it may not be able to flush the full content if `output->size` is too small.
+  ZSTD_endStream() may not be able to flush full data if `output->size` is too small.
   In which case, call again ZSTD_endStream() to complete the flush.
-  @return : nb of bytes still present within internal buffer (0 if it's empty, hence compression completed)
+  @return : 0 if frame fully completed and fully flushed,
+             or >0 if some data is still present within internal buffer
+                  (value is minimum size estimation for remaining data to flush, but it could be more)
             or an error code, which can be tested using ZSTD_isError().
 
  
@@ -856,7 +858,7 @@ void   ZSTD_copyDCtx(ZSTD_DCtx* dctx, const ZSTD_DCtx* preparedDCtx);
       + compression : any ZSTD_compressBegin*() variant, including with dictionary
       + decompression : any ZSTD_decompressBegin*() variant, including with dictionary
       + copyCCtx() and copyDCtx() can be used too
-    - Block size is limited, it must be <= ZSTD_getBlockSizeMax() <= ZSTD_BLOCKSIZE_ABSOLUTEMAX
+    - Block size is limited, it must be <= ZSTD_getBlockSize() <= ZSTD_BLOCKSIZE_MAX
       + If input is larger than a block size, it's necessary to split input data into multiple blocks
       + For inputs larger than a single block size, consider using the regular ZSTD_compress() instead.
         Frame metadata is not that costly, and quickly becomes negligible as source size grows larger.
@@ -869,7 +871,7 @@ void   ZSTD_copyDCtx(ZSTD_DCtx* dctx, const ZSTD_DCtx* preparedDCtx);
         Use ZSTD_insertBlock() for such a case.
 <BR></pre>
 
-<h3>Raw zstd block functions</h3><pre></pre><b><pre>size_t ZSTD_getBlockSizeMax(ZSTD_CCtx* cctx);
+<h3>Raw zstd block functions</h3><pre></pre><b><pre>size_t ZSTD_getBlockSize   (const ZSTD_CCtx* cctx);
 size_t ZSTD_compressBlock  (ZSTD_CCtx* cctx, void* dst, size_t dstCapacity, const void* src, size_t srcSize);
 size_t ZSTD_decompressBlock(ZSTD_DCtx* dctx, void* dst, size_t dstCapacity, const void* src, size_t srcSize);
 size_t ZSTD_insertBlock(ZSTD_DCtx* dctx, const void* blockStart, size_t blockSize);  </b>/**< insert block into `dctx` history. Useful for uncompressed blocks */<b>

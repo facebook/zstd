@@ -332,15 +332,21 @@ ZSTDLIB_API size_t ZSTD_CCtx_setPledgedSrcSize(ZSTD_CCtx* cctx, unsigned long lo
 
 ZSTDLIB_API size_t ZSTD_CCtx_loadDictionary(ZSTD_CCtx* cctx, const void* dict, size_t dictSize)
 {
+    DEBUGLOG(5, "ZSTD_CCtx_loadDictionary : dictSize = %u",
+                (unsigned)dictSize);
     ZSTD_freeCDict(cctx->cdictLocal);  /* in case one already exists */
     if (dict==NULL || dictSize==0) {   /* no dictionary mode */
         cctx->cdictLocal = NULL;
         cctx->cdict = NULL;
     } else {
+        ZSTD_compressionParameters const cParams =
+                cctx->compressionLevel == ZSTD_CLEVEL_CUSTOM ?
+                cctx->params.cParams :
+                ZSTD_getCParams(cctx->compressionLevel, 0, dictSize);
         cctx->cdictLocal = ZSTD_createCDict_advanced(
                                 dict, dictSize,
                                 0 /* byReference */,
-                                cctx->params.cParams, cctx->customMem);
+                                cParams, cctx->customMem);
         cctx->cdict = cctx->cdictLocal;
         if (cctx->cdictLocal == NULL)
             return ERROR(memory_allocation);
@@ -3175,6 +3181,7 @@ static ZSTD_parameters ZSTD_makeParams(ZSTD_compressionParameters cParams, ZSTD_
 ZSTD_CDict* ZSTD_createCDict_advanced(const void* dictBuffer, size_t dictSize, unsigned byReference,
                                       ZSTD_compressionParameters cParams, ZSTD_customMem customMem)
 {
+    DEBUGLOG(5, "ZSTD_createCDict_advanced");
     if (!customMem.customAlloc && !customMem.customFree) customMem = defaultCustomMem;
     if (!customMem.customAlloc || !customMem.customFree) return NULL;
 
@@ -3182,6 +3189,7 @@ ZSTD_CDict* ZSTD_createCDict_advanced(const void* dictBuffer, size_t dictSize, u
         ZSTD_CCtx* const cctx = ZSTD_createCCtx_advanced(customMem);
 
         if (!cdict || !cctx) {
+            DEBUGLOG(5, "!cdict || !cctx");
             ZSTD_free(cdict, customMem);
             ZSTD_freeCCtx(cctx);
             return NULL;
@@ -3192,16 +3200,25 @@ ZSTD_CDict* ZSTD_createCDict_advanced(const void* dictBuffer, size_t dictSize, u
             cdict->dictContent = dictBuffer;
         } else {
             void* const internalBuffer = ZSTD_malloc(dictSize, customMem);
-            if (!internalBuffer) { ZSTD_free(cctx, customMem); ZSTD_free(cdict, customMem); return NULL; }
+            if (!internalBuffer) {
+                DEBUGLOG(5, "!internalBuffer");
+                ZSTD_free(cctx, customMem);
+                ZSTD_free(cdict, customMem);
+                return NULL;
+            }
             memcpy(internalBuffer, dictBuffer, dictSize);
             cdict->dictBuffer = internalBuffer;
             cdict->dictContent = internalBuffer;
         }
 
-        {   ZSTD_frameParameters const fParams = { 0 /* contentSizeFlag */, 0 /* checksumFlag */, 0 /* noDictIDFlag */ };   /* dummy */
+        {   ZSTD_frameParameters const fParams = { 0 /* contentSizeFlag */,
+                    0 /* checksumFlag */, 0 /* noDictIDFlag */ }; /* dummy */
             ZSTD_parameters const params = ZSTD_makeParams(cParams, fParams);
-            size_t const errorCode = ZSTD_compressBegin_advanced(cctx, cdict->dictContent, dictSize, params, 0);
+            size_t const errorCode = ZSTD_compressBegin_advanced(cctx,
+                                cdict->dictContent, dictSize, params, 0);
             if (ZSTD_isError(errorCode)) {
+                DEBUGLOG(5, "ZSTD_compressBegin_advanced error : %s",
+                            ZSTD_getErrorName(errorCode));
                 ZSTD_free(cdict->dictBuffer, customMem);
                 ZSTD_free(cdict, customMem);
                 ZSTD_freeCCtx(cctx);
@@ -3532,7 +3549,10 @@ static size_t ZSTD_compressStream_generic(ZSTD_CStream* zcs,
                 zcs->inBuffTarget = zcs->inBuffPos + zcs->blockSize;
                 if (zcs->inBuffTarget > zcs->inBuffSize)
                     zcs->inBuffPos = 0, zcs->inBuffTarget = zcs->blockSize;
-                assert(zcs->inBuffTarget <= zcs->inBuffSize);
+                DEBUGLOG(5, "inBuffTarget:%u / inBuffSize:%u",
+                         (U32)zcs->inBuffTarget, (U32)zcs->inBuffSize);
+                if (!lastBlock)
+                    assert(zcs->inBuffTarget <= zcs->inBuffSize);
                 zcs->inToCompress = zcs->inBuffPos;
                 if (cDst == op) {  /* no need to flush */
                     op += cSize;

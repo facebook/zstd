@@ -20,10 +20,12 @@ extern "C" {
 
 
 /* =====   ZDICTLIB_API : control library symbols visibility   ===== */
-#if defined(__GNUC__) && (__GNUC__ >= 4)
-#  define ZDICTLIB_VISIBILITY __attribute__ ((visibility ("default")))
-#else
-#  define ZDICTLIB_VISIBILITY
+#ifndef ZDICTLIB_VISIBILITY
+#  if defined(__GNUC__) && (__GNUC__ >= 4)
+#    define ZDICTLIB_VISIBILITY __attribute__ ((visibility ("default")))
+#  else
+#    define ZDICTLIB_VISIBILITY
+#  endif
 #endif
 #if defined(ZSTD_DLL_EXPORT) && (ZSTD_DLL_EXPORT==1)
 #  define ZDICTLIB_API __declspec(dllexport) ZDICTLIB_VISIBILITY

@@ -228,9 +228,7 @@ size_t ZSTD_CCtx_setParameter(ZSTD_CCtx* cctx, ZSTD_cParameter param, unsigned v
             return ERROR(compressionParameter_unsupported);  \
     }   }
 
-    if (cctx->streamStage != zcss_init) {
-        return ERROR(stage_wrong);
-    }
+    if (cctx->streamStage != zcss_init) return ERROR(stage_wrong);
 
     switch(param)
     {
@@ -326,14 +324,14 @@ size_t ZSTD_CCtx_setParameter(ZSTD_CCtx* cctx, ZSTD_cParameter param, unsigned v
 
 ZSTDLIB_API size_t ZSTD_CCtx_setPledgedSrcSize(ZSTD_CCtx* cctx, unsigned long long pledgedSrcSize)
 {
+    if (cctx->streamStage != zcss_init) return ERROR(stage_wrong);
     cctx->frameContentSize = pledgedSrcSize;
     return 0;
 }
 
 ZSTDLIB_API size_t ZSTD_CCtx_loadDictionary(ZSTD_CCtx* cctx, const void* dict, size_t dictSize)
 {
-    DEBUGLOG(5, "ZSTD_CCtx_loadDictionary : dictSize = %u",
-                (unsigned)dictSize);
+    if (cctx->streamStage != zcss_init) return ERROR(stage_wrong);
     ZSTD_freeCDict(cctx->cdictLocal);  /* in case one already exists */
     if (dict==NULL || dictSize==0) {   /* no dictionary mode */
         cctx->cdictLocal = NULL;
@@ -358,13 +356,14 @@ ZSTDLIB_API size_t ZSTD_CCtx_loadDictionary(ZSTD_CCtx* cctx, const void* dict, s
 ZSTDLIB_API size_t ZSTD_CCtx_refPrefix(ZSTD_CCtx* cctx, const void* prefix, size_t prefixSize)
 {
     (void)cctx; (void)prefix; (void)prefixSize; /* to be done later */
+    if (cctx->streamStage != zcss_init) return ERROR(stage_wrong);
     return ERROR(compressionParameter_unsupported);
 }
 
-/* Not ready yet ! */
 ZSTDLIB_API size_t ZSTD_CCtx_refCDict(ZSTD_CCtx* cctx, const ZSTD_CDict* cdict)
 {
-    (void)cctx; (void)cdict;  /* to be done later */
+    if (cctx->streamStage != zcss_init) return ERROR(stage_wrong);
+    cctx->cdict = cdict;
     return ERROR(compressionParameter_unsupported);
 }
 
@@ -383,7 +382,6 @@ size_t ZSTD_checkCParams(ZSTD_compressionParameters cParams)
     if ((U32)(cParams.strategy) > (U32)ZSTD_btultra) return ERROR(compressionParameter_unsupported);
     return 0;
 }
-
 
 /** ZSTD_cycleLog() :
  *  condition for correct operation : hashLog > 1 */

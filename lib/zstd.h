@@ -746,7 +746,7 @@ ZSTDLIB_API size_t ZSTD_CDict_loadDictionary(ZSTD_CDict* cdict, const void* dict
  *           Adding a new dictionary effectively "discards" any previous one.
  *  Note 2 : CDict is just referenced, its lifetime must outlive CCtx.
  */
-ZSTDLIB_API size_t ZSTD_CCtx_refCDict(ZSTD_CCtx* cctx, const ZSTD_CDict* cdict);  /* Not ready yet ! */
+ZSTDLIB_API size_t ZSTD_CCtx_refCDict(ZSTD_CCtx* cctx, const ZSTD_CDict* cdict);
 
 
 

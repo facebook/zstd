@@ -190,6 +190,63 @@ static int basicUnitTests(U32 seed, double compressibility)
     DISPLAYLEVEL(4, "OK \n");
 
 
+    /* Static CCtx tests */
+#define STATIC_CCTX_LEVEL 3
+    DISPLAYLEVEL(4, "test%3i : create static CCtx for level %u :", testNb++, STATIC_CCTX_LEVEL);
+    {   ZSTD_compressionParameters const cParams = ZSTD_getCParams(STATIC_CCTX_LEVEL, 0, 0);
+        size_t const staticCCtxSize = ZSTD_estimateCStreamSize(cParams);
+        void* staticCCtxBuffer = malloc(staticCCtxSize);
+        if (staticCCtxBuffer==NULL) {
+            DISPLAY("Not enough memory, aborting\n");
+            testResult = 1;
+            goto _end;
+        }
+        {   ZSTD_CCtx* staticCCtx = ZSTD_initStaticCCtx(staticCCtxBuffer, staticCCtxSize);
+            if (staticCCtx==NULL) goto _output_error;
+            DISPLAYLEVEL(4, "OK \n");
+
+            DISPLAYLEVEL(4, "test%3i : init CCtx for level %u : ", testNb++, STATIC_CCTX_LEVEL);
+            { size_t const r = ZSTD_compressBegin(staticCCtx, STATIC_CCTX_LEVEL);
+              if (ZSTD_isError(r)) goto _output_error; }
+            DISPLAYLEVEL(4, "OK \n");
+
+            DISPLAYLEVEL(4, "test%3i : simple compression test with static CCtx : ", testNb++);
+            CHECKPLUS(r, ZSTD_compressCCtx(staticCCtx,
+                            compressedBuffer, ZSTD_compressBound(CNBuffSize),
+                            CNBuffer, CNBuffSize, STATIC_CCTX_LEVEL),
+                      cSize=r );
+            DISPLAYLEVEL(4, "OK (%u bytes : %.2f%%)\n", (U32)cSize, (double)cSize/CNBuffSize*100);
+
+            DISPLAYLEVEL(4, "test%3i : decompress verification test : ", testNb++);
+            { size_t const r = ZSTD_decompress(decodedBuffer, CNBuffSize, compressedBuffer, cSize);
+              if (r != CNBuffSize) goto _output_error; }
+            DISPLAYLEVEL(4, "OK \n");
+
+            DISPLAYLEVEL(4, "test%3i : init CCtx for too large level (must fail) : ", testNb++);
+            { size_t const r = ZSTD_compressBegin(staticCCtx, ZSTD_maxCLevel());
+              if (!ZSTD_isError(r)) goto _output_error; }
+            DISPLAYLEVEL(4, "OK \n");
+
+            DISPLAYLEVEL(4, "test%3i : init CCtx for small level %u (should work again) : ", testNb++, 1);
+            { size_t const r = ZSTD_compressBegin(staticCCtx, 1);
+              if (ZSTD_isError(r)) goto _output_error; }
+            DISPLAYLEVEL(4, "OK \n");
+
+            DISPLAYLEVEL(4, "test%3i : init CStream for small level %u : ", testNb++, 1);
+            { size_t const r = ZSTD_initCStream(staticCCtx, 1);
+              if (ZSTD_isError(r)) goto _output_error; }
+            DISPLAYLEVEL(4, "OK \n");
+
+            DISPLAYLEVEL(4, "test%3i : init CStream with dictionary (should fail) : ", testNb++);
+            { size_t const r = ZSTD_initCStream_usingDict(staticCCtx, CNBuffer, 64 KB, 1);
+              if (!ZSTD_isError(r)) goto _output_error; }
+            DISPLAYLEVEL(4, "OK \n");
+        }
+        free(staticCCtxBuffer);
+    }
+
+
+
     /* ZSTDMT simple MT compression test */
     DISPLAYLEVEL(4, "test%3i : create ZSTDMT CCtx : ", testNb++);
     {   ZSTDMT_CCtx* mtctx = ZSTDMT_createCCtx(2);

@@ -126,6 +126,7 @@ struct ZSTD_CCtx_s {
     U64 consumedSrcSize;
     XXH64_state_t xxhState;
     ZSTD_customMem customMem;
+    size_t staticSize;
 
     seqStore_t seqStore;    /* sequences storage ptrs */
     U32* hashTable;
@@ -175,9 +176,38 @@ ZSTD_CCtx* ZSTD_createCCtx_advanced(ZSTD_customMem customMem)
     return cctx;
 }
 
+ZSTD_CCtx* ZSTD_initStaticCCtx(void *workspace, size_t workspaceSize)
+{
+    ZSTD_CCtx* cctx = (ZSTD_CCtx*) workspace;
+    if (workspaceSize <= sizeof(ZSTD_CCtx)) return NULL;  /* minimum size */
+    if ((size_t)workspace & 7) return NULL;  /* must be 8-aligned */
+    memset(workspace, 0, workspaceSize);
+    cctx->staticSize = workspaceSize;
+    cctx->workSpace = (void*)(cctx+1);
+    cctx->workSpaceSize = workspaceSize - sizeof(ZSTD_CCtx);
+
+    /* entropy space (never moves) */
+    /* note : this code should be shared with resetCCtx, instead of copied */
+    {   void* ptr = cctx->workSpace;
+        cctx->hufCTable = (HUF_CElt*)ptr;
+        ptr = (char*)cctx->hufCTable + hufCTable_size;  /* note : HUF_CElt* is incomplete type, size is estimated via macro */
+        cctx->offcodeCTable = (FSE_CTable*) ptr;
+        ptr = (char*)ptr + offcodeCTable_size;
+        cctx->matchlengthCTable = (FSE_CTable*) ptr;
+        ptr = (char*)ptr + matchlengthCTable_size;
+        cctx->litlengthCTable = (FSE_CTable*) ptr;
+        ptr = (char*)ptr + litlengthCTable_size;
+        assert(((size_t)ptr & 3) == 0);   /* ensure correct alignment */
+        cctx->entropyScratchSpace = (unsigned*) ptr;
+    }
+
+    return cctx;
+}
+
 size_t ZSTD_freeCCtx(ZSTD_CCtx* cctx)
 {
     if (cctx==NULL) return 0;   /* support free on NULL */
+    assert(!cctx->staticSize);  /* not compatible with static CCtx */
     ZSTD_free(cctx->workSpace, cctx->customMem);
     cctx->workSpace = NULL;
     ZSTD_freeCDict(cctx->cdictLocal);
@@ -337,6 +367,7 @@ ZSTDLIB_API size_t ZSTD_CCtx_setPledgedSrcSize(ZSTD_CCtx* cctx, unsigned long lo
 ZSTDLIB_API size_t ZSTD_CCtx_loadDictionary(ZSTD_CCtx* cctx, const void* dict, size_t dictSize)
 {
     if (cctx->streamStage != zcss_init) return ERROR(stage_wrong);
+    if (cctx->staticSize) return ERROR(memory_allocation);  /* no malloc for static CCtx */
     ZSTD_freeCDict(cctx->cdictLocal);  /* in case one already exists */
     if (dict==NULL || dictSize==0) {   /* no dictionary mode */
         cctx->cdictLocal = NULL;
@@ -448,6 +479,17 @@ size_t ZSTD_estimateCCtxSize(ZSTD_compressionParameters cParams)
     return sizeof(ZSTD_CCtx) + neededSpace;
 }
 
+size_t ZSTD_estimateCStreamSize(ZSTD_compressionParameters cParams)
+{
+    size_t const CCtxSize = ZSTD_estimateCCtxSize(cParams);
+    size_t const blockSize = MIN(ZSTD_BLOCKSIZE_MAX, (size_t)1 << cParams.windowLog);
+    size_t const inBuffSize = ((size_t)1 << cParams.windowLog) + blockSize;
+    size_t const outBuffSize = ZSTD_compressBound(blockSize) + 1;
+    size_t const streamingSize = inBuffSize + outBuffSize;
+
+    return CCtxSize + streamingSize;
+}
+
 
 static U32 ZSTD_equivalentParams(ZSTD_compressionParameters cParams1,
                                  ZSTD_compressionParameters cParams2)
@@ -532,9 +574,14 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
                                         buffInSize + buffOutSize : 0;
             size_t const neededSpace = entropySpace + optSpace + tableSpace
                                      + tokenSpace + bufferSpace;
-            if (zc->workSpaceSize < neededSpace) {
+
+            if (zc->workSpaceSize < neededSpace) {  /* too small : resize /*/
                 DEBUGLOG(5, "Need to update workSpaceSize from %uK to %uK \n",
-                            (unsigned)zc->workSpaceSize>>10, (unsigned)neededSpace>>10);
+                            (unsigned)zc->workSpaceSize>>10,
+                            (unsigned)neededSpace>>10);
+                /* static cctx : no resize, error out */
+                if (zc->staticSize) return ERROR(memory_allocation);
+
                 zc->workSpaceSize = 0;
                 ZSTD_free(zc->workSpace, zc->customMem);
                 zc->workSpace = ZSTD_malloc(neededSpace, zc->customMem);
@@ -3362,16 +3409,6 @@ size_t ZSTD_freeCStream(ZSTD_CStream* zcs)
     return ZSTD_freeCCtx(zcs);   /* same object */
 }
 
-size_t ZSTD_estimateCStreamSize(ZSTD_compressionParameters cParams)
-{
-    size_t const CCtxSize = ZSTD_estimateCCtxSize(cParams);
-    size_t const blockSize = MIN(ZSTD_BLOCKSIZE_MAX, (size_t)1 << cParams.windowLog);
-    size_t const inBuffSize = ((size_t)1 << cParams.windowLog) + blockSize;
-    size_t const outBuffSize = ZSTD_compressBound(blockSize) + 1;
-    size_t const streamingSize = inBuffSize + outBuffSize;
-
-    return CCtxSize + streamingSize;
-}
 
 
 /*======   Initialization   ======*/
@@ -3446,6 +3483,10 @@ static size_t ZSTD_initCStream_internal(ZSTD_CStream* zcs,
     zcs->cdict = NULL;
 
     if (dict && dictSize >= 8) {
+        if (zcs->staticSize) {   /* static CCtx : never uses malloc */
+            /* incompatible with internal cdict creation */
+            return ERROR(memory_allocation);
+        }
         ZSTD_freeCDict(zcs->cdictLocal);
         zcs->cdictLocal = ZSTD_createCDict_advanced(dict, dictSize, 0 /* copy */, params.cParams, zcs->customMem);
         if (zcs->cdictLocal == NULL) return ERROR(memory_allocation);

@@ -478,7 +478,7 @@ static size_t ZSTD_continueCCtx(ZSTD_CCtx* cctx, ZSTD_parameters params, U64 fra
     return 0;
 }
 
-typedef enum { ZSTDcrp_continue, ZSTDcrp_noMemset, ZSTDcrp_fullReset } ZSTD_compResetPolicy_e;
+typedef enum { ZSTDcrp_continue, ZSTDcrp_noMemset } ZSTD_compResetPolicy_e;
 
 /*! ZSTD_resetCCtx_internal() :
     note : `params` must be validated */
@@ -489,13 +489,13 @@ static size_t ZSTD_resetCCtx_internal (ZSTD_CCtx* zc,
     DEBUGLOG(5, "ZSTD_resetCCtx_internal : wlog=%u / old=%u",
                 params.cParams.windowLog, zc->appliedParams.cParams.windowLog);
 
-    if (crp == ZSTDcrp_continue)
+    if (crp == ZSTDcrp_continue) {
         if (ZSTD_equivalentParams(params.cParams, zc->appliedParams.cParams)) {
             DEBUGLOG(5, "ZSTD_equivalentParams()==1");
             zc->fseCTables_ready = 0;
             zc->hufCTable_repeatMode = HUF_repeat_none;
             return ZSTD_continueCCtx(zc, params, frameContentSize);
-        }
+    }   }
 
     {   size_t const blockSize = MIN(ZSTD_BLOCKSIZE_MAX, (size_t)1 << params.cParams.windowLog);
         U32    const divider = (params.cParams.searchLength==3) ? 3 : 4;
@@ -631,7 +631,6 @@ static size_t ZSTD_copyCCtx_internal(ZSTD_CCtx* dstCCtx,
     memcpy(&dstCCtx->customMem, &srcCCtx->customMem, sizeof(ZSTD_customMem));
     {   ZSTD_parameters params = srcCCtx->appliedParams;
         params.fParams = fParams;
-        DEBUGLOG(5, "ZSTD_resetCCtx_internal : dictIDFlag : %u", !fParams.noDictIDFlag);
         ZSTD_resetCCtx_internal(dstCCtx, params, pledgedSrcSize, ZSTDcrp_noMemset);
     }
 
@@ -3011,9 +3010,8 @@ static size_t ZSTD_compressBegin_internal(ZSTD_CCtx* cctx,
                              const void* dict, size_t dictSize,
                                    ZSTD_parameters params, U64 pledgedSrcSize)
 {
-    ZSTD_compResetPolicy_e const crp = dictSize ? ZSTDcrp_fullReset : ZSTDcrp_continue;
     assert(!ZSTD_isError(ZSTD_checkCParams(params.cParams)));
-    CHECK_F(ZSTD_resetCCtx_internal(cctx, params, pledgedSrcSize, crp));
+    CHECK_F(ZSTD_resetCCtx_internal(cctx, params, pledgedSrcSize, ZSTDcrp_continue));
     return ZSTD_compress_insertDictionary(cctx, dict, dictSize);
 }
 
@@ -3411,9 +3409,9 @@ static size_t ZSTD_initCStream_stage2(ZSTD_CStream* zcs,
 
 size_t ZSTD_resetCStream(ZSTD_CStream* zcs, unsigned long long pledgedSrcSize)
 {
-    DEBUGLOG(5, "ZSTD_resetCStream");
     ZSTD_parameters params = zcs->requestedParams;
     params.fParams.contentSizeFlag = (pledgedSrcSize > 0);
+    DEBUGLOG(5, "ZSTD_resetCStream");
     if (zcs->compressionLevel != ZSTD_CLEVEL_CUSTOM) {
         params.cParams = ZSTD_getCParams(zcs->compressionLevel, pledgedSrcSize, 0 /* dictSize */);
     }

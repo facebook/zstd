@@ -616,7 +616,7 @@ size_t ZSTD_CDict_loadDictionary(ZSTD_CDict* cdict, const void* dict, size_t dic
  
 </p></pre><BR>
 
-<pre><b>size_t ZSTD_CCtx_refCDict(ZSTD_CCtx* cctx, const ZSTD_CDict* cdict);  </b>/* Not ready yet ! */<b>
+<pre><b>size_t ZSTD_CCtx_refCDict(ZSTD_CCtx* cctx, const ZSTD_CDict* cdict);
 </b><p>  Add a prepared dictionary to cctx, to be used for next compression jobs.
   Note that compression parameters will be enforced from within CDict.
   Currently, they supercede any compression parameter previously set within CCtx.

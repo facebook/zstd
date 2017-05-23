@@ -329,7 +329,8 @@ ZSTDLIB_API size_t ZSTD_CStreamOutSize(void);   /**< recommended size for output
 *            The return value is a suggested next input size (a hint to improve latency) that will never load more than the current frame.
 * *******************************************************************************/
 
-typedef struct ZSTD_DStream_s ZSTD_DStream;
+//typedef struct ZSTD_DStream_s ZSTD_DStream;
+typedef ZSTD_DCtx ZSTD_DStream;
 /*===== ZSTD_DStream management functions =====*/
 ZSTDLIB_API ZSTD_DStream* ZSTD_createDStream(void);
 ZSTDLIB_API size_t ZSTD_freeDStream(ZSTD_DStream* zds);

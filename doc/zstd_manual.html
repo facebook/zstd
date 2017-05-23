@@ -423,6 +423,22 @@ size_t ZSTD_estimateDDictSize(size_t dictSize);
 </b><p>  Create a ZSTD compression context using external alloc and free functions 
 </p></pre><BR>
 
+<pre><b>ZSTD_CCtx* ZSTD_initStaticCCtx(void* workspace, size_t workspaceSize);
+</b><p>  workspace: The memory area to emplace the context into.
+             Provided pointer must 8-bytes aligned.
+             It must outlive context usage.
+  workspaceSize: Use ZSTD_estimateCCtxSize() or ZSTD_estimateCStreamSize()
+                 to determine how large workspace must be to support scenario.
+ @return : pointer to ZSTD_CCtx*, or NULL if error (size too small)
+  Note : zstd will never resize nor malloc() when using a static cctx.
+         If it needs more memory than available, it will simply error out.
+  Note 2 : there is no corresponding "free" function.
+           Since workspace was allocated externally, it must be freed externally too.
+  Limitation : currently not compatible with internal CDict creation, such as
+               ZSTD_CCtx_loadDictionary() or ZSTD_initCStream_usingDict().
+ 
+</p></pre><BR>
+
 <pre><b>typedef enum {
     ZSTD_p_forceWindow,   </b>/* Force back-references to remain < windowSize, even when referencing Dictionary content (default:0) */<b>
     ZSTD_p_forceRawDict   </b>/* Force loading dictionary in "content-only" mode (no header analysis) */<b>
@@ -714,7 +730,7 @@ size_t ZSTD_CDict_loadDictionary(ZSTD_CDict* cdict, const void* dict, size_t dic
 
 <h3>Advanced Streaming compression functions</h3><pre></pre><b><pre>ZSTD_CStream* ZSTD_createCStream_advanced(ZSTD_customMem customMem);
 size_t ZSTD_initCStream_srcSize(ZSTD_CStream* zcs, int compressionLevel, unsigned long long pledgedSrcSize);   </b>/**< pledgedSrcSize must be correct, a size of 0 means unknown.  for a frame size of 0 use initCStream_advanced */<b>
-size_t ZSTD_initCStream_usingDict(ZSTD_CStream* zcs, const void* dict, size_t dictSize, int compressionLevel); </b>/**< note: a dict will not be used if dict == NULL or dictSize < 8. This result in the creation of an internal CDict */<b>
+size_t ZSTD_initCStream_usingDict(ZSTD_CStream* zcs, const void* dict, size_t dictSize, int compressionLevel); </b>/**< creates of an internal CDict (incompatible with static CCtx), except if dict == NULL or dictSize < 8, in which case no dict is used. */<b>
 size_t ZSTD_initCStream_advanced(ZSTD_CStream* zcs, const void* dict, size_t dictSize,
                                              ZSTD_parameters params, unsigned long long pledgedSrcSize);  </b>/**< pledgedSrcSize is optional and can be 0 (meaning unknown). note: if the contentSizeFlag is set, pledgedSrcSize == 0 means the source size is actually 0 */<b>
 size_t ZSTD_initCStream_usingCDict(ZSTD_CStream* zcs, const ZSTD_CDict* cdict);  </b>/**< note : cdict will just be referenced, and must outlive compression session */<b>

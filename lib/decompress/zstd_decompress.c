@@ -202,7 +202,6 @@ ZSTD_DCtx* ZSTD_createDCtx_advanced(ZSTD_customMem customMem)
     dctx->ddict   = NULL;
     dctx->ddictLocal = NULL;
     dctx->inBuff  = NULL;
-    dctx->outBuff = NULL;
     dctx->inBuffSize = 0;
     dctx->outBuffSize= 0;
     return dctx;
@@ -221,8 +220,6 @@ size_t ZSTD_freeDCtx(ZSTD_DCtx* dctx)
         dctx->ddictLocal = NULL;
         ZSTD_free(dctx->inBuff, cMem);
         dctx->inBuff = NULL;
-        ZSTD_free(dctx->outBuff, cMem);
-        dctx->outBuff = NULL;
 #if defined(ZSTD_LEGACY_SUPPORT) && (ZSTD_LEGACY_SUPPORT >= 1)
         if (dctx->legacyContext)
             ZSTD_freeLegacyStreamContext(dctx->legacyContext, dctx->previousLegacyVersion);
@@ -2225,9 +2222,9 @@ size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inB
 
         case zdss_loadHeader :
             {   size_t const hSize = ZSTD_getFrameHeader(&zds->fParams, zds->headerBuffer, zds->lhSize);
-                if (ZSTD_isError(hSize))
+                if (ZSTD_isError(hSize)) {
 #if defined(ZSTD_LEGACY_SUPPORT) && (ZSTD_LEGACY_SUPPORT>=1)
-                {   U32 const legacyVersion = ZSTD_isLegacy(istart, iend-istart);
+                    U32 const legacyVersion = ZSTD_isLegacy(istart, iend-istart);
                     if (legacyVersion) {
                         const void* const dict = zds->ddict ? zds->ddict->dictContent : NULL;
                         size_t const dictSize = zds->ddict ? zds->ddict->dictSize : 0;
@@ -2237,10 +2234,11 @@ size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inB
                         return ZSTD_decompressLegacyStream(zds->legacyContext, zds->legacyVersion, output, input);
                     } else {
                         return hSize; /* error */
-                }   }
+                    }
 #else
-                return hSize;
+                    return hSize;
 #endif
+                }
                 if (hSize != 0) {   /* need more input */
                     size_t const toLoad = hSize - zds->lhSize;   /* if hSize!=0, hSize > zds->lhSize */
                     if (toLoad > (size_t)(iend-ip)) {   /* not enough input to load full header */
@@ -2283,22 +2281,19 @@ size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inB
             {   size_t const blockSize = MIN(zds->fParams.windowSize, ZSTD_BLOCKSIZE_MAX);
                 size_t const neededOutSize = zds->fParams.windowSize + blockSize + WILDCOPY_OVERLENGTH * 2;
                 zds->blockSize = blockSize;
-                if (zds->inBuffSize < blockSize) {
+                if ((zds->inBuffSize < blockSize) || (zds->outBuffSize < neededOutSize)) {
+                    size_t const bufferSize = blockSize + neededOutSize;
                     DEBUGLOG(4, "inBuff  : from %u to %u",
                                 (U32)zds->inBuffSize, (U32)blockSize);
-                    ZSTD_free(zds->inBuff, zds->customMem);
-                    zds->inBuffSize = 0;
-                    zds->inBuff = (char*)ZSTD_malloc(blockSize, zds->customMem);
-                    if (zds->inBuff == NULL) return ERROR(memory_allocation);
-                    zds->inBuffSize = blockSize;
-                }
-                if (zds->outBuffSize < neededOutSize) {
                     DEBUGLOG(4, "outBuff : from %u to %u",
                                 (U32)zds->outBuffSize, (U32)neededOutSize);
-                    ZSTD_free(zds->outBuff, zds->customMem);
+                    ZSTD_free(zds->inBuff, zds->customMem);
+                    zds->inBuffSize = 0;
                     zds->outBuffSize = 0;
-                    zds->outBuff = (char*)ZSTD_malloc(neededOutSize, zds->customMem);
-                    if (zds->outBuff == NULL) return ERROR(memory_allocation);
+                    zds->inBuff = (char*)ZSTD_malloc(bufferSize, zds->customMem);
+                    if (zds->inBuff == NULL) return ERROR(memory_allocation);
+                    zds->inBuffSize = blockSize;
+                    zds->outBuff = zds->inBuff + zds->inBuffSize;
                     zds->outBuffSize = neededOutSize;
             }   }
             zds->streamStage = zdss_read;

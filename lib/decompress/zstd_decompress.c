@@ -195,11 +195,16 @@ ZSTD_DCtx* ZSTD_createDCtx_advanced(ZSTD_customMem customMem)
 
     dctx = (ZSTD_DCtx*)ZSTD_malloc(sizeof(ZSTD_DCtx), customMem);
     if (!dctx) return NULL;
-    memset(dctx, 0, sizeof(*dctx));
     memcpy(&dctx->customMem, &customMem, sizeof(customMem));
     ZSTD_decompressBegin(dctx);   /* cannot fail */
     dctx->streamStage = zdss_init;
     dctx->maxWindowSize = ZSTD_MAXWINDOWSIZE_DEFAULT;
+    dctx->ddict   = NULL;
+    dctx->ddictLocal = NULL;
+    dctx->inBuff  = NULL;
+    dctx->outBuff = NULL;
+    dctx->inBuffSize = 0;
+    dctx->outBuffSize= 0;
     return dctx;
 }
 

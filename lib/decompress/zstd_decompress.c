@@ -2240,7 +2240,7 @@ size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inB
                         return hSize; /* error */
                 }   }
 #else
-                return hSize;
+                    return hSize;
 #endif
                 if (hSize != 0) {   /* need more input */
                     size_t const toLoad = hSize - zds->lhSize;   /* if hSize!=0, hSize > zds->lhSize */
@@ -2252,53 +2252,54 @@ size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inB
                     }
                     memcpy(zds->headerBuffer + zds->lhSize, ip, toLoad); zds->lhSize = hSize; ip += toLoad;
                     break;
-            }   }
-
-            /* check for single-pass mode opportunity */
-            if (zds->fParams.frameContentSize && zds->fParams.windowSize /* skippable frame if == 0 */
-                && (U64)(size_t)(oend-op) >= zds->fParams.frameContentSize) {
-                size_t const cSize = ZSTD_findFrameCompressedSize(istart, iend-istart);
-                if (cSize <= (size_t)(iend-istart)) {
-                    size_t const decompressedSize = ZSTD_decompress_usingDDict(zds->dctx, op, oend-op, istart, cSize, zds->ddict);
-                    if (ZSTD_isError(decompressedSize)) return decompressedSize;
-                    ip = istart + cSize;
-                    op += decompressedSize;
-                    zds->dctx->expected = 0;
-                    zds->stage = zdss_init;
-                    someMoreWork = 0;
-                    break;
-            }   }
-
-            /* Consume header */
-            CHECK_F(ZSTD_decompressBegin_usingDDict(zds->dctx, zds->ddict));
-            {   size_t const h1Size = ZSTD_nextSrcSizeToDecompress(zds->dctx);  /* == ZSTD_frameHeaderSize_prefix */
-                CHECK_F(ZSTD_decompressContinue(zds->dctx, NULL, 0, zds->headerBuffer, h1Size));
-                {   size_t const h2Size = ZSTD_nextSrcSizeToDecompress(zds->dctx);
-                    CHECK_F(ZSTD_decompressContinue(zds->dctx, NULL, 0, zds->headerBuffer+h1Size, h2Size));
-            }   }
-
-            zds->fParams.windowSize = MAX(zds->fParams.windowSize, 1U << ZSTD_WINDOWLOG_ABSOLUTEMIN);
-            if (zds->fParams.windowSize > zds->maxWindowSize) return ERROR(frameParameter_windowTooLarge);
-
-            /* Adapt buffer sizes to frame header instructions */
-            {   size_t const blockSize = MIN(zds->fParams.windowSize, ZSTD_BLOCKSIZE_ABSOLUTEMAX);
-                size_t const neededOutSize = zds->fParams.windowSize + blockSize + WILDCOPY_OVERLENGTH * 2;
-                zds->blockSize = blockSize;
-                if (zds->inBuffSize < blockSize) {
-                    ZSTD_free(zds->inBuff, zds->customMem);
-                    zds->inBuffSize = 0;
-                    zds->inBuff = (char*)ZSTD_malloc(blockSize, zds->customMem);
-                    if (zds->inBuff == NULL) return ERROR(memory_allocation);
-                    zds->inBuffSize = blockSize;
                 }
-                if (zds->outBuffSize < neededOutSize) {
-                    ZSTD_free(zds->outBuff, zds->customMem);
-                    zds->outBuffSize = 0;
-                    zds->outBuff = (char*)ZSTD_malloc(neededOutSize, zds->customMem);
-                    if (zds->outBuff == NULL) return ERROR(memory_allocation);
-                    zds->outBuffSize = neededOutSize;
-            }   }
-            zds->stage = zdss_read;
+
+                /* check for single-pass mode opportunity */
+                if (zds->fParams.frameContentSize && zds->fParams.windowSize /* skippable frame if == 0 */
+                    && (U64)(size_t)(oend-op) >= zds->fParams.frameContentSize) {
+                    size_t const cSize = ZSTD_findFrameCompressedSize(istart, iend-istart);
+                    if (cSize <= (size_t)(iend-istart)) {
+                        size_t const decompressedSize = ZSTD_decompress_usingDDict(zds->dctx, op, oend-op, istart, cSize, zds->ddict);
+                        if (ZSTD_isError(decompressedSize)) return decompressedSize;
+                        ip = istart + cSize;
+                        op += decompressedSize;
+                        zds->dctx->expected = 0;
+                        zds->stage = zdss_init;
+                        someMoreWork = 0;
+                        break;
+                }   }
+
+                /* Consume header */
+                CHECK_F(ZSTD_decompressBegin_usingDDict(zds->dctx, zds->ddict));
+                {   size_t const h1Size = ZSTD_nextSrcSizeToDecompress(zds->dctx);  /* == ZSTD_frameHeaderSize_prefix */
+                    CHECK_F(ZSTD_decompressContinue(zds->dctx, NULL, 0, zds->headerBuffer, h1Size));
+                    {   size_t const h2Size = ZSTD_nextSrcSizeToDecompress(zds->dctx);
+                        CHECK_F(ZSTD_decompressContinue(zds->dctx, NULL, 0, zds->headerBuffer+h1Size, h2Size));
+                }   }
+
+                zds->fParams.windowSize = MAX(zds->fParams.windowSize, 1U << ZSTD_WINDOWLOG_ABSOLUTEMIN);
+                if (zds->fParams.windowSize > zds->maxWindowSize) return ERROR(frameParameter_windowTooLarge);
+
+                /* Adapt buffer sizes to frame header instructions */
+                {   size_t const blockSize = MIN(zds->fParams.windowSize, ZSTD_BLOCKSIZE_ABSOLUTEMAX);
+                    size_t const neededOutSize = zds->fParams.windowSize + blockSize + WILDCOPY_OVERLENGTH * 2;
+                    zds->blockSize = blockSize;
+                    if (zds->inBuffSize < blockSize) {
+                        ZSTD_free(zds->inBuff, zds->customMem);
+                        zds->inBuffSize = 0;
+                        zds->inBuff = (char*)ZSTD_malloc(blockSize, zds->customMem);
+                        if (zds->inBuff == NULL) return ERROR(memory_allocation);
+                        zds->inBuffSize = blockSize;
+                    }
+                    if (zds->outBuffSize < neededOutSize) {
+                        ZSTD_free(zds->outBuff, zds->customMem);
+                        zds->outBuffSize = 0;
+                        zds->outBuff = (char*)ZSTD_malloc(neededOutSize, zds->customMem);
+                        if (zds->outBuff == NULL) return ERROR(memory_allocation);
+                        zds->outBuffSize = neededOutSize;
+                }   }
+                zds->stage = zdss_read;
+            }
             /* pass-through */
 
         case zdss_read:

@@ -536,8 +536,6 @@ ZSTD_STATIC BYTE FSE_decodeSymbolFast(FSE_DState_t *DStatePtr, BIT_DStream_t *bi
 
 ZSTD_STATIC unsigned FSE_endOfDState(const FSE_DState_t *DStatePtr) { return DStatePtr->state == 0; }
 
-#ifndef FSE_COMMONDEFS_ONLY
-
 /* **************************************************************
 *  Tuning parameters
 ****************************************************************/
@@ -566,8 +564,6 @@ ZSTD_STATIC unsigned FSE_endOfDState(const FSE_DState_t *DStatePtr) { return DSt
 #define FSE_FUNCTION_TYPE BYTE
 #define FSE_FUNCTION_EXTENSION
 #define FSE_DECODE_TYPE FSE_decode_t
-
-#endif /* !FSE_COMMONDEFS_ONLY */
 
 /* ***************************************************************
 *  Constants

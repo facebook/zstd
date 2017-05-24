@@ -96,6 +96,7 @@ then
   check_not_present_in_file STATIC_ASSERT ${LIB}mem.h
   check_not_present_in_file "#define ZSTD_STATIC_ASSERT" ${LIB}compress.c
   check_not_present MEM_STATIC
+  check_not_present FSE_COMMONDEFS_ONLY
   check_not_present "#if 0"
   check_not_present "#if 1"
   check_not_present _MSC_VER

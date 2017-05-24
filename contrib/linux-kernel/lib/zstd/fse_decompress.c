@@ -161,8 +161,6 @@ size_t FSE_buildDTable(FSE_DTable *dt, const short *normalizedCounter, unsigned 
 	return 0;
 }
 
-#ifndef FSE_COMMONDEFS_ONLY
-
 /*-*******************************************************
 *  Decompression (Byte symbols)
 *********************************************************/
@@ -313,5 +311,3 @@ size_t FSE_decompress_wksp(void *dst, size_t dstCapacity, const void *cSrc, size
 
 	return FSE_decompress_usingDTable(dst, dstCapacity, ip, cSrcSize, workSpace); /* always return, even if it is an error code */
 }
-
-#endif /* FSE_COMMONDEFS_ONLY */

@@ -34,27 +34,11 @@ MACRO(ADD_ZSTD_COMPILATION_FLAGS)
         EnableCompilerFlag("-Wcast-qual" true true)
         EnableCompilerFlag("-Wstrict-prototypes" true false)
     elseif (MSVC) # Add specific compilation flags for Windows Visual
-        EnableCompilerFlag("/Wall" true true)
-
-        # Only for DEBUG version
-        EnableCompilerFlag("/RTC1" true true)
-        EnableCompilerFlag("/Zc:forScope" true true)
-        EnableCompilerFlag("/Gd" true true)
-        EnableCompilerFlag("/analyze:stacksize25000" true true)
-
-        if (MSVC80 OR MSVC90 OR MSVC10 OR MSVC11)
-            # To avoid compiler warning (level 4) C4571, compile with /EHa if you still want
-            # your catch(...) blocks to catch structured exceptions.
-            EnableCompilerFlag("/EHa" false true)
-        endif (MSVC80 OR MSVC90 OR MSVC10 OR MSVC11)
 
         set(ACTIVATE_MULTITHREADED_COMPILATION "ON" CACHE BOOL "activate multi-threaded compilation (/MP flag)")
-        if (ACTIVATE_MULTITHREADED_COMPILATION)
+        if (CMAKE_GENERATOR MATCHES "Visual Studio" AND ACTIVATE_MULTITHREADED_COMPILATION)
             EnableCompilerFlag("/MP" true true)
         endif ()
-
-        #For exceptions
-        EnableCompilerFlag("/EHsc" true true)
         
         # UNICODE SUPPORT
         EnableCompilerFlag("/D_UNICODE" true true)
@@ -71,15 +55,12 @@ MACRO(ADD_ZSTD_COMPILATION_FLAGS)
         string(REPLACE ";" " " ${flag_var} "${${flag_var}}")
     ENDFOREACH (flag_var)
 
-    if (MSVC)
-        # Replace /MT to /MD flag
-        # Replace /O2 to /O3 flag
+    if (MSVC AND ZSTD_USE_STATIC_RUNTIME)
         FOREACH (flag_var CMAKE_C_FLAGS CMAKE_C_FLAGS_DEBUG CMAKE_C_FLAGS_RELEASE
                  CMAKE_C_FLAGS_MINSIZEREL CMAKE_C_FLAGS_RELWITHDEBINFO
                  CMAKE_CXX_FLAGS CMAKE_CXX_FLAGS_DEBUG CMAKE_CXX_FLAGS_RELEASE
                  CMAKE_CXX_FLAGS_MINSIZEREL CMAKE_CXX_FLAGS_RELWITHDEBINFO)
-            STRING(REGEX REPLACE "/MT" "/MD" ${flag_var} "${${flag_var}}")
-            STRING(REGEX REPLACE "/O2" "/Ox" ${flag_var} "${${flag_var}}")
+            STRING(REGEX REPLACE "/MD" "/MT" ${flag_var} "${${flag_var}}")
         ENDFOREACH (flag_var)
     endif ()
 

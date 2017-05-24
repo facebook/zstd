@@ -2300,7 +2300,6 @@ size_t ZSTD_decompressStream(ZSTD_DStream *zds, ZSTD_outBuffer *output, ZSTD_inB
 				ip += toLoad;
 				break;
 			}
-		}
 
 			/* check for single-pass mode opportunity */
 			if (zds->fParams.frameContentSize && zds->fParams.windowSize /* skippable frame if == 0 */
@@ -2355,6 +2354,7 @@ size_t ZSTD_decompressStream(ZSTD_DStream *zds, ZSTD_outBuffer *output, ZSTD_inB
 				}
 			}
 			zds->stage = zdss_read;
+		}
 		/* pass-through */
 
 		case zdss_read: {

@@ -13,7 +13,12 @@
 PROJECT(libzstd)
 
 SET(CMAKE_INCLUDE_CURRENT_DIR TRUE)
-OPTION(ZSTD_BUILD_STATIC "BUILD STATIC LIBRARIES" OFF)
+OPTION(ZSTD_BUILD_STATIC "BUILD STATIC LIBRARIES" ON)
+OPTION(ZSTD_BUILD_SHARED "BUILD SHARED LIBRARIES" ON)
+
+IF(NOT ZSTD_BUILD_SHARED AND NOT ZSTD_BUILD_STATIC)
+    MESSAGE(SEND_ERROR "You need to build at least one flavor of libstd")
+ENDIF()
 
 # Define library directory, where sources and header files are located
 SET(LIBRARY_DIR ${ZSTD_SOURCE_DIR}/lib)
@@ -90,43 +95,44 @@ IF (MSVC)
 ENDIF (MSVC)
 
 # Split project to static and shared libraries build
-ADD_LIBRARY(libzstd_shared SHARED ${Sources} ${Headers} ${PlatformDependResources})
+IF (ZSTD_BUILD_SHARED)
+    ADD_LIBRARY(libzstd_shared SHARED ${Sources} ${Headers} ${PlatformDependResources})
+ENDIF (ZSTD_BUILD_SHARED)
 IF (ZSTD_BUILD_STATIC)
     ADD_LIBRARY(libzstd_static STATIC ${Sources} ${Headers})
 ENDIF (ZSTD_BUILD_STATIC)
 
 # Add specific compile definitions for MSVC project
 IF (MSVC)
-    SET_PROPERTY(TARGET libzstd_shared APPEND PROPERTY COMPILE_DEFINITIONS "ZSTD_DLL_EXPORT=1;ZSTD_HEAPMODE=0;_CONSOLE;_CRT_SECURE_NO_WARNINGS")
+    IF (ZSTD_BUILD_SHARED)
+        SET_PROPERTY(TARGET libzstd_shared APPEND PROPERTY COMPILE_DEFINITIONS "ZSTD_DLL_EXPORT=1;ZSTD_HEAPMODE=0;_CONSOLE;_CRT_SECURE_NO_WARNINGS")
+    ENDIF (ZSTD_BUILD_SHARED)
     IF (ZSTD_BUILD_STATIC)
         SET_PROPERTY(TARGET libzstd_static APPEND PROPERTY COMPILE_DEFINITIONS "ZSTD_HEAPMODE=0;_CRT_SECURE_NO_WARNINGS")
     ENDIF (ZSTD_BUILD_STATIC)
 ENDIF (MSVC)
 
-# Define library base name
+# With MSVC static library needs to be renamed to avoid conflict with import library
 IF (MSVC)
-
-    IF (CMAKE_SIZEOF_VOID_P MATCHES "8")
-        SET(LIBRARY_BASE_NAME "zstdlib_x64")
-    ELSE ()
-        SET(LIBRARY_BASE_NAME "zstdlib_x86")
-    ENDIF (CMAKE_SIZEOF_VOID_P MATCHES "8")
+    SET(STATIC_LIBRARY_BASE_NAME zstd_static)
 ELSE ()
-    SET(LIBRARY_BASE_NAME zstd)
+    SET(STATIC_LIBRARY_BASE_NAME zstd)
 ENDIF (MSVC)
 
 # Define static and shared library names
-SET_TARGET_PROPERTIES(
-        libzstd_shared
-        PROPERTIES
-        OUTPUT_NAME ${LIBRARY_BASE_NAME}
-        SOVERSION ${LIBVER_MAJOR}.${LIBVER_MINOR}.${LIBVER_RELEASE})
+IF (ZSTD_BUILD_SHARED)
+    SET_TARGET_PROPERTIES(
+            libzstd_shared
+            PROPERTIES
+            OUTPUT_NAME zstd
+            SOVERSION ${LIBVER_MAJOR}.${LIBVER_MINOR}.${LIBVER_RELEASE})
+ENDIF (ZSTD_BUILD_SHARED)
 
 IF (ZSTD_BUILD_STATIC)
     SET_TARGET_PROPERTIES(
             libzstd_static
             PROPERTIES
-            OUTPUT_NAME ${LIBRARY_BASE_NAME})
+            OUTPUT_NAME ${STATIC_LIBRARY_BASE_NAME})
 ENDIF (ZSTD_BUILD_STATIC)
 
 IF (UNIX)
@@ -141,20 +147,29 @@ IF (UNIX)
             -P "${CMAKE_CURRENT_SOURCE_DIR}/pkgconfig.cmake"
             COMMENT "Creating pkg-config file")
 
-    # install target
-    INSTALL(FILES ${LIBRARY_DIR}/zstd.h ${LIBRARY_DIR}/deprecated/zbuff.h ${LIBRARY_DIR}/dictBuilder/zdict.h DESTINATION "include")
     INSTALL(FILES "${CMAKE_CURRENT_BINARY_DIR}/libzstd.pc" DESTINATION "share/pkgconfig")
-    INSTALL(TARGETS libzstd_shared LIBRARY DESTINATION "lib")
-    IF (ZSTD_BUILD_STATIC)
-        INSTALL(TARGETS libzstd_static ARCHIVE DESTINATION "lib")
-    ENDIF (ZSTD_BUILD_STATIC)
-
-    # uninstall target
-    CONFIGURE_FILE(
-            "${CMAKE_CURRENT_SOURCE_DIR}/cmake_uninstall.cmake.in"
-            "${CMAKE_CURRENT_BINARY_DIR}/cmake_uninstall.cmake"
-            IMMEDIATE @ONLY)
-
-    ADD_CUSTOM_TARGET(uninstall
-            COMMAND ${CMAKE_COMMAND} -P ${CMAKE_CURRENT_BINARY_DIR}/cmake_uninstall.cmake)
 ENDIF (UNIX)
+
+# install target
+INSTALL(FILES 
+    ${LIBRARY_DIR}/zstd.h 
+    ${LIBRARY_DIR}/deprecated/zbuff.h 
+    ${LIBRARY_DIR}/dictBuilder/zdict.h 
+    ${LIBRARY_DIR}/common/zstd_errors.h
+    DESTINATION "include")
+
+IF (ZSTD_BUILD_SHARED)
+    INSTALL(TARGETS libzstd_shared RUNTIME DESTINATION "bin" LIBRARY DESTINATION "lib" ARCHIVE DESTINATION "lib")
+ENDIF()
+IF (ZSTD_BUILD_STATIC)
+    INSTALL(TARGETS libzstd_static ARCHIVE DESTINATION "lib")
+ENDIF (ZSTD_BUILD_STATIC)
+
+# uninstall target
+CONFIGURE_FILE(
+        "${CMAKE_CURRENT_SOURCE_DIR}/cmake_uninstall.cmake.in"
+        "${CMAKE_CURRENT_BINARY_DIR}/cmake_uninstall.cmake"
+        IMMEDIATE @ONLY)
+
+ADD_CUSTOM_TARGET(uninstall
+        COMMAND ${CMAKE_COMMAND} -P ${CMAKE_CURRENT_BINARY_DIR}/cmake_uninstall.cmake)

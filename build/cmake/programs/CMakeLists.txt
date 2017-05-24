@@ -30,14 +30,16 @@ IF (MSVC)
 ENDIF (MSVC)
 
 ADD_EXECUTABLE(zstd ${PROGRAMS_DIR}/zstdcli.c ${PROGRAMS_DIR}/fileio.c ${PROGRAMS_DIR}/bench.c ${PROGRAMS_DIR}/datagen.c ${PROGRAMS_DIR}/dibio.c ${PlatformDependResources})
-TARGET_LINK_LIBRARIES(zstd libzstd_shared)
-ADD_CUSTOM_TARGET(zstdcat ALL ${CMAKE_COMMAND} -E create_symlink zstd zstdcat DEPENDS zstd COMMENT "Creating zstdcat symlink")
-ADD_CUSTOM_TARGET(unzstd ALL ${CMAKE_COMMAND} -E create_symlink zstd unzstd DEPENDS zstd COMMENT "Creating unzstd symlink")
+TARGET_LINK_LIBRARIES(zstd libzstd_static)
 INSTALL(TARGETS zstd RUNTIME DESTINATION "bin")
-INSTALL(FILES ${CMAKE_CURRENT_BINARY_DIR}/zstdcat DESTINATION "bin")
-INSTALL(FILES ${CMAKE_CURRENT_BINARY_DIR}/unzstd DESTINATION "bin")
 
 IF (UNIX)
+    ADD_CUSTOM_TARGET(zstdcat ALL ${CMAKE_COMMAND} -E create_symlink zstd zstdcat DEPENDS zstd COMMENT "Creating zstdcat symlink")
+    ADD_CUSTOM_TARGET(unzstd ALL ${CMAKE_COMMAND} -E create_symlink zstd unzstd DEPENDS zstd COMMENT "Creating unzstd symlink")
+    INSTALL(TARGETS zstd RUNTIME DESTINATION "bin")
+    INSTALL(FILES ${CMAKE_CURRENT_BINARY_DIR}/zstdcat DESTINATION "bin")
+    INSTALL(FILES ${CMAKE_CURRENT_BINARY_DIR}/unzstd DESTINATION "bin")
+
     ADD_CUSTOM_TARGET(zstd.1 ALL
         ${CMAKE_COMMAND} -E copy ${PROGRAMS_DIR}/zstd.1 .
         COMMENT "Copying manpage zstd.1")
@@ -48,7 +50,7 @@ IF (UNIX)
     INSTALL(FILES ${CMAKE_CURRENT_BINARY_DIR}/unzstd.1 DESTINATION "share/man/man1")
 
     ADD_EXECUTABLE(zstd-frugal ${PROGRAMS_DIR}/zstdcli.c ${PROGRAMS_DIR}/fileio.c)
-    TARGET_LINK_LIBRARIES(zstd-frugal libzstd_shared)
+    TARGET_LINK_LIBRARIES(zstd-frugal libzstd_static)
     SET_PROPERTY(TARGET zstd-frugal APPEND PROPERTY COMPILE_DEFINITIONS "ZSTD_NOBENCH;ZSTD_NODICT")
 ENDIF (UNIX)
 

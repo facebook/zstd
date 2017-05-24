@@ -18,6 +18,9 @@ LIST(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/CMakeModules")
 INCLUDE(AddZstdCompilationFlags)
 ADD_ZSTD_COMPILATION_FLAGS()
 
+# Always hide XXHash symbols
+ADD_DEFINITIONS(-DXXH_NAMESPACE=ZSTD_)
+
 #-----------------------------------------------------------------------------
 # Options
 #-----------------------------------------------------------------------------
@@ -30,6 +33,9 @@ ENDIF (UNIX)
 OPTION(ZSTD_BUILD_PROGRAMS "BUILD PROGRAMS" ON)
 OPTION(ZSTD_BUILD_CONTRIB "BUILD CONTRIB" OFF)
 OPTION(ZSTD_BUILD_TESTS "BUILD TESTS" OFF)
+if (MSVC)
+    OPTION(ZSTD_USE_STATIC_RUNTIME "LINK TO STATIC RUN-TIME LIBRARIES" OFF)
+endif ()
 
 IF (ZSTD_LEGACY_SUPPORT)
     MESSAGE(STATUS "ZSTD_LEGACY_SUPPORT defined!")
@@ -45,6 +51,10 @@ ENDIF (ZSTD_LEGACY_SUPPORT)
 ADD_SUBDIRECTORY(lib)
 
 IF (ZSTD_BUILD_PROGRAMS)
+    IF (NOT ZSTD_BUILD_STATIC)
+        MESSAGE(SEND_ERROR "You need to build static library to build zstd CLI")
+    ENDIF (NOT ZSTD_BUILD_STATIC)
+
     ADD_SUBDIRECTORY(programs)
 ENDIF (ZSTD_BUILD_PROGRAMS)
 

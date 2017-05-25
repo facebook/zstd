@@ -190,7 +190,7 @@ ZSTD_CCtx* ZSTD_initStaticCCtx(void *workspace, size_t workspaceSize)
     /* note : this code should be shared with resetCCtx, instead of copied */
     {   void* ptr = cctx->workSpace;
         cctx->hufCTable = (HUF_CElt*)ptr;
-        ptr = (char*)cctx->hufCTable + hufCTable_size;  /* note : HUF_CElt* is incomplete type, size is estimated via macro */
+        ptr = (char*)cctx->hufCTable + hufCTable_size;
         cctx->offcodeCTable = (FSE_CTable*) ptr;
         ptr = (char*)ptr + offcodeCTable_size;
         cctx->matchlengthCTable = (FSE_CTable*) ptr;

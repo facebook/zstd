@@ -74,7 +74,6 @@ static clock_t FUZ_clockSpan(clock_t cStart)
     return clock() - cStart;   /* works even when overflow; max span ~ 30mn */
 }
 
-
 #define FUZ_rotl32(x,r) ((x << r) | (x >> (32 - r)))
 static unsigned FUZ_rand(unsigned* src)
 {
@@ -104,6 +103,7 @@ static unsigned FUZ_highbit32(U32 v32)
 #define CHECK_V(var, fn)  size_t const var = fn; if (ZSTD_isError(var)) goto _output_error
 #define CHECK(fn)  { CHECK_V(err, fn); }
 #define CHECKPLUS(var, fn, more)  { CHECK_V(var, fn); more; }
+
 static int basicUnitTests(U32 seed, double compressibility)
 {
     size_t const CNBuffSize = 5 MB;
@@ -195,14 +195,19 @@ static int basicUnitTests(U32 seed, double compressibility)
     DISPLAYLEVEL(4, "test%3i : create static CCtx for level %u :", testNb++, STATIC_CCTX_LEVEL);
     {   ZSTD_compressionParameters const cParams = ZSTD_getCParams(STATIC_CCTX_LEVEL, 0, 0);
         size_t const staticCCtxSize = ZSTD_estimateCStreamSize(cParams);
-        void* staticCCtxBuffer = malloc(staticCCtxSize);
-        if (staticCCtxBuffer==NULL) {
+        void* const staticCCtxBuffer = malloc(staticCCtxSize);
+        size_t const staticDCtxSize = ZSTD_estimateDCtxSize();
+        void* const staticDCtxBuffer = malloc(staticDCtxSize);
+        if (staticCCtxBuffer==NULL || staticDCtxBuffer==NULL) {
+            free(staticCCtxBuffer);
+            free(staticDCtxBuffer);
             DISPLAY("Not enough memory, aborting\n");
             testResult = 1;
             goto _end;
         }
         {   ZSTD_CCtx* staticCCtx = ZSTD_initStaticCCtx(staticCCtxBuffer, staticCCtxSize);
-            if (staticCCtx==NULL) goto _output_error;
+            ZSTD_DCtx* staticDCtx = ZSTD_initStaticDCtx(staticDCtxBuffer, staticDCtxSize);
+            if ((staticCCtx==NULL) || (staticDCtx==NULL)) goto _output_error;
             DISPLAYLEVEL(4, "OK \n");
 
             DISPLAYLEVEL(4, "test%3i : init CCtx for level %u : ", testNb++, STATIC_CCTX_LEVEL);
@@ -215,11 +220,22 @@ static int basicUnitTests(U32 seed, double compressibility)
                             compressedBuffer, ZSTD_compressBound(CNBuffSize),
                             CNBuffer, CNBuffSize, STATIC_CCTX_LEVEL),
                       cSize=r );
-            DISPLAYLEVEL(4, "OK (%u bytes : %.2f%%)\n", (U32)cSize, (double)cSize/CNBuffSize*100);
+            DISPLAYLEVEL(4, "OK (%u bytes : %.2f%%)\n",
+                            (U32)cSize, (double)cSize/CNBuffSize*100);
 
-            DISPLAYLEVEL(4, "test%3i : decompress verification test : ", testNb++);
-            { size_t const r = ZSTD_decompress(decodedBuffer, CNBuffSize, compressedBuffer, cSize);
+            DISPLAYLEVEL(4, "test%3i : simple decompression test with static DCtx : ", testNb++);
+            { size_t const r = ZSTD_decompressDCtx(staticDCtx,
+                                                decodedBuffer, CNBuffSize,
+                                                compressedBuffer, cSize);
               if (r != CNBuffSize) goto _output_error; }
+            DISPLAYLEVEL(4, "OK \n");
+
+            DISPLAYLEVEL(4, "test%3i : check decompressed result : ", testNb++);
+            {   size_t u;
+                for (u=0; u<CNBuffSize; u++) {
+                    if (((BYTE*)decodedBuffer)[u] != ((BYTE*)CNBuffer)[u])
+                        goto _output_error;;
+            }   }
             DISPLAYLEVEL(4, "OK \n");
 
             DISPLAYLEVEL(4, "test%3i : init CCtx for too large level (must fail) : ", testNb++);
@@ -241,8 +257,19 @@ static int basicUnitTests(U32 seed, double compressibility)
             { size_t const r = ZSTD_initCStream_usingDict(staticCCtx, CNBuffer, 64 KB, 1);
               if (!ZSTD_isError(r)) goto _output_error; }
             DISPLAYLEVEL(4, "OK \n");
+
+            DISPLAYLEVEL(4, "test%3i : init DStream (should fail) : ", testNb++);
+            { size_t const r = ZSTD_initDStream(staticDCtx);
+              if (ZSTD_isError(r)) goto _output_error; }
+            {   ZSTD_outBuffer output = { decodedBuffer, CNBuffSize, 0 };
+                ZSTD_inBuffer input = { compressedBuffer, ZSTD_FRAMEHEADERSIZE_MAX+1, 0 };
+                size_t const r = ZSTD_decompressStream(staticDCtx, &output, &input);
+                if (!ZSTD_isError(r)) goto _output_error;
+            }
+            DISPLAYLEVEL(4, "OK \n");
         }
         free(staticCCtxBuffer);
+        free(staticDCtxBuffer);
     }
 
 

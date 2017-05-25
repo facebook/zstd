@@ -345,8 +345,6 @@ ZSTDLIB_API size_t ZSTD_DStreamOutSize(void);   /*!< recommended size for output
 #endif  /* ZSTD_H_235446 */
 
 
-#if defined(ZSTD_STATIC_LINKING_ONLY) && !defined(ZSTD_H_ZSTD_STATIC_LINKING_ONLY)
-#define ZSTD_H_ZSTD_STATIC_LINKING_ONLY
 
 /****************************************************************************************
  * START OF ADVANCED AND EXPERIMENTAL FUNCTIONS
@@ -355,6 +353,9 @@ ZSTDLIB_API size_t ZSTD_DStreamOutSize(void);   /*!< recommended size for output
  * They are provided for advanced usages.
  * Use them only in association with static linking.
  * ***************************************************************************************/
+
+#if defined(ZSTD_STATIC_LINKING_ONLY) && !defined(ZSTD_H_ZSTD_STATIC_LINKING_ONLY)
+#define ZSTD_H_ZSTD_STATIC_LINKING_ONLY
 
 /* --- Constants ---*/
 #define ZSTD_MAGICNUMBER            0xFD2FB528   /* >= v0.8.0 */
@@ -500,9 +501,9 @@ ZSTDLIB_API size_t ZSTD_estimateCStreamSize(ZSTD_compressionParameters cParams);
 ZSTDLIB_API size_t ZSTD_estimateDStreamSize(ZSTD_frameHeader fHeader);
 
 /*! ZSTD_estimate?DictSize() :
- *  Note : if dictionary is created "byReference", reduce estimation by dictSize */
-ZSTDLIB_API size_t ZSTD_estimateCDictSize(ZSTD_compressionParameters cParams, size_t dictSize);
-ZSTDLIB_API size_t ZSTD_estimateDDictSize(size_t dictSize);
+ *  Note : dictionary created "byReference" are smaller */
+ZSTDLIB_API size_t ZSTD_estimateCDictSize(ZSTD_compressionParameters cParams, size_t dictSize, unsigned byReference);
+ZSTDLIB_API size_t ZSTD_estimateDDictSize(size_t dictSize, unsigned byReference);
 
 
 /***************************************
@@ -841,6 +842,21 @@ ZSTDLIB_API ZSTD_DDict* ZSTD_createDDict_byReference(const void* dictBuffer, siz
  *  Create a ZSTD_DDict using external alloc and free, optionally by reference */
 ZSTDLIB_API ZSTD_DDict* ZSTD_createDDict_advanced(const void* dict, size_t dictSize,
                                                   unsigned byReference, ZSTD_customMem customMem);
+
+/*! ZSTD_initStaticDDict() :
+ *  Generate a digested dictionary in provided memory area.
+ *  workspace: The memory area to emplace the dictionary into.
+ *             Provided pointer must 8-bytes aligned.
+ *             It must outlive dictionary usage.
+ *  workspaceSize: Use ZSTD_estimateDDictSize()
+ *                 to determine how large workspace must be.
+ * @return : pointer to ZSTD_DDict*, or NULL if error (size too small)
+ *  Note : there is no corresponding "free" function.
+ *         Since workspace was allocated externally, it must be freed externally.
+ */
+ZSTDLIB_API ZSTD_DDict* ZSTD_initStaticDDict(void* workspace, size_t workspaceSize,
+                                             const void* dict, size_t dictSize,
+                                             unsigned byReference);
 
 /*! ZSTD_getDictID_fromDict() :
  *  Provides the dictID stored within dictionary.

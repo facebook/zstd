@@ -1987,6 +1987,27 @@ static size_t ZSTD_loadEntropy_inDDict(ZSTD_DDict* ddict)
 }
 
 
+static size_t ZSTD_initDDict_internal(ZSTD_DDict* ddict, const void* dict, size_t dictSize, unsigned byReference)
+{
+    if ((byReference) || (!dict) || (!dictSize)) {
+        ddict->dictBuffer = NULL;
+        ddict->dictContent = dict;
+    } else {
+        void* const internalBuffer = ZSTD_malloc(dictSize, ddict->cMem);
+        if (!internalBuffer) return ERROR(memory_allocation);
+        memcpy(internalBuffer, dict, dictSize);
+        ddict->dictBuffer = internalBuffer;
+        ddict->dictContent = internalBuffer;
+    }
+    ddict->dictSize = dictSize;
+    ddict->entropy.hufTable[0] = (HUF_DTable)((HufLog)*0x1000001);  /* cover both little and big endian */
+
+    /* parse dictionary content */
+    CHECK_F( ZSTD_loadEntropy_inDDict(ddict) );
+
+    return 0;
+}
+
 ZSTD_DDict* ZSTD_createDDict_advanced(const void* dict, size_t dictSize, unsigned byReference, ZSTD_customMem customMem)
 {
     if (!customMem.customAlloc && !customMem.customFree) customMem = defaultCustomMem;
@@ -1996,24 +2017,10 @@ ZSTD_DDict* ZSTD_createDDict_advanced(const void* dict, size_t dictSize, unsigne
         if (!ddict) return NULL;
         ddict->cMem = customMem;
 
-        if ((byReference) || (!dict) || (!dictSize)) {
-            ddict->dictBuffer = NULL;
-            ddict->dictContent = dict;
-        } else {
-            void* const internalBuffer = ZSTD_malloc(dictSize, customMem);
-            if (!internalBuffer) { ZSTD_freeDDict(ddict); return NULL; }
-            memcpy(internalBuffer, dict, dictSize);
-            ddict->dictBuffer = internalBuffer;
-            ddict->dictContent = internalBuffer;
+        if (ZSTD_isError( ZSTD_initDDict_internal(ddict, dict, dictSize, byReference) )) {
+            ZSTD_freeDDict(ddict);
+            return NULL;
         }
-        ddict->dictSize = dictSize;
-        ddict->entropy.hufTable[0] = (HUF_DTable)((HufLog)*0x1000001);  /* cover both little and big endian */
-        /* parse dictionary content */
-        {   size_t const errorCode = ZSTD_loadEntropy_inDDict(ddict);
-            if (ZSTD_isError(errorCode)) {
-                ZSTD_freeDDict(ddict);
-                return NULL;
-        }   }
 
         return ddict;
     }
@@ -2029,7 +2036,6 @@ ZSTD_DDict* ZSTD_createDDict(const void* dict, size_t dictSize)
     return ZSTD_createDDict_advanced(dict, dictSize, 0, allocator);
 }
 
-
 /*! ZSTD_createDDict_byReference() :
  *  Create a digested dictionary, to start decompression without startup delay.
  *  Dictionary content is simply referenced, it will be accessed during decompression.
@@ -2038,6 +2044,23 @@ ZSTD_DDict* ZSTD_createDDict_byReference(const void* dictBuffer, size_t dictSize
 {
     ZSTD_customMem const allocator = { NULL, NULL, NULL };
     return ZSTD_createDDict_advanced(dictBuffer, dictSize, 1, allocator);
+}
+
+
+ZSTD_DDict* ZSTD_initStaticDDict(void* workspace, size_t workspaceSize,
+                                 const void* dict, size_t dictSize,
+                                 unsigned byReference)
+{
+    size_t const neededSpace = sizeof(ZSTD_DDict) + (byReference ? 0 : dictSize);
+    ZSTD_DDict* const ddict = (ZSTD_DDict*)workspace;
+    if (workspaceSize < neededSpace) return NULL;  /* minimum size */
+    if (!byReference) {
+        memcpy(ddict+1, dict, dictSize);  /* local copy */
+        dict = ddict+1;
+    }
+    if (ZSTD_isError( ZSTD_initDDict_internal(ddict, dict, dictSize, 1 /* byRef */) ))
+        return NULL;
+    return ddict;
 }
 
 

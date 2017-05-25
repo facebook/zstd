@@ -405,11 +405,22 @@ static int basicUnitTests(U32 seed, double compressibility)
         DISPLAYLEVEL(4, "OK \n");
 
         DISPLAYLEVEL(4, "test%3i : decompress with DDict : ", testNb++);
-        {   ZSTD_DDict* const ddict = ZSTD_createDDict_byReference(CNBuffer, dictSize);
+        {   ZSTD_DDict* const ddict = ZSTD_createDDict(CNBuffer, dictSize);
             size_t const r = ZSTD_decompress_usingDDict(dctx, decodedBuffer, CNBuffSize, compressedBuffer, cSize, ddict);
             if (r != CNBuffSize - dictSize) goto _output_error;
             DISPLAYLEVEL(4, "OK (size of DDict : %u) \n", (U32)ZSTD_sizeof_DDict(ddict));
             ZSTD_freeDDict(ddict);
+        }
+
+        DISPLAYLEVEL(4, "test%3i : decompress with static DDict : ", testNb++);
+        {   size_t const ddictBufferSize = ZSTD_estimateDDictSize(dictSize, 0);
+            void* ddictBuffer = malloc(ddictBufferSize);
+            if (ddictBuffer == NULL) goto _output_error;
+            {   ZSTD_DDict* const ddict = ZSTD_initStaticDDict(ddictBuffer, ddictBufferSize, CNBuffer, dictSize, 0);
+                size_t const r = ZSTD_decompress_usingDDict(dctx, decodedBuffer, CNBuffSize, compressedBuffer, cSize, ddict);
+                if (r != CNBuffSize - dictSize) goto _output_error;
+            }
+            DISPLAYLEVEL(4, "OK (size of static DDict : %u) \n", (U32)ddictBufferSize);
         }
 
         DISPLAYLEVEL(4, "test%3i : check content size on duplicated context : ", testNb++);

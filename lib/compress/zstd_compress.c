@@ -3237,10 +3237,11 @@ size_t ZSTD_compress(void* dst, size_t dstCapacity, const void* src, size_t srcS
 
 /*! ZSTD_estimateCDictSize() :
  *  Estimate amount of memory that will be needed to create a dictionary with following arguments */
-size_t ZSTD_estimateCDictSize(ZSTD_compressionParameters cParams, size_t dictSize)
+size_t ZSTD_estimateCDictSize(ZSTD_compressionParameters cParams, size_t dictSize, unsigned byReference)
 {
     cParams = ZSTD_adjustCParams(cParams, 0, dictSize);
-    return sizeof(ZSTD_CDict) + dictSize + ZSTD_estimateCCtxSize(cParams);
+    return sizeof(ZSTD_CDict) + ZSTD_estimateCCtxSize(cParams)
+           + (byReference ? 0 : dictSize);
 }
 
 size_t ZSTD_sizeof_CDict(const ZSTD_CDict* cdict)

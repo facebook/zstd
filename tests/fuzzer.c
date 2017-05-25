@@ -490,14 +490,15 @@ static int basicUnitTests(U32 seed, double compressibility)
 
         DISPLAYLEVEL(4, "test%3i : estimate CDict size : ", testNb++);
         {   ZSTD_compressionParameters const cParams = ZSTD_getCParams(1, CNBuffSize, dictSize);
-            size_t const estimatedSize = ZSTD_estimateCDictSize(cParams, dictSize);
+            size_t const estimatedSize = ZSTD_estimateCDictSize(cParams, dictSize, 1);
             DISPLAYLEVEL(4, "OK : %u \n", (U32)estimatedSize);
         }
 
         DISPLAYLEVEL(4, "test%3i : compress with preprocessed dictionary : ", testNb++);
         {   ZSTD_compressionParameters const cParams = ZSTD_getCParams(1, CNBuffSize, dictSize);
-            ZSTD_customMem customMem = { NULL, NULL, NULL };
-            ZSTD_CDict* cdict = ZSTD_createCDict_advanced(dictBuffer, dictSize, 1, cParams, customMem);
+            ZSTD_customMem const customMem = { NULL, NULL, NULL };
+            ZSTD_CDict* const cdict = ZSTD_createCDict_advanced(dictBuffer, dictSize,
+                                    1 /* by Referece */, cParams, customMem);
             cSize = ZSTD_compress_usingCDict(cctx, compressedBuffer, ZSTD_compressBound(CNBuffSize),
                                                  CNBuffer, CNBuffSize, cdict);
             ZSTD_freeCDict(cdict);

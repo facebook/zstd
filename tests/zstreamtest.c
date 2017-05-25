@@ -209,7 +209,8 @@ static int basicUnitTests(U32 seed, double compressibility, ZSTD_customMem custo
     DISPLAYLEVEL(3, "test%3i : estimate CStream size : ", testNb++);
     {   ZSTD_compressionParameters const cParams = ZSTD_getCParams(1, CNBufferSize, dictSize);
         size_t const s = ZSTD_estimateCStreamSize(cParams)
-                       + ZSTD_estimateCDictSize(cParams, dictSize);  /* uses ZSTD_initCStream_usingDict() */
+                        /* uses ZSTD_initCStream_usingDict() */
+                       + ZSTD_estimateCDictSize(cParams, dictSize, 0);
             if (ZSTD_isError(s)) goto _output_error;
             DISPLAYLEVEL(3, "OK (%u bytes) \n", (U32)s);
     }
@@ -281,7 +282,8 @@ static int basicUnitTests(U32 seed, double compressibility, ZSTD_customMem custo
         if (gfhError!=0) goto _output_error;
         DISPLAYLEVEL(5, " (windowSize : %u) ", fhi.windowSize);
         {   size_t const s = ZSTD_estimateDStreamSize(fhi)
-                           + ZSTD_estimateDDictSize(dictSize);  /* uses ZSTD_initDStream_usingDict() */
+                            /* uses ZSTD_initDStream_usingDict() */
+                           + ZSTD_estimateDDictSize(dictSize, 0);
             if (ZSTD_isError(s)) goto _output_error;
             DISPLAYLEVEL(3, "OK (%u bytes) \n", (U32)s);
     }   }

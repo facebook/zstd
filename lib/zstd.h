@@ -529,7 +529,7 @@ ZSTDLIB_API ZSTD_CCtx* ZSTD_createCCtx_advanced(ZSTD_customMem customMem);
 ZSTDLIB_API ZSTD_CCtx* ZSTD_initStaticCCtx(void* workspace, size_t workspaceSize);
 
 
-/* !!! Soon to be deprecated !!! */
+/* !!! To be deprecated !!! */
 typedef enum {
     ZSTD_p_forceWindow,   /* Force back-references to remain < windowSize, even when referencing Dictionary content (default:0) */
     ZSTD_p_forceRawDict   /* Force loading dictionary in "content-only" mode (no header analysis) */
@@ -814,6 +814,22 @@ ZSTDLIB_API unsigned ZSTD_isFrame(const void* buffer, size_t size);
 /*! ZSTD_createDCtx_advanced() :
  *  Create a ZSTD decompression context using external alloc and free functions */
 ZSTDLIB_API ZSTD_DCtx* ZSTD_createDCtx_advanced(ZSTD_customMem customMem);
+
+/*! ZSTD_initStaticDCtx() : initialize a fixed-size zstd decompression context
+ *  workspace: The memory area to emplace the context into.
+ *             Provided pointer must 8-bytes aligned.
+ *             It must outlive context usage.
+ *  workspaceSize: Use ZSTD_estimateDCtxSize() or ZSTD_estimateDStreamSize()
+ *                 to determine how large workspace must be to support scenario.
+ * @return : pointer to ZSTD_DCtx*, or NULL if error (size too small)
+ *  Note : zstd will never resize nor malloc() when using a static dctx.
+ *         If it needs more memory than available, it will simply error out.
+ *  Note 2 : there is no corresponding "free" function.
+ *           Since workspace was allocated externally, it must be freed externally.
+ *  Limitation : currently not compatible with internal DDict creation,
+ *               such as ZSTD_initDStream_usingDict().
+ */
+ZSTDLIB_API ZSTD_DCtx* ZSTD_initStaticDCtx(void* workspace, size_t workspaceSize);
 
 /*! ZSTD_createDDict_byReference() :
  *  Create a digested dictionary, ready to start decompression operation without startup delay.

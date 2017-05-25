@@ -834,8 +834,9 @@ ZSTDLIB_API ZSTD_DCtx* ZSTD_initStaticDCtx(void* workspace, size_t workspaceSize
 
 /*! ZSTD_createDDict_byReference() :
  *  Create a digested dictionary, ready to start decompression operation without startup delay.
- *  Dictionary content is simply referenced, and therefore stays in dictBuffer.
- *  It is important that dictBuffer outlives DDict, it must remain read accessible throughout the lifetime of DDict */
+ *  Dictionary content is referenced, and therefore stays in dictBuffer.
+ *  It is important that dictBuffer outlives DDict,
+ *  it must remain read accessible throughout the lifetime of DDict */
 ZSTDLIB_API ZSTD_DDict* ZSTD_createDDict_byReference(const void* dictBuffer, size_t dictSize);
 
 /*! ZSTD_createDDict_advanced() :

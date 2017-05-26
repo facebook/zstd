@@ -628,7 +628,7 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx *ctx, const void *src, size_t srcS
 		cur = last_pos - best_mlen;
 
 	/* store sequence */
-	_storeSequence: /* cur, last_pos, best_mlen, best_off have to be set */
+_storeSequence: /* cur, last_pos, best_mlen, best_off have to be set */
 		opt[0].mlen = 1;
 
 		while (1) {
@@ -942,7 +942,7 @@ void ZSTD_compressBlock_opt_extDict_generic(ZSTD_CCtx *ctx, const void *src, siz
 		cur = last_pos - best_mlen;
 
 	/* store sequence */
-	_storeSequence: /* cur, last_pos, best_mlen, best_off have to be set */
+_storeSequence: /* cur, last_pos, best_mlen, best_off have to be set */
 		opt[0].mlen = 1;
 
 		while (1) {

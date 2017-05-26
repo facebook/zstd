@@ -816,14 +816,15 @@ ZSTD_STATIC size_t ZSTD_compressSequences(ZSTD_CCtx *zc, void *dst, size_t dstCa
 	}
 
 /* check compressibility */
-_check_compressibility : {
-	size_t const minGain = ZSTD_minGain(srcSize);
-	size_t const maxCSize = srcSize - minGain;
-	if ((size_t)(op - ostart) >= maxCSize) {
-		zc->flagStaticHufTable = HUF_repeat_none;
-		return 0;
+_check_compressibility:
+	{
+		size_t const minGain = ZSTD_minGain(srcSize);
+		size_t const maxCSize = srcSize - minGain;
+		if ((size_t)(op - ostart) >= maxCSize) {
+			zc->flagStaticHufTable = HUF_repeat_none;
+			return 0;
+		}
 	}
-}
 
 	/* confirm repcodes */
 	{
@@ -1990,11 +1991,12 @@ void ZSTD_compressBlock_lazy_generic(ZSTD_CCtx *ctx, const void *src, size_t src
 		}
 
 	/* store sequence */
-	_storeSequence : {
-		size_t const litLength = start - anchor;
-		ZSTD_storeSeq(seqStorePtr, litLength, anchor, (U32)offset, matchLength - MINMATCH);
-		anchor = ip = start + matchLength;
-	}
+_storeSequence:
+		{
+			size_t const litLength = start - anchor;
+			ZSTD_storeSeq(seqStorePtr, litLength, anchor, (U32)offset, matchLength - MINMATCH);
+			anchor = ip = start + matchLength;
+		}
 
 		/* check immediate repcode */
 		while ((ip <= ilimit) && ((offset_2 > 0) & (ZSTD_read32(ip) == ZSTD_read32(ip - offset_2)))) {

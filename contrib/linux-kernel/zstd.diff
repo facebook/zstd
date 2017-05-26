@@ -1195,22 +1195,31 @@ index e16f94a..0cfd529 100644
  
 diff --git a/lib/zstd/Makefile b/lib/zstd/Makefile
 new file mode 100644
-index 0000000..aa5eb4d
+index 0000000..dd0a359
 --- /dev/null
 +++ b/lib/zstd/Makefile
-@@ -0,0 +1,9 @@
+@@ -0,0 +1,18 @@
 +obj-$(CONFIG_ZSTD_COMPRESS) += zstd_compress.o
 +obj-$(CONFIG_ZSTD_DECOMPRESS) += zstd_decompress.o
 +
 +ccflags-y += -O3
 +
-+zstd_compress-y := entropy_common.o fse_decompress.o zstd_common.o \
-+				fse_compress.o huf_compress.o compress.o
-+zstd_decompress-y := entropy_common.o fse_decompress.o zstd_common.o \
-+				huf_decompress.o decompress.o
++# Object files unique to zstd_compress and zstd_decompress
++zstd_compress-y := fse_compress.o huf_compress.o compress.o
++zstd_decompress-y := huf_decompress.o decompress.o
++
++# These object files are shared between the modules.
++# Always add them to zstd_compress.
++# Unless both zstd_compress and zstd_decompress are built in
++# then also add them to zstd_decompress.
++zstd_compress-y += entropy_common.o fse_decompress.o zstd_common.o
++
++ifneq ($(CONFIG_ZSTD_COMPRESS)$(CONFIG_ZSTD_DECOMPRESS),yy)
++	zstd_decompress-y += entropy_common.o fse_decompress.o zstd_common.o
++endif
 diff --git a/lib/zstd/bitstream.h b/lib/zstd/bitstream.h
 new file mode 100644
-index 0000000..0fa6db1
+index 0000000..a826b99
 --- /dev/null
 +++ b/lib/zstd/bitstream.h
 @@ -0,0 +1,374 @@
@@ -1329,7 +1338,7 @@ index 0000000..0fa6db1
 +	BIT_DStream_completed = 2,
 +	BIT_DStream_overflow = 3
 +} BIT_DStream_status; /* result of BIT_reloadDStream() */
-+		      /* 1,2,4,8 would be better for bitmap combinations, but slows down performance a bit ... :( */
++/* 1,2,4,8 would be better for bitmap combinations, but slows down performance a bit ... :( */
 +
 +ZSTD_STATIC size_t BIT_initDStream(BIT_DStream_t *bitD, const void *srcBuffer, size_t srcSize);
 +ZSTD_STATIC size_t BIT_readBits(BIT_DStream_t *bitD, unsigned nbBits);
@@ -1590,10 +1599,10 @@ index 0000000..0fa6db1
 +#endif /* BITSTREAM_H_MODULE */
 diff --git a/lib/zstd/compress.c b/lib/zstd/compress.c
 new file mode 100644
-index 0000000..6c07a04
+index 0000000..42236a3
 --- /dev/null
 +++ b/lib/zstd/compress.c
-@@ -0,0 +1,3461 @@
+@@ -0,0 +1,3463 @@
 +/**
 + * Copyright (c) 2016-present, Yann Collet, Facebook, Inc.
 + * All rights reserved.
@@ -2412,14 +2421,15 @@ index 0000000..6c07a04
 +	}
 +
 +/* check compressibility */
-+_check_compressibility : {
-+	size_t const minGain = ZSTD_minGain(srcSize);
-+	size_t const maxCSize = srcSize - minGain;
-+	if ((size_t)(op - ostart) >= maxCSize) {
-+		zc->flagStaticHufTable = HUF_repeat_none;
-+		return 0;
++_check_compressibility:
++	{
++		size_t const minGain = ZSTD_minGain(srcSize);
++		size_t const maxCSize = srcSize - minGain;
++		if ((size_t)(op - ostart) >= maxCSize) {
++			zc->flagStaticHufTable = HUF_repeat_none;
++			return 0;
++		}
 +	}
-+}
 +
 +	/* confirm repcodes */
 +	{
@@ -3392,10 +3402,11 @@ index 0000000..6c07a04
 +	return hashTable[ZSTD_hashPtr(ip, hashLog, mls)];
 +}
 +
-+FORCE_INLINE /* inlining is important to hardwire a hot branch (template emulation) */
-+    size_t
-+    ZSTD_HcFindBestMatch_generic(ZSTD_CCtx *zc, /* Index table will be updated */
-+				 const BYTE *const ip, const BYTE *const iLimit, size_t *offsetPtr, const U32 maxNbAttempts, const U32 mls, const U32 extDict)
++/* inlining is important to hardwire a hot branch (template emulation) */
++FORCE_INLINE
++size_t ZSTD_HcFindBestMatch_generic(ZSTD_CCtx *zc, /* Index table will be updated */
++				    const BYTE *const ip, const BYTE *const iLimit, size_t *offsetPtr, const U32 maxNbAttempts, const U32 mls,
++				    const U32 extDict)
 +{
 +	U32 *const chainTable = zc->chainTable;
 +	const U32 chainSize = (1 << zc->params.cParams.chainLog);
@@ -3585,11 +3596,12 @@ index 0000000..6c07a04
 +		}
 +
 +	/* store sequence */
-+	_storeSequence : {
-+		size_t const litLength = start - anchor;
-+		ZSTD_storeSeq(seqStorePtr, litLength, anchor, (U32)offset, matchLength - MINMATCH);
-+		anchor = ip = start + matchLength;
-+	}
++_storeSequence:
++		{
++			size_t const litLength = start - anchor;
++			ZSTD_storeSeq(seqStorePtr, litLength, anchor, (U32)offset, matchLength - MINMATCH);
++			anchor = ip = start + matchLength;
++		}
 +
 +		/* check immediate repcode */
 +		while ((ip <= ilimit) && ((offset_2 > 0) & (ZSTD_read32(ip) == ZSTD_read32(ip - offset_2)))) {
@@ -4007,9 +4019,8 @@ index 0000000..6c07a04
 +	U32 const windowSize = 1U << params.cParams.windowLog;
 +	U32 const singleSegment = params.fParams.contentSizeFlag && (windowSize >= pledgedSrcSize);
 +	BYTE const windowLogByte = (BYTE)((params.cParams.windowLog - ZSTD_WINDOWLOG_ABSOLUTEMIN) << 3);
-+	U32 const fcsCode = params.fParams.contentSizeFlag ? (pledgedSrcSize >= 256) + (pledgedSrcSize >= 65536 + 256) + (pledgedSrcSize >= 0xFFFFFFFFU)
-+							   : /* 0-3 */
-+				0;
++	U32 const fcsCode =
++	    params.fParams.contentSizeFlag ? (pledgedSrcSize >= 256) + (pledgedSrcSize >= 65536 + 256) + (pledgedSrcSize >= 0xFFFFFFFFU) : 0; /* 0-3 */
 +	BYTE const frameHeaderDecriptionByte = (BYTE)(dictIDSizeCode + (checksumFlag << 2) + (singleSegment << 5) + (fcsCode << 6));
 +	size_t pos;
 +
@@ -5057,7 +5068,7 @@ index 0000000..6c07a04
 +MODULE_DESCRIPTION("Zstd Compressor");
 diff --git a/lib/zstd/decompress.c b/lib/zstd/decompress.c
 new file mode 100644
-index 0000000..2926b36
+index 0000000..def10ea
 --- /dev/null
 +++ b/lib/zstd/decompress.c
 @@ -0,0 +1,2508 @@
@@ -7363,7 +7374,6 @@ index 0000000..2926b36
 +				ip += toLoad;
 +				break;
 +			}
-+		}
 +
 +			/* check for single-pass mode opportunity */
 +			if (zds->fParams.frameContentSize && zds->fParams.windowSize /* skippable frame if == 0 */
@@ -7418,6 +7428,7 @@ index 0000000..2926b36
 +				}
 +			}
 +			zds->stage = zdss_read;
++		}
 +		/* pass-through */
 +
 +		case zdss_read: {
@@ -7880,10 +7891,10 @@ index 0000000..1a60b31
 +#endif /* ERROR_H_MODULE */
 diff --git a/lib/zstd/fse.h b/lib/zstd/fse.h
 new file mode 100644
-index 0000000..9749755
+index 0000000..bc2962a
 --- /dev/null
 +++ b/lib/zstd/fse.h
-@@ -0,0 +1,588 @@
+@@ -0,0 +1,584 @@
 +/*
 + * FSE : Finite State Entropy codec
 + * Public Prototypes declaration
@@ -8422,8 +8433,6 @@ index 0000000..9749755
 +
 +ZSTD_STATIC unsigned FSE_endOfDState(const FSE_DState_t *DStatePtr) { return DStatePtr->state == 0; }
 +
-+#ifndef FSE_COMMONDEFS_ONLY
-+
 +/* **************************************************************
 +*  Tuning parameters
 +****************************************************************/
@@ -8453,8 +8462,6 @@ index 0000000..9749755
 +#define FSE_FUNCTION_EXTENSION
 +#define FSE_DECODE_TYPE FSE_decode_t
 +
-+#endif /* !FSE_COMMONDEFS_ONLY */
-+
 +/* ***************************************************************
 +*  Constants
 +*****************************************************************/
@@ -8474,10 +8481,10 @@ index 0000000..9749755
 +#endif /* FSE_H */
 diff --git a/lib/zstd/fse_compress.c b/lib/zstd/fse_compress.c
 new file mode 100644
-index 0000000..6bb810f
+index 0000000..e016bb1
 --- /dev/null
 +++ b/lib/zstd/fse_compress.c
-@@ -0,0 +1,861 @@
+@@ -0,0 +1,857 @@
 +/*
 + * FSE : Finite State Entropy encoder
 + * Copyright (C) 2013-2015, Yann Collet.
@@ -8659,8 +8666,6 @@ index 0000000..6bb810f
 +
 +	return 0;
 +}
-+
-+#ifndef FSE_COMMONDEFS_ONLY
 +
 +/*-**************************************************************
 +*  FSE NCount encoding-decoding
@@ -9337,14 +9342,12 @@ index 0000000..6bb810f
 +
 +	return op - ostart;
 +}
-+
-+#endif /* FSE_COMMONDEFS_ONLY */
 diff --git a/lib/zstd/fse_decompress.c b/lib/zstd/fse_decompress.c
 new file mode 100644
-index 0000000..245570a
+index 0000000..96cf89f
 --- /dev/null
 +++ b/lib/zstd/fse_decompress.c
-@@ -0,0 +1,317 @@
+@@ -0,0 +1,313 @@
 +/*
 + * FSE : Finite State Entropy decoder
 + * Copyright (C) 2013-2015, Yann Collet.
@@ -9508,8 +9511,6 @@ index 0000000..245570a
 +	return 0;
 +}
 +
-+#ifndef FSE_COMMONDEFS_ONLY
-+
 +/*-*******************************************************
 +*  Decompression (Byte symbols)
 +*********************************************************/
@@ -9660,8 +9661,6 @@ index 0000000..245570a
 +
 +	return FSE_decompress_usingDTable(dst, dstCapacity, ip, cSrcSize, workSpace); /* always return, even if it is an error code */
 +}
-+
-+#endif /* FSE_COMMONDEFS_ONLY */
 diff --git a/lib/zstd/huf.h b/lib/zstd/huf.h
 new file mode 100644
 index 0000000..56abe2f
@@ -9873,10 +9872,10 @@ index 0000000..56abe2f
 +#endif /* HUF_H_298734234 */
 diff --git a/lib/zstd/huf_compress.c b/lib/zstd/huf_compress.c
 new file mode 100644
-index 0000000..1587401
+index 0000000..e82a136
 --- /dev/null
 +++ b/lib/zstd/huf_compress.c
-@@ -0,0 +1,732 @@
+@@ -0,0 +1,731 @@
 +/*
 + * Huffman encoder, part of New Generation Entropy library
 + * Copyright (C) 2013-2016, Yann Collet.
@@ -10184,9 +10183,8 @@ index 0000000..1587401
 +					}
 +				}
 +				/* only triggered when no more rank 1 symbol left => find closest one (note : there is necessarily at least one !) */
-+				while (
-+				    (nBitsToDecrease <= HUF_TABLELOG_MAX) &&
-+				    (rankLast[nBitsToDecrease] == noSymbol)) /* HUF_MAX_TABLELOG test just to please gcc 5+; but it should not be necessary */
++				/* HUF_MAX_TABLELOG test just to please gcc 5+; but it should not be necessary */
++				while ((nBitsToDecrease <= HUF_TABLELOG_MAX) && (rankLast[nBitsToDecrease] == noSymbol))
 +					nBitsToDecrease++;
 +				totalCost -= 1 << (nBitsToDecrease - 1);
 +				if (rankLast[nBitsToDecrease - 1] == noSymbol)
@@ -10611,10 +10609,10 @@ index 0000000..1587401
 +}
 diff --git a/lib/zstd/huf_decompress.c b/lib/zstd/huf_decompress.c
 new file mode 100644
-index 0000000..5c38aa3
+index 0000000..950c194
 --- /dev/null
 +++ b/lib/zstd/huf_decompress.c
-@@ -0,0 +1,921 @@
+@@ -0,0 +1,920 @@
 +/*
 + * Huffman decoder, part of New Generation Entropy library
 + * Copyright (C) 2013-2016, Yann Collet.
@@ -11190,9 +11188,8 @@ index 0000000..5c38aa3
 +		if (DStream->bitsConsumed < (sizeof(DStream->bitContainer) * 8)) {
 +			BIT_skipBits(DStream, dt[val].nbBits);
 +			if (DStream->bitsConsumed > (sizeof(DStream->bitContainer) * 8))
-+				DStream->bitsConsumed =
-+				    (sizeof(DStream->bitContainer) *
-+				     8); /* ugly hack; works only because it's the last symbol. Note : can't easily extract nbBits from just this symbol */
++				/* ugly hack; works only because it's the last symbol. Note : can't easily extract nbBits from just this symbol */
++				DStream->bitsConsumed = (sizeof(DStream->bitContainer) * 8);
 +		}
 +	}
 +	return 1;
@@ -12051,7 +12048,7 @@ index 0000000..6748719
 +#endif /* ZSTD_CCOMMON_H_MODULE */
 diff --git a/lib/zstd/zstd_opt.h b/lib/zstd/zstd_opt.h
 new file mode 100644
-index 0000000..468c143
+index 0000000..55e1b4c
 --- /dev/null
 +++ b/lib/zstd/zstd_opt.h
 @@ -0,0 +1,1014 @@
@@ -12685,7 +12682,7 @@ index 0000000..468c143
 +		cur = last_pos - best_mlen;
 +
 +	/* store sequence */
-+	_storeSequence: /* cur, last_pos, best_mlen, best_off have to be set */
++_storeSequence: /* cur, last_pos, best_mlen, best_off have to be set */
 +		opt[0].mlen = 1;
 +
 +		while (1) {
@@ -12999,7 +12996,7 @@ index 0000000..468c143
 +		cur = last_pos - best_mlen;
 +
 +	/* store sequence */
-+	_storeSequence: /* cur, last_pos, best_mlen, best_off have to be set */
++_storeSequence: /* cur, last_pos, best_mlen, best_off have to be set */
 +		opt[0].mlen = 1;
 +
 +		while (1) {

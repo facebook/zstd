@@ -2053,7 +2053,8 @@ ZSTD_DDict* ZSTD_initStaticDDict(void* workspace, size_t workspaceSize,
 {
     size_t const neededSpace = sizeof(ZSTD_DDict) + (byReference ? 0 : dictSize);
     ZSTD_DDict* const ddict = (ZSTD_DDict*)workspace;
-    if (workspaceSize < neededSpace) return NULL;  /* minimum size */
+    if ((size_t)workspace & 7) return NULL;  /* 8-aligned */
+    if (workspaceSize < neededSpace) return NULL;
     if (!byReference) {
         memcpy(ddict+1, dict, dictSize);  /* local copy */
         dict = ddict+1;

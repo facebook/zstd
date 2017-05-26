@@ -3239,7 +3239,6 @@ size_t ZSTD_compress(void* dst, size_t dstCapacity, const void* src, size_t srcS
  *  Estimate amount of memory that will be needed to create a dictionary with following arguments */
 size_t ZSTD_estimateCDictSize(ZSTD_compressionParameters cParams, size_t dictSize, unsigned byReference)
 {
-    cParams = ZSTD_adjustCParams(cParams, 0, dictSize);
     return sizeof(ZSTD_CDict) + ZSTD_estimateCCtxSize(cParams)
            + (byReference ? 0 : dictSize);
 }
@@ -3258,6 +3257,34 @@ static ZSTD_parameters ZSTD_makeParams(ZSTD_compressionParameters cParams, ZSTD_
     return params;
 }
 
+static size_t ZSTD_initCDict_internal(
+                    ZSTD_CDict* cdict,
+              const void* dictBuffer, size_t dictSize, unsigned byReference,
+                    ZSTD_compressionParameters cParams)
+{
+    if ((byReference) || (!dictBuffer) || (!dictSize)) {
+        cdict->dictBuffer = NULL;
+        cdict->dictContent = dictBuffer;
+    } else {
+        void* const internalBuffer = ZSTD_malloc(dictSize, cdict->refContext->customMem);
+        if (!internalBuffer) return ERROR(memory_allocation);
+        memcpy(internalBuffer, dictBuffer, dictSize);
+        cdict->dictBuffer = internalBuffer;
+        cdict->dictContent = internalBuffer;
+    }
+    cdict->dictContentSize = dictSize;
+
+    {   ZSTD_frameParameters const fParams = { 0 /* contentSizeFlag */,
+                    0 /* checksumFlag */, 0 /* noDictIDFlag */ };  /* dummy */
+        ZSTD_parameters const params = ZSTD_makeParams(cParams, fParams);
+        CHECK_F( ZSTD_compressBegin_advanced(cdict->refContext,
+                                            cdict->dictContent, dictSize,
+                                            params, 0 /* srcSize */) );
+    }
+
+    return 0;
+}
+
 ZSTD_CDict* ZSTD_createCDict_advanced(const void* dictBuffer, size_t dictSize, unsigned byReference,
                                       ZSTD_compressionParameters cParams, ZSTD_customMem customMem)
 {
@@ -3269,44 +3296,19 @@ ZSTD_CDict* ZSTD_createCDict_advanced(const void* dictBuffer, size_t dictSize, u
         ZSTD_CCtx* const cctx = ZSTD_createCCtx_advanced(customMem);
 
         if (!cdict || !cctx) {
-            DEBUGLOG(5, "!cdict || !cctx");
             ZSTD_free(cdict, customMem);
             ZSTD_freeCCtx(cctx);
             return NULL;
         }
+        cdict->refContext = cctx;
 
-        if ((byReference) || (!dictBuffer) || (!dictSize)) {
-            cdict->dictBuffer = NULL;
-            cdict->dictContent = dictBuffer;
-        } else {
-            void* const internalBuffer = ZSTD_malloc(dictSize, customMem);
-            if (!internalBuffer) {
-                DEBUGLOG(5, "!internalBuffer");
-                ZSTD_free(cctx, customMem);
-                ZSTD_free(cdict, customMem);
-                return NULL;
-            }
-            memcpy(internalBuffer, dictBuffer, dictSize);
-            cdict->dictBuffer = internalBuffer;
-            cdict->dictContent = internalBuffer;
+        if (ZSTD_isError( ZSTD_initCDict_internal(cdict,
+                                        dictBuffer, dictSize, byReference,
+                                        cParams) )) {
+            ZSTD_freeCDict(cdict);
+            return NULL;
         }
 
-        {   ZSTD_frameParameters const fParams = { 0 /* contentSizeFlag */,
-                    0 /* checksumFlag */, 0 /* noDictIDFlag */ }; /* dummy */
-            ZSTD_parameters const params = ZSTD_makeParams(cParams, fParams);
-            size_t const errorCode = ZSTD_compressBegin_advanced(cctx,
-                                cdict->dictContent, dictSize, params, 0);
-            if (ZSTD_isError(errorCode)) {
-                DEBUGLOG(5, "ZSTD_compressBegin_advanced error : %s",
-                            ZSTD_getErrorName(errorCode));
-                ZSTD_free(cdict->dictBuffer, customMem);
-                ZSTD_free(cdict, customMem);
-                ZSTD_freeCCtx(cctx);
-                return NULL;
-        }   }
-
-        cdict->refContext = cctx;
-        cdict->dictContentSize = dictSize;
         return cdict;
     }
 }
@@ -3334,6 +3336,51 @@ size_t ZSTD_freeCDict(ZSTD_CDict* cdict)
         ZSTD_free(cdict, cMem);
         return 0;
     }
+}
+
+/*! ZSTD_initStaticCDict_advanced() :
+ *  Generate a digested dictionary in provided memory area.
+ *  workspace: The memory area to emplace the dictionary into.
+ *             Provided pointer must 8-bytes aligned.
+ *             It must outlive dictionary usage.
+ *  workspaceSize: Use ZSTD_estimateCDictSize()
+ *                 to determine how large workspace must be.
+ *  cParams : use ZSTD_getCParams() to transform a compression level
+ *            into its relevants cParams.
+ * @return : pointer to ZSTD_CDict*, or NULL if error (size too small)
+ *  Note : there is no corresponding "free" function.
+ *         Since workspace was allocated externally, it must be freed externally.
+ */
+ZSTD_CDict* ZSTD_initStaticCDict(void* workspace, size_t workspaceSize,
+                           const void* dict, size_t dictSize, unsigned byReference,
+                                 ZSTD_compressionParameters cParams)
+{
+    size_t const cctxSize = ZSTD_estimateCCtxSize(cParams);
+    size_t const neededSize = sizeof(ZSTD_CDict) + (byReference ? 0 : dictSize)
+                            + cctxSize;
+    ZSTD_CDict* const cdict = (ZSTD_CDict*) workspace;
+    void* ptr;
+    DEBUGLOG(2, "(size_t)workspace & 7 : %u", (U32)(size_t)workspace & 7);
+    if ((size_t)workspace & 7) return NULL;  /* 8-aligned */
+    DEBUGLOG(2, "(workspaceSize < neededSize) : (%u < %u) => %u",
+        (U32)workspaceSize, (U32)neededSize, (U32)(workspaceSize < neededSize));
+    if (workspaceSize < neededSize) return NULL;
+
+    if (!byReference) {
+        memcpy(cdict+1, dict, dictSize);
+        dict = cdict+1;
+        ptr = (char*)workspace + sizeof(ZSTD_CDict) + dictSize;
+    } else {
+        ptr = cdict+1;
+    }
+    cdict->refContext = ZSTD_initStaticCCtx(ptr, cctxSize);
+
+    if (ZSTD_isError( ZSTD_initCDict_internal(cdict,
+                                        dict, dictSize, 1 /* by Reference */,
+                                        cParams) ))
+        return NULL;
+
+    return cdict;
 }
 
 static ZSTD_parameters ZSTD_getParamsFromCDict(const ZSTD_CDict* cdict) {

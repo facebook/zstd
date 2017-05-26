@@ -495,8 +495,8 @@ ZSTDLIB_API size_t ZSTD_estimateDCtxSize(void);
 
 /*! ZSTD_estimate?StreamSize() :
  *  Note : if streaming is init with function ZSTD_init?Stream_usingDict(),
- *         an internal ?Dict will be created, which size is not estimated.
- *         In this case, get additional size by using ZSTD_estimate?DictSize */
+ *         an internal ?Dict will be created, which size is not estimated here.
+ *         In this case, get total size by adding ZSTD_estimate?DictSize */
 ZSTDLIB_API size_t ZSTD_estimateCStreamSize(ZSTD_compressionParameters cParams);
 ZSTDLIB_API size_t ZSTD_estimateDStreamSize(ZSTD_frameHeader fHeader);
 
@@ -540,6 +540,7 @@ typedef enum {
  *  @result : 0, or an error code (which can be tested with ZSTD_isError()) */
 ZSTDLIB_API size_t ZSTD_setCCtxParameter(ZSTD_CCtx* cctx, ZSTD_CCtxParameter param, unsigned value);
 
+
 /*! ZSTD_createCDict_byReference() :
  *  Create a digested dictionary for compression
  *  Dictionary content is simply referenced, and therefore stays in dictBuffer.
@@ -550,6 +551,24 @@ ZSTDLIB_API ZSTD_CDict* ZSTD_createCDict_byReference(const void* dictBuffer, siz
  *  Create a ZSTD_CDict using external alloc and free, and customized compression parameters */
 ZSTDLIB_API ZSTD_CDict* ZSTD_createCDict_advanced(const void* dict, size_t dictSize, unsigned byReference,
                                                   ZSTD_compressionParameters cParams, ZSTD_customMem customMem);
+
+/*! ZSTD_initStaticCDict_advanced() :
+ *  Generate a digested dictionary in provided memory area.
+ *  workspace: The memory area to emplace the dictionary into.
+ *             Provided pointer must 8-bytes aligned.
+ *             It must outlive dictionary usage.
+ *  workspaceSize: Use ZSTD_estimateCDictSize()
+ *                 to determine how large workspace must be.
+ *  cParams : use ZSTD_getCParams() to transform a compression level
+ *            into its relevants cParams.
+ * @return : pointer to ZSTD_CDict*, or NULL if error (size too small)
+ *  Note : there is no corresponding "free" function.
+ *         Since workspace was allocated externally, it must be freed externally.
+ */
+ZSTDLIB_API ZSTD_CDict* ZSTD_initStaticCDict(
+                            void* workspace, size_t workspaceSize,
+                      const void* dict, size_t dictSize, unsigned byReference,
+                            ZSTD_compressionParameters cParams);
 
 /*! ZSTD_getCParams() :
 *   @return ZSTD_compressionParameters structure for a selected compression level and estimated srcSize.

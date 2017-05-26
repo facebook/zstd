@@ -408,8 +408,8 @@ size_t ZSTD_estimateDCtxSize(void);
 <pre><b>size_t ZSTD_estimateCStreamSize(ZSTD_compressionParameters cParams);
 size_t ZSTD_estimateDStreamSize(ZSTD_frameHeader fHeader);
 </b><p>  Note : if streaming is init with function ZSTD_init?Stream_usingDict(),
-         an internal ?Dict will be created, which size is not estimated.
-         In this case, get additional size by using ZSTD_estimate?DictSize 
+         an internal ?Dict will be created, which size is not estimated here.
+         In this case, get total size by adding ZSTD_estimate?DictSize 
 </p></pre><BR>
 
 <pre><b>size_t ZSTD_estimateCDictSize(ZSTD_compressionParameters cParams, size_t dictSize, unsigned byReference);
@@ -458,6 +458,24 @@ size_t ZSTD_estimateDDictSize(size_t dictSize, unsigned byReference);
 <pre><b>ZSTD_CDict* ZSTD_createCDict_advanced(const void* dict, size_t dictSize, unsigned byReference,
                                       ZSTD_compressionParameters cParams, ZSTD_customMem customMem);
 </b><p>  Create a ZSTD_CDict using external alloc and free, and customized compression parameters 
+</p></pre><BR>
+
+<pre><b>ZSTD_CDict* ZSTD_initStaticCDict(
+                void* workspace, size_t workspaceSize,
+          const void* dict, size_t dictSize, unsigned byReference,
+                ZSTD_compressionParameters cParams);
+</b><p>  Generate a digested dictionary in provided memory area.
+  workspace: The memory area to emplace the dictionary into.
+             Provided pointer must 8-bytes aligned.
+             It must outlive dictionary usage.
+  workspaceSize: Use ZSTD_estimateCDictSize()
+                 to determine how large workspace must be.
+  cParams : use ZSTD_getCParams() to transform a compression level
+            into its relevants cParams.
+ @return : pointer to ZSTD_CDict*, or NULL if error (size too small)
+  Note : there is no corresponding "free" function.
+         Since workspace was allocated externally, it must be freed externally.
+ 
 </p></pre><BR>
 
 <pre><b>ZSTD_compressionParameters ZSTD_getCParams(int compressionLevel, unsigned long long estimatedSrcSize, size_t dictSize);

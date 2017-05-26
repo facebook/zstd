@@ -112,7 +112,7 @@ ZSTDLIB_API size_t ZSTD_decompress( void* dst, size_t dstCapacity,
  *   note 4 : If source is untrusted, decompressed size could be wrong or intentionally modified.
  *            Always ensure result fits within application's authorized limits.
  *            Each application can set its own limits.
- *   note 5 : when `return==0`, if precise failure cause is needed, use ZSTD_getFrameParams() to know more. */
+ *   note 5 : when `return==0`, if precise failure cause is needed, use ZSTD_getFrameHeader() to know more. */
 ZSTDLIB_API unsigned long long ZSTD_getDecompressedSize(const void* src, size_t srcSize);
 
 
@@ -899,7 +899,7 @@ ZSTDLIB_API unsigned ZSTD_getDictID_fromDDict(const ZSTD_DDict* ddict);
  *    Note : this use case also happens when using a non-conformant dictionary.
  *  - `srcSize` is too small, and as a result, the frame header could not be decoded (only possible if `srcSize < ZSTD_FRAMEHEADERSIZE_MAX`).
  *  - This is not a Zstandard frame.
- *  When identifying the exact failure cause, it's possible to use ZSTD_getFrameParams(), which will provide a more precise error code. */
+ *  When identifying the exact failure cause, it's possible to use ZSTD_getFrameHeader(), which will provide a more precise error code. */
 ZSTDLIB_API unsigned ZSTD_getDictID_fromFrame(const void* src, size_t srcSize);
 
 
@@ -994,7 +994,7 @@ ZSTDLIB_API size_t ZSTD_compressEnd(ZSTD_CCtx* cctx, void* dst, size_t dstCapaci
   Use ZSTD_createDCtx() / ZSTD_freeDCtx() to manage it.
   A ZSTD_DCtx object can be re-used multiple times.
 
-  First typical operation is to retrieve frame parameters, using ZSTD_getFrameParams().
+  First typical operation is to retrieve frame parameters, using ZSTD_getFrameHeader().
   It fills a ZSTD_frameParams structure which provide important information to correctly decode the frame,
   such as the minimum rolling buffer size to allocate to decompress data (`windowSize`),
   and the dictionary ID used.
@@ -1041,7 +1041,7 @@ ZSTDLIB_API size_t ZSTD_compressEnd(ZSTD_CCtx* cctx, void* dst, size_t dstCapaci
   b) Frame Size - 4 Bytes, Little endian format, unsigned 32-bits
   c) Frame Content - any content (User Data) of length equal to Frame Size
   For skippable frames ZSTD_decompressContinue() always returns 0.
-  For skippable frames ZSTD_getFrameParams() returns fparamsPtr->windowLog==0 what means that a frame is skippable.
+  For skippable frames ZSTD_getFrameHeader() returns fparamsPtr->windowLog==0 what means that a frame is skippable.
     Note : If fparamsPtr->frameContentSize==0, it is ambiguous: the frame might actually be a Zstd encoded frame with no content.
            For purposes of decompression, it is valid in both cases to skip the frame using
            ZSTD_findFrameCompressedSize to find its size in bytes.

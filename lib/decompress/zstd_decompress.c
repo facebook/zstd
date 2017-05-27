@@ -1586,6 +1586,8 @@ static size_t ZSTD_decompressMultiFrame(ZSTD_DCtx* dctx,
             size_t decodedSize;
             size_t const frameSize = ZSTD_findFrameCompressedSizeLegacy(src, srcSize);
             if (ZSTD_isError(frameSize)) return frameSize;
+            /* legacy support is incompatible with static dctx */
+            if (dctx->staticSize) return ERROR(memory_allocation);
 
             decodedSize = ZSTD_decompressLegacy(dst, dstCapacity, src, frameSize, dict, dictSize);
 
@@ -2258,8 +2260,11 @@ size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inB
     U32 someMoreWork = 1;
 
 #if defined(ZSTD_LEGACY_SUPPORT) && (ZSTD_LEGACY_SUPPORT>=1)
-    if (zds->legacyVersion)
+    if (zds->legacyVersion) {
+        /* legacy support is incompatible with static dctx */
+        if (zds->staticSize) return ERROR(memory_allocation);
         return ZSTD_decompressLegacyStream(zds->legacyContext, zds->legacyVersion, output, input);
+    }
 #endif
 
     while (someMoreWork) {
@@ -2277,6 +2282,8 @@ size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inB
                     if (legacyVersion) {
                         const void* const dict = zds->ddict ? zds->ddict->dictContent : NULL;
                         size_t const dictSize = zds->ddict ? zds->ddict->dictSize : 0;
+                        /* legacy support is incompatible with static dctx */
+                        if (zds->staticSize) return ERROR(memory_allocation);
                         CHECK_F(ZSTD_initLegacyStream(&zds->legacyContext, zds->previousLegacyVersion, legacyVersion,
                                                        dict, dictSize));
                         zds->legacyVersion = zds->previousLegacyVersion = legacyVersion;

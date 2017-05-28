@@ -314,7 +314,7 @@ ZSTDMT_CCtx* ZSTDMT_createCCtx(unsigned nbThreads)
     cctx->sectionSize = 0;
     cctx->overlapRLog = 3;
     cctx->factory = POOL_create(nbThreads, 1);
-    cctx->jobs = malloc(nbJobs * sizeof(*cctx->jobs));
+    cctx->jobs = (ZSTDMT_jobDescription*) malloc(nbJobs * sizeof(*cctx->jobs));
     cctx->buffPool = ZSTDMT_createBufferPool(nbThreads);
     cctx->cctxPool = ZSTDMT_createCCtxPool(nbThreads);
     if (!cctx->factory | !cctx->jobs | !cctx->buffPool | !cctx->cctxPool) {

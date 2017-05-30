@@ -844,7 +844,8 @@ ZSTDLIB_API ZSTD_DCtx* ZSTD_createDCtx_advanced(ZSTD_customMem customMem);
  * @return : pointer to ZSTD_DCtx*, or NULL if error (size too small)
  *  Note : zstd will never resize nor malloc() when using a static dctx.
  *         If it needs more memory than available, it will simply error out.
- *  Note 2 : there is no corresponding "free" function.
+ *  Note 2 : static dctx is incompatible with legacy support
+ *  Note 3 : there is no corresponding "free" function.
  *           Since workspace was allocated externally, it must be freed externally.
  *  Limitation : currently not compatible with internal DDict creation,
  *               such as ZSTD_initDStream_usingDict().

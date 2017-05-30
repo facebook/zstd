@@ -1,7 +1,8 @@
 /*
  * Squashfs - a compressed read only filesystem for Linux
  *
- * Copyright (c) 2017 Facebook
+ * Copyright (c) 2016-present, Facebook, Inc.
+ * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License

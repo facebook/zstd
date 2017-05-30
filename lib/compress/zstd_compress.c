@@ -2193,8 +2193,8 @@ U32 ZSTD_insertAndFindFirstIndex (ZSTD_CCtx* zc, const BYTE* ip, U32 mls)
 }
 
 
-
-FORCE_INLINE /* inlining is important to hardwire a hot branch (template emulation) */
+/* inlining is important to hardwire a hot branch (template emulation) */
+FORCE_INLINE
 size_t ZSTD_HcFindBestMatch_generic (
                         ZSTD_CCtx* zc,   /* Index table will be updated */
                         const BYTE* const ip, const BYTE* const iLimit,
@@ -2803,8 +2803,7 @@ static size_t ZSTD_writeFrameHeader(void* dst, size_t dstCapacity,
     U32   const singleSegment = params.fParams.contentSizeFlag && (windowSize >= pledgedSrcSize);
     BYTE  const windowLogByte = (BYTE)((params.cParams.windowLog - ZSTD_WINDOWLOG_ABSOLUTEMIN) << 3);
     U32   const fcsCode = params.fParams.contentSizeFlag ?
-                     (pledgedSrcSize>=256) + (pledgedSrcSize>=65536+256) + (pledgedSrcSize>=0xFFFFFFFFU) :   /* 0-3 */
-                      0;
+                     (pledgedSrcSize>=256) + (pledgedSrcSize>=65536+256) + (pledgedSrcSize>=0xFFFFFFFFU) : 0;  /* 0-3 */
     BYTE  const frameHeaderDecriptionByte = (BYTE)(dictIDSizeCode + (checksumFlag<<2) + (singleSegment<<5) + (fcsCode<<6) );
     size_t pos;
 

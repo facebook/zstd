@@ -421,6 +421,8 @@ typedef struct {
 typedef void* (*ZSTD_allocFunction) (void* opaque, size_t size);
 typedef void  (*ZSTD_freeFunction) (void* opaque, void* address);
 typedef struct { ZSTD_allocFunction customAlloc; ZSTD_freeFunction customFree; void* opaque; } ZSTD_customMem;
+/* use this constant to defer to stdlib's functions */
+static const ZSTD_customMem ZSTD_defaultCMem = { NULL, NULL, NULL};
 
 /***************************************
 *  Frame size functions

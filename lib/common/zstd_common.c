@@ -12,7 +12,8 @@
 /*-*************************************
 *  Dependencies
 ***************************************/
-#include <stdlib.h>         /* malloc */
+#include <stdlib.h>      /* malloc, calloc, free */
+#include <string.h>      /* memset */
 #include "error_private.h"
 #define ZSTD_STATIC_LINKING_ONLY
 #include "zstd.h"
@@ -65,11 +66,29 @@ void ZSTD_defaultFreeFunction(void* opaque, void* address)
 
 void* ZSTD_malloc(size_t size, ZSTD_customMem customMem)
 {
-    return customMem.customAlloc(customMem.opaque, size);
+    if (customMem.customAlloc)
+        return customMem.customAlloc(customMem.opaque, size);
+    return malloc(size);
+}
+
+void* ZSTD_calloc(size_t size, ZSTD_customMem customMem)
+{
+    if (customMem.customAlloc) {
+        /* calloc implemented as malloc+memset;
+         * not as efficient, but our best guess for custom malloc */
+        void* const ptr = customMem.customAlloc(customMem.opaque, size);
+        memset(ptr, 0, size);
+        return ptr;
+    }
+    return calloc(1, size);
 }
 
 void ZSTD_free(void* ptr, ZSTD_customMem customMem)
 {
-    if (ptr!=NULL)
-        customMem.customFree(customMem.opaque, ptr);
+    if (ptr!=NULL) {
+        if (customMem.customFree)
+            customMem.customFree(customMem.opaque, ptr);
+        else
+            free(ptr);
+    }
 }

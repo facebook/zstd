@@ -73,7 +73,7 @@ libzstd.a: $(ZSTD_OBJ)
 	@echo compiling static library
 	@$(AR) $(ARFLAGS) $@ $^
 
-libzstd.a-mt: CPPFLAGS += -DZSTD_MULTHREAD
+libzstd.a-mt: CPPFLAGS += -DZSTD_MULTITHREAD
 libzstd.a-mt: libzstd.a
 
 $(LIBZSTD): LDFLAGS += -shared -fPIC -fvisibility=hidden

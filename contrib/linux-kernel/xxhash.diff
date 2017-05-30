@@ -1,9 +1,9 @@
 diff --git a/include/linux/xxhash.h b/include/linux/xxhash.h
 new file mode 100644
-index 0000000..c77b12b
+index 0000000..9e1f42c
 --- /dev/null
 +++ b/include/linux/xxhash.h
-@@ -0,0 +1,230 @@
+@@ -0,0 +1,236 @@
 +/*
 + * xxHash - Extremely Fast Hash algorithm
 + * Copyright (C) 2012-2016, Yann Collet.
@@ -32,6 +32,12 @@ index 0000000..c77b12b
 + * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 + * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 + * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
++ *
++ * This program is free software; you can redistribute it and/or modify it under
++ * the terms of the GNU General Public License version 2 as published by the
++ * Free Software Foundation. This program is dual-licensed; you may select
++ * either version 2 of the GNU General Public License ("GPL") or BSD license
++ * ("BSD").
 + *
 + * You can contact the author at:
 + * - xxHash homepage: http://cyan4973.github.io/xxHash/
@@ -262,10 +268,10 @@ index 320ac46..e16f94a 100644
  obj-$(CONFIG_842_COMPRESS) += 842/
 diff --git a/lib/xxhash.c b/lib/xxhash.c
 new file mode 100644
-index 0000000..f367222
+index 0000000..dc94904
 --- /dev/null
 +++ b/lib/xxhash.c
-@@ -0,0 +1,494 @@
+@@ -0,0 +1,500 @@
 +/*
 + * xxHash - Extremely Fast Hash algorithm
 + * Copyright (C) 2012-2016, Yann Collet.
@@ -294,6 +300,12 @@ index 0000000..f367222
 + * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 + * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 + * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
++ *
++ * This program is free software; you can redistribute it and/or modify it under
++ * the terms of the GNU General Public License version 2 as published by the
++ * Free Software Foundation. This program is dual-licensed; you may select
++ * either version 2 of the GNU General Public License ("GPL") or BSD license
++ * ("BSD").
 + *
 + * You can contact the author at:
 + * - xxHash homepage: http://cyan4973.github.io/xxHash/

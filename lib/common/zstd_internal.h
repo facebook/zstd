@@ -244,6 +244,7 @@ void ZSTD_defaultFreeFunction(void* opaque, void* address);
 static const ZSTD_customMem defaultCustomMem = { ZSTD_defaultAllocFunction, ZSTD_defaultFreeFunction, NULL };
 #endif
 void* ZSTD_malloc(size_t size, ZSTD_customMem customMem);
+void* ZSTD_calloc(size_t size, ZSTD_customMem customMem);
 void ZSTD_free(void* ptr, ZSTD_customMem customMem);
 
 

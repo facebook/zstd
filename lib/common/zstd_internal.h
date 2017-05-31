@@ -18,6 +18,7 @@
 #  include <intrin.h>                    /* For Visual 2005 */
 #  pragma warning(disable : 4100)        /* disable: C4100: unreferenced formal parameter */
 #  pragma warning(disable : 4127)        /* disable: C4127: conditional expression is constant */
+#  pragma warning(disable : 4204)        /* disable: C4204: non-constant aggregate initializer */
 #  pragma warning(disable : 4324)        /* disable: C4324: padded structure */
 #else
 #  if defined (__cplusplus) || defined (__STDC_VERSION__) && __STDC_VERSION__ >= 199901L   /* C99 */

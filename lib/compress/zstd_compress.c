@@ -3571,7 +3571,8 @@ size_t ZSTD_initCStream(ZSTD_CStream* zcs, int compressionLevel)
 
 /*======   Compression   ======*/
 
-MEM_STATIC size_t ZSTD_limitCopy(void* dst, size_t dstCapacity, const void* src, size_t srcSize)
+MEM_STATIC size_t ZSTD_limitCopy(void* dst, size_t dstCapacity,
+                           const void* src, size_t srcSize)
 {
     size_t const length = MIN(dstCapacity, srcSize);
     memcpy(dst, src, length);
@@ -3579,18 +3580,19 @@ MEM_STATIC size_t ZSTD_limitCopy(void* dst, size_t dstCapacity, const void* src,
 }
 
 static size_t ZSTD_compressStream_generic(ZSTD_CStream* zcs,
-                              void* dst, size_t* dstCapacityPtr,
-                        const void* src, size_t* srcSizePtr,
-                              ZSTD_EndDirective const flushMode)
+                                        ZSTD_outBuffer* output,
+                                        ZSTD_inBuffer* input,
+                                        ZSTD_EndDirective const flushMode)
 {
     U32 someMoreWork = 1;
-    const char* const istart = (const char*)src;
-    const char* const iend = istart + *srcSizePtr;
-    const char* ip = istart;
-    char* const ostart = (char*)dst;
-    char* const oend = ostart + *dstCapacityPtr;
-    char* op = ostart;
+    const char* const istart = (const char*)input->src;
+    const char* const iend = istart + input->size;
+    const char* ip = istart + input->pos;
+    char* const ostart = (char*)output->dst;
+    char* const oend = ostart + output->size;
+    char* op = ostart + output->pos;
 
+    /* expected to be already allocated */
     assert(zcs->inBuff != NULL);
     assert(zcs->outBuff!= NULL);
 
@@ -3604,7 +3606,8 @@ static size_t ZSTD_compressStream_generic(ZSTD_CStream* zcs,
         case zcss_load:
             /* complete inBuffer */
             {   size_t const toLoad = zcs->inBuffTarget - zcs->inBuffPos;
-                size_t const loaded = ZSTD_limitCopy(zcs->inBuff + zcs->inBuffPos, toLoad, ip, iend-ip);
+                size_t const loaded = ZSTD_limitCopy(zcs->inBuff + zcs->inBuffPos,
+                                                    toLoad, ip, iend-ip);
                 zcs->inBuffPos += loaded;
                 ip += loaded;
                 if ( (flushMode == ZSTD_e_continue)
@@ -3663,11 +3666,16 @@ static size_t ZSTD_compressStream_generic(ZSTD_CStream* zcs,
         case zcss_flush:
             DEBUGLOG(5, "flush stage");
             {   size_t const toFlush = zcs->outBuffContentSize - zcs->outBuffFlushedSize;
-                size_t const flushed = ZSTD_limitCopy(op, oend-op, zcs->outBuff + zcs->outBuffFlushedSize, toFlush);
+                size_t const flushed = ZSTD_limitCopy(op, oend-op,
+                            zcs->outBuff + zcs->outBuffFlushedSize, toFlush);
                 DEBUGLOG(5, "toFlush: %u  ; flushed: %u", (U32)toFlush, (U32)flushed);
                 op += flushed;
                 zcs->outBuffFlushedSize += flushed;
-                if (toFlush!=flushed) { someMoreWork = 0; break; }  /* dst too small to store flushed data : stop there */
+                if (toFlush!=flushed) {
+                    /* dst too small to store flushed data : stop there */
+                    someMoreWork = 0;
+                    break;
+                }
                 zcs->outBuffContentSize = zcs->outBuffFlushedSize = 0;
                 if (zcs->frameEnded) {
                     DEBUGLOG(5, "Frame completed");
@@ -3687,8 +3695,8 @@ static size_t ZSTD_compressStream_generic(ZSTD_CStream* zcs,
         }
     }
 
-    *srcSizePtr = ip - istart;
-    *dstCapacityPtr = op - ostart;
+    input->pos = ip - istart;
+    output->pos = op - ostart;
     if (zcs->frameEnded) return 0;
     {   size_t hintInSize = zcs->inBuffTarget - zcs->inBuffPos;
         if (hintInSize==0) hintInSize = zcs->blockSize;
@@ -3698,15 +3706,11 @@ static size_t ZSTD_compressStream_generic(ZSTD_CStream* zcs,
 
 size_t ZSTD_compressStream(ZSTD_CStream* zcs, ZSTD_outBuffer* output, ZSTD_inBuffer* input)
 {
-    size_t sizeRead = input->size - input->pos;
-    size_t sizeWritten = output->size - output->pos;
-    size_t const result = ZSTD_compressStream_generic(
-                            zcs,
-                            (char*)(output->dst) + output->pos, &sizeWritten,
-                            (const char*)(input->src) + input->pos, &sizeRead, ZSTD_e_continue);
-    input->pos += sizeRead;
-    output->pos += sizeWritten;
-    return result;
+    /* check conditions */
+    if (output->pos > output->size) return ERROR(GENERIC);
+    if (input->pos  > input->size)  return ERROR(GENERIC);
+
+    return ZSTD_compressStream_generic(zcs, output, input, ZSTD_e_continue);
 }
 
 size_t ZSTD_compress_generic (ZSTD_CCtx* cctx,
@@ -3717,8 +3721,8 @@ size_t ZSTD_compress_generic (ZSTD_CCtx* cctx,
     /* check conditions */
     if (output->pos > output->size) return ERROR(GENERIC);
     if (input->pos  > input->size)  return ERROR(GENERIC);
-
     assert(cctx!=NULL);
+
     if (cctx->streamStage == zcss_init) {
         /* transparent reset */
         ZSTD_parameters params = cctx->requestedParams;
@@ -3729,15 +3733,9 @@ size_t ZSTD_compress_generic (ZSTD_CCtx* cctx,
         CHECK_F( ZSTD_resetCStream_internal(cctx, params, cctx->frameContentSize) );
     }
 
-    {   size_t sizeRead = input->size - input->pos;
-        size_t sizeWritten = output->size - output->pos;
-        DEBUGLOG(5, "starting ZSTD_compressStream_generic");
-        CHECK_F( ZSTD_compressStream_generic(cctx,
-                        (char*)output->dst + output->pos, &sizeWritten,
-                        (const char*)input->src + input->pos, &sizeRead, endOp) );
-        input->pos += sizeRead;
-        output->pos += sizeWritten;
-    }
+    DEBUGLOG(5, "starting ZSTD_compressStream_generic");
+    CHECK_F( ZSTD_compressStream_generic(cctx, output, input, endOp) );
+
     DEBUGLOG(5, "completing ZSTD_compress_generic_integral");
     return cctx->outBuffContentSize - cctx->outBuffFlushedSize; /* remaining to flush */
 }
@@ -3750,13 +3748,14 @@ size_t ZSTD_compress_generic_simpleArgs (
 {
     ZSTD_outBuffer output = { dst, dstCapacity, *dstPos };
     ZSTD_inBuffer  input  = { src, srcSize, *srcPos };
-
+    /* ZSTD_compress_generic() will check validity of dstPos and srcPos */
     size_t const hint = ZSTD_compress_generic(cctx, &output, &input, endOp);
     if (ZSTD_isError(hint)) return hint;
 
     *dstPos = output.pos;
     *srcPos = input.pos;
     return hint;
+
 }
 
 
@@ -3766,34 +3765,21 @@ size_t ZSTD_compress_generic_simpleArgs (
 *   @return : amount of data remaining to flush */
 size_t ZSTD_flushStream(ZSTD_CStream* zcs, ZSTD_outBuffer* output)
 {
-    size_t srcSize = 0;
-    size_t sizeWritten = output->size - output->pos;
-    size_t const result = ZSTD_compressStream_generic(zcs,
-                                (char*)(output->dst) + output->pos, &sizeWritten,
-                                &srcSize, &srcSize, /* use a valid src address instead of NULL */
-                                ZSTD_e_flush);
-    output->pos += sizeWritten;
-    if (ZSTD_isError(result)) return result;
-    return zcs->outBuffContentSize - zcs->outBuffFlushedSize;   /* remaining to flush */
+    ZSTD_inBuffer input = { &input, 0, 0 };
+    if (output->pos > output->size) return ERROR(GENERIC);
+    CHECK_F( ZSTD_compressStream_generic(zcs, output, &input, ZSTD_e_flush) );
+    return zcs->outBuffContentSize - zcs->outBuffFlushedSize;  /* remaining to flush */
 }
 
 
 size_t ZSTD_endStream(ZSTD_CStream* zcs, ZSTD_outBuffer* output)
 {
-    BYTE* const ostart = (BYTE*)(output->dst) + output->pos;
-    size_t srcSize = 0;
-    size_t sizeWritten = output->size - output->pos;
-
-    size_t const result = ZSTD_compressStream_generic(zcs,
-                                ostart, &sizeWritten,
-                                &srcSize /* valid address */, &srcSize,
-                                ZSTD_e_end);
-    output->pos += sizeWritten;
-    if (ZSTD_isError(result)) return result;
+    ZSTD_inBuffer input = { &input, 0, 0 };
+    if (output->pos > output->size) return ERROR(GENERIC);
+    CHECK_F( ZSTD_compressStream_generic(zcs, output, &input, ZSTD_e_end) );
 
     DEBUGLOG(5, "ZSTD_endStream : remaining to flush : %u",
             (unsigned)(zcs->outBuffContentSize - zcs->outBuffFlushedSize));
-
     return zcs->outBuffContentSize - zcs->outBuffFlushedSize;
 }
 

@@ -158,15 +158,14 @@ struct ZSTD_CCtx_s {
 
 ZSTD_CCtx* ZSTD_createCCtx(void)
 {
-    return ZSTD_createCCtx_advanced(defaultCustomMem);
+    return ZSTD_createCCtx_advanced(ZSTD_defaultCMem);
 }
 
 ZSTD_CCtx* ZSTD_createCCtx_advanced(ZSTD_customMem customMem)
 {
     ZSTD_CCtx* cctx;
 
-    if (!customMem.customAlloc && !customMem.customFree) customMem = defaultCustomMem;
-    if (!customMem.customAlloc || !customMem.customFree) return NULL;
+    if (!customMem.customAlloc ^ !customMem.customFree) return NULL;
 
     cctx = (ZSTD_CCtx*) ZSTD_malloc(sizeof(ZSTD_CCtx), customMem);
     if (!cctx) return NULL;
@@ -3225,9 +3224,9 @@ size_t ZSTD_compress(void* dst, size_t dstCapacity, const void* src, size_t srcS
     size_t result;
     ZSTD_CCtx ctxBody;
     memset(&ctxBody, 0, sizeof(ctxBody));
-    memcpy(&ctxBody.customMem, &defaultCustomMem, sizeof(ZSTD_customMem));
+    ctxBody.customMem = ZSTD_defaultCMem;
     result = ZSTD_compressCCtx(&ctxBody, dst, dstCapacity, src, srcSize, compressionLevel);
-    ZSTD_free(ctxBody.workSpace, defaultCustomMem);  /* can't free ctxBody itself, as it's on stack; free only heap content */
+    ZSTD_free(ctxBody.workSpace, ZSTD_defaultCMem);  /* can't free ctxBody itself, as it's on stack; free only heap content */
     return result;
 }
 
@@ -3288,8 +3287,7 @@ ZSTD_CDict* ZSTD_createCDict_advanced(const void* dictBuffer, size_t dictSize, u
                                       ZSTD_compressionParameters cParams, ZSTD_customMem customMem)
 {
     DEBUGLOG(5, "ZSTD_createCDict_advanced");
-    if (!customMem.customAlloc && !customMem.customFree) customMem = defaultCustomMem;
-    if (!customMem.customAlloc || !customMem.customFree) return NULL;
+    if (!customMem.customAlloc ^ !customMem.customFree) return NULL;
 
     {   ZSTD_CDict* const cdict = (ZSTD_CDict*) ZSTD_malloc(sizeof(ZSTD_CDict), customMem);
         ZSTD_CCtx* const cctx = ZSTD_createCCtx_advanced(customMem);
@@ -3442,12 +3440,11 @@ size_t ZSTD_compress_usingCDict(ZSTD_CCtx* cctx,
 
 ZSTD_CStream* ZSTD_createCStream(void)
 {
-    return ZSTD_createCStream_advanced(defaultCustomMem);
+    return ZSTD_createCStream_advanced(ZSTD_defaultCMem);
 }
 
 ZSTD_CStream* ZSTD_createCStream_advanced(ZSTD_customMem customMem)
-{
-    /* CStream and CCtx are now same object */
+{   /* CStream and CCtx are now same object */
     return ZSTD_createCCtx_advanced(customMem);
 }
 

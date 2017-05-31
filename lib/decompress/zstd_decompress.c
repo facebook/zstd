@@ -206,9 +206,7 @@ ZSTD_DCtx* ZSTD_createDCtx_advanced(ZSTD_customMem customMem)
 {
     ZSTD_DCtx* dctx;
 
-    if (!customMem.customAlloc && !customMem.customFree)
-        customMem = defaultCustomMem;
-    if (!customMem.customAlloc || !customMem.customFree)
+    if (!customMem.customAlloc ^ !customMem.customFree)
         return NULL;
 
     dctx = (ZSTD_DCtx*)ZSTD_malloc(sizeof(ZSTD_DCtx), customMem);
@@ -233,7 +231,7 @@ ZSTD_DCtx* ZSTD_initStaticDCtx(void *workspace, size_t workspaceSize)
 
 ZSTD_DCtx* ZSTD_createDCtx(void)
 {
-    return ZSTD_createDCtx_advanced(defaultCustomMem);
+    return ZSTD_createDCtx_advanced(ZSTD_defaultCMem);
 }
 
 size_t ZSTD_freeDCtx(ZSTD_DCtx* dctx)
@@ -2012,8 +2010,7 @@ static size_t ZSTD_initDDict_internal(ZSTD_DDict* ddict, const void* dict, size_
 
 ZSTD_DDict* ZSTD_createDDict_advanced(const void* dict, size_t dictSize, unsigned byReference, ZSTD_customMem customMem)
 {
-    if (!customMem.customAlloc && !customMem.customFree) customMem = defaultCustomMem;
-    if (!customMem.customAlloc || !customMem.customFree) return NULL;
+    if (!customMem.customAlloc ^ !customMem.customFree) return NULL;
 
     {   ZSTD_DDict* const ddict = (ZSTD_DDict*) ZSTD_malloc(sizeof(ZSTD_DDict), customMem);
         if (!ddict) return NULL;
@@ -2155,7 +2152,7 @@ size_t ZSTD_decompress_usingDDict(ZSTD_DCtx* dctx,
 
 ZSTD_DStream* ZSTD_createDStream(void)
 {
-    return ZSTD_createDStream_advanced(defaultCustomMem);
+    return ZSTD_createDStream_advanced(ZSTD_defaultCMem);
 }
 
 ZSTD_DStream* ZSTD_createDStream_advanced(ZSTD_customMem customMem)

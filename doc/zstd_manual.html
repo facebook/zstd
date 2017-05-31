@@ -698,6 +698,19 @@ size_t ZSTD_CDict_loadDictionary(ZSTD_CDict* cdict, const void* dict, size_t dic
  
 </p></pre><BR>
 
+<pre><b>size_t ZSTD_compress_generic_simpleArgs (
+                ZSTD_CCtx* cctx,
+                void* dst, size_t dstCapacity, size_t* dstPos,
+          const void* src, size_t srcSize, size_t* srcPos,
+                ZSTD_EndDirective endOp);
+</b><p>  Same as ZSTD_compress_generic(),
+  but using only simple integral types as arguments.
+  Argument list is less expressive than ZSTD_{in,out}Buffer,
+  but can be helpful for binders towards dynamic languages
+  which have troubles handling structures containing memory pointers.
+ 
+</p></pre><BR>
+
 <a name="Chapter15"></a><h2>Advanced decompression functions</h2><pre></pre>
 
 <pre><b>unsigned ZSTD_isFrame(const void* buffer, size_t size);

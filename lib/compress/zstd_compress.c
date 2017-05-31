@@ -3575,7 +3575,7 @@ MEM_STATIC size_t ZSTD_limitCopy(void* dst, size_t dstCapacity,
                            const void* src, size_t srcSize)
 {
     size_t const length = MIN(dstCapacity, srcSize);
-    memcpy(dst, src, length);
+    if (length) memcpy(dst, src, length);
     return length;
 }
 
@@ -3765,7 +3765,7 @@ size_t ZSTD_compress_generic_simpleArgs (
 *   @return : amount of data remaining to flush */
 size_t ZSTD_flushStream(ZSTD_CStream* zcs, ZSTD_outBuffer* output)
 {
-    ZSTD_inBuffer input = { &input, 0, 0 };
+    ZSTD_inBuffer input = { NULL, 0, 0 };
     if (output->pos > output->size) return ERROR(GENERIC);
     CHECK_F( ZSTD_compressStream_generic(zcs, output, &input, ZSTD_e_flush) );
     return zcs->outBuffContentSize - zcs->outBuffFlushedSize;  /* remaining to flush */
@@ -3774,7 +3774,7 @@ size_t ZSTD_flushStream(ZSTD_CStream* zcs, ZSTD_outBuffer* output)
 
 size_t ZSTD_endStream(ZSTD_CStream* zcs, ZSTD_outBuffer* output)
 {
-    ZSTD_inBuffer input = { &input, 0, 0 };
+    ZSTD_inBuffer input = { NULL, 0, 0 };
     if (output->pos > output->size) return ERROR(GENERIC);
     CHECK_F( ZSTD_compressStream_generic(zcs, output, &input, ZSTD_e_end) );
 

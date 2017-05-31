@@ -823,6 +823,20 @@ ZSTDLIB_API size_t ZSTD_compress_generic (ZSTD_CCtx* cctx,
 ZSTDLIB_API size_t ZSTD_CCtx_reset(ZSTD_CCtx* cctx);   /* Not ready yet ! */
 
 
+/*! ZSTD_compress_generic_simpleArgs() :
+ *  Same as ZSTD_compress_generic(),
+ *  but using only simple integral types as arguments.
+ *  Argument list is less expressive than ZSTD_{in,out}Buffer,
+ *  but can be helpful for binders towards dynamic languages
+ *  which have troubles handling structures containing memory pointers.
+ */
+size_t ZSTD_compress_generic_simpleArgs (
+                            ZSTD_CCtx* cctx,
+                            void* dst, size_t dstCapacity, size_t* dstPos,
+                      const void* src, size_t srcSize, size_t* srcPos,
+                            ZSTD_EndDirective endOp);
+
+
 
 /*--- Advanced decompression functions ---*/
 

@@ -783,7 +783,8 @@ static size_t ZSTDMT_flushStream_internal(ZSTDMT_CCtx* zcs, ZSTD_outBuffer* outp
     }
 
     /* check if there is any data available to flush */
-    DEBUGLOG(5, "zcs->doneJobID : %u  ; zcs->nextJobID : %u ", zcs->doneJobID, zcs->nextJobID);
+    DEBUGLOG(5, "zcs->doneJobID : %u  ; zcs->nextJobID : %u",
+            zcs->doneJobID, zcs->nextJobID);
     return ZSTDMT_flushNextJob(zcs, output, 1);
 }
 

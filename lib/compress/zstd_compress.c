@@ -3710,49 +3710,54 @@ size_t ZSTD_compressStream(ZSTD_CStream* zcs, ZSTD_outBuffer* output, ZSTD_inBuf
     return result;
 }
 
-size_t ZSTD_compress_generic_integral (
-                            ZSTD_CCtx* cctx,
-                            void* dst, size_t dstCapacity, size_t* dstPos,
-                      const void* src, size_t srcSize, size_t* srcPos,
-                            ZSTD_EndDirective endOp)
+size_t ZSTD_compress_generic (ZSTD_CCtx* cctx,
+                              ZSTD_outBuffer* output,
+                              ZSTD_inBuffer* input,
+                              ZSTD_EndDirective endOp)
 {
     /* check conditions */
-    if (*dstPos > dstCapacity) return ERROR(GENERIC);
-    if (*srcPos > srcSize) return ERROR(GENERIC);
+    if (output->pos > output->size) return ERROR(GENERIC);
+    if (input->pos  > input->size)  return ERROR(GENERIC);
 
     assert(cctx!=NULL);
     if (cctx->streamStage == zcss_init) {
         /* transparent reset */
         ZSTD_parameters params = cctx->requestedParams;
-        DEBUGLOG(5, "ZSTD_compress_generic_integral : transparent reset");
+        DEBUGLOG(5, "ZSTD_compress_generic : transparent reset");
         if (cctx->compressionLevel != ZSTD_CLEVEL_CUSTOM)
             params.cParams = ZSTD_getCParams(cctx->compressionLevel,
                                     cctx->frameContentSize, 0 /* dictSize */);
         CHECK_F( ZSTD_resetCStream_internal(cctx, params, cctx->frameContentSize) );
     }
 
-    {   size_t sizeRead = srcSize - *srcPos;
-        size_t sizeWritten = dstCapacity - *dstPos;
+    {   size_t sizeRead = input->size - input->pos;
+        size_t sizeWritten = output->size - output->pos;
         DEBUGLOG(5, "starting ZSTD_compressStream_generic");
         CHECK_F( ZSTD_compressStream_generic(cctx,
-                        (char*)dst + *dstPos, &sizeWritten,
-                        (const char*)src + *srcPos, &sizeRead, endOp) );
-        *srcPos += sizeRead;
-        *dstPos += sizeWritten;
+                        (char*)output->dst + output->pos, &sizeWritten,
+                        (const char*)input->src + input->pos, &sizeRead, endOp) );
+        input->pos += sizeRead;
+        output->pos += sizeWritten;
     }
     DEBUGLOG(5, "completing ZSTD_compress_generic_integral");
-    return cctx->outBuffContentSize - cctx->outBuffFlushedSize;   /* remaining to flush */
+    return cctx->outBuffContentSize - cctx->outBuffFlushedSize; /* remaining to flush */
 }
 
-size_t ZSTD_compress_generic (ZSTD_CCtx* cctx,
-                              ZSTD_outBuffer* output,
-                              ZSTD_inBuffer* input,
-                              ZSTD_EndDirective endOp)
+size_t ZSTD_compress_generic_simpleArgs (
+                            ZSTD_CCtx* cctx,
+                            void* dst, size_t dstCapacity, size_t* dstPos,
+                      const void* src, size_t srcSize, size_t* srcPos,
+                            ZSTD_EndDirective endOp)
 {
-    return ZSTD_compress_generic_integral(cctx,
-                output->dst, output->size, &output->pos,
-                input->src, input->size, &input->pos,
-                endOp);
+    ZSTD_outBuffer output = { dst, dstCapacity, *dstPos };
+    ZSTD_inBuffer  input  = { src, srcSize, *srcPos };
+
+    size_t const hint = ZSTD_compress_generic(cctx, &output, &input, endOp);
+    if (ZSTD_isError(hint)) return hint;
+
+    *dstPos = output.pos;
+    *srcPos = input.pos;
+    return hint;
 }
 
 

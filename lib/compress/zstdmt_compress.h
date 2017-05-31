@@ -57,6 +57,7 @@ ZSTDLIB_API size_t ZSTDMT_endStream(ZSTDMT_CCtx* mtctx, ZSTD_outBuffer* output);
 ZSTDLIB_API size_t ZSTDMT_initCStream_advanced(ZSTDMT_CCtx* mtctx, const void* dict, size_t dictSize,  /**< dict can be released after init, a local copy is preserved within zcs */
                                           ZSTD_parameters params, unsigned long long pledgedSrcSize);  /**< pledgedSrcSize is optional and can be zero == unknown */
 
+
 /* ZSDTMT_parameter :
  * List of parameters that can be set using ZSTDMT_setMTCtxParameter() */
 typedef enum {

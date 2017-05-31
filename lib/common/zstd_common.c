@@ -50,20 +50,6 @@ const char* ZSTD_getErrorString(ZSTD_ErrorCode code) { return ERR_getErrorString
 /*=**************************************************************
 *  Custom allocator
 ****************************************************************/
-/* default uses stdlib */
-void* ZSTD_defaultAllocFunction(void* opaque, size_t size)
-{
-    void* address = malloc(size);
-    (void)opaque;
-    return address;
-}
-
-void ZSTD_defaultFreeFunction(void* opaque, void* address)
-{
-    (void)opaque;
-    free(address);
-}
-
 void* ZSTD_malloc(size_t size, ZSTD_customMem customMem)
 {
     if (customMem.customAlloc)

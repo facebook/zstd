@@ -8,6 +8,7 @@
  */
 
 
+#include <stdlib.h>
 #include <stdio.h>                 /* vsprintf */
 #include <stdarg.h>                /* va_list, for z_gzprintf */
 #define NO_DUMMY_DECL
@@ -117,10 +118,8 @@ ZWRAP_CCtx* ZWRAP_createCCtx(z_streamp strm)
           memcpy(&zwc->customMem, &ZWRAP_customMem, sizeof(ZSTD_customMem));
         }
     } else {
-        zwc = (ZWRAP_CCtx*)defaultCustomMem.customAlloc(defaultCustomMem.opaque, sizeof(ZWRAP_CCtx));
+        zwc = (ZWRAP_CCtx*)calloc(1, sizeof(*zwc));
         if (zwc==NULL) return NULL;
-        memset(zwc, 0, sizeof(ZWRAP_CCtx));
-        memcpy(&zwc->customMem, &defaultCustomMem, sizeof(ZSTD_customMem));
     }
 
     return zwc;
@@ -219,7 +218,7 @@ int ZWRAP_deflateReset_keepDict(z_streamp strm)
         return deflateReset(strm);
 
     { ZWRAP_CCtx* zwc = (ZWRAP_CCtx*) strm->state;
-      if (zwc) { 
+      if (zwc) {
           zwc->streamEnd = 0;
           zwc->totalInBytes = 0;
       }
@@ -459,10 +458,8 @@ ZWRAP_DCtx* ZWRAP_createDCtx(z_streamp strm)
           memcpy(&zwd->customMem, &ZWRAP_customMem, sizeof(ZSTD_customMem));
         }
     } else {
-        zwd = (ZWRAP_DCtx*)defaultCustomMem.customAlloc(defaultCustomMem.opaque, sizeof(ZWRAP_DCtx));
+        zwd = (ZWRAP_DCtx*)calloc(1, sizeof(*zwd));
         if (zwd==NULL) return NULL;
-        memset(zwd, 0, sizeof(ZWRAP_DCtx));
-        memcpy(&zwd->customMem, &defaultCustomMem, sizeof(ZSTD_customMem));
     }
 
     MEM_STATIC_ASSERT(sizeof(zwd->headerBuf) >= ZSTD_FRAMEHEADERSIZE_MIN);   /* if compilation fails here, assertion is false */

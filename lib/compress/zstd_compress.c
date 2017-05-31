@@ -167,9 +167,8 @@ ZSTD_CCtx* ZSTD_createCCtx_advanced(ZSTD_customMem customMem)
 
     if (!customMem.customAlloc ^ !customMem.customFree) return NULL;
 
-    cctx = (ZSTD_CCtx*) ZSTD_malloc(sizeof(ZSTD_CCtx), customMem);
+    cctx = (ZSTD_CCtx*) ZSTD_calloc(sizeof(ZSTD_CCtx), customMem);
     if (!cctx) return NULL;
-    memset(cctx, 0, sizeof(ZSTD_CCtx));
     cctx->customMem = customMem;
     cctx->compressionLevel = ZSTD_CLEVEL_DEFAULT;
     return cctx;

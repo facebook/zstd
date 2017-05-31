@@ -3606,8 +3606,9 @@ static size_t ZSTD_compressStream_generic(ZSTD_CStream* zcs,
         case zcss_load:
             /* complete inBuffer */
             {   size_t const toLoad = zcs->inBuffTarget - zcs->inBuffPos;
-                size_t const loaded = ZSTD_limitCopy(zcs->inBuff + zcs->inBuffPos,
-                                                    toLoad, ip, iend-ip);
+                size_t const loaded = ZSTD_limitCopy(
+                                        zcs->inBuff + zcs->inBuffPos, toLoad,
+                                        ip, iend-ip);
                 zcs->inBuffPos += loaded;
                 ip += loaded;
                 if ( (flushMode == ZSTD_e_continue)

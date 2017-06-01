@@ -265,80 +265,82 @@ size_t ZSTD_CCtx_setParameter(ZSTD_CCtx* cctx, ZSTD_cParameter param, unsigned v
     switch(param)
     {
     case ZSTD_p_compressionLevel :
-            if ((int)value > ZSTD_maxCLevel()) value = ZSTD_maxCLevel();   /* cap max compression level */
-            if (value == 0) return 0;  /* special value : 0 means "don't change anything" */
-            cctx->compressionLevel = value;
-            return 0;
+        if ((int)value > ZSTD_maxCLevel()) value = ZSTD_maxCLevel();   /* cap max compression level */
+        if (value == 0) return 0;  /* special value : 0 means "don't change anything" */
+        cctx->compressionLevel = value;
+        return 0;
 
     case ZSTD_p_windowLog :
-            if (value == 0) return 0;  /* special value : 0 means "don't change anything" */
-            CLAMPCHECK(value, ZSTD_WINDOWLOG_MIN, ZSTD_WINDOWLOG_MAX);
-            ZSTD_cLevelToCParams(cctx);
-            cctx->requestedParams.cParams.windowLog = value;
-            return 0;
+        if (value == 0) return 0;  /* special value : 0 means "don't change anything" */
+        CLAMPCHECK(value, ZSTD_WINDOWLOG_MIN, ZSTD_WINDOWLOG_MAX);
+        ZSTD_cLevelToCParams(cctx);
+        cctx->requestedParams.cParams.windowLog = value;
+        return 0;
 
     case ZSTD_p_hashLog :
-            if (value == 0) return 0;  /* special value : 0 means "don't change anything" */
-            CLAMPCHECK(value, ZSTD_HASHLOG_MIN, ZSTD_HASHLOG_MAX);
-            ZSTD_cLevelToCParams(cctx);
-            cctx->requestedParams.cParams.hashLog = value;
-            return 0;
+        if (value == 0) return 0;  /* special value : 0 means "don't change anything" */
+        CLAMPCHECK(value, ZSTD_HASHLOG_MIN, ZSTD_HASHLOG_MAX);
+        ZSTD_cLevelToCParams(cctx);
+        cctx->requestedParams.cParams.hashLog = value;
+        return 0;
 
     case ZSTD_p_chainLog :
-            if (value == 0) return 0;  /* special value : 0 means "don't change anything" */
-            CLAMPCHECK(value, ZSTD_CHAINLOG_MIN, ZSTD_CHAINLOG_MAX);
-            ZSTD_cLevelToCParams(cctx);
-            cctx->requestedParams.cParams.chainLog = value;
-            return 0;
+        if (value == 0) return 0;  /* special value : 0 means "don't change anything" */
+        CLAMPCHECK(value, ZSTD_CHAINLOG_MIN, ZSTD_CHAINLOG_MAX);
+        ZSTD_cLevelToCParams(cctx);
+        cctx->requestedParams.cParams.chainLog = value;
+        return 0;
 
     case ZSTD_p_searchLog :
-            if (value == 0) return 0;  /* special value : 0 means "don't change anything" */
-            CLAMPCHECK(value, ZSTD_SEARCHLOG_MIN, ZSTD_SEARCHLOG_MAX);
-            ZSTD_cLevelToCParams(cctx);
-            cctx->requestedParams.cParams.searchLog = value;
-            return 0;
+        if (value == 0) return 0;  /* special value : 0 means "don't change anything" */
+        CLAMPCHECK(value, ZSTD_SEARCHLOG_MIN, ZSTD_SEARCHLOG_MAX);
+        ZSTD_cLevelToCParams(cctx);
+        cctx->requestedParams.cParams.searchLog = value;
+        return 0;
 
     case ZSTD_p_minMatch :
-            if (value == 0) return 0;  /* special value : 0 means "don't change anything" */
-            CLAMPCHECK(value, ZSTD_SEARCHLENGTH_MIN, ZSTD_SEARCHLENGTH_MAX);
-            ZSTD_cLevelToCParams(cctx);
-            cctx->requestedParams.cParams.searchLength = value;
-            return 0;
+        if (value == 0) return 0;  /* special value : 0 means "don't change anything" */
+        CLAMPCHECK(value, ZSTD_SEARCHLENGTH_MIN, ZSTD_SEARCHLENGTH_MAX);
+        ZSTD_cLevelToCParams(cctx);
+        cctx->requestedParams.cParams.searchLength = value;
+        return 0;
 
     case ZSTD_p_targetLength :
-            if (value == 0) return 0;  /* special value : 0 means "don't change anything" */
-            CLAMPCHECK(value, ZSTD_TARGETLENGTH_MIN, ZSTD_TARGETLENGTH_MAX);
-            ZSTD_cLevelToCParams(cctx);
-            cctx->requestedParams.cParams.targetLength = value;
-            return 0;
+        if (value == 0) return 0;  /* special value : 0 means "don't change anything" */
+        CLAMPCHECK(value, ZSTD_TARGETLENGTH_MIN, ZSTD_TARGETLENGTH_MAX);
+        ZSTD_cLevelToCParams(cctx);
+        cctx->requestedParams.cParams.targetLength = value;
+        return 0;
 
     case ZSTD_p_compressionStrategy :
-            if (value == 0) return 0;  /* special value : 0 means "don't change anything" */
-            CLAMPCHECK(value, (unsigned)ZSTD_fast, (unsigned)ZSTD_btultra);
-            ZSTD_cLevelToCParams(cctx);
-            cctx->requestedParams.cParams.strategy = (ZSTD_strategy)value;
-            return 0;
+        if (value == 0) return 0;  /* special value : 0 means "don't change anything" */
+        CLAMPCHECK(value, (unsigned)ZSTD_fast, (unsigned)ZSTD_btultra);
+        ZSTD_cLevelToCParams(cctx);
+        cctx->requestedParams.cParams.strategy = (ZSTD_strategy)value;
+        return 0;
 
 #if 0
     case ZSTD_p_windowSize :   /* to be done later */
-            return ERROR(compressionParameter_unsupported);
+        return ERROR(compressionParameter_unsupported);
 #endif
 
-    case ZSTD_p_contentSizeFlag : /* Content size will be written in frame header _when known_ (default:1) */
-            cctx->requestedParams.fParams.contentSizeFlag = value>0;
-            return 0;
+    case ZSTD_p_contentSizeFlag :
+        /* Content size written in frame header _when known_ (default:1) */
+        cctx->requestedParams.fParams.contentSizeFlag = value>0;
+        return 0;
 
-    case ZSTD_p_checksumFlag : /* A 32-bits content checksum will be calculated and written at end of frame (default:0) */
-            cctx->requestedParams.fParams.checksumFlag = value>0;
-            return 0;
+    case ZSTD_p_checksumFlag :
+        /* A 32-bits content checksum will be calculated and written at end of frame (default:0) */
+        cctx->requestedParams.fParams.checksumFlag = value>0;
+        return 0;
 
     case ZSTD_p_dictIDFlag : /* When applicable, dictionary's dictID is provided in frame header (default:1) */
-            DEBUGLOG(5, "set dictIDFlag = %u", (value>0));
-            cctx->requestedParams.fParams.noDictIDFlag = (value==0);
-            return 0;
+        DEBUGLOG(5, "set dictIDFlag = %u", (value>0));
+        cctx->requestedParams.fParams.noDictIDFlag = (value==0);
+        return 0;
 
     case ZSTD_p_refDictContent :   /* to be done later */
-            return ERROR(compressionParameter_unsupported);
+        return ERROR(compressionParameter_unsupported);
 
     case ZSTD_p_forceMaxWindow :  /* Force back-references to remain < windowSize,
                                    * even when referencing into Dictionary content
@@ -348,8 +350,8 @@ size_t ZSTD_CCtx_setParameter(ZSTD_CCtx* cctx, ZSTD_cParameter param, unsigned v
             return 0;
 
     case ZSTD_p_rawContentDict :  /* load dictionary in "content-only" mode (no header analysis) (default:0) */
-            cctx->forceRawDict = value>0;
-            return 0;
+        cctx->forceRawDict = value>0;
+        return 0;
 
     default: return ERROR(parameter_unknown);
     }
@@ -811,10 +813,11 @@ static size_t ZSTD_noCompressLiterals (void* dst, size_t dstCapacity, const void
         case 2: /* 2 - 2 - 12 */
             MEM_writeLE16(ostart, (U16)((U32)set_basic + (1<<2) + (srcSize<<4)));
             break;
-        default:   /*note : should not be necessary : flSize is within {1,2,3} */
         case 3: /* 2 - 2 - 20 */
             MEM_writeLE32(ostart, (U32)((U32)set_basic + (3<<2) + (srcSize<<4)));
             break;
+        default:   /* not necessary : flSize is {1,2,3} */
+            assert(0);
     }
 
     memcpy(ostart + flSize, src, srcSize);
@@ -836,10 +839,11 @@ static size_t ZSTD_compressRleLiteralsBlock (void* dst, size_t dstCapacity, cons
         case 2: /* 2 - 2 - 12 */
             MEM_writeLE16(ostart, (U16)((U32)set_rle + (1<<2) + (srcSize<<4)));
             break;
-        default:   /*note : should not be necessary : flSize is necessarily within {1,2,3} */
         case 3: /* 2 - 2 - 20 */
             MEM_writeLE32(ostart, (U32)((U32)set_rle + (3<<2) + (srcSize<<4)));
             break;
+        default:   /* not necessary : flSize is {1,2,3} */
+            assert(0);
     }
 
     ostart[flSize] = *(const BYTE*)src;
@@ -901,13 +905,14 @@ static size_t ZSTD_compressLiterals (ZSTD_CCtx* zc,
             MEM_writeLE32(ostart, lhc);
             break;
         }
-    default:   /* should not be necessary, lhSize is only {3,4,5} */
     case 5: /* 2 - 2 - 18 - 18 */
         {   U32 const lhc = hType + (3 << 2) + ((U32)srcSize<<4) + ((U32)cLitSize<<22);
             MEM_writeLE32(ostart, lhc);
             ostart[4] = (BYTE)(cLitSize >> 10);
             break;
         }
+    default:   /* not possible : lhSize is {3,4,5} */
+        assert(0);
     }
     return lhSize+cLitSize;
 }
@@ -2814,7 +2819,7 @@ static size_t ZSTD_writeFrameHeader(void* dst, size_t dstCapacity,
     if (!singleSegment) op[pos++] = windowLogByte;
     switch(dictIDSizeCode)
     {
-        default:   /* impossible */
+        default:  assert(0); /* impossible */
         case 0 : break;
         case 1 : op[pos] = (BYTE)(dictID); pos++; break;
         case 2 : MEM_writeLE16(op+pos, (U16)dictID); pos+=2; break;
@@ -2822,7 +2827,7 @@ static size_t ZSTD_writeFrameHeader(void* dst, size_t dstCapacity,
     }
     switch(fcsCode)
     {
-        default:   /* impossible */
+        default:  assert(0); /* impossible */
         case 0 : if (singleSegment) op[pos++] = (BYTE)(pledgedSrcSize); break;
         case 1 : MEM_writeLE16(op+pos, (U16)(pledgedSrcSize-256)); pos+=2; break;
         case 2 : MEM_writeLE32(op+pos, (U32)(pledgedSrcSize)); pos+=4; break;
@@ -2951,7 +2956,7 @@ static size_t ZSTD_loadDictionaryContent(ZSTD_CCtx* zc, const void* src, size_t 
         break;
 
     default:
-        return ERROR(GENERIC);   /* strategy doesn't exist; impossible */
+        assert(0);  /* not possible : not a valid strategy id */
     }
 
     zc->nextToUpdate = (U32)(iend - zc->base);
@@ -3691,8 +3696,8 @@ static size_t ZSTD_compressStream_generic(ZSTD_CStream* zcs,
         case zcss_final:
             someMoreWork = 0; break;  /* useless */
 
-        default:
-            return ERROR(GENERIC);   /* impossible */
+        default: /* impossible */
+            assert(0);
         }
     }
 

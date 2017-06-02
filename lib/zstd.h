@@ -491,7 +491,8 @@ ZSTDLIB_API size_t ZSTD_sizeof_DDict(const ZSTD_DDict* ddict);
  *  These functions make it possible to estimate memory usage
  *  of a future target object, before its allocation,
  *  given a set of parameters, which vary depending on target object.
- *  The objective is to guide decision before allocation. */
+ *  The objective is to guide decision before allocation.
+ *  Note : CCtx estimation is only correct for single-threaded compression */
 ZSTDLIB_API size_t ZSTD_estimateCCtxSize(ZSTD_compressionParameters cParams);
 ZSTDLIB_API size_t ZSTD_estimateDCtxSize(void);
 
@@ -695,17 +696,17 @@ typedef enum {
     ZSTD_p_rawContentDict,   /* load dictionary in "content-only" mode (no header analysis) (default:0) */
                              /* question : should there be an option to load dictionary only in zstd format, rejecting others with an error code ? */
 
-#if 0
-    /* multi-threading parameters (not ready yet !) */
+    /* multi-threading parameters */
     ZSTD_p_nbThreads=400,    /* Select how many threads a compression job can spawn (default:1)
-                              * More threads improve speed, but increases also memory usage */
-    ZSTDMT_p_jobSize,        /* Size of a compression job. Each job is compressed in parallel.
+                              * More threads improve speed, but also increase memory usage.
+                              * Can only receive a value > 1 if ZSTD_MULTITHREAD is enabled.
+                              * Special: value 0 means "do not change nbThreads" */
+    ZSTDMT_p_jobSize,        /* Size of a compression job. Each compression job is completed in parallel.
                               * 0 means default, which is dynamically determined based on compression parameters.
                               * Job size must be a minimum of overlapSize, or 1 KB, whichever is largest
                               * The minimum size is automatically and transparently enforced */
     ZSTDMT_p_overlapSizeLog, /* Size of previous input reloaded at the beginning of each job.
                               * 0 => no overlap, 6(default) => use 1/8th of windowSize, >=9 => use full windowSize */
-#endif
 
     /* advanced parameters - may not remain available after API update */
     ZSTD_p_forceMaxWindow=1100, /* Force back-references to remain < windowSize,

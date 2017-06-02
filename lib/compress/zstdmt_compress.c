@@ -439,7 +439,7 @@ size_t ZSTDMT_setMTCtxParameter(ZSTDMT_CCtx* mtctx, ZSDTMT_parameter parameter, 
         mtctx->sectionSize = value;
         return 0;
     case ZSTDMT_p_overlapSectionLog :
-    DEBUGLOG(4, "ZSTDMT_p_overlapSectionLog : %u", value);
+        DEBUGLOG(4, "ZSTDMT_p_overlapSectionLog : %u", value);
         mtctx->overlapRLog = (value >= 9) ? 0 : 9 - value;
         return 0;
     default :

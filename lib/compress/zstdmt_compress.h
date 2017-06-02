@@ -33,7 +33,7 @@ ZSTDLIB_API size_t ZSTDMT_freeCCtx(ZSTDMT_CCtx* mtctx);
 
 ZSTDLIB_API size_t ZSTDMT_sizeof_CCtx(ZSTDMT_CCtx* mtctx);
 ZSTDLIB_API size_t ZSTDMT_estimateCCtxSize(ZSTD_compressionParameters cParams,
-                                           unsigned nbThreads);
+                                           unsigned nbThreads);   /* not ready yet */
 
 
 /* ===   Simple buffer-to-butter one-pass function   === */

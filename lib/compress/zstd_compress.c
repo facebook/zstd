@@ -157,6 +157,7 @@ struct ZSTD_CCtx_s {
     U32    frameEnded;
 
     /* Multi-threading */
+    U32 nbThreads;
     ZSTDMT_CCtx* mtctx;
 };
 
@@ -353,9 +354,33 @@ size_t ZSTD_CCtx_setParameter(ZSTD_CCtx* cctx, ZSTD_cParameter param, unsigned v
     case ZSTD_p_forceMaxWindow :  /* Force back-references to remain < windowSize,
                                    * even when referencing into Dictionary content
                                    * default : 0 when using a CDict, 1 when using a Prefix */
-            cctx->forceWindow = value>0;
-            cctx->loadedDictEnd = 0;
-            return 0;
+        cctx->forceWindow = value>0;
+        cctx->loadedDictEnd = 0;
+        return 0;
+
+    case ZSTD_p_nbThreads:
+        if (value==0) return 0;
+#ifndef ZSTD_MULTITHREAD
+        if (value > 1) return ERROR(compressionParameter_unsupported);
+#endif
+        if ((value>1) && (cctx->nbThreads != value)) {
+            ZSTDMT_freeCCtx(cctx->mtctx);
+            cctx->nbThreads = value;
+            cctx->mtctx = ZSTDMT_createCCtx(value);
+            if (cctx->mtctx == NULL) return ERROR(memory_allocation);
+        }
+        cctx->nbThreads = 1;
+        return 0;
+
+    case ZSTDMT_p_jobSize:
+        if (cctx->nbThreads <= 1) return ERROR(compressionParameter_unsupported);
+        assert(cctx->mtctx != NULL);
+        return ZSTDMT_setMTCtxParameter(cctx->mtctx, ZSTDMT_p_sectionSize, value);
+
+    case ZSTDMT_p_overlapSizeLog:
+        if (cctx->nbThreads <= 1) return ERROR(compressionParameter_unsupported);
+        assert(cctx->mtctx != NULL);
+        return ZSTDMT_setMTCtxParameter(cctx->mtctx, ZSTDMT_p_overlapSectionLog, value);
 
     case ZSTD_p_rawContentDict :  /* load dictionary in "content-only" mode (no header analysis) (default:0) */
         cctx->forceRawDict = value>0;

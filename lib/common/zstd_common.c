@@ -61,7 +61,7 @@ void* ZSTD_calloc(size_t size, ZSTD_customMem customMem)
 {
     if (customMem.customAlloc) {
         /* calloc implemented as malloc+memset;
-         * not as efficient, but our best guess for custom malloc */
+         * not as efficient as calloc, but next best guess for custom malloc */
         void* const ptr = customMem.customAlloc(customMem.opaque, size);
         memset(ptr, 0, size);
         return ptr;

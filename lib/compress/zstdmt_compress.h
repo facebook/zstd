@@ -24,14 +24,21 @@
 #include "zstd.h"     /* ZSTD_inBuffer, ZSTD_outBuffer, ZSTDLIB_API */
 
 
-/* ===   Simple one-pass functions   === */
-
+/* ===   Memory management   === */
 typedef struct ZSTDMT_CCtx_s ZSTDMT_CCtx;
 ZSTDLIB_API ZSTDMT_CCtx* ZSTDMT_createCCtx(unsigned nbThreads);
-ZSTDLIB_API ZSTDMT_CCtx* ZSTDMT_createCCtx_advanced(unsigned nbThreads, ZSTD_customMem cMem);
-ZSTDLIB_API size_t ZSTDMT_freeCCtx(ZSTDMT_CCtx* cctx);
+ZSTDLIB_API ZSTDMT_CCtx* ZSTDMT_createCCtx_advanced(unsigned nbThreads,
+                                                    ZSTD_customMem cMem);
+ZSTDLIB_API size_t ZSTDMT_freeCCtx(ZSTDMT_CCtx* mtctx);
 
-ZSTDLIB_API size_t ZSTDMT_compressCCtx(ZSTDMT_CCtx* cctx,
+ZSTDLIB_API size_t ZSTDMT_sizeof_CCtx(ZSTDMT_CCtx* mtctx);
+ZSTDLIB_API size_t ZSTDMT_estimateCCtxSize(ZSTD_compressionParameters cParams,
+                                           unsigned nbThreads);
+
+
+/* ===   Simple buffer-to-butter one-pass function   === */
+
+ZSTDLIB_API size_t ZSTDMT_compressCCtx(ZSTDMT_CCtx* mtctx,
                            void* dst, size_t dstCapacity,
                      const void* src, size_t srcSize,
                            int compressionLevel);

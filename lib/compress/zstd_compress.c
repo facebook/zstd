@@ -25,6 +25,7 @@
 #define HUF_STATIC_LINKING_ONLY
 #include "huf.h"
 #include "zstd_internal.h"  /* includes zstd.h */
+#include "zstdmt_compress.h"
 
 
 /*-*************************************
@@ -154,7 +155,11 @@ struct ZSTD_CCtx_s {
     size_t outBuffFlushedSize;
     ZSTD_cStreamStage streamStage;
     U32    frameEnded;
+
+    /* Multi-threading */
+    ZSTDMT_CCtx* mtctx;
 };
+
 
 ZSTD_CCtx* ZSTD_createCCtx(void)
 {
@@ -205,11 +210,13 @@ ZSTD_CCtx* ZSTD_initStaticCCtx(void *workspace, size_t workspaceSize)
 size_t ZSTD_freeCCtx(ZSTD_CCtx* cctx)
 {
     if (cctx==NULL) return 0;   /* support free on NULL */
-    assert(!cctx->staticSize);  /* not compatible with static CCtx */
+    if (cctx->staticSize) return ERROR(memory_allocation);   /* not compatible with static CCtx */
     ZSTD_free(cctx->workSpace, cctx->customMem);
     cctx->workSpace = NULL;
     ZSTD_freeCDict(cctx->cdictLocal);
     cctx->cdictLocal = NULL;
+    ZSTDMT_freeCCtx(cctx->mtctx);
+    cctx->mtctx = NULL;
     ZSTD_free(cctx, cctx->customMem);
     return 0;   /* reserved as a potential error code in the future */
 }
@@ -219,7 +226,8 @@ size_t ZSTD_sizeof_CCtx(const ZSTD_CCtx* cctx)
     if (cctx==NULL) return 0;   /* support sizeof on NULL */
     return sizeof(*cctx) + cctx->workSpaceSize
            + ZSTD_sizeof_CDict(cctx->cdictLocal)
-           + cctx->outBuffSize + cctx->inBuffSize;
+           + cctx->outBuffSize + cctx->inBuffSize
+           + ZSTDMT_sizeof_CCtx(cctx->mtctx);
 }
 
 size_t ZSTD_sizeof_CStream(const ZSTD_CStream* zcs)

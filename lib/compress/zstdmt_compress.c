@@ -123,6 +123,19 @@ static void ZSTDMT_freeBufferPool(ZSTDMT_bufferPool* bufPool)
     ZSTD_free(bufPool, bufPool->cMem);
 }
 
+/* only works at initialization, not during compression */
+static size_t ZSTDMT_sizeof_bufferPool(ZSTDMT_bufferPool* bufPool)
+{
+    size_t const poolSize = sizeof(*bufPool)
+                            + (bufPool->totalBuffers - 1) * sizeof(buffer_t);
+    unsigned u;
+    size_t totalBufferSize = 0;
+    for (u=0; u<bufPool->totalBuffers; u++)
+        totalBufferSize += bufPool->bTable[u].size;
+
+    return poolSize + totalBufferSize;
+}
+
 /* assumption : invocation from main thread only ! */
 static buffer_t ZSTDMT_getBuffer(ZSTDMT_bufferPool* pool, size_t bSize)
 {
@@ -181,7 +194,7 @@ static void ZSTDMT_freeCCtxPool(ZSTDMT_CCtxPool* pool)
 /* ZSTDMT_createCCtxPool() :
  * implies nbThreads >= 1 , checked by caller ZSTDMT_createCCtx() */
 static ZSTDMT_CCtxPool* ZSTDMT_createCCtxPool(unsigned nbThreads,
-                                            ZSTD_customMem cMem)
+                                              ZSTD_customMem cMem)
 {
     ZSTDMT_CCtxPool* const cctxPool = (ZSTDMT_CCtxPool*) ZSTD_calloc(
         sizeof(ZSTDMT_CCtxPool) + (nbThreads-1)*sizeof(ZSTD_CCtx*), cMem);
@@ -193,6 +206,20 @@ static ZSTDMT_CCtxPool* ZSTDMT_createCCtxPool(unsigned nbThreads,
     if (!cctxPool->cctx[0]) { ZSTDMT_freeCCtxPool(cctxPool); return NULL; }
     DEBUGLOG(1, "cctxPool created, with %u threads", nbThreads);
     return cctxPool;
+}
+
+/* only works during initialization phase, not during compression */
+static size_t ZSTDMT_sizeof_CCtxPool(ZSTDMT_CCtxPool* cctxPool)
+{
+    unsigned const nbThreads = cctxPool->totalCCtx;
+    size_t const poolSize = sizeof(*cctxPool)
+                            + (nbThreads-1)*sizeof(ZSTD_CCtx*);
+    unsigned u;
+    size_t totalCCtxSize = 0;
+    for (u=0; u<nbThreads; u++)
+        totalCCtxSize += ZSTD_sizeof_CCtx(cctxPool->cctx[u]);
+
+    return poolSize + totalCCtxSize;
 }
 
 static ZSTD_CCtx* ZSTDMT_getCCtx(ZSTDMT_CCtxPool* pool)
@@ -391,6 +418,17 @@ size_t ZSTDMT_freeCCtx(ZSTDMT_CCtx* mtctx)
     pthread_cond_destroy(&mtctx->jobCompleted_cond);
     ZSTD_free(mtctx, mtctx->cMem);
     return 0;
+}
+
+size_t ZSTDMT_sizeof_CCtx(ZSTDMT_CCtx* mtctx)
+{
+    if (mtctx == NULL) return 0;   /* supports sizeof NULL */
+    return sizeof(*mtctx)
+        + POOL_sizeof(mtctx->factory)
+        + ZSTDMT_sizeof_bufferPool(mtctx->buffPool)
+        + (mtctx->jobIDMask+1) * sizeof(ZSTDMT_jobDescription)
+        + ZSTDMT_sizeof_CCtxPool(mtctx->cctxPool)
+        + ZSTD_sizeof_CDict(mtctx->cdict);
 }
 
 size_t ZSTDMT_setMTCtxParameter(ZSTDMT_CCtx* mtctx, ZSDTMT_parameter parameter, unsigned value)

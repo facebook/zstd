@@ -17,7 +17,7 @@
 #include "zstd_zlibwrapper.h"
 #define ZSTD_STATIC_LINKING_ONLY   /* ZSTD_MAGICNUMBER */
 #include "zstd.h"
-#include "zstd_internal.h"         /* defaultCustomMem */
+#include "zstd_internal.h"         /* ZSTD_malloc, ZSTD_free */
 
 
 #define Z_INFLATE_SYNC              8
@@ -100,7 +100,7 @@ size_t ZWRAP_freeCCtx(ZWRAP_CCtx* zwc)
 {
     if (zwc==NULL) return 0;   /* support free on NULL */
     if (zwc->zbc) ZSTD_freeCStream(zwc->zbc);
-    zwc->customMem.customFree(zwc->customMem.opaque, zwc);
+    ZSTD_free(zwc, zwc->customMem);
     return 0;
 }
 
@@ -472,8 +472,8 @@ size_t ZWRAP_freeDCtx(ZWRAP_DCtx* zwd)
 {
     if (zwd==NULL) return 0;   /* support free on null */
     if (zwd->zbd) ZSTD_freeDStream(zwd->zbd);
-    if (zwd->version) zwd->customMem.customFree(zwd->customMem.opaque, zwd->version);
-    zwd->customMem.customFree(zwd->customMem.opaque, zwd);
+    ZSTD_free(zwd->version, zwd->customMem);
+    ZSTD_free(zwd, zwd->customMem);
     return 0;
 }
 
@@ -505,22 +505,21 @@ ZEXTERN int ZEXPORT z_inflateInit_ OF((z_streamp strm,
         return inflateInit(strm);
     }
 
-    {
-    ZWRAP_DCtx* zwd = ZWRAP_createDCtx(strm);
-    LOG_WRAPPERD("- inflateInit\n");
-    if (zwd == NULL) return ZWRAPD_finishWithError(zwd, strm, 0);
+    {   ZWRAP_DCtx* zwd = ZWRAP_createDCtx(strm);
+        LOG_WRAPPERD("- inflateInit\n");
+        if (zwd == NULL) return ZWRAPD_finishWithError(zwd, strm, 0);
 
-    zwd->version = zwd->customMem.customAlloc(zwd->customMem.opaque, strlen(version) + 1);
-    if (zwd->version == NULL) return ZWRAPD_finishWithError(zwd, strm, 0);
-    strcpy(zwd->version, version);
+        zwd->version = ZSTD_malloc(strlen(version)+1, zwd->customMem);
+        if (zwd->version == NULL) return ZWRAPD_finishWithError(zwd, strm, 0);
+        strcpy(zwd->version, version);
 
-    zwd->stream_size = stream_size;
-    zwd->totalInBytes = 0;
-    strm->state = (struct internal_state*) zwd; /* use state which in not used by user */
-    strm->total_in = 0;
-    strm->total_out = 0;
-    strm->reserved = ZWRAP_UNKNOWN_STREAM; /* mark as unknown steam */
-    strm->adler = 0;
+        zwd->stream_size = stream_size;
+        zwd->totalInBytes = 0;
+        strm->state = (struct internal_state*) zwd; /* use state which in not used by user */
+        strm->total_in = 0;
+        strm->total_out = 0;
+        strm->reserved = ZWRAP_UNKNOWN_STREAM; /* mark as unknown steam */
+        strm->adler = 0;
     }
 
     return Z_OK;
@@ -534,15 +533,14 @@ ZEXTERN int ZEXPORT z_inflateInit2_ OF((z_streamp strm, int  windowBits,
         return inflateInit2_(strm, windowBits, version, stream_size);
     }
 
-    {
-    int ret = z_inflateInit_ (strm, version, stream_size);
-    LOG_WRAPPERD("- inflateInit2 windowBits=%d\n", windowBits);
-    if (ret == Z_OK) {
-        ZWRAP_DCtx* zwd = (ZWRAP_DCtx*)strm->state;
-        if (zwd == NULL) return Z_STREAM_ERROR;
-        zwd->windowBits = windowBits;
-    }
-    return ret;
+    {   int ret = z_inflateInit_ (strm, version, stream_size);
+        LOG_WRAPPERD("- inflateInit2 windowBits=%d\n", windowBits);
+        if (ret == Z_OK) {
+            ZWRAP_DCtx* const zwd = (ZWRAP_DCtx*)strm->state;
+            if (zwd == NULL) return Z_STREAM_ERROR;
+            zwd->windowBits = windowBits;
+        }
+        return ret;
     }
 }
 
@@ -552,7 +550,7 @@ int ZWRAP_inflateReset_keepDict(z_streamp strm)
     if (g_ZWRAPdecompressionType == ZWRAP_FORCE_ZLIB || !strm->reserved)
         return inflateReset(strm);
 
-    {   ZWRAP_DCtx* zwd = (ZWRAP_DCtx*) strm->state;
+    {   ZWRAP_DCtx* const zwd = (ZWRAP_DCtx*) strm->state;
         if (zwd == NULL) return Z_STREAM_ERROR;
         ZWRAP_initDCtx(zwd);
         zwd->decompState = ZWRAP_useReset;

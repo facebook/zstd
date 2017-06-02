@@ -5,7 +5,7 @@ Projects for various integrated development environments (IDE)
 
 The following projects are included with the zstd distribution:
 - `cmake` - CMake project contributed by Artyom Dymchenko
-- `VS2005` - Visual Studio 2005 project
+- `VS2005` - Visual Studio 2005 Project (this project has been moved to the contrib directory and will no longer be supported)
 - `VS2008` - Visual Studio 2008 project
 - `VS2010` - Visual Studio 2010 project (which also works well with Visual Studio 2012, 2013, 2015)
 - `VS_scripts` - command line scripts prepared for Visual Studio compilation without IDE

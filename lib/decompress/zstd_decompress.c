@@ -204,16 +204,14 @@ static void ZSTD_initDCtx_internal(ZSTD_DCtx* dctx)
 
 ZSTD_DCtx* ZSTD_createDCtx_advanced(ZSTD_customMem customMem)
 {
-    ZSTD_DCtx* dctx;
+    if (!customMem.customAlloc ^ !customMem.customFree) return NULL;
 
-    if (!customMem.customAlloc ^ !customMem.customFree)
-        return NULL;
-
-    dctx = (ZSTD_DCtx*)ZSTD_malloc(sizeof(ZSTD_DCtx), customMem);
-    if (!dctx) return NULL;
-    memcpy(&dctx->customMem, &customMem, sizeof(customMem));
-    ZSTD_initDCtx_internal(dctx);
-    return dctx;
+    {   ZSTD_DCtx* const dctx = (ZSTD_DCtx*)ZSTD_malloc(sizeof(*dctx), customMem);
+        if (!dctx) return NULL;
+        dctx->customMem = customMem;
+        ZSTD_initDCtx_internal(dctx);
+        return dctx;
+    }
 }
 
 ZSTD_DCtx* ZSTD_initStaticDCtx(void *workspace, size_t workspaceSize)

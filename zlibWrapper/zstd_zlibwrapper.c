@@ -15,7 +15,7 @@
 #define ZLIB_CONST
 #include <zlib.h>                  /* without #define Z_PREFIX */
 #include "zstd_zlibwrapper.h"
-#define ZSTD_STATIC_LINKING_ONLY   /* ZSTD_MAGICNUMBER */
+#define ZSTD_STATIC_LINKING_ONLY   /* ZSTD_isFrame, ZSTD_MAGICNUMBER */
 #include "zstd.h"
 #include "zstd_internal.h"         /* ZSTD_malloc, ZSTD_free */
 
@@ -1004,9 +1004,9 @@ ZEXTERN int ZEXPORT z_compress2 OF((Bytef *dest,   uLongf *destLen,
         return compress2(dest, destLen, source, sourceLen, level);
 
     { size_t dstCapacity = *destLen;
-      size_t const errorCode = ZSTD_compress(dest, dstCapacity, source, sourceLen, level);
-      if (ZSTD_isError(errorCode)) return Z_STREAM_ERROR;
-      *destLen = errorCode;
+      size_t const cSize = ZSTD_compress(dest, dstCapacity, source, sourceLen, level);
+      if (ZSTD_isError(cSize)) return Z_STREAM_ERROR;
+      *destLen = cSize;
     }
     return Z_OK;
 }
@@ -1024,13 +1024,13 @@ ZEXTERN uLong ZEXPORT z_compressBound OF((uLong sourceLen))
 ZEXTERN int ZEXPORT z_uncompress OF((Bytef *dest,   uLongf *destLen,
                                    const Bytef *source, uLong sourceLen))
 {
-    if (sourceLen < 4 || MEM_readLE32(source) != ZSTD_MAGICNUMBER)
+    if (!ZSTD_isFrame(source, sourceLen))
         return uncompress(dest, destLen, source, sourceLen);
 
     { size_t dstCapacity = *destLen;
-      size_t const errorCode = ZSTD_decompress(dest, dstCapacity, source, sourceLen);
-      if (ZSTD_isError(errorCode)) return Z_STREAM_ERROR;
-      *destLen = errorCode;
+      size_t const dSize = ZSTD_decompress(dest, dstCapacity, source, sourceLen);
+      if (ZSTD_isError(dSize)) return Z_STREAM_ERROR;
+      *destLen = dSize;
      }
     return Z_OK;
 }

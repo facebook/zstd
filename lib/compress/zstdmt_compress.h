@@ -32,16 +32,15 @@ ZSTDLIB_API ZSTDMT_CCtx* ZSTDMT_createCCtx_advanced(unsigned nbThreads,
 ZSTDLIB_API size_t ZSTDMT_freeCCtx(ZSTDMT_CCtx* mtctx);
 
 ZSTDLIB_API size_t ZSTDMT_sizeof_CCtx(ZSTDMT_CCtx* mtctx);
-ZSTDLIB_API size_t ZSTDMT_estimateCCtxSize(ZSTD_compressionParameters cParams,
-                                           unsigned nbThreads);   /* not ready yet */
+ZSTDLIB_API size_t ZSTDMT_estimateCCtxSize(ZSTD_compressionParameters cParams, unsigned nbThreads);   /* not ready yet */
 
 
 /* ===   Simple buffer-to-butter one-pass function   === */
 
 ZSTDLIB_API size_t ZSTDMT_compressCCtx(ZSTDMT_CCtx* mtctx,
-                           void* dst, size_t dstCapacity,
-                     const void* src, size_t srcSize,
-                           int compressionLevel);
+                                       void* dst, size_t dstCapacity,
+                                 const void* src, size_t srcSize,
+                                       int compressionLevel);
 
 
 /* ===   Streaming functions   === */

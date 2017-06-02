@@ -22,7 +22,7 @@
 /*-****************************************
 *  Version
 ******************************************/
-unsigned ZSTD_versionNumber (void) { return ZSTD_VERSION_NUMBER; }
+unsigned ZSTD_versionNumber(void) { return ZSTD_VERSION_NUMBER; }
 
 const char* ZSTD_versionString(void) { return ZSTD_VERSION_STRING; }
 

@@ -198,4 +198,9 @@ void POOL_add(void *ctx, POOL_function function, void *opaque) {
   function(opaque);
 }
 
+size_t POOL_sizeof(POOL_ctx *ctx) {
+    if (ctx==NULL) return 0;  /* supports sizeof NULL */
+    return sizeof(*ctx);
+}
+
 #endif  /* ZSTD_MULTITHREAD */

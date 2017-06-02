@@ -146,6 +146,13 @@ void POOL_free(POOL_ctx *ctx) {
     free(ctx);
 }
 
+size_t POOL_sizeof(POOL_ctx *ctx) {
+    if (ctx==NULL) return 0;  /* supports sizeof NULL */
+    return sizeof(*ctx)
+        + ctx->queueSize * sizeof(POOL_job)
+        + ctx->numThreads * sizeof(pthread_t);
+}
+
 void POOL_add(void *ctxVoid, POOL_function function, void *opaque) {
     POOL_ctx *ctx = (POOL_ctx *)ctxVoid;
     if (!ctx) { return; }

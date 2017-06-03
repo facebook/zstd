@@ -65,6 +65,10 @@ ZSTDLIB_API size_t ZSTDMT_initCStream_advanced(ZSTDMT_CCtx* mtctx,
                                         ZSTD_parameters params,
                                         unsigned long long pledgedSrcSize);  /* pledgedSrcSize is optional and can be zero == unknown */
 
+ZSTDLIB_API size_t ZSTDMT_initCStream_usingCDict(ZSTDMT_CCtx* mtctx,
+                                        const ZSTD_CDict* cdict,
+                                        ZSTD_frameParameters fparams,
+                                        unsigned long long pledgedSrcSize);  /* note : zero means empty */
 
 /* ZSDTMT_parameter :
  * List of parameters that can be set using ZSTDMT_setMTCtxParameter() */

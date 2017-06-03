@@ -70,19 +70,6 @@
 #define FSE_isError  ERR_isError
 #define HUF_isError  ERR_isError
 
-#if defined(ZSTD_DEBUG) && (ZSTD_DEBUG>=2)
-#  include <stdio.h>
-   static unsigned g_debugLevel = ZSTD_DEBUG;
-#  define DEBUGLOG(l, ...) {                          \
-                if (l<=g_debugLevel) {                \
-                    fprintf(stderr, __FILE__ ": ");   \
-                    fprintf(stderr, __VA_ARGS__);     \
-                    fprintf(stderr, " \n");           \
-            }   }
-#else
-#  define DEBUGLOG(l, ...)      {}    /* disabled */
-#endif
-
 
 /*_*******************************************************
 *  Memory operations

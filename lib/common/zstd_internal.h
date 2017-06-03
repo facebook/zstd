@@ -51,9 +51,36 @@
 #define ZSTD_STATIC_LINKING_ONLY
 #include "zstd.h"
 #ifndef XXH_STATIC_LINKING_ONLY
-#  define XXH_STATIC_LINKING_ONLY   /* XXH64_state_t */
+#  define XXH_STATIC_LINKING_ONLY  /* XXH64_state_t */
 #endif
-#include "xxhash.h"               /* XXH_reset, update, digest */
+#include "xxhash.h"                /* XXH_reset, update, digest */
+
+
+/*-*************************************
+*  Debug
+***************************************/
+#if defined(ZSTD_DEBUG) && (ZSTD_DEBUG>=1)
+#  include <assert.h>
+#else
+#  ifndef assert
+#    define assert(condition) ((void)0)
+#  endif
+#endif
+
+#define ZSTD_STATIC_ASSERT(c) { enum { ZSTD_static_assert = 1/(int)(!!(c)) }; }
+
+#if defined(ZSTD_DEBUG) && (ZSTD_DEBUG>=2)
+#  include <stdio.h>
+   static unsigned g_debugLevel = ZSTD_DEBUG;
+#  define DEBUGLOG(l, ...) {                          \
+                if (l<=g_debugLevel) {                \
+                    fprintf(stderr, __FILE__ ": ");   \
+                    fprintf(stderr, __VA_ARGS__);     \
+                    fprintf(stderr, " \n");           \
+            }   }
+#else
+#  define DEBUGLOG(l, ...)      {}    /* disabled */
+#endif
 
 
 /*-*************************************

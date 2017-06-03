@@ -58,7 +58,9 @@ extern "C" {
 #if defined(BIT_DEBUG) && (BIT_DEBUG>=1)
 #  include <assert.h>
 #else
-#  define assert(condition) ((void)0)
+#  ifndef assert
+#    define assert(condition) ((void)0)
+#  endif
 #endif
 
 
@@ -307,19 +309,19 @@ MEM_STATIC size_t BIT_initDStream(BIT_DStream_t* bitD, const void* srcBuffer, si
 
 	    case 6: bitD->bitContainer += (size_t)(((const BYTE*)(srcBuffer))[5]) << (sizeof(bitD->bitContainer)*8 - 24);
 	            /* fall-through */
-	
+
 	    case 5: bitD->bitContainer += (size_t)(((const BYTE*)(srcBuffer))[4]) << (sizeof(bitD->bitContainer)*8 - 32);
 	            /* fall-through */
-	
+
 	    case 4: bitD->bitContainer += (size_t)(((const BYTE*)(srcBuffer))[3]) << 24;
 	            /* fall-through */
-	
+
 	    case 3: bitD->bitContainer += (size_t)(((const BYTE*)(srcBuffer))[2]) << 16;
 	            /* fall-through */
-	
+
 	    case 2: bitD->bitContainer += (size_t)(((const BYTE*)(srcBuffer))[1]) <<  8;
 	            /* fall-through */
-	
+
             default: break;
         }
         { BYTE const lastByte = ((const BYTE*)srcBuffer)[srcSize-1];

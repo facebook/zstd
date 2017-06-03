@@ -486,7 +486,7 @@ static int basicUnitTests(U32 seed, double compressibility, ZSTD_customMem custo
     {   ZSTD_compressionParameters const cParams = ZSTD_getCParams(1, CNBufferSize, dictionary.filled);
         ZSTD_frameParameters const fParams = { 1 /* contentSize */, 1 /* checksum */, 1 /* noDictID */};
         ZSTD_CDict* const cdict = ZSTD_createCDict_advanced(dictionary.start, dictionary.filled, 1 /* byReference */, cParams, customMem);
-        size_t const initError = ZSTD_initCStream_usingCDict_advanced(zc, cdict, CNBufferSize, fParams);
+        size_t const initError = ZSTD_initCStream_usingCDict_advanced(zc, cdict, fParams, CNBufferSize);
         if (ZSTD_isError(initError)) goto _output_error;
         cSize = 0;
         outBuff.dst = compressedBuffer;
@@ -497,7 +497,7 @@ static int basicUnitTests(U32 seed, double compressibility, ZSTD_customMem custo
         inBuff.pos = 0;
         { size_t const r = ZSTD_compressStream(zc, &outBuff, &inBuff);
           if (ZSTD_isError(r)) goto _output_error; }
-        if (inBuff.pos != inBuff.size) goto _output_error;   /* entire input should be consumed */
+        if (inBuff.pos != inBuff.size) goto _output_error;  /* entire input should be consumed */
         { size_t const r = ZSTD_endStream(zc, &outBuff);
           if (r != 0) goto _output_error; }  /* error, or some data not flushed */
         cSize = outBuff.pos;
@@ -991,8 +991,8 @@ static int fuzzerTests_MT(U32 seed, U32 nbTests, unsigned startTest, double comp
             U32 const testLog = FUZ_rand(&lseed) % maxSrcLog;
             U32 const dictLog = FUZ_rand(&lseed) % maxSrcLog;
             U32 const cLevel = (FUZ_rand(&lseed) %
-                                (ZSTD_maxCLevel() -
-                                 (MAX(testLog, dictLog) / cLevelLimiter))) +
+                               (ZSTD_maxCLevel() -
+                               (MAX(testLog, dictLog) / cLevelLimiter))) +
                                1;
             maxTestSize = FUZ_rLogLength(&lseed, testLog);
             oldTestLog = testLog;

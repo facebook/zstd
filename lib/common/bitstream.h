@@ -75,6 +75,7 @@ extern "C" {
 #define STREAM_ACCUMULATOR_MIN_64  57
 #define STREAM_ACCUMULATOR_MIN    ((U32)(MEM_32bits() ? STREAM_ACCUMULATOR_MIN_32 : STREAM_ACCUMULATOR_MIN_64))
 
+
 /*-******************************************
 *  bitStream encoding API (write forward)
 ********************************************/

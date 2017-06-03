@@ -1,8 +1,9 @@
 v1.3.0
 cli : changed : `-t *` does no longer stop after a decompression error
-API : added : ZSTD_decompressBegin_usingDDict(), requested by Guy Riddle (#700)
-API : changed : unified CCtx/CStream and DCtx/DStream definitions
-API exp : changed : slowest strategy renamed ZSTD_btultra
+API exp : new advanced API : ZSTD_compress_generic(), ZSTD_CCtx_setParameter()
+API exp : new : API for static or external allocation : ZSTD_initStatic?Ctx()
+API exp : added : ZSTD_decompressBegin_usingDDict(), requested by Guy Riddle (#700)
+API exp : changed : strongest strategy renamed ZSTD_btultra
 new : contrib/seekable_format, demo and API, by Sean Purcell
 changed : contrib/linux-kernel, updated version and license, by Nick Terrell
 

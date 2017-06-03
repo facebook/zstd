@@ -209,6 +209,7 @@ ZSTD_DCtx* ZSTD_createDCtx_advanced(ZSTD_customMem customMem)
     {   ZSTD_DCtx* const dctx = (ZSTD_DCtx*)ZSTD_malloc(sizeof(*dctx), customMem);
         if (!dctx) return NULL;
         dctx->customMem = customMem;
+        dctx->legacyContext = NULL;
         ZSTD_initDCtx_internal(dctx);
         return dctx;
     }

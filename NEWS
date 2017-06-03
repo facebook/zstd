@@ -1,3 +1,11 @@
+v1.3.0
+cli : changed : `-t *` does no longer stop after a decompression error
+API : added : ZSTD_decompressBegin_usingDDict(), requested by Guy Riddle (#700)
+API : changed : unified CCtx/CStream and DCtx/DStream definitions
+API exp : changed : slowest strategy renamed ZSTD_btultra
+new : contrib/seekable_format, demo and API, by Sean Purcell
+changed : contrib/linux-kernel, updated version and license, by Nick Terrell
+
 v1.2.0
 cli : changed : Multithreading enabled by default (use target zstd-nomt or HAVE_THREAD=0 to disable)
 cli : new : command -T0 means "detect and use nb of cores", by Sean Purcell

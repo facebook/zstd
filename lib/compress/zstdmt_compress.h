@@ -15,8 +15,8 @@
  #endif
 
 
-/* Note : All prototypes defined in this file shall be considered experimental.
- *        There is no guarantee of API continuity (yet) on any of these prototypes */
+/* Note : All prototypes defined in this file must be considered experimental.
+ *        There is no guarantee of API continuity on any of these prototypes */
 
 /* ===   Dependencies   === */
 #include <stddef.h>   /* size_t */
@@ -60,8 +60,10 @@ ZSTDLIB_API size_t ZSTDMT_endStream(ZSTDMT_CCtx* mtctx, ZSTD_outBuffer* output);
 #  define ZSTDMT_SECTION_SIZE_MIN (1U << 20)   /* 1 MB - Minimum size of each compression job */
 #endif
 
-ZSTDLIB_API size_t ZSTDMT_initCStream_advanced(ZSTDMT_CCtx* mtctx, const void* dict, size_t dictSize,  /**< dict can be released after init, a local copy is preserved within zcs */
-                                          ZSTD_parameters params, unsigned long long pledgedSrcSize);  /**< pledgedSrcSize is optional and can be zero == unknown */
+ZSTDLIB_API size_t ZSTDMT_initCStream_advanced(ZSTDMT_CCtx* mtctx,
+                                        const void* dict, size_t dictSize,   /* dict can be released after init, a local copy is preserved within zcs */
+                                        ZSTD_parameters params,
+                                        unsigned long long pledgedSrcSize);  /* pledgedSrcSize is optional and can be zero == unknown */
 
 
 /* ZSDTMT_parameter :

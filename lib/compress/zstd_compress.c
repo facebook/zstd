@@ -29,31 +29,6 @@
 
 
 /*-*************************************
-*  Debug
-***************************************/
-#if defined(ZSTD_DEBUG) && (ZSTD_DEBUG>=1)
-#  include <assert.h>
-#else
-#  define assert(condition) ((void)0)
-#endif
-
-#define ZSTD_STATIC_ASSERT(c) { enum { ZSTD_static_assert = 1/(int)(!!(c)) }; }
-
-#if defined(ZSTD_DEBUG) && (ZSTD_DEBUG>=2)
-#  include <stdio.h>
-   static unsigned g_debugLevel = ZSTD_DEBUG;
-#  define DEBUGLOG(l, ...) {                          \
-                if (l<=g_debugLevel) {                \
-                    fprintf(stderr, __FILE__ ": ");   \
-                    fprintf(stderr, __VA_ARGS__);     \
-                    fprintf(stderr, " \n");           \
-            }   }
-#else
-#  define DEBUGLOG(l, ...)      {}    /* disabled */
-#endif
-
-
-/*-*************************************
 *  Constants
 ***************************************/
 static const U32 g_searchStrength = 8;   /* control skip over incompressible data */
@@ -3622,17 +3597,19 @@ static size_t ZSTD_compressStream_generic(ZSTD_CStream* zcs,
                                         ZSTD_inBuffer* input,
                                         ZSTD_EndDirective const flushMode)
 {
-    U32 someMoreWork = 1;
     const char* const istart = (const char*)input->src;
     const char* const iend = istart + input->size;
     const char* ip = istart + input->pos;
     char* const ostart = (char*)output->dst;
     char* const oend = ostart + output->size;
     char* op = ostart + output->pos;
+    U32 someMoreWork = 1;
 
-    /* expected to be already allocated */
+    /* check expectations */
     assert(zcs->inBuff != NULL);
     assert(zcs->outBuff!= NULL);
+    assert(output->pos <= output->size);
+    assert(input->pos <= input->size);
 
     while (someMoreWork) {
         switch(zcs->streamStage)
@@ -3765,7 +3742,6 @@ size_t ZSTD_compress_generic (ZSTD_CCtx* cctx,
     if (cctx->streamStage == zcss_init) {
         /* transparent reset */
         ZSTD_parameters params = cctx->requestedParams;
-        DEBUGLOG(5, "ZSTD_compress_generic : transparent reset");
         if (cctx->compressionLevel != ZSTD_CLEVEL_CUSTOM)
             params.cParams = ZSTD_getCParams(cctx->compressionLevel,
                                     cctx->frameContentSize, 0 /* dictSize */);
@@ -3775,7 +3751,7 @@ size_t ZSTD_compress_generic (ZSTD_CCtx* cctx,
     DEBUGLOG(5, "starting ZSTD_compressStream_generic");
     CHECK_F( ZSTD_compressStream_generic(cctx, output, input, endOp) );
 
-    DEBUGLOG(5, "completing ZSTD_compress_generic_integral");
+    DEBUGLOG(5, "completing ZSTD_compress_generic");
     return cctx->outBuffContentSize - cctx->outBuffFlushedSize; /* remaining to flush */
 }
 
@@ -3788,12 +3764,10 @@ size_t ZSTD_compress_generic_simpleArgs (
     ZSTD_outBuffer output = { dst, dstCapacity, *dstPos };
     ZSTD_inBuffer  input  = { src, srcSize, *srcPos };
     /* ZSTD_compress_generic() will check validity of dstPos and srcPos */
-    size_t const hint = ZSTD_compress_generic(cctx, &output, &input, endOp);
-    if (ZSTD_isError(hint)) return hint;
-
+    size_t const cErr = ZSTD_compress_generic(cctx, &output, &input, endOp);
     *dstPos = output.pos;
     *srcPos = input.pos;
-    return hint;
+    return cErr;
 
 }
 

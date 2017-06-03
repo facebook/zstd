@@ -14,25 +14,19 @@
 
 /* ======   Compiler specifics   ====== */
 #if defined(_MSC_VER)
-#  pragma warning(disable : 4204)        /* disable: C4204: non-constant aggregate initializer */
+#  pragma warning(disable : 4204)   /* disable: C4204: non-constant aggregate initializer */
 #endif
 
 
 /* ======   Dependencies   ====== */
-#include <string.h>     /* memcpy, memset */
-#include "pool.h"       /* threadpool */
-#include "threading.h"  /* mutex */
+#include <string.h>      /* memcpy, memset */
+#include "pool.h"        /* threadpool */
+#include "threading.h"   /* mutex */
 #include "zstd_internal.h"  /* MIN, ERROR, ZSTD_*, ZSTD_highbit32 */
 #include "zstdmt_compress.h"
 
 
 /* ======   Debug   ====== */
-#if defined(ZSTDMT_DEBUG) && (ZSTDMT_DEBUG>=1)
-#  include <assert.h>
-#else
-#  define assert(condition) ((void)0)
-#endif
-
 #if defined(ZSTDMT_DEBUG) && (ZSTDMT_DEBUG>=2)
 
 #  include <stdio.h>
@@ -573,17 +567,15 @@ static void ZSTDMT_waitForAllJobsCompleted(ZSTDMT_CCtx* zcs)
 
 
 static size_t ZSTDMT_initCStream_internal(ZSTDMT_CCtx* zcs,
-                                    const void* dict, size_t dictSize, unsigned updateDict,
-                                    ZSTD_parameters params, unsigned long long pledgedSrcSize)
+                        const void* dict, size_t dictSize, unsigned updateDict,
+                        ZSTD_parameters params, unsigned long long pledgedSrcSize)
 {
-    ZSTD_customMem const cmem = { NULL, NULL, NULL };
-    DEBUGLOG(3, "Started new compression, with windowLog : %u",
-                    params.cParams.windowLog);
     if (zcs->nbThreads==1)
         return ZSTD_initCStream_advanced(zcs->cctxPool->cctx[0],
                                         dict, dictSize,
                                         params, pledgedSrcSize);
-    if (zcs->allJobsCompleted == 0) {   /* previous job not correctly finished */
+
+    if (zcs->allJobsCompleted == 0) {   /* previous compression not correctly finished */
         ZSTDMT_waitForAllJobsCompleted(zcs);
         ZSTDMT_releaseAllJobResources(zcs);
         zcs->allJobsCompleted = 1;
@@ -592,7 +584,8 @@ static size_t ZSTDMT_initCStream_internal(ZSTDMT_CCtx* zcs,
     if (updateDict) {
         ZSTD_freeCDict(zcs->cdict); zcs->cdict = NULL;
         if (dict && dictSize) {
-            zcs->cdict = ZSTD_createCDict_advanced(dict, dictSize, 0, params.cParams, cmem);
+            zcs->cdict = ZSTD_createCDict_advanced(dict, dictSize, 0 /* byRef */,
+                                                params.cParams, zcs->cMem);
             if (zcs->cdict == NULL) return ERROR(memory_allocation);
     }   }
     zcs->frameContentSize = pledgedSrcSize;

@@ -305,12 +305,12 @@ MEM_STATIC U32 ZSTD_highbit32(U32 val)
 void ZSTD_invalidateRepCodes(ZSTD_CCtx* cctx);
 
 
+typedef enum { ZSTDb_not_buffered, ZSTDb_buffered } ZSTD_buffered_policy_e;
 /*! ZSTD_compressBegin_internal() :
  *  innermost initialization function. Private use only.
  *  expects params to be valid.
  *  must receive dict, or cdict, or none, but not both.
  *  @return : 0, or an error code */
-typedef enum { ZSTDb_not_buffered, ZSTDb_buffered } ZSTD_buffered_policy_e;
 size_t ZSTD_compressBegin_internal(ZSTD_CCtx* cctx,
                              const void* dict, size_t dictSize,
                              const ZSTD_CDict* cdict,

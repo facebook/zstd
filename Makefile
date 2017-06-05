@@ -108,7 +108,7 @@ clean:
 #------------------------------------------------------------------------------
 # make install is validated only for Linux, OSX, Hurd and some BSD targets
 #------------------------------------------------------------------------------
-ifneq (,$(filter $(shell uname),Linux Darwin GNU/kFreeBSD GNU FreeBSD DragonFly NetBSD))
+ifneq (,$(filter $(shell uname),Linux Darwin GNU/kFreeBSD GNU FreeBSD DragonFly NetBSD MSYS_NT))
 
 HOST_OS = POSIX
 CMAKE_PARAMS = -DZSTD_BUILD_CONTRIB:BOOL=ON -DZSTD_BUILD_STATIC:BOOL=ON -DZSTD_BUILD_TESTS:BOOL=ON -DZSTD_ZLIB_SUPPORT:BOOL=ON -DZSTD_LZMA_SUPPORT:BOOL=ON

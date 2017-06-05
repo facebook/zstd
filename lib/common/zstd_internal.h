@@ -324,9 +324,9 @@ size_t ZSTD_compressBegin_internal(ZSTD_CCtx* cctx,
  *  must receive dict, or cdict, or none, but not both.
  *  @return : 0, or an error code */
 size_t ZSTD_initCStream_internal(ZSTD_CStream* zcs,
-                           const void* dict, size_t dictSize,
-                           const ZSTD_CDict* cdict,
-                           ZSTD_parameters params, U64 pledgedSrcSize);
+                     const void* dict, size_t dictSize,
+                     const ZSTD_CDict* cdict,
+                     ZSTD_parameters params, unsigned long long pledgedSrcSize);
 
 
 /*! ZSTD_getParamsFromCDict() :

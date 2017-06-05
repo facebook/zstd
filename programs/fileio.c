@@ -862,6 +862,11 @@ int FIO_compressFilename(const char* dstFileName, const char* srcFileName,
     return result;
 }
 
+int FIO_listFile(const char* infilename){
+    DISPLAY("FILE DETECTED: %s\n", infilename);
+    DISPLAY("working\n"); 
+    return 0;
+}
 
 int FIO_compressMultipleFilenames(const char** inFileNamesTable, unsigned nbFiles,
                                   const char* suffix,

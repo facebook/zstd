@@ -864,7 +864,11 @@ int FIO_compressFilename(const char* dstFileName, const char* srcFileName,
 
 int FIO_listFile(const char* infilename){
     DISPLAY("FILE DETECTED: %s\n", infilename);
-    DISPLAY("working\n"); 
+    const char* const suffixPtr = strrchr(infilename, '.');
+    if(!suffixPtr || strcmp(suffixPtr, ZSTD_EXTENSION)){
+        DISPLAYLEVEL(1, "file %s was not compressed with zstd -- ignoring\n", infilename);
+        return 1; 
+    }
     return 0;
 }
 

@@ -862,12 +862,22 @@ int FIO_compressFilename(const char* dstFileName, const char* srcFileName,
     return result;
 }
 
-int FIO_listFile(const char* infilename){
+int FIO_listFile(const char* infilename, int displayLevel){
     DISPLAY("FILE DETECTED: %s\n", infilename);
     const char* const suffixPtr = strrchr(infilename, '.');
     if(!suffixPtr || strcmp(suffixPtr, ZSTD_EXTENSION)){
         DISPLAYLEVEL(1, "file %s was not compressed with zstd -- ignoring\n", infilename);
         return 1; 
+    }
+    else{
+        U64 const compSize = UTIL_getFileSize(infilename); 
+        if(displayLevel<=2){
+            DISPLAY("Skippable  Non-Skippable  Compressed  Uncompressed  Ratio  Check  Filename\n");     
+            DISPLAY("                          %7.2f MB\n", (double)compSize/(1 MB)); 
+        }
+        else{
+            DISPLAY("Compressed Size: %.2f MB (%llu B)\n", (double)compSize/(1 MB), compSize);
+        }
     }
     return 0;
 }

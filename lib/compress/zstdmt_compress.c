@@ -559,9 +559,9 @@ static void ZSTDMT_waitForAllJobsCompleted(ZSTDMT_CCtx* zcs)
 }
 
 
-static size_t ZSTDMT_initCStream_internal(ZSTDMT_CCtx* zcs,
-                        const void* dict, size_t dictSize, const ZSTD_CDict* cdict,
-                        ZSTD_parameters params, unsigned long long pledgedSrcSize)
+size_t ZSTDMT_initCStream_internal(ZSTDMT_CCtx* zcs,
+                    const void* dict, size_t dictSize, const ZSTD_CDict* cdict,
+                    ZSTD_parameters params, unsigned long long pledgedSrcSize)
 {
     /* params are supposed to be fully validated at this point */
     assert(!ZSTD_isError(ZSTD_checkCParams(params.cParams)));
@@ -848,4 +848,23 @@ size_t ZSTDMT_endStream(ZSTDMT_CCtx* zcs, ZSTD_outBuffer* output)
     if (zcs->nbThreads==1)
         return ZSTD_endStream(zcs->cctxPool->cctx[0], output);
     return ZSTDMT_flushStream_internal(zcs, output, 1);
+}
+
+size_t ZSTDMT_compressStream_generic(ZSTDMT_CCtx* mtctx,
+                                    ZSTD_outBuffer* output,
+                                    ZSTD_inBuffer* input,
+                                    ZSTD_EndDirective endOp)
+{
+    CHECK_F (ZSTDMT_compressStream(mtctx, output, input));
+    switch(endOp)
+    {
+        case ZSTD_e_flush:
+            return ZSTDMT_flushStream(mtctx, output);
+        case ZSTD_e_end:
+            return ZSTDMT_endStream(mtctx, output);
+        case ZSTD_e_continue:
+            return 1;
+        default:
+            return ERROR(GENERIC);
+    }
 }

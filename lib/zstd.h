@@ -828,7 +828,7 @@ ZSTDLIB_API size_t ZSTD_CCtx_reset(ZSTD_CCtx* cctx);   /* Not ready yet ! */
  *  Same as ZSTD_compress_generic(),
  *  but using only simple integral types as arguments.
  *  Argument list is less expressive than ZSTD_{in,out}Buffer,
- *  but can be helpful for binders towards dynamic languages
+ *  but can be helpful for binders to dynamic languages
  *  which have troubles handling structures containing memory pointers.
  */
 size_t ZSTD_compress_generic_simpleArgs (

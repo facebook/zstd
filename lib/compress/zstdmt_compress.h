@@ -85,6 +85,19 @@ typedef enum {
 ZSTDLIB_API size_t ZSTDMT_setMTCtxParameter(ZSTDMT_CCtx* mtctx, ZSDTMT_parameter parameter, unsigned value);
 
 
+/*! ZSTDMT_compressStream_generic() :
+ *  Combines ZSTDMT_compressStream() with ZSTDMT_flushStream() or ZSTDMT_endStream()
+ *  depending on flush directive
+ * @return : minimum amount of data still to be flushed
+ *           0 if fully flushed
+ *           or an error code */
+ZSTDLIB_API size_t ZSTDMT_compressStream_generic(ZSTDMT_CCtx* mtctx,
+                                                ZSTD_outBuffer* output,
+                                                ZSTD_inBuffer* input,
+                                                ZSTD_EndDirective endOp);
+
+
+
 #if defined (__cplusplus)
 }
 #endif

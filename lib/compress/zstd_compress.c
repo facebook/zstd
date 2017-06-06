@@ -3734,6 +3734,16 @@ size_t ZSTD_compressStream(ZSTD_CStream* zcs, ZSTD_outBuffer* output, ZSTD_inBuf
     return ZSTD_compressStream_generic(zcs, output, input, ZSTD_e_continue);
 }
 
+/*! ZSTDMT_initCStream_internal() :
+ *  Private use only. Init streaming operation.
+ *  expects params to be valid.
+ *  must receive dict, or cdict, or none, but not both.
+ *  @return : 0, or an error code */
+size_t ZSTDMT_initCStream_internal(ZSTDMT_CCtx* zcs,
+                    const void* dict, size_t dictSize, const ZSTD_CDict* cdict,
+                    ZSTD_parameters params, unsigned long long pledgedSrcSize);
+
+
 size_t ZSTD_compress_generic (ZSTD_CCtx* cctx,
                               ZSTD_outBuffer* output,
                               ZSTD_inBuffer* input,
@@ -3750,12 +3760,19 @@ size_t ZSTD_compress_generic (ZSTD_CCtx* cctx,
         if (cctx->compressionLevel != ZSTD_CLEVEL_CUSTOM)
             params.cParams = ZSTD_getCParams(cctx->compressionLevel,
                                     cctx->frameContentSize, 0 /* dictSize */);
-        CHECK_F( ZSTD_resetCStream_internal(cctx, params, cctx->frameContentSize) );
+        if (cctx->nbThreads > 1) {
+            CHECK_F( ZSTDMT_initCStream_internal(cctx->mtctx, NULL, 0, cctx->cdict, params, cctx->frameContentSize) );
+        } else {
+            CHECK_F( ZSTD_resetCStream_internal(cctx, params, cctx->frameContentSize) );
+    }   }
+
+    if (cctx->nbThreads > 1) {
+        DEBUGLOG(5, "starting ZSTDMT_compressStream_generic");
+        return ZSTDMT_compressStream_generic(cctx->mtctx, output, input, endOp) ;
     }
 
     DEBUGLOG(5, "starting ZSTD_compressStream_generic");
     CHECK_F( ZSTD_compressStream_generic(cctx, output, input, endOp) );
-
     DEBUGLOG(5, "completing ZSTD_compress_generic");
     return cctx->outBuffContentSize - cctx->outBuffFlushedSize; /* remaining to flush */
 }
@@ -3773,7 +3790,6 @@ size_t ZSTD_compress_generic_simpleArgs (
     *dstPos = output.pos;
     *srcPos = input.pos;
     return cErr;
-
 }
 
 

@@ -680,7 +680,7 @@ int main(int argCount, const char* argv[])
         unsigned u;
         DISPLAY("Number of files listed: %d\n", filenameIdx);
         for(u=0; u<filenameIdx;u++){
-            FIO_listFile(filenameTable[u]);             
+            FIO_listFile(filenameTable[u],g_displayLevel);             
         }
         CLEAN_RETURN(0);
     }

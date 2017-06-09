@@ -240,7 +240,7 @@ struct {
 } opts; /* advanced options on generation */
 
 /* Generate and write a random frame header */
-static void writeFrameHeader(U32* seed, frame_t* frame, int genDict)
+static void writeFrameHeader(U32* seed, frame_t* frame, int genDict, size_t dictSize)
 {
     BYTE* const op = frame->data;
     size_t pos = 0;
@@ -306,17 +306,18 @@ static void writeFrameHeader(U32* seed, frame_t* frame, int genDict)
     pos += 4;
 
     {
+        int dictBits = genDict ? 3 : 0;
         BYTE const frameHeaderDescriptor =
-                (BYTE) ((fcsCode << 6) | (singleSegment << 5) | (1 << 2));
-        if(genDict)
-            frameHeaderDescriptor += 3; /* set lower bits for dictionary ID */
+                (BYTE) ((fcsCode << 6) | (singleSegment << 5) | (1 << 2) | dictBits);
         op[pos++] = frameHeaderDescriptor;
     }
 
     if (!singleSegment) {
         op[pos++] = windowByte;
     }
-
+    if(genDict) {
+        MEM_writeLE32(op + pos, (U32) dictSize);
+    }
     if (contentSizeFlag) {
         switch (fcsCode) {
         default: /* Impossible */
@@ -1129,7 +1130,7 @@ static U32 generateFrame(U32 seed, frame_t* fr, int genDict, size_t dictSize)
     DISPLAYLEVEL(1, "frame seed: %u\n", seed);
     initFrame(fr);
 
-    writeFrameHeader(&seed, fr, genDict);
+    writeFrameHeader(&seed, fr, genDict, dictSize);
     writeBlocks(&seed, fr);
     writeChecksum(fr);
 

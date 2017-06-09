@@ -608,7 +608,7 @@ static inline void initSeqStore(seqStore_t *seqStore) {
 
 /* Randomly generate sequence commands */
 static U32 generateSequences(U32* seed, frame_t* frame, seqStore_t* seqStore,
-                                size_t contentSize, size_t literalsSize)
+                                size_t contentSize, size_t literalsSize, int genDict, size_t dictSize)
 {
     /* The total length of all the matches */
     size_t const remainingMatch = contentSize - literalsSize;
@@ -665,6 +665,12 @@ static U32 generateSequences(U32* seed, frame_t* frame, seqStore_t* seqStore,
                           MIN(frame->header.windowSize,
                               (size_t)((BYTE*)srcPtr - (BYTE*)frame->srcStart))) +
                          1;
+                if(genDict && (RAND(seed) & 1)) {
+                    /* need to occasionally generate offsets that go past the start */
+                    /* we still need to be within the windowSize however */
+                    const U32 lenPastStart = RAND(seed) % dictSize;
+                    offset = MIN(frame->header.windowSize, offset+lenPastStart);
+                }
                 offsetCode = offset + ZSTD_REP_MOVE;
                 repIndex = 2;
             } else {
@@ -934,7 +940,7 @@ static size_t writeSequences(U32* seed, frame_t* frame, seqStore_t* seqStorePtr,
 }
 
 static size_t writeSequencesBlock(U32* seed, frame_t* frame, size_t contentSize,
-                                  size_t literalsSize)
+                                  size_t literalsSize, int genDict, size_t dictSize)
 {
     seqStore_t seqStore;
     size_t numSequences;
@@ -943,14 +949,14 @@ static size_t writeSequencesBlock(U32* seed, frame_t* frame, size_t contentSize,
     initSeqStore(&seqStore);
 
     /* randomly generate sequences */
-    numSequences = generateSequences(seed, frame, &seqStore, contentSize, literalsSize);
+    numSequences = generateSequences(seed, frame, &seqStore, contentSize, literalsSize, genDict, dictSize);
     /* write them out to the frame data */
     CHECKERR(writeSequences(seed, frame, &seqStore, numSequences));
 
     return numSequences;
 }
 
-static size_t writeCompressedBlock(U32* seed, frame_t* frame, size_t contentSize)
+static size_t writeCompressedBlock(U32* seed, frame_t* frame, size_t contentSize, int genDict, size_t dictSize)
 {
     BYTE* const blockStart = (BYTE*)frame->data;
     size_t literalsSize;
@@ -962,7 +968,7 @@ static size_t writeCompressedBlock(U32* seed, frame_t* frame, size_t contentSize
 
     DISPLAYLEVEL(4, "   literals size: %u\n", (U32)literalsSize);
 
-    nbSeq = writeSequencesBlock(seed, frame, contentSize, literalsSize);
+    nbSeq = writeSequencesBlock(seed, frame, contentSize, literalsSize, genDict, dictSize);
 
     DISPLAYLEVEL(4, "   number of sequences: %u\n", (U32)nbSeq);
 
@@ -970,7 +976,7 @@ static size_t writeCompressedBlock(U32* seed, frame_t* frame, size_t contentSize
 }
 
 static void writeBlock(U32* seed, frame_t* frame, size_t contentSize,
-                       int lastBlock)
+                       int lastBlock, int genDict, size_t dictSize)
 {
     int const blockTypeDesc = RAND(seed) % 8;
     size_t blockSize;
@@ -1010,7 +1016,7 @@ static void writeBlock(U32* seed, frame_t* frame, size_t contentSize,
         frame->oldStats = frame->stats;
 
         frame->data = op;
-        compressedSize = writeCompressedBlock(seed, frame, contentSize);
+        compressedSize = writeCompressedBlock(seed, frame, contentSize, genDict, dictSize);
         if (compressedSize > contentSize) {
             blockType = 0;
             memcpy(op, frame->src, contentSize);
@@ -1036,7 +1042,7 @@ static void writeBlock(U32* seed, frame_t* frame, size_t contentSize,
     frame->data = op;
 }
 
-static void writeBlocks(U32* seed, frame_t* frame)
+static void writeBlocks(U32* seed, frame_t* frame, int genDict, size_t dictSize)
 {
     size_t contentLeft = frame->header.contentSize;
     size_t const maxBlockSize = MIN(MAX_BLOCK_SIZE, frame->header.windowSize);
@@ -1059,7 +1065,7 @@ static void writeBlocks(U32* seed, frame_t* frame)
             }
         }
 
-        writeBlock(seed, frame, blockContentSize, lastBlock);
+        writeBlock(seed, frame, blockContentSize, lastBlock, genDict, dictSize);
 
         contentLeft -= blockContentSize;
         if (lastBlock) break;
@@ -1131,7 +1137,7 @@ static U32 generateFrame(U32 seed, frame_t* fr, int genDict, size_t dictSize)
     initFrame(fr);
 
     writeFrameHeader(&seed, fr, genDict, dictSize);
-    writeBlocks(&seed, fr);
+    writeBlocks(&seed, fr, genDict, dictSize);
     writeChecksum(fr);
 
     return seed;

@@ -68,6 +68,15 @@ static size_t checkBuffers(const void* buff1, const void* buff2, size_t buffSize
     return pos;
 }
 
+static void crashWithMessage(const char* message, int errorCode){
+    /* abort if AFL/libfuzzer, exit otherwise */
+    fprintf(stderr, "%s", message);
+    #ifdef FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION /* could also use __AFL_COMPILER */
+        abort();
+    #else
+        exit(errorCode);
+    #endif
+}
 
 static void roundTripCheck(const void* srcBuff, size_t srcBuffSize)
 {

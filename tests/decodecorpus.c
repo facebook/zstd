@@ -1121,19 +1121,19 @@ static void initFrame(frame_t* fr)
 }
 
 /* Return the final seed */
-static U32 generateFrame(U32 seed, frame_t* fr)
+static U32 generateFrame(U32 seed, frame_t* fr, int genDict, size_t dictSize)
 {
     /* generate a complete frame */
     DISPLAYLEVEL(1, "frame seed: %u\n", seed);
-
     initFrame(fr);
-
+    
     writeFrameHeader(&seed, fr);
     writeBlocks(&seed, fr);
     writeChecksum(fr);
 
     return seed;
 }
+
 
 /*-*******************************************************
 *  Test Mode
@@ -1215,7 +1215,7 @@ static int runTestMode(U32 seed, unsigned numFiles, unsigned const testDurationS
         else
             DISPLAYUPDATE("\r%u           ", fnum);
 
-        seed = generateFrame(seed, &fr);
+        seed = generateFrame(seed, &fr, 0, 0);
 
         {   size_t const r = testDecodeSimple(&fr);
             if (ZSTD_isError(r)) {
@@ -1250,7 +1250,7 @@ static int generateFile(U32 seed, const char* const path,
 
     DISPLAY("seed: %u\n", seed);
 
-    generateFrame(seed, &fr);
+    generateFrame(seed, &fr, 0, 0);
 
     outputBuffer(fr.dataStart, (BYTE*)fr.data - (BYTE*)fr.dataStart, path);
     if (origPath) {
@@ -1272,7 +1272,7 @@ static int generateCorpus(U32 seed, unsigned numFiles, const char* const path,
 
         DISPLAYUPDATE("\r%u/%u        ", fnum, numFiles);
 
-        seed = generateFrame(seed, &fr);
+        seed = generateFrame(seed, &fr, 0, 0);
 
         if (snprintf(outPath, MAX_PATH, "%s/z%06u.zst", path, fnum) + 1 > MAX_PATH) {
             DISPLAY("Error: path too long\n");
@@ -1291,6 +1291,81 @@ static int generateCorpus(U32 seed, unsigned numFiles, const char* const path,
 
     DISPLAY("\r%u/%u      \n", fnum, numFiles);
 
+    return 0;
+}
+
+static int generateCorpusWithDict(U32 seed, unsigned numFiles, const char* const path,
+                                    const char* const origPath, const size_t dictSize)
+{
+    const size_t minDictSize = 8;
+    char outPath[MAX_PATH];
+    U32 dictID;
+    BYTE* dictStart;
+    unsigned fnum;
+    ZSTD_DCtx* dctx = ZSTD_createDCtx();
+    if(snprintf(outPath, MAX_PATH, "%s/dictionary", path) + 1 > MAX_PATH) {
+        DISPLAY("Error: path too long\n");
+        return 1;
+    }
+
+    /* Generate the dictionary randomly first */
+    if(dictSize < minDictSize){
+        DISPLAY("Error: dictionary size (%zu) is too small\n", dictSize);
+    }
+    else{
+        /* variable declaration */
+        dictStart = malloc(dictSize);
+        size_t pos = 0;
+        dictID = RAND(&seed) + 1;
+
+        /* write dictionary magic number */
+        MEM_writeLE32(dictStart + pos, ZSTD_DICT_MAGIC);
+        pos += 4;
+
+        /* write random dictionary ID */
+        MEM_writeLE32(dictStart + pos, dictID);
+        pos += 4;
+
+        /* randomly generate the rest of the dictionary */
+        RAND_buffer(&seed, dictStart + pos, dictSize-8);
+        outputBuffer(dictStart, dictSize, outPath);
+    }
+
+    /* generate random compressed/decompressed files */
+    for (fnum = 0; fnum < numFiles; fnum++) {
+        frame_t fr;
+        size_t returnValue;
+        BYTE* decompressedPtr = malloc(MAX_DECOMPRESSED_SIZE);
+
+        DISPLAYUPDATE("\r%u/%u        ", fnum, numFiles);
+
+        seed = generateFrame(seed, &fr, 1, dictSize);
+
+        if (snprintf(outPath, MAX_PATH, "%s/z%06u.zst", path, fnum) + 1 > MAX_PATH) {
+            DISPLAY("Error: path too long\n");
+            return 1;
+        }
+        outputBuffer(fr.dataStart, (BYTE*)fr.data - (BYTE*)fr.dataStart, outPath);
+
+        if (origPath) {
+            if (snprintf(outPath, MAX_PATH, "%s/z%06u", origPath, fnum) + 1 > MAX_PATH) {
+                DISPLAY("Error: path too long\n");
+                return 1;
+            }
+            outputBuffer(fr.srcStart, (BYTE*)fr.src - (BYTE*)fr.srcStart, outPath);
+        }
+
+        /* if asked, supply the decompressed version */
+
+        returnValue = ZSTD_decompress_usingDict(dctx, decompressedPtr, MAX_DECOMPRESSED_SIZE,
+                                               fr.srcStart, (BYTE*)fr.src - (BYTE*)fr.srcStart,
+                                               dictStart,dictSize);
+
+    }
+
+
+    /* write uncompressed versions of files */
+    DISPLAY("This is origPath: %s\nAnd this is numFiles: %d\n", origPath, numFiles);
     return 0;
 }
 
@@ -1350,6 +1425,8 @@ int main(int argc, char** argv)
     int testMode = 0;
     const char* path = NULL;
     const char* origPath = NULL;
+    int genDict = 0;
+    unsigned dictSize = (10 << 10); /* 10 kB default */
 
     int argNb;
 
@@ -1410,6 +1487,10 @@ int main(int argc, char** argv)
                     argument++;
                     if (strcmp(argument, "content-size") == 0) {
                         opts.contentSize = 1;
+                    } else if(strcmp(argument, "train-dict") == 0){
+                        argument += 11;
+                        dictSize = readInt(&argument);
+                        genDict = 1;
                     } else {
                         advancedUsage(argv[0]);
                         return 1;
@@ -1441,9 +1522,16 @@ int main(int argc, char** argv)
         return 1;
     }
 
-    if (numFiles == 0) {
+    if (numFiles == 0 && genDict == 0) {
         return generateFile(seed, path, origPath);
-    } else {
+    } else if (genDict == 0){
         return generateCorpus(seed, numFiles, path, origPath);
+    } else if (numFiles == 0){
+        /* should generate a single file with a dictionary */
+        return generateCorpusWithDict(seed, 1, path, origPath, dictSize);
+    } else{
+        /* should generate multiple files with a dictionary */
+        return generateCorpusWithDict(seed, numFiles, path, origPath, dictSize);
     }
+
 }

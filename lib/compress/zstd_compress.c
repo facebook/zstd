@@ -3762,13 +3762,15 @@ size_t ZSTD_compress_generic (ZSTD_CCtx* cctx,
                                     cctx->frameContentSize, 0 /* dictSize */);
         if (cctx->nbThreads > 1) {
             CHECK_F( ZSTDMT_initCStream_internal(cctx->mtctx, NULL, 0, cctx->cdict, params, cctx->frameContentSize) );
+            cctx->streamStage = zcss_load;
         } else {
             CHECK_F( ZSTD_resetCStream_internal(cctx, params, cctx->frameContentSize) );
     }   }
 
     if (cctx->nbThreads > 1) {
-        DEBUGLOG(5, "starting ZSTDMT_compressStream_generic");
-        return ZSTDMT_compressStream_generic(cctx->mtctx, output, input, endOp) ;
+        size_t const flushMin = ZSTDMT_compressStream_generic(cctx->mtctx, output, input, endOp);
+        if (ZSTD_isError(flushMin)) cctx->streamStage = zcss_init;
+        return flushMin;
     }
 
     DEBUGLOG(5, "starting ZSTD_compressStream_generic");

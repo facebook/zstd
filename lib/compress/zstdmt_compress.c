@@ -851,11 +851,11 @@ size_t ZSTDMT_endStream(ZSTDMT_CCtx* zcs, ZSTD_outBuffer* output)
 }
 
 size_t ZSTDMT_compressStream_generic(ZSTDMT_CCtx* mtctx,
-                                    ZSTD_outBuffer* output,
-                                    ZSTD_inBuffer* input,
-                                    ZSTD_EndDirective endOp)
+                                     ZSTD_outBuffer* output,
+                                     ZSTD_inBuffer* input,
+                                     ZSTD_EndDirective endOp)
 {
-    CHECK_F (ZSTDMT_compressStream(mtctx, output, input));
+    CHECK_F(ZSTDMT_compressStream(mtctx, output, input));
     switch(endOp)
     {
         case ZSTD_e_flush:

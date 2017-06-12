@@ -68,13 +68,20 @@ static size_t checkBuffers(const void* buff1, const void* buff2, size_t buffSize
     return pos;
 }
 
+static void crash(int errorCode){
+    /* abort if AFL/libfuzzer, exit otherwise */
+    #ifdef FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION /* could also use __AFL_COMPILER */
+        abort();
+    #else
+        exit(errorCode);
+    #endif
+}
 
 static void roundTripCheck(const void* srcBuff, size_t srcBuffSize)
 {
     size_t const cBuffSize = ZSTD_compressBound(srcBuffSize);
     void* cBuff = malloc(cBuffSize);
     void* rBuff = malloc(cBuffSize);
-    #define CRASH { free(cBuff); free(cBuff); }   /* double free, to crash program */
 
     if (!cBuff || !rBuff) {
         fprintf(stderr, "not enough memory ! \n");
@@ -84,15 +91,15 @@ static void roundTripCheck(const void* srcBuff, size_t srcBuffSize)
     {   size_t const result = roundTripTest(rBuff, cBuffSize, cBuff, cBuffSize, srcBuff, srcBuffSize);
         if (ZSTD_isError(result)) {
             fprintf(stderr, "roundTripTest error : %s \n", ZSTD_getErrorName(result));
-            CRASH;
+            crash(1);
         }
         if (result != srcBuffSize) {
             fprintf(stderr, "Incorrect regenerated size : %u != %u\n", (unsigned)result, (unsigned)srcBuffSize);
-            CRASH;
+            crash(1);
         }
         if (checkBuffers(srcBuff, rBuff, srcBuffSize) != srcBuffSize) {
             fprintf(stderr, "Silent decoding corruption !!!");
-            CRASH;
+            crash(1);
         }
     }
 

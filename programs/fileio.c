@@ -918,7 +918,7 @@ int getFileInfo(fileInfo_t* info, const char* inFileName){
             fread(frameHeader, totalFrameHeaderBytes, 1, srcFile);
 
             /* get decompressed file size */
-            info->decompressedSize = ZSTD_getFrameContentSize(frameHeader, totalFrameHeaderBytes);
+            info->decompressedSize += ZSTD_getFrameContentSize(frameHeader, totalFrameHeaderBytes);
 
             /* check if checksum is used */
             if(contentChecksumFlag){

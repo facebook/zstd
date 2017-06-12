@@ -866,6 +866,7 @@ typedef struct {
     int numActualFrames;
     int numSkippableFrames;
     U64 decompressedSize;
+    int canComputeDecompSize;
     U64 compressedSize;
     int usesCheck;
 } fileInfo_t;
@@ -885,6 +886,7 @@ int getFileInfo(fileInfo_t* info, const char* inFileName){
     info->decompressedSize = 0;
     info->numActualFrames = 0;
     info-> numSkippableFrames = 0;
+    info->canComputeDecompSize = 1;
     /* begin analyzing frame */
     while(1){
         BYTE magicNumberBuffer[4];
@@ -918,7 +920,13 @@ int getFileInfo(fileInfo_t* info, const char* inFileName){
             fread(frameHeader, totalFrameHeaderBytes, 1, srcFile);
 
             /* get decompressed file size */
-            info->decompressedSize += ZSTD_getFrameContentSize(frameHeader, totalFrameHeaderBytes);
+            U64 additional = ZSTD_getFrameContentSize(frameHeader, totalFrameHeaderBytes);
+            if(additional!=ZSTD_CONTENTSIZE_UNKNOWN && additional!=ZSTD_CONTENTSIZE_ERROR){
+                info->decompressedSize += additional;
+            }
+            else{
+                info->canComputeDecompSize = 0;
+            }
 
             /* check if checksum is used */
             if(contentChecksumFlag){
@@ -966,9 +974,14 @@ int FIO_listFile(const char* inFileName, int displayLevel){
             DISPLAY("An error occurred with getting file info\n");
             exit(1);
         }
+
+        double compressedSizeMB = (double)info->compressedSize/(1 MB);
+        double decompressedSizeMB = (double)info->decompressedSize/(1 MB);
+        DISPLAY("%d %d\n", info->canComputeDecompSize, info->usesCheck);
+
         if(displayLevel<=2){
             DISPLAY("Skippable  Non-Skippable  Compressed  Uncompressed  Ratio  Check  Filename\n");
-            DISPLAY("                          %7.2f MB\n", (double)info->compressedSize/(1 MB));
+            DISPLAY("                          %7.2f MB    %7.2f MB\n", compressedSizeMB, decompressedSizeMB);
         }
         else{
             DISPLAY("Compressed Size: %.2f MB (%llu B)\n", (double)info->compressedSize/(1 MB), info->compressedSize);

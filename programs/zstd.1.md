@@ -230,8 +230,8 @@ BENCHMARK
     benchmark file(s) using multiple compression levels, from `-b#` to `-e#` (inclusive)
 * `-i#`:
     minimum evaluation time, in seconds (default : 3s), benchmark mode only
-* `-B#`:
-    cut file into independent blocks of size # (default: no block)
+* `-B#`, `--block-size=#`:
+    cut file(s) into independent blocks of size # (default: no block)
 * `--priority=rt`:
     set process priority to real-time
 

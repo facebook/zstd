@@ -977,22 +977,21 @@ int FIO_listFile(const char* inFileName, int displayLevel){
 
         double compressedSizeMB = (double)info->compressedSize/(1 MB);
         double decompressedSizeMB = (double)info->decompressedSize/(1 MB);
-        DISPLAY("%d %d\n", info->canComputeDecompSize, info->usesCheck);
 
         if(displayLevel<=2){
             DISPLAY("Skippable  Non-Skippable  Compressed  Uncompressed  Ratio  Check  Filename\n");
             DISPLAY("                          %7.2f MB    %7.2f MB\n", compressedSizeMB, decompressedSizeMB);
         }
         else{
-            DISPLAY("Compressed Size: %.2f MB (%llu B)\n", (double)info->compressedSize/(1 MB), info->compressedSize);
-            if(info->decompressedSize!=ZSTD_CONTENTSIZE_ERROR && info->decompressedSize!=ZSTD_CONTENTSIZE_UNKNOWN){
-                DISPLAY("Decompressed Size: %.2f MB (%llu B)\n", (double)info->decompressedSize/(1 MB), info->decompressedSize);
+            DISPLAY("# Zstandard Frames: %d\n", info->numActualFrames);
+            DISPLAY("# Skippable Frames: %d\n", info->numSkippableFrames);
+            DISPLAY("Compressed Size: %.2f MB (%llu B)\n", compressedSizeMB, info->compressedSize);
+            if(info->canComputeDecompSize){
+                DISPLAY("Decompressed Size: %.2f MB (%llu B)\n", decompressedSizeMB, info->decompressedSize);
+                DISPLAY("Ratio: %.4f\n", compressedSizeMB/decompressedSizeMB);
             }
-            else if(info->decompressedSize==ZSTD_CONTENTSIZE_ERROR){
-                DISPLAY("Decompressed Size: There was an error with getting the decompressed size\n");
-            }
-            else{
-                DISPLAY("Decompressed Size: N/A\n");
+            if(info->usesCheck){
+                DISPLAY("Check: XXH64\n");
             }
         }
     }

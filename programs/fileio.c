@@ -862,22 +862,78 @@ int FIO_compressFilename(const char* dstFileName, const char* srcFileName,
     return result;
 }
 
-int FIO_listFile(const char* infilename, int displayLevel){
-    DISPLAY("FILE DETECTED: %s\n", infilename);
-    const char* const suffixPtr = strrchr(infilename, '.');
+typedef struct {
+    int numActualFrames;
+    int numSkippableFrames;
+    U64 decompressedSize;
+    U64 compressedSize;
+    int usesCheck;
+} fileInfo_t;
+
+/*
+ * Reads information from file, stores in *info
+ * if successful, returns 0, otherwise returns 1
+ */
+int getFileInfo(fileInfo_t* info, const char* inFileName){
+    FILE* srcFile = FIO_openSrcFile(inFileName);
+    if(srcFile==NULL){
+        return 1;
+    }
+    info->compressedSize = UTIL_getFileSize(inFileName);
+    BYTE* frameHeaderBuffer = malloc(ZSTD_frameHeaderSize_max);
+    fread(frameHeaderBuffer, ZSTD_frameHeaderSize_max, 1, srcFile);
+    info->decompressedSize = 0;
+    info->numActualFrames = 0;
+    info-> numSkippableFrames = 0;
+
+    /* begin analyzing frame */
+    
+    info->decompressedSize += ZSTD_getFrameContentSize((void*)frameHeaderBuffer, ZSTD_FRAMEHEADERSIZE_MAX);
+    U32 magicNumber = frameHeaderBuffer[0] + (frameHeaderBuffer[1] << 8) + (frameHeaderBuffer[2] << 16) + (frameHeaderBuffer[3] << 24);
+    if(magicNumber==ZSTD_MAGICNUMBER){
+        info->numActualFrames++;
+    }
+    else if(magicNumber==ZSTD_MAGIC_SKIPPABLE_START){
+        info->numSkippableFrames++;
+    }
+    const int checksumBitMask = 4;
+    if(frameHeaderBuffer[1] & checksumBitMask){
+        DISPLAY("Uses checksum\n");
+        info->usesCheck = 1;
+    }
+    return 0;
+}
+
+int FIO_listFile(const char* inFileName, int displayLevel){
+    DISPLAY("FILE DETECTED: %s\n", inFileName);
+    const char* const suffixPtr = strrchr(inFileName, '.');
     if(!suffixPtr || strcmp(suffixPtr, ZSTD_EXTENSION)){
-        DISPLAYLEVEL(1, "file %s was not compressed with zstd -- ignoring\n", infilename);
+        DISPLAYLEVEL(1, "file %s was not compressed with zstd -- ignoring\n", inFileName);
         DISPLAY("\n");
         return 1;
     }
     else{
-        U64 const compSize = UTIL_getFileSize(infilename);
+        fileInfo_t* info = malloc(sizeof(fileInfo_t));
+        int error = getFileInfo(info, inFileName);
+        if(error==1){
+            DISPLAY("An error occurred with getting file info\n");
+            exit(1);
+        }
         if(displayLevel<=2){
             DISPLAY("Skippable  Non-Skippable  Compressed  Uncompressed  Ratio  Check  Filename\n");
-            DISPLAY("                          %7.2f MB\n", (double)compSize/(1 MB));
+            DISPLAY("                          %7.2f MB\n", (double)info->compressedSize/(1 MB));
         }
         else{
-            DISPLAY("Compressed Size: %.2f MB (%llu B)\n", (double)compSize/(1 MB), compSize);
+            DISPLAY("Compressed Size: %.2f MB (%llu B)\n", (double)info->compressedSize/(1 MB), info->compressedSize);
+            if(info->decompressedSize!=ZSTD_CONTENTSIZE_ERROR && info->decompressedSize!=ZSTD_CONTENTSIZE_UNKNOWN){
+                DISPLAY("Decompressed Size: %.2f MB (%llu B)\n", (double)info->decompressedSize/(1 MB), info->decompressedSize);
+            }
+            else if(info->decompressedSize==ZSTD_CONTENTSIZE_ERROR){
+                DISPLAY("Decompressed Size: There was an error with getting the decompressed size\n");
+            }
+            else{
+                DISPLAY("Decompressed Size: N/A\n");
+            }
         }
     }
     DISPLAY("\n");

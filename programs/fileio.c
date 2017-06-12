@@ -985,9 +985,9 @@ int FIO_listFile(const char* inFileName, int displayLevel){
         else{
             DISPLAY("# Zstandard Frames: %d\n", info->numActualFrames);
             DISPLAY("# Skippable Frames: %d\n", info->numSkippableFrames);
-            DISPLAY("Compressed Size: %.2f MB (%llu B)\n", compressedSizeMB, info->compressedSize);
+            DISPLAY("Compressed Size: %.2f MB (%lu B)\n", compressedSizeMB, info->compressedSize);
             if(info->canComputeDecompSize){
-                DISPLAY("Decompressed Size: %.2f MB (%llu B)\n", decompressedSizeMB, info->decompressedSize);
+                DISPLAY("Decompressed Size: %.2f MB (%lu B)\n", decompressedSizeMB, info->decompressedSize);
                 DISPLAY("Ratio: %.4f\n", compressedSizeMB/decompressedSizeMB);
             }
             if(info->usesCheck){

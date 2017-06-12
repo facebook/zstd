@@ -870,6 +870,8 @@ typedef struct {
     int usesCheck;
 } fileInfo_t;
 
+
+
 /*
  * Reads information from file, stores in *info
  * if successful, returns 0, otherwise returns 1
@@ -880,26 +882,93 @@ int getFileInfo(fileInfo_t* info, const char* inFileName){
         return 1;
     }
     info->compressedSize = UTIL_getFileSize(inFileName);
-    BYTE* frameHeaderBuffer = malloc(ZSTD_frameHeaderSize_max);
-    fread(frameHeaderBuffer, ZSTD_frameHeaderSize_max, 1, srcFile);
     info->decompressedSize = 0;
     info->numActualFrames = 0;
     info-> numSkippableFrames = 0;
-
     /* begin analyzing frame */
-    
-    info->decompressedSize += ZSTD_getFrameContentSize((void*)frameHeaderBuffer, ZSTD_FRAMEHEADERSIZE_MAX);
-    U32 magicNumber = frameHeaderBuffer[0] + (frameHeaderBuffer[1] << 8) + (frameHeaderBuffer[2] << 16) + (frameHeaderBuffer[3] << 24);
-    if(magicNumber==ZSTD_MAGICNUMBER){
-        info->numActualFrames++;
-    }
-    else if(magicNumber==ZSTD_MAGIC_SKIPPABLE_START){
-        info->numSkippableFrames++;
-    }
-    const int checksumBitMask = 4;
-    if(frameHeaderBuffer[1] & checksumBitMask){
-        DISPLAY("Uses checksum\n");
-        info->usesCheck = 1;
+    while(1){
+        BYTE magicNumberBuffer[4];
+        int numBytesRead = fread(magicNumberBuffer, 1, 4, srcFile);
+        if(numBytesRead != 4) break;
+        U32 magicNumber = MEM_readLE32(magicNumberBuffer);
+        if(magicNumber==ZSTD_MAGICNUMBER){
+            DISPLAY("Hello\n");
+            int frameContentSizeBytes=0;
+            info->numActualFrames++;
+            BYTE frameHeaderDescriptor;
+            fread(&frameHeaderDescriptor, 1, 1, srcFile);
+
+            /* calculate actual frame header size */
+            int frameContentSizeFlag = frameHeaderDescriptor >> 6;
+            int singleSegmentFlag = (frameHeaderDescriptor & (1 << 5)) >> 5;
+            int contentChecksumFlag = (frameHeaderDescriptor & (1 << 2)) >> 2;
+            int dictionaryIDFlag = frameHeaderDescriptor & 3;
+            if(frameContentSizeFlag!=0){
+                frameContentSizeBytes = 1 << frameContentSizeFlag;
+            }
+            else if(singleSegmentFlag){
+                frameContentSizeBytes = 1;
+            }
+            int windowDescriptorBytes = singleSegmentFlag ? 0 : 1;
+            int dictionaryIDBytes = dictionaryIDFlag ? 1 << (dictionaryIDFlag - 1): 0;
+            int totalFrameHeaderBytes = 4 + 1 + windowDescriptorBytes + frameContentSizeBytes + dictionaryIDBytes;
+
+            /* reset to beginning of from and read entire header */
+            fseek(srcFile, -5, SEEK_CUR);
+            BYTE* frameHeader = malloc(totalFrameHeaderBytes);
+            fread(frameHeader, totalFrameHeaderBytes, 1, srcFile);
+
+            /* get decompressed file size */
+            info->decompressedSize = ZSTD_getFrameContentSize(frameHeader, totalFrameHeaderBytes);
+
+            /* check if checksum is used */
+            if(contentChecksumFlag){
+                info->usesCheck = 1;
+            }
+
+            /* skip the rest of the blocks in the frame */
+            int lastBlock = 0;
+            do{
+                BYTE blockHeaderBuffer[3];
+                fread(blockHeaderBuffer, 3, 1, srcFile);
+                U32 blockHeader = MEM_readLE24(blockHeaderBuffer);
+                lastBlock = blockHeader & 1;
+                int blockSize = (blockHeader - (blockHeader & 7)) >> 3;
+                fseek(srcFile, blockSize, SEEK_CUR);
+            }while(lastBlock != 1);
+            if(contentChecksumFlag){
+                fseek(srcFile, 4, SEEK_CUR);
+            }
+        }
+        else if(magicNumber==ZSTD_MAGIC_SKIPPABLE_START){
+            info->numSkippableFrames++;
+            BYTE frameSizeBuffer[4];
+            fread(frameSizeBuffer, 4, 1, srcFile);
+            long frameSize = MEM_readLE32(frameSizeBuffer);
+            fseek(srcFile, frameSize, SEEK_CUR);
+        }
+
+
+        // int isSkippableFrame = 0;
+        // /* analyze the first 18 bytes (magic number + frame header) of the frame */
+        // BYTE* frameHeaderBuffer = malloc(ZSTD_frameHeaderSize_max);
+        // fread(frameHeaderBuffer, ZSTD_frameHeaderSize_max, 1, srcFile);
+        // info->decompressedSize += ZSTD_getFrameContentSize((void*)frameHeaderBuffer, ZSTD_FRAMEHEADERSIZE_MAX);
+        // U32 magicNumber = frameHeaderBuffer[0] + (frameHeaderBuffer[1] << 8) + (frameHeaderBuffer[2] << 16) + (frameHeaderBuffer[3] << 24);
+        // if(magicNumber==ZSTD_MAGICNUMBER){
+        //     info->numActualFrames++;
+        // }
+        // else if(magicNumber==ZSTD_MAGIC_SKIPPABLE_START){
+        //     info->numSkippableFrames++;
+        //     isSkippableFrame = 1;
+        // }
+        // const int checksumBitMask = 4;
+        // if(frameHeaderBuffer[1] & checksumBitMask){
+        //     DISPLAY("Uses checksum\n");
+        //     info->usesCheck = 1;
+        // }
+
+
     }
     return 0;
 }

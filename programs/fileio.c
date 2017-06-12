@@ -892,7 +892,6 @@ int getFileInfo(fileInfo_t* info, const char* inFileName){
         if(numBytesRead != 4) break;
         U32 magicNumber = MEM_readLE32(magicNumberBuffer);
         if(magicNumber==ZSTD_MAGICNUMBER){
-            DISPLAY("Hello\n");
             int frameContentSizeBytes=0;
             info->numActualFrames++;
             BYTE frameHeaderDescriptor;
@@ -947,27 +946,6 @@ int getFileInfo(fileInfo_t* info, const char* inFileName){
             long frameSize = MEM_readLE32(frameSizeBuffer);
             fseek(srcFile, frameSize, SEEK_CUR);
         }
-
-
-        // int isSkippableFrame = 0;
-        // /* analyze the first 18 bytes (magic number + frame header) of the frame */
-        // BYTE* frameHeaderBuffer = malloc(ZSTD_frameHeaderSize_max);
-        // fread(frameHeaderBuffer, ZSTD_frameHeaderSize_max, 1, srcFile);
-        // info->decompressedSize += ZSTD_getFrameContentSize((void*)frameHeaderBuffer, ZSTD_FRAMEHEADERSIZE_MAX);
-        // U32 magicNumber = frameHeaderBuffer[0] + (frameHeaderBuffer[1] << 8) + (frameHeaderBuffer[2] << 16) + (frameHeaderBuffer[3] << 24);
-        // if(magicNumber==ZSTD_MAGICNUMBER){
-        //     info->numActualFrames++;
-        // }
-        // else if(magicNumber==ZSTD_MAGIC_SKIPPABLE_START){
-        //     info->numSkippableFrames++;
-        //     isSkippableFrame = 1;
-        // }
-        // const int checksumBitMask = 4;
-        // if(frameHeaderBuffer[1] & checksumBitMask){
-        //     DISPLAY("Uses checksum\n");
-        //     info->usesCheck = 1;
-        // }
-
 
     }
     return 0;

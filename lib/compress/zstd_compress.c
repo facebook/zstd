@@ -3760,18 +3760,24 @@ size_t ZSTD_compress_generic (ZSTD_CCtx* cctx,
         if (cctx->compressionLevel != ZSTD_CLEVEL_CUSTOM)
             params.cParams = ZSTD_getCParams(cctx->compressionLevel,
                                     cctx->frameContentSize, 0 /* dictSize */);
+
+#ifdef ZSTD_MULTITHREAD
         if (cctx->nbThreads > 1) {
             CHECK_F( ZSTDMT_initCStream_internal(cctx->mtctx, NULL, 0, cctx->cdict, params, cctx->frameContentSize) );
             cctx->streamStage = zcss_load;
-        } else {
+        } else
+#endif
+        {
             CHECK_F( ZSTD_resetCStream_internal(cctx, params, cctx->frameContentSize) );
     }   }
 
+#ifdef ZSTD_MULTITHREAD
     if (cctx->nbThreads > 1) {
         size_t const flushMin = ZSTDMT_compressStream_generic(cctx->mtctx, output, input, endOp);
         if (ZSTD_isError(flushMin)) cctx->streamStage = zcss_init;
         return flushMin;
     }
+#endif
 
     DEBUGLOG(5, "starting ZSTD_compressStream_generic");
     CHECK_F( ZSTD_compressStream_generic(cctx, output, input, endOp) );

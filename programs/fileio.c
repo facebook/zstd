@@ -890,7 +890,7 @@ int getFileInfo(fileInfo_t* info, const char* inFileName){
     /* begin analyzing frame */
     while(1){
         BYTE magicNumberBuffer[4];
-        int numBytesRead = fread(magicNumberBuffer, 1, 4, srcFile);
+        size_t numBytesRead = fread(magicNumberBuffer, 1, 4, srcFile);
         if(numBytesRead != 4) break;
         U32 magicNumber = MEM_readLE32(magicNumberBuffer);
         if(magicNumber==ZSTD_MAGICNUMBER){
@@ -916,7 +916,7 @@ int getFileInfo(fileInfo_t* info, const char* inFileName){
 
             /* reset to beginning of from and read entire header */
             fseek(srcFile, -5, SEEK_CUR);
-            BYTE* frameHeader = malloc(totalFrameHeaderBytes);
+            BYTE* frameHeader = (BYTE*)malloc(totalFrameHeaderBytes);
             fread(frameHeader, totalFrameHeaderBytes, 1, srcFile);
 
             /* get decompressed file size */
@@ -968,7 +968,7 @@ int FIO_listFile(const char* inFileName, int displayLevel){
         return 1;
     }
     else{
-        fileInfo_t* info = malloc(sizeof(fileInfo_t));
+        fileInfo_t* info = (fileInfo_t*)malloc(sizeof(fileInfo_t));
         int error = getFileInfo(info, inFileName);
         if(error==1){
             DISPLAY("An error occurred with getting file info\n");

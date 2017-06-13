@@ -180,7 +180,7 @@ legacy : CPPFLAGS+= -I$(ZSTDDIR)/legacy
 legacy : $(ZSTD_FILES) $(wildcard $(ZSTDDIR)/legacy/*.c) legacy.c
 	$(CC)      $(FLAGS) $^ -o $@$(EXT)
 
-decodecorpus	: $(filter-out $(ZSTDDIR)/compress/zstd_compress.c, $(wildcard $(ZSTD_FILES))) decodecorpus.c
+decodecorpus	: $(filter-out $(ZSTDDIR)/compress/zstd_compress.c, $(wildcard $(ZSTD_FILES))) $(ZDICT_FILES) decodecorpus.c
 	$(CC)      $(FLAGS) $^ -o $@$(EXT) -lm
 
 symbols  : symbols.c

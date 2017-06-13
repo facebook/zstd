@@ -18,6 +18,7 @@
 #include "zstd.h"
 #include "zstd_internal.h"
 #include "mem.h"
+#define ZDICT_STATIC_LINKING_ONLY
 #include "zdict.h"
 
 // Direct access to internal compression functions is required
@@ -241,7 +242,7 @@ struct {
 } opts; /* advanced options on generation */
 
 /* Generate and write a random frame header */
-static void writeFrameHeader(U32* seed, frame_t* frame, int genDict, size_t dictSize)
+static void writeFrameHeader(U32* seed, frame_t* frame, int genDict, U32 dictID)
 {
     BYTE* const op = frame->data;
     size_t pos = 0;
@@ -692,9 +693,9 @@ static U32 generateSequences(U32* seed, frame_t* frame, seqStore_t* seqStore,
 
         {   size_t j;
             for (j = 0; j < matchLen; j++) {
-                if(srcPtr-offset < frame->srcStart){
+                if((void*)(srcPtr-offset) < (void*)frame->srcStart){
                     /* copy from dictionary instead of literals */
-                    *srcPtr = *(dictContent + dictSize - (offset-(srcPtr-frame->srcStart)));
+                    *srcPtr = *(dictContent + dictSize - (offset-(srcPtr-(BYTE*)frame->srcStart)));
                 }
                 else{
                     *srcPtr = *(srcPtr-offset);
@@ -1138,13 +1139,13 @@ static void initFrame(frame_t* fr)
 }
 
 /* Return the final seed */
-static U32 generateFrame(U32 seed, frame_t* fr, int genDict, size_t dictSize, BYTE* dictContent)
+static U32 generateFrame(U32 seed, frame_t* fr, int genDict, size_t dictSize, BYTE* dictContent, U32 dictID)
 {
     /* generate a complete frame */
     DISPLAYLEVEL(1, "frame seed: %u\n", seed);
     initFrame(fr);
 
-    writeFrameHeader(&seed, fr, genDict, dictSize);
+    writeFrameHeader(&seed, fr, genDict, dictID);
     writeBlocks(&seed, fr, genDict, dictSize, dictContent);
     writeChecksum(fr);
 
@@ -1232,7 +1233,7 @@ static int runTestMode(U32 seed, unsigned numFiles, unsigned const testDurationS
         else
             DISPLAYUPDATE("\r%u           ", fnum);
 
-        seed = generateFrame(seed, &fr, 0, 0, NULL);
+        seed = generateFrame(seed, &fr, 0, 0, NULL, 0);
 
         {   size_t const r = testDecodeSimple(&fr);
             if (ZSTD_isError(r)) {
@@ -1267,7 +1268,7 @@ static int generateFile(U32 seed, const char* const path,
 
     DISPLAY("seed: %u\n", seed);
 
-    generateFrame(seed, &fr, 0, 0, NULL);
+    generateFrame(seed, &fr, 0, 0, NULL, 0);
 
     outputBuffer(fr.dataStart, (BYTE*)fr.data - (BYTE*)fr.dataStart, path);
     if (origPath) {
@@ -1289,7 +1290,7 @@ static int generateCorpus(U32 seed, unsigned numFiles, const char* const path,
 
         DISPLAYUPDATE("\r%u/%u        ", fnum, numFiles);
 
-        seed = generateFrame(seed, &fr, 0, 0, NULL);
+        seed = generateFrame(seed, &fr, 0, 0, NULL, 0);
 
         if (snprintf(outPath, MAX_PATH, "%s/z%06u.zst", path, fnum) + 1 > MAX_PATH) {
             DISPLAY("Error: path too long\n");
@@ -1314,7 +1315,7 @@ static int generateCorpus(U32 seed, unsigned numFiles, const char* const path,
 static int generateCorpusWithDict(U32 seed, unsigned numFiles, const char* const path,
                                     const char* const origPath, const size_t dictSize)
 {
-    const size_t minDictSize = 8;
+    DISPLAY("in generateCorpusWithDict()\n");
     char outPath[MAX_PATH];
     BYTE* dictContent;
     BYTE* fullDict;
@@ -1326,7 +1327,7 @@ static int generateCorpusWithDict(U32 seed, unsigned numFiles, const char* const
         DISPLAY("Error: path too long\n");
         return 1;
     }
-
+    DISPLAY("generating the dictionary randomly\n");
     /* Generate the dictionary randomly first */
     dictContent = malloc(dictSize-400);
     dictID = RAND(&seed);
@@ -1334,12 +1335,13 @@ static int generateCorpusWithDict(U32 seed, unsigned numFiles, const char* const
     RAND_buffer(&seed, dictContent, dictSize-40);
     {
         /* create random samples */
-        unsigned numSamples = RAND(&seed);
+        unsigned numSamples = RAND(&seed) % 50;
+        DISPLAY("num samples: %u\n", numSamples);
         unsigned i = 0;
         size_t* sampleSizes = malloc(numSamples*sizeof(size_t));
         size_t* curr = sampleSizes;
         size_t totalSize = 0;
-        while(i < numSamples){
+        while(i++ < numSamples){
             *curr = RAND(&seed) % (4 << 20);
             totalSize += *curr;
             curr++;
@@ -1349,19 +1351,23 @@ static int generateCorpusWithDict(U32 seed, unsigned numFiles, const char* const
         RAND_buffer(&seed, samples, totalSize);
 
         /* set dictionary params */
-        memset(&zdictParams, 0, sizeof(zdictParams));
-        zdictParams.notificationLevel = 1;
+        memset(&zdictParams, 0, sizeof(ZDICT_params_t));
         zdictParams.dictID = dictID;
-        zdictParams.compressionLevel = 5;
 
         /* finalize dictionary with random samples */
         ZDICT_finalizeDictionary(fullDict, dictSize,
                                     dictContent, dictSize-400,
                                     samples, sampleSizes, numSamples,
                                     zdictParams);
+        /* write out dictionary */
+        if(snprintf(outPath, MAX_PATH, "%s/dictionary", path) + 1 > MAX_PATH){
+            DISPLAY("Error: dictionary path too long\n");
+            return 1;
+        }
+        outputBuffer(fullDict, dictSize, outPath);
     }
 
-
+    DISPLAY("generating compressed files\n");
     decompressedPtr = malloc(MAX_DECOMPRESSED_SIZE);
     /* generate random compressed/decompressed files */
     for (fnum = 0; fnum < numFiles; fnum++) {
@@ -1371,7 +1377,7 @@ static int generateCorpusWithDict(U32 seed, unsigned numFiles, const char* const
 
         DISPLAYUPDATE("\r%u/%u        ", fnum, numFiles);
 
-        seed = generateFrame(seed, &fr, 1, dictSize, dictContent);
+        seed = generateFrame(seed, &fr, 1, dictSize, dictContent, dictID);
 
         if (snprintf(outPath, MAX_PATH, "%s/z%06u.zst", path, fnum) + 1 > MAX_PATH) {
             DISPLAY("Error: path too long\n");
@@ -1394,7 +1400,7 @@ static int generateCorpusWithDict(U32 seed, unsigned numFiles, const char* const
                                                fullDict, dictSize);
 
     }
-
+    DISPLAY("end of function\n");
     return 0;
 }
 

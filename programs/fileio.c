@@ -1010,8 +1010,28 @@ int FIO_listFile(const char* inFileName, int displayLevel){
         decompressedSizeMB = (double)info->decompressedSize/(1 MB);
 
         if(displayLevel<=2){
-            DISPLAY("Skippable  Non-Skippable  Compressed  Uncompressed  Ratio  Check  Filename\n");
-            DISPLAY("                          %7.2f MB    %7.2f MB\n", compressedSizeMB, decompressedSizeMB);
+            if(info->usesCheck && info->canComputeDecompSize){
+                DISPLAY("Skippable  Non-Skippable  Compressed  Uncompressed  Ratio  Check  Filename\n");
+                DISPLAY("%9d  %13d  %7.2f MB    %7.2f MB  %5.3f  XXH64  %s\n",
+                        info->numSkippableFrames, info->numActualFrames, compressedSizeMB, decompressedSizeMB,
+                        compressedSizeMB/decompressedSizeMB, inFileName);
+            }
+            else if(!info->usesCheck){
+                DISPLAY("Skippable  Non-Skippable  Compressed  Uncompressed  Ratio  Check  Filename\n");
+                DISPLAY("%9d  %13d  %7.2f MB    %7.2f MB  %5.3f  %s\n",
+                        info->numSkippableFrames, info->numActualFrames, compressedSizeMB, decompressedSizeMB,
+                        compressedSizeMB/decompressedSizeMB, inFileName);
+            }
+            else if(!info->canComputeDecompSize){
+                DISPLAY("Skippable  Non-Skippable  Compressed  Uncompressed  Ratio  Check  Filename\n");
+                DISPLAY("%9d  %13d  %7.2f MB      XXH64  %s\n",
+                        info->numSkippableFrames, info->numActualFrames, compressedSizeMB, inFileName);
+            }
+            else{
+                DISPLAY("Skippable  Non-Skippable  Filename\n");
+                DISPLAY("%9d  %13d  %7.2f MB  %s\n",
+                        info->numSkippableFrames, info->numActualFrames, compressedSizeMB, inFileName);
+            }
         }
         else{
             DISPLAY("# Zstandard Frames: %d\n", info->numActualFrames);

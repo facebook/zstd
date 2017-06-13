@@ -955,14 +955,16 @@ int getFileInfo(fileInfo_t* info, const char* inFileName){
             lastBlock = 0;
             do{
                 BYTE blockHeaderBuffer[3];
+                U32 blockHeader;
+                int blockSize;
                 readBytes = fread(blockHeaderBuffer, 1, 3, srcFile);
                 if(readBytes != 3){
                     DISPLAY("There was a problem reading the block header\n");
                     exit(1);
                 }
-                U32 blockHeader = MEM_readLE24(blockHeaderBuffer);
+                blockHeader = MEM_readLE24(blockHeaderBuffer);
                 lastBlock = blockHeader & 1;
-                int blockSize = (blockHeader - (blockHeader & 7)) >> 3;
+                blockSize = (blockHeader - (blockHeader & 7)) >> 3;
                 fseek(srcFile, blockSize, SEEK_CUR);
             }while(lastBlock != 1);
             if(contentChecksumFlag){
@@ -970,14 +972,15 @@ int getFileInfo(fileInfo_t* info, const char* inFileName){
             }
         }
         else if(magicNumber==ZSTD_MAGIC_SKIPPABLE_START){
-            info->numSkippableFrames++;
             BYTE frameSizeBuffer[4];
+            long frameSize;
+            info->numSkippableFrames++;
             size_t readBytes = fread(frameSizeBuffer, 1, 4, srcFile);
             if(readBytes != 4){
                 DISPLAY("There was an error reading skippable frame size");
                 exit(1);
             }
-            long frameSize = MEM_readLE32(frameSizeBuffer);
+            frameSize = MEM_readLE32(frameSizeBuffer);
             fseek(srcFile, frameSize, SEEK_CUR);
         }
 
@@ -986,14 +989,16 @@ int getFileInfo(fileInfo_t* info, const char* inFileName){
 }
 
 int FIO_listFile(const char* inFileName, int displayLevel){
-    DISPLAY("FILE DETECTED: %s\n", inFileName);
     const char* const suffixPtr = strrchr(inFileName, '.');
+    DISPLAY("FILE DETECTED: %s\n", inFileName);
     if(!suffixPtr || strcmp(suffixPtr, ZSTD_EXTENSION)){
         DISPLAYLEVEL(1, "file %s was not compressed with zstd -- ignoring\n", inFileName);
         DISPLAY("\n");
         return 1;
     }
     else{
+        double compressedSizeMB;
+        double decompressedSizeMB;
         fileInfo_t* info = (fileInfo_t*)malloc(sizeof(fileInfo_t));
         int error = getFileInfo(info, inFileName);
         if(error==1){
@@ -1001,8 +1006,8 @@ int FIO_listFile(const char* inFileName, int displayLevel){
             exit(1);
         }
 
-        double compressedSizeMB = (double)info->compressedSize/(1 MB);
-        double decompressedSizeMB = (double)info->decompressedSize/(1 MB);
+        compressedSizeMB = (double)info->compressedSize/(1 MB);
+        decompressedSizeMB = (double)info->decompressedSize/(1 MB);
 
         if(displayLevel<=2){
             DISPLAY("Skippable  Non-Skippable  Compressed  Uncompressed  Ratio  Check  Filename\n");

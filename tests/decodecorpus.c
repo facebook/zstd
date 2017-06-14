@@ -1315,7 +1315,6 @@ static int generateCorpus(U32 seed, unsigned numFiles, const char* const path,
 static int generateCorpusWithDict(U32 seed, unsigned numFiles, const char* const path,
                                     const char* const origPath, const size_t dictSize)
 {
-    DISPLAY("in generateCorpusWithDict()\n");
     char outPath[MAX_PATH];
     BYTE* dictContent;
     BYTE* fullDict;
@@ -1327,42 +1326,51 @@ static int generateCorpusWithDict(U32 seed, unsigned numFiles, const char* const
         DISPLAY("Error: path too long\n");
         return 1;
     }
-    DISPLAY("generating the dictionary randomly\n");
+
     /* Generate the dictionary randomly first */
     dictContent = malloc(dictSize-400);
     dictID = RAND(&seed);
-    DISPLAY("this is the dictID that is being stored: %u\n", dictID);
     fullDict = malloc(dictSize);
     RAND_buffer(&seed, dictContent, dictSize-40);
     {
         size_t dictWriteSize = 0;
+
         /* create random samples */
         unsigned numSamples = RAND(&seed) % 50;
+        BYTE* samples;
         unsigned i = 0;
         size_t* sampleSizes = malloc(numSamples*sizeof(size_t));
-        size_t* curr = sampleSizes;
-        size_t totalSize = 0;
-        while(i++ < numSamples){
-            *curr = RAND(&seed) % (4 << 15);
-            totalSize += *curr;
-            curr++;
+        {
+            size_t* curr = sampleSizes;
+            size_t totalSize = 0;
+            while(i++ < numSamples){
+                *curr = RAND(&seed) % (4 << 15);
+                totalSize += *curr;
+                curr++;
+            }
+            samples = malloc(totalSize);
+            RAND_buffer(&seed, samples, totalSize);
         }
-        ZDICT_params_t zdictParams;
-        BYTE* samples = malloc(totalSize);
-        RAND_buffer(&seed, samples, totalSize);
 
-        /* set dictionary params */
-        memset(&zdictParams, 0, sizeof(ZDICT_params_t));
-        zdictParams.dictID = dictID;
-        /* finalize dictionary with random samples */
-        dictWriteSize = ZDICT_finalizeDictionary(fullDict, dictSize,
-                                    dictContent, dictSize-400,
-                                    samples, sampleSizes, numSamples,
-                                    zdictParams);
-        DISPLAY("total size: %zu %zu\n", totalSize, dictSize);
+        {
+            /* set dictionary params */
+            ZDICT_params_t zdictParams;
+            memset(&zdictParams, 0, sizeof(zdictParams));
+            zdictParams.dictID = dictID;
+            zdictParams.notificationLevel = 1;
+
+            /* finalize dictionary with random samples */
+            dictWriteSize = ZDICT_finalizeDictionary(fullDict, dictSize,
+                                        dictContent, dictSize-400,
+                                        samples, sampleSizes, numSamples,
+                                        zdictParams);
+        }
+
         if(dictWriteSize != dictSize && ZDICT_isError(dictWriteSize)){
             DISPLAY("Could not finalize dictionary: %s\n", ZDICT_getErrorName(dictWriteSize));
+            return 1;
         }
+
         /* write out dictionary */
         if(snprintf(outPath, MAX_PATH, "%s/dictionary", path) + 1 > MAX_PATH){
             DISPLAY("Error: dictionary path too long\n");
@@ -1373,6 +1381,7 @@ static int generateCorpusWithDict(U32 seed, unsigned numFiles, const char* const
 
     DISPLAY("generating compressed files\n");
     decompressedPtr = malloc(MAX_DECOMPRESSED_SIZE);
+
     /* generate random compressed/decompressed files */
     for (fnum = 0; fnum < numFiles; fnum++) {
         frame_t fr;
@@ -1402,6 +1411,10 @@ static int generateCorpusWithDict(U32 seed, unsigned numFiles, const char* const
         returnValue = ZSTD_decompress_usingDict(dctx, decompressedPtr, MAX_DECOMPRESSED_SIZE,
                                                fr.srcStart, (BYTE*)fr.src - (BYTE*)fr.srcStart,
                                                fullDict, dictSize);
+
+        if(ZSTD_isError(returnValue)){
+            DISPLAY("Error: %s", ZSTD_getErrorName(returnValue));
+        }
 
     }
     DISPLAY("end of function\n");

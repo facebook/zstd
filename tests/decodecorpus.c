@@ -1331,18 +1331,19 @@ static int generateCorpusWithDict(U32 seed, unsigned numFiles, const char* const
     /* Generate the dictionary randomly first */
     dictContent = malloc(dictSize-400);
     dictID = RAND(&seed);
+    DISPLAY("this is the dictID that is being stored: %u\n", dictID);
     fullDict = malloc(dictSize);
     RAND_buffer(&seed, dictContent, dictSize-40);
     {
+        size_t dictWriteSize = 0;
         /* create random samples */
         unsigned numSamples = RAND(&seed) % 50;
-        DISPLAY("num samples: %u\n", numSamples);
         unsigned i = 0;
         size_t* sampleSizes = malloc(numSamples*sizeof(size_t));
         size_t* curr = sampleSizes;
         size_t totalSize = 0;
         while(i++ < numSamples){
-            *curr = RAND(&seed) % (4 << 20);
+            *curr = RAND(&seed) % (4 << 15);
             totalSize += *curr;
             curr++;
         }
@@ -1353,12 +1354,15 @@ static int generateCorpusWithDict(U32 seed, unsigned numFiles, const char* const
         /* set dictionary params */
         memset(&zdictParams, 0, sizeof(ZDICT_params_t));
         zdictParams.dictID = dictID;
-
         /* finalize dictionary with random samples */
-        ZDICT_finalizeDictionary(fullDict, dictSize,
+        dictWriteSize = ZDICT_finalizeDictionary(fullDict, dictSize,
                                     dictContent, dictSize-400,
                                     samples, sampleSizes, numSamples,
                                     zdictParams);
+        DISPLAY("total size: %zu %zu\n", totalSize, dictSize);
+        if(dictWriteSize != dictSize && ZDICT_isError(dictWriteSize)){
+            DISPLAY("Could not finalize dictionary: %s\n", ZDICT_getErrorName(dictWriteSize));
+        }
         /* write out dictionary */
         if(snprintf(outPath, MAX_PATH, "%s/dictionary", path) + 1 > MAX_PATH){
             DISPLAY("Error: dictionary path too long\n");

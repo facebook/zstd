@@ -674,13 +674,19 @@ int main(int argCount, const char* argv[])
     }
 #endif
     if(operation==zom_list){
-        unsigned u;
+        if(filenameIdx==0){
+            DISPLAY("No files given\n");
+            CLEAN_RETURN(0);
+        }
         DISPLAY("===========================================\n");
         DISPLAY("Printing information about compressed files\n");
         DISPLAY("===========================================\n");
         DISPLAY("Number of files listed: %d\n", filenameIdx);
-        for(u=0; u<filenameIdx;u++){
-            FIO_listFile(filenameTable[u],g_displayLevel);
+        {
+            unsigned u;
+            for(u=0; u<filenameIdx;u++){
+                FIO_listFile(filenameTable[u],g_displayLevel);
+            }
         }
         CLEAN_RETURN(0);
     }

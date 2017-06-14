@@ -865,9 +865,9 @@ int FIO_compressFilename(const char* dstFileName, const char* srcFileName,
 typedef struct {
     int numActualFrames;
     int numSkippableFrames;
-    U64 decompressedSize;
+    unsigned long decompressedSize;
     int canComputeDecompSize;
-    U64 compressedSize;
+    unsigned long compressedSize;
     int usesCheck;
 } fileInfo_t;
 
@@ -1018,9 +1018,9 @@ void displayInfo(const char* inFileName, fileInfo_t* info, int displayLevel){
     else{
         DISPLAY("# Zstandard Frames: %d\n", info->numActualFrames);
         DISPLAY("# Skippable Frames: %d\n", info->numSkippableFrames);
-        DISPLAY("Compressed Size: %.2f MB (%llu B)\n", compressedSizeMB, info->compressedSize);
+        DISPLAY("Compressed Size: %.2f MB (%lu B)\n", compressedSizeMB, info->compressedSize);
         if(info->canComputeDecompSize){
-            DISPLAY("Decompressed Size: %.2f MB (%llu B)\n", decompressedSizeMB, info->decompressedSize);
+            DISPLAY("Decompressed Size: %.2f MB (%lu B)\n", decompressedSizeMB, info->decompressedSize);
             DISPLAY("Ratio: %.4f\n", compressedSizeMB/decompressedSizeMB);
         }
         if(info->usesCheck){

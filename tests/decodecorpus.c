@@ -1352,7 +1352,22 @@ static int generateCorpusWithDict(U32 seed, unsigned numFiles, const char* const
                 curr++;
             }
             samples = malloc(totalSize);
-            RAND_buffer(&seed, samples, totalSize);
+
+            /* reset pointer and counter */
+            curr = sampleSizes;
+            i = 0;
+
+            {
+                /* take substring from dictionary content */
+                size_t pos = 0;
+                const BYTE* endDict = dictContent + dictSize - 400;
+                while(i++ < numSamples){
+                    size_t currSize = *(curr++);
+                    BYTE* startSubstring = endDict - currSize;
+                    memcpy(samples + pos, (void*)startSubstring, currSize);
+                    pos += currSize;
+                }
+            }
         }
 
         {

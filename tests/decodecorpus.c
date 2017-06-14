@@ -1326,12 +1326,15 @@ static int generateCorpusWithDict(U32 seed, unsigned numFiles, const char* const
         DISPLAY("Error: path too long\n");
         return 1;
     }
-
+    if(dictSize < 400){
+        DISPLAY("Error: either no size given or given dictionary size is too small\n");
+        return 1;
+    }
     /* Generate the dictionary randomly first */
     dictContent = malloc(dictSize-400);
     dictID = RAND(&seed);
     fullDict = malloc(dictSize);
-    RAND_buffer(&seed, dictContent, dictSize-40);
+    RAND_buffer(&seed, dictContent, dictSize-400);
     {
         size_t dictWriteSize = 0;
 

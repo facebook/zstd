@@ -461,6 +461,11 @@ ZSTDLIB_API unsigned long long ZSTD_getFrameContentSize(const void *src, size_t 
  *            however it does mean that all frame data must be present and valid. */
 ZSTDLIB_API unsigned long long ZSTD_findDecompressedSize(const void* src, size_t srcSize);
 
+/*! ZSTD_frameHeaderSize() :
+*   `src` should point to the start of a ZSTD frame
+*   `srcSize` must be >= ZSTD_frameHeaderSize_prefix.
+*   @return : size of the Frame Header */
+size_t ZSTD_frameHeaderSize(const void* src, size_t srcSize);
 
 /***************************************
 *  Context memory usage

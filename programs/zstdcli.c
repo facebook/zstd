@@ -149,6 +149,7 @@ static int usage_advanced(const char* programName)
 #endif
 #endif
     DISPLAY( " -M#    : Set a memory usage limit for decompression \n");
+    DISPLAY( "--list  : list information about a zstd compressed file \n");
     DISPLAY( "--      : All arguments after \"--\" are treated as files \n");
 #ifndef ZSTD_NODICT
     DISPLAY( "\n");
@@ -402,6 +403,7 @@ int main(int argCount, const char* argv[])
                 if (argument[1]=='-') {
                     /* long commands (--long-word) */
                     if (!strcmp(argument, "--")) { nextArgumentsAreFiles=1; continue; }   /* only file names allowed from now on */
+                    if (!strcmp(argument, "--list")) { operation=zom_list; continue; }
                     if (!strcmp(argument, "--compress")) { operation=zom_compress; continue; }
                     if (!strcmp(argument, "--decompress")) { operation=zom_decompress; continue; }
                     if (!strcmp(argument, "--uncompress")) { operation=zom_decompress; continue; }
@@ -674,6 +676,7 @@ int main(int argCount, const char* argv[])
     }
 #endif
     if(operation==zom_list){
+        g_displayOut = stdout;
         if(filenameIdx==0){
             DISPLAY("No files given\n");
             CLEAN_RETURN(0);

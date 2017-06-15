@@ -117,6 +117,7 @@ static int usage_advanced(const char* programName)
     DISPLAY( " -v     : verbose mode; specify multiple times to increase verbosity\n");
     DISPLAY( " -q     : suppress warnings; specify twice to suppress errors too\n");
     DISPLAY( " -c     : force write to standard output, even if it is the console\n");
+    DISPLAY( " -l     : print information about zstd compressed files.\n");
 #ifndef ZSTD_NOCOMPRESS
     DISPLAY( "--ultra : enable levels beyond %i, up to %i (requires more memory)\n", ZSTDCLI_CLEVEL_MAX, ZSTD_maxCLevel());
 #ifdef ZSTD_MULTITHREAD
@@ -310,7 +311,7 @@ static unsigned parseCompressionParameters(const char* stringPtr, ZSTD_compressi
 }
 
 
-typedef enum { zom_compress, zom_decompress, zom_test, zom_bench, zom_train } zstd_operation_mode;
+typedef enum { zom_compress, zom_decompress, zom_test, zom_bench, zom_train, zom_list } zstd_operation_mode;
 
 #define CLEAN_RETURN(i) { operationResult = (i); goto _end; }
 
@@ -531,7 +532,7 @@ int main(int argCount, const char* argv[])
                         argument++;
                         memLimit = readU32FromChar(&argument);
                         break;
-
+                    case 'l': operation=zom_list; argument++; break;
 #ifdef UTIL_HAS_CREATEFILELIST
                         /* recursive */
                     case 'r': recursive=1; argument++; break;
@@ -672,7 +673,23 @@ int main(int argCount, const char* argv[])
         }
     }
 #endif
-
+    if(operation==zom_list){
+        if(filenameIdx==0){
+            DISPLAY("No files given\n");
+            CLEAN_RETURN(0);
+        }
+        DISPLAY("===========================================\n");
+        DISPLAY("Printing information about compressed files\n");
+        DISPLAY("===========================================\n");
+        DISPLAY("Number of files listed: %d\n", filenameIdx);
+        {
+            unsigned u;
+            for(u=0; u<filenameIdx;u++){
+                FIO_listFile(filenameTable[u],g_displayLevel);
+            }
+        }
+        CLEAN_RETURN(0);
+    }
     /* Check if benchmark is selected */
     if (operation==zom_bench) {
 #ifndef ZSTD_NOBENCH

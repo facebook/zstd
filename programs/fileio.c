@@ -954,7 +954,7 @@ static int getFileInfo(fileInfo_t* info, const char* inFileName){
                         }
                     }
                 } while (lastBlock != 1);
-                
+
                 if (detectError) {
                     break;
                 }
@@ -1001,7 +1001,8 @@ static int getFileInfo(fileInfo_t* info, const char* inFileName){
     fclose(srcFile);
     return detectError;
 }
-void displayInfo(const char* inFileName, fileInfo_t* info, int displayLevel){
+
+static void displayInfo(const char* inFileName, fileInfo_t* info, int displayLevel){
     double const compressedSizeMB = (double)info->compressedSize/(1 MB);
     double const decompressedSizeMB = (double)info->decompressedSize/(1 MB);
     const char* checkString = (info->usesCheck ? "XXH64" : "None");

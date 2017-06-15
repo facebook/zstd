@@ -1316,25 +1316,30 @@ static int generateCorpusWithDict(U32 seed, unsigned numFiles, const char* const
                                     const char* const origPath, const size_t dictSize)
 {
     char outPath[MAX_PATH];
-    BYTE* dictContent;
     BYTE* fullDict;
     U32 dictID;
     unsigned fnum;
     BYTE* decompressedPtr;
+    BYTE* dictContent;
+    const size_t headerSize = dictSize/4;
+    const size_t dictContentSize = dictSize - dictSize/4;
     ZSTD_DCtx* dctx = ZSTD_createDCtx();
     if(snprintf(outPath, MAX_PATH, "%s/dictionary", path) + 1 > MAX_PATH) {
         DISPLAY("Error: path too long\n");
         return 1;
     }
-    if(dictSize < 400){
-        DISPLAY("Error: either no size given or given dictionary size is too small\n");
-        return 1;
+    {
+        /* use 3/4 of dictionary for content, save rest for header/entropy tables */
+        if(dictContentSize < 128 || dictSize < 256){
+            DISPLAY("Error: dictionary size is too small\n");
+            return 1;
+        }
     }
     /* Generate the dictionary randomly first */
-    dictContent = malloc(dictSize-400);
     dictID = RAND(&seed);
     fullDict = malloc(dictSize);
-    RAND_buffer(&seed, dictContent, dictSize-400);
+    dictContent = fullDict + headerSize;
+    RAND_buffer(&seed, (void*)dictContent, dictContentSize);
     {
         size_t dictWriteSize = 0;
 
@@ -1347,7 +1352,7 @@ static int generateCorpusWithDict(U32 seed, unsigned numFiles, const char* const
             size_t* curr = sampleSizes;
             size_t totalSize = 0;
             while(i++ < numSamples){
-                *curr = RAND(&seed) % (4 << 15);
+                *curr = RAND(&seed) % dictContentSize;
                 totalSize += *curr;
                 curr++;
             }
@@ -1360,7 +1365,7 @@ static int generateCorpusWithDict(U32 seed, unsigned numFiles, const char* const
             {
                 /* take substring from dictionary content */
                 size_t pos = 0;
-                const BYTE* endDict = dictContent + dictSize - 400;
+                BYTE* endDict = dictContent + dictContentSize;
                 while(i++ < numSamples){
                     size_t currSize = *(curr++);
                     BYTE* startSubstring = endDict - currSize;
@@ -1379,7 +1384,7 @@ static int generateCorpusWithDict(U32 seed, unsigned numFiles, const char* const
 
             /* finalize dictionary with random samples */
             dictWriteSize = ZDICT_finalizeDictionary(fullDict, dictSize,
-                                        dictContent, dictSize-400,
+                                        dictContent, dictContentSize,
                                         samples, sampleSizes, numSamples,
                                         zdictParams);
         }

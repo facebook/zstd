@@ -920,11 +920,13 @@ static int getFileInfo(fileInfo_t* info, const char* inFileName){
                         detectError = 1;
                         break;
                     }
-                    int const ret = fseek(srcFile, ((long)headerSize)-((long)numBytesRead), SEEK_CUR);
-                    if (ret != 0) {
-                        DISPLAY("Error: could not move to end of frame header\n");
-                        detectError = 1;
-                        break;
+                    {
+                        int const ret = fseek(srcFile, ((long)headerSize)-((long)numBytesRead), SEEK_CUR);
+                        if (ret != 0) {
+                            DISPLAY("Error: could not move to end of frame header\n");
+                            detectError = 1;
+                            break;
+                        }
                     }
                 }
 
@@ -1038,10 +1040,12 @@ static void displayInfo(const char* inFileName, fileInfo_t* info, int displayLev
 int FIO_listFile(const char* inFileName, int displayLevel){
     fileInfo_t info;
     DISPLAYOUT("File: %s\n", inFileName);
-    int const error = getFileInfo(&info, inFileName);
-    if (error == 1) {
-        DISPLAY("An error occurred with getting file info\n");
-        return 1;
+    {
+        int const error = getFileInfo(&info, inFileName);
+        if (error == 1) {
+            DISPLAY("An error occurred with getting file info\n");
+            return 1;
+        }
     }
     displayInfo(inFileName, &info, displayLevel);
     return 0;

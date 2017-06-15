@@ -877,6 +877,7 @@ typedef struct {
  * if successful, returns 0, otherwise returns 1
  */
 static int getFileInfo(fileInfo_t* info, const char* inFileName){
+    int detectError = 0;
     FILE* const srcFile = FIO_openSrcFile(inFileName);
     if (srcFile == NULL) {
         DISPLAY("Error: could not open source file %s\n", inFileName);
@@ -887,7 +888,6 @@ static int getFileInfo(fileInfo_t* info, const char* inFileName){
     info->numActualFrames = 0;
     info->numSkippableFrames = 0;
     info->canComputeDecompSize = 1;
-    int detectError = 0;
     /* begin analyzing frame */
     for( ; ; ){
         BYTE headerBuffer[ZSTD_FRAMEHEADERSIZE_MAX];
@@ -902,100 +902,100 @@ static int getFileInfo(fileInfo_t* info, const char* inFileName){
                 break;
             }
         }
-        U32 const magicNumber = MEM_readLE32(headerBuffer);
-        if (magicNumber == ZSTD_MAGICNUMBER) {
-            U64 const frameContentSize = ZSTD_getFrameContentSize(headerBuffer, numBytesRead);
-            if (frameContentSize == ZSTD_CONTENTSIZE_ERROR || frameContentSize == ZSTD_CONTENTSIZE_UNKNOWN) {
-                info->canComputeDecompSize = 0;
-            }
-            else {
-                info->decompressedSize += frameContentSize;
-            }
-            size_t const headerSize = ZSTD_frameHeaderSize(headerBuffer, numBytesRead);
-            if (ZSTD_isError(headerSize)) {
-                DISPLAY("Error: could not determine frame header size\n");
-                detectError = 1;
-                break;
-            }
-
-            {
-                /* move to the end of the frame header */
-                int const ret = fseek(srcFile, ((long)headerSize)-((long)numBytesRead), SEEK_CUR);
-                if (ret != 0) {
-                    DISPLAY("Error: could not move to end of frame header\n");
-                    detectError = 1;
-                    break;
+        {
+            U32 const magicNumber = MEM_readLE32(headerBuffer);
+            if (magicNumber == ZSTD_MAGICNUMBER) {
+                U64 const frameContentSize = ZSTD_getFrameContentSize(headerBuffer, numBytesRead);
+                if (frameContentSize == ZSTD_CONTENTSIZE_ERROR || frameContentSize == ZSTD_CONTENTSIZE_UNKNOWN) {
+                    info->canComputeDecompSize = 0;
                 }
-            }
-
-            /* skip the rest of the blocks in the frame */
-            {
-                int lastBlock = 0;
-                size_t readBytes = 0;
-                do{
-                    BYTE blockHeaderBuffer[3];
-                    U32 blockHeader;
-                    int blockSize;
-                    readBytes = fread(blockHeaderBuffer, 1, 3, srcFile);
-                    if (readBytes != 3) {
-                        DISPLAY("There was a problem reading the block header\n");
+                else {
+                    info->decompressedSize += frameContentSize;
+                }
+                {
+                    /* move to the end of the frame header */
+                    size_t const headerSize = ZSTD_frameHeaderSize(headerBuffer, numBytesRead);
+                    if (ZSTD_isError(headerSize)) {
+                        DISPLAY("Error: could not determine frame header size\n");
                         detectError = 1;
                         break;
                     }
-                    blockHeader = MEM_readLE24(blockHeaderBuffer);
-                    lastBlock = blockHeader & 1;
-                    blockSize = (blockHeader - (blockHeader & 7)) >> 3;
-                    {
-                        int const ret = fseek(srcFile, blockSize, SEEK_CUR);
+                    int const ret = fseek(srcFile, ((long)headerSize)-((long)numBytesRead), SEEK_CUR);
+                    if (ret != 0) {
+                        DISPLAY("Error: could not move to end of frame header\n");
+                        detectError = 1;
+                        break;
+                    }
+                }
+
+                /* skip the rest of the blocks in the frame */
+                {
+                    int lastBlock = 0;
+                    size_t readBytes = 0;
+                    do{
+                        BYTE blockHeaderBuffer[3];
+                        U32 blockHeader;
+                        int blockSize;
+                        readBytes = fread(blockHeaderBuffer, 1, 3, srcFile);
+                        if (readBytes != 3) {
+                            DISPLAY("There was a problem reading the block header\n");
+                            detectError = 1;
+                            break;
+                        }
+                        blockHeader = MEM_readLE24(blockHeaderBuffer);
+                        lastBlock = blockHeader & 1;
+                        blockSize = (blockHeader - (blockHeader & 7)) >> 3;
+                        {
+                            int const ret = fseek(srcFile, blockSize, SEEK_CUR);
+                            if (ret != 0) {
+                                DISPLAY("Error: could not skip to end of block\n");
+                                detectError = 1;
+                                break;
+                            }
+                        }
+                    } while (lastBlock != 1);
+
+                    if (detectError) {
+                        break;
+                    }
+                }
+                {
+                    /* check if checksum is used */
+                    BYTE const frameHeaderDescriptor = headerBuffer[4];
+                    int const contentChecksumFlag = (frameHeaderDescriptor & (1 << 2)) >> 2;
+                    if (contentChecksumFlag) {
+                        info->usesCheck = 1;
+                    }
+                    if (contentChecksumFlag) {
+                        int const ret = fseek(srcFile, 4, SEEK_CUR);
                         if (ret != 0) {
-                            DISPLAY("Error: could not skip to end of block\n");
+                            DISPLAY("Error: could not skip past checksum\n");
                             detectError = 1;
                             break;
                         }
                     }
-                } while (lastBlock != 1);
-
-                if (detectError) {
+                }
+                info->numActualFrames++;
+            }
+            else if (magicNumber == ZSTD_MAGIC_SKIPPABLE_START) {
+                BYTE frameSizeBuffer[4];
+                size_t readBytes = fread(frameSizeBuffer, 1, 4, srcFile);
+                if (readBytes != 4) {
+                    DISPLAY("There was an error reading skippable frame size");
+                    detectError = 1;
                     break;
                 }
-            }
-            {
-                /* check if checksum is used */
-                BYTE const frameHeaderDescriptor = headerBuffer[4];
-                int const contentChecksumFlag = (frameHeaderDescriptor & (1 << 2)) >> 2;
-                if (contentChecksumFlag) {
-                    info->usesCheck = 1;
-                }
-                if (contentChecksumFlag) {
-                    int const ret = fseek(srcFile, 4, SEEK_CUR);
+                {
+                    long const frameSize = MEM_readLE32(frameSizeBuffer);
+                    int const ret = fseek(srcFile, frameSize, SEEK_CUR);
                     if (ret != 0) {
-                        DISPLAY("Error: could not skip past checksum\n");
+                        DISPLAY("Error: could not find end of skippable frame\n");
                         detectError = 1;
                         break;
                     }
                 }
+                info->numSkippableFrames++;
             }
-            info->numActualFrames++;
-        }
-        else if (magicNumber == ZSTD_MAGIC_SKIPPABLE_START) {
-            BYTE frameSizeBuffer[4];
-            size_t readBytes = fread(frameSizeBuffer, 1, 4, srcFile);
-            if (readBytes != 4) {
-                DISPLAY("There was an error reading skippable frame size");
-                detectError = 1;
-                break;
-            }
-            long const frameSize = MEM_readLE32(frameSizeBuffer);
-            {
-                int const ret = fseek(srcFile, frameSize, SEEK_CUR);
-                if (ret != 0) {
-                    DISPLAY("Error: could not find end of skippable frame\n");
-                    detectError = 1;
-                    break;
-                }
-            }
-            fseek(srcFile, frameSize, SEEK_CUR);
-            info->numSkippableFrames++;
         }
     }
     fclose(srcFile);
@@ -1036,8 +1036,8 @@ static void displayInfo(const char* inFileName, fileInfo_t* info, int displayLev
 }
 
 int FIO_listFile(const char* inFileName, int displayLevel){
-    DISPLAYOUT("File: %s\n", inFileName);
     fileInfo_t info;
+    DISPLAYOUT("File: %s\n", inFileName);
     int const error = getFileInfo(&info, inFileName);
     if (error == 1) {
         DISPLAY("An error occurred with getting file info\n");

@@ -893,7 +893,6 @@ static int getFileInfo(fileInfo_t* info, const char* inFileName){
         size_t const numBytesRead = fread(headerBuffer, 1, sizeof(headerBuffer), srcFile);
         if (numBytesRead < ZSTD_frameHeaderSize_min) {
             if(feof(srcFile)){
-                DISPLAY("ran out of files\n");
                 break;
             }
             else{
@@ -1000,29 +999,19 @@ static int getFileInfo(fileInfo_t* info, const char* inFileName){
 void displayInfo(const char* inFileName, fileInfo_t* info, int displayLevel){
     double const compressedSizeMB = (double)info->compressedSize/(1 MB);
     double const decompressedSizeMB = (double)info->decompressedSize/(1 MB);
+    const char* checkString = (info->usesCheck ? "XXH64" : "None");
 
     if(displayLevel<=2){
-        if(info->usesCheck && info->canComputeDecompSize){
+        if (info->canComputeDecompSize) {
             DISPLAYOUT("Skippable  Non-Skippable  Compressed  Uncompressed  Ratio  Check  Filename\n");
-            DISPLAYOUT("%9d  %13d  %7.2f MB    %7.2f MB  %5.3f  XXH64  %s\n",
+            DISPLAYOUT("%9d  %13d  %7.2f MB  %9.2f MB  %5.3f  %s  %s\n",
                     info->numSkippableFrames, info->numActualFrames, compressedSizeMB, decompressedSizeMB,
-                    compressedSizeMB/decompressedSizeMB, inFileName);
+                    compressedSizeMB/decompressedSizeMB, checkString, inFileName);
         }
-        else if(!info->usesCheck){
-            DISPLAYOUT("Skippable  Non-Skippable  Compressed  Uncompressed  Ratio  Check  Filename\n");
-            DISPLAYOUT("%9d  %13d  %7.2f MB    %7.2f MB  %5.3f  %s\n",
-                    info->numSkippableFrames, info->numActualFrames, compressedSizeMB, decompressedSizeMB,
-                    compressedSizeMB/decompressedSizeMB, inFileName);
-        }
-        else if(!info->canComputeDecompSize){
-            DISPLAYOUT("Skippable  Non-Skippable  Compressed  Uncompressed  Ratio  Check  Filename\n");
-            DISPLAYOUT("%9d  %13d  %7.2f MB      XXH64  %s\n",
-                    info->numSkippableFrames, info->numActualFrames, compressedSizeMB, inFileName);
-        }
-        else{
-            DISPLAYOUT("Skippable  Non-Skippable  Filename\n");
-            DISPLAYOUT("%9d  %13d  %7.2f MB  %s\n",
-                    info->numSkippableFrames, info->numActualFrames, compressedSizeMB, inFileName);
+        else {
+            DISPLAYOUT("Skippable  Non-Skippable  Compressed  Check  Filename\n");
+            DISPLAYOUT("%9d  %13d  %7.2f MB  %s  %s\n",
+                    info->numSkippableFrames, info->numActualFrames, compressedSizeMB, checkString, inFileName);
         }
     }
     else{

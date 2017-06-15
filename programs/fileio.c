@@ -920,7 +920,7 @@ static int getFileInfo(fileInfo_t* info, const char* inFileName){
 
             {
                 /* move to the end of the frame header */
-                int const ret = fseek(srcFile, (long)(headerSize-numBytesRead), SEEK_CUR);
+                int const ret = fseek(srcFile, ((long)headerSize)-((long)numBytesRead), SEEK_CUR);
                 if (ret != 0) {
                     DISPLAY("Error: could not move to end of frame header\n");
                     detectError = 1;

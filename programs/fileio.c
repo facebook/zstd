@@ -914,8 +914,8 @@ static int getFileInfo(fileInfo_t* info, const char* inFileName){
             }
             size_t const headerSize = ZSTD_frameHeaderSize(headerBuffer, numBytesRead);
             if (ZSTD_isError(headerSize)) {
-                fclose(srcFile);
                 DISPLAY("Error: could not determine frame header size\n");
+                fclose(srcFile);
                 return 1;
             }
 
@@ -1037,25 +1037,20 @@ void displayInfo(const char* inFileName, fileInfo_t* info, int displayLevel){
             DISPLAYOUT("Check: XXH64\n");
         }
     }
+
+    DISPLAYOUT("\n");
 }
 
 int FIO_listFile(const char* inFileName, int displayLevel){
-    const char* const suffixPtr = strrchr(inFileName, '.');
     DISPLAY("File: %s\n", inFileName);
-    if (!suffixPtr || strcmp(suffixPtr, ZSTD_EXTENSION)) {
-        DISPLAYLEVEL(1, "file %s was not compressed with zstd -- ignoring\n\n", inFileName);
+    fileInfo_t* info = (fileInfo_t*)malloc(sizeof(fileInfo_t));
+    int error = getFileInfo(info, inFileName);
+    if (error == 1) {
+        DISPLAY("An error occurred with getting file info\n");
         return 1;
     }
-    else {
-        fileInfo_t* info = (fileInfo_t*)malloc(sizeof(fileInfo_t));
-        int error = getFileInfo(info, inFileName);
-        if(error==1){
-            DISPLAY("An error occurred with getting file info\n");
-            exit(1);
-        }
-        displayInfo(inFileName, info, displayLevel);
-    }
-    DISPLAY("\n");
+    displayInfo(inFileName, info, displayLevel);
+    free(info);
     return 0;
 }
 

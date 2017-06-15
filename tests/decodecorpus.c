@@ -1344,17 +1344,22 @@ static int generateCorpusWithDict(U32 seed, unsigned numFiles, const char* const
         size_t dictWriteSize = 0;
 
         /* create random samples */
-        unsigned numSamples = RAND(&seed) % 50;
+        unsigned numSamples = 0;
         BYTE* samples;
         unsigned i = 0;
         size_t* sampleSizes = malloc(numSamples*sizeof(size_t));
         {
             size_t* curr = sampleSizes;
             size_t totalSize = 0;
-            while(i++ < numSamples){
-                *curr = RAND(&seed) % dictContentSize;
-                totalSize += *curr;
-                curr++;
+            while(numSamples < 100){
+                unsigned numReps = ROUND(RAND_exp(&seed, 10));
+                size_t randSize = RAND(&seed) % dictContentSize;
+                while(numReps-- > 0){
+                    *curr = randSize;
+                    totalSize += *curr;
+                    curr++;
+                }
+                numSamples += numReps;
             }
             samples = malloc(totalSize);
 
@@ -1374,7 +1379,6 @@ static int generateCorpusWithDict(U32 seed, unsigned numFiles, const char* const
                 }
             }
         }
-
         {
             /* set dictionary params */
             ZDICT_params_t zdictParams;

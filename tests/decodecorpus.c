@@ -1347,47 +1347,47 @@ static int generateCorpusWithDict(U32 seed, unsigned numFiles, const char* const
         unsigned numSamples = 0;
         BYTE* samples;
         unsigned i = 0;
-        size_t* sampleSizes = malloc(numSamples*sizeof(size_t));
+        size_t* sampleSizes = malloc(255*sizeof(size_t));
         {
             size_t* curr = sampleSizes;
             size_t totalSize = 0;
-            while(numSamples < 100){
-                unsigned numReps = ROUND(RAND_exp(&seed, 10));
+            unsigned numReps = 1;
+            while(numSamples < 200){
                 size_t randSize = RAND(&seed) % dictContentSize;
+                unsigned counter = numReps;
                 numSamples += numReps;
-                while(numReps-- > 0){
+                while(counter-- > 0){
                     *curr = randSize;
                     totalSize += *curr;
                     curr++;
                 }
+                numReps *= 2;
             }
             samples = malloc(totalSize);
 
             /* reset pointer and counter */
             curr = sampleSizes;
             i = 0;
-            DISPLAY("total size: %zu\n", totalSize);
             {
                 /* take substring from dictionary content */
                 size_t pos = 0;
                 BYTE* endDict = dictContent + dictContentSize;
                 while(i++ < numSamples){
                     size_t currSize = *(curr++);
-                    DISPLAY("current size: %zu\n", currSize);
-                    DISPLAY("dictionary content size: %zu\n", dictContentSize);
                     BYTE* startSubstring = endDict - currSize;
                     memcpy(samples + pos, (void*)startSubstring, currSize);
                     pos += currSize;
                 }
             }
         }
+        DISPLAY("==================done with generation====================\n");
         {
             /* set dictionary params */
             ZDICT_params_t zdictParams;
             memset(&zdictParams, 0, sizeof(zdictParams));
             zdictParams.dictID = dictID;
             zdictParams.notificationLevel = 1;
-
+            DISPLAY("===================zdict params================\n");
             /* finalize dictionary with random samples */
             dictWriteSize = ZDICT_finalizeDictionary(fullDict, dictSize,
                                         dictContent, dictContentSize,
@@ -1399,7 +1399,7 @@ static int generateCorpusWithDict(U32 seed, unsigned numFiles, const char* const
             DISPLAY("Could not finalize dictionary: %s\n", ZDICT_getErrorName(dictWriteSize));
             return 1;
         }
-
+        DISPLAY("=================done with finalize=================\n");
         /* write out dictionary */
         if(snprintf(outPath, MAX_PATH, "%s/dictionary", path) + 1 > MAX_PATH){
             DISPLAY("Error: dictionary path too long\n");
@@ -1442,7 +1442,7 @@ static int generateCorpusWithDict(U32 seed, unsigned numFiles, const char* const
                                                fullDict, dictSize);
 
         if(ZSTD_isError(returnValue)){
-            DISPLAY("Error: %s", ZSTD_getErrorName(returnValue));
+            DISPLAY("Error: %s\n", ZSTD_getErrorName(returnValue));
         }
 
     }

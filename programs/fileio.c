@@ -887,6 +887,7 @@ static int getFileInfo(fileInfo_t* info, const char* inFileName){
     info->numActualFrames = 0;
     info->numSkippableFrames = 0;
     info->canComputeDecompSize = 1;
+    int detectError = 0;
     /* begin analyzing frame */
     for( ; ; ){
         BYTE headerBuffer[ZSTD_FRAMEHEADERSIZE_MAX];
@@ -897,8 +898,8 @@ static int getFileInfo(fileInfo_t* info, const char* inFileName){
             }
             else{
                 DISPLAY("Error: did not reach end of file but ran out of frames\n");
-                fclose(srcFile);
-                return 1;
+                detectError = 1;
+                break;
             }
         }
         U32 const magicNumber = MEM_readLE32(headerBuffer);
@@ -906,7 +907,6 @@ static int getFileInfo(fileInfo_t* info, const char* inFileName){
             U64 const frameContentSize = ZSTD_getFrameContentSize(headerBuffer, numBytesRead);
             if (frameContentSize == ZSTD_CONTENTSIZE_ERROR || frameContentSize == ZSTD_CONTENTSIZE_UNKNOWN) {
                 info->canComputeDecompSize = 0;
-                DISPLAY("could not compute decompressed size\n");
             }
             else {
                 info->decompressedSize += frameContentSize;
@@ -914,34 +914,24 @@ static int getFileInfo(fileInfo_t* info, const char* inFileName){
             size_t const headerSize = ZSTD_frameHeaderSize(headerBuffer, numBytesRead);
             if (ZSTD_isError(headerSize)) {
                 DISPLAY("Error: could not determine frame header size\n");
-                fclose(srcFile);
-                return 1;
+                detectError = 1;
+                break;
             }
 
             {
-                /* go back to the beginning of the frame */
-                int const ret = fseek(srcFile, -numBytesRead, SEEK_CUR);
+                /* move to the end of the frame header */
+                int const ret = fseek(srcFile, headerSize-numBytesRead, SEEK_CUR);
                 if (ret != 0) {
-                    DISPLAY("Error: could not rewind to beginning of frame\n");
-                    fclose(srcFile);
-                    return 1;
-                }
-            }
-
-            {
-                /* skip frame header */
-                int const ret = fseek(srcFile, headerSize, SEEK_CUR);
-                if (ret != 0) {
-                    DISPLAY("Error: could not skip header\n");
-                    fclose(srcFile);
-                    return 1;
+                    DISPLAY("Error: could not move to end of frame header\n");
+                    detectError = 1;
+                    break;
                 }
             }
 
             /* skip the rest of the blocks in the frame */
             {
                 int lastBlock = 0;
-                int readBytes = 0;
+                size_t readBytes = 0;
                 do{
                     BYTE blockHeaderBuffer[3];
                     U32 blockHeader;
@@ -949,44 +939,59 @@ static int getFileInfo(fileInfo_t* info, const char* inFileName){
                     readBytes = fread(blockHeaderBuffer, 1, 3, srcFile);
                     if (readBytes != 3) {
                         DISPLAY("There was a problem reading the block header\n");
-                        fclose(srcFile);
-                        return 1;
+                        detectError = 1;
+                        break;
                     }
                     blockHeader = MEM_readLE24(blockHeaderBuffer);
                     lastBlock = blockHeader & 1;
                     blockSize = (blockHeader - (blockHeader & 7)) >> 3;
-                    fseek(srcFile, blockSize, SEEK_CUR);
-                }while (lastBlock != 1);
+                    {
+                        int const ret = fseek(srcFile, blockSize, SEEK_CUR);
+                        if (ret != 0) {
+                            DISPLAY("Error: could not skip to end of block\n");
+                            detectError = 1;
+                            break;
+                        }
+                    }
+                } while (lastBlock != 1);
+                
+                if (detectError) {
+                    break;
+                }
             }
             {
                 /* check if checksum is used */
-                BYTE frameHeaderDescriptor = headerBuffer[4];
-                int contentChecksumFlag = (frameHeaderDescriptor & (1 << 2)) >> 2;
+                BYTE const frameHeaderDescriptor = headerBuffer[4];
+                int const contentChecksumFlag = (frameHeaderDescriptor & (1 << 2)) >> 2;
                 if (contentChecksumFlag) {
                     info->usesCheck = 1;
                 }
                 if (contentChecksumFlag) {
-                    fseek(srcFile, 4, SEEK_CUR);
+                    int const ret = fseek(srcFile, 4, SEEK_CUR);
+                    if (ret != 0) {
+                        DISPLAY("Error: could not skip past checksum\n");
+                        detectError = 1;
+                        break;
+                    }
                 }
             }
             info->numActualFrames++;
         }
         else if (magicNumber == ZSTD_MAGIC_SKIPPABLE_START) {
             BYTE frameSizeBuffer[4];
-            long frameSize;
             size_t readBytes = fread(frameSizeBuffer, 1, 4, srcFile);
-            info->numSkippableFrames++;
             if (readBytes != 4) {
                 DISPLAY("There was an error reading skippable frame size");
-                exit(1);
+                detectError = 1;
+                break;
             }
-            frameSize = MEM_readLE32(frameSizeBuffer);
+            long const frameSize = MEM_readLE32(frameSizeBuffer);
             {
                 int const ret = fseek(srcFile, frameSize, SEEK_CUR);
                 if (ret != 0) {
                     DISPLAY("Error: could not find end of skippable frame\n");
-                    fclose(srcFile);
-                    return 1;
+                    detectError = 1;
+                    break;
                 }
             }
             fseek(srcFile, frameSize, SEEK_CUR);
@@ -994,7 +999,7 @@ static int getFileInfo(fileInfo_t* info, const char* inFileName){
         }
     }
     fclose(srcFile);
-    return 0;
+    return detectError;
 }
 void displayInfo(const char* inFileName, fileInfo_t* info, int displayLevel){
     double const compressedSizeMB = (double)info->compressedSize/(1 MB);

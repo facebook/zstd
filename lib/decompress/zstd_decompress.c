@@ -204,7 +204,7 @@ unsigned ZSTD_isFrame(const void* buffer, size_t size)
 /** ZSTD_frameHeaderSize() :
 *   srcSize must be >= ZSTD_frameHeaderSize_prefix.
 *   @return : size of the Frame Header */
-static size_t ZSTD_frameHeaderSize(const void* src, size_t srcSize)
+size_t ZSTD_frameHeaderSize(const void* src, size_t srcSize)
 {
     if (srcSize < ZSTD_frameHeaderSize_prefix) return ERROR(srcSize_wrong);
     {   BYTE const fhd = ((const BYTE*)src)[4];

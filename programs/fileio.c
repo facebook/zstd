@@ -1000,7 +1000,6 @@ void displayInfo(const char* inFileName, fileInfo_t* info, int displayLevel){
     double const compressedSizeMB = (double)info->compressedSize/(1 MB);
     double const decompressedSizeMB = (double)info->decompressedSize/(1 MB);
     const char* checkString = (info->usesCheck ? "XXH64" : "None");
-
     if(displayLevel<=2){
         if (info->canComputeDecompSize) {
             DISPLAYOUT("Skippable  Non-Skippable  Compressed  Uncompressed  Ratio  Check  Filename\n");
@@ -1031,15 +1030,14 @@ void displayInfo(const char* inFileName, fileInfo_t* info, int displayLevel){
 }
 
 int FIO_listFile(const char* inFileName, int displayLevel){
-    DISPLAY("File: %s\n", inFileName);
-    fileInfo_t* info = (fileInfo_t*)malloc(sizeof(fileInfo_t));
-    int error = getFileInfo(info, inFileName);
+    DISPLAYOUT("File: %s\n", inFileName);
+    fileInfo_t info;
+    int const error = getFileInfo(&info, inFileName);
     if (error == 1) {
         DISPLAY("An error occurred with getting file info\n");
         return 1;
     }
-    displayInfo(inFileName, info, displayLevel);
-    free(info);
+    displayInfo(inFileName, &info, displayLevel);
     return 0;
 }
 

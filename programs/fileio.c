@@ -91,6 +91,7 @@
 *  Macros
 ***************************************/
 #define DISPLAY(...)         fprintf(stderr, __VA_ARGS__)
+#define DISPLAYOUT(...)      fprintf(stdout, __VA_ARGS__)
 #define DISPLAYLEVEL(l, ...) { if (g_displayLevel>=l) { DISPLAY(__VA_ARGS__); } }
 static int g_displayLevel = 2;   /* 0 : no display;   1: errors;   2 : + result + interaction + warnings;   3 : + progression;   4 : + information */
 void FIO_setNotificationLevel(unsigned level) { g_displayLevel=level; }
@@ -872,21 +873,13 @@ typedef struct {
 } fileInfo_t;
 
 
-int calcFrameHeaderSize(BYTE frameHeaderDescriptor){
-    int frameContentSizeBytes = 0;
-    int windowDescriptorBytes;
-    int dictionaryIDBytes;
-    int frameContentSizeFlag = frameHeaderDescriptor >> 6;
-    int singleSegmentFlag = (frameHeaderDescriptor & (1 << 5)) >> 5;
-    int dictionaryIDFlag = frameHeaderDescriptor & 3;
-    if(frameContentSizeFlag!=0){
-        frameContentSizeBytes = 1 << frameContentSizeFlag;
-    }
-    else if(singleSegmentFlag){
-        frameContentSizeBytes = 1;
-    }
-    windowDescriptorBytes = singleSegmentFlag ? 0 : 1;
-    dictionaryIDBytes = dictionaryIDFlag ? 1 << (dictionaryIDFlag - 1): 0;
+static int calcFrameHeaderSize(BYTE frameHeaderDescriptor){
+    const int frameContentSizeFlag = frameHeaderDescriptor >> 6;
+    const int singleSegmentFlag = (frameHeaderDescriptor & (1 << 5)) >> 5;
+    const int dictionaryIDFlag = frameHeaderDescriptor & 3;
+    const int windowDescriptorBytes = singleSegmentFlag ? 0 : 1;
+    const int frameContentSizeBytes = (frameContentSizeFlag != 0) ? (1 << frameContentSizeFlag) : (singleSegmentFlag ? 1 : 0);
+    const int dictionaryIDBytes = dictionaryIDFlag ? 1 << (dictionaryIDFlag - 1): 0;
     return 4 + 1 + windowDescriptorBytes + frameContentSizeBytes + dictionaryIDBytes;
 }
 
@@ -894,50 +887,67 @@ int calcFrameHeaderSize(BYTE frameHeaderDescriptor){
  * Reads information from file, stores in *info
  * if successful, returns 0, otherwise returns 1
  */
-int getFileInfo(fileInfo_t* info, const char* inFileName){
-    FILE* srcFile = FIO_openSrcFile(inFileName);
-    if(srcFile==NULL){
+static int getFileInfo(fileInfo_t* info, const char* inFileName){
+    FILE* const srcFile = FIO_openSrcFile(inFileName);
+    if (srcFile == NULL) {
+        DISPLAY("Error: could not open source file %s\n", inFileName);
         return 1;
     }
     info->compressedSize = (unsigned long long)UTIL_getFileSize(inFileName);
     info->decompressedSize = 0;
     info->numActualFrames = 0;
-    info-> numSkippableFrames = 0;
+    info->numSkippableFrames = 0;
     info->canComputeDecompSize = 1;
     /* begin analyzing frame */
-    while(1){
+    for( ; ; ){
         BYTE magicNumberBuffer[4];
         size_t numBytesRead = fread(magicNumberBuffer, 1, 4, srcFile);
         U32 magicNumber;
-        if(numBytesRead != 4) break;
+        if (numBytesRead != 4) break;
         magicNumber = MEM_readLE32(magicNumberBuffer);
-        if(magicNumber==ZSTD_MAGICNUMBER){
+        if (magicNumber==ZSTD_MAGICNUMBER) {
             BYTE frameHeaderDescriptor;
             int totalFrameHeaderBytes;
             BYTE* frameHeader;
             int lastBlock = 0;
             size_t readBytes = fread(&frameHeaderDescriptor, 1, 1, srcFile);
             info->numActualFrames++;
-            if(readBytes != 1){
-                DISPLAY("There was an error with reading frame header descriptor\n");
-                exit(1);
+            if (readBytes != 1) {
+                DISPLAY("Error: could not read frame header descriptor\n");
+                fclose(srcFile);
+
+                return 1;
             }
             /* calculate actual frame header size */
             totalFrameHeaderBytes = calcFrameHeaderSize(frameHeaderDescriptor);
 
             /* reset to beginning of from and read entire header */
-            fseek(srcFile, -5, SEEK_CUR);
+            {
+                int returnVal = fseek(srcFile, -5, SEEK_CUR);
+                if (returnVal!=0) {
+                    DISPLAY("Error: could not reset to the beginning of the frame header\n");
+                    fclose(srcFile);
+                    return 1;
+                }
+            }
             frameHeader = (BYTE*)malloc(totalFrameHeaderBytes);
+            if (frameHeader==NULL) {
+                DISPLAY("Error: could not allocate space for frameHeader\n");
+                fclose(srcFile);
+                return 1;
+            }
             readBytes = fread(frameHeader, 1, totalFrameHeaderBytes, srcFile);
-            if(readBytes != (size_t)totalFrameHeaderBytes){
-                DISPLAY("There was an error reading the frame header\n");
-                exit(1);
+            if (readBytes != (size_t)totalFrameHeaderBytes) {
+                DISPLAY("Error: could not read frame header\n");
+                fclose(srcFile);
+                free(frameHeader);
+                return 1;
             }
 
             /* get decompressed file size */
             {
                 U64 additional = ZSTD_getFrameContentSize(frameHeader, totalFrameHeaderBytes);
-                if(additional!=ZSTD_CONTENTSIZE_UNKNOWN && additional!=ZSTD_CONTENTSIZE_ERROR){
+                if (additional!=ZSTD_CONTENTSIZE_UNKNOWN && additional!=ZSTD_CONTENTSIZE_ERROR) {
                     info->decompressedSize += additional;
                 }
                 else{
@@ -951,7 +961,7 @@ int getFileInfo(fileInfo_t* info, const char* inFileName){
                 U32 blockHeader;
                 int blockSize;
                 readBytes = fread(blockHeaderBuffer, 1, 3, srcFile);
-                if(readBytes != 3){
+                if (readBytes != 3) {
                     DISPLAY("There was a problem reading the block header\n");
                     exit(1);
                 }
@@ -959,37 +969,38 @@ int getFileInfo(fileInfo_t* info, const char* inFileName){
                 lastBlock = blockHeader & 1;
                 blockSize = (blockHeader - (blockHeader & 7)) >> 3;
                 fseek(srcFile, blockSize, SEEK_CUR);
-            }while(lastBlock != 1);
+            }while (lastBlock != 1);
             {
                 /* check if checksum is used */
                 int contentChecksumFlag = (frameHeaderDescriptor & (1 << 2)) >> 2;
-                if(contentChecksumFlag){
+                if (contentChecksumFlag) {
                     info->usesCheck = 1;
                 }
-                if(contentChecksumFlag){
+                if (contentChecksumFlag) {
                     fseek(srcFile, 4, SEEK_CUR);
                 }
             }
+            free(frameHeader);
         }
-        else if(magicNumber==ZSTD_MAGIC_SKIPPABLE_START){
+        else if (magicNumber == ZSTD_MAGIC_SKIPPABLE_START) {
             BYTE frameSizeBuffer[4];
             long frameSize;
             size_t readBytes = fread(frameSizeBuffer, 1, 4, srcFile);
             info->numSkippableFrames++;
-            if(readBytes != 4){
+            if (readBytes != 4) {
                 DISPLAY("There was an error reading skippable frame size");
                 exit(1);
             }
             frameSize = MEM_readLE32(frameSizeBuffer);
             fseek(srcFile, frameSize, SEEK_CUR);
         }
-
     }
+    fclose(srcFile);
     return 0;
 }
 void displayInfo(const char* inFileName, fileInfo_t* info, int displayLevel){
-    double compressedSizeMB = (double)info->compressedSize/(1 MB);
-    double decompressedSizeMB = (double)info->decompressedSize/(1 MB);
+    double const compressedSizeMB = (double)info->compressedSize/(1 MB);
+    double const decompressedSizeMB = (double)info->decompressedSize/(1 MB);
 
     if(displayLevel<=2){
         if(info->usesCheck && info->canComputeDecompSize){

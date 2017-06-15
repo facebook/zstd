@@ -674,6 +674,7 @@ int main(int argCount, const char* argv[])
     }
 #endif
     if(operation==zom_list){
+        g_displayOut = stdout;
         if(filenameIdx==0){
             DISPLAY("No files given\n");
             CLEAN_RETURN(0);

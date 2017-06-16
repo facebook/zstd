@@ -309,6 +309,7 @@ size_t ZSTD_CCtx_setParameter(ZSTD_CCtx* cctx, ZSTD_cParameter param, unsigned v
 #endif
 
     case ZSTD_p_contentSizeFlag :
+        DEBUGLOG(2, "set content size flag = %u", (value>0));
         /* Content size written in frame header _when known_ (default:1) */
         cctx->requestedParams.fParams.contentSizeFlag = value>0;
         return 0;
@@ -371,6 +372,7 @@ size_t ZSTD_CCtx_setParameter(ZSTD_CCtx* cctx, ZSTD_cParameter param, unsigned v
 
 ZSTDLIB_API size_t ZSTD_CCtx_setPledgedSrcSize(ZSTD_CCtx* cctx, unsigned long long pledgedSrcSize)
 {
+    DEBUGLOG(2, " setting pledgedSrcSize to %u", (U32)pledgedSrcSize);
     if (cctx->streamStage != zcss_init) return ERROR(stage_wrong);
     cctx->frameContentSize = pledgedSrcSize;
     return 0;
@@ -3198,9 +3200,12 @@ size_t ZSTD_compressEnd (ZSTD_CCtx* cctx,
     endResult = ZSTD_writeEpilogue(cctx, (char*)dst + cSize, dstCapacity-cSize);
     if (ZSTD_isError(endResult)) return endResult;
     if (cctx->appliedParams.fParams.contentSizeFlag) {  /* control src size */
-        if (cctx->frameContentSize != cctx->consumedSrcSize)
+        DEBUGLOG(2, "end of frame : controlling src size");
+        if (cctx->frameContentSize != cctx->consumedSrcSize) {
+            DEBUGLOG(2, "error : pledgedSrcSize = %u, while realSrcSize = %u",
+                (U32)cctx->frameContentSize, (U32)cctx->consumedSrcSize);
             return ERROR(srcSize_wrong);
-    }
+    }   }
     return cSize + endResult;
 }
 
@@ -3685,6 +3690,7 @@ static size_t ZSTD_compressStream_generic(ZSTD_CStream* zcs,
                         DEBUGLOG(5, "Frame completed directly in outBuffer");
                         someMoreWork = 0;
                         zcs->streamStage = zcss_init;
+                        zcs->frameContentSize = ZSTD_CONTENTSIZE_UNKNOWN;
                     }
                     break;
                 }
@@ -3711,6 +3717,7 @@ static size_t ZSTD_compressStream_generic(ZSTD_CStream* zcs,
                     DEBUGLOG(5, "Frame completed on flush");
                     someMoreWork = 0;
                     zcs->streamStage = zcss_init;
+                    zcs->frameContentSize = ZSTD_CONTENTSIZE_UNKNOWN;
                     break;
                 }
                 zcs->streamStage = zcss_load;
@@ -3786,8 +3793,10 @@ size_t ZSTD_compress_generic (ZSTD_CCtx* cctx,
         size_t const flushMin = ZSTDMT_compressStream_generic(cctx->mtctx, output, input, endOp);
         DEBUGLOG(5, "ZSTDMT result : %u", (U32)flushMin);
         if (ZSTD_isError(flushMin)) cctx->streamStage = zcss_init;
-        if (endOp == ZSTD_e_end && flushMin==0)
+        if (endOp == ZSTD_e_end && flushMin==0) {
             cctx->streamStage = zcss_init;   /* compression completed */
+            cctx->frameContentSize = ZSTD_CONTENTSIZE_UNKNOWN;
+        }
         return flushMin;
     }
 #endif

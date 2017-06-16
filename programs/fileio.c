@@ -874,7 +874,7 @@ typedef struct {
 
 /*
  * Reads information from file, stores in *info
- * if successful, returns 0, otherwise returns 1
+ * if successful, returns 0, returns 1 for frame analysis error, returns 2 for file not compressed with zstd
  */
 static int getFileInfo(fileInfo_t* info, const char* inFileName){
     int detectError = 0;
@@ -998,6 +998,10 @@ static int getFileInfo(fileInfo_t* info, const char* inFileName){
                 }
                 info->numSkippableFrames++;
             }
+            else {
+                detectError = 2;
+                break;
+            }
         }
     }
     fclose(srcFile);
@@ -1043,8 +1047,12 @@ int FIO_listFile(const char* inFileName, int displayLevel){
     {
         int const error = getFileInfo(&info, inFileName);
         if (error == 1) {
+            /* display error, but provide output */
             DISPLAY("An error occurred with getting file info\n");
-            return 1;
+        }
+        else if (error == 2) {
+            DISPLAYOUT("File %s not compressed with zstd\n\n", inFileName);
+            return 0;
         }
     }
     displayInfo(inFileName, &info, displayLevel);

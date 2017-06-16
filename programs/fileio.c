@@ -885,7 +885,7 @@ static int getFileInfo(fileInfo_t* info, const char* inFileName){
     }
     info->compressedSize = (unsigned long long)UTIL_getFileSize(inFileName);
     /* begin analyzing frame */
-    for( ; ; ){
+    for ( ; ; ) {
         BYTE headerBuffer[ZSTD_FRAMEHEADERSIZE_MAX];
         size_t const numBytesRead = fread(headerBuffer, 1, sizeof(headerBuffer), srcFile);
         if (numBytesRead < ZSTD_frameHeaderSize_min) {
@@ -930,7 +930,7 @@ static int getFileInfo(fileInfo_t* info, const char* inFileName){
                 {
                     int lastBlock = 0;
                     size_t readBytes = 0;
-                    do{
+                    do {
                         BYTE blockHeaderBuffer[3];
                         U32 blockHeader;
                         int blockSize;

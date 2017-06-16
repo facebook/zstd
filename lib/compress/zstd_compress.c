@@ -339,6 +339,8 @@ size_t ZSTD_CCtx_setParameter(ZSTD_CCtx* cctx, ZSTD_cParameter param, unsigned v
         if (value > 1) return ERROR(compressionParameter_unsupported);
 #endif
         if ((value>1) && (cctx->nbThreads != value)) {
+            if (cctx->staticSize)  /* MT not compatible with static alloc */
+                return ERROR(compressionParameter_unsupported);
             ZSTDMT_freeCCtx(cctx->mtctx);
             cctx->nbThreads = value;
             cctx->mtctx = ZSTDMT_createCCtx(value);

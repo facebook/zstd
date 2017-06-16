@@ -702,11 +702,11 @@ typedef enum {
                               * More threads improve speed, but also increase memory usage.
                               * Can only receive a value > 1 if ZSTD_MULTITHREAD is enabled.
                               * Special: value 0 means "do not change nbThreads" */
-    ZSTDMT_p_jobSize,        /* Size of a compression job. Each compression job is completed in parallel.
+    ZSTD_p_jobSize,          /* Size of a compression job. Each compression job is completed in parallel.
                               * 0 means default, which is dynamically determined based on compression parameters.
                               * Job size must be a minimum of overlapSize, or 1 KB, whichever is largest
                               * The minimum size is automatically and transparently enforced */
-    ZSTDMT_p_overlapSizeLog, /* Size of previous input reloaded at the beginning of each job.
+    ZSTD_p_overlapSizeLog,   /* Size of previous input reloaded at the beginning of each job.
                               * 0 => no overlap, 6(default) => use 1/8th of windowSize, >=9 => use full windowSize */
 
     /* advanced parameters - may not remain available after API update */

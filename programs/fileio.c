@@ -874,7 +874,7 @@ typedef struct {
 
 /*
  * Reads information from file, stores in *info
- * if successful, returns 0, otherwise returns 1
+ * if successful, returns 0, returns 1 for frame analysis error, returns 2 for file not compressed with zstd
  */
 static int getFileInfo(fileInfo_t* info, const char* inFileName){
     int detectError = 0;
@@ -884,16 +884,12 @@ static int getFileInfo(fileInfo_t* info, const char* inFileName){
         return 1;
     }
     info->compressedSize = (unsigned long long)UTIL_getFileSize(inFileName);
-    info->decompressedSize = 0;
-    info->numActualFrames = 0;
-    info->numSkippableFrames = 0;
-    info->canComputeDecompSize = 1;
     /* begin analyzing frame */
     for( ; ; ){
         BYTE headerBuffer[ZSTD_FRAMEHEADERSIZE_MAX];
         size_t const numBytesRead = fread(headerBuffer, 1, sizeof(headerBuffer), srcFile);
         if (numBytesRead < ZSTD_frameHeaderSize_min) {
-            if(feof(srcFile)){
+            if (feof(srcFile)) {
                 break;
             }
             else{
@@ -981,7 +977,7 @@ static int getFileInfo(fileInfo_t* info, const char* inFileName){
             }
             else if (magicNumber == ZSTD_MAGIC_SKIPPABLE_START) {
                 BYTE frameSizeBuffer[4];
-                size_t readBytes = fread(frameSizeBuffer, 1, 4, srcFile);
+                size_t const readBytes = fread(frameSizeBuffer, 1, 4, srcFile);
                 if (readBytes != 4) {
                     DISPLAY("There was an error reading skippable frame size");
                     detectError = 1;
@@ -998,6 +994,10 @@ static int getFileInfo(fileInfo_t* info, const char* inFileName){
                 }
                 info->numSkippableFrames++;
             }
+            else {
+                detectError = 2;
+                break;
+            }
         }
     }
     fclose(srcFile);
@@ -1008,12 +1008,13 @@ static void displayInfo(const char* inFileName, fileInfo_t* info, int displayLev
     double const compressedSizeMB = (double)info->compressedSize/(1 MB);
     double const decompressedSizeMB = (double)info->decompressedSize/(1 MB);
     const char* checkString = (info->usesCheck ? "XXH64" : "None");
-    if(displayLevel<=2){
+    if (displayLevel <= 2) {
         if (info->canComputeDecompSize) {
+            double const ratio = (info->decompressedSize == 0) ? 0.0 : compressedSizeMB/decompressedSizeMB;
             DISPLAYOUT("Skippable  Non-Skippable  Compressed  Uncompressed  Ratio  Check  Filename\n");
             DISPLAYOUT("%9d  %13d  %7.2f MB  %9.2f MB  %5.3f  %s  %s\n",
                     info->numSkippableFrames, info->numActualFrames, compressedSizeMB, decompressedSizeMB,
-                    compressedSizeMB/decompressedSizeMB, checkString, inFileName);
+                    ratio, checkString, inFileName);
         }
         else {
             DISPLAYOUT("Skippable  Non-Skippable  Compressed  Check  Filename\n");
@@ -1039,16 +1040,28 @@ static void displayInfo(const char* inFileName, fileInfo_t* info, int displayLev
 
 int FIO_listFile(const char* inFileName, int displayLevel){
     fileInfo_t info;
+
+    /* initialize info to avoid warnings */
+    info.numActualFrames = 0;
+    info.numSkippableFrames = 0;
+    info.decompressedSize = 0;
+    info.canComputeDecompSize = 1;
+    info.compressedSize = 0;
+    info.usesCheck = 0;
     DISPLAYOUT("File: %s\n", inFileName);
     {
         int const error = getFileInfo(&info, inFileName);
         if (error == 1) {
+            /* display error, but provide output */
             DISPLAY("An error occurred with getting file info\n");
+        }
+        else if (error == 2) {
+            DISPLAYOUT("File %s not compressed with zstd\n\n", inFileName);
             return 1;
         }
+        displayInfo(inFileName, &info, displayLevel);
+        return error;
     }
-    displayInfo(inFileName, &info, displayLevel);
-    return 0;
 }
 
 int FIO_compressMultipleFilenames(const char** inFileNamesTable, unsigned nbFiles,

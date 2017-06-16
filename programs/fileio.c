@@ -893,7 +893,7 @@ static int getFileInfo(fileInfo_t* info, const char* inFileName){
         BYTE headerBuffer[ZSTD_FRAMEHEADERSIZE_MAX];
         size_t const numBytesRead = fread(headerBuffer, 1, sizeof(headerBuffer), srcFile);
         if (numBytesRead < ZSTD_frameHeaderSize_min) {
-            if(feof(srcFile)){
+            if (feof(srcFile)) {
                 break;
             }
             else{
@@ -1012,7 +1012,7 @@ static void displayInfo(const char* inFileName, fileInfo_t* info, int displayLev
     double const compressedSizeMB = (double)info->compressedSize/(1 MB);
     double const decompressedSizeMB = (double)info->decompressedSize/(1 MB);
     const char* checkString = (info->usesCheck ? "XXH64" : "None");
-    if(displayLevel<=2){
+    if (displayLevel <= 2) {
         if (info->canComputeDecompSize) {
             DISPLAYOUT("Skippable  Non-Skippable  Compressed  Uncompressed  Ratio  Check  Filename\n");
             DISPLAYOUT("%9d  %13d  %7.2f MB  %9.2f MB  %5.3f  %s  %s\n",

@@ -309,7 +309,7 @@ size_t ZSTD_CCtx_setParameter(ZSTD_CCtx* cctx, ZSTD_cParameter param, unsigned v
 #endif
 
     case ZSTD_p_contentSizeFlag :
-        DEBUGLOG(2, "set content size flag = %u", (value>0));
+        DEBUGLOG(5, "set content size flag = %u", (value>0));
         /* Content size written in frame header _when known_ (default:1) */
         cctx->requestedParams.fParams.contentSizeFlag = value>0;
         return 0;
@@ -372,7 +372,7 @@ size_t ZSTD_CCtx_setParameter(ZSTD_CCtx* cctx, ZSTD_cParameter param, unsigned v
 
 ZSTDLIB_API size_t ZSTD_CCtx_setPledgedSrcSize(ZSTD_CCtx* cctx, unsigned long long pledgedSrcSize)
 {
-    DEBUGLOG(2, " setting pledgedSrcSize to %u", (U32)pledgedSrcSize);
+    DEBUGLOG(5, " setting pledgedSrcSize to %u", (U32)pledgedSrcSize);
     if (cctx->streamStage != zcss_init) return ERROR(stage_wrong);
     cctx->frameContentSize = pledgedSrcSize;
     return 0;
@@ -529,9 +529,14 @@ static U32 ZSTD_equivalentParams(ZSTD_compressionParameters cParams1,
 static size_t ZSTD_continueCCtx(ZSTD_CCtx* cctx, ZSTD_parameters params, U64 frameContentSize)
 {
     U32 const end = (U32)(cctx->nextSrc - cctx->base);
+    DEBUGLOG(5, "continue mode");
     cctx->appliedParams = params;
     cctx->frameContentSize = frameContentSize;
     cctx->consumedSrcSize = 0;
+    if (frameContentSize == ZSTD_CONTENTSIZE_UNKNOWN)
+        cctx->appliedParams.fParams.contentSizeFlag = 0;
+    DEBUGLOG(5, "content size : %u ; flag : %u",
+        (U32)frameContentSize, cctx->appliedParams.fParams.contentSizeFlag);
     cctx->lowLimit = end;
     cctx->dictLimit = end;
     cctx->nextToUpdate = end+1;
@@ -625,6 +630,8 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
         zc->consumedSrcSize = 0;
         if (frameContentSize == ZSTD_CONTENTSIZE_UNKNOWN)
             zc->appliedParams.fParams.contentSizeFlag = 0;
+        DEBUGLOG(5, "content size : %u ; flag : %u",
+            (U32)frameContentSize, zc->appliedParams.fParams.contentSizeFlag);
         zc->blockSize = blockSize;
 
         XXH64_reset(&zc->xxhState, 0);
@@ -3200,9 +3207,9 @@ size_t ZSTD_compressEnd (ZSTD_CCtx* cctx,
     endResult = ZSTD_writeEpilogue(cctx, (char*)dst + cSize, dstCapacity-cSize);
     if (ZSTD_isError(endResult)) return endResult;
     if (cctx->appliedParams.fParams.contentSizeFlag) {  /* control src size */
-        DEBUGLOG(2, "end of frame : controlling src size");
+        DEBUGLOG(5, "end of frame : controlling src size");
         if (cctx->frameContentSize != cctx->consumedSrcSize) {
-            DEBUGLOG(2, "error : pledgedSrcSize = %u, while realSrcSize = %u",
+            DEBUGLOG(5, "error : pledgedSrcSize = %u, while realSrcSize = %u",
                 (U32)cctx->frameContentSize, (U32)cctx->consumedSrcSize);
             return ERROR(srcSize_wrong);
     }   }
@@ -3382,9 +3389,9 @@ ZSTD_CDict* ZSTD_initStaticCDict(void* workspace, size_t workspaceSize,
                             + cctxSize;
     ZSTD_CDict* const cdict = (ZSTD_CDict*) workspace;
     void* ptr;
-    DEBUGLOG(2, "(size_t)workspace & 7 : %u", (U32)(size_t)workspace & 7);
+    DEBUGLOG(5, "(size_t)workspace & 7 : %u", (U32)(size_t)workspace & 7);
     if ((size_t)workspace & 7) return NULL;  /* 8-aligned */
-    DEBUGLOG(2, "(workspaceSize < neededSize) : (%u < %u) => %u",
+    DEBUGLOG(5, "(workspaceSize < neededSize) : (%u < %u) => %u",
         (U32)workspaceSize, (U32)neededSize, (U32)(workspaceSize < neededSize));
     if (workspaceSize < neededSize) return NULL;
 

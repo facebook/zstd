@@ -335,6 +335,7 @@ size_t ZSTD_CCtx_setParameter(ZSTD_CCtx* cctx, ZSTD_cParameter param, unsigned v
 
     case ZSTD_p_nbThreads:
         if (value==0) return 0;
+        DEBUGLOG(5, " setting nbThreads : %u", value);
 #ifndef ZSTD_MULTITHREAD
         if (value > 1) return ERROR(compressionParameter_unsupported);
 #endif
@@ -345,9 +346,8 @@ size_t ZSTD_CCtx_setParameter(ZSTD_CCtx* cctx, ZSTD_cParameter param, unsigned v
             cctx->nbThreads = 1;
             cctx->mtctx = ZSTDMT_createCCtx(value);
             if (cctx->mtctx == NULL) return ERROR(memory_allocation);
-            cctx->nbThreads = value;
-        } else
-            cctx->nbThreads = 1;
+        }
+        cctx->nbThreads = value;
         return 0;
 
     case ZSTD_p_jobSize:
@@ -356,6 +356,7 @@ size_t ZSTD_CCtx_setParameter(ZSTD_CCtx* cctx, ZSTD_cParameter param, unsigned v
         return ZSTDMT_setMTCtxParameter(cctx->mtctx, ZSTDMT_p_sectionSize, value);
 
     case ZSTD_p_overlapSizeLog:
+        DEBUGLOG(5, " setting overlap with nbThreads == %u", cctx->nbThreads);
         if (cctx->nbThreads <= 1) return ERROR(compressionParameter_unsupported);
         assert(cctx->mtctx != NULL);
         return ZSTDMT_setMTCtxParameter(cctx->mtctx, ZSTDMT_p_overlapSectionLog, value);

@@ -241,7 +241,7 @@ size_t ZSTD_CCtx_setParameter(ZSTD_CCtx* cctx, ZSTD_cParameter param, unsigned v
 {
 #   define CLAMPCHECK(val,min,max) {                         \
         if ((val<min) | (val>max)) {                         \
-            return ERROR(compressionParameter_unsupported);  \
+            return ERROR(compressionParameter_outOfBound);  \
     }   }
 
     if (cctx->streamStage != zcss_init) return ERROR(stage_wrong);
@@ -342,19 +342,20 @@ size_t ZSTD_CCtx_setParameter(ZSTD_CCtx* cctx, ZSTD_cParameter param, unsigned v
             if (cctx->staticSize)  /* MT not compatible with static alloc */
                 return ERROR(compressionParameter_unsupported);
             ZSTDMT_freeCCtx(cctx->mtctx);
-            cctx->nbThreads = value;
+            cctx->nbThreads = 1;
             cctx->mtctx = ZSTDMT_createCCtx(value);
             if (cctx->mtctx == NULL) return ERROR(memory_allocation);
-        }
-        cctx->nbThreads = 1;
+            cctx->nbThreads = value;
+        } else
+            cctx->nbThreads = 1;
         return 0;
 
-    case ZSTDMT_p_jobSize:
+    case ZSTD_p_jobSize:
         if (cctx->nbThreads <= 1) return ERROR(compressionParameter_unsupported);
         assert(cctx->mtctx != NULL);
         return ZSTDMT_setMTCtxParameter(cctx->mtctx, ZSTDMT_p_sectionSize, value);
 
-    case ZSTDMT_p_overlapSizeLog:
+    case ZSTD_p_overlapSizeLog:
         if (cctx->nbThreads <= 1) return ERROR(compressionParameter_unsupported);
         assert(cctx->mtctx != NULL);
         return ZSTDMT_setMTCtxParameter(cctx->mtctx, ZSTDMT_p_overlapSectionLog, value);
@@ -3648,8 +3649,8 @@ static size_t ZSTD_compressStream_generic(ZSTD_CStream* zcs,
                   && (zcs->inBuffPos == zcs->inToCompress) ) {
                     /* empty */
                     someMoreWork = 0; break;
-                 }
-             }
+                }
+            }
             /* compress current block (note : this stage cannot be stopped in the middle) */
             DEBUGLOG(5, "stream compression stage (flushMode==%u)", flushMode);
             {   void* cDst;
@@ -3658,7 +3659,7 @@ static size_t ZSTD_compressStream_generic(ZSTD_CStream* zcs,
                 size_t oSize = oend-op;
                 unsigned const lastBlock = (flushMode == ZSTD_e_end) && (ip==iend);
                 if (oSize >= ZSTD_compressBound(iSize))
-                    cDst = op;   /* compress directly into output buffer (skip flush stage) */
+                    cDst = op;   /* compress into output buffer, to skip flush stage */
                 else
                     cDst = zcs->outBuff, oSize = zcs->outBuffSize;
                 cSize = lastBlock ?
@@ -3667,7 +3668,6 @@ static size_t ZSTD_compressStream_generic(ZSTD_CStream* zcs,
                         ZSTD_compressContinue(zcs, cDst, oSize,
                                     zcs->inBuff + zcs->inToCompress, iSize);
                 if (ZSTD_isError(cSize)) return cSize;
-                DEBUGLOG(5, "cSize = %u   (lastBlock:%u)", (U32)cSize, lastBlock);
                 zcs->frameEnded = lastBlock;
                 /* prepare next block */
                 zcs->inBuffTarget = zcs->inBuffPos + zcs->blockSize;
@@ -3681,7 +3681,7 @@ static size_t ZSTD_compressStream_generic(ZSTD_CStream* zcs,
                 if (cDst == op) {  /* no need to flush */
                     op += cSize;
                     if (zcs->frameEnded) {
-                        DEBUGLOG(5, "Frame directly completed");
+                        DEBUGLOG(5, "Frame completed directly in outBuffer");
                         someMoreWork = 0;
                         zcs->streamStage = zcss_init;
                     }
@@ -3707,7 +3707,7 @@ static size_t ZSTD_compressStream_generic(ZSTD_CStream* zcs,
                 }
                 zcs->outBuffContentSize = zcs->outBuffFlushedSize = 0;
                 if (zcs->frameEnded) {
-                    DEBUGLOG(5, "Frame completed");
+                    DEBUGLOG(5, "Frame completed on flush");
                     someMoreWork = 0;
                     zcs->streamStage = zcss_init;
                     break;
@@ -3781,15 +3781,19 @@ size_t ZSTD_compress_generic (ZSTD_CCtx* cctx,
 
 #ifdef ZSTD_MULTITHREAD
     if (cctx->nbThreads > 1) {
+        DEBUGLOG(5, "calling ZSTDMT_compressStream_generic(%i,...)", endOp);
         size_t const flushMin = ZSTDMT_compressStream_generic(cctx->mtctx, output, input, endOp);
+        DEBUGLOG(5, "ZSTDMT result : %u", (U32)flushMin);
         if (ZSTD_isError(flushMin)) cctx->streamStage = zcss_init;
+        if (endOp == ZSTD_e_end && flushMin==0)
+            cctx->streamStage = zcss_init;   /* compression completed */
         return flushMin;
     }
 #endif
 
-    DEBUGLOG(5, "starting ZSTD_compressStream_generic");
+    DEBUGLOG(5, "calling ZSTD_compressStream_generic(%i,...)", endOp);
     CHECK_F( ZSTD_compressStream_generic(cctx, output, input, endOp) );
-    DEBUGLOG(5, "completing ZSTD_compress_generic");
+    DEBUGLOG(5, "completed ZSTD_compress_generic");
     return cctx->outBuffContentSize - cctx->outBuffFlushedSize; /* remaining to flush */
 }
 

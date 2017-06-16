@@ -399,20 +399,27 @@ ZSTDLIB_API size_t ZSTD_CCtx_loadDictionary(ZSTD_CCtx* cctx, const void* dict, s
 }
 
 /* Not ready yet ! */
-ZSTDLIB_API size_t ZSTD_CCtx_refPrefix(ZSTD_CCtx* cctx, const void* prefix, size_t prefixSize)
+size_t ZSTD_CCtx_refPrefix(ZSTD_CCtx* cctx, const void* prefix, size_t prefixSize)
 {
     (void)cctx; (void)prefix; (void)prefixSize; /* to be done later */
     if (cctx->streamStage != zcss_init) return ERROR(stage_wrong);
     return ERROR(compressionParameter_unsupported);
 }
 
-ZSTDLIB_API size_t ZSTD_CCtx_refCDict(ZSTD_CCtx* cctx, const ZSTD_CDict* cdict)
+size_t ZSTD_CCtx_refCDict(ZSTD_CCtx* cctx, const ZSTD_CDict* cdict)
 {
     if (cctx->streamStage != zcss_init) return ERROR(stage_wrong);
     cctx->cdict = cdict;
     return ERROR(compressionParameter_unsupported);
 }
 
+
+void ZSTD_CCtx_reset(ZSTD_CCtx* cctx)
+{
+    cctx->streamStage = zcss_init;
+    cctx->frameContentSize = ZSTD_CONTENTSIZE_UNKNOWN;
+    cctx->cdict = NULL;
+}
 
 /** ZSTD_checkParams() :
     ensure param values remain within authorized range.

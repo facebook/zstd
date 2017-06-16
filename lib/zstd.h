@@ -68,7 +68,7 @@ ZSTDLIB_API unsigned ZSTD_versionNumber(void);   /**< to be used when checking d
 #define ZSTD_QUOTE(str) #str
 #define ZSTD_EXPAND_AND_QUOTE(str) ZSTD_QUOTE(str)
 #define ZSTD_VERSION_STRING ZSTD_EXPAND_AND_QUOTE(ZSTD_LIB_VERSION)
-ZSTDLIB_API const char* ZSTD_versionString(void);
+ZSTDLIB_API const char* ZSTD_versionString(void);   /* v1.3.0 */
 
 
 /***************************************
@@ -423,6 +423,7 @@ typedef void  (*ZSTD_freeFunction) (void* opaque, void* address);
 typedef struct { ZSTD_allocFunction customAlloc; ZSTD_freeFunction customFree; void* opaque; } ZSTD_customMem;
 /* use this constant to defer to stdlib's functions */
 static const ZSTD_customMem ZSTD_defaultCMem = { NULL, NULL, NULL};
+
 
 /***************************************
 *  Frame size functions

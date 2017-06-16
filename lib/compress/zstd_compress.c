@@ -153,7 +153,7 @@ ZSTD_CCtx* ZSTD_createCCtx_advanced(ZSTD_customMem customMem)
     cctx->customMem = customMem;
     cctx->compressionLevel = ZSTD_CLEVEL_DEFAULT;
     ZSTD_STATIC_ASSERT(zcss_init==0);
-    ZSTD_STATIC_ASSERT(ZSTD_CONTENTSIZE_UNKNOWN==-(1ULL));
+    ZSTD_STATIC_ASSERT(ZSTD_CONTENTSIZE_UNKNOWN==(U64)(-(1ULL)));
     return cctx;
 }
 

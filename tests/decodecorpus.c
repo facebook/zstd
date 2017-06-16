@@ -1324,13 +1324,13 @@ static int generateCorpusWithDict(U32 seed, unsigned numFiles, const char* const
     const size_t headerSize = dictSize/4;
     const size_t dictContentSize = dictSize - dictSize/4;
     ZSTD_DCtx* dctx = ZSTD_createDCtx();
-    if(snprintf(outPath, MAX_PATH, "%s/dictionary", path) + 1 > MAX_PATH) {
+    if (snprintf(outPath, MAX_PATH, "%s/dictionary", path) + 1 > MAX_PATH) {
         DISPLAY("Error: path too long\n");
         return 1;
     }
     {
         /* use 3/4 of dictionary for content, save rest for header/entropy tables */
-        if(dictContentSize < 128 || dictSize < 256){
+        if (dictContentSize < 128 || dictSize < 256) {
             DISPLAY("Error: dictionary size is too small\n");
             return 1;
         }
@@ -1352,7 +1352,7 @@ static int generateCorpusWithDict(U32 seed, unsigned numFiles, const char* const
             size_t* curr = sampleSizes;
             size_t totalSize = 0;
             unsigned numReps = 1;
-            while(numSamples < 200){
+            while (numSamples < 200) {
                 size_t randSize = RAND(&seed) % dictContentSize;
                 unsigned counter = numReps;
                 numSamples += numReps;
@@ -1568,7 +1568,7 @@ int main(int argc, char** argv)
                     argument++;
                     if (strcmp(argument, "content-size") == 0) {
                         opts.contentSize = 1;
-                    } else if(strcmp(argument, "train-dict") == 0){
+                    } else if (strcmp(argument, "train-dict") == 0) {
                         argument += 11;
                         dictSize = readInt(&argument);
                         genDict = 1;
@@ -1607,11 +1607,9 @@ int main(int argc, char** argv)
         return generateFile(seed, path, origPath);
     } else if (genDict == 0){
         return generateCorpus(seed, numFiles, path, origPath);
-    } else if (numFiles == 0){
-        /* should generate a single file with a dictionary */
-        return generateCorpusWithDict(seed, 1, path, origPath, dictSize);
-    } else{
-        /* should generate multiple files with a dictionary */
+    } else {
+        /* should generate files with a dictionary */
+        numFiles = (numFiles == 0) ? 1 : numFiles;
         return generateCorpusWithDict(seed, numFiles, path, origPath, dictSize);
     }
 

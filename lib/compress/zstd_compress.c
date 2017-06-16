@@ -542,8 +542,6 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
                                       ZSTD_compResetPolicy_e const crp,
                                       ZSTD_buffered_policy_e const zbuff)
 {
-    DEBUGLOG(5, "ZSTD_resetCCtx_internal : wlog=%u / old=%u",
-                params.cParams.windowLog, zc->appliedParams.cParams.windowLog);
     assert(!ZSTD_isError(ZSTD_checkCParams(params.cParams)));
 
     if (crp == ZSTDcrp_continue) {
@@ -612,10 +610,11 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
 
         /* init params */
         zc->appliedParams = params;
-        zc->blockSize = blockSize;
-        DEBUGLOG(5, "blockSize = %uK", (U32)blockSize>>10);
         zc->frameContentSize = frameContentSize;
         zc->consumedSrcSize = 0;
+        if (frameContentSize == ZSTD_CONTENTSIZE_UNKNOWN)
+            zc->appliedParams.fParams.contentSizeFlag = 0;
+        zc->blockSize = blockSize;
 
         XXH64_reset(&zc->xxhState, 0);
         zc->stage = ZSTDcs_init;

@@ -819,10 +819,11 @@ ZSTDLIB_API size_t ZSTD_compress_generic (ZSTD_CCtx* cctx,
 /*! ZSTD_CCtx_reset() :
  *  Return a CCtx to clean state.
  *  Useful after an error, or to interrupt an ongoing compression job and start a new one.
- *  It's possible to modify compression parameters after a reset.
  *  Any internal data not yet flushed is cancelled.
+ *  Dictionary (if any) is dropped, next compression starts with srcSize==unknown by default.
+ *  It's possible to modify compression parameters after a reset.
  */
-ZSTDLIB_API size_t ZSTD_CCtx_reset(ZSTD_CCtx* cctx);   /* Not ready yet ! */
+ZSTDLIB_API void ZSTD_CCtx_reset(ZSTD_CCtx* cctx);   /* Not ready yet ! */
 
 
 /*! ZSTD_compress_generic_simpleArgs() :

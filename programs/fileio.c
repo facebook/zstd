@@ -981,7 +981,7 @@ static int getFileInfo(fileInfo_t* info, const char* inFileName){
             }
             else if (magicNumber == ZSTD_MAGIC_SKIPPABLE_START) {
                 BYTE frameSizeBuffer[4];
-                size_t readBytes = fread(frameSizeBuffer, 1, 4, srcFile);
+                size_t const readBytes = fread(frameSizeBuffer, 1, 4, srcFile);
                 if (readBytes != 4) {
                     DISPLAY("There was an error reading skippable frame size");
                     detectError = 1;

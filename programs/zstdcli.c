@@ -675,7 +675,7 @@ int main(int argCount, const char* argv[])
         }
     }
 #endif
-    if(operation==zom_list){
+    if (operation == zom_list) {
         g_displayOut = stdout;
         if(filenameIdx==0){
             DISPLAY("No files given\n");
@@ -686,12 +686,13 @@ int main(int argCount, const char* argv[])
         DISPLAY("===========================================\n");
         DISPLAY("Number of files listed: %d\n", filenameIdx);
         {
+            int error = 0;
             unsigned u;
             for(u=0; u<filenameIdx;u++){
-                FIO_listFile(filenameTable[u],g_displayLevel);
+                error = FIO_listFile(filenameTable[u],g_displayLevel);
             }
+            CLEAN_RETURN(error);
         }
-        CLEAN_RETURN(0);
     }
     /* Check if benchmark is selected */
     if (operation==zom_bench) {

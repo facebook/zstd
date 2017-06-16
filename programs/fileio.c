@@ -1057,11 +1057,11 @@ int FIO_listFile(const char* inFileName, int displayLevel){
         }
         else if (error == 2) {
             DISPLAYOUT("File %s not compressed with zstd\n\n", inFileName);
-            return 0;
+            return 1;
         }
+        displayInfo(inFileName, &info, displayLevel);
+        return error;
     }
-    displayInfo(inFileName, &info, displayLevel);
-    return 0;
 }
 
 int FIO_compressMultipleFilenames(const char** inFileNamesTable, unsigned nbFiles,

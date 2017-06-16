@@ -884,10 +884,6 @@ static int getFileInfo(fileInfo_t* info, const char* inFileName){
         return 1;
     }
     info->compressedSize = (unsigned long long)UTIL_getFileSize(inFileName);
-    info->decompressedSize = 0;
-    info->numActualFrames = 0;
-    info->numSkippableFrames = 0;
-    info->canComputeDecompSize = 1;
     /* begin analyzing frame */
     for( ; ; ){
         BYTE headerBuffer[ZSTD_FRAMEHEADERSIZE_MAX];
@@ -1014,10 +1010,11 @@ static void displayInfo(const char* inFileName, fileInfo_t* info, int displayLev
     const char* checkString = (info->usesCheck ? "XXH64" : "None");
     if (displayLevel <= 2) {
         if (info->canComputeDecompSize) {
+            double const ratio = (info->decompressedSize == 0) ? 0.0 : compressedSizeMB/decompressedSizeMB;
             DISPLAYOUT("Skippable  Non-Skippable  Compressed  Uncompressed  Ratio  Check  Filename\n");
             DISPLAYOUT("%9d  %13d  %7.2f MB  %9.2f MB  %5.3f  %s  %s\n",
                     info->numSkippableFrames, info->numActualFrames, compressedSizeMB, decompressedSizeMB,
-                    compressedSizeMB/decompressedSizeMB, checkString, inFileName);
+                    ratio, checkString, inFileName);
         }
         else {
             DISPLAYOUT("Skippable  Non-Skippable  Compressed  Check  Filename\n");
@@ -1043,6 +1040,14 @@ static void displayInfo(const char* inFileName, fileInfo_t* info, int displayLev
 
 int FIO_listFile(const char* inFileName, int displayLevel){
     fileInfo_t info;
+
+    /* initialize info to avoid warnings */
+    info.numActualFrames = 0;
+    info.numSkippableFrames = 0;
+    info.decompressedSize = 0;
+    info.canComputeDecompSize = 1;
+    info.compressedSize = 0;
+    info.usesCheck = 0;
     DISPLAYOUT("File: %s\n", inFileName);
     {
         int const error = getFileInfo(&info, inFileName);

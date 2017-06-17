@@ -581,11 +581,11 @@ size_t ZSTD_estimateDDictSize(size_t dictSize, unsigned byReference);
                               * More threads improve speed, but also increase memory usage.
                               * Can only receive a value > 1 if ZSTD_MULTITHREAD is enabled.
                               * Special: value 0 means "do not change nbThreads" */
-    ZSTDMT_p_jobSize,        </b>/* Size of a compression job. Each compression job is completed in parallel.<b>
+    ZSTD_p_jobSize,          </b>/* Size of a compression job. Each compression job is completed in parallel.<b>
                               * 0 means default, which is dynamically determined based on compression parameters.
                               * Job size must be a minimum of overlapSize, or 1 KB, whichever is largest
                               * The minimum size is automatically and transparently enforced */
-    ZSTDMT_p_overlapSizeLog, </b>/* Size of previous input reloaded at the beginning of each job.<b>
+    ZSTD_p_overlapSizeLog,   </b>/* Size of previous input reloaded at the beginning of each job.<b>
                               * 0 => no overlap, 6(default) => use 1/8th of windowSize, >=9 => use full windowSize */
 
     </b>/* advanced parameters - may not remain available after API update */<b>
@@ -691,11 +691,12 @@ size_t ZSTD_CDict_loadDictionary(ZSTD_CDict* cdict, const void* dict, size_t dic
  
 </p></pre><BR>
 
-<pre><b>size_t ZSTD_CCtx_reset(ZSTD_CCtx* cctx);   </b>/* Not ready yet ! */<b>
+<pre><b>void ZSTD_CCtx_reset(ZSTD_CCtx* cctx);   </b>/* Not ready yet ! */<b>
 </b><p>  Return a CCtx to clean state.
   Useful after an error, or to interrupt an ongoing compression job and start a new one.
-  It's possible to modify compression parameters after a reset.
   Any internal data not yet flushed is cancelled.
+  Dictionary (if any) is dropped, next compression starts with srcSize==unknown by default.
+  It's possible to modify compression parameters after a reset.
  
 </p></pre><BR>
 

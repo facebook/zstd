@@ -73,8 +73,6 @@ static clock_t clockSpan(clock_t cStart)
 /*-*******************************************************
 *  Random function
 *********************************************************/
-#define CLAMP(x, a, b) ((x) < (a) ? (a) : ((x) > (b) ? (b) : (x)))
-
 static unsigned RAND(unsigned* src)
 {
 #define RAND_rotl32(x,r) ((x << r) | (x >> (32 - r)))

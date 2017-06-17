@@ -190,7 +190,7 @@ static ZSTDMT_CCtxPool* ZSTDMT_createCCtxPool(unsigned nbThreads,
     cctxPool->availCCtx = 1;   /* at least one cctx for single-thread mode */
     cctxPool->cctx[0] = ZSTD_createCCtx_advanced(cMem);
     if (!cctxPool->cctx[0]) { ZSTDMT_freeCCtxPool(cctxPool); return NULL; }
-    DEBUGLOG(1, "cctxPool created, with %u threads", nbThreads);
+    DEBUGLOG(3, "cctxPool created, with %u threads", nbThreads);
     return cctxPool;
 }
 
@@ -458,7 +458,7 @@ size_t ZSTDMT_compressCCtx(ZSTDMT_CCtx* mtctx,
     size_t frameStartPos = 0, dstBufferPos = 0;
 
     DEBUGLOG(3, "windowLog : %2u => chunkTargetSize : %u bytes  ", params.cParams.windowLog, (U32)chunkTargetSize);
-    DEBUGLOG(2, "nbChunks  : %2u   (chunkSize : %u bytes)   ", nbChunks, (U32)avgChunkSize);
+    DEBUGLOG(3, "nbChunks  : %2u   (chunkSize : %u bytes)   ", nbChunks, (U32)avgChunkSize);
     params.fParams.contentSizeFlag = 1;
 
     if (nbChunks==1) {   /* fallback to single-thread mode */

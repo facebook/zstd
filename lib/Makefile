@@ -149,7 +149,7 @@ install: libzstd.a libzstd libzstd.pc
 	@$(INSTALL) -d -m 755 $(DESTDIR)$(PKGCONFIGDIR)/ $(DESTDIR)$(INCLUDEDIR)/
 	@$(INSTALL_DATA) libzstd.pc $(DESTDIR)$(PKGCONFIGDIR)/
 	@echo Installing libraries
-	@$(INSTALL_LIB) libzstd.a $(DESTDIR)$(LIBDIR)
+	@$(INSTALL_DATA) libzstd.a $(DESTDIR)$(LIBDIR)
 	@$(INSTALL_LIB) libzstd.$(SHARED_EXT_VER) $(DESTDIR)$(LIBDIR)
 	@ln -sf libzstd.$(SHARED_EXT_VER) $(DESTDIR)$(LIBDIR)/libzstd.$(SHARED_EXT_MAJOR)
 	@ln -sf libzstd.$(SHARED_EXT_VER) $(DESTDIR)$(LIBDIR)/libzstd.$(SHARED_EXT)

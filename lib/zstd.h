@@ -589,8 +589,8 @@ ZSTDLIB_API ZSTD_parameters ZSTD_getParams(int compressionLevel, unsigned long l
 ZSTDLIB_API size_t ZSTD_checkCParams(ZSTD_compressionParameters params);
 
 /*! ZSTD_adjustCParams() :
-*   optimize params for a given `srcSize` and `dictSize`.
-*   both values are optional, select `0` if unknown. */
+ *  optimize params for a given `srcSize` and `dictSize`.
+ *  both values are optional, select `0` if unknown. */
 ZSTDLIB_API ZSTD_compressionParameters ZSTD_adjustCParams(ZSTD_compressionParameters cPar, unsigned long long srcSize, size_t dictSize);
 
 /*! ZSTD_compress_advanced() :

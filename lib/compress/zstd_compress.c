@@ -433,8 +433,8 @@ void ZSTD_CCtx_reset(ZSTD_CCtx* cctx)
     cctx->cdict = NULL;
 }
 
-/** ZSTD_checkParams() :
-    ensure param values remain within authorized range.
+/** ZSTD_checkCParams() :
+    control CParam values remain within authorized range.
     @return : 0, or an error code if one value is beyond authorized range */
 size_t ZSTD_checkCParams(ZSTD_compressionParameters cParams)
 {
@@ -448,6 +448,25 @@ size_t ZSTD_checkCParams(ZSTD_compressionParameters cParams)
     return 0;
 }
 
+/** ZSTD_clampCParams() :
+ *  make CParam values within valid range.
+ *  @return : valid CParams */
+static ZSTD_compressionParameters ZSTD_clampCParams(ZSTD_compressionParameters cParams)
+{
+#   define CLAMP(val,min,max) {      \
+        if (val<min) val=min;        \
+        else if (val>max) val=max;   \
+    }
+    CLAMP(cParams.windowLog, ZSTD_WINDOWLOG_MIN, ZSTD_WINDOWLOG_MAX);
+    CLAMP(cParams.chainLog, ZSTD_CHAINLOG_MIN, ZSTD_CHAINLOG_MAX);
+    CLAMP(cParams.hashLog, ZSTD_HASHLOG_MIN, ZSTD_HASHLOG_MAX);
+    CLAMP(cParams.searchLog, ZSTD_SEARCHLOG_MIN, ZSTD_SEARCHLOG_MAX);
+    CLAMP(cParams.searchLength, ZSTD_SEARCHLENGTH_MIN, ZSTD_SEARCHLENGTH_MAX);
+    CLAMP(cParams.targetLength, ZSTD_TARGETLENGTH_MIN, ZSTD_TARGETLENGTH_MAX);
+    if ((U32)(cParams.strategy) > (U32)ZSTD_btultra) cParams.strategy = ZSTD_btultra;
+    return cParams;
+}
+
 /** ZSTD_cycleLog() :
  *  condition for correct operation : hashLog > 1 */
 static U32 ZSTD_cycleLog(U32 hashLog, ZSTD_strategy strat)
@@ -456,14 +475,15 @@ static U32 ZSTD_cycleLog(U32 hashLog, ZSTD_strategy strat)
     return hashLog - btScale;
 }
 
-/** ZSTD_adjustCParams() :
+/** ZSTD_adjustCParams_internal() :
     optimize `cPar` for a given input (`srcSize` and `dictSize`).
     mostly downsizing to reduce memory consumption and initialization.
     Both `srcSize` and `dictSize` are optional (use 0 if unknown),
     but if both are 0, no optimization can be done.
     Note : cPar is considered validated at this stage. Use ZSTD_checkParams() to ensure that. */
-ZSTD_compressionParameters ZSTD_adjustCParams(ZSTD_compressionParameters cPar, unsigned long long srcSize, size_t dictSize)
+ZSTD_compressionParameters ZSTD_adjustCParams_internal(ZSTD_compressionParameters cPar, unsigned long long srcSize, size_t dictSize)
 {
+    assert(ZSTD_checkCParams(cPar)==0);
     if (srcSize+dictSize == 0) return cPar;   /* no size information available : no adjustment */
 
     /* resize params, to use less memory when necessary */
@@ -481,6 +501,12 @@ ZSTD_compressionParameters ZSTD_adjustCParams(ZSTD_compressionParameters cPar, u
     if (cPar.windowLog < ZSTD_WINDOWLOG_ABSOLUTEMIN) cPar.windowLog = ZSTD_WINDOWLOG_ABSOLUTEMIN;  /* required for frame header */
 
     return cPar;
+}
+
+ZSTD_compressionParameters ZSTD_adjustCParams(ZSTD_compressionParameters cPar, unsigned long long srcSize, size_t dictSize)
+{
+    cPar = ZSTD_clampCParams(cPar);
+    return ZSTD_adjustCParams_internal(cPar, srcSize, dictSize);
 }
 
 
@@ -3989,8 +4015,7 @@ ZSTD_compressionParameters ZSTD_getCParams(int compressionLevel, unsigned long l
         if (cp.chainLog > ZSTD_CHAINLOG_MAX) cp.chainLog = ZSTD_CHAINLOG_MAX;
         if (cp.hashLog > ZSTD_HASHLOG_MAX) cp.hashLog = ZSTD_HASHLOG_MAX;
     }
-    cp = ZSTD_adjustCParams(cp, srcSizeHint, dictSize);
-    return cp;
+    return ZSTD_adjustCParams_internal(cp, srcSizeHint, dictSize);   /* no need to ensure initial CParams validity */
 }
 
 /*! ZSTD_getParams() :

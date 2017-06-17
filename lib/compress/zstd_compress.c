@@ -3219,7 +3219,7 @@ size_t ZSTD_compressEnd (ZSTD_CCtx* cctx,
         DEBUGLOG(5, "end of frame : controlling src size");
         if (cctx->pledgedSrcSizePlusOne != cctx->consumedSrcSize+1) {
             DEBUGLOG(5, "error : pledgedSrcSize = %u, while realSrcSize = %u",
-                (U32)cctx->frameContentSize, (U32)cctx->consumedSrcSize);
+                (U32)cctx->pledgedSrcSizePlusOne-1, (U32)cctx->consumedSrcSize);
             return ERROR(srcSize_wrong);
     }   }
     return cSize + endResult;
@@ -3789,7 +3789,7 @@ size_t ZSTD_compress_generic (ZSTD_CCtx* cctx,
         ZSTD_parameters params = cctx->requestedParams;
         if (cctx->compressionLevel != ZSTD_CLEVEL_CUSTOM)
             params.cParams = ZSTD_getCParams(cctx->compressionLevel,
-                                    cctx->pledgedSrcSizePlusOne+1, 0 /* dictSize */);
+                                    cctx->pledgedSrcSizePlusOne-1, 0 /* dictSize */);
 
 #ifdef ZSTD_MULTITHREAD
         if (cctx->nbThreads > 1) {
@@ -3798,7 +3798,7 @@ size_t ZSTD_compress_generic (ZSTD_CCtx* cctx,
         } else
 #endif
         {
-            CHECK_F( ZSTD_resetCStream_internal(cctx, params, cctx->pledgedSrcSizePlusOne+1) );
+            CHECK_F( ZSTD_resetCStream_internal(cctx, params, cctx->pledgedSrcSizePlusOne-1) );
     }   }
 
 #ifdef ZSTD_MULTITHREAD

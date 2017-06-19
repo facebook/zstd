@@ -528,8 +528,9 @@ ZSTDLIB_API ZSTD_CCtx* ZSTD_createCCtx_advanced(ZSTD_customMem customMem);
  *         If it needs more memory than available, it will simply error out.
  *  Note 2 : there is no corresponding "free" function.
  *           Since workspace was allocated externally, it must be freed externally too.
- *  Limitation : currently not compatible with internal CDict creation, such as
- *               ZSTD_CCtx_loadDictionary() or ZSTD_initCStream_usingDict().
+ *  Limitation 1 : currently not compatible with internal CDict creation, such as
+ *                 ZSTD_CCtx_loadDictionary() or ZSTD_initCStream_usingDict().
+ *  Limitation 2 : currently not compatible with multi-threading
  */
 ZSTDLIB_API ZSTD_CCtx* ZSTD_initStaticCCtx(void* workspace, size_t workspaceSize);
 
@@ -746,7 +747,7 @@ ZSTDLIB_API size_t ZSTD_CCtx_setPledgedSrcSize(ZSTD_CCtx* cctx, unsigned long lo
  *           It's also a CPU-heavy operation, with non-negligible impact on latency.
  *  Note 3 : Dictionary will be used for all future compression jobs.
  *           To return to "no-dictionary" situation, load a NULL dictionary */
-ZSTDLIB_API size_t ZSTD_CCtx_loadDictionary(ZSTD_CCtx* cctx, const void* dict, size_t dictSize);   /* Not ready yet ! */
+ZSTDLIB_API size_t ZSTD_CCtx_loadDictionary(ZSTD_CCtx* cctx, const void* dict, size_t dictSize);
 
 /*! ZSTD_CCtx_refPrefix() :
  *  Reference a prefix (content-only dictionary) to bootstrap next compression job.

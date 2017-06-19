@@ -1161,7 +1161,7 @@ _output_error:
 }
 
 
-/* Tests for ZSTD_compressGeneric() API */
+/* Tests for ZSTD_compress_generic() API */
 static int fuzzerTests_newAPI(U32 seed, U32 nbTests, unsigned startTest, double compressibility, int bigTests)
 {
     static const U32 maxSrcLog = 24;
@@ -1181,7 +1181,7 @@ static int fuzzerTests_newAPI(U32 seed, U32 nbTests, unsigned startTest, double 
     ZSTD_DStream* zd = ZSTD_createDStream();   /* will be reset sometimes */
     ZSTD_DStream* const zd_noise = ZSTD_createDStream();
     clock_t const startClock = clock();
-    const BYTE* dict=NULL;   /* can keep same dict on 2 consecutive tests */
+    const BYTE* dict = NULL;   /* can keep same dict on 2 consecutive tests */
     size_t dictSize = 0;
     U32 oldTestLog = 0;
     int const cLevelLimiter = bigTests ? 3 : 2;
@@ -1278,11 +1278,13 @@ static int fuzzerTests_newAPI(U32 seed, U32 nbTests, unsigned startTest, double 
             dictSize  = ((FUZ_rand(&lseed)&63)==1) ? FUZ_rLogLength(&lseed, dictLog) : 0;
             {   size_t const dictStart = FUZ_rand(&lseed) % (srcBufferSize - dictSize);
                 dict = srcBuffer + dictStart;
+                if (!dictSize) dict=NULL;
             }
             {   U64 const pledgedSrcSize = (FUZ_rand(&lseed) & 3) ? ZSTD_CONTENTSIZE_UNKNOWN : maxTestSize;
                 ZSTD_compressionParameters cParams = ZSTD_getCParams(cLevel, pledgedSrcSize, dictSize);
 
                 /* mess with compression parameters */
+                CHECK_Z( ZSTD_CCtx_loadDictionary(zc, NULL, 0) );   /* always cancel previous dict, to make user it's possible to pass compression parameters */
                 cParams.windowLog += (FUZ_rand(&lseed) & 3) - 1;
                 cParams.hashLog += (FUZ_rand(&lseed) & 3) - 1;
                 cParams.chainLog += (FUZ_rand(&lseed) & 3) - 1;
@@ -1298,10 +1300,15 @@ static int fuzzerTests_newAPI(U32 seed, U32 nbTests, unsigned startTest, double 
                 if (FUZ_rand(&lseed) & 1) CHECK_Z( ZSTD_CCtx_setParameter(zc, ZSTD_p_minMatch, cParams.searchLength) );
                 if (FUZ_rand(&lseed) & 1) CHECK_Z( ZSTD_CCtx_setParameter(zc, ZSTD_p_targetLength, cParams.targetLength) );
 
-                if (FUZ_rand(&lseed) & 1) { dict=NULL; dictSize=0; }
-                CHECK_Z( ZSTD_CCtx_loadDictionary(zc, dict, dictSize) );   /* unconditionally set, to be sync with decoder (could be improved) */
+                /* unconditionally set, to be sync with decoder */
+                CHECK_Z( ZSTD_CCtx_loadDictionary(zc, dict, dictSize) );
 
-                /* to do : check that cParams are blocked after loading non-NULL dictionary */
+                if (dict && dictSize) {
+                    /* test that compression parameters are correctly rejected after setting a dictionary */
+                    DISPLAYLEVEL(5, "setting windowLog while dict!=NULL \n");
+                    size_t const setError = ZSTD_CCtx_setParameter(zc, ZSTD_p_windowLog, cParams.windowLog-1) ;
+                    CHECK(!ZSTD_isError(setError), "ZSTD_CCtx_setParameter should have failed");
+                }
 
                 /* mess with frame parameters */
                 if (FUZ_rand(&lseed) & 1) CHECK_Z( ZSTD_CCtx_setParameter(zc, ZSTD_p_checksumFlag, FUZ_rand(&lseed) & 1) );
@@ -1352,7 +1359,9 @@ static int fuzzerTests_newAPI(U32 seed, U32 nbTests, unsigned startTest, double 
                     outBuff.size = outBuff.pos + adjustedDstSize;
                     DISPLAYLEVEL(5, "End-flush into dst buffer of size %u \n", (U32)adjustedDstSize);
                     remainingToFlush = ZSTD_compress_generic(zc, &outBuff, &inBuff, ZSTD_e_end);
-                    CHECK(ZSTD_isError(remainingToFlush), "ZSTD_compress_generic w/ ZSTD_e_end error : %s", ZSTD_getErrorName(remainingToFlush));
+                    CHECK(ZSTD_isError(remainingToFlush),
+                        "ZSTD_compress_generic w/ ZSTD_e_end error : %s",
+                        ZSTD_getErrorName(remainingToFlush) );
             }   }
             crcOrig = XXH64_digest(&xxhState);
             cSize = outBuff.pos;
@@ -1471,7 +1480,7 @@ int main(int argc, const char** argv)
     e_api selected_api = simple_api;
     const char* const programName = argv[0];
     ZSTD_customMem const customMem = { allocFunction, freeFunction, NULL };
-    ZSTD_customMem const customNULL = { NULL, NULL, NULL };
+    ZSTD_customMem const customNULL = ZSTD_defaultCMem;
 
     /* Check command line */
     for(argNb=1; argNb<argc; argNb++) {

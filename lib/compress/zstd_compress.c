@@ -253,11 +253,15 @@ size_t ZSTD_CCtx_setParameter(ZSTD_CCtx* cctx, ZSTD_cParameter param, unsigned v
     case ZSTD_p_compressionLevel :
         if ((int)value > ZSTD_maxCLevel()) value = ZSTD_maxCLevel();   /* cap max compression level */
         if (value == 0) return 0;  /* special value : 0 means "don't change anything" */
+        if (cctx->cdict) return ERROR(stage_wrong);
         cctx->compressionLevel = value;
         return 0;
 
     case ZSTD_p_windowLog :
+        DEBUGLOG(5, "setting ZSTD_p_windowLog = %u (cdict:%u)",
+                    value, (cctx->cdict!=NULL));
         if (value == 0) return 0;  /* special value : 0 means "don't change anything" */
+        if (cctx->cdict) return ERROR(stage_wrong);
         CLAMPCHECK(value, ZSTD_WINDOWLOG_MIN, ZSTD_WINDOWLOG_MAX);
         ZSTD_cLevelToCParams(cctx);
         cctx->requestedParams.cParams.windowLog = value;
@@ -265,6 +269,7 @@ size_t ZSTD_CCtx_setParameter(ZSTD_CCtx* cctx, ZSTD_cParameter param, unsigned v
 
     case ZSTD_p_hashLog :
         if (value == 0) return 0;  /* special value : 0 means "don't change anything" */
+        if (cctx->cdict) return ERROR(stage_wrong);
         CLAMPCHECK(value, ZSTD_HASHLOG_MIN, ZSTD_HASHLOG_MAX);
         ZSTD_cLevelToCParams(cctx);
         cctx->requestedParams.cParams.hashLog = value;
@@ -272,6 +277,7 @@ size_t ZSTD_CCtx_setParameter(ZSTD_CCtx* cctx, ZSTD_cParameter param, unsigned v
 
     case ZSTD_p_chainLog :
         if (value == 0) return 0;  /* special value : 0 means "don't change anything" */
+        if (cctx->cdict) return ERROR(stage_wrong);
         CLAMPCHECK(value, ZSTD_CHAINLOG_MIN, ZSTD_CHAINLOG_MAX);
         ZSTD_cLevelToCParams(cctx);
         cctx->requestedParams.cParams.chainLog = value;
@@ -279,6 +285,7 @@ size_t ZSTD_CCtx_setParameter(ZSTD_CCtx* cctx, ZSTD_cParameter param, unsigned v
 
     case ZSTD_p_searchLog :
         if (value == 0) return 0;  /* special value : 0 means "don't change anything" */
+        if (cctx->cdict) return ERROR(stage_wrong);
         CLAMPCHECK(value, ZSTD_SEARCHLOG_MIN, ZSTD_SEARCHLOG_MAX);
         ZSTD_cLevelToCParams(cctx);
         cctx->requestedParams.cParams.searchLog = value;
@@ -286,6 +293,7 @@ size_t ZSTD_CCtx_setParameter(ZSTD_CCtx* cctx, ZSTD_cParameter param, unsigned v
 
     case ZSTD_p_minMatch :
         if (value == 0) return 0;  /* special value : 0 means "don't change anything" */
+        if (cctx->cdict) return ERROR(stage_wrong);
         CLAMPCHECK(value, ZSTD_SEARCHLENGTH_MIN, ZSTD_SEARCHLENGTH_MAX);
         ZSTD_cLevelToCParams(cctx);
         cctx->requestedParams.cParams.searchLength = value;
@@ -293,6 +301,7 @@ size_t ZSTD_CCtx_setParameter(ZSTD_CCtx* cctx, ZSTD_cParameter param, unsigned v
 
     case ZSTD_p_targetLength :
         if (value == 0) return 0;  /* special value : 0 means "don't change anything" */
+        if (cctx->cdict) return ERROR(stage_wrong);
         CLAMPCHECK(value, ZSTD_TARGETLENGTH_MIN, ZSTD_TARGETLENGTH_MAX);
         ZSTD_cLevelToCParams(cctx);
         cctx->requestedParams.cParams.targetLength = value;
@@ -300,6 +309,7 @@ size_t ZSTD_CCtx_setParameter(ZSTD_CCtx* cctx, ZSTD_cParameter param, unsigned v
 
     case ZSTD_p_compressionStrategy :
         if (value == 0) return 0;  /* special value : 0 means "don't change anything" */
+        if (cctx->cdict) return ERROR(stage_wrong);
         CLAMPCHECK(value, (unsigned)ZSTD_fast, (unsigned)ZSTD_btultra);
         ZSTD_cLevelToCParams(cctx);
         cctx->requestedParams.cParams.strategy = (ZSTD_strategy)value;
@@ -384,6 +394,7 @@ ZSTDLIB_API size_t ZSTD_CCtx_loadDictionary(ZSTD_CCtx* cctx, const void* dict, s
 {
     if (cctx->streamStage != zcss_init) return ERROR(stage_wrong);
     if (cctx->staticSize) return ERROR(memory_allocation);  /* no malloc for static CCtx */
+    DEBUGLOG(5, "load dictionary of size %u", (U32)dictSize);
     ZSTD_freeCDict(cctx->cdictLocal);  /* in case one already exists */
     if (dict==NULL || dictSize==0) {   /* no dictionary mode */
         cctx->cdictLocal = NULL;

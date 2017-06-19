@@ -1333,8 +1333,7 @@ static int generateCorpusWithDict(U32 seed, unsigned numFiles, const char* const
 {
     char outPath[MAX_PATH];
     BYTE* fullDict;
-    U32 dictID;
-    unsigned fnum;
+    U32 const dictID = RAND(&seed);
     BYTE* decompressedPtr;
     BYTE* dictContent;
     const size_t headerSize = dictSize/4;
@@ -1352,7 +1351,6 @@ static int generateCorpusWithDict(U32 seed, unsigned numFiles, const char* const
         }
     }
     /* Generate the dictionary randomly first */
-    dictID = RAND(&seed);
     fullDict = malloc(dictSize);
     if (fullDict == NULL) {
         DISPLAY("Error: could not allocate space for full dictionary.\n");
@@ -1421,7 +1419,7 @@ static int generateCorpusWithDict(U32 seed, unsigned numFiles, const char* const
     }
 
     /* generate random compressed/decompressed files */
-    for (fnum = 0; fnum < numFiles; fnum++) {
+    for (unsigned fnum = 0; fnum < numFiles; fnum++) {
         frame_t fr;
         size_t returnValue;
 

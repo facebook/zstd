@@ -1305,7 +1305,6 @@ static int fuzzerTests_newAPI(U32 seed, U32 nbTests, unsigned startTest, double 
 
                 if (dict && dictSize) {
                     /* test that compression parameters are correctly rejected after setting a dictionary */
-                    DISPLAYLEVEL(5, "setting windowLog while dict!=NULL \n");
                     size_t const setError = ZSTD_CCtx_setParameter(zc, ZSTD_p_windowLog, cParams.windowLog-1) ;
                     CHECK(!ZSTD_isError(setError), "ZSTD_CCtx_setParameter should have failed");
                 }

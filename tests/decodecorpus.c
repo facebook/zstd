@@ -1452,6 +1452,7 @@ static int generateCorpusWithDict(U32 seed, unsigned numFiles, const char* const
                                                fullDict, dictSize);
 
         {
+            /* print differences if any */
             size_t checkDiff = (BYTE*)fr.src - (BYTE*)fr.srcStart;
             for (size_t i = 0; i < checkDiff; i++) {
                 if (*((BYTE*)(fr.srcStart + i)) != *((BYTE*)(decompressedPtr + i))) {

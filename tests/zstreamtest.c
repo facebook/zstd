@@ -1282,7 +1282,7 @@ static int fuzzerTests_newAPI(U32 seed, U32 nbTests, unsigned startTest, double 
                 cParams.chainLog += (FUZ_rand(&lseed) & 3) - 1;
                 cParams.searchLog += (FUZ_rand(&lseed) & 3) - 1;
                 cParams.searchLength += (FUZ_rand(&lseed) & 3) - 1;
-                cParams.targetLength = (U32)(cParams.targetLength * (0.5 + ((FUZ_rand(&lseed) & 127) * 128)));
+                cParams.targetLength = (U32)(cParams.targetLength * (0.5 + ((double)(FUZ_rand(&lseed) & 127) / 128)));
                 cParams = ZSTD_adjustCParams(cParams, 0, 0);
 
                 if (FUZ_rand(&lseed) & 1) CHECK_Z( ZSTD_CCtx_setParameter(zc, ZSTD_p_windowLog, cParams.windowLog) );
@@ -1293,15 +1293,15 @@ static int fuzzerTests_newAPI(U32 seed, U32 nbTests, unsigned startTest, double 
                 if (FUZ_rand(&lseed) & 1) CHECK_Z( ZSTD_CCtx_setParameter(zc, ZSTD_p_targetLength, cParams.targetLength) );
 
                 if (FUZ_rand(&lseed) & 1) { dict=NULL; dictSize=0; }
-                CHECK_Z( ZSTD_CCtx_loadDictionary(zc, dict, dictSize) );
+                CHECK_Z( ZSTD_CCtx_loadDictionary(zc, dict, dictSize) );   /* unconditionally set, to be sync with decoder (could be improved) */
 
                 /* to do : check that cParams are blocked after loading non-NULL dictionary */
 
                 /* mess with frame parameters */
-                CHECK_Z( ZSTD_CCtx_setParameter(zc, ZSTD_p_checksumFlag, FUZ_rand(&lseed) & 1) );
-                CHECK_Z( ZSTD_CCtx_setParameter(zc, ZSTD_p_dictIDFlag, FUZ_rand(&lseed) & 1) );
-                CHECK_Z( ZSTD_CCtx_setParameter(zc, ZSTD_p_contentSizeFlag, pledgedSrcSize>0) );
-                CHECK_Z( ZSTD_CCtx_setPledgedSrcSize(zc, pledgedSrcSize) );   /* <== to test : must work also when pledgedSrcSize not set ! */
+                if (FUZ_rand(&lseed) & 1) CHECK_Z( ZSTD_CCtx_setParameter(zc, ZSTD_p_checksumFlag, FUZ_rand(&lseed) & 1) );
+                if (FUZ_rand(&lseed) & 1) CHECK_Z( ZSTD_CCtx_setParameter(zc, ZSTD_p_dictIDFlag, FUZ_rand(&lseed) & 1) );
+                if (FUZ_rand(&lseed) & 1) CHECK_Z( ZSTD_CCtx_setParameter(zc, ZSTD_p_contentSizeFlag, FUZ_rand(&lseed) & 1) );
+                if (FUZ_rand(&lseed) & 1) CHECK_Z( ZSTD_CCtx_setPledgedSrcSize(zc, pledgedSrcSize) );
                 DISPLAYLEVEL(5, "pledgedSrcSize : %u \n", (U32)pledgedSrcSize);
 
                 /* multi-threading parameters */

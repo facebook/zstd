@@ -1353,7 +1353,7 @@ static int generateCorpusWithDict(U32 seed, unsigned numFiles, const char* const
             BYTE* curr = samples;
             while (i <= 4) {
                 *(sampleSizes + i - 1) = currSize;
-                for (int j = 0; j < currSize; j++) {
+                for (size_t j = 0; j < currSize; j++) {
                     *(curr++) = (BYTE)i;
                 }
                 i++;
@@ -1416,9 +1416,9 @@ static int generateCorpusWithDict(U32 seed, unsigned numFiles, const char* const
         }
 
         /* if asked, supply the decompressed version */
-
+        DISPLAY("Attempting to decompress using the dictionary\n");
         returnValue = ZSTD_decompress_usingDict(dctx, decompressedPtr, MAX_DECOMPRESSED_SIZE,
-                                               fr.srcStart, (BYTE*)fr.src - (BYTE*)fr.srcStart,
+                                               fr.dataStart, (BYTE*)fr.data - (BYTE*)fr.dataStart,
                                                fullDict, dictSize);
 
         if (ZSTD_isError(returnValue)) {

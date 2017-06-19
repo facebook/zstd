@@ -1197,7 +1197,7 @@ static int fuzzerTests_newAPI(U32 seed, U32 nbTests, unsigned startTest, double 
     RDG_genBuffer(cNoiseBuffer[3], srcBufferSize, 0.95, 0., coreSeed);    /* highly compressible */
     RDG_genBuffer(cNoiseBuffer[4], srcBufferSize, 1.00, 0., coreSeed);    /* sparse content */
     memset(copyBuffer, 0x65, copyBufferSize);                             /* make copyBuffer considered initialized */
-    ZSTD_initDStream_usingDict(zd, NULL, 0);  /* ensure at least one init */
+    ZSTD_initDStream_usingDict(zd, NULL, 0);   /* ensure at least one init */
 
     /* catch up testNb */
     for (testNb=1; testNb < startTest; testNb++)
@@ -1285,13 +1285,12 @@ static int fuzzerTests_newAPI(U32 seed, U32 nbTests, unsigned startTest, double 
                 cParams.targetLength = (U32)(cParams.targetLength * (0.5 + ((FUZ_rand(&lseed) & 127) * 128)));
                 cParams = ZSTD_adjustCParams(cParams, 0, 0);
 
-                /* to do : check everything works properly when only some parameters are set and others are not */
-                CHECK_Z( ZSTD_CCtx_setParameter(zc, ZSTD_p_windowLog, cParams.windowLog) );
-                CHECK_Z( ZSTD_CCtx_setParameter(zc, ZSTD_p_hashLog, cParams.hashLog) );
-                CHECK_Z( ZSTD_CCtx_setParameter(zc, ZSTD_p_chainLog, cParams.chainLog) );
-                CHECK_Z( ZSTD_CCtx_setParameter(zc, ZSTD_p_searchLog, cParams.searchLog) );
-                CHECK_Z( ZSTD_CCtx_setParameter(zc, ZSTD_p_minMatch, cParams.searchLength) );
-                CHECK_Z( ZSTD_CCtx_setParameter(zc, ZSTD_p_targetLength, cParams.targetLength) );
+                if (FUZ_rand(&lseed) & 1) CHECK_Z( ZSTD_CCtx_setParameter(zc, ZSTD_p_windowLog, cParams.windowLog) );
+                if (FUZ_rand(&lseed) & 1) CHECK_Z( ZSTD_CCtx_setParameter(zc, ZSTD_p_hashLog, cParams.hashLog) );
+                if (FUZ_rand(&lseed) & 1) CHECK_Z( ZSTD_CCtx_setParameter(zc, ZSTD_p_chainLog, cParams.chainLog) );
+                if (FUZ_rand(&lseed) & 1) CHECK_Z( ZSTD_CCtx_setParameter(zc, ZSTD_p_searchLog, cParams.searchLog) );
+                if (FUZ_rand(&lseed) & 1) CHECK_Z( ZSTD_CCtx_setParameter(zc, ZSTD_p_minMatch, cParams.searchLength) );
+                if (FUZ_rand(&lseed) & 1) CHECK_Z( ZSTD_CCtx_setParameter(zc, ZSTD_p_targetLength, cParams.targetLength) );
 
                 CHECK_Z( ZSTD_CCtx_loadDictionary(zc, dict, dictSize) );
 
@@ -1416,7 +1415,7 @@ static int fuzzerTests_newAPI(U32 seed, U32 nbTests, unsigned startTest, double 
                     /* No forward progress possible */
                     if (outBuff.pos < outBuff.size && inBuff.pos == cSize) break;
     }   }   }   }
-    DISPLAY("\r%u fuzzer tests completed   \n", testNb);
+    DISPLAY("\r%u fuzzer tests completed   \n", testNb-1);
 
 _cleanup:
     ZSTD_freeCCtx(zc);

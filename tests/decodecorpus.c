@@ -671,7 +671,7 @@ static U32 generateSequences(U32* seed, frame_t* frame, seqStore_t* seqStore,
                 if(genDict && (RAND(seed) & 1)) {
                     /* need to occasionally generate offsets that go past the start */
                     /* we still need to be within the windowSize however */
-                    const U32 lenPastStart = RAND(seed) % dictSize;
+                    U32 const lenPastStart = RAND(seed) % dictSize;
                     offset = MIN(frame->header.windowSize, offset+lenPastStart);
                 }
                 offsetCode = offset + ZSTD_REP_MOVE;
@@ -693,7 +693,7 @@ static U32 generateSequences(U32* seed, frame_t* frame, seqStore_t* seqStore,
 
         {   size_t j;
             for (j = 0; j < matchLen; j++) {
-                if((void*)(srcPtr-offset) < (void*)frame->srcStart){
+                if ((void*)(srcPtr - offset) < (void*)frame->srcStart) {
                     /* copy from dictionary instead of literals */
                     *srcPtr = *(dictContent + dictSize - (offset-(srcPtr-(BYTE*)frame->srcStart)));
                 }
@@ -1330,7 +1330,7 @@ static int generateCorpusWithDict(U32 seed, unsigned numFiles, const char* const
     }
     {
         /* use 3/4 of dictionary for content, save rest for header/entropy tables */
-        if (dictContentSize < 128 || dictSize < 256) {
+        if (dictContentSize < ZDICT_CONTENTSIZE_MIN || dictSize < ZDICT_DICTSIZE_MIN) {
             DISPLAY("Error: dictionary size is too small\n");
             return 1;
         }
@@ -1399,7 +1399,7 @@ static int generateCorpusWithDict(U32 seed, unsigned numFiles, const char* const
 
         DISPLAYUPDATE("\r%u/%u        ", fnum, numFiles);
 
-        seed = generateFrame(seed, &fr, 1, dictSize, dictContent, dictID);
+        seed = generateFrame(seed, &fr, 1, dictContentSize, dictContent, dictID);
 
         if (snprintf(outPath, MAX_PATH, "%s/z%06u.zst", path, fnum) + 1 > MAX_PATH) {
             DISPLAY("Error: path too long\n");
@@ -1421,6 +1421,14 @@ static int generateCorpusWithDict(U32 seed, unsigned numFiles, const char* const
                                                fr.dataStart, (BYTE*)fr.data - (BYTE*)fr.dataStart,
                                                fullDict, dictSize);
 
+        {
+            size_t checkDiff = (BYTE*)fr.src - (BYTE*)fr.srcStart;
+            for (size_t i = 0; i < checkDiff; i++) {
+                if (*((BYTE*)(fr.srcStart + i)) != *((BYTE*)(decompressedPtr + i))) {
+                    DISPLAY("i: %zu, fr: %u, decomp: %u\n", i, *((BYTE*)(fr.srcStart + i)), *((BYTE*)(decompressedPtr + i)));
+                }
+            }
+        }
         if (ZSTD_isError(returnValue)) {
             DISPLAY("Error: %s\n", ZSTD_getErrorName(returnValue));
         }

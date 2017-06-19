@@ -233,6 +233,12 @@ typedef struct {
     cblockStats_t oldStats; /* so they can be rolled back if uncompressible */
 } frame_t;
 
+typedef struct {
+    int useDict;
+    U32 dictID;
+    size_t dictSize;
+    BYTE* dictContent;
+} dictOptions;
 /*-*******************************************************
 *  Generator Functions
 *********************************************************/
@@ -1312,6 +1318,16 @@ static int generateCorpus(U32 seed, unsigned numFiles, const char* const path,
     return 0;
 }
 
+static dictOptions initDictOptions(int useDict, U32 dictID, size_t dictSize, BYTE* dictContent){
+    /* allocate space statically */
+    dictOptions dictOp;
+    memset((void*)(&dictOp), 0, sizeof(dictOp));
+    dictOp.useDict = useDict;
+    dictOp.dictID = dictID;
+    dictOp.dictSize = dictSize;
+    dictOp.dictContent = dictContent;
+    return dictOp;
+}
 static int generateCorpusWithDict(U32 seed, unsigned numFiles, const char* const path,
                                     const char* const origPath, const size_t dictSize)
 {
@@ -1338,6 +1354,10 @@ static int generateCorpusWithDict(U32 seed, unsigned numFiles, const char* const
     /* Generate the dictionary randomly first */
     dictID = RAND(&seed);
     fullDict = malloc(dictSize);
+    if (fullDict == NULL) {
+        DISPLAY("Error: could not allocate space for full dictionary.\n");
+        return 1;
+    }
     dictContent = fullDict + headerSize;
     RAND_buffer(&seed, (void*)dictContent, dictContentSize);
     {
@@ -1347,6 +1367,11 @@ static int generateCorpusWithDict(U32 seed, unsigned numFiles, const char* const
         unsigned numSamples = 4;
         BYTE* samples = malloc(5000*sizeof(BYTE));
         size_t* sampleSizes = malloc(numSamples*sizeof(size_t));
+        if (samples == NULL || sampleSizes == NULL) {
+            DISPLAY("Error: could not generate samples for the dictionary.\n");
+            free(fullDict);
+            return 1;
+        }
         {
             unsigned i = 1;
             size_t currSize = 1;
@@ -1360,36 +1385,40 @@ static int generateCorpusWithDict(U32 seed, unsigned numFiles, const char* const
                 currSize *= 16;
             }
         }
-        DISPLAY("==================done with generation====================\n");
         {
             /* set dictionary params */
             ZDICT_params_t zdictParams;
             memset(&zdictParams, 0, sizeof(zdictParams));
             zdictParams.dictID = dictID;
-            zdictParams.notificationLevel = 5;
-            DISPLAY("===================zdict params================\n");
+            zdictParams.notificationLevel = 1;
             /* finalize dictionary with random samples */
             dictWriteSize = ZDICT_finalizeDictionary(fullDict, dictSize,
                                         dictContent, dictContentSize,
                                         samples, sampleSizes, numSamples,
                                         zdictParams);
         }
-
+        free(samples);
+        free(sampleSizes);
         if(dictWriteSize != dictSize && ZDICT_isError(dictWriteSize)){
             DISPLAY("Could not finalize dictionary: %s\n", ZDICT_getErrorName(dictWriteSize));
+            free(fullDict);
             return 1;
         }
-        DISPLAY("=================done with finalize=================\n");
         /* write out dictionary */
         if(snprintf(outPath, MAX_PATH, "%s/dictionary", path) + 1 > MAX_PATH){
             DISPLAY("Error: dictionary path too long\n");
+            free(fullDict);
             return 1;
         }
         outputBuffer(fullDict, dictSize, outPath);
     }
 
-    DISPLAY("generating compressed files\n");
     decompressedPtr = malloc(MAX_DECOMPRESSED_SIZE);
+    if (decompressedPtr == NULL) {
+        DISPLAY("Error: could not allocate memory for decompressed pointer\n");
+        free(fullDict);
+        return 1;
+    }
 
     /* generate random compressed/decompressed files */
     for (fnum = 0; fnum < numFiles; fnum++) {
@@ -1403,6 +1432,8 @@ static int generateCorpusWithDict(U32 seed, unsigned numFiles, const char* const
 
         if (snprintf(outPath, MAX_PATH, "%s/z%06u.zst", path, fnum) + 1 > MAX_PATH) {
             DISPLAY("Error: path too long\n");
+            free(fullDict);
+            free(decompressedPtr);
             return 1;
         }
         outputBuffer(fr.dataStart, (BYTE*)fr.data - (BYTE*)fr.dataStart, outPath);
@@ -1410,13 +1441,14 @@ static int generateCorpusWithDict(U32 seed, unsigned numFiles, const char* const
         if (origPath) {
             if (snprintf(outPath, MAX_PATH, "%s/z%06u", origPath, fnum) + 1 > MAX_PATH) {
                 DISPLAY("Error: path too long\n");
+                free(fullDict);
+                free(decompressedPtr);
                 return 1;
             }
             outputBuffer(fr.srcStart, (BYTE*)fr.src - (BYTE*)fr.srcStart, outPath);
         }
 
         /* if asked, supply the decompressed version */
-        DISPLAY("Attempting to decompress using the dictionary\n");
         returnValue = ZSTD_decompress_usingDict(dctx, decompressedPtr, MAX_DECOMPRESSED_SIZE,
                                                fr.dataStart, (BYTE*)fr.data - (BYTE*)fr.dataStart,
                                                fullDict, dictSize);
@@ -1434,7 +1466,8 @@ static int generateCorpusWithDict(U32 seed, unsigned numFiles, const char* const
         }
 
     }
-    DISPLAY("end of function\n");
+    free(decompressedPtr);
+    free(fullDict);
     return 0;
 }
 

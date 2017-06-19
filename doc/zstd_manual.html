@@ -437,8 +437,9 @@ size_t ZSTD_estimateDDictSize(size_t dictSize, unsigned byReference);
          If it needs more memory than available, it will simply error out.
   Note 2 : there is no corresponding "free" function.
            Since workspace was allocated externally, it must be freed externally too.
-  Limitation : currently not compatible with internal CDict creation, such as
-               ZSTD_CCtx_loadDictionary() or ZSTD_initCStream_usingDict().
+  Limitation 1 : currently not compatible with internal CDict creation, such as
+                 ZSTD_CCtx_loadDictionary() or ZSTD_initCStream_usingDict().
+  Limitation 2 : currently not compatible with multi-threading
  
 </p></pre><BR>
 
@@ -496,8 +497,8 @@ size_t ZSTD_estimateDDictSize(size_t dictSize, unsigned byReference);
 </p></pre><BR>
 
 <pre><b>ZSTD_compressionParameters ZSTD_adjustCParams(ZSTD_compressionParameters cPar, unsigned long long srcSize, size_t dictSize);
-</b><p>   optimize params for a given `srcSize` and `dictSize`.
-   both values are optional, select `0` if unknown. 
+</b><p>  optimize params for a given `srcSize` and `dictSize`.
+  both values are optional, select `0` if unknown. 
 </p></pre><BR>
 
 <pre><b>size_t ZSTD_compress_advanced (ZSTD_CCtx* cctx,
@@ -611,7 +612,7 @@ size_t ZSTD_estimateDDictSize(size_t dictSize, unsigned byReference);
            this value is overriden by srcSize instead. 
 </p></pre><BR>
 
-<pre><b>size_t ZSTD_CCtx_loadDictionary(ZSTD_CCtx* cctx, const void* dict, size_t dictSize);   </b>/* Not ready yet ! */<b>
+<pre><b>size_t ZSTD_CCtx_loadDictionary(ZSTD_CCtx* cctx, const void* dict, size_t dictSize);
 </b><p>  Create an internal CDict from dict buffer.
   Decompression will have to use same buffer.
  @result : 0, or an error code (which can be tested with ZSTD_isError()).

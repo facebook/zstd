@@ -2212,6 +2212,20 @@ ZSTD_DStream *ZSTD_initDStream(size_t maxWindowSize, void *workspace, size_t wor
 	zds->ddict = zds->ddictLocal;
 	zds->legacyVersion = 0;
 	zds->hostageByte = 0;
+
+	{
+		size_t const blockSize = MIN(zds->maxWindowSize, ZSTD_BLOCKSIZE_ABSOLUTEMAX);
+		size_t const neededOutSize = zds->maxWindowSize + blockSize + WILDCOPY_OVERLENGTH * 2;
+
+		zds->inBuff = (char *)ZSTD_malloc(blockSize, zds->customMem);
+		zds->inBuffSize = blockSize;
+		zds->outBuff = (char *)ZSTD_malloc(neededOutSize, zds->customMem);
+		zds->outBuffSize = neededOutSize;
+		if (zds->inBuff == NULL || zds->outBuff == NULL) {
+			ZSTD_freeDStream(zds);
+			return NULL;
+		}
+	}
 	return zds;
 }
 
@@ -2333,25 +2347,17 @@ size_t ZSTD_decompressStream(ZSTD_DStream *zds, ZSTD_outBuffer *output, ZSTD_inB
 			if (zds->fParams.windowSize > zds->maxWindowSize)
 				return ERROR(frameParameter_windowTooLarge);
 
-			/* Adapt buffer sizes to frame header instructions */
+			/* Buffers are preallocated, but double check */
 			{
-				size_t const blockSize = MIN(zds->fParams.windowSize, ZSTD_BLOCKSIZE_ABSOLUTEMAX);
-				size_t const neededOutSize = zds->fParams.windowSize + blockSize + WILDCOPY_OVERLENGTH * 2;
-				zds->blockSize = blockSize;
+				size_t const blockSize = MIN(zds->maxWindowSize, ZSTD_BLOCKSIZE_ABSOLUTEMAX);
+				size_t const neededOutSize = zds->maxWindowSize + blockSize + WILDCOPY_OVERLENGTH * 2;
 				if (zds->inBuffSize < blockSize) {
-					ZSTD_free(zds->inBuff, zds->customMem);
-					zds->inBuffSize = blockSize;
-					zds->inBuff = (char *)ZSTD_malloc(blockSize, zds->customMem);
-					if (zds->inBuff == NULL)
-						return ERROR(memory_allocation);
+					return ERROR(GENERIC);
 				}
 				if (zds->outBuffSize < neededOutSize) {
-					ZSTD_free(zds->outBuff, zds->customMem);
-					zds->outBuffSize = neededOutSize;
-					zds->outBuff = (char *)ZSTD_malloc(neededOutSize, zds->customMem);
-					if (zds->outBuff == NULL)
-						return ERROR(memory_allocation);
+					return ERROR(GENERIC);
 				}
+				zds->blockSize = blockSize;
 			}
 			zds->stage = zdss_read;
 		}

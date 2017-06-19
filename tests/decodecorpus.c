@@ -1342,42 +1342,22 @@ static int generateCorpusWithDict(U32 seed, unsigned numFiles, const char* const
     RAND_buffer(&seed, (void*)dictContent, dictContentSize);
     {
         size_t dictWriteSize = 0;
-        /* create random samples */
-        unsigned numSamples = 0;
-        BYTE* samples;
-        unsigned i = 0;
-        size_t* sampleSizes = malloc(255*sizeof(size_t));
+
+        /* create samples */
+        unsigned numSamples = 4;
+        BYTE* samples = malloc(5000*sizeof(BYTE));
+        size_t* sampleSizes = malloc(numSamples*sizeof(size_t));
         {
-            size_t* curr = sampleSizes;
-            size_t totalSize = 0;
-            unsigned numReps = 1;
-            while (numSamples < 200) {
-                size_t randSize = RAND(&seed) % dictContentSize;
-                unsigned counter = numReps;
-                numSamples += numReps;
-                while(counter-- > 0){
-                    *curr = randSize;
-                    totalSize += *curr;
-                    curr++;
+            unsigned i = 1;
+            size_t currSize = 1;
+            BYTE* curr = samples;
+            while (i <= 4) {
+                *(sampleSizes + i - 1) = currSize;
+                for (int j = 0; j < currSize; j++) {
+                    *(curr++) = (BYTE)i;
                 }
-                DISPLAY("random size: %zu\n", randSize);
-                numReps *= 2;
-            }
-            samples = malloc(totalSize);
-            DISPLAY("%zu\n", totalSize);
-            /* reset pointer and counter */
-            curr = sampleSizes;
-            i = 0;
-            {
-                /* take substring from dictionary content */
-                size_t pos = 0;
-                BYTE* endDict = dictContent + dictContentSize;
-                while (i++ < numSamples) {
-                    size_t currSize = *(curr++);
-                    BYTE* startSubstring = endDict - currSize;
-                    memcpy(samples + pos, (void*)startSubstring, currSize);
-                    pos += currSize;
-                }
+                i++;
+                currSize *= 16;
             }
         }
         DISPLAY("==================done with generation====================\n");
@@ -1386,7 +1366,7 @@ static int generateCorpusWithDict(U32 seed, unsigned numFiles, const char* const
             ZDICT_params_t zdictParams;
             memset(&zdictParams, 0, sizeof(zdictParams));
             zdictParams.dictID = dictID;
-            zdictParams.notificationLevel = 1;
+            zdictParams.notificationLevel = 5;
             DISPLAY("===================zdict params================\n");
             /* finalize dictionary with random samples */
             dictWriteSize = ZDICT_finalizeDictionary(fullDict, dictSize,

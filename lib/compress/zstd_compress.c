@@ -15,6 +15,7 @@
 #  define ZSTD_CLEVEL_DEFAULT 3
 #endif
 
+
 /*-*************************************
 *  Dependencies
 ***************************************/
@@ -4021,11 +4022,6 @@ ZSTD_compressionParameters ZSTD_getCParams(int compressionLevel, unsigned long l
     if (compressionLevel <= 0) compressionLevel = ZSTD_CLEVEL_DEFAULT;   /* 0 == default; no negative compressionLevel yet */
     if (compressionLevel > ZSTD_MAX_CLEVEL) compressionLevel = ZSTD_MAX_CLEVEL;
     cp = ZSTD_defaultCParameters[tableID][compressionLevel];
-    if (MEM_32bits()) {   /* auto-correction, for 32-bits mode */
-        if (cp.windowLog > ZSTD_WINDOWLOG_MAX) cp.windowLog = ZSTD_WINDOWLOG_MAX;
-        if (cp.chainLog > ZSTD_CHAINLOG_MAX) cp.chainLog = ZSTD_CHAINLOG_MAX;
-        if (cp.hashLog > ZSTD_HASHLOG_MAX) cp.hashLog = ZSTD_HASHLOG_MAX;
-    }
     return ZSTD_adjustCParams_internal(cp, srcSizeHint, dictSize);   /* no need to ensure initial CParams validity */
 }
 

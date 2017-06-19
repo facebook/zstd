@@ -1203,16 +1203,18 @@ static int genRandomDict(U32 dictID, U32 seed, size_t dictSize, BYTE* fullDict){
         }
 
         /* set dictionary params */
-        ZDICT_params_t zdictParams;
-        memset(&zdictParams, 0, sizeof(zdictParams));
-        zdictParams.dictID = dictID;
-        zdictParams.notificationLevel = 1;
+        {
+            ZDICT_params_t zdictParams;
+            memset(&zdictParams, 0, sizeof(zdictParams));
+            zdictParams.dictID = dictID;
+            zdictParams.notificationLevel = 1;
 
-        /* finalize dictionary with random samples */
-        dictWriteSize = ZDICT_finalizeDictionary(fullDict, dictSize,
-                                    dictContent, dictContentSize,
-                                    samples, sampleSizes, numSamples,
-                                    zdictParams);
+            /* finalize dictionary with random samples */
+            dictWriteSize = ZDICT_finalizeDictionary(fullDict, dictSize,
+                                        dictContent, dictContentSize,
+                                        samples, sampleSizes, numSamples,
+                                        zdictParams);
+        }
         free(samples);
         free(sampleSizes);
         if (dictWriteSize != dictSize && ZDICT_isError(dictWriteSize)) {

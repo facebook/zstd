@@ -93,6 +93,10 @@ the last one takes effect.
 * `--train FILEs`:
     Use FILEs as a training set to create a dictionary.
     The training set should contain a lot of small files (> 100).
+* `-l`, `--list`:
+    Display information related to a zstd compressed file, such as size, ratio, and checksum.
+    Some of these fields may not be available.
+    This command can be augmented with the `-v` modifier. 
 
 ### Operation modifiers
 

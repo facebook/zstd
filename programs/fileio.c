@@ -929,12 +929,11 @@ static int getFileInfo(fileInfo_t* info, const char* inFileName){
                 /* skip the rest of the blocks in the frame */
                 {
                     int lastBlock = 0;
-                    size_t readBytes = 0;
                     do {
                         BYTE blockHeaderBuffer[3];
                         U32 blockHeader;
                         int blockSize;
-                        readBytes = fread(blockHeaderBuffer, 1, 3, srcFile);
+                        size_t readBytes = fread(blockHeaderBuffer, 1, 3, srcFile);
                         if (readBytes != 3) {
                             DISPLAY("There was a problem reading the block header\n");
                             detectError = 1;
@@ -984,8 +983,8 @@ static int getFileInfo(fileInfo_t* info, const char* inFileName){
                     break;
                 }
                 {
-                    long const frameSize = MEM_readLE32(frameSizeBuffer);
-                    int const ret = fseek(srcFile, frameSize, SEEK_CUR);
+                    U32 const frameSize = MEM_readLE32(frameSizeBuffer);
+                    int const ret = fseek(srcFile, (long)frameSize, SEEK_CUR);
                     if (ret != 0) {
                         DISPLAY("Error: could not find end of skippable frame\n");
                         detectError = 1;

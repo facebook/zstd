@@ -86,14 +86,13 @@ static clock_t g_time = 0;
 #ifndef DEBUG
 #  define DEBUG 0
 #endif
-#define DEBUGOUTPUT(...) if (DEBUG) DISPLAY(__VA_ARGS__);
-#define EXM_THROW(error, ...)                                             \
-{                                                                         \
-    DEBUGOUTPUT("%s: %i: \n", __FILE__, __LINE__); \
-    DISPLAYLEVEL(1, "Error %i : ", error);                                \
-    DISPLAYLEVEL(1, __VA_ARGS__);                                         \
-    DISPLAYLEVEL(1, " \n");                                               \
-    exit(error);                                                          \
+#define DEBUGOUTPUT(...) { if (DEBUG) DISPLAY(__VA_ARGS__); }
+#define EXM_THROW(error, ...)  {                      \
+    DEBUGOUTPUT("%s: %i: \n", __FILE__, __LINE__);    \
+    DISPLAYLEVEL(1, "Error %i : ", error);            \
+    DISPLAYLEVEL(1, __VA_ARGS__);                     \
+    DISPLAYLEVEL(1, " \n");                           \
+    exit(error);                                      \
 }
 
 

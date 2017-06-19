@@ -1263,6 +1263,69 @@ static int runTestMode(U32 seed, unsigned numFiles, unsigned const testDurationS
     return 0;
 }
 
+/*_*******************************************************
+*  Dictionary Helper Functions
+*********************************************************/
+/* returns 0 if successful, otherwise returns 1 upon error */
+static int genRandomDict(U32 dictID, U32 seed, size_t dictSize, BYTE* fullDict){
+    const size_t headerSize = dictSize/4;
+    const size_t dictContentSize = dictSize - dictSize/4;
+    BYTE* const dictContent = fullDict + headerSize;
+
+    /* use 3/4 of dictionary for content, save rest for header/entropy tables */
+    if (dictContentSize < ZDICT_CONTENTSIZE_MIN || dictSize < ZDICT_DICTSIZE_MIN) {
+        DISPLAY("Error: dictionary size is too small\n");
+        return 1;
+    }
+
+    /* fill in dictionary content */
+    RAND_buffer(&seed, (void*)dictContent, dictContentSize);
+
+    /* allocate space for samples */
+    {
+        size_t dictWriteSize = 0;
+        unsigned const numSamples = 4;
+        BYTE* const samples = malloc(5000*sizeof(BYTE));
+        size_t* const sampleSizes = malloc(numSamples*sizeof(size_t));
+        if (samples == NULL || sampleSizes == NULL) {
+            DISPLAY("Error: could not generate samples for the dictionary.\n");
+            return 1;
+        }
+
+        /* generate samples */
+        unsigned i = 1;
+        size_t currSize = 1;
+        BYTE* curr = samples;
+        while (i <= 4) {
+            *(sampleSizes + i - 1) = currSize;
+            for (size_t j = 0; j < currSize; j++) {
+                *(curr++) = (BYTE)i;
+            }
+            i++;
+            currSize *= 16;
+        }
+
+        /* set dictionary params */
+        ZDICT_params_t zdictParams;
+        memset(&zdictParams, 0, sizeof(zdictParams));
+        zdictParams.dictID = dictID;
+        zdictParams.notificationLevel = 1;
+
+        /* finalize dictionary with random samples */
+        dictWriteSize = ZDICT_finalizeDictionary(fullDict, dictSize,
+                                    dictContent, dictContentSize,
+                                    samples, sampleSizes, numSamples,
+                                    zdictParams);
+        free(samples);
+        free(sampleSizes);
+        if (dictWriteSize != dictSize && ZDICT_isError(dictWriteSize)) {
+            DISPLAY("Could not finalize dictionary: %s\n", ZDICT_getErrorName(dictWriteSize));
+            return 1;
+        }
+    }
+    return 0;
+}
+
 /*-*******************************************************
 *  File I/O
 *********************************************************/
@@ -1328,146 +1391,101 @@ static dictOptions initDictOptions(int useDict, U32 dictID, size_t dictSize, BYT
     dictOp.dictContent = dictContent;
     return dictOp;
 }
+
 static int generateCorpusWithDict(U32 seed, unsigned numFiles, const char* const path,
                                     const char* const origPath, const size_t dictSize)
 {
     char outPath[MAX_PATH];
     BYTE* fullDict;
     U32 const dictID = RAND(&seed);
-    BYTE* decompressedPtr;
-    BYTE* dictContent;
-    const size_t headerSize = dictSize/4;
-    const size_t dictContentSize = dictSize - dictSize/4;
-    ZSTD_DCtx* dctx = ZSTD_createDCtx();
+    int errorDetected = 0;
+
     if (snprintf(outPath, MAX_PATH, "%s/dictionary", path) + 1 > MAX_PATH) {
         DISPLAY("Error: path too long\n");
         return 1;
     }
-    {
-        /* use 3/4 of dictionary for content, save rest for header/entropy tables */
-        if (dictContentSize < ZDICT_CONTENTSIZE_MIN || dictSize < ZDICT_DICTSIZE_MIN) {
-            DISPLAY("Error: dictionary size is too small\n");
-            return 1;
-        }
-    }
-    /* Generate the dictionary randomly first */
+
+    /* allocate space for the dictionary */
     fullDict = malloc(dictSize);
     if (fullDict == NULL) {
         DISPLAY("Error: could not allocate space for full dictionary.\n");
         return 1;
     }
-    dictContent = fullDict + headerSize;
-    RAND_buffer(&seed, (void*)dictContent, dictContentSize);
+
+    /* randomly generate the dictionary */
     {
-        size_t dictWriteSize = 0;
-
-        /* create samples */
-        unsigned numSamples = 4;
-        BYTE* samples = malloc(5000*sizeof(BYTE));
-        size_t* sampleSizes = malloc(numSamples*sizeof(size_t));
-        if (samples == NULL || sampleSizes == NULL) {
-            DISPLAY("Error: could not generate samples for the dictionary.\n");
-            free(fullDict);
-            return 1;
+        int ret = genRandomDict(dictID, seed, dictSize, fullDict);
+        if (ret != 0) {
+            errorDetected = ret;
+            goto dictCleanup;
         }
-        {
-            unsigned i = 1;
-            size_t currSize = 1;
-            BYTE* curr = samples;
-            while (i <= 4) {
-                *(sampleSizes + i - 1) = currSize;
-                for (size_t j = 0; j < currSize; j++) {
-                    *(curr++) = (BYTE)i;
-                }
-                i++;
-                currSize *= 16;
-            }
-        }
-        {
-            /* set dictionary params */
-            ZDICT_params_t zdictParams;
-            memset(&zdictParams, 0, sizeof(zdictParams));
-            zdictParams.dictID = dictID;
-            zdictParams.notificationLevel = 1;
-            /* finalize dictionary with random samples */
-            dictWriteSize = ZDICT_finalizeDictionary(fullDict, dictSize,
-                                        dictContent, dictContentSize,
-                                        samples, sampleSizes, numSamples,
-                                        zdictParams);
-        }
-        free(samples);
-        free(sampleSizes);
-        if (dictWriteSize != dictSize && ZDICT_isError(dictWriteSize)) {
-            DISPLAY("Could not finalize dictionary: %s\n", ZDICT_getErrorName(dictWriteSize));
-            free(fullDict);
-            return 1;
-        }
-        /* write out dictionary */
-        if (snprintf(outPath, MAX_PATH, "%s/dictionary", path) + 1 > MAX_PATH) {
-            DISPLAY("Error: dictionary path too long\n");
-            free(fullDict);
-            return 1;
-        }
-        outputBuffer(fullDict, dictSize, outPath);
     }
 
-    decompressedPtr = malloc(MAX_DECOMPRESSED_SIZE);
-    if (decompressedPtr == NULL) {
-        DISPLAY("Error: could not allocate memory for decompressed pointer\n");
-        free(fullDict);
-        return 1;
+    /* write out dictionary */
+    if (snprintf(outPath, MAX_PATH, "%s/dictionary", path) + 1 > MAX_PATH) {
+        DISPLAY("Error: dictionary path too long\n");
+        errorDetected = 1;
+        goto dictCleanup;
     }
+    outputBuffer(fullDict, dictSize, outPath);
 
     /* generate random compressed/decompressed files */
     for (unsigned fnum = 0; fnum < numFiles; fnum++) {
         frame_t fr;
-        size_t returnValue;
-
-
         DISPLAYUPDATE("\r%u/%u        ", fnum, numFiles);
-
-        seed = generateFrame(seed, &fr, 1, dictContentSize, dictContent, dictID);
-
+        {
+            size_t dictContentSize = dictSize-dictSize/4;
+            BYTE* const dictContent = fullDict+dictSize/4;
+            seed = generateFrame(seed, &fr, 1, dictContentSize, dictContent, dictID);
+        }
         if (snprintf(outPath, MAX_PATH, "%s/z%06u.zst", path, fnum) + 1 > MAX_PATH) {
             DISPLAY("Error: path too long\n");
-            free(fullDict);
-            free(decompressedPtr);
-            return 1;
+            errorDetected = 1;
+            goto dictCleanup;
         }
         outputBuffer(fr.dataStart, (BYTE*)fr.data - (BYTE*)fr.dataStart, outPath);
 
         if (origPath) {
             if (snprintf(outPath, MAX_PATH, "%s/z%06u", origPath, fnum) + 1 > MAX_PATH) {
                 DISPLAY("Error: path too long\n");
-                free(fullDict);
-                free(decompressedPtr);
-                return 1;
+                errorDetected = 1;
+                goto dictCleanup;
             }
             outputBuffer(fr.srcStart, (BYTE*)fr.src - (BYTE*)fr.srcStart, outPath);
         }
 
-        /* if asked, supply the decompressed version */
-        returnValue = ZSTD_decompress_usingDict(dctx, decompressedPtr, MAX_DECOMPRESSED_SIZE,
-                                               fr.dataStart, (BYTE*)fr.data - (BYTE*)fr.dataStart,
-                                               fullDict, dictSize);
-
+        /* check the output to make sure that decompressed versions match official zstd */
         {
+            ZSTD_DCtx* const dctx = ZSTD_createDCtx();
+            BYTE* const decompressedPtr = malloc(MAX_DECOMPRESSED_SIZE);
+            if (decompressedPtr == NULL) {
+                DISPLAY("Error: could not allocate memory for decompressed pointer\n");
+                errorDetected = 1;
+                goto dictCleanup;
+            }
+            size_t const returnValue = ZSTD_decompress_usingDict(dctx, decompressedPtr, MAX_DECOMPRESSED_SIZE,
+                                                   fr.dataStart, (BYTE*)fr.data - (BYTE*)fr.dataStart,
+                                                   fullDict, dictSize);
+            if (ZSTD_isError(returnValue)) {
+               DISPLAY("Error: %s\n", ZSTD_getErrorName(returnValue));
+            }
+
             /* print differences if any */
-            size_t checkDiff = (BYTE*)fr.src - (BYTE*)fr.srcStart;
-            for (size_t i = 0; i < checkDiff; i++) {
-                if (*((BYTE*)(fr.srcStart + i)) != *((BYTE*)(decompressedPtr + i))) {
-                    DISPLAY("i: %zu, fr: %u, decomp: %u\n", i, *((BYTE*)(fr.srcStart + i)), *((BYTE*)(decompressedPtr + i)));
+            {
+                size_t checkDiff = (BYTE*)fr.src - (BYTE*)fr.srcStart;
+                for (size_t i = 0; i < checkDiff; i++) {
+                    if (*((BYTE*)(fr.srcStart + i)) != *((BYTE*)(decompressedPtr + i))) {
+                        DISPLAY("i: %zu, fr: %u, decomp: %u\n", i, *((BYTE*)(fr.srcStart + i)), *((BYTE*)(decompressedPtr + i)));
+                    }
                 }
             }
+            free(decompressedPtr);
         }
-        if (ZSTD_isError(returnValue)) {
-            DISPLAY("Error: %s\n", ZSTD_getErrorName(returnValue));
-        }
-
     }
-    free(decompressedPtr);
+
+dictCleanup:
     free(fullDict);
-    return 0;
+    return errorDetected;
 }
 
 

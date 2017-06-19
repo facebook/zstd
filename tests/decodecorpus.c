@@ -237,8 +237,9 @@ typedef struct {
     int useDict;
     U32 dictID;
     size_t dictSize;
+    BYTE* fullDict;
     BYTE* dictContent;
-} dictOptions;
+} dictInfo;
 /*-*******************************************************
 *  Generator Functions
 *********************************************************/
@@ -1326,6 +1327,17 @@ static int genRandomDict(U32 dictID, U32 seed, size_t dictSize, BYTE* fullDict){
     return 0;
 }
 
+static dictInfo initDictInfo(int useDict, size_t dictSize, BYTE* fullDict, U32 seed){
+    /* allocate space statically */
+    dictInfo dictOp;
+    memset((void*)(&dictOp), 0, sizeof(dictOp));
+    dictOp.useDict = useDict;
+    dictOp.dictSize = dictSize;
+    dictOp.fullDict = fullDict;
+    dictOp.dictContent = fullDict + dictSize/4;
+    if (useDict) dictOp.dictID = RAND(&seed);
+    return dictOp;
+}
 /*-*******************************************************
 *  File I/O
 *********************************************************/
@@ -1379,17 +1391,6 @@ static int generateCorpus(U32 seed, unsigned numFiles, const char* const path,
     DISPLAY("\r%u/%u      \n", fnum, numFiles);
 
     return 0;
-}
-
-static dictOptions initDictOptions(int useDict, U32 dictID, size_t dictSize, BYTE* dictContent){
-    /* allocate space statically */
-    dictOptions dictOp;
-    memset((void*)(&dictOp), 0, sizeof(dictOp));
-    dictOp.useDict = useDict;
-    dictOp.dictID = dictID;
-    dictOp.dictSize = dictSize;
-    dictOp.dictContent = dictContent;
-    return dictOp;
 }
 
 static int generateCorpusWithDict(U32 seed, unsigned numFiles, const char* const path,

@@ -729,8 +729,16 @@ static int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compres
 
         /* states full reset (deliberately not synchronized) */
         /* some issues can only happen when reusing states */
-        if ((FUZ_rand(&lseed) & 0xFF) == 131) { ZSTD_freeCStream(zc); zc = ZSTD_createCStream(); resetAllowed=0; }
-        if ((FUZ_rand(&lseed) & 0xFF) == 132) { ZSTD_freeDStream(zd); zd = ZSTD_createDStream(); ZSTD_initDStream_usingDict(zd, NULL, 0);  /* ensure at least one init */ }
+        if ((FUZ_rand(&lseed) & 0xFF) == 131) {
+            ZSTD_freeCStream(zc);
+            zc = ZSTD_createCStream();
+            resetAllowed=0;
+        }
+        if ((FUZ_rand(&lseed) & 0xFF) == 132) {
+            ZSTD_freeDStream(zd);
+            zd = ZSTD_createDStream();
+            ZSTD_initDStream_usingDict(zd, NULL, 0);  /* ensure at least one init */
+        }
 
         /* srcBuffer selection [0-4] */
         {   U32 buffNb = FUZ_rand(&lseed) & 0x7F;
@@ -791,8 +799,7 @@ static int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compres
                     ZSTD_inBuffer inBuff = { srcBuffer+srcStart, srcSize, 0 };
                     outBuff.size = outBuff.pos + dstBuffSize;
 
-                    { size_t const compressionError = ZSTD_compressStream(zc, &outBuff, &inBuff);
-                      CHECK (ZSTD_isError(compressionError), "compression error : %s", ZSTD_getErrorName(compressionError)); }
+                    CHECK_Z( ZSTD_compressStream(zc, &outBuff, &inBuff) );
 
                     XXH64_update(&xxhState, srcBuffer+srcStart, inBuff.pos);
                     memcpy(copyBuffer+totalTestSize, srcBuffer+srcStart, inBuff.pos);
@@ -804,9 +811,8 @@ static int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compres
                     size_t const randomDstSize = FUZ_randomLength(&lseed, maxSampleLog);
                     size_t const adjustedDstSize = MIN(cBufferSize - cSize, randomDstSize);
                     outBuff.size = outBuff.pos + adjustedDstSize;
-                    {   size_t const flushError = ZSTD_flushStream(zc, &outBuff);
-                        CHECK (ZSTD_isError(flushError), "flush error : %s", ZSTD_getErrorName(flushError));
-            }   }   }
+                    CHECK_Z( ZSTD_flushStream(zc, &outBuff) );
+            }   }
 
             /* final frame epilogue */
             {   size_t remainingToFlush = (size_t)(-1);
@@ -1308,8 +1314,9 @@ static int fuzzerTests_newAPI(U32 seed, U32 nbTests, unsigned startTest, double 
                 {   U32 const nbThreads = (FUZ_rand(&lseed) & 3) + 1;
                     CHECK_Z( ZSTD_CCtx_setParameter(zc, ZSTD_p_nbThreads, nbThreads) );
                     if (nbThreads > 1) {
+                        U32 const jobLog = FUZ_rand(&lseed) % (testLog+1);
                         CHECK_Z( ZSTD_CCtx_setParameter(zc, ZSTD_p_overlapSizeLog, FUZ_rand(&lseed) % 10) );
-                        CHECK_Z( ZSTD_CCtx_setParameter(zc, ZSTD_p_jobSize, FUZ_rand(&lseed) % (2*maxTestSize+1)) );
+                        CHECK_Z( ZSTD_CCtx_setParameter(zc, ZSTD_p_jobSize, (U32)FUZ_rLogLength(&lseed, jobLog)) );
         }   }   }   }
 
         /* multi-segments compression test */
@@ -1318,32 +1325,23 @@ static int fuzzerTests_newAPI(U32 seed, U32 nbTests, unsigned startTest, double 
             U32 n;
             for (n=0, cSize=0, totalTestSize=0 ; totalTestSize < maxTestSize ; n++) {
                 /* compress random chunks into randomly sized dst buffers */
-                {   size_t const randomSrcSize = FUZ_randomLength(&lseed, maxSampleLog);
-                    size_t const srcSize = MIN(maxTestSize-totalTestSize, randomSrcSize);
-                    size_t const srcStart = FUZ_rand(&lseed) % (srcBufferSize - srcSize);
-                    size_t const randomDstSize = FUZ_randomLength(&lseed, maxSampleLog);
-                    size_t const dstBuffSize = MIN(cBufferSize - cSize, randomDstSize);
-                    ZSTD_inBuffer inBuff = { srcBuffer+srcStart, srcSize, 0 };
-                    outBuff.size = outBuff.pos + dstBuffSize;
+                size_t const randomSrcSize = FUZ_randomLength(&lseed, maxSampleLog);
+                size_t const srcSize = MIN(maxTestSize-totalTestSize, randomSrcSize);
+                size_t const srcStart = FUZ_rand(&lseed) % (srcBufferSize - srcSize);
+                size_t const randomDstSize = FUZ_randomLength(&lseed, maxSampleLog);
+                size_t const dstBuffSize = MIN(cBufferSize - cSize, randomDstSize);
+                ZSTD_EndDirective const flush = (FUZ_rand(&lseed) & 15) ? ZSTD_e_continue : ZSTD_e_flush;
+                ZSTD_inBuffer inBuff = { srcBuffer+srcStart, srcSize, 0 };
+                outBuff.size = outBuff.pos + dstBuffSize;
 
-                    CHECK_Z( ZSTD_compress_generic(zc, &outBuff, &inBuff, ZSTD_e_continue) );
-                    DISPLAYLEVEL(5, "compress consumed %u bytes (total : %u) \n",
-                        (U32)inBuff.pos, (U32)(totalTestSize + inBuff.pos));
+                CHECK_Z( ZSTD_compress_generic(zc, &outBuff, &inBuff, flush) );
+                DISPLAYLEVEL(5, "compress consumed %u bytes (total : %u) \n",
+                    (U32)inBuff.pos, (U32)(totalTestSize + inBuff.pos));
 
-                    XXH64_update(&xxhState, srcBuffer+srcStart, inBuff.pos);
-                    memcpy(copyBuffer+totalTestSize, srcBuffer+srcStart, inBuff.pos);
-                    totalTestSize += inBuff.pos;
-                }
-
-                /* random flush operation, to mess around */
-                if ((FUZ_rand(&lseed) & 15) == 0) {
-                    ZSTD_inBuffer inBuff = { NULL, 0, 0 };
-                    size_t const randomDstSize = FUZ_randomLength(&lseed, maxSampleLog);
-                    size_t const adjustedDstSize = MIN(cBufferSize - cSize, randomDstSize);
-                    outBuff.size = outBuff.pos + adjustedDstSize;
-                    DISPLAYLEVEL(5, "Flushing into dst buffer of size %u \n", (U32)adjustedDstSize);
-                    CHECK_Z( ZSTD_compress_generic(zc, &outBuff, &inBuff, ZSTD_e_flush) );
-            }   }
+                XXH64_update(&xxhState, srcBuffer+srcStart, inBuff.pos);
+                memcpy(copyBuffer+totalTestSize, srcBuffer+srcStart, inBuff.pos);
+                totalTestSize += inBuff.pos;
+            }
 
             /* final frame epilogue */
             {   size_t remainingToFlush = (size_t)(-1);
@@ -1413,7 +1411,7 @@ static int fuzzerTests_newAPI(U32 seed, U32 nbTests, unsigned startTest, double 
                 inBuff.size  = inBuff.pos + adjustedCSrcSize;
                 {   size_t const decompressError = ZSTD_decompressStream(zd, &outBuff, &inBuff);
                     if (ZSTD_isError(decompressError)) break;   /* error correctly detected */
-                    /* No forward progress possible */
+                    /* Good so far, but no more progress possible */
                     if (outBuff.pos < outBuff.size && inBuff.pos == cSize) break;
     }   }   }   }
     DISPLAY("\r%u fuzzer tests completed   \n", testNb-1);

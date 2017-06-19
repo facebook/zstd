@@ -1476,11 +1476,13 @@ static int generateCorpusWithDict(U32 seed, unsigned numFiles, const char* const
                 errorDetected = 1;
                 goto dictCleanup;
             }
-            size_t const returnValue = ZSTD_decompress_usingDict(dctx, decompressedPtr, MAX_DECOMPRESSED_SIZE,
-                                                   fr.dataStart, (BYTE*)fr.data - (BYTE*)fr.dataStart,
-                                                   fullDict, dictSize);
-            if (ZSTD_isError(returnValue)) {
-               DISPLAY("Error: %s\n", ZSTD_getErrorName(returnValue));
+            {
+                size_t const returnValue = ZSTD_decompress_usingDict(dctx, decompressedPtr, MAX_DECOMPRESSED_SIZE,
+                                                       fr.dataStart, (BYTE*)fr.data - (BYTE*)fr.dataStart,
+                                                       fullDict, dictSize);
+                if (ZSTD_isError(returnValue)) {
+                   DISPLAY("Error: %s\n", ZSTD_getErrorName(returnValue));
+                }
             }
 
             /* print differences if any */

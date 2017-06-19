@@ -674,7 +674,7 @@ static U32 generateSequences(U32* seed, frame_t* frame, seqStore_t* seqStore,
                           MIN(frame->header.windowSize,
                               (size_t)((BYTE*)srcPtr - (BYTE*)frame->srcStart))) +
                          1;
-                if(genDict && (RAND(seed) & 1)) {
+                if (genDict && (RAND(seed) & 1)) {
                     /* need to occasionally generate offsets that go past the start */
                     /* we still need to be within the windowSize however */
                     U32 const lenPastStart = RAND(seed) % dictSize;
@@ -703,7 +703,7 @@ static U32 generateSequences(U32* seed, frame_t* frame, seqStore_t* seqStore,
                     /* copy from dictionary instead of literals */
                     *srcPtr = *(dictContent + dictSize - (offset-(srcPtr-(BYTE*)frame->srcStart)));
                 }
-                else{
+                else {
                     *srcPtr = *(srcPtr-offset);
                 }
                 srcPtr++;
@@ -1399,13 +1399,13 @@ static int generateCorpusWithDict(U32 seed, unsigned numFiles, const char* const
         }
         free(samples);
         free(sampleSizes);
-        if(dictWriteSize != dictSize && ZDICT_isError(dictWriteSize)){
+        if (dictWriteSize != dictSize && ZDICT_isError(dictWriteSize)) {
             DISPLAY("Could not finalize dictionary: %s\n", ZDICT_getErrorName(dictWriteSize));
             free(fullDict);
             return 1;
         }
         /* write out dictionary */
-        if(snprintf(outPath, MAX_PATH, "%s/dictionary", path) + 1 > MAX_PATH){
+        if (snprintf(outPath, MAX_PATH, "%s/dictionary", path) + 1 > MAX_PATH) {
             DISPLAY("Error: dictionary path too long\n");
             free(fullDict);
             return 1;

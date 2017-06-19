@@ -2136,15 +2136,19 @@ void ZSTD_compressBlock_lazy_generic(ZSTD_CCtx* ctx,
             break;  /* nothing found : store previous solution */
         }
 
+        /* NOTE:
+         * start[-offset+ZSTD_REP_MOVE-1] is undefined behavior.
+         * (-offset+ZSTD_REP_MOVE-1) is unsigned, and is added to start, which
+         * overflows the pointer, which is undefined behavior.
+         */
         /* catch up */
         if (offset) {
             while ( (start > anchor)
                  && (start > base+offset-ZSTD_REP_MOVE)
-                 && (start[-1] == start[-1-offset+ZSTD_REP_MOVE]) )  /* only search for offset within prefix */
+                 && (start[-1] == (start-offset+ZSTD_REP_MOVE)[-1]) )  /* only search for offset within prefix */
                 { start--; matchLength++; }
             offset_2 = offset_1; offset_1 = (U32)(offset - ZSTD_REP_MOVE);
         }
-
         /* store sequence */
 _storeSequence:
         {   size_t const litLength = start - anchor;

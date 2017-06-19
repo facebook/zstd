@@ -1342,7 +1342,6 @@ static int generateCorpusWithDict(U32 seed, unsigned numFiles, const char* const
     RAND_buffer(&seed, (void*)dictContent, dictContentSize);
     {
         size_t dictWriteSize = 0;
-
         /* create random samples */
         unsigned numSamples = 0;
         BYTE* samples;
@@ -1361,10 +1360,11 @@ static int generateCorpusWithDict(U32 seed, unsigned numFiles, const char* const
                     totalSize += *curr;
                     curr++;
                 }
+                DISPLAY("random size: %zu\n", randSize);
                 numReps *= 2;
             }
             samples = malloc(totalSize);
-
+            DISPLAY("%zu\n", totalSize);
             /* reset pointer and counter */
             curr = sampleSizes;
             i = 0;
@@ -1372,7 +1372,7 @@ static int generateCorpusWithDict(U32 seed, unsigned numFiles, const char* const
                 /* take substring from dictionary content */
                 size_t pos = 0;
                 BYTE* endDict = dictContent + dictContentSize;
-                while(i++ < numSamples){
+                while (i++ < numSamples) {
                     size_t currSize = *(curr++);
                     BYTE* startSubstring = endDict - currSize;
                     memcpy(samples + pos, (void*)startSubstring, currSize);
@@ -1441,7 +1441,7 @@ static int generateCorpusWithDict(U32 seed, unsigned numFiles, const char* const
                                                fr.srcStart, (BYTE*)fr.src - (BYTE*)fr.srcStart,
                                                fullDict, dictSize);
 
-        if(ZSTD_isError(returnValue)){
+        if (ZSTD_isError(returnValue)) {
             DISPLAY("Error: %s\n", ZSTD_getErrorName(returnValue));
         }
 

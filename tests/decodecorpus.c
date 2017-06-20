@@ -1386,6 +1386,14 @@ static int runTestMode(U32 seed, unsigned numFiles, unsigned const testDurationS
                 return 1;
             }
         }
+        {
+            size_t const dictSize = RAND(&seed);
+            size_t const r = testDecodeWithDict(seed, dictSize);
+            if (ZSTD_isError(r)) {
+                DISPLAY("Error in dictionary mode on test seed %u: %s\n", seed+fnum, ZSTD_getErrorName(r));
+                return 1;
+            }
+        }
     }
 
     DISPLAY("\r%u tests completed: ", fnum);

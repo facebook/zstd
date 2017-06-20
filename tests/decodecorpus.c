@@ -1222,7 +1222,7 @@ static int genRandomDict(U32 dictID, U32 seed, size_t dictSize, BYTE* fullDict){
 
         free(samples);
         free(sampleSizes);
-        if (dictWriteSize != dictSize && ZDICT_isError(dictWriteSize)) {
+        if (ZDICT_isError(dictWriteSize)) {
             DISPLAY("Could not finalize dictionary: %s\n", ZDICT_getErrorName(dictWriteSize));
             return 1;
         }

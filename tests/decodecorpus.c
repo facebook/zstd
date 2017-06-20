@@ -1505,17 +1505,22 @@ static int generateCorpusWithDict(U32 seed, unsigned numFiles, const char* const
     }
 
     /* write out dictionary */
-    if (snprintf(outPath, MAX_PATH, "%s/dictionary", path) + 1 > MAX_PATH) {
-        DISPLAY("Error: dictionary path too long\n");
-        errorDetected = 1;
-        goto dictCleanup;
+    if (numFiles != 0) {
+        if (snprintf(outPath, MAX_PATH, "%s/dictionary", path) + 1 > MAX_PATH) {
+            DISPLAY("Error: dictionary path too long\n");
+            errorDetected = 1;
+            goto dictCleanup;
+        }
+        outputBuffer(fullDict, dictSize, outPath);
     }
-    outputBuffer(fullDict, dictSize, outPath);
+    else {
+        outputBuffer(fullDict, dictSize, "dictionary");
+    }
 
     /* generate random compressed/decompressed files */
     {
         unsigned fnum;
-        for (fnum = 0; fnum < numFiles; fnum++) {
+        for (fnum = 0; fnum < MAX(numFiles, 1); fnum++) {
             frame_t fr;
             DISPLAYUPDATE("\r%u/%u        ", fnum, numFiles);
             {
@@ -1524,20 +1529,29 @@ static int generateCorpusWithDict(U32 seed, unsigned numFiles, const char* const
                 dictInfo const info = initDictInfo(1, dictContentSize, dictContent, dictID);
                 seed = generateFrame(seed, &fr, info);
             }
-            if (snprintf(outPath, MAX_PATH, "%s/z%06u.zst", path, fnum) + 1 > MAX_PATH) {
-                DISPLAY("Error: path too long\n");
-                errorDetected = 1;
-                goto dictCleanup;
-            }
-            outputBuffer(fr.dataStart, (BYTE*)fr.data - (BYTE*)fr.dataStart, outPath);
 
-            if (origPath) {
-                if (snprintf(outPath, MAX_PATH, "%s/z%06u", origPath, fnum) + 1 > MAX_PATH) {
+            if (numFiles != 0) {
+                if (snprintf(outPath, MAX_PATH, "%s/z%06u.zst", path, fnum) + 1 > MAX_PATH) {
                     DISPLAY("Error: path too long\n");
                     errorDetected = 1;
                     goto dictCleanup;
                 }
-                outputBuffer(fr.srcStart, (BYTE*)fr.src - (BYTE*)fr.srcStart, outPath);
+                outputBuffer(fr.dataStart, (BYTE*)fr.data - (BYTE*)fr.dataStart, outPath);
+
+                if (origPath) {
+                    if (snprintf(outPath, MAX_PATH, "%s/z%06u", origPath, fnum) + 1 > MAX_PATH) {
+                        DISPLAY("Error: path too long\n");
+                        errorDetected = 1;
+                        goto dictCleanup;
+                    }
+                    outputBuffer(fr.srcStart, (BYTE*)fr.src - (BYTE*)fr.srcStart, outPath);
+                }
+            }
+            else {
+                outputBuffer(fr.dataStart, (BYTE*)fr.data - (BYTE*)fr.dataStart, path);
+                if (origPath) {
+                    outputBuffer(fr.srcStart, (BYTE*)fr.src - (BYTE*)fr.srcStart, origPath);
+                }
             }
         }
     }
@@ -1707,7 +1721,6 @@ int main(int argc, char** argv)
         return generateCorpus(seed, numFiles, path, origPath);
     } else {
         /* should generate files with a dictionary */
-        numFiles = (numFiles == 0) ? 1 : numFiles;
         return generateCorpusWithDict(seed, numFiles, path, origPath, dictSize);
     }
 

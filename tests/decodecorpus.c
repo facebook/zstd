@@ -1387,7 +1387,8 @@ static int runTestMode(U32 seed, unsigned numFiles, unsigned const testDurationS
             }
         }
         {
-            size_t const dictSize = RAND(&seed);
+            /* don't create a dictionary that is too big */
+            size_t const dictSize = RAND(&seed) % (10 << 20);
             size_t const r = testDecodeWithDict(seed, dictSize);
             if (ZSTD_isError(r)) {
                 DISPLAY("Error in dictionary mode on test seed %u: %s\n", seed+fnum, ZSTD_getErrorName(r));

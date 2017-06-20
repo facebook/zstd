@@ -1336,8 +1336,8 @@ static size_t testDecodeWithDict(U32 seed, size_t dictSize)
                                                        fr.dataStart, (BYTE*)fr.data - (BYTE*)fr.dataStart,
                                                        fullDict, dictSize);
                 if (ZSTD_isError(returnValue)) {
-                   errorDetected = returnValue;
-                   goto dictTestCleanup;
+                    errorDetected = returnValue;
+                    goto dictTestCleanup;
                 }
             }
 

@@ -688,8 +688,8 @@ int main(int argCount, const char* argv[])
         {
             int error = 0;
             unsigned u;
-            for(u=0; u<filenameIdx;u++){
-                error = FIO_listFile(filenameTable[u],g_displayLevel);
+            for (u=0; u<filenameIdx;u++) {
+                error |= FIO_listFile(filenameTable[u], g_displayLevel);
             }
             CLEAN_RETURN(error);
         }

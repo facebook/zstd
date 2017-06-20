@@ -867,7 +867,7 @@ typedef struct {
     int numActualFrames;
     int numSkippableFrames;
     unsigned long long decompressedSize;
-    int canComputeDecompSize;
+    int decompUnavailable;
     unsigned long long compressedSize;
     int usesCheck;
 } fileInfo_t;
@@ -903,7 +903,7 @@ static int getFileInfo(fileInfo_t* info, const char* inFileName){
             if (magicNumber == ZSTD_MAGICNUMBER) {
                 U64 const frameContentSize = ZSTD_getFrameContentSize(headerBuffer, numBytesRead);
                 if (frameContentSize == ZSTD_CONTENTSIZE_ERROR || frameContentSize == ZSTD_CONTENTSIZE_UNKNOWN) {
-                    info->canComputeDecompSize = 0;
+                    info->decompUnavailable = 1;
                 }
                 else {
                     info->decompressedSize += frameContentSize;
@@ -1008,7 +1008,7 @@ static void displayInfo(const char* inFileName, fileInfo_t* info, int displayLev
     double const decompressedSizeMB = (double)info->decompressedSize/(1 MB);
     const char* checkString = (info->usesCheck ? "XXH64" : "None");
     if (displayLevel <= 2) {
-        if (info->canComputeDecompSize) {
+        if (!info->decompUnavailable) {
             double const ratio = (info->decompressedSize == 0) ? 0.0 : compressedSizeMB/decompressedSizeMB;
             DISPLAYOUT("Skippable  Non-Skippable  Compressed  Uncompressed  Ratio  Check  Filename\n");
             DISPLAYOUT("%9d  %13d  %7.2f MB  %9.2f MB  %5.3f  %s  %s\n",
@@ -1025,7 +1025,7 @@ static void displayInfo(const char* inFileName, fileInfo_t* info, int displayLev
         DISPLAYOUT("# Zstandard Frames: %d\n", info->numActualFrames);
         DISPLAYOUT("# Skippable Frames: %d\n", info->numSkippableFrames);
         DISPLAYOUT("Compressed Size: %.2f MB (%llu B)\n", compressedSizeMB, info->compressedSize);
-        if (info->canComputeDecompSize) {
+        if (!info->decompUnavailable) {
             DISPLAYOUT("Decompressed Size: %.2f MB (%llu B)\n", decompressedSizeMB, info->decompressedSize);
             DISPLAYOUT("Ratio: %.4f\n", compressedSizeMB/decompressedSizeMB);
         }
@@ -1038,15 +1038,9 @@ static void displayInfo(const char* inFileName, fileInfo_t* info, int displayLev
 }
 
 int FIO_listFile(const char* inFileName, int displayLevel){
-    fileInfo_t info;
-
     /* initialize info to avoid warnings */
-    info.numActualFrames = 0;
-    info.numSkippableFrames = 0;
-    info.decompressedSize = 0;
-    info.canComputeDecompSize = 1;
-    info.compressedSize = 0;
-    info.usesCheck = 0;
+    fileInfo_t info;
+    memset(&info, 0, sizeof(info));
     DISPLAYOUT("File: %s\n", inFileName);
     {
         int const error = getFileInfo(&info, inFileName);

@@ -1033,11 +1033,11 @@ static void displayInfo(const char* inFileName, fileInfo_t* info, int displayLev
 }
 
 
-static int FIO_listFile(const char* inFileName, int displayLevel){
+static int FIO_listFile(const char* inFileName, int displayLevel, unsigned fileNo, unsigned numFiles){
     /* initialize info to avoid warnings */
     fileInfo_t info;
     memset(&info, 0, sizeof(info));
-    DISPLAYOUT("File: %s\n", inFileName);
+    DISPLAYOUT("%s (%u/%u):\n", inFileName, fileNo, numFiles);
     {
         int const error = getFileInfo(&info, inFileName);
         if (error == 1) {
@@ -1069,7 +1069,7 @@ int FIO_listMultipleFiles(unsigned numFiles, const char** filenameTable, int dis
         int error = 0;
         unsigned u;
         for (u=0; u<numFiles;u++) {
-            error |= FIO_listFile(filenameTable[u], displayLevel);
+            error |= FIO_listFile(filenameTable[u], displayLevel, u+1, numFiles);
         }
         return error;
     }

@@ -314,7 +314,7 @@ static void writeFrameHeader(U32* seed, frame_t* frame, dictInfo info)
     pos += 4;
 
     {
-        int dictBits = info.useDict ? 3 : 0;
+        int const dictBits = info.useDict ? 3 : 0;
         BYTE const frameHeaderDescriptor =
                 (BYTE) ((fcsCode << 6) | (singleSegment << 5) | (1 << 2) | dictBits);
         op[pos++] = frameHeaderDescriptor;

@@ -543,20 +543,20 @@ $ECHO "\n**** zstd --list/-l single frame tests ****"
 ./datagen > tmp3
 ./datagen > tmp4
 $ZSTD tmp*
-$ZSTD -l tmp*
-$ZSTD -lv tmp*
-$ZSTD --list tmp*
-$ZSTD --list -v tmp*
+$ZSTD -l *.zst
+$ZSTD -lv *.zst
+$ZSTD --list *.zst
+$ZSTD --list -v *.zst
 
 $ECHO "\n**** zstd --list/-l multiple frame tests ****"
 cat tmp1.zst tmp2.zst > tmp12.zst
 cat tmp3.zst tmp4.zst > tmp34.zst
 cat tmp12.zst tmp34.zst > tmp1234.zst
 cat tmp12.zst tmp4.zst > tmp124.zst
-$ZSTD -l tmp*
-$ZSTD -lv tmp*
-$ZSTD --list tmp*
-$ZSTD --list -v tmp*
+$ZSTD -l *.zst
+$ZSTD -lv *.zst
+$ZSTD --list *.zst
+$ZSTD --list -v *.zst
 
 rm tmp*
 

@@ -571,7 +571,7 @@ static U32 ZSTD_equivalentParams(ZSTD_compressionParameters cParams1,
 }
 
 /*! ZSTD_continueCCtx() :
-    reuse CCtx without reset (note : requires no dictionary) */
+ *  reuse CCtx without reset (note : requires no dictionary) */
 static size_t ZSTD_continueCCtx(ZSTD_CCtx* cctx, ZSTD_parameters params, U64 pledgedSrcSize)
 {
     U32 const end = (U32)(cctx->nextSrc - cctx->base);
@@ -3831,6 +3831,7 @@ size_t ZSTD_compress_generic (ZSTD_CCtx* cctx,
 
 #ifdef ZSTD_MULTITHREAD
         if (cctx->nbThreads > 1) {
+            DEBUGLOG(4, "call ZSTDMT_initCStream_internal");
             CHECK_F( ZSTDMT_initCStream_internal(cctx->mtctx, NULL, 0, cctx->cdict, params, cctx->pledgedSrcSizePlusOne-1) );
             cctx->streamStage = zcss_load;
         } else
@@ -3842,7 +3843,7 @@ size_t ZSTD_compress_generic (ZSTD_CCtx* cctx,
 #ifdef ZSTD_MULTITHREAD
     if (cctx->nbThreads > 1) {
         size_t const flushMin = ZSTDMT_compressStream_generic(cctx->mtctx, output, input, endOp);
-        DEBUGLOG(5, "ZSTDMT result : %u", (U32)flushMin);
+        DEBUGLOG(4, "ZSTDMT_compressStream_generic : %u", (U32)flushMin);
         if ( ZSTD_isError(flushMin)
           || (endOp == ZSTD_e_end && flushMin == 0) ) { /* compression completed */
             ZSTD_startNewCompression(cctx);

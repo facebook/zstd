@@ -13,7 +13,7 @@
 <li><a href="#Chapter3">Simple API</a></li>
 <li><a href="#Chapter4">Explicit memory management</a></li>
 <li><a href="#Chapter5">Simple dictionary API</a></li>
-<li><a href="#Chapter6">Fast dictionary API</a></li>
+<li><a href="#Chapter6">Bulk processing dictionary API</a></li>
 <li><a href="#Chapter7">Streaming</a></li>
 <li><a href="#Chapter8">Streaming compression - HowTo</a></li>
 <li><a href="#Chapter9">Streaming decompression - HowTo</a></li>
@@ -40,18 +40,18 @@
     - a single step (described as Simple API)
     - a single step, reusing a context (described as Explicit memory management)
     - unbounded multiple steps (described as Streaming compression)
-  The compression ratio achievable on small data can be highly improved using compression with a dictionary in:
+  The compression ratio achievable on small data can be highly improved using a dictionary in:
     - a single step (described as Simple dictionary API)
     - a single step, reusing a dictionary (described as Fast dictionary API)
 
   Advanced experimental functions can be accessed using #define ZSTD_STATIC_LINKING_ONLY before including zstd.h.
-  These APIs shall never be used with a dynamic library.
+  Advanced experimental APIs shall never be used with a dynamic library.
   They are not "stable", their definition may change in the future. Only static linking is allowed.
 <BR></pre>
 
 <a name="Chapter2"></a><h2>Version</h2><pre></pre>
 
-<pre><b>unsigned ZSTD_versionNumber(void);   </b>/**< to be used when checking dll version */<b>
+<pre><b>unsigned ZSTD_versionNumber(void);   </b>/**< useful to check dll version */<b>
 </b></pre><BR>
 <a name="Chapter3"></a><h2>Simple API</h2><pre></pre>
 
@@ -67,7 +67,7 @@
 <pre><b>size_t ZSTD_decompress( void* dst, size_t dstCapacity,
                   const void* src, size_t compressedSize);
 </b><p>  `compressedSize` : must be the _exact_ size of some number of compressed and/or skippable frames.
-  `dstCapacity` is an upper bound of originalSize.
+  `dstCapacity` is an upper bound of originalSize to regenerate.
   If user cannot imply a maximum upper bound, it's better to use streaming mode to decompress data.
   @return : the number of bytes decompressed into `dst` (<= `dstCapacity`),
             or an errorCode if it fails (which can be tested using ZSTD_isError()). 
@@ -140,33 +140,33 @@ size_t     ZSTD_freeDCtx(ZSTD_DCtx* dctx);
                          const void* src, size_t srcSize,
                          const void* dict,size_t dictSize,
                                int compressionLevel);
-</b><p>   Compression using a predefined Dictionary (see dictBuilder/zdict.h).
-   Note : This function loads the dictionary, resulting in significant startup delay.
-   Note : When `dict == NULL || dictSize < 8` no dictionary is used. 
+</b><p>  Compression using a predefined Dictionary (see dictBuilder/zdict.h).
+  Note : This function loads the dictionary, resulting in significant startup delay.
+  Note : When `dict == NULL || dictSize < 8` no dictionary is used. 
 </p></pre><BR>
 
 <pre><b>size_t ZSTD_decompress_usingDict(ZSTD_DCtx* dctx,
                                  void* dst, size_t dstCapacity,
                            const void* src, size_t srcSize,
                            const void* dict,size_t dictSize);
-</b><p>   Decompression using a predefined Dictionary (see dictBuilder/zdict.h).
-   Dictionary must be identical to the one used during compression.
-   Note : This function loads the dictionary, resulting in significant startup delay.
-   Note : When `dict == NULL || dictSize < 8` no dictionary is used. 
+</b><p>  Decompression using a predefined Dictionary (see dictBuilder/zdict.h).
+  Dictionary must be identical to the one used during compression.
+  Note : This function loads the dictionary, resulting in significant startup delay.
+  Note : When `dict == NULL || dictSize < 8` no dictionary is used. 
 </p></pre><BR>
 
-<a name="Chapter6"></a><h2>Fast dictionary API</h2><pre></pre>
+<a name="Chapter6"></a><h2>Bulk processing dictionary API</h2><pre></pre>
 
 <pre><b>ZSTD_CDict* ZSTD_createCDict(const void* dictBuffer, size_t dictSize,
                              int compressionLevel);
-</b><p>   When compressing multiple messages / blocks with the same dictionary, it's recommended to load it just once.
-   ZSTD_createCDict() will create a digested dictionary, ready to start future compression operations without startup delay.
-   ZSTD_CDict can be created once and used by multiple threads concurrently, as its usage is read-only.
-   `dictBuffer` can be released after ZSTD_CDict creation, as its content is copied within CDict 
+</b><p>  When compressing multiple messages / blocks with the same dictionary, it's recommended to load it just once.
+  ZSTD_createCDict() will create a digested dictionary, ready to start future compression operations without startup delay.
+  ZSTD_CDict can be created once and shared by multiple threads concurrently, since its usage is read-only.
+  `dictBuffer` can be released after ZSTD_CDict creation, since its content is copied within CDict 
 </p></pre><BR>
 
 <pre><b>size_t      ZSTD_freeCDict(ZSTD_CDict* CDict);
-</b><p>   Function frees memory allocated by ZSTD_createCDict(). 
+</b><p>  Function frees memory allocated by ZSTD_createCDict(). 
 </p></pre><BR>
 
 <pre><b>size_t ZSTD_compress_usingCDict(ZSTD_CCtx* cctx,
@@ -180,20 +180,20 @@ size_t     ZSTD_freeDCtx(ZSTD_DCtx* dctx);
 </p></pre><BR>
 
 <pre><b>ZSTD_DDict* ZSTD_createDDict(const void* dictBuffer, size_t dictSize);
-</b><p>   Create a digested dictionary, ready to start decompression operation without startup delay.
-   dictBuffer can be released after DDict creation, as its content is copied inside DDict 
+</b><p>  Create a digested dictionary, ready to start decompression operation without startup delay.
+  dictBuffer can be released after DDict creation, as its content is copied inside DDict 
 </p></pre><BR>
 
 <pre><b>size_t      ZSTD_freeDDict(ZSTD_DDict* ddict);
-</b><p>   Function frees memory allocated with ZSTD_createDDict() 
+</b><p>  Function frees memory allocated with ZSTD_createDDict() 
 </p></pre><BR>
 
 <pre><b>size_t ZSTD_decompress_usingDDict(ZSTD_DCtx* dctx,
                                   void* dst, size_t dstCapacity,
                             const void* src, size_t srcSize,
                             const ZSTD_DDict* ddict);
-</b><p>   Decompression using a digested Dictionary.
-   Faster startup than ZSTD_decompress_usingDict(), recommended when same dictionary is used multiple times. 
+</b><p>  Decompression using a digested Dictionary.
+  Faster startup than ZSTD_decompress_usingDict(), recommended when same dictionary is used multiple times. 
 </p></pre><BR>
 
 <a name="Chapter7"></a><h2>Streaming</h2><pre></pre>
@@ -250,7 +250,7 @@ size_t     ZSTD_freeDCtx(ZSTD_DCtx* dctx);
  
 <BR></pre>
 
-<pre><b>typedef ZSTD_CCtx ZSTD_CStream;  </b>/**< CCtx and CStream are effectively same object */<b>
+<pre><b>typedef ZSTD_CCtx ZSTD_CStream;  </b>/**< CCtx and CStream are now effectively same object (>= v1.3.0) */<b>
 </b></pre><BR>
 <h3>ZSTD_CStream management functions</h3><pre></pre><b><pre>ZSTD_CStream* ZSTD_createCStream(void);
 size_t ZSTD_freeCStream(ZSTD_CStream* zcs);
@@ -285,6 +285,8 @@ size_t ZSTD_endStream(ZSTD_CStream* zcs, ZSTD_outBuffer* output);
  
 <BR></pre>
 
+<pre><b>typedef ZSTD_DCtx ZSTD_DStream;  </b>/**< DCtx and DStream are now effectively same object (>= v1.3.0) */<b>
+</b></pre><BR>
 <h3>ZSTD_DStream management functions</h3><pre></pre><b><pre>ZSTD_DStream* ZSTD_createDStream(void);
 size_t ZSTD_freeDStream(ZSTD_DStream* zds);
 </pre></b><BR>

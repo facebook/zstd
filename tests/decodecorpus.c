@@ -323,7 +323,7 @@ static void writeFrameHeader(U32* seed, frame_t* frame, dictInfo info)
     if (!singleSegment) {
         op[pos++] = windowByte;
     }
-    if(info.useDict) {
+    if (info.useDict) {
         MEM_writeLE32(op + pos, (U32) info.dictID);
         pos += 4;
     }
@@ -697,11 +697,14 @@ static U32 generateSequences(U32* seed, frame_t* frame, seqStore_t* seqStore,
             }
         } while (((!info.useDict) && (offset > (size_t)((BYTE*)srcPtr - (BYTE*)frame->srcStart))) || offset == 0);
 
-        {   size_t j;
+        {
+            size_t j;
+            BYTE* const dictEnd = info.dictContent + info.dictContentSize;
             for (j = 0; j < matchLen; j++) {
                 if ((void*)(srcPtr - offset) < (void*)frame->srcStart) {
                     /* copy from dictionary instead of literals */
-                    *srcPtr = *(info.dictContent + info.dictContentSize - (offset-(srcPtr-(BYTE*)frame->srcStart)));
+                    size_t dictOffset = offset - (srcPtr - (BYTE*)frame->srcStart);
+                    *srcPtr = *(dictEnd - dictOffset);
                 }
                 else {
                     *srcPtr = *(srcPtr-offset);

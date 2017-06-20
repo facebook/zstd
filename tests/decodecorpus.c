@@ -1194,8 +1194,11 @@ static int genRandomDict(U32 dictID, U32 seed, size_t dictSize, BYTE* fullDict){
             BYTE* curr = samples;
             while (i <= 4) {
                 *(sampleSizes + i - 1) = currSize;
-                for (size_t j = 0; j < currSize; j++) {
-                    *(curr++) = (BYTE)i;
+                {
+                    size_t j;
+                    for (j = 0; j < currSize; j++) {
+                        *(curr++) = (BYTE)i;
+                    }
                 }
                 i++;
                 currSize *= 16;
@@ -1300,7 +1303,7 @@ cleanup:
 static size_t testDecodeWithDict(U32 seed, size_t dictSize)
 {
     U32 const dictID = RAND(&seed);
-    int errorDetected = 0;
+    size_t errorDetected = 0;
     BYTE* const fullDict = malloc(dictSize);
     if (fullDict == NULL) {
         return ERROR(GENERIC);
@@ -1314,7 +1317,7 @@ static size_t testDecodeWithDict(U32 seed, size_t dictSize)
         }
     }
 
-    frame_t* fr;
+    frame_t fr;
     {
         size_t dictContentSize = dictSize-dictSize/4;
         BYTE* const dictContent = fullDict+dictSize/4;
@@ -1329,12 +1332,12 @@ static size_t testDecodeWithDict(U32 seed, size_t dictSize)
                                                    fr.dataStart, (BYTE*)fr.data - (BYTE*)fr.dataStart,
                                                    fullDict, dictSize);
             if (ZSTD_isError(returnValue)) {
-               errorDetected = ZSTD_getErrorName(returnValue);
-               goto dictTestCleanup
+               errorDetected = returnValue;
+               goto dictTestCleanup;
             }
         }
 
-        if (memcmp(DECOMPRESSED_BUFFER, fr->srcStart, (BYTE*)fr->src - (BYTE*)fr->srcStart) != 0) {
+        if (memcmp(DECOMPRESSED_BUFFER, fr.srcStart, (BYTE*)fr.src - (BYTE*)fr.srcStart) != 0) {
             errorDetected = ERROR(corruption_detected);
             goto dictTestCleanup;
         }

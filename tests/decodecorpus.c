@@ -1519,7 +1519,7 @@ static int generateCorpusWithDict(U32 seed, unsigned numFiles, const char* const
             frame_t fr;
             DISPLAYUPDATE("\r%u/%u        ", fnum, numFiles);
             {
-                size_t dictContentSize = dictSize-dictSize/4;
+                size_t const dictContentSize = dictSize-dictSize/4;
                 BYTE* const dictContent = fullDict+dictSize/4;
                 dictInfo const info = initDictInfo(1, dictContentSize, dictContent, dictID);
                 seed = generateFrame(seed, &fr, info);
@@ -1538,39 +1538,6 @@ static int generateCorpusWithDict(U32 seed, unsigned numFiles, const char* const
                     goto dictCleanup;
                 }
                 outputBuffer(fr.srcStart, (BYTE*)fr.src - (BYTE*)fr.srcStart, outPath);
-            }
-
-            /* check the output to make sure that decompressed versions match official zstd */
-            {
-                ZSTD_DCtx* const dctx = ZSTD_createDCtx();
-                BYTE* const decompressedPtr = malloc(MAX_DECOMPRESSED_SIZE);
-                if (decompressedPtr == NULL) {
-                    DISPLAY("Error: could not allocate memory for decompressed pointer\n");
-                    errorDetected = 1;
-                    goto dictCleanup;
-                }
-                {
-                    size_t const returnValue = ZSTD_decompress_usingDict(dctx, decompressedPtr, MAX_DECOMPRESSED_SIZE,
-                                                           fr.dataStart, (BYTE*)fr.data - (BYTE*)fr.dataStart,
-                                                           fullDict, dictSize);
-                    if (ZSTD_isError(returnValue)) {
-                       DISPLAY("Error: %s\n", ZSTD_getErrorName(returnValue));
-                    }
-                }
-
-                /* print differences if any */
-                {
-                    size_t checkDiff = (BYTE*)fr.src - (BYTE*)fr.srcStart;
-                    {
-                        size_t i;
-                        for (i = 0; i < checkDiff; i++) {
-                            if (*((BYTE*)(fr.srcStart + i)) != *((BYTE*)(decompressedPtr + i))) {
-                                DISPLAY("i: %zu, fr: %u, decomp: %u\n", i, *((BYTE*)(fr.srcStart + i)), *((BYTE*)(decompressedPtr + i)));
-                            }
-                        }
-                    }
-                }
-                free(decompressedPtr);
             }
         }
     }

@@ -1319,7 +1319,7 @@ static size_t testDecodeWithDict(U32 seed, size_t dictSize)
     {
         frame_t fr;
         {
-            size_t dictContentSize = dictSize-dictSize/4;
+            size_t const dictContentSize = dictSize-dictSize/4;
             BYTE* const dictContent = fullDict+dictSize/4;
             dictInfo const info = initDictInfo(1, dictContentSize, dictContent, dictID);
             seed = generateFrame(seed, &fr, info);

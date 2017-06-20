@@ -889,7 +889,7 @@ static int getFileInfo(fileInfo_t* info, const char* inFileName){
         BYTE headerBuffer[ZSTD_FRAMEHEADERSIZE_MAX];
         size_t const numBytesRead = fread(headerBuffer, 1, sizeof(headerBuffer), srcFile);
         if (numBytesRead < ZSTD_frameHeaderSize_min) {
-            if (feof(srcFile) && numBytesRead == 0) {
+            if (feof(srcFile) && numBytesRead == 0 && info->compressedSize > 0) {
                 break;
             }
             else if (feof(srcFile)) {

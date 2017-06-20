@@ -564,6 +564,14 @@ $ECHO "\n**** zstd --list/-l error detection tests ****"
 ! $ZSTD -lv tmp1*
 ! $ZSTD --list -v tmp2 tmp23.zst
 
+$ECHO "\n**** zstd --list/-l test with null files ****"
+./datagen -g0 > tmp5
+$ZSTD tmp5
+! $ZSTD -l tmp5*
+! $ZSTD -lv tmp5*
+! $ZSTD --list tmp5*
+! $ZSTD --list -v tmp5*
+
 rm tmp*
 
 if [ "$1" != "--test-large-data" ]; then

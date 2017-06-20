@@ -15,13 +15,15 @@
  #endif
 
 
-/* Note : All prototypes defined in this file must be considered experimental.
- *        There is no guarantee of API continuity on any of these prototypes */
+/* Note : All prototypes defined in this file are labelled experimental.
+ *        No guarantee of API continuity is provided on any of them.
+ *        In fact, the expectation is that these prototypes will be replaced
+ *        by ZSTD_compress_generic() API in the near future */
 
 /* ===   Dependencies   === */
-#include <stddef.h>   /* size_t */
+#include <stddef.h>                /* size_t */
 #define ZSTD_STATIC_LINKING_ONLY   /* ZSTD_parameters */
-#include "zstd.h"     /* ZSTD_inBuffer, ZSTD_outBuffer, ZSTDLIB_API */
+#include "zstd.h"            /* ZSTD_inBuffer, ZSTD_outBuffer, ZSTDLIB_API */
 
 
 /* ===   Memory management   === */
@@ -32,7 +34,6 @@ ZSTDLIB_API ZSTDMT_CCtx* ZSTDMT_createCCtx_advanced(unsigned nbThreads,
 ZSTDLIB_API size_t ZSTDMT_freeCCtx(ZSTDMT_CCtx* mtctx);
 
 ZSTDLIB_API size_t ZSTDMT_sizeof_CCtx(ZSTDMT_CCtx* mtctx);
-ZSTDLIB_API size_t ZSTDMT_estimateCCtxSize(ZSTD_compressionParameters cParams, unsigned nbThreads);   /* not ready yet */
 
 
 /* ===   Simple buffer-to-butter one-pass function   === */
@@ -87,7 +88,7 @@ ZSTDLIB_API size_t ZSTDMT_setMTCtxParameter(ZSTDMT_CCtx* mtctx, ZSDTMT_parameter
 
 /*! ZSTDMT_compressStream_generic() :
  *  Combines ZSTDMT_compressStream() with ZSTDMT_flushStream() or ZSTDMT_endStream()
- *  depending on flush directive
+ *  depending on flush directive.
  * @return : minimum amount of data still to be flushed
  *           0 if fully flushed
  *           or an error code */

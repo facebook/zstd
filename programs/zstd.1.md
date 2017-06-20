@@ -251,8 +251,8 @@ The list of available _options_:
     Specify a strategy used by a match finder.
 
     There are 8 strategies numbered from 0 to 7, from faster to stronger:
-    0=ZSTD\_fast, 1=ZSTD\_dfast, 2=ZSTD\_greedy, 3=ZSTD\_lazy,
-    4=ZSTD\_lazy2, 5=ZSTD\_btlazy2, 6=ZSTD\_btopt, 7=ZSTD\_btultra.
+    1=ZSTD\_fast, 2=ZSTD\_dfast, 3=ZSTD\_greedy, 4=ZSTD\_lazy,
+    5=ZSTD\_lazy2, 6=ZSTD\_btlazy2, 7=ZSTD\_btopt, 8=ZSTD\_btultra.
 
 - `windowLog`=_wlog_, `wlog`=_wlog_:
     Specify the maximum number of bits for a match distance.

@@ -2753,23 +2753,26 @@ static void ZSTD_compressBlock_btultra_extDict(ZSTD_CCtx* ctx, const void* src, 
 }
 
 
+/* ZSTD_selectBlockCompressor() :
+ * assumption : strat is a valid strategy */
 typedef void (*ZSTD_blockCompressor) (ZSTD_CCtx* ctx, const void* src, size_t srcSize);
-
 static ZSTD_blockCompressor ZSTD_selectBlockCompressor(ZSTD_strategy strat, int extDict)
 {
     static const ZSTD_blockCompressor blockCompressor[2][(unsigned)ZSTD_btultra+1] = {
-        { NULL,
+        { ZSTD_compressBlock_fast  /* default for 0 */,
           ZSTD_compressBlock_fast, ZSTD_compressBlock_doubleFast, ZSTD_compressBlock_greedy,
           ZSTD_compressBlock_lazy, ZSTD_compressBlock_lazy2, ZSTD_compressBlock_btlazy2,
           ZSTD_compressBlock_btopt, ZSTD_compressBlock_btultra },
-        { NULL,
+        { ZSTD_compressBlock_fast_extDict  /* default for 0 */,
           ZSTD_compressBlock_fast_extDict, ZSTD_compressBlock_doubleFast_extDict, ZSTD_compressBlock_greedy_extDict,
           ZSTD_compressBlock_lazy_extDict,ZSTD_compressBlock_lazy2_extDict, ZSTD_compressBlock_btlazy2_extDict,
           ZSTD_compressBlock_btopt_extDict, ZSTD_compressBlock_btultra_extDict }
     };
     ZSTD_STATIC_ASSERT((unsigned)ZSTD_fast == 1);
+    assert((U32)strat >= (U32)ZSTD_fast);
+    assert((U32)strat <= (U32)ZSTD_btultra);
 
-    return blockCompressor[extDict][(U32)strat];
+    return blockCompressor[extDict!=0][(U32)strat];
 }
 
 

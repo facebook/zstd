@@ -1032,7 +1032,8 @@ static void displayInfo(const char* inFileName, fileInfo_t* info, int displayLev
     }
 }
 
-int FIO_listFile(const char* inFileName, int displayLevel){
+
+static int FIO_listFile(const char* inFileName, int displayLevel){
     /* initialize info to avoid warnings */
     fileInfo_t info;
     memset(&info, 0, sizeof(info));
@@ -1051,6 +1052,25 @@ int FIO_listFile(const char* inFileName, int displayLevel){
             return 1;
         }
         displayInfo(inFileName, &info, displayLevel);
+        return error;
+    }
+}
+
+int FIO_listMultipleFiles(unsigned numFiles, const char** filenameTable, int displayLevel){
+    if (numFiles == 0) {
+        DISPLAYOUT("No files given\n");
+        return 0;
+    }
+    DISPLAYOUT("===========================================\n");
+    DISPLAYOUT("Printing information about compressed files\n");
+    DISPLAYOUT("===========================================\n");
+    DISPLAYOUT("Number of files listed: %u\n", numFiles);
+    {
+        int error = 0;
+        unsigned u;
+        for (u=0; u<numFiles;u++) {
+            error |= FIO_listFile(filenameTable[u], displayLevel);
+        }
         return error;
     }
 }

@@ -70,7 +70,7 @@ int FIO_compressFilename (const char* outfilename, const char* infilename, const
     @return : 0 == ok;  1 == pb with src file. */
 int FIO_decompressFilename (const char* outfilename, const char* infilename, const char* dictFileName);
 
-int FIO_listFile(const char* infilename, int displayLevel);
+int FIO_listMultipleFiles(unsigned numFiles, const char** filenameTable, int displayLevel);
 
 /*-*************************************
 *  Multiple File functions

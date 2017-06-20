@@ -676,23 +676,8 @@ int main(int argCount, const char* argv[])
     }
 #endif
     if (operation == zom_list) {
-        g_displayOut = stdout;
-        if(filenameIdx==0){
-            DISPLAY("No files given\n");
-            CLEAN_RETURN(0);
-        }
-        DISPLAY("===========================================\n");
-        DISPLAY("Printing information about compressed files\n");
-        DISPLAY("===========================================\n");
-        DISPLAY("Number of files listed: %d\n", filenameIdx);
-        {
-            int error = 0;
-            unsigned u;
-            for (u=0; u<filenameIdx;u++) {
-                error |= FIO_listFile(filenameTable[u], g_displayLevel);
-            }
-            CLEAN_RETURN(error);
-        }
+        int const ret = FIO_listMultipleFiles(filenameIdx, filenameTable, g_displayLevel);
+        CLEAN_RETURN(ret);
     }
     /* Check if benchmark is selected */
     if (operation==zom_bench) {

@@ -422,7 +422,7 @@ typedef void* (*ZSTD_allocFunction) (void* opaque, size_t size);
 typedef void  (*ZSTD_freeFunction) (void* opaque, void* address);
 typedef struct { ZSTD_allocFunction customAlloc; ZSTD_freeFunction customFree; void* opaque; } ZSTD_customMem;
 /* use this constant to defer to stdlib's functions */
-static const ZSTD_customMem ZSTD_defaultCMem = { NULL, NULL, NULL};
+static const ZSTD_customMem ZSTD_defaultCMem = { NULL, NULL, NULL };
 
 
 /***************************************
@@ -881,7 +881,6 @@ typedef enum {
                               * Special: value 0 means "do not change cLevel". */
     ZSTD_p_windowLog,        /* Maximum allowed back-reference distance, expressed as power of 2.
                               * Must be clamped between ZSTD_WINDOWLOG_MIN and ZSTD_WINDOWLOG_MAX.
-                              * default value : set through compressionLevel.
                               * Special: value 0 means "do not change windowLog". */
     ZSTD_p_hashLog,          /* Size of the probe table, as a power of 2.
                               * Resulting table size is (1 << (hashLog+2)).
@@ -974,12 +973,12 @@ ZSTDLIB_API size_t ZSTD_CCtx_setPledgedSrcSize(ZSTD_CCtx* cctx, unsigned long lo
  *  Create an internal CDict from dict buffer.
  *  Decompression will have to use same buffer.
  * @result : 0, or an error code (which can be tested with ZSTD_isError()).
- *  Special : Adding a NULL (or 0-size) dictionary invalidates any previous prefix,
+ *  Special : Adding a NULL (or 0-size) dictionary invalidates any previous dictionary,
  *            meaning "return to no-dictionary mode".
  *  Note 1 : Dictionary content will be copied internally,
  *           except if ZSTD_p_refDictContent is set.
  *  Note 2 : Loading a dictionary involves building tables, which are dependent on compression parameters.
- *           For this reason, compression parameters cannot be changed anymore after loading a prefix.
+ *           For this reason, compression parameters cannot be changed anymore after loading a dictionary.
  *           It's also a CPU-heavy operation, with non-negligible impact on latency.
  *  Note 3 : Dictionary will be used for all future compression jobs.
  *           To return to "no-dictionary" situation, load a NULL dictionary */
@@ -1018,17 +1017,17 @@ typedef enum {
     ZSTD_e_end         /* flush any remaining data and ends current frame. Any future compression starts a new frame. */
 } ZSTD_EndDirective;
 
-/*! ZSTD_compressStream_generic() :
+/*! ZSTD_compress_generic() :
  *  Behave about the same as ZSTD_compressStream. To note :
- *  - Compression parameters are pushed into CCtx before starting compression, using ZSTD_setCCtxParameter()
+ *  - Compression parameters are pushed into CCtx before starting compression, using ZSTD_CCtx_setParameter()
  *  - Compression parameters cannot be changed once compression is started.
  *  - *dstPos must be <= dstCapacity, *srcPos must be <= srcSize
  *  - *dspPos and *srcPos will be updated. They are guaranteed to remain below their respective limit.
  *  - @return provides the minimum amount of data still to flush from internal buffers
  *            or an error code, which can be tested using ZSTD_isError().
- *            if @return != 0, flush is not fully completed, and must be called again to empty internal buffers.
+ *            if @return != 0, flush is not fully completed, there is some data left within internal buffers.
  *  - after a ZSTD_e_end directive, if internal buffer is not fully flushed,
- *            only ZSTD_e_end and ZSTD_e_flush operations are allowed.
+ *            only ZSTD_e_end or ZSTD_e_flush operations are allowed.
  *            It is necessary to fully flush internal buffers
  *            before starting a new compression job, or changing compression parameters.
  */
@@ -1060,26 +1059,6 @@ size_t ZSTD_compress_generic_simpleArgs (
                       const void* src, size_t srcSize, size_t* srcPos,
                             ZSTD_EndDirective endOp);
 
-
-/* note : this part if completely experimental, not ready yet.
- * Main idea is : if ZSTD_parameters is not a good fit for stable API,
- * there will be a need for something else.
- * While initialising compression is now correctly covered,
- * creating an advanced CDict still needs to be solved.
- * Below is merely a plan of what it could look like */
-/*! ZSTD_CDict_createEmpty() :
- *  Create a CDict object which is still mutable after creation.
- *  It's the only one case allowing usage of ZSTD_CDict_setParameter().
- *  Once all compression parameters are selected,
- *  it's possible to load the target dictionary, using ZSTD_CDict_loadDictionary().
- *  Dictionary content will be copied internally (except if ZSTD_p_refDictContent is set).
- *  After loading the dictionary, no more change is possible.
- *  The only remaining operation is to free CDict object.
- *  Note : An unfinished CDict behaves the same as a NULL CDict if referenced into a CCtx.
- */
-ZSTDLIB_API ZSTD_CDict* ZSTD_CDict_createEmpty(void);   /* Not ready yet ! */
-ZSTDLIB_API size_t ZSTD_CDict_setParameter(ZSTD_CDict* cdict, ZSTD_cParameter param, unsigned value);  /* Not ready yet ! */
-ZSTDLIB_API size_t ZSTD_CDict_loadDictionary(ZSTD_CDict* cdict, const void* dict, size_t dictSize);    /* Not ready yet ! */
 
 
 /**

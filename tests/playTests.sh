@@ -559,10 +559,10 @@ $ZSTD --list *.zst
 $ZSTD --list -v *.zst
 
 $ECHO "\n**** zstd --list/-l error detection tests ****"
-!$ZSTD -l tmp1 tmp1.zst
-!$ZSTD --list tmp*
-!$ZSTD -lv tmp1*
-!$ZSTD --list -v tmp2 tmp23.zst
+! $ZSTD -l tmp1 tmp1.zst
+! $ZSTD --list tmp*
+! $ZSTD -lv tmp1*
+! $ZSTD --list -v tmp2 tmp23.zst
 
 rm tmp*
 

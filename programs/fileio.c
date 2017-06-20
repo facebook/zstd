@@ -933,7 +933,7 @@ static int getFileInfo(fileInfo_t* info, const char* inFileName){
                         BYTE blockHeaderBuffer[3];
                         U32 blockHeader;
                         int blockSize;
-                        size_t readBytes = fread(blockHeaderBuffer, 1, 3, srcFile);
+                        size_t const readBytes = fread(blockHeaderBuffer, 1, 3, srcFile);
                         if (readBytes != 3) {
                             DISPLAY("There was a problem reading the block header\n");
                             detectError = 1;

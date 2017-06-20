@@ -1345,6 +1345,7 @@ static size_t testDecodeWithDict(U32 seed, size_t dictSize)
                 errorDetected = ERROR(corruption_detected);
                 goto dictTestCleanup;
             }
+            ZSTD_freeDCtx(dctx);
         }
     }
 

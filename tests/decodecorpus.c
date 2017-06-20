@@ -1305,6 +1305,7 @@ cleanup:
 
 static size_t testDecodeWithDict(U32 seed, size_t dictSize)
 {
+    /* create variables */
     U32 const dictID = RAND(&seed);
     size_t errorDetected = 0;
     BYTE* const fullDict = malloc(dictSize);
@@ -1312,6 +1313,7 @@ static size_t testDecodeWithDict(U32 seed, size_t dictSize)
         return ERROR(GENERIC);
     }
 
+    /* generate random dictionary */
     {
         int ret = genRandomDict(dictID, seed, dictSize, fullDict);
         if (ret != 0) {
@@ -1319,8 +1321,12 @@ static size_t testDecodeWithDict(U32 seed, size_t dictSize)
             goto dictTestCleanup;
         }
     }
+
+
     {
         frame_t fr;
+
+        /* generate frame */
         {
             size_t const dictContentSize = dictSize-dictSize/4;
             BYTE* const dictContent = fullDict+dictSize/4;
@@ -1328,6 +1334,7 @@ static size_t testDecodeWithDict(U32 seed, size_t dictSize)
             seed = generateFrame(seed, &fr, info);
         }
 
+        /* manually decompress and check difference */
         {
             ZSTD_DCtx* const dctx = ZSTD_createDCtx();
             {

@@ -68,7 +68,7 @@ static void ZSTD_resetSeqStore(seqStore_t* ssPtr)
 /*-*************************************
 *  Context memory management
 ***************************************/
-typedef enum { zcss_init=0, zcss_load, zcss_flush, zcss_final } ZSTD_cStreamStage;
+typedef enum { zcss_init=0, zcss_load, zcss_flush } ZSTD_cStreamStage;
 
 struct ZSTD_CDict_s {
     void* dictBuffer;
@@ -3371,7 +3371,7 @@ ZSTD_CDict* ZSTD_createCDict_advanced(const void* dictBuffer, size_t dictSize, u
     DEBUGLOG(5, "ZSTD_createCDict_advanced");
     if (!customMem.customAlloc ^ !customMem.customFree) return NULL;
 
-    {   ZSTD_CDict* const cdict = (ZSTD_CDict*) ZSTD_malloc(sizeof(ZSTD_CDict), customMem);
+    {   ZSTD_CDict* const cdict = (ZSTD_CDict*)ZSTD_malloc(sizeof(ZSTD_CDict), customMem);
         ZSTD_CCtx* const cctx = ZSTD_createCCtx_advanced(customMem);
 
         if (!cdict || !cctx) {
@@ -3588,15 +3588,16 @@ size_t ZSTD_initCStream_internal(ZSTD_CStream* zcs,
             return ERROR(memory_allocation);
         }
         ZSTD_freeCDict(zcs->cdictLocal);
-        zcs->cdict = NULL;
         zcs->cdictLocal = ZSTD_createCDict_advanced(dict, dictSize, 0 /* copy */, params.cParams, zcs->customMem);
-        if (zcs->cdictLocal == NULL) return ERROR(memory_allocation);
         zcs->cdict = zcs->cdictLocal;
+        if (zcs->cdictLocal == NULL) return ERROR(memory_allocation);
     } else {
         if (cdict) {
             ZSTD_parameters const cdictParams = ZSTD_getParamsFromCDict(cdict);
             params.cParams = cdictParams.cParams;  /* cParams are enforced from cdict */
         }
+        ZSTD_freeCDict(zcs->cdictLocal);
+        zcs->cdictLocal = NULL;
         zcs->cdict = cdict;
     }
 
@@ -3778,9 +3779,6 @@ static size_t ZSTD_compressStream_generic(ZSTD_CStream* zcs,
                 zcs->streamStage = zcss_load;
                 break;
             }
-
-        case zcss_final:
-            someMoreWork = 0; break;  /* useless */
 
         default: /* impossible */
             assert(0);

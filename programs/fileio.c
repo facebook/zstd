@@ -889,10 +889,15 @@ static int getFileInfo(fileInfo_t* info, const char* inFileName){
         BYTE headerBuffer[ZSTD_FRAMEHEADERSIZE_MAX];
         size_t const numBytesRead = fread(headerBuffer, 1, sizeof(headerBuffer), srcFile);
         if (numBytesRead < ZSTD_frameHeaderSize_min) {
-            if (feof(srcFile)) {
+            if (feof(srcFile) && numBytesRead == 0) {
                 break;
             }
-            else{
+            else if (feof(srcFile)) {
+                DISPLAY("Error: reached end of file with incomplete frame\n");
+                detectError = 2;
+                break;
+            }
+            else {
                 DISPLAY("Error: did not reach end of file but ran out of frames\n");
                 detectError = 1;
                 break;

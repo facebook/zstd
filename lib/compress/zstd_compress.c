@@ -240,13 +240,13 @@ static void ZSTD_cLevelToCParams(ZSTD_CCtx* cctx)
     cctx->compressionLevel = ZSTD_CLEVEL_CUSTOM;
 }
 
+#define CLAMPCHECK(val,min,max) {                       \
+    if (((val)<(min)) | ((val)>(max))) {                \
+        return ERROR(compressionParameter_outOfBound);  \
+}   }
+
 size_t ZSTD_CCtx_setParameter(ZSTD_CCtx* cctx, ZSTD_cParameter param, unsigned value)
 {
-#   define CLAMPCHECK(val,min,max) {                         \
-        if ((val<min) | (val>max)) {                         \
-            return ERROR(compressionParameter_outOfBound);  \
-    }   }
-
     if (cctx->streamStage != zcss_init) return ERROR(stage_wrong);
 
     switch(param)
@@ -3155,7 +3155,7 @@ static size_t ZSTD_compress_insertDictionary(ZSTD_CCtx* cctx, const void* dict, 
 }
 
 /*! ZSTD_compressBegin_internal() :
-*   @return : 0, or an error code */
+ * @return : 0, or an error code */
 size_t ZSTD_compressBegin_internal(ZSTD_CCtx* cctx,
                              const void* dict, size_t dictSize,
                              const ZSTD_CDict* cdict,
@@ -3347,10 +3347,10 @@ static size_t ZSTD_initCDict_internal(
         cdict->dictContent = dictBuffer;
     } else {
         void* const internalBuffer = ZSTD_malloc(dictSize, cdict->refContext->customMem);
-        if (!internalBuffer) return ERROR(memory_allocation);
-        memcpy(internalBuffer, dictBuffer, dictSize);
         cdict->dictBuffer = internalBuffer;
         cdict->dictContent = internalBuffer;
+        if (!internalBuffer) return ERROR(memory_allocation);
+        memcpy(internalBuffer, dictBuffer, dictSize);
     }
     cdict->dictContentSize = dictSize;
 

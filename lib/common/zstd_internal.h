@@ -263,7 +263,6 @@ typedef struct {
 
 const seqStore_t* ZSTD_getSeqStore(const ZSTD_CCtx* ctx);
 void ZSTD_seqToCodes(const seqStore_t* seqStorePtr);
-int ZSTD_isSkipFrame(ZSTD_DCtx* dctx);
 
 /* custom memory allocation functions */
 void* ZSTD_malloc(size_t size, ZSTD_customMem customMem);

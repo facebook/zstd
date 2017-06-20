@@ -1006,18 +1006,18 @@ static int getFileInfo(fileInfo_t* info, const char* inFileName){
 static void displayInfo(const char* inFileName, fileInfo_t* info, int displayLevel){
     double const compressedSizeMB = (double)info->compressedSize/(1 MB);
     double const decompressedSizeMB = (double)info->decompressedSize/(1 MB);
-    const char* checkString = (info->usesCheck ? "XXH64" : "None");
+    const char* const checkString = (info->usesCheck ? "XXH64" : "None");
     if (displayLevel <= 2) {
         if (!info->decompUnavailable) {
             double const ratio = (info->decompressedSize == 0) ? 0.0 : compressedSizeMB/decompressedSizeMB;
             DISPLAYOUT("Skippable  Non-Skippable  Compressed  Uncompressed  Ratio  Check  Filename\n");
-            DISPLAYOUT("%9d  %13d  %7.2f MB  %9.2f MB  %5.3f  %s  %s\n",
+            DISPLAYOUT("%9d  %13d  %7.2f MB  %9.2f MB  %5.3f  %5s  %s\n",
                     info->numSkippableFrames, info->numActualFrames, compressedSizeMB, decompressedSizeMB,
                     ratio, checkString, inFileName);
         }
         else {
             DISPLAYOUT("Skippable  Non-Skippable  Compressed  Check  Filename\n");
-            DISPLAYOUT("%9d  %13d  %7.2f MB  %s  %s\n",
+            DISPLAYOUT("%9d  %13d  %7.2f MB  %5s  %s\n",
                     info->numSkippableFrames, info->numActualFrames, compressedSizeMB, checkString, inFileName);
         }
     }
@@ -1029,12 +1029,9 @@ static void displayInfo(const char* inFileName, fileInfo_t* info, int displayLev
             DISPLAYOUT("Decompressed Size: %.2f MB (%llu B)\n", decompressedSizeMB, info->decompressedSize);
             DISPLAYOUT("Ratio: %.4f\n", compressedSizeMB/decompressedSizeMB);
         }
-        if (info->usesCheck) {
-            DISPLAYOUT("Check: XXH64\n");
-        }
+        DISPLAYOUT("Check: %s\n", checkString);
+        DISPLAYOUT("\n");
     }
-
-    DISPLAYOUT("\n");
 }
 
 int FIO_listFile(const char* inFileName, int displayLevel){
@@ -1049,7 +1046,10 @@ int FIO_listFile(const char* inFileName, int displayLevel){
             DISPLAY("An error occurred with getting file info\n");
         }
         else if (error == 2) {
-            DISPLAYOUT("File %s not compressed with zstd\n\n", inFileName);
+            DISPLAYOUT("File %s not compressed with zstd\n", inFileName);
+            if (displayLevel > 2) {
+                DISPLAYOUT("\n");
+            }
             return 1;
         }
         displayInfo(inFileName, &info, displayLevel);

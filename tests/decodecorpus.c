@@ -1168,24 +1168,20 @@ static U32 generateFrame(U32 seed, frame_t* fr, dictInfo info)
 static int genRandomDict(U32 dictID, U32 seed, size_t dictSize, BYTE* fullDict){
     /* allocate space for samples */
     unsigned const numSamples = 4;
-    BYTE* const samples = malloc(5000*sizeof(BYTE));
-    size_t* const sampleSizes = malloc(numSamples*sizeof(size_t));
-    if (samples == NULL || sampleSizes == NULL) {
-        DISPLAY("Error: could not allocate space for samples.\n");
-        return 1;
-    }
+    BYTE samples[5000];
+    size_t sampleSizes[4];
 
     /* generate samples */
     {
         unsigned i = 1;
+        unsigned j = 0;
         size_t currSize = 1;
-        BYTE* curr = samples;
         while (i <= 4) {
-            *(sampleSizes + i - 1) = currSize;
+            sampleSizes[i - 1] = currSize;
             {
-                size_t j;
-                for (j = 0; j < currSize; j++) {
-                    *(curr++) = (BYTE)i;
+                size_t k;
+                for (k = 0; k < currSize; k++) {
+                    samples[j++] = (BYTE)i;
                 }
             }
             i++;
@@ -1220,8 +1216,6 @@ static int genRandomDict(U32 dictID, U32 seed, size_t dictSize, BYTE* fullDict){
                                     samples, sampleSizes, numSamples,
                                     zdictParams);
 
-        free(samples);
-        free(sampleSizes);
         if (ZDICT_isError(dictWriteSize)) {
             DISPLAY("Could not finalize dictionary: %s\n", ZDICT_getErrorName(dictWriteSize));
             return 1;

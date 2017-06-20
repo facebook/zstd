@@ -349,6 +349,14 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\..\lib\common\pool.c"
+				>
+			</File>
+			<File
+				RelativePath="..\..\..\lib\common\threading.c"
+				>
+			</File>
+			<File
 				RelativePath="..\..\..\lib\compress\zstd_compress.c"
 				>
 			</File>

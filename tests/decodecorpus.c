@@ -1592,6 +1592,7 @@ static void advancedUsage(const char* programName)
     DISPLAY( "\n");
     DISPLAY( "Advanced arguments :\n");
     DISPLAY( " --content-size    : always include the content size in the frame header\n");
+    DISPLAY( " --use-dict #      : include a dictionary used to decompress the corpus\n");
 }
 
 int main(int argc, char** argv)
@@ -1665,8 +1666,8 @@ int main(int argc, char** argv)
                     argument++;
                     if (strcmp(argument, "content-size") == 0) {
                         opts.contentSize = 1;
-                    } else if (strcmp(argument, "train-dict") == 0) {
-                        argument += 11;
+                    } else if (strcmp(argument, "use-dict") == 0) {
+                        argument += 9;
                         dictSize = readInt(&argument);
                         useDict = 1;
                     } else {

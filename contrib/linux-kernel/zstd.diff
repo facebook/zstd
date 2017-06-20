@@ -1599,10 +1599,10 @@ index 0000000..a826b99
 +#endif /* BITSTREAM_H_MODULE */
 diff --git a/lib/zstd/compress.c b/lib/zstd/compress.c
 new file mode 100644
-index 0000000..42236a3
+index 0000000..1aff542
 --- /dev/null
 +++ b/lib/zstd/compress.c
-@@ -0,0 +1,3463 @@
+@@ -0,0 +1,3468 @@
 +/**
 + * Copyright (c) 2016-present, Yann Collet, Facebook, Inc.
 + * All rights reserved.
@@ -3583,10 +3583,15 @@ index 0000000..42236a3
 +				break; /* nothing found : store previous solution */
 +			}
 +
++		/* NOTE:
++		 * start[-offset+ZSTD_REP_MOVE-1] is undefined behavior.
++		 * (-offset+ZSTD_REP_MOVE-1) is unsigned, and is added to start, which
++		 * overflows the pointer, which is undefined behavior.
++		 */
 +		/* catch up */
 +		if (offset) {
 +			while ((start > anchor) && (start > base + offset - ZSTD_REP_MOVE) &&
-+			       (start[-1] == start[-1 - offset + ZSTD_REP_MOVE])) /* only search for offset within prefix */
++			       (start[-1] == (start-offset+ZSTD_REP_MOVE)[-1])) /* only search for offset within prefix */
 +			{
 +				start--;
 +				matchLength++;

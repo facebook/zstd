@@ -703,7 +703,7 @@ static U32 generateSequences(U32* seed, frame_t* frame, seqStore_t* seqStore,
             for (j = 0; j < matchLen; j++) {
                 if ((void*)(srcPtr - offset) < (void*)frame->srcStart) {
                     /* copy from dictionary instead of literals */
-                    size_t dictOffset = offset - (srcPtr - (BYTE*)frame->srcStart);
+                    size_t const dictOffset = offset - (srcPtr - (BYTE*)frame->srcStart);
                     *srcPtr = *(dictEnd - dictOffset);
                 }
                 else {

@@ -420,6 +420,7 @@ static int basicUnitTests(U32 seed, double compressibility)
                 size_t const r = ZSTD_decompress_usingDDict(dctx, decodedBuffer, CNBuffSize, compressedBuffer, cSize, ddict);
                 if (r != CNBuffSize - dictSize) goto _output_error;
             }
+            free(ddictBuffer);
             DISPLAYLEVEL(4, "OK (size of static DDict : %u) \n", (U32)ddictBufferSize);
         }
 

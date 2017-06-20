@@ -961,10 +961,8 @@ static int getFileInfo(fileInfo_t* info, const char* inFileName){
                     BYTE const frameHeaderDescriptor = headerBuffer[4];
                     int const contentChecksumFlag = (frameHeaderDescriptor & (1 << 2)) >> 2;
                     if (contentChecksumFlag) {
-                        info->usesCheck = 1;
-                    }
-                    if (contentChecksumFlag) {
                         int const ret = fseek(srcFile, 4, SEEK_CUR);
+                        info->usesCheck = 1;
                         if (ret != 0) {
                             DISPLAY("Error: could not skip past checksum\n");
                             detectError = 1;

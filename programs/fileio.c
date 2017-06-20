@@ -941,7 +941,7 @@ static int getFileInfo(fileInfo_t* info, const char* inFileName){
                         }
                         blockHeader = MEM_readLE24(blockHeaderBuffer);
                         lastBlock = blockHeader & 1;
-                        blockSize = (blockHeader - (blockHeader & 7)) >> 3;
+                        blockSize = blockHeader >> 3;
                         {
                             int const ret = fseek(srcFile, blockSize, SEEK_CUR);
                             if (ret != 0) {

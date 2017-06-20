@@ -982,7 +982,7 @@ static int getFileInfo(fileInfo_t* info, const char* inFileName){
                 }
                 {
                     U32 const frameSize = MEM_readLE32(frameSizeBuffer);
-                    int const ret = fseek(srcFile, (long)frameSize, SEEK_CUR);
+                    int const ret = LONG_SEEK(srcFile, frameSize, SEEK_CUR);
                     if (ret != 0) {
                         DISPLAY("Error: could not find end of skippable frame\n");
                         detectError = 1;

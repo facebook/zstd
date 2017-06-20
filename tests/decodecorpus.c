@@ -1166,61 +1166,60 @@ static U32 generateFrame(U32 seed, frame_t* fr, dictInfo info)
 *********************************************************/
 /* returns 0 if successful, otherwise returns 1 upon error */
 static int genRandomDict(U32 dictID, U32 seed, size_t dictSize, BYTE* fullDict){
-    const size_t headerSize = dictSize/4;
-    const size_t dictContentSize = dictSize - dictSize/4;
-    BYTE* const dictContent = fullDict + headerSize;
-
-    /* use 3/4 of dictionary for content, save rest for header/entropy tables */
-    if (dictContentSize < ZDICT_CONTENTSIZE_MIN || dictSize < ZDICT_DICTSIZE_MIN) {
-        DISPLAY("Error: dictionary size is too small\n");
+    /* allocate space for samples */
+    unsigned const numSamples = 4;
+    BYTE* const samples = malloc(5000*sizeof(BYTE));
+    size_t* const sampleSizes = malloc(numSamples*sizeof(size_t));
+    if (samples == NULL || sampleSizes == NULL) {
+        DISPLAY("Error: could not allocate space for samples.\n");
         return 1;
     }
 
-    /* fill in dictionary content */
-    RAND_buffer(&seed, (void*)dictContent, dictContentSize);
-
-    /* allocate space for samples */
+    /* generate samples */
     {
+        unsigned i = 1;
+        size_t currSize = 1;
+        BYTE* curr = samples;
+        while (i <= 4) {
+            *(sampleSizes + i - 1) = currSize;
+            {
+                size_t j;
+                for (j = 0; j < currSize; j++) {
+                    *(curr++) = (BYTE)i;
+                }
+            }
+            i++;
+            currSize *= 16;
+        }
+    }
+
+
+    {
+        /* create variables */
         size_t dictWriteSize = 0;
-        unsigned const numSamples = 4;
-        BYTE* const samples = malloc(5000*sizeof(BYTE));
-        size_t* const sampleSizes = malloc(numSamples*sizeof(size_t));
-        if (samples == NULL || sampleSizes == NULL) {
-            DISPLAY("Error: could not generate samples for the dictionary.\n");
+        ZDICT_params_t zdictParams;
+        size_t const headerSize = dictSize/4;
+        size_t const dictContentSize = dictSize - dictSize/4;
+        BYTE* const dictContent = fullDict + headerSize;
+        if (dictContentSize < ZDICT_CONTENTSIZE_MIN || dictSize < ZDICT_DICTSIZE_MIN) {
+            DISPLAY("Error: dictionary size is too small\n");
             return 1;
         }
 
-        /* generate samples */
-        {
-            unsigned i = 1;
-            size_t currSize = 1;
-            BYTE* curr = samples;
-            while (i <= 4) {
-                *(sampleSizes + i - 1) = currSize;
-                {
-                    size_t j;
-                    for (j = 0; j < currSize; j++) {
-                        *(curr++) = (BYTE)i;
-                    }
-                }
-                i++;
-                currSize *= 16;
-            }
-        }
+        /* init dictionary params */
+        memset(&zdictParams, 0, sizeof(zdictParams));
+        zdictParams.dictID = dictID;
+        zdictParams.notificationLevel = 1;
 
-        /* set dictionary params */
-        {
-            ZDICT_params_t zdictParams;
-            memset(&zdictParams, 0, sizeof(zdictParams));
-            zdictParams.dictID = dictID;
-            zdictParams.notificationLevel = 1;
+        /* fill in dictionary content */
+        RAND_buffer(&seed, (void*)dictContent, dictContentSize);
 
-            /* finalize dictionary with random samples */
-            dictWriteSize = ZDICT_finalizeDictionary(fullDict, dictSize,
-                                        dictContent, dictContentSize,
-                                        samples, sampleSizes, numSamples,
-                                        zdictParams);
-        }
+        /* finalize dictionary with random samples */
+        dictWriteSize = ZDICT_finalizeDictionary(fullDict, dictSize,
+                                    dictContent, dictContentSize,
+                                    samples, sampleSizes, numSamples,
+                                    zdictParams);
+
         free(samples);
         free(sampleSizes);
         if (dictWriteSize != dictSize && ZDICT_isError(dictWriteSize)) {
@@ -1228,6 +1227,7 @@ static int genRandomDict(U32 dictID, U32 seed, size_t dictSize, BYTE* fullDict){
             return 1;
         }
     }
+
     return 0;
 }
 

@@ -537,6 +537,51 @@ fi
 
 rm tmp*
 
+$ECHO "\n**** zstd --list/-l single frame tests ****"
+./datagen > tmp1
+./datagen > tmp2
+./datagen > tmp3
+./datagen > tmp4
+$ZSTD tmp*
+$ZSTD -l *.zst
+$ZSTD -lv *.zst
+$ZSTD --list *.zst
+$ZSTD --list -v *.zst
+
+$ECHO "\n**** zstd --list/-l multiple frame tests ****"
+cat tmp1.zst tmp2.zst > tmp12.zst
+cat tmp3.zst tmp4.zst > tmp34.zst
+cat tmp12.zst tmp34.zst > tmp1234.zst
+cat tmp12.zst tmp4.zst > tmp124.zst
+$ZSTD -l *.zst
+$ZSTD -lv *.zst
+$ZSTD --list *.zst
+$ZSTD --list -v *.zst
+
+$ECHO "\n**** zstd --list/-l error detection tests ****"
+! $ZSTD -l tmp1 tmp1.zst
+! $ZSTD --list tmp*
+! $ZSTD -lv tmp1*
+! $ZSTD --list -v tmp2 tmp23.zst
+
+$ECHO "\n**** zstd --list/-l test with null files ****"
+./datagen -g0 > tmp5
+$ZSTD tmp5
+! $ZSTD -l tmp5*
+! $ZSTD -lv tmp5*
+! $ZSTD --list tmp5*
+! $ZSTD --list -v tmp5*
+
+$ECHO "\n**** zstd --list/-l test with no frame content size ****"
+echo -n '' > tmp6
+$ZSTD tmp6
+$ZSTD -l tmp6.zst
+$ZSTD -lv tmp6.zst
+$ZSTD --list tmp6.zst
+$ZSTD --list -v tmp6.zst
+
+rm tmp*
+
 if [ "$1" != "--test-large-data" ]; then
     $ECHO "Skipping large data tests"
     exit 0

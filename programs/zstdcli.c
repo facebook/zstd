@@ -117,6 +117,7 @@ static int usage_advanced(const char* programName)
     DISPLAY( " -v     : verbose mode; specify multiple times to increase verbosity\n");
     DISPLAY( " -q     : suppress warnings; specify twice to suppress errors too\n");
     DISPLAY( " -c     : force write to standard output, even if it is the console\n");
+    DISPLAY( " -l     : print information about zstd compressed files.\n");
 #ifndef ZSTD_NOCOMPRESS
     DISPLAY( "--ultra : enable levels beyond %i, up to %i (requires more memory)\n", ZSTDCLI_CLEVEL_MAX, ZSTD_maxCLevel());
 #ifdef ZSTD_MULTITHREAD
@@ -148,6 +149,7 @@ static int usage_advanced(const char* programName)
 #endif
 #endif
     DISPLAY( " -M#    : Set a memory usage limit for decompression \n");
+    DISPLAY( "--list  : list information about a zstd compressed file \n");
     DISPLAY( "--      : All arguments after \"--\" are treated as files \n");
 #ifndef ZSTD_NODICT
     DISPLAY( "\n");
@@ -310,7 +312,7 @@ static unsigned parseCompressionParameters(const char* stringPtr, ZSTD_compressi
 }
 
 
-typedef enum { zom_compress, zom_decompress, zom_test, zom_bench, zom_train } zstd_operation_mode;
+typedef enum { zom_compress, zom_decompress, zom_test, zom_bench, zom_train, zom_list } zstd_operation_mode;
 
 #define CLEAN_RETURN(i) { operationResult = (i); goto _end; }
 
@@ -401,6 +403,7 @@ int main(int argCount, const char* argv[])
                 if (argument[1]=='-') {
                     /* long commands (--long-word) */
                     if (!strcmp(argument, "--")) { nextArgumentsAreFiles=1; continue; }   /* only file names allowed from now on */
+                    if (!strcmp(argument, "--list")) { operation=zom_list; continue; }
                     if (!strcmp(argument, "--compress")) { operation=zom_compress; continue; }
                     if (!strcmp(argument, "--decompress")) { operation=zom_decompress; continue; }
                     if (!strcmp(argument, "--uncompress")) { operation=zom_decompress; continue; }
@@ -531,7 +534,7 @@ int main(int argCount, const char* argv[])
                         argument++;
                         memLimit = readU32FromChar(&argument);
                         break;
-
+                    case 'l': operation=zom_list; argument++; break;
 #ifdef UTIL_HAS_CREATEFILELIST
                         /* recursive */
                     case 'r': recursive=1; argument++; break;
@@ -672,7 +675,10 @@ int main(int argCount, const char* argv[])
         }
     }
 #endif
-
+    if (operation == zom_list) {
+        int const ret = FIO_listMultipleFiles(filenameIdx, filenameTable, g_displayLevel);
+        CLEAN_RETURN(ret);
+    }
     /* Check if benchmark is selected */
     if (operation==zom_bench) {
 #ifndef ZSTD_NOBENCH

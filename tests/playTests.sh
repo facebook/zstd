@@ -572,6 +572,14 @@ $ZSTD tmp5
 ! $ZSTD --list tmp5*
 ! $ZSTD --list -v tmp5*
 
+$ECHO "\n**** zstd --list/-l test with no frame content size ****"
+echo -n '' > tmp6
+$ZSTD tmp6
+$ZSTD -l tmp6.zst
+$ZSTD -lv tmp6.zst
+$ZSTD --list tmp6.zst
+$ZSTD --list -v tmp6.zst
+
 rm tmp*
 
 if [ "$1" != "--test-large-data" ]; then

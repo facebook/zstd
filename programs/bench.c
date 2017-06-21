@@ -284,7 +284,7 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
                     if (comprParams->searchLength) zparams.cParams.searchLength = comprParams->searchLength;
                     if (comprParams->targetLength) zparams.cParams.targetLength = comprParams->targetLength;
                     if (comprParams->strategy) zparams.cParams.strategy = comprParams->strategy;
-                    cdict = ZSTD_createCDict_advanced(dictBuffer, dictBufferSize, 1, zparams.cParams, cmem);
+                    cdict = ZSTD_createCDict_advanced(dictBuffer, dictBufferSize, 1 /*byRef*/, ZSTD_dm_auto, zparams.cParams, cmem);
                     if (cdict==NULL) EXM_THROW(1, "ZSTD_createCDict_advanced() allocation failure");
 #endif
                     do {

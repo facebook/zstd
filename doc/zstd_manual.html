@@ -341,7 +341,7 @@ size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inB
 typedef void  (*ZSTD_freeFunction) (void* opaque, void* address);
 typedef struct { ZSTD_allocFunction customAlloc; ZSTD_freeFunction customFree; void* opaque; } ZSTD_customMem;
 </b>/* use this constant to defer to stdlib's functions */<b>
-static const ZSTD_customMem ZSTD_defaultCMem = { NULL, NULL, NULL};
+static const ZSTD_customMem ZSTD_defaultCMem = { NULL, NULL, NULL };
 </pre></b><BR>
 <a name="Chapter12"></a><h2>Frame size functions</h2><pre></pre>
 
@@ -461,14 +461,18 @@ size_t ZSTD_estimateDDictSize(size_t dictSize, unsigned byReference);
   It is important that dictBuffer outlives CDict, it must remain read accessible throughout the lifetime of CDict 
 </p></pre><BR>
 
-<pre><b>ZSTD_CDict* ZSTD_createCDict_advanced(const void* dict, size_t dictSize, unsigned byReference,
+<pre><b>typedef enum { ZSTD_dm_auto=0, ZSTD_dm_rawContent, ZSTD_dm_fullDict } ZSTD_dictMode_e;
+</b></pre><BR>
+<pre><b>ZSTD_CDict* ZSTD_createCDict_advanced(const void* dict, size_t dictSize,
+                                      unsigned byReference, ZSTD_dictMode_e dictMode,
                                       ZSTD_compressionParameters cParams, ZSTD_customMem customMem);
 </b><p>  Create a ZSTD_CDict using external alloc and free, and customized compression parameters 
 </p></pre><BR>
 
 <pre><b>ZSTD_CDict* ZSTD_initStaticCDict(
                 void* workspace, size_t workspaceSize,
-          const void* dict, size_t dictSize, unsigned byReference,
+          const void* dict, size_t dictSize,
+                unsigned byReference, ZSTD_dictMode_e dictMode,
                 ZSTD_compressionParameters cParams);
 </b><p>  Generate a digested dictionary in provided memory area.
   workspace: The memory area to emplace the dictionary into.
@@ -743,7 +747,6 @@ void   ZSTD_copyDCtx(ZSTD_DCtx* dctx, const ZSTD_DCtx* preparedDCtx);
                               * Special: value 0 means "do not change cLevel". */
     ZSTD_p_windowLog,        </b>/* Maximum allowed back-reference distance, expressed as power of 2.<b>
                               * Must be clamped between ZSTD_WINDOWLOG_MIN and ZSTD_WINDOWLOG_MAX.
-                              * default value : set through compressionLevel.
                               * Special: value 0 means "do not change windowLog". */
     ZSTD_p_hashLog,          </b>/* Size of the probe table, as a power of 2.<b>
                               * Resulting table size is (1 << (hashLog+2)).
@@ -791,10 +794,10 @@ void   ZSTD_copyDCtx(ZSTD_DCtx* dctx, const ZSTD_DCtx* preparedDCtx);
     </b>/* dictionary parameters */<b>
     ZSTD_p_refDictContent=300, </b>/* Content of dictionary content will be referenced, instead of copied (default:0).<b>
                               * This avoids duplicating dictionary content.
-                              * But it also requires that dictionary buffer outlives its user (CDict) */
-                             </b>/* Not ready yet ! */<b>
-    ZSTD_p_rawContentDict,   </b>/* load dictionary in "content-only" mode (no header analysis) (default:0) */<b>
-                             </b>/* question : should there be an option to load dictionary only in zstd format, rejecting others with an error code ? */<b>
+                              * But it also requires that dictionary buffer outlives its users */
+                             </b>/* Not ready yet ! <=================================== */<b>
+    ZSTD_p_dictMode,         </b>/* Select how dictionary must be interpreted. Value must be from type ZSTD_dictMode_e.<b>
+                              * default : 0==auto : dictionary will be "full" if it respects specification, otherwise it will be "rawContent" */
 
     </b>/* multi-threading parameters */<b>
     ZSTD_p_nbThreads=400,    </b>/* Select how many threads a compression job can spawn (default:1)<b>
@@ -810,7 +813,7 @@ void   ZSTD_copyDCtx(ZSTD_DCtx* dctx, const ZSTD_DCtx* preparedDCtx);
 
     </b>/* advanced parameters - may not remain available after API update */<b>
     ZSTD_p_forceMaxWindow=1100, </b>/* Force back-references to remain < windowSize,<b>
-                              * even when referencing into Dictionary content
+                              * even when referencing into Dictionary content.
                               * default : 0 when using a CDict, 1 when using a Prefix */
 } ZSTD_cParameter;
 </b></pre><BR>
@@ -835,12 +838,12 @@ void   ZSTD_copyDCtx(ZSTD_DCtx* dctx, const ZSTD_DCtx* preparedDCtx);
 </b><p>  Create an internal CDict from dict buffer.
   Decompression will have to use same buffer.
  @result : 0, or an error code (which can be tested with ZSTD_isError()).
-  Special : Adding a NULL (or 0-size) dictionary invalidates any previous prefix,
+  Special : Adding a NULL (or 0-size) dictionary invalidates any previous dictionary,
             meaning "return to no-dictionary mode".
   Note 1 : Dictionary content will be copied internally,
            except if ZSTD_p_refDictContent is set.
   Note 2 : Loading a dictionary involves building tables, which are dependent on compression parameters.
-           For this reason, compression parameters cannot be changed anymore after loading a prefix.
+           For this reason, compression parameters cannot be changed anymore after loading a dictionary.
            It's also a CPU-heavy operation, with non-negligible impact on latency.
   Note 3 : Dictionary will be used for all future compression jobs.
            To return to "no-dictionary" situation, load a NULL dictionary 
@@ -859,7 +862,7 @@ void   ZSTD_copyDCtx(ZSTD_DCtx* dctx, const ZSTD_DCtx* preparedDCtx);
  
 </p></pre><BR>
 
-<pre><b>size_t ZSTD_CCtx_refPrefix(ZSTD_CCtx* cctx, const void* prefix, size_t prefixSize);   </b>/* Not ready yet ! */<b>
+<pre><b>size_t ZSTD_CCtx_refPrefix(ZSTD_CCtx* cctx, const void* prefix, size_t prefixSize);   </b>/* Not ready yet ! <===================================== */<b>
 </b><p>  Reference a prefix (content-only dictionary) to bootstrap next compression job.
   Decompression will have to use same prefix.
   Prefix is only used once. Tables are discarded at end of compression job.
@@ -882,15 +885,15 @@ void   ZSTD_copyDCtx(ZSTD_DCtx* dctx, const ZSTD_DCtx* preparedDCtx);
                               ZSTD_inBuffer* input,
                               ZSTD_EndDirective endOp);
 </b><p>  Behave about the same as ZSTD_compressStream. To note :
-  - Compression parameters are pushed into CCtx before starting compression, using ZSTD_setCCtxParameter()
+  - Compression parameters are pushed into CCtx before starting compression, using ZSTD_CCtx_setParameter()
   - Compression parameters cannot be changed once compression is started.
   - *dstPos must be <= dstCapacity, *srcPos must be <= srcSize
   - *dspPos and *srcPos will be updated. They are guaranteed to remain below their respective limit.
   - @return provides the minimum amount of data still to flush from internal buffers
             or an error code, which can be tested using ZSTD_isError().
-            if @return != 0, flush is not fully completed, and must be called again to empty internal buffers.
+            if @return != 0, flush is not fully completed, there is some data left within internal buffers.
   - after a ZSTD_e_end directive, if internal buffer is not fully flushed,
-            only ZSTD_e_end and ZSTD_e_flush operations are allowed.
+            only ZSTD_e_end or ZSTD_e_flush operations are allowed.
             It is necessary to fully flush internal buffers
             before starting a new compression job, or changing compression parameters.
  
@@ -915,20 +918,6 @@ void   ZSTD_copyDCtx(ZSTD_DCtx* dctx, const ZSTD_DCtx* preparedDCtx);
   Argument list is larger and less expressive than ZSTD_{in,out}Buffer,
   but can be helpful for binders from dynamic languages
   which have troubles handling structures containing memory pointers.
- 
-</p></pre><BR>
-
-<pre><b>ZSTD_CDict* ZSTD_CDict_createEmpty(void);   </b>/* Not ready yet ! */<b>
-size_t ZSTD_CDict_setParameter(ZSTD_CDict* cdict, ZSTD_cParameter param, unsigned value);  </b>/* Not ready yet ! */<b>
-size_t ZSTD_CDict_loadDictionary(ZSTD_CDict* cdict, const void* dict, size_t dictSize);    </b>/* Not ready yet ! */<b>
-</b><p>  Create a CDict object which is still mutable after creation.
-  It's the only one case allowing usage of ZSTD_CDict_setParameter().
-  Once all compression parameters are selected,
-  it's possible to load the target dictionary, using ZSTD_CDict_loadDictionary().
-  Dictionary content will be copied internally (except if ZSTD_p_refDictContent is set).
-  After loading the dictionary, no more change is possible.
-  The only remaining operation is to free CDict object.
-  Note : An unfinished CDict behaves the same as a NULL CDict if referenced into a CCtx.
  
 </p></pre><BR>
 

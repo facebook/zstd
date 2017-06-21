@@ -1059,6 +1059,9 @@ static int FIO_listFile(const char* inFileName, int displayLevel, unsigned fileN
         }
         else if (error == 3) {
             /* error occurred with opening the file */
+            if (displayLevel > 2) {
+                DISPLAYOUT("\n");
+            }
             return 1;
         }
         displayInfo(inFileName, &info, displayLevel);

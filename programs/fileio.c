@@ -1009,10 +1009,10 @@ static int getFileInfo(fileInfo_t* info, const char* inFileName){
 static void displayInfo(const char* inFileName, fileInfo_t* info, int displayLevel){
     double const compressedSizeMB = (double)info->compressedSize/(1 MB);
     double const decompressedSizeMB = (double)info->decompressedSize/(1 MB);
+    double const ratio = (info->compressedSize == 0) ? 0 : ((double)info->decompressedSize)/info->compressedSize;
     const char* const checkString = (info->usesCheck ? "XXH64" : "None");
     if (displayLevel <= 2) {
         if (!info->decompUnavailable) {
-            double const ratio = (info->decompressedSize == 0) ? 0.0 : compressedSizeMB/decompressedSizeMB;
             DISPLAYOUT("Skippable  Non-Skippable  Compressed  Uncompressed  Ratio  Check  Filename\n");
             DISPLAYOUT("%9d  %13d  %7.2f MB  %9.2f MB  %5.3f  %5s  %s\n",
                     info->numSkippableFrames, info->numActualFrames, compressedSizeMB, decompressedSizeMB,
@@ -1030,7 +1030,7 @@ static void displayInfo(const char* inFileName, fileInfo_t* info, int displayLev
         DISPLAYOUT("Compressed Size: %.2f MB (%llu B)\n", compressedSizeMB, info->compressedSize);
         if (!info->decompUnavailable) {
             DISPLAYOUT("Decompressed Size: %.2f MB (%llu B)\n", decompressedSizeMB, info->decompressedSize);
-            DISPLAYOUT("Ratio: %.4f\n", compressedSizeMB/decompressedSizeMB);
+            DISPLAYOUT("Ratio: %.4f\n", ratio);
         }
         DISPLAYOUT("Check: %s\n", checkString);
         DISPLAYOUT("\n");

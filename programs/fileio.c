@@ -875,13 +875,14 @@ typedef struct {
 /*
  * Reads information from file, stores in *info
  * if successful, returns 0, returns 1 for frame analysis error, returns 2 for file not compressed with zstd
+ * returns 3 for cases in which file could not be opened.
  */
 static int getFileInfo(fileInfo_t* info, const char* inFileName){
     int detectError = 0;
     FILE* const srcFile = FIO_openSrcFile(inFileName);
     if (srcFile == NULL) {
         DISPLAY("Error: could not open source file %s\n", inFileName);
-        return 1;
+        return 3;
     }
     info->compressedSize = (unsigned long long)UTIL_getFileSize(inFileName);
     /* begin analyzing frame */
@@ -1009,10 +1010,10 @@ static int getFileInfo(fileInfo_t* info, const char* inFileName){
 static void displayInfo(const char* inFileName, fileInfo_t* info, int displayLevel){
     double const compressedSizeMB = (double)info->compressedSize/(1 MB);
     double const decompressedSizeMB = (double)info->decompressedSize/(1 MB);
+    double const ratio = (info->compressedSize == 0) ? 0 : ((double)info->decompressedSize)/info->compressedSize;
     const char* const checkString = (info->usesCheck ? "XXH64" : "None");
     if (displayLevel <= 2) {
         if (!info->decompUnavailable) {
-            double const ratio = (info->decompressedSize == 0) ? 0.0 : compressedSizeMB/decompressedSizeMB;
             DISPLAYOUT("Skippable  Non-Skippable  Compressed  Uncompressed  Ratio  Check  Filename\n");
             DISPLAYOUT("%9d  %13d  %7.2f MB  %9.2f MB  %5.3f  %5s  %s\n",
                     info->numSkippableFrames, info->numActualFrames, compressedSizeMB, decompressedSizeMB,
@@ -1030,7 +1031,7 @@ static void displayInfo(const char* inFileName, fileInfo_t* info, int displayLev
         DISPLAYOUT("Compressed Size: %.2f MB (%llu B)\n", compressedSizeMB, info->compressedSize);
         if (!info->decompUnavailable) {
             DISPLAYOUT("Decompressed Size: %.2f MB (%llu B)\n", decompressedSizeMB, info->decompressedSize);
-            DISPLAYOUT("Ratio: %.4f\n", compressedSizeMB/decompressedSizeMB);
+            DISPLAYOUT("Ratio: %.4f\n", ratio);
         }
         DISPLAYOUT("Check: %s\n", checkString);
         DISPLAYOUT("\n");
@@ -1051,6 +1052,13 @@ static int FIO_listFile(const char* inFileName, int displayLevel, unsigned fileN
         }
         else if (error == 2) {
             DISPLAYOUT("File %s not compressed with zstd\n", inFileName);
+            if (displayLevel > 2) {
+                DISPLAYOUT("\n");
+            }
+            return 1;
+        }
+        else if (error == 3) {
+            /* error occurred with opening the file */
             if (displayLevel > 2) {
                 DISPLAYOUT("\n");
             }

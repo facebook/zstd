@@ -583,13 +583,14 @@ size_t ZSTDMT_initCStream_internal(ZSTDMT_CCtx* zcs,
     zcs->frameContentSize = pledgedSrcSize;
     if (dict) {
         ZSTD_freeCDict(zcs->cdictLocal);
-        zcs->cdict = NULL;
         zcs->cdictLocal = ZSTD_createCDict_advanced(dict, dictSize,
                                                     0 /* byRef */, ZSTD_dm_auto,
                                                     params.cParams, zcs->cMem);
-        if (zcs->cdictLocal == NULL) return ERROR(memory_allocation);
         zcs->cdict = zcs->cdictLocal;
+        if (zcs->cdictLocal == NULL) return ERROR(memory_allocation);
     } else {
+        ZSTD_freeCDict(zcs->cdictLocal);
+        zcs->cdictLocal = NULL;
         zcs->cdict = cdict;
     }
 
@@ -627,7 +628,7 @@ size_t ZSTDMT_initCStream_usingCDict(ZSTDMT_CCtx* mtctx,
                                      unsigned long long pledgedSrcSize)
 {
     ZSTD_parameters params = ZSTD_getParamsFromCDict(cdict);
-    if (cdict==NULL) return ERROR(GENERIC);   /* method incompatible with NULL cdict */
+    if (cdict==NULL) return ERROR(dictionary_wrong);   /* method incompatible with NULL cdict */
     params.fParams = fParams;
     return ZSTDMT_initCStream_internal(mtctx, NULL, 0 /*dictSize*/, cdict,
                                         params, pledgedSrcSize);

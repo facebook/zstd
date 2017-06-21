@@ -567,20 +567,23 @@ $ECHO "\n**** zstd --list/-l error detection tests ****"
 $ECHO "\n**** zstd --list/-l test with null files ****"
 ./datagen -g0 > tmp5
 $ZSTD tmp5
+$ZSTD -l tmp5.zst
 ! $ZSTD -l tmp5*
+$ZSTD -lv tmp5.zst
 ! $ZSTD -lv tmp5*
-! $ZSTD --list tmp5*
-! $ZSTD --list -v tmp5*
 
-$ECHO "\n**** zstd --list/-l test with no frame content size ****"
-echo -n '' > tmp6
-$ZSTD tmp6
+$ECHO "\n**** zstd --list/-l test with no content size field ****"
+./datagen -g1MB | $ZSTD > tmp6.zst
 $ZSTD -l tmp6.zst
 $ZSTD -lv tmp6.zst
-$ZSTD --list tmp6.zst
-$ZSTD --list -v tmp6.zst
+
+$ECHO "\n**** zstd --list/-l test with no checksum ****"
+$ZSTD -f --no-check tmp1
+$ZSTD -l tmp1.zst
+$ZSTD -lv tmp1.zst
 
 rm tmp*
+
 
 if [ "$1" != "--test-large-data" ]; then
     $ECHO "Skipping large data tests"

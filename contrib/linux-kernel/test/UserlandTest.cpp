@@ -280,9 +280,9 @@ TEST(Block, ContentSize) {
 
 TEST(Block, CCtxLevelIncrease) {
   std::string c;
-  auto cctx = createCCtx(6);
+  auto cctx = createCCtx(22);
   auto dctx = createDCtx();
-  for (int level = 1; level <= 6; ++level) {
+  for (int level = 1; level <= 22; ++level) {
     auto compressed = compress(*cctx, kData, level);
     auto const decompressed = decompress(*dctx, compressed, kData.size());
     EXPECT_EQ(kData, decompressed);
@@ -476,6 +476,17 @@ TEST(Stream, Flush) {
     }
   }
   EXPECT_EQ(kData, decompressed);
+}
+
+TEST(Stream, DStreamLevelIncrease) {
+  auto zds = createDStream();
+  for (int level = 1; level <= 22; ++level) {
+    auto zcs = createCStream(level);
+    auto compressed = compress(*zcs, kData);
+    ZSTD_resetDStream(zds.get());
+    auto const decompressed = decompress(*zds, compressed, kData.size());
+    EXPECT_EQ(kData, decompressed);
+  }
 }
 
 #define TEST_SYMBOL(symbol)                                                    \

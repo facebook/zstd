@@ -1599,10 +1599,10 @@ index 0000000..a826b99
 +#endif /* BITSTREAM_H_MODULE */
 diff --git a/lib/zstd/compress.c b/lib/zstd/compress.c
 new file mode 100644
-index 0000000..42236a3
+index 0000000..1aff542
 --- /dev/null
 +++ b/lib/zstd/compress.c
-@@ -0,0 +1,3463 @@
+@@ -0,0 +1,3468 @@
 +/**
 + * Copyright (c) 2016-present, Yann Collet, Facebook, Inc.
 + * All rights reserved.
@@ -3583,10 +3583,15 @@ index 0000000..42236a3
 +				break; /* nothing found : store previous solution */
 +			}
 +
++		/* NOTE:
++		 * start[-offset+ZSTD_REP_MOVE-1] is undefined behavior.
++		 * (-offset+ZSTD_REP_MOVE-1) is unsigned, and is added to start, which
++		 * overflows the pointer, which is undefined behavior.
++		 */
 +		/* catch up */
 +		if (offset) {
 +			while ((start > anchor) && (start > base + offset - ZSTD_REP_MOVE) &&
-+			       (start[-1] == start[-1 - offset + ZSTD_REP_MOVE])) /* only search for offset within prefix */
++			       (start[-1] == (start-offset+ZSTD_REP_MOVE)[-1])) /* only search for offset within prefix */
 +			{
 +				start--;
 +				matchLength++;
@@ -5068,10 +5073,10 @@ index 0000000..42236a3
 +MODULE_DESCRIPTION("Zstd Compressor");
 diff --git a/lib/zstd/decompress.c b/lib/zstd/decompress.c
 new file mode 100644
-index 0000000..def10ea
+index 0000000..ec673d7
 --- /dev/null
 +++ b/lib/zstd/decompress.c
-@@ -0,0 +1,2508 @@
+@@ -0,0 +1,2514 @@
 +/**
 + * Copyright (c) 2016-present, Yann Collet, Facebook, Inc.
 + * All rights reserved.
@@ -7286,6 +7291,20 @@ index 0000000..def10ea
 +	zds->ddict = zds->ddictLocal;
 +	zds->legacyVersion = 0;
 +	zds->hostageByte = 0;
++
++	{
++		size_t const blockSize = MIN(zds->maxWindowSize, ZSTD_BLOCKSIZE_ABSOLUTEMAX);
++		size_t const neededOutSize = zds->maxWindowSize + blockSize + WILDCOPY_OVERLENGTH * 2;
++
++		zds->inBuff = (char *)ZSTD_malloc(blockSize, zds->customMem);
++		zds->inBuffSize = blockSize;
++		zds->outBuff = (char *)ZSTD_malloc(neededOutSize, zds->customMem);
++		zds->outBuffSize = neededOutSize;
++		if (zds->inBuff == NULL || zds->outBuff == NULL) {
++			ZSTD_freeDStream(zds);
++			return NULL;
++		}
++	}
 +	return zds;
 +}
 +
@@ -7407,25 +7426,17 @@ index 0000000..def10ea
 +			if (zds->fParams.windowSize > zds->maxWindowSize)
 +				return ERROR(frameParameter_windowTooLarge);
 +
-+			/* Adapt buffer sizes to frame header instructions */
++			/* Buffers are preallocated, but double check */
 +			{
-+				size_t const blockSize = MIN(zds->fParams.windowSize, ZSTD_BLOCKSIZE_ABSOLUTEMAX);
-+				size_t const neededOutSize = zds->fParams.windowSize + blockSize + WILDCOPY_OVERLENGTH * 2;
-+				zds->blockSize = blockSize;
++				size_t const blockSize = MIN(zds->maxWindowSize, ZSTD_BLOCKSIZE_ABSOLUTEMAX);
++				size_t const neededOutSize = zds->maxWindowSize + blockSize + WILDCOPY_OVERLENGTH * 2;
 +				if (zds->inBuffSize < blockSize) {
-+					ZSTD_free(zds->inBuff, zds->customMem);
-+					zds->inBuffSize = blockSize;
-+					zds->inBuff = (char *)ZSTD_malloc(blockSize, zds->customMem);
-+					if (zds->inBuff == NULL)
-+						return ERROR(memory_allocation);
++					return ERROR(GENERIC);
 +				}
 +				if (zds->outBuffSize < neededOutSize) {
-+					ZSTD_free(zds->outBuff, zds->customMem);
-+					zds->outBuffSize = neededOutSize;
-+					zds->outBuff = (char *)ZSTD_malloc(neededOutSize, zds->customMem);
-+					if (zds->outBuff == NULL)
-+						return ERROR(memory_allocation);
++					return ERROR(GENERIC);
 +				}
++				zds->blockSize = blockSize;
 +			}
 +			zds->stage = zdss_read;
 +		}

@@ -563,11 +563,13 @@ size_t ZSTDMT_initCStream_internal(ZSTDMT_CCtx* zcs,
                     const void* dict, size_t dictSize, const ZSTD_CDict* cdict,
                     ZSTD_parameters params, unsigned long long pledgedSrcSize)
 {
+    DEBUGLOG(5, "ZSTDMT_initCStream_internal");
     /* params are supposed to be fully validated at this point */
     assert(!ZSTD_isError(ZSTD_checkCParams(params.cParams)));
     assert(!((dict) && (cdict)));  /* either dict or cdict, not both */
 
     if (zcs->nbThreads==1) {
+        DEBUGLOG(5, "single thread mode");
         return ZSTD_initCStream_internal(zcs->cctxPool->cctx[0],
                                 dict, dictSize, cdict,
                                 params, pledgedSrcSize);
@@ -619,6 +621,7 @@ size_t ZSTDMT_initCStream_advanced(ZSTDMT_CCtx* mtctx,
                                 const void* dict, size_t dictSize,
                                 ZSTD_parameters params, unsigned long long pledgedSrcSize)
 {
+    DEBUGLOG(5, "ZSTDMT_initCStream_advanced");
     return ZSTDMT_initCStream_internal(mtctx, dict, dictSize, NULL, params, pledgedSrcSize);
 }
 

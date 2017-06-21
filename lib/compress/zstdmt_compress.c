@@ -584,8 +584,9 @@ size_t ZSTDMT_initCStream_internal(ZSTDMT_CCtx* zcs,
     if (dict) {
         ZSTD_freeCDict(zcs->cdictLocal);
         zcs->cdict = NULL;
-        zcs->cdictLocal = ZSTD_createCDict_advanced(dict, dictSize, 0 /* byRef */,
-                                                params.cParams, zcs->cMem);
+        zcs->cdictLocal = ZSTD_createCDict_advanced(dict, dictSize,
+                                                    0 /* byRef */, ZSTD_dm_auto,
+                                                    params.cParams, zcs->cMem);
         if (zcs->cdictLocal == NULL) return ERROR(memory_allocation);
         zcs->cdict = zcs->cdictLocal;
     } else {

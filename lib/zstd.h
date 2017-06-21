@@ -552,9 +552,12 @@ ZSTDLIB_API size_t ZSTD_setCCtxParameter(ZSTD_CCtx* cctx, ZSTD_CCtxParameter par
  *  It is important that dictBuffer outlives CDict, it must remain read accessible throughout the lifetime of CDict */
 ZSTDLIB_API ZSTD_CDict* ZSTD_createCDict_byReference(const void* dictBuffer, size_t dictSize, int compressionLevel);
 
+
+typedef enum { ZSTD_dm_auto=0, ZSTD_dm_rawContent, ZSTD_dm_fullDict } ZSTD_dictMode_e;
 /*! ZSTD_createCDict_advanced() :
  *  Create a ZSTD_CDict using external alloc and free, and customized compression parameters */
-ZSTDLIB_API ZSTD_CDict* ZSTD_createCDict_advanced(const void* dict, size_t dictSize, unsigned byReference,
+ZSTDLIB_API ZSTD_CDict* ZSTD_createCDict_advanced(const void* dict, size_t dictSize,
+                                                  unsigned byReference, ZSTD_dictMode_e dictMode,
                                                   ZSTD_compressionParameters cParams, ZSTD_customMem customMem);
 
 /*! ZSTD_initStaticCDict_advanced() :
@@ -572,7 +575,8 @@ ZSTDLIB_API ZSTD_CDict* ZSTD_createCDict_advanced(const void* dict, size_t dictS
  */
 ZSTDLIB_API ZSTD_CDict* ZSTD_initStaticCDict(
                             void* workspace, size_t workspaceSize,
-                      const void* dict, size_t dictSize, unsigned byReference,
+                      const void* dict, size_t dictSize,
+                            unsigned byReference, ZSTD_dictMode_e dictMode,
                             ZSTD_compressionParameters cParams);
 
 /*! ZSTD_getCParams() :
@@ -867,12 +871,15 @@ ZSTDLIB_API ZSTD_nextInputType_e ZSTD_nextInputType(ZSTD_DCtx* dctx);
 /* note on naming convention :
  *   Initially, the API favored names like ZSTD_setCCtxParameter() .
  *   In this proposal, convention is changed towards ZSTD_CCtx_setParameter() .
- *   The main idea is that it identifies more clearly the target object type.
- *   It feels clearer when considering other potential variants :
+ *   The main driver is that it identifies more clearly the target object type.
+ *   It feels clearer in light of potential variants :
  *   ZSTD_CDict_setParameter() (rather than ZSTD_setCDictParameter())
  *   ZSTD_DCtx_setParameter()  (rather than ZSTD_setDCtxParameter() )
- *   The left variant feels clearer.
+ *   Left variant feels easier to distinguish.
  */
+
+/* note on enum design :
+ * All enum will be manually set to explicit values before reaching "stable API" status */
 
 typedef enum {
     /* compression parameters */
@@ -928,10 +935,10 @@ typedef enum {
     /* dictionary parameters */
     ZSTD_p_refDictContent=300, /* Content of dictionary content will be referenced, instead of copied (default:0).
                               * This avoids duplicating dictionary content.
-                              * But it also requires that dictionary buffer outlives its user (CDict) */
-                             /* Not ready yet ! */
-    ZSTD_p_rawContentDict,   /* load dictionary in "content-only" mode (no header analysis) (default:0) */
-                             /* question : should there be an option to load dictionary only in zstd format, rejecting others with an error code ? */
+                              * But it also requires that dictionary buffer outlives its users */
+                             /* Not ready yet ! <=================================== */
+    ZSTD_p_dictMode,         /* Select how dictionary must be interpreted. Value must be from type ZSTD_dictMode_e.
+                              * default : 0==auto : dictionary will be "full" if it respects specification, otherwise it will be "rawContent" */
 
     /* multi-threading parameters */
     ZSTD_p_nbThreads=400,    /* Select how many threads a compression job can spawn (default:1)
@@ -947,7 +954,7 @@ typedef enum {
 
     /* advanced parameters - may not remain available after API update */
     ZSTD_p_forceMaxWindow=1100, /* Force back-references to remain < windowSize,
-                              * even when referencing into Dictionary content
+                              * even when referencing into Dictionary content.
                               * default : 0 when using a CDict, 1 when using a Prefix */
 } ZSTD_cParameter;
 
@@ -1007,7 +1014,7 @@ ZSTDLIB_API size_t ZSTD_CCtx_refCDict(ZSTD_CCtx* cctx, const ZSTD_CDict* cdict);
  *  Note 1 : Prefix buffer is referenced. It must outlive compression job.
  *  Note 2 : Referencing a prefix involves building tables, which are dependent on compression parameters.
  *           It's a CPU-heavy operation, with non-negligible impact on latency. */
-ZSTDLIB_API size_t ZSTD_CCtx_refPrefix(ZSTD_CCtx* cctx, const void* prefix, size_t prefixSize);   /* Not ready yet ! */
+ZSTDLIB_API size_t ZSTD_CCtx_refPrefix(ZSTD_CCtx* cctx, const void* prefix, size_t prefixSize);   /* Not ready yet ! <===================================== */
 
 
 

@@ -305,6 +305,7 @@ void ZSTD_invalidateRepCodes(ZSTD_CCtx* cctx);
 
 
 typedef enum { ZSTDb_not_buffered, ZSTDb_buffered } ZSTD_buffered_policy_e;
+#if 0
 /*! ZSTD_compressBegin_internal() :
  *  innermost initialization function. Private use only.
  *  expects params to be valid.
@@ -315,7 +316,7 @@ size_t ZSTD_compressBegin_internal(ZSTD_CCtx* cctx,
                              const ZSTD_CDict* cdict,
                                    ZSTD_parameters params, U64 pledgedSrcSize,
                                    ZSTD_buffered_policy_e zbuff);
-
+#endif
 
 /*! ZSTD_initCStream_internal() :
  *  Private use only. Init streaming operation.

@@ -2306,14 +2306,13 @@ size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inB
                     break;
             }   }
 
-            /* Consume header */
+            /* Consume header (see ZSTDds_decodeFrameHeader) */
             CHECK_F(ZSTD_decompressBegin_usingDDict(zds, zds->ddict));
-            {   size_t const h1Size = ZSTD_nextSrcSizeToDecompress(zds);  /* == ZSTD_frameHeaderSize_prefix */
-                CHECK_F(ZSTD_decompressContinue(zds, NULL, 0, zds->headerBuffer, h1Size));
-                {   size_t const h2Size = ZSTD_nextSrcSizeToDecompress(zds);
-                    CHECK_F(ZSTD_decompressContinue(zds, NULL, 0, zds->headerBuffer+h1Size, h2Size));
-            }   }
+            CHECK_F(ZSTD_decodeFrameHeader(zds, zds->headerBuffer, zds->lhSize));
+            zds->expected = ZSTD_blockHeaderSize;
+            zds->stage = ZSTDds_decodeBlockHeader;
 
+            /* control buffer memory usage */
             zds->fParams.windowSize = MAX(zds->fParams.windowSize, 1U << ZSTD_WINDOWLOG_ABSOLUTEMIN);
             if (zds->fParams.windowSize > zds->maxWindowSize) return ERROR(frameParameter_windowTooLarge);
 

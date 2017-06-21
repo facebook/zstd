@@ -223,6 +223,7 @@ ZSTD_DCtx* ZSTD_createDCtx(void)
 size_t ZSTD_freeDCtx(ZSTD_DCtx* dctx)
 {
     if (dctx==NULL) return 0;   /* support free on NULL */
+    if (dctx->staticSize) return ERROR(memory_allocation);   /* not compatible with static DCtx */
     {   ZSTD_customMem const cMem = dctx->customMem;
         ZSTD_freeDDict(dctx->ddictLocal);
         dctx->ddictLocal = NULL;
@@ -237,7 +238,7 @@ size_t ZSTD_freeDCtx(ZSTD_DCtx* dctx)
     }
 }
 
-/* no longer appropriate */
+/* no longer useful */
 void ZSTD_copyDCtx(ZSTD_DCtx* dstDCtx, const ZSTD_DCtx* srcDCtx)
 {
     size_t const toCopy = (size_t)((char*)(&dstDCtx->inBuff) - (char*)dstDCtx);
@@ -1981,10 +1982,10 @@ static size_t ZSTD_initDDict_internal(ZSTD_DDict* ddict, const void* dict, size_
         ddict->dictContent = dict;
     } else {
         void* const internalBuffer = ZSTD_malloc(dictSize, ddict->cMem);
-        if (!internalBuffer) return ERROR(memory_allocation);
-        memcpy(internalBuffer, dict, dictSize);
         ddict->dictBuffer = internalBuffer;
         ddict->dictContent = internalBuffer;
+        if (!internalBuffer) return ERROR(memory_allocation);
+        memcpy(internalBuffer, dict, dictSize);
     }
     ddict->dictSize = dictSize;
     ddict->entropy.hufTable[0] = (HUF_DTable)((HufLog)*0x1000001);  /* cover both little and big endian */
@@ -2353,7 +2354,7 @@ size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inB
                     break;
                 }
                 if ((size_t)(iend-ip) >= neededInSize) {  /* decode directly from src */
-                    const int isSkipFrame = ZSTD_isSkipFrame(zds);
+                    int const isSkipFrame = ZSTD_isSkipFrame(zds);
                     size_t const decodedSize = ZSTD_decompressContinue(zds,
                         zds->outBuff + zds->outStart, (isSkipFrame ? 0 : zds->outBuffSize - zds->outStart),
                         ip, neededInSize);

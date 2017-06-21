@@ -4017,14 +4017,13 @@ static const ZSTD_compressionParameters ZSTD_defaultCParameters[4][ZSTD_MAX_CLEV
 *   Size values are optional, provide 0 if not known or unused */
 ZSTD_compressionParameters ZSTD_getCParams(int compressionLevel, unsigned long long srcSizeHint, size_t dictSize)
 {
-    ZSTD_compressionParameters cp;
     size_t const addedSize = srcSizeHint ? 0 : 500;
     U64 const rSize = srcSizeHint+dictSize ? srcSizeHint+dictSize+addedSize : (U64)-1;
     U32 const tableID = (rSize <= 256 KB) + (rSize <= 128 KB) + (rSize <= 16 KB);   /* intentional underflow for srcSizeHint == 0 */
     if (compressionLevel <= 0) compressionLevel = ZSTD_CLEVEL_DEFAULT;   /* 0 == default; no negative compressionLevel yet */
     if (compressionLevel > ZSTD_MAX_CLEVEL) compressionLevel = ZSTD_MAX_CLEVEL;
-    cp = ZSTD_defaultCParameters[tableID][compressionLevel];
-    return ZSTD_adjustCParams_internal(cp, srcSizeHint, dictSize);   /* no need to ensure initial CParams validity */
+    { ZSTD_compressionParameters const cp = ZSTD_defaultCParameters[tableID][compressionLevel];
+      return ZSTD_adjustCParams_internal(cp, srcSizeHint, dictSize); }
 }
 
 /*! ZSTD_getParams() :

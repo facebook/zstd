@@ -875,13 +875,14 @@ typedef struct {
 /*
  * Reads information from file, stores in *info
  * if successful, returns 0, returns 1 for frame analysis error, returns 2 for file not compressed with zstd
+ * returns 3 for cases in which file could not be opened.
  */
 static int getFileInfo(fileInfo_t* info, const char* inFileName){
     int detectError = 0;
     FILE* const srcFile = FIO_openSrcFile(inFileName);
     if (srcFile == NULL) {
         DISPLAY("Error: could not open source file %s\n", inFileName);
-        return 1;
+        return 3;
     }
     info->compressedSize = (unsigned long long)UTIL_getFileSize(inFileName);
     /* begin analyzing frame */
@@ -1054,6 +1055,10 @@ static int FIO_listFile(const char* inFileName, int displayLevel, unsigned fileN
             if (displayLevel > 2) {
                 DISPLAYOUT("\n");
             }
+            return 1;
+        }
+        else if (error == 3) {
+            /* error occurred with opening the file */
             return 1;
         }
         displayInfo(inFileName, &info, displayLevel);

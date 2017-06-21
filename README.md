@@ -67,11 +67,11 @@ Previous charts provide results applicable to typical file and stream scenarios 
 The smaller the amount of data to compress, the more difficult it is to compress. This problem is common to all compression algorithms, and reason is, compression algorithms learn from past data how to compress future data. But at the beginning of a new data set, there is no "past" to build upon.
 
 To solve this situation, Zstd offers a __training mode__, which can be used to tune the algorithm for a selected type of data.
-Training Zstandard is achieved by provide it with a few samples (one file per sample). The result of this training is stored in a file called "dictionary", which must be loaded before compression and decompression.
+Training Zstandard is achieved by providing it with a few samples (one file per sample). The result of this training is stored in a file called "dictionary", which must be loaded before compression and decompression.
 Using this dictionary, the compression ratio achievable on small data improves dramatically.
 
 The following example uses the `github-users` [sample set](https://github.com/facebook/zstd/releases/tag/v1.1.3), created from [github public API](https://developer.github.com/v3/users/#get-all-users).
-It consists of roughly 10K records weighting about 1KB each.
+It consists of roughly 10K records weighing about 1KB each.
 
 Compression Ratio | Compression Speed | Decompression Speed
 ------------------|-------------------|--------------------

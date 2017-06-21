@@ -2244,6 +2244,8 @@ size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inB
     char* op = ostart;
     U32 someMoreWork = 1;
 
+    DEBUGLOG(5, "ZSTD_decompressStream");
+    DEBUGLOG(5, "input size : %u", (U32)(input->size - input->pos));
 #if defined(ZSTD_LEGACY_SUPPORT) && (ZSTD_LEGACY_SUPPORT>=1)
     if (zds->legacyVersion) {
         /* legacy support is incompatible with static dctx */
@@ -2308,12 +2310,20 @@ size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inB
             }   }
 
             /* Consume header (see ZSTDds_decodeFrameHeader) */
+            DEBUGLOG(5, "Consume header");
             CHECK_F(ZSTD_decompressBegin_usingDDict(zds, zds->ddict));
-            CHECK_F(ZSTD_decodeFrameHeader(zds, zds->headerBuffer, zds->lhSize));
-            zds->expected = ZSTD_blockHeaderSize;
-            zds->stage = ZSTDds_decodeBlockHeader;
+
+            if ((MEM_readLE32(zds->headerBuffer) & 0xFFFFFFF0U) == ZSTD_MAGIC_SKIPPABLE_START) {  /* skippable frame */
+                zds->expected = MEM_readLE32(zds->headerBuffer + 4);
+                zds->stage = ZSTDds_skipFrame;
+            } else {
+                CHECK_F(ZSTD_decodeFrameHeader(zds, zds->headerBuffer, zds->lhSize));
+                zds->expected = ZSTD_blockHeaderSize;
+                zds->stage = ZSTDds_decodeBlockHeader;
+            }
 
             /* control buffer memory usage */
+            DEBUGLOG(5, "Control max buffer memory usage");
             zds->fParams.windowSize = MAX(zds->fParams.windowSize, 1U << ZSTD_WINDOWLOG_ABSOLUTEMIN);
             if (zds->fParams.windowSize > zds->maxWindowSize) return ERROR(frameParameter_windowTooLarge);
 
@@ -2328,8 +2338,8 @@ size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inB
                     DEBUGLOG(5, "outBuff : from %u to %u",
                                 (U32)zds->outBuffSize, (U32)neededOutSize);
                     if (zds->staticSize) {  /* static DCtx */
-                        DEBUGLOG(4, "staticSize : %u", (U32)zds->staticSize);
-                        assert(zds->staticSize >= sizeof(ZSTD_DCtx));  /* already checked at init */
+                        DEBUGLOG(5, "staticSize : %u", (U32)zds->staticSize);
+                        assert(zds->staticSize >= sizeof(ZSTD_DCtx));  /* controlled at init */
                         if (bufferSize > zds->staticSize - sizeof(ZSTD_DCtx))
                             return ERROR(memory_allocation);
                     } else {
@@ -2347,7 +2357,9 @@ size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inB
             /* pass-through */
 
         case zdss_read:
+            DEBUGLOG(5, "stage zdss_read");
             {   size_t const neededInSize = ZSTD_nextSrcSizeToDecompress(zds);
+                DEBUGLOG(5, "neededInSize = %u", (U32)neededInSize);
                 if (neededInSize==0) {  /* end of frame */
                     zds->streamStage = zdss_init;
                     someMoreWork = 0;

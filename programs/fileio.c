@@ -106,14 +106,14 @@ static clock_t g_time = 0;
 /*-*************************************
 *  Errors
 ***************************************/
-#ifndef DEBUG
-#  define DEBUG 0
+#ifndef ZSTD_DEBUG
+#  define ZSTD_DEBUG 0
 #endif
-#define DEBUGOUTPUT(...) if (DEBUG) DISPLAY(__VA_ARGS__);
+#define DEBUGLOG(l,...) if (l<=ZSTD_DEBUG) DISPLAY(__VA_ARGS__);
 #define EXM_THROW(error, ...)                                              \
 {                                                                          \
     DISPLAYLEVEL(1, "zstd: ");                                             \
-    DEBUGOUTPUT("Error defined at %s, line %i : \n", __FILE__, __LINE__);  \
+    DEBUGLOG(1, "Error defined at %s, line %i : \n", __FILE__, __LINE__);  \
     DISPLAYLEVEL(1, "error %i : ", error);                                 \
     DISPLAYLEVEL(1, __VA_ARGS__);                                          \
     DISPLAYLEVEL(1, " \n");                                                \
@@ -123,7 +123,7 @@ static clock_t g_time = 0;
 #define CHECK(f) {                                   \
     size_t const err = f;                            \
     if (ZSTD_isError(err)) {                         \
-        DEBUGOUTPUT("%s \n", #f);                    \
+        DEBUGLOG(1, "%s \n", #f);                    \
         EXM_THROW(11, "%s", ZSTD_getErrorName(err)); \
 }   }
 

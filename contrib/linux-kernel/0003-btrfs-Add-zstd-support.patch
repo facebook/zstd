@@ -1,3 +1,83 @@
+From 599f8f2aaace3df939cb145368574a52268d82d0 Mon Sep 17 00:00:00 2001
+From: Nick Terrell <terrelln@fb.com>
+Date: Wed, 21 Jun 2017 17:31:39 -0700
+Subject: [PATCH 3/4] btrfs: Add zstd support
+
+Add zstd compression and decompression support to BtrFS. zstd at its
+fastest level compresses almost as well as zlib, while offering much
+faster compression and decompression, approaching lzo speeds.
+
+I benchmarked btrfs with zstd compression against no compression, lzo
+compression, and zlib compression. I benchmarked two scenarios. Copying
+a set of files to btrfs, and then reading the files. Copying a tarball
+to btrfs, extracting it to btrfs, and then reading the extracted files.
+After every operation, I call `sync` and include the sync time.
+Between every pair of operations I unmount and remount the filesystem
+to avoid caching. The benchmark files can be found in the upstream
+zstd source repository under
+`contrib/linux-kernel/{btrfs-benchmark.sh,btrfs-extract-benchmark.sh}`
+[1] [2].
+
+I ran the benchmarks on a Ubuntu 14.04 VM with 2 cores and 4 GiB of RAM.
+The VM is running on a MacBook Pro with a 3.1 GHz Intel Core i7 processor,
+16 GB of RAM, and a SSD.
+
+The first compression benchmark is copying 10 copies of the unzipped
+Silesia corpus [3] into a BtrFS filesystem mounted with
+`-o compress-force=Method`. The decompression benchmark times how long
+it takes to `tar` all 10 copies into `/dev/null`. The compression ratio is
+measured by comparing the output of `df` and `du`. See the benchmark file
+[1] for details. I benchmarked multiple zstd compression levels, although
+the patch uses zstd level 1.
+
+| Method  | Ratio | Compression MB/s | Decompression speed |
+|---------|-------|------------------|---------------------|
+| None    |  0.99 |              504 |                 686 |
+| lzo     |  1.66 |              398 |                 442 |
+| zlib    |  2.58 |               65 |                 241 |
+| zstd 1  |  2.57 |              260 |                 383 |
+| zstd 3  |  2.71 |              174 |                 408 |
+| zstd 6  |  2.87 |               70 |                 398 |
+| zstd 9  |  2.92 |               43 |                 406 |
+| zstd 12 |  2.93 |               21 |                 408 |
+| zstd 15 |  3.01 |               11 |                 354 |
+
+The next benchmark first copies `linux-4.11.6.tar` [4] to btrfs. Then it
+measures the compression ratio, extracts the tar, and deletes the tar.
+Then it measures the compression ratio again, and `tar`s the extracted
+files into `/dev/null`. See the benchmark file [2] for details.
+
+| Method | Tar Ratio | Extract Ratio | Copy (s) | Extract (s)| Read (s) |
+|--------|-----------|---------------|----------|------------|----------|
+| None   |      0.97 |          0.78 |    0.981 |      5.501 |    8.807 |
+| lzo    |      2.06 |          1.38 |    1.631 |      8.458 |    8.585 |
+| zlib   |      3.40 |          1.86 |    7.750 |     21.544 |   11.744 |
+| zstd 1 |      3.57 |          1.85 |    2.579 |     11.479 |    9.389 |
+
+[1] https://github.com/facebook/zstd/blob/dev/contrib/linux-kernel/btrfs-benchmark.sh
+[2] https://github.com/facebook/zstd/blob/dev/contrib/linux-kernel/btrfs-extract-benchmark.sh
+[3] http://sun.aei.polsl.pl/~sdeor/index.php?page=silesia
+[4] https://cdn.kernel.org/pub/linux/kernel/v4.x/linux-4.11.6.tar.xz
+
+zstd source repository: https://github.com/facebook/zstd
+
+Signed-off-by: Nick Terrell <terrelln@fb.com>
+---
+ fs/btrfs/Kconfig           |   2 +
+ fs/btrfs/Makefile          |   2 +-
+ fs/btrfs/compression.c     |   1 +
+ fs/btrfs/compression.h     |   6 +-
+ fs/btrfs/ctree.h           |   1 +
+ fs/btrfs/disk-io.c         |   2 +
+ fs/btrfs/ioctl.c           |   6 +-
+ fs/btrfs/props.c           |   6 +
+ fs/btrfs/super.c           |  12 +-
+ fs/btrfs/sysfs.c           |   2 +
+ fs/btrfs/zstd.c            | 433 +++++++++++++++++++++++++++++++++++++++++++++
+ include/uapi/linux/btrfs.h |   8 +-
+ 12 files changed, 469 insertions(+), 12 deletions(-)
+ create mode 100644 fs/btrfs/zstd.c
+
 diff --git a/fs/btrfs/Kconfig b/fs/btrfs/Kconfig
 index 80e9c18..a26c63b 100644
 --- a/fs/btrfs/Kconfig
@@ -25,7 +105,7 @@ index 128ce17..962a95a 100644
  	   reada.o backref.o ulist.o qgroup.o send.o dev-replace.o raid56.o \
  	   uuid-tree.o props.o hash.o free-space-tree.o
 diff --git a/fs/btrfs/compression.c b/fs/btrfs/compression.c
-index c7721a6..66d4ced 100644
+index 10e6b28..3beb0d0 100644
 --- a/fs/btrfs/compression.c
 +++ b/fs/btrfs/compression.c
 @@ -761,6 +761,7 @@ static struct {
@@ -34,7 +114,7 @@ index c7721a6..66d4ced 100644
  	&btrfs_lzo_compress,
 +	&btrfs_zstd_compress,
  };
- 
+
  void __init btrfs_init_compress(void)
 diff --git a/fs/btrfs/compression.h b/fs/btrfs/compression.h
 index 39ec43a..d99fc21 100644
@@ -50,20 +130,20 @@ index 39ec43a..d99fc21 100644
 +	BTRFS_COMPRESS_TYPES = 3,
 +	BTRFS_COMPRESS_LAST  = 4,
  };
- 
+
  struct btrfs_compress_op {
 @@ -92,5 +93,6 @@ struct btrfs_compress_op {
- 
+
  extern const struct btrfs_compress_op btrfs_zlib_compress;
  extern const struct btrfs_compress_op btrfs_lzo_compress;
 +extern const struct btrfs_compress_op btrfs_zstd_compress;
- 
+
  #endif
 diff --git a/fs/btrfs/ctree.h b/fs/btrfs/ctree.h
-index 29b7fc2..878b23b9 100644
+index 4f8f75d..61dd3dd 100644
 --- a/fs/btrfs/ctree.h
 +++ b/fs/btrfs/ctree.h
-@@ -270,6 +270,7 @@ struct btrfs_super_block {
+@@ -271,6 +271,7 @@ struct btrfs_super_block {
  	 BTRFS_FEATURE_INCOMPAT_MIXED_GROUPS |		\
  	 BTRFS_FEATURE_INCOMPAT_BIG_METADATA |		\
  	 BTRFS_FEATURE_INCOMPAT_COMPRESS_LZO |		\
@@ -72,24 +152,24 @@ index 29b7fc2..878b23b9 100644
  	 BTRFS_FEATURE_INCOMPAT_EXTENDED_IREF |		\
  	 BTRFS_FEATURE_INCOMPAT_SKINNY_METADATA |	\
 diff --git a/fs/btrfs/disk-io.c b/fs/btrfs/disk-io.c
-index 08b74da..0c43e4e 100644
+index 5f678dc..49c0e91 100644
 --- a/fs/btrfs/disk-io.c
 +++ b/fs/btrfs/disk-io.c
-@@ -2853,6 +2853,8 @@ int open_ctree(struct super_block *sb,
+@@ -2831,6 +2831,8 @@ int open_ctree(struct super_block *sb,
  	features |= BTRFS_FEATURE_INCOMPAT_MIXED_BACKREF;
  	if (fs_info->compress_type == BTRFS_COMPRESS_LZO)
  		features |= BTRFS_FEATURE_INCOMPAT_COMPRESS_LZO;
-+	else if (tree_root->fs_info->compress_type == BTRFS_COMPRESS_ZSTD)
++	else if (fs_info->compress_type == BTRFS_COMPRESS_ZSTD)
 +		features |= BTRFS_FEATURE_INCOMPAT_COMPRESS_ZSTD;
- 
+
  	if (features & BTRFS_FEATURE_INCOMPAT_SKINNY_METADATA)
  		btrfs_info(fs_info, "has skinny extents");
 diff --git a/fs/btrfs/ioctl.c b/fs/btrfs/ioctl.c
-index dabfc7a..d8ea727 100644
+index e176375..f732cfd 100644
 --- a/fs/btrfs/ioctl.c
 +++ b/fs/btrfs/ioctl.c
 @@ -327,8 +327,10 @@ static int btrfs_ioctl_setflags(struct file *file, void __user *arg)
- 
+
  		if (fs_info->compress_type == BTRFS_COMPRESS_LZO)
  			comp = "lzo";
 -		else
@@ -101,13 +181,13 @@ index dabfc7a..d8ea727 100644
  				     comp, strlen(comp), 0);
  		if (ret)
 @@ -1463,6 +1465,8 @@ int btrfs_defrag_file(struct inode *inode, struct file *file,
- 
+
  	if (range->compress_type == BTRFS_COMPRESS_LZO) {
  		btrfs_set_fs_incompat(fs_info, COMPRESS_LZO);
 +	} else if (range->compress_type == BTRFS_COMPRESS_ZSTD) {
 +		btrfs_set_fs_incompat(fs_info, COMPRESS_ZSTD);
  	}
- 
+
  	ret = defrag_count;
 diff --git a/fs/btrfs/props.c b/fs/btrfs/props.c
 index d6cb155..162105f 100644
@@ -119,7 +199,7 @@ index d6cb155..162105f 100644
  		return 0;
 +	else if (!strncmp("zstd", value, len))
 +		return 0;
- 
+
  	return -EINVAL;
  }
 @@ -405,6 +407,8 @@ static int prop_compression_apply(struct inode *inode,
@@ -130,7 +210,7 @@ index d6cb155..162105f 100644
 +		type = BTRFS_COMPRESS_ZSTD;
  	else
  		return -EINVAL;
- 
+
 @@ -422,6 +426,8 @@ static const char *prop_compression_extract(struct inode *inode)
  		return "zlib";
  	case BTRFS_COMPRESS_LZO:
@@ -138,10 +218,10 @@ index d6cb155..162105f 100644
 +	case BTRFS_COMPRESS_ZSTD:
 +		return "zstd";
  	}
- 
+
  	return NULL;
 diff --git a/fs/btrfs/super.c b/fs/btrfs/super.c
-index da687dc..b064456 100644
+index 4f1cdd5..4f792d5 100644
 --- a/fs/btrfs/super.c
 +++ b/fs/btrfs/super.c
 @@ -513,6 +513,14 @@ int btrfs_parse_options(struct btrfs_fs_info *info, char *options,
@@ -159,7 +239,7 @@ index da687dc..b064456 100644
  			} else if (strncmp(args[0].from, "no", 2) == 0) {
  				compress_type = "no";
  				btrfs_clear_opt(info->mount_opt, COMPRESS);
-@@ -1230,8 +1238,10 @@ static int btrfs_show_options(struct seq_file *seq, struct dentry *dentry)
+@@ -1240,8 +1248,10 @@ static int btrfs_show_options(struct seq_file *seq, struct dentry *dentry)
  	if (btrfs_test_opt(info, COMPRESS)) {
  		if (info->compress_type == BTRFS_COMPRESS_ZLIB)
  			compress_type = "zlib";
@@ -631,7 +711,7 @@ index 0000000..838741b
 +	.decompress = zstd_decompress,
 +};
 diff --git a/include/uapi/linux/btrfs.h b/include/uapi/linux/btrfs.h
-index db4c253..f26c34f 100644
+index a456e53..992c150 100644
 --- a/include/uapi/linux/btrfs.h
 +++ b/include/uapi/linux/btrfs.h
 @@ -255,13 +255,7 @@ struct btrfs_ioctl_fs_info_args {
@@ -646,6 +726,8 @@ index db4c253..f26c34f 100644
 - */
 -#define BTRFS_FEATURE_INCOMPAT_COMPRESS_LZOv2	(1ULL << 4)
 +#define BTRFS_FEATURE_INCOMPAT_COMPRESS_ZSTD	(1ULL << 4)
- 
+
  /*
   * older kernels tried to do bigger metadata blocks, but the
+--
+2.9.3

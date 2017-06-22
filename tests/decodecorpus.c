@@ -1235,7 +1235,7 @@ static int genRandomDict(U32 dictID, U32 seed, size_t dictSize, BYTE* fullDict){
 static dictInfo initDictInfo(int useDict, size_t dictContentSize, BYTE* dictContent, U32 dictID){
     /* allocate space statically */
     dictInfo dictOp;
-    memset((void*)(&dictOp), 0, sizeof(dictOp));
+    memset(&dictOp, 0, sizeof(dictOp));
     dictOp.useDict = useDict;
     dictOp.dictContentSize = dictContentSize;
     dictOp.dictContent = dictContent;

@@ -689,7 +689,7 @@ static int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compres
     const BYTE* dict=NULL;   /* can keep same dict on 2 consecutive tests */
     size_t dictSize = 0;
     U32 oldTestLog = 0;
-    int const cLevelLimiter = bigTests ? 3 : 2;
+    U32 const cLevelMax = bigTests ? ZSTD_maxCLevel() : 17;
 
     /* allocations */
     cNoiseBuffer[0] = (BYTE*)malloc (srcBufferSize);
@@ -772,10 +772,11 @@ static int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compres
         } else {
             U32 const testLog = FUZ_rand(&lseed) % maxSrcLog;
             U32 const dictLog = FUZ_rand(&lseed) % maxSrcLog;
-            U32 const cLevel = ( FUZ_rand(&lseed) %
+            U32 const cLevelCandidate = ( FUZ_rand(&lseed) %
                                 (ZSTD_maxCLevel() -
-                                (MAX(testLog, dictLog) / cLevelLimiter)))
+                                (MAX(testLog, dictLog) / 3)))
                                  + 1;
+            U32 const cLevel = MIN(cLevelCandidate, cLevelMax);
             maxTestSize = FUZ_rLogLength(&lseed, testLog);
             oldTestLog = testLog;
             /* random dictionary selection */
@@ -931,7 +932,8 @@ static int fuzzerTests_MT(U32 seed, U32 nbTests, unsigned startTest, double comp
     const BYTE* dict=NULL;   /* can keep same dict on 2 consecutive tests */
     size_t dictSize = 0;
     U32 oldTestLog = 0;
-    int const cLevelLimiter = bigTests ? 3 : 2;
+    U32 const cLevelMax = bigTests ? ZSTD_maxCLevel() : 17;
+    U32 const nbThreadsMax = bigTests ? 5 : 2;
 
     /* allocations */
     cNoiseBuffer[0] = (BYTE*)malloc (srcBufferSize);
@@ -975,7 +977,8 @@ static int fuzzerTests_MT(U32 seed, U32 nbTests, unsigned startTest, double comp
         /* states full reset (deliberately not synchronized) */
         /* some issues can only happen when reusing states */
         if ((FUZ_rand(&lseed) & 0xFF) == 131) {
-            U32 const nbThreads = (FUZ_rand(&lseed) % 6) + 1;
+            U32 const nbThreadsCandidate = (FUZ_rand(&lseed) % 6) + 1;
+            U32 const nbThreads = MIN(nbThreadsCandidate, nbThreadsMax);
             DISPLAYLEVEL(5, "Creating new context with %u threads \n", nbThreads);
             ZSTDMT_freeCCtx(zc);
             zc = ZSTDMT_createCCtx(nbThreads);
@@ -1015,10 +1018,11 @@ static int fuzzerTests_MT(U32 seed, U32 nbTests, unsigned startTest, double comp
         } else {
             U32 const testLog = FUZ_rand(&lseed) % maxSrcLog;
             U32 const dictLog = FUZ_rand(&lseed) % maxSrcLog;
-            U32 const cLevel = (FUZ_rand(&lseed) %
+            U32 const cLevelCandidate = (FUZ_rand(&lseed) %
                                (ZSTD_maxCLevel() -
-                               (MAX(testLog, dictLog) / cLevelLimiter))) +
+                               (MAX(testLog, dictLog) / 3))) +
                                1;
+            U32 const cLevel = MIN(cLevelCandidate, cLevelMax);
             maxTestSize = FUZ_rLogLength(&lseed, testLog);
             oldTestLog = testLog;
             /* random dictionary selection */
@@ -1187,7 +1191,8 @@ static int fuzzerTests_newAPI(U32 seed, U32 nbTests, unsigned startTest, double 
     const BYTE* dict = NULL;   /* can keep same dict on 2 consecutive tests */
     size_t dictSize = 0;
     U32 oldTestLog = 0;
-    int const cLevelLimiter = bigTests ? 3 : 2;
+    U32 const cLevelMax = bigTests ? ZSTD_maxCLevel() : 17;
+    U32 const nbThreadsMax = bigTests ? 5 : 2;
 
     /* allocations */
     cNoiseBuffer[0] = (BYTE*)malloc (srcBufferSize);
@@ -1271,10 +1276,11 @@ static int fuzzerTests_newAPI(U32 seed, U32 nbTests, unsigned startTest, double 
         } else {
             U32 const testLog = FUZ_rand(&lseed) % maxSrcLog;
             U32 const dictLog = FUZ_rand(&lseed) % maxSrcLog;
-            U32 const cLevel = (FUZ_rand(&lseed) %
+            U32 const cLevelCandidate = (FUZ_rand(&lseed) %
                                (ZSTD_maxCLevel() -
-                               (MAX(testLog, dictLog) / cLevelLimiter))) +
+                               (MAX(testLog, dictLog) / 3))) +
                                1;
+            U32 const cLevel = MIN(cLevelCandidate, cLevelMax);
             maxTestSize = FUZ_rLogLength(&lseed, testLog);
             oldTestLog = testLog;
             /* random dictionary selection */
@@ -1320,7 +1326,8 @@ static int fuzzerTests_newAPI(U32 seed, U32 nbTests, unsigned startTest, double 
                 DISPLAYLEVEL(5, "pledgedSrcSize : %u \n", (U32)pledgedSrcSize);
 
                 /* multi-threading parameters */
-                {   U32 const nbThreads = (FUZ_rand(&lseed) & 3) + 1;
+                {   U32 const nbThreadsCandidate = (FUZ_rand(&lseed) & 4) + 1;
+                    U32 const nbThreads = MIN(nbThreadsCandidate, nbThreadsMax);
                     CHECK_Z( ZSTD_CCtx_setParameter(zc, ZSTD_p_nbThreads, nbThreads) );
                     if (nbThreads > 1) {
                         U32 const jobLog = FUZ_rand(&lseed) % (testLog+1);

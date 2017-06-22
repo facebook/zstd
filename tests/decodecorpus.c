@@ -1173,9 +1173,14 @@ static U32 generateFrame(U32 seed, frame_t* fr, dictInfo info)
 /* returns 0 if successful, otherwise returns 1 upon error */
 static int genRandomDict(U32 dictID, U32 seed, size_t dictSize, BYTE* fullDict){
     /* allocate space for samples */
+    int ret = 0;
     unsigned const numSamples = 4;
-    BYTE samples[5000];
     size_t sampleSizes[4];
+    BYTE* const samples = malloc(5000);
+    if (samples == NULL) {
+        DISPLAY("Error: could not allocate space for samples\n");
+        return 1;
+    }
 
     /* generate samples */
     {
@@ -1205,7 +1210,8 @@ static int genRandomDict(U32 dictID, U32 seed, size_t dictSize, BYTE* fullDict){
         BYTE* const dictContent = fullDict + headerSize;
         if (dictContentSize < ZDICT_CONTENTSIZE_MIN || dictSize < ZDICT_DICTSIZE_MIN) {
             DISPLAY("Error: dictionary size is too small\n");
-            return 1;
+            ret = 1;
+            goto exitGenRandomDict;
         }
 
         /* init dictionary params */
@@ -1224,11 +1230,13 @@ static int genRandomDict(U32 dictID, U32 seed, size_t dictSize, BYTE* fullDict){
 
         if (ZDICT_isError(dictWriteSize)) {
             DISPLAY("Could not finalize dictionary: %s\n", ZDICT_getErrorName(dictWriteSize));
-            return 1;
+            ret = 1;
         }
     }
 
-    return 0;
+exitGenRandomDict:
+    free(samples);
+    return ret;
 }
 
 static dictInfo initDictInfo(int useDict, size_t dictContentSize, BYTE* dictContent, U32 dictID){

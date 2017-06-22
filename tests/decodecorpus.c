@@ -1184,18 +1184,18 @@ static int genRandomDict(U32 dictID, U32 seed, size_t dictSize, BYTE* fullDict){
 
     /* generate samples */
     {
-        unsigned i = 1;
-        unsigned j = 0;
+        unsigned literalValue = 1;
+        unsigned samplesPos = 0;
         size_t currSize = 1;
-        while (i <= 4) {
-            sampleSizes[i - 1] = currSize;
+        while (literalValue <= 4) {
+            sampleSizes[literalValue - 1] = currSize;
             {
                 size_t k;
                 for (k = 0; k < currSize; k++) {
-                    samples[j++] = (BYTE)i;
+                    samples[samplesPos++] = (BYTE)literalValue;
                 }
             }
-            i++;
+            literalValue++;
             currSize *= 16;
         }
     }

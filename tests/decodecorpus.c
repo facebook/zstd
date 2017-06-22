@@ -648,7 +648,6 @@ static U32 generateSequences(U32* seed, frame_t* frame, seqStore_t* seqStore,
     }
 
     DISPLAYLEVEL(5, "    total match lengths: %u\n", (U32)remainingMatch);
-
     for (i = 0; i < numSequences; i++) {
         /* Generate match and literal lengths by exponential distribution to
          * ensure nice numbers */
@@ -683,8 +682,15 @@ static U32 generateSequences(U32* seed, frame_t* frame, seqStore_t* seqStore,
                          1;
                 if (info.useDict && (RAND(seed) & 1)) {
                     /* need to occasionally generate offsets that go past the start */
-                    U32 const lenPastStart = RAND(seed) % info.dictContentSize + 1;
+                    U32 const lenPastStart = (RAND(seed) % info.dictContentSize) + 1;
                     offset = ((BYTE*)srcPtr - (BYTE*)frame->srcStart)+lenPastStart;
+                    if (lenPastStart > frame->header.windowSize) {
+                        matchLen = MIN(matchLen, frame->header.windowSize);
+                    }
+                    if (offset > frame->header.windowSize) {
+                        U32 const matchLenBound = MIN(frame->header.windowSize, lenPastStart);
+                        matchLen = MIN(matchLen, matchLenBound);
+                    }
                 }
                 offsetCode = offset + ZSTD_REP_MOVE;
                 repIndex = 2;

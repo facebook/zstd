@@ -1389,7 +1389,7 @@ static int runTestMode(U32 seed, unsigned numFiles, unsigned const testDurationS
 
         {
             dictInfo const info = initDictInfo(0, 0, NULL, 0);
-            generateFrame(seed, &fr, info);
+            seed = generateFrame(seed, &fr, info);
         }
 
         {   size_t const r = testDecodeSimple(&fr);
@@ -1461,7 +1461,7 @@ static int generateCorpus(U32 seed, unsigned numFiles, const char* const path,
 
         {
             dictInfo const info = initDictInfo(0, 0, NULL, 0);
-            generateFrame(seed, &fr, info);
+            seed = generateFrame(seed, &fr, info);
         }
 
         if (snprintf(outPath, MAX_PATH, "%s/z%06u.zst", path, fnum) + 1 > MAX_PATH) {

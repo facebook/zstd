@@ -45,6 +45,7 @@
 #define GB *(1U<<30)
 
 static const U32 nbTestsDefault = 10000;
+static const U32 g_cLevelMax_smallTests = 15;
 #define COMPRESSIBLE_NOISE_LENGTH (10 MB)
 #define FUZ_COMPRESSIBILITY_DEFAULT 50
 static const U32 prime32 = 2654435761U;
@@ -689,7 +690,7 @@ static int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compres
     const BYTE* dict=NULL;   /* can keep same dict on 2 consecutive tests */
     size_t dictSize = 0;
     U32 oldTestLog = 0;
-    U32 const cLevelMax = bigTests ? ZSTD_maxCLevel() : 17;
+    U32 const cLevelMax = bigTests ? ZSTD_maxCLevel() : g_cLevelMax_smallTests;
 
     /* allocations */
     cNoiseBuffer[0] = (BYTE*)malloc (srcBufferSize);
@@ -932,7 +933,7 @@ static int fuzzerTests_MT(U32 seed, U32 nbTests, unsigned startTest, double comp
     const BYTE* dict=NULL;   /* can keep same dict on 2 consecutive tests */
     size_t dictSize = 0;
     U32 oldTestLog = 0;
-    U32 const cLevelMax = bigTests ? ZSTD_maxCLevel() : 17;
+    U32 const cLevelMax = bigTests ? ZSTD_maxCLevel() : g_cLevelMax_smallTests;
     U32 const nbThreadsMax = bigTests ? 5 : 2;
 
     /* allocations */
@@ -1191,7 +1192,7 @@ static int fuzzerTests_newAPI(U32 seed, U32 nbTests, unsigned startTest, double 
     const BYTE* dict = NULL;   /* can keep same dict on 2 consecutive tests */
     size_t dictSize = 0;
     U32 oldTestLog = 0;
-    U32 const cLevelMax = bigTests ? ZSTD_maxCLevel() : 17;
+    U32 const cLevelMax = bigTests ? ZSTD_maxCLevel() : g_cLevelMax_smallTests;
     U32 const nbThreadsMax = bigTests ? 5 : 2;
 
     /* allocations */

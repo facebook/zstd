@@ -32,7 +32,7 @@
 
 static ZSTD_parameters zstd_get_btrfs_parameters(size_t src_len)
 {
-	ZSTD_parameters params = ZSTD_getParams(3, src_len, 0);
+	ZSTD_parameters params = ZSTD_getParams(1, src_len, 0);
 
 	if (params.cParams.windowLog > ZSTD_BTRFS_MAX_WINDOWLOG)
 		params.cParams.windowLog = ZSTD_BTRFS_MAX_WINDOWLOG;

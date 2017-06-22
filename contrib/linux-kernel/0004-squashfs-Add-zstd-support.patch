@@ -1,11 +1,67 @@
+From 5ff6a64abaea7b7f11d37cb0fdf08642316a3a90 Mon Sep 17 00:00:00 2001
+From: Nick Terrell <terrelln@fb.com>
+Date: Mon, 12 Jun 2017 12:18:23 -0700
+Subject: [PATCH 4/4] squashfs: Add zstd support
+
+Add zstd compression and decompression support to SquashFS. zstd is a
+great fit for SquashFS because it can compress at ratios approaching xz,
+while decompressing twice as fast as zlib. For SquashFS in particular,
+it can decompress as fast as lzo and lz4. It also has the flexibility
+to turn down the compression ratio for faster compression times.
+
+The compression benchmark is run on the file tree from the SquashFS archive
+found in ubuntu-16.10-desktop-amd64.iso [1]. It uses `mksquashfs` with the
+default block size (128 KB) and and various compression algorithms/levels.
+xz and zstd are also benchmarked with 256 KB blocks. The decompression
+benchmark times how long it takes to `tar` the file tree into `/dev/null`.
+See the benchmark file in the upstream zstd source repository located under
+`contrib/linux-kernel/squashfs-benchmark.sh` [2] for details.
+
+I ran the benchmarks on a Ubuntu 14.04 VM with 2 cores and 4 GiB of RAM.
+The VM is running on a MacBook Pro with a 3.1 GHz Intel Core i7 processor,
+16 GB of RAM, and a SSD.
+
+| Method         | Ratio | Compression MB/s | Decompression MB/s |
+|----------------|-------|------------------|--------------------|
+| gzip           |  2.92 |               15 |                128 |
+| lzo            |  2.64 |              9.5 |                217 |
+| lz4            |  2.12 |               94 |                218 |
+| xz             |  3.43 |              5.5 |                 35 |
+| xz 256 KB      |  3.53 |              5.4 |                 40 |
+| zstd 1         |  2.71 |               96 |                210 |
+| zstd 5         |  2.93 |               69 |                198 |
+| zstd 10        |  3.01 |               41 |                225 |
+| zstd 15        |  3.13 |             11.4 |                224 |
+| zstd 16 256 KB |  3.24 |              8.1 |                210 |
+
+This patch was written by Sean Purcell <me@seanp.xyz>, but I will be
+taking over the submission process.
+
+[1] http://releases.ubuntu.com/16.10/
+[2] https://github.com/facebook/zstd/blob/dev/contrib/linux-kernel/squashfs-benchmark.sh
+
+zstd source repository: https://github.com/facebook/zstd
+
+Cc: Sean Purcell <me@seanp.xyz>
+Signed-off-by: Nick Terrell <terrelln@fb.com>
+---
+ fs/squashfs/Kconfig        |  14 +++++
+ fs/squashfs/Makefile       |   1 +
+ fs/squashfs/decompressor.c |   7 +++
+ fs/squashfs/decompressor.h |   4 ++
+ fs/squashfs/squashfs_fs.h  |   1 +
+ fs/squashfs/zstd_wrapper.c | 150 +++++++++++++++++++++++++++++++++++++++++++++
+ 6 files changed, 177 insertions(+)
+ create mode 100644 fs/squashfs/zstd_wrapper.c
+
 diff --git a/fs/squashfs/Kconfig b/fs/squashfs/Kconfig
 index ffb093e..1adb334 100644
 --- a/fs/squashfs/Kconfig
 +++ b/fs/squashfs/Kconfig
 @@ -165,6 +165,20 @@ config SQUASHFS_XZ
- 
+
  	  If unsure, say N.
- 
+
 +config SQUASHFS_ZSTD
 +	bool "Include support for ZSTD compressed file systems"
 +	depends on SQUASHFS
@@ -39,7 +95,7 @@ index d2bc136..8366398 100644
 @@ -65,6 +65,12 @@ static const struct squashfs_decompressor squashfs_zlib_comp_ops = {
  };
  #endif
- 
+
 +#ifndef CONFIG_SQUASHFS_ZSTD
 +static const struct squashfs_decompressor squashfs_zstd_comp_ops = {
 +	NULL, NULL, NULL, NULL, ZSTD_COMPRESSION, "zstd", 0
@@ -56,7 +112,7 @@ index d2bc136..8366398 100644
 +	&squashfs_zstd_comp_ops,
  	&squashfs_unknown_comp_ops
  };
- 
+
 diff --git a/fs/squashfs/decompressor.h b/fs/squashfs/decompressor.h
 index a25713c..0f5a8e4 100644
 --- a/fs/squashfs/decompressor.h
@@ -64,7 +120,7 @@ index a25713c..0f5a8e4 100644
 @@ -58,4 +58,8 @@ extern const struct squashfs_decompressor squashfs_lzo_comp_ops;
  extern const struct squashfs_decompressor squashfs_zlib_comp_ops;
  #endif
- 
+
 +#ifdef CONFIG_SQUASHFS_ZSTD
 +extern const struct squashfs_decompressor squashfs_zstd_comp_ops;
 +#endif
@@ -79,7 +135,7 @@ index 506f4ba..24d12fd 100644
  #define XZ_COMPRESSION		4
  #define LZ4_COMPRESSION		5
 +#define ZSTD_COMPRESSION	6
- 
+
  struct squashfs_super_block {
  	__le32			s_magic;
 diff --git a/fs/squashfs/zstd_wrapper.c b/fs/squashfs/zstd_wrapper.c
@@ -238,3 +294,5 @@ index 0000000..8cb7c76
 +	.name = "zstd",
 +	.supported = 1
 +};
+--
+2.9.3

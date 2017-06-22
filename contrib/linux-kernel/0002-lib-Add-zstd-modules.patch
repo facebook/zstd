@@ -1,3 +1,145 @@
+From b52ae824ae6c0f7c7786380b34da9daaa54bfc26 Mon Sep 17 00:00:00 2001
+From: Nick Terrell <terrelln@fb.com>
+Date: Wed, 21 Jun 2017 17:31:24 -0700
+Subject: [PATCH 2/4] lib: Add zstd modules
+
+Add zstd compression and decompression kernel modules.
+zstd offers a wide varity of compression speed and quality trade-offs.
+It can compress at speeds approaching lz4, and quality approaching lzma.
+zstd decompressions at speeds more than twice as fast as zlib, and
+decompression speed remains roughly the same across all compression levels.
+
+The code was ported from the upstream zstd source repository. The
+`linux/zstd.h` header was modified to match linux kernel style.
+The cross-platform and allocation code was stripped out. Instead zstd
+requires the caller to pass a preallocated workspace. The source files
+were clang-formatted [1] to match the Linux Kernel style as much as
+possible. Otherwise, the code was unmodified. We would like to avoid
+as much further manual modification to the source code as possible, so it
+will be easier to keep the kernel zstd up to date.
+
+I benchmarked zstd compression as a special character device. I ran zstd
+and zlib compression at several levels, as well as performing no
+compression, which measure the time spent copying the data to kernel space.
+Data is passed to the compresser 4096 B at a time. The benchmark file is
+located in the upstream zstd source repository under
+`contrib/linux-kernel/zstd_compress_test.c` [2].
+
+I ran the benchmarks on a Ubuntu 14.04 VM with 2 cores and 4 GiB of RAM.
+The VM is running on a MacBook Pro with a 3.1 GHz Intel Core i7 processor,
+16 GB of RAM, and a SSD. I benchmarked using `silesia.tar` [3], which is
+211,988,480 B large. Run the following commands for the benchmark:
+
+    sudo modprobe zstd_compress_test
+    sudo mknod zstd_compress_test c 245 0
+    sudo cp silesia.tar zstd_compress_test
+
+The time is reported by the time of the userland `cp`.
+The MB/s is computed with
+
+    1,536,217,008 B / time(buffer size, hash)
+
+which includes the time to copy from userland.
+The Adjusted MB/s is computed with
+
+    1,536,217,088 B / (time(buffer size, hash) - time(buffer size, none)).
+
+The memory reported is the amount of memory the compressor requests.
+
+| Method   | Size (B) | Time (s) | Ratio | MB/s    | Adj MB/s | Mem (MB) |
+|----------|----------|----------|-------|---------|----------|----------|
+| none     | 11988480 |    0.100 |     1 | 2119.88 |        - |        - |
+| zstd -1  | 73645762 |    1.044 | 2.878 |  203.05 |   224.56 |     1.23 |
+| zstd -3  | 66988878 |    1.761 | 3.165 |  120.38 |   127.63 |     2.47 |
+| zstd -5  | 65001259 |    2.563 | 3.261 |   82.71 |    86.07 |     2.86 |
+| zstd -10 | 60165346 |   13.242 | 3.523 |   16.01 |    16.13 |    13.22 |
+| zstd -15 | 58009756 |   47.601 | 3.654 |    4.45 |     4.46 |    21.61 |
+| zstd -19 | 54014593 |  102.835 | 3.925 |    2.06 |     2.06 |    60.15 |
+| zlib -1  | 77260026 |    2.895 | 2.744 |   73.23 |    75.85 |     0.27 |
+| zlib -3  | 72972206 |    4.116 | 2.905 |   51.50 |    52.79 |     0.27 |
+| zlib -6  | 68190360 |    9.633 | 3.109 |   22.01 |    22.24 |     0.27 |
+| zlib -9  | 67613382 |   22.554 | 3.135 |    9.40 |     9.44 |     0.27 |
+
+I benchmarked zstd decompression using the same method on the same machine.
+The benchmark file is located in the upstream zstd repo under
+`contrib/linux-kernel/zstd_decompress_test.c` [4]. The memory reported is
+the amount of memory required to decompress data compressed with the given
+compression level. If you know the maximum size of your input, you can
+reduce the memory usage of decompression irrespective of the compression
+level.
+
+| Method   | Time (s) | MB/s    | Adjusted MB/s | Memory (MB) |
+|----------|----------|---------|---------------|-------------|
+| none     |    0.025 | 8479.54 |             - |           - |
+| zstd -1  |    0.358 |  592.15 |        636.60 |        0.84 |
+| zstd -3  |    0.396 |  535.32 |        571.40 |        1.46 |
+| zstd -5  |    0.396 |  535.32 |        571.40 |        1.46 |
+| zstd -10 |    0.374 |  566.81 |        607.42 |        2.51 |
+| zstd -15 |    0.379 |  559.34 |        598.84 |        4.61 |
+| zstd -19 |    0.412 |  514.54 |        547.77 |        8.80 |
+| zlib -1  |    0.940 |  225.52 |        231.68 |        0.04 |
+| zlib -3  |    0.883 |  240.08 |        247.07 |        0.04 |
+| zlib -6  |    0.844 |  251.17 |        258.84 |        0.04 |
+| zlib -9  |    0.837 |  253.27 |        287.64 |        0.04 |
+
+Tested in userland using the test-suite in the zstd repo under
+`contrib/linux-kernel/test/UserlandTest.cpp` [5] by mocking the kernel
+functions. Fuzz tested using libfuzzer [6] with the fuzz harnesses under
+`contrib/linux-kernel/test/{RoundTripCrash.c,DecompressCrash.c}` [7] [8]
+with ASAN, UBSAN, and MSAN. Additionaly, it was tested while testing the
+BtrFS and SquashFS patches coming next.
+
+[1] https://clang.llvm.org/docs/ClangFormat.html
+[2] https://github.com/facebook/zstd/blob/dev/contrib/linux-kernel/zstd_compress_test.c
+[3] http://sun.aei.polsl.pl/~sdeor/index.php?page=silesia
+[4] https://github.com/facebook/zstd/blob/dev/contrib/linux-kernel/zstd_decompress_test.c
+[5] https://github.com/facebook/zstd/blob/dev/contrib/linux-kernel/test/UserlandTest.cpp
+[6] http://llvm.org/docs/LibFuzzer.html
+[7] https://github.com/facebook/zstd/blob/dev/contrib/linux-kernel/test/RoundTripCrash.c
+[8] https://github.com/facebook/zstd/blob/dev/contrib/linux-kernel/test/DecompressCrash.c
+
+zstd source repository: https://github.com/facebook/zstd
+
+Signed-off-by: Nick Terrell <terrelln@fb.com>
+---
+ include/linux/zstd.h      | 1157 +++++++++++++++
+ lib/Kconfig               |    8 +
+ lib/Makefile              |    2 +
+ lib/zstd/Makefile         |   18 +
+ lib/zstd/bitstream.h      |  374 +++++
+ lib/zstd/compress.c       | 3468 +++++++++++++++++++++++++++++++++++++++++++++
+ lib/zstd/decompress.c     | 2514 ++++++++++++++++++++++++++++++++
+ lib/zstd/entropy_common.c |  244 ++++
+ lib/zstd/error_private.h  |   53 +
+ lib/zstd/fse.h            |  584 ++++++++
+ lib/zstd/fse_compress.c   |  857 +++++++++++
+ lib/zstd/fse_decompress.c |  313 ++++
+ lib/zstd/huf.h            |  203 +++
+ lib/zstd/huf_compress.c   |  731 ++++++++++
+ lib/zstd/huf_decompress.c |  920 ++++++++++++
+ lib/zstd/mem.h            |  151 ++
+ lib/zstd/zstd_common.c    |   75 +
+ lib/zstd/zstd_internal.h  |  269 ++++
+ lib/zstd/zstd_opt.h       | 1014 +++++++++++++
+ 19 files changed, 12955 insertions(+)
+ create mode 100644 include/linux/zstd.h
+ create mode 100644 lib/zstd/Makefile
+ create mode 100644 lib/zstd/bitstream.h
+ create mode 100644 lib/zstd/compress.c
+ create mode 100644 lib/zstd/decompress.c
+ create mode 100644 lib/zstd/entropy_common.c
+ create mode 100644 lib/zstd/error_private.h
+ create mode 100644 lib/zstd/fse.h
+ create mode 100644 lib/zstd/fse_compress.c
+ create mode 100644 lib/zstd/fse_decompress.c
+ create mode 100644 lib/zstd/huf.h
+ create mode 100644 lib/zstd/huf_compress.c
+ create mode 100644 lib/zstd/huf_decompress.c
+ create mode 100644 lib/zstd/mem.h
+ create mode 100644 lib/zstd/zstd_common.c
+ create mode 100644 lib/zstd/zstd_internal.h
+ create mode 100644 lib/zstd/zstd_opt.h
+
 diff --git a/include/linux/zstd.h b/include/linux/zstd.h
 new file mode 100644
 index 0000000..249575e
@@ -1168,7 +1310,7 @@ index b6009d7..f00ddab 100644
 @@ -241,6 +241,14 @@ config LZ4HC_COMPRESS
  config LZ4_DECOMPRESS
  	tristate
- 
+
 +config ZSTD_COMPRESS
 +	select XXHASH
 +	tristate
@@ -1178,13 +1320,13 @@ index b6009d7..f00ddab 100644
 +	tristate
 +
  source "lib/xz/Kconfig"
- 
+
  #
 diff --git a/lib/Makefile b/lib/Makefile
-index e16f94a..0cfd529 100644
+index 1338226..4fcef16 100644
 --- a/lib/Makefile
 +++ b/lib/Makefile
-@@ -115,6 +115,8 @@ obj-$(CONFIG_LZO_DECOMPRESS) += lzo/
+@@ -116,6 +116,8 @@ obj-$(CONFIG_LZO_DECOMPRESS) += lzo/
  obj-$(CONFIG_LZ4_COMPRESS) += lz4/
  obj-$(CONFIG_LZ4HC_COMPRESS) += lz4/
  obj-$(CONFIG_LZ4_DECOMPRESS) += lz4/
@@ -1192,7 +1334,7 @@ index e16f94a..0cfd529 100644
 +obj-$(CONFIG_ZSTD_DECOMPRESS) += zstd/
  obj-$(CONFIG_XZ_DEC) += xz/
  obj-$(CONFIG_RAID6_PQ) += raid6/
- 
+
 diff --git a/lib/zstd/Makefile b/lib/zstd/Makefile
 new file mode 100644
 index 0000000..dd0a359
@@ -13077,3 +13219,5 @@ index 0000000..55e1b4c
 +}
 +
 +#endif /* ZSTD_OPT_H_91842398743 */
+--
+2.9.3

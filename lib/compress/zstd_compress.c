@@ -3743,7 +3743,9 @@ static size_t ZSTD_compressStream_generic(ZSTD_CStream* zcs,
     /* check expectations */
     DEBUGLOG(5, "ZSTD_compressStream_generic");
     assert(zcs->inBuff != NULL);
+    assert(zcs->inBuffSize>0);
     assert(zcs->outBuff!= NULL);
+    assert(zcs->outBuffSize>0);
     assert(output->pos <= output->size);
     assert(input->pos <= input->size);
 

@@ -1316,7 +1316,7 @@ static size_t testDecodeWithDict(U32 seed, size_t dictSize)
 
     /* generate random dictionary */
     {
-        int ret = genRandomDict(dictID, seed, dictSize, fullDict);
+        int const ret = genRandomDict(dictID, seed, dictSize, fullDict);
         if (ret != 0) {
             errorDetected = ERROR(GENERIC);
             goto dictTestCleanup;

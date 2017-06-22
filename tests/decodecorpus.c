@@ -683,7 +683,6 @@ static U32 generateSequences(U32* seed, frame_t* frame, seqStore_t* seqStore,
                          1;
                 if (info.useDict && (RAND(seed) & 1)) {
                     /* need to occasionally generate offsets that go past the start */
-                    /* we still need to be within the windowSize however */
                     U32 const lenPastStart = RAND(seed) % info.dictContentSize;
                     offset = offset+lenPastStart;
                 }

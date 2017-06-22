@@ -1615,7 +1615,40 @@ static void advancedUsage(const char* programName)
     DISPLAY( "\n");
     DISPLAY( "Advanced arguments :\n");
     DISPLAY( " --content-size    : always include the content size in the frame header\n");
-    DISPLAY( " --use-dict #      : include a dictionary used to decompress the corpus\n");
+    DISPLAY( " --use-dict=#      : include a dictionary used to decompress the corpus\n");
+}
+
+/*! readU32FromChar() :
+    @return : unsigned integer value read from input in `char` format
+    allows and interprets K, KB, KiB, M, MB and MiB suffix.
+    Will also modify `*stringPtr`, advancing it to position where it stopped reading.
+    Note : function result can overflow if digit string > MAX_UINT */
+static unsigned readU32FromChar(const char** stringPtr)
+{
+    unsigned result = 0;
+    while ((**stringPtr >='0') && (**stringPtr <='9'))
+        result *= 10, result += **stringPtr - '0', (*stringPtr)++ ;
+    if ((**stringPtr=='K') || (**stringPtr=='M')) {
+        result <<= 10;
+        if (**stringPtr=='M') result <<= 10;
+        (*stringPtr)++ ;
+        if (**stringPtr=='i') (*stringPtr)++;
+        if (**stringPtr=='B') (*stringPtr)++;
+    }
+    return result;
+}
+
+/** longCommandWArg() :
+ *  check if *stringPtr is the same as longCommand.
+ *  If yes, @return 1 and advances *stringPtr to the position which immediately follows longCommand.
+ *  @return 0 and doesn't modify *stringPtr otherwise.
+ */
+static unsigned longCommandWArg(const char** stringPtr, const char* longCommand)
+{
+    size_t const comSize = strlen(longCommand);
+    int const result = !strncmp(*stringPtr, longCommand, comSize);
+    if (result) *stringPtr += comSize;
+    return result;
 }
 
 int main(int argc, char** argv)
@@ -1689,9 +1722,8 @@ int main(int argc, char** argv)
                     argument++;
                     if (strcmp(argument, "content-size") == 0) {
                         opts.contentSize = 1;
-                    } else if (strcmp(argument, "use-dict") == 0) {
-                        argument += 9;
-                        dictSize = readInt(&argument);
+                    } else if (longCommandWArg(&argument, "use-dict=")) {
+                        dictSize = readU32FromChar(&argument);
                         useDict = 1;
                     } else {
                         advancedUsage(argv[0]);

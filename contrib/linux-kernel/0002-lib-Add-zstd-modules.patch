@@ -1,6 +1,6 @@
-From 536a2c59c5bc58f526e69dd0a35b83d39508ae74 Mon Sep 17 00:00:00 2001
+From b52ae824ae6c0f7c7786380b34da9daaa54bfc26 Mon Sep 17 00:00:00 2001
 From: Nick Terrell <terrelln@fb.com>
-Date: Wed, 21 Jun 2017 14:56:21 -0700
+Date: Wed, 21 Jun 2017 17:31:24 -0700
 Subject: [PATCH 2/4] lib: Add zstd modules
 
 Add zstd compression and decompression kernel modules.
@@ -1304,10 +1304,10 @@ index 0000000..249575e
 +
 +#endif  /* ZSTD_H */
 diff --git a/lib/Kconfig b/lib/Kconfig
-index 9db178f..8deab4f 100644
+index b6009d7..f00ddab 100644
 --- a/lib/Kconfig
 +++ b/lib/Kconfig
-@@ -242,6 +242,14 @@ config LZ4HC_COMPRESS
+@@ -241,6 +241,14 @@ config LZ4HC_COMPRESS
  config LZ4_DECOMPRESS
  	tristate
 
@@ -1323,10 +1323,10 @@ index 9db178f..8deab4f 100644
 
  #
 diff --git a/lib/Makefile b/lib/Makefile
-index 5644bad..aa630d4 100644
+index 1338226..4fcef16 100644
 --- a/lib/Makefile
 +++ b/lib/Makefile
-@@ -107,6 +107,8 @@ obj-$(CONFIG_LZO_DECOMPRESS) += lzo/
+@@ -116,6 +116,8 @@ obj-$(CONFIG_LZO_DECOMPRESS) += lzo/
  obj-$(CONFIG_LZ4_COMPRESS) += lz4/
  obj-$(CONFIG_LZ4HC_COMPRESS) += lz4/
  obj-$(CONFIG_LZ4_DECOMPRESS) += lz4/

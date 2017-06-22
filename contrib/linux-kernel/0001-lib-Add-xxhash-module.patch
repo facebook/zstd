@@ -1,6 +1,6 @@
-From 36b990a005e68a30495e2b2981e30c5ce97a8591 Mon Sep 17 00:00:00 2001
+From e75beb7c2e05550b2846e31ad8a0082c188504da Mon Sep 17 00:00:00 2001
 From: Nick Terrell <terrelln@fb.com>
-Date: Mon, 12 Jun 2017 12:13:48 -0700
+Date: Wed, 21 Jun 2017 17:27:42 -0700
 Subject: [PATCH 1/4] lib: Add xxhash module
 
 Adds xxhash kernel module with xxh32 and xxh64 hashes. xxhash is an
@@ -324,10 +324,10 @@ index 0000000..9e1f42c
 +
 +#endif /* XXHASH_H */
 diff --git a/lib/Kconfig b/lib/Kconfig
-index 260a80e..9db178f 100644
+index 0c8b78a..b6009d7 100644
 --- a/lib/Kconfig
 +++ b/lib/Kconfig
-@@ -185,6 +185,9 @@ config CRC8
+@@ -184,6 +184,9 @@ config CRC8
  	  when they need to do cyclic redundancy check according CRC8
  	  algorithm. Module will be called crc8.
  
@@ -338,10 +338,10 @@ index 260a80e..9db178f 100644
  	bool
  	depends on AUDIT && !AUDIT_ARCH
 diff --git a/lib/Makefile b/lib/Makefile
-index 50144a3..5644bad 100644
+index 0166fbc..1338226 100644
 --- a/lib/Makefile
 +++ b/lib/Makefile
-@@ -93,6 +93,7 @@ obj-$(CONFIG_CRC32)	+= crc32.o
+@@ -102,6 +102,7 @@ obj-$(CONFIG_CRC32_SELFTEST)	+= crc32test.o
  obj-$(CONFIG_CRC7)	+= crc7.o
  obj-$(CONFIG_LIBCRC32C)	+= libcrc32c.o
  obj-$(CONFIG_CRC8)	+= crc8.o

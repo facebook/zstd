@@ -340,6 +340,24 @@ test-legacy: legacy
 test-decodecorpus: decodecorpus
 	$(QEMU_SYS) ./decodecorpus -t $(DECODECORPUS_TESTTIME)
 
+test-decodecorpus-cli: decodecorpus
+	@echo "\n ---- decodecorpus basic cli tests ----"
+	mkdir tests
+	./decodecorpus -n5 -otests -ptests
+	cd testdir
+	zstd -d z000000.zst -D dictionary -o tmp0
+	zstd -d z000001.zst -D dictionary -o tmp1
+	zstd -d z000002.zst -D dictionary -o tmp2
+	zstd -d z000003.zst -D dictionary -o tmp3
+	zstd -d z000004.zst -D dictionary -o tmp4
+	diff z000000 tmp0
+	diff z000001 tmp1
+	diff z000002 tmp2
+	diff z000003 tmp3
+	diff z000004 tmp4
+	cd ..
+	rm -rf testdir
+
 test-pool: pool
 	$(QEMU_SYS) ./pool
 

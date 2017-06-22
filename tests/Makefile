@@ -357,6 +357,7 @@ test-decodecorpus-cli: decodecorpus
 	diff z000004 tmp4 && \
 	rm ./* && \
 	cd ..
+	@echo "\n ---- decodecorpus dictionary cli tests ----"
 	./decodecorpus -n5 -otestdir -ptestdir --use-dict=1MB
 	@cd testdir && \
 	$(ZSTD) -d z000000.zst -D dictionary -o tmp0 && \

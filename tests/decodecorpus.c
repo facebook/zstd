@@ -314,6 +314,13 @@ static void writeFrameHeader(U32* seed, frame_t* frame, dictInfo info)
     pos += 4;
 
     {
+        /*
+         * fcsCode: 2-bit flag specifying how many bytes used to represent Frame_Content_Size (bits 7-6)
+         * singleSegment: 1-bit flag describing if data must be regenerated within a single continuous memory segment. (bit 5)
+         * contentChecksumFlag: 1-bit flag that is set if frame includes checksum at the end -- set to 1 below (bit 2)
+         * dictBits: 2-bit flag describing how many bytes Dictionary_ID uses -- set to 3 (bits 1-0)
+         * For more information: https://github.com/facebook/zstd/blob/dev/doc/zstd_compression_format.md#frame_header
+         */
         int const dictBits = info.useDict ? 3 : 0;
         BYTE const frameHeaderDescriptor =
                 (BYTE) ((fcsCode << 6) | (singleSegment << 5) | (1 << 2) | dictBits);

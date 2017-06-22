@@ -370,7 +370,7 @@ test-decodecorpus-cli: decodecorpus
 	diff z000002 tmp2 && \
 	diff z000003 tmp3 && \
 	diff z000004 tmp4 && \
-	@cd ..
+	cd ..
 	@rm -rf testdir
 
 test-pool: pool

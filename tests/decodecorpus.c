@@ -1499,7 +1499,7 @@ static int generateCorpusWithDict(U32 seed, unsigned numFiles, const char* const
 
     /* randomly generate the dictionary */
     {
-        int ret = genRandomDict(dictID, seed, dictSize, fullDict);
+        int const ret = genRandomDict(dictID, seed, dictSize, fullDict);
         if (ret != 0) {
             errorDetected = ret;
             goto dictCleanup;

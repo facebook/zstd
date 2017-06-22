@@ -685,7 +685,7 @@ static U32 generateSequences(U32* seed, frame_t* frame, seqStore_t* seqStore,
                     /* need to occasionally generate offsets that go past the start */
                     /* we still need to be within the windowSize however */
                     U32 const lenPastStart = RAND(seed) % info.dictContentSize;
-                    offset = MIN(frame->header.windowSize, offset+lenPastStart);
+                    offset = offset+lenPastStart;
                 }
                 offsetCode = offset + ZSTD_REP_MOVE;
                 repIndex = 2;

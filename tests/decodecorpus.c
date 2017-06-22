@@ -1182,7 +1182,7 @@ static int genRandomDict(U32 dictID, U32 seed, size_t dictSize, BYTE* fullDict){
     int ret = 0;
     unsigned const numSamples = 4;
     size_t sampleSizes[4];
-    BYTE* const samples = malloc(5000);
+    BYTE* const samples = malloc(5000*sizeof(BYTE));
     if (samples == NULL) {
         DISPLAY("Error: could not allocate space for samples\n");
         return 1;

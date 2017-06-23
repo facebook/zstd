@@ -679,8 +679,9 @@ static U32 generateSequences(U32* seed, frame_t* frame, seqStore_t* seqStore,
                           MIN(frame->header.windowSize,
                               (size_t)((BYTE*)srcPtr - (BYTE*)frame->srcStart))) +
                          1;
-                if (info.useDict && (RAND(seed) & 1)) {
+                if (info.useDict && (RAND(seed) & 1) && i + 1 != numSequences) {
                     /* need to occasionally generate offsets that go past the start */
+                    /* including i+1 != numSequences because the last sequences has to adhere to predetermined contentSize */
                     U32 lenPastStart = (RAND(seed) % info.dictContentSize) + 1;
                     offset = (U32)((BYTE*)srcPtr - (BYTE*)frame->srcStart)+lenPastStart;
                     if (offset > frame->header.windowSize) {

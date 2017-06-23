@@ -77,10 +77,7 @@
 #define BLOCKSIZE      (128 KB)
 #define ROLLBUFFERSIZE (BLOCKSIZE*8*64)
 
-#define FIO_FRAMEHEADERSIZE  5        /* as a define, because needed to allocated table on stack */
-#define FSE_CHECKSUM_SEED    0
-
-#define CACHELINE 64
+#define FIO_FRAMEHEADERSIZE  5    /* as a define, because needed to allocated table on stack */
 
 #define DICTSIZE_MAX (32 MB)   /* protection against large input (attack scenario) */
 
@@ -93,7 +90,7 @@
 #define DISPLAY(...)         fprintf(stderr, __VA_ARGS__)
 #define DISPLAYOUT(...)      fprintf(stdout, __VA_ARGS__)
 #define DISPLAYLEVEL(l, ...) { if (g_displayLevel>=l) { DISPLAY(__VA_ARGS__); } }
-static int g_displayLevel = 2;   /* 0 : no display;   1: errors;   2 : + result + interaction + warnings;   3 : + progression;   4 : + information */
+static int g_displayLevel = 2;   /* 0 : no display;  1: errors;  2: + result + interaction + warnings;  3: + progression;  4: + information */
 void FIO_setNotificationLevel(unsigned level) { g_displayLevel=level; }
 
 #define DISPLAYUPDATE(l, ...) { if (g_displayLevel>=l) { \
@@ -103,8 +100,33 @@ void FIO_setNotificationLevel(unsigned level) { g_displayLevel=level; }
 static const clock_t refreshRate = CLOCKS_PER_SEC * 15 / 100;
 static clock_t g_time = 0;
 
-#undef MIN
+#undef MIN  /* in case it would be already defined */
 #define MIN(a,b)    ((a) < (b) ? (a) : (b))
+
+
+/*-*************************************
+*  Errors
+***************************************/
+#ifndef ZSTD_DEBUG
+#  define ZSTD_DEBUG 0
+#endif
+#define DEBUGLOG(l,...) if (l<=ZSTD_DEBUG) DISPLAY(__VA_ARGS__);
+#define EXM_THROW(error, ...)                                              \
+{                                                                          \
+    DISPLAYLEVEL(1, "zstd: ");                                             \
+    DEBUGLOG(1, "Error defined at %s, line %i : \n", __FILE__, __LINE__);  \
+    DISPLAYLEVEL(1, "error %i : ", error);                                 \
+    DISPLAYLEVEL(1, __VA_ARGS__);                                          \
+    DISPLAYLEVEL(1, " \n");                                                \
+    exit(error);                                                           \
+}
+
+#define CHECK(f) {                                   \
+    size_t const err = f;                            \
+    if (ZSTD_isError(err)) {                         \
+        DEBUGLOG(1, "%s \n", #f);                    \
+        EXM_THROW(11, "%s", ZSTD_getErrorName(err)); \
+}   }
 
 
 /* ************************************************************
@@ -146,7 +168,7 @@ static FIO_compressionType_t g_compressionType = FIO_zstdCompression;
 void FIO_setCompressionType(FIO_compressionType_t compressionType) { g_compressionType = compressionType; }
 static U32 g_overwrite = 0;
 void FIO_overwriteMode(void) { g_overwrite=1; }
-static U32 g_sparseFileSupport = 1;   /* 0 : no sparse allowed; 1: auto (file yes, stdout no); 2: force sparse */
+static U32 g_sparseFileSupport = 1;   /* 0: no sparse allowed; 1: auto (file yes, stdout no); 2: force sparse */
 void FIO_setSparseWrite(unsigned sparse) { g_sparseFileSupport=sparse; }
 static U32 g_dictIDFlag = 1;
 void FIO_setDictIDFlag(unsigned dictIDFlag) { g_dictIDFlag = dictIDFlag; }
@@ -183,23 +205,6 @@ void FIO_setOverlapLog(unsigned overlapLog){
 
 
 /*-*************************************
-*  Exceptions
-***************************************/
-#ifndef DEBUG
-#  define DEBUG 0
-#endif
-#define DEBUGOUTPUT(...) if (DEBUG) DISPLAY(__VA_ARGS__);
-#define EXM_THROW(error, ...)                                             \
-{                                                                         \
-    DEBUGOUTPUT("Error defined at %s, line %i : \n", __FILE__, __LINE__); \
-    DISPLAYLEVEL(1, "Error %i : ", error);                                \
-    DISPLAYLEVEL(1, __VA_ARGS__);                                         \
-    DISPLAYLEVEL(1, " \n");                                               \
-    exit(error);                                                          \
-}
-
-
-/*-*************************************
 *  Functions
 ***************************************/
 /** FIO_remove() :
@@ -226,12 +231,14 @@ static FILE* FIO_openSrcFile(const char* srcFileName)
         f = stdin;
         SET_BINARY_MODE(stdin);
     } else {
-        if (!UTIL_isRegFile(srcFileName)) {
-            DISPLAYLEVEL(1, "zstd: %s is not a regular file -- ignored \n", srcFileName);
+        if (!UTIL_isRegularFile(srcFileName)) {
+            DISPLAYLEVEL(1, "zstd: %s is not a regular file -- ignored \n",
+                            srcFileName);
             return NULL;
         }
         f = fopen(srcFileName, "rb");
-        if ( f==NULL ) DISPLAYLEVEL(1, "zstd: %s: %s \n", srcFileName, strerror(errno));
+        if ( f==NULL )
+            DISPLAYLEVEL(1, "zstd: %s: %s \n", srcFileName, strerror(errno));
     }
 
     return f;
@@ -256,26 +263,28 @@ static FILE* FIO_openDstFile(const char* dstFileName)
         if (g_sparseFileSupport == 1) {
             g_sparseFileSupport = ZSTD_SPARSE_DEFAULT;
         }
-        if (strcmp (dstFileName, nulmark)) {  /* Check if destination file already exists */
+        if (strcmp (dstFileName, nulmark)) {
+            /* Check if destination file already exists */
             f = fopen( dstFileName, "rb" );
-            if (f != 0) {  /* dest file exists, prompt for overwrite authorization */
+            if (f != 0) {  /* dst file exists, prompt for overwrite authorization */
                 fclose(f);
                 if (!g_overwrite) {
                     if (g_displayLevel <= 1) {
                         /* No interaction possible */
-                        DISPLAY("zstd: %s already exists; not overwritten  \n", dstFileName);
+                        DISPLAY("zstd: %s already exists; not overwritten  \n",
+                                dstFileName);
                         return NULL;
                     }
-                    DISPLAY("zstd: %s already exists; do you wish to overwrite (y/N) ? ", dstFileName);
+                    DISPLAY("zstd: %s already exists; do you wish to overwrite (y/N) ? ",
+                            dstFileName);
                     {   int ch = getchar();
                         if ((ch!='Y') && (ch!='y')) {
                             DISPLAY("    not overwritten  \n");
                             return NULL;
                         }
-                        while ((ch!=EOF) && (ch!='\n')) ch = getchar();  /* flush rest of input line */
-                    }
-                }
-
+                        /* flush rest of input line */
+                        while ((ch!=EOF) && (ch!='\n')) ch = getchar();
+                }   }
                 /* need to unlink */
                 FIO_remove(dstFileName);
         }   }
@@ -303,11 +312,13 @@ static size_t FIO_createDictBuffer(void** bufferPtr, const char* fileName)
 
     DISPLAYLEVEL(4,"Loading %s as dictionary \n", fileName);
     fileHandle = fopen(fileName, "rb");
-    if (fileHandle==0) EXM_THROW(31, "zstd: %s: %s", fileName, strerror(errno));
+    if (fileHandle==0) EXM_THROW(31, "%s: %s", fileName, strerror(errno));
     fileSize = UTIL_getFileSize(fileName);
-    if (fileSize > DICTSIZE_MAX) EXM_THROW(32, "Dictionary file %s is too large (> %u MB)", fileName, DICTSIZE_MAX >> 20);   /* avoid extreme cases */
+    if (fileSize > DICTSIZE_MAX)
+        EXM_THROW(32, "Dictionary file %s is too large (> %u MB)",
+                        fileName, DICTSIZE_MAX >> 20);   /* avoid extreme cases */
     *bufferPtr = malloc((size_t)fileSize);
-    if (*bufferPtr==NULL) EXM_THROW(34, "zstd: %s", strerror(errno));
+    if (*bufferPtr==NULL) EXM_THROW(34, "%s", strerror(errno));
     { size_t const readSize = fread(*bufferPtr, 1, (size_t)fileSize, fileHandle);
       if (readSize!=fileSize) EXM_THROW(35, "Error reading dictionary file %s", fileName); }
     fclose(fileHandle);
@@ -326,7 +337,7 @@ typedef struct {
     size_t srcBufferSize;
     void*  dstBuffer;
     size_t dstBufferSize;
-#ifdef ZSTD_MULTITHREAD
+#if !defined(ZSTD_NEWAPI) && defined(ZSTD_MULTITHREAD)
     ZSTDMT_CCtx* cctx;
 #else
     ZSTD_CStream* cctx;
@@ -334,15 +345,19 @@ typedef struct {
 } cRess_t;
 
 static cRess_t FIO_createCResources(const char* dictFileName, int cLevel,
-                                    U64 srcSize, int srcRegFile,
+                                    U64 srcSize, int srcIsRegularFile,
                                     ZSTD_compressionParameters* comprParams) {
     cRess_t ress;
     memset(&ress, 0, sizeof(ress));
 
-#ifdef ZSTD_MULTITHREAD
+#ifdef ZSTD_NEWAPI
+    ress.cctx = ZSTD_createCCtx();
+    if (ress.cctx == NULL)
+        EXM_THROW(30, "allocation error : can't create ZSTD_CCtx");
+#elif defined(ZSTD_MULTITHREAD)
     ress.cctx = ZSTDMT_createCCtx(g_nbThreads);
     if (ress.cctx == NULL)
-        EXM_THROW(30, "zstd: allocation error : can't create ZSTD_CStream");
+        EXM_THROW(30, "allocation error : can't create ZSTDMT_CCtx");
     if ((cLevel==ZSTD_maxCLevel()) && (g_overlapLog==FIO_OVERLAP_LOG_NOTSET))
         /* use complete window for overlap */
         ZSTDMT_setMTCtxParameter(ress.cctx, ZSTDMT_p_overlapSectionLog, 9);
@@ -351,22 +366,44 @@ static cRess_t FIO_createCResources(const char* dictFileName, int cLevel,
 #else
     ress.cctx = ZSTD_createCStream();
     if (ress.cctx == NULL)
-        EXM_THROW(30, "zstd: allocation error : can't create ZSTD_CStream");
+        EXM_THROW(30, "allocation error : can't create ZSTD_CStream");
 #endif
     ress.srcBufferSize = ZSTD_CStreamInSize();
     ress.srcBuffer = malloc(ress.srcBufferSize);
     ress.dstBufferSize = ZSTD_CStreamOutSize();
     ress.dstBuffer = malloc(ress.dstBufferSize);
     if (!ress.srcBuffer || !ress.dstBuffer)
-        EXM_THROW(31, "zstd: allocation error : not enough memory");
+        EXM_THROW(31, "allocation error : not enough memory");
 
     /* dictionary */
     {   void* dictBuffer;
         size_t const dictBuffSize = FIO_createDictBuffer(&dictBuffer, dictFileName);   /* works with dictFileName==NULL */
         if (dictFileName && (dictBuffer==NULL))
-            EXM_THROW(32, "zstd: allocation error : can't create dictBuffer");
+            EXM_THROW(32, "allocation error : can't create dictBuffer");
+
+#ifdef ZSTD_NEWAPI
+        {   /* frame parameters */
+            CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_contentSizeFlag, srcIsRegularFile) );
+            CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_dictIDFlag, g_dictIDFlag) );
+            CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_checksumFlag, g_checksumFlag) );
+            CHECK( ZSTD_CCtx_setPledgedSrcSize(ress.cctx, srcSize) );
+            /* compression parameters */
+            CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_compressionLevel, cLevel) );
+            CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_windowLog, comprParams->windowLog) );
+            CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_chainLog, comprParams->chainLog) );
+            CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_hashLog, comprParams->hashLog) );
+            CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_searchLog, comprParams->searchLog) );
+            CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_minMatch, comprParams->searchLength) );
+            CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_targetLength, comprParams->targetLength) );
+            CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_compressionStrategy, (U32)comprParams->strategy) );
+            /* multi-threading */
+            CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_nbThreads, g_nbThreads) );
+            /* dictionary */
+            CHECK( ZSTD_CCtx_loadDictionary(ress.cctx, dictBuffer, dictBuffSize) );
+        }
+#elif defined(ZSTD_MULTITHREAD)
         {   ZSTD_parameters params = ZSTD_getParams(cLevel, srcSize, dictBuffSize);
-            params.fParams.contentSizeFlag = srcRegFile;
+            params.fParams.contentSizeFlag = srcIsRegularFile;
             params.fParams.checksumFlag = g_checksumFlag;
             params.fParams.noDictIDFlag = !g_dictIDFlag;
             if (comprParams->windowLog) params.cParams.windowLog = comprParams->windowLog;
@@ -376,15 +413,24 @@ static cRess_t FIO_createCResources(const char* dictFileName, int cLevel,
             if (comprParams->searchLength) params.cParams.searchLength = comprParams->searchLength;
             if (comprParams->targetLength) params.cParams.targetLength = comprParams->targetLength;
             if (comprParams->strategy) params.cParams.strategy = (ZSTD_strategy) comprParams->strategy;
-#ifdef ZSTD_MULTITHREAD
-            {   size_t const errorCode = ZSTDMT_initCStream_advanced(ress.cctx, dictBuffer, dictBuffSize, params, srcSize);
-                if (ZSTD_isError(errorCode)) EXM_THROW(33, "Error initializing CStream : %s", ZSTD_getErrorName(errorCode));
-                ZSTDMT_setMTCtxParameter(ress.cctx, ZSTDMT_p_sectionSize, g_blockSize);
+            CHECK( ZSTDMT_initCStream_advanced(ress.cctx, dictBuffer, dictBuffSize, params, srcSize) );
+            ZSTDMT_setMTCtxParameter(ress.cctx, ZSTDMT_p_sectionSize, g_blockSize);
+        }
 #else
-            {   size_t const errorCode = ZSTD_initCStream_advanced(ress.cctx, dictBuffer, dictBuffSize, params, srcSize);
-                if (ZSTD_isError(errorCode)) EXM_THROW(33, "Error initializing CStream : %s", ZSTD_getErrorName(errorCode));
+        {   ZSTD_parameters params = ZSTD_getParams(cLevel, srcSize, dictBuffSize);
+            params.fParams.contentSizeFlag = srcIsRegularFile;
+            params.fParams.checksumFlag = g_checksumFlag;
+            params.fParams.noDictIDFlag = !g_dictIDFlag;
+            if (comprParams->windowLog) params.cParams.windowLog = comprParams->windowLog;
+            if (comprParams->chainLog) params.cParams.chainLog = comprParams->chainLog;
+            if (comprParams->hashLog) params.cParams.hashLog = comprParams->hashLog;
+            if (comprParams->searchLog) params.cParams.searchLog = comprParams->searchLog;
+            if (comprParams->searchLength) params.cParams.searchLength = comprParams->searchLength;
+            if (comprParams->targetLength) params.cParams.targetLength = comprParams->targetLength;
+            if (comprParams->strategy) params.cParams.strategy = (ZSTD_strategy) comprParams->strategy;
+            CHECK( ZSTD_initCStream_advanced(ress.cctx, dictBuffer, dictBuffSize, params, srcSize) );
+        }
 #endif
-        }   }
         free(dictBuffer);
     }
 
@@ -395,7 +441,7 @@ static void FIO_freeCResources(cRess_t ress)
 {
     free(ress.srcBuffer);
     free(ress.dstBuffer);
-#ifdef ZSTD_MULTITHREAD
+#if !defined(ZSTD_NEWAPI) && defined(ZSTD_MULTITHREAD)
     ZSTDMT_freeCCtx(ress.cctx);
 #else
     ZSTD_freeCStream(ress.cctx);   /* never fails */
@@ -700,41 +746,40 @@ static int FIO_compressFilename_internal(cRess_t ress,
     }
 
     /* init */
-#ifdef ZSTD_MULTITHREAD
-    {   size_t const resetError = ZSTDMT_resetCStream(ress.cctx, fileSize);
+#ifdef ZSTD_NEWAPI
+    /* nothing, reset is implied */
+#elif defined(ZSTD_MULTITHREAD)
+    CHECK( ZSTDMT_resetCStream(ress.cctx, fileSize) );
 #else
-    {   size_t const resetError = ZSTD_resetCStream(ress.cctx, fileSize);
+    CHECK( ZSTD_resetCStream(ress.cctx, fileSize) );
 #endif
-        if (ZSTD_isError(resetError))
-            EXM_THROW(21, "Error initializing compression : %s",
-                            ZSTD_getErrorName(resetError));
-    }
 
     /* Main compression loop */
     while (1) {
         /* Fill input Buffer */
         size_t const inSize = fread(ress.srcBuffer, (size_t)1, ress.srcBufferSize, srcFile);
+        ZSTD_inBuffer inBuff = { ress.srcBuffer, inSize, 0 };
         if (inSize==0) break;
         readsize += inSize;
 
-        {   ZSTD_inBuffer  inBuff = { ress.srcBuffer, inSize, 0 };
-            while (inBuff.pos != inBuff.size) {
-                ZSTD_outBuffer outBuff = { ress.dstBuffer, ress.dstBufferSize, 0 };
-#ifdef ZSTD_MULTITHREAD
-                size_t const result = ZSTDMT_compressStream(ress.cctx, &outBuff, &inBuff);
+        while (inBuff.pos != inBuff.size) {
+            ZSTD_outBuffer outBuff = { ress.dstBuffer, ress.dstBufferSize, 0 };
+#ifdef ZSTD_NEWAPI
+            CHECK( ZSTD_compress_generic(ress.cctx,
+                        &outBuff, &inBuff, ZSTD_e_continue) );
+#elif defined(ZSTD_MULTITHREAD)
+            CHECK( ZSTDMT_compressStream(ress.cctx, &outBuff, &inBuff) );
 #else
-                size_t const result = ZSTD_compressStream(ress.cctx, &outBuff, &inBuff);
+            CHECK( ZSTD_compressStream(ress.cctx, &outBuff, &inBuff) );
 #endif
-                if (ZSTD_isError(result))
-                    EXM_THROW(23, "Compression error : %s ", ZSTD_getErrorName(result));
 
-                /* Write compressed stream */
-                if (outBuff.pos) {
-                    size_t const sizeCheck = fwrite(ress.dstBuffer, 1, outBuff.pos, dstFile);
-                    if (sizeCheck!=outBuff.pos)
-                        EXM_THROW(25, "Write error : cannot write compressed block into %s", dstFileName);
-                    compressedfilesize += outBuff.pos;
-        }   }   }
+            /* Write compressed stream */
+            if (outBuff.pos) {
+                size_t const sizeCheck = fwrite(ress.dstBuffer, 1, outBuff.pos, dstFile);
+                if (sizeCheck!=outBuff.pos)
+                    EXM_THROW(25, "Write error : cannot write compressed block into %s", dstFileName);
+                compressedfilesize += outBuff.pos;
+        }   }
         if (g_nbThreads > 1) {
             if (!fileSize)
                 DISPLAYUPDATE(2, "\rRead : %u MB", (U32)(readsize>>20))
@@ -757,12 +802,18 @@ static int FIO_compressFilename_internal(cRess_t ress,
     {   size_t result = 1;
         while (result!=0) {   /* note : is there any possibility of endless loop ? */
             ZSTD_outBuffer outBuff = { ress.dstBuffer, ress.dstBufferSize, 0 };
-#ifdef ZSTD_MULTITHREAD
+#ifdef ZSTD_NEWAPI
+            ZSTD_inBuffer inBuff = { NULL, 0, 0};
+            result = ZSTD_compress_generic(ress.cctx,
+                        &outBuff, &inBuff, ZSTD_e_end);
+#elif defined(ZSTD_MULTITHREAD)
             result = ZSTDMT_endStream(ress.cctx, &outBuff);
 #else
             result = ZSTD_endStream(ress.cctx, &outBuff);
 #endif
-            if (ZSTD_isError(result)) EXM_THROW(26, "Compression error during frame end : %s", ZSTD_getErrorName(result));
+            if (ZSTD_isError(result))
+                EXM_THROW(26, "Compression error during frame end : %s",
+                            ZSTD_getErrorName(result));
             { size_t const sizeCheck = fwrite(ress.dstBuffer, 1, outBuff.pos, dstFile);
               if (sizeCheck!=outBuff.pos) EXM_THROW(27, "Write error : cannot write frame end into %s", dstFileName); }
             compressedfilesize += outBuff.pos;
@@ -851,9 +902,9 @@ int FIO_compressFilename(const char* dstFileName, const char* srcFileName,
 {
     clock_t const start = clock();
     U64 const srcSize = UTIL_getFileSize(srcFileName);
-    int const regFile = UTIL_isRegFile(srcFileName);
+    int const isRegularFile = UTIL_isRegularFile(srcFileName);
 
-    cRess_t const ress = FIO_createCResources(dictFileName, compressionLevel, srcSize, regFile, comprParams);
+    cRess_t const ress = FIO_createCResources(dictFileName, compressionLevel, srcSize, isRegularFile, comprParams);
     int const result = FIO_compressFilename_dstFile(ress, dstFileName, srcFileName, compressionLevel);
 
     double const seconds = (double)(clock() - start) / CLOCKS_PER_SEC;
@@ -1098,8 +1149,8 @@ int FIO_compressMultipleFilenames(const char** inFileNamesTable, unsigned nbFile
     char*  dstFileName = (char*)malloc(FNSPACE);
     size_t const suffixSize = suffix ? strlen(suffix) : 0;
     U64 const srcSize = (nbFiles != 1) ? 0 : UTIL_getFileSize(inFileNamesTable[0]) ;
-    int const regFile = (nbFiles != 1) ? 0 : UTIL_isRegFile(inFileNamesTable[0]);
-    cRess_t ress = FIO_createCResources(dictFileName, compressionLevel, srcSize, regFile, comprParams);
+    int const isRegularFile = (nbFiles != 1) ? 0 : UTIL_isRegularFile(inFileNamesTable[0]);
+    cRess_t ress = FIO_createCResources(dictFileName, compressionLevel, srcSize, isRegularFile, comprParams);
 
     /* init */
     if (dstFileName==NULL)
@@ -1177,9 +1228,7 @@ static dRess_t FIO_createDResources(const char* dictFileName)
     /* dictionary */
     {   void* dictBuffer;
         size_t const dictBufferSize = FIO_createDictBuffer(&dictBuffer, dictFileName);
-        size_t const initError = ZSTD_initDStream_usingDict(ress.dctx, dictBuffer, dictBufferSize);
-        if (ZSTD_isError(initError))
-            EXM_THROW(61, "ZSTD_initDStream_usingDict error : %s", ZSTD_getErrorName(initError));
+        CHECK( ZSTD_initDStream_usingDict(ress.dctx, dictBuffer, dictBufferSize) );
         free(dictBuffer);
     }
 
@@ -1188,10 +1237,7 @@ static dRess_t FIO_createDResources(const char* dictFileName)
 
 static void FIO_freeDResources(dRess_t ress)
 {
-    size_t const errorCode = ZSTD_freeDStream(ress.dctx);
-    if (ZSTD_isError(errorCode))
-        EXM_THROW(69, "Error : can't free ZSTD_DStream context resource : %s",
-                        ZSTD_getErrorName(errorCode));
+    CHECK( ZSTD_freeDStream(ress.dctx) );
     free(ress.srcBuffer);
     free(ress.dstBuffer);
 }

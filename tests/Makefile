@@ -26,18 +26,18 @@ PYTHON ?= python3
 TESTARTEFACT := versionsTest namespaceTest
 
 
-DEBUGFLAGS=-g -DZSTD_DEBUG=1
-CPPFLAGS+= -I$(ZSTDDIR) -I$(ZSTDDIR)/common -I$(ZSTDDIR)/compress \
-           -I$(ZSTDDIR)/dictBuilder -I$(ZSTDDIR)/deprecated -I$(PRGDIR) \
-           $(DEBUGFLAG)
-CFLAGS  ?= -O3
-CFLAGS  += -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow \
+DEBUGFLAGS= -g -DZSTD_DEBUG=1
+CPPFLAGS += -I$(ZSTDDIR) -I$(ZSTDDIR)/common -I$(ZSTDDIR)/compress \
+            -I$(ZSTDDIR)/dictBuilder -I$(ZSTDDIR)/deprecated -I$(PRGDIR)
+CFLAGS   ?= -O3
+CFLAGS   += -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow                 \
             -Wstrict-aliasing=1 -Wswitch-enum -Wdeclaration-after-statement \
-            -Wstrict-prototypes -Wundef -Wformat-security \
-            -Wvla -Wformat=2 -Winit-self -Wfloat-equal -Wwrite-strings \
+            -Wstrict-prototypes -Wundef -Wformat-security                   \
+            -Wvla -Wformat=2 -Winit-self -Wfloat-equal -Wwrite-strings      \
             -Wredundant-decls
-CFLAGS  += $(MOREFLAGS)
-FLAGS    = $(CPPFLAGS) $(CFLAGS) $(LDFLAGS)
+CFLAGS   += $(DEBUGFLAGS)
+CFLAGS   += $(MOREFLAGS)
+FLAGS     = $(CPPFLAGS) $(CFLAGS) $(LDFLAGS)
 
 
 ZSTDCOMMON_FILES := $(ZSTDDIR)/common/*.c
@@ -159,7 +159,7 @@ zstreamtest-dll : $(ZSTDDIR)/common/xxhash.c $(PRGDIR)/datagen.c zstreamtest.c
 	$(MAKE) -C $(ZSTDDIR) libzstd
 	$(CC) $(CPPFLAGS) $(CFLAGS) $^ $(LDFLAGS) -o $@$(EXT)
 
-paramgrill : DEBUGFLAG =
+paramgrill : DEBUGFLAGS =
 paramgrill : $(ZSTD_FILES) $(PRGDIR)/datagen.c paramgrill.c
 	$(CC)      $(FLAGS) $^ -lm -o $@$(EXT)
 
@@ -321,6 +321,8 @@ test-zbuff32: zbufftest32
 
 test-zstream: zstreamtest
 	$(QEMU_SYS) ./zstreamtest $(ZSTREAM_TESTTIME) $(FUZZER_FLAGS)
+	$(QEMU_SYS) ./zstreamtest --mt $(ZSTREAM_TESTTIME) $(FUZZER_FLAGS)
+	$(QEMU_SYS) ./zstreamtest --newapi $(ZSTREAM_TESTTIME) $(FUZZER_FLAGS)
 
 test-zstream32: zstreamtest32
 	$(QEMU_SYS) ./zstreamtest32 $(ZSTREAM_TESTTIME) $(FUZZER_FLAGS)

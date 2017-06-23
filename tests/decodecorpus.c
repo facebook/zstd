@@ -675,11 +675,12 @@ static U32 generateSequences(U32* seed, frame_t* frame, seqStore_t* seqStore,
         do {
             if (RAND(seed) & 7) {
                 /* do a normal offset */
+                U32 const dataDecompressed = (U32)((BYTE*)srcPtr-(BYTE*)frame->srcStart);
                 offset = (RAND(seed) %
                           MIN(frame->header.windowSize,
                               (size_t)((BYTE*)srcPtr - (BYTE*)frame->srcStart))) +
                          1;
-                if (info.useDict && (RAND(seed) & 1) && i + 1 != numSequences) {
+                if (info.useDict && (RAND(seed) & 1) && i + 1 != numSequences && dataDecompressed < frame->header.windowSize) {
                     /* need to occasionally generate offsets that go past the start */
                     /* including i+1 != numSequences because the last sequences has to adhere to predetermined contentSize */
                     U32 lenPastStart = (RAND(seed) % info.dictContentSize) + 1;

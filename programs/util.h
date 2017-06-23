@@ -208,7 +208,7 @@ UTIL_STATIC int UTIL_getFileStat(const char* infilename, stat_t *statbuf)
 }
 
 
-UTIL_STATIC int UTIL_isRegFile(const char* infilename)
+UTIL_STATIC int UTIL_isRegularFile(const char* infilename)
 {
     stat_t statbuf;
     return UTIL_getFileStat(infilename, &statbuf); /* Only need to know whether it is a regular file */

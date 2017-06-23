@@ -18,9 +18,12 @@ EXAMPLE_PATH = examples
 PROGRAMS_PATH = ../programs
 TEST_FILE = ../doc/zstd_compression_format.md
 
-CPPFLAGS = -DXXH_NAMESPACE=ZSTD_ -I$(ZLIB_PATH) -I$(PROGRAMS_PATH) -I$(ZSTDLIBDIR) -I$(ZSTDLIBDIR)/common -I$(ZLIBWRAPPER_PATH)
+CPPFLAGS = -DXXH_NAMESPACE=ZSTD_ -I$(ZLIB_PATH) -I$(PROGRAMS_PATH)       \
+           -I$(ZSTDLIBDIR) -I$(ZSTDLIBDIR)/common -I$(ZLIBWRAPPER_PATH)
 CFLAGS  ?= $(MOREFLAGS) -O3 -std=gnu99
-CFLAGS  += -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow -Wswitch-enum -Wdeclaration-after-statement -Wstrict-prototypes -Wundef -Wstrict-aliasing=1
+CFLAGS  += -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow -Wswitch-enum \
+           -Wdeclaration-after-statement -Wstrict-prototypes -Wundef     \
+           -Wstrict-aliasing=1
 
 
 # Define *.exe as extension for Windows systems
@@ -48,8 +51,8 @@ test: example fitblk example_zstd fitblk_zstd zwrapbench minigzip minigzip_zstd
 	#cp example$(EXT).gz example$(EXT)_gz.gz
 	./minigzip_zstd -d example$(EXT).gz
 	@echo ---- minigzip end ----
-	./zwrapbench -qb3B1K $(TEST_FILE)
-	./zwrapbench -rqb1e5 ../lib ../programs ../tests
+	./zwrapbench -qi1b3B1K $(TEST_FILE)
+	./zwrapbench -rqi1b1e5 ../lib ../programs ../tests
 
 #valgrindTest: ZSTDLIBRARY = $(ZSTDLIBDIR)/libzstd.so
 valgrindTest: VALGRIND = LD_LIBRARY_PATH=$(ZSTDLIBDIR) valgrind --track-origins=yes --leak-check=full --error-exitcode=1
@@ -61,8 +64,8 @@ valgrindTest: clean example fitblk example_zstd fitblk_zstd zwrapbench
 	$(VALGRIND) ./fitblk 40960 <$(TEST_FILE)
 	$(VALGRIND) ./fitblk_zstd 10240 <$(TEST_FILE)
 	$(VALGRIND) ./fitblk_zstd 40960 <$(TEST_FILE)
-	$(VALGRIND) ./zwrapbench -qb3B1K $(TEST_FILE)
-	$(VALGRIND) ./zwrapbench -rqb1e5 ../lib ../programs ../tests
+	$(VALGRIND) ./zwrapbench -qi1b3B1K $(TEST_FILE)
+	$(VALGRIND) ./zwrapbench -rqi1b1e5 ../lib ../programs ../tests
 
 #.c.o:
 #	$(CC) $(CFLAGS) $(CPPFLAGS) -c -o $@ $<

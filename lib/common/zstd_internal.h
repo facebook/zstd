@@ -66,6 +66,8 @@
 #  ifdef __GNUC__
      MEM_STATIC void assume(int expr) { if (!expr) __builtin_unreachable(); }
 #    define assert(condition) assume(condition)
+#  elif defined(_MSC_VER)
+#    define assert(condition) __assume(condition)
 #  else
 #    define assert(condition) ((void)0)
 #  endif

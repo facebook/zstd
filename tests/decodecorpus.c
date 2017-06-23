@@ -682,14 +682,14 @@ static U32 generateSequences(U32* seed, frame_t* frame, seqStore_t* seqStore,
                 if (info.useDict && (RAND(seed) & 1)) {
                     /* need to occasionally generate offsets that go past the start */
                     U32 lenPastStart = (RAND(seed) % info.dictContentSize) + 1;
-                    offset = ((BYTE*)srcPtr - (BYTE*)frame->srcStart)+lenPastStart;
+                    offset = (U32)((BYTE*)srcPtr - (BYTE*)frame->srcStart)+lenPastStart;
                     if (offset > frame->header.windowSize) {
                         if (lenPastStart < MIN_SEQ_LEN) {
                             /* when offset > windowSize, matchLen bound by end of dictionary (lenPastStart) */
                             /* this also means that lenPastStart must be greater than MIN_SEQ_LEN */
                             /* make sure lenPastStart does not go past dictionary start though */
-                            lenPastStart = MIN(lenPastStart+MIN_SEQ_LEN, info.dictContentSize);
-                            offset = ((BYTE*)srcPtr - (BYTE*)frame->srcStart) + lenPastStart;
+                            lenPastStart = MIN(lenPastStart+MIN_SEQ_LEN, (U32)info.dictContentSize);
+                            offset = (U32)((BYTE*)srcPtr - (BYTE*)frame->srcStart) + lenPastStart;
                         }
                         {
                             U32 const matchLenBound = MIN(frame->header.windowSize, lenPastStart);
@@ -718,7 +718,7 @@ static U32 generateSequences(U32* seed, frame_t* frame, seqStore_t* seqStore,
             size_t j;
             BYTE* const dictEnd = info.dictContent + info.dictContentSize;
             for (j = 0; j < matchLen; j++) {
-                if (((BYTE*)srcPtr - (BYTE*)frame->srcStart) < offset) {
+                if ((U32)((BYTE*)srcPtr - (BYTE*)frame->srcStart) < offset) {
                     /* copy from dictionary instead of literals */
                     size_t const dictOffset = offset - (srcPtr - (BYTE*)frame->srcStart);
                     *srcPtr = *(dictEnd - dictOffset);

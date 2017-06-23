@@ -389,6 +389,12 @@ unsigned long long ZSTD_getFrameContentSize(const void *src, size_t srcSize);
             however it does mean that all frame data must be present and valid. 
 </p></pre><BR>
 
+<pre><b>size_t ZSTD_frameHeaderSize(const void* src, size_t srcSize);
+</b><p>   `src` should point to the start of a ZSTD frame
+   `srcSize` must be >= ZSTD_frameHeaderSize_prefix.
+   @return : size of the Frame Header 
+</p></pre><BR>
+
 <a name="Chapter13"></a><h2>Context memory usage</h2><pre></pre>
 
 <pre><b>size_t ZSTD_sizeof_CCtx(const ZSTD_CCtx* cctx);

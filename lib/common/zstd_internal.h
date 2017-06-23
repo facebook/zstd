@@ -62,7 +62,11 @@
 #if defined(ZSTD_DEBUG) && (ZSTD_DEBUG>=1)
 #  include <assert.h>
 #else
-#  ifndef assert
+#  undef assert
+#  ifdef __GNUC__
+     MEM_STATIC void assume(int expr) { if (!expr) __builtin_unreachable(); }
+#    define assert(condition) assume(condition)
+#  else
 #    define assert(condition) ((void)0)
 #  endif
 #endif

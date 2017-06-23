@@ -3917,9 +3917,7 @@ size_t ZSTD_compress_generic (ZSTD_CCtx* cctx,
     }
 #endif
 
-    DEBUGLOG(5, "calling ZSTD_compressStream_generic(%i,...)", endOp);
     CHECK_F( ZSTD_compressStream_generic(cctx, output, input, endOp) );
-    DEBUGLOG(5, "completed ZSTD_compress_generic");
     return cctx->outBuffContentSize - cctx->outBuffFlushedSize; /* remaining to flush */
 }
 

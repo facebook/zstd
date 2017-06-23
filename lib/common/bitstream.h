@@ -58,7 +58,10 @@ extern "C" {
 #if defined(BIT_DEBUG) && (BIT_DEBUG>=1)
 #  include <assert.h>
 #else
-#  ifndef assert
+#  undef assert
+#  ifdef __GNUC__
+#    define assert(condition) { if (!(condition)) __builtin_unreachable(); }
+#  else
 #    define assert(condition) ((void)0)
 #  endif
 #endif

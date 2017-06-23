@@ -45,7 +45,7 @@
 #define GB *(1U<<30)
 
 static const U32 nbTestsDefault = 10000;
-static const U32 g_cLevelMax_smallTests = 15;
+static const U32 g_cLevelMax_smallTests = 10;
 #define COMPRESSIBLE_NOISE_LENGTH (10 MB)
 #define FUZ_COMPRESSIBILITY_DEFAULT 50
 static const U32 prime32 = 2654435761U;
@@ -670,7 +670,7 @@ static size_t FUZ_randomLength(U32* seed, U32 maxLog)
 
 static int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compressibility, int bigTests)
 {
-    static const U32 maxSrcLog = 24;
+    U32 const maxSrcLog = bigTests ? 24 : 22;
     static const U32 maxSampleLog = 19;
     size_t const srcBufferSize = (size_t)1<<maxSrcLog;
     BYTE* cNoiseBuffer[5];
@@ -781,7 +781,7 @@ static int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compres
             maxTestSize = FUZ_rLogLength(&lseed, testLog);
             oldTestLog = testLog;
             /* random dictionary selection */
-            dictSize  = ((FUZ_rand(&lseed)&1)==1) ? FUZ_rLogLength(&lseed, dictLog) : 0;
+            dictSize  = ((FUZ_rand(&lseed)&7)==1) ? FUZ_rLogLength(&lseed, dictLog) : 0;
             {   size_t const dictStart = FUZ_rand(&lseed) % (srcBufferSize - dictSize);
                 dict = srcBuffer + dictStart;
             }
@@ -913,7 +913,7 @@ _output_error:
 /* Multi-threading version of fuzzer Tests */
 static int fuzzerTests_MT(U32 seed, U32 nbTests, unsigned startTest, double compressibility, int bigTests)
 {
-    static const U32 maxSrcLog = 24;
+    const U32 maxSrcLog = bigTests ? 24 : 22;
     static const U32 maxSampleLog = 19;
     size_t const srcBufferSize = (size_t)1<<maxSrcLog;
     BYTE* cNoiseBuffer[5];
@@ -1172,7 +1172,7 @@ _output_error:
 /* Tests for ZSTD_compress_generic() API */
 static int fuzzerTests_newAPI(U32 seed, U32 nbTests, unsigned startTest, double compressibility, int bigTests)
 {
-    static const U32 maxSrcLog = 24;
+    U32 const maxSrcLog = bigTests ? 24 : 22;
     static const U32 maxSampleLog = 19;
     size_t const srcBufferSize = (size_t)1<<maxSrcLog;
     BYTE* cNoiseBuffer[5];

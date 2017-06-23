@@ -672,7 +672,6 @@ static U32 generateSequences(U32* seed, frame_t* frame, seqStore_t* seqStore,
 
         memcpy(srcPtr, literals, literalLen);
         srcPtr += literalLen;
-
         do {
             if (RAND(seed) & 7) {
                 /* do a normal offset */
@@ -682,14 +681,20 @@ static U32 generateSequences(U32* seed, frame_t* frame, seqStore_t* seqStore,
                          1;
                 if (info.useDict && (RAND(seed) & 1)) {
                     /* need to occasionally generate offsets that go past the start */
-                    U32 const lenPastStart = (RAND(seed) % info.dictContentSize) + 1;
+                    U32 lenPastStart = (RAND(seed) % info.dictContentSize) + 1;
                     offset = ((BYTE*)srcPtr - (BYTE*)frame->srcStart)+lenPastStart;
-                    if (lenPastStart > frame->header.windowSize) {
-                        matchLen = MIN(matchLen, frame->header.windowSize);
-                    }
                     if (offset > frame->header.windowSize) {
-                        U32 const matchLenBound = MIN(frame->header.windowSize, lenPastStart);
-                        matchLen = MIN(matchLen, matchLenBound);
+                        if (lenPastStart < MIN_SEQ_LEN) {
+                            /* when offset > windowSize, matchLen bound by end of dictionary (lenPastStart) */
+                            /* this also means that lenPastStart must be greater than MIN_SEQ_LEN */
+                            /* make sure lenPastStart does not go past dictionary start though */
+                            lenPastStart = MIN(lenPastStart+MIN_SEQ_LEN, info.dictContentSize);
+                            offset = ((BYTE*)srcPtr - (BYTE*)frame->srcStart) + lenPastStart;
+                        }
+                        {
+                            U32 const matchLenBound = MIN(frame->header.windowSize, lenPastStart);
+                            matchLen = MIN(matchLen, matchLenBound);
+                        }
                     }
                 }
                 offsetCode = offset + ZSTD_REP_MOVE;
@@ -713,7 +718,7 @@ static U32 generateSequences(U32* seed, frame_t* frame, seqStore_t* seqStore,
             size_t j;
             BYTE* const dictEnd = info.dictContent + info.dictContentSize;
             for (j = 0; j < matchLen; j++) {
-                if ((void*)(srcPtr - offset) < (void*)frame->srcStart) {
+                if (((BYTE*)srcPtr - (BYTE*)frame->srcStart) < offset) {
                     /* copy from dictionary instead of literals */
                     size_t const dictOffset = offset - (srcPtr - (BYTE*)frame->srcStart);
                     *srcPtr = *(dictEnd - dictOffset);

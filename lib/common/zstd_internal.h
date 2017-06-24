@@ -64,7 +64,11 @@
 #  define assert_only assert
 #else
 #if defined(__clang__)  // Must go first because clang also defines __GNUC__
+#  if __has_builtin(__builtin_assume)
 #    define assert(condition) __builtin_assume(condition)
+#  else
+#    define assert(condition) ((void)0)
+#  endif
 #    define assert_only(condition) ((void)0)
 #  elif defined(__GNUC__)
      MEM_STATIC void assume(int expr) { if (!expr) __builtin_unreachable(); }

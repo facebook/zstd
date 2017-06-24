@@ -60,7 +60,11 @@ extern "C" {
 #  define BIT_assert assert
 #else
 #  if defined(__clang__)
-#    define BIT_assert(condition) __builtin_assume(condition)
+#    if __has_builtin(__builtin_assume)
+#      define BIT_assert(condition) __builtin_assume(condition)
+#    else
+#      define BIT_assert(condition) ((void)0)
+#    endif
 #  elif defined(__GNUC__)
 #    define BIT_assert(condition) { if (!(condition)) __builtin_unreachable(); }
 #  elif defined(_MSC_VER)

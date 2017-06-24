@@ -272,7 +272,7 @@ endif
 
 test32: test-zstd32 test-fullbench32 test-fuzzer32 test-zstream32
 
-test-all: test test32 valgrindTest
+test-all: test test32 valgrindTest test-decodecorpus-cli
 
 test-zstd: ZSTD = $(PRGDIR)/zstd
 test-zstd: zstd zstd-playTests

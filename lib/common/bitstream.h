@@ -61,6 +61,8 @@ extern "C" {
 #  undef assert
 #  ifdef __GNUC__
 #    define assert(condition) { if (!(condition)) __builtin_unreachable(); }
+#  elif defined(_MSC_VER)
+#    define assert(condition) __assume(condition)
 #  else
 #    define assert(condition) ((void)0)
 #  endif

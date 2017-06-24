@@ -63,7 +63,9 @@
 #  include <assert.h>
 #else
 #  undef assert
-#  ifdef __GNUC__
+#if defined(__clang__)  // Must go first because clang also defines __GNUC__
+#    define assert(condition) __builtin_assume(condition)
+#  elif defined(__GNUC__)
      MEM_STATIC void assume(int expr) { if (!expr) __builtin_unreachable(); }
 #    define assert(condition) assume(condition)
 #  elif defined(_MSC_VER)

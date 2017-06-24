@@ -505,7 +505,7 @@ static U32 ZSTD_cycleLog(U32 hashLog, ZSTD_strategy strat)
     Note : cPar is considered validated at this stage. Use ZSTD_checkParams() to ensure that. */
 ZSTD_compressionParameters ZSTD_adjustCParams_internal(ZSTD_compressionParameters cPar, unsigned long long srcSize, size_t dictSize)
 {
-    assert(ZSTD_checkCParams(cPar)==0);
+    assert_only(ZSTD_checkCParams(cPar)==0);
     if (srcSize+dictSize == 0) return cPar;   /* no size information available : no adjustment */
 
     /* resize params, to use less memory when necessary */
@@ -616,7 +616,7 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
                                       ZSTD_compResetPolicy_e const crp,
                                       ZSTD_buffered_policy_e const zbuff)
 {
-    assert(!ZSTD_isError(ZSTD_checkCParams(params.cParams)));
+    assert_only(!ZSTD_isError(ZSTD_checkCParams(params.cParams)));
 
     if (crp == ZSTDcrp_continue) {
         if (ZSTD_equivalentParams(params.cParams, zc->appliedParams.cParams)) {
@@ -3196,7 +3196,7 @@ static size_t ZSTD_compressBegin_internal(ZSTD_CCtx* cctx,
     DEBUGLOG(5, "dict ? %s", dict ? "dict" : cdict ? "cdict" : "none");
     DEBUGLOG(5, "dictMode : %u", (U32)dictMode);
     /* params are supposed to be fully validated at this point */
-    assert(!ZSTD_isError(ZSTD_checkCParams(params.cParams)));
+    assert_only(!ZSTD_isError(ZSTD_checkCParams(params.cParams)));
     assert(!((dict) && (cdict)));  /* either dict or cdict, not both */
 
     if (cdict && cdict->dictContentSize>0) {
@@ -3638,7 +3638,7 @@ size_t ZSTD_initCStream_internal(ZSTD_CStream* zcs,
                     ZSTD_parameters params, unsigned long long pledgedSrcSize)
 {
     DEBUGLOG(5, "ZSTD_initCStream_internal");
-    assert(!ZSTD_isError(ZSTD_checkCParams(params.cParams)));
+    assert_only(!ZSTD_isError(ZSTD_checkCParams(params.cParams)));
     assert(!((dict) && (cdict)));  /* either dict or cdict, not both */
 
     if (dict && dictSize >= 8) {

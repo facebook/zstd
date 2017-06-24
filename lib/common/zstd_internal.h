@@ -61,17 +61,24 @@
 ***************************************/
 #if defined(ZSTD_DEBUG) && (ZSTD_DEBUG>=1)
 #  include <assert.h>
+#  undef assert_only
+#  define assert_only assert
 #else
 #  undef assert
+#  undef assert_only
 #if defined(__clang__)  // Must go first because clang also defines __GNUC__
 #    define assert(condition) __builtin_assume(condition)
+#    define assert_only(condition) ((void)0)
 #  elif defined(__GNUC__)
      MEM_STATIC void assume(int expr) { if (!expr) __builtin_unreachable(); }
 #    define assert(condition) assume(condition)
+#    define assert_only(condition) ((void)0)
 #  elif defined(_MSC_VER)
 #    define assert(condition) __assume(condition)
+#    define assert_only(condition) ((void)0)
 #  else
 #    define assert(condition) ((void)0)
+#    define assert_only(condition) ((void)0)
 #  endif
 #endif
 

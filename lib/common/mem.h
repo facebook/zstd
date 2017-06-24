@@ -14,16 +14,12 @@
 extern "C" {
 #endif
 
-/*-****************************************
-*  Dependencies
-******************************************/
+/* ====   Dependencies   ==== */
 #include <stddef.h>     /* size_t, ptrdiff_t */
 #include <string.h>     /* memcpy */
 
 
-/*-****************************************
-*  Compiler specifics
-******************************************/
+/* ====   Compiler specifics   ==== */
 #if defined(_MSC_VER)   /* Visual Studio */
 #   include <stdlib.h>  /* _byteswap_ulong */
 #   include <intrin.h>  /* _byteswap_* */
@@ -35,7 +31,7 @@ extern "C" {
 #elif defined(_MSC_VER)
 #  define MEM_STATIC static __inline
 #else
-#  define MEM_STATIC static  /* this version may generate warnings for unused static functions; disable the relevant warning */
+#  define MEM_STATIC static  /* this version may generate warnings for unused static functions; disable relevant warnings */
 #endif
 
 /* code only tested on 32 and 64 bits systems */
@@ -137,10 +133,8 @@ MEM_STATIC void MEM_write16(void* memPtr, U16 value) { ((unalign*)memPtr)->u16 =
 MEM_STATIC void MEM_write32(void* memPtr, U32 value) { ((unalign*)memPtr)->u32 = value; }
 MEM_STATIC void MEM_write64(void* memPtr, U64 value) { ((unalign*)memPtr)->u64 = value; }
 
-#else
-
-/* default method, safe and standard.
-   can sometimes prove slower */
+#else   /* MEM_FORCE_MEMORY_ACCESS */
+/* default method, safe and standard. But may sometimes prove slower */
 
 MEM_STATIC U16 MEM_read16(const void* memPtr)
 {

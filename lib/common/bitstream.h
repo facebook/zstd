@@ -57,9 +57,20 @@ extern "C" {
 ***************************************/
 #if defined(BIT_DEBUG) && (BIT_DEBUG>=1)
 #  include <assert.h>
+#  define BIT_assert assert
 #else
-#  ifndef assert
-#    define assert(condition) ((void)0)
+#  if defined(__clang__)
+#    if __has_builtin(__builtin_assume)
+#      define BIT_assert(condition) __builtin_assume(condition)
+#    else
+#      define BIT_assert(condition) ((void)0)
+#    endif
+#  elif defined(__GNUC__)
+#    define BIT_assert(condition) { if (!(condition)) __builtin_unreachable(); }
+#  elif defined(_MSC_VER)
+#    define BIT_assert(condition) __assume(condition)
+#  else
+#    define BIT_assert(condition) ((void)0)
 #  endif
 #endif
 
@@ -231,7 +242,7 @@ MEM_STATIC void BIT_addBits(BIT_CStream_t* bitC,
 MEM_STATIC void BIT_addBitsFast(BIT_CStream_t* bitC,
                                 size_t value, unsigned nbBits)
 {
-    assert((value>>nbBits) == 0);
+    BIT_assert((value>>nbBits) == 0);
     bitC->bitContainer |= value << bitC->bitPos;
     bitC->bitPos += nbBits;
 }
@@ -242,10 +253,10 @@ MEM_STATIC void BIT_addBitsFast(BIT_CStream_t* bitC,
 MEM_STATIC void BIT_flushBitsFast(BIT_CStream_t* bitC)
 {
     size_t const nbBytes = bitC->bitPos >> 3;
-    assert( bitC->bitPos <= (sizeof(bitC->bitContainer)*8) );
+    BIT_assert( bitC->bitPos <= (sizeof(bitC->bitContainer)*8) );
     MEM_writeLEST(bitC->ptr, bitC->bitContainer);
     bitC->ptr += nbBytes;
-    assert(bitC->ptr <= bitC->endPtr);
+    BIT_assert(bitC->ptr <= bitC->endPtr);
     bitC->bitPos &= 7;
     bitC->bitContainer >>= nbBytes*8;
 }
@@ -258,7 +269,7 @@ MEM_STATIC void BIT_flushBitsFast(BIT_CStream_t* bitC)
 MEM_STATIC void BIT_flushBits(BIT_CStream_t* bitC)
 {
     size_t const nbBytes = bitC->bitPos >> 3;
-    assert( bitC->bitPos <= (sizeof(bitC->bitContainer)*8) );
+    BIT_assert( bitC->bitPos <= (sizeof(bitC->bitContainer)*8) );
     MEM_writeLEST(bitC->ptr, bitC->bitContainer);
     bitC->ptr += nbBytes;
     if (bitC->ptr > bitC->endPtr) bitC->ptr = bitC->endPtr;
@@ -380,7 +391,7 @@ MEM_STATIC size_t BIT_getLowerBits(size_t bitContainer, U32 const nbBits)
 MEM_STATIC size_t BIT_lookBitsFast(const BIT_DStream_t* bitD, U32 nbBits)
 {
     U32 const regMask = sizeof(bitD->bitContainer)*8 - 1;
-    assert(nbBits >= 1);
+    BIT_assert(nbBits >= 1);
     return (bitD->bitContainer << (bitD->bitsConsumed & regMask)) >> (((regMask+1)-nbBits) & regMask);
 }
 
@@ -406,7 +417,7 @@ MEM_STATIC size_t BIT_readBits(BIT_DStream_t* bitD, U32 nbBits)
 MEM_STATIC size_t BIT_readBitsFast(BIT_DStream_t* bitD, U32 nbBits)
 {
     size_t const value = BIT_lookBitsFast(bitD, nbBits);
-    assert(nbBits >= 1);
+    BIT_assert(nbBits >= 1);
     BIT_skipBits(bitD, nbBits);
     return value;
 }

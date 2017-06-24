@@ -555,8 +555,6 @@ cat tmp12.zst tmp34.zst > tmp1234.zst
 cat tmp12.zst tmp4.zst > tmp124.zst
 $ZSTD -l *.zst
 $ZSTD -lv *.zst
-$ZSTD --list *.zst
-$ZSTD --list -v *.zst
 
 $ECHO "\n**** zstd --list/-l error detection tests ****"
 ! $ZSTD -l tmp1 tmp1.zst

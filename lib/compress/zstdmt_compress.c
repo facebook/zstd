@@ -565,7 +565,7 @@ size_t ZSTDMT_initCStream_internal(ZSTDMT_CCtx* zcs,
 {
     DEBUGLOG(5, "ZSTDMT_initCStream_internal");
     /* params are supposed to be fully validated at this point */
-    assert(!ZSTD_isError(ZSTD_checkCParams(params.cParams)));
+    assert_only(!ZSTD_isError(ZSTD_checkCParams(params.cParams)));
     assert(!((dict) && (cdict)));  /* either dict or cdict, not both */
 
     if (zcs->nbThreads==1) {

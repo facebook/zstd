@@ -3361,14 +3361,20 @@ size_t ZSTD_compress(void* dst, size_t dstCapacity, const void* src, size_t srcS
 
 /* =====  Dictionary API  ===== */
 
-/*! ZSTD_estimateCDictSize() :
+/*! ZSTD_estimateCDictSize_advanced() :
  *  Estimate amount of memory that will be needed to create a dictionary with following arguments */
-size_t ZSTD_estimateCDictSize(ZSTD_compressionParameters cParams, size_t dictSize, unsigned byReference)
+size_t ZSTD_estimateCDictSize_advanced(size_t dictSize, ZSTD_compressionParameters cParams, unsigned byReference)
 {
     DEBUGLOG(5, "sizeof(ZSTD_CDict) : %u", (U32)sizeof(ZSTD_CDict));
     DEBUGLOG(5, "CCtx estimate : %u", (U32)ZSTD_estimateCCtxSize_advanced(cParams));
     return sizeof(ZSTD_CDict) + ZSTD_estimateCCtxSize_advanced(cParams)
            + (byReference ? 0 : dictSize);
+}
+
+size_t ZSTD_estimateCDictSize(size_t dictSize, int compressionLevel)
+{
+    ZSTD_compressionParameters const cParams = ZSTD_getCParams(compressionLevel, 0, dictSize);
+    return ZSTD_estimateCDictSize_advanced(dictSize, cParams, 0);
 }
 
 size_t ZSTD_sizeof_CDict(const ZSTD_CDict* cdict)

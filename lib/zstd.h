@@ -517,8 +517,11 @@ ZSTDLIB_API size_t ZSTD_estimateCStreamSize_advanced(ZSTD_compressionParameters 
 ZSTDLIB_API size_t ZSTD_estimateDStreamSize(ZSTD_frameHeader fHeader);
 
 /*! ZSTD_estimate?DictSize() :
+ *  ZSTD_estimateCDictSize() will bet that src size is relatively "small", and content is copied, like ZSTD_createCDict().
+ *  ZSTD_estimateCStreamSize_advanced() makes it possible to control precisely compression parameters, like ZSTD_createCDict_advanced().
  *  Note : dictionary created "byReference" are smaller */
-ZSTDLIB_API size_t ZSTD_estimateCDictSize(ZSTD_compressionParameters cParams, size_t dictSize, unsigned byReference);
+ZSTDLIB_API size_t ZSTD_estimateCDictSize(size_t dictSize, int compressionLevel);
+ZSTDLIB_API size_t ZSTD_estimateCDictSize_advanced(size_t dictSize, ZSTD_compressionParameters cParams, unsigned byReference);
 ZSTDLIB_API size_t ZSTD_estimateDDictSize(size_t dictSize, unsigned byReference);
 
 

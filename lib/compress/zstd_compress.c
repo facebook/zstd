@@ -532,7 +532,7 @@ ZSTD_compressionParameters ZSTD_adjustCParams(ZSTD_compressionParameters cPar, u
 }
 
 
-size_t ZSTD_estimateCCtxSize(ZSTD_compressionParameters cParams)
+size_t ZSTD_estimateCCtxSize_advanced(ZSTD_compressionParameters cParams)
 {
     size_t const blockSize = MIN(ZSTD_BLOCKSIZE_MAX, (size_t)1 << cParams.windowLog);
     U32    const divider = (cParams.searchLength==3) ? 3 : 4;
@@ -558,9 +558,15 @@ size_t ZSTD_estimateCCtxSize(ZSTD_compressionParameters cParams)
     return sizeof(ZSTD_CCtx) + neededSpace;
 }
 
+size_t ZSTD_estimateCCtxSize(int compressionLevel)
+{
+    ZSTD_compressionParameters const cParams = ZSTD_getCParams(compressionLevel, 0, 0);
+    return ZSTD_estimateCCtxSize_advanced(cParams);
+}
+
 size_t ZSTD_estimateCStreamSize(ZSTD_compressionParameters cParams)
 {
-    size_t const CCtxSize = ZSTD_estimateCCtxSize(cParams);
+    size_t const CCtxSize = ZSTD_estimateCCtxSize_advanced(cParams);
     size_t const blockSize = MIN(ZSTD_BLOCKSIZE_MAX, (size_t)1 << cParams.windowLog);
     size_t const inBuffSize = ((size_t)1 << cParams.windowLog) + blockSize;
     size_t const outBuffSize = ZSTD_compressBound(blockSize) + 1;
@@ -3355,8 +3361,8 @@ size_t ZSTD_compress(void* dst, size_t dstCapacity, const void* src, size_t srcS
 size_t ZSTD_estimateCDictSize(ZSTD_compressionParameters cParams, size_t dictSize, unsigned byReference)
 {
     DEBUGLOG(5, "sizeof(ZSTD_CDict) : %u", (U32)sizeof(ZSTD_CDict));
-    DEBUGLOG(5, "CCtx estimate : %u", (U32)ZSTD_estimateCCtxSize(cParams));
-    return sizeof(ZSTD_CDict) + ZSTD_estimateCCtxSize(cParams)
+    DEBUGLOG(5, "CCtx estimate : %u", (U32)ZSTD_estimateCCtxSize_advanced(cParams));
+    return sizeof(ZSTD_CDict) + ZSTD_estimateCCtxSize_advanced(cParams)
            + (byReference ? 0 : dictSize);
 }
 
@@ -3482,7 +3488,7 @@ ZSTD_CDict* ZSTD_initStaticCDict(void* workspace, size_t workspaceSize,
                                  unsigned byReference, ZSTD_dictMode_e dictMode,
                                  ZSTD_compressionParameters cParams)
 {
-    size_t const cctxSize = ZSTD_estimateCCtxSize(cParams);
+    size_t const cctxSize = ZSTD_estimateCCtxSize_advanced(cParams);
     size_t const neededSize = sizeof(ZSTD_CDict) + (byReference ? 0 : dictSize)
                             + cctxSize;
     ZSTD_CDict* const cdict = (ZSTD_CDict*) workspace;

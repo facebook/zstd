@@ -564,7 +564,7 @@ size_t ZSTD_estimateCCtxSize(int compressionLevel)
     return ZSTD_estimateCCtxSize_advanced(cParams);
 }
 
-size_t ZSTD_estimateCStreamSize(ZSTD_compressionParameters cParams)
+size_t ZSTD_estimateCStreamSize_advanced(ZSTD_compressionParameters cParams)
 {
     size_t const CCtxSize = ZSTD_estimateCCtxSize_advanced(cParams);
     size_t const blockSize = MIN(ZSTD_BLOCKSIZE_MAX, (size_t)1 << cParams.windowLog);
@@ -573,6 +573,11 @@ size_t ZSTD_estimateCStreamSize(ZSTD_compressionParameters cParams)
     size_t const streamingSize = inBuffSize + outBuffSize;
 
     return CCtxSize + streamingSize;
+}
+
+size_t ZSTD_estimateCStreamSize(int compressionLevel) {
+    ZSTD_compressionParameters const cParams = ZSTD_getCParams(compressionLevel, 0, 0);
+    return ZSTD_estimateCStreamSize_advanced(cParams);
 }
 
 

@@ -193,8 +193,7 @@ static int basicUnitTests(U32 seed, double compressibility)
     /* Static CCtx tests */
 #define STATIC_CCTX_LEVEL 3
     DISPLAYLEVEL(4, "test%3i : create static CCtx for level %u :", testNb++, STATIC_CCTX_LEVEL);
-    {   ZSTD_compressionParameters const cParams = ZSTD_getCParams(STATIC_CCTX_LEVEL, 0, 0);
-        size_t const staticCCtxSize = ZSTD_estimateCStreamSize(cParams);
+    {   size_t const staticCCtxSize = ZSTD_estimateCStreamSize(STATIC_CCTX_LEVEL);
         void* const staticCCtxBuffer = malloc(staticCCtxSize);
         size_t const staticDCtxSize = ZSTD_estimateDCtxSize();
         void* const staticDCtxBuffer = malloc(staticDCtxSize);

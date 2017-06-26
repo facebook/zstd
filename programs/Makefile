@@ -178,6 +178,11 @@ zstd-nogz : ZLIBLD :=
 zstd-nogz : ZLIB_MSG := - gzip support is disabled
 zstd-nogz : zstd
 
+zstd-noxz : LZMACPP :=
+zstd-noxz : LZMALD :=
+zstd-noxz : LZMA_MSG := - xz/lzma support is disabled
+zstd-noxz : zstd
+
 
 zstd-pgo : MOREFLAGS = -fprofile-generate
 zstd-pgo : clean zstd

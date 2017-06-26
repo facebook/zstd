@@ -1,3 +1,86 @@
+From e75beb7c2e05550b2846e31ad8a0082c188504da Mon Sep 17 00:00:00 2001
+From: Nick Terrell <terrelln@fb.com>
+Date: Wed, 21 Jun 2017 17:27:42 -0700
+Subject: [PATCH 1/4] lib: Add xxhash module
+
+Adds xxhash kernel module with xxh32 and xxh64 hashes. xxhash is an
+extremely fast non-cryptographic hash algorithm for checksumming.
+The zstd compression and decompression modules added in the next patch
+require xxhash. I extracted it out from zstd since it is useful on its
+own. I copied the code from the upstream XXHash source repository and
+translated it into kernel style. I ran benchmarks and tests in the kernel
+and tests in userland.
+
+I benchmarked xxhash as a special character device. I ran in four modes,
+no-op, xxh32, xxh64, and crc32. The no-op mode simply copies the data to
+kernel space and ignores it. The xxh32, xxh64, and crc32 modes compute
+hashes on the copied data. I also ran it with four different buffer sizes.
+The benchmark file is located in the upstream zstd source repository under
+`contrib/linux-kernel/xxhash_test.c` [1].
+
+I ran the benchmarks on a Ubuntu 14.04 VM with 2 cores and 4 GiB of RAM.
+The VM is running on a MacBook Pro with a 3.1 GHz Intel Core i7 processor,
+16 GB of RAM, and a SSD. I benchmarked using the file `filesystem.squashfs`
+from `ubuntu-16.10-desktop-amd64.iso`, which is 1,536,217,088 B large.
+Run the following commands for the benchmark:
+
+    modprobe xxhash_test
+    mknod xxhash_test c 245 0
+    time cp filesystem.squashfs xxhash_test
+
+The time is reported by the time of the userland `cp`.
+The GB/s is computed with
+
+    1,536,217,008 B / time(buffer size, hash)
+
+which includes the time to copy from userland.
+The Normalized GB/s is computed with
+
+    1,536,217,088 B / (time(buffer size, hash) - time(buffer size, none)).
+
+
+| Buffer Size (B) | Hash  | Time (s) | GB/s | Adjusted GB/s |
+|-----------------|-------|----------|------|---------------|
+|            1024 | none  |    0.408 | 3.77 |             - |
+|            1024 | xxh32 |    0.649 | 2.37 |          6.37 |
+|            1024 | xxh64 |    0.542 | 2.83 |         11.46 |
+|            1024 | crc32 |    1.290 | 1.19 |          1.74 |
+|            4096 | none  |    0.380 | 4.04 |             - |
+|            4096 | xxh32 |    0.645 | 2.38 |          5.79 |
+|            4096 | xxh64 |    0.500 | 3.07 |         12.80 |
+|            4096 | crc32 |    1.168 | 1.32 |          1.95 |
+|            8192 | none  |    0.351 | 4.38 |             - |
+|            8192 | xxh32 |    0.614 | 2.50 |          5.84 |
+|            8192 | xxh64 |    0.464 | 3.31 |         13.60 |
+|            8192 | crc32 |    1.163 | 1.32 |          1.89 |
+|           16384 | none  |    0.346 | 4.43 |             - |
+|           16384 | xxh32 |    0.590 | 2.60 |          6.30 |
+|           16384 | xxh64 |    0.466 | 3.30 |         12.80 |
+|           16384 | crc32 |    1.183 | 1.30 |          1.84 |
+
+Tested in userland using the test-suite in the zstd repo under
+`contrib/linux-kernel/test/XXHashUserlandTest.cpp` [2] by mocking the
+kernel functions. A line in each branch of every function in `xxhash.c`
+was commented out to ensure that the test-suite fails. Additionally
+tested while testing zstd and with SMHasher [3].
+
+[1] https://phabricator.intern.facebook.com/P57526246
+[2] https://github.com/facebook/zstd/blob/dev/contrib/linux-kernel/test/XXHashUserlandTest.cpp
+[3] https://github.com/aappleby/smhasher
+
+zstd source repository: https://github.com/facebook/zstd
+XXHash source repository: https://github.com/cyan4973/xxhash
+
+Signed-off-by: Nick Terrell <terrelln@fb.com>
+---
+ include/linux/xxhash.h | 236 +++++++++++++++++++++++
+ lib/Kconfig            |   3 +
+ lib/Makefile           |   1 +
+ lib/xxhash.c           | 500 +++++++++++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 740 insertions(+)
+ create mode 100644 include/linux/xxhash.h
+ create mode 100644 lib/xxhash.c
+
 diff --git a/include/linux/xxhash.h b/include/linux/xxhash.h
 new file mode 100644
 index 0000000..9e1f42c
@@ -255,10 +338,10 @@ index 0c8b78a..b6009d7 100644
  	bool
  	depends on AUDIT && !AUDIT_ARCH
 diff --git a/lib/Makefile b/lib/Makefile
-index 320ac46..e16f94a 100644
+index 0166fbc..1338226 100644
 --- a/lib/Makefile
 +++ b/lib/Makefile
-@@ -101,6 +101,7 @@ obj-$(CONFIG_CRC32_SELFTEST)	+= crc32test.o
+@@ -102,6 +102,7 @@ obj-$(CONFIG_CRC32_SELFTEST)	+= crc32test.o
  obj-$(CONFIG_CRC7)	+= crc7.o
  obj-$(CONFIG_LIBCRC32C)	+= libcrc32c.o
  obj-$(CONFIG_CRC8)	+= crc8.o
@@ -772,3 +855,6 @@ index 0000000..dc94904
 +
 +MODULE_LICENSE("Dual BSD/GPL");
 +MODULE_DESCRIPTION("xxHash");
+-- 
+2.9.3
+

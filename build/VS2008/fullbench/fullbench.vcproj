@@ -329,19 +329,11 @@
 			UniqueIdentifier="{4FC737F1-C7A5-4376-A066-2A32D752A2FF}"
 			>
 			<File
-				RelativePath="..\..\..\programs\datagen.c"
-				>
-			</File>
-			<File
 				RelativePath="..\..\..\lib\common\entropy_common.c"
 				>
 			</File>
 			<File
 				RelativePath="..\..\..\lib\common\error_private.c"
-				>
-			</File>
-			<File
-				RelativePath="..\..\..\lib\compress\fse_compress.c"
 				>
 			</File>
 			<File
@@ -353,19 +345,15 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\..\tests\fullbench.c"
-				>
-			</File>
-			<File
-				RelativePath="..\..\..\lib\compress\huf_compress.c"
-				>
-			</File>
-			<File
-				RelativePath="..\..\..\lib\decompress\huf_decompress.c"
-				>
-			</File>
-			<File
 				RelativePath="..\..\..\lib\common\zstd_common.c"
+				>
+			</File>
+			<File
+				RelativePath="..\..\..\lib\common\pool.c"
+				>
+			</File>
+			<File
+				RelativePath="..\..\..\lib\common\threading.c"
 				>
 			</File>
 			<File
@@ -373,7 +361,31 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\..\lib\compress\zstdmt_compress.c"
+				>
+			</File>
+			<File
+				RelativePath="..\..\..\lib\compress\fse_compress.c"
+				>
+			</File>
+			<File
+				RelativePath="..\..\..\lib\compress\huf_compress.c"
+				>
+			</File>
+			<File
 				RelativePath="..\..\..\lib\decompress\zstd_decompress.c"
+				>
+			</File>
+			<File
+				RelativePath="..\..\..\lib\decompress\huf_decompress.c"
+				>
+			</File>
+			<File
+				RelativePath="..\..\..\programs\datagen.c"
+				>
+			</File>
+			<File
+				RelativePath="..\..\..\tests\fullbench.c"
 				>
 			</File>
 		</Filter>
@@ -382,6 +394,10 @@
 			Filter="h;hpp;hxx;hm;inl;inc;xsd"
 			UniqueIdentifier="{93995380-89BD-4b04-88EB-625FBE52EBFB}"
 			>
+			<File
+				RelativePath="..\..\..\lib\zstd.h"
+				>
+			</File>
 			<File
 				RelativePath="..\..\..\lib\common\bitstream.h"
 				>
@@ -419,11 +435,11 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\..\lib\zstd.h"
+				RelativePath="..\..\..\lib\common\zstd_internal.h"
 				>
 			</File>
 			<File
-				RelativePath="..\..\..\lib\common\zstd_internal.h"
+				RelativePath="..\..\..\lib\common\zstd_static.h"
 				>
 			</File>
 			<File
@@ -431,7 +447,7 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\..\lib\common\zstd_static.h"
+				RelativePath="..\..\..\lib\compress\zstdmt_compress.h"
 				>
 			</File>
 		</Filter>

@@ -389,6 +389,12 @@ unsigned long long ZSTD_getFrameContentSize(const void *src, size_t srcSize);
             however it does mean that all frame data must be present and valid. 
 </p></pre><BR>
 
+<pre><b>size_t ZSTD_frameHeaderSize(const void* src, size_t srcSize);
+</b><p>   `src` should point to the start of a ZSTD frame
+   `srcSize` must be >= ZSTD_frameHeaderSize_prefix.
+   @return : size of the Frame Header 
+</p></pre><BR>
+
 <a name="Chapter13"></a><h2>Context memory usage</h2><pre></pre>
 
 <pre><b>size_t ZSTD_sizeof_CCtx(const ZSTD_CCtx* cctx);
@@ -401,12 +407,15 @@ size_t ZSTD_sizeof_DDict(const ZSTD_DDict* ddict);
   Object memory usage can evolve if it's re-used multiple times. 
 </p></pre><BR>
 
-<pre><b>size_t ZSTD_estimateCCtxSize(ZSTD_compressionParameters cParams);
+<pre><b>size_t ZSTD_estimateCCtxSize(int compressionLevel);
+size_t ZSTD_estimateCCtxSize_advanced(ZSTD_compressionParameters cParams);
 size_t ZSTD_estimateDCtxSize(void);
 </b><p>  These functions make it possible to estimate memory usage
-  of a future target object, before its allocation,
-  given a set of parameters, which vary depending on target object.
+  of a future {D,C}Ctx, before its creation.
   The objective is to guide decision before allocation.
+  ZSTD_estimateCCtxSize() will consider src size to be arbitrarily "large".
+  If srcSize is known to be small, ZSTD_estimateCCtxSize_advanced() will provide a better (smaller) estimation.
+  ZSTD_estimateCCtxSize_advanced() can be used in tandem with ZSTD_getCParams() to create cParams from compressionLevel.
   Note : CCtx estimation is only correct for single-threaded compression 
 </p></pre><BR>
 

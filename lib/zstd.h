@@ -495,11 +495,14 @@ ZSTDLIB_API size_t ZSTD_sizeof_DDict(const ZSTD_DDict* ddict);
 
 /*! ZSTD_estimate*() :
  *  These functions make it possible to estimate memory usage
- *  of a future target object, before its allocation,
- *  given a set of parameters, which vary depending on target object.
+ *  of a future {D,C}Ctx, before its creation.
  *  The objective is to guide decision before allocation.
+ *  ZSTD_estimateCCtxSize() will consider src size to be arbitrarily "large".
+ *  If srcSize is known to be small, ZSTD_estimateCCtxSize_advanced() will provide a better (smaller) estimation.
+ *  ZSTD_estimateCCtxSize_advanced() can be used in tandem with ZSTD_getCParams() to create cParams from compressionLevel.
  *  Note : CCtx estimation is only correct for single-threaded compression */
-ZSTDLIB_API size_t ZSTD_estimateCCtxSize(ZSTD_compressionParameters cParams);
+ZSTDLIB_API size_t ZSTD_estimateCCtxSize(int compressionLevel);
+ZSTDLIB_API size_t ZSTD_estimateCCtxSize_advanced(ZSTD_compressionParameters cParams);
 ZSTDLIB_API size_t ZSTD_estimateDCtxSize(void);
 
 /*! ZSTD_estimate?StreamSize() :

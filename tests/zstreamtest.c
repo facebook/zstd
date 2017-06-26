@@ -210,7 +210,7 @@ static int basicUnitTests(U32 seed, double compressibility, ZSTD_customMem custo
     /* context size functions */
     DISPLAYLEVEL(3, "test%3i : estimate CStream size : ", testNb++);
     {   ZSTD_compressionParameters const cParams = ZSTD_getCParams(1, CNBufferSize, dictSize);
-        size_t const s = ZSTD_estimateCStreamSize(cParams)
+        size_t const s = ZSTD_estimateCStreamSize_advanced(cParams)
                         /* uses ZSTD_initCStream_usingDict() */
                        + ZSTD_estimateCDictSize(cParams, dictSize, 0);
             if (ZSTD_isError(s)) goto _output_error;

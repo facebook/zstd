@@ -498,7 +498,7 @@ ZSTDLIB_API size_t ZSTD_sizeof_DDict(const ZSTD_DDict* ddict);
  *  of a future {D,C}Ctx, before its creation.
  *  The objective is to guide decision before allocation.
  *  ZSTD_estimateCCtxSize() will consider src size to be arbitrarily "large".
- *  If srcSize is known to be small, ZSTD_estimateCCtxSize_advanced() will provide a better (smaller) estimation.
+ *  If srcSize is known to be small, ZSTD_estimateCCtxSize_advanced() can provide a tighter estimation.
  *  ZSTD_estimateCCtxSize_advanced() can be used in tandem with ZSTD_getCParams() to create cParams from compressionLevel.
  *  Note : CCtx estimation is only correct for single-threaded compression */
 ZSTDLIB_API size_t ZSTD_estimateCCtxSize(int compressionLevel);
@@ -506,10 +506,14 @@ ZSTDLIB_API size_t ZSTD_estimateCCtxSize_advanced(ZSTD_compressionParameters cPa
 ZSTDLIB_API size_t ZSTD_estimateDCtxSize(void);
 
 /*! ZSTD_estimate?StreamSize() :
+ *  ZSTD_estimateCStreamSize() will consider src size to be arbitrarily "large".
+ *  If srcSize is known to be small, ZSTD_estimateCStreamSize_advanced() can provide a tighter estimation.
+ *  ZSTD_estimateCStreamSize_advanced() can be used in tandem with ZSTD_getCParams() to create cParams from compressionLevel.
  *  Note : if streaming is init with function ZSTD_init?Stream_usingDict(),
  *         an internal ?Dict will be created, which size is not estimated here.
  *         In this case, get total size by adding ZSTD_estimate?DictSize */
-ZSTDLIB_API size_t ZSTD_estimateCStreamSize(ZSTD_compressionParameters cParams);
+ZSTDLIB_API size_t ZSTD_estimateCStreamSize(int compressionLevel);
+ZSTDLIB_API size_t ZSTD_estimateCStreamSize_advanced(ZSTD_compressionParameters cParams);
 ZSTDLIB_API size_t ZSTD_estimateDStreamSize(ZSTD_frameHeader fHeader);
 
 /*! ZSTD_estimate?DictSize() :

@@ -559,7 +559,7 @@ static unsigned long long FIO_compressLzmaFrame(cRess_t* ress,
 
     strm.next_in = 0;
     strm.avail_in = 0;
-    strm.next_out = ress->dstBuffer;
+    strm.next_out = (BYTE*)ress->dstBuffer;
     strm.avail_out = ress->dstBufferSize;
 
     while (1) {
@@ -567,7 +567,7 @@ static unsigned long long FIO_compressLzmaFrame(cRess_t* ress,
             size_t const inSize = fread(ress->srcBuffer, 1, ress->srcBufferSize, ress->srcFile);
             if (inSize == 0) action = LZMA_FINISH;
             inFileSize += inSize;
-            strm.next_in = ress->srcBuffer;
+            strm.next_in = (BYTE const*)ress->srcBuffer;
             strm.avail_in = inSize;
         }
 
@@ -580,7 +580,7 @@ static unsigned long long FIO_compressLzmaFrame(cRess_t* ress,
                 if (fwrite(ress->dstBuffer, 1, compBytes, ress->dstFile) != compBytes)
                     EXM_THROW(73, "Write error : cannot write to output file");
                 outFileSize += compBytes;
-                strm.next_out = ress->dstBuffer;
+                strm.next_out = (BYTE*)ress->dstBuffer;
                 strm.avail_out = ress->dstBufferSize;
         }   }
         if (!srcFileSize)
@@ -1490,16 +1490,16 @@ static unsigned long long FIO_decompressLzmaFrame(dRess_t* ress, FILE* srcFile, 
         EXM_THROW(71, "zstd: %s: lzma_alone_decoder/lzma_stream_decoder error %d",
                         srcFileName, ret);
 
-    strm.next_out = ress->dstBuffer;
+    strm.next_out = (BYTE*)ress->dstBuffer;
     strm.avail_out = ress->dstBufferSize;
+    strm.next_in = (BYTE const*)ress->srcBuffer;
     strm.avail_in = ress->srcBufferLoaded;
-    strm.next_in = ress->srcBuffer;
 
     for ( ; ; ) {
         if (strm.avail_in == 0) {
             ress->srcBufferLoaded = fread(ress->srcBuffer, 1, ress->srcBufferSize, srcFile);
             if (ress->srcBufferLoaded == 0) action = LZMA_FINISH;
-            strm.next_in = ress->srcBuffer;
+            strm.next_in = (BYTE const*)ress->srcBuffer;
             strm.avail_in = ress->srcBufferLoaded;
         }
         ret = lzma_code(&strm, action);
@@ -1515,7 +1515,7 @@ static unsigned long long FIO_decompressLzmaFrame(dRess_t* ress, FILE* srcFile, 
                 if (fwrite(ress->dstBuffer, 1, decompBytes, ress->dstFile) != decompBytes)
                     EXM_THROW(31, "Write error : cannot write to output file");
                 outFileSize += decompBytes;
-                strm.next_out = ress->dstBuffer;
+                strm.next_out = (BYTE*)ress->dstBuffer;
                 strm.avail_out = ress->dstBufferSize;
         }   }
         if (ret == LZMA_STREAM_END) break;

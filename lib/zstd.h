@@ -947,20 +947,13 @@ typedef enum {
                               * The higher the value of selected strategy, the more complex it is,
                               * resulting in stronger and slower compression.
                               * Special: value 0 means "do not change strategy". */
-#if 0
-    ZSTD_p_windowSize,       /* Maximum allowed back-reference distance.
-                              * Can be set to a more precise value than windowLog.
-                              * Will be transparently reduced to closest possible inferior value
-                              * (see Zstandard compression format) */
-                             /* Not ready yet ! */
-#endif
 
     /* frame parameters */
     ZSTD_p_contentSizeFlag=200, /* Content size is written into frame header _whenever known_ (default:1) */
     ZSTD_p_checksumFlag,     /* A 32-bits checksum of content is written at end of frame (default:0) */
     ZSTD_p_dictIDFlag,       /* When applicable, dictID of dictionary is provided in frame header (default:1) */
 
-    /* dictionary parameters (must be set before loading) */
+    /* dictionary parameters (must be set before ZSTD_CCtx_loadDictionary) */
     ZSTD_p_dictMode=300,     /* Select how dictionary content must be interpreted. Value must be from type ZSTD_dictMode_e.
                               * default : 0==auto : dictionary will be "full" if it respects specification, otherwise it will be "rawContent" */
     ZSTD_p_refDictContent,   /* Dictionary content will be referenced, instead of copied (default:0==byCopy).
@@ -1018,7 +1011,7 @@ ZSTDLIB_API size_t ZSTD_CCtx_setPledgedSrcSize(ZSTD_CCtx* cctx, unsigned long lo
 ZSTDLIB_API size_t ZSTD_CCtx_loadDictionary(ZSTD_CCtx* cctx, const void* dict, size_t dictSize);
 
 /*! ZSTD_CCtx_refCDict() :
- *  Ref a prepared dictionary, to be used for all next compression jobs.
+ *  Reference a prepared dictionary, to be used for all next compression jobs.
  *  Note that compression parameters are enforced from within CDict,
  *  and supercede any compression parameter previously set within CCtx.
  *  The dictionary will remain valid for future compression jobs using same CCtx.
@@ -1031,16 +1024,18 @@ ZSTDLIB_API size_t ZSTD_CCtx_loadDictionary(ZSTD_CCtx* cctx, const void* dict, s
 ZSTDLIB_API size_t ZSTD_CCtx_refCDict(ZSTD_CCtx* cctx, const ZSTD_CDict* cdict);
 
 /*! ZSTD_CCtx_refPrefix() :
- *  Reference a prefix (raw-content dictionary) for next compression job.
- *  Decompression will have to use same prefix.
- *  Prefix is only used once. Tables are discarded at end of compression job.
- *  If there is a need to use same prefix multiple times, consider embedding it into a ZSTD_CDict.
+ *  Reference a prefix (single-usage dictionary) for next compression job.
+ *  Decompression need same prefix to properly regenerate data.
+ *  Prefix is **only used once**. Tables are discarded at end of compression job.
+ *  Subsequent compression jobs will be done without prefix (if none is explicitly referenced).
+ *  If there is a need to use same prefix multiple times, consider embedding it into a ZSTD_CDict instead.
  * @result : 0, or an error code (which can be tested with ZSTD_isError()).
- *  Special : Adding a NULL (or 0-size) dictionary invalidates any previous prefix, meaning "return to no-dictionary mode".
+ *  Special : Adding any prefix (including NULL) invalidates any previous prefix or dictionary
  *  Note 1 : Prefix buffer is referenced. It must outlive compression job.
  *  Note 2 : Referencing a prefix involves building tables, which are dependent on compression parameters.
- *           It's a CPU-heavy operation, with non-negligible impact on latency. */
-ZSTDLIB_API size_t ZSTD_CCtx_refPrefix(ZSTD_CCtx* cctx, const void* prefix, size_t prefixSize);   /* Not ready yet ! <===================================== */
+ *           It's a CPU-heavy operation, with non-negligible impact on latency.
+ *  Note 3 : it's possible to alter ZSTD_p_dictMode using ZSTD_CCtx_setParameter() */
+ZSTDLIB_API size_t ZSTD_CCtx_refPrefix(ZSTD_CCtx* cctx, const void* prefix, size_t prefixSize);
 
 
 

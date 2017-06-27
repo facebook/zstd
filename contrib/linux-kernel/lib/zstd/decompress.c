@@ -70,6 +70,7 @@ typedef struct {
 	FSE_DTable OFTable[FSE_DTABLE_SIZE_U32(OffFSELog)];
 	FSE_DTable MLTable[FSE_DTABLE_SIZE_U32(MLFSELog)];
 	HUF_DTable hufTable[HUF_DTABLE_SIZE(HufLog)]; /* can accommodate HUF_decompress4X */
+	U64 workspace[HUF_DECOMPRESS_WORKSPACE_SIZE_U32 / 2];
 	U32 rep[ZSTD_REP_NUM];
 } ZSTD_entropyTables_t;
 
@@ -483,8 +484,10 @@ size_t ZSTD_decodeLiteralsBlock(ZSTD_DCtx *dctx, const void *src, size_t srcSize
 					    ? (singleStream ? HUF_decompress1X_usingDTable(dctx->litBuffer, litSize, istart + lhSize, litCSize, dctx->HUFptr)
 							    : HUF_decompress4X_usingDTable(dctx->litBuffer, litSize, istart + lhSize, litCSize, dctx->HUFptr))
 					    : (singleStream
-						   ? HUF_decompress1X2_DCtx(dctx->entropy.hufTable, dctx->litBuffer, litSize, istart + lhSize, litCSize)
-						   : HUF_decompress4X_hufOnly(dctx->entropy.hufTable, dctx->litBuffer, litSize, istart + lhSize, litCSize))))
+						   ? HUF_decompress1X2_DCtx_wksp(dctx->entropy.hufTable, dctx->litBuffer, litSize, istart + lhSize, litCSize,
+										 dctx->entropy.workspace, sizeof(dctx->entropy.workspace))
+						   : HUF_decompress4X_hufOnly_wksp(dctx->entropy.hufTable, dctx->litBuffer, litSize, istart + lhSize, litCSize,
+										   dctx->entropy.workspace, sizeof(dctx->entropy.workspace)))))
 					return ERROR(corruption_detected);
 
 				dctx->litPtr = dctx->litBuffer;
@@ -747,7 +750,7 @@ static const FSE_decode_t4 OF_defaultDTable[(1 << OF_DEFAULTNORMLOG) + 1] = {
 			  or an error code if it fails, testable with ZSTD_isError()
 */
 static size_t ZSTD_buildSeqTable(FSE_DTable *DTableSpace, const FSE_DTable **DTablePtr, symbolEncodingType_e type, U32 max, U32 maxLog, const void *src,
-				 size_t srcSize, const FSE_decode_t4 *defaultTable, U32 flagRepeatTable)
+				 size_t srcSize, const FSE_decode_t4 *defaultTable, U32 flagRepeatTable, void *workspace, size_t workspaceSize)
 {
 	const void *const tmpPtr = defaultTable; /* bypass strict aliasing */
 	switch (type) {
@@ -767,15 +770,23 @@ static size_t ZSTD_buildSeqTable(FSE_DTable *DTableSpace, const FSE_DTable **DTa
 	default: /* impossible */
 	case set_compressed: {
 		U32 tableLog;
-		S16 norm[MaxSeq + 1];
-		size_t const headerSize = FSE_readNCount(norm, &max, &tableLog, src, srcSize);
-		if (FSE_isError(headerSize))
-			return ERROR(corruption_detected);
-		if (tableLog > maxLog)
-			return ERROR(corruption_detected);
-		FSE_buildDTable(DTableSpace, norm, max, tableLog);
-		*DTablePtr = DTableSpace;
-		return headerSize;
+		S16 *norm = (S16 *)workspace;
+		size_t const spaceUsed32 = ALIGN(sizeof(S16) * (MaxSeq + 1), sizeof(U32)) >> 2;
+
+		if ((spaceUsed32 << 2) > workspaceSize)
+			return ERROR(GENERIC);
+		workspace = (U32 *)workspace + spaceUsed32;
+		workspaceSize -= (spaceUsed32 << 2);
+		{
+			size_t const headerSize = FSE_readNCount(norm, &max, &tableLog, src, srcSize);
+			if (FSE_isError(headerSize))
+				return ERROR(corruption_detected);
+			if (tableLog > maxLog)
+				return ERROR(corruption_detected);
+			FSE_buildDTable_wksp(DTableSpace, norm, max, tableLog, workspace, workspaceSize);
+			*DTablePtr = DTableSpace;
+			return headerSize;
+		}
 	}
 	}
 }
@@ -823,21 +834,21 @@ size_t ZSTD_decodeSeqHeaders(ZSTD_DCtx *dctx, int *nbSeqPtr, const void *src, si
 		/* Build DTables */
 		{
 			size_t const llhSize = ZSTD_buildSeqTable(dctx->entropy.LLTable, &dctx->LLTptr, LLtype, MaxLL, LLFSELog, ip, iend - ip,
-								  LL_defaultDTable, dctx->fseEntropy);
+								  LL_defaultDTable, dctx->fseEntropy, dctx->entropy.workspace, sizeof(dctx->entropy.workspace));
 			if (ZSTD_isError(llhSize))
 				return ERROR(corruption_detected);
 			ip += llhSize;
 		}
 		{
 			size_t const ofhSize = ZSTD_buildSeqTable(dctx->entropy.OFTable, &dctx->OFTptr, OFtype, MaxOff, OffFSELog, ip, iend - ip,
-								  OF_defaultDTable, dctx->fseEntropy);
+								  OF_defaultDTable, dctx->fseEntropy, dctx->entropy.workspace, sizeof(dctx->entropy.workspace));
 			if (ZSTD_isError(ofhSize))
 				return ERROR(corruption_detected);
 			ip += ofhSize;
 		}
 		{
 			size_t const mlhSize = ZSTD_buildSeqTable(dctx->entropy.MLTable, &dctx->MLTptr, MLtype, MaxML, MLFSELog, ip, iend - ip,
-								  ML_defaultDTable, dctx->fseEntropy);
+								  ML_defaultDTable, dctx->fseEntropy, dctx->entropy.workspace, sizeof(dctx->entropy.workspace));
 			if (ZSTD_isError(mlhSize))
 				return ERROR(corruption_detected);
 			ip += mlhSize;
@@ -1360,10 +1371,11 @@ static size_t ZSTD_decompressSequencesLong(ZSTD_DCtx *dctx, void *dst, size_t ma
 #define STORED_SEQS 4
 #define STOSEQ_MASK (STORED_SEQS - 1)
 #define ADVANCED_SEQS 4
-		seq_t sequences[STORED_SEQS];
+		seq_t *sequences = (seq_t *)dctx->entropy.workspace;
 		int const seqAdvance = MIN(nbSeq, ADVANCED_SEQS);
 		seqState_t seqState;
 		int seqNb;
+		ZSTD_STATIC_ASSERT(sizeof(dctx->entropy.workspace) >= sizeof(seq_t) * STORED_SEQS);
 		dctx->fseEntropy = 1;
 		{
 			U32 i;
@@ -1866,7 +1878,7 @@ static size_t ZSTD_loadEntropy(ZSTD_entropyTables_t *entropy, const void *const 
 	dictPtr += 8; /* skip header = magic + dictID */
 
 	{
-		size_t const hSize = HUF_readDTableX4(entropy->hufTable, dictPtr, dictEnd - dictPtr);
+		size_t const hSize = HUF_readDTableX4_wksp(entropy->hufTable, dictPtr, dictEnd - dictPtr, entropy->workspace, sizeof(entropy->workspace));
 		if (HUF_isError(hSize))
 			return ERROR(dictionary_corrupted);
 		dictPtr += hSize;
@@ -1880,7 +1892,7 @@ static size_t ZSTD_loadEntropy(ZSTD_entropyTables_t *entropy, const void *const 
 			return ERROR(dictionary_corrupted);
 		if (offcodeLog > OffFSELog)
 			return ERROR(dictionary_corrupted);
-		CHECK_E(FSE_buildDTable(entropy->OFTable, offcodeNCount, offcodeMaxValue, offcodeLog), dictionary_corrupted);
+		CHECK_E(FSE_buildDTable_wksp(entropy->OFTable, offcodeNCount, offcodeMaxValue, offcodeLog, entropy->workspace, sizeof(entropy->workspace)), dictionary_corrupted);
 		dictPtr += offcodeHeaderSize;
 	}
 
@@ -1892,7 +1904,7 @@ static size_t ZSTD_loadEntropy(ZSTD_entropyTables_t *entropy, const void *const 
 			return ERROR(dictionary_corrupted);
 		if (matchlengthLog > MLFSELog)
 			return ERROR(dictionary_corrupted);
-		CHECK_E(FSE_buildDTable(entropy->MLTable, matchlengthNCount, matchlengthMaxValue, matchlengthLog), dictionary_corrupted);
+		CHECK_E(FSE_buildDTable_wksp(entropy->MLTable, matchlengthNCount, matchlengthMaxValue, matchlengthLog, entropy->workspace, sizeof(entropy->workspace)), dictionary_corrupted);
 		dictPtr += matchlengthHeaderSize;
 	}
 
@@ -1904,7 +1916,7 @@ static size_t ZSTD_loadEntropy(ZSTD_entropyTables_t *entropy, const void *const 
 			return ERROR(dictionary_corrupted);
 		if (litlengthLog > LLFSELog)
 			return ERROR(dictionary_corrupted);
-		CHECK_E(FSE_buildDTable(entropy->LLTable, litlengthNCount, litlengthMaxValue, litlengthLog), dictionary_corrupted);
+		CHECK_E(FSE_buildDTable_wksp(entropy->LLTable, litlengthNCount, litlengthMaxValue, litlengthLog, entropy->workspace, sizeof(entropy->workspace)), dictionary_corrupted);
 		dictPtr += litlengthHeaderSize;
 	}
 

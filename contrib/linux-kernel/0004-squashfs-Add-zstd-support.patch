@@ -1,7 +1,7 @@
 From 5ff6a64abaea7b7f11d37cb0fdf08642316a3a90 Mon Sep 17 00:00:00 2001
 From: Nick Terrell <terrelln@fb.com>
 Date: Mon, 12 Jun 2017 12:18:23 -0700
-Subject: [PATCH 4/4] squashfs: Add zstd support
+Subject: [PATCH v2 4/4] squashfs: Add zstd support
 
 Add zstd compression and decompression support to SquashFS. zstd is a
 great fit for SquashFS because it can compress at ratios approaching xz,

@@ -391,7 +391,7 @@ int xxh64_update(struct xxh64_state *state, const void *input, const size_t len)
 	}
 
 	if (state->memsize) { /* tmp buffer is full */
-		const uint64_t *p64 = state->mem64;
+		uint64_t *p64 = state->mem64;
 
 		memcpy(((uint8_t *)p64) + state->memsize, input,
 			32 - state->memsize);

@@ -43,6 +43,7 @@
 #include "bitstream.h"
 #include "fse.h" /* header compression */
 #include "huf.h"
+#include <linux/kernel.h>
 #include <linux/string.h> /* memcpy, memset */
 
 /* **************************************************************
@@ -78,7 +79,7 @@ unsigned HUF_optimalTableLog(unsigned maxTableLog, size_t srcSize, unsigned maxS
  * Note : all elements within weightTable are supposed to be <= HUF_TABLELOG_MAX.
  */
 #define MAX_FSE_TABLELOG_FOR_HUFF_HEADER 6
-size_t HUF_compressWeights(void *dst, size_t dstSize, const void *weightTable, size_t wtSize)
+size_t HUF_compressWeights_wksp(void *dst, size_t dstSize, const void *weightTable, size_t wtSize, void *workspace, size_t workspaceSize)
 {
 	BYTE *const ostart = (BYTE *)dst;
 	BYTE *op = ostart;
@@ -87,11 +88,24 @@ size_t HUF_compressWeights(void *dst, size_t dstSize, const void *weightTable, s
 	U32 maxSymbolValue = HUF_TABLELOG_MAX;
 	U32 tableLog = MAX_FSE_TABLELOG_FOR_HUFF_HEADER;
 
-	FSE_CTable CTable[FSE_CTABLE_SIZE_U32(MAX_FSE_TABLELOG_FOR_HUFF_HEADER, HUF_TABLELOG_MAX)];
-	BYTE scratchBuffer[1 << MAX_FSE_TABLELOG_FOR_HUFF_HEADER];
+	FSE_CTable *CTable;
+	U32 *count;
+	S16 *norm;
+	size_t spaceUsed32 = 0;
 
-	U32 count[HUF_TABLELOG_MAX + 1];
-	S16 norm[HUF_TABLELOG_MAX + 1];
+	HUF_STATIC_ASSERT(sizeof(FSE_CTable) == sizeof(U32));
+
+	CTable = (FSE_CTable *)((U32 *)workspace + spaceUsed32);
+	spaceUsed32 += FSE_CTABLE_SIZE_U32(MAX_FSE_TABLELOG_FOR_HUFF_HEADER, HUF_TABLELOG_MAX);
+	count = (U32 *)workspace + spaceUsed32;
+	spaceUsed32 += HUF_TABLELOG_MAX + 1;
+	norm = (S16 *)((U32 *)workspace + spaceUsed32);
+	spaceUsed32 += ALIGN(sizeof(S16) * (HUF_TABLELOG_MAX + 1), sizeof(U32)) >> 2;
+
+	if ((spaceUsed32 << 2) > workspaceSize)
+		return ERROR(tableLog_tooLarge);
+	workspace = (U32 *)workspace + spaceUsed32;
+	workspaceSize -= (spaceUsed32 << 2);
 
 	/* init conditions */
 	if (wtSize <= 1)
@@ -116,7 +130,7 @@ size_t HUF_compressWeights(void *dst, size_t dstSize, const void *weightTable, s
 	}
 
 	/* Compress */
-	CHECK_F(FSE_buildCTable_wksp(CTable, norm, maxSymbolValue, tableLog, scratchBuffer, sizeof(scratchBuffer)));
+	CHECK_F(FSE_buildCTable_wksp(CTable, norm, maxSymbolValue, tableLog, workspace, workspaceSize));
 	{
 		CHECK_V_F(cSize, FSE_compress_usingCTable(op, oend - op, weightTable, wtSize, CTable));
 		if (cSize == 0)
@@ -132,15 +146,27 @@ struct HUF_CElt_s {
 	BYTE nbBits;
 }; /* typedef'd to HUF_CElt within "huf.h" */
 
-/*! HUF_writeCTable() :
+/*! HUF_writeCTable_wksp() :
 	`CTable` : Huffman tree to save, using huf representation.
 	@return : size of saved CTable */
-size_t HUF_writeCTable(void *dst, size_t maxDstSize, const HUF_CElt *CTable, U32 maxSymbolValue, U32 huffLog)
+size_t HUF_writeCTable_wksp(void *dst, size_t maxDstSize, const HUF_CElt *CTable, U32 maxSymbolValue, U32 huffLog, void *workspace, size_t workspaceSize)
 {
-	BYTE bitsToWeight[HUF_TABLELOG_MAX + 1]; /* precomputed conversion table */
-	BYTE huffWeight[HUF_SYMBOLVALUE_MAX];
 	BYTE *op = (BYTE *)dst;
 	U32 n;
+
+	BYTE *bitsToWeight;
+	BYTE *huffWeight;
+	size_t spaceUsed32 = 0;
+
+	bitsToWeight = (BYTE *)((U32 *)workspace + spaceUsed32);
+	spaceUsed32 += ALIGN(HUF_TABLELOG_MAX + 1, sizeof(U32)) >> 2;
+	huffWeight = (BYTE *)((U32 *)workspace + spaceUsed32);
+	spaceUsed32 += ALIGN(HUF_SYMBOLVALUE_MAX, sizeof(U32)) >> 2;
+
+	if ((spaceUsed32 << 2) > workspaceSize)
+		return ERROR(tableLog_tooLarge);
+	workspace = (U32 *)workspace + spaceUsed32;
+	workspaceSize -= (spaceUsed32 << 2);
 
 	/* check conditions */
 	if (maxSymbolValue > HUF_SYMBOLVALUE_MAX)
@@ -155,7 +181,7 @@ size_t HUF_writeCTable(void *dst, size_t maxDstSize, const HUF_CElt *CTable, U32
 
 	/* attempt weights compression by FSE */
 	{
-		CHECK_V_F(hSize, HUF_compressWeights(op + 1, maxDstSize - 1, huffWeight, maxSymbolValue));
+		CHECK_V_F(hSize, HUF_compressWeights_wksp(op + 1, maxDstSize - 1, huffWeight, maxSymbolValue, workspace, workspaceSize));
 		if ((hSize > 1) & (hSize < maxSymbolValue / 2)) { /* FSE compressed */
 			op[0] = (BYTE)hSize;
 			return hSize + 1;
@@ -174,15 +200,29 @@ size_t HUF_writeCTable(void *dst, size_t maxDstSize, const HUF_CElt *CTable, U32
 	return ((maxSymbolValue + 1) / 2) + 1;
 }
 
-size_t HUF_readCTable(HUF_CElt *CTable, U32 maxSymbolValue, const void *src, size_t srcSize)
+size_t HUF_readCTable_wksp(HUF_CElt *CTable, U32 maxSymbolValue, const void *src, size_t srcSize, void *workspace, size_t workspaceSize)
 {
-	BYTE huffWeight[HUF_SYMBOLVALUE_MAX + 1];  /* init not required, even though some static analyzer may complain */
-	U32 rankVal[HUF_TABLELOG_ABSOLUTEMAX + 1]; /* large enough for values from 0 to 16 */
+	U32 *rankVal;
+	BYTE *huffWeight;
 	U32 tableLog = 0;
 	U32 nbSymbols = 0;
+	size_t readSize;
+	size_t spaceUsed32 = 0;
+
+	rankVal = (U32 *)workspace + spaceUsed32;
+	spaceUsed32 += HUF_TABLELOG_ABSOLUTEMAX + 1;
+	huffWeight = (BYTE *)((U32 *)workspace + spaceUsed32);
+	spaceUsed32 += ALIGN(HUF_SYMBOLVALUE_MAX + 1, sizeof(U32)) >> 2;
+
+	if ((spaceUsed32 << 2) > workspaceSize)
+		return ERROR(tableLog_tooLarge);
+	workspace = (U32 *)workspace + spaceUsed32;
+	workspaceSize -= (spaceUsed32 << 2);
 
 	/* get symbol weights */
-	CHECK_V_F(readSize, HUF_readStats(huffWeight, HUF_SYMBOLVALUE_MAX + 1, rankVal, &nbSymbols, &tableLog, src, srcSize));
+	readSize = HUF_readStats_wksp(huffWeight, HUF_SYMBOLVALUE_MAX + 1, rankVal, &nbSymbols, &tableLog, src, srcSize, workspace, workspaceSize);
+	if (ERR_isError(readSize))
+		return readSize;
 
 	/* check result */
 	if (tableLog > HUF_TABLELOG_MAX)
@@ -680,7 +720,7 @@ static size_t HUF_compress_internal(void *dst, size_t dstSize, const void *src, 
 
 	/* Write table description header */
 	{
-		CHECK_V_F(hSize, HUF_writeCTable(op, dstSize, CTable, maxSymbolValue, huffLog));
+		CHECK_V_F(hSize, HUF_writeCTable_wksp(op, dstSize, CTable, maxSymbolValue, huffLog, workSpace, wkspSize));
 		/* Check if using the previous table will be beneficial */
 		if (repeat && *repeat != HUF_repeat_none) {
 			size_t const oldSize = HUF_estimateCompressedSize(oldHufTable, count, maxSymbolValue);

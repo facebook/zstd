@@ -164,7 +164,7 @@ size_t FSE_readNCount(short *normalizedCounter, unsigned *maxSVPtr, unsigned *ta
 	@return : size read from `src` , or an error Code .
 	Note : Needed by HUF_readCTable() and HUF_readDTableX?() .
 */
-size_t HUF_readStats(BYTE *huffWeight, size_t hwSize, U32 *rankStats, U32 *nbSymbolsPtr, U32 *tableLogPtr, const void *src, size_t srcSize)
+size_t HUF_readStats_wksp(BYTE *huffWeight, size_t hwSize, U32 *rankStats, U32 *nbSymbolsPtr, U32 *tableLogPtr, const void *src, size_t srcSize, void *workspace, size_t workspaceSize)
 {
 	U32 weightTotal;
 	const BYTE *ip = (const BYTE *)src;
@@ -192,10 +192,9 @@ size_t HUF_readStats(BYTE *huffWeight, size_t hwSize, U32 *rankStats, U32 *nbSym
 			}
 		}
 	} else {						 /* header compressed with FSE (normal case) */
-		FSE_DTable fseWorkspace[FSE_DTABLE_SIZE_U32(6)]; /* 6 is max possible tableLog for HUF header (maybe even 5, to be tested) */
 		if (iSize + 1 > srcSize)
 			return ERROR(srcSize_wrong);
-		oSize = FSE_decompress_wksp(huffWeight, hwSize - 1, ip + 1, iSize, fseWorkspace, 6); /* max (hwSize-1) values decoded, as last one is implied */
+		oSize = FSE_decompress_wksp(huffWeight, hwSize - 1, ip + 1, iSize, 6, workspace, workspaceSize); /* max (hwSize-1) values decoded, as last one is implied */
 		if (FSE_isError(oSize))
 			return oSize;
 	}

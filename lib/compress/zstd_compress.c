@@ -89,6 +89,7 @@ struct ZSTD_CCtx_s {
     U32   loadedDictEnd;    /* index of end of dictionary */
     U32   forceWindow;      /* force back-references to respect limit of 1<<wLog, even for dictionary */
     ZSTD_dictMode_e dictMode; /* select restricting dictionary to "rawContent" or "fullDict" only */
+    U32   dictContentByRef;
     ZSTD_compressionStage_e stage;
     U32   rep[ZSTD_REP_NUM];
     U32   repToConfirm[ZSTD_REP_NUM];
@@ -322,11 +323,6 @@ size_t ZSTD_CCtx_setParameter(ZSTD_CCtx* cctx, ZSTD_cParameter param, unsigned v
         cctx->requestedParams.cParams.strategy = (ZSTD_strategy)value;
         return 0;
 
-#if 0
-    case ZSTD_p_windowSize :   /* to be done later */
-        return ERROR(compressionParameter_unsupported);
-#endif
-
     case ZSTD_p_contentSizeFlag :
         DEBUGLOG(5, "set content size flag = %u", (value>0));
         /* Content size written in frame header _when known_ (default:1) */
@@ -343,15 +339,20 @@ size_t ZSTD_CCtx_setParameter(ZSTD_CCtx* cctx, ZSTD_cParameter param, unsigned v
         cctx->requestedParams.fParams.noDictIDFlag = (value==0);
         return 0;
 
-    case ZSTD_p_refDictContent :   /* to be done later */
-        return ERROR(compressionParameter_unsupported);
-
+    /* Dictionary parameters */
     case ZSTD_p_dictMode :
+        if (cctx->cdict) return ERROR(stage_wrong);  /* must be set before loading */
         /* restrict dictionary mode, to "rawContent" or "fullDict" only */
         ZSTD_STATIC_ASSERT((U32)ZSTD_dm_fullDict > (U32)ZSTD_dm_rawContent);
         if (value > (unsigned)ZSTD_dm_fullDict)
             return ERROR(compressionParameter_outOfBound);
         cctx->dictMode = (ZSTD_dictMode_e)value;
+        return 0;
+
+    case ZSTD_p_refDictContent :
+        if (cctx->cdict) return ERROR(stage_wrong);  /* must be set before loading */
+        /* dictionary content will be referenced, instead of copied */
+        cctx->dictContentByRef = value>0;
         return 0;
 
     case ZSTD_p_forceMaxWindow :  /* Force back-references to remain < windowSize,
@@ -417,7 +418,7 @@ ZSTDLIB_API size_t ZSTD_CCtx_loadDictionary(ZSTD_CCtx* cctx, const void* dict, s
                 ZSTD_getCParams(cctx->compressionLevel, 0, dictSize);
         cctx->cdictLocal = ZSTD_createCDict_advanced(
                                 dict, dictSize,
-                                0 /* byReference */, cctx->dictMode,
+                                cctx->dictContentByRef, cctx->dictMode,
                                 cParams, cctx->customMem);
         cctx->cdict = cctx->cdictLocal;
         if (cctx->cdictLocal == NULL)

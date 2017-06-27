@@ -24,11 +24,21 @@ There are however other Makefile targets that create different variations of CLI
 - __HAVE_ZLIB__ : `zstd` can compress and decompress files in `.gz` format.
   This is done through command `--format=gzip`.
   Alternatively, symlinks named `gzip` or `gunzip` will mimic intended behavior.
-  .gz support is automatically enabled when `zlib` library is detected at build time.
-  It's possible to disable .gz support, by either compiling `zstd-nogz` target or using HAVE_ZLIB=0 variable.
+  `.gz` support is automatically enabled when `zlib` library is detected at build time.
+  It's possible to disable `.gz` support, by either compiling `zstd-nogz` target or using HAVE_ZLIB=0 variable.
   Example : make zstd HAVE_ZLIB=0
   It's also possible to force compilation with zlib support, using HAVE_ZLIB=1.
   In which case, linking stage will fail if `zlib` library cannot be found.
+  This might be useful to prevent silent feature disabling.
+
+- __HAVE_LZMA__ : `zstd` can compress and decompress files in `.xz` and `.lzma` formats.
+  This is done through commands `--format=xz` and `--format=lzma` respectively.
+  Alternatively, symlinks named `xz`, `unxz`, `lzma`, or `unlzma` will mimic intended behavior.
+  `.xz` and `.lzma` support is automatically enabled when `lzma` library is detected at build time.
+  It's possible to disable `.xz` and `.lzma` support, by either compiling `zstd-noxz` target or using HAVE_LZMA=0 variable.
+  Example : make zstd HAVE_LZMA=0
+  It's also possible to force compilation with lzma support, using HAVE_LZMA=1.
+  In which case, linking stage will fail if `lzma` library cannot be found.
   This might be useful to prevent silent feature disabling.
 
 

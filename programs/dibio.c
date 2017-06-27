@@ -216,21 +216,21 @@ static U64 DiB_getTotalCappedFileSize(const char** fileNamesTable, unsigned nbFi
 }
 
 
-/*! ZDICT_trainFromBuffer_unsafe() :
+/*! ZDICT_trainFromBuffer_unsafe_legacy() :
     Strictly Internal use only !!
-    Same as ZDICT_trainFromBuffer_advanced(), but does not control `samplesBuffer`.
+    Same as ZDICT_trainFromBuffer_legacy(), but does not control `samplesBuffer`.
     `samplesBuffer` must be followed by noisy guard band to avoid out-of-buffer reads.
     @return : size of dictionary stored into `dictBuffer` (<= `dictBufferCapacity`)
               or an error code.
 */
-size_t ZDICT_trainFromBuffer_unsafe(void* dictBuffer, size_t dictBufferCapacity,
-                              const void* samplesBuffer, const size_t* samplesSizes, unsigned nbSamples,
-                              ZDICT_params_t parameters);
+size_t ZDICT_trainFromBuffer_unsafe_legacy(void* dictBuffer, size_t dictBufferCapacity,
+                                           const void* samplesBuffer, const size_t* samplesSizes, unsigned nbSamples,
+                                           ZDICT_legacy_params_t parameters);
 
 
 int DiB_trainFromFiles(const char* dictFileName, unsigned maxDictSize,
                        const char** fileNamesTable, unsigned nbFiles,
-                       ZDICT_params_t *params, COVER_params_t *coverParams,
+                       ZDICT_legacy_params_t *params, ZDICT_cover_params_t *coverParams,
                        int optimizeCover)
 {
     void* const dictBuffer = malloc(maxDictSize);
@@ -243,8 +243,8 @@ int DiB_trainFromFiles(const char* dictFileName, unsigned maxDictSize,
     int result = 0;
 
     /* Checks */
-    if (params) g_displayLevel = params->notificationLevel;
-    else if (coverParams) g_displayLevel = coverParams->notificationLevel;
+    if (params) g_displayLevel = params->zParams.notificationLevel;
+    else if (coverParams) g_displayLevel = coverParams->zParams.notificationLevel;
     else EXM_THROW(13, "Neither dictionary algorith selected");   /* should not happen */
     if ((!fileSizes) || (!srcBuffer) || (!dictBuffer)) EXM_THROW(12, "not enough memory for DiB_trainFiles");   /* should not happen */
     if (g_tooLargeSamples) {
@@ -273,20 +273,20 @@ int DiB_trainFromFiles(const char* dictFileName, unsigned maxDictSize,
         size_t dictSize;
         if (params) {
             DiB_fillNoise((char*)srcBuffer + benchedSize, NOISELENGTH);   /* guard band, for end of buffer condition */
-            dictSize = ZDICT_trainFromBuffer_unsafe(dictBuffer, maxDictSize,
-                                                    srcBuffer, fileSizes, nbFiles,
-                                                    *params);
+            dictSize = ZDICT_trainFromBuffer_unsafe_legacy(dictBuffer, maxDictSize,
+                                                           srcBuffer, fileSizes, nbFiles,
+                                                           *params);
         } else if (optimizeCover) {
-            dictSize = COVER_optimizeTrainFromBuffer(
-                dictBuffer, maxDictSize, srcBuffer, fileSizes, nbFiles,
-                coverParams);
+            dictSize = ZDICT_optimizeTrainFromBuffer_cover(dictBuffer, maxDictSize,
+                                                           srcBuffer, fileSizes, nbFiles,
+                                                           coverParams);
             if (!ZDICT_isError(dictSize)) {
-              DISPLAYLEVEL(2, "k=%u\nd=%u\nsteps=%u\n", coverParams->k, coverParams->d, coverParams->steps);
+                DISPLAYLEVEL(2, "k=%u\nd=%u\nsteps=%u\n", coverParams->k, coverParams->d, coverParams->steps);
             }
         } else {
-            dictSize = COVER_trainFromBuffer(dictBuffer, maxDictSize,
-                                             srcBuffer, fileSizes, nbFiles,
-                                             *coverParams);
+            dictSize =
+                ZDICT_trainFromBuffer_cover(dictBuffer, maxDictSize, srcBuffer,
+                                            fileSizes, nbFiles, *coverParams);
         }
         if (ZDICT_isError(dictSize)) {
             DISPLAYLEVEL(1, "dictionary training failed : %s \n", ZDICT_getErrorName(dictSize));   /* should not happen */

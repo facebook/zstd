@@ -131,7 +131,10 @@ static const void *symbols[] = {
   &ZDICT_isError,
   &ZDICT_getErrorName,
 /* zdict.h: advanced functions */
-  &ZDICT_trainFromBuffer_advanced,
+  &ZDICT_trainFromBuffer_cover,
+  &ZDICT_optimizeTrainFromBuffer_cover,
+  &ZDICT_finalizeDictionary,
+  &ZDICT_trainFromBuffer_legacy,
   &ZDICT_addEntropyTablesFromBuffer,
   NULL,
 };

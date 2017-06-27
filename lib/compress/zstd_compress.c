@@ -88,8 +88,6 @@ struct ZSTD_CCtx_s {
     U32   hashLog3;         /* dispatch table : larger == faster, more memory */
     U32   loadedDictEnd;    /* index of end of dictionary */
     U32   forceWindow;      /* force back-references to respect limit of 1<<wLog, even for dictionary */
-    ZSTD_dictMode_e dictMode; /* select restricting dictionary to "rawContent" or "fullDict" only */
-    U32   dictContentByRef;
     ZSTD_compressionStage_e stage;
     U32   rep[ZSTD_REP_NUM];
     U32   repToConfirm[ZSTD_REP_NUM];
@@ -119,8 +117,6 @@ struct ZSTD_CCtx_s {
     unsigned* entropyScratchSpace;
 
     /* streaming */
-    ZSTD_CDict* cdictLocal;
-    const ZSTD_CDict* cdict;
     char*  inBuff;
     size_t inBuffSize;
     size_t inToCompress;
@@ -132,6 +128,14 @@ struct ZSTD_CCtx_s {
     size_t outBuffFlushedSize;
     ZSTD_cStreamStage streamStage;
     U32    frameEnded;
+
+    /* Dictionary */
+    ZSTD_dictMode_e dictMode; /* select restricting dictionary to "rawContent" or "fullDict" only */
+    U32 dictContentByRef;
+    ZSTD_CDict* cdictLocal;
+    const ZSTD_CDict* cdict;
+    const void* prefix;
+    size_t prefixSize;
 
     /* Multi-threading */
     U32 nbThreads;
@@ -427,19 +431,22 @@ ZSTDLIB_API size_t ZSTD_CCtx_loadDictionary(ZSTD_CCtx* cctx, const void* dict, s
     return 0;
 }
 
-/* Not ready yet ! */
-size_t ZSTD_CCtx_refPrefix(ZSTD_CCtx* cctx, const void* prefix, size_t prefixSize)
-{
-    (void)cctx; (void)prefix; (void)prefixSize; /* to be done later */
-    if (cctx->streamStage != zcss_init) return ERROR(stage_wrong);
-    return ERROR(compressionParameter_unsupported);
-}
-
 size_t ZSTD_CCtx_refCDict(ZSTD_CCtx* cctx, const ZSTD_CDict* cdict)
 {
     if (cctx->streamStage != zcss_init) return ERROR(stage_wrong);
     cctx->cdict = cdict;
-    return ERROR(compressionParameter_unsupported);
+    cctx->prefix = NULL;   /* exclusive */
+    cctx->prefixSize = 0;
+    return 0;
+}
+
+size_t ZSTD_CCtx_refPrefix(ZSTD_CCtx* cctx, const void* prefix, size_t prefixSize)
+{
+    if (cctx->streamStage != zcss_init) return ERROR(stage_wrong);
+    cctx->cdict = NULL;   /* prefix discards any prior cdict */
+    cctx->prefix = prefix;
+    cctx->prefixSize = prefixSize;
+    return 0;
 }
 
 static void ZSTD_startNewCompression(ZSTD_CCtx* cctx)
@@ -3622,14 +3629,17 @@ size_t ZSTD_CStreamOutSize(void)
 }
 
 static size_t ZSTD_resetCStream_internal(ZSTD_CStream* zcs,
-                                        ZSTD_parameters params,
-                                        unsigned long long pledgedSrcSize)
+                    const void* dict, size_t dictSize, const ZSTD_CDict* cdict,
+                    ZSTD_parameters params, unsigned long long pledgedSrcSize)
 {
     DEBUGLOG(5, "ZSTD_resetCStream_internal");
+    /* params are supposed to be fully validated at this point */
+    assert(!ZSTD_isError(ZSTD_checkCParams(params.cParams)));
+    assert(!((dict) && (cdict)));  /* either dict or cdict, not both */
 
     CHECK_F( ZSTD_compressBegin_internal(zcs,
-                                        NULL, 0, ZSTD_dm_auto,
-                                        zcs->cdict,
+                                        dict, dictSize, ZSTD_dm_auto,   /* <========= Todo : make dictMode controllable ! */
+                                        cdict,
                                         params, pledgedSrcSize,
                                         ZSTDb_buffered) );
 
@@ -3650,10 +3660,11 @@ size_t ZSTD_resetCStream(ZSTD_CStream* zcs, unsigned long long pledgedSrcSize)
     if (zcs->compressionLevel != ZSTD_CLEVEL_CUSTOM) {
         params.cParams = ZSTD_getCParams(zcs->compressionLevel, pledgedSrcSize, 0 /* dictSize */);
     }
-    return ZSTD_resetCStream_internal(zcs, params, pledgedSrcSize);
+    return ZSTD_resetCStream_internal(zcs, NULL, 0, zcs->cdict, params, pledgedSrcSize);
 }
 
 /*! ZSTD_initCStream_internal() :
+ *  Note : not static, but hidden (not exposed). Used by zstdmt_compress.c
  *  Assumption 1 : params are valid
  *  Assumption 2 : either dict, or cdict, is defined, not both */
 size_t ZSTD_initCStream_internal(ZSTD_CStream* zcs,
@@ -3672,7 +3683,7 @@ size_t ZSTD_initCStream_internal(ZSTD_CStream* zcs,
         }
         ZSTD_freeCDict(zcs->cdictLocal);
         zcs->cdictLocal = ZSTD_createCDict_advanced(dict, dictSize,
-                                            0 /* byReference */, ZSTD_dm_auto,
+                                            0 /* byReference */, ZSTD_dm_auto,  /* <======== Todo : make dictMode controllable */
                                             params.cParams, zcs->customMem);
         zcs->cdict = zcs->cdictLocal;
         if (zcs->cdictLocal == NULL) return ERROR(memory_allocation);
@@ -3688,7 +3699,7 @@ size_t ZSTD_initCStream_internal(ZSTD_CStream* zcs,
 
     zcs->requestedParams = params;
     zcs->compressionLevel = ZSTD_CLEVEL_CUSTOM;
-    return ZSTD_resetCStream_internal(zcs, params, pledgedSrcSize);
+    return ZSTD_resetCStream_internal(zcs, NULL, 0, zcs->cdict, params, pledgedSrcSize);
 }
 
 /* ZSTD_initCStream_usingCDict_advanced() :
@@ -3925,7 +3936,10 @@ size_t ZSTD_compress_generic (ZSTD_CCtx* cctx,
         } else
 #endif
         {
-            CHECK_F( ZSTD_resetCStream_internal(cctx, params, cctx->pledgedSrcSizePlusOne-1) );
+            const void* const prefix = cctx->prefix;
+            size_t const prefixSize = cctx->prefixSize;
+            cctx->prefix = NULL; cctx->prefixSize = 0;   /* single usage */
+            CHECK_F( ZSTD_resetCStream_internal(cctx, prefix, prefixSize, cctx->cdict, params, cctx->pledgedSrcSizePlusOne-1) );
     }   }
 
 #ifdef ZSTD_MULTITHREAD

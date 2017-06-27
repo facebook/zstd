@@ -1266,11 +1266,11 @@ static int fuzzerTests_newAPI(U32 seed, U32 nbTests, unsigned startTest, double 
         }
 
         /* compression init */
+        CHECK_Z( ZSTD_CCtx_loadDictionary(zc, NULL, 0) );   /* cancel previous dict /*/
         if ((FUZ_rand(&lseed)&1) /* at beginning, to keep same nb of rand */
             && oldTestLog /* at least one test happened */ && resetAllowed) {
             maxTestSize = FUZ_randomLength(&lseed, oldTestLog+2);
             if (maxTestSize >= srcBufferSize) maxTestSize = srcBufferSize-1;
-            CHECK_Z( ZSTD_CCtx_loadDictionary(zc, NULL, 0) );
             {   int const compressionLevel = (FUZ_rand(&lseed) % 5) + 1;
                 CHECK_Z( ZSTD_CCtx_setParameter(zc, ZSTD_p_compressionLevel, compressionLevel) );
             }
@@ -1294,7 +1294,6 @@ static int fuzzerTests_newAPI(U32 seed, U32 nbTests, unsigned startTest, double 
                 ZSTD_compressionParameters cParams = ZSTD_getCParams(cLevel, pledgedSrcSize, dictSize);
 
                 /* mess with compression parameters */
-                CHECK_Z( ZSTD_CCtx_loadDictionary(zc, NULL, 0) );   /* cancel previous dict, to allow new compression parameters */
                 cParams.windowLog += (FUZ_rand(&lseed) & 3) - 1;
                 cParams.hashLog += (FUZ_rand(&lseed) & 3) - 1;
                 cParams.chainLog += (FUZ_rand(&lseed) & 3) - 1;
@@ -1312,7 +1311,8 @@ static int fuzzerTests_newAPI(U32 seed, U32 nbTests, unsigned startTest, double 
 
                 /* unconditionally set, to be sync with decoder */
                 if (FUZ_rand(&lseed) & 1) CHECK_Z( ZSTD_CCtx_setParameter(zc, ZSTD_p_refDictContent, FUZ_rand(&lseed) & 1) );
-                CHECK_Z( ZSTD_CCtx_loadDictionary(zc, dict, dictSize) );
+                if (FUZ_rand(&lseed) & 1) { CHECK_Z( ZSTD_CCtx_loadDictionary(zc, dict, dictSize) ); }
+                else { CHECK_Z( ZSTD_CCtx_refPrefix(zc, dict, dictSize) ); }
 
                 if (dict && dictSize) {
                     /* test that compression parameters are correctly rejected after setting a dictionary */

@@ -84,7 +84,7 @@ struct ZSTD_CCtx_s {
 	FSE_CTable offcodeCTable[FSE_CTABLE_SIZE_U32(OffFSELog, MaxOff)];
 	FSE_CTable matchlengthCTable[FSE_CTABLE_SIZE_U32(MLFSELog, MaxML)];
 	FSE_CTable litlengthCTable[FSE_CTABLE_SIZE_U32(LLFSELog, MaxLL)];
-	unsigned tmpCounters[HUF_WORKSPACE_SIZE_U32];
+	unsigned tmpCounters[HUF_COMPRESS_WORKSPACE_SIZE_U32];
 };
 
 size_t ZSTD_CCtxWorkspaceBound(ZSTD_compressionParameters cParams)
@@ -587,8 +587,6 @@ ZSTD_STATIC size_t ZSTD_compressSequences(ZSTD_CCtx *zc, void *dst, size_t dstCa
 {
 	const int longOffsets = zc->params.cParams.windowLog > STREAM_ACCUMULATOR_MIN;
 	const seqStore_t *seqStorePtr = &(zc->seqStore);
-	U32 count[MaxSeq + 1];
-	S16 norm[MaxSeq + 1];
 	FSE_CTable *CTable_LitLength = zc->litlengthCTable;
 	FSE_CTable *CTable_OffsetBits = zc->offcodeCTable;
 	FSE_CTable *CTable_MatchLength = zc->matchlengthCTable;
@@ -602,7 +600,21 @@ ZSTD_STATIC size_t ZSTD_compressSequences(ZSTD_CCtx *zc, void *dst, size_t dstCa
 	BYTE *op = ostart;
 	size_t const nbSeq = seqStorePtr->sequences - seqStorePtr->sequencesStart;
 	BYTE *seqHead;
-	BYTE scratchBuffer[1 << MAX(MLFSELog, LLFSELog)];
+
+	U32 *count;
+	S16 *norm;
+	U32 *workspace;
+	size_t workspaceSize = sizeof(zc->tmpCounters);
+	{
+		size_t spaceUsed32 = 0;
+		count = (U32 *)zc->tmpCounters + spaceUsed32;
+		spaceUsed32 += MaxSeq + 1;
+		norm = (S16 *)((U32 *)zc->tmpCounters + spaceUsed32);
+		spaceUsed32 += ALIGN(sizeof(S16) * (MaxSeq + 1), sizeof(U32)) >> 2;
+
+		workspace = (U32 *)zc->tmpCounters + spaceUsed32;
+		workspaceSize -= (spaceUsed32 << 2);
+	}
 
 	/* Compress literals */
 	{
@@ -638,7 +650,7 @@ ZSTD_STATIC size_t ZSTD_compressSequences(ZSTD_CCtx *zc, void *dst, size_t dstCa
 	/* CTable for Literal Lengths */
 	{
 		U32 max = MaxLL;
-		size_t const mostFrequent = FSE_countFast_wksp(count, &max, llCodeTable, nbSeq, zc->tmpCounters);
+		size_t const mostFrequent = FSE_countFast_wksp(count, &max, llCodeTable, nbSeq, workspace);
 		if ((mostFrequent == nbSeq) && (nbSeq > 2)) {
 			*op++ = llCodeTable[0];
 			FSE_buildCTable_rle(CTable_LitLength, (BYTE)max);
@@ -646,7 +658,7 @@ ZSTD_STATIC size_t ZSTD_compressSequences(ZSTD_CCtx *zc, void *dst, size_t dstCa
 		} else if ((zc->flagStaticTables) && (nbSeq < MAX_SEQ_FOR_STATIC_FSE)) {
 			LLtype = set_repeat;
 		} else if ((nbSeq < MIN_SEQ_FOR_DYNAMIC_FSE) || (mostFrequent < (nbSeq >> (LL_defaultNormLog - 1)))) {
-			FSE_buildCTable_wksp(CTable_LitLength, LL_defaultNorm, MaxLL, LL_defaultNormLog, scratchBuffer, sizeof(scratchBuffer));
+			FSE_buildCTable_wksp(CTable_LitLength, LL_defaultNorm, MaxLL, LL_defaultNormLog, workspace, workspaceSize);
 			LLtype = set_basic;
 		} else {
 			size_t nbSeq_1 = nbSeq;
@@ -662,7 +674,7 @@ ZSTD_STATIC size_t ZSTD_compressSequences(ZSTD_CCtx *zc, void *dst, size_t dstCa
 					return NCountSize;
 				op += NCountSize;
 			}
-			FSE_buildCTable_wksp(CTable_LitLength, norm, max, tableLog, scratchBuffer, sizeof(scratchBuffer));
+			FSE_buildCTable_wksp(CTable_LitLength, norm, max, tableLog, workspace, workspaceSize);
 			LLtype = set_compressed;
 		}
 	}
@@ -670,7 +682,7 @@ ZSTD_STATIC size_t ZSTD_compressSequences(ZSTD_CCtx *zc, void *dst, size_t dstCa
 	/* CTable for Offsets */
 	{
 		U32 max = MaxOff;
-		size_t const mostFrequent = FSE_countFast_wksp(count, &max, ofCodeTable, nbSeq, zc->tmpCounters);
+		size_t const mostFrequent = FSE_countFast_wksp(count, &max, ofCodeTable, nbSeq, workspace);
 		if ((mostFrequent == nbSeq) && (nbSeq > 2)) {
 			*op++ = ofCodeTable[0];
 			FSE_buildCTable_rle(CTable_OffsetBits, (BYTE)max);
@@ -678,7 +690,7 @@ ZSTD_STATIC size_t ZSTD_compressSequences(ZSTD_CCtx *zc, void *dst, size_t dstCa
 		} else if ((zc->flagStaticTables) && (nbSeq < MAX_SEQ_FOR_STATIC_FSE)) {
 			Offtype = set_repeat;
 		} else if ((nbSeq < MIN_SEQ_FOR_DYNAMIC_FSE) || (mostFrequent < (nbSeq >> (OF_defaultNormLog - 1)))) {
-			FSE_buildCTable_wksp(CTable_OffsetBits, OF_defaultNorm, MaxOff, OF_defaultNormLog, scratchBuffer, sizeof(scratchBuffer));
+			FSE_buildCTable_wksp(CTable_OffsetBits, OF_defaultNorm, MaxOff, OF_defaultNormLog, workspace, workspaceSize);
 			Offtype = set_basic;
 		} else {
 			size_t nbSeq_1 = nbSeq;
@@ -694,7 +706,7 @@ ZSTD_STATIC size_t ZSTD_compressSequences(ZSTD_CCtx *zc, void *dst, size_t dstCa
 					return NCountSize;
 				op += NCountSize;
 			}
-			FSE_buildCTable_wksp(CTable_OffsetBits, norm, max, tableLog, scratchBuffer, sizeof(scratchBuffer));
+			FSE_buildCTable_wksp(CTable_OffsetBits, norm, max, tableLog, workspace, workspaceSize);
 			Offtype = set_compressed;
 		}
 	}
@@ -702,7 +714,7 @@ ZSTD_STATIC size_t ZSTD_compressSequences(ZSTD_CCtx *zc, void *dst, size_t dstCa
 	/* CTable for MatchLengths */
 	{
 		U32 max = MaxML;
-		size_t const mostFrequent = FSE_countFast_wksp(count, &max, mlCodeTable, nbSeq, zc->tmpCounters);
+		size_t const mostFrequent = FSE_countFast_wksp(count, &max, mlCodeTable, nbSeq, workspace);
 		if ((mostFrequent == nbSeq) && (nbSeq > 2)) {
 			*op++ = *mlCodeTable;
 			FSE_buildCTable_rle(CTable_MatchLength, (BYTE)max);
@@ -710,7 +722,7 @@ ZSTD_STATIC size_t ZSTD_compressSequences(ZSTD_CCtx *zc, void *dst, size_t dstCa
 		} else if ((zc->flagStaticTables) && (nbSeq < MAX_SEQ_FOR_STATIC_FSE)) {
 			MLtype = set_repeat;
 		} else if ((nbSeq < MIN_SEQ_FOR_DYNAMIC_FSE) || (mostFrequent < (nbSeq >> (ML_defaultNormLog - 1)))) {
-			FSE_buildCTable_wksp(CTable_MatchLength, ML_defaultNorm, MaxML, ML_defaultNormLog, scratchBuffer, sizeof(scratchBuffer));
+			FSE_buildCTable_wksp(CTable_MatchLength, ML_defaultNorm, MaxML, ML_defaultNormLog, workspace, workspaceSize);
 			MLtype = set_basic;
 		} else {
 			size_t nbSeq_1 = nbSeq;
@@ -726,7 +738,7 @@ ZSTD_STATIC size_t ZSTD_compressSequences(ZSTD_CCtx *zc, void *dst, size_t dstCa
 					return NCountSize;
 				op += NCountSize;
 			}
-			FSE_buildCTable_wksp(CTable_MatchLength, norm, max, tableLog, scratchBuffer, sizeof(scratchBuffer));
+			FSE_buildCTable_wksp(CTable_MatchLength, norm, max, tableLog, workspace, workspaceSize);
 			MLtype = set_compressed;
 		}
 	}
@@ -2612,14 +2624,13 @@ static size_t ZSTD_loadZstdDictionary(ZSTD_CCtx *cctx, const void *dict, size_t 
 	const BYTE *const dictEnd = dictPtr + dictSize;
 	short offcodeNCount[MaxOff + 1];
 	unsigned offcodeMaxValue = MaxOff;
-	BYTE scratchBuffer[1 << MAX(MLFSELog, LLFSELog)];
 
 	dictPtr += 4; /* skip magic number */
 	cctx->dictID = cctx->params.fParams.noDictIDFlag ? 0 : ZSTD_readLE32(dictPtr);
 	dictPtr += 4;
 
 	{
-		size_t const hufHeaderSize = HUF_readCTable(cctx->hufTable, 255, dictPtr, dictEnd - dictPtr);
+		size_t const hufHeaderSize = HUF_readCTable_wksp(cctx->hufTable, 255, dictPtr, dictEnd - dictPtr, cctx->tmpCounters, sizeof(cctx->tmpCounters));
 		if (HUF_isError(hufHeaderSize))
 			return ERROR(dictionary_corrupted);
 		dictPtr += hufHeaderSize;
@@ -2633,7 +2644,7 @@ static size_t ZSTD_loadZstdDictionary(ZSTD_CCtx *cctx, const void *dict, size_t 
 		if (offcodeLog > OffFSELog)
 			return ERROR(dictionary_corrupted);
 		/* Defer checking offcodeMaxValue because we need to know the size of the dictionary content */
-		CHECK_E(FSE_buildCTable_wksp(cctx->offcodeCTable, offcodeNCount, offcodeMaxValue, offcodeLog, scratchBuffer, sizeof(scratchBuffer)),
+		CHECK_E(FSE_buildCTable_wksp(cctx->offcodeCTable, offcodeNCount, offcodeMaxValue, offcodeLog, cctx->tmpCounters, sizeof(cctx->tmpCounters)),
 			dictionary_corrupted);
 		dictPtr += offcodeHeaderSize;
 	}
@@ -2649,7 +2660,7 @@ static size_t ZSTD_loadZstdDictionary(ZSTD_CCtx *cctx, const void *dict, size_t 
 		/* Every match length code must have non-zero probability */
 		CHECK_F(ZSTD_checkDictNCount(matchlengthNCount, matchlengthMaxValue, MaxML));
 		CHECK_E(
-		    FSE_buildCTable_wksp(cctx->matchlengthCTable, matchlengthNCount, matchlengthMaxValue, matchlengthLog, scratchBuffer, sizeof(scratchBuffer)),
+		    FSE_buildCTable_wksp(cctx->matchlengthCTable, matchlengthNCount, matchlengthMaxValue, matchlengthLog, cctx->tmpCounters, sizeof(cctx->tmpCounters)),
 		    dictionary_corrupted);
 		dictPtr += matchlengthHeaderSize;
 	}
@@ -2664,7 +2675,7 @@ static size_t ZSTD_loadZstdDictionary(ZSTD_CCtx *cctx, const void *dict, size_t 
 			return ERROR(dictionary_corrupted);
 		/* Every literal length code must have non-zero probability */
 		CHECK_F(ZSTD_checkDictNCount(litlengthNCount, litlengthMaxValue, MaxLL));
-		CHECK_E(FSE_buildCTable_wksp(cctx->litlengthCTable, litlengthNCount, litlengthMaxValue, litlengthLog, scratchBuffer, sizeof(scratchBuffer)),
+		CHECK_E(FSE_buildCTable_wksp(cctx->litlengthCTable, litlengthNCount, litlengthMaxValue, litlengthLog, cctx->tmpCounters, sizeof(cctx->tmpCounters)),
 			dictionary_corrupted);
 		dictPtr += litlengthHeaderSize;
 	}

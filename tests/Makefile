@@ -180,7 +180,7 @@ legacy : CPPFLAGS+= -I$(ZSTDDIR)/legacy
 legacy : $(ZSTD_FILES) $(wildcard $(ZSTDDIR)/legacy/*.c) legacy.c
 	$(CC)      $(FLAGS) $^ -o $@$(EXT)
 
-decodecorpus	: $(filter-out $(ZSTDDIR)/compress/zstd_compress.c, $(wildcard $(ZSTD_FILES))) decodecorpus.c
+decodecorpus	: $(filter-out $(ZSTDDIR)/compress/zstd_compress.c, $(wildcard $(ZSTD_FILES))) $(ZDICT_FILES) decodecorpus.c
 	$(CC)      $(FLAGS) $^ -o $@$(EXT) -lm
 
 symbols  : symbols.c
@@ -272,7 +272,7 @@ endif
 
 test32: test-zstd32 test-fullbench32 test-fuzzer32 test-zstream32
 
-test-all: test test32 valgrindTest
+test-all: test test32 valgrindTest test-decodecorpus-cli
 
 test-zstd: ZSTD = $(PRGDIR)/zstd
 test-zstd: zstd zstd-playTests
@@ -341,6 +341,39 @@ test-legacy: legacy
 
 test-decodecorpus: decodecorpus
 	$(QEMU_SYS) ./decodecorpus -t $(DECODECORPUS_TESTTIME)
+
+test-decodecorpus-cli: decodecorpus
+	@echo "\n ---- decodecorpus basic cli tests ----"
+	@mkdir testdir
+	./decodecorpus -n5 -otestdir -ptestdir
+	@cd testdir && \
+	$(ZSTD) -d z000000.zst -o tmp0 && \
+	$(ZSTD) -d z000001.zst -o tmp1 && \
+	$(ZSTD) -d z000002.zst -o tmp2 && \
+	$(ZSTD) -d z000003.zst -o tmp3 && \
+	$(ZSTD) -d z000004.zst -o tmp4 && \
+	diff z000000 tmp0 && \
+	diff z000001 tmp1 && \
+	diff z000002 tmp2 && \
+	diff z000003 tmp3 && \
+	diff z000004 tmp4 && \
+	rm ./* && \
+	cd ..
+	@echo "\n ---- decodecorpus dictionary cli tests ----"
+	./decodecorpus -n5 -otestdir -ptestdir --use-dict=1MB
+	@cd testdir && \
+	$(ZSTD) -d z000000.zst -D dictionary -o tmp0 && \
+	$(ZSTD) -d z000001.zst -D dictionary -o tmp1 && \
+	$(ZSTD) -d z000002.zst -D dictionary -o tmp2 && \
+	$(ZSTD) -d z000003.zst -D dictionary -o tmp3 && \
+	$(ZSTD) -d z000004.zst -D dictionary -o tmp4 && \
+	diff z000000 tmp0 && \
+	diff z000001 tmp1 && \
+	diff z000002 tmp2 && \
+	diff z000003 tmp3 && \
+	diff z000004 tmp4 && \
+	cd ..
+	@rm -rf testdir
 
 test-pool: pool
 	$(QEMU_SYS) ./pool

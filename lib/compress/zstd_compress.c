@@ -3181,7 +3181,7 @@ static size_t ZSTD_compress_insertDictionary(ZSTD_CCtx* cctx,
     if (dictMode==ZSTD_dm_rawContent)
         return ZSTD_loadDictionaryContent(cctx, dict, dictSize);
 
-    if (MEM_readLE32(dict) != ZSTD_DICT_MAGIC) {
+    if (MEM_readLE32(dict) != ZSTD_MAGIC_DICTIONARY) {
         if (dictMode == ZSTD_dm_auto) {
             DEBUGLOG(5, "raw content dictionary detected");
             return ZSTD_loadDictionaryContent(cctx, dict, dictSize);

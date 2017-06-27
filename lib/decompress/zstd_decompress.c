@@ -1884,7 +1884,7 @@ static size_t ZSTD_decompress_insertDictionary(ZSTD_DCtx* dctx, const void* dict
 {
     if (dictSize < 8) return ZSTD_refDictContent(dctx, dict, dictSize);
     {   U32 const magic = MEM_readLE32(dict);
-        if (magic != ZSTD_DICT_MAGIC) {
+        if (magic != ZSTD_MAGIC_DICTIONARY) {
             return ZSTD_refDictContent(dctx, dict, dictSize);   /* pure content mode */
     }   }
     dctx->dictID = MEM_readLE32((const char*)dict + 4);
@@ -1964,7 +1964,7 @@ static size_t ZSTD_loadEntropy_inDDict(ZSTD_DDict* ddict)
     ddict->entropyPresent = 0;
     if (ddict->dictSize < 8) return 0;
     {   U32 const magic = MEM_readLE32(ddict->dictContent);
-        if (magic != ZSTD_DICT_MAGIC) return 0;   /* pure content mode */
+        if (magic != ZSTD_MAGIC_DICTIONARY) return 0;   /* pure content mode */
     }
     ddict->dictID = MEM_readLE32((const char*)ddict->dictContent + 4);
 
@@ -2083,7 +2083,7 @@ size_t ZSTD_sizeof_DDict(const ZSTD_DDict* ddict)
 unsigned ZSTD_getDictID_fromDict(const void* dict, size_t dictSize)
 {
     if (dictSize < 8) return 0;
-    if (MEM_readLE32(dict) != ZSTD_DICT_MAGIC) return 0;
+    if (MEM_readLE32(dict) != ZSTD_MAGIC_DICTIONARY) return 0;
     return MEM_readLE32((const char*)dict + 4);
 }
 

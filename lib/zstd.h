@@ -360,6 +360,7 @@ ZSTDLIB_API size_t ZSTD_DStreamOutSize(void);   /*!< recommended size for output
 /* --- Constants ---*/
 #define ZSTD_MAGICNUMBER            0xFD2FB528   /* >= v0.8.0 */
 #define ZSTD_MAGIC_SKIPPABLE_START  0x184D2A50U
+#define ZSTD_MAGIC_DICTIONARY       0xEC30A437   /* v0.7+ */
 
 #define ZSTD_WINDOWLOG_MAX_32  27
 #define ZSTD_WINDOWLOG_MAX_64  27
@@ -379,7 +380,7 @@ ZSTDLIB_API size_t ZSTD_DStreamOutSize(void);   /*!< recommended size for output
 
 #define ZSTD_FRAMEHEADERSIZE_MAX 18    /* for static allocation */
 #define ZSTD_FRAMEHEADERSIZE_MIN  6
-static const size_t ZSTD_frameHeaderSize_prefix = 5;
+static const size_t ZSTD_frameHeaderSize_prefix = 5;  /* minimum input size to know frame header size */
 static const size_t ZSTD_frameHeaderSize_min = ZSTD_FRAMEHEADERSIZE_MIN;
 static const size_t ZSTD_frameHeaderSize_max = ZSTD_FRAMEHEADERSIZE_MAX;
 static const size_t ZSTD_skippableHeaderSize = 8;  /* magic number + skippable frame length */
@@ -573,7 +574,10 @@ ZSTDLIB_API size_t ZSTD_setCCtxParameter(ZSTD_CCtx* cctx, ZSTD_CCtxParameter par
 ZSTDLIB_API ZSTD_CDict* ZSTD_createCDict_byReference(const void* dictBuffer, size_t dictSize, int compressionLevel);
 
 
-typedef enum { ZSTD_dm_auto=0, ZSTD_dm_rawContent, ZSTD_dm_fullDict } ZSTD_dictMode_e;
+typedef enum { ZSTD_dm_auto=0,        /* dictionary is "full" if it starts with ZSTD_MAGIC_DICTIONARY, rawContent otherwize */
+               ZSTD_dm_rawContent,    /* ensures dictionary is always loaded as rawContent, even if it starts with ZSTD_MAGIC_DICTIONARY */
+               ZSTD_dm_fullDict       /* refuses to load a dictionary if it does not respect Zstandard's specification */
+} ZSTD_dictMode_e;
 /*! ZSTD_createCDict_advanced() :
  *  Create a ZSTD_CDict using external alloc and free, and customized compression parameters */
 ZSTDLIB_API ZSTD_CDict* ZSTD_createCDict_advanced(const void* dict, size_t dictSize,
@@ -1027,7 +1031,7 @@ ZSTDLIB_API size_t ZSTD_CCtx_loadDictionary(ZSTD_CCtx* cctx, const void* dict, s
 ZSTDLIB_API size_t ZSTD_CCtx_refCDict(ZSTD_CCtx* cctx, const ZSTD_CDict* cdict);
 
 /*! ZSTD_CCtx_refPrefix() :
- *  Reference a prefix (content-only dictionary) to bootstrap next compression job.
+ *  Reference a prefix (raw-content dictionary) for next compression job.
  *  Decompression will have to use same prefix.
  *  Prefix is only used once. Tables are discarded at end of compression job.
  *  If there is a need to use same prefix multiple times, consider embedding it into a ZSTD_CDict.

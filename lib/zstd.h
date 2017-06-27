@@ -412,7 +412,7 @@ typedef struct {
 
 typedef struct {
     unsigned long long frameContentSize;
-    unsigned windowSize;
+    size_t windowSize;
     unsigned dictID;
     unsigned checksumFlag;
 } ZSTD_frameHeader;
@@ -509,12 +509,17 @@ ZSTDLIB_API size_t ZSTD_estimateDCtxSize(void);
  *  ZSTD_estimateCStreamSize() will consider src size to be arbitrarily "large".
  *  If srcSize is known to be small, ZSTD_estimateCStreamSize_advanced() can provide a tighter estimation.
  *  ZSTD_estimateCStreamSize_advanced() can be used in tandem with ZSTD_getCParams() to create cParams from compressionLevel.
+ *  Note : CStream estimation is only correct for single-threaded compression.
+ *  ZSTD_DStream memory budget depends on window Size.
+ *  This information can be passed manually, using ZSTD_estimateDStreamSize,
+ *  or deducted from a valid frame Header, using ZSTD_estimateDStreamSize_fromFrame();
  *  Note : if streaming is init with function ZSTD_init?Stream_usingDict(),
- *         an internal ?Dict will be created, which size is not estimated here.
+ *         an internal ?Dict will be created, which additional size is not estimated here.
  *         In this case, get total size by adding ZSTD_estimate?DictSize */
 ZSTDLIB_API size_t ZSTD_estimateCStreamSize(int compressionLevel);
 ZSTDLIB_API size_t ZSTD_estimateCStreamSize_advanced(ZSTD_compressionParameters cParams);
-ZSTDLIB_API size_t ZSTD_estimateDStreamSize(ZSTD_frameHeader fHeader);
+ZSTDLIB_API size_t ZSTD_estimateDStreamSize(size_t windowSize);
+ZSTDLIB_API size_t ZSTD_estimateDStreamSize_fromFrame(const void* src, size_t srcSize);
 
 /*! ZSTD_estimate?DictSize() :
  *  ZSTD_estimateCDictSize() will bet that src size is relatively "small", and content is copied, like ZSTD_createCDict().
@@ -717,6 +722,7 @@ ZSTDLIB_API unsigned ZSTD_getDictID_fromFrame(const void* src, size_t srcSize);
 
 /*=====   Advanced Streaming compression functions  =====*/
 ZSTDLIB_API ZSTD_CStream* ZSTD_createCStream_advanced(ZSTD_customMem customMem);
+ZSTDLIB_API ZSTD_CStream* ZSTD_initStaticCStream(void* workspace, size_t workspaceSize);    /**< same as ZSTD_initStaticCCtx() */
 ZSTDLIB_API size_t ZSTD_initCStream_srcSize(ZSTD_CStream* zcs, int compressionLevel, unsigned long long pledgedSrcSize);   /**< pledgedSrcSize must be correct, a size of 0 means unknown.  for a frame size of 0 use initCStream_advanced */
 ZSTDLIB_API size_t ZSTD_initCStream_usingDict(ZSTD_CStream* zcs, const void* dict, size_t dictSize, int compressionLevel); /**< creates of an internal CDict (incompatible with static CCtx), except if dict == NULL or dictSize < 8, in which case no dict is used. */
 ZSTDLIB_API size_t ZSTD_initCStream_advanced(ZSTD_CStream* zcs, const void* dict, size_t dictSize,
@@ -737,6 +743,7 @@ ZSTDLIB_API size_t ZSTD_resetCStream(ZSTD_CStream* zcs, unsigned long long pledg
 /*=====   Advanced Streaming decompression functions  =====*/
 typedef enum { DStream_p_maxWindowSize } ZSTD_DStreamParameter_e;
 ZSTDLIB_API ZSTD_DStream* ZSTD_createDStream_advanced(ZSTD_customMem customMem);
+ZSTDLIB_API ZSTD_DStream* ZSTD_initStaticDStream(void* workspace, size_t workspaceSize);    /**< same as ZSTD_initStaticDCtx() */
 ZSTDLIB_API size_t ZSTD_setDStreamParameter(ZSTD_DStream* zds, ZSTD_DStreamParameter_e paramType, unsigned paramValue);
 ZSTDLIB_API size_t ZSTD_initDStream_usingDict(ZSTD_DStream* zds, const void* dict, size_t dictSize); /**< note: a dict will not be used if dict == NULL or dictSize < 8 */
 ZSTDLIB_API size_t ZSTD_initDStream_usingDDict(ZSTD_DStream* zds, const ZSTD_DDict* ddict);  /**< note : ddict will just be referenced, and must outlive decompression session */
@@ -803,16 +810,18 @@ ZSTDLIB_API size_t ZSTD_compressEnd(ZSTD_CCtx* cctx, void* dst, size_t dstCapaci
   A ZSTD_DCtx object can be re-used multiple times.
 
   First typical operation is to retrieve frame parameters, using ZSTD_getFrameHeader().
-  It fills a ZSTD_frameParams structure which provide important information to correctly decode the frame,
-  such as the minimum rolling buffer size to allocate to decompress data (`windowSize`),
-  and the dictionary ID used.
+  It fills a ZSTD_frameHeader structure with important information to correctly decode the frame,
+  such as minimum rolling buffer size to allocate to decompress data (`windowSize`),
+  and the dictionary ID in use.
   (Note : content size is optional, it may not be present. 0 means : content size unknown).
   Note that these values could be wrong, either because of data malformation, or because an attacker is spoofing deliberate false information.
   As a consequence, check that values remain within valid application range, especially `windowSize`, before allocation.
-  Each application can set its own limit, depending on local restrictions. For extended interoperability, it is recommended to support at least 8 MB.
-  Frame parameters are extracted from the beginning of the compressed frame.
-  Data fragment must be large enough to ensure successful decoding, typically `ZSTD_frameHeaderSize_max` bytes.
-  @result : 0 : successful decoding, the `ZSTD_frameParams` structure is correctly filled.
+  Each application can set its own limit, depending on local restrictions.
+  For extended interoperability, it is recommended to support windowSize of at least 8 MB.
+  Frame header is extracted from the beginning of compressed frame, so providing only the frame's beginning is enough.
+  Data fragment must be large enough to ensure successful decoding.
+  `ZSTD_frameHeaderSize_max` bytes is guaranteed to always be large enough.
+  @result : 0 : successful decoding, the `ZSTD_frameHeader` structure is correctly filled.
            >0 : `srcSize` is too small, please provide at least @result bytes on next attempt.
            errorCode, which can be tested using ZSTD_isError().
 
@@ -857,7 +866,7 @@ ZSTDLIB_API size_t ZSTD_compressEnd(ZSTD_CCtx* cctx, void* dst, size_t dstCapaci
 */
 
 /*=====   Buffer-less streaming decompression functions  =====*/
-ZSTDLIB_API size_t ZSTD_getFrameHeader(ZSTD_frameHeader* zfhPtr, const void* src, size_t srcSize);   /**< doesn't consume input, see details below */
+ZSTDLIB_API size_t ZSTD_getFrameHeader(ZSTD_frameHeader* zfhPtr, const void* src, size_t srcSize);   /**< doesn't consume input */
 ZSTDLIB_API size_t ZSTD_decompressBegin(ZSTD_DCtx* dctx);
 ZSTDLIB_API size_t ZSTD_decompressBegin_usingDict(ZSTD_DCtx* dctx, const void* dict, size_t dictSize);
 ZSTDLIB_API size_t ZSTD_decompressBegin_usingDDict(ZSTD_DCtx* dctx, const ZSTD_DDict* ddict);

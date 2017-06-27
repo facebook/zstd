@@ -285,8 +285,8 @@ static int basicUnitTests(U32 seed, double compressibility, ZSTD_customMem custo
         const void* cStart = (char*)compressedBuffer + (skippableFrameSize + 8);
         size_t const gfhError = ZSTD_getFrameHeader(&fhi, cStart, cSize);
         if (gfhError!=0) goto _output_error;
-        DISPLAYLEVEL(5, " (windowSize : %u) ", fhi.windowSize);
-        {   size_t const s = ZSTD_estimateDStreamSize(fhi)
+        DISPLAYLEVEL(5, " (windowSize : %u) ", (U32)fhi.windowSize);
+        {   size_t const s = ZSTD_estimateDStreamSize(fhi.windowSize)
                             /* uses ZSTD_initDStream_usingDict() */
                            + ZSTD_estimateDDictSize(dictSize, 0);
             if (ZSTD_isError(s)) goto _output_error;

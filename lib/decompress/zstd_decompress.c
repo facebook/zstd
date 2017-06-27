@@ -2143,6 +2143,11 @@ ZSTD_DStream* ZSTD_createDStream(void)
     return ZSTD_createDStream_advanced(ZSTD_defaultCMem);
 }
 
+ZSTD_DStream* ZSTD_initStaticDStream(void *workspace, size_t workspaceSize)
+{
+    return ZSTD_initStaticDCtx(workspace, workspaceSize);
+}
+
 ZSTD_DStream* ZSTD_createDStream_advanced(ZSTD_customMem customMem)
 {
     return ZSTD_createDCtx_advanced(customMem);
@@ -2214,13 +2219,21 @@ size_t ZSTD_sizeof_DStream(const ZSTD_DStream* zds)
     return ZSTD_sizeof_DCtx(zds);
 }
 
-size_t ZSTD_estimateDStreamSize(ZSTD_frameHeader fHeader)
+size_t ZSTD_estimateDStreamSize(size_t windowSize)
 {
-    size_t const windowSize = fHeader.windowSize;
     size_t const blockSize = MIN(windowSize, ZSTD_BLOCKSIZE_MAX);
     size_t const inBuffSize = blockSize;  /* no block can be larger */
     size_t const outBuffSize = windowSize + blockSize + (WILDCOPY_OVERLENGTH * 2);
     return sizeof(ZSTD_DStream) + ZSTD_estimateDCtxSize() + inBuffSize + outBuffSize;
+}
+
+ZSTDLIB_API size_t ZSTD_estimateDStreamSize_fromFrame(const void* src, size_t srcSize)
+{
+    ZSTD_frameHeader fh;
+    size_t const err = ZSTD_getFrameHeader(&fh, src, srcSize);
+    if (ZSTD_isError(err)) return err;
+    if (err>0) return ERROR(srcSize_wrong);
+    return ZSTD_estimateDStreamSize(fh.windowSize);
 }
 
 

@@ -94,7 +94,7 @@ const char* ZDICT_getErrorName(size_t errorCode) { return ERR_getErrorName(error
 unsigned ZDICT_getDictID(const void* dictBuffer, size_t dictSize)
 {
     if (dictSize < 8) return 0;
-    if (MEM_readLE32(dictBuffer) != ZSTD_DICT_MAGIC) return 0;
+    if (MEM_readLE32(dictBuffer) != ZSTD_MAGIC_DICTIONARY) return 0;
     return MEM_readLE32((const char*)dictBuffer + 4);
 }
 
@@ -865,7 +865,7 @@ size_t ZDICT_finalizeDictionary(void* dictBuffer, size_t dictBufferCapacity,
     if (dictBufferCapacity < ZDICT_DICTSIZE_MIN) return ERROR(dstSize_tooSmall);
 
     /* dictionary header */
-    MEM_writeLE32(header, ZSTD_DICT_MAGIC);
+    MEM_writeLE32(header, ZSTD_MAGIC_DICTIONARY);
     {   U64 const randomID = XXH64(customDictContent, dictContentSize, 0);
         U32 const compliantID = (randomID % ((1U<<31)-32768)) + 32768;
         U32 const dictID = params.dictID ? params.dictID : compliantID;
@@ -917,7 +917,7 @@ size_t ZDICT_addEntropyTablesFromBuffer_advanced(void* dictBuffer, size_t dictCo
     }
 
     /* add dictionary header (after entropy tables) */
-    MEM_writeLE32(dictBuffer, ZSTD_DICT_MAGIC);
+    MEM_writeLE32(dictBuffer, ZSTD_MAGIC_DICTIONARY);
     {   U64 const randomID = XXH64((char*)dictBuffer + dictBufferCapacity - dictContentSize, dictContentSize, 0);
         U32 const compliantID = (randomID % ((1U<<31)-32768)) + 32768;
         U32 const dictID = params.dictID ? params.dictID : compliantID;

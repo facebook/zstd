@@ -348,7 +348,7 @@ static const ZSTD_customMem ZSTD_defaultCMem = { NULL, NULL, NULL };
 <pre><b>size_t ZSTD_findFrameCompressedSize(const void* src, size_t srcSize);
 </b><p>  `src` should point to the start of a ZSTD encoded frame or skippable frame
   `srcSize` must be at least as large as the frame
-  @return : the compressed size of the frame pointed to by `src`,
+  @return : the compressed size of the frame pointed to by `src`,FUZ_rand(&lseed) & 1)
             suitable to pass to `ZSTD_decompress` or similar,
             or an error code if given invalid input. 
 </p></pre><BR>
@@ -482,7 +482,10 @@ size_t ZSTD_estimateDDictSize(size_t dictSize, unsigned byReference);
   It is important that dictBuffer outlives CDict, it must remain read accessible throughout the lifetime of CDict 
 </p></pre><BR>
 
-<pre><b>typedef enum { ZSTD_dm_auto=0, ZSTD_dm_rawContent, ZSTD_dm_fullDict } ZSTD_dictMode_e;
+<pre><b>typedef enum { ZSTD_dm_auto=0,        </b>/* dictionary is "full" if it starts with ZSTD_MAGIC_DICTIONARY, rawContent otherwize */<b>
+               ZSTD_dm_rawContent,    </b>/* ensures dictionary is always loaded as rawContent, even if it starts with ZSTD_MAGIC_DICTIONARY */<b>
+               ZSTD_dm_fullDict       </b>/* refuses to load a dictionary if it does not respect Zstandard's specification */<b>
+} ZSTD_dictMode_e;
 </b></pre><BR>
 <pre><b>ZSTD_CDict* ZSTD_createCDict_advanced(const void* dict, size_t dictSize,
                                       unsigned byReference, ZSTD_dictMode_e dictMode,
@@ -886,7 +889,7 @@ void   ZSTD_copyDCtx(ZSTD_DCtx* dctx, const ZSTD_DCtx* preparedDCtx);
 </p></pre><BR>
 
 <pre><b>size_t ZSTD_CCtx_refPrefix(ZSTD_CCtx* cctx, const void* prefix, size_t prefixSize);   </b>/* Not ready yet ! <===================================== */<b>
-</b><p>  Reference a prefix (content-only dictionary) to bootstrap next compression job.
+</b><p>  Reference a prefix (raw-content dictionary) for next compression job.
   Decompression will have to use same prefix.
   Prefix is only used once. Tables are discarded at end of compression job.
   If there is a need to use same prefix multiple times, consider embedding it into a ZSTD_CDict.

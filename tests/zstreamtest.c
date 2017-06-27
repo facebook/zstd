@@ -1294,7 +1294,7 @@ static int fuzzerTests_newAPI(U32 seed, U32 nbTests, unsigned startTest, double 
                 ZSTD_compressionParameters cParams = ZSTD_getCParams(cLevel, pledgedSrcSize, dictSize);
 
                 /* mess with compression parameters */
-                CHECK_Z( ZSTD_CCtx_loadDictionary(zc, NULL, 0) );   /* always cancel previous dict, to make user it's possible to pass compression parameters */
+                CHECK_Z( ZSTD_CCtx_loadDictionary(zc, NULL, 0) );   /* cancel previous dict, to allow new compression parameters */
                 cParams.windowLog += (FUZ_rand(&lseed) & 3) - 1;
                 cParams.hashLog += (FUZ_rand(&lseed) & 3) - 1;
                 cParams.chainLog += (FUZ_rand(&lseed) & 3) - 1;
@@ -1311,6 +1311,7 @@ static int fuzzerTests_newAPI(U32 seed, U32 nbTests, unsigned startTest, double 
                 if (FUZ_rand(&lseed) & 1) CHECK_Z( ZSTD_CCtx_setParameter(zc, ZSTD_p_targetLength, cParams.targetLength) );
 
                 /* unconditionally set, to be sync with decoder */
+                if (FUZ_rand(&lseed) & 1) CHECK_Z( ZSTD_CCtx_setParameter(zc, ZSTD_p_refDictContent, FUZ_rand(&lseed) & 1) );
                 CHECK_Z( ZSTD_CCtx_loadDictionary(zc, dict, dictSize) );
 
                 if (dict && dictSize) {

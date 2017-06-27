@@ -956,13 +956,11 @@ typedef enum {
     ZSTD_p_checksumFlag,     /* A 32-bits checksum of content is written at end of frame (default:0) */
     ZSTD_p_dictIDFlag,       /* When applicable, dictID of dictionary is provided in frame header (default:1) */
 
-    /* dictionary parameters */
-    ZSTD_p_refDictContent=300, /* Content of dictionary content will be referenced, instead of copied (default:0).
-                              * This avoids duplicating dictionary content.
-                              * But it also requires that dictionary buffer outlives its users */
-                             /* Not ready yet ! <=================================== */
-    ZSTD_p_dictMode,         /* Select how dictionary must be interpreted. Value must be from type ZSTD_dictMode_e.
+    /* dictionary parameters (must be set before loading) */
+    ZSTD_p_dictMode=300,     /* Select how dictionary content must be interpreted. Value must be from type ZSTD_dictMode_e.
                               * default : 0==auto : dictionary will be "full" if it respects specification, otherwise it will be "rawContent" */
+    ZSTD_p_refDictContent,   /* Dictionary content will be referenced, instead of copied (default:0==byCopy).
+                              * It requires that dictionary buffer outlives its users */
 
     /* multi-threading parameters */
     ZSTD_p_nbThreads=400,    /* Select how many threads a compression job can spawn (default:1)
@@ -977,9 +975,9 @@ typedef enum {
                               * 0 => no overlap, 6(default) => use 1/8th of windowSize, >=9 => use full windowSize */
 
     /* advanced parameters - may not remain available after API update */
-    ZSTD_p_forceMaxWindow=1100, /* Force back-references to remain < windowSize,
-                              * even when referencing into Dictionary content.
-                              * default : 0 when using a CDict, 1 when using a Prefix */
+    ZSTD_p_forceMaxWindow=1100, /* Force back-reference distances to remain < windowSize,
+                              * even when referencing into Dictionary content (default:0) */
+
 } ZSTD_cParameter;
 
 
@@ -1006,8 +1004,8 @@ ZSTDLIB_API size_t ZSTD_CCtx_setPledgedSrcSize(ZSTD_CCtx* cctx, unsigned long lo
  * @result : 0, or an error code (which can be tested with ZSTD_isError()).
  *  Special : Adding a NULL (or 0-size) dictionary invalidates any previous dictionary,
  *            meaning "return to no-dictionary mode".
- *  Note 1 : Dictionary content will be copied internally,
- *           except if ZSTD_p_refDictContent is set.
+ *  Note 1 : `dict` content will be copied internally,
+ *           except if ZSTD_p_refDictContent is set before loading.
  *  Note 2 : Loading a dictionary involves building tables, which are dependent on compression parameters.
  *           For this reason, compression parameters cannot be changed anymore after loading a dictionary.
  *           It's also a CPU-heavy operation, with non-negligible impact on latency.

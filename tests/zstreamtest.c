@@ -1382,8 +1382,10 @@ static int fuzzerTests_newAPI(U32 seed, U32 nbTests, unsigned startTest, double 
 
         /* multi - fragments decompression test */
         if (!dictSize /* don't reset if dictionary : could be different */ && (FUZ_rand(&lseed) & 1)) {
+            DISPLAYLEVEL(5, "resetting DCtx (dict:%08X) \n", (U32)(size_t)dict);
             CHECK_Z( ZSTD_resetDStream(zd) );
         } else {
+            DISPLAYLEVEL(5, "using dict of size %u \n", (U32)dictSize);
             CHECK_Z( ZSTD_initDStream_usingDict(zd, dict, dictSize) );
         }
         {   size_t decompressionResult = 1;
@@ -1395,7 +1397,8 @@ static int fuzzerTests_newAPI(U32 seed, U32 nbTests, unsigned startTest, double 
                 size_t const dstBuffSize = MIN(dstBufferSize - totalGenSize, randomDstSize);
                 inBuff.size = inBuff.pos + readCSrcSize;
                 outBuff.size = inBuff.pos + dstBuffSize;
-                DISPLAYLEVEL(5, "ZSTD_decompressStream input %u bytes \n", (U32)readCSrcSize);
+                DISPLAYLEVEL(5, "ZSTD_decompressStream input %u bytes (pos:%u/%u)\n",
+                            (U32)readCSrcSize, (U32)inBuff.pos, (U32)cSize);
                 decompressionResult = ZSTD_decompressStream(zd, &outBuff, &inBuff);
                 CHECK (ZSTD_isError(decompressionResult), "decompression error : %s", ZSTD_getErrorName(decompressionResult));
                 DISPLAYLEVEL(5, "inBuff.pos = %u \n", (U32)readCSrcSize);

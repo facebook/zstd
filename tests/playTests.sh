@@ -442,6 +442,7 @@ if [ $LZMAMODE -eq 1 ]; then
     XZEXE=1
     xz -V && lzma -V || XZEXE=0
     if [ $XZEXE -eq 1 ]; then
+        $ECHO "Testing zstd xz and lzma support"
         ./datagen > tmp
         $ZSTD --format=lzma -f tmp
         $ZSTD --format=xz -f tmp
@@ -451,6 +452,24 @@ if [ $LZMAMODE -eq 1 ]; then
         lzma -f -k --lzma1 tmp
         $ZSTD -d -f -v tmp.xz
         $ZSTD -d -f -v tmp.lzma
+        rm tmp*
+        $ECHO "Creating symlinks"
+        ln -s $ZSTD ./xz
+        ln -s $ZSTD ./unxz
+        ln -s $ZSTD ./lzma
+        ln -s $ZSTD ./unlzma
+        $ECHO "Testing xz and lzma symlinks"
+        ./datagen > tmp
+        ./xz tmp
+        xz -d tmp.xz
+        ./lzma tmp
+        lzma -d tmp.lzma
+        $ECHO "Testing unxz and unlzma symlinks"
+        xz tmp
+        ./xz -d tmp.xz
+        lzma tmp
+        ./lzma -d tmp.lzma
+        rm xz unxz lzma unlzma
         rm tmp*
     else
         $ECHO "xz binary not detected"

@@ -1311,13 +1311,14 @@ static int fuzzerTests_newAPI(U32 seed, U32 nbTests, unsigned startTest, double 
 
                 /* unconditionally set, to be sync with decoder */
                 if (FUZ_rand(&lseed) & 1) CHECK_Z( ZSTD_CCtx_setParameter(zc, ZSTD_p_refDictContent, FUZ_rand(&lseed) & 1) );
-                if (FUZ_rand(&lseed) & 1) { CHECK_Z( ZSTD_CCtx_loadDictionary(zc, dict, dictSize) ); }
-                else { CHECK_Z( ZSTD_CCtx_refPrefix(zc, dict, dictSize) ); }
-
-                if (dict && dictSize) {
-                    /* test that compression parameters are correctly rejected after setting a dictionary */
-                    size_t const setError = ZSTD_CCtx_setParameter(zc, ZSTD_p_windowLog, cParams.windowLog-1) ;
-                    CHECK(!ZSTD_isError(setError), "ZSTD_CCtx_setParameter should have failed");
+                if (FUZ_rand(&lseed) & 1) {
+                    CHECK_Z( ZSTD_CCtx_loadDictionary(zc, dict, dictSize) );
+                    if (dict && dictSize) {
+                        /* test that compression parameters are rejected (correctly) after loading a non-NULL dictionary */
+                        size_t const setError = ZSTD_CCtx_setParameter(zc, ZSTD_p_windowLog, cParams.windowLog-1) ;
+                        CHECK(!ZSTD_isError(setError), "ZSTD_CCtx_setParameter should have failed");
+                }   } else {
+                    CHECK_Z( ZSTD_CCtx_refPrefix(zc, dict, dictSize) );
                 }
 
                 /* mess with frame parameters */

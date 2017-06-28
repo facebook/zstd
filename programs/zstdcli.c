@@ -56,7 +56,9 @@
 #define ZSTD_GUNZIP "gunzip"
 #define ZSTD_GZCAT "gzcat"
 #define ZSTD_LZMA "lzma"
+#define ZSTD_UNLZMA "unlzma"
 #define ZSTD_XZ "xz"
+#define ZSTD_UNXZ "unxz"
 
 #define KB *(1 <<10)
 #define MB *(1 <<20)
@@ -379,7 +381,9 @@ int main(int argCount, const char* argv[])
     if (exeNameMatch(programName, ZSTD_GUNZIP)) { operation=zom_decompress; FIO_setRemoveSrcFile(1); }                                          /* behave like gunzip */
     if (exeNameMatch(programName, ZSTD_GZCAT)) { operation=zom_decompress; forceStdout=1; FIO_overwriteMode(); outFileName=stdoutmark; g_displayLevel=1; }  /* behave like gzcat */
     if (exeNameMatch(programName, ZSTD_LZMA)) { suffix = LZMA_EXTENSION; FIO_setCompressionType(FIO_lzmaCompression); FIO_setRemoveSrcFile(1); }    /* behave like lzma */
+    if (exeNameMatch(programName, ZSTD_UNLZMA)) { operation=zom_decompress; FIO_setCompressionType(FIO_lzmaCompression); FIO_setRemoveSrcFile(1); }    /* behave like unlzma */
     if (exeNameMatch(programName, ZSTD_XZ)) { suffix = XZ_EXTENSION; FIO_setCompressionType(FIO_xzCompression); FIO_setRemoveSrcFile(1); }    /* behave like xz */
+    if (exeNameMatch(programName, ZSTD_UNXZ)) { operation=zom_decompress; FIO_setCompressionType(FIO_xzCompression); FIO_setRemoveSrcFile(1); }    /* behave like unxz */
     memset(&compressionParams, 0, sizeof(compressionParams));
 
     /* command switches */

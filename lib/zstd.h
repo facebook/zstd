@@ -496,9 +496,9 @@ ZSTDLIB_API size_t ZSTD_sizeof_DDict(const ZSTD_DDict* ddict);
 /*! ZSTD_estimate*() :
  *  These functions make it possible to estimate memory usage
  *  of a future {D,C}Ctx, before its creation.
- *  The objective is to guide decision before allocation.
- *  ZSTD_estimateCCtxSize() will consider src size to be arbitrarily "large".
- *  If srcSize is known to be small, ZSTD_estimateCCtxSize_advanced() can provide a tighter estimation.
+ *  ZSTD_estimateCCtxSize() will provide a budget large enough for any compression level up to selected one.
+ *  It will also consider src size to be arbitrarily "large", which is worst case.
+ *  If srcSize is known to always be small, ZSTD_estimateCCtxSize_advanced() can provide a tighter estimation.
  *  ZSTD_estimateCCtxSize_advanced() can be used in tandem with ZSTD_getCParams() to create cParams from compressionLevel.
  *  Note : CCtx estimation is only correct for single-threaded compression */
 ZSTDLIB_API size_t ZSTD_estimateCCtxSize(int compressionLevel);
@@ -506,8 +506,9 @@ ZSTDLIB_API size_t ZSTD_estimateCCtxSize_advanced(ZSTD_compressionParameters cPa
 ZSTDLIB_API size_t ZSTD_estimateDCtxSize(void);
 
 /*! ZSTD_estimate?StreamSize() :
- *  ZSTD_estimateCStreamSize() will consider src size to be arbitrarily "large".
- *  If srcSize is known to be small, ZSTD_estimateCStreamSize_advanced() can provide a tighter estimation.
+ *  ZSTD_estimateCStreamSize() will provide a budget large enough for any compression level up to selected one.
+ *  It will also consider src size to be arbitrarily "large", which is worst case.
+ *  If srcSize is known to always be small, ZSTD_estimateCStreamSize_advanced() can provide a tighter estimation.
  *  ZSTD_estimateCStreamSize_advanced() can be used in tandem with ZSTD_getCParams() to create cParams from compressionLevel.
  *  Note : CStream estimation is only correct for single-threaded compression.
  *  ZSTD_DStream memory budget depends on window Size.

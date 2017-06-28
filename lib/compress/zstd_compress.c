@@ -4098,6 +4098,43 @@ static const ZSTD_compressionParameters ZSTD_defaultCParameters[4][ZSTD_MAX_CLEV
 },
 };
 
+/* This function just controls
+ * the monotonic memory budget increase of ZSTD_defaultCParameters[0].
+ * Run only once, on first ZSTD_getCParams() usage, when ZSTD_DEBUG is enabled
+ */
+MEM_STATIC void ZSTD_check_compressionLevel_monotonicIncrease_memoryBudget(void)
+{
+#   define ZSTD_TABLECOST(h,c) ((1<<(h)) + (1<<(c)))
+#   define ZDCP_FIELD(l,field) (ZSTD_defaultCParameters[0][l].field)
+#   define ZSTD_CHECK_MONOTONIC_INCREASE_LEVEL(l) { \
+        assert(ZDCP_FIELD(l,windowLog) <= ZDCP_FIELD(l+1,windowLog) );  \
+        assert(ZSTD_TABLECOST(ZDCP_FIELD(l,hashLog), ZDCP_FIELD(l,chainLog)) <= ZSTD_TABLECOST(ZDCP_FIELD(l+1,hashLog), ZDCP_FIELD(l+1,chainLog)) ); \
+    }
+
+    ZSTD_CHECK_MONOTONIC_INCREASE_LEVEL(1);
+    ZSTD_CHECK_MONOTONIC_INCREASE_LEVEL(2);
+    ZSTD_CHECK_MONOTONIC_INCREASE_LEVEL(3);
+    ZSTD_CHECK_MONOTONIC_INCREASE_LEVEL(4);
+    ZSTD_CHECK_MONOTONIC_INCREASE_LEVEL(5);
+    ZSTD_CHECK_MONOTONIC_INCREASE_LEVEL(6);
+    ZSTD_CHECK_MONOTONIC_INCREASE_LEVEL(7);
+    ZSTD_CHECK_MONOTONIC_INCREASE_LEVEL(8);
+    ZSTD_CHECK_MONOTONIC_INCREASE_LEVEL(9);
+    ZSTD_CHECK_MONOTONIC_INCREASE_LEVEL(10);
+    ZSTD_CHECK_MONOTONIC_INCREASE_LEVEL(11);
+    ZSTD_CHECK_MONOTONIC_INCREASE_LEVEL(12);
+    ZSTD_CHECK_MONOTONIC_INCREASE_LEVEL(13);
+    ZSTD_CHECK_MONOTONIC_INCREASE_LEVEL(14);
+    ZSTD_CHECK_MONOTONIC_INCREASE_LEVEL(15);
+    ZSTD_CHECK_MONOTONIC_INCREASE_LEVEL(16);
+    ZSTD_CHECK_MONOTONIC_INCREASE_LEVEL(17);
+    ZSTD_CHECK_MONOTONIC_INCREASE_LEVEL(18);
+    ZSTD_CHECK_MONOTONIC_INCREASE_LEVEL(19);
+    ZSTD_CHECK_MONOTONIC_INCREASE_LEVEL(20);
+    ZSTD_CHECK_MONOTONIC_INCREASE_LEVEL(21);
+    assert(ZSTD_maxCLevel()==22);
+}
+
 /*! ZSTD_getCParams() :
 *   @return ZSTD_compressionParameters structure for a selected compression level, `srcSize` and `dictSize`.
 *   Size values are optional, provide 0 if not known or unused */
@@ -4108,6 +4145,15 @@ ZSTD_compressionParameters ZSTD_getCParams(int compressionLevel, unsigned long l
     U32 const tableID = (rSize <= 256 KB) + (rSize <= 128 KB) + (rSize <= 16 KB);   /* intentional underflow for srcSizeHint == 0 */
     if (compressionLevel <= 0) compressionLevel = ZSTD_CLEVEL_DEFAULT;   /* 0 == default; no negative compressionLevel yet */
     if (compressionLevel > ZSTD_MAX_CLEVEL) compressionLevel = ZSTD_MAX_CLEVEL;
+
+#if defined(ZSTD_DEBUG) && (ZSTD_DEBUG>=1)
+    static int g_monotonicTest = 1;
+    if (g_monotonicTest) {
+        ZSTD_check_compressionLevel_monotonicIncrease_memoryBudget();
+        g_monotonicTest=0;
+    }
+#endif
+
     { ZSTD_compressionParameters const cp = ZSTD_defaultCParameters[tableID][compressionLevel];
       return ZSTD_adjustCParams_internal(cp, srcSizeHint, dictSize); }
 }

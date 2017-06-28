@@ -1216,8 +1216,8 @@ static int genRandomDict(U32 dictID, U32 seed, size_t dictSize, BYTE* fullDict){
         /* create variables */
         size_t dictWriteSize = 0;
         ZDICT_params_t zdictParams;
-        size_t const headerSize = dictSize/4;
-        size_t const dictContentSize = dictSize - dictSize/4;
+        size_t const headerSize = MAX(dictSize/4, 256);
+        size_t const dictContentSize = dictSize - headerSize;
         BYTE* const dictContent = fullDict + headerSize;
         if (dictContentSize < ZDICT_CONTENTSIZE_MIN || dictSize < ZDICT_DICTSIZE_MIN) {
             DISPLAY("Error: dictionary size is too small\n");
@@ -1322,9 +1322,10 @@ cleanup:
     return ret;
 }
 
-static size_t testDecodeWithDict(U32 seed, size_t dictSize)
+static size_t testDecodeWithDict(U32 seed)
 {
     /* create variables */
+    size_t const dictSize = RAND(&seed) % (10 << 20) + ZDICT_DICTSIZE_MIN + ZDICT_CONTENTSIZE_MIN;
     U32 const dictID = RAND(&seed);
     size_t errorDetected = 0;
     BYTE* const fullDict = malloc(dictSize);
@@ -1347,8 +1348,9 @@ static size_t testDecodeWithDict(U32 seed, size_t dictSize)
 
         /* generate frame */
         {
-            size_t const dictContentSize = dictSize-dictSize/4;
-            BYTE* const dictContent = fullDict+dictSize/4;
+            size_t const headerSize = MAX(dictSize/4, 256);
+            size_t const dictContentSize = dictSize-headerSize;
+            BYTE* const dictContent = fullDict+headerSize;
             dictInfo const info = initDictInfo(1, dictContentSize, dictContent, dictID);
             seed = generateFrame(seed, &fr, info);
         }
@@ -1392,7 +1394,7 @@ static int runTestMode(U32 seed, unsigned numFiles, unsigned const testDurationS
 
     for (fnum = 0; fnum < numFiles || clockSpan(startClock) < maxClockSpan; fnum++) {
         frame_t fr;
-
+        U32 const seedCopy = seed;
         if (fnum < numFiles)
             DISPLAYUPDATE("\r%u/%u        ", fnum, numFiles);
         else
@@ -1405,24 +1407,23 @@ static int runTestMode(U32 seed, unsigned numFiles, unsigned const testDurationS
 
         {   size_t const r = testDecodeSimple(&fr);
             if (ZSTD_isError(r)) {
-                DISPLAY("Error in simple mode on test seed %u: %s\n", seed + fnum,
+                DISPLAY("Error in simple mode on test seed %u, fnum %u: %s\n", seedCopy, fnum,
                         ZSTD_getErrorName(r));
                 return 1;
             }
         }
         {   size_t const r = testDecodeStreaming(&fr);
             if (ZSTD_isError(r)) {
-                DISPLAY("Error in streaming mode on test seed %u: %s\n", seed + fnum,
+                DISPLAY("Error in streaming mode on test seed %u, fnum %u: %s\n", seedCopy, fnum,
                         ZSTD_getErrorName(r));
                 return 1;
             }
         }
         {
             /* don't create a dictionary that is too big */
-            size_t const dictSize = RAND(&seed) % (10 << 20) + ZDICT_DICTSIZE_MIN;
-            size_t const r = testDecodeWithDict(seed, dictSize);
+            size_t const r = testDecodeWithDict(seed);
             if (ZSTD_isError(r)) {
-                DISPLAY("Error in dictionary mode on test seed %u: %s\n", seed+fnum, ZSTD_getErrorName(r));
+                DISPLAY("Error in dictionary mode on test seed %u, fnum %u: %s\n", seedCopy, fnum, ZSTD_getErrorName(r));
                 return 1;
             }
         }
@@ -1544,8 +1545,9 @@ static int generateCorpusWithDict(U32 seed, unsigned numFiles, const char* const
             frame_t fr;
             DISPLAYUPDATE("\r%u/%u        ", fnum, numFiles);
             {
-                size_t const dictContentSize = dictSize-dictSize/4;
-                BYTE* const dictContent = fullDict+dictSize/4;
+                size_t const headerSize = MAX(dictSize/4, 256);
+                size_t const dictContentSize = dictSize-headerSize;
+                BYTE* const dictContent = fullDict+headerSize;
                 dictInfo const info = initDictInfo(1, dictContentSize, dictContent, dictID);
                 seed = generateFrame(seed, &fr, info);
             }

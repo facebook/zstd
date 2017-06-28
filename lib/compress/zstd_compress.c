@@ -3924,29 +3924,30 @@ size_t ZSTD_compress_generic (ZSTD_CCtx* cctx,
 
     if (cctx->streamStage == zcss_init) {
         /* transparent reset */
+        const void* const prefix = cctx->prefix;
+        size_t const prefixSize = cctx->prefixSize;
         ZSTD_parameters params = cctx->requestedParams;
         if (cctx->compressionLevel != ZSTD_CLEVEL_CUSTOM)
             params.cParams = ZSTD_getCParams(cctx->compressionLevel,
-                                    cctx->pledgedSrcSizePlusOne-1, 0 /* dictSize */);
+                                cctx->pledgedSrcSizePlusOne-1, 0 /*dictSize*/);
+        cctx->prefix = NULL; cctx->prefixSize = 0;   /* single usage */
+        assert(prefix==NULL || cctx->cdict==NULL);   /* only one can be set */
 
 #ifdef ZSTD_MULTITHREAD
         if (cctx->nbThreads > 1) {
-            DEBUGLOG(4, "call ZSTDMT_initCStream_internal");
-            CHECK_F( ZSTDMT_initCStream_internal(cctx->mtctx, NULL, 0, cctx->cdict, params, cctx->pledgedSrcSizePlusOne-1) );
+            DEBUGLOG(4, "call ZSTDMT_initCStream_internal as nbThreads=%u", cctx->nbThreads);
+            CHECK_F( ZSTDMT_initCStream_internal(cctx->mtctx, prefix, prefixSize, cctx->cdict, params, cctx->pledgedSrcSizePlusOne-1) );
             cctx->streamStage = zcss_load;
         } else
 #endif
         {
-            const void* const prefix = cctx->prefix;
-            size_t const prefixSize = cctx->prefixSize;
-            cctx->prefix = NULL; cctx->prefixSize = 0;   /* single usage */
             CHECK_F( ZSTD_resetCStream_internal(cctx, prefix, prefixSize, cctx->dictMode, cctx->cdict, params, cctx->pledgedSrcSizePlusOne-1) );
     }   }
 
 #ifdef ZSTD_MULTITHREAD
     if (cctx->nbThreads > 1) {
         size_t const flushMin = ZSTDMT_compressStream_generic(cctx->mtctx, output, input, endOp);
-        DEBUGLOG(4, "ZSTDMT_compressStream_generic : %u", (U32)flushMin);
+        DEBUGLOG(5, "ZSTDMT_compressStream_generic : %u", (U32)flushMin);
         if ( ZSTD_isError(flushMin)
           || (endOp == ZSTD_e_end && flushMin == 0) ) { /* compression completed */
             ZSTD_startNewCompression(cctx);

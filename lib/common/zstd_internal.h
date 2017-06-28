@@ -71,12 +71,17 @@
 
 #if defined(ZSTD_DEBUG) && (ZSTD_DEBUG>=2)
 #  include <stdio.h>
-   static unsigned g_debugLevel = ZSTD_DEBUG;
-#  define DEBUGLOG(l, ...) {                          \
-                if (l<=g_debugLevel) {                \
-                    fprintf(stderr, __FILE__ ": ");   \
-                    fprintf(stderr, __VA_ARGS__);     \
-                    fprintf(stderr, " \n");           \
+/* recommended values for ZSTD_DEBUG display levels :
+ * 2 : reserved for currently active debugging path
+ * 3 : events once per object lifetime (CCtx, CDict)
+ * 4 : events once per frame
+ * 5 : events once per block
+ * 6 : events once per sequence (*very* verbose) */
+#  define DEBUGLOG(l, ...) {                         \
+                if (l<=ZSTD_DEBUG) {                 \
+                    fprintf(stderr, __FILE__ ": ");  \
+                    fprintf(stderr, __VA_ARGS__);    \
+                    fprintf(stderr, " \n");          \
             }   }
 #else
 #  define DEBUGLOG(l, ...)      {}    /* disabled */

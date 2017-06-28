@@ -415,7 +415,7 @@ static int basicUnitTests(U32 seed, double compressibility, ZSTD_customMem custo
 
     /* CDict scenario */
     DISPLAYLEVEL(3, "test%3i : digested dictionary : ", testNb++);
-    {   ZSTD_CDict* const cdict = ZSTD_createCDict(dictionary.start, dictionary.filled, 1);
+    {   ZSTD_CDict* const cdict = ZSTD_createCDict(dictionary.start, dictionary.filled, 1 /*byRef*/ );
         size_t const initError = ZSTD_initCStream_usingCDict(zc, cdict);
         if (ZSTD_isError(initError)) goto _output_error;
         cSize = 0;

@@ -1407,14 +1407,14 @@ static int runTestMode(U32 seed, unsigned numFiles, unsigned const testDurationS
 
         {   size_t const r = testDecodeSimple(&fr);
             if (ZSTD_isError(r)) {
-                DISPLAY("Error in simple mode on test seed %u, fnum %u: %s\n", seedCopy, fnum,
+                DISPLAY("Error in simple mode on test seed %u: %s\n", seedCopy,
                         ZSTD_getErrorName(r));
                 return 1;
             }
         }
         {   size_t const r = testDecodeStreaming(&fr);
             if (ZSTD_isError(r)) {
-                DISPLAY("Error in streaming mode on test seed %u, fnum %u: %s\n", seedCopy, fnum,
+                DISPLAY("Error in streaming mode on test seed %u: %s\n", seedCopy,
                         ZSTD_getErrorName(r));
                 return 1;
             }
@@ -1423,7 +1423,7 @@ static int runTestMode(U32 seed, unsigned numFiles, unsigned const testDurationS
             /* don't create a dictionary that is too big */
             size_t const r = testDecodeWithDict(seed);
             if (ZSTD_isError(r)) {
-                DISPLAY("Error in dictionary mode on test seed %u, fnum %u: %s\n", seedCopy, fnum, ZSTD_getErrorName(r));
+                DISPLAY("Error in dictionary mode on test seed %u: %s\n", seedCopy, ZSTD_getErrorName(r));
                 return 1;
             }
         }

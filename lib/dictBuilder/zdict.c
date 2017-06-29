@@ -487,7 +487,7 @@ static U32 ZDICT_dictSize(const dictItem* dictList)
 }
 
 
-static size_t ZDICT_trainBuffer(dictItem* dictList, U32 dictListSize,
+static size_t ZDICT_trainBuffer_legacy(dictItem* dictList, U32 dictListSize,
                             const void* const buffer, size_t bufferSize,   /* buffer must end with noisy guard band */
                             const size_t* fileSizes, unsigned nbFiles,
                             U32 minRatio, U32 notificationLevel)
@@ -633,17 +633,6 @@ static void ZDICT_countEStats(EStats_ress_t esr, ZSTD_parameters params,
                 repOffsets[offset2] += 1;
     }   }   }
 }
-
-/*
-static size_t ZDICT_maxSampleSize(const size_t* fileSizes, unsigned nbFiles)
-{
-    unsigned u;
-    size_t max=0;
-    for (u=0; u<nbFiles; u++)
-        if (max < fileSizes[u]) max = fileSizes[u];
-    return max;
-}
-*/
 
 static size_t ZDICT_totalSampleSize(const size_t* fileSizes, unsigned nbFiles)
 {
@@ -930,14 +919,14 @@ size_t ZDICT_addEntropyTablesFromBuffer_advanced(void* dictBuffer, size_t dictCo
 }
 
 
-/*! ZDICT_trainFromBuffer_unsafe() :
+/*! ZDICT_trainFromBuffer_unsafe_legacy() :
 *   Warning : `samplesBuffer` must be followed by noisy guard band.
 *   @return : size of dictionary, or an error code which can be tested with ZDICT_isError()
 */
-size_t ZDICT_trainFromBuffer_unsafe(
+size_t ZDICT_trainFromBuffer_unsafe_legacy(
                             void* dictBuffer, size_t maxDictSize,
                             const void* samplesBuffer, const size_t* samplesSizes, unsigned nbSamples,
-                            ZDICT_params_t params)
+                            ZDICT_legacy_params_t params)
 {
     U32 const dictListSize = MAX(MAX(DICTLISTSIZE_DEFAULT, nbSamples), (U32)(maxDictSize/16));
     dictItem* const dictList = (dictItem*)malloc(dictListSize * sizeof(*dictList));
@@ -946,7 +935,7 @@ size_t ZDICT_trainFromBuffer_unsafe(
     size_t const targetDictSize = maxDictSize;
     size_t const samplesBuffSize = ZDICT_totalSampleSize(samplesSizes, nbSamples);
     size_t dictSize = 0;
-    U32 const notificationLevel = params.notificationLevel;
+    U32 const notificationLevel = params.zParams.notificationLevel;
 
     /* checks */
     if (!dictList) return ERROR(memory_allocation);
@@ -957,13 +946,13 @@ size_t ZDICT_trainFromBuffer_unsafe(
     ZDICT_initDictItem(dictList);
 
     /* build dictionary */
-    ZDICT_trainBuffer(dictList, dictListSize,
-                    samplesBuffer, samplesBuffSize,
-                    samplesSizes, nbSamples,
-                    minRep, notificationLevel);
+    ZDICT_trainBuffer_legacy(dictList, dictListSize,
+                       samplesBuffer, samplesBuffSize,
+                       samplesSizes, nbSamples,
+                       minRep, notificationLevel);
 
     /* display best matches */
-    if (params.notificationLevel>= 3) {
+    if (params.zParams.notificationLevel>= 3) {
         U32 const nb = MIN(25, dictList[0].pos);
         U32 const dictContentSize = ZDICT_dictSize(dictList);
         U32 u;
@@ -1026,7 +1015,7 @@ size_t ZDICT_trainFromBuffer_unsafe(
 
         dictSize = ZDICT_addEntropyTablesFromBuffer_advanced(dictBuffer, dictContentSize, maxDictSize,
                                                              samplesBuffer, samplesSizes, nbSamples,
-                                                             params);
+                                                             params.zParams);
     }
 
     /* clean up */
@@ -1037,9 +1026,9 @@ size_t ZDICT_trainFromBuffer_unsafe(
 
 /* issue : samplesBuffer need to be followed by a noisy guard band.
 *  work around : duplicate the buffer, and add the noise */
-size_t ZDICT_trainFromBuffer_advanced(void* dictBuffer, size_t dictBufferCapacity,
-                                      const void* samplesBuffer, const size_t* samplesSizes, unsigned nbSamples,
-                                      ZDICT_params_t params)
+size_t ZDICT_trainFromBuffer_legacy(void* dictBuffer, size_t dictBufferCapacity,
+                              const void* samplesBuffer, const size_t* samplesSizes, unsigned nbSamples,
+                              ZDICT_legacy_params_t params)
 {
     size_t result;
     void* newBuff;
@@ -1052,10 +1041,9 @@ size_t ZDICT_trainFromBuffer_advanced(void* dictBuffer, size_t dictBufferCapacit
     memcpy(newBuff, samplesBuffer, sBuffSize);
     ZDICT_fillNoise((char*)newBuff + sBuffSize, NOISELENGTH);   /* guard band, for end of buffer condition */
 
-    result = ZDICT_trainFromBuffer_unsafe(
-                                        dictBuffer, dictBufferCapacity,
-                                        newBuff, samplesSizes, nbSamples,
-                                        params);
+    result =
+        ZDICT_trainFromBuffer_unsafe_legacy(dictBuffer, dictBufferCapacity, newBuff,
+                                            samplesSizes, nbSamples, params);
     free(newBuff);
     return result;
 }
@@ -1064,11 +1052,13 @@ size_t ZDICT_trainFromBuffer_advanced(void* dictBuffer, size_t dictBufferCapacit
 size_t ZDICT_trainFromBuffer(void* dictBuffer, size_t dictBufferCapacity,
                              const void* samplesBuffer, const size_t* samplesSizes, unsigned nbSamples)
 {
-    ZDICT_params_t params;
+    ZDICT_cover_params_t params;
     memset(&params, 0, sizeof(params));
-    return ZDICT_trainFromBuffer_advanced(dictBuffer, dictBufferCapacity,
-                                          samplesBuffer, samplesSizes, nbSamples,
-                                          params);
+    params.d = 8;
+    params.steps = 4;
+    return ZDICT_optimizeTrainFromBuffer_cover(dictBuffer, dictBufferCapacity,
+                                               samplesBuffer, samplesSizes,
+                                               nbSamples, &params);
 }
 
 size_t ZDICT_addEntropyTablesFromBuffer(void* dictBuffer, size_t dictContentSize, size_t dictBufferCapacity,

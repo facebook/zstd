@@ -248,7 +248,7 @@ static unsigned longCommandWArg(const char** stringPtr, const char* longCommand)
  * @return 1 means that cover parameters were correct
  * @return 0 in case of malformed parameters
  */
-static unsigned parseCoverParameters(const char* stringPtr, COVER_params_t* params)
+static unsigned parseCoverParameters(const char* stringPtr, ZDICT_cover_params_t* params)
 {
     memset(params, 0, sizeof(*params));
     for (; ;) {
@@ -277,9 +277,9 @@ static unsigned parseLegacyParameters(const char* stringPtr, unsigned* selectivi
     return 1;
 }
 
-static COVER_params_t defaultCoverParams(void)
+static ZDICT_cover_params_t defaultCoverParams(void)
 {
-    COVER_params_t params;
+    ZDICT_cover_params_t params;
     memset(&params, 0, sizeof(params));
     params.d = 8;
     params.steps = 4;
@@ -358,7 +358,7 @@ int main(int argCount, const char* argv[])
     unsigned fileNamesNb;
 #endif
 #ifndef ZSTD_NODICT
-    COVER_params_t coverParams = defaultCoverParams();
+    ZDICT_cover_params_t coverParams = defaultCoverParams();
     int cover = 1;
 #endif
 
@@ -699,20 +699,20 @@ int main(int argCount, const char* argv[])
     /* Check if dictionary builder is selected */
     if (operation==zom_train) {
 #ifndef ZSTD_NODICT
+        ZDICT_params_t zParams;
+        zParams.compressionLevel = dictCLevel;
+        zParams.notificationLevel = g_displayLevel;
+        zParams.dictID = dictID;
         if (cover) {
             int const optimize = !coverParams.k || !coverParams.d;
             coverParams.nbThreads = nbThreads;
-            coverParams.compressionLevel = dictCLevel;
-            coverParams.notificationLevel = g_displayLevel;
-            coverParams.dictID = dictID;
+            coverParams.zParams = zParams;
             operationResult = DiB_trainFromFiles(outFileName, maxDictSize, filenameTable, filenameIdx, NULL, &coverParams, optimize);
         } else {
-            ZDICT_params_t dictParams;
+            ZDICT_legacy_params_t dictParams;
             memset(&dictParams, 0, sizeof(dictParams));
-            dictParams.compressionLevel = dictCLevel;
             dictParams.selectivityLevel = dictSelect;
-            dictParams.notificationLevel = g_displayLevel;
-            dictParams.dictID = dictID;
+            dictParams.zParams = zParams;
             operationResult = DiB_trainFromFiles(outFileName, maxDictSize, filenameTable, filenameIdx, &dictParams, NULL, 0);
         }
 #endif

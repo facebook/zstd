@@ -454,7 +454,7 @@ ZSTDLIB_API size_t ZSTD_findFrameCompressedSize(const void* src, size_t srcSize)
 
 /*! ZSTD_findDecompressedSize() :
  *  `src` should point the start of a series of ZSTD encoded and/or skippable frames
- *  `srcSize` must be the _exact_ size of this serie
+ *  `srcSize` must be the _exact_ size of this series
  *       (i.e. there should be a frame boundary exactly at `srcSize` bytes after `src`)
  *  @return : - decompressed size of all data in all successive frames
  *            - if the decompressed size cannot be determined: ZSTD_CONTENTSIZE_UNKNOWN

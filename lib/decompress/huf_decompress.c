@@ -101,20 +101,19 @@ size_t HUF_readDTableX2_wksp(HUF_DTable* DTable, const void* src, size_t srcSize
     void* const dtPtr = DTable + 1;
     HUF_DEltX2* const dt = (HUF_DEltX2*)dtPtr;
 
-    U32 *rankVal;
-    BYTE *huffWeight;
-    size_t spaceUsed = 0;
+    U32* rankVal;
+    BYTE* huffWeight;
+    size_t spaceUsed32 = 0;
 
-    rankVal = (U32 *)((BYTE *)workSpace + spaceUsed);
-    spaceUsed += sizeof(U32) * (HUF_TABLELOG_ABSOLUTEMAX + 1);
-    huffWeight = (BYTE *)workSpace + spaceUsed;
-    spaceUsed += HUF_SYMBOLVALUE_MAX + 1;
-    spaceUsed = ALIGN(spaceUsed, sizeof(U32));
+    rankVal = (U32 *)workSpace + spaceUsed32;
+    spaceUsed32 += HUF_TABLELOG_ABSOLUTEMAX + 1;
+    huffWeight = (BYTE *)((U32 *)workSpace + spaceUsed32);
+    spaceUsed32 += ALIGN(HUF_SYMBOLVALUE_MAX + 1, sizeof(U32)) >> 2;
 
-    if (spaceUsed > wkspSize)
+    if ((spaceUsed32 >> 2) > wkspSize)
             return ERROR(tableLog_tooLarge);
-    workSpace = (BYTE *)workSpace + spaceUsed;
-    wkspSize -= spaceUsed;
+    workSpace = (U32 *)workSpace + spaceUsed32;
+    wkspSize -= (spaceUsed32 << 2);
 
     HUF_STATIC_ASSERT(sizeof(DTableDesc) == sizeof(HUF_DTable));
     /* memset(huffWeight, 0, sizeof(huffWeight)); */   /* is not necessary, even though some analyzer complain ... */
@@ -507,29 +506,28 @@ size_t HUF_readDTableX4_wksp(HUF_DTable* DTable, const void* src,
     HUF_DEltX4* const dt = (HUF_DEltX4*)dtPtr;
     U32 *rankStart;
 
-    rankValCol_t *rankVal;
-    U32 *rankStats;
-    U32 *rankStart0;
-    sortedSymbol_t *sortedSymbol;
-    BYTE *weightList;
-    size_t spaceUsed = 0;
+    rankValCol_t* rankVal;
+    U32* rankStats;
+    U32* rankStart0;
+    sortedSymbol_t* sortedSymbol;
+    BYTE* weightList;
+    size_t spaceUsed32 = 0;
 
-    rankVal = (rankValCol_t *)((BYTE *)workSpace + spaceUsed);
-    spaceUsed += sizeof(rankValCol_t) * HUF_TABLELOG_MAX;
-    rankStats = (U32 *)((BYTE *)workSpace + spaceUsed);
-    spaceUsed += sizeof(U32) * (HUF_TABLELOG_MAX + 1);
-    rankStart0 = (U32 *)((BYTE *)workSpace + spaceUsed);
-    spaceUsed += sizeof(U32) * (HUF_TABLELOG_MAX + 2);
-    sortedSymbol = (sortedSymbol_t *)((BYTE *)workSpace + spaceUsed);
-    spaceUsed += sizeof(sortedSymbol_t) * (HUF_SYMBOLVALUE_MAX + 1);
-    weightList = (BYTE *)workSpace + spaceUsed;
-    spaceUsed += HUF_SYMBOLVALUE_MAX + 1;
-    spaceUsed = ALIGN(spaceUsed, sizeof(U32));
+    rankVal = (rankValCol_t *)((U32 *)workSpace + spaceUsed32);
+    spaceUsed32 += (sizeof(rankValCol_t) * HUF_TABLELOG_MAX) >> 2;
+    rankStats = (U32 *)workSpace + spaceUsed32;
+    spaceUsed32 += HUF_TABLELOG_MAX + 1;
+    rankStart0 = (U32 *)workSpace + spaceUsed32;
+    spaceUsed32 += HUF_TABLELOG_MAX + 2;
+    sortedSymbol = (sortedSymbol_t *)((U32 *)workSpace + spaceUsed32);
+    spaceUsed32 += ALIGN(sizeof(sortedSymbol_t) * (HUF_SYMBOLVALUE_MAX + 1), sizeof(U32)) >> 2;
+    weightList = (BYTE *)((U32 *)workSpace + spaceUsed32);
+    spaceUsed32 += ALIGN(HUF_SYMBOLVALUE_MAX + 1, sizeof(U32)) >> 2;
 
-    if (spaceUsed > wkspSize)
+    if ((spaceUsed32 >> 2) > wkspSize)
         return ERROR(tableLog_tooLarge);
-    workSpace = (BYTE *)workSpace + spaceUsed;
-    wkspSize -= spaceUsed;
+    workSpace = (U32 *)workSpace + spaceUsed32;
+    wkspSize -= (spaceUsed32 << 2);
 
     rankStart = rankStart0 + 1;
     memset(rankStats, 0, sizeof(U32) * (2 * HUF_TABLELOG_MAX + 2 + 1));

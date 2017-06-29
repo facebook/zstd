@@ -638,7 +638,7 @@ static int basicUnitTests(U32 seed, double compressibility)
         size_t const sampleUnitSize = 8 KB;
         U32 const nbSamples = (U32)(totalSampleSize / sampleUnitSize);
         size_t* const samplesSizes = (size_t*) malloc(nbSamples * sizeof(size_t));
-        COVER_params_t params;
+        ZDICT_cover_params_t params;
         U32 dictID;
 
         if (dictBuffer==NULL || samplesSizes==NULL) {
@@ -647,14 +647,14 @@ static int basicUnitTests(U32 seed, double compressibility)
             goto _output_error;
         }
 
-        DISPLAYLEVEL(4, "test%3i : COVER_trainFromBuffer : ", testNb++);
+        DISPLAYLEVEL(4, "test%3i : ZDICT_trainFromBuffer_cover : ", testNb++);
         { U32 u; for (u=0; u<nbSamples; u++) samplesSizes[u] = sampleUnitSize; }
         memset(&params, 0, sizeof(params));
         params.d = 1 + (FUZ_rand(&seed) % 16);
         params.k = params.d + (FUZ_rand(&seed) % 256);
-        dictSize = COVER_trainFromBuffer(dictBuffer, dictSize,
-                                         CNBuffer, samplesSizes, nbSamples,
-                                         params);
+        dictSize = ZDICT_trainFromBuffer_cover(dictBuffer, dictSize,
+                                               CNBuffer, samplesSizes, nbSamples,
+                                               params);
         if (ZDICT_isError(dictSize)) goto _output_error;
         DISPLAYLEVEL(4, "OK, created dictionary of size %u \n", (U32)dictSize);
 
@@ -663,12 +663,12 @@ static int basicUnitTests(U32 seed, double compressibility)
         if (dictID==0) goto _output_error;
         DISPLAYLEVEL(4, "OK : %u \n", dictID);
 
-        DISPLAYLEVEL(4, "test%3i : COVER_optimizeTrainFromBuffer : ", testNb++);
+        DISPLAYLEVEL(4, "test%3i : ZDICT_optimizeTrainFromBuffer_cover : ", testNb++);
         memset(&params, 0, sizeof(params));
         params.steps = 4;
-        optDictSize = COVER_optimizeTrainFromBuffer(dictBuffer, optDictSize,
-                                                    CNBuffer, samplesSizes, nbSamples / 4,
-                                                    &params);
+        optDictSize = ZDICT_optimizeTrainFromBuffer_cover(dictBuffer, optDictSize,
+                                                          CNBuffer, samplesSizes,
+                                                          nbSamples / 4, &params);
         if (ZDICT_isError(optDictSize)) goto _output_error;
         DISPLAYLEVEL(4, "OK, created dictionary of size %u \n", (U32)optDictSize);
 

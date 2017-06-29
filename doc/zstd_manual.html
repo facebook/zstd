@@ -412,7 +412,7 @@ size_t ZSTD_estimateCCtxSize_advanced(ZSTD_compressionParameters cParams);
 size_t ZSTD_estimateDCtxSize(void);
 </b><p>  These functions make it possible to estimate memory usage
   of a future {D,C}Ctx, before its creation.
-  ZSTD_estimateCCtxSize() will provide a budget large for any compression level up to selected one.
+  ZSTD_estimateCCtxSize() will provide a budget large enough for any compression level up to selected one.
   It will also consider src size to be arbitrarily "large", which is worst case.
   If srcSize is known to always be small, ZSTD_estimateCCtxSize_advanced() can provide a tighter estimation.
   ZSTD_estimateCCtxSize_advanced() can be used in tandem with ZSTD_getCParams() to create cParams from compressionLevel.
@@ -423,7 +423,7 @@ size_t ZSTD_estimateDCtxSize(void);
 size_t ZSTD_estimateCStreamSize_advanced(ZSTD_compressionParameters cParams);
 size_t ZSTD_estimateDStreamSize(size_t windowSize);
 size_t ZSTD_estimateDStreamSize_fromFrame(const void* src, size_t srcSize);
-</b><p>  ZSTD_estimateCStreamSize() will provide a budget large for any compression level up to selected one.
+</b><p>  ZSTD_estimateCStreamSize() will provide a budget large enough for any compression level up to selected one.
   It will also consider src size to be arbitrarily "large", which is worst case.
   If srcSize is known to always be small, ZSTD_estimateCStreamSize_advanced() can provide a tighter estimation.
   ZSTD_estimateCStreamSize_advanced() can be used in tandem with ZSTD_getCParams() to create cParams from compressionLevel.

@@ -93,6 +93,7 @@ typedef struct {
     FSE_DTable OFTable[FSE_DTABLE_SIZE_U32(OffFSELog)];
     FSE_DTable MLTable[FSE_DTABLE_SIZE_U32(MLFSELog)];
     HUF_DTable hufTable[HUF_DTABLE_SIZE(HufLog)];  /* can accommodate HUF_decompress4X */
+    U32 workspace[HUF_DECOMPRESS_WORKSPACE_SIZE_U32];
     U32 rep[ZSTD_REP_NUM];
 } ZSTD_entropyTables_t;
 
@@ -559,8 +560,10 @@ size_t ZSTD_decodeLiteralsBlock(ZSTD_DCtx* dctx,
                                         HUF_decompress1X_usingDTable(dctx->litBuffer, litSize, istart+lhSize, litCSize, dctx->HUFptr) :
                                         HUF_decompress4X_usingDTable(dctx->litBuffer, litSize, istart+lhSize, litCSize, dctx->HUFptr) ) :
                                     ( singleStream ?
-                                        HUF_decompress1X2_DCtx(dctx->entropy.hufTable, dctx->litBuffer, litSize, istart+lhSize, litCSize) :
-                                        HUF_decompress4X_hufOnly (dctx->entropy.hufTable, dctx->litBuffer, litSize, istart+lhSize, litCSize)) ))
+                                        HUF_decompress1X2_DCtx_wksp(dctx->entropy.hufTable, dctx->litBuffer, litSize, istart+lhSize, litCSize,
+                                                                    dctx->entropy.workspace, sizeof(dctx->entropy.workspace)) :
+                                        HUF_decompress4X_hufOnly_wksp(dctx->entropy.hufTable, dctx->litBuffer, litSize, istart+lhSize, litCSize,
+                                                                      dctx->entropy.workspace, sizeof(dctx->entropy.workspace)))))
                     return ERROR(corruption_detected);
 
                 dctx->litPtr = dctx->litBuffer;
@@ -1836,7 +1839,9 @@ static size_t ZSTD_loadEntropy(ZSTD_entropyTables_t* entropy, const void* const 
     dictPtr += 8;   /* skip header = magic + dictID */
 
 
-    {   size_t const hSize = HUF_readDTableX4(entropy->hufTable, dictPtr, dictEnd-dictPtr);
+    {   size_t const hSize = HUF_readDTableX4_wksp(
+            entropy->hufTable, dictPtr, dictEnd - dictPtr,
+            entropy->workspace, sizeof(entropy->workspace));
         if (HUF_isError(hSize)) return ERROR(dictionary_corrupted);
         dictPtr += hSize;
     }

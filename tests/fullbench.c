@@ -236,14 +236,14 @@ static size_t benchMem(const void* src, size_t srcSize, U32 benchNb)
     switch(benchNb)
     {
     case 1:
-        benchFunction = local_ZSTD_compress; benchName = "ZSTD_compress";
+        benchFunction = local_ZSTD_compress; benchName = "ZSTD_compress(1)";
         break;
     case 2:
         benchFunction = local_ZSTD_decompress; benchName = "ZSTD_decompress";
         break;
 #ifndef ZSTD_DLL_IMPORT
     case 11:
-        benchFunction = local_ZSTD_compressContinue; benchName = "ZSTD_compressContinue";
+        benchFunction = local_ZSTD_compressContinue; benchName = "ZSTD_compressContinue(1)";
         break;
     case 12:
         benchFunction = local_ZSTD_compressContinue_extDict; benchName = "ZSTD_compressContinue_extDict";
@@ -259,7 +259,7 @@ static size_t benchMem(const void* src, size_t srcSize, U32 benchNb)
         break;
 #endif
     case 41:
-        benchFunction = local_ZSTD_compressStream; benchName = "ZSTD_compressStream";
+        benchFunction = local_ZSTD_compressStream; benchName = "ZSTD_compressStream(1)";
         break;
     case 42:
         benchFunction = local_ZSTD_decompressStream; benchName = "ZSTD_decompressStream";

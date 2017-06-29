@@ -110,8 +110,8 @@ size_t HUF_readDTableX2_wksp(HUF_DTable* DTable, const void* src, size_t srcSize
     huffWeight = (BYTE *)((U32 *)workSpace + spaceUsed32);
     spaceUsed32 += ALIGN(HUF_SYMBOLVALUE_MAX + 1, sizeof(U32)) >> 2;
 
-    if ((spaceUsed32 >> 2) > wkspSize)
-            return ERROR(tableLog_tooLarge);
+    if ((spaceUsed32 << 2) > wkspSize)
+        return ERROR(tableLog_tooLarge);
     workSpace = (U32 *)workSpace + spaceUsed32;
     wkspSize -= (spaceUsed32 << 2);
 
@@ -524,7 +524,7 @@ size_t HUF_readDTableX4_wksp(HUF_DTable* DTable, const void* src,
     weightList = (BYTE *)((U32 *)workSpace + spaceUsed32);
     spaceUsed32 += ALIGN(HUF_SYMBOLVALUE_MAX + 1, sizeof(U32)) >> 2;
 
-    if ((spaceUsed32 >> 2) > wkspSize)
+    if ((spaceUsed32 << 2) > wkspSize)
         return ERROR(tableLog_tooLarge);
     workSpace = (U32 *)workSpace + spaceUsed32;
     wkspSize -= (spaceUsed32 << 2);

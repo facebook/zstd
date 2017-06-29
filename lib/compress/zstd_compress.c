@@ -532,7 +532,7 @@ ZSTD_compressionParameters ZSTD_adjustCParams(ZSTD_compressionParameters cPar, u
 }
 
 
-size_t ZSTD_estimateCCtxSize(ZSTD_compressionParameters cParams)
+size_t ZSTD_estimateCCtxSize_advanced(ZSTD_compressionParameters cParams)
 {
     size_t const blockSize = MIN(ZSTD_BLOCKSIZE_MAX, (size_t)1 << cParams.windowLog);
     U32    const divider = (cParams.searchLength==3) ? 3 : 4;
@@ -558,15 +558,26 @@ size_t ZSTD_estimateCCtxSize(ZSTD_compressionParameters cParams)
     return sizeof(ZSTD_CCtx) + neededSpace;
 }
 
-size_t ZSTD_estimateCStreamSize(ZSTD_compressionParameters cParams)
+size_t ZSTD_estimateCCtxSize(int compressionLevel)
 {
-    size_t const CCtxSize = ZSTD_estimateCCtxSize(cParams);
+    ZSTD_compressionParameters const cParams = ZSTD_getCParams(compressionLevel, 0, 0);
+    return ZSTD_estimateCCtxSize_advanced(cParams);
+}
+
+size_t ZSTD_estimateCStreamSize_advanced(ZSTD_compressionParameters cParams)
+{
+    size_t const CCtxSize = ZSTD_estimateCCtxSize_advanced(cParams);
     size_t const blockSize = MIN(ZSTD_BLOCKSIZE_MAX, (size_t)1 << cParams.windowLog);
     size_t const inBuffSize = ((size_t)1 << cParams.windowLog) + blockSize;
     size_t const outBuffSize = ZSTD_compressBound(blockSize) + 1;
     size_t const streamingSize = inBuffSize + outBuffSize;
 
     return CCtxSize + streamingSize;
+}
+
+size_t ZSTD_estimateCStreamSize(int compressionLevel) {
+    ZSTD_compressionParameters const cParams = ZSTD_getCParams(compressionLevel, 0, 0);
+    return ZSTD_estimateCStreamSize_advanced(cParams);
 }
 
 
@@ -3350,14 +3361,20 @@ size_t ZSTD_compress(void* dst, size_t dstCapacity, const void* src, size_t srcS
 
 /* =====  Dictionary API  ===== */
 
-/*! ZSTD_estimateCDictSize() :
+/*! ZSTD_estimateCDictSize_advanced() :
  *  Estimate amount of memory that will be needed to create a dictionary with following arguments */
-size_t ZSTD_estimateCDictSize(ZSTD_compressionParameters cParams, size_t dictSize, unsigned byReference)
+size_t ZSTD_estimateCDictSize_advanced(size_t dictSize, ZSTD_compressionParameters cParams, unsigned byReference)
 {
     DEBUGLOG(5, "sizeof(ZSTD_CDict) : %u", (U32)sizeof(ZSTD_CDict));
-    DEBUGLOG(5, "CCtx estimate : %u", (U32)ZSTD_estimateCCtxSize(cParams));
-    return sizeof(ZSTD_CDict) + ZSTD_estimateCCtxSize(cParams)
+    DEBUGLOG(5, "CCtx estimate : %u", (U32)ZSTD_estimateCCtxSize_advanced(cParams));
+    return sizeof(ZSTD_CDict) + ZSTD_estimateCCtxSize_advanced(cParams)
            + (byReference ? 0 : dictSize);
+}
+
+size_t ZSTD_estimateCDictSize(size_t dictSize, int compressionLevel)
+{
+    ZSTD_compressionParameters const cParams = ZSTD_getCParams(compressionLevel, 0, dictSize);
+    return ZSTD_estimateCDictSize_advanced(dictSize, cParams, 0);
 }
 
 size_t ZSTD_sizeof_CDict(const ZSTD_CDict* cdict)
@@ -3482,7 +3499,7 @@ ZSTD_CDict* ZSTD_initStaticCDict(void* workspace, size_t workspaceSize,
                                  unsigned byReference, ZSTD_dictMode_e dictMode,
                                  ZSTD_compressionParameters cParams)
 {
-    size_t const cctxSize = ZSTD_estimateCCtxSize(cParams);
+    size_t const cctxSize = ZSTD_estimateCCtxSize_advanced(cParams);
     size_t const neededSize = sizeof(ZSTD_CDict) + (byReference ? 0 : dictSize)
                             + cctxSize;
     ZSTD_CDict* const cdict = (ZSTD_CDict*) workspace;
@@ -3575,6 +3592,11 @@ size_t ZSTD_compress_usingCDict(ZSTD_CCtx* cctx,
 ZSTD_CStream* ZSTD_createCStream(void)
 {
     return ZSTD_createCStream_advanced(ZSTD_defaultCMem);
+}
+
+ZSTD_CStream* ZSTD_initStaticCStream(void *workspace, size_t workspaceSize)
+{
+    return ZSTD_initStaticCCtx(workspace, workspaceSize);
 }
 
 ZSTD_CStream* ZSTD_createCStream_advanced(ZSTD_customMem customMem)
@@ -3970,30 +3992,30 @@ size_t ZSTD_endStream(ZSTD_CStream* zcs, ZSTD_outBuffer* output)
 int ZSTD_maxCLevel(void) { return ZSTD_MAX_CLEVEL; }
 
 static const ZSTD_compressionParameters ZSTD_defaultCParameters[4][ZSTD_MAX_CLEVEL+1] = {
-{   /* "default" */
+{   /* "default" - guarantees a monotonically increasing memory budget */
     /* W,  C,  H,  S,  L, TL, strat */
     { 18, 12, 12,  1,  7, 16, ZSTD_fast    },  /* level  0 - never used */
     { 19, 13, 14,  1,  7, 16, ZSTD_fast    },  /* level  1 */
     { 19, 15, 16,  1,  6, 16, ZSTD_fast    },  /* level  2 */
-    { 20, 16, 17,  1,  5, 16, ZSTD_dfast   },  /* level  3.*/
-    { 20, 18, 18,  1,  5, 16, ZSTD_dfast   },  /* level  4.*/
-    { 20, 15, 18,  3,  5, 16, ZSTD_greedy  },  /* level  5 */
-    { 21, 16, 19,  2,  5, 16, ZSTD_lazy    },  /* level  6 */
-    { 21, 17, 20,  3,  5, 16, ZSTD_lazy    },  /* level  7 */
+    { 20, 16, 17,  1,  5, 16, ZSTD_dfast   },  /* level  3 */
+    { 20, 17, 18,  1,  5, 16, ZSTD_dfast   },  /* level  4 */
+    { 20, 17, 18,  2,  5, 16, ZSTD_greedy  },  /* level  5 */
+    { 21, 17, 19,  2,  5, 16, ZSTD_lazy    },  /* level  6 */
+    { 21, 18, 19,  3,  5, 16, ZSTD_lazy    },  /* level  7 */
     { 21, 18, 20,  3,  5, 16, ZSTD_lazy2   },  /* level  8 */
-    { 21, 20, 20,  3,  5, 16, ZSTD_lazy2   },  /* level  9 */
+    { 21, 19, 20,  3,  5, 16, ZSTD_lazy2   },  /* level  9 */
     { 21, 19, 21,  4,  5, 16, ZSTD_lazy2   },  /* level 10 */
     { 22, 20, 22,  4,  5, 16, ZSTD_lazy2   },  /* level 11 */
     { 22, 20, 22,  5,  5, 16, ZSTD_lazy2   },  /* level 12 */
     { 22, 21, 22,  5,  5, 16, ZSTD_lazy2   },  /* level 13 */
     { 22, 21, 22,  6,  5, 16, ZSTD_lazy2   },  /* level 14 */
-    { 22, 21, 21,  5,  5, 16, ZSTD_btlazy2 },  /* level 15 */
+    { 22, 21, 22,  5,  5, 16, ZSTD_btlazy2 },  /* level 15 */
     { 23, 22, 22,  5,  5, 16, ZSTD_btlazy2 },  /* level 16 */
-    { 23, 21, 22,  4,  5, 24, ZSTD_btopt   },  /* level 17 */
+    { 23, 22, 22,  4,  5, 24, ZSTD_btopt   },  /* level 17 */
     { 23, 22, 22,  5,  4, 32, ZSTD_btopt   },  /* level 18 */
     { 23, 23, 22,  6,  3, 48, ZSTD_btopt   },  /* level 19 */
     { 25, 25, 23,  7,  3, 64, ZSTD_btultra },  /* level 20 */
-    { 26, 26, 23,  7,  3,256, ZSTD_btultra },  /* level 21 */
+    { 26, 26, 24,  7,  3,256, ZSTD_btultra },  /* level 21 */
     { 27, 27, 25,  9,  3,512, ZSTD_btultra },  /* level 22 */
 },
 {   /* for srcSize <= 256 KB */
@@ -4076,6 +4098,43 @@ static const ZSTD_compressionParameters ZSTD_defaultCParameters[4][ZSTD_MAX_CLEV
 },
 };
 
+/* This function just controls
+ * the monotonic memory budget increase of ZSTD_defaultCParameters[0].
+ * Run only once, on first ZSTD_getCParams() usage, when ZSTD_DEBUG is enabled
+ */
+MEM_STATIC void ZSTD_check_compressionLevel_monotonicIncrease_memoryBudget(void)
+{
+#   define ZSTD_TABLECOST(h,c) ((1<<(h)) + (1<<(c)))
+#   define ZDCP_FIELD(l,field) (ZSTD_defaultCParameters[0][l].field)
+#   define ZSTD_CHECK_MONOTONIC_INCREASE_LEVEL(l) { \
+        assert(ZDCP_FIELD(l,windowLog) <= ZDCP_FIELD(l+1,windowLog) );  \
+        assert(ZSTD_TABLECOST(ZDCP_FIELD(l,hashLog), ZDCP_FIELD(l,chainLog)) <= ZSTD_TABLECOST(ZDCP_FIELD(l+1,hashLog), ZDCP_FIELD(l+1,chainLog)) ); \
+    }
+
+    ZSTD_CHECK_MONOTONIC_INCREASE_LEVEL(1);
+    ZSTD_CHECK_MONOTONIC_INCREASE_LEVEL(2);
+    ZSTD_CHECK_MONOTONIC_INCREASE_LEVEL(3);
+    ZSTD_CHECK_MONOTONIC_INCREASE_LEVEL(4);
+    ZSTD_CHECK_MONOTONIC_INCREASE_LEVEL(5);
+    ZSTD_CHECK_MONOTONIC_INCREASE_LEVEL(6);
+    ZSTD_CHECK_MONOTONIC_INCREASE_LEVEL(7);
+    ZSTD_CHECK_MONOTONIC_INCREASE_LEVEL(8);
+    ZSTD_CHECK_MONOTONIC_INCREASE_LEVEL(9);
+    ZSTD_CHECK_MONOTONIC_INCREASE_LEVEL(10);
+    ZSTD_CHECK_MONOTONIC_INCREASE_LEVEL(11);
+    ZSTD_CHECK_MONOTONIC_INCREASE_LEVEL(12);
+    ZSTD_CHECK_MONOTONIC_INCREASE_LEVEL(13);
+    ZSTD_CHECK_MONOTONIC_INCREASE_LEVEL(14);
+    ZSTD_CHECK_MONOTONIC_INCREASE_LEVEL(15);
+    ZSTD_CHECK_MONOTONIC_INCREASE_LEVEL(16);
+    ZSTD_CHECK_MONOTONIC_INCREASE_LEVEL(17);
+    ZSTD_CHECK_MONOTONIC_INCREASE_LEVEL(18);
+    ZSTD_CHECK_MONOTONIC_INCREASE_LEVEL(19);
+    ZSTD_CHECK_MONOTONIC_INCREASE_LEVEL(20);
+    ZSTD_CHECK_MONOTONIC_INCREASE_LEVEL(21);
+    assert(ZSTD_maxCLevel()==22);
+}
+
 /*! ZSTD_getCParams() :
 *   @return ZSTD_compressionParameters structure for a selected compression level, `srcSize` and `dictSize`.
 *   Size values are optional, provide 0 if not known or unused */
@@ -4084,6 +4143,15 @@ ZSTD_compressionParameters ZSTD_getCParams(int compressionLevel, unsigned long l
     size_t const addedSize = srcSizeHint ? 0 : 500;
     U64 const rSize = srcSizeHint+dictSize ? srcSizeHint+dictSize+addedSize : (U64)-1;
     U32 const tableID = (rSize <= 256 KB) + (rSize <= 128 KB) + (rSize <= 16 KB);   /* intentional underflow for srcSizeHint == 0 */
+
+#if defined(ZSTD_DEBUG) && (ZSTD_DEBUG>=1)
+    static int g_monotonicTest = 1;
+    if (g_monotonicTest) {
+        ZSTD_check_compressionLevel_monotonicIncrease_memoryBudget();
+        g_monotonicTest=0;
+    }
+#endif
+
     if (compressionLevel <= 0) compressionLevel = ZSTD_CLEVEL_DEFAULT;   /* 0 == default; no negative compressionLevel yet */
     if (compressionLevel > ZSTD_MAX_CLEVEL) compressionLevel = ZSTD_MAX_CLEVEL;
     { ZSTD_compressionParameters const cp = ZSTD_defaultCParameters[tableID][compressionLevel];

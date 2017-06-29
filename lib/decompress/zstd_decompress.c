@@ -1282,7 +1282,7 @@ static size_t ZSTD_decompressSequencesLong(
     const BYTE* const base = (const BYTE*) (dctx->base);
     const BYTE* const vBase = (const BYTE*) (dctx->vBase);
     const BYTE* const dictEnd = (const BYTE*) (dctx->dictEnd);
-    unsigned const windowSize = dctx->fParams.windowSize;
+    unsigned const windowSize32 = (unsigned)dctx->fParams.windowSize;
     int nbSeq;
 
     /* Build Decoding Tables */
@@ -1312,13 +1312,13 @@ static size_t ZSTD_decompressSequencesLong(
 
         /* prepare in advance */
         for (seqNb=0; (BIT_reloadDStream(&seqState.DStream) <= BIT_DStream_completed) && seqNb<seqAdvance; seqNb++) {
-            sequences[seqNb] = ZSTD_decodeSequenceLong(&seqState, windowSize);
+            sequences[seqNb] = ZSTD_decodeSequenceLong(&seqState, windowSize32);
         }
         if (seqNb<seqAdvance) return ERROR(corruption_detected);
 
         /* decode and decompress */
         for ( ; (BIT_reloadDStream(&(seqState.DStream)) <= BIT_DStream_completed) && seqNb<nbSeq ; seqNb++) {
-            seq_t const sequence = ZSTD_decodeSequenceLong(&seqState, windowSize);
+            seq_t const sequence = ZSTD_decodeSequenceLong(&seqState, windowSize32);
             size_t const oneSeqSize = ZSTD_execSequenceLong(op, oend, sequences[(seqNb-ADVANCED_SEQS) & STOSEQ_MASK], &litPtr, litEnd, base, vBase, dictEnd);
             if (ZSTD_isError(oneSeqSize)) return oneSeqSize;
             ZSTD_PREFETCH(sequence.match);
@@ -2143,6 +2143,11 @@ ZSTD_DStream* ZSTD_createDStream(void)
     return ZSTD_createDStream_advanced(ZSTD_defaultCMem);
 }
 
+ZSTD_DStream* ZSTD_initStaticDStream(void *workspace, size_t workspaceSize)
+{
+    return ZSTD_initStaticDCtx(workspace, workspaceSize);
+}
+
 ZSTD_DStream* ZSTD_createDStream_advanced(ZSTD_customMem customMem)
 {
     return ZSTD_createDCtx_advanced(customMem);
@@ -2214,13 +2219,21 @@ size_t ZSTD_sizeof_DStream(const ZSTD_DStream* zds)
     return ZSTD_sizeof_DCtx(zds);
 }
 
-size_t ZSTD_estimateDStreamSize(ZSTD_frameHeader fHeader)
+size_t ZSTD_estimateDStreamSize(size_t windowSize)
 {
-    size_t const windowSize = fHeader.windowSize;
     size_t const blockSize = MIN(windowSize, ZSTD_BLOCKSIZE_MAX);
     size_t const inBuffSize = blockSize;  /* no block can be larger */
     size_t const outBuffSize = windowSize + blockSize + (WILDCOPY_OVERLENGTH * 2);
     return sizeof(ZSTD_DStream) + ZSTD_estimateDCtxSize() + inBuffSize + outBuffSize;
+}
+
+ZSTDLIB_API size_t ZSTD_estimateDStreamSize_fromFrame(const void* src, size_t srcSize)
+{
+    ZSTD_frameHeader fh;
+    size_t const err = ZSTD_getFrameHeader(&fh, src, srcSize);
+    if (ZSTD_isError(err)) return err;
+    if (err>0) return ERROR(srcSize_wrong);
+    return ZSTD_estimateDStreamSize(fh.windowSize);
 }
 
 

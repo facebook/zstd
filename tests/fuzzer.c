@@ -193,8 +193,7 @@ static int basicUnitTests(U32 seed, double compressibility)
     /* Static CCtx tests */
 #define STATIC_CCTX_LEVEL 3
     DISPLAYLEVEL(4, "test%3i : create static CCtx for level %u :", testNb++, STATIC_CCTX_LEVEL);
-    {   ZSTD_compressionParameters const cParams = ZSTD_getCParams(STATIC_CCTX_LEVEL, 0, 0);
-        size_t const staticCCtxSize = ZSTD_estimateCStreamSize(cParams);
+    {   size_t const staticCCtxSize = ZSTD_estimateCStreamSize(STATIC_CCTX_LEVEL);
         void* const staticCCtxBuffer = malloc(staticCCtxSize);
         size_t const staticDCtxSize = ZSTD_estimateDCtxSize();
         void* const staticDCtxBuffer = malloc(staticDCtxSize);
@@ -502,7 +501,7 @@ static int basicUnitTests(U32 seed, double compressibility)
 
         DISPLAYLEVEL(4, "test%3i : estimate CDict size : ", testNb++);
         {   ZSTD_compressionParameters const cParams = ZSTD_getCParams(1, CNBuffSize, dictSize);
-            size_t const estimatedSize = ZSTD_estimateCDictSize(cParams, dictSize, 1 /*byReference*/);
+            size_t const estimatedSize = ZSTD_estimateCDictSize_advanced(dictSize, cParams, 1 /*byReference*/);
             DISPLAYLEVEL(4, "OK : %u \n", (U32)estimatedSize);
         }
 
@@ -535,7 +534,7 @@ static int basicUnitTests(U32 seed, double compressibility)
 
         DISPLAYLEVEL(4, "test%3i : compress with static CDict : ", testNb++);
         {   ZSTD_compressionParameters const cParams = ZSTD_getCParams(1, CNBuffSize, dictSize);
-            size_t const cdictSize = ZSTD_estimateCDictSize(cParams, dictSize, 0);
+            size_t const cdictSize = ZSTD_estimateCDictSize_advanced(dictSize, cParams, 0);
             void* const cdictBuffer = malloc(cdictSize);
             if (cdictBuffer==NULL) goto _output_error;
             {   ZSTD_CDict* const cdict = ZSTD_initStaticCDict(cdictBuffer, cdictSize,

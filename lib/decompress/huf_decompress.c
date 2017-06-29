@@ -519,7 +519,7 @@ size_t HUF_readDTableX4_wksp(HUF_DTable* DTable, const void* src,
     spaceUsed32 += HUF_TABLELOG_MAX + 1;
     rankStart0 = (U32 *)workSpace + spaceUsed32;
     spaceUsed32 += HUF_TABLELOG_MAX + 2;
-    sortedSymbol = (sortedSymbol_t *)((U32 *)workSpace + spaceUsed32);
+    sortedSymbol = (sortedSymbol_t *)workSpace + (spaceUsed32 * sizeof(U32)) / sizeof(sortedSymbol_t);
     spaceUsed32 += ALIGN(sizeof(sortedSymbol_t) * (HUF_SYMBOLVALUE_MAX + 1), sizeof(U32)) >> 2;
     weightList = (BYTE *)((U32 *)workSpace + spaceUsed32);
     spaceUsed32 += ALIGN(HUF_SYMBOLVALUE_MAX + 1, sizeof(U32)) >> 2;

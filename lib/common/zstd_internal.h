@@ -72,6 +72,7 @@
 #if defined(ZSTD_DEBUG) && (ZSTD_DEBUG>=2)
 #  include <stdio.h>
 /* recommended values for ZSTD_DEBUG display levels :
+ * 1 : no display, enables assert() only
  * 2 : reserved for currently active debugging path
  * 3 : events once per object lifetime (CCtx, CDict)
  * 4 : events once per frame

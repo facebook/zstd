@@ -118,7 +118,7 @@ HUF_PUBLIC_API size_t HUF_compress4X_wksp (void* dst, size_t dstCapacity, const 
  *  The space used depends on HUF_TABLELOG_MAX, ranging from ~1500 bytes when
  *  HUF_TABLE_LOG_MAX=12 to ~1850 bytes when HUF_TABLE_LOG_MAX=15.
  *  Buffer overflow errors may potentially occur if code modifications result in
- *  a requiredw workspace size greater than that specified in the following
+ *  a required workspace size greater than that specified in the following
  *  macro.
  */
 #define HUF_DECOMPRESS_WORKSPACE_SIZE (2 << 10)

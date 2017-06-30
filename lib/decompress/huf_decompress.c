@@ -449,8 +449,8 @@ static void HUF_fillDTableX4Level2(HUF_DEltX4* DTable, U32 sizeLog, const U32 co
     }   }
 }
 
-typedef U32 rankVal_t[HUF_TABLELOG_MAX][HUF_TABLELOG_MAX + 1];
 typedef U32 rankValCol_t[HUF_TABLELOG_MAX + 1];
+typedef rankValCol_t rankVal_t[HUF_TABLELOG_MAX];
 
 static void HUF_fillDTableX4(HUF_DEltX4* DTable, const U32 targetLog,
                            const sortedSymbol_t* sortedList, const U32 sortedListSize,

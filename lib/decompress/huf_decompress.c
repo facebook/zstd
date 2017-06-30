@@ -70,8 +70,8 @@
 /* **************************************************************
 *  Byte alignment for workSpace management
 ****************************************************************/
-#define ALIGN(x, a) ALIGN_MASK((x), (a) - 1)
-#define ALIGN_MASK(x, mask) (((x) + (mask)) & ~(mask))
+#define HUF_ALIGN(x, a) HUF_ALIGN_MASK((x), (a) - 1)
+#define HUF_ALIGN_MASK(x, mask) (((x) + (mask)) & ~(mask))
 
 /*-***************************/
 /*  generic DTableDesc       */
@@ -108,7 +108,7 @@ size_t HUF_readDTableX2_wksp(HUF_DTable* DTable, const void* src, size_t srcSize
     rankVal = (U32 *)workSpace + spaceUsed32;
     spaceUsed32 += HUF_TABLELOG_ABSOLUTEMAX + 1;
     huffWeight = (BYTE *)((U32 *)workSpace + spaceUsed32);
-    spaceUsed32 += ALIGN(HUF_SYMBOLVALUE_MAX + 1, sizeof(U32)) >> 2;
+    spaceUsed32 += HUF_ALIGN(HUF_SYMBOLVALUE_MAX + 1, sizeof(U32)) >> 2;
 
     if ((spaceUsed32 << 2) > wkspSize)
         return ERROR(tableLog_tooLarge);
@@ -520,9 +520,9 @@ size_t HUF_readDTableX4_wksp(HUF_DTable* DTable, const void* src,
     rankStart0 = (U32 *)workSpace + spaceUsed32;
     spaceUsed32 += HUF_TABLELOG_MAX + 2;
     sortedSymbol = (sortedSymbol_t *)workSpace + (spaceUsed32 * sizeof(U32)) / sizeof(sortedSymbol_t);
-    spaceUsed32 += ALIGN(sizeof(sortedSymbol_t) * (HUF_SYMBOLVALUE_MAX + 1), sizeof(U32)) >> 2;
+    spaceUsed32 += HUF_ALIGN(sizeof(sortedSymbol_t) * (HUF_SYMBOLVALUE_MAX + 1), sizeof(U32)) >> 2;
     weightList = (BYTE *)((U32 *)workSpace + spaceUsed32);
-    spaceUsed32 += ALIGN(HUF_SYMBOLVALUE_MAX + 1, sizeof(U32)) >> 2;
+    spaceUsed32 += HUF_ALIGN(HUF_SYMBOLVALUE_MAX + 1, sizeof(U32)) >> 2;
 
     if ((spaceUsed32 << 2) > wkspSize)
         return ERROR(tableLog_tooLarge);

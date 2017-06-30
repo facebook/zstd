@@ -30,12 +30,6 @@
       SCRIPT:   ""
       TEST:     "cmake"
 
-    - COMPILER: "gcc"
-      HOST:     "mingw"
-      PLATFORM: "x64"
-      SCRIPT:   ""
-      TEST:     "pzstd"
-
     - COMPILER: "visual"
       HOST:     "visual"
       PLATFORM: "x64"
@@ -156,13 +150,6 @@
       cmake -G "Visual Studio 14 2015 Win64" .. &&
       cd ..\..\.. &&
       make clean
-    )
-  - if [%TEST%]==[pzstd] (
-      make -C contrib\pzstd googletest-mingw64 &&
-      make -C contrib\pzstd pzstd.exe &&
-      make -C contrib\pzstd tests &&
-      make -C contrib\pzstd check &&
-      make -C contrib\pzstd clean
     )
   - SET "FUZZERTEST=-T30s"
   - if [%HOST%]==[visual] if [%CONFIGURATION%]==[Release] (

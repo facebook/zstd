@@ -111,7 +111,16 @@ HUF_PUBLIC_API size_t HUF_compress2 (void* dst, size_t dstCapacity, const void* 
 #define HUF_WORKSPACE_SIZE_U32 (HUF_WORKSPACE_SIZE / sizeof(U32))
 HUF_PUBLIC_API size_t HUF_compress4X_wksp (void* dst, size_t dstCapacity, const void* src, size_t srcSize, unsigned maxSymbolValue, unsigned tableLog, void* workSpace, size_t wkspSize);
 
-/* The workspace must have alignment at least 4 and be at least this large */
+/**
+ *  The minimum workspace size for the `workSpace` used in
+ *  HUF_readDTableX2_wksp() and HUF_readDTableX4_wksp().
+ *
+ *  The space used depends on HUF_TABLELOG_MAX, ranging from ~1500 bytes when
+ *  HUF_TABLE_LOG_MAX=12 to ~1850 bytes when HUF_TABLE_LOG_MAX=15.
+ *  Buffer overflow errors may potentially occur if code modifications result in
+ *  a requiredw workspace size greater than that specified in the following
+ *  macro.
+ */
 #define HUF_DECOMPRESS_WORKSPACE_SIZE (2 << 10)
 #define HUF_DECOMPRESS_WORKSPACE_SIZE_U32 (HUF_DECOMPRESS_WORKSPACE_SIZE / sizeof(U32))
 

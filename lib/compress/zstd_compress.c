@@ -3771,10 +3771,10 @@ MEM_STATIC size_t ZSTD_limitCopy(void* dst, size_t dstCapacity,
 /** ZSTD_compressStream_generic():
  *  internal function for all *compressStream*() variants and *compress_generic()
  * @return : hint size for next input */
-static size_t ZSTD_compressStream_generic(ZSTD_CStream* zcs,
-                                        ZSTD_outBuffer* output,
-                                        ZSTD_inBuffer* input,
-                                        ZSTD_EndDirective const flushMode)
+size_t ZSTD_compressStream_generic(ZSTD_CStream* zcs,
+                                   ZSTD_outBuffer* output,
+                                   ZSTD_inBuffer* input,
+                                   ZSTD_EndDirective const flushMode)
 {
     const char* const istart = (const char*)input->src;
     const char* const iend = istart + input->size;

@@ -333,6 +333,12 @@ size_t ZSTD_initCStream_internal(ZSTD_CStream* zcs,
                      const ZSTD_CDict* cdict,
                      ZSTD_parameters params, unsigned long long pledgedSrcSize);
 
+/*! ZSTD_initCStream_internal() :
+ *  Private use only. To be called from zstdmt_compress.c in single-thread mode. */
+size_t ZSTD_compressStream_generic(ZSTD_CStream* zcs,
+                                   ZSTD_outBuffer* output,
+                                   ZSTD_inBuffer* input,
+                                   ZSTD_EndDirective const flushMode);
 
 /*! ZSTD_getParamsFromCDict() :
  *  as the name implies */

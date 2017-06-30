@@ -18,13 +18,13 @@
 #include "mem.h"         /* U32 */
 #ifndef ZSTD_DLL_IMPORT
     #include "zstd_internal.h"   /* ZSTD_blockHeaderSize, blockType_e, KB, MB */
-    #define ZSTD_STATIC_LINKING_ONLY  /* ZSTD_compressBegin, ZSTD_compressContinue, etc. */
 #else
     #define KB *(1 <<10)
     #define MB *(1 <<20)
     #define GB *(1U<<30)
     typedef enum { bt_raw, bt_rle, bt_compressed, bt_reserved } blockType_e;
 #endif
+#define ZSTD_STATIC_LINKING_ONLY  /* ZSTD_compressBegin, ZSTD_compressContinue, etc. */
 #include "zstd.h"        /* ZSTD_versionString */
 #include "util.h"        /* time functions */
 #include "datagen.h"
@@ -110,8 +110,9 @@ size_t local_ZSTD_decompress(void* dst, size_t dstSize, void* buff2, const void*
     return ZSTD_decompress(dst, dstSize, buff2, g_cSize);
 }
 
-#ifndef ZSTD_DLL_IMPORT
 static ZSTD_DCtx* g_zdc = NULL;
+
+#ifndef ZSTD_DLL_IMPORT
 extern size_t ZSTD_decodeLiteralsBlock(ZSTD_DCtx* ctx, const void* src, size_t srcSize);
 size_t local_ZSTD_decodeLiteralsBlock(void* dst, size_t dstSize, void* buff2, const void* src, size_t srcSize)
 {
@@ -232,8 +233,9 @@ static size_t local_ZSTD_decompressStream(void* dst, size_t dstCapacity, void* b
     return buffOut.pos;
 }
 
-#ifndef ZSTD_DLL_IMPORT
 static ZSTD_CCtx* g_zcc = NULL;
+
+#ifndef ZSTD_DLL_IMPORT
 size_t local_ZSTD_compressContinue(void* dst, size_t dstCapacity, void* buff2, const void* src, size_t srcSize)
 {
     (void)buff2;

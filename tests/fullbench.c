@@ -14,9 +14,8 @@
 #include "util.h"        /* Compiler options, UTIL_GetFileSize */
 #include <stdlib.h>      /* malloc */
 #include <stdio.h>       /* fprintf, fopen, ftello64 */
-#include <time.h>        /* clock_t, clock, CLOCKS_PER_SEC */
 
-#include "mem.h"
+#include "mem.h"         /* U32 */
 #ifndef ZSTD_DLL_IMPORT
     #include "zstd_internal.h"   /* ZSTD_blockHeaderSize, blockType_e, KB, MB */
     #define ZSTD_STATIC_LINKING_ONLY  /* ZSTD_compressBegin, ZSTD_compressContinue, etc. */
@@ -26,7 +25,8 @@
     #define GB *(1U<<30)
     typedef enum { bt_raw, bt_rle, bt_compressed, bt_reserved } blockType_e;
 #endif
-#include "zstd.h"            /* ZSTD_VERSION_STRING */
+#include "zstd.h"        /* ZSTD_versionString */
+#include "util.h"        /* time functions */
 #include "datagen.h"
 
 
@@ -35,7 +35,7 @@
 **************************************/
 #define PROGRAM_DESCRIPTION "Zstandard speed analyzer"
 #define AUTHOR "Yann Collet"
-#define WELCOME_MESSAGE "*** %s %s %i-bits, by %s (%s) ***\n", PROGRAM_DESCRIPTION, ZSTD_VERSION_STRING, (int)(sizeof(void*)*8), AUTHOR, __DATE__
+#define WELCOME_MESSAGE "*** %s %s %i-bits, by %s (%s) ***\n", PROGRAM_DESCRIPTION, ZSTD_versionString(), (int)(sizeof(void*)*8), AUTHOR, __DATE__
 
 #define NBLOOPS    6
 #define TIMELOOP_S 2
@@ -69,12 +69,6 @@ static void BMK_SetNbIterations(U32 nbLoops)
 /*_*******************************************************
 *  Private functions
 *********************************************************/
-static clock_t BMK_clockSpan( clock_t clockStart )
-{
-    return clock() - clockStart;   /* works even if overflow, span limited to <= ~30mn */
-}
-
-
 static size_t BMK_findMaxMem(U64 requiredMem)
 {
     size_t const step = 64 MB;
@@ -186,6 +180,41 @@ static size_t local_ZSTD_compress_generic_continue(void* dst, size_t dstCapacity
     return buffOut.pos;
 }
 
+static size_t local_ZSTD_compress_generic_T2_end(void* dst, size_t dstCapacity, void* buff2, const void* src, size_t srcSize)
+{
+    ZSTD_outBuffer buffOut;
+    ZSTD_inBuffer buffIn;
+    (void)buff2;
+    ZSTD_CCtx_setParameter(g_cstream, ZSTD_p_compressionLevel, 1);
+    ZSTD_CCtx_setParameter(g_cstream, ZSTD_p_nbThreads, 2);
+    buffOut.dst = dst;
+    buffOut.size = dstCapacity;
+    buffOut.pos = 0;
+    buffIn.src = src;
+    buffIn.size = srcSize;
+    buffIn.pos = 0;
+    while (ZSTD_compress_generic(g_cstream, &buffOut, &buffIn, ZSTD_e_end)) {}
+    return buffOut.pos;
+}
+
+static size_t local_ZSTD_compress_generic_T2_continue(void* dst, size_t dstCapacity, void* buff2, const void* src, size_t srcSize)
+{
+    ZSTD_outBuffer buffOut;
+    ZSTD_inBuffer buffIn;
+    (void)buff2;
+    ZSTD_CCtx_setParameter(g_cstream, ZSTD_p_compressionLevel, 1);
+    ZSTD_CCtx_setParameter(g_cstream, ZSTD_p_nbThreads, 2);
+    buffOut.dst = dst;
+    buffOut.size = dstCapacity;
+    buffOut.pos = 0;
+    buffIn.src = src;
+    buffIn.size = srcSize;
+    buffIn.pos = 0;
+    ZSTD_compress_generic(g_cstream, &buffOut, &buffIn, ZSTD_e_continue);
+    while(ZSTD_compress_generic(g_cstream, &buffOut, &buffIn, ZSTD_e_end)) {}
+    return buffOut.pos;
+}
+
 static ZSTD_DStream* g_dstream= NULL;
 static size_t local_ZSTD_decompressStream(void* dst, size_t dstCapacity, void* buff2, const void* src, size_t srcSize)
 {
@@ -269,39 +298,45 @@ static size_t benchMem(const void* src, size_t srcSize, U32 benchNb)
     switch(benchNb)
     {
     case 1:
-        benchFunction = local_ZSTD_compress; benchName = "ZSTD_compress(1)";
+        benchFunction = local_ZSTD_compress; benchName = "compress(1)";
         break;
     case 2:
-        benchFunction = local_ZSTD_decompress; benchName = "ZSTD_decompress";
+        benchFunction = local_ZSTD_decompress; benchName = "decompress";
         break;
 #ifndef ZSTD_DLL_IMPORT
     case 11:
-        benchFunction = local_ZSTD_compressContinue; benchName = "ZSTD_compressContinue(1)";
+        benchFunction = local_ZSTD_compressContinue; benchName = "compressContinue(1)";
         break;
     case 12:
-        benchFunction = local_ZSTD_compressContinue_extDict; benchName = "ZSTD_compressContinue_extDict";
+        benchFunction = local_ZSTD_compressContinue_extDict; benchName = "compressContinue_extDict";
         break;
     case 13:
-        benchFunction = local_ZSTD_decompressContinue; benchName = "ZSTD_decompressContinue";
+        benchFunction = local_ZSTD_decompressContinue; benchName = "decompressContinue";
         break;
     case 31:
-        benchFunction = local_ZSTD_decodeLiteralsBlock; benchName = "ZSTD_decodeLiteralsBlock";
+        benchFunction = local_ZSTD_decodeLiteralsBlock; benchName = "decodeLiteralsBlock";
         break;
     case 32:
-        benchFunction = local_ZSTD_decodeSeqHeaders; benchName = "ZSTD_decodeSeqHeaders";
+        benchFunction = local_ZSTD_decodeSeqHeaders; benchName = "decodeSeqHeaders";
         break;
 #endif
     case 41:
-        benchFunction = local_ZSTD_compressStream; benchName = "ZSTD_compressStream(1)";
+        benchFunction = local_ZSTD_compressStream; benchName = "compressStream(1)";
         break;
     case 42:
-        benchFunction = local_ZSTD_decompressStream; benchName = "ZSTD_decompressStream";
+        benchFunction = local_ZSTD_decompressStream; benchName = "decompressStream";
         break;
     case 51:
-        benchFunction = local_ZSTD_compress_generic_continue; benchName = "ZSTD_compress_generic, continue";
+        benchFunction = local_ZSTD_compress_generic_continue; benchName = "compress_generic, continue";
         break;
     case 52:
-        benchFunction = local_ZSTD_compress_generic_end; benchName = "ZSTD_compress_generic, end";
+        benchFunction = local_ZSTD_compress_generic_end; benchName = "compress_generic, end";
+        break;
+    case 61:
+        benchFunction = local_ZSTD_compress_generic_T2_continue; benchName = "compress_generic, -T2, continue";
+        break;
+    case 62:
+        benchFunction = local_ZSTD_compress_generic_T2_end; benchName = "compress_generic, -T2, end";
         break;
     default :
         return 0;
@@ -389,22 +424,25 @@ static size_t benchMem(const void* src, size_t srcSize, U32 benchNb)
     { size_t i; for (i=0; i<dstBuffSize; i++) dstBuff[i]=(BYTE)i; }     /* warming up memory */
 
     {   U32 loopNb;
+#       define TIME_SEC_MICROSEC     (1*1000000ULL) /* 1 second */
+        U64 const clockLoop = TIMELOOP_S * TIME_SEC_MICROSEC;
+        UTIL_freq_t ticksPerSecond;
+        UTIL_initTimer(&ticksPerSecond);
         DISPLAY("%2i- %-30.30s : \r", benchNb, benchName);
         for (loopNb = 1; loopNb <= g_nbIterations; loopNb++) {
-            clock_t const timeLoop = TIMELOOP_S * CLOCKS_PER_SEC;
-            clock_t clockStart;
+            UTIL_time_t clockStart;
             size_t benchResult=0;
             U32 nbRounds;
 
-            clockStart = clock();
-            while (clock() == clockStart);
-            clockStart = clock();
-            for (nbRounds=0; BMK_clockSpan(clockStart) < timeLoop; nbRounds++) {
+            UTIL_sleepMilli(1);  /* give processor time to other processes */
+            UTIL_waitForNextTick(ticksPerSecond);
+            UTIL_getTime(&clockStart);
+            for (nbRounds=0; UTIL_clockSpanMicro(clockStart, ticksPerSecond) < clockLoop; nbRounds++) {
                 benchResult = benchFunction(dstBuff, dstBuffSize, buff2, src, srcSize);
                 if (ZSTD_isError(benchResult)) { DISPLAY("ERROR ! %s() => %s !! \n", benchName, ZSTD_getErrorName(benchResult)); exit(1); }
             }
-            {   clock_t const clockTotal = BMK_clockSpan(clockStart);
-                double const averageTime = (double)clockTotal / CLOCKS_PER_SEC / nbRounds;
+            {   U64 const clockSpanMicro = UTIL_clockSpanMicro(clockStart, ticksPerSecond);
+                double const averageTime = (double)clockSpanMicro / TIME_SEC_MICROSEC / nbRounds;
                 if (averageTime < bestTime) bestTime = averageTime;
                 DISPLAY("%2i- %-30.30s : %7.1f MB/s  (%9u)\r", loopNb, benchName, (double)srcSize / (1 MB) / bestTime, (U32)benchResult);
     }   }   }

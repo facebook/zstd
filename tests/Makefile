@@ -94,11 +94,11 @@ zstd-nolegacy:
 gzstd:
 	$(MAKE) -C $(PRGDIR) $@
 
-fullbench  : $(ZSTD_FILES) $(PRGDIR)/datagen.c fullbench.c
-	$(CC)      $(FLAGS) $^ -o $@$(EXT)
-
-fullbench32 : $(ZSTD_FILES) $(PRGDIR)/datagen.c fullbench.c
-	$(CC)  -m32  $(FLAGS) $^ -o $@$(EXT)
+fullbench32: CPPFLAGS += -m32
+fullbench fullbench32 : CPPFLAGS += $(MULTITHREAD_CPP)
+fullbench fullbench32 : LDFLAGS += $(MULTITHREAD_LD)
+fullbench fullbench32 : $(ZSTD_FILES) $(PRGDIR)/datagen.c fullbench.c
+	$(CC) $(FLAGS) $^ -o $@$(EXT)
 
 fullbench-lib: $(PRGDIR)/datagen.c fullbench.c
 	$(MAKE) -C $(ZSTDDIR) libzstd.a

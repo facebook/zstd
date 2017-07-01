@@ -89,6 +89,10 @@ Benchmark file(s) using compression level #
 \fB\-\-train FILEs\fR
 Use FILEs as a training set to create a dictionary\. The training set should contain a lot of small files (> 100)\.
 .
+.TP
+\fB\-l\fR, \fB\-\-list\fR
+Display information related to a zstd compressed file, such as size, ratio, and checksum\. Some of these fields may not be available\. This command can be augmented with the \fB\-v\fR modifier\.
+.
 .SS "Operation modifiers"
 .
 .TP
@@ -252,7 +256,7 @@ set process priority to real\-time
 Specify a strategy used by a match finder\.
 .
 .IP
-There are 8 strategies numbered from 0 to 7, from faster to stronger: 0=ZSTD_fast, 1=ZSTD_dfast, 2=ZSTD_greedy, 3=ZSTD_lazy, 4=ZSTD_lazy2, 5=ZSTD_btlazy2, 6=ZSTD_btopt, 7=ZSTD_btultra\.
+There are 8 strategies numbered from 1 to 8, from faster to stronger: 1=ZSTD_fast, 2=ZSTD_dfast, 3=ZSTD_greedy, 4=ZSTD_lazy, 5=ZSTD_lazy2, 6=ZSTD_btlazy2, 7=ZSTD_btopt, 8=ZSTD_btultra\.
 .
 .TP
 \fBwindowLog\fR=\fIwlog\fR, \fBwlog\fR=\fIwlog\fR

@@ -1,7 +1,7 @@
-From e75beb7c2e05550b2846e31ad8a0082c188504da Mon Sep 17 00:00:00 2001
+From 5ac909c415ab4a18fd90794793c96e450795e8c6 Mon Sep 17 00:00:00 2001
 From: Nick Terrell <terrelln@fb.com>
-Date: Wed, 21 Jun 2017 17:27:42 -0700
-Subject: [PATCH 1/4] lib: Add xxhash module
+Date: Wed, 21 Jun 2017 17:37:36 -0700
+Subject: [PATCH v2 1/4] lib: Add xxhash module
 
 Adds xxhash kernel module with xxh32 and xxh64 hashes. xxhash is an
 extremely fast non-cryptographic hash algorithm for checksumming.
@@ -73,6 +73,9 @@ XXHash source repository: https://github.com/cyan4973/xxhash
 
 Signed-off-by: Nick Terrell <terrelln@fb.com>
 ---
+v1 -> v2:
+- Make pointer in lib/xxhash.c:394 non-const
+
  include/linux/xxhash.h | 236 +++++++++++++++++++++++
  lib/Kconfig            |   3 +
  lib/Makefile           |   1 +
@@ -330,7 +333,7 @@ index 0c8b78a..b6009d7 100644
 @@ -184,6 +184,9 @@ config CRC8
  	  when they need to do cyclic redundancy check according CRC8
  	  algorithm. Module will be called crc8.
- 
+
 +config XXHASH
 +	tristate
 +
@@ -347,11 +350,11 @@ index 0166fbc..1338226 100644
  obj-$(CONFIG_CRC8)	+= crc8.o
 +obj-$(CONFIG_XXHASH)	+= xxhash.o
  obj-$(CONFIG_GENERIC_ALLOCATOR) += genalloc.o
- 
+
  obj-$(CONFIG_842_COMPRESS) += 842/
 diff --git a/lib/xxhash.c b/lib/xxhash.c
 new file mode 100644
-index 0000000..dc94904
+index 0000000..aa61e2a
 --- /dev/null
 +++ b/lib/xxhash.c
 @@ -0,0 +1,500 @@
@@ -748,7 +751,7 @@ index 0000000..dc94904
 +	}
 +
 +	if (state->memsize) { /* tmp buffer is full */
-+		const uint64_t *p64 = state->mem64;
++		uint64_t *p64 = state->mem64;
 +
 +		memcpy(((uint8_t *)p64) + state->memsize, input,
 +			32 - state->memsize);
@@ -855,6 +858,5 @@ index 0000000..dc94904
 +
 +MODULE_LICENSE("Dual BSD/GPL");
 +MODULE_DESCRIPTION("xxHash");
--- 
+--
 2.9.3
-

@@ -224,7 +224,7 @@ clean:
 ifneq (,$(filter $(shell uname),Linux Darwin GNU/kFreeBSD GNU OpenBSD FreeBSD NetBSD DragonFly SunOS))
 HOST_OS = POSIX
 
-valgrindTest: VALGRIND = valgrind --leak-check=full --error-exitcode=1
+valgrindTest: VALGRIND = valgrind --leak-check=full --show-leak-kinds=all --error-exitcode=1
 valgrindTest: zstd datagen fuzzer fullbench
 	@echo "\n ---- valgrind tests : memory analyzer ----"
 	$(VALGRIND) ./datagen -g50M > $(VOID)

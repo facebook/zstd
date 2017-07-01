@@ -453,6 +453,10 @@ static size_t benchMem(const void* src, size_t srcSize, U32 benchNb)
 _cleanOut:
     free(dstBuff);
     free(buff2);
+    ZSTD_freeCCtx(g_zcc); g_zcc=NULL;
+    ZSTD_freeDCtx(g_zdc); g_zdc=NULL;
+    ZSTD_freeCStream(g_cstream); g_cstream=NULL;
+    ZSTD_freeDStream(g_dstream); g_dstream=NULL;
     return 0;
 }
 

@@ -96,7 +96,7 @@ the last one takes effect.
 * `-l`, `--list`:
     Display information related to a zstd compressed file, such as size, ratio, and checksum.
     Some of these fields may not be available.
-    This command can be augmented with the `-v` modifier. 
+    This command can be augmented with the `-v` modifier.
 
 ### Operation modifiers
 
@@ -254,7 +254,7 @@ The list of available _options_:
 - `strategy`=_strat_, `strat`=_strat_:
     Specify a strategy used by a match finder.
 
-    There are 8 strategies numbered from 0 to 7, from faster to stronger:
+    There are 8 strategies numbered from 1 to 8, from faster to stronger:
     1=ZSTD\_fast, 2=ZSTD\_dfast, 3=ZSTD\_greedy, 4=ZSTD\_lazy,
     5=ZSTD\_lazy2, 6=ZSTD\_btlazy2, 7=ZSTD\_btopt, 8=ZSTD\_btultra.
 

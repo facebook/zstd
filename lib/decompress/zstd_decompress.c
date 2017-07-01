@@ -198,6 +198,7 @@ ZSTD_DCtx* ZSTD_createDCtx_advanced(ZSTD_customMem customMem)
         if (!dctx) return NULL;
         dctx->customMem = customMem;
         dctx->legacyContext = NULL;
+        dctx->previousLegacyVersion = 0;
         ZSTD_initDCtx_internal(dctx);
         return dctx;
     }

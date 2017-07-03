@@ -1481,7 +1481,8 @@ static unsigned long long FIO_decompressGzFrame(dRess_t* ress,
         if (ret == Z_STREAM_END) break;
     }
 
-    if (strm.avail_in > 0) memmove(ress->srcBuffer, strm.next_in, strm.avail_in);
+    if (strm.avail_in > 0)
+        memmove(ress->srcBuffer, strm.next_in, strm.avail_in);
     ress->srcBufferLoaded = strm.avail_in;
     if ( (inflateEnd(&strm) != Z_OK)  /* release resources ; error detected */
       && (decodingError==0) ) {
@@ -1554,7 +1555,8 @@ static unsigned long long FIO_decompressLzmaFrame(dRess_t* ress, FILE* srcFile, 
         if (ret == LZMA_STREAM_END) break;
     }
 
-    if (strm.avail_in > 0) memmove(ress->srcBuffer, strm.next_in, strm.avail_in);
+    if (strm.avail_in > 0)
+        memmove(ress->srcBuffer, strm.next_in, strm.avail_in);
     ress->srcBufferLoaded = strm.avail_in;
     lzma_end(&strm);
     return decodingError ? FIO_ERROR_FRAME_DECODING : outFileSize;
@@ -1636,7 +1638,7 @@ static unsigned long long FIO_decompressLz4Frame(dRess_t* ress,
     }
 
     LZ4F_freeDecompressionContext(dCtx);
-    ress->srcBufferLoaded = 0; /* LZ4F will go to the frame boundary */
+    ress->srcBufferLoaded = 0; /* LZ4F will reach exact frame boundary */
 
     return decodingError ? FIO_ERROR_FRAME_DECODING : filesize;
 }
@@ -1662,14 +1664,14 @@ static int FIO_decompressFrames(dRess_t ress, FILE* srcFile,
         /* check magic number -> version */
         size_t const toRead = 4;
         const BYTE* const buf = (const BYTE*)ress.srcBuffer;
-        if (ress.srcBufferLoaded < toRead)
+        if (ress.srcBufferLoaded < toRead)  /* load up to 4 bytes for header */
             ress.srcBufferLoaded += fread((char*)ress.srcBuffer + ress.srcBufferLoaded,
                                           (size_t)1, toRead - ress.srcBufferLoaded, srcFile);
         if (ress.srcBufferLoaded==0) {
-            if (readSomething==0) {
+            if (readSomething==0) {  /* srcFile is empty (which is invalid) */
                 DISPLAYLEVEL(1, "zstd: %s: unexpected end of file \n", srcFileName);
                 return 1;
-            }  /* else, srcFileName is just empty */
+            }  /* else, just reached frame boundary */
             break;   /* no more input */
         }
         readSomething = 1;   /* there is at least 1 byte in srcFile */
@@ -1677,7 +1679,11 @@ static int FIO_decompressFrames(dRess_t ress, FILE* srcFile,
             DISPLAYLEVEL(1, "zstd: %s: unknown header \n", srcFileName);
             return 1;
         }
-        if (buf[0] == 31 && buf[1] == 139) { /* gz magic number */
+        if (ZSTD_isFrame(buf, ress.srcBufferLoaded)) {
+            unsigned long long const frameSize = FIO_decompressZstdFrame(&ress, srcFile, srcFileName, filesize);
+            if (frameSize == FIO_ERROR_FRAME_DECODING) return 1;
+            filesize += frameSize;
+        } else if (buf[0] == 31 && buf[1] == 139) { /* gz magic number */
 #ifdef ZSTD_GZDECOMPRESS
             unsigned long long const frameSize = FIO_decompressGzFrame(&ress, srcFile, srcFileName);
             if (frameSize == FIO_ERROR_FRAME_DECODING) return 1;
@@ -1705,10 +1711,6 @@ static int FIO_decompressFrames(dRess_t ress, FILE* srcFile,
             DISPLAYLEVEL(1, "zstd: %s: lz4 file cannot be uncompressed (zstd compiled without HAVE_LZ4) -- ignored \n", srcFileName);
             return 1;
 #endif
-        } else if (ZSTD_isFrame(buf, toRead)) {
-            unsigned long long const frameSize = FIO_decompressZstdFrame(&ress, srcFile, srcFileName, filesize);
-            if (frameSize == FIO_ERROR_FRAME_DECODING) return 1;
-            filesize += frameSize;
         } else if ((g_overwrite) && !strcmp (dstFileName, stdoutmark)) {  /* pass-through mode */
             return FIO_passThrough(ress.dstFile, srcFile,
                                    ress.srcBuffer, ress.srcBufferSize, ress.srcBufferLoaded);

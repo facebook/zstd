@@ -3215,7 +3215,7 @@ static size_t ZSTD_compressBegin_internal(ZSTD_CCtx* cctx,
                                    ZSTD_buffered_policy_e zbuff)
 {
     DEBUGLOG(4, "ZSTD_compressBegin_internal");
-    DEBUGLOG(4, "dict ? %s", dict ? "dict" : cdict ? "cdict" : "none");
+    DEBUGLOG(4, "dict ? %s", dict ? "dict" : (cdict ? "cdict" : "none"));
     DEBUGLOG(4, "dictMode : %u", (U32)dictMode);
     /* params are supposed to be fully validated at this point */
     assert(!ZSTD_isError(ZSTD_checkCParams(params.cParams)));
@@ -3803,7 +3803,7 @@ size_t ZSTD_compressStream_generic(ZSTD_CStream* zcs,
 
         case zcss_load:
             if ( (flushMode == ZSTD_e_end)
-              && ((size_t)(oend-op) >= ZSTD_compressBound(iend-ip))
+              && ((size_t)(oend-op) >= ZSTD_compressBound(iend-ip))  /* enough dstCapacity */
               && (zcs->inBuffPos == 0) ) {
                 /* shortcut to compression pass directly into output buffer */
                 size_t const cSize = ZSTD_compressEnd(zcs,
@@ -3815,8 +3815,8 @@ size_t ZSTD_compressStream_generic(ZSTD_CStream* zcs,
                 zcs->frameEnded = 1;
                 ZSTD_startNewCompression(zcs);
                 someMoreWork = 0; break;
-              }
-            /* complete inBuffer */
+            }
+            /* complete loading into inBuffer */
             {   size_t const toLoad = zcs->inBuffTarget - zcs->inBuffPos;
                 size_t const loaded = ZSTD_limitCopy(
                                         zcs->inBuff + zcs->inBuffPos, toLoad,

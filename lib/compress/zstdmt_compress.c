@@ -527,8 +527,8 @@ size_t ZSTDMT_compress_advanced(ZSTDMT_CCtx* mtctx,
             dstBufferPos += dstBufferCapacity;
             remainingSrcSize -= chunkSize;
     }   }
-    /* note : since nbChunks <= nbThreads, all jobs should be running immediately in parallel */
 
+    /* collect result */
     {   unsigned chunkID;
         size_t error = 0, dstPos = 0;
         for (chunkID=0; chunkID<nbChunks; chunkID++) {
@@ -547,10 +547,10 @@ size_t ZSTDMT_compress_advanced(ZSTDMT_CCtx* mtctx,
             {   size_t const cSize = mtctx->jobs[chunkID].cSize;
                 if (ZSTD_isError(cSize)) error = cSize;
                 if ((!error) && (dstPos + cSize > dstCapacity)) error = ERROR(dstSize_tooSmall);
-                if (chunkID) {   /* note : chunk 0 is already written directly into dst */
+                if (chunkID) {   /* note : chunk 0 is written directly at dst, which is correct position */
                     if (!error)
-                        memmove((char*)dst + dstPos, mtctx->jobs[chunkID].dstBuff.start, cSize);  /* may overlap if chunk decompressed within dst */
-                    if (chunkID >= compressWithinDst) {  /* otherwise, it decompresses within dst */
+                        memmove((char*)dst + dstPos, mtctx->jobs[chunkID].dstBuff.start, cSize);  /* may overlap when chunk compressed within dst */
+                    if (chunkID >= compressWithinDst) {  /* chunk compressed into its own buffer, which must be released */
                         DEBUGLOG(5, "releasing buffer %u>=%u", chunkID, compressWithinDst);
                         ZSTDMT_releaseBuffer(mtctx->buffPool, mtctx->jobs[chunkID].dstBuff);
                     }

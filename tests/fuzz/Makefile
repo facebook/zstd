@@ -12,8 +12,8 @@
 CFLAGS ?= -O3
 CXXFLAGS ?= -O3
 
-ZSTDDIR = ../lib
-PRGDIR = ../programs
+ZSTDDIR = ../../lib
+PRGDIR = ../../programs
 
 FUZZ_CPPFLAGS := -I$(ZSTDDIR) -I$(ZSTDDIR)/common -I$(ZSTDDIR)/compress \
 	-I$(ZSTDDIR)/dictBuilder -I$(ZSTDDIR)/deprecated -I$(PRGDIR) \

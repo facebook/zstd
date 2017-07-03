@@ -1557,19 +1557,24 @@ static unsigned long long FIO_decompressLz4Frame(dRess_t* ress,
     LZ4F_errorCode_t nextToLoad;
     LZ4F_decompressionContext_t dCtx;
     LZ4F_errorCode_t const errorCode = LZ4F_createDecompressionContext(&dCtx, LZ4F_VERSION);
+    int decodingError = 0;
 
-    if (LZ4F_isError(errorCode))
-        EXM_THROW(61, "zstd: failed to create lz4 decompression context");
+    if (LZ4F_isError(errorCode)) {
+        DISPLAYLEVEL(1, "zstd: failed to create lz4 decompression context");
+        return FIO_ERROR_FRAME_DECODING;
+    }
 
     /* Init feed with magic number (already consumed from FILE* sFile) */
     {   size_t inSize = 4;
         size_t outSize= 0;
         MEM_writeLE32(ress->srcBuffer, LZ4_MAGICNUMBER);
         nextToLoad = LZ4F_decompress(dCtx, ress->dstBuffer, &outSize, ress->srcBuffer, &inSize, NULL);
-        if (LZ4F_isError(nextToLoad))
-            EXM_THROW(62, "zstd: %s: lz4 header error : %s",
+        if (LZ4F_isError(nextToLoad)) {
+            DISPLAYLEVEL(1, "zstd: %s: lz4 header error : %s",
                             srcFileName, LZ4F_getErrorName(nextToLoad));
-    }
+            LZ4F_freeDecompressionContext(dCtx);
+            return FIO_ERROR_FRAME_DECODING;
+    }   }
 
     /* Main Loop */
     for (;nextToLoad;) {
@@ -1587,15 +1592,19 @@ static unsigned long long FIO_decompressLz4Frame(dRess_t* ress,
             size_t remaining = readSize - pos;
             decodedBytes = ress->dstBufferSize;
             nextToLoad = LZ4F_decompress(dCtx, ress->dstBuffer, &decodedBytes, (char*)(ress->srcBuffer)+pos, &remaining, NULL);
-            if (LZ4F_isError(nextToLoad))
-                EXM_THROW(66, "zstd: %s: decompression error : %s",
+            if (LZ4F_isError(nextToLoad)) {
+                DISPLAYLEVEL(1, "zstd: %s: lz4 decompression error : %s",
                                 srcFileName, LZ4F_getErrorName(nextToLoad));
+                decodingError = 1; break;
+            }
             pos += remaining;
 
             /* Write Block */
             if (decodedBytes) {
-                if (fwrite(ress->dstBuffer, 1, decodedBytes, ress->dstFile) != decodedBytes)
-                    EXM_THROW(63, "Write error : cannot write to output file");
+                if (fwrite(ress->dstBuffer, 1, decodedBytes, ress->dstFile) != decodedBytes) {
+                    DISPLAYLEVEL(1, "zstd: %s", strerr(errno));
+                    decodingError = 1; break;
+                }
                 filesize += decodedBytes;
                 DISPLAYUPDATE(2, "\rDecompressed : %u MB  ", (unsigned)(filesize>>20));
             }
@@ -1604,14 +1613,20 @@ static unsigned long long FIO_decompressLz4Frame(dRess_t* ress,
         }
     }
     /* can be out because readSize == 0, which could be an fread() error */
-    if (ferror(srcFile)) EXM_THROW(67, "zstd: %s: read error", srcFileName);
+    if (ferror(srcFile)) {
+        DISPLAYLEVEL(1, "zstd: %s: read error", srcFileName);
+        decodingError=1;
+    }
 
-    if (nextToLoad!=0) EXM_THROW(68, "zstd: %s: unfinished stream", srcFileName);
+    if (nextToLoad!=0) {
+        DISPLAYLEVEL(1, "zstd: %s: unfinished lz4 stream", srcFileName);
+        decodingError=1;
+    }
 
     LZ4F_freeDecompressionContext(dCtx);
     ress->srcBufferLoaded = 0; /* LZ4F will go to the frame boundary */
 
-    return filesize;
+    return decodingError ? FIO_ERROR_FRAME_DECODING : filesize;
 }
 #endif
 
@@ -1671,9 +1686,9 @@ static int FIO_decompressFrames(dRess_t ress, FILE* srcFile,
 #endif
         } else if (MEM_readLE32(buf) == LZ4_MAGICNUMBER) {
 #ifdef ZSTD_LZ4DECOMPRESS
-            unsigned long long const result = FIO_decompressLz4Frame(&ress, srcFile, srcFileName);
-            if (result == 0) return 1;
-            filesize += result;
+            unsigned long long const frameSize = FIO_decompressLz4Frame(&ress, srcFile, srcFileName);
+            if (frameSize == FIO_ERROR_FRAME_DECODING) return 1;
+            filesize += frameSize;
 #else
             DISPLAYLEVEL(1, "zstd: %s: lz4 file cannot be uncompressed (zstd compiled without HAVE_LZ4) -- ignored \n", srcFileName);
             return 1;

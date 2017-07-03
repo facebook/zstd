@@ -445,6 +445,18 @@ size_t ZSTDMT_setMTCtxParameter(ZSTDMT_CCtx* mtctx, ZSDTMT_parameter parameter, 
 /* =====   Multi-threaded compression   ===== */
 /* ------------------------------------------ */
 
+static unsigned computeNbChunks(size_t srcSize, unsigned windowLog, unsigned nbThreads) {
+    size_t const chunkSizeTarget = (size_t)1 << (windowLog + 2);
+    size_t const chunkMaxSize = chunkSizeTarget << 2;
+    size_t const passSizeMax = chunkMaxSize * nbThreads;
+    unsigned const multiplier = (unsigned)(srcSize / passSizeMax) + 1;
+    unsigned const nbChunksLarge = multiplier * nbThreads;
+    unsigned const nbChunksMax = (unsigned)(srcSize / chunkSizeTarget) + 1;
+    unsigned const nbChunksSmall = MIN(nbChunksMax, nbThreads);
+    return (multiplier>1) ? nbChunksLarge : nbChunksSmall;
+}
+
+
 size_t ZSTDMT_compress_advanced(ZSTDMT_CCtx* mtctx,
                            void* dst, size_t dstCapacity,
                      const void* src, size_t srcSize,
@@ -453,14 +465,7 @@ size_t ZSTDMT_compress_advanced(ZSTDMT_CCtx* mtctx,
                            unsigned overlapRLog)
 {
     size_t const overlapSize = (overlapRLog>=9) ? 0 : (size_t)1 << (params.cParams.windowLog - overlapRLog);
-    size_t const chunkSizeTarget = (size_t)1 << (params.cParams.windowLog + 2);
-    size_t const chunkMaxSize = chunkSizeTarget << 2;
-    size_t const passSizeMax = chunkMaxSize * mtctx->nbThreads;
-    unsigned const multiplier = (unsigned)(srcSize / passSizeMax) + 1;
-    unsigned nbChunksLarge = multiplier * mtctx->nbThreads;
-    unsigned const nbChunksMax = (unsigned)(srcSize / chunkSizeTarget) + 1;
-    unsigned nbChunksSmall = MIN(nbChunksMax, mtctx->nbThreads);
-    unsigned nbChunks = (multiplier>1) ? nbChunksLarge : nbChunksSmall;
+    unsigned nbChunks = computeNbChunks(srcSize, params.cParams.windowLog, mtctx->nbThreads);
     size_t const proposedChunkSize = (srcSize + (nbChunks-1)) / nbChunks;
     size_t const avgChunkSize = ((proposedChunkSize & 0x1FFFF) < 0x7FFF) ? proposedChunkSize + 0xFFFF : proposedChunkSize;   /* avoid too small last block */
     const char* const srcStart = (const char*)src;
@@ -468,7 +473,6 @@ size_t ZSTDMT_compress_advanced(ZSTDMT_CCtx* mtctx,
     unsigned const compressWithinDst = (dstCapacity >= ZSTD_compressBound(srcSize)) ? nbChunks : (unsigned)(dstCapacity / ZSTD_compressBound(avgChunkSize));  /* presumes avgChunkSize >= 256 KB, which should be the case */
     size_t frameStartPos = 0, dstBufferPos = 0;
 
-    DEBUGLOG(4, "windowLog : %2u => chunkSizeTarget : %u bytes  ", params.cParams.windowLog, (U32)chunkSizeTarget);
     DEBUGLOG(4, "nbChunks  : %2u   (chunkSize : %u bytes)   ", nbChunks, (U32)avgChunkSize);
     assert(avgChunkSize >= 256 KB);  /* required for ZSTD_compressBound(A) + ZSTD_compressBound(B) <= ZSTD_compressBound(A+B) */
 
@@ -499,7 +503,7 @@ size_t ZSTDMT_compress_advanced(ZSTDMT_CCtx* mtctx,
             if ((cctx==NULL) || (dstBuffer.start==NULL)) {
                 mtctx->jobs[u].cSize = ERROR(memory_allocation);   /* job result */
                 mtctx->jobs[u].jobCompleted = 1;
-                nbChunks = u+1;
+                nbChunks = u+1;   /* only wait and free u jobs, instead of initially expected nbChunks ones */
                 break;   /* let's wait for previous jobs to complete, but don't start new ones */
             }
 

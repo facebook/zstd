@@ -1483,7 +1483,8 @@ static unsigned long long FIO_decompressGzFrame(dRess_t* ress,
 
     if (strm.avail_in > 0) memmove(ress->srcBuffer, strm.next_in, strm.avail_in);
     ress->srcBufferLoaded = strm.avail_in;
-    if (inflateEnd(&strm) != Z_OK) {
+    if ( (inflateEnd(&strm) != Z_OK)  /* release resources ; error detected */
+      && (decodingError==0) ) {
         DISPLAYLEVEL(1, "zstd: %s: inflateEnd error \n", srcFileName);
         decodingError = 1;
     }

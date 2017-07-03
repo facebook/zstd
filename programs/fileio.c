@@ -1679,9 +1679,9 @@ static int FIO_decompressFrames(dRess_t ress, FILE* srcFile,
         }
         if (buf[0] == 31 && buf[1] == 139) { /* gz magic number */
 #ifdef ZSTD_GZDECOMPRESS
-            unsigned long long const result = FIO_decompressGzFrame(&ress, srcFile, srcFileName);
-            if (result == 0) return 1;
-            filesize += result;
+            unsigned long long const frameSize = FIO_decompressGzFrame(&ress, srcFile, srcFileName);
+            if (frameSize == FIO_ERROR_FRAME_DECODING) return 1;
+            filesize += frameSize;
 #else
             DISPLAYLEVEL(1, "zstd: %s: gzip file cannot be uncompressed (zstd compiled without HAVE_ZLIB) -- ignored \n", srcFileName);
             return 1;

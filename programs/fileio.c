@@ -1344,8 +1344,11 @@ static unsigned FIO_passThrough(FILE* foutput, FILE* finput, void* buffer, size_
     unsigned storedSkips = 0;
 
     /* assumption : ress->srcBufferLoaded bytes already loaded and stored within buffer */
-    { size_t const sizeCheck = fwrite(buffer, 1, alreadyLoaded, foutput);
-      if (sizeCheck != alreadyLoaded) EXM_THROW(50, "Pass-through write error"); }
+    {   size_t const sizeCheck = fwrite(buffer, 1, alreadyLoaded, foutput);
+        if (sizeCheck != alreadyLoaded) {
+            DISPLAYLEVEL(1, "Pass-through write error \n");
+            return 1;
+    }   }
 
     while (readFromInput) {
         readFromInput = fread(buffer, 1, blockSize, finput);
@@ -1431,7 +1434,7 @@ static unsigned long long FIO_decompressGzFrame(dRess_t* ress,
     unsigned long long outFileSize = 0;
     z_stream strm;
     int flush = Z_NO_FLUSH;
-    int ret;
+    int decodingError = 0;
 
     strm.zalloc = Z_NULL;
     strm.zfree = Z_NULL;
@@ -1440,7 +1443,7 @@ static unsigned long long FIO_decompressGzFrame(dRess_t* ress,
     strm.avail_in = 0;
     /* see http://www.zlib.net/manual.html */
     if (inflateInit2(&strm, 15 /* maxWindowLogSize */ + 16 /* gzip only */) != Z_OK)
-        return 0;
+        return FIO_ERROR_FRAME_DECODING;
 
     strm.next_out = (Bytef*)ress->dstBuffer;
     strm.avail_out = (uInt)ress->dstBufferSize;
@@ -1448,6 +1451,7 @@ static unsigned long long FIO_decompressGzFrame(dRess_t* ress,
     strm.next_in = (z_const unsigned char*)ress->srcBuffer;
 
     for ( ; ; ) {
+        int ret;
         if (strm.avail_in == 0) {
             ress->srcBufferLoaded = fread(ress->srcBuffer, 1, ress->srcBufferSize, srcFile);
             if (ress->srcBufferLoaded == 0) flush = Z_FINISH;
@@ -1455,15 +1459,20 @@ static unsigned long long FIO_decompressGzFrame(dRess_t* ress,
             strm.avail_in = (uInt)ress->srcBufferLoaded;
         }
         ret = inflate(&strm, flush);
-        if (ret == Z_BUF_ERROR) EXM_THROW(89, "zstd: %s: premature gz end", srcFileName);
+        if (ret == Z_BUF_ERROR) {
+            DISPLAYLEVEL(1, "zstd: %s: premature gz end \n", srcFileName);
+            decodingError = 1; break;
+        }
         if (ret != Z_OK && ret != Z_STREAM_END) {
-            DISPLAY("zstd: %s: inflate error %d \n", srcFileName, ret);
-            return 0;
+            DISPLAYLEVEL(1, "zstd: %s: inflate error %d \n", srcFileName, ret);
+            decodingError = 1; break;
         }
         {   size_t const decompBytes = ress->dstBufferSize - strm.avail_out;
             if (decompBytes) {
-                if (fwrite(ress->dstBuffer, 1, decompBytes, ress->dstFile) != decompBytes)
-                    EXM_THROW(31, "Write error : cannot write to output file");
+                if (fwrite(ress->dstBuffer, 1, decompBytes, ress->dstFile) != decompBytes) {
+                    DISPLAYLEVEL(1, "zstd: %s \n", strerror(errno));
+                    decodingError = 1; break;
+                }
                 outFileSize += decompBytes;
                 strm.next_out = (Bytef*)ress->dstBuffer;
                 strm.avail_out = (uInt)ress->dstBufferSize;
@@ -1474,9 +1483,11 @@ static unsigned long long FIO_decompressGzFrame(dRess_t* ress,
 
     if (strm.avail_in > 0) memmove(ress->srcBuffer, strm.next_in, strm.avail_in);
     ress->srcBufferLoaded = strm.avail_in;
-    ret = inflateEnd(&strm);
-    if (ret != Z_OK) EXM_THROW(32, "zstd: %s: inflateEnd error %d", srcFileName, ret);
-    return outFileSize;
+    if (inflateEnd(&strm) != Z_OK) {
+        DISPLAYLEVEL(1, "zstd: %s: inflateEnd error \n", srcFileName);
+        decodingError = 1;
+    }
+    return decodingError ? FIO_ERROR_FRAME_DECODING : outFileSize;
 }
 #endif
 
@@ -1560,7 +1571,7 @@ static unsigned long long FIO_decompressLz4Frame(dRess_t* ress,
     int decodingError = 0;
 
     if (LZ4F_isError(errorCode)) {
-        DISPLAYLEVEL(1, "zstd: failed to create lz4 decompression context");
+        DISPLAYLEVEL(1, "zstd: failed to create lz4 decompression context \n");
         return FIO_ERROR_FRAME_DECODING;
     }
 
@@ -1570,7 +1581,7 @@ static unsigned long long FIO_decompressLz4Frame(dRess_t* ress,
         MEM_writeLE32(ress->srcBuffer, LZ4_MAGICNUMBER);
         nextToLoad = LZ4F_decompress(dCtx, ress->dstBuffer, &outSize, ress->srcBuffer, &inSize, NULL);
         if (LZ4F_isError(nextToLoad)) {
-            DISPLAYLEVEL(1, "zstd: %s: lz4 header error : %s",
+            DISPLAYLEVEL(1, "zstd: %s: lz4 header error : %s \n",
                             srcFileName, LZ4F_getErrorName(nextToLoad));
             LZ4F_freeDecompressionContext(dCtx);
             return FIO_ERROR_FRAME_DECODING;
@@ -1593,7 +1604,7 @@ static unsigned long long FIO_decompressLz4Frame(dRess_t* ress,
             decodedBytes = ress->dstBufferSize;
             nextToLoad = LZ4F_decompress(dCtx, ress->dstBuffer, &decodedBytes, (char*)(ress->srcBuffer)+pos, &remaining, NULL);
             if (LZ4F_isError(nextToLoad)) {
-                DISPLAYLEVEL(1, "zstd: %s: lz4 decompression error : %s",
+                DISPLAYLEVEL(1, "zstd: %s: lz4 decompression error : %s \n",
                                 srcFileName, LZ4F_getErrorName(nextToLoad));
                 decodingError = 1; break;
             }
@@ -1602,7 +1613,7 @@ static unsigned long long FIO_decompressLz4Frame(dRess_t* ress,
             /* Write Block */
             if (decodedBytes) {
                 if (fwrite(ress->dstBuffer, 1, decodedBytes, ress->dstFile) != decodedBytes) {
-                    DISPLAYLEVEL(1, "zstd: %s", strerr(errno));
+                    DISPLAYLEVEL(1, "zstd: %s \n", strerr(errno));
                     decodingError = 1; break;
                 }
                 filesize += decodedBytes;
@@ -1614,12 +1625,12 @@ static unsigned long long FIO_decompressLz4Frame(dRess_t* ress,
     }
     /* can be out because readSize == 0, which could be an fread() error */
     if (ferror(srcFile)) {
-        DISPLAYLEVEL(1, "zstd: %s: read error", srcFileName);
+        DISPLAYLEVEL(1, "zstd: %s: read error \n", srcFileName);
         decodingError=1;
     }
 
     if (nextToLoad!=0) {
-        DISPLAYLEVEL(1, "zstd: %s: unfinished lz4 stream", srcFileName);
+        DISPLAYLEVEL(1, "zstd: %s: unfinished lz4 stream \n", srcFileName);
         decodingError=1;
     }
 
@@ -1735,13 +1746,17 @@ static int FIO_decompressSrcFile(dRess_t ress, const char* dstFileName, const ch
 
     /* Close file */
     if (fclose(srcFile)) {
-        EXM_THROW(33, "zstd: %s: %s", srcFileName, strerror(errno));  /* error should never happen */
+        DISPLAYLEVEL(1, "zstd: %s: %s \n", srcFileName, strerror(errno));  /* error should never happen */
         return 1;
     }
-    if (g_removeSrcFile /* --rm */ && strcmp(srcFileName, stdinmark)) {
-        if (remove(srcFileName))
-            EXM_THROW(34, "zstd: %s: %s", srcFileName, strerror(errno));
-    }
+    if ( g_removeSrcFile /* --rm */
+      && (result==0)   /* decompression successful */
+      && strcmp(srcFileName, stdinmark) ) /* not stdin */ {
+        if (remove(srcFileName)) {
+            /* failed to remove src file */
+            DISPLAYLEVEL(1, "zstd: %s: %s \n", srcFileName, strerror(errno));
+            return 1;
+    }   }
     return result;
 }
 
@@ -1765,12 +1780,14 @@ static int FIO_decompressDstFile(dRess_t ress,
         stat_result = 1;
     result = FIO_decompressSrcFile(ress, dstFileName, srcFileName);
 
-    if (fclose(ress.dstFile))
-        EXM_THROW(38, "Write error : cannot properly close %s", dstFileName);
+    if (fclose(ress.dstFile)) {
+        DISPLAYLEVEL(1, "zstd: %s: %s \n", dstFileName, strerror(errno));
+        result = 1;
+    }
 
-    if ( (result != 0)
+    if ( (result != 0)  /* operation failure */
        && strcmp(dstFileName, nulmark)  /* special case : don't remove() /dev/null (#316) */
-       && remove(dstFileName) )
+       && remove(dstFileName) /* remove artefact */ )
         result=1;   /* don't do anything special if remove() fails */
     else if (strcmp (dstFileName, stdoutmark) && stat_result)
         UTIL_setFileStat(dstFileName, &statbuf);
@@ -1781,13 +1798,12 @@ static int FIO_decompressDstFile(dRess_t ress,
 int FIO_decompressFilename(const char* dstFileName, const char* srcFileName,
                            const char* dictFileName)
 {
-    int missingFiles = 0;
-    dRess_t ress = FIO_createDResources(dictFileName);
+    dRess_t const ress = FIO_createDResources(dictFileName);
 
-    missingFiles += FIO_decompressDstFile(ress, dstFileName, srcFileName);
+    int const decodingError = FIO_decompressDstFile(ress, dstFileName, srcFileName);
 
     FIO_freeDResources(ress);
-    return missingFiles;
+    return decodingError;
 }
 
 

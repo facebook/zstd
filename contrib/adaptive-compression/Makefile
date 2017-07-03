@@ -18,9 +18,14 @@ CFLAGS   += $(DEBUGFLAGS)
 CFLAGS   += $(MOREFLAGS)
 FLAGS     = $(CPPFLAGS) $(CFLAGS) $(LDFLAGS)
 
-adaptive: $(ZSTD_FILES) v1.c
+all: clean v1 v2
+v1: $(ZSTD_FILES) v1.c
+	$(CC) $(FLAGS) $^ -o $@
+
+v2: $(ZSTD_FILES) v2.c
 	$(CC) $(FLAGS) $^ -o $@
 
 clean:
-	@$(RM) -f adaptive
+	@$(RM) -f v1 v2
+	@$(RM) -rf *.dSYM
 	@$(RM) -f tmp*

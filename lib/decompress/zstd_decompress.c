@@ -1690,6 +1690,7 @@ ZSTD_nextInputType_e ZSTD_nextInputType(ZSTD_DCtx* dctx) {
     switch(dctx->stage)
     {
     default:   /* should not happen */
+        assert(0);
     case ZSTDds_getFrameHeaderSize:
     case ZSTDds_decodeFrameHeader:
         return ZSTDnit_frameHeader;
@@ -1724,6 +1725,7 @@ size_t ZSTD_decompressContinue(ZSTD_DCtx* dctx, void* dst, size_t dstCapacity, c
     {
     case ZSTDds_getFrameHeaderSize :
         if (srcSize != ZSTD_frameHeaderSize_prefix) return ERROR(srcSize_wrong);      /* unauthorized */
+        assert(src != NULL);
         if ((MEM_readLE32(src) & 0xFFFFFFF0U) == ZSTD_MAGIC_SKIPPABLE_START) {        /* skippable frame */
             memcpy(dctx->headerBuffer, src, ZSTD_frameHeaderSize_prefix);
             dctx->expected = ZSTD_skippableHeaderSize - ZSTD_frameHeaderSize_prefix;  /* magic number + skippable frame length */
@@ -1741,6 +1743,7 @@ size_t ZSTD_decompressContinue(ZSTD_DCtx* dctx, void* dst, size_t dstCapacity, c
         dctx->expected = 0;   /* not necessary to copy more */
 
     case ZSTDds_decodeFrameHeader:
+        assert(src != NULL);
         memcpy(dctx->headerBuffer + ZSTD_frameHeaderSize_prefix, src, dctx->expected);
         CHECK_F(ZSTD_decodeFrameHeader(dctx, dctx->headerBuffer, dctx->headerSize));
         dctx->expected = ZSTD_blockHeaderSize;
@@ -1820,7 +1823,8 @@ size_t ZSTD_decompressContinue(ZSTD_DCtx* dctx, void* dst, size_t dstCapacity, c
             return 0;
         }
     case ZSTDds_decodeSkippableHeader:
-        {   memcpy(dctx->headerBuffer + ZSTD_frameHeaderSize_prefix, src, dctx->expected);
+        {   assert(src != NULL);
+            memcpy(dctx->headerBuffer + ZSTD_frameHeaderSize_prefix, src, dctx->expected);
             dctx->expected = MEM_readLE32(dctx->headerBuffer + 4);
             dctx->stage = ZSTDds_skipFrame;
             return 0;
@@ -2063,6 +2067,8 @@ ZSTD_DDict* ZSTD_initStaticDDict(void* workspace, size_t workspaceSize,
 {
     size_t const neededSpace = sizeof(ZSTD_DDict) + (byReference ? 0 : dictSize);
     ZSTD_DDict* const ddict = (ZSTD_DDict*)workspace;
+    assert(workspace != NULL);
+    assert(dict != NULL);
     if ((size_t)workspace & 7) return NULL;  /* 8-aligned */
     if (workspaceSize < neededSpace) return NULL;
     if (!byReference) {
@@ -2321,11 +2327,14 @@ size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inB
                 if (hSize != 0) {   /* need more input */
                     size_t const toLoad = hSize - zds->lhSize;   /* if hSize!=0, hSize > zds->lhSize */
                     if (toLoad > (size_t)(iend-ip)) {   /* not enough input to load full header */
-                        memcpy(zds->headerBuffer + zds->lhSize, ip, iend-ip);
-                        zds->lhSize += iend-ip;
+                        if (iend-ip > 0) {
+                            memcpy(zds->headerBuffer + zds->lhSize, ip, iend-ip);
+                            zds->lhSize += iend-ip;
+                        }
                         input->pos = input->size;
                         return (MAX(ZSTD_frameHeaderSize_min, hSize) - zds->lhSize) + ZSTD_blockHeaderSize;   /* remaining header bytes + next block header */
                     }
+                    assert(ip != NULL);
                     memcpy(zds->headerBuffer + zds->lhSize, ip, toLoad); zds->lhSize = hSize; ip += toLoad;
                     break;
             }   }

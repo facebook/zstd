@@ -47,6 +47,10 @@ static adaptCCtx* createCCtx(unsigned numJobs, const char* const outFilename)
 {
 
     adaptCCtx* ctx = malloc(sizeof(adaptCCtx));
+    if (ctx == NULL) {
+        DISPLAY("Error: could not allocate space for context\n");
+        return NULL;
+    }
     memset(ctx, 0, sizeof(adaptCCtx));
     ctx->compressionLevel = 6; /* default */
     pthread_mutex_init(&ctx->jobCompleted_mutex, NULL);
@@ -76,6 +80,8 @@ static void freeCompressionJobs(adaptCCtx* ctx)
 {
     unsigned u;
     for (u=0; u<ctx->numJobs; u++) {
+        DISPLAY("freeing compression job %u\n", u);
+        DISPLAY("%u\n", ctx->numJobs);
         jobDescription job = ctx->jobs[u];
         if (job.dst.start) free(job.dst.start);
         if (job.src.start) free(job.src.start);
@@ -84,6 +90,7 @@ static void freeCompressionJobs(adaptCCtx* ctx)
 
 static int freeCCtx(adaptCCtx* ctx)
 {
+    /* TODO: wait until jobs finish */
     int const completedMutexError = pthread_mutex_destroy(&ctx->jobCompleted_mutex);
     int const completedCondError = pthread_cond_destroy(&ctx->jobCompleted_cond);
     int const readyMutexError = pthread_mutex_destroy(&ctx->jobReady_mutex);
@@ -130,6 +137,8 @@ static void* outputThread(void* arg)
 {
     DISPLAY("started output thread\n");
     adaptCCtx* ctx = (adaptCCtx*)arg;
+    DISPLAY("casted ctx\n");
+
     unsigned currJob = 0;
     for ( ; ; ) {
         jobDescription* job = &ctx->jobs[currJob];
@@ -225,7 +234,7 @@ int main(int argCount, const char* argv[])
     BYTE* const src = malloc(FILE_CHUNK_SIZE);
     FILE* const srcFile = fopen(srcFilename, "rb");
     size_t fileSize = getFileSize(srcFilename);
-    size_t const numJobsPrelim = (fileSize / FILE_CHUNK_SIZE) + 1;
+    size_t const numJobsPrelim = (fileSize >> 22) + 1; /* TODO: figure out why can't divide here */
     size_t const numJobs = (numJobsPrelim * FILE_CHUNK_SIZE) == fileSize ? numJobsPrelim : numJobsPrelim + 1;
     int ret = 0;
     adaptCCtx* ctx = NULL;
@@ -236,7 +245,7 @@ int main(int argCount, const char* argv[])
         ret = 1;
         goto cleanup;
     }
-    if (!srcFilename || !dstFilename || !src) {
+    if (!srcFilename || !dstFilename || !src || !srcFile) {
         DISPLAY("Error: initial variables could not be allocated\n");
         ret = 1;
         goto cleanup;
@@ -270,13 +279,14 @@ int main(int argCount, const char* argv[])
 
     /* creating jobs */
     for ( ; ; ) {
+        DISPLAY("in job creation loop\n");
         size_t const readSize = fread(src, 1, FILE_CHUNK_SIZE, srcFile);
         if (readSize != FILE_CHUNK_SIZE && !feof(srcFile)) {
             DISPLAY("Error: problem occurred during read from src file\n");
             ret = 1;
             goto cleanup;
         }
-
+        DISPLAY("reading was fine\n");
         /* reading was fine, now create the compression job */
         {
             int const error = createCompressionJob(ctx, src, readSize);
@@ -285,19 +295,13 @@ int main(int argCount, const char* argv[])
                 goto cleanup;
             }
         }
+        if (feof(srcFile)) break;
     }
-
-    /* file compression completed */
-    {
-        int const fileCloseError = fclose(srcFile);
-        int const cctxReleaseError = freeCCtx(ctx);
-        if (fileCloseError | cctxReleaseError) {
-            ret = 1;
-            goto cleanup;
-        }
-    }
+    DISPLAY("cleanup\n");
 cleanup:
+    /* file compression completed */
+    ret  |= (srcFile != NULL) ? fclose(srcFile) : 0;
+    ret |= (ctx != NULL) ? freeCCtx(ctx) : 0;
     if (src != NULL) free(src);
-    if (ctx != NULL) freeCCtx(ctx);
     return ret;
 }

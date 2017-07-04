@@ -45,6 +45,7 @@ typedef struct {
 
 static adaptCCtx* createCCtx(unsigned numJobs, const char* const outFilename)
 {
+
     adaptCCtx* ctx = malloc(sizeof(adaptCCtx));
     memset(ctx, 0, sizeof(adaptCCtx));
     ctx->compressionLevel = 6; /* default */
@@ -53,7 +54,7 @@ static adaptCCtx* createCCtx(unsigned numJobs, const char* const outFilename)
     pthread_mutex_init(&ctx->jobReady_mutex, NULL);
     pthread_cond_init(&ctx->jobReady_cond, NULL);
     ctx->numJobs = numJobs;
-    ctx->jobs = malloc(numJobs*sizeof(jobDescription));
+    ctx->jobs = calloc(1, numJobs*sizeof(jobDescription));
     ctx->nextJobID = 0;
     ctx->threadError = 0;
     if (!ctx->jobs) {
@@ -95,6 +96,7 @@ static int freeCCtx(adaptCCtx* ctx)
 
 static void* compressionThread(void* arg)
 {
+    DISPLAY("started compression thread\n");
     adaptCCtx* ctx = (adaptCCtx*)arg;
     unsigned currJob = 0;
     for ( ; ; ) {
@@ -126,6 +128,7 @@ static void* compressionThread(void* arg)
 
 static void* outputThread(void* arg)
 {
+    DISPLAY("started output thread\n");
     adaptCCtx* ctx = (adaptCCtx*)arg;
     unsigned currJob = 0;
     for ( ; ; ) {
@@ -202,6 +205,10 @@ static int createCompressionJob(adaptCCtx* ctx, BYTE* data, size_t srcSize)
         return 1;
     }
     memcpy(job.src.start, data, srcSize);
+    pthread_mutex_lock(job.jobReady_mutex);
+    job.jobReady = 1;
+    pthread_cond_signal(job.jobReady_cond);
+    pthread_mutex_unlock(job.jobReady_mutex);
     ctx->nextJobID++;
     return 0;
 }
@@ -209,6 +216,10 @@ static int createCompressionJob(adaptCCtx* ctx, BYTE* data, size_t srcSize)
 /* return 0 if successful, else return error */
 int main(int argCount, const char* argv[])
 {
+    if (argCount < 2) {
+        DISPLAY("Error: not enough arguments\n");
+        return 1;
+    }
     const char* const srcFilename = argv[1];
     const char* const dstFilename = argv[2];
     BYTE* const src = malloc(FILE_CHUNK_SIZE);
@@ -228,7 +239,7 @@ int main(int argCount, const char* argv[])
     if (!srcFilename || !dstFilename || !src) {
         DISPLAY("Error: initial variables could not be allocated\n");
         ret = 1;
-         goto cleanup;
+        goto cleanup;
     }
 
     /* creating context */

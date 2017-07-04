@@ -72,6 +72,7 @@
 #if defined(ZSTD_DEBUG) && (ZSTD_DEBUG>=2)
 #  include <stdio.h>
 /* recommended values for ZSTD_DEBUG display levels :
+ * 1 : no display, enables assert() only
  * 2 : reserved for currently active debugging path
  * 3 : events once per object lifetime (CCtx, CDict)
  * 4 : events once per frame
@@ -308,20 +309,6 @@ MEM_STATIC U32 ZSTD_highbit32(U32 val)
 void ZSTD_invalidateRepCodes(ZSTD_CCtx* cctx);
 
 
-typedef enum { ZSTDb_not_buffered, ZSTDb_buffered } ZSTD_buffered_policy_e;
-#if 0
-/*! ZSTD_compressBegin_internal() :
- *  innermost initialization function. Private use only.
- *  expects params to be valid.
- *  must receive dict, or cdict, or none, but not both.
- *  @return : 0, or an error code */
-size_t ZSTD_compressBegin_internal(ZSTD_CCtx* cctx,
-                             const void* dict, size_t dictSize,
-                             const ZSTD_CDict* cdict,
-                                   ZSTD_parameters params, U64 pledgedSrcSize,
-                                   ZSTD_buffered_policy_e zbuff);
-#endif
-
 /*! ZSTD_initCStream_internal() :
  *  Private use only. Init streaming operation.
  *  expects params to be valid.
@@ -332,6 +319,12 @@ size_t ZSTD_initCStream_internal(ZSTD_CStream* zcs,
                      const ZSTD_CDict* cdict,
                      ZSTD_parameters params, unsigned long long pledgedSrcSize);
 
+/*! ZSTD_compressStream_generic() :
+ *  Private use only. To be called from zstdmt_compress.c in single-thread mode. */
+size_t ZSTD_compressStream_generic(ZSTD_CStream* zcs,
+                                   ZSTD_outBuffer* output,
+                                   ZSTD_inBuffer* input,
+                                   ZSTD_EndDirective const flushMode);
 
 /*! ZSTD_getParamsFromCDict() :
  *  as the name implies */

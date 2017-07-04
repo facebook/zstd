@@ -1540,7 +1540,7 @@ int main(int argc, const char** argv)
     int proba = FUZ_COMPRESSIBILITY_DEFAULT;
     int result=0;
     int mainPause = 0;
-    int bigTests = 1;
+    int bigTests = (sizeof(size_t) == 8);
     e_api selected_api = simple_api;
     const char* const programName = argv[0];
     ZSTD_customMem const customMem = { allocFunction, freeFunction, NULL };

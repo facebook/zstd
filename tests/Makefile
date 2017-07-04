@@ -94,11 +94,11 @@ zstd-nolegacy:
 gzstd:
 	$(MAKE) -C $(PRGDIR) $@
 
-fullbench  : $(ZSTD_FILES) $(PRGDIR)/datagen.c fullbench.c
-	$(CC)      $(FLAGS) $^ -o $@$(EXT)
-
-fullbench32 : $(ZSTD_FILES) $(PRGDIR)/datagen.c fullbench.c
-	$(CC)  -m32  $(FLAGS) $^ -o $@$(EXT)
+fullbench32: CPPFLAGS += -m32
+fullbench fullbench32 : CPPFLAGS += $(MULTITHREAD_CPP)
+fullbench fullbench32 : LDFLAGS += $(MULTITHREAD_LD)
+fullbench fullbench32 : $(ZSTD_FILES) $(PRGDIR)/datagen.c fullbench.c
+	$(CC) $(FLAGS) $^ -o $@$(EXT)
 
 fullbench-lib: $(PRGDIR)/datagen.c fullbench.c
 	$(MAKE) -C $(ZSTDDIR) libzstd.a
@@ -224,7 +224,7 @@ clean:
 ifneq (,$(filter $(shell uname),Linux Darwin GNU/kFreeBSD GNU OpenBSD FreeBSD NetBSD DragonFly SunOS))
 HOST_OS = POSIX
 
-valgrindTest: VALGRIND = valgrind --leak-check=full --error-exitcode=1
+valgrindTest: VALGRIND = valgrind --leak-check=full --show-leak-kinds=all --error-exitcode=1
 valgrindTest: zstd datagen fuzzer fullbench
 	@echo "\n ---- valgrind tests : memory analyzer ----"
 	$(VALGRIND) ./datagen -g50M > $(VOID)

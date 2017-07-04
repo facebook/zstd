@@ -64,6 +64,15 @@ static adaptCCtx* createCCtx(unsigned numJobs, const char* const outFilename)
     pthread_cond_init(&ctx->allJobsCompleted_cond, NULL);
     ctx->numJobs = numJobs;
     ctx->jobs = calloc(1, numJobs*sizeof(jobDescription));
+    {
+        unsigned u;
+        for (u=0; u<numJobs; u++) {
+            ctx->jobs[u].jobCompleted_mutex = &ctx->jobCompleted_mutex;
+            ctx->jobs[u].jobCompleted_cond = &ctx->jobCompleted_cond;
+            ctx->jobs[u].jobReady_mutex = &ctx->jobReady_mutex;
+            ctx->jobs[u].jobReady_cond = &ctx->jobReady_cond;
+        }
+    }
     ctx->nextJobID = 0;
     ctx->threadError = 0;
     ctx->allJobsCompleted = 0;
@@ -314,7 +323,7 @@ int main(int argCount, const char* argv[])
         }
         if (feof(srcFile)) break;
     }
-
+    
 cleanup:
     /* file compression completed */
     ret  |= (srcFile != NULL) ? fclose(srcFile) : 0;

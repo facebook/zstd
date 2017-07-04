@@ -326,13 +326,6 @@ size_t ZSTDv05_decompress_usingPreparedDCtx(
 *  Streaming functions (direct mode)
 ****************************************/
 size_t ZSTDv05_decompressBegin(ZSTDv05_DCtx* dctx);
-size_t ZSTDv05_decompressBegin_usingDict(ZSTDv05_DCtx* dctx, const void* dict, size_t dictSize);
-void   ZSTDv05_copyDCtx(ZSTDv05_DCtx* dctx, const ZSTDv05_DCtx* preparedDCtx);
-
-size_t ZSTDv05_getFrameParams(ZSTDv05_parameters* params, const void* src, size_t srcSize);
-
-size_t ZSTDv05_nextSrcSizeToDecompress(ZSTDv05_DCtx* dctx);
-size_t ZSTDv05_decompressContinue(ZSTDv05_DCtx* dctx, void* dst, size_t dstCapacity, const void* src, size_t srcSize);
 
 /*
   Streaming decompression, direct mode (bufferless)
@@ -818,13 +811,13 @@ MEM_STATIC size_t BITv05_initDStream(BITv05_DStream_t* bitD, const void* srcBuff
         bitD->bitContainer = *(const BYTE*)(bitD->start);
         switch(srcSize)
         {
-            case 7: bitD->bitContainer += (size_t)(((const BYTE*)(bitD->start))[6]) << (sizeof(size_t)*8 - 16);
-            case 6: bitD->bitContainer += (size_t)(((const BYTE*)(bitD->start))[5]) << (sizeof(size_t)*8 - 24);
-            case 5: bitD->bitContainer += (size_t)(((const BYTE*)(bitD->start))[4]) << (sizeof(size_t)*8 - 32);
-            case 4: bitD->bitContainer += (size_t)(((const BYTE*)(bitD->start))[3]) << 24;
-            case 3: bitD->bitContainer += (size_t)(((const BYTE*)(bitD->start))[2]) << 16;
-            case 2: bitD->bitContainer += (size_t)(((const BYTE*)(bitD->start))[1]) <<  8;
-            default:;
+            case 7: bitD->bitContainer += (size_t)(((const BYTE*)(bitD->start))[6]) << (sizeof(size_t)*8 - 16);/* fall-through */
+            case 6: bitD->bitContainer += (size_t)(((const BYTE*)(bitD->start))[5]) << (sizeof(size_t)*8 - 24);/* fall-through */
+            case 5: bitD->bitContainer += (size_t)(((const BYTE*)(bitD->start))[4]) << (sizeof(size_t)*8 - 32);/* fall-through */
+            case 4: bitD->bitContainer += (size_t)(((const BYTE*)(bitD->start))[3]) << 24; /* fall-through */
+            case 3: bitD->bitContainer += (size_t)(((const BYTE*)(bitD->start))[2]) << 16; /* fall-through */
+            case 2: bitD->bitContainer += (size_t)(((const BYTE*)(bitD->start))[1]) <<  8; /* fall-through */
+            default: break;
         }
         contain32 = ((const BYTE*)srcBuffer)[srcSize-1];
         if (contain32 == 0) return ERROR(GENERIC);   /* endMark not present */
@@ -3955,7 +3948,7 @@ size_t ZBUFFv05_decompressContinue(ZBUFFv05_DCtx* zbc, void* dst, size_t* maxDst
                 zbc->stage = ZBUFFv05ds_decodeHeader;
                 break;
             }
-
+	    /* fall-through */
         case ZBUFFv05ds_loadHeader:
             /* complete header from src */
             {
@@ -3973,7 +3966,7 @@ size_t ZBUFFv05_decompressContinue(ZBUFFv05_DCtx* zbc, void* dst, size_t* maxDst
                 }
                 // zbc->stage = ZBUFFv05ds_decodeHeader; break;   /* useless : stage follows */
             }
-
+	    /* fall-through */
         case ZBUFFv05ds_decodeHeader:
                 /* apply header to create / resize buffers */
                 {
@@ -4000,7 +3993,7 @@ size_t ZBUFFv05_decompressContinue(ZBUFFv05_DCtx* zbc, void* dst, size_t* maxDst
                     break;
                 }
                 zbc->stage = ZBUFFv05ds_read;
-
+		/* fall-through */
         case ZBUFFv05ds_read:
             {
                 size_t neededInSize = ZSTDv05_nextSrcSizeToDecompress(zbc->zc);
@@ -4024,7 +4017,7 @@ size_t ZBUFFv05_decompressContinue(ZBUFFv05_DCtx* zbc, void* dst, size_t* maxDst
                 if (ip==iend) { notDone = 0; break; }   /* no more input */
                 zbc->stage = ZBUFFv05ds_load;
             }
-
+	    /* fall-through */
         case ZBUFFv05ds_load:
             {
                 size_t neededInSize = ZSTDv05_nextSrcSizeToDecompress(zbc->zc);
@@ -4045,7 +4038,9 @@ size_t ZBUFFv05_decompressContinue(ZBUFFv05_DCtx* zbc, void* dst, size_t* maxDst
                     zbc->outEnd = zbc->outStart +  decodedSize;
                     zbc->stage = ZBUFFv05ds_flush;
                     // break; /* ZBUFFv05ds_flush follows */
-            }   }
+                }
+	    }
+	    /* fall-through */
         case ZBUFFv05ds_flush:
             {
                 size_t toFlushSize = zbc->outEnd - zbc->outStart;

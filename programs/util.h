@@ -208,7 +208,7 @@ UTIL_STATIC int UTIL_getFileStat(const char* infilename, stat_t *statbuf)
 }
 
 
-UTIL_STATIC int UTIL_isRegFile(const char* infilename)
+UTIL_STATIC int UTIL_isRegularFile(const char* infilename)
 {
     stat_t statbuf;
     return UTIL_getFileStat(infilename, &statbuf); /* Only need to know whether it is a regular file */
@@ -609,7 +609,7 @@ UTIL_STATIC int UTIL_countPhysicalCores(void)
 
     /* try to determine if there's hyperthreading */
     {   FILE* const cpuinfo = fopen("/proc/cpuinfo", "r");
-        size_t const BUF_SIZE = 80;
+#define BUF_SIZE 80
         char buff[BUF_SIZE];
 
         int siblings = 0;

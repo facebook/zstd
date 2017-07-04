@@ -93,6 +93,10 @@ the last one takes effect.
 * `--train FILEs`:
     Use FILEs as a training set to create a dictionary.
     The training set should contain a lot of small files (> 100).
+* `-l`, `--list`:
+    Display information related to a zstd compressed file, such as size, ratio, and checksum.
+    Some of these fields may not be available.
+    This command can be augmented with the `-v` modifier.
 
 ### Operation modifiers
 
@@ -230,8 +234,8 @@ BENCHMARK
     benchmark file(s) using multiple compression levels, from `-b#` to `-e#` (inclusive)
 * `-i#`:
     minimum evaluation time, in seconds (default : 3s), benchmark mode only
-* `-B#`:
-    cut file into independent blocks of size # (default: no block)
+* `-B#`, `--block-size=#`:
+    cut file(s) into independent blocks of size # (default: no block)
 * `--priority=rt`:
     set process priority to real-time
 
@@ -250,9 +254,9 @@ The list of available _options_:
 - `strategy`=_strat_, `strat`=_strat_:
     Specify a strategy used by a match finder.
 
-    There are 8 strategies numbered from 0 to 7, from faster to stronger:
-    0=ZSTD\_fast, 1=ZSTD\_dfast, 2=ZSTD\_greedy, 3=ZSTD\_lazy,
-    4=ZSTD\_lazy2, 5=ZSTD\_btlazy2, 6=ZSTD\_btopt, 7=ZSTD\_btopt2.
+    There are 8 strategies numbered from 1 to 8, from faster to stronger:
+    1=ZSTD\_fast, 2=ZSTD\_dfast, 3=ZSTD\_greedy, 4=ZSTD\_lazy,
+    5=ZSTD\_lazy2, 6=ZSTD\_btlazy2, 7=ZSTD\_btopt, 8=ZSTD\_btultra.
 
 - `windowLog`=_wlog_, `wlog`=_wlog_:
     Specify the maximum number of bits for a match distance.
@@ -304,7 +308,7 @@ The list of available _options_:
 
     A larger minimum match length usually improves compression ratio but
     decreases compression speed.
-    This option is only used with strategies ZSTD_btopt and ZSTD_btopt2.
+    This option is only used with strategies ZSTD_btopt and ZSTD_btultra.
 
     The minimum _tlen_ is 4 and the maximum is 999.
 

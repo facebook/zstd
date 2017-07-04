@@ -585,7 +585,10 @@ std::uint64_t writeFile(
   std::uint64_t bytesWritten = 0;
   std::shared_ptr<BufferWorkQueue> out;
   // Grab the output queue for each decompression job (in order).
-  while (outs.pop(out) && !errorHolder.hasError()) {
+  while (outs.pop(out)) {
+    if (errorHolder.hasError()) {
+      continue;
+    }
     if (!decompress) {
       // If we are compressing and want to write skippable frames we can't
       // start writing before compression is done because we need to know the

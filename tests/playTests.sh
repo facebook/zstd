@@ -92,7 +92,7 @@ $ZSTD tmp --stdout > tmpCompressed       # long command format
 $ECHO "test : compress to named file"
 rm tmpCompressed
 $ZSTD tmp -o tmpCompressed
-ls tmpCompressed   # must work
+test -f tmpCompressed   # file must be created
 $ECHO "test : -o must be followed by filename (must fail)"
 $ZSTD tmp -of tmpCompressed && die "-o must be followed by filename "
 $ECHO "test : force write, correct order"
@@ -142,21 +142,21 @@ $ZSTD -q -f tmpro
 rm -f tmpro tmpro.zst
 $ECHO "test : file removal"
 $ZSTD -f --rm tmp
-ls tmp && die "tmp should no longer be present"
+test ! -f tmp  # tmp should no longer be present
 $ZSTD -f -d --rm tmp.zst
-ls tmp.zst && die "tmp.zst should no longer be present"
+test ! -f tmp.zst   # tmp.zst should no longer be present
 $ECHO "test : --rm on stdin"
 $ECHO a | $ZSTD --rm > $INTOVOID   # --rm should remain silent
 rm tmp
 $ZSTD -f tmp && die "tmp not present : should have failed"
-ls tmp.zst && die "tmp.zst should not be created"
+test ! -f tmp.zst  # tmp.zst should not be created
 
 
 $ECHO "\n**** Advanced compression parameters **** "
 $ECHO "Hello world!" | $ZSTD --zstd=windowLog=21,      - -o tmp.zst && die "wrong parameters not detected!"
 $ECHO "Hello world!" | $ZSTD --zstd=windowLo=21        - -o tmp.zst && die "wrong parameters not detected!"
 $ECHO "Hello world!" | $ZSTD --zstd=windowLog=21,slog  - -o tmp.zst && die "wrong parameters not detected!"
-ls tmp.zst && die "tmp.zst should not be created"
+test ! -f tmp.zst  # tmp.zst should not be created
 roundTripTest -g512K
 roundTripTest -g512K " --zstd=slen=3,tlen=48,strat=6"
 roundTripTest -g512K " --zstd=strat=6,wlog=23,clog=23,hlog=22,slog=6"
@@ -201,16 +201,17 @@ $ECHO foo | $ZSTD > /dev/full && die "write error not detected!"
 $ECHO "$ECHO foo | $ZSTD | $ZSTD -d > /dev/full"
 $ECHO foo | $ZSTD | $ZSTD -d > /dev/full && die "write error not detected!"
 
+
 $ECHO "\n**** symbolic link test **** "
 
 rm -f hello.tmp world.tmp hello.tmp.zst world.tmp.zst
 $ECHO "hello world" > hello.tmp
 ln -s hello.tmp world.tmp
 $ZSTD world.tmp hello.tmp
-ls hello.tmp.zst || die "regular file should have been compressed!"
-ls world.tmp.zst && die "symbolic link should not have been compressed!"
+test -f hello.tmp.zst  # regular file should have been compressed!
+test ! -f world.tmp.zst  # symbolic link should not have been compressed!
 $ZSTD world.tmp hello.tmp -f
-ls world.tmp.zst || die "symbol link should have been compressed with --force"
+test -f world.tmp.zst  # symbolic link should have been compressed with --force
 rm -f hello.tmp world.tmp hello.tmp.zst world.tmp.zst
 
 fi
@@ -225,10 +226,10 @@ $ZSTD tmpSparse -c | $ZSTD -dv --sparse -c > tmpOutSparse
 $DIFF -s tmpSparse tmpOutSparse
 $ZSTD tmpSparse -c | $ZSTD -dv --no-sparse -c > tmpOutNoSparse
 $DIFF -s tmpSparse tmpOutNoSparse
-ls -ls tmpSparse*
+ls -ls tmpSparse*  # look at file size and block size on disk
 ./datagen -s1 -g1200007 -P100 | $ZSTD | $ZSTD -dv --sparse -c > tmpSparseOdd   # Odd size file (to not finish on an exact nb of blocks)
 ./datagen -s1 -g1200007 -P100 | $DIFF -s - tmpSparseOdd
-ls -ls tmpSparseOdd
+ls -ls tmpSparseOdd  # look at file size and block size on disk
 $ECHO "\n Sparse Compatibility with Console :"
 $ECHO "Hello World 1 !" | $ZSTD | $ZSTD -d -c
 $ECHO "Hello World 2 !" | $ZSTD | $ZSTD -d | cat
@@ -238,7 +239,7 @@ cat tmpSparse1M tmpSparse1M > tmpSparse2M
 $ZSTD -v -f tmpSparse1M -o tmpSparseCompressed
 $ZSTD -d -v -f tmpSparseCompressed -o tmpSparseRegenerated
 $ZSTD -d -v -f tmpSparseCompressed -c >> tmpSparseRegenerated
-ls -ls tmpSparse*
+ls -ls tmpSparse*  # look at file size and block size on disk
 $DIFF tmpSparse2M tmpSparseRegenerated
 rm tmpSparse*
 
@@ -257,11 +258,11 @@ $ZSTD -df *.zst
 ls -ls tmp*
 $ECHO "compress tmp* into stdout > tmpall : "
 $ZSTD -c tmp1 tmp2 tmp3 > tmpall
-ls -ls tmp*
+ls -ls tmp*  # check size of tmpall (should be tmp1.zst + tmp2.zst + tmp3.zst)
 $ECHO "decompress tmpall* into stdout > tmpdec : "
 cp tmpall tmpall2
 $ZSTD -dc tmpall* > tmpdec
-ls -ls tmp*
+ls -ls tmp* # check size of tmpdec (should be 2*(tmp1 + tmp2 + tmp3))
 $ECHO "compress multiple files including a missing one (notHere) : "
 $ZSTD -f tmp1 notHere tmp2 && die "missing file not detected!"
 
@@ -379,7 +380,9 @@ $ZSTD -t tmp2.zst && die "bad file not detected !"
 $ZSTD -t tmp3 && die "bad file not detected !"   # detects 0-sized files as bad
 $ECHO "test --rm and --test combined "
 $ZSTD -t --rm tmp1.zst
-ls -ls tmp1.zst  # check file is still present
+test -f tmp1.zst   # check file is still present
+split -b16384 tmp1.zst tmpSplit.
+$ZSTD -t tmpSplit.* && die "bad file not detected !"
 
 
 $ECHO "\n**** benchmark mode tests **** "
@@ -439,6 +442,7 @@ if [ $LZMAMODE -eq 1 ]; then
     XZEXE=1
     xz -V && lzma -V || XZEXE=0
     if [ $XZEXE -eq 1 ]; then
+        $ECHO "Testing zstd xz and lzma support"
         ./datagen > tmp
         $ZSTD --format=lzma -f tmp
         $ZSTD --format=xz -f tmp
@@ -448,6 +452,24 @@ if [ $LZMAMODE -eq 1 ]; then
         lzma -f -k --lzma1 tmp
         $ZSTD -d -f -v tmp.xz
         $ZSTD -d -f -v tmp.lzma
+        rm tmp*
+        $ECHO "Creating symlinks"
+        ln -s $ZSTD ./xz
+        ln -s $ZSTD ./unxz
+        ln -s $ZSTD ./lzma
+        ln -s $ZSTD ./unlzma
+        $ECHO "Testing xz and lzma symlinks"
+        ./datagen > tmp
+        ./xz tmp
+        xz -d tmp.xz
+        ./lzma tmp
+        lzma -d tmp.lzma
+        $ECHO "Testing unxz and unlzma symlinks"
+        xz tmp
+        ./xz -d tmp.xz
+        lzma tmp
+        ./lzma -d tmp.lzma
+        rm xz unxz lzma unlzma
         rm tmp*
     else
         $ECHO "xz binary not detected"
@@ -533,6 +555,54 @@ else
 fi
 
 rm tmp*
+
+$ECHO "\n**** zstd --list/-l single frame tests ****"
+./datagen > tmp1
+./datagen > tmp2
+./datagen > tmp3
+./datagen > tmp4
+$ZSTD tmp*
+$ZSTD -l *.zst
+$ZSTD -lv *.zst
+$ZSTD --list *.zst
+$ZSTD --list -v *.zst
+
+$ECHO "\n**** zstd --list/-l multiple frame tests ****"
+cat tmp1.zst tmp2.zst > tmp12.zst
+cat tmp3.zst tmp4.zst > tmp34.zst
+cat tmp12.zst tmp34.zst > tmp1234.zst
+cat tmp12.zst tmp4.zst > tmp124.zst
+$ZSTD -l *.zst
+$ZSTD -lv *.zst
+$ZSTD --list *.zst
+$ZSTD --list -v *.zst
+
+$ECHO "\n**** zstd --list/-l error detection tests ****"
+! $ZSTD -l tmp1 tmp1.zst
+! $ZSTD --list tmp*
+! $ZSTD -lv tmp1*
+! $ZSTD --list -v tmp2 tmp23.zst
+
+$ECHO "\n**** zstd --list/-l test with null files ****"
+./datagen -g0 > tmp5
+$ZSTD tmp5
+$ZSTD -l tmp5.zst
+! $ZSTD -l tmp5*
+$ZSTD -lv tmp5.zst
+! $ZSTD -lv tmp5*
+
+$ECHO "\n**** zstd --list/-l test with no content size field ****"
+./datagen -g1MB | $ZSTD > tmp6.zst
+$ZSTD -l tmp6.zst
+$ZSTD -lv tmp6.zst
+
+$ECHO "\n**** zstd --list/-l test with no checksum ****"
+$ZSTD -f --no-check tmp1
+$ZSTD -l tmp1.zst
+$ZSTD -lv tmp1.zst
+
+rm tmp*
+
 
 if [ "$1" != "--test-large-data" ]; then
     $ECHO "Skipping large data tests"

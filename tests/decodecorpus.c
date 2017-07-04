@@ -18,6 +18,8 @@
 #include "zstd.h"
 #include "zstd_internal.h"
 #include "mem.h"
+#define ZDICT_STATIC_LINKING_ONLY
+#include "zdict.h"
 
 // Direct access to internal compression functions is required
 #include "zstd_compress.c"
@@ -73,8 +75,6 @@ static clock_t clockSpan(clock_t cStart)
 /*-*******************************************************
 *  Random function
 *********************************************************/
-#define CLAMP(x, a, b) ((x) < (a) ? (a) : ((x) > (b) ? (b) : (x)))
-
 static unsigned RAND(unsigned* src)
 {
 #define RAND_rotl32(x,r) ((x << r) | (x >> (32 - r)))
@@ -231,6 +231,12 @@ typedef struct {
     cblockStats_t oldStats; /* so they can be rolled back if uncompressible */
 } frame_t;
 
+typedef struct {
+    int useDict;
+    U32 dictID;
+    size_t dictContentSize;
+    BYTE* dictContent;
+} dictInfo;
 /*-*******************************************************
 *  Generator Functions
 *********************************************************/
@@ -240,7 +246,7 @@ struct {
 } opts; /* advanced options on generation */
 
 /* Generate and write a random frame header */
-static void writeFrameHeader(U32* seed, frame_t* frame)
+static void writeFrameHeader(U32* seed, frame_t* frame, dictInfo info)
 {
     BYTE* const op = frame->data;
     size_t pos = 0;
@@ -306,15 +312,26 @@ static void writeFrameHeader(U32* seed, frame_t* frame)
     pos += 4;
 
     {
+        /*
+         * fcsCode: 2-bit flag specifying how many bytes used to represent Frame_Content_Size (bits 7-6)
+         * singleSegment: 1-bit flag describing if data must be regenerated within a single continuous memory segment. (bit 5)
+         * contentChecksumFlag: 1-bit flag that is set if frame includes checksum at the end -- set to 1 below (bit 2)
+         * dictBits: 2-bit flag describing how many bytes Dictionary_ID uses -- set to 3 (bits 1-0)
+         * For more information: https://github.com/facebook/zstd/blob/dev/doc/zstd_compression_format.md#frame_header
+         */
+        int const dictBits = info.useDict ? 3 : 0;
         BYTE const frameHeaderDescriptor =
-                (BYTE) ((fcsCode << 6) | (singleSegment << 5) | (1 << 2));
+                (BYTE) ((fcsCode << 6) | (singleSegment << 5) | (1 << 2) | dictBits);
         op[pos++] = frameHeaderDescriptor;
     }
 
     if (!singleSegment) {
         op[pos++] = windowByte;
     }
-
+    if (info.useDict) {
+        MEM_writeLE32(op + pos, (U32) info.dictID);
+        pos += 4;
+    }
     if (contentSizeFlag) {
         switch (fcsCode) {
         default: /* Impossible */
@@ -605,7 +622,7 @@ static inline void initSeqStore(seqStore_t *seqStore) {
 
 /* Randomly generate sequence commands */
 static U32 generateSequences(U32* seed, frame_t* frame, seqStore_t* seqStore,
-                                size_t contentSize, size_t literalsSize)
+                                size_t contentSize, size_t literalsSize, dictInfo info)
 {
     /* The total length of all the matches */
     size_t const remainingMatch = contentSize - literalsSize;
@@ -629,7 +646,6 @@ static U32 generateSequences(U32* seed, frame_t* frame, seqStore_t* seqStore,
     }
 
     DISPLAYLEVEL(5, "    total match lengths: %u\n", (U32)remainingMatch);
-
     for (i = 0; i < numSequences; i++) {
         /* Generate match and literal lengths by exponential distribution to
          * ensure nice numbers */
@@ -654,14 +670,33 @@ static U32 generateSequences(U32* seed, frame_t* frame, seqStore_t* seqStore,
 
         memcpy(srcPtr, literals, literalLen);
         srcPtr += literalLen;
-
         do {
             if (RAND(seed) & 7) {
                 /* do a normal offset */
+                U32 const dataDecompressed = (U32)((BYTE*)srcPtr-(BYTE*)frame->srcStart);
                 offset = (RAND(seed) %
                           MIN(frame->header.windowSize,
                               (size_t)((BYTE*)srcPtr - (BYTE*)frame->srcStart))) +
                          1;
+                if (info.useDict && (RAND(seed) & 1) && i + 1 != numSequences && dataDecompressed < frame->header.windowSize) {
+                    /* need to occasionally generate offsets that go past the start */
+                    /* including i+1 != numSequences because the last sequences has to adhere to predetermined contentSize */
+                    U32 lenPastStart = (RAND(seed) % info.dictContentSize) + 1;
+                    offset = (U32)((BYTE*)srcPtr - (BYTE*)frame->srcStart)+lenPastStart;
+                    if (offset > frame->header.windowSize) {
+                        if (lenPastStart < MIN_SEQ_LEN) {
+                            /* when offset > windowSize, matchLen bound by end of dictionary (lenPastStart) */
+                            /* this also means that lenPastStart must be greater than MIN_SEQ_LEN */
+                            /* make sure lenPastStart does not go past dictionary start though */
+                            lenPastStart = MIN(lenPastStart+MIN_SEQ_LEN, (U32)info.dictContentSize);
+                            offset = (U32)((BYTE*)srcPtr - (BYTE*)frame->srcStart) + lenPastStart;
+                        }
+                        {
+                            U32 const matchLenBound = MIN(frame->header.windowSize, lenPastStart);
+                            matchLen = MIN(matchLen, matchLenBound);
+                        }
+                    }
+                }
                 offsetCode = offset + ZSTD_REP_MOVE;
                 repIndex = 2;
             } else {
@@ -677,11 +712,20 @@ static U32 generateSequences(U32* seed, frame_t* frame, seqStore_t* seqStore,
                     repIndex = MIN(2, offsetCode + 1);
                 }
             }
-        } while (offset > (size_t)((BYTE*)srcPtr - (BYTE*)frame->srcStart) || offset == 0);
+        } while (((!info.useDict) && (offset > (size_t)((BYTE*)srcPtr - (BYTE*)frame->srcStart))) || offset == 0);
 
-        {   size_t j;
+        {
+            size_t j;
+            BYTE* const dictEnd = info.dictContent + info.dictContentSize;
             for (j = 0; j < matchLen; j++) {
-                *srcPtr = *(srcPtr-offset);
+                if ((U32)((BYTE*)srcPtr - (BYTE*)frame->srcStart) < offset) {
+                    /* copy from dictionary instead of literals */
+                    size_t const dictOffset = offset - (srcPtr - (BYTE*)frame->srcStart);
+                    *srcPtr = *(dictEnd - dictOffset);
+                }
+                else {
+                    *srcPtr = *(srcPtr-offset);
+                }
                 srcPtr++;
             }
         }
@@ -931,7 +975,7 @@ static size_t writeSequences(U32* seed, frame_t* frame, seqStore_t* seqStorePtr,
 }
 
 static size_t writeSequencesBlock(U32* seed, frame_t* frame, size_t contentSize,
-                                  size_t literalsSize)
+                                  size_t literalsSize, dictInfo info)
 {
     seqStore_t seqStore;
     size_t numSequences;
@@ -940,14 +984,14 @@ static size_t writeSequencesBlock(U32* seed, frame_t* frame, size_t contentSize,
     initSeqStore(&seqStore);
 
     /* randomly generate sequences */
-    numSequences = generateSequences(seed, frame, &seqStore, contentSize, literalsSize);
+    numSequences = generateSequences(seed, frame, &seqStore, contentSize, literalsSize, info);
     /* write them out to the frame data */
     CHECKERR(writeSequences(seed, frame, &seqStore, numSequences));
 
     return numSequences;
 }
 
-static size_t writeCompressedBlock(U32* seed, frame_t* frame, size_t contentSize)
+static size_t writeCompressedBlock(U32* seed, frame_t* frame, size_t contentSize, dictInfo info)
 {
     BYTE* const blockStart = (BYTE*)frame->data;
     size_t literalsSize;
@@ -959,7 +1003,7 @@ static size_t writeCompressedBlock(U32* seed, frame_t* frame, size_t contentSize
 
     DISPLAYLEVEL(4, "   literals size: %u\n", (U32)literalsSize);
 
-    nbSeq = writeSequencesBlock(seed, frame, contentSize, literalsSize);
+    nbSeq = writeSequencesBlock(seed, frame, contentSize, literalsSize, info);
 
     DISPLAYLEVEL(4, "   number of sequences: %u\n", (U32)nbSeq);
 
@@ -967,7 +1011,7 @@ static size_t writeCompressedBlock(U32* seed, frame_t* frame, size_t contentSize
 }
 
 static void writeBlock(U32* seed, frame_t* frame, size_t contentSize,
-                       int lastBlock)
+                       int lastBlock, dictInfo info)
 {
     int const blockTypeDesc = RAND(seed) % 8;
     size_t blockSize;
@@ -1007,7 +1051,7 @@ static void writeBlock(U32* seed, frame_t* frame, size_t contentSize,
         frame->oldStats = frame->stats;
 
         frame->data = op;
-        compressedSize = writeCompressedBlock(seed, frame, contentSize);
+        compressedSize = writeCompressedBlock(seed, frame, contentSize, info);
         if (compressedSize > contentSize) {
             blockType = 0;
             memcpy(op, frame->src, contentSize);
@@ -1033,7 +1077,7 @@ static void writeBlock(U32* seed, frame_t* frame, size_t contentSize,
     frame->data = op;
 }
 
-static void writeBlocks(U32* seed, frame_t* frame)
+static void writeBlocks(U32* seed, frame_t* frame, dictInfo info)
 {
     size_t contentLeft = frame->header.contentSize;
     size_t const maxBlockSize = MIN(MAX_BLOCK_SIZE, frame->header.windowSize);
@@ -1056,7 +1100,7 @@ static void writeBlocks(U32* seed, frame_t* frame)
             }
         }
 
-        writeBlock(seed, frame, blockContentSize, lastBlock);
+        writeBlock(seed, frame, blockContentSize, lastBlock, info);
 
         contentLeft -= blockContentSize;
         if (lastBlock) break;
@@ -1121,18 +1165,100 @@ static void initFrame(frame_t* fr)
 }
 
 /* Return the final seed */
-static U32 generateFrame(U32 seed, frame_t* fr)
+static U32 generateFrame(U32 seed, frame_t* fr, dictInfo info)
 {
     /* generate a complete frame */
     DISPLAYLEVEL(1, "frame seed: %u\n", seed);
-
     initFrame(fr);
 
-    writeFrameHeader(&seed, fr);
-    writeBlocks(&seed, fr);
+    writeFrameHeader(&seed, fr, info);
+    writeBlocks(&seed, fr, info);
     writeChecksum(fr);
 
     return seed;
+}
+
+/*_*******************************************************
+*  Dictionary Helper Functions
+*********************************************************/
+/* returns 0 if successful, otherwise returns 1 upon error */
+static int genRandomDict(U32 dictID, U32 seed, size_t dictSize, BYTE* fullDict){
+    /* allocate space for samples */
+    int ret = 0;
+    unsigned const numSamples = 4;
+    size_t sampleSizes[4];
+    BYTE* const samples = malloc(5000*sizeof(BYTE));
+    if (samples == NULL) {
+        DISPLAY("Error: could not allocate space for samples\n");
+        return 1;
+    }
+
+    /* generate samples */
+    {
+        unsigned literalValue = 1;
+        unsigned samplesPos = 0;
+        size_t currSize = 1;
+        while (literalValue <= 4) {
+            sampleSizes[literalValue - 1] = currSize;
+            {
+                size_t k;
+                for (k = 0; k < currSize; k++) {
+                    *(samples + (samplesPos++)) = (BYTE)literalValue;
+                }
+            }
+            literalValue++;
+            currSize *= 16;
+        }
+    }
+
+
+    {
+        /* create variables */
+        size_t dictWriteSize = 0;
+        ZDICT_params_t zdictParams;
+        size_t const headerSize = MAX(dictSize/4, 256);
+        size_t const dictContentSize = dictSize - headerSize;
+        BYTE* const dictContent = fullDict + headerSize;
+        if (dictContentSize < ZDICT_CONTENTSIZE_MIN || dictSize < ZDICT_DICTSIZE_MIN) {
+            DISPLAY("Error: dictionary size is too small\n");
+            ret = 1;
+            goto exitGenRandomDict;
+        }
+
+        /* init dictionary params */
+        memset(&zdictParams, 0, sizeof(zdictParams));
+        zdictParams.dictID = dictID;
+        zdictParams.notificationLevel = 1;
+
+        /* fill in dictionary content */
+        RAND_buffer(&seed, (void*)dictContent, dictContentSize);
+
+        /* finalize dictionary with random samples */
+        dictWriteSize = ZDICT_finalizeDictionary(fullDict, dictSize,
+                                    dictContent, dictContentSize,
+                                    samples, sampleSizes, numSamples,
+                                    zdictParams);
+
+        if (ZDICT_isError(dictWriteSize)) {
+            DISPLAY("Could not finalize dictionary: %s\n", ZDICT_getErrorName(dictWriteSize));
+            ret = 1;
+        }
+    }
+
+exitGenRandomDict:
+    free(samples);
+    return ret;
+}
+
+static dictInfo initDictInfo(int useDict, size_t dictContentSize, BYTE* dictContent, U32 dictID){
+    /* allocate space statically */
+    dictInfo dictOp;
+    memset(&dictOp, 0, sizeof(dictOp));
+    dictOp.useDict = useDict;
+    dictOp.dictContentSize = dictContentSize;
+    dictOp.dictContent = dictContent;
+    dictOp.dictID = dictID;
+    return dictOp;
 }
 
 /*-*******************************************************
@@ -1196,6 +1322,65 @@ cleanup:
     return ret;
 }
 
+static size_t testDecodeWithDict(U32 seed)
+{
+    /* create variables */
+    size_t const dictSize = RAND(&seed) % (10 << 20) + ZDICT_DICTSIZE_MIN + ZDICT_CONTENTSIZE_MIN;
+    U32 const dictID = RAND(&seed);
+    size_t errorDetected = 0;
+    BYTE* const fullDict = malloc(dictSize);
+    if (fullDict == NULL) {
+        return ERROR(GENERIC);
+    }
+
+    /* generate random dictionary */
+    {
+        int const ret = genRandomDict(dictID, seed, dictSize, fullDict);
+        if (ret != 0) {
+            errorDetected = ERROR(GENERIC);
+            goto dictTestCleanup;
+        }
+    }
+
+
+    {
+        frame_t fr;
+
+        /* generate frame */
+        {
+            size_t const headerSize = MAX(dictSize/4, 256);
+            size_t const dictContentSize = dictSize-headerSize;
+            BYTE* const dictContent = fullDict+headerSize;
+            dictInfo const info = initDictInfo(1, dictContentSize, dictContent, dictID);
+            seed = generateFrame(seed, &fr, info);
+        }
+
+        /* manually decompress and check difference */
+        {
+            ZSTD_DCtx* const dctx = ZSTD_createDCtx();
+            {
+                size_t const returnValue = ZSTD_decompress_usingDict(dctx, DECOMPRESSED_BUFFER, MAX_DECOMPRESSED_SIZE,
+                                                       fr.dataStart, (BYTE*)fr.data - (BYTE*)fr.dataStart,
+                                                       fullDict, dictSize);
+                if (ZSTD_isError(returnValue)) {
+                    errorDetected = returnValue;
+                    goto dictTestCleanup;
+                }
+            }
+
+            if (memcmp(DECOMPRESSED_BUFFER, fr.srcStart, (BYTE*)fr.src - (BYTE*)fr.srcStart) != 0) {
+                errorDetected = ERROR(corruption_detected);
+                goto dictTestCleanup;
+            }
+            ZSTD_freeDCtx(dctx);
+        }
+    }
+
+dictTestCleanup:
+    free(fullDict);
+    return errorDetected;
+}
+
 static int runTestMode(U32 seed, unsigned numFiles, unsigned const testDurationS)
 {
     unsigned fnum;
@@ -1209,25 +1394,36 @@ static int runTestMode(U32 seed, unsigned numFiles, unsigned const testDurationS
 
     for (fnum = 0; fnum < numFiles || clockSpan(startClock) < maxClockSpan; fnum++) {
         frame_t fr;
-
+        U32 const seedCopy = seed;
         if (fnum < numFiles)
             DISPLAYUPDATE("\r%u/%u        ", fnum, numFiles);
         else
             DISPLAYUPDATE("\r%u           ", fnum);
 
-        seed = generateFrame(seed, &fr);
+        {
+            dictInfo const info = initDictInfo(0, 0, NULL, 0);
+            seed = generateFrame(seed, &fr, info);
+        }
 
         {   size_t const r = testDecodeSimple(&fr);
             if (ZSTD_isError(r)) {
-                DISPLAY("Error in simple mode on test seed %u: %s\n", seed + fnum,
+                DISPLAY("Error in simple mode on test seed %u: %s\n", seedCopy,
                         ZSTD_getErrorName(r));
                 return 1;
             }
         }
         {   size_t const r = testDecodeStreaming(&fr);
             if (ZSTD_isError(r)) {
-                DISPLAY("Error in streaming mode on test seed %u: %s\n", seed + fnum,
+                DISPLAY("Error in streaming mode on test seed %u: %s\n", seedCopy,
                         ZSTD_getErrorName(r));
+                return 1;
+            }
+        }
+        {
+            /* don't create a dictionary that is too big */
+            size_t const r = testDecodeWithDict(seed);
+            if (ZSTD_isError(r)) {
+                DISPLAY("Error in dictionary mode on test seed %u: %s\n", seedCopy, ZSTD_getErrorName(r));
                 return 1;
             }
         }
@@ -1250,7 +1446,10 @@ static int generateFile(U32 seed, const char* const path,
 
     DISPLAY("seed: %u\n", seed);
 
-    generateFrame(seed, &fr);
+    {
+        dictInfo const info = initDictInfo(0, 0, NULL, 0);
+        generateFrame(seed, &fr, info);
+    }
 
     outputBuffer(fr.dataStart, (BYTE*)fr.data - (BYTE*)fr.dataStart, path);
     if (origPath) {
@@ -1272,7 +1471,10 @@ static int generateCorpus(U32 seed, unsigned numFiles, const char* const path,
 
         DISPLAYUPDATE("\r%u/%u        ", fnum, numFiles);
 
-        seed = generateFrame(seed, &fr);
+        {
+            dictInfo const info = initDictInfo(0, 0, NULL, 0);
+            seed = generateFrame(seed, &fr, info);
+        }
 
         if (snprintf(outPath, MAX_PATH, "%s/z%06u.zst", path, fnum) + 1 > MAX_PATH) {
             DISPLAY("Error: path too long\n");
@@ -1292,6 +1494,93 @@ static int generateCorpus(U32 seed, unsigned numFiles, const char* const path,
     DISPLAY("\r%u/%u      \n", fnum, numFiles);
 
     return 0;
+}
+
+static int generateCorpusWithDict(U32 seed, unsigned numFiles, const char* const path,
+                                    const char* const origPath, const size_t dictSize)
+{
+    char outPath[MAX_PATH];
+    BYTE* fullDict;
+    U32 const dictID = RAND(&seed);
+    int errorDetected = 0;
+
+    if (snprintf(outPath, MAX_PATH, "%s/dictionary", path) + 1 > MAX_PATH) {
+        DISPLAY("Error: path too long\n");
+        return 1;
+    }
+
+    /* allocate space for the dictionary */
+    fullDict = malloc(dictSize);
+    if (fullDict == NULL) {
+        DISPLAY("Error: could not allocate space for full dictionary.\n");
+        return 1;
+    }
+
+    /* randomly generate the dictionary */
+    {
+        int const ret = genRandomDict(dictID, seed, dictSize, fullDict);
+        if (ret != 0) {
+            errorDetected = ret;
+            goto dictCleanup;
+        }
+    }
+
+    /* write out dictionary */
+    if (numFiles != 0) {
+        if (snprintf(outPath, MAX_PATH, "%s/dictionary", path) + 1 > MAX_PATH) {
+            DISPLAY("Error: dictionary path too long\n");
+            errorDetected = 1;
+            goto dictCleanup;
+        }
+        outputBuffer(fullDict, dictSize, outPath);
+    }
+    else {
+        outputBuffer(fullDict, dictSize, "dictionary");
+    }
+
+    /* generate random compressed/decompressed files */
+    {
+        unsigned fnum;
+        for (fnum = 0; fnum < MAX(numFiles, 1); fnum++) {
+            frame_t fr;
+            DISPLAYUPDATE("\r%u/%u        ", fnum, numFiles);
+            {
+                size_t const headerSize = MAX(dictSize/4, 256);
+                size_t const dictContentSize = dictSize-headerSize;
+                BYTE* const dictContent = fullDict+headerSize;
+                dictInfo const info = initDictInfo(1, dictContentSize, dictContent, dictID);
+                seed = generateFrame(seed, &fr, info);
+            }
+
+            if (numFiles != 0) {
+                if (snprintf(outPath, MAX_PATH, "%s/z%06u.zst", path, fnum) + 1 > MAX_PATH) {
+                    DISPLAY("Error: path too long\n");
+                    errorDetected = 1;
+                    goto dictCleanup;
+                }
+                outputBuffer(fr.dataStart, (BYTE*)fr.data - (BYTE*)fr.dataStart, outPath);
+
+                if (origPath) {
+                    if (snprintf(outPath, MAX_PATH, "%s/z%06u", origPath, fnum) + 1 > MAX_PATH) {
+                        DISPLAY("Error: path too long\n");
+                        errorDetected = 1;
+                        goto dictCleanup;
+                    }
+                    outputBuffer(fr.srcStart, (BYTE*)fr.src - (BYTE*)fr.srcStart, outPath);
+                }
+            }
+            else {
+                outputBuffer(fr.dataStart, (BYTE*)fr.data - (BYTE*)fr.dataStart, path);
+                if (origPath) {
+                    outputBuffer(fr.srcStart, (BYTE*)fr.src - (BYTE*)fr.srcStart, origPath);
+                }
+            }
+        }
+    }
+
+dictCleanup:
+    free(fullDict);
+    return errorDetected;
 }
 
 
@@ -1339,6 +1628,40 @@ static void advancedUsage(const char* programName)
     DISPLAY( "\n");
     DISPLAY( "Advanced arguments :\n");
     DISPLAY( " --content-size    : always include the content size in the frame header\n");
+    DISPLAY( " --use-dict=#      : include a dictionary used to decompress the corpus\n");
+}
+
+/*! readU32FromChar() :
+    @return : unsigned integer value read from input in `char` format
+    allows and interprets K, KB, KiB, M, MB and MiB suffix.
+    Will also modify `*stringPtr`, advancing it to position where it stopped reading.
+    Note : function result can overflow if digit string > MAX_UINT */
+static unsigned readU32FromChar(const char** stringPtr)
+{
+    unsigned result = 0;
+    while ((**stringPtr >='0') && (**stringPtr <='9'))
+        result *= 10, result += **stringPtr - '0', (*stringPtr)++ ;
+    if ((**stringPtr=='K') || (**stringPtr=='M')) {
+        result <<= 10;
+        if (**stringPtr=='M') result <<= 10;
+        (*stringPtr)++ ;
+        if (**stringPtr=='i') (*stringPtr)++;
+        if (**stringPtr=='B') (*stringPtr)++;
+    }
+    return result;
+}
+
+/** longCommandWArg() :
+ *  check if *stringPtr is the same as longCommand.
+ *  If yes, @return 1 and advances *stringPtr to the position which immediately follows longCommand.
+ *  @return 0 and doesn't modify *stringPtr otherwise.
+ */
+static unsigned longCommandWArg(const char** stringPtr, const char* longCommand)
+{
+    size_t const comSize = strlen(longCommand);
+    int const result = !strncmp(*stringPtr, longCommand, comSize);
+    if (result) *stringPtr += comSize;
+    return result;
 }
 
 int main(int argc, char** argv)
@@ -1350,6 +1673,8 @@ int main(int argc, char** argv)
     int testMode = 0;
     const char* path = NULL;
     const char* origPath = NULL;
+    int useDict = 0;
+    unsigned dictSize = (10 << 10); /* 10 kB default */
 
     int argNb;
 
@@ -1410,6 +1735,9 @@ int main(int argc, char** argv)
                     argument++;
                     if (strcmp(argument, "content-size") == 0) {
                         opts.contentSize = 1;
+                    } else if (longCommandWArg(&argument, "use-dict=")) {
+                        dictSize = readU32FromChar(&argument);
+                        useDict = 1;
                     } else {
                         advancedUsage(argv[0]);
                         return 1;
@@ -1441,9 +1769,13 @@ int main(int argc, char** argv)
         return 1;
     }
 
-    if (numFiles == 0) {
+    if (numFiles == 0 && useDict == 0) {
         return generateFile(seed, path, origPath);
-    } else {
+    } else if (useDict == 0){
         return generateCorpus(seed, numFiles, path, origPath);
+    } else {
+        /* should generate files with a dictionary */
+        return generateCorpusWithDict(seed, numFiles, path, origPath, dictSize);
     }
+
 }

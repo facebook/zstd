@@ -56,7 +56,9 @@
 #define ZSTD_GUNZIP "gunzip"
 #define ZSTD_GZCAT "gzcat"
 #define ZSTD_LZMA "lzma"
+#define ZSTD_UNLZMA "unlzma"
 #define ZSTD_XZ "xz"
+#define ZSTD_UNXZ "unxz"
 
 #define KB *(1 <<10)
 #define MB *(1 <<20)
@@ -117,6 +119,7 @@ static int usage_advanced(const char* programName)
     DISPLAY( " -v     : verbose mode; specify multiple times to increase verbosity\n");
     DISPLAY( " -q     : suppress warnings; specify twice to suppress errors too\n");
     DISPLAY( " -c     : force write to standard output, even if it is the console\n");
+    DISPLAY( " -l     : print information about zstd compressed files.\n");
 #ifndef ZSTD_NOCOMPRESS
     DISPLAY( "--ultra : enable levels beyond %i, up to %i (requires more memory)\n", ZSTDCLI_CLEVEL_MAX, ZSTD_maxCLevel());
 #ifdef ZSTD_MULTITHREAD
@@ -148,6 +151,7 @@ static int usage_advanced(const char* programName)
 #endif
 #endif
     DISPLAY( " -M#    : Set a memory usage limit for decompression \n");
+    DISPLAY( "--list  : list information about a zstd compressed file \n");
     DISPLAY( "--      : All arguments after \"--\" are treated as files \n");
 #ifndef ZSTD_NODICT
     DISPLAY( "\n");
@@ -244,7 +248,7 @@ static unsigned longCommandWArg(const char** stringPtr, const char* longCommand)
  * @return 1 means that cover parameters were correct
  * @return 0 in case of malformed parameters
  */
-static unsigned parseCoverParameters(const char* stringPtr, COVER_params_t* params)
+static unsigned parseCoverParameters(const char* stringPtr, ZDICT_cover_params_t* params)
 {
     memset(params, 0, sizeof(*params));
     for (; ;) {
@@ -273,9 +277,9 @@ static unsigned parseLegacyParameters(const char* stringPtr, unsigned* selectivi
     return 1;
 }
 
-static COVER_params_t defaultCoverParams(void)
+static ZDICT_cover_params_t defaultCoverParams(void)
 {
-    COVER_params_t params;
+    ZDICT_cover_params_t params;
     memset(&params, 0, sizeof(params));
     params.d = 8;
     params.steps = 4;
@@ -298,7 +302,7 @@ static unsigned parseCompressionParameters(const char* stringPtr, ZSTD_compressi
         if (longCommandWArg(&stringPtr, "searchLog=") || longCommandWArg(&stringPtr, "slog=")) { params->searchLog = readU32FromChar(&stringPtr); if (stringPtr[0]==',') { stringPtr++; continue; } else break; }
         if (longCommandWArg(&stringPtr, "searchLength=") || longCommandWArg(&stringPtr, "slen=")) { params->searchLength = readU32FromChar(&stringPtr); if (stringPtr[0]==',') { stringPtr++; continue; } else break; }
         if (longCommandWArg(&stringPtr, "targetLength=") || longCommandWArg(&stringPtr, "tlen=")) { params->targetLength = readU32FromChar(&stringPtr); if (stringPtr[0]==',') { stringPtr++; continue; } else break; }
-        if (longCommandWArg(&stringPtr, "strategy=") || longCommandWArg(&stringPtr, "strat=")) { params->strategy = (ZSTD_strategy)(1 + readU32FromChar(&stringPtr)); if (stringPtr[0]==',') { stringPtr++; continue; } else break; }
+        if (longCommandWArg(&stringPtr, "strategy=") || longCommandWArg(&stringPtr, "strat=")) { params->strategy = (ZSTD_strategy)(readU32FromChar(&stringPtr)); if (stringPtr[0]==',') { stringPtr++; continue; } else break; }
         if (longCommandWArg(&stringPtr, "overlapLog=") || longCommandWArg(&stringPtr, "ovlog=")) { g_overlapLog = readU32FromChar(&stringPtr); if (stringPtr[0]==',') { stringPtr++; continue; } else break; }
         return 0;
     }
@@ -310,7 +314,7 @@ static unsigned parseCompressionParameters(const char* stringPtr, ZSTD_compressi
 }
 
 
-typedef enum { zom_compress, zom_decompress, zom_test, zom_bench, zom_train } zstd_operation_mode;
+typedef enum { zom_compress, zom_decompress, zom_test, zom_bench, zom_train, zom_list } zstd_operation_mode;
 
 #define CLEAN_RETURN(i) { operationResult = (i); goto _end; }
 
@@ -354,7 +358,7 @@ int main(int argCount, const char* argv[])
     unsigned fileNamesNb;
 #endif
 #ifndef ZSTD_NODICT
-    COVER_params_t coverParams = defaultCoverParams();
+    ZDICT_cover_params_t coverParams = defaultCoverParams();
     int cover = 1;
 #endif
 
@@ -377,7 +381,9 @@ int main(int argCount, const char* argv[])
     if (exeNameMatch(programName, ZSTD_GUNZIP)) { operation=zom_decompress; FIO_setRemoveSrcFile(1); }                                          /* behave like gunzip */
     if (exeNameMatch(programName, ZSTD_GZCAT)) { operation=zom_decompress; forceStdout=1; FIO_overwriteMode(); outFileName=stdoutmark; g_displayLevel=1; }  /* behave like gzcat */
     if (exeNameMatch(programName, ZSTD_LZMA)) { suffix = LZMA_EXTENSION; FIO_setCompressionType(FIO_lzmaCompression); FIO_setRemoveSrcFile(1); }    /* behave like lzma */
+    if (exeNameMatch(programName, ZSTD_UNLZMA)) { operation=zom_decompress; FIO_setCompressionType(FIO_lzmaCompression); FIO_setRemoveSrcFile(1); }    /* behave like unlzma */
     if (exeNameMatch(programName, ZSTD_XZ)) { suffix = XZ_EXTENSION; FIO_setCompressionType(FIO_xzCompression); FIO_setRemoveSrcFile(1); }    /* behave like xz */
+    if (exeNameMatch(programName, ZSTD_UNXZ)) { operation=zom_decompress; FIO_setCompressionType(FIO_xzCompression); FIO_setRemoveSrcFile(1); }    /* behave like unxz */
     memset(&compressionParams, 0, sizeof(compressionParams));
 
     /* command switches */
@@ -401,6 +407,7 @@ int main(int argCount, const char* argv[])
                 if (argument[1]=='-') {
                     /* long commands (--long-word) */
                     if (!strcmp(argument, "--")) { nextArgumentsAreFiles=1; continue; }   /* only file names allowed from now on */
+                    if (!strcmp(argument, "--list")) { operation=zom_list; continue; }
                     if (!strcmp(argument, "--compress")) { operation=zom_compress; continue; }
                     if (!strcmp(argument, "--decompress")) { operation=zom_decompress; continue; }
                     if (!strcmp(argument, "--uncompress")) { operation=zom_decompress; continue; }
@@ -531,7 +538,7 @@ int main(int argCount, const char* argv[])
                         argument++;
                         memLimit = readU32FromChar(&argument);
                         break;
-
+                    case 'l': operation=zom_list; argument++; break;
 #ifdef UTIL_HAS_CREATEFILELIST
                         /* recursive */
                     case 'r': recursive=1; argument++; break;
@@ -672,7 +679,10 @@ int main(int argCount, const char* argv[])
         }
     }
 #endif
-
+    if (operation == zom_list) {
+        int const ret = FIO_listMultipleFiles(filenameIdx, filenameTable, g_displayLevel);
+        CLEAN_RETURN(ret);
+    }
     /* Check if benchmark is selected */
     if (operation==zom_bench) {
 #ifndef ZSTD_NOBENCH
@@ -689,20 +699,20 @@ int main(int argCount, const char* argv[])
     /* Check if dictionary builder is selected */
     if (operation==zom_train) {
 #ifndef ZSTD_NODICT
+        ZDICT_params_t zParams;
+        zParams.compressionLevel = dictCLevel;
+        zParams.notificationLevel = g_displayLevel;
+        zParams.dictID = dictID;
         if (cover) {
             int const optimize = !coverParams.k || !coverParams.d;
             coverParams.nbThreads = nbThreads;
-            coverParams.compressionLevel = dictCLevel;
-            coverParams.notificationLevel = g_displayLevel;
-            coverParams.dictID = dictID;
+            coverParams.zParams = zParams;
             operationResult = DiB_trainFromFiles(outFileName, maxDictSize, filenameTable, filenameIdx, NULL, &coverParams, optimize);
         } else {
-            ZDICT_params_t dictParams;
+            ZDICT_legacy_params_t dictParams;
             memset(&dictParams, 0, sizeof(dictParams));
-            dictParams.compressionLevel = dictCLevel;
             dictParams.selectivityLevel = dictSelect;
-            dictParams.notificationLevel = g_displayLevel;
-            dictParams.dictID = dictID;
+            dictParams.zParams = zParams;
             operationResult = DiB_trainFromFiles(outFileName, maxDictSize, filenameTable, filenameIdx, &dictParams, NULL, 0);
         }
 #endif

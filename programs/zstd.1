@@ -1,5 +1,5 @@
 .
-.TH "ZSTD" "1" "May 2017" "zstd 1.2.0" "User Commands"
+.TH "ZSTD" "1" "June 2017" "zstd 1.3.0" "User Commands"
 .
 .SH "NAME"
 \fBzstd\fR \- zstd, zstdmt, unzstd, zstdcat \- Compress or decompress \.zst files
@@ -88,6 +88,10 @@ Benchmark file(s) using compression level #
 .TP
 \fB\-\-train FILEs\fR
 Use FILEs as a training set to create a dictionary\. The training set should contain a lot of small files (> 100)\.
+.
+.TP
+\fB\-l\fR, \fB\-\-list\fR
+Display information related to a zstd compressed file, such as size, ratio, and checksum\. Some of these fields may not be available\. This command can be augmented with the \fB\-v\fR modifier\.
 .
 .SS "Operation modifiers"
 .
@@ -235,8 +239,8 @@ benchmark file(s) using multiple compression levels, from \fB\-b#\fR to \fB\-e#\
 minimum evaluation time, in seconds (default : 3s), benchmark mode only
 .
 .TP
-\fB\-B#\fR
-cut file into independent blocks of size # (default: no block)
+\fB\-B#\fR, \fB\-\-block\-size=#\fR
+cut file(s) into independent blocks of size # (default: no block)
 .
 .TP
 \fB\-\-priority=rt\fR
@@ -252,7 +256,7 @@ set process priority to real\-time
 Specify a strategy used by a match finder\.
 .
 .IP
-There are 8 strategies numbered from 0 to 7, from faster to stronger: 0=ZSTD_fast, 1=ZSTD_dfast, 2=ZSTD_greedy, 3=ZSTD_lazy, 4=ZSTD_lazy2, 5=ZSTD_btlazy2, 6=ZSTD_btopt, 7=ZSTD_btopt2\.
+There are 8 strategies numbered from 1 to 8, from faster to stronger: 1=ZSTD_fast, 2=ZSTD_dfast, 3=ZSTD_greedy, 4=ZSTD_lazy, 5=ZSTD_lazy2, 6=ZSTD_btlazy2, 7=ZSTD_btopt, 8=ZSTD_btultra\.
 .
 .TP
 \fBwindowLog\fR=\fIwlog\fR, \fBwlog\fR=\fIwlog\fR
@@ -306,7 +310,7 @@ The minimum \fIslen\fR is 3 and the maximum is 7\.
 Specify the minimum match length that causes a match finder to stop searching for better matches\.
 .
 .IP
-A larger minimum match length usually improves compression ratio but decreases compression speed\. This option is only used with strategies ZSTD_btopt and ZSTD_btopt2\.
+A larger minimum match length usually improves compression ratio but decreases compression speed\. This option is only used with strategies ZSTD_btopt and ZSTD_btultra\.
 .
 .IP
 The minimum \fItlen\fR is 4 and the maximum is 999\.

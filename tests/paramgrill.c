@@ -38,7 +38,7 @@
 #define GB *(1ULL<<30)
 
 #define NBLOOPS    2
-#define TIMELOOP   (2 * CLOCKS_PER_SEC)
+#define TIMELOOP  (2 * CLOCKS_PER_SEC)
 
 #define NB_LEVELS_TRACKED 30
 
@@ -47,7 +47,7 @@ static const size_t maxMemory = (sizeof(size_t)==4)  ?  (2 GB - 64 MB) : (size_t
 #define COMPRESSIBILITY_DEFAULT 0.50
 static const size_t sampleSize = 10000000;
 
-static const U32 g_grillDuration_s = 60000;   /* about 16 hours */
+static const double g_grillDuration_s = 90000;   /* about 24 hours */
 static const clock_t g_maxParamTime = 15 * CLOCKS_PER_SEC;
 static const clock_t g_maxVariationTime = 60 * CLOCKS_PER_SEC;
 static const int g_maxNbVariations = 64;
@@ -87,9 +87,11 @@ void BMK_SetNbIterations(int nbLoops)
 *  Private functions
 *********************************************************/
 
-static clock_t BMK_clockSpan(clock_t cStart) { return clock() - cStart; }  /* works even if overflow ; max span ~ 30 mn */
+/* works even if overflow ; max span ~ 30 mn */
+static clock_t BMK_clockSpan(clock_t cStart) { return clock() - cStart; }
 
-static U32 BMK_timeSpan(time_t tStart) { return (U32)difftime(time(NULL), tStart); }  /* accuracy in seconds only, span can be multiple years */
+/* accuracy in seconds only, span can be multiple years */
+static double BMK_timeSpan(time_t tStart) { return difftime(time(NULL), tStart); }
 
 
 static size_t BMK_findMaxMem(U64 requiredMem)
@@ -307,14 +309,14 @@ static size_t BMK_benchParam(BMK_result_t* resultPtr,
 }
 
 
-const char* g_stratName[] = { "ZSTD_fast   ",
-                              "ZSTD_dfast  ",
-                              "ZSTD_greedy ",
-                              "ZSTD_lazy   ",
-                              "ZSTD_lazy2  ",
-                              "ZSTD_btlazy2",
-                              "ZSTD_btopt  ",
-                              "ZSTD_btopt2 "};
+const char* g_stratName[] = { "ZSTD_fast    ",
+                              "ZSTD_dfast   ",
+                              "ZSTD_greedy  ",
+                              "ZSTD_lazy    ",
+                              "ZSTD_lazy2   ",
+                              "ZSTD_btlazy2 ",
+                              "ZSTD_btopt   ",
+                              "ZSTD_btultra "};
 
 static void BMK_printWinner(FILE* f, U32 cLevel, BMK_result_t result, ZSTD_compressionParameters params, size_t srcSize)
 {
@@ -388,8 +390,8 @@ static int BMK_seed(winnerInfo_t* winners, const ZSTD_compressionParameters para
             double W_DMemUsed_note = W_ratioNote * ( 40 + 9*cLevel) - log((double)W_DMemUsed);
             double O_DMemUsed_note = O_ratioNote * ( 40 + 9*cLevel) - log((double)O_DMemUsed);
 
-            size_t W_CMemUsed = (1 << params.windowLog) + ZSTD_estimateCCtxSize(params);
-            size_t O_CMemUsed = (1 << winners[cLevel].params.windowLog) + ZSTD_estimateCCtxSize(winners[cLevel].params);
+            size_t W_CMemUsed = (1 << params.windowLog) + ZSTD_estimateCCtxSize_advanced(params);
+            size_t O_CMemUsed = (1 << winners[cLevel].params.windowLog) + ZSTD_estimateCCtxSize_advanced(winners[cLevel].params);
             double W_CMemUsed_note = W_ratioNote * ( 50 + 13*cLevel) - log((double)W_CMemUsed);
             double O_CMemUsed_note = O_ratioNote * ( 50 + 13*cLevel) - log((double)O_CMemUsed);
 
@@ -454,7 +456,7 @@ static ZSTD_compressionParameters* sanitizeParams(ZSTD_compressionParameters par
         g_params.chainLog = 0, g_params.searchLog = 0;
     if (params.strategy == ZSTD_dfast)
         g_params.searchLog = 0;
-    if (params.strategy != ZSTD_btopt && params.strategy != ZSTD_btopt2)
+    if (params.strategy != ZSTD_btopt && params.strategy != ZSTD_btultra)
         g_params.targetLength = 0;
     return &g_params;
 }
@@ -558,7 +560,7 @@ static ZSTD_compressionParameters randomParams(void)
         p.windowLog  = FUZ_rand(&g_rand) % (ZSTD_WINDOWLOG_MAX+1 - ZSTD_WINDOWLOG_MIN) + ZSTD_WINDOWLOG_MIN;
         p.searchLength=FUZ_rand(&g_rand) % (ZSTD_SEARCHLENGTH_MAX+1 - ZSTD_SEARCHLENGTH_MIN) + ZSTD_SEARCHLENGTH_MIN;
         p.targetLength=FUZ_rand(&g_rand) % (ZSTD_TARGETLENGTH_MAX+1 - ZSTD_TARGETLENGTH_MIN) + ZSTD_TARGETLENGTH_MIN;
-        p.strategy   = (ZSTD_strategy) (FUZ_rand(&g_rand) % (ZSTD_btopt2 +1));
+        p.strategy   = (ZSTD_strategy) (FUZ_rand(&g_rand) % (ZSTD_btultra +1));
         validated = !ZSTD_isError(ZSTD_checkCParams(p));
     }
     return p;

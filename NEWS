@@ -1,3 +1,18 @@
+v1.3.0
+cli : new : `--list` command, by Paul Cruz
+cli : changed : xz/lzma support enabled by default
+cli : changed : `-t *` continue processing list after a decompression error
+API : added : ZSTD_versionString()
+API : promoted to stable status : ZSTD_getFrameContentSize(), by Sean Purcell
+API exp : new advanced API : ZSTD_compress_generic(), ZSTD_CCtx_setParameter()
+API exp : new : API for static or external allocation : ZSTD_initStatic?Ctx()
+API exp : added : ZSTD_decompressBegin_usingDDict(), requested by Guy Riddle (#700)
+API exp : clarified memory estimation / measurement functions.
+API exp : changed : strongest strategy renamed ZSTD_btultra, fastest strategy ZSTD_fast set to 1
+tools : decodecorpus can generate random dictionary-compressed samples, by Paul Cruz
+new : contrib/seekable_format, demo and API, by Sean Purcell
+changed : contrib/linux-kernel, updated version and license, by Nick Terrell
+
 v1.2.0
 cli : changed : Multithreading enabled by default (use target zstd-nomt or HAVE_THREAD=0 to disable)
 cli : new : command -T0 means "detect and use nb of cores", by Sean Purcell

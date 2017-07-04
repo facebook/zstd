@@ -3786,7 +3786,7 @@ size_t ZSTD_compressStream_generic(ZSTD_CStream* zcs,
     U32 someMoreWork = 1;
 
     /* check expectations */
-    DEBUGLOG(5, "ZSTD_compressStream_generic, order %u", (U32)flushMode);
+    DEBUGLOG(5, "ZSTD_compressStream_generic, flush=%u", (U32)flushMode);
     assert(zcs->inBuff != NULL);
     assert(zcs->inBuffSize>0);
     assert(zcs->outBuff!= NULL);
@@ -3880,11 +3880,13 @@ size_t ZSTD_compressStream_generic(ZSTD_CStream* zcs,
             {   size_t const toFlush = zcs->outBuffContentSize - zcs->outBuffFlushedSize;
                 size_t const flushed = ZSTD_limitCopy(op, oend-op,
                             zcs->outBuff + zcs->outBuffFlushedSize, toFlush);
-                DEBUGLOG(5, "toFlush: %u  ; flushed: %u", (U32)toFlush, (U32)flushed);
+                DEBUGLOG(5, "toFlush: %u into %u ==> flushed: %u",
+                            (U32)toFlush, (U32)(oend-op), (U32)flushed);
                 op += flushed;
                 zcs->outBuffFlushedSize += flushed;
                 if (toFlush!=flushed) {
-                    /* dst too small to store flushed data : stop there */
+                    /* flush not fully completed, presumably because dst is too small */
+                    assert(op==oend);
                     someMoreWork = 0;
                     break;
                 }
@@ -4016,10 +4018,13 @@ size_t ZSTD_endStream(ZSTD_CStream* zcs, ZSTD_outBuffer* output)
     ZSTD_inBuffer input = { NULL, 0, 0 };
     if (output->pos > output->size) return ERROR(GENERIC);
     CHECK_F( ZSTD_compressStream_generic(zcs, output, &input, ZSTD_e_end) );
-
-    DEBUGLOG(5, "ZSTD_endStream : remaining to flush : %u",
-            (unsigned)(zcs->outBuffContentSize - zcs->outBuffFlushedSize));
-    return zcs->outBuffContentSize - zcs->outBuffFlushedSize;
+    {   size_t const lastBlockSize = zcs->frameEnded ? 0 : ZSTD_BLOCKHEADERSIZE;
+        size_t const checksumSize = zcs->frameEnded ? 0 : zcs->appliedParams.fParams.checksumFlag * 4;
+        size_t const toFlush = zcs->outBuffContentSize - zcs->outBuffFlushedSize + lastBlockSize + checksumSize;
+        DEBUGLOG(5, "ZSTD_endStream : remaining to flush : %u",
+                (unsigned)toFlush);
+        return toFlush;
+    }
 }
 
 
@@ -4138,7 +4143,7 @@ static const ZSTD_compressionParameters ZSTD_defaultCParameters[4][ZSTD_MAX_CLEV
 #if defined(ZSTD_DEBUG) && (ZSTD_DEBUG>=1)
 /* This function just controls
  * the monotonic memory budget increase of ZSTD_defaultCParameters[0].
- * Run only once, on first ZSTD_getCParams() usage, when ZSTD_DEBUG is enabled
+ * Run once, on first ZSTD_getCParams() usage, if ZSTD_DEBUG is enabled
  */
 MEM_STATIC void ZSTD_check_compressionLevel_monotonicIncrease_memoryBudget(void)
 {
@@ -4146,7 +4151,6 @@ MEM_STATIC void ZSTD_check_compressionLevel_monotonicIncrease_memoryBudget(void)
     for (level=1; level<ZSTD_maxCLevel(); level++) {
         ZSTD_compressionParameters const c1 = ZSTD_defaultCParameters[0][level];
         ZSTD_compressionParameters const c2 = ZSTD_defaultCParameters[0][level+1];
-        DEBUGLOG(3, "controlling compression params level %i", level);
         assert(c1.windowLog <= c2.windowLog);
 #       define ZSTD_TABLECOST(h,c) ((1<<(h)) + (1<<(c)))
         assert(ZSTD_TABLECOST(c1.hashLog, c1.chainLog) <= ZSTD_TABLECOST(c2.hashLog, c2.chainLog));

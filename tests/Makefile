@@ -25,8 +25,8 @@ PRGDIR  = ../programs
 PYTHON ?= python3
 TESTARTEFACT := versionsTest namespaceTest
 
-
-DEBUGFLAGS= -g -DZSTD_DEBUG=1
+DEBUGLEVEL= 1
+DEBUGFLAGS= -g -DZSTD_DEBUG=$(DEBUGLEVEL)
 CPPFLAGS += -I$(ZSTDDIR) -I$(ZSTDDIR)/common -I$(ZSTDDIR)/compress \
             -I$(ZSTDDIR)/dictBuilder -I$(ZSTDDIR)/deprecated -I$(PRGDIR)
 CFLAGS   ?= -O3
@@ -35,8 +35,7 @@ CFLAGS   += -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow                 \
             -Wstrict-prototypes -Wundef -Wformat-security                   \
             -Wvla -Wformat=2 -Winit-self -Wfloat-equal -Wwrite-strings      \
             -Wredundant-decls
-CFLAGS   += $(DEBUGFLAGS)
-CFLAGS   += $(MOREFLAGS)
+CFLAGS   += $(DEBUGFLAGS) $(MOREFLAGS)
 FLAGS     = $(CPPFLAGS) $(CFLAGS) $(LDFLAGS)
 
 

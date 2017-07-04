@@ -122,7 +122,8 @@ static size_t ZSTDMT_sizeof_bufferPool(ZSTDMT_bufferPool* bufPool)
     return poolSize + totalBufferSize;
 }
 
-/* assumption : invocation from main thread only ! */
+/** ZSTDMT_getBuffer() :
+ *  assumption : invocation from main thread only ! */
 static buffer_t ZSTDMT_getBuffer(ZSTDMT_bufferPool* pool, size_t bSize)
 {
     if (pool->nbBuffers) {   /* try to use an existing buffer */
@@ -190,7 +191,7 @@ static ZSTDMT_CCtxPool* ZSTDMT_createCCtxPool(unsigned nbThreads,
     cctxPool->availCCtx = 1;   /* at least one cctx for single-thread mode */
     cctxPool->cctx[0] = ZSTD_createCCtx_advanced(cMem);
     if (!cctxPool->cctx[0]) { ZSTDMT_freeCCtxPool(cctxPool); return NULL; }
-    DEBUGLOG(4, "cctxPool created, with %u threads", nbThreads);
+    DEBUGLOG(3, "cctxPool created, with %u threads", nbThreads);
     return cctxPool;
 }
 
@@ -369,7 +370,7 @@ ZSTDMT_CCtx* ZSTDMT_createCCtx_advanced(unsigned nbThreads, ZSTD_customMem cMem)
     }
     pthread_mutex_init(&mtctx->jobCompleted_mutex, NULL);   /* Todo : check init function return */
     pthread_cond_init(&mtctx->jobCompleted_cond, NULL);
-    DEBUGLOG(4, "mt_cctx created, for %u threads", nbThreads);
+    DEBUGLOG(3, "mt_cctx created, for %u threads", nbThreads);
     return mtctx;
 }
 
@@ -383,7 +384,7 @@ ZSTDMT_CCtx* ZSTDMT_createCCtx(unsigned nbThreads)
 static void ZSTDMT_releaseAllJobResources(ZSTDMT_CCtx* mtctx)
 {
     unsigned jobID;
-    DEBUGLOG(4, "ZSTDMT_releaseAllJobResources");
+    DEBUGLOG(3, "ZSTDMT_releaseAllJobResources");
     for (jobID=0; jobID <= mtctx->jobIDMask; jobID++) {
         ZSTDMT_releaseBuffer(mtctx->buffPool, mtctx->jobs[jobID].dstBuff);
         mtctx->jobs[jobID].dstBuff = g_nullBuffer;
@@ -856,7 +857,7 @@ size_t ZSTDMT_compressStream_generic(ZSTDMT_CCtx* mtctx,
     assert(output->pos <= output->size);
     assert(input->pos  <= input->size);
     if ((mtctx->frameEnded) && (endOp==ZSTD_e_continue)) {
-        /* current frame being ended. Only flush/end are allowed. Or start new job with init */
+        /* current frame being ended. Only flush/end are allowed. Or start new frame with init */
         return ERROR(stage_wrong);
     }
     if (mtctx->nbThreads==1) {
@@ -865,8 +866,8 @@ size_t ZSTDMT_compressStream_generic(ZSTDMT_CCtx* mtctx,
 
     /* single-pass shortcut (note : this is blocking-mode) */
     if ( (mtctx->nextJobID==0)      /* just started */
-      && (mtctx->inBuff.filled==0)  /* nothing buffered yet */
-      && (endOp==ZSTD_e_end)        /* end order, immediately at beginning */
+      && (mtctx->inBuff.filled==0)  /* nothing buffered */
+      && (endOp==ZSTD_e_end)        /* end order */
       && (output->size - output->pos >= ZSTD_compressBound(input->size - input->pos)) ) { /* enough room */
         size_t const cSize = ZSTDMT_compress_advanced(mtctx,
                 (char*)output->dst + output->pos, output->size - output->pos,
@@ -879,11 +880,12 @@ size_t ZSTDMT_compressStream_generic(ZSTDMT_CCtx* mtctx,
         mtctx->allJobsCompleted = 1;
         mtctx->frameEnded = 1;
         return 0;
-      }
+    }
 
     /* fill input buffer */
-    if (input->src) {   /* support NULL input */
+    if ((input->src) && (mtctx->inBuff.buffer.start)) {   /* support NULL input */
         size_t const toLoad = MIN(input->size - input->pos, mtctx->inBuffSize - mtctx->inBuff.filled);
+        DEBUGLOG(2, "inBuff:%08X;  inBuffSize=%u;  ToCopy=%u", (U32)(size_t)mtctx->inBuff.buffer.start, (U32)mtctx->inBuffSize, (U32)toLoad);
         memcpy((char*)mtctx->inBuff.buffer.start + mtctx->inBuff.filled, (const char*)input->src + input->pos, toLoad);
         input->pos += toLoad;
         mtctx->inBuff.filled += toLoad;

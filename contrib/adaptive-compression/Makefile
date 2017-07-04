@@ -29,3 +29,4 @@ clean:
 	@$(RM) -f v1 v2
 	@$(RM) -rf *.dSYM
 	@$(RM) -f tmp*
+	@echo "finished cleaning"

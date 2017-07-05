@@ -1,6 +1,8 @@
 #define DISPLAY(...) fprintf(stderr, __VA_ARGS__)
 #define FILE_CHUNK_SIZE 4 << 20
 #define MAX_NUM_JOBS 30;
+#define stdinmark  "/*stdin*\\"
+#define stdoutmark "/*stdout*\\"
 typedef unsigned char BYTE;
 
 #include <stdio.h>      /* fprintf */
@@ -125,7 +127,8 @@ static adaptCCtx* createCCtx(unsigned numJobs, const char* const outFilename)
         return NULL;
     }
     {
-        FILE* dstFile = fopen(outFilename, "wb");
+        unsigned const stdoutUsed = !strcmp(outFilename, stdoutmark);
+        FILE* dstFile = stdoutUsed ? stdout : fopen(outFilename, "wb");
         if (dstFile == NULL) {
             DISPLAY("Error: could not open output file\n");
             freeCCtx(ctx);
@@ -267,7 +270,8 @@ static int createCompressionJob(adaptCCtx* ctx, BYTE* data, size_t srcSize)
 static int compressFilename(const char* const srcFilename, const char* const dstFilename)
 {
     BYTE* const src = malloc(FILE_CHUNK_SIZE);
-    FILE* const srcFile = fopen(srcFilename, "rb");
+    unsigned const stdinUsed = !strcmp(srcFilename, stdinmark);
+    FILE* const srcFile = stdinUsed ? stdin : fopen(srcFilename, "rb");
     size_t const numJobs = MAX_NUM_JOBS;
     int ret = 0;
     adaptCCtx* ctx = NULL;
@@ -341,9 +345,28 @@ cleanup:
 /* return 0 if successful, else return error */
 int main(int argCount, const char* argv[])
 {
-    if (argCount < 3) {
-        DISPLAY("Error: not enough arguments\n");
-        return 1;
+    const char* inFilename = stdinmark;
+    const char* outFilename = stdoutmark;
+    unsigned nextArgumentIsOutFilename = 0;
+    int argNum;
+    for (argNum=1; argNum<argCount; argNum++) {
+        const char* argument = argv[argNum];
+        if (argument[0]=='-') {
+            /* parse argument */
+            switch (argument[1]) {
+                case 'o':
+                    argument+=2;
+                    nextArgumentIsOutFilename = 1;
+                    break;
+            }
+        }
+
+        if (nextArgumentIsOutFilename) {
+            outFilename = argument;
+        }
+        else {
+            inFilename = argument;
+        }
     }
-    return compressFilename(argv[1], argv[2]);
+    return compressFilename(inFilename, outFilename);
 }

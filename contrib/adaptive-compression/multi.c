@@ -3,6 +3,7 @@
 #define MAX_NUM_JOBS 30;
 #define stdinmark  "/*stdin*\\"
 #define stdoutmark "/*stdout*\\"
+#define MAX_PATH 256
 typedef unsigned char BYTE;
 
 #include <stdio.h>      /* fprintf */
@@ -342,31 +343,73 @@ cleanup:
     return ret;
 }
 
+static int compressFilenames(const char** filenameTable, unsigned numFiles)
+{
+    int ret = 0;
+    unsigned fileNum;
+    char outFile[MAX_PATH];
+    for (fileNum=0; fileNum<numFiles; fileNum++) {
+        const char* filename = filenameTable[fileNum];
+        if (snprintf(outFile, MAX_PATH, "%s.zst", filename) + 1 > MAX_PATH) {
+            DISPLAY("Error: output filename is too long\n");
+            return 1;
+        }
+        ret |= compressFilename(filename, outFile);
+    }
+    return ret;
+}
+
 /* return 0 if successful, else return error */
 int main(int argCount, const char* argv[])
 {
-    const char* inFilename = stdinmark;
-    const char* outFilename = stdoutmark;
-    unsigned nextArgumentIsOutFilename = 0;
+    const char* outFilename = NULL;
+    const char** filenameTable = (const char**)malloc(argCount*sizeof(const char*));
+    unsigned filenameIdx = 0;
+    filenameTable[0] = stdinmark;
+    int ret = 0;
     int argNum;
+
+    if (filenameTable == NULL) {
+        DISPLAY("Error: could not allocate sapce for filename table.\n");
+        return 1;
+    }
+
     for (argNum=1; argNum<argCount; argNum++) {
         const char* argument = argv[argNum];
+
+        /* output filename designated with "-o" */
         if (argument[0]=='-') {
-            /* parse argument */
-            switch (argument[1]) {
-                case 'o':
-                    argument+=2;
-                    nextArgumentIsOutFilename = 1;
-                    break;
+            if (strlen(argument) > 1 && argument[1] == 'o') {
+                argument += 2;
+                outFilename = argument;
+                continue;
+            }
+            else {
+                DISPLAY("Error: invalid argument provided\n");
+                ret = 1;
+                goto _main_exit;
             }
         }
 
-        if (nextArgumentIsOutFilename) {
-            outFilename = argument;
-        }
-        else {
-            inFilename = argument;
-        }
+        /* regular files to be compressed */
+        filenameTable[filenameIdx++] = argument;
     }
-    return compressFilename(inFilename, outFilename);
+
+    /* error checking with number of files */
+    if (filenameIdx > 1 && outFilename != NULL) {
+        DISPLAY("Error: multiple input files provided, cannot use specified output file\n");
+        ret = 1;
+        goto _main_exit;
+    }
+
+    /* compress files */
+    if (filenameIdx <= 1) {
+        ret |= compressFilename(filenameTable[0], outFilename);
+    }
+    else {
+        ret |= compressFilenames(filenameTable, filenameIdx);
+    }
+_main_exit:
+    free(filenameTable);
+    return ret;
 }

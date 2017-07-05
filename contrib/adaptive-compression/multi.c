@@ -226,28 +226,6 @@ static void* outputThread(void* arg)
     return arg;
 }
 
-
-static size_t getFileSize(const char* const filename)
-{
-    FILE* fd = fopen(filename, "rb");
-    if (fd == NULL) {
-        DISPLAY("Error: could not open file in order to get file size\n");
-        return -1; /* intentional underflow */
-    }
-    if (fseek(fd, 0, SEEK_END) != 0) {
-        DISPLAY("Error: fseek failed during file size computation\n");
-        return -1;
-    }
-    {
-        size_t const fileSize = ftell(fd);
-        if (fclose(fd) != 0) {
-            DISPLAY("Error: could not close file during file size computation\n");
-            return -1;
-        }
-        return fileSize;
-    }
-}
-
 static int createCompressionJob(adaptCCtx* ctx, BYTE* data, size_t srcSize)
 {
     unsigned const nextJob = ctx->nextJobID;
@@ -290,17 +268,12 @@ static int compressFilename(const char* const srcFilename, const char* const dst
 {
     BYTE* const src = malloc(FILE_CHUNK_SIZE);
     FILE* const srcFile = fopen(srcFilename, "rb");
-    size_t fileSize = getFileSize(srcFilename);
     size_t const numJobs = MAX_NUM_JOBS;
     int ret = 0;
     adaptCCtx* ctx = NULL;
 
 
     /* checking for errors */
-    if (fileSize == (size_t)(-1)) {
-        ret = 1;
-        goto cleanup;
-    }
     if (!srcFilename || !dstFilename || !src || !srcFile) {
         DISPLAY("Error: initial variables could not be allocated\n");
         ret = 1;

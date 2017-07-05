@@ -174,7 +174,7 @@ static void* outputThread(void* arg)
             size_t const compressedSize = job->compressedSize;
             if (ZSTD_isError(compressedSize)) {
                 DISPLAY("Error: an error occurred during compression\n");
-                return arg; 
+                return arg;
             }
             {
                 size_t const writeSize = fwrite(ctx->jobs[currJob].dst.start, 1, compressedSize, ctx->dstFile);
@@ -253,7 +253,7 @@ static int createCompressionJob(adaptCCtx* ctx, BYTE* data, size_t srcSize)
 /* return 0 if successful, else return error */
 int main(int argCount, const char* argv[])
 {
-    if (argCount < 2) {
+    if (argCount < 3) {
         DISPLAY("Error: not enough arguments\n");
         return 1;
     }

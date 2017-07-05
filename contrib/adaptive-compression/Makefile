@@ -18,15 +18,15 @@ CFLAGS   += $(DEBUGFLAGS)
 CFLAGS   += $(MOREFLAGS)
 FLAGS     = $(CPPFLAGS) $(CFLAGS) $(LDFLAGS)
 
-all: clean v1 v2
-v1: $(ZSTD_FILES) v1.c
+all: clean single multi
+single: $(ZSTD_FILES) single.c
 	$(CC) $(FLAGS) $^ -o $@
 
-v2: $(ZSTD_FILES) v2.c
+multi: $(ZSTD_FILES) multi.c
 	$(CC) $(FLAGS) $^ -o $@
 
 clean:
-	@$(RM) -f v1 v2
+	@$(RM) -f single multi
 	@$(RM) -rf *.dSYM
 	@$(RM) -f tmp*
 	@echo "finished cleaning"

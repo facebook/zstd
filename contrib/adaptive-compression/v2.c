@@ -174,13 +174,13 @@ static void* outputThread(void* arg)
             size_t const compressedSize = job->compressedSize;
             if (ZSTD_isError(compressedSize)) {
                 DISPLAY("Error: an error occurred during compression\n");
-                return arg; /* TODO: return something else if error */
+                return arg; 
             }
             {
                 size_t const writeSize = fwrite(ctx->jobs[currJob].dst.start, 1, compressedSize, ctx->dstFile);
                 if (writeSize != compressedSize) {
                     DISPLAY("Error: an error occurred during file write operation\n");
-                    return arg; /* TODO: return something else if error */
+                    return arg;
                 }
             }
         }
@@ -262,7 +262,7 @@ int main(int argCount, const char* argv[])
     BYTE* const src = malloc(FILE_CHUNK_SIZE);
     FILE* const srcFile = fopen(srcFilename, "rb");
     size_t fileSize = getFileSize(srcFilename);
-    size_t const numJobsPrelim = (fileSize >> 22) + 1; /* TODO: figure out why can't divide here */
+    size_t const numJobsPrelim = (fileSize / ((size_t)FILE_CHUNK_SIZE));
     size_t const numJobs = (numJobsPrelim * FILE_CHUNK_SIZE) == fileSize ? numJobsPrelim : numJobsPrelim + 1;
     int ret = 0;
     adaptCCtx* ctx = NULL;

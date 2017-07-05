@@ -98,8 +98,8 @@ static void freeCompressionJobs(adaptCCtx* ctx)
     unsigned u;
     for (u=0; u<ctx->numJobs; u++) {
         jobDescription job = ctx->jobs[u];
-        if (job.dst.start) free(job.dst.start);
-        if (job.src.start) free(job.src.start);
+        free(job.dst.start);
+        free(job.src.start);
     }
 }
 
@@ -237,8 +237,8 @@ static int createCompressionJob(adaptCCtx* ctx, BYTE* data, size_t srcSize)
     if (!job->src.start || !job->dst.start) {
         /* problem occurred, free things then return */
         DISPLAY("Error: problem occurred during job creation\n");
-        if (job->src.start) free(job->src.start);
-        if (job->dst.start) free(job->dst.start);
+        free(job->src.start);
+        free(job->dst.start);
         return 1;
     }
     memcpy(job->src.start, data, srcSize);
@@ -332,6 +332,6 @@ cleanup:
     /* file compression completed */
     ret  |= (srcFile != NULL) ? fclose(srcFile) : 0;
     ret |= (ctx != NULL) ? freeCCtx(ctx) : 0;
-    if (src != NULL) free(src);
+    free(src);
     return ret;
 }

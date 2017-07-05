@@ -29,4 +29,6 @@ clean:
 	@$(RM) -f single multi
 	@$(RM) -rf *.dSYM
 	@$(RM) -f tmp*
+	@$(RM) -f tests/*.zst
+	@$(RM) -f tests/tmp*
 	@echo "finished cleaning"

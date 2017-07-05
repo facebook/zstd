@@ -1,6 +1,6 @@
 #define DISPLAY(...) fprintf(stderr, __VA_ARGS__)
 #define FILE_CHUNK_SIZE 4 << 20
-#define MAX_NUM_JOBS 30;
+#define MAX_NUM_JOBS 50;
 #define stdinmark  "/*stdin*\\"
 #define stdoutmark "/*stdout*\\"
 #define MAX_PATH 256
@@ -96,7 +96,7 @@ static adaptCCtx* createCCtx(unsigned numJobs, const char* const outFilename)
     }
     memset(ctx, 0, sizeof(adaptCCtx));
     ctx->compressionLevel = 6; /* default */
-    pthread_mutex_init(&ctx->jobCompleted_mutex, NULL);
+    pthread_mutex_init(&ctx->jobCompleted_mutex, NULL); /* TODO: add checks for errors on each mutex */
     pthread_cond_init(&ctx->jobCompleted_cond, NULL);
     pthread_mutex_init(&ctx->jobReady_mutex, NULL);
     pthread_cond_init(&ctx->jobReady_cond, NULL);

@@ -47,6 +47,34 @@ typedef struct {
     FILE* dstFile;
 } adaptCCtx;
 
+static void freeCompressionJobs(adaptCCtx* ctx)
+{
+    unsigned u;
+    for (u=0; u<ctx->numJobs; u++) {
+        jobDescription job = ctx->jobs[u];
+        free(job.dst.start);
+        free(job.src.start);
+    }
+}
+
+static int freeCCtx(adaptCCtx* ctx)
+{
+    {
+        int const completedMutexError = pthread_mutex_destroy(&ctx->jobCompleted_mutex);
+        int const completedCondError = pthread_cond_destroy(&ctx->jobCompleted_cond);
+        int const readyMutexError = pthread_mutex_destroy(&ctx->jobReady_mutex);
+        int const readyCondError = pthread_cond_destroy(&ctx->jobReady_cond);
+        int const allJobsMutexError = pthread_mutex_destroy(&ctx->allJobsCompleted_mutex);
+        int const allJobsCondError = pthread_cond_destroy(&ctx->allJobsCompleted_cond);
+        int const fileCloseError =  ctx->dstFile != NULL ? fclose(ctx->dstFile) : 0;
+        if (ctx->jobs){
+            freeCompressionJobs(ctx);
+            free(ctx->jobs);
+        }
+        return completedMutexError | completedCondError | readyMutexError | readyCondError | fileCloseError | allJobsMutexError | allJobsCondError;
+    }
+}
+
 static adaptCCtx* createCCtx(unsigned numJobs, const char* const outFilename)
 {
 
@@ -80,12 +108,14 @@ static adaptCCtx* createCCtx(unsigned numJobs, const char* const outFilename)
     ctx->allJobsCompleted = 0;
     if (!ctx->jobs) {
         DISPLAY("Error: could not allocate space for jobs during context creation\n");
+        freeCCtx(ctx);
         return NULL;
     }
     {
         FILE* dstFile = fopen(outFilename, "wb");
         if (dstFile == NULL) {
             DISPLAY("Error: could not open output file\n");
+            freeCCtx(ctx);
             return NULL;
         }
         ctx->dstFile = dstFile;
@@ -93,35 +123,15 @@ static adaptCCtx* createCCtx(unsigned numJobs, const char* const outFilename)
     return ctx;
 }
 
-static void freeCompressionJobs(adaptCCtx* ctx)
-{
-    unsigned u;
-    for (u=0; u<ctx->numJobs; u++) {
-        jobDescription job = ctx->jobs[u];
-        free(job.dst.start);
-        free(job.src.start);
-    }
-}
 
-static int freeCCtx(adaptCCtx* ctx)
+
+static void waitUntilAllJobsCompleted(adaptCCtx* ctx)
 {
     pthread_mutex_lock(&ctx->allJobsCompleted_mutex);
     while (ctx->allJobsCompleted == 0) {
         pthread_cond_wait(&ctx->allJobsCompleted_cond, &ctx->allJobsCompleted_mutex);
     }
     pthread_mutex_unlock(&ctx->allJobsCompleted_mutex);
-    {
-        int const completedMutexError = pthread_mutex_destroy(&ctx->jobCompleted_mutex);
-        int const completedCondError = pthread_cond_destroy(&ctx->jobCompleted_cond);
-        int const readyMutexError = pthread_mutex_destroy(&ctx->jobReady_mutex);
-        int const readyCondError = pthread_cond_destroy(&ctx->jobReady_cond);
-        int const allJobsMutexError = pthread_mutex_destroy(&ctx->allJobsCompleted_mutex);
-        int const allJobsCondError = pthread_cond_destroy(&ctx->allJobsCompleted_cond);
-        int const fileError =  fclose(ctx->dstFile);
-        freeCompressionJobs(ctx);
-        free(ctx->jobs);
-        return completedMutexError | completedCondError | readyMutexError | readyCondError | fileError | allJobsMutexError | allJobsCondError;
-    }
 }
 
 static void* compressionThread(void* arg)
@@ -140,7 +150,7 @@ static void* compressionThread(void* arg)
             size_t const compressedSize = ZSTD_compress(job->dst.start, job->dst.size, job->src.start, job->src.size, job->compressionLevel);
             if (ZSTD_isError(compressedSize)) {
                 ctx->threadError = 1;
-                DISPLAY("Error: somethign went wrong during compression\n");
+                DISPLAY("Error: something went wrong during compression: %s\n", ZSTD_getErrorName(compressedSize));
                 return arg;
             }
             job->compressedSize = compressedSize;
@@ -329,6 +339,7 @@ int main(int argCount, const char* argv[])
     }
 
 cleanup:
+    waitUntilAllJobsCompleted(ctx);
     /* file compression completed */
     ret  |= (srcFile != NULL) ? fclose(srcFile) : 0;
     ret |= (ctx != NULL) ? freeCCtx(ctx) : 0;

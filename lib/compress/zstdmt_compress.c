@@ -475,13 +475,12 @@ size_t ZSTDMT_compress_advanced(ZSTDMT_CCtx* mtctx,
     size_t frameStartPos = 0, dstBufferPos = 0;
 
     DEBUGLOG(4, "nbChunks  : %2u   (chunkSize : %u bytes)   ", nbChunks, (U32)avgChunkSize);
-    assert(avgChunkSize >= 256 KB);  /* required for ZSTD_compressBound(A) + ZSTD_compressBound(B) <= ZSTD_compressBound(A+B) */
-
     if (nbChunks==1) {   /* fallback to single-thread mode */
         ZSTD_CCtx* const cctx = mtctx->cctxPool->cctx[0];
         if (cdict) return ZSTD_compress_usingCDict_advanced(cctx, dst, dstCapacity, src, srcSize, cdict, params.fParams);
         return ZSTD_compress_advanced(cctx, dst, dstCapacity, src, srcSize, NULL, 0, params);
     }
+    assert(avgChunkSize >= 256 KB);  /* condition for ZSTD_compressBound(A) + ZSTD_compressBound(B) <= ZSTD_compressBound(A+B), which is useful to avoid allocating extra buffers */
 
     if (nbChunks > mtctx->jobIDMask+1) {  /* enlarge job table */
         U32 nbJobs = nbChunks;

@@ -96,6 +96,7 @@ gzstd:
 fullbench32: CPPFLAGS += -m32
 fullbench fullbench32 : CPPFLAGS += $(MULTITHREAD_CPP)
 fullbench fullbench32 : LDFLAGS += $(MULTITHREAD_LD)
+fullbench fullbench32 : DEBUGFLAGS =   # turn off assert() for speed measurements
 fullbench fullbench32 : $(ZSTD_FILES) $(PRGDIR)/datagen.c fullbench.c
 	$(CC) $(FLAGS) $^ -o $@$(EXT)
 

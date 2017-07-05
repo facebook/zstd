@@ -260,15 +260,8 @@ static int createCompressionJob(adaptCCtx* ctx, BYTE* data, size_t srcSize)
     return 0;
 }
 
-/* return 0 if successful, else return error */
-int main(int argCount, const char* argv[])
+static int compressFilename(const char* const srcFilename, const char* const dstFilename)
 {
-    if (argCount < 3) {
-        DISPLAY("Error: not enough arguments\n");
-        return 1;
-    }
-    const char* const srcFilename = argv[1];
-    const char* const dstFilename = argv[2];
     BYTE* const src = malloc(FILE_CHUNK_SIZE);
     FILE* const srcFile = fopen(srcFilename, "rb");
     size_t fileSize = getFileSize(srcFilename);
@@ -345,4 +338,14 @@ cleanup:
     ret |= (ctx != NULL) ? freeCCtx(ctx) : 0;
     free(src);
     return ret;
+}
+
+/* return 0 if successful, else return error */
+int main(int argCount, const char* argv[])
+{
+    if (argCount < 3) {
+        DISPLAY("Error: not enough arguments\n");
+        return 1;
+    }
+    return compressFilename(argv[1], argv[2]);
 }

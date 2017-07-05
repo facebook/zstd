@@ -66,7 +66,6 @@ static adaptCCtx* createCCtx(unsigned numJobs, const char* const outFilename)
     ctx->numJobs = numJobs;
     ctx->lastJobID = -1; /* intentional underflow */
     ctx->jobs = calloc(1, numJobs*sizeof(jobDescription));
-    DISPLAY("jobs %p\n", ctx->jobs);
     {
         unsigned u;
         for (u=0; u<numJobs; u++) {
@@ -98,8 +97,6 @@ static void freeCompressionJobs(adaptCCtx* ctx)
 {
     unsigned u;
     for (u=0; u<ctx->numJobs; u++) {
-        DISPLAY("freeing compression job %u\n", u);
-        DISPLAY("%u\n", ctx->numJobs);
         jobDescription job = ctx->jobs[u];
         if (job.dst.start) free(job.dst.start);
         if (job.src.start) free(job.src.start);
@@ -129,14 +126,12 @@ static int freeCCtx(adaptCCtx* ctx)
 
 static void* compressionThread(void* arg)
 {
-    DISPLAY("started compression thread\n");
     adaptCCtx* ctx = (adaptCCtx*)arg;
     unsigned currJob = 0;
     for ( ; ; ) {
         jobDescription* job = &ctx->jobs[currJob];
         pthread_mutex_lock(job->jobReady_mutex);
         while(job->jobReady == 0) {
-            DISPLAY("waiting\n");
             pthread_cond_wait(job->jobReady_cond, job->jobReady_mutex);
         }
         pthread_mutex_unlock(job->jobReady_mutex);
@@ -165,7 +160,6 @@ static void* compressionThread(void* arg)
 
 static void* outputThread(void* arg)
 {
-    DISPLAY("started output thread\n");
     adaptCCtx* ctx = (adaptCCtx*)arg;
 
     unsigned currJob = 0;

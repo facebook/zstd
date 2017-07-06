@@ -274,20 +274,21 @@ static int compressFilename(const char* const srcFilename, const char* const dst
     BYTE* const src = malloc(FILE_CHUNK_SIZE);
     unsigned const stdinUsed = !strcmp(srcFilename, stdinmark);
     FILE* const srcFile = stdinUsed ? stdin : fopen(srcFilename, "rb");
+    const char* const outFilename = (stdinUsed && !dstFilename) ? stdoutmark : dstFilename;
     size_t const numJobs = MAX_NUM_JOBS;
     int ret = 0;
     adaptCCtx* ctx = NULL;
 
 
     /* checking for errors */
-    if (!srcFilename || !dstFilename || !src || !srcFile) {
+    if (!srcFilename || !outFilename || !src || !srcFile) {
         DISPLAY("Error: initial variables could not be allocated\n");
         ret = 1;
         goto cleanup;
     }
 
     /* creating context */
-    ctx = createCCtx(numJobs, dstFilename);
+    ctx = createCCtx(numJobs, outFilename);
     if (ctx == NULL) {
         ret = 1;
         goto cleanup;

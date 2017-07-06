@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/time.h>
 #include <sys/types.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
@@ -13,6 +14,7 @@
 #define BUF_SIZE 16*1024  // Block size
 #define LDM_HEADER_SIZE 8
 #define DEBUG
+// #define ZSTD
 
 #if 0
 static size_t compress_file(FILE *in, FILE *out, size_t *size_in,
@@ -163,7 +165,7 @@ static size_t compress(const char *fname, const char *oname) {
     perror("lseek error");
     return 1;
  }
- 
+
  /* write a dummy byte at the last location */
  if (write(fdout, "", 1) != 1) {
      perror("write error");
@@ -186,9 +188,15 @@ static size_t compress(const char *fname, const char *oname) {
 
   /* Copy input file to output file */
 //  memcpy(dst, src, statbuf.st_size);
-  size_t size_out = ZSTD_compress(dst, statbuf.st_size, 
-                                  src, statbuf.st_size, 1);
-  printf("%25s : %6u -> %7u - %s (%.1f%%)\n", fname, 
+  #ifdef ZSTD
+    size_t size_out = ZSTD_compress(dst, statbuf.st_size,
+                                    src, statbuf.st_size, 1);
+  #else
+    size_t size_out = LDM_compress(src, dst, statbuf.st_size,
+                                   statbuf.st_size);
+  #endif
+  ftruncate(fdout, size_out);
+  printf("%25s : %6u -> %7u - %s (%.1f%%)\n", fname,
          (unsigned)statbuf.st_size, (unsigned)size_out, oname,
          (double)size_out / (statbuf.st_size) * 100);
 
@@ -225,7 +233,7 @@ static size_t decompress(const char *fname, const char *oname) {
     perror("lseek error");
     return 1;
   }
- 
+
   /* write a dummy byte at the last location */
   if (write(fdout, "", 1) != 1) {
     perror("write error");
@@ -249,9 +257,14 @@ static size_t decompress(const char *fname, const char *oname) {
   /* Copy input file to output file */
 //  memcpy(dst, src, statbuf.st_size);
 
-  size_t size_out = ZSTD_decompress(dst, statbuf.st_size, 
-                                    src, statbuf.st_size);
-
+  #ifdef ZSTD
+    size_t size_out = ZSTD_decompress(dst, statbuf.st_size,
+                                      src, statbuf.st_size);
+  #else
+    size_t size_out = LDM_decompress(src, dst, statbuf.st_size,
+                                     statbuf.st_size);
+  #endif
+  ftruncate(fdout, size_out);
 
   close(fdin);
   close(fdout);
@@ -315,20 +328,35 @@ int main(int argc, const char *argv[]) {
 	printf("ldm = [%s]\n", ldmFilename);
 	printf("dec = [%s]\n", decFilename);
 
+  struct timeval tv1, tv2;
   /* compress */
+  {
+  gettimeofday(&tv1, NULL);
   if (compress(inpFilename, ldmFilename)) {
       printf("Compress error");
       return 1;
   }
+  gettimeofday(&tv2, NULL);
+  printf("Total time = %f seconds\n",
+         (double) (tv2.tv_usec - tv1.tv_usec) / 1000000 +
+         (double) (tv2.tv_sec - tv1.tv_sec));
+  }
 
   /* decompress */
+
+  gettimeofday(&tv1, NULL);
   if (decompress(ldmFilename, decFilename)) {
       printf("Decompress error");
       return 1;
   }
+  gettimeofday(&tv2, NULL);
+  printf("Total time = %f seconds\n",
+        (double) (tv2.tv_usec - tv1.tv_usec) / 1000000 +
+        (double) (tv2.tv_sec - tv1.tv_sec));
 
   /* verify */
   verify(inpFilename, decFilename);
+  return 0;
 }
 
 #if 0

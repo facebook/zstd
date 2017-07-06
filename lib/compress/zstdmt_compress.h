@@ -15,10 +15,11 @@
  #endif
 
 
-/* Note : All prototypes defined in this file are labelled experimental.
- *        No guarantee of API continuity is provided on any of them.
- *        In fact, the expectation is that these prototypes will be replaced
- *        by ZSTD_compress_generic() API in the near future */
+/* Note : This is an internal API.
+ *        Some methods are still exposed (ZSTDLIB_API), because for some time,
+ *        it used to be the only way to invoke MT compression.
+ *        Now, it's recommended to use ZSTD_compress_generic() instead.
+ *        These methods will stop being exposed in a future version */
 
 /* ===   Dependencies   === */
 #include <stddef.h>                /* size_t */

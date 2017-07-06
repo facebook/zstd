@@ -229,7 +229,7 @@ static size_t decompress(const char *fname, const char *oname) {
   }
 
   /* go to the location corresponding to the last byte */
-  if (lseek(fdout, statbuf.st_size - 1, SEEK_SET) == -1) {
+  if (lseek(fdout, 2*statbuf.st_size - 1, SEEK_SET) == -1) {
     perror("lseek error");
     return 1;
   }
@@ -264,7 +264,7 @@ static size_t decompress(const char *fname, const char *oname) {
     size_t size_out = LDM_decompress(src, dst, statbuf.st_size,
                                      statbuf.st_size);
   #endif
-  ftruncate(fdout, size_out);
+  //ftruncate(fdout, size_out);
 
   close(fdin);
   close(fdout);

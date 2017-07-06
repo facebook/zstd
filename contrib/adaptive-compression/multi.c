@@ -1,7 +1,7 @@
 #define DISPLAY(...) fprintf(stderr, __VA_ARGS__)
 #define DEBUGLOG(l, ...) { if (g_displayLevel>=l) { DISPLAY(__VA_ARGS__); } }
 #define FILE_CHUNK_SIZE 4 << 20
-#define MAX_NUM_JOBS 50;
+#define MAX_NUM_JOBS 100;
 #define stdinmark  "/*stdin*\\"
 #define stdoutmark "/*stdout*\\"
 #define MAX_PATH 256
@@ -168,6 +168,7 @@ static void* compressionThread(void* arg)
         DEBUGLOG(2, "signaling for job %u\n", currJob);
         pthread_cond_signal(&ctx->jobCompleted_cond);
         pthread_mutex_unlock(&ctx->jobCompleted_mutex);
+        DEBUGLOG(2, "finished job compression %u\n", currJob);
         currJob++;
         if (currJob >= ctx->lastJobID || ctx->threadError) {
             /* finished compressing all jobs */
@@ -189,7 +190,7 @@ static void* outputThread(void* arg)
         // DEBUGLOG(2, "outputThread(): waiting on job completed\n");
         pthread_mutex_lock(&ctx->jobCompleted_mutex);
         while (currJob + 1 > ctx->jobCompletedID) {
-            DEBUGLOG(2, "waiting on job ready, nextJob: %u\n", currJob);
+            DEBUGLOG(2, "waiting on job completed, nextJob: %u\n", currJob);
             pthread_cond_wait(&ctx->jobCompleted_cond, &ctx->jobCompleted_mutex);
         }
         pthread_mutex_unlock(&ctx->jobCompleted_mutex);
@@ -208,6 +209,7 @@ static void* outputThread(void* arg)
                 }
             }
         }
+        DEBUGLOG(2, "finished job write %u\n", currJob);
         currJob++;
         DEBUGLOG(2, "locking job write mutex\n");
         pthread_mutex_lock(&ctx->jobWrite_mutex);
@@ -237,9 +239,9 @@ static int createCompressionJob(adaptCCtx* ctx, BYTE* data, size_t srcSize)
     jobDescription* job = &ctx->jobs[nextJobIndex];
     // DEBUGLOG(2, "createCompressionJob(): wait for job write\n");
     pthread_mutex_lock(&ctx->jobWrite_mutex);
-    DISPLAY("Creating new compression job -- nextJob: %u, jobWrittenID: %u, numJObs: %u\n", nextJob, ctx->jobWrittenID, ctx->numJobs);
+    // DEBUGLOG(2, "Creating new compression job -- nextJob: %u, jobCompletedID: %u, jobWrittenID: %u, numJObs: %u\n", nextJob,ctx->jobCompletedID, ctx->jobWrittenID, ctx->numJobs);
     while (nextJob - ctx->jobWrittenID >= ctx->numJobs) {
-        DEBUGLOG(2, "waiting on job writtten, nextJob: %u\n", nextJob);
+        DEBUGLOG(2, "waiting on job written, nextJob: %u\n", nextJob);
         pthread_cond_wait(&ctx->jobWrite_cond, &ctx->jobWrite_mutex);
     }
     pthread_mutex_unlock(&ctx->jobWrite_mutex);
@@ -262,6 +264,7 @@ static int createCompressionJob(adaptCCtx* ctx, BYTE* data, size_t srcSize)
     ctx->jobReadyID++;
     pthread_cond_signal(&ctx->jobReady_cond);
     pthread_mutex_unlock(&ctx->jobReady_mutex);
+    DEBUGLOG(2, "finished job creation %u\n", nextJob);
     ctx->nextJobID++;
     return 0;
 }

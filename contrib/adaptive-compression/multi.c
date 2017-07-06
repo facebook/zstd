@@ -6,6 +6,7 @@
 #define stdoutmark "/*stdout*\\"
 #define MAX_PATH 256
 #define DEFAULT_DISPLAY_LEVEL 1
+#define DEFAULT_COMPRESSION_LEVEL 6
 typedef unsigned char BYTE;
 
 #include <stdio.h>      /* fprintf */
@@ -15,6 +16,7 @@ typedef unsigned char BYTE;
 #include "zstd.h"
 
 static int g_displayLevel = DEFAULT_DISPLAY_LEVEL;
+static unsigned g_compressionLevel = DEFAULT_COMPRESSION_LEVEL;
 
 typedef struct {
     void* start;
@@ -91,7 +93,7 @@ static adaptCCtx* createCCtx(unsigned numJobs, const char* const outFilename)
         return NULL;
     }
     memset(ctx, 0, sizeof(adaptCCtx));
-    ctx->compressionLevel = 6; /* default */
+    ctx->compressionLevel = g_compressionLevel;
     pthread_mutex_init(&ctx->jobCompleted_mutex, NULL); /* TODO: add checks for errors on each mutex */
     pthread_cond_init(&ctx->jobCompleted_cond, NULL);
     pthread_mutex_init(&ctx->jobReady_mutex, NULL);
@@ -362,6 +364,26 @@ static int compressFilenames(const char** filenameTable, unsigned numFiles)
     return ret;
 }
 
+/*! readU32FromChar() :
+    @return : unsigned integer value read from input in `char` format
+    allows and interprets K, KB, KiB, M, MB and MiB suffix.
+    Will also modify `*stringPtr`, advancing it to position where it stopped reading.
+    Note : function result can overflow if digit string > MAX_UINT */
+static unsigned readU32FromChar(const char** stringPtr)
+{
+    unsigned result = 0;
+    while ((**stringPtr >='0') && (**stringPtr <='9'))
+        result *= 10, result += **stringPtr - '0', (*stringPtr)++ ;
+    if ((**stringPtr=='K') || (**stringPtr=='M')) {
+        result <<= 10;
+        if (**stringPtr=='M') result <<= 10;
+        (*stringPtr)++ ;
+        if (**stringPtr=='i') (*stringPtr)++;
+        if (**stringPtr=='B') (*stringPtr)++;
+    }
+    return result;
+}
+
 /* return 0 if successful, else return error */
 int main(int argCount, const char* argv[])
 {
@@ -389,6 +411,12 @@ int main(int argCount, const char* argv[])
             }
             else if (strlen(argument) > 1 && argument[1] == 'v') {
                 g_displayLevel++;
+                continue;
+            }
+            else if (strlen(argument) > 1 && argument[1] == 'i') {
+                argument += 2;
+                g_compressionLevel = readU32FromChar(&argument);
+                DEBUGLOG(2, "g_compressionLevel: %u\n", g_compressionLevel);
                 continue;
             }
             else {

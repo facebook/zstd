@@ -20,6 +20,8 @@
 #define RUN_BITS (8-ML_BITS)
 #define RUN_MASK ((1U<<RUN_BITS)-1)
 
+//#define LDM_DEBUG
+
 typedef  uint8_t BYTE;
 typedef uint16_t U16;
 typedef uint32_t U32;
@@ -173,6 +175,7 @@ size_t LDM_compress(void const *source, void *dest, size_t source_size,
   while (ip < ilimit) {
     const BYTE *match;
     BYTE *token;
+
     /* Find a match */
     {
       const BYTE *forwardIp = ip;
@@ -196,8 +199,10 @@ size_t LDM_compress(void const *source, void *dest, size_t source_size,
       unsigned const litLength = (unsigned)(ip - anchor);
       token = op++;
 
+#ifdef LDM_DEBUG
       printf("Cur position: %zu\n", anchor - istart);
       printf("LitLength %zu. (Match offset). %zu\n", litLength, ip - match);
+#endif
       /*
       fwrite(match, 4, 1, stdout);
       printf("\n");
@@ -207,16 +212,17 @@ size_t LDM_compress(void const *source, void *dest, size_t source_size,
         int len = (int)litLength - RUN_MASK;
         *token = (RUN_MASK << ML_BITS);
         for (; len >= 255; len -= 255) {
-          *op++ = (BYTE)len;
+          *op++ = 255;
         }
+        *op++ = (BYTE)len;
       } else {
         *token = (BYTE)(litLength << ML_BITS);
       }
-
+#ifdef LDM_DEBUG
       printf("Literals ");
       fwrite(anchor, litLength, 1, stdout);
       printf("\n");
-
+#endif
       LDM_wild_copy(op, anchor, op + litLength);
       op += litLength;
     }
@@ -232,10 +238,11 @@ _next_match:
       unsigned matchCode;
       matchCode = LDM_count(ip + MINMATCH, match + MINMATCH,
                             matchlimit);
-
+#ifdef LDM_DEBUG
       printf("Match length %zu\n", matchCode + MINMATCH);
       fwrite(ip, MINMATCH + matchCode, 1, stdout);
       printf("\n");
+#endif
       ip += MINMATCH + matchCode;
       if (matchCode >= ML_MASK) {
         *token += ML_MASK;
@@ -251,7 +258,9 @@ _next_match:
       } else {
         *token += (BYTE)(matchCode);
       }
+#ifdef LDM_DEBUG
       printf("\n");
+#endif
     }
 
     anchor = ip;
@@ -308,24 +317,33 @@ size_t LDM_decompress(void const *source, void *dest, size_t compressed_size,
         length += s;
       } while (s == 255);
     }
+#ifdef LDM_DEBUG
     printf("Literal length: %zu\n", length);
+#endif
 
     /* copy literals */
     cpy = op + length;
+#ifdef LDM_DEBUG
+    printf("Literals ");
+    fwrite(ip, length, 1, stdout);
+    printf("\n");
+#endif
     LDM_wild_copy(op, ip, cpy);
     ip += length;
     op = cpy;
 
     /* get offset */
     offset = LDM_readLE16(ip);
+
+#ifdef LDM_DEBUG
     printf("Offset: %zu\n", offset);
+#endif
     ip += 2;
     match = op - offset;
  //   LDM_write32(op, (U32)offset);
 
     /* get matchlength */
     length = token & ML_MASK;
-    printf("Match length: %zu\n", length);
     if (length == ML_MASK) {
       unsigned s;
       do {
@@ -334,16 +352,20 @@ size_t LDM_decompress(void const *source, void *dest, size_t compressed_size,
       } while (s == 255);
     }
     length += MINMATCH;
-
+#ifdef LDM_DEBUG
+    printf("Match length: %zu\n", length);
+#endif
     /* copy match */
     cpy = op + length;
 
-
-
+    // Inefficient for now
+    while (match < cpy - offset) {
+      *op++ = *match++;
+    }
   }
 
 //  memcpy(dest, source, compressed_size);
-  return compressed_size;
+  return op - (BYTE *)dest;
 }
 
 

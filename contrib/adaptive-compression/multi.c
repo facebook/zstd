@@ -17,11 +17,18 @@ typedef unsigned char BYTE;
 
 static int g_displayLevel = DEFAULT_DISPLAY_LEVEL;
 static unsigned g_compressionLevel = DEFAULT_COMPRESSION_LEVEL;
+static unsigned g_displayStats = 0;
 
 typedef struct {
     void* start;
     size_t size;
 } buffer_t;
+
+typedef struct {
+    unsigned waitCompleted;
+    unsigned waitReady;
+    unsigned waitWritten;
+} stat_t;
 
 typedef struct {
     buffer_t src;
@@ -50,6 +57,7 @@ typedef struct {
     pthread_cond_t allJobsCompleted_cond;
     pthread_mutex_t jobWrite_mutex;
     pthread_cond_t jobWrite_cond;
+    stat_t stats;
     jobDescription* jobs;
     FILE* dstFile;
 } adaptCCtx;
@@ -150,6 +158,7 @@ static void* compressionThread(void* arg)
         // DEBUGLOG(2, "compressionThread(): waiting on job ready\n");
         pthread_mutex_lock(&ctx->jobReady_mutex);
         while(currJob + 1 > ctx->jobReadyID) {
+            ctx->stats.waitReady++;
             DEBUGLOG(2, "waiting on job ready, nextJob: %u\n", currJob);
             pthread_cond_wait(&ctx->jobReady_cond, &ctx->jobReady_mutex);
         }
@@ -192,6 +201,7 @@ static void* outputThread(void* arg)
         // DEBUGLOG(2, "outputThread(): waiting on job completed\n");
         pthread_mutex_lock(&ctx->jobCompleted_mutex);
         while (currJob + 1 > ctx->jobCompletedID) {
+            ctx->stats.waitCompleted++;
             DEBUGLOG(2, "waiting on job completed, nextJob: %u\n", currJob);
             pthread_cond_wait(&ctx->jobCompleted_cond, &ctx->jobCompleted_mutex);
         }
@@ -243,6 +253,7 @@ static int createCompressionJob(adaptCCtx* ctx, BYTE* data, size_t srcSize)
     pthread_mutex_lock(&ctx->jobWrite_mutex);
     // DEBUGLOG(2, "Creating new compression job -- nextJob: %u, jobCompletedID: %u, jobWrittenID: %u, numJObs: %u\n", nextJob,ctx->jobCompletedID, ctx->jobWrittenID, ctx->numJobs);
     while (nextJob - ctx->jobWrittenID >= ctx->numJobs) {
+        ctx->stats.waitWritten++;
         DEBUGLOG(2, "waiting on job written, nextJob: %u\n", nextJob);
         pthread_cond_wait(&ctx->jobWrite_cond, &ctx->jobWrite_mutex);
     }
@@ -269,6 +280,14 @@ static int createCompressionJob(adaptCCtx* ctx, BYTE* data, size_t srcSize)
     DEBUGLOG(2, "finished job creation %u\n", nextJob);
     ctx->nextJobID++;
     return 0;
+}
+
+static void printStats(stat_t stats)
+{
+    DISPLAY("========STATISTICS========\n");
+    DISPLAY("# times waited on job ready: %u\n", stats.waitReady);
+    DISPLAY("# times waited on job completed: %u\n", stats.waitCompleted);
+    DISPLAY("# times waited on job written: %u\n\n", stats.waitWritten);
 }
 
 static int compressFilename(const char* const srcFilename, const char* const dstFilename)
@@ -341,6 +360,7 @@ static int compressFilename(const char* const srcFilename, const char* const dst
 
 cleanup:
     waitUntilAllJobsCompleted(ctx);
+    if (g_displayStats) printStats(ctx->stats);
     /* file compression completed */
     ret  |= (srcFile != NULL) ? fclose(srcFile) : 0;
     ret |= (ctx != NULL) ? freeCCtx(ctx) : 0;
@@ -417,6 +437,10 @@ int main(int argCount, const char* argv[])
                 argument += 2;
                 g_compressionLevel = readU32FromChar(&argument);
                 DEBUGLOG(2, "g_compressionLevel: %u\n", g_compressionLevel);
+                continue;
+            }
+            else if (strlen(argument) > 1 && argument[1] == 's') {
+                g_displayStats = 1;
                 continue;
             }
             else {

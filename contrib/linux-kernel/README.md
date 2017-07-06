@@ -5,7 +5,7 @@ The patches are based off of the linux kernel master branch (version 4.10).
 
 ## xxHash kernel module
 
-* The patch is locaed in `xxhash.diff`.
+* The patch is located in `xxhash.diff`.
 * The header is in `include/linux/xxhash.h`.
 * The source is in `lib/xxhash.c`.
 * `test/XXHashUserLandTest.cpp` contains tests for the patch in userland by mocking the kernel headers.
@@ -18,7 +18,7 @@ The patches are based off of the linux kernel master branch (version 4.10).
 
 ## Zstd Kernel modules
 
-* The (large) patch is locaed in `zstd.diff`, which depends on `xxhash.diff`.
+* The (large) patch is located in `zstd.diff`, which depends on `xxhash.diff`.
 * The header is in `include/linux/zstd.h`.
 * It is split up into `zstd_compress` and `zstd_decompress`, which can be loaded independently.
 * Source files are in `lib/zstd/`.

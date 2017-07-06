@@ -91,12 +91,6 @@ static size_t BMK_findMaxMem(U64 requiredMem)
 /*_*******************************************************
 *  Benchmark wrappers
 *********************************************************/
-typedef struct {
-    blockType_e blockType;
-    U32 unusedBits;
-    U32 origSize;
-} blockProperties_t;
-
 size_t local_ZSTD_compress(void* dst, size_t dstSize, void* buff2, const void* src, size_t srcSize)
 {
     (void)buff2;

@@ -148,6 +148,7 @@ static void* compressionThread(void* arg)
         // DEBUGLOG(2, "compressionThread(): waiting on job ready\n");
         pthread_mutex_lock(&ctx->jobReady_mutex);
         while(currJob + 1 > ctx->jobReadyID) {
+            DEBUGLOG(2, "waiting on job ready, nextJob: %u\n", currJob);
             pthread_cond_wait(&ctx->jobReady_cond, &ctx->jobReady_mutex);
         }
         pthread_mutex_unlock(&ctx->jobReady_mutex);
@@ -185,14 +186,14 @@ static void* outputThread(void* arg)
     for ( ; ; ) {
         unsigned const currJobIndex = currJob % ctx->numJobs;
         jobDescription* job = &ctx->jobs[currJobIndex];
-        DEBUGLOG(2, "outputThread(): waiting on job completed\n");
+        // DEBUGLOG(2, "outputThread(): waiting on job completed\n");
         pthread_mutex_lock(&ctx->jobCompleted_mutex);
         while (currJob + 1 > ctx->jobCompletedID) {
-            DEBUGLOG(2, "inside job completed wait loop waiting on %u\n", currJob);
+            DEBUGLOG(2, "waiting on job ready, nextJob: %u\n", currJob);
             pthread_cond_wait(&ctx->jobCompleted_cond, &ctx->jobCompleted_mutex);
         }
         pthread_mutex_unlock(&ctx->jobCompleted_mutex);
-        DEBUGLOG(2, "outputThread(): continuing after job completed\n");
+        // DEBUGLOG(2, "outputThread(): continuing after job completed\n");
         {
             size_t const compressedSize = job->compressedSize;
             if (ZSTD_isError(compressedSize)) {
@@ -236,7 +237,9 @@ static int createCompressionJob(adaptCCtx* ctx, BYTE* data, size_t srcSize)
     jobDescription* job = &ctx->jobs[nextJobIndex];
     // DEBUGLOG(2, "createCompressionJob(): wait for job write\n");
     pthread_mutex_lock(&ctx->jobWrite_mutex);
+    DISPLAY("Creating new compression job -- nextJob: %u, jobWrittenID: %u, numJObs: %u\n", nextJob, ctx->jobWrittenID, ctx->numJobs);
     while (nextJob - ctx->jobWrittenID >= ctx->numJobs) {
+        DEBUGLOG(2, "waiting on job writtten, nextJob: %u\n", nextJob);
         pthread_cond_wait(&ctx->jobWrite_cond, &ctx->jobWrite_mutex);
     }
     pthread_mutex_unlock(&ctx->jobWrite_mutex);

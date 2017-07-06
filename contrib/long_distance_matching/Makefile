@@ -10,18 +10,23 @@
 # This Makefile presumes libzstd is installed, using `sudo make install`
 
 
+LDFLAGS += -lzstd
+
 .PHONY: default all clean
 
 default: all
 
-all: main
+all: main main-ldm
 
 
 main : ldm.c main.c
 	$(CC) $(CPPFLAGS) $(CFLAGS) $^ $(LDFLAGS) -o $@
 
+main-ldm : ldm.c main-ldm.c
+	$(CC) $(CPPFLAGS) $(CFLAGS) $^ $(LDFLAGS) -o $@
+
 clean:
 	@rm -f core *.o tmp* result* *.ldm *.ldm.dec \
-	main
+	main main-ldm
 	@echo Cleaning completed
 

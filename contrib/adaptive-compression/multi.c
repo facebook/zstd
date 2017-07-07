@@ -1,4 +1,5 @@
 #define DISPLAY(...) fprintf(stderr, __VA_ARGS__)
+#define PRINT(...) fprintf(stdout, __VA_ARGS__)
 #define DEBUGLOG(l, ...) { if (g_displayLevel>=l) { DISPLAY(__VA_ARGS__); } }
 #define FILE_CHUNK_SIZE 4 << 20
 #define MAX_NUM_JOBS 2;
@@ -243,7 +244,7 @@ static void displayProgress(unsigned jobDoneID)
     clock_t currTime = clock();
     unsigned const refresh = currTime - g_time > refreshRate ? 1 : 0;
     if (refresh) {
-        fprintf(stdout, "%u jobs completed\r", jobDoneID+1);
+        fprintf(stdout, "\r%u jobs completed", jobDoneID+1);
         fflush(stdout);
     }
 }
@@ -468,6 +469,18 @@ static unsigned readU32FromChar(const char** stringPtr)
     return result;
 }
 
+static void help()
+{
+    PRINT("Usage:\n");
+    PRINT("  ./multi [options] [file(s)]\n");
+    PRINT("\n");
+    PRINT("Options:\n");
+    PRINT("  -oFILE : specify the output file name\n");
+    PRINT("  -v     : display debug information\n");
+    PRINT("  -i#    : provide initial compression level\n");
+    PRINT("  -s     : display information stats\n");
+    PRINT("  -h     : display help/information\n");
+}
 /* return 0 if successful, else return error */
 int main(int argCount, const char* argv[])
 {
@@ -506,6 +519,10 @@ int main(int argCount, const char* argv[])
             else if (strlen(argument) > 1 && argument[1] == 's') {
                 g_displayStats = 1;
                 continue;
+            }
+            else if (strlen(argument) > 1 && argument[1] == 'h') {
+                help();
+                return 0;
             }
             else {
                 DISPLAY("Error: invalid argument provided\n");

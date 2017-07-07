@@ -14,11 +14,14 @@ typedef unsigned char BYTE;
 #include <stdlib.h>     /* malloc, free */
 #include <pthread.h>    /* pthread functions */
 #include <string.h>     /* memset */
+#include <time.h>       /* clock(), CLOCKS_PER_SEC */
 #include "zstd.h"
 
 static int g_displayLevel = DEFAULT_DISPLAY_LEVEL;
 static unsigned g_compressionLevel = DEFAULT_COMPRESSION_LEVEL;
 static unsigned g_displayStats = 0;
+static clock_t g_time = 0;
+static clock_t const refreshRate = CLOCKS_PER_SEC / 60; /* 60 Hz */
 
 typedef struct {
     void* start;
@@ -235,6 +238,16 @@ static void* compressionThread(void* arg)
     return arg;
 }
 
+static void displayProgress(unsigned jobDoneID)
+{
+    clock_t currTime = clock();
+    unsigned const refresh = currTime - g_time > refreshRate ? 1 : 0;
+    if (refresh) {
+        fprintf(stdout, "%u jobs completed\r", jobDoneID+1);
+        fflush(stdout);
+    }
+}
+
 static void* outputThread(void* arg)
 {
     adaptCCtx* ctx = (adaptCCtx*)arg;
@@ -268,6 +281,7 @@ static void* outputThread(void* arg)
             }
         }
         DEBUGLOG(2, "finished job write %u\n", currJob);
+        displayProgress(currJob);
         currJob++;
         DEBUGLOG(2, "locking job write mutex\n");
         pthread_mutex_lock(&ctx->jobWrite_mutex);
@@ -348,6 +362,7 @@ static int compressFilename(const char* const srcFilename, const char* const dst
     size_t const numJobs = MAX_NUM_JOBS;
     int ret = 0;
     adaptCCtx* ctx = NULL;
+    g_time = clock();
 
 
     /* checking for errors */

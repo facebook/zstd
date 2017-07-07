@@ -16,11 +16,11 @@ LDFLAGS += -lzstd
 
 default: all
 
-all: main main-ldm
+all: main-ldm
 
 
-main : ldm.c main.c
-	$(CC) $(CPPFLAGS) $(CFLAGS) $^ $(LDFLAGS) -o $@
+#main : ldm.c main.c
+#	$(CC) $(CPPFLAGS) $(CFLAGS) $^ $(LDFLAGS) -o $@
 
 main-ldm : ldm.c main-ldm.c
 	$(CC) $(CPPFLAGS) $(CFLAGS) $^ $(LDFLAGS) -o $@

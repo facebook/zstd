@@ -69,8 +69,6 @@ static void LDM_writeLE16(void *memPtr, U16 value) {
   }
 }
 
-
-
 static U32 LDM_read32(const void *ptr) {
   return *(const U32 *)ptr;
 }
@@ -98,15 +96,11 @@ struct hash_entry {
 };
 
 static U32 LDM_hash(U32 sequence) {
-  return ((sequence * 2654435761U) >> ((MINMATCH*8)-LDM_HASHLOG));
+  return ((sequence * 2654435761U) >> ((32)-LDM_HASHLOG));
 }
 
 static U32 LDM_hash_position(const void * const p) {
   return LDM_hash(LDM_read32(p));
-}
-
-static U64 find_best_match(tag t, U64 offset) {
-  return 0;
 }
 
 static void LDM_put_position_on_hash(const BYTE *p, U32 h, void *tableBase,
@@ -148,6 +142,12 @@ static unsigned LDM_count(const BYTE *pIn, const BYTE *pMatch,
   return (unsigned)(pIn - pStart);
 }
 
+void LDM_read_header(void const *source, size_t *compressed_size,
+                     size_t *decompressed_size) {
+  U32 *ip = (U32 *)source;
+  *compressed_size = *ip++;
+  *decompressed_size = *ip;
+}
 
 size_t LDM_compress(void const *source, void *dest, size_t source_size,
                     size_t max_dest_size) {
@@ -359,7 +359,7 @@ size_t LDM_decompress(void const *source, void *dest, size_t compressed_size,
     cpy = op + length;
 
     // Inefficient for now
-    while (match < cpy - offset) {
+    while (match < cpy - offset && op < oend) {
       *op++ = *match++;
     }
   }

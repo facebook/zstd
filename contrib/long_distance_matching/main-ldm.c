@@ -11,10 +11,10 @@
 #include <fcntl.h>
 #include "ldm.h"
 
-#define BUF_SIZE 16*1024  // Block size
-#define LDM_HEADER_SIZE 8
+// #define BUF_SIZE 16*1024  // Block size
 #define DEBUG
-// #define ZSTD
+
+//#define ZSTD
 
 #if 0
 static size_t compress_file(FILE *in, FILE *out, size_t *size_in,
@@ -159,9 +159,10 @@ static size_t compress(const char *fname, const char *oname) {
     perror("Fstat error");
     return 1;
   }
+  size_t size_in = statbuf.st_size;
 
  /* go to the location corresponding to the last byte */
- if (lseek(fdout, statbuf.st_size - 1, SEEK_SET) == -1) {
+ if (lseek(fdout, size_in + LDM_HEADER_SIZE - 1, SEEK_SET) == -1) {
     perror("lseek error");
     return 1;
  }
@@ -178,24 +179,31 @@ static size_t compress(const char *fname, const char *oname) {
       perror("mmap error for input");
       return 1;
   }
+  size_t out_size = statbuf.st_size + LDM_HEADER_SIZE;
 
   /* mmap the output file */
-  if ((dst = mmap(0, statbuf.st_size, PROT_READ | PROT_WRITE,
+  if ((dst = mmap(0, out_size, PROT_READ | PROT_WRITE,
                   MAP_SHARED, fdout, 0)) == (caddr_t) - 1) {
       perror("mmap error for output");
       return 1;
   }
 
-  /* Copy input file to output file */
-//  memcpy(dst, src, statbuf.st_size);
   #ifdef ZSTD
     size_t size_out = ZSTD_compress(dst, statbuf.st_size,
                                     src, statbuf.st_size, 1);
   #else
-    size_t size_out = LDM_compress(src, dst, statbuf.st_size,
+    size_t size_out = LDM_compress(src, dst + LDM_HEADER_SIZE, statbuf.st_size,
                                    statbuf.st_size);
+    size_out += LDM_HEADER_SIZE;
+
+    // TODO: should depend on LDM_DECOMPRESS_SIZE write32
+    memcpy(dst, &size_out, 4);
+    memcpy(dst + 4, &(statbuf.st_size), 4);
+    printf("Compressed size: %zu\n", size_out);
+    printf("Decompressed size: %zu\n", statbuf.st_size);
   #endif
   ftruncate(fdout, size_out);
+
   printf("%25s : %6u -> %7u - %s (%.1f%%)\n", fname,
          (unsigned)statbuf.st_size, (unsigned)size_out, oname,
          (double)size_out / (statbuf.st_size) * 100);
@@ -228,8 +236,22 @@ static size_t decompress(const char *fname, const char *oname) {
     return 1;
   }
 
+  /* mmap the input file */
+  if ((src = mmap(0, statbuf.st_size, PROT_READ,  MAP_SHARED, fdin, 0))
+          == (caddr_t) - 1) {
+      perror("mmap error for input");
+      return 1;
+  }
+
+  /* read header */
+  size_t compressed_size, decompressed_size;
+  LDM_read_header(src, &compressed_size, &decompressed_size);
+
+  printf("Size, compressed_size, decompressed_size: %zu %zu %zu\n",
+         statbuf.st_size, compressed_size, decompressed_size);
+
   /* go to the location corresponding to the last byte */
-  if (lseek(fdout, 2*statbuf.st_size - 1, SEEK_SET) == -1) {
+  if (lseek(fdout, decompressed_size - 1, SEEK_SET) == -1) {
     perror("lseek error");
     return 1;
   }
@@ -240,15 +262,8 @@ static size_t decompress(const char *fname, const char *oname) {
     return 1;
   }
 
-  /* mmap the input file */
-  if ((src = mmap(0, statbuf.st_size, PROT_READ,  MAP_SHARED, fdin, 0))
-          == (caddr_t) - 1) {
-      perror("mmap error for input");
-      return 1;
-  }
-
   /* mmap the output file */
-  if ((dst = mmap(0, statbuf.st_size, PROT_READ | PROT_WRITE,
+  if ((dst = mmap(0, decompressed_size, PROT_READ | PROT_WRITE,
                   MAP_SHARED, fdout, 0)) == (caddr_t) - 1) {
       perror("mmap error for output");
       return 1;
@@ -258,13 +273,15 @@ static size_t decompress(const char *fname, const char *oname) {
 //  memcpy(dst, src, statbuf.st_size);
 
   #ifdef ZSTD
-    size_t size_out = ZSTD_decompress(dst, statbuf.st_size,
-                                      src, statbuf.st_size);
+    size_t size_out = ZSTD_decompress(dst, decomrpessed_size,
+                                      src + LDM_HEADER_SIZE,
+                                      statbuf.st_size - LDM_HEADER_SIZE);
   #else
-    size_t size_out = LDM_decompress(src, dst, statbuf.st_size,
-                                     statbuf.st_size);
+    size_t size_out = LDM_decompress(src + LDM_HEADER_SIZE, dst,
+                                     statbuf.st_size - LDM_HEADER_SIZE,
+                                     decompressed_size);
   #endif
-  //ftruncate(fdout, size_out);
+  ftruncate(fdout, size_out);
 
   close(fdin);
   close(fdout);

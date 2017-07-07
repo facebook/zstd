@@ -346,7 +346,7 @@ size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inB
 </b></pre><BR>
 <pre><b>typedef struct {
     unsigned long long frameContentSize;
-    size_t windowSize;
+    unsigned long long windowSize;   </b>/* can be == frameContentSize */<b>
     unsigned dictID;
     unsigned checksumFlag;
 } ZSTD_frameHeader;

@@ -15,17 +15,16 @@ typedef unsigned char BYTE;
 #include <stdlib.h>     /* malloc, free */
 #include <pthread.h>    /* pthread functions */
 #include <string.h>     /* memset */
-#include <time.h>       /* clock(), CLOCKS_PER_SEC */
 #include "zstd.h"
+#include "util.h"
 
 static int g_displayLevel = DEFAULT_DISPLAY_LEVEL;
 static unsigned g_compressionLevel = DEFAULT_COMPRESSION_LEVEL;
 static unsigned g_displayStats = 0;
-static clock_t g_time = 0;
-static clock_t g_startTime = 0;
-static clock_t const refreshRate = CLOCKS_PER_SEC / 60; /* 60 Hz */
+static UTIL_time_t g_startTime;
 static size_t g_streamedSize = 0;
 static unsigned g_useProgressBar = 0;
+static UTIL_freq_t g_ticksPerSecond;
 
 typedef struct {
     void* start;
@@ -39,7 +38,7 @@ typedef struct {
     unsigned readyCounter;
     unsigned compressedCounter;
     unsigned writeCounter;
-} stat_t;
+} cStat_t;
 
 typedef struct {
     buffer_t src;
@@ -69,7 +68,7 @@ typedef struct {
     pthread_cond_t allJobsCompleted_cond;
     pthread_mutex_t jobWrite_mutex;
     pthread_cond_t jobWrite_cond;
-    stat_t stats;
+    cStat_t stats;
     jobDescription* jobs;
     FILE* dstFile;
     ZSTD_CCtx* cctx;
@@ -249,19 +248,17 @@ static void* compressionThread(void* arg)
 static void displayProgress(unsigned jobDoneID, unsigned cLevel, unsigned last)
 {
     if (!g_useProgressBar) return;
-    clock_t currTime = clock();
-    unsigned const refresh = currTime - g_time > refreshRate ? 1 : 0;
-    double const timeElapsed = (double)((currTime - g_startTime) * 1000 / CLOCKS_PER_SEC);
+    UTIL_time_t currTime;
+    UTIL_getTime(&currTime);
+    double const timeElapsed = (double)(UTIL_getSpanTimeMicro(g_ticksPerSecond, g_startTime, currTime) / 1000.0);
     double const sizeMB = (double)g_streamedSize / (1 << 20);
     double const avgCompRate = sizeMB * 1000 / timeElapsed;
-    if (refresh) {
-        fprintf(stdout, "\r| %4u jobs completed | Current Compresion Level: %2u | Time Elapsed: %5.0f ms | Data Size: %7.1f MB | Avg Compression Rate: %6.2f MB/s |", jobDoneID, cLevel, timeElapsed, sizeMB, avgCompRate);
-        if (last) {
-            fprintf(stdout, "\n");
-        }
-        else {
-            fflush(stdout);
-        }
+    fprintf(stdout, "\r| %4u jobs completed | Current Compresion Level: %2u | Time Elapsed: %5.0f ms | Data Size: %7.1f MB | Avg Compression Rate: %6.2f MB/s |", jobDoneID, cLevel, timeElapsed, sizeMB, avgCompRate);
+    if (last) {
+        fprintf(stdout, "\n");
+    }
+    else {
+        fflush(stdout);
     }
 }
 
@@ -362,7 +359,7 @@ static int createCompressionJob(adaptCCtx* ctx, BYTE* data, size_t srcSize)
     return 0;
 }
 
-static void printStats(stat_t stats)
+static void printStats(cStat_t stats)
 {
     DISPLAY("========STATISTICS========\n");
     DISPLAY("# times waited on job ready: %u\n", stats.waitReady);
@@ -379,8 +376,7 @@ static int compressFilename(const char* const srcFilename, const char* const dst
     size_t const numJobs = MAX_NUM_JOBS;
     int ret = 0;
     adaptCCtx* ctx = NULL;
-    g_time = clock();
-    g_startTime = clock();
+    UTIL_getTime(&g_startTime);
     g_streamedSize = 0;
 
 
@@ -516,6 +512,8 @@ int main(int argCount, const char* argv[])
     unsigned forceStdout = 0;
     int ret = 0;
     int argNum;
+
+    UTIL_initTimer(&g_ticksPerSecond);
 
     if (filenameTable == NULL) {
         DISPLAY("Error: could not allocate sapce for filename table.\n");

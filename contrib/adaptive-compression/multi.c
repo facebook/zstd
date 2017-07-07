@@ -95,7 +95,7 @@ static int freeCCtx(adaptCCtx* ctx)
         int const allJobsCondError = pthread_cond_destroy(&ctx->allJobsCompleted_cond);
         int const jobWriteMutexError = pthread_mutex_destroy(&ctx->jobWrite_mutex);
         int const jobWriteCondError = pthread_cond_destroy(&ctx->jobWrite_cond);
-        int const fileCloseError =  ctx->dstFile != NULL ? fclose(ctx->dstFile) : 0;
+        int const fileCloseError =  (ctx->dstFile != NULL && ctx->dstFile != stdout) ? fclose(ctx->dstFile) : 0;
         if (ctx->jobs){
             freeCompressionJobs(ctx);
             free(ctx->jobs);
@@ -448,7 +448,7 @@ cleanup:
     return ret;
 }
 
-static int compressFilenames(const char** filenameTable, unsigned numFiles)
+static int compressFilenames(const char** filenameTable, unsigned numFiles, unsigned forceStdout)
 {
     int ret = 0;
     unsigned fileNum;
@@ -459,7 +459,13 @@ static int compressFilenames(const char** filenameTable, unsigned numFiles)
             DISPLAY("Error: output filename is too long\n");
             return 1;
         }
-        ret |= compressFilename(filename, outFile);
+        if (!forceStdout) {
+            ret |= compressFilename(filename, outFile);
+        }
+        else {
+            ret |= compressFilename(filename, stdoutmark);
+        }
+
     }
     return ret;
 }
@@ -503,6 +509,7 @@ int main(int argCount, const char* argv[])
     const char** filenameTable = (const char**)malloc(argCount*sizeof(const char*));
     unsigned filenameIdx = 0;
     filenameTable[0] = stdinmark;
+    unsigned forceStdout = 0;
     int ret = 0;
     int argNum;
 
@@ -538,6 +545,9 @@ int main(int argCount, const char* argv[])
                 case 'p':
                     g_useProgressBar = 1;
                     break;
+                case 'c':
+                    forceStdout = 1;
+                    break;
                 default:
                     DISPLAY("Error: invalid argument provided\n");
                     ret = 1;
@@ -551,7 +561,7 @@ int main(int argCount, const char* argv[])
     }
 
     /* error checking with number of files */
-    if (filenameIdx > 1 && outFilename != NULL) {
+    if (filenameIdx > 1 && (outFilename != NULL && strcmp(outFilename, stdoutmark))) {
         DISPLAY("Error: multiple input files provided, cannot use specified output file\n");
         ret = 1;
         goto _main_exit;
@@ -562,7 +572,7 @@ int main(int argCount, const char* argv[])
         ret |= compressFilename(filenameTable[0], outFilename);
     }
     else {
-        ret |= compressFilenames(filenameTable, filenameIdx);
+        ret |= compressFilenames(filenameTable, filenameIdx, forceStdout);
     }
 _main_exit:
     free(filenameTable);

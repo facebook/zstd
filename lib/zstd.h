@@ -425,9 +425,12 @@ typedef struct {
     ZSTD_frameParameters fParams;
 } ZSTD_parameters;
 
+typedef enum { ZSTD_frame, ZSTD_skippableFrame } ZSTD_frameType_e;
+
 typedef struct {
-    unsigned long long frameContentSize;
-    unsigned long long windowSize;   /* can be == frameContentSize */
+    unsigned long long frameContentSize; /* ZSTD_CONTENTSIZE_UNKNOWN means this field is not available. 0 means "empty" */
+    unsigned long long windowSize;       /* can be very large, up to <= frameContentSize */
+    ZSTD_frameType_e frameType;          /* if == ZSTD_skippableFrame, frameContentSize is the size of skippable content */
     unsigned dictID;
     unsigned checksumFlag;
 } ZSTD_frameHeader;

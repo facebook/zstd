@@ -434,9 +434,9 @@ static int basicUnitTests(U32 seed, double compressibility)
             CHECKPLUS(r, ZSTD_compressEnd(ctxDuplicated, compressedBuffer, ZSTD_compressBound(testSize),
                                           (const char*)CNBuffer + dictSize, testSize),
                       cSize = r);
-            {   ZSTD_frameHeader fp;
-                if (ZSTD_getFrameHeader(&fp, compressedBuffer, cSize)) goto _output_error;
-                if ((fp.frameContentSize != testSize) && (fp.frameContentSize != 0)) goto _output_error;
+            {   ZSTD_frameHeader zfh;
+                if (ZSTD_getFrameHeader(&zfh, compressedBuffer, cSize)) goto _output_error;
+                if ((zfh.frameContentSize != testSize) && (zfh.frameContentSize != 0)) goto _output_error;
         }   }
         DISPLAYLEVEL(4, "OK \n");
 
@@ -1006,15 +1006,15 @@ static int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, U32 const maxD
                   CHECK(endCheck != endMark, "ZSTD_compressCCtx : dst buffer overflow"); }
         }   }
 
+        /* frame header decompression test */
+        {   ZSTD_frameHeader zfh;
+            CHECK_Z( ZSTD_getFrameHeader(&zfh, cBuffer, cSize) );
+            CHECK(zfh.frameContentSize != sampleSize, "Frame content size incorrect");
+        }
+
         /* Decompressed size test */
         {   unsigned long long const rSize = ZSTD_findDecompressedSize(cBuffer, cSize);
             CHECK(rSize != sampleSize, "decompressed size incorrect");
-        }
-
-        /* frame header decompression test */
-        {   ZSTD_frameHeader dParams;
-            CHECK_Z( ZSTD_getFrameHeader(&dParams, cBuffer, cSize) );
-            CHECK(dParams.frameContentSize != sampleSize, "Frame content size incorrect");
         }
 
         /* successful decompression test */

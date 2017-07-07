@@ -72,6 +72,7 @@ typedef struct {
     stat_t stats;
     jobDescription* jobs;
     FILE* dstFile;
+    ZSTD_CCtx* cctx;
 } adaptCCtx;
 
 static void freeCompressionJobs(adaptCCtx* ctx)
@@ -96,11 +97,12 @@ static int freeCCtx(adaptCCtx* ctx)
         int const jobWriteMutexError = pthread_mutex_destroy(&ctx->jobWrite_mutex);
         int const jobWriteCondError = pthread_cond_destroy(&ctx->jobWrite_cond);
         int const fileCloseError =  (ctx->dstFile != NULL && ctx->dstFile != stdout) ? fclose(ctx->dstFile) : 0;
+        int const cctxError = ZSTD_isError(ZSTD_freeCCtx(ctx->cctx)) ? 1 : 0;
         if (ctx->jobs){
             freeCompressionJobs(ctx);
             free(ctx->jobs);
         }
-        return compressedMutexError | compressedCondError | readyMutexError | readyCondError | fileCloseError | allJobsMutexError | allJobsCondError | jobWriteMutexError | jobWriteCondError;
+        return compressedMutexError | compressedCondError | readyMutexError | readyCondError | fileCloseError | allJobsMutexError | allJobsCondError | jobWriteMutexError | jobWriteCondError | cctxError;
     }
 }
 
@@ -132,6 +134,12 @@ static adaptCCtx* createCCtx(unsigned numJobs, const char* const outFilename)
     ctx->threadError = 0;
     ctx->allJobsCompleted = 0;
     ctx->adaptParam = DEFAULT_ADAPT_PARAM;
+    ctx->cctx = ZSTD_createCCtx();
+    if (!ctx->cctx) {
+        DISPLAY("Error: could not allocate ZSTD_CCtx\n");
+        freeCCtx(ctx);
+        return NULL;
+    }
     if (!ctx->jobs) {
         DISPLAY("Error: could not allocate space for jobs during context creation\n");
         freeCCtx(ctx);
@@ -214,7 +222,7 @@ static void* compressionThread(void* arg)
         {
             unsigned const cLevel = adaptCompressionLevel(ctx);
             DEBUGLOG(2, "cLevel used: %u\n", cLevel);
-            size_t const compressedSize = ZSTD_compress(job->dst.start, job->dst.size, job->src.start, job->src.size, cLevel);
+            size_t const compressedSize = ZSTD_compressCCtx(ctx->cctx, job->dst.start, job->dst.size, job->src.start, job->src.size, cLevel);
             if (ZSTD_isError(compressedSize)) {
                 ctx->threadError = 1;
                 DISPLAY("Error: something went wrong during compression: %s\n", ZSTD_getErrorName(compressedSize));

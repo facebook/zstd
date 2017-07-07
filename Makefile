@@ -180,7 +180,7 @@ ppc64fuzz: clean
 	CC=powerpc-linux-gnu-gcc QEMU_SYS=qemu-ppc64-static MOREFLAGS="-m64 -static" FUZZER_FLAGS=--no-big-tests $(MAKE) -C $(TESTDIR) fuzztest
 
 gpptest: clean
-	CC=g++ $(MAKE) -C $(PRGDIR) all CFLAGS="-O3 -Wall -Wextra -Wundef -Wshadow -Wcast-align -Werror"
+	CC=$(CXX) $(MAKE) -C $(PRGDIR) all CFLAGS="-O3 -Wall -Wextra -Wundef -Wshadow -Wcast-align -Werror"
 
 gcc5test: clean
 	gcc-5 -v

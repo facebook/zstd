@@ -22,6 +22,7 @@ static int g_displayLevel = DEFAULT_DISPLAY_LEVEL;
 static unsigned g_compressionLevel = DEFAULT_COMPRESSION_LEVEL;
 static unsigned g_displayStats = 0;
 static clock_t g_time = 0;
+static clock_t g_startTime = 0;
 static clock_t const refreshRate = CLOCKS_PER_SEC / 60; /* 60 Hz */
 
 typedef struct {
@@ -239,13 +240,19 @@ static void* compressionThread(void* arg)
     return arg;
 }
 
-static void displayProgress(unsigned jobDoneID)
+static void displayProgress(unsigned jobDoneID, unsigned cLevel, unsigned last)
 {
     clock_t currTime = clock();
     unsigned const refresh = currTime - g_time > refreshRate ? 1 : 0;
+    double timeElapsed = (double)((currTime - g_startTime) * 1000 / CLOCKS_PER_SEC);
     if (refresh) {
-        fprintf(stdout, "\r%u jobs completed", jobDoneID+1);
-        fflush(stdout);
+        fprintf(stdout, "\r| %4u jobs completed | Current Compresion Level: %2u | Time Elapsed: %5.0fms |", jobDoneID, cLevel, timeElapsed);
+        if (last) {
+            fprintf(stdout, "\n");
+        }
+        else {
+            fflush(stdout);
+        }
     }
 }
 
@@ -282,8 +289,8 @@ static void* outputThread(void* arg)
             }
         }
         DEBUGLOG(2, "finished job write %u\n", currJob);
-        displayProgress(currJob);
         currJob++;
+        displayProgress(currJob, ctx->compressionLevel, currJob >= ctx->lastJobID);
         DEBUGLOG(2, "locking job write mutex\n");
         pthread_mutex_lock(&ctx->jobWrite_mutex);
         ctx->jobWriteID++;
@@ -364,6 +371,7 @@ static int compressFilename(const char* const srcFilename, const char* const dst
     int ret = 0;
     adaptCCtx* ctx = NULL;
     g_time = clock();
+    g_startTime = clock();
 
 
     /* checking for errors */

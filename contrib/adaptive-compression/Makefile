@@ -1,5 +1,6 @@
 
 ZSTDDIR = ../../lib
+PRGDIR  = ../../programs
 ZSTDCOMMON_FILES := $(ZSTDDIR)/common/*.c
 ZSTDCOMP_FILES   := $(ZSTDDIR)/compress/*.c
 ZSTDDECOMP_FILES := $(ZSTDDIR)/decompress/*.c

@@ -11,7 +11,7 @@
 #define LDM_HASHTABLESIZE_U32 ((LDM_HASHTABLESIZE) >> 2)
 #define LDM_HASH_SIZE_U32 (1 << (LDM_HASHLOG))
 
-#define WINDOW_SIZE (1 << 20)
+#define WINDOW_SIZE (1 << 15)
 #define HASH_SIZE 4
 #define MINMATCH 4
 
@@ -144,7 +144,7 @@ static unsigned LDM_count(const BYTE *pIn, const BYTE *pMatch,
 
 void LDM_read_header(void const *source, size_t *compressed_size,
                      size_t *decompressed_size) {
-  U32 *ip = (U32 *)source;
+  const U32 *ip = (const U32 *)source;
   *compressed_size = *ip++;
   *decompressed_size = *ip;
 }
@@ -156,6 +156,7 @@ size_t LDM_compress(void const *source, void *dest, size_t source_size,
   const BYTE * const iend = istart + source_size;
   const BYTE *ilimit = iend - HASH_SIZE;
   const BYTE * const matchlimit = iend - HASH_SIZE;
+  const BYTE * const mflimit = iend - MINMATCH;
   BYTE *op = (BYTE*) dest;
   U32 hashTable[LDM_HASHTABLESIZE_U32];
   memset(hashTable, 0, sizeof(hashTable));
@@ -172,6 +173,7 @@ size_t LDM_compress(void const *source, void *dest, size_t source_size,
   ip++;
   forwardH = LDM_hash_position(ip);
 
+  //TODO Loop terminates before ip>=ilimit.
   while (ip < ilimit) {
     const BYTE *match;
     BYTE *token;
@@ -186,12 +188,22 @@ size_t LDM_compress(void const *source, void *dest, size_t source_size,
         ip = forwardIp;
         forwardIp += step;
 
+        if (forwardIp > mflimit) {
+          goto _last_literals;
+        }
+
         match = LDM_get_position_on_hash(h, hashTable, istart);
 
         forwardH = LDM_hash_position(forwardIp);
         LDM_put_position_on_hash(ip, h, hashTable, istart);
       } while (ip - match > WINDOW_SIZE ||
                LDM_read32(match) != LDM_read32(ip));
+    }
+
+    // TODO catchup
+    while (ip > anchor && match > istart && ip[-1] == match[-1]) {
+      ip--;
+      match--;
     }
 
     /* Encode literals */
@@ -223,7 +235,8 @@ size_t LDM_compress(void const *source, void *dest, size_t source_size,
       fwrite(anchor, litLength, 1, stdout);
       printf("\n");
 #endif
-      LDM_wild_copy(op, anchor, op + litLength);
+      memcpy(op, anchor, litLength);
+      //LDM_wild_copy(op, anchor, op + litLength);
       op += litLength;
     }
 _next_match:
@@ -268,29 +281,22 @@ _next_match:
     LDM_put_position(ip, hashTable, istart);
     forwardH = LDM_hash_position(++ip);
   }
+_last_literals:
     /* Encode last literals */
   {
-    /*
     size_t const lastRun = (size_t)(iend - anchor);
-    printf("last run length: %zu, %zu %zu %zu %zu\n", lastRun, iend-istart,
-           anchor-istart, ip-istart, ilimit-istart);
     if (lastRun >= RUN_MASK) {
       size_t accumulator = lastRun - RUN_MASK;
       *op++ = RUN_MASK << ML_BITS;
       for(; accumulator >= 255; accumulator -= 255) {
         *op++ = 255;
       }
-      *op++ = (BYTE) accumulator;
+      *op++ = (BYTE)accumulator;
     } else {
       *op++ = (BYTE)(lastRun << ML_BITS);
     }
-    fwrite(anchor, lastRun, 1, stdout);
-    printf("^last run\n");
     memcpy(op, anchor, lastRun);
     op += lastRun;
-
-//    memcpy(dest + (ip - istart), ip, 1);
-//    */
   }
   return (op - (BYTE *)dest);
 }
@@ -328,7 +334,8 @@ size_t LDM_decompress(void const *source, void *dest, size_t compressed_size,
     fwrite(ip, length, 1, stdout);
     printf("\n");
 #endif
-    LDM_wild_copy(op, ip, cpy);
+    memcpy(op, ip, length);
+//    LDM_wild_copy(op, ip, cpy);
     ip += length;
     op = cpy;
 
@@ -358,12 +365,13 @@ size_t LDM_decompress(void const *source, void *dest, size_t compressed_size,
     /* copy match */
     cpy = op + length;
 
+//    printf("TMP_PREV: %zu\n", op - (BYTE *)dest);
     // Inefficient for now
     while (match < cpy - offset && op < oend) {
       *op++ = *match++;
     }
+//    printf("TMP: %zu\n", op - (BYTE *)dest);
   }
-
 //  memcpy(dest, source, compressed_size);
   return op - (BYTE *)dest;
 }

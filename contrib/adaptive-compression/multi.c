@@ -247,8 +247,9 @@ static void displayProgress(unsigned jobDoneID, unsigned cLevel, unsigned last)
     unsigned const refresh = currTime - g_time > refreshRate ? 1 : 0;
     double const timeElapsed = (double)((currTime - g_startTime) * 1000 / CLOCKS_PER_SEC);
     double const sizeMB = (double)g_streamedSize / (1 << 20);
+    double const avgCompRate = sizeMB / timeElapsed;
     if (refresh) {
-        fprintf(stdout, "\r| %4u jobs completed | Current Compresion Level: %2u | Time Elapsed: %5.0f ms | Data Size: %7.1f MB |", jobDoneID, cLevel, timeElapsed, sizeMB);
+        fprintf(stdout, "\r| %4u jobs completed | Current Compresion Level: %2u | Time Elapsed: %5.0f ms | Data Size: %7.1f MB | Avg Compression Rate: %6.2f MB/s |", jobDoneID, cLevel, timeElapsed, sizeMB, avgCompRate);
         if (last) {
             fprintf(stdout, "\n");
         }

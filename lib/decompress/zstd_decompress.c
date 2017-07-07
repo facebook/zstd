@@ -334,7 +334,7 @@ size_t ZSTD_getFrameHeader(ZSTD_frameHeader* zfhPtr, const void* src, size_t src
             U32 const windowLog = (wlByte >> 3) + ZSTD_WINDOWLOG_ABSOLUTEMIN;
             if (windowLog > ZSTD_WINDOWLOG_MAX)
                 return ERROR(frameParameter_windowTooLarge);
-            windowSize = (1U << windowLog);
+            windowSize = (1ULL << windowLog);
             windowSize += (windowSize >> 3) * (wlByte&7);
         }
         switch(dictIDSizeCode)

@@ -73,13 +73,13 @@ DECODECORPUS_TESTTIME ?= -T30
 
 default: fullbench
 
-all: fullbench fuzzer zstreamtest paramgrill datagen zbufftest decodecorpus
+all: fullbench fuzzer zstreamtest paramgrill datagen decodecorpus
 
-all32: fullbench32 fuzzer32 zstreamtest32 zbufftest32
+all32: fullbench32 fuzzer32 zstreamtest32
 
-allnothread: fullbench fuzzer paramgrill datagen zbufftest decodecorpus
+allnothread: fullbench fuzzer paramgrill datagen  decodecorpus
 
-dll: fuzzer-dll zstreamtest-dll zbufftest-dll
+dll: fuzzer-dll zstreamtest-dll 
 
 zstd:
 	$(MAKE) -C $(PRGDIR) $@

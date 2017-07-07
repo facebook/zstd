@@ -312,8 +312,10 @@ size_t ZSTD_getFrameHeader(ZSTD_frameHeader* zfhPtr, const void* src, size_t src
     }
 
     /* ensure there is enough `srcSize` to fully read/decode frame header */
-    { size_t const fhsize = ZSTD_frameHeaderSize(src, srcSize);
-      if (srcSize < fhsize) return fhsize; }
+    {   size_t const fhsize = ZSTD_frameHeaderSize(src, srcSize);
+        if (srcSize < fhsize) return fhsize;
+        zfhPtr->headerSize = (U32)fhsize;
+    }
 
     {   BYTE const fhdByte = ip[4];
         size_t pos = 5;
@@ -1445,17 +1447,14 @@ size_t ZSTD_findFrameCompressedSize(const void *src, size_t srcSize)
         size_t remainingSize = srcSize;
         ZSTD_frameHeader zfh;
 
-        size_t const headerSize = ZSTD_frameHeaderSize(src, srcSize);
-        if (ZSTD_isError(headerSize)) return headerSize;
-
-        /* Frame Header */
+        /* Extract Frame Header */
         {   size_t const ret = ZSTD_getFrameHeader(&zfh, src, srcSize);
             if (ZSTD_isError(ret)) return ret;
             if (ret > 0) return ERROR(srcSize_wrong);
         }
 
-        ip += headerSize;
-        remainingSize -= headerSize;
+        ip += zfh.headerSize;
+        remainingSize -= zfh.headerSize;
 
         /* Loop on each block */
         while (1) {

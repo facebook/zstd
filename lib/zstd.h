@@ -427,7 +427,7 @@ typedef struct {
 
 typedef struct {
     unsigned long long frameContentSize;
-    size_t windowSize;
+    unsigned long long windowSize;   /* can be == frameContentSize */
     unsigned dictID;
     unsigned checksumFlag;
 } ZSTD_frameHeader;

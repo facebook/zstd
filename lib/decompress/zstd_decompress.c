@@ -375,7 +375,8 @@ unsigned long long ZSTD_getFrameContentSize(const void *src, size_t srcSize)
     }
 #endif
     {   ZSTD_frameHeader fParams;
-        if (ZSTD_getFrameHeader(&fParams, src, srcSize) != 0) return ZSTD_CONTENTSIZE_ERROR;
+        if (ZSTD_getFrameHeader(&fParams, src, srcSize) != 0)
+            return ZSTD_CONTENTSIZE_ERROR;
         if (fParams.windowSize == 0) {
             /* Either skippable or empty frame, size == 0 either way */
             return 0;
@@ -442,7 +443,8 @@ unsigned long long ZSTD_findDecompressedSize(const void* src, size_t srcSize)
 *   compatible with legacy mode
 *   @return : decompressed size if known, 0 otherwise
               note : 0 can mean any of the following :
-                   - decompressed size is not present within frame header
+                   - frame content is empty
+                   - decompressed size field is not present in frame header
                    - frame header unknown / not supported
                    - frame header not complete (`srcSize` too small) */
 unsigned long long ZSTD_getDecompressedSize(const void* src, size_t srcSize)

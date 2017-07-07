@@ -24,6 +24,7 @@ static unsigned g_displayStats = 0;
 static clock_t g_time = 0;
 static clock_t g_startTime = 0;
 static clock_t const refreshRate = CLOCKS_PER_SEC / 60; /* 60 Hz */
+static size_t g_streamedSize = 0;
 
 typedef struct {
     void* start;
@@ -244,9 +245,10 @@ static void displayProgress(unsigned jobDoneID, unsigned cLevel, unsigned last)
 {
     clock_t currTime = clock();
     unsigned const refresh = currTime - g_time > refreshRate ? 1 : 0;
-    double timeElapsed = (double)((currTime - g_startTime) * 1000 / CLOCKS_PER_SEC);
+    double const timeElapsed = (double)((currTime - g_startTime) * 1000 / CLOCKS_PER_SEC);
+    double const sizeMB = (double)g_streamedSize / (1 << 20);
     if (refresh) {
-        fprintf(stdout, "\r| %4u jobs completed | Current Compresion Level: %2u | Time Elapsed: %5.0fms |", jobDoneID, cLevel, timeElapsed);
+        fprintf(stdout, "\r| %4u jobs completed | Current Compresion Level: %2u | Time Elapsed: %5.0f ms | Data Size: %7.1f MB |", jobDoneID, cLevel, timeElapsed, sizeMB);
         if (last) {
             fprintf(stdout, "\n");
         }
@@ -372,6 +374,7 @@ static int compressFilename(const char* const srcFilename, const char* const dst
     adaptCCtx* ctx = NULL;
     g_time = clock();
     g_startTime = clock();
+    g_streamedSize = 0;
 
 
     /* checking for errors */
@@ -416,6 +419,7 @@ static int compressFilename(const char* const srcFilename, const char* const dst
             ret = 1;
             goto cleanup;
         }
+        g_streamedSize += readSize;
         /* reading was fine, now create the compression job */
         {
             int const error = createCompressionJob(ctx, src, readSize);

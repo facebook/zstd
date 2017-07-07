@@ -8,7 +8,7 @@
 #define MAX_PATH 256
 #define DEFAULT_DISPLAY_LEVEL 1
 #define DEFAULT_COMPRESSION_LEVEL 6
-#define DEFAULT_ADAPT_PARAM 2
+#define DEFAULT_ADAPT_PARAM 1
 typedef unsigned char BYTE;
 
 #include <stdio.h>      /* fprintf */

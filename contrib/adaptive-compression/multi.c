@@ -25,6 +25,7 @@ static clock_t g_time = 0;
 static clock_t g_startTime = 0;
 static clock_t const refreshRate = CLOCKS_PER_SEC / 60; /* 60 Hz */
 static size_t g_streamedSize = 0;
+static unsigned g_useProgressBar = 0;
 
 typedef struct {
     void* start;
@@ -243,11 +244,12 @@ static void* compressionThread(void* arg)
 
 static void displayProgress(unsigned jobDoneID, unsigned cLevel, unsigned last)
 {
+    if (!g_useProgressBar) return;
     clock_t currTime = clock();
     unsigned const refresh = currTime - g_time > refreshRate ? 1 : 0;
     double const timeElapsed = (double)((currTime - g_startTime) * 1000 / CLOCKS_PER_SEC);
     double const sizeMB = (double)g_streamedSize / (1 << 20);
-    double const avgCompRate = sizeMB / timeElapsed;
+    double const avgCompRate = sizeMB * 1000 / timeElapsed;
     if (refresh) {
         fprintf(stdout, "\r| %4u jobs completed | Current Compresion Level: %2u | Time Elapsed: %5.0f ms | Data Size: %7.1f MB | Avg Compression Rate: %6.2f MB/s |", jobDoneID, cLevel, timeElapsed, sizeMB, avgCompRate);
         if (last) {
@@ -536,6 +538,10 @@ int main(int argCount, const char* argv[])
             else if (strlen(argument) > 1 && argument[1] == 'h') {
                 help();
                 return 0;
+            }
+            else if (strlen(argument) > 1 && argument[1] == 'p') {
+                g_useProgressBar = 1;
+                continue;
             }
             else {
                 DISPLAY("Error: invalid argument provided\n");

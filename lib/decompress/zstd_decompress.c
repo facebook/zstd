@@ -321,7 +321,6 @@ size_t ZSTD_getFrameHeader(ZSTD_frameHeader* zfhPtr, const void* src, size_t src
         U32 const checksumFlag = (fhdByte>>2)&1;
         U32 const singleSegment = (fhdByte>>5)&1;
         U32 const fcsID = fhdByte>>6;
-        U32 const windowSizeMax = 1U << ZSTD_WINDOWLOG_MAX;
         U64 windowSize = 0;
         U32 dictID = 0;
         U64 frameContentSize = ZSTD_CONTENTSIZE_UNKNOWN;
@@ -359,8 +358,6 @@ size_t ZSTD_getFrameHeader(ZSTD_frameHeader* zfhPtr, const void* src, size_t src
         zfhPtr->windowSize = windowSize;
         zfhPtr->dictID = dictID;
         zfhPtr->checksumFlag = checksumFlag;
-        if (windowSize > windowSizeMax)
-            return ERROR(frameParameter_windowTooLarge);   /* should windowSizeMax control be delegated to caller ? */
     }
     return 0;
 }
@@ -2254,10 +2251,13 @@ size_t ZSTD_estimateDStreamSize(size_t windowSize)
 
 ZSTDLIB_API size_t ZSTD_estimateDStreamSize_fromFrame(const void* src, size_t srcSize)
 {
+    U32 const windowSizeMax = 1U << ZSTD_WINDOWLOG_MAX;
     ZSTD_frameHeader zfh;
     size_t const err = ZSTD_getFrameHeader(&zfh, src, srcSize);
     if (ZSTD_isError(err)) return err;
     if (err>0) return ERROR(srcSize_wrong);
+    if (zfh.windowSize > windowSizeMax)
+        return ERROR(frameParameter_windowTooLarge);
     return ZSTD_estimateDStreamSize(zfh.windowSize);
 }
 

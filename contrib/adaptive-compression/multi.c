@@ -265,16 +265,16 @@ static void* outputThread(void* arg)
     for ( ; ; ) {
         unsigned const currJobIndex = currJob % ctx->numJobs;
         jobDescription* job = &ctx->jobs[currJobIndex];
-        DEBUGLOG(2, "outputThread(): waiting on job completed\n");
+        DEBUGLOG(2, "outputThread(): waiting on job compressed\n");
         pthread_mutex_lock(&ctx->jobCompressed_mutex);
         while (currJob + 1 > ctx->jobCompressedID) {
             ctx->stats.waitCompressed++;
             ctx->stats.compressedCounter++;
-            DEBUGLOG(2, "waiting on job completed, nextJob: %u\n", currJob);
+            DEBUGLOG(2, "waiting on job compressed, nextJob: %u\n", currJob);
             pthread_cond_wait(&ctx->jobCompressed_cond, &ctx->jobCompressed_mutex);
         }
         pthread_mutex_unlock(&ctx->jobCompressed_mutex);
-        DEBUGLOG(2, "outputThread(): continuing after job completed\n");
+        DEBUGLOG(2, "outputThread(): continuing after job compressed\n");
         {
             size_t const compressedSize = job->compressedSize;
             if (ZSTD_isError(compressedSize)) {

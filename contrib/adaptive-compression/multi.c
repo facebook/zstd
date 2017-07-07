@@ -515,39 +515,35 @@ int main(int argCount, const char* argv[])
         const char* argument = argv[argNum];
 
         /* output filename designated with "-o" */
-        if (argument[0]=='-') {
-            if (strlen(argument) > 1 && argument[1] == 'o') {
-                argument += 2;
-                outFilename = argument;
-                continue;
+        if (argument[0]=='-' && strlen(argument) > 1) {
+            switch (argument[1]) {
+                case 'o':
+                    argument += 2;
+                    outFilename = argument;
+                    break;
+                case 'v':
+                    g_displayLevel++;
+                    break;
+                case 'i':
+                    argument += 2;
+                    g_compressionLevel = readU32FromChar(&argument);
+                    DEBUGLOG(2, "g_compressionLevel: %u\n", g_compressionLevel);
+                    break;
+                case 's':
+                    g_displayStats = 1;
+                    break;
+                case 'h':
+                    help();
+                    goto _main_exit;
+                case 'p':
+                    g_useProgressBar = 1;
+                    break;
+                default:
+                    DISPLAY("Error: invalid argument provided\n");
+                    ret = 1;
+                    goto _main_exit;
             }
-            else if (strlen(argument) > 1 && argument[1] == 'v') {
-                g_displayLevel++;
-                continue;
-            }
-            else if (strlen(argument) > 1 && argument[1] == 'i') {
-                argument += 2;
-                g_compressionLevel = readU32FromChar(&argument);
-                DEBUGLOG(2, "g_compressionLevel: %u\n", g_compressionLevel);
-                continue;
-            }
-            else if (strlen(argument) > 1 && argument[1] == 's') {
-                g_displayStats = 1;
-                continue;
-            }
-            else if (strlen(argument) > 1 && argument[1] == 'h') {
-                help();
-                return 0;
-            }
-            else if (strlen(argument) > 1 && argument[1] == 'p') {
-                g_useProgressBar = 1;
-                continue;
-            }
-            else {
-                DISPLAY("Error: invalid argument provided\n");
-                ret = 1;
-                goto _main_exit;
-            }
+            continue;
         }
 
         /* regular files to be compressed */

@@ -140,6 +140,9 @@ diff tests/test512.pdf tests/tmp512
 diff tests/test1024.pdf tests/tmp1024
 diff tests/test2048.pdf tests/tmp2048
 
+echo "Running Args Tests"
+./multi -h
+./multi -i22 -p -s -otmp.zst tests/test2048.pdf
 echo "finished with tests"
 
 make clean

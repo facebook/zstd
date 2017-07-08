@@ -5,6 +5,8 @@
 
 #include "ldm.h"
 
+#define HASH_EVERY 7
+
 #define LDM_MEMORY_USAGE 14
 #define LDM_HASHLOG (LDM_MEMORY_USAGE-2)
 #define LDM_HASHTABLESIZE (1 << (LDM_MEMORY_USAGE))
@@ -13,8 +15,8 @@
 
 #define WINDOW_SIZE (1 << 20)
 #define MAX_WINDOW_SIZE 31
-#define HASH_SIZE 4
-#define MINMATCH 4
+#define HASH_SIZE 8
+#define MINMATCH 8
 
 #define ML_BITS 4
 #define ML_MASK ((1U<<ML_BITS)-1)
@@ -95,6 +97,26 @@ static void LDM_wild_copy(void *dstPtr, const void *srcPtr, void *dstEnd) {
   } while (d < e);
 }
 
+typedef struct compress_stats {
+  U32 num_matches;
+  U32 total_match_length;
+  U32 total_literal_length;
+  U64 total_offset;
+} compress_stats;
+
+static void print_compress_stats(const compress_stats *stats) {
+  printf("=====================\n");
+  printf("Compression statistics\n");
+  printf("Total number of matches: %u\n", stats->num_matches);
+  printf("Average match length: %.1f\n", ((double)stats->total_match_length) /
+                                         (double)stats->num_matches);
+  printf("Average literal length: %.1f\n",
+         ((double)stats->total_literal_length) / (double)stats->num_matches);
+  printf("Average offset length: %.1f\n",
+         ((double)stats->total_offset) / (double)stats->num_matches);
+  printf("=====================\n");
+}
+
 struct hash_entry {
   U64 offset;
   tag t;
@@ -121,12 +143,19 @@ static U32 LDM_hash_position(const void * const p) {
 static void LDM_put_position_on_hash(const BYTE *p, U32 h, void *tableBase,
                                      const BYTE *srcBase) {
 //  printf("Hashing: %zu\n", p - srcBase);
+  if (((p - srcBase) & HASH_EVERY) != HASH_EVERY) {
+    return;
+  }
+
   U32 *hashTable = (U32 *) tableBase;
   hashTable[h] = (U32)(p - srcBase);
 }
 
 static void LDM_put_position(const BYTE *p, void *tableBase,
                              const BYTE *srcBase) {
+  if (((p - srcBase) & HASH_EVERY) != HASH_EVERY) {
+    return;
+  }
   U32 const h = LDM_hash_position(p);
   LDM_put_position_on_hash(p, h, tableBase, srcBase);
 }
@@ -174,6 +203,9 @@ size_t LDM_compress(void const *source, void *dest, size_t source_size,
   const BYTE * const matchlimit = iend - HASH_SIZE;
   const BYTE * const mflimit = iend - MINMATCH;
   BYTE *op = (BYTE*) dest;
+
+  compress_stats compressStats = { 0 };
+
   U32 hashTable[LDM_HASHTABLESIZE_U32];
   memset(hashTable, 0, sizeof(hashTable));
 
@@ -217,8 +249,9 @@ size_t LDM_compress(void const *source, void *dest, size_t source_size,
       } while (ip - match > WINDOW_SIZE ||
                LDM_read64(match) != LDM_read64(ip));
     }
+    compressStats.num_matches++;
 
-    // TODO catchup
+    /* Catchup: look back to extend match from found match */
     while (ip > anchor && match > istart && ip[-1] == match[-1]) {
       ip--;
       match--;
@@ -228,6 +261,8 @@ size_t LDM_compress(void const *source, void *dest, size_t source_size,
     {
       unsigned const litLength = (unsigned)(ip - anchor);
       token = op++;
+
+      compressStats.total_literal_length += litLength;
 
 #ifdef LDM_DEBUG
       printf("Cur position: %zu\n", anchor - istart);
@@ -256,8 +291,13 @@ size_t LDM_compress(void const *source, void *dest, size_t source_size,
 _next_match:
     /* Encode offset */
     {
+      /*
+      LDM_writeLE16(op, ip-match);
+      op += 2;
+      */
       LDM_write32(op, ip - match);
       op += 4;
+      compressStats.total_offset += (ip - match);
     }
 
     /* Encode Match Length */
@@ -270,7 +310,7 @@ _next_match:
       fwrite(ip, MINMATCH + matchCode, 1, stdout);
       printf("\n");
 #endif
-
+      compressStats.total_match_length += matchCode + MINMATCH;
       unsigned ctr = 1;
       ip++;
       for (; ctr < MINMATCH + matchCode; ip++, ctr++) {
@@ -293,6 +333,7 @@ _next_match:
       }
 #ifdef LDM_DEBUG
       printf("\n");
+
 #endif
     }
 
@@ -319,6 +360,7 @@ _last_literals:
     memcpy(op, anchor, lastRun);
     op += lastRun;
   }
+  print_compress_stats(&compressStats);
   return (op - (BYTE *)dest);
 }
 
@@ -361,12 +403,15 @@ size_t LDM_decompress(void const *source, void *dest, size_t compressed_size,
     op = cpy;
 
     /* get offset */
+    /*
+    offset = LDM_readLE16(ip);
+    ip += 2;
+    */
     offset = LDM_read32(ip);
-
+    ip += 4;
 #ifdef LDM_DEBUG
     printf("Offset: %zu\n", offset);
 #endif
-    ip += 4;
     match = op - offset;
  //   LDM_write32(op, (U32)offset);
 

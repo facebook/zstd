@@ -1,3 +1,7 @@
+v1.3.1
+build: fix Visual compilation for non x86/x64 targets, reported by Greg Slazinski (#718)
+API exp : breaking change : ZSTD_getframeHeader() 
+
 v1.3.0
 cli : new : `--list` command, by Paul Cruz
 cli : changed : xz/lzma support enabled by default

@@ -367,18 +367,28 @@ static void printStats(cStat_t stats)
     DISPLAY("# times waited on job Write: %u\n\n", stats.waitWrite);
 }
 
-static int compressFilename(const char* const srcFilename, const char* const dstFilename)
+static int compressFilename(const char* const srcFilename, const char* const dstFilenameOrNull)
 {
     BYTE* const src = malloc(FILE_CHUNK_SIZE);
     unsigned const stdinUsed = !strcmp(srcFilename, stdinmark);
     FILE* const srcFile = stdinUsed ? stdin : fopen(srcFilename, "rb");
-    const char* const outFilename = (stdinUsed && !dstFilename) ? stdoutmark : dstFilename;
+    const char* const outFilenameIntermediate = (stdinUsed && !dstFilenameOrNull) ? stdoutmark : dstFilenameOrNull;
+    const char* outFilename = outFilenameIntermediate;
+    char fileAndSuffix[MAX_PATH];
     size_t const numJobs = MAX_NUM_JOBS;
     int ret = 0;
     adaptCCtx* ctx = NULL;
     UTIL_getTime(&g_startTime);
     g_streamedSize = 0;
 
+    if (!outFilenameIntermediate) {
+        if (snprintf(fileAndSuffix, MAX_PATH, "%s.zst", srcFilename) + 1 > MAX_PATH) {
+            DISPLAY("Error: output filename is too long\n");
+            ret = 1;
+            goto cleanup;
+        }
+        outFilename = fileAndSuffix;
+    }
 
     /* checking for errors */
     if (!srcFilename || !outFilename || !src || !srcFile) {
@@ -452,15 +462,10 @@ static int compressFilenames(const char** filenameTable, unsigned numFiles, unsi
 {
     int ret = 0;
     unsigned fileNum;
-    char outFile[MAX_PATH];
     for (fileNum=0; fileNum<numFiles; fileNum++) {
         const char* filename = filenameTable[fileNum];
-        if (snprintf(outFile, MAX_PATH, "%s.zst", filename) + 1 > MAX_PATH) {
-            DISPLAY("Error: output filename is too long\n");
-            return 1;
-        }
         if (!forceStdout) {
-            ret |= compressFilename(filename, outFile);
+            ret |= compressFilename(filename, NULL);
         }
         else {
             ret |= compressFilename(filename, stdoutmark);

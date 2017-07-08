@@ -151,6 +151,12 @@ echo "Running Tests With Multiple Files > stdout"
 zstd -d tmp.zst
 rm tmp*
 
+echo "Running single test without output filename"
+./multi tests/test2048.pdf -p
+zstd -d tests/test2048.pdf.zst -o tmp
+diff tmp tests/test2048.pdf
+rm tmp*
+
 echo "finished with tests"
 
 make clean

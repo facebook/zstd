@@ -2256,7 +2256,7 @@ ZSTDLIB_API size_t ZSTD_estimateDStreamSize_fromFrame(const void* src, size_t sr
     if (err>0) return ERROR(srcSize_wrong);
     if (zfh.windowSize > windowSizeMax)
         return ERROR(frameParameter_windowTooLarge);
-    return ZSTD_estimateDStreamSize(zfh.windowSize);
+    return ZSTD_estimateDStreamSize((size_t)zfh.windowSize);
 }
 
 
@@ -2365,8 +2365,8 @@ size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inB
             if (zds->fParams.windowSize > zds->maxWindowSize) return ERROR(frameParameter_windowTooLarge);
 
             /* Adapt buffer sizes to frame header instructions */
-            {   size_t const blockSize = MIN(zds->fParams.windowSize, ZSTD_BLOCKSIZE_MAX);
-                size_t const neededOutSize = zds->fParams.windowSize + blockSize + WILDCOPY_OVERLENGTH * 2;
+            {   size_t const blockSize = (size_t)(MIN(zds->fParams.windowSize, ZSTD_BLOCKSIZE_MAX));
+                size_t const neededOutSize = (size_t)(zds->fParams.windowSize + blockSize + WILDCOPY_OVERLENGTH * 2);
                 zds->blockSize = blockSize;
                 if ((zds->inBuffSize < blockSize) || (zds->outBuffSize < neededOutSize)) {
                     size_t const bufferSize = blockSize + neededOutSize;

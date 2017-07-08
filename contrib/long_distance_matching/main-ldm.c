@@ -1,3 +1,5 @@
+// TODO: file size must fit into a U32
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

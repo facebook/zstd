@@ -92,24 +92,24 @@ static void freeCompressionJobs(adaptCCtx* ctx)
 
 static int freeCCtx(adaptCCtx* ctx)
 {
-    {
-        int const compressedMutexError = pthread_mutex_destroy(&ctx->jobCompressed_mutex);
-        int const compressedCondError = pthread_cond_destroy(&ctx->jobCompressed_cond);
-        int const readyMutexError = pthread_mutex_destroy(&ctx->jobReady_mutex);
-        int const readyCondError = pthread_cond_destroy(&ctx->jobReady_cond);
-        int const allJobsMutexError = pthread_mutex_destroy(&ctx->allJobsCompleted_mutex);
-        int const allJobsCondError = pthread_cond_destroy(&ctx->allJobsCompleted_cond);
-        int const jobWriteMutexError = pthread_mutex_destroy(&ctx->jobWrite_mutex);
-        int const jobWriteCondError = pthread_cond_destroy(&ctx->jobWrite_cond);
-        int const fileCloseError =  (ctx->dstFile != NULL && ctx->dstFile != stdout) ? fclose(ctx->dstFile) : 0;
-        int const cctxError = ZSTD_isError(ZSTD_freeCCtx(ctx->cctx)) ? 1 : 0;
-        free(ctx->input.buffer.start);
-        if (ctx->jobs){
-            freeCompressionJobs(ctx);
-            free(ctx->jobs);
-        }
-        return compressedMutexError | compressedCondError | readyMutexError | readyCondError | fileCloseError | allJobsMutexError | allJobsCondError | jobWriteMutexError | jobWriteCondError | cctxError;
+    if (!ctx) return 0;
+    int const compressedMutexError = pthread_mutex_destroy(&ctx->jobCompressed_mutex);
+    int const compressedCondError = pthread_cond_destroy(&ctx->jobCompressed_cond);
+    int const readyMutexError = pthread_mutex_destroy(&ctx->jobReady_mutex);
+    int const readyCondError = pthread_cond_destroy(&ctx->jobReady_cond);
+    int const allJobsMutexError = pthread_mutex_destroy(&ctx->allJobsCompleted_mutex);
+    int const allJobsCondError = pthread_cond_destroy(&ctx->allJobsCompleted_cond);
+    int const jobWriteMutexError = pthread_mutex_destroy(&ctx->jobWrite_mutex);
+    int const jobWriteCondError = pthread_cond_destroy(&ctx->jobWrite_cond);
+    int const fileCloseError =  (ctx->dstFile != NULL && ctx->dstFile != stdout) ? fclose(ctx->dstFile) : 0;
+    int const cctxError = ZSTD_isError(ZSTD_freeCCtx(ctx->cctx)) ? 1 : 0;
+    free(ctx->input.buffer.start);
+    if (ctx->jobs){
+        freeCompressionJobs(ctx);
+        free(ctx->jobs);
     }
+    free(ctx);
+    return compressedMutexError | compressedCondError | readyMutexError | readyCondError | fileCloseError | allJobsMutexError | allJobsCondError | jobWriteMutexError | jobWriteCondError | cctxError;
 }
 
 static adaptCCtx* createCCtx(unsigned numJobs, const char* const outFilename)
@@ -136,6 +136,20 @@ static adaptCCtx* createCCtx(unsigned numJobs, const char* const outFilename)
     ctx->jobWriteID = 0;
     ctx->lastJobID = -1; /* intentional underflow */
     ctx->jobs = calloc(1, numJobs*sizeof(jobDescription));
+    /* allocating buffers for jobs */
+    {
+        unsigned jobNum;
+        for (jobNum=0; jobNum<numJobs; jobNum++) {
+            jobDescription* job = &ctx->jobs[jobNum];
+            job->src.start = malloc(FILE_CHUNK_SIZE);
+            job->dst.start = malloc(FILE_CHUNK_SIZE);
+            if (!job->src.start || !job->dst.start) {
+                DISPLAY("Could not allocate buffers for jobs\n");
+                freeCCtx(ctx);
+                return NULL;
+            }
+        }
+    }
     ctx->nextJobID = 0;
     ctx->threadError = 0;
     ctx->allJobsCompleted = 0;
@@ -354,18 +368,9 @@ static int createCompressionJob(adaptCCtx* ctx, size_t srcSize)
 
 
     job->compressionLevel = ctx->compressionLevel;
-    job->src.start = malloc(srcSize);
     job->src.size = srcSize;
     job->dst.size = ZSTD_compressBound(srcSize);
-    job->dst.start = malloc(job->dst.size);
     job->jobID = nextJob;
-    if (!job->src.start || !job->dst.start) {
-        /* problem occurred, free things then return */
-        DISPLAY("Error: problem occurred during job creation\n");
-        free(job->src.start);
-        free(job->dst.start);
-        return 1;
-    }
     memcpy(job->src.start, ctx->input.buffer.start, srcSize);
     pthread_mutex_lock(&ctx->jobReady_mutex);
     ctx->jobReadyID++;

@@ -187,29 +187,30 @@ static unsigned LDM_count(const BYTE *pIn, const BYTE *pMatch,
   return (unsigned)(pIn - pStart);
 }
 
-void LDM_read_header(void const *source, size_t *compressed_size,
+void LDM_read_header(const void *src, size_t *compressed_size,
                      size_t *decompressed_size) {
-  const U32 *ip = (const U32 *)source;
+  const U32 *ip = (const U32 *)src;
   *compressed_size = *ip++;
   *decompressed_size = *ip;
 }
 
-size_t LDM_compress(void const *source, void *dest, size_t source_size,
-                    size_t max_dest_size) {
-  const BYTE * const istart = (const BYTE*)source;
+// TODO: maxDstSize is unused
+size_t LDM_compress(const void *src, size_t srcSize,
+                    void *dst, size_t maxDstSize) {
+  const BYTE * const istart = (const BYTE*)src;
   const BYTE *ip = istart;
-  const BYTE * const iend = istart + source_size;
+  const BYTE * const iend = istart + srcSize;
   const BYTE *ilimit = iend - HASH_SIZE;
   const BYTE * const matchlimit = iend - HASH_SIZE;
   const BYTE * const mflimit = iend - MINMATCH;
-  BYTE *op = (BYTE*) dest;
+  BYTE *op = (BYTE*) dst;
 
   compress_stats compressStats = { 0 };
 
   U32 hashTable[LDM_HASHTABLESIZE_U32];
   memset(hashTable, 0, sizeof(hashTable));
 
-  const BYTE *anchor = (const BYTE *)source;
+  const BYTE *anchor = (const BYTE *)src;
 //  struct LDM_cctx cctx;
   size_t output_size = 0;
 
@@ -361,14 +362,14 @@ _last_literals:
     op += lastRun;
   }
   print_compress_stats(&compressStats);
-  return (op - (BYTE *)dest);
+  return (op - (BYTE *)dst);
 }
 
-size_t LDM_decompress(void const *source, void *dest, size_t compressed_size,
-                      size_t max_decompressed_size) {
-  const BYTE *ip = (const BYTE *)source;
+size_t LDM_decompress(const void *src, size_t compressed_size,
+                      void *dst, size_t max_decompressed_size) {
+  const BYTE *ip = (const BYTE *)src;
   const BYTE * const iend = ip + compressed_size;
-  BYTE *op = (BYTE *)dest;
+  BYTE *op = (BYTE *)dst;
   BYTE * const oend = op + max_decompressed_size;
   BYTE *cpy;
 
@@ -437,8 +438,8 @@ size_t LDM_decompress(void const *source, void *dest, size_t compressed_size,
       *op++ = *match++;
     }
   }
-//  memcpy(dest, source, compressed_size);
-  return op - (BYTE *)dest;
+//  memcpy(dst, src, compressed_size);
+  return op - (BYTE *)dst;
 }
 
 

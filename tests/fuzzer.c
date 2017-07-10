@@ -160,7 +160,7 @@ static int FUZ_mallocTests(unsigned seed, double compressibility)
     {   int compressionLevel;
         mallocCounter_t malcount = INIT_MALLOC_COUNTER;
         ZSTD_customMem const cMem = { FUZ_mallocDebug, FUZ_freeDebug, &malcount };
-        for (compressionLevel=1; compressionLevel<=5; compressionLevel++) {
+        for (compressionLevel=1; compressionLevel<=6; compressionLevel++) {
             ZSTD_CCtx* const cctx = ZSTD_createCCtx_advanced(cMem);
             ZSTD_compressCCtx(cctx, outBuffer, outSize, inBuffer, inSize, compressionLevel);
             ZSTD_freeCCtx(cctx);
@@ -173,7 +173,7 @@ static int FUZ_mallocTests(unsigned seed, double compressibility)
     {   int compressionLevel;
         mallocCounter_t malcount = INIT_MALLOC_COUNTER;
         ZSTD_customMem const cMem = { FUZ_mallocDebug, FUZ_freeDebug, &malcount };
-        for (compressionLevel=1; compressionLevel<=5; compressionLevel++) {
+        for (compressionLevel=1; compressionLevel<=6; compressionLevel++) {
             ZSTD_CCtx* const cstream = ZSTD_createCStream_advanced(cMem);
             ZSTD_outBuffer out = { outBuffer, outSize, 0 };
             ZSTD_inBuffer in = { inBuffer, inSize, 0 };
@@ -186,56 +186,46 @@ static int FUZ_mallocTests(unsigned seed, double compressibility)
             malcount = INIT_MALLOC_COUNTER;
     }   }
 
-    /* advanced API test */
-    {   int compressionLevel;
-        mallocCounter_t malcount = INIT_MALLOC_COUNTER;
-        ZSTD_customMem const cMem = { FUZ_mallocDebug, FUZ_freeDebug, &malcount };
-        for (compressionLevel=1; compressionLevel<=5; compressionLevel++) {
-            ZSTD_CCtx* const cctx = ZSTD_createCCtx_advanced(cMem);
-            ZSTD_outBuffer out = { outBuffer, outSize, 0 };
-            ZSTD_inBuffer in = { inBuffer, inSize, 0 };
-            ZSTD_CCtx_setParameter(cctx, ZSTD_p_compressionLevel, (U32)compressionLevel);
-            ZSTD_compress_generic(cctx, &out, &in, ZSTD_e_end);
-            ZSTD_freeCCtx(cctx);
-            DISPLAYLEVEL(3, "compress_generic,end level %i : ", compressionLevel);
-            FUZ_displayMallocStats(malcount);
-            malcount = INIT_MALLOC_COUNTER;
-    }   }
-
     /* advanced MT API test */
-    {   int compressionLevel;
-        mallocCounter_t malcount = INIT_MALLOC_COUNTER;
-        ZSTD_customMem const cMem = { FUZ_mallocDebug, FUZ_freeDebug, &malcount };
-        for (compressionLevel=1; compressionLevel<=5; compressionLevel++) {
-            ZSTD_CCtx* const cctx = ZSTD_createCCtx_advanced(cMem);
-            ZSTD_outBuffer out = { outBuffer, outSize, 0 };
-            ZSTD_inBuffer in = { inBuffer, inSize, 0 };
-            ZSTD_CCtx_setParameter(cctx, ZSTD_p_compressionLevel, (U32)compressionLevel);
-            ZSTD_CCtx_setParameter(cctx, ZSTD_p_nbThreads, 2);
-            ZSTD_compress_generic(cctx, &out, &in, ZSTD_e_end);
-            ZSTD_freeCCtx(cctx);
-            DISPLAYLEVEL(3, "compress_generic,-T2,end level %i : ", compressionLevel);
-            FUZ_displayMallocStats(malcount);
-            malcount = INIT_MALLOC_COUNTER;
-    }   }
+    {   U32 nbThreads;
+        for (nbThreads=1; nbThreads<=4; nbThreads++) {
+            int compressionLevel;
+            mallocCounter_t malcount = INIT_MALLOC_COUNTER;
+            ZSTD_customMem const cMem = { FUZ_mallocDebug, FUZ_freeDebug, &malcount };
+            for (compressionLevel=1; compressionLevel<=6; compressionLevel++) {
+                ZSTD_CCtx* const cctx = ZSTD_createCCtx_advanced(cMem);
+                ZSTD_outBuffer out = { outBuffer, outSize, 0 };
+                ZSTD_inBuffer in = { inBuffer, inSize, 0 };
+                ZSTD_CCtx_setParameter(cctx, ZSTD_p_compressionLevel, (U32)compressionLevel);
+                ZSTD_CCtx_setParameter(cctx, ZSTD_p_nbThreads, nbThreads);
+                ZSTD_compress_generic(cctx, &out, &in, ZSTD_e_end);
+                ZSTD_freeCCtx(cctx);
+                DISPLAYLEVEL(3, "compress_generic,-T%u,end level %i : ",
+                                nbThreads, compressionLevel);
+                FUZ_displayMallocStats(malcount);
+                malcount = INIT_MALLOC_COUNTER;
+    }   }   }
 
     /* advanced MT streaming API test */
-    {   int compressionLevel;
-        mallocCounter_t malcount = INIT_MALLOC_COUNTER;
-        ZSTD_customMem const cMem = { FUZ_mallocDebug, FUZ_freeDebug, &malcount };
-        for (compressionLevel=1; compressionLevel<=5; compressionLevel++) {
-            ZSTD_CCtx* const cctx = ZSTD_createCCtx_advanced(cMem);
-            ZSTD_outBuffer out = { outBuffer, outSize, 0 };
-            ZSTD_inBuffer in = { inBuffer, inSize, 0 };
-            ZSTD_CCtx_setParameter(cctx, ZSTD_p_compressionLevel, (U32)compressionLevel);
-            ZSTD_CCtx_setParameter(cctx, ZSTD_p_nbThreads, 2);
-            ZSTD_compress_generic(cctx, &out, &in, ZSTD_e_continue);
-            ZSTD_compress_generic(cctx, &out, &in, ZSTD_e_end);
-            ZSTD_freeCCtx(cctx);
-            DISPLAYLEVEL(3, "compress_generic,-T2,continue level %i : ", compressionLevel);
-            FUZ_displayMallocStats(malcount);
-            malcount = INIT_MALLOC_COUNTER;
-    }   }
+    {   U32 nbThreads;
+        for (nbThreads=1; nbThreads<=4; nbThreads++) {
+            int compressionLevel;
+            mallocCounter_t malcount = INIT_MALLOC_COUNTER;
+            ZSTD_customMem const cMem = { FUZ_mallocDebug, FUZ_freeDebug, &malcount };
+            for (compressionLevel=1; compressionLevel<=6; compressionLevel++) {
+                ZSTD_CCtx* const cctx = ZSTD_createCCtx_advanced(cMem);
+                ZSTD_outBuffer out = { outBuffer, outSize, 0 };
+                ZSTD_inBuffer in = { inBuffer, inSize, 0 };
+                ZSTD_CCtx_setParameter(cctx, ZSTD_p_compressionLevel, (U32)compressionLevel);
+                ZSTD_CCtx_setParameter(cctx, ZSTD_p_nbThreads, nbThreads);
+                ZSTD_compress_generic(cctx, &out, &in, ZSTD_e_continue);
+                ZSTD_compress_generic(cctx, &out, &in, ZSTD_e_end);
+                ZSTD_freeCCtx(cctx);
+                DISPLAYLEVEL(3, "compress_generic,-T%u,continue level %i : ",
+                                nbThreads, compressionLevel);
+                FUZ_displayMallocStats(malcount);
+                malcount = INIT_MALLOC_COUNTER;
+    }   }   }
 
     return 0;
 }

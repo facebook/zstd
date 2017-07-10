@@ -19,15 +19,13 @@ CFLAGS   += $(DEBUGFLAGS)
 CFLAGS   += $(MOREFLAGS)
 FLAGS     = $(CPPFLAGS) $(CFLAGS) $(LDFLAGS)
 
-all: clean single multi
-single: $(ZSTD_FILES) single.c
-	$(CC) $(FLAGS) $^ -o $@
+all: clean multi
 
 multi: $(ZSTD_FILES) multi.c
 	$(CC) $(FLAGS) $^ -o $@
 
 clean:
-	@$(RM) -f single multi
+	@$(RM) -f multi
 	@$(RM) -rf *.dSYM
 	@$(RM) -f tmp*
 	@$(RM) -f tests/*.zst

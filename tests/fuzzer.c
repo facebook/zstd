@@ -158,22 +158,21 @@ static int FUZ_mallocTests(unsigned seed, double compressibility)
 
     /* simple compression tests */
     {   int compressionLevel;
-        mallocCounter_t malcount = INIT_MALLOC_COUNTER;
-        ZSTD_customMem const cMem = { FUZ_mallocDebug, FUZ_freeDebug, &malcount };
         for (compressionLevel=1; compressionLevel<=6; compressionLevel++) {
+            mallocCounter_t malcount = INIT_MALLOC_COUNTER;
+            ZSTD_customMem const cMem = { FUZ_mallocDebug, FUZ_freeDebug, &malcount };
             ZSTD_CCtx* const cctx = ZSTD_createCCtx_advanced(cMem);
             ZSTD_compressCCtx(cctx, outBuffer, outSize, inBuffer, inSize, compressionLevel);
             ZSTD_freeCCtx(cctx);
             DISPLAYLEVEL(3, "compressCCtx level %i : ", compressionLevel);
             FUZ_displayMallocStats(malcount);
-            malcount = INIT_MALLOC_COUNTER;
     }   }
 
     /* streaming compression tests */
     {   int compressionLevel;
-        mallocCounter_t malcount = INIT_MALLOC_COUNTER;
-        ZSTD_customMem const cMem = { FUZ_mallocDebug, FUZ_freeDebug, &malcount };
         for (compressionLevel=1; compressionLevel<=6; compressionLevel++) {
+            mallocCounter_t malcount = INIT_MALLOC_COUNTER;
+            ZSTD_customMem const cMem = { FUZ_mallocDebug, FUZ_freeDebug, &malcount };
             ZSTD_CCtx* const cstream = ZSTD_createCStream_advanced(cMem);
             ZSTD_outBuffer out = { outBuffer, outSize, 0 };
             ZSTD_inBuffer in = { inBuffer, inSize, 0 };
@@ -183,16 +182,15 @@ static int FUZ_mallocTests(unsigned seed, double compressibility)
             ZSTD_freeCStream(cstream);
             DISPLAYLEVEL(3, "compressStream level %i : ", compressionLevel);
             FUZ_displayMallocStats(malcount);
-            malcount = INIT_MALLOC_COUNTER;
     }   }
 
     /* advanced MT API test */
     {   U32 nbThreads;
         for (nbThreads=1; nbThreads<=4; nbThreads++) {
             int compressionLevel;
-            mallocCounter_t malcount = INIT_MALLOC_COUNTER;
-            ZSTD_customMem const cMem = { FUZ_mallocDebug, FUZ_freeDebug, &malcount };
             for (compressionLevel=1; compressionLevel<=6; compressionLevel++) {
+                mallocCounter_t malcount = INIT_MALLOC_COUNTER;
+                ZSTD_customMem const cMem = { FUZ_mallocDebug, FUZ_freeDebug, &malcount };
                 ZSTD_CCtx* const cctx = ZSTD_createCCtx_advanced(cMem);
                 ZSTD_outBuffer out = { outBuffer, outSize, 0 };
                 ZSTD_inBuffer in = { inBuffer, inSize, 0 };
@@ -203,16 +201,15 @@ static int FUZ_mallocTests(unsigned seed, double compressibility)
                 DISPLAYLEVEL(3, "compress_generic,-T%u,end level %i : ",
                                 nbThreads, compressionLevel);
                 FUZ_displayMallocStats(malcount);
-                malcount = INIT_MALLOC_COUNTER;
     }   }   }
 
     /* advanced MT streaming API test */
     {   U32 nbThreads;
         for (nbThreads=1; nbThreads<=4; nbThreads++) {
             int compressionLevel;
-            mallocCounter_t malcount = INIT_MALLOC_COUNTER;
-            ZSTD_customMem const cMem = { FUZ_mallocDebug, FUZ_freeDebug, &malcount };
             for (compressionLevel=1; compressionLevel<=6; compressionLevel++) {
+                mallocCounter_t malcount = INIT_MALLOC_COUNTER;
+                ZSTD_customMem const cMem = { FUZ_mallocDebug, FUZ_freeDebug, &malcount };
                 ZSTD_CCtx* const cctx = ZSTD_createCCtx_advanced(cMem);
                 ZSTD_outBuffer out = { outBuffer, outSize, 0 };
                 ZSTD_inBuffer in = { inBuffer, inSize, 0 };
@@ -224,7 +221,6 @@ static int FUZ_mallocTests(unsigned seed, double compressibility)
                 DISPLAYLEVEL(3, "compress_generic,-T%u,continue level %i : ",
                                 nbThreads, compressionLevel);
                 FUZ_displayMallocStats(malcount);
-                malcount = INIT_MALLOC_COUNTER;
     }   }   }
 
     return 0;

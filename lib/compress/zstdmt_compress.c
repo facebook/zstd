@@ -215,7 +215,7 @@ static ZSTD_CCtx* ZSTDMT_getCCtx(ZSTDMT_CCtxPool* pool)
         pool->availCCtx--;
         return pool->cctx[pool->availCCtx];
     }
-    return ZSTD_createCCtx();   /* note : can be NULL, when creation fails ! */
+    return ZSTD_createCCtx_advanced(pool->cMem);   /* note : can be NULL, when creation fails ! */
 }
 
 static void ZSTDMT_releaseCCtx(ZSTDMT_CCtxPool* pool, ZSTD_CCtx* cctx)

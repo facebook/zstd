@@ -284,12 +284,14 @@ static void* outputThread(void* arg)
             size_t const compressedSize = job->compressedSize;
             if (ZSTD_isError(compressedSize)) {
                 DISPLAY("Error: an error occurred during compression\n");
+                ctx->threadError = 1;
                 return arg;
             }
             {
                 size_t const writeSize = fwrite(job->dst.start, 1, compressedSize, ctx->dstFile);
                 if (writeSize != compressedSize) {
                     DISPLAY("Error: an error occurred during file write operation\n");
+                    ctx->threadError = 1;
                     return arg;
                 }
             }
@@ -429,6 +431,7 @@ static int compressFilename(const char* const srcFilename, const char* const dst
         size_t const readSize = fread(src, 1, FILE_CHUNK_SIZE, srcFile);
         if (readSize != FILE_CHUNK_SIZE && !feof(srcFile)) {
             DISPLAY("Error: problem occurred during read from src file\n");
+            ctx->threadError = 1;
             ret = 1;
             goto cleanup;
         }
@@ -438,6 +441,7 @@ static int compressFilename(const char* const srcFilename, const char* const dst
             int const error = createCompressionJob(ctx, src, readSize);
             if (error != 0) {
                 ret = error;
+                ctx->threadError = 1;
                 goto cleanup;
             }
         }

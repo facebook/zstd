@@ -4,6 +4,7 @@
 #include <stdio.h>
 
 #include "ldm.h"
+#include "util.h"
 
 #define HASH_EVERY 7
 
@@ -36,6 +37,7 @@ typedef uint32_t hash_t;
 
 // typedef uint64_t tag;
 
+/*
 static unsigned LDM_isLittleEndian(void) {
     const union { U32 u; BYTE c[4]; } one = { 1 };
     return one.c[0];
@@ -85,6 +87,8 @@ static U64 LDM_read64(const void *ptr) {
 static void LDM_copy8(void *dst, const void *src) {
   memcpy(dst, src, 8);
 }
+
+*/
 typedef struct LDM_hashEntry {
   offset_t offset;
 } LDM_hashEntry;
@@ -144,6 +148,7 @@ static hash_t LDM_hash(U32 sequence) {
   return ((sequence * 2654435761U) >> ((32)-LDM_HASHLOG));
 }
 
+/*
 static hash_t LDM_hash5(U64 sequence) {
   static const U64 prime5bytes = 889523592379ULL;
   static const U64 prime8bytes = 11400714785074694791ULL;
@@ -153,34 +158,39 @@ static hash_t LDM_hash5(U64 sequence) {
   else
     return (((sequence >> 24) * prime8bytes) >> (64 - hashLog));
 }
+*/
 
 static hash_t LDM_hash_position(const void * const p) {
   return LDM_hash(LDM_read32(p));
 }
 
-static void LDM_put_position_on_hash(const BYTE *p, hash_t h,
-                                     void *tableBase, const BYTE *srcBase) {
+static void LDM_putHashOfPosition(const BYTE *p, hash_t h,
+                                  void *tableBase, const BYTE *srcBase) {
+  LDM_hashEntry *hashTable;
   if (((p - srcBase) & HASH_EVERY) != HASH_EVERY) {
     return;
   }
 
-  LDM_hashEntry *hashTable = (LDM_hashEntry *) tableBase;
-  hashTable[h] = (LDM_hashEntry) { (hash_t )(p - srcBase) };
+  hashTable = (LDM_hashEntry *) tableBase;
+  hashTable[h] = (LDM_hashEntry) { (hash_t)(p - srcBase) };
 }
 
 static void LDM_putPosition(const BYTE *p, void *tableBase,
-                             const BYTE *srcBase) {
+                            const BYTE *srcBase) {
+  hash_t hash;
   if (((p - srcBase) & HASH_EVERY) != HASH_EVERY) {
     return;
   }
-  hash_t const h = LDM_hash_position(p);
-  LDM_put_position_on_hash(p, h, tableBase, srcBase);
+  hash = LDM_hash_position(p);
+  LDM_putHashOfPosition(p, hash, tableBase, srcBase);
 }
 
 static void LDM_putHashOfCurrentPosition(LDM_CCtx *const cctx) {
-  LDM_putPosition(cctx->ip, cctx->hashTable, cctx->ibase);
+  hash_t hash = LDM_hash_position(cctx->ip);
+  LDM_putHashOfPosition(cctx->ip, hash, cctx->hashTable, cctx->ibase);
+  cctx->lastPosHashed = cctx->ip;
+  cctx->lastHash = hash;
 }
-
 
 static const BYTE *LDM_get_position_on_hash(
     hash_t h, void *tableBase, const BYTE *srcBase) {
@@ -209,8 +219,8 @@ static unsigned LDM_count(const BYTE *pIn, const BYTE *pMatch,
   return (unsigned)(pIn - pStart);
 }
 
-void LDM_read_header(const void *src, size_t *compressSize,
-                     size_t *decompressSize) {
+void LDM_readHeader(const void *src, size_t *compressSize,
+                    size_t *decompressSize) {
   const U32 *ip = (const U32 *)src;
   *compressSize = *ip++;
   *decompressSize = *ip;
@@ -230,7 +240,7 @@ static void LDM_initializeCCtx(LDM_CCtx *cctx,
   cctx->imatchLimit = cctx->iend - MINMATCH;
 
   cctx->obase = (BYTE *)dst;
-  cctx->op = (BYTE *)cctx->obase;
+  cctx->op = (BYTE *)dst;
 
   cctx->anchor = cctx->ibase;
 
@@ -244,13 +254,12 @@ static void LDM_initializeCCtx(LDM_CCtx *cctx,
 size_t LDM_compress(const void *src, size_t srcSize,
                     void *dst, size_t maxDstSize) {
   LDM_CCtx cctx;
+  U32 forwardH;
   LDM_initializeCCtx(&cctx, src, srcSize, dst, maxDstSize);
 
-  U32 forwardH;
 
   /* Hash the first position and put it into the hash table. */
   LDM_putHashOfCurrentPosition(&cctx);
-  const BYTE *lastHash = cctx.ip;
   cctx.ip++;
   forwardH = LDM_hash_position(cctx.ip);
 
@@ -276,8 +285,7 @@ size_t LDM_compress(const void *src, size_t srcSize,
         match = LDM_get_position_on_hash(h, cctx.hashTable, cctx.ibase);
 
         forwardH = LDM_hash_position(forwardIp);
-        LDM_put_position_on_hash(cctx.ip, h, cctx.hashTable, cctx.ibase);
-        lastHash = cctx.ip;
+        LDM_putHashOfPosition(cctx.ip, h, cctx.hashTable, cctx.ibase);
       } while (cctx.ip - match > WINDOW_SIZE ||
                LDM_read64(match) != LDM_read64(cctx.ip));
     }
@@ -319,7 +327,7 @@ size_t LDM_compress(const void *src, size_t srcSize,
       memcpy(cctx.op, cctx.anchor, litLength);
       cctx.op += litLength;
     }
-_next_match:
+
     /* Encode offset */
     {
       /*
@@ -334,6 +342,7 @@ _next_match:
     /* Encode Match Length */
     {
       unsigned matchCode;
+      unsigned ctr = 1;
       matchCode = LDM_count(cctx.ip + MINMATCH, match + MINMATCH,
                             cctx.ihashLimit);
 #ifdef LDM_DEBUG
@@ -342,7 +351,6 @@ _next_match:
       printf("\n");
 #endif
       cctx.stats.total_match_length += matchCode + MINMATCH;
-      unsigned ctr = 1;
       cctx.ip++;
       for (; ctr < MINMATCH + matchCode; cctx.ip++, ctr++) {
         LDM_putHashOfCurrentPosition(&cctx);
@@ -372,7 +380,6 @@ _next_match:
 
     LDM_putPosition(cctx.ip, cctx.hashTable, cctx.ibase);
     forwardH = LDM_hash_position(++cctx.ip);
-    lastHash = cctx.ip;
   }
 _last_literals:
     /* Encode last literals */
@@ -392,7 +399,7 @@ _last_literals:
     cctx.op += lastRun;
   }
   LDM_printCompressStats(&cctx.stats);
-  return (cctx.op - (BYTE *)cctx.obase);
+  return (cctx.op - (const BYTE *)cctx.obase);
 }
 
 typedef struct LDM_DCtx {
@@ -427,12 +434,12 @@ size_t LDM_decompress(const void *src, size_t compressSize,
   LDM_DCtx dctx;
   LDM_initializeDCtx(&dctx, src, compressSize, dst, maxDecompressSize);
 
-  BYTE *cpy;
-  size_t length;
-  const BYTE *match;
-  size_t offset;
-
   while (dctx.ip < dctx.iend) {
+    BYTE *cpy;
+    size_t length;
+    const BYTE *match;
+    size_t offset;
+
     /* get literal length */
     unsigned const token = *(dctx.ip)++;
     if ((length = (token >> ML_BITS)) == RUN_MASK) {

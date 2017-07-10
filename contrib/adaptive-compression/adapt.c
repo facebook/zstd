@@ -142,7 +142,7 @@ static adaptCCtx* createCCtx(unsigned numJobs, const char* const outFilename)
         for (jobNum=0; jobNum<numJobs; jobNum++) {
             jobDescription* job = &ctx->jobs[jobNum];
             job->src.start = malloc(FILE_CHUNK_SIZE);
-            job->dst.start = malloc(FILE_CHUNK_SIZE);
+            job->dst.start = malloc(ZSTD_compressBound(FILE_CHUNK_SIZE));
             if (!job->src.start || !job->dst.start) {
                 DISPLAY("Could not allocate buffers for jobs\n");
                 freeCCtx(ctx);

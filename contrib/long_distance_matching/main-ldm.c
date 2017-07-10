@@ -25,6 +25,7 @@ static int compress(const char *fname, const char *oname) {
   int fdin, fdout;
   struct stat statbuf;
   char *src, *dst;
+  size_t maxCompressSize, compressSize;
 
   /* Open the input file. */
   if ((fdin = open(fname, O_RDONLY)) < 0) {
@@ -44,10 +45,10 @@ static int compress(const char *fname, const char *oname) {
     return 1;
   }
 
-  size_t maxCompressSize = statbuf.st_size + LDM_HEADER_SIZE;
+  maxCompressSize = statbuf.st_size + LDM_HEADER_SIZE;
 
  /* Go to the location corresponding to the last byte. */
- /* TODO: fallocate? */ 
+ /* TODO: fallocate? */
   if (lseek(fdout, maxCompressSize - 1, SEEK_SET) == -1) {
     perror("lseek error");
     return 1;
@@ -74,14 +75,14 @@ static int compress(const char *fname, const char *oname) {
   }
 
 #ifdef ZSTD
-  size_t compressSize = ZSTD_compress(dst, statbuf.st_size,
+  compressSize = ZSTD_compress(dst, statbuf.st_size,
                                   src, statbuf.st_size, 1);
 #else
-  size_t compressSize = LDM_HEADER_SIZE + 
+  compressSize = LDM_HEADER_SIZE +
       LDM_compress(src, statbuf.st_size,
                    dst + LDM_HEADER_SIZE, statbuf.st_size);
 
-    // Write compress and decompress size to header 
+    // Write compress and decompress size to header
     // TODO: should depend on LDM_DECOMPRESS_SIZE write32
   memcpy(dst, &compressSize, 4);
   memcpy(dst + 4, &(statbuf.st_size), 4);
@@ -107,12 +108,13 @@ static int compress(const char *fname, const char *oname) {
 
 /* Decompress file compressed using LDM_compress.
  * The input file should have the LDM_HEADER followed by payload.
- * Returns 0 if succesful, and an error code otherwise. 
+ * Returns 0 if succesful, and an error code otherwise.
  */
 static int decompress(const char *fname, const char *oname) {
   int fdin, fdout;
   struct stat statbuf;
   char *src, *dst;
+  size_t compressSize, decompressSize, outSize;
 
   /* Open the input file. */
   if ((fdin = open(fname, O_RDONLY)) < 0) {
@@ -140,8 +142,7 @@ static int decompress(const char *fname, const char *oname) {
   }
 
   /* Read the header. */
-  size_t compressSize, decompressSize;
-  LDM_read_header(src, &compressSize, &decompressSize);
+  LDM_readHeader(src, &compressSize, &decompressSize);
 
 #ifdef DEBUG
   printf("Size, compressSize, decompressSize: %zu %zu %zu\n",
@@ -168,11 +169,11 @@ static int decompress(const char *fname, const char *oname) {
   }
 
 #ifdef ZSTD
-  size_t outSize = ZSTD_decompress(dst, decomrpessed_size,
+  outSize = ZSTD_decompress(dst, decomrpessed_size,
                                   src + LDM_HEADER_SIZE,
                                   statbuf.st_size - LDM_HEADER_SIZE);
 #else
-  size_t outSize = LDM_decompress(
+  outSize = LDM_decompress(
       src + LDM_HEADER_SIZE, statbuf.st_size - LDM_HEADER_SIZE,
       dst, decompressSize);
 
@@ -211,12 +212,14 @@ static void verify(const char *inpFilename, const char *decFilename) {
   FILE *decFp = fopen(decFilename, "rb");
 
   printf("verify : %s <-> %s\n", inpFilename, decFilename);
-	const int cmp = compare(inpFp, decFp);
-	if(0 == cmp) {
-		printf("verify : OK\n");
-	} else {
-		printf("verify : NG\n");
-	}
+  {
+    const int cmp = compare(inpFp, decFp);
+    if(0 == cmp) {
+      printf("verify : OK\n");
+    } else {
+      printf("verify : NG\n");
+    }
+  }
 
 	fclose(decFp);
 	fclose(inpFp);
@@ -243,32 +246,34 @@ int main(int argc, const char *argv[]) {
 	printf("ldm = [%s]\n", ldmFilename);
 	printf("dec = [%s]\n", decFilename);
 
-  struct timeval tv1, tv2;
 
   /* Compress */
-
-  gettimeofday(&tv1, NULL);
-  if (compress(inpFilename, ldmFilename)) {
-      printf("Compress error");
-      return 1;
+  {
+    struct timeval tv1, tv2;
+    gettimeofday(&tv1, NULL);
+    if (compress(inpFilename, ldmFilename)) {
+        printf("Compress error");
+        return 1;
+    }
+    gettimeofday(&tv2, NULL);
+    printf("Total time = %f seconds\n",
+           (double) (tv2.tv_usec - tv1.tv_usec) / 1000000 +
+           (double) (tv2.tv_sec - tv1.tv_sec));
   }
-  gettimeofday(&tv2, NULL);
-  printf("Total time = %f seconds\n",
-         (double) (tv2.tv_usec - tv1.tv_usec) / 1000000 +
-         (double) (tv2.tv_sec - tv1.tv_sec));
 
   /* Decompress */
-
-  gettimeofday(&tv1, NULL);
-  if (decompress(ldmFilename, decFilename)) {
-      printf("Decompress error");
-      return 1;
+  {
+    struct timeval tv1, tv2;
+    gettimeofday(&tv1, NULL);
+    if (decompress(ldmFilename, decFilename)) {
+        printf("Decompress error");
+        return 1;
+    }
+    gettimeofday(&tv2, NULL);
+    printf("Total time = %f seconds\n",
+          (double) (tv2.tv_usec - tv1.tv_usec) / 1000000 +
+          (double) (tv2.tv_sec - tv1.tv_sec));
   }
-  gettimeofday(&tv2, NULL);
-  printf("Total time = %f seconds\n",
-        (double) (tv2.tv_usec - tv1.tv_usec) / 1000000 +
-        (double) (tv2.tv_sec - tv1.tv_sec));
-
   /* verify */
   verify(inpFilename, decFilename);
   return 0;

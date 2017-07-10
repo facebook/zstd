@@ -763,10 +763,10 @@ static size_t ZSTDMT_createCompressionJob(ZSTDMT_CCtx* zcs, size_t srcSize, unsi
         zcs->inBuff.filled = 0;
         zcs->dictSize = 0;
         zcs->frameEnded = 1;
-        if (zcs->nextJobID == 0)
+        if (zcs->nextJobID == 0) {
             /* single chunk exception : checksum is calculated directly within worker thread */
             zcs->params.fParams.checksumFlag = 0;
-    }
+    }   }
 
     DEBUGLOG(4, "posting job %u : %u bytes  (end:%u) (note : doneJob = %u=>%u)",
                 zcs->nextJobID,

@@ -136,10 +136,20 @@ static int basicUnitTests(U32 seed, double compressibility)
 
 
     DISPLAYLEVEL(4, "test%3i : compress %u bytes : ", testNb++, (U32)CNBuffSize);
-    CHECKPLUS(r, ZSTD_compress(compressedBuffer, ZSTD_compressBound(CNBuffSize),
-                               CNBuffer, CNBuffSize, 1),
-              cSize=r );
-    DISPLAYLEVEL(4, "OK (%u bytes : %.2f%%)\n", (U32)cSize, (double)cSize/CNBuffSize*100);
+    {   ZSTD_CCtx* cctx = ZSTD_createCCtx();
+        if (cctx==NULL) goto _output_error;
+        CHECKPLUS(r, ZSTD_compressCCtx(cctx,
+                            compressedBuffer, ZSTD_compressBound(CNBuffSize),
+                            CNBuffer, CNBuffSize, 1),
+                  cSize=r );
+        DISPLAYLEVEL(4, "OK (%u bytes : %.2f%%)\n", (U32)cSize, (double)cSize/CNBuffSize*100);
+
+        DISPLAYLEVEL(4, "test%3i : size of cctx for level 1 : ", testNb++);
+        {   size_t const cctxSize = ZSTD_sizeof_CCtx(cctx);
+            DISPLAYLEVEL(4, "%u bytes \n", (U32)cctxSize);
+        }
+        ZSTD_freeCCtx(cctx);
+    }
 
 
     DISPLAYLEVEL(4, "test%3i : ZSTD_getFrameContentSize test : ", testNb++);

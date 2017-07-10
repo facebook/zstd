@@ -115,7 +115,7 @@ static adaptCCtx* createCCtx(unsigned numJobs, const char* const outFilename)
     }
     memset(ctx, 0, sizeof(adaptCCtx));
     ctx->compressionLevel = g_compressionLevel;
-    pthread_mutex_init(&ctx->jobCompressed_mutex, NULL); /* TODO: add checks for errors on each mutex */
+    pthread_mutex_init(&ctx->jobCompressed_mutex, NULL); 
     pthread_cond_init(&ctx->jobCompressed_cond, NULL);
     pthread_mutex_init(&ctx->jobReady_mutex, NULL);
     pthread_cond_init(&ctx->jobReady_cond, NULL);

@@ -351,33 +351,49 @@ _last_literals:
 }
 
 typedef struct LDM_DCtx {
-  const BYTE * const ibase;   /* Pointer to base of input */
-  const BYTE *ip;             /* Pointer to current input position */
-  const BYTE *iend;           /* End of source */
-  BYTE *op;                   /* Pointer to output */
-  const BYTE * const oend;    /* Pointer to end of output */
+  const BYTE *ibase;   /* Pointer to base of input */
+  const BYTE *ip;      /* Pointer to current input position */
+  const BYTE *iend;    /* End of source */
 
+  const BYTE *obase;   /* Pointer to base of output */ 
+  BYTE *op;            /* Pointer to output */
+  const BYTE *oend;    /* Pointer to end of output */
+
+  size_t compressSize;
+  size_t maxDecompressSize;
 } LDM_DCtx;
 
-size_t LDM_decompress(const void *src, size_t compressed_size,
-                      void *dst, size_t max_decompressed_size) {
-  const BYTE *ip = (const BYTE *)src;
-  const BYTE * const iend = ip + compressed_size;
-  BYTE *op = (BYTE *)dst;
-  BYTE * const oend = op + max_decompressed_size;
+static void LDM_initializeDCtx(LDM_DCtx *dctx,
+                               const void *src, size_t compressSize,
+                               void *dst, size_t maxDecompressSize) {
+  dctx->ibase = src;
+  dctx->ip = (const BYTE *)src;
+  dctx->iend = dctx->ip + compressSize;
+  dctx->op = dst;
+  dctx->oend = dctx->op + maxDecompressSize;
+ 
+  dctx->compressSize = compressSize;
+  dctx->maxDecompressSize = maxDecompressSize;
+}
+
+size_t LDM_decompress(const void *src, size_t compressSize,
+                      void *dst, size_t maxDecompressSize) {
+  LDM_DCtx dctx;
+  LDM_initializeDCtx(&dctx, src, compressSize, dst, maxDecompressSize);
+
   BYTE *cpy;
 
-  while (ip < iend) {
+  while (dctx.ip < dctx.iend) {
     size_t length;
     const BYTE *match;
     size_t offset;
 
     /* get literal length */
-    unsigned const token = *ip++;
+    unsigned const token = *(dctx.ip)++;
     if ((length=(token >> ML_BITS)) == RUN_MASK) {
       unsigned s;
       do {
-        s = *ip++;
+        s = *(dctx.ip)++;
         length += s;
       } while (s == 255);
     }
@@ -386,27 +402,27 @@ size_t LDM_decompress(const void *src, size_t compressed_size,
 #endif
 
     /* copy literals */
-    cpy = op + length;
+    cpy = dctx.op + length;
 #ifdef LDM_DEBUG
     printf("Literals ");
-    fwrite(ip, length, 1, stdout);
+    fwrite(dctx.ip, length, 1, stdout);
     printf("\n");
 #endif
-    memcpy(op, ip, length);
-    ip += length;
-    op = cpy;
+    memcpy(dctx.op, dctx.ip, length);
+    dctx.ip += length;
+    dctx.op = cpy;
 
     /* get offset */
     /*
-    offset = LDM_readLE16(ip);
-    ip += 2;
+    offset = LDM_readLE16(dctx.ip);
+    dctx.ip += 2;
     */
-    offset = LDM_read32(ip);
-    ip += 4;
+    offset = LDM_read32(dctx.ip);
+    dctx.ip += 4;
 #ifdef LDM_DEBUG
     printf("Offset: %zu\n", offset);
 #endif
-    match = op - offset;
+    match = dctx.op - offset;
  //   LDM_write32(op, (U32)offset);
 
     /* get matchlength */
@@ -414,7 +430,7 @@ size_t LDM_decompress(const void *src, size_t compressed_size,
     if (length == ML_MASK) {
       unsigned s;
       do {
-        s = *ip++;
+        s = *(dctx.ip)++;
         length += s;
       } while (s == 255);
     }
@@ -423,14 +439,14 @@ size_t LDM_decompress(const void *src, size_t compressed_size,
     printf("Match length: %zu\n", length);
 #endif
     /* copy match */
-    cpy = op + length;
+    cpy = dctx.op + length;
 
     // Inefficient for now
-    while (match < cpy - offset && op < oend) {
-      *op++ = *match++;
+    while (match < cpy - offset && dctx.op < dctx.oend) {
+      *(dctx.op)++ = *match++;
     }
   }
-  return op - (BYTE *)dst;
+  return dctx.op - (BYTE *)dst;
 }
 
 

@@ -88,7 +88,7 @@ static int compress(const char *fname, const char *oname) {
 
 #ifdef DEBUG
   printf("Compressed size: %zu\n", compressSize);
-  printf("Decompressed size: %zu\n", statbuf.st_size);
+  printf("Decompressed size: %zu\n", (size_t)statbuf.st_size);
 #endif
 #endif
 
@@ -145,7 +145,7 @@ static int decompress(const char *fname, const char *oname) {
 
 #ifdef DEBUG
   printf("Size, compressSize, decompressSize: %zu %zu %zu\n",
-         statbuf.st_size, compressSize, decompressSize);
+         (size_t)statbuf.st_size, compressSize, decompressSize);
 #endif
 
   /* Go to the location corresponding to the last byte. */

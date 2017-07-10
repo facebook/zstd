@@ -1,11 +1,30 @@
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/mman.h>
+#include <sys/stat.h>
 
 #include "ldm.h"
 
 #define BUF_SIZE 16*1024  // Block size
 #define LDM_HEADER_SIZE 8
+
+/*
+static size_t compress_file_mmap(FILE *in, FILE *out, size_t *size_in,
+                                 size_t *size_out) {
+  char *src, *dst;
+  struct stat statbuf;
+
+  if (fstat(in, &statbuf) < 0) {
+    printf("fstat error\n");
+    return 1;
+  }
+
+
+  return 0;
+}
+*/
 
 static size_t compress_file(FILE *in, FILE *out, size_t *size_in,
                             size_t *size_out) {
@@ -26,7 +45,6 @@ static size_t compress_file(FILE *in, FILE *out, size_t *size_in,
     goto cleanup;
   }
 
-
   for (;;) {
     k = fread(src, 1, BUF_SIZE, in);
     if (k == 0)
@@ -37,10 +55,8 @@ static size_t compress_file(FILE *in, FILE *out, size_t *size_in,
 
     // n = k;
     // offset += n;
-    offset = k;
-    count_out += k;
-
-//    k = fwrite(src, 1, offset, out);
+    offset = n;
+    count_out += n;
 
     k = fwrite(buf, 1, offset, out);
     if (k < offset) {
@@ -93,8 +109,6 @@ static size_t decompress_file(FILE *in, FILE *out) {
         goto cleanup;
       }
     }
-
-    // TODO
 
     /* Decompress:
      * Continue while there is more input to read.
@@ -219,7 +233,6 @@ int main(int argc, char *argv[]) {
 		fclose(decFp);
 		fclose(inpFp);
 	}
-
 
   return 0;
 }

@@ -105,12 +105,13 @@ static unsigned FUZ_highbit32(U32 v32)
 
 typedef struct {
     unsigned long long totalMalloc;
+    size_t currentMalloc;
     size_t peakMalloc;
     unsigned nbMalloc;
     unsigned nbFree;
 } mallocCounter_t;
 
-static const mallocCounter_t INIT_MALLOC_COUNTER = { 0, 0, 0, 0 };
+static const mallocCounter_t INIT_MALLOC_COUNTER = { 0, 0, 0, 0, 0 };
 
 static void* FUZ_mallocDebug(void* counter, size_t size)
 {
@@ -118,7 +119,9 @@ static void* FUZ_mallocDebug(void* counter, size_t size)
     void* const ptr = malloc(size);
     if (ptr==NULL) return NULL;
     mcPtr->totalMalloc += size;
-    mcPtr->peakMalloc += size;
+    mcPtr->currentMalloc += size;
+    if (mcPtr->currentMalloc > mcPtr->peakMalloc)
+        mcPtr->peakMalloc = mcPtr->currentMalloc;
     mcPtr->nbMalloc += 1;
     return ptr;
 }
@@ -126,9 +129,10 @@ static void* FUZ_mallocDebug(void* counter, size_t size)
 static void FUZ_freeDebug(void* counter, void* address)
 {
     mallocCounter_t* const mcPtr = (mallocCounter_t*)counter;
-    free(address);
+    DISPLAYLEVEL(4, "releasing %u KB \n", (U32)(malloc_size(address) >> 10));
     mcPtr->nbFree += 1;
-    mcPtr->peakMalloc -= malloc_size(address);  /* OS-X specific */
+    mcPtr->currentMalloc -= malloc_size(address);  /* OS-X specific */
+    free(address);
 }
 
 static void FUZ_displayMallocStats(mallocCounter_t count)
@@ -138,6 +142,14 @@ static void FUZ_displayMallocStats(mallocCounter_t count)
         count.nbMalloc,
         (U32)(count.totalMalloc >> 10));
 }
+
+#define CHECK_Z(f) {                               \
+    size_t const err = f;                          \
+    if (ZSTD_isError(err)) {                       \
+        DISPLAY("Error => %s : %s ",               \
+                #f, ZSTD_getErrorName(err));       \
+        exit(1);                                   \
+}   }
 
 static int FUZ_mallocTests(unsigned seed, double compressibility)
 {
@@ -162,7 +174,7 @@ static int FUZ_mallocTests(unsigned seed, double compressibility)
             mallocCounter_t malcount = INIT_MALLOC_COUNTER;
             ZSTD_customMem const cMem = { FUZ_mallocDebug, FUZ_freeDebug, &malcount };
             ZSTD_CCtx* const cctx = ZSTD_createCCtx_advanced(cMem);
-            ZSTD_compressCCtx(cctx, outBuffer, outSize, inBuffer, inSize, compressionLevel);
+            CHECK_Z( ZSTD_compressCCtx(cctx, outBuffer, outSize, inBuffer, inSize, compressionLevel) );
             ZSTD_freeCCtx(cctx);
             DISPLAYLEVEL(3, "compressCCtx level %i : ", compressionLevel);
             FUZ_displayMallocStats(malcount);
@@ -176,9 +188,9 @@ static int FUZ_mallocTests(unsigned seed, double compressibility)
             ZSTD_CCtx* const cstream = ZSTD_createCStream_advanced(cMem);
             ZSTD_outBuffer out = { outBuffer, outSize, 0 };
             ZSTD_inBuffer in = { inBuffer, inSize, 0 };
-            ZSTD_initCStream(cstream, compressionLevel);
-            ZSTD_compressStream(cstream, &out, &in);
-            ZSTD_endStream(cstream, &out);
+            CHECK_Z( ZSTD_initCStream(cstream, compressionLevel) );
+            CHECK_Z( ZSTD_compressStream(cstream, &out, &in) );
+            CHECK_Z( ZSTD_endStream(cstream, &out) );
             ZSTD_freeCStream(cstream);
             DISPLAYLEVEL(3, "compressStream level %i : ", compressionLevel);
             FUZ_displayMallocStats(malcount);
@@ -194,9 +206,9 @@ static int FUZ_mallocTests(unsigned seed, double compressibility)
                 ZSTD_CCtx* const cctx = ZSTD_createCCtx_advanced(cMem);
                 ZSTD_outBuffer out = { outBuffer, outSize, 0 };
                 ZSTD_inBuffer in = { inBuffer, inSize, 0 };
-                ZSTD_CCtx_setParameter(cctx, ZSTD_p_compressionLevel, (U32)compressionLevel);
-                ZSTD_CCtx_setParameter(cctx, ZSTD_p_nbThreads, nbThreads);
-                ZSTD_compress_generic(cctx, &out, &in, ZSTD_e_end);
+                CHECK_Z( ZSTD_CCtx_setParameter(cctx, ZSTD_p_compressionLevel, (U32)compressionLevel) );
+                CHECK_Z( ZSTD_CCtx_setParameter(cctx, ZSTD_p_nbThreads, nbThreads) );
+                while ( ZSTD_compress_generic(cctx, &out, &in, ZSTD_e_end) ) {}
                 ZSTD_freeCCtx(cctx);
                 DISPLAYLEVEL(3, "compress_generic,-T%u,end level %i : ",
                                 nbThreads, compressionLevel);
@@ -213,10 +225,10 @@ static int FUZ_mallocTests(unsigned seed, double compressibility)
                 ZSTD_CCtx* const cctx = ZSTD_createCCtx_advanced(cMem);
                 ZSTD_outBuffer out = { outBuffer, outSize, 0 };
                 ZSTD_inBuffer in = { inBuffer, inSize, 0 };
-                ZSTD_CCtx_setParameter(cctx, ZSTD_p_compressionLevel, (U32)compressionLevel);
-                ZSTD_CCtx_setParameter(cctx, ZSTD_p_nbThreads, nbThreads);
-                ZSTD_compress_generic(cctx, &out, &in, ZSTD_e_continue);
-                ZSTD_compress_generic(cctx, &out, &in, ZSTD_e_end);
+                CHECK_Z( ZSTD_CCtx_setParameter(cctx, ZSTD_p_compressionLevel, (U32)compressionLevel) );
+                CHECK_Z( ZSTD_CCtx_setParameter(cctx, ZSTD_p_nbThreads, nbThreads) );
+                CHECK_Z( ZSTD_compress_generic(cctx, &out, &in, ZSTD_e_continue) );
+                while ( ZSTD_compress_generic(cctx, &out, &in, ZSTD_e_end) ) {}
                 ZSTD_freeCCtx(cctx);
                 DISPLAYLEVEL(3, "compress_generic,-T%u,continue level %i : ",
                                 nbThreads, compressionLevel);
@@ -1046,6 +1058,7 @@ static size_t FUZ_randomLength(U32* seed, U32 maxLog)
         goto _output_error;                                   \
 }   }
 
+#undef CHECK_Z
 #define CHECK_Z(f) {                                          \
     size_t const err = f;                                     \
     if (ZSTD_isError(err)) {                                  \
@@ -1473,7 +1486,7 @@ int main(int argc, const char** argv)
     if (proba!=FUZ_compressibility_default) DISPLAY("Compressibility : %u%%\n", proba);
 
     if (memTestsOnly) {
-        g_displayLevel=3;
+        g_displayLevel = MAX(3, g_displayLevel);
         return FUZ_mallocTests(seed, ((double)proba) / 100);
     }
 

@@ -14,6 +14,8 @@
 #define LDM_HASHTABLESIZE_U32 ((LDM_HASHTABLESIZE) >> 2)
 #define LDM_HASH_SIZE_U32 (1 << (LDM_HASHLOG))
 
+#define LDM_OFFSET_SIZE 4
+
 #define WINDOW_SIZE (1 << 20)
 #define MAX_WINDOW_SIZE 31
 #define HASH_SIZE 8
@@ -35,81 +37,27 @@ typedef uint64_t U64;
 typedef uint32_t offset_t;
 typedef uint32_t hash_t;
 
-// typedef uint64_t tag;
-
-/*
-static unsigned LDM_isLittleEndian(void) {
-    const union { U32 u; BYTE c[4]; } one = { 1 };
-    return one.c[0];
-}
-
-static U16 LDM_read16(const void *memPtr) {
-  U16 val;
-  memcpy(&val, memPtr, sizeof(val));
-  return val;
-}
-
-static U16 LDM_readLE16(const void *memPtr) {
-  if (LDM_isLittleEndian()) {
-    return LDM_read16(memPtr);
-  } else {
-    const BYTE *p = (const BYTE *)memPtr;
-    return (U16)((U16)p[0] + (p[1] << 8));
-  }
-}
-
-static void LDM_write16(void *memPtr, U16 value){
-  memcpy(memPtr, &value, sizeof(value));
-}
-
-static void LDM_write32(void *memPtr, U32 value) {
-  memcpy(memPtr, &value, sizeof(value));
-}
-
-static void LDM_writeLE16(void *memPtr, U16 value) {
-  if (LDM_isLittleEndian()) {
-    LDM_write16(memPtr, value);
-  } else {
-    BYTE* p = (BYTE *)memPtr;
-    p[0] = (BYTE) value;
-    p[1] = (BYTE)(value>>8);
-  }
-}
-
-static U32 LDM_read32(const void *ptr) {
-  return *(const U32 *)ptr;
-}
-
-static U64 LDM_read64(const void *ptr) {
-  return *(const U64 *)ptr;
-}
-
-static void LDM_copy8(void *dst, const void *src) {
-  memcpy(dst, src, 8);
-}
-
-*/
 typedef struct LDM_hashEntry {
   offset_t offset;
 } LDM_hashEntry;
 
 typedef struct LDM_compressStats {
-  U32 num_matches;
-  U32 total_match_length;
-  U32 total_literal_length;
-  U64 total_offset;
+  U32 numMatches;
+  U32 totalMatchLength;
+  U32 totalLiteralLength;
+  U64 totalOffset;
 } LDM_compressStats;
 
 static void LDM_printCompressStats(const LDM_compressStats *stats) {
   printf("=====================\n");
   printf("Compression statistics\n");
-  printf("Total number of matches: %u\n", stats->num_matches);
-  printf("Average match length: %.1f\n", ((double)stats->total_match_length) /
-                                         (double)stats->num_matches);
+  printf("Total number of matches: %u\n", stats->numMatches);
+  printf("Average match length: %.1f\n", ((double)stats->totalMatchLength) /
+                                         (double)stats->numMatches);
   printf("Average literal length: %.1f\n",
-         ((double)stats->total_literal_length) / (double)stats->num_matches);
+         ((double)stats->totalLiteralLength) / (double)stats->numMatches);
   printf("Average offset length: %.1f\n",
-         ((double)stats->total_offset) / (double)stats->num_matches);
+         ((double)stats->totalOffset) / (double)stats->numMatches);
   printf("=====================\n");
 }
 
@@ -140,6 +88,10 @@ typedef struct LDM_CCtx {
 
   const BYTE *lastPosHashed;          /* Last position hashed */
   hash_t lastHash;                    /* Hash corresponding to lastPosHashed */
+  const BYTE *forwardIp;
+  hash_t forwardHash;
+
+  unsigned step;
 
 } LDM_CCtx;
 
@@ -160,36 +112,23 @@ static hash_t LDM_hash5(U64 sequence) {
 }
 */
 
-static hash_t LDM_hash_position(const void * const p) {
+static hash_t LDM_hashPosition(const void * const p) {
   return LDM_hash(LDM_read32(p));
 }
 
-static void LDM_putHashOfPosition(const BYTE *p, hash_t h,
-                                  void *tableBase, const BYTE *srcBase) {
-  LDM_hashEntry *hashTable;
-  if (((p - srcBase) & HASH_EVERY) != HASH_EVERY) {
+static void LDM_putHashOfCurrentPositionFromHash(
+    LDM_CCtx *cctx, hash_t hash) {
+  if (((cctx->ip - cctx->ibase) & HASH_EVERY) != HASH_EVERY) {
     return;
   }
-
-  hashTable = (LDM_hashEntry *) tableBase;
-  hashTable[h] = (LDM_hashEntry) { (hash_t)(p - srcBase) };
-}
-
-static void LDM_putPosition(const BYTE *p, void *tableBase,
-                            const BYTE *srcBase) {
-  hash_t hash;
-  if (((p - srcBase) & HASH_EVERY) != HASH_EVERY) {
-    return;
-  }
-  hash = LDM_hash_position(p);
-  LDM_putHashOfPosition(p, hash, tableBase, srcBase);
-}
-
-static void LDM_putHashOfCurrentPosition(LDM_CCtx *const cctx) {
-  hash_t hash = LDM_hash_position(cctx->ip);
-  LDM_putHashOfPosition(cctx->ip, hash, cctx->hashTable, cctx->ibase);
+  (cctx->hashTable)[hash] = (LDM_hashEntry){ (hash_t)(cctx->ip - cctx->ibase) };
   cctx->lastPosHashed = cctx->ip;
   cctx->lastHash = hash;
+}
+
+static void LDM_putHashOfCurrentPosition(LDM_CCtx *cctx) {
+  hash_t hash = LDM_hashPosition(cctx->ip);
+  LDM_putHashOfCurrentPositionFromHash(cctx, hash);
 }
 
 static const BYTE *LDM_get_position_on_hash(
@@ -248,141 +187,136 @@ static void LDM_initializeCCtx(LDM_CCtx *cctx,
   memset(cctx->hashTable, 0, sizeof(cctx->hashTable));
 
   cctx->lastPosHashed = NULL;
+  cctx->forwardIp = NULL;
+
+  cctx->step = 1;
+}
+
+static int LDM_findBestMatch(LDM_CCtx *cctx, const BYTE **match) {
+  cctx->forwardIp = cctx->ip;
+
+  do {
+    hash_t const h = cctx->forwardHash;
+    cctx->ip = cctx->forwardIp;
+    cctx->forwardIp += cctx->step;
+
+    if (cctx->forwardIp > cctx->imatchLimit) {
+      return 1;
+    }
+
+    *match = LDM_get_position_on_hash(h, cctx->hashTable, cctx->ibase);
+
+    cctx->forwardHash = LDM_hashPosition(cctx->forwardIp);
+    LDM_putHashOfCurrentPositionFromHash(cctx, h);
+  } while (cctx->ip - *match > WINDOW_SIZE ||
+           LDM_read64(*match) != LDM_read64(cctx->ip));
+  return 0;
 }
 
 // TODO: srcSize and maxDstSize is unused
 size_t LDM_compress(const void *src, size_t srcSize,
                     void *dst, size_t maxDstSize) {
   LDM_CCtx cctx;
-  U32 forwardH;
   LDM_initializeCCtx(&cctx, src, srcSize, dst, maxDstSize);
-
 
   /* Hash the first position and put it into the hash table. */
   LDM_putHashOfCurrentPosition(&cctx);
   cctx.ip++;
-  forwardH = LDM_hash_position(cctx.ip);
+  cctx.forwardHash = LDM_hashPosition(cctx.ip);
 
   // TODO: loop condition is not accurate.
   while (1) {
     const BYTE *match;
-    BYTE *token;
 
-    /* Find a match */
-    {
-      const BYTE *forwardIp = cctx.ip;
-      unsigned step = 1;
-
-      do {
-        U32 const h = forwardH;
-        cctx.ip = forwardIp;
-        forwardIp += step;
-
-        if (forwardIp > cctx.imatchLimit) {
-          goto _last_literals;
-        }
-
-        match = LDM_get_position_on_hash(h, cctx.hashTable, cctx.ibase);
-
-        forwardH = LDM_hash_position(forwardIp);
-        LDM_putHashOfPosition(cctx.ip, h, cctx.hashTable, cctx.ibase);
-      } while (cctx.ip - match > WINDOW_SIZE ||
-               LDM_read64(match) != LDM_read64(cctx.ip));
+    /**
+     * Find a match.
+     * If no more matches can be found (i.e. the length of the remaining input
+     * is less than the minimum match length), then stop searching for matches
+     * and encode the final literals.
+     */
+    if (LDM_findBestMatch(&cctx, &match) != 0) {
+      goto _last_literals;
     }
-    cctx.stats.num_matches++;
 
-    /* Catchup: look back to extend match from found match */
-    while (cctx.ip > cctx.anchor && match > cctx.ibase && cctx.ip[-1] == match[-1]) {
+    cctx.stats.numMatches++;
+
+    /**
+     * Catchup: look back to extend the match backwards from the found match.
+     */
+    while (cctx.ip > cctx.anchor && match > cctx.ibase &&
+           cctx.ip[-1] == match[-1]) {
       cctx.ip--;
       match--;
     }
 
-    /* Encode literals */
+    /**
+     * Write current block (literals, literal length, match offset, match
+     * length) and update pointers and hashes.
+     */
     {
-      unsigned const litLength = (unsigned)(cctx.ip - cctx.anchor);
-      token = cctx.op++;
+      unsigned const literalLength = (unsigned)(cctx.ip - cctx.anchor);
+      unsigned const offset = cctx.ip - match;
+      unsigned const matchLength = LDM_count(
+          cctx.ip + MINMATCH, match + MINMATCH, cctx.ihashLimit);
+      BYTE *token = cctx.op++;
 
-      cctx.stats.total_literal_length += litLength;
+      cctx.stats.totalLiteralLength += literalLength;
+      cctx.stats.totalOffset += offset;
+      cctx.stats.totalMatchLength += matchLength + MINMATCH;
 
-#ifdef LDM_DEBUG
-      printf("Cur position: %zu\n", cctx.anchor - cctx.ibase);
-      printf("LitLength %zu. (Match offset). %zu\n", litLength, cctx.ip - match);
-#endif
-
-      if (litLength >= RUN_MASK) {
-        int len = (int)litLength - RUN_MASK;
+      /* Encode the literal length. */
+      if (literalLength >= RUN_MASK) {
+        int len = (int)literalLength - RUN_MASK;
         *token = (RUN_MASK << ML_BITS);
         for (; len >= 255; len -= 255) {
           *(cctx.op)++ = 255;
         }
         *(cctx.op)++ = (BYTE)len;
       } else {
-        *token = (BYTE)(litLength << ML_BITS);
+        *token = (BYTE)(literalLength << ML_BITS);
       }
-#ifdef LDM_DEBUG
-      printf("Literals ");
-      fwrite(cctx.anchor, litLength, 1, stdout);
-      printf("\n");
-#endif
-      memcpy(cctx.op, cctx.anchor, litLength);
-      cctx.op += litLength;
-    }
 
-    /* Encode offset */
-    {
-      /*
-      LDM_writeLE16(cctx.op, cctx.ip-match);
-      cctx.op += 2;
-      */
-      LDM_write32(cctx.op, cctx.ip - match);
-      cctx.op += 4;
-      cctx.stats.total_offset += (cctx.ip - match);
-    }
+      /* Encode the literals. */
+      memcpy(cctx.op, cctx.anchor, literalLength);
+      cctx.op += literalLength;
 
-    /* Encode Match Length */
-    {
-      unsigned matchCode;
-      unsigned ctr = 1;
-      matchCode = LDM_count(cctx.ip + MINMATCH, match + MINMATCH,
-                            cctx.ihashLimit);
-#ifdef LDM_DEBUG
-      printf("Match length %zu\n", matchCode + MINMATCH);
-      fwrite(cctx.ip, MINMATCH + matchCode, 1, stdout);
-      printf("\n");
-#endif
-      cctx.stats.total_match_length += matchCode + MINMATCH;
-      cctx.ip++;
-      for (; ctr < MINMATCH + matchCode; cctx.ip++, ctr++) {
-        LDM_putHashOfCurrentPosition(&cctx);
-      }
-//      cctx.ip += MINMATCH + matchCode;
-      if (matchCode >= ML_MASK) {
+      /* Encode the offset. */
+      LDM_write32(cctx.op, offset);
+      cctx.op += LDM_OFFSET_SIZE;
+
+      /* Encode match length */
+      if (matchLength >= ML_MASK) {
+        unsigned matchLengthRemaining = matchLength;
         *token += ML_MASK;
-        matchCode -= ML_MASK;
+        matchLengthRemaining -= ML_MASK;
         LDM_write32(cctx.op, 0xFFFFFFFF);
-        while (matchCode >= 4*0xFF) {
+        while (matchLengthRemaining >= 4*0xFF) {
           cctx.op += 4;
           LDM_write32(cctx.op, 0xffffffff);
-          matchCode -= 4*0xFF;
+          matchLengthRemaining -= 4*0xFF;
         }
-        cctx.op += matchCode / 255;
-        *(cctx.op)++ = (BYTE)(matchCode % 255);
+        cctx.op += matchLengthRemaining / 255;
+        *(cctx.op)++ = (BYTE)(matchLengthRemaining % 255);
       } else {
-        *token += (BYTE)(matchCode);
+        *token += (BYTE)(matchLength);
       }
-#ifdef LDM_DEBUG
-      printf("\n");
 
-#endif
+      /* Update input pointer, inserting hashes into hash table along the
+       * way.
+       */
+      while (cctx.ip < cctx.anchor + MINMATCH + matchLength + literalLength) {
+        LDM_putHashOfCurrentPosition(&cctx);
+        cctx.ip++;
+      }
     }
 
+    // Set start of next block to current input pointer.
     cctx.anchor = cctx.ip;
-
-    LDM_putPosition(cctx.ip, cctx.hashTable, cctx.ibase);
-    forwardH = LDM_hash_position(++cctx.ip);
+    LDM_putHashOfCurrentPosition(&cctx);
+    cctx.forwardHash = LDM_hashPosition(++cctx.ip);
   }
 _last_literals:
-    /* Encode last literals */
+  /* Encode the last literals (no more matches). */
   {
     size_t const lastRun = (size_t)(cctx.iend - cctx.anchor);
     if (lastRun >= RUN_MASK) {
@@ -436,11 +370,10 @@ size_t LDM_decompress(const void *src, size_t compressSize,
 
   while (dctx.ip < dctx.iend) {
     BYTE *cpy;
-    size_t length;
     const BYTE *match;
-    size_t offset;
+    size_t length, offset;
 
-    /* get literal length */
+    /* Get the literal length. */
     unsigned const token = *(dctx.ip)++;
     if ((length = (token >> ML_BITS)) == RUN_MASK) {
       unsigned s;
@@ -449,37 +382,19 @@ size_t LDM_decompress(const void *src, size_t compressSize,
         length += s;
       } while (s == 255);
     }
-#ifdef LDM_DEBUG
-    printf("Literal length: %zu\n", length);
-#endif
 
-    /* copy literals */
+    /* Copy literals. */
     cpy = dctx.op + length;
-#ifdef LDM_DEBUG
-    printf("Literals ");
-    fwrite(dctx.ip, length, 1, stdout);
-    printf("\n");
-#endif
     memcpy(dctx.op, dctx.ip, length);
     dctx.ip += length;
     dctx.op = cpy;
 
-    /* get offset */
-    /*
-    offset = LDM_readLE16(dctx.ip);
-    dctx.ip += 2;
-    */
-
     //TODO : dynamic offset size
     offset = LDM_read32(dctx.ip);
-    dctx.ip += 4;
-#ifdef LDM_DEBUG
-    printf("Offset: %zu\n", offset);
-#endif
+    dctx.ip += LDM_OFFSET_SIZE;
     match = dctx.op - offset;
- //   LDM_write32(op, (U32)offset);
 
-    /* get matchlength */
+    /* Get the match length. */
     length = token & ML_MASK;
     if (length == ML_MASK) {
       unsigned s;
@@ -489,10 +404,8 @@ size_t LDM_decompress(const void *src, size_t compressSize,
       } while (s == 255);
     }
     length += MINMATCH;
-#ifdef LDM_DEBUG
-    printf("Match length: %zu\n", length);
-#endif
-    /* copy match */
+
+    /* Copy match. */
     cpy = dctx.op + length;
 
     // Inefficient for now

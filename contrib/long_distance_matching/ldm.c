@@ -3,12 +3,13 @@
 #include <stdint.h>
 #include <stdio.h>
 
+
 #include "ldm.h"
 #include "util.h"
 
 #define HASH_EVERY 7
 
-#define LDM_MEMORY_USAGE 14
+#define LDM_MEMORY_USAGE 20
 #define LDM_HASHLOG (LDM_MEMORY_USAGE-2)
 #define LDM_HASHTABLESIZE (1 << (LDM_MEMORY_USAGE))
 #define LDM_HASHTABLESIZE_U32 ((LDM_HASHTABLESIZE) >> 2)
@@ -16,16 +17,18 @@
 
 #define LDM_OFFSET_SIZE 4
 
-#define WINDOW_SIZE (1 << 20)
+#define WINDOW_SIZE (1 << 24)
 #define MAX_WINDOW_SIZE 31
-#define HASH_SIZE 8
-#define MINMATCH 8
+#define HASH_SIZE 4
+#define LDM_HASH_LENGTH 4
+#define MINMATCH 4
 
 #define ML_BITS 4
 #define ML_MASK ((1U<<ML_BITS)-1)
 #define RUN_BITS (8-ML_BITS)
 #define RUN_MASK ((1U<<RUN_BITS)-1)
 
+#define LDM_ROLLING_HASH
 //#define LDM_DEBUG
 
 typedef  uint8_t BYTE;
@@ -36,6 +39,7 @@ typedef uint64_t U64;
 
 typedef uint32_t offset_t;
 typedef uint32_t hash_t;
+typedef signed char schar;
 
 typedef struct LDM_hashEntry {
   offset_t offset;
@@ -88,17 +92,62 @@ typedef struct LDM_CCtx {
 
   const BYTE *lastPosHashed;          /* Last position hashed */
   hash_t lastHash;                    /* Hash corresponding to lastPosHashed */
-  const BYTE *forwardIp;
-  hash_t forwardHash;
+  const BYTE *nextIp;
+  hash_t nextHash;                    /* Hash corresponding to nextIp */
 
   unsigned step;
-
 } LDM_CCtx;
 
+#ifdef LDM_ROLLING_HASH
+/**
+ * Convert a sum computed from LDM_getRollingHash to a hash value in the range
+ * of the hash table.
+ */
+static hash_t LDM_sumToHash(U32 sum) {
+  return sum % (LDM_HASHTABLESIZE >> 2);
+//  return sum & (LDM_HASHTABLESIZE - 1);
+}
 
+static U32 LDM_getRollingHash(const char *data, U32 len) {
+  U32 i;
+  U32 s1, s2;
+  const schar *buf = (const schar *)data;
+
+  s1 = s2 = 0;
+  for (i = 0; i < (len - 4); i += 4) {
+    s2 += (4 * (s1 + buf[i])) + (3 * buf[i + 1]) +
+          (2 * buf[i + 2]) + (buf[i + 3]);
+    s1 += buf[i] + buf[i + 1] + buf[i + 2] + buf[i + 3];
+  }
+  for(; i < len; i++) {
+    s1 += buf[i];
+    s2 += s1;
+  }
+  return (s1 & 0xffff) + (s2 << 16);
+}
+
+static hash_t LDM_hashPosition(const void * const p) {
+  return LDM_sumToHash(LDM_getRollingHash((const char *)p, LDM_HASH_LENGTH));
+}
+
+typedef struct LDM_sumStruct {
+  U16 s1, s2;
+} LDM_sumStruct;
+
+static void LDM_getRollingHashParts(U32 sum, LDM_sumStruct *sumStruct) {
+  sumStruct->s1 = sum & 0xffff;
+  sumStruct->s2 = sum >> 16;
+}
+
+#else
 static hash_t LDM_hash(U32 sequence) {
   return ((sequence * 2654435761U) >> ((32)-LDM_HASHLOG));
 }
+
+static hash_t LDM_hashPosition(const void * const p) {
+  return LDM_hash(LDM_read32(p));
+}
+#endif
 
 /*
 static hash_t LDM_hash5(U64 sequence) {
@@ -111,10 +160,6 @@ static hash_t LDM_hash5(U64 sequence) {
     return (((sequence >> 24) * prime8bytes) >> (64 - hashLog));
 }
 */
-
-static hash_t LDM_hashPosition(const void * const p) {
-  return LDM_hash(LDM_read32(p));
-}
 
 static void LDM_putHashOfCurrentPositionFromHash(
     LDM_CCtx *cctx, hash_t hash) {
@@ -187,26 +232,26 @@ static void LDM_initializeCCtx(LDM_CCtx *cctx,
   memset(cctx->hashTable, 0, sizeof(cctx->hashTable));
 
   cctx->lastPosHashed = NULL;
-  cctx->forwardIp = NULL;
+  cctx->nextIp = NULL;
 
   cctx->step = 1;
 }
 
 static int LDM_findBestMatch(LDM_CCtx *cctx, const BYTE **match) {
-  cctx->forwardIp = cctx->ip;
+  cctx->nextIp = cctx->ip;
 
   do {
-    hash_t const h = cctx->forwardHash;
-    cctx->ip = cctx->forwardIp;
-    cctx->forwardIp += cctx->step;
+    hash_t const h = cctx->nextHash;
+    cctx->ip = cctx->nextIp;
+    cctx->nextIp += cctx->step;
 
-    if (cctx->forwardIp > cctx->imatchLimit) {
+    if (cctx->nextIp > cctx->imatchLimit) {
       return 1;
     }
 
     *match = LDM_get_position_on_hash(h, cctx->hashTable, cctx->ibase);
 
-    cctx->forwardHash = LDM_hashPosition(cctx->forwardIp);
+    cctx->nextHash = LDM_hashPosition(cctx->nextIp);
     LDM_putHashOfCurrentPositionFromHash(cctx, h);
   } while (cctx->ip - *match > WINDOW_SIZE ||
            LDM_read64(*match) != LDM_read64(cctx->ip));
@@ -222,7 +267,7 @@ size_t LDM_compress(const void *src, size_t srcSize,
   /* Hash the first position and put it into the hash table. */
   LDM_putHashOfCurrentPosition(&cctx);
   cctx.ip++;
-  cctx.forwardHash = LDM_hashPosition(cctx.ip);
+  cctx.nextHash = LDM_hashPosition(cctx.ip);
 
   // TODO: loop condition is not accurate.
   while (1) {
@@ -241,7 +286,7 @@ size_t LDM_compress(const void *src, size_t srcSize,
     cctx.stats.numMatches++;
 
     /**
-     * Catchup: look back to extend the match backwards from the found match.
+     * Catch up: look back to extend the match backwards from the found match.
      */
     while (cctx.ip > cctx.anchor && match > cctx.ibase &&
            cctx.ip[-1] == match[-1]) {
@@ -313,7 +358,7 @@ size_t LDM_compress(const void *src, size_t srcSize,
     // Set start of next block to current input pointer.
     cctx.anchor = cctx.ip;
     LDM_putHashOfCurrentPosition(&cctx);
-    cctx.forwardHash = LDM_hashPosition(++cctx.ip);
+    cctx.nextHash = LDM_hashPosition(++cctx.ip);
   }
 _last_literals:
   /* Encode the last literals (no more matches). */

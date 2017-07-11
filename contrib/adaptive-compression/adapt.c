@@ -270,6 +270,7 @@ static void* compressionThread(void* arg)
             if (currJob != 0) { /* not first job */
                 size_t const hSize = ZSTD_compressContinue(ctx->cctx, job->dst.start, job->dst.size, job->src.start, job->src.size);
                 if (ZSTD_isError(hSize)) {
+                    DISPLAY("Error: something went wrong while continuing compression\n");
                     job->compressedSize = hSize;
                     ctx->threadError = 1;
                     return arg;
@@ -410,8 +411,10 @@ static int createCompressionJob(adaptCCtx* ctx, size_t srcSize, int last)
 
     /* if not on the last job, reuse data as dictionary in next job */
     if (!last) {
-        ctx->input.filled = srcSize;
-        memmove(ctx->input.buffer.start, ctx->input.buffer.start + ctx->input.filled, srcSize);
+        size_t const newDictSize = srcSize;
+        size_t const oldDictSize = ctx->input.filled;
+        memmove(ctx->input.buffer.start, ctx->input.buffer.start + oldDictSize + srcSize - newDictSize, newDictSize);
+        ctx->input.filled = newDictSize;
     }
     return 0;
 }

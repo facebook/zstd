@@ -95,19 +95,6 @@ unsigned int FUZ_rand(unsigned int* seedPtr)
     return rand32 >> 5;
 }
 
-static void* allocFunction(void* opaque, size_t size)
-{
-    void* address = malloc(size);
-    (void)opaque;
-    return address;
-}
-
-static void freeFunction(void* opaque, void* address)
-{
-    (void)opaque;
-    free(address);
-}
-
 
 /*======================================================
 *   Basic Unit tests
@@ -1543,7 +1530,6 @@ int main(int argc, const char** argv)
     int bigTests = (sizeof(size_t) == 8);
     e_api selected_api = simple_api;
     const char* const programName = argv[0];
-    ZSTD_customMem const customMem = { allocFunction, freeFunction, NULL };
     ZSTD_customMem const customNULL = ZSTD_defaultCMem;
 
     /* Check command line */
@@ -1657,10 +1643,7 @@ int main(int argc, const char** argv)
 
     if (testNb==0) {
         result = basicUnitTests(0, ((double)proba) / 100, customNULL);  /* constant seed for predictability */
-        if (!result) {
-            DISPLAYLEVEL(3, "Unit tests using customMem :\n")
-            result = basicUnitTests(0, ((double)proba) / 100, customMem);  /* use custom memory allocation functions */
-    }   }
+    }
 
     if (!result) {
         switch(selected_api)

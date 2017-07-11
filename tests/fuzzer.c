@@ -129,7 +129,7 @@ static void* FUZ_mallocDebug(void* counter, size_t size)
 static void FUZ_freeDebug(void* counter, void* address)
 {
     mallocCounter_t* const mcPtr = (mallocCounter_t*)counter;
-    DISPLAYLEVEL(4, "releasing %u KB \n", (U32)(malloc_size(address) >> 10));
+    DISPLAYLEVEL(4, "freeing %u KB \n", (U32)(malloc_size(address) >> 10));
     mcPtr->nbFree += 1;
     mcPtr->currentMalloc -= malloc_size(address);  /* OS-X specific */
     free(address);

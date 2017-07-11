@@ -134,9 +134,11 @@ static buffer_t ZSTDMT_getBuffer(ZSTDMT_bufferPool* pool, size_t bSize)
             /* large enough, but not too much */
             return buf;
         /* size conditions not respected : scratch this buffer, create new one */
+        DEBUGLOG(2, "existing buffer does not meet size conditions => freeing");
         ZSTD_free(buf.start, pool->cMem);
     }
     /* create new buffer */
+    DEBUGLOG(2, "create a new buffer");
     {   buffer_t buffer;
         void* const start = ZSTD_malloc(bSize, pool->cMem);
         if (start==NULL) bSize = 0;
@@ -149,12 +151,14 @@ static buffer_t ZSTDMT_getBuffer(ZSTDMT_bufferPool* pool, size_t bSize)
 /* store buffer for later re-use, up to pool capacity */
 static void ZSTDMT_releaseBuffer(ZSTDMT_bufferPool* pool, buffer_t buf)
 {
+    DEBUGLOG(2, "ZSTDMT_releaseBuffer");
     if (buf.start == NULL) return;   /* release on NULL */
     if (pool->nbBuffers < pool->totalBuffers) {
         pool->bTable[pool->nbBuffers++] = buf;   /* store for later re-use */
         return;
     }
     /* Reached bufferPool capacity (should not happen) */
+    DEBUGLOG(2, "buffer pool capacity reached => freeing ");
     ZSTD_free(buf.start, pool->cMem);
 }
 
@@ -635,8 +639,8 @@ size_t ZSTDMT_initCStream_internal(ZSTDMT_CCtx* zcs,
     if (zcs->nbThreads==1) {
         DEBUGLOG(4, "single thread mode");
         return ZSTD_initCStream_internal(zcs->cctxPool->cctx[0],
-                                dict, dictSize, cdict,
-                                params, pledgedSrcSize);
+                                        dict, dictSize, cdict,
+                                        params, pledgedSrcSize);
     }
 
     if (zcs->allJobsCompleted == 0) {   /* previous compression not correctly finished */
@@ -671,9 +675,7 @@ size_t ZSTDMT_initCStream_internal(ZSTDMT_CCtx* zcs,
     DEBUGLOG(4, "Section Size : %u KB", (U32)(zcs->targetSectionSize>>10));
     zcs->marginSize = zcs->targetSectionSize >> 2;
     zcs->inBuffSize = zcs->targetDictSize + zcs->targetSectionSize + zcs->marginSize;
-    zcs->inBuff.buffer = ZSTDMT_getBuffer(zcs->buffPool, zcs->inBuffSize);
-    if (zcs->inBuff.buffer.start == NULL) return ERROR(memory_allocation);
-    zcs->inBuff.filled = 0;
+    zcs->inBuff.buffer = g_nullBuffer;
     zcs->dictSize = 0;
     zcs->doneJobID = 0;
     zcs->nextJobID = 0;
@@ -899,13 +901,18 @@ size_t ZSTDMT_compressStream_generic(ZSTDMT_CCtx* mtctx,
     }
 
     /* fill input buffer */
-    if ((input->src) && (mtctx->inBuff.buffer.start)) {   /* support NULL input */
-        size_t const toLoad = MIN(input->size - input->pos, mtctx->inBuffSize - mtctx->inBuff.filled);
-        DEBUGLOG(5, "inBuff:%08X;  inBuffSize=%u;  ToCopy=%u", (U32)(size_t)mtctx->inBuff.buffer.start, (U32)mtctx->inBuffSize, (U32)toLoad);
-        memcpy((char*)mtctx->inBuff.buffer.start + mtctx->inBuff.filled, (const char*)input->src + input->pos, toLoad);
-        input->pos += toLoad;
-        mtctx->inBuff.filled += toLoad;
-    }
+    if (input->src) {   /* support NULL input */
+        if (mtctx->inBuff.buffer.start == NULL) {
+            mtctx->inBuff.buffer = ZSTDMT_getBuffer(mtctx->buffPool, mtctx->inBuffSize);
+            if (mtctx->inBuff.buffer.start == NULL) return ERROR(memory_allocation);
+            mtctx->inBuff.filled = 0;
+        }
+        {   size_t const toLoad = MIN(input->size - input->pos, mtctx->inBuffSize - mtctx->inBuff.filled);
+            DEBUGLOG(5, "inBuff:%08X;  inBuffSize=%u;  ToCopy=%u", (U32)(size_t)mtctx->inBuff.buffer.start, (U32)mtctx->inBuffSize, (U32)toLoad);
+            memcpy((char*)mtctx->inBuff.buffer.start + mtctx->inBuff.filled, (const char*)input->src + input->pos, toLoad);
+            input->pos += toLoad;
+            mtctx->inBuff.filled += toLoad;
+    }   }
 
     if ( (mtctx->inBuff.filled >= newJobThreshold)  /* filled enough : let's compress */
       && (mtctx->nextJobID <= mtctx->doneJobID + mtctx->jobIDMask) ) {   /* avoid overwriting job round buffer */

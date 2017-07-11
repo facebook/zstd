@@ -253,7 +253,7 @@ static void* compressionThread(void* arg)
         {
             unsigned const cLevel = adaptCompressionLevel(ctx);
             DEBUG(3, "cLevel used: %u\n", cLevel);
-
+            DEBUG(2, "dictSize: %zu, srcSize: %zu\n", job->dict.size, job->src.size);
             /* begin compression */
             {
                 size_t const dictModeError = ZSTD_setCCtxParameter(ctx->cctx, ZSTD_p_forceRawDict, 1);
@@ -408,10 +408,10 @@ static int createCompressionJob(adaptCCtx* ctx, size_t srcSize, int last)
     pthread_mutex_unlock(&ctx->jobReady_mutex);
     DEBUG(3, "finished job creation %u\n", nextJob);
     ctx->nextJobID++;
-
+    DEBUG(3, "filled: %zu, srcSize: %zu\n", ctx->input.filled, srcSize);
     /* if not on the last job, reuse data as dictionary in next job */
     if (!last) {
-        size_t const newDictSize = srcSize;
+        size_t const newDictSize = srcSize/16;
         size_t const oldDictSize = ctx->input.filled;
         memmove(ctx->input.buffer.start, ctx->input.buffer.start + oldDictSize + srcSize - newDictSize, newDictSize);
         ctx->input.filled = newDictSize;

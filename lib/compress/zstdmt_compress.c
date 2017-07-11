@@ -340,7 +340,6 @@ struct ZSTDMT_CCtx_s {
     pthread_mutex_t jobCompleted_mutex;
     pthread_cond_t jobCompleted_cond;
     size_t targetSectionSize;
-    size_t marginSize;
     size_t inBuffSize;
     size_t dictSize;
     size_t targetDictSize;
@@ -673,8 +672,7 @@ size_t ZSTDMT_initCStream_internal(ZSTDMT_CCtx* zcs,
     zcs->targetSectionSize = MAX(ZSTDMT_SECTION_SIZE_MIN, zcs->targetSectionSize);
     zcs->targetSectionSize = MAX(zcs->targetDictSize, zcs->targetSectionSize);
     DEBUGLOG(4, "Section Size : %u KB", (U32)(zcs->targetSectionSize>>10));
-    zcs->marginSize = zcs->targetSectionSize >> 2;
-    zcs->inBuffSize = zcs->targetDictSize + zcs->targetSectionSize + zcs->marginSize;
+    zcs->inBuffSize = zcs->targetDictSize + zcs->targetSectionSize;
     zcs->inBuff.buffer = g_nullBuffer;
     zcs->dictSize = 0;
     zcs->doneJobID = 0;
@@ -871,18 +869,18 @@ size_t ZSTDMT_compressStream_generic(ZSTDMT_CCtx* mtctx,
                                      ZSTD_inBuffer* input,
                                      ZSTD_EndDirective endOp)
 {
-    size_t const newJobThreshold = mtctx->dictSize + mtctx->targetSectionSize + mtctx->marginSize;
+    size_t const newJobThreshold = mtctx->dictSize + mtctx->targetSectionSize;
     assert(output->pos <= output->size);
     assert(input->pos  <= input->size);
     if ((mtctx->frameEnded) && (endOp==ZSTD_e_continue)) {
         /* current frame being ended. Only flush/end are allowed. Or start new frame with init */
         return ERROR(stage_wrong);
     }
-    if (mtctx->nbThreads==1) {
+    if (mtctx->nbThreads==1) {  /* delegate to single-thread (synchronous) */
         return ZSTD_compressStream_generic(mtctx->cctxPool->cctx[0], output, input, endOp);
     }
 
-    /* single-pass shortcut (note : this is blocking-mode) */
+    /* single-pass shortcut (note : this is synchronous-mode) */
     if ( (mtctx->nextJobID==0)      /* just started */
       && (mtctx->inBuff.filled==0)  /* nothing buffered */
       && (endOp==ZSTD_e_end)        /* end order */
@@ -901,7 +899,7 @@ size_t ZSTDMT_compressStream_generic(ZSTDMT_CCtx* mtctx,
     }
 
     /* fill input buffer */
-    if (input->src) {   /* support NULL input */
+    if (input->size > input->pos) {   /* support NULL input */
         if (mtctx->inBuff.buffer.start == NULL) {
             mtctx->inBuff.buffer = ZSTDMT_getBuffer(mtctx->buffPool, mtctx->inBuffSize);
             if (mtctx->inBuff.buffer.start == NULL) return ERROR(memory_allocation);

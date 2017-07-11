@@ -2,7 +2,7 @@
 #define PRINT(...) fprintf(stdout, __VA_ARGS__)
 #define DEBUG(l, ...) { if (g_displayLevel>=l) { DISPLAY(__VA_ARGS__); } }
 #define FILE_CHUNK_SIZE 4 << 20
-#define MAX_NUM_JOBS 2;
+#define MAX_NUM_JOBS 2
 #define stdinmark  "/*stdin*\\"
 #define stdoutmark "/*stdout*\\"
 #define MAX_PATH 256
@@ -612,6 +612,7 @@ int main(int argCount, const char* argv[])
                     break;
                 case 'c':
                     forceStdout = 1;
+                    outFilename = stdoutmark;
                     break;
                 default:
                     DISPLAY("Error: invalid argument provided\n");

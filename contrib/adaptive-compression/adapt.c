@@ -254,6 +254,7 @@ static void* compressionThread(void* arg)
             unsigned const cLevel = adaptCompressionLevel(ctx);
             DEBUG(3, "cLevel used: %u\n", cLevel);
             DEBUG(2, "dictSize: %zu, srcSize: %zu\n", job->dict.size, job->src.size);
+            DEBUG(2, "compression level used: %u\n", cLevel);
             /* begin compression */
             {
                 size_t const dictModeError = ZSTD_setCCtxParameter(ctx->cctx, ZSTD_p_forceRawDict, 1);

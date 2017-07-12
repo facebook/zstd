@@ -1,3 +1,19 @@
+/**
+ * Copyright (c) 2017-present, Facebook, Inc.
+ * All rights reserved.
+ *
+ * This source code is licensed under the BSD-style license found in the
+ * LICENSE file in the root directory of this source tree. An additional grant
+ * of patent rights can be found in the PATENTS file in the same directory.
+ */
+
+#include <stdio.h>      /* fprintf */
+#include <stdlib.h>     /* malloc, free */
+#include <pthread.h>    /* pthread functions */
+#include <string.h>     /* memset */
+#include "zstd_internal.h"
+#include "util.h"
+
 #define DISPLAY(...) fprintf(stderr, __VA_ARGS__)
 #define PRINT(...) fprintf(stdout, __VA_ARGS__)
 #define DEBUG(l, ...) { if (g_displayLevel>=l) { DISPLAY(__VA_ARGS__); } }
@@ -10,13 +26,6 @@
 #define DEFAULT_COMPRESSION_LEVEL 6
 #define DEFAULT_ADAPT_PARAM 1
 typedef unsigned char BYTE;
-
-#include <stdio.h>      /* fprintf */
-#include <stdlib.h>     /* malloc, free */
-#include <pthread.h>    /* pthread functions */
-#include <string.h>     /* memset */
-#include "zstd_internal.h"
-#include "util.h"
 
 static int g_displayLevel = DEFAULT_DISPLAY_LEVEL;
 static unsigned g_compressionLevel = DEFAULT_COMPRESSION_LEVEL;
@@ -138,7 +147,7 @@ static adaptCCtx* createCCtx(unsigned numJobs, const char* const outFilename)
     ctx->jobReadyID = 0;
     ctx->jobCompressedID = 0;
     ctx->jobWriteID = 0;
-    ctx->targetDictSize = FILE_CHUNK_SIZE >> 15;
+    ctx->targetDictSize = 1 << 12;
     ctx->lastDictSize = 0;
     ctx->jobs = calloc(1, numJobs*sizeof(jobDescription));
     /* initializing jobs */

@@ -518,10 +518,11 @@ static void LDM_outputBlock(LDM_CCtx *cctx, const BYTE *match) {
   while (cctx->ip < cctx->anchor + MINMATCH + matchLength + literalLength) {
 //    printf("Loop\n");
     if (cctx->ip > cctx->lastPosHashed) {
-      LDM_updateLastHashFromNextHash(cctx);
-//      LDM_putHashOfCurrentPosition(cctx);
 #ifdef LDM_ROLLING_HASH
+      LDM_updateLastHashFromNextHash(cctx);
       LDM_setNextHash(cctx);
+#else
+      LDM_putHashOfCurrentPosition(cctx);
 #endif
     }
     /*
@@ -594,9 +595,10 @@ size_t LDM_compress(const void *src, size_t srcSize,
 
     // Set start of next block to current input pointer.
     cctx.anchor = cctx.ip;
+#ifdef LDM_ROLLING_HASH
     LDM_updateLastHashFromNextHash(&cctx);
-//    LDM_putHashOfCurrentPosition(&cctx);
-#ifndef LDM_ROLLING_HASH
+#else
+    LDM_putHashOfCurrentPosition(&cctx);
     cctx.ip++;
 #endif
 

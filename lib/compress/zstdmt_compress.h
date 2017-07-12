@@ -16,8 +16,8 @@
 
 
 /* Note : This is an internal API.
- *        Some methods are still exposed (ZSTDLIB_API), because for some time,
- *        it used to be the only way to invoke MT compression.
+ *        Some methods are still exposed (ZSTDLIB_API),
+ *        because it used to be the only way to invoke MT compression.
  *        Now, it's recommended to use ZSTD_compress_generic() instead.
  *        These methods will stop being exposed in a future version */
 
@@ -68,7 +68,7 @@ ZSTDLIB_API size_t ZSTDMT_compress_advanced(ZSTDMT_CCtx* mtctx,
                                      const void* src, size_t srcSize,
                                      const ZSTD_CDict* cdict,
                                            ZSTD_parameters const params,
-                                           unsigned overlapRLog);
+                                           unsigned overlapRLog);            /* overlapRLog = 9 - overlapLog */
 
 ZSTDLIB_API size_t ZSTDMT_initCStream_advanced(ZSTDMT_CCtx* mtctx,
                                         const void* dict, size_t dictSize,   /* dict can be released after init, a local copy is preserved within zcs */

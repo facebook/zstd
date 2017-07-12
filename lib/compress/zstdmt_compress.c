@@ -140,7 +140,7 @@ static void ZSTDMT_setBufferSize(ZSTDMT_bufferPool* bufPool, size_t bSize)
 static buffer_t ZSTDMT_getBuffer(ZSTDMT_bufferPool* bufPool)
 {
     size_t const bSize = bufPool->bufferSize;
-    DEBUGLOG(2, "ZSTDMT_getBuffer");
+    DEBUGLOG(5, "ZSTDMT_getBuffer");
     pthread_mutex_lock(&bufPool->poolMutex);
     if (bufPool->nbBuffers) {   /* try to use an existing buffer */
         buffer_t const buf = bufPool->bTable[--(bufPool->nbBuffers)];
@@ -151,12 +151,12 @@ static buffer_t ZSTDMT_getBuffer(ZSTDMT_bufferPool* bufPool)
             return buf;
         }
         /* size conditions not respected : scratch this buffer, create new one */
-        DEBUGLOG(2, "existing buffer does not meet size conditions => freeing");
+        DEBUGLOG(5, "existing buffer does not meet size conditions => freeing");
         ZSTD_free(buf.start, bufPool->cMem);
     }
     pthread_mutex_unlock(&bufPool->poolMutex);
     /* create new buffer */
-    DEBUGLOG(2, "create a new buffer");
+    DEBUGLOG(5, "create a new buffer");
     {   buffer_t buffer;
         void* const start = ZSTD_malloc(bSize, bufPool->cMem);
         buffer.start = start;   /* note : start can be NULL if malloc fails ! */
@@ -168,17 +168,17 @@ static buffer_t ZSTDMT_getBuffer(ZSTDMT_bufferPool* bufPool)
 /* store buffer for later re-use, up to pool capacity */
 static void ZSTDMT_releaseBuffer(ZSTDMT_bufferPool* bufPool, buffer_t buf)
 {
-    DEBUGLOG(2, "ZSTDMT_releaseBuffer");
     if (buf.start == NULL) return;   /* compatible with release on NULL */
+    DEBUGLOG(5, "ZSTDMT_releaseBuffer");
     pthread_mutex_lock(&bufPool->poolMutex);
     if (bufPool->nbBuffers < bufPool->totalBuffers) {
-        bufPool->bTable[bufPool->nbBuffers++] = buf;   /* store for later re-use */
+        bufPool->bTable[bufPool->nbBuffers++] = buf;  /* stored for later use */
         pthread_mutex_unlock(&bufPool->poolMutex);
         return;
     }
     pthread_mutex_unlock(&bufPool->poolMutex);
     /* Reached bufferPool capacity (should not happen) */
-    DEBUGLOG(2, "buffer pool capacity reached => freeing ");
+    DEBUGLOG(5, "buffer pool capacity reached => freeing ");
     ZSTD_free(buf.start, bufPool->cMem);
 }
 
@@ -338,7 +338,7 @@ void ZSTDMT_compressChunk(void* jobDescription)
     job->cSize = (job->lastChunk) ?
                  ZSTD_compressEnd     (cctx, dstBuff.start, dstBuff.size, src, job->srcSize) :
                  ZSTD_compressContinue(cctx, dstBuff.start, dstBuff.size, src, job->srcSize);
-    DEBUGLOG(2, "compressed %u bytes into %u bytes   (first:%u) (last:%u)",
+    DEBUGLOG(5, "compressed %u bytes into %u bytes   (first:%u) (last:%u)",
                 (unsigned)job->srcSize, (unsigned)job->cSize, job->firstChunk, job->lastChunk);
     DEBUGLOG(5, "dstBuff.size : %u ; => %s", (U32)dstBuff.size, ZSTD_getErrorName(job->cSize));
 
@@ -515,13 +515,12 @@ static unsigned computeNbChunks(size_t srcSize, unsigned windowLog, unsigned nbT
 }
 
 
-/* Note : missing checksum at the end ! */
 size_t ZSTDMT_compress_advanced(ZSTDMT_CCtx* mtctx,
-                           void* dst, size_t dstCapacity,
-                     const void* src, size_t srcSize,
-                     const ZSTD_CDict* cdict,
-                           ZSTD_parameters const params,
-                           unsigned overlapRLog)
+                               void* dst, size_t dstCapacity,
+                         const void* src, size_t srcSize,
+                         const ZSTD_CDict* cdict,
+                               ZSTD_parameters const params,
+                               unsigned overlapRLog)
 {
     size_t const overlapSize = (overlapRLog>=9) ? 0 : (size_t)1 << (params.cParams.windowLog - overlapRLog);
     unsigned nbChunks = computeNbChunks(srcSize, params.cParams.windowLog, mtctx->nbThreads);
@@ -531,6 +530,7 @@ size_t ZSTDMT_compress_advanced(ZSTDMT_CCtx* mtctx,
     size_t remainingSrcSize = srcSize;
     unsigned const compressWithinDst = (dstCapacity >= ZSTD_compressBound(srcSize)) ? nbChunks : (unsigned)(dstCapacity / ZSTD_compressBound(avgChunkSize));  /* presumes avgChunkSize >= 256 KB, which should be the case */
     size_t frameStartPos = 0, dstBufferPos = 0;
+    XXH64_state_t xxh64;
 
     DEBUGLOG(4, "nbChunks  : %2u   (chunkSize : %u bytes)   ", nbChunks, (U32)avgChunkSize);
     if (nbChunks==1) {   /* fallback to single-thread mode */
@@ -540,6 +540,7 @@ size_t ZSTDMT_compress_advanced(ZSTDMT_CCtx* mtctx,
     }
     assert(avgChunkSize >= 256 KB);  /* condition for ZSTD_compressBound(A) + ZSTD_compressBound(B) <= ZSTD_compressBound(A+B), which is useful to avoid allocating extra buffers */
     ZSTDMT_setBufferSize(mtctx->bufPool, ZSTD_compressBound(avgChunkSize) );
+    XXH64_reset(&xxh64, 0);
 
     if (nbChunks > mtctx->jobIDMask+1) {  /* enlarge job table */
         U32 nbJobs = nbChunks;
@@ -576,6 +577,10 @@ size_t ZSTDMT_compress_advanced(ZSTDMT_CCtx* mtctx,
             mtctx->jobs[u].jobCompleted_mutex = &mtctx->jobCompleted_mutex;
             mtctx->jobs[u].jobCompleted_cond = &mtctx->jobCompleted_cond;
 
+            if (params.fParams.checksumFlag) {
+                XXH64_update(&xxh64, srcStart + frameStartPos, chunkSize);
+            }
+
             DEBUGLOG(5, "posting job %u   (%u bytes)", u, (U32)chunkSize);
             DEBUG_PRINTHEX(6, mtctx->jobs[u].srcStart, 12);
             POOL_add(mtctx->factory, ZSTDMT_compressChunk, &mtctx->jobs[u]);
@@ -586,8 +591,8 @@ size_t ZSTDMT_compress_advanced(ZSTDMT_CCtx* mtctx,
     }   }
 
     /* collect result */
-    {   unsigned chunkID;
-        size_t error = 0, dstPos = 0;
+    {   size_t error = 0, dstPos = 0;
+        unsigned chunkID;
         for (chunkID=0; chunkID<nbChunks; chunkID++) {
             DEBUGLOG(5, "waiting for chunk %u ", chunkID);
             PTHREAD_MUTEX_LOCK(&mtctx->jobCompleted_mutex);
@@ -614,6 +619,18 @@ size_t ZSTDMT_compress_advanced(ZSTDMT_CCtx* mtctx,
                 dstPos += cSize ;
             }
         }  /* for (chunkID=0; chunkID<nbChunks; chunkID++) */
+
+        DEBUGLOG(4, "checksumFlag : %u ", params.fParams.checksumFlag);
+        if (params.fParams.checksumFlag) {
+            U32 const checksum = (U32)XXH64_digest(&xxh64);
+            if (dstPos + 4 > dstCapacity) {
+                error = ERROR(dstSize_tooSmall);
+            } else {
+                DEBUGLOG(4, "writing checksum : %08X \n", checksum);
+                MEM_writeLE32((char*)dst + dstPos, checksum);
+                dstPos += 4;
+        }   }
+
         if (!error) DEBUGLOG(4, "compressed size : %u  ", (U32)dstPos);
         return error ? error : dstPos;
     }
@@ -852,7 +869,7 @@ static size_t ZSTDMT_flushNextJob(ZSTDMT_CCtx* zcs, ZSTD_outBuffer* output, unsi
             zcs->jobs[wJobID].jobScanned = 1;
         }
         {   size_t const toWrite = MIN(job.cSize - job.dstFlushed, output->size - output->pos);
-            DEBUGLOG(2, "Flushing %u bytes from job %u ", (U32)toWrite, zcs->doneJobID);
+            DEBUGLOG(5, "Flushing %u bytes from job %u ", (U32)toWrite, zcs->doneJobID);
             memcpy((char*)output->dst + output->pos, (const char*)job.dstBuff.start + job.dstFlushed, toWrite);
             output->pos += toWrite;
             job.dstFlushed += toWrite;

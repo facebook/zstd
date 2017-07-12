@@ -61,4 +61,9 @@ void LDM_copy8(void *dst, const void *src) {
   memcpy(dst, src, 8);
 }
 
+BYTE LDM_readByte(const void *memPtr) {
+  BYTE val;
+  memcpy(&val, memPtr, 1);
+  return val;
+}
 

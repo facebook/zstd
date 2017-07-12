@@ -7,9 +7,9 @@
 #include "ldm.h"
 #include "util.h"
 
-#define HASH_EVERY 1
+#define HASH_EVERY 7
 
-#define LDM_MEMORY_USAGE 22
+#define LDM_MEMORY_USAGE 18
 #define LDM_HASHLOG (LDM_MEMORY_USAGE-2)
 #define LDM_HASHTABLESIZE (1 << (LDM_MEMORY_USAGE))
 #define LDM_HASHTABLESIZE_U32 ((LDM_HASHTABLESIZE) >> 2)
@@ -132,7 +132,7 @@ static int LDM_isValidMatch(const BYTE *p, const BYTE *match) {
     curMatch += 8;
   }
   if (lengthLeft > 0) {
-    return LDM_read32(curP) == LDM_read32(curMatch);
+    return (LDM_read32(curP) == LDM_read32(curMatch));
   }
   return 1;
 }
@@ -144,8 +144,15 @@ static int LDM_isValidMatch(const BYTE *p, const BYTE *match) {
  * Convert a sum computed from LDM_getRollingHash to a hash value in the range
  * of the hash table.
  */
+#define LDM_SUM2HASH2(s1,s2) (((s1) + (s2)) & 0xFFFF)
+#define LDM_SUM2HASH(sum) (LDM_SUM2HASH2((sum)&0xFFFF,(sum)>>16))
+
 static hash_t LDM_sumToHash(U32 sum) {
-  return sum & (LDM_HASH_SIZE_U32 - 1);
+//  return sum & (LDM_HASH_SIZE_U32 - 1);
+//  return sum % (LDM_HASHTABLESIZE_U32 );
+
+  return ((sum* 2654435761U) >> ((32)-LDM_HASHLOG));
+//    return LDM_SUM2HASH2(sum&0xFFFF, sum >> 16);
 }
 
 static U32 LDM_getRollingHash(const char *data, U32 len) {
@@ -240,15 +247,32 @@ static void LDM_putHashOfCurrentPositionFromHash(
   }
   */
 #ifdef COMPUTE_STATS
-  if (cctx->stats.numHashInserts < LDM_HASHTABLESIZE_U32) {
+  if (cctx->stats.numHashInserts < LDM_HASHTABLESIZE_U32 ) {
     offset_t offset = (cctx->hashTable)[hash].offset;
     cctx->stats.numHashInserts++;
-    if (offset == 0 && !LDM_isValidMatch(cctx->ip, offset + cctx->ibase)) {
+    if (offset != 0 && !LDM_isValidMatch(cctx->ip, offset + cctx->ibase)) {
+//      printf("%u %u %zu\n", hash, offset, cctx->ip - cctx->ibase);
+//      printf("TST: %u %u\n", LDM_read32(cctx->ip), LDM_read32(offset + cctx->ibase));
       cctx->stats.numCollisions++;
     }
   }
+
 #endif
-  (cctx->hashTable)[hash] = (LDM_hashEntry){ (hash_t)(cctx->ip - cctx->ibase) };
+
+  if (((cctx->ip - cctx->ibase) & HASH_EVERY) == HASH_EVERY) {
+#ifdef COMPUTE_STATS
+    /*
+    offset_t offset = (cctx->hashTable)[hash].offset;
+    if (offset == 0) {
+      printf("NEW HASH: %u\n", hash);
+    }
+    */
+#endif
+
+    (cctx->hashTable)[hash] = (LDM_hashEntry){ (offset_t)(cctx->ip - cctx->ibase) };
+  }
+
+  // Book-keeping
   cctx->lastPosHashed = cctx->ip;
   cctx->lastHash = hash;
   cctx->lastSum = sum;
@@ -296,7 +320,8 @@ static void LDM_putHashOfCurrentPositionFromHash(
   if (cctx->stats.numHashInserts < LDM_HASHTABLESIZE_U32) {
     offset_t offset = (cctx->hashTable)[hash].offset;
     cctx->stats.numHashInserts++;
-    if (offset == 0 && !LDM_isValidMatch(cctx->ip, offset + cctx->ibase)) {
+
+    if (offset != 0 && !LDM_isValidMatch(cctx->ip, offset + cctx->ibase)) {
       cctx->stats.numCollisions++;
     }
   }
@@ -629,6 +654,17 @@ _last_literals:
     cctx.op += lastRun;
   }
   LDM_printCompressStats(&cctx.stats);
+
+  {
+    U32 tmp = 0;
+    U32 ctr = 0;
+    for (; tmp < LDM_HASH_SIZE_U32; tmp++) {
+      if ((cctx.hashTable)[tmp].offset == 0) {
+        ctr++;
+      }
+    }
+    printf("HASH: %u %u\n", ctr, LDM_HASH_SIZE_U32);
+  }
   return (cctx.op - (const BYTE *)cctx.obase);
 }
 

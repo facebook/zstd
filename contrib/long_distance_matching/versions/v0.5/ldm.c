@@ -467,7 +467,6 @@ static void outputBlock(LDM_CCtx *cctx,
 }
 
 // TODO: srcSize and maxDstSize is unused
-// This is based upon lz4.
 size_t LDM_compress(const void *src, size_t srcSize,
                     void *dst, size_t maxDstSize) {
   LDM_CCtx cctx;

@@ -1,0 +1,3 @@
+This version uses simple lz4-style compression:
+- A 4-byte hash is inserted into the hash table for every position.
+- Hash table replacement policy: direct overwrite.

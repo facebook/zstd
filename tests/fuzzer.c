@@ -278,9 +278,6 @@ static int basicUnitTests(U32 seed, double compressibility)
     }
     RDG_genBuffer(CNBuffer, CNBuffSize, compressibility, 0., seed);
 
-    /* memory tests */
-    FUZ_mallocTests(seed, compressibility);
-
     /* Basic tests */
     DISPLAYLEVEL(4, "test%3i : ZSTD_getErrorName : ", testNb++);
     {   const char* errorString = ZSTD_getErrorName(0);
@@ -477,6 +474,23 @@ static int basicUnitTests(U32 seed, double compressibility)
             for (u=0; u<CNBuffSize; u++) {
                 if (((BYTE*)decodedBuffer)[u] != ((BYTE*)CNBuffer)[u]) goto _output_error;;
         }   }
+        DISPLAYLEVEL(4, "OK \n");
+
+        DISPLAYLEVEL(4, "test%3i : compress -T2 with checksum : ", testNb++);
+        {   ZSTD_parameters params = ZSTD_getParams(1, CNBuffSize, 0);
+            params.fParams.checksumFlag = 1;
+            params.fParams.contentSizeFlag = 1;
+            CHECKPLUS(r, ZSTDMT_compress_advanced(mtctx,
+                                    compressedBuffer, compressedBufferSize,
+                                    CNBuffer, CNBuffSize,
+                                    NULL, params, 3 /*overlapRLog*/),
+                      cSize=r );
+        }
+        DISPLAYLEVEL(4, "OK (%u bytes : %.2f%%)\n", (U32)cSize, (double)cSize/CNBuffSize*100);
+
+        DISPLAYLEVEL(4, "test%3i : decompress %u bytes : ", testNb++, (U32)CNBuffSize);
+        { size_t const r = ZSTD_decompress(decodedBuffer, CNBuffSize, compressedBuffer, cSize);
+          if (r != CNBuffSize) goto _output_error; }
         DISPLAYLEVEL(4, "OK \n");
 
         ZSTDMT_freeCCtx(mtctx);

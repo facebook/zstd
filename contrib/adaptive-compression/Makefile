@@ -19,7 +19,7 @@ CFLAGS   += $(DEBUGFLAGS)
 CFLAGS   += $(MOREFLAGS)
 FLAGS     = $(CPPFLAGS) $(CFLAGS) $(LDFLAGS)
 
-all: clean adapt
+all: adapt
 
 adapt: $(ZSTD_FILES) adapt.c
 	$(CC) $(FLAGS) $^ -o $@

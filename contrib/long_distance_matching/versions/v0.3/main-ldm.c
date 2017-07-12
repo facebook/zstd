@@ -15,7 +15,6 @@
 
 // #define BUF_SIZE 16*1024  // Block size
 #define DEBUG
-//#define TEST
 
 //#define ZSTD
 
@@ -74,11 +73,6 @@ static int compress(const char *fname, const char *oname) {
       perror("mmap error for output");
       return 1;
   }
-
-#ifdef TEST
-  LDM_test(src, statbuf.st_size,
-           dst + LDM_HEADER_SIZE, statbuf.st_size);
-#endif
 
 #ifdef ZSTD
   compressSize = ZSTD_compress(dst, statbuf.st_size,
@@ -149,6 +143,11 @@ static int decompress(const char *fname, const char *oname) {
 
   /* Read the header. */
   LDM_readHeader(src, &compressSize, &decompressSize);
+
+#ifdef DEBUG
+  printf("Size, compressSize, decompressSize: %zu %zu %zu\n",
+         (size_t)statbuf.st_size, compressSize, decompressSize);
+#endif
 
   /* Go to the location corresponding to the last byte. */
   if (lseek(fdout, decompressSize - 1, SEEK_SET) == -1) {
@@ -257,7 +256,7 @@ int main(int argc, const char *argv[]) {
         return 1;
     }
     gettimeofday(&tv2, NULL);
-    printf("Total compress time = %f seconds\n",
+    printf("Total time = %f seconds\n",
            (double) (tv2.tv_usec - tv1.tv_usec) / 1000000 +
            (double) (tv2.tv_sec - tv1.tv_sec));
   }
@@ -271,7 +270,7 @@ int main(int argc, const char *argv[]) {
         return 1;
     }
     gettimeofday(&tv2, NULL);
-    printf("Total decompress time = %f seconds\n",
+    printf("Total time = %f seconds\n",
           (double) (tv2.tv_usec - tv1.tv_usec) / 1000000 +
           (double) (tv2.tv_sec - tv1.tv_sec));
   }

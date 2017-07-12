@@ -16,7 +16,4 @@ size_t LDM_decompress(const void *src, size_t srcSize,
 void LDM_readHeader(const void *src, size_t *compressSize,
                     size_t *decompressSize);
 
-void LDM_test(const void *src, size_t srcSize,
-              void *dst, size_t maxDstSize);
-
 #endif /* LDM_H */

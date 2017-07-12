@@ -19,7 +19,5 @@ uint64_t LDM_read64(const void *ptr);
 
 void LDM_copy8(void *dst, const void *src);
 
-uint8_t LDM_readByte(const void *ptr);
-
 
 #endif /* LDM_UTIL_H */

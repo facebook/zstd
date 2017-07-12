@@ -49,11 +49,11 @@ typedef struct {
 typedef struct {
     buffer_t src;
     buffer_t dst;
-    buffer_t dict;
     unsigned compressionLevel;
     unsigned jobID;
     unsigned lastJob;
     size_t compressedSize;
+    size_t dictSize;
 } jobDescription;
 
 typedef struct {
@@ -91,7 +91,6 @@ static void freeCompressionJobs(adaptCCtx* ctx)
         jobDescription job = ctx->jobs[u];
         free(job.dst.start);
         free(job.src.start);
-        free(job.dict.start);
     }
 }
 
@@ -139,7 +138,7 @@ static adaptCCtx* createCCtx(unsigned numJobs, const char* const outFilename)
     ctx->jobReadyID = 0;
     ctx->jobCompressedID = 0;
     ctx->jobWriteID = 0;
-    ctx->targetDictSize = FILE_CHUNK_SIZE >> 1;
+    ctx->targetDictSize = FILE_CHUNK_SIZE >> 15;
     ctx->lastDictSize = 0;
     ctx->jobs = calloc(1, numJobs*sizeof(jobDescription));
     /* initializing jobs */
@@ -147,18 +146,16 @@ static adaptCCtx* createCCtx(unsigned numJobs, const char* const outFilename)
         unsigned jobNum;
         for (jobNum=0; jobNum<numJobs; jobNum++) {
             jobDescription* job = &ctx->jobs[jobNum];
-            job->src.start = malloc(FILE_CHUNK_SIZE);
+            job->src.start = malloc(2 * FILE_CHUNK_SIZE);
             job->dst.start = malloc(ZSTD_compressBound(FILE_CHUNK_SIZE));
-            job->dict.start = malloc(FILE_CHUNK_SIZE);
             job->lastJob = 0;
-            if (!job->src.start || !job->dst.start || !job->dict.start) {
+            if (!job->src.start || !job->dst.start) {
                 DISPLAY("Could not allocate buffers for jobs\n");
                 freeCCtx(ctx);
                 return NULL;
             }
             job->src.capacity = FILE_CHUNK_SIZE;
             job->dst.capacity = ZSTD_compressBound(FILE_CHUNK_SIZE);
-            job->dict.capacity = FILE_CHUNK_SIZE;
         }
     }
     ctx->nextJobID = 0;
@@ -257,19 +254,17 @@ static void* compressionThread(void* arg)
         }
         pthread_mutex_unlock(&ctx->jobReady_mutex);
         DEBUG(3, "compressionThread(): continuing after job ready\n");
-        DEBUG(3, "%.*s\n", (int)job->dict.size, (char*)job->dict.start);
         DEBUG(3, "DICTIONARY ENDED\n");
-        DEBUG(2, "%.*s", (int)job->src.size, (char*)job->src.start);
+        DEBUG(3, "%.*s", (int)job->src.size, (char*)job->src.start);
         /* compress the data */
         {
             unsigned const cLevel = adaptCompressionLevel(ctx);
             DEBUG(3, "cLevel used: %u\n", cLevel);
-            DEBUG(3, "dictSize: %zu, srcSize: %zu\n", job->dict.size, job->src.size);
             DEBUG(3, "compression level used: %u\n", cLevel);
             /* begin compression */
             {
                 size_t const dictModeError = ZSTD_setCCtxParameter(ctx->cctx, ZSTD_p_forceRawDict, 1);
-                size_t const initError = ZSTD_compressBegin_usingDict(ctx->cctx, job->dict.start, job->dict.size, 6);
+                size_t const initError = ZSTD_compressBegin_usingDict(ctx->cctx, job->src.start, job->dictSize, 6);
                 size_t const windowSizeError = ZSTD_setCCtxParameter(ctx->cctx, ZSTD_p_forceWindow, 1);
                 if (ZSTD_isError(dictModeError) || ZSTD_isError(initError) || ZSTD_isError(windowSizeError)) {
                     DISPLAY("Error: something went wrong while starting compression\n");
@@ -280,7 +275,7 @@ static void* compressionThread(void* arg)
 
             /* continue compression */
             if (currJob != 0) { /* not first job flush/overwrite the frame header */
-                size_t const hSize = ZSTD_compressContinue(ctx->cctx, job->dst.start, job->dst.capacity, job->src.start, job->src.size);
+                size_t const hSize = ZSTD_compressContinue(ctx->cctx, job->dst.start, job->dst.capacity, job->src.start + job->dictSize, 0);
                 if (ZSTD_isError(hSize)) {
                     DISPLAY("Error: something went wrong while continuing compression\n");
                     job->compressedSize = hSize;
@@ -290,8 +285,8 @@ static void* compressionThread(void* arg)
                 ZSTD_invalidateRepCodes(ctx->cctx);
             }
             job->compressedSize = (job->lastJob) ?
-                                    ZSTD_compressEnd     (ctx->cctx, job->dst.start, job->dst.capacity, job->src.start, job->src.size) :
-                                    ZSTD_compressContinue(ctx->cctx, job->dst.start, job->dst.capacity, job->src.start, job->src.size);
+                                    ZSTD_compressEnd     (ctx->cctx, job->dst.start, job->dst.capacity, job->src.start + job->dictSize, job->src.size) :
+                                    ZSTD_compressContinue(ctx->cctx, job->dst.start, job->dst.capacity, job->src.start + job->dictSize, job->src.size);
             if (ZSTD_isError(job->compressedSize)) {
                 DISPLAY("Error: something went wrong during compression: %s\n", ZSTD_getErrorName(job->compressedSize));
                 ctx->threadError = 1;
@@ -411,10 +406,8 @@ static int createCompressionJob(adaptCCtx* ctx, size_t srcSize, int last)
     job->src.size = srcSize;
     job->jobID = nextJob;
     job->lastJob = last;
-    memcpy(job->src.start, ctx->input.buffer.start + ctx->lastDictSize, srcSize);
-    job->dict.size = ctx->lastDictSize;
-    DEBUG(3, "copied %zu bytes\n", ctx->lastDictSize);
-    memcpy(job->dict.start, ctx->input.buffer.start, ctx->lastDictSize);
+    memcpy(job->src.start, ctx->input.buffer.start, ctx->lastDictSize + srcSize);
+    job->dictSize = ctx->lastDictSize;
     pthread_mutex_lock(&ctx->jobReady_mutex);
     ctx->jobReadyID++;
     pthread_cond_signal(&ctx->jobReady_cond);

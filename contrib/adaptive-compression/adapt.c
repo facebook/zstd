@@ -25,7 +25,6 @@
 #define DEFAULT_DISPLAY_LEVEL 1
 #define DEFAULT_COMPRESSION_LEVEL 6
 #define DEFAULT_ADAPT_PARAM 1
-typedef unsigned char BYTE;
 
 static int g_displayLevel = DEFAULT_DISPLAY_LEVEL;
 static unsigned g_compressionLevel = DEFAULT_COMPRESSION_LEVEL;
@@ -106,23 +105,26 @@ static void freeCompressionJobs(adaptCCtx* ctx)
 static int freeCCtx(adaptCCtx* ctx)
 {
     if (!ctx) return 0;
-    int const compressedMutexError = pthread_mutex_destroy(&ctx->jobCompressed_mutex);
-    int const compressedCondError = pthread_cond_destroy(&ctx->jobCompressed_cond);
-    int const readyMutexError = pthread_mutex_destroy(&ctx->jobReady_mutex);
-    int const readyCondError = pthread_cond_destroy(&ctx->jobReady_cond);
-    int const allJobsMutexError = pthread_mutex_destroy(&ctx->allJobsCompleted_mutex);
-    int const allJobsCondError = pthread_cond_destroy(&ctx->allJobsCompleted_cond);
-    int const jobWriteMutexError = pthread_mutex_destroy(&ctx->jobWrite_mutex);
-    int const jobWriteCondError = pthread_cond_destroy(&ctx->jobWrite_cond);
-    int const fileCloseError =  (ctx->dstFile != NULL && ctx->dstFile != stdout) ? fclose(ctx->dstFile) : 0;
-    int const cctxError = ZSTD_isError(ZSTD_freeCCtx(ctx->cctx)) ? 1 : 0;
-    free(ctx->input.buffer.start);
-    if (ctx->jobs){
-        freeCompressionJobs(ctx);
-        free(ctx->jobs);
+    {
+        int error = 0;
+        error |= pthread_mutex_destroy(&ctx->jobCompressed_mutex);
+        error |= pthread_cond_destroy(&ctx->jobCompressed_cond);
+        error |= pthread_mutex_destroy(&ctx->jobReady_mutex);
+        error |= pthread_cond_destroy(&ctx->jobReady_cond);
+        error |= pthread_mutex_destroy(&ctx->allJobsCompleted_mutex);
+        error |= pthread_cond_destroy(&ctx->allJobsCompleted_cond);
+        error |= pthread_mutex_destroy(&ctx->jobWrite_mutex);
+        error |= pthread_cond_destroy(&ctx->jobWrite_cond);
+        error |=  (ctx->dstFile != NULL && ctx->dstFile != stdout) ? fclose(ctx->dstFile) : 0;
+        error |= ZSTD_isError(ZSTD_freeCCtx(ctx->cctx));
+        free(ctx->input.buffer.start);
+        if (ctx->jobs){
+            freeCompressionJobs(ctx);
+            free(ctx->jobs);
+        }
+        free(ctx);
+        return error;
     }
-    free(ctx);
-    return compressedMutexError | compressedCondError | readyMutexError | readyCondError | fileCloseError | allJobsMutexError | allJobsCondError | jobWriteMutexError | jobWriteCondError | cctxError;
 }
 
 static adaptCCtx* createCCtx(unsigned numJobs, const char* const outFilename)

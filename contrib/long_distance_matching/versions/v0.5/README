@@ -1,0 +1,5 @@
+This version uses simple lz4-style compression with a rolling hash.
+- A rolling checksum based on rsync's Adler-32 style checksum is used.
+- The checksum is hashed using lz4's hash function.
+- Hash table replacement policy: direct overwrite.
+- The length of input to the hash function can be set with LDM_HASH_LENGTH.

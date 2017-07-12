@@ -66,4 +66,3 @@ BYTE LDM_readByte(const void *memPtr) {
   memcpy(&val, memPtr, 1);
   return val;
 }
-

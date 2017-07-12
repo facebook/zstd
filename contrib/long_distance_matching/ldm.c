@@ -19,8 +19,8 @@
 #define WINDOW_SIZE (1 << 20)
 
 //These should be multiples of four.
-#define LDM_HASH_LENGTH 100
-#define MINMATCH 100
+#define LDM_HASH_LENGTH 4
+#define MINMATCH 4
 
 #define ML_BITS 4
 #define ML_MASK ((1U<<ML_BITS)-1)
@@ -585,7 +585,6 @@ static void LDM_initializeDCtx(LDM_DCtx *dctx,
   dctx->iend = dctx->ip + dctx->compressSize;
   dctx->op = dst;
   dctx->oend = dctx->op + dctx->maxDecompressSize;
-
 }
 
 size_t LDM_decompress(const void *src, size_t compressSize,

@@ -19,8 +19,8 @@
 #define WINDOW_SIZE (1 << 20)
 
 //These should be multiples of four.
-#define LDM_HASH_LENGTH 100
-#define MINMATCH 100
+#define LDM_HASH_LENGTH 4
+#define MINMATCH 4
 
 #define ML_BITS 4
 #define ML_MASK ((1U<<ML_BITS)-1)
@@ -95,12 +95,12 @@ typedef struct LDM_CCtx {
   const BYTE *DEBUG_setNextHash;
 } LDM_CCtx;
 
+#ifdef COMPUTE_STATS
 /**
  * Outputs compression statistics.
  */
 static void printCompressStats(const LDM_CCtx *cctx) {
   const LDM_compressStats *stats = &(cctx->stats);
-#ifdef COMPUTE_STATS
   printf("=====================\n");
   printf("Compression statistics\n");
   printf("Total number of matches: %u\n", stats->numMatches);
@@ -131,8 +131,8 @@ static void printCompressStats(const LDM_CCtx *cctx) {
   }
 
   printf("=====================\n");
-#endif
 }
+#endif
 
 /**
  * Checks whether the MINMATCH bytes from p are the same as the MINMATCH

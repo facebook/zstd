@@ -93,7 +93,7 @@ typedef struct ZSTDMT_bufferPool_s {
 
 static ZSTDMT_bufferPool* ZSTDMT_createBufferPool(unsigned nbThreads, ZSTD_customMem cMem)
 {
-    unsigned const maxNbBuffers = 2*nbThreads + 2;
+    unsigned const maxNbBuffers = 2*nbThreads + 3;
     ZSTDMT_bufferPool* const bufPool = (ZSTDMT_bufferPool*)ZSTD_calloc(
         sizeof(ZSTDMT_bufferPool) + (maxNbBuffers-1) * sizeof(buffer_t), cMem);
     if (bufPool==NULL) return NULL;

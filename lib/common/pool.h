@@ -19,11 +19,11 @@ extern "C" {
 typedef struct POOL_ctx_s POOL_ctx;
 
 /*! POOL_create() :
-    Create a thread pool with at most `numThreads` threads.
-    `numThreads` must be at least 1.
-    The maximum number of queued jobs before blocking is `queueSize`.
-    `queueSize` must be at least 1.
-    @return : The POOL_ctx pointer on success else NULL.
+ *  Create a thread pool with at most `numThreads` threads.
+ * `numThreads` must be at least 1.
+ *  The maximum number of queued jobs before blocking is `queueSize`.
+ * `queueSize` must be at least 1.
+ * @return : POOL_ctx pointer on success, else NULL.
 */
 POOL_ctx *POOL_create(size_t numThreads, size_t queueSize);
 

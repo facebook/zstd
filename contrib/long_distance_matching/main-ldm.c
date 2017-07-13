@@ -26,7 +26,7 @@ static int compress(const char *fname, const char *oname) {
   int fdin, fdout;
   struct stat statbuf;
   char *src, *dst;
-  size_t maxCompressSize, compressSize;
+  size_t maxCompressedSize, compressedSize;
 
   /* Open the input file. */
   if ((fdin = open(fname, O_RDONLY)) < 0) {
@@ -46,11 +46,11 @@ static int compress(const char *fname, const char *oname) {
     return 1;
   }
 
-  maxCompressSize = statbuf.st_size + LDM_HEADER_SIZE;
+  maxCompressedSize = statbuf.st_size + LDM_HEADER_SIZE;
 
  /* Go to the location corresponding to the last byte. */
  /* TODO: fallocate? */
-  if (lseek(fdout, maxCompressSize - 1, SEEK_SET) == -1) {
+  if (lseek(fdout, maxCompressedSize - 1, SEEK_SET) == -1) {
     perror("lseek error");
     return 1;
   }
@@ -69,32 +69,32 @@ static int compress(const char *fname, const char *oname) {
   }
 
   /* mmap the output file */
-  if ((dst = mmap(0, maxCompressSize, PROT_READ | PROT_WRITE,
+  if ((dst = mmap(0, maxCompressedSize, PROT_READ | PROT_WRITE,
                   MAP_SHARED, fdout, 0)) == (caddr_t) - 1) {
       perror("mmap error for output");
       return 1;
   }
 
-  compressSize = LDM_HEADER_SIZE +
+  compressedSize = LDM_HEADER_SIZE +
       LDM_compress(src, statbuf.st_size,
-                   dst + LDM_HEADER_SIZE, maxCompressSize);
+                   dst + LDM_HEADER_SIZE, maxCompressedSize);
 
   // Write compress and decompress size to header
   // TODO: should depend on LDM_DECOMPRESS_SIZE write32
-  memcpy(dst, &compressSize, 8);
+  memcpy(dst, &compressedSize, 8);
   memcpy(dst + 8, &(statbuf.st_size), 8);
 
 #ifdef DEBUG
-  printf("Compressed size: %zu\n", compressSize);
+  printf("Compressed size: %zu\n", compressedSize);
   printf("Decompressed size: %zu\n", (size_t)statbuf.st_size);
 #endif
 
-  // Truncate file to compressSize.
-  ftruncate(fdout, compressSize);
+  // Truncate file to compressedSize.
+  ftruncate(fdout, compressedSize);
 
   printf("%25s : %6u -> %7u - %s (%.1f%%)\n", fname,
-         (unsigned)statbuf.st_size, (unsigned)compressSize, oname,
-         (double)compressSize / (statbuf.st_size) * 100);
+         (unsigned)statbuf.st_size, (unsigned)compressedSize, oname,
+         (double)compressedSize / (statbuf.st_size) * 100);
 
   // Close files.
   close(fdin);
@@ -110,7 +110,7 @@ static int decompress(const char *fname, const char *oname) {
   int fdin, fdout;
   struct stat statbuf;
   char *src, *dst;
-  U64 compressSize, decompressSize;
+  U64 compressedSize, decompressedSize;
   size_t outSize;
 
   /* Open the input file. */
@@ -139,10 +139,10 @@ static int decompress(const char *fname, const char *oname) {
   }
 
   /* Read the header. */
-  LDM_readHeader(src, &compressSize, &decompressSize);
+  LDM_readHeader(src, &compressedSize, &decompressedSize);
 
   /* Go to the location corresponding to the last byte. */
-  if (lseek(fdout, decompressSize - 1, SEEK_SET) == -1) {
+  if (lseek(fdout, decompressedSize - 1, SEEK_SET) == -1) {
     perror("lseek error");
     return 1;
   }
@@ -154,7 +154,7 @@ static int decompress(const char *fname, const char *oname) {
   }
 
   /* mmap the output file */
-  if ((dst = mmap(0, decompressSize, PROT_READ | PROT_WRITE,
+  if ((dst = mmap(0, decompressedSize, PROT_READ | PROT_WRITE,
                   MAP_SHARED, fdout, 0)) == (caddr_t) - 1) {
       perror("mmap error for output");
       return 1;
@@ -162,7 +162,7 @@ static int decompress(const char *fname, const char *oname) {
 
   outSize = LDM_decompress(
       src + LDM_HEADER_SIZE, statbuf.st_size - LDM_HEADER_SIZE,
-      dst, decompressSize);
+      dst, decompressedSize);
 
   printf("Ret size out: %zu\n", outSize);
   ftruncate(fdout, outSize);

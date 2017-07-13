@@ -9,7 +9,7 @@
 
 
 /* ======   Tuning parameters   ====== */
-#define ZSTDMT_NBTHREADS_MAX 128
+#define ZSTDMT_NBTHREADS_MAX 256
 #define ZSTDMT_OVERLAPLOG_DEFAULT 6
 
 
@@ -407,7 +407,8 @@ ZSTDMT_CCtx* ZSTDMT_createCCtx_advanced(unsigned nbThreads, ZSTD_customMem cMem)
     U32 nbJobs = nbThreads + 2;
     DEBUGLOG(3, "ZSTDMT_createCCtx_advanced");
 
-    if ((nbThreads < 1) | (nbThreads > ZSTDMT_NBTHREADS_MAX)) return NULL;
+    if (nbThreads < 1) return NULL;
+    nbThreads = MIN(nbThreads , ZSTDMT_NBTHREADS_MAX);
     if ((cMem.customAlloc!=NULL) ^ (cMem.customFree!=NULL))
         /* invalid custom allocator */
         return NULL;

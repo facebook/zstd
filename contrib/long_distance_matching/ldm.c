@@ -443,24 +443,19 @@ void LDM_outputBlock(LDM_CCtx *cctx,
 size_t LDM_compress(const void *src, size_t srcSize,
                     void *dst, size_t maxDstSize) {
   LDM_CCtx cctx;
+  const BYTE *match;
   LDM_initializeCCtx(&cctx, src, srcSize, dst, maxDstSize);
 
   /* Hash the first position and put it into the hash table. */
   LDM_putHashOfCurrentPosition(&cctx);
 
-  // TODO: loop condition is not accurate.
-  while (1) {
-    const BYTE *match;
-
-    /**
-     * Find a match.
-     * If no more matches can be found (i.e. the length of the remaining input
-     * is less than the minimum match length), then stop searching for matches
-     * and encode the final literals.
-     */
-    if (LDM_findBestMatch(&cctx, &match) != 0) {
-      goto _last_literals;
-    }
+  /**
+   * Find a match.
+   * If no more matches can be found (i.e. the length of the remaining input
+   * is less than the minimum match length), then stop searching for matches
+   * and encode the final literals.
+   */
+  while (LDM_findBestMatch(&cctx, &match) == 0) {
 #ifdef COMPUTE_STATS
     cctx.stats.numMatches++;
 #endif
@@ -485,6 +480,8 @@ size_t LDM_compress(const void *src, size_t srcSize,
           cctx.ip + LDM_MIN_MATCH_LENGTH, match + LDM_MIN_MATCH_LENGTH,
           cctx.ihashLimit);
 
+      LDM_outputBlock(&cctx, literalLength, offset, matchLength);
+
 #ifdef COMPUTE_STATS
       cctx.stats.totalLiteralLength += literalLength;
       cctx.stats.totalOffset += offset;
@@ -494,7 +491,6 @@ size_t LDM_compress(const void *src, size_t srcSize,
       cctx.stats.maxOffset =
           offset > cctx.stats.maxOffset ? offset : cctx.stats.maxOffset;
 #endif
-      LDM_outputBlock(&cctx, literalLength, offset, matchLength);
 
       // Move ip to end of block, inserting hashes at each position.
       cctx.nextIp = cctx.ip + cctx.step;
@@ -514,10 +510,10 @@ size_t LDM_compress(const void *src, size_t srcSize,
     cctx.anchor = cctx.ip;
     LDM_updateLastHashFromNextHash(&cctx);
   }
-_last_literals:
+
   /* Encode the last literals (no more matches). */
   {
-    const size_t lastRun = (size_t)(cctx.iend - cctx.anchor);
+    const size_t lastRun = cctx.iend - cctx.anchor;
     BYTE *pToken = cctx.op++;
     LDM_encodeLiteralLengthAndLiterals(&cctx, pToken, lastRun);
   }
@@ -527,7 +523,7 @@ _last_literals:
   LDM_outputHashtableOccupancy(cctx.hashTable, LDM_HASHTABLESIZE_U32);
 #endif
 
-  return (cctx.op - (const BYTE *)cctx.obase);
+  return cctx.op - cctx.obase;
 }
 
 struct LDM_DCtx {

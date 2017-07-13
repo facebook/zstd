@@ -1,5 +1,3 @@
-// TODO: file size must fit into a U32
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -12,18 +10,23 @@
 
 #include <fcntl.h>
 #include "ldm.h"
+#include "zstd.h"
 
 #define DEBUG
 //#define TEST
 
 /* Compress file given by fname and output to oname.
  * Returns 0 if successful, error code otherwise.
+ *
+ * TODO: This currently seg faults if the compressed size is > the decompress
+ * size due to the mmapping and output file size allocated to be the input size.
+ * The compress function should check before writing or buffer writes.
  */
 static int compress(const char *fname, const char *oname) {
   int fdin, fdout;
   struct stat statbuf;
   char *src, *dst;
-  size_t maxCompressSize, compressSize;
+  size_t maxCompressedSize, compressedSize;
 
   /* Open the input file. */
   if ((fdin = open(fname, O_RDONLY)) < 0) {
@@ -43,11 +46,11 @@ static int compress(const char *fname, const char *oname) {
     return 1;
   }
 
-  maxCompressSize = statbuf.st_size + LDM_HEADER_SIZE;
+  maxCompressedSize = statbuf.st_size + LDM_HEADER_SIZE;
 
  /* Go to the location corresponding to the last byte. */
  /* TODO: fallocate? */
-  if (lseek(fdout, maxCompressSize - 1, SEEK_SET) == -1) {
+  if (lseek(fdout, maxCompressedSize - 1, SEEK_SET) == -1) {
     perror("lseek error");
     return 1;
   }
@@ -66,39 +69,32 @@ static int compress(const char *fname, const char *oname) {
   }
 
   /* mmap the output file */
-  if ((dst = mmap(0, maxCompressSize, PROT_READ | PROT_WRITE,
+  if ((dst = mmap(0, maxCompressedSize, PROT_READ | PROT_WRITE,
                   MAP_SHARED, fdout, 0)) == (caddr_t) - 1) {
       perror("mmap error for output");
       return 1;
   }
 
-/*
-#ifdef TEST
-  LDM_test(src, statbuf.st_size,
-           dst + LDM_HEADER_SIZE, statbuf.st_size);
-#endif
-*/
-
-  compressSize = LDM_HEADER_SIZE +
+  compressedSize = LDM_HEADER_SIZE +
       LDM_compress(src, statbuf.st_size,
-                   dst + LDM_HEADER_SIZE, statbuf.st_size);
+                   dst + LDM_HEADER_SIZE, maxCompressedSize);
 
   // Write compress and decompress size to header
   // TODO: should depend on LDM_DECOMPRESS_SIZE write32
-  memcpy(dst, &compressSize, 4);
-  memcpy(dst + 4, &(statbuf.st_size), 4);
+  memcpy(dst, &compressedSize, 8);
+  memcpy(dst + 8, &(statbuf.st_size), 8);
 
 #ifdef DEBUG
-  printf("Compressed size: %zu\n", compressSize);
+  printf("Compressed size: %zu\n", compressedSize);
   printf("Decompressed size: %zu\n", (size_t)statbuf.st_size);
 #endif
 
-  // Truncate file to compressSize.
-  ftruncate(fdout, compressSize);
+  // Truncate file to compressedSize.
+  ftruncate(fdout, compressedSize);
 
   printf("%25s : %6u -> %7u - %s (%.1f%%)\n", fname,
-         (unsigned)statbuf.st_size, (unsigned)compressSize, oname,
-         (double)compressSize / (statbuf.st_size) * 100);
+         (unsigned)statbuf.st_size, (unsigned)compressedSize, oname,
+         (double)compressedSize / (statbuf.st_size) * 100);
 
   // Close files.
   close(fdin);
@@ -114,7 +110,8 @@ static int decompress(const char *fname, const char *oname) {
   int fdin, fdout;
   struct stat statbuf;
   char *src, *dst;
-  size_t compressSize, decompressSize, outSize;
+  U64 compressedSize, decompressedSize;
+  size_t outSize;
 
   /* Open the input file. */
   if ((fdin = open(fname, O_RDONLY)) < 0) {
@@ -142,10 +139,10 @@ static int decompress(const char *fname, const char *oname) {
   }
 
   /* Read the header. */
-  LDM_readHeader(src, &compressSize, &decompressSize);
+  LDM_readHeader(src, &compressedSize, &decompressedSize);
 
   /* Go to the location corresponding to the last byte. */
-  if (lseek(fdout, decompressSize - 1, SEEK_SET) == -1) {
+  if (lseek(fdout, decompressedSize - 1, SEEK_SET) == -1) {
     perror("lseek error");
     return 1;
   }
@@ -157,7 +154,7 @@ static int decompress(const char *fname, const char *oname) {
   }
 
   /* mmap the output file */
-  if ((dst = mmap(0, decompressSize, PROT_READ | PROT_WRITE,
+  if ((dst = mmap(0, decompressedSize, PROT_READ | PROT_WRITE,
                   MAP_SHARED, fdout, 0)) == (caddr_t) - 1) {
       perror("mmap error for output");
       return 1;
@@ -165,7 +162,7 @@ static int decompress(const char *fname, const char *oname) {
 
   outSize = LDM_decompress(
       src + LDM_HEADER_SIZE, statbuf.st_size - LDM_HEADER_SIZE,
-      dst, decompressSize);
+      dst, decompressedSize);
 
   printf("Ret size out: %zu\n", outSize);
   ftruncate(fdout, outSize);
@@ -265,204 +262,9 @@ int main(int argc, const char *argv[]) {
   }
   /* verify */
   verify(inpFilename, decFilename);
-  return 0;
-}
 
-
-#if 0
-static size_t compress_file(FILE *in, FILE *out, size_t *size_in,
-                            size_t *size_out) {
-  char *src, *buf = NULL;
-  size_t r = 1;
-  size_t size, n, k, count_in = 0, count_out = 0, offset, frame_size = 0;
-
-  src = malloc(BUF_SIZE);
-  if (!src) {
-    printf("Not enough memory\n");
-    goto cleanup;
-  }
-
-  size = BUF_SIZE + LDM_HEADER_SIZE;
-  buf = malloc(size);
-  if (!buf) {
-    printf("Not enough memory\n");
-    goto cleanup;
-  }
-
-
-  for (;;) {
-    k = fread(src, 1, BUF_SIZE, in);
-    if (k == 0)
-      break;
-    count_in += k;
-
-    n = LDM_compress(src, buf, k, BUF_SIZE);
-
-    // n = k;
-    // offset += n;
-    offset = k;
-    count_out += k;
-
-//    k = fwrite(src, 1, offset, out);
-
-    k = fwrite(buf, 1, offset, out);
-    if (k < offset) {
-      if (ferror(out))
-        printf("Write failed\n");
-      else
-        printf("Short write\n");
-      goto cleanup;
-    }
-
-  }
-  *size_in = count_in;
-  *size_out = count_out;
-  r = 0;
- cleanup:
-  free(src);
-  free(buf);
-  return r;
-}
-
-static size_t decompress_file(FILE *in, FILE *out) {
-  void *src = malloc(BUF_SIZE);
-  void *dst = NULL;
-  size_t dst_capacity = BUF_SIZE;
-  size_t ret = 1;
-  size_t bytes_written = 0;
-
-  if (!src) {
-    perror("decompress_file(src)");
-    goto cleanup;
-  }
-
-  while (ret != 0) {
-    /* Load more input */
-    size_t src_size = fread(src, 1, BUF_SIZE, in);
-    void *src_ptr = src;
-    void *src_end = src_ptr + src_size;
-    if (src_size == 0 || ferror(in)) {
-      printf("(TODO): Decompress: not enough input or error reading file\n");
-      //TODO
-      ret = 0;
-      goto cleanup;
-    }
-
-    /* Allocate destination buffer if it hasn't been allocated already */
-    if (!dst) {
-      dst = malloc(dst_capacity);
-      if (!dst) {
-        perror("decompress_file(dst)");
-        goto cleanup;
-      }
-    }
-
-    // TODO
-
-    /* Decompress:
-     * Continue while there is more input to read.
-     */
-    while (src_ptr != src_end && ret != 0) {
-      // size_t dst_size = src_size;
-      size_t dst_size = LDM_decompress(src, dst, src_size, dst_capacity);
-      size_t written = fwrite(dst, 1, dst_size, out);
-//      printf("Writing %zu bytes\n", dst_size);
-      bytes_written += dst_size;
-      if (written != dst_size) {
-        printf("Decompress: Failed to write to file\n");
-        goto cleanup;
-      }
-      src_ptr += src_size;
-      src_size = src_end - src_ptr;
-    }
-
-    /* Update input */
-
-  }
-
-  printf("Wrote %zu bytes\n", bytes_written);
-
- cleanup:
-  free(src);
-  free(dst);
-
-  return ret;
-}
-
-int main2(int argc, char *argv[]) {
-  char inpFilename[256] = { 0 };
-  char ldmFilename[256] = { 0 };
-  char decFilename[256] = { 0 };
-
-  if (argc < 2) {
-    printf("Please specify input filename\n");
-    return 0;
-  }
-  snprintf(inpFilename, 256, "%s", argv[1]);
-  snprintf(ldmFilename, 256, "%s.ldm", argv[1]);
-  snprintf(decFilename, 256, "%s.ldm.dec", argv[1]);
-
-    printf("inp = [%s]\n", inpFilename);
-	printf("ldm = [%s]\n", ldmFilename);
-	printf("dec = [%s]\n", decFilename);
-
-  /* compress */
-  {
-    FILE *inpFp = fopen(inpFilename, "rb");
-    FILE *outFp = fopen(ldmFilename, "wb");
-    size_t sizeIn = 0;
-    size_t sizeOut = 0;
-    size_t ret;
-		printf("compress : %s -> %s\n", inpFilename, ldmFilename);
-		ret = compress_file(inpFp, outFp, &sizeIn, &sizeOut);
-		if (ret) {
-			printf("compress : failed with code %zu\n", ret);
-			return ret;
-		}
-		printf("%s: %zu → %zu bytes, %.1f%%\n",
-			inpFilename, sizeIn, sizeOut,
-			(double)sizeOut / sizeIn * 100);
-		printf("compress : done\n");
-
-		fclose(outFp);
-		fclose(inpFp);
-  }
-
-	/* decompress */
-	{
-    FILE *inpFp = fopen(ldmFilename, "rb");
-		FILE *outFp = fopen(decFilename, "wb");
-		size_t ret;
-
-		printf("decompress : %s -> %s\n", ldmFilename, decFilename);
-		ret = decompress_file(inpFp, outFp);
-		if (ret) {
-			printf("decompress : failed with code %zu\n", ret);
-			return ret;
-		}
-		printf("decompress : done\n");
-
-		fclose(outFp);
-		fclose(inpFp);
-	}
-
-	/* verify */
-	{
-    FILE *inpFp = fopen(inpFilename, "rb");
-		FILE *decFp = fopen(decFilename, "rb");
-
-		printf("verify : %s <-> %s\n", inpFilename, decFilename);
-		const int cmp = compare(inpFp, decFp);
-		if(0 == cmp) {
-			printf("verify : OK\n");
-		} else {
-			printf("verify : NG\n");
-		}
-
-		fclose(decFp);
-		fclose(inpFp);
-	}
-  return 0;
-}
+#ifdef TEST
+  LDM_test();
 #endif
-
+  return 0;
+}

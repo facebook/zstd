@@ -8,9 +8,19 @@
 #define LDM_COMPRESS_SIZE 8
 #define LDM_DECOMPRESS_SIZE 8
 #define LDM_HEADER_SIZE ((LDM_COMPRESS_SIZE)+(LDM_DECOMPRESS_SIZE))
+#define LDM_OFFSET_SIZE 4
 
-// This should be a multiple of four.
+// Defines the size of the hash table.
+#define LDM_MEMORY_USAGE 22
+#define LDM_HASHLOG (LDM_MEMORY_USAGE-2)
+#define LDM_HASHTABLESIZE (1 << (LDM_MEMORY_USAGE))
+#define LDM_HASHTABLESIZE_U32 ((LDM_HASHTABLESIZE) >> 2)
+
+#define WINDOW_SIZE (1 << 25)
+
+//These should be multiples of four.
 #define LDM_MIN_MATCH_LENGTH 8
+#define LDM_HASH_LENGTH 8
 
 typedef U32 offset_t;
 typedef U32 hash_t;
@@ -55,12 +65,18 @@ size_t LDM_compress(const void *src, size_t srcSize,
 void LDM_initializeCCtx(LDM_CCtx *cctx,
                         const void *src, size_t srcSize,
                         void *dst, size_t maxDstSize);
+
+/**
+ * Prints the percentage of the hash table occupied (where occupied is defined
+ * as the entry being non-zero).
+ */
+void LDM_outputHashtableOccupancy(const LDM_hashEntry *hashTable,
+                                  U32 hashTableSize);
+
 /**
  * Outputs compression statistics to stdout.
  */
-void LDM_printCompressStats(const LDM_compressStats *stats,
-                            const LDM_hashEntry *hashTable,
-                            U32 hashTableSize);
+void LDM_printCompressStats(const LDM_compressStats *stats);
 /**
  * Checks whether the LDM_MIN_MATCH_LENGTH bytes from p are the same as the
  * LDM_MIN_MATCH_LENGTH bytes from match.

@@ -10,6 +10,7 @@
 
 /* ======   Tuning parameters   ====== */
 #define ZSTDMT_NBTHREADS_MAX 128
+#define ZSTDMT_OVERLAPLOG_DEFAULT 6
 
 
 /* ======   Compiler specifics   ====== */
@@ -383,7 +384,7 @@ struct ZSTDMT_CCtx_s {
     unsigned nextJobID;
     unsigned frameEnded;
     unsigned allJobsCompleted;
-    unsigned overlapRLog;
+    unsigned overlapLog;
     unsigned long long frameContentSize;
     size_t sectionSize;
     ZSTD_customMem cMem;
@@ -417,7 +418,7 @@ ZSTDMT_CCtx* ZSTDMT_createCCtx_advanced(unsigned nbThreads, ZSTD_customMem cMem)
     mtctx->nbThreads = nbThreads;
     mtctx->allJobsCompleted = 1;
     mtctx->sectionSize = 0;
-    mtctx->overlapRLog = 3;
+    mtctx->overlapLog = ZSTDMT_OVERLAPLOG_DEFAULT;
     mtctx->factory = POOL_create(nbThreads, 1);
     mtctx->jobs = ZSTDMT_allocJobsTable(&nbJobs, cMem);
     mtctx->jobIDMask = nbJobs - 1;
@@ -491,7 +492,7 @@ size_t ZSTDMT_setMTCtxParameter(ZSTDMT_CCtx* mtctx, ZSDTMT_parameter parameter, 
         return 0;
     case ZSTDMT_p_overlapSectionLog :
         DEBUGLOG(5, "ZSTDMT_p_overlapSectionLog : %u", value);
-        mtctx->overlapRLog = (value >= 9) ? 0 : 9 - value;
+        mtctx->overlapLog = (value >= 9) ? 9 : value;
         return 0;
     default :
         return ERROR(compressionParameter_unsupported);
@@ -520,8 +521,9 @@ size_t ZSTDMT_compress_advanced(ZSTDMT_CCtx* mtctx,
                          const void* src, size_t srcSize,
                          const ZSTD_CDict* cdict,
                                ZSTD_parameters const params,
-                               unsigned overlapRLog)
+                               unsigned overlapLog)
 {
+    unsigned const overlapRLog = (overlapLog>9) ? 0 : 9-overlapLog;
     size_t const overlapSize = (overlapRLog>=9) ? 0 : (size_t)1 << (params.cParams.windowLog - overlapRLog);
     unsigned nbChunks = computeNbChunks(srcSize, params.cParams.windowLog, mtctx->nbThreads);
     size_t const proposedChunkSize = (srcSize + (nbChunks-1)) / nbChunks;
@@ -538,7 +540,7 @@ size_t ZSTDMT_compress_advanced(ZSTDMT_CCtx* mtctx,
         if (cdict) return ZSTD_compress_usingCDict_advanced(cctx, dst, dstCapacity, src, srcSize, cdict, params.fParams);
         return ZSTD_compress_advanced(cctx, dst, dstCapacity, src, srcSize, NULL, 0, params);
     }
-    assert(avgChunkSize >= 256 KB);  /* condition for ZSTD_compressBound(A) + ZSTD_compressBound(B) <= ZSTD_compressBound(A+B), which is useful to avoid allocating extra buffers */
+    assert(avgChunkSize >= 256 KB);  /* condition for ZSTD_compressBound(A) + ZSTD_compressBound(B) <= ZSTD_compressBound(A+B), which is required for compressWithinDst */
     ZSTDMT_setBufferSize(mtctx->bufPool, ZSTD_compressBound(avgChunkSize) );
     XXH64_reset(&xxh64, 0);
 
@@ -642,10 +644,10 @@ size_t ZSTDMT_compressCCtx(ZSTDMT_CCtx* mtctx,
                      const void* src, size_t srcSize,
                            int compressionLevel)
 {
-    U32 const overlapRLog = (compressionLevel >= ZSTD_maxCLevel()) ? 0 : 3;
+    U32 const overlapLog = (compressionLevel >= ZSTD_maxCLevel()) ? 9 : ZSTDMT_OVERLAPLOG_DEFAULT;
     ZSTD_parameters params = ZSTD_getParams(compressionLevel, srcSize, 0);
     params.fParams.contentSizeFlag = 1;
-    return ZSTDMT_compress_advanced(mtctx, dst, dstCapacity, src, srcSize, NULL, params, overlapRLog);
+    return ZSTDMT_compress_advanced(mtctx, dst, dstCapacity, src, srcSize, NULL, params, overlapLog);
 }
 
 
@@ -710,8 +712,8 @@ size_t ZSTDMT_initCStream_internal(ZSTDMT_CCtx* zcs,
         zcs->cdict = cdict;
     }
 
-    zcs->targetDictSize = (zcs->overlapRLog>=9) ? 0 : (size_t)1 << (zcs->params.cParams.windowLog - zcs->overlapRLog);
-    DEBUGLOG(4, "overlapRLog : %u ", zcs->overlapRLog);
+    zcs->targetDictSize = (zcs->overlapLog==0) ? 0 : (size_t)1 << (zcs->params.cParams.windowLog - (9 - zcs->overlapLog));
+    DEBUGLOG(4, "overlapLog : %u ", zcs->overlapLog);
     DEBUGLOG(4, "overlap Size : %u KB", (U32)(zcs->targetDictSize>>10));
     zcs->targetSectionSize = zcs->sectionSize ? zcs->sectionSize : (size_t)1 << (zcs->params.cParams.windowLog + 2);
     zcs->targetSectionSize = MAX(ZSTDMT_SECTION_SIZE_MIN, zcs->targetSectionSize);
@@ -918,7 +920,7 @@ size_t ZSTDMT_compressStream_generic(ZSTDMT_CCtx* mtctx,
         size_t const cSize = ZSTDMT_compress_advanced(mtctx,
                 (char*)output->dst + output->pos, output->size - output->pos,
                 (const char*)input->src + input->pos, input->size - input->pos,
-                mtctx->cdict, mtctx->params, mtctx->overlapRLog);
+                mtctx->cdict, mtctx->params, mtctx->overlapLog);
         if (ZSTD_isError(cSize)) return cSize;
         input->pos = input->size;
         output->pos += cSize;

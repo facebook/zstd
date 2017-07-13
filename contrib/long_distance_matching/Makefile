@@ -9,6 +9,7 @@
 
 # This Makefile presumes libzstd is installed, using `sudo make install`
 
+CPPFLAGS+= -I../../lib/common
 CFLAGS  ?= -O3
 DEBUGFLAGS = -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow \
             -Wstrict-aliasing=1 -Wswitch-enum -Wdeclaration-after-statement \
@@ -26,11 +27,7 @@ default: all
 
 all: main-ldm
 
-
-#main : ldm.c main.c
-#	$(CC) $(CPPFLAGS) $(CFLAGS) $^ $(LDFLAGS) -o $@
-
-main-ldm : util.c ldm.c main-ldm.c
+main-ldm : ldm.c main-ldm.c
 	$(CC) $(CPPFLAGS) $(CFLAGS) $^ $(LDFLAGS) -o $@
 
 clean:

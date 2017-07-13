@@ -75,12 +75,6 @@ static int compress(const char *fname, const char *oname) {
       return 1;
   }
 
-/*
-#ifdef TEST
-  LDM_test(src, statbuf.st_size,
-           dst + LDM_HEADER_SIZE, statbuf.st_size);
-#endif
-*/
   compressSize = LDM_HEADER_SIZE +
       LDM_compress(src, statbuf.st_size,
                    dst + LDM_HEADER_SIZE, maxCompressSize);
@@ -116,7 +110,8 @@ static int decompress(const char *fname, const char *oname) {
   int fdin, fdout;
   struct stat statbuf;
   char *src, *dst;
-  size_t compressSize, decompressSize, outSize;
+  U64 compressSize, decompressSize;
+  size_t outSize;
 
   /* Open the input file. */
   if ((fdin = open(fname, O_RDONLY)) < 0) {
@@ -267,5 +262,9 @@ int main(int argc, const char *argv[]) {
   }
   /* verify */
   verify(inpFilename, decFilename);
+
+#ifdef TEST
+  LDM_test();
+#endif
   return 0;
 }

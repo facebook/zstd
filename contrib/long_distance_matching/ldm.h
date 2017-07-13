@@ -3,9 +3,17 @@
 
 #include <stddef.h>   /* size_t */
 
+#include "mem.h"    // from /lib/common/mem.h
+
 #define LDM_COMPRESS_SIZE 8
 #define LDM_DECOMPRESS_SIZE 8
 #define LDM_HEADER_SIZE ((LDM_COMPRESS_SIZE)+(LDM_DECOMPRESS_SIZE))
+
+typedef U32 offset_t;
+typedef U32 hash_t;
+typedef struct LDM_hashEntry LDM_hashEntry;
+typedef struct LDM_compressStats LDM_compressStats;
+typedef struct LDM_CCtx LDM_CCtx;
 
 /**
  *  Compresses src into dst.
@@ -46,10 +54,9 @@ size_t LDM_decompress(const void *src, size_t srcSize,
  *
  * NB: LDM_compress and LDM_decompress currently do not add/read headers.
  */
-void LDM_readHeader(const void *src, size_t *compressSize,
-                    size_t *decompressSize);
+void LDM_readHeader(const void *src, U64 *compressSize,
+                    U64 *decompressSize);
 
-void LDM_test(const void *src, size_t srcSize,
-              void *dst, size_t maxDstSize);
+void LDM_test(void);
 
 #endif /* LDM_H */

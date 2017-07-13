@@ -33,6 +33,7 @@ static UTIL_time_t g_startTime;
 static size_t g_streamedSize = 0;
 static unsigned g_useProgressBar = 0;
 static UTIL_freq_t g_ticksPerSecond;
+static unsigned g_forceCompressionLevel = 0;
 
 typedef struct {
     void* start;
@@ -223,34 +224,39 @@ static void waitUntilAllJobsCompleted(adaptCCtx* ctx)
  */
 static unsigned adaptCompressionLevel(adaptCCtx* ctx)
 {
-    unsigned reset = 0;
-    unsigned const allSlow = ctx->adaptParam < ctx->stats.compressedCounter && ctx->adaptParam < ctx->stats.writeCounter && ctx->adaptParam < ctx->stats.readyCounter;
-    unsigned const compressWaiting = ctx->adaptParam < ctx->stats.readyCounter;
-    unsigned const writeWaiting = ctx->adaptParam < ctx->stats.compressedCounter;
-    unsigned const createWaiting = ctx->adaptParam < ctx->stats.writeCounter;
-    unsigned const writeSlow = ((compressWaiting && createWaiting) || (createWaiting && !writeWaiting));
-    unsigned const compressSlow = ((writeWaiting && createWaiting) || (writeWaiting && !compressWaiting));
-    unsigned const createSlow = ((compressWaiting && writeWaiting) || (compressWaiting && !createWaiting));
-    DEBUG(3, "ready: %u compressed: %u write: %u\n", ctx->stats.readyCounter, ctx->stats.compressedCounter, ctx->stats.writeCounter);
-    if (allSlow) {
-        reset = 1;
+    if (g_forceCompressionLevel) {
+        return g_compressionLevel;
     }
-    else if ((writeSlow || createSlow) && ctx->compressionLevel < (unsigned)ZSTD_maxCLevel()) {
-        DEBUG(3, "increasing compression level %u\n", ctx->compressionLevel);
-        ctx->compressionLevel++;
-        reset = 1;
+    else {
+        unsigned reset = 0;
+        unsigned const allSlow = ctx->adaptParam < ctx->stats.compressedCounter && ctx->adaptParam < ctx->stats.writeCounter && ctx->adaptParam < ctx->stats.readyCounter;
+        unsigned const compressWaiting = ctx->adaptParam < ctx->stats.readyCounter;
+        unsigned const writeWaiting = ctx->adaptParam < ctx->stats.compressedCounter;
+        unsigned const createWaiting = ctx->adaptParam < ctx->stats.writeCounter;
+        unsigned const writeSlow = ((compressWaiting && createWaiting) || (createWaiting && !writeWaiting));
+        unsigned const compressSlow = ((writeWaiting && createWaiting) || (writeWaiting && !compressWaiting));
+        unsigned const createSlow = ((compressWaiting && writeWaiting) || (compressWaiting && !createWaiting));
+        DEBUG(3, "ready: %u compressed: %u write: %u\n", ctx->stats.readyCounter, ctx->stats.compressedCounter, ctx->stats.writeCounter);
+        if (allSlow) {
+            reset = 1;
+        }
+        else if ((writeSlow || createSlow) && ctx->compressionLevel < (unsigned)ZSTD_maxCLevel()) {
+            DEBUG(3, "increasing compression level %u\n", ctx->compressionLevel);
+            ctx->compressionLevel++;
+            reset = 1;
+        }
+        else if (compressSlow && ctx->compressionLevel > 1) {
+            DEBUG(3, "decreasing compression level %u\n", ctx->compressionLevel);
+            ctx->compressionLevel--;
+            reset = 1;
+        }
+        if (reset) {
+            ctx->stats.readyCounter = 0;
+            ctx->stats.writeCounter = 0;
+            ctx->stats.compressedCounter = 0;
+        }
+        return ctx->compressionLevel;
     }
-    else if (compressSlow && ctx->compressionLevel > 1) {
-        DEBUG(3, "decreasing compression level %u\n", ctx->compressionLevel);
-        ctx->compressionLevel--;
-        reset = 1;
-    }
-    if (reset) {
-        ctx->stats.readyCounter = 0;
-        ctx->stats.writeCounter = 0;
-        ctx->stats.compressedCounter = 0;
-    }
-    return ctx->compressionLevel;
 }
 
 static size_t getUseableDictSize(unsigned compressionLevel)
@@ -648,6 +654,9 @@ int main(int argCount, const char* argv[])
                 case 'c':
                     forceStdout = 1;
                     outFilename = stdoutmark;
+                    break;
+                case 'f':
+                    g_forceCompressionLevel = 1;
                     break;
                 default:
                     DISPLAY("Error: invalid argument provided\n");

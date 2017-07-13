@@ -336,12 +336,12 @@ static void displayProgress(unsigned jobDoneID, unsigned cLevel, unsigned last)
     double const timeElapsed = (double)(UTIL_getSpanTimeMicro(g_ticksPerSecond, g_startTime, currTime) / 1000.0);
     double const sizeMB = (double)g_streamedSize / (1 << 20);
     double const avgCompRate = sizeMB * 1000 / timeElapsed;
-    fprintf(stdout, "\r| %4u jobs completed | Current Compresion Level: %2u | Time Elapsed: %5.0f ms | Data Size: %7.1f MB | Avg Compression Rate: %6.2f MB/s |", jobDoneID, cLevel, timeElapsed, sizeMB, avgCompRate);
+    fprintf(stderr, "\r| %4u jobs completed | Current Compresion Level: %2u | Time Elapsed: %5.0f ms | Data Size: %7.1f MB | Avg Compression Rate: %6.2f MB/s |", jobDoneID, cLevel, timeElapsed, sizeMB, avgCompRate);
     if (last) {
-        fprintf(stdout, "\n");
+        fprintf(stderr, "\n");
     }
     else {
-        fflush(stdout);
+        fflush(stderr);
     }
 }
 

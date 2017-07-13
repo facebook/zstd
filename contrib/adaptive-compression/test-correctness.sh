@@ -201,5 +201,40 @@ zstd -d tmp.zst -o tmp2
 diff -q tmp tmp2
 rm tmp*
 
+echo -e "\ncorrectness tests -- forced compression level"
+./datagen -g1GB > tmp
+./adapt tmp -otmp.zst -i11 -f
+zstd -d tmp.zst -o tmp2
+diff tmp tmp2
+rm tmp*
 
+./datagen -g100MB > tmp
+./adapt tmp -otmp.zst -i11 -f
+zstd -d tmp.zst -o tmp2
+diff tmp tmp2
+rm tmp*
+
+./datagen -g10MB > tmp
+./adapt tmp -otmp.zst -i11 -f
+zstd -d tmp.zst -o tmp2
+diff tmp tmp2
+rm tmp*
+
+./datagen -g1MB > tmp
+./adapt tmp -otmp.zst -i11 -f
+zstd -d tmp.zst -o tmp2
+diff tmp tmp2
+rm tmp*
+
+./datagen -g100KB > tmp
+./adapt tmp -otmp.zst -i11 -f
+zstd -d tmp.zst -o tmp2
+diff tmp tmp2
+rm tmp*
+
+./datagen -g10KB > tmp
+./adapt tmp -otmp.zst -i11 -f
+zstd -d tmp.zst -o tmp2
+diff tmp tmp2
+rm tmp*
 make clean

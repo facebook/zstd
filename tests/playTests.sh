@@ -643,7 +643,8 @@ then
     $ECHO "\n**** zstdmt long round-trip tests **** "
     roundTripTest -g99000000 -P99 "20 -T2"
     roundTripTest -g6000000000 -P99 "1 -T2"
-    fileRoundTripTest -g4193M -P98 " -T0"
+    roundTripTest -g1500000000 -P97 "1 -T999"
+    fileRoundTripTest -g4195M -P98 " -T0"
 else
     $ECHO "\n**** no multithreading, skipping zstdmt tests **** "
 fi

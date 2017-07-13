@@ -130,12 +130,11 @@ static int freeCCtx(adaptCCtx* ctx)
 static adaptCCtx* createCCtx(unsigned numJobs, const char* const outFilename)
 {
 
-    adaptCCtx* ctx = malloc(sizeof(adaptCCtx));
+    adaptCCtx* ctx = calloc(1, sizeof(adaptCCtx));
     if (ctx == NULL) {
         DISPLAY("Error: could not allocate space for context\n");
         return NULL;
     }
-    memset(ctx, 0, sizeof(adaptCCtx));
     ctx->compressionLevel = g_compressionLevel;
     pthread_mutex_init(&ctx->jobCompressed_mutex, NULL);
     pthread_cond_init(&ctx->jobCompressed_cond, NULL);
@@ -216,16 +215,24 @@ static void waitUntilAllJobsCompleted(adaptCCtx* ctx)
     pthread_mutex_unlock(&ctx->allJobsCompleted_mutex);
 }
 
+/*
+ * Compression level is changed depending on which part of the compression process is lagging
+ * Currently, three theads exist for job creation, compression, and file writing respectively.
+ * adaptCompressionLevel() increments or decrements compression level based on which of the threads is lagging
+ * job creation or file writing lag => increased compression level
+ * compression thread lag           => decreased compression level
+ * detecting which thread is lagging is done by keeping track of how many calls each thread makes to pthread_cond_wait
+ */
 static unsigned adaptCompressionLevel(adaptCCtx* ctx)
 {
     unsigned reset = 0;
-    unsigned const allSlow = ctx->adaptParam < ctx->stats.compressedCounter && ctx->adaptParam < ctx->stats.writeCounter && ctx->adaptParam < ctx->stats.readyCounter ? 1 : 0;
-    unsigned const compressWaiting = ctx->adaptParam < ctx->stats.readyCounter ? 1 : 0;
-    unsigned const writeWaiting = ctx->adaptParam < ctx->stats.compressedCounter ? 1 : 0;
-    unsigned const createWaiting = ctx->adaptParam < ctx->stats.writeCounter ? 1 : 0;
-    unsigned const writeSlow = ((compressWaiting && createWaiting) || (createWaiting && !writeWaiting)) ? 1 : 0;
-    unsigned const compressSlow = ((writeWaiting && createWaiting) || (writeWaiting && !compressWaiting)) ? 1 : 0;
-    unsigned const createSlow = ((compressWaiting && writeWaiting) || (compressWaiting && !createWaiting)) ? 1 : 0;
+    unsigned const allSlow = ctx->adaptParam < ctx->stats.compressedCounter && ctx->adaptParam < ctx->stats.writeCounter && ctx->adaptParam < ctx->stats.readyCounter;
+    unsigned const compressWaiting = ctx->adaptParam < ctx->stats.readyCounter;
+    unsigned const writeWaiting = ctx->adaptParam < ctx->stats.compressedCounter;
+    unsigned const createWaiting = ctx->adaptParam < ctx->stats.writeCounter;
+    unsigned const writeSlow = ((compressWaiting && createWaiting) || (createWaiting && !writeWaiting));
+    unsigned const compressSlow = ((writeWaiting && createWaiting) || (writeWaiting && !compressWaiting));
+    unsigned const createSlow = ((compressWaiting && writeWaiting) || (compressWaiting && !createWaiting));
     DEBUG(3, "ready: %u compressed: %u write: %u\n", ctx->stats.readyCounter, ctx->stats.compressedCounter, ctx->stats.writeCounter);
     if (allSlow) {
         reset = 1;

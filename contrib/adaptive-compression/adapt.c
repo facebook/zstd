@@ -84,7 +84,6 @@ typedef struct {
     pthread_mutex_t jobWrite_mutex;
     pthread_cond_t jobWrite_cond;
     size_t lastDictSize;
-    size_t targetDictSize;
     inBuff_t input;
     cStat_t stats;
     jobDescription* jobs;
@@ -148,7 +147,6 @@ static adaptCCtx* createCCtx(unsigned numJobs, const char* const outFilename)
     ctx->jobReadyID = 0;
     ctx->jobCompressedID = 0;
     ctx->jobWriteID = 0;
-    ctx->targetDictSize = 1 << 12;
     ctx->lastDictSize = 0;
     ctx->jobs = calloc(1, numJobs*sizeof(jobDescription));
     /* initializing jobs */
@@ -255,6 +253,14 @@ static unsigned adaptCompressionLevel(adaptCCtx* ctx)
     return ctx->compressionLevel;
 }
 
+static size_t getUseableDictSize(unsigned compressionLevel)
+{
+    ZSTD_parameters params = ZSTD_getParams(compressionLevel, 0, 0);
+    unsigned overlapLog = compressionLevel >= (unsigned)ZSTD_maxCLevel() ? 0 : 3;
+    size_t overlapSize = 1 << (params.cParams.windowLog - overlapLog);
+    return overlapSize;
+}
+
 static void* compressionThread(void* arg)
 {
     adaptCCtx* ctx = (adaptCCtx*)arg;
@@ -281,8 +287,10 @@ static void* compressionThread(void* arg)
             DEBUG(3, "compression level used: %u\n", cLevel);
             /* begin compression */
             {
+                size_t useDictSize = MIN(getUseableDictSize(cLevel), job->dictSize);
+                DEBUG(2, "useDictSize: %zu, job->dictSize: %zu\n", useDictSize, job->dictSize);
                 size_t const dictModeError = ZSTD_setCCtxParameter(ctx->cctx, ZSTD_p_forceRawDict, 1);
-                size_t const initError = ZSTD_compressBegin_usingDict(ctx->cctx, job->src.start, job->dictSize, cLevel);
+                size_t const initError = ZSTD_compressBegin_usingDict(ctx->cctx, job->src.start + job->dictSize - useDictSize, useDictSize, cLevel);
                 size_t const windowSizeError = ZSTD_setCCtxParameter(ctx->cctx, ZSTD_p_forceWindow, 1);
                 if (ZSTD_isError(dictModeError) || ZSTD_isError(initError) || ZSTD_isError(windowSizeError)) {
                     DISPLAY("Error: something went wrong while starting compression\n");
@@ -435,12 +443,11 @@ static int createCompressionJob(adaptCCtx* ctx, size_t srcSize, int last)
     DEBUG(3, "filled: %zu, srcSize: %zu\n", ctx->input.filled, srcSize);
     /* if not on the last job, reuse data as dictionary in next job */
     if (!last) {
-        size_t const newDictSize = ctx->targetDictSize;
         size_t const oldDictSize = ctx->lastDictSize;
-        DEBUG(3, "newDictSize %zu oldDictSize %zu\n", newDictSize, oldDictSize);
-        memmove(ctx->input.buffer.start, ctx->input.buffer.start + oldDictSize + srcSize - newDictSize, newDictSize);
-        ctx->lastDictSize = newDictSize;
-        ctx->input.filled = newDictSize;
+        DEBUG(3, "oldDictSize %zu\n", oldDictSize);
+        memmove(ctx->input.buffer.start, ctx->input.buffer.start + oldDictSize, srcSize);
+        ctx->lastDictSize = srcSize;
+        ctx->input.filled = srcSize;
     }
     return 0;
 }

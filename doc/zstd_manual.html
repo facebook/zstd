@@ -813,7 +813,9 @@ void   ZSTD_copyDCtx(ZSTD_DCtx* dctx, const ZSTD_DCtx* preparedDCtx);
                               * Special: value 0 means "do not change strategy". */
 
     </b>/* frame parameters */<b>
-    ZSTD_p_contentSizeFlag=200, </b>/* Content size is written into frame header _whenever known_ (default:1) */<b>
+    ZSTD_p_contentSizeFlag=200, </b>/* Content size is written into frame header _whenever known_ (default:1)<b>
+                              * note that content size must be known at the beginning,
+                              * it is sent using ZSTD_CCtx_setPledgedSrcSize() */
     ZSTD_p_checksumFlag,     </b>/* A 32-bits checksum of content is written at end of frame (default:0) */<b>
     ZSTD_p_dictIDFlag,       </b>/* When applicable, dictID of dictionary is provided in frame header (default:1) */<b>
 

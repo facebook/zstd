@@ -19,13 +19,24 @@ CFLAGS   += $(DEBUGFLAGS)
 CFLAGS   += $(MOREFLAGS)
 FLAGS     = $(CPPFLAGS) $(CFLAGS) $(LDFLAGS)
 
-all: adapt
+all: adapt datagen
 
 adapt: $(ZSTD_FILES) adapt.c
 	$(CC) $(FLAGS) $^ -o $@
 
+datagen : $(PRGDIR)/datagen.c datagencli.c
+	$(CC)      $(FLAGS) $^ -o $@$(EXT)
+
+test-adapt-correctness: datagen adapt
+	@./test-correctness.sh
+	@echo "test correctness complete"
+
+test-adapt-performance: datagen adapt
+	@./test-performance.sh
+	@echo "test performance complete"
+
 clean:
-	@$(RM) -f adapt
+	@$(RM) -f adapt datagen
 	@$(RM) -rf *.dSYM
 	@$(RM) -f tmp*
 	@$(RM) -f tests/*.zst

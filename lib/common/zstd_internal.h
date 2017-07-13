@@ -271,13 +271,15 @@ typedef struct {
 } seqStore_t;
 
 typedef struct {
-    HUF_repeat hufCTable_repeatMode;
     U32 hufCTable[HUF_CTABLE_SIZE_U32(255)];
-    U32 fseCTables_ready;
     FSE_CTable offcodeCTable[FSE_CTABLE_SIZE_U32(OffFSELog, MaxOff)];
     FSE_CTable matchlengthCTable[FSE_CTABLE_SIZE_U32(MLFSELog, MaxML)];
     FSE_CTable litlengthCTable[FSE_CTABLE_SIZE_U32(LLFSELog, MaxLL)];
     U32 workspace[HUF_WORKSPACE_SIZE_U32];
+    HUF_repeat hufCTable_repeatMode;
+    FSE_repeat offcode_repeatMode;
+    FSE_repeat matchlength_repeatMode;
+    FSE_repeat litlength_repeatMode;
 } ZSTD_entropyCTables_t;
 
 const seqStore_t* ZSTD_getSeqStore(const ZSTD_CCtx* ctx);

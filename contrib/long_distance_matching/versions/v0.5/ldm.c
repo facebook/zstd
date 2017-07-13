@@ -1,26 +1,13 @@
-#include <stdlib.h>
-#include <string.h>
+#include <limits.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 #include "ldm.h"
-#include "util.h"
 
 // Insert every (HASH_ONLY_EVERY + 1) into the hash table.
 #define HASH_ONLY_EVERY 0
-
-#define LDM_MEMORY_USAGE 20
-#define LDM_HASHLOG (LDM_MEMORY_USAGE-2)
-#define LDM_HASHTABLESIZE (1 << (LDM_MEMORY_USAGE))
-#define LDM_HASHTABLESIZE_U32 ((LDM_HASHTABLESIZE) >> 2)
-
-#define LDM_OFFSET_SIZE 4
-
-#define WINDOW_SIZE (1 << 20)
-
-//These should be multiples of four.
-#define LDM_HASH_LENGTH 4
-#define MINMATCH 4
 
 #define ML_BITS 4
 #define ML_MASK ((1U<<ML_BITS)-1)
@@ -28,36 +15,32 @@
 #define RUN_MASK ((1U<<RUN_BITS)-1)
 
 #define COMPUTE_STATS
+#define CHECKSUM_CHAR_OFFSET 0
 //#define RUN_CHECKS
 //#define LDM_DEBUG
 
-typedef  uint8_t BYTE;
-typedef uint16_t U16;
-typedef uint32_t U32;
-typedef  int32_t S32;
-typedef uint64_t U64;
-
-typedef uint32_t offset_t;
-typedef uint32_t hash_t;
-typedef signed char schar;
-
-typedef struct hashEntry {
+struct LDM_hashEntry {
   offset_t offset;
-} hashEntry;
+};
 
-typedef struct LDM_compressStats {
+// TODO: Add offset histogram by powers of two
+// TODO: Scanning speed
+// TODO: Memory usage
+struct LDM_compressStats {
   U32 numMatches;
-  U32 totalMatchLength;
-  U32 totalLiteralLength;
+  U64 totalMatchLength;
+  U64 totalLiteralLength;
   U64 totalOffset;
+
+  U32 minOffset, maxOffset;
 
   U32 numCollisions;
   U32 numHashInserts;
-} LDM_compressStats;
+};
 
-typedef struct LDM_CCtx {
-  size_t isize;             /* Input size */
-  size_t maxOSize;          /* Maximum output size */
+struct LDM_CCtx {
+  U64 isize;             /* Input size */
+  U64 maxOSize;          /* Maximum output size */
 
   const BYTE *ibase;        /* Base of input */
   const BYTE *ip;           /* Current input position */
@@ -78,7 +61,7 @@ typedef struct LDM_CCtx {
 
   LDM_compressStats stats;            /* Compression statistics */
 
-  hashEntry hashTable[LDM_HASHTABLESIZE_U32];
+  LDM_hashEntry hashTable[LDM_HASHTABLESIZE_U32];
 
   const BYTE *lastPosHashed;          /* Last position hashed */
   hash_t lastHash;                    /* Hash corresponding to lastPosHashed */
@@ -93,77 +76,66 @@ typedef struct LDM_CCtx {
 
   // DEBUG
   const BYTE *DEBUG_setNextHash;
-} LDM_CCtx;
+};
 
-#ifdef COMPUTE_STATS
-/**
- * Outputs compression statistics.
- */
-static void printCompressStats(const LDM_CCtx *cctx) {
-  const LDM_compressStats *stats = &(cctx->stats);
+void LDM_outputHashtableOccupancy(
+    const LDM_hashEntry *hashTable, U32 hashTableSize) {
+  U32 i = 0;
+  U32 ctr = 0;
+  for (; i < hashTableSize; i++) {
+    if (hashTable[i].offset == 0) {
+      ctr++;
+    }
+  }
+  printf("Hash table size, empty slots, %% empty: %u, %u, %.3f\n",
+         hashTableSize, ctr,
+         100.0 * (double)(ctr) / (double)hashTableSize);
+}
+
+void LDM_printCompressStats(const LDM_compressStats *stats) {
   printf("=====================\n");
   printf("Compression statistics\n");
-  printf("Total number of matches: %u\n", stats->numMatches);
-  printf("Average match length: %.1f\n", ((double)stats->totalMatchLength) /
+  //TODO: compute percentage matched?
+  printf("num matches, total match length: %u, %llu\n",
+          stats->numMatches,
+          stats->totalMatchLength);
+  printf("avg match length: %.1f\n", ((double)stats->totalMatchLength) /
                                          (double)stats->numMatches);
-  printf("Average literal length: %.1f\n",
+  printf("avg literal length: %.1f\n",
          ((double)stats->totalLiteralLength) / (double)stats->numMatches);
-  printf("Average offset length: %.1f\n",
+  printf("avg offset length: %.1f\n",
          ((double)stats->totalOffset) / (double)stats->numMatches);
-  printf("Num collisions, num hash inserts, %% collisions: %u, %u, %.3f\n",
+  printf("min offset, max offset: %u %u\n",
+         stats->minOffset, stats->maxOffset);
+  printf("num collisions, num hash inserts, %% collisions: %u, %u, %.3f\n",
          stats->numCollisions, stats->numHashInserts,
          stats->numHashInserts == 0 ?
             1.0 : (100.0 * (double)stats->numCollisions) /
                   (double)stats->numHashInserts);
-
-  // Output occupancy of hash table.
-  {
-    U32 i = 0;
-    U32 ctr = 0;
-    for (; i < LDM_HASHTABLESIZE_U32; i++) {
-      if ((cctx->hashTable)[i].offset == 0) {
-        ctr++;
-      }
-    }
-    printf("Hash table size, empty slots, %% empty: %u %u %.3f\n",
-           LDM_HASHTABLESIZE_U32, ctr,
-           100.0 * (double)(ctr) / (double)LDM_HASHTABLESIZE_U32);
-  }
-
-  printf("=====================\n");
 }
-#endif
 
-/**
- * Checks whether the MINMATCH bytes from p are the same as the MINMATCH
- * bytes from match.
- *
- * This assumes MINMATCH is a multiple of four.
- *
- * Return 1 if valid, 0 otherwise.
- */
-static int LDM_isValidMatch(const BYTE *p, const BYTE *match) {
+int LDM_isValidMatch(const BYTE *pIn, const BYTE *pMatch) {
   /*
-  if (memcmp(p, match, MINMATCH) == 0) {
+  if (memcmp(pIn, pMatch, LDM_MIN_MATCH_LENGTH) == 0) {
     return 1;
   }
   return 0;
   */
 
   //TODO: This seems to be faster for some reason?
-  U16 lengthLeft = MINMATCH;
-  const BYTE *curP = p;
-  const BYTE *curMatch = match;
+  U32 lengthLeft = LDM_MIN_MATCH_LENGTH;
+  const BYTE *curIn = pIn;
+  const BYTE *curMatch = pMatch;
 
   for (; lengthLeft >= 8; lengthLeft -= 8) {
-    if (LDM_read64(curP) != LDM_read64(curMatch)) {
+    if (MEM_read64(curIn) != MEM_read64(curMatch)) {
       return 0;
     }
-    curP += 8;
+    curIn += 8;
     curMatch += 8;
   }
   if (lengthLeft > 0) {
-    return (LDM_read32(curP) == LDM_read32(curMatch));
+    return (MEM_read32(curIn) == MEM_read32(curMatch));
   }
   return 1;
 }
@@ -183,19 +155,21 @@ static hash_t checksumToHash(U32 sum) {
  * b(k,l) = \sum_{i = k}^l ((l - i + 1) * x_i) (mod M)
  * checksum(k,l) = a(k,l) + 2^{16} * b(k,l)
   */
-static U32 getChecksum(const char *data, U32 len) {
+static U32 getChecksum(const BYTE *buf, U32 len) {
   U32 i;
   U32 s1, s2;
-  const schar *buf = (const schar *)data;
 
   s1 = s2 = 0;
   for (i = 0; i < (len - 4); i += 4) {
     s2 += (4 * (s1 + buf[i])) + (3 * buf[i + 1]) +
-          (2 * buf[i + 2]) + (buf[i + 3]);
-    s1 += buf[i] + buf[i + 1] + buf[i + 2] + buf[i + 3];
+          (2 * buf[i + 2]) + (buf[i + 3]) +
+          (10 * CHECKSUM_CHAR_OFFSET);
+    s1 += buf[i] + buf[i + 1] + buf[i + 2] + buf[i + 3] +
+          + (4 * CHECKSUM_CHAR_OFFSET);
+
   }
   for(; i < len; i++) {
-    s1 += buf[i];
+    s1 += buf[i] + CHECKSUM_CHAR_OFFSET;
     s2 += s1;
   }
   return (s1 & 0xffff) + (s2 << 16);
@@ -211,9 +185,9 @@ static U32 getChecksum(const char *data, U32 len) {
  * Thus toRemove should correspond to data[0].
  */
 static U32 updateChecksum(U32 sum, U32 len,
-                          schar toRemove, schar toAdd) {
+                          BYTE toRemove, BYTE toAdd) {
   U32 s1 = (sum & 0xffff) - toRemove + toAdd;
-  U32 s2 = (sum >> 16) - (toRemove * len) + s1;
+  U32 s2 = (sum >> 16) - ((toRemove + CHECKSUM_CHAR_OFFSET) * len) + s1;
 
   return (s1 & 0xffff) + (s2 << 16);
 }
@@ -240,13 +214,13 @@ static void setNextHash(LDM_CCtx *cctx) {
 //  cctx->nextSum = getChecksum((const char *)cctx->nextIp, LDM_HASH_LENGTH);
   cctx->nextSum = updateChecksum(
       cctx->lastSum, LDM_HASH_LENGTH,
-      (schar)((cctx->lastPosHashed)[0]),
-      (schar)((cctx->lastPosHashed)[LDM_HASH_LENGTH]));
+      cctx->lastPosHashed[0],
+      cctx->lastPosHashed[LDM_HASH_LENGTH]);
   cctx->nextPosHashed = cctx->nextIp;
   cctx->nextHash = checksumToHash(cctx->nextSum);
 
 #ifdef RUN_CHECKS
-  check = getChecksum((const char *)cctx->nextIp, LDM_HASH_LENGTH);
+  check = getChecksum(cctx->nextIp, LDM_HASH_LENGTH);
 
   if (check != cctx->nextSum) {
     printf("CHECK: setNextHash failed %u %u\n", check, cctx->nextSum);
@@ -264,7 +238,7 @@ static void putHashOfCurrentPositionFromHash(
     LDM_CCtx *cctx, hash_t hash, U32 sum) {
 #ifdef COMPUTE_STATS
   if (cctx->stats.numHashInserts < LDM_HASHTABLESIZE_U32) {
-    offset_t offset = (cctx->hashTable)[hash].offset;
+    offset_t offset = cctx->hashTable[hash].offset;
     cctx->stats.numHashInserts++;
     if (offset != 0 && !LDM_isValidMatch(cctx->ip, offset + cctx->ibase)) {
       cctx->stats.numCollisions++;
@@ -275,7 +249,8 @@ static void putHashOfCurrentPositionFromHash(
   // Hash only every HASH_ONLY_EVERY times, based on cctx->ip.
   // Note: this works only when cctx->step is 1.
   if (((cctx->ip - cctx->ibase) & HASH_ONLY_EVERY) == HASH_ONLY_EVERY) {
-    (cctx->hashTable)[hash] = (hashEntry){ (offset_t)(cctx->ip - cctx->ibase) };
+    const LDM_hashEntry entry = { cctx->ip - cctx->ibase };
+    cctx->hashTable[hash] = entry;
   }
 
   cctx->lastPosHashed = cctx->ip;
@@ -303,7 +278,7 @@ static void LDM_updateLastHashFromNextHash(LDM_CCtx *cctx) {
  * Insert hash of the current position into the hash table.
  */
 static void LDM_putHashOfCurrentPosition(LDM_CCtx *cctx) {
-  U32 sum = getChecksum((const char *)cctx->ip, LDM_HASH_LENGTH);
+  U32 sum = getChecksum(cctx->ip, LDM_HASH_LENGTH);
   hash_t hash = checksumToHash(sum);
 
 #ifdef RUN_CHECKS
@@ -323,40 +298,33 @@ static const BYTE *getPositionOnHash(LDM_CCtx *cctx, hash_t hash) {
   return cctx->hashTable[hash].offset + cctx->ibase;
 }
 
-/**
- *  Counts the number of bytes that match from pIn and pMatch,
- *  up to pInLimit.
- *
- *  TODO: make more efficient.
- */
-static unsigned countMatchLength(const BYTE *pIn, const BYTE *pMatch,
-                                 const BYTE *pInLimit) {
+U32 LDM_countMatchLength(const BYTE *pIn, const BYTE *pMatch,
+                         const BYTE *pInLimit) {
   const BYTE * const pStart = pIn;
   while (pIn < pInLimit - 1) {
-    BYTE const diff = LDM_readByte(pMatch) ^ LDM_readByte(pIn);
+    BYTE const diff = (*pMatch) ^ *(pIn);
     if (!diff) {
       pIn++;
       pMatch++;
       continue;
     }
-    return (unsigned)(pIn - pStart);
+    return (U32)(pIn - pStart);
   }
-  return (unsigned)(pIn - pStart);
+  return (U32)(pIn - pStart);
 }
 
-void LDM_readHeader(const void *src, size_t *compressSize,
-                    size_t *decompressSize) {
-  const U32 *ip = (const U32 *)src;
-  *compressSize = *ip++;
-  *decompressSize = *ip;
+void LDM_readHeader(const void *src, U64 *compressedSize,
+                    U64 *decompressedSize) {
+  const BYTE *ip = (const BYTE *)src;
+  *compressedSize = MEM_readLE64(ip);
+  ip += sizeof(U64);
+  *decompressedSize = MEM_readLE64(ip);
+  // ip += sizeof(U64);
 }
 
-/**
- * Initialize a compression context.
- */
-static void initializeCCtx(LDM_CCtx *cctx,
-                           const void *src, size_t srcSize,
-                           void *dst, size_t maxDstSize) {
+void LDM_initializeCCtx(LDM_CCtx *cctx,
+                        const void *src, size_t srcSize,
+                        void *dst, size_t maxDstSize) {
   cctx->isize = srcSize;
   cctx->maxOSize = maxDstSize;
 
@@ -365,7 +333,7 @@ static void initializeCCtx(LDM_CCtx *cctx,
   cctx->iend = cctx->ibase + srcSize;
 
   cctx->ihashLimit = cctx->iend - LDM_HASH_LENGTH;
-  cctx->imatchLimit = cctx->iend - MINMATCH;
+  cctx->imatchLimit = cctx->iend - LDM_MIN_MATCH_LENGTH;
 
   cctx->obase = (BYTE *)dst;
   cctx->op = (BYTE *)dst;
@@ -374,6 +342,7 @@ static void initializeCCtx(LDM_CCtx *cctx,
 
   memset(&(cctx->stats), 0, sizeof(cctx->stats));
   memset(cctx->hashTable, 0, sizeof(cctx->hashTable));
+  cctx->stats.minOffset = UINT_MAX;
 
   cctx->lastPosHashed = NULL;
 
@@ -416,61 +385,65 @@ static int LDM_findBestMatch(LDM_CCtx *cctx, const BYTE **match) {
   return 0;
 }
 
-/**
- * Write current block (literals, literal length, match offset,
- * match length).
- *
- * Update input pointer, inserting hashes into hash table along the way.
- */
-static void outputBlock(LDM_CCtx *cctx,
-                        unsigned const literalLength,
-                        unsigned const offset,
-                        unsigned const matchLength) {
-  BYTE *token = cctx->op++;
-
+void LDM_encodeLiteralLengthAndLiterals(
+    LDM_CCtx *cctx, BYTE *pToken, const U32 literalLength) {
   /* Encode the literal length. */
   if (literalLength >= RUN_MASK) {
     int len = (int)literalLength - RUN_MASK;
-    *token = (RUN_MASK << ML_BITS);
+    *pToken = (RUN_MASK << ML_BITS);
     for (; len >= 255; len -= 255) {
       *(cctx->op)++ = 255;
     }
     *(cctx->op)++ = (BYTE)len;
   } else {
-    *token = (BYTE)(literalLength << ML_BITS);
+    *pToken = (BYTE)(literalLength << ML_BITS);
   }
 
   /* Encode the literals. */
   memcpy(cctx->op, cctx->anchor, literalLength);
   cctx->op += literalLength;
+}
+
+void LDM_outputBlock(LDM_CCtx *cctx,
+                     const U32 literalLength,
+                     const U32 offset,
+                     const U32 matchLength) {
+  BYTE *pToken = cctx->op++;
+
+  /* Encode the literal length and literals. */
+  LDM_encodeLiteralLengthAndLiterals(cctx, pToken, literalLength);
 
   /* Encode the offset. */
-  LDM_write32(cctx->op, offset);
+  MEM_write32(cctx->op, offset);
   cctx->op += LDM_OFFSET_SIZE;
 
   /* Encode the match length. */
   if (matchLength >= ML_MASK) {
     unsigned matchLengthRemaining = matchLength;
-    *token += ML_MASK;
+    *pToken += ML_MASK;
     matchLengthRemaining -= ML_MASK;
-    LDM_write32(cctx->op, 0xFFFFFFFF);
+    MEM_write32(cctx->op, 0xFFFFFFFF);
     while (matchLengthRemaining >= 4*0xFF) {
       cctx->op += 4;
-      LDM_write32(cctx->op, 0xffffffff);
+      MEM_write32(cctx->op, 0xffffffff);
       matchLengthRemaining -= 4*0xFF;
     }
     cctx->op += matchLengthRemaining / 255;
     *(cctx->op)++ = (BYTE)(matchLengthRemaining % 255);
   } else {
-    *token += (BYTE)(matchLength);
+    *pToken += (BYTE)(matchLength);
   }
 }
 
-// TODO: srcSize and maxDstSize is unused
+// TODO: maxDstSize is unused. This function may seg fault when writing
+// beyond the size of dst, as it does not check maxDstSize. Writing to
+// a buffer and performing checks is a possible solution.
+//
+// This is based upon lz4.
 size_t LDM_compress(const void *src, size_t srcSize,
                     void *dst, size_t maxDstSize) {
   LDM_CCtx cctx;
-  initializeCCtx(&cctx, src, srcSize, dst, maxDstSize);
+  LDM_initializeCCtx(&cctx, src, srcSize, dst, maxDstSize);
 
   /* Hash the first position and put it into the hash table. */
   LDM_putHashOfCurrentPosition(&cctx);
@@ -506,21 +479,27 @@ size_t LDM_compress(const void *src, size_t srcSize,
      * length) and update pointers and hashes.
      */
     {
-      unsigned const literalLength = (unsigned)(cctx.ip - cctx.anchor);
-      unsigned const offset = cctx.ip - match;
-      unsigned const matchLength = countMatchLength(
-          cctx.ip + MINMATCH, match + MINMATCH, cctx.ihashLimit);
+      const U32 literalLength = cctx.ip - cctx.anchor;
+      const U32 offset = cctx.ip - match;
+      const U32 matchLength = LDM_countMatchLength(
+          cctx.ip + LDM_MIN_MATCH_LENGTH, match + LDM_MIN_MATCH_LENGTH,
+          cctx.ihashLimit);
 
 #ifdef COMPUTE_STATS
       cctx.stats.totalLiteralLength += literalLength;
       cctx.stats.totalOffset += offset;
-      cctx.stats.totalMatchLength += matchLength + MINMATCH;
+      cctx.stats.totalMatchLength += matchLength + LDM_MIN_MATCH_LENGTH;
+      cctx.stats.minOffset =
+          offset < cctx.stats.minOffset ? offset : cctx.stats.minOffset;
+      cctx.stats.maxOffset =
+          offset > cctx.stats.maxOffset ? offset : cctx.stats.maxOffset;
 #endif
-      outputBlock(&cctx, literalLength, offset, matchLength);
+      LDM_outputBlock(&cctx, literalLength, offset, matchLength);
 
       // Move ip to end of block, inserting hashes at each position.
       cctx.nextIp = cctx.ip + cctx.step;
-      while (cctx.ip < cctx.anchor + MINMATCH + matchLength + literalLength) {
+      while (cctx.ip < cctx.anchor + LDM_MIN_MATCH_LENGTH +
+                       matchLength + literalLength) {
         if (cctx.ip > cctx.lastPosHashed) {
           // TODO: Simplify.
           LDM_updateLastHashFromNextHash(&cctx);
@@ -538,31 +517,22 @@ size_t LDM_compress(const void *src, size_t srcSize,
 _last_literals:
   /* Encode the last literals (no more matches). */
   {
-    size_t const lastRun = (size_t)(cctx.iend - cctx.anchor);
-    if (lastRun >= RUN_MASK) {
-      size_t accumulator = lastRun - RUN_MASK;
-      *(cctx.op)++ = RUN_MASK << ML_BITS;
-      for(; accumulator >= 255; accumulator -= 255) {
-        *(cctx.op)++ = 255;
-      }
-      *(cctx.op)++ = (BYTE)accumulator;
-    } else {
-      *(cctx.op)++ = (BYTE)(lastRun << ML_BITS);
-    }
-    memcpy(cctx.op, cctx.anchor, lastRun);
-    cctx.op += lastRun;
+    const size_t lastRun = (size_t)(cctx.iend - cctx.anchor);
+    BYTE *pToken = cctx.op++;
+    LDM_encodeLiteralLengthAndLiterals(&cctx, pToken, lastRun);
   }
 
 #ifdef COMPUTE_STATS
-  printCompressStats(&cctx);
+  LDM_printCompressStats(&cctx.stats);
+  LDM_outputHashtableOccupancy(cctx.hashTable, LDM_HASHTABLESIZE_U32);
 #endif
 
   return (cctx.op - (const BYTE *)cctx.obase);
 }
 
-typedef struct LDM_DCtx {
-  size_t compressSize;
-  size_t maxDecompressSize;
+struct LDM_DCtx {
+  size_t compressedSize;
+  size_t maxDecompressedSize;
 
   const BYTE *ibase;   /* Base of input */
   const BYTE *ip;      /* Current input position */
@@ -571,26 +541,25 @@ typedef struct LDM_DCtx {
   const BYTE *obase;   /* Base of output */
   BYTE *op;            /* Current output position */
   const BYTE *oend;    /* End of output */
-} LDM_DCtx;
+};
 
-static void LDM_initializeDCtx(LDM_DCtx *dctx,
-                               const void *src, size_t compressSize,
-                               void *dst, size_t maxDecompressSize) {
-  dctx->compressSize = compressSize;
-  dctx->maxDecompressSize = maxDecompressSize;
+void LDM_initializeDCtx(LDM_DCtx *dctx,
+                        const void *src, size_t compressedSize,
+                        void *dst, size_t maxDecompressedSize) {
+  dctx->compressedSize = compressedSize;
+  dctx->maxDecompressedSize = maxDecompressedSize;
 
   dctx->ibase = src;
   dctx->ip = (const BYTE *)src;
-  dctx->iend = dctx->ip + dctx->compressSize;
+  dctx->iend = dctx->ip + dctx->compressedSize;
   dctx->op = dst;
-  dctx->oend = dctx->op + dctx->maxDecompressSize;
-
+  dctx->oend = dctx->op + dctx->maxDecompressedSize;
 }
 
-size_t LDM_decompress(const void *src, size_t compressSize,
-                      void *dst, size_t maxDecompressSize) {
+size_t LDM_decompress(const void *src, size_t compressedSize,
+                      void *dst, size_t maxDecompressedSize) {
   LDM_DCtx dctx;
-  LDM_initializeDCtx(&dctx, src, compressSize, dst, maxDecompressSize);
+  LDM_initializeDCtx(&dctx, src, compressedSize, dst, maxDecompressedSize);
 
   while (dctx.ip < dctx.iend) {
     BYTE *cpy;
@@ -598,7 +567,7 @@ size_t LDM_decompress(const void *src, size_t compressSize,
     size_t length, offset;
 
     /* Get the literal length. */
-    unsigned const token = *(dctx.ip)++;
+    const unsigned token = *(dctx.ip)++;
     if ((length = (token >> ML_BITS)) == RUN_MASK) {
       unsigned s;
       do {
@@ -614,7 +583,7 @@ size_t LDM_decompress(const void *src, size_t compressSize,
     dctx.op = cpy;
 
     //TODO : dynamic offset size
-    offset = LDM_read32(dctx.ip);
+    offset = MEM_read32(dctx.ip);
     dctx.ip += LDM_OFFSET_SIZE;
     match = dctx.op - offset;
 
@@ -627,7 +596,7 @@ size_t LDM_decompress(const void *src, size_t compressSize,
         length += s;
       } while (s == 255);
     }
-    length += MINMATCH;
+    length += LDM_MIN_MATCH_LENGTH;
 
     /* Copy match. */
     cpy = dctx.op + length;
@@ -638,6 +607,11 @@ size_t LDM_decompress(const void *src, size_t compressSize,
     }
   }
   return dctx.op - (BYTE *)dst;
+}
+
+// TODO: implement and test hash function
+void LDM_test(void) {
+
 }
 
 /*

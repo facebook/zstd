@@ -28,7 +28,7 @@
 #define RUN_MASK ((1U<<RUN_BITS)-1)
 
 #define COMPUTE_STATS
-#define CHECKSUM_CHAR_OFFSET 2
+#define CHECKSUM_CHAR_OFFSET 0
 //#define RUN_CHECKS
 //#define LDM_DEBUG
 
@@ -470,7 +470,10 @@ static void outputBlock(LDM_CCtx *cctx,
   }
 }
 
-// TODO: srcSize and maxDstSize is unused
+// TODO: maxDstSize is unused. This function may seg fault when writing
+// beyond the size of dst, as it does not check maxDstSize. Writing to
+// a buffer and performing checks is a possible solution.
+//
 // This is based upon lz4.
 size_t LDM_compress(const void *src, size_t srcSize,
                     void *dst, size_t maxDstSize) {

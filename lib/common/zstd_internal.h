@@ -50,6 +50,10 @@
 #include "error_private.h"
 #define ZSTD_STATIC_LINKING_ONLY
 #include "zstd.h"
+#define FSE_STATIC_LINKING_ONLY
+#include "fse.h"
+#define HUF_STATIC_LINKING_ONLY
+#include "huf.h"
 #ifndef XXH_STATIC_LINKING_ONLY
 #  define XXH_STATIC_LINKING_ONLY  /* XXH64_state_t */
 #endif
@@ -265,6 +269,16 @@ typedef struct {
     U32  cachedLitLength;
     const BYTE* cachedLiterals;
 } seqStore_t;
+
+typedef struct {
+    HUF_repeat hufCTable_repeatMode;
+    U32 hufCTable[HUF_CTABLE_SIZE_U32(255)];
+    U32 fseCTables_ready;
+    FSE_CTable offcodeCTable[FSE_CTABLE_SIZE_U32(OffFSELog, MaxOff)];
+    FSE_CTable matchlengthCTable[FSE_CTABLE_SIZE_U32(MLFSELog, MaxML)];
+    FSE_CTable litlengthCTable[FSE_CTABLE_SIZE_U32(LLFSELog, MaxLL)];
+    U32 workspace[HUF_WORKSPACE_SIZE_U32];
+} ZSTD_entropyCTables_t;
 
 const seqStore_t* ZSTD_getSeqStore(const ZSTD_CCtx* ctx);
 void ZSTD_seqToCodes(const seqStore_t* seqStorePtr);

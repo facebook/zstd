@@ -95,7 +95,7 @@ typedef struct {
     HUF_DTable hufTable[HUF_DTABLE_SIZE(HufLog)];  /* can accommodate HUF_decompress4X */
     U32 workspace[HUF_DECOMPRESS_WORKSPACE_SIZE_U32];
     U32 rep[ZSTD_REP_NUM];
-} ZSTD_entropyTables_t;
+} ZSTD_entropyDTables_t;
 
 struct ZSTD_DCtx_s
 {
@@ -103,7 +103,7 @@ struct ZSTD_DCtx_s
     const FSE_DTable* MLTptr;
     const FSE_DTable* OFTptr;
     const HUF_DTable* HUFptr;
-    ZSTD_entropyTables_t entropy;
+    ZSTD_entropyDTables_t entropy;
     const void* previousDstEnd;   /* detect continuity */
     const void* base;             /* start of current segment */
     const void* vBase;            /* virtual start of previous segment if it was just before current one */
@@ -1842,7 +1842,7 @@ static size_t ZSTD_refDictContent(ZSTD_DCtx* dctx, const void* dict, size_t dict
 /* ZSTD_loadEntropy() :
  * dict : must point at beginning of a valid zstd dictionary
  * @return : size of entropy tables read */
-static size_t ZSTD_loadEntropy(ZSTD_entropyTables_t* entropy, const void* const dict, size_t const dictSize)
+static size_t ZSTD_loadEntropy(ZSTD_entropyDTables_t* entropy, const void* const dict, size_t const dictSize)
 {
     const BYTE* dictPtr = (const BYTE*)dict;
     const BYTE* const dictEnd = dictPtr + dictSize;
@@ -1933,7 +1933,7 @@ struct ZSTD_DDict_s {
     void* dictBuffer;
     const void* dictContent;
     size_t dictSize;
-    ZSTD_entropyTables_t entropy;
+    ZSTD_entropyDTables_t entropy;
     U32 dictID;
     U32 entropyPresent;
     ZSTD_customMem cMem;

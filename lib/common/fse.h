@@ -31,12 +31,13 @@
    You can contact the author at :
    - Source repository : https://github.com/Cyan4973/FiniteStateEntropy
 ****************************************************************** */
-#ifndef FSE_H
-#define FSE_H
 
 #if defined (__cplusplus)
 extern "C" {
 #endif
+
+#ifndef FSE_H
+#define FSE_H
 
 
 /*-*****************************************
@@ -297,8 +298,10 @@ FSE_decompress_usingDTable() result will tell how many bytes were regenerated (<
 If there is an error, the function will return an error code, which can be tested using FSE_isError(). (ex: dst buffer too small)
 */
 
+#endif  /* FSE_H */
 
-#ifdef FSE_STATIC_LINKING_ONLY
+#if defined(FSE_STATIC_LINKING_ONLY) && !defined(FSE_H_FSE_STATIC_LINKING_ONLY)
+#define FSE_H_FSE_STATIC_LINKING_ONLY
 
 /* *** Dependency *** */
 #include "bitstream.h"
@@ -694,5 +697,3 @@ MEM_STATIC unsigned FSE_endOfDState(const FSE_DState_t* DStatePtr)
 #if defined (__cplusplus)
 }
 #endif
-
-#endif  /* FSE_H */

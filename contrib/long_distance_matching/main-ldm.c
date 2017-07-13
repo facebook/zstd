@@ -1,5 +1,3 @@
-// TODO: file size must fit into a U32
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -12,12 +10,17 @@
 
 #include <fcntl.h>
 #include "ldm.h"
+#include "zstd.h"
 
 #define DEBUG
 //#define TEST
 
 /* Compress file given by fname and output to oname.
  * Returns 0 if successful, error code otherwise.
+ *
+ * TODO: This currently seg faults if the compressed size is > the decompress
+ * size due to the mmapping and output file size allocated to be the input size.
+ * The compress function should check before writing or buffer writes.
  */
 static int compress(const char *fname, const char *oname) {
   int fdin, fdout;
@@ -78,10 +81,9 @@ static int compress(const char *fname, const char *oname) {
            dst + LDM_HEADER_SIZE, statbuf.st_size);
 #endif
 */
-
   compressSize = LDM_HEADER_SIZE +
       LDM_compress(src, statbuf.st_size,
-                   dst + LDM_HEADER_SIZE, statbuf.st_size);
+                   dst + LDM_HEADER_SIZE, maxCompressSize);
 
   // Write compress and decompress size to header
   // TODO: should depend on LDM_DECOMPRESS_SIZE write32

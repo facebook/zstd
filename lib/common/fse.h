@@ -384,6 +384,11 @@ size_t FSE_buildDTable_rle (FSE_DTable* dt, unsigned char symbolValue);
 size_t FSE_decompress_wksp(void* dst, size_t dstCapacity, const void* cSrc, size_t cSrcSize, FSE_DTable* workSpace, unsigned maxLog);
 /**< same as FSE_decompress(), using an externally allocated `workSpace` produced with `FSE_DTABLE_SIZE_U32(maxLog)` */
 
+typedef enum {
+   FSE_repeat_none,  /**< Cannot use the previous table */
+   FSE_repeat_check, /**< Can use the previous table but it must be checked */
+   FSE_repeat_valid  /**< Can use the previous table and it is asumed to be valid */
+ } FSE_repeat;
 
 /* *****************************************
 *  FSE symbol compression API

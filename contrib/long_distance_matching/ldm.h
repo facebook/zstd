@@ -3,8 +3,8 @@
 
 #include <stddef.h>   /* size_t */
 
-#define LDM_COMPRESS_SIZE 4
-#define LDM_DECOMPRESS_SIZE 4
+#define LDM_COMPRESS_SIZE 8
+#define LDM_DECOMPRESS_SIZE 8
 #define LDM_HEADER_SIZE ((LDM_COMPRESS_SIZE)+(LDM_DECOMPRESS_SIZE))
 
 /**

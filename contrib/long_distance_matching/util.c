@@ -53,6 +53,11 @@ U32 LDM_read32(const void *ptr) {
   return *(const U32 *)ptr;
 }
 
+//TODO: endianness?
+void LDM_write64(void *memPtr, U64 value) {
+  memcpy(memPtr, &value, sizeof(value));
+}
+
 U64 LDM_read64(const void *ptr) {
   return *(const U64 *)ptr;
 }

@@ -21,5 +21,7 @@ void LDM_copy8(void *dst, const void *src);
 
 uint8_t LDM_readByte(const void *ptr);
 
+void LDM_write64(void *memPtr, uint64_t value);
+
 
 #endif /* LDM_UTIL_H */

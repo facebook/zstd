@@ -92,6 +92,11 @@ typedef struct {
     ZSTD_CCtx* cctx;
 } adaptCCtx;
 
+typedef struct {
+    FILE* srcFile;
+    adaptCCtx* ctx;
+} fcResources;
+
 static void freeCompressionJobs(adaptCCtx* ctx)
 {
     unsigned u;
@@ -207,6 +212,7 @@ static adaptCCtx* createCCtx(unsigned numJobs, const char* const outFilename)
 
 static void waitUntilAllJobsCompleted(adaptCCtx* ctx)
 {
+    if (!ctx) return;
     pthread_mutex_lock(&ctx->allJobsCompleted_mutex);
     while (ctx->allJobsCompleted == 0) {
         pthread_cond_wait(&ctx->allJobsCompleted_cond, &ctx->allJobsCompleted_mutex);
@@ -466,40 +472,10 @@ static void printStats(cStat_t stats)
     DISPLAY("# times waited on job Write: %u\n\n", stats.waitWrite);
 }
 
-static int compressFilename(const char* const srcFilename, const char* const dstFilenameOrNull)
+static int performCompression(adaptCCtx* ctx, FILE* const srcFile)
 {
-    unsigned const stdinUsed = !strcmp(srcFilename, stdinmark);
-    FILE* const srcFile = stdinUsed ? stdin : fopen(srcFilename, "rb");
-    const char* const outFilenameIntermediate = (stdinUsed && !dstFilenameOrNull) ? stdoutmark : dstFilenameOrNull;
-    const char* outFilename = outFilenameIntermediate;
-    char fileAndSuffix[MAX_PATH];
-    size_t const numJobs = MAX_NUM_JOBS;
-    int ret = 0;
-    adaptCCtx* ctx = NULL;
-    UTIL_getTime(&g_startTime);
-    g_streamedSize = 0;
-
-    if (!outFilenameIntermediate) {
-        if (snprintf(fileAndSuffix, MAX_PATH, "%s.zst", srcFilename) + 1 > MAX_PATH) {
-            DISPLAY("Error: output filename is too long\n");
-            ret = 1;
-            goto cleanup;
-        }
-        outFilename = fileAndSuffix;
-    }
-
-    /* checking for errors */
-    if (!srcFilename || !outFilename || !srcFile) {
-        DISPLAY("Error: initial variables could not be allocated\n");
-        ret = 1;
-        goto cleanup;
-    }
-
-    /* creating context */
-    ctx = createCCtx(numJobs, outFilename);
-    if (ctx == NULL) {
-        ret = 1;
-        goto cleanup;
+    if (!ctx || !srcFile) {
+        return 1;
     }
 
     /* create output thread */
@@ -507,8 +483,8 @@ static int compressFilename(const char* const srcFilename, const char* const dst
         pthread_t out;
         if (pthread_create(&out, NULL, &outputThread, ctx)) {
             DISPLAY("Error: could not create output thread\n");
-            ret = 1;
-            goto cleanup;
+            ctx->threadError = 1;
+            return 1;
         }
     }
 
@@ -517,8 +493,8 @@ static int compressFilename(const char* const srcFilename, const char* const dst
         pthread_t compression;
         if (pthread_create(&compression, NULL, &compressionThread, ctx)) {
             DISPLAY("Error: could not create compression thread\n");
-            ret = 1;
-            goto cleanup;
+            ctx->threadError = 1;
+            return 1;
         }
     }
 
@@ -528,8 +504,7 @@ static int compressFilename(const char* const srcFilename, const char* const dst
         if (readSize != FILE_CHUNK_SIZE && !feof(srcFile)) {
             DISPLAY("Error: problem occurred during read from src file\n");
             ctx->threadError = 1;
-            ret = 1;
-            goto cleanup;
+            return 1;
         }
         g_streamedSize += readSize;
         /* reading was fine, now create the compression job */
@@ -537,9 +512,8 @@ static int compressFilename(const char* const srcFilename, const char* const dst
             int const last = feof(srcFile);
             int const error = createCompressionJob(ctx, readSize, last);
             if (error != 0) {
-                ret = error;
                 ctx->threadError = 1;
-                goto cleanup;
+                return error;
             }
         }
         if (feof(srcFile)) {
@@ -548,12 +522,60 @@ static int compressFilename(const char* const srcFilename, const char* const dst
         }
     }
 
-cleanup:
-    waitUntilAllJobsCompleted(ctx);
-    if (g_displayStats) printStats(ctx->stats);
-    /* file compression completed */
-    ret  |= (srcFile != NULL) ? fclose(srcFile) : 0;
-    ret |= (ctx != NULL) ? freeCCtx(ctx) : 0;
+    /* success -- created all jobs */
+    return 0;
+}
+
+static fcResources createFileCompressionResources(const char* const srcFilename, const char* const dstFilenameOrNull)
+{
+    fcResources fcr;
+    unsigned const stdinUsed = !strcmp(srcFilename, stdinmark);
+    FILE* const srcFile = stdinUsed ? stdin : fopen(srcFilename, "rb");
+    const char* const outFilenameIntermediate = (stdinUsed && !dstFilenameOrNull) ? stdoutmark : dstFilenameOrNull;
+    const char* outFilename = outFilenameIntermediate;
+    char fileAndSuffix[MAX_PATH];
+    size_t const numJobs = MAX_NUM_JOBS;
+
+    memset(&fcr, 0, sizeof(fcr));
+
+    if (!outFilenameIntermediate) {
+        if (snprintf(fileAndSuffix, MAX_PATH, "%s.zst", srcFilename) + 1 > MAX_PATH) {
+            DISPLAY("Error: output filename is too long\n");
+            return fcr;
+        }
+        outFilename = fileAndSuffix;
+    }
+
+    /* checking for errors */
+    if (!outFilename || !srcFile) {
+        DISPLAY("Error: initial variables could not be allocated\n");
+        return fcr;
+    }
+
+    /* creating context */
+    fcr.ctx = createCCtx(numJobs, outFilename);
+    fcr.srcFile = srcFile;
+    return fcr;
+}
+
+static int freeFileCompressionResources(fcResources* fcr)
+{
+    int ret = 0;
+    waitUntilAllJobsCompleted(fcr->ctx);
+    if (g_displayStats) printStats(fcr->ctx->stats);
+    ret |= (fcr->srcFile != NULL) ? fclose(fcr->srcFile) : 0;
+    ret |= (fcr->ctx != NULL) ? freeCCtx(fcr->ctx) : 0;
+    return ret;
+}
+
+static int compressFilename(const char* const srcFilename, const char* const dstFilenameOrNull)
+{
+    int ret = 0;
+    UTIL_getTime(&g_startTime);
+    g_streamedSize = 0;
+    fcResources fcr = createFileCompressionResources(srcFilename, dstFilenameOrNull);
+    ret |= performCompression(fcr.ctx, fcr.srcFile);
+    ret |= freeFileCompressionResources(&fcr);
     return ret;
 }
 

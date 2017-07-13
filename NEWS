@@ -1,6 +1,7 @@
 v1.3.1
+perf: substantially decreased memory usage in Multi-threading mode, thanks to reports by Tino Reichardt
 build: fix Visual compilation for non x86/x64 targets, reported by Greg Slazinski (#718)
-API exp : breaking change : ZSTD_getframeHeader() 
+API exp : breaking change : ZSTD_getframeHeader() provides more information
 
 v1.3.0
 cli : new : `--list` command, by Paul Cruz

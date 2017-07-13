@@ -377,7 +377,7 @@ size_t ZSTD_CCtx_setParameter(ZSTD_CCtx* cctx, ZSTD_cParameter param, unsigned v
                 return ERROR(compressionParameter_unsupported);
             ZSTDMT_freeCCtx(cctx->mtctx);
             cctx->nbThreads = 1;
-            cctx->mtctx = ZSTDMT_createCCtx(value);
+            cctx->mtctx = ZSTDMT_createCCtx_advanced(value, cctx->customMem);
             if (cctx->mtctx == NULL) return ERROR(memory_allocation);
         }
         cctx->nbThreads = value;

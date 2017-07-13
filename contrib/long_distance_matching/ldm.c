@@ -28,6 +28,7 @@
 #define RUN_MASK ((1U<<RUN_BITS)-1)
 
 #define COMPUTE_STATS
+#define CHECKSUM_CHAR_OFFSET 2
 //#define RUN_CHECKS
 //#define LDM_DEBUG
 
@@ -191,11 +192,14 @@ static U32 getChecksum(const char *data, U32 len) {
   s1 = s2 = 0;
   for (i = 0; i < (len - 4); i += 4) {
     s2 += (4 * (s1 + buf[i])) + (3 * buf[i + 1]) +
-          (2 * buf[i + 2]) + (buf[i + 3]);
-    s1 += buf[i] + buf[i + 1] + buf[i + 2] + buf[i + 3];
+          (2 * buf[i + 2]) + (buf[i + 3]) +
+          (10 * CHECKSUM_CHAR_OFFSET);
+    s1 += buf[i] + buf[i + 1] + buf[i + 2] + buf[i + 3] +
+          + (4 * CHECKSUM_CHAR_OFFSET);
+
   }
   for(; i < len; i++) {
-    s1 += buf[i];
+    s1 += buf[i] + CHECKSUM_CHAR_OFFSET;
     s2 += s1;
   }
   return (s1 & 0xffff) + (s2 << 16);
@@ -213,7 +217,7 @@ static U32 getChecksum(const char *data, U32 len) {
 static U32 updateChecksum(U32 sum, U32 len,
                           schar toRemove, schar toAdd) {
   U32 s1 = (sum & 0xffff) - toRemove + toAdd;
-  U32 s2 = (sum >> 16) - (toRemove * len) + s1;
+  U32 s2 = (sum >> 16) - ((toRemove + CHECKSUM_CHAR_OFFSET) * len) + s1;
 
   return (s1 & 0xffff) + (s2 << 16);
 }
@@ -344,9 +348,9 @@ static unsigned countMatchLength(const BYTE *pIn, const BYTE *pMatch,
   return (unsigned)(pIn - pStart);
 }
 
-void LDM_readHeader(const void *src, size_t *compressSize,
-                    size_t *decompressSize) {
-  const U32 *ip = (const U32 *)src;
+void LDM_readHeader(const void *src, U64 *compressSize,
+                    U64 *decompressSize) {
+  const U64 *ip = (const U64 *)src;
   *compressSize = *ip++;
   *decompressSize = *ip;
 }

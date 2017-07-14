@@ -19,8 +19,8 @@
 #define WINDOW_SIZE (1 << 25)
 
 //These should be multiples of four.
-#define LDM_MIN_MATCH_LENGTH 4
-#define LDM_HASH_LENGTH 4
+#define LDM_MIN_MATCH_LENGTH 1024
+#define LDM_HASH_LENGTH 1024
 
 typedef U32 offset_t;
 typedef U32 hash_t;

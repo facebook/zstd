@@ -26,6 +26,7 @@
 typedef U32 offset_t;
 typedef U32 hash_t;
 typedef struct LDM_hashEntry LDM_hashEntry;
+typedef struct LDM_hashTable LDM_hashTable;
 typedef struct LDM_compressStats LDM_compressStats;
 typedef struct LDM_CCtx LDM_CCtx;
 typedef struct LDM_DCtx LDM_DCtx;
@@ -62,17 +63,23 @@ size_t LDM_compress(const void *src, size_t srcSize,
 
 /**
  * Initialize the compression context.
+ *
+ * Allocates memory for the hash table.
  */
 void LDM_initializeCCtx(LDM_CCtx *cctx,
                         const void *src, size_t srcSize,
                         void *dst, size_t maxDstSize);
 
 /**
+ * Frees up memory allocating in initializeCCtx
+ */
+void LDM_destroyCCtx(LDM_CCtx *cctx);
+
+/**
  * Prints the percentage of the hash table occupied (where occupied is defined
  * as the entry being non-zero).
  */
-void LDM_outputHashTableOccupancy(const LDM_hashEntry *hashTable,
-                                  U32 hashTableSize);
+void LDM_outputHashTableOccupancy(const LDM_hashTable *hashTable);
 
 /**
  * Prints the distribution of offsets in the hash table.

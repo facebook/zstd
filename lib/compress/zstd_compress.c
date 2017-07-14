@@ -214,7 +214,7 @@ size_t ZSTD_setCCtxParameter(ZSTD_CCtx* cctx, ZSTD_CCtxParameter param, unsigned
     ZSTD_STATIC_ASSERT(ZSTD_dm_auto==0);
     ZSTD_STATIC_ASSERT(ZSTD_dm_rawContent==1);
     case ZSTD_p_forceRawDict : cctx->dictMode = (ZSTD_dictMode_e)(value>0); return 0;
-    default: return ERROR(parameter_unknown);
+    default: return ERROR(parameter_unsupported);
     }
 }
 
@@ -228,9 +228,9 @@ static void ZSTD_cLevelToCParams(ZSTD_CCtx* cctx)
     cctx->compressionLevel = ZSTD_CLEVEL_CUSTOM;
 }
 
-#define CLAMPCHECK(val,min,max) {                       \
-    if (((val)<(min)) | ((val)>(max))) {                \
-        return ERROR(compressionParameter_outOfBound);  \
+#define CLAMPCHECK(val,min,max) {            \
+    if (((val)<(min)) | ((val)>(max))) {     \
+        return ERROR(parameter_outOfBound);  \
 }   }
 
 size_t ZSTD_CCtx_setParameter(ZSTD_CCtx* cctx, ZSTD_cParameter param, unsigned value)
@@ -326,7 +326,7 @@ size_t ZSTD_CCtx_setParameter(ZSTD_CCtx* cctx, ZSTD_cParameter param, unsigned v
         /* restrict dictionary mode, to "rawContent" or "fullDict" only */
         ZSTD_STATIC_ASSERT((U32)ZSTD_dm_fullDict > (U32)ZSTD_dm_rawContent);
         if (value > (unsigned)ZSTD_dm_fullDict)
-            return ERROR(compressionParameter_outOfBound);
+            return ERROR(parameter_outOfBound);
         cctx->dictMode = (ZSTD_dictMode_e)value;
         return 0;
 
@@ -347,11 +347,11 @@ size_t ZSTD_CCtx_setParameter(ZSTD_CCtx* cctx, ZSTD_cParameter param, unsigned v
         if (value==0) return 0;
         DEBUGLOG(5, " setting nbThreads : %u", value);
 #ifndef ZSTD_MULTITHREAD
-        if (value > 1) return ERROR(compressionParameter_unsupported);
+        if (value > 1) return ERROR(parameter_unsupported);
 #endif
         if ((value>1) && (cctx->nbThreads != value)) {
             if (cctx->staticSize)  /* MT not compatible with static alloc */
-                return ERROR(compressionParameter_unsupported);
+                return ERROR(parameter_unsupported);
             ZSTDMT_freeCCtx(cctx->mtctx);
             cctx->nbThreads = 1;
             cctx->mtctx = ZSTDMT_createCCtx_advanced(value, cctx->customMem);
@@ -361,17 +361,17 @@ size_t ZSTD_CCtx_setParameter(ZSTD_CCtx* cctx, ZSTD_cParameter param, unsigned v
         return 0;
 
     case ZSTD_p_jobSize:
-        if (cctx->nbThreads <= 1) return ERROR(compressionParameter_unsupported);
+        if (cctx->nbThreads <= 1) return ERROR(parameter_unsupported);
         assert(cctx->mtctx != NULL);
         return ZSTDMT_setMTCtxParameter(cctx->mtctx, ZSTDMT_p_sectionSize, value);
 
     case ZSTD_p_overlapSizeLog:
         DEBUGLOG(5, " setting overlap with nbThreads == %u", cctx->nbThreads);
-        if (cctx->nbThreads <= 1) return ERROR(compressionParameter_unsupported);
+        if (cctx->nbThreads <= 1) return ERROR(parameter_unsupported);
         assert(cctx->mtctx != NULL);
         return ZSTDMT_setMTCtxParameter(cctx->mtctx, ZSTDMT_p_overlapSectionLog, value);
 
-    default: return ERROR(parameter_unknown);
+    default: return ERROR(parameter_unsupported);
     }
 }
 
@@ -451,7 +451,8 @@ size_t ZSTD_checkCParams(ZSTD_compressionParameters cParams)
     CLAMPCHECK(cParams.searchLog, ZSTD_SEARCHLOG_MIN, ZSTD_SEARCHLOG_MAX);
     CLAMPCHECK(cParams.searchLength, ZSTD_SEARCHLENGTH_MIN, ZSTD_SEARCHLENGTH_MAX);
     CLAMPCHECK(cParams.targetLength, ZSTD_TARGETLENGTH_MIN, ZSTD_TARGETLENGTH_MAX);
-    if ((U32)(cParams.strategy) > (U32)ZSTD_btultra) return ERROR(compressionParameter_unsupported);
+    if ((U32)(cParams.strategy) > (U32)ZSTD_btultra)
+        return ERROR(parameter_unsupported);
     return 0;
 }
 

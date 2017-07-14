@@ -13,7 +13,7 @@
 #include "zstd.h"
 
 #define DEBUG
-//#define TEST
+#define TEST
 
 /* Compress file given by fname and output to oname.
  * Returns 0 if successful, error code otherwise.

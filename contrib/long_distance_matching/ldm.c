@@ -15,13 +15,23 @@
 #define RUN_MASK ((1U<<RUN_BITS)-1)
 
 #define COMPUTE_STATS
-#define CHECKSUM_CHAR_OFFSET 0
+#define CHECKSUM_CHAR_OFFSET 10
 //#define RUN_CHECKS
 //#define LDM_DEBUG
 
 struct LDM_hashEntry {
   offset_t offset;
 };
+
+typedef struct LDM_hashTable {
+  U32 numEntries;
+  U32 minimumTagMask;  // TODO: what if tag == offset?
+
+  // Maximum number of elements in the table.
+  U32 limit;
+
+  LDM_hashEntry *entries;
+} LDM_hashTable;
 
 // TODO: Add offset histogram by powers of two
 // TODO: Scanning speed
@@ -36,6 +46,8 @@ struct LDM_compressStats {
 
   U32 numCollisions;
   U32 numHashInserts;
+
+  U32 offsetHistogram[32];
 };
 
 struct LDM_CCtx {
@@ -92,7 +104,19 @@ void LDM_outputHashtableOccupancy(
          100.0 * (double)(ctr) / (double)hashTableSize);
 }
 
+// TODO: This can be done more efficienctly but is not that important as it
+// is only used for computing stats.
+//
+static int intLog2(U32 x) {
+  int ret = 0;
+  while (x >>= 1) {
+    ret++;
+  }
+  return ret;
+}
+
 void LDM_printCompressStats(const LDM_compressStats *stats) {
+  int i = 0;
   printf("=====================\n");
   printf("Compression statistics\n");
   //TODO: compute percentage matched?
@@ -107,11 +131,22 @@ void LDM_printCompressStats(const LDM_compressStats *stats) {
          ((double)stats->totalOffset) / (double)stats->numMatches);
   printf("min offset, max offset: %u %u\n",
          stats->minOffset, stats->maxOffset);
+
+  printf("\n");
+  printf("offset histogram\n");
+  for (; i <= intLog2(stats->maxOffset); i++) {
+    printf("2^%*d: %10u\n", 2, i, stats->offsetHistogram[i]);
+  }
+  printf("\n");
+
+
   printf("num collisions, num hash inserts, %% collisions: %u, %u, %.3f\n",
          stats->numCollisions, stats->numHashInserts,
          stats->numHashInserts == 0 ?
             1.0 : (100.0 * (double)stats->numCollisions) /
                   (double)stats->numHashInserts);
+  printf("=====================\n");
+
 }
 
 int LDM_isValidMatch(const BYTE *pIn, const BYTE *pMatch) {
@@ -145,7 +180,7 @@ int LDM_isValidMatch(const BYTE *pIn, const BYTE *pMatch) {
  * of the hash table.
  */
 static hash_t checksumToHash(U32 sum) {
-  return ((sum * 2654435761U) >> ((32)-LDM_HASHLOG));
+  return ((sum * 2654435761U) >> (32 - LDM_HASHLOG));
 }
 
 /**
@@ -490,6 +525,7 @@ size_t LDM_compress(const void *src, size_t srcSize,
           offset < cctx.stats.minOffset ? offset : cctx.stats.minOffset;
       cctx.stats.maxOffset =
           offset > cctx.stats.maxOffset ? offset : cctx.stats.maxOffset;
+      cctx.stats.offsetHistogram[(U32)intLog2(offset)]++;
 #endif
 
       // Move ip to end of block, inserting hashes at each position.
@@ -607,7 +643,6 @@ size_t LDM_decompress(const void *src, size_t compressedSize,
 
 // TODO: implement and test hash function
 void LDM_test(void) {
-
 }
 
 /*

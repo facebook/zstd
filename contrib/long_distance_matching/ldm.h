@@ -11,7 +11,7 @@
 #define LDM_OFFSET_SIZE 4
 
 // Defines the size of the hash table.
-#define LDM_MEMORY_USAGE 22
+#define LDM_MEMORY_USAGE 20
 #define LDM_HASHLOG (LDM_MEMORY_USAGE-2)
 #define LDM_HASHTABLESIZE (1 << (LDM_MEMORY_USAGE))
 #define LDM_HASHTABLESIZE_U32 ((LDM_HASHTABLESIZE) >> 2)
@@ -19,8 +19,8 @@
 #define WINDOW_SIZE (1 << 25)
 
 //These should be multiples of four.
-#define LDM_MIN_MATCH_LENGTH 8
-#define LDM_HASH_LENGTH 8
+#define LDM_MIN_MATCH_LENGTH 4
+#define LDM_HASH_LENGTH 4
 
 typedef U32 offset_t;
 typedef U32 hash_t;

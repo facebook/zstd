@@ -27,7 +27,7 @@ default: all
 
 all: main-ldm
 
-main-ldm : ldm.c main-ldm.c
+main-ldm : ldm.h ldm.c main-ldm.c
 	$(CC) $(CPPFLAGS) $(CFLAGS) $^ $(LDFLAGS) -o $@
 
 clean:

@@ -496,7 +496,7 @@ size_t ZSTDMT_setMTCtxParameter(ZSTDMT_CCtx* mtctx, ZSDTMT_parameter parameter, 
         mtctx->overlapLog = (value >= 9) ? 9 : value;
         return 0;
     default :
-        return ERROR(compressionParameter_unsupported);
+        return ERROR(parameter_unsupported);
     }
 }
 

@@ -2227,7 +2227,7 @@ size_t ZSTD_setDStreamParameter(ZSTD_DStream* zds,
 {
     switch(paramType)
     {
-        default : return ERROR(parameter_unknown);
+        default : return ERROR(parameter_unsupported);
         case DStream_p_maxWindowSize : zds->maxWindowSize = paramValue ? paramValue : (U32)(-1); break;
     }
     return 0;

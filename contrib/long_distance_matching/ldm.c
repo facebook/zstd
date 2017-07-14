@@ -135,7 +135,10 @@ void LDM_printCompressStats(const LDM_compressStats *stats) {
   printf("\n");
   printf("offset histogram\n");
   for (; i <= intLog2(stats->maxOffset); i++) {
-    printf("2^%*d: %10u\n", 2, i, stats->offsetHistogram[i]);
+    printf("2^%*d: %10u    %6.3f%%\n", 2, i,
+           stats->offsetHistogram[i],
+           100.0 * (double) stats->offsetHistogram[i] /
+                   (double)stats->numMatches);
   }
   printf("\n");
 

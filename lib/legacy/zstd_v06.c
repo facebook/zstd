@@ -3084,7 +3084,7 @@ size_t ZSTDv06_getFrameParams(ZSTDv06_frameParams* fparamsPtr, const void* src, 
 static size_t ZSTDv06_decodeFrameHeader(ZSTDv06_DCtx* zc, const void* src, size_t srcSize)
 {
     size_t const result = ZSTDv06_getFrameParams(&(zc->fParams), src, srcSize);
-    if ((MEM_32bits()) && (zc->fParams.windowLog > 25)) return ERROR(frameParameter_unsupportedBy32bits);
+    if ((MEM_32bits()) && (zc->fParams.windowLog > 25)) return ERROR(frameParameter_unsupported);
     return result;
 }
 

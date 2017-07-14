@@ -3,6 +3,7 @@ perf: substantially decreased memory usage in Multi-threading mode, thanks to re
 perf: Multi-threading supports up to 256 threads. Cap at 256 when more are requested (#760)
 build: fix Visual compilation for non x86/x64 targets, reported by Greg Slazinski (#718)
 API exp : breaking change : ZSTD_getframeHeader() provides more information
+API exp : breaking change : pinned down values of error codes
 
 v1.3.0
 cli : new : `--list` command, by Paul Cruz

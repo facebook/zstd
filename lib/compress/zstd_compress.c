@@ -1017,6 +1017,144 @@ void ZSTD_seqToCodes(const seqStore_t* seqStorePtr)
         mlCodeTable[seqStorePtr->longLengthPos] = MaxML;
 }
 
+MEM_STATIC symbolEncodingType_e ZSTD_selectEncodingType(FSE_repeat* repeatMode,
+        size_t const mostFrequent, size_t nbSeq, U32 defaultNormLog)
+{
+#define MIN_SEQ_FOR_DYNAMIC_FSE   64
+#define MAX_SEQ_FOR_STATIC_FSE  1000
+
+    if ((mostFrequent == nbSeq) && (nbSeq > 2)) {
+        *repeatMode = FSE_repeat_check;
+        return set_rle;
+    }
+    if ((*repeatMode == FSE_repeat_valid) && (nbSeq < MAX_SEQ_FOR_STATIC_FSE)) {
+        return set_repeat;
+    }
+    if ((nbSeq < MIN_SEQ_FOR_DYNAMIC_FSE) || (mostFrequent < (nbSeq >> (defaultNormLog-1)))) {
+        *repeatMode = FSE_repeat_valid;
+        return set_basic;
+    }
+    *repeatMode = FSE_repeat_check;
+    return set_compressed;
+}
+
+MEM_STATIC size_t ZSTD_buildCTable(void* dst, size_t dstCapacity,
+        FSE_CTable* CTable, U32 FSELog, symbolEncodingType_e type,
+        U32* count, U32 max,
+        BYTE const* codeTable, size_t nbSeq,
+        S16 const* defaultNorm, U32 defaultNormLog, U32 defaultMax,
+        void* workspace, size_t workspaceSize)
+{
+    BYTE* op = (BYTE*)dst;
+    BYTE const* const oend = op + dstCapacity;
+
+    switch (type) {
+    case set_rle:
+        *op = codeTable[0];
+        CHECK_F(FSE_buildCTable_rle(CTable, (BYTE)max));
+        return 1;
+    case set_repeat:
+        return 0;
+    case set_basic:
+        CHECK_F(FSE_buildCTable_wksp(CTable, defaultNorm, defaultMax, defaultNormLog, workspace, workspaceSize));
+        return 0;
+    case set_compressed: {
+        S16 norm[MaxSeq + 1];
+        size_t nbSeq_1 = nbSeq;
+        const U32 tableLog = FSE_optimalTableLog(FSELog, nbSeq, max);
+        if (count[codeTable[nbSeq-1]] > 1) {
+            count[codeTable[nbSeq-1]]--;
+            nbSeq_1--;
+        }
+        CHECK_F(FSE_normalizeCount(norm, tableLog, count, nbSeq_1, max));
+        {   size_t const NCountSize = FSE_writeNCount(op, oend - op, norm, max, tableLog);   /* overflow protected */
+            if (FSE_isError(NCountSize)) return NCountSize;
+            CHECK_F(FSE_buildCTable_wksp(CTable, norm, max, tableLog, workspace, workspaceSize));
+            return NCountSize;
+        }
+    }
+    default: return assert(0), ERROR(GENERIC);
+    }
+}
+
+MEM_STATIC size_t ZSTD_encodeSequences(void* dst, size_t dstCapacity,
+    FSE_CTable const* CTable_MatchLength, BYTE const* mlCodeTable,
+    FSE_CTable const* CTable_OffsetBits, BYTE const* ofCodeTable,
+    FSE_CTable const* CTable_LitLength, BYTE const* llCodeTable,
+    seqDef const* sequences, size_t nbSeq, int longOffsets)
+{
+    BIT_CStream_t blockStream;
+    FSE_CState_t  stateMatchLength;
+    FSE_CState_t  stateOffsetBits;
+    FSE_CState_t  stateLitLength;
+
+    CHECK_E(BIT_initCStream(&blockStream, dst, dstCapacity), dstSize_tooSmall); /* not enough space remaining */
+
+    /* first symbols */
+    FSE_initCState2(&stateMatchLength, CTable_MatchLength, mlCodeTable[nbSeq-1]);
+    FSE_initCState2(&stateOffsetBits,  CTable_OffsetBits,  ofCodeTable[nbSeq-1]);
+    FSE_initCState2(&stateLitLength,   CTable_LitLength,   llCodeTable[nbSeq-1]);
+    BIT_addBits(&blockStream, sequences[nbSeq-1].litLength, LL_bits[llCodeTable[nbSeq-1]]);
+    if (MEM_32bits()) BIT_flushBits(&blockStream);
+    BIT_addBits(&blockStream, sequences[nbSeq-1].matchLength, ML_bits[mlCodeTable[nbSeq-1]]);
+    if (MEM_32bits()) BIT_flushBits(&blockStream);
+    if (longOffsets) {
+        U32 const ofBits = ofCodeTable[nbSeq-1];
+        int const extraBits = ofBits - MIN(ofBits, STREAM_ACCUMULATOR_MIN-1);
+        if (extraBits) {
+            BIT_addBits(&blockStream, sequences[nbSeq-1].offset, extraBits);
+            BIT_flushBits(&blockStream);
+        }
+        BIT_addBits(&blockStream, sequences[nbSeq-1].offset >> extraBits,
+                    ofBits - extraBits);
+    } else {
+        BIT_addBits(&blockStream, sequences[nbSeq-1].offset, ofCodeTable[nbSeq-1]);
+    }
+    BIT_flushBits(&blockStream);
+
+    {   size_t n;
+        for (n=nbSeq-2 ; n<nbSeq ; n--) {      /* intentional underflow */
+            BYTE const llCode = llCodeTable[n];
+            BYTE const ofCode = ofCodeTable[n];
+            BYTE const mlCode = mlCodeTable[n];
+            U32  const llBits = LL_bits[llCode];
+            U32  const ofBits = ofCode;                                     /* 32b*/  /* 64b*/
+            U32  const mlBits = ML_bits[mlCode];
+                                                                            /* (7)*/  /* (7)*/
+            FSE_encodeSymbol(&blockStream, &stateOffsetBits, ofCode);       /* 15 */  /* 15 */
+            FSE_encodeSymbol(&blockStream, &stateMatchLength, mlCode);      /* 24 */  /* 24 */
+            if (MEM_32bits()) BIT_flushBits(&blockStream);                  /* (7)*/
+            FSE_encodeSymbol(&blockStream, &stateLitLength, llCode);        /* 16 */  /* 33 */
+            if (MEM_32bits() || (ofBits+mlBits+llBits >= 64-7-(LLFSELog+MLFSELog+OffFSELog)))
+                BIT_flushBits(&blockStream);                                /* (7)*/
+            BIT_addBits(&blockStream, sequences[n].litLength, llBits);
+            if (MEM_32bits() && ((llBits+mlBits)>24)) BIT_flushBits(&blockStream);
+            BIT_addBits(&blockStream, sequences[n].matchLength, mlBits);
+            if (MEM_32bits()) BIT_flushBits(&blockStream);                  /* (7)*/
+            if (longOffsets) {
+                int const extraBits = ofBits - MIN(ofBits, STREAM_ACCUMULATOR_MIN-1);
+                if (extraBits) {
+                    BIT_addBits(&blockStream, sequences[n].offset, extraBits);
+                    BIT_flushBits(&blockStream);                            /* (7)*/
+                }
+                BIT_addBits(&blockStream, sequences[n].offset >> extraBits,
+                            ofBits - extraBits);                            /* 31 */
+            } else {
+                BIT_addBits(&blockStream, sequences[n].offset, ofBits);     /* 31 */
+            }
+            BIT_flushBits(&blockStream);                                    /* (7)*/
+    }   }
+
+    FSE_flushCState(&blockStream, &stateMatchLength);
+    FSE_flushCState(&blockStream, &stateOffsetBits);
+    FSE_flushCState(&blockStream, &stateLitLength);
+
+    {   size_t const streamSize = BIT_closeCStream(&blockStream);
+        if (streamSize==0) return ERROR(dstSize_tooSmall);   /* not enough space */
+        return streamSize;
+    }
+}
+
 MEM_STATIC size_t ZSTD_compressSequences (ZSTD_CCtx* zc,
                               void* dst, size_t dstCapacity,
                               size_t srcSize)
@@ -1024,7 +1162,6 @@ MEM_STATIC size_t ZSTD_compressSequences (ZSTD_CCtx* zc,
     const int longOffsets = zc->appliedParams.cParams.windowLog > STREAM_ACCUMULATOR_MIN;
     const seqStore_t* seqStorePtr = &(zc->seqStore);
     U32 count[MaxSeq+1];
-    S16 norm[MaxSeq+1];
     FSE_CTable* CTable_LitLength = zc->entropy->litlengthCTable;
     FSE_CTable* CTable_OffsetBits = zc->entropy->offcodeCTable;
     FSE_CTable* CTable_MatchLength = zc->entropy->matchlengthCTable;
@@ -1038,7 +1175,8 @@ MEM_STATIC size_t ZSTD_compressSequences (ZSTD_CCtx* zc,
     BYTE* op = ostart;
     size_t const nbSeq = seqStorePtr->sequences - seqStorePtr->sequencesStart;
     BYTE* seqHead;
-    BYTE scratchBuffer[1<<MAX(MLFSELog,LLFSELog)];
+
+    ZSTD_STATIC_ASSERT(sizeof(zc->entropy->workspace) >= (1<<MAX(MLFSELog,LLFSELog)));
 
     /* Compress literals */
     {   const BYTE* const literals = seqStorePtr->litStart;
@@ -1058,166 +1196,50 @@ MEM_STATIC size_t ZSTD_compressSequences (ZSTD_CCtx* zc,
     /* seqHead : flags for FSE encoding type */
     seqHead = op++;
 
-#define MIN_SEQ_FOR_DYNAMIC_FSE   64
-#define MAX_SEQ_FOR_STATIC_FSE  1000
-
     /* convert length/distances into codes */
     ZSTD_seqToCodes(seqStorePtr);
-
     /* CTable for Literal Lengths */
     {   U32 max = MaxLL;
         size_t const mostFrequent = FSE_countFast_wksp(count, &max, llCodeTable, nbSeq, zc->entropy->workspace);
-        if ((mostFrequent == nbSeq) && (nbSeq > 2)) {
-            *op++ = llCodeTable[0];
-            FSE_buildCTable_rle(CTable_LitLength, (BYTE)max);
-            LLtype = set_rle;
-            zc->entropy->litlength_repeatMode = FSE_repeat_check;
-        } else if ((zc->entropy->litlength_repeatMode == FSE_repeat_valid) && (nbSeq < MAX_SEQ_FOR_STATIC_FSE)) {
-            LLtype = set_repeat;
-        } else if ((nbSeq < MIN_SEQ_FOR_DYNAMIC_FSE) || (mostFrequent < (nbSeq >> (LL_defaultNormLog-1)))) {
-            FSE_buildCTable_wksp(CTable_LitLength, LL_defaultNorm, MaxLL, LL_defaultNormLog, scratchBuffer, sizeof(scratchBuffer));
-            LLtype = set_basic;
-            zc->entropy->litlength_repeatMode = FSE_repeat_valid;
-        } else {
-            size_t nbSeq_1 = nbSeq;
-            const U32 tableLog = FSE_optimalTableLog(LLFSELog, nbSeq, max);
-            if (count[llCodeTable[nbSeq-1]]>1) { count[llCodeTable[nbSeq-1]]--; nbSeq_1--; }
-            FSE_normalizeCount(norm, tableLog, count, nbSeq_1, max);
-            { size_t const NCountSize = FSE_writeNCount(op, oend-op, norm, max, tableLog);   /* overflow protected */
-              if (FSE_isError(NCountSize)) return NCountSize;
-              op += NCountSize; }
-            FSE_buildCTable_wksp(CTable_LitLength, norm, max, tableLog, scratchBuffer, sizeof(scratchBuffer));
-            LLtype = set_compressed;
-            zc->entropy->litlength_repeatMode = FSE_repeat_check;
+        LLtype = ZSTD_selectEncodingType(&zc->entropy->litlength_repeatMode, mostFrequent, nbSeq, LL_defaultNormLog);
+        {   size_t const countSize = ZSTD_buildCTable(op, oend - op, CTable_LitLength, LLFSELog, (symbolEncodingType_e)LLtype,
+                    count, max, llCodeTable, nbSeq, LL_defaultNorm, LL_defaultNormLog, MaxLL,
+                    zc->entropy->workspace, sizeof(zc->entropy->workspace));
+            if (ZSTD_isError(countSize)) return countSize;
+            op += countSize;
     }   }
-
     /* CTable for Offsets */
     {   U32 max = MaxOff;
         size_t const mostFrequent = FSE_countFast_wksp(count, &max, ofCodeTable, nbSeq, zc->entropy->workspace);
-        if ((mostFrequent == nbSeq) && (nbSeq > 2)) {
-            *op++ = ofCodeTable[0];
-            FSE_buildCTable_rle(CTable_OffsetBits, (BYTE)max);
-            Offtype = set_rle;
-            zc->entropy->offcode_repeatMode = FSE_repeat_check;
-        } else if ((zc->entropy->offcode_repeatMode == FSE_repeat_valid) && (nbSeq < MAX_SEQ_FOR_STATIC_FSE)) {
-            Offtype = set_repeat;
-        } else if ((nbSeq < MIN_SEQ_FOR_DYNAMIC_FSE) || (mostFrequent < (nbSeq >> (OF_defaultNormLog-1)))) {
-            FSE_buildCTable_wksp(CTable_OffsetBits, OF_defaultNorm, MaxOff, OF_defaultNormLog, scratchBuffer, sizeof(scratchBuffer));
-            Offtype = set_basic;
-            zc->entropy->offcode_repeatMode = FSE_repeat_valid;
-        } else {
-            size_t nbSeq_1 = nbSeq;
-            const U32 tableLog = FSE_optimalTableLog(OffFSELog, nbSeq, max);
-            if (count[ofCodeTable[nbSeq-1]]>1) { count[ofCodeTable[nbSeq-1]]--; nbSeq_1--; }
-            FSE_normalizeCount(norm, tableLog, count, nbSeq_1, max);
-            { size_t const NCountSize = FSE_writeNCount(op, oend-op, norm, max, tableLog);   /* overflow protected */
-              if (FSE_isError(NCountSize)) return NCountSize;
-              op += NCountSize; }
-            FSE_buildCTable_wksp(CTable_OffsetBits, norm, max, tableLog, scratchBuffer, sizeof(scratchBuffer));
-            Offtype = set_compressed;
-            zc->entropy->offcode_repeatMode = FSE_repeat_check;
+        Offtype = ZSTD_selectEncodingType(&zc->entropy->offcode_repeatMode, mostFrequent, nbSeq, OF_defaultNormLog);
+        {   size_t const countSize = ZSTD_buildCTable(op, oend - op, CTable_OffsetBits, OffFSELog, (symbolEncodingType_e)Offtype,
+                    count, max, ofCodeTable, nbSeq, OF_defaultNorm, OF_defaultNormLog, MaxOff,
+                    zc->entropy->workspace, sizeof(zc->entropy->workspace));
+            if (ZSTD_isError(countSize)) return countSize;
+            op += countSize;
     }   }
-
     /* CTable for MatchLengths */
     {   U32 max = MaxML;
         size_t const mostFrequent = FSE_countFast_wksp(count, &max, mlCodeTable, nbSeq, zc->entropy->workspace);
-        if ((mostFrequent == nbSeq) && (nbSeq > 2)) {
-            *op++ = *mlCodeTable;
-            FSE_buildCTable_rle(CTable_MatchLength, (BYTE)max);
-            MLtype = set_rle;
-            zc->entropy->matchlength_repeatMode = FSE_repeat_check;
-        } else if ((zc->entropy->matchlength_repeatMode == FSE_repeat_valid) && (nbSeq < MAX_SEQ_FOR_STATIC_FSE)) {
-            MLtype = set_repeat;
-        } else if ((nbSeq < MIN_SEQ_FOR_DYNAMIC_FSE) || (mostFrequent < (nbSeq >> (ML_defaultNormLog-1)))) {
-            FSE_buildCTable_wksp(CTable_MatchLength, ML_defaultNorm, MaxML, ML_defaultNormLog, scratchBuffer, sizeof(scratchBuffer));
-            MLtype = set_basic;
-            zc->entropy->matchlength_repeatMode = FSE_repeat_valid;
-        } else {
-            size_t nbSeq_1 = nbSeq;
-            const U32 tableLog = FSE_optimalTableLog(MLFSELog, nbSeq, max);
-            if (count[mlCodeTable[nbSeq-1]]>1) { count[mlCodeTable[nbSeq-1]]--; nbSeq_1--; }
-            FSE_normalizeCount(norm, tableLog, count, nbSeq_1, max);
-            { size_t const NCountSize = FSE_writeNCount(op, oend-op, norm, max, tableLog);   /* overflow protected */
-              if (FSE_isError(NCountSize)) return NCountSize;
-              op += NCountSize; }
-            FSE_buildCTable_wksp(CTable_MatchLength, norm, max, tableLog, scratchBuffer, sizeof(scratchBuffer));
-            MLtype = set_compressed;
-            zc->entropy->matchlength_repeatMode = FSE_repeat_check;
+        MLtype = ZSTD_selectEncodingType(&zc->entropy->matchlength_repeatMode, mostFrequent, nbSeq, ML_defaultNormLog);
+        {   size_t const countSize = ZSTD_buildCTable(op, oend - op, CTable_MatchLength, MLFSELog, (symbolEncodingType_e)MLtype,
+                    count, max, mlCodeTable, nbSeq, ML_defaultNorm, ML_defaultNormLog, MaxML,
+                    zc->entropy->workspace, sizeof(zc->entropy->workspace));
+            if (ZSTD_isError(countSize)) return countSize;
+            op += countSize;
     }   }
 
     *seqHead = (BYTE)((LLtype<<6) + (Offtype<<4) + (MLtype<<2));
 
-    /* Encoding Sequences */
-    {   BIT_CStream_t blockStream;
-        FSE_CState_t  stateMatchLength;
-        FSE_CState_t  stateOffsetBits;
-        FSE_CState_t  stateLitLength;
+    {   size_t const streamSize = ZSTD_encodeSequences(op, oend - op,
+                CTable_MatchLength, mlCodeTable,
+                CTable_OffsetBits, ofCodeTable,
+                CTable_LitLength, llCodeTable,
+                sequences, nbSeq, longOffsets);
+        if (ZSTD_isError(streamSize)) return streamSize;
+        op += streamSize;
+    }
 
-        CHECK_E(BIT_initCStream(&blockStream, op, oend-op), dstSize_tooSmall); /* not enough space remaining */
-
-        /* first symbols */
-        FSE_initCState2(&stateMatchLength, CTable_MatchLength, mlCodeTable[nbSeq-1]);
-        FSE_initCState2(&stateOffsetBits,  CTable_OffsetBits,  ofCodeTable[nbSeq-1]);
-        FSE_initCState2(&stateLitLength,   CTable_LitLength,   llCodeTable[nbSeq-1]);
-        BIT_addBits(&blockStream, sequences[nbSeq-1].litLength, LL_bits[llCodeTable[nbSeq-1]]);
-        if (MEM_32bits()) BIT_flushBits(&blockStream);
-        BIT_addBits(&blockStream, sequences[nbSeq-1].matchLength, ML_bits[mlCodeTable[nbSeq-1]]);
-        if (MEM_32bits()) BIT_flushBits(&blockStream);
-        if (longOffsets) {
-            U32 const ofBits = ofCodeTable[nbSeq-1];
-            int const extraBits = ofBits - MIN(ofBits, STREAM_ACCUMULATOR_MIN-1);
-            if (extraBits) {
-                BIT_addBits(&blockStream, sequences[nbSeq-1].offset, extraBits);
-                BIT_flushBits(&blockStream);
-            }
-            BIT_addBits(&blockStream, sequences[nbSeq-1].offset >> extraBits,
-                        ofBits - extraBits);
-        } else {
-            BIT_addBits(&blockStream, sequences[nbSeq-1].offset, ofCodeTable[nbSeq-1]);
-        }
-        BIT_flushBits(&blockStream);
-
-        {   size_t n;
-            for (n=nbSeq-2 ; n<nbSeq ; n--) {      /* intentional underflow */
-                BYTE const llCode = llCodeTable[n];
-                BYTE const ofCode = ofCodeTable[n];
-                BYTE const mlCode = mlCodeTable[n];
-                U32  const llBits = LL_bits[llCode];
-                U32  const ofBits = ofCode;                                     /* 32b*/  /* 64b*/
-                U32  const mlBits = ML_bits[mlCode];
-                                                                                /* (7)*/  /* (7)*/
-                FSE_encodeSymbol(&blockStream, &stateOffsetBits, ofCode);       /* 15 */  /* 15 */
-                FSE_encodeSymbol(&blockStream, &stateMatchLength, mlCode);      /* 24 */  /* 24 */
-                if (MEM_32bits()) BIT_flushBits(&blockStream);                  /* (7)*/
-                FSE_encodeSymbol(&blockStream, &stateLitLength, llCode);        /* 16 */  /* 33 */
-                if (MEM_32bits() || (ofBits+mlBits+llBits >= 64-7-(LLFSELog+MLFSELog+OffFSELog)))
-                    BIT_flushBits(&blockStream);                                /* (7)*/
-                BIT_addBits(&blockStream, sequences[n].litLength, llBits);
-                if (MEM_32bits() && ((llBits+mlBits)>24)) BIT_flushBits(&blockStream);
-                BIT_addBits(&blockStream, sequences[n].matchLength, mlBits);
-                if (MEM_32bits()) BIT_flushBits(&blockStream);                  /* (7)*/
-                if (longOffsets) {
-                    int const extraBits = ofBits - MIN(ofBits, STREAM_ACCUMULATOR_MIN-1);
-                    if (extraBits) {
-                        BIT_addBits(&blockStream, sequences[n].offset, extraBits);
-                        BIT_flushBits(&blockStream);                            /* (7)*/
-                    }
-                    BIT_addBits(&blockStream, sequences[n].offset >> extraBits,
-                                ofBits - extraBits);                            /* 31 */
-                } else {
-                    BIT_addBits(&blockStream, sequences[n].offset, ofBits);     /* 31 */
-                }
-                BIT_flushBits(&blockStream);                                    /* (7)*/
-        }   }
-
-        FSE_flushCState(&blockStream, &stateMatchLength);
-        FSE_flushCState(&blockStream, &stateOffsetBits);
-        FSE_flushCState(&blockStream, &stateLitLength);
-
-        {   size_t const streamSize = BIT_closeCStream(&blockStream);
-            if (streamSize==0) return ERROR(dstSize_tooSmall);   /* not enough space */
-            op += streamSize;
-    }   }
 
     /* check compressibility */
 _check_compressibility:

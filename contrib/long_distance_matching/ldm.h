@@ -12,9 +12,6 @@
 
 // Defines the size of the hash table.
 #define LDM_MEMORY_USAGE 16
-#define LDM_HASHLOG (LDM_MEMORY_USAGE-2)
-#define LDM_HASHTABLESIZE (1 << (LDM_MEMORY_USAGE))
-#define LDM_HASHTABLESIZE_U32 ((LDM_HASHTABLESIZE) >> 2)
 
 #define LDM_WINDOW_SIZE_LOG 25
 #define LDM_WINDOW_SIZE (1 << (LDM_WINDOW_SIZE_LOG))
@@ -23,10 +20,6 @@
 #define LDM_MIN_MATCH_LENGTH 4
 #define LDM_HASH_LENGTH 4
 
-typedef U32 offset_t;
-typedef U32 hash_t;
-typedef struct LDM_hashEntry LDM_hashEntry;
-typedef struct LDM_hashTable LDM_hashTable;
 typedef struct LDM_compressStats LDM_compressStats;
 typedef struct LDM_CCtx LDM_CCtx;
 typedef struct LDM_DCtx LDM_DCtx;
@@ -74,12 +67,6 @@ void LDM_initializeCCtx(LDM_CCtx *cctx,
  * Frees up memory allocating in initializeCCtx
  */
 void LDM_destroyCCtx(LDM_CCtx *cctx);
-
-/**
- * Prints the percentage of the hash table occupied (where occupied is defined
- * as the entry being non-zero).
- */
-void LDM_outputHashTableOccupancy(const LDM_hashTable *hashTable);
 
 /**
  * Prints the distribution of offsets in the hash table.

@@ -215,20 +215,6 @@ MEM_STATIC void ZSTD_wildcopy_e(void* dst, const void* src, void* dstEnd)   /* s
 *********************************************/
 typedef struct ZSTD_stats_s ZSTD_stats_t;
 
-typedef struct {
-    U32 off;
-    U32 len;
-} ZSTD_match_t;
-
-typedef struct {
-    U32 price;
-    U32 off;
-    U32 mlen;
-    U32 litlen;
-    U32 rep[ZSTD_REP_NUM];
-} ZSTD_optimal_t;
-
-
 typedef struct seqDef_s {
     U32 offset;
     U16 litLength;
@@ -248,13 +234,29 @@ typedef struct {
     U32   longLengthPos;
     U32   rep[ZSTD_REP_NUM];
     U32   repToConfirm[ZSTD_REP_NUM];
-    /* opt */
-    ZSTD_optimal_t* priceTable;
-    ZSTD_match_t* matchTable;
-    U32* matchLengthFreq;
-    U32* litLengthFreq;
+} seqStore_t;
+
+typedef struct {
+    U32 off;
+    U32 len;
+} ZSTD_match_t;
+
+typedef struct {
+    U32 price;
+    U32 off;
+    U32 mlen;
+    U32 litlen;
+    U32 rep[ZSTD_REP_NUM];
+} ZSTD_optimal_t;
+
+typedef struct {
     U32* litFreq;
+    U32* litLengthFreq;
+    U32* matchLengthFreq;
     U32* offCodeFreq;
+    ZSTD_match_t* matchTable;
+    ZSTD_optimal_t* priceTable;
+
     U32  matchLengthSum;
     U32  matchSum;
     U32  litLengthSum;
@@ -270,7 +272,7 @@ typedef struct {
     U32  cachedPrice;
     U32  cachedLitLength;
     const BYTE* cachedLiterals;
-} seqStore_t;
+} optState_t;
 
 typedef struct {
     U32 hufCTable[HUF_CTABLE_SIZE_U32(255)];

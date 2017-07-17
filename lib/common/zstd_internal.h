@@ -246,6 +246,8 @@ typedef struct {
     BYTE* ofCode;
     U32   longLengthID;   /* 0 == no longLength; 1 == Lit.longLength; 2 == Match.longLength; */
     U32   longLengthPos;
+    U32   rep[ZSTD_REP_NUM];
+    U32   repToConfirm[ZSTD_REP_NUM];
     /* opt */
     ZSTD_optimal_t* priceTable;
     ZSTD_match_t* matchTable;

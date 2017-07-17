@@ -501,7 +501,12 @@ static int createCompressionJob(adaptCCtx* ctx, size_t srcSize, int last)
     job->src.size = srcSize;
     job->jobID = nextJob;
     job->lastJob = last;
-    memcpy(job->src.start, ctx->input.buffer.start, ctx->lastDictSize + srcSize);
+    {
+        /* swap buffer */
+        void* const copy = job->src.start;
+        job->src.start = ctx->input.buffer.start;
+        ctx->input.buffer.start = copy;
+    }
     job->dictSize = ctx->lastDictSize;
     pthread_mutex_lock(&ctx->jobReady_mutex.pMutex);
     ctx->jobReadyID++;
@@ -514,7 +519,7 @@ static int createCompressionJob(adaptCCtx* ctx, size_t srcSize, int last)
     if (!last) {
         size_t const oldDictSize = ctx->lastDictSize;
         DEBUG(3, "oldDictSize %zu\n", oldDictSize);
-        memmove(ctx->input.buffer.start, ctx->input.buffer.start + oldDictSize, srcSize);
+        memcpy(ctx->input.buffer.start, job->src.start + oldDictSize, srcSize);
         ctx->lastDictSize = srcSize;
         ctx->input.filled = srcSize;
     }

@@ -5,7 +5,7 @@
 #include <string.h>
 
 // Insert every (HASH_ONLY_EVERY + 1) into the hash table.
-#define HASH_ONLY_EVERY 0
+#define HASH_ONLY_EVERY 31
 
 #define LDM_HASHLOG (LDM_MEMORY_USAGE-2)
 #define LDM_HASHTABLESIZE (1 << (LDM_MEMORY_USAGE))
@@ -37,8 +37,6 @@ struct LDM_compressStats {
 
   U32 numCollisions;
   U32 numHashInserts;
-
-//  U64 numInvalidHashes, numValidHashes; // tmp
 
   U32 offsetHistogram[32];
 };
@@ -153,45 +151,25 @@ void LDM_printCompressStats(const LDM_compressStats *stats) {
                    (double) stats->numMatches);
   }
   printf("\n");
-
-  /*
-  printf("Num invalid hashes, num valid hashes, %llu %llu\n",
-         stats->numInvalidHashes, stats->numValidHashes);
-  */
-  /*
-  printf("num collisions, num hash inserts, %% collisions: %u, %u, %.3f\n",
-         stats->numCollisions, stats->numHashInserts,
-         stats->numHashInserts == 0 ?
-            1.0 : (100.0 * (double)stats->numCollisions) /
-                  (double)stats->numHashInserts);
-  */
   printf("=====================\n");
 
 }
 
 int LDM_isValidMatch(const BYTE *pIn, const BYTE *pMatch) {
-  /*
-  if (memcmp(pIn, pMatch, LDM_MIN_MATCH_LENGTH) == 0) {
-    return 1;
-  }
-  return 0;
-  */
-
-  //TODO: This seems to be faster for some reason?
-
   U32 lengthLeft = LDM_MIN_MATCH_LENGTH;
   const BYTE *curIn = pIn;
   const BYTE *curMatch = pMatch;
 
-  for (; lengthLeft >= 8; lengthLeft -= 8) {
-    if (MEM_read64(curIn) != MEM_read64(curMatch)) {
+  if (pIn - pMatch > LDM_WINDOW_SIZE) {
+    return 0;
+  }
+
+  for (; lengthLeft >= 4; lengthLeft -= 4) {
+    if (MEM_read32(curIn) != MEM_read32(curMatch)) {
       return 0;
     }
-    curIn += 8;
-    curMatch += 8;
-  }
-  if (lengthLeft > 0) {
-    return (MEM_read32(curIn) == MEM_read32(curMatch));
+    curIn += 4;
+    curMatch += 4;
   }
   return 1;
 }
@@ -307,8 +285,11 @@ static void putHashOfCurrentPositionFromHash(
   // Hash only every HASH_ONLY_EVERY times, based on cctx->ip.
   // Note: this works only when cctx->step is 1.
   if (((cctx->ip - cctx->ibase) & HASH_ONLY_EVERY) == HASH_ONLY_EVERY) {
+    /**
     const LDM_hashEntry entry = { cctx->ip - cctx->ibase ,
                                   MEM_read32(cctx->ip) };
+                                  */
+    const LDM_hashEntry entry = { cctx->ip - cctx->ibase, sum };
     HASH_insert(cctx->hashTable, hash, entry);
   }
 
@@ -438,7 +419,7 @@ static int LDM_findBestMatch(LDM_CCtx *cctx, const BYTE **match) {
   LDM_hashEntry *entry = NULL;
   cctx->nextIp = cctx->ip + cctx->step;
 
-  do {
+  while (entry == NULL) {
     hash_t h;
     U32 sum;
     setNextHash(cctx);
@@ -451,17 +432,14 @@ static int LDM_findBestMatch(LDM_CCtx *cctx, const BYTE **match) {
       return 1;
     }
 
-    entry = HASH_getEntryFromHash(cctx->hashTable, h, MEM_read32(cctx->ip));
+    entry = HASH_getValidEntry(cctx->hashTable, h, sum, cctx->ip,
+                               &LDM_isValidMatch);
 
     if (entry != NULL) {
       *match = entry->offset + cctx->ibase;
     }
-
     putHashOfCurrentPositionFromHash(cctx, h, sum);
-
-  } while (entry == NULL ||
-           (cctx->ip - *match > LDM_WINDOW_SIZE ||
-           !LDM_isValidMatch(cctx->ip, *match)));
+  }
   setNextHash(cctx);
   return 0;
 }

@@ -9,7 +9,7 @@
 //      refactor code to scale the number of elements appropriately.
 
 // Number of elements per hash bucket.
-#define HASH_BUCKET_SIZE_LOG 2  // MAX is 4 for now
+#define HASH_BUCKET_SIZE_LOG 1  // MAX is 4 for now
 #define HASH_BUCKET_SIZE (1 << (HASH_BUCKET_SIZE_LOG))
 
 struct LDM_hashTable {
@@ -43,6 +43,25 @@ static LDM_hashEntry *getLastInsertFromHash(const LDM_hashTable *table,
   return bucket + offset;
 }
 */
+
+LDM_hashEntry *HASH_getValidEntry(const LDM_hashTable *table,
+                                  const hash_t hash,
+                                  const U32 checksum,
+                                  const BYTE *pIn,
+                                  int (*isValid)(const BYTE *pIn, const BYTE *pMatch)) {
+  LDM_hashEntry *bucket = getBucket(table, hash);
+  LDM_hashEntry *cur = bucket;
+  // TODO: in order of recency?
+  for (; cur < bucket + HASH_BUCKET_SIZE; ++cur) {
+    // CHeck checksum for faster check.
+    if (cur->checksum == checksum &&
+        (*isValid)(pIn, cur->offset + table->offsetBase)) {
+      return cur;
+    }
+  }
+  return NULL;
+}
+
 
 LDM_hashEntry *HASH_getEntryFromHash(const LDM_hashTable *table,
                                      const hash_t hash,

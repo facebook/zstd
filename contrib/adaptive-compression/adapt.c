@@ -214,7 +214,6 @@ static adaptCCtx* createCCtx(unsigned numJobs, const char* const outFilename)
             job->lastJob = 0;
             if (!job->src.start || !job->dst.start) {
                 DISPLAY("Could not allocate buffers for jobs\n");
-                freeCCtx(ctx);
                 return NULL;
             }
             job->src.capacity = FILE_CHUNK_SIZE;
@@ -231,17 +230,14 @@ static adaptCCtx* createCCtx(unsigned numJobs, const char* const outFilename)
     ctx->input.buffer.start = malloc(ctx->input.buffer.capacity);
     if (!ctx->input.buffer.start) {
         DISPLAY("Error: could not allocate input buffer\n");
-        freeCCtx(ctx);
         return NULL;
     }
     if (!ctx->cctx) {
         DISPLAY("Error: could not allocate ZSTD_CCtx\n");
-        freeCCtx(ctx);
         return NULL;
     }
     if (!ctx->jobs) {
         DISPLAY("Error: could not allocate space for jobs during context creation\n");
-        freeCCtx(ctx);
         return NULL;
     }
     {
@@ -249,7 +245,6 @@ static adaptCCtx* createCCtx(unsigned numJobs, const char* const outFilename)
         FILE* dstFile = stdoutUsed ? stdout : fopen(outFilename, "wb");
         if (dstFile == NULL) {
             DISPLAY("Error: could not open output file\n");
-            freeCCtx(ctx);
             return NULL;
         }
         ctx->dstFile = dstFile;

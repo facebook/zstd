@@ -101,13 +101,18 @@ typedef struct {
     inBuff_t input;
     cStat_t stats;
     jobDescription* jobs;
-    FILE* dstFile;
     ZSTD_CCtx* cctx;
 } adaptCCtx;
 
 typedef struct {
+    adaptCCtx* ctx;
+    FILE* dstFile;
+} outputThreadArg;
+
+typedef struct {
     FILE* srcFile;
     adaptCCtx* ctx;
+    outputThreadArg* otArg;
 } fcResources;
 
 static void freeCompressionJobs(adaptCCtx* ctx)
@@ -151,7 +156,6 @@ static int freeCCtx(adaptCCtx* ctx)
         error |= destroyCond(&ctx->allJobsCompleted_cond);
         error |= destroyMutex(&ctx->jobWrite_mutex);
         error |= destroyCond(&ctx->jobWrite_cond);
-        error |= (ctx->dstFile != NULL && ctx->dstFile != stdout) ? fclose(ctx->dstFile) : 0;
         error |= ZSTD_isError(ZSTD_freeCCtx(ctx->cctx));
         free(ctx->input.buffer.start);
         if (ctx->jobs){
@@ -177,7 +181,7 @@ static int initCond(cond_t* cond)
     return ret;
 }
 
-static adaptCCtx* createCCtx(unsigned numJobs, const char* const outFilename)
+static adaptCCtx* createCCtx(unsigned numJobs)
 {
 
     adaptCCtx* const ctx = calloc(1, sizeof(adaptCCtx));
@@ -239,15 +243,6 @@ static adaptCCtx* createCCtx(unsigned numJobs, const char* const outFilename)
     if (!ctx->jobs) {
         DISPLAY("Error: could not allocate space for jobs during context creation\n");
         return NULL;
-    }
-    {
-        unsigned const stdoutUsed = !strcmp(outFilename, stdoutmark);
-        FILE* dstFile = stdoutUsed ? stdout : fopen(outFilename, "wb");
-        if (dstFile == NULL) {
-            DISPLAY("Error: could not open output file\n");
-            return NULL;
-        }
-        ctx->dstFile = dstFile;
     }
     return ctx;
 }
@@ -417,7 +412,9 @@ static void displayProgress(unsigned jobDoneID, unsigned cLevel, unsigned last)
 
 static void* outputThread(void* arg)
 {
-    adaptCCtx* ctx = (adaptCCtx*)arg;
+    outputThreadArg* const otArg = (outputThreadArg*)arg;
+    adaptCCtx* const ctx = otArg->ctx;
+    FILE* const dstFile = otArg->dstFile;
 
     unsigned currJob = 0;
     for ( ; ; ) {
@@ -446,7 +443,7 @@ static void* outputThread(void* arg)
                 return arg;
             }
             {
-                size_t const writeSize = fwrite(job->dst.start, 1, compressedSize, ctx->dstFile);
+                size_t const writeSize = fwrite(job->dst.start, 1, compressedSize, dstFile);
                 if (writeSize != compressedSize) {
                     DISPLAY("Error: an error occurred during file write operation\n");
                     ctx->threadError = 1;
@@ -532,16 +529,16 @@ static void printStats(cStat_t stats)
     DISPLAY("# times waited on job Write: %u\n\n", stats.waitWrite);
 }
 
-static int performCompression(adaptCCtx* ctx, FILE* const srcFile)
+static int performCompression(adaptCCtx* ctx, FILE* const srcFile, outputThreadArg* otArg)
 {
-    if (!ctx || !srcFile) {
+    if (!ctx || !srcFile || !otArg) {
         return 1;
     }
 
     /* create output thread */
     {
         pthread_t out;
-        if (pthread_create(&out, NULL, &outputThread, ctx)) {
+        if (pthread_create(&out, NULL, &outputThread, otArg)) {
             DISPLAY("Error: could not create output thread\n");
             ctx->threadError = 1;
             return 1;
@@ -606,14 +603,25 @@ static fcResources createFileCompressionResources(const char* const srcFilename,
         outFilename = fileAndSuffix;
     }
 
+    {
+        unsigned const stdoutUsed = !strcmp(outFilename, stdoutmark);
+        FILE* const dstFile = stdoutUsed ? stdout : fopen(outFilename, "wb");
+        fcr.otArg = malloc(sizeof(outputThreadArg));
+        if (!fcr.otArg) {
+            DISPLAY("Error: could not allocate space for output thread argument\n");
+            return fcr;
+        }
+        fcr.otArg->dstFile = dstFile;
+    }
     /* checking for errors */
-    if (!outFilename || !srcFile) {
-        DISPLAY("Error: initial variables could not be allocated\n");
+    if (!fcr.otArg->dstFile || !srcFile) {
+        DISPLAY("Error: some file(s) could not be opened\n");
         return fcr;
     }
 
     /* creating context */
-    fcr.ctx = createCCtx(numJobs, outFilename);
+    fcr.ctx = createCCtx(numJobs);
+    fcr.otArg->ctx = fcr.ctx;
     fcr.srcFile = srcFile;
     return fcr;
 }
@@ -625,6 +633,11 @@ static int freeFileCompressionResources(fcResources* fcr)
     if (g_displayStats) printStats(fcr->ctx->stats);
     ret |= (fcr->srcFile != NULL) ? fclose(fcr->srcFile) : 0;
     ret |= (fcr->ctx != NULL) ? freeCCtx(fcr->ctx) : 0;
+    if (fcr->otArg) {
+        ret |= (fcr->otArg->dstFile != stdout) ? fclose(fcr->otArg->dstFile) : 0;
+        free(fcr->otArg);
+        /* no need to freeCCtx() on otArg->ctx because it should be the same context */
+    }
     return ret;
 }
 
@@ -634,7 +647,7 @@ static int compressFilename(const char* const srcFilename, const char* const dst
     UTIL_getTime(&g_startTime);
     g_streamedSize = 0;
     fcResources fcr = createFileCompressionResources(srcFilename, dstFilenameOrNull);
-    ret |= performCompression(fcr.ctx, fcr.srcFile);
+    ret |= performCompression(fcr.ctx, fcr.srcFile, fcr.otArg);
     ret |= freeFileCompressionResources(&fcr);
     return ret;
 }

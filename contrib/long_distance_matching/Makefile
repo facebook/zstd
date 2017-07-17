@@ -25,17 +25,17 @@ LDFLAGS += -lzstd
 
 default: all
 
-all: main-basic main-chaining
+all: main-basic main-circular-buffer
 
 main-basic : basic_table.c ldm.c main-ldm.c
 	$(CC) $(CPPFLAGS) $(CFLAGS) $^ $(LDFLAGS) -o $@
 
-main-chaining : chaining_table.c ldm.c main-ldm.c
+main-circular-buffer: circular_buffer_table.c ldm.c main-ldm.c
 	$(CC) $(CPPFLAGS) $(CFLAGS) $^ $(LDFLAGS) -o $@
 
 
 clean:
 	@rm -f core *.o tmp* result* *.ldm *.ldm.dec \
-	main-basic main-chaining
+	main-basic main-circular-buffer
 	@echo Cleaning completed
 

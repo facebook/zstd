@@ -7,7 +7,7 @@ typedef U32 hash_t;
 
 typedef struct LDM_hashEntry {
   U32 offset;
-  U32 checksum; // Not needed?
+  U32 checksum;
 } LDM_hashEntry;
 
 typedef struct LDM_hashTable LDM_hashTable;
@@ -17,9 +17,16 @@ typedef struct LDM_hashTable LDM_hashTable;
 
 LDM_hashTable *HASH_createTable(U32 size, const BYTE *offsetBase);
 
+//TODO: unneeded?
 LDM_hashEntry *HASH_getEntryFromHash(const LDM_hashTable *table,
                                      const hash_t hash,
                                      const U32 checksum);
+
+LDM_hashEntry *HASH_getValidEntry(const LDM_hashTable *table,
+                                  const hash_t hash,
+                                  const U32 checksum,
+                                  const BYTE *pIn,
+                                  int (*isValid)(const BYTE *pIn, const BYTE *pMatch));
 
 void HASH_insert(LDM_hashTable *table, const hash_t hash,
                         const LDM_hashEntry entry);

@@ -11,14 +11,14 @@
 #define LDM_OFFSET_SIZE 4
 
 // Defines the size of the hash table.
-#define LDM_MEMORY_USAGE 16
+#define LDM_MEMORY_USAGE 20
 
-#define LDM_WINDOW_SIZE_LOG 25
+#define LDM_WINDOW_SIZE_LOG 30
 #define LDM_WINDOW_SIZE (1 << (LDM_WINDOW_SIZE_LOG))
 
 //These should be multiples of four.
-#define LDM_MIN_MATCH_LENGTH 1024
-#define LDM_HASH_LENGTH 1024
+#define LDM_MIN_MATCH_LENGTH 64
+#define LDM_HASH_LENGTH 64
 
 typedef struct LDM_compressStats LDM_compressStats;
 typedef struct LDM_CCtx LDM_CCtx;
@@ -82,7 +82,8 @@ void LDM_outputHashTableOffsetHistogram(const LDM_CCtx *cctx);
 void LDM_printCompressStats(const LDM_compressStats *stats);
 /**
  * Checks whether the LDM_MIN_MATCH_LENGTH bytes from p are the same as the
- * LDM_MIN_MATCH_LENGTH bytes from match.
+ * LDM_MIN_MATCH_LENGTH bytes from match and also if
+ * pIn - pMatch <= LDM_WINDOW_SIZE.
  *
  * This assumes LDM_MIN_MATCH_LENGTH is a multiple of four.
  *

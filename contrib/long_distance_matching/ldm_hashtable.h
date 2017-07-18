@@ -42,6 +42,8 @@ LDM_hashEntry *HASH_getValidEntry(const LDM_hashTable *table,
                                   const BYTE *pIn,
                                   int (*isValid)(const BYTE *pIn, const BYTE *pMatch));
 
+hash_t HASH_hashU32(U32 value);
+
 /**
  * Insert an LDM_hashEntry into the bucket corresponding to hash.
  */
@@ -60,6 +62,5 @@ void HASH_destroyTable(LDM_hashTable *table);
  * as the entry being non-zero).
  */
 void HASH_outputTableOccupancy(const LDM_hashTable *hashTable);
-
 
 #endif /* LDM_HASHTABLE_H */

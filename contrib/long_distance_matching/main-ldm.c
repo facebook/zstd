@@ -18,7 +18,7 @@
 /* Compress file given by fname and output to oname.
  * Returns 0 if successful, error code otherwise.
  *
- * TODO: This currently seg faults if the compressed size is > the decompress
+ * TODO: This might seg fault if the compressed size is > the decompress
  * size due to the mmapping and output file size allocated to be the input size.
  * The compress function should check before writing or buffer writes.
  */
@@ -27,6 +27,8 @@ static int compress(const char *fname, const char *oname) {
   struct stat statbuf;
   char *src, *dst;
   size_t maxCompressedSize, compressedSize;
+
+  struct timeval tv1, tv2;
 
   /* Open the input file. */
   if ((fdin = open(fname, O_RDONLY)) < 0) {
@@ -46,7 +48,10 @@ static int compress(const char *fname, const char *oname) {
     return 1;
   }
 
-  maxCompressedSize = statbuf.st_size + LDM_HEADER_SIZE;
+  maxCompressedSize = (statbuf.st_size + LDM_HEADER_SIZE);
+  // Handle case where compressed size is > decompressed size.
+  // The compress function should check before writing or buffer writes.
+  maxCompressedSize += statbuf.st_size / 255;
 
  /* Go to the location corresponding to the last byte. */
  /* TODO: fallocate? */
@@ -74,10 +79,12 @@ static int compress(const char *fname, const char *oname) {
       perror("mmap error for output");
       return 1;
   }
+  gettimeofday(&tv1, NULL);
 
   compressedSize = LDM_HEADER_SIZE +
       LDM_compress(src, statbuf.st_size,
                    dst + LDM_HEADER_SIZE, maxCompressedSize);
+  gettimeofday(&tv2, NULL);
 
   // Write compress and decompress size to header
   // TODO: should depend on LDM_DECOMPRESS_SIZE write32
@@ -95,6 +102,14 @@ static int compress(const char *fname, const char *oname) {
   printf("%25s : %6u -> %7u - %s (%.1f%%)\n", fname,
          (unsigned)statbuf.st_size, (unsigned)compressedSize, oname,
          (double)compressedSize / (statbuf.st_size) * 100);
+
+  printf("Total compress time = %.3f seconds, Average compression speed: %.3f MB/s\n",
+         (double) (tv2.tv_usec - tv1.tv_usec) / 1000000 +
+         (double) (tv2.tv_sec - tv1.tv_sec),
+         ((double)statbuf.st_size / (double) (1 << 20)) /
+            ((double) (tv2.tv_usec - tv1.tv_usec) / 1000000 +
+            (double) (tv2.tv_sec - tv1.tv_sec)));
+
 
   // Close files.
   close(fdin);
@@ -234,16 +249,10 @@ int main(int argc, const char *argv[]) {
 
   /* Compress */
   {
-    struct timeval tv1, tv2;
-    gettimeofday(&tv1, NULL);
     if (compress(inpFilename, ldmFilename)) {
         printf("Compress error");
         return 1;
     }
-    gettimeofday(&tv2, NULL);
-    printf("Total compress time = %f seconds\n",
-           (double) (tv2.tv_usec - tv1.tv_usec) / 1000000 +
-           (double) (tv2.tv_sec - tv1.tv_sec));
   }
 
   /* Decompress */

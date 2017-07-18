@@ -436,7 +436,7 @@ static void HUF_encodeSymbol(BIT_CStream_t* bitCPtr, U32 symbol, const HUF_CElt*
 
 size_t HUF_compressBound(size_t size) { return HUF_COMPRESSBOUND(size); }
 
-#define HUF_FLUSHBITS(s)  (fast ? BIT_flushBitsFast(s) : BIT_flushBits(s))
+#define HUF_FLUSHBITS(s)  BIT_flushBits(s)
 
 #define HUF_FLUSHBITS_1(stream) \
     if (sizeof((stream)->bitContainer)*8 < HUF_TABLELOG_MAX*2+7) HUF_FLUSHBITS(stream)
@@ -451,7 +451,6 @@ size_t HUF_compress1X_usingCTable(void* dst, size_t dstSize, const void* src, si
     BYTE* const oend = ostart + dstSize;
     BYTE* op = ostart;
     size_t n;
-    const unsigned fast = (dstSize >= HUF_BLOCKBOUND(srcSize));
     BIT_CStream_t bitC;
 
     /* init */

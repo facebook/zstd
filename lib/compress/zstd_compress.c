@@ -96,6 +96,7 @@ struct ZSTD_CCtx_s {
     size_t staticSize;
 
     seqStore_t seqStore;    /* sequences storage ptrs */
+    optState_t optState;
     U32* hashTable;
     U32* hashTable3;
     U32* chainTable;
@@ -595,7 +596,7 @@ static size_t ZSTD_continueCCtx(ZSTD_CCtx* cctx, ZSTD_parameters params, U64 ple
     cctx->dictID = 0;
     cctx->loadedDictEnd = 0;
     { int i; for (i=0; i<ZSTD_REP_NUM; i++) cctx->seqStore.rep[i] = repStartValue[i]; }
-    cctx->seqStore.litLengthSum = 0;  /* force reset of btopt stats */
+    cctx->optState.litLengthSum = 0;  /* force reset of btopt stats */
     XXH64_reset(&cctx->xxhState, 0);
     return 0;
 }
@@ -694,7 +695,7 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
         zc->lowLimit = 0;
         { int i; for (i=0; i<ZSTD_REP_NUM; i++) zc->seqStore.rep[i] = repStartValue[i]; }
         zc->hashLog3 = hashLog3;
-        zc->seqStore.litLengthSum = 0;
+        zc->optState.litLengthSum = 0;
 
         ptr = zc->entropy + 1;
 
@@ -702,15 +703,15 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
         if ((params.cParams.strategy == ZSTD_btopt) || (params.cParams.strategy == ZSTD_btultra)) {
             DEBUGLOG(5, "reserving optimal parser space");
             assert(((size_t)ptr & 3) == 0);  /* ensure ptr is properly aligned */
-            zc->seqStore.litFreq = (U32*)ptr;
-            zc->seqStore.litLengthFreq = zc->seqStore.litFreq + (1<<Litbits);
-            zc->seqStore.matchLengthFreq = zc->seqStore.litLengthFreq + (MaxLL+1);
-            zc->seqStore.offCodeFreq = zc->seqStore.matchLengthFreq + (MaxML+1);
-            ptr = zc->seqStore.offCodeFreq + (MaxOff+1);
-            zc->seqStore.matchTable = (ZSTD_match_t*)ptr;
-            ptr = zc->seqStore.matchTable + ZSTD_OPT_NUM+1;
-            zc->seqStore.priceTable = (ZSTD_optimal_t*)ptr;
-            ptr = zc->seqStore.priceTable + ZSTD_OPT_NUM+1;
+            zc->optState.litFreq = (U32*)ptr;
+            zc->optState.litLengthFreq = zc->optState.litFreq + (1<<Litbits);
+            zc->optState.matchLengthFreq = zc->optState.litLengthFreq + (MaxLL+1);
+            zc->optState.offCodeFreq = zc->optState.matchLengthFreq + (MaxML+1);
+            ptr = zc->optState.offCodeFreq + (MaxOff+1);
+            zc->optState.matchTable = (ZSTD_match_t*)ptr;
+            ptr = zc->optState.matchTable + ZSTD_OPT_NUM+1;
+            zc->optState.priceTable = (ZSTD_optimal_t*)ptr;
+            ptr = zc->optState.priceTable + ZSTD_OPT_NUM+1;
         }
 
         /* table Space */

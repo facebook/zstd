@@ -1,8 +1,11 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+#include "ldm.h"
 #include "ldm_hashtable.h"
 #include "mem.h"
+
+#define LDM_HASHLOG ((LDM_MEMORY_USAGE) - 4)
 
 struct LDM_hashTable {
   U32 size;
@@ -44,6 +47,10 @@ LDM_hashEntry *HASH_getValidEntry(const LDM_hashTable *table,
     return entry;
   }
   return NULL;
+}
+
+hash_t HASH_hashU32(U32 value) {
+  return ((value * 2654435761U) >> (32 - LDM_HASHLOG));
 }
 
 void HASH_insert(LDM_hashTable *table,

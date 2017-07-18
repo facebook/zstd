@@ -10,15 +10,20 @@
 #define LDM_HEADER_SIZE ((LDM_COMPRESS_SIZE)+(LDM_DECOMPRESS_SIZE))
 #define LDM_OFFSET_SIZE 4
 
-// Defines the size of the hash table (currently the number of elements).
-#define LDM_MEMORY_USAGE 12
+// Defines the size of the hash table.
+// Currently this should be less than WINDOW_SIZE_LOG + 4?
+#define LDM_MEMORY_USAGE 24
 
-#define LDM_WINDOW_SIZE_LOG 30
+//#define LDM_LAG (1 << 23)
+//#define LDM_LAG (1 << 20)
+#define LDM_LAG 0
+
+#define LDM_WINDOW_SIZE_LOG 28
 #define LDM_WINDOW_SIZE (1 << (LDM_WINDOW_SIZE_LOG))
 
-//These should be multiples of four.
-#define LDM_MIN_MATCH_LENGTH 64
-#define LDM_HASH_LENGTH 64
+//These should be multiples of four (and perhaps set to the same values?).
+#define LDM_MIN_MATCH_LENGTH 512
+#define LDM_HASH_LENGTH 512
 
 typedef struct LDM_compressStats LDM_compressStats;
 typedef struct LDM_CCtx LDM_CCtx;
@@ -48,7 +53,7 @@ typedef struct LDM_DCtx LDM_DCtx;
  *  The lower four bits of the token encode the match length. With additional
  *  bytes added similarly to the additional literal length bytes after the offset.
  *
- *  The last sequence is incomplete and stops right after the lieterals.
+ *  The last sequence is incomplete and stops right after the literals.
  *
  */
 size_t LDM_compress(const void *src, size_t srcSize,
@@ -141,6 +146,8 @@ void LDM_initializeDCtx(LDM_DCtx *dctx,
  */
 void LDM_readHeader(const void *src, U64 *compressedSize,
                     U64 *decompressedSize);
+
+void LDM_outputConfiguration(void);
 
 void LDM_test(void);
 

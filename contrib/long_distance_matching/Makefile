@@ -25,7 +25,7 @@ LDFLAGS += -lzstd
 
 default: all
 
-all: main-basic main-circular-buffer main-lag
+all: main-basic main-circular-buffer 
 
 main-basic : basic_table.c ldm.c main-ldm.c
 	$(CC) $(CPPFLAGS) $(CFLAGS) $^ $(LDFLAGS) -o $@
@@ -33,11 +33,8 @@ main-basic : basic_table.c ldm.c main-ldm.c
 main-circular-buffer: circular_buffer_table.c ldm.c main-ldm.c
 	$(CC) $(CPPFLAGS) $(CFLAGS) $^ $(LDFLAGS) -o $@
 
-main-lag: lag_table.c ldm.c main-ldm.c
-	$(CC) $(CPPFLAGS) $(CFLAGS) $^ $(LDFLAGS) -o $@
-
 clean:
 	@rm -f core *.o tmp* result* *.ldm *.ldm.dec \
-	main-basic main-circular-buffer main-lag
+	main-basic main-circular-buffer 
 	@echo Cleaning completed
 

@@ -4,12 +4,16 @@
 #include <stdlib.h>
 #include <string.h>
 
-// Insert every (HASH_ONLY_EVERY + 1) into the hash table.
-#define HASH_ONLY_EVERY 15
 
-#define LDM_HASHLOG (LDM_MEMORY_USAGE-2)
 #define LDM_HASHTABLESIZE (1 << (LDM_MEMORY_USAGE))
+//#define LDM_HASH_ENTRY_SIZE 4
 #define LDM_HASHTABLESIZE_U32 ((LDM_HASHTABLESIZE) >> 2)
+#define LDM_HASHTABLESIZE_U64 ((LDM_HASHTABLESIZE) >> 4)
+
+// Insert every (HASH_ONLY_EVERY + 1) into the hash table.
+#define HASH_ONLY_EVERY_LOG (LDM_WINDOW_SIZE_LOG-((LDM_MEMORY_USAGE) - 4))
+#define HASH_ONLY_EVERY ((1 << HASH_ONLY_EVERY_LOG) - 1)
+
 
 #define ML_BITS 4
 #define ML_MASK ((1U<<ML_BITS)-1)
@@ -17,13 +21,13 @@
 #define RUN_MASK ((1U<<RUN_BITS)-1)
 
 #define COMPUTE_STATS
+#define OUTPUT_CONFIGURATION
 #define CHECKSUM_CHAR_OFFSET 10
 
-#define LAG 0
+//#define LDM_LAG 0
 
 //#define HASH_CHECK
 //#define RUN_CHECKS
-//#define LDM_DEBUG
 
 #include "ldm.h"
 #include "ldm_hashtable.h"
@@ -187,7 +191,8 @@ int LDM_isValidMatch(const BYTE *pIn, const BYTE *pMatch) {
  * of the hash table.
  */
 static hash_t checksumToHash(U32 sum) {
-  return ((sum * 2654435761U) >> (32 - LDM_HASHLOG));
+  return HASH_hashU32(sum);
+//  return ((sum * 2654435761U) >> (32 - LDM_HASHLOG));
 }
 
 /**
@@ -261,9 +266,9 @@ static void setNextHash(LDM_CCtx *cctx) {
   cctx->nextPosHashed = cctx->nextIp;
   cctx->nextHash = checksumToHash(cctx->nextSum);
 
-#if LAG
-  if (cctx->ip - cctx->ibase > LAG) {
-//    printf("LAG %zu\n", cctx->ip - cctx->lagIp);
+#if LDM_LAG
+//  printf("LDM_LAG %zu\n", cctx->ip - cctx->lagIp);
+  if (cctx->ip - cctx->ibase > LDM_LAG) {
     cctx->lagSum = updateChecksum(
       cctx->lagSum, LDM_HASH_LENGTH,
       cctx->lagIp[0], cctx->lagIp[LDM_HASH_LENGTH]);
@@ -296,7 +301,7 @@ static void putHashOfCurrentPositionFromHash(
     const LDM_hashEntry entry = { cctx->ip - cctx->ibase ,
                                   MEM_read32(cctx->ip) };
                                   */
-#if LAG
+#if LDM_LAG
     // TODO: off by 1, but whatever
     if (cctx->lagIp - cctx->ibase > 0) {
       const LDM_hashEntry entry = { cctx->lagIp - cctx->ibase, cctx->lagSum };
@@ -364,6 +369,18 @@ U32 LDM_countMatchLength(const BYTE *pIn, const BYTE *pMatch,
   return (U32)(pIn - pStart);
 }
 
+void LDM_outputConfiguration(void) {
+  printf("=====================\n");
+  printf("Configuration\n");
+  printf("Window size log: %d\n", LDM_WINDOW_SIZE_LOG);
+  printf("Min match, hash length: %d, %d\n",
+         LDM_MIN_MATCH_LENGTH, LDM_HASH_LENGTH);
+  printf("LDM_MEMORY_USAGE: %d\n", LDM_MEMORY_USAGE);
+  printf("HASH_ONLY_EVERY: %d\n", HASH_ONLY_EVERY);
+  printf("LDM_LAG %d\n", LDM_LAG);
+  printf("=====================\n");
+}
+
 void LDM_readHeader(const void *src, U64 *compressedSize,
                     U64 *decompressedSize) {
   const BYTE *ip = (const BYTE *)src;
@@ -392,12 +409,8 @@ void LDM_initializeCCtx(LDM_CCtx *cctx,
   cctx->anchor = cctx->ibase;
 
   memset(&(cctx->stats), 0, sizeof(cctx->stats));
-  cctx->hashTable = HASH_createTable(LDM_HASHTABLESIZE_U32, cctx->ibase);
+  cctx->hashTable = HASH_createTable(LDM_HASHTABLESIZE_U64, cctx->ibase);
 
-  //HASH_initializeTable(cctx->hashTable, LDM_HASHTABLESIZE_U32);
-
-//    calloc(LDM_HASHTABLESIZE_U32, sizeof(LDM_hashEntry));
-//  memset(cctx->hashTable, 0, sizeof(cctx->hashTable));
   cctx->stats.minOffset = UINT_MAX;
   cctx->stats.windowSizeLog = LDM_WINDOW_SIZE_LOG;
   cctx->stats.hashTableSizeLog = LDM_MEMORY_USAGE;
@@ -520,17 +533,19 @@ size_t LDM_compress(const void *src, size_t srcSize,
                     void *dst, size_t maxDstSize) {
   LDM_CCtx cctx;
   const BYTE *match = NULL;
+//  printf("TST: %d\n", LDM_WINDOW_SIZE / LDM_HASHTABLESIZE_U64);
+  printf("HASH LOG: %d\n", HASH_ONLY_EVERY_LOG);
+
   LDM_initializeCCtx(&cctx, src, srcSize, dst, maxDstSize);
 
   /* Hash the first position and put it into the hash table. */
   LDM_putHashOfCurrentPosition(&cctx);
 
-#if LAG
+#if LDM_LAG
   cctx.lagIp = cctx.ip;
   cctx.lagHash = cctx.lastHash;
   cctx.lagSum = cctx.lastSum;
 #endif
-
   /**
    * Find a match.
    * If no more matches can be found (i.e. the length of the remaining input
@@ -542,6 +557,7 @@ size_t LDM_compress(const void *src, size_t srcSize,
     cctx.stats.numMatches++;
 #endif
 
+//    printf("HERE %zu\n", cctx.ip - cctx.ibase);
     /**
      * Catch up: look back to extend the match backwards from the found match.
      */

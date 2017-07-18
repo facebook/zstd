@@ -1003,6 +1003,42 @@ static int basicUnitTests(U32 seed, double compressibility)
       if (r != _3BYTESTESTLENGTH) goto _output_error; }
     DISPLAYLEVEL(4, "OK \n");
 
+    DISPLAYLEVEL(4, "test%3i : incompressible data and ill suited dictionary : ", testNb++);
+    RDG_genBuffer(CNBuffer, CNBuffSize, 0.0, 0.1, seed);
+    {   /* Train a dictionary on low characters */
+        size_t dictSize = 16 KB;
+        void* const dictBuffer = malloc(dictSize);
+        size_t const totalSampleSize = 1 MB;
+        size_t const sampleUnitSize = 8 KB;
+        U32 const nbSamples = (U32)(totalSampleSize / sampleUnitSize);
+        size_t* const samplesSizes = (size_t*) malloc(nbSamples * sizeof(size_t));
+        if (!dictBuffer || !samplesSizes) goto _output_error;
+        { U32 u; for (u=0; u<nbSamples; u++) samplesSizes[u] = sampleUnitSize; }
+        dictSize = ZDICT_trainFromBuffer(dictBuffer, dictSize, CNBuffer, samplesSizes, nbSamples);
+        if (ZDICT_isError(dictSize)) goto _output_error;
+        /* Reverse the characters to make the dictionary ill suited */
+        {   U32 u;
+            for (u = 0; u < CNBuffSize; ++u) {
+              ((BYTE*)CNBuffer)[u] = 255 - ((BYTE*)CNBuffer)[u];
+            }
+        }
+        {   /* Compress the data */
+            size_t const inputSize = 500;
+            size_t const outputSize = ZSTD_compressBound(inputSize);
+            void* const outputBuffer = malloc(outputSize);
+            ZSTD_CCtx* const cctx = ZSTD_createCCtx();
+            if (!outputBuffer || !cctx) goto _output_error;
+            CHECK(ZSTD_compress_usingDict(cctx, outputBuffer, outputSize, CNBuffer, inputSize, dictBuffer, dictSize, 1));
+            free(outputBuffer);
+            ZSTD_freeCCtx(cctx);
+        }
+
+        free(dictBuffer);
+        free(samplesSizes);
+    }
+    DISPLAYLEVEL(4, "OK \n");
+
+
     /* findFrameCompressedSize on skippable frames */
     DISPLAYLEVEL(4, "test%3i : frame compressed size of skippable frame : ", testNb++);
     {   const char* frame = "\x50\x2a\x4d\x18\x05\x0\x0\0abcde";

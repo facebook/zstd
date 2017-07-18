@@ -383,6 +383,7 @@ $ZSTD -t --rm tmp1.zst
 test -f tmp1.zst   # check file is still present
 split -b16384 tmp1.zst tmpSplit.
 $ZSTD -t tmpSplit.* && die "bad file not detected !"
+./datagen | $ZSTD -c | $ZSTD -t
 
 
 $ECHO "\n**** benchmark mode tests **** "

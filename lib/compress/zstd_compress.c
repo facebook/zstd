@@ -82,8 +82,6 @@ struct ZSTD_CCtx_s {
     U32   loadedDictEnd;    /* index of end of dictionary */
     U32   forceWindow;      /* force back-references to respect limit of 1<<wLog, even for dictionary */
     ZSTD_compressionStage_e stage;
-    U32   rep[ZSTD_REP_NUM];
-    U32   repToConfirm[ZSTD_REP_NUM];
     U32   dictID;
     int   compressionLevel;
     ZSTD_parameters requestedParams;
@@ -596,7 +594,7 @@ static size_t ZSTD_continueCCtx(ZSTD_CCtx* cctx, ZSTD_parameters params, U64 ple
     cctx->stage = ZSTDcs_init;
     cctx->dictID = 0;
     cctx->loadedDictEnd = 0;
-    { int i; for (i=0; i<ZSTD_REP_NUM; i++) cctx->rep[i] = repStartValue[i]; }
+    { int i; for (i=0; i<ZSTD_REP_NUM; i++) cctx->seqStore.rep[i] = repStartValue[i]; }
     cctx->seqStore.litLengthSum = 0;  /* force reset of btopt stats */
     XXH64_reset(&cctx->xxhState, 0);
     return 0;
@@ -694,7 +692,7 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
         zc->dictBase = NULL;
         zc->dictLimit = 0;
         zc->lowLimit = 0;
-        { int i; for (i=0; i<ZSTD_REP_NUM; i++) zc->rep[i] = repStartValue[i]; }
+        { int i; for (i=0; i<ZSTD_REP_NUM; i++) zc->seqStore.rep[i] = repStartValue[i]; }
         zc->hashLog3 = hashLog3;
         zc->seqStore.litLengthSum = 0;
 
@@ -748,7 +746,7 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
  *        do not use with extDict variant ! */
 void ZSTD_invalidateRepCodes(ZSTD_CCtx* cctx) {
     int i;
-    for (i=0; i<ZSTD_REP_NUM; i++) cctx->rep[i] = 0;
+    for (i=0; i<ZSTD_REP_NUM; i++) cctx->seqStore.rep[i] = 0;
 }
 
 
@@ -912,7 +910,8 @@ static size_t ZSTD_compressRleLiteralsBlock (void* dst, size_t dstCapacity, cons
 
 static size_t ZSTD_minGain(size_t srcSize) { return (srcSize >> 6) + 2; }
 
-static size_t ZSTD_compressLiterals (ZSTD_CCtx* zc,
+static size_t ZSTD_compressLiterals (ZSTD_entropyCTables_t * entropy,
+                                     ZSTD_strategy strategy,
                                      void* dst, size_t dstCapacity,
                                const void* src, size_t srcSize)
 {
@@ -926,28 +925,28 @@ static size_t ZSTD_compressLiterals (ZSTD_CCtx* zc,
 
     /* small ? don't even attempt compression (speed opt) */
 #   define LITERAL_NOENTROPY 63
-    {   size_t const minLitSize = zc->entropy->hufCTable_repeatMode == HUF_repeat_valid ? 6 : LITERAL_NOENTROPY;
+    {   size_t const minLitSize = entropy->hufCTable_repeatMode == HUF_repeat_valid ? 6 : LITERAL_NOENTROPY;
         if (srcSize <= minLitSize) return ZSTD_noCompressLiterals(dst, dstCapacity, src, srcSize);
     }
 
     if (dstCapacity < lhSize+1) return ERROR(dstSize_tooSmall);   /* not enough space for compression */
-    {   HUF_repeat repeat = zc->entropy->hufCTable_repeatMode;
-        int const preferRepeat = zc->appliedParams.cParams.strategy < ZSTD_lazy ? srcSize <= 1024 : 0;
+    {   HUF_repeat repeat = entropy->hufCTable_repeatMode;
+        int const preferRepeat = strategy < ZSTD_lazy ? srcSize <= 1024 : 0;
         if (repeat == HUF_repeat_valid && lhSize == 3) singleStream = 1;
         cLitSize = singleStream ? HUF_compress1X_repeat(ostart+lhSize, dstCapacity-lhSize, src, srcSize, 255, 11,
-                                      zc->entropy->workspace, sizeof(zc->entropy->workspace), (HUF_CElt*)zc->entropy->hufCTable, &repeat, preferRepeat)
+                                      entropy->workspace, sizeof(entropy->workspace), (HUF_CElt*)entropy->hufCTable, &repeat, preferRepeat)
                                 : HUF_compress4X_repeat(ostart+lhSize, dstCapacity-lhSize, src, srcSize, 255, 11,
-                                      zc->entropy->workspace, sizeof(zc->entropy->workspace), (HUF_CElt*)zc->entropy->hufCTable, &repeat, preferRepeat);
+                                      entropy->workspace, sizeof(entropy->workspace), (HUF_CElt*)entropy->hufCTable, &repeat, preferRepeat);
         if (repeat != HUF_repeat_none) { hType = set_repeat; }    /* reused the existing table */
-        else { zc->entropy->hufCTable_repeatMode = HUF_repeat_check; }       /* now have a table to reuse */
+        else { entropy->hufCTable_repeatMode = HUF_repeat_check; }       /* now have a table to reuse */
     }
 
     if ((cLitSize==0) | (cLitSize >= srcSize - minGain)) {
-        zc->entropy->hufCTable_repeatMode = HUF_repeat_none;
+        entropy->hufCTable_repeatMode = HUF_repeat_none;
         return ZSTD_noCompressLiterals(dst, dstCapacity, src, srcSize);
     }
     if (cLitSize==1) {
-        zc->entropy->hufCTable_repeatMode = HUF_repeat_none;
+        entropy->hufCTable_repeatMode = HUF_repeat_none;
         return ZSTD_compressRleLiteralsBlock(dst, dstCapacity, src, srcSize);
     }
 
@@ -1156,16 +1155,17 @@ MEM_STATIC size_t ZSTD_encodeSequences(void* dst, size_t dstCapacity,
     }
 }
 
-MEM_STATIC size_t ZSTD_compressSequences (ZSTD_CCtx* zc,
+MEM_STATIC size_t ZSTD_compressSequences (seqStore_t* seqStorePtr,
+                              ZSTD_entropyCTables_t* entropy,
+                              ZSTD_compressionParameters const* cParams,
                               void* dst, size_t dstCapacity,
                               size_t srcSize)
 {
-    const int longOffsets = zc->appliedParams.cParams.windowLog > STREAM_ACCUMULATOR_MIN;
-    const seqStore_t* seqStorePtr = &(zc->seqStore);
+    const int longOffsets = cParams->windowLog > STREAM_ACCUMULATOR_MIN;
     U32 count[MaxSeq+1];
-    FSE_CTable* CTable_LitLength = zc->entropy->litlengthCTable;
-    FSE_CTable* CTable_OffsetBits = zc->entropy->offcodeCTable;
-    FSE_CTable* CTable_MatchLength = zc->entropy->matchlengthCTable;
+    FSE_CTable* CTable_LitLength = entropy->litlengthCTable;
+    FSE_CTable* CTable_OffsetBits = entropy->offcodeCTable;
+    FSE_CTable* CTable_MatchLength = entropy->matchlengthCTable;
     U32 LLtype, Offtype, MLtype;   /* compressed, raw or rle */
     const seqDef* const sequences = seqStorePtr->sequencesStart;
     const BYTE* const ofCodeTable = seqStorePtr->ofCode;
@@ -1177,13 +1177,15 @@ MEM_STATIC size_t ZSTD_compressSequences (ZSTD_CCtx* zc,
     size_t const nbSeq = seqStorePtr->sequences - seqStorePtr->sequencesStart;
     BYTE* seqHead;
 
-    ZSTD_STATIC_ASSERT(sizeof(zc->entropy->workspace) >= (1<<MAX(MLFSELog,LLFSELog)));
+    ZSTD_STATIC_ASSERT(sizeof(entropy->workspace) >= (1<<MAX(MLFSELog,LLFSELog)));
 
     /* Compress literals */
     {   const BYTE* const literals = seqStorePtr->litStart;
         size_t const litSize = seqStorePtr->lit - literals;
-        size_t const cSize = ZSTD_compressLiterals(zc, op, dstCapacity, literals, litSize);
-        if (ZSTD_isError(cSize)) return cSize;
+        size_t const cSize = ZSTD_compressLiterals(
+                entropy, cParams->strategy, op, dstCapacity, literals, litSize);
+        if (ZSTD_isError(cSize))
+          return cSize;
         op += cSize;
     }
 
@@ -1201,31 +1203,31 @@ MEM_STATIC size_t ZSTD_compressSequences (ZSTD_CCtx* zc,
     ZSTD_seqToCodes(seqStorePtr);
     /* CTable for Literal Lengths */
     {   U32 max = MaxLL;
-        size_t const mostFrequent = FSE_countFast_wksp(count, &max, llCodeTable, nbSeq, zc->entropy->workspace);
-        LLtype = ZSTD_selectEncodingType(&zc->entropy->litlength_repeatMode, mostFrequent, nbSeq, LL_defaultNormLog);
+        size_t const mostFrequent = FSE_countFast_wksp(count, &max, llCodeTable, nbSeq, entropy->workspace);
+        LLtype = ZSTD_selectEncodingType(&entropy->litlength_repeatMode, mostFrequent, nbSeq, LL_defaultNormLog);
         {   size_t const countSize = ZSTD_buildCTable(op, oend - op, CTable_LitLength, LLFSELog, (symbolEncodingType_e)LLtype,
                     count, max, llCodeTable, nbSeq, LL_defaultNorm, LL_defaultNormLog, MaxLL,
-                    zc->entropy->workspace, sizeof(zc->entropy->workspace));
+                    entropy->workspace, sizeof(entropy->workspace));
             if (ZSTD_isError(countSize)) return countSize;
             op += countSize;
     }   }
     /* CTable for Offsets */
     {   U32 max = MaxOff;
-        size_t const mostFrequent = FSE_countFast_wksp(count, &max, ofCodeTable, nbSeq, zc->entropy->workspace);
-        Offtype = ZSTD_selectEncodingType(&zc->entropy->offcode_repeatMode, mostFrequent, nbSeq, OF_defaultNormLog);
+        size_t const mostFrequent = FSE_countFast_wksp(count, &max, ofCodeTable, nbSeq, entropy->workspace);
+        Offtype = ZSTD_selectEncodingType(&entropy->offcode_repeatMode, mostFrequent, nbSeq, OF_defaultNormLog);
         {   size_t const countSize = ZSTD_buildCTable(op, oend - op, CTable_OffsetBits, OffFSELog, (symbolEncodingType_e)Offtype,
                     count, max, ofCodeTable, nbSeq, OF_defaultNorm, OF_defaultNormLog, MaxOff,
-                    zc->entropy->workspace, sizeof(zc->entropy->workspace));
+                    entropy->workspace, sizeof(entropy->workspace));
             if (ZSTD_isError(countSize)) return countSize;
             op += countSize;
     }   }
     /* CTable for MatchLengths */
     {   U32 max = MaxML;
-        size_t const mostFrequent = FSE_countFast_wksp(count, &max, mlCodeTable, nbSeq, zc->entropy->workspace);
-        MLtype = ZSTD_selectEncodingType(&zc->entropy->matchlength_repeatMode, mostFrequent, nbSeq, ML_defaultNormLog);
+        size_t const mostFrequent = FSE_countFast_wksp(count, &max, mlCodeTable, nbSeq, entropy->workspace);
+        MLtype = ZSTD_selectEncodingType(&entropy->matchlength_repeatMode, mostFrequent, nbSeq, ML_defaultNormLog);
         {   size_t const countSize = ZSTD_buildCTable(op, oend - op, CTable_MatchLength, MLFSELog, (symbolEncodingType_e)MLtype,
                     count, max, mlCodeTable, nbSeq, ML_defaultNorm, ML_defaultNormLog, MaxML,
-                    zc->entropy->workspace, sizeof(zc->entropy->workspace));
+                    entropy->workspace, sizeof(entropy->workspace));
             if (ZSTD_isError(countSize)) return countSize;
             op += countSize;
     }   }
@@ -1247,15 +1249,15 @@ _check_compressibility:
     {   size_t const minGain = ZSTD_minGain(srcSize);
         size_t const maxCSize = srcSize - minGain;
         if ((size_t)(op-ostart) >= maxCSize) {
-            zc->entropy->hufCTable_repeatMode = HUF_repeat_none;
-            zc->entropy->offcode_repeatMode = FSE_repeat_none;
-            zc->entropy->matchlength_repeatMode = FSE_repeat_none;
-            zc->entropy->litlength_repeatMode = FSE_repeat_none;
+            entropy->hufCTable_repeatMode = HUF_repeat_none;
+            entropy->offcode_repeatMode = FSE_repeat_none;
+            entropy->matchlength_repeatMode = FSE_repeat_none;
+            entropy->litlength_repeatMode = FSE_repeat_none;
             return 0;
     }   }
 
     /* confirm repcodes */
-    { int i; for (i=0; i<ZSTD_REP_NUM; i++) zc->rep[i] = zc->repToConfirm[i]; }
+    { int i; for (i=0; i<ZSTD_REP_NUM; i++) seqStorePtr->rep[i] = seqStorePtr->repToConfirm[i]; }
 
     return op - ostart;
 }
@@ -1480,7 +1482,7 @@ void ZSTD_compressBlock_fast_generic(ZSTD_CCtx* cctx,
     const BYTE* const lowest = base + lowestIndex;
     const BYTE* const iend = istart + srcSize;
     const BYTE* const ilimit = iend - HASH_READ_SIZE;
-    U32 offset_1=cctx->rep[0], offset_2=cctx->rep[1];
+    U32 offset_1=seqStorePtr->rep[0], offset_2=seqStorePtr->rep[1];
     U32 offsetSaved = 0;
 
     /* init */
@@ -1541,8 +1543,8 @@ void ZSTD_compressBlock_fast_generic(ZSTD_CCtx* cctx,
     }   }   }
 
     /* save reps for next block */
-    cctx->repToConfirm[0] = offset_1 ? offset_1 : offsetSaved;
-    cctx->repToConfirm[1] = offset_2 ? offset_2 : offsetSaved;
+    seqStorePtr->repToConfirm[0] = offset_1 ? offset_1 : offsetSaved;
+    seqStorePtr->repToConfirm[1] = offset_2 ? offset_2 : offsetSaved;
 
     /* Last Literals */
     {   size_t const lastLLSize = iend - anchor;
@@ -1590,7 +1592,7 @@ static void ZSTD_compressBlock_fast_extDict_generic(ZSTD_CCtx* ctx,
     const BYTE* const dictEnd = dictBase + dictLimit;
     const BYTE* const iend = istart + srcSize;
     const BYTE* const ilimit = iend - 8;
-    U32 offset_1=ctx->rep[0], offset_2=ctx->rep[1];
+    U32 offset_1=seqStorePtr->rep[0], offset_2=seqStorePtr->rep[1];
 
     /* Search Loop */
     while (ip < ilimit) {  /* < instead of <=, because (ip+1) */
@@ -1656,7 +1658,7 @@ static void ZSTD_compressBlock_fast_extDict_generic(ZSTD_CCtx* ctx,
     }   }   }
 
     /* save reps for next block */
-    ctx->repToConfirm[0] = offset_1; ctx->repToConfirm[1] = offset_2;
+    seqStorePtr->repToConfirm[0] = offset_1; seqStorePtr->repToConfirm[1] = offset_2;
 
     /* Last Literals */
     {   size_t const lastLLSize = iend - anchor;
@@ -1725,7 +1727,7 @@ void ZSTD_compressBlock_doubleFast_generic(ZSTD_CCtx* cctx,
     const BYTE* const lowest = base + lowestIndex;
     const BYTE* const iend = istart + srcSize;
     const BYTE* const ilimit = iend - HASH_READ_SIZE;
-    U32 offset_1=cctx->rep[0], offset_2=cctx->rep[1];
+    U32 offset_1=seqStorePtr->rep[0], offset_2=seqStorePtr->rep[1];
     U32 offsetSaved = 0;
 
     /* init */
@@ -1812,8 +1814,8 @@ void ZSTD_compressBlock_doubleFast_generic(ZSTD_CCtx* cctx,
     }   }   }
 
     /* save reps for next block */
-    cctx->repToConfirm[0] = offset_1 ? offset_1 : offsetSaved;
-    cctx->repToConfirm[1] = offset_2 ? offset_2 : offsetSaved;
+    seqStorePtr->repToConfirm[0] = offset_1 ? offset_1 : offsetSaved;
+    seqStorePtr->repToConfirm[1] = offset_2 ? offset_2 : offsetSaved;
 
     /* Last Literals */
     {   size_t const lastLLSize = iend - anchor;
@@ -1862,7 +1864,7 @@ static void ZSTD_compressBlock_doubleFast_extDict_generic(ZSTD_CCtx* ctx,
     const BYTE* const dictEnd = dictBase + dictLimit;
     const BYTE* const iend = istart + srcSize;
     const BYTE* const ilimit = iend - 8;
-    U32 offset_1=ctx->rep[0], offset_2=ctx->rep[1];
+    U32 offset_1=seqStorePtr->rep[0], offset_2=seqStorePtr->rep[1];
 
     /* Search Loop */
     while (ip < ilimit) {  /* < instead of <=, because (ip+1) */
@@ -1962,7 +1964,7 @@ static void ZSTD_compressBlock_doubleFast_extDict_generic(ZSTD_CCtx* ctx,
     }   }   }
 
     /* save reps for next block */
-    ctx->repToConfirm[0] = offset_1; ctx->repToConfirm[1] = offset_2;
+    seqStorePtr->repToConfirm[0] = offset_1; seqStorePtr->repToConfirm[1] = offset_2;
 
     /* Last Literals */
     {   size_t const lastLLSize = iend - anchor;
@@ -2398,7 +2400,7 @@ void ZSTD_compressBlock_lazy_generic(ZSTD_CCtx* ctx,
                         size_t* offsetPtr,
                         U32 maxNbAttempts, U32 matchLengthSearch);
     searchMax_f const searchMax = searchMethod ? ZSTD_BtFindBestMatch_selectMLS : ZSTD_HcFindBestMatch_selectMLS;
-    U32 offset_1 = ctx->rep[0], offset_2 = ctx->rep[1], savedOffset=0;
+    U32 offset_1 = seqStorePtr->rep[0], offset_2 = seqStorePtr->rep[1], savedOffset=0;
 
     /* init */
     ip += (ip==base);
@@ -2508,8 +2510,8 @@ _storeSequence:
     }   }
 
     /* Save reps for next block */
-    ctx->repToConfirm[0] = offset_1 ? offset_1 : savedOffset;
-    ctx->repToConfirm[1] = offset_2 ? offset_2 : savedOffset;
+    seqStorePtr->repToConfirm[0] = offset_1 ? offset_1 : savedOffset;
+    seqStorePtr->repToConfirm[1] = offset_2 ? offset_2 : savedOffset;
 
     /* Last Literals */
     {   size_t const lastLLSize = iend - anchor;
@@ -2567,7 +2569,7 @@ void ZSTD_compressBlock_lazy_extDict_generic(ZSTD_CCtx* ctx,
                         U32 maxNbAttempts, U32 matchLengthSearch);
     searchMax_f searchMax = searchMethod ? ZSTD_BtFindBestMatch_selectMLS_extDict : ZSTD_HcFindBestMatch_extDict_selectMLS;
 
-    U32 offset_1 = ctx->rep[0], offset_2 = ctx->rep[1];
+    U32 offset_1 = seqStorePtr->rep[0], offset_2 = seqStorePtr->rep[1];
 
     /* init */
     ctx->nextToUpdate3 = ctx->nextToUpdate;
@@ -2703,7 +2705,7 @@ _storeSequence:
     }   }
 
     /* Save reps for next block */
-    ctx->repToConfirm[0] = offset_1; ctx->repToConfirm[1] = offset_2;
+    seqStorePtr->repToConfirm[0] = offset_1; seqStorePtr->repToConfirm[1] = offset_2;
 
     /* Last Literals */
     {   size_t const lastLLSize = iend - anchor;
@@ -2812,7 +2814,7 @@ static size_t ZSTD_compressBlock_internal(ZSTD_CCtx* zc, void* dst, size_t dstCa
     if (current > zc->nextToUpdate + 384)
         zc->nextToUpdate = current - MIN(192, (U32)(current - zc->nextToUpdate - 384));   /* limited update after finding a very long match */
     blockCompressor(zc, src, srcSize);
-    return ZSTD_compressSequences(zc, dst, dstCapacity, srcSize);
+    return ZSTD_compressSequences(&zc->seqStore, zc->entropy, &zc->appliedParams.cParams, dst, dstCapacity, srcSize);
 }
 
 
@@ -3142,9 +3144,9 @@ static size_t ZSTD_loadZstdDictionary(ZSTD_CCtx* cctx, const void* dict, size_t 
     }
 
     if (dictPtr+12 > dictEnd) return ERROR(dictionary_corrupted);
-    cctx->rep[0] = MEM_readLE32(dictPtr+0);
-    cctx->rep[1] = MEM_readLE32(dictPtr+4);
-    cctx->rep[2] = MEM_readLE32(dictPtr+8);
+    cctx->seqStore.rep[0] = MEM_readLE32(dictPtr+0);
+    cctx->seqStore.rep[1] = MEM_readLE32(dictPtr+4);
+    cctx->seqStore.rep[2] = MEM_readLE32(dictPtr+8);
     dictPtr += 12;
 
     {   size_t const dictContentSize = (size_t)(dictEnd - dictPtr);
@@ -3158,8 +3160,8 @@ static size_t ZSTD_loadZstdDictionary(ZSTD_CCtx* cctx, const void* dict, size_t 
         /* All repCodes must be <= dictContentSize and != 0*/
         {   U32 u;
             for (u=0; u<3; u++) {
-                if (cctx->rep[u] == 0) return ERROR(dictionary_corrupted);
-                if (cctx->rep[u] > dictContentSize) return ERROR(dictionary_corrupted);
+                if (cctx->seqStore.rep[u] == 0) return ERROR(dictionary_corrupted);
+                if (cctx->seqStore.rep[u] > dictContentSize) return ERROR(dictionary_corrupted);
         }   }
 
         cctx->entropy->hufCTable_repeatMode = HUF_repeat_valid;

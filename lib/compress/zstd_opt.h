@@ -439,7 +439,7 @@ void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
     ctx->nextToUpdate3 = ctx->nextToUpdate;
     ZSTD_rescaleFreqs(seqStorePtr, (const BYTE*)src, srcSize);
     ip += (ip==prefixStart);
-    { U32 i; for (i=0; i<ZSTD_REP_NUM; i++) rep[i]=ctx->rep[i]; }
+    { U32 i; for (i=0; i<ZSTD_REP_NUM; i++) rep[i]=seqStorePtr->rep[i]; }
 
     /* Match Loop */
     while (ip < ilimit) {
@@ -651,7 +651,7 @@ _storeSequence:   /* cur, last_pos, best_mlen, best_off have to be set */
     }    }   /* for (cur=0; cur < last_pos; ) */
 
     /* Save reps for next block */
-    { int i; for (i=0; i<ZSTD_REP_NUM; i++) ctx->repToConfirm[i] = rep[i]; }
+    { int i; for (i=0; i<ZSTD_REP_NUM; i++) seqStorePtr->repToConfirm[i] = rep[i]; }
 
     /* Last Literals */
     {   size_t const lastLLSize = iend - anchor;
@@ -689,7 +689,7 @@ void ZSTD_compressBlock_opt_extDict_generic(ZSTD_CCtx* ctx,
 
     /* init */
     U32 offset, rep[ZSTD_REP_NUM];
-    { U32 i; for (i=0; i<ZSTD_REP_NUM; i++) rep[i]=ctx->rep[i]; }
+    { U32 i; for (i=0; i<ZSTD_REP_NUM; i++) rep[i]=seqStorePtr->rep[i]; }
 
     ctx->nextToUpdate3 = ctx->nextToUpdate;
     ZSTD_rescaleFreqs(seqStorePtr, (const BYTE*)src, srcSize);
@@ -924,7 +924,7 @@ _storeSequence:   /* cur, last_pos, best_mlen, best_off have to be set */
     }    }   /* for (cur=0; cur < last_pos; ) */
 
     /* Save reps for next block */
-    { int i; for (i=0; i<ZSTD_REP_NUM; i++) ctx->repToConfirm[i] = rep[i]; }
+    { int i; for (i=0; i<ZSTD_REP_NUM; i++) seqStorePtr->repToConfirm[i] = rep[i]; }
 
     /* Last Literals */
     {   size_t lastLLSize = iend - anchor;

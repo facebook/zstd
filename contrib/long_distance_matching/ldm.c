@@ -5,7 +5,7 @@
 #include <string.h>
 
 // Insert every (HASH_ONLY_EVERY + 1) into the hash table.
-#define HASH_ONLY_EVERY 31
+#define HASH_ONLY_EVERY 15
 
 #define LDM_HASHLOG (LDM_MEMORY_USAGE-2)
 #define LDM_HASHTABLESIZE (1 << (LDM_MEMORY_USAGE))
@@ -18,6 +18,10 @@
 
 #define COMPUTE_STATS
 #define CHECKSUM_CHAR_OFFSET 10
+
+#define LAG 0
+
+//#define HASH_CHECK
 //#define RUN_CHECKS
 //#define LDM_DEBUG
 
@@ -78,6 +82,10 @@ struct LDM_CCtx {
   U32 nextSum;
 
   unsigned step;                      // ip step, should be 1.
+
+  const BYTE *lagIp;
+  hash_t lagHash;
+  U32 lagSum;
 
   // DEBUG
   const BYTE *DEBUG_setNextHash;
@@ -253,6 +261,17 @@ static void setNextHash(LDM_CCtx *cctx) {
   cctx->nextPosHashed = cctx->nextIp;
   cctx->nextHash = checksumToHash(cctx->nextSum);
 
+#if LAG
+  if (cctx->ip - cctx->ibase > LAG) {
+//    printf("LAG %zu\n", cctx->ip - cctx->lagIp);
+    cctx->lagSum = updateChecksum(
+      cctx->lagSum, LDM_HASH_LENGTH,
+      cctx->lagIp[0], cctx->lagIp[LDM_HASH_LENGTH]);
+    cctx->lagIp++;
+    cctx->lagHash = checksumToHash(cctx->lagSum);
+  }
+#endif
+
 #ifdef RUN_CHECKS
   check = getChecksum(cctx->nextIp, LDM_HASH_LENGTH);
 
@@ -270,18 +289,6 @@ static void setNextHash(LDM_CCtx *cctx) {
 
 static void putHashOfCurrentPositionFromHash(
     LDM_CCtx *cctx, hash_t hash, U32 sum) {
-  /*
-#ifdef COMPUTE_STATS
-  if (cctx->stats.numHashInserts < HASH_getSize(cctx->hashTable)) {
-    U32 offset = HASH_getEntryFromHash(cctx->hashTable, hash)->offset;
-    cctx->stats.numHashInserts++;
-    if (offset != 0 && !LDM_isValidMatch(cctx->ip, offset + cctx->ibase)) {
-      cctx->stats.numCollisions++;
-    }
-  }
-#endif
-*/
-
   // Hash only every HASH_ONLY_EVERY times, based on cctx->ip.
   // Note: this works only when cctx->step is 1.
   if (((cctx->ip - cctx->ibase) & HASH_ONLY_EVERY) == HASH_ONLY_EVERY) {
@@ -289,8 +296,19 @@ static void putHashOfCurrentPositionFromHash(
     const LDM_hashEntry entry = { cctx->ip - cctx->ibase ,
                                   MEM_read32(cctx->ip) };
                                   */
+#if LAG
+    // TODO: off by 1, but whatever
+    if (cctx->lagIp - cctx->ibase > 0) {
+      const LDM_hashEntry entry = { cctx->lagIp - cctx->ibase, cctx->lagSum };
+      HASH_insert(cctx->hashTable, cctx->lagHash, entry);
+    } else {
+      const LDM_hashEntry entry = { cctx->ip - cctx->ibase, sum };
+      HASH_insert(cctx->hashTable, hash, entry);
+    }
+#else
     const LDM_hashEntry entry = { cctx->ip - cctx->ibase, sum };
     HASH_insert(cctx->hashTable, hash, entry);
+#endif
   }
 
   cctx->lastPosHashed = cctx->ip;
@@ -330,15 +348,6 @@ static void LDM_putHashOfCurrentPosition(LDM_CCtx *cctx) {
 
   putHashOfCurrentPositionFromHash(cctx, hash, sum);
 }
-
-/**
- * Returns the position of the entry at hashTable[hash].
- */
-/*
-static const BYTE *getPositionOnHash(const LDM_CCtx *cctx, const hash_t hash) {
-  return HASH_getEntryFromHash(cctx->hashTable, hash)->offset + cctx->ibase;
-}
-*/
 
 U32 LDM_countMatchLength(const BYTE *pIn, const BYTE *pMatch,
                          const BYTE *pInLimit) {
@@ -431,12 +440,20 @@ static int LDM_findBestMatch(LDM_CCtx *cctx, const BYTE **match) {
     if (cctx->ip > cctx->imatchLimit) {
       return 1;
     }
-
+#ifdef HASH_CHECK
+    entry = HASH_getEntryFromHash(cctx->hashTable, h, sum);
+#else
     entry = HASH_getValidEntry(cctx->hashTable, h, sum, cctx->ip,
                                &LDM_isValidMatch);
+#endif
 
     if (entry != NULL) {
       *match = entry->offset + cctx->ibase;
+#ifdef HASH_CHECK
+      if (!LDM_isValidMatch(cctx->ip, *match)) {
+        entry = NULL;
+      }
+#endif
     }
     putHashOfCurrentPositionFromHash(cctx, h, sum);
   }
@@ -508,6 +525,12 @@ size_t LDM_compress(const void *src, size_t srcSize,
   /* Hash the first position and put it into the hash table. */
   LDM_putHashOfCurrentPosition(&cctx);
 
+#if LAG
+  cctx.lagIp = cctx.ip;
+  cctx.lagHash = cctx.lastHash;
+  cctx.lagSum = cctx.lastSum;
+#endif
+
   /**
    * Find a match.
    * If no more matches can be found (i.e. the length of the remaining input
@@ -575,7 +598,7 @@ size_t LDM_compress(const void *src, size_t srcSize,
 
   /* Encode the last literals (no more matches). */
   {
-    const size_t lastRun = cctx.iend - cctx.anchor;
+    const U32 lastRun = cctx.iend - cctx.anchor;
     BYTE *pToken = cctx.op++;
     LDM_encodeLiteralLengthAndLiterals(&cctx, pToken, lastRun);
   }

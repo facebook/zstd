@@ -163,7 +163,6 @@ static int decompress(const char *fname, const char *oname) {
   outSize = LDM_decompress(
       src + LDM_HEADER_SIZE, statbuf.st_size - LDM_HEADER_SIZE,
       dst, decompressedSize);
-
   printf("Ret size out: %zu\n", outSize);
   ftruncate(fdout, outSize);
 

@@ -9,7 +9,7 @@
 //      refactor code to scale the number of elements appropriately.
 
 // Number of elements per hash bucket.
-#define HASH_BUCKET_SIZE_LOG 1  // MAX is 4 for now
+#define HASH_BUCKET_SIZE_LOG 0 // MAX is 4 for now
 #define HASH_BUCKET_SIZE (1 << (HASH_BUCKET_SIZE_LOG))
 
 struct LDM_hashTable {
@@ -19,6 +19,7 @@ struct LDM_hashTable {
   // Position corresponding to offset=0 in LDM_hashEntry.
   const BYTE *offsetBase;
   BYTE *bucketOffsets;     // Pointer to current insert position.
+
                            // Last insert was at bucketOffsets - 1?
 };
 
@@ -35,15 +36,6 @@ static LDM_hashEntry *getBucket(const LDM_hashTable *table, const hash_t hash) {
   return table->entries + (hash << HASH_BUCKET_SIZE_LOG);
 }
 
-/*
-static LDM_hashEntry *getLastInsertFromHash(const LDM_hashTable *table,
-                                            const hash_t hash) {
-  LDM_hashEntry *bucket = getBucket(table, hash);
-  BYTE offset = (table->bucketOffsets[hash] - 1) & (HASH_BUCKET_SIZE - 1);
-  return bucket + offset;
-}
-*/
-
 LDM_hashEntry *HASH_getValidEntry(const LDM_hashTable *table,
                                   const hash_t hash,
                                   const U32 checksum,
@@ -53,7 +45,12 @@ LDM_hashEntry *HASH_getValidEntry(const LDM_hashTable *table,
   LDM_hashEntry *cur = bucket;
   // TODO: in order of recency?
   for (; cur < bucket + HASH_BUCKET_SIZE; ++cur) {
-    // CHeck checksum for faster check.
+    /*
+    if (cur->checksum == 0 && cur->offset == 0) {
+      return NULL;
+    }
+    */
+    // Check checksum for faster check.
     if (cur->checksum == checksum &&
         (*isValid)(pIn, cur->offset + table->offsetBase)) {
       return cur;
@@ -61,7 +58,6 @@ LDM_hashEntry *HASH_getValidEntry(const LDM_hashTable *table,
   }
   return NULL;
 }
-
 
 LDM_hashEntry *HASH_getEntryFromHash(const LDM_hashTable *table,
                                      const hash_t hash,

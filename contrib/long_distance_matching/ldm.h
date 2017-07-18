@@ -10,8 +10,8 @@
 #define LDM_HEADER_SIZE ((LDM_COMPRESS_SIZE)+(LDM_DECOMPRESS_SIZE))
 #define LDM_OFFSET_SIZE 4
 
-// Defines the size of the hash table.
-#define LDM_MEMORY_USAGE 20
+// Defines the size of the hash table (currently the number of elements).
+#define LDM_MEMORY_USAGE 12
 
 #define LDM_WINDOW_SIZE_LOG 30
 #define LDM_WINDOW_SIZE (1 << (LDM_WINDOW_SIZE_LOG))

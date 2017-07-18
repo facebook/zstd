@@ -27,7 +27,6 @@ LDM_hashEntry *getBucket(const LDM_hashTable *table, const hash_t hash) {
   return table->entries + hash;
 }
 
-
 LDM_hashEntry *HASH_getEntryFromHash(
     const LDM_hashTable *table, const hash_t hash, const U32 checksum) {
   (void)checksum;
@@ -43,12 +42,9 @@ LDM_hashEntry *HASH_getValidEntry(const LDM_hashTable *table,
   (void)checksum;
   if ((*isValid)(pIn, entry->offset + table->offsetBase)) {
     return entry;
-  } else {
-    return NULL;
   }
+  return NULL;
 }
-
-
 
 void HASH_insert(LDM_hashTable *table,
                  const hash_t hash, const LDM_hashEntry entry) {

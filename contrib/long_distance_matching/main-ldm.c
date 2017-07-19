@@ -29,6 +29,7 @@ static int compress(const char *fname, const char *oname) {
   size_t maxCompressedSize, compressedSize;
 
   struct timeval tv1, tv2;
+  double timeTaken;
 
   /* Open the input file. */
   if ((fdin = open(fname, O_RDONLY)) < 0) {
@@ -53,18 +54,7 @@ static int compress(const char *fname, const char *oname) {
   // The compress function should check before writing or buffer writes.
   maxCompressedSize += statbuf.st_size / 255;
 
- /* Go to the location corresponding to the last byte. */
- /* TODO: fallocate? */
-  if (lseek(fdout, maxCompressedSize - 1, SEEK_SET) == -1) {
-    perror("lseek error");
-    return 1;
-  }
-
- /* Write a dummy byte at the last location. */
-  if (write(fdout, "", 1) != 1) {
-    perror("write error");
-    return 1;
-  }
+  ftruncate(fdout, maxCompressedSize);
 
   /* mmap the input file. */
   if ((src = mmap(0, statbuf.st_size, PROT_READ,  MAP_SHARED, fdin, 0))
@@ -103,12 +93,12 @@ static int compress(const char *fname, const char *oname) {
          (unsigned)statbuf.st_size, (unsigned)compressedSize, oname,
          (double)compressedSize / (statbuf.st_size) * 100);
 
+  timeTaken = (double) (tv2.tv_usec - tv1.tv_usec) / 1000000 +
+              (double) (tv2.tv_sec - tv1.tv_sec),
+
   printf("Total compress time = %.3f seconds, Average compression speed: %.3f MB/s\n",
-         (double) (tv2.tv_usec - tv1.tv_usec) / 1000000 +
-         (double) (tv2.tv_sec - tv1.tv_sec),
-         ((double)statbuf.st_size / (double) (1 << 20)) /
-            ((double) (tv2.tv_usec - tv1.tv_usec) / 1000000 +
-            (double) (tv2.tv_sec - tv1.tv_sec)));
+         timeTaken,
+         ((double)statbuf.st_size / (double) (1 << 20)) / timeTaken);
 
 
   // Close files.
@@ -156,17 +146,7 @@ static int decompress(const char *fname, const char *oname) {
   /* Read the header. */
   LDM_readHeader(src, &compressedSize, &decompressedSize);
 
-  /* Go to the location corresponding to the last byte. */
-  if (lseek(fdout, decompressedSize - 1, SEEK_SET) == -1) {
-    perror("lseek error");
-    return 1;
-  }
-
-  /* write a dummy byte at the last location */
-  if (write(fdout, "", 1) != 1) {
-    perror("write error");
-    return 1;
-  }
+  ftruncate(fdout, decompressedSize);
 
   /* mmap the output file */
   if ((dst = mmap(0, decompressedSize, PROT_READ | PROT_WRITE,

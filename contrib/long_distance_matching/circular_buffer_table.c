@@ -5,22 +5,19 @@
 #include "ldm_hashtable.h"
 #include "mem.h"
 
-//TODO: move def somewhere else.
 
 // Number of elements per hash bucket.
 // HASH_BUCKET_SIZE_LOG defined in ldm.h
-#define HASH_BUCKET_SIZE_LOG 2 // MAX is 4 for now
 #define HASH_BUCKET_SIZE (1 << (HASH_BUCKET_SIZE_LOG))
 
 // TODO: rename. Number of hash buckets.
 #define LDM_HASHLOG ((LDM_MEMORY_USAGE)-4-HASH_BUCKET_SIZE_LOG)
-#define ZSTD_SKIP
-//#define TMP_TST
+//#define ZSTD_SKIP
 
 struct LDM_hashTable {
-  U32 size;  // Number of buckets
-  U32 maxEntries;  // Rename...
-  LDM_hashEntry *entries;  // 1-D array for now.
+  U32 numBuckets;
+  U32 numEntries;
+  LDM_hashEntry *entries;
   BYTE *bucketOffsets;     // Pointer to current insert position.
 
   // Position corresponding to offset=0 in LDM_hashEntry.
@@ -32,8 +29,8 @@ struct LDM_hashTable {
 LDM_hashTable *HASH_createTable(U32 size, const BYTE *offsetBase,
                                 U32 minMatchLength, U32 maxWindowSize) {
   LDM_hashTable *table = malloc(sizeof(LDM_hashTable));
-  table->size = size >> HASH_BUCKET_SIZE_LOG;
-  table->maxEntries = size;
+  table->numBuckets = size >> HASH_BUCKET_SIZE_LOG;
+  table->numEntries = size;
   table->entries = calloc(size, sizeof(LDM_hashEntry));
   table->bucketOffsets = calloc(size >> HASH_BUCKET_SIZE_LOG, sizeof(BYTE));
   table->offsetBase = offsetBase;
@@ -46,7 +43,6 @@ static LDM_hashEntry *getBucket(const LDM_hashTable *table, const hash_t hash) {
   return table->entries + (hash << HASH_BUCKET_SIZE_LOG);
 }
 
-#if TMP_ZSTDTOGGLE
 static unsigned ZSTD_NbCommonBytes (register size_t val)
 {
     if (MEM_isLittleEndian()) {
@@ -159,26 +155,22 @@ U32 countBackwardsMatch(const BYTE *pIn, const BYTE *pAnchor,
   return matchLength;
 }
 
-LDM_hashEntry *HASH_getValidEntry(const LDM_hashTable *table,
-                                  const hash_t hash,
-                                  const U32 checksum,
-                                  const BYTE *pIn,
-                                  const BYTE *pEnd,
-                                  U32 *matchLength,
-                                  U32 *backwardsMatchLength,
-                                  const BYTE *pAnchor) {
+LDM_hashEntry *HASH_getBestEntry(const LDM_hashTable *table,
+                                 const hash_t hash,
+                                 const U32 checksum,
+                                 const BYTE *pIn,
+                                 const BYTE *pEnd,
+                                 const BYTE *pAnchor,
+                                 U32 *pForwardMatchLength,
+                                 U32 *pBackwardMatchLength) {
   LDM_hashEntry *bucket = getBucket(table, hash);
   LDM_hashEntry *cur = bucket;
   LDM_hashEntry *bestEntry = NULL;
   U32 bestMatchLength = 0;
-  U32 forwardMatch = 0;
-  U32 backwardMatch = 0;
-#ifdef TMP_TST
-  U32 numBetter = 0;
-#endif
   for (; cur < bucket + HASH_BUCKET_SIZE; ++cur) {
-    // Check checksum for faster check.
     const BYTE *pMatch = cur->offset + table->offsetBase;
+
+    // Check checksum for faster check.
     if (cur->checksum == checksum && pIn - pMatch <= table->maxWindowSize) {
       U32 forwardMatchLength = ZSTD_count(pIn, pMatch, pEnd);
       U32 backwardMatchLength, totalMatchLength;
@@ -193,103 +185,25 @@ LDM_hashEntry *HASH_getValidEntry(const LDM_hashTable *table,
 
       if (totalMatchLength >= bestMatchLength) {
         bestMatchLength = totalMatchLength;
-        forwardMatch = forwardMatchLength;
-        backwardMatch = backwardMatchLength;
+        *pForwardMatchLength = forwardMatchLength;
+        *pBackwardMatchLength = backwardMatchLength;
+
         bestEntry = cur;
-#ifdef TMP_TST
-        numBetter++;
-#endif
 
 #ifdef ZSTD_SKIP
-        *matchLength = forwardMatchLength;
-        *backwardsMatchLength = backwardMatchLength;
-
         return cur;
 #endif
-//        *matchLength = forwardMatchLength;
-//        return cur;
       }
     }
   }
-  if (bestEntry != NULL && bestMatchLength > table->minMatchLength) {
-#ifdef TMP_TST
-    printf("Num better %u\n", numBetter - 1);
-#endif
-    *matchLength = forwardMatch;
-    *backwardsMatchLength = backwardMatch;
+  if (bestEntry != NULL) {
     return bestEntry;
   }
   return NULL;
 }
 
-#else
-
-static int isValidMatch(const BYTE *pIn, const BYTE *pMatch,
-                        U32 minMatchLength, U32 maxWindowSize) {
-  printf("HERE\n");
-  U32 lengthLeft = minMatchLength;
-  const BYTE *curIn = pIn;
-  const BYTE *curMatch = pMatch;
-
-  if (pIn - pMatch > maxWindowSize) {
-    return 0;
-  }
-
-  for (; lengthLeft >= 4; lengthLeft -= 4) {
-    if (MEM_read32(curIn) != MEM_read32(curMatch)) {
-      return 0;
-    }
-    curIn += 4;
-    curMatch += 4;
-  }
-  return 1;
-}
-
-//TODO: clean up function call. This is not at all decoupled from LDM.
-LDM_hashEntry *HASH_getValidEntry(const LDM_hashTable *table,
-                                  const hash_t hash,
-                                  const U32 checksum,
-                                  const BYTE *pIn,
-                                  const BYTE *pEnd,
-                                  U32 *matchLength,
-                                  U32 *backwardsMatchLength,
-                                  const BYTE *pAnchor) {
-  LDM_hashEntry *bucket = getBucket(table, hash);
-  LDM_hashEntry *cur = bucket;
-  (void)matchLength;
-  (void)backwardsMatchLength;
-  (void)pAnchor; for (; cur < bucket + HASH_BUCKET_SIZE; ++cur) {
-    // Check checksum for faster check.
-    const BYTE *pMatch = cur->offset + table->offsetBase;
-    (void)pEnd;
-
-    if (cur->checksum == checksum &&
-        isValidMatch(pIn, pMatch, table->minMatchLength, table->maxWindowSize)) {
-      return cur;
-    }
-  }
-  return NULL;
-}
-
-#endif
 hash_t HASH_hashU32(U32 value) {
   return ((value * 2654435761U) >> (32 - LDM_HASHLOG));
-}
-
-
-LDM_hashEntry *HASH_getEntryFromHash(const LDM_hashTable *table,
-                                     const hash_t hash,
-                                     const U32 checksum) {
-  // Loop through bucket.
-  // TODO: in order of recency???
-  LDM_hashEntry *bucket = getBucket(table, hash);
-  LDM_hashEntry *cur = bucket;
-  for(; cur < bucket + HASH_BUCKET_SIZE; ++cur) {
-    if (cur->checksum == checksum) {
-      return cur;
-    }
-  }
-  return NULL;
 }
 
 void HASH_insert(LDM_hashTable *table,
@@ -300,7 +214,7 @@ void HASH_insert(LDM_hashTable *table,
 }
 
 U32 HASH_getSize(const LDM_hashTable *table) {
-  return table->size;
+  return table->numBuckets;
 }
 
 void HASH_destroyTable(LDM_hashTable *table) {
@@ -312,15 +226,16 @@ void HASH_destroyTable(LDM_hashTable *table) {
 void HASH_outputTableOccupancy(const LDM_hashTable *table) {
   U32 ctr = 0;
   LDM_hashEntry *cur = table->entries;
-  LDM_hashEntry *end = table->entries + (table->size * HASH_BUCKET_SIZE);
+  LDM_hashEntry *end = table->entries + (table->numBuckets * HASH_BUCKET_SIZE);
   for (; cur < end; ++cur) {
     if (cur->offset == 0) {
       ctr++;
     }
   }
 
-  printf("Num buckets, bucket size: %d, %d\n", table->size, HASH_BUCKET_SIZE);
+  printf("Num buckets, bucket size: %d, %d\n",
+         table->numBuckets, HASH_BUCKET_SIZE);
   printf("Hash table size, empty slots, %% empty: %u, %u, %.3f\n",
-         table->maxEntries, ctr,
-         100.0 * (double)(ctr) / table->maxEntries);
+         table->numEntries, ctr,
+         100.0 * (double)(ctr) / table->numEntries);
 }

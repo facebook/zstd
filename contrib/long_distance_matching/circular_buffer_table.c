@@ -14,8 +14,8 @@
 
 // TODO: rename. Number of hash buckets.
 #define LDM_HASHLOG ((LDM_MEMORY_USAGE)-4-HASH_BUCKET_SIZE_LOG)
-
-#define TMP_ZSTDTOGGLE
+#define ZSTD_SKIP
+//#define TMP_TST
 
 struct LDM_hashTable {
   U32 size;  // Number of buckets
@@ -25,15 +25,20 @@ struct LDM_hashTable {
 
   // Position corresponding to offset=0 in LDM_hashEntry.
   const BYTE *offsetBase;
+  U32 minMatchLength;
+  U32 maxWindowSize;
 };
 
-LDM_hashTable *HASH_createTable(U32 size, const BYTE *offsetBase) {
+LDM_hashTable *HASH_createTable(U32 size, const BYTE *offsetBase,
+                                U32 minMatchLength, U32 maxWindowSize) {
   LDM_hashTable *table = malloc(sizeof(LDM_hashTable));
   table->size = size >> HASH_BUCKET_SIZE_LOG;
   table->maxEntries = size;
   table->entries = calloc(size, sizeof(LDM_hashEntry));
   table->bucketOffsets = calloc(size >> HASH_BUCKET_SIZE_LOG, sizeof(BYTE));
   table->offsetBase = offsetBase;
+  table->minMatchLength = minMatchLength;
+  table->maxWindowSize = maxWindowSize;
   return table;
 }
 
@@ -41,7 +46,7 @@ static LDM_hashEntry *getBucket(const LDM_hashTable *table, const hash_t hash) {
   return table->entries + (hash << HASH_BUCKET_SIZE_LOG);
 }
 
-#ifdef TMP_ZSTDTOGGLE
+#if TMP_ZSTDTOGGLE
 static unsigned ZSTD_NbCommonBytes (register size_t val)
 {
     if (MEM_isLittleEndian()) {
@@ -143,10 +148,85 @@ static size_t ZSTD_count(const BYTE *pIn, const BYTE *pMatch,
     return (size_t)(pIn - pStart);
 }
 
+U32 countBackwardsMatch(const BYTE *pIn, const BYTE *pAnchor,
+                        const BYTE *pMatch, const BYTE *pBase) {
+  U32 matchLength = 0;
+  while (pIn > pAnchor && pMatch > pBase && pIn[-1] == pMatch[-1]) {
+    pIn--;
+    pMatch--;
+    matchLength++;
+  }
+  return matchLength;
+}
+
+LDM_hashEntry *HASH_getValidEntry(const LDM_hashTable *table,
+                                  const hash_t hash,
+                                  const U32 checksum,
+                                  const BYTE *pIn,
+                                  const BYTE *pEnd,
+                                  U32 *matchLength,
+                                  U32 *backwardsMatchLength,
+                                  const BYTE *pAnchor) {
+  LDM_hashEntry *bucket = getBucket(table, hash);
+  LDM_hashEntry *cur = bucket;
+  LDM_hashEntry *bestEntry = NULL;
+  U32 bestMatchLength = 0;
+  U32 forwardMatch = 0;
+  U32 backwardMatch = 0;
+#ifdef TMP_TST
+  U32 numBetter = 0;
+#endif
+  for (; cur < bucket + HASH_BUCKET_SIZE; ++cur) {
+    // Check checksum for faster check.
+    const BYTE *pMatch = cur->offset + table->offsetBase;
+    if (cur->checksum == checksum && pIn - pMatch <= table->maxWindowSize) {
+      U32 forwardMatchLength = ZSTD_count(pIn, pMatch, pEnd);
+      U32 backwardMatchLength, totalMatchLength;
+      if (forwardMatchLength < table->minMatchLength) {
+        continue;
+      }
+      backwardMatchLength =
+          countBackwardsMatch(pIn, pAnchor, cur->offset + table->offsetBase,
+                              table->offsetBase);
+
+      totalMatchLength = forwardMatchLength + backwardMatchLength;
+
+      if (totalMatchLength >= bestMatchLength) {
+        bestMatchLength = totalMatchLength;
+        forwardMatch = forwardMatchLength;
+        backwardMatch = backwardMatchLength;
+        bestEntry = cur;
+#ifdef TMP_TST
+        numBetter++;
+#endif
+
+#ifdef ZSTD_SKIP
+        *matchLength = forwardMatchLength;
+        *backwardsMatchLength = backwardMatchLength;
+
+        return cur;
+#endif
+//        *matchLength = forwardMatchLength;
+//        return cur;
+      }
+    }
+  }
+  if (bestEntry != NULL && bestMatchLength > table->minMatchLength) {
+#ifdef TMP_TST
+    printf("Num better %u\n", numBetter - 1);
+#endif
+    *matchLength = forwardMatch;
+    *backwardsMatchLength = backwardMatch;
+    return bestEntry;
+  }
+  return NULL;
+}
+
 #else
 
 static int isValidMatch(const BYTE *pIn, const BYTE *pMatch,
                         U32 minMatchLength, U32 maxWindowSize) {
+  printf("HERE\n");
   U32 lengthLeft = minMatchLength;
   const BYTE *curIn = pIn;
   const BYTE *curMatch = pMatch;
@@ -165,44 +245,33 @@ static int isValidMatch(const BYTE *pIn, const BYTE *pMatch,
   return 1;
 }
 
-#endif // TMP_ZSTDTOGGLE
-
+//TODO: clean up function call. This is not at all decoupled from LDM.
 LDM_hashEntry *HASH_getValidEntry(const LDM_hashTable *table,
                                   const hash_t hash,
                                   const U32 checksum,
                                   const BYTE *pIn,
                                   const BYTE *pEnd,
-                                  U32 minMatchLength,
-                                  U32 maxWindowSize,
-                                  U32 *matchLength) {
+                                  U32 *matchLength,
+                                  U32 *backwardsMatchLength,
+                                  const BYTE *pAnchor) {
   LDM_hashEntry *bucket = getBucket(table, hash);
   LDM_hashEntry *cur = bucket;
-  // TODO: in order of recency?
-  for (; cur < bucket + HASH_BUCKET_SIZE; ++cur) {
+  (void)matchLength;
+  (void)backwardsMatchLength;
+  (void)pAnchor; for (; cur < bucket + HASH_BUCKET_SIZE; ++cur) {
     // Check checksum for faster check.
     const BYTE *pMatch = cur->offset + table->offsetBase;
-#ifdef TMP_ZSTDTOGGLE
-    if (cur->checksum == checksum && pIn - pMatch <= maxWindowSize) {
-      U32 forwardMatchLength = ZSTD_count(pIn, pMatch, pEnd);
-      if (forwardMatchLength >= minMatchLength) {
-        *matchLength = forwardMatchLength;
-        return cur;
-      }
-    }
-#else
     (void)pEnd;
-    (void)minMatchLength;
-    (void)maxWindowSize;
 
     if (cur->checksum == checksum &&
-        isValidMatch(pIn, pMatch, minMatchLength, maxWindowSize)) {
+        isValidMatch(pIn, pMatch, table->minMatchLength, table->maxWindowSize)) {
       return cur;
     }
-#endif
   }
   return NULL;
 }
 
+#endif
 hash_t HASH_hashU32(U32 value) {
   return ((value * 2654435761U) >> (32 - LDM_HASHLOG));
 }

@@ -20,9 +20,12 @@
 #define LDM_WINDOW_SIZE_LOG 28
 #define LDM_WINDOW_SIZE (1 << (LDM_WINDOW_SIZE_LOG))
 
-//These should be multiples of four (and perhaps set to the same values?).
-#define LDM_MIN_MATCH_LENGTH 64
-#define LDM_HASH_LENGTH 64
+//These should be multiples of four (and perhaps set to the same value?).
+#define LDM_MIN_MATCH_LENGTH 1024
+#define LDM_HASH_LENGTH 1024
+
+#define TMP_ZSTDTOGGLE 1
+#define TMP_RECOMPUTE_LENGTHS (!(TMP_ZSTDTOGGLE))
 
 typedef struct LDM_compressStats LDM_compressStats;
 typedef struct LDM_CCtx LDM_CCtx;

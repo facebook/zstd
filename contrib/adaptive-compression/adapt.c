@@ -682,17 +682,30 @@ static int performCompression(adaptCCtx* ctx, FILE* const srcFile, outputThreadA
 
     /* creating jobs */
     for ( ; ; ) {
-        size_t const readSize = fread(ctx->input.buffer.start + ctx->input.filled, 1, FILE_CHUNK_SIZE, srcFile);
-        if (readSize != FILE_CHUNK_SIZE && !feof(srcFile)) {
+        size_t pos = 0;
+        size_t const readBlockSize = 1 << 15;
+        size_t remaining = FILE_CHUNK_SIZE;
+        while (remaining != 0 && !feof(srcFile)) {
+            size_t const ret = fread(ctx->input.buffer.start + ctx->input.filled + pos, 1, readBlockSize, srcFile);
+            if (ret != readBlockSize && !feof(srcFile)) {
+                /* error could not read correct number of bytes */
+                DISPLAY("Error: problem occurred during read from src file\n");
+                signalErrorToThreads(ctx);
+                return 1;
+            }
+            pos += ret;
+            remaining -= ret;
+        }
+        if (remaining != 0 && !feof(srcFile)) {
             DISPLAY("Error: problem occurred during read from src file\n");
             signalErrorToThreads(ctx);
             return 1;
         }
-        g_streamedSize += readSize;
+        g_streamedSize += pos;
         /* reading was fine, now create the compression job */
         {
             int const last = feof(srcFile);
-            int const error = createCompressionJob(ctx, readSize, last);
+            int const error = createCompressionJob(ctx, pos, last);
             if (error != 0) {
                 signalErrorToThreads(ctx);
                 return error;

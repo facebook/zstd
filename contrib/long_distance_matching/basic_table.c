@@ -36,14 +36,38 @@ LDM_hashEntry *HASH_getEntryFromHash(
   return getBucket(table, hash);
 }
 
+static int isValidMatch(const BYTE *pIn, const BYTE *pMatch,
+                            U32 minMatchLength, U32 maxWindowSize) {
+  U32 lengthLeft = minMatchLength;
+  const BYTE *curIn = pIn;
+  const BYTE *curMatch = pMatch;
+
+  if (pIn - pMatch > maxWindowSize) {
+    return 0;
+  }
+
+  for (; lengthLeft >= 4; lengthLeft -= 4) {
+    if (MEM_read32(curIn) != MEM_read32(curMatch)) {
+      return 0;
+    }
+    curIn += 4;
+    curMatch += 4;
+  }
+  return 1;
+}
+
 LDM_hashEntry *HASH_getValidEntry(const LDM_hashTable *table,
                                   const hash_t hash,
                                   const U32 checksum,
                                   const BYTE *pIn,
-                                  int (*isValid)(const BYTE *pIn, const BYTE *pMatch)) {
+                                  const BYTE *pEnd,
+                                  U32 minMatchLength,
+                                  U32 maxWindowSize) {
   LDM_hashEntry *entry = getBucket(table, hash);
   (void)checksum;
-  if ((*isValid)(pIn, entry->offset + table->offsetBase)) {
+  (void)pEnd;
+  if (isValidMatch(pIn, entry->offset + table->offsetBase,
+                   minMatchLength, maxWindowSize)) {
     return entry;
   }
   return NULL;

@@ -375,7 +375,7 @@ static void adaptCompressionLevel(adaptCCtx* ctx)
                     unsigned const maxChange = (unsigned)((1-completion) * (MAX_COMPRESSION_LEVEL_CHANGE-1)) + 1;
                     unsigned const change = MIN(maxChange, ctx->compressionLevel - 1);
                     DEBUG(3, "decreasing compression level %u\n", ctx->compressionLevel);
-                    DEBUG(2, "completion: %f\n", completion);
+                    DEBUG(3, "completion: %f\n", completion);
                     ctx->compressionLevel -= change;
                     reset = 1;
                 }
@@ -452,6 +452,8 @@ static void* compressionThread(void* arg)
 
             while (remaining != 0) {
                 size_t const actualBlockSize = MIN(remaining, compressionBlockSize);
+                DEBUG(2, "remaining: %zu\n", remaining);
+                DEBUG(2, "actualBlockSize: %zu\n", actualBlockSize);
                 /* begin compression */
                 {
                     size_t const useDictSize = MIN(getUseableDictSize(cLevel), job->dictSize);
@@ -478,8 +480,10 @@ static void* compressionThread(void* arg)
                     ZSTD_invalidateRepCodes(ctx->cctx);
                 }
                 {
-
-                    size_t const ret = (job->lastJob && remaining <= compressionBlockSize) ?
+                    DEBUG(2, "write out ending: %d\n", job->lastJob && (remaining == actualBlockSize));
+                    DEBUG(2, "lastJob %u\n", job->lastJob);
+                    DEBUG(2, "compressionBlockSize %zu\n", compressionBlockSize);
+                    size_t const ret = (job->lastJob && remaining == actualBlockSize) ?
                                             ZSTD_compressEnd     (ctx->cctx, job->dst.start + dstPos, job->dst.capacity - dstPos, job->src.start + job->dictSize + srcPos, actualBlockSize) :
                                             ZSTD_compressContinue(ctx->cctx, job->dst.start + dstPos, job->dst.capacity - dstPos, job->src.start + job->dictSize + srcPos, actualBlockSize);
                     if (ZSTD_isError(ret)) {

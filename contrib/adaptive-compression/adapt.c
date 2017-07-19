@@ -431,9 +431,12 @@ static void* compressionThread(void* arg)
         DEBUG(3, "compressionThread(): continuing after job ready\n");
         DEBUG(3, "DICTIONARY ENDED\n");
         DEBUG(3, "%.*s", (int)job->src.size, (char*)job->src.start);
+
+        /* adapt compression level */
+        adaptCompressionLevel(ctx);
+        
         /* compress the data */
         {
-            adaptCompressionLevel(ctx);
             unsigned const cLevel = ctx->compressionLevel;
             DEBUG(3, "cLevel used: %u\n", cLevel);
             DEBUG(3, "compression level used: %u\n", cLevel);

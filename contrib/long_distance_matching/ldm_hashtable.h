@@ -40,7 +40,9 @@ LDM_hashEntry *HASH_getValidEntry(const LDM_hashTable *table,
                                   const hash_t hash,
                                   const U32 checksum,
                                   const BYTE *pIn,
-                                  int (*isValid)(const BYTE *pIn, const BYTE *pMatch));
+                                  const BYTE *pEnd,
+                                  U32 minMatchLength,
+                                  U32 maxWindowSize);
 
 hash_t HASH_hashU32(U32 value);
 

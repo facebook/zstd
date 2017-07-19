@@ -62,12 +62,16 @@ LDM_hashEntry *HASH_getValidEntry(const LDM_hashTable *table,
                                   const BYTE *pIn,
                                   const BYTE *pEnd,
                                   U32 minMatchLength,
-                                  U32 maxWindowSize) {
+                                  U32 maxWindowSize,
+                                  U32 *matchLength) {
   LDM_hashEntry *entry = getBucket(table, hash);
   (void)checksum;
   (void)pEnd;
+  (void)matchLength;
+  // TODO: Count the entire forward match length rather than check if valid.
   if (isValidMatch(pIn, entry->offset + table->offsetBase,
                    minMatchLength, maxWindowSize)) {
+
     return entry;
   }
   return NULL;

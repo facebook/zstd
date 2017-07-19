@@ -28,6 +28,7 @@
 
 //#define HASH_CHECK
 //#define RUN_CHECKS
+//#define TMP_RECOMPUTE_LENGTHS
 
 #include "ldm.h"
 #include "ldm_hashtable.h"
@@ -435,8 +436,10 @@ void LDM_destroyCCtx(LDM_CCtx *cctx) {
  * Returns 0 if successful and 1 otherwise (i.e. no match can be found
  * in the remaining input that is long enough).
  *
+ * matchLength contains the forward length of the match.
  */
-static int LDM_findBestMatch(LDM_CCtx *cctx, const BYTE **match) {
+static int LDM_findBestMatch(LDM_CCtx *cctx, const BYTE **match,
+                             U32 *matchLength) {
 
   LDM_hashEntry *entry = NULL;
   cctx->nextIp = cctx->ip + cctx->step;
@@ -459,7 +462,8 @@ static int LDM_findBestMatch(LDM_CCtx *cctx, const BYTE **match) {
     entry = HASH_getValidEntry(cctx->hashTable, h, sum,
                                cctx->ip, cctx->iend,
                                LDM_MIN_MATCH_LENGTH,
-                               LDM_WINDOW_SIZE);
+                               LDM_WINDOW_SIZE,
+                               matchLength);
 #endif
 
     if (entry != NULL) {
@@ -535,8 +539,7 @@ size_t LDM_compress(const void *src, size_t srcSize,
                     void *dst, size_t maxDstSize) {
   LDM_CCtx cctx;
   const BYTE *match = NULL;
-//  printf("TST: %d\n", LDM_WINDOW_SIZE / LDM_HASHTABLESIZE_U64);
-//  printf("HASH LOG: %d\n", HASH_ONLY_EVERY_LOG);
+  U32 forwardMatchLength = 0;
 
   LDM_initializeCCtx(&cctx, src, srcSize, dst, maxDstSize);
   LDM_outputConfiguration();
@@ -555,7 +558,7 @@ size_t LDM_compress(const void *src, size_t srcSize,
    * is less than the minimum match length), then stop searching for matches
    * and encode the final literals.
    */
-  while (LDM_findBestMatch(&cctx, &match) == 0) {
+  while (LDM_findBestMatch(&cctx, &match, &forwardMatchLength) == 0) {
     U32 backwardsMatchLen = 0;
 #ifdef COMPUTE_STATS
     cctx.stats.numMatches++;
@@ -577,10 +580,15 @@ size_t LDM_compress(const void *src, size_t srcSize,
     {
       const U32 literalLength = cctx.ip - cctx.anchor;
       const U32 offset = cctx.ip - match;
+#ifdef TMP_RECOMPUTE_LENGTHS
       const U32 matchLength = LDM_countMatchLength(
           cctx.ip + LDM_MIN_MATCH_LENGTH + backwardsMatchLen,
           match + LDM_MIN_MATCH_LENGTH + backwardsMatchLen,
           cctx.ihashLimit) + backwardsMatchLen;
+#else
+      const U32 matchLength = forwardMatchLength + backwardsMatchLen -
+                              LDM_MIN_MATCH_LENGTH;
+#endif
 
       LDM_outputBlock(&cctx, literalLength, offset, matchLength);
 

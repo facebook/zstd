@@ -450,7 +450,7 @@ static void* compressionThread(void* arg)
             /* reset compressed size */
             job->compressedSize = 0;
 
-            while (remaining != 0) {
+            do {
                 size_t const actualBlockSize = MIN(remaining, compressionBlockSize);
                 DEBUG(2, "remaining: %zu\n", remaining);
                 DEBUG(2, "actualBlockSize: %zu\n", actualBlockSize);
@@ -505,7 +505,7 @@ static void* compressionThread(void* arg)
                     }
                     pthread_mutex_unlock(&ctx->completion_mutex.pMutex);
                 }
-            }
+            } while (remaining != 0);
             job->dst.size = job->compressedSize;
         }
         pthread_mutex_lock(&ctx->jobCompressed_mutex.pMutex);

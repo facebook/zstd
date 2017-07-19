@@ -98,7 +98,10 @@ static ZSTDMT_bufferPool* ZSTDMT_createBufferPool(unsigned nbThreads, ZSTD_custo
     ZSTDMT_bufferPool* const bufPool = (ZSTDMT_bufferPool*)ZSTD_calloc(
         sizeof(ZSTDMT_bufferPool) + (maxNbBuffers-1) * sizeof(buffer_t), cMem);
     if (bufPool==NULL) return NULL;
-    pthread_mutex_init(&bufPool->poolMutex, NULL);
+    if (pthread_mutex_init(&bufPool->poolMutex, NULL)) {
+        ZSTD_free(bufPool, cMem);
+        return NULL;
+    }
     bufPool->bufferSize = 64 KB;
     bufPool->totalBuffers = maxNbBuffers;
     bufPool->nbBuffers = 0;
@@ -213,7 +216,10 @@ static ZSTDMT_CCtxPool* ZSTDMT_createCCtxPool(unsigned nbThreads,
     ZSTDMT_CCtxPool* const cctxPool = (ZSTDMT_CCtxPool*) ZSTD_calloc(
         sizeof(ZSTDMT_CCtxPool) + (nbThreads-1)*sizeof(ZSTD_CCtx*), cMem);
     if (!cctxPool) return NULL;
-    pthread_mutex_init(&cctxPool->poolMutex, NULL);
+    if (pthread_mutex_init(&cctxPool->poolMutex, NULL)) {
+        ZSTD_free(cctxPool, cMem);
+        return NULL;
+    }
     cctxPool->cMem = cMem;
     cctxPool->totalCCtx = nbThreads;
     cctxPool->availCCtx = 1;   /* at least one cctx for single-thread mode */
@@ -429,8 +435,14 @@ ZSTDMT_CCtx* ZSTDMT_createCCtx_advanced(unsigned nbThreads, ZSTD_customMem cMem)
         ZSTDMT_freeCCtx(mtctx);
         return NULL;
     }
-    pthread_mutex_init(&mtctx->jobCompleted_mutex, NULL);   /* Todo : check init function return */
-    pthread_cond_init(&mtctx->jobCompleted_cond, NULL);
+    if (pthread_mutex_init(&mtctx->jobCompleted_mutex, NULL)) {
+        ZSTDMT_freeCCtx(mtctx);
+        return NULL;
+    }
+    if (pthread_cond_init(&mtctx->jobCompleted_cond, NULL)) {
+        ZSTDMT_freeCCtx(mtctx);
+        return NULL;
+    }
     DEBUGLOG(3, "mt_cctx created, for %u threads", nbThreads);
     return mtctx;
 }

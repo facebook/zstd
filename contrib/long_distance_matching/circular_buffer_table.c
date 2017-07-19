@@ -15,17 +15,16 @@
 // TODO: rename. Number of hash buckets.
 #define LDM_HASHLOG ((LDM_MEMORY_USAGE)-4-HASH_BUCKET_SIZE_LOG)
 
-//#define TMP_ZSTDTOGGLE
+#define TMP_ZSTDTOGGLE
 
 struct LDM_hashTable {
   U32 size;  // Number of buckets
   U32 maxEntries;  // Rename...
   LDM_hashEntry *entries;  // 1-D array for now.
+  BYTE *bucketOffsets;     // Pointer to current insert position.
 
   // Position corresponding to offset=0 in LDM_hashEntry.
   const BYTE *offsetBase;
-  BYTE *bucketOffsets;     // Pointer to current insert position.
-                           // Last insert was at bucketOffsets - 1?
 };
 
 LDM_hashTable *HASH_createTable(U32 size, const BYTE *offsetBase) {
@@ -174,7 +173,8 @@ LDM_hashEntry *HASH_getValidEntry(const LDM_hashTable *table,
                                   const BYTE *pIn,
                                   const BYTE *pEnd,
                                   U32 minMatchLength,
-                                  U32 maxWindowSize) {
+                                  U32 maxWindowSize,
+                                  U32 *matchLength) {
   LDM_hashEntry *bucket = getBucket(table, hash);
   LDM_hashEntry *cur = bucket;
   // TODO: in order of recency?
@@ -183,8 +183,9 @@ LDM_hashEntry *HASH_getValidEntry(const LDM_hashTable *table,
     const BYTE *pMatch = cur->offset + table->offsetBase;
 #ifdef TMP_ZSTDTOGGLE
     if (cur->checksum == checksum && pIn - pMatch <= maxWindowSize) {
-      U32 matchLength = ZSTD_count(pIn, pMatch, pEnd);
-      if (matchLength >= minMatchLength) {
+      U32 forwardMatchLength = ZSTD_count(pIn, pMatch, pEnd);
+      if (forwardMatchLength >= minMatchLength) {
+        *matchLength = forwardMatchLength;
         return cur;
       }
     }

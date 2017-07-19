@@ -827,6 +827,7 @@ static void help()
     PRINT("  -i#    : provide initial compression level\n");
     PRINT("  -s     : display information stats\n");
     PRINT("  -h     : display help/information\n");
+    PRINT("  -f     : force the compression level to stay constant\n");
 }
 /* return 0 if successful, else return error */
 int main(int argCount, const char* argv[])

@@ -424,7 +424,6 @@ static void* compressionThread(void* arg)
             pthread_mutex_lock(&ctx->completion_mutex.pMutex);
             ctx->createCompletionMeasured = 1;
             pthread_mutex_unlock(&ctx->completion_mutex.pMutex);
-            adaptCompressionLevel(ctx);
             DEBUG(3, "waiting on job ready, nextJob: %u\n", currJob);
             pthread_cond_wait(&ctx->jobReady_cond.pCond, &ctx->jobReady_mutex.pMutex);
         }
@@ -434,6 +433,7 @@ static void* compressionThread(void* arg)
         DEBUG(3, "%.*s", (int)job->src.size, (char*)job->src.start);
         /* compress the data */
         {
+            adaptCompressionLevel(ctx);
             unsigned const cLevel = ctx->compressionLevel;
             DEBUG(3, "cLevel used: %u\n", cLevel);
             DEBUG(3, "compression level used: %u\n", cLevel);
@@ -530,7 +530,6 @@ static void* outputThread(void* arg)
                 DEBUG(3, "output detected completion: %f\n", ctx->compressionCompletion);
             }
             pthread_mutex_unlock(&ctx->completion_mutex.pMutex);
-            adaptCompressionLevel(ctx);
             DEBUG(3, "waiting on job compressed, nextJob: %u\n", currJob);
             pthread_cond_wait(&ctx->jobCompressed_cond.pCond, &ctx->jobCompressed_mutex.pMutex);
         }
@@ -611,7 +610,6 @@ static int createCompressionJob(adaptCCtx* ctx, size_t srcSize, int last)
         pthread_mutex_lock(&ctx->completion_mutex.pMutex);
         ctx->writeCompletionMeasured = 1;
         pthread_mutex_unlock(&ctx->completion_mutex.pMutex);
-        adaptCompressionLevel(ctx);
         DEBUG(3, "waiting on job Write, nextJob: %u\n", nextJob);
         pthread_cond_wait(&ctx->jobWrite_cond.pCond, &ctx->jobWrite_mutex.pMutex);
     }

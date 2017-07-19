@@ -14,7 +14,6 @@
 #define HASH_ONLY_EVERY_LOG (LDM_WINDOW_SIZE_LOG-((LDM_MEMORY_USAGE) - 4))
 #define HASH_ONLY_EVERY ((1 << HASH_ONLY_EVERY_LOG) - 1)
 
-
 #define ML_BITS 4
 #define ML_MASK ((1U<<ML_BITS)-1)
 #define RUN_BITS (8-ML_BITS)
@@ -24,7 +23,6 @@
 #define OUTPUT_CONFIGURATION
 #define CHECKSUM_CHAR_OFFSET 10
 
-//#define HASH_CHECK
 //#define RUN_CHECKS
 //#define TMP_RECOMPUTE_LENGTHS
 
@@ -135,7 +133,6 @@ void LDM_printCompressStats(const LDM_compressStats *stats) {
   int i = 0;
   printf("=====================\n");
   printf("Compression statistics\n");
-  //TODO: compute percentage matched?
   printf("Window size, hash table size (bytes): 2^%u, 2^%u\n",
           stats->windowSizeLog, stats->hashTableSizeLog);
   printf("num matches, total match length, %% matched: %u, %llu, %.3f\n",
@@ -191,7 +188,6 @@ int LDM_isValidMatch(const BYTE *pIn, const BYTE *pMatch) {
  */
 static hash_t checksumToHash(U32 sum) {
   return HASH_hashU32(sum);
-//  return ((sum * 2654435761U) >> (32 - LDM_HASHLOG));
 }
 
 /**
@@ -455,22 +451,14 @@ static int LDM_findBestMatch(LDM_CCtx *cctx, const BYTE **match,
     if (cctx->ip > cctx->imatchLimit) {
       return 1;
     }
-#ifdef HASH_CHECK
-    entry = HASH_getEntryFromHash(cctx->hashTable, h, sum);
-#else
-    entry = HASH_getValidEntry(cctx->hashTable, h, sum,
-                               cctx->ip, cctx->iend,
-                               matchLength, backwardMatchLength,
-                               cctx->anchor);
-#endif
+
+    entry = HASH_getBestEntry(cctx->hashTable, h, sum,
+                              cctx->ip, cctx->iend,
+                              cctx->anchor,
+                              matchLength, backwardMatchLength);
 
     if (entry != NULL) {
       *match = entry->offset + cctx->ibase;
-#ifdef HASH_CHECK
-      if (!LDM_isValidMatch(cctx->ip, *match)) {
-        entry = NULL;
-      }
-#endif
     }
     putHashOfCurrentPositionFromHash(cctx, h, sum);
   }
@@ -563,21 +551,8 @@ size_t LDM_compress(const void *src, size_t srcSize,
     cctx.stats.numMatches++;
 #endif
 
-#if TMP_RECOMPUTE_LENGTHS
-    backwardsMatchLength = 0;
-    /**
-     * Catch up: look back to extend the match backwards from the found match.
-     */
-    while (cctx.ip > cctx.anchor && match > cctx.ibase &&
-           cctx.ip[-1] == match[-1]) {
-      cctx.ip--;
-      match--;
-      backwardsMatchLength++;
-    }
-#else
      cctx.ip -= backwardsMatchLength;
      match -= backwardsMatchLength;
-#endif
 
     /**
      * Write current block (literals, literal length, match offset, match
@@ -586,16 +561,9 @@ size_t LDM_compress(const void *src, size_t srcSize,
     {
       const U32 literalLength = cctx.ip - cctx.anchor;
       const U32 offset = cctx.ip - match;
-#if TMP_RECOMPUTE_LENGTHS
-      const U32 matchLength = LDM_countMatchLength(
-          cctx.ip + LDM_MIN_MATCH_LENGTH + backwardsMatchLength,
-          match + LDM_MIN_MATCH_LENGTH + backwardsMatchLength,
-          cctx.ihashLimit) + backwardsMatchLength;
-#else
       const U32 matchLength = forwardMatchLength +
                               backwardsMatchLength -
                               LDM_MIN_MATCH_LENGTH;
-#endif
 
       LDM_outputBlock(&cctx, literalLength, offset, matchLength);
 

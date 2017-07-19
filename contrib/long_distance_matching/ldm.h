@@ -11,21 +11,21 @@
 #define LDM_OFFSET_SIZE 4
 
 // Defines the size of the hash table.
+// Note that this is not the number of buckets.
 // Currently this should be less than WINDOW_SIZE_LOG + 4?
 #define LDM_MEMORY_USAGE 23
+#define HASH_BUCKET_SIZE_LOG 3 // MAX is 4 for now
 
-//#define LDM_LAG (1 << 20)
-#define LDM_LAG (0)
+// Defines the lag in inserting elements into the hash table.
+#define LDM_LAG 0
 
 #define LDM_WINDOW_SIZE_LOG 28
 #define LDM_WINDOW_SIZE (1 << (LDM_WINDOW_SIZE_LOG))
 
 //These should be multiples of four (and perhaps set to the same value?).
-#define LDM_MIN_MATCH_LENGTH 1024
-#define LDM_HASH_LENGTH 1024
+#define LDM_MIN_MATCH_LENGTH 64
+#define LDM_HASH_LENGTH 64
 
-#define TMP_ZSTDTOGGLE 1
-#define TMP_RECOMPUTE_LENGTHS (!(TMP_ZSTDTOGGLE))
 
 typedef struct LDM_compressStats LDM_compressStats;
 typedef struct LDM_CCtx LDM_CCtx;

@@ -139,7 +139,7 @@ static void FUZ_freeDebug(void* counter, void* address)
 
 static void FUZ_displayMallocStats(mallocCounter_t count)
 {
-    DISPLAYLEVEL(3, "peak:%u KB,  nbMallocs:%u, total:%u KB \n",
+    DISPLAYLEVEL(3, "peak:%6u KB,  nbMallocs:%2u, total:%6u KB \n",
         (U32)(count.peakMalloc >> 10),
         count.nbMalloc,
         (U32)(count.totalMalloc >> 10));
@@ -153,7 +153,7 @@ static void FUZ_displayMallocStats(mallocCounter_t count)
         exit(1);                                   \
 }   }
 
-static int FUZ_mallocTests(unsigned seed, double compressibility)
+static int FUZ_mallocTests(unsigned seed, double compressibility, unsigned part)
 {
     size_t const inSize = 64 MB + 16 MB + 4 MB + 1 MB + 256 KB + 64 KB; /* 85.3 MB */
     size_t const outSize = ZSTD_compressBound(inSize);
@@ -171,6 +171,7 @@ static int FUZ_mallocTests(unsigned seed, double compressibility)
     RDG_genBuffer(inBuffer, inSize, compressibility, 0. /*auto*/, seed);
 
     /* simple compression tests */
+    if (part <= 1)
     {   int compressionLevel;
         for (compressionLevel=1; compressionLevel<=6; compressionLevel++) {
             mallocCounter_t malcount = INIT_MALLOC_COUNTER;
@@ -183,6 +184,7 @@ static int FUZ_mallocTests(unsigned seed, double compressibility)
     }   }
 
     /* streaming compression tests */
+    if (part <= 2)
     {   int compressionLevel;
         for (compressionLevel=1; compressionLevel<=6; compressionLevel++) {
             mallocCounter_t malcount = INIT_MALLOC_COUNTER;
@@ -199,6 +201,7 @@ static int FUZ_mallocTests(unsigned seed, double compressibility)
     }   }
 
     /* advanced MT API test */
+    if (part <= 3)
     {   U32 nbThreads;
         for (nbThreads=1; nbThreads<=4; nbThreads++) {
             int compressionLevel;
@@ -218,6 +221,7 @@ static int FUZ_mallocTests(unsigned seed, double compressibility)
     }   }   }
 
     /* advanced MT streaming API test */
+    if (part <= 4)
     {   U32 nbThreads;
         for (nbThreads=1; nbThreads<=4; nbThreads++) {
             int compressionLevel;
@@ -1442,6 +1446,19 @@ static unsigned readU32FromChar(const char** stringPtr)
     return result;
 }
 
+/** longCommandWArg() :
+ *  check if *stringPtr is the same as longCommand.
+ *  If yes, @return 1 and advances *stringPtr to the position which immediately follows longCommand.
+ *  @return 0 and doesn't modify *stringPtr otherwise.
+ */
+static unsigned longCommandWArg(const char** stringPtr, const char* longCommand)
+{
+    size_t const comSize = strlen(longCommand);
+    int const result = !strncmp(*stringPtr, longCommand, comSize);
+    if (result) *stringPtr += comSize;
+    return result;
+}
+
 int main(int argc, const char** argv)
 {
     U32 seed = 0;
@@ -1464,6 +1481,8 @@ int main(int argc, const char** argv)
 
         /* Handle commands. Aggregated commands are allowed */
         if (argument[0]=='-') {
+
+            if (longCommandWArg(&argument, "--memtest=")) { memTestsOnly = readU32FromChar(&argument); continue; }
 
             if (!strcmp(argument, "--memtest")) { memTestsOnly=1; continue; }
             if (!strcmp(argument, "--no-big-tests")) { bigTests=0; continue; }
@@ -1539,7 +1558,7 @@ int main(int argc, const char** argv)
 
     if (memTestsOnly) {
         g_displayLevel = MAX(3, g_displayLevel);
-        return FUZ_mallocTests(seed, ((double)proba) / 100);
+        return FUZ_mallocTests(seed, ((double)proba) / 100, memTestsOnly);
     }
 
     if (nbTests < testNb) nbTests = testNb;

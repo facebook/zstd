@@ -19,7 +19,8 @@ typedef struct LDM_hashTable LDM_hashTable;
  * LDM_hashEntry.offset is added to offsetBase to calculate pMatch in
  * HASH_getValidEntry.
  */
-LDM_hashTable *HASH_createTable(U32 size, const BYTE *offsetBase);
+LDM_hashTable *HASH_createTable(U32 size, const BYTE *offsetBase,
+                                U32 minMatchLength, U32 maxWindowSize);
 
 /**
  * Returns an LDM_hashEntry from the table that matches the checksum.
@@ -41,9 +42,9 @@ LDM_hashEntry *HASH_getValidEntry(const LDM_hashTable *table,
                                   const U32 checksum,
                                   const BYTE *pIn,
                                   const BYTE *pEnd,
-                                  const U32 minMatchLength,
-                                  const U32 maxWindowSize,
-                                  U32 *matchLength);
+                                  U32 *matchLength,
+                                  U32 *backwardsMatchLength,
+                                  const BYTE *pAnchor);
 
 hash_t HASH_hashU32(U32 value);
 

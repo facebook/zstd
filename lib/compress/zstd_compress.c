@@ -140,9 +140,6 @@ struct ZSTD_CCtx_s {
     /* Multi-threading */
     U32 nbThreads;
     ZSTDMT_CCtx* mtctx;
-
-    /* adaptive compression */
-    double completion;
 };
 
 
@@ -2848,7 +2845,6 @@ static size_t ZSTD_compress_frameChunk (ZSTD_CCtx* cctx,
     BYTE* op = ostart;
     U32 const maxDist = 1 << cctx->appliedParams.cParams.windowLog;
 
-    cctx->completion = 0;
     if (cctx->appliedParams.fParams.checksumFlag && srcSize)
         XXH64_update(&cctx->xxhState, src, srcSize);
 
@@ -2899,7 +2895,6 @@ static size_t ZSTD_compress_frameChunk (ZSTD_CCtx* cctx,
         }
 
         remaining -= blockSize;
-        cctx->completion = 1 - (double)remaining/srcSize;
         dstCapacity -= cSize;
         ip += blockSize;
         op += cSize;
@@ -3000,11 +2995,6 @@ static size_t ZSTD_compressContinue_internal (ZSTD_CCtx* cctx,
         return cSize + fhSize;
     } else
         return fhSize;
-}
-
-ZSTDLIB_API double ZSTD_getCompletion(ZSTD_CCtx* cctx)
-{
-    return cctx->completion;
 }
 
 size_t ZSTD_compressContinue (ZSTD_CCtx* cctx,

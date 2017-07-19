@@ -808,11 +808,6 @@ ZSTDLIB_API size_t ZSTD_copyCCtx(ZSTD_CCtx* cctx, const ZSTD_CCtx* preparedCCtx,
 ZSTDLIB_API size_t ZSTD_compressContinue(ZSTD_CCtx* cctx, void* dst, size_t dstCapacity, const void* src, size_t srcSize);
 ZSTDLIB_API size_t ZSTD_compressEnd(ZSTD_CCtx* cctx, void* dst, size_t dstCapacity, const void* src, size_t srcSize);
 
-/*! ZSTD_getCompletion: get a double representing how much of a file/buffer has been compressed
- *                      using ZSTD_compressContinue()
- * return: a double value in the range of 0 to 1 representing how much a compression job has finished
- */
-ZSTDLIB_API double ZSTD_getCompletion(ZSTD_CCtx* cctx);
 
 /*-
   Buffer-less streaming decompression (synchronous mode)

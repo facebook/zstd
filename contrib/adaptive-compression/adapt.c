@@ -187,14 +187,8 @@ static int initCond(cond_t* cond)
     return ret;
 }
 
-static adaptCCtx* createCCtx(unsigned numJobs)
+static int initCCtx(adaptCCtx* ctx, unsigned numJobs)
 {
-
-    adaptCCtx* const ctx = calloc(1, sizeof(adaptCCtx));
-    if (ctx == NULL) {
-        DISPLAY("Error: could not allocate space for context\n");
-        return NULL;
-    }
     ctx->compressionLevel = g_compressionLevel;
     {
         int pthreadError = 0;
@@ -208,7 +202,7 @@ static adaptCCtx* createCCtx(unsigned numJobs)
         pthreadError |= initCond(&ctx->jobWrite_cond);
         pthreadError |= initMutex(&ctx->completion_mutex);
         pthreadError |= initMutex(&ctx->stats_mutex);
-        if (pthreadError) return NULL;
+        if (pthreadError) return pthreadError;
     }
     ctx->numJobs = numJobs;
     ctx->jobReadyID = 0;
@@ -216,6 +210,12 @@ static adaptCCtx* createCCtx(unsigned numJobs)
     ctx->jobWriteID = 0;
     ctx->lastDictSize = 0;
     ctx->jobs = calloc(1, numJobs*sizeof(jobDescription));
+
+    if (!ctx->jobs) {
+        DISPLAY("Error: could not allocate space for jobs during context creation\n");
+        return 1;
+    }
+
     /* initializing jobs */
     {
         unsigned jobNum;
@@ -226,33 +226,51 @@ static adaptCCtx* createCCtx(unsigned numJobs)
             job->lastJob = 0;
             if (!job->src.start || !job->dst.start) {
                 DISPLAY("Could not allocate buffers for jobs\n");
-                return NULL;
+                return 1;
             }
             job->src.capacity = FILE_CHUNK_SIZE;
             job->dst.capacity = ZSTD_compressBound(FILE_CHUNK_SIZE);
         }
     }
+
     ctx->nextJobID = 0;
     ctx->threadError = 0;
     ctx->allJobsCompleted = 0;
     ctx->adaptParam = DEFAULT_ADAPT_PARAM;
+
     ctx->cctx = ZSTD_createCCtx();
+    if (!ctx->cctx) {
+        DISPLAY("Error: could not allocate ZSTD_CCtx\n");
+        return 1;
+    }
+
     ctx->input.filled = 0;
     ctx->input.buffer.capacity = 2 * FILE_CHUNK_SIZE;
+
     ctx->input.buffer.start = malloc(ctx->input.buffer.capacity);
     if (!ctx->input.buffer.start) {
         DISPLAY("Error: could not allocate input buffer\n");
+        return 1;
+    }
+    return 0;
+}
+
+static adaptCCtx* createCCtx(unsigned numJobs)
+{
+
+    adaptCCtx* const ctx = calloc(1, sizeof(adaptCCtx));
+    if (ctx == NULL) {
+        DISPLAY("Error: could not allocate space for context\n");
         return NULL;
     }
-    if (!ctx->cctx) {
-        DISPLAY("Error: could not allocate ZSTD_CCtx\n");
-        return NULL;
+    {
+        int const error = initCCtx(ctx, numJobs);
+        if (error) {
+            freeCCtx(ctx);
+            return NULL;
+        }
+        return ctx;
     }
-    if (!ctx->jobs) {
-        DISPLAY("Error: could not allocate space for jobs during context creation\n");
-        return NULL;
-    }
-    return ctx;
 }
 
 static void signalErrorToThreads(adaptCCtx* ctx)

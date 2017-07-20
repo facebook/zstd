@@ -31,6 +31,7 @@ typedef struct LDM_compressStats LDM_compressStats;
 typedef struct LDM_CCtx LDM_CCtx;
 typedef struct LDM_DCtx LDM_DCtx;
 
+
 /**
  *  Compresses src into dst.
  *
@@ -151,6 +152,6 @@ void LDM_readHeader(const void *src, U64 *compressedSize,
 
 void LDM_outputConfiguration(void);
 
-void LDM_test(void);
+void LDM_test(const BYTE *src);
 
 #endif /* LDM_H */

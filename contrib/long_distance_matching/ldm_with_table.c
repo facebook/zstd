@@ -29,7 +29,7 @@
 #define CHECKSUM_CHAR_OFFSET 10
 
 // Take first match only.
-#define ZSTD_SKIP
+//#define ZSTD_SKIP
 
 //#define RUN_CHECKS
 
@@ -292,8 +292,7 @@ LDM_hashEntry *HASH_getBestEntry(const LDM_CCtx *cctx,
 
       totalMatchLength = forwardMatchLength + backwardMatchLength;
 
-      if (totalMatchLength >= bestMatchLength &&
-          totalMatchLength >= LDM_MIN_MATCH_LENGTH) {
+      if (totalMatchLength >= bestMatchLength) {
         bestMatchLength = totalMatchLength;
         *pForwardMatchLength = forwardMatchLength;
         *pBackwardMatchLength = backwardMatchLength;
@@ -305,7 +304,7 @@ LDM_hashEntry *HASH_getBestEntry(const LDM_CCtx *cctx,
       }
     }
   }
-  if (bestEntry != NULL && bestMatchLength > LDM_MIN_MATCH_LENGTH) {
+  if (bestEntry != NULL) {
     return bestEntry;
   }
   return NULL;
@@ -951,23 +950,8 @@ size_t LDM_decompress(const void *src, size_t compressedSize,
 }
 
 // TODO: implement and test hash function
-void LDM_test(void) {
+void LDM_test(const BYTE *src) {
+  (void)src;
 }
-
-/*
-void LDM_test(const void *src, size_t srcSize,
-              void *dst, size_t maxDstSize) {
-  const BYTE *ip = (const BYTE *)src + 1125;
-  U32 sum = getChecksum((const char *)ip, LDM_HASH_LENGTH);
-  U32 sum2;
-  ++ip;
-  for (; ip < (const BYTE *)src + 1125 + 100; ip++) {
-    sum2 = updateChecksum(sum, LDM_HASH_LENGTH,
-                                 ip[-1], ip[LDM_HASH_LENGTH - 1]);
-    sum = getChecksum((const char *)ip, LDM_HASH_LENGTH);
-    printf("TEST HASH: %zu %u %u\n", ip - (const BYTE *)src, sum, sum2);
-  }
-}
-*/
 
 

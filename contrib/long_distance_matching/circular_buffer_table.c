@@ -5,14 +5,16 @@
 #include "ldm_hashtable.h"
 #include "mem.h"
 
-
 // Number of elements per hash bucket.
 // HASH_BUCKET_SIZE_LOG defined in ldm.h
 #define HASH_BUCKET_SIZE (1 << (HASH_BUCKET_SIZE_LOG))
+#define LDM_HASHLOG ((LDM_MEMORY_USAGE)-(LDM_HASH_ENTRY_SIZE_LOG)-(HASH_BUCKET_SIZE_LOG))
+
+
 
 // TODO: rename. Number of hash buckets.
 // TODO: Link to HASH_ENTRY_SIZE_LOG
-#define LDM_HASHLOG ((LDM_MEMORY_USAGE)-3-(HASH_BUCKET_SIZE_LOG))
+
 //#define ZSTD_SKIP
 
 struct LDM_hashTable {
@@ -175,6 +177,7 @@ LDM_hashEntry *HASH_getBestEntry(const LDM_hashTable *table,
     if (cur->checksum == checksum && pIn - pMatch <= table->maxWindowSize) {
       U32 forwardMatchLength = ZSTD_count(pIn, pMatch, pEnd);
       U32 backwardMatchLength, totalMatchLength;
+
       if (forwardMatchLength < table->minMatchLength) {
         continue;
       }

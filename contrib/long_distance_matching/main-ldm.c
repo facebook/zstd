@@ -13,13 +13,13 @@
 #include "zstd.h"
 
 #define DEBUG
-#define TEST
+//#define TEST
 
 /* Compress file given by fname and output to oname.
  * Returns 0 if successful, error code otherwise.
  *
  * TODO: This might seg fault if the compressed size is > the decompress
- * size due to the mmapping and output file size allocated to be the input size.
+ * size due to the mmapping and output file size allocated to be the input size
  * The compress function should check before writing or buffer writes.
  */
 static int compress(const char *fname, const char *oname) {
@@ -69,6 +69,11 @@ static int compress(const char *fname, const char *oname) {
       perror("mmap error for output");
       return 1;
   }
+
+#ifdef TEST
+  LDM_test((const BYTE *)src);
+#endif
+
   gettimeofday(&tv1, NULL);
 
   compressedSize = LDM_HEADER_SIZE +
@@ -251,8 +256,5 @@ int main(int argc, const char *argv[]) {
   /* verify */
   verify(inpFilename, decFilename);
 
-#ifdef TEST
-  LDM_test();
-#endif
   return 0;
 }

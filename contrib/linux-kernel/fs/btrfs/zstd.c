@@ -29,10 +29,11 @@
 
 #define ZSTD_BTRFS_MAX_WINDOWLOG 17
 #define ZSTD_BTRFS_MAX_INPUT (1 << ZSTD_BTRFS_MAX_WINDOWLOG)
+#define ZSTD_BTRFS_DEFAULT_LEVEL 3
 
 static ZSTD_parameters zstd_get_btrfs_parameters(size_t src_len)
 {
-	ZSTD_parameters params = ZSTD_getParams(1, src_len, 0);
+	ZSTD_parameters params = ZSTD_getParams(ZSTD_BTRFS_DEFAULT_LEVEL, src_len, 0);
 
 	if (params.cParams.windowLog > ZSTD_BTRFS_MAX_WINDOWLOG)
 		params.cParams.windowLog = ZSTD_BTRFS_MAX_WINDOWLOG;
@@ -51,7 +52,7 @@ static void zstd_free_workspace(struct list_head *ws)
 {
 	struct workspace *workspace = list_entry(ws, struct workspace, list);
 
-	vfree(workspace->mem);
+	kvfree(workspace->mem);
 	kfree(workspace->buf);
 	kfree(workspace);
 }
@@ -62,15 +63,15 @@ static struct list_head *zstd_alloc_workspace(void)
 			zstd_get_btrfs_parameters(ZSTD_BTRFS_MAX_INPUT);
 	struct workspace *workspace;
 
-	workspace = kzalloc(sizeof(*workspace), GFP_NOFS);
+	workspace = kzalloc(sizeof(*workspace), GFP_KERNEL);
 	if (!workspace)
 		return ERR_PTR(-ENOMEM);
 
 	workspace->size = max_t(size_t,
 			ZSTD_CStreamWorkspaceBound(params.cParams),
 			ZSTD_DStreamWorkspaceBound(ZSTD_BTRFS_MAX_INPUT));
-	workspace->mem = vmalloc(workspace->size);
-	workspace->buf = kmalloc(PAGE_SIZE, GFP_NOFS);
+	workspace->mem = kvmalloc(workspace->size, GFP_KERNEL);
+	workspace->buf = kmalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!workspace->mem || !workspace->buf)
 		goto fail;
 
@@ -262,12 +263,13 @@ out:
 	return ret;
 }
 
-static int zstd_decompress_bio(struct list_head *ws, struct page **pages_in,
-		u64 disk_start,
-		struct bio *orig_bio,
-		size_t srclen)
+static int zstd_decompress_bio(struct list_head *ws, struct compressed_bio *cb)
 {
 	struct workspace *workspace = list_entry(ws, struct workspace, list);
+	struct page **pages_in = cb->compressed_pages;
+	u64 disk_start = cb->start;
+	struct bio *orig_bio = cb->orig_bio;
+	size_t srclen = cb->compressed_len;
 	ZSTD_DStream *stream;
 	int ret = 0;
 	unsigned long page_in_index = 0;

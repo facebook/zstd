@@ -13,7 +13,7 @@
 // Defines the size of the hash table.
 // Note that this is not the number of buckets.
 // Currently this should be less than WINDOW_SIZE_LOG + 4?
-#define LDM_MEMORY_USAGE 23
+#define LDM_MEMORY_USAGE 22
 #define HASH_BUCKET_SIZE_LOG 3 // MAX is 4 for now
 
 // Defines the lag in inserting elements into the hash table.

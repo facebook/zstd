@@ -5,15 +5,19 @@
 #include <string.h>
 
 #include "ldm.h"
-#include "ldm_hashtable.h"
 
 #define LDM_HASHTABLESIZE (1 << (LDM_MEMORY_USAGE))
+#define LDM_HASH_ENTRY_SIZE_LOG 3
 #define LDM_HASHTABLESIZE_U32 ((LDM_HASHTABLESIZE) >> 2)
 #define LDM_HASHTABLESIZE_U64 ((LDM_HASHTABLESIZE) >> 3)
 
 // Insert every (HASH_ONLY_EVERY + 1) into the hash table.
-#define HASH_ONLY_EVERY_LOG (LDM_WINDOW_SIZE_LOG-((LDM_MEMORY_USAGE)-(LDM_HASH_ENTRY_SIZE_LOG)))
+#define HASH_ONLY_EVERY_LOG (LDM_WINDOW_SIZE_LOG-((LDM_MEMORY_USAGE) - (LDM_HASH_ENTRY_SIZE_LOG)))
 #define HASH_ONLY_EVERY ((1 << HASH_ONLY_EVERY_LOG) - 1)
+
+/* Hash table stuff. */
+#define HASH_BUCKET_SIZE (1 << (HASH_BUCKET_SIZE_LOG))
+#define LDM_HASHLOG ((LDM_MEMORY_USAGE)-(LDM_HASH_ENTRY_SIZE_LOG)-(HASH_BUCKET_SIZE_LOG))
 
 #define ML_BITS 4
 #define ML_MASK ((1U<<ML_BITS)-1)
@@ -24,12 +28,20 @@
 #define OUTPUT_CONFIGURATION
 #define CHECKSUM_CHAR_OFFSET 10
 
+// Take first match only.
+//#define ZSTD_SKIP
+
 //#define RUN_CHECKS
-//#define TMP_RECOMPUTE_LENGTHS
 
-typedef U32 checksum_t;
+/* Hash table stuff */
 
-// TODO: Scanning speed
+typedef U32 hash_t;
+
+typedef struct LDM_hashEntry {
+  U32 offset;
+  U32 checksum;
+} LDM_hashEntry;
+
 // TODO: Memory usage
 struct LDM_compressStats {
   U32 windowSizeLog, hashTableSizeLog;
@@ -45,6 +57,8 @@ struct LDM_compressStats {
 
   U32 offsetHistogram[32];
 };
+
+typedef struct LDM_hashTable LDM_hashTable;
 
 struct LDM_CCtx {
   U64 isize;             /* Input size */
@@ -71,27 +85,267 @@ struct LDM_CCtx {
 
   LDM_hashTable *hashTable;
 
+//  LDM_hashEntry hashTable[LDM_HASHTABLESIZE_U32];
+
   const BYTE *lastPosHashed;          /* Last position hashed */
   hash_t lastHash;                    /* Hash corresponding to lastPosHashed */
-  checksum_t lastSum;
+  U32 lastSum;
 
   const BYTE *nextIp;                 // TODO: this is  redundant (ip + step)
   const BYTE *nextPosHashed;
-  hash_t nextHash;                    /* Hash corresponding to nextPosHashed */
-  checksum_t nextSum;
+  U64 nextSum;
 
-
+//  hash_t nextHash;                    /* Hash corresponding to nextPosHashed */
+//  U32 nextSum;
 
   unsigned step;                      // ip step, should be 1.
 
   const BYTE *lagIp;
-  hash_t lagHash;
-  checksum_t lagSum;
+  U64 lagSum;
+//  hash_t lagHash;
+//  U32 lagSum;
 
   U64 numHashInserts;
   // DEBUG
   const BYTE *DEBUG_setNextHash;
 };
+
+struct LDM_hashTable {
+  U32 numBuckets;  // Number of buckets
+  U32 numEntries;  // Rename...
+  LDM_hashEntry *entries;
+
+  BYTE *bucketOffsets;
+  // Position corresponding to offset=0 in LDM_hashEntry.
+};
+
+/**
+ * Create a hash table that can contain size elements.
+ * The number of buckets is determined by size >> HASH_BUCKET_SIZE_LOG.
+ */
+LDM_hashTable *HASH_createTable(U32 size) {
+  LDM_hashTable *table = malloc(sizeof(LDM_hashTable));
+  table->numBuckets = size >> HASH_BUCKET_SIZE_LOG;
+  table->numEntries = size;
+  table->entries = calloc(size, sizeof(LDM_hashEntry));
+  table->bucketOffsets = calloc(size >> HASH_BUCKET_SIZE_LOG, sizeof(BYTE));
+  return table;
+}
+
+static LDM_hashEntry *getBucket(const LDM_hashTable *table, const hash_t hash) {
+  return table->entries + (hash << HASH_BUCKET_SIZE_LOG);
+}
+
+static unsigned ZSTD_NbCommonBytes (register size_t val) {
+    if (MEM_isLittleEndian()) {
+        if (MEM_64bits()) {
+#       if defined(_MSC_VER) && defined(_WIN64)
+            unsigned long r = 0;
+            _BitScanForward64( &r, (U64)val );
+            return (unsigned)(r>>3);
+#       elif defined(__GNUC__) && (__GNUC__ >= 3)
+            return (__builtin_ctzll((U64)val) >> 3);
+#       else
+            static const int DeBruijnBytePos[64] = { 0, 0, 0, 0, 0, 1, 1, 2,
+                                                     0, 3, 1, 3, 1, 4, 2, 7,
+                                                     0, 2, 3, 6, 1, 5, 3, 5,
+                                                     1, 3, 4, 4, 2, 5, 6, 7,
+                                                     7, 0, 1, 2, 3, 3, 4, 6,
+                                                     2, 6, 5, 5, 3, 4, 5, 6,
+                                                     7, 1, 2, 4, 6, 4, 4, 5,
+                                                     7, 2, 6, 5, 7, 6, 7, 7 };
+            return DeBruijnBytePos[((U64)((val & -(long long)val) * 0x0218A392CDABBD3FULL)) >> 58];
+#       endif
+        } else { /* 32 bits */
+#       if defined(_MSC_VER)
+            unsigned long r=0;
+            _BitScanForward( &r, (U32)val );
+            return (unsigned)(r>>3);
+#       elif defined(__GNUC__) && (__GNUC__ >= 3)
+            return (__builtin_ctz((U32)val) >> 3);
+#       else
+            static const int DeBruijnBytePos[32] = { 0, 0, 3, 0, 3, 1, 3, 0,
+                                                     3, 2, 2, 1, 3, 2, 0, 1,
+                                                     3, 3, 1, 2, 2, 2, 2, 0,
+                                                     3, 1, 2, 0, 1, 0, 1, 1 };
+            return DeBruijnBytePos[((U32)((val & -(S32)val) * 0x077CB531U)) >> 27];
+#       endif
+        }
+    } else {  /* Big Endian CPU */
+        if (MEM_64bits()) {
+#       if defined(_MSC_VER) && defined(_WIN64)
+            unsigned long r = 0;
+            _BitScanReverse64( &r, val );
+            return (unsigned)(r>>3);
+#       elif defined(__GNUC__) && (__GNUC__ >= 3)
+            return (__builtin_clzll(val) >> 3);
+#       else
+            unsigned r;
+            const unsigned n32 = sizeof(size_t)*4;   /* calculate this way due to compiler complaining in 32-bits mode */
+            if (!(val>>n32)) { r=4; } else { r=0; val>>=n32; }
+            if (!(val>>16)) { r+=2; val>>=8; } else { val>>=24; }
+            r += (!val);
+            return r;
+#       endif
+        } else { /* 32 bits */
+#       if defined(_MSC_VER)
+            unsigned long r = 0;
+            _BitScanReverse( &r, (unsigned long)val );
+            return (unsigned)(r>>3);
+#       elif defined(__GNUC__) && (__GNUC__ >= 3)
+            return (__builtin_clz((U32)val) >> 3);
+#       else
+            unsigned r;
+            if (!(val>>16)) { r=2; val>>=8; } else { r=0; val>>=24; }
+            r += (!val);
+            return r;
+#       endif
+    }   }
+}
+
+// From lib/compress/zstd_compress.c
+static size_t ZSTD_count(const BYTE *pIn, const BYTE *pMatch,
+                         const BYTE *const pInLimit) {
+    const BYTE * const pStart = pIn;
+    const BYTE * const pInLoopLimit = pInLimit - (sizeof(size_t)-1);
+
+    while (pIn < pInLoopLimit) {
+        size_t const diff = MEM_readST(pMatch) ^ MEM_readST(pIn);
+        if (!diff) {
+          pIn += sizeof(size_t);
+          pMatch += sizeof(size_t);
+          continue;
+        }
+        pIn += ZSTD_NbCommonBytes(diff);
+        return (size_t)(pIn - pStart);
+    }
+
+    if (MEM_64bits()) {
+      if ((pIn < (pInLimit - 3)) && (MEM_read32(pMatch) == MEM_read32(pIn))) {
+        pIn += 4;
+        pMatch += 4;
+      }
+    }
+    if ((pIn < (pInLimit - 1)) && (MEM_read16(pMatch) == MEM_read16(pIn))) {
+      pIn += 2;
+      pMatch += 2;
+    }
+    if ((pIn < pInLimit) && (*pMatch == *pIn)) {
+      pIn++;
+    }
+    return (size_t)(pIn - pStart);
+}
+
+/**
+ * Count number of bytes that match backwards before pIn and pMatch.
+ *
+ * We count only bytes where pMatch > pBaes and pIn > pAnchor.
+ */
+U32 countBackwardsMatch(const BYTE *pIn, const BYTE *pAnchor,
+                        const BYTE *pMatch, const BYTE *pBase) {
+  U32 matchLength = 0;
+  while (pIn > pAnchor && pMatch > pBase && pIn[-1] == pMatch[-1]) {
+    pIn--;
+    pMatch--;
+    matchLength++;
+  }
+  return matchLength;
+}
+
+/**
+ * Returns a pointer to the entry in the hash table matching the hash and
+ * checksum with the "longest match length" as defined below. The forward and
+ * backward match lengths are written to *pForwardMatchLength and
+ * *pBackwardMatchLength.
+ *
+ * The match length is defined based on cctx->ip and the entry's offset.
+ * The forward match is computed from cctx->ip and entry->offset + cctx->ibase.
+ * The backward match is computed backwards from cctx->ip and
+ * cctx->ibase only if the forward match is longer than LDM_MIN_MATCH_LENGTH.
+ *
+ */
+LDM_hashEntry *HASH_getBestEntry(const LDM_CCtx *cctx,
+                                 const hash_t hash,
+                                 const U32 checksum,
+                                 U32 *pForwardMatchLength,
+                                 U32 *pBackwardMatchLength) {
+  LDM_hashTable *table = cctx->hashTable;
+  LDM_hashEntry *bucket = getBucket(table, hash);
+  LDM_hashEntry *cur = bucket;
+  LDM_hashEntry *bestEntry = NULL;
+  U32 bestMatchLength = 0;
+  for (; cur < bucket + HASH_BUCKET_SIZE; ++cur) {
+    const BYTE *pMatch = cur->offset + cctx->ibase;
+
+    // Check checksum for faster check.
+    if (cur->checksum == checksum &&
+        cctx->ip - pMatch <= LDM_WINDOW_SIZE) {
+      U32 forwardMatchLength = ZSTD_count(cctx->ip, pMatch, cctx->iend);
+      U32 backwardMatchLength, totalMatchLength;
+
+      // For speed.
+      if (forwardMatchLength < LDM_MIN_MATCH_LENGTH) {
+        continue;
+      }
+
+      backwardMatchLength =
+          countBackwardsMatch(cctx->ip, cctx->anchor,
+                              cur->offset + cctx->ibase,
+                              cctx->ibase);
+
+      totalMatchLength = forwardMatchLength + backwardMatchLength;
+
+      if (totalMatchLength >= bestMatchLength) {
+        bestMatchLength = totalMatchLength;
+        *pForwardMatchLength = forwardMatchLength;
+        *pBackwardMatchLength = backwardMatchLength;
+
+        bestEntry = cur;
+#ifdef ZSTD_SKIP
+        return cur;
+#endif
+      }
+    }
+  }
+  if (bestEntry != NULL) {
+    return bestEntry;
+  }
+  return NULL;
+}
+
+void HASH_insert(LDM_hashTable *table,
+                 const hash_t hash, const LDM_hashEntry entry) {
+  *(getBucket(table, hash) + table->bucketOffsets[hash]) = entry;
+  table->bucketOffsets[hash]++;
+  table->bucketOffsets[hash] &= HASH_BUCKET_SIZE - 1;
+}
+
+U32 HASH_getSize(const LDM_hashTable *table) {
+  return table->numBuckets;
+}
+
+void HASH_destroyTable(LDM_hashTable *table) {
+  free(table->entries);
+  free(table->bucketOffsets);
+  free(table);
+}
+
+void HASH_outputTableOccupancy(const LDM_hashTable *table) {
+  U32 ctr = 0;
+  LDM_hashEntry *cur = table->entries;
+  LDM_hashEntry *end = table->entries + (table->numBuckets * HASH_BUCKET_SIZE);
+  for (; cur < end; ++cur) {
+    if (cur->offset == 0) {
+      ctr++;
+    }
+  }
+
+  printf("Num buckets, bucket size: %d, %d\n",
+         table->numBuckets, HASH_BUCKET_SIZE);
+  printf("Hash table size, empty slots, %% empty: %u, %u, %.3f\n",
+         table->numEntries, ctr,
+         100.0 * (double)(ctr) / table->numEntries);
+}
 
 // TODO: This can be done more efficiently (but it is not that important as it
 // is only used for computing stats).
@@ -103,7 +357,7 @@ static int intLog2(U32 x) {
   return ret;
 }
 
-// TODO: Maybe we would eventually prefer to have linear rather than
+// Maybe we would eventually prefer to have linear rather than
 // exponential buckets.
 /**
 void HASH_outputTableOffsetHistogram(const LDM_CCtx *cctx) {
@@ -182,24 +436,43 @@ int LDM_isValidMatch(const BYTE *pIn, const BYTE *pMatch) {
   return 1;
 }
 
+#if 0
+hash_t HASH_hashU32(U32 value) {
+  return ((value * 2654435761U) >> (32 - LDM_HASHLOG));
+}
+#endif
+
 /**
  * Convert a sum computed from getChecksum to a hash value in the range
  * of the hash table.
  */
+#if 0
 static hash_t checksumToHash(U32 sum) {
   return HASH_hashU32(sum);
 }
+#endif
 
+// Upper LDM_HASH_LOG bits.
+static hash_t checksumToHash(U64 sum) {
+  return sum >> (64 - LDM_HASHLOG);
+}
+
+// 32 bits after LDM_HASH_LOG bits.
+static U32 checksumFromHfHash(U64 hfHash) {
+  return (hfHash >> (64 - 32 - LDM_HASHLOG)) & 0xFFFFFFFF;
+}
+
+#if 0
 /**
- * Computes a 32-bit checksum based on rsync's checksum.
+ * Computes a checksum based on rsync's checksum.
  *
  * a(k,l) = \sum_{i = k}^l x_i (mod M)
  * b(k,l) = \sum_{i = k}^l ((l - i + 1) * x_i) (mod M)
  * checksum(k,l) = a(k,l) + 2^{16} * b(k,l)
   */
-static checksum_t getChecksum(const BYTE *buf, U32 len) {
+static U32 getChecksum(const BYTE *buf, U32 len) {
   U32 i;
-  checksum_t s1, s2;
+  U32 s1, s2;
 
   s1 = s2 = 0;
   for (i = 0; i < (len - 4); i += 4) {
@@ -216,7 +489,24 @@ static checksum_t getChecksum(const BYTE *buf, U32 len) {
   }
   return (s1 & 0xffff) + (s2 << 16);
 }
+#endif
 
+static U64 getChecksum(const BYTE *buf, U32 len) {
+  static const U64 prime8bytes = 11400714785074694791ULL;
+
+//  static const U64 prime8bytes = 5;
+  U64 ret = 0;
+  U32 i;
+  for (i = 0; i < len; i++) {
+    ret *= prime8bytes;
+    ret += buf[i] + CHECKSUM_CHAR_OFFSET;
+//    printf("HERE %llu\n", ret);
+  }
+  return ret;
+
+}
+
+#if 0
 /**
  * Update a checksum computed from getChecksum(data, len).
  *
@@ -226,12 +516,37 @@ static checksum_t getChecksum(const BYTE *buf, U32 len) {
  *
  * Thus toRemove should correspond to data[0].
  */
-static checksum_t updateChecksum(checksum_t sum, U32 len,
-                                 BYTE toRemove, BYTE toAdd) {
+static U32 updateChecksum(U32 sum, U32 len,
+                          BYTE toRemove, BYTE toAdd) {
   U32 s1 = (sum & 0xffff) - toRemove + toAdd;
   U32 s2 = (sum >> 16) - ((toRemove + CHECKSUM_CHAR_OFFSET) * len) + s1;
 
   return (s1 & 0xffff) + (s2 << 16);
+}
+#endif
+
+static U64 ipow(U64 base, U64 exp) {
+  U64 ret = 1;
+  while (exp) {
+    if (exp & 1) {
+      ret *= base;
+    }
+    exp >>= 1;
+    base *= base;
+  }
+  return ret;
+}
+
+static U64 updateChecksum(U64 sum, U32 len,
+                          BYTE toRemove, BYTE toAdd) {
+  // TODO: deduplicate.
+  static const U64 prime8bytes = 11400714785074694791ULL;
+//  static const U64 prime8bytes = 5;
+  sum -= ((toRemove + CHECKSUM_CHAR_OFFSET) *
+          ipow(prime8bytes, len - 1));
+  sum *= prime8bytes;
+  sum += toAdd + CHECKSUM_CHAR_OFFSET;
+  return sum;
 }
 
 /**
@@ -259,15 +574,21 @@ static void setNextHash(LDM_CCtx *cctx) {
       cctx->lastPosHashed[0],
       cctx->lastPosHashed[LDM_HASH_LENGTH]);
   cctx->nextPosHashed = cctx->nextIp;
+#if 0
   cctx->nextHash = checksumToHash(cctx->nextSum);
+#endif
+
 
 #if LDM_LAG
+//  printf("LDM_LAG %zu\n", cctx->ip - cctx->lagIp);
   if (cctx->ip - cctx->ibase > LDM_LAG) {
     cctx->lagSum = updateChecksum(
       cctx->lagSum, LDM_HASH_LENGTH,
       cctx->lagIp[0], cctx->lagIp[LDM_HASH_LENGTH]);
     cctx->lagIp++;
+#if 0
     cctx->lagHash = checksumToHash(cctx->lagSum);
+#endif
   }
 #endif
 
@@ -286,29 +607,35 @@ static void setNextHash(LDM_CCtx *cctx) {
 #endif
 }
 
-static void putHashOfCurrentPositionFromHash(
-    LDM_CCtx *cctx, hash_t hash, U32 checksum) {
+static void putHashOfCurrentPositionFromHash(LDM_CCtx *cctx, U64 hfHash) {
   // Hash only every HASH_ONLY_EVERY times, based on cctx->ip.
   // Note: this works only when cctx->step is 1.
+  U32 hash = checksumToHash(hfHash);
+  U32 sum = checksumFromHfHash(hfHash);
+//  printf("TMP %u %u %llu\n", hash, sum, hfHash);
+
   if (((cctx->ip - cctx->ibase) & HASH_ONLY_EVERY) == HASH_ONLY_EVERY) {
+
 #if LDM_LAG
     // TODO: off by 1, but whatever
     if (cctx->lagIp - cctx->ibase > 0) {
       const LDM_hashEntry entry = { cctx->lagIp - cctx->ibase, cctx->lagSum };
       HASH_insert(cctx->hashTable, cctx->lagHash, entry);
     } else {
-      const LDM_hashEntry entry = { cctx->ip - cctx->ibase, checksum };
+      const LDM_hashEntry entry = { cctx->ip - cctx->ibase, sum };
       HASH_insert(cctx->hashTable, hash, entry);
     }
 #else
-    const LDM_hashEntry entry = { cctx->ip - cctx->ibase, checksum };
+    const LDM_hashEntry entry = { cctx->ip - cctx->ibase, sum };
     HASH_insert(cctx->hashTable, hash, entry);
 #endif
   }
 
   cctx->lastPosHashed = cctx->ip;
+#if 0
   cctx->lastHash = hash;
-  cctx->lastSum = checksum;
+#endif
+  cctx->lastSum = hfHash;
 }
 
 /**
@@ -324,15 +651,20 @@ static void LDM_updateLastHashFromNextHash(LDM_CCtx *cctx) {
            cctx->ip - cctx->ibase);
   }
 #endif
+#if 0
   putHashOfCurrentPositionFromHash(cctx, cctx->nextHash, cctx->nextSum);
+#endif
+  putHashOfCurrentPositionFromHash(cctx, cctx->nextSum);
 }
 
 /**
  * Insert hash of the current position into the hash table.
  */
 static void LDM_putHashOfCurrentPosition(LDM_CCtx *cctx) {
-  checksum_t sum = getChecksum(cctx->ip, LDM_HASH_LENGTH);
+  U32 sum = getChecksum(cctx->ip, LDM_HASH_LENGTH);
+#if 0
   hash_t hash = checksumToHash(sum);
+#endif
 
 #ifdef RUN_CHECKS
   if (cctx->nextPosHashed != cctx->ip && (cctx->ip != cctx->ibase)) {
@@ -340,8 +672,10 @@ static void LDM_putHashOfCurrentPosition(LDM_CCtx *cctx) {
            cctx->ip - cctx->ibase);
   }
 #endif
-
+#if 0
   putHashOfCurrentPositionFromHash(cctx, hash, sum);
+#endif
+  putHashOfCurrentPositionFromHash(cctx, sum);
 }
 
 U32 LDM_countMatchLength(const BYTE *pIn, const BYTE *pMatch,
@@ -399,8 +733,7 @@ void LDM_initializeCCtx(LDM_CCtx *cctx,
   cctx->anchor = cctx->ibase;
 
   memset(&(cctx->stats), 0, sizeof(cctx->stats));
-  cctx->hashTable = HASH_createTable(LDM_HASHTABLESIZE_U64, cctx->ibase,
-                                     LDM_MIN_MATCH_LENGTH, LDM_WINDOW_SIZE);
+  cctx->hashTable = HASH_createTable(LDM_HASHTABLESIZE_U64);
 
   cctx->stats.minOffset = UINT_MAX;
   cctx->stats.windowSizeLog = LDM_WINDOW_SIZE_LOG;
@@ -426,20 +759,27 @@ void LDM_destroyCCtx(LDM_CCtx *cctx) {
  * Returns 0 if successful and 1 otherwise (i.e. no match can be found
  * in the remaining input that is long enough).
  *
- * matchLength contains the forward length of the match.
+ * forwardMatchLength contains the forward length of the match.
  */
 static int LDM_findBestMatch(LDM_CCtx *cctx, const BYTE **match,
-                             U32 *matchLength, U32 *backwardMatchLength) {
+                             U32 *forwardMatchLength, U32 *backwardMatchLength) {
 
   LDM_hashEntry *entry = NULL;
   cctx->nextIp = cctx->ip + cctx->step;
 
   while (entry == NULL) {
     hash_t h;
-    checksum_t sum;
+    U64 hash;
+    U32 sum;
     setNextHash(cctx);
+#if 0
     h = cctx->nextHash;
     sum = cctx->nextSum;
+#endif
+    hash = cctx->nextSum;
+    h = checksumToHash(hash);
+    sum = checksumFromHfHash(hash);
+
     cctx->ip = cctx->nextIp;
     cctx->nextIp += cctx->step;
 
@@ -447,15 +787,13 @@ static int LDM_findBestMatch(LDM_CCtx *cctx, const BYTE **match,
       return 1;
     }
 
-    entry = HASH_getBestEntry(cctx->hashTable, h, sum,
-                              cctx->ip, cctx->iend,
-                              cctx->anchor,
-                              matchLength, backwardMatchLength);
+    entry = HASH_getBestEntry(cctx, h, sum,
+                              forwardMatchLength, backwardMatchLength);
 
     if (entry != NULL) {
       *match = entry->offset + cctx->ibase;
     }
-    putHashOfCurrentPositionFromHash(cctx, h, sum);
+    putHashOfCurrentPositionFromHash(cctx, hash);
   }
   setNextHash(cctx);
   return 0;
@@ -531,7 +869,7 @@ size_t LDM_compress(const void *src, size_t srcSize,
 
 #if LDM_LAG
   cctx.lagIp = cctx.ip;
-  cctx.lagHash = cctx.lastHash;
+//  cctx.lagHash = cctx.lastHash;
   cctx.lagSum = cctx.lastSum;
 #endif
   /**
@@ -694,6 +1032,17 @@ size_t LDM_decompress(const void *src, size_t compressedSize,
 
 // TODO: implement and test hash function
 void LDM_test(const BYTE *src) {
-  (void)src;
+  const U32 diff = 100;
+  const BYTE *pCur = src + diff;
+  U64 checksum = getChecksum(pCur, LDM_HASH_LENGTH);
+
+  for (; pCur < src + diff + 60; ++pCur) {
+    U64 nextSum = getChecksum(pCur + 1, LDM_HASH_LENGTH);
+    U64 updateSum = updateChecksum(checksum, LDM_HASH_LENGTH,
+                                   pCur[0], pCur[LDM_HASH_LENGTH]);
+    checksum = nextSum;
+    printf("%llu %llu\n", nextSum, updateSum);
+  }
 }
+
 

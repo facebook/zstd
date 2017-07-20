@@ -25,7 +25,7 @@ LDFLAGS += -lzstd
 
 default: all
 
-all: main-circular-buffer main-integrated
+all: main-circular-buffer main-integrated main-hf
 
 #main-basic : basic_table.c ldm.c main-ldm.c
 #	      $(CC) $(CPPFLAGS) $(CFLAGS) $^ $(LDFLAGS) -o $@
@@ -33,12 +33,14 @@ all: main-circular-buffer main-integrated
 main-circular-buffer: circular_buffer_table.c ldm.c main-ldm.c
 	$(CC) $(CPPFLAGS) $(CFLAGS) $^ $(LDFLAGS) -o $@
 
+main-hf: ldm_hf_test.c main-ldm.c
+	$(CC) $(CPPFLAGS) $(CFLAGS) $^ $(LDFLAGS) -o $@
+
 main-integrated: ldm_with_table.c main-ldm.c
 	$(CC) $(CPPFLAGS) $(CFLAGS) $^ $(LDFLAGS) -o $@
 
-
 clean:
 	@rm -f core *.o tmp* result* *.ldm *.ldm.dec \
-	main-basic main-circular-buffer  main-integrated
+	main-basic main-circular-buffer  main-integrated main-hf
 	@echo Cleaning completed
 

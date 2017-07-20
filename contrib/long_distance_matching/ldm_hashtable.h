@@ -3,6 +3,8 @@
 
 #include "mem.h"
 
+#define LDM_HASH_ENTRY_SIZE_LOG 3
+
 // TODO: clean up comments
 
 typedef U32 hash_t;

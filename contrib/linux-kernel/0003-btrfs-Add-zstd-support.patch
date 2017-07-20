@@ -1,7 +1,7 @@
-From 599f8f2aaace3df939cb145368574a52268d82d0 Mon Sep 17 00:00:00 2001
+From b0ef8fc63c9ca251ceca632f53aa1de8f1f17772 Mon Sep 17 00:00:00 2001
 From: Nick Terrell <terrelln@fb.com>
-Date: Wed, 21 Jun 2017 17:31:39 -0700
-Subject: [PATCH v2 3/4] btrfs: Add zstd support
+Date: Mon, 17 Jul 2017 17:08:39 -0700
+Subject: [PATCH v3 3/4] btrfs: Add zstd support
 
 Add zstd compression and decompression support to BtrFS. zstd at its
 fastest level compresses almost as well as zlib, while offering much
@@ -63,6 +63,10 @@ zstd source repository: https://github.com/facebook/zstd
 
 Signed-off-by: Nick Terrell <terrelln@fb.com>
 ---
+v2 -> v3:
+- Port upstream BtrFS commits e1ddce71d6, 389a6cfc2a, and 6acafd1eff
+- Change default compression level for BtrFS to 3
+
  fs/btrfs/Kconfig           |   2 +
  fs/btrfs/Makefile          |   2 +-
  fs/btrfs/compression.c     |   1 +
@@ -73,9 +77,9 @@ Signed-off-by: Nick Terrell <terrelln@fb.com>
  fs/btrfs/props.c           |   6 +
  fs/btrfs/super.c           |  12 +-
  fs/btrfs/sysfs.c           |   2 +
- fs/btrfs/zstd.c            | 433 +++++++++++++++++++++++++++++++++++++++++++++
+ fs/btrfs/zstd.c            | 435 +++++++++++++++++++++++++++++++++++++++++++++
  include/uapi/linux/btrfs.h |   8 +-
- 12 files changed, 469 insertions(+), 12 deletions(-)
+ 12 files changed, 471 insertions(+), 12 deletions(-)
  create mode 100644 fs/btrfs/zstd.c
 
 diff --git a/fs/btrfs/Kconfig b/fs/btrfs/Kconfig
@@ -105,10 +109,10 @@ index 128ce17..962a95a 100644
  	   reada.o backref.o ulist.o qgroup.o send.o dev-replace.o raid56.o \
  	   uuid-tree.o props.o hash.o free-space-tree.o
 diff --git a/fs/btrfs/compression.c b/fs/btrfs/compression.c
-index 10e6b28..3beb0d0 100644
+index d2ef9ac..4ff42d1 100644
 --- a/fs/btrfs/compression.c
 +++ b/fs/btrfs/compression.c
-@@ -761,6 +761,7 @@ static struct {
+@@ -704,6 +704,7 @@ static struct {
  static const struct btrfs_compress_op * const btrfs_compress_op[] = {
  	&btrfs_zlib_compress,
  	&btrfs_lzo_compress,
@@ -117,10 +121,10 @@ index 10e6b28..3beb0d0 100644
 
  void __init btrfs_init_compress(void)
 diff --git a/fs/btrfs/compression.h b/fs/btrfs/compression.h
-index 39ec43a..d99fc21 100644
+index 87f6d33..2269e00 100644
 --- a/fs/btrfs/compression.h
 +++ b/fs/btrfs/compression.h
-@@ -60,8 +60,9 @@ enum btrfs_compression_type {
+@@ -99,8 +99,9 @@ enum btrfs_compression_type {
  	BTRFS_COMPRESS_NONE  = 0,
  	BTRFS_COMPRESS_ZLIB  = 1,
  	BTRFS_COMPRESS_LZO   = 2,
@@ -132,7 +136,7 @@ index 39ec43a..d99fc21 100644
  };
 
  struct btrfs_compress_op {
-@@ -92,5 +93,6 @@ struct btrfs_compress_op {
+@@ -128,5 +129,6 @@ struct btrfs_compress_op {
 
  extern const struct btrfs_compress_op btrfs_zlib_compress;
  extern const struct btrfs_compress_op btrfs_lzo_compress;
@@ -140,10 +144,10 @@ index 39ec43a..d99fc21 100644
 
  #endif
 diff --git a/fs/btrfs/ctree.h b/fs/btrfs/ctree.h
-index 4f8f75d..61dd3dd 100644
+index 3f3eb7b..845d77c 100644
 --- a/fs/btrfs/ctree.h
 +++ b/fs/btrfs/ctree.h
-@@ -271,6 +271,7 @@ struct btrfs_super_block {
+@@ -270,6 +270,7 @@ struct btrfs_super_block {
  	 BTRFS_FEATURE_INCOMPAT_MIXED_GROUPS |		\
  	 BTRFS_FEATURE_INCOMPAT_BIG_METADATA |		\
  	 BTRFS_FEATURE_INCOMPAT_COMPRESS_LZO |		\
@@ -152,10 +156,10 @@ index 4f8f75d..61dd3dd 100644
  	 BTRFS_FEATURE_INCOMPAT_EXTENDED_IREF |		\
  	 BTRFS_FEATURE_INCOMPAT_SKINNY_METADATA |	\
 diff --git a/fs/btrfs/disk-io.c b/fs/btrfs/disk-io.c
-index 5f678dc..49c0e91 100644
+index 080e2eb..04632f4 100644
 --- a/fs/btrfs/disk-io.c
 +++ b/fs/btrfs/disk-io.c
-@@ -2831,6 +2831,8 @@ int open_ctree(struct super_block *sb,
+@@ -2828,6 +2828,8 @@ int open_ctree(struct super_block *sb,
  	features |= BTRFS_FEATURE_INCOMPAT_MIXED_BACKREF;
  	if (fs_info->compress_type == BTRFS_COMPRESS_LZO)
  		features |= BTRFS_FEATURE_INCOMPAT_COMPRESS_LZO;
@@ -165,7 +169,7 @@ index 5f678dc..49c0e91 100644
  	if (features & BTRFS_FEATURE_INCOMPAT_SKINNY_METADATA)
  		btrfs_info(fs_info, "has skinny extents");
 diff --git a/fs/btrfs/ioctl.c b/fs/btrfs/ioctl.c
-index e176375..f732cfd 100644
+index fa1b78c..b9963d9 100644
 --- a/fs/btrfs/ioctl.c
 +++ b/fs/btrfs/ioctl.c
 @@ -327,8 +327,10 @@ static int btrfs_ioctl_setflags(struct file *file, void __user *arg)
@@ -180,7 +184,7 @@ index e176375..f732cfd 100644
  		ret = btrfs_set_prop(inode, "btrfs.compression",
  				     comp, strlen(comp), 0);
  		if (ret)
-@@ -1463,6 +1465,8 @@ int btrfs_defrag_file(struct inode *inode, struct file *file,
+@@ -1466,6 +1468,8 @@ int btrfs_defrag_file(struct inode *inode, struct file *file,
 
  	if (range->compress_type == BTRFS_COMPRESS_LZO) {
  		btrfs_set_fs_incompat(fs_info, COMPRESS_LZO);
@@ -190,10 +194,10 @@ index e176375..f732cfd 100644
 
  	ret = defrag_count;
 diff --git a/fs/btrfs/props.c b/fs/btrfs/props.c
-index d6cb155..162105f 100644
+index 4b23ae5..20631e9 100644
 --- a/fs/btrfs/props.c
 +++ b/fs/btrfs/props.c
-@@ -383,6 +383,8 @@ static int prop_compression_validate(const char *value, size_t len)
+@@ -390,6 +390,8 @@ static int prop_compression_validate(const char *value, size_t len)
  		return 0;
  	else if (!strncmp("zlib", value, len))
  		return 0;
@@ -202,7 +206,7 @@ index d6cb155..162105f 100644
 
  	return -EINVAL;
  }
-@@ -405,6 +407,8 @@ static int prop_compression_apply(struct inode *inode,
+@@ -412,6 +414,8 @@ static int prop_compression_apply(struct inode *inode,
  		type = BTRFS_COMPRESS_LZO;
  	else if (!strncmp("zlib", value, len))
  		type = BTRFS_COMPRESS_ZLIB;
@@ -211,7 +215,7 @@ index d6cb155..162105f 100644
  	else
  		return -EINVAL;
 
-@@ -422,6 +426,8 @@ static const char *prop_compression_extract(struct inode *inode)
+@@ -429,6 +433,8 @@ static const char *prop_compression_extract(struct inode *inode)
  		return "zlib";
  	case BTRFS_COMPRESS_LZO:
  		return "lzo";
@@ -221,7 +225,7 @@ index d6cb155..162105f 100644
 
  	return NULL;
 diff --git a/fs/btrfs/super.c b/fs/btrfs/super.c
-index 4f1cdd5..4f792d5 100644
+index 12540b6..c370dea 100644
 --- a/fs/btrfs/super.c
 +++ b/fs/btrfs/super.c
 @@ -513,6 +513,14 @@ int btrfs_parse_options(struct btrfs_fs_info *info, char *options,
@@ -239,7 +243,7 @@ index 4f1cdd5..4f792d5 100644
  			} else if (strncmp(args[0].from, "no", 2) == 0) {
  				compress_type = "no";
  				btrfs_clear_opt(info->mount_opt, COMPRESS);
-@@ -1240,8 +1248,10 @@ static int btrfs_show_options(struct seq_file *seq, struct dentry *dentry)
+@@ -1227,8 +1235,10 @@ static int btrfs_show_options(struct seq_file *seq, struct dentry *dentry)
  	if (btrfs_test_opt(info, COMPRESS)) {
  		if (info->compress_type == BTRFS_COMPRESS_ZLIB)
  			compress_type = "zlib";
@@ -252,7 +256,7 @@ index 4f1cdd5..4f792d5 100644
  			seq_printf(seq, ",compress-force=%s", compress_type);
  		else
 diff --git a/fs/btrfs/sysfs.c b/fs/btrfs/sysfs.c
-index 1f157fb..b0dec90 100644
+index c2d5f35..2b6d37c 100644
 --- a/fs/btrfs/sysfs.c
 +++ b/fs/btrfs/sysfs.c
 @@ -200,6 +200,7 @@ BTRFS_FEAT_ATTR_INCOMPAT(mixed_backref, MIXED_BACKREF);
@@ -273,10 +277,10 @@ index 1f157fb..b0dec90 100644
  	BTRFS_FEAT_ATTR_PTR(raid56),
 diff --git a/fs/btrfs/zstd.c b/fs/btrfs/zstd.c
 new file mode 100644
-index 0000000..838741b
+index 0000000..1822068
 --- /dev/null
 +++ b/fs/btrfs/zstd.c
-@@ -0,0 +1,433 @@
+@@ -0,0 +1,435 @@
 +/*
 + * Copyright (c) 2016-present, Facebook, Inc.
 + * All rights reserved.
@@ -308,10 +312,11 @@ index 0000000..838741b
 +
 +#define ZSTD_BTRFS_MAX_WINDOWLOG 17
 +#define ZSTD_BTRFS_MAX_INPUT (1 << ZSTD_BTRFS_MAX_WINDOWLOG)
++#define ZSTD_BTRFS_DEFAULT_LEVEL 3
 +
 +static ZSTD_parameters zstd_get_btrfs_parameters(size_t src_len)
 +{
-+	ZSTD_parameters params = ZSTD_getParams(1, src_len, 0);
++	ZSTD_parameters params = ZSTD_getParams(ZSTD_BTRFS_DEFAULT_LEVEL, src_len, 0);
 +
 +	if (params.cParams.windowLog > ZSTD_BTRFS_MAX_WINDOWLOG)
 +		params.cParams.windowLog = ZSTD_BTRFS_MAX_WINDOWLOG;
@@ -330,7 +335,7 @@ index 0000000..838741b
 +{
 +	struct workspace *workspace = list_entry(ws, struct workspace, list);
 +
-+	vfree(workspace->mem);
++	kvfree(workspace->mem);
 +	kfree(workspace->buf);
 +	kfree(workspace);
 +}
@@ -341,15 +346,15 @@ index 0000000..838741b
 +			zstd_get_btrfs_parameters(ZSTD_BTRFS_MAX_INPUT);
 +	struct workspace *workspace;
 +
-+	workspace = kzalloc(sizeof(*workspace), GFP_NOFS);
++	workspace = kzalloc(sizeof(*workspace), GFP_KERNEL);
 +	if (!workspace)
 +		return ERR_PTR(-ENOMEM);
 +
 +	workspace->size = max_t(size_t,
 +			ZSTD_CStreamWorkspaceBound(params.cParams),
 +			ZSTD_DStreamWorkspaceBound(ZSTD_BTRFS_MAX_INPUT));
-+	workspace->mem = vmalloc(workspace->size);
-+	workspace->buf = kmalloc(PAGE_SIZE, GFP_NOFS);
++	workspace->mem = kvmalloc(workspace->size, GFP_KERNEL);
++	workspace->buf = kmalloc(PAGE_SIZE, GFP_KERNEL);
 +	if (!workspace->mem || !workspace->buf)
 +		goto fail;
 +
@@ -541,12 +546,13 @@ index 0000000..838741b
 +	return ret;
 +}
 +
-+static int zstd_decompress_bio(struct list_head *ws, struct page **pages_in,
-+		u64 disk_start,
-+		struct bio *orig_bio,
-+		size_t srclen)
++static int zstd_decompress_bio(struct list_head *ws, struct compressed_bio *cb)
 +{
 +	struct workspace *workspace = list_entry(ws, struct workspace, list);
++	struct page **pages_in = cb->compressed_pages;
++	u64 disk_start = cb->start;
++	struct bio *orig_bio = cb->orig_bio;
++	size_t srclen = cb->compressed_len;
 +	ZSTD_DStream *stream;
 +	int ret = 0;
 +	unsigned long page_in_index = 0;
@@ -711,7 +717,7 @@ index 0000000..838741b
 +	.decompress = zstd_decompress,
 +};
 diff --git a/include/uapi/linux/btrfs.h b/include/uapi/linux/btrfs.h
-index a456e53..992c150 100644
+index 9aa74f3..378230c 100644
 --- a/include/uapi/linux/btrfs.h
 +++ b/include/uapi/linux/btrfs.h
 @@ -255,13 +255,7 @@ struct btrfs_ioctl_fs_info_args {

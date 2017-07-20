@@ -95,9 +95,9 @@ POOL_ctx *POOL_create(size_t numThreads, size_t queueSize) {
     ctx->queue = (POOL_job*) malloc(ctx->queueSize * sizeof(POOL_job));
     ctx->queueHead = 0;
     ctx->queueTail = 0;
-    pthread_mutex_init(&ctx->queueMutex, NULL);
-    pthread_cond_init(&ctx->queuePushCond, NULL);
-    pthread_cond_init(&ctx->queuePopCond, NULL);
+    (void)pthread_mutex_init(&ctx->queueMutex, NULL);
+    (void)pthread_cond_init(&ctx->queuePushCond, NULL);
+    (void)pthread_cond_init(&ctx->queuePopCond, NULL);
     ctx->shutdown = 0;
     /* Allocate space for the thread handles */
     ctx->threads = (pthread_t*)malloc(numThreads * sizeof(pthread_t));

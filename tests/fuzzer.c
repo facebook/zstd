@@ -246,7 +246,7 @@ static int FUZ_mallocTests(unsigned seed, double compressibility, unsigned part)
 
 #else
 
-static int FUZ_mallocTests(unsigned seed, double compressibility)
+static int FUZ_mallocTests(unsigned seed, double compressibility, unsigned part)
 {
     (void)seed; (void)compressibility;
     return 0;

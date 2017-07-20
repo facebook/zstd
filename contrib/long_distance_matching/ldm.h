@@ -14,7 +14,7 @@
 // Note that this is not the number of buckets.
 // Currently this should be less than WINDOW_SIZE_LOG + 4?
 #define LDM_MEMORY_USAGE 22
-#define HASH_BUCKET_SIZE_LOG 3 // MAX is 4 for now
+#define HASH_BUCKET_SIZE_LOG 1 // MAX is 4 for now
 
 // Defines the lag in inserting elements into the hash table.
 #define LDM_LAG 0
@@ -115,16 +115,16 @@ U32 LDM_countMatchLength(const BYTE *pIn, const BYTE *pMatch,
  * This is followed by literalLength bytes corresponding to the literals.
  */
 void LDM_encodeLiteralLengthAndLiterals(
-    LDM_CCtx *cctx, BYTE *pToken, const U32 literalLength);
+    LDM_CCtx *cctx, BYTE *pToken, const U64 literalLength);
 
 /**
  * Write current block (literals, literal length, match offset,
  * match length).
  */
 void LDM_outputBlock(LDM_CCtx *cctx,
-                     const U32 literalLength,
+                     const U64 literalLength,
                      const U32 offset,
-                     const U32 matchLength);
+                     const U64 matchLength);
 
 /**
  * Decompresses src into dst.

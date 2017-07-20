@@ -429,7 +429,7 @@ void LDM_destroyCCtx(LDM_CCtx *cctx) {
  * matchLength contains the forward length of the match.
  */
 static int LDM_findBestMatch(LDM_CCtx *cctx, const BYTE **match,
-                             U32 *matchLength, U32 *backwardMatchLength) {
+                             U64 *matchLength, U64 *backwardMatchLength) {
 
   LDM_hashEntry *entry = NULL;
   cctx->nextIp = cctx->ip + cctx->step;
@@ -462,7 +462,7 @@ static int LDM_findBestMatch(LDM_CCtx *cctx, const BYTE **match,
 }
 
 void LDM_encodeLiteralLengthAndLiterals(
-    LDM_CCtx *cctx, BYTE *pToken, const U32 literalLength) {
+    LDM_CCtx *cctx, BYTE *pToken, const U64 literalLength) {
   /* Encode the literal length. */
   if (literalLength >= RUN_MASK) {
     int len = (int)literalLength - RUN_MASK;
@@ -481,9 +481,9 @@ void LDM_encodeLiteralLengthAndLiterals(
 }
 
 void LDM_outputBlock(LDM_CCtx *cctx,
-                     const U32 literalLength,
+                     const U64 literalLength,
                      const U32 offset,
-                     const U32 matchLength) {
+                     const U64 matchLength) {
   BYTE *pToken = cctx->op++;
 
   /* Encode the literal length and literals. */
@@ -495,7 +495,7 @@ void LDM_outputBlock(LDM_CCtx *cctx,
 
   /* Encode the match length. */
   if (matchLength >= ML_MASK) {
-    unsigned matchLengthRemaining = matchLength;
+    U64 matchLengthRemaining = matchLength;
     *pToken += ML_MASK;
     matchLengthRemaining -= ML_MASK;
     MEM_write32(cctx->op, 0xFFFFFFFF);

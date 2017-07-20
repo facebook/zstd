@@ -719,10 +719,10 @@ static int LDM_findBestMatch(LDM_CCtx *cctx, const BYTE **match,
 }
 
 void LDM_encodeLiteralLengthAndLiterals(
-    LDM_CCtx *cctx, BYTE *pToken, const U32 literalLength) {
+    LDM_CCtx *cctx, BYTE *pToken, const U64 literalLength) {
   /* Encode the literal length. */
   if (literalLength >= RUN_MASK) {
-    int len = (int)literalLength - RUN_MASK;
+    U64 len = (U64)literalLength - RUN_MASK;
     *pToken = (RUN_MASK << ML_BITS);
     for (; len >= 255; len -= 255) {
       *(cctx->op)++ = 255;
@@ -738,9 +738,9 @@ void LDM_encodeLiteralLengthAndLiterals(
 }
 
 void LDM_outputBlock(LDM_CCtx *cctx,
-                     const U32 literalLength,
+                     const U64 literalLength,
                      const U32 offset,
-                     const U32 matchLength) {
+                     const U64 matchLength) {
   BYTE *pToken = cctx->op++;
 
   /* Encode the literal length and literals. */
@@ -811,9 +811,9 @@ size_t LDM_compress(const void *src, size_t srcSize,
      * length) and update pointers and hashes.
      */
     {
-      const U32 literalLength = cctx.ip - cctx.anchor;
+      const U64 literalLength = cctx.ip - cctx.anchor;
       const U32 offset = cctx.ip - match;
-      const U32 matchLength = forwardMatchLength +
+      const U64 matchLength = forwardMatchLength +
                               backwardsMatchLength -
                               LDM_MIN_MATCH_LENGTH;
 

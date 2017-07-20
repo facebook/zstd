@@ -25,8 +25,8 @@ LDM_hashEntry *HASH_getBestEntry(const LDM_hashTable *table,
                                  const BYTE *pIn,
                                  const BYTE *pEnd,
                                  const BYTE *pAnchor,
-                                 U32 *matchLength,
-                                 U32 *backwardsMatchLength);
+                                 U64 *matchLength,
+                                 U64 *backwardsMatchLength);
 
 hash_t HASH_hashU32(U32 value);
 

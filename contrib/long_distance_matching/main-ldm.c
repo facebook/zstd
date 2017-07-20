@@ -94,8 +94,8 @@ static int compress(const char *fname, const char *oname) {
   // Truncate file to compressedSize.
   ftruncate(fdout, compressedSize);
 
-  printf("%25s : %6u -> %7u - %s (%.1f%%)\n", fname,
-         (unsigned)statbuf.st_size, (unsigned)compressedSize, oname,
+  printf("%25s : %10lu -> %10lu - %s (%.1f%%)\n", fname,
+         (size_t)statbuf.st_size, (size_t)compressedSize, oname,
          (double)compressedSize / (statbuf.st_size) * 100);
 
   timeTaken = (double) (tv2.tv_usec - tv1.tv_usec) / 1000000 +
@@ -164,7 +164,7 @@ static int decompress(const char *fname, const char *oname) {
       src + LDM_HEADER_SIZE, statbuf.st_size - LDM_HEADER_SIZE,
       dst, decompressedSize);
   printf("Ret size out: %zu\n", outSize);
-  ftruncate(fdout, outSize);
+//  ftruncate(fdout, decompressedSize);
 
   close(fdin);
   close(fdout);
@@ -230,7 +230,6 @@ int main(int argc, const char *argv[]) {
  	printf("inp = [%s]\n", inpFilename);
 	printf("ldm = [%s]\n", ldmFilename);
 	printf("dec = [%s]\n", decFilename);
-
 
   /* Compress */
   {

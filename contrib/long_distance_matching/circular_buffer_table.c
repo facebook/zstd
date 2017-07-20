@@ -164,19 +164,19 @@ LDM_hashEntry *HASH_getBestEntry(const LDM_hashTable *table,
                                  const BYTE *pIn,
                                  const BYTE *pEnd,
                                  const BYTE *pAnchor,
-                                 U32 *pForwardMatchLength,
-                                 U32 *pBackwardMatchLength) {
+                                 U64 *pForwardMatchLength,
+                                 U64 *pBackwardMatchLength) {
   LDM_hashEntry *bucket = getBucket(table, hash);
   LDM_hashEntry *cur = bucket;
   LDM_hashEntry *bestEntry = NULL;
-  U32 bestMatchLength = 0;
+  U64 bestMatchLength = 0;
   for (; cur < bucket + HASH_BUCKET_SIZE; ++cur) {
     const BYTE *pMatch = cur->offset + table->offsetBase;
 
     // Check checksum for faster check.
     if (cur->checksum == checksum && pIn - pMatch <= table->maxWindowSize) {
-      U32 forwardMatchLength = ZSTD_count(pIn, pMatch, pEnd);
-      U32 backwardMatchLength, totalMatchLength;
+      U64 forwardMatchLength = ZSTD_count(pIn, pMatch, pEnd);
+      U64 backwardMatchLength, totalMatchLength;
 
       if (forwardMatchLength < table->minMatchLength) {
         continue;

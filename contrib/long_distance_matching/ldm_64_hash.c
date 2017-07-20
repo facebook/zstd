@@ -241,9 +241,9 @@ static size_t ZSTD_count(const BYTE *pIn, const BYTE *pMatch,
  *
  * We count only bytes where pMatch > pBaes and pIn > pAnchor.
  */
-U32 countBackwardsMatch(const BYTE *pIn, const BYTE *pAnchor,
+U64 countBackwardsMatch(const BYTE *pIn, const BYTE *pAnchor,
                         const BYTE *pMatch, const BYTE *pBase) {
-  U32 matchLength = 0;
+  U64 matchLength = 0;
   while (pIn > pAnchor && pMatch > pBase && pIn[-1] == pMatch[-1]) {
     pIn--;
     pMatch--;
@@ -267,8 +267,8 @@ U32 countBackwardsMatch(const BYTE *pIn, const BYTE *pAnchor,
 LDM_hashEntry *HASH_getBestEntry(const LDM_CCtx *cctx,
                                  const hash_t hash,
                                  const U32 checksum,
-                                 U32 *pForwardMatchLength,
-                                 U32 *pBackwardMatchLength) {
+                                 U64 *pForwardMatchLength,
+                                 U64 *pBackwardMatchLength) {
   LDM_hashTable *table = cctx->hashTable;
   LDM_hashEntry *bucket = getBucket(table, hash);
   LDM_hashEntry *cur = bucket;
@@ -541,7 +541,7 @@ static U64 updateChecksum(U64 sum, U32 len,
                           BYTE toRemove, BYTE toAdd) {
   // TODO: deduplicate.
   static const U64 prime8bytes = 11400714785074694791ULL;
-//  static const U64 prime8bytes = 5;
+
   sum -= ((toRemove + CHECKSUM_CHAR_OFFSET) *
           ipow(prime8bytes, len - 1));
   sum *= prime8bytes;
@@ -696,11 +696,12 @@ U32 LDM_countMatchLength(const BYTE *pIn, const BYTE *pMatch,
 void LDM_outputConfiguration(void) {
   printf("=====================\n");
   printf("Configuration\n");
-  printf("Window size log: %d\n", LDM_WINDOW_SIZE_LOG);
-  printf("Min match, hash length: %d, %d\n",
+  printf("LDM_WINDOW_SIZE_LOG: %d\n", LDM_WINDOW_SIZE_LOG);
+  printf("LDM_MIN_MATCH_LENGTH, LDM_HASH_LENGTH: %d, %d\n",
          LDM_MIN_MATCH_LENGTH, LDM_HASH_LENGTH);
   printf("LDM_MEMORY_USAGE: %d\n", LDM_MEMORY_USAGE);
   printf("HASH_ONLY_EVERY_LOG: %d\n", HASH_ONLY_EVERY_LOG);
+  printf("HASH_BUCKET_SIZE_LOG: %d\n", HASH_BUCKET_SIZE_LOG);
   printf("LDM_LAG %d\n", LDM_LAG);
   printf("=====================\n");
 }
@@ -762,7 +763,7 @@ void LDM_destroyCCtx(LDM_CCtx *cctx) {
  * forwardMatchLength contains the forward length of the match.
  */
 static int LDM_findBestMatch(LDM_CCtx *cctx, const BYTE **match,
-                             U32 *forwardMatchLength, U32 *backwardMatchLength) {
+                             U64 *forwardMatchLength, U64 *backwardMatchLength) {
 
   LDM_hashEntry *entry = NULL;
   cctx->nextIp = cctx->ip + cctx->step;
@@ -800,10 +801,10 @@ static int LDM_findBestMatch(LDM_CCtx *cctx, const BYTE **match,
 }
 
 void LDM_encodeLiteralLengthAndLiterals(
-    LDM_CCtx *cctx, BYTE *pToken, const U32 literalLength) {
+    LDM_CCtx *cctx, BYTE *pToken, const U64 literalLength) {
   /* Encode the literal length. */
   if (literalLength >= RUN_MASK) {
-    int len = (int)literalLength - RUN_MASK;
+    U64 len = (U64)literalLength - RUN_MASK;
     *pToken = (RUN_MASK << ML_BITS);
     for (; len >= 255; len -= 255) {
       *(cctx->op)++ = 255;
@@ -819,9 +820,9 @@ void LDM_encodeLiteralLengthAndLiterals(
 }
 
 void LDM_outputBlock(LDM_CCtx *cctx,
-                     const U32 literalLength,
+                     const U64 literalLength,
                      const U32 offset,
-                     const U32 matchLength) {
+                     const U64 matchLength) {
   BYTE *pToken = cctx->op++;
 
   /* Encode the literal length and literals. */
@@ -833,7 +834,7 @@ void LDM_outputBlock(LDM_CCtx *cctx,
 
   /* Encode the match length. */
   if (matchLength >= ML_MASK) {
-    unsigned matchLengthRemaining = matchLength;
+    U64 matchLengthRemaining = matchLength;
     *pToken += ML_MASK;
     matchLengthRemaining -= ML_MASK;
     MEM_write32(cctx->op, 0xFFFFFFFF);
@@ -858,8 +859,8 @@ size_t LDM_compress(const void *src, size_t srcSize,
                     void *dst, size_t maxDstSize) {
   LDM_CCtx cctx;
   const BYTE *match = NULL;
-  U32 forwardMatchLength = 0;
-  U32 backwardsMatchLength = 0;
+  U64 forwardMatchLength = 0;
+  U64 backwardsMatchLength = 0;
 
   LDM_initializeCCtx(&cctx, src, srcSize, dst, maxDstSize);
   LDM_outputConfiguration();
@@ -892,9 +893,9 @@ size_t LDM_compress(const void *src, size_t srcSize,
      * length) and update pointers and hashes.
      */
     {
-      const U32 literalLength = cctx.ip - cctx.anchor;
+      const U64 literalLength = cctx.ip - cctx.anchor;
       const U32 offset = cctx.ip - match;
-      const U32 matchLength = forwardMatchLength +
+      const U64 matchLength = forwardMatchLength +
                               backwardsMatchLength -
                               LDM_MIN_MATCH_LENGTH;
 
@@ -934,7 +935,7 @@ size_t LDM_compress(const void *src, size_t srcSize,
 
   /* Encode the last literals (no more matches). */
   {
-    const U32 lastRun = cctx.iend - cctx.anchor;
+    const U64 lastRun = cctx.iend - cctx.anchor;
     BYTE *pToken = cctx.op++;
     LDM_encodeLiteralLengthAndLiterals(&cctx, pToken, lastRun);
   }
@@ -979,6 +980,7 @@ void LDM_initializeDCtx(LDM_DCtx *dctx,
 
 size_t LDM_decompress(const void *src, size_t compressedSize,
                       void *dst, size_t maxDecompressedSize) {
+
   LDM_DCtx dctx;
   LDM_initializeDCtx(&dctx, src, compressedSize, dst, maxDecompressedSize);
 

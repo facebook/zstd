@@ -548,7 +548,7 @@ static void* outputThread(void* arg)
             }
             {
                 // size_t const writeSize = fwrite(job->dst.start, 1, compressedSize, dstFile);
-                size_t const blockSize = compressedSize >> 7;
+                size_t const blockSize = MAX(compressedSize >> 7, 64 << 10);
                 size_t pos = 0;
                 for ( ; ; ) {
                     size_t const writeSize = MIN(remaining, blockSize);

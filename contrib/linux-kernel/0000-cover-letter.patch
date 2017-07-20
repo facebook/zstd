@@ -1,7 +1,7 @@
-From 8bc9a0ae5c86a6d02d9a5274b9965ddac0e8d330 Mon Sep 17 00:00:00 2001
+From 0cd63464d182bb9708f8b25f7da3dc8e5ec6b4fa Mon Sep 17 00:00:00 2001
 From: Nick Terrell <terrelln@fb.com>
-Date: Wed, 28 Jun 2017 22:00:00 -0700
-Subject: [PATCH v2 0/4] Add xxhash and zstd modules
+Date: Thu, 20 Jul 2017 13:18:30 -0700
+Subject: [PATCH v3 0/4] Add xxhash and zstd modules
 
 Hi all,
 
@@ -24,6 +24,13 @@ v1 -> v2:
   HUF_compressWeights(), HUF_readDTableX2(), and HUF_readDTableX4() (2/4)
 - No zstd function uses more than 400 B of stack space (2/4)
 
+v2 -> v3:
+- Work around gcc-7 bug https://gcc.gnu.org/bugzilla/show_bug.cgi?id=81388
+  (2/4)
+- Fix bug in dictionary compression from upstream commit cc1522351f (2/4)
+- Port upstream BtrFS commits e1ddce71d6, 389a6cfc2a, and 6acafd1eff (3/4)
+- Change default compression level for BtrFS to 3 (3/4)
+
 Nick Terrell (4):
   lib: Add xxhash module
   lib: Add zstd modules
@@ -40,7 +47,7 @@ Nick Terrell (4):
  fs/btrfs/props.c           |    6 +
  fs/btrfs/super.c           |   12 +-
  fs/btrfs/sysfs.c           |    2 +
- fs/btrfs/zstd.c            |  433 ++++++
+ fs/btrfs/zstd.c            |  435 ++++++
  fs/squashfs/Kconfig        |   14 +
  fs/squashfs/Makefile       |    1 +
  fs/squashfs/decompressor.c |    7 +
@@ -63,13 +70,13 @@ Nick Terrell (4):
  lib/zstd/fse_compress.c    |  795 ++++++++++
  lib/zstd/fse_decompress.c  |  332 +++++
  lib/zstd/huf.h             |  212 +++
- lib/zstd/huf_compress.c    |  771 ++++++++++
+ lib/zstd/huf_compress.c    |  770 ++++++++++
  lib/zstd/huf_decompress.c  |  960 ++++++++++++
  lib/zstd/mem.h             |  151 ++
  lib/zstd/zstd_common.c     |   75 +
- lib/zstd/zstd_internal.h   |  269 ++++
+ lib/zstd/zstd_internal.h   |  250 ++++
  lib/zstd/zstd_opt.h        | 1014 +++++++++++++
- 39 files changed, 14400 insertions(+), 12 deletions(-)
+ 39 files changed, 14382 insertions(+), 12 deletions(-)
  create mode 100644 fs/btrfs/zstd.c
  create mode 100644 fs/squashfs/zstd_wrapper.c
  create mode 100644 include/linux/xxhash.h

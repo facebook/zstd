@@ -11,7 +11,8 @@
 #define HASH_BUCKET_SIZE (1 << (HASH_BUCKET_SIZE_LOG))
 
 // TODO: rename. Number of hash buckets.
-#define LDM_HASHLOG ((LDM_MEMORY_USAGE)-4-HASH_BUCKET_SIZE_LOG)
+// TODO: Link to HASH_ENTRY_SIZE_LOG
+#define LDM_HASHLOG ((LDM_MEMORY_USAGE)-3-(HASH_BUCKET_SIZE_LOG))
 //#define ZSTD_SKIP
 
 struct LDM_hashTable {

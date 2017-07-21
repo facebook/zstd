@@ -323,20 +323,23 @@ static void adaptCompressionLevel(adaptCCtx* ctx)
     if (1 - createCompletion > threshold) {
         /* job creation was not finished, compression thread waited */
         unsigned const change = MAX_COMPRESSION_LEVEL_CHANGE - createCompletion * MAX_COMPRESSION_LEVEL_CHANGE;
+        unsigned const boundChange = MIN(change, ZSTD_maxCLevel() - ctx->compressionLevel);
         DEBUG(2, "increasing compression level %u by %u\n", ctx->compressionLevel, change);
-        ctx->compressionLevel += change;
+        ctx->compressionLevel += boundChange;
     }
     else if (1 - writeCompletion > threshold) {
         /* write thread was not finished, compression thread waited */
         unsigned const change = MAX_COMPRESSION_LEVEL_CHANGE - writeCompletion * MAX_COMPRESSION_LEVEL_CHANGE;
+        unsigned const boundChange = MIN(change, ZSTD_maxCLevel() - ctx->compressionLevel);
         DEBUG(2, "increasing compression level %u by %u\n", ctx->compressionLevel, change);
-        ctx->compressionLevel += change;
+        ctx->compressionLevel += boundChange;
     }
     else if (1 - compressionCompletion > threshold) {
         /* compression thread was not finished, one of the other two threads waited */
         unsigned const change = MAX_COMPRESSION_LEVEL_CHANGE - compressionCompletion * MAX_COMPRESSION_LEVEL_CHANGE;
+        unsigned const boundChange = MIN(change, ctx->compressionLevel - 1);
         DEBUG(2, "decreasing compression level %u by %u\n", ctx->compressionLevel, change);
-        ctx->compressionLevel -= change;
+        ctx->compressionLevel -= boundChange;
     }
     /* reset */
     pthread_mutex_lock(&ctx->completion_mutex.pMutex);

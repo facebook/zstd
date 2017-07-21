@@ -14,7 +14,7 @@
 // Note that this is not the number of buckets.
 // Currently this should be less than WINDOW_SIZE_LOG + 4?
 #define LDM_MEMORY_USAGE 22
-#define HASH_BUCKET_SIZE_LOG 1 // MAX is 4 for now
+#define HASH_BUCKET_SIZE_LOG 2 // MAX is 4 for now
 
 // Defines the lag in inserting elements into the hash table.
 #define LDM_LAG 0
@@ -26,7 +26,8 @@
 #define LDM_MIN_MATCH_LENGTH 64
 #define LDM_HASH_LENGTH 64
 
-
+#define TMP_EVICTION
+#define TMP_TAG_INSERT
 typedef struct LDM_compressStats LDM_compressStats;
 typedef struct LDM_CCtx LDM_CCtx;
 typedef struct LDM_DCtx LDM_DCtx;
@@ -99,12 +100,6 @@ void LDM_printCompressStats(const LDM_compressStats *stats);
  */
 int LDM_isValidMatch(const BYTE *pIn, const BYTE *pMatch);
 
-/**
- *  Counts the number of bytes that match from pIn and pMatch,
- *  up to pInLimit.
- */
-U32 LDM_countMatchLength(const BYTE *pIn, const BYTE *pMatch,
-                         const BYTE *pInLimit);
 
 /**
  * Encode the literal length followed by the literals.

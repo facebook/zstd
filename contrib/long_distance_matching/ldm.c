@@ -520,8 +520,8 @@ size_t LDM_compress(const void *src, size_t srcSize,
                     void *dst, size_t maxDstSize) {
   LDM_CCtx cctx;
   const BYTE *match = NULL;
-  U32 forwardMatchLength = 0;
-  U32 backwardsMatchLength = 0;
+  U64 forwardMatchLength = 0;
+  U64 backwardsMatchLength = 0;
 
   LDM_initializeCCtx(&cctx, src, srcSize, dst, maxDstSize);
   LDM_outputConfiguration();

@@ -94,9 +94,10 @@ static int compress(const char *fname, const char *oname) {
   // Truncate file to compressedSize.
   ftruncate(fdout, compressedSize);
 
-  printf("%25s : %10lu -> %10lu - %s (%.1f%%)\n", fname,
+  printf("%25s : %10lu -> %10lu - %s (%.2fx --- %.1f%%)\n", fname,
          (size_t)statbuf.st_size, (size_t)compressedSize, oname,
-         (double)compressedSize / (statbuf.st_size) * 100);
+         (statbuf.st_size) / (double)compressedSize,
+         (double)compressedSize / (double)(statbuf.st_size) * 100.0);
 
   timeTaken = (double) (tv2.tv_usec - tv1.tv_usec) / 1000000 +
               (double) (tv2.tv_sec - tv1.tv_sec),

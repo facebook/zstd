@@ -48,7 +48,7 @@ script:
   - JOB_NUMBER=$(echo $TRAVIS_JOB_NUMBER | sed -e 's:[0-9][0-9]*\.\(.*\):\1:')
   - echo JOB_NUMBER=$JOB_NUMBER TRAVIS_BRANCH=$TRAVIS_BRANCH TRAVIS_EVENT_TYPE=$TRAVIS_EVENT_TYPE TRAVIS_PULL_REQUEST=$TRAVIS_PULL_REQUEST
   - export FUZZERTEST=-T5mn;
-    export ZSTREAM_TESTTIME=-T5mn;
+    export ZSTREAM_TESTTIME=-T2mn;
     export DECODECORPUS_TESTTIME=-T1mn;
     if [ "$TRAVIS_EVENT_TYPE" = "cron" ]; then
         git fetch origin dev;

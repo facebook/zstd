@@ -74,12 +74,8 @@ zstdmt:
 zlibwrapper:
 	$(MAKE) -C $(ZWRAPDIR) test
 
-.PHONY: shortest
-shortest:
-	$(MAKE) -C $(TESTDIR) $@
-
-.PHONY: test
-test:
+.PHONY: test shortest
+test shortest:
 	$(MAKE) -C $(TESTDIR) $@
 
 .PHONY: examples

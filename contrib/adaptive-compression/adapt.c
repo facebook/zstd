@@ -324,7 +324,7 @@ static void adaptCompressionLevel(adaptCCtx* ctx)
     double writeWaitCompressionCompletion;
     double const threshold = 0.00001;
 
-
+    DEBUG(2, "adapting compression level %u\n", ctx->compressionLevel);
     /* read and reset completion measurements */
     pthread_mutex_lock(&ctx->completion_mutex.pMutex);
     DEBUG(2, "rc %f\n", ctx->createWaitCompressionCompletion);
@@ -341,6 +341,7 @@ static void adaptCompressionLevel(adaptCCtx* ctx)
     writeWaitCreateCompletion = ctx->writeWaitCreateCompletion;
     writeWaitCompressionCompletion = ctx->writeWaitCompressionCompletion;
 
+    DEBUG(2, "resetting adaptive variables\n");
     ctx->createWaitWriteCompletion = 1;
     ctx->createWaitCompressionCompletion = 1;
     ctx->compressWaitCreateCompletion = 1;
@@ -404,7 +405,7 @@ static void* compressionThread(void* arg)
             DEBUG(3, "compression thread waiting : compressWaitCreateCompletion %f : compressWaitWriteCompletion %f\n", ctx->compressWaitCreateCompletion, ctx->compressWaitWriteCompletion);
             DEBUG(3, "create completion: %f\n", ctx->createCompletion);
             pthread_mutex_unlock(&ctx->completion_mutex.pMutex);
-            DEBUG(3, "waiting on job ready, nextJob: %u\n", currJob);
+            DEBUG(2, "waiting on job ready, nextJob: %u\n", currJob);
             pthread_cond_wait(&ctx->jobReady_cond.pCond, &ctx->jobReady_mutex.pMutex);
         }
         pthread_mutex_unlock(&ctx->jobReady_mutex.pMutex);
@@ -545,7 +546,7 @@ static void* outputThread(void* arg)
             ctx->writeWaitCreateCompletion = ctx->createCompletion;
             DEBUG(3, "write thread waiting : writeWaitCreateCompletion %f : writeWaitCompressionCompletion %f\n", ctx->writeWaitCreateCompletion, ctx->writeWaitCompressionCompletion);
             pthread_mutex_unlock(&ctx->completion_mutex.pMutex);
-            DEBUG(3, "waiting on job compressed, nextJob: %u\n", currJob);
+            DEBUG(2, "waiting on job compressed, nextJob: %u\n", currJob);
             pthread_cond_wait(&ctx->jobCompressed_cond.pCond, &ctx->jobCompressed_mutex.pMutex);
         }
         pthread_mutex_unlock(&ctx->jobCompressed_mutex.pMutex);
@@ -630,7 +631,7 @@ static int createCompressionJob(adaptCCtx* ctx, size_t srcSize, int last)
         DEBUG(3, "creation thread waiting : createWaitCompressionCompletion %f : createWaitWriteCompletion %f\n", ctx->createWaitCompressionCompletion, ctx->createWaitWriteCompletion);
         DEBUG(3, "writeCompletion: %f\n", ctx->writeCompletion);
         pthread_mutex_unlock(&ctx->completion_mutex.pMutex);
-        DEBUG(3, "waiting on job Write, nextJob: %u\n", nextJob);
+        DEBUG(2, "waiting on job Write, nextJob: %u\n", nextJob);
         pthread_cond_wait(&ctx->jobWrite_cond.pCond, &ctx->jobWrite_mutex.pMutex);
     }
     pthread_mutex_unlock(&ctx->jobWrite_mutex.pMutex);

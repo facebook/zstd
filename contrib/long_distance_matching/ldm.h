@@ -32,23 +32,15 @@
 #define LDM_WINDOW_SIZE (1 << (LDM_WINDOW_SIZE_LOG))
 
 //These should be multiples of four (and perhaps set to the same value?).
-#define LDM_MIN_MATCH_LENGTH 16
-#define LDM_HASH_LENGTH 16
+#define LDM_MIN_MATCH_LENGTH 64
+#define LDM_HASH_LENGTH 64
 
 // Experimental.
-//#define TMP_EVICTION
-#define TMP_TAG_INSERT
-//#define TMP_FORCE_HASH_ONLY
+//#define TMP_EVICTION    // Experiment with eviction policies.
+#define TMP_TAG_INSERT    // Insertion policy based on hash.
 
-#define LDM_HASH_ENTRY_SIZE_LOG 3
-
-// Insert every (HASH_ONLY_EVERY + 1) into the hash table.
-#ifdef TMP_FORCE_HASH_ONLY
-  #define HASH_ONLY_EVERY_LOG 7
-#else
-  #define HASH_ONLY_EVERY_LOG (LDM_WINDOW_SIZE_LOG-((LDM_MEMORY_USAGE)-(LDM_HASH_ENTRY_SIZE_LOG)))
-#endif
-#define HASH_ONLY_EVERY ((1 << HASH_ONLY_EVERY_LOG) - 1)
+#define USE_CHECKSUM 1
+//#define USE_CHECKSUM (HASH_BUCKET_SIZE_LOG)
 
 typedef struct LDM_compressStats LDM_compressStats;
 typedef struct LDM_CCtx LDM_CCtx;

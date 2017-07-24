@@ -2,19 +2,6 @@
 
 #include "ldm.h"
 
-void LDM_outputConfiguration(void) {
-  printf("=====================\n");
-  printf("Configuration\n");
-  printf("LDM_WINDOW_SIZE_LOG: %d\n", LDM_WINDOW_SIZE_LOG);
-  printf("LDM_MIN_MATCH_LENGTH, LDM_HASH_LENGTH: %d, %d\n",
-         LDM_MIN_MATCH_LENGTH, LDM_HASH_LENGTH);
-  printf("LDM_MEMORY_USAGE: %d\n", LDM_MEMORY_USAGE);
-  printf("HASH_ONLY_EVERY_LOG: %d\n", HASH_ONLY_EVERY_LOG);
-  printf("HASH_BUCKET_SIZE_LOG: %d\n", HASH_BUCKET_SIZE_LOG);
-  printf("LDM_LAG %d\n", LDM_LAG);
-  printf("=====================\n");
-}
-
 void LDM_readHeader(const void *src, U64 *compressedSize,
                     U64 *decompressedSize) {
   const BYTE *ip = (const BYTE *)src;

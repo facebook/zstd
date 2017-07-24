@@ -903,6 +903,7 @@ static void help()
     PRINT("  -i#    : provide initial compression level\n");
     PRINT("  -h     : display help/information\n");
     PRINT("  -f     : force the compression level to stay constant\n");
+    PRINT("  -p     : hide progress bar\n");
     PRINT("  -q     : quiet mode -- do not show progress bar or other information\n");
 }
 /* return 0 if successful, else return error */
@@ -945,7 +946,7 @@ int main(int argCount, const char* argv[])
                     help();
                     goto _main_exit;
                 case 'p':
-                    g_useProgressBar = 1;
+                    g_useProgressBar = 0;
                     break;
                 case 'c':
                     forceStdout = 1;

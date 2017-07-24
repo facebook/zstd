@@ -15,7 +15,7 @@
 
 #define COMPUTE_STATS
 #define OUTPUT_CONFIGURATION
-#define CHECKSUM_CHAR_OFFSET 1
+#define HASH_CHAR_OFFSET 10
 
 // Take first match only.
 //#define ZSTD_SKIP
@@ -24,8 +24,7 @@
 
 static const U64 prime8bytes = 11400714785074694791ULL;
 
-/* Hash table stuff */
-
+// Type of the small hash used to index into the hash table.
 typedef U32 hash_t;
 
 typedef struct LDM_hashEntry {
@@ -41,7 +40,6 @@ struct LDM_compressStats {
   U64 totalOffset;
 
   U32 minOffset, maxOffset;
-
   U32 offsetHistogram[32];
 
   U64 TMP_hashCount[1 << HASH_ONLY_EVERY_LOG];
@@ -56,8 +54,8 @@ struct LDM_compressStats {
 typedef struct LDM_hashTable LDM_hashTable;
 
 struct LDM_CCtx {
-  U64 isize;             /* Input size */
-  U64 maxOSize;          /* Maximum output size */
+  size_t isize;             /* Input size */
+  size_t maxOSize;          /* Maximum output size */
 
   const BYTE *ibase;        /* Base of input */
   const BYTE *ip;           /* Current input position */
@@ -80,23 +78,21 @@ struct LDM_CCtx {
 
   LDM_hashTable *hashTable;
 
-//  LDM_hashEntry hashTable[LDM_HASHTABLESIZE_U32];
-
   const BYTE *lastPosHashed;          /* Last position hashed */
-  hash_t lastHash;                    /* Hash corresponding to lastPosHashed */
-  U64 lastSum;
+  U64 lastHash;
 
-  const BYTE *nextIp;                 // TODO: this is  redundant (ip + step)
+  const BYTE *nextIp;                 // TODO: this is redundant (ip + step)
   const BYTE *nextPosHashed;
-  U64 nextSum;
+  U64 nextHash;
 
   unsigned step;                      // ip step, should be 1.
 
   const BYTE *lagIp;
-  U64 lagSum;
+  U64 lagHash;
 
-  // DEBUG
+#ifdef RUN_CHECKS
   const BYTE *DEBUG_setNextHash;
+#endif
 };
 
 struct LDM_hashTable {
@@ -106,7 +102,6 @@ struct LDM_hashTable {
   LDM_hashEntry *entries;
   BYTE *bucketOffsets;     // A pointer (per bucket) to the next insert position.
 };
-
 
 /**
  * Create a hash table that can contain size elements.
@@ -126,70 +121,74 @@ static LDM_hashEntry *getBucket(const LDM_hashTable *table, const hash_t hash) {
 }
 
 static unsigned ZSTD_NbCommonBytes (register size_t val) {
-    if (MEM_isLittleEndian()) {
-        if (MEM_64bits()) {
-#       if defined(_MSC_VER) && defined(_WIN64)
-            unsigned long r = 0;
-            _BitScanForward64( &r, (U64)val );
-            return (unsigned)(r>>3);
-#       elif defined(__GNUC__) && (__GNUC__ >= 3)
-            return (__builtin_ctzll((U64)val) >> 3);
-#       else
-            static const int DeBruijnBytePos[64] = { 0, 0, 0, 0, 0, 1, 1, 2,
-                                                     0, 3, 1, 3, 1, 4, 2, 7,
-                                                     0, 2, 3, 6, 1, 5, 3, 5,
-                                                     1, 3, 4, 4, 2, 5, 6, 7,
-                                                     7, 0, 1, 2, 3, 3, 4, 6,
-                                                     2, 6, 5, 5, 3, 4, 5, 6,
-                                                     7, 1, 2, 4, 6, 4, 4, 5,
-                                                     7, 2, 6, 5, 7, 6, 7, 7 };
-            return DeBruijnBytePos[((U64)((val & -(long long)val) * 0x0218A392CDABBD3FULL)) >> 58];
+  if (MEM_isLittleEndian()) {
+    if (MEM_64bits()) {
+#    if defined(_MSC_VER) && defined(_WIN64)
+      unsigned long r = 0;
+      _BitScanForward64( &r, (U64)val );
+      return (unsigned)(r>>3);
+#     elif defined(__GNUC__) && (__GNUC__ >= 3)
+      return (__builtin_ctzll((U64)val) >> 3);
+#     else
+      static const int DeBruijnBytePos[64] = { 0, 0, 0, 0, 0, 1, 1, 2,
+                                               0, 3, 1, 3, 1, 4, 2, 7,
+                                               0, 2, 3, 6, 1, 5, 3, 5,
+                                               1, 3, 4, 4, 2, 5, 6, 7,
+                                               7, 0, 1, 2, 3, 3, 4, 6,
+                                               2, 6, 5, 5, 3, 4, 5, 6,
+                                               7, 1, 2, 4, 6, 4, 4, 5,
+                                               7, 2, 6, 5, 7, 6, 7, 7 };
+      return DeBruijnBytePos[
+          ((U64)((val & -(long long)val) * 0x0218A392CDABBD3FULL)) >> 58];
+#     endif
+  } else { /* 32 bits */
+#     if defined(_MSC_VER)
+      unsigned long r=0;
+      _BitScanForward( &r, (U32)val );
+      return (unsigned)(r>>3);
+#     elif defined(__GNUC__) && (__GNUC__ >= 3)
+      return (__builtin_ctz((U32)val) >> 3);
+#     else
+      static const int DeBruijnBytePos[32] = { 0, 0, 3, 0, 3, 1, 3, 0,
+                                               3, 2, 2, 1, 3, 2, 0, 1,
+                                               3, 3, 1, 2, 2, 2, 2, 0,
+                                               3, 1, 2, 0, 1, 0, 1, 1 };
+      return DeBruijnBytePos[
+          ((U32)((val & -(S32)val) * 0x077CB531U)) >> 27];
+#     endif
+    }
+  } else {  /* Big Endian CPU */
+    if (MEM_64bits()) {
+#     if defined(_MSC_VER) && defined(_WIN64)
+      unsigned long r = 0;
+      _BitScanReverse64( &r, val );
+      return (unsigned)(r>>3);
+#     elif defined(__GNUC__) && (__GNUC__ >= 3)
+      return (__builtin_clzll(val) >> 3);
+#     else
+      unsigned r;
+      /* calculate this way due to compiler complaining in 32-bits mode */
+      const unsigned n32 = sizeof(size_t)*4;
+      if (!(val>>n32)) { r=4; } else { r=0; val>>=n32; }
+      if (!(val>>16)) { r+=2; val>>=8; } else { val>>=24; }
+      r += (!val);
+      return r;
 #       endif
-        } else { /* 32 bits */
-#       if defined(_MSC_VER)
-            unsigned long r=0;
-            _BitScanForward( &r, (U32)val );
-            return (unsigned)(r>>3);
-#       elif defined(__GNUC__) && (__GNUC__ >= 3)
-            return (__builtin_ctz((U32)val) >> 3);
-#       else
-            static const int DeBruijnBytePos[32] = { 0, 0, 3, 0, 3, 1, 3, 0,
-                                                     3, 2, 2, 1, 3, 2, 0, 1,
-                                                     3, 3, 1, 2, 2, 2, 2, 0,
-                                                     3, 1, 2, 0, 1, 0, 1, 1 };
-            return DeBruijnBytePos[((U32)((val & -(S32)val) * 0x077CB531U)) >> 27];
-#       endif
-        }
-    } else {  /* Big Endian CPU */
-        if (MEM_64bits()) {
-#       if defined(_MSC_VER) && defined(_WIN64)
-            unsigned long r = 0;
-            _BitScanReverse64( &r, val );
-            return (unsigned)(r>>3);
-#       elif defined(__GNUC__) && (__GNUC__ >= 3)
-            return (__builtin_clzll(val) >> 3);
-#       else
-            unsigned r;
-            const unsigned n32 = sizeof(size_t)*4;   /* calculate this way due to compiler complaining in 32-bits mode */
-            if (!(val>>n32)) { r=4; } else { r=0; val>>=n32; }
-            if (!(val>>16)) { r+=2; val>>=8; } else { val>>=24; }
-            r += (!val);
-            return r;
-#       endif
-        } else { /* 32 bits */
-#       if defined(_MSC_VER)
-            unsigned long r = 0;
-            _BitScanReverse( &r, (unsigned long)val );
-            return (unsigned)(r>>3);
-#       elif defined(__GNUC__) && (__GNUC__ >= 3)
-            return (__builtin_clz((U32)val) >> 3);
-#       else
-            unsigned r;
-            if (!(val>>16)) { r=2; val>>=8; } else { r=0; val>>=24; }
-            r += (!val);
-            return r;
-#       endif
-    }   }
+    } else { /* 32 bits */
+#     if defined(_MSC_VER)
+      unsigned long r = 0;
+      _BitScanReverse( &r, (unsigned long)val );
+      return (unsigned)(r>>3);
+#     elif defined(__GNUC__) && (__GNUC__ >= 3)
+      return (__builtin_clz((U32)val) >> 3);
+#     else
+      unsigned r;
+      if (!(val>>16)) { r=2; val>>=8; } else { r=0; val>>=24; }
+      r += (!val);
+      return r;
+#     endif
+    }
+  }
 }
 
 // From lib/compress/zstd_compress.c
@@ -230,8 +229,8 @@ static size_t ZSTD_count(const BYTE *pIn, const BYTE *pMatch,
  *
  * We count only bytes where pMatch > pBaes and pIn > pAnchor.
  */
-size_t countBackwardsMatch(const BYTE *pIn, const BYTE *pAnchor,
-                        const BYTE *pMatch, const BYTE *pBase) {
+static size_t countBackwardsMatch(const BYTE *pIn, const BYTE *pAnchor,
+                                  const BYTE *pMatch, const BYTE *pBase) {
   size_t matchLength = 0;
   while (pIn > pAnchor && pMatch > pBase && pIn[-1] == pMatch[-1]) {
     pIn--;
@@ -482,29 +481,29 @@ void LDM_printCompressStats(const LDM_compressStats *stats) {
 /**
  * Return the upper (most significant) LDM_HASHLOG bits.
  */
-static hash_t checksumToHash(U64 sum) {
-  return sum >> (64 - LDM_HASHLOG);
+static hash_t getSmallHash(U64 hash) {
+  return hash >> (64 - LDM_HASHLOG);
 }
 
 /**
  * Return the 32 bits after the upper LDM_HASHLOG bits.
  */
-static U32 checksumFromHfHash(U64 hfHash) {
-  return (hfHash >> (64 - 32 - LDM_HASHLOG)) & 0xFFFFFFFF;
+static U32 getChecksum(U64 hash) {
+  return (hash >> (64 - 32 - LDM_HASHLOG)) & 0xFFFFFFFF;
 }
 
 #ifdef TMP_TAG_INSERT
-static U32 lowerBitsFromHfHash(U64 hfHash) {
+static U32 lowerBitsFromHfHash(U64 hash) {
   // The number of bits used so far is LDM_HASHLOG + 32.
   // So there are 32 - LDM_HASHLOG bits left.
   // Occasional hashing requires HASH_ONLY_EVERY_LOG bits.
   // So if 32 - LDMHASHLOG < HASH_ONLY_EVERY_LOG, just return lower bits
   // allowing for reuse of bits.
   if (32 - LDM_HASHLOG < HASH_ONLY_EVERY_LOG) {
-    return hfHash & HASH_ONLY_EVERY;
+    return hash & HASH_ONLY_EVERY;
   } else {
     // Otherwise shift by (32 - LDM_HASHLOG - HASH_ONLY_EVERY_LOG) bits first.
-    return (hfHash >> (32 - LDM_HASHLOG - HASH_ONLY_EVERY_LOG)) &
+    return (hash >> (32 - LDM_HASHLOG - HASH_ONLY_EVERY_LOG)) &
            HASH_ONLY_EVERY;
   }
 }
@@ -519,14 +518,14 @@ static U32 lowerBitsFromHfHash(U64 hfHash) {
  * where the constant a is defined to be prime8bytes.
  *
  * The implementation adds an offset to each byte, so
- * H(s) = (s_1 + CHECKSUM_CHAR_OFFSET)*(a^(k-1)) + ...
+ * H(s) = (s_1 + HASH_CHAR_OFFSET)*(a^(k-1)) + ...
  */
-static U64 getChecksum(const BYTE *buf, U32 len) {
+static U64 getHash(const BYTE *buf, U32 len) {
   U64 ret = 0;
   U32 i;
   for (i = 0; i < len; i++) {
     ret *= prime8bytes;
-    ret += buf[i] + CHECKSUM_CHAR_OFFSET;
+    ret += buf[i] + HASH_CHAR_OFFSET;
   }
   return ret;
 
@@ -544,20 +543,20 @@ static U64 ipow(U64 base, U64 exp) {
   return ret;
 }
 
-static U64 updateChecksum(U64 sum, U32 len,
-                          BYTE toRemove, BYTE toAdd) {
+static U64 updateHash(U64 hash, U32 len,
+                      BYTE toRemove, BYTE toAdd) {
   // TODO: this relies on compiler optimization.
   // The exponential can be calculated explicitly as len is constant.
-  sum -= ((toRemove + CHECKSUM_CHAR_OFFSET) *
+  hash -= ((toRemove + HASH_CHAR_OFFSET) *
           ipow(prime8bytes, len - 1));
-  sum *= prime8bytes;
-  sum += toAdd + CHECKSUM_CHAR_OFFSET;
-  return sum;
+  hash *= prime8bytes;
+  hash += toAdd + HASH_CHAR_OFFSET;
+  return hash;
 }
 
 /**
- * Update cctx->nextSum, cctx->nextHash, and cctx->nextPosHashed
- * based on cctx->lastSum and cctx->lastPosHashed.
+ * Update cctx->nextHash and cctx->nextPosHashed
+ * based on cctx->lastHash and cctx->lastPosHashed.
  *
  * This uses a rolling hash and requires that the last position hashed
  * corresponds to cctx->nextIp - step.
@@ -574,15 +573,15 @@ static void setNextHash(LDM_CCtx *cctx) {
   cctx->DEBUG_setNextHash = cctx->nextIp;
 #endif
 
-  cctx->nextSum = updateChecksum(
-      cctx->lastSum, LDM_HASH_LENGTH,
+  cctx->nextHash = updateHash(
+      cctx->lastHash, LDM_HASH_LENGTH,
       cctx->lastPosHashed[0],
       cctx->lastPosHashed[LDM_HASH_LENGTH]);
   cctx->nextPosHashed = cctx->nextIp;
 
 #ifdef TMP_TAG_INSERT
   {
-    U32 hashEveryMask = lowerBitsFromHfHash(cctx->nextSum);
+    U32 hashEveryMask = lowerBitsFromHfHash(cctx->nextHash);
     cctx->stats.TMP_totalHashCount++;
     cctx->stats.TMP_hashCount[hashEveryMask]++;
   }
@@ -590,18 +589,18 @@ static void setNextHash(LDM_CCtx *cctx) {
 
 #if LDM_LAG
   if (cctx->ip - cctx->ibase > LDM_LAG) {
-    cctx->lagSum = updateChecksum(
-      cctx->lagSum, LDM_HASH_LENGTH,
+    cctx->lagHash = updateHash(
+      cctx->lagHash, LDM_HASH_LENGTH,
       cctx->lagIp[0], cctx->lagIp[LDM_HASH_LENGTH]);
     cctx->lagIp++;
   }
 #endif
 
 #ifdef RUN_CHECKS
-  check = getChecksum(cctx->nextIp, LDM_HASH_LENGTH);
+  check = getHash(cctx->nextIp, LDM_HASH_LENGTH);
 
-  if (check != cctx->nextSum) {
-    printf("CHECK: setNextHash failed %llu %llu\n", check, cctx->nextSum);
+  if (check != cctx->nextHash) {
+    printf("CHECK: setNextHash failed %llu %llu\n", check, cctx->nextHash);
   }
 
   if ((cctx->nextIp - cctx->lastPosHashed) != 1) {
@@ -612,58 +611,57 @@ static void setNextHash(LDM_CCtx *cctx) {
 #endif
 }
 
-static void putHashOfCurrentPositionFromHash(LDM_CCtx *cctx, U64 hfHash) {
+static void putHashOfCurrentPositionFromHash(LDM_CCtx *cctx, U64 hash) {
   // Hash only every HASH_ONLY_EVERY times, based on cctx->ip.
   // Note: this works only when cctx->step is 1.
 #if LDM_LAG
   if (((cctx->ip - cctx->ibase) & HASH_ONLY_EVERY) == HASH_ONLY_EVERY) {
     // TODO: Off by one, but not important.
     if (cctx->lagIp - cctx->ibase > 0) {
-      U32 hash = checksumToHash(cctx->lagSum);
-      U32 sum = checksumFromHfHash(cctx->lagSum);
-      const LDM_hashEntry entry = { cctx->lagIp - cctx->ibase, sum };
+      U32 smallHash = getSmallHash(cctx->lagHash);
+      U32 checksum = getChecksum(cctx->lagHash);
+      const LDM_hashEntry entry = { cctx->lagIp - cctx->ibase, checksum };
 #ifdef TMP_EVICTION
-      HASH_insert(cctx->hashTable, hash, entry, cctx);
+      HASH_insert(cctx->hashTable, smallHash, entry, cctx);
 #else
-      HASH_insert(cctx->hashTable, hash, entry);
+      HASH_insert(cctx->hashTable, smallHash, entry);
 #endif
     } else {
-      U32 hash = checksumToHash(hfHash);
-      U32 sum = checksumFromHfHash(hfHash);
+      U32 smallHash = getSmallHash(hash);
+      U32 checksum = getChecksum(hash);
 
-      const LDM_hashEntry entry = { cctx->ip - cctx->ibase, sum };
+      const LDM_hashEntry entry = { cctx->ip - cctx->ibase, checksum };
 #ifdef TMP_EVICTION
-      HASH_insert(cctx->hashTable, hash, entry, cctx);
+      HASH_insert(cctx->hashTable, smallHash, entry, cctx);
 #else
-      HASH_insert(cctx->hashTable, hash, entry);
+      HASH_insert(cctx->hashTable, smallHash, entry);
 #endif
     }
   }
 #else
 #ifdef TMP_TAG_INSERT
-  U32 hashEveryMask = lowerBitsFromHfHash(hfHash);
-  // TODO: look at stats.
+  U32 hashEveryMask = lowerBitsFromHfHash(hash);
   if (hashEveryMask == HASH_ONLY_EVERY) {
 #else
   if (((cctx->ip - cctx->ibase) & HASH_ONLY_EVERY) == HASH_ONLY_EVERY) {
 #endif
-    U32 hash = checksumToHash(hfHash);
-    U32 sum = checksumFromHfHash(hfHash);
-    const LDM_hashEntry entry = { cctx->ip - cctx->ibase, sum };
+    U32 smallHash = getSmallHash(hash);
+    U32 checksum = getChecksum(hash);
+    const LDM_hashEntry entry = { cctx->ip - cctx->ibase, checksum };
 #ifdef TMP_EVICTION
-    HASH_insert(cctx->hashTable, hash, entry, cctx);
+    HASH_insert(cctx->hashTable, smallHash, entry, cctx);
 #else
-    HASH_insert(cctx->hashTable, hash, entry);
+    HASH_insert(cctx->hashTable, smallHash, entry);
 #endif
   }
 #endif
 
   cctx->lastPosHashed = cctx->ip;
-  cctx->lastSum = hfHash;
+  cctx->lastHash = hash;
 }
 
 /**
- * Copy over the cctx->lastHash, cctx->lastSum, and cctx->lastPosHashed
+ * Copy over the cctx->lastHash, and cctx->lastPosHashed
  * fields from the "next" fields.
  *
  * This requires that cctx->ip == cctx->nextPosHashed.
@@ -675,14 +673,14 @@ static void LDM_updateLastHashFromNextHash(LDM_CCtx *cctx) {
            cctx->ip - cctx->ibase);
   }
 #endif
-  putHashOfCurrentPositionFromHash(cctx, cctx->nextSum);
+  putHashOfCurrentPositionFromHash(cctx, cctx->nextHash);
 }
 
 /**
  * Insert hash of the current position into the hash table.
  */
 static void LDM_putHashOfCurrentPosition(LDM_CCtx *cctx) {
-  U64 sum = getChecksum(cctx->ip, LDM_HASH_LENGTH);
+  U64 hash = getHash(cctx->ip, LDM_HASH_LENGTH);
 
 #ifdef RUN_CHECKS
   if (cctx->nextPosHashed != cctx->ip && (cctx->ip != cctx->ibase)) {
@@ -691,7 +689,7 @@ static void LDM_putHashOfCurrentPosition(LDM_CCtx *cctx) {
   }
 #endif
 
-  putHashOfCurrentPositionFromHash(cctx, sum);
+  putHashOfCurrentPositionFromHash(cctx, hash);
 }
 
 void LDM_initializeCCtx(LDM_CCtx *cctx,
@@ -726,7 +724,9 @@ void LDM_initializeCCtx(LDM_CCtx *cctx,
   cctx->nextIp = cctx->ip + cctx->step;
   cctx->nextPosHashed = 0;
 
+#ifdef RUN_CHECKS
   cctx->DEBUG_setNextHash = 0;
+#endif
 }
 
 void LDM_destroyCCtx(LDM_CCtx *cctx) {
@@ -748,16 +748,16 @@ static int LDM_findBestMatch(LDM_CCtx *cctx, const BYTE **match,
   cctx->nextIp = cctx->ip + cctx->step;
 
   while (entry == NULL) {
-    hash_t h;
     U64 hash;
-    U32 sum;
+    hash_t smallHash;
+    U32 checksum;
 #ifdef TMP_TAG_INSERT
     U32 hashEveryMask;
 #endif
     setNextHash(cctx);
-    hash = cctx->nextSum;
-    h = checksumToHash(hash);
-    sum = checksumFromHfHash(hash);
+    hash = cctx->nextHash;
+    smallHash = getSmallHash(hash);
+    checksum = getChecksum(hash);
 #ifdef TMP_TAG_INSERT
     hashEveryMask = lowerBitsFromHfHash(hash);
 #endif
@@ -770,11 +770,11 @@ static int LDM_findBestMatch(LDM_CCtx *cctx, const BYTE **match,
     }
 #ifdef TMP_TAG_INSERT
     if (hashEveryMask == HASH_ONLY_EVERY) {
-      entry = HASH_getBestEntry(cctx, h, sum,
+      entry = HASH_getBestEntry(cctx, smallHash, checksum,
                                 forwardMatchLength, backwardMatchLength);
     }
 #else
-    entry = HASH_getBestEntry(cctx, h, sum,
+    entry = HASH_getBestEntry(cctx, smallHash, checksum,
                               forwardMatchLength, backwardMatchLength);
 #endif
 
@@ -850,15 +850,16 @@ size_t LDM_compress(const void *src, size_t srcSize,
   U64 backwardsMatchLength = 0;
 
   LDM_initializeCCtx(&cctx, src, srcSize, dst, maxDstSize);
+#ifdef OUTPUT_CONFIGURATION
   LDM_outputConfiguration();
+#endif
 
   /* Hash the first position and put it into the hash table. */
   LDM_putHashOfCurrentPosition(&cctx);
 
 #if LDM_LAG
   cctx.lagIp = cctx.ip;
-//  cctx.lagHash = cctx.lastHash;
-  cctx.lagSum = cctx.lastSum;
+  cctx.lagHash = cctx.lastHash;
 #endif
   /**
    * Find a match.
@@ -918,8 +919,6 @@ size_t LDM_compress(const void *src, size_t srcSize,
     LDM_updateLastHashFromNextHash(&cctx);
   }
 
-  // HASH_outputTableOffsetHistogram(&cctx);
-
   /* Encode the last literals (no more matches). */
   {
     const U64 lastRun = cctx.iend - cctx.anchor;
@@ -943,14 +942,14 @@ size_t LDM_compress(const void *src, size_t srcSize,
 void LDM_test(const BYTE *src) {
   const U32 diff = 100;
   const BYTE *pCur = src + diff;
-  U64 checksum = getChecksum(pCur, LDM_HASH_LENGTH);
+  U64 hash = getHash(pCur, LDM_HASH_LENGTH);
 
   for (; pCur < src + diff + 60; ++pCur) {
-    U64 nextSum = getChecksum(pCur + 1, LDM_HASH_LENGTH);
-    U64 updateSum = updateChecksum(checksum, LDM_HASH_LENGTH,
-                                   pCur[0], pCur[LDM_HASH_LENGTH]);
-    checksum = nextSum;
-    printf("%llu %llu\n", nextSum, updateSum);
+    U64 nextHash = getHash(pCur + 1, LDM_HASH_LENGTH);
+    U64 updatedHash = updateHash(hash, LDM_HASH_LENGTH,
+                                 pCur[0], pCur[LDM_HASH_LENGTH]);
+    hash = nextHash;
+    printf("%llu %llu\n", nextHash, updatedHash);
   }
 }
 

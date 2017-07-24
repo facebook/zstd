@@ -466,6 +466,7 @@ static void* compressionThread(void* arg)
             DEBUG(3, "compression level used: %u\n", cLevel);
             /* reset compressed size */
             job->compressedSize = 0;
+            DEBUG(2, "calling ZSTD_compressBegin()\n");
             /* begin compression */
             {
                 size_t const useDictSize = MIN(getUseableDictSize(cLevel), job->dictSize);
@@ -479,6 +480,7 @@ static void* compressionThread(void* arg)
                     return arg;
                 }
             }
+            DEBUG(2, "finished with ZSTD_compressBegin()\n");
 
             do {
                 size_t const actualBlockSize = MIN(remaining, compressionBlockSize);

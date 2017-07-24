@@ -27,20 +27,17 @@ default: all
 
 all: main-circular-buffer main-integrated main-64 
 
-#main-basic : basic_table.c ldm.c main-ldm.c
-#	      $(CC) $(CPPFLAGS) $(CFLAGS) $^ $(LDFLAGS) -o $@
-
 main-circular-buffer: circular_buffer_table.c ldm.c main-ldm.c
 	$(CC) $(CPPFLAGS) $(CFLAGS) $^ $(LDFLAGS) -o $@
 
 main-64: ldm_64_hash.c main-ldm.c
 	$(CC) $(CPPFLAGS) $(CFLAGS) $^ $(LDFLAGS) -o $@
 
-main-integrated: ldm_with_table.c main-ldm.c
+main-integrated: ldm_integrated.c main-ldm.c
 	$(CC) $(CPPFLAGS) $(CFLAGS) $^ $(LDFLAGS) -o $@
 
 clean:
 	@rm -f core *.o tmp* result* *.ldm *.ldm.dec \
-	main-circular-buffer  main-integrated main-64
+	main-circular-buffer main-64 main-integrated 
 	@echo Cleaning completed
 

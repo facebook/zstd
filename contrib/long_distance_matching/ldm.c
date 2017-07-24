@@ -29,7 +29,6 @@
 
 typedef U32 checksum_t;
 
-// TODO: Scanning speed
 // TODO: Memory usage
 struct LDM_compressStats {
   U32 windowSizeLog, hashTableSizeLog;
@@ -39,9 +38,6 @@ struct LDM_compressStats {
   U64 totalOffset;
 
   U32 minOffset, maxOffset;
-
-  U32 numCollisions;
-  U32 numHashInserts;
 
   U32 offsetHistogram[32];
 };
@@ -80,15 +76,12 @@ struct LDM_CCtx {
   hash_t nextHash;                    /* Hash corresponding to nextPosHashed */
   checksum_t nextSum;
 
-
-
   unsigned step;                      // ip step, should be 1.
 
   const BYTE *lagIp;
   hash_t lagHash;
   checksum_t lagSum;
 
-  U64 numHashInserts;
   // DEBUG
   const BYTE *DEBUG_setNextHash;
 };
@@ -102,32 +95,6 @@ static int intLog2(U32 x) {
   }
   return ret;
 }
-
-// TODO: Maybe we would eventually prefer to have linear rather than
-// exponential buckets.
-/**
-void HASH_outputTableOffsetHistogram(const LDM_CCtx *cctx) {
-  U32 i = 0;
-  int buckets[32] = { 0 };
-
-  printf("\n");
-  printf("Hash table histogram\n");
-  for (; i < HASH_getSize(cctx->hashTable); i++) {
-    int offset = (cctx->ip - cctx->ibase) -
-                 HASH_getEntryFromHash(cctx->hashTable, i)->offset;
-    buckets[intLog2(offset)]++;
-  }
-
-  i = 0;
-  for (; i < 32; i++) {
-    printf("2^%*d: %10u    %6.3f%%\n", 2, i,
-           buckets[i],
-           100.0 * (double) buckets[i] /
-                   (double) HASH_getSize(cctx->hashTable));
-  }
-  printf("\n");
-}
-*/
 
 void LDM_printCompressStats(const LDM_compressStats *stats) {
   int i = 0;
@@ -163,7 +130,8 @@ void LDM_printCompressStats(const LDM_compressStats *stats) {
   printf("=====================\n");
 }
 
-int LDM_isValidMatch(const BYTE *pIn, const BYTE *pMatch) {
+/*
+static int LDM_isValidMatch(const BYTE *pIn, const BYTE *pMatch) {
   U32 lengthLeft = LDM_MIN_MATCH_LENGTH;
   const BYTE *curIn = pIn;
   const BYTE *curMatch = pMatch;
@@ -181,6 +149,7 @@ int LDM_isValidMatch(const BYTE *pIn, const BYTE *pMatch) {
   }
   return 1;
 }
+*/
 
 /**
  * Convert a sum computed from getChecksum to a hash value in the range
@@ -253,7 +222,6 @@ static void setNextHash(LDM_CCtx *cctx) {
   cctx->DEBUG_setNextHash = cctx->nextIp;
 #endif
 
-//  cctx->nextSum = getChecksum((const char *)cctx->nextIp, LDM_HASH_LENGTH);
   cctx->nextSum = updateChecksum(
       cctx->lastSum, LDM_HASH_LENGTH,
       cctx->lastPosHashed[0],
@@ -292,7 +260,7 @@ static void putHashOfCurrentPositionFromHash(
   // Note: this works only when cctx->step is 1.
   if (((cctx->ip - cctx->ibase) & HASH_ONLY_EVERY) == HASH_ONLY_EVERY) {
 #if LDM_LAG
-    // TODO: off by 1, but whatever
+    // Off by 1, but whatever
     if (cctx->lagIp - cctx->ibase > 0) {
       const LDM_hashEntry entry = { cctx->lagIp - cctx->ibase, cctx->lagSum };
       HASH_insert(cctx->hashTable, cctx->lagHash, entry);
@@ -344,6 +312,7 @@ static void LDM_putHashOfCurrentPosition(LDM_CCtx *cctx) {
   putHashOfCurrentPositionFromHash(cctx, hash, sum);
 }
 
+/*
 U32 LDM_countMatchLength(const BYTE *pIn, const BYTE *pMatch,
                          const BYTE *pInLimit) {
   const BYTE * const pStart = pIn;
@@ -358,6 +327,7 @@ U32 LDM_countMatchLength(const BYTE *pIn, const BYTE *pMatch,
   }
   return (U32)(pIn - pStart);
 }
+*/
 
 void LDM_outputConfiguration(void) {
   printf("=====================\n");
@@ -378,6 +348,12 @@ void LDM_readHeader(const void *src, U64 *compressedSize,
   ip += sizeof(U64);
   *decompressedSize = MEM_readLE64(ip);
   // ip += sizeof(U64);
+}
+
+void LDM_writeHeader(void *memPtr, U64 compressedSize,
+                     U64 decompressedSize) {
+  MEM_write64(memPtr, compressedSize);
+  MEM_write64((BYTE *)memPtr + 8, decompressedSize);
 }
 
 void LDM_initializeCCtx(LDM_CCtx *cctx,
@@ -592,8 +568,6 @@ size_t LDM_compress(const void *src, size_t srcSize,
     LDM_updateLastHashFromNextHash(&cctx);
   }
 
-  // HASH_outputTableOffsetHistogram(&cctx);
-
   /* Encode the last literals (no more matches). */
   {
     const U32 lastRun = cctx.iend - cctx.anchor;
@@ -692,7 +666,6 @@ size_t LDM_decompress(const void *src, size_t compressedSize,
   return dctx.op - (BYTE *)dst;
 }
 
-// TODO: implement and test hash function
 void LDM_test(const BYTE *src) {
   (void)src;
 }

@@ -5,26 +5,24 @@
 #include "ldm_hashtable.h"
 #include "mem.h"
 
-// Number of elements per hash bucket.
-// HASH_BUCKET_SIZE_LOG defined in ldm.h
+// THe number of elements per hash bucket.
+// HASH_BUCKET_SIZE_LOG is defined in ldm.h.
 #define HASH_BUCKET_SIZE (1 << (HASH_BUCKET_SIZE_LOG))
+
+// The number of hash buckets.
 #define LDM_HASHLOG ((LDM_MEMORY_USAGE)-(LDM_HASH_ENTRY_SIZE_LOG)-(HASH_BUCKET_SIZE_LOG))
 
-
-
-// TODO: rename. Number of hash buckets.
-// TODO: Link to HASH_ENTRY_SIZE_LOG
-
+// If ZSTD_SKIP is defined, then the first entry is returned in HASH_getBestEntry
+// (without looking at other entries in the bucket).
 //#define ZSTD_SKIP
 
 struct LDM_hashTable {
-  U32 numBuckets;
-  U32 numEntries;
+  U32 numBuckets;          // The number of buckets.
+  U32 numEntries;          // numBuckets * HASH_BUCKET_SIZE.
   LDM_hashEntry *entries;
-  BYTE *bucketOffsets;     // Pointer to current insert position.
+  BYTE *bucketOffsets;     // A pointer (per bucket) to the next insert position.
 
-  // Position corresponding to offset=0 in LDM_hashEntry.
-  const BYTE *offsetBase;
+  const BYTE *offsetBase;  // Corresponds to offset=0 in LDM_hashEntry.
   U32 minMatchLength;
   U32 maxWindowSize;
 };
@@ -46,6 +44,7 @@ static LDM_hashEntry *getBucket(const LDM_hashTable *table, const hash_t hash) {
   return table->entries + (hash << HASH_BUCKET_SIZE_LOG);
 }
 
+// From lib/compress/zstd_compress.c
 static unsigned ZSTD_NbCommonBytes (register size_t val)
 {
     if (MEM_isLittleEndian()) {
@@ -114,7 +113,11 @@ static unsigned ZSTD_NbCommonBytes (register size_t val)
     }   }
 }
 
-// From lib/compress/zstd_compress.c
+/**
+ * From lib/compress/zstd_compress.c
+ * Returns the number of bytes (consecutively) in common between pIn and pMatch
+ * up to pInLimit.
+ */
 static size_t ZSTD_count(const BYTE *pIn, const BYTE *pMatch,
                          const BYTE *const pInLimit) {
     const BYTE * const pStart = pIn;
@@ -147,9 +150,14 @@ static size_t ZSTD_count(const BYTE *pIn, const BYTE *pMatch,
     return (size_t)(pIn - pStart);
 }
 
-U32 countBackwardsMatch(const BYTE *pIn, const BYTE *pAnchor,
-                        const BYTE *pMatch, const BYTE *pBase) {
-  U32 matchLength = 0;
+/**
+ * Returns the number of bytes in common between pIn and pMatch,
+ * counting backwards, with pIn having a lower limit of pAnchor and
+ * pMatch having a lower limit of pBase.
+ */
+static size_t countBackwardsMatch(const BYTE *pIn, const BYTE *pAnchor,
+                                  const BYTE *pMatch, const BYTE *pBase) {
+  size_t matchLength = 0;
   while (pIn > pAnchor && pMatch > pBase && pIn[-1] == pMatch[-1]) {
     pIn--;
     pMatch--;
@@ -178,6 +186,8 @@ LDM_hashEntry *HASH_getBestEntry(const LDM_hashTable *table,
       U64 forwardMatchLength = ZSTD_count(pIn, pMatch, pEnd);
       U64 backwardMatchLength, totalMatchLength;
 
+      // Only take matches where the forwardMatchLength is large enough
+      // for speed.
       if (forwardMatchLength < table->minMatchLength) {
         continue;
       }
@@ -212,6 +222,7 @@ hash_t HASH_hashU32(U32 value) {
 
 void HASH_insert(LDM_hashTable *table,
                  const hash_t hash, const LDM_hashEntry entry) {
+  // Circular buffer.
   *(getBucket(table, hash) + table->bucketOffsets[hash]) = entry;
   table->bucketOffsets[hash]++;
   table->bucketOffsets[hash] &= HASH_BUCKET_SIZE - 1;

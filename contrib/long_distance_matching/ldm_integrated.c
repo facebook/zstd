@@ -33,8 +33,6 @@
 
 //#define RUN_CHECKS
 
-/* Hash table stuff */
-
 typedef U32 hash_t;
 
 typedef struct LDM_hashEntry {
@@ -42,7 +40,6 @@ typedef struct LDM_hashEntry {
   U32 checksum;
 } LDM_hashEntry;
 
-// TODO: Memory usage
 struct LDM_compressStats {
   U32 windowSizeLog, hashTableSizeLog;
   U32 numMatches;
@@ -51,9 +48,6 @@ struct LDM_compressStats {
   U64 totalOffset;
 
   U32 minOffset, maxOffset;
-
-  U32 numCollisions;
-  U32 numHashInserts;
 
   U32 offsetHistogram[32];
 };
@@ -85,8 +79,6 @@ struct LDM_CCtx {
 
   LDM_hashTable *hashTable;
 
-//  LDM_hashEntry hashTable[LDM_HASHTABLESIZE_U32];
-
   const BYTE *lastPosHashed;          /* Last position hashed */
   hash_t lastHash;                    /* Hash corresponding to lastPosHashed */
   U32 lastSum;
@@ -109,11 +101,10 @@ struct LDM_CCtx {
 
 struct LDM_hashTable {
   U32 numBuckets;  // Number of buckets
-  U32 numEntries;  // Rename...
+  U32 numEntries;
   LDM_hashEntry *entries;
 
   BYTE *bucketOffsets;
-  // Position corresponding to offset=0 in LDM_hashEntry.
 };
 
 /**
@@ -354,32 +345,6 @@ static int intLog2(U32 x) {
   return ret;
 }
 
-// Maybe we would eventually prefer to have linear rather than
-// exponential buckets.
-/**
-void HASH_outputTableOffsetHistogram(const LDM_CCtx *cctx) {
-  U32 i = 0;
-  int buckets[32] = { 0 };
-
-  printf("\n");
-  printf("Hash table histogram\n");
-  for (; i < HASH_getSize(cctx->hashTable); i++) {
-    int offset = (cctx->ip - cctx->ibase) -
-                 HASH_getEntryFromHash(cctx->hashTable, i)->offset;
-    buckets[intLog2(offset)]++;
-  }
-
-  i = 0;
-  for (; i < 32; i++) {
-    printf("2^%*d: %10u    %6.3f%%\n", 2, i,
-           buckets[i],
-           100.0 * (double) buckets[i] /
-                   (double) HASH_getSize(cctx->hashTable));
-  }
-  printf("\n");
-}
-*/
-
 void LDM_printCompressStats(const LDM_compressStats *stats) {
   int i = 0;
   printf("=====================\n");
@@ -508,7 +473,6 @@ static void setNextHash(LDM_CCtx *cctx) {
   cctx->DEBUG_setNextHash = cctx->nextIp;
 #endif
 
-//  cctx->nextSum = getChecksum((const char *)cctx->nextIp, LDM_HASH_LENGTH);
   cctx->nextSum = updateChecksum(
       cctx->lastSum, LDM_HASH_LENGTH,
       cctx->lastPosHashed[0],
@@ -517,7 +481,6 @@ static void setNextHash(LDM_CCtx *cctx) {
   cctx->nextHash = checksumToHash(cctx->nextSum);
 
 #if LDM_LAG
-//  printf("LDM_LAG %zu\n", cctx->ip - cctx->lagIp);
   if (cctx->ip - cctx->ibase > LDM_LAG) {
     cctx->lagSum = updateChecksum(
       cctx->lagSum, LDM_HASH_LENGTH,
@@ -547,10 +510,6 @@ static void putHashOfCurrentPositionFromHash(
   // Hash only every HASH_ONLY_EVERY times, based on cctx->ip.
   // Note: this works only when cctx->step is 1.
   if (((cctx->ip - cctx->ibase) & HASH_ONLY_EVERY) == HASH_ONLY_EVERY) {
-    /**
-    const LDM_hashEntry entry = { cctx->ip - cctx->ibase ,
-                                  MEM_read32(cctx->ip) };
-                                  */
 #if LDM_LAG
     // TODO: off by 1, but whatever
     if (cctx->lagIp - cctx->ibase > 0) {
@@ -604,21 +563,6 @@ static void LDM_putHashOfCurrentPosition(LDM_CCtx *cctx) {
   putHashOfCurrentPositionFromHash(cctx, hash, sum);
 }
 
-U32 LDM_countMatchLength(const BYTE *pIn, const BYTE *pMatch,
-                         const BYTE *pInLimit) {
-  const BYTE * const pStart = pIn;
-  while (pIn < pInLimit - 1) {
-    BYTE const diff = (*pMatch) ^ *(pIn);
-    if (!diff) {
-      pIn++;
-      pMatch++;
-      continue;
-    }
-    return (U32)(pIn - pStart);
-  }
-  return (U32)(pIn - pStart);
-}
-
 void LDM_outputConfiguration(void) {
   printf("=====================\n");
   printf("Configuration\n");
@@ -639,6 +583,13 @@ void LDM_readHeader(const void *src, U64 *compressedSize,
   *decompressedSize = MEM_readLE64(ip);
   // ip += sizeof(U64);
 }
+
+void LDM_writeHeader(void *memPtr, U64 compressedSize,
+                     U64 decompressedSize) {
+  MEM_write64(memPtr, compressedSize);
+  MEM_write64((BYTE *)memPtr + 8, decompressedSize);
+}
+
 
 void LDM_initializeCCtx(LDM_CCtx *cctx,
                         const void *src, size_t srcSize,

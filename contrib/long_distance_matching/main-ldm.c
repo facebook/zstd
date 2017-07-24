@@ -12,13 +12,12 @@
 #include "ldm.h"
 #include "zstd.h"
 
-#define DEBUG
 //#define TEST
 
 /* Compress file given by fname and output to oname.
  * Returns 0 if successful, error code otherwise.
  *
- * TODO: This might seg fault if the compressed size is > the decompress
+ * This might seg fault if the compressed size is > the decompress
  * size due to the mmapping and output file size allocated to be the input size
  * The compress function should check before writing or buffer writes.
  */
@@ -30,6 +29,7 @@ static int compress(const char *fname, const char *oname) {
 
   struct timeval tv1, tv2;
   double timeTaken;
+
 
   /* Open the input file. */
   if ((fdin = open(fname, O_RDONLY)) < 0) {
@@ -50,6 +50,7 @@ static int compress(const char *fname, const char *oname) {
   }
 
   maxCompressedSize = (statbuf.st_size + LDM_HEADER_SIZE);
+
   // Handle case where compressed size is > decompressed size.
   // The compress function should check before writing or buffer writes.
   maxCompressedSize += statbuf.st_size / 255;
@@ -79,20 +80,16 @@ static int compress(const char *fname, const char *oname) {
   compressedSize = LDM_HEADER_SIZE +
       LDM_compress(src, statbuf.st_size,
                    dst + LDM_HEADER_SIZE, maxCompressedSize);
+
   gettimeofday(&tv2, NULL);
 
   // Write compress and decompress size to header
   // TODO: should depend on LDM_DECOMPRESS_SIZE write32
-  memcpy(dst, &compressedSize, 8);
-  memcpy(dst + 8, &(statbuf.st_size), 8);
-
-#ifdef DEBUG
-  printf("Compressed size: %zu\n", compressedSize);
-  printf("Decompressed size: %zu\n", (size_t)statbuf.st_size);
-#endif
+  LDM_writeHeader(dst, compressedSize, statbuf.st_size);
 
   // Truncate file to compressedSize.
   ftruncate(fdout, compressedSize);
+
 
   printf("%25s : %10lu -> %10lu - %s (%.2fx --- %.1f%%)\n", fname,
          (size_t)statbuf.st_size, (size_t)compressedSize, oname,
@@ -102,7 +99,7 @@ static int compress(const char *fname, const char *oname) {
   timeTaken = (double) (tv2.tv_usec - tv1.tv_usec) / 1000000 +
               (double) (tv2.tv_sec - tv1.tv_sec),
 
-  printf("Total compress time = %.3f seconds, Average compression speed: %.3f MB/s\n",
+  printf("Total compress time = %.3f seconds, Average scanning speed: %.3f MB/s\n",
          timeTaken,
          ((double)statbuf.st_size / (double) (1 << 20)) / timeTaken);
 

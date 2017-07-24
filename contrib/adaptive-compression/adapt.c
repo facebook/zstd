@@ -396,7 +396,7 @@ static void* compressionThread(void* arg)
     for ( ; ; ) {
         unsigned const currJobIndex = currJob % ctx->numJobs;
         jobDescription* job = &ctx->jobs[currJobIndex];
-        DEBUG(3, "compressionThread(): waiting on job ready\n");
+        DEBUG(2, "starting compression for job %u\n", currJob);
 
         {
             /* check if compression thread will have to wait */
@@ -413,7 +413,7 @@ static void* compressionThread(void* arg)
 
 
             if (willWaitForCreate || willWaitForWrite) {
-                DEBUG(2, "compression will wait for create or write\n");
+                DEBUG(2, "compression will wait for create or write on job %u\n", currJob);
 
                 pthread_mutex_lock(&ctx->createCompletion_mutex.pMutex);
                 ctx->compressWaitCreateCompletion = ctx->createCompletion;
@@ -534,7 +534,7 @@ static void* compressionThread(void* arg)
             DEBUG(3, "all jobs finished compressing\n");
             break;
         }
-
+        DEBUG(2, "finished compressing job %u\n", currJob);
         currJob++;
     }
     return arg;
@@ -567,7 +567,7 @@ static void* outputThread(void* arg)
     for ( ; ; ) {
         unsigned const currJobIndex = currJob % ctx->numJobs;
         jobDescription* job = &ctx->jobs[currJobIndex];
-        DEBUG(3, "outputThread(): waiting on job compressed\n");
+        DEBUG(2, "starting write for job %u\n", currJob);
         pthread_mutex_lock(&ctx->jobCompressed_mutex.pMutex);
         while (currJob + 1 > ctx->jobCompressedID && !ctx->threadError) {
             pthread_mutex_lock(&ctx->compressionCompletion_mutex.pMutex);
@@ -638,6 +638,7 @@ static void* outputThread(void* arg)
             pthread_mutex_unlock(&ctx->allJobsCompleted_mutex.pMutex);
             break;
         }
+        DEBUG(2, "finished writing job %u\n", currJob);
         currJob++;
 
     }
@@ -738,6 +739,7 @@ static int performCompression(adaptCCtx* ctx, FILE* const srcFile, outputThreadA
             size_t const readBlockSize = 1 << 15;
             size_t remaining = FILE_CHUNK_SIZE;
 
+            DEBUG(2, "starting creation of job %u\n", currJob);
             while (remaining != 0 && !feof(srcFile)) {
                 size_t const ret = fread(ctx->input.buffer.start + ctx->input.filled + pos, 1, readBlockSize, srcFile);
                 if (ret != readBlockSize && !feof(srcFile)) {
@@ -768,6 +770,7 @@ static int performCompression(adaptCCtx* ctx, FILE* const srcFile, outputThreadA
                     return error;
                 }
             }
+            DEBUG(2, "finished creating job %u\n", currJob);
             currJob++;
             if (feof(srcFile)) {
                 DEBUG(3, "THE STREAM OF DATA ENDED %u\n", ctx->nextJobID);

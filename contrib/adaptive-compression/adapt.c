@@ -350,30 +350,30 @@ static void adaptCompressionLevel(adaptCCtx* ctx)
 
     /* adaptation logic */
     if (1-createWaitCompressionCompletion > threshold || 1-writeWaitCompressionCompletion > threshold) {
-        /* compression waiting on either create or write */
+        /* create or write waiting on compression */
         /* use whichever one waited less because it was slower */
         double const completion = MAX(createWaitCompressionCompletion, writeWaitCompressionCompletion);
         unsigned const change = (unsigned)((1-completion) * MAX_COMPRESSION_LEVEL_CHANGE);
         unsigned const boundChange = MIN(change, ctx->compressionLevel - 1);
         ctx->compressionLevel -= boundChange;
-        DEBUG(2, "create and write threads waiting, tried to decrease compression level by %u\n", boundChange);
+        DEBUG(2, "create or write threads waiting on compression, tried to decrease compression level by %u\n", boundChange);
     }
     else if (1-compressWaitWriteCompletion > threshold) {
-        /* both create and compression thread waiting on write */
+        /* compress waiting on write */
         double const completion = compressWaitWriteCompletion;
         unsigned const change = (unsigned)((1-completion) * MAX_COMPRESSION_LEVEL_CHANGE);
         unsigned const boundChange = MIN(change, ZSTD_maxCLevel() - ctx->compressionLevel);
         ctx->compressionLevel += boundChange;
-        DEBUG(2, "create and compression threads waiting, tried to increase compression level by %u\n", boundChange);
+        DEBUG(2, "compress waiting on write, tried to increase compression level by %u\n", boundChange);
     }
     else if (1-compressWaitCreateCompletion > threshold) {
-        /* both compression and write waiting on create */
+        /* compress waiting on create*/
         /* use compressWaitCreateCompletion */
         double const completion = compressWaitCreateCompletion;
         unsigned const change = (unsigned)((1-completion) * MAX_COMPRESSION_LEVEL_CHANGE);
         unsigned const boundChange = MIN(change, ZSTD_maxCLevel() - ctx->compressionLevel);
         ctx->compressionLevel += boundChange;
-        DEBUG(2, "compression and write threads waiting, tried to increase compression level by %u\n", boundChange);
+        DEBUG(2, "compression waiting on create, tried to increase compression level by %u\n", boundChange);
     }
 
     if (g_forceCompressionLevel) {

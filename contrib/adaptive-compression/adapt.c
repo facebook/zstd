@@ -329,7 +329,7 @@ static void adaptCompressionLevel(adaptCCtx* ctx)
 
     pthread_mutex_lock(&ctx->compressionCompletion_mutex.pMutex);
     DEBUG(2, "rc %f\n", ctx->createWaitCompressionCompletion);
-    DEBUG(2, "wc %f\n\n", ctx->writeWaitCompressionCompletion);
+    DEBUG(2, "wc %f\n", ctx->writeWaitCompressionCompletion);
     createWaitCompressionCompletion = ctx->createWaitCompressionCompletion;
     writeWaitCompressionCompletion = ctx->writeWaitCompressionCompletion;
     ctx->createWaitCompressionCompletion = 1;
@@ -356,7 +356,7 @@ static void adaptCompressionLevel(adaptCCtx* ctx)
         unsigned const change = (unsigned)((1-completion) * MAX_COMPRESSION_LEVEL_CHANGE);
         unsigned const boundChange = MIN(change, ctx->compressionLevel - 1);
         ctx->compressionLevel -= boundChange;
-        DEBUG(2, "create or write threads waiting on compression, tried to decrease compression level by %u\n", boundChange);
+        DEBUG(2, "create or write threads waiting on compression, tried to decrease compression level by %u\n\n", boundChange);
     }
     else if (1-compressWaitWriteCompletion > threshold) {
         /* compress waiting on write */
@@ -364,7 +364,7 @@ static void adaptCompressionLevel(adaptCCtx* ctx)
         unsigned const change = (unsigned)((1-completion) * MAX_COMPRESSION_LEVEL_CHANGE);
         unsigned const boundChange = MIN(change, ZSTD_maxCLevel() - ctx->compressionLevel);
         ctx->compressionLevel += boundChange;
-        DEBUG(2, "compress waiting on write, tried to increase compression level by %u\n", boundChange);
+        DEBUG(2, "compress waiting on write, tried to increase compression level by %u\n\n", boundChange);
     }
     else if (1-compressWaitCreateCompletion > threshold) {
         /* compress waiting on create*/
@@ -373,7 +373,7 @@ static void adaptCompressionLevel(adaptCCtx* ctx)
         unsigned const change = (unsigned)((1-completion) * MAX_COMPRESSION_LEVEL_CHANGE);
         unsigned const boundChange = MIN(change, ZSTD_maxCLevel() - ctx->compressionLevel);
         ctx->compressionLevel += boundChange;
-        DEBUG(2, "compression waiting on create, tried to increase compression level by %u\n", boundChange);
+        DEBUG(2, "compression waiting on create, tried to increase compression level by %u\n\n", boundChange);
     }
 
     if (g_forceCompressionLevel) {
@@ -517,7 +517,7 @@ static void* compressionThread(void* arg)
                     /* update completion */
                     pthread_mutex_lock(&ctx->compressionCompletion_mutex.pMutex);
                     ctx->compressionCompletion = 1 - (double)remaining/job->src.size;
-                    DEBUG(2, "compression completion %u %f\n", currJob, ctx->compressionCompletion);
+                    DEBUG(3, "compression completion %u %f\n", currJob, ctx->compressionCompletion);
                     pthread_mutex_unlock(&ctx->compressionCompletion_mutex.pMutex);
                 }
             } while (remaining != 0);
@@ -608,7 +608,7 @@ static void* outputThread(void* arg)
                     /* update completion variable for writing */
                     pthread_mutex_lock(&ctx->writeCompletion_mutex.pMutex);
                     ctx->writeCompletion = 1 - (double)remaining/compressedSize;
-                    DEBUG(2, "write completion %u %f\n", currJob, ctx->writeCompletion);
+                    DEBUG(3, "write completion %u %f\n", currJob, ctx->writeCompletion);
                     pthread_mutex_unlock(&ctx->writeCompletion_mutex.pMutex);
 
                     if (remaining == 0) break;
@@ -750,7 +750,7 @@ static int performCompression(adaptCCtx* ctx, FILE* const srcFile, outputThreadA
                 remaining -= ret;
                 pthread_mutex_lock(&ctx->createCompletion_mutex.pMutex);
                 ctx->createCompletion = 1 - (double)remaining/((size_t)FILE_CHUNK_SIZE);
-                DEBUG(2, "create completion %u %f\n", currJob, ctx->createCompletion);
+                DEBUG(3, "create completion %u %f\n", currJob, ctx->createCompletion);
                 pthread_mutex_unlock(&ctx->createCompletion_mutex.pMutex);
             }
             if (remaining != 0 && !feof(srcFile)) {

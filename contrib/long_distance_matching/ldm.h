@@ -9,6 +9,11 @@
 #define LDM_DECOMPRESSED_SIZE 8
 #define LDM_HEADER_SIZE ((LDM_COMPRESSED_SIZE)+(LDM_DECOMPRESSED_SIZE))
 
+#define ML_BITS 4
+#define ML_MASK ((1U<<ML_BITS)-1)
+#define RUN_BITS (8-ML_BITS)
+#define RUN_MASK ((1U<<RUN_BITS)-1)
+
 // THe number of bytes storing the offset.
 #define LDM_OFFSET_SIZE 4
 
@@ -33,8 +38,17 @@
 // Experimental.
 //#define TMP_EVICTION
 #define TMP_TAG_INSERT
-//#define TMP_SIMPLE_LOWER
 //#define TMP_FORCE_HASH_ONLY
+
+#define LDM_HASH_ENTRY_SIZE_LOG 3
+
+// Insert every (HASH_ONLY_EVERY + 1) into the hash table.
+#ifdef TMP_FORCE_HASH_ONLY
+  #define HASH_ONLY_EVERY_LOG 7
+#else
+  #define HASH_ONLY_EVERY_LOG (LDM_WINDOW_SIZE_LOG-((LDM_MEMORY_USAGE)-(LDM_HASH_ENTRY_SIZE_LOG)))
+#endif
+#define HASH_ONLY_EVERY ((1 << HASH_ONLY_EVERY_LOG) - 1)
 
 typedef struct LDM_compressStats LDM_compressStats;
 typedef struct LDM_CCtx LDM_CCtx;

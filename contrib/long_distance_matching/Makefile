@@ -27,13 +27,13 @@ default: all
 
 all: main-circular-buffer main-integrated main-64 
 
-main-circular-buffer: circular_buffer_table.c ldm.c main-ldm.c
+main-circular-buffer: ldm_common.c circular_buffer_table.c ldm.c main-ldm.c
 	$(CC) $(CPPFLAGS) $(CFLAGS) $^ $(LDFLAGS) -o $@
 
-main-64: ldm_64_hash.c main-ldm.c
+main-64: ldm_common.c ldm_64_hash.c main-ldm.c
 	$(CC) $(CPPFLAGS) $(CFLAGS) $^ $(LDFLAGS) -o $@
 
-main-integrated: ldm_integrated.c main-ldm.c
+main-integrated: ldm_common.c ldm_integrated.c main-ldm.c
 	$(CC) $(CPPFLAGS) $(CFLAGS) $^ $(LDFLAGS) -o $@
 
 clean:

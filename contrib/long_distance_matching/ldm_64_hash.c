@@ -12,7 +12,11 @@
 #define LDM_HASHTABLESIZE_U64 ((LDM_HASHTABLESIZE) >> 3)
 
 // Insert every (HASH_ONLY_EVERY + 1) into the hash table.
-#define HASH_ONLY_EVERY_LOG (LDM_WINDOW_SIZE_LOG-((LDM_MEMORY_USAGE) - (LDM_HASH_ENTRY_SIZE_LOG)))
+#ifdef TMP_FORCE_HASH_ONLY
+  #define HASH_ONLY_EVERY_LOG 7
+#else
+  #define HASH_ONLY_EVERY_LOG (LDM_WINDOW_SIZE_LOG-((LDM_MEMORY_USAGE) - (LDM_HASH_ENTRY_SIZE_LOG)))
+#endif
 #define HASH_ONLY_EVERY ((1 << HASH_ONLY_EVERY_LOG) - 1)
 
 /* Hash table stuff. */
@@ -26,12 +30,15 @@
 
 #define COMPUTE_STATS
 #define OUTPUT_CONFIGURATION
-#define CHECKSUM_CHAR_OFFSET 10
+#define CHECKSUM_CHAR_OFFSET 1
 
 // Take first match only.
 //#define ZSTD_SKIP
 
 //#define RUN_CHECKS
+//
+//
+static const U64 prime8bytes = 11400714785074694791ULL;
 
 /* Hash table stuff */
 
@@ -56,6 +63,14 @@ struct LDM_compressStats {
   U32 numHashInserts;
 
   U32 offsetHistogram[32];
+
+  U64 TMP_hashCount[1 << HASH_ONLY_EVERY_LOG];
+  U64 TMP_totalHashCount;
+
+  U64 TMP_totalInWindow;
+  U64 TMP_totalInserts;
+
+  U64 TMP_matchCount;
 };
 
 typedef struct LDM_hashTable LDM_hashTable;
@@ -311,10 +326,80 @@ LDM_hashEntry *HASH_getBestEntry(const LDM_CCtx *cctx,
 #ifdef TMP_EVICTION
 
 void HASH_insert(LDM_hashTable *table,
-                 const hash_t hash, const LDM_hashEntry entry) {
+                 const hash_t hash, const LDM_hashEntry entry,
+                 LDM_CCtx *cctx) {
+  // Overwrite based on part of checksum.
+  /*
+  LDM_hashEntry *toOverwrite =
+    getBucket(table, hash) + table->bucketOffsets[hash];
+  const BYTE *pMatch = toOverwrite->offset + cctx->ibase;
+  if (toOverwrite->offset != 0 &&
+      cctx->ip - pMatch <= LDM_WINDOW_SIZE) {
+    cctx->stats.TMP_totalInWindow++;
+  }
+
+  cctx->stats.TMP_totalInserts++;
+  *(toOverwrite) = entry;
+  */
+
+  /*
+  int i;
+  LDM_hashEntry *bucket = getBucket(table, hash);
+  for (i = 0; i < HASH_BUCKET_SIZE; i++) {
+    if (bucket[i].checksum == entry.checksum) {
+      bucket[i] = entry;
+      cctx->stats.TMP_matchCount++;
+      return;
+    }
+  }
+  */
+
+  // Find entry beyond window size, replace. Else, random.
+  int i;
+  LDM_hashEntry *bucket = getBucket(table, hash);
+  for (i = 0; i < HASH_BUCKET_SIZE; i++) {
+    if (cctx->ip - cctx->ibase - bucket[i].offset > LDM_WINDOW_SIZE) {
+      bucket[i] = entry;
+      return;
+    }
+  }
+
+  i = rand() & (HASH_BUCKET_SIZE - 1);
+  *(bucket + i) = entry;
+
+
+  /**
+   * Sliding buffer style pointer
+   * Keep old entry as temporary. If the old entry is outside the window,
+   * overwrite and we are done.
+   *
+   * Backwards (insert at x):
+   * x, a, b b, c c c c, d d d d d d d d
+   * x, d d d d d d d d, c c c c, b b, a
+   *
+   * Else, find something to evict.
+   * If old entry has more ones, it takes
+   * the next spot. <-- reversed order?
+   *
+   * If window size > LDM_WINDOW_SIZE,
+   * overwrite,
+   *
+   * Insert forwards. If > tag, keep. Else evict.
+   *
+   *
+   *
+   *
+   */
+
+
+  /*
   *(getBucket(table, hash) + table->bucketOffsets[hash]) = entry;
   table->bucketOffsets[hash]++;
   table->bucketOffsets[hash] &= HASH_BUCKET_SIZE - 1;
+  */
+
+//  U16 mask = entry.checksum & (HASH_BUCKET_SIZE - 1);
+//  *(getBucket(table, hash) + mask) = entry;
 }
 
 #else
@@ -348,8 +433,9 @@ void HASH_outputTableOccupancy(const LDM_hashTable *table) {
     }
   }
 
-  printf("Num buckets, bucket size: %d, %d\n",
-         table->numBuckets, HASH_BUCKET_SIZE);
+  // TODO: repeat numBuckets as a check for now.
+  printf("Num buckets, bucket size: %d (2^%d), %d\n",
+         table->numBuckets, LDM_HASHLOG, HASH_BUCKET_SIZE);
   printf("Hash table size, empty slots, %% empty: %u, %u, %.3f\n",
          table->numEntries, ctr,
          100.0 * (double)(ctr) / table->numEntries);
@@ -396,6 +482,24 @@ void LDM_printCompressStats(const LDM_compressStats *stats) {
                    (double) stats->numMatches);
   }
   printf("\n");
+#ifdef TMP_TAG_INSERT
+/*
+  printf("Lower bit distribution\n");
+  for (i = 0; i < (1 << HASH_ONLY_EVERY_LOG); i++) {
+    printf("%5d %5llu %6.3f\n", i, stats->TMP_hashCount[i],
+           100.0 * (double) stats->TMP_hashCount[i] /
+                   (double) stats->TMP_totalHashCount);
+  }
+*/
+#endif
+
+#ifdef TMP_EVICTION
+  printf("Evicted something in window: %llu %6.3f\n",
+         stats->TMP_totalInWindow,
+         100.0 * (double)stats->TMP_totalInWindow /
+                 (double)stats->TMP_totalInserts);
+  printf("Match count: %llu\n", stats->TMP_matchCount);
+#endif
   printf("=====================\n");
 }
 
@@ -418,7 +522,7 @@ int LDM_isValidMatch(const BYTE *pIn, const BYTE *pMatch) {
   return 1;
 }
 
-// Upper LDM_HASH_LOG bits.
+// Upper LDM_HASHLOG bits.
 static hash_t checksumToHash(U64 sum) {
   return sum >> (64 - LDM_HASHLOG);
 }
@@ -428,9 +532,30 @@ static U32 checksumFromHfHash(U64 hfHash) {
   return (hfHash >> (64 - 32 - LDM_HASHLOG)) & 0xFFFFFFFF;
 }
 
-static U64 getChecksum(const BYTE *buf, U32 len) {
-  static const U64 prime8bytes = 11400714785074694791ULL;
+#ifdef TMP_TAG_INSERT
+static U32 lowerBitsFromHfHash(U64 hfHash) {
+  // The number of bits used so far is LDM_HASHLOG + 32.
+  // So there are 32 - LDM_HASHLOG bits left.
+  // Occasional hashing requires HASH_ONLY_EVERY_LOG bits.
+  // So if 32 - LDMHASHLOG < HASH_ONLY_EVERY_LOG, just return lower bits
+  // allowing for reuse of bits.
+#ifdef TMP_SIMPLE_LOWER
+  return hfHash & HASH_ONLY_EVERY;
+#else
+  if (32 - LDM_HASHLOG < HASH_ONLY_EVERY_LOG) {
+    return hfHash & HASH_ONLY_EVERY;
+  } else {
+    // Otherwise shift by (32 - LDM_HASHLOG - HASH_ONLY_EVERY_LOG) bits first.
+    return (hfHash >> (32 - LDM_HASHLOG - HASH_ONLY_EVERY_LOG)) &
+           HASH_ONLY_EVERY;
+  }
+#endif
+}
+#endif
 
+
+
+static U64 getChecksum(const BYTE *buf, U32 len) {
   U64 ret = 0;
   U32 i;
   for (i = 0; i < len; i++) {
@@ -455,11 +580,8 @@ static U64 ipow(U64 base, U64 exp) {
 
 static U64 updateChecksum(U64 sum, U32 len,
                           BYTE toRemove, BYTE toAdd) {
-  // TODO: deduplicate.
-  static const U64 prime8bytes = 11400714785074694791ULL;
-
   // TODO: relying on compiler optimization here.
-  // The exponential can be calculated explicitly.
+  // The exponential can (should?) be calculated explicitly.
   sum -= ((toRemove + CHECKSUM_CHAR_OFFSET) *
           ipow(prime8bytes, len - 1));
   sum *= prime8bytes;
@@ -492,6 +614,14 @@ static void setNextHash(LDM_CCtx *cctx) {
       cctx->lastPosHashed[LDM_HASH_LENGTH]);
   cctx->nextPosHashed = cctx->nextIp;
 
+#ifdef TMP_TAG_INSERT
+  {
+    U32 hashEveryMask = lowerBitsFromHfHash(cctx->nextSum);
+    cctx->stats.TMP_totalHashCount++;
+    cctx->stats.TMP_hashCount[hashEveryMask]++;
+  }
+#endif
+
 #if LDM_LAG
 //  printf("LDM_LAG %zu\n", cctx->ip - cctx->lagIp);
   if (cctx->ip - cctx->ibase > LDM_LAG) {
@@ -520,31 +650,48 @@ static void setNextHash(LDM_CCtx *cctx) {
 static void putHashOfCurrentPositionFromHash(LDM_CCtx *cctx, U64 hfHash) {
   // Hash only every HASH_ONLY_EVERY times, based on cctx->ip.
   // Note: this works only when cctx->step is 1.
-//  printf("TMP %u %u %llu\n", hash, sum, hfHash);
-
-  if (((cctx->ip - cctx->ibase) & HASH_ONLY_EVERY) == HASH_ONLY_EVERY) {
-
 #if LDM_LAG
-    // TODO: off by 1, but whatever
+  if (((cctx->ip - cctx->ibase) & HASH_ONLY_EVERY) == HASH_ONLY_EVERY) {
+    // TODO: off by 1, but whatever.
     if (cctx->lagIp - cctx->ibase > 0) {
       U32 hash = checksumToHash(cctx->lagSum);
       U32 sum = checksumFromHfHash(cctx->lagSum);
       const LDM_hashEntry entry = { cctx->lagIp - cctx->ibase, sum };
+#ifdef TMP_EVICTION
+      HASH_insert(cctx->hashTable, hash, entry, cctx);
+#else
       HASH_insert(cctx->hashTable, hash, entry);
+#endif
     } else {
       U32 hash = checksumToHash(hfHash);
       U32 sum = checksumFromHfHash(hfHash);
 
       const LDM_hashEntry entry = { cctx->ip - cctx->ibase, sum };
-      HASH_insert(cctx->hashTable, hash, entry);
-    }
+#ifdef TMP_EVICTION
+      HASH_insert(cctx->hashTable, hash, entry, cctx);
 #else
+      HASH_insert(cctx->hashTable, hash, entry);
+#endif
+    }
+  }
+#else
+#ifdef TMP_TAG_INSERT
+  U32 hashEveryMask = lowerBitsFromHfHash(hfHash);
+  // TODO: look at stats.
+  if (hashEveryMask == HASH_ONLY_EVERY) {
+#else
+  if (((cctx->ip - cctx->ibase) & HASH_ONLY_EVERY) == HASH_ONLY_EVERY) {
+#endif
     U32 hash = checksumToHash(hfHash);
     U32 sum = checksumFromHfHash(hfHash);
     const LDM_hashEntry entry = { cctx->ip - cctx->ibase, sum };
+#ifdef TMP_EVICTION
+    HASH_insert(cctx->hashTable, hash, entry, cctx);
+#else
     HASH_insert(cctx->hashTable, hash, entry);
 #endif
   }
+#endif
 
   cctx->lastPosHashed = cctx->ip;
   cctx->lastSum = hfHash;
@@ -676,10 +823,16 @@ static int LDM_findBestMatch(LDM_CCtx *cctx, const BYTE **match,
     hash_t h;
     U64 hash;
     U32 sum;
+#ifdef TMP_TAG_INSERT
+    U32 hashEveryMask;
+#endif
     setNextHash(cctx);
     hash = cctx->nextSum;
     h = checksumToHash(hash);
     sum = checksumFromHfHash(hash);
+#ifdef TMP_TAG_INSERT
+    hashEveryMask = lowerBitsFromHfHash(hash);
+#endif
 
     cctx->ip = cctx->nextIp;
     cctx->nextIp += cctx->step;
@@ -687,9 +840,15 @@ static int LDM_findBestMatch(LDM_CCtx *cctx, const BYTE **match,
     if (cctx->ip > cctx->imatchLimit) {
       return 1;
     }
-
+#ifdef TMP_TAG_INSERT
+    if (hashEveryMask == HASH_ONLY_EVERY) {
+      entry = HASH_getBestEntry(cctx, h, sum,
+                                forwardMatchLength, backwardMatchLength);
+    }
+#else
     entry = HASH_getBestEntry(cctx, h, sum,
                               forwardMatchLength, backwardMatchLength);
+#endif
 
     if (entry != NULL) {
       *match = entry->offset + cctx->ibase;

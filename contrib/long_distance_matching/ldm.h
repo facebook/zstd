@@ -13,21 +13,26 @@
 // Defines the size of the hash table.
 // Note that this is not the number of buckets.
 // Currently this should be less than WINDOW_SIZE_LOG + 4?
-#define LDM_MEMORY_USAGE 22
-#define HASH_BUCKET_SIZE_LOG 2 // MAX is 4 for now
+#define LDM_MEMORY_USAGE 24
+#define HASH_BUCKET_SIZE_LOG 0 // MAX is 4 for now
 
 // Defines the lag in inserting elements into the hash table.
 #define LDM_LAG 0
 
-#define LDM_WINDOW_SIZE_LOG 28
+#define LDM_WINDOW_SIZE_LOG 28 // Max value is 30
 #define LDM_WINDOW_SIZE (1 << (LDM_WINDOW_SIZE_LOG))
 
 //These should be multiples of four (and perhaps set to the same value?).
 #define LDM_MIN_MATCH_LENGTH 64
 #define LDM_HASH_LENGTH 64
 
-#define TMP_EVICTION
+// Experimental.
+//:w
+//#define TMP_EVICTION
 #define TMP_TAG_INSERT
+//#define TMP_SIMPLE_LOWER
+//#define TMP_FORCE_HASH_ONLY
+
 typedef struct LDM_compressStats LDM_compressStats;
 typedef struct LDM_CCtx LDM_CCtx;
 typedef struct LDM_DCtx LDM_DCtx;

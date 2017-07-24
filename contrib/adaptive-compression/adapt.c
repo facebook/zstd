@@ -31,7 +31,7 @@ static int g_displayLevel = DEFAULT_DISPLAY_LEVEL;
 static unsigned g_compressionLevel = DEFAULT_COMPRESSION_LEVEL;
 static UTIL_time_t g_startTime;
 static size_t g_streamedSize = 0;
-static unsigned g_useProgressBar = 0;
+static unsigned g_useProgressBar = 1;
 static UTIL_freq_t g_ticksPerSecond;
 static unsigned g_forceCompressionLevel = 0;
 
@@ -903,6 +903,7 @@ static void help()
     PRINT("  -i#    : provide initial compression level\n");
     PRINT("  -h     : display help/information\n");
     PRINT("  -f     : force the compression level to stay constant\n");
+    PRINT("  -q     : quiet mode -- do not show progress bar or other information\n");
 }
 /* return 0 if successful, else return error */
 int main(int argCount, const char* argv[])
@@ -952,6 +953,10 @@ int main(int argCount, const char* argv[])
                     break;
                 case 'f':
                     g_forceCompressionLevel = 1;
+                    break;
+                case 'q':
+                    g_useProgressBar = 0;
+                    g_displayLevel = 0;
                     break;
                 default:
                     DISPLAY("Error: invalid argument provided\n");

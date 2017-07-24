@@ -17,7 +17,7 @@
 
 #define COMPUTE_STATS
 #define OUTPUT_CONFIGURATION
-#define CHECKSUM_CHAR_OFFSET 10
+#define CHECKSUM_CHAR_OFFSET 1
 
 // Take first match only.
 //#define ZSTD_SKIP

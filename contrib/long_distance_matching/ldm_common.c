@@ -109,5 +109,3 @@ size_t LDM_decompress(const void *src, size_t compressedSize,
   }
   return dctx.op - (BYTE *)dst;
 }
-
-

@@ -412,14 +412,17 @@ static void* compressionThread(void* arg)
             pthread_mutex_unlock(&ctx->jobWrite_mutex.pMutex);
 
 
-            if (willWaitForCreate || willWaitForWrite) {
-                DEBUG(2, "compression will wait for create or write on job %u\n", currJob);
-
+            if (willWaitForCreate) {
+                DEBUG(2, "compression will wait for create on job %u\n", currJob);
                 pthread_mutex_lock(&ctx->createCompletion_mutex.pMutex);
                 ctx->compressWaitCreateCompletion = ctx->createCompletion;
                 DEBUG(2, "create completion %f\n", ctx->compressWaitCreateCompletion);
                 pthread_mutex_unlock(&ctx->createCompletion_mutex.pMutex);
 
+            }
+
+            if (willWaitForWrite) {
+                DEBUG(2, "compression will wait for write on job %u\n", currJob);
                 pthread_mutex_lock(&ctx->writeCompletion_mutex.pMutex);
                 ctx->compressWaitWriteCompletion = ctx->writeCompletion;
                 DEBUG(2, "write completion %f\n", ctx->compressWaitWriteCompletion);

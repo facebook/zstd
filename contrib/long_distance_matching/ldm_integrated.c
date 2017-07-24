@@ -7,9 +7,15 @@
 #include "ldm.h"
 
 #define LDM_HASHTABLESIZE (1 << (LDM_MEMORY_USAGE))
-#define LDM_HASH_ENTRY_SIZE_LOG 3
 #define LDM_HASHTABLESIZE_U32 ((LDM_HASHTABLESIZE) >> 2)
 #define LDM_HASHTABLESIZE_U64 ((LDM_HASHTABLESIZE) >> 3)
+
+#define LDM_HASH_ENTRY_SIZE_LOG 3
+//#define HASH_ONLY_EVERY_LOG 7
+#define HASH_ONLY_EVERY_LOG (LDM_WINDOW_SIZE_LOG-((LDM_MEMORY_USAGE)-(LDM_HASH_ENTRY_SIZE_LOG)))
+
+#define HASH_ONLY_EVERY ((1 << HASH_ONLY_EVERY_LOG) - 1)
+
 
 /* Hash table stuff. */
 #define HASH_BUCKET_SIZE (1 << (HASH_BUCKET_SIZE_LOG))
@@ -37,6 +43,8 @@ struct LDM_compressStats {
   U64 totalMatchLength;
   U64 totalLiteralLength;
   U64 totalOffset;
+
+  U32 matchLengthHistogram[32];
 
   U32 minOffset, maxOffset;
 
@@ -358,12 +366,18 @@ void LDM_printCompressStats(const LDM_compressStats *stats) {
          stats->minOffset, stats->maxOffset);
 
   printf("\n");
-  printf("offset histogram: offset, num matches, %% of matches\n");
+  printf("offset histogram | match length histogram\n");
+  printf("offset/ML, num matches, %% of matches | num matches, %% of matches\n");
 
   for (; i <= intLog2(stats->maxOffset); i++) {
-    printf("2^%*d: %10u    %6.3f%%\n", 2, i,
+    printf("2^%*d: %10u    %6.3f%% |2^%*d:  %10u    %6.3f \n",
+           2, i,
            stats->offsetHistogram[i],
            100.0 * (double) stats->offsetHistogram[i] /
+                   (double) stats->numMatches,
+           2, i,
+           stats->matchLengthHistogram[i],
+           100.0 * (double) stats->matchLengthHistogram[i] /
                    (double) stats->numMatches);
   }
   printf("\n");
@@ -742,6 +756,8 @@ size_t LDM_compress(const void *src, size_t srcSize,
       cctx.stats.maxOffset =
           offset > cctx.stats.maxOffset ? offset : cctx.stats.maxOffset;
       cctx.stats.offsetHistogram[(U32)intLog2(offset)]++;
+      cctx.stats.matchLengthHistogram[
+          (U32)intLog2(matchLength + LDM_MIN_MATCH_LENGTH)]++;
 #endif
 
       // Move ip to end of block, inserting hashes at each position.
@@ -783,6 +799,21 @@ size_t LDM_compress(const void *src, size_t srcSize,
     return ret;
   }
 }
+
+void LDM_outputConfiguration(void) {
+  printf("=====================\n");
+  printf("Configuration\n");
+  printf("LDM_WINDOW_SIZE_LOG: %d\n", LDM_WINDOW_SIZE_LOG);
+  printf("LDM_MIN_MATCH_LENGTH, LDM_HASH_LENGTH: %d, %d\n",
+         LDM_MIN_MATCH_LENGTH, LDM_HASH_LENGTH);
+  printf("LDM_MEMORY_USAGE: %d\n", LDM_MEMORY_USAGE);
+  printf("HASH_ONLY_EVERY_LOG: %d\n", HASH_ONLY_EVERY_LOG);
+  printf("HASH_BUCKET_SIZE_LOG: %d\n", HASH_BUCKET_SIZE_LOG);
+  printf("LDM_LAG %d\n", LDM_LAG);
+  printf("=====================\n");
+}
+
+
 
 // TODO: implement and test hash function
 void LDM_test(const BYTE *src) {

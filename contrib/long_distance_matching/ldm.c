@@ -10,6 +10,14 @@
 #define LDM_HASHTABLESIZE (1 << (LDM_MEMORY_USAGE))
 #define LDM_HASHTABLESIZE_U64 ((LDM_HASHTABLESIZE) >> 3)
 
+#define LDM_HASH_ENTRY_SIZE_LOG 3
+
+//#define HASH_ONLY_EVERY_LOG 7
+#define HASH_ONLY_EVERY_LOG (LDM_WINDOW_SIZE_LOG-((LDM_MEMORY_USAGE)-(LDM_HASH_ENTRY_SIZE_LOG)))
+
+#define HASH_ONLY_EVERY ((1 << HASH_ONLY_EVERY_LOG) - 1)
+
+
 #define COMPUTE_STATS
 #define OUTPUT_CONFIGURATION
 #define CHECKSUM_CHAR_OFFSET 10
@@ -509,6 +517,21 @@ size_t LDM_compress(const void *src, size_t srcSize,
     return ret;
   }
 }
+
+void LDM_outputConfiguration(void) {
+  printf("=====================\n");
+  printf("Configuration\n");
+  printf("LDM_WINDOW_SIZE_LOG: %d\n", LDM_WINDOW_SIZE_LOG);
+  printf("LDM_MIN_MATCH_LENGTH, LDM_HASH_LENGTH: %d, %d\n",
+         LDM_MIN_MATCH_LENGTH, LDM_HASH_LENGTH);
+  printf("LDM_MEMORY_USAGE: %d\n", LDM_MEMORY_USAGE);
+  printf("HASH_ONLY_EVERY_LOG: %d\n", HASH_ONLY_EVERY_LOG);
+  printf("HASH_BUCKET_SIZE_LOG: %d\n", HASH_BUCKET_SIZE_LOG);
+  printf("LDM_LAG %d\n", LDM_LAG);
+  printf("=====================\n");
+}
+
+
 
 void LDM_test(const BYTE *src) {
   (void)src;

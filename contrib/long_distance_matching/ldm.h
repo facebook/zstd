@@ -1,20 +1,24 @@
 #ifndef LDM_H
 #define LDM_H
 
-#include <stddef.h>   /* size_t */
-
 #include "mem.h"    // from /lib/common/mem.h
 
-#define LDM_COMPRESS_SIZE 8
-#define LDM_DECOMPRESS_SIZE 8
-#define LDM_HEADER_SIZE ((LDM_COMPRESS_SIZE)+(LDM_DECOMPRESS_SIZE))
+// The number of bytes storing the compressed and decompressed size
+// in the header.
+#define LDM_COMPRESSED_SIZE 8
+#define LDM_DECOMPRESSED_SIZE 8
+#define LDM_HEADER_SIZE ((LDM_COMPRESSED_SIZE)+(LDM_DECOMPRESSED_SIZE))
+
+// THe number of bytes storing the offset.
 #define LDM_OFFSET_SIZE 4
 
 // Defines the size of the hash table.
 // Note that this is not the number of buckets.
 // Currently this should be less than WINDOW_SIZE_LOG + 4?
-#define LDM_MEMORY_USAGE 24
-#define HASH_BUCKET_SIZE_LOG 0 // MAX is 4 for now
+#define LDM_MEMORY_USAGE 23
+
+// The number of entries in a hash bucket.
+#define HASH_BUCKET_SIZE_LOG 0 // The maximum is 4 for now.
 
 // Defines the lag in inserting elements into the hash table.
 #define LDM_LAG 0
@@ -23,11 +27,10 @@
 #define LDM_WINDOW_SIZE (1 << (LDM_WINDOW_SIZE_LOG))
 
 //These should be multiples of four (and perhaps set to the same value?).
-#define LDM_MIN_MATCH_LENGTH 64
-#define LDM_HASH_LENGTH 64
+#define LDM_MIN_MATCH_LENGTH 16
+#define LDM_HASH_LENGTH 16
 
 // Experimental.
-//:w
 //#define TMP_EVICTION
 #define TMP_TAG_INSERT
 //#define TMP_SIMPLE_LOWER
@@ -36,7 +39,6 @@
 typedef struct LDM_compressStats LDM_compressStats;
 typedef struct LDM_CCtx LDM_CCtx;
 typedef struct LDM_DCtx LDM_DCtx;
-
 
 /**
  *  Compresses src into dst.
@@ -94,17 +96,6 @@ void LDM_outputHashTableOffsetHistogram(const LDM_CCtx *cctx);
  * Outputs compression statistics to stdout.
  */
 void LDM_printCompressStats(const LDM_compressStats *stats);
-/**
- * Checks whether the LDM_MIN_MATCH_LENGTH bytes from p are the same as the
- * LDM_MIN_MATCH_LENGTH bytes from match and also if
- * pIn - pMatch <= LDM_WINDOW_SIZE.
- *
- * This assumes LDM_MIN_MATCH_LENGTH is a multiple of four.
- *
- * Return 1 if valid, 0 otherwise.
- */
-int LDM_isValidMatch(const BYTE *pIn, const BYTE *pMatch);
-
 
 /**
  * Encode the literal length followed by the literals.
@@ -150,6 +141,15 @@ void LDM_initializeDCtx(LDM_DCtx *dctx,
 void LDM_readHeader(const void *src, U64 *compressedSize,
                     U64 *decompressedSize);
 
+/**
+ * Write the compressed and decompressed size.
+ */
+void LDM_writeHeader(void *memPtr, U64 compressedSize,
+                     U64 decompressedSize);
+
+/**
+ * Output the configuration used.
+ */
 void LDM_outputConfiguration(void);
 
 void LDM_test(const BYTE *src);

@@ -36,8 +36,7 @@
 //#define ZSTD_SKIP
 
 //#define RUN_CHECKS
-//
-//
+
 static const U64 prime8bytes = 11400714785074694791ULL;
 
 /* Hash table stuff */
@@ -49,7 +48,6 @@ typedef struct LDM_hashEntry {
   U32 checksum;
 } LDM_hashEntry;
 
-// TODO: Memory usage
 struct LDM_compressStats {
   U32 windowSizeLog, hashTableSizeLog;
   U32 numMatches;
@@ -58,9 +56,6 @@ struct LDM_compressStats {
   U64 totalOffset;
 
   U32 minOffset, maxOffset;
-
-  U32 numCollisions;
-  U32 numHashInserts;
 
   U32 offsetHistogram[32];
 
@@ -115,19 +110,18 @@ struct LDM_CCtx {
   const BYTE *lagIp;
   U64 lagSum;
 
-  U64 numHashInserts;
   // DEBUG
   const BYTE *DEBUG_setNextHash;
 };
 
 struct LDM_hashTable {
-  U32 numBuckets;  // Number of buckets
-  U32 numEntries;  // Rename...
-  LDM_hashEntry *entries;
+  U32 numBuckets;          // The number of buckets.
+  U32 numEntries;          // numBuckets * HASH_BUCKET_SIZE.
 
-  BYTE *bucketOffsets;
-  // Position corresponding to offset=0 in LDM_hashEntry.
+  LDM_hashEntry *entries;
+  BYTE *bucketOffsets;     // A pointer (per bucket) to the next insert position.
 };
+
 
 /**
  * Create a hash table that can contain size elements.
@@ -251,9 +245,9 @@ static size_t ZSTD_count(const BYTE *pIn, const BYTE *pMatch,
  *
  * We count only bytes where pMatch > pBaes and pIn > pAnchor.
  */
-U64 countBackwardsMatch(const BYTE *pIn, const BYTE *pAnchor,
+size_t countBackwardsMatch(const BYTE *pIn, const BYTE *pAnchor,
                         const BYTE *pMatch, const BYTE *pBase) {
-  U64 matchLength = 0;
+  size_T matchLength = 0;
   while (pIn > pAnchor && pMatch > pBase && pIn[-1] == pMatch[-1]) {
     pIn--;
     pMatch--;
@@ -293,7 +287,8 @@ LDM_hashEntry *HASH_getBestEntry(const LDM_CCtx *cctx,
       U64 forwardMatchLength = ZSTD_count(cctx->ip, pMatch, cctx->iend);
       U64 backwardMatchLength, totalMatchLength;
 
-      // For speed.
+      // Only take matches where the forward match length is large enough
+      // for speed.
       if (forwardMatchLength < LDM_MIN_MATCH_LENGTH) {
         continue;
       }
@@ -765,6 +760,13 @@ void LDM_readHeader(const void *src, U64 *compressedSize,
   *decompressedSize = MEM_readLE64(ip);
   // ip += sizeof(U64);
 }
+
+void LDM_writeHeader(void *memPtr, U64 compressedSize,
+                     U64 decompressedSize) {
+  MEM_write64(memPtr, compressedSize);
+  MEM_write64((BYTE *)memPtr + 8, decompressedSize);
+}
+
 
 void LDM_initializeCCtx(LDM_CCtx *cctx,
                         const void *src, size_t srcSize,

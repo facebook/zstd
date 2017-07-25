@@ -489,7 +489,7 @@ void LDM_printCompressStats(const LDM_compressStats *stats) {
                    (double) stats->numMatches);
   }
   printf("\n");
-#ifdef TMP_TAG_INSERT
+#ifdef INSERT_BY_TAG
 /*
   printf("Lower bit distribution\n");
   for (i = 0; i < (1 << HASH_ONLY_EVERY_LOG); i++) {
@@ -524,7 +524,7 @@ static U32 getChecksum(U64 hash) {
   return (hash >> (64 - 32 - LDM_HASHLOG)) & 0xFFFFFFFF;
 }
 
-#ifdef TMP_TAG_INSERT
+#ifdef INSERT_BY_TAG
 static U32 lowerBitsFromHfHash(U64 hash) {
   // The number of bits used so far is LDM_HASHLOG + 32.
   // So there are 32 - LDM_HASHLOG bits left.
@@ -611,7 +611,7 @@ static void setNextHash(LDM_CCtx *cctx) {
       cctx->lastPosHashed[LDM_HASH_LENGTH]);
   cctx->nextPosHashed = cctx->nextIp;
 
-#ifdef TMP_TAG_INSERT
+#ifdef INSERT_BY_TAG
   {
     U32 hashEveryMask = lowerBitsFromHfHash(cctx->nextHash);
     cctx->stats.TMP_totalHashCount++;
@@ -647,9 +647,13 @@ static void putHashOfCurrentPositionFromHash(LDM_CCtx *cctx, U64 hash) {
   // Hash only every HASH_ONLY_EVERY times, based on cctx->ip.
   // Note: this works only when cctx->step is 1.
 #if LDM_LAG
-  if (((cctx->ip - cctx->ibase) & HASH_ONLY_EVERY) == HASH_ONLY_EVERY) {
-    // TODO: Off by one, but not important.
-    if (cctx->lagIp - cctx->ibase > 0) {
+  if (cctx -> lagIp - cctx->ibase > 0) {
+#ifdef INSERT_BY_TAG
+    U32 hashEveryMask = lowerBitsFromHfHash(cctx->lagHash);
+    if (hashEveryMask == HASH_ONLY_EVERY) {
+#else
+    if (((cctx->ip - cctx->ibase) & HASH_ONLY_EVERY) == HASH_ONLY_EVERY) {
+#endif
       U32 smallHash = getSmallHash(cctx->lagHash);
 
 #   if USE_CHECKSUM
@@ -664,23 +668,32 @@ static void putHashOfCurrentPositionFromHash(LDM_CCtx *cctx, U64 hash) {
 #   else
       HASH_insert(cctx->hashTable, smallHash, entry);
 #   endif
-    } else {
-#   if USE_CHECKSUM
-      U32 checksum = getChecksum(hash);
-      const LDM_hashEntry entry = { cctx->lagIp - cctx->ibase, checksum };
-#   else
-      const LDM_hashEntry entry = { cctx->lagIp - cctx->ibase };
-#   endif
+    }
+  } else {
+#ifdef INSERT_BY_TAG
+    U32 hashEveryMask = lowerBitsFromHfHash(hash);
+    if (hashEveryMask == HASH_ONLY_EVERY) {
+#else
+    if (((cctx->ip - cctx->ibase) & HASH_ONLY_EVERY) == HASH_ONLY_EVERY) {
+#endif
+      U32 smallHash = getSmallHash(hash);
 
-#   ifdef TMP_EVICTION
+#if USE_CHECKSUM
+      U32 checksum = getChecksum(hash);
+      const LDM_hashEntry entry = { cctx->ip - cctx->ibase, checksum };
+#else
+      const LDM_hashEntry entry = { cctx->ip - cctx->ibase };
+#endif
+
+#ifdef TMP_EVICTION
       HASH_insert(cctx->hashTable, smallHash, entry, cctx);
-#   else
+#else
       HASH_insert(cctx->hashTable, smallHash, entry);
-#    endif
+#endif
     }
   }
 #else
-#ifdef TMP_TAG_INSERT
+#ifdef INSERT_BY_TAG
   U32 hashEveryMask = lowerBitsFromHfHash(hash);
   if (hashEveryMask == HASH_ONLY_EVERY) {
 #else
@@ -799,7 +812,7 @@ static int LDM_findBestMatch(LDM_CCtx *cctx, const BYTE **match,
     U64 hash;
     hash_t smallHash;
     U32 checksum;
-#ifdef TMP_TAG_INSERT
+#ifdef INSERT_BY_TAG
     U32 hashEveryMask;
 #endif
     setNextHash(cctx);
@@ -807,7 +820,7 @@ static int LDM_findBestMatch(LDM_CCtx *cctx, const BYTE **match,
     hash = cctx->nextHash;
     smallHash = getSmallHash(hash);
     checksum = getChecksum(hash);
-#ifdef TMP_TAG_INSERT
+#ifdef INSERT_BY_TAG
     hashEveryMask = lowerBitsFromHfHash(hash);
 #endif
 
@@ -817,7 +830,7 @@ static int LDM_findBestMatch(LDM_CCtx *cctx, const BYTE **match,
     if (cctx->ip > cctx->imatchLimit) {
       return 1;
     }
-#ifdef TMP_TAG_INSERT
+#ifdef INSERT_BY_TAG
     if (hashEveryMask == HASH_ONLY_EVERY) {
 
       entry = HASH_getBestEntry(cctx, smallHash, checksum,
@@ -1003,12 +1016,16 @@ void LDM_outputConfiguration(void) {
   printf("LDM_MEMORY_USAGE: %d\n", LDM_MEMORY_USAGE);
   printf("HASH_ONLY_EVERY_LOG: %d\n", HASH_ONLY_EVERY_LOG);
   printf("HASH_BUCKET_SIZE_LOG: %d\n", HASH_BUCKET_SIZE_LOG);
-  printf("LDM_LAG %d\n", LDM_LAG);
-  printf("USE_CHECKSUM %d\n", USE_CHECKSUM);
+  printf("LDM_LAG: %d\n", LDM_LAG);
+  printf("USE_CHECKSUM: %d\n", USE_CHECKSUM);
+#ifdef INSERT_BY_TAG
+  printf("INSERT_BY_TAG: %d\n", 1);
+#else
+  printf("INSERT_BY_TAG: %d\n", 0);
+#endif
+  printf("HASH_CHAR_OFFSET: %d\n", HASH_CHAR_OFFSET);
   printf("=====================\n");
 }
-
-
 
 // TODO: implement and test hash function
 void LDM_test(const BYTE *src) {

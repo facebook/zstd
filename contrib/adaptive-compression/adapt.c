@@ -504,10 +504,6 @@ static void* compressionThread(void* arg)
         ctx->compressionCompletion = 0;
         pthread_mutex_unlock(&ctx->compressionCompletion_mutex.pMutex);
 
-        DEBUG(3, "compressionThread(): continuing after job ready\n");
-        DEBUG(3, "DICTIONARY ENDED\n");
-        DEBUG(3, "%.*s", (int)job->src.size, (char*)job->src.start);
-
         /* adapt compression level */
         if (currJob) adaptCompressionLevel(ctx);
 
@@ -520,15 +516,12 @@ static void* compressionThread(void* arg)
             size_t remaining = job->src.size;
             size_t srcPos = 0;
             size_t dstPos = 0;
-            DEBUG(3, "cLevel used: %u\n", cLevel);
-            DEBUG(3, "compression level used: %u\n", cLevel);
             /* reset compressed size */
             job->compressedSize = 0;
             DEBUG(2, "calling ZSTD_compressBegin()\n");
             /* begin compression */
             {
                 size_t const useDictSize = MIN(getUseableDictSize(cLevel), job->dictSize);
-                DEBUG(3, "useDictSize: %zu, job->dictSize: %zu\n", useDictSize, job->dictSize);
                 size_t const dictModeError = ZSTD_setCCtxParameter(ctx->cctx, ZSTD_p_forceRawDict, 1);
                 size_t const initError = ZSTD_compressBegin_usingDict(ctx->cctx, job->src.start + job->dictSize - useDictSize, useDictSize, cLevel);
                 size_t const windowSizeError = ZSTD_setCCtxParameter(ctx->cctx, ZSTD_p_forceWindow, 1);
@@ -542,8 +535,6 @@ static void* compressionThread(void* arg)
 
             do {
                 size_t const actualBlockSize = MIN(remaining, compressionBlockSize);
-                DEBUG(3, "remaining: %zu\n", remaining);
-                DEBUG(3, "actualBlockSize: %zu\n", actualBlockSize);
 
                 /* continue compression */
                 if (currJob != 0 || blockNum != 0) { /* not first block of first job flush/overwrite the frame header */
@@ -557,9 +548,6 @@ static void* compressionThread(void* arg)
                     ZSTD_invalidateRepCodes(ctx->cctx);
                 }
                 {
-                    DEBUG(3, "write out ending: %d\n", (job->lastJobPlusOne == currJob + 1) && (remaining == actualBlockSize));
-                    DEBUG(3, "lastJobPlusOne %u\n", job->lastJobPlusOne);
-                    DEBUG(3, "compressionBlockSize %zu\n", compressionBlockSize);
                     size_t const ret = (job->lastJobPlusOne == currJob + 1 && remaining == actualBlockSize) ?
                                             ZSTD_compressEnd     (ctx->cctx, job->dst.start + dstPos, job->dst.capacity - dstPos, job->src.start + job->dictSize + srcPos, actualBlockSize) :
                                             ZSTD_compressContinue(ctx->cctx, job->dst.start + dstPos, job->dst.capacity - dstPos, job->src.start + job->dictSize + srcPos, actualBlockSize);
@@ -577,7 +565,6 @@ static void* compressionThread(void* arg)
                     /* update completion */
                     pthread_mutex_lock(&ctx->compressionCompletion_mutex.pMutex);
                     ctx->compressionCompletion = 1 - (double)remaining/job->src.size;
-                    DEBUG(3, "compression completion %u %f\n", currJob, ctx->compressionCompletion);
                     pthread_mutex_unlock(&ctx->compressionCompletion_mutex.pMutex);
                 }
             } while (remaining != 0);
@@ -585,13 +572,10 @@ static void* compressionThread(void* arg)
         }
         pthread_mutex_lock(&ctx->jobCompressed_mutex.pMutex);
         ctx->jobCompressedID++;
-        DEBUG(3, "signaling for job %u\n", currJob);
         pthread_cond_broadcast(&ctx->jobCompressed_cond.pCond);
         pthread_mutex_unlock(&ctx->jobCompressed_mutex.pMutex);
-        DEBUG(3, "finished job compression %u\n", currJob);
         if (job->lastJobPlusOne == currJob + 1 || ctx->threadError) {
             /* finished compressing all jobs */
-            DEBUG(3, "all jobs finished compressing\n");
             break;
         }
         DEBUG(2, "finished compressing job %u\n", currJob);
@@ -633,7 +617,6 @@ static void* outputThread(void* arg)
             pthread_mutex_lock(&ctx->compressionCompletion_mutex.pMutex);
             /* write thread is waiting on compression thread */
             ctx->writeWaitCompressionCompletion = ctx->compressionCompletion;
-            DEBUG(3, "write thread waiting : writeWaitCompressionCompletion %f\n", ctx->writeWaitCompressionCompletion);
             DEBUG(2, "writer thread waiting for nextJob: %u, writeWaitCompressionCompletion %f\n", currJob, ctx->writeWaitCompressionCompletion);
             pthread_mutex_unlock(&ctx->compressionCompletion_mutex.pMutex);
             pthread_cond_wait(&ctx->jobCompressed_cond.pCond, &ctx->jobCompressed_mutex.pMutex);
@@ -645,7 +628,6 @@ static void* outputThread(void* arg)
         ctx->writeCompletion = 0;
         pthread_mutex_unlock(&ctx->writeCompletion_mutex.pMutex);
 
-        DEBUG(3, "outputThread(): continuing after job compressed\n");
         {
             size_t const compressedSize = job->compressedSize;
             size_t remaining = compressedSize;
@@ -668,7 +650,6 @@ static void* outputThread(void* arg)
                     /* update completion variable for writing */
                     pthread_mutex_lock(&ctx->writeCompletion_mutex.pMutex);
                     ctx->writeCompletion = 1 - (double)remaining/compressedSize;
-                    DEBUG(3, "write completion %u %f\n", currJob, ctx->writeCompletion);
                     pthread_mutex_unlock(&ctx->writeCompletion_mutex.pMutex);
 
                     if (remaining == 0) break;
@@ -680,18 +661,14 @@ static void* outputThread(void* arg)
                 }
             }
         }
-        DEBUG(3, "finished job write %u\n", currJob);
         displayProgress(ctx->compressionLevel, job->lastJobPlusOne == currJob + 1);
-        DEBUG(3, "locking job write mutex\n");
         pthread_mutex_lock(&ctx->jobWrite_mutex.pMutex);
         ctx->jobWriteID++;
         pthread_cond_signal(&ctx->jobWrite_cond.pCond);
         pthread_mutex_unlock(&ctx->jobWrite_mutex.pMutex);
-        DEBUG(3, "unlocking job write mutex\n");
 
         if (job->lastJobPlusOne == currJob + 1 || ctx->threadError) {
             /* finished with all jobs */
-            DEBUG(3, "all jobs finished writing\n");
             pthread_mutex_lock(&ctx->allJobsCompleted_mutex.pMutex);
             ctx->allJobsCompleted = 1;
             pthread_cond_signal(&ctx->allJobsCompleted_cond.pCond);
@@ -710,7 +687,6 @@ static int createCompressionJob(adaptCCtx* ctx, size_t srcSize, int last)
     unsigned const nextJob = ctx->nextJobID;
     unsigned const nextJobIndex = nextJob % ctx->numJobs;
     jobDescription* job = &ctx->jobs[nextJobIndex];
-    DEBUG(3, "createCompressionJob(): wait for job write\n");
 
 
     /* wait until the job has been compressed */
@@ -719,8 +695,6 @@ static int createCompressionJob(adaptCCtx* ctx, size_t srcSize, int last)
         pthread_mutex_lock(&ctx->compressionCompletion_mutex.pMutex);
         /* creation thread is waiting, take measurement of completion */
         ctx->createWaitCompressionCompletion = ctx->compressionCompletion;
-        DEBUG(3, "creation thread waiting : createWaitCompressionCompletion %f\n", ctx->createWaitCompressionCompletion);
-        DEBUG(3, "writeCompletion: %f\n", ctx->writeCompletion);
         DEBUG(2, "create thread waiting for nextJob: %u, createWaitCompressionCompletion %f\n", nextJob, ctx->createWaitCompressionCompletion);
         pthread_mutex_unlock(&ctx->compressionCompletion_mutex.pMutex);
         pthread_cond_wait(&ctx->jobCompressed_cond.pCond, &ctx->jobCompressed_mutex.pMutex);
@@ -730,9 +704,6 @@ static int createCompressionJob(adaptCCtx* ctx, size_t srcSize, int last)
     pthread_mutex_lock(&ctx->createCompletion_mutex.pMutex);
     ctx->createCompletion = 0;
     pthread_mutex_unlock(&ctx->createCompletion_mutex.pMutex);
-    DEBUG(3, "createCompressionJob(): continuing after job write\n");
-
-    DEBUG(3, "filled: %zu, srcSize: %zu\n", ctx->input.filled, srcSize);
     job->compressionLevel = ctx->compressionLevel;
     job->src.size = srcSize;
     job->jobID = nextJob;
@@ -745,13 +716,10 @@ static int createCompressionJob(adaptCCtx* ctx, size_t srcSize, int last)
     }
     job->dictSize = ctx->lastDictSize;
 
-    DEBUG(3, "finished job creation %u\n", nextJob);
     ctx->nextJobID++;
-    DEBUG(3, "filled: %zu, srcSize: %zu\n", ctx->input.filled, srcSize);
     /* if not on the last job, reuse data as dictionary in next job */
     if (!last) {
         size_t const oldDictSize = ctx->lastDictSize;
-        DEBUG(3, "oldDictSize %zu\n", oldDictSize);
         memcpy(ctx->input.buffer.start, job->src.start + oldDictSize, srcSize);
         ctx->lastDictSize = srcSize;
         ctx->input.filled = srcSize;
@@ -812,7 +780,6 @@ static int performCompression(adaptCCtx* ctx, FILE* const srcFile, outputThreadA
                 remaining -= ret;
                 pthread_mutex_lock(&ctx->createCompletion_mutex.pMutex);
                 ctx->createCompletion = 1 - (double)remaining/((size_t)FILE_CHUNK_SIZE);
-                DEBUG(3, "create completion %u %f\n", currJob, ctx->createCompletion);
                 pthread_mutex_unlock(&ctx->createCompletion_mutex.pMutex);
             }
             if (remaining != 0 && !feof(srcFile)) {
@@ -833,7 +800,6 @@ static int performCompression(adaptCCtx* ctx, FILE* const srcFile, outputThreadA
             DEBUG(2, "finished creating job %u\n", currJob);
             currJob++;
             if (feof(srcFile)) {
-                DEBUG(3, "THE STREAM OF DATA ENDED %u\n", ctx->nextJobID);
                 break;
             }
         }
@@ -991,7 +957,6 @@ int main(int argCount, const char* argv[])
                 case 'i':
                     argument += 2;
                     g_compressionLevel = readU32FromChar(&argument);
-                    DEBUG(3, "g_compressionLevel: %u\n", g_compressionLevel);
                     break;
                 case 'h':
                     help();

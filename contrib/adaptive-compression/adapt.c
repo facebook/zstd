@@ -319,6 +319,7 @@ static void waitUntilAllJobsCompleted(adaptCCtx* ctx)
     pthread_mutex_unlock(&ctx->allJobsCompleted_mutex.pMutex);
 }
 
+/* map completion percentages to values for changing compression level */
 static unsigned convertCompletionToChange(double completion)
 {
     if (completion < 0.05) {
@@ -350,11 +351,11 @@ static void adaptCompressionLevel(adaptCCtx* ctx)
     unsigned const prevCompressionLevel = ctx->compressionLevel;
 
     DEBUG(2, "adapting compression level %u\n", ctx->compressionLevel);
-    /* read and reset completion measurements */
 
+    /* read and reset completion measurements */
     pthread_mutex_lock(&ctx->compressionCompletion_mutex.pMutex);
-    DEBUG(2, "rc %f\n", ctx->createWaitCompressionCompletion);
-    DEBUG(2, "wc %f\n", ctx->writeWaitCompressionCompletion);
+    DEBUG(2, "createWaitCompressionCompletion %f\n", ctx->createWaitCompressionCompletion);
+    DEBUG(2, "writeWaitCompressionCompletion %f\n", ctx->writeWaitCompressionCompletion);
     createWaitCompressionCompletion = ctx->createWaitCompressionCompletion;
     writeWaitCompressionCompletion = ctx->writeWaitCompressionCompletion;
     ctx->createWaitCompressionCompletion = 1;
@@ -362,13 +363,13 @@ static void adaptCompressionLevel(adaptCCtx* ctx)
     pthread_mutex_unlock(&ctx->compressionCompletion_mutex.pMutex);
 
     pthread_mutex_lock(&ctx->writeCompletion_mutex.pMutex);
-    DEBUG(2, "cw %f\n", ctx->compressWaitWriteCompletion);
+    DEBUG(2, "compressWaitWriteCompletion %f\n", ctx->compressWaitWriteCompletion);
     compressWaitWriteCompletion = ctx->compressWaitWriteCompletion;
     ctx->compressWaitWriteCompletion = 1;
     pthread_mutex_unlock(&ctx->writeCompletion_mutex.pMutex);
 
     pthread_mutex_lock(&ctx->createCompletion_mutex.pMutex);
-    DEBUG(2, "cr %f\n", ctx->compressWaitCreateCompletion);
+    DEBUG(2, "compressWaitCreateCompletion %f\n", ctx->compressWaitCreateCompletion);
     compressWaitCreateCompletion = ctx->compressWaitCreateCompletion;
     ctx->compressWaitCreateCompletion = 1;
     pthread_mutex_unlock(&ctx->createCompletion_mutex.pMutex);
@@ -439,8 +440,8 @@ static void adaptCompressionLevel(adaptCCtx* ctx)
 static size_t getUseableDictSize(unsigned compressionLevel)
 {
     ZSTD_parameters params = ZSTD_getParams(compressionLevel, 0, 0);
-    unsigned overlapLog = compressionLevel >= (unsigned)ZSTD_maxCLevel() ? 0 : 3;
-    size_t overlapSize = 1 << (params.cParams.windowLog - overlapLog);
+    unsigned const overlapLog = compressionLevel >= (unsigned)ZSTD_maxCLevel() ? 0 : 3;
+    size_t const overlapSize = 1 << (params.cParams.windowLog - overlapLog);
     return overlapSize;
 }
 
@@ -450,7 +451,7 @@ static void* compressionThread(void* arg)
     unsigned currJob = 0;
     for ( ; ; ) {
         unsigned const currJobIndex = currJob % ctx->numJobs;
-        jobDescription* job = &ctx->jobs[currJobIndex];
+        jobDescription* const job = &ctx->jobs[currJobIndex];
         DEBUG(2, "starting compression for job %u\n", currJob);
 
         {
@@ -610,7 +611,7 @@ static void* outputThread(void* arg)
     unsigned currJob = 0;
     for ( ; ; ) {
         unsigned const currJobIndex = currJob % ctx->numJobs;
-        jobDescription* job = &ctx->jobs[currJobIndex];
+        jobDescription* const job = &ctx->jobs[currJobIndex];
         DEBUG(2, "starting write for job %u\n", currJob);
         pthread_mutex_lock(&ctx->jobCompressed_mutex.pMutex);
         while (currJob + 1 > ctx->jobCompressedID && !ctx->threadError) {
@@ -686,7 +687,7 @@ static int createCompressionJob(adaptCCtx* ctx, size_t srcSize, int last)
 {
     unsigned const nextJob = ctx->nextJobID;
     unsigned const nextJobIndex = nextJob % ctx->numJobs;
-    jobDescription* job = &ctx->jobs[nextJobIndex];
+    jobDescription* const job = &ctx->jobs[nextJobIndex];
 
 
     /* wait until the job has been compressed */
@@ -736,6 +737,7 @@ static int createCompressionJob(adaptCCtx* ctx, size_t srcSize, int last)
 
 static int performCompression(adaptCCtx* ctx, FILE* const srcFile, outputThreadArg* otArg)
 {
+    /* early error check to exit */
     if (!ctx || !srcFile || !otArg) {
         return 1;
     }

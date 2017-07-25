@@ -29,7 +29,12 @@
 #define CONVERGENCE_LOWER_BOUND 5
 #define CLEVEL_DECREASE_COOLDOWN 5
 
+#ifndef DEBUG_MODE
 static int g_displayLevel = DEFAULT_DISPLAY_LEVEL;
+#else
+static int g_displayLevel = DEBUG_MODE;
+#endif
+
 static unsigned g_compressionLevel = DEFAULT_COMPRESSION_LEVEL;
 static UTIL_time_t g_startTime;
 static size_t g_streamedSize = 0;
@@ -949,7 +954,6 @@ static void help()
     PRINT("\n");
     PRINT("Options:\n");
     PRINT("  -oFILE : specify the output file name\n");
-    PRINT("  -v     : display debug information\n");
     PRINT("  -i#    : provide initial compression level\n");
     PRINT("  -h     : display help/information\n");
     PRINT("  -f     : force the compression level to stay constant\n");
@@ -983,9 +987,6 @@ int main(int argCount, const char* argv[])
                 case 'o':
                     argument += 2;
                     outFilename = argument;
-                    break;
-                case 'v':
-                    g_displayLevel++;
                     break;
                 case 'i':
                     argument += 2;

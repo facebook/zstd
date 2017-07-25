@@ -24,6 +24,9 @@ all: adapt datagen
 adapt: $(ZSTD_FILES) adapt.c
 	$(CC) $(FLAGS) $^ -o $@
 
+adapt-debug: $(ZSTD_FILES) adapt.c
+	$(CC) $(FLAGS) -DDEBUG_MODE=2 $^ -o adapt
+
 datagen : $(PRGDIR)/datagen.c datagencli.c
 	$(CC)      $(FLAGS) $^ -o $@$(EXT)
 

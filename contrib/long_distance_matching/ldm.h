@@ -17,17 +17,22 @@
 // THe number of bytes storing the offset.
 #define LDM_OFFSET_SIZE 4
 
+// =============================================================================
+// User parameters.
+// =============================================================================
+
 // Defines the size of the hash table.
 // Note that this is not the number of buckets.
 // Currently this should be less than WINDOW_SIZE_LOG + 4?
-#define LDM_MEMORY_USAGE 23
+#define LDM_MEMORY_USAGE 25
 
 // The number of entries in a hash bucket.
-#define HASH_BUCKET_SIZE_LOG 0 // The maximum is 4 for now.
+#define HASH_BUCKET_SIZE_LOG 3 // The maximum is 4 for now.
 
 // Defines the lag in inserting elements into the hash table.
 #define LDM_LAG 0
 
+// The maximum window size.
 #define LDM_WINDOW_SIZE_LOG 28 // Max value is 30
 #define LDM_WINDOW_SIZE (1 << (LDM_WINDOW_SIZE_LOG))
 
@@ -37,10 +42,11 @@
 
 // Experimental.
 //#define TMP_EVICTION    // Experiment with eviction policies.
-#define TMP_TAG_INSERT    // Insertion policy based on hash.
+#define INSERT_BY_TAG // Insertion policy based on hash.
 
 #define USE_CHECKSUM 1
-//#define USE_CHECKSUM (HASH_BUCKET_SIZE_LOG)
+
+// =============================================================================
 
 typedef struct LDM_compressStats LDM_compressStats;
 typedef struct LDM_CCtx LDM_CCtx;

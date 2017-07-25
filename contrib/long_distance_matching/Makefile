@@ -1,5 +1,5 @@
 # ################################################################
-# Copyright (c) 2016-present, Yann Collet, Facebook, Inc.
+# Copyright (c) 2016-present, Facebook, Inc.
 # All rights reserved.
 #
 # This source code is licensed under the BSD-style license found in the
@@ -25,19 +25,16 @@ LDFLAGS += -lzstd
 
 default: all
 
-all: main-circular-buffer main-integrated main-64 
+all: main-hash32 main-hash64 
 
-main-circular-buffer: ldm_common.c circular_buffer_table.c ldm.c main-ldm.c
+main-hash64: ldm_common.c ldm_hash64.c main.c
 	$(CC) $(CPPFLAGS) $(CFLAGS) $^ $(LDFLAGS) -o $@
 
-main-64: ldm_common.c ldm_64_hash.c main-ldm.c
-	$(CC) $(CPPFLAGS) $(CFLAGS) $^ $(LDFLAGS) -o $@
-
-main-integrated: ldm_common.c ldm_integrated.c main-ldm.c
+main-hash32: ldm_common.c ldm_hash32.c main.c
 	$(CC) $(CPPFLAGS) $(CFLAGS) $^ $(LDFLAGS) -o $@
 
 clean:
 	@rm -f core *.o tmp* result* *.ldm *.ldm.dec \
-	main-circular-buffer main-64 main-integrated 
+	main-hash64 main-hash32
 	@echo Cleaning completed
 

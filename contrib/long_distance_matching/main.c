@@ -12,7 +12,7 @@
 #include "ldm.h"
 #include "zstd.h"
 
-//#define TEST
+//#define DECOMPRESS_AND_VERIFY
 
 /* Compress file given by fname and output to oname.
  * Returns 0 if successful, error code otherwise.
@@ -91,9 +91,10 @@ static int compress(const char *fname, const char *oname) {
   ftruncate(fdout, compressedSize);
 
 
-  printf("%25s : %10lu -> %10lu - %s (%.2fx --- %.1f%%)\n", fname,
-         (size_t)statbuf.st_size, (size_t)compressedSize, oname,
-         (statbuf.st_size) / (double)compressedSize,
+  printf("%25s : %10lu -> %10lu - %s \n", fname,
+         (size_t)statbuf.st_size, (size_t)compressedSize, oname);
+  printf("Compression ratio: %.2fx --- %.1f%%\n",
+         (double)statbuf.st_size / (double)compressedSize,
          (double)compressedSize / (double)(statbuf.st_size) * 100.0);
 
   timeTaken = (double) (tv2.tv_usec - tv1.tv_usec) / 1000000 +
@@ -110,6 +111,7 @@ static int compress(const char *fname, const char *oname) {
   return 0;
 }
 
+#ifdef DECOMPRESS
 /* Decompress file compressed using LDM_compress.
  * The input file should have the LDM_HEADER followed by payload.
  * Returns 0 if succesful, and an error code otherwise.
@@ -162,7 +164,6 @@ static int decompress(const char *fname, const char *oname) {
       src + LDM_HEADER_SIZE, statbuf.st_size - LDM_HEADER_SIZE,
       dst, decompressedSize);
   printf("Ret size out: %zu\n", outSize);
-//  ftruncate(fdout, decompressedSize);
 
   close(fdin);
   close(fdout);
@@ -207,6 +208,7 @@ static void verify(const char *inpFilename, const char *decFilename) {
 	fclose(decFp);
 	fclose(inpFp);
 }
+#endif
 
 int main(int argc, const char *argv[]) {
   const char * const exeName = argv[0];
@@ -237,6 +239,7 @@ int main(int argc, const char *argv[]) {
     }
   }
 
+#ifdef DECOMPRESS_AND_VERIFY
   /* Decompress */
   {
     struct timeval tv1, tv2;
@@ -252,6 +255,6 @@ int main(int argc, const char *argv[]) {
   }
   /* verify */
   verify(inpFilename, decFilename);
-
+#endif
   return 0;
 }

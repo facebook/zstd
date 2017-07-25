@@ -311,6 +311,19 @@ static void waitUntilAllJobsCompleted(adaptCCtx* ctx)
     pthread_mutex_unlock(&ctx->allJobsCompleted_mutex.pMutex);
 }
 
+static unsigned convertCompletionToChange(double completion)
+{
+    if (completion < 0.05) {
+        return 2;
+    }
+    else if (completion < 0.5) {
+        return 1;
+    }
+    else {
+        return 0;
+    }
+}
+
 /*
  * Compression level is changed depending on which part of the compression process is lagging
  * Currently, three theads exist for job creation, compression, and file writing respectively.
@@ -357,7 +370,7 @@ static void adaptCompressionLevel(adaptCCtx* ctx)
         /* create or write waiting on compression */
         /* use whichever one waited less because it was slower */
         double const completion = MAX(createWaitCompressionCompletion, writeWaitCompressionCompletion);
-        unsigned const change = (unsigned)((1-completion) * MAX_COMPRESSION_LEVEL_CHANGE);
+        unsigned const change = convertCompletionToChange(completion);
         unsigned const boundChange = MIN(change, ctx->compressionLevel - 1);
         if (ctx->convergenceCounter > CONVERGENCE_LOWER_BOUND && boundChange != 0) {
             /* reset convergence counter, might have been a spike */
@@ -373,7 +386,7 @@ static void adaptCompressionLevel(adaptCCtx* ctx)
     else if (1-compressWaitWriteCompletion > threshold) {
         /* compress waiting on write */
         double const completion = compressWaitWriteCompletion;
-        unsigned const change = (unsigned)((1-completion) * MAX_COMPRESSION_LEVEL_CHANGE);
+        unsigned const change = convertCompletionToChange(completion);
         unsigned const boundChange = MIN(change, ZSTD_maxCLevel() - ctx->compressionLevel);
         if (ctx->convergenceCounter > CONVERGENCE_LOWER_BOUND && boundChange != 0) {
             ctx->convergenceCounter = 0;
@@ -389,7 +402,7 @@ static void adaptCompressionLevel(adaptCCtx* ctx)
         /* compress waiting on create*/
         /* use compressWaitCreateCompletion */
         double const completion = compressWaitCreateCompletion;
-        unsigned const change = (unsigned)((1-completion) * MAX_COMPRESSION_LEVEL_CHANGE);
+        unsigned const change = convertCompletionToChange(completion);
         unsigned const boundChange = MIN(change, ZSTD_maxCLevel() - ctx->compressionLevel);
         if (ctx->convergenceCounter > CONVERGENCE_LOWER_BOUND && boundChange != 0) {
             ctx->convergenceCounter = 0;

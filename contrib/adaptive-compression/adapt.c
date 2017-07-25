@@ -600,7 +600,7 @@ static void* compressionThread(void* arg)
     return arg;
 }
 
-static void displayProgress(unsigned jobDoneID, unsigned cLevel, unsigned last)
+static void displayProgress(unsigned cLevel, unsigned last)
 {
     if (!g_useProgressBar) return;
     UTIL_time_t currTime;
@@ -608,7 +608,7 @@ static void displayProgress(unsigned jobDoneID, unsigned cLevel, unsigned last)
     double const timeElapsed = (double)(UTIL_getSpanTimeMicro(g_ticksPerSecond, g_startTime, currTime) / 1000.0);
     double const sizeMB = (double)g_streamedSize / (1 << 20);
     double const avgCompRate = sizeMB * 1000 / timeElapsed;
-    fprintf(stderr, "\r| %4u jobs completed | Current Compresion Level: %2u | Time Elapsed: %5.0f ms | Data Size: %7.1f MB | Avg Compression Rate: %6.2f MB/s |", jobDoneID, cLevel, timeElapsed, sizeMB, avgCompRate);
+    fprintf(stderr, "\r| Comp. Level: %2u | Time Elapsed: %5.0f ms | Data Size: %7.1f MB | Avg Comp. Rate: %6.2f MB/s |", cLevel, timeElapsed/1000.0, sizeMB, avgCompRate);
     if (last) {
         fprintf(stderr, "\n");
     }
@@ -681,7 +681,7 @@ static void* outputThread(void* arg)
             }
         }
         DEBUG(3, "finished job write %u\n", currJob);
-        displayProgress(currJob, ctx->compressionLevel, job->lastJobPlusOne == currJob + 1);
+        displayProgress(ctx->compressionLevel, job->lastJobPlusOne == currJob + 1);
         DEBUG(3, "locking job write mutex\n");
         pthread_mutex_lock(&ctx->jobWrite_mutex.pMutex);
         ctx->jobWriteID++;

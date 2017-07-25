@@ -439,7 +439,7 @@ static void adaptCompressionLevel(adaptCCtx* ctx)
 
 static size_t getUseableDictSize(unsigned compressionLevel)
 {
-    ZSTD_parameters params = ZSTD_getParams(compressionLevel, 0, 0);
+    ZSTD_parameters const params = ZSTD_getParams(compressionLevel, 0, 0);
     unsigned const overlapLog = compressionLevel >= (unsigned)ZSTD_maxCLevel() ? 0 : 3;
     size_t const overlapSize = 1 << (params.cParams.windowLog - overlapLog);
     return overlapSize;
@@ -447,7 +447,7 @@ static size_t getUseableDictSize(unsigned compressionLevel)
 
 static void* compressionThread(void* arg)
 {
-    adaptCCtx* ctx = (adaptCCtx*)arg;
+    adaptCCtx* const ctx = (adaptCCtx*)arg;
     unsigned currJob = 0;
     for ( ; ; ) {
         unsigned const currJobIndex = currJob % ctx->numJobs;
@@ -593,7 +593,7 @@ static void displayProgress(unsigned cLevel, unsigned last)
     double const timeElapsed = (double)(UTIL_getSpanTimeMicro(g_ticksPerSecond, g_startTime, currTime) / 1000.0);
     double const sizeMB = (double)g_streamedSize / (1 << 20);
     double const avgCompRate = sizeMB * 1000 / timeElapsed;
-    fprintf(stderr, "\r| Comp. Level: %2u | Time Elapsed: %5.0f s | Data Size: %7.1f MB | Avg Comp. Rate: %6.2f MB/s |", cLevel, timeElapsed/1000.0, sizeMB, avgCompRate);
+    fprintf(stderr, "\r| Comp. Level: %2u | Time Elapsed: %7.2f s | Data Size: %7.1f MB | Avg Comp. Rate: %6.2f MB/s |", cLevel, timeElapsed/1000.0, sizeMB, avgCompRate);
     if (last) {
         fprintf(stderr, "\n");
     }
@@ -638,7 +638,6 @@ static void* outputThread(void* arg)
                 return arg;
             }
             {
-                // size_t const writeSize = fwrite(job->dst.start, 1, compressedSize, dstFile);
                 size_t const blockSize = MAX(compressedSize >> 7, 1 << 10);
                 size_t pos = 0;
                 for ( ; ; ) {

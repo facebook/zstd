@@ -26,7 +26,8 @@
 #define DEFAULT_COMPRESSION_LEVEL 6
 #define DEFAULT_ADAPT_PARAM 0
 #define MAX_COMPRESSION_LEVEL_CHANGE 2
-#define CONVERGENCE_LOWER_BOUND 3
+#define CONVERGENCE_LOWER_BOUND 5
+#define CLEVEL_DECREASE_COOLDOWN 5
 
 static int g_displayLevel = DEFAULT_DISPLAY_LEVEL;
 static unsigned g_compressionLevel = DEFAULT_COMPRESSION_LEVEL;
@@ -79,6 +80,7 @@ typedef struct {
     unsigned allJobsCompleted;
     unsigned adaptParam;
     unsigned convergenceCounter;
+    unsigned cooldown;
     double createWaitCompressionCompletion;
     double compressWaitCreateCompletion;
     double compressWaitWriteCompletion;
@@ -216,6 +218,7 @@ static int initCCtx(adaptCCtx* ctx, unsigned numJobs)
     ctx->writeCompletion = 1;
     ctx->compressionCompletion = 1;
     ctx->convergenceCounter = 0;
+    ctx->cooldown = 0;
 
     ctx->jobs = calloc(1, numJobs*sizeof(jobDescription));
 
@@ -365,8 +368,11 @@ static void adaptCompressionLevel(adaptCCtx* ctx)
     ctx->compressWaitCreateCompletion = 1;
     pthread_mutex_unlock(&ctx->createCompletion_mutex.pMutex);
     DEBUG(2, "convergence counter: %u\n", ctx->convergenceCounter);
+
     /* adaptation logic */
-    if (1-createWaitCompressionCompletion > threshold || 1-writeWaitCompressionCompletion > threshold) {
+    if (ctx->cooldown) ctx->cooldown--;
+
+    if ((1-createWaitCompressionCompletion > threshold || 1-writeWaitCompressionCompletion > threshold) && ctx->cooldown == 0) {
         /* create or write waiting on compression */
         /* use whichever one waited less because it was slower */
         double const completion = MAX(createWaitCompressionCompletion, writeWaitCompressionCompletion);
@@ -378,6 +384,7 @@ static void adaptCompressionLevel(adaptCCtx* ctx)
         }
         else if (boundChange != 0) {
             ctx->compressionLevel -= boundChange;
+            ctx->cooldown = CLEVEL_DECREASE_COOLDOWN;
             ctx->convergenceCounter = 1;
         }
 

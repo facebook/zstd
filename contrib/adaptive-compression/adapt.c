@@ -593,7 +593,7 @@ static void displayProgress(unsigned cLevel, unsigned last)
     double const timeElapsed = (double)(UTIL_getSpanTimeMicro(g_ticksPerSecond, g_startTime, currTime) / 1000.0);
     double const sizeMB = (double)g_streamedSize / (1 << 20);
     double const avgCompRate = sizeMB * 1000 / timeElapsed;
-    fprintf(stderr, "\r| Comp. Level: %2u | Time Elapsed: %5.0f ms | Data Size: %7.1f MB | Avg Comp. Rate: %6.2f MB/s |", cLevel, timeElapsed/1000.0, sizeMB, avgCompRate);
+    fprintf(stderr, "\r| Comp. Level: %2u | Time Elapsed: %5.0f s | Data Size: %7.1f MB | Avg Comp. Rate: %6.2f MB/s |", cLevel, timeElapsed/1000.0, sizeMB, avgCompRate);
     if (last) {
         fprintf(stderr, "\n");
     }

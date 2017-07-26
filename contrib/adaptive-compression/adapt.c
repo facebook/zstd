@@ -924,6 +924,7 @@ static void help()
     PRINT("  -i#    : provide initial compression level\n");
     PRINT("  -h     : display help/information\n");
     PRINT("  -f     : force the compression level to stay constant\n");
+    PRINT("  -c     : force write to stdout\n");
     PRINT("  -p     : hide progress bar\n");
     PRINT("  -q     : quiet mode -- do not show progress bar or other information\n");
 }

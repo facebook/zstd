@@ -12,10 +12,12 @@
 #include "ldm.h"
 #include "zstd.h"
 
-#define DECOMPRESS_AND_VERIFY
+// #define DECOMPRESS_AND_VERIFY
 
 /* Compress file given by fname and output to oname.
  * Returns 0 if successful, error code otherwise.
+ *
+ * This adds a header from LDM_writeHeader to the beginning of the output.
  *
  * This might seg fault if the compressed size is > the decompress
  * size due to the mmapping and output file size allocated to be the input size
@@ -52,7 +54,7 @@ static int compress(const char *fname, const char *oname) {
   maxCompressedSize = (statbuf.st_size + LDM_HEADER_SIZE);
 
   // Handle case where compressed size is > decompressed size.
-  // The compress function should check before writing or buffer writes.
+  // TODO: The compress function should check before writing or buffer writes.
   maxCompressedSize += statbuf.st_size / 255;
 
   ftruncate(fdout, maxCompressedSize);
@@ -64,7 +66,7 @@ static int compress(const char *fname, const char *oname) {
       return 1;
   }
 
-  /* mmap the output file */
+  /* mmap the output file. */
   if ((dst = mmap(0, maxCompressedSize, PROT_READ | PROT_WRITE,
                   MAP_SHARED, fdout, 0)) == (caddr_t) - 1) {
       perror("mmap error for output");
@@ -79,13 +81,11 @@ static int compress(const char *fname, const char *oname) {
 
   gettimeofday(&tv2, NULL);
 
-  // Write compress and decompress size to header
-  // TODO: should depend on LDM_DECOMPRESS_SIZE write32
+  // Write the header.
   LDM_writeHeader(dst, compressedSize, statbuf.st_size);
 
   // Truncate file to compressedSize.
   ftruncate(fdout, compressedSize);
-
 
   printf("%25s : %10lu -> %10lu - %s \n", fname,
          (size_t)statbuf.st_size, (size_t)compressedSize, oname);
@@ -99,7 +99,6 @@ static int compress(const char *fname, const char *oname) {
   printf("Total compress time = %.3f seconds, Average scanning speed: %.3f MB/s\n",
          timeTaken,
          ((double)statbuf.st_size / (double) (1 << 20)) / timeTaken);
-
 
   // Close files.
   close(fdin);

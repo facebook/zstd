@@ -28,6 +28,8 @@
 #define MAX_COMPRESSION_LEVEL_CHANGE 2
 #define CONVERGENCE_LOWER_BOUND 5
 #define CLEVEL_DECREASE_COOLDOWN 5
+#define CHANGE_BY_TWO_THRESHOLD 0.1
+#define CHANGE_BY_ONE_THRESHOLD 0.65
 
 #ifndef DEBUG_MODE
 static int g_displayLevel = DEFAULT_DISPLAY_LEVEL;
@@ -322,10 +324,10 @@ static void waitUntilAllJobsCompleted(adaptCCtx* ctx)
 /* map completion percentages to values for changing compression level */
 static unsigned convertCompletionToChange(double completion)
 {
-    if (completion < 0.1) {
+    if (completion < CHANGE_BY_TWO_THRESHOLD) {
         return 2;
     }
-    else if (completion < 0.65) {
+    else if (completion < CHANGE_BY_ONE_THRESHOLD) {
         return 1;
     }
     else {
@@ -349,6 +351,13 @@ static void adaptCompressionLevel(adaptCCtx* ctx)
     double writeWaitCompressionCompletion;
     double const threshold = 0.00001;
     unsigned const prevCompressionLevel = ctx->compressionLevel;
+
+
+    if (g_forceCompressionLevel) {
+        ctx->compressionLevel = g_compressionLevel;
+        return;
+    }
+
 
     DEBUG(2, "adapting compression level %u\n", ctx->compressionLevel);
 
@@ -419,10 +428,6 @@ static void adaptCompressionLevel(adaptCCtx* ctx)
 
     if (ctx->compressionLevel == prevCompressionLevel) {
         ctx->convergenceCounter++;
-    }
-
-    if (g_forceCompressionLevel) {
-        ctx->compressionLevel = g_compressionLevel;
     }
 }
 
@@ -500,7 +505,7 @@ static void* compressionThread(void* arg)
         DEBUG(2, "job %u compressed with level %u\n", currJob, ctx->compressionLevel);
         /* compress the data */
         {
-            size_t const compressionBlockSize = 1 << 17; /* 128 KB */
+            size_t const compressionBlockSize = ZSTD_BLOCKSIZE_MAX; /* 128 KB */
             unsigned const cLevel = ctx->compressionLevel;
             unsigned blockNum = 0;
             size_t remaining = job->src.size;

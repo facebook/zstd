@@ -25,16 +25,13 @@ LDFLAGS += -lzstd
 
 default: all
 
-all: main-64 main-integrated 
-
-main-64: ldm_common.c ldm_hash64.c main.c
-	$(CC) $(CPPFLAGS) $(CFLAGS) $^ $(LDFLAGS) -o $@
-
-main-integrated: ldm_common.c ldm_hash32.c main.c
+all: ldm 
+	
+ldm: ldm_common.c ldm.c main.c
 	$(CC) $(CPPFLAGS) $(CFLAGS) $^ $(LDFLAGS) -o $@
 
 clean:
 	@rm -f core *.o tmp* result* *.ldm *.ldm.dec \
-	main-hash64 main-hash32 main-64 main-integrated
+	ldm	
 	@echo Cleaning completed
 

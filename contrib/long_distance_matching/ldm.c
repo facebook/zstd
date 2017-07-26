@@ -16,20 +16,20 @@
   #define LDM_HASH_ENTRY_SIZE_LOG 2
 #endif
 
+// Force the "probability" of insertion to be some value.
+// Entries are inserted into the table HASH_ONLY_EVERY + 1 times "on average".
+
 //#define HASH_ONLY_EVERY_LOG 7
 #define HASH_ONLY_EVERY_LOG (LDM_WINDOW_SIZE_LOG-((LDM_MEMORY_USAGE)-(LDM_HASH_ENTRY_SIZE_LOG)))
-
 #define HASH_ONLY_EVERY ((1 << (HASH_ONLY_EVERY_LOG)) - 1)
 
 #define HASH_BUCKET_SIZE (1 << (HASH_BUCKET_SIZE_LOG))
-#define LDM_HASHLOG ((LDM_MEMORY_USAGE)-(LDM_HASH_ENTRY_SIZE_LOG)-(HASH_BUCKET_SIZE_LOG))
+#define NUM_HASH_BUCKETS_LOG ((LDM_MEMORY_USAGE)-(LDM_HASH_ENTRY_SIZE_LOG)-(HASH_BUCKET_SIZE_LOG))
 
 #define HASH_CHAR_OFFSET 10
 
-// Take first match only.
+// Take the first match in the hash bucket only.
 //#define ZSTD_SKIP
-
-//#define RUN_CHECKS
 
 static const U64 prime8bytes = 11400714785074694791ULL;
 
@@ -101,10 +101,6 @@ struct LDM_CCtx {
 
   const BYTE *lagIp;
   U64 lagHash;
-
-#ifdef RUN_CHECKS
-  const BYTE *DEBUG_setNextHash;
-#endif
 };
 
 struct LDM_hashTable {
@@ -119,7 +115,7 @@ struct LDM_hashTable {
  * Create a hash table that can contain size elements.
  * The number of buckets is determined by size >> HASH_BUCKET_SIZE_LOG.
  */
-LDM_hashTable *HASH_createTable(U32 size) {
+static LDM_hashTable *HASH_createTable(U32 size) {
   LDM_hashTable *table = malloc(sizeof(LDM_hashTable));
   table->numBuckets = size >> HASH_BUCKET_SIZE_LOG;
   table->numEntries = size;
@@ -239,7 +235,7 @@ static size_t ZSTD_count(const BYTE *pIn, const BYTE *pMatch,
 /**
  * Count number of bytes that match backwards before pIn and pMatch.
  *
- * We count only bytes where pMatch > pBaes and pIn > pAnchor.
+ * We count only bytes where pMatch > pBase and pIn > pAnchor.
  */
 static size_t countBackwardsMatch(const BYTE *pIn, const BYTE *pAnchor,
                                   const BYTE *pMatch, const BYTE *pBase) {
@@ -262,13 +258,12 @@ static size_t countBackwardsMatch(const BYTE *pIn, const BYTE *pAnchor,
  * The forward match is computed from cctx->ip and entry->offset + cctx->ibase.
  * The backward match is computed backwards from cctx->ip and
  * cctx->ibase only if the forward match is longer than LDM_MIN_MATCH_LENGTH.
- *
  */
-LDM_hashEntry *HASH_getBestEntry(const LDM_CCtx *cctx,
-                                 const hash_t hash,
-                                 const U32 checksum,
-                                 U64 *pForwardMatchLength,
-                                 U64 *pBackwardMatchLength) {
+static LDM_hashEntry *HASH_getBestEntry(const LDM_CCtx *cctx,
+                                        const hash_t hash,
+                                        const U32 checksum,
+                                        U64 *pForwardMatchLength,
+                                        U64 *pBackwardMatchLength) {
   LDM_hashTable *table = cctx->hashTable;
   LDM_hashEntry *bucket = getBucket(table, hash);
   LDM_hashEntry *cur = bucket;
@@ -321,24 +316,24 @@ LDM_hashEntry *HASH_getBestEntry(const LDM_CCtx *cctx,
   return NULL;
 }
 
-void HASH_insert(LDM_hashTable *table,
-                 const hash_t hash, const LDM_hashEntry entry) {
+/**
+ * Insert an entry into the hash table. The table uses a "circular buffer",
+ * with the oldest entry overwritten.
+ */
+static void HASH_insert(LDM_hashTable *table,
+                        const hash_t hash, const LDM_hashEntry entry) {
   *(getBucket(table, hash) + table->bucketOffsets[hash]) = entry;
   table->bucketOffsets[hash]++;
   table->bucketOffsets[hash] &= HASH_BUCKET_SIZE - 1;
 }
 
-U32 HASH_getSize(const LDM_hashTable *table) {
-  return table->numBuckets;
-}
-
-void HASH_destroyTable(LDM_hashTable *table) {
+static void HASH_destroyTable(LDM_hashTable *table) {
   free(table->entries);
   free(table->bucketOffsets);
   free(table);
 }
 
-void HASH_outputTableOccupancy(const LDM_hashTable *table) {
+static void HASH_outputTableOccupancy(const LDM_hashTable *table) {
   U32 ctr = 0;
   LDM_hashEntry *cur = table->entries;
   LDM_hashEntry *end = table->entries + (table->numBuckets * HASH_BUCKET_SIZE);
@@ -350,7 +345,7 @@ void HASH_outputTableOccupancy(const LDM_hashTable *table) {
 
   // The number of buckets is repeated as a check for now.
   printf("Num buckets, bucket size: %d (2^%d), %d\n",
-         table->numBuckets, LDM_HASHLOG, HASH_BUCKET_SIZE);
+         table->numBuckets, NUM_HASH_BUCKETS_LOG, HASH_BUCKET_SIZE);
   printf("Hash table size, empty slots, %% empty: %u, %u, %.3f\n",
          table->numEntries, ctr,
          100.0 * (double)(ctr) / table->numEntries);
@@ -418,31 +413,32 @@ void LDM_printCompressStats(const LDM_compressStats *stats) {
 }
 
 /**
- * Return the upper (most significant) LDM_HASHLOG bits.
+ * Return the upper (most significant) NUM_HASH_BUCKETS_LOG bits.
  */
 static hash_t getSmallHash(U64 hash) {
-  return hash >> (64 - LDM_HASHLOG);
+  return hash >> (64 - NUM_HASH_BUCKETS_LOG);
 }
 
 /**
- * Return the 32 bits after the upper LDM_HASHLOG bits.
+ * Return the 32 bits after the upper NUM_HASH_BUCKETS_LOG bits.
  */
 static U32 getChecksum(U64 hash) {
-  return (hash >> (64 - 32 - LDM_HASHLOG)) & 0xFFFFFFFF;
+  return (hash >> (64 - 32 - NUM_HASH_BUCKETS_LOG)) & 0xFFFFFFFF;
 }
 
 #if INSERT_BY_TAG
 static U32 lowerBitsFromHfHash(U64 hash) {
-  // The number of bits used so far is LDM_HASHLOG + 32.
-  // So there are 32 - LDM_HASHLOG bits left.
+  // The number of bits used so far is NUM_HASH_BUCKETS_LOG + 32.
+  // So there are 32 - NUM_HASH_BUCKETS_LOG bits left.
   // Occasional hashing requires HASH_ONLY_EVERY_LOG bits.
   // So if 32 - LDMHASHLOG < HASH_ONLY_EVERY_LOG, just return lower bits
   // allowing for reuse of bits.
-  if (32 - LDM_HASHLOG < HASH_ONLY_EVERY_LOG) {
+  if (32 - NUM_HASH_BUCKETS_LOG < HASH_ONLY_EVERY_LOG) {
     return hash & HASH_ONLY_EVERY;
   } else {
-    // Otherwise shift by (32 - LDM_HASHLOG - HASH_ONLY_EVERY_LOG) bits first.
-    return (hash >> (32 - LDM_HASHLOG - HASH_ONLY_EVERY_LOG)) &
+    // Otherwise shift by
+    // (32 - NUM_HASH_BUCKETS_LOG - HASH_ONLY_EVERY_LOG) bits first.
+    return (hash >> (32 - NUM_HASH_BUCKETS_LOG - HASH_ONLY_EVERY_LOG)) &
            HASH_ONLY_EVERY;
   }
 }
@@ -501,17 +497,6 @@ static U64 updateHash(U64 hash, U32 len,
  * corresponds to cctx->nextIp - step.
  */
 static void setNextHash(LDM_CCtx *cctx) {
-#ifdef RUN_CHECKS
-  U64 check;
-  if ((cctx->nextIp - cctx->ibase != 1) &&
-      (cctx->nextIp - cctx->DEBUG_setNextHash != 1)) {
-    printf("CHECK debug fail: %zu %zu\n", cctx->nextIp - cctx->ibase,
-            cctx->DEBUG_setNextHash - cctx->ibase);
-  }
-
-  cctx->DEBUG_setNextHash = cctx->nextIp;
-#endif
-
   cctx->nextHash = updateHash(
       cctx->lastHash, LDM_HASH_LENGTH,
       cctx->lastPosHashed[0],
@@ -532,20 +517,6 @@ static void setNextHash(LDM_CCtx *cctx) {
       cctx->lagHash, LDM_HASH_LENGTH,
       cctx->lagIp[0], cctx->lagIp[LDM_HASH_LENGTH]);
     cctx->lagIp++;
-  }
-#endif
-
-#ifdef RUN_CHECKS
-  check = getHash(cctx->nextIp, LDM_HASH_LENGTH);
-
-  if (check != cctx->nextHash) {
-    printf("CHECK: setNextHash failed %llu %llu\n", check, cctx->nextHash);
-  }
-
-  if ((cctx->nextIp - cctx->lastPosHashed) != 1) {
-    printf("setNextHash: nextIp != lastPosHashed + 1. %zu %zu %zu\n",
-            cctx->nextIp - cctx->ibase, cctx->lastPosHashed - cctx->ibase,
-            cctx->ip - cctx->ibase);
   }
 #endif
 }
@@ -605,12 +576,6 @@ static void putHashOfCurrentPositionFromHash(LDM_CCtx *cctx, U64 hash) {
  * This requires that cctx->ip == cctx->nextPosHashed.
  */
 static void LDM_updateLastHashFromNextHash(LDM_CCtx *cctx) {
-#ifdef RUN_CHECKS
-  if (cctx->ip != cctx->nextPosHashed) {
-    printf("CHECK failed: updateLastHashFromNextHash %zu\n",
-           cctx->ip - cctx->ibase);
-  }
-#endif
   putHashOfCurrentPositionFromHash(cctx, cctx->nextHash);
 }
 
@@ -619,13 +584,6 @@ static void LDM_updateLastHashFromNextHash(LDM_CCtx *cctx) {
  */
 static void LDM_putHashOfCurrentPosition(LDM_CCtx *cctx) {
   U64 hash = getHash(cctx->ip, LDM_HASH_LENGTH);
-
-#ifdef RUN_CHECKS
-  if (cctx->nextPosHashed != cctx->ip && (cctx->ip != cctx->ibase)) {
-    printf("CHECK failed: putHashOfCurrentPosition %zu\n",
-           cctx->ip - cctx->ibase);
-  }
-#endif
 
   putHashOfCurrentPositionFromHash(cctx, hash);
 }
@@ -664,10 +622,6 @@ void LDM_initializeCCtx(LDM_CCtx *cctx,
   cctx->step = 1;   // Fixed to be 1 for now. Changing may break things.
   cctx->nextIp = cctx->ip + cctx->step;
   cctx->nextPosHashed = 0;
-
-#ifdef RUN_CHECKS
-  cctx->DEBUG_setNextHash = 0;
-#endif
 }
 
 void LDM_destroyCCtx(LDM_CCtx *cctx) {
@@ -805,6 +759,7 @@ size_t LDM_compress(const void *src, size_t srcSize,
 
   cctx.lagIp = cctx.ip;
   cctx.lagHash = cctx.lastHash;
+
   /**
    * Find a match.
    * If no more matches can be found (i.e. the length of the remaining input

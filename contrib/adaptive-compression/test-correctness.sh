@@ -237,4 +237,9 @@ rm tmp*
 zstd -d tmp.zst -o tmp2
 diff -s -q tmp tmp2
 rm tmp*
+
+echo -e "\ncorrectness tests -- window size test"
+./datagen -s39 -g1GB | pv -L 25m -q | ./adapt -i1 | pv -q > tmp.zst
+zstd -d tmp.zst
+rm tmp*
 make clean

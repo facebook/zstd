@@ -513,12 +513,16 @@ static void* compressionThread(void* arg)
             {
                 size_t const useDictSize = MIN(getUseableDictSize(cLevel), job->dictSize);
                 size_t const dictModeError = ZSTD_setCCtxParameter(ctx->cctx, ZSTD_p_forceRawDict, 1);
-                size_t const initError = ZSTD_compressBegin_usingDict(ctx->cctx, job->src.start + job->dictSize - useDictSize, useDictSize, cLevel);
-                size_t const windowSizeError = ZSTD_setCCtxParameter(ctx->cctx, ZSTD_p_forceWindow, 1);
-                if (ZSTD_isError(dictModeError) || ZSTD_isError(initError) || ZSTD_isError(windowSizeError)) {
-                    DISPLAY("Error: something went wrong while starting compression\n");
-                    signalErrorToThreads(ctx);
-                    return arg;
+                ZSTD_parameters params = ZSTD_getParams(cLevel, 0, useDictSize);
+                params.cParams.windowLog = 23;
+                {
+                    size_t const initError = ZSTD_compressBegin_advanced(ctx->cctx, job->src.start + job->dictSize - useDictSize, useDictSize, params, 0);
+                    size_t const windowSizeError = ZSTD_setCCtxParameter(ctx->cctx, ZSTD_p_forceWindow, 1);
+                    if (ZSTD_isError(dictModeError) || ZSTD_isError(initError) || ZSTD_isError(windowSizeError)) {
+                        DISPLAY("Error: something went wrong while starting compression\n");
+                        signalErrorToThreads(ctx);
+                        return arg;
+                    }
                 }
             }
             DEBUG(2, "finished with ZSTD_compressBegin()\n");

@@ -32,6 +32,6 @@ ldm: ldm_common.c ldm.c main.c
 
 clean:
 	@rm -f core *.o tmp* result* *.ldm *.ldm.dec \
-	ldm	
+	ldm
 	@echo Cleaning completed
 

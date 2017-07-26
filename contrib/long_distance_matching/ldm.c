@@ -16,11 +16,11 @@
   #define LDM_HASH_ENTRY_SIZE_LOG 2
 #endif
 
-// Force the "probability" of insertion to be some value.
 // Entries are inserted into the table HASH_ONLY_EVERY + 1 times "on average".
+#ifndef HASH_ONLY_EVERY_LOG
+  #define HASH_ONLY_EVERY_LOG (LDM_WINDOW_SIZE_LOG-((LDM_MEMORY_USAGE)-(LDM_HASH_ENTRY_SIZE_LOG)))
+#endif
 
-//#define HASH_ONLY_EVERY_LOG 7
-#define HASH_ONLY_EVERY_LOG (LDM_WINDOW_SIZE_LOG-((LDM_MEMORY_USAGE)-(LDM_HASH_ENTRY_SIZE_LOG)))
 #define HASH_ONLY_EVERY ((1 << (HASH_ONLY_EVERY_LOG)) - 1)
 
 #define HASH_BUCKET_SIZE (1 << (HASH_BUCKET_SIZE_LOG))

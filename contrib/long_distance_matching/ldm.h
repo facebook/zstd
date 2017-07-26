@@ -3,7 +3,7 @@
 
 #include "mem.h"    // from /lib/common/mem.h
 
-// #include "ldm_params.h"
+//#include "ldm_params.h"
 
 // =============================================================================
 // Modify the parameters in ldm_params.h if "ldm_params.h" is included.
@@ -23,7 +23,7 @@
   #define LDM_LAG 0
 
   // The maximum window size when searching for matches.
-  // The maximum value is 30.
+  // The maximum value is 30
   #define LDM_WINDOW_SIZE_LOG 28
 
   // The minimum match length.
@@ -46,6 +46,13 @@
 
 // Output the configuration.
 #define OUTPUT_CONFIGURATION
+
+// If defined, forces the probability of insertion to be approximately
+// one per (1 << HASH_ONLY_EVERY_LOG). If not defined, the probability will be
+// calculated based on the memory usage and window size for "even" insertion
+// throughout the window.
+
+// #define HASH_ONLY_EVERY_LOG 8
 
 // =============================================================================
 

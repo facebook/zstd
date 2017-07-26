@@ -384,33 +384,37 @@ static void adaptCompressionLevel(adaptCCtx* ctx)
         double const completion = MAX(createWaitCompressionCompletion, writeWaitCompressionCompletion);
         unsigned const change = convertCompletionToChange(completion);
         unsigned const boundChange = MIN(change, ctx->compressionLevel - 1);
-        if (ctx->convergenceCounter > CONVERGENCE_LOWER_BOUND && boundChange != 0) {
+        if (ctx->convergenceCounter >= CONVERGENCE_LOWER_BOUND && boundChange != 0) {
             /* reset convergence counter, might have been a spike */
             ctx->convergenceCounter = 0;
+            DEBUG(2, "convergence counter reset, no change applied\n");
         }
         else if (boundChange != 0) {
             ctx->compressionLevel -= boundChange;
             ctx->cooldown = CLEVEL_DECREASE_COOLDOWN;
             ctx->convergenceCounter = 1;
-        }
 
-        DEBUG(2, "create or write threads waiting on compression, tried to decrease compression level by %u\n\n", boundChange);
+            DEBUG(2, "create or write threads waiting on compression, tried to decrease compression level by %u\n\n", boundChange);
+        }
     }
     else if (1-compressWaitWriteCompletion > threshold || 1-compressWaitCreateCompletion > threshold) {
         /* compress waiting on write */
         double const completion = MIN(compressWaitWriteCompletion, compressWaitCreateCompletion);
         unsigned const change = convertCompletionToChange(completion);
         unsigned const boundChange = MIN(change, ZSTD_maxCLevel() - ctx->compressionLevel);
-        if (ctx->convergenceCounter > CONVERGENCE_LOWER_BOUND && boundChange != 0) {
+        if (ctx->convergenceCounter >= CONVERGENCE_LOWER_BOUND && boundChange != 0) {
+            /* reset convergence counter, might have been a spike */
             ctx->convergenceCounter = 0;
+            DEBUG(2, "convergence counter reset, no change applied\n");
         }
         else if (boundChange != 0) {
             ctx->compressionLevel += boundChange;
             ctx->cooldown = 0;
             ctx->convergenceCounter = 1;
+
+            DEBUG(2, "compress waiting on write or create, tried to increase compression level by %u\n\n", boundChange);
         }
 
-        DEBUG(2, "compress waiting on write or create, tried to increase compression level by %u\n\n", boundChange);
     }
 
     if (ctx->compressionLevel == prevCompressionLevel) {

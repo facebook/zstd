@@ -678,10 +678,6 @@ static int createCompressionJob(adaptCCtx* ctx, size_t srcSize, int last)
     jobDescription* const job = &ctx->jobs[nextJobIndex];
 
 
-    /* reset create completion */
-    pthread_mutex_lock(&ctx->createCompletion_mutex.pMutex);
-    ctx->createCompletion = 0;
-    pthread_mutex_unlock(&ctx->createCompletion_mutex.pMutex);
     job->compressionLevel = ctx->compressionLevel;
     job->src.size = srcSize;
     job->jobID = nextJob;
@@ -760,6 +756,11 @@ static int performCompression(adaptCCtx* ctx, FILE* const srcFile, outputThreadA
                 pthread_cond_wait(&ctx->jobCompressed_cond.pCond, &ctx->jobCompressed_mutex.pMutex);
             }
             pthread_mutex_unlock(&ctx->jobCompressed_mutex.pMutex);
+
+            /* reset create completion */
+            pthread_mutex_lock(&ctx->createCompletion_mutex.pMutex);
+            ctx->createCompletion = 0;
+            pthread_mutex_unlock(&ctx->createCompletion_mutex.pMutex);
 
             while (remaining != 0 && !feof(srcFile)) {
                 size_t const ret = fread(ctx->input.buffer.start + ctx->input.filled + pos, 1, readBlockSize, srcFile);

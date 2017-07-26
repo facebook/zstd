@@ -2,6 +2,7 @@
 #define LDM_H
 
 #include "mem.h"    // from /lib/common/mem.h
+#include "ldm_params.h"
 
 // The number of bytes storing the compressed and decompressed size
 // in the header.
@@ -18,35 +19,38 @@
 #define LDM_OFFSET_SIZE 4
 
 // =============================================================================
-// User parameters.
+// Modify parameters in ldm_params.h if "ldm_params.h" is included.
 // =============================================================================
 
+#ifndef LDM_PARAMS_H
 // Defines the size of the hash table.
 // Note that this is not the number of buckets.
 // Currently this should be less than WINDOW_SIZE_LOG + 4?
-#define LDM_MEMORY_USAGE 25
+  #define LDM_MEMORY_USAGE 25
 
 // The number of entries in a hash bucket.
-#define HASH_BUCKET_SIZE_LOG 3 // The maximum is 4 for now.
+  #define HASH_BUCKET_SIZE_LOG 3 // The maximum is 4 for now.
 
 // Defines the lag in inserting elements into the hash table.
-#define LDM_LAG 0
+  #define LDM_LAG 0
 
 // The maximum window size.
-#define LDM_WINDOW_SIZE_LOG 28 // Max value is 30
-#define LDM_WINDOW_SIZE (1 << (LDM_WINDOW_SIZE_LOG))
+  #define LDM_WINDOW_SIZE_LOG 28 // Max value is 30
 
 //These should be multiples of four (and perhaps set to the same value?).
-#define LDM_MIN_MATCH_LENGTH 64
-#define LDM_HASH_LENGTH 64
+  #define LDM_MIN_MATCH_LENGTH 64
 
-// Experimental.
-//#define TMP_EVICTION    // Experiment with eviction policies.
-#define INSERT_BY_TAG // Insertion policy based on hash.
+  #define INSERT_BY_TAG 1 // Insertion policy based on hash.
 
-#define USE_CHECKSUM 1
+  #define USE_CHECKSUM 1
+#endif
 
 // =============================================================================
+#define COMPUTE_STATS
+#define OUTPUT_CONFIGURATION
+
+#define LDM_WINDOW_SIZE (1 << (LDM_WINDOW_SIZE_LOG))
+#define LDM_HASH_LENGTH LDM_MIN_MATCH_LENGTH
 
 typedef struct LDM_compressStats LDM_compressStats;
 typedef struct LDM_CCtx LDM_CCtx;
@@ -163,7 +167,5 @@ void LDM_writeHeader(void *memPtr, U64 compressedSize,
  * Output the configuration used.
  */
 void LDM_outputConfiguration(void);
-
-void LDM_test(const BYTE *src);
 
 #endif /* LDM_H */

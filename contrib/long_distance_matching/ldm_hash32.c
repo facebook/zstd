@@ -21,9 +21,7 @@
 #define HASH_BUCKET_SIZE (1 << (HASH_BUCKET_SIZE_LOG))
 #define LDM_HASHLOG ((LDM_MEMORY_USAGE)-(LDM_HASH_ENTRY_SIZE_LOG)-(HASH_BUCKET_SIZE_LOG))
 
-#define COMPUTE_STATS
-#define OUTPUT_CONFIGURATION
-#define CHECKSUM_CHAR_OFFSET 1
+#define CHECKSUM_CHAR_OFFSET 10
 
 // Take first match only.
 //#define ZSTD_SKIP
@@ -779,8 +777,6 @@ size_t LDM_compress(const void *src, size_t srcSize,
     LDM_updateLastHashFromNextHash(&cctx);
   }
 
-  // HASH_outputTableOffsetHistogram(&cctx);
-
   /* Encode the last literals (no more matches). */
   {
     const U32 lastRun = cctx.iend - cctx.anchor;
@@ -813,11 +809,5 @@ void LDM_outputConfiguration(void) {
   printf("=====================\n");
 }
 
-
-
-// TODO: implement and test hash function
-void LDM_test(const BYTE *src) {
-  (void)src;
-}
 
 

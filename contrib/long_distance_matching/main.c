@@ -12,7 +12,7 @@
 #include "ldm.h"
 #include "zstd.h"
 
-//#define DECOMPRESS_AND_VERIFY
+#define DECOMPRESS_AND_VERIFY
 
 /* Compress file given by fname and output to oname.
  * Returns 0 if successful, error code otherwise.
@@ -71,10 +71,6 @@ static int compress(const char *fname, const char *oname) {
       return 1;
   }
 
-#ifdef TEST
-  LDM_test((const BYTE *)src);
-#endif
-
   gettimeofday(&tv1, NULL);
 
   compressedSize = LDM_HEADER_SIZE +
@@ -111,7 +107,7 @@ static int compress(const char *fname, const char *oname) {
   return 0;
 }
 
-#ifdef DECOMPRESS
+#ifdef DECOMPRESS_AND_VERIFY
 /* Decompress file compressed using LDM_compress.
  * The input file should have the LDM_HEADER followed by payload.
  * Returns 0 if succesful, and an error code otherwise.

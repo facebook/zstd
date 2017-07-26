@@ -70,7 +70,8 @@ size_t LDM_decompress(const void *src, size_t compressedSize,
     dctx.ip += length;
     dctx.op = cpy;
 
-    //TODO : dynamic offset size
+    //TODO: dynamic offset size?
+    /* Encode the offset. */
     offset = MEM_read32(dctx.ip);
     dctx.ip += LDM_OFFSET_SIZE;
     match = dctx.op - offset;
@@ -89,7 +90,7 @@ size_t LDM_decompress(const void *src, size_t compressedSize,
     /* Copy match. */
     cpy = dctx.op + length;
 
-    // Inefficient for now.
+    // TODO: this can be made more efficient.
     while (match < cpy - offset && dctx.op < dctx.oend) {
       *(dctx.op)++ = *match++;
     }

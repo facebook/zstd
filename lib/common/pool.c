@@ -39,6 +39,7 @@ struct POOL_ctx_s {
     size_t queueHead;
     size_t queueTail;
     size_t queueSize;
+    size_t numQueued;
     /* The mutex protects the queue */
     pthread_mutex_t queueMutex;
     /* Condition variable for pushers to wait on when the queue is full */
@@ -60,17 +61,18 @@ static void* POOL_thread(void* opaque) {
     for (;;) {
         /* Lock the mutex and wait for a non-empty queue or until shutdown */
         pthread_mutex_lock(&ctx->queueMutex);
-        while (ctx->queueHead == ctx->queueTail && !ctx->shutdown) {
+        while (ctx->numQueued == 0 && !ctx->shutdown) {
             pthread_cond_wait(&ctx->queuePopCond, &ctx->queueMutex);
         }
         /* empty => shutting down: so stop */
-        if (ctx->queueHead == ctx->queueTail) {
+        if (ctx->numQueued == 0) {
             pthread_mutex_unlock(&ctx->queueMutex);
             return opaque;
         }
         /* Pop a job off the queue */
         {   POOL_job const job = ctx->queue[ctx->queueHead];
             ctx->queueHead = (ctx->queueHead + 1) % ctx->queueSize;
+            ctx->numQueued--;
             /* Unlock the mutex, signal a pusher, and run the job */
             pthread_mutex_unlock(&ctx->queueMutex);
             pthread_cond_signal(&ctx->queuePushCond);
@@ -87,14 +89,12 @@ POOL_ctx *POOL_create(size_t numThreads, size_t queueSize) {
     /* Allocate the context and zero initialize */
     ctx = (POOL_ctx *)calloc(1, sizeof(POOL_ctx));
     if (!ctx) { return NULL; }
-    /* Initialize the job queue.
-     * It needs one extra space since one space is wasted to differentiate empty
-     * and full queues.
-     */
-    ctx->queueSize = queueSize + 1;
+    /* Initialize the job queue. */
+    ctx->queueSize = queueSize;
     ctx->queue = (POOL_job*) malloc(ctx->queueSize * sizeof(POOL_job));
     ctx->queueHead = 0;
     ctx->queueTail = 0;
+    ctx->numQueued = 0;
     (void)pthread_mutex_init(&ctx->queueMutex, NULL);
     (void)pthread_cond_init(&ctx->queuePushCond, NULL);
     (void)pthread_cond_init(&ctx->queuePopCond, NULL);
@@ -160,15 +160,15 @@ void POOL_add(void* ctxVoid, POOL_function function, void *opaque) {
     pthread_mutex_lock(&ctx->queueMutex);
     {   POOL_job const job = {function, opaque};
         /* Wait until there is space in the queue for the new job */
-        size_t newTail = (ctx->queueTail + 1) % ctx->queueSize;
-        while (ctx->queueHead == newTail && !ctx->shutdown) {
+        while (ctx->numQueued == ctx->queueSize && !ctx->shutdown) {
           pthread_cond_wait(&ctx->queuePushCond, &ctx->queueMutex);
-          newTail = (ctx->queueTail + 1) % ctx->queueSize;
         }
+
         /* The queue is still going => there is space */
         if (!ctx->shutdown) {
             ctx->queue[ctx->queueTail] = job;
-            ctx->queueTail = newTail;
+            ctx->queueTail = (ctx->queueTail + 1) % ctx->queueSize;
+            ctx->numQueued++;
         }
     }
     pthread_mutex_unlock(&ctx->queueMutex);

@@ -24,7 +24,6 @@
 #define MAX_PATH 256
 #define DEFAULT_DISPLAY_LEVEL 1
 #define DEFAULT_COMPRESSION_LEVEL 6
-#define DEFAULT_ADAPT_PARAM 0
 #define MAX_COMPRESSION_LEVEL_CHANGE 2
 #define CONVERGENCE_LOWER_BOUND 5
 #define CLEVEL_DECREASE_COOLDOWN 5
@@ -81,20 +80,54 @@ typedef struct {
     unsigned numJobs;
     unsigned nextJobID;
     unsigned threadError;
+
+    /*
+     * JobIDs for the next jobs to be created, compressed, and written
+     */
     unsigned jobReadyID;
     unsigned jobCompressedID;
     unsigned jobWriteID;
     unsigned allJobsCompleted;
-    unsigned adaptParam;
+
+    /*
+     * counter for how many jobs in a row the compression level has not changed
+     * if the counter becomes >= CONVERGENCE_LOWER_BOUND, the next time the
+     * compression level tries to change (by non-zero amount) resets the counter
+     * to 1 and does not apply the change
+     */
     unsigned convergenceCounter;
+
+    /*
+     * cooldown counter in order to prevent rapid successive decreases in compression level
+     * whenever compression level is decreased, cooldown is set to CLEVEL_DECREASE_COOLDOWN
+     * whenever adaptCompressionLevel() is called and cooldown != 0, it is decremented
+     * as long as cooldown != 0, the compression level cannot be decreased
+     */
     unsigned cooldown;
+
+    /*
+     * XWaitYCompletion
+     * Range from 0.0 to 1.0
+     * if the value is not 1.0, then this implies that thread X waited on thread Y to finish
+     * and thread Y was XWaitYCompletion finished at the time of the wait (i.e. compressWaitWriteCompletion=0.5
+     * implies that the compression thread waited on the write thread and it was only 50% finished writing a job)
+     */
     double createWaitCompressionCompletion;
     double compressWaitCreateCompletion;
     double compressWaitWriteCompletion;
     double writeWaitCompressionCompletion;
+
+    /*
+     * Completion values
+     * Range from 0.0 to 1.0
+     * Jobs are divided into mini-chunks in order to measure completion
+     * these values are updated each time a thread finishes its operation on the
+     * mini-chunk (i.e. finishes writing out, compressing, etc. this mini-chunk).
+     */
     double compressionCompletion;
     double writeCompletion;
     double createCompletion;
+
     mutex_t jobCompressed_mutex;
     cond_t jobCompressed_cond;
     mutex_t jobReady_mutex;
@@ -254,7 +287,6 @@ static int initCCtx(adaptCCtx* ctx, unsigned numJobs)
     ctx->nextJobID = 0;
     ctx->threadError = 0;
     ctx->allJobsCompleted = 0;
-    ctx->adaptParam = DEFAULT_ADAPT_PARAM;
 
     ctx->cctx = ZSTD_createCCtx();
     if (!ctx->cctx) {

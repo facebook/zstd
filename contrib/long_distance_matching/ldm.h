@@ -82,6 +82,7 @@ typedef struct LDM_DCtx LDM_DCtx;
 
 /**
  *  Compresses src into dst.
+ *  Returns the compressed size if successful, 0 otherwise.
  *
  *  NB: This currently ignores maxDstSize and assumes enough space is available.
  *
@@ -113,10 +114,12 @@ size_t LDM_compress(const void *src, size_t srcSize,
  * Initialize the compression context.
  *
  * Allocates memory for the hash table.
+ *
+ * Returns 0 if successful, 1 otherwise.
  */
-void LDM_initializeCCtx(LDM_CCtx *cctx,
-                        const void *src, size_t srcSize,
-                        void *dst, size_t maxDstSize);
+size_t LDM_initializeCCtx(LDM_CCtx *cctx,
+                          const void *src, size_t srcSize,
+                          void *dst, size_t maxDstSize);
 
 /**
  * Frees up memory allocated in LDM_initializeCCtx().

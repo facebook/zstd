@@ -2,19 +2,29 @@
 
 #include "ldm.h"
 
+/**
+ * This function reads the header at the beginning of src and writes
+ * the compressed and decompressed size to compressedSize and
+ * decompressedSize.
+ *
+ * The header consists of 16 bytes: 8 bytes each in little-endian format
+ * of the compressed size and the decompressed size.
+ */
 void LDM_readHeader(const void *src, U64 *compressedSize,
                     U64 *decompressedSize) {
   const BYTE *ip = (const BYTE *)src;
   *compressedSize = MEM_readLE64(ip);
-  ip += sizeof(U64);
-  *decompressedSize = MEM_readLE64(ip);
-  // ip += sizeof(U64);
+  *decompressedSize = MEM_readLE64(ip + 8);
 }
 
+/**
+ * Writes the 16-byte header (8-bytes each of the compressedSize and
+ * decompressedSize in little-endian format) to memPtr.
+ */
 void LDM_writeHeader(void *memPtr, U64 compressedSize,
                      U64 decompressedSize) {
-  MEM_write64(memPtr, compressedSize);
-  MEM_write64((BYTE *)memPtr + 8, decompressedSize);
+  MEM_writeLE64(memPtr, compressedSize);
+  MEM_writeLE64((BYTE *)memPtr + 8, decompressedSize);
 }
 
 struct LDM_DCtx {

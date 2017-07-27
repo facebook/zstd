@@ -12,7 +12,7 @@
 #include "ldm.h"
 #include "zstd.h"
 
-// #define DECOMPRESS_AND_VERIFY
+#define DECOMPRESS_AND_VERIFY
 
 /* Compress file given by fname and output to oname.
  * Returns 0 if successful, error code otherwise.
@@ -186,9 +186,18 @@ static int compare(FILE *fp0, FILE *fp1) {
 }
 
 /* Verify the input file is the same as the decompressed file. */
-static void verify(const char *inpFilename, const char *decFilename) {
-  FILE *inpFp = fopen(inpFilename, "rb");
-  FILE *decFp = fopen(decFilename, "rb");
+static int verify(const char *inpFilename, const char *decFilename) {
+  FILE *inpFp, *decFp;
+
+  if ((inpFp = fopen(inpFilename, "rb")) == NULL) {
+    perror("Could not open input file\n");
+    return 1;
+  }
+
+  if ((decFp = fopen(decFilename, "rb")) == NULL) {
+    perror("Could not open decompressed file\n");
+    return 1;
+  }
 
   printf("verify : %s <-> %s\n", inpFilename, decFilename);
   {
@@ -202,6 +211,7 @@ static void verify(const char *inpFilename, const char *decFilename) {
 
 	fclose(decFp);
 	fclose(inpFp);
+  return 0;
 }
 #endif
 

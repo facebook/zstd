@@ -1,6 +1,6 @@
 This is a compression algorithm focused on finding long distance matches.
 
-It is based upon lz4 and uses nearly the same block format (github.com/lz4/lz4/blob/dev/doc/lz4_Block_format.md). The number of bytes to encode the offset is four instead of two in lz4 to reflect the longer distance matching. The block format is descriped in `ldm.h`.
+It is based upon lz4 and uses nearly the same block format (github.com/lz4/lz4/blob/dev/doc/lz4_Block_format.md). The number of bytes to encode the offset is four instead of two in lz4 to reflect the longer distance matching. The block format is described in `ldm.h`.
 
 ### Build
 
@@ -28,7 +28,7 @@ The parameters are as follows and must all be defined:
 - `INSERT_BY_TAG` : insert entries into the hash table as a function of the hash. This increases speed by reducing the number of hash table lookups and match comparisons. Certain hashes will never be inserted.
 - `USE_CHECKSUM`  : store a checksum with the hash table entries for faster comparison. This halves the number of entries the hash table can contain.
 
-The optional parameter `HASH_ONLY_EVERY_LOG` is the log inverse frequency of insertion into the hash table. That is, an entry is inserted approximately every `1 << HASH_ONLY_EVERY_LOG` times. If this parameter is not defined, the value is computed as a function of the window size and memory usage to approximate a even coverage of the window.
+The optional parameter `HASH_ONLY_EVERY_LOG` is the log inverse frequency of insertion into the hash table. That is, an entry is inserted approximately every `1 << HASH_ONLY_EVERY_LOG` times. If this parameter is not defined, the value is computed as a function of the window size and memory usage to approximate an even coverage of the window.
 
 
 ### Benchmark

@@ -58,9 +58,6 @@ struct LDM_compressStats {
 
   U32 minOffset, maxOffset;
   U32 offsetHistogram[32];
-
-  U64 TMP_hashCount[1 << HASH_ONLY_EVERY_LOG];
-  U64 TMP_totalHashCount;
 };
 
 typedef struct LDM_hashTable LDM_hashTable;
@@ -398,17 +395,6 @@ void LDM_printCompressStats(const LDM_compressStats *stats) {
                    (double) stats->numMatches);
   }
   printf("\n");
-#if INSERT_BY_TAG
-/*
-  printf("Lower bit distribution\n");
-  for (i = 0; i < (1 << HASH_ONLY_EVERY_LOG); i++) {
-    printf("%5d %5llu %6.3f\n", i, stats->TMP_hashCount[i],
-           100.0 * (double) stats->TMP_hashCount[i] /
-                   (double) stats->TMP_totalHashCount);
-  }
-*/
-#endif
-
   printf("=====================\n");
 }
 
@@ -502,14 +488,6 @@ static void setNextHash(LDM_CCtx *cctx) {
       cctx->lastPosHashed[0],
       cctx->lastPosHashed[LDM_HASH_LENGTH]);
   cctx->nextPosHashed = cctx->nextIp;
-
-#if INSERT_BY_TAG
-  {
-    U32 hashEveryMask = lowerBitsFromHfHash(cctx->nextHash);
-    cctx->stats.TMP_totalHashCount++;
-    cctx->stats.TMP_hashCount[hashEveryMask]++;
-  }
-#endif
 
 #if LDM_LAG
   if (cctx->ip - cctx->ibase > LDM_LAG) {

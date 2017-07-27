@@ -71,6 +71,9 @@
 #define LDM_OFFSET_SIZE 4
 
 #define LDM_WINDOW_SIZE (1 << (LDM_WINDOW_SIZE_LOG))
+
+// TODO: Match lengths that are too small do not use the hash table efficiently.
+// There should be a minimum hash length given the hash table size.
 #define LDM_HASH_LENGTH LDM_MIN_MATCH_LENGTH
 
 typedef struct LDM_compressStats LDM_compressStats;

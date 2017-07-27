@@ -111,13 +111,25 @@ struct LDM_hashTable {
 /**
  * Create a hash table that can contain size elements.
  * The number of buckets is determined by size >> HASH_BUCKET_SIZE_LOG.
+ *
+ * Returns NULL if table creation failed.
  */
 static LDM_hashTable *HASH_createTable(U32 size) {
   LDM_hashTable *table = malloc(sizeof(LDM_hashTable));
+  if (!table) return NULL;
+
   table->numBuckets = size >> HASH_BUCKET_SIZE_LOG;
   table->numEntries = size;
   table->entries = calloc(size, sizeof(LDM_hashEntry));
   table->bucketOffsets = calloc(size >> HASH_BUCKET_SIZE_LOG, sizeof(BYTE));
+
+  if (!table->entries || !table->bucketOffsets) {
+    free(table->bucketOffsets);
+    free(table->entries);
+    free(table);
+    return NULL;
+  }
+
   return table;
 }
 
@@ -566,9 +578,9 @@ static void LDM_putHashOfCurrentPosition(LDM_CCtx *cctx) {
   putHashOfCurrentPositionFromHash(cctx, hash);
 }
 
-void LDM_initializeCCtx(LDM_CCtx *cctx,
-                        const void *src, size_t srcSize,
-                        void *dst, size_t maxDstSize) {
+size_t LDM_initializeCCtx(LDM_CCtx *cctx,
+                          const void *src, size_t srcSize,
+                          void *dst, size_t maxDstSize) {
   cctx->isize = srcSize;
   cctx->maxOSize = maxDstSize;
 
@@ -590,16 +602,20 @@ void LDM_initializeCCtx(LDM_CCtx *cctx,
 #else
   cctx->hashTable = HASH_createTable(LDM_HASHTABLESIZE_U32);
 #endif
+
+  if (!cctx->hashTable) return 1;
+
   cctx->stats.minOffset = UINT_MAX;
   cctx->stats.windowSizeLog = LDM_WINDOW_SIZE_LOG;
   cctx->stats.hashTableSizeLog = LDM_MEMORY_USAGE;
-
 
   cctx->lastPosHashed = NULL;
 
   cctx->step = 1;   // Fixed to be 1 for now. Changing may break things.
   cctx->nextIp = cctx->ip + cctx->step;
   cctx->nextPosHashed = 0;
+
+  return 0;
 }
 
 void LDM_destroyCCtx(LDM_CCtx *cctx) {
@@ -726,7 +742,10 @@ size_t LDM_compress(const void *src, size_t srcSize,
   U64 forwardMatchLength = 0;
   U64 backwardsMatchLength = 0;
 
-  LDM_initializeCCtx(&cctx, src, srcSize, dst, maxDstSize);
+  if (LDM_initializeCCtx(&cctx, src, srcSize, dst, maxDstSize)) {
+    // Initialization failed.
+    return 0;
+  }
 
 #ifdef OUTPUT_CONFIGURATION
   LDM_outputConfiguration();
@@ -744,8 +763,8 @@ size_t LDM_compress(const void *src, size_t srcSize,
    * is less than the minimum match length), then stop searching for matches
    * and encode the final literals.
    */
-  while (LDM_findBestMatch(&cctx, &match, &forwardMatchLength,
-         &backwardsMatchLength) == 0) {
+  while (!LDM_findBestMatch(&cctx, &match, &forwardMatchLength,
+                           &backwardsMatchLength)) {
 
 #ifdef COMPUTE_STATS
     cctx.stats.numMatches++;

@@ -917,11 +917,11 @@ static const algo_time_t algoTime[16 /* Quantization */][3 /* single, double, qu
 *   Tells which decoder is likely to decode faster,
 *   based on a set of pre-determined metrics.
 *   @return : 0==HUF_decompress4X2, 1==HUF_decompress4X4 .
-*   Assumption : 0 < cSrcSize < dstSize <= 128 KB */
+*   Assumption : 0 < cSrcSize, dstSize <= 128 KB */
 U32 HUF_selectDecoder (size_t dstSize, size_t cSrcSize)
 {
     /* decoder timing evaluation */
-    U32 const Q = (U32)(cSrcSize * 16 / dstSize);   /* Q < 16 since dstSize > cSrcSize */
+    U32 const Q = cSrcSize >= dstSize ? 15 : (U32)(cSrcSize * 16 / dstSize);   /* Q < 16 */
     U32 const D256 = (U32)(dstSize >> 8);
     U32 const DTime0 = algoTime[Q][0].tableTime + (algoTime[Q][0].decode256Time * D256);
     U32 DTime1 = algoTime[Q][1].tableTime + (algoTime[Q][1].decode256Time * D256);
@@ -977,7 +977,7 @@ size_t HUF_decompress4X_hufOnly_wksp(HUF_DTable* dctx, void* dst,
 {
     /* validation checks */
     if (dstSize == 0) return ERROR(dstSize_tooSmall);
-    if ((cSrcSize >= dstSize) || (cSrcSize <= 1)) return ERROR(corruption_detected);   /* invalid */
+    if (cSrcSize == 0) return ERROR(corruption_detected);
 
     {   U32 const algoNb = HUF_selectDecoder(dstSize, cSrcSize);
         return algoNb ? HUF_decompress4X4_DCtx_wksp(dctx, dst, dstSize, cSrc, cSrcSize, workSpace, wkspSize):

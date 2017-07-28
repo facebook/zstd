@@ -42,6 +42,8 @@ static size_t g_streamedSize = 0;
 static unsigned g_useProgressBar = 1;
 static UTIL_freq_t g_ticksPerSecond;
 static unsigned g_forceCompressionLevel = 0;
+static unsigned g_minCLevel = 1;
+static unsigned g_maxCLevel = 22;
 
 typedef struct {
     void* start;
@@ -420,7 +422,7 @@ static void adaptCompressionLevel(adaptCCtx* ctx)
         /* use whichever one waited less because it was slower */
         double const completion = MAX(createWaitCompressionCompletion, writeWaitCompressionCompletion);
         unsigned const change = convertCompletionToChange(completion);
-        unsigned const boundChange = MIN(change, ctx->compressionLevel - 1);
+        unsigned const boundChange = ctx->compressionLevel >= g_minCLevel ? MIN(change, ctx->compressionLevel - g_minCLevel) : 0;
         if (ctx->convergenceCounter >= CONVERGENCE_LOWER_BOUND && boundChange != 0) {
             /* reset convergence counter, might have been a spike */
             ctx->convergenceCounter = 0;
@@ -438,7 +440,7 @@ static void adaptCompressionLevel(adaptCCtx* ctx)
         /* compress waiting on write */
         double const completion = MIN(compressWaitWriteCompletion, compressWaitCreateCompletion);
         unsigned const change = convertCompletionToChange(completion);
-        unsigned const boundChange = MIN(change, ZSTD_maxCLevel() - ctx->compressionLevel);
+        unsigned const boundChange = g_maxCLevel >= ctx->compressionLevel ? MIN(change, g_maxCLevel - ctx->compressionLevel) : 0;
         if (ctx->convergenceCounter >= CONVERGENCE_LOWER_BOUND && boundChange != 0) {
             /* reset convergence counter, might have been a spike */
             ctx->convergenceCounter = 0;
@@ -620,17 +622,19 @@ static void* compressionThread(void* arg)
 static void displayProgress(unsigned cLevel, unsigned last)
 {
     if (!g_useProgressBar) return;
-    UTIL_time_t currTime;
-    UTIL_getTime(&currTime);
-    double const timeElapsed = (double)(UTIL_getSpanTimeMicro(g_ticksPerSecond, g_startTime, currTime) / 1000.0);
-    double const sizeMB = (double)g_streamedSize / (1 << 20);
-    double const avgCompRate = sizeMB * 1000 / timeElapsed;
-    fprintf(stderr, "\r| Comp. Level: %2u | Time Elapsed: %7.2f s | Data Size: %7.1f MB | Avg Comp. Rate: %6.2f MB/s |", cLevel, timeElapsed/1000.0, sizeMB, avgCompRate);
-    if (last) {
-        fprintf(stderr, "\n");
-    }
-    else {
-        fflush(stderr);
+    {
+        UTIL_time_t currTime;
+        UTIL_getTime(&currTime);
+        double const timeElapsed = (double)(UTIL_getSpanTimeMicro(g_ticksPerSecond, g_startTime, currTime) / 1000.0);
+        double const sizeMB = (double)g_streamedSize / (1 << 20);
+        double const avgCompRate = sizeMB * 1000 / timeElapsed;
+        fprintf(stderr, "\r| Comp. Level: %2u | Time Elapsed: %7.2f s | Data Size: %7.1f MB | Avg Comp. Rate: %6.2f MB/s |", cLevel, timeElapsed/1000.0, sizeMB, avgCompRate);
+        if (last) {
+            fprintf(stderr, "\n");
+        }
+        else {
+            fflush(stderr);
+        }
     }
 }
 
@@ -928,9 +932,9 @@ static int freeFileCompressionResources(fcResources* fcr)
 static int compressFilename(const char* const srcFilename, const char* const dstFilenameOrNull)
 {
     int ret = 0;
+    fcResources fcr = createFileCompressionResources(srcFilename, dstFilenameOrNull);
     UTIL_getTime(&g_startTime);
     g_streamedSize = 0;
-    fcResources fcr = createFileCompressionResources(srcFilename, dstFilenameOrNull);
     ret |= performCompression(fcr.ctx, fcr.srcFile, fcr.otArg);
     ret |= freeFileCompressionResources(&fcr);
     return ret;
@@ -973,7 +977,7 @@ static unsigned readU32FromChar(const char** stringPtr)
     return result;
 }
 
-static void help()
+static void help(void)
 {
     PRINT("Usage:\n");
     PRINT("  ./multi [options] [file(s)]\n");
@@ -986,6 +990,8 @@ static void help()
     PRINT("  -c     : force write to stdout\n");
     PRINT("  -p     : hide progress bar\n");
     PRINT("  -q     : quiet mode -- do not show progress bar or other information\n");
+    PRINT("  -l#    : provide lower bound for compression level\n");
+    PRINT("  -u#    : provide upper bound for compression level\n");
 }
 /* return 0 if successful, else return error */
 int main(int argCount, const char* argv[])
@@ -993,10 +999,10 @@ int main(int argCount, const char* argv[])
     const char* outFilename = NULL;
     const char** filenameTable = (const char**)malloc(argCount*sizeof(const char*));
     unsigned filenameIdx = 0;
-    filenameTable[0] = stdinmark;
     unsigned forceStdout = 0;
     int ret = 0;
     int argNum;
+    filenameTable[0] = stdinmark;
 
     UTIL_initTimer(&g_ticksPerSecond);
 
@@ -1035,6 +1041,14 @@ int main(int argCount, const char* argv[])
                 case 'q':
                     g_useProgressBar = 0;
                     g_displayLevel = 0;
+                    break;
+                case 'l':
+                    argument += 2;
+                    g_minCLevel = readU32FromChar(&argument);
+                    break;
+                case 'u':
+                    argument += 2;
+                    g_maxCLevel = readU32FromChar(&argument);
                     break;
                 default:
                     DISPLAY("Error: invalid argument provided\n");

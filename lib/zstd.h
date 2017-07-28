@@ -978,7 +978,9 @@ typedef enum {
     /* advanced parameters - may not remain available after API update */
     ZSTD_p_forceMaxWindow=1100, /* Force back-reference distances to remain < windowSize,
                               * even when referencing into Dictionary content (default:0) */
-
+    ZSTD_p_longDistanceMatching,    /* Enable long distance matching.
+                                     * This increases the memory usage as well as the
+                                     * window size. */
 } ZSTD_cParameter;
 
 

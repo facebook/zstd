@@ -56,6 +56,7 @@ void FIO_setMemLimit(unsigned memLimit);
 void FIO_setNbThreads(unsigned nbThreads);
 void FIO_setBlockSize(unsigned blockSize);
 void FIO_setOverlapLog(unsigned overlapLog);
+void FIO_setLdmFlag(unsigned ldmFlag);
 
 
 /*-*************************************

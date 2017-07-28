@@ -275,6 +275,20 @@ typedef struct {
 } optState_t;
 
 typedef struct {
+    U32 offset;
+    U32 checksum;
+} ldmEntry_t;
+
+typedef struct {
+    ldmEntry_t* hashTable;
+    BYTE* bucketOffsets;
+    U32 ldmEnable;          /* 1 if enable long distance matching */
+    U32 hashLog;            /* log size of hashTable */
+    U32 bucketLog;          /* log number of buckets, at most 4 */
+    U32 hashEveryLog;
+} ldmState_t;
+
+typedef struct {
     U32 hufCTable[HUF_CTABLE_SIZE_U32(255)];
     FSE_CTable offcodeCTable[FSE_CTABLE_SIZE_U32(OffFSELog, MaxOff)];
     FSE_CTable matchlengthCTable[FSE_CTABLE_SIZE_U32(MLFSELog, MaxML)];

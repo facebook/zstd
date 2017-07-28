@@ -108,6 +108,12 @@ struct LDM_hashTable {
   BYTE *bucketOffsets;     // A pointer (per bucket) to the next insert position.
 };
 
+static void HASH_destroyTable(LDM_hashTable *table) {
+  free(table->entries);
+  free(table->bucketOffsets);
+  free(table);
+}
+
 /**
  * Create a hash table that can contain size elements.
  * The number of buckets is determined by size >> HASH_BUCKET_SIZE_LOG.
@@ -124,9 +130,7 @@ static LDM_hashTable *HASH_createTable(U32 size) {
   table->bucketOffsets = calloc(size >> HASH_BUCKET_SIZE_LOG, sizeof(BYTE));
 
   if (!table->entries || !table->bucketOffsets) {
-    free(table->bucketOffsets);
-    free(table->entries);
-    free(table);
+    HASH_destroyTable(table);
     return NULL;
   }
 
@@ -275,13 +279,13 @@ static LDM_hashEntry *HASH_getBestEntry(const LDM_CCtx *cctx,
                                         U64 *pBackwardMatchLength) {
   LDM_hashTable *table = cctx->hashTable;
   LDM_hashEntry *bucket = getBucket(table, hash);
-  LDM_hashEntry *cur = bucket;
+  LDM_hashEntry *cur;
   LDM_hashEntry *bestEntry = NULL;
   U64 bestMatchLength = 0;
 #if !(USE_CHECKSUM)
   (void)checksum;
 #endif
-  for (; cur < bucket + HASH_BUCKET_SIZE; ++cur) {
+  for (cur = bucket; cur < bucket + HASH_BUCKET_SIZE; ++cur) {
     const BYTE *pMatch = cur->offset + cctx->ibase;
 
     // Check checksum for faster check.
@@ -336,12 +340,6 @@ static void HASH_insert(LDM_hashTable *table,
   table->bucketOffsets[hash] &= HASH_BUCKET_SIZE - 1;
 }
 
-static void HASH_destroyTable(LDM_hashTable *table) {
-  free(table->entries);
-  free(table->bucketOffsets);
-  free(table);
-}
-
 static void HASH_outputTableOccupancy(const LDM_hashTable *table) {
   U32 ctr = 0;
   LDM_hashEntry *cur = table->entries;
@@ -360,8 +358,9 @@ static void HASH_outputTableOccupancy(const LDM_hashTable *table) {
          100.0 * (double)(ctr) / table->numEntries);
 }
 
-// TODO: This can be done more efficiently (but it is not that important as it
-// is only used for computing stats).
+// TODO: This can be done more efficiently, for example by using builtin
+// functions (but it is not that important as it is only used for computing
+// stats).
 static int intLog2(U64 x) {
   int ret = 0;
   while (x >>= 1) {
@@ -371,7 +370,6 @@ static int intLog2(U64 x) {
 }
 
 void LDM_printCompressStats(const LDM_compressStats *stats) {
-  int i = 0;
   printf("=====================\n");
   printf("Compression statistics\n");
   printf("Window size, hash table size (bytes): 2^%u, 2^%u\n",
@@ -395,16 +393,20 @@ void LDM_printCompressStats(const LDM_compressStats *stats) {
   printf("offset histogram | match length histogram\n");
   printf("offset/ML, num matches, %% of matches | num matches, %% of matches\n");
 
-  for (; i <= intLog2(stats->maxOffset); i++) {
-    printf("2^%*d: %10u    %6.3f%% |2^%*d:  %10u    %6.3f \n",
-           2, i,
-           stats->offsetHistogram[i],
-           100.0 * (double) stats->offsetHistogram[i] /
-                   (double) stats->numMatches,
-           2, i,
-           stats->matchLengthHistogram[i],
-           100.0 * (double) stats->matchLengthHistogram[i] /
-                   (double) stats->numMatches);
+  {
+    int i;
+    int logMaxOffset = intLog2(stats->maxOffset);
+    for (i = 0; i <= logMaxOffset; i++) {
+      printf("2^%*d: %10u    %6.3f%% |2^%*d:  %10u    %6.3f \n",
+             2, i,
+             stats->offsetHistogram[i],
+             100.0 * (double) stats->offsetHistogram[i] /
+                     (double) stats->numMatches,
+             2, i,
+             stats->matchLengthHistogram[i],
+             100.0 * (double) stats->matchLengthHistogram[i] /
+                     (double) stats->numMatches);
+    }
   }
   printf("\n");
   printf("=====================\n");

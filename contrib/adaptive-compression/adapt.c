@@ -621,10 +621,11 @@ static void* compressionThread(void* arg)
 
 static void displayProgress(unsigned cLevel, unsigned last)
 {
+
+    UTIL_time_t currTime;
+    UTIL_getTime(&currTime);
     if (!g_useProgressBar) return;
     {
-        UTIL_time_t currTime;
-        UTIL_getTime(&currTime);
         double const timeElapsed = (double)(UTIL_getSpanTimeMicro(g_ticksPerSecond, g_startTime, currTime) / 1000.0);
         double const sizeMB = (double)g_streamedSize / (1 << 20);
         double const avgCompRate = sizeMB * 1000 / timeElapsed;

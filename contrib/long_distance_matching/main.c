@@ -12,7 +12,7 @@
 #include "ldm.h"
 #include "zstd.h"
 
-#define DECOMPRESS_AND_VERIFY
+// #define DECOMPRESS_AND_VERIFY
 
 /* Compress file given by fname and output to oname.
  * Returns 0 if successful, error code otherwise.
@@ -206,6 +206,7 @@ static int verify(const char *inpFilename, const char *decFilename) {
       printf("verify : OK\n");
     } else {
       printf("verify : NG\n");
+      return 1;
     }
   }
 
@@ -239,7 +240,7 @@ int main(int argc, const char *argv[]) {
   /* Compress */
   {
     if (compress(inpFilename, ldmFilename)) {
-        printf("Compress error");
+        printf("Compress error\n");
         return 1;
     }
   }
@@ -250,7 +251,7 @@ int main(int argc, const char *argv[]) {
     struct timeval tv1, tv2;
     gettimeofday(&tv1, NULL);
     if (decompress(ldmFilename, decFilename)) {
-        printf("Decompress error");
+        printf("Decompress error\n");
         return 1;
     }
     gettimeofday(&tv2, NULL);
@@ -259,7 +260,10 @@ int main(int argc, const char *argv[]) {
           (double) (tv2.tv_sec - tv1.tv_sec));
   }
   /* verify */
-  verify(inpFilename, decFilename);
+  if (verify(inpFilename, decFilename)) {
+    printf("Verification error\n");
+    return 1;
+  }
 #endif
   return 0;
 }

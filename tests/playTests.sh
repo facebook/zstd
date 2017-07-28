@@ -544,6 +544,15 @@ roundTripTest -g516K 19   # btopt
 
 fileRoundTripTest -g500K
 
+$ECHO "\n**** zstd long distance matching round-trip tests **** "
+roundTripTest -g0 "2 --long"
+roundTripTest -g1000K "1 --long"
+roundTripTest -g517K "6 --long"
+roundTripTest -g516K "16 --long"
+roundTripTest -g518K "19 --long"
+fileRoundTripTest -g5M "3 --long"
+
+
 if [ -n "$hasMT" ]
 then
     $ECHO "\n**** zstdmt round-trip tests **** "
@@ -551,6 +560,9 @@ then
     roundTripTest -g8M "3 -T2"
     roundTripTest -g8000K "2 --threads=2"
     fileRoundTripTest -g4M "19 -T2 -B1M"
+
+    $ECHO "\n**** zstdmt long distance matching round-trip tests **** "
+    roundTripTest -g8M "3 --long -T2"
 else
     $ECHO "\n**** no multithreading, skipping zstdmt tests **** "
 fi
@@ -639,6 +651,15 @@ roundTripTest -g6000000000 -P99 1
 
 fileRoundTripTest -g4193M -P99 1
 
+$ECHO "\n**** zstd long, long distance matching round-trip tests **** "
+roundTripTest -g0 "2 --long"
+roundTripTest -g270000000 "1 --long"
+roundTripTest -g140000000 -P60 "5 --long"
+roundTripTest -g70000000 -P70 "8 --long"
+roundTripTest -g18000001 -P80  "18 --long"
+fileRoundTripTest -g4100M -P99 "1 --long"
+
+
 if [ -n "$hasMT" ]
 then
     $ECHO "\n**** zstdmt long round-trip tests **** "
@@ -646,6 +667,7 @@ then
     roundTripTest -g6000000000 -P99 "1 -T2"
     roundTripTest -g1500000000 -P97 "1 -T999"
     fileRoundTripTest -g4195M -P98 " -T0"
+    roundTripTest -g1500000000 -P97 "1 --long -T999"
 else
     $ECHO "\n**** no multithreading, skipping zstdmt tests **** "
 fi

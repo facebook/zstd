@@ -129,7 +129,10 @@ void BMK_setNbThreads(unsigned nbThreads) {
 #endif
     g_nbThreads = nbThreads;
 }
-
+static U32 g_ldmFlag = 0;
+void BMK_setLdmFlag(unsigned ldmFlag) {
+    g_ldmFlag = ldmFlag;
+}
 
 /* ********************************************************
 *  Bench functions
@@ -271,6 +274,7 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
                     ZSTD_CCtx_setParameter(ctx, ZSTD_p_searchLog, comprParams->searchLog);
                     ZSTD_CCtx_setParameter(ctx, ZSTD_p_minMatch, comprParams->searchLength);
                     ZSTD_CCtx_setParameter(ctx, ZSTD_p_targetLength, comprParams->targetLength);
+                    ZSTD_CCtx_setParameter(ctx, ZSTD_p_longDistanceMatching, g_ldmFlag);
                     ZSTD_CCtx_setParameter(ctx, ZSTD_p_compressionStrategy, comprParams->strategy);
                     ZSTD_CCtx_loadDictionary(ctx, dictBuffer, dictBufferSize);
 #else

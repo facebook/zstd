@@ -213,6 +213,10 @@ void FIO_setOverlapLog(unsigned overlapLog){
         DISPLAYLEVEL(2, "Setting overlapLog is useless in single-thread mode \n");
     g_overlapLog = overlapLog;
 }
+static U32 g_ldmFlag = 0;
+void FIO_setLdmFlag(unsigned ldmFlag) {
+    g_ldmFlag = (ldmFlag>0);
+}
 
 
 /*-*************************************
@@ -407,6 +411,8 @@ static cRess_t FIO_createCResources(const char* dictFileName, int cLevel,
             CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_minMatch, comprParams->searchLength) );
             CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_targetLength, comprParams->targetLength) );
             CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_compressionStrategy, (U32)comprParams->strategy) );
+            /* long distance matching */
+            CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_longDistanceMatching, g_ldmFlag) );
             /* multi-threading */
             CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_nbThreads, g_nbThreads) );
             /* dictionary */

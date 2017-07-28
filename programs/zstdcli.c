@@ -152,6 +152,7 @@ static int usage_advanced(const char* programName)
 #endif
     DISPLAY( " -M#    : Set a memory usage limit for decompression \n");
     DISPLAY( "--list  : list information about a zstd compressed file \n");
+    DISPLAY( "--long  : enable long distance matching\n");
     DISPLAY( "--      : All arguments after \"--\" are treated as files \n");
 #ifndef ZSTD_NODICT
     DISPLAY( "\n");
@@ -333,7 +334,8 @@ int main(int argCount, const char* argv[])
         ultra=0,
         lastCommand = 0,
         nbThreads = 1,
-        setRealTimePrio = 0;
+        setRealTimePrio = 0,
+        ldmFlag = 0;
     unsigned bench_nbSeconds = 3;   /* would be better if this value was synchronized from bench */
     size_t blockSize = 0;
     zstd_operation_mode operation = zom_compress;
@@ -440,6 +442,7 @@ int main(int argCount, const char* argv[])
 #ifdef ZSTD_LZ4COMPRESS
                     if (!strcmp(argument, "--format=lz4")) { suffix = LZ4_EXTENSION; FIO_setCompressionType(FIO_lz4Compression);  continue; }
 #endif
+                    if (!strcmp(argument, "--long")) { ldmFlag = 1; continue; }
 
                     /* long commands with arguments */
 #ifndef ZSTD_NODICT
@@ -690,6 +693,7 @@ int main(int argCount, const char* argv[])
         BMK_setBlockSize(blockSize);
         BMK_setNbThreads(nbThreads);
         BMK_setNbSeconds(bench_nbSeconds);
+        BMK_setLdmFlag(ldmFlag);
         BMK_benchFiles(filenameTable, filenameIdx, dictFileName, cLevel, cLevelLast, &compressionParams, setRealTimePrio);
 #endif
         (void)bench_nbSeconds;
@@ -757,6 +761,7 @@ int main(int argCount, const char* argv[])
 #ifndef ZSTD_NOCOMPRESS
         FIO_setNbThreads(nbThreads);
         FIO_setBlockSize((U32)blockSize);
+        FIO_setLdmFlag(ldmFlag);
         if (g_overlapLog!=OVERLAP_LOG_DEFAULT) FIO_setOverlapLog(g_overlapLog);
         if ((filenameIdx==1) && outFileName)
           operationResult = FIO_compressFilename(outFileName, filenameTable[0], dictFileName, cLevel, &compressionParams);

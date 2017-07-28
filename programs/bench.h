@@ -25,5 +25,6 @@ void BMK_setNbThreads(unsigned nbThreads);
 void BMK_setNotificationLevel(unsigned level);
 void BMK_setAdditionalParam(int additionalParam);
 void BMK_setDecodeOnlyMode(unsigned decodeFlag);
+void BMK_setLdmFlag(unsigned ldmFlag);
 
 #endif   /* BENCH_H_121279284357 */

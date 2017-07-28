@@ -6,6 +6,15 @@ ZSTDCOMP_FILES   := $(ZSTDDIR)/compress/*.c
 ZSTDDECOMP_FILES := $(ZSTDDIR)/decompress/*.c
 ZSTD_FILES  := $(ZSTDDECOMP_FILES) $(ZSTDCOMMON_FILES) $(ZSTDCOMP_FILES)
 
+# Define *.exe as extension for Windows systems
+ifneq (,$(filter Windows%,$(OS)))
+EXT =.exe
+MULTITHREAD_LD  =
+else
+EXT =
+MULTITHREAD_LD  = -pthread
+endif
+
 DEBUGFLAGS= -g -DZSTD_DEBUG=1
 CPPFLAGS += -I$(ZSTDDIR) -I$(ZSTDDIR)/common -I$(ZSTDDIR)/compress \
             -I$(ZSTDDIR)/dictBuilder -I$(ZSTDDIR)/deprecated -I$(PRGDIR)
@@ -17,7 +26,7 @@ CFLAGS   += -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow                 \
             -Wredundant-decls
 CFLAGS   += $(DEBUGFLAGS)
 CFLAGS   += $(MOREFLAGS)
-FLAGS     = $(CPPFLAGS) $(CFLAGS) $(LDFLAGS)
+FLAGS     = $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) $(MULTITHREAD_LD)
 
 all: adapt datagen
 

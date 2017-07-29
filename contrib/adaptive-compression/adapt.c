@@ -621,7 +621,6 @@ static void* compressionThread(void* arg)
 
 static void displayProgress(unsigned cLevel, unsigned last)
 {
-
     UTIL_time_t currTime;
     UTIL_getTime(&currTime);
     if (!g_useProgressBar) return;

@@ -414,6 +414,8 @@ static void adaptCompressionLevel(adaptCCtx* ctx)
     pthread_mutex_unlock(&ctx->createCompletion_mutex.pMutex);
     DEBUG(2, "convergence counter: %u\n", ctx->convergenceCounter);
 
+    assert(g_minCLevel <= ctx->compressionLevel && g_maxCLevel >= ctx->compressionLevel);
+
     /* adaptation logic */
     if (ctx->cooldown) ctx->cooldown--;
 
@@ -422,7 +424,7 @@ static void adaptCompressionLevel(adaptCCtx* ctx)
         /* use whichever one waited less because it was slower */
         double const completion = MAX(createWaitCompressionCompletion, writeWaitCompressionCompletion);
         unsigned const change = convertCompletionToChange(completion);
-        unsigned const boundChange = ctx->compressionLevel >= g_minCLevel ? MIN(change, ctx->compressionLevel - g_minCLevel) : 0;
+        unsigned const boundChange = MIN(change, ctx->compressionLevel - g_minCLevel);
         if (ctx->convergenceCounter >= CONVERGENCE_LOWER_BOUND && boundChange != 0) {
             /* reset convergence counter, might have been a spike */
             ctx->convergenceCounter = 0;
@@ -440,7 +442,7 @@ static void adaptCompressionLevel(adaptCCtx* ctx)
         /* compress waiting on write */
         double const completion = MIN(compressWaitWriteCompletion, compressWaitCreateCompletion);
         unsigned const change = convertCompletionToChange(completion);
-        unsigned const boundChange = g_maxCLevel >= ctx->compressionLevel ? MIN(change, g_maxCLevel - ctx->compressionLevel) : 0;
+        unsigned const boundChange = MIN(change, g_maxCLevel - ctx->compressionLevel);
         if (ctx->convergenceCounter >= CONVERGENCE_LOWER_BOUND && boundChange != 0) {
             /* reset convergence counter, might have been a spike */
             ctx->convergenceCounter = 0;
@@ -1000,6 +1002,7 @@ int main(int argCount, const char* argv[])
     const char** filenameTable = (const char**)malloc(argCount*sizeof(const char*));
     unsigned filenameIdx = 0;
     unsigned forceStdout = 0;
+    unsigned providedInitialCLevel = 0;
     int ret = 0;
     int argNum;
     filenameTable[0] = stdinmark;
@@ -1024,6 +1027,7 @@ int main(int argCount, const char* argv[])
                 case 'i':
                     argument += 2;
                     g_compressionLevel = readU32FromChar(&argument);
+                    providedInitialCLevel = 1;
                     break;
                 case 'h':
                     help();
@@ -1060,6 +1064,20 @@ int main(int argCount, const char* argv[])
 
         /* regular files to be compressed */
         filenameTable[filenameIdx++] = argument;
+    }
+
+    /* check initial, max, and min compression levels */
+    {
+        unsigned const minMaxInconsistent = g_minCLevel > g_maxCLevel;
+        unsigned const initialNotInRange = g_minCLevel > g_compressionLevel || g_maxCLevel < g_compressionLevel;
+        if (minMaxInconsistent || (initialNotInRange && providedInitialCLevel)) {
+            DISPLAY("Error: provided compression level parameters are invalid\n");
+            ret = 1;
+            goto _main_exit;
+        }
+        else if (initialNotInRange) {
+            g_compressionLevel = g_minCLevel;
+        }
     }
 
     /* error checking with number of files */

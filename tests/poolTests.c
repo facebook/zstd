@@ -54,7 +54,7 @@ int main(int argc, const char **argv) {
   size_t numThreads;
   for (numThreads = 1; numThreads <= 4; ++numThreads) {
     size_t queueSize;
-    for (queueSize = 1; queueSize <= 2; ++queueSize) {
+    for (queueSize = 0; queueSize <= 2; ++queueSize) {
       if (testOrder(numThreads, queueSize)) {
         printf("FAIL: testOrder\n");
         return 1;
@@ -64,7 +64,7 @@ int main(int argc, const char **argv) {
   printf("PASS: testOrder\n");
   (void)argc;
   (void)argv;
-  return (POOL_create(0, 1) || POOL_create(1, 0)) ? printf("FAIL: testInvalid\n"), 1
-                                                  : printf("PASS: testInvalid\n"), 0;
+  return (POOL_create(0, 1)) ? printf("FAIL: testInvalid\n"), 1
+                             : printf("PASS: testInvalid\n"), 0;
   return 0;
 }

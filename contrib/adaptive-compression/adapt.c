@@ -333,7 +333,7 @@ static void signalErrorToThreads(adaptCCtx* ctx)
     pthread_mutex_unlock(&ctx->jobReady_mutex.pMutex);
 
     pthread_mutex_lock(&ctx->jobCompressed_mutex.pMutex);
-    pthread_cond_signal(&ctx->jobCompressed_cond.pCond);
+    pthread_cond_broadcast(&ctx->jobCompressed_cond.pCond);
     pthread_mutex_unlock(&ctx->jobReady_mutex.pMutex);
 
     pthread_mutex_lock(&ctx->jobWrite_mutex.pMutex);

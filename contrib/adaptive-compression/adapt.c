@@ -986,14 +986,14 @@ static void help(void)
     PRINT("\n");
     PRINT("Options:\n");
     PRINT("  -oFILE : specify the output file name\n");
-    PRINT("  -i#    : provide initial compression level\n");
+    PRINT("  -i#    : provide initial compression level -- default %d, must be in the range [L, U] where L and U are bound values (see below for defaults)\n", DEFAULT_COMPRESSION_LEVEL);
     PRINT("  -h     : display help/information\n");
     PRINT("  -f     : force the compression level to stay constant\n");
     PRINT("  -c     : force write to stdout\n");
     PRINT("  -p     : hide progress bar\n");
     PRINT("  -q     : quiet mode -- do not show progress bar or other information\n");
-    PRINT("  -l#    : provide lower bound for compression level\n");
-    PRINT("  -u#    : provide upper bound for compression level\n");
+    PRINT("  -l#    : provide lower bound for compression level -- default 1\n");
+    PRINT("  -u#    : provide upper bound for compression level -- default 22\n");
 }
 /* return 0 if successful, else return error */
 int main(int argCount, const char* argv[])

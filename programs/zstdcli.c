@@ -719,6 +719,10 @@ int main(int argCount, const char* argv[])
         goto _end;
     }
 
+#ifndef ZSTD_NODECOMPRESS
+    if (operation==zom_test) { outFileName=nulmark; FIO_setRemoveSrcFile(0); } /* test mode */
+#endif
+
     /* No input filename ==> use stdin and stdout */
     filenameIdx += !filenameIdx;   /* filenameTable[0] is stdin by default */
     if (!strcmp(filenameTable[0], stdinmark) && !outFileName) outFileName = stdoutmark;   /* when input is stdin, default output is stdout */
@@ -763,7 +767,6 @@ int main(int argCount, const char* argv[])
 #endif
     } else {  /* decompression or test */
 #ifndef ZSTD_NODECOMPRESS
-        if (operation==zom_test) { outFileName=nulmark; FIO_setRemoveSrcFile(0); } /* test mode */
         FIO_setMemLimit(memLimit);
         if (filenameIdx==1 && outFileName)
             operationResult = FIO_decompressFilename(outFileName, filenameTable[0], dictFileName);

@@ -50,6 +50,10 @@
 #include "error_private.h"
 #define ZSTD_STATIC_LINKING_ONLY
 #include "zstd.h"
+#define FSE_STATIC_LINKING_ONLY
+#include "fse.h"
+#define HUF_STATIC_LINKING_ONLY
+#include "huf.h"
 #ifndef XXH_STATIC_LINKING_ONLY
 #  define XXH_STATIC_LINKING_ONLY  /* XXH64_state_t */
 #endif
@@ -211,20 +215,6 @@ MEM_STATIC void ZSTD_wildcopy_e(void* dst, const void* src, void* dstEnd)   /* s
 *********************************************/
 typedef struct ZSTD_stats_s ZSTD_stats_t;
 
-typedef struct {
-    U32 off;
-    U32 len;
-} ZSTD_match_t;
-
-typedef struct {
-    U32 price;
-    U32 off;
-    U32 mlen;
-    U32 litlen;
-    U32 rep[ZSTD_REP_NUM];
-} ZSTD_optimal_t;
-
-
 typedef struct seqDef_s {
     U32 offset;
     U16 litLength;
@@ -242,13 +232,31 @@ typedef struct {
     BYTE* ofCode;
     U32   longLengthID;   /* 0 == no longLength; 1 == Lit.longLength; 2 == Match.longLength; */
     U32   longLengthPos;
-    /* opt */
-    ZSTD_optimal_t* priceTable;
-    ZSTD_match_t* matchTable;
-    U32* matchLengthFreq;
-    U32* litLengthFreq;
+    U32   rep[ZSTD_REP_NUM];
+    U32   repToConfirm[ZSTD_REP_NUM];
+} seqStore_t;
+
+typedef struct {
+    U32 off;
+    U32 len;
+} ZSTD_match_t;
+
+typedef struct {
+    U32 price;
+    U32 off;
+    U32 mlen;
+    U32 litlen;
+    U32 rep[ZSTD_REP_NUM];
+} ZSTD_optimal_t;
+
+typedef struct {
     U32* litFreq;
+    U32* litLengthFreq;
+    U32* matchLengthFreq;
     U32* offCodeFreq;
+    ZSTD_match_t* matchTable;
+    ZSTD_optimal_t* priceTable;
+
     U32  matchLengthSum;
     U32  matchSum;
     U32  litLengthSum;
@@ -264,7 +272,19 @@ typedef struct {
     U32  cachedPrice;
     U32  cachedLitLength;
     const BYTE* cachedLiterals;
-} seqStore_t;
+} optState_t;
+
+typedef struct {
+    U32 hufCTable[HUF_CTABLE_SIZE_U32(255)];
+    FSE_CTable offcodeCTable[FSE_CTABLE_SIZE_U32(OffFSELog, MaxOff)];
+    FSE_CTable matchlengthCTable[FSE_CTABLE_SIZE_U32(MLFSELog, MaxML)];
+    FSE_CTable litlengthCTable[FSE_CTABLE_SIZE_U32(LLFSELog, MaxLL)];
+    U32 workspace[HUF_WORKSPACE_SIZE_U32];
+    HUF_repeat hufCTable_repeatMode;
+    FSE_repeat offcode_repeatMode;
+    FSE_repeat matchlength_repeatMode;
+    FSE_repeat litlength_repeatMode;
+} ZSTD_entropyCTables_t;
 
 const seqStore_t* ZSTD_getSeqStore(const ZSTD_CCtx* ctx);
 void ZSTD_seqToCodes(const seqStore_t* seqStorePtr);

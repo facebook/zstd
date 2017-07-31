@@ -714,11 +714,9 @@ typedef struct COVER_best_s {
  * Initialize the `COVER_best_t`.
  */
 static void COVER_best_init(COVER_best_t *best) {
-  if (!best) {
-    return;
-  }
-  pthread_mutex_init(&best->mutex, NULL);
-  pthread_cond_init(&best->cond, NULL);
+  if (best==NULL) return; /* compatible with init on NULL */
+  (void)pthread_mutex_init(&best->mutex, NULL);
+  (void)pthread_cond_init(&best->cond, NULL);
   best->liveJobs = 0;
   best->dict = NULL;
   best->dictSize = 0;

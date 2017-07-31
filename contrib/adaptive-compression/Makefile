@@ -46,3 +46,31 @@ clean:
 	@$(RM) -f tests/*.zst
 	@$(RM) -f tests/tmp*
 	@echo "finished cleaning"
+
+#-----------------------------------------------------------------------------
+# make install is validated only for Linux, OSX, BSD, Hurd and Solaris targets
+#-----------------------------------------------------------------------------
+ifneq (,$(filter $(shell uname),Linux Darwin GNU/kFreeBSD GNU OpenBSD FreeBSD NetBSD DragonFly SunOS))
+
+ifneq (,$(filter $(shell uname),SunOS))
+INSTALL ?= ginstall
+else
+INSTALL ?= install
+endif
+
+PREFIX  ?= /usr/local
+DESTDIR ?=
+BINDIR  ?= $(PREFIX)/bin
+
+INSTALL_PROGRAM ?= $(INSTALL) -m 755
+
+install: adapt
+	@echo Installing binaries
+	@$(INSTALL) -d -m 755 $(DESTDIR)$(BINDIR)/
+	@$(INSTALL_PROGRAM) adapt $(DESTDIR)$(BINDIR)/zstd-adaptive
+	@echo zstd-adaptive installation completed
+
+uninstall:
+	@$(RM) $(DESTDIR)$(BINDIR)/zstd-adaptive
+	@echo zstd-adaptive programs successfully uninstalled
+endif

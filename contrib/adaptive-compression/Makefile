@@ -29,7 +29,7 @@ adapt-debug: $(ZSTD_FILES) adapt.c
 	$(CC) $(FLAGS) -DDEBUG_MODE=2 $^ -o adapt
 
 datagen : $(PRGDIR)/datagen.c datagencli.c
-	$(CC)      $(FLAGS) $^ -o $@$(EXT)
+	$(CC)      $(FLAGS) $^ -o $@
 
 test-adapt-correctness: datagen adapt
 	@./test-correctness.sh

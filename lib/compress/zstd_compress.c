@@ -3000,7 +3000,6 @@ static size_t ZSTD_compressContinue_internal (ZSTD_CCtx* cctx,
         return fhSize;
 }
 
-
 size_t ZSTD_compressContinue (ZSTD_CCtx* cctx,
                               void* dst, size_t dstCapacity,
                         const void* src, size_t srcSize)

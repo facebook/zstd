@@ -79,7 +79,7 @@ all32: fullbench32 fuzzer32 zstreamtest32
 
 allnothread: fullbench fuzzer paramgrill datagen  decodecorpus
 
-dll: fuzzer-dll zstreamtest-dll 
+dll: fuzzer-dll zstreamtest-dll
 
 zstd:
 	$(MAKE) -C $(PRGDIR) $@
@@ -108,11 +108,11 @@ fullbench-dll: $(PRGDIR)/datagen.c fullbench.c
 	$(MAKE) -C $(ZSTDDIR) libzstd
 	$(CC) $(FLAGS) $^ -o $@$(EXT) -DZSTD_DLL_IMPORT=1 $(ZSTDDIR)/dll/libzstd.dll
 
-fuzzer   : $(ZSTD_FILES) $(ZDICT_FILES) $(PRGDIR)/datagen.c fuzzer.c
-	$(CC)      $(FLAGS) $^ -o $@$(EXT)
-
-fuzzer32 : $(ZSTD_FILES) $(ZDICT_FILES) $(PRGDIR)/datagen.c fuzzer.c
-	$(CC) -m32 $(FLAGS) $^ -o $@$(EXT)
+fuzzer : CPPFLAGS += $(MULTITHREAD_CPP)
+fuzzer : LDFLAGS += $(MULTITHREAD_LD)
+fuzzer32: CFLAGS += -m32
+fuzzer fuzzer32 : $(ZSTD_FILES) $(ZDICT_FILES) $(PRGDIR)/datagen.c fuzzer.c
+	$(CC) $(FLAGS) $^ -o $@$(EXT)
 
 fuzzer-dll : LDFLAGS+= -L$(ZSTDDIR) -lzstd
 fuzzer-dll : $(ZSTDDIR)/common/xxhash.c $(PRGDIR)/datagen.c fuzzer.c
@@ -192,7 +192,7 @@ else
 	$(CC) $(FLAGS) $^ -o $@$(EXT) -Wl,-rpath=$(ZSTDDIR) $(ZSTDDIR)/libzstd.so
 endif
 
-pool  : pool.c $(ZSTDDIR)/common/pool.c $(ZSTDDIR)/common/threading.c
+poolTests  : poolTests.c $(ZSTDDIR)/common/pool.c $(ZSTDDIR)/common/threading.c
 	$(CC)    $(FLAGS) $(MULTITHREAD) $^ -o $@$(EXT)
 
 namespaceTest:
@@ -213,7 +213,7 @@ clean:
         fuzzer-dll$(EXT) zstreamtest-dll$(EXT) zbufftest-dll$(EXT)\
         zstreamtest$(EXT) zstreamtest32$(EXT) \
         datagen$(EXT) paramgrill$(EXT) roundTripCrash$(EXT) longmatch$(EXT) \
-        symbols$(EXT) invalidDictionaries$(EXT) legacy$(EXT) pool$(EXT) \
+        symbols$(EXT) invalidDictionaries$(EXT) legacy$(EXT) poolTests$(EXT) \
 	decodecorpus$(EXT)
 	@echo Cleaning completed
 
@@ -375,7 +375,7 @@ test-decodecorpus-cli: decodecorpus
 	cd ..
 	@rm -rf testdir
 
-test-pool: pool
-	$(QEMU_SYS) ./pool
+test-pool: poolTests
+	$(QEMU_SYS) ./poolTests
 
 endif

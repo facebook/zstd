@@ -2,6 +2,7 @@
 #include "threading.h"
 #include <stddef.h>
 #include <stdio.h>
+#include <unistd.h>
 
 #define ASSERT_TRUE(p)                                                         \
   do {                                                                         \
@@ -50,6 +51,26 @@ int testOrder(size_t numThreads, size_t queueSize) {
   return 0;
 }
 
+void waitFn(void *opaque) {
+  (void)opaque;
+  usleep(100);
+}
+
+/* Tests for deadlock */
+int testWait(size_t numThreads, size_t queueSize) {
+  struct data data;
+  POOL_ctx *ctx = POOL_create(numThreads, queueSize);
+  ASSERT_TRUE(ctx);
+  {
+    size_t i;
+    for (i = 0; i < 16; ++i) {
+        POOL_add(ctx, &waitFn, &data);
+    }
+  }
+  POOL_free(ctx);
+  return 0;
+}
+
 int main(int argc, const char **argv) {
   size_t numThreads;
   for (numThreads = 1; numThreads <= 4; ++numThreads) {
@@ -57,6 +78,10 @@ int main(int argc, const char **argv) {
     for (queueSize = 0; queueSize <= 2; ++queueSize) {
       if (testOrder(numThreads, queueSize)) {
         printf("FAIL: testOrder\n");
+        return 1;
+      }
+      if (testWait(numThreads, queueSize)) {
+        printf("FAIL: testWait\n");
         return 1;
       }
     }

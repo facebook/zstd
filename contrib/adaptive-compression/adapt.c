@@ -785,6 +785,11 @@ static int performCompression(adaptCCtx* ctx, FILE* const srcFile, outputThreadA
             signalErrorToThreads(ctx);
             return 1;
         }
+        else if (pthread_detach(out)) {
+        	DISPLAY("Error: could not detach output thread\n");
+        	signalErrorToThreads(ctx);
+        	return 1;
+        }
     }
 
     /* create compression thread */
@@ -794,6 +799,11 @@ static int performCompression(adaptCCtx* ctx, FILE* const srcFile, outputThreadA
             DISPLAY("Error: could not create compression thread\n");
             signalErrorToThreads(ctx);
             return 1;
+        }
+        else if (pthread_detach(compression)) {
+        	DISPLAY("Error: could not detach compression thread\n");
+        	signalErrorToThreads(ctx);
+        	return 1;
         }
     }
     {

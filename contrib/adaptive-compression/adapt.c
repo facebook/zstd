@@ -1018,7 +1018,7 @@ static unsigned readU32FromChar(const char** stringPtr)
 static void help(void)
 {
     PRINT("Usage:\n");
-    PRINT("  ./multi [options] [file(s)]\n");
+    PRINT("  zstd-adaptive [options] [file(s)]\n");
     PRINT("\n");
     PRINT("Options:\n");
     PRINT("  -oFILE : specify the output file name\n");

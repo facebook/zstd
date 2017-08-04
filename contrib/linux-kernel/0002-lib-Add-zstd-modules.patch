@@ -1,7 +1,7 @@
-From 686a6149b98250d66b5951e3ae05e79063e9de98 Mon Sep 17 00:00:00 2001
+From c7f952ce985f652fe1f2c9266f39cd87b470fd8a Mon Sep 17 00:00:00 2001
 From: Nick Terrell <terrelln@fb.com>
 Date: Mon, 17 Jul 2017 17:08:19 -0700
-Subject: [PATCH v3 2/4] lib: Add zstd modules
+Subject: [PATCH v4 2/5] lib: Add zstd modules
 
 Add zstd compression and decompression kernel modules.
 zstd offers a wide varity of compression speed and quality trade-offs.
@@ -114,13 +114,16 @@ v2 -> v3:
 - Work around gcc-7 bug https://gcc.gnu.org/bugzilla/show_bug.cgi?id=81388
 - Fix bug in dictionary compression from upstream commit cc1522351f
 
+v3 -> v4:
+- Fix minor compiler warnings
+
  include/linux/zstd.h      | 1157 +++++++++++++++
  lib/Kconfig               |    8 +
  lib/Makefile              |    2 +
  lib/zstd/Makefile         |   18 +
  lib/zstd/bitstream.h      |  374 +++++
  lib/zstd/compress.c       | 3479 +++++++++++++++++++++++++++++++++++++++++++++
- lib/zstd/decompress.c     | 2526 ++++++++++++++++++++++++++++++++
+ lib/zstd/decompress.c     | 2528 ++++++++++++++++++++++++++++++++
  lib/zstd/entropy_common.c |  243 ++++
  lib/zstd/error_private.h  |   53 +
  lib/zstd/fse.h            |  575 ++++++++
@@ -133,7 +136,7 @@ v2 -> v3:
  lib/zstd/zstd_common.c    |   75 +
  lib/zstd/zstd_internal.h  |  250 ++++
  lib/zstd/zstd_opt.h       | 1014 +++++++++++++
- 19 files changed, 12994 insertions(+)
+ 19 files changed, 12996 insertions(+)
  create mode 100644 include/linux/zstd.h
  create mode 100644 lib/zstd/Makefile
  create mode 100644 lib/zstd/bitstream.h
@@ -5238,10 +5241,10 @@ index 0000000..d60ab7d
 +MODULE_DESCRIPTION("Zstd Compressor");
 diff --git a/lib/zstd/decompress.c b/lib/zstd/decompress.c
 new file mode 100644
-index 0000000..62449ae
+index 0000000..b178467
 --- /dev/null
 +++ b/lib/zstd/decompress.c
-@@ -0,0 +1,2526 @@
+@@ -0,0 +1,2528 @@
 +/**
 + * Copyright (c) 2016-present, Yann Collet, Facebook, Inc.
 + * All rights reserved.
@@ -6241,6 +6244,8 @@ index 0000000..62449ae
 +	if (ZSTD_32bits())
 +		BIT_reloadDStream(&seqState->DStream);		   /* <= 18 bits */
 +	FSE_updateState(&seqState->stateOffb, &seqState->DStream); /* <=  8 bits */
++
++	seq.match = NULL;
 +
 +	return seq;
 +}
@@ -11996,7 +12001,7 @@ index 0000000..a282624
 +}
 diff --git a/lib/zstd/zstd_internal.h b/lib/zstd/zstd_internal.h
 new file mode 100644
-index 0000000..f0ba474
+index 0000000..44e8f100
 --- /dev/null
 +++ b/lib/zstd/zstd_internal.h
 @@ -0,0 +1,250 @@
@@ -12128,7 +12133,7 @@ index 0000000..f0ba474
 +/*-*******************************************
 +*  Shared functions to include for inlining
 +*********************************************/
-+static void ZSTD_copy8(void *dst, const void *src) {
++ZSTD_STATIC void ZSTD_copy8(void *dst, const void *src) {
 +	memcpy(dst, src, 8);
 +}
 +/*! ZSTD_wildcopy() :

@@ -126,7 +126,7 @@ static const U32 OF_defaultNormLog = OF_DEFAULTNORMLOG;
 /*-*******************************************
 *  Shared functions to include for inlining
 *********************************************/
-static void ZSTD_copy8(void *dst, const void *src) {
+ZSTD_STATIC void ZSTD_copy8(void *dst, const void *src) {
 	memcpy(dst, src, 8);
 }
 /*! ZSTD_wildcopy() :

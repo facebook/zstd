@@ -1,7 +1,7 @@
-From b0ef8fc63c9ca251ceca632f53aa1de8f1f17772 Mon Sep 17 00:00:00 2001
+From 6ade5bc08dcfa2bce2b4801e47edf783dcb7ca43 Mon Sep 17 00:00:00 2001
 From: Nick Terrell <terrelln@fb.com>
 Date: Mon, 17 Jul 2017 17:08:39 -0700
-Subject: [PATCH v3 3/4] btrfs: Add zstd support
+Subject: [PATCH v4 3/5] btrfs: Add zstd support
 
 Add zstd compression and decompression support to BtrFS. zstd at its
 fastest level compresses almost as well as zlib, while offering much
@@ -67,6 +67,10 @@ v2 -> v3:
 - Port upstream BtrFS commits e1ddce71d6, 389a6cfc2a, and 6acafd1eff
 - Change default compression level for BtrFS to 3
 
+v3 -> v4:
+- Add missing includes, which fixes the aarch64 build
+- Fix minor linter warnings
+
  fs/btrfs/Kconfig           |   2 +
  fs/btrfs/Makefile          |   2 +-
  fs/btrfs/compression.c     |   1 +
@@ -77,9 +81,9 @@ v2 -> v3:
  fs/btrfs/props.c           |   6 +
  fs/btrfs/super.c           |  12 +-
  fs/btrfs/sysfs.c           |   2 +
- fs/btrfs/zstd.c            | 435 +++++++++++++++++++++++++++++++++++++++++++++
+ fs/btrfs/zstd.c            | 432 +++++++++++++++++++++++++++++++++++++++++++++
  include/uapi/linux/btrfs.h |   8 +-
- 12 files changed, 471 insertions(+), 12 deletions(-)
+ 12 files changed, 468 insertions(+), 12 deletions(-)
  create mode 100644 fs/btrfs/zstd.c
 
 diff --git a/fs/btrfs/Kconfig b/fs/btrfs/Kconfig
@@ -277,10 +281,10 @@ index c2d5f35..2b6d37c 100644
  	BTRFS_FEAT_ATTR_PTR(raid56),
 diff --git a/fs/btrfs/zstd.c b/fs/btrfs/zstd.c
 new file mode 100644
-index 0000000..1822068
+index 0000000..607ce47
 --- /dev/null
 +++ b/fs/btrfs/zstd.c
-@@ -0,0 +1,435 @@
+@@ -0,0 +1,432 @@
 +/*
 + * Copyright (c) 2016-present, Facebook, Inc.
 + * All rights reserved.
@@ -293,20 +297,16 @@ index 0000000..1822068
 + * but WITHOUT ANY WARRANTY; without even the implied warranty of
 + * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
 + * General Public License for more details.
-+ *
-+ * You should have received a copy of the GNU General Public
-+ * License along with this program; if not, write to the
-+ * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
-+ * Boston, MA 021110-1307, USA.
 + */
-+#include <linux/kernel.h>
-+#include <linux/slab.h>
-+#include <linux/vmalloc.h>
-+#include <linux/init.h>
-+#include <linux/err.h>
-+#include <linux/sched.h>
-+#include <linux/pagemap.h>
 +#include <linux/bio.h>
++#include <linux/err.h>
++#include <linux/init.h>
++#include <linux/kernel.h>
++#include <linux/mm.h>
++#include <linux/pagemap.h>
++#include <linux/refcount.h>
++#include <linux/sched.h>
++#include <linux/slab.h>
 +#include <linux/zstd.h>
 +#include "compression.h"
 +
@@ -316,7 +316,8 @@ index 0000000..1822068
 +
 +static ZSTD_parameters zstd_get_btrfs_parameters(size_t src_len)
 +{
-+	ZSTD_parameters params = ZSTD_getParams(ZSTD_BTRFS_DEFAULT_LEVEL, src_len, 0);
++	ZSTD_parameters params = ZSTD_getParams(ZSTD_BTRFS_DEFAULT_LEVEL,
++						src_len, 0);
 +
 +	if (params.cParams.windowLog > ZSTD_BTRFS_MAX_WINDOWLOG)
 +		params.cParams.windowLog = ZSTD_BTRFS_MAX_WINDOWLOG;

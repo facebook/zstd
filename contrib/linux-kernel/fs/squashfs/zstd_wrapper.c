@@ -14,10 +14,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
  * zstd_wrapper.c
  */
 
@@ -41,6 +37,7 @@ struct workspace {
 static void *zstd_init(struct squashfs_sb_info *msblk, void *buff)
 {
 	struct workspace *wksp = kmalloc(sizeof(*wksp), GFP_KERNEL);
+
 	if (wksp == NULL)
 		goto failed;
 	wksp->mem_size = ZSTD_DStreamWorkspaceBound(max_t(size_t,
@@ -93,6 +90,7 @@ static int zstd_uncompress(struct squashfs_sb_info *msblk, void *strm,
 	do {
 		if (in_buf.pos == in_buf.size && k < b) {
 			int avail = min(length, msblk->devblksize - offset);
+
 			length -= avail;
 			in_buf.src = bh[k]->b_data + offset;
 			in_buf.size = avail;
@@ -103,8 +101,9 @@ static int zstd_uncompress(struct squashfs_sb_info *msblk, void *strm,
 		if (out_buf.pos == out_buf.size) {
 			out_buf.dst = squashfs_next_page(output);
 			if (out_buf.dst == NULL) {
-				/* shouldn't run out of pages before stream is
-				 * done */
+				/* Shouldn't run out of pages
+				 * before stream is done.
+				 */
 				squashfs_finish_page(output);
 				goto out;
 			}

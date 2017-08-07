@@ -242,4 +242,11 @@ echo -e "\ncorrectness tests -- window size test"
 ./datagen -s39 -g1GB | pv -L 25m -q | ./adapt -i1 | pv -q > tmp.zst
 zstd -d tmp.zst
 rm tmp*
+
+echo -e "\ncorrectness tests -- testing bounds"
+./datagen -s40 -g1GB | pv -L 25m -q | ./adapt -i1 -u4 | pv -q > tmp.zst
+rm tmp*
+
+./datagen -s41 -g1GB | ./adapt -i14 -l4 > tmp.zst
+rm tmp*
 make clean

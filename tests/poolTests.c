@@ -1,8 +1,8 @@
 #include "pool.h"
 #include "threading.h"
+#include "util.h"
 #include <stddef.h>
 #include <stdio.h>
-#include <unistd.h>
 
 #define ASSERT_TRUE(p)                                                         \
   do {                                                                         \
@@ -53,7 +53,7 @@ int testOrder(size_t numThreads, size_t queueSize) {
 
 void waitFn(void *opaque) {
   (void)opaque;
-  usleep(100);
+  UTIL_sleepMilli(1);
 }
 
 /* Tests for deadlock */

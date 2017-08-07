@@ -43,7 +43,7 @@ static unsigned g_useProgressBar = 1;
 static UTIL_freq_t g_ticksPerSecond;
 static unsigned g_forceCompressionLevel = 0;
 static unsigned g_minCLevel = 1;
-static unsigned g_maxCLevel = 22;
+static unsigned g_maxCLevel;
 
 typedef struct {
     void* start;
@@ -1029,7 +1029,7 @@ static void help(void)
     PRINT("  -p     : hide progress bar\n");
     PRINT("  -q     : quiet mode -- do not show progress bar or other information\n");
     PRINT("  -l#    : provide lower bound for compression level -- default 1\n");
-    PRINT("  -u#    : provide upper bound for compression level -- default 22\n");
+    PRINT("  -u#    : provide upper bound for compression level -- default %u\n", ZSTD_maxCLevel());
 }
 /* return 0 if successful, else return error */
 int main(int argCount, const char* argv[])
@@ -1042,6 +1042,7 @@ int main(int argCount, const char* argv[])
     int ret = 0;
     int argNum;
     filenameTable[0] = stdinmark;
+    g_maxCLevel = ZSTD_maxCLevel();
 
     UTIL_initTimer(&g_ticksPerSecond);
 

@@ -1,7 +1,7 @@
-From 6ade5bc08dcfa2bce2b4801e47edf783dcb7ca43 Mon Sep 17 00:00:00 2001
+From 8a9dddfbf6551afea73911e367dd4be64d62b9fd Mon Sep 17 00:00:00 2001
 From: Nick Terrell <terrelln@fb.com>
 Date: Mon, 17 Jul 2017 17:08:39 -0700
-Subject: [PATCH v4 3/5] btrfs: Add zstd support
+Subject: [PATCH v5 3/5] btrfs: Add zstd support
 
 Add zstd compression and decompression support to BtrFS. zstd at its
 fastest level compresses almost as well as zlib, while offering much

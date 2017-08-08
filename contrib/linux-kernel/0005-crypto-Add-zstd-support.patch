@@ -1,7 +1,7 @@
-From a276288db937088d00b975ad9c36278fa46c8cf7 Mon Sep 17 00:00:00 2001
+From 308795a7713ca6fcd468b60fba9a2fca99cee6a0 Mon Sep 17 00:00:00 2001
 From: Nick Terrell <terrelln@fb.com>
 Date: Wed, 2 Aug 2017 18:02:13 -0700
-Subject: [PATCH v4 5/5] crypto: Add zstd support
+Subject: [PATCH v5 5/5] crypto: Add zstd support
 
 Adds zstd support to crypto and scompress. Only supports the default
 level.
@@ -23,7 +23,7 @@ index caa770e..4fc3936 100644
 @@ -1662,6 +1662,15 @@ config CRYPTO_LZ4HC
  	help
  	  This is the LZ4 high compression mode algorithm.
- 
+
 +config CRYPTO_ZSTD
 +	tristate "Zstd compression algorithm"
 +	select CRYPTO_ALGAPI
@@ -34,7 +34,7 @@ index caa770e..4fc3936 100644
 +	  This is the zstd algorithm.
 +
  comment "Random Number Generation"
- 
+
  config CRYPTO_ANSI_CPRNG
 diff --git a/crypto/Makefile b/crypto/Makefile
 index d41f033..b22e1e8 100644
@@ -45,7 +45,7 @@ index d41f033..b22e1e8 100644
  obj-$(CONFIG_CRYPTO_USER_API_RNG) += algif_rng.o
  obj-$(CONFIG_CRYPTO_USER_API_AEAD) += algif_aead.o
 +obj-$(CONFIG_CRYPTO_ZSTD) += zstd.o
- 
+
  ecdh_generic-y := ecc.o
  ecdh_generic-y += ecdh.o
 diff --git a/crypto/testmgr.c b/crypto/testmgr.c
@@ -68,7 +68,7 @@ index 7125ba3..8a124d3 100644
 +		}
  	}
  };
- 
+
 diff --git a/crypto/testmgr.h b/crypto/testmgr.h
 index 6ceb0e2..e6b5920 100644
 --- a/crypto/testmgr.h
@@ -76,7 +76,7 @@ index 6ceb0e2..e6b5920 100644
 @@ -34631,4 +34631,75 @@ static const struct comp_testvec lz4hc_decomp_tv_template[] = {
  	},
  };
- 
+
 +static const struct comp_testvec zstd_comp_tv_template[] = {
 +	{
 +		.inlen	= 68,
@@ -420,6 +420,5 @@ index 0000000..9a76b3e
 +MODULE_LICENSE("GPL");
 +MODULE_DESCRIPTION("Zstd Compression Algorithm");
 +MODULE_ALIAS_CRYPTO("zstd");
--- 
+--
 2.9.3
-

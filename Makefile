@@ -146,6 +146,11 @@ gcc6build: clean
 	gcc-6 -v
 	CC=gcc-6 $(MAKE) all MOREFLAGS="-Werror"
 
+.PHONY: gcc7build
+gcc7build: clean
+	gcc-7 -v
+	CC=gcc-7 $(MAKE) all MOREFLAGS="-Werror"
+
 .PHONY: clangbuild
 clangbuild: clean
 	clang -v

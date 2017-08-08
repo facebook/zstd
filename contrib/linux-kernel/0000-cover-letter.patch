@@ -1,7 +1,7 @@
-From a276288db937088d00b975ad9c36278fa46c8cf7 Mon Sep 17 00:00:00 2001
+From 308795a7713ca6fcd468b60fba9a2fca99cee6a0 Mon Sep 17 00:00:00 2001
 From: Nick Terrell <terrelln@fb.com>
-Date: Fri, 4 Aug 2017 12:47:29 -0700
-Subject: [PATCH v4 0/5] Add xxhash and zstd modules
+Date: Tue, 8 Aug 2017 19:20:25 -0700
+Subject: [PATCH v5 0/5] Add xxhash and zstd modules
 
 Hi all,
 
@@ -37,6 +37,12 @@ v3 -> v4:
 - Fix minor linter warnings (3/5, 4/5)
 - Add crypto patch (5/5)
 
+v4 -> v5:
+- Fix rare compression bug from upstream commit 308047eb5d (2/5)
+- Fix bug introduced in v3 when working around the gcc-7 bug (2/5)
+- Fix ZSTD_DStream initialization code in squashfs (4/5)
+- Fix patch documentation for patches written by Sean Purcell (4/5)
+
 Nick Terrell (5):
   lib: Add xxhash module
   lib: Add zstd modules
@@ -65,7 +71,7 @@ Nick Terrell (5):
  fs/squashfs/decompressor.c |    7 +
  fs/squashfs/decompressor.h |    4 +
  fs/squashfs/squashfs_fs.h  |    1 +
- fs/squashfs/zstd_wrapper.c |  149 ++
+ fs/squashfs/zstd_wrapper.c |  151 ++
  include/linux/xxhash.h     |  236 +++
  include/linux/zstd.h       | 1157 +++++++++++++++
  include/uapi/linux/btrfs.h |    8 +-
@@ -74,9 +80,9 @@ Nick Terrell (5):
  lib/xxhash.c               |  500 +++++++
  lib/zstd/Makefile          |   18 +
  lib/zstd/bitstream.h       |  374 +++++
- lib/zstd/compress.c        | 3479 ++++++++++++++++++++++++++++++++++++++++++++
+ lib/zstd/compress.c        | 3484 ++++++++++++++++++++++++++++++++++++++++++++
  lib/zstd/decompress.c      | 2528 ++++++++++++++++++++++++++++++++
- lib/zstd/entropy_common.c  |  243 ++++
+ lib/zstd/entropy_common.c  |  243 +++
  lib/zstd/error_private.h   |   53 +
  lib/zstd/fse.h             |  575 ++++++++
  lib/zstd/fse_compress.c    |  795 ++++++++++
@@ -86,9 +92,9 @@ Nick Terrell (5):
  lib/zstd/huf_decompress.c  |  960 ++++++++++++
  lib/zstd/mem.h             |  151 ++
  lib/zstd/zstd_common.c     |   75 +
- lib/zstd/zstd_internal.h   |  250 ++++
+ lib/zstd/zstd_internal.h   |  263 ++++
  lib/zstd/zstd_opt.h        | 1014 +++++++++++++
- 44 files changed, 14736 insertions(+), 12 deletions(-)
+ 44 files changed, 14756 insertions(+), 12 deletions(-)
  create mode 100644 crypto/zstd.c
  create mode 100644 fs/btrfs/zstd.c
  create mode 100644 fs/squashfs/zstd_wrapper.c

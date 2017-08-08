@@ -1,7 +1,7 @@
-From 0ec6ae4b2c69fcf27785e389391b0add474efd8c Mon Sep 17 00:00:00 2001
+From cc08b43a31fed1289c2027d5090999da569457f1 Mon Sep 17 00:00:00 2001
 From: Sean Purcell <me@seanp.xyz>
 Date: Thu, 3 Aug 2017 17:47:03 -0700
-Subject: [PATCH v4] squashfs-tools: Add zstd support
+Subject: [PATCH v5] squashfs-tools: Add zstd support
 
 This patch adds zstd support to squashfs-tools. It works with zstd
 versions >= 1.0.0. It was originally written by Sean Purcell.
@@ -9,12 +9,17 @@ versions >= 1.0.0. It was originally written by Sean Purcell.
 Signed-off-by: Sean Purcell <me@seanp.xyz>
 Signed-off-by: Nick Terrell <terrelln@fb.com>
 ---
+v4 -> v5:
+- Fix patch documentation to reflect that Sean Purcell is the author
+- Don't strip trailing whitespace of unreleated code
+- Make zstd_display_options() static
+
  squashfs-tools/Makefile       |  21 ++++
  squashfs-tools/compressor.c   |   8 ++
- squashfs-tools/squashfs_fs.h  |   3 +-
+ squashfs-tools/squashfs_fs.h  |   1 +
  squashfs-tools/zstd_wrapper.c | 254 ++++++++++++++++++++++++++++++++++++++++++
  squashfs-tools/zstd_wrapper.h |  48 ++++++++
- 5 files changed, 333 insertions(+), 1 deletion(-)
+ 5 files changed, 332 insertions(+)
  create mode 100644 squashfs-tools/zstd_wrapper.c
  create mode 100644 squashfs-tools/zstd_wrapper.h
 
@@ -25,7 +30,7 @@ index 52d2582..8e82e09 100644
 @@ -75,6 +75,19 @@ GZIP_SUPPORT = 1
  #LZMA_SUPPORT = 1
  #LZMA_DIR = ../../../../LZMA/lzma465
- 
+
 +
 +########### Building ZSTD support ############
 +#
@@ -45,7 +50,7 @@ index 52d2582..8e82e09 100644
 @@ -177,6 +190,14 @@ LIBS += -llz4
  COMPRESSORS += lz4
  endif
- 
+
 +ifeq ($(ZSTD_SUPPORT),1)
 +CFLAGS += -DZSTD_SUPPORT
 +MKSQUASHFS_OBJS += zstd_wrapper.o
@@ -64,7 +69,7 @@ index 525e316..02b5e90 100644
 @@ -65,6 +65,13 @@ static struct compressor xz_comp_ops = {
  extern struct compressor xz_comp_ops;
  #endif
- 
+
 +#ifndef ZSTD_SUPPORT
 +static struct compressor zstd_comp_ops = {
 +	ZSTD_COMPRESSION, "zstd"
@@ -72,7 +77,7 @@ index 525e316..02b5e90 100644
 +#else
 +extern struct compressor zstd_comp_ops;
 +#endif
- 
+
  static struct compressor unknown_comp_ops = {
  	0, "unknown"
 @@ -77,6 +84,7 @@ struct compressor *compressor[] = {
@@ -82,31 +87,22 @@ index 525e316..02b5e90 100644
 +	&zstd_comp_ops,
  	&unknown_comp_ops
  };
- 
+
 diff --git a/squashfs-tools/squashfs_fs.h b/squashfs-tools/squashfs_fs.h
-index 791fe12..1f2e8b0 100644
+index 791fe12..afca918 100644
 --- a/squashfs-tools/squashfs_fs.h
 +++ b/squashfs-tools/squashfs_fs.h
-@@ -24,7 +24,7 @@
-  * squashfs_fs.h
-  */
- 
--#define SQUASHFS_CACHED_FRAGMENTS	CONFIG_SQUASHFS_FRAGMENT_CACHE_SIZE	
-+#define SQUASHFS_CACHED_FRAGMENTS	CONFIG_SQUASHFS_FRAGMENT_CACHE_SIZE
- #define SQUASHFS_MAJOR			4
- #define SQUASHFS_MINOR			0
- #define SQUASHFS_MAGIC			0x73717368
 @@ -277,6 +277,7 @@ typedef long long		squashfs_inode;
  #define LZO_COMPRESSION		3
  #define XZ_COMPRESSION		4
  #define LZ4_COMPRESSION		5
 +#define ZSTD_COMPRESSION	6
- 
+
  struct squashfs_super_block {
  	unsigned int		s_magic;
 diff --git a/squashfs-tools/zstd_wrapper.c b/squashfs-tools/zstd_wrapper.c
 new file mode 100644
-index 0000000..0989f0f
+index 0000000..dcab75a
 --- /dev/null
 +++ b/squashfs-tools/zstd_wrapper.c
 @@ -0,0 +1,254 @@
@@ -262,7 +258,7 @@ index 0000000..0989f0f
 +	return -1;
 +}
 +
-+void zstd_display_options(void *buffer, int size)
++static void zstd_display_options(void *buffer, int size)
 +{
 +	struct zstd_comp_opts *comp_opts = buffer;
 +
@@ -418,6 +414,5 @@ index 0000000..4fbef0a
 +	int compression_level;
 +};
 +#endif
--- 
+--
 2.9.3
-

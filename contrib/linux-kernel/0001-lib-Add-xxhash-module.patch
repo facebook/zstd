@@ -1,7 +1,7 @@
-From fc7f26acbabda35f1c61dfc357dbb207dc8ed23d Mon Sep 17 00:00:00 2001
+From a4b1ffb6e89bbccd519f9afa0910635668436105 Mon Sep 17 00:00:00 2001
 From: Nick Terrell <terrelln@fb.com>
 Date: Mon, 17 Jul 2017 17:07:18 -0700
-Subject: [PATCH v3 1/4] lib: Add xxhash module
+Subject: [PATCH v5 1/5] lib: Add xxhash module
 
 Adds xxhash kernel module with xxh32 and xxh64 hashes. xxhash is an
 extremely fast non-cryptographic hash algorithm for checksumming.

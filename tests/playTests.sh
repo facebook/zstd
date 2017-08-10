@@ -386,6 +386,13 @@ $ZSTD -t tmpSplit.* && die "bad file not detected !"
 ./datagen | $ZSTD -c | $ZSTD -t
 
 
+
+$ECHO "\n**** golden files tests **** "
+
+$ZSTD -t -r files
+$ZSTD -c -r files | $ZSTD -t
+
+
 $ECHO "\n**** benchmark mode tests **** "
 
 $ECHO "bench one file"

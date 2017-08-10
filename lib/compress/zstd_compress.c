@@ -942,7 +942,7 @@ static size_t ZSTD_compressLiterals (ZSTD_entropyCTables_t * entropy,
         else { entropy->hufCTable_repeatMode = HUF_repeat_check; }       /* now have a table to reuse */
     }
 
-    if ((cLitSize==0) | (cLitSize >= srcSize - minGain)) {
+    if ((cLitSize==0) | (cLitSize >= srcSize - minGain) | ERR_isError(cLitSize)) {
         entropy->hufCTable_repeatMode = HUF_repeat_none;
         return ZSTD_noCompressLiterals(dst, dstCapacity, src, srcSize);
     }
@@ -1156,11 +1156,10 @@ MEM_STATIC size_t ZSTD_encodeSequences(void* dst, size_t dstCapacity,
     }
 }
 
-MEM_STATIC size_t ZSTD_compressSequences (seqStore_t* seqStorePtr,
+MEM_STATIC size_t ZSTD_compressSequences_internal(seqStore_t* seqStorePtr,
                               ZSTD_entropyCTables_t* entropy,
                               ZSTD_compressionParameters const* cParams,
-                              void* dst, size_t dstCapacity,
-                              size_t srcSize)
+                              void* dst, size_t dstCapacity)
 {
     const int longOffsets = cParams->windowLog > STREAM_ACCUMULATOR_MIN;
     U32 count[MaxSeq+1];
@@ -1195,7 +1194,7 @@ MEM_STATIC size_t ZSTD_compressSequences (seqStore_t* seqStorePtr,
     if (nbSeq < 0x7F) *op++ = (BYTE)nbSeq;
     else if (nbSeq < LONGNBSEQ) op[0] = (BYTE)((nbSeq>>8) + 0x80), op[1] = (BYTE)nbSeq, op+=2;
     else op[0]=0xFF, MEM_writeLE16(op+1, (U16)(nbSeq - LONGNBSEQ)), op+=3;
-    if (nbSeq==0) goto _check_compressibility;
+    if (nbSeq==0) return op - ostart;
 
     /* seqHead : flags for FSE encoding type */
     seqHead = op++;
@@ -1244,23 +1243,40 @@ MEM_STATIC size_t ZSTD_compressSequences (seqStore_t* seqStorePtr,
         op += streamSize;
     }
 
+    return op - ostart;
+}
 
-    /* check compressibility */
-_check_compressibility:
-    {   size_t const minGain = ZSTD_minGain(srcSize);
-        size_t const maxCSize = srcSize - minGain;
-        if ((size_t)(op-ostart) >= maxCSize) {
-            entropy->hufCTable_repeatMode = HUF_repeat_none;
-            entropy->offcode_repeatMode = FSE_repeat_none;
-            entropy->matchlength_repeatMode = FSE_repeat_none;
-            entropy->litlength_repeatMode = FSE_repeat_none;
-            return 0;
-    }   }
+MEM_STATIC size_t ZSTD_compressSequences(seqStore_t* seqStorePtr,
+                              ZSTD_entropyCTables_t* entropy,
+                              ZSTD_compressionParameters const* cParams,
+                              void* dst, size_t dstCapacity,
+                              size_t srcSize)
+{
+    size_t const cSize = ZSTD_compressSequences_internal(seqStorePtr, entropy, cParams,
+                                                         dst, dstCapacity);
+    size_t const minGain = ZSTD_minGain(srcSize);
+    size_t const maxCSize = srcSize - minGain;
+    /* If the srcSize <= dstCapacity, then there is enough space to write a
+     * raw uncompressed block. Since we ran out of space, the block must not
+     * be compressible, so fall back to a raw uncompressed block.
+     */
+    int const uncompressibleError = cSize == ERROR(dstSize_tooSmall) && srcSize <= dstCapacity;
+
+    if (ZSTD_isError(cSize) && !uncompressibleError)
+        return cSize;
+    /* Check compressibility */
+    if (cSize >= maxCSize || uncompressibleError) {
+        entropy->hufCTable_repeatMode = HUF_repeat_none;
+        entropy->offcode_repeatMode = FSE_repeat_none;
+        entropy->matchlength_repeatMode = FSE_repeat_none;
+        entropy->litlength_repeatMode = FSE_repeat_none;
+        return 0;
+    }
+    assert(!ZSTD_isError(cSize));
 
     /* confirm repcodes */
     { int i; for (i=0; i<ZSTD_REP_NUM; i++) seqStorePtr->rep[i] = seqStorePtr->repToConfirm[i]; }
-
-    return op - ostart;
+    return cSize;
 }
 
 

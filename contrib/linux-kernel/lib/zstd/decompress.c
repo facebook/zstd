@@ -998,6 +998,8 @@ static seq_t ZSTD_decodeSequence(seqState_t *seqState)
 		BIT_reloadDStream(&seqState->DStream);		   /* <= 18 bits */
 	FSE_updateState(&seqState->stateOffb, &seqState->DStream); /* <=  8 bits */
 
+	seq.match = NULL;
+
 	return seq;
 }
 

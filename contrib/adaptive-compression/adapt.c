@@ -1015,10 +1015,10 @@ static unsigned readU32FromChar(const char** stringPtr)
     return result;
 }
 
-static void help(void)
+static void help(const char* progPath)
 {
     PRINT("Usage:\n");
-    PRINT("  zstd-adaptive [options] [file(s)]\n");
+    PRINT("  %s [options] [file(s)]\n", progPath);
     PRINT("\n");
     PRINT("Options:\n");
     PRINT("  -oFILE : specify the output file name\n");
@@ -1067,7 +1067,7 @@ int main(int argCount, const char* argv[])
                     providedInitialCLevel = 1;
                     break;
                 case 'h':
-                    help();
+                    help(argv[0]);
                     goto _main_exit;
                 case 'p':
                     g_useProgressBar = 0;

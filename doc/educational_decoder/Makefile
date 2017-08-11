@@ -19,3 +19,11 @@ harness: $(HARNESS_FILES)
 
 clean:
 	@$(RM) -f harness
+	@$(RM) -rf harness.dSYM
+
+test: harness
+	@zstd README.md -o tmp.zst
+	@./harness tmp.zst tmp
+	@diff -s tmp README.md
+	@$(RM) -f tmp*
+	@make clean

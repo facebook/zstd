@@ -1374,7 +1374,7 @@ static void execute_sequences(frame_context_t *const ctx, ostream_t *const out,
         // than the offset
         // ex: if the output so far was "abc", a command with offset=3 and
         // match_length=6 would produce "abcabcabc" as the new output
-        for (size_t i = 0; i < match_length; i++) {
+        for (size_t j = 0; j < match_length; j++) {
             *write_ptr = *(write_ptr - offset);
             write_ptr++;
         }
@@ -2117,7 +2117,7 @@ static void FSE_init_dtable(FSE_dtable *const dtable,
     }
 
     // Now we can fill baseline and num bits
-    for (int i = 0; i < size; i++) {
+    for (size_t i = 0; i < size; i++) {
         u8 symbol = dtable->symbols[i];
         u16 next_state_desc = state_desc[symbol]++;
         // Fills in the table appropriately, next_state_desc increases by symbol

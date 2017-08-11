@@ -1,5 +1,6 @@
 #include "pool.h"
 #include "threading.h"
+#include "util.h"
 #include <stddef.h>
 #include <stdio.h>
 
@@ -50,13 +51,37 @@ int testOrder(size_t numThreads, size_t queueSize) {
   return 0;
 }
 
+void waitFn(void *opaque) {
+  (void)opaque;
+  UTIL_sleepMilli(1);
+}
+
+/* Tests for deadlock */
+int testWait(size_t numThreads, size_t queueSize) {
+  struct data data;
+  POOL_ctx *ctx = POOL_create(numThreads, queueSize);
+  ASSERT_TRUE(ctx);
+  {
+    size_t i;
+    for (i = 0; i < 16; ++i) {
+        POOL_add(ctx, &waitFn, &data);
+    }
+  }
+  POOL_free(ctx);
+  return 0;
+}
+
 int main(int argc, const char **argv) {
   size_t numThreads;
   for (numThreads = 1; numThreads <= 4; ++numThreads) {
     size_t queueSize;
-    for (queueSize = 1; queueSize <= 2; ++queueSize) {
+    for (queueSize = 0; queueSize <= 2; ++queueSize) {
       if (testOrder(numThreads, queueSize)) {
         printf("FAIL: testOrder\n");
+        return 1;
+      }
+      if (testWait(numThreads, queueSize)) {
+        printf("FAIL: testWait\n");
         return 1;
       }
     }
@@ -64,7 +89,7 @@ int main(int argc, const char **argv) {
   printf("PASS: testOrder\n");
   (void)argc;
   (void)argv;
-  return (POOL_create(0, 1) || POOL_create(1, 0)) ? printf("FAIL: testInvalid\n"), 1
-                                                  : printf("PASS: testInvalid\n"), 0;
+  return (POOL_create(0, 1)) ? printf("FAIL: testInvalid\n"), 1
+                             : printf("PASS: testInvalid\n"), 0;
   return 0;
 }

@@ -42,6 +42,8 @@ static size_t g_streamedSize = 0;
 static unsigned g_useProgressBar = 1;
 static UTIL_freq_t g_ticksPerSecond;
 static unsigned g_forceCompressionLevel = 0;
+static unsigned g_minCLevel = 1;
+static unsigned g_maxCLevel;
 
 typedef struct {
     void* start;
@@ -57,7 +59,6 @@ typedef struct {
 typedef struct {
     buffer_t src;
     buffer_t dst;
-    unsigned compressionLevel;
     unsigned jobID;
     unsigned lastJobPlusOne;
     size_t compressedSize;
@@ -76,7 +77,6 @@ typedef struct {
 
 typedef struct {
     unsigned compressionLevel;
-    unsigned numActiveThreads;
     unsigned numJobs;
     unsigned nextJobID;
     unsigned threadError;
@@ -139,6 +139,7 @@ typedef struct {
     mutex_t compressionCompletion_mutex;
     mutex_t createCompletion_mutex;
     mutex_t writeCompletion_mutex;
+    mutex_t compressionLevel_mutex;
     size_t lastDictSize;
     inBuff_t input;
     jobDescription* jobs;
@@ -200,6 +201,7 @@ static int freeCCtx(adaptCCtx* ctx)
         error |= destroyMutex(&ctx->compressionCompletion_mutex);
         error |= destroyMutex(&ctx->createCompletion_mutex);
         error |= destroyMutex(&ctx->writeCompletion_mutex);
+        error |= destroyMutex(&ctx->compressionLevel_mutex);
         error |= ZSTD_isError(ZSTD_freeCCtx(ctx->cctx));
         free(ctx->input.buffer.start);
         if (ctx->jobs){
@@ -241,6 +243,7 @@ static int initCCtx(adaptCCtx* ctx, unsigned numJobs)
         pthreadError |= initMutex(&ctx->compressionCompletion_mutex);
         pthreadError |= initMutex(&ctx->createCompletion_mutex);
         pthreadError |= initMutex(&ctx->writeCompletion_mutex);
+        pthreadError |= initMutex(&ctx->compressionLevel_mutex);
         if (pthreadError) return pthreadError;
     }
     ctx->numJobs = numJobs;
@@ -331,7 +334,7 @@ static void signalErrorToThreads(adaptCCtx* ctx)
     pthread_mutex_unlock(&ctx->jobReady_mutex.pMutex);
 
     pthread_mutex_lock(&ctx->jobCompressed_mutex.pMutex);
-    pthread_cond_signal(&ctx->jobCompressed_cond.pCond);
+    pthread_cond_broadcast(&ctx->jobCompressed_cond.pCond);
     pthread_mutex_unlock(&ctx->jobReady_mutex.pMutex);
 
     pthread_mutex_lock(&ctx->jobWrite_mutex.pMutex);
@@ -382,16 +385,22 @@ static void adaptCompressionLevel(adaptCCtx* ctx)
     double compressWaitWriteCompletion;
     double writeWaitCompressionCompletion;
     double const threshold = 0.00001;
-    unsigned const prevCompressionLevel = ctx->compressionLevel;
+    unsigned prevCompressionLevel;
+
+    pthread_mutex_lock(&ctx->compressionLevel_mutex.pMutex);
+    prevCompressionLevel = ctx->compressionLevel;
+    pthread_mutex_unlock(&ctx->compressionLevel_mutex.pMutex);
 
 
     if (g_forceCompressionLevel) {
+        pthread_mutex_lock(&ctx->compressionLevel_mutex.pMutex);
         ctx->compressionLevel = g_compressionLevel;
+        pthread_mutex_unlock(&ctx->compressionLevel_mutex.pMutex);
         return;
     }
 
 
-    DEBUG(2, "adapting compression level %u\n", ctx->compressionLevel);
+    DEBUG(2, "adapting compression level %u\n", prevCompressionLevel);
 
     /* read and reset completion measurements */
     pthread_mutex_lock(&ctx->compressionCompletion_mutex.pMutex);
@@ -412,6 +421,8 @@ static void adaptCompressionLevel(adaptCCtx* ctx)
     pthread_mutex_unlock(&ctx->createCompletion_mutex.pMutex);
     DEBUG(2, "convergence counter: %u\n", ctx->convergenceCounter);
 
+    assert(g_minCLevel <= prevCompressionLevel && g_maxCLevel >= prevCompressionLevel);
+
     /* adaptation logic */
     if (ctx->cooldown) ctx->cooldown--;
 
@@ -420,14 +431,16 @@ static void adaptCompressionLevel(adaptCCtx* ctx)
         /* use whichever one waited less because it was slower */
         double const completion = MAX(createWaitCompressionCompletion, writeWaitCompressionCompletion);
         unsigned const change = convertCompletionToChange(completion);
-        unsigned const boundChange = MIN(change, ctx->compressionLevel - 1);
+        unsigned const boundChange = MIN(change, prevCompressionLevel - g_minCLevel);
         if (ctx->convergenceCounter >= CONVERGENCE_LOWER_BOUND && boundChange != 0) {
             /* reset convergence counter, might have been a spike */
             ctx->convergenceCounter = 0;
             DEBUG(2, "convergence counter reset, no change applied\n");
         }
         else if (boundChange != 0) {
+            pthread_mutex_lock(&ctx->compressionLevel_mutex.pMutex);
             ctx->compressionLevel -= boundChange;
+            pthread_mutex_unlock(&ctx->compressionLevel_mutex.pMutex);
             ctx->cooldown = CLEVEL_DECREASE_COOLDOWN;
             ctx->convergenceCounter = 1;
 
@@ -438,14 +451,16 @@ static void adaptCompressionLevel(adaptCCtx* ctx)
         /* compress waiting on write */
         double const completion = MIN(compressWaitWriteCompletion, compressWaitCreateCompletion);
         unsigned const change = convertCompletionToChange(completion);
-        unsigned const boundChange = MIN(change, ZSTD_maxCLevel() - ctx->compressionLevel);
+        unsigned const boundChange = MIN(change, g_maxCLevel - prevCompressionLevel);
         if (ctx->convergenceCounter >= CONVERGENCE_LOWER_BOUND && boundChange != 0) {
             /* reset convergence counter, might have been a spike */
             ctx->convergenceCounter = 0;
             DEBUG(2, "convergence counter reset, no change applied\n");
         }
         else if (boundChange != 0) {
+            pthread_mutex_lock(&ctx->compressionLevel_mutex.pMutex);
             ctx->compressionLevel += boundChange;
+            pthread_mutex_unlock(&ctx->compressionLevel_mutex.pMutex);
             ctx->cooldown = 0;
             ctx->convergenceCounter = 1;
 
@@ -454,9 +469,11 @@ static void adaptCompressionLevel(adaptCCtx* ctx)
 
     }
 
+    pthread_mutex_lock(&ctx->compressionLevel_mutex.pMutex);
     if (ctx->compressionLevel == prevCompressionLevel) {
         ctx->convergenceCounter++;
     }
+    pthread_mutex_unlock(&ctx->compressionLevel_mutex.pMutex);
 }
 
 static size_t getUseableDictSize(unsigned compressionLevel)
@@ -536,15 +553,23 @@ static void* compressionThread(void* arg)
         /* adapt compression level */
         if (currJob) adaptCompressionLevel(ctx);
 
+        pthread_mutex_lock(&ctx->compressionLevel_mutex.pMutex);
         DEBUG(2, "job %u compressed with level %u\n", currJob, ctx->compressionLevel);
+        pthread_mutex_unlock(&ctx->compressionLevel_mutex.pMutex);
+
         /* compress the data */
         {
             size_t const compressionBlockSize = ZSTD_BLOCKSIZE_MAX; /* 128 KB */
-            unsigned const cLevel = ctx->compressionLevel;
+            unsigned cLevel;
             unsigned blockNum = 0;
             size_t remaining = job->src.size;
             size_t srcPos = 0;
             size_t dstPos = 0;
+
+            pthread_mutex_lock(&ctx->compressionLevel_mutex.pMutex);
+            cLevel = ctx->compressionLevel;
+            pthread_mutex_unlock(&ctx->compressionLevel_mutex.pMutex);
+
             /* reset compressed size */
             job->compressedSize = 0;
             DEBUG(2, "calling ZSTD_compressBegin()\n");
@@ -619,18 +644,20 @@ static void* compressionThread(void* arg)
 
 static void displayProgress(unsigned cLevel, unsigned last)
 {
-    if (!g_useProgressBar) return;
     UTIL_time_t currTime;
     UTIL_getTime(&currTime);
-    double const timeElapsed = (double)(UTIL_getSpanTimeMicro(g_ticksPerSecond, g_startTime, currTime) / 1000.0);
-    double const sizeMB = (double)g_streamedSize / (1 << 20);
-    double const avgCompRate = sizeMB * 1000 / timeElapsed;
-    fprintf(stderr, "\r| Comp. Level: %2u | Time Elapsed: %7.2f s | Data Size: %7.1f MB | Avg Comp. Rate: %6.2f MB/s |", cLevel, timeElapsed/1000.0, sizeMB, avgCompRate);
-    if (last) {
-        fprintf(stderr, "\n");
-    }
-    else {
-        fflush(stderr);
+    if (!g_useProgressBar) return;
+    {
+        double const timeElapsed = (double)(UTIL_getSpanTimeMicro(g_ticksPerSecond, g_startTime, currTime) / 1000.0);
+        double const sizeMB = (double)g_streamedSize / (1 << 20);
+        double const avgCompRate = sizeMB * 1000 / timeElapsed;
+        fprintf(stderr, "\r| Comp. Level: %2u | Time Elapsed: %7.2f s | Data Size: %7.1f MB | Avg Comp. Rate: %6.2f MB/s |", cLevel, timeElapsed/1000.0, sizeMB, avgCompRate);
+        if (last) {
+            fprintf(stderr, "\n");
+        }
+        else {
+            fflush(stderr);
+        }
     }
 }
 
@@ -706,7 +733,13 @@ static void* outputThread(void* arg)
                 }
             }
         }
-        displayProgress(ctx->compressionLevel, job->lastJobPlusOne == currJob + 1);
+        {
+            unsigned cLevel;
+            pthread_mutex_lock(&ctx->compressionLevel_mutex.pMutex);
+            cLevel = ctx->compressionLevel;
+            pthread_mutex_unlock(&ctx->compressionLevel_mutex.pMutex);
+            displayProgress(cLevel, job->lastJobPlusOne == currJob + 1);
+        }
         pthread_mutex_lock(&ctx->jobWrite_mutex.pMutex);
         ctx->jobWriteID++;
         pthread_cond_signal(&ctx->jobWrite_cond.pCond);
@@ -734,7 +767,6 @@ static int createCompressionJob(adaptCCtx* ctx, size_t srcSize, int last)
     jobDescription* const job = &ctx->jobs[nextJobIndex];
 
 
-    job->compressionLevel = ctx->compressionLevel;
     job->src.size = srcSize;
     job->jobID = nextJob;
     if (last) job->lastJobPlusOne = nextJob + 1;
@@ -779,6 +811,11 @@ static int performCompression(adaptCCtx* ctx, FILE* const srcFile, outputThreadA
             signalErrorToThreads(ctx);
             return 1;
         }
+        else if (pthread_detach(out)) {
+        	DISPLAY("Error: could not detach output thread\n");
+        	signalErrorToThreads(ctx);
+        	return 1;
+        }
     }
 
     /* create compression thread */
@@ -788,6 +825,11 @@ static int performCompression(adaptCCtx* ctx, FILE* const srcFile, outputThreadA
             DISPLAY("Error: could not create compression thread\n");
             signalErrorToThreads(ctx);
             return 1;
+        }
+        else if (pthread_detach(compression)) {
+        	DISPLAY("Error: could not detach compression thread\n");
+        	signalErrorToThreads(ctx);
+        	return 1;
         }
     }
     {
@@ -928,9 +970,9 @@ static int freeFileCompressionResources(fcResources* fcr)
 static int compressFilename(const char* const srcFilename, const char* const dstFilenameOrNull)
 {
     int ret = 0;
+    fcResources fcr = createFileCompressionResources(srcFilename, dstFilenameOrNull);
     UTIL_getTime(&g_startTime);
     g_streamedSize = 0;
-    fcResources fcr = createFileCompressionResources(srcFilename, dstFilenameOrNull);
     ret |= performCompression(fcr.ctx, fcr.srcFile, fcr.otArg);
     ret |= freeFileCompressionResources(&fcr);
     return ret;
@@ -973,19 +1015,21 @@ static unsigned readU32FromChar(const char** stringPtr)
     return result;
 }
 
-static void help()
+static void help(const char* progPath)
 {
     PRINT("Usage:\n");
-    PRINT("  ./multi [options] [file(s)]\n");
+    PRINT("  %s [options] [file(s)]\n", progPath);
     PRINT("\n");
     PRINT("Options:\n");
     PRINT("  -oFILE : specify the output file name\n");
-    PRINT("  -i#    : provide initial compression level\n");
+    PRINT("  -i#    : provide initial compression level -- default %d, must be in the range [L, U] where L and U are bound values (see below for defaults)\n", DEFAULT_COMPRESSION_LEVEL);
     PRINT("  -h     : display help/information\n");
     PRINT("  -f     : force the compression level to stay constant\n");
     PRINT("  -c     : force write to stdout\n");
     PRINT("  -p     : hide progress bar\n");
     PRINT("  -q     : quiet mode -- do not show progress bar or other information\n");
+    PRINT("  -l#    : provide lower bound for compression level -- default 1\n");
+    PRINT("  -u#    : provide upper bound for compression level -- default %u\n", ZSTD_maxCLevel());
 }
 /* return 0 if successful, else return error */
 int main(int argCount, const char* argv[])
@@ -993,10 +1037,12 @@ int main(int argCount, const char* argv[])
     const char* outFilename = NULL;
     const char** filenameTable = (const char**)malloc(argCount*sizeof(const char*));
     unsigned filenameIdx = 0;
-    filenameTable[0] = stdinmark;
     unsigned forceStdout = 0;
+    unsigned providedInitialCLevel = 0;
     int ret = 0;
     int argNum;
+    filenameTable[0] = stdinmark;
+    g_maxCLevel = ZSTD_maxCLevel();
 
     UTIL_initTimer(&g_ticksPerSecond);
 
@@ -1018,9 +1064,10 @@ int main(int argCount, const char* argv[])
                 case 'i':
                     argument += 2;
                     g_compressionLevel = readU32FromChar(&argument);
+                    providedInitialCLevel = 1;
                     break;
                 case 'h':
-                    help();
+                    help(argv[0]);
                     goto _main_exit;
                 case 'p':
                     g_useProgressBar = 0;
@@ -1036,6 +1083,14 @@ int main(int argCount, const char* argv[])
                     g_useProgressBar = 0;
                     g_displayLevel = 0;
                     break;
+                case 'l':
+                    argument += 2;
+                    g_minCLevel = readU32FromChar(&argument);
+                    break;
+                case 'u':
+                    argument += 2;
+                    g_maxCLevel = readU32FromChar(&argument);
+                    break;
                 default:
                     DISPLAY("Error: invalid argument provided\n");
                     ret = 1;
@@ -1046,6 +1101,20 @@ int main(int argCount, const char* argv[])
 
         /* regular files to be compressed */
         filenameTable[filenameIdx++] = argument;
+    }
+
+    /* check initial, max, and min compression levels */
+    {
+        unsigned const minMaxInconsistent = g_minCLevel > g_maxCLevel;
+        unsigned const initialNotInRange = g_minCLevel > g_compressionLevel || g_maxCLevel < g_compressionLevel;
+        if (minMaxInconsistent || (initialNotInRange && providedInitialCLevel)) {
+            DISPLAY("Error: provided compression level parameters are invalid\n");
+            ret = 1;
+            goto _main_exit;
+        }
+        else if (initialNotInRange) {
+            g_compressionLevel = g_minCLevel;
+        }
     }
 
     /* error checking with number of files */

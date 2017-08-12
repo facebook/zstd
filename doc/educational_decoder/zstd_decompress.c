@@ -14,22 +14,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-/// Zstandard decompression functions.
-/// `dst` must point to a space at least as large as the reconstructed output.
-size_t ZSTD_decompress(void *const dst, const size_t dst_len,
-                       const void *const src, const size_t src_len);
-/// If `dict != NULL` and `dict_len >= 8`, does the same thing as
-/// `ZSTD_decompress` but uses the provided dict
-size_t ZSTD_decompress_with_dict(void *const dst, const size_t dst_len,
-                                 const void *const src, const size_t src_len,
-                                 const void *const dict, const size_t dict_len);
-
-/// Get the decompressed size of an input stream so memory can be allocated in
-/// advance
-/// Returns -1 if the size can't be determined
-/// Assumes decompression of a single frame
-size_t ZSTD_get_decompressed_size(const void *const src, const size_t src_len);
+#include "zstd_decompress.h"
 
 /******* UTILITY MACROS AND TYPES *********************************************/
 // Max block size decompressed size is 128 KB and literal blocks can't be
@@ -308,7 +293,7 @@ typedef struct {
 
 /// The decoded contents of a dictionary so that it doesn't have to be repeated
 /// for each frame that uses it
-typedef struct {
+struct dictionary_s {
     // Entropy tables
     HUF_dtable literals_dtable;
     FSE_dtable ll_dtable;
@@ -323,7 +308,7 @@ typedef struct {
     u64 previous_offsets[3];
 
     u32 dictionary_id;
-} dictionary_t;
+};
 
 /// A tuple containing the parts necessary to decode and execute a ZSTD sequence
 /// command
@@ -368,10 +353,6 @@ static void execute_sequences(frame_context_t *const ctx, ostream_t *const out,
                               const sequence_command_t *const sequences,
                               const size_t num_sequences);
 
-// Parse a provided dictionary blob for use in decompression
-static void parse_dictionary(dictionary_t *const dict, const u8 *src,
-                             size_t src_len);
-static void free_dictionary(dictionary_t *const dict);
 /******* END ZSTD HELPER STRUCTS AND PROTOTYPES *******************************/
 
 size_t ZSTD_decompress(void *const dst, const size_t dst_len,
@@ -387,7 +368,7 @@ size_t ZSTD_decompress_with_dict(void *const dst, const size_t dst_len,
     memset(&parsed_dict, 0, sizeof(dictionary_t));
     // dict_len < 8 is not a valid dictionary
     if (dict && dict_len > 8) {
-        parse_dictionary(&parsed_dict, (const u8 *)dict, dict_len);
+        parse_dictionary(&parsed_dict, dict, dict_len);
     }
 
     istream_t in = IO_make_istream(src, src_len);
@@ -1430,14 +1411,15 @@ size_t ZSTD_get_decompressed_size(const void *src, const size_t src_len) {
 static void init_dictionary_content(dictionary_t *const dict,
                                     istream_t *const in);
 
-static void parse_dictionary(dictionary_t *const dict, const u8 *src,
+void parse_dictionary(dictionary_t *const dict, const void *src,
                              size_t src_len) {
+    const u8 *byte_src = (const u8 *)src;
     memset(dict, 0, sizeof(dictionary_t));
     if (src_len < 8) {
         INP_SIZE();
     }
 
-    istream_t in = IO_make_istream(src, src_len);
+    istream_t in = IO_make_istream(byte_src, src_len);
 
     const u32 magic_number = IO_read_bits(&in, 32);
     if (magic_number != 0xEC30A437) {
@@ -1495,7 +1477,7 @@ static void init_dictionary_content(dictionary_t *const dict,
 }
 
 /// Free an allocated dictionary
-static void free_dictionary(dictionary_t *const dict) {
+void free_dictionary(dictionary_t *const dict) {
     HUF_free_dtable(&dict->literals_dtable);
     FSE_free_dtable(&dict->ll_dtable);
     FSE_free_dtable(&dict->of_dtable);

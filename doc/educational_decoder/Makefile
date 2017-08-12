@@ -26,4 +26,9 @@ test: harness
 	@./harness tmp.zst tmp
 	@diff -s tmp README.md
 	@$(RM) -f tmp*
+	@zstd --train harness.c zstd_decompress.c zstd_decompress.h README.md
+	@zstd -D dictionary README.md -o tmp.zst
+	@./harness tmp.zst tmp dictionary
+	@diff -s tmp README.md
+	@$(RM) -f tmp* dictionary
 	@make clean

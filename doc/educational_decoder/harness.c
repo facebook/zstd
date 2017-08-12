@@ -106,9 +106,15 @@ int main(int argc, char **argv) {
         return 1;
     }
 
+    dictionary_t* parsed_dict = create_dictionary();
+    if (dict) {
+        parse_dictionary(parsed_dict, dict, dict_size);
+    }
     size_t decompressed =
         ZSTD_decompress_with_dict(output, decompressed_size,
-                                  input, input_size, dict, dict_size);
+                                  input, input_size, parsed_dict);
+
+    free_dictionary(parsed_dict);
 
     write_file(argv[2], output, decompressed);
 

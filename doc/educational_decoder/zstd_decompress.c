@@ -357,19 +357,16 @@ static void execute_sequences(frame_context_t *const ctx, ostream_t *const out,
 
 size_t ZSTD_decompress(void *const dst, const size_t dst_len,
                        const void *const src, const size_t src_len) {
-    return ZSTD_decompress_with_dict(dst, dst_len, src, src_len, NULL, 0);
+    dictionary_t* uninit_dict = create_dictionary();
+    size_t const decomp_size = ZSTD_decompress_with_dict(dst, dst_len, src,
+                                                         src_len, uninit_dict);
+    free_dictionary(uninit_dict);
+    return decomp_size;
 }
 
 size_t ZSTD_decompress_with_dict(void *const dst, const size_t dst_len,
                                  const void *const src, const size_t src_len,
-                                 const void *const dict,
-                                 const size_t dict_len) {
-    dictionary_t parsed_dict;
-    memset(&parsed_dict, 0, sizeof(dictionary_t));
-    // dict_len < 8 is not a valid dictionary
-    if (dict && dict_len > 8) {
-        parse_dictionary(&parsed_dict, dict, dict_len);
-    }
+                                 dictionary_t* parsed_dict) {
 
     istream_t in = IO_make_istream(src, src_len);
     ostream_t out = IO_make_ostream(dst, dst_len);
@@ -380,9 +377,7 @@ size_t ZSTD_decompress_with_dict(void *const dst, const size_t dst_len,
     // parameters which tells the decoder how to decompress it."
 
     /* this decoder assumes decompression of a single frame */
-    decode_frame(&out, &in, &parsed_dict);
-
-    free_dictionary(&parsed_dict);
+    decode_frame(&out, &in, parsed_dict);
 
     return out.ptr - (u8 *)dst;
 }
@@ -1408,6 +1403,16 @@ size_t ZSTD_get_decompressed_size(const void *src, const size_t src_len) {
 /******* END OUTPUT SIZE COUNTING *********************************************/
 
 /******* DICTIONARY PARSING ***************************************************/
+#define DICT_SIZE_ERROR() ERROR("Dictionary size cannot be less than 8 bytes")
+
+dictionary_t* create_dictionary() {
+    dictionary_t* dict = calloc(1, sizeof(dictionary_t));
+    if (!dict) {
+        BAD_ALLOC();
+    }
+    return dict;
+}
+
 static void init_dictionary_content(dictionary_t *const dict,
                                     istream_t *const in);
 
@@ -1416,7 +1421,7 @@ void parse_dictionary(dictionary_t *const dict, const void *src,
     const u8 *byte_src = (const u8 *)src;
     memset(dict, 0, sizeof(dictionary_t));
     if (src_len < 8) {
-        INP_SIZE();
+        DICT_SIZE_ERROR();
     }
 
     istream_t in = IO_make_istream(byte_src, src_len);

@@ -7,6 +7,13 @@
  * of patent rights can be found in the PATENTS file in the same directory.
  */
 
+/******* EXPOSED TYPES ********************************************************/
+/*
+* Contains the parsed contents of a dictionary
+* This includes Huffman and FSE tables used for decoding and data on offsets
+*/
+typedef struct dictionary_s dictionary_t;
+/******* END EXPOSED TYPES ****************************************************/
 
 /******* DECOMPRESSION FUNCTIONS **********************************************/
 /// Zstandard decompression functions.
@@ -18,7 +25,7 @@ size_t ZSTD_decompress(void *const dst, const size_t dst_len,
 /// `ZSTD_decompress` but uses the provided dict
 size_t ZSTD_decompress_with_dict(void *const dst, const size_t dst_len,
                               const void *const src, const size_t src_len,
-                              const void *const dict, const size_t dict_len);
+                              dictionary_t* parsed_dict);
 
 /// Get the decompressed size of an input stream so memory can be allocated in
 /// advance
@@ -29,10 +36,10 @@ size_t ZSTD_get_decompressed_size(const void *const src, const size_t src_len);
 
 /******* DICTIONARY MANAGEMENT ***********************************************/
 /*
- * Contains the parsed contents of a dictionary
- * This includes Huffman and FSE tables used for decoding and data on offsets
+ * Return a valid dictionary_t pointer for use with dictionary initialization
+ * or decompression
  */
-typedef struct dictionary_s dictionary_t;
+dictionary_t* create_dictionary();
 
 /*
  * Parse a provided dictionary blob for use in decompression
@@ -43,6 +50,7 @@ typedef struct dictionary_s dictionary_t;
  */
 void parse_dictionary(dictionary_t *const dict, const void *src,
                              size_t src_len);
+
 /*
  * Free internal Huffman tables, FSE tables, and dictionary content
  */

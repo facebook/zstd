@@ -1616,7 +1616,7 @@ static unsigned long long FIO_decompressLz4Frame(dRess_t* ress,
             /* Write Block */
             if (decodedBytes) {
                 if (fwrite(ress->dstBuffer, 1, decodedBytes, ress->dstFile) != decodedBytes) {
-                    DISPLAYLEVEL(1, "zstd: %s \n", strerr(errno));
+                    DISPLAYLEVEL(1, "zstd: %s \n", strerror(errno));
                     decodingError = 1; break;
                 }
                 filesize += decodedBytes;

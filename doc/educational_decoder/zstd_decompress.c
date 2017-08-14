@@ -358,6 +358,10 @@ static u32 copy_literals(sequence_command_t seq, istream_t *litstream,
 
 static size_t compute_offset(sequence_command_t seq, u64 *const offset_hist);
 
+static void execute_match_copy(frame_context_t *const ctx, size_t offset,
+                              size_t match_length, size_t total_output,
+                              ostream_t *const out);
+
 /******* END ZSTD HELPER STRUCTS AND PROTOTYPES *******************************/
 
 size_t ZSTD_decompress(void *const dst, const size_t dst_len,
@@ -1269,41 +1273,9 @@ static void execute_sequences(frame_context_t *const ctx, ostream_t *const out,
 
         size_t match_length = seq.match_length;
 
-        u8 *write_ptr = IO_write_bytes(out, match_length);
-        if (total_output <= ctx->header.window_size) {
-            // In this case offset might go back into the dictionary
-            if (offset > total_output + ctx->dict_content_len) {
-                // The offset goes beyond even the dictionary
-                CORRUPTION();
-            }
+        execute_match_copy(ctx, offset, match_length, total_output, out);
 
-            if (offset > total_output) {
-                // "The rest of the dictionary is its content. The content act
-                // as a "past" in front of data to compress or decompress, so it
-                // can be referenced in sequence commands."
-                const size_t dict_copy =
-                    MIN(offset - total_output, match_length);
-                const size_t dict_offset =
-                    ctx->dict_content_len - (offset - total_output);
-
-                memcpy(write_ptr, ctx->dict_content + dict_offset, dict_copy);
-                write_ptr += dict_copy;
-                match_length -= dict_copy;
-            }
-        } else if (offset > ctx->header.window_size) {
-            CORRUPTION();
-        }
-
-        // We must copy byte by byte because the match length might be larger
-        // than the offset
-        // ex: if the output so far was "abc", a command with offset=3 and
-        // match_length=6 would produce "abcabcabc" as the new output
-        for (size_t j = 0; j < match_length; j++) {
-            *write_ptr = *(write_ptr - offset);
-            write_ptr++;
-        }
-
-        total_output += seq.match_length;
+        total_output += match_length;
     }
 
     // Copy any leftover literals
@@ -1382,6 +1354,44 @@ static size_t compute_offset(sequence_command_t seq, u64 *const offset_hist) {
         offset_hist[0] = offset;
     }
     return offset;
+}
+
+static void execute_match_copy(frame_context_t *const ctx, size_t offset,
+                              size_t match_length, size_t total_output,
+                              ostream_t *const out) {
+    u8 *write_ptr = IO_write_bytes(out, match_length);
+    if (total_output <= ctx->header.window_size) {
+        // In this case offset might go back into the dictionary
+        if (offset > total_output + ctx->dict_content_len) {
+            // The offset goes beyond even the dictionary
+            CORRUPTION();
+        }
+
+        if (offset > total_output) {
+            // "The rest of the dictionary is its content. The content act
+            // as a "past" in front of data to compress or decompress, so it
+            // can be referenced in sequence commands."
+            const size_t dict_copy =
+                MIN(offset - total_output, match_length);
+            const size_t dict_offset =
+                ctx->dict_content_len - (offset - total_output);
+
+            memcpy(write_ptr, ctx->dict_content + dict_offset, dict_copy);
+            write_ptr += dict_copy;
+            match_length -= dict_copy;
+        }
+    } else if (offset > ctx->header.window_size) {
+        CORRUPTION();
+    }
+
+    // We must copy byte by byte because the match length might be larger
+    // than the offset
+    // ex: if the output so far was "abc", a command with offset=3 and
+    // match_length=6 would produce "abcabcabc" as the new output
+    for (size_t j = 0; j < match_length; j++) {
+        *write_ptr = *(write_ptr - offset);
+        write_ptr++;
+    }
 }
 /******* END SEQUENCE EXECUTION ***********************************************/
 

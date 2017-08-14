@@ -356,6 +356,8 @@ static void execute_sequences(frame_context_t *const ctx, ostream_t *const out,
 static u32 copy_literals(sequence_command_t seq, istream_t *litstream,
                          ostream_t *const out);
 
+static size_t compute_offset(sequence_command_t seq, u64 *const offset_hist);
+
 /******* END ZSTD HELPER STRUCTS AND PROTOTYPES *******************************/
 
 size_t ZSTD_decompress(void *const dst, const size_t dst_len,
@@ -1263,51 +1265,7 @@ static void execute_sequences(frame_context_t *const ctx, ostream_t *const out,
             const u32 literals_size = copy_literals(seq, &litstream, out);
             total_output += literals_size;
         }
-        size_t offset;
-
-        // Offsets are special, we need to handle the repeat offsets
-        if (seq.offset <= 3) {
-            // "The first 3 values define a repeated offset and we will call
-            // them Repeated_Offset1, Repeated_Offset2, and Repeated_Offset3.
-            // They are sorted in recency order, with Repeated_Offset1 meaning
-            // 'most recent one'".
-
-            // Use 0 indexing for the array
-            u32 idx = seq.offset - 1;
-            if (seq.literal_length == 0) {
-                // "There is an exception though, when current sequence's
-                // literals length is 0. In this case, repeated offsets are
-                // shifted by one, so Repeated_Offset1 becomes Repeated_Offset2,
-                // Repeated_Offset2 becomes Repeated_Offset3, and
-                // Repeated_Offset3 becomes Repeated_Offset1 - 1_byte."
-                idx++;
-            }
-
-            if (idx == 0) {
-                offset = offset_hist[0];
-            } else {
-                // If idx == 3 then literal length was 0 and the offset was 3,
-                // as per the exception listed above
-                offset = idx < 3 ? offset_hist[idx] : offset_hist[0] - 1;
-
-                // If idx == 1 we don't need to modify offset_hist[2], since
-                // we're using the second-most recent code
-                if (idx > 1) {
-                    offset_hist[2] = offset_hist[1];
-                }
-                offset_hist[1] = offset_hist[0];
-                offset_hist[0] = offset;
-            }
-        } else {
-            // When it's not a repeat offset:
-            // "if (Offset_Value > 3) offset = Offset_Value - 3;"
-            offset = seq.offset - 3;
-
-            // Shift back history
-            offset_hist[2] = offset_hist[1];
-            offset_hist[1] = offset_hist[0];
-            offset_hist[0] = offset;
-        }
+        size_t offset = compute_offset(seq, offset_hist);
 
         size_t match_length = seq.match_length;
 
@@ -1376,6 +1334,54 @@ static u32 copy_literals(const sequence_command_t seq, istream_t *litstream,
     memcpy(write_ptr, read_ptr, seq.literal_length);
 
     return seq.literal_length;
+}
+
+static size_t compute_offset(sequence_command_t seq, u64 *const offset_hist) {
+    size_t offset;
+    // Offsets are special, we need to handle the repeat offsets
+    if (seq.offset <= 3) {
+        // "The first 3 values define a repeated offset and we will call
+        // them Repeated_Offset1, Repeated_Offset2, and Repeated_Offset3.
+        // They are sorted in recency order, with Repeated_Offset1 meaning
+        // 'most recent one'".
+
+        // Use 0 indexing for the array
+        u32 idx = seq.offset - 1;
+        if (seq.literal_length == 0) {
+            // "There is an exception though, when current sequence's
+            // literals length is 0. In this case, repeated offsets are
+            // shifted by one, so Repeated_Offset1 becomes Repeated_Offset2,
+            // Repeated_Offset2 becomes Repeated_Offset3, and
+            // Repeated_Offset3 becomes Repeated_Offset1 - 1_byte."
+            idx++;
+        }
+
+        if (idx == 0) {
+            offset = offset_hist[0];
+        } else {
+            // If idx == 3 then literal length was 0 and the offset was 3,
+            // as per the exception listed above
+            offset = idx < 3 ? offset_hist[idx] : offset_hist[0] - 1;
+
+            // If idx == 1 we don't need to modify offset_hist[2], since
+            // we're using the second-most recent code
+            if (idx > 1) {
+                offset_hist[2] = offset_hist[1];
+            }
+            offset_hist[1] = offset_hist[0];
+            offset_hist[0] = offset;
+        }
+    } else {
+        // When it's not a repeat offset:
+        // "if (Offset_Value > 3) offset = Offset_Value - 3;"
+        offset = seq.offset - 3;
+
+        // Shift back history
+        offset_hist[2] = offset_hist[1];
+        offset_hist[1] = offset_hist[0];
+        offset_hist[0] = offset;
+    }
+    return offset;
 }
 /******* END SEQUENCE EXECUTION ***********************************************/
 

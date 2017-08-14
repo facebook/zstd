@@ -353,6 +353,9 @@ static void execute_sequences(frame_context_t *const ctx, ostream_t *const out,
                               const sequence_command_t *const sequences,
                               const size_t num_sequences);
 
+static u32 copy_literals(sequence_command_t seq, istream_t *litstream,
+                         ostream_t *const out);
+
 /******* END ZSTD HELPER STRUCTS AND PROTOTYPES *******************************/
 
 size_t ZSTD_decompress(void *const dst, const size_t dst_len,
@@ -1256,23 +1259,10 @@ static void execute_sequences(frame_context_t *const ctx, ostream_t *const out,
 
     for (size_t i = 0; i < num_sequences; i++) {
         const sequence_command_t seq = sequences[i];
-
         {
-            // If the sequence asks for more literals than are left, the
-            // sequence must be corrupted
-            if (seq.literal_length > IO_istream_len(&litstream)) {
-                CORRUPTION();
-            }
-
-            u8 *const write_ptr = IO_write_bytes(out, seq.literal_length);
-            const u8 *const read_ptr =
-                    IO_read_bytes(&litstream, seq.literal_length);
-            // Copy literals to output
-            memcpy(write_ptr, read_ptr, seq.literal_length);
-
-            total_output += seq.literal_length;
+            const u32 literals_size = copy_literals(seq, &litstream, out);
+            total_output += literals_size;
         }
-
         size_t offset;
 
         // Offsets are special, we need to handle the repeat offsets
@@ -1369,6 +1359,23 @@ static void execute_sequences(frame_context_t *const ctx, ostream_t *const out,
     }
 
     ctx->current_total_output = total_output;
+}
+
+static u32 copy_literals(const sequence_command_t seq, istream_t *litstream,
+                         ostream_t *const out) {
+    // If the sequence asks for more literals than are left, the
+    // sequence must be corrupted
+    if (seq.literal_length > IO_istream_len(litstream)) {
+     CORRUPTION();
+    }
+
+    u8 *const write_ptr = IO_write_bytes(out, seq.literal_length);
+    const u8 *const read_ptr =
+         IO_read_bytes(litstream, seq.literal_length);
+    // Copy literals to output
+    memcpy(write_ptr, read_ptr, seq.literal_length);
+
+    return seq.literal_length;
 }
 /******* END SEQUENCE EXECUTION ***********************************************/
 

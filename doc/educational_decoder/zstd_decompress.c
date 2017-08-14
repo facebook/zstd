@@ -1495,6 +1495,8 @@ void free_dictionary(dictionary_t *const dict) {
     free(dict->content);
 
     memset(dict, 0, sizeof(dictionary_t));
+
+    free(dict);
 }
 /******* END DICTIONARY PARSING ***********************************************/
 

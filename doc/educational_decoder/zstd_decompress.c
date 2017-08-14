@@ -1404,6 +1404,7 @@ size_t ZSTD_get_decompressed_size(const void *src, const size_t src_len) {
 
 /******* DICTIONARY PARSING ***************************************************/
 #define DICT_SIZE_ERROR() ERROR("Dictionary size cannot be less than 8 bytes")
+#define NULL_SRC() ERROR("Tried to create dictionary with pointer to null src");
 
 dictionary_t* create_dictionary() {
     dictionary_t* dict = calloc(1, sizeof(dictionary_t));
@@ -1420,6 +1421,9 @@ void parse_dictionary(dictionary_t *const dict, const void *src,
                              size_t src_len) {
     const u8 *byte_src = (const u8 *)src;
     memset(dict, 0, sizeof(dictionary_t));
+    if (src == NULL) { /* cannot initialize dictionary with null src */
+        NULL_SRC();
+    }
     if (src_len < 8) {
         DICT_SIZE_ERROR();
     }

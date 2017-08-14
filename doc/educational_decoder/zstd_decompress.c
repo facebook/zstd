@@ -353,11 +353,18 @@ static void execute_sequences(frame_context_t *const ctx, ostream_t *const out,
                               const sequence_command_t *const sequences,
                               const size_t num_sequences);
 
+// Copies literals and returns the total literal length that was copied
 static u32 copy_literals(sequence_command_t seq, istream_t *litstream,
                          ostream_t *const out);
 
+// Given an offset code from a sequence command (either an actual offset value
+// or an index for previous offset), computes the correct offset and udpates
+// the offset history
 static size_t compute_offset(sequence_command_t seq, u64 *const offset_hist);
 
+// Given an offset, match length, and total output, as well as the frame
+// context for the dictionary, determines if the dictionary is used and
+// executes the copy operation
 static void execute_match_copy(frame_context_t *const ctx, size_t offset,
                               size_t match_length, size_t total_output,
                               ostream_t *const out);

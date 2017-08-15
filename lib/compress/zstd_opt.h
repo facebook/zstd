@@ -22,7 +22,7 @@
 /*-*************************************
 *  Price functions for optimal parser
 ***************************************/
-FORCE_INLINE void ZSTD_setLog2Prices(optState_t* optPtr)
+static void ZSTD_setLog2Prices(optState_t* optPtr)
 {
     optPtr->log2matchLengthSum = ZSTD_highbit32(optPtr->matchLengthSum+1);
     optPtr->log2litLengthSum = ZSTD_highbit32(optPtr->litLengthSum+1);
@@ -32,7 +32,7 @@ FORCE_INLINE void ZSTD_setLog2Prices(optState_t* optPtr)
 }
 
 
-MEM_STATIC void ZSTD_rescaleFreqs(optState_t* optPtr, const BYTE* src, size_t srcSize)
+static void ZSTD_rescaleFreqs(optState_t* optPtr, const BYTE* src, size_t srcSize)
 {
     unsigned u;
 
@@ -96,7 +96,7 @@ MEM_STATIC void ZSTD_rescaleFreqs(optState_t* optPtr, const BYTE* src, size_t sr
 }
 
 
-FORCE_INLINE U32 ZSTD_getLiteralPrice(optState_t* optPtr, U32 litLength, const BYTE* literals)
+static U32 ZSTD_getLiteralPrice(optState_t* optPtr, U32 litLength, const BYTE* literals)
 {
     U32 price, u;
 
@@ -137,7 +137,7 @@ FORCE_INLINE U32 ZSTD_getLiteralPrice(optState_t* optPtr, U32 litLength, const B
 }
 
 
-FORCE_INLINE U32 ZSTD_getPrice(optState_t* optPtr, U32 litLength, const BYTE* literals, U32 offset, U32 matchLength, const int ultra)
+FORCE_INLINE_TEMPLATE U32 ZSTD_getPrice(optState_t* optPtr, U32 litLength, const BYTE* literals, U32 offset, U32 matchLength, const int ultra)
 {
     /* offset */
     U32 price;
@@ -159,7 +159,7 @@ FORCE_INLINE U32 ZSTD_getPrice(optState_t* optPtr, U32 litLength, const BYTE* li
 }
 
 
-MEM_STATIC void ZSTD_updatePrice(optState_t* optPtr, U32 litLength, const BYTE* literals, U32 offset, U32 matchLength)
+static void ZSTD_updatePrice(optState_t* optPtr, U32 litLength, const BYTE* literals, U32 offset, U32 matchLength)
 {
     U32 u;
 
@@ -203,7 +203,7 @@ MEM_STATIC void ZSTD_updatePrice(optState_t* optPtr, U32 litLength, const BYTE* 
 
 
 /* function safe only for comparisons */
-MEM_STATIC U32 ZSTD_readMINMATCH(const void* memPtr, U32 length)
+static U32 ZSTD_readMINMATCH(const void* memPtr, U32 length)
 {
     switch (length)
     {
@@ -219,7 +219,7 @@ MEM_STATIC U32 ZSTD_readMINMATCH(const void* memPtr, U32 length)
 
 /* Update hashTable3 up to ip (excluded)
    Assumption : always within prefix (i.e. not within extDict) */
-FORCE_INLINE
+static
 U32 ZSTD_insertAndFindFirstIndexHash3 (ZSTD_CCtx* zc, const BYTE* ip)
 {
     U32* const hashTable3  = zc->hashTable3;
@@ -412,7 +412,7 @@ static U32 ZSTD_BtGetAllMatches_selectMLS_extDict (
 /*-*******************************
 *  Optimal parser
 *********************************/
-FORCE_INLINE
+FORCE_INLINE_TEMPLATE
 void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
                                     const void* src, size_t srcSize, const int ultra)
 {
@@ -662,7 +662,7 @@ _storeSequence:   /* cur, last_pos, best_mlen, best_off have to be set */
 }
 
 
-FORCE_INLINE
+FORCE_INLINE_TEMPLATE
 void ZSTD_compressBlock_opt_extDict_generic(ZSTD_CCtx* ctx,
                                      const void* src, size_t srcSize, const int ultra)
 {

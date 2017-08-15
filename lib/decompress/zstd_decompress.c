@@ -53,15 +53,6 @@
 #  include "zstd_legacy.h"
 #endif
 
-#if defined(_MSC_VER) && (defined(_M_X64) || defined(_M_I86))  /* _mm_prefetch() is not defined outside of x86/x64 */
-#  include <mmintrin.h>   /* https://msdn.microsoft.com/fr-fr/library/84szxsww(v=vs.90).aspx */
-#  define ZSTD_PREFETCH(ptr)   _mm_prefetch((const char*)ptr, _MM_HINT_T0)
-#elif defined(__GNUC__)
-#  define ZSTD_PREFETCH(ptr)   __builtin_prefetch(ptr, 0, 0)
-#else
-#  define ZSTD_PREFETCH(ptr)   /* disabled */
-#endif
-
 
 /*-*************************************
 *  Errors
@@ -953,7 +944,7 @@ static seq_t ZSTD_decodeSequence(seqState_t* seqState)
 }
 
 
-FORCE_INLINE
+HINT_INLINE
 size_t ZSTD_execSequence(BYTE* op,
                          BYTE* const oend, seq_t sequence,
                          const BYTE** litPtr, const BYTE* const litLimit,
@@ -1097,7 +1088,7 @@ static size_t ZSTD_decompressSequences(
 }
 
 
-FORCE_INLINE seq_t ZSTD_decodeSequenceLong_generic(seqState_t* seqState, int const longOffsets)
+FORCE_INLINE_TEMPLATE seq_t ZSTD_decodeSequenceLong_generic(seqState_t* seqState, int const longOffsets)
 {
     seq_t seq;
 
@@ -1197,7 +1188,7 @@ static seq_t ZSTD_decodeSequenceLong(seqState_t* seqState, unsigned const window
     }
 }
 
-FORCE_INLINE
+HINT_INLINE
 size_t ZSTD_execSequenceLong(BYTE* op,
                                 BYTE* const oend, seq_t sequence,
                                 const BYTE** litPtr, const BYTE* const litLimit,
@@ -1333,7 +1324,7 @@ static size_t ZSTD_decompressSequencesLong(
             seq_t const sequence = ZSTD_decodeSequenceLong(&seqState, windowSize32);
             size_t const oneSeqSize = ZSTD_execSequenceLong(op, oend, sequences[(seqNb-ADVANCED_SEQS) & STOSEQ_MASK], &litPtr, litEnd, base, vBase, dictEnd);
             if (ZSTD_isError(oneSeqSize)) return oneSeqSize;
-            ZSTD_PREFETCH(sequence.match);
+            PREFETCH(sequence.match);
             sequences[seqNb&STOSEQ_MASK] = sequence;
             op += oneSeqSize;
         }

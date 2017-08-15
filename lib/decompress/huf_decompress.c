@@ -33,29 +33,11 @@
 ****************************************************************** */
 
 /* **************************************************************
-*  Compiler specifics
-****************************************************************/
-#ifdef _MSC_VER    /* Visual Studio */
-#  define FORCE_INLINE static __forceinline
-#  pragma warning(disable : 4127)        /* disable: C4127: conditional expression is constant */
-#else
-#  if defined (__cplusplus) || defined (__STDC_VERSION__) && __STDC_VERSION__ >= 199901L   /* C99 */
-#    ifdef __GNUC__
-#      define FORCE_INLINE static inline __attribute__((always_inline))
-#    else
-#      define FORCE_INLINE static inline
-#    endif
-#  else
-#    define FORCE_INLINE static
-#  endif /* __STDC_VERSION__ */
-#endif
-
-
-/* **************************************************************
 *  Dependencies
 ****************************************************************/
 #include <string.h>     /* memcpy, memset */
 #include "bitstream.h"  /* BIT_* */
+#include "compiler.h"
 #include "fse.h"        /* header compression */
 #define HUF_STATIC_LINKING_ONLY
 #include "huf.h"
@@ -180,7 +162,7 @@ static BYTE HUF_decodeSymbolX2(BIT_DStream_t* Dstream, const HUF_DEltX2* dt, con
     if (MEM_64bits()) \
         HUF_DECODE_SYMBOLX2_0(ptr, DStreamPtr)
 
-FORCE_INLINE size_t HUF_decodeStreamX2(BYTE* p, BIT_DStream_t* const bitDPtr, BYTE* const pEnd, const HUF_DEltX2* const dt, const U32 dtLog)
+HINT_INLINE size_t HUF_decodeStreamX2(BYTE* p, BIT_DStream_t* const bitDPtr, BYTE* const pEnd, const HUF_DEltX2* const dt, const U32 dtLog)
 {
     BYTE* const pStart = p;
 
@@ -639,7 +621,7 @@ static U32 HUF_decodeLastSymbolX4(void* op, BIT_DStream_t* DStream, const HUF_DE
     if (MEM_64bits()) \
         ptr += HUF_decodeSymbolX4(ptr, DStreamPtr, dt, dtLog)
 
-FORCE_INLINE size_t HUF_decodeStreamX4(BYTE* p, BIT_DStream_t* bitDPtr, BYTE* const pEnd, const HUF_DEltX4* const dt, const U32 dtLog)
+HINT_INLINE size_t HUF_decodeStreamX4(BYTE* p, BIT_DStream_t* bitDPtr, BYTE* const pEnd, const HUF_DEltX4* const dt, const U32 dtLog)
 {
     BYTE* const pStart = p;
 

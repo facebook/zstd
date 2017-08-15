@@ -1,7 +1,7 @@
-From cc08b43a31fed1289c2027d5090999da569457f1 Mon Sep 17 00:00:00 2001
+From 57a3cf95b276946559f9e044c7352c11303bb9c1 Mon Sep 17 00:00:00 2001
 From: Sean Purcell <me@seanp.xyz>
 Date: Thu, 3 Aug 2017 17:47:03 -0700
-Subject: [PATCH v5] squashfs-tools: Add zstd support
+Subject: [PATCH v6] squashfs-tools: Add zstd support
 
 This patch adds zstd support to squashfs-tools. It works with zstd
 versions >= 1.0.0. It was originally written by Sean Purcell.
@@ -14,20 +14,23 @@ v4 -> v5:
 - Don't strip trailing whitespace of unreleated code
 - Make zstd_display_options() static
 
- squashfs-tools/Makefile       |  21 ++++
+v5 -> v6:
+- Fix build instructions in Makefile
+
+ squashfs-tools/Makefile       |  20 ++++
  squashfs-tools/compressor.c   |   8 ++
  squashfs-tools/squashfs_fs.h  |   1 +
  squashfs-tools/zstd_wrapper.c | 254 ++++++++++++++++++++++++++++++++++++++++++
  squashfs-tools/zstd_wrapper.h |  48 ++++++++
- 5 files changed, 332 insertions(+)
+ 5 files changed, 331 insertions(+)
  create mode 100644 squashfs-tools/zstd_wrapper.c
  create mode 100644 squashfs-tools/zstd_wrapper.h
 
 diff --git a/squashfs-tools/Makefile b/squashfs-tools/Makefile
-index 52d2582..8e82e09 100644
+index 52d2582..22fc559 100644
 --- a/squashfs-tools/Makefile
 +++ b/squashfs-tools/Makefile
-@@ -75,6 +75,19 @@ GZIP_SUPPORT = 1
+@@ -75,6 +75,18 @@ GZIP_SUPPORT = 1
  #LZMA_SUPPORT = 1
  #LZMA_DIR = ../../../../LZMA/lzma465
 
@@ -38,16 +41,15 @@ index 52d2582..8e82e09 100644
 +# ZSTD homepage: http://zstd.net
 +# ZSTD source repository: https://github.com/facebook/zstd
 +#
-+# To build configure the tools using cmake to build shared libraries,
-+# install and uncomment
-+# the ZSTD_SUPPORT line below.
++# To build using the ZSTD library - install the library and uncomment the
++# ZSTD_SUPPORT line below.
 +#
 +#ZSTD_SUPPORT = 1
 +
  ######## Specifying default compression ########
  #
  # The next line specifies which compression algorithm is used by default
-@@ -177,6 +190,14 @@ LIBS += -llz4
+@@ -177,6 +189,14 @@ LIBS += -llz4
  COMPRESSORS += lz4
  endif
 
@@ -415,4 +417,4 @@ index 0000000..4fbef0a
 +};
 +#endif
 --
-2.9.3
+2.9.5

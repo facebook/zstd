@@ -94,10 +94,10 @@ static inline size_t IO_istream_len(const istream_t *const in);
 
 /// Advances the stream by `len` bytes, and returns a pointer to the chunk that
 /// was skipped.  The stream must be byte aligned.
-static inline const u8 *IO_read_bytes(istream_t *const in, size_t len);
+static inline const u8 *IO_get_read_ptr(istream_t *const in, size_t len);
 /// Advances the stream by `len` bytes, and returns a pointer to the chunk that
 /// was skipped so it can be written to.
-static inline u8 *IO_write_bytes(ostream_t *const out, size_t len);
+static inline u8 *IO_get_write_ptr(ostream_t *const out, size_t len);
 
 /// Advance the inner state by `len` bytes.  The stream must be byte aligned.
 static inline void IO_advance_input(istream_t *const in, size_t len);
@@ -641,8 +641,8 @@ static void decompress_data(frame_context_t *const ctx, ostream_t *const out,
         case 0: {
             // "Raw_Block - this is an uncompressed block. Block_Size is the
             // number of bytes to read and copy."
-            const u8 *const read_ptr = IO_read_bytes(in, block_len);
-            u8 *const write_ptr = IO_write_bytes(out, block_len);
+            const u8 *const read_ptr = IO_get_read_ptr(in, block_len);
+            u8 *const write_ptr = IO_get_write_ptr(out, block_len);
 
             // Copy the raw data into the output
             memcpy(write_ptr, read_ptr, block_len);
@@ -654,8 +654,8 @@ static void decompress_data(frame_context_t *const ctx, ostream_t *const out,
             // "RLE_Block - this is a single byte, repeated N times. In which
             // case, Block_Size is the size to regenerate, while the
             // "compressed" block is just 1 byte (the byte to repeat)."
-            const u8 *const read_ptr = IO_read_bytes(in, 1);
-            u8 *const write_ptr = IO_write_bytes(out, block_len);
+            const u8 *const read_ptr = IO_get_read_ptr(in, 1);
+            u8 *const write_ptr = IO_get_write_ptr(out, block_len);
 
             // Copy `block_len` copies of `read_ptr[0]` to the output
             memset(write_ptr, read_ptr[0], block_len);
@@ -801,13 +801,13 @@ static size_t decode_literals_simple(istream_t *const in, u8 **const literals,
     switch (block_type) {
     case 0: {
         // "Raw_Literals_Block - Literals are stored uncompressed."
-        const u8 *const read_ptr = IO_read_bytes(in, size);
+        const u8 *const read_ptr = IO_get_read_ptr(in, size);
         memcpy(*literals, read_ptr, size);
         break;
     }
     case 1: {
         // "RLE_Literals_Block - Literals consist of a single byte value repeated N times."
-        const u8 *const read_ptr = IO_read_bytes(in, 1);
+        const u8 *const read_ptr = IO_get_read_ptr(in, 1);
         memset(*literals, read_ptr[0], size);
         break;
     }
@@ -918,7 +918,7 @@ static void decode_huf_table(HUF_dtable *const dtable, istream_t *const in) {
         num_symbs = header - 127;
         const size_t bytes = (num_symbs + 1) / 2;
 
-        const u8 *const weight_src = IO_read_bytes(in, bytes);
+        const u8 *const weight_src = IO_get_read_ptr(in, bytes);
 
         for (int i = 0; i < num_symbs; i++) {
             // "They are encoded forward, 2
@@ -1126,7 +1126,7 @@ static void decompress_sequences(frame_context_t *const ctx, istream_t *in,
     }
 
     const size_t len = IO_istream_len(in);
-    const u8 *const src = IO_read_bytes(in, len);
+    const u8 *const src = IO_get_read_ptr(in, len);
 
     // "After writing the last bit containing information, the compressor writes
     // a single 1-bit and then fills the byte with 0-7 0 bits of padding."
@@ -1231,7 +1231,7 @@ static void decode_seq_table(FSE_dtable *const table, istream_t *const in,
     }
     case seq_rle: {
         // "RLE_Mode : it's a single code, repeated Number_of_Sequences times."
-        const u8 symb = IO_read_bytes(in, 1)[0];
+        const u8 symb = IO_get_read_ptr(in, 1)[0];
         FSE_init_dtable_rle(table, symb);
         break;
     }
@@ -1288,8 +1288,8 @@ static void execute_sequences(frame_context_t *const ctx, ostream_t *const out,
     // Copy any leftover literals
     {
         size_t len = IO_istream_len(&litstream);
-        u8 *const write_ptr = IO_write_bytes(out, len);
-        const u8 *const read_ptr = IO_read_bytes(&litstream, len);
+        u8 *const write_ptr = IO_get_write_ptr(out, len);
+        const u8 *const read_ptr = IO_get_read_ptr(&litstream, len);
         memcpy(write_ptr, read_ptr, len);
 
         total_output += len;
@@ -1306,9 +1306,9 @@ static u32 copy_literals(const sequence_command_t seq, istream_t *litstream,
      CORRUPTION();
     }
 
-    u8 *const write_ptr = IO_write_bytes(out, seq.literal_length);
+    u8 *const write_ptr = IO_get_write_ptr(out, seq.literal_length);
     const u8 *const read_ptr =
-         IO_read_bytes(litstream, seq.literal_length);
+         IO_get_read_ptr(litstream, seq.literal_length);
     // Copy literals to output
     memcpy(write_ptr, read_ptr, seq.literal_length);
 
@@ -1366,7 +1366,7 @@ static size_t compute_offset(sequence_command_t seq, u64 *const offset_hist) {
 static void execute_match_copy(frame_context_t *const ctx, size_t offset,
                               size_t match_length, size_t total_output,
                               ostream_t *const out) {
-    u8 *write_ptr = IO_write_bytes(out, match_length);
+    u8 *write_ptr = IO_get_write_ptr(out, match_length);
     if (total_output <= ctx->header.window_size) {
         // In this case offset might go back into the dictionary
         if (offset > total_output + ctx->dict_content_len) {
@@ -1510,7 +1510,7 @@ static void init_dictionary_content(dictionary_t *const dict,
         BAD_ALLOC();
     }
 
-    const u8 *const content = IO_read_bytes(in, dict->content_size);
+    const u8 *const content = IO_get_read_ptr(in, dict->content_size);
 
     memcpy(dict->content, content, dict->content_size);
 }
@@ -1605,7 +1605,7 @@ static inline size_t IO_istream_len(const istream_t *const in) {
 
 /// Returns a pointer where `len` bytes can be read, and advances the internal
 /// state.  The stream must be byte aligned.
-static inline const u8 *IO_read_bytes(istream_t *const in, size_t len) {
+static inline const u8 *IO_get_read_ptr(istream_t *const in, size_t len) {
     if (len > in->len) {
         INP_SIZE();
     }
@@ -1619,7 +1619,7 @@ static inline const u8 *IO_read_bytes(istream_t *const in, size_t len) {
     return ptr;
 }
 /// Returns a pointer to write `len` bytes to, and advances the internal state
-static inline u8 *IO_write_bytes(ostream_t *const out, size_t len) {
+static inline u8 *IO_get_write_ptr(ostream_t *const out, size_t len) {
     if (len > out->len) {
         OUT_SIZE();
     }
@@ -1658,7 +1658,7 @@ static inline istream_t IO_make_istream(const u8 *in, size_t len) {
 /// `in` must be byte aligned
 static inline istream_t IO_make_sub_istream(istream_t *const in, size_t len) {
     // Consume `len` bytes of the parent stream
-    const u8 *const ptr = IO_read_bytes(in, len);
+    const u8 *const ptr = IO_get_read_ptr(in, len);
 
     // Make a substream using the pointer to those `len` bytes
     return IO_make_istream(ptr, len);
@@ -1762,7 +1762,7 @@ static size_t HUF_decompress_1stream(const HUF_dtable *const dtable,
     if (len == 0) {
         INP_SIZE();
     }
-    const u8 *const src = IO_read_bytes(in, len);
+    const u8 *const src = IO_get_read_ptr(in, len);
 
     // "Each bitstream must be read backward, that is starting from the end down
     // to the beginning. Therefore it's necessary to know the size of each
@@ -2013,7 +2013,7 @@ static size_t FSE_decompress_interleaved2(const FSE_dtable *const dtable,
     if (len == 0) {
         INP_SIZE();
     }
-    const u8 *const src = IO_read_bytes(in, len);
+    const u8 *const src = IO_get_read_ptr(in, len);
 
     // "Each bitstream must be read backward, that is starting from the end down
     // to the beginning. Therefore it's necessary to know the size of each
